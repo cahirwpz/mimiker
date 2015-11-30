@@ -9,20 +9,24 @@ OBJDUMP	= $(P)objdump
 CFLAGS	= -O -Wall -Werror -DPIC32MZ
 LDFLAGS	= -T pic32mz.ld -e _start -Wl,-Map=pic32mz.map
 
-PROG = uart
+PROGNAME = main
+SOURCES = main.c uart_raw.c
+OBJECTS := $(SOURCES:.c=.o)
 
-all: $(PROG).srec
+all: $(PROGNAME).srec
 
-$(PROG).srec: $(PROG).c
+$(PROGNAME).srec: $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(PROGNAME).elf
+	$(OBJCOPY) -O srec $(PROGNAME).elf $(PROGNAME).srec
+
+%.o: %.c
 	$(CC) $(CFLAGS) -c $<
-	$(CC) $(LDFLAGS) $(PROG).o $(LIBS) -o $(PROG).elf
-	$(OBJCOPY) -O srec $(PROG).elf $(PROG).srec
 
-debug: $(PROG).srec
-	$(GDB) $(PROG).elf
+debug: $(PROGNAME).srec
+	$(GDB) $(PROGNAME).elf
 
-qemu: $(PROG).srec
-	$(QEMU) -kernel $(PROG).srec
+qemu: $(PROGNAME).srec
+	$(QEMU) -kernel $(PROGNAME).srec
 
 clean:
 	rm -f *.o *.lst *~ *.elf *.srec *.map
