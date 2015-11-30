@@ -2,8 +2,8 @@
  * Include processor definitions.
  */
 #include "pic32mz.h"
-
-#define MHZ     200             /* CPU clock. */
+#include "uart_raw.h"
+#include "global_config.h"
 
 /*
  * Chip configuration.
@@ -65,69 +65,6 @@ void udelay (unsigned usec)
     }
 }
 
-/*
- * Send a byte to the UART transmitter, with interrupts disabled.
- */
-void putch (unsigned char c)
-{
-    /* Wait for transmitter shift register empty. */
-    while (! (U1STA & PIC32_USTA_TRMT))
-        continue;
-
-again:
-    /* Send byte. */
-    U1TXREG = c;
-
-    /* Wait for transmitter shift register empty. */
-    while (! (U1STA & PIC32_USTA_TRMT))
-        continue;
-
-    if (c == '\n') {
-        c = '\r';
-        goto again;
-    }
-}
-
-/*
- * Wait for the byte to be received and return it.
- */
-unsigned getch (void)
-{
-    unsigned c;
-
-    for (;;) {
-        /* Wait until receive data available. */
-        if (U1STA & PIC32_USTA_URXDA) {
-            c = (unsigned char) U1RXREG;
-            break;
-        }
-    }
-    return c;
-}
-
-int hexchar (unsigned val)
-{
-    return "0123456789abcdef" [val & 0xf];
-}
-
-void printreg (const char *p, unsigned val)
-{
-    for (; *p; ++p)
-        putch (*p);
-
-    putch ('=');
-    putch (' ');
-    putch (hexchar (val >> 28));
-    putch (hexchar (val >> 24));
-    putch (hexchar (val >> 20));
-    putch (hexchar (val >> 16));
-    putch (hexchar (val >> 12));
-    putch (hexchar (val >> 8));
-    putch (hexchar (val >> 4));
-    putch (hexchar (val));
-    putch ('\n');
-}
-
 int main()
 {
     /* Initialize coprocessor 0. */
@@ -145,48 +82,41 @@ int main()
     TRISFCLR = 0x3000;
 
     /* Initialize UART. */
-    U1RXR = 2;                          /* assign UART1 receive to pin RPF4 */
-    RPF5R = 1;                          /* assign pin RPF5 to UART1 transmit */
-
-    U1BRG = PIC32_BRG_BAUD (MHZ * 500000, 115200);
-    U1STA = 0;
-    U1MODE = PIC32_UMODE_PDSEL_8NPAR |      /* 8-bit data, no parity */
-             PIC32_UMODE_ON;                /* UART Enable */
-    U1STASET = PIC32_USTA_URXEN |           /* Receiver Enable */
-               PIC32_USTA_UTXEN;            /* Transmit Enable */
-
+    uart_init();
+    uart_putstr("Hello, UART!\n");
+    
     /*
      * Print initial state of control registers.
      */
-    putch ('-');
-    putch ('\n');
-    printreg ("Status  ", mfc0(12, 0));
-    printreg ("IntCtl  ", mfc0(12, 1));
-    printreg ("SRSCtl  ", mfc0(12, 2));
-    printreg ("Cause   ", mfc0(13, 0));
-    printreg ("PRId    ", mfc0(15, 0));
-    printreg ("EBase   ", mfc0(15, 1));
-    printreg ("CDMMBase", mfc0(15, 2));
-    printreg ("Config  ", mfc0(16, 0));
-    printreg ("Config1 ", mfc0(16, 1));
-    printreg ("Config2 ", mfc0(16, 2));
-    printreg ("Config3 ", mfc0(16, 3));
-    printreg ("Config4 ", mfc0(16, 4));
-    printreg ("Config5 ", mfc0(16, 5));
-    printreg ("Config7 ", mfc0(16, 7));
-    printreg ("WatchHi ", mfc0(19, 0));
-    printreg ("WatchHi1", mfc0(19, 1));
-    printreg ("WatchHi2", mfc0(19, 2));
-    printreg ("WatchHi3", mfc0(19, 3));
-    printreg ("Debug   ", mfc0(23, 0));
-    printreg ("PerfCtl0", mfc0(25, 0));
-    printreg ("PerfCtl1", mfc0(25, 2));
-    printreg ("DEVID   ", DEVID);
-    printreg ("OSCCON  ", OSCCON);
-    printreg ("DEVCFG0 ", DEVCFG0);
-    printreg ("DEVCFG1 ", DEVCFG1);
-    printreg ("DEVCFG2 ", DEVCFG2);
-    printreg ("DEVCFG3 ", DEVCFG3);
+    uart_putch ('-');
+    uart_putch ('\n');
+    uart_printreg ("Status  ", mfc0(12, 0));
+    uart_printreg ("IntCtl  ", mfc0(12, 1));
+    uart_printreg ("SRSCtl  ", mfc0(12, 2));
+    uart_printreg ("Cause   ", mfc0(13, 0));
+    uart_printreg ("PRId    ", mfc0(15, 0));
+    uart_printreg ("EBase   ", mfc0(15, 1));
+    uart_printreg ("CDMMBase", mfc0(15, 2));
+    uart_printreg ("Config  ", mfc0(16, 0));
+    uart_printreg ("Config1 ", mfc0(16, 1));
+    uart_printreg ("Config2 ", mfc0(16, 2));
+    uart_printreg ("Config3 ", mfc0(16, 3));
+    uart_printreg ("Config4 ", mfc0(16, 4));
+    uart_printreg ("Config5 ", mfc0(16, 5));
+    uart_printreg ("Config7 ", mfc0(16, 7));
+    uart_printreg ("WatchHi ", mfc0(19, 0));
+    uart_printreg ("WatchHi1", mfc0(19, 1));
+    uart_printreg ("WatchHi2", mfc0(19, 2));
+    uart_printreg ("WatchHi3", mfc0(19, 3));
+    uart_printreg ("Debug   ", mfc0(23, 0));
+    uart_printreg ("PerfCtl0", mfc0(25, 0));
+    uart_printreg ("PerfCtl1", mfc0(25, 2));
+    uart_printreg ("DEVID   ", DEVID);
+    uart_printreg ("OSCCON  ", OSCCON);
+    uart_printreg ("DEVCFG0 ", DEVCFG0);
+    uart_printreg ("DEVCFG1 ", DEVCFG1);
+    uart_printreg ("DEVCFG2 ", DEVCFG2);
+    uart_printreg ("DEVCFG3 ", DEVCFG3);
 
     while (1) {
         /* Invert pins PA7-PA0. */
@@ -200,6 +130,6 @@ int main()
         LATAINV = 1 << 7;  udelay (100000);
 
         loop++;
-        putch ('.');
+        uart_putch ('.');
     }
 }
