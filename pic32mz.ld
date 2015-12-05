@@ -19,6 +19,7 @@ SECTIONS
 
   .text : AT(ORIGIN(flash))
   {
+    _text = ABSOLUTE(.);
     /* Exception handlers. */
     *(.exception)
     /* Execution starts here. */
@@ -49,6 +50,7 @@ SECTIONS
   .data : AT(ADDR(.text) + SIZEOF(.text))
   {
     __data_start = ABSOLUTE(.);
+    _data = ABSOLUTE(.);
     _gp = .; 	/* We have only 32k RAM on MC-24, so no need for 0x8000 offset. */
     *(.data .data.*)
     /* We want the small data sections together, so single-instruction offsets
@@ -61,6 +63,7 @@ SECTIONS
 
   .bss ADDR (.data) + SIZEOF (.data) (NOLOAD) :
   {
+    _bss = ABSOLUTE(.);
     __bss_start = ABSOLUTE(.);
     *(.sbss .scommon)
     *(.bss .bss.*)
