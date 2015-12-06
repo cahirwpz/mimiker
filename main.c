@@ -80,9 +80,9 @@ int kernel_main()
     /* Test whether .bss appears to have been cleared. */
     char* p = empty;
     while(p < empty + sizeof(empty))
-      if(*p++ != 0x00)
-	uart_putstr("Apparently .bss was not cleared!\n");
-        // TODO: Exit main? Ignore?
+        if(*p++ != 0x00)
+            uart_putstr("Apparently .bss was not cleared!\n");
+            // TODO: Exit main? Ignore?
     
     /*
      * Print initial state of control registers.
