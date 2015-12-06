@@ -9,7 +9,7 @@ OBJCOPY	= $(P)objcopy
 OBJDUMP	= $(P)objdump
 CFLAGS	= -O -Wall -Werror -DPIC32MZ
 LDSCRIPT= pic32mz.ld
-LDFLAGS	= -T $(LDSCRIPT) -e _start -Wl,-Map=pic32mz.map
+LDFLAGS	= -T $(LDSCRIPT) -Wl,-Map=pic32mz.map
 
 PROGNAME = main
 SOURCES = main.c uart_raw.c

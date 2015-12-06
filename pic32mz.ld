@@ -2,7 +2,7 @@
  * Linker script for PIC32MZ firmware.
  */
 OUTPUT_ARCH(mips)
-ENTRY(_reset_vector_)
+ENTRY(_start)
 MEMORY
 {
   flash   (rx)   : ORIGIN = 0xbfc00000,	LENGTH = 0xff00
