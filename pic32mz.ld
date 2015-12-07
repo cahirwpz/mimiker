@@ -22,6 +22,7 @@ SECTIONS
     __text = ABSOLUTE(.);
     /* Exception handlers. */
     *(.exception)
+    . = 0x500;
     /* Execution starts here. */
     *(.init)
     *(.text .text.*)

@@ -1,11 +1,8 @@
 #include <mips/m32c0.h>
-
-    .section .exception
-    .globl _start
-    .type _start, function
     .set noreorder      // Disable automatic instruction reordering.
 
-.org 0x000
+/* Exception vector. */
+.section .exception
 .ent __reset_vector
 __reset_vector:
     la  $a0, _start     // Jump to _start.
@@ -14,8 +11,10 @@ __reset_vector:
 .end __reset_vector
 
 
-/* Startup routine placed after exception vectors. */
-.org 0x500
+/* Startup routine. */
+.section .init
+.globl _start
+.type _start, function
 .ent _start
 _start:
     la  $sp, _estack    // Set stack pointer.
