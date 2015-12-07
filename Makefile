@@ -13,9 +13,9 @@ LDFLAGS	= -T $(LDSCRIPT) -Wl,-Map=pic32mz.map
 
 PROGNAME = main
 SOURCES = main.c uart_raw.c
-SOURCES_ASM = startup.s
+SOURCES_ASM = startup.S
 OBJECTS := $(SOURCES:.c=.o)
-OBJECTS_ASM := $(SOURCES_ASM:.s=.o)
+OBJECTS_ASM := $(SOURCES_ASM:.S=.o)
 OBJECTS += $(OBJECTS_ASM)
 
 all: $(PROGNAME).srec

@@ -1,3 +1,5 @@
+#include <mips/m32c0.h>
+
 	.section .exception
 	.globl _start
 	.type _start, function
@@ -48,7 +50,7 @@ clear_bss:
 	/* Jump to kernel_main(). */
 	la $ra, kernel_main_exit # Set return address for kernel_main
     la      $t0, kernel_main
-    mtc0    $t0, $30      # Store kernel_main address as exception return address to ErrorEPC
+    mtc0    $t0, C0_ERRPC # Store kernel_main address as exception return address to ErrorEPC
 	eret				  # Exception return.
 
 kernel_main_exit:
