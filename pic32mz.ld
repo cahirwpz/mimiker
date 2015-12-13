@@ -2,7 +2,7 @@
  * Linker script for PIC32MZ firmware.
  */
 OUTPUT_ARCH(mips)
-ENTRY(_reset_vector_)
+ENTRY(_start)
 MEMORY
 {
   flash   (rx)   : ORIGIN = 0xbfc00000,	LENGTH = 0xff00
@@ -19,8 +19,10 @@ SECTIONS
 
   .text : AT(ORIGIN(flash))
   {
+    __text = ABSOLUTE(.);
     /* Exception handlers. */
     *(.exception)
+    . = 0x500;
     /* Execution starts here. */
     *(.init)
     *(.text .text.*)
@@ -28,7 +30,7 @@ SECTIONS
     __rodata_start = ABSOLUTE(.);
     *(.rodata .rodata.*)
     __rodata_end = ABSOLUTE(.);
-    _etext = ABSOLUTE(.);
+    __etext = ABSOLUTE(.);
   } > flash
 
   /* Device configuration.  */
@@ -49,6 +51,7 @@ SECTIONS
   .data : AT(ADDR(.text) + SIZEOF(.text))
   {
     __data_start = ABSOLUTE(.);
+    __data = ABSOLUTE(.);
     _gp = .; 	/* We have only 32k RAM on MC-24, so no need for 0x8000 offset. */
     *(.data .data.*)
     /* We want the small data sections together, so single-instruction offsets
@@ -56,18 +59,19 @@ SECTIONS
        we can shorten the on-disk segment size.  */
     *(.sdata .sdata.*)
     . = ALIGN(4);
-    _edata = ABSOLUTE(.);
+    __edata = ABSOLUTE(.);
   }
 
   .bss ADDR (.data) + SIZEOF (.data) (NOLOAD) :
   {
+    __bss = ABSOLUTE(.);
     __bss_start = ABSOLUTE(.);
     *(.sbss .scommon)
     *(.bss .bss.*)
     *(COMMON)
     . = ALIGN (4);
     __bss_end = ABSOLUTE(.);
-    _ebss = ABSOLUTE(.);
+    __ebss = ABSOLUTE(.);
   }
 
   _end = .;

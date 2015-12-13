@@ -5,6 +5,9 @@
 #include "uart_raw.h"
 #include "global_config.h"
 
+char str[] = "This is a global string!\n";
+char empty[100]; /* This should land in .bss and get cleared by _start procedure. */
+
 /*
  * Chip configuration.
  */
@@ -29,20 +32,6 @@ PIC32_DEVCFG (
     DEVCFG3_FETHIO |            /* Default Ethernet pins */
     DEVCFG3_USERID(0xffff));    /* User-defined ID */
 
-/*
- * Boot code at bfc00000.
- * Setup stack pointer and $gp registers, and jump to main().
- */
-asm ("          .section .exception");
-asm ("          .globl _start");
-asm ("          .type _start, function");
-asm ("_start:   la      $sp, _estack");
-asm ("          la      $ra, main");
-asm ("          la      $gp, _gp");
-asm ("          jr      $ra");
-asm ("          .text");
-asm ("_estack   = _end + 0x1000");
-
 static volatile unsigned loop;
 
 /*
@@ -65,7 +54,7 @@ void udelay (unsigned usec)
     }
 }
 
-int main()
+int kernel_main()
 {
     /* Initialize coprocessor 0. */
     mtc0 (C0_COUNT, 0, 0);
@@ -84,6 +73,16 @@ int main()
     /* Initialize UART. */
     uart_init();
     uart_putstr("Hello, UART!\n");
+
+    /* Demonstrate access to .data */
+    uart_putstr(str);
+
+    /* Test whether .bss appears to have been cleared. */
+    char* p = empty;
+    while(p < empty + sizeof(empty))
+        if(*p++ != 0x00)
+            uart_putstr("Apparently .bss was not cleared!\n");
+            // TODO: Exit main? Ignore?
     
     /*
      * Print initial state of control registers.
