@@ -3,7 +3,7 @@
 P	= mips-mti-elf-
 QEMU	= qemu-system-mipsel -machine pic32mz-wifire -sdl -serial stdio -s -S
 CC	= $(P)gcc -mips32r2 -EL -g -nostdlib
-AS	= $(P)as -mips32r2 -EL -g
+AS	= $(P)as  -mips32r2 -EL -g
 GDB	= $(P)gdb
 OBJCOPY	= $(P)objcopy
 OBJDUMP	= $(P)objdump
@@ -18,10 +18,12 @@ OBJECTS := $(SOURCES:.c=.o)
 OBJECTS_ASM := $(SOURCES_ASM:.S=.o)
 OBJECTS += $(OBJECTS_ASM)
 
+EXT_LIBS = smallclib/smallclib.a
+
 all: $(PROGNAME).srec
 
-$(PROGNAME).srec: $(OBJECTS) $(LDSCRIPT)
-	$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(PROGNAME).elf
+$(PROGNAME).srec: $(OBJECTS) $(LDSCRIPT) smallclib
+	$(CC) $(LDFLAGS) $(OBJECTS) $(EXT_LIBS) $(LIBS) -o $(PROGNAME).elf
 	$(OBJCOPY) -O srec $(PROGNAME).elf $(PROGNAME).srec
 
 %.S: %.c
@@ -30,6 +32,9 @@ $(PROGNAME).srec: $(OBJECTS) $(LDSCRIPT)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
 
+smallclib:
+	$(MAKE) -C smallclib smallclib.a
+
 debug: $(PROGNAME).srec
 	$(GDB) $(PROGNAME).elf
 
@@ -37,4 +42,7 @@ qemu: $(PROGNAME).srec
 	$(QEMU) -kernel $(PROGNAME).srec
 
 clean:
+	$(MAKE) -C smallclib clean
 	rm -f *.o *.lst *~ *.elf *.srec *.map
+
+.PHONY: smallclib

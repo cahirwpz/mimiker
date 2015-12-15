@@ -5,6 +5,10 @@
 #include "uart_raw.h"
 #include "global_config.h"
 
+#include <stdio.h>
+#include <string.h>
+#include <limits.h>
+
 char str[] = "This is a global string!\n";
 char empty[100]; /* This should land in .bss and get cleared by _start procedure. */
 
@@ -54,6 +58,8 @@ void udelay (unsigned usec)
     }
 }
 
+void stdlib_demo();
+
 int kernel_main()
 {
     /* Initialize coprocessor 0. */
@@ -83,7 +89,7 @@ int kernel_main()
         if(*p++ != 0x00)
             uart_putstr("Apparently .bss was not cleared!\n");
             // TODO: Exit main? Ignore?
-    
+
     /*
      * Print initial state of control registers.
      */
@@ -117,6 +123,8 @@ int kernel_main()
     uart_printreg ("DEVCFG2 ", DEVCFG2);
     uart_printreg ("DEVCFG3 ", DEVCFG3);
 
+	stdlib_demo();
+
     while (1) {
         /* Invert pins PA7-PA0. */
         LATAINV = 1 << 0;  udelay (100000);
@@ -131,4 +139,38 @@ int kernel_main()
         loop++;
         uart_putch ('.');
     }
+}
+
+
+void stdlib_demo(){
+    // The only purpose of this function is to demonstrate
+    // that the C standard library functions are available
+    // and (probably) working as expected.
+
+    // Simple printf.
+    printf("=========================\nPrintf is working!\n");
+    // Both stdout and stderr write bytes to UART1.
+    fprintf(stderr,"Stderr working too!\n");
+    // The only difference between them is that stdout is buffered,
+    // so it must be flushed (a newline char or EOF also flush the
+    // buffer). stderr is not buffered and bytes immidiatelly
+    // appear on the output.
+
+    // Formatting
+    printf("This is a number: %d - %x\n", 123456, 123456);
+    // String rendering
+    const char* stringA = "This is an example string!";
+    char stringB[100];
+    sprintf(stringB, "Copied example: %s",stringA);
+    puts(stringB);
+
+    // String functions:
+    printf("Above text has length %zu.\n", strlen(stringB));
+    printf("Word: \"example\" is at: %ld.\n", strstr(stringB,"example") - stringB);
+    memset(stringB,'a',20);
+    puts(stringB);
+
+    // The limits are defined
+    printf("INT_MAX is %d\n", INT_MAX);
+
 }

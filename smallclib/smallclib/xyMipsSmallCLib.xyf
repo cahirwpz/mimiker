@@ -1,0 +1,9 @@
+cmp_name='MipsSmallCLib'
+cmp_comment='Size-optimized C library for MIPS'
+ver_major=1
+ver_minor=0
+ver_change=0
+ver_rtype='ED'
+ver_candidate=0
+ver_num=8
+cmp_spec=['...', 'xyMipsSmallCLib.xyf']
