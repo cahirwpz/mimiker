@@ -1,10 +1,6 @@
-	This directory contains the smallclib standard C library, along with a
-tiny glue layer.
-
-	 ./smallclib has the original, unmodified sources, pulled straight
-from toolchain resources. It should be easy to convert that directory
-into a submodule, symlink, or a cross-reference, or replace it with
-another version.
+	This directory contains the build script for smallclib standard C
+library (taken from toolchain's resources), along with a tiny glue
+layer.
 
 	 The build script does not compile the entire library, instead, a
 list of used functions is explicitly listed in the Makefile. If you
