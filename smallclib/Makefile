@@ -13,7 +13,7 @@ CFLAGS += -D__PREFER_SIZE_OVER_SPEED__
 HEADER_PATH = $(dir $(shell mips-mti-elf-gcc --print-libgcc-file-name))
 SMALLCLIB_PATH = $(realpath $(join $(HEADER_PATH), ../../../../src/smallclib/))
 
-$(info "Using smallclib sources located at: " $(SMALLCLIB_PATH))
+$(info Using smallclib sources located at: $(SMALLCLIB_PATH))
 
 SMALLCLIB_BUILD_DIR = smallclib_build
 
