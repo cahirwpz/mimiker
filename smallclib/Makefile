@@ -124,7 +124,7 @@ smallclib.a: $(GLUE_OBJECTS) $(LIB_OBJECTS)
 define emit_smallclib_rule =
 CFILE := $(1)
 OFILE := $(patsubst %.S,%.o,$(patsubst %.c,%.o,$(notdir $(1))))
-$(SMALLCLIB_BUILD_DIR)/$(OFILE): $(SMALLCLIB_PATH)/$(CFILE) $(SMALLCLIB_BUILD_DIR)
+$(SMALLCLIB_BUILD_DIR)/$(OFILE): $(SMALLCLIB_PATH)/$(CFILE) | $(SMALLCLIB_BUILD_DIR)
 	$(CC) $(CFLAGS) $(CDEFS) $(INCLUDES) -c $(SMALLCLIB_PATH)/$(CFILE) -o $(SMALLCLIB_BUILD_DIR)/$(OFILE)
 endef
 
