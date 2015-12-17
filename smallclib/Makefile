@@ -9,15 +9,16 @@ CFLAGS += -O0 -g
 # Disables some optimized function implementations
 CFLAGS += -D__PREFER_SIZE_OVER_SPEED__
 
+LIBNAME = smallclib
+LIB_BUILD_DIR = $(LIBNAME)_build
+
 # Find the path to smallclib within toolchains resources
-HEADER_PATH = $(dir $(shell mips-mti-elf-gcc --print-libgcc-file-name))
-SMALLCLIB_PATH = $(realpath $(join $(HEADER_PATH), ../../../../src/smallclib/))
+STD_HEADER_PATH = $(dir $(shell mips-mti-elf-gcc --print-libgcc-file-name))
+LIB_PATH = $(realpath $(join $(STD_HEADER_PATH), ../../../../src/smallclib/))
 
-$(info Using smallclib sources located at: $(SMALLCLIB_PATH))
+$(info Using $(LIBNAME) sources located at: $(LIB_PATH))
 
-SMALLCLIB_BUILD_DIR = smallclib_build
-
-INCLUDES = -I$(SMALLCLIB_PATH)/include
+INCLUDES = -I$(LIB_PATH)/include
 INCLUDES += -isystemextra
 INCLUDES += -I../ # For uart_raw.h
 
@@ -69,9 +70,9 @@ LIB_SOURCES += string/strncmp.c
 LIB_SOURCES += string/strspn.c
 LIB_SOURCES += string/strstr.c
 
-LIB_SOURCES_FULL = $(addprefix $(SMALLCLIB_PATH)/, $(LIB_SOURCES))
+LIB_SOURCES_FULL = $(addprefix $(LIB_PATH)/, $(LIB_SOURCES))
 
-# LIB_SOURCES += smallclib/stdlib/wctomb.c
+# LIB_SOURCES += stdlib/wctomb.c
 # NOTE: wctomb IS needed by __format_parser, but it requires the whole
 # locale as a dependency, and even environemnt access. Instead, we'll
 # provide a custom wctomb which fails to represent any wide character.
@@ -83,16 +84,16 @@ EXTRA_SOURCES += extra/kputs.c
 EXTRA_SOURCES += extra/kprintf.c
 
 # The default rule.
-all: smallclib.a
+all: $(LIBNAME).a
 
 # This rule creates the build directory.
-$(SMALLCLIB_BUILD_DIR):
-	mkdir -p $(SMALLCLIB_BUILD_DIR)
+$(LIB_BUILD_DIR):
+	mkdir -p $(LIB_BUILD_DIR)
 
 # This rule creates the library archive. To define it, we need a full
 # list of all object files.
 LIB_OBJECTS  = \
-	$(addprefix $(SMALLCLIB_BUILD_DIR)/,\
+	$(addprefix $(LIB_BUILD_DIR)/,\
 		$(patsubst %.S,%.o,             \
 		$(patsubst %.c,%.o,             \
 			$(notdir $(LIB_SOURCES))    \
@@ -105,18 +106,18 @@ EXTRA_OBJECTS = \
 		$(EXTRA_SOURCES) \
 	) \
 	)
-smallclib.a: $(EXTRA_OBJECTS) $(LIB_OBJECTS)
+$(LIBNAME).a: $(EXTRA_OBJECTS) $(LIB_OBJECTS)
 	@echo "Creating $@"
 	$(AR) rvs $@ $(EXTRA_OBJECTS) $(LIB_OBJECTS) > /dev/null
 
 # Generate rules for each library file separately. A simple pattern
 # rule will not suffice, because we need to correct the file directory
 # for rule and dependency.
-define emit_smallclib_rule =
+define emit_lib_rule =
 CFILE := $(1)
 OFILE := $(patsubst %.S,%.o,$(patsubst %.c,%.o,$(notdir $(1))))
-$(SMALLCLIB_BUILD_DIR)/$(OFILE): $(SMALLCLIB_PATH)/$(CFILE) | $(SMALLCLIB_BUILD_DIR)
-	$(CC) $(CFLAGS) $(CDEFS) $(INCLUDES) -c $(SMALLCLIB_PATH)/$(CFILE) -o $(SMALLCLIB_BUILD_DIR)/$(OFILE)
+$(LIB_BUILD_DIR)/$(OFILE): $(LIB_PATH)/$(CFILE) | $(LIB_BUILD_DIR)
+	$(CC) $(CFLAGS) $(CDEFS) $(INCLUDES) -c $(LIB_PATH)/$(CFILE) -o $(LIB_BUILD_DIR)/$(OFILE)
 endef
 
 # Now loop over LIB_SOURCES, and create a rule for each.  For some
@@ -125,7 +126,7 @@ endef
 # extended with a 'null' element to fix this.  For more information
 # about function evaluation and rule generation, please see
 # http://www.gnu.org/software/make/manual/make.html#Eval-Function
-$(foreach file, $(LIB_SOURCES) null, $(eval $(call emit_smallclib_rule,$(file))))
+$(foreach file, $(LIB_SOURCES) null, $(eval $(call emit_lib_rule,$(file))))
 
 # Here is a pattern rule for the glue layer. The glue layer is build
 # in-tree, so a pattern is enough.
@@ -133,7 +134,7 @@ extra/%.o: extra/%.c
 	$(CC) $(CFLAGS) $(CDEFS) $(INCLUDES) -c $< -o $@
 
 clean:
-	rm -f smallclib.a
+	rm -f $(LIBNAME).a
 	rm -f $(LIB_OBJECTS)
 	rm -f $(GLUE_OBJECTS)
-	rmdir $(SMALLCLIB_BUILD_DIR)
+	rmdir $(LIB_BUILD_DIR)
