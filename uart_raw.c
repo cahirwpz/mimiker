@@ -39,6 +39,10 @@ void uart_putstr(const char* str){
   while(*str) uart_putch(*str++);
 }
 
+void uart_putnstr(unsigned int n, const char* str){
+    while(n--) uart_putch(*str++);
+}
+
 /* Helper function for displaying hex values/ */
 static int hexchar (unsigned val)
 {

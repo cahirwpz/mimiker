@@ -15,6 +15,8 @@ void uart_init();
 void uart_putch(unsigned char c);
 /* Transmits a character string via UART1. */
 void uart_putstr(const char* str);
+/* Transmits n characters from a string via UART1. */
+void uart_putnstr(unsigned int n, const char* str);
 /* Transmits a 32it number in hex format via UART1. */
 void uart_puthex(unsigned value);
 

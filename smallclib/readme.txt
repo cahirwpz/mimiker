@@ -1,6 +1,6 @@
 	This directory contains the build script for smallclib standard C
-library (taken from toolchain's resources), along with a tiny glue
-layer.
+library (taken from toolchain's resources), along with several extra
+utilities.
 
 	 The build script does not compile the entire library, instead, a
 list of used functions is explicitly listed in the Makefile. If you

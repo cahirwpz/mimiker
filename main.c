@@ -147,30 +147,24 @@ void stdlib_demo(){
     // that the C standard library functions are available
     // and (probably) working as expected.
 
-    // Simple printf.
-    printf("=========================\nPrintf is working!\n");
-    // Both stdout and stderr write bytes to UART1.
-    fprintf(stderr,"Stderr working too!\n");
-    // The only difference between them is that stdout is buffered,
-    // so it must be flushed (a newline char or EOF also flush the
-    // buffer). stderr is not buffered and bytes immidiatelly
-    // appear on the output.
+    // Simple kprintf.
+    kprintf("=========================\nkprintf is working!\n");
 
     // Formatting
-    printf("This is a number: %d - %x\n", 123456, 123456);
+    kprintf("This is a number: %d - %x\n", 123456, 123456);
     // String rendering
     const char* stringA = "This is an example string!";
     char stringB[100];
     sprintf(stringB, "Copied example: %s",stringA);
-    puts(stringB);
+    kputs(stringB);
 
     // String functions:
-    printf("Above text has length %zu.\n", strlen(stringB));
-    printf("Word: \"example\" is at: %ld.\n", strstr(stringB,"example") - stringB);
+    kprintf("Above text has length %zu.\n", strlen(stringB));
+    kprintf("Word: \"example\" is at: %ld.\n", strstr(stringB,"example") - stringB);
     memset(stringB,'a',20);
-    puts(stringB);
+    kputs(stringB);
 
     // The limits are defined
-    printf("INT_MAX is %d\n", INT_MAX);
+    kprintf("INT_MAX is %d\n", INT_MAX);
 
 }

@@ -18,6 +18,7 @@ $(info Using smallclib sources located at: $(SMALLCLIB_PATH))
 SMALLCLIB_BUILD_DIR = smallclib_build
 
 INCLUDES = -I$(SMALLCLIB_PATH)/include
+INCLUDES += -isystemextra
 INCLUDES += -I../ # For uart_raw.h
 
 # Explicitly picking files to compile.
@@ -40,19 +41,8 @@ LIB_SOURCES += math/s_frexp.c
 LIB_SOURCES += misc/fini.c
 LIB_SOURCES += misc/init.c
 LIB_SOURCES += misc/setjmp.S
-LIB_SOURCES += stdio/___low_printf.c
 LIB_SOURCES += stdio/___low_sprintf.c
 LIB_SOURCES += stdio/__format_parser.c
-LIB_SOURCES += stdio/fflush.c
-LIB_SOURCES += stdio/fputc.c
-LIB_SOURCES += stdio/fwrite.c
-LIB_SOURCES += stdio/iostreams.c
-LIB_SOURCES += stdio/ioutils.c
-LIB_SOURCES += stdio/low_seek.c
-LIB_SOURCES += stdio/low_write.c
-LIB_SOURCES += stdio/perror.c
-LIB_SOURCES += stdio/printf.c
-LIB_SOURCES += stdio/puts.c
 LIB_SOURCES += stdio/snprintf.c
 LIB_SOURCES += stdio/sprintf.c
 LIB_SOURCES += stdlib/abs.c
@@ -86,10 +76,11 @@ LIB_SOURCES_FULL = $(addprefix $(SMALLCLIB_PATH)/, $(LIB_SOURCES))
 # locale as a dependency, and even environemnt access. Instead, we'll
 # provide a custom wctomb which fails to represent any wide character.
 
-# Glue layer
-GLUE_SOURCES += glue/write.c
-GLUE_SOURCES += glue/lseek.c
-GLUE_SOURCES += glue/wctomb.c
+# Extra utilities
+EXTRA_SOURCES += extra/wctomb.c
+EXTRA_SOURCES += extra/kperror.c
+EXTRA_SOURCES += extra/kputs.c
+EXTRA_SOURCES += extra/kprintf.c
 
 # The default rule.
 all: smallclib.a
@@ -108,15 +99,15 @@ LIB_OBJECTS  = \
 		) \
 		) \
 	)
-GLUE_OBJECTS = \
+EXTRA_OBJECTS = \
 	$(patsubst %.S,%.o, \
 	$(patsubst %.c,%.o, \
-		$(GLUE_SOURCES) \
+		$(EXTRA_SOURCES) \
 	) \
 	)
-smallclib.a: $(GLUE_OBJECTS) $(LIB_OBJECTS)
+smallclib.a: $(EXTRA_OBJECTS) $(LIB_OBJECTS)
 	@echo "Creating $@"
-	$(AR) rvs $@ $(GLUE_OBJECTS) $(LIB_OBJECTS) > /dev/null
+	$(AR) rvs $@ $(EXTRA_OBJECTS) $(LIB_OBJECTS) > /dev/null
 
 # Generate rules for each library file separately. A simple pattern
 # rule will not suffice, because we need to correct the file directory
@@ -138,7 +129,7 @@ $(foreach file, $(LIB_SOURCES) null, $(eval $(call emit_smallclib_rule,$(file)))
 
 # Here is a pattern rule for the glue layer. The glue layer is build
 # in-tree, so a pattern is enough.
-glue/%.o: glue/%.c
+extra/%.o: extra/%.c
 	$(CC) $(CFLAGS) $(CDEFS) $(INCLUDES) -c $< -o $@
 
 clean:

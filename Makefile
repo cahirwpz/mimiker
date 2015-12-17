@@ -19,6 +19,7 @@ OBJECTS_ASM := $(SOURCES_ASM:.S=.o)
 OBJECTS += $(OBJECTS_ASM)
 
 EXT_LIBS = smallclib/smallclib.a
+INCLUDE = -isystemsmallclib/extra
 
 all: $(PROGNAME).srec
 
@@ -27,10 +28,10 @@ $(PROGNAME).srec: $(OBJECTS) $(LDSCRIPT) smallclib
 	$(OBJCOPY) -O srec $(PROGNAME).elf $(PROGNAME).srec
 
 %.S: %.c
-	$(AS) $(CFLAGS) -c $<
+	$(AS) $(CFLAGS) $(INCLUDE) -c $<
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) $(INCLUDE) -c $<
 
 smallclib:
 	$(MAKE) -C smallclib smallclib.a
