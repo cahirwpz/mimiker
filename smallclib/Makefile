@@ -35,8 +35,6 @@ LIB_SOURCES += string/memset.c
 LIB_SOURCES += string/strlen.c
 LIB_SOURCES += string/strspn.c
 
-LIB_SOURCES_FULL = $(addprefix $(LIB_PATH)/, $(LIB_SOURCES))
-
 # LIB_SOURCES += stdlib/wctomb.c
 # NOTE: wctomb IS needed by __format_parser, but it requires the whole
 # locale as a dependency, and even environemnt access. Instead, we'll
@@ -77,7 +75,15 @@ $(LIBNAME).a: $(EXTRA_OBJECTS) $(LIB_OBJECTS)
 
 # Generate rules for each library file separately. A simple pattern
 # rule will not suffice, because we need to correct the file directory
-# for rule and dependency.
+# for rule and dependency.  The | char turns the directory dependency
+# into an order-only dependency. This way the directory is required to
+# be created before compiling the file, but a newer timestamp on the
+# directory will not cause the file to be considered out of date. If
+# the dependency on the directory was standard one, each file would be
+# recompiled whenever the timestamp on the dir is bumped, which
+# happens every time a new file lands within the dir.  For more
+# information or order-only dependencies, please see
+# http://www.gnu.org/software/make/manual/make.html#Prerequisite-Types
 define emit_lib_rule =
 CFILE := $(1)
 OFILE := $(patsubst %.S,%.o,$(patsubst %.c,%.o,$(notdir $(1))))
@@ -90,7 +96,9 @@ endef
 # variables are evaluated after the rule is emitted), so the list is
 # extended with a 'null' element to fix this.  For more information
 # about function evaluation and rule generation, please see
-# http://www.gnu.org/software/make/manual/make.html#Eval-Function
+# http://www.gnu.org/software/make/manual/make.html#Eval-Function The
+# documentation for GNU make's foreach function is available at
+# https://www.gnu.org/software/make/manual/html_node/Foreach-Function.html
 $(foreach file, $(LIB_SOURCES) null, $(eval $(call emit_lib_rule,$(file))))
 
 # Here is a pattern rule for the glue layer. The glue layer is build
