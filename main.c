@@ -160,9 +160,6 @@ void stdlib_demo(){
 
     // String functions:
     kprintf("Above text has length %zu.\n", strlen(stringB));
-    kprintf("Word: \"example\" is at: %ld.\n", strstr(stringB,"example") - stringB);
-    memset(stringB,'a',20);
-    kputs(stringB);
 
     // The limits are defined
     kprintf("INT_MAX is %d\n", INT_MAX);
