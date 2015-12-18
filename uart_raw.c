@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "pic32mz.h"
 #include "uart_raw.h"
 #include "global_config.h"
@@ -50,24 +51,6 @@ int uart_write(const char* str, size_t n){
     return n;
 }
 
-/* Helper function for displaying hex values/ */
-static int hexchar (unsigned val)
-{
-    return "0123456789abcdef" [val & 0xf];
-}
-
-
-void uart_puthex(unsigned value){
-    uart_putc (hexchar (value >> 28));
-    uart_putc (hexchar (value >> 24));
-    uart_putc (hexchar (value >> 20));
-    uart_putc (hexchar (value >> 16));
-    uart_putc (hexchar (value >> 12));
-    uart_putc (hexchar (value >> 8));
-    uart_putc (hexchar (value >> 4));
-    uart_putc (hexchar (value));
-}
-
 unsigned char uart_getch(){
       unsigned c;
 
@@ -83,9 +66,5 @@ unsigned char uart_getch(){
 
 
 void uart_printreg(const char* p, unsigned value){
-    uart_puts (p);
-    uart_putc ('=');
-    uart_putc (' ');
-    uart_puthex (value);
-    uart_putc ('\n');
+    kprintf("%s = %x\n", p, value);
 }
