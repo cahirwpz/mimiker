@@ -78,23 +78,23 @@ int kernel_main()
 
     /* Initialize UART. */
     uart_init();
-    uart_putstr("Hello, UART!\n");
+    uart_puts("Hello, UART!\n");
 
     /* Demonstrate access to .data */
-    uart_putstr(str);
+    uart_puts(str);
 
     /* Test whether .bss appears to have been cleared. */
     char* p = empty;
     while(p < empty + sizeof(empty))
         if(*p++ != 0x00)
-            uart_putstr("Apparently .bss was not cleared!\n");
+            uart_puts("Apparently .bss was not cleared!\n");
             // TODO: Exit main? Ignore?
 
     /*
      * Print initial state of control registers.
      */
-    uart_putch ('-');
-    uart_putch ('\n');
+    uart_putc ('-');
+    uart_putc ('\n');
     uart_printreg ("Status  ", mfc0(12, 0));
     uart_printreg ("IntCtl  ", mfc0(12, 1));
     uart_printreg ("SRSCtl  ", mfc0(12, 2));
@@ -137,7 +137,7 @@ int kernel_main()
         LATAINV = 1 << 7;  udelay (100000);
 
         loop++;
-        uart_putch ('.');
+        uart_putc ('.');
     }
 }
 

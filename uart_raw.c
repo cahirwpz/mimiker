@@ -16,7 +16,7 @@ void uart_init(){
 
 }
 
-void uart_putch(unsigned char c){
+int uart_putc(int c){
     /* Wait for transmitter shift register empty. */
     while (! (U1STA & PIC32_USTA_TRMT))
         continue;
@@ -32,15 +32,22 @@ again:
         c = '\r';
         goto again;
     }
-
+    return c;
 }
 
-void uart_putstr(const char* str){
-  while(*str) uart_putch(*str++);
+int uart_puts(const char* str){
+    int n = 0;
+    while(*str){
+        uart_putc(*str++);
+        n++;
+    }
+    uart_putc('\n');
+    return n + 1;
 }
 
-void uart_putnstr(unsigned int n, const char* str){
-    while(n--) uart_putch(*str++);
+int uart_write(const char* str, size_t n){
+    while(n--) uart_putc(*str++);
+    return n;
 }
 
 /* Helper function for displaying hex values/ */
@@ -51,14 +58,14 @@ static int hexchar (unsigned val)
 
 
 void uart_puthex(unsigned value){
-    uart_putch (hexchar (value >> 28));
-    uart_putch (hexchar (value >> 24));
-    uart_putch (hexchar (value >> 20));
-    uart_putch (hexchar (value >> 16));
-    uart_putch (hexchar (value >> 12));
-    uart_putch (hexchar (value >> 8));
-    uart_putch (hexchar (value >> 4));
-    uart_putch (hexchar (value));
+    uart_putc (hexchar (value >> 28));
+    uart_putc (hexchar (value >> 24));
+    uart_putc (hexchar (value >> 20));
+    uart_putc (hexchar (value >> 16));
+    uart_putc (hexchar (value >> 12));
+    uart_putc (hexchar (value >> 8));
+    uart_putc (hexchar (value >> 4));
+    uart_putc (hexchar (value));
 }
 
 unsigned char uart_getch(){
@@ -76,9 +83,9 @@ unsigned char uart_getch(){
 
 
 void uart_printreg(const char* p, unsigned value){
-    uart_putstr (p);
-    uart_putch ('=');
-    uart_putch (' ');
+    uart_puts (p);
+    uart_putc ('=');
+    uart_putc (' ');
     uart_puthex (value);
-    uart_putch ('\n');
+    uart_putc ('\n');
 }

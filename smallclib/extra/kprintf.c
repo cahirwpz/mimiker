@@ -5,8 +5,7 @@
 
 int __low_kprintf (ReadWriteInfo *rw, const void *src, size_t len)
 {
-    uart_putnstr(len,src);
-    return len;
+    return uart_write(src,len);
 }
 
 /* Print a formatted string to UART. */

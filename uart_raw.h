@@ -1,6 +1,8 @@
 #ifndef UART_RAW_H
 #define UART_RAW_H
 
+#include <stddef.h>
+
 /* Raw UART interface. Useful for debugging.
  * A higher-level solution will have to be implemented eventually,
  *  but temporarily this should be fine.
@@ -12,12 +14,14 @@
 void uart_init();
 
 /* Transmits a single byte via UART1. */
-void uart_putch(unsigned char c);
-/* Transmits a character string via UART1. */
-void uart_putstr(const char* str);
-/* Transmits n characters from a string via UART1. */
-void uart_putnstr(unsigned int n, const char* str);
+int uart_putc(int c);
+/* Transmits a string and a trailing newline via UART1. */
+int uart_puts(const char* str);
+/* Transmits n bytes via UART1. */
+int uart_write(const char* str, size_t n);
 /* Transmits a 32it number in hex format via UART1. */
+/* TODO: Now that kprintf provides formatting wrapper for UART, this
+   procedure is no longer needed. */
 void uart_puthex(unsigned value);
 
 /* Receives a single byte from UART.
