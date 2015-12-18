@@ -44,6 +44,7 @@ LIB_SOURCES += misc/init.c
 LIB_SOURCES += misc/setjmp.S
 LIB_SOURCES += stdio/___low_sprintf.c
 LIB_SOURCES += stdio/__format_parser.c
+LIB_SOURCES += stdio/__format_parser_int.c
 LIB_SOURCES += stdio/snprintf.c
 LIB_SOURCES += stdio/sprintf.c
 LIB_SOURCES += stdlib/abs.c

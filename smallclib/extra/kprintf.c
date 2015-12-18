@@ -17,7 +17,7 @@ int kprintf(const char *fmt, ...)
     va_list ap;
     va_start(ap, fmt);
     rw.m_fnptr = __low_kprintf;
-    ret = _format_parser(&rw, fmt, &ap, 0);
+    ret = _format_parser_int(&rw, fmt, &ap);
     va_end(ap);
     return ret;
 }
