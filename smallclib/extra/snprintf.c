@@ -42,6 +42,6 @@ int snprintf (char *str, size_t size, const char *fmt, ...)
 
     /* terminate the string */
     if (rw.m_handle)
-      *((char *)rw.m_handle) = '\0';
+      *((char *)rw.m_handle + rw.m_size) = '\0';
     return ret;
 }
