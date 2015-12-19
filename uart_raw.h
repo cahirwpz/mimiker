@@ -28,15 +28,4 @@ int uart_write(const char* str, size_t n);
  */
 unsigned char uart_getch();
 
-/* This function is a convenience for displaying register values
- * over UART.
- * @param prefix: A string with the name of the displayed register.
- *                The name will be outputted before the value.
- * @param value: An unsigned 32bit value to display.
- */
-/* TODO: This function does not belong in this file, it uses no raw
-   uart access and is actually a debug routine. It hould be either
-   moved to other debug utilities, or removed completely. */
-void uart_printreg(const char* prefix, unsigned value);
-
 #endif // UART_RAW_H

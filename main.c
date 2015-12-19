@@ -76,50 +76,49 @@ int kernel_main()
 
     /* Initialize UART. */
     uart_init();
-    uart_puts("Hello, UART!\n");
+    kprintf ("Hello, UART!\n");
 
     /* Demonstrate access to .data */
-    uart_puts(str);
+    kprintf ("%s",str);
 
     /* Test whether .bss appears to have been cleared. */
     char* p = empty;
     while(p < empty + sizeof(empty))
         if(*p++ != 0x00)
-            uart_puts("Apparently .bss was not cleared!\n");
+            kprintf("Apparently .bss was not cleared!\n");
             // TODO: Exit main? Ignore?
 
     /*
      * Print initial state of control registers.
      */
-    uart_putc ('-');
-    uart_putc ('\n');
-    uart_printreg ("Status  ", mfc0(12, 0));
-    uart_printreg ("IntCtl  ", mfc0(12, 1));
-    uart_printreg ("SRSCtl  ", mfc0(12, 2));
-    uart_printreg ("Cause   ", mfc0(13, 0));
-    uart_printreg ("PRId    ", mfc0(15, 0));
-    uart_printreg ("EBase   ", mfc0(15, 1));
-    uart_printreg ("CDMMBase", mfc0(15, 2));
-    uart_printreg ("Config  ", mfc0(16, 0));
-    uart_printreg ("Config1 ", mfc0(16, 1));
-    uart_printreg ("Config2 ", mfc0(16, 2));
-    uart_printreg ("Config3 ", mfc0(16, 3));
-    uart_printreg ("Config4 ", mfc0(16, 4));
-    uart_printreg ("Config5 ", mfc0(16, 5));
-    uart_printreg ("Config7 ", mfc0(16, 7));
-    uart_printreg ("WatchHi ", mfc0(19, 0));
-    uart_printreg ("WatchHi1", mfc0(19, 1));
-    uart_printreg ("WatchHi2", mfc0(19, 2));
-    uart_printreg ("WatchHi3", mfc0(19, 3));
-    uart_printreg ("Debug   ", mfc0(23, 0));
-    uart_printreg ("PerfCtl0", mfc0(25, 0));
-    uart_printreg ("PerfCtl1", mfc0(25, 2));
-    uart_printreg ("DEVID   ", DEVID);
-    uart_printreg ("OSCCON  ", OSCCON);
-    uart_printreg ("DEVCFG0 ", DEVCFG0);
-    uart_printreg ("DEVCFG1 ", DEVCFG1);
-    uart_printreg ("DEVCFG2 ", DEVCFG2);
-    uart_printreg ("DEVCFG3 ", DEVCFG3);
+    kprintf ("-\n");
+    kprintf ("Status   = %x\n", mfc0(12, 0));
+    kprintf ("IntCtl   = %x\n", mfc0(12, 1));
+    kprintf ("SRSCtl   = %x\n", mfc0(12, 2));
+    kprintf ("Cause    = %x\n", mfc0(13, 0));
+    kprintf ("PRId     = %x\n", mfc0(15, 0));
+    kprintf ("EBase    = %x\n", mfc0(15, 1));
+    kprintf ("CDMMBase = %x\n", mfc0(15, 2));
+    kprintf ("Config   = %x\n", mfc0(16, 0));
+    kprintf ("Config1  = %x\n", mfc0(16, 1));
+    kprintf ("Config2  = %x\n", mfc0(16, 2));
+    kprintf ("Config3  = %x\n", mfc0(16, 3));
+    kprintf ("Config4  = %x\n", mfc0(16, 4));
+    kprintf ("Config5  = %x\n", mfc0(16, 5));
+    kprintf ("Config7  = %x\n", mfc0(16, 7));
+    kprintf ("WatchHi  = %x\n", mfc0(19, 0));
+    kprintf ("WatchHi1 = %x\n", mfc0(19, 1));
+    kprintf ("WatchHi2 = %x\n", mfc0(19, 2));
+    kprintf ("WatchHi3 = %x\n", mfc0(19, 3));
+    kprintf ("Debug    = %x\n", mfc0(23, 0));
+    kprintf ("PerfCtl0 = %x\n", mfc0(25, 0));
+    kprintf ("PerfCtl1 = %x\n", mfc0(25, 2));
+    kprintf ("DEVID    = %x\n", DEVID      );
+    kprintf ("OSCCON   = %x\n", OSCCON     );
+    kprintf ("DEVCFG0  = %x\n", DEVCFG0    );
+    kprintf ("DEVCFG1  = %x\n", DEVCFG1    );
+    kprintf ("DEVCFG2  = %x\n", DEVCFG2    );
+    kprintf ("DEVCFG3  = %x\n", DEVCFG3    );
 
 	stdlib_demo();
 
@@ -135,7 +134,7 @@ int kernel_main()
         LATAINV = 1 << 7;  udelay (100000);
 
         loop++;
-        uart_putc ('.');
+        kprintf(".");
     }
 }
 

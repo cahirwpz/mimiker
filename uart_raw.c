@@ -63,8 +63,3 @@ unsigned char uart_getch(){
     }
     return c;
 }
-
-
-void uart_printreg(const char* p, unsigned value){
-    kprintf("%s = %x\n", p, value);
-}
