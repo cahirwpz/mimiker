@@ -24,12 +24,7 @@ INCLUDES += -I../ # For uart_raw.h
 
 # Explicitly picking files to compile.
 LIB_SOURCES  = ctype/ctype_.c
-LIB_SOURCES += math/s_fpclassify.c
-LIB_SOURCES += math/s_frexp.c
-LIB_SOURCES += stdio/___low_sprintf.c
-LIB_SOURCES += stdio/__format_parser.c
 LIB_SOURCES += stdio/__format_parser_int.c
-LIB_SOURCES += stdio/sprintf.c
 LIB_SOURCES += string/memchr.c
 LIB_SOURCES += string/memset.c
 LIB_SOURCES += string/strlen.c
@@ -44,6 +39,7 @@ LIB_SOURCES += string/strspn.c
 EXTRA_SOURCES += extra/wctomb.c
 EXTRA_SOURCES += extra/kputs.c
 EXTRA_SOURCES += extra/kprintf.c
+EXTRA_SOURCES += extra/snprintf.c
 
 # The default rule.
 all: $(LIBNAME).a

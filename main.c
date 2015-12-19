@@ -155,7 +155,7 @@ void stdlib_demo(){
     // String rendering
     const char* stringA = "This is an example string!";
     char stringB[100];
-    sprintf(stringB, "Copied example: %s",stringA);
+    snprintf(stringB, 100, "Copied example: %s",stringA);
     kputs(stringB);
 
     // String functions:
