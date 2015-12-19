@@ -1,5 +1,4 @@
-#include <stdio.h>
-#include <string.h>
+#include <libkern.h>
 #include "uart_raw.h"
 
 /* Write a character string and a trailing newline to UART. */

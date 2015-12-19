@@ -19,7 +19,7 @@ OBJECTS_ASM := $(SOURCES_ASM:.S=.o)
 OBJECTS += $(OBJECTS_ASM)
 
 EXT_LIBS = smallclib/smallclib.a
-INCLUDE = -isystemsmallclib/extra
+INCLUDE = -isystemsmallclib/include
 
 all: $(PROGNAME).srec
 

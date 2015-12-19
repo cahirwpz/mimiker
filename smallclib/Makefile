@@ -19,7 +19,7 @@ LIB_PATH = $(realpath $(join $(STD_HEADER_PATH), ../../../../src/smallclib/))
 $(info Using $(LIBNAME) sources located at: $(LIB_PATH))
 
 INCLUDES = -I$(LIB_PATH)/include
-INCLUDES += -isystemextra
+INCLUDES += -isysteminclude
 INCLUDES += -I../ # For uart_raw.h
 
 # Explicitly picking files to compile.

@@ -5,9 +5,7 @@
 #include "uart_raw.h"
 #include "global_config.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <limits.h>
+#include <libkern.h>
 
 char str[] = "This is a global string!\n";
 char empty[100]; /* This should land in .bss and get cleared by _start procedure. */
@@ -160,8 +158,5 @@ void stdlib_demo(){
 
     // String functions:
     kprintf("Above text has length %zu.\n", strlen(stringB));
-
-    // The limits are defined
-    kprintf("INT_MAX is %d\n", INT_MAX);
 
 }
