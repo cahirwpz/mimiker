@@ -90,33 +90,33 @@ int kernel_main()
      * Print initial state of control registers.
      */
     kprintf ("-\n");
-    kprintf ("Status   = %x\n", mfc0(12, 0));
-    kprintf ("IntCtl   = %x\n", mfc0(12, 1));
-    kprintf ("SRSCtl   = %x\n", mfc0(12, 2));
-    kprintf ("Cause    = %x\n", mfc0(13, 0));
-    kprintf ("PRId     = %x\n", mfc0(15, 0));
-    kprintf ("EBase    = %x\n", mfc0(15, 1));
-    kprintf ("CDMMBase = %x\n", mfc0(15, 2));
-    kprintf ("Config   = %x\n", mfc0(16, 0));
-    kprintf ("Config1  = %x\n", mfc0(16, 1));
-    kprintf ("Config2  = %x\n", mfc0(16, 2));
-    kprintf ("Config3  = %x\n", mfc0(16, 3));
-    kprintf ("Config4  = %x\n", mfc0(16, 4));
-    kprintf ("Config5  = %x\n", mfc0(16, 5));
-    kprintf ("Config7  = %x\n", mfc0(16, 7));
-    kprintf ("WatchHi  = %x\n", mfc0(19, 0));
-    kprintf ("WatchHi1 = %x\n", mfc0(19, 1));
-    kprintf ("WatchHi2 = %x\n", mfc0(19, 2));
-    kprintf ("WatchHi3 = %x\n", mfc0(19, 3));
-    kprintf ("Debug    = %x\n", mfc0(23, 0));
-    kprintf ("PerfCtl0 = %x\n", mfc0(25, 0));
-    kprintf ("PerfCtl1 = %x\n", mfc0(25, 2));
-    kprintf ("DEVID    = %x\n", DEVID      );
-    kprintf ("OSCCON   = %x\n", OSCCON     );
-    kprintf ("DEVCFG0  = %x\n", DEVCFG0    );
-    kprintf ("DEVCFG1  = %x\n", DEVCFG1    );
-    kprintf ("DEVCFG2  = %x\n", DEVCFG2    );
-    kprintf ("DEVCFG3  = %x\n", DEVCFG3    );
+    kprintf ("Status   = 0x%08x\n", mfc0(12, 0));
+    kprintf ("IntCtl   = 0x%08x\n", mfc0(12, 1));
+    kprintf ("SRSCtl   = 0x%08x\n", mfc0(12, 2));
+    kprintf ("Cause    = 0x%08x\n", mfc0(13, 0));
+    kprintf ("PRId     = 0x%08x\n", mfc0(15, 0));
+    kprintf ("EBase    = 0x%08x\n", mfc0(15, 1));
+    kprintf ("CDMMBase = 0x%08x\n", mfc0(15, 2));
+    kprintf ("Config   = 0x%08x\n", mfc0(16, 0));
+    kprintf ("Config1  = 0x%08x\n", mfc0(16, 1));
+    kprintf ("Config2  = 0x%08x\n", mfc0(16, 2));
+    kprintf ("Config3  = 0x%08x\n", mfc0(16, 3));
+    kprintf ("Config4  = 0x%08x\n", mfc0(16, 4));
+    kprintf ("Config5  = 0x%08x\n", mfc0(16, 5));
+    kprintf ("Config7  = 0x%08x\n", mfc0(16, 7));
+    kprintf ("WatchHi  = 0x%08x\n", mfc0(19, 0));
+    kprintf ("WatchHi1 = 0x%08x\n", mfc0(19, 1));
+    kprintf ("WatchHi2 = 0x%08x\n", mfc0(19, 2));
+    kprintf ("WatchHi3 = 0x%08x\n", mfc0(19, 3));
+    kprintf ("Debug    = 0x%08x\n", mfc0(23, 0));
+    kprintf ("PerfCtl0 = 0x%08x\n", mfc0(25, 0));
+    kprintf ("PerfCtl1 = 0x%08x\n", mfc0(25, 2));
+    kprintf ("DEVID    = 0x%08x\n", DEVID      );
+    kprintf ("OSCCON   = 0x%08x\n", OSCCON     );
+    kprintf ("DEVCFG0  = 0x%08x\n", DEVCFG0    );
+    kprintf ("DEVCFG1  = 0x%08x\n", DEVCFG1    );
+    kprintf ("DEVCFG2  = 0x%08x\n", DEVCFG2    );
+    kprintf ("DEVCFG3  = 0x%08x\n", DEVCFG3    );
 
     while (1) {
         /* Invert pins PA7-PA0. */
