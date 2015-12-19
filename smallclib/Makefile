@@ -2,12 +2,15 @@ P	= mips-mti-elf-
 CC	= $(P)gcc -mips32r2 -EL -nostdlib
 AR  = $(P)ar
 
-# -Werror disabled for building a third-party external lib
-CFLAGS =  -Wall -DPIC32MZ
-# No optimisations, emit debugging info.
-CFLAGS += -O0 -g
-# Disables some optimized function implementations
-CFLAGS += -D__PREFER_SIZE_OVER_SPEED__
+# Flags for both library files and custom procedures
+CFLAGS = -DPIC32MZ -Wall -O0 -g
+
+# Flags for the library.  __PREFER_SIZE_OVER_SPEED__ disables some
+# optimized function implementations. -Werror is not enabled since
+# this is an external library.
+LIB_CFLAGS = $(CFLAGS) -D__PREFER_SIZE_OVER_SPEED__
+# Flags for custom procedures
+EXTRA_CFLAGS = $(CFLAGS) -Wextra -Werror
 
 LIBNAME = smallclib
 LIB_BUILD_DIR = $(LIBNAME)_build
@@ -84,7 +87,7 @@ define emit_lib_rule =
 CFILE := $(1)
 OFILE := $(patsubst %.S,%.o,$(patsubst %.c,%.o,$(notdir $(1))))
 $(LIB_BUILD_DIR)/$(OFILE): $(LIB_PATH)/$(CFILE) | $(LIB_BUILD_DIR)
-	$(CC) $(CFLAGS) $(CDEFS) $(INCLUDES) -c $(LIB_PATH)/$(CFILE) -o $(LIB_BUILD_DIR)/$(OFILE)
+	$(CC) $(LIB_CFLAGS) $(INCLUDES) -c $(LIB_PATH)/$(CFILE) -o $(LIB_BUILD_DIR)/$(OFILE)
 endef
 
 # Now loop over LIB_SOURCES, and create a rule for each.  For some
@@ -100,7 +103,7 @@ $(foreach file, $(LIB_SOURCES) null, $(eval $(call emit_lib_rule,$(file))))
 # Here is a pattern rule for the glue layer. The glue layer is build
 # in-tree, so a pattern is enough.
 extra/%.o: extra/%.c
-	$(CC) $(CFLAGS) $(CDEFS) $(INCLUDES) -c $< -o $@
+	$(CC) $(EXTRA_CFLAGS) $(INCLUDES) -c $< -o $@
 
 clean:
 	rm -f $(LIBNAME).a
