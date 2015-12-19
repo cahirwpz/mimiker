@@ -56,8 +56,6 @@ void udelay (unsigned usec)
     }
 }
 
-void stdlib_demo();
-
 int kernel_main()
 {
     /* Initialize coprocessor 0. */
@@ -120,8 +118,6 @@ int kernel_main()
     kprintf ("DEVCFG2  = %x\n", DEVCFG2    );
     kprintf ("DEVCFG3  = %x\n", DEVCFG3    );
 
-	stdlib_demo();
-
     while (1) {
         /* Invert pins PA7-PA0. */
         LATAINV = 1 << 0;  udelay (100000);
@@ -136,26 +132,4 @@ int kernel_main()
         loop++;
         kprintf(".");
     }
-}
-
-
-void stdlib_demo(){
-    // The only purpose of this function is to demonstrate
-    // that the C standard library functions are available
-    // and (probably) working as expected.
-
-    // Simple kprintf.
-    kprintf("=========================\nkprintf is working!\n");
-
-    // Formatting
-    kprintf("This is a number: %d - %x\n", 123456, 123456);
-    // String rendering
-    const char* stringA = "This is an example string!";
-    char stringB[100];
-    snprintf(stringB, 100, "Copied example: %s",stringA);
-    kputs(stringB);
-
-    // String functions:
-    kprintf("Above text has length %zu.\n", strlen(stringB));
-
 }
