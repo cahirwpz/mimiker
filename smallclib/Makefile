@@ -42,7 +42,6 @@ LIB_SOURCES += string/strspn.c
 
 # Extra utilities
 EXTRA_SOURCES += extra/wctomb.c
-EXTRA_SOURCES += extra/kperror.c
 EXTRA_SOURCES += extra/kputs.c
 EXTRA_SOURCES += extra/kprintf.c
 
