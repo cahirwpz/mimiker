@@ -83,11 +83,11 @@ $(LIBNAME).a: $(EXTRA_OBJECTS) $(LIB_OBJECTS)
 # happens every time a new file lands within the dir.  For more
 # information or order-only dependencies, please see
 # http://www.gnu.org/software/make/manual/make.html#Prerequisite-Types
-define emit_lib_rule =
+define emit_lib_rule
 CFILE := $(1)
 OFILE := $(patsubst %.S,%.o,$(patsubst %.c,%.o,$(notdir $(1))))
-$(LIB_BUILD_DIR)/$(OFILE): $(LIB_PATH)/$(CFILE) | $(LIB_BUILD_DIR)
-	$(CC) $(LIB_CFLAGS) $(INCLUDES) -c $(LIB_PATH)/$(CFILE) -o $(LIB_BUILD_DIR)/$(OFILE)
+$(LIB_BUILD_DIR)/$$(OFILE): $(LIB_PATH)/$$(CFILE) | $(LIB_BUILD_DIR)
+	$(CC) $(LIB_CFLAGS) $(INCLUDES) -c $$^ -o $$@
 endef
 
 # Now loop over LIB_SOURCES, and create a rule for each.  For some
@@ -107,6 +107,6 @@ extra/%.o: extra/%.c
 
 clean:
 	rm -f $(LIBNAME).a
+	rm -f $(EXTRA_OBJECTS)
 	rm -f $(LIB_OBJECTS)
-	rm -f $(GLUE_OBJECTS)
-	rmdir $(LIB_BUILD_DIR)
+	-rmdir $(LIB_BUILD_DIR)
