@@ -8,6 +8,7 @@ GDB	= $(P)gdb
 OBJCOPY	= $(P)objcopy
 OBJDUMP	= $(P)objdump
 CFLAGS	= -O -Wall -Werror -DPIC32MZ
+CPPFLAGS= -Wall -Werror -DPIC32MZ
 LDSCRIPT= pic32mz.ld
 LDFLAGS	= -T $(LDSCRIPT) -Wl,-Map=pic32mz.map
 

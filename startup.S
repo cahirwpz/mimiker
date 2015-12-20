@@ -3,12 +3,11 @@
 
 /* Exception vector. */
 .section .exception
-.ent __reset_vector
+.globl __reset_vector
 __reset_vector:
     la  $a0, _start     // Jump to _start.
     jr  $a0
       nop
-.end __reset_vector
 
 
 /* Startup routine. */
