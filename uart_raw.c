@@ -1,3 +1,4 @@
+#include <libkern.h>
 #include "pic32mz.h"
 #include "uart_raw.h"
 #include "global_config.h"
@@ -16,7 +17,7 @@ void uart_init(){
 
 }
 
-void uart_putch(unsigned char c){
+int uart_putc(int c){
     /* Wait for transmitter shift register empty. */
     while (! (U1STA & PIC32_USTA_TRMT))
         continue;
@@ -32,29 +33,22 @@ again:
         c = '\r';
         goto again;
     }
-
+    return c;
 }
 
-void uart_putstr(const char* str){
-  while(*str) uart_putch(*str++);
+int uart_puts(const char* str){
+    int n = 0;
+    while(*str){
+        uart_putc(*str++);
+        n++;
+    }
+    uart_putc('\n');
+    return n + 1;
 }
 
-/* Helper function for displaying hex values/ */
-static int hexchar (unsigned val)
-{
-    return "0123456789abcdef" [val & 0xf];
-}
-
-
-void uart_puthex(unsigned value){
-    uart_putch (hexchar (value >> 28));
-    uart_putch (hexchar (value >> 24));
-    uart_putch (hexchar (value >> 20));
-    uart_putch (hexchar (value >> 16));
-    uart_putch (hexchar (value >> 12));
-    uart_putch (hexchar (value >> 8));
-    uart_putch (hexchar (value >> 4));
-    uart_putch (hexchar (value));
+int uart_write(const char* str, size_t n){
+    while(n--) uart_putc(*str++);
+    return n;
 }
 
 unsigned char uart_getch(){
@@ -68,13 +62,4 @@ unsigned char uart_getch(){
         }
     }
     return c;
-}
-
-
-void uart_printreg(const char* p, unsigned value){
-    uart_putstr (p);
-    uart_putch ('=');
-    uart_putch (' ');
-    uart_puthex (value);
-    uart_putch ('\n');
 }

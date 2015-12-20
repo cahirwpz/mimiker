@@ -3,6 +3,7 @@
 *.ko
 *.obj
 *.elf
+*.srec
 
 # Precompiled Headers
 *.gch
@@ -30,3 +31,9 @@
 
 # Debug files
 *.dSYM/
+
+# Backup files
+*~
+
+# Linker output
+*.map
