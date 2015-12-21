@@ -1,0 +1,46 @@
+# vim: tabstop=8 shiftwidth=8 noexpandtab:
+
+P        = mips-mti-elf-
+CC       = $(P)gcc -mips32r2 -EL -g
+AR       = $(P)ar
+AS       = $(P)as -mips32r2 -EL -g
+GDB      = $(P)gdb
+OBJCOPY  = $(P)objcopy
+OBJDUMP  = $(P)objdump
+
+ASFLAGS  =
+CFLAGS   = -Og -Wall -Werror -DPIC32MZ
+CPPFLAGS = -Wall -Werror -DPIC32MZ
+LDFLAGS  = -nostdlib
+LDLIBS   =
+
+%.S: %.c
+	@echo "[CC] $< -> $@"
+	$(CC) $(CFLAGS) $(CPPFLAGS) -S -o $@ $<
+
+%.o: %.c
+	@echo "[CC] $< -> $@"
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
+%.o: %.S
+	@echo "[AS] $< -> $@"
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
+%.elf:
+	@echo "[LD] $(filter %.o,$^) -> $@"
+	$(CC) $(LDFLAGS) $(filter %.o,$^) $(LDLIBS) -o $@
+
+%.srec: %.elf
+	@echo "[OBJCOPY] $^ -> $@"
+	$(OBJCOPY) -O srec $(PROGNAME).elf $(PROGNAME).srec
+
+%.a:
+	@echo "[AR] $^ -> $@"
+	$(AR) rs $@ $^
+
+.PHONY: all clean
+
+# Pass "VERBOSE=1" at command line to display command being invoked by GNU Make
+ifneq ($(VERBOSE), 1)
+.SILENT:
+endif

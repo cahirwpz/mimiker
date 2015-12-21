@@ -1,29 +1,24 @@
-P	= mips-mti-elf-
-CC	= $(P)gcc -mips32r2 -EL -nostdlib
-AR  = $(P)ar
+# vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-# Flags for both library files and custom procedures
-CFLAGS = -DPIC32MZ -Wall -O0 -g
+include ../Makefile.common
 
 # Flags for the library.  __PREFER_SIZE_OVER_SPEED__ disables some
 # optimized function implementations. -Werror is not enabled since
 # this is an external library.
-LIB_CFLAGS = $(CFLAGS) -D__PREFER_SIZE_OVER_SPEED__
-# Flags for custom procedures
-EXTRA_CFLAGS = $(CFLAGS) -Wextra -Werror
+LIB_CFLAGS = -D__PREFER_SIZE_OVER_SPEED__
 
 LIBNAME = smallclib
 LIB_BUILD_DIR = $(LIBNAME)_build
 
 # Find the path to smallclib within toolchains resources
-STD_HEADER_PATH = $(dir $(shell mips-mti-elf-gcc --print-libgcc-file-name))
+STD_HEADER_PATH = $(dir $(shell $(P)gcc --print-libgcc-file-name))
 LIB_PATH = $(realpath $(join $(STD_HEADER_PATH), ../../../../src/smallclib/))
 
 $(info Using $(LIBNAME) sources located at: $(LIB_PATH))
 
-INCLUDES = -I$(LIB_PATH)/include
-INCLUDES += -isysteminclude
-INCLUDES += -I../ # For uart_raw.h
+CPPFLAGS  = -I$(LIB_PATH)/include
+CPPFLAGS += -isysteminclude
+CPPFLAGS += -I../ # For uart_raw.h
 
 # Explicitly picking files to compile.
 LIB_SOURCES  = ctype/ctype_.c
@@ -69,8 +64,6 @@ EXTRA_OBJECTS = \
 	) \
 	)
 $(LIBNAME).a: $(EXTRA_OBJECTS) $(LIB_OBJECTS)
-	@echo "Creating $@"
-	$(AR) rvs $@ $(EXTRA_OBJECTS) $(LIB_OBJECTS) > /dev/null
 
 # Generate rules for each library file separately. A simple pattern
 # rule will not suffice, because we need to correct the file directory
@@ -87,7 +80,8 @@ define emit_lib_rule
 CFILE := $(1)
 OFILE := $(patsubst %.S,%.o,$(patsubst %.c,%.o,$(notdir $(1))))
 $(LIB_BUILD_DIR)/$$(OFILE): $(LIB_PATH)/$$(CFILE) | $(LIB_BUILD_DIR)
-	$(CC) $(LIB_CFLAGS) $(INCLUDES) -c $$^ -o $$@
+	@echo "[CC] $$< -> $$@"
+	$(CC) $(LIB_CFLAGS) $(CFLAGS) $(CPPFLAGS) -c $$^ -o $$@
 endef
 
 # Now loop over LIB_SOURCES, and create a rule for each.  For some
@@ -100,13 +94,8 @@ endef
 # https://www.gnu.org/software/make/manual/html_node/Foreach-Function.html
 $(foreach file, $(LIB_SOURCES) null, $(eval $(call emit_lib_rule,$(file))))
 
-# Here is a pattern rule for the glue layer. The glue layer is build
-# in-tree, so a pattern is enough.
-extra/%.o: extra/%.c
-	$(CC) $(EXTRA_CFLAGS) $(INCLUDES) -c $< -o $@
-
 clean:
-	rm -f $(LIBNAME).a
-	rm -f $(EXTRA_OBJECTS)
-	rm -f $(LIB_OBJECTS)
+	$(RM) $(LIBNAME).a
+	$(RM) $(EXTRA_OBJECTS)
+	$(RM) $(LIB_OBJECTS)
 	-rmdir $(LIB_BUILD_DIR)
