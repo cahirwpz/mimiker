@@ -4,6 +4,7 @@
 /* Exception vector. */
 .section .exception
 .globl __reset_vector
+.org 0x0
 __reset_vector:
     la  $a0, _start     // Jump to _start.
     jr  $a0
