@@ -15,9 +15,9 @@ OBJECTS_C := $(SOURCES_C:.c=.o)
 OBJECTS_ASM := $(SOURCES_ASM:.S=.o)
 OBJECTS = $(OBJECTS_C) $(OBJECTS_ASM)
 
-all: smallclib $(PROGNAME).srec
+all: $(PROGNAME).srec
 
-$(PROGNAME).elf: $(OBJECTS) $(LDSCRIPT)
+$(PROGNAME).elf: smallclib $(OBJECTS) $(LDSCRIPT)
 
 smallclib:
 	$(MAKE) -C smallclib smallclib.a
