@@ -2,7 +2,7 @@
 #include <libkern.h>
 
 /* Provided by linker script. */
-extern char* __ebase;
+extern const char __ebase[];
 
 /* This counter is incremented every millisecond. */
 static volatile unsigned int timer_ms_count;
