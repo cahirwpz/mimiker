@@ -62,7 +62,7 @@ void udelay (unsigned usec)
 void read_config()
 {
     int config = mfc0(16, 0);
-    kprintf ("\nConfig   = 0x%08x\n", config);
+    kprintf ("\nConfig = 0x%08x\n", config);
     
     //kprintf("Test: %d\n", BITS(51,3,0) );
     
@@ -89,13 +89,13 @@ void read_config()
         return;
     
     int config1 = mfc0(16, 1);
-    kprintf ("\nConfig1  = 0x%08x\n", config1);
+    kprintf ("\nConfig1 = 0x%08x\n", config1);
 
     kprintf("Number of entries in TLB (minus 1): %d\n", BITS(config1, 6, 25) );    
-    kprintf("Number  of instruction cache sets per way [0-64, 1-128, 2-256, 3-512, 4-1024, 5-7-Reserved]: %d\n", BITS(config1, 3, 22) );    
+    kprintf("Number of instruction cache sets per way [0-64, 1-128, 2-256, 3-512, 4-1024, 5-7-Reserved]: %d\n", BITS(config1, 3, 22) );    
     kprintf("Instruction cache line size: [0-No instr. cache, 3-16 bytes, 1,2,4-7 - Reserved]: %d\n", BITS(config1, 3, 19) );
     kprintf("Level of instruction cache associativity [0-Direct mapped, 1-2way, 2-3way, 3-4way, 4-7-Reserved]: %d\n", BITS(config1, 3, 16) );    
-    kprintf("Number  of data cache sets per way [0-64, 1-128, 2-256, 3-512, 4-1024, 5-7-Reserved]: %d\n", BITS(config1, 3, 13) );    
+    kprintf("Number of data cache sets per way [0-64, 1-128, 2-256, 3-512, 4-1024, 5-7-Reserved]: %d\n", BITS(config1, 3, 13) );    
     kprintf("data cache line size: [0-No data cache, 3-16 bytes, 1,2,4-7 - Reserved]: %d\n", BITS(config1, 3, 10) );
     kprintf("Type of the data cache [0-Direct mapped, 1-2way, 2-3way, 3-4way, 4-7-Reserved]: %d\n", BITS(config1, 3, 7) ); 
     kprintf("Coprocesor 2 present: %d\n", BIT(config1, 6) );
@@ -110,14 +110,14 @@ void read_config()
         return;
     
     int config2 = mfc0(16, 2);
-    kprintf ("\nConfig2  = 0x%08x\n", config2);
+    kprintf ("\nConfig2 = 0x%08x\n", config2);
     kprintf ("Bits 31:0 are reserved\n");
     
     if( (config2 & (1<<31)) == 0 )
         return;
 
     int config3 = mfc0(16, 3);
-    kprintf ("\nConfig3  = 0x%08x\n", config3);
+    kprintf ("\nConfig3 = 0x%08x\n", config3);
           
     kprintf("Zeros: %d\n", BITS(config3, 8, 23) );
     kprintf("[0-IPL and RIPL filds are 6-bits, 1-...8-bits, 2,3-Reserved]: %d\n", BITS(config3, 2, 21) );
@@ -145,7 +145,7 @@ void read_config()
         return;
    
     int config4 = mfc0(16, 4);
-    kprintf ("\nConfig4  = 0x%08x\n", config4);
+    kprintf ("\nConfig4 = 0x%08x\n", config4);
      
     kprintf("Zeros: %d\n", BITS(config4, 30, 0) );
     
@@ -153,12 +153,22 @@ void read_config()
         return;
     
     int config5 = mfc0(16, 5);
-    kprintf ("\nConfig5  = 0x%08x\n", config5);
+    kprintf ("\nConfig5 = 0x%08x\n", config5);
     kprintf("Config5 is present (?) (Should read as 0): %d\n", BIT(config5, 31));
     kprintf("Zeros: %d\n", BITS(config5, 28, 3) );
     kprintf("User mode FR instructions allowed: %d\n", BIT(config5, 2));
     kprintf("Zero: %d\n", BIT(config5, 1));
     kprintf("Nested Fault feature is present: %d\n", BIT(config5, 0));
+
+    //How do we know that config7 is present? 
+
+    int config7 = mfc0(16, 7);
+    kprintf ("\nConfig7 = 0x%08x\n", config7);
+    kprintf("Wait IE Ignore: %d\n", BIT(config7, 31));
+    kprintf("Zeros: %d\n", BITS(config7, 12, 19) );
+    kprintf("Hardware Cache Initialization: %d\n", BIT(config7, 18));
+    kprintf("Zeros: %d\n", BITS(config7, 18, 0) );
+
 
 
 }
