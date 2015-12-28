@@ -4,6 +4,7 @@
 #include "pic32mz.h"
 #include "uart_raw.h"
 #include "global_config.h"
+#include "phys_mem.h"
 
 #include <libkern.h>
 
@@ -71,6 +72,9 @@ int kernel_main()
     TRISACLR = 0xCF;
     LATFCLR = 0x3000;
     TRISFCLR = 0x3000;
+
+    /* Initialize physical memory management. */
+    init_phys_mem();
 
     /* Initialize UART. */
     uart_init();

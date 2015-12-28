@@ -9,7 +9,7 @@ CPPFLAGS += -isystemsmallclib/include
 LDLIBS   = smallclib/smallclib.a
 
 PROGNAME = main
-SOURCES_C = main.c uart_raw.c
+SOURCES_C = main.c uart_raw.c phys_mem.c
 SOURCES_ASM = startup.S
 OBJECTS_C := $(SOURCES_C:.c=.o)
 OBJECTS_ASM := $(SOURCES_ASM:.S=.o)
