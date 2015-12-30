@@ -74,7 +74,7 @@ int kernel_main()
     TRISFCLR = 0x3000;
 
     /* Initialize physical memory management. */
-    init_phys_mem();
+    pm_init();
 
     /* Initialize UART. */
     uart_init();

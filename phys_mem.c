@@ -19,7 +19,7 @@ extern const char _end[];
  * frames. The extra byte is added for the case when FRAME_N is not a
  * multiply of [word size]. */
 #define FRAME_BITMAP_TYPE unsigned
-FRAME_BITMAP_TYPE frame_bitmap[FRAMES_N / sizeof(FRAME_BITMAP_TYPE) + 1];
+static FRAME_BITMAP_TYPE frame_bitmap[FRAMES_N / sizeof(FRAME_BITMAP_TYPE) + 1];
 #define  FRAMES_PER_BITMAP_ENTRY (sizeof(FRAME_BITMAP_TYPE) * 8)
 
 /* These bit op macros are universally usefull. Shall we move them to
@@ -32,15 +32,15 @@ FRAME_BITMAP_TYPE frame_bitmap[FRAMES_N / sizeof(FRAME_BITMAP_TYPE) + 1];
 #define GET_FRAME_STATE(n) GET_BIT(frame_bitmap[n / FRAMES_PER_BITMAP_ENTRY], n % FRAMES_PER_BITMAP_ENTRY)
 
 /* Forward declaration. */
-void phys_mem_demo();
+void demo_pm();
 
 /* Calculates to which frame a given address belongs, or returns -1 if
    it is outside RAM. */
-size_t get_frame_no(const void* p){
+size_t pm_addr_to_frame_no(const void* p){
     const char* ptr = (const char*)p;
     /* Test whether it is a valid physical RAM address. */
     if(ptr < RAM_START || ptr > RAM_END){
-        kprintf("get_frame_no failed: Queried pointer %x is outside RAM bounds.", ptr);
+        kprintf("pm_addr_to_frame_no failed: Queried pointer %x is outside RAM bounds.", ptr);
         return -1;
     }
     size_t offset = (char*)ptr - RAM_START;
@@ -49,14 +49,14 @@ size_t get_frame_no(const void* p){
 }
 
 /* Translates a frame number into corresponding physical address. */
-void* get_frame_addr(size_t n){
+void* pm_frame_no_to_addr(size_t n){
     return (char*)RAM_START + n*FRAME_SIZE;
 }
 
 /* This procedure marks all frames from first to last (inclusive) as
  * used (if mark != 0) or unused (if mark == 0), but setting/clearing
  * the corresponding bits of the frames bitmap. */
-void mark_frames_used(size_t first, size_t last, unsigned mark){
+void pm_frames_mark_used(size_t first, size_t last, unsigned mark){
     size_t frameno;
     /* The following is not too efficient, for example, when setting
        more than [word size] frames it would make sense to set an
@@ -74,9 +74,9 @@ void mark_frames_used(size_t first, size_t last, unsigned mark){
     }
 }
 
-void init_phys_mem(){
-    size_t kernel_data_start_frame = get_frame_no(KERNEL_RAM_START);
-    size_t kernel_data_end_frame   = get_frame_no(KERNEL_RAM_END  );
+void pm_init(){
+    size_t kernel_data_start_frame = pm_addr_to_frame_no(KERNEL_RAM_START);
+    size_t kernel_data_end_frame   = pm_addr_to_frame_no(KERNEL_RAM_END  );
 
     if(DEBUG_PHYS_MEM) {
         /* Some general info. */
@@ -88,13 +88,13 @@ void init_phys_mem(){
                 kernel_data_start_frame, kernel_data_end_frame);
     }
 
-    mark_frames_used(kernel_data_start_frame, kernel_data_end_frame, 1);
+    pm_frames_mark_used(kernel_data_start_frame, kernel_data_end_frame, 1);
 
     // Perform the demonstration.
-    if(DEBUG_PHYS_MEM) phys_mem_demo();
+    if(DEBUG_PHYS_MEM) demo_pm();
 }
 
-void phys_mem_print_state(){
+void pm_state_print(){
     kprintf("Physical memory manager internal state:\n");
     /* Start from the last entry, and continue downwards. */
     int i = FRAMES_N / FRAMES_PER_BITMAP_ENTRY - 1;
@@ -107,7 +107,7 @@ void phys_mem_print_state(){
 
 /* This function finds the frame at which a newly requested region
    might begin. */
-size_t find_free_frames(size_t n){
+size_t pm_frames_find_free(size_t n){
     if(DEBUG_PHYS_MEM) kprintf("Looking for %u free frames.\n", n);
     /* A very simple first-fit implementation. */
     /* A more efficient version would skip many frames at once, if
@@ -134,20 +134,20 @@ size_t find_free_frames(size_t n){
     return -1;
 }
 
-void* alloc_frames(size_t n){
+void* pm_frames_alloc(size_t n){
     /* Find a fitting region. */
-    size_t where = find_free_frames(n);
+    size_t where = pm_frames_find_free(n);
     if(where == (size_t)-1){
         kprintf("Fatal error: Failed to allocate %d frames, no fit found.\n", n);
         return NULL;
     }
     /* Mark the frames as used.*/
-    mark_frames_used(where, where + n - 1, 1);
+    pm_frames_mark_used(where, where + n - 1, 1);
 
-    return get_frame_addr(where);
+    return pm_frame_no_to_addr(where);
 }
 
-void free_frames(const void* p, size_t n){
+void pm_frames_free(const void* p, size_t n){
     /* Check whether the pointer is frame-aligned. */
     const char* ptr = (const char*)p;
     if((ptr - RAM_START) % FRAME_SIZE != 0){
@@ -155,53 +155,53 @@ void free_frames(const void* p, size_t n){
         // What to do now? We might use a panic() procedure.
         return;
     }
-    size_t where = get_frame_no(p);
+    size_t where = pm_addr_to_frame_no(p);
     /* Mark the frames as unused. */
-    mark_frames_used(where, where + n -1, 0);
+    pm_frames_mark_used(where, where + n -1, 0);
 }
 
 /* ================================================ */
 
 
 /* A trivial demonstration. */
-void phys_mem_demo(){
+void demo_pm(){
 
-    phys_mem_print_state();
+    pm_state_print();
 
     kprintf("Allocating f1: %d frames. \n", 100000/FRAME_SIZE);
-    void* f1 = alloc_frames(100000/FRAME_SIZE);
+    void* f1 = pm_frames_alloc(100000/FRAME_SIZE);
     kprintf("f1 is at %x\n", f1);
 
-    phys_mem_print_state();
+    pm_state_print();
 
     kprintf("Allocating f2: %d frames. \n", 400000/FRAME_SIZE);
-    void* f2 = alloc_frames(400000/FRAME_SIZE);
+    void* f2 = pm_frames_alloc(400000/FRAME_SIZE);
     kprintf("f2 is at %x\n", f2);
 
-    phys_mem_print_state();
+    pm_state_print();
 
     // Prove we can access these addresses.
     memset(f2,1,400000);
 
     kprintf("Freeing f1\n");
-    free_frames(f1,100000/FRAME_SIZE);
+    pm_frames_free(f1,100000/FRAME_SIZE);
 
-    phys_mem_print_state();
+    pm_state_print();
 
     kprintf("Allocating f3: %d frames. \n", 50000/FRAME_SIZE);
     // This region will only fit in the space that was freed by f1.
-    void* f3 = alloc_frames(50000/FRAME_SIZE);
+    void* f3 = pm_frames_alloc(50000/FRAME_SIZE);
     kprintf("f3 is at %x\n", f3);
 
-    phys_mem_print_state();
+    pm_state_print();
 
     kprintf("Freeing f2\n");
-    free_frames(f2,400000/FRAME_SIZE);
+    pm_frames_free(f2,400000/FRAME_SIZE);
 
-    phys_mem_print_state();
+    pm_state_print();
 
     kprintf("Freeing f3\n");
-    free_frames(f3, 50000/FRAME_SIZE);
+    pm_frames_free(f3, 50000/FRAME_SIZE);
 
-    phys_mem_print_state();
+    pm_state_print();
 }
