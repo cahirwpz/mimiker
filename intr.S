@@ -28,7 +28,6 @@ _interrupt_handler:
     sw $t8, 32 ($sp)
     sw $t9, 36 ($sp)
 
-    /* Asking early, as these instructions require a few cycles. */
     mflo $k0
     mfhi $k1
 
