@@ -1,4 +1,5 @@
 #include "phys_mem.h"
+#include "bitops.h"
 #include <libkern.h>
 
 /* Provided by the linker. */
@@ -21,12 +22,6 @@ extern const char _end[];
 #define FRAME_BITMAP_TYPE unsigned
 static FRAME_BITMAP_TYPE frame_bitmap[FRAMES_N / sizeof(FRAME_BITMAP_TYPE) + 1];
 #define  FRAMES_PER_BITMAP_ENTRY (sizeof(FRAME_BITMAP_TYPE) * 8)
-
-/* These bit op macros are universally usefull. Shall we move them to
-   a common header? */
-#define   SET_BIT(n, b) (n |=  (1 << b) )
-#define CLEAR_BIT(n, b) (n &= ~(1 << b) )
-#define   GET_BIT(n, b) ((n & (1<<b)) != 0)
 
 /* Returns 1 iff nth frame is in use, 0 otherwise. */
 #define GET_FRAME_STATE(n) GET_BIT(frame_bitmap[n / FRAMES_PER_BITMAP_ENTRY], n % FRAMES_PER_BITMAP_ENTRY)
