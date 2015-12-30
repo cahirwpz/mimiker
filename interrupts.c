@@ -9,7 +9,28 @@ static volatile unsigned int timer_ms_count;
 
 void init_interrupts(){
 
-    /* Changing EBase must be done with Status:BEV set to 1. */
+    /* PIC32 provides various interrupt modes it can be configured to
+     * use. Because of QEMU limits, the configuration we use is to
+     * enable External Interrupts Controller, and configure it to use
+     * vector spacing 0 (so there is a single interrupt handler).
+     */
+
+    /* The C0's EBase register stores the base address of interrupt
+     * handlers. In case of vectored interrupts, the actual handler
+     * address is calculated by the hadrware using formula:
+     *
+     *    EBase + vector_spacing * vector_no + 0x200.
+     *
+     * This way EBase might be used to quickly, globally switch to a
+     * different set of handlers.  Since we use vector_spacing = 0,
+     * the formula simplifies significantly.
+     */
+
+    /* For no clear reason, the architecture requires that changing
+     * EBase has to be done with Status:BEV set to 1. We will restore
+     * it to 0 afterwards, because BEV=1 enables Legacy (non-vectored)
+     * Interrupt Mode.
+     */
     unsigned status = mfc0(C0_STATUS, 0);
     mtc0(C0_STATUS, 0, status | ST_BEV);
 
