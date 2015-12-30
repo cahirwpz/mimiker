@@ -23,8 +23,6 @@ void interrupt_handler();
 
 /* -- CORE TIMER -- */
 
-#define TICKS_PER_MS (1000 * MHZ / 2)
-
 /* Initializes and enables core timer interrupts. */
 void init_timer();
 
