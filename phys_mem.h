@@ -11,7 +11,7 @@
 
 /* Set this to 1 if you need the physical memory manager to be
  * verbose. */
-#define DEBUG_PHYS_MEM 1
+#define DEBUG_PHYS_MEM 0
 
 /* This function initializes the physical memory manager. It prepares
  * the frame bitmap (taking the kernel data stored in ram into

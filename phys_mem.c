@@ -26,9 +26,6 @@ static FRAME_BITMAP_TYPE frame_bitmap[FRAMES_N / sizeof(FRAME_BITMAP_TYPE) + 1];
 /* Returns 1 iff nth frame is in use, 0 otherwise. */
 #define GET_FRAME_STATE(n) GET_BIT(frame_bitmap[n / FRAMES_PER_BITMAP_ENTRY], n % FRAMES_PER_BITMAP_ENTRY)
 
-/* Forward declaration. */
-void demo_pm();
-
 /* Calculates to which frame a given address belongs, or returns -1 if
    it is outside RAM. */
 size_t pm_addr_to_frame_no(const void* p){
@@ -84,9 +81,6 @@ void pm_init(){
     }
 
     pm_frames_mark_used(kernel_data_start_frame, kernel_data_end_frame, 1);
-
-    // Perform the demonstration.
-    if(DEBUG_PHYS_MEM) demo_pm();
 }
 
 void pm_state_print(){
@@ -153,50 +147,4 @@ void pm_frames_free(const void* p, size_t n){
     size_t where = pm_addr_to_frame_no(p);
     /* Mark the frames as unused. */
     pm_frames_mark_used(where, where + n -1, 0);
-}
-
-/* ================================================ */
-
-
-/* A trivial demonstration. */
-void demo_pm(){
-
-    pm_state_print();
-
-    kprintf("Allocating f1: %d frames. \n", 100000/FRAME_SIZE);
-    void* f1 = pm_frames_alloc(100000/FRAME_SIZE);
-    kprintf("f1 is at %x\n", f1);
-
-    pm_state_print();
-
-    kprintf("Allocating f2: %d frames. \n", 400000/FRAME_SIZE);
-    void* f2 = pm_frames_alloc(400000/FRAME_SIZE);
-    kprintf("f2 is at %x\n", f2);
-
-    pm_state_print();
-
-    // Prove we can access these addresses.
-    memset(f2,1,400000);
-
-    kprintf("Freeing f1\n");
-    pm_frames_free(f1,100000/FRAME_SIZE);
-
-    pm_state_print();
-
-    kprintf("Allocating f3: %d frames. \n", 50000/FRAME_SIZE);
-    // This region will only fit in the space that was freed by f1.
-    void* f3 = pm_frames_alloc(50000/FRAME_SIZE);
-    kprintf("f3 is at %x\n", f3);
-
-    pm_state_print();
-
-    kprintf("Freeing f2\n");
-    pm_frames_free(f2,400000/FRAME_SIZE);
-
-    pm_state_print();
-
-    kprintf("Freeing f3\n");
-    pm_frames_free(f3, 50000/FRAME_SIZE);
-
-    pm_state_print();
 }
