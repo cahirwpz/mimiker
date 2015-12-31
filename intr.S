@@ -2,9 +2,9 @@
 
     /* Interrupts vector */
     .section .exception
-    .globl _interrupt_handler
+    .globl _intr_handler
     .org 0x200
-_interrupt_handler:
+_intr_handler:
 #define REG_STACK_STORE_SIZE 76
     /* Please, no nested interrupts for now. */
     di
@@ -46,7 +46,7 @@ _interrupt_handler:
     sw $ra, 72 ($sp)
 
     /* Call the C routine. */
-    jal interrupt_handler
+    jal intr_handler
      nop
 
     /* Restore registers. */

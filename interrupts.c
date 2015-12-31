@@ -7,7 +7,7 @@ extern const char __ebase[];
 /* This counter is incremented every millisecond. */
 static volatile unsigned int timer_ms_count;
 
-void init_interrupts(){
+void intr_init(){
 
     /* PIC32 provides various interrupt modes it can be configured to
      * use. Because of QEMU limits, the configuration we use is to
@@ -64,7 +64,7 @@ void init_interrupts(){
 }
 
 
-void init_timer(){
+void intr_timer_init(){
     /* Disable interrupts while we are configuring them. */
     unsigned s = di();
 
@@ -90,11 +90,11 @@ void init_timer(){
     ei(s);
 }
 
-unsigned timer_get_ms(){
+unsigned intr_timer_get_ms(){
     return timer_ms_count;
 }
 
-void interrupt_handler(){
+void intr_handler(){
     unsigned irq_n = PIC32_INTSTAT_VEC(INTSTAT);
     unsigned compare,count;
     /* Recognize interrupt type. */

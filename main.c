@@ -63,9 +63,9 @@ void udelay (unsigned usec)
  */
 void mdelay (unsigned msec)
 {
-    unsigned now = timer_get_ms();
+    unsigned now = intr_timer_get_ms();
     unsigned final = now + msec;
-    while(final > timer_get_ms());
+    while(final > intr_timer_get_ms());
 }
 
 int kernel_main()
@@ -80,7 +80,7 @@ int kernel_main()
     LATFCLR = 0x3000;
     TRISFCLR = 0x3000;
 
-    init_interrupts();
+    intr_init();
 
     /* Initialize UART. */
     uart_init();
@@ -128,7 +128,7 @@ int kernel_main()
     kprintf ("DEVCFG2  = 0x%08x\n", DEVCFG2    );
     kprintf ("DEVCFG3  = 0x%08x\n", DEVCFG3    );
 
-    init_timer();
+    intr_timer_init();
 
     unsigned last = 0;
     while (1) {
@@ -145,7 +145,7 @@ int kernel_main()
         mdelay(200);
 
         loop++;
-        unsigned curr = timer_get_ms();
+        unsigned curr = intr_timer_get_ms();
         kprintf("Milliseconds since timer start: %d (diff: %d)\n", curr, curr - last);
         last = curr;
     }
