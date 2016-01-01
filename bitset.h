@@ -54,6 +54,60 @@
 #define BITSET_GET(bitset, bitno)                       \
     (bitset.bf[_BITSET_BIT_WORD(bitno)] & _BITSET_BIT_MASK(bitno) != 0)
 
+/* Common operations on bitsets. */
+
+/* dest = ~src */
+#define BITSET_NOT(dest,src,size)                       \
+    do{                                                 \
+        size_t i;                                       \
+        for( i = 0; i < _BITSET_WORDS_NO(size); i++)    \
+            dest.bf[i] = ~src.bf[i]                     \
+    } while(0)
+/* dest = src1 | src2 */
+#define BITSET_OR(dest,src1,src2,size)                  \
+    do{                                                 \
+        size_t i;                                       \
+        for( i = 0; i < _BITSET_WORDS_NO(size); i++)    \
+            dest.bf[i] = src1.bf[i] | src2.bf[i];       \
+    } while(0)
+/* dest = src1 & src2 */
+#define BITSET_AND(dest,src1,src2,size)                 \
+    do{                                                 \
+        size_t i;                                       \
+        for( i = 0; i < _BITSET_WORDS_NO(size); i++)    \
+            dest.bf[i] = src1.bf[i] & src2.bf[i];       \
+    } while(0)
+/* dest = src1 ^ src2 */
+#define BITSET_XOR(dest,src1,src2,size)                 \
+    do{                                                 \
+        size_t i;                                       \
+        for( i = 0; i < _BITSET_WORDS_NO(size); i++)    \
+            dest.bf[i] = src1.bf[i] ^ src2.bf[i];       \
+    } while(0)
+
+/* dest |= src */
+#define BITSET_INPLACE_OR(dest,src,size)                \
+    do{                                                 \
+        size_t i;                                       \
+        for( i = 0; i < _BITSET_WORDS_NO(size); i++)    \
+            dest.bf[i] |= src.bf[i];                    \
+    } while(0)
+/* dest &= src */
+#define BITSET_INPLACE_AND(dest,src,size)               \
+    do{                                                 \
+        size_t i;                                       \
+        for( i = 0; i < _BITSET_WORDS_NO(size); i++)    \
+            dest.bf[i] &= src.bf[i];                    \
+    } while(0)
+/* dest ^= src */
+#define BITSET_INPLACE_XOR(dest,src,size)               \
+    do{                                                 \
+        size_t i;                                       \
+        for( i = 0; i < _BITSET_WORDS_NO(size); i++)    \
+            dest.bf[i] ^= src.bf[i];                    \
+    } while(0)
+
+
 /* Debug macros for printing out the bitfield state via kprintf. The
  * bits are printed in decreasing number, so bit no. 0 is displayed
  * the last. */
