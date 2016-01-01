@@ -1,7 +1,7 @@
 #include <libkern.h>
 #include "pic32mz.h"
 #include "uart_raw.h"
-#include "global_config.h"
+#include "common.h"
 
 void uart_init(){
     /* Initialize UART. */

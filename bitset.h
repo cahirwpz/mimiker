@@ -2,7 +2,7 @@
 #define __BITSET_H__
 #include <stdint.h>
 #include <stddef.h>
-#include "global_config.h"
+#include "common.h"
 
 /* Bit operations on simple values. */
 #define BIT_SET(n, b) ((n) |=  (1 << (b)) )
@@ -11,8 +11,6 @@
 #define BIT_GET(n, b) (((n) & (1<<(b))) != 0)
 
 /* TODO: This should be in some other file. */
-#define STR_NOEXPAND(x) #x     // This does not expand x.
-#define STR(x) STR_NOEXPAND(x) // This will expand x.
 
 /* ============================== */
 /*   Bitsets                      */

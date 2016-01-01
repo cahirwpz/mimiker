@@ -3,6 +3,7 @@
  */
 #include "pic32mz.h"
 #include "uart_raw.h"
+#include "common.h"
 #include "global_config.h"
 #include "interrupts.h"
 #include "clock.h"
