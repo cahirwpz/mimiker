@@ -5,6 +5,7 @@
 #include "uart_raw.h"
 #include "global_config.h"
 #include "interrupts.h"
+#include "clock.h"
 
 #include <libkern.h>
 
@@ -63,9 +64,9 @@ void udelay (unsigned usec)
  */
 void mdelay (unsigned msec)
 {
-    unsigned now = intr_timer_get_ms();
+    unsigned now = clock_get_ms();
     unsigned final = now + msec;
-    while(final > intr_timer_get_ms());
+    while(final > clock_get_ms());
 }
 
 int kernel_main()
@@ -128,7 +129,7 @@ int kernel_main()
     kprintf ("DEVCFG2  = 0x%08x\n", DEVCFG2    );
     kprintf ("DEVCFG3  = 0x%08x\n", DEVCFG3    );
 
-    intr_timer_init();
+    clock_init();
 
     unsigned last = 0;
     while (1) {
@@ -145,7 +146,7 @@ int kernel_main()
         mdelay(200);
 
         loop++;
-        unsigned curr = intr_timer_get_ms();
+        unsigned curr = clock_get_ms();
         kprintf("Milliseconds since timer start: %d (diff: %d)\n", curr, curr - last);
         last = curr;
     }

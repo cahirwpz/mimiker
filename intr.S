@@ -46,7 +46,7 @@ _intr_handler:
     sw $ra, 72 ($sp)
 
     /* Call the C routine. */
-    jal intr_handler
+    jal intr_dispatcher
      nop
 
     /* Restore registers. */
