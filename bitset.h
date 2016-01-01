@@ -108,6 +108,22 @@
     } while(0)
 
 
+/* Comparison between two bitsets. Returns 0 iff both bitsets are
+ * eqeual. */
+/* Please note that statement statement expressions are a GNU
+ * extension. */
+#define BITSET_CMP(bitset1, bitset2, size)              \
+    ({                                                  \
+        size_t i;                                       \
+        int nonequal = 0;                               \
+        for( i = 0; i < _BITSET_WORDS_NO(size); i++)    \
+            if( bitset1.bf[i] != bitset2.bf[i] ){       \
+                nonequal = 1;                           \
+                break;                                  \
+            }                                           \
+        nonequal;                                       \
+    })
+
 /* Debug macros for printing out the bitfield state via kprintf. The
  * bits are printed in decreasing number, so bit no. 0 is displayed
  * the last. */
