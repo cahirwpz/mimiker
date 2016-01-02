@@ -14,7 +14,7 @@ void __bitset_printer_bin(word_t* bf, size_t size){
         char bin[WORD_SIZE + 1];
         for(bit = 0; bit < WORD_SIZE; bit++){
             bin[WORD_SIZE - bit - 1] = (curr & 0x1)?'1':'0';
-            curr /= 2;
+            curr >>= 1;
         }
         bin[WORD_SIZE] = 0;
         kprintf("%s",bin);
