@@ -39,16 +39,16 @@
 
 /* Bit operations on a bitset. */
 #define BITSET_BIT_SET(bitset, bitno)                   \
-    bitset.bf[_BITSET_BIT_WORD(bitno)] |=               \
-        _BITSET_BIT_MASK(bitno)
+    ( bitset.bf[_BITSET_BIT_WORD(bitno)] |=             \
+      _BITSET_BIT_MASK(bitno) )
 
 #define BITSET_BIT_CLR(bitset, bitno)                   \
-    bitset.bf[_BITSET_BIT_WORD(bitno)] &=               \
-       ~_BITSET_BIT_MASK(bitno)
+    ( bitset.bf[_BITSET_BIT_WORD(bitno)] &=             \
+      ~_BITSET_BIT_MASK(bitno) )
 
 #define BITSET_BIT_INV(bitset, bitno)                   \
-    bitset.bf[_BITSET_BIT_WORD(bitno)] ^=               \
-        _BITSET_BIT_MASK(bitno)
+    ( bitset.bf[_BITSET_BIT_WORD(bitno)] ^=             \
+      _BITSET_BIT_MASK(bitno) )
 
 /* Returns the value of the queried bit in a bitset. */
 #define BITSET_GET(bitset, bitno)                       \
