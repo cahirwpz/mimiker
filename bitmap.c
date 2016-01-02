@@ -1,13 +1,13 @@
-#include "bitset.h"
+#include "bitmap.h"
 #include "libkern.h"
 
-void __bitset_printer_hex(word_t* bf, size_t size){
+void __bitmap_printer_hex(word_t* bf, size_t size){
     int i;
     for(i = size - 1; i >= 0; i--)
         kprintf("%0" STR(BITS_IN_BYTE) "x", bf[i]);
 }
 
-void __bitset_printer_bin(word_t* bf, size_t size){
+void __bitmap_printer_bin(word_t* bf, size_t size){
     int i, bit;
     for(i = size -1; i >= 0; i--){
         word_t curr = bf[i];
