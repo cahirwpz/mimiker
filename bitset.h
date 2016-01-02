@@ -20,7 +20,7 @@
  * bitset field within a struct. */
 #define BITSET_DEFINE(name, size)                       \
     struct name ## _bitset ## size ##_t {               \
-        WORD_TYPE bf[_BITSET_WORDS_NO(size)];           \
+        word_t bf[_BITSET_WORDS_NO(size)];           \
     } name;
 
 /* Macros for initialising bitsets. */
@@ -148,8 +148,8 @@
 
 /* Helper functions for displaying bitfields. Please use
  * BITSET_PRINT_* instead. */
-void __bitset_printer_hex(WORD_TYPE* bf, size_t size);
-void __bitset_printer_bin(WORD_TYPE* bf, size_t size);
+void __bitset_printer_hex(word_t* bf, size_t size);
+void __bitset_printer_bin(word_t* bf, size_t size);
 
 
 

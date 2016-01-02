@@ -11,7 +11,9 @@
 /* Target platform properties. */
 
 #define BITS_IN_BYTE 8
-#define WORD_TYPE uint32_t
-#define WORD_SIZE (sizeof(WORD_TYPE)*BITS_IN_BYTE)
+
+typedef intptr_t word_t;
+#define WORD_SIZE (sizeof(word_t)*BITS_IN_BYTE)
+
 
 #endif // __COMMON_H__
