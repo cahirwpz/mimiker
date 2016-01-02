@@ -21,6 +21,7 @@ SECTIONS
   {
     __text = ABSOLUTE(.);
     /* Exception handlers. */
+    __ebase = ABSOLUTE(.);
     *(.exception)
     . = 0x500;
     /* Execution starts here. */

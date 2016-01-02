@@ -3,5 +3,6 @@
 
 #define MHZ     200             /* CPU clock. */
 
+#define TICKS_PER_MS (1000 * MHZ / 2)
 
 #endif // GLOBAL_CONFIG_H

@@ -4,6 +4,8 @@
 #include "pic32mz.h"
 #include "uart_raw.h"
 #include "global_config.h"
+#include "interrupts.h"
+#include "clock.h"
 
 #include <libkern.h>
 
@@ -56,13 +58,20 @@ void udelay (unsigned usec)
     }
 }
 
+/*
+ * Delays for at least the given number of milliseconds.  May not be
+ * nanosecond-accurate.
+ */
+void mdelay (unsigned msec)
+{
+    unsigned now = clock_get_ms();
+    unsigned final = now + msec;
+    while(final > clock_get_ms());
+}
+
 int kernel_main()
 {
     /* Initialize coprocessor 0. */
-    mtc0 (C0_COUNT, 0, 0);
-    mtc0 (C0_COMPARE, 0, -1);
-    //mtc0 (C0_EBASE, 1, 0x9fc00000);     /* Vector base */
-    //mtc0 (C0_INTCTL, 1, 1 << 5);        /* Vector spacing 32 bytes */
     //mtc0 (C0_CAUSE, 0, 1 << 23);        /* Set IV */
     //mtc0 (C0_STATUS, 0, 0);             /* Clear BEV */
 
@@ -71,6 +80,8 @@ int kernel_main()
     TRISACLR = 0xCF;
     LATFCLR = 0x3000;
     TRISFCLR = 0x3000;
+
+    intr_init();
 
     /* Initialize UART. */
     uart_init();
@@ -118,18 +129,25 @@ int kernel_main()
     kprintf ("DEVCFG2  = 0x%08x\n", DEVCFG2    );
     kprintf ("DEVCFG3  = 0x%08x\n", DEVCFG3    );
 
+    clock_init();
+
+    unsigned last = 0;
     while (1) {
         /* Invert pins PA7-PA0. */
-        LATAINV = 1 << 0;  udelay (100000);
-        LATAINV = 1 << 1;  udelay (100000);
-        LATAINV = 1 << 2;  udelay (100000);
-        LATAINV = 1 << 3;  udelay (100000);
-        LATFINV = 1 << 13; udelay (100000);
-        LATFINV = 1 << 12; udelay (100000);
-        LATAINV = 1 << 6;  udelay (100000);
-        LATAINV = 1 << 7;  udelay (100000);
+        LATAINV = 1 << 0;  mdelay (100);
+        LATAINV = 1 << 1;  mdelay (100);
+        LATAINV = 1 << 2;  mdelay (100);
+        LATAINV = 1 << 3;  mdelay (100);
+        LATFINV = 1 << 13; mdelay (100);
+        LATFINV = 1 << 12; mdelay (100);
+        LATAINV = 1 << 6;  mdelay (100);
+        LATAINV = 1 << 7;  mdelay (100);
+
+        mdelay(200);
 
         loop++;
-        kprintf(".");
+        unsigned curr = clock_get_ms();
+        kprintf("Milliseconds since timer start: %d (diff: %d)\n", curr, curr - last);
+        last = curr;
     }
 }
