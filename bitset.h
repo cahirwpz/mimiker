@@ -128,9 +128,9 @@
  * bits are printed in decreasing number, so bit no. 0 is displayed
  * the last. */
 #define BITSET_PRINT_HEX(bitset,size) \
-    __bitset_printer_hex((bitset).bf, _BITSET_WORDS_NO(size));
+    __bitset_printer_hex((bitset).bf, _BITSET_WORDS_NO(size))
 #define BITSET_PRINT_BIN(bitset,size) \
-    __bitset_printer_bin((bitset).bf, _BITSET_WORDS_NO(size));
+    __bitset_printer_bin((bitset).bf, _BITSET_WORDS_NO(size))
 
 /* ================================= */
 /* Bitset internal helper functions. */
