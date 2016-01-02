@@ -20,21 +20,21 @@
  * bitset field within a struct. */
 #define BITSET_DEFINE(name, size)                       \
     struct name ## _bitset ## size ##_t {               \
-        word_t bf[_BITSET_WORDS_NO(size)];           \
+        word_t bf[_BITSET_WORDS_NO(size)];              \
     } name;
 
 /* Macros for initialising bitsets. */
-#define BITSET_CLEAR(bitset,size)                       \
+#define BITSET_ZERO(bitset,size)                        \
     do{                                                 \
         size_t i;                                       \
         for( i = 0; i < _BITSET_WORDS_NO(size); i++)    \
             bitset.bf[i] = 0;                           \
     } while(0)
-#define BITSET_CLEAR(bitset,size)                       \
+#define BITSET_FILL(bitset,size)                        \
     do{                                                 \
         size_t i;                                       \
         for( i = 0; i < _BITSET_WORDS_NO(size); i++)    \
-            bitset.bf[i] = 0;                           \
+            bitset.bf[i] = ~((word_t)0);                \
     } while(0)
 
 /* Bit operations on a bitset. */
