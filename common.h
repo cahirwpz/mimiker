@@ -14,8 +14,4 @@
 #define WORD_TYPE uint32_t
 #define WORD_SIZE (sizeof(WORD_TYPE)*BITS_IN_BYTE)
 
-#define MHZ     200             /* CPU clock. */
-#define TICKS_PER_MS (1000 * MHZ / 2)
-
-
 #endif // __COMMON_H__
