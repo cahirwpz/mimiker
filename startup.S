@@ -4,6 +4,15 @@
 /* Exception vector. */
 .section .exception
 .globl __reset_vector
+/* The .org 0x0 directive explicitly forces the routine to be placed
+ * exactly at the beginning of the .exception section. Not using this
+ * directive should yield the same result, but it is set explicitly in
+ * order to highlight the fact that offsets within .exception section
+ * shall not be arbitrary. This may save us from problems in case the
+ * assembler decided to place __reset_vector anywhere else but
+ * 0xbfc00000.
+ */
+.org 0x0
 __reset_vector:
     la  $a0, _start     // Jump to _start.
     jr  $a0
