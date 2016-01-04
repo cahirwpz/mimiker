@@ -18,7 +18,7 @@ $(info Using $(LIBNAME) sources located at: $(LIB_PATH))
 
 CPPFLAGS  = -I$(LIB_PATH)/include
 CPPFLAGS += -isysteminclude
-CPPFLAGS += -I../ # For uart_raw.h
+CPPFLAGS += -I../include # For uart_raw.h
 
 # Explicitly picking files to compile.
 LIB_SOURCES  = ctype/ctype_.c
