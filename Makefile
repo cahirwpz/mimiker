@@ -5,7 +5,7 @@ include Makefile.common
 QEMU     = qemu-system-mipsel -machine pic32mz-wifire -sdl -serial stdio -s -S
 LDSCRIPT = pic32mz.ld
 LDFLAGS  += -T $(LDSCRIPT) -Wl,-Map=pic32mz.map
-CPPFLAGS += -isystemsmallclib/include -Iinclude
+CPPFLAGS += -Iinclude
 LDLIBS   = smallclib/smallclib.a
 
 PROGNAME = main

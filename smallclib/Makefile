@@ -17,8 +17,7 @@ LIB_PATH = $(realpath $(join $(STD_HEADER_PATH), ../../../../src/smallclib/))
 $(info Using $(LIBNAME) sources located at: $(LIB_PATH))
 
 CPPFLAGS  = -I$(LIB_PATH)/include
-CPPFLAGS += -isysteminclude
-CPPFLAGS += -I../include # For uart_raw.h
+CPPFLAGS += -I../include
 
 # Explicitly picking files to compile.
 LIB_SOURCES  = ctype/ctype_.c
