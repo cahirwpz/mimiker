@@ -17,8 +17,7 @@ LIB_PATH = $(realpath $(join $(STD_HEADER_PATH), ../../../../src/smallclib/))
 $(info Using $(LIBNAME) sources located at: $(LIB_PATH))
 
 CPPFLAGS  = -I$(LIB_PATH)/include
-CPPFLAGS += -isysteminclude
-CPPFLAGS += -I../ # For uart_raw.h
+CPPFLAGS += -I../include
 
 # Explicitly picking files to compile.
 LIB_SOURCES  = ctype/ctype_.c
@@ -35,10 +34,10 @@ LIB_SOURCES += string/strspn.c
 # provide a custom wctomb which fails to represent any wide character.
 
 # Extra utilities
-EXTRA_SOURCES += extra/wctomb.c
-EXTRA_SOURCES += extra/kputs.c
-EXTRA_SOURCES += extra/kprintf.c
-EXTRA_SOURCES += extra/snprintf.c
+EXTRA_SOURCES += wctomb.c
+EXTRA_SOURCES += kputs.c
+EXTRA_SOURCES += kprintf.c
+EXTRA_SOURCES += snprintf.c
 
 # The default rule.
 all: $(LIBNAME).a
