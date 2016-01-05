@@ -34,10 +34,10 @@ LIB_SOURCES += string/strspn.c
 # provide a custom wctomb which fails to represent any wide character.
 
 # Extra utilities
-EXTRA_SOURCES += extra/wctomb.c
-EXTRA_SOURCES += extra/kputs.c
-EXTRA_SOURCES += extra/kprintf.c
-EXTRA_SOURCES += extra/snprintf.c
+EXTRA_SOURCES += wctomb.c
+EXTRA_SOURCES += kputs.c
+EXTRA_SOURCES += kprintf.c
+EXTRA_SOURCES += snprintf.c
 
 # The default rule.
 all: $(LIBNAME).a
