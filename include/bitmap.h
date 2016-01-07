@@ -9,6 +9,7 @@
 #define BIT_CLR(n, b) ((n) &= ~(1 << (b)) )
 #define BIT_INV(n, b) ((n) ^=  (1 << (b)) )
 #define BIT_GET(n, b) (((n) & (1<<(b))) != 0)
+#define BITS_GET(n, l, b) ( ((n) & (( (1<<(l)) - 1) << (b) )) >> b)
 
 /* TODO: This should be in some other file. */
 
