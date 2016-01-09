@@ -15,7 +15,7 @@ MEMORY
 SECTIONS
 {
   /* higher address of the user mode stack */
-  _estack = ORIGIN(ram) + LENGTH(ram);
+  _custom_estack = ORIGIN(ram) + LENGTH(ram);
 
   .text : AT(ORIGIN(flash))
   {
