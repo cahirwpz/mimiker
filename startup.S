@@ -25,7 +25,7 @@ __reset_vector:
 .type _start, function
 .ent _start
 _start:
-    la  $sp, _estack    // Set stack pointer.
+    la  $sp, _custom_estack // Set stack pointer.
     la  $gp, _gp        // Prepare global pointer.
 
 copy_rom_to_ram:
