@@ -70,5 +70,3 @@ kernel_main_exit:
      nop
 
 .end _start
-
-_estack = _end + 0x1000
