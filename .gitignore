@@ -37,3 +37,6 @@
 
 # Linker output
 *.map
+
+# Build dependency files
+.*.D

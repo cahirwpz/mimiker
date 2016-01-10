@@ -11,13 +11,19 @@ LDLIBS   = smallclib/smallclib.a
 PROGNAME = main
 SOURCES_C = main.c uart_raw.c interrupts.c clock.c bitmap.c
 SOURCES_ASM = startup.S intr.S
-OBJECTS_C := $(SOURCES_C:.c=.o)
-OBJECTS_ASM := $(SOURCES_ASM:.S=.o)
-OBJECTS = $(OBJECTS_C) $(OBJECTS_ASM)
+SOURCES = $(SOURCES_C) $(SOURCES_ASM)
+OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
+DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
 
-all: $(PROGNAME).srec
+all: $(DEPFILES) $(PROGNAME).srec
 
 $(PROGNAME).elf: smallclib $(OBJECTS) $(LDSCRIPT)
+
+$(foreach file,$(SOURCES) null,$(eval $(call emit_dep_rule,$(file))))
+
+ifeq ($(words $(findstring $(MAKECMDGOALS), clean)), 0)
+  -include $(DEPFILES)
+endif
 
 smallclib:
 	$(MAKE) -C smallclib smallclib.a
@@ -30,6 +36,6 @@ qemu: $(PROGNAME).srec
 
 clean:
 	$(MAKE) -C smallclib clean
-	$(RM) -f *.o *.lst *~ *.elf *.srec *.map
+	$(RM) -f .*.D *.o *.lst *~ *.elf *.srec *.map
 
 .PHONY: smallclib

@@ -14,6 +14,14 @@ CPPFLAGS = -Wall -Werror -DPIC32MZ
 LDFLAGS  = -nostdlib
 LDLIBS   =
 
+define emit_dep_rule
+CFILE = $(1)
+DFILE = .$(patsubst %.S,%.D,$(patsubst %.c,%.D,$(1)))
+$$(DFILE): $$(CFILE)
+	@echo "[DEP] $$@"
+	$(CC) $(CFLAGS) $(CPPFLAGS) -MM -MG $$^ -o $$@
+endef
+
 %.S: %.c
 	@echo "[CC] $< -> $@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -S -o $@ $<
