@@ -4,7 +4,8 @@
 #include "common.h"
 #include "global_config.h"
 
-void uart_init(){
+void uart_init()
+{
     /* Initialize UART. */
     U1RXR = 2;                          /* assign UART1 receive to pin RPF4 */
     RPF5R = 1;                          /* assign pin RPF5 to UART1 transmit */
@@ -18,7 +19,8 @@ void uart_init(){
 
 }
 
-int uart_putc(int c){
+int uart_putc(int c)
+{
     /* Wait for transmitter shift register empty. */
     while (! (U1STA & PIC32_USTA_TRMT))
         continue;
@@ -37,9 +39,10 @@ again:
     return c;
 }
 
-int uart_puts(const char* str){
+int uart_puts(const char* str)
+{
     int n = 0;
-    while(*str){
+    while(*str) {
         uart_putc(*str++);
         n++;
     }
@@ -47,13 +50,15 @@ int uart_puts(const char* str){
     return n + 1;
 }
 
-int uart_write(const char* str, size_t n){
+int uart_write(const char* str, size_t n)
+{
     while(n--) uart_putc(*str++);
     return n;
 }
 
-unsigned char uart_getch(){
-      unsigned c;
+unsigned char uart_getch()
+{
+    unsigned c;
 
     for (;;) {
         /* Wait until receive data available. */

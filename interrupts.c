@@ -5,7 +5,8 @@
 /* Provided by linker script. */
 extern const char __ebase[];
 
-void intr_init(){
+void intr_init()
+{
 
     /* PIC32 provides various interrupt modes it can be configured to
      * use. Because of QEMU limits, the configuration we use is to
@@ -61,10 +62,11 @@ void intr_init(){
     mtc0(C0_STATUS, 0, status);
 }
 
-void intr_dispatcher(){
+void intr_dispatcher()
+{
     unsigned irq_n = PIC32_INTSTAT_VEC(INTSTAT);
     /* Recognize interrupt type. */
-    switch(irq_n){
+    switch(irq_n) {
     case PIC32_IRQ_CT:
         /* Core timer interrupt. */
         hardclock();
