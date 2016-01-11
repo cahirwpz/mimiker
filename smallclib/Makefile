@@ -24,6 +24,7 @@ LIB_SOURCES  = ctype/ctype_.c
 LIB_SOURCES += stdio/__format_parser_int.c
 LIB_SOURCES += string/memchr.c
 LIB_SOURCES += string/memset.c
+LIB_SOURCES += string/bzero.c
 LIB_SOURCES += string/memcpy.c
 LIB_SOURCES += string/strlen.c
 LIB_SOURCES += string/strspn.c

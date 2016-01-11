@@ -7,6 +7,7 @@
 #include "global_config.h"
 #include "interrupts.h"
 #include "clock.h"
+#include "kmem.h"
 
 #include <libkern.h>
 

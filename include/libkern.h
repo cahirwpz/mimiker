@@ -11,6 +11,7 @@
 void *memset (void *m, int c, size_t n);
 void *memcpy (void *dst0, const void *src0, size_t len0);
 size_t strlen(const char *str);
+void bzero(void *s, size_t n);
 /* ============================================ */
 
 
