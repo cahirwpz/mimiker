@@ -10,7 +10,7 @@ LDLIBS   = smallclib/smallclib.a
 
 PROGNAME = main
 SOURCES_C = main.c uart_raw.c interrupts.c clock.c bitmap.c
-SOURCES_ASM = startup.S intr.S
+SOURCES_ASM = startup.S intr.S init_gpr.S init_cp0.S init_caches.S init_tlb.S
 SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
 DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
