@@ -55,4 +55,13 @@ inline void ctx_set_stack(struct ctx_struct* ctx, void *stack)
     ctx->registers[1] = (uintptr_t)stack;
 }
 
+/* This function stores the current context to @from, and resumes the
+ * context stored in @to. It does not return immediatelly, it returns
+ * only when the @from context is resumed. */
+inline void ctx_switch(struct ctx_struct* from, struct ctx_struct* to)
+{
+    if(!ctx_store(from))
+        ctx_load(to);
+}
+
 #endif // __CONTEXT_H__
