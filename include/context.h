@@ -2,6 +2,7 @@
 #define __CONTEXT_H__
 
 #include "common.h"
+#include "libkern.h"
 #include <stddef.h>
 
 struct ctx_struct{
@@ -53,6 +54,22 @@ inline void ctx_set_addr(struct ctx_struct* ctx, void (*target)())
 inline void ctx_set_stack(struct ctx_struct* ctx, void *stack)
 {
     ctx->registers[1] = (uintptr_t)stack;
+}
+
+/* This function sets the contents of a context struct, zeroing it's
+ * all registers except for return address, which is set to @target,
+ * stack pointer, which is set to @stack, and global pointer, which is
+ * set to @gp.
+ *
+ * WARNING: The target procedure MUST NOT RETURN. The result of such
+ * event is undefined, but will generally restart the target function.
+ */
+inline void ctx_create(struct ctx_struct* ctx, void (*target)(), void* stack, void* gp)
+{
+    bzero(ctx, sizeof(struct ctx_struct));
+    ctx->registers[0] = (uintptr_t)target;
+    ctx->registers[1] = (uintptr_t)stack;
+    ctx->registers[2] = (uintptr_t)gp;
 }
 
 /* This function stores the current context to @from, and resumes the
