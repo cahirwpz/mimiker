@@ -35,4 +35,24 @@ uint32_t ctx_store(struct ctx_struct* ctx) __attribute__((warn_unused_result));
  */
 void ctx_load(const struct ctx_struct* ctx) __attribute__((noreturn));
 
+/* This function modifies a saved context so that it immediatelly
+ * enters a particular function when the context is resumed. This is
+ * done by modifying the stored return address to the given target
+ * function. This may be useful for creating execution contexts that
+ * start in a separate procedure.
+ *
+ * WARNING: The target procedure MUST NOT RETURN. The result of doing
+ * so is undefined, but will generally restart the target function.
+ */
+inline void ctx_set_addr(struct ctx_struct* ctx, void (*target)())
+{
+    ctx->registers[0] = (uintptr_t)target;
+}
+
+/* Sets the stack pointer in a stored context struct */
+inline void ctx_set_stack(struct ctx_struct* ctx, void *stack)
+{
+    ctx->registers[1] = (uintptr_t)stack;
+}
+
 #endif // __CONTEXT_H__
