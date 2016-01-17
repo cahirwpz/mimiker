@@ -215,12 +215,12 @@ int kernel_main()
     kprintf ("DEVCFG2  = 0x%08x\n", DEVCFG2    );
     kprintf ("DEVCFG3  = 0x%08x\n", DEVCFG3    );
 
+    read_config();
+
     clock_init();
 
     unsigned last = 0;
     
-    read_config();
-
     while (1) {
         /* Invert pins PA7-PA0. */
         LATAINV = 1 << 0;  mdelay (100);
