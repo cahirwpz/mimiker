@@ -8,6 +8,7 @@
 #include "interrupts.h"
 #include "clock.h"
 #include "bitmap.h"
+#include <mips/m32c0.h>
 
 #include <libkern.h>
 
@@ -91,26 +92,30 @@ void mdelay (unsigned msec)
  */
 void read_config()
 {
-    int config = mfc0(16, 0);
+    int config = mfc0(16, 0); // CP0 Register 16, Select 0
     
-    if( (config & (1<<31)) == 0 )
+    if( (config & CFG0_M) == 0 )
         return; // PANIC 
     
-    int config1 = mfc0(16, 1);   
+    int config1 = mfc0(16, 1);   // CP0 Register 16, Select 1 
     
-    if( (config1 & (1<<31)) == 0 )
+    if( (config1 & CFG1_M) == 0 )
         return;// PANIC 
     
-    if( (mfc0(16, 2) & (1<<31)) == 0 )
+    if( (mfc0(16, 2) & CFG2_M) == 0 )  // CP0 Register 16, Select 2
         return;// PANIC 
         
-    int config3 = mfc0(16, 3);
+    int config3 = mfc0(16, 3);  // CP0 Register 16, Select 3
     //cache size and organization,
     
         mips_cpuinfo.ic_size = 0; //instruction_cache_size
-        mips_cpuinfo.ic_linesize = (BITS_GET(config1, 3, 19) == 3 ? 16 : 0);
-        mips_cpuinfo.ic_nways = BITS_GET(config1, 3, 16) /* + 1 (?)*/;
-        mips_cpuinfo.ic_nsets = 1 << (6 + BITS_GET(config1, 3, 22));
+        mips_cpuinfo.ic_linesize = (_mips32r2_ext(config1, CFG1_IL_SHIFT, CFG1_IL_BITS) == 3 ? 16 : 0);
+        mips_cpuinfo.ic_nways = _mips32r2_ext(config1, CFG1_IA_SHIFT, CFG1_IA_BITS) /* + 1 (?)*/;
+        mips_cpuinfo.ic_nsets = 1 << (6 + _mips32r2_ext(config1, CFG1_IS_SHIFT, CFG1_IS_BITS));
+        
+//      uint32_t _mips32r2_ext(uint32_t x, uint32_t pos, uint32_t sz)
+//      Return the result of a 32-bit unsigned extract bit field instruction, 
+//      returning sz bits, from bit position pos, of x. Both pos and sz must be constants.
         
         
         // Total Cache Size = Associativity * Line Size * Sets Per Way
@@ -119,14 +124,18 @@ void read_config()
         if(mips_cpuinfo.ic_linesize != 0)
             mips_cpuinfo.ic_size = mips_cpuinfo.ic_nways * mips_cpuinfo.ic_linesize  * mips_cpuinfo.ic_nsets ;
         
+        kprintf("Instruction cache size: %d\n", mips_cpuinfo.ic_size);
+        
         mips_cpuinfo.dc_size = 0; //data_cache_size
-        mips_cpuinfo.dc_linesize = ( BITS_GET(config1, 3, 10) == 3 ? 16 : 0);
-        mips_cpuinfo.dc_nways = BITS_GET(config1, 3, 7) /* + 1 (?)*/;
-        mips_cpuinfo.dc_nsets = 1 << (6 + BITS_GET(config1, 3, 13));
+        mips_cpuinfo.dc_linesize = ( _mips32r2_ext(config1, CFG1_DL_SHIFT, CFG1_DL_BITS) == 3 ? 16 : 0);
+        mips_cpuinfo.dc_nways = _mips32r2_ext(config1, CFG1_DA_SHIFT, CFG1_DA_BITS) /* + 1 (?)*/;
+        mips_cpuinfo.dc_nsets = 1 << (6 + _mips32r2_ext(config1, CFG1_DS_SHIFT, CFG1_DS_BITS));
         
         if(mips_cpuinfo.dc_linesize != 0)
             mips_cpuinfo.dc_size = mips_cpuinfo.dc_nways * mips_cpuinfo.dc_linesize  * mips_cpuinfo.dc_nsets ;
        
+        kprintf("Data cache size: %d\n", mips_cpuinfo.dc_size);
+        
         //      Name 	| set size 	| # sets 	            | Associativity
         //      -----------------------------------------------------------
         //      Direct 	| 1 line 	| r= # lines per cache 	| 1-way
@@ -135,11 +144,11 @@ void read_config()
         
 
     //FTLB or/and VTLB sizes, 
-        mips_cpuinfo.TLB_entries = BITS_GET(config1, 6, 25)  + 1; // 0 xor 15+1 xor 31+1
+        mips_cpuinfo.TLB_entries = _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS)  + 1; // 0 xor 15+1 xor 31+1
     
     //minimum and maximum page size,
     // "9.2.4 Virtual Aliasing" in MIPS32® microAptivTM UP Processor Core Family Software User’s Manual (?)
-    kprintf("Small page(1KByte) support is implemented: %d\n", BIT_GET(config3, 4) );
+    kprintf("Small page(1KByte) support is implemented: %s\n", BIT_GET(config3, 4) ? "YES" : "NO" );
     
     //... and other interesting facts.
     //kprintf("Large physical address support is implemented: %d\n", BIT_GET(config3, 7) );

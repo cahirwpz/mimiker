@@ -9,7 +9,8 @@
 #define BIT_CLR(n, b) ((n) &= ~(1 << (b)) )
 #define BIT_INV(n, b) ((n) ^=  (1 << (b)) )
 #define BIT_GET(n, b) (((n) & (1<<(b))) != 0)
-#define BITS_GET(n, l, b) ( ((n) & (( (1<<(l)) - 1) << (b) )) >> b)
+// #define BITS_GET(n, l, b) ( ((n) & (( (1<<(l)) - 1) << (b) )) >> b) // already 
+// define in mips-mti-elf/include/mips/m32c0.h as _mips32r2_ext
 
 /* TODO: This should be in some other file. */
 
