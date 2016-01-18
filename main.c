@@ -97,7 +97,7 @@ int kernel_main()
     while(p < empty + sizeof(empty))
         if(*p++ != 0x00)
             kprintf("Apparently .bss was not cleared!\n");
-            // TODO: Exit main? Ignore?
+    // TODO: Exit main? Ignore?
 
     /*
      * Print initial state of control registers.

@@ -9,7 +9,8 @@ extern char __ebss[];
  * It shall be always word-aligned. See km_early_alloc for details. */
 static uintptr_t km_kernel_image_end = (uintptr_t)__ebss;
 
-void* km_early_alloc(size_t size){
+void* km_early_alloc(size_t size)
+{
     // TODO: Explicitly crash if this function is called after
     // physical memory manager has been initialized.
     void* ptr = (void*)km_kernel_image_end;

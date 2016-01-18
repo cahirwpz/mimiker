@@ -5,7 +5,8 @@
 /* This counter is incremented every millisecond. */
 static volatile unsigned int timer_ms_count;
 
-void clock_init(){
+void clock_init()
+{
     /* Disable interrupts while we are configuring them. */
     unsigned s = di();
 
@@ -31,22 +32,24 @@ void clock_init(){
     ei(s);
 }
 
-unsigned clock_get_ms(){
+unsigned clock_get_ms()
+{
     return timer_ms_count;
 }
 
 
-void hardclock(){
+void hardclock()
+{
     unsigned compare = mfc0(C0_COMPARE, 0);
     unsigned count   = mfc0(C0_COUNT, 0);
     signed int diff = compare - count;
-    if (diff > 0){
+    if (diff > 0) {
         /* Should not happen. Potentially spurious interrupt. */
         return;
     }
 
     /* This loop is necessary, because sometimes we may miss some ticks. */
-    while (diff < TICKS_PER_MS){
+    while (diff < TICKS_PER_MS) {
 
         compare += TICKS_PER_MS;
 
