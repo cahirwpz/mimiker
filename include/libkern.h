@@ -1,6 +1,7 @@
 #ifndef __LIBKERN_H__
 #define __LIBKERN_H__
-#include <stddef.h>
+
+#include <common.h>
 
 /* This file contains declarations for standard functions that are
    imported from smallclib and exposed for use within the kernel, as

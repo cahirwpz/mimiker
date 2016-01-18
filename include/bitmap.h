@@ -1,19 +1,7 @@
 #ifndef __BITMAP_H__
 #define __BITMAP_H__
-#include <stdint.h>
-#include <stddef.h>
-#include "common.h"
 
-/* Bit operations on simple values. */
-#define BIT_SET(n, b) ((n) |=  (1 << (b)) )
-#define BIT_CLR(n, b) ((n) &= ~(1 << (b)) )
-#define BIT_INV(n, b) ((n) ^=  (1 << (b)) )
-#define BIT_GET(n, b) (((n) & (1<<(b))) != 0)
-
-/* TODO: This should be in some other file. */
-
-/* ============================== */
-/*   Bitmaps                      */
+#include <common.h>
 
 /* Defines a variable of bitmap<size> type, named "name". This can be
  * used both for creating a bitmap variable, as well as for defining a
@@ -150,7 +138,5 @@
  * BITMAP_PRINT_* instead. */
 void __bitmap_printer_hex(word_t* bf, size_t size);
 void __bitmap_printer_bin(word_t* bf, size_t size);
-
-
 
 #endif // __BITMAP_H__

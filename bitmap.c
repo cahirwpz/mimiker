@@ -4,7 +4,7 @@
 void __bitmap_printer_hex(word_t* bf, size_t size){
     int i;
     for(i = size - 1; i >= 0; i--)
-        kprintf("%0" STR(BITS_IN_BYTE) "x", bf[i]);
+        kprintf("%0" STR(NBBY) "x", bf[i]);
 }
 
 void __bitmap_printer_bin(word_t* bf, size_t size){
