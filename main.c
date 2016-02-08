@@ -72,6 +72,30 @@ void mdelay (unsigned msec) {
   while (final > clock_get_ms());
 }
 
+/*
+ * Kernel Mode
+ *
+ * The processor is operating in Kernel Mode when the DM bit in the Debug
+ * register is a zero, and any of the following three conditions is true:
+ * - The KSU field in the CP0 Status register contains 0b00
+ * - The EXL bit in the Status register is one
+ * - The ERL bit in the Status register is one
+ * The processor enters Kernel Mode at power-up, or as the result of an
+ * interrupt, exception, or error. The processor leaves Kernel Mode and enters
+ * User Mode when all of the previous three conditions are false, usually as
+ * the result of an ERET instruction.
+ */
+
+/*
+ * User Mode
+ *
+ * The processor is operating in User Mode when all of the following conditions
+ * are true:
+ * - The DM bit in the Debug register is a zero 
+ * - The KSU field in the Status register contains 0b10
+ * - The EXL and ERL bits in the Status register are both zero
+ */
+
 int kernel_main() {
   /* Initialize coprocessor 0. */
   //mtc0 (C0_CAUSE, 0, 1 << 23);        /* Set IV */
