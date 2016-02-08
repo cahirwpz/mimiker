@@ -8,6 +8,7 @@
 #include "interrupts.h"
 #include "clock.h"
 #include "kmem.h"
+#include "context.h"
 
 #include <libkern.h>
 
@@ -59,6 +60,8 @@ void udelay (unsigned usec)
             break;
     }
 }
+
+void demo_ctx();
 
 /*
  * Delays for at least the given number of milliseconds.  May not be
@@ -133,6 +136,8 @@ int kernel_main()
 
     clock_init();
 
+    demo_ctx();
+
     unsigned last = 0;
     while (1) {
         /* Invert pins PA7-PA0. */
@@ -152,4 +157,46 @@ int kernel_main()
         kprintf("Milliseconds since timer start: %d (diff: %d)\n", curr, curr - last);
         last = curr;
     }
+}
+
+
+struct ctx_struct ctx0, ctx1, ctx2;
+word_t stack1[200];
+word_t stack2[200];
+
+void demo_context_1(){
+    kprintf("Context 1 is starting.\n");
+    // Switch to context 2
+    ctx_switch(&ctx1, &ctx2);
+
+    kprintf("Context 1 is continuing.\n");
+    // Switch to main context
+    ctx_switch(&ctx1,&ctx0);
+
+    // Should not be reached.
+}
+
+void demo_context_2(){
+    kprintf("Context 2 is starting.\n");
+    while(1){
+        // Switch to context 1
+        ctx_switch(&ctx2, &ctx1);
+        kprintf("Context 2 is continuing.\n");
+    }
+    // NOT REACHED
+}
+
+void demo_ctx(){
+    kprintf("Main context is starting.\n");
+
+    // Prepare alternative contexts
+    register void* gp asm("$gp");
+    ctx_create(&ctx1, demo_context_1, stack1+199, gp);
+    ctx_create(&ctx2, demo_context_2, stack2+199, gp);
+
+    // Switch to context 1
+    ctx_switch(&ctx0, &ctx1);
+
+    kprintf("Main contex continuing.\n");
+
 }
