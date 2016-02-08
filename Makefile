@@ -35,8 +35,11 @@ debug: $(PROGNAME).srec
 qemu: $(PROGNAME).srec
 	$(QEMU) -kernel $(PROGNAME).srec
 
+astyle:
+	astyle --options=astyle.options --recursive "*.h" "*.c"
+
 clean:
 	$(MAKE) -C smallclib clean
 	$(RM) -f .*.D *.o *.lst *~ *.elf *.srec *.map
 
-.PHONY: smallclib
+.PHONY: smallclib qemu debug astyle

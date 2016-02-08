@@ -8,23 +8,22 @@
 #
 # Various scripts, including emacs bindings are available here:
 #     http://astyle.sourceforge.net/scripts.html
-# However, configuring emacs to use k&r style and 4 spaces indent
-# should yield same result.
 
 mode=c
-style=k&r             # Kernigham and Ritchie's style
-indent=spaces=4       # Use spaces for indentation, 4 spaces per level
-max-code-length=80    # Split lines longer than 80 chars (if possible)
-convert-tabs          # Convert non-indentation tabs to spaces
-indent-labels         # Do not push switch labels to the far left
+style=google             # Google style
+indent=spaces=2          # Use spaces for indentation, 2 spaces per level
+max-code-length=80       # Split lines longer than 80 chars (if possible)
+convert-tabs             # Convert non-indentation tabs to spaces
+indent-labels            # Do not push switch labels to the far left
 keep-one-line-statements # Do not split up multiple statments placed
                          # in a single line
+align-pointer=name       # void *ptr;
+pad-header               # Add a space after if/for/while/...
+pad-oper                 # Add spaces around operators
+remove-brackets          # Remove brackets from single-statement blocks
+indent-switches          # Indent 'switch' blocks so that the 'case X:'
+                         # statements are indented in the switch block.
 
 # Options for consideration - currently disabled:
-# pad-oper            # Add spaces around operators
-# pad-header          # Add a space after if/for/while/...
-# align-pointer=type  # void* ptr;
-# align-pointer=name  # void *ptr;
-# remove-brackets     # Remove brackets from single-statement blocks
 # indent-preproc-define  # Perform indentation inside preprocesor defines
                          # It clearly has problems with elegant alignment.

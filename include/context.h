@@ -30,15 +30,15 @@ typedef struct ctx {
  * Returns 0 when returning directly, or 1 when returning as a result of
  * ctx_load.
  */
-uint32_t ctx_save(ctx_t* ctx) __attribute__((warn_unused_result));
+uint32_t ctx_save(ctx_t *ctx) __attribute__((warn_unused_result));
 
 /*
  * Restores a previously stored context. This function does not
  * return. The control flow jumps to the corresponding ctx_store.
  */
-void ctx_load(const ctx_t* ctx) __attribute__((noreturn));
+void ctx_load(const ctx_t *ctx) __attribute__((noreturn));
 
-/* 
+/*
  * This function sets the contents of a context struct, zeroing it's
  * all registers except for return address, which is set to @target,
  * stack pointer, which is set to @stack, and global pointer, which is
@@ -47,7 +47,7 @@ void ctx_load(const ctx_t* ctx) __attribute__((noreturn));
  * WARNING: The target procedure MUST NOT RETURN. The result of such
  * event is undefined, but will generally restart the target function.
  */
-void ctx_init(ctx_t* ctx, void (*target)(), void *stack, void *gp);
+void ctx_init(ctx_t *ctx, void (*target)(), void *stack, void *gp);
 
 /* This function stores the current context to @from, and resumes the
  * context stored in @to. It does not return immediatelly, it returns

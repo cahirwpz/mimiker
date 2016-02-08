@@ -18,10 +18,10 @@ void uart_init();
 int uart_putc(int c);
 /* Transmits a string and a trailing newline via UART1. Returns the
    number of bytes transmitted. */
-int uart_puts(const char* str);
+int uart_puts(const char *str);
 /* Transmits n bytes via UART1. Returns the number of bytes
    transmitted. */
-int uart_write(const char* str, size_t n);
+int uart_write(const char *str, size_t n);
 
 /* Receives a single byte from UART.
  * This function blocks execution until a byte is available.

@@ -136,7 +136,7 @@
 
 /* Helper functions for displaying bitfields. Please use
  * BITMAP_PRINT_* instead. */
-void __bitmap_printer_hex(word_t* bf, size_t size);
-void __bitmap_printer_bin(word_t* bf, size_t size);
+void __bitmap_printer_hex(word_t *bf, size_t size);
+void __bitmap_printer_bin(word_t *bf, size_t size);
 
 #endif // __BITMAP_H__

@@ -18,7 +18,7 @@
  *
  * The returned pointer is word-aligned. The block is filled with 0's.
  */
-void* km_early_alloc(size_t size) __attribute__((warn_unused_result));
+void *km_early_alloc(size_t size) __attribute__((warn_unused_result));
 
 /* Initializes km subsystem. */
 void km_init();
