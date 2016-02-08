@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <mips/mips32.h>
+#include <mips/m32c0.h>
 
 /* Flag operations */
 #define SET(t, f)   ((t) |= (f))

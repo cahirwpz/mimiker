@@ -5,7 +5,7 @@
 void clock_init();
 
 /* Returns the number of ms passed since timer started running. */
-unsigned clock_get_ms();
+uint32_t clock_get_ms();
 
 /* Processes core timer interrupts. */
 void hardclock();

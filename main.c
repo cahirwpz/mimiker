@@ -48,11 +48,11 @@ static volatile unsigned loop;
  * We use it to get a precise delay.
  */
 void udelay (unsigned usec) {
-  unsigned now = mfc0 (C0_COUNT, 0);
-  unsigned final = now + usec * MHZ / 2;
+  uint32_t now = mips32_get_c0(C0_COUNT);
+  uint32_t final = now + usec * MHZ / 2;
 
   for (;;) {
-    now = mfc0 (C0_COUNT, 0);
+    now = mips32_get_c0(C0_COUNT);
 
     /* This comparison is valid only when using a signed type. */
     if ((int) (now - final) >= 0)
@@ -63,7 +63,7 @@ void udelay (unsigned usec) {
 static void demo_ctx();
 
 /*
- * Delays for at least the given number of milliseconds.  May not be
+ * Delays for at least the given number of milliseconds. May not be
  * nanosecond-accurate.
  */
 void mdelay (unsigned msec) {
@@ -127,33 +127,25 @@ int kernel_main() {
    * Print initial state of control registers.
    */
   kprintf ("-\n");
-  kprintf ("Status   = 0x%08x\n", mfc0(12, 0));
-  kprintf ("IntCtl   = 0x%08x\n", mfc0(12, 1));
-  kprintf ("SRSCtl   = 0x%08x\n", mfc0(12, 2));
-  kprintf ("Cause    = 0x%08x\n", mfc0(13, 0));
-  kprintf ("PRId     = 0x%08x\n", mfc0(15, 0));
-  kprintf ("EBase    = 0x%08x\n", mfc0(15, 1));
-  kprintf ("CDMMBase = 0x%08x\n", mfc0(15, 2));
-  kprintf ("Config   = 0x%08x\n", mfc0(16, 0));
-  kprintf ("Config1  = 0x%08x\n", mfc0(16, 1));
-  kprintf ("Config2  = 0x%08x\n", mfc0(16, 2));
-  kprintf ("Config3  = 0x%08x\n", mfc0(16, 3));
-  kprintf ("Config4  = 0x%08x\n", mfc0(16, 4));
-  kprintf ("Config5  = 0x%08x\n", mfc0(16, 5));
-  kprintf ("Config7  = 0x%08x\n", mfc0(16, 7));
-  kprintf ("WatchHi  = 0x%08x\n", mfc0(19, 0));
-  kprintf ("WatchHi1 = 0x%08x\n", mfc0(19, 1));
-  kprintf ("WatchHi2 = 0x%08x\n", mfc0(19, 2));
-  kprintf ("WatchHi3 = 0x%08x\n", mfc0(19, 3));
-  kprintf ("Debug    = 0x%08x\n", mfc0(23, 0));
-  kprintf ("PerfCtl0 = 0x%08x\n", mfc0(25, 0));
-  kprintf ("PerfCtl1 = 0x%08x\n", mfc0(25, 2));
-  kprintf ("DEVID    = 0x%08x\n", DEVID      );
-  kprintf ("OSCCON   = 0x%08x\n", OSCCON     );
-  kprintf ("DEVCFG0  = 0x%08x\n", DEVCFG0    );
-  kprintf ("DEVCFG1  = 0x%08x\n", DEVCFG1    );
-  kprintf ("DEVCFG2  = 0x%08x\n", DEVCFG2    );
-  kprintf ("DEVCFG3  = 0x%08x\n", DEVCFG3    );
+  kprintf ("Status   = 0x%08x\n", mips32_get_c0(C0_STATUS));
+  kprintf ("IntCtl   = 0x%08x\n", mips32_get_c0(C0_INTCTL));
+  kprintf ("SRSCtl   = 0x%08x\n", mips32_get_c0(C0_SRSCTL));
+  kprintf ("Cause    = 0x%08x\n", mips32_get_c0(C0_CAUSE));
+  kprintf ("PRId     = 0x%08x\n", mips32_get_c0(C0_PRID));
+  kprintf ("EBase    = 0x%08x\n", mips32_get_c0(C0_EBASE));
+  kprintf ("Config   = 0x%08x\n", mips32_get_c0(C0_CONFIG));
+  kprintf ("Config1  = 0x%08x\n", mips32_get_c0(C0_CONFIG1));
+  kprintf ("Config2  = 0x%08x\n", mips32_get_c0(C0_CONFIG2));
+  kprintf ("Config3  = 0x%08x\n", mips32_get_c0(C0_CONFIG3));
+  kprintf ("Config4  = 0x%08x\n", mips32_get_c0(C0_CONFIG4));
+  kprintf ("Config5  = 0x%08x\n", mips32_get_c0(C0_CONFIG5));
+  kprintf ("Debug    = 0x%08x\n", mips32_get_c0(C0_DEBUG));
+  kprintf ("DEVID    = 0x%08x\n", DEVID);
+  kprintf ("OSCCON   = 0x%08x\n", OSCCON);
+  kprintf ("DEVCFG0  = 0x%08x\n", DEVCFG0);
+  kprintf ("DEVCFG1  = 0x%08x\n", DEVCFG1);
+  kprintf ("DEVCFG2  = 0x%08x\n", DEVCFG2);
+  kprintf ("DEVCFG3  = 0x%08x\n", DEVCFG3);
 
   clock_init();
 

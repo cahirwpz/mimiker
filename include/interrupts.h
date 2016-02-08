@@ -1,17 +1,14 @@
 #ifndef __INTERRUPTS_H__
 #define __INTERRUPTS_H__
 
-#include "pic32mz.h"
+#include "common.h"
 
 /* Disables interrupts. Returns the previous value of Status
    register. */
-#define di() ({                             \
-    int oldval;                             \
-    asm volatile ("di %0": "=r" (oldval));  \
-    oldval; })
+#define di() _mips_intdisable()
 
 /* Re-enables interrupts previously disabled with di(). */
-#define ei(val) ({mtc0(C0_STATUS,0,(val));})
+#define ei(val) mips32_set_c0(C0_STATUS, (val))
 
 /* Initializes and enables interrupts. */
 void intr_init();
