@@ -1,10 +1,9 @@
 #include "asm.h"
 
-    .set noreorder  // Disable automatic instruction reordering
+    .set noreorder
 
-
-/* uint32_t ctx_store(struct ctx_struct* ctx) */
-LEAF(ctx_store)
+/* uint32_t ctx_save(ctx_t *ctx) */
+LEAF(ctx_save)
 
     sw $ra, ( 0*4)($a0)
     sw $sp, ( 1*4)($a0)
@@ -22,10 +21,10 @@ LEAF(ctx_store)
     /* Return 0 */
     jr $ra
     move $v0, $zero
-END(ctx_store)
 
+END(ctx_save)
 
-/* void ctx_load(const struct ctx_struct* ctx) */
+/* void ctx_load(const ctx_t *ctx) */
 LEAF(ctx_load)
 
     lw $ra, ( 0*4)($a0)
@@ -41,10 +40,13 @@ LEAF(ctx_load)
     lw $s7, (10*4)($a0)
     lw $s8, (11*4)($a0)
 
-    /* Note that the following will not return from ctx_load, because
-	 * $ra has been overwritten with the value previously stored by
+    /*
+     * Note that the following will not return from ctx_load, because
+     * $ra has been overwritten with the value previously stored by
      * ctx_store. Instead, it resumes the context, and returns 1
-     * there.*/
+     * there.
+     */
     jr $ra
     li $v0, 1
+
 END(ctx_load)

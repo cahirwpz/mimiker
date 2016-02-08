@@ -61,7 +61,7 @@ void udelay (unsigned usec)
     }
 }
 
-void demo_ctx();
+static void demo_ctx();
 
 /*
  * Delays for at least the given number of milliseconds.  May not be
@@ -160,43 +160,46 @@ int kernel_main()
 }
 
 
-struct ctx_struct ctx0, ctx1, ctx2;
-word_t stack1[200];
-word_t stack2[200];
+static ctx_t ctx0, ctx1, ctx2;
+static word_t stack1[200];
+static word_t stack2[200];
 
-void demo_context_1(){
-    kprintf("Context 1 is starting.\n");
-    // Switch to context 2
-    ctx_switch(&ctx1, &ctx2);
+static void demo_context_1() {
+    int times = 3;
 
-    kprintf("Context 1 is continuing.\n");
-    // Switch to main context
+    kprintf("Context #1 has started.\n");
+
+    do {
+      ctx_switch(&ctx1, &ctx2);
+      kprintf("Running in context #1.\n");
+    } while (--times);
+
     ctx_switch(&ctx1,&ctx0);
-
-    // Should not be reached.
 }
 
-void demo_context_2(){
-    kprintf("Context 2 is starting.\n");
-    while(1){
-        // Switch to context 1
+static void demo_context_2() {
+    int times = 3;
+
+    kprintf("Context #2 has started.\n");
+
+    do {
         ctx_switch(&ctx2, &ctx1);
-        kprintf("Context 2 is continuing.\n");
-    }
+        kprintf("Running in context #2.\n");
+    } while (--times);
+
     // NOT REACHED
 }
 
-void demo_ctx(){
-    kprintf("Main context is starting.\n");
+static void demo_ctx() {
+    kprintf("Main context has started.\n");
 
     // Prepare alternative contexts
     register void* gp asm("$gp");
-    ctx_create(&ctx1, demo_context_1, stack1+199, gp);
-    ctx_create(&ctx2, demo_context_2, stack2+199, gp);
+    ctx_init(&ctx1, demo_context_1, stack1+199, gp);
+    ctx_init(&ctx2, demo_context_2, stack2+199, gp);
 
     // Switch to context 1
     ctx_switch(&ctx0, &ctx1);
 
-    kprintf("Main contex continuing.\n");
-
+    kprintf("Main context continuing.\n");
 }
