@@ -16,11 +16,12 @@ typedef struct ctx {
   union {
     struct {
       word_t ra;
+      word_t fp;
       word_t sp;
       word_t gp;
       word_t s0, s1, s2, s3, s4, s5, s6, s7;
     };
-    word_t regs[11];
+    word_t regs[12];
   };
 } ctx_t;
 
