@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <mips/cpu.h>
 #include <mips/mips32.h>
 #include <mips/m32c0.h>
 

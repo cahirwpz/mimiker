@@ -1,19 +1,28 @@
-/*
- * Include processor definitions.
- */
 #include "pic32mz.h"
 #include "uart_raw.h"
-#include "common.h"
 #include "global_config.h"
 #include "interrupts.h"
 #include "clock.h"
 #include "kmem.h"
 #include "context.h"
-
-#include <libkern.h>
+#include "libkern.h"
 
 char str[] = "This is a global string!\n";
 char empty[100]; /* This should land in .bss and get cleared by _start procedure. */
+
+typedef struct cpuinfo {
+    int tlb_entries;
+    int ic_size;
+    int ic_linesize;
+    int ic_nways;
+    int ic_nsets;
+    int dc_size;
+    int dc_linesize;
+    int dc_nways;
+    int dc_nsets;
+} cpuinfo_t;
+
+static cpuinfo_t cpuinfo;
 
 /*
  * Chip configuration.
@@ -72,6 +81,124 @@ void mdelay (unsigned msec) {
   while (final > clock_get_ms());
 }
 
+static ctx_t ctx0, ctx1, ctx2;
+static word_t stack1[200];
+static word_t stack2[200];
+
+static void demo_context_1() {
+  int times = 3;
+
+  kprintf("Context #1 has started.\n");
+
+  do {
+    ctx_switch(&ctx1, &ctx2);
+    kprintf("Running in context #1.\n");
+  } while (--times);
+
+  ctx_switch(&ctx1, &ctx0);
+}
+
+static void demo_context_2() {
+  int times = 3;
+
+  kprintf("Context #2 has started.\n");
+
+  do {
+    ctx_switch(&ctx2, &ctx1);
+    kprintf("Running in context #2.\n");
+  } while (--times);
+
+  // NOT REACHED
+}
+
+static void demo_ctx() {
+  kprintf("Main context has started.\n");
+
+  // Prepare alternative contexts
+  register void *gp asm("$gp");
+  ctx_init(&ctx1, demo_context_1, stack1 + 199, gp);
+  ctx_init(&ctx2, demo_context_2, stack2 + 199, gp);
+
+  // Switch to context 1
+  ctx_switch(&ctx0, &ctx1);
+
+  kprintf("Main context continuing.\n");
+}
+
+/* 
+ * Read configuration register values, interpret and save them into the cpuinfo
+ * structure for later use.
+ */
+static bool read_config() {
+  uint32_t config0 = mips32_getconfig0();
+  uint32_t cfg0_mt = config0 & CFG0_MT_MASK;
+  char *cfg0_mt_str;
+
+  if (cfg0_mt == CFG0_MT_TLB)
+    cfg0_mt_str = "Standard TLB";
+  else if (cfg0_mt == CFG0_MT_BAT)
+    cfg0_mt_str = "BAT";
+  else if (cfg0_mt == CFG0_MT_FIXED)
+    cfg0_mt_str = "Fixed mapping";
+  else if (cfg0_mt == CFG0_MT_DUAL)
+    cfg0_mt_str = "Dual VTLB and FTLB";
+  else
+    cfg0_mt_str = "No MMU";
+
+  kprintf("MMU Type: %s\n", cfg0_mt_str);
+
+  /* CFG1 implemented? */
+  if ((config0 & CFG0_M) == 0)
+    return false;
+
+  uint32_t config1 = mips32_getconfig1();
+
+  /* FTLB or/and VTLB sizes */
+  cpuinfo.tlb_entries = _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS) + 1;
+
+  /* Instruction cache size and organization. */
+  cpuinfo.ic_linesize = (config1 & CFG1_IL_MASK) ? 16 : 0;
+  cpuinfo.ic_nways = _mips32r2_ext(config1, CFG1_IA_SHIFT, CFG1_IA_BITS) + 1;
+  cpuinfo.ic_nsets = 1 << (_mips32r2_ext(config1, CFG1_IS_SHIFT, CFG1_IS_BITS) + 6);
+  cpuinfo.ic_size = cpuinfo.ic_nways * cpuinfo.ic_linesize * cpuinfo.ic_nsets;
+
+  /* Data cache size and organization. */
+  cpuinfo.dc_linesize = (config1 & CFG1_DL_MASK) ? 16 : 0;
+  cpuinfo.dc_nways = _mips32r2_ext(config1, CFG1_DA_SHIFT, CFG1_DA_BITS) + 1;
+  cpuinfo.dc_nsets = 1 << (_mips32r2_ext(config1, CFG1_DS_SHIFT, CFG1_DS_BITS) + 6);
+  cpuinfo.dc_size = cpuinfo.dc_nways * cpuinfo.dc_linesize * cpuinfo.dc_nsets;
+
+  kprintf("TLB Entries: %d\n", cpuinfo.tlb_entries);
+
+  kprintf("Instruction cache:\n");
+  kprintf(" - line size     : %d\n", cpuinfo.ic_linesize);
+  kprintf(" - associativity : %d\n", cpuinfo.ic_nways);
+  kprintf(" - sets per way  : %d\n", cpuinfo.ic_nsets);
+  kprintf(" - size          : %d\n", cpuinfo.ic_size);
+
+  kprintf("Data cache:\n");
+  kprintf(" - line size     : %d\n", cpuinfo.dc_linesize);
+  kprintf(" - associativity : %d\n", cpuinfo.dc_nways);
+  kprintf(" - sets per way  : %d\n", cpuinfo.dc_nsets);
+  kprintf(" - size          : %d\n", cpuinfo.dc_size);
+
+  /* CFG2 implemented? */
+  if ((config1 & CFG1_M) == 0)
+    return false;
+
+  uint32_t config2 = mips32_getconfig1();
+
+  /* Config2 implemented? */
+  if ((config2 & CFG2_M) == 0)
+    return false;
+
+  uint32_t config3 = mips32_getconfig3();
+
+  kprintf("Small pages (1KiB) implemented : %s\n", (config3 & CFG3_SP) ? "yes" : "no");
+
+  return true;
+}
+
 /*
  * Kernel Mode
  *
@@ -111,7 +238,7 @@ int kernel_main() {
 
   /* Initialize UART. */
   uart_init();
-  kprintf ("Hello, UART!\n");
+  read_config();
 
   /* Demonstrate access to .data */
   kprintf ("%s", str);
@@ -173,46 +300,3 @@ int kernel_main() {
 }
 
 
-static ctx_t ctx0, ctx1, ctx2;
-static word_t stack1[200];
-static word_t stack2[200];
-
-static void demo_context_1() {
-  int times = 3;
-
-  kprintf("Context #1 has started.\n");
-
-  do {
-    ctx_switch(&ctx1, &ctx2);
-    kprintf("Running in context #1.\n");
-  } while (--times);
-
-  ctx_switch(&ctx1, &ctx0);
-}
-
-static void demo_context_2() {
-  int times = 3;
-
-  kprintf("Context #2 has started.\n");
-
-  do {
-    ctx_switch(&ctx2, &ctx1);
-    kprintf("Running in context #2.\n");
-  } while (--times);
-
-  // NOT REACHED
-}
-
-static void demo_ctx() {
-  kprintf("Main context has started.\n");
-
-  // Prepare alternative contexts
-  register void *gp asm("$gp");
-  ctx_init(&ctx1, demo_context_1, stack1 + 199, gp);
-  ctx_init(&ctx2, demo_context_2, stack2 + 199, gp);
-
-  // Switch to context 1
-  ctx_switch(&ctx0, &ctx1);
-
-  kprintf("Main context continuing.\n");
-}
