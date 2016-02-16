@@ -23,9 +23,6 @@
 /* Macros for counting and rounding. */
 #define howmany(x, y) (((x) + ((y) - 1)) / (y))
 
-/* Extra types */
-typedef intptr_t word_t;
-
 /* Useful macros */
 #define STR_NOEXPAND(x) #x     /* This does not expand x. */
 #define STR(x) STR_NOEXPAND(x) /* This will expand x. */

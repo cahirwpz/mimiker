@@ -82,8 +82,8 @@ void mdelay (unsigned msec) {
 }
 
 static ctx_t ctx0, ctx1, ctx2;
-static word_t stack1[200];
-static word_t stack2[200];
+static intptr_t stack1[200];
+static intptr_t stack2[200];
 
 static void demo_context_1() {
   int times = 3;

@@ -3,9 +3,9 @@
 
 void ctx_init(ctx_t *ctx, void (*target)(), void *stack, void *gp) {
   bzero(ctx, sizeof(ctx_t));
-  ctx->ra = (word_t)target;
-  ctx->sp = (word_t)stack;
-  ctx->gp = (word_t)gp;
+  ctx->ra = (intptr_t)target;
+  ctx->sp = (intptr_t)stack;
+  ctx->gp = (intptr_t)gp;
 }
 
 void ctx_switch(ctx_t *from, ctx_t *to) {
