@@ -9,7 +9,7 @@ OBJCOPY  = $(P)objcopy
 OBJDUMP  = $(P)objdump
 
 ASFLAGS  =
-CFLAGS   = -Og -Wall -Werror -DPIC32MZ
+CFLAGS   = -std=gnu11 -Og -Wall -Werror -DPIC32MZ
 CPPFLAGS = -Wall -Werror -DPIC32MZ
 LDFLAGS  = -nostdlib
 LDLIBS   =
