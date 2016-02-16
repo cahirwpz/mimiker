@@ -21,7 +21,9 @@
 #define B_ISSET(n, b) ((n) & (1 << (b)))
 
 /* Macros for counting and rounding. */
+#ifndef howmany
 #define howmany(x, y) (((x) + ((y) - 1)) / (y))
+#endif
 
 /* Useful macros */
 #define STR_NOEXPAND(x) #x     /* This does not expand x. */
