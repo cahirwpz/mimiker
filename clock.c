@@ -9,8 +9,7 @@
 static volatile uint32_t timer_ms_count;
 
 void clock_init() {
-  /* Disable interrupts while we are configuring them. */
-  uint32_t s = di();
+  uint32_t sr = _mips_intdisable();
 
   mips32_set_c0(C0_COUNT, 0);
   mips32_set_c0(C0_COMPARE, TICKS_PER_MS);
@@ -28,7 +27,7 @@ void clock_init() {
   IECSET(0) = 1;
 
   /* It is safe now to re-enable interrupts. */
-  ei(s);
+  _mips_intrestore(sr);
 }
 
 uint32_t clock_get_ms() {
