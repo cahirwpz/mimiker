@@ -34,7 +34,7 @@
  * Macros addressing word and bit within it, tuned to make compiler
  * optimize cases when SETSIZE fits into single machine word.
  */
-#define	_BITSET_BITS		(sizeof(uintptr_t) * NBBY)
+#define	_BITSET_BITS		(sizeof(uintptr_t) * 8)
 
 #define	__bitset_words(_s)	(howmany(_s, _BITSET_BITS))
 

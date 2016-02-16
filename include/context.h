@@ -36,7 +36,7 @@ uint32_t ctx_save(ctx_t *ctx) __attribute__((warn_unused_result));
  * Restores a previously stored context. This function does not
  * return. The control flow jumps to the corresponding ctx_store.
  */
-void ctx_load(const ctx_t *ctx) __attribute__((noreturn));
+void noreturn ctx_load(const ctx_t *ctx);
 
 /*
  * This function sets the contents of a context struct, zeroing it's

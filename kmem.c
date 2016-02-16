@@ -14,6 +14,6 @@ void *km_early_alloc(size_t size) {
   // physical memory manager has been initialized.
   void *ptr = (void *)km_kernel_image_end;
   bzero(ptr, size);
-  km_kernel_image_end = ALIGN(km_kernel_image_end + size, sizeof(intptr_t));
+  km_kernel_image_end = roundup(km_kernel_image_end + size, sizeof(intptr_t));
   return ptr;
 }

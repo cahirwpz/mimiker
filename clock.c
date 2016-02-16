@@ -21,8 +21,8 @@ void clock_init() {
   IFSSET(0) = 1;
   /* Set core timer interrupts priority to 6 (highest) */
   uint32_t p = IPC(0);
-  CLR(p, PIC32_IPC_IP0(7)); // Clear priority 0 bits
-  SET(p, PIC32_IPC_IP0(6)); // Set them to 6
+  p &= ~PIC32_IPC_IP0(7); // Clear priority 0 bits
+  p |= PIC32_IPC_IP0(6);  // Set them to 6
   IPC(0) = p;
   /* Enable core timer interrupts. */
   IECSET(0) = 1;
