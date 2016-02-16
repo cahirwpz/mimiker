@@ -20,6 +20,9 @@
 #define B_INV(n, b)   ((n) ^=  (1 << (b)))
 #define B_ISSET(n, b) ((n) & (1 << (b)))
 
+/* Macros for counting and rounding. */
+#define howmany(x, y) (((x) + ((y) - 1)) / (y))
+
 /* Extra types */
 typedef intptr_t word_t;
 
@@ -29,7 +32,6 @@ typedef intptr_t word_t;
 
 /* Target platform properties */
 #define NBBY 8 /* Number of Bits per BYte */
-#define WORD_SIZE (sizeof(word_t) * NBBY)
 
 /* Aligns the address to given size (must be power of 2) */
 #define ALIGN(addr, size) (((uintptr_t)(addr) + (size) - 1) & ~((size) - 1))
