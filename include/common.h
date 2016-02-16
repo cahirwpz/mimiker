@@ -20,4 +20,7 @@
 #define roundup(x, y)   ((((x) + ((y) - 1)) / (y)) * (y))
 #define powerof2(x)     ((((x) - 1) & (x)) == 0)
 
+/* Aligns the address to given size (must be power of 2) */
+#define ALIGN(addr, size) (void *)(((uintptr_t)(addr) + (size) - 1) & -(size))
+
 #endif // __COMMON_H__

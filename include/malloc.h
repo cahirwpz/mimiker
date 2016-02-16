@@ -1,5 +1,5 @@
-#ifndef __KMEM_H__
-#define __KMEM_H__
+#ifndef __SYS_MALLOC_H__
+#define __SYS_MALLOC_H__
 
 #include <common.h>
 
@@ -9,18 +9,15 @@
  * sometimes it is needed to dynamically allocate memory for some data
  * structures that are in use even before virtual memory management is ready.
  * This function does it be pretending that the kernel's .bss section ends
- * further than it originally did. In odred to allocate N bytes of memory, it
+ * further than it originally did. In order to allocate N bytes of memory, it
  * pushes the pointer to the end of kernel's image by N bytes. This way such
  * dynamically allocated structures are appended to the memory already occupied
  * by kernel data. The extended end of kernel image is stored in
- * km_kernel_bss_end, the physical memory manager will take it into account
- * when started.
+ * kernel_bss_end, the physical memory manager will take it into account when
+ * started.
  *
  * The returned pointer is word-aligned. The block is filled with 0's.
  */
-void *km_early_alloc(size_t size) __attribute__((warn_unused_result));
+void *kernel_sbrk(size_t size) __attribute__((warn_unused_result));
 
-/* Initializes km subsystem. */
-void km_init();
-
-#endif // __KMEM_H__
+#endif /* __SYS_MALLOC_H__ */

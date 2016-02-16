@@ -5,6 +5,8 @@
 
 typedef volatile uintptr_t mtx_t;
 
+#define MTX_INITIALIZER 0
+
 #define mtx_lock(m) __extension__ ({ \
   m = _mips_intdisable();            \
 })

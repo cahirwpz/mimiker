@@ -9,7 +9,7 @@ CPPFLAGS += -Iinclude
 LDLIBS   = smallclib/smallclib.a
 
 PROGNAME = main
-SOURCES_C = main.c uart_raw.c interrupts.c clock.c kmem.c context.c
+SOURCES_C = main.c uart_raw.c interrupts.c clock.c malloc.c context.c
 SOURCES_ASM = startup.S intr.S init_gpr.S init_cp0.S init_caches.S init_tlb.S \
 	      context-mips.S
 SOURCES = $(SOURCES_C) $(SOURCES_ASM)
