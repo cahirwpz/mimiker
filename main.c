@@ -299,4 +299,6 @@ int kernel_main() {
   }
 }
 
-
+void kernel_exit() {
+  for(;;);
+}

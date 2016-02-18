@@ -23,4 +23,12 @@
 /* Aligns the address to given size (must be power of 2) */
 #define ALIGN(addr, size) (void *)(((uintptr_t)(addr) + (size) - 1) & -(size))
 
+/* Terminate kernel. */
+void kernel_exit();
+
+#define panic(FMT, ...) __extension__ ({                                 \
+  kprintf("[panic] %s:%d " FMT "\n", __func__, __LINE__, ##__VA_ARGS__); \
+  kernel_exit();                                                         \
+})
+
 #endif // __COMMON_H__
