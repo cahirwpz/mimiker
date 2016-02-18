@@ -27,8 +27,12 @@
 void kernel_exit();
 
 #define panic(FMT, ...) __extension__ ({                                 \
-  kprintf("[panic] %s:%d " FMT "\n", __func__, __LINE__, ##__VA_ARGS__); \
+  kprintf("[panic] %s:%d " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__); \
   kernel_exit();                                                         \
+})
+
+#define log(FMT, ...) __extension__ ({                                 \
+  kprintf("[%s:%d] " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__); \
 })
 
 #endif // __COMMON_H__
