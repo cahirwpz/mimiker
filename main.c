@@ -6,6 +6,8 @@
 #include "malloc.h"
 #include "context.h"
 #include "libkern.h"
+#include "vm_phys.h"
+#include "common.h"
 
 char str[] = "This is a global string!\n";
 char empty[100]; /* This should land in .bss and get cleared by _start procedure. */
@@ -125,6 +127,21 @@ static void demo_ctx() {
   kprintf("Main context continuing.\n");
 }
 
+extern char __ebss[];
+extern char _estack[];
+
+static void pmem_start() {
+  vm_paddr_t ram = (vm_paddr_t)0xa0000000;
+  vm_paddr_t ebss = (vm_paddr_t)__ebss;
+  vm_paddr_t stack = (vm_paddr_t)_estack;
+
+  vm_phys_init();
+  vm_phys_add_seg(ram, ram + 512 * 1024);
+  vm_phys_reserve(ram, ebss);
+  vm_phys_reserve(stack - PAGESIZE, stack);
+  vm_phys_print_free_pages();
+}
+
 /* 
  * Read configuration register values, interpret and save them into the cpuinfo
  * structure for later use.
@@ -239,6 +256,8 @@ int kernel_main() {
   /* Initialize UART. */
   uart_init();
   read_config();
+  clock_init();
+  pmem_start();
 
   /* Demonstrate access to .data */
   kprintf ("%s", str);
@@ -273,8 +292,6 @@ int kernel_main() {
   kprintf ("DEVCFG1  = 0x%08x\n", DEVCFG1);
   kprintf ("DEVCFG2  = 0x%08x\n", DEVCFG2);
   kprintf ("DEVCFG3  = 0x%08x\n", DEVCFG3);
-
-  clock_init();
 
   demo_ctx();
 
