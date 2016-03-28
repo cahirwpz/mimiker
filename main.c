@@ -6,6 +6,8 @@
 #include "malloc.h"
 #include "context.h"
 #include "libkern.h"
+#include "callout.h"
+
 
 char str[] = "This is a global string!\n";
 char empty[100]; /* This should land in .bss and get cleared by _start procedure. */
@@ -123,6 +125,10 @@ static void demo_ctx() {
   ctx_switch(&ctx0, &ctx1);
 
   kprintf("Main context continuing.\n");
+}
+
+void callout_foo(void *arg) {
+  kprintf("Someone executed me! After %d ticks.\n", *((int *)arg));
 }
 
 /* 
@@ -277,6 +283,21 @@ int kernel_main() {
   clock_init();
 
   demo_ctx();
+
+
+
+  callout_init();
+  callout_t callout[10];
+  int timeOuts[10] = {2, 5, 3, 1, 6, 3, 7, 10, 5, 3};
+  for (int i = 0; i < 10; i++)
+
+    callout_setup(&callout[i], timeOuts[i], callout_foo, (void *)&timeOuts[i]);
+
+  for (int i = 0; i < 10; i++) {
+    kprintf("calling callout_process()\n");
+    callout_process(0);
+  }
+
 
   unsigned last = 0;
   while (1) {
