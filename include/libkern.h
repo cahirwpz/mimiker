@@ -27,4 +27,14 @@ int kprintf(const char *fmt, ...);
  * Equivalent to standard putss */
 int kputs (const char *s);
 
+#ifndef KNDBG
+#define KASSERT(x) __extension__ ({ \
+    if(!(x)) { kprintf("[%s:%d] assert (%s) failed\n", __FILE__, __LINE__, #x); \
+        kernel_exit(); \
+    } \
+})
+#else
+#define KASSERT(x) 
+#endif
+
 #endif // __LIBKERN_H__
