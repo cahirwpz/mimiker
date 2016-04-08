@@ -36,7 +36,7 @@ qemu: $(PROGNAME).srec
 	$(QEMU) -kernel $(PROGNAME).srec
 
 astyle:
-	astyle --options=astyle.options --recursive "*.h" "*.c"
+	astyle --options=astyle.options --recursive "*.h" "*.c" --exclude=include/bitset.h --exclude=include/_bitset.h --exclude=include/hash.h --exclude=include/pic32mz.h --exclude=include/queue.h --exclude=include/tree.h
 
 clean:
 	$(MAKE) -C smallclib clean
