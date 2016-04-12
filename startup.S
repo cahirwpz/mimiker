@@ -1,9 +1,13 @@
+#include <asm.h>
 #include <mips/m32c0.h>
 
         .set noreorder
 
-        .section .exception
-        .globl __reset_vector
+        .section .init
+
+        .local copy_rom_to_ram
+        .local clear_bss
+        .local kernel_main_exit
 
 # The .org 0x0 directive explicitly forces the routine to be placed
 # exactly at the beginning of the .exception section. Not using this
@@ -14,38 +18,7 @@
 # 0xbfc00000.
 
         .org 0x0
-__reset_vector:
-        la      $k0, _start
-        jr      $k0
-        nop
-
-        .org 0x200
-        la      $k0, _intr_handler
-        jr      $k0
-        nop
-
-        .org 0x280
-        sdbbp
-        nop
-
-        .org 0x300
-        sdbbp
-        nop
-
-        .org 0x380
-        sdbbp
-        nop
-
-        .org 0x480
-        sdbbp
-        nop
-
-        .section .init
-        .globl _start
-        .type _start, function
-        .ent _start
-
-_start:
+LEAF(_start)
         la      $a0, init_gpr
         jalr    $a0
         nop
@@ -112,4 +85,4 @@ kernel_main_exit:
         sdbbp
         nop
 
-        .end _start
+        END(_start)

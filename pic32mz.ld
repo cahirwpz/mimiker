@@ -2,7 +2,7 @@
  * Linker script for PIC32MZ firmware.
  */
 OUTPUT_ARCH(mips)
-ENTRY(__reset_vector)
+ENTRY(_start)
 MEMORY
 {
   flash   (rx)   : ORIGIN = 0xbfc00000,	LENGTH = 0xff00
@@ -20,12 +20,13 @@ SECTIONS
   .text : AT(ORIGIN(flash))
   {
     __text = ABSOLUTE(.);
+    *(.init)
+    . = 0x1000;
     /* Exception handlers. */
     __ebase = ABSOLUTE(.);
-    *(.exception)
-    . = 0x500;
+    *(.ebase)
+    . = 0x2000;
     /* Execution starts here. */
-    *(.init)
     *(.text .text.*)
     . = ALIGN (4);
     __rodata_start = ABSOLUTE(.);
