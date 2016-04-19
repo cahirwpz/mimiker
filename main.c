@@ -1,16 +1,11 @@
-#include "pic32mz.h"
-#include "uart_raw.h"
-#include "global_config.h"
+#include <uart_cbus.h>
+#include <config.h>
 #include "interrupts.h"
 #include "clock.h"
 #include "malloc.h"
-#include "context.h"
 #include "libkern.h"
 #include "vm_phys.h"
 #include "common.h"
-
-char str[] = "This is a global string!\n";
-char empty[100]; /* This should land in .bss and get cleared by _start procedure. */
 
 typedef struct cpuinfo {
     int tlb_entries;
@@ -26,30 +21,6 @@ typedef struct cpuinfo {
 
 static cpuinfo_t cpuinfo;
 
-/*
- * Chip configuration.
- */
-PIC32_DEVCFG (
-  DEVCFG0_JTAG_DISABLE |      /* Disable JTAG port */
-  DEVCFG0_TRC_DISABLE,        /* Disable trace port */
-
-  /* Using primary oscillator with external crystal 24 MHz.
-   * PLL multiplies it to 200 MHz. */
-  DEVCFG1_FNOSC_SPLL |        /* System clock supplied by SPLL */
-  DEVCFG1_POSCMOD_EXT |       /* External generator */
-  DEVCFG1_FCKS_ENABLE |       /* Enable clock switching */
-  DEVCFG1_FCKM_ENABLE |       /* Enable fail-safe clock monitoring */
-  DEVCFG1_IESO |              /* Internal-external switch over enable */
-  DEVCFG1_CLKO_DISABLE,       /* CLKO output disable */
-
-  DEVCFG2_FPLLIDIV_3 |        /* PLL input divider = 3 */
-  DEVCFG2_FPLLRNG_5_10 |      /* PLL input range is 5-10 MHz */
-  DEVCFG2_FPLLMULT(50) |      /* PLL multiplier = 50x */
-  DEVCFG2_FPLLODIV_2,         /* PLL postscaler = 1/2 */
-
-  DEVCFG3_FETHIO |            /* Default Ethernet pins */
-  DEVCFG3_USERID(0xffff));    /* User-defined ID */
-
 static volatile unsigned loop;
 
 /*
@@ -60,7 +31,7 @@ static volatile unsigned loop;
  */
 void udelay (unsigned usec) {
   uint32_t now = mips32_get_c0(C0_COUNT);
-  uint32_t final = now + usec * MHZ / 2;
+  uint32_t final = now + usec * CPU_CLOCK / 2;
 
   for (;;) {
     now = mips32_get_c0(C0_COUNT);
@@ -70,8 +41,6 @@ void udelay (unsigned usec) {
       break;
   }
 }
-
-static void demo_ctx();
 
 /*
  * Delays for at least the given number of milliseconds. May not be
@@ -83,62 +52,20 @@ void mdelay (unsigned msec) {
   while (final > clock_get_ms());
 }
 
-static ctx_t ctx0, ctx1, ctx2;
-static intptr_t stack1[200];
-static intptr_t stack2[200];
-
-static void demo_context_1() {
-  int times = 3;
-
-  kprintf("Context #1 has started.\n");
-
-  do {
-    ctx_switch(&ctx1, &ctx2);
-    kprintf("Running in context #1.\n");
-  } while (--times);
-
-  ctx_switch(&ctx1, &ctx0);
-}
-
-static void demo_context_2() {
-  int times = 3;
-
-  kprintf("Context #2 has started.\n");
-
-  do {
-    ctx_switch(&ctx2, &ctx1);
-    kprintf("Running in context #2.\n");
-  } while (--times);
-
-  // NOT REACHED
-}
-
-static void demo_ctx() {
-  kprintf("Main context has started.\n");
-
-  // Prepare alternative contexts
-  register void *gp asm("$gp");
-  ctx_init(&ctx1, demo_context_1, stack1 + 199, gp);
-  ctx_init(&ctx2, demo_context_2, stack2 + 199, gp);
-
-  // Switch to context 1
-  ctx_switch(&ctx0, &ctx1);
-
-  kprintf("Main context continuing.\n");
-}
-
+extern int _memsize;
+extern char _ram[];
+extern char __text[];
 extern char __ebss[];
-extern char _estack[];
 
 static void pmem_start() {
-  vm_paddr_t ram = (vm_paddr_t)0xa0000000;
+  vm_paddr_t ram = (vm_paddr_t)_ram;
+  vm_paddr_t text = (vm_paddr_t)__text;
   vm_paddr_t ebss = (vm_paddr_t)__ebss;
-  vm_paddr_t stack = (vm_paddr_t)_estack;
 
   vm_phys_init();
-  vm_phys_add_seg(ram, ram + 512 * 1024);
-  vm_phys_reserve(ram, ebss);
-  vm_phys_reserve(stack - PAGESIZE, stack);
+  vm_phys_add_seg(ram, ram + _memsize);
+  vm_phys_reserve(ram, text);
+  vm_phys_reserve(text, ebss);
   vm_phys_print_free_pages();
 }
 
@@ -199,21 +126,51 @@ static bool read_config() {
   kprintf(" - sets per way  : %d\n", cpuinfo.dc_nsets);
   kprintf(" - size          : %d\n", cpuinfo.dc_size);
 
-  /* CFG2 implemented? */
+  /* Config2 implemented? */
   if ((config1 & CFG1_M) == 0)
     return false;
 
   uint32_t config2 = mips32_getconfig1();
 
-  /* Config2 implemented? */
+  /* Config3 implemented? */
   if ((config2 & CFG2_M) == 0)
     return false;
 
   uint32_t config3 = mips32_getconfig3();
 
-  kprintf("Small pages (1KiB) implemented : %s\n", (config3 & CFG3_SP) ? "yes" : "no");
+  kprintf("EIC interrupt mode implemented : %s\n", (config3 & CFG3_VEIC) ? "yes" : "no");
 
   return true;
+}
+
+/* Print state of control registers. */
+void dump_cp0() {
+  uint32_t cr = mips32_get_c0(C0_CAUSE);
+  uint32_t sr = mips32_get_c0(C0_STATUS);
+  uint32_t intctl = mips32_get_c0(C0_INTCTL);
+
+  kprintf ("Cause    : TI:%d IV:%d IP:%d ExcCode:%d\n",
+           (cr & CR_TI) >> CR_TI_SHIFT,
+           (cr & CR_IV) >> CR_IV_SHIFT,
+           (cr & CR_IP_MASK) >> CR_IP_SHIFT,
+           (cr & CR_X_MASK) >> CR_X_SHIFT);
+  kprintf ("Status   : CU0:%d BEV:%d NMI:%d IM:%d KSU:%d ERL:%d EXL:%d IE:%d\n",
+           (sr & SR_CU0) >> SR_CU0_SHIFT,
+           (sr & SR_BEV) >> SR_BEV_SHIFT,
+           (sr & SR_NMI) >> SR_NMI_SHIFT,
+           (sr & SR_IMASK) >> SR_IMASK_SHIFT,
+           (sr & SR_KSU_MASK) >> SR_KSU_SHIFT,
+           (sr & SR_ERL) >> SR_ERL_SHIFT,
+           (sr & SR_EXL) >> SR_ERL_SHIFT,
+           (sr & SR_IE) >> SR_ERL_SHIFT);
+  kprintf ("IntCtl   : IPTI:%d IPPCI:%d VS:%d\n",
+           (intctl & INTCTL_IPTI) >> INTCTL_IPTI_SHIFT,
+           (intctl & INTCTL_IPPCI) >> INTCTL_IPPCI_SHIFT,
+           (intctl & INTCTL_VS) >> INTCTL_VS_SHIFT);
+  kprintf ("EPC      : $%08x\n", mips32_get_c0(C0_EPC));
+  kprintf ("ErrPC    : $%08x\n", mips32_get_c0(C0_ERRPC));
+  kprintf ("EBase    : $%08x\n", mips32_get_c0(C0_EBASE));
+  kprintf ("BadVAddr : $%08x\n", mips32_get_c0(C0_BADVADDR));
 }
 
 /*
@@ -240,73 +197,37 @@ static bool read_config() {
  * - The EXL and ERL bits in the Status register are both zero
  */
 
-int kernel_main() {
-  /* Initialize coprocessor 0. */
-  //mtc0 (C0_CAUSE, 0, 1 << 23);        /* Set IV */
-  //mtc0 (C0_STATUS, 0, 0);             /* Clear BEV */
-
-  /* Use pins PA0-PA3, PF13, PF12, PA6-PA7 as output: LED control. */
-  LATACLR = 0xCF;
-  TRISACLR = 0xCF;
-  LATFCLR = 0x3000;
-  TRISFCLR = 0x3000;
-
-  intr_init();
-
-  /* Initialize UART. */
+int kernel_main(int argc, char **argv, char **envp) {
   uart_init();
+
+  kprintf("Kernel arguments: ");
+  for (int i = 0; i < argc; i++)
+    kprintf("%s ", argv[i]);
+  kprintf("\n");
+
+  kprintf("Kernel environment: ");
+  char **_envp = envp;
+  while (*_envp) {
+    char *key = *_envp++;
+    char *val = *_envp++;
+    kprintf("%s=%s ", key, val);
+  }
+  kprintf("\n");
+
+  dump_cp0();
+
   read_config();
-  clock_init();
+  intr_init();
   pmem_start();
+  clock_init();
 
-  /* Demonstrate access to .data */
-  kprintf ("%s", str);
-
-  /* Test whether .bss appears to have been cleared. */
-  char *p = empty;
-  while (p < empty + sizeof(empty))
-    if (*p++ != 0x00)
-      kprintf("Apparently .bss was not cleared!\n");
-  // TODO: Exit main? Ignore?
-
-  /*
-   * Print initial state of control registers.
-   */
-  kprintf ("-\n");
-  kprintf ("Status   = 0x%08x\n", mips32_get_c0(C0_STATUS));
-  kprintf ("IntCtl   = 0x%08x\n", mips32_get_c0(C0_INTCTL));
-  kprintf ("SRSCtl   = 0x%08x\n", mips32_get_c0(C0_SRSCTL));
-  kprintf ("Cause    = 0x%08x\n", mips32_get_c0(C0_CAUSE));
-  kprintf ("PRId     = 0x%08x\n", mips32_get_c0(C0_PRID));
-  kprintf ("EBase    = 0x%08x\n", mips32_get_c0(C0_EBASE));
-  kprintf ("Config   = 0x%08x\n", mips32_get_c0(C0_CONFIG));
-  kprintf ("Config1  = 0x%08x\n", mips32_get_c0(C0_CONFIG1));
-  kprintf ("Config2  = 0x%08x\n", mips32_get_c0(C0_CONFIG2));
-  kprintf ("Config3  = 0x%08x\n", mips32_get_c0(C0_CONFIG3));
-  kprintf ("Config4  = 0x%08x\n", mips32_get_c0(C0_CONFIG4));
-  kprintf ("Config5  = 0x%08x\n", mips32_get_c0(C0_CONFIG5));
-  kprintf ("Debug    = 0x%08x\n", mips32_get_c0(C0_DEBUG));
-  kprintf ("DEVID    = 0x%08x\n", DEVID);
-  kprintf ("OSCCON   = 0x%08x\n", OSCCON);
-  kprintf ("DEVCFG0  = 0x%08x\n", DEVCFG0);
-  kprintf ("DEVCFG1  = 0x%08x\n", DEVCFG1);
-  kprintf ("DEVCFG2  = 0x%08x\n", DEVCFG2);
-  kprintf ("DEVCFG3  = 0x%08x\n", DEVCFG3);
-
+#if 0
   demo_ctx();
+#endif
 
   unsigned last = 0;
-  while (1) {
-    /* Invert pins PA7-PA0. */
-    LATAINV = 1 << 0;  mdelay (100);
-    LATAINV = 1 << 1;  mdelay (100);
-    LATAINV = 1 << 2;  mdelay (100);
-    LATAINV = 1 << 3;  mdelay (100);
-    LATFINV = 1 << 13; mdelay (100);
-    LATFINV = 1 << 12; mdelay (100);
-    LATAINV = 1 << 6;  mdelay (100);
-    LATAINV = 1 << 7;  mdelay (100);
 
+  while (1) {
     mdelay(200);
 
     loop++;

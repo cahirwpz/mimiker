@@ -2,21 +2,23 @@
 
 include Makefile.common
 
-QEMU     = qemu-system-mipsel -machine pic32mz-wifire -sdl -serial stdio -s -S
-LDSCRIPT = pic32mz.ld
-LDFLAGS  += -T $(LDSCRIPT) -Wl,-Map=pic32mz.map
+OVPSIM_ROOT = ${IMPERAS_HOME}/ImperasLib/mips.ovpworld.org/platform/MipsMalta/1.0
+OVPSIM   = ${OVPSIM_ROOT}/platform.Linux32.exe --port 1234 --nographics
+
+LDSCRIPT = malta.ld
+LDFLAGS  += -T $(LDSCRIPT) -Wl,-Map=malta.map
 CPPFLAGS += -Iinclude
 LDLIBS   = smallclib/smallclib.a
 
 PROGNAME = main
-SOURCES_C = main.c uart_raw.c interrupts.c clock.c malloc.c context.c vm_phys.c
-SOURCES_ASM = startup.S intr.S init_gpr.S init_cp0.S init_caches.S init_tlb.S \
-	      context-mips.S ebase.S
+SOURCES_C = main.c uart_cbus.c interrupts.c clock.c malloc.c context.c \
+	    context-demo.c vm_phys.c
+SOURCES_ASM = startup.S intr.S context-mips.S
 SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
 DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
 
-all: $(DEPFILES) $(PROGNAME).srec
+all: $(DEPFILES) $(PROGNAME).elf
 
 $(PROGNAME).elf: smallclib $(OBJECTS) $(LDSCRIPT)
 
@@ -29,17 +31,20 @@ endif
 smallclib:
 	$(MAKE) -C smallclib smallclib.a
 
-debug: $(PROGNAME).srec
-	$(GDB) $(PROGNAME).elf
+debug: $(PROGNAME).elf
+	$(GDB) $<
 
-qemu: $(PROGNAME).srec
-	$(QEMU) -kernel $(PROGNAME).srec
+sim: $(PROGNAME).elf
+	$(OVPSIM) --kernel $(PROGNAME).elf --root /dev/null
 
 astyle:
-	astyle --options=astyle.options --recursive "*.h" "*.c" --exclude=include/bitset.h --exclude=include/_bitset.h --exclude=include/hash.h --exclude=include/pic32mz.h --exclude=include/queue.h --exclude=include/tree.h --exclude=vm_phys.c
+	astyle --options=astyle.options --recursive "*.h" "*.c" \
+	       --exclude=include/bitset.h --exclude=include/_bitset.h \
+	       --exclude=include/hash.h --exclude=include/queue.h \
+	       --exclude=include/tree.h --exclude=vm_phys.c
 
 clean:
 	$(MAKE) -C smallclib clean
-	$(RM) -f .*.D *.o *.lst *~ *.elf *.srec *.map
+	$(RM) -f .*.D *.o *.lst *~ *.elf *.map *.log
 
 .PHONY: smallclib qemu debug astyle

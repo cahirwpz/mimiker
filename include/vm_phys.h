@@ -3,9 +3,9 @@
 
 #include <queue.h>
 #include <common.h>
-#include <global_config.h>
 
-#define VM_NFREEORDER 9
+#define PAGESIZE 4096
+#define VM_NFREEORDER 16
 #define VM_RESERVED 1
 #define VM_FREE 2
 

@@ -12,4 +12,7 @@ void intr_init();
  */
 void intr_dispatcher();
 
+#define intr_disable() __extension__ ({ asm("di"); })
+#define intr_enable() __extension__ ({ asm("ei"); })
+
 #endif /* __SYS_INTERRUPTS_H__ */

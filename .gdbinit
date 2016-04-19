@@ -1,2 +1,4 @@
 target remote localhost:1234
-x/6i $pc
+break kernel_main
+break kernel_exit
+continue

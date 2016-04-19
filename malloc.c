@@ -1,19 +1,17 @@
 #include <libkern.h>
-#include <global_config.h>
+#include <vm_phys.h>
 #include <malloc.h>
 #include <mutex.h>
 
 /* The end of the kernel's .bss section. Provided by the linker. */
 extern uint8_t __ebss[];
-/* Initial stack pointer at the end of RAM. Provided by the linker. */
-extern uint8_t _estack[];
 
 static struct {
   void *ptr;     /* Pointer to the end of kernel's bss. */
   void *end;     /* Limit for the end of kernel's bss. */
   mtx_t lock;
   bool shutdown;
-} sbrk = { __ebss, _estack - PAGESIZE, MTX_INITIALIZER, false };
+} sbrk = { __ebss, __ebss + 16 * PAGESIZE, MTX_INITIALIZER, false };
 
 void *kernel_sbrk(size_t size) {
   mtx_lock(sbrk.lock);

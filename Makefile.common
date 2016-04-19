@@ -38,10 +38,6 @@ endef
 	@echo "[LD] $(filter %.o,$^) -> $@"
 	$(CC) $(LDFLAGS) $(filter %.o,$^) $(LDLIBS) -o $@
 
-%.srec: %.elf
-	@echo "[OBJCOPY] $^ -> $@"
-	$(OBJCOPY) -O srec $(PROGNAME).elf $(PROGNAME).srec
-
 %.a:
 	@echo "[AR] $^ -> $@"
 	$(AR) rs $@ $^
