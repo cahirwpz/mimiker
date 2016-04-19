@@ -3,42 +3,84 @@
 
         .set	noreorder       // Don't allow the assembler to reorder instructions.
 
+        .local tlb_refill
+        .local cache_error
+        .local general_exception
+        .local irq_handler
+        .local irq0
+        .local irq1
+        .local irq2
+        .local irq3
+        .local irq4
+        .local irq5
+        .local irq6
+        .local irq7
+
         .section .ebase
 
         .org 0x0
-        sdbbp
+tlb_refill:
+1:      j       1b
+        nop
+
+        .org 0x100
+cache_error:
+1:      j       1b
         nop
 
         .org 0x180
-        sdbbp
+general_exception:
+1:      j       1b
         nop
 
         .org 0x200
-        la      $k0, _intr_handler
-        jr      $k0
+irq0:
+1:      j       1b
+        nop
+
+        .org 0x220
+irq1:
+1:      j       1b
+        nop
+
+        .org 0x240
+irq2:
+1:      j       1b
+        nop
+
+        .org 0x260
+irq3:
+1:      j       1b
         nop
 
         .org 0x280
-        sdbbp
+irq4:
+1:      j       1b
+        nop
+
+        .org 0x2a0
+irq5:
+1:      j       1b
+        nop
+
+        .org 0x2c0
+irq6:
+1:      j       1b
+        nop
+
+        .org 0x2e0
+irq7:
+        la      $k1,hardclock
+        j       irq_handler
         nop
 
         .org 0x300
-        sdbbp
-        nop
-
-        .org 0x380
-        sdbbp
-        nop
-
-        .org 0x480
-        sdbbp
-        nop
-
-        .set	noat            // Don't allow the assembler to use r1(at) for synthetic instr.
 
 #define REG_STACK_STORE_SIZE 76
 
-LEAF(_intr_handler)
+        .set	noat            // Don't allow the assembler to use r1(at) for synthetic instr.
+
+irq_handler:
         /* Please, no nested interrupts for now. */
         di
 
@@ -76,7 +118,7 @@ LEAF(_intr_handler)
         sw      $k0, 72($sp)
 
         /* Call the C routine. */
-        jal     intr_dispatcher
+        jalr    $k1
         nop
 
         /* Restore registers. */
@@ -110,5 +152,3 @@ LEAF(_intr_handler)
         ei
 
         eret
-
-END(_intr_handler)

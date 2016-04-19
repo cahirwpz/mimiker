@@ -138,7 +138,8 @@ static bool read_config() {
 
   uint32_t config3 = mips32_getconfig3();
 
-  kprintf("EIC interrupt mode implemented : %s\n", (config3 & CFG3_VEIC) ? "yes" : "no");
+  kprintf("Vectored interrupts implemented : %s\n", (config3 & CFG3_VI) ? "yes" : "no");
+  kprintf("EIC interrupt mode implemented  : %s\n", (config3 & CFG3_VEIC) ? "yes" : "no");
 
   return true;
 }
@@ -154,7 +155,7 @@ void dump_cp0() {
            (cr & CR_IV) >> CR_IV_SHIFT,
            (cr & CR_IP_MASK) >> CR_IP_SHIFT,
            (cr & CR_X_MASK) >> CR_X_SHIFT);
-  kprintf ("Status   : CU0:%d BEV:%d NMI:%d IM:%d KSU:%d ERL:%d EXL:%d IE:%d\n",
+  kprintf ("Status   : CU0:%d BEV:%d NMI:%d IM:$%02x KSU:%d ERL:%d EXL:%d IE:%d\n",
            (sr & SR_CU0) >> SR_CU0_SHIFT,
            (sr & SR_BEV) >> SR_BEV_SHIFT,
            (sr & SR_NMI) >> SR_NMI_SHIFT,
@@ -214,12 +215,12 @@ int kernel_main(int argc, char **argv, char **envp) {
   }
   kprintf("\n");
 
-  dump_cp0();
-
   read_config();
   intr_init();
   pmem_start();
   clock_init();
+
+  dump_cp0();
 
 #if 0
   demo_ctx();
