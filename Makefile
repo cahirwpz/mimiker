@@ -4,7 +4,9 @@ include Makefile.common
 
 OVPSIM_ROOT = ${IMPERAS_HOME}/lib/Linux32/ImperasLib/mips.ovpworld.org/platform/MipsMalta/1.0
 OVPSIM   = ${OVPSIM_ROOT}/platform.Linux32.exe \
-	   --port 1234 --nographics --override mipsle1/vectoredinterrupt=1
+	   --port 1234 --nographics \
+	   --override mipsle1/vectoredinterrupt=1 \
+	   --override uartCBUS/console=1
 
 LDSCRIPT = malta.ld
 LDFLAGS  += -T $(LDSCRIPT) -Wl,-Map=malta.map
