@@ -1,7 +1,5 @@
 #include <interrupts.h>
-#include <uart_cbus.h>
-#include <clock.h>
-#include <libkern.h>
+#include <mips.h>
 
 extern const char _ebase[];
 

@@ -1,11 +1,11 @@
-#include <libkern.h>
-#include <uart_cbus.h>
 #include <common.h>
+#include <mips.h>
 #include <ns16550.h>
+#include <malta.h>
+#include <uart_cbus.h>
 
-/* Malta™-R Platform System Overviev, page 30 */
-
-#define CBUS_UART_R(a) *(volatile uint8_t*)(0xbf000900 + (a))
+#define CBUS_UART_R(x) \
+  *(volatile uint8_t*)(MIPS_PHYS_TO_KSEG1(MALTA_CBUS_UART) + (x))
 
 #define RBR CBUS_UART_R(0x00) /* Receiver Buffer, read-only, DLAB = 0 */
 #define THR CBUS_UART_R(0x00) /* Transmitter Holding, write-only, DLAB = 0 */

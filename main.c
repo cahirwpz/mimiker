@@ -5,6 +5,7 @@
 #include "malloc.h"
 #include "libkern.h"
 #include "vm_phys.h"
+#include <mips.h>
 #include "common.h"
 
 typedef struct cpuinfo {

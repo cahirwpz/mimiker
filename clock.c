@@ -1,8 +1,8 @@
 #include <common.h>
-#include <clock.h>
-#include <interrupts.h>
 #include <config.h>
-#include <libkern.h>
+#include <interrupts.h>
+#include <mips.h>
+#include <clock.h>
 
 /* This counter is incremented every millisecond. */
 static volatile uint32_t timer_ms_count;
