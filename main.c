@@ -8,6 +8,7 @@
 #include "libkern.h"
 #include "vm_phys.h"
 #include <uart_cbus.h>
+#include <pci.h>
 
 typedef struct cpuinfo {
     int tlb_entries;
@@ -215,6 +216,7 @@ int kernel_main(int argc, char **argv, char **envp) {
   clock_init();
 
   dump_cp0();
+  dump_pci0();
 
 #if 0
   demo_ctx();
