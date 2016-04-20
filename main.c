@@ -237,7 +237,3 @@ int kernel_main(int argc, char **argv, char **envp) {
     last = curr;
   }
 }
-
-void kernel_exit() {
-  for(;;);
-}

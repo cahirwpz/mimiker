@@ -5,7 +5,6 @@
 
         .local clear_bss
         .local kernel_go
-        .local kernel_exit
 
 # Boot environment is described in MIPS® YAMON™ User's Manual, Chapter 5
 #
@@ -41,13 +40,13 @@ kernel_go:
         la      $t0, kernel_main
         mtc0    $t0, C0_ERRPC    # Return from exception to kernel_main
         eret                     # exception => normal level (SR_ERL = 0)
-
-kernel_exit:
-        # If for some reason kernel_main returned call a debugger.
-        sdbbp
-        nop
-
 END(_start)
+
+LEAF(kernel_exit)
+1:      j       1b
+        nop
+END(kernel_exit)
+
 
         .globl _memsize
         .type  _memsize,@object
