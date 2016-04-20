@@ -17,7 +17,7 @@ SECTIONS
     _ebase = ABSOLUTE(.);
     *(.ebase)
     . = ALIGN(4096);
-    /* Execution starts here. */
+    /* Text and read-only data follows. */
     __text = ABSOLUTE(.);
     *(.text .text.*)
     . = ALIGN (4);
@@ -26,7 +26,6 @@ SECTIONS
     . = ALIGN(4096);
   } : text
 
-  /* Data is mapped onto Program Flash and copied to RAM at startup. */
   .data ADDR(.text) + SIZEOF (.text):
   {
     __data = ABSOLUTE(.);
