@@ -1,12 +1,12 @@
-#include <uart_cbus.h>
 #include <config.h>
+#include <common.h>
+#include <mips.h>
 #include "interrupts.h"
 #include "clock.h"
 #include "malloc.h"
 #include "libkern.h"
 #include "vm_phys.h"
-#include <mips.h>
-#include "common.h"
+#include <uart_cbus.h>
 
 typedef struct cpuinfo {
     int tlb_entries;
@@ -102,30 +102,23 @@ static bool read_config() {
   cpuinfo.tlb_entries = _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS) + 1;
 
   /* Instruction cache size and organization. */
-  cpuinfo.ic_linesize = (config1 & CFG1_IL_MASK) ? 16 : 0;
+  cpuinfo.ic_linesize = (config1 & CFG1_IL_MASK) ? 32 : 0;
   cpuinfo.ic_nways = _mips32r2_ext(config1, CFG1_IA_SHIFT, CFG1_IA_BITS) + 1;
   cpuinfo.ic_nsets = 1 << (_mips32r2_ext(config1, CFG1_IS_SHIFT, CFG1_IS_BITS) + 6);
   cpuinfo.ic_size = cpuinfo.ic_nways * cpuinfo.ic_linesize * cpuinfo.ic_nsets;
 
   /* Data cache size and organization. */
-  cpuinfo.dc_linesize = (config1 & CFG1_DL_MASK) ? 16 : 0;
+  cpuinfo.dc_linesize = (config1 & CFG1_DL_MASK) ? 32 : 0;
   cpuinfo.dc_nways = _mips32r2_ext(config1, CFG1_DA_SHIFT, CFG1_DA_BITS) + 1;
   cpuinfo.dc_nsets = 1 << (_mips32r2_ext(config1, CFG1_DS_SHIFT, CFG1_DS_BITS) + 6);
   cpuinfo.dc_size = cpuinfo.dc_nways * cpuinfo.dc_linesize * cpuinfo.dc_nsets;
 
   kprintf("TLB Entries: %d\n", cpuinfo.tlb_entries);
 
-  kprintf("Instruction cache:\n");
-  kprintf(" - line size     : %d\n", cpuinfo.ic_linesize);
-  kprintf(" - associativity : %d\n", cpuinfo.ic_nways);
-  kprintf(" - sets per way  : %d\n", cpuinfo.ic_nsets);
-  kprintf(" - size          : %d\n", cpuinfo.ic_size);
-
-  kprintf("Data cache:\n");
-  kprintf(" - line size     : %d\n", cpuinfo.dc_linesize);
-  kprintf(" - associativity : %d\n", cpuinfo.dc_nways);
-  kprintf(" - sets per way  : %d\n", cpuinfo.dc_nsets);
-  kprintf(" - size          : %d\n", cpuinfo.dc_size);
+  kprintf("I-cache: %d KiB, %d-way associative, line size: %d bytes\n",
+      cpuinfo.ic_size / 1024, cpuinfo.ic_nways, cpuinfo.ic_linesize);
+  kprintf("D-cache: %d KiB, %d-way associative, line size: %d bytes\n",
+      cpuinfo.dc_size / 1024, cpuinfo.dc_nways, cpuinfo.dc_linesize);
 
   /* Config2 implemented? */
   if ((config1 & CFG1_M) == 0)
@@ -172,7 +165,6 @@ void dump_cp0() {
   kprintf ("EPC      : $%08x\n", mips32_get_c0(C0_EPC));
   kprintf ("ErrPC    : $%08x\n", mips32_get_c0(C0_ERRPC));
   kprintf ("EBase    : $%08x\n", mips32_get_c0(C0_EBASE));
-  kprintf ("BadVAddr : $%08x\n", mips32_get_c0(C0_BADVADDR));
 }
 
 /*
