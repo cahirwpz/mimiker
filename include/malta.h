@@ -58,10 +58,15 @@
 
 #define MALTA_PHYS_SDRAM_BASE   0x00000000
 
+#define MALTA_PCI0_IO_BASE      0x18000000
 #define MALTA_CORECTRL_BASE     0x1be00000
 #define MALTA_FPGA_BASE         0x1f000000
 
 #define MALTA_CBUS_UART         (MALTA_FPGA_BASE + 0x900)
 #define MALTA_CBUS_UART_INTR    2
+
+#define MALTA_PCI0_ADDR(x)      (MALTA_PCI0_IO_BASE + (x))
+#define MALTA_RTC_ADDR          MALTA_PCI0_ADDR(0x70)
+#define MALTA_RTC_DATA          MALTA_PCI0_ADDR(0x71)
 
 #endif
