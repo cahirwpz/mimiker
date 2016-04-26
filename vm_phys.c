@@ -29,7 +29,7 @@ void vm_phys_print_free_pages() {
   kprintf("\n");
 }
 
-void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end) {
+void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end, vm_paddr_t vm_offset) {
   struct vm_phys_seg *seg = kernel_sbrk(sizeof(struct vm_phys_seg));
   int page_array_size = (end - start) / PAGESIZE;
 
@@ -45,6 +45,7 @@ void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end) {
 
   for (int i = 0; i < page_array_size; i++) {
     seg->page_array[i].phys_addr = seg->start + PAGESIZE * i;
+    seg->page_array[i].virt_addr = seg->start + PAGESIZE * i + vm_offset;
     seg->page_array[i].order = 0;
     seg->page_array[i].flags = 0;
   }

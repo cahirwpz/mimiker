@@ -56,6 +56,8 @@
  *   15      Secondary IDE   Secondary IDE slot/Compact flash connector
  */
 
+#define MALTA_PHYS_SDRAM_BASE   0x00000000
+
 #define MALTA_CORECTRL_BASE     0x1be00000
 #define MALTA_FPGA_BASE         0x1f000000
 
