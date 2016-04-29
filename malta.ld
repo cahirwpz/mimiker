@@ -6,6 +6,7 @@ PHDRS
   text PT_LOAD FLAGS(5); /* read-only, executable */
   data PT_LOAD FLAGS(6); /* read-write */
 }
+PROVIDE(__tlb_stride_length = 1);
 SECTIONS
 {
   /* RAM is mapped in kseg0 (cacheable) and kseg1 (non-cacheable) */
