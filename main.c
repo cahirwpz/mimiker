@@ -8,17 +8,18 @@
 #include "libkern.h"
 #include "vm_phys.h"
 #include <uart_cbus.h>
+#include "memory_allocator.h"
 
 typedef struct cpuinfo {
-    int tlb_entries;
-    int ic_size;
-    int ic_linesize;
-    int ic_nways;
-    int ic_nsets;
-    int dc_size;
-    int dc_linesize;
-    int dc_nways;
-    int dc_nsets;
+  int tlb_entries;
+  int ic_size;
+  int ic_linesize;
+  int ic_nways;
+  int ic_nsets;
+  int dc_size;
+  int dc_linesize;
+  int dc_nways;
+  int dc_nsets;
 } cpuinfo_t;
 
 static cpuinfo_t cpuinfo;
@@ -65,13 +66,15 @@ static void pmem_start() {
   vm_paddr_t ebss = (vm_paddr_t)__ebss;
 
   vm_phys_init();
-  vm_phys_add_seg(MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + _memsize, MIPS_KSEG0_START);
+  vm_phys_add_seg(MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + _memsize,
+                  MIPS_KSEG0_START);
   vm_phys_reserve(MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + text - ram);
-  vm_phys_reserve(MALTA_PHYS_SDRAM_BASE + text - ram, MALTA_PHYS_SDRAM_BASE + (text - ram) + (ebss - text) );
+  vm_phys_reserve(MALTA_PHYS_SDRAM_BASE + text - ram,
+                  MALTA_PHYS_SDRAM_BASE + (text - ram) + (ebss - text) );
   vm_phys_print_free_pages();
 }
 
-/* 
+/*
  * Read configuration register values, interpret and save them into the cpuinfo
  * structure for later use.
  */
@@ -100,26 +103,29 @@ static bool read_config() {
   uint32_t config1 = mips32_getconfig1();
 
   /* FTLB or/and VTLB sizes */
-  cpuinfo.tlb_entries = _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS) + 1;
+  cpuinfo.tlb_entries = _mips32r2_ext(config1, CFG1_MMUS_SHIFT,
+                                      CFG1_MMUS_BITS) + 1;
 
   /* Instruction cache size and organization. */
   cpuinfo.ic_linesize = (config1 & CFG1_IL_MASK) ? 32 : 0;
   cpuinfo.ic_nways = _mips32r2_ext(config1, CFG1_IA_SHIFT, CFG1_IA_BITS) + 1;
-  cpuinfo.ic_nsets = 1 << (_mips32r2_ext(config1, CFG1_IS_SHIFT, CFG1_IS_BITS) + 6);
+  cpuinfo.ic_nsets = 1 << (_mips32r2_ext(config1, CFG1_IS_SHIFT,
+                                         CFG1_IS_BITS) + 6);
   cpuinfo.ic_size = cpuinfo.ic_nways * cpuinfo.ic_linesize * cpuinfo.ic_nsets;
 
   /* Data cache size and organization. */
   cpuinfo.dc_linesize = (config1 & CFG1_DL_MASK) ? 32 : 0;
   cpuinfo.dc_nways = _mips32r2_ext(config1, CFG1_DA_SHIFT, CFG1_DA_BITS) + 1;
-  cpuinfo.dc_nsets = 1 << (_mips32r2_ext(config1, CFG1_DS_SHIFT, CFG1_DS_BITS) + 6);
+  cpuinfo.dc_nsets = 1 << (_mips32r2_ext(config1, CFG1_DS_SHIFT,
+                                         CFG1_DS_BITS) + 6);
   cpuinfo.dc_size = cpuinfo.dc_nways * cpuinfo.dc_linesize * cpuinfo.dc_nsets;
 
   kprintf("TLB Entries: %d\n", cpuinfo.tlb_entries);
 
   kprintf("I-cache: %d KiB, %d-way associative, line size: %d bytes\n",
-      cpuinfo.ic_size / 1024, cpuinfo.ic_nways, cpuinfo.ic_linesize);
+          cpuinfo.ic_size / 1024, cpuinfo.ic_nways, cpuinfo.ic_linesize);
   kprintf("D-cache: %d KiB, %d-way associative, line size: %d bytes\n",
-      cpuinfo.dc_size / 1024, cpuinfo.dc_nways, cpuinfo.dc_linesize);
+          cpuinfo.dc_size / 1024, cpuinfo.dc_nways, cpuinfo.dc_linesize);
 
   /* Config2 implemented? */
   if ((config1 & CFG1_M) == 0)
@@ -133,8 +139,10 @@ static bool read_config() {
 
   uint32_t config3 = mips32_getconfig3();
 
-  kprintf("Vectored interrupts implemented : %s\n", (config3 & CFG3_VI) ? "yes" : "no");
-  kprintf("EIC interrupt mode implemented  : %s\n", (config3 & CFG3_VEIC) ? "yes" : "no");
+  kprintf("Vectored interrupts implemented : %s\n",
+          (config3 & CFG3_VI) ? "yes" : "no");
+  kprintf("EIC interrupt mode implemented  : %s\n",
+          (config3 & CFG3_VEIC) ? "yes" : "no");
 
   return true;
 }
@@ -187,7 +195,7 @@ void dump_cp0() {
  *
  * The processor is operating in User Mode when all of the following conditions
  * are true:
- * - The DM bit in the Debug register is a zero 
+ * - The DM bit in the Debug register is a zero
  * - The KSU field in the Status register contains 0b10
  * - The EXL and ERL bits in the Status register are both zero
  */
@@ -215,6 +223,8 @@ int kernel_main(int argc, char **argv, char **envp) {
   clock_init();
 
   dump_cp0();
+
+  test_memory_allocator();
 
 #if 0
   demo_ctx();
