@@ -66,7 +66,7 @@ static void insert_free_block(struct sb_head *sb_head, super_block *sb) {
   }
 }
 
-void *allocate(memory_range *mr, size_t requested_size) {
+void *allocate(memory_range *mr, size_t requested_size, char* array) {
   if (requested_size == 0)
     return NULL;
 
@@ -83,7 +83,45 @@ void *allocate(memory_range *mr, size_t requested_size) {
   if (size_left > sizeof(super_block)) {
     super_block *new_sb = (super_block *)((char *)sb + SIZE_WITH_SUPERBLOCK(
                                             requested_size));
+    char* array_moved = array+63 + sizeof(super_block);
+    array_moved += 0;
+
+    array_moved[0] = 'a';
+    array_moved[1] = 'a';
+    array_moved[2] = 'a';
+    array_moved[3] = 'a';
+    array_moved[4] = 'a';
+    array_moved[5] = 'a';
+    array_moved[6] = 'a';
+    array_moved[7] = 'a';
+    array_moved[8] = 'a';
+    array_moved[9] = 'a';
+    array_moved[10] = 'a';
+    array_moved[11] = 'a';
+    array_moved[12] = 'a';
+    array_moved[13] = 'a';
+    array_moved[14] = 'a';
+    array_moved[15] = 'a';
+    array_moved[16] = 'a';
+    array_moved[17] = 'a';
+    array_moved[18] = 'a';
+    array_moved[19] = 'a';
+    array_moved[20] = 'a';
+    array_moved[21] = 'a';
+
+    // You can check in gdb that &array_moved[0] is equal to &new_sb->size.
+    // Yet this is the place where an exception occurs.
     new_sb->size = size_left;
+
+
+    array_moved[22] = 'a';
+    array_moved[23] = 'a';
+    array_moved[24] = 'a';
+    array_moved[25] = 'a';
+    array_moved[26] = 'a';
+    array_moved[27] = 'a';
+    array_moved[28] = 'a';
+
     insert_free_block(&mr->sb_head, new_sb);
     sb->size = SIZE_WITH_SUPERBLOCK(requested_size);
   }
@@ -108,7 +146,7 @@ static void print_free_blocks(memory_range *mr) {
 
 void test_memory_allocator() {
   size_t size = 1063;
-  char array[size];
+  char array[1063];
   void *ptr = &array;
 
   memory_range mr;
@@ -117,10 +155,10 @@ void test_memory_allocator() {
 
   print_free_blocks(&mr);
 
-  void *ptr1 = allocate(&mr, 63);
+  void *ptr1 = allocate(&mr, 63, array);
   if (ptr1 != NULL)
     kprintf("Something went wrong\n");
-
+/*
   print_free_blocks(&mr);
 
   void *ptr2 = allocate(&mr, 1000 - sizeof(super_block) + 1);
@@ -149,5 +187,5 @@ void test_memory_allocator() {
   print_free_blocks(&mr);
 
   void *ptr6 = allocate(&mr, 1063 - sizeof(super_block));
-  if (ptr6 != NULL);
+  if (ptr6 != NULL);*/
 }
