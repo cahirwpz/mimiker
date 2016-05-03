@@ -7,10 +7,6 @@
 #include <stdalign.h>     /* alignof, alignas */
 #include <stdnoreturn.h>  /* noreturn */
 
-#include <mips/cpu.h>
-#include <mips/mips32.h>
-#include <mips/m32c0.h>
-
 /* Macros for counting and rounding. */
 #ifndef howmany
 #define howmany(x, y)   (((x) + ((y) - 1)) / (y))

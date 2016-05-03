@@ -1,33 +1,25 @@
-#include "common.h"
-#include "clock.h"
-#include "interrupts.h"
-#include "global_config.h"
-#include "pic32mz.h"
-#include "libkern.h"
+#include <common.h>
+#include <config.h>
+#include <interrupts.h>
+#include <mips.h>
+#include <clock.h>
 
 /* This counter is incremented every millisecond. */
 static volatile uint32_t timer_ms_count;
 
 void clock_init() {
-  uint32_t sr = _mips_intdisable();
+  intr_disable();
 
   mips32_set_c0(C0_COUNT, 0);
   mips32_set_c0(C0_COMPARE, TICKS_PER_MS);
 
   timer_ms_count = 0;
 
-  /* Clear core timer interrupt status. */
-  IFSSET(0) = 1;
-  /* Set core timer interrupts priority to 6 (highest) */
-  uint32_t p = IPC(0);
-  p &= ~PIC32_IPC_IP0(7); // Clear priority 0 bits
-  p |= PIC32_IPC_IP0(6);  // Set them to 6
-  IPC(0) = p;
   /* Enable core timer interrupts. */
-  IECSET(0) = 1;
+  mips32_bs_c0(C0_STATUS, SR_IM7);
 
   /* It is safe now to re-enable interrupts. */
-  _mips_intrestore(sr);
+  intr_enable();
 }
 
 uint32_t clock_get_ms() {

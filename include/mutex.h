@@ -2,6 +2,7 @@
 #define __SYS_MUTEX_H__
 
 #include <common.h>
+#include <mips.h>
 
 typedef volatile uintptr_t mtx_t;
 
