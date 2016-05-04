@@ -16,7 +16,7 @@ LDLIBS   = smallclib/smallclib.a
 
 PROGNAME = main
 SOURCES_C = main.c uart_cbus.c interrupts.c clock.c malloc.c context.c \
-	    context-demo.c vm_phys.c rtc.c pci.c pci_ids.c intr_handler.c
+	    context-demo.c vm_phys.c rtc.c pci.c pci_ids.c
 SOURCES_ASM = startup.S intr.S context-mips.S mxxtlb_ops.S m32tlb_ops.S
 SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
