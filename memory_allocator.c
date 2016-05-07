@@ -33,6 +33,7 @@ typedef struct mem_block {
 typedef struct mem_arena {
     TAILQ_ENTRY(mem_arena) ma_list;
     uint16_t ma_pages; /* Size in pages. */
+    uint32_t ma_size; /* Size of all the blocks inside combined */
     struct mb_list ma_freeblks;
     struct mb_list ma_usedblks;
 } __attribute__((aligned(MB_UNIT))) mem_arena_t;
@@ -111,6 +112,16 @@ void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t total_size)
   }
 }
 
+void add_used_memory_block(mem_arena_t* ma, mem_block_t* mb)
+{
+  TAILQ_INSERT_HEAD(&ma->ma_usedblks, mb, mb_list);
+}
+
+void remove_used_memory_block(mem_arena_t* ma, mem_block_t* mb)
+{
+  TAILQ_REMOVE(&ma->ma_usedblks, mb, mb_list);
+}
+
 
 void malloc_add_arena(malloc_pool_t *mp, void *start, size_t arena_size)
 {
@@ -122,6 +133,7 @@ void malloc_add_arena(malloc_pool_t *mp, void *start, size_t arena_size)
 
   TAILQ_INSERT_HEAD(&mp->mp_arena, ma, ma_list);
   ma->ma_pages = 0; // TODO
+  ma->ma_size = arena_size - sizeof(mem_arena_t);
 
   // Adding the first free block.
   mem_block_t *mb = (mem_block_t*)((char*)mp + sizeof(mem_arena_t));
@@ -157,8 +169,6 @@ mem_block_t* try_allocating_in_area(mem_arena_t* ma, size_t requested_size, uint
   }
 
   return mb;
-
-
 }
 
 void* malloc2(size_t size, malloc_pool_t *mp, uint16_t flags)
@@ -169,12 +179,29 @@ void* malloc2(size_t size, malloc_pool_t *mp, uint16_t flags)
   {
     mem_block_t* ptr = try_allocating_in_area(current, size, flags);
     if (ptr)
+    {
+      add_used_memory_block(current, ptr);
       return ((char*)ptr) + sizeof(mem_block_t);
+    }
   }
 
   return NULL;
 }
 
+void free2(void *addr, malloc_pool_t *mp)
+{
+  mem_arena_t* current = NULL;
+  TAILQ_FOREACH(current, &mp->mp_arena, ma_list)
+  {
+    char* start = ((char*)current) + sizeof(mem_arena_t);
+    if ((char*)addr >= start && (char*)addr < start + current->ma_size)
+    {
+      mem_block_t* mb = (mem_block_t*)((char*)addr) - sizeof(mem_block_t);
+      add_free_memory_block(current, mb, mb->mb_size);
+      remove_used_memory_block(current, mb);
+    }
+  }
+}
 
 
 
