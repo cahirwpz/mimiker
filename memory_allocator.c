@@ -1,153 +1,70 @@
-#include <common.h>
-#include "libkern.h"
-#include "include/queue.h"
-#include "include/memory_allocator.h"
+//#include <common.h>
+//#include "libkern.h"
+#include <stdint.h>
+#include "queue.h"
+#include <stddef.h>
+#include <stdio.h>
+//#include "include/memory_allocator.h"
 
-#define USABLE_SIZE(x) (x - sizeof(super_block))
-#define SIZE_WITH_SUPERBLOCK(x) ((x) + sizeof(super_block))
-#define MOVE_BY_SUPERBLOCK_RIGHT(x) (super_block*)((char*)x + sizeof(super_block))
-#define MOVE_BY_SUPERBLOCK_LEFT(x) (super_block*)((char*)x - sizeof(super_block))
+#define MB_MAGIC 0xC0DECAFE
 
-void init_memory_range(memory_range *mr, void *start, size_t size) {
-  mr->start = start;
-  mr->size = size;
-  super_block *sb = (super_block *)start;
+typedef struct mem_block {
+    uint32_t mb_magic;               /* if overwritten report a memory corruption error */
+    uint32_t mb_size;                /* size < 0 => free, size > 0 => alloc'd */
+    TAILQ_HEAD(, mem_block) mb_list;
+    uint8_t mb_data[0];
+} mem_block_t;
 
-  sb->size = size;
-  TAILQ_INIT(&mr->sb_head);
-  TAILQ_INSERT_HEAD(&mr->sb_head, sb, sb_link);
-}
+#define MB_UNIT sizeof(mem_block_t)
 
-static super_block *find_entry(struct sb_head *sb_head, size_t total_size) {
-  super_block *current;
+#if 0  // TODO
+#define MA_SINGLE 0 /* Single large block allocated within arena. */
+#define MA_BLOCKS 1 /* Arena provides space for small blocks. */
 
-  TAILQ_FOREACH(current, sb_head, sb_link) {
-    if (current->size >= total_size)
-      return current;
-  }
+/* Allocation larger than MA_THRESHOLD will be handled by allocation of single arena. */
+#define MA_THRESHOLD (2 * VM_PAGESIZE)
+#endif
 
-  return NULL;
-}
+typedef struct mem_arena {
+    TAILQ_ENTRY(mem_arena) ma_list;
+    uint16_t ma_pages; /* Size in pages. */
+    uint16_t ma_flags;
+    TAILQ_HEAD(, mem_block) ma_freeblks;
+    TAILQ_HEAD(, mem_block) ma_usedblks;
+//} __attribute__((aligned(MB_UNIT))) mem_arena_t;
+} mem_arena_t;
 
-static void merge_right(struct sb_head *sb_head, super_block *sb) {
-  super_block *next = TAILQ_NEXT(sb, sb_link);
+/* Flags to malloc */
+//#define M_WAITOK    0x0000 /* ignore for now */
+//#define M_NOWAIT    0x0001 /* ignore for now */
+#define M_ZERO      0x0002 /* clear allocated block */
 
-  if (!next)
-    return;
+typedef struct malloc_pool {
+    SLIST_ENTRY(malloc_pool) mp_next;  /* Next in global chain. */
+    uint32_t mp_magic;                 /* Detect programmer error. */
+    const char *mp_desc;               /* Printable type name. */
+    TAILQ_HEAD(, mem_arena) *mp_arena; /* First managed arena. */
+} malloc_pool_t;
 
-  char *sb_ptr = (char *)sb;
-  if (sb_ptr + sb->size == (char *) next) {
-    TAILQ_REMOVE(sb_head, next, sb_link);
-    sb->size += next->size;
-  }
-}
+/* Defines a local pool of memory for use by a subsystem. */
+#define MALLOC_DEFINE(pool, desc)     \
+    malloc_pool_t pool[1] = {         \
+        { NULL, M_MAGIC, desc, NULL } \
+    };
 
-/* Insert in a sorted fashion and merge. */
-static void insert_free_block(struct sb_head *sb_head, super_block *sb) {
-  if (TAILQ_EMPTY(sb_head)) {
-    TAILQ_INSERT_HEAD(sb_head, sb, sb_link);
-    return;
-  }
+#define MALLOC_DECLARE(pool) \
+    extern malloc_pool_t pool[1]
 
-  super_block *current = NULL;
-  super_block *best_so_far = NULL; /* sb can be inserted after this entry. */
-  TAILQ_FOREACH(current, sb_head, sb_link) {
-    if (current < sb)
-      best_so_far = current;
-  }
-
-  if (!best_so_far) {
-    TAILQ_INSERT_HEAD(sb_head, sb, sb_link);
-    merge_right(sb_head, sb);
-  } else {
-    TAILQ_INSERT_AFTER(sb_head, best_so_far, sb, sb_link);
-    merge_right(sb_head, sb);
-    merge_right(sb_head, best_so_far);
-  }
-}
-
-void *allocate(memory_range *mr, size_t requested_size) {
-  if (requested_size == 0)
-    return NULL;
-
-  /* Search for the first entry in the list that has enough space. */
-  super_block *sb = find_entry(&mr->sb_head,
-                               SIZE_WITH_SUPERBLOCK(requested_size));
-
-  if (!sb) /* No entry has enough space. */
-    return NULL;
-
-  TAILQ_REMOVE(&mr->sb_head, sb, sb_link);
-  size_t size_left = sb->size - SIZE_WITH_SUPERBLOCK(requested_size);
-
-  if (size_left > sizeof(super_block)) {
-    super_block *new_sb = (super_block *)((char *)sb + SIZE_WITH_SUPERBLOCK(
-                                            requested_size));
-    new_sb->size = size_left;
-    insert_free_block(&mr->sb_head, new_sb);
-    sb->size = SIZE_WITH_SUPERBLOCK(requested_size);
-  }
-  return MOVE_BY_SUPERBLOCK_RIGHT(sb);
-}
-
-void deallocate(memory_range *mr, void *memory_ptr) {
-  if (!memory_ptr)
-    return;
-
-  insert_free_block(&mr->sb_head, MOVE_BY_SUPERBLOCK_LEFT(memory_ptr));
-}
-
-static void print_free_blocks(memory_range *mr) {
-  kprintf("printing the free blocks list:\n");
-  super_block *current;
-  TAILQ_FOREACH(current, &mr->sb_head, sb_link) {
-    kprintf("%zu\n", current->size);
-  }
-  kprintf("\n");
-}
-
-void test_memory_allocator() {
-  size_t size = 1063;
-  char array[size];
-  void *ptr = &array;
-
-  memory_range mr;
-
-  init_memory_range(&mr, ptr, size);
-
-  print_free_blocks(&mr);
-
-  void *ptr1 = allocate(&mr, 63);
-  if (ptr1 != NULL)
-    kprintf("Something went wrong\n");
-
-  print_free_blocks(&mr);
-
-  void *ptr2 = allocate(&mr, 1000 - sizeof(super_block) + 1);
-  if (ptr2 == NULL)
-    kprintf("Something went wrong\n");
+void malloc_add_arena(malloc_pool_t *mp, void *start, void *end);
+void *malloc2(size_t size, malloc_pool_t *mp, uint16_t flags);
+//void *realloc(void *addr, size_t size, malloc_pool_t *mp, uint16_t flags);
+void free2(void *addr, malloc_pool_t *mp);
 
 
-  void *ptr3 = allocate(&mr, 1000 - 3 * sizeof(super_block) - 1);
-  if (ptr3 != NULL)
-    kprintf("Something went wrong\n");
 
 
-  void *ptr4 = allocate(&mr, 1);
-  if (ptr4 != NULL)
-    kprintf("Something went wrong\n");
+int main()
+{
 
-
-  void *ptr5 = allocate(&mr, 1);
-  if (ptr5 == NULL)
-    kprintf("Something went wrong\n");
-
-  deallocate(&mr, ptr3);
-  deallocate(&mr, ptr4);
-  deallocate(&mr, ptr1);
-
-  print_free_blocks(&mr);
-
-  void *ptr6 = allocate(&mr, 1063 - sizeof(super_block));
-  if (ptr6 != NULL);
+  return 0;
 }
