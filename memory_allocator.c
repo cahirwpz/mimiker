@@ -8,10 +8,13 @@
 
 #define MB_MAGIC 0xC0DECAFE
 
+TAILQ_HEAD(mb_list, mem_block);
+TAILQ_HEAD(mp_arena, mem_arena);
+
 typedef struct mem_block {
     uint32_t mb_magic;               /* if overwritten report a memory corruption error */
     uint32_t mb_size;                /* size < 0 => free, size > 0 => alloc'd */
-    TAILQ_HEAD(, mem_block) mb_list;
+    struct mb_list mb_list;
     uint8_t mb_data[0];
 } mem_block_t;
 
@@ -29,8 +32,8 @@ typedef struct mem_arena {
     TAILQ_ENTRY(mem_arena) ma_list;
     uint16_t ma_pages; /* Size in pages. */
     uint16_t ma_flags;
-    TAILQ_HEAD(, mem_block) ma_freeblks;
-    TAILQ_HEAD(, mem_block) ma_usedblks;
+    struct mb_list ma_freeblks;
+    struct mb_list ma_usedblks;
 //} __attribute__((aligned(MB_UNIT))) mem_arena_t;
 } mem_arena_t;
 
@@ -43,19 +46,19 @@ typedef struct malloc_pool {
     SLIST_ENTRY(malloc_pool) mp_next;  /* Next in global chain. */
     uint32_t mp_magic;                 /* Detect programmer error. */
     const char *mp_desc;               /* Printable type name. */
-    TAILQ_HEAD(, mem_arena) *mp_arena; /* First managed arena. */
+    struct mp_arena mp_arena; /* First managed arena. */
 } malloc_pool_t;
 
 /* Defines a local pool of memory for use by a subsystem. */
 #define MALLOC_DEFINE(pool, desc)     \
     malloc_pool_t pool[1] = {         \
-        { NULL, M_MAGIC, desc, NULL } \
+        { NULL, MB_MAGIC, desc, NULL } \
     };
 
 #define MALLOC_DECLARE(pool) \
     extern malloc_pool_t pool[1]
 
-void malloc_add_arena(malloc_pool_t *mp, void *start, void *end);
+void malloc_add_arena(malloc_pool_t *mp, void *start, size_t size);
 void *malloc2(size_t size, malloc_pool_t *mp, uint16_t flags);
 //void *realloc(void *addr, size_t size, malloc_pool_t *mp, uint16_t flags);
 void free2(void *addr, malloc_pool_t *mp);
@@ -63,8 +66,30 @@ void free2(void *addr, malloc_pool_t *mp);
 
 
 
+void malloc_add_arena(malloc_pool_t *mp, void *start, size_t size)
+{
+  mem_arena_t *ma = start;
+
+  TAILQ_INSERT_HEAD(&mp->mp_arena, ma, ma_list);
+}
+
+
+
+
+
+
+
+
 int main()
 {
+  char text[] = "this is a pool for testing purposes";
+  MALLOC_DEFINE(test_pool, text);
+
+  char array[3000];
+  malloc_add_arena(test_pool, (array) + ((long long)array)%8, 2000);
+
+
+
 
   return 0;
 }
