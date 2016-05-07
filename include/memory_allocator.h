@@ -98,7 +98,7 @@ typedef struct super_block {
 */
 void init_memory_range(memory_range *mr, void *start, size_t size);
 
-void *allocate(memory_range *mr, size_t requested_size);
+void *allocate(memory_range *mr, size_t requested_size, char*);
 
 void deallocate(memory_range *mr, void *memory_ptr);
 
