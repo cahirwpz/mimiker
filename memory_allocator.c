@@ -66,6 +66,20 @@ void free2(void *addr, malloc_pool_t *mp);
 
 
 
+void merge_right(struct mb_list *ma_freeblks, mem_block_t *mb)
+{
+  mem_block_t *next = TAILQ_NEXT(mb, mb_list);
+
+  if (!next)
+    return;
+
+  char *mb_ptr = (char *)mb;
+  if (mb_ptr + mb->mb_size + sizeof(mem_block_t) == (char *) next) {
+    TAILQ_REMOVE(ma_freeblks, next, mb_list);
+    mb->mb_size += next->mb_size + sizeof(mem_block_t);
+  }
+}
+
 void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t size)
 {
   memset(mb, 0, sizeof(mem_block_t));
@@ -90,16 +104,12 @@ void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t size)
 
   if (!best_so_far) {
     TAILQ_INSERT_HEAD(&ma->ma_freeblks, mb, mb_list);
-    //merge_right(sb_head, sb);
+    merge_right(&ma->ma_freeblks, mb);
   } else {
     TAILQ_INSERT_AFTER(&ma->ma_freeblks, best_so_far, mb, mb_list);
-    //merge_right(sb_head, sb);
-    //merge_right(sb_head, best_so_far);
+    merge_right(&ma->ma_freeblks, mb);
+    merge_right(&ma->ma_freeblks, best_so_far);
   }
-
-
-
-
 }
 
 
