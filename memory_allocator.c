@@ -36,7 +36,6 @@ typedef struct mem_arena {
     struct mb_list ma_freeblks;
     struct mb_list ma_usedblks;
 } __attribute__((aligned(MB_UNIT))) mem_arena_t;
-//} mem_arena_t;
 
 /* Flags to malloc */
 //#define M_WAITOK    0x0000 /* ignore for now */
@@ -60,7 +59,7 @@ typedef struct malloc_pool {
     extern malloc_pool_t pool[1]
 
 void malloc_add_arena(malloc_pool_t *mp, void *start, size_t size);
-void *malloc2(size_t size, malloc_pool_t *mp, uint16_t flags);
+void* malloc2(size_t size, malloc_pool_t *mp, uint16_t flags);
 //void *realloc(void *addr, size_t size, malloc_pool_t *mp, uint16_t flags);
 void free2(void *addr, malloc_pool_t *mp);
 
@@ -80,11 +79,11 @@ void merge_right(struct mb_list *ma_freeblks, mem_block_t *mb)
   }
 }
 
-void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t size)
+void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t total_size)
 {
   memset(mb, 0, sizeof(mem_block_t));
   mb->mb_magic = MB_MAGIC;
-  mb->mb_size = -(size - sizeof(mem_block_t));
+  mb->mb_size = total_size - sizeof(mem_block_t);
   mb->mb_flags = 0;
 
   // If it's the first block, we simply add it.
@@ -128,16 +127,53 @@ void malloc_add_arena(malloc_pool_t *mp, void *start, size_t arena_size)
   mem_block_t *mb = (mem_block_t*)((char*)mp + sizeof(mem_arena_t));
   size_t block_size = arena_size - sizeof(mem_arena_t);
   add_free_memory_block(ma, mb, block_size);
+}
 
+mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {
+  mem_block_t* current = NULL;
+  TAILQ_FOREACH(current, mb_list, mb_list)
+  {
+    if (current->mb_size >= total_size)
+      return current;
+  }
+  return NULL;
+}
 
+mem_block_t* try_allocating_in_area(mem_arena_t* ma, size_t requested_size, uint16_t flags)
+{
+  mem_block_t *mb = find_entry(&ma->ma_freeblks, requested_size + sizeof(mem_block_t));
 
+  if (!mb) /* No entry has enough space. */
+    return NULL;
 
-  
+  TAILQ_REMOVE(&ma->ma_freeblks, mb, mb_list);
+  size_t total_size_left = mb->mb_size - requested_size;
+  if (total_size_left > sizeof(mem_block_t)) {
+    mem_block_t *new_mb = (mem_block_t *)((char *)mb + requested_size + sizeof(mem_block_t));
+    //new_mb->mb_size = size_left;
+    //insert_free_block(&mr->sb_head, new_sb);
+    //sb->size = SIZE_WITH_SUPERBLOCK(requested_size);
+    add_free_memory_block(ma, new_mb, total_size_left);
+  }
+
+  return mb;
 
 
 }
 
+void* malloc2(size_t size, malloc_pool_t *mp, uint16_t flags)
+{
+  /* Search for the first entry in the list that has enough space. */
+  mem_arena_t* current = NULL;
+  TAILQ_FOREACH(current, &mp->mp_arena, ma_list)
+  {
+    mem_block_t* ptr = try_allocating_in_area(current, size, flags);
+    if (ptr)
+      return ((char*)ptr) + sizeof(mem_block_t);
+  }
 
+  return NULL;
+}
 
 
 
