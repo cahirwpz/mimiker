@@ -4,6 +4,7 @@
 #include "queue.h"
 #include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 //#include "include/memory_allocator.h"
 
 #define MB_MAGIC 0xC0DECAFE
@@ -14,7 +15,8 @@ TAILQ_HEAD(mp_arena, mem_arena);
 typedef struct mem_block {
     uint32_t mb_magic;               /* if overwritten report a memory corruption error */
     uint32_t mb_size;                /* size < 0 => free, size > 0 => alloc'd */
-    struct mb_list mb_list;
+    uint16_t mb_flags;
+    TAILQ_ENTRY(mem_block) mb_list;
     uint8_t mb_data[0];
 } mem_block_t;
 
@@ -31,11 +33,10 @@ typedef struct mem_block {
 typedef struct mem_arena {
     TAILQ_ENTRY(mem_arena) ma_list;
     uint16_t ma_pages; /* Size in pages. */
-    uint16_t ma_flags;
     struct mb_list ma_freeblks;
     struct mb_list ma_usedblks;
-//} __attribute__((aligned(MB_UNIT))) mem_arena_t;
-} mem_arena_t;
+} __attribute__((aligned(MB_UNIT))) mem_arena_t;
+//} mem_arena_t;
 
 /* Flags to malloc */
 //#define M_WAITOK    0x0000 /* ignore for now */
@@ -65,12 +66,65 @@ void free2(void *addr, malloc_pool_t *mp);
 
 
 
-
-void malloc_add_arena(malloc_pool_t *mp, void *start, size_t size)
+void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t size)
 {
+  memset(mb, 0, sizeof(mem_block_t));
+  mb->mb_magic = MB_MAGIC;
+  mb->mb_size = -(size - sizeof(mem_block_t));
+  mb->mb_flags = 0;
+
+  // If it's the first block, we simply add it.
+  if (TAILQ_EMPTY(&ma->ma_freeblks)) {
+    TAILQ_INSERT_HEAD(&ma->ma_freeblks, mb, mb_list);
+    return;
+  }
+
+  // It's not the first block, so we insert it in a sorted fashion.
+  mem_block_t* current = NULL;
+  mem_block_t* best_so_far = NULL;  /* mb can be inserted after this entry. */
+
+  TAILQ_FOREACH(current, &ma->ma_freeblks, mb_list) {
+    if (current < mb)
+      best_so_far = current;
+  }
+
+  if (!best_so_far) {
+    TAILQ_INSERT_HEAD(&ma->ma_freeblks, mb, mb_list);
+    //merge_right(sb_head, sb);
+  } else {
+    TAILQ_INSERT_AFTER(&ma->ma_freeblks, best_so_far, mb, mb_list);
+    //merge_right(sb_head, sb);
+    //merge_right(sb_head, best_so_far);
+  }
+
+
+
+
+}
+
+
+void malloc_add_arena(malloc_pool_t *mp, void *start, size_t arena_size)
+{
+  if (arena_size < sizeof(mem_arena_t))
+    return;
+
+  memset(start, 0, sizeof(mem_arena_t));
   mem_arena_t *ma = start;
 
   TAILQ_INSERT_HEAD(&mp->mp_arena, ma, ma_list);
+  ma->ma_pages = 0; // TODO
+
+  // Adding the first free block.
+  mem_block_t *mb = (mem_block_t*)((char*)mp + sizeof(mem_arena_t));
+  size_t block_size = arena_size - sizeof(mem_arena_t);
+  add_free_memory_block(ma, mb, block_size);
+
+
+
+
+  
+
+
 }
 
 
