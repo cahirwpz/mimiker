@@ -233,7 +233,7 @@ void free2(void *addr, malloc_pool_t *mp)
       mem_block_t* mb = (mem_block_t*)(((char*)addr) - sizeof(mem_block_t));
       //printf("Removing a block at address %p\n", mp);
       remove_used_memory_block(current, mb);
-      add_free_memory_block(current, mb, mb->mb_size);
+      add_free_memory_block(current, mb, mb->mb_size + sizeof(mem_block_t));
     }
   }
 }
@@ -277,7 +277,8 @@ int main()
 
   void* ptr1 = malloc2(15, test_pool, 0);
   printf("%p\n", ptr1);
-  //print_free_blocks(test_pool);
+
+
 
   
   void* ptr2 = malloc2(15, test_pool, 0);
@@ -288,15 +289,15 @@ int main()
   printf("%p\n", ptr4);
   void* ptr5 = malloc2(1000, test_pool, 0);
   printf("%p\n", ptr5);
-  free2(ptr1, test_pool);
-  print_free_blocks(test_pool);
-  free2(ptr2, test_pool);
   free2(ptr3, test_pool);
+  free2(ptr1, test_pool);
+  free2(ptr2, test_pool);
+  free2(ptr4, test_pool);
   void* ptr6 = malloc2(1000, test_pool, 0);
   printf("%p\n", ptr6);
   free2(ptr6, test_pool);
-  free2(ptr4, test_pool);
 
+  print_free_blocks(test_pool);
 
 
 
