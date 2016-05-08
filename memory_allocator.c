@@ -10,7 +10,7 @@
 
 
 
-#define MB_MAGIC 0xC0DECAFE
+#define MAGIC 0xC0DECAFE
 #define ALIGNMENT 8
 
 TAILQ_HEAD(mb_list, mem_block);
@@ -43,8 +43,10 @@ typedef struct mem_arena {
 } __attribute__((aligned(MB_UNIT))) mem_arena_t;
 
 /* Flags to malloc */
-//#define M_WAITOK    0x0000 /* ignore for now */
-//#define M_NOWAIT    0x0001 /* ignore for now */
+#if 0  // TODO
+#define M_WAITOK    0x0000 /* ignore for now */
+#define M_NOWAIT    0x0001 /* ignore for now */
+#endif
 #define M_ZERO      0x0002 /* clear allocated block */
 
 typedef struct malloc_pool {
@@ -57,7 +59,7 @@ typedef struct malloc_pool {
 /* Defines a local pool of memory for use by a subsystem. */
 #define MALLOC_DEFINE(pool, desc)     \
     malloc_pool_t pool[1] = {         \
-        { NULL, MB_MAGIC, desc } \
+        { NULL, MAGIC, desc } \
     };
 
 #define MALLOC_DECLARE(pool) \
@@ -68,19 +70,12 @@ void* malloc2(size_t size, malloc_pool_t *mp, uint16_t flags);
 //void *realloc(void *addr, size_t size, malloc_pool_t *mp, uint16_t flags);
 void free2(void *addr, malloc_pool_t *mp);
 
-
-// DEBUG
-malloc_pool_t * global_mp;
-// ENDO F DEBUG
-
-
 void print_free_blocks(malloc_pool_t *mp);
 
 
 
 void merge_right(struct mb_list *ma_freeblks, mem_block_t *mb)
 {
-  //printf("Trying to merge right\n");
   mem_block_t *next = TAILQ_NEXT(mb, mb_list);
 
   if (!next)
@@ -88,7 +83,6 @@ void merge_right(struct mb_list *ma_freeblks, mem_block_t *mb)
 
   char *mb_ptr = (char *)mb;
   if (mb_ptr + mb->mb_size + sizeof(mem_block_t) == (char *) next) {
-    //printf("Removing a block at address %p\n", next);
     TAILQ_REMOVE(ma_freeblks, next, mb_list);
     mb->mb_size += next->mb_size + sizeof(mem_block_t);
   }
@@ -96,9 +90,8 @@ void merge_right(struct mb_list *ma_freeblks, mem_block_t *mb)
 
 void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t total_size)
 {
-  //printf("Adding a free memory block of size %zu\n", total_size);
   memset(mb, 0, sizeof(mem_block_t));
-  mb->mb_magic = MB_MAGIC;
+  mb->mb_magic = MAGIC;
   mb->mb_size = total_size - sizeof(mem_block_t);
   mb->mb_flags = 0;
 
@@ -130,13 +123,11 @@ void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t total_size)
 
 void add_used_memory_block(mem_arena_t* ma, mem_block_t* mb)
 {
-  //printf("Adding a used memory block with address %p and size %d\n", mb, mb->mb_size);
   TAILQ_INSERT_HEAD(&ma->ma_usedblks, mb, mb_list);
 }
 
 void remove_used_memory_block(mem_arena_t* ma, mem_block_t* mb)
 {
-  //printf("Removing a used memory block with address %p and size %d\n", mb, mb->mb_size);
   TAILQ_REMOVE(&ma->ma_usedblks, mb, mb_list);
 }
 
@@ -153,9 +144,10 @@ void malloc_add_arena(malloc_pool_t *mp, void *start, size_t arena_size)
   ma->ma_pages = 0; // TODO
   ma->ma_size = arena_size - sizeof(mem_arena_t);
 
-  // Adding the first free block.
   TAILQ_INIT(&ma->ma_freeblks);
   TAILQ_INIT(&ma->ma_usedblks);
+
+  // Adding the first free block that covers all the remaining arena_size.
   mem_block_t *mb = (mem_block_t*)((char*)ma + sizeof(mem_arena_t));
   size_t block_size = arena_size - sizeof(mem_arena_t);
   add_free_memory_block(ma, mb, block_size);
@@ -171,28 +163,20 @@ mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {
   return NULL;
 }
 
-mem_block_t* try_allocating_in_area(mem_arena_t* ma, size_t requested_size, uint16_t flags) // TODO: REMOVE LAST PARAMETER
+mem_block_t* try_allocating_in_area(mem_arena_t* ma, size_t requested_size, uint16_t flags)
 {
   mem_block_t *mb = find_entry(&ma->ma_freeblks, requested_size + sizeof(mem_block_t));
-
-
 
   if (!mb) /* No entry has enough space. */
     return NULL;
 
-  //printf("Removing a free block from the list with address %p\n", mb);
   TAILQ_REMOVE(&ma->ma_freeblks, mb, mb_list);
   size_t total_size_left = mb->mb_size - requested_size;
   if (total_size_left > sizeof(mem_block_t))
   {
     mb->mb_size = requested_size;
     mem_block_t *new_mb = (mem_block_t *)((char *)mb + requested_size + sizeof(mem_block_t));
-    //new_mb->mb_size = size_left;
-    //insert_free_block(&mr->sb_head, new_sb);
-    //sb->size = SIZE_WITH_SUPERBLOCK(requested_size);
-    //print_free_blocks(global_mp);
     add_free_memory_block(ma, new_mb, total_size_left);
-    //print_free_blocks(global_mp);
   }
 
   return mb;
@@ -206,16 +190,21 @@ void* malloc2(size_t size, malloc_pool_t *mp, uint16_t flags)
   else
     size_aligned = size + ALIGNMENT - size%ALIGNMENT;
 
-  /* Search for the first entry in the list that has enough space. */
+  /* Search for the first area in the list that has enough space. */
   mem_arena_t* current = NULL;
   TAILQ_FOREACH(current, &mp->mp_arena, ma_list)
   {
-
-    mem_block_t* ptr = try_allocating_in_area(current, size_aligned, flags);
-    if (ptr)
+    mem_block_t* mb = try_allocating_in_area(current, size_aligned, flags);
+    if (mb)
     {
-      add_used_memory_block(current, ptr);
-      return ((char*)ptr) + sizeof(mem_block_t);
+      add_used_memory_block(current, mb);
+
+      if (flags == M_ZERO)
+      {
+        memset(mb->mb_data, 0, size);
+      }
+
+      return mb->mb_data;
     }
   }
 
@@ -224,14 +213,19 @@ void* malloc2(size_t size, malloc_pool_t *mp, uint16_t flags)
 
 void free2(void *addr, malloc_pool_t *mp)
 {
+  mem_block_t* mb = (mem_block_t*)(((char*)addr) - sizeof(mem_block_t));
+
+  if (mb->mb_magic != MAGIC || mp->mp_magic != MAGIC)
+  {
+    printf("Memory corruption detected!\n");
+  }
+
   mem_arena_t* current = NULL;
   TAILQ_FOREACH(current, &mp->mp_arena, ma_list)
   {
     char* start = ((char*)current) + sizeof(mem_arena_t);
     if ((char*)addr >= start && (char*)addr < start + current->ma_size)
     {
-      mem_block_t* mb = (mem_block_t*)(((char*)addr) - sizeof(mem_block_t));
-      //printf("Removing a block at address %p\n", mp);
       remove_used_memory_block(current, mb);
       add_free_memory_block(current, mb, mb->mb_size + sizeof(mem_block_t));
     }
@@ -260,17 +254,12 @@ void print_free_blocks(malloc_pool_t *mp)
   printf("\n");
 }
 
-
-
-
-
 int main()
 {
   char text[] = "this is a pool for testing purposes";
   MALLOC_DEFINE(test_pool, text);
   TAILQ_INIT(&test_pool->mp_arena);
 
-  global_mp = test_pool;
 
   char array[2100];
   malloc_add_arena(test_pool, (array) + ((long long)array)%8, 2050);
