@@ -19,9 +19,6 @@ SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
 DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
 
-a:
-	tput reset && gcc -g memory_allocator.c && ./a.out
-
 all: $(DEPFILES) $(PROGNAME).elf
 
 $(PROGNAME).elf: smallclib $(OBJECTS) $(LDSCRIPT)
