@@ -4,7 +4,10 @@ include Makefile.common
 
 OVPSIM_ROOT = ${IMPERAS_HOME}/lib/Linux32/ImperasLib/mips.ovpworld.org/platform/MipsMalta/1.0
 OVPSIM   = ${OVPSIM_ROOT}/platform.Linux32.exe \
-	   --port 1234 --nographics --override mipsle1/vectoredinterrupt=1
+	   --port 1234 --nographics --wallclock \
+	   --override mipsle1/vectoredinterrupt=1 \
+	   --override rtc/timefromhost=1 \
+	   --override uartCBUS/console=1
 
 LDSCRIPT = malta.ld
 LDFLAGS  += -T $(LDSCRIPT) -Wl,-Map=malta.map
@@ -13,7 +16,7 @@ LDLIBS   = smallclib/smallclib.a
 
 PROGNAME = main
 SOURCES_C = main.c uart_cbus.c interrupts.c clock.c malloc.c context.c \
-	    context-demo.c vm_phys.c memory_allocator.c
+	    context-demo.c vm_phys.c memory_allocator.c rtc.c pci.c pci_ids.c
 SOURCES_ASM = startup.S intr.S context-mips.S mxxtlb_ops.S m32tlb_ops.S
 SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)

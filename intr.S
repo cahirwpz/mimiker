@@ -30,6 +30,17 @@ cache_error:
 
         .org 0x180
 general_exception:
+        mfc0    $k0, C0_CAUSE
+        andi    $k0, $k0, CR_X_MASK
+        srl     $k0, $k0, CR_X_SHIFT
+        li      $k1, EXC_SYS
+        beq     $k1, $k0, 1f
+        nop
+
+        jal     kernel_oops
+        nop
+
+        /* syscalls not implemented yet */
 1:      j       1b
         nop
 

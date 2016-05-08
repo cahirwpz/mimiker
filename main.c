@@ -8,6 +8,8 @@
 #include "libkern.h"
 #include "vm_phys.h"
 #include <uart_cbus.h>
+#include <rtc.h>
+#include <pci.h>
 #include "memory_allocator.h"
 
 typedef struct cpuinfo {
@@ -221,8 +223,10 @@ int kernel_main(int argc, char **argv, char **envp) {
   intr_init();
   pmem_start();
   clock_init();
+  rtc_init();
 
   dump_cp0();
+  dump_pci0();
 
   test_memory_allocator();
 
@@ -230,14 +234,19 @@ int kernel_main(int argc, char **argv, char **envp) {
   demo_ctx();
 #endif
 
-  unsigned last = 0;
+  int size = 0;
 
   while (1) {
-    mdelay(200);
+    mdelay(1000);
 
-    loop++;
-    unsigned curr = clock_get_ms();
-    kprintf("Milliseconds since timer start: %d (diff: %d)\n", curr, curr - last);
-    last = curr;
+    for (; size > 0; size--)
+      uart_putc('\b');
+
+    rtc_time_t rtc;
+    rtc_read(&rtc);
+
+    size = kprintf("Time is %02d:%02d:%02d", rtc.hour, rtc.min, rtc.sec);
   }
+
+  return 0;
 }
