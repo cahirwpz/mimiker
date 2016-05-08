@@ -263,13 +263,8 @@ int main()
 
   char array[2100];
   malloc_add_arena(test_pool, (array) + ((long long)array)%8, 2050);
-
   void* ptr1 = malloc2(15, test_pool, 0);
   printf("%p\n", ptr1);
-
-
-
-  
   void* ptr2 = malloc2(15, test_pool, 0);
   printf("%p\n", ptr2);
   void* ptr3 = malloc2(15, test_pool, 0);
@@ -285,7 +280,6 @@ int main()
   void* ptr6 = malloc2(1000, test_pool, 0);
   printf("%p\n", ptr6);
   free2(ptr6, test_pool);
-
   print_free_blocks(test_pool);
 
 
