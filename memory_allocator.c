@@ -80,7 +80,7 @@ void print_free_blocks(malloc_pool_t *mp);
 
 void merge_right(struct mb_list *ma_freeblks, mem_block_t *mb)
 {
-  printf("Trying to merge right\n");
+  //printf("Trying to merge right\n");
   mem_block_t *next = TAILQ_NEXT(mb, mb_list);
 
   if (!next)
@@ -105,20 +105,7 @@ void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t total_size)
   // If it's the first block, we simply add it.
   if (TAILQ_EMPTY(&ma->ma_freeblks))
   {
-   // printf("before:\n");
-  //print_free_blocks(global_mp);
-    //print_free_blocks(global_mp);
-    //printf("Inserting a free block with address %p\n", mb);
-
     TAILQ_INSERT_HEAD(&ma->ma_freeblks, mb, mb_list);
-    //print_free_blocks(global_mp);
-
-
-
-  //  printf("after:\n");
-
-  //print_free_blocks(global_mp);
-
     return;
   }
 
@@ -132,15 +119,10 @@ void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t total_size)
   }
 
   if (!best_so_far) {
-    //printf("Inserting a free block with address %p\n", mb);
-
     TAILQ_INSERT_HEAD(&ma->ma_freeblks, mb, mb_list);
     merge_right(&ma->ma_freeblks, mb);
   } else {
-    //print_free_blocks(global_mp);
-    //printf("Inserting a free block with address %p\n", mb);
     TAILQ_INSERT_AFTER(&ma->ma_freeblks, best_so_far, mb, mb_list);
-    //print_free_blocks(global_mp);
     merge_right(&ma->ma_freeblks, mb);
     merge_right(&ma->ma_freeblks, best_so_far);
   }
@@ -148,13 +130,13 @@ void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t total_size)
 
 void add_used_memory_block(mem_arena_t* ma, mem_block_t* mb)
 {
-  //printf("Adding a used memory block with address %p\n", mb);
+  //printf("Adding a used memory block with address %p and size %d\n", mb, mb->mb_size);
   TAILQ_INSERT_HEAD(&ma->ma_usedblks, mb, mb_list);
 }
 
 void remove_used_memory_block(mem_arena_t* ma, mem_block_t* mb)
 {
-  //printf("Removing a used memory block with address %p\n", mb);
+  //printf("Removing a used memory block with address %p and size %d\n", mb, mb->mb_size);
   TAILQ_REMOVE(&ma->ma_usedblks, mb, mb_list);
 }
 
@@ -201,7 +183,9 @@ mem_block_t* try_allocating_in_area(mem_arena_t* ma, size_t requested_size, uint
   //printf("Removing a free block from the list with address %p\n", mb);
   TAILQ_REMOVE(&ma->ma_freeblks, mb, mb_list);
   size_t total_size_left = mb->mb_size - requested_size;
-  if (total_size_left > sizeof(mem_block_t)) {
+  if (total_size_left > sizeof(mem_block_t))
+  {
+    mb->mb_size = requested_size;
     mem_block_t *new_mb = (mem_block_t *)((char *)mb + requested_size + sizeof(mem_block_t));
     //new_mb->mb_size = size_left;
     //insert_free_block(&mr->sb_head, new_sb);
@@ -246,7 +230,7 @@ void free2(void *addr, malloc_pool_t *mp)
     char* start = ((char*)current) + sizeof(mem_arena_t);
     if ((char*)addr >= start && (char*)addr < start + current->ma_size)
     {
-      mem_block_t* mb = (mem_block_t*)((char*)addr) - sizeof(mem_block_t);
+      mem_block_t* mb = (mem_block_t*)(((char*)addr) - sizeof(mem_block_t));
       //printf("Removing a block at address %p\n", mp);
       remove_used_memory_block(current, mb);
       add_free_memory_block(current, mb, mb->mb_size);
@@ -293,9 +277,9 @@ int main()
 
   void* ptr1 = malloc2(15, test_pool, 0);
   printf("%p\n", ptr1);
-  free2(ptr1, test_pool);
+  //print_free_blocks(test_pool);
+
   
-  /*
   void* ptr2 = malloc2(15, test_pool, 0);
   printf("%p\n", ptr2);
   void* ptr3 = malloc2(15, test_pool, 0);
@@ -305,10 +289,14 @@ int main()
   void* ptr5 = malloc2(1000, test_pool, 0);
   printf("%p\n", ptr5);
   free2(ptr1, test_pool);
+  print_free_blocks(test_pool);
   free2(ptr2, test_pool);
   free2(ptr3, test_pool);
   void* ptr6 = malloc2(1000, test_pool, 0);
-  printf("%p\n", ptr6);*/
+  printf("%p\n", ptr6);
+  free2(ptr6, test_pool);
+  free2(ptr4, test_pool);
+
 
 
 
