@@ -9,11 +9,9 @@
 /*
   TODO:
   - use the mp_next field of malloc_pool
-  - use the mb_flags field of mem_block 
 */
 
-
-void merge_right(struct mb_list *ma_freeblks, mem_block_t *mb)
+static void merge_right(struct mb_list *ma_freeblks, mem_block_t *mb)
 {
   mem_block_t *next = TAILQ_NEXT(mb, mb_list);
 
@@ -27,7 +25,7 @@ void merge_right(struct mb_list *ma_freeblks, mem_block_t *mb)
   }
 }
 
-void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t total_size)
+static void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t total_size)
 {
   memset(mb, 0, sizeof(mem_block_t));
   mb->mb_magic = MAGIC;
@@ -60,12 +58,12 @@ void add_free_memory_block(mem_arena_t* ma, mem_block_t* mb, size_t total_size)
   }
 }
 
-void add_used_memory_block(mem_arena_t* ma, mem_block_t* mb)
+static void add_used_memory_block(mem_arena_t* ma, mem_block_t* mb)
 {
   TAILQ_INSERT_HEAD(&ma->ma_usedblks, mb, mb_list);
 }
 
-void remove_used_memory_block(mem_arena_t* ma, mem_block_t* mb)
+static void remove_used_memory_block(mem_arena_t* ma, mem_block_t* mb)
 {
   TAILQ_REMOVE(&ma->ma_usedblks, mb, mb_list);
 }
@@ -79,7 +77,6 @@ void malloc_add_arena(malloc_pool_t *mp, void *start, size_t arena_size)
   mem_arena_t *ma = start;
 
   TAILQ_INSERT_HEAD(&mp->mp_arena, ma, ma_list);
-  ma->ma_pages = 0; // TODO
   ma->ma_size = arena_size - sizeof(mem_arena_t);
 
   TAILQ_INIT(&ma->ma_freeblks);
@@ -91,7 +88,7 @@ void malloc_add_arena(malloc_pool_t *mp, void *start, size_t arena_size)
   add_free_memory_block(ma, mb, block_size);
 }
 
-mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {
+static mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {
   mem_block_t* current = NULL;
   TAILQ_FOREACH(current, mb_list, mb_list)
   {
@@ -101,7 +98,7 @@ mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {
   return NULL;
 }
 
-mem_block_t* try_allocating_in_area(mem_arena_t* ma, size_t requested_size, uint16_t flags)
+static mem_block_t* try_allocating_in_area(mem_arena_t* ma, size_t requested_size, uint16_t flags)
 {
   mem_block_t *mb = find_entry(&ma->ma_freeblks, requested_size + sizeof(mem_block_t));
 
@@ -120,7 +117,7 @@ mem_block_t* try_allocating_in_area(mem_arena_t* ma, size_t requested_size, uint
   return mb;
 }
 
-void* malloc2(size_t size, malloc_pool_t *mp, uint16_t flags)
+void* allocate(size_t size, malloc_pool_t *mp, uint16_t flags)
 {
   size_t size_aligned;
   if (size%ALIGNMENT == 0)
@@ -149,7 +146,7 @@ void* malloc2(size_t size, malloc_pool_t *mp, uint16_t flags)
   return NULL;
 }
 
-void free2(void *addr, malloc_pool_t *mp)
+void deallocate(void *addr, malloc_pool_t *mp)
 {
   mem_block_t* mb = (mem_block_t*)(((char*)addr) - sizeof(mem_block_t));
 
@@ -204,23 +201,23 @@ void test_memory_allocator()
 
   print_free_blocks(test_pool);
   
-  void* ptr1 = malloc2(15, test_pool, 0);
+  void* ptr1 = allocate(15, test_pool, 0);
   kprintf("%p\n", ptr1);
-  void* ptr2 = malloc2(15, test_pool, 0);
+  void* ptr2 = allocate(15, test_pool, 0);
   kprintf("%p\n", ptr2);
-  void* ptr3 = malloc2(15, test_pool, 0);
+  void* ptr3 = allocate(15, test_pool, 0);
   kprintf("%p\n", ptr3);
-  void* ptr4 = malloc2(1000, test_pool, 0);
+  void* ptr4 = allocate(1000, test_pool, 0);
   kprintf("%p\n", ptr4);
-  void* ptr5 = malloc2(1000, test_pool, 0);
+  void* ptr5 = allocate(1000, test_pool, 0);
   kprintf("%p\n", ptr5);
-  free2(ptr3, test_pool);
-  free2(ptr1, test_pool);
-  free2(ptr2, test_pool);
-  free2(ptr4, test_pool);
-  void* ptr6 = malloc2(1000, test_pool, 0);
+  deallocate(ptr3, test_pool);
+  deallocate(ptr1, test_pool);
+  deallocate(ptr2, test_pool);
+  deallocate(ptr4, test_pool);
+  void* ptr6 = allocate(1000, test_pool, 0);
   kprintf("%p\n", ptr6);
-  free2(ptr6, test_pool);
-  
+  deallocate(ptr6, test_pool);
+
   print_free_blocks(test_pool);
 }
