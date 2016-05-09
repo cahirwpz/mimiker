@@ -10,6 +10,7 @@
 #include <uart_cbus.h>
 #include <rtc.h>
 #include <pci.h>
+#include "callout.h"
 
 typedef struct cpuinfo {
     int tlb_entries;
@@ -230,6 +231,8 @@ int kernel_main(int argc, char **argv, char **envp) {
 #if 0
   demo_ctx();
 #endif
+
+  callout_demo();
 
   int size = 0;
 
