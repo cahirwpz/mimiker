@@ -34,7 +34,7 @@ void callout_init() {
     TAILQ_INIT(&ci.heads[i]);
 }
 
-void callout_setup(struct callout *handle, sbintime_t time, timeout_t fn,
+void callout_setup(callout_t *handle, sbintime_t time, timeout_t fn,
                    void *arg) {
   memset(handle, 0, sizeof(struct callout));
 
@@ -59,7 +59,7 @@ void callout_stop(callout_t *handle) {
   If the time of an event comes, execute the callout function and delete it from the list.
   Returns true if an element was deleted, false otherwise.
 */
-bool process_element(struct callout_head *head, struct callout *element) {
+bool process_element(struct callout_head *head, callout_t *element) {
   if (element->c_time == ci.uptime) {
     callout_active(element);
     callout_not_pending(element);
@@ -89,7 +89,7 @@ void callout_process(sbintime_t now) {
   ci.uptime++;
 
   struct callout_head *head = &ci.heads[ci.current_position];
-  struct callout *current;
+  callout_t *current;
 
   TAILQ_FOREACH(current, head, c_link) {
     // Deal with the next element if the currrent one is not the tail.
@@ -98,7 +98,7 @@ void callout_process(sbintime_t now) {
       element_deleted = false;
 
       if (current != TAILQ_LAST(head, callout_head)) {
-        struct callout *next = TAILQ_NEXT(current, c_link);
+        callout_t *next = TAILQ_NEXT(current, c_link);
         element_deleted = process_element(head, next);
       }
     } while (element_deleted);
@@ -106,7 +106,7 @@ void callout_process(sbintime_t now) {
 
   // Deal with the first element
   if (!TAILQ_EMPTY(head)) {
-    struct callout *first = TAILQ_FIRST(head);
+    callout_t *first = TAILQ_FIRST(head);
     //log("Trying to process the head");
     process_element(head, first);
   }
