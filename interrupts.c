@@ -1,4 +1,5 @@
 #include <interrupts.h>
+#include <libkern.h>
 #include <mips.h>
 
 extern const char _ebase[];
@@ -24,4 +25,85 @@ void intr_init() {
   mips32_set_c0(C0_STATUS, mips32_get_c0(C0_STATUS) & ~SR_IPL_MASK);
 
   intr_enable();
+}
+
+static intr_event_t *events[8];
+
+void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih) {
+  intr_handler_t *it;
+  /* Add new handler according to it's priority */
+  TAILQ_FOREACH(it, &ie->ie_handlers, ih_next) {
+    if(ih->ih_prio > it->ih_prio)
+      break;
+  }
+  if (it)
+    TAILQ_INSERT_BEFORE(it, ih, ih_next);
+  else
+    /* List is empty */
+    TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_next);
+}
+
+void run_event_handlers(unsigned irq) {
+  intr_event_execute_handlers(events[irq]);
+}
+
+void intr_event_init(intr_event_t *ie, uint8_t irq, char *name) {
+  ie->ie_rq = irq;
+  ie->ie_name = name;
+  TAILQ_INIT(&ie->ie_handlers);
+  events[irq] = ie;
+}
+
+void intr_event_remove_handler(intr_handler_t *ih) {
+  TAILQ_REMOVE(&ih->ih_event->ie_handlers, ih, ih_next);
+}
+
+/* TODO when we have threads implement deferring work to thread.
+ * With current implementation all filters have to either handle filter or
+ * report that it is stray interrupt.
+ * */
+
+void intr_event_execute_handlers(intr_event_t *ie) {
+  intr_handler_t *it;
+  int flag = 0;
+  TAILQ_FOREACH(it, &ie->ie_handlers, ih_next) {
+    flag |= it->ih_filter(it->ih_argument);
+    /* Filter captured interrupt */
+    if (flag & FILTER_HANDLED) return;
+  }
+#if 0
+  /* clear flag */
+  KASSERT(flag & FILTER_STRAY);
+  int ifs_n = ie->ie_rq / 32;
+  int intr_offset = (ie->ie_rq % 32);
+  IFSCLR(ifs_n) = 1 << intr_offset;
+#endif
+}
+
+static const char *exceptions[32] = {
+  [EXC_INTR] = "Interrupt",
+  [EXC_MOD]  = "TLB modification exception",
+  [EXC_TLBL] = "TLB exception (load or instruction fetch)",
+  [EXC_TLBS] = "TLB exception (store)",
+  [EXC_ADEL] = "Address error exception (load or instruction fetch)",
+  [EXC_ADES] = "Address error exception (store)",
+  [EXC_IBE]  = "Bus error exception (instruction fetch)",
+  [EXC_DBE]  = "Bus error exception (data reference: load or store)",
+  [EXC_BP]   = "Breakpoint exception",
+  [EXC_RI]   = "Reserved instruction exception",
+  [EXC_CPU]  = "Coprocessor Unusable exception",
+  [EXC_OVF]  = "Arithmetic Overflow exception",
+  [EXC_TRAP] = "Trap exception",
+  [EXC_FPE]  = "Floating point exception",
+  [EXC_WATCH] = "Reference to watchpoint address",
+  [EXC_MCHECK] = "Machine checkcore",
+};
+
+void kernel_oops() {
+  int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
+
+  kprintf("[oops] %s at $%08x!\n", exceptions[code], mips32_get_c0(C0_ERRPC));
+
+  if (code == EXC_ADEL || code == EXC_ADES)
+    kprintf("[oops] Caused by reference to $%08x!\n", mips32_get_c0(C0_BADVADDR));
 }
