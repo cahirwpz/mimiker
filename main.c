@@ -6,6 +6,7 @@
 #include "clock.h"
 #include "malloc.h"
 #include "libkern.h"
+#include "callout.h"
 #include "vm_phys.h"
 #include <uart_cbus.h>
 #include <rtc.h>
@@ -71,6 +72,10 @@ static void pmem_start() {
   vm_phys_reserve(MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + text - ram);
   vm_phys_reserve(MALTA_PHYS_SDRAM_BASE + text - ram, MALTA_PHYS_SDRAM_BASE + (text - ram) + (ebss - text) );
   vm_phys_print_free_pages();
+}
+
+void callout_foo(void *arg) {
+  kprintf("Someone executed me! After %d ticks.\n", *((int *)arg));
 }
 
 /* 
@@ -223,6 +228,18 @@ int kernel_main(int argc, char **argv, char **envp) {
 #if 0
   demo_ctx();
 #endif
+
+  callout_init();
+  callout_t callout[10];
+  int timeOuts[10] = {2, 5, 3, 1, 6, 3, 7, 10, 5, 3};
+  for (int i = 0; i < 10; i++)
+
+    callout_setup(&callout[i], timeOuts[i], callout_foo, (void *)&timeOuts[i]);
+
+  for (int i = 0; i < 10; i++) {
+    kprintf("calling callout_process()\n");
+    callout_process(0);
+  }
 
   int size = 0;
 
