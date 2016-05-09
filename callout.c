@@ -59,7 +59,7 @@ void callout_stop(callout_t *handle) {
   If the time of an event comes, execute the callout function and delete it from the list.
   Returns true if an element was deleted, false otherwise.
 */
-bool process_element(struct callout_head *head, callout_t *element) {
+static bool process_element(struct callout_head *head, callout_t *element) {
   if (element->c_time == ci.uptime) {
     callout_active(element);
     callout_not_pending(element);
