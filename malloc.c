@@ -238,8 +238,6 @@ void kmalloc_dump(malloc_pool_t *mp) {
 
 void kmalloc_test() {
   vm_page_t *page = vm_phys_alloc(1);
-  vm_phys_free(page);
-  page = vm_phys_alloc(1);
 
   MALLOC_DEFINE(mp, "testing memory pool");
 

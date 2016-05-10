@@ -14,19 +14,18 @@ static struct vm_seglist seglist;
 
 void vm_phys_print_free_pages() {
   vm_phys_seg_t *seg_it;
-  log("free pages:");
   TAILQ_FOREACH(seg_it, &seglist, segq) {
+    kprintf("[buddy] segment %p - %p:\n", seg_it->start, seg_it->end);
     for (int i = 0; i < VM_NFREEORDER; i++) {
       if (!TAILQ_EMPTY(PG_FREEQ(seg_it, i))) {
-        kprintf("size %dKiB:", (PAGESIZE / 1024) << i);
+        kprintf("[buddy]  %6dKiB:", (PAGESIZE / 1024) << i);
         vm_page_t *pg_it;
         TAILQ_FOREACH(pg_it, PG_FREEQ(seg_it, i), freeq)
-          kprintf(" (%p,%p)", PG_START(pg_it), PG_END(pg_it));
+          kprintf(" %p", PG_START(pg_it));
         kprintf("\n");
       }
     }
   }
-  kprintf("\n");
 }
 
 void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end, vm_paddr_t vm_offset) {
@@ -226,17 +225,13 @@ static void vm_phys_free_from_seg(vm_phys_seg_t *seg, vm_page_t *page) {
 void vm_phys_free(vm_page_t *page) {
   vm_phys_seg_t *seg_it = NULL;
 
-  TAILQ_FOREACH(seg_it, &seglist, segq)
-    if (PG_START(page) >= seg_it->start && PG_END(page) <= seg_it->end)
-      break;
-
-  if (seg_it) {
-    vm_phys_free_from_seg(seg_it, page);
-  } else {
-    kprintf("list of segments: ");
-    TAILQ_FOREACH(seg_it, &seglist, segq)
-      kprintf(" (%p, %p)", seg_it->start, seg_it->end);
-    kprintf("\n");
-    panic("page out of range: %p", page->phys_addr);
+  TAILQ_FOREACH(seg_it, &seglist, segq) {
+    if (PG_START(page) >= seg_it->start && PG_END(page) <= seg_it->end) {
+      vm_phys_free_from_seg(seg_it, page);
+      return;
+    }
   }
+
+  vm_phys_print_free_pages();
+  panic("page out of range: %p", page->phys_addr);
 }

@@ -67,9 +67,14 @@ static void pmem_start() {
   vm_paddr_t ebss = (vm_paddr_t)__ebss;
 
   vm_phys_init();
-  vm_phys_add_seg(MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + _memsize, MIPS_KSEG0_START);
-  vm_phys_reserve(MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + text - ram);
-  vm_phys_reserve(MALTA_PHYS_SDRAM_BASE + text - ram, MALTA_PHYS_SDRAM_BASE + (text - ram) + (ebss - text) );
+  vm_phys_add_seg(MALTA_PHYS_SDRAM_BASE,
+                  MALTA_PHYS_SDRAM_BASE + _memsize,
+                  MIPS_KSEG0_START);
+  vm_phys_reserve(MALTA_PHYS_SDRAM_BASE,
+                  MALTA_PHYS_SDRAM_BASE + text - ram);
+  vm_phys_print_free_pages(); /* BUG: Something goes wrong here?! */
+  vm_phys_reserve(MALTA_PHYS_SDRAM_BASE + text - ram,
+                  MALTA_PHYS_SDRAM_BASE + (text - ram) + (ebss - text));
   vm_phys_print_free_pages();
 }
 
