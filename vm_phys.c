@@ -6,7 +6,7 @@
 #define POW2(x) (1 << (x))
 #define PG_START(pg) ((pg)->phys_addr)
 #define PG_END(pg) ((pg)->phys_addr + (1 << (pg->order)) * PAGESIZE)
-#define PG_FREEQ(seg, i) (&(seg)->free_queues[(i)])
+#define PG_FREEQ(seg, i) (&((seg)->free_queues[(i)]))
 
 TAILQ_HEAD(vm_seglist, vm_phys_seg);
 
@@ -121,8 +121,8 @@ static void split_page(vm_phys_seg_t *seg, vm_page_t *page) {
   page->order = order - 1;
   buddy->order = order - 1;
 
-  TAILQ_INSERT_HEAD(PG_FREEQ(seg, page->order), page, freeq);
-  TAILQ_INSERT_HEAD(PG_FREEQ(seg, buddy->order), buddy, freeq);
+  TAILQ_INSERT_TAIL(PG_FREEQ(seg, page->order), page, freeq);
+  TAILQ_INSERT_TAIL(PG_FREEQ(seg, buddy->order), buddy, freeq);
   buddy->flags |= VM_FREE;
 }
 
@@ -157,6 +157,11 @@ static void vm_phys_reserve_from_seg(vm_phys_seg_t *seg, vm_paddr_t start,
 
 void vm_phys_reserve(vm_paddr_t start, vm_paddr_t end) {
   vm_phys_seg_t *seg_it;
+
+  if ((vm_paddr_t)ALIGN(start, PAGESIZE) != start)
+    panic("start not page aligned");
+  if ((vm_paddr_t)ALIGN(end, PAGESIZE) != end)
+    panic("end not page aligned");
 
   TAILQ_FOREACH(seg_it, &seglist, segq) {
     if (seg_it->start <= start && seg_it->end >= end) {
