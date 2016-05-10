@@ -16,6 +16,10 @@
 #define roundup(x, y)   ((((x) + ((y) - 1)) / (y)) * (y))
 #define powerof2(x)     ((((x) - 1) & (x)) == 0)
 
+#ifndef __STRING
+#define __STRING(x)     #x
+#endif
+
 /* Aligns the address to given size (must be power of 2) */
 #define ALIGN(addr, size) (void *)(((uintptr_t)(addr) + (size) - 1) & -(size))
 
@@ -27,8 +31,17 @@ void kernel_exit();
   kernel_exit();                                                         \
 })
 
-#define log(FMT, ...) __extension__ ({                                 \
-  kprintf("[%s:%d] " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__); \
+#define log(FMT, ...) __extension__ ({                                   \
+  kprintf("[%s:%d] " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);       \
 })
+
+#ifdef DEBUG
+#define assert(EXPR) __extension__ ({                                    \
+  if (!(EXPR))	                                            					   \
+    panic("Assertion '" __STRING(EXPR) "' failed!");                     \
+})
+#else
+#define assert(expr)
+#endif
 
 #endif // __COMMON_H__

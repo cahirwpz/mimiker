@@ -2,15 +2,14 @@
 #include <common.h>
 #include <mips.h>
 #include <malta.h>
-#include "interrupts.h"
-#include "clock.h"
-#include "malloc.h"
-#include "libkern.h"
-#include "vm_phys.h"
+#include <interrupts.h>
+#include <clock.h>
+#include <malloc.h>
+#include <libkern.h>
+#include <vm_phys.h>
 #include <uart_cbus.h>
 #include <rtc.h>
 #include <pci.h>
-#include "memory_allocator.h"
 
 typedef struct cpuinfo {
     int tlb_entries;
@@ -224,7 +223,7 @@ int kernel_main(int argc, char **argv, char **envp) {
   dump_cp0();
   dump_pci0();
 
-  test_memory_allocator();
+  kmalloc_test();
 
 #if 0
   demo_ctx();
