@@ -6,6 +6,7 @@ OVPSIM_ROOT = ${IMPERAS_HOME}/lib/Linux32/ImperasLib/mips.ovpworld.org/platform/
 OVPSIM   = ${OVPSIM_ROOT}/platform.Linux32.exe \
 	   --port 1234 --nographics --wallclock \
 	   --override mipsle1/vectoredinterrupt=1 \
+	   --override mipsle1/srsctlHSS=1 \
 	   --override rtc/timefromhost=1 \
 	   --override uartCBUS/console=1
 
