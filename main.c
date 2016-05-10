@@ -10,6 +10,7 @@
 #include <uart_cbus.h>
 #include <rtc.h>
 #include <pci.h>
+#include "memory_allocator.h"
 
 typedef struct cpuinfo {
     int tlb_entries;
@@ -222,6 +223,8 @@ int kernel_main(int argc, char **argv, char **envp) {
 
   dump_cp0();
   dump_pci0();
+
+  test_memory_allocator();
 
 #if 0
   demo_ctx();
