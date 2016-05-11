@@ -29,7 +29,7 @@ void *kernel_sbrk(size_t size) {
 void *kernel_sbrk_shutdown() {
   if (!sbrk.shutdown) {
     mtx_lock(sbrk.lock);
-    sbrk.end = ALIGN(sbrk.ptr, PAGESIZE);
+    sbrk.end = align(sbrk.ptr, PAGESIZE);
     sbrk.shutdown = true;
     mtx_unlock(sbrk.lock);
   }
@@ -47,13 +47,6 @@ void *kernel_sbrk_shutdown() {
 
 TAILQ_HEAD(mb_list, mem_block);
 TAILQ_HEAD(mp_arena, mem_arena);
-
-static inline int32_t abs(int32_t x)
-{
-  if (x < 0)
-    return -x;
-  return x;
-}
 
 typedef struct mem_block {
   uint32_t mb_magic; /* if overwritten report a memory corruption error */
@@ -183,7 +176,7 @@ try_allocating_in_area(mem_arena_t *ma, size_t requested_size) {
 }
 
 void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
-  size_t size_aligned = (size_t)ALIGN(size, ALIGNMENT);
+  size_t size_aligned = align(size, ALIGNMENT);
 
   /* Search for the first area in the list that has enough space. */
   mem_arena_t *current = NULL;

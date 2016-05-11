@@ -37,10 +37,8 @@ void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end, vm_paddr_t vm_offset) {
   seg->page_array = kernel_sbrk(page_array_size);
   TAILQ_INSERT_TAIL(&seglist, seg, segq);
 
-  if ((vm_paddr_t)ALIGN(seg->start, PAGESIZE) != (vm_paddr_t) seg->start)
-    panic("start not page aligned");
-  if ((vm_paddr_t)ALIGN(seg->end, PAGESIZE) != (vm_paddr_t) seg->end)
-    panic("end not page aligned");
+  assert(align(seg->start, PAGESIZE) == seg->start);
+  assert(align(seg->end, PAGESIZE) == seg->end);
 
   for (int i = 0; i < page_array_size; i++) {
     seg->page_array[i].phys_addr = seg->start + PAGESIZE * i;
@@ -158,10 +156,8 @@ static void vm_phys_reserve_from_seg(vm_phys_seg_t *seg, vm_paddr_t start,
 void vm_phys_reserve(vm_paddr_t start, vm_paddr_t end) {
   vm_phys_seg_t *seg_it;
 
-  if ((vm_paddr_t)ALIGN(start, PAGESIZE) != start)
-    panic("start not page aligned");
-  if ((vm_paddr_t)ALIGN(end, PAGESIZE) != end)
-    panic("end not page aligned");
+  assert(align(start, PAGESIZE) == start);
+  assert(align(end, PAGESIZE) == end);
 
   TAILQ_FOREACH(seg_it, &seglist, segq) {
     if (seg_it->start <= start && seg_it->end >= end) {

@@ -20,8 +20,26 @@
 #define __STRING(x)     #x
 #endif
 
+#define abs(x) ({           \
+    typeof (x) _x = (x);    \
+    (_x < 0) ? -_x : _x; })
+
+#define min(a,b) ({         \
+    typeof (a) _a = (a);    \
+    typeof (b) _b = (b);    \
+    _a < _b ? _a : _b; })
+
+#define max(a,b) ({         \
+    typeof (a) _a = (a);    \
+    typeof (b) _b = (b);    \
+    _a > _b ? _a : _b; })
+
 /* Aligns the address to given size (must be power of 2) */
-#define ALIGN(addr, size) (void *)(((uintptr_t)(addr) + (size) - 1) & -(size))
+#define align(addr, size) ({                \
+    intptr_t _addr = (intptr_t)(addr);      \
+    intptr_t _size = (intptr_t)(size);      \
+    _addr = (_addr + (_size - 1)) & -_size; \
+    (typeof(addr))_addr; })
 
 /* Terminate kernel. */
 void kernel_exit();
