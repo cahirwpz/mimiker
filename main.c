@@ -58,21 +58,14 @@ void mdelay (unsigned msec) {
 }
 
 extern int _memsize;
-extern char _ram[];
-extern char __text[];
-extern char __ebss[];
 
 static void pmem_start() {
-  vm_paddr_t ram = (vm_paddr_t)_ram;
-  //vm_paddr_t text = (vm_paddr_t)__text;
-  vm_paddr_t ebss = (vm_paddr_t)__ebss;
-
   vm_phys_init();
   vm_phys_add_seg(MALTA_PHYS_SDRAM_BASE,
                   MALTA_PHYS_SDRAM_BASE + _memsize,
                   MIPS_KSEG0_START);
   vm_phys_reserve(MALTA_PHYS_SDRAM_BASE,
-                  align((MALTA_PHYS_SDRAM_BASE + (ebss - ram)), PAGESIZE));
+                  (vm_paddr_t)kernel_sbrk_shutdown());
   vm_phys_print_free_pages();
 }
 

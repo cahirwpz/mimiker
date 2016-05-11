@@ -20,6 +20,7 @@
  * The returned pointer is word-aligned. The block is filled with 0's.
  */
 void *kernel_sbrk(size_t size) __attribute__((warn_unused_result));
+void *kernel_sbrk_shutdown();
 
 /*
  * General purpose kernel memory allocator.

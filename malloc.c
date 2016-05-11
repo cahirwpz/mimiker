@@ -17,9 +17,8 @@ static struct {
 void *kernel_sbrk(size_t size) {
   mtx_lock(sbrk.lock);
   void *ptr = sbrk.ptr;
-  size = roundup(size, sizeof(intptr_t));
-  if (ptr + size > sbrk.end)
-    kprintf("%s: run out of memory\n", __func__);
+  size = roundup(size, sizeof(uint64_t));
+  assert(ptr + size <= sbrk.end);
   sbrk.ptr += size;
   mtx_unlock(sbrk.lock);
   bzero(ptr, size);
@@ -27,13 +26,11 @@ void *kernel_sbrk(size_t size) {
 }
 
 void *kernel_sbrk_shutdown() {
-  if (!sbrk.shutdown) {
-    mtx_lock(sbrk.lock);
-    sbrk.end = align(sbrk.ptr, PAGESIZE);
-    sbrk.shutdown = true;
-    mtx_unlock(sbrk.lock);
-  }
-
+  assert(!sbrk.shutdown);
+  mtx_lock(sbrk.lock);
+  sbrk.end = align(sbrk.ptr, PAGESIZE);
+  sbrk.shutdown = true;
+  mtx_unlock(sbrk.lock);
   return sbrk.end;
 }
 
