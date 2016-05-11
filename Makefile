@@ -13,7 +13,7 @@ OVPSIM   = ${OVPSIM_ROOT}/platform.Linux32.exe \
 LDSCRIPT = malta.ld
 LDFLAGS  += -T $(LDSCRIPT) -Wl,-Map=malta.map
 CPPFLAGS += -Iinclude
-LDLIBS   = smallclib/smallclib.a
+LDLIBS   += smallclib/smallclib.a -lgcc
 
 PROGNAME = main
 SOURCES_C = main.c uart_cbus.c interrupts.c clock.c malloc.c context.c \

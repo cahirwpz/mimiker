@@ -33,6 +33,7 @@ SECTIONS
     _gp = .;
     *(.data .data.*)
     *(.sdata .sdata.*)
+    *(.eh_frame .eh_frame.*)
     . = ALIGN(4);
     __edata = ABSOLUTE(.);
   } : data

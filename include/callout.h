@@ -7,7 +7,7 @@
 #include "_bitset.h"
 
 typedef void (*timeout_t)(void *);
-typedef int sbintime_t;
+typedef int64_t sbintime_t;
 
 typedef struct callout {
   TAILQ_ENTRY(callout) c_link;
