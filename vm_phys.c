@@ -29,6 +29,11 @@ void vm_phys_print_free_pages() {
 }
 
 void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end, vm_paddr_t vm_offset) {
+
+  assert(align(start, PAGESIZE) == start);
+  assert(align(end, PAGESIZE) == start);
+  assert(align(vm_offset, PAGESIZE) == start);
+
   struct vm_phys_seg *seg = kernel_sbrk(sizeof(struct vm_phys_seg));
   int page_array_size = (end - start) / PAGESIZE;
 
@@ -119,10 +124,13 @@ static void split_page(vm_phys_seg_t *seg, vm_page_t *page) {
   page->order = order - 1;
   buddy->order = order - 1;
 
-  TAILQ_INSERT_TAIL(PG_FREEQ(seg, page->order), page, freeq);
-  TAILQ_INSERT_TAIL(PG_FREEQ(seg, buddy->order), buddy, freeq);
+  TAILQ_INSERT_HEAD(PG_FREEQ(seg, page->order), page, freeq);
+  TAILQ_INSERT_HEAD(PG_FREEQ(seg, buddy->order), buddy, freeq);
   buddy->flags |= VM_FREE;
 }
+
+/* TODO this can be sped up by removing elements from list on-line,
+ * */
 
 static void vm_phys_reserve_from_seg(vm_phys_seg_t *seg, vm_paddr_t start,
                                      vm_paddr_t end) {
@@ -131,7 +139,7 @@ static void vm_phys_reserve_from_seg(vm_phys_seg_t *seg, vm_paddr_t start,
     vm_page_t *pg_it = TAILQ_FIRST(PG_FREEQ(seg, i));
     while (pg_it) {
       if (PG_START(pg_it) >= start && PG_END(pg_it) <= end) {
-        /* if segment is containted within (start, end) remove it from free
+        /* if segment is contained within (start, end) remove it from free
          * queue */
         pg_ptr = pg_it;
         while (pg_ptr < pg_it + POW2(pg_it->order)) {
@@ -164,16 +172,17 @@ void vm_phys_reserve(vm_paddr_t start, vm_paddr_t end) {
   TAILQ_FOREACH(seg_it, &seglist, segq) {
     if (seg_it->start <= start && seg_it->end >= end) {
       vm_phys_reserve_from_seg(seg_it, start, end);
-      break;
+      return;
     }
   }
+  panic("reserve failed (%d,%d)\n", start, end);
 }
 
 static vm_page_t *vm_phys_alloc_from_seg(vm_phys_seg_t *seg, size_t order) {
   vm_page_t *page = NULL;
   size_t i = order;
 
-  /* lowest non-empty order higer than order */
+  /* lowest non-empty order higher than order */
   while (TAILQ_EMPTY(PG_FREEQ(seg, i)) && (i < VM_NFREEORDER))
     i++;
 
