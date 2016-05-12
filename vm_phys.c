@@ -31,8 +31,8 @@ void vm_phys_print_free_pages() {
 void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end, vm_paddr_t vm_offset) {
 
   assert(align(start, PAGESIZE) == start);
-  assert(align(end, PAGESIZE) == start);
-  assert(align(vm_offset, PAGESIZE) == start);
+  assert(align(end, PAGESIZE) == end);
+  assert(align(vm_offset, PAGESIZE) == vm_offset);
 
   struct vm_phys_seg *seg = kernel_sbrk(sizeof(struct vm_phys_seg));
   int page_array_size = (end - start) / PAGESIZE;
