@@ -134,8 +134,10 @@ static void vm_phys_reserve_from_seg(vm_phys_seg_t *seg, vm_paddr_t start,
         /* if segment is containted within (start, end) remove it from free
          * queue */
         pg_ptr = pg_it;
-        while (pg_ptr++ < pg_it + POW2(pg_it->order))
+        while (pg_ptr < pg_it + POW2(pg_it->order)) {
           pg_ptr->flags |= VM_RESERVED;
+          pg_ptr++;
+        }
         TAILQ_REMOVE(PG_FREEQ(seg, pg_it->order), pg_it, freeq);
         /* Go to start of list because it's corrupted */
         pg_it = TAILQ_FIRST(PG_FREEQ(seg, i));

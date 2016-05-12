@@ -65,7 +65,7 @@ static void pmem_start() {
                   MALTA_PHYS_SDRAM_BASE + _memsize,
                   MIPS_KSEG0_START);
   vm_phys_reserve(MALTA_PHYS_SDRAM_BASE,
-                  (vm_paddr_t)kernel_sbrk_shutdown());
+                  (vm_paddr_t)kernel_sbrk_shutdown()-MIPS_KSEG0_START);
   vm_phys_print_free_pages();
 }
 

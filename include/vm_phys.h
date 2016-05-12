@@ -39,6 +39,5 @@ vm_page_t *vm_phys_alloc(size_t order);
 void vm_phys_free(struct vm_page *page);
 void vm_phys_print_free_pages();
 void vm_phys_reserve(vm_paddr_t start, vm_paddr_t end);
-void vm_phys_set_initial_vm_offset();
 
 #endif /* _VM_PHYS_H */
