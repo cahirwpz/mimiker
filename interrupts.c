@@ -99,6 +99,18 @@ static const char *exceptions[32] = {
   [EXC_MCHECK] = "Machine checkcore",
 };
 
+__attribute__((interrupt)) 
+void tlb_exception_handler()
+{
+  int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
+
+  kprintf("[tlb] %s at $%08x!\n", exceptions[code], mips32_get_c0(C0_ERRPC));
+
+  if (code == EXC_ADEL || code == EXC_ADES)
+    kprintf("[tlb] Caused by reference to $%08x!\n", mips32_get_c0(C0_BADVADDR));
+  panic("[tlb] TLB exception handler unimplemented\n");
+}
+
 void kernel_oops() {
   int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
 
