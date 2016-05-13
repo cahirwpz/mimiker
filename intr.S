@@ -34,21 +34,23 @@ general_exception:
         andi    $k0, $k0, CR_X_MASK
         srl     $k0, $k0, CR_X_SHIFT
         li      $k1, EXC_SYS
-        beq     $k1, $k0, 1f
+        beq     $k1, $k0, 2f
         nop
 
         la      $k1, general_exception_table
-        sll     $k0, $k0, 2                           /* Multiply exc_code by 4 */  
-        add     $k1, $k1, $k0                         /* Add exc_code */  
-        lw      $k1, 0($k1)                           /* Compute address of proper handler in ge table */
-        jr      $k1                                   /* Jump to handler */ 
+        sll     $k0, $k0, 2   /* Multiply exc_code by sizeof(void *) */  
+        add     $k1, $k1, $k0 /* Add exc_code */  
+        lw      $k1, 0($k1)   /* Load the address of a handler */
+        beqz    $k1, 1f       /* If NULL then call kernel_oops */
+        nop
+        jr      $k1           /* Jump to handler */ 
         nop
 
-        jal     kernel_oops
+1:      jal     kernel_oops
         nop
 
         /* syscalls not implemented yet */
-1:      j       1b
+2:      j       2b
         nop
 
         .org 0x200
@@ -170,10 +172,3 @@ irq_handler:
         ei
 
         eret
-/* Following is general exception table. General exception handler has 
- * very little space to use. So it jumps here, and from here we jump 
- * instantly to proper hander. All functions being jumped to, should 
- * have ((interrupt)) attribute, unless some exception is unhandled,
- * then these functions should panic the kernel. For exact meanings of
- * exception handlers numbers please check 5.23 Table of MIPS32 4KE User's Manual. */
-

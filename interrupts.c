@@ -4,6 +4,28 @@
 
 extern const char _ebase[];
 
+void intr_init() {
+  /*
+   * Enable Vectored Interrupt Mode as described in „MIPS32® 24KETM Processor
+   * Core Family Software User’s Manual”, chapter 6.3.1.2.
+   */
+
+  /* The location of exception vectors is set to EBase. */
+  mips32_set_c0(C0_EBASE, _ebase);
+  mips32_bc_c0(C0_STATUS, SR_BEV);
+  /* Use the special interrupt vector at EBase + 0x200. */
+  mips32_bs_c0(C0_CAUSE, CR_IV);
+  /* Set vector spacing for 0x20. */
+  mips32_set_c0(C0_INTCTL, INTCTL_VS_32);
+
+  /*
+   * Mask out software and hardware interrupts. 
+   * You should enable them one by one in driver initialization code.
+   */
+  mips32_set_c0(C0_STATUS, mips32_get_c0(C0_STATUS) & ~SR_IPL_MASK);
+
+  intr_enable();
+}
 
 static intr_event_t *events[8];
 
@@ -58,7 +80,6 @@ void intr_event_execute_handlers(intr_event_t *ie) {
 #endif
 }
 
-
 static const char *exceptions[32] = {
   [EXC_INTR] = "Interrupt",
   [EXC_MOD]  = "TLB modification exception",
@@ -94,58 +115,20 @@ void kernel_oops() {
 
   kprintf("[oops] %s at $%08x!\n", exceptions[code], mips32_get_c0(C0_ERRPC));
 
-  if (code == EXC_ADEL || code == EXC_ADES)
-    kprintf("[oops] Caused by reference to $%08x!\n", mips32_get_c0(C0_BADVADDR));
-
   panic("Unhandled exception");
 }
 
-/* Following is general exception table. General exception handler has 
- * very little space to use. So it loads address of handler from here 
- * All functions being jumped to, should have ((interrupt)) attribute, 
- * unless some exception is unhandled, then these functions should panic the kernel. 
- * For exact meanings of exception handlers numbers please check 
- * 5.23 Table of MIPS32 4KEc User's Manual. */
-uint32_t general_exception_table[32];
+/* 
+ * Following is general exception table. General exception handler has very
+ * little space to use. So it loads address of handler from here. All functions
+ * being jumped to, should have ((interrupt)) attribute, unless some exception
+ * is unhandled, then these functions should panic the kernel.  For exact
+ * meanings of exception handlers numbers please check 5.23 Table of MIPS32
+ * 4KEc User's Manual. 
+ */
 
-void intr_init() {
-  /*
-   * Enable Vectored Interrupt Mode as described in „MIPS32® 24KETM Processor
-   * Core Family Software User’s Manual”, chapter 6.3.1.2.
-   */
-
-  /* The location of exception vectors is set to EBase. */
-  mips32_set_c0(C0_EBASE, _ebase);
-  mips32_bc_c0(C0_STATUS, SR_BEV);
-  /* Use the special interrupt vector at EBase + 0x200. */
-  mips32_bs_c0(C0_CAUSE, CR_IV);
-  /* Set vector spacing for 0x20. */
-  mips32_set_c0(C0_INTCTL, INTCTL_VS_32);
-
-  /*
-   * Mask out software and hardware interrupts. 
-   * You should enable them one by one in driver initialization code.
-   */
-  mips32_set_c0(C0_STATUS, mips32_get_c0(C0_STATUS) & ~SR_IPL_MASK);
-
-
-  /* Prepare general exception table with proper exception handler addresses. */
-  general_exception_table[EXC_INTR] =   (uint32_t)kernel_oops;
-  general_exception_table[EXC_MOD]  =   (uint32_t)tlb_exception_handler;
-  general_exception_table[EXC_TLBL] =   (uint32_t)tlb_exception_handler;
-  general_exception_table[EXC_TLBS] =   (uint32_t)tlb_exception_handler; 
-  general_exception_table[EXC_ADEL] =   (uint32_t)kernel_oops;
-  general_exception_table[EXC_ADES] =   (uint32_t)kernel_oops; 
-  general_exception_table[EXC_IBE]  =   (uint32_t)kernel_oops;
-  general_exception_table[EXC_DBE]  =   (uint32_t)kernel_oops;
-  general_exception_table[EXC_BP]   =   (uint32_t)kernel_oops;
-  general_exception_table[EXC_RI]   =   (uint32_t)kernel_oops;
-  general_exception_table[EXC_CPU]  =   (uint32_t)kernel_oops;
-  general_exception_table[EXC_OVF]  =   (uint32_t)kernel_oops;
-  general_exception_table[EXC_TRAP] =   (uint32_t)kernel_oops;
-  general_exception_table[EXC_FPE]  =   (uint32_t)kernel_oops;
-  general_exception_table[EXC_WATCH] =  (uint32_t)kernel_oops;
-  general_exception_table[EXC_MCHECK] = (uint32_t)kernel_oops;
-
-  intr_enable();
-}
+void *general_exception_table[32] = {
+  [EXC_MOD]  = tlb_exception_handler,
+  [EXC_TLBL] = tlb_exception_handler,
+  [EXC_TLBS] = tlb_exception_handler,
+};
