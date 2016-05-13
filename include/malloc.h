@@ -25,12 +25,23 @@ void *kernel_sbrk_shutdown();
 /*
  * General purpose kernel memory allocator.
  */
-typedef struct malloc_pool malloc_pool_t;
+
+#define MB_MAGIC     0xC0DECAFE
+#define MB_ALIGNMENT sizeof(uint64_t)
+
+typedef struct mp_arena mp_arena_t;
+
+typedef struct malloc_pool {
+  SLIST_ENTRY(malloc_pool) mp_next; /* Next in global chain. */
+  uint32_t mp_magic;                /* Detect programmer error. */
+  const char *mp_desc;              /* Printable type name. */
+  mp_arena_t *mp_arena;             /* First managed arena. */
+} malloc_pool_t;
 
 /* Defines a local pool of memory for use by a subsystem. */
 #define MALLOC_DEFINE(pool, desc) \
     malloc_pool_t pool[1] = {     \
-        {{NULL}, MAGIC, desc}     \
+        {{NULL}, MB_MAGIC, desc}  \
     };
 
 #define MALLOC_DECLARE(pool)      \
@@ -41,6 +52,7 @@ typedef struct malloc_pool malloc_pool_t;
 #define M_NOWAIT    0x0001 /* ignore for now */
 #define M_ZERO      0x0002 /* clear allocated block */
 
+void kmalloc_init(malloc_pool_t *mp);
 void kmalloc_add_arena(malloc_pool_t *mp, vm_addr_t, size_t size);
 void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags);
 void kfree(malloc_pool_t *mp, void *addr);

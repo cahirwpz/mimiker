@@ -41,9 +41,6 @@ void *kernel_sbrk_shutdown() {
   - use the mp_next field of malloc_pool
 */
 
-#define MAGIC     0xC0DECAFE
-#define ALIGNMENT sizeof(uint64_t)
-
 TAILQ_HEAD(mb_list, mem_block);
 TAILQ_HEAD(mp_arena, mem_arena);
 
@@ -67,12 +64,6 @@ typedef struct mem_arena {
   uint64_t ma_data[0];              /* For alignment */
 } mem_arena_t;
 
-typedef struct malloc_pool {
-  SLIST_ENTRY(malloc_pool) mp_next; /* Next in global chain. */
-  uint32_t mp_magic;                /* Detect programmer error. */
-  const char *mp_desc;              /* Printable type name. */
-  struct mp_arena mp_arena;         /* First managed arena. */
-} malloc_pool_t;
 
 static void merge_right(struct mb_list *ma_freeblks, mem_block_t *mb) {
   mem_block_t *next = TAILQ_NEXT(mb, mb_list);
@@ -90,7 +81,7 @@ static void merge_right(struct mb_list *ma_freeblks, mem_block_t *mb) {
 static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
                                   size_t total_size) {
   memset(mb, 0, sizeof(mem_block_t));
-  mb->mb_magic = MAGIC;
+  mb->mb_magic = MB_MAGIC;
   mb->mb_size = total_size - sizeof(mem_block_t);
 
   // If it's the first block, we simply add it.
@@ -119,7 +110,7 @@ static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
 }
 
 void kmalloc_init(malloc_pool_t *mp) {
-  TAILQ_INIT(&mp->mp_arena);
+  TAILQ_INIT(mp->mp_arena);
 }
 
 void kmalloc_add_arena(malloc_pool_t *mp, vm_addr_t start, size_t arena_size) {
@@ -129,9 +120,9 @@ void kmalloc_add_arena(malloc_pool_t *mp, vm_addr_t start, size_t arena_size) {
   memset((void *)start, 0, sizeof(mem_arena_t));
   mem_arena_t *ma = (void *)start;
 
-  TAILQ_INSERT_HEAD(&mp->mp_arena, ma, ma_list);
+  TAILQ_INSERT_HEAD(mp->mp_arena, ma, ma_list);
   ma->ma_size = arena_size - sizeof(mem_arena_t);
-  ma->ma_magic = MAGIC;
+  ma->ma_magic = MB_MAGIC;
   ma->ma_flags = 0;
 
   TAILQ_INIT(&ma->ma_freeblks);
@@ -145,7 +136,7 @@ void kmalloc_add_arena(malloc_pool_t *mp, vm_addr_t start, size_t arena_size) {
 static mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {
   mem_block_t *current = NULL;
   TAILQ_FOREACH(current, mb_list, mb_list) {
-    assert(current->mb_magic == MAGIC);
+    assert(current->mb_magic == MB_MAGIC);
     if (current->mb_size >= total_size)
       return current;
   }
@@ -175,12 +166,12 @@ try_allocating_in_area(mem_arena_t *ma, size_t requested_size) {
 }
 
 void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
-  size_t size_aligned = align(size, ALIGNMENT);
+  size_t size_aligned = align(size, MB_ALIGNMENT);
 
   /* Search for the first area in the list that has enough space. */
   mem_arena_t *current = NULL;
-  TAILQ_FOREACH(current, &mp->mp_arena, ma_list) {
-    assert(current->ma_magic == MAGIC);
+  TAILQ_FOREACH(current, mp->mp_arena, ma_list) {
+    assert(current->ma_magic == MB_MAGIC);
 
     mem_block_t *mb = try_allocating_in_area(current, size_aligned);
 
@@ -199,11 +190,13 @@ void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
 void kfree(malloc_pool_t *mp, void *addr) {
   mem_block_t *mb = (mem_block_t *)(((char *)addr) - sizeof(mem_block_t));
 
-  if (mb->mb_magic != MAGIC || mp->mp_magic != MAGIC || mb->mb_size >= 0)
+  if (mb->mb_magic != MB_MAGIC ||
+      mp->mp_magic != MB_MAGIC ||
+      mb->mb_size >= 0)
     panic("Memory corruption detected!");
 
   mem_arena_t *current = NULL;
-  TAILQ_FOREACH(current, &mp->mp_arena, ma_list) {
+  TAILQ_FOREACH(current, mp->mp_arena, ma_list) {
     char *start = ((char *)current) + sizeof(mem_arena_t);
     if ((char *)addr >= start && (char *)addr < start + current->ma_size)
       add_free_memory_block(current, mb, abs(mb->mb_size) + sizeof(mem_block_t));
@@ -213,14 +206,14 @@ void kfree(malloc_pool_t *mp, void *addr) {
 void kmalloc_dump(malloc_pool_t *mp) {
   mem_arena_t *arena = NULL;
   kprintf("[kmalloc] malloc_pool at %p:\n", mp);
-  TAILQ_FOREACH(arena, &mp->mp_arena, ma_list) {
+  TAILQ_FOREACH(arena, mp->mp_arena, ma_list) {
     mem_block_t *block = (void *)arena->ma_data;
     mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
 
     kprintf("[kmalloc]  malloc_arena %p – %p:\n", block, end);
 
     while (block < end) {
-      assert(block->mb_magic == MAGIC);
+      assert(block->mb_magic == MB_MAGIC);
       kprintf("[kmalloc]   %c %p %d\n",
              (block->mb_size > 0) ? 'F' : 'U', block, abs(block->mb_size));
       block = mb_next(block);
