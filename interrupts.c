@@ -114,6 +114,8 @@ void kernel_oops() {
   int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
 
   kprintf("[oops] %s at $%08x!\n", exceptions[code], mips32_get_c0(C0_ERRPC));
+  if (code == EXC_ADEL || code == EXC_ADES)
+    kprintf("[oops] Caused by reference to $%08x!\n", mips32_get_c0(C0_BADVADDR));
 
   panic("Unhandled exception");
 }
