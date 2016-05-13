@@ -20,8 +20,8 @@
 
         .org 0x0
 tlb_refill:
-        sw $k0, 0($zero)
-        eret
+        j kernel_oops
+        nop
 
         .org 0x100
 cache_error:
