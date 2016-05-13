@@ -105,9 +105,8 @@ void tlb_exception_handler()
   int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
 
   kprintf("[tlb] %s at $%08x!\n", exceptions[code], mips32_get_c0(C0_ERRPC));
+  kprintf("[tlb] Caused by reference to $%08x!\n", mips32_get_c0(C0_BADVADDR));
 
-  if (code == EXC_ADEL || code == EXC_ADES)
-    kprintf("[tlb] Caused by reference to $%08x!\n", mips32_get_c0(C0_BADVADDR));
   panic("[tlb] TLB exception handler unimplemented\n");
 }
 
@@ -115,7 +114,23 @@ void kernel_oops() {
   int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
 
   kprintf("[oops] %s at $%08x!\n", exceptions[code], mips32_get_c0(C0_ERRPC));
-
   if (code == EXC_ADEL || code == EXC_ADES)
     kprintf("[oops] Caused by reference to $%08x!\n", mips32_get_c0(C0_BADVADDR));
+
+  panic("Unhandled exception");
 }
+
+/* 
+ * Following is general exception table. General exception handler has very
+ * little space to use. So it loads address of handler from here. All functions
+ * being jumped to, should have ((interrupt)) attribute, unless some exception
+ * is unhandled, then these functions should panic the kernel.  For exact
+ * meanings of exception handlers numbers please check 5.23 Table of MIPS32
+ * 4KEc User's Manual. 
+ */
+
+void *general_exception_table[32] = {
+  [EXC_MOD]  = tlb_exception_handler,
+  [EXC_TLBL] = tlb_exception_handler,
+  [EXC_TLBS] = tlb_exception_handler,
+};
