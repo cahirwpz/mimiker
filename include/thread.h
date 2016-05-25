@@ -32,6 +32,9 @@ typedef struct thread {
   ctx_t         td_kctx;        /* kernel context (switch) */
   vm_page_t     *td_kstack_obj;
   stack_t       td_kstack;
+  /* waiting channel */
+  void          *td_wchan;
+  const char    *td_wmesg;
   /* scheduler part */
   td_prio_t     td_prio;
   int           td_slice;
