@@ -4,7 +4,7 @@
 #include "common.h"
 #include "queue.h"
 
-typedef uint8_t prio_t;
+typedef uint8_t td_prio_t;
 
 typedef struct td_sched td_sched_t;
 
@@ -17,7 +17,7 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
   td_sched_t *td_sched;           /* scheduler-specific data */
-  prio_t td_priority;
+  td_prio_t td_priority;
   stack_t td_stack;
   enum {
     TDS_INACTIVE = 0x0,
