@@ -6,36 +6,33 @@
 void runq_init(runq_t *rq) {
   memset(rq, 0, sizeof (*rq));
 
-  for (int i = 0; i < RQ_NQS; i++)
+  for (int64_t i = 0; i < RQ_NQS; i++)
     TAILQ_INIT(&rq->rq_queues[i]);
 }
 
 void runq_add(runq_t *rq, thread_t *td) {
-  int priority = td->td_priority / RQ_PPQ;
+  uint64_t priority = td->td_priority / RQ_PPQ;
   TAILQ_INSERT_TAIL(&rq->rq_queues[priority], td, td_runq);
 }
 
 thread_t *runq_choose(runq_t *rq) {
-  int current_queue = RQ_NQS;
-  while (current_queue >= 0) {
-    struct rq_head *head = &rq->rq_queues[current_queue];
+  for (int64_t i = RQ_NQS - 1; i >= 0; i--) {
+    struct rq_head *head = &rq->rq_queues[i];
     thread_t *td = TAILQ_FIRST(head);
 
     if (td)
       return td;
-
-    current_queue--;
   }
 
   return NULL;
 }
 
 void runq_remove(runq_t *rq, thread_t *td) {
-  int priority = td->td_priority / RQ_PPQ;
+  uint64_t priority = td->td_priority / RQ_PPQ;
   TAILQ_REMOVE(&rq->rq_queues[priority], td, td_runq);
 }
 
-#ifdef USERSPACE
+#ifdef _USERSPACE
 int main() {
   thread_t t1;
   t1.td_priority = 3 * RQ_PPQ;
@@ -52,22 +49,28 @@ int main() {
 
   runq_add(&runq, &t1);
   assert(runq_choose(&runq) == &t1);
+
   runq_add(&runq, &t2);
   assert(runq_choose(&runq) == &t2);
+
   runq_add(&runq, &t3);
   assert(runq_choose(&runq) == &t2);
+
   runq_add(&runq, &t4);
   assert(runq_choose(&runq) == &t4);
+
   runq_remove(&runq, &t4);
   assert(runq_choose(&runq) == &t2);
+
   runq_remove(&runq, &t3);
   assert(runq_choose(&runq) == &t2);
+
   runq_remove(&runq, &t2);
   assert(runq_choose(&runq) == &t1);
+
   runq_remove(&runq, &t1);
   assert(runq_choose(&runq) == NULL);
-  assert(1 == 0);
 
   return 0;
 }
-#endif // USERSPACE
+#endif // _USERSPACE

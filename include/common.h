@@ -41,7 +41,7 @@
     _addr = (_addr + (_size - 1)) & -_size; \
     (typeof(addr))_addr; })
 
-#ifndef USERSPACE
+#ifndef _USERSPACE
 
 /* Terminate kernel. */
 void kernel_exit();
@@ -66,6 +66,6 @@ void kernel_exit();
 
 #else
 #include <assert.h>
-#endif // USERSPACE
+#endif // _USERSPACE
 
 #endif // __COMMON_H__
