@@ -19,9 +19,17 @@
         .section .ebase
 
         .org 0x0
+
 tlb_refill:
-        j kernel_oops
-        nop
+        mfc0 $k0, C0_CONTEXT        # Load UPT address which contains PTE
+        sra $k0,1                   # PT should be located in KSEG2
+        lw  $k1, 0($k0)
+        mtc0 $k1, C0_ENTRYLO0
+        lw  $k1, 4($k0)
+        mtc0 $k1, C0_ENTRYLO1
+        ehb                         # mtc0, Hazard on tlbwi
+        tlbwr
+        eret
 
         .org 0x100
 cache_error:
