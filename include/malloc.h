@@ -60,7 +60,7 @@ typedef struct malloc_pool {
 /* Defines a local pool of memory for use by a subsystem. */
 #define MALLOC_DEFINE(pool, desc) \
     malloc_pool_t pool[1] = {     \
-        {{NULL}, MB_MAGIC, desc}  \
+        {{NULL}, MB_MAGIC, desc, {NULL, NULL} }  \
     };
 
 #define MALLOC_DECLARE(pool)      \
