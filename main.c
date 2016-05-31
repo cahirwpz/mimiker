@@ -10,6 +10,7 @@
 #include <uart_cbus.h>
 #include <rtc.h>
 #include <pci.h>
+#include <vm_map.h>
 #include "callout.h"
 
 typedef struct cpuinfo {
@@ -67,6 +68,8 @@ static void pmem_start() {
   vm_phys_reserve(MALTA_PHYS_SDRAM_BASE,
                   (vm_paddr_t)kernel_sbrk_shutdown()-MIPS_KSEG0_START);
   vm_phys_print_free_pages();
+  uint32_t *x = (uint32_t*)(MIPS_KSEG0_START + _memsize+4);
+  *x = 1;
 }
 
 /* 
@@ -213,6 +216,27 @@ int kernel_main(int argc, char **argv, char **envp) {
   read_config();
   intr_init();
   pmem_start();
+
+  tlb_init();
+  vm_map_init();
+
+  vm_map_t *maps[2];
+  maps[0] = vm_map_new(KERNEL_VM_MAP, 10);
+
+  set_vm_map(maps[0]);
+  vm_map_entry_t *entry = vm_map_add_entry(maps[0], VM_PROTECTED, 10*PAGESIZE, PAGE_ALIGNMENT);
+
+  vm_map_print(maps[0]);
+  vm_map_entry_attach_pages(entry, entry->start+2*PAGESIZE, entry->start+5*PAGESIZE);
+  vm_map_entry_attach_pages(entry, entry->start+8*PAGESIZE, entry->start+9*PAGESIZE);
+
+  vm_object_print(entry->object);
+
+  pmap_map_vm_object(&maps[0]->pmap, entry->start, PMAP_VALID | PMAP_DIRTY, entry->object);
+
+  uint32_t *x = (uint32_t*)(entry->start+4*PAGESIZE);
+  *x = 1;
+
   clock_init();
   rtc_init();
 

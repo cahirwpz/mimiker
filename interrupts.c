@@ -1,6 +1,9 @@
 #include <interrupts.h>
 #include <libkern.h>
 #include <mips.h>
+#include <vm_map.h>
+#include <pmap.h>
+#include <mips/cpu.h>
 
 extern const char _ebase[];
 
@@ -103,11 +106,38 @@ __attribute__((interrupt))
 void tlb_exception_handler()
 {
   int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
-
+  uint32_t vaddr = mips32_get_c0(C0_BADVADDR);
   kprintf("[tlb] %s at $%08x!\n", exceptions[code], mips32_get_c0(C0_ERRPC));
-  kprintf("[tlb] Caused by reference to $%08x!\n", mips32_get_c0(C0_BADVADDR));
+  kprintf("[tlb] Caused by reference to $%08x!\n", vaddr);
 
-  panic("[tlb] TLB exception handler unimplemented\n");
+  /* If the fault was in virtual pt range it means it's time to refill */
+  if(PT_BASE <= vaddr && vaddr < PT_BASE+PT_SIZE)
+  {
+      kprintf("[tlb] dpt_refill\n");
+      uint32_t id = (vaddr & 0x003ff000) >> 12;
+      tlbhi_t entryhi = mips32_get_c0(C0_ENTRYHI);
+
+      if(!(cur_vm_map->pmap.dpt[id] & V_MASK))
+        panic("Trying to access unmapped memory region.\
+                You probably deferred NULL or there was stack overflow. ");
+
+      id -= id % 2;
+      pte_t entrylo0 = cur_vm_map->pmap.dpt[id];
+      pte_t entrylo1 = cur_vm_map->pmap.dpt[id+1];
+      mips_tlbrwr2(entryhi, entrylo0, entrylo1, 0);
+      return;
+  }
+
+  vm_map_entry_t *entry = vm_map_find_entry(cur_vm_map, vaddr);
+  if(entry == NULL)
+    panic("Trying to access unmapped memory region.\
+            You probably deferred NULL or there was stack overflow. ");
+
+  if(entry->flags & VM_PROTECTED)
+    panic("Trying to access protected memory region");
+
+  panic("Page fault not implemented yet");
+
 }
 
 void kernel_oops() {
