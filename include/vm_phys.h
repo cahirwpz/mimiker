@@ -2,27 +2,35 @@
 #define _VM_PHYS_H_
 
 #include <queue.h>
+#include <tree.h>
 #include <common.h>
 
 #define PAGESIZE 4096
 #define VM_NFREEORDER 16
 #define VM_RESERVED 1
 #define VM_FREE 2
+#define PG_SIZE(x) (PAGESIZE << (x)->order)
+#define PG_VADDR_START(pg) ((pg)->virt_addr)
+#define PG_VADDR_END(pg) ((pg)->virt_addr+ (1 << (pg->order)) * PAGESIZE)
+
 
 typedef uintptr_t vm_addr_t;
 typedef uintptr_t vm_paddr_t;
 
 typedef struct vm_page {
-  TAILQ_ENTRY(vm_page) listq;
+  TAILQ_ENTRY(vm_page) obj_list;
+  RB_ENTRY(vm_page) obj_tree; 
+  vm_addr_t vm_offset; /* offset to page in vm_object */
+
+  /* Vm address in kseg0 */
   vm_addr_t virt_addr;
-  size_t size;
 
   /* Following fields are to be used by vm_phys subsystem */
   TAILQ_ENTRY(vm_page) freeq;
   vm_paddr_t phys_addr;
   size_t order;
   uint32_t flags;
-} vm_page_t;
+}vm_page_t;
 
 TAILQ_HEAD(vm_freelist, vm_page);
 
@@ -48,7 +56,8 @@ void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end, vm_paddr_t vm_initial_off
 /* Allocates page from subsystem. Number of bytes of page is given by
  * (1 << order) * PAGESIZE. Maximal order is 16.  */
 vm_page_t *vm_phys_alloc(size_t order);
-void vm_phys_free(struct vm_page *page);
+
+void vm_phys_free(vm_page_t *page);
 void vm_phys_print_free_pages();
 
 /* After using this function pages in range (start, end) are never going 
