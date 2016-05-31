@@ -2,6 +2,7 @@
 #define __RUNQ_H__
 
 #include <common.h>
+#include <queue.h>
 
 typedef struct thread thread_t;
 

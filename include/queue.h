@@ -36,7 +36,9 @@
 #ifndef _QUEUE_H_
 #define	_QUEUE_H_
 
-#include <machine/ansi.h>	/* for __offsetof */
+#ifndef __offsetof
+#define __offsetof __builtin_offsetof
+#endif
 
 /*
  * This file defines five types of data structures: singly-linked lists,
