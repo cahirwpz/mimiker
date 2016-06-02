@@ -105,9 +105,9 @@ static vm_page_t *find_buddy(vm_phys_seg_t *seg, vm_page_t *page) {
 
   TAILQ_FOREACH(it, PG_FREEQ(seg, page->order), freeq)
     if (it == buddy)
-      break;
+      return buddy;
 
-  return buddy;
+  return NULL;
 }
 
 static void split_page(vm_phys_seg_t *seg, vm_page_t *page) {
