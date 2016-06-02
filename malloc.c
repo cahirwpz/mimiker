@@ -12,7 +12,7 @@ static struct {
   void *end;     /* Limit for the end of kernel's bss. */
   mtx_t lock;
   bool shutdown;
-} sbrk = { __ebss, __ebss + 16 * PAGESIZE, MTX_INITIALIZER, false };
+} sbrk = { __ebss, __ebss + 512 * PAGESIZE, MTX_INITIALIZER, false };
 
 void *kernel_sbrk(size_t size) {
   if(sbrk.shutdown == true)

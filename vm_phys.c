@@ -39,7 +39,7 @@ void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end, vm_paddr_t vm_offset) {
 
   seg->start = start;
   seg->end = end;
-  seg->page_array = kernel_sbrk(page_array_size);
+  seg->page_array = kernel_sbrk(page_array_size*sizeof(struct vm_page));
   TAILQ_INSERT_TAIL(&seglist, seg, segq);
 
   assert(align(seg->start, PAGESIZE) == seg->start);
