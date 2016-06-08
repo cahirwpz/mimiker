@@ -9,6 +9,7 @@
 #include <uart_cbus.h>
 #include <rtc.h>
 #include <pci.h>
+#include <pmap.h>
 #include "callout.h"
 
 typedef struct cpuinfo {
