@@ -1,6 +1,8 @@
 #include <interrupts.h>
 #include <libkern.h>
 #include <mips.h>
+#include <pmap.h>
+#include <mips/cpu.h>
 
 extern const char _ebase[];
 
@@ -99,15 +101,31 @@ static const char *exceptions[32] = {
   [EXC_MCHECK] = "Machine checkcore",
 };
 
+#define PDE_ID_FROM_PTE_ADDR(x) (((x) & 0x003ff000) >> 12)
+
 __attribute__((interrupt)) 
 void tlb_exception_handler()
 {
   int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
-
+  uint32_t vaddr = mips32_get_c0(C0_BADVADDR);
   kprintf("[tlb] %s at $%08x!\n", exceptions[code], mips32_get_c0(C0_ERRPC));
-  kprintf("[tlb] Caused by reference to $%08x!\n", mips32_get_c0(C0_BADVADDR));
+  kprintf("[tlb] Caused by reference to $%08x!\n", vaddr);
 
-  panic("[tlb] TLB exception handler unimplemented\n");
+  assert(PTE_BASE <= vaddr && vaddr < PTE_BASE+PTE_SIZE);
+  /* If the fault was in virtual pt range it means it's time to refill */
+  kprintf("[tlb] pde_refill\n");
+  uint32_t id = PDE_ID_FROM_PTE_ADDR(vaddr);
+  tlbhi_t entryhi = mips32_get_c0(C0_ENTRYHI);
+
+  pmap_t *active_pmap = get_active_pmap();
+  if(!(active_pmap->pde[id] & V_MASK))
+    panic("Trying to access unmapped memory region.\
+            You probably deferred NULL or there was stack overflow. ");
+
+  id &= ~1;
+  pte_t entrylo0 = active_pmap->pde[id];
+  pte_t entrylo1 = active_pmap->pde[id+1];
+  tlb_overwrite_random(entryhi, entrylo0, entrylo1);
 }
 
 void kernel_oops() {
@@ -134,3 +152,4 @@ void *general_exception_table[32] = {
   [EXC_TLBL] = tlb_exception_handler,
   [EXC_TLBS] = tlb_exception_handler,
 };
+

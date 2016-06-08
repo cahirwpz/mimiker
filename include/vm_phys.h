@@ -18,8 +18,16 @@ typedef uintptr_t vm_addr_t;
 typedef uintptr_t vm_paddr_t;
 
 typedef struct vm_page {
-  TAILQ_ENTRY(vm_page) obj_list;
-  RB_ENTRY(vm_page) obj_tree; 
+  union {
+    struct {
+      TAILQ_ENTRY(vm_page) list;
+      RB_ENTRY(vm_page) tree; 
+    } obj;
+    struct {
+      TAILQ_ENTRY(vm_page) list;
+    } pt;
+  };
+
   vm_addr_t vm_offset; /* offset to page in vm_object */
 
   /* Vm address in kseg0 */
@@ -30,7 +38,7 @@ typedef struct vm_page {
   vm_paddr_t phys_addr;
   size_t order;
   uint32_t flags;
-}vm_page_t;
+} vm_page_t;
 
 TAILQ_HEAD(vm_freelist, vm_page);
 
@@ -66,3 +74,4 @@ void vm_phys_print_free_pages();
 void vm_phys_reserve(vm_paddr_t start, vm_paddr_t end);
 
 #endif /* _VM_PHYS_H */
+
