@@ -8,11 +8,13 @@ GDB      = $(P)gdb
 OBJCOPY  = $(P)objcopy
 OBJDUMP  = $(P)objdump
 
+HOSTCC	 = gcc -g
+
 ASFLAGS  =
 CFLAGS   = -std=gnu11 -Og -Wall -Werror -fno-builtin
 CPPFLAGS = -Wall -Werror -DDEBUG
-LDFLAGS  = -nostdlib
 LDLIBS   =
+LDFLAGS  = -nostdlib -T malta.ld
 
 define emit_dep_rule
 CFILE = $(1)
@@ -26,6 +28,10 @@ endef
 	@echo "[CC] $< -> $@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -S -o $@ $<
 
+%.ko: %.c
+	@echo "[CC] $< -> $@"
+	$(CC) $(CFLAGS) $(CPPFLAGS) -D_KERNELSPACE -c -o $@ $<
+
 %.o: %.c
 	@echo "[CC] $< -> $@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
@@ -34,9 +40,13 @@ endef
 	@echo "[AS] $< -> $@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
-%.elf:
-	@echo "[LD] $(filter %.o,$^) -> $@"
-	$(CC) $(LDFLAGS) $(filter %.o,$^) $(LDLIBS) -o $@
+%.elf:	%.ko
+	@echo "[LD] $(filter %.ko,$^) -> $@"
+	$(CC) $(LDFLAGS) $(filter %.ko,$^) -Wl,-Map=$@.map $(LDLIBS) -o $@
+
+%.test: %.c
+	@echo "[HOSTCC] $< -> $@"
+	$(HOSTCC) $(CFLAGS) $(CPPFLAGS) -D_USERSPACE -o $@ $<
 
 %.a:
 	@echo "[AR] $^ -> $@"

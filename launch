@@ -1,0 +1,66 @@
+#!/usr/bin/python3
+
+import argparse
+import os
+import os.path
+import signal
+import subprocess
+
+OVPSIM_VENDOR = 'mips.ovpworld.org'
+OVPSIM_PLATFORM = 'MipsMalta/1.0'
+TRIPLET = 'mips-mti-elf-'
+
+OVPSIM = os.path.join(os.environ['IMPERAS_HOME'],
+                      'lib/Linux32/ImperasLib', OVPSIM_VENDOR,
+                      'platform', OVPSIM_PLATFORM, 'platform.Linux32.exe')
+
+OVPSIM_OPTIONS = ['--root', '/dev/null', '--nographics', '--wallclock']
+OVPSIM_OVERRIDES = {
+    "mipsle1/vectoredinterrupt": 1,
+    "mipsle1/srsctlHSS": 1,
+    "rtc/timefromhost": 1,
+    "uartCBUS/console": 1
+}
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description='Launch OVPsim with Malta board.')
+    parser.add_argument('kernel', metavar='KERNEL', type=str,
+                        help='Kernel file in ELF format.')
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='Start simulation under gdb.')
+
+    args = parser.parse_args()
+
+    opts = ['--kernel', args.kernel]
+    opts += OVPSIM_OPTIONS
+    for item in OVPSIM_OVERRIDES.items():
+        opts += ['--override', '%s=%s' % item]
+    if args.debug:
+        opts += ['--port', '1234']
+
+    try:
+        os.remove('uartCBUS.log')
+        os.remove('uartTTY0.log')
+        os.remove('uartTTY1.log')
+    except OSError:
+        pass
+
+    if args.debug:
+        sim = subprocess.Popen([OVPSIM] + opts,
+                               start_new_session=True)
+        gdb = subprocess.Popen([TRIPLET + 'gdb', args.kernel],
+                               start_new_session=True)
+        while True:
+            try:
+                gdb.wait()
+                sim.send_signal(signal.SIGINT)
+                break
+            except KeyboardInterrupt:
+                gdb.send_signal(signal.SIGINT)
+    else:
+        sim = subprocess.Popen([OVPSIM] + opts)
+        try:
+            sim.wait()
+        except KeyboardInterrupt:
+            sim.send_signal(signal.SIGINT)

@@ -25,3 +25,38 @@ void rtc_read(rtc_time_t *t) {
   RTC_ADDR_R = 8; t->month = RTC_DATA_R;
   RTC_ADDR_R = 9; t->year = RTC_DATA_R + 2000;
 }
+
+#ifdef _KERNELSPACE
+#include <libkern.h>
+#include <clock.h>
+#include <uart_cbus.h>
+
+/*
+ * Delays for at least the given number of milliseconds. May not be
+ * nanosecond-accurate.
+ */
+void mdelay (unsigned msec) {
+  unsigned now = clock_get_ms();
+  unsigned final = now + msec;
+  while (final > clock_get_ms());
+}
+
+int main() {
+  int size = 0;
+
+  while (1) {
+    mdelay(1000);
+
+    for (; size > 0; size--)
+      uart_putc('\b');
+
+    rtc_time_t rtc;
+    rtc_read(&rtc);
+
+    size = kprintf("Time is %02d:%02d:%02d", rtc.hour, rtc.min, rtc.sec);
+  }
+
+  return 0;
+}
+#endif
+

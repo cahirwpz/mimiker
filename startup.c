@@ -25,38 +25,6 @@ typedef struct cpuinfo {
 } cpuinfo_t;
 
 static cpuinfo_t cpuinfo;
-
-static volatile unsigned loop;
-
-/*
- * Delay for a given number of microseconds.
- * The processor has a 32-bit hardware Count register,
- * which increments at half CPU rate.
- * We use it to get a precise delay.
- */
-void udelay (unsigned usec) {
-  uint32_t now = mips32_get_c0(C0_COUNT);
-  uint32_t final = now + usec * CPU_CLOCK / 2;
-
-  for (;;) {
-    now = mips32_get_c0(C0_COUNT);
-
-    /* This comparison is valid only when using a signed type. */
-    if ((int) (now - final) >= 0)
-      break;
-  }
-}
-
-/*
- * Delays for at least the given number of milliseconds. May not be
- * nanosecond-accurate.
- */
-void mdelay (unsigned msec) {
-  unsigned now = clock_get_ms();
-  unsigned final = now + msec;
-  while (final > clock_get_ms());
-}
-
 extern int _memsize;
 
 static void pmem_start() {
@@ -193,7 +161,9 @@ void dump_cp0() {
  * - The EXL and ERL bits in the Status register are both zero
  */
 
-int kernel_main(int argc, char **argv, char **envp) {
+extern int main(int argc, char **argv, char **envp);
+
+int kernel_boot(int argc, char **argv, char **envp) {
   uart_init();
 
   kprintf("Kernel arguments: ");
@@ -219,27 +189,7 @@ int kernel_main(int argc, char **argv, char **envp) {
   dump_cp0();
   dump_pci0();
 
-  kmalloc_test();
-
-#if 0
-  demo_ctx();
-#endif
-
-  callout_demo();
-
-  int size = 0;
-
-  while (1) {
-    mdelay(1000);
-
-    for (; size > 0; size--)
-      uart_putc('\b');
-
-    rtc_time_t rtc;
-    rtc_read(&rtc);
-
-    size = kprintf("Time is %02d:%02d:%02d", rtc.hour, rtc.min, rtc.sec);
-  }
+  main(argc, argv, envp);
 
   return 0;
 }

@@ -37,8 +37,8 @@ kernel_go:
         #   instead of EPC
 
         la      $ra, kernel_exit
-        la      $t0, kernel_main
-        mtc0    $t0, C0_ERRPC    # Return from exception to kernel_main
+        la      $t0, kernel_boot
+        mtc0    $t0, C0_ERRPC    # Return from exception to kernel_boot
         eret                     # exception => normal level (SR_ERL = 0)
 END(_start)
 

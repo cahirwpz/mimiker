@@ -1,28 +1,16 @@
-# Object files
+# Object files & libraries
 *.o
-*.elf
-*.srec
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
+*.ko
 *.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.so
-*.so.*
 
 # Executables
-*.exe
-*.hex
+*.elf
+*.test
 
-# Backup files
+# Backup and log files
 *~
 *.orig
+*.log
 
 # Linker output
 *.map
