@@ -7,10 +7,6 @@
   Every event is inside one of NUMBER_OF_CALLOUT_BUCKETS buckets.
   The buckets is a cyclic list, but we implement it as an array,
   allowing us to access random elements in constant time.
-  TODO:
-  - long longs (nor int64_t) don't work: "Undefined reference to '__divdi3'"".
-    https://gcc.gnu.org/onlinedocs/gcc/Link-Options.html, so I had
-    to change sbintime_t from int64_t to int.
 */
 
 TAILQ_HEAD(callout_head, callout);
@@ -23,7 +19,6 @@ typedef struct callout_internal {
 } callout_internal_t;
 
 static callout_internal_t ci;
-
 
 void callout_init() {
   memset(&ci, 0, sizeof ci);
@@ -110,13 +105,12 @@ void callout_process(sbintime_t now) {
   }
 }
 
+#ifdef _KERNELSPACE
 static void callout_foo(void *arg) {
   kprintf("Someone executed me! After %d ticks.\n", *((int *)arg));
 }
 
-
-void callout_demo() {
-  callout_init();
+int main() {
   callout_t callout[10];
   int timeouts[10] = {2, 5, 3, 1, 6, 3, 7, 10, 5, 3};
   for (int i = 0; i < 10; i++)
@@ -126,4 +120,8 @@ void callout_demo() {
     kprintf("calling callout_process()\n");
     callout_process(0);
   }
+
+  return 0;
 }
+#endif
+

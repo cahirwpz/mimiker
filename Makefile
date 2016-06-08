@@ -5,9 +5,9 @@ include Makefile.common
 CPPFLAGS += -Iinclude
 LDLIBS   += kernel.a smallclib/smallclib.a -lgcc
 
-TESTS = rtc.elf runq.test
+TESTS = callout.elf context.elf malloc.elf rtc.elf runq.test
 SOURCES_C = startup.c uart_cbus.c interrupts.c clock.c malloc.c context.c \
-	    context-demo.c vm_phys.c rtc.c pci.c pci_ids.c callout.c runq.c
+	    vm_phys.c rtc.c pci.c pci_ids.c callout.c runq.c
 SOURCES_ASM = boot.S intr.S context-mips.S mxxtlb_ops.S m32tlb_ops.S
 SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
@@ -15,7 +15,10 @@ DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
 
 all: $(DEPFILES) smallclib $(TESTS)
 
-rtc.elf: rtc.ko kernel.a $(LDSCRIPT)
+callout.elf: callout.ko kernel.a
+context.elf: context.ko kernel.a
+malloc.elf: malloc.ko kernel.a
+rtc.elf: rtc.ko kernel.a
 kernel.a: $(OBJECTS)
 
 $(foreach file,$(SOURCES) null,$(eval $(call emit_dep_rule,$(file))))

@@ -1,7 +1,6 @@
 #include <config.h>
 #include <common.h>
 #include <mips.h>
-#include <malta.h>
 #include <interrupts.h>
 #include <clock.h>
 #include <malloc.h>
@@ -25,17 +24,6 @@ typedef struct cpuinfo {
 } cpuinfo_t;
 
 static cpuinfo_t cpuinfo;
-extern int _memsize;
-
-static void pmem_start() {
-  vm_phys_init();
-  vm_phys_add_seg(MALTA_PHYS_SDRAM_BASE,
-                  MALTA_PHYS_SDRAM_BASE + _memsize,
-                  MIPS_KSEG0_START);
-  vm_phys_reserve(MALTA_PHYS_SDRAM_BASE,
-                  (vm_paddr_t)kernel_sbrk_shutdown()-MIPS_KSEG0_START);
-  vm_phys_print_free_pages();
-}
 
 /* 
  * Read configuration register values, interpret and save them into the cpuinfo
@@ -181,9 +169,10 @@ int kernel_boot(int argc, char **argv, char **envp) {
   kprintf("\n");
 
   read_config();
+  vm_phys_init();
   intr_init();
-  pmem_start();
   clock_init();
+  callout_init();
   rtc_init();
 
   dump_cp0();

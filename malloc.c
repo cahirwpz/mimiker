@@ -201,7 +201,8 @@ void kmalloc_dump(malloc_pool_t *mp) {
   }
 }
 
-void kmalloc_test() {
+#ifdef _KERNELSPACE
+int main() {
   vm_page_t *page = vm_phys_alloc(0);
 
   MALLOC_DEFINE(mp, "testing memory pool");
@@ -234,4 +235,8 @@ void kmalloc_test() {
   assert(ptr6 == NULL);
 
   vm_phys_free(page);
+
+  return 0;
 }
+#endif
+

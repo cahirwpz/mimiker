@@ -2,6 +2,8 @@
 #include <queue.h>
 #include <malloc.h>
 #include <libkern.h>
+#include <mips.h>
+#include <malta.h>
 
 #define POW2(x) (1 << (x))
 #define PG_START(pg) ((pg)->phys_addr)
@@ -67,8 +69,17 @@ void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end, vm_paddr_t vm_offset) {
     }
 }
 
+extern int _memsize;
+
 void vm_phys_init() {
   TAILQ_INIT(&seglist);
+
+  vm_phys_add_seg(MALTA_PHYS_SDRAM_BASE,
+                  MALTA_PHYS_SDRAM_BASE + _memsize,
+                  MIPS_KSEG0_START);
+  vm_phys_reserve(MALTA_PHYS_SDRAM_BASE,
+                  (vm_paddr_t)kernel_sbrk_shutdown()-MIPS_KSEG0_START);
+  vm_phys_print_free_pages();
 }
 
 /* Takes two pages which are buddies, and merges them */
