@@ -16,7 +16,7 @@ SECTIONS
   {
     /* Exception handlers. */
     _ebase = ABSOLUTE(.);
-    *(.ebase)
+    intr.o (.ebase)
     . = ALIGN(4096);
     /* Text and read-only data follows. */
     __text = ABSOLUTE(.);
