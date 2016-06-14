@@ -41,6 +41,11 @@
     _addr = (_addr + (_size - 1)) & -_size; \
     (typeof(addr))_addr; })
 
+#define is_aligned(addr, size) ({           \
+    intptr_t _addr = (intptr_t)(addr);      \
+    intptr_t _size = (intptr_t)(size);      \
+    !(_addr & (_size - 1)); })
+
 #ifndef _USERSPACE
 
 /* Terminate kernel. */

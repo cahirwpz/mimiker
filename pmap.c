@@ -11,7 +11,7 @@ static pmap_t *active_pmap = NULL;
 
 void pmap_init(pmap_t *pmap) {
   pmap->pte = (pte_t *)PTE_BASE;
-  pmap->pde_page = vm_phys_alloc(0);
+  pmap->pde_page = pm_alloc(0);
   pmap->pde = (pte_t *)pmap->pde_page->virt_addr;
   TAILQ_INIT(&pmap->pte_pages);
 }
@@ -20,16 +20,16 @@ void pmap_delete(pmap_t *pmap) {
   while (!TAILQ_EMPTY(&pmap->pte_pages)) {
     vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
     TAILQ_REMOVE(&pmap->pte_pages, pg, pt.list);
-    vm_phys_free(pg);
+    pm_free(pg);
   }
-  vm_phys_free(pmap->pde_page);
+  pm_free(pmap->pde_page);
 }
 
 static void pde_map(pmap_t *pmap, vaddr_t vaddr) {
   uint32_t pde_index = PDE_INDEX(vaddr);
   if ( (pmap->pde[pde_index] & V_MASK) ==
        0) { /* part of page table isn't located in memory */
-    vm_page_t *pg = vm_phys_alloc(0);
+    vm_page_t *pg = pm_alloc(0);
     TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pt.list);
 
     ENTRYLO_SET_PADDR(pmap->pde[pde_index], pg->phys_addr);
@@ -45,7 +45,7 @@ static void pde_map(pmap_t *pmap, vaddr_t vaddr) {
   tlb_overwrite_random(entryhi, entrylo0, entrylo1);
 }
 
-static void pt_map(pmap_t *pmap, vm_addr_t vaddr, vm_paddr_t paddr,
+static void pt_map(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
                    uint32_t flags) {
   pde_map(pmap, vaddr);
   pte_t entry = flags;
@@ -60,7 +60,7 @@ static void pt_map(pmap_t *pmap, vm_addr_t vaddr, vm_paddr_t paddr,
   tlb_invalidate(entryhi);
 }
 
-void pmap_map(pmap_t *pmap, vm_addr_t vaddr, vm_paddr_t paddr, size_t npages,
+void pmap_map(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr, size_t npages,
               uint32_t flags) {
   for (size_t i = 0; i < npages; i++)
     pt_map(pmap, vaddr + i * PAGESIZE, paddr + i * PAGESIZE, flags);
@@ -86,7 +86,7 @@ int main() { /* Simple test */
   pmap.asid = 10;
 
   set_active_pmap(&pmap);
-  vm_page_t *pg1 = vm_phys_alloc(2);
+  vm_page_t *pg1 = pm_alloc(2);
 
   vaddr_t ex_addr = PAGESIZE * 10;
   pmap_map(&pmap, ex_addr, pg1->phys_addr, 1 << pg1->order,
@@ -98,7 +98,7 @@ int main() { /* Simple test */
   for (int i = 0; i < 1024 * (1 << pg1->order); i++)
     assert(*(x + i) == i);
 
-  vm_page_t *pg2 = vm_phys_alloc(0);
+  vm_page_t *pg2 = pm_alloc(0);
 
   ex_addr = PAGESIZE * 2000;
   pmap_map(&pmap, ex_addr, pg2->phys_addr, 1 << pg2->order,
@@ -110,8 +110,8 @@ int main() { /* Simple test */
   for (int i = 0; i < 1024 * (1 << pg2->order); i++)
     assert(*(x + i) == i);
 
-  vm_phys_free(pg1);
-  vm_phys_free(pg2);
+  pm_free(pg1);
+  pm_free(pg2);
 
   pmap_delete(&pmap);
   return 0;

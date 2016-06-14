@@ -170,7 +170,7 @@ int kernel_boot(int argc, char **argv, char **envp) {
   kprintf("\n");
 
   read_config();
-  vm_phys_init();
+  pm_init();
   intr_init();
   clock_init();
   callout_init();
