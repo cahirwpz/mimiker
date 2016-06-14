@@ -1,5 +1,5 @@
-#ifndef _VM_H_
-#define _VM_H_
+#ifndef _VIRT_MEM_H_
+#define _VIRT_MEM_H_
 
 #include <common.h>
 #include <queue.h>
@@ -42,4 +42,4 @@ typedef struct vm_page {
   uint32_t flags;
 } vm_page_t;
 
-#endif /* _VM_H_ */
+#endif /* _VIRT_MEM_H_ */

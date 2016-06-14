@@ -2,7 +2,7 @@
 #include <mips/cpu.h>
 #include <mips/m32c0.h>
 #include <libkern.h>
-#include <vm_phys.h>
+#include <vm.h>
 
 #define PAGE_MASK_4KB 0 /* We need only 4KB page size masks at the moment */
 

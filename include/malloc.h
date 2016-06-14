@@ -1,8 +1,8 @@
-#ifndef __SYS_MALLOC_H__
-#define __SYS_MALLOC_H__
+#ifndef _MALLOC_H_
+#define _MALLOC_H_
 
 #include <common.h>
-#include <vm_phys.h>
+#include <pm.h>
 
 /*
  * This function provides simple dynamic memory allocation that may be used
@@ -78,4 +78,4 @@ void kfree(malloc_pool_t *mp, void *addr);
 void kmalloc_dump(malloc_pool_t *mp);
 void kmalloc_test();
 
-#endif /* __SYS_MALLOC_H__ */
+#endif /* _MALLOC_H_ */

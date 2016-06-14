@@ -1,4 +1,4 @@
-#include <vm_phys.h>
+#include <pm.h>
 #include <malloc.h>
 #include <libkern.h>
 #include <mips.h>

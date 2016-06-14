@@ -5,12 +5,12 @@
 #include <clock.h>
 #include <malloc.h>
 #include <libkern.h>
-#include <vm_phys.h>
+#include <pm.h>
 #include <uart_cbus.h>
 #include <rtc.h>
 #include <pci.h>
 #include <pmap.h>
-#include "callout.h"
+#include <callout.h>
 
 typedef struct cpuinfo {
     int tlb_entries;

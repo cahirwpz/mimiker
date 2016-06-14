@@ -1,5 +1,5 @@
 #include <libkern.h>
-#include <vm_phys.h>
+#include <pm.h>
 #include <malloc.h>
 #include <mutex.h>
 #include <queue.h>

@@ -1,5 +1,5 @@
-#ifndef _VM_PHYS_H_
-#define _VM_PHYS_H_
+#ifndef _PHYS_MEM_H_
+#define _PHYS_MEM_H_
 
 #include <vm.h>
 
@@ -29,5 +29,5 @@ void pm_dump();
  * ebss, or any possibly unwanted places. */
 void pm_reserve(pm_addr_t start, pm_addr_t end);
 
-#endif /* _VM_PHYS_H */
+#endif /* _PHYS_MEM_H */
 

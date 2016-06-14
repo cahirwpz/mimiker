@@ -7,7 +7,7 @@ LDLIBS   += kernel.a smallclib/smallclib.a -lgcc
 
 TESTS = callout.elf context.elf malloc.elf pmap.elf rtc.elf runq.test
 SOURCES_C = startup.c uart_cbus.c interrupts.c clock.c malloc.c context.c \
-	    vm_phys.c rtc.c pci.c pci_ids.c callout.c runq.c tlb.c pmap.c
+	    pm.c rtc.c pci.c pci_ids.c callout.c runq.c tlb.c pmap.c
 SOURCES_ASM = boot.S intr.S context-mips.S mxxtlb_ops.S m32tlb_ops.S
 SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
