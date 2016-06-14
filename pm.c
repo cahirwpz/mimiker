@@ -40,12 +40,13 @@ void pm_dump() {
   vm_page_t *pg_it;
 
   TAILQ_FOREACH(seg_it, &seglist, segq) {
-    kprintf("[pmem] segment %p - %p:\n", seg_it->start, seg_it->end);
+    kprintf("[pmem] segment %p - %p:\n",
+            (void *)seg_it->start, (void *)seg_it->end);
     for (int i = 0; i < VM_NFREEORDER; i++) {
       if (!TAILQ_EMPTY(PG_FREEQ(seg_it, i))) {
         kprintf("[pmem]  %6dKiB:", (PAGESIZE / 1024) << i);
         TAILQ_FOREACH(pg_it, PG_FREEQ(seg_it, i), freeq)
-          kprintf(" %p", PG_START(pg_it));
+          kprintf(" %p", (void *)PG_START(pg_it));
         kprintf("\n");
       }
     }
@@ -197,7 +198,7 @@ void pm_reserve(pm_addr_t start, pm_addr_t end) {
     }
   }
 
-  panic("reserve failed (%d,%d)\n", start, end);
+  panic("reserve failed (%p - %p)\n", (void *)start, (void *)end);
 }
 
 static vm_page_t *pm_alloc_from_seg(pm_seg_t *seg, size_t order) {
@@ -238,10 +239,10 @@ vm_page_t *pm_alloc(size_t npages) {
 
 static void pm_free_from_seg(pm_seg_t *seg, vm_page_t *page) {
   if (page->flags & VM_RESERVED)
-    panic("trying to free reserved page: %p", page->phys_addr);
+    panic("trying to free reserved page: %p", (void *)page->phys_addr);
 
   if (page->flags & VM_FREE)
-    panic("page is already free: %p", page->phys_addr);
+    panic("page is already free: %p", (void *)page->phys_addr);
 
   page->flags |= VM_FREE;
   TAILQ_INSERT_HEAD(PG_FREEQ(seg, page->order), page, freeq);
@@ -269,5 +270,5 @@ void pm_free(vm_page_t *page) {
   }
 
   pm_dump();
-  panic("page out of range: %p", page->phys_addr);
+  panic("page out of range: %p", (void *)page->phys_addr);
 }

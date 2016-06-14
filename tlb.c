@@ -65,17 +65,20 @@ void tlb_overwrite_random(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1) {
 }
 
 void tlb_print() {
-  kprintf("[tlb] C0_CONTEXT     : %p\n", mips32_get_c0(C0_CONTEXT));
-  kprintf("[tlb] C0_CONTEXT >> 1: %p\n", (int)mips32_get_c0(C0_CONTEXT) >> 1);
+  int context = mips32_get_c0(C0_CONTEXT);
+
+  kprintf("[tlb] C0_CONTEXT     : %p\n", (void *)context);
+  kprintf("[tlb] C0_CONTEXT >> 1: %p\n", (void *)(context >> 1));
   kprintf("[tlb] ASID           : %d\n", get_asid());
 
-  size_t n = mips_tlb_size();
-  for (size_t i = 0; i < n; i++) {
+  unsigned n = mips_tlb_size();
+  for (unsigned i = 0; i < n; i++) {
     tlbhi_t entryhi;
     tlblo_t entrylo0;
     tlblo_t entrylo1;
     tlb_read_index(&entryhi, &entrylo0, &entrylo1, i);
-    kprintf("[tlb: %d]: hi: %p lo0:%p lo1: %p \n", i, entryhi, entrylo0, entrylo1);
+    kprintf("[tlb: %d]: hi: %p lo0:%p lo1: %p \n",
+            i, (void *)entryhi, (void *)entrylo0, (void *)entrylo1);
   }
 }
 

@@ -107,8 +107,10 @@ __attribute__((interrupt))
 void tlb_exception_handler()
 {
   int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
-  uint32_t vaddr = mips32_get_c0(C0_BADVADDR);
-  kprintf("[tlb] %s at $%08x!\n", exceptions[code], mips32_get_c0(C0_ERRPC));
+  unsigned vaddr = mips32_get_c0(C0_BADVADDR);
+
+  kprintf("[tlb] %s at $%08x!\n",
+          exceptions[code], (unsigned)mips32_get_c0(C0_ERRPC));
   kprintf("[tlb] Caused by reference to $%08x!\n", vaddr);
 
   assert(PTE_BASE <= vaddr && vaddr < PTE_BASE+PTE_SIZE);
@@ -129,11 +131,13 @@ void tlb_exception_handler()
 }
 
 void kernel_oops() {
-  int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
+  unsigned code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
+  unsigned errpc = mips32_get_c0(C0_ERRPC);
+  unsigned badvaddr = mips32_get_c0(C0_BADVADDR);
 
-  kprintf("[oops] %s at $%08x!\n", exceptions[code], mips32_get_c0(C0_ERRPC));
+  kprintf("[oops] %s at $%08x!\n", exceptions[code], errpc);
   if (code == EXC_ADEL || code == EXC_ADES)
-    kprintf("[oops] Caused by reference to $%08x!\n", mips32_get_c0(C0_BADVADDR));
+    kprintf("[oops] Caused by reference to $%08x!\n", badvaddr);
 
   panic("Unhandled exception");
 }

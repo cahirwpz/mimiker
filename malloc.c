@@ -194,8 +194,8 @@ void kmalloc_dump(malloc_pool_t *mp) {
 
     while (block < end) {
       assert(block->mb_magic == MB_MAGIC);
-      kprintf("[kmalloc]   %c %p %d\n",
-             (block->mb_size > 0) ? 'F' : 'U', block, abs(block->mb_size));
+      kprintf("[kmalloc]   %c %p %d\n", (block->mb_size > 0) ? 'F' : 'U',
+              block, (unsigned)abs(block->mb_size));
       block = mb_next(block);
     }
   }

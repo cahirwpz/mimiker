@@ -96,10 +96,10 @@ static bool read_config() {
 
 /* Print state of control registers. */
 void dump_cp0() {
-  uint32_t cr = mips32_get_c0(C0_CAUSE);
-  uint32_t sr = mips32_get_c0(C0_STATUS);
-  uint32_t intctl = mips32_get_c0(C0_INTCTL);
-  uint32_t srsctl = mips32_get_c0(C0_SRSCTL);
+  unsigned cr = mips32_get_c0(C0_CAUSE);
+  unsigned sr = mips32_get_c0(C0_STATUS);
+  unsigned intctl = mips32_get_c0(C0_INTCTL);
+  unsigned srsctl = mips32_get_c0(C0_SRSCTL);
 
   kprintf ("Cause    : TI:%d IV:%d IP:%d ExcCode:%d\n",
            (cr & CR_TI) >> CR_TI_SHIFT,
@@ -121,9 +121,9 @@ void dump_cp0() {
            (intctl & INTCTL_VS) >> INTCTL_VS_SHIFT);
   kprintf ("SrsCtl   : HSS:%d\n",
            (srsctl & SRSCTL_HSS) >> SRSCTL_HSS_SHIFT);
-  kprintf ("EPC      : $%08x\n", mips32_get_c0(C0_EPC));
-  kprintf ("ErrPC    : $%08x\n", mips32_get_c0(C0_ERRPC));
-  kprintf ("EBase    : $%08x\n", mips32_get_c0(C0_EBASE));
+  kprintf ("EPC      : $%08x\n", (unsigned)mips32_get_c0(C0_EPC));
+  kprintf ("ErrPC    : $%08x\n", (unsigned)mips32_get_c0(C0_ERRPC));
+  kprintf ("EBase    : $%08x\n", (unsigned)mips32_get_c0(C0_EBASE));
 }
 
 /*
@@ -170,14 +170,13 @@ int kernel_boot(int argc, char **argv, char **envp) {
   kprintf("\n");
 
   read_config();
+  dump_cp0();
+  pci_init();
   pm_init();
   intr_init();
   clock_init();
   callout_init();
   rtc_init();
-
-  dump_cp0();
-  dump_pci0();
 
   main(argc, argv, envp);
 

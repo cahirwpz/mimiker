@@ -40,7 +40,7 @@ void callout_setup(callout_t *handle, sbintime_t time, timeout_t fn,
   callout_pending(handle);
 
   log("Inserting into index: %d, because current_position = %d, time = %d, uptime = %d",
-      index, ci.current_position, time, ci.uptime);
+      index, ci.current_position, (unsigned)time, ci.uptime);
   TAILQ_INSERT_TAIL(&ci.heads[index], handle, c_link);
 }
 

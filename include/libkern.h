@@ -18,11 +18,14 @@ void bzero(void *s, size_t n);
 
 /* The snprintf has a custom implementation which cannot format
    floating-point numbers, see snprintf.c */
-int snprintf (char *str, size_t size, const char *fmt, ...);
+int snprintf (char *str, size_t size, const char *fmt, ...)
+  __attribute__((format (printf, 3, 4)));
 
 /* Write a formatted string to UART.
  * Equivalent to standard printf. */
-int kprintf(const char *fmt, ...);
+int kprintf(const char *fmt, ...)
+  __attribute__((format (printf, 1, 2)));
+
 /* Write a character string and a trailing newline to UART.
  * Equivalent to standard putss */
 int kputs (const char *s);
