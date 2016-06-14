@@ -20,6 +20,7 @@ static const pci_device_id pci_vendor_11ab[] = {
 static const pci_device_id pci_vendor_8086[] = {
   { 0x7110, "82371AB/EB/MB PIIX4 ISA" },
   { 0x7111, "82371AB/EB/MB PIIX4 IDE" },
+  { 0x7112, "82371AB/EB/MB PIIX4 USB" },
   { 0x7113, "82371AB/EB/MB PIIX4 ACPI" },
   { 0, 0 }
 };
