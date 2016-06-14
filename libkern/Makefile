@@ -7,7 +7,7 @@ include ../Makefile.common
 # this is an external library.
 LIB_CFLAGS = -D__PREFER_SIZE_OVER_SPEED__
 
-LIBNAME = smallclib
+LIBNAME = libkern
 LIB_BUILD_DIR = $(LIBNAME)_build
 
 # Find the path to smallclib within toolchains resources

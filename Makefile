@@ -3,7 +3,7 @@
 include Makefile.common
 
 CPPFLAGS += -Iinclude
-LDLIBS   += kernel.a smallclib/smallclib.a -lgcc
+LDLIBS   += kernel.a -Llibkern -lkern -lgcc
 
 TESTS = callout.elf context.elf malloc.elf pmap.elf rtc.elf runq.test
 SOURCES_C = startup.c uart_cbus.c interrupts.c clock.c malloc.c context.c \
@@ -13,7 +13,7 @@ SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
 DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
 
-all: $(DEPFILES) smallclib $(TESTS)
+all: $(DEPFILES) libkern $(TESTS)
 
 callout.elf: callout.ko kernel.a
 context.elf: context.ko kernel.a
@@ -27,8 +27,8 @@ ifeq ($(words $(findstring $(MAKECMDGOALS), clean)), 0)
   -include $(DEPFILES)
 endif
 
-smallclib:
-	$(MAKE) -C smallclib smallclib.a
+libkern:
+	$(MAKE) -C libkern libkern.a
 
 astyle:
 	astyle --options=astyle.options --recursive "*.h" "*.c" \
@@ -37,8 +37,8 @@ astyle:
 	       --exclude=include/tree.h --exclude=vm_phys.c
 
 clean:
-	$(MAKE) -C smallclib clean
+	$(MAKE) -C libkern clean
 	$(RM) -f .*.D *.ko *.o *.a *.lst *~ *.elf *.map *.log
 	$(RM) -f $(TESTS)
 
-.PHONY: smallclib astyle
+.PHONY: libkern astyle
