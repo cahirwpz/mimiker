@@ -17,9 +17,8 @@ void pm_init();
  */
 void pm_add_segment(pm_addr_t start, pm_addr_t end, vm_addr_t vm_offset);
 
-/* Allocates page from subsystem. Number of bytes of page is given by
- * (1 << order) * PAGESIZE. Maximal order is 16.  */
-vm_page_t *pm_alloc(size_t order);
+/* Allocates contiguous big page that consists of n machine pages. */
+vm_page_t *pm_alloc(size_t n);
 
 void pm_free(vm_page_t *page);
 void pm_dump();

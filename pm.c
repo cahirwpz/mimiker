@@ -223,7 +223,9 @@ static vm_page_t *pm_alloc_from_seg(pm_seg_t *seg, size_t order) {
   return page;
 }
 
-vm_page_t *pm_alloc(size_t order) {
+vm_page_t *pm_alloc(size_t npages) {
+  assert((npages > 0) && powerof2(npages));
+  size_t order = __builtin_ctz(npages);
   pm_seg_t *seg_it;
   vm_page_t *page = NULL;
   TAILQ_FOREACH(seg_it, &seglist, segq) {
