@@ -7,6 +7,9 @@
 #include <stdalign.h>     /* alignof, alignas */
 #include <stdnoreturn.h>  /* noreturn */
 
+typedef uintptr_t vm_addr_t;
+typedef uintptr_t pm_addr_t;
+
 /* Macros for counting and rounding. */
 #ifndef howmany
 #define howmany(x, y)   (((x) + ((y) - 1)) / (y))

@@ -2,6 +2,7 @@
 #include <malta.h>
 #include <gt64120.h>
 #include <libkern.h>
+#include <malloc.h>
 #include <pci.h>
 
 #define PCI0_CFG_ADDR_R GT_R(GT_PCI0_CFG_ADDR)
@@ -20,8 +21,8 @@
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 
-static const pci_device_id *pci_find_device(
-    const pci_vendor_id *vendor, uint16_t device_id)
+static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
+                                            uint16_t device_id)
 {
   if (vendor) {
     const pci_device_id *device = vendor->devices;
@@ -44,7 +45,13 @@ static const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
   return NULL;
 }
 
-void dump_pci0() {
+static pci_device_t *pci_devices = NULL;
+static size_t pci_devices_num = 0;
+
+void pci_init() {
+  assert(pci_devices_num == 0);
+
+  /* Enumerate devices. */
   for (int j = 0; j < 32; j++) {
     for (int k = 0; k < 8; k++) {
       PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | PCI0_CFG_REG(j, k, 0);
@@ -52,60 +59,100 @@ void dump_pci0() {
       if (PCI0_CFG_DATA_R == -1)
         continue;
 
-      uint16_t device_id = PCI0_CFG_DATA_R >> 16;
-      uint16_t vendor_id = PCI0_CFG_DATA_R;
+      pci_device_t *pcidev = kernel_sbrk(sizeof(pci_device_t));
+
+      if (!pci_devices)
+        pci_devices = pcidev;
+
+      pcidev->addr.bus = 0;
+      pcidev->addr.device = j;
+      pcidev->addr.function = k;
+      pcidev->device_id = PCI0_CFG_DATA_R >> 16;
+      pcidev->vendor_id = PCI0_CFG_DATA_R;
 
       PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | PCI0_CFG_REG(j, k, 2);
-
-      uint8_t class = (PCI0_CFG_DATA_R & 0xff000000) >> 24;
-
-      kprintf("[pci:0:%02x.%02x] %s:", j, k, pci_class_code[class]);
-
-      const pci_vendor_id *vendor = pci_find_vendor(vendor_id);
-      const pci_device_id *device = pci_find_device(vendor, device_id);
-
-      if (vendor)
-        kprintf(" %s", vendor->name);
-      else
-        kprintf(" vendor:$%04x", vendor_id);
-
-      if (device)
-        kprintf(" %s\n", device->name);
-      else
-        kprintf(" device:$%04x\n", device_id);
+      pcidev->class_code = (PCI0_CFG_DATA_R & 0xff000000) >> 24;
 
       PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | PCI0_CFG_REG(j, k, 15);
+      pcidev->pin = PCI0_CFG_DATA_R >> 8;
+      pcidev->irq = PCI0_CFG_DATA_R;
 
-      uint8_t pin = PCI0_CFG_DATA_R >> 8;
-      uint8_t irq = PCI0_CFG_DATA_R;
+      pci_devices_num++;
+    }
+  }
 
-      if (pin)
-        kprintf("[pci:0:%02x.%02x] Interrupt: pin %c routed to IRQ %d\n",
-            j, k, 'A' + pin - 1, irq);
+  /* Read Base Address Registers. */
+  for (int j = 0; j < pci_devices_num; j++) {
+    pci_device_t *pcidev = &pci_devices[j];
 
-      for (int i = 0; i < 6; i++) {
-        PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | PCI0_CFG_REG(j, k, 4 + i);
-        uint32_t bar = PCI0_CFG_DATA_R;
-        PCI0_CFG_DATA_R = -1;
-        uint32_t size = PCI0_CFG_DATA_R;
-        if (size == 0 || bar == size)
-          continue;
-        char *type;
-        if (bar & 1) {
-          bar &= ~3;
-          size &= ~3;
-          type = "I/O ports";
-        } else {
-          if (bar & 8)
-            type = "Memory (prefetchable)";
-          else
-            type = "Memory (non-prefetchable)";
-          bar &= ~15;
-          size &= ~15;
-        }
-        kprintf("[pci:0:%02x.%02x] Region %d: %s at $%08x [size=$%x]\n",
-            j, k, i, type, bar, -size);
+    for (int i = 0; i < 6; i++) {
+      PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE |
+        PCI0_CFG_REG(pcidev->addr.device, pcidev->addr.function, 4 + i);
+      uint32_t addr = PCI0_CFG_DATA_R;
+      PCI0_CFG_DATA_R = -1;
+      uint32_t size = PCI0_CFG_DATA_R;
+      if (size == 0 || addr == size)
+        continue;
+      pcidev->nbars++;
+      pci_bar_t *bar = kernel_sbrk(sizeof(pci_bar_t));
+      if (!pcidev->bar)
+        pcidev->bar = bar;
+      bar->addr = addr;
+      bar->size = size;
+    }
+  }
+
+  /* Dump PCI configuration. */
+  for (int j = 0; j < pci_devices_num; j++) {
+    pci_device_t *pcidev = &pci_devices[j];
+    char devstr[16];
+
+    snprintf(devstr, sizeof(devstr), "[pci:%02x:%02x.%02x]",
+             pcidev->addr.bus,
+             pcidev->addr.device,
+             pcidev->addr.function);
+
+    const pci_vendor_id *vendor =
+      pci_find_vendor(pcidev->vendor_id);
+    const pci_device_id *device =
+      pci_find_device(vendor, pcidev->device_id);
+
+    kprintf("%s %s", devstr, pci_class_code[pcidev->class_code]);
+
+    if (vendor)
+      kprintf(" %s", vendor->name);
+    else
+      kprintf(" vendor:$%04x", pcidev->vendor_id);
+
+    if (device)
+      kprintf(" %s\n", device->name);
+    else
+      kprintf(" device:$%04x\n", pcidev->device_id);
+
+    if (pcidev->pin)
+      kprintf("%s Interrupt: pin %c routed to IRQ %d\n",
+              devstr, 'A' + pcidev->pin - 1, pcidev->irq);
+
+    for (int i = 0; i < pcidev->nbars; i++) {
+      pci_bar_t *bar = &pcidev->bar[i];
+      pm_addr_t addr = bar->addr;
+      size_t size = bar->size;
+      char *type;
+
+      if (addr & PCI_BAR_IO) {
+        addr &= ~PCI_BAR_IO_MASK;
+        size &= ~PCI_BAR_IO_MASK;
+        type = "I/O ports";
+      } else {
+        if (addr & PCI_BAR_PREFETCHABLE)
+          type = "Memory (prefetchable)";
+        else
+          type = "Memory (non-prefetchable)";
+        addr &= ~PCI_BAR_MEMORY_MASK;
+        size &= ~PCI_BAR_MEMORY_MASK;
       }
+      kprintf("%s Region %d: %s at %p [size=$%x]\n",
+              devstr, i, type, (void *)addr, (unsigned)-size);
     }
   }
 }

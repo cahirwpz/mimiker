@@ -16,9 +16,6 @@
 #define PG_VADDR_START(pg) ((pg)->virt_addr)
 #define PG_VADDR_END(pg) ((pg)->virt_addr+ (1 << (pg->order)) * PAGESIZE)
 
-typedef uintptr_t vm_addr_t;
-typedef uintptr_t pm_addr_t;
-
 typedef struct vm_page {
   union {
     struct {
