@@ -28,6 +28,7 @@ LIB_SOURCES += string/bzero.c
 LIB_SOURCES += string/memcpy.c
 LIB_SOURCES += string/strlen.c
 LIB_SOURCES += string/strspn.c
+LIB_SOURCES += stdlib/qsort.c
 
 # LIB_SOURCES += stdlib/wctomb.c
 # NOTE: wctomb IS needed by __format_parser, but it requires the whole
