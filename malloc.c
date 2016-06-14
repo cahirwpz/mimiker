@@ -14,9 +14,23 @@ static struct {
   bool shutdown;
 } sbrk = { __ebss, __ebss + 512 * PAGESIZE, MTX_INITIALIZER, false };
 
+void kernel_brk(void *addr) {
+  if (sbrk.shutdown)
+    panic("Trying to use kernel_brk after it's been shutdown!");
+  mtx_lock(sbrk.lock);
+  void *ptr = sbrk.ptr;
+  addr = (void *)((intptr_t)addr & -sizeof(uint64_t));
+  assert((intptr_t)__ebss <= (intptr_t)addr);
+  assert((intptr_t)addr <= (intptr_t)sbrk.end);
+  sbrk.ptr = addr;
+  mtx_unlock(sbrk.lock);
+  if (addr > ptr)
+    bzero(ptr, (intptr_t)addr - (intptr_t)ptr);
+}
+
 void *kernel_sbrk(size_t size) {
-  if(sbrk.shutdown == true)
-    panic("Trying to use kernel_sbrk after it's shutdown ");
+  if (sbrk.shutdown)
+    panic("Trying to use kernel_sbrk after it's been shutdown!");
   mtx_lock(sbrk.lock);
   void *ptr = sbrk.ptr;
   size = roundup(size, sizeof(uint64_t));
