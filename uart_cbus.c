@@ -29,7 +29,7 @@ void uart_init() {
   LCR = LCR_8BITS; /* 8-bit data, no parity */
 }
 
-int uart_putc(int c) {
+int uart_putchar(int c) {
   /* Wait for transmitter hold register empty. */
   while (! (LSR & LSR_THRE));
 
@@ -47,22 +47,27 @@ again:
   return c;
 }
 
+int kputchar(int c) __attribute__ ((weak, alias ("uart_putchar")));
+
 int uart_puts(const char *str) {
   int n = 0;
   while (*str) {
-    uart_putc(*str++);
+    uart_putchar(*str++);
     n++;
   }
-  uart_putc('\n');
+  uart_putchar('\n');
   return n + 1;
 }
 
+int kputs(const char *str) __attribute__ ((weak, alias ("uart_puts")));
+
 int uart_write(const char *str, size_t n) {
-  while (n--) uart_putc(*str++);
+  while (n--) 
+    uart_putchar(*str++);
   return n;
 }
 
-unsigned char uart_getch() {
+int uart_getchar() {
   /* Wait until receive data available. */
   while (! (LSR & LSR_RXRDY));
 

@@ -29,7 +29,11 @@ int kprintf(const char *fmt, ...)
   __attribute__((format (printf, 1, 2)));
 
 /* Write a character string and a trailing newline to UART.
- * Equivalent to standard putss */
+ * Equivalent to standard puts */
 int kputs (const char *s);
+
+/* Write a character to UART.
+ * Equivalent to standard putchar */
+int kputchar (int c);
 
 #endif // __LIBKERN_H__

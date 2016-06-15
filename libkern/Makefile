@@ -37,7 +37,6 @@ LIB_SOURCES += stdlib/qsort.c
 
 # Extra utilities
 EXTRA_SOURCES += wctomb.c
-EXTRA_SOURCES += kputs.c
 EXTRA_SOURCES += kprintf.c
 EXTRA_SOURCES += snprintf.c
 

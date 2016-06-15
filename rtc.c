@@ -29,7 +29,6 @@ void rtc_read(rtc_time_t *t) {
 #ifdef _KERNELSPACE
 #include <libkern.h>
 #include <clock.h>
-#include <uart_cbus.h>
 
 /*
  * Delays for at least the given number of milliseconds. May not be
@@ -48,7 +47,7 @@ int main() {
     mdelay(1000);
 
     for (; size > 0; size--)
-      uart_putc('\b');
+      kputchar('\b');
 
     rtc_time_t rtc;
     rtc_read(&rtc);
