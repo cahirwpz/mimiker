@@ -272,3 +272,58 @@ void pm_free(vm_page_t *page) {
   pm_dump();
   panic("page out of range: %p", (void *)page->phys_addr);
 }
+
+#ifdef _KERNELSPACE
+
+/* This function hashes state of allocator. Only used to compare states
+ * for testing. We cannot use string for exact comparision, because
+ * this would require us to allocate some memory, which we can't do
+ * at this moment. However at the moment we need to compare states only,
+ * so this solution seems best. */
+unsigned long pm_hash()
+{
+  unsigned long hash = 5381;
+  pm_seg_t *seg_it;
+  vm_page_t *pg_it;
+
+  TAILQ_FOREACH(seg_it, &seglist, segq) {
+    for (int i = 0; i < VM_NFREEORDER; i++) {
+      if (!TAILQ_EMPTY(PG_FREEQ(seg_it, i))) {
+        TAILQ_FOREACH(pg_it, PG_FREEQ(seg_it, i), freeq)
+          hash = hash*33 + PG_START(pg_it);
+      }
+    }
+  }
+  return hash;
+}
+
+int main()
+{
+  unsigned long pre = pm_hash();
+  pm_dump();
+  /* Write - read test */
+  vm_page_t *pg =  pm_alloc(16);
+  int size = PAGESIZE*16;
+  char *arr = (char*)pg->virt_addr;
+  for(int i = 0; i < size; i++)
+    arr[i] = 42; /* Write non-zero value */
+  for(int i = 0; i < size; i++)
+    assert(arr[i] == 42);
+
+  /* Allocate deallocate test */
+  const int N = 7;
+  vm_page_t *pgs[N];
+  for(int i = 0; i < N; i++)
+    pgs[i] = pm_alloc(1 << i);
+  for(int i = 0; i < N; i += 2)
+    pm_free(pgs[i]);
+  for(int i = 1; i < N; i += 2)
+    pm_free(pgs[i]);
+  assert(pre != pm_hash());
+  pm_free(pg);
+  assert(pre == pm_hash());
+  pm_dump();
+}
+
+#endif
+
