@@ -29,15 +29,20 @@ if __name__ == "__main__":
                         help='Kernel file in ELF format.')
     parser.add_argument('-d', '--debug', action='store_true',
                         help='Start simulation under gdb.')
+    parser.add_argument('--cgdb', action = 'store_true',
+                        help="Use cgdb instead.")
 
     args = parser.parse_args()
 
+    gdb_command = [TRIPLET + 'gdb', args.kernel]
     opts = ['--kernel', args.kernel]
     opts += OVPSIM_OPTIONS
     for item in OVPSIM_OVERRIDES.items():
         opts += ['--override', '%s=%s' % item]
     if args.debug:
         opts += ['--port', '1234']
+    if args.cgdb:
+        gdb_command = ['cgdb', '-d', TRIPLET + 'gdb', args.kernel]
 
     try:
         os.remove('uartCBUS.log')
@@ -49,7 +54,7 @@ if __name__ == "__main__":
     if args.debug:
         sim = subprocess.Popen([OVPSIM] + opts,
                                start_new_session=True)
-        gdb = subprocess.Popen([TRIPLET + 'gdb', args.kernel],
+        gdb = subprocess.Popen(gdb_command,
                                start_new_session=True)
         while True:
             try:
