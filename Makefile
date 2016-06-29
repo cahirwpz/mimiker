@@ -42,6 +42,16 @@ astyle:
 	       --exclude=include/hash.h --exclude=include/queue.h \
 	       --exclude=include/tree.h --exclude=vm_phys.c
 
+test:
+	for file in $(wildcard *.test); do		\
+	  echo -n "Running $${file}... ";		\
+	  if ./$${file}; then				\
+	    echo "\033[32;1mPASSED\033[0m";		\
+	  else						\
+	    echo "\033[31;1mFAILED\033[0m";		\
+	  fi						\
+	done
+
 clean:
 	$(MAKE) -C libkern clean
 	$(RM) -f .*.D *.ko *.o *.a *.lst *~ *.elf *.map *.log
