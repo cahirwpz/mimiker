@@ -22,6 +22,7 @@ vm_page_t *pm_alloc(size_t n);
 
 void pm_free(vm_page_t *page);
 void pm_dump();
+vm_page_t *pm_split_alloc_page(vm_page_t *pg);
 
 /* After using this function pages in range (start, end) are never going to be
  * allocated. Should be used at start to avoid allocating from text, data,

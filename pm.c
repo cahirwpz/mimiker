@@ -273,6 +273,16 @@ void pm_free(vm_page_t *page) {
   panic("page out of range: %p", (void *)page->phys_addr);
 }
 
+vm_page_t *pm_split_alloc_page(vm_page_t *pg)
+{
+    assert(pg->order > 0);
+    pg->order--;
+    vm_page_t *res;
+    res = pg + (1 << pg->order);
+    res->order = pg->order;
+    return res;
+}
+
 #ifdef _KERNELSPACE
 
 /* This function hashes state of allocator. Only used to compare states
@@ -300,7 +310,7 @@ unsigned long pm_hash()
 int main()
 {
   unsigned long pre = pm_hash();
-  pm_dump();
+
   /* Write - read test */
   vm_page_t *pg =  pm_alloc(16);
   int size = PAGESIZE*16;
@@ -319,11 +329,28 @@ int main()
     pm_free(pgs[i]);
   for(int i = 1; i < N; i += 2)
     pm_free(pgs[i]);
+
   assert(pre != pm_hash());
   pm_free(pg);
   assert(pre == pm_hash());
-  pm_dump();
+
+  pre = pm_hash();
+  vm_page_t *pg1 = pm_alloc(4);
+  vm_page_t *pg3 = pm_split_alloc_page(pg1);
+  vm_page_t *pg2 = pm_split_alloc_page(pg1);
+  vm_page_t *pg4 = pm_split_alloc_page(pg3);
+
+  pm_free(pg3);
+  assert(pre != pm_hash());
+  pm_free(pg4);
+  assert(pre != pm_hash());
+  pm_free(pg2);
+  assert(pre != pm_hash());
+  pm_free(pg1);
+  assert(pre == pm_hash());
+  kprintf("Tests passed\n");
 }
+
 
 #endif
 
