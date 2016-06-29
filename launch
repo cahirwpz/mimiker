@@ -5,10 +5,12 @@ import os
 import os.path
 import signal
 import subprocess
+from pexpect import popen_spawn
 
 OVPSIM_VENDOR = 'mips.ovpworld.org'
 OVPSIM_PLATFORM = 'MipsMalta/1.0'
 TRIPLET = 'mips-mti-elf-'
+PORT = 8000
 
 OVPSIM = os.path.join(os.environ['IMPERAS_HOME'],
                       'lib/Linux32/ImperasLib', OVPSIM_VENDOR,
@@ -19,8 +21,11 @@ OVPSIM_OVERRIDES = {
     "mipsle1/vectoredinterrupt": 1,
     "mipsle1/srsctlHSS": 1,
     "rtc/timefromhost": 1,
-    "uartCBUS/console": 1
+    "uartCBUS/console": 1,
+    "uartCBUS/portnum": PORT
 }
+
+GDB = ['cgdb', '-d', TRIPLET + 'gdb']
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -28,21 +33,24 @@ if __name__ == "__main__":
     parser.add_argument('kernel', metavar='KERNEL', type=str,
                         help='Kernel file in ELF format.')
     parser.add_argument('-d', '--debug', action='store_true',
-                        help='Start simulation under gdb.')
-    parser.add_argument('--cgdb', action = 'store_true',
-                        help="Use cgdb instead.")
+                        help='Start simulation under gdb using cgdb.')
+    parser.add_argument('-t', '--test', action='store_true',
+                        help='Use current stdin & stdout for simulated UART.')
 
     args = parser.parse_args()
 
-    gdb_command = [TRIPLET + 'gdb', args.kernel]
+    if args.test:
+        OVPSIM_OVERRIDES["uartCBUS/console"] = 0
+
+    if not os.path.isfile(args.kernel):
+        raise SystemExit("%s: file does not exist!" % args.kernel)
+
     opts = ['--kernel', args.kernel]
     opts += OVPSIM_OPTIONS
     for item in OVPSIM_OVERRIDES.items():
         opts += ['--override', '%s=%s' % item]
     if args.debug:
         opts += ['--port', '1234']
-    if args.cgdb:
-        gdb_command = ['cgdb', '-d', TRIPLET + 'gdb', args.kernel]
 
     try:
         os.remove('uartCBUS.log')
@@ -54,7 +62,7 @@ if __name__ == "__main__":
     if args.debug:
         sim = subprocess.Popen([OVPSIM] + opts,
                                start_new_session=True)
-        gdb = subprocess.Popen(gdb_command,
+        gdb = subprocess.Popen(GDB + [args.kernel],
                                start_new_session=True)
         while True:
             try:
@@ -63,6 +71,16 @@ if __name__ == "__main__":
                 break
             except KeyboardInterrupt:
                 gdb.send_signal(signal.SIGINT)
+    elif args.test:
+        sim = popen_spawn.PopenSpawn([OVPSIM] + opts)
+        sim.expect("Waiting for connection on port %d" % PORT, timeout=5)
+        nc = subprocess.Popen(['nc', 'localhost', str(PORT)])
+        while True:
+            try:
+                sim.wait()
+                break
+            except KeyboardInterrupt:
+                sim.kill(signal.SIGINT)
     else:
         sim = subprocess.Popen([OVPSIM] + opts)
         try:
