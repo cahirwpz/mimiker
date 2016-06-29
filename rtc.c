@@ -41,18 +41,13 @@ void mdelay (unsigned msec) {
 }
 
 int main() {
-  int size = 0;
-
   while (1) {
-    mdelay(1000);
-
-    for (; size > 0; size--)
-      kputchar('\b');
-
     rtc_time_t rtc;
     rtc_read(&rtc);
 
-    size = kprintf("Time is %02d:%02d:%02d", rtc.hour, rtc.min, rtc.sec);
+    kprintf("Time is %02d:%02d:%02d\n", rtc.hour, rtc.min, rtc.sec);
+
+    mdelay(1000);
   }
 
   return 0;
