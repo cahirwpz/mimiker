@@ -13,7 +13,7 @@ SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
 DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
 
-all: $(DEPFILES) libkern $(TESTS)
+all: $(DEPFILES) tags cscope.out libkern $(TESTS)
 
 callout.elf: callout.ko kernel.a
 context.elf: context.ko kernel.a
@@ -30,6 +30,12 @@ endif
 libkern:
 	$(MAKE) -C libkern libkern.a
 
+cscope.out:
+	cscope -bv include/*.h ./*.[cS] 
+
+tags:
+	find -iname '*.h' | ctags -L- --c-kinds=+p
+
 astyle:
 	astyle --options=astyle.options --recursive "*.h" "*.c" \
 	       --exclude=include/bitset.h --exclude=include/_bitset.h \
@@ -39,6 +45,7 @@ astyle:
 clean:
 	$(MAKE) -C libkern clean
 	$(RM) -f .*.D *.ko *.o *.a *.lst *~ *.elf *.map *.log
+	$(RM) -f tags cscope.out
 	$(RM) -f $(TESTS)
 
 .PHONY: libkern astyle
