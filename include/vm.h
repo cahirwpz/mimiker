@@ -29,6 +29,7 @@ typedef struct vm_page {
   vm_addr_t vm_offset; /* offset to page in vm_object */
   vm_addr_t virt_addr; /* vm address in kseg0 */
   uint8_t vm_flags; /* state of page (valid or dirty) */
+  uint8_t pm_flags; /* flags used by pm system */
   TAILQ_ENTRY(vm_page) freeq; /* entry in free queue */
   pm_addr_t phys_addr; /* physical address of page */
   size_t order; /* order of page */
