@@ -9,6 +9,10 @@
 
 #define VM_NFREEORDER 16
 
+#define RESERVED 1
+#define FREE 2
+
+
 TAILQ_HEAD(pg_freeq, vm_page);
 
 typedef struct pm_seg {
@@ -72,7 +76,8 @@ void pm_add_segment(pm_addr_t start, pm_addr_t end, vm_addr_t vm_offset) {
     page->phys_addr = seg->start + PAGESIZE * i;
     page->virt_addr = seg->start + PAGESIZE * i + vm_offset;
     page->order = 0;
-    page->flags = 0;
+    page->pm_flags = 0;
+    page->vm_flags = 0;
   }
 
   for (int i = 0; i < VM_NFREEORDER; i++)
@@ -84,7 +89,7 @@ void pm_add_segment(pm_addr_t start, pm_addr_t end, vm_addr_t vm_offset) {
   for (int ord = VM_NFREEORDER - 1; ord >= 0; ord--) {
     while (POW2(ord) <= seg_size) {
       vm_page_t *page = &seg->page_array[last_page];
-      page->flags |= VM_FREE;
+      page->pm_flags |= FREE;
       page->order = ord;
       TAILQ_INSERT_HEAD(PG_FREEQ(seg, page->order), page, freeq);
       seg_size -= POW2(ord);
@@ -148,7 +153,7 @@ static void pm_split_page(pm_seg_t *seg, vm_page_t *page) {
 
   TAILQ_INSERT_HEAD(PG_FREEQ(seg, page->order), page, freeq);
   TAILQ_INSERT_HEAD(PG_FREEQ(seg, buddy->order), buddy, freeq);
-  buddy->flags |= VM_FREE;
+  buddy->pm_flags |= FREE;
 }
 
 /* TODO this can be sped up by removing elements from list on-line. */
@@ -164,7 +169,7 @@ static void pm_reserve_from_seg(pm_seg_t *seg, pm_addr_t start, pm_addr_t end)
          * queue */
         pg_ptr = pg_it;
         while (pg_ptr < pg_it + POW2(pg_it->order)) {
-          pg_ptr->flags |= VM_RESERVED;
+          pg_ptr->pm_flags |= RESERVED;
           pg_ptr++;
         }
         TAILQ_REMOVE(PG_FREEQ(seg, pg_it->order), pg_it, freeq);
@@ -220,7 +225,7 @@ static vm_page_t *pm_alloc_from_seg(pm_seg_t *seg, size_t order) {
   page = TAILQ_FIRST(PG_FREEQ(seg, order));
   TAILQ_REMOVE(PG_FREEQ(seg, page->order), page, freeq);
 
-  page->flags &= ~VM_FREE;
+  page->pm_flags &= ~FREE;
   return page;
 }
 
@@ -238,13 +243,13 @@ vm_page_t *pm_alloc(size_t npages) {
 }
 
 static void pm_free_from_seg(pm_seg_t *seg, vm_page_t *page) {
-  if (page->flags & VM_RESERVED)
+  if (page->pm_flags & RESERVED)
     panic("trying to free reserved page: %p", (void *)page->phys_addr);
 
-  if (page->flags & VM_FREE)
+  if (page->pm_flags & FREE)
     panic("page is already free: %p", (void *)page->phys_addr);
 
-  page->flags |= VM_FREE;
+  page->pm_flags |= FREE;
   TAILQ_INSERT_HEAD(PG_FREEQ(seg, page->order), page, freeq);
 
   vm_page_t *buddy = pm_find_buddy(seg, page);
@@ -254,7 +259,7 @@ static void pm_free_from_seg(pm_seg_t *seg, vm_page_t *page) {
     page = pm_merge_buddies(page, buddy);
 
     TAILQ_INSERT_HEAD(PG_FREEQ(seg, page->order), page, freeq);
-    page->flags |= VM_FREE;
+    page->pm_flags |= FREE;
     buddy = pm_find_buddy(seg, page);
   }
 }

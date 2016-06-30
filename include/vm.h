@@ -7,14 +7,14 @@
 
 #define PAGESIZE 4096
 
-#define VM_RESERVED 1
-#define VM_FREE 2
-
 #define PG_SIZE(x) (PAGESIZE << (x)->order)
 #define PG_START(pg) ((pg)->phys_addr)
 #define PG_END(pg) ((pg)->phys_addr + (1 << (pg->order)) * PAGESIZE)
 #define PG_VADDR_START(pg) ((pg)->virt_addr)
 #define PG_VADDR_END(pg) ((pg)->virt_addr+ (1 << (pg->order)) * PAGESIZE)
+
+#define PG_VALID 0x1
+#define PG_DIRTY 0x2
 
 typedef struct vm_page {
   union {
@@ -26,17 +26,12 @@ typedef struct vm_page {
       TAILQ_ENTRY(vm_page) list;
     } pt;
   };
-
   vm_addr_t vm_offset; /* offset to page in vm_object */
-
-  /* Vm address in kseg0 */
-  vm_addr_t virt_addr;
-
-  /* Following fields are to be used by vm_phys subsystem */
-  TAILQ_ENTRY(vm_page) freeq;
-  pm_addr_t phys_addr;
-  size_t order;
-  uint32_t flags;
+  vm_addr_t virt_addr; /* vm address in kseg0 */
+  uint8_t vm_flags; /* state of page (valid or dirty) */
+  TAILQ_ENTRY(vm_page) freeq; /* entry in free queue */
+  pm_addr_t phys_addr; /* physical address of page */
+  size_t order; /* order of page */
 } vm_page_t;
 
 #endif /* _VIRT_MEM_H_ */
