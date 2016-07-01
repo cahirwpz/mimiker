@@ -3,6 +3,11 @@
 
 #include "common.h"
 
+typedef struct stack {
+  uint8_t *stk_base; /* stack base */
+  size_t stk_size;   /* stack length */
+} stack_t;
+
 /*
  * Since context-saving procedures work as function calls, several registers do
  * not require saving because they are not saved by called functions anyway.
@@ -47,7 +52,7 @@ void noreturn ctx_load(const ctx_t *ctx);
  * WARNING: The target procedure MUST NOT RETURN. The result of such
  * event is undefined, but will generally restart the target function.
  */
-void ctx_init(ctx_t *ctx, void (*target)(), void *stack, void *gp);
+void ctx_init(ctx_t *ctx, void (*target)(), stack_t *stk);
 
 /* This function stores the current context to @from, and resumes the
  * context stored in @to. It does not return immediatelly, it returns
