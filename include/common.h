@@ -18,6 +18,7 @@ typedef uintptr_t pm_addr_t;
 #define rounddown(x, y) (((x) / (y)) * (y))
 #define roundup(x, y)   ((((x) + ((y) - 1)) / (y)) * (y))
 #define powerof2(x)     ((((x) - 1) & (x)) == 0)
+#define log2(x)         (__builtin_ffs(x) - 1)
 
 #ifndef __STRING
 #define __STRING(x)     #x
@@ -36,6 +37,11 @@ typedef uintptr_t pm_addr_t;
     typeof (a) _a = (a);    \
     typeof (b) _b = (b);    \
     _a > _b ? _a : _b; })
+
+#define swap(a,b) ({        \
+    typeof (a) _a = (a);    \
+    typeof (a) _b = (b);    \
+    (a) = _b; (b) = _a; })
 
 /* Aligns the address to given size (must be power of 2) */
 #define align(addr, size) ({                \

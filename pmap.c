@@ -12,7 +12,7 @@ static pmap_t *active_pmap = NULL;
 void pmap_init(pmap_t *pmap) {
   pmap->pte = (pte_t *)PTE_BASE;
   pmap->pde_page = pm_alloc(1);
-  pmap->pde = (pte_t *)pmap->pde_page->virt_addr;
+  pmap->pde = (pte_t *)pmap->pde_page->vaddr;
   TAILQ_INIT(&pmap->pte_pages);
 }
 
@@ -32,7 +32,7 @@ static void pde_map(pmap_t *pmap, vaddr_t vaddr) {
     vm_page_t *pg = pm_alloc(1);
     TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pt.list);
 
-    ENTRYLO_SET_PADDR(pmap->pde[pde_index], pg->phys_addr);
+    ENTRYLO_SET_PADDR(pmap->pde[pde_index], pg->paddr);
     ENTRYLO_SET_V(pmap->pde[pde_index], 1);
     ENTRYLO_SET_D(pmap->pde[pde_index], 1);
   }
@@ -89,25 +89,23 @@ int main() { /* Simple test */
   vm_page_t *pg1 = pm_alloc(4);
 
   vaddr_t ex_addr = PAGESIZE * 10;
-  pmap_map(&pmap, ex_addr, pg1->phys_addr, 1 << pg1->order,
-           PMAP_VALID | PMAP_DIRTY);
+  pmap_map(&pmap, ex_addr, pg1->paddr, pg1->size, PMAP_VALID | PMAP_DIRTY);
 
   int *x = (int *) ex_addr;
-  for (int i = 0; i < 1024 * (1 << pg1->order); i++)
+  for (int i = 0; i < 1024 * pg1->size; i++)
     *(x + i) = i;
-  for (int i = 0; i < 1024 * (1 << pg1->order); i++)
+  for (int i = 0; i < 1024 * pg1->size; i++)
     assert(*(x + i) == i);
 
   vm_page_t *pg2 = pm_alloc(1);
 
   ex_addr = PAGESIZE * 2000;
-  pmap_map(&pmap, ex_addr, pg2->phys_addr, 1 << pg2->order,
-           PMAP_VALID | PMAP_DIRTY);
+  pmap_map(&pmap, ex_addr, pg2->paddr, pg2->size, PMAP_VALID | PMAP_DIRTY);
 
   x = (int *) ex_addr;
-  for (int i = 0; i < 1024 * (1 << pg2->order); i++)
+  for (int i = 0; i < 1024 * pg2->size; i++)
     *(x + i) = i;
-  for (int i = 0; i < 1024 * (1 << pg2->order); i++)
+  for (int i = 0; i < 1024 * pg2->size; i++)
     assert(*(x + i) == i);
 
   pm_free(pg1);

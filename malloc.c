@@ -222,7 +222,7 @@ int main() {
   MALLOC_DEFINE(mp, "testing memory pool");
 
   kmalloc_init(mp);
-  kmalloc_add_arena(mp, page->virt_addr, PAGESIZE);
+  kmalloc_add_arena(mp, page->vaddr, PAGESIZE);
 
   void *ptr1 = kmalloc(mp, 15, 0);
   assert(ptr1 != NULL);

@@ -51,8 +51,8 @@ int main() {
   vm_page_t *pg1 = pm_alloc(1);
   vm_page_t *pg2 = pm_alloc(1);
 
-  stack_t stk1 = { (void *)pg1->virt_addr, PAGESIZE };
-  stack_t stk2 = { (void *)pg2->virt_addr, PAGESIZE };
+  stack_t stk1 = { (void *)pg1->vaddr, PAGESIZE };
+  stack_t stk2 = { (void *)pg2->vaddr, PAGESIZE };
 
   // Prepare alternative contexts
   ctx_init(&ctx1, demo_context_1, &stk1);

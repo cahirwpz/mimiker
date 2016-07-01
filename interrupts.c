@@ -109,9 +109,9 @@ void tlb_exception_handler()
   int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
   unsigned vaddr = mips32_get_c0(C0_BADVADDR);
 
-  kprintf("[tlb] %s at $%08x!\n",
-          exceptions[code], (unsigned)mips32_get_c0(C0_ERRPC));
-  kprintf("[tlb] Caused by reference to $%08x!\n", vaddr);
+  kprintf("[tlb] %s at 0x%08x!\n",
+          exceptions[code], (unsigned)mips32_get_c0(C0_EPC));
+  kprintf("[tlb] Caused by reference to 0x%08x!\n", vaddr);
 
   assert(PTE_BASE <= vaddr && vaddr < PTE_BASE+PTE_SIZE);
   /* If the fault was in virtual pt range it means it's time to refill */
