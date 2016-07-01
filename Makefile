@@ -13,12 +13,13 @@ SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
 DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
 
-all: $(DEPFILES) tags cscope.out libkern $(TESTS)
+all: $(DEPFILES) ctags cscope libkern $(TESTS)
 
 callout.elf: callout.ko kernel.a
 context.elf: context.ko kernel.a
 malloc.elf: malloc.ko kernel.a
 rtc.elf: rtc.ko kernel.a
+pm.elf: pm.ko kernel.a
 kernel.a: $(OBJECTS)
 
 $(foreach file,$(SOURCES) null,$(eval $(call emit_dep_rule,$(file))))
@@ -30,11 +31,16 @@ endif
 libkern:
 	$(MAKE) -C libkern libkern.a
 
-cscope.out:
-	cscope -bv include/*.h ./*.[cS] 
+cscope:
+	cscope -b include/*.h ./*.[cS] 
 
-tags:
-	find -iname '*.h' | ctags -L- --c-kinds=+p
+ctags:
+	find -iname '*.[ch]' | ctags --language-force=c -L-
+	find -iname '*.S' | ctags -a --language-force=asm -L-
+	find $(SYSROOT)/mips-mti-elf/include -type f -iname 'mips*' \
+		| ctags -a --language-force=c -L-
+	find $(SYSROOT)/lib/gcc/mips-mti-elf/*/include -type f -iname '*.h' \
+		| ctags -a --language-force=c -L-
 
 astyle:
 	astyle --options=astyle.options --recursive "*.h" "*.c" \
@@ -58,4 +64,4 @@ clean:
 	$(RM) -f tags cscope.out
 	$(RM) -f $(TESTS)
 
-.PHONY: libkern astyle
+.PHONY: ctags cscope libkern astyle

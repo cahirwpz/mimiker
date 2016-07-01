@@ -9,6 +9,7 @@ OBJCOPY  = $(P)objcopy
 OBJDUMP  = $(P)objdump
 
 HOSTCC	 = gcc -g
+SYSROOT  = $(realpath $(dir $(shell which $(P)gcc))/..)
 
 ASFLAGS  =
 CFLAGS   = -std=gnu11 -Og -Wall -Werror -fno-builtin
