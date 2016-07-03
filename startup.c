@@ -174,6 +174,7 @@ int kernel_boot(int argc, char **argv, char **envp) {
   pci_init();
   pm_init();
   intr_init();
+  tlb_init();
   clock_init();
   callout_init();
   rtc_init();
