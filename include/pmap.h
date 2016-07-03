@@ -29,7 +29,7 @@ typedef struct pmap {
 
 void pmap_init(pmap_t *pmap);
 void pmap_map(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr, size_t npages,
-              uint32_t flags);
+              uint8_t flags);
 void pmap_unmap(pmap_t *pmap, vm_addr_t vaddr, size_t npages);
 void set_active_pmap(pmap_t *pmap);
 pmap_t *get_active_pmap();
