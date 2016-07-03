@@ -13,8 +13,8 @@
 #define PG_VADDR_START(pg) ((pg)->vaddr)
 #define PG_VADDR_END(pg) ((pg)->vaddr + PG_SIZE(pg))
 
-#define PG_VALID 0x1
-#define PG_DIRTY 0x2
+#define PG_VALID 0x2 /* Same as TLB valid mask */
+#define PG_DIRTY 0x4 /* Same as TLB dirty mask */
 
 typedef struct vm_page {
   union {
@@ -36,3 +36,4 @@ typedef struct vm_page {
 } vm_page_t;
 
 #endif /* _VIRT_MEM_H_ */
+
