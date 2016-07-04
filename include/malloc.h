@@ -2,7 +2,7 @@
 #define _MALLOC_H_
 
 #include <common.h>
-#include <pm.h>
+#include <physmem.h>
 
 /*
  * This function provides simple dynamic memory allocation that may be used

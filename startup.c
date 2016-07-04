@@ -5,7 +5,7 @@
 #include <clock.h>
 #include <malloc.h>
 #include <libkern.h>
-#include <pm.h>
+#include <physmem.h>
 #include <uart_cbus.h>
 #include <rtc.h>
 #include <pci.h>

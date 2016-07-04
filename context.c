@@ -1,6 +1,6 @@
 #include <libkern.h>
 #include <context.h>
-#include <pm.h>
+#include <physmem.h>
 
 void ctx_init(ctx_t *ctx, void (*target)(), stack_t *stk) {
   register void *gp asm("$gp");

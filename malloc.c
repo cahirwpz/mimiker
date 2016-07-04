@@ -1,5 +1,4 @@
 #include <libkern.h>
-#include <pm.h>
 #include <malloc.h>
 #include <mutex.h>
 #include <queue.h>
