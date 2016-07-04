@@ -54,6 +54,24 @@ void *kernel_sbrk_shutdown() {
   - use the mp_next field of malloc_pool
 */
 
+TAILQ_HEAD(mb_list, mem_block);
+
+typedef struct mem_block {
+  uint32_t mb_magic; /* if overwritten report a memory corruption error */
+  int32_t mb_size;   /* size > 0 => free, size < 0 => alloc'd */
+  TAILQ_ENTRY(mem_block) mb_list;
+  uint64_t mb_data[0];
+} mem_block_t;
+
+typedef struct mem_arena {
+  TAILQ_ENTRY(mem_arena) ma_list;
+  uint32_t ma_size;                 /* Size of all the blocks inside combined */
+  uint16_t ma_flags;
+  struct mb_list ma_freeblks;
+  uint32_t ma_magic;                /* Detect programmer error. */
+  uint64_t ma_data[0];              /* For alignment */
+} mem_arena_t;
+
 static inline mem_block_t *mb_next(mem_block_t *block) {
   return (void *)block + abs(block->mb_size) + sizeof(mem_block_t);
 }
