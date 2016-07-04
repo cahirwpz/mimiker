@@ -50,3 +50,24 @@ LEAF(ctx_load)
     li $v0, 1
 
 END(ctx_load)
+
+/* void ctx_call(const ctx_t *ctx, void *fn) */
+LEAF(ctx_call)
+
+    lw $ra, ( 0*4)($a0)
+    lw $fp, ( 1*4)($a0)
+    lw $sp, ( 2*4)($a0)
+    lw $gp, ( 3*4)($a0)
+    lw $s0, ( 4*4)($a0)
+    lw $s1, ( 5*4)($a0)
+    lw $s2, ( 6*4)($a0)
+    lw $s3, ( 7*4)($a0)
+    lw $s4, ( 8*4)($a0)
+    lw $s5, ( 9*4)($a0)
+    lw $s6, (10*4)($a0)
+    lw $s7, (11*4)($a0)
+
+    jr $a1
+    li $v0, 1
+
+END(ctx_call)

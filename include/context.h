@@ -1,7 +1,7 @@
 #ifndef __CONTEXT_H__
 #define __CONTEXT_H__
 
-#include "common.h"
+#include <common.h>
 
 typedef struct stack {
   uint8_t *stk_base; /* stack base */
@@ -44,6 +44,11 @@ uint32_t ctx_save(ctx_t *ctx) __attribute__((warn_unused_result));
 void noreturn ctx_load(const ctx_t *ctx);
 
 /*
+ * Calls a function in a new context. This function does not return.
+ */
+void noreturn ctx_call(const ctx_t *ctx, void *fn);
+
+/*
  * This function sets the contents of a context struct, zeroing it's
  * all registers except for return address, which is set to @target,
  * stack pointer, which is set to @stack, and global pointer, which is
@@ -52,7 +57,7 @@ void noreturn ctx_load(const ctx_t *ctx);
  * WARNING: The target procedure MUST NOT RETURN. The result of such
  * event is undefined, but will generally restart the target function.
  */
-void ctx_init(ctx_t *ctx, void (*target)(), stack_t *stk);
+void ctx_init(ctx_t *ctx, void (*target)(), void *sp);
 
 /* This function stores the current context to @from, and resumes the
  * context stored in @to. It does not return immediatelly, it returns

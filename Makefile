@@ -5,10 +5,11 @@ include Makefile.common
 CPPFLAGS += -Iinclude
 LDLIBS   += kernel.a -Llibkern -lkern -lgcc
 
-TESTS = callout.elf context.elf malloc.elf pmap.elf physmem.elf rtc.elf \
+TESTS = callout.elf malloc.elf pmap.elf physmem.elf rtc.elf thread.elf \
 	runq.test
 SOURCES_C = startup.c uart_cbus.c interrupts.c clock.c malloc.c context.c \
-	    physmem.c rtc.c pci.c pci_ids.c callout.c runq.c tlb.c pmap.c
+	    physmem.c rtc.c pci.c pci_ids.c callout.c runq.c tlb.c pmap.c \
+	    thread.c
 SOURCES_ASM = boot.S intr.S context-mips.S tlb-mips.S
 SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
@@ -17,7 +18,7 @@ DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
 all: $(DEPFILES) ctags cscope libkern $(TESTS)
 
 callout.elf: callout.ko kernel.a
-context.elf: context.ko kernel.a
+thread.elf: thread.ko kernel.a
 malloc.elf: malloc.ko kernel.a
 rtc.elf: rtc.ko kernel.a
 pm.elf: pm.ko kernel.a
