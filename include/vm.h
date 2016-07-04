@@ -18,6 +18,7 @@
 
 typedef struct vm_page {
   union {
+    TAILQ_ENTRY(vm_page) freeq; /* list of free pages for buddy system */
     struct {
       TAILQ_ENTRY(vm_page) list;
       RB_ENTRY(vm_page) tree; 
@@ -31,9 +32,11 @@ typedef struct vm_page {
   pm_addr_t paddr;              /* physical address of page */
   uint8_t vm_flags;             /* state of page (valid or dirty) */
   uint8_t pm_flags;             /* flags used by pm system */
-  TAILQ_ENTRY(vm_page) freeq;   /* entry in free queue */
   unsigned size;                /* size of page in PAGESIZE units */
 } vm_page_t;
+
+TAILQ_HEAD(pg_list, vm_page);
+typedef struct pg_list pg_list_t;
 
 #endif /* _VIRT_MEM_H_ */
 

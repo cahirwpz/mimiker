@@ -4,22 +4,21 @@
 #include <mips.h>
 #include <malta.h>
 
-#define PG_FREEQ_OF(seg, page) ((seg)->free_queues + log2((page)->size))
-#define PG_FREEQ(seg, i) ((seg)->free_queues + (i))
+#define PM_RESERVED   1  /* non releasable page */
+#define PM_ALLOCATED  2  /* page has been allocated */
+#define PM_MANAGED    4  /* a page is on a freeq */
 
-#define VM_NFREEORDER 16
+#define PM_QUEUE_OF(seg, page) ((seg)->freeq + log2((page)->size))
+#define PM_FREEQ(seg, i) ((seg)->freeq + (i))
 
-#define RESERVED 1
-#define FREE 2
-
-TAILQ_HEAD(pg_freeq, vm_page);
+#define PM_NQUEUES 16
 
 typedef struct pm_seg {
   TAILQ_ENTRY(pm_seg) segq;
   pm_addr_t start;
   pm_addr_t end;
-  struct pg_freeq free_queues[VM_NFREEORDER];
-  vm_page_t *page_array;
+  pg_list_t freeq[PM_NQUEUES];
+  vm_page_t *pages;
   unsigned npages;
 } pm_seg_t;
 
@@ -46,10 +45,10 @@ void pm_dump() {
   TAILQ_FOREACH(seg_it, &seglist, segq) {
     kprintf("[pmem] segment %p - %p:\n",
             (void *)seg_it->start, (void *)seg_it->end);
-    for (int i = 0; i < VM_NFREEORDER; i++) {
-      if (!TAILQ_EMPTY(PG_FREEQ(seg_it, i))) {
+    for (int i = 0; i < PM_NQUEUES; i++) {
+      if (!TAILQ_EMPTY(PM_FREEQ(seg_it, i))) {
         kprintf("[pmem]  %6dKiB:", (PAGESIZE / 1024) << i);
-        TAILQ_FOREACH(pg_it, PG_FREEQ(seg_it, i), freeq)
+        TAILQ_FOREACH(pg_it, PM_FREEQ(seg_it, i), freeq)
           kprintf(" %p", (void *)PG_START(pg_it));
         kprintf("\n");
       }
@@ -67,30 +66,31 @@ void pm_add_segment(pm_addr_t start, pm_addr_t end, vm_addr_t vm_offset) {
   seg->start = start;
   seg->end = end;
   seg->npages = (end - start) / PAGESIZE;
-  seg->page_array = kernel_sbrk(seg->npages * sizeof(vm_page_t));
+  seg->pages = kernel_sbrk(seg->npages * sizeof(vm_page_t));
   TAILQ_INSERT_TAIL(&seglist, seg, segq);
 
+  unsigned max_size = min(PM_NQUEUES, ffs(seg->npages)) - 1;
+
   for (int i = 0; i < seg->npages ; i++) {
-    vm_page_t *page = &seg->page_array[i];
+    vm_page_t *page = &seg->pages[i];
+    bzero(page, sizeof(vm_page_t));
     page->paddr = seg->start + PAGESIZE * i;
     page->vaddr = seg->start + PAGESIZE * i + vm_offset;
-    page->size = 1;
-    page->pm_flags = FREE;
-    page->vm_flags = 0;
+    page->size = 1 << min(max_size, ctz(i));
   }
 
-  for (int i = 0; i < VM_NFREEORDER; i++)
-    TAILQ_INIT(PG_FREEQ(seg, i));
+  for (int i = 0; i < PM_NQUEUES; i++)
+    TAILQ_INIT(PM_FREEQ(seg, i));
 
   int curr_page = 0;
   int to_add = seg->npages;
 
-  for (int i = VM_NFREEORDER - 1; i >= 0; i--) {
+  for (int i = PM_NQUEUES - 1; i >= 0; i--) {
     unsigned size = 1 << i;
     while (to_add >= size) {
-      vm_page_t *page = &seg->page_array[curr_page];
-      page->size = size;
-      TAILQ_INSERT_HEAD(PG_FREEQ(seg, i), page, freeq);
+      vm_page_t *page = &seg->pages[curr_page];
+      TAILQ_INSERT_HEAD(PM_FREEQ(seg, i), page, freeq);
+      page->pm_flags |= PM_MANAGED;
       to_add -= size;
       curr_page += size;
     }
@@ -117,52 +117,50 @@ static vm_page_t *pm_find_buddy(pm_seg_t *seg, vm_page_t *pg) {
 
   /* When page address is divisible by (2 * size) then:
    * look at left buddy, otherwise look at right buddy */
-  if ((pg - seg->page_array) % (2 * pg->size) == 0)
+  if ((pg - seg->pages) % (2 * pg->size) == 0)
     buddy += pg->size;
   else
     buddy -= pg->size;
 
-  intptr_t index = buddy - seg->page_array;
+  intptr_t index = buddy - seg->pages;
 
-  if (index < 0 && index >= seg->npages)
+  if (index < 0 || index >= seg->npages)
     return NULL;
 
   if (buddy->size != pg->size)
     return NULL;
+  
+  if (!(buddy->pm_flags & PM_MANAGED))
+    return NULL;
 
-  vm_page_t *page;
-
-  TAILQ_FOREACH(page, PG_FREEQ_OF(seg, pg), freeq)
-    if (page == buddy)
-      return buddy;
-
-  return NULL;
+  return buddy;
 }
 
 static void pm_split_page(pm_seg_t *seg, vm_page_t *page) {
   assert(page->size > 1);
-  assert(!TAILQ_EMPTY(PG_FREEQ_OF(seg, page)));
+  assert(!TAILQ_EMPTY(PM_QUEUE_OF(seg, page)));
 
-  /* It works, because every page is a member of page_array! */
+  /* It works, because every page is a member of pages! */
   unsigned size = page->size / 2;
   vm_page_t *buddy = page + size;
 
-  assert(buddy->pm_flags & FREE);
+  assert(!(buddy->pm_flags & PM_ALLOCATED));
 
-  TAILQ_REMOVE(PG_FREEQ_OF(seg, page), page, freeq);
+  TAILQ_REMOVE(PM_QUEUE_OF(seg, page), page, freeq);
 
   page->size = size;
   buddy->size = size;
 
-  TAILQ_INSERT_HEAD(PG_FREEQ_OF(seg, page), page, freeq);
-  TAILQ_INSERT_HEAD(PG_FREEQ_OF(seg, buddy), buddy, freeq);
+  TAILQ_INSERT_HEAD(PM_QUEUE_OF(seg, page), page, freeq);
+  TAILQ_INSERT_HEAD(PM_QUEUE_OF(seg, buddy), buddy, freeq);
+  buddy->pm_flags |= PM_MANAGED;
 }
 
 /* TODO this can be sped up by removing elements from list on-line. */
 static void pm_reserve_from_seg(pm_seg_t *seg, pm_addr_t start, pm_addr_t end)
 {
-  for (int i = VM_NFREEORDER - 1; i >= 0; i--) {
-    struct pg_freeq *queue = PG_FREEQ(seg, i);
+  for (int i = PM_NQUEUES - 1; i >= 0; i--) {
+    pg_list_t *queue = PM_FREEQ(seg, i);
     vm_page_t *pg = TAILQ_FIRST(queue);
 
     while (pg) {
@@ -170,9 +168,10 @@ static void pm_reserve_from_seg(pm_seg_t *seg, pm_addr_t start, pm_addr_t end)
         /* if segment is contained within (start, end) remove it from free
          * queue */
         TAILQ_REMOVE(queue, pg, freeq);
+        pg->pm_flags &= ~PM_MANAGED;
         int n = pg->size;
         do {
-          pg->pm_flags |= RESERVED;
+          pg->pm_flags = PM_RESERVED;
           pg++;
         } while (--n);
         /* List has been changed so start over! */
@@ -216,21 +215,22 @@ static vm_page_t *pm_alloc_from_seg(pm_seg_t *seg, size_t npages) {
   i = j = log2(npages);
 
   /* Lowest non-empty queue of size higher or equal to log2(npages). */
-  while (TAILQ_EMPTY(PG_FREEQ(seg, i)) && (i < VM_NFREEORDER))
+  while (TAILQ_EMPTY(PM_FREEQ(seg, i)) && (i < PM_NQUEUES))
     i++;
 
-  if (i == VM_NFREEORDER)
+  if (i == PM_NQUEUES)
     return NULL;
 
   while (true) {
-    vm_page_t *page = TAILQ_FIRST(PG_FREEQ(seg, i));
+    vm_page_t *page = TAILQ_FIRST(PM_FREEQ(seg, i));
 
     if (i == j) {
-      TAILQ_REMOVE(PG_FREEQ(seg, i), page, freeq);
+      TAILQ_REMOVE(PM_FREEQ(seg, i), page, freeq);
+      page->pm_flags &= ~PM_MANAGED;
       vm_page_t *pg = page;
       unsigned n = page->size;
       do {
-        pg->pm_flags &= ~FREE;
+        pg->pm_flags |= PM_ALLOCATED;
         pg++;
       } while (--n);
       return page;
@@ -258,27 +258,29 @@ vm_page_t *pm_alloc(size_t npages) {
 }
 
 static void pm_free_from_seg(pm_seg_t *seg, vm_page_t *page) {
-  if (page->pm_flags & RESERVED)
+  if (page->pm_flags & PM_RESERVED)
     panic("trying to free reserved page: %p", (void *)page->paddr);
 
-  if (page->pm_flags & FREE)
+  if (!(page->pm_flags & PM_ALLOCATED))
     panic("page is already free: %p", (void *)page->paddr);
 
   while (true) {
     vm_page_t *buddy = pm_find_buddy(seg, page);
     
     if (buddy == NULL) {
-      TAILQ_INSERT_HEAD(PG_FREEQ_OF(seg, page), page, freeq);
+      TAILQ_INSERT_HEAD(PM_QUEUE_OF(seg, page), page, freeq);
+      page->pm_flags |= PM_MANAGED;
       vm_page_t *pg = page;
       unsigned n = page->size;
       do {
-        pg->pm_flags |= FREE;
+        pg->pm_flags &= ~PM_ALLOCATED;
         pg++;
       } while (--n);
       break;
     }
 
-    TAILQ_REMOVE(PG_FREEQ_OF(seg, buddy), buddy, freeq);
+    TAILQ_REMOVE(PM_QUEUE_OF(seg, buddy), buddy, freeq);
+    buddy->pm_flags &= ~PM_MANAGED;
     page = pm_merge_buddies(page, buddy);
   }
 }
@@ -305,7 +307,7 @@ vm_page_t *pm_split_alloc_page(vm_page_t *pg) {
           pg->paddr, pg->size);
 
   assert(pg->size > 1);
-  assert(!(pg->pm_flags & FREE));
+  assert(pg->pm_flags & PM_ALLOCATED);
 
   unsigned size = pg->size / 2;
   vm_page_t *buddy = pg + size;
@@ -317,7 +319,7 @@ vm_page_t *pm_split_alloc_page(vm_page_t *pg) {
 
 #ifdef _KERNELSPACE
 /* This function hashes state of allocator. Only used to compare states
- * for testing. We cannot use string for exact comparision, because
+ * for testing. We cannot use string for exact comparison, because
  * this would require us to allocate some memory, which we can't do
  * at this moment. However at the moment we need to compare states only,
  * so this solution seems best. */
@@ -328,9 +330,9 @@ unsigned long pm_hash()
   vm_page_t *pg_it;
 
   TAILQ_FOREACH(seg_it, &seglist, segq) {
-    for (int i = 0; i < VM_NFREEORDER; i++) {
-      if (!TAILQ_EMPTY(PG_FREEQ(seg_it, i))) {
-        TAILQ_FOREACH(pg_it, PG_FREEQ(seg_it, i), freeq)
+    for (int i = 0; i < PM_NQUEUES; i++) {
+      if (!TAILQ_EMPTY(PM_FREEQ(seg_it, i))) {
+        TAILQ_FOREACH(pg_it, PM_FREEQ(seg_it, i), freeq)
           hash = hash * 33 + PG_START(pg_it);
       }
     }
