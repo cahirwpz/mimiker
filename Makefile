@@ -5,7 +5,7 @@ include Makefile.common
 CPPFLAGS += -Iinclude
 LDLIBS   += kernel.a -Llibkern -lkern -lgcc
 
-TESTS = callout.elf malloc.elf pmap.elf physmem.elf rtc.elf thread.elf
+TESTS = callout.elf malloc.elf pmap.elf physmem.elf rtc.elf thread.elf \
 	vm_map.elf runq.test
 SOURCES_C = startup.c uart_cbus.c interrupts.c clock.c malloc.c context.c \
 	    physmem.c rtc.c pci.c pci_ids.c callout.c runq.c tlb.c pmap.c \
@@ -23,7 +23,7 @@ malloc.elf: malloc.ko kernel.a
 rtc.elf: rtc.ko kernel.a
 context.elf: context.ko kernel.a
 vm_map.elf: vm_map.ko kernel.a
-pm.elf: pm.ko kernel.a
+physmem.elf: physmem.ko kernel.a
 kernel.a: $(OBJECTS)
 
 $(foreach file,$(SOURCES) null,$(eval $(call emit_dep_rule,$(file))))
