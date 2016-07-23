@@ -3,6 +3,8 @@
 #include <mips.h>
 #include <pmap.h>
 #include <mips/cpu.h>
+#include <vm_map.h>
+#include <pager.h>
 
 extern const char _ebase[];
 
@@ -103,6 +105,11 @@ static const char *exceptions[32] = {
 
 #define PDE_ID_FROM_PTE_ADDR(x) (((x) & 0x003ff000) >> 12)
 
+static vm_map_entry_t *locate_vm_map_entry(vm_addr_t addr)
+{
+    return vm_map_find_entry(get_active_vm_map(), addr);
+}
+
 __attribute__((interrupt)) 
 void tlb_exception_handler()
 {
@@ -131,14 +138,24 @@ void tlb_exception_handler()
     tlb_overwrite_random(entryhi, entrylo0, entrylo1);
     return;
   }
-  /* In future calling proper pager handler will be here */
-  if(code == EXC_TLBL)
+  if(code == (EXC_TLBL | EXC_TLBS))
   {
-    panic("Tried to load invalid addres.");
-  }
-  if(code == EXC_TLBS)
-  {
-    panic("Cannot write to that address: $%08x\n", vaddr);
+    vm_map_entry_t *entry = locate_vm_map_entry(vaddr);
+    if(entry)
+    {
+        /* If access to address was ok, but didn't match entry in page table,
+         * it means it's time to call pager */
+        if(entry->flags & (VM_READ | VM_WRITE) )
+        {
+            void (*handler)(vm_map_entry_t*, vm_addr_t);
+            assert(entry->object != NULL);
+            handler = entry->object->handler;
+            vm_addr_t offset = vaddr-entry->start;
+            handler(entry, offset);
+            return;
+        }
+    }
+    panic("Tried to load invalid address.");
   }
 }
 
