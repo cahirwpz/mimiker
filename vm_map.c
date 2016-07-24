@@ -31,7 +31,7 @@ static MALLOC_DEFINE(mpool, "inital vm_map memory pool");
 
 static vm_object_t *allocate_object() {
   vm_object_t *obj = kmalloc(mpool, sizeof(vm_object_t), 0);
-  obj->handler = &anon_pager_handler;
+  obj->pgr = pager_allocate(DEFAULT_PAGER);
   TAILQ_INIT(&obj->list);
   RB_INIT(&obj->tree);
   return obj;
@@ -43,7 +43,7 @@ static vm_map_entry_t *allocate_entry() {
   return entry;
 }
 
-static void insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
+static bool insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
   if (!SPLAY_INSERT(vm_map_tree, &vm_map->tree, entry)) {
     vm_map_entry_t *next = SPLAY_NEXT(vm_map_tree, &vm_map->tree, entry);
     if (next)
@@ -51,9 +51,9 @@ static void insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
     else
       TAILQ_INSERT_TAIL(&vm_map->list, entry, map_list);
     vm_map->nentries++;
-  } else {
-    /* TODO: How to intepret SPLAY_INSERT failure here? */
-  }
+    return true;
+  } else 
+      return false;
 }
 
 void vm_map_init() {
@@ -97,6 +97,7 @@ vm_map_t* vm_map_new(vm_map_type_t type, asid_t asid) {
 }
 
 static void vm_object_free(vm_object_t *obj) {
+  pager_delete(obj->pgr);
   while (!TAILQ_EMPTY(&obj->list)) {
     vm_page_t *pg = TAILQ_FIRST(&obj->list);
     TAILQ_REMOVE(&obj->list, pg, obj.list);
@@ -161,7 +162,7 @@ void vm_map_dump(vm_map_t *vm_map) {
     kprintf("[vm_map] entry (%lu, %lu)\n", it->start, it->end);
 }
 
-void vm_object_add_page(vm_object_t *obj, vm_page_t *page) {
+bool vm_object_add_page(vm_object_t *obj, vm_page_t *page) {
   assert(is_aligned(page->vm_offset, PAGESIZE));
   /* For simplicity of implementation let's insert pages of size 1 only */
   assert(page->size == 1);
@@ -173,8 +174,9 @@ void vm_object_add_page(vm_object_t *obj, vm_page_t *page) {
       TAILQ_INSERT_BEFORE(next, page, obj.list);
     else 
       TAILQ_INSERT_TAIL(&obj->list, page, obj.list);
+    return true;
   } else {
-    /* TODO: How to intepret RB_INSERT failure here? */
+    return false;
   }
 }
 
@@ -189,6 +191,13 @@ void vm_map_entry_dump(vm_map_entry_t *entry) {
   vm_page_t *it;
   RB_FOREACH(it, vm_object_tree, &entry->object->tree)
     kprintf("[vm_object] offset: %lu, size: %u \n", it->vm_offset, it->size);
+}
+
+vm_page_t* vm_object_find_page(vm_object_t *obj, vm_addr_t offset)
+{
+  vm_page_t find;
+  find.vm_offset = offset;
+  return RB_FIND(vm_object_tree, &obj->tree, &find);
 }
 
 void vm_map_entry_map(vm_map_t *map, vm_map_entry_t *entry,
@@ -251,6 +260,8 @@ void vm_map_entry_protect(vm_map_t *map, vm_map_entry_t *entry,
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
 
+  pmap_map(&map->pmap, start, 0, (end-start)/PAGESIZE, flags);
+
   vm_page_t cmp_page = { .vm_offset = start - entry->start };
   vm_page_t *pg_it = RB_NFIND(vm_object_tree, &entry->object->tree, &cmp_page); 
 
@@ -278,35 +289,6 @@ vm_map_t* get_active_vm_map() {
 #ifdef _KERNELSPACE
 
 int main() {
-  vm_map_init();
-
-  vm_map_t *map = vm_map_new(KERNEL_VM_MAP, 10);
-  vm_map_entry_t *entry =
-    vm_map_add_entry(map, VM_READ | VM_WRITE, 17 * PAGESIZE, PAGESIZE);
-  vm_addr_t map_start = entry->start + PAGESIZE;
-  vm_addr_t map_end = entry->end - PAGESIZE;
-
-  set_active_pmap(&map->pmap);
-  set_active_vm_map(map);
-  vm_map_entry_map(map, entry, map_start, map_end, PG_VALID | PG_DIRTY);
-
-  assert(entry->object->npages == 15);
-  char *ptr = (char *)map_start;
-
-  while (ptr < (char *)map_end)
-    *ptr++ = 42;
-
-  vm_addr_t unmap_start = entry->start + 10 * PAGESIZE;
-  vm_addr_t unmap_end = entry->start + 14 * PAGESIZE;
-  vm_map_entry_unmap(map, entry, unmap_start, unmap_end); 
-  assert(entry->object->npages == 11);
-
-  /* Paging on demand test */
-  ptr = (char *)unmap_start;
-
-  while (ptr != (char *)unmap_end)
-    *ptr++ = 42;
-
   return 0;
 }
 

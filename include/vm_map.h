@@ -3,6 +3,9 @@
 
 #include <queue.h>
 #include <pmap.h>
+#include <pager.h>
+
+typedef struct pager pager_t;
 
 #define VM_PROTECTED   0x1
 #define VM_READ        0x2
@@ -19,17 +22,13 @@ typedef enum {
 
 typedef struct vm_map_entry vm_map_entry_t;
 
-typedef void (* page_fault_handler_t)(vm_map_entry_t *entry, 
-                                      vm_addr_t fault_addr);
-
 /* At the moment assume object is owned by only one vm_map */
 typedef struct vm_object {
   TAILQ_HEAD(,vm_page) list;
   RB_HEAD(vm_object_tree, vm_page) tree;
   size_t size;
   size_t npages;
-
-  page_fault_handler_t handler;
+  pager_t *pgr;
 } vm_object_t;
 
 struct vm_map_entry {
@@ -76,8 +75,9 @@ void vm_map_entry_protect(vm_map_t *map, vm_map_entry_t *entry,
                           vm_addr_t start, vm_addr_t end, uint8_t flags);
 
 /*  vm_object associated functions */
-void vm_object_add_page(vm_object_t *obj, vm_page_t *pg);
+bool vm_object_add_page(vm_object_t *obj, vm_page_t *pg);
 void vm_object_remove_page(vm_object_t *obj, vm_page_t *pg);
+vm_page_t* vm_object_find_page(vm_object_t *obj, vm_addr_t offset);
 
 #endif /* _VM_MAP_H */
 
