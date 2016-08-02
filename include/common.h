@@ -61,7 +61,7 @@ typedef uintptr_t pm_addr_t;
 #ifndef _USERSPACE
 
 /* Terminate kernel. */
-void kernel_exit();
+noreturn void kernel_exit();
 
 #define panic(FMT, ...) __extension__ ({                                 \
   kprintf("[panic] %s:%d " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__); \

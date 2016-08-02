@@ -195,7 +195,10 @@ void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
   }
 
   /* Couldn't find any continuous memory with the requested size. */
-  return NULL;
+  if (flags & M_NOWAIT)
+    return NULL;
+
+  panic("memory exhausted in '%s'", mp->mp_desc);
 }
 
 void kfree(malloc_pool_t *mp, void *addr) {
@@ -262,7 +265,7 @@ int main() {
   kfree(mp, ptr3);
   kfree(mp, ptr5);
 
-  void *ptr6 = kmalloc(mp, 2000, 0);
+  void *ptr6 = kmalloc(mp, 2000, M_NOWAIT);
   assert(ptr6 == NULL);
 
   pm_free(page);

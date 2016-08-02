@@ -48,8 +48,8 @@ typedef struct malloc_pool {
 #define MALLOC_DECLARE(pool) extern malloc_pool_t pool[1]
 
 /* Flags to malloc */
-#define M_WAITOK    0x0000 /* ignore for now */
-#define M_NOWAIT    0x0001 /* ignore for now */
+#define M_WAITOK    0x0000 /* always returns memory block, but can sleep */
+#define M_NOWAIT    0x0001 /* may return NULL, but cannot sleep */
 #define M_ZERO      0x0002 /* clear allocated block */
 
 void kmalloc_init(malloc_pool_t *mp);
