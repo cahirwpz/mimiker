@@ -105,11 +105,6 @@ static const char *exceptions[32] = {
 
 #define PDE_ID_FROM_PTE_ADDR(x) (((x) & 0x003ff000) >> 12)
 
-static vm_map_entry_t *locate_vm_map_entry(vm_addr_t addr)
-{
-    return vm_map_find_entry(get_active_vm_map(), addr);
-}
-
 __attribute__((interrupt)) 
 void tlb_exception_handler() {
   int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
@@ -119,9 +114,9 @@ void tlb_exception_handler() {
           exceptions[code], (unsigned)mips32_get_c0(C0_EPC));
   kprintf("[tlb] Caused by reference to 0x%08x!\n", vaddr);
 
+  /* If the fault was in virtual pt range it means it's time to refill */
   if (PTE_BASE <= vaddr && vaddr < PTE_BASE + PTE_SIZE) 
   {
-    /* If the fault was in virtual pt range it means it's time to refill */
     kprintf("[tlb] pde_refill\n");
     uint32_t id = PDE_ID_FROM_PTE_ADDR(vaddr);
     tlbhi_t entryhi = mips32_get_c0(C0_ENTRYHI);
@@ -136,23 +131,10 @@ void tlb_exception_handler() {
     pte_t entrylo1 = active_pmap->pde[id + 1];
     tlb_overwrite_random(entryhi, entrylo0, entrylo1);
   }
-  else if (code == (EXC_TLBL | EXC_TLBS)) 
+  else
   {
-    vm_map_entry_t *entry = locate_vm_map_entry(vaddr);
-    if (entry) {
-      /* If access to address was ok, but didn't match entry in page table,
-       * it means it's time to call pager */
-      if (entry->flags & (VM_READ | VM_WRITE)) {
-        assert(entry->object != NULL);
-        vm_addr_t offset = vaddr - entry->start;
-        entry->object->handler(entry, offset);
-      } else {
-        /* TODO: What if processor gets here? */
-        panic("???");
-      }
-    } else {
-      panic("Address not mapped.");
-    }
+    page_fault(get_active_vm_map(), vaddr, 
+        code == EXC_TLBL ? WRITE_ACCESS : READ_ACCESS);
   }
 }
 
