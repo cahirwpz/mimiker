@@ -13,8 +13,14 @@
 #define PG_VADDR_START(pg) ((pg)->vaddr)
 #define PG_VADDR_END(pg) ((pg)->vaddr + PG_SIZE(pg))
 
-#define PG_VALID 0x2 /* Same as TLB valid mask */
-#define PG_DIRTY 0x4 /* Same as TLB dirty mask */
+#define PG_NONE   0   /* Pages cannot be accessed */
+#define PG_READ   0x2 /* Same as TLB valid mask */
+#define PG_WRITE  0x4 /* Same as TLB dirty mask */
+
+#define PM_RESERVED   1  /* non releasable page */
+#define PM_ALLOCATED  2  /* page has been allocated */
+#define PM_MANAGED    4  /* a page is on a freeq */
+#define PM_FICTITIOUS 8  /* page has no physical mapping */
 
 typedef struct vm_page {
   union {
@@ -30,7 +36,8 @@ typedef struct vm_page {
   vm_addr_t vm_offset;          /* offset to page in vm_object */
   vm_addr_t vaddr;              /* virtual address of page */
   pm_addr_t paddr;              /* physical address of page */
-  uint8_t vm_flags;             /* state of page (valid or dirty) */
+  uint8_t prot;                 /* protection flags (read/write) */
+  bool dirty;                   /* Has there been a write to page? */
   uint8_t pm_flags;             /* flags used by pm system */
   unsigned size;                /* size of page in PAGESIZE units */
 } vm_page_t;

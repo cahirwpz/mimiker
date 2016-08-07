@@ -62,8 +62,19 @@ static void pt_map(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
 
 void pmap_map(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr, size_t npages,
               uint8_t flags) {
-  for (size_t i = 0; i < npages; i++)
-    pt_map(pmap, vaddr + i * PAGESIZE, paddr + i * PAGESIZE, flags);
+
+  assert(paddr == NULL_PHYS_PAGE ? flags == PMAP_NONE : true);
+  
+  if(paddr == NULL_PHYS_PAGE)
+  {
+      for (size_t i = 0; i < npages; i++)
+        pt_map(pmap, vaddr + i * PAGESIZE, NULL_PHYS_PAGE, flags);
+  }
+  else
+  {
+      for (size_t i = 0; i < npages; i++)
+        pt_map(pmap, vaddr + i * PAGESIZE, paddr + i * PAGESIZE, flags);
+  }
 }
 
 void pmap_unmap(pmap_t *pmap, vm_addr_t vaddr, size_t npages) {

@@ -17,6 +17,8 @@ void pm_init();
  */
 void pm_add_segment(pm_addr_t start, pm_addr_t end, vm_addr_t vm_offset);
 
+/* Allocates fictitious page, one which has no physical counterpart. */
+vm_page_t *pm_alloc_fictitious(size_t n);
 /* Allocates contiguous big page that consists of n machine pages. */
 vm_page_t *pm_alloc(size_t n);
 

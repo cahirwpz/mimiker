@@ -12,6 +12,10 @@
 /* Writing to page with PMAP_DIRTY won't cause exception */
 #define PMAP_DIRTY  D_MASK
 
+#define PMAP_NONE 0
+
+#define NULL_PHYS_PAGE 0
+
 typedef uint32_t pte_t;
 
 #define PTE_ENTRIES  (1024*1024)

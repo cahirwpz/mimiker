@@ -2,15 +2,14 @@
 #include <libkern.h>
 #include <mips.h>
 #include <malta.h>
-
-#define PM_RESERVED   1  /* non releasable page */
-#define PM_ALLOCATED  2  /* page has been allocated */
-#define PM_MANAGED    4  /* a page is on a freeq */
+#include <malloc.h>
 
 #define PM_QUEUE_OF(seg, page) ((seg)->freeq + log2((page)->size))
 #define PM_FREEQ(seg, i) ((seg)->freeq + (i))
 
 #define PM_NQUEUES 16
+
+static MALLOC_DEFINE(mpool, "inital physmem memory pool");
 
 typedef struct pm_seg {
   TAILQ_ENTRY(pm_seg) segq;
@@ -35,6 +34,11 @@ void pm_init() {
   pm_reserve(MALTA_PHYS_SDRAM_BASE,
              (pm_addr_t)kernel_sbrk_shutdown() - MIPS_KSEG0_START);
   pm_dump();
+
+  vm_page_t *pg = pm_alloc(4);
+  kmalloc_init(mpool);
+  kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
+
 }
 
 void pm_dump() {
@@ -240,6 +244,14 @@ static vm_page_t *pm_alloc_from_seg(pm_seg_t *seg, size_t npages) {
   }
 }
 
+vm_page_t *pm_alloc_fictitious(size_t npages) {
+    assert(powerof2(npages));
+    vm_page_t *page = kmalloc(mpool, sizeof(vm_page_t), M_ZERO);
+    page->size = npages;
+    page->pm_flags |= PM_FICTITIOUS;
+    return page;
+}
+
 vm_page_t *pm_alloc(size_t npages) {
   assert((npages > 0) && powerof2(npages));
 
@@ -289,6 +301,12 @@ void pm_free(vm_page_t *page) {
 
   kprintf("[pmem] pm_free {paddr:%lx size:%d}\n",
           page->paddr, page->size);
+
+  
+  if(page->pm_flags & PM_FICTITIOUS) {
+      kfree(mpool, page);
+      return;
+  }
 
   TAILQ_FOREACH(seg_it, &seglist, segq) {
     if (PG_START(page) >= seg_it->start && PG_END(page) <= seg_it->end) {
