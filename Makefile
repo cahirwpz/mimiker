@@ -6,10 +6,10 @@ CPPFLAGS += -Iinclude
 LDLIBS   += kernel.a -Llibkern -lkern -lgcc
 
 TESTS = callout.elf malloc.elf pmap.elf physmem.elf rtc.elf thread.elf \
-	vm_map.elf runq.test
+	vm_map.elf runq.test sched.elf
 SOURCES_C = startup.c uart_cbus.c interrupts.c clock.c malloc.c context.c \
 	    physmem.c rtc.c pci.c pci_ids.c callout.c runq.c tlb.c pmap.c \
-	    thread.c vm_map.c pager.c
+	    thread.c vm_map.c pager.c sched.c
 SOURCES_ASM = boot.S intr.S context-mips.S tlb-mips.S
 SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
@@ -24,6 +24,7 @@ rtc.elf: rtc.ko kernel.a
 context.elf: context.ko kernel.a
 vm_map.elf: vm_map.ko kernel.a
 physmem.elf: physmem.ko kernel.a
+sched.elf: sched.ko kernel.a
 kernel.a: $(OBJECTS)
 
 $(foreach file,$(SOURCES) null,$(eval $(call emit_dep_rule,$(file))))
