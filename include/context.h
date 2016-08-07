@@ -45,7 +45,7 @@ void noreturn ctx_load(const ctx_t *ctx);
  * WARNING: The target procedure MUST NOT RETURN. The result of such
  * event is undefined, but will generally restart the target function.
  */
-void ctx_init(ctx_t *ctx, void (*target)(), void *sp);
+void ctx_init(ctx_t *ctx, void (*target)(), void *sp, bool prepare_stack);
 
 /*
  * Pushes a stack frame of @size bytes onto the stack. Memory occupied by the

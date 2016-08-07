@@ -45,7 +45,10 @@ void callout_setup(callout_t *handle, sbintime_t time, timeout_t fn,
 }
 
 void callout_stop(callout_t *handle) {
-  TAILQ_REMOVE(&ci.heads[handle->index], handle, c_link);
+  if (handle->c_link.tqe_next || handle->c_link.tqe_prev) {
+    TAILQ_REMOVE(&ci.heads[handle->index], handle, c_link);
+    memset(&handle->c_link, 0, sizeof (handle->c_link));
+  }
 }
 
 /*
@@ -57,10 +60,14 @@ static bool process_element(struct callout_head *head, callout_t *element) {
     callout_active(element);
     callout_not_pending(element);
 
+    TAILQ_REMOVE(head, element, c_link);
+    memset(&element->c_link, 0, sizeof (element->c_link));
     element->c_func(element->c_arg);
 
-    TAILQ_REMOVE(head, element, c_link);
-
+    /* If the function above was a context switch, then the next line will
+       be executed too late. Another thing that will happen in that case is
+       that no more callout events will be processed in this "tick".
+       Callout has to be modified to make it work. */
     callout_not_active(element);
 
     return true;
@@ -77,7 +84,8 @@ static bool process_element(struct callout_head *head, callout_t *element) {
   If we want to run through several buckets at once, just run
   this function many times.
 */
-void callout_process(sbintime_t now) {
+void callout_process() {
+  log("callout_process is executed");
   ci.current_position = (ci.current_position + 1) % NUMBER_OF_CALLOUT_BUCKETS;
   ci.uptime++;
 
@@ -100,7 +108,6 @@ void callout_process(sbintime_t now) {
   // Deal with the first element
   if (!TAILQ_EMPTY(head)) {
     callout_t *first = TAILQ_FIRST(head);
-    //log("Trying to process the head");
     process_element(head, first);
   }
 }
@@ -118,7 +125,7 @@ int main() {
 
   for (int i = 0; i < 10; i++) {
     kprintf("calling callout_process()\n");
-    callout_process(0);
+    callout_process();
   }
 
   return 0;

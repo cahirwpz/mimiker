@@ -45,7 +45,7 @@ void callout_stop(callout_t *handle);
   This function makes a tick and processes all callouts that are supposed to happen.
   If an event is executed, it is deleted from the queue.
 */
-void callout_process(sbintime_t now);
+void callout_process();
 
 /*
   A demo presenting example usage of this interface.

@@ -1,7 +1,7 @@
 #include <libkern.h>
 #include <context.h>
 
-void ctx_init(ctx_t *ctx, void (*target)(), void *sp) {
+void ctx_init(ctx_t *ctx, void (*target)(), void *sp, bool prepare_stack) {
   register void *gp asm("$gp");
 
   bzero(ctx, sizeof(ctx_t));

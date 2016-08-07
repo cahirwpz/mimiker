@@ -3,6 +3,10 @@
 #include <interrupts.h>
 #include <mips.h>
 #include <clock.h>
+#include <callout.h>
+#include <libkern.h>
+#include <mutex.h>
+#include <sched.h>
 
 /* This counter is incremented every millisecond. */
 static volatile uint32_t timer_ms_count;
@@ -46,4 +50,10 @@ void hardclock() {
 
   /* Set compare register. */
   mips32_set_c0(C0_COMPARE, compare);
+  callout_process();
+}
+
+/* whats wrong with linking? quick workaround to make sched_switch visible in intr.S */
+void fooooooo() {
+    sched_switch();
 }
