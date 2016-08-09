@@ -57,20 +57,19 @@ static bool process_element(struct callout_head *head, callout_t *element) {
     callout_active(element);
     callout_not_pending(element);
 
+    TAILQ_REMOVE(head, element, c_link);
     element->c_func(element->c_arg);
 
-    TAILQ_REMOVE(head, element, c_link);
-
     callout_not_active(element);
-
     return true;
   }
 
   if (element->c_time < ci.uptime)
-    panic("%s", "The time of a callout is smaller than uptime.");
+   panic("%s", "The time of a callout is smaller than uptime.");
 
   return false;
 }
+
 
 /*
   This function makes a tick takes the next bucket and deals with its contents.
@@ -78,6 +77,7 @@ static bool process_element(struct callout_head *head, callout_t *element) {
   this function many times.
 */
 void callout_process(sbintime_t now) {
+  log("callout_process is executed");
   ci.current_position = (ci.current_position + 1) % NUMBER_OF_CALLOUT_BUCKETS;
   ci.uptime++;
 
@@ -103,6 +103,7 @@ void callout_process(sbintime_t now) {
     //log("Trying to process the head");
     process_element(head, first);
   }
+  log("leaving callout_process");
 }
 
 #ifdef _KERNELSPACE

@@ -28,7 +28,7 @@ _Noreturn void thread_init(void (*fn)(), int argc, ...) {
 thread_t *thread_create(void (*fn)()) {
   thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
   td->td_stack = pm_alloc(1);
-  td->td_state = TDS_READY;
+  td->td_state = TDS_NEW;
   ctx_init(&td->td_context, fn, (void *)PG_VADDR_END(td->td_stack));
   return td;
 }
@@ -45,10 +45,14 @@ thread_t* thread_switch_to(thread_t *td_ready) {
   log("Switching threads from %p to %p.", td_running, td_ready);
   assert(td_running != td_ready);
 
+  bool first_time = (td_ready->td_state == TDS_NEW);
   swap(td_running, td_ready);
   td_running->td_state = TDS_RUNNING;
   td_ready->td_state = TDS_READY;
-  ctx_switch(&td_ready->td_context, &td_running->td_context);
+  if (first_time)
+    ctx_switch_interrupt(&td_ready->td_context, &td_running->td_context);
+  else
+    ctx_switch(&td_ready->td_context, &td_running->td_context);
 
   return td_ready;
 }

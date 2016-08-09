@@ -14,3 +14,8 @@ void ctx_switch(ctx_t *from, ctx_t *to) {
   if (!ctx_save(from))
     ctx_load(to);
 }
+
+void ctx_switch_interrupt(ctx_t *from, ctx_t *to) {
+  if (!ctx_save(from))
+    ctx_load_interrupt(to);
+}

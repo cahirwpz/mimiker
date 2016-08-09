@@ -16,7 +16,8 @@ typedef struct thread {
   ctx_t td_context;
   vm_page_t *td_stack;
   enum {
-    TDS_INACTIVE = 0x0,
+    TDS_NEW = 0x0,
+    TDS_INACTIVE,
     TDS_WAITING,
     TDS_READY,
     TDS_RUNNING
