@@ -183,3 +183,6 @@ void *general_exception_table[32] = {
   [EXC_TLBS] = tlb_exception_handler,
 };
 
+bool during_intr_handler() {
+    return mips32_get_c0(C0_STATUS) & SR_EXL;
+}
