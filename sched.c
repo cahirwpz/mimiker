@@ -67,7 +67,7 @@ noreturn void sched_run(size_t quantum) {
     while (!(td = runq_choose(&runq)));
 
     runq_remove(&runq, td);
-    callout_setup(&sched_callout, quantum, sched_wakeup, NULL);
+    callout_setup(&sched_callout, clock_get_ms() + quantum, sched_wakeup, NULL);
     thread_switch_to(td);
   }
 }
