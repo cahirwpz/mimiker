@@ -2,6 +2,7 @@
 #define __CONTEXT_H__
 
 #include <common.h>
+#include <asm-mips.h>
 
 typedef struct stack {
   uint8_t *stk_base; /* stack base */
@@ -17,17 +18,9 @@ typedef struct stack {
  * procedures work as function calls, so it is sufficient to replace the return
  * address register.
  */
+
 typedef struct ctx {
-  union {
-    struct {
-      intptr_t ra;
-      intptr_t fp;
-      intptr_t sp;
-      intptr_t gp;
-      intptr_t s0, s1, s2, s3, s4, s5, s6, s7;
-    };
-    intptr_t regs[12];
-  };
+  intptr_t reg[REG_NUM];
 } ctx_t;
 
 /*
@@ -58,6 +51,12 @@ void noreturn ctx_call(const ctx_t *ctx, void *fn);
  * event is undefined, but will generally restart the target function.
  */
 void ctx_init(ctx_t *ctx, void (*target)(), void *sp);
+
+/*
+ * Pushes a stack frame of @size bytes onto the stack. Memory occupied by the
+ * stack frame is zeroed. Returns an address to the stack frame.
+ */
+void* ctx_stack_push(ctx_t *ctx, size_t size);
 
 /* This function stores the current context to @from, and resumes the
  * context stored in @to. It does not return immediatelly, it returns
