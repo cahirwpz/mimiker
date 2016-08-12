@@ -3,9 +3,13 @@
 #include <interrupts.h>
 #include <mips.h>
 #include <clock.h>
+#include <callout.h>
+#include <libkern.h>
+#include <mutex.h>
+#include <sched.h>
 
 /* This counter is incremented every millisecond. */
-static volatile uint32_t timer_ms_count;
+static volatile sbintime_t timer_ms_count;
 
 void clock_init() {
   intr_disable();
@@ -22,7 +26,7 @@ void clock_init() {
   intr_enable();
 }
 
-uint32_t clock_get_ms() {
+sbintime_t clock_get_ms() {
   return timer_ms_count;
 }
 
@@ -46,4 +50,6 @@ void hardclock() {
 
   /* Set compare register. */
   mips32_set_c0(C0_COMPARE, compare);
+  callout_process(timer_ms_count);
+  sched_resume();
 }

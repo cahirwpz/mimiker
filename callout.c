@@ -1,107 +1,92 @@
-#include "callout.h"
-#include "libkern.h"
+#include <libkern.h>
+#include <callout.h>
 
-#define NUMBER_OF_CALLOUT_BUCKETS 5
+#define CALLOUT_BUCKETS 5
+
+#define callout_set_active(c) \
+  ((c)->c_flags |= CALLOUT_ACTIVE)
+#define callout_clear_active(c) \
+  ((c)->c_flags &= ~CALLOUT_ACTIVE)
+
+#define callout_set_pending(c) \
+  ((c)->c_flags |= CALLOUT_PENDING)
+#define callout_clear_pending(c) \
+  ((c)->c_flags &= ~CALLOUT_PENDING)
 
 /*
-  Every event is inside one of NUMBER_OF_CALLOUT_BUCKETS buckets.
+  Every event is inside one of CALLOUT_BUCKETS buckets.
   The buckets is a cyclic list, but we implement it as an array,
   allowing us to access random elements in constant time.
 */
 
+typedef struct callout_head callout_head_t;
 TAILQ_HEAD(callout_head, callout);
 
-
-typedef struct callout_internal {
-  struct callout_head heads[NUMBER_OF_CALLOUT_BUCKETS];
-  unsigned int current_position; /* Which of these heads is at current time. */
-  unsigned int uptime; /* Number of ticks since the system started */
-} callout_internal_t;
-
-static callout_internal_t ci;
+static struct {
+  callout_head_t heads[CALLOUT_BUCKETS];
+  sbintime_t last;
+} ci;
 
 void callout_init() {
-  memset(&ci, 0, sizeof ci);
+  bzero(&ci, sizeof(ci));
 
-  for (int i = 0; i < NUMBER_OF_CALLOUT_BUCKETS; i++)
+  for (int i = 0; i < CALLOUT_BUCKETS; i++)
     TAILQ_INIT(&ci.heads[i]);
 }
 
-void callout_setup(callout_t *handle, sbintime_t time, timeout_t fn,
-                   void *arg) {
-  memset(handle, 0, sizeof(callout_t));
+void callout_setup(callout_t *handle, sbintime_t time, timeout_t fn, void *arg)
+{
+  int index = time % CALLOUT_BUCKETS;
 
-  int index = (time + ci.uptime) % NUMBER_OF_CALLOUT_BUCKETS;
-
-  handle->c_time = time + ci.uptime;
+  bzero(handle, sizeof(callout_t));
+  handle->c_time = time;
   handle->c_func = fn;
   handle->c_arg = arg;
-  handle->index = index;
-  callout_pending(handle);
+  handle->c_index = index;
+  callout_set_pending(handle);
 
-  log("Inserting into index: %d, because current_position = %d, time = %d, uptime = %d",
-      index, ci.current_position, (unsigned)time, ci.uptime);
+  log("Add callout {%p} with wakeup at %ld.", handle, (size_t)handle->c_time);
   TAILQ_INSERT_TAIL(&ci.heads[index], handle, c_link);
 }
 
 void callout_stop(callout_t *handle) {
-  TAILQ_REMOVE(&ci.heads[handle->index], handle, c_link);
+  log("Remove callout {%p} at %ld.", handle, (size_t)handle->c_time);
+  TAILQ_REMOVE(&ci.heads[handle->c_index], handle, c_link);
 }
 
 /*
-  If the time of an event comes, execute the callout function and delete it from the list.
-  Returns true if an element was deleted, false otherwise.
+ * Handle all timeouted callouts from queues between last position and current
+ * position.
 */
-static bool process_element(struct callout_head *head, callout_t *element) {
-  if (element->c_time == ci.uptime) {
-    callout_active(element);
-    callout_not_pending(element);
+void callout_process(sbintime_t time) {
+  int now = time % CALLOUT_BUCKETS;
+  bool done = false;
 
-    element->c_func(element->c_arg);
+  while (!done) {
+    int last = ci.last++ % CALLOUT_BUCKETS;
 
-    TAILQ_REMOVE(head, element, c_link);
+    if (last == now)
+      done = true;
 
-    callout_not_active(element);
+    callout_head_t *head = &ci.heads[last];
+    callout_t *elem = TAILQ_FIRST(head);
+    callout_t *next;
 
-    return true;
-  }
+    while (elem) {
+      next = TAILQ_NEXT(elem, c_link);
 
-  if (element->c_time < ci.uptime)
-    panic("%s", "The time of a callout is smaller than uptime.");
+      if (elem->c_time <= time) {
+        callout_set_active(elem);
+        callout_clear_pending(elem);
 
-  return false;
-}
+        TAILQ_REMOVE(head, elem, c_link);
+        elem->c_func(elem->c_arg);
 
-/*
-  This function makes a tick takes the next bucket and deals with its contents.
-  If we want to run through several buckets at once, just run
-  this function many times.
-*/
-void callout_process(sbintime_t now) {
-  ci.current_position = (ci.current_position + 1) % NUMBER_OF_CALLOUT_BUCKETS;
-  ci.uptime++;
-
-  struct callout_head *head = &ci.heads[ci.current_position];
-  callout_t *current;
-
-  TAILQ_FOREACH(current, head, c_link) {
-    // Deal with the next element if the currrent one is not the tail.
-    bool element_deleted;
-    do {
-      element_deleted = false;
-
-      if (current != TAILQ_LAST(head, callout_head)) {
-        callout_t *next = TAILQ_NEXT(current, c_link);
-        element_deleted = process_element(head, next);
+        callout_clear_active(elem);
       }
-    } while (element_deleted);
-  }
 
-  // Deal with the first element
-  if (!TAILQ_EMPTY(head)) {
-    callout_t *first = TAILQ_FIRST(head);
-    //log("Trying to process the head");
-    process_element(head, first);
+      elem = next;
+    }
   }
 }
 
@@ -118,7 +103,7 @@ int main() {
 
   for (int i = 0; i < 10; i++) {
     kprintf("calling callout_process()\n");
-    callout_process(0);
+    callout_process(i);
   }
 
   return 0;
