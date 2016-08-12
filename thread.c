@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <libkern.h>
 #include <malloc.h>
 #include <thread.h>
@@ -12,6 +13,9 @@ thread_t *thread_self() {
 
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
 
+extern void irq_return();
+extern void kernel_exit();
+
 noreturn void thread_init(void (*fn)(), int argc, ...) {
   kmalloc_init(td_pool);
   kmalloc_add_arena(td_pool, pm_alloc(1)->vaddr, PAGESIZE);
@@ -21,14 +25,28 @@ noreturn void thread_init(void (*fn)(), int argc, ...) {
   td_running->td_stack = pm_alloc(1);
   td_running->td_state = TDS_RUNNING;
 
-  extern void kernel_exit();
-  ctx_init(&td_running->td_context, kernel_exit,
+  ctx_init(&td_running->td_context, irq_return,
            (void *)PG_VADDR_END(td_running->td_stack));
+
+  /* This context will be used by 'irq_return'. */
+  ctx_t *irq_ctx = ctx_stack_push(&td_running->td_context, sizeof(ctx_t));
+
+  /* In supervisor mode CPU may use ERET instruction even if Status.EXL = 0. */
+  irq_ctx->reg[REG_EPC] = (intptr_t)fn;
+  irq_ctx->reg[REG_RA] = (intptr_t)kernel_exit;
+
+  /* Pass arguments to called function. */
+  assert(argc <= 4);
+
+  va_list ap;
+  va_start(ap, argc);
+  for (int i = 0; i < argc; i++)
+    irq_ctx->reg[REG_A0 + i] = va_arg(ap, intptr_t);
+  va_end(ap);
 
   kprintf("[thread] Activating '%s' {%p} thread!\n", 
           td_running->td_name, td_running);
-  /* TODO: How to pass arguments to called function? */
-  ctx_call(&td_running->td_context, fn);
+  ctx_load(&td_running->td_context);
 }
 
 thread_t *thread_create(const char *name, void (*fn)()) {
@@ -88,8 +106,11 @@ static void demo_thread_2() {
   panic("This line need not be reached!");
 }
 
-int main() {
+int main(int argc, char **argv, char **envp) {
   kprintf("Thread '%s' started.\n", thread_self()->td_name);
+  kprintf("argc = %d\n", argc);
+  kprintf("argv = %p\n", argv);
+  kprintf("argp = %p\n", envp);
 
   td0 = thread_self();
   td1 = thread_create("first", demo_thread_1);

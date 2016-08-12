@@ -37,11 +37,6 @@ uint32_t ctx_save(ctx_t *ctx) __attribute__((warn_unused_result));
 void noreturn ctx_load(const ctx_t *ctx);
 
 /*
- * Calls a function in a new context. This function does not return.
- */
-void noreturn ctx_call(const ctx_t *ctx, void *fn);
-
-/*
  * This function sets the contents of a context struct, zeroing it's
  * all registers except for return address, which is set to @target,
  * stack pointer, which is set to @stack, and global pointer, which is
