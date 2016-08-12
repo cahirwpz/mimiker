@@ -45,11 +45,6 @@ general_exception:
         andi    $k0, $k0, CR_X_MASK
         srl     $k0, $k0, CR_X_SHIFT
 
-        /* TEMPORARY. Will change it if this approach is accepted. */
-        beq $k0, 13, irq_yield
-        nop
-        /* END OF TEMPORARY */
-
         li      $k1, EXC_SYS
         beq     $k1, $k0, 2f
         nop
@@ -115,15 +110,6 @@ irq7:
         nop
 
         .org 0x300
-
-irq_yield:
-        mfc0    $k0, C0_EPC
-        addi    $k0, $k0, 4
-        mtc0    $k0, C0_EPC
-
-        la      $k1, sched_switch
-        j       irq_handler
-        nop
 
         .set	noat      /* Forbid the assembler from using $at register. */
 

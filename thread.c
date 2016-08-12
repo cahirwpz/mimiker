@@ -5,7 +5,7 @@
 #include <context.h>
 #include <interrupts.h>
 
-thread_t *td_running = NULL;
+static thread_t *td_running = NULL;
 
 thread_t *thread_self() {
   return td_running;

@@ -3,16 +3,10 @@
 
 #include <thread.h>
 
-void sched_run();
-
+void sched_run(size_t quantum);
 void sched_init();
-
 void sched_add(thread_t *td);
-
-void sched_preempt();
-
 void sched_yield();
-
-void sched_switch();
+void sched_resume();
 
 #endif // __SCHED_H__
