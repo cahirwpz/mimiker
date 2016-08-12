@@ -24,7 +24,7 @@ typedef struct thread {
 } thread_t;
 
 thread_t *thread_self();
-noreturn void thread_init(void (*fn)(), int argc, ...);
+noreturn void thread_init(void (*fn)(), int n, ...);
 thread_t *thread_create(const char *name, void (*fn)());
 void thread_delete(thread_t *td);
 

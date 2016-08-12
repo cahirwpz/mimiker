@@ -16,45 +16,46 @@ static MALLOC_DEFINE(td_pool, "kernel threads pool");
 extern void irq_return();
 extern void kernel_exit();
 
-noreturn void thread_init(void (*fn)(), int argc, ...) {
+noreturn void thread_init(void (*fn)(), int n, ...) {
+  thread_t *td;
+
   kmalloc_init(td_pool);
   kmalloc_add_arena(td_pool, pm_alloc(1)->vaddr, PAGESIZE);
 
-  td_running = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
-  td_running->td_name = "main";
-  td_running->td_stack = pm_alloc(1);
-  td_running->td_state = TDS_RUNNING;
+  td = thread_create("main", fn);
 
-  ctx_init(&td_running->td_context, irq_return,
-           (void *)PG_VADDR_END(td_running->td_stack));
+  /* Pass arguments to called function. */
+  ctx_t *irq_ctx = (ctx_t *)td->td_context.reg[REG_SP];
+  va_list ap;
+
+  assert(n <= 4);
+  va_start(ap, n);
+  for (int i = 0; i < n; i++)
+    irq_ctx->reg[REG_A0 + i] = va_arg(ap, intptr_t);
+  va_end(ap);
+
+  kprintf("[thread] Activating '%s' {%p} thread!\n", td->td_name, td);
+  td->td_state = TDS_RUNNING;
+  td_running = td;
+  ctx_load(&td->td_context);
+}
+
+thread_t *thread_create(const char *name, void (*fn)()) {
+  thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
+  
+  td->td_name = name;
+  td->td_stack = pm_alloc(1);
+  td->td_state = TDS_READY;
+
+  ctx_init(&td->td_context, irq_return, (void *)PG_VADDR_END(td->td_stack));
 
   /* This context will be used by 'irq_return'. */
-  ctx_t *irq_ctx = ctx_stack_push(&td_running->td_context, sizeof(ctx_t));
+  ctx_t *irq_ctx = ctx_stack_push(&td->td_context, sizeof(ctx_t));
 
   /* In supervisor mode CPU may use ERET instruction even if Status.EXL = 0. */
   irq_ctx->reg[REG_EPC] = (intptr_t)fn;
   irq_ctx->reg[REG_RA] = (intptr_t)kernel_exit;
 
-  /* Pass arguments to called function. */
-  assert(argc <= 4);
-
-  va_list ap;
-  va_start(ap, argc);
-  for (int i = 0; i < argc; i++)
-    irq_ctx->reg[REG_A0 + i] = va_arg(ap, intptr_t);
-  va_end(ap);
-
-  kprintf("[thread] Activating '%s' {%p} thread!\n", 
-          td_running->td_name, td_running);
-  ctx_load(&td_running->td_context);
-}
-
-thread_t *thread_create(const char *name, void (*fn)()) {
-  thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
-  td->td_name = name;
-  td->td_stack = pm_alloc(1);
-  td->td_state = TDS_READY;
-  ctx_init(&td->td_context, fn, (void *)PG_VADDR_END(td->td_stack));
   return td;
 }
 
