@@ -28,13 +28,14 @@ void sched_add(thread_t *td) {
 
 static bool sched_activate = false;
 
-void sched_yield() {
+void sched_yield(bool add_to_runq) {
   thread_t *td = thread_self();
   assert(td != td_sched);
 
   cs_enter();
   callout_stop(&sched_callout);
-  runq_add(&runq, td);
+  if (add_to_runq)
+    runq_add(&runq, td);
   sched_activate = false;
   cs_leave();
   /* Scheduler shouldn't trouble us between these two instructions
@@ -93,7 +94,7 @@ static void demo_thread_1() {
 
 static void demo_thread_2() {
   kprintf("Running '%s' thread. Let's yield!\n", thread_self()->td_name);
-  sched_yield();
+  sched_yield(true);
   demo_thread_1();
 }
 
