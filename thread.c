@@ -4,6 +4,7 @@
 #include <thread.h>
 #include <context.h>
 #include <interrupts.h>
+#include <sched.h>
 
 static thread_t *td_running = NULL;
 
@@ -14,7 +15,6 @@ thread_t *thread_self() {
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
 
 extern void irq_return();
-extern void kernel_exit();
 
 noreturn void thread_init(void (*fn)(), int n, ...) {
   thread_t *td;
@@ -54,7 +54,7 @@ thread_t *thread_create(const char *name, void (*fn)()) {
 
   /* In supervisor mode CPU may use ERET instruction even if Status.EXL = 0. */
   irq_ctx->reg[REG_EPC] = (intptr_t)fn;
-  irq_ctx->reg[REG_RA] = (intptr_t)kernel_exit;
+  irq_ctx->reg[REG_RA] = (intptr_t)thread_exit;
 
   return td;
 }
@@ -76,6 +76,10 @@ void thread_switch_to(thread_t *td_ready) {
   td_running->td_state = TDS_RUNNING;
   td_ready->td_state = TDS_READY;
   ctx_switch(&td_ready->td_context, &td_running->td_context);
+}
+
+void thread_exit() {
+  sched_exit();
 }
 
 #ifdef _KERNELSPACE

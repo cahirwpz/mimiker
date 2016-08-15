@@ -9,7 +9,7 @@ TESTS = callout.elf malloc.elf pmap.elf physmem.elf rtc.elf thread.elf \
 	vm_map.elf runq.test sched.elf
 SOURCES_C = startup.c uart_cbus.c interrupts.c clock.c malloc.c context.c \
 	    physmem.c rtc.c pci.c pci_ids.c callout.c runq.c tlb.c pmap.c \
-	    thread.c vm_map.c pager.c sched.c
+	    thread.c vm_map.c pager.c sched.c critical_section.c
 SOURCES_ASM = boot.S intr.S context-mips.S tlb-mips.S
 SOURCES_ASM = boot.S context-mips.S tlb-mips.S
 SOURCES = $(SOURCES_C) $(SOURCES_ASM)
