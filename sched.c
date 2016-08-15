@@ -81,6 +81,22 @@ noreturn void sched_run(size_t quantum) {
   }
 }
 
+/* When a thread finishes its execution, it jumps here.
+   It's basically sched_yield without adding the thread to the runq. */
+void sched_exit() {
+  thread_t *td = thread_self();
+
+  assert(td != td_sched);
+
+  cs_enter();
+  callout_stop(&sched_callout);
+  sched_activate = false;
+  cs_leave();
+  thread_switch_to(td_sched);
+
+  panic("Executing a thread that already finished its execution.");
+}
+
 #ifdef _KERNELSPACE
 
 static void demo_thread_1() {
