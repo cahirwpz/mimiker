@@ -5,6 +5,10 @@
 #include <pmap.h>
 #include <pager.h>
 
+#define PROT_NONE  0x1
+#define PROT_READ  0x2
+#define PROT_WRITE 0x4
+
 typedef struct pager pager_t;
 
 /* There has to be distinction between kernel and user vm_map,
@@ -32,7 +36,7 @@ struct vm_map_entry {
   SPLAY_ENTRY(vm_map_entry) map_tree; 
   vm_object_t *object;
 
-  uint32_t flags;
+  uint32_t prot;
   vm_addr_t start;
   vm_addr_t end;
 };
@@ -48,29 +52,32 @@ typedef struct vm_map {
   pmap_t pmap;
 } vm_map_t;
 
-/*  vm_map associated functions */
-void vm_map_init();
-vm_map_t* vm_map_new(vm_map_type_t t, asid_t asid);
-void vm_map_delete(vm_map_t* vm_map);
-vm_map_entry_t* vm_map_add_entry(vm_map_t* vm_map, uint32_t flags,
-                                 size_t length, size_t alignment);
-void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry);
-vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr);
-void vm_map_dump(vm_map_t* vm_map);
-void vm_map_entry_dump(vm_map_entry_t *entry);
+/* TODO we will need some functions to allocate address ranges,
+ * since vm_map contains all information about address ranges, it's best idea
+ * to embed allocation into this subsystem instead of building new one
+ * on top of it. Function of similar interface would be basic:
+ *
+ * vm_map_entry_t* vm_map_allocate_space(vm_map_t* map, size_t length) */
 
 void set_active_vm_map(vm_map_t* map);
 vm_map_t* get_active_vm_map();
 
-/*  vm_map_entry associated functions */
-void vm_map_entry_map(vm_map_t *map, vm_map_entry_t *entry, 
-                      vm_addr_t start, vm_addr_t end, uint8_t flags);
-void vm_map_entry_unmap(vm_map_t *map, vm_map_entry_t *entry,
-                        vm_addr_t start, vm_addr_t end);
-void vm_map_entry_protect(vm_map_t *map, vm_map_entry_t *entry,
-                          vm_addr_t start, vm_addr_t end, uint8_t flags);
+void vm_map_init();
+vm_map_t* vm_map_new(vm_map_type_t t, asid_t asid);
+void vm_map_delete(vm_map_t* vm_map);
 
-/*  vm_object associated functions */
+vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr);
+
+
+void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end, uint8_t prot);
+void vm_map_insert_object(vm_map_t *map, vm_addr_t start, vm_addr_t end, vm_object_t *object, uint8_t prot);
+
+void vm_map_dump(vm_map_t* vm_map);
+void vm_map_entry_dump(vm_map_entry_t *entry);
+
+/* TODO vm_object should have its own header and implementation file */
+vm_object_t *vm_object_allocate(); /* TODO in future this function will need to be parametrized by type */
+void vm_object_free(vm_object_t *obj);
 bool vm_object_add_page(vm_object_t *obj, vm_page_t *pg);
 void vm_object_remove_page(vm_object_t *obj, vm_page_t *pg);
 vm_page_t* vm_object_find_page(vm_object_t *obj, vm_addr_t offset);

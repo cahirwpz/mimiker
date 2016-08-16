@@ -25,61 +25,57 @@ void pmap_delete(pmap_t *pmap) {
   pm_free(pmap->pde_page);
 }
 
-static void pde_map(pmap_t *pmap, vaddr_t vaddr) {
+static void pde_map(vaddr_t vaddr) {
+  pte_t *pde = active_pmap->pde;
   uint32_t pde_index = PDE_INDEX(vaddr);
-  if (!(pmap->pde[pde_index] & V_MASK)) {
+  if (!(active_pmap->pde[pde_index] & V_MASK)) {
     /* part of page table isn't located in memory */
     vm_page_t *pg = pm_alloc(1);
-    TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pt.list);
+    TAILQ_INSERT_TAIL(&active_pmap->pte_pages, pg, pt.list);
 
-    ENTRYLO_SET_PADDR(pmap->pde[pde_index], pg->paddr);
-    ENTRYLO_SET_V(pmap->pde[pde_index], 1);
-    ENTRYLO_SET_D(pmap->pde[pde_index], 1);
+    ENTRYLO_SET_PADDR(pde[pde_index], pg->paddr);
+    ENTRYLO_SET_V(pde[pde_index], 1);
+    ENTRYLO_SET_D(pde[pde_index], 1);
   }
 
   /* make sure proper address is in tlb */
   pde_index &= ~1;
-  tlbhi_t entryhi = (PTE_BASE + pde_index * PAGESIZE) | pmap->asid;
-  tlblo_t entrylo0 = pmap->pde[pde_index];
-  tlblo_t entrylo1 = pmap->pde[pde_index + 1];
+  tlbhi_t entryhi = (PTE_BASE + pde_index * PAGESIZE) | active_pmap->asid;
+  tlblo_t entrylo0 = pde[pde_index];
+  tlblo_t entrylo1 = pde[pde_index + 1];
   tlb_overwrite_random(entryhi, entrylo0, entrylo1);
 }
 
-static void pt_map(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
+static void pt_map(vm_addr_t vaddr, pm_addr_t paddr,
                    uint8_t flags) {
-  pde_map(pmap, vaddr);
+  pde_map(vaddr);
   pte_t entry = flags;
   uint32_t pt_index = PTE_INDEX(vaddr);
   ENTRYLO_SET_PADDR(entry , paddr);
-  pmap->pte[pt_index] = entry;
+  active_pmap->pte[pt_index] = entry;
 
   /* invalidate proper entry in tlb */
   tlbhi_t entryhi = 0;
   ENTRYHI_SET_VADDR(entryhi, vaddr);
-  ENTRYHI_SET_ASID(entryhi, pmap->asid);
+  ENTRYHI_SET_ASID(entryhi, active_pmap->asid);
   tlb_invalidate(entryhi);
 }
 
-void pmap_map(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr, size_t npages,
+void pmap_map(vm_addr_t vaddr, pm_addr_t paddr, size_t npages,
               uint8_t flags) {
-
-  assert(paddr == NULL_PHYS_PAGE ? flags == PMAP_NONE : true);
-  
-  if(paddr == NULL_PHYS_PAGE)
-  {
-      for (size_t i = 0; i < npages; i++)
-        pt_map(pmap, vaddr + i * PAGESIZE, NULL_PHYS_PAGE, flags);
-  }
-  else
-  {
-      for (size_t i = 0; i < npages; i++)
-        pt_map(pmap, vaddr + i * PAGESIZE, paddr + i * PAGESIZE, flags);
-  }
+  for (size_t i = 0; i < npages; i++)
+    pt_map(vaddr + i * PAGESIZE, paddr + i * PAGESIZE, flags);
 }
 
-void pmap_unmap(pmap_t *pmap, vm_addr_t vaddr, size_t npages) {
-  panic("unimplemented");
+void pmap_protect(vm_addr_t vaddr, size_t npages, uint8_t flags) {
+  for (size_t i = 0; i < npages; i++)
+      /* Set 0xffffffff here, because there is no page with this
+       * physical addres, so this is going to cause bus exception,
+       * when trying to access this range */
+    pt_map(vaddr + i * PAGESIZE, 0xfffffff, flags);
 }
+
+
 
 void set_active_pmap(pmap_t *pmap) {
   active_pmap = pmap;
@@ -100,7 +96,7 @@ int main() { /* Simple test */
   vm_page_t *pg1 = pm_alloc(4);
 
   vaddr_t ex_addr = PAGESIZE * 10;
-  pmap_map(&pmap, ex_addr, pg1->paddr, pg1->size, PMAP_VALID | PMAP_DIRTY);
+  pmap_map(ex_addr, pg1->paddr, pg1->size, PMAP_VALID | PMAP_DIRTY);
 
   int *x = (int *) ex_addr;
   for (int i = 0; i < 1024 * pg1->size; i++)
@@ -111,7 +107,7 @@ int main() { /* Simple test */
   vm_page_t *pg2 = pm_alloc(1);
 
   ex_addr = PAGESIZE * 2000;
-  pmap_map(&pmap, ex_addr, pg2->paddr, pg2->size, PMAP_VALID | PMAP_DIRTY);
+  pmap_map(ex_addr, pg2->paddr, pg2->size, PMAP_VALID | PMAP_DIRTY);
 
   x = (int *) ex_addr;
   for (int i = 0; i < 1024 * pg2->size; i++)
