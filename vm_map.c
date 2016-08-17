@@ -239,9 +239,11 @@ void paging_on_demand_and_memory_protection_demo() {
           obj, PROT_READ | PROT_WRITE);
 
   /* Start in paged on demand range, but end outside, to cause fault */
-  for (vm_addr_t *i = (vm_addr_t *)(demand_paged_start);
-       i != (vm_addr_t *)(demand_paged_end); i++) {
-    *i = 0xfeedbabe;
+  for(vm_addr_t *i = (vm_addr_t *)(demand_paged_start);
+          i != (vm_addr_t*)(demand_paged_end);
+          i++)
+  {
+      *i = 0xfeedbabe;
   }
 }
 

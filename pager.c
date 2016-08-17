@@ -12,19 +12,14 @@ void pager_init() {
   kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
 }
 
-static vm_page_t *default_pager_handler(vm_object_t *obj,
+static void *default_pager_handler(vm_object_t *obj,
                                         vm_addr_t fault_addr,
                                         vm_addr_t vm_offset) {
   assert(obj != NULL);
-
-  /* Promote accessed page to normal page */
   vm_page_t *new_pg = pm_alloc(1);
   new_pg->vm_offset = vm_offset;
 
   vm_object_add_page(obj, new_pg);
-
-  pmap_map(fault_addr, new_pg->paddr, 1, PMAP_VALID);
-
   return new_pg;
 }
 
@@ -53,22 +48,17 @@ void page_fault(vm_map_t *map, vm_addr_t fault_addr, access_t access) {
   {
     switch (object->pgr->type) {
         case DEFAULT_PAGER:
-          accessed_page =
+          accessed_page = 
             default_pager_handler(object, fault_addr, offset);
           break;
     }
   }
-
-  if (access == WRITE_ACCESS && accessed_page) {
-    accessed_page->dirty = true;
-    uint8_t pmap_flags = 0;
-    if (entry->prot & PROT_READ)
+  uint8_t pmap_flags = 0;
+  if(entry->prot & PROT_READ)
       pmap_flags |= PMAP_VALID;
-    if (entry->prot & PROT_WRITE)
+  if(entry->prot & PROT_WRITE)
       pmap_flags |= PMAP_DIRTY;
-    pmap_map(fault_addr, accessed_page->paddr, 1,
-             pmap_flags);
-  }
+  pmap_map(fault_addr, accessed_page->paddr, 1, pmap_flags);
 }
 
 pager_t *pager_allocate(pager_handler_t type) {
