@@ -4,8 +4,8 @@
 #include <mips/cpu.h>
 #include <tlb.h>
 
-#define PTE_INDEX(x)  (((x) & 0xfffff000) >> 12)
-#define PDE_INDEX(x) (((x) & 0xffc00000) >> 22)
+#define PTE_INDEX(x) (((x)&0xfffff000) >> 12)
+#define PDE_INDEX(x) (((x)&0xffc00000) >> 22)
 
 static pmap_t *active_pmap = NULL;
 
@@ -46,12 +46,11 @@ static void pde_map(vaddr_t vaddr) {
   tlb_overwrite_random(entryhi, entrylo0, entrylo1);
 }
 
-static void pt_map(vm_addr_t vaddr, pm_addr_t paddr,
-                   uint8_t flags) {
+static void pt_map(vm_addr_t vaddr, pm_addr_t paddr, uint8_t flags) {
   pde_map(vaddr);
   pte_t entry = flags;
   uint32_t pt_index = PTE_INDEX(vaddr);
-  ENTRYLO_SET_PADDR(entry , paddr);
+  ENTRYLO_SET_PADDR(entry, paddr);
   active_pmap->pte[pt_index] = entry;
 
   /* invalidate proper entry in tlb */
@@ -61,21 +60,18 @@ static void pt_map(vm_addr_t vaddr, pm_addr_t paddr,
   tlb_invalidate(entryhi);
 }
 
-void pmap_map(vm_addr_t vaddr, pm_addr_t paddr, size_t npages,
-              uint8_t flags) {
+void pmap_map(vm_addr_t vaddr, pm_addr_t paddr, size_t npages, uint8_t flags) {
   for (size_t i = 0; i < npages; i++)
     pt_map(vaddr + i * PAGESIZE, paddr + i * PAGESIZE, flags);
 }
 
 void pmap_protect(vm_addr_t vaddr, size_t npages, uint8_t flags) {
   for (size_t i = 0; i < npages; i++)
-      /* Set 0xffffffff here, because there is no page with this
-       * physical addres, so this is going to cause bus exception,
-       * when trying to access this range */
+    /* Set 0xffffffff here, because there is no page with this
+     * physical addres, so this is going to cause bus exception,
+     * when trying to access this range */
     pt_map(vaddr + i * PAGESIZE, 0xfffffff, flags);
 }
-
-
 
 void set_active_pmap(pmap_t *pmap) {
   active_pmap = pmap;
@@ -98,7 +94,7 @@ int main() { /* Simple test */
   vaddr_t ex_addr = PAGESIZE * 10;
   pmap_map(ex_addr, pg1->paddr, pg1->size, PMAP_VALID | PMAP_DIRTY);
 
-  int *x = (int *) ex_addr;
+  int *x = (int *)ex_addr;
   for (int i = 0; i < 1024 * pg1->size; i++)
     *(x + i) = i;
   for (int i = 0; i < 1024 * pg1->size; i++)
@@ -109,7 +105,7 @@ int main() { /* Simple test */
   ex_addr = PAGESIZE * 2000;
   pmap_map(ex_addr, pg2->paddr, pg2->size, PMAP_VALID | PMAP_DIRTY);
 
-  x = (int *) ex_addr;
+  x = (int *)ex_addr;
   for (int i = 0; i < 1024 * pg2->size; i++)
     *(x + i) = i;
   for (int i = 0; i < 1024 * pg2->size; i++)
@@ -123,4 +119,3 @@ int main() { /* Simple test */
   return 0;
 }
 #endif /* _KERNELSPACE */
-

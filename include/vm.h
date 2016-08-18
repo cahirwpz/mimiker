@@ -17,6 +17,13 @@
 #define PM_ALLOCATED  2  /* page has been allocated */
 #define PM_MANAGED    4  /* a page is on a freeq */
 
+typedef enum {
+  VM_PROT_NONE = 0,
+  VM_PROT_READ = 1,
+  VM_PROT_WRITE = 2,
+  VM_PROT_EXEC = 4
+} vm_prot_t;
+
 typedef struct vm_page {
   union {
     TAILQ_ENTRY(vm_page) freeq; /* list of free pages for buddy system */
@@ -39,5 +46,9 @@ typedef struct vm_page {
 TAILQ_HEAD(pg_list, vm_page);
 typedef struct pg_list pg_list_t;
 
-#endif /* _VIRT_MEM_H_ */
+typedef struct vm_map vm_map_t;
+typedef struct vm_map_entry vm_map_entry_t;
+typedef struct vm_object vm_object_t;
+typedef struct pager pager_t;
 
+#endif /* _VIRT_MEM_H_ */

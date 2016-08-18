@@ -3,37 +3,19 @@
 
 #include <queue.h>
 #include <pmap.h>
-#include <pager.h>
-
-#define PROT_NONE  0x1
-#define PROT_READ  0x2
-#define PROT_WRITE 0x4
-
-typedef struct pager pager_t;
+#include <vm.h>
 
 /* There has to be distinction between kernel and user vm_map,
  * That's because in current implementation page table is always located in
  * KSEG2, while user vm_map address range contains no KSEG2 */
 
-typedef enum {
-  KERNEL_VM_MAP = 1,
-  USER_VM_MAP   = 2
-} vm_map_type_t;
+typedef enum { KERNEL_VM_MAP = 1, USER_VM_MAP = 2 } vm_map_type_t;
 
 typedef struct vm_map_entry vm_map_entry_t;
 
-/* At the moment assume object is owned by only one vm_map */
-typedef struct vm_object {
-  TAILQ_HEAD(,vm_page) list;
-  RB_HEAD(vm_object_tree, vm_page) tree;
-  size_t size;
-  size_t npages;
-  pager_t *pgr;
-} vm_object_t;
-
 struct vm_map_entry {
   TAILQ_ENTRY(vm_map_entry) map_list;
-  SPLAY_ENTRY(vm_map_entry) map_tree; 
+  SPLAY_ENTRY(vm_map_entry) map_tree;
   vm_object_t *object;
 
   uint32_t prot;
@@ -42,7 +24,7 @@ struct vm_map_entry {
 };
 
 typedef struct vm_map {
-  TAILQ_HEAD(,vm_map_entry) list;
+  TAILQ_HEAD(, vm_map_entry) list;
   SPLAY_HEAD(vm_map_tree, vm_map_entry) tree;
   size_t nentries;
 
@@ -59,28 +41,23 @@ typedef struct vm_map {
  *
  * vm_map_entry_t* vm_map_allocate_space(vm_map_t* map, size_t length) */
 
-void set_active_vm_map(vm_map_t* map);
-vm_map_t* get_active_vm_map();
+void set_active_vm_map(vm_map_t *map);
+vm_map_t *get_active_vm_map();
 
 void vm_map_init();
-vm_map_t* vm_map_new(vm_map_type_t t, asid_t asid);
-void vm_map_delete(vm_map_t* vm_map);
+vm_map_t *vm_map_new(vm_map_type_t t, asid_t asid);
+void vm_map_delete(vm_map_t *vm_map);
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr);
 
+void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
+                    vm_prot_t prot);
+void vm_map_insert_object(vm_map_t *map, vm_addr_t start, vm_addr_t end,
+                          vm_object_t *object, vm_prot_t prot);
 
-void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end, uint8_t prot);
-void vm_map_insert_object(vm_map_t *map, vm_addr_t start, vm_addr_t end, vm_object_t *object, uint8_t prot);
-
-void vm_map_dump(vm_map_t* vm_map);
+void vm_map_dump(vm_map_t *vm_map);
 void vm_map_entry_dump(vm_map_entry_t *entry);
 
-/* TODO vm_object should have its own header and implementation file */
-vm_object_t *vm_object_allocate(); /* TODO in future this function will need to be parametrized by type */
-void vm_object_free(vm_object_t *obj);
-bool vm_object_add_page(vm_object_t *obj, vm_page_t *pg);
-void vm_object_remove_page(vm_object_t *obj, vm_page_t *pg);
-vm_page_t* vm_object_find_page(vm_object_t *obj, vm_addr_t offset);
+void vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type);
 
 #endif /* _VM_MAP_H */
-

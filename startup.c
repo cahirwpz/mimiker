@@ -12,8 +12,8 @@
 #include <pmap.h>
 #include <callout.h>
 #include <thread.h>
+#include <vm_object.h>
 #include <vm_map.h>
-#include <pager.h>
 
 typedef struct cpuinfo {
     int tlb_entries;
@@ -181,8 +181,8 @@ int kernel_boot(int argc, char **argv, char **envp) {
   clock_init();
   callout_init();
   rtc_init();
+  vm_object_init();
   vm_map_init();
-  pager_init();
   kprintf("[startup] subsystems initialized\n");
   thread_init((void (*)())main, 3, argc, argv, envp);
 }

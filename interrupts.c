@@ -3,8 +3,8 @@
 #include <mips.h>
 #include <pmap.h>
 #include <mips/cpu.h>
+#include <vm_pager.h>
 #include <vm_map.h>
-#include <pager.h>
 
 extern const char _ebase[];
 
@@ -133,8 +133,8 @@ void tlb_exception_handler() {
   }
   else
   {
-    page_fault(get_active_vm_map(), vaddr, 
-        code == EXC_TLBL ? READ_ACCESS : WRITE_ACCESS );
+    vm_page_fault(get_active_vm_map(), vaddr, 
+                  code == EXC_TLBL ? VM_PROT_READ : VM_PROT_WRITE);
   }
 }
 
