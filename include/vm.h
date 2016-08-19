@@ -13,8 +13,19 @@
 #define PG_VADDR_START(pg) ((pg)->vaddr)
 #define PG_VADDR_END(pg) ((pg)->vaddr + PG_SIZE(pg))
 
-#define PG_VALID 0x2 /* Same as TLB valid mask */
-#define PG_DIRTY 0x4 /* Same as TLB dirty mask */
+#define PM_RESERVED   1  /* non releasable page */
+#define PM_ALLOCATED  2  /* page has been allocated */
+#define PM_MANAGED    4  /* a page is on a freeq */
+
+#define VM_ACCESSED 1  /* page has been accessed since last check */
+#define VM_MODIFIED 2  /* page has been modified since last check */
+
+typedef enum {
+  VM_PROT_NONE = 0,
+  VM_PROT_READ = 1,
+  VM_PROT_WRITE = 2,
+  VM_PROT_EXEC = 4
+} vm_prot_t;
 
 typedef struct vm_page {
   union {
@@ -30,13 +41,18 @@ typedef struct vm_page {
   vm_addr_t vm_offset;          /* offset to page in vm_object */
   vm_addr_t vaddr;              /* virtual address of page */
   pm_addr_t paddr;              /* physical address of page */
-  uint8_t vm_flags;             /* state of page (valid or dirty) */
-  uint8_t pm_flags;             /* flags used by pm system */
-  unsigned size;                /* size of page in PAGESIZE units */
+  vm_prot_t prot;               /* page access rights */
+  uint8_t vm_flags;             /* flags used by virtual memory system */
+  uint8_t pm_flags;             /* flags used by physical memory system */
+  uint32_t size;                /* size of page in PAGESIZE units */
 } vm_page_t;
 
 TAILQ_HEAD(pg_list, vm_page);
 typedef struct pg_list pg_list_t;
 
-#endif /* _VIRT_MEM_H_ */
+typedef struct vm_map vm_map_t;
+typedef struct vm_map_entry vm_map_entry_t;
+typedef struct vm_object vm_object_t;
+typedef struct pager pager_t;
 
+#endif /* _VIRT_MEM_H_ */

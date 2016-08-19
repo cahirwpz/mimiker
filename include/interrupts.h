@@ -42,4 +42,6 @@ void run_event_handlers(unsigned irq);
 #define intr_disable() __extension__ ({ asm("di"); })
 #define intr_enable() __extension__ ({ asm("ei"); })
 
+const char *const exceptions[32];
+
 #endif /* __SYS_INTERRUPTS_H__ */

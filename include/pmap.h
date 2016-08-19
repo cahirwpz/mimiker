@@ -1,38 +1,37 @@
 #ifndef _PMAP_H_
 #define _PMAP_H_
 
-#include <tlb.h>
 #include <vm.h>
 #include <queue.h>
 
-/* Page is in every address space, note that this sets up only one page table */
-#define PMAP_GLOBAL G_MASK
-/* Access to page with PMAP_VALID won't cause exception */
-#define PMAP_VALID  V_MASK
-/* Writing to page with PMAP_DIRTY won't cause exception */
-#define PMAP_DIRTY  D_MASK
-
-typedef uint32_t pte_t;
-
-#define PTE_ENTRIES  (1024*1024)
-#define PTE_SIZE     (PTE_ENTRIES*sizeof(pte_t))
+typedef enum {PMAP_KERNEL, PMAP_USER} pmap_type_t;
 
 typedef uint8_t asid_t;
+typedef uint32_t pte_t;
+typedef uint32_t pde_t;
 
-typedef struct pmap {
-  pte_t *pte;  /* page table */
+typedef struct {
+  pmap_type_t type;
+  pte_t *pte; /* page table */
   pte_t *pde; /* directory page table */
-  vm_page_t *pde_page; /* pointer to page allocated from vm_phys containing dpt */
+  vm_page_t *pde_page; /* pointer to a page with directory page table */
   TAILQ_HEAD(, vm_page) pte_pages; /* pages we allocate in page table */
+  vm_addr_t start, end;
   asid_t asid;
 } pmap_t;
 
-void pmap_init(pmap_t *pmap);
+void pmap_setup(pmap_t *pmap, pmap_type_t type, asid_t asid);
+void pmap_reset(pmap_t *);
+
 void pmap_map(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr, size_t npages,
-              uint8_t flags);
+              vm_prot_t prot);
+void pmap_protect(pmap_t *pmap, vm_addr_t vaddr, size_t npages,
+                  vm_prot_t prot);
 void pmap_unmap(pmap_t *pmap, vm_addr_t vaddr, size_t npages);
+
 void set_active_pmap(pmap_t *pmap);
-pmap_t *get_active_pmap();
+pmap_t *get_active_pmap(pmap_type_t type);
 
-#endif /* !_PMAP_H_ */
+__attribute__((interrupt)) void tlb_exception_handler();
 
+#endif /* _PMAP_H_ */

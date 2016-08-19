@@ -1,10 +1,8 @@
 #include <interrupts.h>
 #include <libkern.h>
 #include <mips.h>
-#include <pmap.h>
 #include <mips/cpu.h>
-#include <vm_map.h>
-#include <pager.h>
+#include <pmap.h>
 
 extern const char _ebase[];
 
@@ -84,7 +82,7 @@ void intr_event_execute_handlers(intr_event_t *ie) {
 #endif
 }
 
-static const char *exceptions[32] = {
+const char *const exceptions[32] = {
   [EXC_INTR] = "Interrupt",
   [EXC_MOD]  = "TLB modification exception",
   [EXC_TLBL] = "TLB exception (load or instruction fetch)",
@@ -102,59 +100,6 @@ static const char *exceptions[32] = {
   [EXC_WATCH] = "Reference to watchpoint address",
   [EXC_MCHECK] = "Machine checkcore",
 };
-
-#define PDE_ID_FROM_PTE_ADDR(x) (((x) & 0x003ff000) >> 12)
-
-static vm_map_entry_t *locate_vm_map_entry(vm_addr_t addr)
-{
-    return vm_map_find_entry(get_active_vm_map(), addr);
-}
-
-__attribute__((interrupt)) 
-void tlb_exception_handler() {
-  int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
-  unsigned vaddr = mips32_get_c0(C0_BADVADDR);
-
-  kprintf("[tlb] %s at 0x%08x!\n",
-          exceptions[code], (unsigned)mips32_get_c0(C0_EPC));
-  kprintf("[tlb] Caused by reference to 0x%08x!\n", vaddr);
-
-  if (PTE_BASE <= vaddr && vaddr < PTE_BASE + PTE_SIZE) 
-  {
-    /* If the fault was in virtual pt range it means it's time to refill */
-    kprintf("[tlb] pde_refill\n");
-    uint32_t id = PDE_ID_FROM_PTE_ADDR(vaddr);
-    tlbhi_t entryhi = mips32_get_c0(C0_ENTRYHI);
-
-    pmap_t *active_pmap = get_active_pmap();
-    if (!(active_pmap->pde[id] & V_MASK))
-      panic("Trying to access unmapped memory region. "
-            "Check for null pointers and stack overflows.");
-
-    id &= ~1;
-    pte_t entrylo0 = active_pmap->pde[id];
-    pte_t entrylo1 = active_pmap->pde[id + 1];
-    tlb_overwrite_random(entryhi, entrylo0, entrylo1);
-  }
-  else if (code == (EXC_TLBL | EXC_TLBS)) 
-  {
-    vm_map_entry_t *entry = locate_vm_map_entry(vaddr);
-    if (entry) {
-      /* If access to address was ok, but didn't match entry in page table,
-       * it means it's time to call pager */
-      if (entry->flags & (VM_READ | VM_WRITE)) {
-        assert(entry->object != NULL);
-        vm_addr_t offset = vaddr - entry->start;
-        entry->object->handler(entry, offset);
-      } else {
-        /* TODO: What if processor gets here? */
-        panic("???");
-      }
-    } else {
-      panic("Address not mapped.");
-    }
-  }
-}
 
 void kernel_oops() {
   unsigned code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;

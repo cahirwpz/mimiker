@@ -1,18 +1,21 @@
-#include <tlb.h>
-#include <vm_map.h>
 #include <malloc.h>
 #include <libkern.h>
-#include <mips.h>
 #include <pmap.h>
-#include <tree.h>
-#include <pager.h>
-    
-static vm_map_t *active_vm_map;
+#include <vm.h>
+#include <vm_pager.h>
+#include <vm_object.h>
+#include <vm_map.h>
 
-static inline int vm_page_cmp(vm_page_t *a, vm_page_t *b) {
-  if (a->vm_offset < b->vm_offset)
-    return -1;
-  return a->vm_offset - b->vm_offset;
+static vm_map_t *active_vm_map[2];
+
+void set_active_vm_map(vm_map_t *map) {
+  pmap_type_t type = map->pmap.type;
+  active_vm_map[type] = map;
+  set_active_pmap(&map->pmap);
+}
+
+vm_map_t *get_active_vm_map(pmap_type_t type) {
+  return active_vm_map[type];
 }
 
 static inline int vm_map_entry_cmp(vm_map_entry_t *a, vm_map_entry_t *b) {
@@ -21,29 +24,30 @@ static inline int vm_map_entry_cmp(vm_map_entry_t *a, vm_map_entry_t *b) {
   return a->start - b->start;
 }
 
-RB_PROTOTYPE_STATIC(vm_object_tree, vm_page, obj.tree, vm_page_cmp);
-RB_GENERATE(vm_object_tree, vm_page, obj.tree, vm_page_cmp);
-
 SPLAY_PROTOTYPE(vm_map_tree, vm_map_entry, map_tree, vm_map_entry_cmp);
 SPLAY_GENERATE(vm_map_tree, vm_map_entry, map_tree, vm_map_entry_cmp);
 
-static MALLOC_DEFINE(mpool, "inital vm_map memory pool");
+static MALLOC_DEFINE(mpool, "vm_map memory pool");
 
-static vm_object_t *allocate_object() {
-  vm_object_t *obj = kmalloc(mpool, sizeof(vm_object_t), 0);
-  obj->handler = &anon_pager_handler;
-  TAILQ_INIT(&obj->list);
-  RB_INIT(&obj->tree);
-  return obj;
+void vm_map_init() {
+  vm_page_t *pg = pm_alloc(2);
+  kmalloc_init(mpool);
+  kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
+  vm_map_t *map = vm_map_new(PMAP_KERNEL, 0);
+  set_active_vm_map(map);
 }
 
-static vm_map_entry_t *allocate_entry() {
-  vm_map_entry_t *entry = kmalloc(mpool, sizeof(vm_map_entry_t), 0);
-  entry->object = allocate_object();
-  return entry;
+vm_map_t *vm_map_new(vm_map_type_t type, asid_t asid) {
+  vm_map_t *map = kmalloc(mpool, sizeof(vm_map_t), M_ZERO);
+
+  TAILQ_INIT(&map->list);
+  SPLAY_INIT(&map->tree);
+  pmap_setup(&map->pmap, type, asid);
+  map->nentries = 0;
+  return map;
 }
 
-static void insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
+static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
   if (!SPLAY_INSERT(vm_map_tree, &vm_map->tree, entry)) {
     vm_map_entry_t *next = SPLAY_NEXT(vm_map_tree, &vm_map->tree, entry);
     if (next)
@@ -51,264 +55,141 @@ static void insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
     else
       TAILQ_INSERT_TAIL(&vm_map->list, entry, map_list);
     vm_map->nentries++;
-  } else {
-    /* TODO: How to intepret SPLAY_INSERT failure here? */
+    return true;
   }
+  return false;
 }
 
-void vm_map_init() {
-  vm_page_t *pg = pm_alloc(4);
-  kmalloc_init(mpool);
-  kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
-  active_vm_map = NULL;
+vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
+  vm_map_entry_t *etr_it;
+  TAILQ_FOREACH (etr_it, &vm_map->list, map_list)
+    if (etr_it->start <= vaddr && vaddr < etr_it->end)
+      return etr_it;
+  return NULL;
 }
 
-typedef struct {
-  vm_map_type_t type;
-  vaddr_t start, end;
-} vm_map_range_t;
-
-static vm_map_range_t vm_map_range[] = {
-  { KERNEL_VM_MAP, 0xc0400000, 0xe0000000 },
-  { USER_VM_MAP,   0x00000000, 0x80000000 },
-  { 0 },
-};
-
-vm_map_t* vm_map_new(vm_map_type_t type, asid_t asid) {
-  vm_map_t *vm_map = kmalloc(mpool, sizeof(vm_map_t), 0);
-  TAILQ_INIT(&vm_map->list);
-  SPLAY_INIT(&vm_map->tree);
-  pmap_init(&vm_map->pmap);
-  vm_map->nentries = 0;
-  vm_map->pmap.asid = asid;
-
-  vm_map_range_t *range;
-  
-  for (range = vm_map_range; range->type; range++)
-    if (type == range->type)
-      break;
-
-  if (!range->type)
-    panic("[vm_map] Address range %d unknown!\n", type);
-
-  vm_map->start = range->start;
-  vm_map->end = range->end;
-  return vm_map;
-}
-
-static void vm_object_free(vm_object_t *obj) {
-  while (!TAILQ_EMPTY(&obj->list)) {
-    vm_page_t *pg = TAILQ_FIRST(&obj->list);
-    TAILQ_REMOVE(&obj->list, pg, obj.list);
-    pm_free(pg);
-  }
-  kfree(mpool, obj);
-}
-
-void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
+static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
   vm_map->nentries--;
   vm_object_free(entry->object);
   TAILQ_REMOVE(&vm_map->list, entry, map_list);
   kfree(mpool, entry);
 }
 
-void vm_map_delete(vm_map_t *vm_map) {
-  while (vm_map->nentries > 0)
-    vm_map_remove_entry(vm_map, TAILQ_FIRST(&vm_map->list));
-  kfree(mpool, vm_map);
+void vm_map_delete(vm_map_t *map) {
+  while (map->nentries > 0)
+    vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
+  kfree(mpool, map);
 }
 
-vm_map_entry_t* vm_map_add_entry(vm_map_t* vm_map, uint32_t flags,
-                                 size_t length, size_t alignment)
-{
-  assert(is_aligned(length,PAGESIZE));
+vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start,
+                                 vm_addr_t end, vm_prot_t prot) {
+  assert(start >= map->pmap.start);
+  assert(end <= map->pmap.end);
+  assert(is_aligned(start, PAGESIZE));
+  assert(is_aligned(end, PAGESIZE));
 
-  vm_map_entry_t* entry = allocate_entry();
-  entry->object->size = length;
-  entry->flags = flags;
-  entry->start = align(vm_map->start, alignment);
-  entry->end = entry->start + length;
+#if 0
+  assert(vm_map_find_entry(map, start) == NULL);
+  assert(vm_map_find_entry(map, end) == NULL);
+#endif
 
-  vm_map_entry_t *etr_it;
-  /* Find place on sorted list, first fit policy */
-  TAILQ_FOREACH(etr_it, &vm_map->list, map_list) {
-    entry->start = align(etr_it->end, alignment);
-    entry->end = entry->start+length;
+  vm_map_entry_t *entry = kmalloc(mpool, sizeof(vm_map_entry_t), M_ZERO);
 
-    if (!TAILQ_NEXT(etr_it, map_list))
-      break;
+  entry->start = start;
+  entry->end = end;
+  entry->prot = prot;
 
-    if (entry->end <= TAILQ_NEXT(etr_it, map_list)->start)
-      break;
-  }
+  pmap_map(&map->pmap, start, 0, (end - start) / PAGESIZE, VM_PROT_NONE);
 
-  insert_entry(vm_map, entry);
-  assert(entry->end-entry->start == length);
+  vm_map_insert_entry(map, entry);
   return entry;
 }
 
-vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
-  vm_map_entry_t *etr_it;
-  TAILQ_FOREACH(etr_it, &vm_map->list, map_list)
-    if (etr_it->start <= vaddr && vaddr < etr_it->end)
-      return etr_it;
-  return NULL;
+/* TODO: not implemented */
+void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
+                    vm_prot_t prot) {
 }
 
-void vm_map_dump(vm_map_t *vm_map) {
+void vm_map_dump(vm_map_t *map) {
   vm_map_entry_t *it;
-  TAILQ_FOREACH(it, &vm_map->list, map_list)
-    kprintf("[vm_map] entry (%lu, %lu)\n", it->start, it->end);
-}
-
-void vm_object_add_page(vm_object_t *obj, vm_page_t *page) {
-  assert(is_aligned(page->vm_offset, PAGESIZE));
-  /* For simplicity of implementation let's insert pages of size 1 only */
-  assert(page->size == 1);
-
-  if (!RB_INSERT(vm_object_tree, &obj->tree, page)) {
-    obj->npages++;
-    vm_page_t *next = RB_NEXT(vm_object_tree, &obj->tree, page);
-    if (next) 
-      TAILQ_INSERT_BEFORE(next, page, obj.list);
-    else 
-      TAILQ_INSERT_TAIL(&obj->list, page, obj.list);
-  } else {
-    /* TODO: How to intepret RB_INSERT failure here? */
+  kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n", 
+          map->pmap.start, map->pmap.end);
+  TAILQ_FOREACH (it, &map->list, map_list) {
+    kprintf("[vm_map] * %08lx - %08lx [%c%c%c]\n",
+            it->start, it->end, 
+            (it->prot & VM_PROT_READ) ? 'r' : '-',
+            (it->prot & VM_PROT_WRITE) ? 'w' : '-',
+            (it->prot & VM_PROT_EXEC) ? 'x' : '-');
+    vm_map_object_dump(it->object);
   }
 }
 
-void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
-  TAILQ_REMOVE(&obj->list, page, obj.list);
-  RB_REMOVE(vm_object_tree, &obj->tree, page);
-  pm_free(page);
-  obj->npages--;
-}
+void vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
+  vm_map_entry_t *entry;
 
-void vm_map_entry_dump(vm_map_entry_t *entry) {
-  vm_page_t *it;
-  RB_FOREACH(it, vm_object_tree, &entry->object->tree)
-    kprintf("[vm_object] offset: %lu, size: %u \n", it->vm_offset, it->size);
-}
+  log("Page fault!");
 
-void vm_map_entry_map(vm_map_t *map, vm_map_entry_t *entry,
-                      vm_addr_t start, vm_addr_t end, uint8_t flags)
-{
-  assert(map == get_active_vm_map());
-  assert(&map->pmap == get_active_pmap());
-  assert(entry->start <= start);
-  assert(entry->end > end);
-  assert(is_aligned(start, PAGESIZE));
-  assert(is_aligned(end, PAGESIZE));
+  if (!(entry = vm_map_find_entry(map, fault_addr)))
+    panic("Tried to access unmapped memory region: 0x%08lx!\n", fault_addr);
 
-  int npages = (end-start)/PAGESIZE;
-  vm_addr_t offset = start-entry->start;
+  if (entry->prot == VM_PROT_NONE)
+    panic("Cannot access to address: 0x%08lx\n", fault_addr);
 
-  for(int i = 0; i < npages; i++) {
-    vm_page_t *pg = pm_alloc(1);
-    pg->vm_offset = offset + i * PAGESIZE;
-    pg->vm_flags = flags;
-    vm_object_add_page(entry->object, pg);
-    pmap_map(&map->pmap, entry->start + pg->vm_offset, pg->paddr, 1, flags);
-  }
-}
+  if (!(entry->prot & VM_PROT_WRITE) && (fault_type == VM_PROT_WRITE))
+    panic("Cannot write to address: 0x%08lx\n", fault_addr);
 
-void vm_map_entry_unmap(vm_map_t *map, vm_map_entry_t *entry,
-                        vm_addr_t start, vm_addr_t end)
-{
-  assert(map == get_active_vm_map());
-  assert(&map->pmap == get_active_pmap());
-  assert(entry->start <= start);
-  assert(entry->end > end);
-  assert(is_aligned(start, PAGESIZE));
-  assert(is_aligned(end, PAGESIZE));
+  if (!(entry->prot & VM_PROT_READ) && (fault_type == VM_PROT_READ))
+    panic("Cannot read from address: 0x%08lx\n", fault_addr);
 
-  vm_page_t cmp_page = { .vm_offset = start - entry->start };
-  vm_page_t *pg_it = RB_NFIND(vm_object_tree, &entry->object->tree, &cmp_page); 
+  assert(entry->start <= fault_addr && fault_addr < entry->end);
 
-  while (pg_it) {
-    assert(pg_it->size == 1);
-    vm_addr_t page = entry->start + pg_it->vm_offset;
+  vm_object_t *obj = entry->object;
 
-    if ((start > page) || (end < page + PAGESIZE))
-      break;
+  assert(obj != NULL);
 
-    pg_it->vm_flags = 0;
-    pmap_map(&map->pmap, page, 0, 1, 0);
-    vm_page_t *tmp = TAILQ_NEXT(pg_it, obj.list);
-    vm_object_remove_page(entry->object, pg_it);
-    pg_it = tmp;
-  }
-}
+  vm_addr_t fault_page = fault_addr & -PAGESIZE;
+  vm_addr_t offset = fault_page - entry->start;
+  vm_page_t *accessed_page = vm_object_find_page(entry->object, offset);
 
-void vm_map_entry_protect(vm_map_t *map, vm_map_entry_t *entry,
-                          vm_addr_t start, vm_addr_t end, uint8_t flags)
-{
-  assert(map == get_active_vm_map());
-  assert(&map->pmap == get_active_pmap());
-  assert(entry->start <= start);
-  assert(entry->end > end);
-  assert(is_aligned(start, PAGESIZE));
-  assert(is_aligned(end, PAGESIZE));
-
-  vm_page_t cmp_page = { .vm_offset = start - entry->start };
-  vm_page_t *pg_it = RB_NFIND(vm_object_tree, &entry->object->tree, &cmp_page); 
-
-  while (pg_it) {
-    assert(pg_it->size == 1);
-    vm_addr_t page = entry->start + pg_it->vm_offset;
-
-    if ((start > page) || (end < page + PAGESIZE))
-      break;
-
-    pg_it->vm_flags = flags;
-    pmap_map(&map->pmap, page, pg_it->paddr, 1, flags);
-    pg_it = TAILQ_NEXT(pg_it, obj.list);
-  }
-}
-
-void set_active_vm_map(vm_map_t* map) {
-  active_vm_map = map;
-}
-
-vm_map_t* get_active_vm_map() {
-  return active_vm_map;
+  if (accessed_page == NULL)
+    accessed_page = obj->pgr->pgr_fault(obj, fault_page, offset, fault_type);
+  pmap_map(&map->pmap, fault_addr, accessed_page->paddr, 1, entry->prot);
 }
 
 #ifdef _KERNELSPACE
 
-int main() {
-  vm_map_init();
-
-  vm_map_t *map = vm_map_new(KERNEL_VM_MAP, 10);
-  vm_map_entry_t *entry =
-    vm_map_add_entry(map, VM_READ | VM_WRITE, 17 * PAGESIZE, PAGESIZE);
-  vm_addr_t map_start = entry->start + PAGESIZE;
-  vm_addr_t map_end = entry->end - PAGESIZE;
-
-  set_active_pmap(&map->pmap);
+void paging_on_demand_and_memory_protection_demo() {
+  vm_map_t *map = vm_map_new(PMAP_USER, 10);
   set_active_vm_map(map);
-  vm_map_entry_map(map, entry, map_start, map_end, PG_VALID | PG_DIRTY);
 
-  assert(entry->object->npages == 15);
-  char *ptr = (char *)map_start;
+  vm_addr_t start = 0x1001000;
+  vm_addr_t end = 0x1001000 + 2 * PAGESIZE;
 
-  while (ptr < (char *)map_end)
-    *ptr++ = 42;
+  vm_map_entry_t *redzone0 = 
+    vm_map_add_entry(map, start - PAGESIZE, start, VM_PROT_NONE);
+  vm_map_entry_t *redzone1 =
+    vm_map_add_entry(map, end, end + PAGESIZE, VM_PROT_NONE);
+  vm_map_entry_t *data =
+    vm_map_add_entry(map, start, end, VM_PROT_READ|VM_PROT_WRITE);
 
-  vm_addr_t unmap_start = entry->start + 10 * PAGESIZE;
-  vm_addr_t unmap_end = entry->start + 14 * PAGESIZE;
-  vm_map_entry_unmap(map, entry, unmap_start, unmap_end); 
-  assert(entry->object->npages == 11);
+  redzone0->object = vm_object_alloc();
+  redzone1->object = vm_object_alloc();
+  data->object = default_pager->pgr_alloc();
 
-  /* Paging on demand test */
-  ptr = (char *)unmap_start;
+  vm_map_dump(map);
 
-  while (ptr != (char *)unmap_end)
-    *ptr++ = 42;
+  /* Start in paged on demand range, but end outside, to cause fault */
+  for (int *ptr = (int *)start; ptr != (int *)end; ptr += 256) {
+    log("%p", ptr);
+    *ptr = 0xfeedbabe;
+  }
 
+  vm_map_dump(map);
+}
+
+int main() {
+  paging_on_demand_and_memory_protection_demo();
   return 0;
 }
 
 #endif
-
