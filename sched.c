@@ -6,7 +6,8 @@
 #include <thread.h>
 #include <callout.h>
 #include <interrupts.h>
-#include <mutex.h>
+#include <mips.h>
+#include <critical_section.h>
 
 static runq_t runq;
 static thread_t *td_sched;
@@ -17,28 +18,35 @@ void sched_init() {
 }
 
 void sched_add(thread_t *td) {
-  log("Add '%s' {%p} thread to scheduler", td->td_name, td);
+  cs_enter();
 
-  intr_disable();
+  log("Add '%s' {%p} thread to scheduler", td->td_name, td);
   runq_add(&runq, td);
-  intr_enable();
+
+  cs_leave();
 }
 
 static bool sched_activate = false;
 
-void sched_yield() {
+void sched_yield(bool add_to_runq) {
   thread_t *td = thread_self();
-
   assert(td != td_sched);
 
+  cs_enter();
   callout_stop(&sched_callout);
-  runq_add(&runq, td);
+  if (add_to_runq)
+    runq_add(&runq, td);
+  sched_activate = false;
+  cs_leave();
+  /* Scheduler shouldn't trouble us between these two instructions
+     because it's deactivated and not in the callout. */
   thread_switch_to(td_sched);
 }
 
 static void sched_wakeup() {
-  thread_t *td = thread_self();
+  assert(during_intr_handler());
 
+  thread_t *td = thread_self();
   assert(td != td_sched);
 
   callout_stop(&sched_callout);
@@ -47,15 +55,17 @@ static void sched_wakeup() {
 }
 
 void sched_resume() {
-  bool irq_active = mips32_get_c0(C0_STATUS) & SR_EXL;
-  assert(irq_active);
+  assert(during_intr_handler());
 
-  if (sched_activate) {
-    sched_activate = false;
-    mips32_bc_c0(C0_STATUS, SR_EXL);
-    intr_enable();
-    thread_switch_to(td_sched);
-  }
+  if (!sched_activate)
+    return;
+
+  sched_activate = false;
+  mips32_bc_c0(C0_STATUS, SR_EXL);
+  intr_enable();
+  /* Scheduler shouldn't trouble us between these two instructions
+     because it's deactivated and not in the callout. */
+  thread_switch_to(td_sched);
 }
 
 noreturn void sched_run(size_t quantum) {
@@ -84,7 +94,7 @@ static void demo_thread_1() {
 
 static void demo_thread_2() {
   kprintf("Running '%s' thread. Let's yield!\n", thread_self()->td_name);
-  sched_yield();
+  sched_yield(true);
   demo_thread_1();
 }
 

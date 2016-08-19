@@ -39,6 +39,8 @@ void intr_event_remove_handler(intr_handler_t *ih);
 void intr_event_execute_handlers(intr_event_t *ie);
 void run_event_handlers(unsigned irq);
 
+bool during_intr_handler();
+
 #define intr_disable() __extension__ ({ asm("di"); })
 #define intr_enable() __extension__ ({ asm("ei"); })
 

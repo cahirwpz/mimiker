@@ -2,17 +2,23 @@
 #define __SLEEPQ_H__
 
 #include <common.h>
+#include <queue.h>
 
 typedef struct thread thread_t;
 
+TAILQ_HEAD(sq_head, thread);
+LIST_HEAD(sq_chain_head, sleepq);
+
 typedef struct sleepq {
-  TAILQ_HEAD(, thread) sq_blocked;  /* Blocked threads. */
-  uint32_t sq_nblocked;             /* Number of blocked threads. */
-  void *sq_wchan;                   /* Wait channel. */
+  LIST_ENTRY(sleepq) sq_entry;
+  struct sq_chain_head sq_free;
+  struct sq_head sq_blocked; /* Blocked threads. */
+  uint32_t sq_nblocked;      /* Number of blocked threads. */
+  void *sq_wchan;            /* Wait channel. */
 } sleepq_t;
 
 typedef struct sleepqueue_chain {
-  LIST_HEAD(, sleepqueue) sc_queues;  /* List of sleep queues. */
+  struct sq_chain_head sc_queues; /* List of sleep queues. */
 } sleepq_chain_t;
 
 void sleepq_init();
@@ -26,7 +32,7 @@ sleepq_t *sleepq_lookup(void *wchan);
 /*
  * Places the current thread on the sleep queue for the specified wait channel.
  */
-void sleepq_add(void *wchan, const char *wmesg);
+void sleepq_add(void *wchan, const char *wmesg, thread_t *td);
 
 /*
  * Block the current thread until it is awakened from its sleep queue.
@@ -39,7 +45,7 @@ void sleepq_wait(void *wchan);
 void sleepq_signal(void *wchan);
 
 /*
- * Resume all threads sleeping on a specified wait channel. 
+ * Resume all threads sleeping on a specified wait channel.
  */
 void sleepq_broadcast(void *wchan);
 
@@ -49,4 +55,6 @@ void sleepq_broadcast(void *wchan);
  */
 void sleepq_remove(thread_t *td, void *wchan);
 
-#endif
+void sleepq_test();
+
+#endif // __SLEEPQ_H__
