@@ -27,10 +27,6 @@ typedef struct vm_map {
   TAILQ_HEAD(, vm_map_entry) list;
   SPLAY_HEAD(vm_map_tree, vm_map_entry) tree;
   size_t nentries;
-
-  vm_addr_t start;
-  vm_addr_t end;
-
   pmap_t pmap;
 } vm_map_t;
 
@@ -42,7 +38,7 @@ typedef struct vm_map {
  * vm_map_entry_t* vm_map_allocate_space(vm_map_t* map, size_t length) */
 
 void set_active_vm_map(vm_map_t *map);
-vm_map_t *get_active_vm_map();
+vm_map_t *get_active_vm_map(pmap_type_t type);
 
 void vm_map_init();
 vm_map_t *vm_map_new(vm_map_type_t t, asid_t asid);

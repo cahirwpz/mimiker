@@ -17,7 +17,7 @@ typedef struct vm_object {
 void vm_object_init();
 
 /* TODO in future this function will need to be parametrized by type */
-vm_object_t * vm_object_alloc();
+vm_object_t *vm_object_alloc();
 void vm_object_free(vm_object_t *obj);
 bool vm_object_add_page(vm_object_t *obj, vm_page_t *pg);
 void vm_object_remove_page(vm_object_t *obj, vm_page_t *pg);

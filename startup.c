@@ -12,6 +12,7 @@
 #include <pmap.h>
 #include <callout.h>
 #include <thread.h>
+#include <tlb.h>
 #include <vm_object.h>
 #include <vm_map.h>
 
@@ -177,10 +178,10 @@ int kernel_boot(int argc, char **argv, char **envp) {
   pci_init();
   pm_init();
   intr_init();
-  tlb_init();
   clock_init();
   callout_init();
   rtc_init();
+  tlb_init();
   vm_object_init();
   vm_map_init();
   kprintf("[startup] subsystems initialized\n");

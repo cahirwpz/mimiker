@@ -1,13 +1,22 @@
 #include <malloc.h>
 #include <libkern.h>
+#include <pmap.h>
+#include <vm.h>
 #include <vm_pager.h>
 #include <vm_object.h>
 #include <vm_map.h>
 
-static vm_map_t *active_vm_map;
+static vm_map_t *active_vm_map[2];
 
-void set_active_vm_map(vm_map_t *map) { active_vm_map = map; }
-vm_map_t *get_active_vm_map() { return active_vm_map; }
+void set_active_vm_map(vm_map_t *map) {
+  pmap_type_t type = map->pmap.type;
+  active_vm_map[type] = map;
+  set_active_pmap(&map->pmap);
+}
+
+vm_map_t *get_active_vm_map(pmap_type_t type) {
+  return active_vm_map[type];
+}
 
 static inline int vm_map_entry_cmp(vm_map_entry_t *a, vm_map_entry_t *b) {
   if (a->start < b->start)
@@ -24,41 +33,18 @@ void vm_map_init() {
   vm_page_t *pg = pm_alloc(2);
   kmalloc_init(mpool);
   kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
-  active_vm_map = NULL;
+  vm_map_t *map = vm_map_new(PMAP_KERNEL, 0);
+  set_active_vm_map(map);
 }
 
-typedef struct {
-  vm_map_type_t type;
-  vaddr_t start, end;
-} vm_map_range_t;
-
-static vm_map_range_t vm_map_range[] = {
-  {KERNEL_VM_MAP, 0xc0400000, 0xe0000000},
-  {USER_VM_MAP, 0x00000000, 0x80000000},
-  {0},
-};
-
 vm_map_t *vm_map_new(vm_map_type_t type, asid_t asid) {
-  vm_map_t *vm_map = kmalloc(mpool, sizeof(vm_map_t), M_ZERO);
+  vm_map_t *map = kmalloc(mpool, sizeof(vm_map_t), M_ZERO);
 
-  TAILQ_INIT(&vm_map->list);
-  SPLAY_INIT(&vm_map->tree);
-  pmap_init(&vm_map->pmap);
-  vm_map->nentries = 0;
-  vm_map->pmap.asid = asid;
-
-  vm_map_range_t *range;
-
-  for (range = vm_map_range; range->type; range++)
-    if (type == range->type)
-      break;
-
-  if (!range->type)
-    panic("[vm_map] Address range %d unknown!\n", type);
-
-  vm_map->start = range->start;
-  vm_map->end = range->end;
-  return vm_map;
+  TAILQ_INIT(&map->list);
+  SPLAY_INIT(&map->tree);
+  pmap_setup(&map->pmap, type, asid);
+  map->nentries = 0;
+  return map;
 }
 
 static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
@@ -95,18 +81,17 @@ void vm_map_delete(vm_map_t *map) {
   kfree(mpool, map);
 }
 
-static vm_map_entry_t *_vm_map_protect(vm_map_t *map, vm_addr_t start,
-                                       vm_addr_t end, vm_prot_t prot) {
-  assert(start >= map->start);
-  assert(end < map->end);
+vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start,
+                                 vm_addr_t end, vm_prot_t prot) {
+  assert(start >= map->pmap.start);
+  assert(end <= map->pmap.end);
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
 
-  /* At the moment we assume user knows what he is doing,
-   * In future we want entires to be split */
-
+#if 0
   assert(vm_map_find_entry(map, start) == NULL);
   assert(vm_map_find_entry(map, end) == NULL);
+#endif
 
   vm_map_entry_t *entry = kmalloc(mpool, sizeof(vm_map_entry_t), M_ZERO);
 
@@ -114,26 +99,27 @@ static vm_map_entry_t *_vm_map_protect(vm_map_t *map, vm_addr_t start,
   entry->end = end;
   entry->prot = prot;
 
+  pmap_map(&map->pmap, start, 0, (end - start) / PAGESIZE, VM_PROT_NONE);
+
   vm_map_insert_entry(map, entry);
   return entry;
 }
 
+/* TODO: not implemented */
 void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot) {
-  _vm_map_protect(map, start, end, prot);
 }
 
-/* This function should perhaps use pmap */
-void vm_map_insert_object(vm_map_t *map, vm_addr_t start, vm_addr_t end,
-                          vm_object_t *object, vm_prot_t prot) {
-  vm_map_entry_t *entry = _vm_map_protect(map, start, end, prot);
-  entry->object = object;
-}
-
-void vm_map_dump(vm_map_t *vm_map) {
+void vm_map_dump(vm_map_t *map) {
   vm_map_entry_t *it;
-  TAILQ_FOREACH (it, &vm_map->list, map_list) {
-    kprintf("[vm_map] entry (%lu, %lu)\n", it->start, it->end);
+  kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n", 
+          map->pmap.start, map->pmap.end);
+  TAILQ_FOREACH (it, &map->list, map_list) {
+    kprintf("[vm_map] * %08lx - %08lx [%c%c%c]\n",
+            it->start, it->end, 
+            (it->prot & VM_PROT_READ) ? 'r' : '-',
+            (it->prot & VM_PROT_WRITE) ? 'w' : '-',
+            (it->prot & VM_PROT_EXEC) ? 'x' : '-');
     vm_map_object_dump(it->object);
   }
 }
@@ -141,8 +127,13 @@ void vm_map_dump(vm_map_t *vm_map) {
 void vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
   vm_map_entry_t *entry;
 
+  log("Page fault!");
+
   if (!(entry = vm_map_find_entry(map, fault_addr)))
     panic("Tried to access unmapped memory region: 0x%08lx!\n", fault_addr);
+
+  if (entry->prot == VM_PROT_NONE)
+    panic("Cannot access to address: 0x%08lx\n", fault_addr);
 
   if (!(entry->prot & VM_PROT_WRITE) && (fault_type == VM_PROT_WRITE))
     panic("Cannot write to address: 0x%08lx\n", fault_addr);
@@ -162,46 +153,38 @@ void vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
 
   if (accessed_page == NULL)
     accessed_page = obj->pgr->pgr_fault(obj, fault_page, offset, fault_type);
-  vm_prot_t pmap_flags = 0;
-  if (entry->prot & VM_PROT_READ)
-    pmap_flags |= PMAP_VALID;
-  if (entry->prot & VM_PROT_WRITE)
-    pmap_flags |= PMAP_DIRTY;
-  pmap_map(fault_addr, accessed_page->paddr, 1, pmap_flags);
+  pmap_map(&map->pmap, fault_addr, accessed_page->paddr, 1, entry->prot);
 }
 
 #ifdef _KERNELSPACE
 
 void paging_on_demand_and_memory_protection_demo() {
-  vm_map_t *map = vm_map_new(USER_VM_MAP, 10);
-
-  vm_addr_t demand_paged_start = 0x1001000;
-  vm_addr_t demand_paged_end = 0x1001000 + 2 * PAGESIZE;
-
-  set_active_pmap(&map->pmap);
+  vm_map_t *map = vm_map_new(PMAP_USER, 10);
   set_active_vm_map(map);
 
-  /* Add red pages */
-  pmap_protect(demand_paged_start - PAGESIZE, 1, PMAP_NONE);
-  pmap_protect(demand_paged_end - PAGESIZE, 1, PMAP_NONE);
+  vm_addr_t start = 0x1001000;
+  vm_addr_t end = 0x1001000 + 2 * PAGESIZE;
 
-  vm_map_protect(map, demand_paged_start - PAGESIZE, demand_paged_start,
-                 VM_PROT_NONE);
-  vm_map_protect(map, demand_paged_end - PAGESIZE, demand_paged_end,
-                 VM_PROT_NONE);
+  vm_map_entry_t *redzone0 = 
+    vm_map_add_entry(map, start - PAGESIZE, start, VM_PROT_NONE);
+  vm_map_entry_t *redzone1 =
+    vm_map_add_entry(map, end, end + PAGESIZE, VM_PROT_NONE);
+  vm_map_entry_t *data =
+    vm_map_add_entry(map, start, end, VM_PROT_READ|VM_PROT_WRITE);
 
-  /* Set flags on memory, but don't allocate them, these will be paged on demand
-   */
-  pmap_protect(demand_paged_start, 2, PMAP_NONE);
-  vm_object_t *obj = vm_object_alloc();
-  vm_map_insert_object(map, demand_paged_start, demand_paged_end, obj,
-                       VM_PROT_READ | VM_PROT_WRITE);
+  redzone0->object = vm_object_alloc();
+  redzone1->object = vm_object_alloc();
+  data->object = default_pager->pgr_alloc();
+
+  vm_map_dump(map);
 
   /* Start in paged on demand range, but end outside, to cause fault */
-  for (vm_addr_t *i = (vm_addr_t *)(demand_paged_start);
-       i != (vm_addr_t *)(demand_paged_end); i++) {
-    *i = 0xfeedbabe;
+  for (int *ptr = (int *)start; ptr != (int *)end; ptr += 256) {
+    log("%p", ptr);
+    *ptr = 0xfeedbabe;
   }
+
+  vm_map_dump(map);
 }
 
 int main() {
