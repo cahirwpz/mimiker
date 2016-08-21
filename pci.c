@@ -189,7 +189,7 @@ static void pci_bus_dump(pci_bus_t *pcibus) {
   }
 }
 
-static pci_bus_t pci_bus[0];
+static pci_bus_t pci_bus[1];
 
 void pci_init() {
   pci_bus_enumerate(pci_bus);
