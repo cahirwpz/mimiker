@@ -1,8 +1,8 @@
-#include <pmap.h>
+#include <stdc.h>
 #include <malloc.h>
-#include <libkern.h>
-#include <interrupts.h>
-#include <tlb.h>
+#include <mips/mips.h>
+#include <mips/tlb.h>
+#include <pmap.h>
 #include <vm_map.h>
 
 #define PTE_MASK 0xfffff000
@@ -73,7 +73,7 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
   log("Page table for (%08lx,%08lx) allocated at %08lx", 
       vaddr & PDE_MASK, (vaddr & PDE_MASK) + PTE_SIZE, pg->paddr);
 
-  PDE_OF(pmap, vaddr) = PTE_PFN(pg->paddr)|PTE_VALID|PTE_DIRTY|PTE_GLOBAL;
+  PDE_OF(pmap, vaddr) = PTE_PFN(pg->paddr)| PTE_VALID | PTE_DIRTY | PTE_GLOBAL;
 
   /* make sure proper address is in tlb */
   uint32_t pde_index = PDE_INDEX(vaddr) & ~1;
@@ -118,7 +118,23 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
 }
 
 /* TODO: implement */
-void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr);
+void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
+  assert(PDE_OF(pmap, vaddr) & PTE_VALID);
+
+  pte_t pte = PTE_OF(pmap, vaddr);
+
+  assert(pte & PTE_VALID);
+
+#if 0
+  if (pte & PTE_NO_EXEC)
+    mips_clean_dcache(vaddr, PAGESIZE);
+  else
+    mips_clean_icache(vaddr, PAGESIZE);
+#endif
+
+  PTE_OF(pmap, vaddr) = 0;
+  tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
+}
 
 void pmap_map(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr, size_t npages,
               vm_prot_t prot) {

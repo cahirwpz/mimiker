@@ -32,7 +32,6 @@
 #include <mips/regdef.h>
 #include <mips/m32c0.h>
 #include <mips/m32tlb.h>
-#include <mips/asm.h>
 
 /*
  * void mips_tlbwi2(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1, unsigned mask,

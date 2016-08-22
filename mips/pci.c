@@ -1,7 +1,7 @@
-#include <mips.h>
-#include <malta.h>
-#include <gt64120.h>
-#include <libkern.h>
+#include <stdc.h>
+#include <mips/mips.h>
+#include <mips/malta.h>
+#include <mips/gt64120.h>
 #include <malloc.h>
 #include <pci.h>
 

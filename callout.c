@@ -1,4 +1,4 @@
-#include <libkern.h>
+#include <stdc.h>
 #include <callout.h>
 
 #define CALLOUT_BUCKETS 5

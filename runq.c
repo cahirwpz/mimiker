@@ -1,5 +1,5 @@
+#include <stdc.h>
 #include <common.h>
-#include <libkern.h>
 #include <thread.h>
 #include <runq.h>
 

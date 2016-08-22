@@ -1,8 +1,9 @@
-#ifndef __SYS_MUTEX_H__
-#define __SYS_MUTEX_H__
+#ifndef __MUTEX_H__
+#define __MUTEX_H__
 
 #include <common.h>
-#include <mips.h>
+#include <mips/cpu.h> 
+#include <mips/mips.h>
 
 typedef volatile uintptr_t mtx_t;
 
@@ -16,4 +17,4 @@ typedef volatile uintptr_t mtx_t;
   _mips_intrestore(m);                 \
 })
 
-#endif /* __SYS_MUTEX_H__ */
+#endif /* __MUTEX_H__ */

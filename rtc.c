@@ -1,6 +1,5 @@
-#include <stdint.h>
-#include <mips.h>
-#include <malta.h>
+#include <common.h>
+#include <mips/malta.h>
 #include <rtc.h>
 
 /* http://geezer.osdevbrasil.net/temp/rtc.txt */
@@ -27,7 +26,7 @@ void rtc_read(rtc_time_t *t) {
 }
 
 #ifdef _KERNELSPACE
-#include <libkern.h>
+#include <stdc.h>
 #include <clock.h>
 
 /*

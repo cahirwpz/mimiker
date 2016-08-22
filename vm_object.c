@@ -1,6 +1,6 @@
+#include <stdc.h>
 #include <malloc.h>
 #include <vm_object.h>
-#include <libkern.h>
 
 static inline int vm_page_cmp(vm_page_t *a, vm_page_t *b) {
   if (a->vm_offset < b->vm_offset)

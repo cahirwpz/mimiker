@@ -1,10 +1,8 @@
 #include <common.h>
-#include <config.h>
-#include <interrupts.h>
-#include <mips.h>
+#include <mips/config.h>
+#include <mips/mips.h>
 #include <clock.h>
 #include <callout.h>
-#include <libkern.h>
 #include <mutex.h>
 #include <sched.h>
 

@@ -1,5 +1,5 @@
 #include <asm.h>
-#include <asm-mips.h>
+#include <mips/ctx.h>
 #include <mips/m32c0.h>
 
         .set	noreorder       // Don't allow the assembler to reorder instructions.

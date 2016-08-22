@@ -1,8 +1,8 @@
-#ifndef _TLB_H_
-#define _TLB_H_
+#ifndef __MIPS_TLB_H__
+#define __MIPS_TLB_H__
 
 #include <common.h>
-#include <mips.h>
+#include <mips/mips.h>
 
 /* C0_CONTEXT register */
 #define PTEBASE_MASK 0xff800000

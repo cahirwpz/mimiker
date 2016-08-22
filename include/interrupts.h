@@ -1,5 +1,5 @@
-#ifndef __SYS_INTERRUPTS_H__
-#define __SYS_INTERRUPTS_H__
+#ifndef __INTERRUPTS_H__
+#define __INTERRUPTS_H__
 
 #include <common.h>
 #include <queue.h>
@@ -39,9 +39,4 @@ void intr_event_remove_handler(intr_handler_t *ih);
 void intr_event_execute_handlers(intr_event_t *ie);
 void run_event_handlers(unsigned irq);
 
-#define intr_disable() __extension__ ({ asm("di"); })
-#define intr_enable() __extension__ ({ asm("ei"); })
-
-const char *const exceptions[32];
-
-#endif /* __SYS_INTERRUPTS_H__ */
+#endif /* __INTERRUPTS_H__ */

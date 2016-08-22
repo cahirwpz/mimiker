@@ -1,6 +1,8 @@
 #ifndef __MALTA_H__
 #define __MALTA_H__
 
+#include <mips/mips.h>
+
 /*
  * Malta Memory Map:
  *

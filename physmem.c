@@ -1,7 +1,6 @@
+#include <stdc.h>
 #include <malloc.h>
-#include <libkern.h>
-#include <mips.h>
-#include <malta.h>
+#include <physmem.h>
 
 #define PM_QUEUE_OF(seg, page) ((seg)->freeq + log2((page)->size))
 #define PM_FREEQ(seg, i) ((seg)->freeq + (i))
@@ -20,16 +19,12 @@ typedef struct pm_seg {
 TAILQ_HEAD(pm_seglist, pm_seg);
 
 static struct pm_seglist seglist;
-extern int _memsize;
+extern void pm_boot();
 
 void pm_init() {
   TAILQ_INIT(&seglist);
 
-  pm_add_segment(MALTA_PHYS_SDRAM_BASE,
-                 MALTA_PHYS_SDRAM_BASE + _memsize,
-                 MIPS_KSEG0_START);
-  pm_reserve(MALTA_PHYS_SDRAM_BASE,
-             (pm_addr_t)kernel_sbrk_shutdown() - MIPS_KSEG0_START);
+  pm_boot();
   pm_dump();
 }
 
@@ -376,6 +371,7 @@ int main() {
   pm_free(pg1);
   assert(pre == pm_hash());
   kprintf("Tests passed\n");
+  return 0;
 }
 
 #endif

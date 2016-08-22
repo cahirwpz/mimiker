@@ -1,5 +1,5 @@
-#ifndef __ASM_MIPS_H__
-#define __ASM_MIPS_H__
+#ifndef __MIPS_CTX_H__
+#define __MIPS_CTX_H__
 
 /* Register order in processor context structure. */
 #define REG_AT   0

@@ -1,5 +1,5 @@
+#include <stdc.h>
 #include <malloc.h>
-#include <libkern.h>
 #include <pmap.h>
 #include <vm.h>
 #include <vm_pager.h>

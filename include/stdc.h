@@ -1,5 +1,5 @@
-#ifndef __LIBKERN_H__
-#define __LIBKERN_H__
+#ifndef __STDLIB_H__
+#define __STDLIB_H__
 
 #include <common.h>
 
@@ -36,4 +36,4 @@ int kputs (const char *s);
  * Equivalent to standard putchar */
 int kputchar (int c);
 
-#endif // __LIBKERN_H__
+#endif /* __STDLIB_H__ */

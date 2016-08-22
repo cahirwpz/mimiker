@@ -1,5 +1,5 @@
 #include <stdarg.h>
-#include <libkern.h>
+#include <stdc.h>
 #include <malloc.h>
 #include <thread.h>
 #include <context.h>

@@ -1,4 +1,4 @@
-#include <libkern.h>
+#include <stdc.h>
 #include <sched.h>
 #include <runq.h>
 #include <context.h>

@@ -1,5 +1,11 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
+TOPDIR	 = $(realpath $(dir $(filter %Makefile.common, $(MAKEFILE_LIST))))
+
+SOURCES = $(SOURCES_C) $(SOURCES_ASM)
+OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
+DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
+
 P        = mips-mti-elf-
 CC       = $(P)gcc -mips32r2 -EL -g
 AR       = $(P)ar
@@ -12,8 +18,8 @@ HOSTCC	 = gcc -g
 SYSROOT  = $(realpath $(dir $(shell which $(P)gcc))/..)
 
 ASFLAGS  =
-CFLAGS   = -std=gnu11 -Og -Wall -Werror -fno-builtin
-CPPFLAGS = -Wall -Werror -DDEBUG
+CFLAGS   = -std=gnu11 -Og -Wall -Werror -fno-builtin -ffreestanding
+CPPFLAGS = -Wall -Werror -DDEBUG -I$(TOPDIR)/include
 LDLIBS   =
 LDFLAGS  = -nostdlib -T malta.ld
 
@@ -58,4 +64,10 @@ endef
 # Pass "VERBOSE=1" at command line to display command being invoked by GNU Make
 ifneq ($(VERBOSE), 1)
 .SILENT:
+endif
+
+$(foreach file,$(SOURCES) null,$(eval $(call emit_dep_rule,$(file))))
+
+ifeq ($(words $(findstring $(MAKECMDGOALS), clean)), 0)
+  -include $(DEPFILES)
 endif

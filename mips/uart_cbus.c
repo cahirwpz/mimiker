@@ -1,8 +1,7 @@
 #include <common.h>
-#include <mips.h>
 #include <ns16550.h>
-#include <malta.h>
-#include <uart_cbus.h>
+#include <mips/malta.h>
+#include <mips/uart_cbus.h>
 
 #define CBUS_UART_R(x) \
   *(volatile uint8_t*)(MIPS_PHYS_TO_KSEG1(MALTA_CBUS_UART) + (x))

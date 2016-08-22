@@ -1,7 +1,7 @@
+#include <stdc.h>
+#include <malloc.h>
 #include <vm_object.h>
 #include <vm_pager.h>
-#include <malloc.h>
-#include <libkern.h>
 
 static vm_object_t *default_pager_alloc() {
   vm_object_t *obj = vm_object_alloc();

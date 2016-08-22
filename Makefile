@@ -1,24 +1,19 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
+TESTS = callout.elf malloc.elf physmem.elf rtc.elf thread.elf \
+	vm_map.elf runq.test sched.elf
+SOURCES_C = callout.c interrupts.c malloc.c pci_ids.c physmem.c rtc.c runq.c \
+	    sched.c startup.c thread.c vm_map.c vm_object.c vm_pager.c
+SOURCES_ASM = 
+
+all: ctags cscope mips stdc libkernel.a $(TESTS)
+
 include Makefile.common
 
-CPPFLAGS += -Iinclude
-LDLIBS   += kernel.a -Llibkern -lkern -lgcc
+LDLIBS += -L. -Lmips -Lstdc -Wl,--start-group -lkernel -lmips -lstdc -lgcc -Wl,--end-group
 
-TESTS = callout.elf malloc.elf pmap.elf physmem.elf rtc.elf thread.elf \
-	vm_map.elf runq.test sched.elf
-SOURCES_C = startup.c uart_cbus.c interrupts.c clock.c malloc.c context.c \
-	    physmem.c rtc.c pci.c pci_ids.c callout.c runq.c tlb.c pmap.c \
-	    thread.c vm_pager.c vm_object.c vm_map.c sched.c
-SOURCES_ASM = boot.S intr.S context-mips.S tlb-mips.S
-SOURCES_ASM = boot.S context-mips.S tlb-mips.S
-SOURCES = $(SOURCES_C) $(SOURCES_ASM)
-OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
-DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
 # Kernel runtime files
-KRT = kernel.a intr.o
-
-all: $(DEPFILES) ctags cscope libkern $(TESTS)
+KRT = stdc mips libkernel.a
 
 callout.elf: callout.ko $(KRT)
 thread.elf: thread.ko $(KRT)
@@ -29,16 +24,8 @@ context.elf: context.ko $(KRT)
 vm_map.elf: vm_map.ko $(KRT)
 physmem.elf: physmem.ko $(KRT)
 sched.elf: sched.ko $(KRT)
-kernel.a: $(OBJECTS)
 
-$(foreach file,$(SOURCES) null,$(eval $(call emit_dep_rule,$(file))))
-
-ifeq ($(words $(findstring $(MAKECMDGOALS), clean)), 0)
-  -include $(DEPFILES)
-endif
-
-libkern:
-	$(MAKE) -C libkern libkern.a
+libkernel.a: $(DEPFILES) $(OBJECTS)
 
 cscope:
 	cscope -b include/*.h ./*.[cS] 
@@ -67,10 +54,17 @@ test:
 	  fi						\
 	done
 
+mips:
+	$(MAKE) -C mips
+
+stdc:
+	$(MAKE) -C stdc 
+
 clean:
-	$(MAKE) -C libkern clean
+	$(MAKE) -C mips clean
+	$(MAKE) -C stdc clean
 	$(RM) -f .*.D *.ko *.o *.a *.lst *~ *.elf *.map *.log
-	$(RM) -f tags cscope.out
+	$(RM) -f tags cscope.out *.taghl
 	$(RM) -f $(TESTS)
 
-.PHONY: ctags cscope libkern astyle
+.PHONY: astyle ctags cscope mips stdc

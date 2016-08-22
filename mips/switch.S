@@ -1,5 +1,5 @@
-#include "asm.h"
-#include "asm-mips.h"
+#include <asm.h>
+#include <mips/ctx.h>
 
     .set noreorder
 
