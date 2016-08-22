@@ -48,11 +48,10 @@ vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr);
 
 void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot);
-void vm_map_insert_object(vm_map_t *map, vm_addr_t start, vm_addr_t end,
-                          vm_object_t *object, vm_prot_t prot);
+vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start,
+                                 vm_addr_t end, vm_prot_t prot);
 
 void vm_map_dump(vm_map_t *vm_map);
-void vm_map_entry_dump(vm_map_entry_t *entry);
 
 void vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type);
 

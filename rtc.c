@@ -40,6 +40,8 @@ void mdelay (unsigned msec) {
 }
 
 int main() {
+  rtc_init();
+
   while (1) {
     rtc_time_t rtc;
     rtc_read(&rtc);

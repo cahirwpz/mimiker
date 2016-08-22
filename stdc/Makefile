@@ -98,4 +98,5 @@ clean:
 	$(RM) $(LIBNAME).a
 	$(RM) $(EXTRA_OBJECTS)
 	$(RM) $(LIB_OBJECTS)
+	$(RM) *~ tags *.taghl
 	-rmdir $(LIB_BUILD_DIR)

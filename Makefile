@@ -1,19 +1,19 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-TESTS = callout.elf malloc.elf physmem.elf rtc.elf thread.elf \
-	vm_map.elf runq.test sched.elf
-SOURCES_C = callout.c interrupts.c malloc.c pci_ids.c physmem.c rtc.c runq.c \
-	    sched.c startup.c thread.c vm_map.c vm_object.c vm_pager.c
+TESTS = callout.elf malloc.elf physmem.elf pmap.elf rtc.elf sched.elf \
+	thread.elf vm_map.elf
+SOURCES_C = 
 SOURCES_ASM = 
 
-all: ctags cscope mips stdc libkernel.a $(TESTS)
+all: ctags cscope mips stdc sys $(TESTS)
 
 include Makefile.common
 
-LDLIBS += -L. -Lmips -Lstdc -Wl,--start-group -lkernel -lmips -lstdc -lgcc -Wl,--end-group
+LDLIBS += -Lsys -Lmips -Lstdc \
+	  -Wl,--start-group -lsys -lmips -lstdc -lgcc -Wl,--end-group
 
 # Kernel runtime files
-KRT = stdc mips libkernel.a
+KRT = stdc mips sys
 
 callout.elf: callout.ko $(KRT)
 thread.elf: thread.ko $(KRT)
@@ -60,11 +60,15 @@ mips:
 stdc:
 	$(MAKE) -C stdc 
 
+sys:
+	$(MAKE) -C sys
+
 clean:
 	$(MAKE) -C mips clean
 	$(MAKE) -C stdc clean
+	$(MAKE) -C sys clean
 	$(RM) -f .*.D *.ko *.o *.a *.lst *~ *.elf *.map *.log
 	$(RM) -f tags cscope.out *.taghl
 	$(RM) -f $(TESTS)
 
-.PHONY: astyle ctags cscope mips stdc
+.PHONY: astyle ctags cscope mips stdc sys

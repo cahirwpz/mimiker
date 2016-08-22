@@ -7,7 +7,6 @@
 #include <clock.h>
 #include <malloc.h>
 #include <physmem.h>
-#include <rtc.h>
 #include <pci.h>
 #include <pmap.h>
 #include <callout.h>
@@ -40,7 +39,6 @@ int kernel_boot(int argc, char **argv, char **envp) {
   intr_init();
   clock_init();
   callout_init();
-  rtc_init();
   tlb_init();
   vm_object_init();
   vm_map_init();
