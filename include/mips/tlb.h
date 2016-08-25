@@ -37,13 +37,13 @@ void tlb_init();
 void tlb_print();
 
 /* 
- * Note that MIPS implements variuos page sizes by specifying PageMask register,
+ * Note that MIPS implements variable page size by specifying PageMask register,
  * so intuitively these functions shall specify PageMask. However in current
- * implementation we aren't going to use other page size than 4KB.
+ * implementation we aren't going to use other page size than 4KiB.
  */
 
 /* Returns the number of entries in the TLB. */
-uint32_t tlb_size();
+int tlb_size();
 
 /* Probes the TLB for an entry matching hi, and if present invalidates it. */
 void tlb_invalidate(tlbhi_t hi);
@@ -53,22 +53,21 @@ void tlb_invalidate_all();
 
 /* Reads the TLB entry with specified by index, and returns the EntryHi,
  * EntryLo0, EntryLo1, and parts in *hi, *lo0, *lo1 respectively. */
-void tlb_read_index(tlbhi_t *hi, tlblo_t *lo0, tlblo_t *lo1, int index);
+void tlb_read_index(tlbhi_t *hi, tlblo_t *lo0, tlblo_t *lo1, unsigned idx);
 
 /* Writes hi, lo0, lo1 into the TLB entry specified by index. */
-void tlb_write_index(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1, int i);
+void tlb_write_index(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1, unsigned idx);
 
-/* Writes hi, lo0, lo1 and msk into the TLB entry specified by the Random
- * Register. */
+/* Writes hi, lo0, lo1 into the TLB entry specified by the Random Register. */
 void tlb_write_random(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1);
 
-/* Probes the TLB for an entry matching hi and returns its index, or -1 if not
- * found. If found, then the EntryLo0, EntryLo1 and PageMask parts of the entry
- * are also returned in *plo0, *plo1 respectively. */
-void tlb_probe2(tlbhi_t hi, tlblo_t *lo0, tlblo_t *lo1);
-
-/* If there is entry matching hi overwrites it, else writes into random
- * register. Safest way to update TLB. */
+/* Probes the TLB for an entry matching hi and if present rewrites that
+ * entry, otherwise updates a random entry. A safe way to update the TLB. */
 void tlb_overwrite_random(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1);
 
-#endif /* _TLB_H */
+/* Probes the TLB for an entry matching hi and returns its index, or -1 if not
+ * found. If found, then the EntryLo0, EntryLo1 parts of the entry are also
+ * returned in *lo0, *lo1 respectively. */
+int tlb_probe(tlbhi_t hi, tlblo_t *lo0, tlblo_t *lo1);
+
+#endif /* __MIPS_TLB_H__ */

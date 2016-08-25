@@ -1,9 +1,6 @@
 #include <stdc.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
-#include <vm.h>
-
-#define PAGE_MASK_4KB 0 /* We need only 4KB page size masks at the moment */
 
 void tlb_init() {
   tlb_invalidate_all();
@@ -13,58 +10,8 @@ void tlb_init() {
   mips32_set_c0(C0_CONTEXT, PTE_BASE << 1);
 }
 
-static uint8_t get_asid() {
-  return mips32_get_c0(C0_ENTRYHI) & PTE_ASID_MASK;
-}
-
-static void set_asid(uint8_t asid) {
-  mips32_set_c0(C0_ENTRYHI, asid);
-}
-
-void tlb_invalidate(tlbhi_t hi) {
-  uint8_t asid = get_asid();
-  mips_tlbinval(hi);
-  set_asid(asid);
-}
-
-void tlb_invalidate_all() {
-  mips_tlbinvalall();
-}
-
-void tlb_read_index(tlbhi_t *hi, tlblo_t *lo0, tlblo_t *lo1, int i) {
-  uint8_t asid = get_asid();
-  unsigned dummy;
-  mips_tlbri2(hi, lo0, lo1, &dummy, i);
-  set_asid(asid);
-}
-
-void tlb_write_index(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1, int i) {
-  uint8_t asid = get_asid();
-  mips_tlbwi2(hi, lo0, lo1, PAGE_MASK_4KB, i);
-  set_asid(asid);
-}
-
-void tlb_write_random(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1) {
-  uint8_t asid = get_asid();
-  mips_tlbwr2(hi, lo0, lo1, PAGE_MASK_4KB);
-  set_asid(asid);
-}
-
-void tlb_probe2(tlbhi_t hi, tlblo_t *lo0, tlblo_t *lo1) {
-  uint8_t asid = get_asid();
-  unsigned dummy;
-  mips_tlbprobe2(hi, lo0, lo1, &dummy);
-  set_asid(asid);
-}
-
-void tlb_overwrite_random(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1) {
-  uint8_t asid = get_asid();
-  mips_tlbrwr2(hi, lo0, lo1, PAGE_MASK_4KB);
-  set_asid(asid);
-}
-
 void tlb_print() {
-  uint32_t n = mips_tlb_size();
+  uint32_t n = tlb_size();
   for (uint32_t i = 0; i < n; i++) {
     tlbhi_t hi;
     tlblo_t lo0, lo1;

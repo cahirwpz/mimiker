@@ -26,84 +26,76 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
-*/
+ */
 
 #include <mips/asm.h>
 #include <mips/regdef.h>
 #include <mips/m32c0.h>
 #include <mips/m32tlb.h>
 
-/*
- * void mips_tlbwi2(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1, unsigned mask,
- *			unsigned idx)
- *
- * Writes hi,lo0,lo1 and msk in to the TLB entry specified by index.
- *
- */
-LEAF(mips_tlbwi2)
-#if _MIPS_SIM==_ABIO32
-	lw	ta0, 16(sp)
-#endif
+#
+# void tlb_write_index(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1, unsigned idx)
+#
+LEAF(tlb_write_index)
+        mfc0    t0, C0_ENTRYHI          # save ASID
+
 	mtc0	a0, C0_ENTRYHI
 	mtc0	a1, C0_ENTRYLO0
 	mtc0	a2, C0_ENTRYLO1
-	mtc0	a3, C0_PAGEMASK
-	mtc0	ta0, C0_INDEX
+	mtc0	$0, C0_PAGEMASK
+	mtc0	a3, C0_INDEX
 	ehb				# mtc0, Hazard on tlbwi
 
 	tlbwi
+        mtc0    t0, C0_ENTRYHI          # restore ASID
+
 	.set	push
 	.set	noreorder
 	jr.hb	ra
 	nop
 	.set	pop
-END(mips_tlbwi2)
+END(tlb_write_index)
 
+#
+# void tlb_write_random(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1)
+#
+LEAF(tlb_write_random)
+        mfc0    t0, C0_ENTRYHI          # save ASID
 
-/*
- * void mips_tlbwr2(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1, unsigned mask)
- *
- * Writes hi, lo0, lo1 and msk into the TLB entry specified by the
- * Random register.
- *
- */
-LEAF(mips_tlbwr2)
 	mtc0	a0, C0_ENTRYHI
 	mtc0	a1, C0_ENTRYLO0
 	mtc0	a2, C0_ENTRYLO1
-	mtc0	a3, C0_PAGEMASK
-
+	mtc0	$0, C0_PAGEMASK
 	ehb				# mtc0, hazard on tlbwr
+
 	tlbwr
+        mtc0    t0, C0_ENTRYHI          # restore ASID
+
 	.set	push
 	.set	noreorder
 	jr.hb	ra
 	nop
 	.set	pop
-END(mips_tlbwr2)
+END(tlb_write_random)
 
-/*
- * int mips_tlbrwr2(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1, unsigned mask)
- *
- * Probes the TLB for an entry matching hi and if present rewrites that
- * entry, otherwise updates a random entry. A safe way to update the TLB.
- *
- */
-LEAF(mips_tlbrwr2)
+#
+# void tlb_overwrite_random(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1)
+#
+LEAF(tlb_overwrite_random)
 	mfc0	t0, C0_ENTRYHI
 	mtc0	a0, C0_ENTRYHI
-	ehb		# MTCO, hazard on tlbp
+	ehb		                # MTC0, hazard on tlbp
 
 	tlbp
-	ehb		# tlbp, hazard on MFCO C0_INDEX
+	ehb		                # tlbp, hazard on MFC0 C0_INDEX
 
 	mfc0	v0, C0_INDEX
 	mtc0	a1, C0_ENTRYLO0
 	mtc0	a2, C0_ENTRYLO1
 	mtc0	a3, C0_PAGEMASK
 
-	ehb		# mtc0, hazard on tlbwi
-	bltz	v0, 1f	# no matching entry
+	ehb		                # mtc0, hazard on tlbwi
+	bltz	v0, 1f	                # no matching entry
 
 	tlbwi
 	mtc0	t0, C0_ENTRYHI
@@ -120,49 +112,39 @@ LEAF(mips_tlbrwr2)
 	jr.hb	ra
 	nop
 	.set	pop
-END(mips_tlbrwr2)
+END(tlb_overwrite_random)
 
+#
+# void tlb_read_index(tlbhi_t *hi, tlblo_t *lo0, tlblo_t *lo1, unsigned index)
+#
+LEAF(tlb_read_index)
+	mfc0	t0, C0_ENTRYHI          # save ASID
 
-/*
- * void mips_tlbri2(tlbhi_t *hi, tlblo_t *lo0, tlblo_t *lo1, unsigned *mask,
- *		unsigned index)
- *
- * Reads the TLB entry with specified by index, and returns the EntryHi, EntryLo0,
- * EntryLo1 and PageMask parts in *phi, *plo0, *plo1 and *pmsk respectively.
- *
- */
-LEAF(mips_tlbri2)
-#if _MIPS_SIM==_ABIO32
-	lw	ta0,16(sp)      	# index
-#endif
-	mtc0	ta0, C0_INDEX
+	mtc0	a3, C0_INDEX
 	ehb				# mtc0, hazard on tlbr
 
 	tlbr
 	ehb				# tlbr, hazard on entry*, pagemask
 
-	mfc0	t0, C0_ENTRYHI
-	mfc0	t1, C0_ENTRYLO0
-	mfc0	t2, C0_ENTRYLO1
-	mfc0	t3, C0_PAGEMASK
-	sw	t0, 0(a0)
-	sw	t1, 0(a1)
-	sw	t2, 0(a2)
-	sw	t3, 0(a3)
-	jr	ra
-END(mips_tlbri2)
+	mfc0	t1, C0_ENTRYHI
+	mfc0	t2, C0_ENTRYLO0
+	mfc0	t3, C0_ENTRYLO1
+	sw	t1, 0(a0)
+	sw	t2, 0(a1)
+	sw	t3, 0(a2)
 
+        mtc0	t0, C0_ENTRYHI          # restore ASID
+	.set	push
+	.set	noreorder
+	jr.hb	ra
+	nop
+	.set	pop
+END(tlb_read_index)
 
-/*
- * int mips_tlbprobe2(tlbhi_t hi, tlblo_t *lo0, tlblo_t *lo1,
- * 	unsigned int *mask)
- *
- * Probes the TLB for an entry matching hi and returns its index, or -1 if
- * not found. If found, then the EntryLo0, EntryLo1 and PageMask parts of the
- * entry are also returned in *plo0, *plo1 and *pmsk respectively.
- *
- */
-LEAF(mips_tlbprobe2)
+#
+# int tlb_probe(tlbhi_t hi, tlblo_t *lo0, tlblo_t *lo1)
+#
+LEAF(tlb_probe)
 	mfc0	t0, C0_ENTRYHI
 	mtc0	a0, C0_ENTRYHI
 	ehb				# mtc0, hazard on tlbp
@@ -198,16 +180,12 @@ LEAF(mips_tlbprobe2)
 	jr.hb	ra
 	nop
 	.set	pop
-END(mips_tlbprobe2)
+END(tlb_probe)
 
-
-/*
- * void mips_tlbinval(tlbhi_t a0)
- *
- * Probes the TLB for an entry matching hi, and if present invalidates it.
- *
- */
-LEAF(mips_tlbinval)
+#
+# void tlb_invalidate(tlbhi_t hi)
+#
+LEAF(tlb_invalidate)
 	mfc0	t0, C0_ENTRYHI		# save old entry hi
 	mtc0	a0, C0_ENTRYHI
 	ehb				# mtc0, Hazard on tlbp
@@ -257,19 +235,14 @@ LEAF(mips_tlbinval)
 	jr.hb	ra
 	nop
 	.set	pop
+END(tlb_invalidate)
 
-END(mips_tlbinval)
-
-/*
- * int m64_tlb_size();
- * int mips_tlb_size();
- *
- * Return number of entries in TLB.
- * Entries in v0, number of sets in v1.
- * Must not use registers t8 or a3
- */
-LEAF(mips_tlb_size)
-AENT(m64_tlb_size)
+#
+# int tlb_size();
+# 
+# Entries in v0, number of sets in v1. Must not use registers t8 or a3.
+#
+LEAF(tlb_size)
 	/* first see if we've got a TLB */
 	mfc0	t0, C0_CONFIG
 	mfc0	t1, C0_CONFIG1
@@ -343,16 +316,12 @@ AENT(m64_tlb_size)
 	addu	v0, v0, t2
 
 9:	jr	ra
-END(mips_tlb_size)
+END(tlb_size)
 
-/*
- * void m64_tlbinval()
- * void mips_tlbinval()
- *
- * Invalidate the TLB.
- */
-LEAF(mips_tlbinvalall)
-AENT(m64_tlbinvalall)
+#
+# void tlb_invalidate_all()
+#
+LEAF(tlb_invalidate_all)
 
 	mfc0	t0, C0_CONFIG
 	ext	t3, t0, CFG0_MT_SHIFT, CFG0_MT_BITS
@@ -367,21 +336,21 @@ AENT(m64_tlbinvalall)
 	ext	t9, t9, CFG3_M_SHIFT, 1
 	beqz	t9, 9f
 
-	// If Config4[IE] = 0, use old method for invalidation
+	# If Config4[IE] = 0, use old method for invalidation
 	mfc0	t9, C0_CONFIG4
 	ext     t2, t9, CFG4_IE_SHIFT, CFG4_IE_BITS
 	beqz	t2, 9f
 
-	// If Config[MT] = 1,  one instruction required
+	# If Config[MT] = 1,  one instruction required
 	li	t0, (CFG0_MT_TLB >> CFG0_MT_SHIFT)
 	beq	t3, t0, 7f
 
-	// If Config[IE] = 3, one instruction required
+	# If Config[IE] = 3, one instruction required
 	li	t1, (CFG4_IE_INVALL >> CFG4_IE_SHIFT)
 	beq	t1, t2, 7f
 
-	// If Config4[IE] = 2, many instructions required
-	// No other options
+	# If Config4[IE] = 2, many instructions required
+	# No other options
 	b	8f
 
 7:	# TLB walk done by hardware, Config4[IE] = 3 or Config[MT] = 1
@@ -407,7 +376,7 @@ AENT(m64_tlbinvalall)
 	 */
 
 	move	t8, ra
-	jal	mips_tlb_size
+	jal	tlb_size
 	move	ra, t8
 
 	# Clear VTLB
@@ -442,7 +411,7 @@ AENT(m64_tlbinvalall)
 	# 0x(FFFFFFFF)KSEG0_BASE into EntryHi and writing it into index 0
 	# incrementing by a pagesize, writing into index 1, etc.
 	move	t8, ra
-	jal	mips_tlb_size
+	jal	tlb_size
 	move	ra, t8
 
 	# If large physical addressing is enabled, load 0xFFFFFFFF
@@ -492,4 +461,6 @@ AENT(m64_tlbinvalall)
 	jr.hb	ra
 	nop
 	.set	pop
-END(mips_tlbinvalall)
+END(tlb_invalidate_all)
+
+# vim: sw=8 ts=8 et
