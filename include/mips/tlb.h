@@ -19,11 +19,17 @@
 #define PTE_DIRTY       0x00000004
 #define PTE_VALID       0x00000002
 #define PTE_GLOBAL      0x00000001
+#define PTE_PROT_MASK   (PTE_NO_READ|PTE_NO_EXEC|PTE_DIRTY|PTE_VALID)
 
 #define PTE_PFN(addr)     (((addr) >> PTE_PFN_SHIFT) & PTE_PFN_MASK)
 #define PTE_CACHE(cache)  (((cache) << PTE_CACHE_SHIFT) & PTE_CACHE_MASK)
 #define PTE_PFN_OF(pte)   (((pte) & PTE_PFN_MASK) << PTE_PFN_SHIFT)
 #define PTE_CACHE_OF(pte) (((cache) & PTE_CACHE_MASK) >> PTE_CACHE_MASK)
+
+#define PTE_LO_INDEX_MASK 0x00001000
+#define PTE_LO_INDEX_SHIFT 12
+#define PTE_LO_INDEX_OF(vaddr) \
+  (((vaddr) & PTE_LO_INDEX_MASK) >> PTE_LO_INDEX_SHIFT)
 
 #define PTE_VPN2_MASK 0xffffe000
 #define PTE_ASID_MASK 0x000000ff
@@ -31,7 +37,7 @@
 #define PTE_VPN2(addr) ((addr) & PTE_VPN2_MASK)
 #define PTE_ASID(asid) ((asid) & PTE_VPN2_MASK)
 
-#define PTE_BASE MIPS_KSEG2_START
+#define PT_BASE MIPS_KSEG2_START
 
 void tlb_init();
 void tlb_print();

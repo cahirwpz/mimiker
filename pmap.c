@@ -4,56 +4,41 @@
 #include <physmem.h>
 #include <vm.h>
 
-#if 0
-/* BUG: This should work! */
-#define BASEADDR 0xc0400000
-#else
-#define BASEADDR 0xc0800000
-#endif
-
 int main() {
   pmap_t *pmap = get_active_pmap(PMAP_KERNEL);
 
-  vm_page_t *pg1 = pm_alloc(4);
-  vaddr_t vaddr = BASEADDR + PAGESIZE * 10;
-  pmap_map(pmap, vaddr, pg1->paddr, pg1->size, VM_PROT_READ|VM_PROT_WRITE);
+  vm_page_t *pg = pm_alloc(16);
+  size_t size = pg->size * PAGESIZE;
+  vm_addr_t vaddr1 = pmap->start;
+  vm_addr_t vaddr2 = pmap->start + size / 2;
+  vm_addr_t vaddr3 = pmap->start + size;
+  pmap_map(pmap, vaddr1, vaddr3, pg->paddr, VM_PROT_READ|VM_PROT_WRITE);
 
   {
     log("TLB before:");
     tlb_print();
 
-    int *x = (int *)vaddr;
-    for (int i = 0; i < 1024 * pg1->size; i++)
+    int *x = (int *)vaddr1;
+    for (int i = 0; i < size / sizeof(int); i++)
       *(x + i) = i;
-    for (int i = 0; i < 1024 * pg1->size; i++)
+    for (int i = 0; i < size / sizeof(int); i++)
       assert(*(x + i) == i);
 
     log("TLB after:");
     tlb_print();
   }
 
-  vm_page_t *pg2 = pm_alloc(1);
-  vaddr = BASEADDR + PAGESIZE * 2000;
-  pmap_map(pmap, vaddr, pg2->paddr, pg2->size, VM_PROT_READ|VM_PROT_WRITE);
+  assert(pmap_probe(pmap, vaddr1, vaddr3, VM_PROT_READ|VM_PROT_WRITE));
 
-  {
-    log("TLB before:");
-    tlb_print();
+  pmap_unmap(pmap, vaddr1, vaddr2);
+  pmap_protect(pmap, vaddr2, vaddr3, VM_PROT_READ);
 
-    int *x = (int *)vaddr;
-    for (int i = 0; i < 1024 * pg2->size; i++)
-      *(x + i) = i;
-    for (int i = 0; i < 1024 * pg2->size; i++)
-      assert(*(x + i) == i);
-
-    log("TLB after:");
-    tlb_print();
-  }
-
-  pm_free(pg1);
-  pm_free(pg2);
+  assert(pmap_probe(pmap, vaddr1, vaddr2, VM_PROT_NONE));
+  assert(pmap_probe(pmap, vaddr2, vaddr3, VM_PROT_READ));
 
   pmap_reset(pmap);
+  pm_free(pg);
+
   kprintf("Tests passed\n");
   return 0;
 }

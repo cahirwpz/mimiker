@@ -160,13 +160,13 @@ LEAF(tlb_probe)
 
 	mfc0	v1, C0_ENTRYLO0
 	mfc0	t1, C0_ENTRYLO1
-	mfc0	t2, C0_PAGEMASK
+	# mfc0	t2, C0_PAGEMASK
 
 	mtc0	t0, C0_ENTRYHI		# restore entry hi
 
 	sw	v1, 0(a1)
 	sw	t1, 0(a2)
-	sw	t2, 0(a3)
+	# sw	t2, 0(a3)
 	.set	push
 	.set	noreorder
 	jr.hb	ra
