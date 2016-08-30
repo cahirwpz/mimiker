@@ -50,12 +50,10 @@ general_exception:
         nop
 
         la      $k1, general_exception_table
-        sll     $k0, $k0, 2   /* Multiply exc_code by sizeof(void *) */  
-        add     $k1, $k1, $k0 /* Add exc_code */  
-        lw      $k1, 0($k1)   /* Load the address of a handler */
-        beqz    $k1, 1f       /* If NULL then call kernel_oops */
-        nop
-        jr      $k1           /* Jump to handler */ 
+        sll     $k0, $k0, 2             # Multiply exc_code by sizeof(void *)
+        add     $k1, $k1, $k0           # Add exc_code
+        lw      $k1, 0($k1)             # Load the address of a handler
+        bnez    $k1, irq_handler        # If non-NULL then call irq_handler
         nop
 
 1:      jal     kernel_oops
@@ -102,9 +100,6 @@ irq6:
 
         .org 0x2e0
 irq7:
-        /* Please, no nested interrupts for now. */
-        di
-
         la      $k1,hardclock
         j       irq_handler
         nop
@@ -184,8 +179,5 @@ irq_return:
 
         /* Free stack frame. */
         addu    $sp, $sp, REG_NUM * 4
-
-        /* Re-enable interrupts. */
-        ei
 
         eret

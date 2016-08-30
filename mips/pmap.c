@@ -257,7 +257,6 @@ pmap_t *get_active_pmap_by_addr(vm_addr_t addr) {
   return NULL;
 }
 
-__attribute__((interrupt)) 
 void tlb_exception_handler() {
   int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
   vm_addr_t vaddr = mips32_get_c0(C0_BADVADDR);
