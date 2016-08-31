@@ -15,6 +15,7 @@ typedef struct thread {
   td_prio_t td_priority;
   ctx_t td_context;
   vm_page_t *td_stack;
+  volatile uint32_t td_csnest;    /* critical section nest level */
   enum {
     TDS_INACTIVE = 0x0,
     TDS_WAITING,

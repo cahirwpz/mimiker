@@ -70,7 +70,9 @@ void thread_switch_to(thread_t *td_ready) {
   if (!td_ready)
     return;
 
-  /* TODO: This must be done with interrupts disabled! */
+  /* Thread must not switch while in critical section! */
+  assert(thread_self()->td_csnest == 0);
+
   log("Switching from '%s' {%p} to '%s' {%p}.",
       td_running->td_name, td_running, td_ready->td_name, td_ready);
   assert(td_running != td_ready);
