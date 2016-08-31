@@ -25,19 +25,6 @@ typedef struct ctx {
 } ctx_t;
 
 /*
- * Stores the current execution context to the given structure.
- * Returns 0 when returning directly, or 1 when returning as a result of
- * ctx_load.
- */
-uint32_t ctx_save(ctx_t *ctx) __attribute__((returns_twice));
-
-/*
- * Restores a previously stored context. This function does not
- * return. The control flow jumps to the corresponding ctx_store.
- */
-noreturn void ctx_load(const ctx_t *ctx);
-
-/*
  * Loads a fresh context. This function does not return.
  * The control flow jumps to place pointed by REG_PC.
  */

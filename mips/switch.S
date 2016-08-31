@@ -8,9 +8,9 @@
     .set noat
 
 #
-# uint32_t ctx_save(ctx_t *ctx) __attribute__((returns_twice))
+# void ctx_switch(ctx_t *from, ctx_t *to)
 #
-LEAF(ctx_save)
+LEAF(ctx_switch)
         sw      $ra, (REG_PC*4)($a0)
         sw      $fp, (REG_FP*4)($a0)
         sw      $sp, (REG_SP*4)($a0)
@@ -24,34 +24,24 @@ LEAF(ctx_save)
         sw      $s6, (REG_S6*4)($a0)
         sw      $s7, (REG_S7*4)($a0)
 
-        jr      $ra
-        move    $v0, $zero              # return 0
-END(ctx_save)
-
-#
-# noreturn void ctx_load(const ctx_t *ctx)
-#
-LEAF(ctx_load)
-        lw      $ra, (REG_PC*4)($a0)
-        lw      $fp, (REG_FP*4)($a0)
-        lw      $sp, (REG_SP*4)($a0)
-        lw      $gp, (REG_GP*4)($a0)
-        lw      $s0, (REG_S0*4)($a0)
-        lw      $s1, (REG_S1*4)($a0)
-        lw      $s2, (REG_S2*4)($a0)
-        lw      $s3, (REG_S3*4)($a0)
-        lw      $s4, (REG_S4*4)($a0)
-        lw      $s5, (REG_S5*4)($a0)
-        lw      $s6, (REG_S6*4)($a0)
-        lw      $s7, (REG_S7*4)($a0)
-        lw      $t0, (REG_TCB*4)($a0)
+        lw      $t0, (REG_TCB*4)($a1)
         mtc0    $t0, C0_USERLOCAL
+        lw      $ra, (REG_PC*4)($a1)
+        lw      $fp, (REG_FP*4)($a1)
+        lw      $sp, (REG_SP*4)($a1)
+        lw      $gp, (REG_GP*4)($a1)
+        lw      $s0, (REG_S0*4)($a1)
+        lw      $s1, (REG_S1*4)($a1)
+        lw      $s2, (REG_S2*4)($a1)
+        lw      $s3, (REG_S3*4)($a1)
+        lw      $s4, (REG_S4*4)($a1)
+        lw      $s5, (REG_S5*4)($a1)
+        lw      $s6, (REG_S6*4)($a1)
+        lw      $s7, (REG_S7*4)($a1)
 
-        # The following will not return from @ctx_load, but rather from 
-        # @ctx_save, because we've overwritten $ra!
         jr      $ra
-        li      $v0, 1                  # return 1
-END(ctx_load)
+        nop
+END(ctx_switch)
 
 #
 # noreturn void ctx_boot(const ctx_t *ctx)
