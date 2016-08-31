@@ -33,10 +33,6 @@ $$(DFILE): $$(CFILE)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -MM -MG $$^ -o $$@
 endef
 
-genassym.S: genassym.o
-	@echo "[ASSYM] $@"
-	$(GENASSYM) $<
-
 %.S: %.c
 	@echo "[CC] $< -> $@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -S -o $@ $<
@@ -64,6 +60,10 @@ genassym.S: genassym.o
 %.a:
 	@echo "[AR] $^ -> $@"
 	$(AR) rs $@ $^
+
+%.h: %.o
+	@echo "[ASSYM] $<"
+	$(GENASSYM) $<
 
 .PHONY: all clean
 

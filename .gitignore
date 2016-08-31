@@ -24,4 +24,4 @@ tags
 *.taghl
 
 # generated assembly files
-genassym.S
+genassym.h
