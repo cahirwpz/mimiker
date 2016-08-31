@@ -22,6 +22,7 @@
 #define PTF_SIZE (PTF_ENTRIES * sizeof(pte_t))
 #define PT_ENTRIES (PD_ENTRIES * PTF_ENTRIES)
 #define PT_SIZE (PT_ENTRIES * sizeof(pte_t))
+#define UNMAPPED_PFN 0x00000000
 
 static pmap_t *active_pmap[2];
 
@@ -210,17 +211,28 @@ void pmap_map(pmap_t *pmap, vm_addr_t start, vm_addr_t end, pm_addr_t paddr,
   }
 }
 
-/* TODO: implement */
 void pmap_unmap(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
+  while(start < end) {
+    pmap_set_pte(pmap, start, UNMAPPED_PFN, VM_PROT_NONE);
+    start += PAGESIZE;
+  }
 }
 
-/* TODO: implement */
 void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
                   vm_prot_t prot) {
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
+  while(start < end) {
+    if(!(PDE_OF(pmap, start) & PTE_VALID)) {
+      pmap_add_pde(pmap, start);
+    }
+    pte_t pte = PTE_OF(pmap, start);
+    pm_addr_t paddr = PTE_PFN_OF(pte);
+    pmap_set_pte(pmap, start, paddr, prot);
+    start += PAGESIZE;
+  }
 }
 
 /* TODO: at any given moment there're two page tables in use:

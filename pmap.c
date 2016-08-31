@@ -12,6 +12,10 @@ int main() {
   vm_addr_t vaddr1 = pmap->start;
   vm_addr_t vaddr2 = pmap->start + size / 2;
   vm_addr_t vaddr3 = pmap->start + size;
+
+  vm_addr_t vaddr4 = 0xc4400000;
+  vm_addr_t vaddr5 = vaddr4+10*PAGESIZE;
+
   pmap_map(pmap, vaddr1, vaddr3, pg->paddr, VM_PROT_READ|VM_PROT_WRITE);
 
   {
@@ -32,9 +36,11 @@ int main() {
 
   pmap_unmap(pmap, vaddr1, vaddr2);
   pmap_protect(pmap, vaddr2, vaddr3, VM_PROT_READ);
+  pmap_protect(pmap, vaddr4, vaddr5, VM_PROT_READ);
 
   assert(pmap_probe(pmap, vaddr1, vaddr2, VM_PROT_NONE));
   assert(pmap_probe(pmap, vaddr2, vaddr3, VM_PROT_READ));
+  assert(pmap_probe(pmap, vaddr4, vaddr5, VM_PROT_READ));
 
   pmap_reset(pmap);
   pm_free(pg);

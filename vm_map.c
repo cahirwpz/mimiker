@@ -21,7 +21,7 @@ static void paging_on_demand_and_memory_protection_demo() {
   redzone1->object = vm_object_alloc();
   data->object = default_pager->pgr_alloc();
 
-  vm_map_dump(map);
+  //vm_map_dump(map);
 
   /* Start in paged on demand range, but end outside, to cause fault */
   for (int *ptr = (int *)start; ptr != (int *)end; ptr += 256) {
@@ -29,7 +29,7 @@ static void paging_on_demand_and_memory_protection_demo() {
     *ptr = 0xfeedbabe;
   }
 
-  vm_map_dump(map);
+  //vm_map_dump(map);
 }
 
 int main() {
