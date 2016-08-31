@@ -138,6 +138,10 @@ irq_handler:
         /* ... return address, */
         sw      $ra, (REG_RA*4)($sp)
 
+        /* ... thread control block, */
+        mfc0    $k0, C0_USERLOCAL
+        sw      $k0, (REG_TCB*4)($sp)
+
         /* ... and exception program counter. */
         mfc0    $k0, C0_EPC
         sw      $k0, (REG_EPC*4)($sp)
@@ -147,9 +151,13 @@ irq_handler:
         nop
 
 irq_return:
-        /* Restore exception program counter... */
+        /* Restore exception program counter, */
         lw      $k0, (REG_EPC*4)($sp)
         mtc0    $k0, C0_EPC    
+
+        /* ... thread control block, */
+        lw      $k0, (REG_TCB*4)($sp)
+        mtc0    $k0, C0_USERLOCAL
 
         /* ... return address, */
         lw      $ra, (REG_RA*4)($sp)
@@ -181,3 +189,5 @@ irq_return:
         addu    $sp, $sp, REG_NUM * 4
 
         eret
+
+# vim: sw=8 ts=8 et

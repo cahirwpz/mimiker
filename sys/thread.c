@@ -5,12 +5,6 @@
 #include <context.h>
 #include <interrupts.h>
 
-static thread_t *td_running = NULL;
-
-thread_t *thread_self() {
-  return td_running;
-}
-
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
 
 extern void irq_return();
@@ -34,9 +28,10 @@ noreturn void thread_init(void (*fn)(), int n, ...) {
     irq_ctx->reg[REG_A0 + i] = va_arg(ap, intptr_t);
   va_end(ap);
 
+  irq_ctx->reg[REG_TCB] = (intptr_t)td;
+
   kprintf("[thread] Activating '%s' {%p} thread!\n", td->td_name, td);
   td->td_state = TDS_RUNNING;
-  td_running = td;
   ctx_load(&td->td_context);
 }
 
@@ -55,30 +50,32 @@ thread_t *thread_create(const char *name, void (*fn)()) {
   /* In supervisor mode CPU may use ERET instruction even if Status.EXL = 0. */
   irq_ctx->reg[REG_EPC] = (intptr_t)fn;
   irq_ctx->reg[REG_RA] = (intptr_t)kernel_exit;
+  irq_ctx->reg[REG_TCB] = (intptr_t)td;
 
   return td;
 }
 
 void thread_delete(thread_t *td) {
-  assert(td != td_running);
+  assert(td != NULL);
+  assert(td != thread_self());
 
   pm_free(td->td_stack);
   kfree(td_pool, td);
 }
 
-void thread_switch_to(thread_t *td_ready) {
-  if (!td_ready)
+void thread_switch_to(thread_t *newtd) {
+  thread_t *td = thread_self();
+
+  if (newtd == NULL || newtd == td)
     return;
 
   /* Thread must not switch while in critical section! */
-  assert(thread_self()->td_csnest == 0);
+  assert(td->td_csnest == 0);
 
   log("Switching from '%s' {%p} to '%s' {%p}.",
-      td_running->td_name, td_running, td_ready->td_name, td_ready);
-  assert(td_running != td_ready);
+      td->td_name, td, newtd->td_name, newtd);
 
-  swap(td_running, td_ready);
-  td_running->td_state = TDS_RUNNING;
-  td_ready->td_state = TDS_READY;
-  ctx_switch(&td_ready->td_context, &td_running->td_context);
+  td->td_state = TDS_READY;
+  newtd->td_state = TDS_RUNNING;
+  ctx_switch(&td->td_context, &newtd->td_context);
 }
