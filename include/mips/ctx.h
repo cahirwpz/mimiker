@@ -33,7 +33,7 @@
 #define REG_RA  28
 #define REG_LO  29
 #define REG_HI  30
-#define REG_EPC 31
+#define REG_PC  31
 #define REG_TCB 32 /* current thread control block, stored in C0_USERLOCAL */
 #define REG_NUM 33 /* number of registers in context structure */
 

@@ -2,13 +2,16 @@
 #include <mips/m32c0.h>
 #include <mips/ctx.h>
 
+#include "genassym.h"
+
     .set noreorder
+    .set noat
 
 #
-# uint32_t ctx_save(ctx_t *ctx)
+# uint32_t ctx_save(ctx_t *ctx) __attribute__((returns_twice))
 #
 LEAF(ctx_save)
-        sw      $ra, (REG_RA*4)($a0)
+        sw      $ra, (REG_PC*4)($a0)
         sw      $fp, (REG_FP*4)($a0)
         sw      $sp, (REG_SP*4)($a0)
         sw      $gp, (REG_GP*4)($a0)
@@ -20,19 +23,16 @@ LEAF(ctx_save)
         sw      $s5, (REG_S5*4)($a0)
         sw      $s6, (REG_S6*4)($a0)
         sw      $s7, (REG_S7*4)($a0)
-        mfc0    $t0, C0_USERLOCAL
-        sw      $t0, (REG_TCB*4)($a0)
 
-        # return 0
         jr      $ra
-        move    $v0, $zero
+        move    $v0, $zero              # return 0
 END(ctx_save)
 
 #
-# void ctx_load(const ctx_t *ctx)
+# noreturn void ctx_load(const ctx_t *ctx)
 #
 LEAF(ctx_load)
-        lw      $ra, (REG_RA*4)($a0)
+        lw      $ra, (REG_PC*4)($a0)
         lw      $fp, (REG_FP*4)($a0)
         lw      $sp, (REG_SP*4)($a0)
         lw      $gp, (REG_GP*4)($a0)
@@ -47,11 +47,33 @@ LEAF(ctx_load)
         lw      $t0, (REG_TCB*4)($a0)
         mtc0    $t0, C0_USERLOCAL
 
-        # Note that the following will not return from ctx_load, because $ra
-        # has been overwritten with the value previously stored by ctx_store.
-        # Instead, it resumes the context, and returns 1 there.
+        # The following will not return from @ctx_load, but rather from 
+        # @ctx_save, because we've overwritten $ra!
         jr      $ra
-        li      $v0, 1
+        li      $v0, 1                  # return 1
 END(ctx_load)
+
+#
+# noreturn void ctx_boot(const ctx_t *ctx)
+#
+LEAF(ctx_boot)
+        move    $t0, $a0
+
+        lw      $ra, (REG_RA*4)($t0)
+        lw      $fp, (REG_FP*4)($t0)
+        lw      $sp, (REG_SP*4)($t0)
+        lw      $gp, (REG_GP*4)($t0)
+        lw      $a0, (REG_A0*4)($t0)
+        lw      $a1, (REG_A1*4)($t0)
+        lw      $a2, (REG_A2*4)($t0)
+        lw      $a3, (REG_A3*4)($t0)
+
+        lw      $t1, (REG_TCB*4)($t0)
+        mtc0    $t1, C0_USERLOCAL
+
+        lw      $t1, (REG_PC*4)($t0)
+        jr      $t1
+        nop
+END(ctx_boot)
 
 # vim: sw=8 ts=8 et

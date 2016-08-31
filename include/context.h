@@ -2,6 +2,7 @@
 #define __CONTEXT_H__
 
 #include <common.h>
+#include <mips/mips.h>
 #include <mips/ctx.h>
 
 typedef struct stack {
@@ -20,7 +21,7 @@ typedef struct stack {
  */
 
 typedef struct ctx {
-  intptr_t reg[REG_NUM];
+  reg_t reg[REG_NUM];
 } ctx_t;
 
 /*
@@ -28,13 +29,19 @@ typedef struct ctx {
  * Returns 0 when returning directly, or 1 when returning as a result of
  * ctx_load.
  */
-uint32_t ctx_save(ctx_t *ctx) __attribute__((warn_unused_result));
+uint32_t ctx_save(ctx_t *ctx) __attribute__((returns_twice));
 
 /*
  * Restores a previously stored context. This function does not
  * return. The control flow jumps to the corresponding ctx_store.
  */
-void noreturn ctx_load(const ctx_t *ctx);
+noreturn void ctx_load(const ctx_t *ctx);
+
+/*
+ * Loads a fresh context. This function does not return.
+ * The control flow jumps to place pointed by REG_PC.
+ */
+noreturn void ctx_boot(const ctx_t *ctx);
 
 /*
  * This function sets the contents of a context struct, zeroing it's
@@ -46,12 +53,6 @@ void noreturn ctx_load(const ctx_t *ctx);
  * event is undefined, but will generally restart the target function.
  */
 void ctx_init(ctx_t *ctx, void (*target)(), void *sp);
-
-/*
- * Pushes a stack frame of @size bytes onto the stack. Memory occupied by the
- * stack frame is zeroed. Returns an address to the stack frame.
- */
-void* ctx_stack_push(ctx_t *ctx, size_t size);
 
 /* This function stores the current context to @from, and resumes the
  * context stored in @to. It does not return immediatelly, it returns
