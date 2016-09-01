@@ -24,6 +24,10 @@
 #define PT_SIZE (PT_ENTRIES * sizeof(pte_t))
 #define UNMAPPED_PFN 0x00000000
 
+static bool is_valid(pte_t pte) {
+  return pte & PTE_VALID;
+}
+
 static pmap_t *active_pmap[2];
 
 typedef struct {
@@ -34,6 +38,7 @@ static pmap_range_t pmap_range[PMAP_LAST] = {
   [PMAP_KERNEL] = {0xc0000000 + PT_SIZE, 0xfffff000}, /* kseg2 & kseg3 */
   [PMAP_USER] = {0x00000000, 0x80000000}, /* useg */
 };
+
 
 void pmap_setup(pmap_t *pmap, pmap_type_t type, asid_t asid) {
   pmap->type = type;
@@ -69,7 +74,17 @@ bool pmap_mapped_page(pmap_t *pmap, vm_addr_t vaddr) {
 }
 
 /* TODO: implement in an efficient manner */
-bool pmap_mapped_page_range(pmap_t *pmap, vm_addr_t start, vm_addr_t end);
+static bool pmap_mapped_page_range(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
+  for (size_t i = PDE_INDEX(start); i < PDE_INDEX(end); i++)
+    if (!is_valid(pmap->pde[i]))
+      return false;
+
+  for (size_t i = PTE_INDEX(start); i < PTE_INDEX(end); i++)
+    if (!is_valid(pmap->pte[i]))
+      return false;
+
+  return true;
+}
 
 #define PTF_ADDR_OF(vaddr) (PT_BASE + PDE_INDEX(vaddr) * PAGESIZE)
 
@@ -150,7 +165,7 @@ void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
 
   pte_t pte = PTE_OF(pmap, vaddr);
 
-  assert(pte & PTE_VALID);
+  assert(is_valid(pte));
 
 #if 0
   if (pte & PTE_NO_EXEC)
@@ -214,6 +229,10 @@ void pmap_map(pmap_t *pmap, vm_addr_t start, vm_addr_t end, pm_addr_t paddr,
 void pmap_unmap(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
+  if (!pmap_mapped_page_range(pmap, start, end)) {
+    /* Should we silently fail or panic? */
+    return;
+  }
   while(start < end) {
     pmap_set_pte(pmap, start, UNMAPPED_PFN, VM_PROT_NONE);
     start += PAGESIZE;
@@ -224,10 +243,13 @@ void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
                   vm_prot_t prot) {
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
+
+  if (!pmap_mapped_page_range(pmap, start, end)) {
+    /* Should we silently fail or panic? */
+    return;
+  }
+
   while(start < end) {
-    if(!(PDE_OF(pmap, start) & PTE_VALID)) {
-      pmap_add_pde(pmap, start);
-    }
     pte_t pte = PTE_OF(pmap, start);
     pm_addr_t paddr = PTE_PFN_OF(pte);
     pmap_set_pte(pmap, start, paddr, prot);
