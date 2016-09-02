@@ -99,8 +99,6 @@ vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start,
   entry->end = end;
   entry->prot = prot;
 
-  pmap_map(&map->pmap, start, 0, (end - start) / PAGESIZE, VM_PROT_NONE);
-
   vm_map_insert_entry(map, entry);
   return entry;
 }
@@ -149,9 +147,10 @@ void vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
 
   vm_addr_t fault_page = fault_addr & -PAGESIZE;
   vm_addr_t offset = fault_page - entry->start;
-  vm_page_t *accessed_page = vm_object_find_page(entry->object, offset);
+  vm_page_t *frame = vm_object_find_page(entry->object, offset);
 
-  if (accessed_page == NULL)
-    accessed_page = obj->pgr->pgr_fault(obj, fault_page, offset, fault_type);
-  pmap_map(&map->pmap, fault_addr, accessed_page->paddr, 1, entry->prot);
+  if (!frame)
+    frame = obj->pgr->pgr_fault(obj, fault_page, offset, fault_type);
+  pmap_map(&map->pmap, fault_addr, fault_addr + PAGESIZE, 
+           frame->paddr, entry->prot);
 }

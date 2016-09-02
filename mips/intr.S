@@ -6,6 +6,8 @@
 
         # Don't allow the assembler to reorder instructions.
         .set	noreorder
+        # Forbid the assembler from using $at register.
+        .set	noat
 
         .local tlb_refill
         .local cache_error
@@ -25,12 +27,27 @@
         .org 0x0
 
 tlb_refill:
-        mfc0    $k0, C0_CONTEXT         # Load UPT address which contains PTE
+        mfc0    $k0, C0_CONTEXT         # Load PT address which contains PTEs
+        mfc0    $k1, C0_BADVADDR
+        andi    $k1, 0x1000
+        bnez    $k1, 2f
         sra     $k0, 1                  # PT is at the beginning of KSEG2
-        lw      $k1, 0($k0)
+
+        # Both cases can fail if corresponding PDE is not in TLB.
+        # We want to fail first on address that refer to the faulted page,
+        # so we can recover correct address in tlb_exception_handler.
+1:      lw      $k1, 0($k0)
         mtc0    $k1, C0_ENTRYLO0
         lw      $k1, 4($k0)
         mtc0    $k1, C0_ENTRYLO1
+        ehb                             # clear hazard on tlbwr
+        tlbwr
+        eret
+
+2:      lw      $k1, 4($k0)
+        mtc0    $k1, C0_ENTRYLO1
+        lw      $k1, 0($k0)
+        mtc0    $k1, C0_ENTRYLO0
         ehb                             # clear hazard on tlbwr
         tlbwr
         eret
@@ -106,9 +123,6 @@ irq7:
         nop
 
         .org 0x300
-
-        # Forbid the assembler from using $at register.
-        .set	noat
 
 irq_handler:
         # Fetch the context from thread control block.

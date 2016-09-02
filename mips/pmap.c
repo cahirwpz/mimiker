@@ -24,6 +24,11 @@
 #define PT_SIZE (PT_ENTRIES * sizeof(pte_t))
 #define UNMAPPED_PFN 0x00000000
 
+static const vm_addr_t PT_HOLE_START =
+  PT_BASE + MIPS_KSEG0_START / PTF_ENTRIES;
+static const vm_addr_t PT_HOLE_END =
+  PT_BASE + (MIPS_KSEG2_START + PT_SIZE) / PTF_ENTRIES;
+
 static bool is_valid(pte_t pte) {
   return pte & PTE_VALID;
 }
@@ -35,10 +40,9 @@ typedef struct {
 } pmap_range_t;
 
 static pmap_range_t pmap_range[PMAP_LAST] = {
-  [PMAP_KERNEL] = {0xc0000000 + PT_SIZE, 0xfffff000}, /* kseg2 & kseg3 */
-  [PMAP_USER] = {0x00000000, 0x80000000}, /* useg */
+  [PMAP_KERNEL] = {MIPS_KSEG2_START + PT_SIZE, 0xfffff000}, /* kseg2 & kseg3 */
+  [PMAP_USER] = {0x00000000, MIPS_KSEG0_START} /* useg */
 };
-
 
 void pmap_setup(pmap_t *pmap, pmap_type_t type, asid_t asid) {
   pmap->type = type;
@@ -67,8 +71,8 @@ void pmap_reset(pmap_t *pmap) {
 
 bool pmap_mapped_page(pmap_t *pmap, vm_addr_t vaddr) {
   assert(is_aligned(vaddr, PAGESIZE));
-  if (PDE_OF(pmap, vaddr) & PTE_VALID)
-    if (PTE_OF(pmap, vaddr) & PTE_VALID)
+  if (is_valid(PDE_OF(pmap, vaddr)))
+    if (is_valid(PTE_OF(pmap, vaddr)))
       return true;
   return false;
 }
@@ -88,18 +92,7 @@ static bool pmap_mapped_page_range(pmap_t *pmap, vm_addr_t start, vm_addr_t end)
 
 #define PTF_ADDR_OF(vaddr) (PT_BASE + PDE_INDEX(vaddr) * PAGESIZE)
 
-/* Add PT to PD so kernel can handle access to @vaddr. */
-static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
-  /* assume page table fragment not present in physical memory */
-  assert (!(PDE_OF(pmap, vaddr) & PTE_VALID));
-
-  vm_page_t *pg = pm_alloc(1);
-  TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pt.list);
-  log("Page table fragment %08lx allocated at %08lx", 
-      PTF_ADDR_OF(vaddr), pg->paddr);
-
-  PDE_OF(pmap, vaddr) = PTE_PFN(pg->paddr) | PTE_VALID | PTE_DIRTY | PTE_GLOBAL;
-
+static inline void pmap_refill_pde(pmap_t *pmap, vm_addr_t vaddr) {
   uint32_t pde_index = PDE_INDEX(vaddr) & ~1;
   vm_addr_t ptf_start = PT_BASE + pde_index * PAGESIZE;
 
@@ -108,7 +101,21 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
   tlb_overwrite_random(ptf_start | pmap->asid,
                        pmap->pde[pde_index],
                        pmap->pde[pde_index + 1]);
-  tlb_print();
+}
+
+/* Add PT to PD so kernel can handle access to @vaddr. */
+static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
+  /* assume page table fragment not present in physical memory */
+  assert (!is_valid(PDE_OF(pmap, vaddr)));
+
+  vm_page_t *pg = pm_alloc(1);
+  TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pt.list);
+  log("Page table fragment %08lx allocated at %08lx", 
+      PTF_ADDR_OF(vaddr), pg->paddr);
+
+  PDE_OF(pmap, vaddr) = PTE_PFN(pg->paddr) | PTE_VALID | PTE_DIRTY | PTE_GLOBAL;
+
+  pmap_refill_pde(pmap, vaddr);
 
   pte_t *pte = (pte_t *)PTF_ADDR_OF(vaddr);
   for (int i = 0; i < PTF_ENTRIES; i++)
@@ -145,8 +152,10 @@ static pte_t vm_prot_map[] = {
 
 static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
                          vm_prot_t prot) {
-  if (!(PDE_OF(pmap, vaddr) & PTE_VALID))
+  if (!is_valid(PDE_OF(pmap, vaddr)))
     pmap_add_pde(pmap, vaddr);
+  else
+    pmap_refill_pde(pmap, vaddr);
 
   PTE_OF(pmap, vaddr) = PTE_PFN(paddr) | vm_prot_map[prot] |
     (pmap->type == PMAP_KERNEL ? PTE_GLOBAL : 0);
@@ -161,7 +170,7 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
 
 /* TODO: implement */
 void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
-  assert(PDE_OF(pmap, vaddr) & PTE_VALID);
+  assert(is_valid(PDE_OF(pmap, vaddr)));
 
   pte_t pte = PTE_OF(pmap, vaddr);
 
@@ -195,7 +204,7 @@ bool pmap_probe(pmap_t *pmap, vm_addr_t start, vm_addr_t end, vm_prot_t prot) {
     tlbhi_t hi = PTE_VPN2(start) | PTE_ASID(pmap->asid);
     tlblo_t lo0, lo1;
     int tlb_idx = tlb_probe(hi, &lo0, &lo1);
-    pte_t pte = (PDE_OF(pmap, start) & PTE_VALID) ? PTE_OF(pmap, start) : 0;
+    pte_t pte = is_valid(PDE_OF(pmap, start)) ? PTE_OF(pmap, start) : 0;
 
     if (tlb_idx >= 0) {
       tlblo_t lo = PTE_LO_INDEX_OF(start) ? lo1 : lo0;
@@ -285,7 +294,7 @@ pmap_t *get_active_pmap_by_addr(vm_addr_t addr) {
   addr &= PTE_MASK;
 
   for (pmap_type_t type = 0; type < PMAP_LAST; type++)
-    if (pmap_range[type].start >= addr && addr <= pmap_range[type].end)
+    if (pmap_range[type].start <= addr && addr < pmap_range[type].end)
       return active_pmap[type];
 
   return NULL;
@@ -302,26 +311,34 @@ void tlb_exception_handler() {
   /* If the fault was in virtual pt range it means it's time to refill */
   if (PT_BASE <= vaddr && vaddr < PT_BASE + PT_SIZE) {
     uint32_t index = ((vaddr & PTE_MASK) - PT_BASE) >> PTE_SHIFT;
-    log("TLB refill for page table fragment %08lx", vaddr & PTE_MASK);
+    vm_addr_t orig_vaddr = (vaddr - PT_BASE) * PTF_ENTRIES;
 
-    pmap_t *pmap = get_active_pmap_by_addr(vaddr);
+    assert(vaddr < PT_HOLE_START || vaddr >= PT_HOLE_END);
+
+    pmap_t *pmap = get_active_pmap_by_addr(orig_vaddr);
     if (!pmap)
-      panic("Address %08lx not mapped by active pmap!", vaddr);
-    if (!(pmap->pde[index] & PTE_VALID))
-      panic("Unmapped page table for address %08lx!", vaddr);
+      panic("Address %08lx not mapped by any active pmap!", vaddr);
+    if (is_valid(pmap->pde[index]) || is_valid(pmap->pde[index + 1])) {
+      log("TLB refill for page table fragment %08lx", vaddr & PTE_MASK);
 
-    index &= ~1;
+      index &= ~1;
 
-    vm_addr_t ptf_start = PT_BASE + index * PAGESIZE;
-    tlbhi_t entryhi = ptf_start | pmap->asid;
-    tlblo_t entrylo0 = pmap->pde[index];
-    tlblo_t entrylo1 = pmap->pde[index + 1];
-    tlb_overwrite_random(entryhi, entrylo0, entrylo1);
-  } else {
-    vm_map_t *map =
-      get_active_vm_map(vaddr < 0x80000000 ? PMAP_USER : PMAP_KERNEL);
-    if (!map)
-      panic("No virtual address space defined for %08lx!", vaddr);
-    vm_page_fault(map, vaddr, code == EXC_TLBL ? VM_PROT_READ : VM_PROT_WRITE);
+      vm_addr_t ptf_start = PT_BASE + index * PAGESIZE;
+      tlbhi_t entryhi = ptf_start | pmap->asid;
+      tlblo_t entrylo0 = pmap->pde[index];
+      tlblo_t entrylo1 = pmap->pde[index + 1];
+      tlb_overwrite_random(entryhi, entrylo0, entrylo1);
+      return;
+    }
+
+    /* We needed to refill TLB, but the address is not mapped yet!
+     * Forward the request to pager */
+    vaddr = orig_vaddr;
   }
+
+  vm_map_t *map =
+    get_active_vm_map(vaddr < 0x80000000 ? PMAP_USER : PMAP_KERNEL);
+  if (!map)
+    panic("No virtual address space defined for %08lx!", vaddr);
+  vm_page_fault(map, vaddr, code == EXC_TLBL ? VM_PROT_READ : VM_PROT_WRITE);
 }

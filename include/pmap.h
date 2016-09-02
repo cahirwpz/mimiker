@@ -33,6 +33,6 @@ bool pmap_probe(pmap_t *pmap, vm_addr_t start, vm_addr_t end, vm_prot_t prot);
 void set_active_pmap(pmap_t *pmap);
 pmap_t *get_active_pmap(pmap_type_t type);
 
-__attribute__((interrupt)) void tlb_exception_handler();
+void tlb_exception_handler();
 
 #endif /* _PMAP_H_ */
