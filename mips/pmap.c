@@ -23,7 +23,6 @@
 #define PTF_SIZE (PTF_ENTRIES * sizeof(pte_t))
 #define PT_ENTRIES (PD_ENTRIES * PTF_ENTRIES)
 #define PT_SIZE (PT_ENTRIES * sizeof(pte_t))
-#define UNMAPPED_PFN 0x00000000
 
 static const vm_addr_t PT_HOLE_START =
   PT_BASE + MIPS_KSEG0_START / PTF_ENTRIES;
@@ -113,7 +112,7 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
 }
 
 /* TODO: implement */
-void pmap_remove_pde(pmap_t *pmap, uint32_t vaddr);
+void pmap_remove_pde(pmap_t *pmap, vm_addr_t vaddr);
 
 #if 0
 /* Used if CPU implements RI and XI bits in ENTRYLO. */
@@ -140,6 +139,7 @@ static pte_t vm_prot_map[] = {
 };
 #endif
 
+/* TODO: what about caches? */
 static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
                          vm_prot_t prot) {
   if (!is_valid(PDE_OF(pmap, vaddr)))
@@ -152,26 +152,27 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
 
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
-
-  /* TODO: what about caches? */
 }
 
-/* TODO: implement */
-void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
-  assert(is_valid(PDE_OF(pmap, vaddr)));
-
-  pte_t pte = PTE_OF(pmap, vaddr);
-
-  assert(is_valid(pte));
-
-#if 0
-  if (pte & PTE_NO_EXEC)
-    mips_clean_dcache(vaddr, PAGESIZE);
-  else
-    mips_clean_icache(vaddr, PAGESIZE);
-#endif
-
+/* TODO: what about caches? */
+static void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
   PTE_OF(pmap, vaddr) = 0;
+  log("Remove mapping for page %08lx (PTE at %08lx)",
+      (vaddr & PTE_MASK), (intptr_t)&PTE_OF(pmap, vaddr));
+  /* invalidate corresponding entry in tlb */
+  tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
+
+  /* TODO: Deallocate empty page table fragment by calling pmap_remove_pde. */
+}
+
+/* TODO: what about caches? */
+static void pmap_change_pte(pmap_t *pmap, vm_addr_t vaddr, vm_prot_t prot) {
+  PTE_OF(pmap, vaddr) = 
+    (PTE_OF(pmap, vaddr) & ~PTE_PROT_MASK) | vm_prot_map[prot];
+  log("Change protection bits for page %08lx (PTE at %08lx)",
+      (vaddr & PTE_MASK), (intptr_t)&PTE_OF(pmap, vaddr));
+
+  /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
 }
 
@@ -229,7 +230,7 @@ void pmap_unmap(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   assert(pmap_is_range_mapped(pmap, start, end));
 
   while (start < end) {
-    pmap_set_pte(pmap, start, UNMAPPED_PFN, VM_PROT_NONE);
+    pmap_clear_pte(pmap, start);
     start += PAGESIZE;
   }
 }
@@ -240,10 +241,8 @@ void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
   assert(start < end && start >= pmap->start && end <= pmap->end);
   assert(pmap_is_range_mapped(pmap, start, end));
 
-  while(start < end) {
-    pte_t pte = PTE_OF(pmap, start);
-    pm_addr_t paddr = PTE_PFN_OF(pte);
-    pmap_set_pte(pmap, start, paddr, prot);
+  while (start < end) {
+    pmap_change_pte(pmap, start, prot);
     start += PAGESIZE;
   }
 }
@@ -255,7 +254,11 @@ void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
  * Correct solution needs to make sure no unwanted entries are left in TLB and
  * caches after the switch.
  */
-pmap_t *pmap_switch(size_t space, pmap_t *pmap);
+pmap_t *pmap_switch(pmap_t *pmap) {
+  pmap_t *old_pmap = active_pmap[PMAP_USER];
+  set_active_pmap(pmap);
+  return old_pmap;
+}
 
 void set_active_pmap(pmap_t *pmap) {
   pmap_type_t type = pmap->type;
