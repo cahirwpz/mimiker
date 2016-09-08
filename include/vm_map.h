@@ -39,6 +39,7 @@ typedef struct vm_map {
 
 void set_active_vm_map(vm_map_t *map);
 vm_map_t *get_active_vm_map(pmap_type_t type);
+vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr);
 
 void vm_map_init();
 vm_map_t *vm_map_new(vm_map_type_t t, asid_t asid);

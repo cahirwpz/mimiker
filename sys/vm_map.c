@@ -6,7 +6,7 @@
 #include <vm_object.h>
 #include <vm_map.h>
 
-static vm_map_t *active_vm_map[2];
+static vm_map_t *active_vm_map[PMAP_LAST];
 
 void set_active_vm_map(vm_map_t *map) {
   pmap_type_t type = map->pmap.type;
@@ -16,6 +16,15 @@ void set_active_vm_map(vm_map_t *map) {
 
 vm_map_t *get_active_vm_map(pmap_type_t type) {
   return active_vm_map[type];
+}
+
+vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr) {
+  for (pmap_type_t type = 0; type < PMAP_LAST; type++)
+    if (active_vm_map[type]->pmap.start <= addr &&
+        addr < active_vm_map[type]->pmap.end)
+      return active_vm_map[type];
+
+  return NULL;
 }
 
 static inline int vm_map_entry_cmp(vm_map_entry_t *a, vm_map_entry_t *b) {

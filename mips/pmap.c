@@ -15,6 +15,7 @@
 
 #define PTE_OF(pmap, addr) ((pmap)->pte[PTE_INDEX(addr)])
 #define PDE_OF(pmap, addr) ((pmap)->pde[PDE_INDEX(addr)])
+#define PTF_ADDR_OF(vaddr) (PT_BASE + PDE_INDEX(vaddr) * PAGESIZE)
 
 #define PD_ENTRIES 1024  /* page directory entries */
 #define PD_SIZE (PD_ENTRIES * sizeof(pte_t))
@@ -27,13 +28,13 @@
 static const vm_addr_t PT_HOLE_START =
   PT_BASE + MIPS_KSEG0_START / PTF_ENTRIES;
 static const vm_addr_t PT_HOLE_END =
-  PT_BASE + (MIPS_KSEG2_START + PT_SIZE) / PTF_ENTRIES;
+  PT_BASE + MIPS_KSEG2_START / PTF_ENTRIES;
 
 static bool is_valid(pte_t pte) {
   return pte & PTE_VALID;
 }
 
-static pmap_t *active_pmap[2];
+static pmap_t *active_pmap[PMAP_LAST];
 
 typedef struct {
   vm_addr_t start, end;
@@ -69,7 +70,7 @@ void pmap_reset(pmap_t *pmap) {
   memset(pmap, 0, sizeof(pmap_t)); /* Set up for reuse. */
 }
 
-bool pmap_mapped_page(pmap_t *pmap, vm_addr_t vaddr) {
+bool pmap_is_mapped(pmap_t *pmap, vm_addr_t vaddr) {
   assert(is_aligned(vaddr, PAGESIZE));
   if (is_valid(PDE_OF(pmap, vaddr)))
     if (is_valid(PTE_OF(pmap, vaddr)))
@@ -77,30 +78,21 @@ bool pmap_mapped_page(pmap_t *pmap, vm_addr_t vaddr) {
   return false;
 }
 
-/* TODO: implement in an efficient manner */
-static bool pmap_mapped_page_range(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
-  for (size_t i = PDE_INDEX(start); i < PDE_INDEX(end); i++)
-    if (!is_valid(pmap->pde[i]))
+bool pmap_is_range_mapped(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
+  assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
+  assert(start < end);
+
+  vm_addr_t addr;
+
+  for (addr = start; addr < end; addr += PD_ENTRIES * PAGESIZE)
+    if (!is_valid(PDE_OF(pmap, addr)))
       return false;
 
-  for (size_t i = PTE_INDEX(start); i < PTE_INDEX(end); i++)
-    if (!is_valid(pmap->pte[i]))
+  for (addr = start; addr < end; addr += PTF_ENTRIES * PAGESIZE)
+    if (!is_valid(PTE_OF(pmap, addr)))
       return false;
 
   return true;
-}
-
-#define PTF_ADDR_OF(vaddr) (PT_BASE + PDE_INDEX(vaddr) * PAGESIZE)
-
-static inline void pmap_refill_pde(pmap_t *pmap, vm_addr_t vaddr) {
-  uint32_t pde_index = PDE_INDEX(vaddr) & ~1;
-  vm_addr_t ptf_start = PT_BASE + pde_index * PAGESIZE;
-
-  /* Both ENTRYLO0 and ENTRYLO1 must have G bit set for address translation to
-   * skip ASID check. */
-  tlb_overwrite_random(ptf_start | pmap->asid,
-                       pmap->pde[pde_index],
-                       pmap->pde[pde_index + 1]);
 }
 
 /* Add PT to PD so kernel can handle access to @vaddr. */
@@ -114,8 +106,6 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
       PTF_ADDR_OF(vaddr), pg->paddr);
 
   PDE_OF(pmap, vaddr) = PTE_PFN(pg->paddr) | PTE_VALID | PTE_DIRTY | PTE_GLOBAL;
-
-  pmap_refill_pde(pmap, vaddr);
 
   pte_t *pte = (pte_t *)PTF_ADDR_OF(vaddr);
   for (int i = 0; i < PTF_ENTRIES; i++)
@@ -154,8 +144,6 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
                          vm_prot_t prot) {
   if (!is_valid(PDE_OF(pmap, vaddr)))
     pmap_add_pde(pmap, vaddr);
-  else
-    pmap_refill_pde(pmap, vaddr);
 
   PTE_OF(pmap, vaddr) = PTE_PFN(paddr) | vm_prot_map[prot] |
     (pmap->type == PMAP_KERNEL ? PTE_GLOBAL : 0);
@@ -222,12 +210,12 @@ bool pmap_probe(pmap_t *pmap, vm_addr_t start, vm_addr_t end, vm_prot_t prot) {
   return true;
 }
 
-/* TODO: Fail noisly on valid PTE overwrite. User must pmap_unmap first! */
 void pmap_map(pmap_t *pmap, vm_addr_t start, vm_addr_t end, pm_addr_t paddr,
               vm_prot_t prot) {
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
   assert(is_aligned(paddr, PAGESIZE));
+  assert(!pmap_is_range_mapped(pmap, start, end));
 
   while (start < end) {
     pmap_set_pte(pmap, start, paddr, prot);
@@ -238,11 +226,9 @@ void pmap_map(pmap_t *pmap, vm_addr_t start, vm_addr_t end, pm_addr_t paddr,
 void pmap_unmap(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
-  if (!pmap_mapped_page_range(pmap, start, end)) {
-    /* Should we silently fail or panic? */
-    return;
-  }
-  while(start < end) {
+  assert(pmap_is_range_mapped(pmap, start, end));
+
+  while (start < end) {
     pmap_set_pte(pmap, start, UNMAPPED_PFN, VM_PROT_NONE);
     start += PAGESIZE;
   }
@@ -252,11 +238,7 @@ void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
                   vm_prot_t prot) {
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
-
-  if (!pmap_mapped_page_range(pmap, start, end)) {
-    /* Should we silently fail or panic? */
-    return;
-  }
+  assert(pmap_is_range_mapped(pmap, start, end));
 
   while(start < end) {
     pte_t pte = PTE_OF(pmap, start);
@@ -291,8 +273,6 @@ pmap_t *get_active_pmap(pmap_type_t type) {
 }
 
 pmap_t *get_active_pmap_by_addr(vm_addr_t addr) {
-  addr &= PTE_MASK;
-
   for (pmap_type_t type = 0; type < PMAP_LAST; type++)
     if (pmap_range[type].start <= addr && addr < pmap_range[type].end)
       return active_pmap[type];
@@ -310,24 +290,31 @@ void tlb_exception_handler() {
 
   /* If the fault was in virtual pt range it means it's time to refill */
   if (PT_BASE <= vaddr && vaddr < PT_BASE + PT_SIZE) {
-    uint32_t index = ((vaddr & PTE_MASK) - PT_BASE) >> PTE_SHIFT;
+    uint32_t index = PTE_INDEX(vaddr - PT_BASE) & ~1;
     vm_addr_t orig_vaddr = (vaddr - PT_BASE) * PTF_ENTRIES;
 
     assert(vaddr < PT_HOLE_START || vaddr >= PT_HOLE_END);
 
+    if (PT_BASE <= orig_vaddr && orig_vaddr < PT_BASE + PT_SIZE) {
+      /* TLB refill exception can occur within interrupt handler, we have to be
+       * prepared for it! */
+      vaddr = orig_vaddr;
+      index = PTE_INDEX(vaddr - PT_BASE) & ~1;
+      orig_vaddr = (vaddr - PT_BASE) * PTF_ENTRIES;
+    }
+
     pmap_t *pmap = get_active_pmap_by_addr(orig_vaddr);
     if (!pmap)
-      panic("Address %08lx not mapped by any active pmap!", vaddr);
+      panic("Address %08lx not mapped by any active pmap!", orig_vaddr);
     if (is_valid(pmap->pde[index]) || is_valid(pmap->pde[index + 1])) {
       log("TLB refill for page table fragment %08lx", vaddr & PTE_MASK);
-
-      index &= ~1;
-
       vm_addr_t ptf_start = PT_BASE + index * PAGESIZE;
-      tlbhi_t entryhi = ptf_start | pmap->asid;
-      tlblo_t entrylo0 = pmap->pde[index];
-      tlblo_t entrylo1 = pmap->pde[index + 1];
-      tlb_overwrite_random(entryhi, entrylo0, entrylo1);
+
+      /* Both ENTRYLO0 and ENTRYLO1 must have G bit set for address translation
+       * to skip ASID check. */
+      tlb_overwrite_random(ptf_start | pmap->asid,
+                           pmap->pde[index],
+                           pmap->pde[index + 1]);
       return;
     }
 
@@ -336,8 +323,7 @@ void tlb_exception_handler() {
     vaddr = orig_vaddr;
   }
 
-  vm_map_t *map =
-    get_active_vm_map(vaddr < 0x80000000 ? PMAP_USER : PMAP_KERNEL);
+  vm_map_t *map = get_active_vm_map_by_addr(vaddr);
   if (!map)
     panic("No virtual address space defined for %08lx!", vaddr);
   vm_page_fault(map, vaddr, code == EXC_TLBL ? VM_PROT_READ : VM_PROT_WRITE);
