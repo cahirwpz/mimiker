@@ -16,7 +16,7 @@ noreturn void thread_init(void (*fn)(), int n, ...) {
   td = thread_create("main", fn);
 
   /* Pass arguments to called function. */
-  ctx_t *ctx = &td->td_context;
+  ctx_t *ctx = td->td_frame;
   va_list ap;
 
   assert(n <= 4);
@@ -27,17 +27,23 @@ noreturn void thread_init(void (*fn)(), int n, ...) {
 
   kprintf("[thread] Activating '%s' {%p} thread!\n", td->td_name, td);
   td->td_state = TDS_RUNNING;
-  ctx_boot(&td->td_context);
+  ctx_boot(td->td_frame);
 }
 
 thread_t *thread_create(const char *name, void (*fn)()) {
   thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
   
   td->td_name = name;
-  td->td_stack = pm_alloc(1);
+  td->td_kstack_obj = pm_alloc(1);
+  td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
+  td->td_kstack.stk_size = PAGESIZE;
+
+  ctx_t *ctx = td->td_kstack.stk_base + td->td_kstack.stk_size - sizeof(ctx_t);
+  ctx_init(ctx, fn, ctx);
+  ctx->reg[REG_TCB] = (reg_t)td;
+
+  td->td_frame = ctx;
   td->td_state = TDS_READY;
-  ctx_init(&td->td_context, fn, (void *)PG_VADDR_END(td->td_stack));
-  td->td_context.reg[REG_TCB] = (reg_t)td;
 
   return td;
 }
@@ -46,7 +52,7 @@ void thread_delete(thread_t *td) {
   assert(td != NULL);
   assert(td != thread_self());
 
-  pm_free(td->td_stack);
+  pm_free(td->td_kstack_obj);
   kfree(td_pool, td);
 }
 
@@ -64,5 +70,5 @@ void thread_switch_to(thread_t *newtd) {
 
   td->td_state = TDS_READY;
   newtd->td_state = TDS_RUNNING;
-  ctx_switch(&td->td_context, &newtd->td_context);
+  ctx_switch(td->td_frame, newtd->td_frame);
 }

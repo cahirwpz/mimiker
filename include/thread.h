@@ -13,8 +13,10 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
   const char *td_name;
   td_prio_t td_priority;
-  ctx_t td_context;
-  vm_page_t *td_stack;
+  ctx_t td_userctx;
+  ctx_t *td_frame;
+  vm_page_t *td_kstack_obj;
+  stack_t td_kstack;
   volatile uint32_t td_csnest;    /* critical section nest level */
   enum {
     TDS_INACTIVE = 0x0,

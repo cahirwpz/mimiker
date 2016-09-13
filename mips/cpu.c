@@ -67,16 +67,37 @@ static bool cpu_read_config() {
 
   uint32_t config3 = mips32_getconfig3();
 
-  kprintf("Vectored interrupts implemented : %s\n", (config3 & CFG3_VI) ? "yes" : "no");
-  kprintf("EIC interrupt mode implemented  : %s\n", (config3 & CFG3_VEIC) ? "yes" : "no");
+  kprintf("Vectored interrupts implemented : %s\n", 
+          (config3 & CFG3_VI) ? "yes" : "no");
+  kprintf("EIC interrupt mode implemented  : %s\n",
+          (config3 & CFG3_VEIC) ? "yes" : "no");
+  kprintf("UserLocal register implemented  : %s\n",
+          (config3 & CFG3_ULRI) ? "yes" : "no");
 
   return true;
 }
 
-/* Print state of control registers. */
-void cpu_dump() {
-  unsigned cr = mips32_get_c0(C0_CAUSE);
+void cpu_sr_dump() {
   unsigned sr = mips32_get_c0(C0_STATUS);
+  static char *mode[] = {"kernel", "supervisor", "user"};
+  static char *boolean[] = {"no", "yes"};
+
+  kprintf ("Status register :\n"
+           " - FPU enabled        : %s\n"
+           " - Interrupt mask     : %02x\n"
+           " - Operating mode     : %s\n"
+           " - Exception level    : %s\n"
+           " - Interrupts enabled : %s\n",
+           boolean[(sr & SR_CU1) >> SR_CU1_SHIFT],
+           (sr & SR_IMASK) >> SR_IMASK_SHIFT,
+           mode[(sr & SR_KSU_MASK) >> SR_KSU_SHIFT],
+           boolean[(sr & SR_EXL) >> SR_EXL_SHIFT],
+           boolean[(sr & SR_IE) >> SR_IE_SHIFT]);
+}
+
+/* Print state of control registers. */
+static void cpu_dump() {
+  unsigned cr = mips32_get_c0(C0_CAUSE);
   unsigned intctl = mips32_get_c0(C0_INTCTL);
   unsigned srsctl = mips32_get_c0(C0_SRSCTL);
 
@@ -85,15 +106,7 @@ void cpu_dump() {
            (cr & CR_IV) >> CR_IV_SHIFT,
            (cr & CR_IP_MASK) >> CR_IP_SHIFT,
            (cr & CR_X_MASK) >> CR_X_SHIFT);
-  kprintf ("Status   : CU0:%d BEV:%d NMI:%d IM:$%02x KSU:%d ERL:%d EXL:%d IE:%d\n",
-           (sr & SR_CU0) >> SR_CU0_SHIFT,
-           (sr & SR_BEV) >> SR_BEV_SHIFT,
-           (sr & SR_NMI) >> SR_NMI_SHIFT,
-           (sr & SR_IMASK) >> SR_IMASK_SHIFT,
-           (sr & SR_KSU_MASK) >> SR_KSU_SHIFT,
-           (sr & SR_ERL) >> SR_ERL_SHIFT,
-           (sr & SR_EXL) >> SR_ERL_SHIFT,
-           (sr & SR_IE) >> SR_ERL_SHIFT);
+  cpu_sr_dump();
   kprintf ("IntCtl   : IPTI:%d IPPCI:%d VS:%d\n",
            (intctl & INTCTL_IPTI) >> INTCTL_IPTI_SHIFT,
            (intctl & INTCTL_IPPCI) >> INTCTL_IPPCI_SHIFT,

@@ -47,13 +47,8 @@ static void sched_wakeup() {
 }
 
 void sched_resume() {
-  bool irq_active = mips32_get_c0(C0_STATUS) & SR_EXL;
-  assert(irq_active);
-
   if (sched_activate) {
     sched_activate = false;
-    mips32_bc_c0(C0_STATUS, SR_EXL);
-    intr_enable();
     thread_switch_to(td_sched);
   }
 }
