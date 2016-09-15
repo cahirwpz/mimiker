@@ -15,8 +15,7 @@ SECTIONS
   .text 0x80100000:
   {
     /* Exception handlers. */
-    _ebase = ABSOLUTE(.);
-    mips/intr.o (.ebase)
+    *(.ebase)
     . = ALIGN(4096);
     /* Text and read-only data follows. */
     __text = ABSOLUTE(.);

@@ -4,11 +4,11 @@ SOURCES_C = callout.c interrupts.c malloc.c pci_ids.c physmem.c runq.c sched.c \
 	    startup.c thread.c vm_map.c vm_object.c vm_pager.c
 SOURCES_ASM = 
 
-all: libsys.a 
+all: $(DEPFILES) libsys.a 
 
 include ../Makefile.common
 
-libsys.a: $(DEPFILES) $(OBJECTS)
+libsys.a: $(OBJECTS)
 
 clean:
 	$(RM) -f .*.D *.ko *.o *.a *.lst *~
