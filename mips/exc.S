@@ -1,5 +1,4 @@
-#include <mips/ctx.h>
-#include <mips/m32c0.h>
+#include <mips/exc.h>
 
 #include "genassym.h"
 
@@ -9,6 +8,7 @@
         .set	noat
 
         .globl exc_enter
+        .globl kern_exc_leave
         .local user_exc_enter
         .local kern_exc_enter
 
@@ -21,7 +21,7 @@ exc_enter:
 user_exc_enter:
         # Fetch the context from thread control block.
         mfc0    $k0, C0_USERLOCAL
-        addu    $k0, TD_USERCTX
+        addu    $k0, TD_UCTX
 
         # Save all user registers...
         SAVE_REG($at, AT, $k0)
@@ -81,12 +81,13 @@ user_exc_enter:
         jalr    $k1
         nop
 
+user_exc_leave:
         # Disable interrupts till ERET.
         di
 
         # Fetch the context from thread control block.
         mfc0    $k0, C0_USERLOCAL
-        addu    $k0, TD_USERCTX
+        addu    $k0, TD_UCTX
 
         # Update status register held in user context (interrupt mask).
         LOAD_REG($t0, SR, $k0)
@@ -203,7 +204,7 @@ kern_exc_enter:
 
         # Save stack frame pointer into td_frame.
         mfc0    $t0, C0_USERLOCAL
-        sw      $sp, TD_FRAME($t0)
+        sw      $sp, TD_KFRAME($t0)
 
         # Call C interrupt handler routine.
         jalr    $k1
@@ -212,6 +213,7 @@ kern_exc_enter:
         # Disable interrupts till ERET.
         di
 
+kern_exc_leave:
         # Update status register held in user context (interrupt mask).
         LOAD_REG($t0, SR, $sp)
         li      $t1, ~SR_IMASK

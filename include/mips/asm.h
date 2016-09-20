@@ -35,6 +35,16 @@
  * asm.h: various macros to help assembly language writers
  */
 
+/*
+ * standard callframe {
+ *   register_t cf_pad[N];   o32/64 (N=0), n32 (N=1) n64 (N=1)
+ *   register_t cf_args[4];  arg0 - arg3 (only on o32 and o64)
+ *   register_t cf_gp;       global pointer (only on n32 and n64)
+ *   register_t cf_sp;       frame pointer
+ *   register_t cf_ra;       return address
+ * };
+ */
+
 /* ABI specific stack frame layout and manipulation. */
 #if _MIPS_SIM==_ABIO32
 /* Standard O32 */
@@ -56,6 +66,9 @@
 #define PTR_MTC0        mtc0    /* access CP0 pointer width register */
 #define LA              la      /* load an address */
 #define PTR             .word   /* pointer type pseudo */
+#define CALLFRAME_SIZE  (SZREG * 6)
+#define CALLFRAME_SP    (CALLFRAME_SIZE - 2 * SZREG)
+#define CALLFRAME_RA    (CALLFRAME_SIZE - 1 * SZREG)
 #elif _MIPS_SIM==_ABIO64
 /* Cygnus O64 */
 #define SZREG           8       /* saved register size */
@@ -250,7 +263,7 @@ name:
         .balign 4;                      \
         .globl  name;                   \
         .ent    name;                   \
-        .frame  sp, framesz, rareg;     \
+        .frame  $sp, framesz, rareg;    \
 name:
 
 /* Static/Local nested function. */
@@ -258,7 +271,7 @@ name:
         _TEXT_SECTION_NAMED(name);      \
         .balign 4;                      \
         .ent    name;                   \
-        .frame  sp, framesz, rareg;     \
+        .frame  $sp, framesz, rareg;    \
 name:
 
 /* Weak nested function. */
@@ -267,7 +280,7 @@ name:
         .balign 4;                      \
         .weak   name;                   \
         .ent    name;                   \
-        .frame  sp, framesz, rareg;     \
+        .frame  $sp, framesz, rareg;    \
 name:
 
 /* Weak alias nested function. */
@@ -277,7 +290,7 @@ name:
         .weak   alias;                  \
         .ent    name;                   \
         alias = name;                   \
-        .frame  sp, framesz, rareg;     \
+        .frame  $sp, framesz, rareg;    \
 name:
 
 /*

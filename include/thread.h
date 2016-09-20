@@ -4,6 +4,7 @@
 #include <common.h>
 #include <queue.h>
 #include <context.h>
+#include <exception.h>
 
 typedef uint8_t td_prio_t;
 typedef struct vm_page vm_page_t;
@@ -13,8 +14,10 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
   const char *td_name;
   td_prio_t td_priority;
-  ctx_t td_userctx;
-  ctx_t *td_frame;
+  exc_frame_t td_uctx;            /* user context (always exception) */
+  fpu_ctx_t td_uctx_fpu;          /* user FPU context (always exception) */
+  exc_frame_t *td_kframe;         /* kernel context (last exception frame) */
+  ctx_t td_kctx;                  /* kernel context (switch) */
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
   volatile uint32_t td_csnest;    /* critical section nest level */
