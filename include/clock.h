@@ -1,15 +1,11 @@
 #ifndef __CLOCK_H__
 #define __CLOCK_H__
 
-typedef int64_t sbintime_t;
+#include <stdint.h>
 
-/* Initializes and enables core timer interrupts. */
-void clock_init();
+typedef int64_t realtime_t;
 
-/* Returns the number of ms passed since timer started running. */
-sbintime_t clock_get_ms();
-
-/* Processes core timer interrupts. */
-void hardclock();
+realtime_t clock_get();
+void clock(realtime_t ms);
 
 #endif // __CLOCK_H__

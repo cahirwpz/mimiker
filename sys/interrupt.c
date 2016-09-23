@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include <interrupts.h>
+#include <interrupt.h>
 
 static intr_event_t *events[8];
 

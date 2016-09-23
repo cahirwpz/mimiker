@@ -9,24 +9,32 @@
 typedef uint8_t td_prio_t;
 typedef struct vm_page vm_page_t;
 
+#define TDF_SLICEEND    0x00000001      /* run out of time slice */
+#define TDF_NEEDSWITCH  0x00000002      /* must switch on next opportunity */
+
 typedef struct thread {
   TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
   const char *td_name;
-  td_prio_t td_priority;
-  exc_frame_t td_uctx;            /* user context (always exception) */
-  fpu_ctx_t td_uctx_fpu;          /* user FPU context (always exception) */
-  exc_frame_t *td_kframe;         /* kernel context (last exception frame) */
-  ctx_t td_kctx;                  /* kernel context (switch) */
-  vm_page_t *td_kstack_obj;
-  stack_t td_kstack;
-  volatile uint32_t td_csnest;    /* critical section nest level */
+  /* thread state */
   enum {
     TDS_INACTIVE = 0x0,
     TDS_WAITING,
     TDS_READY,
     TDS_RUNNING
   } td_state;
+  uint32_t td_flags;            /* TDF_* flags */
+  volatile uint32_t td_csnest;  /* critical section nest level */
+  /* thread context */
+  exc_frame_t   td_uctx;        /* user context (always exception) */
+  fpu_ctx_t     td_uctx_fpu;    /* user FPU context (always exception) */
+  exc_frame_t   *td_kframe;     /* kernel context (last exception frame) */
+  ctx_t         td_kctx;        /* kernel context (switch) */
+  vm_page_t     *td_kstack_obj;
+  stack_t       td_kstack;
+  /* scheduler part */
+  td_prio_t     td_prio;
+  int           td_slice;
 } thread_t;
 
 thread_t *thread_self();

@@ -24,7 +24,7 @@ TAILQ_HEAD(callout_head, callout);
 
 static struct {
   callout_head_t heads[CALLOUT_BUCKETS];
-  sbintime_t last;
+  realtime_t last;
 } ci;
 
 void callout_init() {
@@ -34,7 +34,7 @@ void callout_init() {
     TAILQ_INIT(&ci.heads[i]);
 }
 
-void callout_setup(callout_t *handle, sbintime_t time, timeout_t fn, void *arg)
+void callout_setup(callout_t *handle, realtime_t time, timeout_t fn, void *arg)
 {
   int index = time % CALLOUT_BUCKETS;
 
@@ -58,7 +58,7 @@ void callout_stop(callout_t *handle) {
  * Handle all timeouted callouts from queues between last position and current
  * position.
 */
-void callout_process(sbintime_t time) {
+void callout_process(realtime_t time) {
   int now = time % CALLOUT_BUCKETS;
   bool done = false;
 

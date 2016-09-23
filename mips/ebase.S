@@ -100,7 +100,7 @@ irq6:
 
         .org 0x2e0
 irq7:
-        la      $k1,hardclock
+        la      $k1,mips_clock_irq_handler
         j       exc_enter
         mfc0    $k0, C0_STATUS          # (delay slot) load status register
 

@@ -5,64 +5,76 @@
 #include <clock.h>
 #include <thread.h>
 #include <callout.h>
-#include <interrupts.h>
+#include <interrupt.h>
 #include <mutex.h>
 
+static thread_t *idle_thread;
 static runq_t runq;
-static thread_t *td_sched;
-static callout_t sched_callout;
+
+#define SLICE 10
 
 void sched_init() {
   runq_init(&runq);
 }
 
 void sched_add(thread_t *td) {
-  log("Add '%s' {%p} thread to scheduler", td->td_name, td);
+  // log("Add '%s' {%p} thread to scheduler", td->td_name, td);
+
+  if (td == idle_thread)
+    return;
+
+  td->td_state = TDS_READY;
+  td->td_slice = SLICE;
 
   intr_disable();
   runq_add(&runq, td);
+
+  if (td->td_prio > thread_self()->td_prio)
+    thread_self()->td_flags |= TDF_NEEDSWITCH;
   intr_enable();
 }
 
-static bool sched_activate = false;
+void sched_remove(thread_t *td) {
+}
+
+void sched_clock() {
+  thread_t *td = thread_self();
+
+  if (td != idle_thread)
+    if (--td->td_slice <= 0)
+      td->td_flags |= TDF_NEEDSWITCH | TDF_SLICEEND;
+}
 
 void sched_yield() {
-  thread_t *td = thread_self();
-
-  assert(td != td_sched);
-
-  callout_stop(&sched_callout);
-  runq_add(&runq, td);
-  thread_switch_to(td_sched);
+  sched_switch(NULL);
 }
 
-static void sched_wakeup() {
+void sched_switch(thread_t *newtd) {
   thread_t *td = thread_self();
 
-  assert(td != td_sched);
+  td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
 
-  callout_stop(&sched_callout);
-  runq_add(&runq, td);
-  sched_activate = true;
-}
+  if (td->td_state & TDS_RUNNING)
+    sched_add(td);
 
-void sched_resume() {
-  if (sched_activate) {
-    sched_activate = false;
-    thread_switch_to(td_sched);
+  if (newtd == NULL) {
+    newtd = runq_choose(&runq);
+    if (newtd)
+      runq_remove(&runq, newtd);
+    else
+      newtd = idle_thread;
+  }
+
+  if (td != newtd) {
+    newtd->td_state = TDS_RUNNING;
+    ctx_switch(td, newtd);
   }
 }
 
-noreturn void sched_run(size_t quantum) {
-  td_sched = thread_self();
+noreturn void sched_run() {
+  idle_thread = thread_self();
+  idle_thread->td_slice = 0;
 
-  while (true) {
-    thread_t *td;
-
-    while (!(td = runq_choose(&runq)));
-
-    runq_remove(&runq, td);
-    callout_setup(&sched_callout, clock_get_ms() + quantum, sched_wakeup, NULL);
-    thread_switch_to(td);
-  }
+  while (true)
+    idle_thread->td_flags |= TDF_NEEDSWITCH;
 }

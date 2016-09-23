@@ -1,21 +1,21 @@
 #include <common.h>
 #include <mips/config.h>
 #include <mips/mips.h>
-#include <clock.h>
+#include <mips/clock.h>
 #include <callout.h>
 #include <mutex.h>
 #include <sched.h>
 
 /* This counter is incremented every millisecond. */
-static volatile sbintime_t timer_ms_count;
+static volatile realtime_t mips_clock_ms;
 
-void clock_init() {
+void mips_clock_init() {
   intr_disable();
 
   mips32_set_c0(C0_COUNT, 0);
   mips32_set_c0(C0_COMPARE, TICKS_PER_MS);
 
-  timer_ms_count = 0;
+  mips_clock_ms = 0;
 
   /* Enable core timer interrupts. */
   mips32_bs_c0(C0_STATUS, SR_IM7);
@@ -24,11 +24,7 @@ void clock_init() {
   intr_enable();
 }
 
-sbintime_t clock_get_ms() {
-  return timer_ms_count;
-}
-
-void hardclock() {
+void mips_clock_irq_handler() {
   uint32_t compare = mips32_get_c0(C0_COMPARE);
   uint32_t count = mips32_get_c0(C0_COUNT);
   int32_t diff = compare - count;
@@ -40,14 +36,12 @@ void hardclock() {
   /* This loop is necessary, because sometimes we may miss some ticks. */
   while (diff < TICKS_PER_MS) {
     compare += TICKS_PER_MS;
-    /* Increment the ms counter. This increment is atomic, because
-       entire _interrupt_handler disables nested interrupts. */
-    timer_ms_count += 1;
+    mips_clock_ms++;
     diff = compare - count;
   }
 
   /* Set compare register. */
   mips32_set_c0(C0_COMPARE, compare);
-  callout_process(timer_ms_count);
-  sched_resume();
+
+  clock(mips_clock_ms);
 }

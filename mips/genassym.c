@@ -3,11 +3,13 @@
 #include <mips/ctx.h>
 #include <mips/exc.h>
 
+ASSYM(TDF_NEEDSWITCH, TDF_NEEDSWITCH);
+
 ASSYM(TD_UCTX, offsetof(thread_t, td_uctx));
 ASSYM(TD_UCTX_FPU, offsetof(thread_t, td_uctx_fpu));
 ASSYM(TD_KFRAME, offsetof(thread_t, td_kframe));
 ASSYM(TD_KCTX, offsetof(thread_t, td_kctx));
-ASSYM(TD_STATE, offsetof(thread_t, td_state));
+ASSYM(TD_FLAGS, offsetof(thread_t, td_flags));
 
 ASSYM(CTX_S0, offsetof(ctx_t, s0));
 ASSYM(CTX_S1, offsetof(ctx_t, s1));

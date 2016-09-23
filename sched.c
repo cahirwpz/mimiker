@@ -1,12 +1,14 @@
 #include <stdc.h>
 #include <clock.h>
+#include <thread.h>
 #include <sched.h>
 
 static void demo_thread_1() {
   while (true) {
-    uint32_t now = clock_get_ms();
-    kprintf("[%8ld] Running '%s' thread.\n", now, thread_self()->td_name);
-    while (clock_get_ms() < now + 20);
+    realtime_t now = clock_get();
+    kprintf("[%8zu] Running '%s' thread.\n", (size_t)now,
+            thread_self()->td_name);
+    while (clock_get() < now + 20);
   }
 }
 
@@ -31,6 +33,5 @@ int main() {
   sched_add(t4);
   sched_add(t5);
 
-  sched_run(100);
-  return 0;
+  sched_run();
 }

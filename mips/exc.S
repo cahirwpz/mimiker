@@ -81,10 +81,12 @@ user_exc_enter:
         jalr    $k1
         nop
 
-user_exc_leave:
+        # Interrupts may be enabled here and that's ok.
+
         # Disable interrupts till ERET.
         di
 
+user_exc_leave:
         # Fetch the context from thread control block.
         mfc0    $k0, C0_USERLOCAL
         addu    $k0, TD_UCTX
@@ -210,8 +212,16 @@ kern_exc_enter:
         jalr    $k1
         nop
 
+        # Interrupts may be enabled here and that's ok.
+        mfc0    $t0, C0_USERLOCAL
+        lw      $t1, TD_FLAGS($t0)
+        andi    $t1, TDF_NEEDSWITCH
+        beqz    $t1, 1f
+        move    $a0, $sp
+        jal     exc_before_leave
+
         # Disable interrupts till ERET.
-        di
+1:      di
 
 kern_exc_leave:
         # Update status register held in user context (interrupt mask).

@@ -34,9 +34,9 @@ void rtc_read(rtc_time_t *t) {
  * nanosecond-accurate.
  */
 void mdelay (unsigned msec) {
-  unsigned now = clock_get_ms();
-  unsigned final = now + msec;
-  while (final > clock_get_ms());
+  realtime_t now = clock_get();
+  realtime_t final = now + msec;
+  while (final > clock_get());
 }
 
 int main() {

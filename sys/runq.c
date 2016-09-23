@@ -6,17 +6,17 @@
 void runq_init(runq_t *rq) {
   memset(rq, 0, sizeof (*rq));
 
-  for (int64_t i = 0; i < RQ_NQS; i++)
+  for (unsigned i = 0; i < RQ_NQS; i++)
     TAILQ_INIT(&rq->rq_queues[i]);
 }
 
 void runq_add(runq_t *rq, thread_t *td) {
-  uint64_t priority = td->td_priority / RQ_PPQ;
-  TAILQ_INSERT_TAIL(&rq->rq_queues[priority], td, td_runq);
+  unsigned prio = td->td_prio / RQ_PPQ;
+  TAILQ_INSERT_TAIL(&rq->rq_queues[prio], td, td_runq);
 }
 
 thread_t *runq_choose(runq_t *rq) {
-  for (int64_t i = RQ_NQS - 1; i >= 0; i--) {
+  for (unsigned i = RQ_NQS - 1; i >= 0; i--) {
     struct rq_head *head = &rq->rq_queues[i];
     thread_t *td = TAILQ_FIRST(head);
 
@@ -28,8 +28,8 @@ thread_t *runq_choose(runq_t *rq) {
 }
 
 void runq_remove(runq_t *rq, thread_t *td) {
-  uint64_t priority = td->td_priority / RQ_PPQ;
-  TAILQ_REMOVE(&rq->rq_queues[priority], td, td_runq);
+  unsigned prio = td->td_prio / RQ_PPQ;
+  TAILQ_REMOVE(&rq->rq_queues[prio], td, td_runq);
 }
 
 #ifdef _USERSPACE

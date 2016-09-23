@@ -12,4 +12,5 @@ if __name__ == "__main__":
     symbols = [s.split() for s in symtab.strip().split('\n')]
     with open(outfile, 'w') as output:
         for value, _, name in symbols:
+            name = name.rstrip('$')
             print("#define", name, "0x%x" % int(value, 16), file=output)

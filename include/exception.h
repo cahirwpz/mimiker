@@ -4,4 +4,6 @@
 #include <common.h>
 #include <mips/exc.h>
 
+void exc_before_leave(exc_frame_t *kframe);
+
 #endif // __EXCEPTION_H__

@@ -5,7 +5,7 @@ TESTS = callout.elf malloc.elf physmem.elf pmap.elf rtc.elf sched.elf \
 SOURCES_C = 
 SOURCES_ASM = 
 
-all: ctags cscope mips stdc sys $(TESTS)
+all: tags cscope mips stdc sys $(TESTS)
 
 include Makefile.common
 
@@ -30,7 +30,7 @@ libkernel.a: $(DEPFILES) $(OBJECTS)
 cscope:
 	cscope -b include/*.h ./*.[cS] 
 
-ctags:
+tags:
 	find -iname '*.[ch]' | ctags --language-force=c -L-
 	find -iname '*.S' | ctags -a --language-force=asm -L-
 	find $(SYSROOT)/mips-mti-elf/include -type f -iname 'mips*' \
@@ -71,4 +71,4 @@ clean:
 	$(RM) -f tags cscope.out *.taghl
 	$(RM) -f $(TESTS)
 
-.PHONY: astyle ctags cscope mips stdc sys
+.PHONY: astyle tags cscope mips stdc sys

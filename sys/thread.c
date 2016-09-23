@@ -3,7 +3,7 @@
 #include <malloc.h>
 #include <thread.h>
 #include <context.h>
-#include <interrupts.h>
+#include <interrupt.h>
 
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
 
