@@ -51,6 +51,7 @@ void pmap_setup(pmap_t *pmap, pmap_type_t type, asid_t asid) {
   pmap->pde = (pte_t *)pmap->pde_page->vaddr;
   pmap->start = pmap_range[type].start;
   pmap->end = pmap_range[type].end;
+  pmap->asid = asid;
   log("Page directory table allocated at %08lx", (intptr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
 
