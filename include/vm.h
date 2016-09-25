@@ -36,6 +36,8 @@ typedef struct vm_page {
     } obj;
     struct {
       TAILQ_ENTRY(vm_page) list;
+      uint16_t entries_cnt; /* number of active entries in pmap */
+      uint16_t pde_index; /* pde index this page is associated with */
     } pt;
   };
   vm_addr_t vm_offset;          /* offset to page in vm_object */
