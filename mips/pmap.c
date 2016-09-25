@@ -44,6 +44,15 @@ static pmap_range_t pmap_range[PMAP_LAST] = {
   [PMAP_USER] = {0x00000000, MIPS_KSEG0_START} /* useg */
 };
 
+vm_page_t *pmap_find_pde_page(pmap_t *pmap, uint16_t pde_index) {
+  vm_page_t *it;
+  TAILQ_FOREACH(it, &pmap->pte_pages, pt.list) {
+    if(it->pt.pde_index == pde_index)
+      return it;
+  }
+  return NULL;
+}
+
 void pmap_setup(pmap_t *pmap, pmap_type_t type, asid_t asid) {
   pmap->type = type;
   pmap->pte = (pte_t *)PT_BASE;
