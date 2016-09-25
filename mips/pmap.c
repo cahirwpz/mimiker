@@ -153,20 +153,25 @@ static pte_t vm_prot_map[] = {
 };
 #endif
 
-/* TODO: what about caches? */
-static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
-                         vm_prot_t prot) {
-  if (!is_valid(PDE_OF(pmap, vaddr)))
-    pmap_add_pde(pmap, vaddr);
+static void pmap_update_pde_page(pmap_t *pmap, pte_t old_pte, pte_t new_pte, vm_addr_t vaddr) {
+  int diff = ((new_pte & PTE_VALID) >> ENTRYLO0_V_SHIFT) -
+      (old_pte>> ENTRYLO0_V_SHIFT);
 
-  int old_valid = PTE_OF(pmap, vaddr) & PTE_VALID;
-  int diff = (old_valid >> ENTRYLO0_V_SHIFT) - 
-      ((prot & PTE_VALID) >> ENTRYLO0_V_SHIFT);
   if(diff) {
     vm_page_t *pg = pmap_find_pde_page(pmap, PDE_INDEX(vaddr));
     assert(pg);
     pg->pt.valid_cnt += diff;
   }
+  
+}
+
+/* TODO: what about caches? */
+static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
+                         vm_prot_t prot) {
+  if (!is_valid(PDE_OF(pmap, vaddr)))
+    pmap_add_pde(pmap, vaddr);
+  pmap_update_pde_page(pmap, PTE_OF(pmap, vaddr), prot, vaddr);
+
 
   PTE_OF(pmap, vaddr) = PTE_PFN(paddr) | vm_prot_map[prot] |
     (pmap->type == PMAP_KERNEL ? PTE_GLOBAL : 0);
@@ -179,6 +184,7 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
 
 /* TODO: what about caches? */
 static void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
+  pmap_update_pde_page(pmap, PTE_OF(pmap, vaddr), 0, vaddr);
   PTE_OF(pmap, vaddr) = 0;
   log("Remove mapping for page %08lx (PTE at %08lx)",
       (vaddr & PTE_MASK), (intptr_t)&PTE_OF(pmap, vaddr));
@@ -198,6 +204,8 @@ static void pmap_change_pte(pmap_t *pmap, vm_addr_t vaddr, vm_prot_t prot) {
     (PTE_OF(pmap, vaddr) & ~PTE_PROT_MASK) | vm_prot_map[prot];
   log("Change protection bits for page %08lx (PTE at %08lx)",
       (vaddr & PTE_MASK), (intptr_t)&PTE_OF(pmap, vaddr));
+
+  pmap_update_pde_page(pmap, PTE_OF(pmap, vaddr), 0, vaddr);
 
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
