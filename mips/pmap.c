@@ -121,8 +121,12 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
     pte[i] = PTE_GLOBAL;
 }
 
-/* TODO: implement */
-void pmap_remove_pde(pmap_t *pmap, vm_addr_t vaddr);
+static void pmap_remove_pde(pmap_t *pmap, vm_page_t *pg) {
+    assert(pg->pt.valid_cnt == 0);
+    int pde_index = pg->pt.pde_index;
+    pmap->pde[pde_index] = 0;
+    TAILQ_REMOVE(&pmap->pte_pages, pg, pt.list);
+}
 
 #if 0
 /* Used if CPU implements RI and XI bits in ENTRYLO. */
@@ -160,6 +164,7 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
       ((prot & PTE_VALID) >> ENTRYLO0_V_SHIFT);
   if(diff) {
     vm_page_t *pg = pmap_find_pde_page(pmap, PDE_INDEX(vaddr));
+    assert(pg);
     pg->pt.valid_cnt += diff;
   }
 
@@ -167,7 +172,6 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
     (pmap->type == PMAP_KERNEL ? PTE_GLOBAL : 0);
   log("Add mapping for page %08lx (PTE at %08lx)",
       (vaddr & PTE_MASK), (intptr_t)&PTE_OF(pmap, vaddr));
-
 
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
@@ -181,7 +185,11 @@ static void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
 
-  /* TODO: Deallocate empty page table fragment by calling pmap_remove_pde. */
+  /* remove pde page if possible */
+  vm_page_t *pg = pmap_find_pde_page(pmap, PDE_INDEX(vaddr));
+  if(!pg->pt.valid_cnt) {
+    pmap_remove_pde(pmap, pg);
+  }
 }
 
 /* TODO: what about caches? */
