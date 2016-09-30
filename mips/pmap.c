@@ -110,6 +110,8 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
   assert (!is_valid(PDE_OF(pmap, vaddr)));
 
   vm_page_t *pg = pm_alloc(1);
+  pg->pt.pde_index = PDE_INDEX(vaddr);
+  pg->pt.valid_cnt = 0;
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pt.list);
   log("Page table fragment %08lx allocated at %08lx", 
       PTF_ADDR_OF(vaddr), pg->paddr);
