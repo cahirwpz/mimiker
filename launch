@@ -33,6 +33,8 @@ DEBUGGERS = {
     'gdbtui': '%(triplet)s-gdb -tui',
     'emacs' : 'emacsclient -c -e \'(gdb "%(triplet)s-gdb -i=mi %(kernel)s")\''
 }
+DEFAULT_DEBUGGER = 'cgdb'
+assert(DEFAULT_DEBUGGER in DEBUGGERS)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -42,9 +44,10 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--debug', action='store_true',
                         help='Start simulation under gdb.')
     parser.add_argument('-D', metavar='DEBUGGER', type=str, dest='debugger',
-                        choices=DEBUGGERS.keys(), default='cgdb',
-                        help='Debugger to use in -d mode. Available options: '
-                        '"cgdb" (default), "gdb", "gdbtui", "ddd", "emacs".')
+                        choices=DEBUGGERS.keys(), default=DEFAULT_DEBUGGER,
+                        help='Debugger to use in -d mode. Available options: ' +
+                        ', '.join(DEBUGGERS.keys()) + ". Default: " +
+                        DEFAULT_DEBUGGER + ".")
     parser.add_argument('-t', '--test', action='store_true',
                         help='Use current stdin & stdout for simulated UART.')
 
