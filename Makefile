@@ -32,11 +32,17 @@ cscope:
 
 tags:
 	find -iname '*.[ch]' | ctags --language-force=c -L-
+	find -iname '*.[ch]' | ctags --language-force=c -L- -e -f etags
 	find -iname '*.S' | ctags -a --language-force=asm -L-
+	find -iname '*.S' | ctags -a --language-force=asm -L- -e -f etags
 	find $(SYSROOT)/mips-mti-elf/include -type f -iname 'mips*' \
 		| ctags -a --language-force=c -L-
+	find $(SYSROOT)/mips-mti-elf/include -type f -iname 'mips*' \
+		| ctags -a --language-force=c -L- -e -f etags
 	find $(SYSROOT)/lib/gcc/mips-mti-elf/*/include -type f -iname '*.h' \
 		| ctags -a --language-force=c -L-
+	find $(SYSROOT)/lib/gcc/mips-mti-elf/*/include -type f -iname '*.h' \
+		| ctags -a --language-force=c -L- -e -f etags
 
 astyle:
 	astyle --options=astyle.options --recursive "*.h" "*.c" \
