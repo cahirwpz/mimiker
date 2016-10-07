@@ -5,11 +5,12 @@ import os
 import os.path
 import signal
 import subprocess
+import shlex
 from pexpect import popen_spawn
 
 OVPSIM_VENDOR = 'mips.ovpworld.org'
 OVPSIM_PLATFORM = 'MipsMalta/1.0'
-TRIPLET = 'mips-mti-elf-'
+TRIPLET = 'mips-mti-elf'
 PORT = 8000
 
 OVPSIM = os.path.join(os.environ['IMPERAS_HOME'],
@@ -25,7 +26,15 @@ OVPSIM_OVERRIDES = {
     "uartCBUS/portnum": PORT
 }
 
-GDB = ['cgdb', '-d', TRIPLET + 'gdb']
+DEBUGGERS = {
+    'gdb'   : '%(triplet)s-gdb %(kernel)s',
+    'cgdb'  : 'cgdb -d %(triplet)s-gdb %(kernel)s',
+    'ddd'   : 'ddd --debugger %(triplet)s-gdb %(kernel)s',
+    'gdbtui': '%(triplet)s-gdb -tui',
+    'emacs' : 'emacsclient -c -e \'(gdb "%(triplet)s-gdb -i=mi %(kernel)s")\''
+}
+DEFAULT_DEBUGGER = 'cgdb'
+assert(DEFAULT_DEBUGGER in DEBUGGERS)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -33,7 +42,12 @@ if __name__ == "__main__":
     parser.add_argument('kernel', metavar='KERNEL', type=str,
                         help='Kernel file in ELF format.')
     parser.add_argument('-d', '--debug', action='store_true',
-                        help='Start simulation under gdb using cgdb.')
+                        help='Start simulation under gdb.')
+    parser.add_argument('-D', metavar='DEBUGGER', type=str, dest='debugger',
+                        choices=DEBUGGERS.keys(), default=DEFAULT_DEBUGGER,
+                        help='Debugger to use in -d mode. Available options: ' +
+                        ', '.join(DEBUGGERS.keys()) + ". Default: " +
+                        DEFAULT_DEBUGGER + ".")
     parser.add_argument('-t', '--test', action='store_true',
                         help='Use current stdin & stdout for simulated UART.')
 
@@ -60,10 +74,12 @@ if __name__ == "__main__":
         pass
 
     if args.debug:
+        dbgcmd = DEBUGGERS[args.debugger] % {'kernel': args.kernel, 'triplet': TRIPLET}
+        dbgcmd = shlex.split(dbgcmd)
+
         sim = subprocess.Popen([OVPSIM] + opts,
                                start_new_session=True)
-        gdb = subprocess.Popen(GDB + [args.kernel],
-                               start_new_session=True)
+        gdb = subprocess.Popen(dbgcmd, start_new_session=True)
         while True:
             try:
                 gdb.wait()
