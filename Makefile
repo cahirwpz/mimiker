@@ -1,7 +1,7 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
 TESTS = callout.elf malloc.elf physmem.elf pmap.elf rtc.elf sched.elf \
-	thread.elf vm_map.elf
+	sleepq.elf thread.elf vm_map.elf
 SOURCES_C = 
 SOURCES_ASM = 
 
@@ -24,6 +24,7 @@ context.elf: context.ko $(KRT)
 vm_map.elf: vm_map.ko $(KRT)
 physmem.elf: physmem.ko $(KRT)
 sched.elf: sched.ko $(KRT)
+sleepq.elf: sleepq.ko $(KRT)
 
 libkernel.a: $(DEPFILES) $(OBJECTS)
 
