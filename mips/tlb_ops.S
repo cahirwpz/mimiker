@@ -92,7 +92,7 @@ LEAF(tlb_overwrite_random)
 	mfc0	v0, C0_INDEX
 	mtc0	a1, C0_ENTRYLO0
 	mtc0	a2, C0_ENTRYLO1
-	mtc0	a3, C0_PAGEMASK
+	mtc0	$0, C0_PAGEMASK
 
 	ehb		                # mtc0, hazard on tlbwi
 	bltz	v0, 1f	                # no matching entry
