@@ -35,7 +35,7 @@
 #define PTE_ASID_MASK 0x000000ff
 
 #define PTE_VPN2(addr) ((addr) & PTE_VPN2_MASK)
-#define PTE_ASID(asid) ((asid) & PTE_VPN2_MASK)
+#define PTE_ASID(asid) ((asid) & PTE_ASID_MASK)
 
 #define PT_BASE MIPS_KSEG2_START
 
