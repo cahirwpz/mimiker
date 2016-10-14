@@ -73,7 +73,7 @@ user_exc_enter:
 
         # Turn off FPU, enter kernel mode,
         # drop exception level and disable interrupts.
-        li      $t1, ~(SR_CU1|SR_KSU_KERN|SR_EXL|SR_IE)
+        li      $t1, ~(SR_CU1|SR_KSU_MASK|SR_EXL|SR_IE)
         and     $t0, $t1
         mtc0    $t0, C0_STATUS
 
