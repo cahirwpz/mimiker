@@ -11,10 +11,9 @@ LIBNAME = libstdc
 LIB_BUILD_DIR = $(LIBNAME)_build
 
 # Find the path to smallclib within toolchains resources
-STD_HEADER_PATH = $(dir $(shell $(P)gcc --print-libgcc-file-name))
-LIB_PATH = $(realpath $(join $(STD_HEADER_PATH), ../../../../src/smallclib/))
+LIB_PATH = $(realpath $(join $(dir $(firstword $(MAKEFILE_LIST))), smallclib))
 
-$(info Using $(LIBNAME) sources located at: $(LIB_PATH))
+$(info Using MIPS smallclib sources located at: $(LIB_PATH))
 
 CPPFLAGS  = -I$(LIB_PATH)/include
 CPPFLAGS += -I../include
