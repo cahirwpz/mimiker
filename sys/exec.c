@@ -121,7 +121,7 @@ int exec(){
             // Copy data into the segment
             memcpy((uint8_t*)start, elf_image + ph->p_offset, ph->p_filesz);
             // Zero the rest
-            if(ph->p_filesz > ph->p_memsz){
+            if(ph->p_filesz < ph->p_memsz){
                 bzero((uint8_t*)start + ph->p_filesz, ph->p_memsz - ph->p_filesz);
             }
             // Apply correct permissions
