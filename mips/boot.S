@@ -14,6 +14,8 @@
 # $a3 = memsize
 #
 # $sp is initialized
+# $gp is not initialized
+# C0_STATUS(SR_IE) is cleared
 
 LEAF(_start)
         la      $t0, _memsize
@@ -29,17 +31,21 @@ clear_bss:
         addiu   $t0, 4
 
 kernel_go:
-        # Status.ERL is set by the processor when a Reset, Soft Reset, NMI or
-        # Cache Error exception are taken. When ERL is set:
-        # - The processor is running in kernel mode
-        # - Hardware and software interrupts are disabled
-        # - The ERET instruction will use the return address held in ErrorEPC
-        #   instead of EPC
+	/*
+	* We will preserve SR_BEV settings for now, until we override it later on.
+	* SR_SR (Soft Reset bit) will be preserved as well to support reboot in the future.
+        */
+        li      $t0, (SR_BEV | SR_SR)
+        mfc0    $t1, C0_STATUS
+        and     $t1, $t0
+        mtc0    $t1, C0_STATUS
+        ehb
 
+	/* Transfer control to `kernel_boot`, and hang if it returns */
         la      $ra, kernel_exit
         la      $t0, kernel_boot
-        mtc0    $t0, C0_ERRPC    # Return from exception to kernel_boot
-        eret                     # exception => normal level (SR_ERL = 0)
+        jr      $t0
+        nop
 END(_start)
 
 LEAF(kernel_exit)
