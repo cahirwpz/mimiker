@@ -1,6 +1,7 @@
 #include <mips/asm.h>
 #include <mips/m32c0.h>
 #include <mips/ctx.h>
+#include <mips/pcpu.h>
 
 #include "genassym.h"
 
@@ -36,7 +37,8 @@ LEAF(ctx_switch)
 ctx_resume:
         addu    $a1, TD_KCTX
         LOAD_REG($t0, TCB, $a1)
-        mtc0    $t0, C0_USERLOCAL
+        GET_CPU_PCPU($t1)
+        sw      $t0, PCPU_OFFSET($t1, CURRENT_THREAD)
         LOAD_REG($ra, PC, $a1)
         LOAD_REG($fp, FP, $a1)
         LOAD_REG($sp, SP, $a1)

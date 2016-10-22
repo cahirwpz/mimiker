@@ -5,6 +5,7 @@
 #include <mips/tlb.h>
 #include <mips/clock.h>
 #include <interrupt.h>
+#include <pcpu.h>
 #include <malloc.h>
 #include <physmem.h>
 #include <pci.h>
@@ -36,6 +37,7 @@ int kernel_boot(int argc, char **argv, char **envp) {
   kprintf("\n");
 
   cpu_init();
+  pcpu_init();
   pci_init();
   pm_init();
   intr_init();
