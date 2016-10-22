@@ -15,7 +15,7 @@ int exec(){
 
     kprintf("[exec] User ELF size: %ld\n", elf_size);
 
-    if(elf_size < sizeof(Elf32_Ehdr)/sizeof(uint8_t)){
+    if(elf_size < sizeof(Elf32_Ehdr)){
         kprintf("[exec] Exec failed: ELF file is too small to contain a valid header\n");
         return -1;
     }
@@ -68,9 +68,9 @@ int exec(){
     kprintf("[exec] Entry point will be at 0x%08x.\n",
             (unsigned int)eh->e_entry);
 
-    // Ensure prog header size compliance
-    if(eh->e_phentsize != sizeof(Elf32_Phdr)/sizeof(uint8_t)){
-        kprintf("[exec] Exec failed: ELF uses non-standard program header size\n");
+    // Ensure minimal prog header size
+    if(eh->e_phentsize < sizeof(Elf32_Phdr)){
+        kprintf("[exec] Exec failed: ELF uses too small program headers\n");
         return -1;
     }
 
@@ -82,9 +82,9 @@ int exec(){
     // Iterate over prog headers
     kprintf("[exec] ELF has %d program headers\n", eh->e_phnum);
 
-    const Elf32_Phdr* phs = (Elf32_Phdr*)(elf_image + eh->e_phoff);
+    const uint8_t* phs_base = elf_image + eh->e_phoff;
     for(uint8_t i = 0; i < eh->e_phnum; i++){
-        const Elf32_Phdr* ph = phs + i;
+        const Elf32_Phdr* ph = (Elf32_Phdr*)(phs_base + i * eh->e_phentsize);
         switch(ph->p_type){
         case PT_NULL:
         case PT_NOTE:
