@@ -11,6 +11,8 @@
         .globl kern_exc_leave
         .local user_exc_enter
         .local kern_exc_enter
+        .extern _current_thread
+
 
 # [$k0] must be set to value of C0_STATUS
 exc_enter:
@@ -20,7 +22,8 @@ exc_enter:
 
 user_exc_enter:
         # Fetch the context from thread control block.
-        mfc0    $k0, C0_USERLOCAL
+        la      $k0, _current_thread
+        lw      $k0, 0($k0)
         addu    $k0, TD_UCTX
 
         # Save all user registers...
@@ -88,7 +91,8 @@ user_exc_enter:
 
 user_exc_leave:
         # Fetch the context from thread control block.
-        mfc0    $k0, C0_USERLOCAL
+        la      $k0, _current_thread
+        lw      $k0, 0($k0)
         addu    $k0, TD_UCTX
 
         # Update status register held in user context (interrupt mask).
@@ -205,7 +209,8 @@ kern_exc_enter:
         la      $gp, _gp
 
         # Save stack frame pointer into td_frame.
-        mfc0    $t0, C0_USERLOCAL
+        la      $t0, _current_thread
+        lw      $t0, 0($t0)
         sw      $sp, TD_KFRAME($t0)
 
         # Call C interrupt handler routine.
@@ -213,7 +218,8 @@ kern_exc_enter:
         nop
 
         # Interrupts may be enabled here and that's ok.
-        mfc0    $t0, C0_USERLOCAL
+        la      $t0, _current_thread
+        lw      $t0, 0($t0)
         lw      $t1, TD_FLAGS($t0)
         andi    $t1, TDF_NEEDSWITCH
         beqz    $t1, 1f
