@@ -159,7 +159,7 @@ int do_exec(const exec_args_t *args) {
     return -1;
   }
 
-  // TODO: Get current thread description structure
+  // TODO: Get current process description structure
 
   // The current vmap should be taken from the process description!
   vm_map_t *old_vmap = get_active_vm_map(PMAP_USER);
@@ -264,7 +264,7 @@ int do_exec(const exec_args_t *args) {
   if (old_vmap)
     vm_map_delete(old_vmap);
 
-  // TODO: Assign the new vm map to the process thread structure
+  // TODO: Assign the new vm map to the process structure
 
   // We need to correct the thread structure so that it can hold the
   // correct $gp value for this execution context.
