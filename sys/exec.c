@@ -22,8 +22,34 @@ int get_elf_image(const exec_args_t* args, uint8_t** out_image, size_t* out_size
 }
 
 // Places program args onto the stack.
-// Also modified value pointed by stack_bottom_p to reflect on changed
+// Also modifies value pointed by stack_bottom_p to reflect on changed
 // stack bottom address.
+// The stack layout will be as follows:
+//
+//  ----------- stack segment high address
+//  | argv[n] |
+//  |   ...   |  each of argv[i] is a null-terminated string
+//  | argv[1] |
+//  | argv[0] |
+//  |---------|
+//  | argv    |  the argument vector storing pointers to argv[0..n]
+//  |---------|
+//  | argc    |  a single uint32 declaring the number of arguments (n)
+//  |---------|
+//  | program |
+//  |  stack  |
+//  |   ||    |
+//  |   \/    |
+//  |         |
+//  |   ...   |
+//  ----------- stack segment low address
+//
+//
+// After this function runs, the value pointed by stack_bottom_p will
+// be the address where argc is stored, which is also the bottom of
+// the now empty program stack, so that it can naturally grow
+// downwards.
+//
 static void prepare_program_stack(const exec_args_t* args, vm_addr_t* stack_bottom_p){
     vm_addr_t stack_end = *stack_bottom_p;
     // Begin by calculting arguments total size. This has to be done
@@ -130,6 +156,8 @@ int do_exec(const exec_args_t* args){
         return -1;
     }
 
+    // TODO: Get current thread description structure
+
     // The current vmap should be taken from the process description!
     vm_map_t* old_vmap = get_active_vm_map(PMAP_USER);
     // We may not destroy the current vm map, because exec can still
@@ -229,8 +257,7 @@ int do_exec(const exec_args_t* args){
     if(old_vmap)
         vm_map_delete(old_vmap);
 
-    // Terminate stack bottom.
-    *(uint32_t*)(stack_bottom - 4) = 0;
+    // TODO: Assign the new vm map to the process thread structure
 
     // We need to correct the thread structure so that it can hold the
     // correct $gp value for this execution context.
@@ -239,8 +266,9 @@ int do_exec(const exec_args_t* args){
     th->td_kctx.pc = eh->e_entry;
     th->td_kctx.sp = stack_bottom;
     // TODO: Since there is no process structure yet, this call starts
-    // the user code in kernel mode, on kernel stack. This will have
-    // to be fixed eventually.
+    // the user code in kernel mode. $sp is set according to data
+    // prepared by prepare_program_stack. Setting $ra is irrelevant,
+    // as the ctx_switch procedure overwrites it anyway.
 
     // Forcefully apply changed context.
     // This might be also done by yielding to the scheduler, but it
