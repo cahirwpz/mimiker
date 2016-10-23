@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #define BYTES(x) (sizeof(x)/sizeof(char))
 
 #define STRING "This is an example string."
@@ -8,16 +10,16 @@ const char* string = STRING;
 // This should land in .bss, accessed by a pointer in .data
 char textarea[TEXTAREA_SIZE];
 
-int leaf(){
+uint32_t leaf(){
     return 0xdad0face;
 }
 
-void stack_test_func(int* arg){
+void stack_test_func(uint32_t* arg){
     *arg = leaf();
 }
 
 void marquee(){
-    int o = 0;
+    uint32_t o = 0;
     while(1){
         o++;
         // Copy string three times with changing offsets
@@ -30,7 +32,7 @@ void marquee(){
 }
 
 int main(){
-    int stack_variable = 0x42424242;
+    uint32_t stack_variable = 0x42424242;
     stack_test_func(&stack_variable);
     marquee();
     return 0;
