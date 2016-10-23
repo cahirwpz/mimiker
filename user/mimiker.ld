@@ -1,5 +1,5 @@
 OUTPUT_ARCH(mips)
-ENTRY(main)
+ENTRY(_start)
 
 PHDRS
 {

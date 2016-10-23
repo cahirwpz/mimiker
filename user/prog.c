@@ -8,7 +8,15 @@ const char* string = STRING;
 // This should land in .bss, accessed by a pointer in .data
 char textarea[TEXTAREA_SIZE];
 
-int main(){
+int leaf(){
+    return 0xdad0face;
+}
+
+void stack_test_func(int* arg){
+    *arg = leaf();
+}
+
+void marquee(){
     int o = 0;
     while(1){
         o++;
@@ -19,4 +27,11 @@ int main(){
         // Null-terminate
         textarea[TEXTAREA_SIZE - 1] = 0;
     }
+}
+
+int main(){
+    int stack_variable = 0x42424242;
+    stack_test_func(&stack_variable);
+    marquee();
+    return 0;
 }

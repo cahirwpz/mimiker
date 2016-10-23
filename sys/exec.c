@@ -141,6 +141,23 @@ int exec(){
         }
     }
 
+    // Create a stack segment. As for now, the stack size is fixed and
+    // will not grow on-demand. Also, the stack info should be saved
+    // into the thread structure.
+    // Generally, the stack should begin at a high address (0x80000000),
+    // excluding env vars and arguments, but I've temporarly moved it
+    // a bit lower so that it is easier to spot invalid memory access
+    // when the stack underflows.
+    const vm_addr_t stack_bottom = 0x70000000;
+    const size_t stack_size = PAGESIZE * 2;
+
+    vm_addr_t stack_start = stack_bottom - stack_size;
+    vm_addr_t stack_end = stack_bottom;
+    // TODO: What if this area overlaps with a loaded segment?
+    vm_map_entry_t* stack_segment =
+        vm_map_add_entry(vmap, stack_start, stack_end, VM_PROT_READ|VM_PROT_WRITE);
+    stack_segment->object = default_pager->pgr_alloc();
+
     vm_map_dump(vmap);
 
     // At this point we are certain that exec suceeds.
@@ -152,12 +169,15 @@ int exec(){
     if(old_vmap)
         vm_map_delete(old_vmap);
 
+    // Terminate stack bottom.
+    *(uint32_t*)(stack_bottom - 4) = 0;
+
     // We need to correct the thread structure so that it can hold the
     // correct $gp value for this execution context.
     thread_t* th = thread_self();
     th->td_kctx.gp = 0;
-    th->td_kctx.ra = 0xdeadbeef;
     th->td_kctx.pc = eh->e_entry;
+    th->td_kctx.sp = stack_bottom;// - 16;
     // TODO: Since there is no process structure yet, this call starts
     // the user code in kernel mode, on kernel stack. This will have
     // to be fixed eventually.
