@@ -1,5 +1,5 @@
-#ifndef __RTC_H__
-#define __RTC_H__
+#ifndef __EXEC_H__
+#define __EXEC_H__
 
 void exec();
 
