@@ -10,7 +10,7 @@ PHDRS
 }
 SECTIONS
 {
-    .text 0x00001000:
+    .text 0x00400000 :
     {
         *(.text .text.*)
         . = ALIGN(4096);

@@ -2,8 +2,8 @@ all: prog.uelf.o
 
 include ../Makefile.common
 
-CFLAGS   = -std=gnu11 -O0 -Wall -Werror -fno-builtin -ffreestanding
-LDFLAGS  = -nostdlib -T mimiker.ld
+CFLAGS   = -std=gnu11 -O0 -Wall -Werror -fno-builtin -ffreestanding -G0
+LDFLAGS  = -nostdlib -T mimiker.ld -G0
 
 # Compiling the program source
 prog.o: prog.c
