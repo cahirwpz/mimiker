@@ -74,6 +74,12 @@ int exec(){
         return -1;
     }
 
+    // The current vmap should be taken from the process description!
+    vm_map_t* old_vmap = get_active_vm_map(PMAP_USER);
+    // We may not destroy the current vm map, because exec can still
+    // fail, and in that case we must be able to return to the
+    // original address space
+
     // TODO: Take care of assigning thread/process ASID
     vm_map_t* vmap = vm_map_new(PMAP_USER, 123);
     // Note: we do not claim ownership of the map
@@ -96,10 +102,10 @@ int exec(){
         case PT_INTERP:
             kprintf("[exec] Exec failed: ELF file requests dynamic linking"
                     "by providing a PT_DYNAMIC and/or PT_INTERP segment.\n");
-            return -1;
+            goto exec_fail;
         case PT_SHLIB:
             kprintf("[exec] Exec failed: ELF file contains a PT_SHLIB segment\n");
-            return -1;
+            goto exec_fail;
         case PT_LOAD:
             kprintf("[exec] Processing a PT_LOAD segment: VirtAddr = %p, "
                     "Offset = 0x%08x, FileSiz = 0x%08x, MemSiz = 0x%08x, "
@@ -108,7 +114,7 @@ int exec(){
                     (unsigned int)ph->p_flags);
             if(ph->p_vaddr % PAGESIZE){
                 kprintf("[exec] Exec failed: Segment p_vaddr is not page alligned\n");
-                return -1;
+                goto exec_fail;
             }
             vm_addr_t start = ph->p_vaddr;
             vm_addr_t end   = roundup(ph->p_vaddr + ph->p_memsz, PAGESIZE);
@@ -137,6 +143,15 @@ int exec(){
 
     vm_map_dump(vmap);
 
+    // At this point we are certain that exec suceeds.
+    // We can safely destroy the previous vm map.
+
+    // This condition will be unnecessary when we take the vmap info
+    // from thread struct. The user thread calling exec() WILL
+    // certainly have an existing vmap before exec()ing.
+    if(old_vmap)
+        vm_map_delete(old_vmap);
+
     // We need to correct the thread structure so that it can hold the
     // correct $gp value for this execution context.
     thread_t* th = thread_self();
@@ -157,6 +172,14 @@ int exec(){
     ctx_switch(&junk,th);
 
     // UNREACHABLE
+    return -1;
+
+ exec_fail:
+    // Destroy the vm map we began preparing
+    vm_map_delete(vmap);
+    // Return to the previous map, unmodified by exec
+    if(old_vmap)
+        set_active_vm_map(old_vmap);
 
     return -1;
 }
