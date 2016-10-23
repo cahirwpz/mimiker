@@ -12,10 +12,10 @@ include Makefile.common
 LDLIBS += -Lsys -Lmips -Lstdc \
 	  -Wl,--start-group -lsys -lmips -lstdc -lgcc -Wl,--end-group
 
-LD_EMBED = elf/prog.uelf.o
+LD_EMBED = user/prog.uelf.o
 
 # Kernel runtime files
-KRT = stdc mips sys elf
+KRT = stdc mips sys user
 
 callout.elf: callout.ko $(KRT)
 thread.elf: thread.ko $(KRT)
@@ -73,16 +73,16 @@ stdc:
 sys:
 	$(MAKE) -C sys
 
-elf:
-	$(MAKE) -C elf
+user:
+	$(MAKE) -C user
 
 clean:
 	$(MAKE) -C mips clean
 	$(MAKE) -C stdc clean
 	$(MAKE) -C sys clean
-	$(MAKE) -C elf clean
+	$(MAKE) -C user clean
 	$(RM) -f .*.D *.ko *.o *.a *.lst *~ *.elf *.map *.log
 	$(RM) -f tags cscope.out *.taghl
 	$(RM) -f $(TESTS)
 
-.PHONY: astyle tags cscope mips stdc sys elf
+.PHONY: astyle tags cscope mips stdc sys user
