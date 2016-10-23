@@ -71,6 +71,7 @@ MIPS documentation:
 * [MIPS32® 24KEf™ Processor Core Datasheet](http://wiki.prplfoundation.org/w/images/9/9c/MD00446-2B-24KEF-DTS-02.00.pdf)
 * [Programming the MIPS32® 24KE™ Core Family](http://wiki.prplfoundation.org/w/images/2/20/MD00458-2B-24KEPRG-PRG-04.63.pdf)
 * [MIPS® YAMON™ User’s Manual](http://wiki.prplfoundation.org/w/images/b/b9/MD00008-2B-YAMON-USM-02.19.pdf)
+* [MIPS® YAMON™ Reference Manual](http://wiki.prplfoundation.org/w/images/8/80/MD00009-2B-YAMON-RFM-02.20.pdf)
 * [MIPS ABI Project](https://dmz-portal.mips.com/wiki/MIPS_ABI_Project)
 
 Hardware documentation:
