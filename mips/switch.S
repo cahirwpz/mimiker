@@ -8,6 +8,7 @@
 
         .global ctx_switch
         .local  ctx_resume
+        .extern _current_thread
 
 #
 # void ctx_switch(thread_t *from, thread_t *to)
@@ -36,7 +37,8 @@ LEAF(ctx_switch)
 ctx_resume:
         addu    $a1, TD_KCTX
         LOAD_REG($t0, TCB, $a1)
-        mtc0    $t0, C0_USERLOCAL
+        la      $t1, _current_thread
+        sw      $t0, 0($t1)
         LOAD_REG($ra, PC, $a1)
         LOAD_REG($fp, FP, $a1)
         LOAD_REG($sp, SP, $a1)
