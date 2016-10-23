@@ -1,17 +1,34 @@
 #include <common.h>
+#include <exec.h>
 #include <stdc.h>
 #include <elf/mips_elf.h>
 #include <vm_map.h>
 #include <vm_pager.h>
 #include <thread.h>
+#include <string.h>
 
 extern uint8_t _binary_prog_uelf_start[];
 extern uint8_t _binary_prog_uelf_size[];
 extern uint8_t _binary_prog_uelf_end[];
 
-int exec(){
-    uint8_t* elf_image = _binary_prog_uelf_start;
-    size_t elf_size = (size_t)(void*)_binary_prog_uelf_size;
+int get_elf_image(const exec_args_t* args, uint8_t** out_image, size_t* out_size){
+    if(strcmp(args->prog_name, "prog") == 0){
+        *out_image = _binary_prog_uelf_start;
+        *out_size  = (size_t)_binary_prog_uelf_size;
+        return 0;
+    }else{
+        return -1;
+    }
+}
+
+int do_exec(const exec_args_t* args){
+    uint8_t* elf_image;
+    size_t elf_size;
+    int n = get_elf_image(args, &elf_image, &elf_size);
+    if(n < 0){
+        kprintf("[exec] Exec failed: Failed to access program image '%s'\n", args->prog_name);
+        return -1;
+    }
 
     kprintf("[exec] User ELF size: %ld\n", elf_size);
 
