@@ -21,6 +21,45 @@ int get_elf_image(const exec_args_t* args, uint8_t** out_image, size_t* out_size
     }
 }
 
+// Places program args onto the stack.
+// Also modified value pointed by stack_bottom_p to reflect on changed
+// stack bottom address.
+static void prepare_program_stack(const exec_args_t* args, vm_addr_t* stack_bottom_p){
+    vm_addr_t stack_end = *stack_bottom_p;
+    // Begin by calculting arguments total size. This has to be done
+    // in advance, because stack grows downwards.
+    size_t total_arg_size = 0;
+    for(size_t i = 0; i < args->argc; i++){
+        total_arg_size += strlen(args->argv[i]) + 1;
+    }
+    // Store arguments, creating the argument vector.
+    vm_addr_t arg_vector[args->argc];
+    vm_addr_t p = *stack_bottom_p - total_arg_size;
+    for(int i = 0; i < args->argc; i++){
+        size_t n = strlen(args->argv[i]) + 1;
+        arg_vector[i] = p;
+        memcpy((uint8_t*)p, args->argv[i], n);
+        p += n;
+    }
+    assert(p == stack_end);
+    // Move the stack down and word-align it downwards
+    *stack_bottom_p = (*stack_bottom_p - total_arg_size) & 0xfffffffc;
+
+    // Now, place the argument vector on the stack.
+    size_t arg_vector_size = sizeof(arg_vector);
+    vm_addr_t argv = *stack_bottom_p - arg_vector_size;
+    memcpy((void*)argv, &arg_vector, arg_vector_size);
+    // Move the stack down. No need to align it again.
+    *stack_bottom_p = *stack_bottom_p - arg_vector_size;
+
+    // Finally, place argc on the stack
+    *stack_bottom_p = *stack_bottom_p - sizeof(vm_addr_t);
+    vm_addr_t* stack_args = (vm_addr_t*)*stack_bottom_p;
+    *stack_args = args->argc;
+
+    // TODO: Environment
+}
+
 int do_exec(const exec_args_t* args){
     uint8_t* elf_image;
     size_t elf_size;
@@ -165,7 +204,7 @@ int do_exec(const exec_args_t* args){
     // excluding env vars and arguments, but I've temporarly moved it
     // a bit lower so that it is easier to spot invalid memory access
     // when the stack underflows.
-    const vm_addr_t stack_bottom = 0x70000000;
+    vm_addr_t stack_bottom = 0x70000000;
     const size_t stack_size = PAGESIZE * 2;
 
     vm_addr_t stack_start = stack_bottom - stack_size;
@@ -174,6 +213,10 @@ int do_exec(const exec_args_t* args){
     vm_map_entry_t* stack_segment =
         vm_map_add_entry(vmap, stack_start, stack_end, VM_PROT_READ|VM_PROT_WRITE);
     stack_segment->object = default_pager->pgr_alloc();
+
+    // Prepare program stack, which includes storing program args.
+    prepare_program_stack(args, &stack_bottom);
+    kprintf("[exec] Stack real bottom at %p\n", (void*)stack_bottom);
 
     vm_map_dump(vmap);
 
@@ -194,7 +237,7 @@ int do_exec(const exec_args_t* args){
     thread_t* th = thread_self();
     th->td_kctx.gp = 0;
     th->td_kctx.pc = eh->e_entry;
-    th->td_kctx.sp = stack_bottom;// - 16;
+    th->td_kctx.sp = stack_bottom;
     // TODO: Since there is no process structure yet, this call starts
     // the user code in kernel mode, on kernel stack. This will have
     // to be fixed eventually.

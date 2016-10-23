@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 
 #define BYTES(x) (sizeof(x)/sizeof(char))
 
@@ -9,6 +10,8 @@
 const char* string = STRING;
 // This should land in .bss, accessed by a pointer in .data
 char textarea[TEXTAREA_SIZE];
+
+char arguments_received[1000];
 
 uint32_t leaf(){
     return 0xdad0face;
@@ -31,7 +34,10 @@ void marquee(){
     }
 }
 
-int main(){
+int main(int argc, char** argv){
+    // As currently there is no feasible way of outputting text, break
+    // with debugger here to see argc/argv!
+
     uint32_t stack_variable = 0x42424242;
     stack_test_func(&stack_variable);
     marquee();

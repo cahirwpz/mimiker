@@ -11,7 +11,10 @@ LEAF(_start)
     sw $ra,4($sp)
     sw $sp,0($sp)
 
-    # TODO: Prepare argc and argv for main
+    # Grab argc from below stack
+    lw $a0,8($sp)
+    # Prepare argv pointing at argument vector below stack
+    addiu $a1,$sp,12
     
     jal main
     nop
