@@ -1,0 +1,9 @@
+sudo: required
+dist: trusty
+language: c
+compiler: gcc
+before_install:
+ - sudo apt-get -qq update
+ - sudo apt-get install -y qemu-system-mips
+script: true
+
