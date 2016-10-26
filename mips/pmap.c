@@ -44,6 +44,15 @@ static pmap_range_t pmap_range[PMAP_LAST] = {
   [PMAP_USER] = {0x00000000, MIPS_KSEG0_START} /* useg */
 };
 
+vm_page_t *pmap_find_pde_page(pmap_t *pmap, uint16_t pde_index) {
+  vm_page_t *it;
+  TAILQ_FOREACH(it, &pmap->pte_pages, pt.list) {
+    if(it->pt.pde_index == pde_index)
+      return it;
+  }
+  return NULL;
+}
+
 void pmap_setup(pmap_t *pmap, pmap_type_t type, asid_t asid) {
   pmap->type = type;
   pmap->pte = (pte_t *)PT_BASE;
@@ -101,6 +110,8 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
   assert (!is_valid(PDE_OF(pmap, vaddr)));
 
   vm_page_t *pg = pm_alloc(1);
+  pg->pt.pde_index = PDE_INDEX(vaddr);
+  pg->pt.valid_cnt = 0;
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pt.list);
   log("Page table fragment %08lx allocated at %08lx", 
       PTF_ADDR_OF(vaddr), pg->paddr);
@@ -112,8 +123,12 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
     pte[i] = PTE_GLOBAL;
 }
 
-/* TODO: implement */
-void pmap_remove_pde(pmap_t *pmap, vm_addr_t vaddr);
+static void pmap_remove_pde(pmap_t *pmap, vm_page_t *pg) {
+    assert(pg->pt.valid_cnt == 0);
+    int pde_index = pg->pt.pde_index;
+    pmap->pde[pde_index] = 0;
+    TAILQ_REMOVE(&pmap->pte_pages, pg, pt.list);
+}
 
 #if 0
 /* Used if CPU implements RI and XI bits in ENTRYLO. */
@@ -140,11 +155,25 @@ static pte_t vm_prot_map[] = {
 };
 #endif
 
+static void pmap_update_pde_page(pmap_t *pmap, pte_t old_pte, pte_t new_pte, vm_addr_t vaddr) {
+  int diff = ((new_pte & PTE_VALID) >> ENTRYLO0_V_SHIFT) -
+      (old_pte>> ENTRYLO0_V_SHIFT);
+
+  if(diff) {
+    vm_page_t *pg = pmap_find_pde_page(pmap, PDE_INDEX(vaddr));
+    assert(pg);
+    pg->pt.valid_cnt += diff;
+  }
+  
+}
+
 /* TODO: what about caches? */
 static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
                          vm_prot_t prot) {
   if (!is_valid(PDE_OF(pmap, vaddr)))
     pmap_add_pde(pmap, vaddr);
+  pmap_update_pde_page(pmap, PTE_OF(pmap, vaddr), prot, vaddr);
+
 
   PTE_OF(pmap, vaddr) = PTE_PFN(paddr) | vm_prot_map[prot] |
     (pmap->type == PMAP_KERNEL ? PTE_GLOBAL : 0);
@@ -157,13 +186,18 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
 
 /* TODO: what about caches? */
 static void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
+  pmap_update_pde_page(pmap, PTE_OF(pmap, vaddr), 0, vaddr);
   PTE_OF(pmap, vaddr) = 0;
   log("Remove mapping for page %08lx (PTE at %08lx)",
       (vaddr & PTE_MASK), (intptr_t)&PTE_OF(pmap, vaddr));
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
 
-  /* TODO: Deallocate empty page table fragment by calling pmap_remove_pde. */
+  /* remove pde page if possible */
+  vm_page_t *pg = pmap_find_pde_page(pmap, PDE_INDEX(vaddr));
+  if(!pg->pt.valid_cnt) {
+    pmap_remove_pde(pmap, pg);
+  }
 }
 
 /* TODO: what about caches? */
@@ -172,6 +206,8 @@ static void pmap_change_pte(pmap_t *pmap, vm_addr_t vaddr, vm_prot_t prot) {
     (PTE_OF(pmap, vaddr) & ~PTE_PROT_MASK) | vm_prot_map[prot];
   log("Change protection bits for page %08lx (PTE at %08lx)",
       (vaddr & PTE_MASK), (intptr_t)&PTE_OF(pmap, vaddr));
+
+  pmap_update_pde_page(pmap, PTE_OF(pmap, vaddr), 0, vaddr);
 
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
