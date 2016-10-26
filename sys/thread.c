@@ -4,6 +4,7 @@
 #include <thread.h>
 #include <context.h>
 #include <interrupt.h>
+#include <pcpu.h>
 
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
 
@@ -51,6 +52,10 @@ void thread_delete(thread_t *td) {
 
   pm_free(td->td_kstack_obj);
   kfree(td_pool, td);
+}
+
+thread_t *thread_self() {
+  return PCPU_GET(curthread);
 }
 
 void thread_switch_to(thread_t *newtd) {
