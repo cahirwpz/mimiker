@@ -89,6 +89,9 @@ static void prepare_program_stack(const exec_args_t *args,
 }
 
 int do_exec(const exec_args_t *args) {
+
+  kprintf("[exec] Loading user ELF: %s\n", args->prog_name);
+
   uint8_t *elf_image;
   size_t elf_size;
   int n = get_elf_image(args, &elf_image, &elf_size);
@@ -104,18 +107,6 @@ int do_exec(const exec_args_t *args) {
     kprintf(
       "[exec] Exec failed: ELF file is too small to contain a valid header\n");
     return -1;
-  }
-
-  const uint8_t header_size = 64;
-  const uint8_t stride = 8;
-  kprintf("[exec] User ELF header dump:\n");
-  for (int8_t i = 0; i < header_size; i++) {
-    if (i % stride == 0)
-      kprintf("[exec]  ");
-    uint8_t byte = elf_image[i];
-    kprintf(" %02x", byte);
-    if (i % stride == 7)
-      kprintf("\n");
   }
 
   const Elf32_Ehdr *eh = (Elf32_Ehdr *)elf_image;
