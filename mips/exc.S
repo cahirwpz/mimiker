@@ -21,8 +21,8 @@ exc_enter:
 
 user_exc_enter:
         # Fetch the context from thread control block.
-        GET_CPU_PCPU($k0)
-        lw      $k0, PCPU_OFFSET($k0, CURRENT_THREAD)
+        LOAD_PCPU($k0)
+        lw      $k0, PCPU_CURTHREAD($k0)
         addu    $k0, TD_UCTX
 
         # Save all user registers...
@@ -90,8 +90,8 @@ user_exc_enter:
 
 user_exc_leave:
         # Fetch the context from thread control block.
-        GET_CPU_PCPU($k0)
-        lw      $k0, PCPU_OFFSET($k0, CURRENT_THREAD)
+        LOAD_PCPU($k0)
+        lw      $k0, PCPU_CURTHREAD($k0)
         addu    $k0, TD_UCTX
 
         # Update status register held in user context (interrupt mask).
@@ -208,8 +208,8 @@ kern_exc_enter:
         la      $gp, _gp
 
         # Save stack frame pointer into td_frame.
-        GET_CPU_PCPU($t0)
-        lw      $t0, PCPU_OFFSET($t0, CURRENT_THREAD)
+        LOAD_PCPU($t0)
+        lw      $t0, PCPU_CURTHREAD($t0)
         sw      $sp, TD_KFRAME($t0)
 
         # Call C interrupt handler routine.
@@ -217,8 +217,8 @@ kern_exc_enter:
         nop
 
         # Interrupts may be enabled here and that's ok.
-        GET_CPU_PCPU($t0)
-        lw      $t0, PCPU_OFFSET($t0, CURRENT_THREAD)
+        LOAD_PCPU($t0)
+        lw      $t0, PCPU_CURTHREAD($t0)
         lw      $t1, TD_FLAGS($t0)
         andi    $t1, TDF_NEEDSWITCH
         beqz    $t1, 1f

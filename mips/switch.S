@@ -37,8 +37,8 @@ LEAF(ctx_switch)
 ctx_resume:
         addu    $a1, TD_KCTX
         LOAD_REG($t0, TCB, $a1)
-        GET_CPU_PCPU($t1)
-        sw      $t0, PCPU_OFFSET($t1, CURRENT_THREAD)
+        LOAD_PCPU($t1)
+        sw      $t0, PCPU_CURTHREAD($t1)
         LOAD_REG($ra, PC, $a1)
         LOAD_REG($fp, FP, $a1)
         LOAD_REG($sp, SP, $a1)

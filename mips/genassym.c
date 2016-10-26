@@ -79,4 +79,4 @@ ASSYM(EXC_CAUSE, offsetof(exc_frame_t, cause));
 
 ASSYM(EXC_FRAME_SIZE, sizeof(exc_frame_t) + CALLFRAME_SIZE);
 
-ASSYM(PCPU_CURRENT_THREAD, offsetof(pcpu_t, current_thread));
+ASSYM(PCPU_CURTHREAD, offsetof(pcpu_t, curthread));

@@ -3,5 +3,5 @@
 #include <pcpu.h>
 
 thread_t *thread_self() {
-  return PCPU_GET(current_thread);
+  return PCPU_GET(curthread);
 }
