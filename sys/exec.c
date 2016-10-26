@@ -6,6 +6,7 @@
 #include <vm_pager.h>
 #include <thread.h>
 #include <string.h>
+#include <errno.h>
 
 extern uint8_t _binary_prog_uelf_start[];
 extern uint8_t _binary_prog_uelf_size[];
@@ -98,7 +99,7 @@ int do_exec(const exec_args_t *args) {
   if (n < 0) {
     kprintf("[exec] Exec failed: Failed to access program image '%s'\n",
             args->prog_name);
-    return -1;
+    return -ENOENT;
   }
 
   kprintf("[exec] User ELF size: %ld\n", elf_size);
@@ -106,7 +107,7 @@ int do_exec(const exec_args_t *args) {
   if (elf_size < sizeof(Elf32_Ehdr)) {
     kprintf(
       "[exec] Exec failed: ELF file is too small to contain a valid header\n");
-    return -1;
+    return -ENOEXEC;
   }
 
   const Elf32_Ehdr *eh = (Elf32_Ehdr *)elf_image;
@@ -117,28 +118,28 @@ int do_exec(const exec_args_t *args) {
   if (eh->e_ident[EI_MAG0] != ELFMAG0 || eh->e_ident[EI_MAG1] != ELFMAG1 ||
       eh->e_ident[EI_MAG2] != ELFMAG2 || eh->e_ident[EI_MAG3] != ELFMAG3) {
     kprintf("[exec] Exec failed: Incorrect ELF magic number\n");
-    return -1;
+    return -ENOEXEC;
   }
   // Check ELF class
   if (eh->e_ident[EI_CLASS] != ELFCLASS32) {
     kprintf("[exec] Exec failed: Unsupported ELF class (!= ELF32)\n");
-    return -1;
+    return -EINVAL;
   }
   // Check data format endianess
   if (eh->e_ident[EI_DATA] != ELFDATA2LSB) {
     kprintf("[exec] Exec failed: ELF file is not low-endian\n");
-    return -1;
+    return -EINVAL;
   }
   // Ignore version and os abi field
   // Check file type
   if (eh->e_type != ET_EXEC) {
     kprintf("[exec] Exec failed: ELF is not an executable\n");
-    return -1;
+    return -EINVAL;
   }
   // Check machine architecture field
   if (eh->e_machine != EM_MIPS) {
     kprintf("[exec] Exec failed: ELF target architecture is not MIPS\n");
-    return -1;
+    return -EINVAL;
   }
 
   // Take note of the entry point
@@ -147,7 +148,7 @@ int do_exec(const exec_args_t *args) {
   // Ensure minimal prog header size
   if (eh->e_phentsize < sizeof(Elf32_Phdr)) {
     kprintf("[exec] Exec failed: ELF uses too small program headers\n");
-    return -1;
+    return -ENOEXEC;
   }
 
   // TODO: Get current process description structure
@@ -277,8 +278,8 @@ int do_exec(const exec_args_t *args) {
   thread_t junk;
   ctx_switch(&junk, th);
 
-  // UNREACHABLE
-  return -1;
+  /*NOTREACHED*/
+  __builtin_unreachable();
 
 exec_fail:
   // Destroy the vm map we began preparing
@@ -287,5 +288,5 @@ exec_fail:
   if (old_vmap)
     set_active_vm_map(old_vmap);
 
-  return -1;
+  return -EINVAL;
 }
