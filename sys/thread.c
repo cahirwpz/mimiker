@@ -14,7 +14,7 @@ noreturn void thread_init(void (*fn)(), int n, ...) {
   kmalloc_init(td_pool);
   kmalloc_add_arena(td_pool, pm_alloc(1)->vaddr, PAGESIZE);
 
-  td = thread_create("main", fn);
+  td = thread_create("main", fn, TD_KERNEL);
 
   /* Pass arguments to called function. */
   exc_frame_t *kframe = td->td_kframe;
@@ -31,9 +31,9 @@ noreturn void thread_init(void (*fn)(), int n, ...) {
   ctx_boot(td);
 }
 
-thread_t *thread_create(const char *name, void (*fn)()) {
+thread_t *thread_create(const char *name, void (*fn)(), td_type_t td_type) {
   thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
-
+  td->td_type = td_type;
   td->td_name = name;
   td->td_kstack_obj = pm_alloc(1);
   td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
