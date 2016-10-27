@@ -21,6 +21,12 @@ typedef enum
     TD_KERNEL
 } td_type_t;
 
+typedef enum
+{
+    TD_USER,
+    TD_KERNEL
+} td_type_t;
+
 typedef struct thread {
   TAILQ_ENTRY(thread) td_runq;   /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq; /* a link on sleep queue */
