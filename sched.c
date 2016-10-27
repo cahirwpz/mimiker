@@ -28,6 +28,7 @@ void main() {
   thread_t *t3 = thread_create("t3", demo_thread_1);
   thread_t *t4 = thread_create("t4", demo_thread_2);
   thread_t *t5 = thread_create("t5", demo_thread_2);
+  sched_init();
 
   sched_add(t1);
   sched_add(t2);
