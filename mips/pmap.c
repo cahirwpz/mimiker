@@ -23,7 +23,6 @@
 #define PTF_SIZE (PTF_ENTRIES * sizeof(pte_t))
 #define PT_ENTRIES (PD_ENTRIES * PTF_ENTRIES)
 #define PT_SIZE (PT_ENTRIES * sizeof(pte_t))
-#define MAX_ASID 255
 
 static const vm_addr_t PT_HOLE_START =
   PT_BASE + MIPS_KSEG0_START / PTF_ENTRIES;
