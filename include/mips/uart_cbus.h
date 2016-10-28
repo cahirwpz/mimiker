@@ -11,25 +11,25 @@
 
 /*
  * This procedure initializes UART.
- * It must be called (once) before any other uart_* functions. 
+ * It must be called (once) before any other uart_* functions.
  */
 void uart_init();
 
 /*
  * Transmits a single byte via UART1.
- * Returns the transmitted character. 
+ * Returns the transmitted character.
  */
 int uart_putchar(int c);
 
 /*
  * Transmits a string and a trailing newline via UART1.
- * Returns the number of bytes transmitted. 
+ * Returns the number of bytes transmitted.
  */
 int uart_puts(const char *str);
 
-/* 
+/*
  * Transmits n bytes via UART1.
- * Returns the number of bytes transmitted. 
+ * Returns the number of bytes transmitted.
  */
 int uart_write(const char *str, size_t n);
 

@@ -6,11 +6,9 @@
 
 #ifdef __ASSEMBLER__
 
-#define SAVE_REG(reg, offset, base) \
-        sw      reg, (EXC_ ## offset)(base)
+#define SAVE_REG(reg, offset, base) sw reg, (EXC_##offset)(base)
 
-#define LOAD_REG(reg, offset, base) \
-        lw      reg, (EXC_ ## offset)(base)
+#define LOAD_REG(reg, offset, base) lw reg, (EXC_##offset)(base)
 
 #else // !__ASSEMBLER__
 

@@ -20,14 +20,12 @@ void tlb_print() {
     if ((lo0 & PTE_VALID) || (lo1 & PTE_VALID)) {
       kprintf("[tlb] %ld => ASID: %02x", i, hi & PTE_ASID_MASK);
       if (lo0 & PTE_VALID)
-        kprintf(" PFN0: {%08x => %08x %c%c}", 
-                hi & PTE_VPN2_MASK, PTE_PFN_OF(lo0),
-                (lo0 & PTE_DIRTY) ? 'D' : '-',
+        kprintf(" PFN0: {%08x => %08x %c%c}", hi & PTE_VPN2_MASK,
+                PTE_PFN_OF(lo0), (lo0 & PTE_DIRTY) ? 'D' : '-',
                 (lo0 & PTE_GLOBAL) ? 'G' : '-');
       if (lo1 & PTE_VALID)
-        kprintf(" PFN1: {%08x => %08x %c%c}",
-                (hi & PTE_VPN2_MASK) + PAGESIZE,  PTE_PFN_OF(lo1),
-                (lo1 & PTE_DIRTY) ? 'D' : '-',
+        kprintf(" PFN1: {%08x => %08x %c%c}", (hi & PTE_VPN2_MASK) + PAGESIZE,
+                PTE_PFN_OF(lo1), (lo1 & PTE_DIRTY) ? 'D' : '-',
                 (lo1 & PTE_GLOBAL) ? 'G' : '-');
       kprintf("\n");
     }

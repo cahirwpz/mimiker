@@ -6,14 +6,12 @@
 
 typedef struct thread thread_t;
 
-#define RQ_NQS 64  /* Number of run queues. */
-#define RQ_PPQ 4   /* Priorities per queue. */
+#define RQ_NQS 64 /* Number of run queues. */
+#define RQ_PPQ 4  /* Priorities per queue. */
 
 TAILQ_HEAD(rq_head, thread);
 
-typedef struct {
-  struct rq_head rq_queues[RQ_NQS];
-} runq_t;
+typedef struct { struct rq_head rq_queues[RQ_NQS]; } runq_t;
 
 /* Initialize a run structure. */
 void runq_init(runq_t *);

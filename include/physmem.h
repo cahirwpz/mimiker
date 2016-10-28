@@ -6,10 +6,10 @@
 /* Initialize physical memory manager. */
 void pm_init();
 
-/* 
- * This adds segment to be managed by the vm_phys subsystem. 
- * In this function system uses kernel_sbrk function to allocate some data to 
- * manage pages. After kernel_sbrk_shutdown this function shouldn't be used.   
+/*
+ * This adds segment to be managed by the vm_phys subsystem.
+ * In this function system uses kernel_sbrk function to allocate some data to
+ * manage pages. After kernel_sbrk_shutdown this function shouldn't be used.
  * Note that this system manages PHYSICAL PAGES. Therefore start and end,
  * should be physical addresses. vm_offset determines initial virt_addr
  * for every page allocated from system. All pages in this segment will have
@@ -32,4 +32,3 @@ vm_page_t *pm_split_alloc_page(vm_page_t *pg);
 void pm_reserve(pm_addr_t start, pm_addr_t end);
 
 #endif /* _PHYS_MEM_H */
-

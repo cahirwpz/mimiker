@@ -15,12 +15,12 @@ static void paging_on_demand_and_memory_protection_demo() {
   vm_addr_t start = 0x1001000;
   vm_addr_t end = 0x1001000 + 2 * PAGESIZE;
 
-  vm_map_entry_t *redzone0 = 
+  vm_map_entry_t *redzone0 =
     vm_map_add_entry(umap, start - PAGESIZE, start, VM_PROT_NONE);
   vm_map_entry_t *redzone1 =
     vm_map_add_entry(umap, end, end + PAGESIZE, VM_PROT_NONE);
   vm_map_entry_t *data =
-    vm_map_add_entry(umap, start, end, VM_PROT_READ|VM_PROT_WRITE);
+    vm_map_add_entry(umap, start, end, VM_PROT_READ | VM_PROT_WRITE);
 
   redzone0->object = vm_object_alloc();
   redzone1->object = vm_object_alloc();

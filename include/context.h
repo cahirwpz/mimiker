@@ -5,7 +5,7 @@
 #include <mips/ctx.h>
 
 typedef struct stack {
-  void  *stk_base; /* stack base */
+  void *stk_base;  /* stack base */
   size_t stk_size; /* stack length */
 } stack_t;
 

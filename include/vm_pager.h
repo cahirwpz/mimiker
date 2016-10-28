@@ -10,7 +10,7 @@ typedef void pgr_free_t(vm_object_t *);
 
 typedef struct pager {
   pgr_alloc_t *pgr_alloc;
-  pgr_free_t  *pgr_free;
+  pgr_free_t *pgr_free;
   pgr_fault_t *pgr_fault;
 } pager_t;
 

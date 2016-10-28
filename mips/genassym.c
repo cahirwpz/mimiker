@@ -74,7 +74,7 @@ ASSYM(EXC_LO, offsetof(exc_frame_t, lo));
 ASSYM(EXC_HI, offsetof(exc_frame_t, hi));
 ASSYM(EXC_PC, offsetof(exc_frame_t, pc));
 ASSYM(EXC_SR, offsetof(exc_frame_t, sr));
-ASSYM(EXC_BADVADDR, offsetof(exc_frame_t, badvaddr)); 
+ASSYM(EXC_BADVADDR, offsetof(exc_frame_t, badvaddr));
 ASSYM(EXC_CAUSE, offsetof(exc_frame_t, cause));
 
 ASSYM(EXC_FRAME_SIZE, sizeof(exc_frame_t) + CALLFRAME_SIZE);

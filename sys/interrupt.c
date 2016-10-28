@@ -6,8 +6,8 @@ static intr_event_t *events[8];
 void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih) {
   intr_handler_t *it;
   /* Add new handler according to it's priority */
-  TAILQ_FOREACH(it, &ie->ie_handlers, ih_next) {
-    if(ih->ih_prio > it->ih_prio)
+  TAILQ_FOREACH (it, &ie->ie_handlers, ih_next) {
+    if (ih->ih_prio > it->ih_prio)
       break;
   }
   if (it)
@@ -40,9 +40,10 @@ void intr_event_remove_handler(intr_handler_t *ih) {
 void intr_event_execute_handlers(intr_event_t *ie) {
   intr_handler_t *it;
   int flag = 0;
-  TAILQ_FOREACH(it, &ie->ie_handlers, ih_next) {
+  TAILQ_FOREACH (it, &ie->ie_handlers, ih_next) {
     flag |= it->ih_filter(it->ih_argument);
     /* Filter captured interrupt */
-    if (flag & FILTER_HANDLED) return;
+    if (flag & FILTER_HANDLED)
+      return;
   }
 }

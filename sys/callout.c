@@ -3,15 +3,11 @@
 
 #define CALLOUT_BUCKETS 5
 
-#define callout_set_active(c) \
-  ((c)->c_flags |= CALLOUT_ACTIVE)
-#define callout_clear_active(c) \
-  ((c)->c_flags &= ~CALLOUT_ACTIVE)
+#define callout_set_active(c) ((c)->c_flags |= CALLOUT_ACTIVE)
+#define callout_clear_active(c) ((c)->c_flags &= ~CALLOUT_ACTIVE)
 
-#define callout_set_pending(c) \
-  ((c)->c_flags |= CALLOUT_PENDING)
-#define callout_clear_pending(c) \
-  ((c)->c_flags &= ~CALLOUT_PENDING)
+#define callout_set_pending(c) ((c)->c_flags |= CALLOUT_PENDING)
+#define callout_clear_pending(c) ((c)->c_flags &= ~CALLOUT_PENDING)
 
 /*
   Every event is inside one of CALLOUT_BUCKETS buckets.
@@ -34,8 +30,8 @@ void callout_init() {
     TAILQ_INIT(&ci.heads[i]);
 }
 
-void callout_setup(callout_t *handle, realtime_t time, timeout_t fn, void *arg)
-{
+void callout_setup(callout_t *handle, realtime_t time, timeout_t fn,
+                   void *arg) {
   int index = time % CALLOUT_BUCKETS;
 
   bzero(handle, sizeof(callout_t));

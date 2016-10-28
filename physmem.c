@@ -8,21 +8,21 @@ int main() {
 
   /* Write - read test */
   vm_page_t *pg = pm_alloc(16);
-  int size = PAGESIZE*16;
-  char *arr = (char*)pg->vaddr;
-  for(int i = 0; i < size; i++)
+  int size = PAGESIZE * 16;
+  char *arr = (char *)pg->vaddr;
+  for (int i = 0; i < size; i++)
     arr[i] = 42; /* Write non-zero value */
-  for(int i = 0; i < size; i++)
+  for (int i = 0; i < size; i++)
     assert(arr[i] == 42);
 
   /* Allocate deallocate test */
   const int N = 7;
   vm_page_t *pgs[N];
-  for(int i = 0; i < N; i++)
-    pgs[i] = pm_alloc(1 << i); 
-  for(int i = 0; i < N; i += 2)
+  for (int i = 0; i < N; i++)
+    pgs[i] = pm_alloc(1 << i);
+  for (int i = 0; i < N; i += 2)
     pm_free(pgs[i]);
-  for(int i = 1; i < N; i += 2)
+  for (int i = 1; i < N; i += 2)
     pm_free(pgs[i]);
 
   assert(pre != pm_hash());

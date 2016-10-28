@@ -27,12 +27,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	__HASH_H__
-#define	__HASH_H__
+#ifndef __HASH_H__
+#define __HASH_H__
 
 #include <common.h>
 
-#define	HASH32_BUF_INIT	5381
+#define HASH32_BUF_INIT 5381
 
 /*
  * uint32_t
@@ -40,32 +40,28 @@
  *	return a 32 bit hash of the binary buffer buf (size len),
  *	seeded with an initial hash value of hash (usually HASH32_BUF_INIT).
  */
-static inline uint32_t
-hash32_buf(const void *bf, size_t len, uint32_t hash)
-{
-	const uint8_t *s = (const uint8_t *)bf;
+static inline uint32_t hash32_buf(const void *bf, size_t len, uint32_t hash) {
+  const uint8_t *s = (const uint8_t *)bf;
 
-	while (len-- != 0)			/* "nemesi": k=257, r=r*257 */
-		hash = hash * 257 + *s++;
-	return (hash * 257);
+  while (len-- != 0) /* "nemesi": k=257, r=r*257 */
+    hash = hash * 257 + *s++;
+  return (hash * 257);
 }
 
-#define	HASH32_STR_INIT	5381
+#define HASH32_STR_INIT 5381
 /*
  * uint32_t
  * hash32_str(const void *bf, uint32_t hash)
  *	return a 32 bit hash of NUL terminated ASCII string buf,
  *	seeded with an initial hash value of hash (usually HASH32_STR_INIT).
  */
-static inline uint32_t
-hash32_str(const void *bf, uint32_t hash)
-{
-	const uint8_t *s = (const uint8_t *)bf;
-	uint8_t	c;
+static inline uint32_t hash32_str(const void *bf, uint32_t hash) {
+  const uint8_t *s = (const uint8_t *)bf;
+  uint8_t c;
 
-	while ((c = *s++) != 0)
-		hash = hash * 33 + c;		/* "perl": k=33, r=r+r/32 */
-	return (hash + (hash >> 5));
+  while ((c = *s++) != 0)
+    hash = hash * 33 + c; /* "perl": k=33, r=r+r/32 */
+  return (hash + (hash >> 5));
 }
 
 /*
@@ -75,15 +71,13 @@ hash32_str(const void *bf, uint32_t hash)
  *	a maximum of len bytes,
  *	seeded with an initial hash value of hash (usually HASH32_STR_INIT).
  */
-static inline uint32_t
-hash32_strn(const void *bf, size_t len, uint32_t hash)
-{
-	const uint8_t *s = (const uint8_t *)bf;
-	uint8_t	c;
+static inline uint32_t hash32_strn(const void *bf, size_t len, uint32_t hash) {
+  const uint8_t *s = (const uint8_t *)bf;
+  uint8_t c;
 
-	while ((c = *s++) != 0 && len-- != 0)
-		hash = hash * 33 + c;		/* "perl": k=33, r=r+r/32 */
-	return (hash + (hash >> 5));
+  while ((c = *s++) != 0 && len-- != 0)
+    hash = hash * 33 + c; /* "perl": k=33, r=r+r/32 */
+  return (hash + (hash >> 5));
 }
 
-#endif	/* !__HASH_H__ */
+#endif /* !__HASH_H__ */

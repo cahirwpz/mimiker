@@ -12,14 +12,13 @@ LIST_HEAD(sq_chain_head, sleepq);
 typedef struct sleepq {
   LIST_ENTRY(sleepq) sq_entry;
   struct sq_chain_head sq_free;
-  struct sq_head sq_blocked;  /* Blocked threads. */
-  uint32_t sq_nblocked;             /* Number of blocked threads. */
-  void *sq_wchan;                   /* Wait channel. */
+  struct sq_head sq_blocked; /* Blocked threads. */
+  uint32_t sq_nblocked;      /* Number of blocked threads. */
+  void *sq_wchan;            /* Wait channel. */
 } sleepq_t;
 
-
 typedef struct sleepqueue_chain {
-  struct sq_chain_head sc_queues;  /* List of sleep queues. */
+  struct sq_chain_head sc_queues; /* List of sleep queues. */
 } sleepq_chain_t;
 
 void sleepq_init();

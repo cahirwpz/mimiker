@@ -4,7 +4,7 @@
 #include <runq.h>
 
 void runq_init(runq_t *rq) {
-  memset(rq, 0, sizeof (*rq));
+  memset(rq, 0, sizeof(*rq));
 
   for (unsigned i = 0; i < RQ_NQS; i++)
     TAILQ_INIT(&rq->rq_queues[i]);

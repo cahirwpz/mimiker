@@ -5,7 +5,7 @@
 
 cpuinfo_t cpuinfo;
 
-/* 
+/*
  * Read configuration register values, interpret and save them into the cpuinfo
  * structure for later use.
  */
@@ -34,26 +34,29 @@ static bool cpu_read_config() {
   uint32_t config1 = mips32_getconfig1();
 
   /* FTLB or/and VTLB sizes */
-  cpuinfo.tlb_entries = _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS) + 1;
+  cpuinfo.tlb_entries =
+    _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS) + 1;
 
   /* Instruction cache size and organization. */
   cpuinfo.ic_linesize = (config1 & CFG1_IL_MASK) ? 32 : 0;
   cpuinfo.ic_nways = _mips32r2_ext(config1, CFG1_IA_SHIFT, CFG1_IA_BITS) + 1;
-  cpuinfo.ic_nsets = 1 << (_mips32r2_ext(config1, CFG1_IS_SHIFT, CFG1_IS_BITS) + 6);
+  cpuinfo.ic_nsets =
+    1 << (_mips32r2_ext(config1, CFG1_IS_SHIFT, CFG1_IS_BITS) + 6);
   cpuinfo.ic_size = cpuinfo.ic_nways * cpuinfo.ic_linesize * cpuinfo.ic_nsets;
 
   /* Data cache size and organization. */
   cpuinfo.dc_linesize = (config1 & CFG1_DL_MASK) ? 32 : 0;
   cpuinfo.dc_nways = _mips32r2_ext(config1, CFG1_DA_SHIFT, CFG1_DA_BITS) + 1;
-  cpuinfo.dc_nsets = 1 << (_mips32r2_ext(config1, CFG1_DS_SHIFT, CFG1_DS_BITS) + 6);
+  cpuinfo.dc_nsets =
+    1 << (_mips32r2_ext(config1, CFG1_DS_SHIFT, CFG1_DS_BITS) + 6);
   cpuinfo.dc_size = cpuinfo.dc_nways * cpuinfo.dc_linesize * cpuinfo.dc_nsets;
 
   kprintf("TLB Entries: %d\n", cpuinfo.tlb_entries);
 
   kprintf("I-cache: %d KiB, %d-way associative, line size: %d bytes\n",
-      cpuinfo.ic_size / 1024, cpuinfo.ic_nways, cpuinfo.ic_linesize);
+          cpuinfo.ic_size / 1024, cpuinfo.ic_nways, cpuinfo.ic_linesize);
   kprintf("D-cache: %d KiB, %d-way associative, line size: %d bytes\n",
-      cpuinfo.dc_size / 1024, cpuinfo.dc_nways, cpuinfo.dc_linesize);
+          cpuinfo.dc_size / 1024, cpuinfo.dc_nways, cpuinfo.dc_linesize);
 
   /* Config2 implemented? */
   if ((config1 & CFG1_M) == 0)
@@ -67,7 +70,7 @@ static bool cpu_read_config() {
 
   uint32_t config3 = mips32_getconfig3();
 
-  kprintf("Vectored interrupts implemented : %s\n", 
+  kprintf("Vectored interrupts implemented : %s\n",
           (config3 & CFG3_VI) ? "yes" : "no");
   kprintf("EIC interrupt mode implemented  : %s\n",
           (config3 & CFG3_VEIC) ? "yes" : "no");
@@ -82,17 +85,17 @@ void cpu_sr_dump() {
   static char *mode[] = {"kernel", "supervisor", "user"};
   static char *boolean[] = {"no", "yes"};
 
-  kprintf ("Status register :\n"
-           " - FPU enabled        : %s\n"
-           " - Interrupt mask     : %02x\n"
-           " - Operating mode     : %s\n"
-           " - Exception level    : %s\n"
-           " - Interrupts enabled : %s\n",
-           boolean[(sr & SR_CU1) >> SR_CU1_SHIFT],
-           (sr & SR_IMASK) >> SR_IMASK_SHIFT,
-           mode[(sr & SR_KSU_MASK) >> SR_KSU_SHIFT],
-           boolean[(sr & SR_EXL) >> SR_EXL_SHIFT],
-           boolean[(sr & SR_IE) >> SR_IE_SHIFT]);
+  kprintf("Status register :\n"
+          " - FPU enabled        : %s\n"
+          " - Interrupt mask     : %02x\n"
+          " - Operating mode     : %s\n"
+          " - Exception level    : %s\n"
+          " - Interrupts enabled : %s\n",
+          boolean[(sr & SR_CU1) >> SR_CU1_SHIFT],
+          (sr & SR_IMASK) >> SR_IMASK_SHIFT,
+          mode[(sr & SR_KSU_MASK) >> SR_KSU_SHIFT],
+          boolean[(sr & SR_EXL) >> SR_EXL_SHIFT],
+          boolean[(sr & SR_IE) >> SR_IE_SHIFT]);
 }
 
 /* Print state of control registers. */
@@ -101,21 +104,18 @@ static void cpu_dump() {
   unsigned intctl = mips32_get_c0(C0_INTCTL);
   unsigned srsctl = mips32_get_c0(C0_SRSCTL);
 
-  kprintf ("Cause    : TI:%d IV:%d IP:%d ExcCode:%d\n",
-           (cr & CR_TI) >> CR_TI_SHIFT,
-           (cr & CR_IV) >> CR_IV_SHIFT,
-           (cr & CR_IP_MASK) >> CR_IP_SHIFT,
-           (cr & CR_X_MASK) >> CR_X_SHIFT);
+  kprintf("Cause    : TI:%d IV:%d IP:%d ExcCode:%d\n",
+          (cr & CR_TI) >> CR_TI_SHIFT, (cr & CR_IV) >> CR_IV_SHIFT,
+          (cr & CR_IP_MASK) >> CR_IP_SHIFT, (cr & CR_X_MASK) >> CR_X_SHIFT);
   cpu_sr_dump();
-  kprintf ("IntCtl   : IPTI:%d IPPCI:%d VS:%d\n",
-           (intctl & INTCTL_IPTI) >> INTCTL_IPTI_SHIFT,
-           (intctl & INTCTL_IPPCI) >> INTCTL_IPPCI_SHIFT,
-           (intctl & INTCTL_VS) >> INTCTL_VS_SHIFT);
-  kprintf ("SrsCtl   : HSS:%d\n",
-           (srsctl & SRSCTL_HSS) >> SRSCTL_HSS_SHIFT);
-  kprintf ("EPC      : $%08x\n", (unsigned)mips32_get_c0(C0_EPC));
-  kprintf ("ErrPC    : $%08x\n", (unsigned)mips32_get_c0(C0_ERRPC));
-  kprintf ("EBase    : $%08x\n", (unsigned)mips32_get_c0(C0_EBASE));
+  kprintf("IntCtl   : IPTI:%d IPPCI:%d VS:%d\n",
+          (intctl & INTCTL_IPTI) >> INTCTL_IPTI_SHIFT,
+          (intctl & INTCTL_IPPCI) >> INTCTL_IPPCI_SHIFT,
+          (intctl & INTCTL_VS) >> INTCTL_VS_SHIFT);
+  kprintf("SrsCtl   : HSS:%d\n", (srsctl & SRSCTL_HSS) >> SRSCTL_HSS_SHIFT);
+  kprintf("EPC      : $%08x\n", (unsigned)mips32_get_c0(C0_EPC));
+  kprintf("ErrPC    : $%08x\n", (unsigned)mips32_get_c0(C0_ERRPC));
+  kprintf("EBase    : $%08x\n", (unsigned)mips32_get_c0(C0_EBASE));
 }
 
 /*
@@ -137,7 +137,7 @@ static void cpu_dump() {
  *
  * The processor is operating in User Mode when all of the following conditions
  * are true:
- * - The DM bit in the Debug register is a zero 
+ * - The DM bit in the Debug register is a zero
  * - The KSU field in the Status register contains 0b10
  * - The EXL and ERL bits in the Status register are both zero
  */

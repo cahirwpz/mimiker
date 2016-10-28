@@ -9,15 +9,15 @@ typedef void (*timeout_t)(void *);
 
 typedef struct callout {
   TAILQ_ENTRY(callout) c_link;
-  realtime_t c_time;  /* absolute time of the event */
-  timeout_t  c_func;  /* function to call */
-  void       *c_arg;  /* function argument */
-  uint32_t   c_flags;
-  unsigned   c_index; /* index of bucket this callout is assigned to */
+  realtime_t c_time; /* absolute time of the event */
+  timeout_t c_func;  /* function to call */
+  void *c_arg;       /* function argument */
+  uint32_t c_flags;
+  unsigned c_index; /* index of bucket this callout is assigned to */
 } callout_t;
 
-#define CALLOUT_ACTIVE      0x0001 /* callout is currently being executed */
-#define CALLOUT_PENDING     0x0002 /* callout is waiting for timeout */
+#define CALLOUT_ACTIVE 0x0001  /* callout is currently being executed */
+#define CALLOUT_PENDING 0x0002 /* callout is waiting for timeout */
 
 void callout_init();
 
