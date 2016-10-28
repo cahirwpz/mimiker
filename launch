@@ -45,13 +45,16 @@ if __name__ == "__main__":
                         help='Start simulation under gdb.')
     parser.add_argument('-D', metavar='DEBUGGER', type=str, dest='debugger',
                         choices=DEBUGGERS.keys(), default=DEFAULT_DEBUGGER,
-                        help='Debugger to use in -d mode. Available options: ' +
+                        help='Debugger to use. Implies -d. Available options: ' +
                         ', '.join(DEBUGGERS.keys()) + ". Default: " +
                         DEFAULT_DEBUGGER + ".")
     parser.add_argument('-t', '--test', action='store_true',
                         help='Use current stdin & stdout for simulated UART.')
 
     args = parser.parse_args()
+
+    if args.debugger != DEFAULT_DEBUGGER:
+        args.debug = True
 
     if args.test:
         OVPSIM_OVERRIDES["uartCBUS/console"] = 0
