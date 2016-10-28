@@ -5,6 +5,7 @@
 
 # Executables
 *.elf
+*.uelf
 *.test
 
 # Backup and log files

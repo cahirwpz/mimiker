@@ -1,7 +1,7 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
 TESTS = callout.elf malloc.elf physmem.elf pmap.elf rtc.elf sched.elf \
-	sleepq.elf syscall.elf thread.elf vm_map.elf
+	sleepq.elf syscall.elf thread.elf vm_map.elf exec.elf
 SOURCES_C = 
 SOURCES_ASM = 
 
@@ -12,8 +12,10 @@ include Makefile.common
 LDLIBS += -Lsys -Lmips -Lstdc \
 	  -Wl,--start-group -lsys -lmips -lstdc -lgcc -Wl,--end-group
 
+LD_EMBED = user/prog.uelf.o
+
 # Kernel runtime files
-KRT = stdc mips sys
+KRT = stdc mips sys user
 
 callout.elf: callout.ko $(KRT)
 thread.elf: thread.ko $(KRT)
@@ -25,6 +27,7 @@ vm_map.elf: vm_map.ko $(KRT)
 physmem.elf: physmem.ko $(KRT)
 sched.elf: sched.ko $(KRT)
 sleepq.elf: sleepq.ko $(KRT)
+exec.elf: exec.ko $(KRT)
 
 libkernel.a: $(DEPFILES) $(OBJECTS)
 
@@ -70,12 +73,16 @@ stdc:
 sys:
 	$(MAKE) -C sys
 
+user:
+	$(MAKE) -C user
+
 clean:
 	$(MAKE) -C mips clean
 	$(MAKE) -C stdc clean
 	$(MAKE) -C sys clean
+	$(MAKE) -C user clean
 	$(RM) -f .*.D *.ko *.o *.a *.lst *~ *.elf *.map *.log
 	$(RM) -f tags cscope.out *.taghl
 	$(RM) -f $(TESTS)
 
-.PHONY: astyle tags cscope mips stdc sys
+.PHONY: astyle tags cscope mips stdc sys user

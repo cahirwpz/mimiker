@@ -24,6 +24,7 @@ CFLAGS   = -std=gnu11 -Og -Wall -Werror -fno-builtin -ffreestanding
 CPPFLAGS = -Wall -Werror -DDEBUG -I$(TOPDIR)/include
 LDLIBS   =
 LDFLAGS  = -nostdlib -T malta.ld
+LD_EMBED =
 
 define emit_dep_rule
 CFILE = $(1)
@@ -51,7 +52,7 @@ endef
 
 %.elf:	%.ko
 	@echo "[LD] $(filter %.ko,$^) -> $@"
-	$(CC) $(LDFLAGS) $(filter %.ko,$^) -Wl,-Map=$@.map $(LDLIBS) -o $@
+	$(CC) $(LDFLAGS) $(filter %.ko,$^) -Wl,-Map=$@.map $(LDLIBS) $(LD_EMBED) -o $@
 
 %.test: %.c
 	@echo "[HOSTCC] $< -> $@"
