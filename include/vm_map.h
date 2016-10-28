@@ -42,7 +42,7 @@ vm_map_t *get_active_vm_map(pmap_type_t type);
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr);
 
 void vm_map_init();
-vm_map_t *vm_map_new(vm_map_type_t t, asid_t asid);
+vm_map_t *vm_map_new(vm_map_type_t t);
 void vm_map_delete(vm_map_t *vm_map);
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr);

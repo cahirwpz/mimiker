@@ -35,6 +35,7 @@ static bool is_valid(pte_t pte) {
 }
 
 static pmap_t *active_pmap[PMAP_LAST];
+static asid_t asid_counter;
 
 typedef struct {
   vm_addr_t start, end;
@@ -45,14 +46,22 @@ static pmap_range_t pmap_range[PMAP_LAST] = {
   [PMAP_USER] = {0x00000000, MIPS_KSEG0_START} /* useg */
 };
 
-void pmap_setup(pmap_t *pmap, pmap_type_t type, asid_t asid) {
+static asid_t get_new_asid() {
+  if (asid_counter < MAX_ASID)
+    return asid_counter++; // TODO this needs to be atomic increment
+  else
+    panic("Out of asids!");
+}
+
+void pmap_setup(pmap_t *pmap, pmap_type_t type) {
   pmap->type = type;
   pmap->pte = (pte_t *)PT_BASE;
   pmap->pde_page = pm_alloc(1);
   pmap->pde = (pte_t *)pmap->pde_page->vaddr;
   pmap->start = pmap_range[type].start;
   pmap->end = pmap_range[type].end;
-  pmap->asid = asid;
+  pmap->asid = get_new_asid();
+  assert(type != PMAP_KERNEL || pmap->asid == 0); //kernel pmap has asid 0
   log("Page directory table allocated at %08lx", (intptr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
 

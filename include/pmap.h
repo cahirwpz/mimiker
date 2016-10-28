@@ -20,7 +20,7 @@ typedef struct {
   asid_t asid;
 } pmap_t;
 
-void pmap_setup(pmap_t *pmap, pmap_type_t type, asid_t asid);
+void pmap_setup(pmap_t *pmap, pmap_type_t type);
 void pmap_reset(pmap_t *);
 
 bool pmap_is_mapped(pmap_t *pmap, vm_addr_t vaddr);

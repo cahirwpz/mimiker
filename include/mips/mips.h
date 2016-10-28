@@ -21,7 +21,7 @@
 #define MIPS_KSEG1_START 0xa0000000
 #define MIPS_KSEG2_START 0xc0000000
 #define MIPS_PHYS_MASK   0x1fffffff
-
+#define MAX_ASID C0_ENTRYHI_ASID_MASK
 #ifndef __ASSEMBLER__
 
 /*
