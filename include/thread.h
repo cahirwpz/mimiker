@@ -21,12 +21,6 @@ typedef enum
     TD_KERNEL
 } td_type_t;
 
-typedef enum
-{
-    TD_USER,
-    TD_KERNEL
-} td_type_t;
-
 typedef struct thread {
   TAILQ_ENTRY(thread) td_runq;   /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq; /* a link on sleep queue */
@@ -36,6 +30,7 @@ typedef struct thread {
   uint32_t td_flags;           /* TDF_* flags */
   volatile uint32_t td_csnest; /* critical section nest level */
   vm_map_t *user_map;           /* User space memory map */
+  td_type_t td_type;
   /* thread context */
   exc_frame_t td_uctx;    /* user context (always exception) */
   fpu_ctx_t td_uctx_fpu;  /* user FPU context (always exception) */

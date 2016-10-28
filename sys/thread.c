@@ -33,14 +33,8 @@ noreturn void thread_init(void (*fn)(), int n, ...) {
 
 thread_t *thread_create(const char *name, void (*fn)(), td_type_t td_type) {
   thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
-<<<<<<< b6f89dab1a4343dc1914f32f6be1cffec7530e3f
   if(td_type == TD_USER)
       td->user_map = vm_map_new(USER_VM_MAP); //TODO what's witch asid?
-=======
-  
-  if(td_type == TD_USER)
-      td->user_map = vm_map_new(USER_VM_MAP, 0); //TODO what's witch asid?
->>>>>>> Add user_map to thread.c
   td->td_type = td_type;
   td->td_name = name;
   td->td_kstack_obj = pm_alloc(1);
