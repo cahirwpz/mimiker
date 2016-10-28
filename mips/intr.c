@@ -62,18 +62,22 @@ void kernel_oops(exc_frame_t *frame) {
   panic("Unhandled exception");
 }
 
+void syscall_handler(exc_frame_t *frame) {
+  kprintf("[syscall] entered #%d from %s mode!\n", 
+          frame->v0, (frame->sr & SR_KSU_MASK) ? "user" : "kernel");
+  /* we need to fix return address to point to next instruction */
+  frame->pc += 4;
+}
+
 /* 
- * Following is general exception table. General exception handler has very
- * little space to use. So it loads address of handler from here. All functions
- * being jumped to, should have ((interrupt)) attribute, unless some exception
- * is unhandled, then these functions should panic the kernel.  For exact
- * meanings of exception handlers numbers please check 5.23 Table of MIPS32
- * 4KEc User's Manual. 
+ * This is exception vector table. Each exeception either has been assigned a
+ * handler or kernel_oops is called for it. For exact meaning of exception
+ * handlers numbers please check 5.23 Table of MIPS32 4KEc User's Manual. 
  */
 
 void *general_exception_table[32] = {
   [EXC_MOD]  = tlb_exception_handler,
   [EXC_TLBL] = tlb_exception_handler,
   [EXC_TLBS] = tlb_exception_handler,
+  [EXC_SYS] = syscall_handler,
 };
-

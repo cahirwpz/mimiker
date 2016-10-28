@@ -1,7 +1,7 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
 TESTS = callout.elf malloc.elf physmem.elf pmap.elf rtc.elf sched.elf \
-	sleepq.elf thread.elf vm_map.elf exec.elf
+	sleepq.elf syscall.elf thread.elf vm_map.elf exec.elf
 SOURCES_C = 
 SOURCES_ASM = 
 
