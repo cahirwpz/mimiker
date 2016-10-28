@@ -19,7 +19,7 @@ int get_elf_image(const exec_args_t *args, uint8_t **out_image,
     *out_size = (size_t)_binary_prog_uelf_size;
     return 0;
   } else {
-    return -1;
+    return -ENOENT;
   }
 }
 
