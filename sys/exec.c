@@ -59,7 +59,7 @@ static void prepare_program_stack(const exec_args_t *args,
   /* in advance, because stack grows downwards. */
   size_t total_arg_size = 0;
   for (size_t i = 0; i < args->argc; i++) {
-    total_arg_size += strlen(args->argv[i]) + 1;
+    total_arg_size += roundup(strlen(args->argv[i]) + 1, 4);
   }
   /* Store arguments, creating the argument vector. */
   vm_addr_t arg_vector[args->argc];
@@ -69,10 +69,12 @@ static void prepare_program_stack(const exec_args_t *args,
     arg_vector[i] = p;
     memcpy((uint8_t *)p, args->argv[i], n);
     p += n;
+    /* Align to word size */
+    p = align(p, 4);
   }
   assert(p == stack_end);
-  /* Move the stack down and word-align it downwards */
-  *stack_bottom_p = (*stack_bottom_p - total_arg_size) & 0xfffffffc;
+  /* Move the stack down and 8byte-align it downwards */
+  *stack_bottom_p = (*stack_bottom_p - total_arg_size) & 0xfffffff8;
 
   /* Now, place the argument vector on the stack. */
   size_t arg_vector_size = sizeof(arg_vector);
@@ -85,6 +87,9 @@ static void prepare_program_stack(const exec_args_t *args,
   *stack_bottom_p = *stack_bottom_p - sizeof(vm_addr_t);
   vm_addr_t *stack_args = (vm_addr_t *)*stack_bottom_p;
   *stack_args = args->argc;
+
+  /* Top of the stack must be 8-byte alligned. */
+  assert((*stack_bottom_p & 0x7) == 0);
 
   /* TODO: Environment */
 }
@@ -219,7 +224,7 @@ int do_exec(const exec_args_t *args) {
         prot |= VM_PROT_WRITE;
       if (ph->p_flags | PF_X)
         prot |= VM_PROT_EXEC;
-      /* Note: vm_map_protect is not yet implemented, so 
+      /* Note: vm_map_protect is not yet implemented, so
        * this will have no effect as of now */
       vm_map_protect(vmap, start, end, prot);
     }
