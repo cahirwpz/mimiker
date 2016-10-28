@@ -4,7 +4,7 @@
 #include <vm_map.h>
 
 static void paging_on_demand_and_memory_protection_demo() {
-  set_active_vm_map(vm_map_new(PMAP_USER, 10));
+  set_active_vm_map(vm_map_new(USER_VM_MAP));
 
   vm_map_t *kmap = get_active_vm_map(PMAP_KERNEL);
   vm_map_t *umap = get_active_vm_map(PMAP_USER);

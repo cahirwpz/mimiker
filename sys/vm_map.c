@@ -42,16 +42,16 @@ void vm_map_init() {
   vm_page_t *pg = pm_alloc(2);
   kmalloc_init(mpool);
   kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
-  vm_map_t *map = vm_map_new(PMAP_KERNEL, 0);
+  vm_map_t *map = vm_map_new(PMAP_KERNEL);
   set_active_vm_map(map);
 }
 
-vm_map_t *vm_map_new(vm_map_type_t type, asid_t asid) {
+vm_map_t *vm_map_new(vm_map_type_t type) {
   vm_map_t *map = kmalloc(mpool, sizeof(vm_map_t), M_ZERO);
 
   TAILQ_INIT(&map->list);
   SPLAY_INIT(&map->tree);
-  pmap_setup(&map->pmap, type, asid);
+  pmap_setup(&map->pmap, type);
   map->nentries = 0;
   return map;
 }

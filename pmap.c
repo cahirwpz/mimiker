@@ -52,8 +52,8 @@ static void change_pmap() {
   pmap_t pmap1;
   pmap_t pmap2;
   
-  pmap_setup(&pmap1, PMAP_USER, 7);
-  pmap_setup(&pmap2, PMAP_USER, 42);
+  pmap_setup(&pmap1, PMAP_USER);
+  pmap_setup(&pmap2, PMAP_USER);
   
 
   vm_addr_t start = 0x1001000;
