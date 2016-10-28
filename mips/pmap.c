@@ -45,12 +45,11 @@ static pmap_range_t pmap_range[PMAP_LAST] = {
   [PMAP_USER] = {0x00000000, MIPS_KSEG0_START} /* useg */
 };
 
-static asid_t get_new_asid()
-{
-    if(asid_counter < MAX_ASID)
-        return asid_counter++; //TODO this needs to be atomic increment
-    else
-        panic("Out of asids!");
+static asid_t get_new_asid() {
+  if (asid_counter < MAX_ASID)
+    return asid_counter++; // TODO this needs to be atomic increment
+  else
+    panic("Out of asids!");
 }
 
 void pmap_setup(pmap_t *pmap, pmap_type_t type) {
