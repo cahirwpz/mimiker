@@ -1,3 +1,4 @@
+#include <vm_pager.h>
 #include <stdc.h>
 #include <clock.h>
 #include <thread.h>
@@ -37,6 +38,7 @@ void main() {
   sched_add(t5);
 
   sched_run();
+  return 0;
 }
 #endif
 
