@@ -9,7 +9,7 @@
  * That's because in current implementation page table is always located in
  * KSEG2, while user vm_map address range contains no KSEG2 */
 
-typedef enum { KERNEL_VM_MAP = 1, USER_VM_MAP = 2 } vm_map_type_t;
+typedef enum { KERNEL_VM_MAP, USER_VM_MAP } vm_map_type_t;
 
 typedef struct vm_map_entry vm_map_entry_t;
 
