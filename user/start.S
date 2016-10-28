@@ -8,7 +8,7 @@
 # For details about environment in which this procedure starts, refer
 # to prepare_program_stack in exec.c.
 
-LEAF(_start)
+NESTED(_start, CALLFRAME_SIZE, $ra)
     # Adhere to calling convention wrt return address so that GDB can properly recognize stack frames.
     # However, store zero as RA, to mark stack bottom.
     addiu $sp,$sp,-8
