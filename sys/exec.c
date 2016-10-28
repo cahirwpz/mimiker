@@ -95,8 +95,7 @@ int do_exec(const exec_args_t *args) {
    * original address space
    */
 
-  /* TODO: Take care of assigning thread/process ASID */
-  vm_map_t *vmap = vm_map_new(PMAP_USER, 123);
+  vm_map_t *vmap = vm_map_new(PMAP_USER);
   /* Note: we do not claim ownership of the map */
   set_active_vm_map(vmap);
 
