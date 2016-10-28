@@ -260,8 +260,6 @@ int do_exec(const exec_args_t *args) {
 
   /* TODO: Assign the new vm map to the process structure */
 
-  /* We need to correct the thread structure so that it can hold the
-   * correct $gp value for this execution context. */
   thread_t *th = thread_self();
   th->td_kctx.gp = 0;
   th->td_kctx.pc = eh->e_entry;
