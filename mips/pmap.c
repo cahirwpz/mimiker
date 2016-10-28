@@ -1,5 +1,6 @@
 #include <stdc.h>
 #include <malloc.h>
+#include <mips/exc.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
 #include <pmap.h>
@@ -284,7 +285,7 @@ pmap_t *get_active_pmap_by_addr(vm_addr_t addr) {
   return NULL;
 }
 
-void tlb_exception_handler() {
+void tlb_exception_handler(exc_frame_t *frame) {
   int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
   vm_addr_t vaddr = mips32_get_c0(C0_BADVADDR);
 

@@ -80,6 +80,7 @@ user_exc_enter:
         mtc0    $t0, C0_STATUS
 
         # Call C interrupt handler routine.
+        move    $a0, $k0
         jalr    $k1
         nop
 
@@ -213,6 +214,7 @@ kern_exc_enter:
         sw      $sp, TD_KFRAME($t0)
 
         # Call C interrupt handler routine.
+        move    $a0, $sp
         jalr    $k1
         nop
 

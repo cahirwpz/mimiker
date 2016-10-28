@@ -1,4 +1,5 @@
 #include <stdc.h>
+#include <mips/exc.h>
 #include <mips/mips.h>
 #include <pmap.h>
 
@@ -49,7 +50,7 @@ const char *const exceptions[32] = {
   [EXC_MCHECK] = "Machine checkcore",
 };
 
-void kernel_oops() {
+void kernel_oops(exc_frame_t *frame) {
   unsigned code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
   unsigned errpc = mips32_get_c0(C0_ERRPC);
   unsigned badvaddr = mips32_get_c0(C0_BADVADDR);
