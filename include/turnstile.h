@@ -9,13 +9,15 @@ typedef struct {
 } turnstile_t;
 
 typedef struct {
-    uintptr_t mtx_state;  
-    turnstile_t *turnstile;
-} mtx_t ;
+    volatile uint32_t mtx_state;  
+    turnstile_t turnstile;
+} mtx_sleep_t;
 
-void mtx_lock(mtx_t*);
-void mtx_unlock(mtx_t*);
+void mtx_sleep_init(mtx_sleep_t*);
+void mtx_sleep_lock(mtx_sleep_t*);
+void mtx_sleep_unlock(mtx_sleep_t*);
 
+void turnstile_init(turnstile_t*);
 void turnstile_wait(turnstile_t*);
 void turnstile_signal(turnstile_t*);
 
