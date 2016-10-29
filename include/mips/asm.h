@@ -144,36 +144,36 @@
 
 /* Name of reset code section. */
 #ifndef _RESET_SECTION
-#define _RESET_SECTION .section.reset, "ax", @progbits
+#define _RESET_SECTION .section .reset, "ax", @progbits
 #endif
 
 #ifndef _RESET_SECTION_NAMED
 /* No function section support for now, since binutils fails to cope with
    external branches. */
-#define _RESET_SECTION_NAMED(name) .pushsection.reset, "ax", @progbits
+#define _RESET_SECTION_NAMED(name) .pushsection .reset, "ax", @progbits
 #endif
 
 /* Name of boot code section. */
 #ifndef _BOOT_SECTION
-#define _BOOT_SECTION .section.boot, "ax", @progbits
+#define _BOOT_SECTION .section .boot, "ax", @progbits
 #endif
 
 #ifndef _BOOT_SECTION_NAMED
 /* No function section support for now, since binutils fails to cope with
    external branches. */
-#define _BOOT_SECTION_NAMED(name) .pushsection.boot, "ax", @progbits
+#define _BOOT_SECTION_NAMED(name) .pushsection .boot, "ax", @progbits
 #endif
 
 /* Name of standard code section. */
 #ifndef _NORMAL_SECTION_UNNAMED
-#define _NORMAL_SECTION_UNNAMED .section.text, "ax", @progbits
+#define _NORMAL_SECTION_UNNAMED .section .text, "ax", @progbits
 #endif
 
 #ifndef _NORMAL_SECTION_NAMED
 #ifdef _FUNCTION_SECTIONS_
-#define _NORMAL_SECTION_NAMED(name) .pushsection.text##.name, "ax", @progbits
+#define _NORMAL_SECTION_NAMED(name) .pushsection .text##.name, "ax", @progbits
 #else
-#define _NORMAL_SECTION_NAMED(name) .pushsection.text, "ax", @progbits
+#define _NORMAL_SECTION_NAMED(name) .pushsection .text, "ax", @progbits
 #endif
 #endif
 
