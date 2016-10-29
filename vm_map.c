@@ -6,8 +6,8 @@
 static void paging_on_demand_and_memory_protection_demo() {
   set_active_vm_map(vm_map_new(USER_VM_MAP));
 
-  vm_map_t *kmap = get_active_vm_map(PMAP_KERNEL);
-  vm_map_t *umap = get_active_vm_map(PMAP_USER);
+  vm_map_t *kmap = get_active_vm_map(KERNEL_VM_MAP);
+  vm_map_t *umap = get_active_vm_map(USER_VM_MAP);
 
   log("Kernel physical map : %08lx-%08lx", kmap->pmap.start, kmap->pmap.end);
   log("User physical map   : %08lx-%08lx", umap->pmap.start, umap->pmap.end);

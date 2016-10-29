@@ -89,13 +89,13 @@ int do_exec(const exec_args_t *args) {
   /* TODO: Get current process description structure */
 
   /* The current vmap should be taken from the process description! */
-  vm_map_t *old_vmap = get_active_vm_map(PMAP_USER);
+  vm_map_t *old_vmap = get_active_vm_map(USER_VM_MAP);
   /* We may not destroy the current vm map, because exec can still
    * fail, and in that case we must be able to return to the
    * original address space
    */
 
-  vm_map_t *vmap = vm_map_new(PMAP_USER);
+  vm_map_t *vmap = vm_map_new(USER_VM_MAP);
   /* Note: we do not claim ownership of the map */
   set_active_vm_map(vmap);
 
