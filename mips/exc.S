@@ -86,8 +86,16 @@ user_exc_enter:
 
         # Interrupts may be enabled here and that's ok.
 
+        LOAD_PCPU($t0)
+        lw      $t0, PCPU_CURTHREAD($t0)
+        lw      $t1, TD_FLAGS($t0)
+        andi    $t1, TDF_NEEDSWITCH
+        beqz    $t1, 1f
+        move    $a0, $sp
+        jal     exc_before_leave
+
         # Disable interrupts till ERET.
-        di
+1:      di
 
 user_exc_leave:
         # Fetch the context from thread control block.
