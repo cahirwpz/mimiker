@@ -54,7 +54,7 @@ void sched_switch(thread_t *newtd) {
 
   td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
 
-  if (td->td_state && TDS_RUNNING)
+  if (td->td_state == TDS_RUNNING)
     sched_add(td);
 
   if (newtd == NULL) {
