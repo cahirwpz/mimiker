@@ -28,32 +28,32 @@
  */
 
 #ifndef _SYS__BITSET_H_
-#define	_SYS__BITSET_H_
+#define _SYS__BITSET_H_
 
 /*
  * Macros addressing word and bit within it, tuned to make compiler
  * optimize cases when SETSIZE fits into single machine word.
  */
-#define	_BITSET_BITS		(sizeof(uintptr_t) * 8)
+#define _BITSET_BITS (sizeof(uintptr_t) * 8)
 
-#define	__bitset_words(_s)	(howmany(_s, _BITSET_BITS))
+#define __bitset_words(_s) (howmany(_s, _BITSET_BITS))
 
-#define	__bitset_mask(_s, n)						\
-	(1L << ((__bitset_words((_s)) == 1) ?				\
-	    (__size_t)(n) : ((n) % _BITSET_BITS)))
+#define __bitset_mask(_s, n)                                                   \
+  (1L << ((__bitset_words((_s)) == 1) ? (__size_t)(n) : ((n) % _BITSET_BITS)))
 
-#define	__bitset_word(_s, n)						\
-	((__bitset_words((_s)) == 1) ? 0 : ((n) / _BITSET_BITS))
+#define __bitset_word(_s, n)                                                   \
+  ((__bitset_words((_s)) == 1) ? 0 : ((n) / _BITSET_BITS))
 
-#define	BITSET_DEFINE(t, _s)						\
-struct t {								\
-        long    __bits[__bitset_words((_s))];				\
-}
+#define BITSET_DEFINE(t, _s)                                                   \
+  struct t {                                                                   \
+    long __bits[__bitset_words((_s))];                                         \
+  }
 
-#define	BITSET_T_INITIALIZER(x)						\
-	{ .__bits = { x } }
+#define BITSET_T_INITIALIZER(x)                                                \
+  {                                                                            \
+    .__bits = { x }                                                            \
+  }
 
-#define	BITSET_FSET(n)							\
-	[ 0 ... ((n) - 1) ] = (-1L)
+#define BITSET_FSET(n) [0 ...((n)-1)] = (-1L)
 
 #endif /* !_SYS__BITSET_H_ */

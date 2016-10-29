@@ -4,8 +4,9 @@
 #include <common.h>
 #include <queue.h>
 
-#define FILTER_STRAY   0x01 /* this device did not trigger the interrupt */
-#define FILTER_HANDLED 0x02 /* the interrupt has been fully handled and can be EOId */
+#define FILTER_STRAY 0x01 /* this device did not trigger the interrupt */
+#define FILTER_HANDLED                                                         \
+  0x02 /* the interrupt has been fully handled and can be EOId */
 
 typedef int driver_filter_t(void *);
 typedef void driver_intr_t(void *);
@@ -25,7 +26,7 @@ typedef struct intr_handler {
 
 typedef struct intr_event {
   TAILQ_ENTRY(intr_event) ie_list;
-  TAILQ_HEAD(,intr_handler) ie_handlers;
+  TAILQ_HEAD(, intr_handler) ie_handlers;
   char *ie_name;
   uint8_t ie_rq;
 } intr_event_t;

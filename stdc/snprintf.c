@@ -2,20 +2,20 @@
 #include <stdarg.h>
 #include <low/_stdio.h>
 
-int __low_snprintf (ReadWriteInfo *rw, const void *src, size_t len) {
+int __low_snprintf(ReadWriteInfo *rw, const void *src, size_t len) {
   int ret, maxbytes = 0;
   char *dst;
-  const char *src0 = (const char *) src;
+  const char *src0 = (const char *)src;
 
   if (len && rw->m_handle) {
-    maxbytes = MIN ((rw->m_limit - rw->m_size) - 1, len);
+    maxbytes = MIN((rw->m_limit - rw->m_size) - 1, len);
     ret = maxbytes;
     dst = (char *)(rw->m_handle + rw->m_size);
     while (maxbytes) {
       *dst++ = *src0++;
       --maxbytes;
     }
-    //memcpy (rw->m_handle + rw->m_size, src, maxbytes);
+    // memcpy (rw->m_handle + rw->m_size, src, maxbytes);
     rw->m_size += ret;
   }
 
@@ -24,7 +24,7 @@ int __low_snprintf (ReadWriteInfo *rw, const void *src, size_t len) {
 
 /* This custom snprintf does not use any floating point calculations,
    and can only format integer numbers. */
-int snprintf (char *str, size_t size, const char *fmt, ...) {
+int snprintf(char *str, size_t size, const char *fmt, ...) {
   int ret;
   ReadWriteInfo rw;
   va_list ap;

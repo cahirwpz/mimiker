@@ -1,7 +1,7 @@
 #ifndef __SYS_SYNC_H__
 #define __SYS_SYNC_H__
 
-/* 
+/*
  * Entering critical section turns off interrupts - use with care!
  *
  * Thread must not yield or switch when inside critical section!

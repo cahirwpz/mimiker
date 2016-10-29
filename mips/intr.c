@@ -20,7 +20,7 @@ void intr_init() {
   mips32_set_c0(C0_INTCTL, INTCTL_VS_32);
 
   /*
-   * Mask out software and hardware interrupts. 
+   * Mask out software and hardware interrupts.
    * You should enable them one by one in driver initialization code.
    */
   mips32_set_c0(C0_STATUS, mips32_get_c0(C0_STATUS) & ~SR_IPL_MASK);
@@ -29,25 +29,25 @@ void intr_init() {
 }
 
 const char *const exceptions[32] = {
-  [EXC_INTR] = "Interrupt",
-  [EXC_MOD]  = "TLB modification exception",
-  [EXC_TLBL] = "TLB exception (load or instruction fetch)",
-  [EXC_TLBS] = "TLB exception (store)",
-  [EXC_ADEL] = "Address error exception (load or instruction fetch)",
-  [EXC_ADES] = "Address error exception (store)",
-  [EXC_IBE]  = "Bus error exception (instruction fetch)",
-  [EXC_DBE]  = "Bus error exception (data reference: load or store)",
-  [EXC_SYS]  = "System call",
-  [EXC_BP]   = "Breakpoint exception",
-  [EXC_RI]   = "Reserved instruction exception",
-  [EXC_CPU]  = "Coprocessor Unusable exception",
-  [EXC_OVF]  = "Arithmetic Overflow exception",
-  [EXC_TRAP] = "Trap exception",
-  [EXC_FPE]  = "Floating point exception",
-  [EXC_TLBRI] = "TLB read inhibit",
-  [EXC_TLBXI] = "TLB execute inhibit",
-  [EXC_WATCH] = "Reference to watchpoint address",
-  [EXC_MCHECK] = "Machine checkcore",
+    [EXC_INTR] = "Interrupt",
+    [EXC_MOD] = "TLB modification exception",
+    [EXC_TLBL] = "TLB exception (load or instruction fetch)",
+    [EXC_TLBS] = "TLB exception (store)",
+    [EXC_ADEL] = "Address error exception (load or instruction fetch)",
+    [EXC_ADES] = "Address error exception (store)",
+    [EXC_IBE] = "Bus error exception (instruction fetch)",
+    [EXC_DBE] = "Bus error exception (data reference: load or store)",
+    [EXC_SYS] = "System call",
+    [EXC_BP] = "Breakpoint exception",
+    [EXC_RI] = "Reserved instruction exception",
+    [EXC_CPU] = "Coprocessor Unusable exception",
+    [EXC_OVF] = "Arithmetic Overflow exception",
+    [EXC_TRAP] = "Trap exception",
+    [EXC_FPE] = "Floating point exception",
+    [EXC_TLBRI] = "TLB read inhibit",
+    [EXC_TLBXI] = "TLB execute inhibit",
+    [EXC_WATCH] = "Reference to watchpoint address",
+    [EXC_MCHECK] = "Machine checkcore",
 };
 
 void kernel_oops(exc_frame_t *frame) {
@@ -63,21 +63,19 @@ void kernel_oops(exc_frame_t *frame) {
 }
 
 void syscall_handler(exc_frame_t *frame) {
-  kprintf("[syscall] entered #%d from %s mode!\n", 
-          frame->v0, (frame->sr & SR_KSU_MASK) ? "user" : "kernel");
+  kprintf("[syscall] entered #%d from %s mode!\n", frame->v0,
+          (frame->sr & SR_KSU_MASK) ? "user" : "kernel");
   /* we need to fix return address to point to next instruction */
   frame->pc += 4;
 }
 
-/* 
+/*
  * This is exception vector table. Each exeception either has been assigned a
  * handler or kernel_oops is called for it. For exact meaning of exception
- * handlers numbers please check 5.23 Table of MIPS32 4KEc User's Manual. 
+ * handlers numbers please check 5.23 Table of MIPS32 4KEc User's Manual.
  */
 
 void *general_exception_table[32] = {
-  [EXC_MOD]  = tlb_exception_handler,
-  [EXC_TLBL] = tlb_exception_handler,
-  [EXC_TLBS] = tlb_exception_handler,
-  [EXC_SYS] = syscall_handler,
+    [EXC_MOD] = tlb_exception_handler, [EXC_TLBL] = tlb_exception_handler,
+    [EXC_TLBS] = tlb_exception_handler, [EXC_SYS] = syscall_handler,
 };

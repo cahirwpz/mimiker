@@ -32,13 +32,13 @@ void pm_dump() {
   pm_seg_t *seg_it;
   vm_page_t *pg_it;
 
-  TAILQ_FOREACH(seg_it, &seglist, segq) {
-    kprintf("[pmem] segment %p - %p:\n",
-            (void *)seg_it->start, (void *)seg_it->end);
+  TAILQ_FOREACH (seg_it, &seglist, segq) {
+    kprintf("[pmem] segment %p - %p:\n", (void *)seg_it->start,
+            (void *)seg_it->end);
     for (int i = 0; i < PM_NQUEUES; i++) {
       if (!TAILQ_EMPTY(PM_FREEQ(seg_it, i))) {
         kprintf("[pmem]  %6dKiB:", (PAGESIZE / 1024) << i);
-        TAILQ_FOREACH(pg_it, PM_FREEQ(seg_it, i), freeq)
+        TAILQ_FOREACH (pg_it, PM_FREEQ(seg_it, i), freeq)
           kprintf(" %p", (void *)PG_START(pg_it));
         kprintf("\n");
       }
@@ -61,7 +61,7 @@ void pm_add_segment(pm_addr_t start, pm_addr_t end, vm_addr_t vm_offset) {
 
   unsigned max_size = min(PM_NQUEUES, ffs(seg->npages)) - 1;
 
-  for (int i = 0; i < seg->npages ; i++) {
+  for (int i = 0; i < seg->npages; i++) {
     vm_page_t *page = &seg->pages[i];
     bzero(page, sizeof(vm_page_t));
     page->paddr = seg->start + PAGESIZE * i;
@@ -119,7 +119,7 @@ static vm_page_t *pm_find_buddy(pm_seg_t *seg, vm_page_t *pg) {
 
   if (buddy->size != pg->size)
     return NULL;
-  
+
   if (!(buddy->pm_flags & PM_MANAGED))
     return NULL;
 
@@ -147,8 +147,7 @@ static void pm_split_page(pm_seg_t *seg, vm_page_t *page) {
 }
 
 /* TODO this can be sped up by removing elements from list on-line. */
-static void pm_reserve_from_seg(pm_seg_t *seg, pm_addr_t start, pm_addr_t end)
-{
+static void pm_reserve_from_seg(pm_seg_t *seg, pm_addr_t start, pm_addr_t end) {
   for (int i = PM_NQUEUES - 1; i >= 0; i--) {
     pg_list_t *queue = PM_FREEQ(seg, i);
     vm_page_t *pg = TAILQ_FIRST(queue);
@@ -189,7 +188,7 @@ void pm_reserve(pm_addr_t start, pm_addr_t end) {
 
   pm_seg_t *seg_it;
 
-  TAILQ_FOREACH(seg_it, &seglist, segq) {
+  TAILQ_FOREACH (seg_it, &seglist, segq) {
     if (seg_it->start <= start && seg_it->end >= end) {
       pm_reserve_from_seg(seg_it, start, end);
       return;
@@ -201,7 +200,7 @@ void pm_reserve(pm_addr_t start, pm_addr_t end) {
 
 static vm_page_t *pm_alloc_from_seg(pm_seg_t *seg, size_t npages) {
   size_t i, j;
-  
+
   i = j = log2(npages);
 
   /* Lowest non-empty queue of size higher or equal to log2(npages). */
@@ -235,11 +234,11 @@ vm_page_t *pm_alloc(size_t npages) {
   assert((npages > 0) && powerof2(npages));
 
   pm_seg_t *seg_it;
-  TAILQ_FOREACH(seg_it, &seglist, segq) {
+  TAILQ_FOREACH (seg_it, &seglist, segq) {
     vm_page_t *page;
     if ((page = pm_alloc_from_seg(seg_it, npages))) {
-      kprintf("[pmem] pm_alloc {paddr:%lx size:%ld}\n", 
-              page->paddr, page->size);
+      kprintf("[pmem] pm_alloc {paddr:%lx size:%ld}\n", page->paddr,
+              page->size);
       return page;
     }
   }
@@ -256,7 +255,7 @@ static void pm_free_from_seg(pm_seg_t *seg, vm_page_t *page) {
 
   while (true) {
     vm_page_t *buddy = pm_find_buddy(seg, page);
-    
+
     if (buddy == NULL) {
       TAILQ_INSERT_HEAD(PM_QUEUE_OF(seg, page), page, freeq);
       page->pm_flags |= PM_MANAGED;
@@ -278,10 +277,9 @@ static void pm_free_from_seg(pm_seg_t *seg, vm_page_t *page) {
 void pm_free(vm_page_t *page) {
   pm_seg_t *seg_it = NULL;
 
-  kprintf("[pmem] pm_free {paddr:%lx size:%ld}\n",
-          page->paddr, page->size);
+  kprintf("[pmem] pm_free {paddr:%lx size:%ld}\n", page->paddr, page->size);
 
-  TAILQ_FOREACH(seg_it, &seglist, segq) {
+  TAILQ_FOREACH (seg_it, &seglist, segq) {
     if (PG_START(page) >= seg_it->start && PG_END(page) <= seg_it->end) {
       pm_free_from_seg(seg_it, page);
       return;
@@ -293,8 +291,7 @@ void pm_free(vm_page_t *page) {
 }
 
 vm_page_t *pm_split_alloc_page(vm_page_t *pg) {
-  kprintf("[pmem] pm_split {paddr:%lx size:%ld}\n",
-          pg->paddr, pg->size);
+  kprintf("[pmem] pm_split {paddr:%lx size:%ld}\n", pg->paddr, pg->size);
 
   assert(pg->size > 1);
   assert(pg->pm_flags & PM_ALLOCATED);
@@ -317,10 +314,10 @@ unsigned long pm_hash() {
   pm_seg_t *seg_it;
   vm_page_t *pg_it;
 
-  TAILQ_FOREACH(seg_it, &seglist, segq) {
+  TAILQ_FOREACH (seg_it, &seglist, segq) {
     for (int i = 0; i < PM_NQUEUES; i++) {
       if (!TAILQ_EMPTY(PM_FREEQ(seg_it, i))) {
-        TAILQ_FOREACH(pg_it, PM_FREEQ(seg_it, i), freeq)
+        TAILQ_FOREACH (pg_it, PM_FREEQ(seg_it, i), freeq)
           hash = hash * 33 + PG_START(pg_it);
       }
     }

@@ -8,7 +8,8 @@ static void demo_thread_1() {
     realtime_t now = clock_get();
     kprintf("[%8zu] Running '%s' thread.\n", (size_t)now,
             thread_self()->td_name);
-    while (clock_get() < now + 20);
+    while (clock_get() < now + 20)
+      ;
   }
 }
 

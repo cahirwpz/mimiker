@@ -33,7 +33,7 @@ noreturn void thread_init(void (*fn)(), int n, ...) {
 
 thread_t *thread_create(const char *name, void (*fn)()) {
   thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
-  
+
   td->td_name = name;
   td->td_kstack_obj = pm_alloc(1);
   td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
@@ -67,8 +67,8 @@ void thread_switch_to(thread_t *newtd) {
   /* Thread must not switch while in critical section! */
   assert(td->td_csnest == 0);
 
-  log("Switching from '%s' {%p} to '%s' {%p}.",
-      td->td_name, td, newtd->td_name, newtd);
+  log("Switching from '%s' {%p} to '%s' {%p}.", td->td_name, td, newtd->td_name,
+      newtd);
 
   td->td_state = TDS_READY;
   newtd->td_state = TDS_RUNNING;

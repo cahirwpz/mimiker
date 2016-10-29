@@ -3,8 +3,8 @@
 #include <low/_stdio.h>
 #include <mips/uart_cbus.h>
 
-int __low_kprintf (ReadWriteInfo *rw __attribute__((unused)), const void *src,
-                   size_t len) {
+int __low_kprintf(ReadWriteInfo *rw __attribute__((unused)), const void *src,
+                  size_t len) {
   return uart_write(src, len);
 }
 

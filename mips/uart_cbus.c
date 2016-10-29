@@ -3,8 +3,8 @@
 #include <mips/malta.h>
 #include <mips/uart_cbus.h>
 
-#define CBUS_UART_R(x) \
-  *(volatile uint8_t*)(MIPS_PHYS_TO_KSEG1(MALTA_CBUS_UART) + (x))
+#define CBUS_UART_R(x)                                                         \
+  *(volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(MALTA_CBUS_UART) + (x))
 
 #define RBR CBUS_UART_R(0x00) /* Receiver Buffer, read-only, DLAB = 0 */
 #define THR CBUS_UART_R(0x00) /* Transmitter Holding, write-only, DLAB = 0 */
@@ -20,7 +20,8 @@
 
 void uart_init() {
   LCR |= LCR_DLAB;
-  DLM = 0; DLL = 1; /* 115200 */
+  DLM = 0;
+  DLL = 1; /* 115200 */
   LCR &= ~LCR_DLAB;
 
   IER = 0;
@@ -30,14 +31,16 @@ void uart_init() {
 
 int uart_putchar(int c) {
   /* Wait for transmitter hold register empty. */
-  while (! (LSR & LSR_THRE));
+  while (!(LSR & LSR_THRE))
+    ;
 
 again:
   /* Send byte. */
   THR = c;
 
   /* Wait for transmitter hold register empty. */
-  while (! (LSR & LSR_THRE));
+  while (!(LSR & LSR_THRE))
+    ;
 
   if (c == '\n') {
     c = '\r';
@@ -46,7 +49,7 @@ again:
   return c;
 }
 
-int kputchar(int c) __attribute__ ((weak, alias ("uart_putchar")));
+int kputchar(int c) __attribute__((weak, alias("uart_putchar")));
 
 int uart_puts(const char *str) {
   int n = 0;
@@ -58,17 +61,18 @@ int uart_puts(const char *str) {
   return n + 1;
 }
 
-int kputs(const char *str) __attribute__ ((weak, alias ("uart_puts")));
+int kputs(const char *str) __attribute__((weak, alias("uart_puts")));
 
 int uart_write(const char *str, size_t n) {
-  while (n--) 
+  while (n--)
     uart_putchar(*str++);
   return n;
 }
 
 int uart_getchar() {
   /* Wait until receive data available. */
-  while (! (LSR & LSR_RXRDY));
+  while (!(LSR & LSR_RXRDY))
+    ;
 
   return RBR;
 }

@@ -4,12 +4,12 @@
 #include <sleepq.h>
 #include <thread.h>
 
-#define SC_TABLESIZE    256 /* Must be power of 2. */
-#define SC_MASK         (SC_TABLESIZE - 1)
-#define SC_SHIFT        8
-#define SC_HASH(wc)     ((((uintptr_t)(wc) >> SC_SHIFT) ^ (uintptr_t)(wc)) & \
-                            SC_MASK)
-#define SC_LOOKUP(wc)   &sleepq_chains[SC_HASH(wc)]
+#define SC_TABLESIZE 256 /* Must be power of 2. */
+#define SC_MASK (SC_TABLESIZE - 1)
+#define SC_SHIFT 8
+#define SC_HASH(wc)                                                            \
+  ((((uintptr_t)(wc) >> SC_SHIFT) ^ (uintptr_t)(wc)) & SC_MASK)
+#define SC_LOOKUP(wc) &sleepq_chains[SC_HASH(wc)]
 
 static sleepq_chain_t sleepq_chains[SC_TABLESIZE];
 
@@ -57,7 +57,8 @@ void sleepq_add(void *wchan, const char *wmesg, thread_t *td) {
     TAILQ_INIT(&sq->sq_blocked);
     LIST_INIT(&sq->sq_free);
   } else {
-    /* A sleepqueue already exists. We add this thread's sleepqueue to the free list. */
+    /* A sleepqueue already exists. We add this thread's sleepqueue to the free
+     * list. */
     LIST_INSERT_HEAD(&sq->sq_free, td->td_sleepqueue, sq_entry);
   }
 
@@ -96,8 +97,7 @@ static void sleepq_resume_thread(sleepq_t *sq, thread_t *td) {
   }
 
   /* Either remove from the sleepqueue chain or the free list. */
-  LIST_REMOVE(td->td_sleepqueue,
-              sq_entry);
+  LIST_REMOVE(td->td_sleepqueue, sq_entry);
 
   td->td_wchan = NULL;
   td->td_wmesg = NULL;
@@ -108,13 +108,13 @@ static void sleepq_resume_thread(sleepq_t *sq, thread_t *td) {
 void sleepq_signal(void *wchan) {
   sleepq_t *sq = sleepq_lookup(wchan);
 
-    if (sq == NULL)
-      panic("Trying to signal a wait channel that isn't in any sleep queue.");
+  if (sq == NULL)
+    panic("Trying to signal a wait channel that isn't in any sleep queue.");
 
   thread_t *current_td;
   thread_t *best_td = NULL;
 
-  TAILQ_FOREACH(current_td, &sq->sq_blocked, td_sleepq) {
+  TAILQ_FOREACH (current_td, &sq->sq_blocked, td_sleepq) {
     if (best_td == NULL || current_td->td_prio > best_td->td_prio)
       best_td = current_td;
   }
@@ -128,7 +128,7 @@ void sleepq_broadcast(void *wchan) {
     panic("Trying to broadcast a wait channel that isn't in any sleep queue.");
 
   struct thread *current_td;
-  TAILQ_FOREACH(current_td, &sq->sq_blocked, td_sleepq) {
+  TAILQ_FOREACH (current_td, &sq->sq_blocked, td_sleepq) {
     sleepq_resume_thread(sq, current_td);
   }
 }

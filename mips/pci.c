@@ -8,22 +8,20 @@
 #define PCI0_CFG_ADDR_R GT_R(GT_PCI0_CFG_ADDR)
 #define PCI0_CFG_DATA_R GT_R(GT_PCI0_CFG_DATA)
 
-#define PCI0_CFG_REG_SHIFT   2
+#define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
-#define PCI0_CFG_DEV_SHIFT   11
-#define PCI0_CFG_BUS_SHIFT   16
-#define PCI0_CFG_ENABLE      0x80000000
+#define PCI0_CFG_DEV_SHIFT 11
+#define PCI0_CFG_BUS_SHIFT 16
+#define PCI0_CFG_ENABLE 0x80000000
 
-#define PCI0_CFG_REG(dev, funct, reg)  \
-  (((dev) << PCI0_CFG_DEV_SHIFT)     | \
-   ((funct) << PCI0_CFG_FUNCT_SHIFT) | \
+#define PCI0_CFG_REG(dev, funct, reg)                                          \
+  (((dev) << PCI0_CFG_DEV_SHIFT) | ((funct) << PCI0_CFG_FUNCT_SHIFT) |         \
    ((reg) << PCI0_CFG_REG_SHIFT))
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 
 static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
-                                            uint16_t device_id)
-{
+                                            uint16_t device_id) {
   if (vendor) {
     const pci_device_id *device = vendor->devices;
     while (device->name) {
@@ -72,7 +70,8 @@ static void pci_bus_enumerate(pci_bus_t *pcibus) {
       pcidev->irq = PCI0_CFG_DATA_R;
 
       for (int i = 0; i < 6; i++) {
-        PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE |
+        PCI0_CFG_ADDR_R =
+          PCI0_CFG_ENABLE |
           PCI0_CFG_REG(pcidev->addr.device, pcidev->addr.function, 4 + i);
         unsigned addr = PCI0_CFG_DATA_R;
         PCI0_CFG_DATA_R = -1;
@@ -104,9 +103,8 @@ static int pci_bar_compare(const void *a, const void *b) {
   return 0;
 }
 
-static void pci_bus_assign_space(pci_bus_t *pcibus, 
-                                 intptr_t mem_base, intptr_t io_base)
-{
+static void pci_bus_assign_space(pci_bus_t *pcibus, intptr_t mem_base,
+                                 intptr_t io_base) {
   pci_bar_t **bars = kernel_sbrk(0);
   unsigned nbars = 0;
 
@@ -141,15 +139,11 @@ static void pci_bus_dump(pci_bus_t *pcibus) {
     pci_device_t *pcidev = &pcibus->dev[j];
     char devstr[16];
 
-    snprintf(devstr, sizeof(devstr), "[pci:%02x:%02x.%02x]",
-             pcidev->addr.bus,
-             pcidev->addr.device,
-             pcidev->addr.function);
+    snprintf(devstr, sizeof(devstr), "[pci:%02x:%02x.%02x]", pcidev->addr.bus,
+             pcidev->addr.device, pcidev->addr.function);
 
-    const pci_vendor_id *vendor =
-      pci_find_vendor(pcidev->vendor_id);
-    const pci_device_id *device =
-      pci_find_device(vendor, pcidev->device_id);
+    const pci_vendor_id *vendor = pci_find_vendor(pcidev->vendor_id);
+    const pci_device_id *device = pci_find_device(vendor, pcidev->device_id);
 
     kprintf("%s %s", devstr, pci_class_code[pcidev->class_code]);
 
@@ -164,8 +158,8 @@ static void pci_bus_dump(pci_bus_t *pcibus) {
       kprintf(" device:$%04x\n", pcidev->device_id);
 
     if (pcidev->pin)
-      kprintf("%s Interrupt: pin %c routed to IRQ %d\n",
-              devstr, 'A' + pcidev->pin - 1, pcidev->irq);
+      kprintf("%s Interrupt: pin %c routed to IRQ %d\n", devstr,
+              'A' + pcidev->pin - 1, pcidev->irq);
 
     for (int i = 0; i < pcidev->nbars; i++) {
       pci_bar_t *bar = &pcidev->bar[i];
@@ -183,8 +177,8 @@ static void pci_bus_dump(pci_bus_t *pcibus) {
           type = "Memory (non-prefetchable)";
         addr &= ~PCI_BAR_MEMORY_MASK;
       }
-      kprintf("%s Region %d: %s at %p [size=$%x]\n",
-              devstr, i, type, (void *)addr, (unsigned)size);
+      kprintf("%s Region %d: %s at %p [size=$%x]\n", devstr, i, type,
+              (void *)addr, (unsigned)size);
     }
   }
 }

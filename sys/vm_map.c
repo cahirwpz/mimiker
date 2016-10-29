@@ -90,8 +90,8 @@ void vm_map_delete(vm_map_t *map) {
   kfree(mpool, map);
 }
 
-vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start,
-                                 vm_addr_t end, vm_prot_t prot) {
+vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
+                                 vm_prot_t prot) {
   assert(start >= map->pmap.start);
   assert(end <= map->pmap.end);
   assert(is_aligned(start, PAGESIZE));
@@ -119,11 +119,10 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
 
 void vm_map_dump(vm_map_t *map) {
   vm_map_entry_t *it;
-  kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n", 
-          map->pmap.start, map->pmap.end);
+  kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n", map->pmap.start,
+          map->pmap.end);
   TAILQ_FOREACH (it, &map->list, map_list) {
-    kprintf("[vm_map] * %08lx - %08lx [%c%c%c]\n",
-            it->start, it->end, 
+    kprintf("[vm_map] * %08lx - %08lx [%c%c%c]\n", it->start, it->end,
             (it->prot & VM_PROT_READ) ? 'r' : '-',
             (it->prot & VM_PROT_WRITE) ? 'w' : '-',
             (it->prot & VM_PROT_EXEC) ? 'x' : '-');
@@ -160,6 +159,6 @@ void vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
 
   if (!frame)
     frame = obj->pgr->pgr_fault(obj, fault_page, offset, fault_type);
-  pmap_map(&map->pmap, fault_addr, fault_addr + PAGESIZE, 
-           frame->paddr, entry->prot);
+  pmap_map(&map->pmap, fault_addr, fault_addr + PAGESIZE, frame->paddr,
+           entry->prot);
 }

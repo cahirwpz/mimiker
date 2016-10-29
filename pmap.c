@@ -4,7 +4,6 @@
 #include <physmem.h>
 #include <vm.h>
 
-
 void general_pmap_test() {
   pmap_t *pmap = get_active_pmap(PMAP_KERNEL);
 
@@ -14,7 +13,7 @@ void general_pmap_test() {
   vm_addr_t vaddr2 = pmap->start + size / 2;
   vm_addr_t vaddr3 = pmap->start + size;
 
-  pmap_map(pmap, vaddr1, vaddr3, pg->paddr, VM_PROT_READ|VM_PROT_WRITE);
+  pmap_map(pmap, vaddr1, vaddr3, pg->paddr, VM_PROT_READ | VM_PROT_WRITE);
 
   {
     log("TLB before:");
@@ -30,7 +29,7 @@ void general_pmap_test() {
     tlb_print();
   }
 
-  assert(pmap_probe(pmap, vaddr1, vaddr3, VM_PROT_READ|VM_PROT_WRITE));
+  assert(pmap_probe(pmap, vaddr1, vaddr3, VM_PROT_READ | VM_PROT_WRITE));
 
   pmap_unmap(pmap, vaddr1, vaddr2);
   pmap_protect(pmap, vaddr2, vaddr3, VM_PROT_READ);
@@ -45,16 +44,15 @@ void general_pmap_test() {
 }
 
 int *vm_addr_to_ptr(vm_addr_t addr) {
-    return (int*) addr;
+  return (int *)addr;
 }
 
 static void change_pmap() {
   pmap_t pmap1;
   pmap_t pmap2;
-  
+
   pmap_setup(&pmap1, PMAP_USER);
   pmap_setup(&pmap2, PMAP_USER);
-  
 
   vm_addr_t start = 0x1001000;
   vm_addr_t end = 0x1002000;
@@ -66,7 +64,7 @@ static void change_pmap() {
   pmap_map(&pmap1, start, end, pg1->paddr, VM_PROT_READ | VM_PROT_WRITE);
   set_active_pmap(&pmap2);
   pmap_map(&pmap2, start, end, pg2->paddr, VM_PROT_READ | VM_PROT_WRITE);
-  
+
   volatile int *ptr = vm_addr_to_ptr(start);
   *ptr = 100;
   pmap_switch(&pmap1);
@@ -83,4 +81,3 @@ int main() {
   change_pmap();
   return 0;
 }
-

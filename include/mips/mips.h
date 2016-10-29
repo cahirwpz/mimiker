@@ -20,7 +20,7 @@
 #define MIPS_KSEG0_START 0x80000000
 #define MIPS_KSEG1_START 0xa0000000
 #define MIPS_KSEG2_START 0xc0000000
-#define MIPS_PHYS_MASK   0x1fffffff
+#define MIPS_PHYS_MASK 0x1fffffff
 #define MAX_ASID C0_ENTRYHI_ASID_MASK
 #ifndef __ASSEMBLER__
 
@@ -32,12 +32,12 @@ typedef unsigned int reg32_t;
 typedef signed int sreg_t;
 typedef float freg_t;
 
-#define intr_disable() __extension__ ({ asm("di"); })
-#define intr_enable() __extension__ ({ asm("ei"); })
+#define intr_disable() __extension__({ asm("di"); })
+#define intr_enable() __extension__({ asm("ei"); })
 
-#define MIPS_KSEG0_TO_PHYS(x) ((uintptr_t)(x) & MIPS_PHYS_MASK)
+#define MIPS_KSEG0_TO_PHYS(x) ((uintptr_t)(x)&MIPS_PHYS_MASK)
 #define MIPS_PHYS_TO_KSEG0(x) ((uintptr_t)(x) | (intptr_t)MIPS_KSEG0_START)
-#define MIPS_KSEG1_TO_PHYS(x) ((uintptr_t)(x) & MIPS_PHYS_MASK)
+#define MIPS_KSEG1_TO_PHYS(x) ((uintptr_t)(x)&MIPS_PHYS_MASK)
 #define MIPS_PHYS_TO_KSEG1(x) ((uintptr_t)(x) | (intptr_t)MIPS_KSEG1_START)
 
 #define MIPS_KSEG0_P(x) (((intptr_t)(x) & ~MIPS_PHYS_MASK) == MIPS_KSEG0_START)

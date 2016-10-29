@@ -5,9 +5,7 @@ typedef struct thread thread_t;
 
 typedef int syscall_t(thread_t *);
 
-typedef struct {
-  syscall_t *call;
-} sysent_t;
+typedef struct { syscall_t *call; } sysent_t;
 
 extern sysent_t sysent[];
 
