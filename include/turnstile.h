@@ -5,7 +5,7 @@
 #define MTX_CONTESTED 1
 
 typedef struct {
-  TAILQ_HEAD(,thread_t) td_queue;
+  TAILQ_HEAD(,thread) td_queue;
 } turnstile_t;
 
 typedef struct {
@@ -16,6 +16,6 @@ typedef struct {
 void mtx_lock(mtx_t*);
 void mtx_unlock(mtx_t*);
 
-void turnstile_add(turnstile_t*);
+void turnstile_wait(turnstile_t*);
 void turnstile_signal(turnstile_t*);
 

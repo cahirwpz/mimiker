@@ -22,9 +22,9 @@ typedef enum
 } td_type_t;
 
 typedef struct thread {
-  TAILQ_ENTRY(thread) td_runq;   /* a link on run queue */
-  TAILQ_ENTRY(thread) td_sleepq; /* a link on sleep queue */
-  TAILQ_ENTRY(thread) td_lock;
+  TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
+  TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
+  TAILQ_ENTRY(thread) td_lock;    /* a link on turnstile */
   const char *td_name;
   /* thread state */
   enum { TDS_INACTIVE = 0x0, TDS_WAITING, TDS_READY, TDS_RUNNING } td_state;
