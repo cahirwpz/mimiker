@@ -26,44 +26,46 @@ LDLIBS   =
 LDFLAGS  = -nostdlib -T malta.ld
 LD_EMBED =
 
+DIR = $(patsubst $(TOPDIR)/%,%,$(CURDIR)/)
+
 define emit_dep_rule
 CFILE = $(1)
 DFILE = .$(patsubst %.S,%.D,$(patsubst %.c,%.D,$(1)))
 $$(DFILE): $$(CFILE)
-	@echo "[DEP] $$@"
+	@echo "[DEP] $$(DIR)$$@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -MM -MG $$^ -o $$@
 endef
 
 %.S: %.c
-	@echo "[CC] $< -> $@"
+	@echo "[CC] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -S -o $@ $<
 
 %.ko: %.c
-	@echo "[CC] $< -> $@"
+	@echo "[CC] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -D_KERNELSPACE -c -o $@ $<
 
 %.o: %.c
-	@echo "[CC] $< -> $@"
+	@echo "[CC] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 %.o: %.S
-	@echo "[AS] $< -> $@"
+	@echo "[AS] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 %.elf:	%.ko
-	@echo "[LD] $(filter %.ko,$^) -> $@"
+	@echo "[LD] $(addprefix $(DIR),$(filter %.ko,$^)) -> $(DIR)$@"
 	$(CC) $(LDFLAGS) $(filter %.ko,$^) -Wl,-Map=$@.map $(LDLIBS) $(LD_EMBED) -o $@
 
 %.test: %.c
-	@echo "[HOSTCC] $< -> $@"
+	@echo "[HOSTCC] $(DIR)$< -> $(DIR)$@"
 	$(HOSTCC) $(CFLAGS) $(CPPFLAGS) -D_USERSPACE -o $@ $<
 
 %.a:
-	@echo "[AR] $^ -> $@"
+	@echo "[AR] $(addprefix $(DIR),$^) -> $(DIR)$@"
 	$(AR) rs $@ $^
 
 %.h: %.o
-	@echo "[ASSYM] $<"
+	@echo "[ASSYM] $(DIR)$<"
 	$(GENASSYM) $<
 
 .PHONY: all clean
