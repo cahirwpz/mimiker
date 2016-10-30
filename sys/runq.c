@@ -16,7 +16,7 @@ void runq_add(runq_t *rq, thread_t *td) {
 }
 
 thread_t *runq_choose(runq_t *rq) {
-  for (unsigned i = RQ_NQS - 1; i >= 0; i--) {
+  for (int i = RQ_NQS - 1; i >= 0; i--) {
     struct rq_head *head = &rq->rq_queues[i];
     thread_t *td = TAILQ_FIRST(head);
 
