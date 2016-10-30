@@ -48,12 +48,6 @@ tags:
 	find $(SYSROOT)/lib/gcc/mips-mti-elf/*/include -type f -iname '*.h' \
 		| ctags -a --language-force=c -L- -e -f etags
 
-astyle:
-	astyle --options=astyle.options --recursive "*.h" "*.c" \
-	       --exclude=include/bitset.h --exclude=include/_bitset.h \
-	       --exclude=include/hash.h --exclude=include/queue.h \
-	       --exclude=include/tree.h --exclude=vm_phys.c
-
 test:
 	for file in $(wildcard *.test); do		\
 	  echo -n "Running $${file}... ";		\
@@ -85,4 +79,4 @@ clean:
 	$(RM) -f tags cscope.out *.taghl
 	$(RM) -f $(TESTS)
 
-.PHONY: astyle tags cscope mips stdc sys user
+.PHONY: tags cscope mips stdc sys user
