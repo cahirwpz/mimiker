@@ -48,6 +48,12 @@ tags:
 	find $(SYSROOT)/lib/gcc/mips-mti-elf/*/include -type f -iname '*.h' \
 		| ctags -a --language-force=c -L- -e -f etags
 
+FORMATTABLE_EXCLUDE = include/elf stdc/smallclib include/mips/asm.h
+FORMATTABLE = $(shell find -type f -name '*.c' -or -name '*.h' | grep -v $(FORMATTABLE_EXCLUDE:%=-e %))
+format:
+	@echo "Formatting files: $(FORMATTABLE:./%=%)"
+	clang-format -style=file -i $(FORMATTABLE)
+
 test:
 	for file in $(wildcard *.test); do		\
 	  echo -n "Running $${file}... ";		\
@@ -79,4 +85,4 @@ clean:
 	$(RM) -f tags cscope.out *.taghl
 	$(RM) -f $(TESTS)
 
-.PHONY: tags cscope mips stdc sys user
+.PHONY: format tags cscope mips stdc sys user
