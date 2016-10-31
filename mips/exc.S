@@ -10,6 +10,7 @@
 
         .globl exc_enter
         .globl kern_exc_leave
+        .globl user_exc_leave
         .local user_exc_enter
         .local kern_exc_enter
 
@@ -70,8 +71,18 @@ user_exc_enter:
         SAVE_REG($t2, BADVADDR, $k0)
         SAVE_REG($t3, PC, $k0)
 
-        # TODO: switch to kernel SP!
+        # Load kernel global pointer.
         la      $gp, _gp
+
+        # Load kernel stack pointer (always stack bottom ?)
+        LOAD_PCPU($t0)
+        lw      $t0, PCPU_CURTHREAD($t0)
+        lw      $sp, TD_KSTACK+STK_BASE($t0)
+        lw      $t1, TD_KSTACK+STK_SIZE($t0)
+        add     $sp, $t1
+
+        # No exeception frame so set td_frame to NULL.
+        sw      $0, TD_KFRAME($t0)
 
         # Turn off FPU, enter kernel mode,
         # drop exception level and disable interrupts.
@@ -85,30 +96,39 @@ user_exc_enter:
         nop
 
         # Interrupts may be enabled here and that's ok.
-
-        # Disable interrupts till ERET.
-        di
+        LOAD_PCPU($t0)
+        lw      $t0, PCPU_CURTHREAD($t0)
+        lw      $t1, TD_FLAGS($t0)
+        andi    $t1, TDF_NEEDSWITCH
+        beqz    $t1, user_exc_leave
+        move    $a0, $sp
+        jal     exc_before_leave
+        nop
 
 user_exc_leave:
+        # Disable interrupts and fetch C0_STATUS.
+        di      $t0
+
         # Fetch the context from thread control block.
         LOAD_PCPU($k0)
         lw      $k0, PCPU_CURTHREAD($k0)
         addu    $k0, TD_UCTX
 
-        # Update status register held in user context (interrupt mask).
-        LOAD_REG($t0, SR, $k0)
-        li      $t1, ~SR_IMASK
-        and     $t0, $t1
-        mfc0    $t1, C0_STATUS
-        andi    $t1, SR_IMASK
+        # Turn on FPU, enter exception level, enter user mode
+        # and enable interrupts (last two applies only after ERET).
+        # TODO: What about interrupt mask?
+        li      $t1, (SR_CU1|SR_KSU_USER|SR_EXL|SR_IE)
         or      $t0, $t1
+        mtc0    $t0, C0_STATUS
+
+        # Update status register held in user context.
         SAVE_REG($t0, SR, $k0)
 
         # Restore exception program counter,
         LOAD_REG($t0, PC, $k0)
         mtc0    $t0, C0_EPC   
 
-        # ... all user registers,
+        # ... all user registers.
         LOAD_REG($t0, HI, $k0)
         LOAD_REG($t1, LO, $k0)
         mthi    $t0
@@ -142,10 +162,6 @@ user_exc_leave:
         LOAD_REG($v1, V1, $k0)
         LOAD_REG($v0, V0, $k0)
         LOAD_REG($at, AT, $k0)
-
-        # ... and finally status register.
-        LOAD_REG($k1, SR, $k0)
-        mtc0    $k1, C0_STATUS
 
         sync
         eret
@@ -223,15 +239,18 @@ kern_exc_enter:
         lw      $t0, PCPU_CURTHREAD($t0)
         lw      $t1, TD_FLAGS($t0)
         andi    $t1, TDF_NEEDSWITCH
-        beqz    $t1, 1f
+        beqz    $t1, kern_exc_leave
         move    $a0, $sp
         jal     exc_before_leave
-
-        # Disable interrupts till ERET.
-1:      di
+        nop
 
 kern_exc_leave:
-        # Update status register held in user context (interrupt mask).
+        # Enter exception level (disable interrupts till ERET).
+        mfc0    $t0, C0_STATUS
+        ori     $t0, SR_EXL
+        mtc0    $t0, C0_STATUS
+
+        # Update status register held in user context (only interrupt mask).
         LOAD_REG($t0, SR, $sp)
         li      $t1, ~SR_IMASK
         and     $t0, $t1
@@ -279,7 +298,7 @@ kern_exc_leave:
         LOAD_REG($v0, V0, $sp)
         LOAD_REG($at, AT, $sp)
 
-        # ... and finally status register.
+        # ... and finally status register (assume EXL bit is set)
         LOAD_REG($k1, SR, $sp)
         mtc0    $k1, C0_STATUS
 

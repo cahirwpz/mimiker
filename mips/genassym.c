@@ -1,4 +1,5 @@
 #include <assym.h>
+#include <context.h>
 #include <thread.h>
 #include <pcpu.h>
 #include <mips/ctx.h>
@@ -10,7 +11,11 @@ ASSYM(TD_UCTX, offsetof(thread_t, td_uctx));
 ASSYM(TD_UCTX_FPU, offsetof(thread_t, td_uctx_fpu));
 ASSYM(TD_KFRAME, offsetof(thread_t, td_kframe));
 ASSYM(TD_KCTX, offsetof(thread_t, td_kctx));
+ASSYM(TD_KSTACK, offsetof(thread_t, td_kstack));
 ASSYM(TD_FLAGS, offsetof(thread_t, td_flags));
+
+ASSYM(STK_BASE, offsetof(stack_t, stk_base));
+ASSYM(STK_SIZE, offsetof(stack_t, stk_size));
 
 ASSYM(CTX_S0, offsetof(ctx_t, s0));
 ASSYM(CTX_S1, offsetof(ctx_t, s1));
