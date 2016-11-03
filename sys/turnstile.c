@@ -81,7 +81,6 @@ void turnstile_wait(turnstile_t* ts) {
   TAILQ_INSERT_TAIL(&ts->td_queue, td, td_lock);
   td->td_state = TDS_WAITING;
   cs_leave();
-  //RACE CONDITION HERE!
   sched_yield();
 }
 
@@ -92,7 +91,9 @@ void turnstile_dump(turnstile_t* ts)
     kprintf("Blocked on turnstile: \n");
     TAILQ_FOREACH(it, &ts->td_queue, td_lock)
     {
-        kprintf("%s", it->td_name);
+        kprintf("%s\n", it->td_name);
+        if(TAILQ_NEXT(it, td_lock) == it)
+            panic("Broken list!");
     }
     kprintf("\n");
 }
@@ -137,7 +138,8 @@ void turnstile_init(turnstile_t* turnstile)
 void mtx_sleep_lock(mtx_sleep_t *mtx)
 {
   assert(!mtx_owned(mtx)); //No recursive mutexes for now
-  while(!mtx_sleep_try_to_lock(mtx)) {
+  while(!mtx_sleep_try_to_lock(mtx))
+  {
     turnstile_wait(&mtx->turnstile);
   }
 }

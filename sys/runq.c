@@ -15,6 +15,17 @@ void runq_add(runq_t *rq, thread_t *td) {
   TAILQ_INSERT_TAIL(&rq->rq_queues[prio], td, td_runq);
 }
 
+void runq_dump(runq_t *rq) {
+  kprintf("\n");
+  for (int i = RQ_NQS - 1; i >= 0; i--) {
+    struct rq_head *head = &rq->rq_queues[i];
+    thread_t *it;
+    TAILQ_FOREACH(it, head, td_runq)
+        kprintf("thread: %s", it->td_name);
+  }
+  kprintf("\n");
+}
+
 thread_t *runq_choose(runq_t *rq) {
   for (int i = RQ_NQS - 1; i >= 0; i--) {
     struct rq_head *head = &rq->rq_queues[i];
