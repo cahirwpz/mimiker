@@ -29,11 +29,11 @@ void never_unlock()
 void test1()
 {
     mtx_sleep_init(&mtx);
-    thread_t *td1 = thread_create("td1", thread1_main, TD_KERNEL);
-    thread_t *td2 = thread_create("td2", thread1_main, TD_KERNEL);
-    thread_t *td3 = thread_create("td3", thread1_main, TD_KERNEL);
-    thread_t *td4 = thread_create("td4", thread1_main, TD_KERNEL);
-    thread_t *td5 = thread_create("td5", thread1_main, TD_KERNEL);
+    thread_t *td1 = thread_create("td1", thread1_main);
+    thread_t *td2 = thread_create("td2", thread1_main);
+    thread_t *td3 = thread_create("td3", thread1_main);
+    thread_t *td4 = thread_create("td4", thread1_main);
+    thread_t *td5 = thread_create("td5", thread1_main);
     sched_add(td1);
     sched_add(td2);
     sched_add(td3);

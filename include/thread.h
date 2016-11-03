@@ -15,12 +15,6 @@ typedef struct vm_map vm_map_t;
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 
-typedef enum
-{
-    TD_USER,
-    TD_KERNEL
-} td_type_t;
-
 typedef struct thread {
   TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
@@ -31,7 +25,6 @@ typedef struct thread {
   uint32_t td_flags;           /* TDF_* flags */
   volatile uint32_t td_csnest; /* critical section nest level */
   vm_map_t *user_map;           /* User space memory map */
-  td_type_t td_type;
   /* thread context */
   exc_frame_t td_uctx;    /* user context (always exception) */
   fpu_ctx_t td_uctx_fpu;  /* user FPU context (always exception) */
@@ -51,7 +44,7 @@ typedef struct thread {
 
 thread_t *thread_self();
 noreturn void thread_init(void (*fn)(), int n, ...);
-thread_t *thread_create(const char *name, void (*fn)(), td_type_t td_type);
+thread_t *thread_create(const char *name, void (*fn)());
 void thread_delete(thread_t *td);
 
 void thread_switch_to(thread_t *td_ready);
