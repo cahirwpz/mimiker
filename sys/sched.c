@@ -7,6 +7,7 @@
 #include <callout.h>
 #include <interrupt.h>
 #include <mutex.h>
+#include <sync.h>
 
 static thread_t *idle_thread;
 static runq_t runq;
@@ -46,6 +47,9 @@ void sched_clock() {
       td->td_flags |= TDF_NEEDSWITCH | TDF_SLICEEND;
 }
 
+void sched_turnstile_yield() {
+}
+
 void sched_yield() {
   sched_switch(NULL);
 }
@@ -55,6 +59,7 @@ void sched_switch(thread_t *newtd) {
     return;
 
   thread_t *td = thread_self();
+  //assert(td->td_csnest == 1);
 
   td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
 
