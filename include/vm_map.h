@@ -9,7 +9,7 @@
  * That's because in current implementation page table is always located in
  * KSEG2, while user vm_map address range contains no KSEG2 */
 
-typedef enum { KERNEL_VM_MAP, USER_VM_MAP } vm_map_type_t;
+typedef enum { KERNEL_VM_MAP, USER_VM_MAP, VM_MAP_TYPE_LAST } vm_map_type_t;
 
 typedef struct vm_map_entry vm_map_entry_t;
 
@@ -26,6 +26,7 @@ struct vm_map_entry {
 typedef struct vm_map {
   TAILQ_HEAD(, vm_map_entry) list;
   SPLAY_HEAD(vm_map_tree, vm_map_entry) tree;
+  vm_map_type_t type;
   size_t nentries;
   pmap_t pmap;
 } vm_map_t;
@@ -38,7 +39,7 @@ typedef struct vm_map {
  * vm_map_entry_t* vm_map_allocate_space(vm_map_t* map, size_t length) */
 
 void set_active_vm_map(vm_map_t *map);
-vm_map_t *get_active_vm_map(pmap_type_t type);
+vm_map_t *get_active_vm_map(vm_map_type_t type);
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr);
 
 void vm_map_init();

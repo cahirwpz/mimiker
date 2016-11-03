@@ -6,20 +6,20 @@
 #include <vm_object.h>
 #include <vm_map.h>
 
-static vm_map_t *active_vm_map[PMAP_LAST];
+static vm_map_t *active_vm_map[VM_MAP_TYPE_LAST];
 
 void set_active_vm_map(vm_map_t *map) {
-  pmap_type_t type = map->pmap.type;
+  vm_map_type_t type = map->type;
   active_vm_map[type] = map;
   set_active_pmap(&map->pmap);
 }
 
-vm_map_t *get_active_vm_map(pmap_type_t type) {
+vm_map_t *get_active_vm_map(vm_map_type_t type) {
   return active_vm_map[type];
 }
 
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr) {
-  for (pmap_type_t type = 0; type < PMAP_LAST; type++)
+  for (vm_map_type_t type = 0; type < VM_MAP_TYPE_LAST; type++)
     if (active_vm_map[type]->pmap.start <= addr &&
         addr < active_vm_map[type]->pmap.end)
       return active_vm_map[type];
@@ -42,8 +42,19 @@ void vm_map_init() {
   vm_page_t *pg = pm_alloc(2);
   kmalloc_init(mpool);
   kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
-  vm_map_t *map = vm_map_new(PMAP_KERNEL);
+  vm_map_t *map = vm_map_new(KERNEL_VM_MAP);
   set_active_vm_map(map);
+}
+
+static inline pmap_type_t vm_map_type_to_pmap_type(vm_map_type_t type) {
+  switch (type) {
+  case KERNEL_VM_MAP:
+    return PMAP_KERNEL;
+  case USER_VM_MAP:
+    return PMAP_USER;
+  default:
+    panic("vm_map_type does not correspond to any pmap_type");
+  }
 }
 
 vm_map_t *vm_map_new(vm_map_type_t type) {
@@ -51,8 +62,9 @@ vm_map_t *vm_map_new(vm_map_type_t type) {
 
   TAILQ_INIT(&map->list);
   SPLAY_INIT(&map->tree);
-  pmap_setup(&map->pmap, type);
+  pmap_setup(&map->pmap, vm_map_type_to_pmap_type(type));
   map->nentries = 0;
+  map->type = type;
   return map;
 }
 
