@@ -20,8 +20,6 @@ static void demo_thread_2() {
 }
 
 int main() {
-  sched_init();
-
   thread_t *t1 = thread_create("t1", demo_thread_1);
   thread_t *t2 = thread_create("t2", demo_thread_1);
   thread_t *t3 = thread_create("t3", demo_thread_1);

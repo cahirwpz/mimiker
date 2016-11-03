@@ -10,6 +10,7 @@
 
 static thread_t *idle_thread;
 static runq_t runq;
+static bool sched_active = false;
 
 #define SLICE 10
 
@@ -50,6 +51,9 @@ void sched_yield() {
 }
 
 void sched_switch(thread_t *newtd) {
+  if (!sched_active)
+    return;
+
   thread_t *td = thread_self();
 
   td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
@@ -74,6 +78,7 @@ void sched_switch(thread_t *newtd) {
 noreturn void sched_run() {
   idle_thread = thread_self();
   idle_thread->td_slice = 0;
+  sched_active = true;
 
   while (true)
     idle_thread->td_flags |= TDF_NEEDSWITCH;
