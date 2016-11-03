@@ -74,7 +74,11 @@ user_exc_enter:
         # Load kernel global pointer.
         la      $gp, _gp
 
-        # Load kernel stack pointer (always stack bottom ?)
+        # Set kernel stack pointer to the bottom of kernel stack.
+        #
+        # We can enter user mode only with `user_exc_leave`. The routine does
+        # not return and kernel context is not saved while entering user mode.
+        # Hence we don't care about $sp and we can set it to kstack's bottom.
         LOAD_PCPU($t0)
         lw      $t0, PCPU_CURTHREAD($t0)
         lw      $sp, TD_KSTACK+STK_BASE($t0)
@@ -114,10 +118,10 @@ user_exc_leave:
         lw      $k0, PCPU_CURTHREAD($k0)
         addu    $k0, TD_UCTX
 
-        # Turn on FPU, enter exception level, enter user mode
-        # and enable interrupts (last two applies only after ERET).
-        # TODO: What about interrupt mask?
-        li      $t1, (SR_CU1|SR_KSU_USER|SR_EXL|SR_IE)
+        # Turn on FPU, unmask all interrupts, enter exception level,
+        # enter user mode and enable interrupts
+        # (last two applies only after ERET).
+        li      $t1, (SR_CU1|SR_IMASK|SR_KSU_USER|SR_EXL|SR_IE)
         or      $t0, $t1
         mtc0    $t0, C0_STATUS
 
