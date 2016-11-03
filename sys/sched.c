@@ -69,8 +69,6 @@ void sched_switch(thread_t *newtd) {
   if (newtd == NULL) {
     newtd = runq_choose(&runq);
     if (newtd) {
-      if(newtd->td_type == TD_USER && newtd->user_map)
-          set_active_vm_map(newtd->user_map);
       runq_remove(&runq, newtd);
     }
     else
