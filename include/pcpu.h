@@ -1,9 +1,13 @@
 #ifndef _PCPU_H_
 #define _PCPU_H_
 
-#include <thread.h>
+typedef struct thread thread_t;
+typedef struct pmap pmap_t;
 
-typedef struct pcpu { thread_t *curthread; } pcpu_t;
+typedef struct pcpu {
+  thread_t *curthread;
+  pmap_t *curpmap;
+} pcpu_t;
 
 extern pcpu_t _pcpu_data[1];
 

@@ -9,9 +9,8 @@ int main() {
   kprintf("syscall(1) = %d\n", syscall(1));
 
   /* ... let's prepare user space */
-  set_active_vm_map(vm_map_new(USER_VM_MAP));
-
-  vm_map_t *umap = get_active_vm_map(PMAP_USER);
+  vm_map_t *umap = vm_map_new();
+  vm_map_activate(umap);
 
   vm_addr_t stext = 0x400000;
   vm_addr_t etext = stext + PAGESIZE;

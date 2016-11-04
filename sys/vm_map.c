@@ -6,24 +6,26 @@
 #include <vm_object.h>
 #include <vm_map.h>
 
-static vm_map_t *active_vm_map[PMAP_LAST];
+static vm_map_t kspace;
+static vm_map_t *uspace;
 
-void set_active_vm_map(vm_map_t *map) {
-  pmap_type_t type = map->pmap.type;
-  active_vm_map[type] = map;
-  set_active_pmap(&map->pmap);
+void vm_map_activate(vm_map_t *map) {
+  uspace = map;
+  pmap_activate(map->pmap);
 }
 
-vm_map_t *get_active_vm_map(pmap_type_t type) {
-  return active_vm_map[type];
+vm_map_t *get_user_vm_map() { return uspace; }
+vm_map_t *get_kernel_vm_map() { return &kspace; }
+
+static bool in_range(vm_map_t *map, vm_addr_t addr) {
+  return map->pmap->start <= addr && addr < map->pmap->end;
 }
 
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr) {
-  for (pmap_type_t type = 0; type < PMAP_LAST; type++)
-    if (active_vm_map[type]->pmap.start <= addr &&
-        addr < active_vm_map[type]->pmap.end)
-      return active_vm_map[type];
-
+  if (in_range(get_user_vm_map(), addr))
+      return get_user_vm_map();
+  if (in_range(get_kernel_vm_map(), addr))
+      return get_kernel_vm_map();
   return NULL;
 }
 
@@ -36,23 +38,27 @@ static inline int vm_map_entry_cmp(vm_map_entry_t *a, vm_map_entry_t *b) {
 SPLAY_PROTOTYPE(vm_map_tree, vm_map_entry, map_tree, vm_map_entry_cmp);
 SPLAY_GENERATE(vm_map_tree, vm_map_entry, map_tree, vm_map_entry_cmp);
 
+static void vm_map_setup(vm_map_t *map) {
+  TAILQ_INIT(&map->list);
+  SPLAY_INIT(&map->tree);
+}
+
 static MALLOC_DEFINE(mpool, "vm_map memory pool");
 
 void vm_map_init() {
   vm_page_t *pg = pm_alloc(2);
   kmalloc_init(mpool);
   kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
-  vm_map_t *map = vm_map_new(PMAP_KERNEL);
-  set_active_vm_map(map);
+
+  vm_map_setup(&kspace);
+  kspace.pmap = get_kernel_pmap();
 }
 
-vm_map_t *vm_map_new(vm_map_type_t type) {
+vm_map_t *vm_map_new() {
   vm_map_t *map = kmalloc(mpool, sizeof(vm_map_t), M_ZERO);
 
-  TAILQ_INIT(&map->list);
-  SPLAY_INIT(&map->tree);
-  pmap_setup(&map->pmap, type);
-  map->nentries = 0;
+  vm_map_setup(map);
+  map->pmap = pmap_new();
   return map;
 }
 
@@ -92,8 +98,8 @@ void vm_map_delete(vm_map_t *map) {
 
 vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                                  vm_prot_t prot) {
-  assert(start >= map->pmap.start);
-  assert(end <= map->pmap.end);
+  assert(start >= map->pmap->start);
+  assert(end <= map->pmap->end);
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
 
@@ -119,8 +125,8 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
 
 void vm_map_dump(vm_map_t *map) {
   vm_map_entry_t *it;
-  kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n", map->pmap.start,
-          map->pmap.end);
+  kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n",
+          map->pmap->start, map->pmap->end);
   TAILQ_FOREACH (it, &map->list, map_list) {
     kprintf("[vm_map] * %08lx - %08lx [%c%c%c]\n", it->start, it->end,
             (it->prot & VM_PROT_READ) ? 'r' : '-',
@@ -159,6 +165,6 @@ void vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
 
   if (!frame)
     frame = obj->pgr->pgr_fault(obj, fault_page, offset, fault_type);
-  pmap_map(&map->pmap, fault_addr, fault_addr + PAGESIZE, frame->paddr,
+  pmap_map(map->pmap, fault_addr, fault_addr + PAGESIZE, frame->paddr,
            entry->prot);
 }

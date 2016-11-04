@@ -3,6 +3,7 @@
 #include <mips/exc.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
+#include <pcpu.h>
 #include <pmap.h>
 #include <vm_map.h>
 
@@ -25,6 +26,11 @@
 #define PT_ENTRIES (PD_ENTRIES * PTF_ENTRIES)
 #define PT_SIZE (PT_ENTRIES * sizeof(pte_t))
 
+#define PMAP_KERNEL_BEGIN MIPS_KSEG2_START
+#define PMAP_KERNEL_END   0xfffff000  /* kseg2 & kseg3 */
+#define PMAP_USER_BEGIN   0x00000000
+#define PMAP_USER_END     MIPS_KSEG0_START /* useg */
+
 static const vm_addr_t PT_HOLE_START = PT_BASE + MIPS_KSEG0_START / PTF_ENTRIES;
 static const vm_addr_t PT_HOLE_END = PT_BASE + MIPS_KSEG2_START / PTF_ENTRIES;
 
@@ -32,16 +38,16 @@ static bool is_valid(pte_t pte) {
   return pte & PTE_VALID;
 }
 
-static pmap_t *active_pmap[PMAP_LAST];
+static bool in_user_space(vm_addr_t addr) {
+  return (addr >= PMAP_USER_BEGIN && addr < PMAP_USER_END);
+}
+
+static bool in_kernel_space(vm_addr_t addr) {
+  return (addr >= PMAP_KERNEL_BEGIN && addr < PMAP_KERNEL_END);
+}
+
+static pmap_t kernel_pmap;
 static asid_t asid_counter;
-
-typedef struct { vm_addr_t start, end; } pmap_range_t;
-
-static pmap_range_t pmap_range[PMAP_LAST] = {
-    [PMAP_KERNEL] = {MIPS_KSEG2_START + PT_SIZE,
-                     0xfffff000},                /* kseg2 & kseg3 */
-    [PMAP_USER] = {0x00000000, MIPS_KSEG0_START} /* useg */
-};
 
 static asid_t get_new_asid() {
   if (asid_counter < MAX_ASID)
@@ -50,20 +56,18 @@ static asid_t get_new_asid() {
     panic("Out of asids!");
 }
 
-void pmap_setup(pmap_t *pmap, pmap_type_t type) {
-  pmap->type = type;
+static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   pmap->pte = (pte_t *)PT_BASE;
   pmap->pde_page = pm_alloc(1);
   pmap->pde = (pte_t *)pmap->pde_page->vaddr;
-  pmap->start = pmap_range[type].start;
-  pmap->end = pmap_range[type].end;
+  pmap->start = start;
+  pmap->end = end;
   pmap->asid = get_new_asid();
-  assert(type != PMAP_KERNEL || pmap->asid == 0); // kernel pmap has asid 0
   log("Page directory table allocated at %08lx", (intptr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
 
   for (int i = 0; i < PD_ENTRIES; i++)
-    pmap->pde[i] = (pmap->type == PMAP_KERNEL) ? PTE_GLOBAL : 0;
+    pmap->pde[i] = in_kernel_space(i * PTF_ENTRIES * PAGESIZE) ? PTE_GLOBAL : 0;
 }
 
 /* TODO: remove all mappings from TLB, evict related cache lines */
@@ -75,6 +79,27 @@ void pmap_reset(pmap_t *pmap) {
   }
   pm_free(pmap->pde_page);
   memset(pmap, 0, sizeof(pmap_t)); /* Set up for reuse. */
+}
+
+static MALLOC_DEFINE(mpool, "pmap memory pool");
+
+void pmap_init() {
+  vm_page_t *pg = pm_alloc(1);
+  kmalloc_init(mpool);
+  kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
+
+  pmap_setup(&kernel_pmap, PMAP_KERNEL_BEGIN + PT_SIZE, PMAP_KERNEL_END);
+}
+
+pmap_t *pmap_new() {
+  pmap_t *pmap = kmalloc(mpool, sizeof(pmap_t), M_ZERO);
+  pmap_setup(pmap, PMAP_USER_BEGIN, PMAP_USER_END);
+  return pmap;
+}
+
+void pmap_delete(pmap_t *pmap) {
+  pmap_reset(pmap);
+  kfree(mpool, pmap);
 }
 
 bool pmap_is_mapped(pmap_t *pmap, vm_addr_t vaddr) {
@@ -154,7 +179,7 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
     pmap_add_pde(pmap, vaddr);
 
   PTE_OF(pmap, vaddr) = PTE_PFN(paddr) | vm_prot_map[prot] |
-                        (pmap->type == PMAP_KERNEL ? PTE_GLOBAL : 0);
+                        (in_kernel_space(vaddr) ? PTE_GLOBAL : 0);
   log("Add mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
       (intptr_t)&PTE_OF(pmap, vaddr));
 
@@ -262,32 +287,26 @@ void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
  * Correct solution needs to make sure no unwanted entries are left in TLB and
  * caches after the switch.
  */
-pmap_t *pmap_switch(pmap_t *pmap) {
-  pmap_t *old_pmap = active_pmap[PMAP_USER];
-  set_active_pmap(pmap);
-  return old_pmap;
+
+void pmap_activate(pmap_t *pmap) {
+  PCPU_GET(curpmap) = pmap;
+  if (pmap)
+    mips32_set_c0(C0_ENTRYHI, pmap->asid);
 }
 
-void set_active_pmap(pmap_t *pmap) {
-  pmap_type_t type = pmap->type;
-
-  if (type == PMAP_KERNEL && active_pmap[type])
-    panic("Kernel page table can be set only once!");
-
-  active_pmap[type] = pmap;
-  mips32_set_c0(C0_ENTRYHI, pmap->asid);
+pmap_t *get_kernel_pmap() {
+  return &kernel_pmap;
 }
 
-pmap_t *get_active_pmap(pmap_type_t type) {
-  assert(type == PMAP_KERNEL || type == PMAP_USER);
-  return active_pmap[type];
+pmap_t *get_user_pmap() {
+  return PCPU_GET(curpmap);
 }
 
 pmap_t *get_active_pmap_by_addr(vm_addr_t addr) {
-  for (pmap_type_t type = 0; type < PMAP_LAST; type++)
-    if (pmap_range[type].start <= addr && addr < pmap_range[type].end)
-      return active_pmap[type];
-
+  if (in_kernel_space(addr))
+    return get_kernel_pmap();
+  if (in_user_space(addr))
+    return get_user_pmap();
   return NULL;
 }
 

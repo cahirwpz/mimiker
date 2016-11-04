@@ -5,12 +5,6 @@
 #include <pmap.h>
 #include <vm.h>
 
-/* There has to be distinction between kernel and user vm_map,
- * That's because in current implementation page table is always located in
- * KSEG2, while user vm_map address range contains no KSEG2 */
-
-typedef enum { KERNEL_VM_MAP, USER_VM_MAP } vm_map_type_t;
-
 typedef struct vm_map_entry vm_map_entry_t;
 
 struct vm_map_entry {
@@ -27,7 +21,7 @@ typedef struct vm_map {
   TAILQ_HEAD(, vm_map_entry) list;
   SPLAY_HEAD(vm_map_tree, vm_map_entry) tree;
   size_t nentries;
-  pmap_t pmap;
+  pmap_t *pmap;
 } vm_map_t;
 
 /* TODO we will need some functions to allocate address ranges,
@@ -37,12 +31,13 @@ typedef struct vm_map {
  *
  * vm_map_entry_t* vm_map_allocate_space(vm_map_t* map, size_t length) */
 
-void set_active_vm_map(vm_map_t *map);
-vm_map_t *get_active_vm_map(pmap_type_t type);
+void vm_map_activate(vm_map_t *map);
+vm_map_t *get_user_vm_map();
+vm_map_t *get_kernel_vm_map();
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr);
 
 void vm_map_init();
-vm_map_t *vm_map_new(vm_map_type_t t);
+vm_map_t *vm_map_new();
 void vm_map_delete(vm_map_t *vm_map);
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr);

@@ -4,8 +4,8 @@
 #include <physmem.h>
 #include <vm.h>
 
-void general_pmap_test() {
-  pmap_t *pmap = get_active_pmap(PMAP_KERNEL);
+void kernel_pmap_test() {
+  pmap_t *pmap = get_kernel_pmap();
 
   vm_page_t *pg = pm_alloc(16);
   size_t size = pg->size * PAGESIZE;
@@ -40,19 +40,12 @@ void general_pmap_test() {
   pmap_reset(pmap);
   pm_free(pg);
 
-  kprintf("Tests passed\n");
+  log("Test passed.");
 }
 
-int *vm_addr_to_ptr(vm_addr_t addr) {
-  return (int *)addr;
-}
-
-static void change_pmap() {
-  pmap_t pmap1;
-  pmap_t pmap2;
-
-  pmap_setup(&pmap1, PMAP_USER);
-  pmap_setup(&pmap2, PMAP_USER);
+void user_pmap_test() {
+  pmap_t *pmap1 = pmap_new();
+  pmap_t *pmap2 = pmap_new();
 
   vm_addr_t start = 0x1001000;
   vm_addr_t end = 0x1002000;
@@ -60,24 +53,31 @@ static void change_pmap() {
   vm_page_t *pg1 = pm_alloc(1);
   vm_page_t *pg2 = pm_alloc(1);
 
-  set_active_pmap(&pmap1);
-  pmap_map(&pmap1, start, end, pg1->paddr, VM_PROT_READ | VM_PROT_WRITE);
-  set_active_pmap(&pmap2);
-  pmap_map(&pmap2, start, end, pg2->paddr, VM_PROT_READ | VM_PROT_WRITE);
+  pmap_activate(pmap1);
+  pmap_map(pmap1, start, end, pg1->paddr, VM_PROT_READ | VM_PROT_WRITE);
+  pmap_activate(pmap2);
+  pmap_map(pmap2, start, end, pg2->paddr, VM_PROT_READ | VM_PROT_WRITE);
 
-  volatile int *ptr = vm_addr_to_ptr(start);
+  volatile int *ptr = (int *)start;
   *ptr = 100;
-  pmap_switch(&pmap1);
+  pmap_activate(pmap1);
   *ptr = 200;
-  pmap_switch(&pmap2);
+  pmap_activate(pmap2);
   assert(*ptr == 100);
-  kprintf("*ptr == %d\n", *ptr);
-  pmap_switch(&pmap1);
+  log("*ptr == %d", *ptr);
+  pmap_activate(pmap1);
   assert(*ptr == 200);
-  kprintf("*ptr == %d\n", *ptr);
+  log("*ptr == %d", *ptr);
+
+  pmap_delete(pmap1);
+  pmap_delete(pmap2);
+  log("Test passed.");
 }
 
 int main() {
-  change_pmap();
+  kernel_pmap_test();
+  user_pmap_test();
+
   return 0;
 }
+

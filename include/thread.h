@@ -9,6 +9,7 @@
 typedef uint8_t td_prio_t;
 typedef struct vm_page vm_page_t;
 typedef struct sleepq sleepq_t;
+typedef struct vm_map vm_map_t;
 
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
@@ -28,6 +29,7 @@ typedef struct thread {
   ctx_t td_kctx;          /* kernel context (switch) */
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
+  vm_map_t *td_uspace;    /* thread's user space map */
   /* waiting channel */
   sleepq_t *td_sleepqueue;
   void *td_wchan;

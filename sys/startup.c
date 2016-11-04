@@ -43,6 +43,7 @@ int kernel_boot(int argc, char **argv, char **envp) {
   intr_init();
   callout_init();
   tlb_init();
+  pmap_init();
   vm_object_init();
   vm_map_init();
   sched_init();
