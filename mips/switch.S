@@ -52,7 +52,7 @@ ctx_resume:
         LOAD_REG($s6, S6, $a1)
         LOAD_REG($s7, S7, $a1)
 
-        LOAD_REG($t0, SR, $a0)          # restore C0_SR except interrupt mask
+        LOAD_REG($t0, SR, $a1)          # restore C0_SR except interrupt mask
         and     $t0, $t0, ~SR_IMASK
         mfc0    $t1, C0_SR
         and     $t1, $t1, SR_IMASK
