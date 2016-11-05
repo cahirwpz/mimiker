@@ -30,3 +30,22 @@ void ctx_init(thread_t *td, void (*target)()) {
   kframe->sp = (reg_t)sp;
   kframe->sr = (reg_t)sr;
 }
+
+void ctx_init_usermode(vm_addr_t entry_point, vm_addr_t stack_pointer) {
+  /* We are starting machine-specific thread context setup and
+     switch. It would be very unfortunate if threads switched before
+     we are done. */
+  intr_disable();
+
+  thread_t *td = thread_self();
+  td->td_uctx.gp = 0;
+  td->td_uctx.pc = entry_point;
+  td->td_uctx.sp = stack_pointer;
+  td->td_uctx.ra = 0;
+  /* TODO: Is there any reason to clear other registers? */
+
+  /* This will apply context, enter user mode and re-enable interrupts. */
+  user_exc_leave();
+
+  __builtin_unreachable();
+}
