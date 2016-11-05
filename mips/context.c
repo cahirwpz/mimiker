@@ -31,11 +31,11 @@ void ctx_init(thread_t *td, void (*target)()) {
   kframe->sr = (reg_t)sr;
 }
 
-void ctx_init_usermode(vm_addr_t entry_point, vm_addr_t stack_pointer) {
-  thread_t *td = thread_self();
+void uctx_init(thread_t *td, vm_addr_t pc, vm_addr_t sp) {
   bzero(&td->td_uctx, sizeof(exc_frame_t));
+
   td->td_uctx.gp = 0; /* Explicit. */
-  td->td_uctx.pc = entry_point;
-  td->td_uctx.sp = stack_pointer;
+  td->td_uctx.pc = pc;
+  td->td_uctx.sp = sp;
   td->td_uctx.ra = 0; /* Explicit. */
 }
