@@ -135,6 +135,12 @@ int do_exec(const exec_args_t *args) {
         kprintf("[exec] Exec failed: Segment p_vaddr is not page alligned\n");
         goto exec_fail;
       }
+      if (ph->p_memsz == 0) {
+        /* Avoid creating empty vm_map entries for segments that
+           occupy no space in memory, as they might overlap with
+           subsequent segments. */
+        continue;
+      }
       vm_addr_t start = ph->p_vaddr;
       vm_addr_t end = roundup(ph->p_vaddr + ph->p_memsz, PAGESIZE);
       /* TODO: What if segments overlap? */
