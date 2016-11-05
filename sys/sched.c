@@ -69,10 +69,10 @@ void sched_switch(thread_t *newtd) {
       newtd = idle_thread;
   }
 
-  if (td != newtd) {
-    newtd->td_state = TDS_RUNNING;
+  newtd->td_state = TDS_RUNNING;
+
+  if (td != newtd)
     ctx_switch(td, newtd);
-  }
 }
 
 noreturn void sched_run() {
