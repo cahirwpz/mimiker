@@ -1,7 +1,7 @@
 import gdb
 
-def print_thread(thr):
-    print(thr['td_name'])
+def pretty_thread(thr):
+    return str(thr['td_name'].string())
 
 def collect_values_from_tq(tq,field):
     tq_it = tq['tqh_first']
@@ -33,27 +33,19 @@ class KernelThreads (gdb.Command):
             raise gdb.GdbError("kernel-threads takes no arguments")
         runnable = get_runnable_threads()
         if runnable:
-            print("runnable_threads:")
-            for t in runnable:
-                print_thread(t)
+            print "runnable_threads: ", map(pretty_thread, runnable)
         else:
-            print("no runnable threads")
-        print("current_thread:")
-        print_thread(current_thread())
+            print "no runnable threads"
+        print "current_thread: ", pretty_thread(current_thread())
 
 class CtxSwitchTracerBP (gdb.Breakpoint):
     def __init__(self):
         super(CtxSwitchTracerBP, self).__init__('ctx_switch')
 
     def stop(self):
-        print('context switch')
         frm = gdb.parse_and_eval('(struct thread*)$a0').dereference()
         to = gdb.parse_and_eval('(struct thread*)$a1').dereference()
-        print('old thread: ')
-        print_thread(frm)
-
-        print('new thread: ')
-        print_thread(to)
+        print 'context switch from ', pretty_thread(frm), ' to ', pretty_thread(to)
         return False
 
 class CtxSwitchTracer (gdb.Command):
