@@ -7,6 +7,7 @@
 #include <thread.h>
 #include <string.h>
 #include <errno.h>
+#include <sync.h>
 #include <mips/stack.h>
 
 extern uint8_t _binary_prog_uelf_start[];
@@ -86,13 +87,16 @@ int do_exec(const exec_args_t *args) {
     return -ENOEXEC;
   }
 
-  /* TODO: Get current process description structure */
+  thread_t *td = thread_self();
 
-  /* The current vmap should be taken from the process description! */
-  vm_map_t *old_vmap = get_user_vm_map();
-  /* We may not destroy the current vm map, because exec can still
-   * fail, and in that case we must be able to return to the
-   * original address space
+  /* Please don't switch to other threads while we prepare the address
+     space, because switching threads switches user vm space */
+  cs_enter();
+
+  vm_map_t *old_vmap = td->td_uspace;
+  /* We can not destroy the current vm map, because exec can still
+   * fail, and in that case we must be able to return to the original
+   * address space
    */
 
   vm_map_t *vmap = vm_map_new();
@@ -183,25 +187,21 @@ int do_exec(const exec_args_t *args) {
 
   vm_map_dump(vmap);
 
+  /* vmap is ready, it is safe now to switch threads. */
+  cs_leave();
+
   /* At this point we are certain that exec suceeds.
    * We can safely destroy the previous vm map. */
 
-  /* This condition will be unnecessary when we take the vmap info
-   * from thread struct. The user thread calling exec() WILL
-   * certainly have an existing vmap before exec()ing. */
+  /* This condition is necessary, because exec() serves not just as a
+     syscall handler, but it can also be called by a kernel thread
+     (e.g. to start PID 1). */
   if (old_vmap)
     vm_map_delete(old_vmap);
 
-  /* TODO: Assign the new vm map to the process structure */
-
-  thread_t *th = thread_self();
-  th->td_kctx.gp = 0;
-  th->td_kctx.pc = eh->e_entry;
-  th->td_kctx.sp = stack_bottom;
-  /* TODO: Since there is no process structure yet, this call starts
-   * the user code in kernel mode. $sp is set according to data
-   * prepared by prepare_program_stack. Setting $ra is irrelevant,
-   * as the ctx_switch procedure overwrites it anyway. */
+  /* Assigning a vm_mp to td_uspace effectively turns this thread into
+     a user thread, if it already weren't one. */
+  td->td_uspace = vmap;
 
   /* Forcefully apply changed context.
    * This might be also done by yielding to the scheduler, but it
@@ -209,8 +209,7 @@ int do_exec(const exec_args_t *args) {
    * harder, as it difficult to pinpoint the exact time when we
    * enter the user code */
   kprintf("[exec] Entering e_entry NOW\n");
-  thread_t junk;
-  ctx_switch(&junk, th);
+  ctx_init_usermode(eh->e_entry, stack_bottom);
 
   /*NOTREACHED*/
   __builtin_unreachable();
@@ -221,6 +220,8 @@ exec_fail:
   /* Return to the previous map, unmodified by exec */
   if (old_vmap)
     vm_map_activate(old_vmap);
+
+  cs_leave();
 
   return -EINVAL;
 }
