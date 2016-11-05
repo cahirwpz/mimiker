@@ -1,20 +1,23 @@
 #include <stdc.h>
 #include <malloc.h>
 #include <pmap.h>
+#include <sync.h>
+#include <thread.h>
 #include <vm.h>
 #include <vm_pager.h>
 #include <vm_object.h>
 #include <vm_map.h>
 
 static vm_map_t kspace;
-static vm_map_t *uspace;
 
 void vm_map_activate(vm_map_t *map) {
-  uspace = map;
+  cs_enter();
+  thread_self()->td_uspace = map;
   pmap_activate(map ? map->pmap : NULL);
+  cs_leave();
 }
 
-vm_map_t *get_user_vm_map() { return uspace; }
+vm_map_t *get_user_vm_map() { return thread_self()->td_uspace; }
 vm_map_t *get_kernel_vm_map() { return &kspace; }
 
 static bool in_range(vm_map_t *map, vm_addr_t addr) {

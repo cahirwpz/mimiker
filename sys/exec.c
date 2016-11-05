@@ -9,19 +9,25 @@
 #include <errno.h>
 #include <mips/stack.h>
 
-extern uint8_t _binary_prog_uelf_start[];
-extern uint8_t _binary_prog_uelf_size[];
-extern uint8_t _binary_prog_uelf_end[];
+#define EMBED_ELF_DECLARE(name)                                                \
+  extern uint8_t _binary_##name##_uelf_start[];                                \
+  extern uint8_t _binary_##name##_uelf_size[];                                 \
+  extern uint8_t _binary_##name##_uelf_end[];
+
+EMBED_ELF_DECLARE(prog);
 
 int get_elf_image(const exec_args_t *args, uint8_t **out_image,
                   size_t *out_size) {
-  if (strcmp(args->prog_name, "prog") == 0) {
-    *out_image = _binary_prog_uelf_start;
-    *out_size = (size_t)_binary_prog_uelf_size;
-    return 0;
-  } else {
-    return -ENOENT;
+
+#define EMBED_ELF_BY_NAME(name)                                                \
+  if (strcmp(args->prog_name, #name) == 0) {                                   \
+    *out_image = _binary_##name##_uelf_start;                                  \
+    *out_size = (size_t)_binary_##name##_uelf_size;                            \
+    return 0;                                                                  \
   }
+
+  EMBED_ELF_BY_NAME(prog);
+  return -ENOENT;
 }
 
 int do_exec(const exec_args_t *args) {
