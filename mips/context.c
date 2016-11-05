@@ -22,7 +22,6 @@ void ctx_init(thread_t *td, void (*target)()) {
   /* Initialize registers just for ctx_boot to work correctly. */
   kctx->pc = (reg_t)kern_exc_leave;
   kctx->sp = (reg_t)kframe;
-  kctx->tcb = (reg_t)td;
 
   /* This is the context that ctx_boot will restore. */
   kframe->pc = (reg_t)target;

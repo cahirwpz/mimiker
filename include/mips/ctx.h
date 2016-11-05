@@ -15,7 +15,7 @@
 typedef struct ctx {
   reg_t s0, s1, s2, s3, s4, s5, s6, s7;
   reg_t gp, sp, fp, ra;
-  reg_t pc, sr, tcb;
+  reg_t pc, sr;
 } ctx_t;
 
 /* Following registers are saved only for user threads. */

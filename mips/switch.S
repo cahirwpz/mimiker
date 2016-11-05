@@ -35,10 +35,15 @@ LEAF(ctx_switch)
         SAVE_REG($s7, S7, $a0)
 
 ctx_resume:
-        addu    $a1, TD_KCTX
-        LOAD_REG($t0, TCB, $a1)
-        LOAD_PCPU($t1)
-        sw      $t0, PCPU_CURTHREAD($t1)
+        move    $s0, $a1
+        LOAD_PCPU($t0)
+        sw      $s0, PCPU_CURTHREAD($t0)
+
+        lw      $a0, TD_USPACE($s0)
+        jal     vm_map_activate
+        nop
+
+        addu    $a1, $s0, TD_KCTX
         LOAD_REG($ra, PC, $a1)
         LOAD_REG($fp, FP, $a1)
         LOAD_REG($sp, SP, $a1)

@@ -11,7 +11,7 @@ static vm_map_t *uspace;
 
 void vm_map_activate(vm_map_t *map) {
   uspace = map;
-  pmap_activate(map->pmap);
+  pmap_activate(map ? map->pmap : NULL);
 }
 
 vm_map_t *get_user_vm_map() { return uspace; }
