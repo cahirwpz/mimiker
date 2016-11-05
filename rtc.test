@@ -13,9 +13,9 @@ def parseTime(child):
         return None
     return datetime.datetime(*(tm_time[0:6]))
 
-child = pexpect.spawn('./launch', ['-t', 'rtc.elf'])
+child = pexpect.spawn('./launch', ['rtc.elf','-s','qemu'])
 pattern = "Time is ([0-9]{2}:[0-9]{2}:[0-9]{2})"
-assert(child.expect([pexpect.EOF, pattern], timeout=5))
+assert(child.expect([pexpect.EOF, pattern], timeout=15))
 # throw away first result – why?
 assert(child.expect([pexpect.EOF, pattern], timeout=5))
 t1 = parseTime(child)

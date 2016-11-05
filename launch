@@ -34,7 +34,8 @@ OVPSIM_OVERRIDES = {
     "uartCBUS/portnum": PORT
 }
 QEMUSIM = "qemu-system-mipsel"
-QEMUSIM_OPTIONS = ['-nographic', '-machine', 'malta', '-nodefaults']
+QEMUSIM_OPTIONS = ['-nographic', '-nodefaults', '-machine', 'malta',
+                   '-cpu', '24Kf']
 
 DEBUGGERS = {
     'gdb'   : '%(triplet)s-gdb %(kernel)s',
@@ -65,7 +66,8 @@ if __name__ == "__main__":
                         help='Start simulation under gdb.')
     parser.add_argument('-D', metavar='DEBUGGER', type=str, dest='debugger',
                         choices=DEBUGGERS.keys(), default=DEFAULT_DEBUGGER,
-                        help='Debugger to use. Implies -d. Available options: '+
+                        help='Debugger to use. Implies -d.\
+                        Available options: ' +
                         ', '.join(DEBUGGERS.keys()) + ". Default: " +
                         DEFAULT_DEBUGGER + ".")
     parser.add_argument('-t', '--test', action='store_true',
@@ -104,6 +106,7 @@ if __name__ == "__main__":
         QEMUSIM_OPTIONS += ['-s', '-S']
 
     opts += SIMS_OPTIONS[args.simulator]
+    print(" ".join([SIMS[args.simulator]] + opts))
     try:
         os.remove('uartCBUS.log')
         os.remove('uartTTY0.log')
