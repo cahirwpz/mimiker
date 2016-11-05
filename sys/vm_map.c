@@ -10,11 +10,17 @@
 
 static vm_map_t kspace;
 
-void vm_map_activate(vm_map_t *map) {
+vm_map_t *vm_map_activate(vm_map_t *map) {
+  vm_map_t *old;
+
   cs_enter();
-  thread_self()->td_uspace = map;
+  thread_t *td = thread_self();
+  old = td->td_uspace;
+  td->td_uspace = map;
   pmap_activate(map ? map->pmap : NULL);
   cs_leave();
+
+  return old;
 }
 
 vm_map_t *get_user_vm_map() { return thread_self()->td_uspace; }

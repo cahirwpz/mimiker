@@ -10,6 +10,7 @@ void program_thread_1() {
   exec_args.argc = 3;
   do_exec(&exec_args);
 }
+
 void program_thread_2() {
   exec_args_t exec_args;
   exec_args.prog_name = "prog";
@@ -17,6 +18,7 @@ void program_thread_2() {
   exec_args.argc = 1;
   do_exec(&exec_args);
 }
+
 void program_thread_3() {
   exec_args_t exec_args;
   exec_args.prog_name = "prog";

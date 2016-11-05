@@ -31,8 +31,7 @@ noreturn void ctx_boot(thread_t *td);
  * only when the @from context is resumed. */
 void ctx_switch(thread_t *from, thread_t *to);
 
-/* This procedure prepares user thread context without actually
-   switching to it. */
-void ctx_init_usermode(vm_addr_t entry_point, vm_addr_t stack_pointer);
+/* Prepare user context for given thread. */
+void uctx_init(thread_t *td, vm_addr_t pc, vm_addr_t sp);
 
 #endif // __CONTEXT_H__
