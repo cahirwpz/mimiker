@@ -18,7 +18,7 @@ vm_map_t *get_user_vm_map() { return uspace; }
 vm_map_t *get_kernel_vm_map() { return &kspace; }
 
 static bool in_range(vm_map_t *map, vm_addr_t addr) {
-  return map->pmap->start <= addr && addr < map->pmap->end;
+  return map && (map->pmap->start <= addr && addr < map->pmap->end);
 }
 
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr) {
