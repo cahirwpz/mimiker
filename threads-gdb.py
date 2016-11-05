@@ -41,12 +41,16 @@ class KernelThreads (gdb.Command):
 class CtxSwitchTracerBP (gdb.Breakpoint):
     def __init__(self):
         super(CtxSwitchTracerBP, self).__init__('ctx_switch')
+        self.stop_on = False
 
     def stop(self):
         frm = gdb.parse_and_eval('(struct thread*)$a0').dereference()
         to = gdb.parse_and_eval('(struct thread*)$a1').dereference()
         print 'context switch from ', pretty_thread(frm), ' to ', pretty_thread(to)
-        return False
+        return self.stop_on
+
+    def stop_on_switch(self,arg):
+        self.stop_on = arg
 
 class CtxSwitchTracer (gdb.Command):
     def __init__(self):
@@ -54,6 +58,16 @@ class CtxSwitchTracer (gdb.Command):
         self.ctxswitchbp = None
 
     def invoke(self, args, from_tty):
+        if(self.ctxswitchbp and len(args) > 0):
+            if(args == 'stop'):
+                self.ctxswitchbp.stop_on_switch(True)
+                return
+            if(args == 'nostop'):
+                self.ctxswitchbp.stop_on_switch(False)
+                return
+            print 'cs-trace invalid arg: only stop and nostop allowed'
+            return
+
         if(self.ctxswitchbp):
             print('cs tracing off')
             self.ctxswitchbp.delete()
