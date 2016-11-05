@@ -1,7 +1,7 @@
 
 void syscall_uart_print_char(char c) {
   asm volatile("move $a0, %0\n"
-               "move $v0, 1001\n"
+               "lui $v0, 1001\n"
                "syscall"
                :
                : "r"(c));
