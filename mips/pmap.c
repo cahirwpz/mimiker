@@ -290,8 +290,7 @@ void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
 
 void pmap_activate(pmap_t *pmap) {
   PCPU_GET(curpmap) = pmap;
-  if (pmap)
-    mips32_set_c0(C0_ENTRYHI, pmap->asid);
+  mips32_set_c0(C0_ENTRYHI, pmap ? pmap->asid : 0);
 }
 
 pmap_t *get_kernel_pmap() {

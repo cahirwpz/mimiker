@@ -13,6 +13,7 @@ ASSYM(TD_KFRAME, offsetof(thread_t, td_kframe));
 ASSYM(TD_KCTX, offsetof(thread_t, td_kctx));
 ASSYM(TD_KSTACK, offsetof(thread_t, td_kstack));
 ASSYM(TD_FLAGS, offsetof(thread_t, td_flags));
+ASSYM(TD_USPACE, offsetof(thread_t, td_uspace));
 
 ASSYM(STK_BASE, offsetof(stack_t, stk_base));
 ASSYM(STK_SIZE, offsetof(stack_t, stk_size));
@@ -44,7 +45,6 @@ ASSYM(CTX_SP, offsetof(ctx_t, sp));
 ASSYM(CTX_FP, offsetof(ctx_t, fp));
 ASSYM(CTX_SR, offsetof(ctx_t, sr));
 ASSYM(CTX_PC, offsetof(ctx_t, pc));
-ASSYM(CTX_TCB, offsetof(ctx_t, tcb));
 
 ASSYM(EXC_AT, offsetof(exc_frame_t, at));
 ASSYM(EXC_V0, offsetof(exc_frame_t, v0));
