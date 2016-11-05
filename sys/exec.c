@@ -209,13 +209,10 @@ int do_exec(const exec_args_t *args) {
      a user thread, if it already weren't one. */
   td->td_uspace = vmap;
 
-  /* Forcefully apply changed context.
-   * This might be also done by yielding to the scheduler, but it
-   * does not work if we are the only thread, and makes debugging
-   * harder, as it difficult to pinpoint the exact time when we
-   * enter the user code */
   kprintf("[exec] Entering e_entry NOW\n");
   ctx_init_usermode(eh->e_entry, stack_bottom);
+  /* This will apply context, enter user mode and re-enable interrupts. */
+  user_exc_leave();
 
   /*NOTREACHED*/
   __builtin_unreachable();
