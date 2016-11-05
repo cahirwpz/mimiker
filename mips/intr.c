@@ -82,10 +82,11 @@ void syscall_handler(exc_frame_t *frame) {
           (frame->sr & SR_KSU_MASK) ? "user" : "kernel");
 
   /* TODO: We need a syscall lookup table. This is temporary, since it
-     didn't make sense to create the table just for a single simple
-     syscall. */
+     didn't make sense to create the table just this prototype. */
   if (args.code == SYS_UARTPRINT_CHAR)
     sys_uart_print_char(&args);
+  if (args.code == SYS_UARTPRINT_STR)
+    sys_uart_print_str(&args);
 
   /* we need to fix return address to point to next instruction */
   frame->pc += 4;
