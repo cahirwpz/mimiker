@@ -1,33 +1,30 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define BYTES(x) (sizeof(x) / sizeof(char))
-
-#define STRING "This is an example string."
-#define STRING_SIZE (BYTES(STRING))
-#define TEXTAREA_SIZE ((STRING_SIZE - 1) * 3 + 1)
-// This should land in .rodata, accessed by a pointer in .data
-const char *string = STRING;
+#define TEXTAREA_SIZE 100
 // This should land in .bss, accessed by a pointer in .data
 char textarea[TEXTAREA_SIZE];
 
-char arguments_received[1000];
-
-uint32_t leaf() {
-  return 0xdad0face;
+void abort() {
+  while (1)
+    ; /* Sigh. */
 }
 
-void stack_test_func(uint32_t *arg) {
-  *arg = leaf();
+size_t my_strlen(const char *str) {
+  size_t n = 0;
+  while (*(str++))
+    n++;
+  return n;
 }
 
-void marquee() {
+void marquee(const char *string) {
   uint32_t o = 0;
+  size_t n = my_strlen(string);
   while (1) {
     o++;
     // Copy string three times with changing offsets
     for (int i = 0; i < TEXTAREA_SIZE - 1; i++) {
-      textarea[i] = string[(i + o) % (STRING_SIZE - 1)];
+      textarea[i] = string[(i + o) % n];
     }
     // Null-terminate
     textarea[TEXTAREA_SIZE - 1] = 0;
@@ -35,11 +32,11 @@ void marquee() {
 }
 
 int main(int argc, char **argv) {
-  // As currently there is no feasible way of outputting text, break
-  // with debugger here to see argc/argv!
+  /* TODO: Actually, the 0-th argument should be the program name. */
+  if (argc < 1)
+    abort();
 
-  uint32_t stack_variable = 0x42424242;
-  stack_test_func(&stack_variable);
-  marquee();
+  marquee(argv[0]);
+
   return 0;
 }
