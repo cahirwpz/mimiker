@@ -1,7 +1,8 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-TESTS = callout.elf malloc.elf physmem.elf pmap.elf rtc.elf sched.elf \
-	sleepq.elf syscall.elf thread.elf vm_map.elf exec.elf
+TESTS = callout.elf malloc.elf physmem.elf pmap.elf rtc.elf sched.elf	\
+	sleepq.elf syscall.elf thread.elf vm_map.elf exec.elf				\
+	exec_syscall.elf
 SOURCES_C = 
 SOURCES_ASM = 
 
@@ -12,7 +13,7 @@ include Makefile.common
 LDLIBS += -Lsys -Lmips -Lstdc \
 	  -Wl,--start-group -lsys -lmips -lstdc -lgcc -Wl,--end-group
 
-LD_EMBED = user/prog.uelf.o
+LD_EMBED = user/prog.uelf.o user/syscall_test.uelf.o
 
 # Kernel runtime files
 KRT = stdc mips sys user
@@ -28,6 +29,7 @@ physmem.elf: physmem.ko $(KRT)
 sched.elf: sched.ko $(KRT)
 sleepq.elf: sleepq.ko $(KRT)
 exec.elf: exec.ko $(KRT)
+exec_syscall.elf: exec_syscall.ko $(KRT)
 
 libkernel.a: $(DEPFILES) $(OBJECTS)
 
