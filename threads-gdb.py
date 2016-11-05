@@ -26,6 +26,7 @@ def current_thread():
 class KernelThreads (gdb.Command):
     def __init__(self):
         super(KernelThreads, self).__init__("kernel-threads", gdb.COMMAND_USER)
+
     def invoke(self, args, from_tty):
         argv = gdb.string_to_argv(args)
         if len(argv) != 0:
@@ -40,7 +41,35 @@ class KernelThreads (gdb.Command):
         print("current_thread:")
         print_thread(current_thread())
 
+class CtxSwitchTracerBP (gdb.Breakpoint):
+    def __init__(self):
+        super(CtxSwitchTracerBP, self).__init__('ctx_switch')
 
+    def stop(self):
+        print('context switch')
+        frm = gdb.parse_and_eval('(struct thread*)$a0').dereference()
+        to = gdb.parse_and_eval('(struct thread*)$a1').dereference()
+        print('old thread: ')
+        print_thread(frm)
+
+        print('new thread: ')
+        print_thread(to)
+        return False
+
+class CtxSwitchTracer (gdb.Command):
+    def __init__(self):
+        super(CtxSwitchTracer, self).__init__('cs-trace', gdb.COMMAND_USER)
+        self.ctxswitchbp = None
+
+    def invoke(self, args, from_tty):
+        if(self.ctxswitchbp):
+            print('cs tracing off')
+            self.ctxswitchbp.delete()
+            self.ctxswitchbp = None
+        else:
+            print('cs tracing on')
+            self.ctxswitchbp = CtxSwitchTracerBP()
 
 KernelThreads()
+CtxSwitchTracer()
 
