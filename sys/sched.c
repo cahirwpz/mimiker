@@ -47,9 +47,6 @@ void sched_clock() {
       td->td_flags |= TDF_NEEDSWITCH | TDF_SLICEEND;
 }
 
-void sched_turnstile_yield() {
-}
-
 void sched_yield() {
   sched_switch(NULL);
 }
@@ -57,6 +54,7 @@ void sched_yield() {
 void sched_switch(thread_t *newtd) {
   if (!sched_active)
     return;
+  cs_enter();
 
   thread_t *td = thread_self();
   //assert(td->td_csnest == 1);
@@ -79,6 +77,7 @@ void sched_switch(thread_t *newtd) {
 
   if (td != newtd)
     ctx_switch(td, newtd);
+  cs_leave();
 }
 
 noreturn void sched_run() {
