@@ -12,12 +12,13 @@ thread_t *td2;
 void thread1_main()
 {
   mtx_sleep_lock(&mtx);
-  for(size_t i = 0; i < 10000; i++) {
-    for(size_t j = 0; j < 100000; j++);
+  for(size_t i = 0; i < 10; i++) {
+    //`for(size_t j = 0; j < 100000; j++);
     kprintf("%s: %ld\n", thread_self()->td_name, (long)value);
     value++;
   }
   mtx_sleep_unlock(&mtx);
+  while(1);
 }
 
 void never_unlock()

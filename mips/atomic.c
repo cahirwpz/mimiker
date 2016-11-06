@@ -46,22 +46,6 @@ atomic_cmpset_acq_32(__volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
     return (retval);
 }
 
-static __inline void
-atomic_set_32(__volatile uint32_t *p, uint32_t v)
-{
-    uint32_t temp;
-
-    __asm __volatile (
-        "1:\tll %0, %3\n\t"     /* load old value */
-        "or %0, %2, %0\n\t"     /* calculate new value */
-        "sc %0, %1\n\t"     /* attempt to store */
-        "beqz   %0, 1b\n\t"     /* spin if failed */
-        : "=&r" (temp), "=m" (*p)
-        : "r" (v), "m" (*p)
-        : "memory");
-
-}
-
 static __inline  void                   \
 atomic_store_rel_32(__volatile uint32_t *p, uint32_t v)
 {                           
@@ -76,6 +60,6 @@ int atomic_cmp_exchange(__volatile uint32_t *p, uint32_t cmpval, uint32_t newval
 
 void atomic_store(__volatile uint32_t *p, uint32_t val)
 {
-    atomic_set_32(p, val);
+    atomic_store_rel_32(p, val);
 }
 
