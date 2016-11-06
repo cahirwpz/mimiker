@@ -13,7 +13,7 @@ static thread_t *idle_thread;
 static runq_t runq;
 static bool sched_active = false;
 
-#define SLICE 10
+#define SLICE 1
 
 void sched_init() {
   runq_init(&runq);
@@ -57,7 +57,7 @@ void sched_switch(thread_t *newtd) {
   cs_enter();
 
   thread_t *td = thread_self();
-  //assert(td->td_csnest == 1);
+  // assert(td->td_csnest == 1);
 
   td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
 
@@ -68,8 +68,7 @@ void sched_switch(thread_t *newtd) {
     newtd = runq_choose(&runq);
     if (newtd) {
       runq_remove(&runq, newtd);
-    }
-    else
+    } else
       newtd = idle_thread;
   }
 

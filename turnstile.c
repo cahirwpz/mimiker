@@ -1,6 +1,6 @@
 #include <stdc.h>
 #include <sched.h>
-#include <turnstile.h>
+#include <mutex.h>
 #include <thread.h>
 
 mtx_sleep_t mtx;
@@ -14,25 +14,25 @@ thread_t *td3;
 thread_t *td4;
 thread_t *td5;
 
-void thread1_main() {
-  mtx_sleep_lock(&mtx);
+void mtx_test_main() {
   for (size_t i = 0; i < 20000; i++) {
+    mtx_sleep_lock(&mtx);
     value++;
     kprintf("%s: %ld\n", thread_self()->td_name, (long)value);
+    mtx_sleep_unlock(&mtx);
   }
-  mtx_sleep_unlock(&mtx);
   while (1)
     ;
 }
 
-void test1() {
+void mtx_test() {
   mtx_sleep_init(&mtx);
   mtx_sleep_init(&mtx);
-  td1 = thread_create("td1", thread1_main);
-  td2 = thread_create("td2", thread1_main);
-  td3 = thread_create("td3", thread1_main);
-  td4 = thread_create("td4", thread1_main);
-  td5 = thread_create("td5", thread1_main);
+  td1 = thread_create("td1", mtx_test_main);
+  td2 = thread_create("td2", mtx_test_main);
+  td3 = thread_create("td3", mtx_test_main);
+  td4 = thread_create("td4", mtx_test_main);
+  td5 = thread_create("td5", mtx_test_main);
   sched_add(td1);
   sched_add(td2);
   sched_add(td3);
@@ -74,6 +74,6 @@ void deadlock_test() {
 }
 
 int main() {
-  deadlock_test();
+  mtx_test();
   return 0;
 }

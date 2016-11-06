@@ -1,20 +1,19 @@
+#ifndef __TURNSTILE_H__
+#define __TURNSTILE_H__
 #include <queue.h>
 #include <thread.h>
 
-#define MTX_UNOWNED 0
-#define MTX_CONTESTED 1
-
 typedef struct { TAILQ_HEAD(, thread) td_queue; } turnstile_t;
 
-typedef struct {
-  volatile uint32_t mtx_state;
-  turnstile_t turnstile;
-} mtx_sleep_t;
-
-void mtx_sleep_init(mtx_sleep_t *);
-void mtx_sleep_lock(mtx_sleep_t *);
-void mtx_sleep_unlock(mtx_sleep_t *);
-
+/* Initialize turnstile. */
 void turnstile_init(turnstile_t *);
+
+/* This puts currently running thread on the turnstile,
+ * puts it in waiting state and yields. While waiting on turnstile
+ * thread cannot be run. This function is done under critical section. */
 void turnstile_wait(turnstile_t *);
+
+/* Removes first thread from the turnstile and puts it into run queue.
+ * This function is done under critical section. */
 void turnstile_signal(turnstile_t *);
+#endif /* __TURNSTILE_H__ */
