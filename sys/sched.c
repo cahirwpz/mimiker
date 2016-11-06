@@ -7,12 +7,13 @@
 #include <callout.h>
 #include <interrupt.h>
 #include <mutex.h>
+#include <sync.h>
 
 static thread_t *idle_thread;
 static runq_t runq;
 static bool sched_active = false;
 
-#define SLICE 10
+#define SLICE 1
 
 void sched_init() {
   runq_init(&runq);
@@ -27,12 +28,12 @@ void sched_add(thread_t *td) {
   td->td_state = TDS_READY;
   td->td_slice = SLICE;
 
-  intr_disable();
+  cs_enter();
   runq_add(&runq, td);
 
   if (td->td_prio > thread_self()->td_prio)
     thread_self()->td_flags |= TDF_NEEDSWITCH;
-  intr_enable();
+  cs_leave();
 }
 
 void sched_remove(thread_t *td) {
@@ -53,8 +54,10 @@ void sched_yield() {
 void sched_switch(thread_t *newtd) {
   if (!sched_active)
     return;
+  cs_enter();
 
   thread_t *td = thread_self();
+  // assert(td->td_csnest == 1);
 
   td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
 
@@ -63,9 +66,9 @@ void sched_switch(thread_t *newtd) {
 
   if (newtd == NULL) {
     newtd = runq_choose(&runq);
-    if (newtd)
+    if (newtd) {
       runq_remove(&runq, newtd);
-    else
+    } else
       newtd = idle_thread;
   }
 
@@ -73,6 +76,7 @@ void sched_switch(thread_t *newtd) {
 
   if (td != newtd)
     ctx_switch(td, newtd);
+  cs_leave();
 }
 
 noreturn void sched_run() {

@@ -33,7 +33,6 @@ noreturn void thread_init(void (*fn)(), int n, ...) {
 
 thread_t *thread_create(const char *name, void (*fn)()) {
   thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
-
   td->td_name = name;
   td->td_kstack_obj = pm_alloc(1);
   td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
