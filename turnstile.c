@@ -4,6 +4,8 @@
 #include <thread.h>
 
 mtx_sleep_t mtx;
+mtx_sleep_t mtx1;
+mtx_sleep_t mtx2;
 volatile int32_t value;
 
 thread_t *td1;
@@ -23,14 +25,9 @@ void thread1_main()
   while(1);
 }
 
-void never_unlock()
-{
-  mtx_sleep_lock(&mtx);
-  while(1);
-}
-
 void test1()
 {
+    mtx_sleep_init(&mtx);
     mtx_sleep_init(&mtx);
     td1 = thread_create("td1", thread1_main);
     td2 = thread_create("td2", thread1_main);
@@ -45,8 +42,42 @@ void test1()
     sched_run();
 }
 
+void deadlock_main1()
+{
+    mtx_sleep_lock(&mtx1);
+    for(size_t i = 0; i < 400000; i++);
+    mtx_sleep_lock(&mtx2);
+    kprintf("no deadlock!");
+    mtx_sleep_unlock(&mtx2);
+    mtx_sleep_unlock(&mtx1);
+}
+
+void deadlock_main2()
+{
+    mtx_sleep_lock(&mtx2);
+    for(size_t i = 0; i < 400000; i++);
+    mtx_sleep_lock(&mtx1);
+    kprintf("no deadlock!");
+    mtx_sleep_unlock(&mtx1);
+    mtx_sleep_unlock(&mtx2);
+    
+}
+
+void deadlock_test()
+{
+    mtx_sleep_init(&mtx1);
+    mtx_sleep_init(&mtx2);
+    td1 = thread_create("td1", deadlock_main1);
+    td2 = thread_create("td2", deadlock_main2);
+    sched_add(td1);
+    sched_add(td2);
+    sched_run();
+    while(1)
+        kprintf("elo!\n");
+}
+
 int main()
 {
-    test1();
+    deadlock_test();
     return 0;
 }
