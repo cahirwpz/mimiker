@@ -28,12 +28,12 @@ void sched_add(thread_t *td) {
   td->td_state = TDS_READY;
   td->td_slice = SLICE;
 
-  intr_disable();
+  cs_enter();
   runq_add(&runq, td);
 
   if (td->td_prio > thread_self()->td_prio)
     thread_self()->td_flags |= TDF_NEEDSWITCH;
-  intr_enable();
+  cs_leave();
 }
 
 void sched_remove(thread_t *td) {

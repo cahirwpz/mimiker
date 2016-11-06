@@ -4,9 +4,6 @@
 #include <sync.h>
 #include <atomic.h>
 
-
-
-
 void turnstile_wait(turnstile_t* ts) {
   cs_enter();
   struct thread *td = thread_self();
