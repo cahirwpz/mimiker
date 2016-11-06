@@ -144,7 +144,7 @@ int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
   /* Bounds check */
   if (start < map->pmap->start)
     start = map->pmap->start;
-  if (start + length >= map->pmap->end)
+  if (start + length > map->pmap->end)
     return -ENOMEM;
 
   if (TAILQ_EMPTY(&map->list)) {
@@ -175,7 +175,7 @@ int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
 
   /* Finally, check for free space after end. */
   vm_map_entry_t *last = TAILQ_LAST(&map->list, vm_map_list);
-  if (map->pmap->end - last->end > length) {
+  if (map->pmap->end - last->end >= length) {
     *addr = last->end;
     return 0;
   }
