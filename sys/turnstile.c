@@ -45,7 +45,7 @@ void turnstile_signal(turnstile_t* ts) {
 
 int mtx_owned(mtx_sleep_t *mtx)
 {
-    return mtx->mtx_state == (uint32_t)thread_self();
+  return mtx->mtx_state == (uint32_t)thread_self();
 }
 
 int mtx_sleep_try_to_lock(mtx_sleep_t *mtx)
