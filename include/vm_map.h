@@ -18,7 +18,7 @@ struct vm_map_entry {
 };
 
 typedef struct vm_map {
-  TAILQ_HEAD(, vm_map_entry) list;
+  TAILQ_HEAD(vm_map_list, vm_map_entry) list;
   SPLAY_HEAD(vm_map_tree, vm_map_entry) tree;
   size_t nentries;
   pmap_t *pmap;
@@ -46,6 +46,9 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot);
 vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                                  vm_prot_t prot);
+
+int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
+                     vm_addr_t /*out*/ *addr);
 
 void vm_map_dump(vm_map_t *vm_map);
 

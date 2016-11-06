@@ -2,6 +2,7 @@
 #include <vm_pager.h>
 #include <vm_object.h>
 #include <vm_map.h>
+#include <errno.h>
 
 static void paging_on_demand_and_memory_protection_demo() {
   vm_map_activate(vm_map_new());
@@ -41,7 +42,51 @@ static void paging_on_demand_and_memory_protection_demo() {
   log("Test passed.");
 }
 
+void findspace_demo() {
+  vm_map_t *umap = vm_map_new();
+  vm_map_activate(umap);
+
+#define addr1 0x10000000
+#define addr2 0x30000000
+  vm_map_add_entry(umap, addr1, addr2, VM_PROT_NONE);
+#define addr3 0x30005000
+#define addr4 0x60000000
+  vm_map_add_entry(umap, addr3, addr4, VM_PROT_NONE);
+
+  vm_addr_t t;
+  int n;
+  n = vm_map_findspace(umap, 0x00010000, PAGESIZE, &t);
+  assert(n == 0 && t == 0x00010000);
+
+  n = vm_map_findspace(umap, addr1, PAGESIZE, &t);
+  assert(n == 0 && t == addr2);
+
+  n = vm_map_findspace(umap, addr1 + 20 * PAGESIZE, PAGESIZE, &t);
+  assert(n == 0 && t == addr2);
+
+  n = vm_map_findspace(umap, addr1, 0x6000, &t);
+  assert(n == 0 && t == addr4);
+
+  n = vm_map_findspace(umap, addr1, 0x5000, &t);
+  assert(n == 0 && t == addr2);
+
+  /* Fill the gap exactly */
+  vm_map_add_entry(umap, t, t + 0x5000, VM_PROT_NONE);
+
+  n = vm_map_findspace(umap, addr1, 0x5000, &t);
+  assert(n == 0 && t == addr4);
+
+  n = vm_map_findspace(umap, addr4, 0x6000, &t);
+  assert(n == 0 && t == addr4);
+
+  n = vm_map_findspace(umap, 0, 0x40000000, &t);
+  assert(n == -ENOMEM);
+
+  log("Test passed.");
+}
+
 int main() {
   paging_on_demand_and_memory_protection_demo();
+  findspace_demo();
   return 0;
 }
