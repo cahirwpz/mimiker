@@ -7,6 +7,7 @@
 #include <vm_pager.h>
 #include <vm_object.h>
 #include <vm_map.h>
+#include <errno.h>
 
 static vm_map_t kspace;
 
@@ -23,8 +24,12 @@ vm_map_t *vm_map_activate(vm_map_t *map) {
   return old;
 }
 
-vm_map_t *get_user_vm_map() { return thread_self()->td_uspace; }
-vm_map_t *get_kernel_vm_map() { return &kspace; }
+vm_map_t *get_user_vm_map() {
+  return thread_self()->td_uspace;
+}
+vm_map_t *get_kernel_vm_map() {
+  return &kspace;
+}
 
 static bool in_range(vm_map_t *map, vm_addr_t addr) {
   return map && (map->pmap->start <= addr && addr < map->pmap->end);
@@ -32,9 +37,9 @@ static bool in_range(vm_map_t *map, vm_addr_t addr) {
 
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr) {
   if (in_range(get_user_vm_map(), addr))
-      return get_user_vm_map();
+    return get_user_vm_map();
   if (in_range(get_kernel_vm_map(), addr))
-      return get_kernel_vm_map();
+    return get_kernel_vm_map();
   return NULL;
 }
 
@@ -132,10 +137,57 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot) {
 }
 
+int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
+                     vm_addr_t /*out*/ *addr) {
+
+  assert(is_aligned(length, PAGESIZE));
+  /* Bounds check */
+  if (start < map->pmap->start)
+    start = map->pmap->start;
+  if (start + length > map->pmap->end)
+    return -ENOMEM;
+
+  if (TAILQ_EMPTY(&map->list)) {
+    /* Entire space free. */
+    *addr = start;
+    return 0;
+  }
+
+  vm_map_entry_t *first = TAILQ_FIRST(&map->list);
+  if (start + length <= first->start) {
+    /* If there is enought space before the first entry in the map, use it. */
+    *addr = start;
+    return 0;
+  }
+
+  /* Browse available gaps. */
+  vm_map_entry_t *it;
+  TAILQ_FOREACH (it, &map->list, map_list) {
+    vm_map_entry_t *next = TAILQ_NEXT(it, map_list);
+    if (!next)
+      continue;
+    if (next->start - it->end >= length) {
+      /* We will fit into this gap. */
+      *addr = it->end;
+      return 0;
+    }
+  }
+
+  /* Finally, check for free space after end. */
+  vm_map_entry_t *last = TAILQ_LAST(&map->list, vm_map_list);
+  if (map->pmap->end - last->end >= length) {
+    *addr = last->end;
+    return 0;
+  }
+
+  /* Failed to find free space. */
+  return -ENOMEM;
+}
+
 void vm_map_dump(vm_map_t *map) {
   vm_map_entry_t *it;
-  kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n",
-          map->pmap->start, map->pmap->end);
+  kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n", map->pmap->start,
+          map->pmap->end);
   TAILQ_FOREACH (it, &map->list, map_list) {
     kprintf("[vm_map] * %08lx - %08lx [%c%c%c]\n", it->start, it->end,
             (it->prot & VM_PROT_READ) ? 'r' : '-',
