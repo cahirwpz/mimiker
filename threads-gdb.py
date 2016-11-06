@@ -49,7 +49,7 @@ class CtxSwitchTracerBP (gdb.Breakpoint):
         print 'context switch from ', pretty_thread(frm), ' to ', pretty_thread(to)
         return self.stop_on
 
-    def stop_on_switch(self,arg):
+    def set_stop_on(self,arg):
         self.stop_on = arg
 
 class CtxSwitchTracer (gdb.Command):
@@ -60,10 +60,10 @@ class CtxSwitchTracer (gdb.Command):
     def invoke(self, args, from_tty):
         if(self.ctxswitchbp and len(args) > 0):
             if(args == 'stop'):
-                self.ctxswitchbp.stop_on_switch(True)
+                self.ctxswitchbp.set_stop_on(True)
                 return
             if(args == 'nostop'):
-                self.ctxswitchbp.stop_on_switch(False)
+                self.ctxswitchbp.set_stop_on(False)
                 return
             print 'cs-trace invalid arg: only stop and nostop allowed'
             return
@@ -76,6 +76,35 @@ class CtxSwitchTracer (gdb.Command):
             print('cs tracing on')
             self.ctxswitchbp = CtxSwitchTracerBP()
 
+class NewThreadTracerBP (gdb.Breakpoint):
+    def __init__(self):
+        super(NewThreadTracerBP, self).__init__('thread_create')
+        self.stop_on = True
+
+    def stop(self):
+        td_name = gdb.newest_frame().read_var('name').string()
+        print 'New thread in system: ', td_name
+        return self.stop_on
+
+    def stop_on_switch(self,arg):
+        self.stop_on = arg
+
+class NewThreadTracer (gdb.Command):
+    def __init__(self):
+        super(NewThreadTracer, self).__init__('new-thread-trace', gdb.COMMAND_USER)
+        self.newthreadbp = None
+
+    def invoke(self, args, from_tty):
+        if(self.newthreadbp):
+            print('new thread trace off')
+            self.newthreadbp.delete()
+            self.newthreadbp = None
+        else:
+            print('new thread trace on')
+            self.newthreadbp = NewThreadTracerBP()
+
+
 KernelThreads()
 CtxSwitchTracer()
+NewThreadTracer()
 
