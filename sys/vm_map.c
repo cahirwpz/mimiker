@@ -139,7 +139,7 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
 
 int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
                      vm_addr_t /*out*/ *addr) {
-
+  assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(length, PAGESIZE));
   /* Bounds check */
   if (start < map->pmap->start)
@@ -166,16 +166,23 @@ int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
     vm_map_entry_t *next = TAILQ_NEXT(it, map_list);
     if (!next)
       continue;
-    if (next->start - it->end >= length) {
-      /* We will fit into this gap. */
+    if (start < it->end && next->start - it->end >= length) {
+      /* Start points to an address before this gap, and we'll fit there. */
       *addr = it->end;
+      return 0;
+    } else if (start >= it->end && next->start - start >= length) {
+      /* Start points to inside this gap, and we'll fit there. */
+      *addr = start;
       return 0;
     }
   }
 
   /* Finally, check for free space after end. */
   vm_map_entry_t *last = TAILQ_LAST(&map->list, vm_map_list);
-  if (map->pmap->end - last->end >= length) {
+  if (start > last->end && map->pmap->end - start >= length) {
+    *addr = start;
+    return 0;
+  } else if (map->pmap->end - last->end >= length) {
     *addr = last->end;
     return 0;
   }
