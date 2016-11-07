@@ -28,9 +28,9 @@
 #define PT_SIZE (PT_ENTRIES * sizeof(pte_t))
 
 #define PMAP_KERNEL_BEGIN MIPS_KSEG2_START
-#define PMAP_KERNEL_END   0xfffff000  /* kseg2 & kseg3 */
-#define PMAP_USER_BEGIN   0x00000000
-#define PMAP_USER_END     MIPS_KSEG0_START /* useg */
+#define PMAP_KERNEL_END 0xfffff000 /* kseg2 & kseg3 */
+#define PMAP_USER_BEGIN 0x00000000
+#define PMAP_USER_END MIPS_KSEG0_START /* useg */
 
 static const vm_addr_t PT_HOLE_START = PT_BASE + MIPS_KSEG0_START / PTF_ENTRIES;
 static const vm_addr_t PT_HOLE_END = PT_BASE + MIPS_KSEG2_START / PTF_ENTRIES;
@@ -64,7 +64,7 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   pmap->start = start;
   pmap->end = end;
   pmap->asid = get_new_asid();
-  log("Page directory table allocated at %08lx", (intptr_t)pmap->pde);
+  log("Page directory table allocated at %08lx", (vm_addr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
 
   for (int i = 0; i < PD_ENTRIES; i++)
@@ -182,7 +182,7 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
   PTE_OF(pmap, vaddr) = PTE_PFN(paddr) | vm_prot_map[prot] |
                         (in_kernel_space(vaddr) ? PTE_GLOBAL : 0);
   log("Add mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
-      (intptr_t)&PTE_OF(pmap, vaddr));
+      (vm_addr_t)&PTE_OF(pmap, vaddr));
 
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
@@ -192,7 +192,7 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
 static void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
   PTE_OF(pmap, vaddr) = 0;
   log("Remove mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
-      (intptr_t)&PTE_OF(pmap, vaddr));
+      (vm_addr_t)&PTE_OF(pmap, vaddr));
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
 
@@ -204,7 +204,7 @@ static void pmap_change_pte(pmap_t *pmap, vm_addr_t vaddr, vm_prot_t prot) {
   PTE_OF(pmap, vaddr) =
     (PTE_OF(pmap, vaddr) & ~PTE_PROT_MASK) | vm_prot_map[prot];
   log("Change protection bits for page %08lx (PTE at %08lx)",
-      (vaddr & PTE_MASK), (intptr_t)&PTE_OF(pmap, vaddr));
+      (vaddr & PTE_MASK), (vm_addr_t)&PTE_OF(pmap, vaddr));
 
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));

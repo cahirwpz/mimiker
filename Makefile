@@ -8,6 +8,7 @@ SOURCES_ASM =
 all: tags cscope mips stdc sys $(TESTS)
 
 include Makefile.common
+$(info Using CC: $(CC))
 
 LDLIBS += -Lsys -Lmips -Lstdc \
 	  -Wl,--start-group -lsys -lmips -lstdc -lgcc -Wl,--end-group
