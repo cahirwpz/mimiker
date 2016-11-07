@@ -1,7 +1,10 @@
 #include <stdc.h>
-#include <mutex.h>
 #include <malloc.h>
 #include <queue.h>
+
+/* Leave synchronization markers in case we need it. */
+#define cs_enter()
+#define cs_leave()
 
 /* The end of the kernel's .bss section. Provided by the linker. */
 extern uint8_t __ebss[];
@@ -9,20 +12,19 @@ extern uint8_t __ebss[];
 static struct {
   void *ptr; /* Pointer to the end of kernel's bss. */
   void *end; /* Limit for the end of kernel's bss. */
-  mtx_t lock;
   bool shutdown;
-} sbrk = {__ebss, __ebss + 512 * PAGESIZE, MTX_INITIALIZER, false};
+} sbrk = {__ebss, __ebss + 512 * PAGESIZE, false};
 
 void kernel_brk(void *addr) {
   if (sbrk.shutdown)
     panic("Trying to use kernel_brk after it's been shutdown!");
-  mtx_lock(sbrk.lock);
+  cs_enter();
   void *ptr = sbrk.ptr;
   addr = (void *)((intptr_t)addr & -sizeof(uint64_t));
   assert((intptr_t)__ebss <= (intptr_t)addr);
   assert((intptr_t)addr <= (intptr_t)sbrk.end);
   sbrk.ptr = addr;
-  mtx_unlock(sbrk.lock);
+  cs_leave();
   if (addr > ptr)
     bzero(ptr, (intptr_t)addr - (intptr_t)ptr);
 }
@@ -30,22 +32,22 @@ void kernel_brk(void *addr) {
 void *kernel_sbrk(size_t size) {
   if (sbrk.shutdown)
     panic("Trying to use kernel_sbrk after it's been shutdown!");
-  mtx_lock(sbrk.lock);
+  cs_enter();
   void *ptr = sbrk.ptr;
   size = roundup(size, sizeof(uint64_t));
   assert(ptr + size <= sbrk.end);
   sbrk.ptr += size;
-  mtx_unlock(sbrk.lock);
+  cs_leave();
   bzero(ptr, size);
   return ptr;
 }
 
 void *kernel_sbrk_shutdown() {
   assert(!sbrk.shutdown);
-  mtx_lock(sbrk.lock);
+  cs_enter();
   sbrk.end = align(sbrk.ptr, PAGESIZE);
   sbrk.shutdown = true;
-  mtx_unlock(sbrk.lock);
+  cs_leave();
   return sbrk.end;
 }
 
