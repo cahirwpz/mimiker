@@ -2,7 +2,7 @@ all: prog.uelf.o
 
 include ../Makefile.common
 
-PROGRAMS_C = prog.c
+PROGRAMS_C = prog.c syscall_test.c
 
 CFLAGS   = -std=gnu11 -O0 -Wall -Werror -fno-builtin -ffreestanding -G0
 LDFLAGS  = -nostdlib -T mimiker.ld -G0
