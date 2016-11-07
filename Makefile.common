@@ -29,7 +29,7 @@ SYSROOT  = $(realpath $(dir $(shell which $(P)gcc))/..)
 GENASSYM = $(TOPDIR)/script/genassym.py $(NM)
 
 ASFLAGS  =
-CFLAGS   = -std=gnu11 -Og -Wall -Werror -Wno-format -fno-builtin -ffreestanding
+CFLAGS   = -std=gnu11 -Og -Wall -Werror -fno-builtin -ffreestanding
 CPPFLAGS = -Wall -Werror -DDEBUG -I$(TOPDIR)/include
 LDLIBS   =
 LDFLAGS  = -nostdlib -T malta.ld

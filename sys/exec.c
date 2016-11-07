@@ -43,7 +43,7 @@ int do_exec(const exec_args_t *args) {
     return -ENOENT;
   }
 
-  log("User ELF size: %ld", elf_size);
+  log("User ELF size: %d", elf_size);
 
   if (elf_size < sizeof(Elf32_Ehdr)) {
     log("Exec failed: ELF file is too small to contain a valid header");
