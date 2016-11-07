@@ -35,10 +35,10 @@ cscope:
 	cscope -b include/*.h ./*.[cS] 
 
 tags:
-	find -iname '*.[ch]' | ctags --language-force=c -L-
-	find -iname '*.[ch]' | ctags --language-force=c -L- -e -f etags
-	find -iname '*.S' | ctags -a --language-force=asm -L-
-	find -iname '*.S' | ctags -a --language-force=asm -L- -e -f etags
+	find -iname '*.[ch]' -not -path "*/toolchain/*" | ctags --language-force=c -L-
+	find -iname '*.[ch]' -not -path "*/toolchain/*" | ctags --language-force=c -L- -e -f etags
+	find -iname '*.S' -not -path "*/toolchain/*" | ctags -a --language-force=asm -L-
+	find -iname '*.S' -not -path "*/toolchain/*" | ctags -a --language-force=asm -L- -e -f etags
 	find $(SYSROOT)/mips-mti-elf/include -type f -iname 'mips*' \
 		| ctags -a --language-force=c -L-
 	find $(SYSROOT)/mips-mti-elf/include -type f -iname 'mips*' \
