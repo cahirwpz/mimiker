@@ -1,8 +1,8 @@
 #include <atomic.h>
 
 #define __MIPS_PLATFORM_SYNC_NOPS ""
-static __inline void mips_sync(void) {
-  __asm __volatile(".set noreorder\n"
+static inline void mips_sync(void) {
+  asm volatile(".set noreorder\n"
                    "\tsync\n" __MIPS_PLATFORM_SYNC_NOPS ".set reorder\n"
                    :
                    :
@@ -13,7 +13,7 @@ static inline uint32_t atomic_cmpset_32(volatile uint32_t *p, uint32_t cmpval,
                                         uint32_t newval) {
   uint32_t ret;
 
-  __asm __volatile("1:\tll %0, %4\n\t"  /* load old value */
+  asm volatile("1:\tll %0, %4\n\t"  /* load old value */
                    "bne %0, %2, 2f\n\t" /* compare */
                    "move %0, %3\n\t"    /* value to store */
                    "sc %0, %1\n\t"      /* attempt to store */
@@ -46,11 +46,11 @@ static inline void atomic_store_rel_32(volatile uint32_t *p, uint32_t v) {
   *p = v;
 }
 
-int atomic_cmp_exchange(__volatile uint32_t *p, uint32_t cmpval,
+int atomic_cmp_exchange(volatile uint32_t *p, uint32_t cmpval,
                         uint32_t newval) {
   return atomic_cmpset_acq_32(p, cmpval, newval);
 }
 
-void atomic_store(__volatile uint32_t *p, uint32_t val) {
+void atomic_store(volatile uint32_t *p, uint32_t val) {
   atomic_store_rel_32(p, val);
 }
