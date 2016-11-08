@@ -1,12 +1,10 @@
 #include <atomic.h>
 
-#define __MIPS_PLATFORM_SYNC_NOPS ""
 static inline void mips_sync(void) {
   asm volatile(".set noreorder\n"
-                   "\tsync\n" __MIPS_PLATFORM_SYNC_NOPS ".set reorder\n"
-                   :
-                   :
-                   : "memory");
+               "\tsync\n"
+               ".set reorder\n" ::
+                 : "memory");
 }
 
 static inline uint32_t atomic_cmpset_32(volatile uint32_t *p, uint32_t cmpval,
@@ -14,17 +12,17 @@ static inline uint32_t atomic_cmpset_32(volatile uint32_t *p, uint32_t cmpval,
   uint32_t ret;
 
   asm volatile("1:\tll %0, %4\n\t"  /* load old value */
-                   "bne %0, %2, 2f\n\t" /* compare */
-                   "move %0, %3\n\t"    /* value to store */
-                   "sc %0, %1\n\t"      /* attempt to store */
-                   "beqz %0, 1b\n\t"    /* if it failed, spin */
-                   "j 3f\n\t"
-                   "2:\n\t"
-                   "li %0, 0\n\t"
-                   "3:\n"
-                   : "=&r"(ret), "=m"(*p)
-                   : "r"(cmpval), "r"(newval), "m"(*p)
-                   : "memory");
+               "bne %0, %2, 2f\n\t" /* compare */
+               "move %0, %3\n\t"    /* value to store */
+               "sc %0, %1\n\t"      /* attempt to store */
+               "beqz %0, 1b\n\t"    /* if it failed, spin */
+               "j 3f\n\t"
+               "2:\n\t"
+               "li %0, 0\n\t"
+               "3:\n"
+               : "=&r"(ret), "=m"(*p)
+               : "r"(cmpval), "r"(newval), "m"(*p)
+               : "memory");
   return ret;
 }
 
