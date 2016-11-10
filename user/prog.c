@@ -4,6 +4,8 @@
 #define TEXTAREA_SIZE 100
 // This should land in .bss, accessed by a pointer in .data
 char textarea[TEXTAREA_SIZE];
+/* The string wil land in .rodata, but str will be stored in .sdata! */
+char *str = "A hard-coded string.";
 
 void abort() {
   while (1)
@@ -17,18 +19,13 @@ size_t my_strlen(const char *str) {
   return n;
 }
 
-void marquee(const char *string) {
-  uint32_t o = 0;
+// Copy warped string with changing offsets
+void marquee(const char *string, int offset) {
   size_t n = my_strlen(string);
-  while (1) {
-    o++;
-    // Copy string three times with changing offsets
-    for (int i = 0; i < TEXTAREA_SIZE - 1; i++) {
-      textarea[i] = string[(i + o) % n];
-    }
-    // Null-terminate
-    textarea[TEXTAREA_SIZE - 1] = 0;
+  for (int i = 0; i < TEXTAREA_SIZE - 1; i++) {
+    textarea[i] = string[(i + offset) % n];
   }
+  textarea[TEXTAREA_SIZE - 1] = 0;
 }
 
 int main(int argc, char **argv) {
@@ -36,7 +33,13 @@ int main(int argc, char **argv) {
   if (argc < 1)
     abort();
 
-  marquee(argv[0]);
+  uint32_t o = 0;
+  while (1) {
+    o++;
+    /* Test both the passed argument, and data accessed with $gp */
+    marquee(argv[0], o);
+    marquee(str, o);
+  }
 
   return 0;
 }

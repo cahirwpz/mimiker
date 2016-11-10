@@ -16,6 +16,9 @@ NESTED(_start, CALLFRAME_SIZE, $ra)
     sw $ra,4($sp)
     sw $sp,0($sp)
 
+    # Prepare $gp
+    la $gp, _gp
+
     # Grab argc from below stack
     lw $a0,8($sp)
     # Prepare argv pointing at argument vector below stack
