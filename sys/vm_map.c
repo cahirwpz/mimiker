@@ -137,58 +137,51 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot) {
 }
 
+/* Looks up a gap of @length size in @map. The search starts at @start address.
+ * On success, returns 0 and sets *addr. @start and @length arguments must be
+ * page-aligned. */
 int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
                      vm_addr_t /*out*/ *addr) {
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(length, PAGESIZE));
+
   /* Bounds check */
   if (start < map->pmap->start)
     start = map->pmap->start;
   if (start + length > map->pmap->end)
     return -ENOMEM;
 
-  if (TAILQ_EMPTY(&map->list)) {
-    /* Entire space free. */
-    *addr = start;
-    return 0;
-  }
+  /* Entire space free? */
+  if (TAILQ_EMPTY(&map->list))
+    goto found;
 
+  /* Is enought space before the first entry in the map? */
   vm_map_entry_t *first = TAILQ_FIRST(&map->list);
-  if (start + length <= first->start) {
-    /* If there is enought space before the first entry in the map, use it. */
-    *addr = start;
-    return 0;
-  }
+  if (start + length <= first->start)
+    goto found;
 
   /* Browse available gaps. */
   vm_map_entry_t *it;
   TAILQ_FOREACH (it, &map->list, map_list) {
     vm_map_entry_t *next = TAILQ_NEXT(it, map_list);
-    if (!next)
-      continue;
-    if (start < it->end && next->start - it->end >= length) {
-      /* Start points to an address before this gap, and we'll fit there. */
-      *addr = it->end;
-      return 0;
-    } else if (start >= it->end && next->start - start >= length) {
-      /* Start points to inside this gap, and we'll fit there. */
-      *addr = start;
-      return 0;
-    }
-  }
+    vm_addr_t gap_start = it->end;
+    vm_addr_t gap_end = next ? next->start : map->pmap->end;
 
-  /* Finally, check for free space after end. */
-  vm_map_entry_t *last = TAILQ_LAST(&map->list, vm_map_list);
-  if (start > last->end && map->pmap->end - start >= length) {
-    *addr = start;
-    return 0;
-  } else if (map->pmap->end - last->end >= length) {
-    *addr = last->end;
-    return 0;
+    /* Move start address forward if it points inside allocated space. */
+    if (start < gap_start)
+      start = gap_start;
+
+    /* Will we fit inside this gap? */
+    if (start + length <= gap_end)
+      goto found;
   }
 
   /* Failed to find free space. */
   return -ENOMEM;
+
+found:
+  *addr = start;
+  return 0;
 }
 
 void vm_map_dump(vm_map_t *map) {
