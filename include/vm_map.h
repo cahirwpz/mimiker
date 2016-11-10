@@ -47,10 +47,10 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
 vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                                  vm_prot_t prot);
 
-/* Searches the provided memory map for an empty space of at least the given
-   length. It only considers areas that begin at start address, thus addr is
-   guaranteed to be not smaller than start. On success, returns 0 and sets
-   *addr. Requires space and length to be page-aligned. */
+/* Searches for a space in memory map where length would fit, starting search
+   from start address. On success, returns 0 and sets *addr. If set, *addr is
+   guaranteed to be not smaller than start. Start and length arguments must be
+   page-aligned. */
 int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
                      vm_addr_t /*out*/ *addr);
 
