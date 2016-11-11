@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #define TEXTAREA_SIZE 100
 // This should land in .bss, accessed by a pointer in .data
@@ -12,16 +13,9 @@ void abort() {
     ; /* Sigh. */
 }
 
-size_t my_strlen(const char *str) {
-  size_t n = 0;
-  while (*(str++))
-    n++;
-  return n;
-}
-
 // Copy warped string with changing offsets
 void marquee(const char *string, int offset) {
-  size_t n = my_strlen(string);
+  size_t n = strlen(string);
   for (int i = 0; i < TEXTAREA_SIZE - 1; i++) {
     textarea[i] = string[(i + offset) % n];
   }
