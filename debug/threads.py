@@ -2,17 +2,21 @@ import gdb
 import tailq
 
 
-def dump_thread(thr):
+def thread_name(thr):
     return str(thr['td_name'].string())
 
 
-def get_runnable_threads():
-    runq = gdb.parse_and_eval('runq.rq_queues')
-    rq_size = gdb.parse_and_eval(
-        'sizeof(runq.rq_queues)/sizeof(runq.rq_queues[0])')
-    threads = []
-    for i in range(0, rq_size):
-        threads = threads + tailq.collect_values(runq[i], 'td_runq')
+def thread_id(thr):
+    return str(thr['td_tid'])
+
+
+def thread_state(thr):
+    return str(thr['td_state'])
+
+
+def get_all_threads():
+    tdq = gdb.parse_and_eval('all_threads')
+    threads = tailq.collect_values(tdq, 'td_all')
     return threads
 
 
@@ -28,7 +32,7 @@ class CtxSwitchTracerBP(gdb.Breakpoint):
     def stop(self):
         frm = gdb.parse_and_eval('(struct thread*)$a0').dereference()
         to = gdb.parse_and_eval('(struct thread*)$a1').dereference()
-        print('context switch from ', dump_thread(frm), ' to ', dump_thread(to))
+        print('context switch from ', thread_name(frm), ' to ', thread_name(to))
         return self.stop_on
 
     def set_stop_on(self, arg):
@@ -77,11 +81,22 @@ class CreateThreadTracer():
             self.createThreadbp = CreateThreadTracerBP()
 
 
+def dump_threads(threads):
+    extractors = [thread_id, thread_name, thread_state]
+    rows = [['id', 'name', 'state']]
+    column_sizes = [0, 0, 0]
+    for thread in threads:
+        row = [f(thread) for f in extractors]
+        rows.append(row)
+    for r in rows:
+        column_sizes = [max(a, b) for (a, b) in zip(map(len, r), column_sizes)]
+    for r in rows:
+        pretty_row = "   ".join([s.ljust(l) for (s, l) in zip(r, column_sizes)])
+        print(pretty_row)
+
 class KernelThreads():
     def invoke(self):
-        runnable = get_runnable_threads()
-        if runnable:
-            print('runnable_threads: ', map(dump_thread, runnable))
-        else:
-            print('no runnable threads')
-        print('current_thread: ', dump_thread(current_thread()))
+        threads = get_all_threads()
+        dump_threads(threads)
+        print ''
+        print 'current thread id: ', thread_id(current_thread())
