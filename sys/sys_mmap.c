@@ -64,7 +64,7 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
   /* Assign a pager. */
   entry->object = default_pager->pgr_alloc();
 
-  log("Created entry at %p, length: %ld", (void *)addr, length);
+  log("Created entry at %p, length: %zu", (void *)addr, length);
 
   if (flags & MMAP_FLAG_ANONYMOUS) {
     /* Calling bzero here defeats the purpose of paging on demand, but I do not
