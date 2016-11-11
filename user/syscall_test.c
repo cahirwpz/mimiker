@@ -1,19 +1,18 @@
 #include <stddef.h>
 
 int write(int fd, const char *buf, size_t count) {
-  int retval, errval;
-  asm volatile("move $a0, %2\n"
-               "move $a1, %3\n"
-               "move $a2, %4\n"
+  int retval;
+  asm volatile("move $a0, %1\n"
+               "move $a1, %2\n"
+               "move $a2, %3\n"
                "li $v0, 5\n" /* SYS_WRITE */
                "syscall\n"
                "move %0, $v0\n"
-               "move %1, $v1\n"
-               : "=r"(retval), "=r"(errval)
+               : "=r"(retval)
                : "r"(fd), "r"(buf), "r"(count)
                : "4", "5", "6", "2", "3");
   /* TODO: */
-  /* errno = errval */
+  /* if(retval < 0) errno = -retval */
   return retval;
 }
 

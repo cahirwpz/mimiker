@@ -12,7 +12,7 @@ typedef struct syscall_args {
   reg_t args[SYSCALL_ARGS_MAX];
 } syscall_args_t;
 
-typedef int syscall_t(thread_t *, syscall_args_t *, int *error);
+typedef int syscall_t(thread_t *, syscall_args_t *);
 
 typedef struct { syscall_t *call; } sysent_t;
 
@@ -34,6 +34,6 @@ extern sysent_t sysent[];
 int syscall(int n);
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
-int sys_nosys(thread_t *, syscall_args_t *, int *error);
+int sys_nosys(thread_t *, syscall_args_t *);
 
 #endif /* !_SYS_SYSENT_H_ */

@@ -2,15 +2,14 @@
 #include <stdc.h>
 #include <errno.h>
 
-int sys_nosys(thread_t *td, syscall_args_t *args, int *error) {
+int sys_nosys(thread_t *td, syscall_args_t *args) {
   log("No such system call: %ld", args->code);
-  *error = ENOSYS;
-  return -1;
+  return -ENOSYS;
 };
 
 /* This is just a stub. A full implementation of this syscall will probably
    deserve a separate file. */
-int sys_write(thread_t *td, syscall_args_t *args, int *error) {
+int sys_write(thread_t *td, syscall_args_t *args) {
   int fd = args->args[0];
   const char *buf = (const char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
@@ -22,8 +21,7 @@ int sys_write(thread_t *td, syscall_args_t *args, int *error) {
     return count;
   }
 
-  *error = EBADF;
-  return -1;
+  return -EBADF;
 }
 
 /* clang-format hates long arrays. */

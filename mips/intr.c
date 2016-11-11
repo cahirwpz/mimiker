@@ -82,21 +82,19 @@ void syscall_handler(exc_frame_t *frame) {
   kprintf("[syscall] entered #%d from %s mode!\n", (int)args.code,
           (frame->sr & SR_KSU_MASK) ? "user" : "kernel");
 
-  int error = 0, retval = 0;
+  int retval = 0;
 
   if (args.code > SYS_LAST) {
-    retval = 0;
-    error = ENOSYS;
+    retval = -ENOSYS;
     goto finalize;
   }
 
   /* Call the handler. */
-  retval = sysent[args.code].call(thread_self(), &args, &error);
+  retval = sysent[args.code].call(thread_self(), &args);
 
 finalize:
-  /* Store returned value and errno. */
+  /* Store returned value. */
   frame->v0 = retval;
-  frame->v1 = error;
   /* we need to fix return address to point to next instruction */
   frame->pc += 4;
 }
