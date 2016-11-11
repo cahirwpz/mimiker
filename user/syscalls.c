@@ -1,6 +1,3 @@
-/* unistd provides prototypes for syscall hooks. Including this file makes
-   compiler emit errors should we implement a non-confirming hook. */
-#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/time.h>
@@ -8,6 +5,12 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <errno.h>
+
+#ifdef __NEWLIB__
+/* unistd provides prototypes for syscall hooks. Including this file makes
+   compiler emit errors should we implement a non-confirming hook. */
+#include <unistd.h>
+#endif
 
 void _exit(int __status) {
   /* Exit may not return! */
