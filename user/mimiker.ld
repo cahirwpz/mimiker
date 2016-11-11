@@ -6,6 +6,7 @@ PHDRS
     text   PT_LOAD FLAGS(5); /* read-only, executable */
     data   PT_LOAD FLAGS(6); /* read-write */
     rodata PT_LOAD FLAGS(4); /* read-only */
+    sdata  PT_LOAD FLAGS(6); /* read-write */
     bss    PT_LOAD FLAGS(6); /* read-write */
 }
 SECTIONS
@@ -20,7 +21,6 @@ SECTIONS
     .data :
     {
         *(.data .data.*)
-        *(.sdata .sdata.*)
         . = ALIGN(4);
     } : data
 
@@ -31,6 +31,14 @@ SECTIONS
         *(.rodata .rodata.*)
         . = ALIGN(4);
     } : rodata
+
+    . = ALIGN(4096);
+
+    _gp = ALIGN(16) + 0x7ff0;
+    .sdata :
+    {
+        *(.sdata .sdata.*)
+    } : sdata
 
     . = ALIGN(4096);
     .bss :
@@ -52,4 +60,3 @@ SECTIONS
 	}
 
 }
-
