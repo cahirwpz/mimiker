@@ -43,6 +43,11 @@ int main(int argc, char **argv, char **envp) {
 
   kprintf("Thread '%s' running.\n", thread_self()->td_name);
 
+  assert(td0 == thread_get_by_tid(td0->td_tid));
+  assert(td1 == thread_get_by_tid(td1->td_tid));
+  assert(td2 == thread_get_by_tid(td2->td_tid));
+  assert(NULL == thread_get_by_tid(1234));
+
   thread_dump_all();
 
   thread_delete(td2);

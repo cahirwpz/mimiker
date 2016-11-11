@@ -101,3 +101,14 @@ void thread_dump_all() {
             state_names[td->td_state], td->td_name);
   }
 }
+
+thread_t *thread_get_by_tid(tid_t id) {
+  thread_t *td;
+  /* Traversing a list is slower than a hash-map, but it's simpler, and
+     sufficient for now. */
+  TAILQ_FOREACH (td, &all_threads, td_all) {
+    if (td->td_tid == id)
+      return td;
+  }
+  return NULL;
+}

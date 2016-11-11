@@ -56,4 +56,7 @@ void thread_switch_to(thread_t *td_ready);
 /* Debugging utility that prints out the summary of all_threads contents. */
 void thread_dump_all();
 
+/* Returns the thread matching the given ID, or null if none found. */
+thread_t *thread_get_by_tid(tid_t id);
+
 #endif // __THREAD_H__
