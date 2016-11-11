@@ -44,7 +44,6 @@ typedef struct thread {
 } thread_t;
 
 TAILQ_HEAD(all_threads_head, thread);
-struct all_threads_head all_threads;
 
 thread_t *thread_self();
 noreturn void thread_init(void (*fn)(), int n, ...);

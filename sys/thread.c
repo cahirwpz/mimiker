@@ -7,6 +7,7 @@
 #include <pcpu.h>
 
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
+struct all_threads_head all_threads;
 
 noreturn void thread_init(void (*fn)(), int n, ...) {
   thread_t *td;
