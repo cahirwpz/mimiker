@@ -6,6 +6,11 @@ import threads
 
 
 class Kdump(gdb.Command):
+    """
+    kdump is command for examining kernel state.
+    Currently supported commands:
+    kdump threads - lists information about threads in kernel
+    """
     def __init__(self):
         super(Kdump, self).__init__("kdump", gdb.COMMAND_USER)
         # classes instead of functions in case we decide to store
