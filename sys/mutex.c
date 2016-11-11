@@ -39,6 +39,8 @@ void mtx_lock(mtx_t *mtx) {
 }
 
 void mtx_unlock(mtx_t *mtx) {
-  atomic_store(&mtx->mtx_state, MTX_UNOWNED);
+  cs_enter();
+  mtx->mtx_state = MTX_UNOWNED;
   turnstile_signal(&mtx->turnstile);
+  cs_leave();
 }
