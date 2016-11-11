@@ -3,6 +3,7 @@ all: prog.uelf.o
 include ../Makefile.common
 
 PROGRAMS_C = prog.c
+SYSCALLS_C = syscalls.c
 
 CFLAGS   = -std=gnu11 -O0 -Wall -Werror -fno-builtin -ffreestanding
 LDFLAGS  = -nostdlib -T mimiker.ld
@@ -20,9 +21,9 @@ all: $(PROGRAMS_UELF_OS) $(PROGRAMS_UELFS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # Linking the program according to the provided script
-%.uelf: %.o start.o mimiker.ld
+%.uelf: %.o start.o mimiker.ld syscalls.o
 	@echo "[LD] $(DIR)$< -> $(DIR)$@"
-	$(CC) $(LDFLAGS) start.o -o $@ $< $(LDLIBS)
+	$(CC) $(LDFLAGS) start.o -o $@ $< syscalls.o $(LDLIBS)
 
 # Treating the liked program as binary data, placing it in .rodata
 # section, and embedding into an object file
