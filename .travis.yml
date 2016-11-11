@@ -14,4 +14,3 @@ before_install:
  - cd ..
 script:
  - make
- - ./rtc.test
