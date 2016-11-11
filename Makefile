@@ -29,7 +29,6 @@ physmem.elf: physmem.ko $(KRT)
 sched.elf: sched.ko $(KRT)
 sleepq.elf: sleepq.ko $(KRT)
 exec.elf: exec.ko $(KRT)
-turnstile.elf: turnstile.ko $(KRT)
 mutex.elf: mutex.ko $(KRT)
 
 libkernel.a: $(DEPFILES) $(OBJECTS)
