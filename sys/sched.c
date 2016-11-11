@@ -13,7 +13,7 @@ static thread_t *idle_thread;
 static runq_t runq;
 static bool sched_active = false;
 
-#define SLICE 10
+#define SLICE 1
 
 void sched_init() {
   runq_init(&runq);
