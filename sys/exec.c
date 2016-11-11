@@ -16,6 +16,7 @@
   extern uint8_t _binary_##name##_uelf_end[];
 
 EMBED_ELF_DECLARE(prog);
+EMBED_ELF_DECLARE(syscall_test);
 
 int get_elf_image(const exec_args_t *args, uint8_t **out_image,
                   size_t *out_size) {
@@ -28,6 +29,7 @@ int get_elf_image(const exec_args_t *args, uint8_t **out_image,
   }
 
   EMBED_ELF_BY_NAME(prog);
+  EMBED_ELF_BY_NAME(syscall_test);
   return -ENOENT;
 }
 
