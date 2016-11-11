@@ -28,3 +28,6 @@ etags
 
 # generated assembly files
 genassym.h
+
+# toolchain build artifacts
+toolchain/
