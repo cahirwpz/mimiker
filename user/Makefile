@@ -4,8 +4,8 @@ include ../Makefile.common
 
 PROGRAMS_C = prog.c
 
-CFLAGS   = -std=gnu11 -O0 -Wall -Werror -fno-builtin -ffreestanding -G0
-LDFLAGS  = -nostdlib -T mimiker.ld -G0
+CFLAGS   = -std=gnu11 -O0 -Wall -Werror -fno-builtin -ffreestanding
+LDFLAGS  = -nostdlib -T mimiker.ld
 
 PROGRAMS_OBJS = $(PROGRAMS_C:%.c=%.o)
 PROGRAMS_UELFS = $(PROGRAMS_C:%.c=%.uelf)
