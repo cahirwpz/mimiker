@@ -5,9 +5,9 @@ include ../Makefile.common
 PROGRAMS_C = prog.c
 SYSCALLS_C = syscalls.c
 
-CFLAGS   = -std=gnu11 -O0 -Wall -Werror -fno-builtin -ffreestanding
+CFLAGS   = -std=gnu11 -O0 -Wall -Werror -fno-builtin -ffreestanding -mhard-float
 LDFLAGS  = -nostdlib -T mimiker.ld
-LDLIBS   = -lc
+LDLIBS   = -lc -lgcc
 
 PROGRAMS_OBJS = $(PROGRAMS_C:%.c=%.o)
 PROGRAMS_UELFS = $(PROGRAMS_C:%.c=%.uelf)
