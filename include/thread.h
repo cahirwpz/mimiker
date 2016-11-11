@@ -7,6 +7,7 @@
 #include <exception.h>
 
 typedef uint8_t td_prio_t;
+typedef uint32_t tid_t;
 typedef struct vm_page vm_page_t;
 typedef struct sleepq sleepq_t;
 typedef struct vm_map vm_map_t;
@@ -20,6 +21,7 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_sleepq; /* a link on sleep queue */
   TAILQ_ENTRY(thread) td_lock;   /* a link on turnstile */
   const char *td_name;
+  tid_t td_tid; /* Thread ID*/
   /* thread state */
   enum { TDS_INACTIVE = 0x0, TDS_WAITING, TDS_READY, TDS_RUNNING } td_state;
   uint32_t td_flags;           /* TDF_* flags */

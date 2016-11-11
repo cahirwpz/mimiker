@@ -33,10 +33,16 @@ noreturn void thread_init(void (*fn)(), int n, ...) {
   ctx_boot(td);
 }
 
+static tid_t get_next_tid() {
+  static tid_t tid = 0;
+  return tid++;
+}
+
 thread_t *thread_create(const char *name, void (*fn)()) {
   thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
 
   td->td_name = name;
+  td->td_tid = get_next_tid();
   td->td_kstack_obj = pm_alloc(1);
   td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
   td->td_kstack.stk_size = PAGESIZE;
@@ -83,9 +89,15 @@ void thread_switch_to(thread_t *newtd) {
 
 void thread_dump_all() {
   thread_t *td;
+  /* TODO: Using an array as the one below is risky, as it needs to be kept in
+     sync with td_state enum. However, this function will be removed very soon,
+     because debugger scripts will replace it entirely, so I decided to keep
+     this array here. If you see this message in 2017, please either remove this
+     function, or move state_names close to td_state enum! */
+  const char *state_names[] = {"inactive", "waiting", "ready", "running"};
   kprintf("[thread] All threads:\n");
   TAILQ_FOREACH (td, &all_threads, td_all) {
-    kprintf("[thread]  %03d: %s,\t %p, state=%d\n", 0, td->td_name, (void *)td,
-            td->td_state);
+    kprintf("[thread]  % 3ld: %p %s, \"%s\"\n", td->td_tid, (void *)td,
+            state_names[td->td_state], td->td_name);
   }
 }
