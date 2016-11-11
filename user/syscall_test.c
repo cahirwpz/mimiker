@@ -10,7 +10,7 @@ int write(int fd, const char *buf, size_t count) {
                "move %0, $v0\n"
                : "=r"(retval)
                : "r"(fd), "r"(buf), "r"(count)
-               : "4", "5", "6", "2", "3");
+               : "%a0", "%a1", "%a2", "%v0");
   /* TODO: */
   /* if(retval < 0) errno = -retval */
   return retval;
