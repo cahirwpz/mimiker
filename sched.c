@@ -35,15 +35,16 @@ void main() {
   sched_add(t4);
   sched_add(t5);
 
+  thread_dump_all();
+
   sched_run();
 }
 #endif
 
-static struct { intptr_t start, end; } range[] = {
-  { 0xd0000000, 0xd0001000 },
-  {  0x1000000,  0x1001000 },
-  {  0x2000000,  0x2001000 }
-};
+static struct {
+  intptr_t start, end;
+} range[] = {
+  {0xd0000000, 0xd0001000}, {0x1000000, 0x1001000}, {0x2000000, 0x2001000}};
 
 void test_thread(volatile int *ptr) {
   kprintf("ptr: %p\n", ptr);
@@ -71,15 +72,13 @@ void main() {
   entry1->object = default_pager->pgr_alloc();
 
   t3->td_uspace = vm_map_new();
-  vm_map_entry_t *entry2 =
-    vm_map_add_entry(t3->td_uspace, range[1].start, range[1].end,
-                     VM_PROT_READ | VM_PROT_WRITE);
+  vm_map_entry_t *entry2 = vm_map_add_entry(
+    t3->td_uspace, range[1].start, range[1].end, VM_PROT_READ | VM_PROT_WRITE);
   entry2->object = default_pager->pgr_alloc();
 
   t4->td_uspace = vm_map_new();
-  vm_map_entry_t *entry3 =
-    vm_map_add_entry(t4->td_uspace, range[2].start, range[2].end,
-                     VM_PROT_READ | VM_PROT_WRITE);
+  vm_map_entry_t *entry3 = vm_map_add_entry(
+    t4->td_uspace, range[2].start, range[2].end, VM_PROT_READ | VM_PROT_WRITE);
   entry3->object = default_pager->pgr_alloc();
 
   vm_map_dump(get_kernel_vm_map());
@@ -89,6 +88,8 @@ void main() {
   sched_add(t1);
   sched_add(t3);
   sched_add(t4);
+
+  thread_dump_all();
 
   sched_run();
 }

@@ -14,6 +14,8 @@ noreturn void thread_init(void (*fn)(), int n, ...) {
   kmalloc_init(td_pool);
   kmalloc_add_arena(td_pool, pm_alloc(1)->vaddr, PAGESIZE);
 
+  TAILQ_INIT(&all_threads);
+
   td = thread_create("main", fn);
 
   /* Pass arguments to called function. */
@@ -41,6 +43,8 @@ thread_t *thread_create(const char *name, void (*fn)()) {
 
   ctx_init(td, fn);
 
+  TAILQ_INSERT_TAIL(&all_threads, td, td_all);
+
   td->td_state = TDS_READY;
 
   return td;
@@ -49,6 +53,8 @@ thread_t *thread_create(const char *name, void (*fn)()) {
 void thread_delete(thread_t *td) {
   assert(td != NULL);
   assert(td != thread_self());
+
+  TAILQ_REMOVE(&all_threads, td, td_all);
 
   pm_free(td->td_kstack_obj);
   kfree(td_pool, td);
@@ -73,4 +79,13 @@ void thread_switch_to(thread_t *newtd) {
   td->td_state = TDS_READY;
   newtd->td_state = TDS_RUNNING;
   ctx_switch(td, newtd);
+}
+
+void thread_dump_all() {
+  thread_t *td;
+  kprintf("[thread] All threads:\n");
+  TAILQ_FOREACH (td, &all_threads, td_all) {
+    kprintf("[thread]  %03d: %s,\t %p, state=%d\n", 0, td->td_name, (void *)td,
+            td->td_state);
+  }
 }

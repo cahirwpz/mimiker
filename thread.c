@@ -43,6 +43,8 @@ int main(int argc, char **argv, char **envp) {
 
   kprintf("Thread '%s' running.\n", thread_self()->td_name);
 
+  thread_dump_all();
+
   thread_delete(td2);
   thread_delete(td1);
 
