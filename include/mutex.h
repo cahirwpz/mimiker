@@ -1,5 +1,6 @@
 #ifndef __MUTEX_H__
 #define __MUTEX_H__
+
 #include <turnstile.h>
 
 typedef struct {
