@@ -38,9 +38,22 @@ ssize_t read(int __fd, void *__buf, size_t __nbyte) {
   return -1;
 }
 
-ssize_t write(int __fd, const void *__buf, size_t __nbyte) {
-  errno = ENOSYS;
-  return -1;
+ssize_t write(int fd, const void *buf, size_t count) {
+  int retval;
+  asm volatile("move $a0, %1\n"
+               "move $a1, %2\n"
+               "move $a2, %3\n"
+               "li $v0, 5\n" /* SYS_WRITE */
+               "syscall\n"
+               "move %0, $v0\n"
+               : "=r"(retval)
+               : "r"(fd), "r"(buf), "r"(count)
+               : "%a0", "%a1", "%a2", "%v0");
+  if (retval < 0) {
+    errno = -retval;
+    return -1;
+  }
+  return retval;
 }
 
 _off_t lseek(int __fildes, _off_t __offset, int __whence) {
