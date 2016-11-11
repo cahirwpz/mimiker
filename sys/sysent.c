@@ -17,10 +17,6 @@ int sys_write(thread_t *td, syscall_args_t *args, int *error) {
 
   /* TODO: copyout string from userspace */
   if (fd == 1 || fd == 2) {
-    /* We need a local copy of the string to null-terminate it after @count
-       bytes, because the only printing facility we have is kprintf. */
-    char buf2[count + 1];
-    memcpy(buf2, buf, count);
     kprintf("%.*s", (int)count, buf);
 
     return count;
