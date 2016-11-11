@@ -8,8 +8,9 @@
 
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
 
-TAILQ_HEAD(all_threads_head, thread);
-struct all_threads_head all_threads;
+typedef TAILQ_HEAD(, thread) thread_list_t;
+/* TODO: Synchronize access to the list */
+static thread_list_t all_threads;
 
 noreturn void thread_init(void (*fn)(), int n, ...) {
   thread_t *td;
@@ -36,8 +37,10 @@ noreturn void thread_init(void (*fn)(), int n, ...) {
   ctx_boot(td);
 }
 
-static tid_t get_next_tid() {
-  static tid_t tid = 0;
+/* FTTB such a primitive method of creating new TIDs will do. */
+static tid_t make_tid() {
+  static volatile tid_t tid = 0;
+  /* TODO: Synchronization is missing here. */
   return tid++;
 }
 
@@ -45,7 +48,7 @@ thread_t *thread_create(const char *name, void (*fn)()) {
   thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
 
   td->td_name = name;
-  td->td_tid = get_next_tid();
+  td->td_tid = make_tid();
   td->td_kstack_obj = pm_alloc(1);
   td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
   td->td_kstack.stk_size = PAGESIZE;
@@ -105,13 +108,13 @@ void thread_dump_all() {
   }
 }
 
+/* It would be better to have a hash-map from tid_t to thread_t,
+ * but using a list is sufficient for now. */
 thread_t *thread_get_by_tid(tid_t id) {
-  thread_t *td;
-  /* Traversing a list is slower than a hash-map, but it's simpler, and
-     sufficient for now. */
+  thread_t *td = NULL;
   TAILQ_FOREACH (td, &all_threads, td_all) {
     if (td->td_tid == id)
-      return td;
+      break;
   }
-  return NULL;
+  return td;
 }

@@ -44,7 +44,10 @@ void main() {
 static struct {
   intptr_t start, end;
 } range[] = {
-  {0xd0000000, 0xd0001000}, {0x1000000, 0x1001000}, {0x2000000, 0x2001000}};
+  {0xd0000000, 0xd0001000},
+  { 0x1000000,  0x1001000},
+  { 0x2000000,  0x2001000}
+};
 
 void test_thread(volatile int *ptr) {
   kprintf("ptr: %p\n", ptr);
