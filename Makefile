@@ -8,6 +8,7 @@ SOURCES_ASM =
 all: tags cscope mips stdc sys $(TESTS)
 
 include Makefile.common
+$(info Using CC: $(CC))
 
 LDLIBS += -Lsys -Lmips -Lstdc \
 	  -Wl,--start-group -lsys -lmips -lstdc -lgcc -Wl,--end-group
@@ -35,21 +36,13 @@ cscope:
 	cscope -b include/*.h ./*.[cS] 
 
 tags:
-	find -iname '*.[ch]' | ctags --language-force=c -L-
-	find -iname '*.[ch]' | ctags --language-force=c -L- -e -f etags
-	find -iname '*.S' | ctags -a --language-force=asm -L-
-	find -iname '*.S' | ctags -a --language-force=asm -L- -e -f etags
-	find $(SYSROOT)/mips-mti-elf/include -type f -iname 'mips*' \
-		| ctags -a --language-force=c -L-
-	find $(SYSROOT)/mips-mti-elf/include -type f -iname 'mips*' \
-		| ctags -a --language-force=c -L- -e -f etags
-	find $(SYSROOT)/lib/gcc/mips-mti-elf/*/include -type f -iname '*.h' \
-		| ctags -a --language-force=c -L-
-	find $(SYSROOT)/lib/gcc/mips-mti-elf/*/include -type f -iname '*.h' \
-		| ctags -a --language-force=c -L- -e -f etags
+	find -iname '*.[ch]' -not -path "*/toolchain/*" | ctags --language-force=c -L-
+	find -iname '*.[ch]' -not -path "*/toolchain/*" | ctags --language-force=c -L- -e -f etags
+	find -iname '*.S' -not -path "*/toolchain/*" | ctags -a --language-force=asm -L-
+	find -iname '*.S' -not -path "*/toolchain/*" | ctags -a --language-force=asm -L- -e -f etags
 
-FORMATTABLE_EXCLUDE = include/elf stdc/smallclib include/mips/asm.h
-FORMATTABLE = $(shell find -type f -name '*.c' -or -name '*.h' | grep -v $(FORMATTABLE_EXCLUDE:%=-e %))
+FORMATTABLE_EXCLUDE = include/elf stdc/smallclib include/mips/asm.h include/mips/m32c0.h
+FORMATTABLE = $(shell find -type f -not -path "*/toolchain/*" -and \( -name '*.c' -or -name '*.h' \) | grep -v $(FORMATTABLE_EXCLUDE:%=-e %))
 format:
 	@echo "Formatting files: $(FORMATTABLE:./%=%)"
 	clang-format -style=file -i $(FORMATTABLE)

@@ -7,8 +7,8 @@
 #include <stdalign.h>    /* alignof, alignas */
 #include <stdnoreturn.h> /* noreturn */
 
-typedef uintptr_t vm_addr_t;
-typedef uintptr_t pm_addr_t;
+typedef unsigned long vm_addr_t;
+typedef unsigned long pm_addr_t;
 
 /* Macros for counting and rounding. */
 #ifndef howmany

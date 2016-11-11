@@ -6,11 +6,15 @@ import os.path
 import signal
 import subprocess
 import shlex
+import shutil
 from pexpect import popen_spawn
 
 OVPSIM_VENDOR = 'mips.ovpworld.org'
 OVPSIM_PLATFORM = 'MipsMalta/1.0'
-TRIPLET = 'mips-mti-elf'
+if shutil.which('mipsel-unknown-elf-gcc') is None:
+    TRIPLET = 'mips-mti-elf'
+else:
+    TRIPLET = 'mipsel-unknown-elf'
 PORT = 8000
 
 OVPSIM = os.path.join(os.environ['IMPERAS_VLNV'],

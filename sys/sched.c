@@ -1,3 +1,4 @@
+#include <sync.h>
 #include <stdc.h>
 #include <sched.h>
 #include <runq.h>
@@ -26,13 +27,13 @@ void sched_add(thread_t *td) {
 
   td->td_state = TDS_READY;
   td->td_slice = SLICE;
+  cs_enter();
 
-  intr_disable();
   runq_add(&runq, td);
 
   if (td->td_prio > thread_self()->td_prio)
     thread_self()->td_flags |= TDF_NEEDSWITCH;
-  intr_enable();
+  cs_leave();
 }
 
 void sched_remove(thread_t *td) {
@@ -53,6 +54,7 @@ void sched_yield() {
 void sched_switch(thread_t *newtd) {
   if (!sched_active)
     return;
+  cs_enter();
 
   thread_t *td = thread_self();
 
@@ -70,6 +72,7 @@ void sched_switch(thread_t *newtd) {
   }
 
   newtd->td_state = TDS_RUNNING;
+  cs_leave();
 
   if (td != newtd)
     ctx_switch(td, newtd);
@@ -83,3 +86,4 @@ noreturn void sched_run() {
   while (true)
     idle_thread->td_flags |= TDF_NEEDSWITCH;
 }
+
