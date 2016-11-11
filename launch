@@ -9,69 +9,35 @@ import shlex
 import shutil
 from pexpect import popen_spawn
 
-OVPSIM_VENDOR = 'mips.ovpworld.org'
-OVPSIM_PLATFORM = 'MipsMalta/1.0'
-if shutil.which('mipsel-unknown-elf-gcc') is None:
-    TRIPLET = 'mips-mti-elf'
-else:
-    TRIPLET = 'mipsel-unknown-elf'
 PORT = 8000
 
-OVPSIM = os.path.join(os.environ['IMPERAS_VLNV'],
-                      OVPSIM_VENDOR, 'platform', OVPSIM_PLATFORM,
-                      'platform.%s.exe' % os.environ['IMPERAS_ARCH'])
-
-OVPSIM_OPTIONS = ['--root', '/dev/null', '--nographics', '--wallclock']
-OVPSIM_OVERRIDES = {
-    "mipsle1/vectoredinterrupt": 1,
-    "mipsle1/srsctlHSS": 1,
-    "rtc/timefromhost": 1,
-    "uartCBUS/console": 1,
-    "uartCBUS/portnum": PORT
-}
-
 DEBUGGERS = {
-    'gdb'   : '%(triplet)s-gdb %(kernel)s',
-    'cgdb'  : 'cgdb -d %(triplet)s-gdb %(kernel)s',
-    'ddd'   : 'ddd --debugger %(triplet)s-gdb %(kernel)s',
+    'gdb': '%(triplet)s-gdb %(kernel)s',
+    'cgdb': 'cgdb -d %(triplet)s-gdb %(kernel)s',
+    'ddd': 'ddd --debugger %(triplet)s-gdb %(kernel)s',
     'gdbtui': '%(triplet)s-gdb -tui',
-    'emacs' : 'emacsclient -c -e \'(gdb "%(triplet)s-gdb -i=mi %(kernel)s")\''
+    'emacs': 'emacsclient -c -e \'(gdb "%(triplet)s-gdb -i=mi %(kernel)s")\''
 }
 DEFAULT_DEBUGGER = 'cgdb'
 assert(DEFAULT_DEBUGGER in DEBUGGERS)
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description='Launch OVPsim with Malta board.')
-    parser.add_argument('kernel', metavar='KERNEL', type=str,
-                        help='Kernel file in ELF format.')
-    parser.add_argument('-d', '--debug', action='store_true',
-                        help='Start simulation under gdb.')
-    parser.add_argument('-D', metavar='DEBUGGER', type=str, dest='debugger',
-                        choices=DEBUGGERS.keys(), default=DEFAULT_DEBUGGER,
-                        help='Debugger to use. Implies -d. Available options: ' +
-                        ', '.join(DEBUGGERS.keys()) + ". Default: " +
-                        DEFAULT_DEBUGGER + ".")
-    parser.add_argument('-t', '--test', action='store_true',
-                        help='Use current stdin & stdout for simulated UART.')
 
-    args = parser.parse_args()
+def find_triplet():
+    for triplet in ['mips-mti-elf', 'mipsel-unknown-elf']:
+        if shutil.which(triplet + '-gcc'):
+            return triplet
 
-    if args.debugger != DEFAULT_DEBUGGER:
-        args.debug = True
+    raise SystemExit('No cross compiler found!')
 
-    if args.test:
-        OVPSIM_OVERRIDES["uartCBUS/console"] = 0
 
-    if not os.path.isfile(args.kernel):
-        raise SystemExit("%s: file does not exist!" % args.kernel)
-
-    opts = ['--kernel', args.kernel]
-    opts += OVPSIM_OPTIONS
-    for item in OVPSIM_OVERRIDES.items():
-        opts += ['--override', '%s=%s' % item]
-    if args.debug:
-        opts += ['--port', '1234']
+def configure_ovpsim(args):
+    OVPSIM_OVERRIDES = {
+        'mipsle1/vectoredinterrupt': 1,
+        'mipsle1/srsctlHSS': 1,
+        'rtc/timefromhost': 1,
+        'uartCBUS/console': 1,
+        'uartCBUS/portnum': PORT
+    }
 
     try:
         os.remove('uartCBUS.log')
@@ -80,13 +46,115 @@ if __name__ == "__main__":
     except OSError:
         pass
 
-    if args.debug:
-        dbgcmd = DEBUGGERS[args.debugger] % {'kernel': args.kernel, 'triplet': TRIPLET}
-        dbgcmd = shlex.split(dbgcmd)
+    options = ['--root', '/dev/null',
+               '--nographics',
+               '--wallclock',
+               '--kernel', args.kernel]
 
-        sim = subprocess.Popen([OVPSIM] + opts,
-                               start_new_session=True)
-        gdb = subprocess.Popen(dbgcmd, start_new_session=True)
+    if args.test:
+        OVPSIM_OVERRIDES['uartCBUS/console'] = 0
+
+    for item in OVPSIM_OVERRIDES.items():
+        options += ['--override', '%s=%s' % item]
+
+    if args.debug:
+        options += ['--port', '1234']
+
+    return options
+
+
+def configure_qemu(args):
+    options = ['-nographic',
+               '-nodefaults',
+               '-machine', 'malta',
+               '-cpu', '24Kf',
+               '-kernel', args.kernel]
+
+    if args.test:
+        options += ['-serial', 'null',
+                    '-serial', 'null',
+                    '-monitor', 'stdio',
+                    '-serial', 'tcp:127.0.0.1:%d,server,nowait' % PORT]
+    else:
+        options += ['-serial', 'none',
+                    '-serial', 'null',
+                    '-serial', 'null',
+                    '-serial', 'stdio']
+
+    if args.debug:
+        options += ['-s', '-S']
+
+    return options
+
+
+def find_simulator():
+    sim_choices = {}
+    sim_default = None
+
+    if shutil.which('qemu-system-mipsel'):
+        sim_choices['qemu'] = ['qemu-system-mipsel', configure_qemu]
+        sim_default = 'qemu'
+
+    try:
+        OVPSIM_VENDOR = 'mips.ovpworld.org'
+        OVPSIM_PLATFORM = 'MipsMalta/1.0'
+        IMPERAS_VLNV = os.environ['IMPERAS_VLNV']
+        IMPERAS_ARCH = os.environ['IMPERAS_ARCH']
+
+        ovpsim_path = os.path.join(
+            IMPERAS_VLNV, OVPSIM_VENDOR, 'platform', OVPSIM_PLATFORM,
+            'platform.%s.exe' % IMPERAS_ARCH)
+        sim_choices['ovpsim'] = [ovpsim_path, configure_ovpsim]
+        sim_default = 'ovpsim'
+    except KeyError:
+        pass
+
+    if not sim_default:
+        raise SystemExit('No simulator found!')
+
+    return sim_default, sim_choices
+
+
+if __name__ == '__main__':
+    triplet = find_triplet()
+    sim_default, sim_choices = find_simulator()
+
+    parser = argparse.ArgumentParser(
+        description='Launch kernel in Malta board simulator.')
+    parser.add_argument('kernel', metavar='KERNEL', type=str,
+                        help='Kernel file in ELF format.')
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='Start simulation under gdb.')
+    parser.add_argument('-D', '--debugger', metavar='DEBUGGER', type=str,
+                        choices=DEBUGGERS.keys(), default=DEFAULT_DEBUGGER,
+                        help=('Debugger to use. Implies -d. ' +
+                              'Available options: %s. Default: %s.' %
+                              (', '.join(DEBUGGERS.keys()), DEFAULT_DEBUGGER)))
+    parser.add_argument('-S', '--simulator', metavar='SIMULATOR', type=str,
+                        choices=sim_choices.keys(), default=sim_default,
+                        help=('Simulator to use. ' +
+                              'Available options: %s. Default: %s.' %
+                              (', '.join(sim_choices.keys()), sim_default)))
+    parser.add_argument('-t', '--test', action='store_true',
+                        help='Use current stdin & stdout for simulated UART.')
+
+    args = parser.parse_args()
+
+    if not os.path.isfile(args.kernel):
+        raise SystemExit('%s: file does not exist!' % args.kernel)
+
+    if args.debugger != DEFAULT_DEBUGGER:
+        args.debug = True
+
+    sim_cmd, sim_opts = sim_choices[args.simulator]
+    sim_cmd = [sim_cmd] + sim_opts(args)
+
+    if args.debug:
+        dbg_cmd = shlex.split(DEBUGGERS[args.debugger] %
+                              {'kernel': args.kernel, 'triplet': triplet})
+
+        sim = subprocess.Popen(sim_cmd, start_new_session=True)
+        gdb = subprocess.Popen(dbg_cmd, start_new_session=True)
         while True:
             try:
                 gdb.wait()
@@ -95,8 +163,11 @@ if __name__ == "__main__":
             except KeyboardInterrupt:
                 gdb.send_signal(signal.SIGINT)
     elif args.test:
-        sim = popen_spawn.PopenSpawn([OVPSIM] + opts)
-        sim.expect("Waiting for connection on port %d" % PORT, timeout=5)
+        sim = popen_spawn.PopenSpawn(sim_cmd)
+        if args.simulator == 'ovpsim':
+            sim.expect('Waiting for connection on port %d' % PORT, timeout=5)
+        elif args.simulator == 'qemu':
+            sim.expect('QEMU .* monitor', timeout=5)
         nc = subprocess.Popen(['nc', 'localhost', str(PORT)])
         while True:
             try:
@@ -105,7 +176,7 @@ if __name__ == "__main__":
             except KeyboardInterrupt:
                 sim.kill(signal.SIGINT)
     else:
-        sim = subprocess.Popen([OVPSIM] + opts)
+        sim = subprocess.Popen(sim_cmd)
         try:
             sim.wait()
         except KeyboardInterrupt:
