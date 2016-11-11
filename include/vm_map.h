@@ -47,6 +47,9 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
 vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                                  vm_prot_t prot);
 
+/* Looks up a gap of @length size in @map. The search starts at @start address.
+ * On success, returns 0 and sets *addr. @start and @length arguments must be
+ * page-aligned. */
 int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
                      vm_addr_t /*out*/ *addr);
 
