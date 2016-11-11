@@ -8,11 +8,11 @@ void turnstile_init(turnstile_t *ts) {
 }
 
 void turnstile_wait(turnstile_t *ts) {
-  cs_enter();
   thread_t *td = thread_self();
   TAILQ_INSERT_TAIL(&ts->td_queue, td, td_lock);
   td->td_state = TDS_WAITING;
   cs_leave();
+  //ctx_switch here
   sched_yield();
 }
 
