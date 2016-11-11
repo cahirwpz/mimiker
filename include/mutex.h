@@ -20,5 +20,4 @@ void mtx_lock(mtx_t *);
  * wakes up the thread in FIFO manner. */
 void mtx_unlock(mtx_t *);
 
-
 #endif /* __MUTEX_H__ */
