@@ -9,7 +9,7 @@ int mtx_owned(mtx_t *mtx) {
 }
 
 thread_t *mtx_owner(mtx_t *mtx) {
-  return (thread_t*)mtx->mtx_state;
+  return (thread_t *)mtx->mtx_state;
 }
 
 static int mtx_try_to_lock(mtx_t *mtx) {
@@ -23,16 +23,16 @@ void mtx_init(mtx_t *mtx) {
 }
 
 void mtx_lock(mtx_t *mtx) {
-  assert(mtx_owner(mtx) != thread_self()); // No recursive mutexes for now
+  assert(mtx_owner(mtx) != thread_self()); /* No recursive mutexes for now */
   while (!mtx_try_to_lock(mtx)) {
-    /* 1. mutex can be released here */
+    /* 1 - mutex can be released here */
     cs_enter();
-    if(mtx->mtx_state == MTX_UNOWNED) /* Check if mutex was released at '1'*/
+    if (mtx->mtx_state == MTX_UNOWNED) /* Check if mutex was released at 1 */
     {
-        cs_leave();
-        continue;
+      cs_leave();
+      continue;
     }
-    /* Mutex cannot be released here */
+    assert(mtx_owned(mtx));
     turnstile_wait(&mtx->turnstile);
   }
 }
