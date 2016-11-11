@@ -5,10 +5,16 @@
    compiler emit errors should we implement a non-confirming hook. */
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/times.h>
+#else
+/* These are for the old toolchain. */
+struct stat;
+struct tms;
+struct timeval;
+#include <sys/types.h>
 #endif
 
 void _exit(int __status) {
