@@ -43,8 +43,6 @@ typedef struct thread {
   int td_slice;
 } thread_t;
 
-TAILQ_HEAD(all_threads_head, thread);
-
 thread_t *thread_self();
 noreturn void thread_init(void (*fn)(), int n, ...);
 thread_t *thread_create(const char *name, void (*fn)());
