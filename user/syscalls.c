@@ -98,8 +98,19 @@ int fstat(int fd, struct stat *buf) {
 }
 
 void *sbrk(ptrdiff_t increment) {
-  errno = ENOSYS;
-  return (void *)-1;
+  int retval;
+  asm volatile("move $a0, %1\n"
+               "li $v0, 11\n" /* SYS_SBRK */
+               "syscall\n"
+               "move %0, $v0\n"
+               : "=r"(retval)
+               : "r"(increment)
+               : "%a0", "%v0");
+  if (retval < 0) {
+    errno = -retval;
+    return (void *)-1;
+  }
+  return (void *)retval;
 }
 
 int isatty(int __fildes) {

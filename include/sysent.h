@@ -28,8 +28,9 @@ extern sysent_t sysent[];
 #define SYS_GETPID 8
 #define SYS_KILL 9
 #define SYS_FSTAT 10
+#define SYS_SBRK 11
 
-#define SYS_LAST 10
+#define SYS_LAST 11
 
 int syscall(int n);
 

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
 
 #define TEXTAREA_SIZE 100
 // This should land in .bss, accessed by a pointer in .data
@@ -19,15 +20,44 @@ void marquee(const char *string, int offset) {
   textarea[TEXTAREA_SIZE - 1] = 0;
 }
 
+/* Temporary required, because I don't want to mix printf with sbrk_test. */
+void assert(int cond) {
+  if (!cond)
+    while (1)
+      ;
+}
+
+void sbrk_test() {
+  /* Initial sbrk */
+  char *a1 = sbrk(10);
+  /* Test write access. */
+  memset(a1, 1, 10);
+  /* Expand sbrk a little bit. */
+  char *a2 = sbrk(40);
+  assert(a2 == a1 + 10);
+  /* And again. */
+  char *a3 = sbrk(50);
+  assert(a3 == a2 + 40);
+  /* Now expand it a lot, much more than page size. */
+  char *a4 = sbrk(0x5000);
+  assert(a4 == a3 + 50);
+  /* Test write access. */
+  memset(a4, -1, 0x5000);
+  /* See that previous data is unmodified. */
+  assert(*(a1 + 5) = 1);
+}
+
 int main(int argc, char **argv) {
   /* TODO: Actually, the 0-th argument should be the program name. */
   if (argc < 1)
     abort();
 
+  sbrk_test();
+
   /* Test some libstd functions. They will all fail, because system calls are
      not hooked up yet, but this should at least compile and link
      successfully. */
-  printf("Hello libc!");
+  printf("Hello libc!\n");
 
   int *ptr = malloc(10 * sizeof(int));
   free(ptr);

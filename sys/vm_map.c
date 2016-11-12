@@ -181,6 +181,18 @@ found:
   return 0;
 }
 
+int vm_map_expand(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
+  assert(is_aligned(new_end, PAGESIZE));
+  assert(new_end > entry->end);
+  vm_map_entry_t *next = TAILQ_NEXT(entry, map_list);
+  vm_addr_t gap_end = next ? next->start : map->pmap->end;
+  if (new_end > gap_end)
+    return -ENOMEM;
+  entry->end = new_end;
+  /* Note that neither tailq nor splay tree require updating. */
+  return 0;
+}
+
 void vm_map_dump(vm_map_t *map) {
   vm_map_entry_t *it;
   kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n", map->pmap->start,

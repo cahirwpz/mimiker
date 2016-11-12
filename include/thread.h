@@ -11,6 +11,7 @@ typedef uint32_t tid_t;
 typedef struct vm_page vm_page_t;
 typedef struct sleepq sleepq_t;
 typedef struct vm_map vm_map_t;
+typedef struct vm_map_entry vm_map_entry_t;
 
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
@@ -41,6 +42,10 @@ typedef struct thread {
   /* scheduler part */
   td_prio_t td_prio;
   int td_slice;
+  /* sbrk support */
+  vm_map_entry_t
+    *td_brk_entry;  /* The entry on td_uspace the brk segment resides in. */
+  vm_addr_t td_brk; /* Current end of brk segment. */
 } thread_t;
 
 thread_t *thread_self();
