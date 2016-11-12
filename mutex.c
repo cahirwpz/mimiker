@@ -15,12 +15,12 @@ thread_t *td4;
 thread_t *td5;
 
 void mtx_test_main() {
+  mtx_lock(&mtx);
   for (size_t i = 0; i < 20000; i++) {
-    mtx_lock(&mtx);
     value++;
     kprintf("%s: %ld\n", thread_self()->td_name, (long)value);
-    mtx_unlock(&mtx);
   }
+  mtx_unlock(&mtx);
   while (1)
     ;
 }
