@@ -44,7 +44,7 @@ void sbrk_test() {
   /* Test write access. */
   memset(a4, -1, 0x5000);
   /* See that previous data is unmodified. */
-  assert(*(a1 + 5) = 1);
+  assert(*(a1 + 5) == 1);
 }
 
 int main(int argc, char **argv) {
