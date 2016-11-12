@@ -100,3 +100,92 @@ class KernelThreads():
         dump_threads(threads)
         print ''
         print 'current thread id: ', thread_id(current_thread())
+
+class ThreadPrettyPrinter():
+    """
+    Pretty prints single thread.
+    Note that this prints ALL fields of thread. This looks OK for now
+    because thread structure doesn't have that many fields, but in future
+    we might want to distinguish between scheduler, process, etc. sets of fields.
+    """
+    def __init__(self,val):
+        self.val = val
+
+    def to_string(self):
+        res = []
+        for field in self.val.type:
+            res.append(field + ' = ' + str(self.val[field]))
+        return "\n".join(res)
+
+    def display_hint(self):
+        return 'map'
+
+def addThreadPrettyPrinter():
+    pp = gdb.printing.RegexpCollectionPrettyPrinter("threads")
+    pp.add_printer('thread','thread', ThreadPrettyPrinter)
+    gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
+
+
+class Kthread(gdb.Command):
+    """
+    kthread prints info about given thread. Thread can be either given by
+    its identifier (td_tid) or by its name (td_name). This command uses
+    thread pretty printer to print thread structure, and supports tab
+    auto completion.
+    Example:
+
+    Given list of threads in system:
+    id   name              state
+    0    main              TDS_RUNNING
+    1    kernel-thread-1   TDS_READY
+    2    user-thread-1     TDS_READY
+    3    user-thread-2     TDS_RUNNING
+
+    User might print information about thread 1 by typing:
+    $ kthread 1
+    or
+    $ kthread kernel-thread-1
+    If there are more threads with the same name or thread id,
+    first one matching will be printed.
+    """
+    def __init__(self):
+        super(Kthread, self).__init__("kthread", gdb.COMMAND_USER)
+
+    def invoke(self, args, from_tty):
+        if len(args) < 1:
+            raise(gdb.GdbError('Usage: kthread [td_name|td_tid]'))
+
+        #First try to search by thread_id
+        try:
+            tid = int(args)
+        except ValueError:
+            #If can't find by thread id, search by name
+            for t in get_all_threads():
+                if thread_name(t) == args:
+                    print(t)
+                    return
+
+        for t in get_all_threads():
+            if thread_id(t) == args:
+                print(t)
+                return
+
+        print "Can't find thread with '", args, "' id or name"
+
+    def complete(self, text, word):
+        args = text.split()
+        all_names = sum([map(thread_name,get_all_threads()),
+                    map(thread_id,get_all_threads())],[])
+        if len(args) == 0:
+            return all_names
+        if len(args) >= 2:
+            return []
+        suggestions = []
+        for k in all_names:
+            if k.startswith(args[0], 0, len(k) - 1):
+                suggestions.append(k)
+        return suggestions
+
+
+addThreadPrettyPrinter()
+Kthread()
