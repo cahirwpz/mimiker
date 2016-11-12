@@ -20,7 +20,7 @@ void marquee(const char *string, int offset) {
   textarea[TEXTAREA_SIZE - 1] = 0;
 }
 
-/* Temporary required, because I don't want to mix printf with sbrk_test. */
+/* Temporarily required, because I don't want to mix printf with sbrk_test. */
 void assert(int cond) {
   if (!cond)
     while (1)
