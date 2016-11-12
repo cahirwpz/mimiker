@@ -155,8 +155,7 @@ class Kthread(gdb.Command):
     $ kthread 1
     or
     $ kthread kernel-thread-1
-    If there are more threads with the same name or thread id,
-    first one matching will be printed.
+    If there are more threads with the same name, gdb will print warning message.
     """
 
     def __init__(self):
@@ -171,10 +170,15 @@ class Kthread(gdb.Command):
             tid = int(args)
         except ValueError:
             # If can't find by thread id, search by name
+            tds = []
             for t in get_all_threads():
                 if thread_name(t) == args:
-                    print(t)
-                    return
+                    tds.append(t)
+            if(len(tds) > 1):
+                print "Warning! There is more than 1 thread with name ", args
+            if(len(tds) > 0):
+                print(t)
+                return
 
         for t in get_all_threads():
             if thread_id(t) == args:
