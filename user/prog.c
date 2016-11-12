@@ -27,13 +27,15 @@ int main(int argc, char **argv) {
   /* Test some libstd functions. They will all fail, because system calls are
      not hooked up yet, but this should at least compile and link
      successfully. */
-  printf("Hello libc!");
+  printf("Hello libc!\n");
 
   int *ptr = malloc(10 * sizeof(int));
   free(ptr);
 
   FILE *f = fopen("/etc/passwd", "rw");
   fclose(f);
+
+  printf("Test complete.\n");
 
   uint32_t o = 0;
   while (1) {

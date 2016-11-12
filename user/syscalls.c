@@ -17,25 +17,69 @@ struct timeval;
 #include <sys/types.h>
 #endif
 
-void _exit(int __status) {
+void _exit(int status) {
+  int retval;
+  asm volatile("move $a0, %1\n"
+               "li $v0, 1\n" /* SYS_EXIT */
+               "syscall\n"
+               "move %0, $v0\n"
+               : "=r"(retval)
+               : "r"(status)
+               : "%a0", "%a1", "%a2", "%v0");
   /* Exit may not return! */
   while (1)
     ;
 }
 
 int open(const char *pathname, int flags, ...) {
-  errno = ENOSYS;
-  return -1;
+  int retval;
+  asm volatile("move $a0, %1\n"
+               "move $a1, %2\n"
+               "li $v0, 2\n" /* SYS_OPEN */
+               "syscall\n"
+               "move %0, $v0\n"
+               : "=r"(retval)
+               : "r"(pathname), "r"(flags)
+               : "%a0", "%a1", "%v0");
+  if (retval < 0) {
+    errno = -retval;
+    return -1;
+  }
+  return retval;
 }
 
-int close(int __fildes) {
-  errno = ENOSYS;
-  return -1;
+int close(int fd) {
+  int retval;
+  asm volatile("move $a0, %1\n"
+               "li $v0, 3\n" /* SYS_CLOSE */
+               "syscall\n"
+               "move %0, $v0\n"
+               : "=r"(retval)
+               : "r"(fd)
+               : "%a0", "%v0");
+  if (retval < 0) {
+    errno = -retval;
+    return -1;
+  }
+  return retval;
 }
 
-ssize_t read(int __fd, void *__buf, size_t __nbyte) {
-  errno = ENOSYS;
-  return -1;
+ssize_t read(int fd, void *buf, size_t count) {
+  int retval;
+  asm volatile("move $a0, %1\n"
+               "move $a1, %2\n"
+               "move $a2, %3\n"
+               "li $v0, 4\n" /* SYS_READ */
+               "syscall\n"
+               "move %0, $v0\n"
+               : "=r"(retval)
+               : "r"(fd), "r"(buf), "r"(count)
+               : "%a0", "%a1", "%a2", "%v0");
+  if (retval < 0) {
+    errno = -retval;
+    return -1;
+  }
+  return retval;
 }
 
 ssize_t write(int fd, const void *buf, size_t count) {
@@ -56,9 +100,22 @@ ssize_t write(int fd, const void *buf, size_t count) {
   return retval;
 }
 
-_off_t lseek(int __fildes, _off_t __offset, int __whence) {
-  errno = ENOSYS;
-  return (off_t)-1;
+_off_t lseek(int fd, _off_t offset, int whence) {
+  int retval;
+  asm volatile("move $a0, %1\n"
+               "move $a1, %2\n"
+               "move $a2, %3\n"
+               "li $v0, 6\n" /* SYS_LSEEK */
+               "syscall\n"
+               "move %0, $v0\n"
+               : "=r"(retval)
+               : "r"(fd), "r"(offset), "r"(whence)
+               : "%a0", "%a1", "%a2", "%v0");
+  if (retval < 0) {
+    errno = -retval;
+    return -1;
+  }
+  return retval;
 }
 
 int link(const char *__path1, const char *__path2) {
@@ -72,8 +129,19 @@ int symlink(const char *__name1, const char *__name2) {
 }
 
 int unlink(const char *path) {
-  errno = ENOSYS;
-  return -1;
+  int retval;
+  asm volatile("move $a0, %1\n"
+               "li $v0, 7\n" /* SYS_UNLINK */
+               "syscall\n"
+               "move %0, $v0\n"
+               : "=r"(retval)
+               : "r"(path)
+               : "%a0", "%v0");
+  if (retval < 0) {
+    errno = -retval;
+    return -1;
+  }
+  return retval;
 }
 
 ssize_t readlink(const char *__restrict __path, char *__restrict __buf,
@@ -83,18 +151,54 @@ ssize_t readlink(const char *__restrict __path, char *__restrict __buf,
 }
 
 pid_t getpid() {
-  /* getpid never fails. */
-  return 0;
+  int retval;
+  asm volatile("li $v0, 8\n" /* SYS_GETPID */
+               "syscall\n"
+               "move %0, $v0\n"
+               : "=r"(retval)
+               :
+               : "%v0");
+
+  /* TODO: getpid never fails. */
+  if (retval < 0) {
+    errno = -retval;
+    return -1;
+  }
+  return retval;
 }
 
 int kill(pid_t pid, int sig) {
-  errno = ENOSYS;
-  return -1;
+  int retval;
+  asm volatile("move $a0, %1\n"
+               "move $a1, %2\n"
+               "li $v0, 9\n" /* SYS_KILL */
+               "syscall\n"
+               "move %0, $v0\n"
+               : "=r"(retval)
+               : "r"(pid), "r"(sig)
+               : "%a0", "%a1", "%v0");
+  if (retval < 0) {
+    errno = -retval;
+    return -1;
+  }
+  return retval;
 }
 
 int fstat(int fd, struct stat *buf) {
-  errno = ENOSYS;
-  return -1;
+  int retval;
+  asm volatile("move $a0, %1\n"
+               "move $a1, %2\n"
+               "li $v0, 10\n" /* SYS_FSTAT */
+               "syscall\n"
+               "move %0, $v0\n"
+               : "=r"(retval)
+               : "r"(fd), "r"(buf)
+               : "%a0", "%a1", "%a2", "%v0");
+  if (retval < 0) {
+    errno = -retval;
+    return -1;
+  }
+  return retval;
 }
 
 void *sbrk(ptrdiff_t increment) {
