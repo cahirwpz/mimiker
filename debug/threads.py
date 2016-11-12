@@ -25,6 +25,7 @@ def current_thread():
 
 
 class CtxSwitchTracerBP(gdb.Breakpoint):
+
     def __init__(self):
         super(CtxSwitchTracerBP, self).__init__('ctx_switch')
         self.stop_on = False
@@ -40,6 +41,7 @@ class CtxSwitchTracerBP(gdb.Breakpoint):
 
 
 class CtxSwitchTracer():
+
     def __init__(self):
         self.ctxswitchbp = None
 
@@ -54,6 +56,7 @@ class CtxSwitchTracer():
 
 
 class CreateThreadTracerBP(gdb.Breakpoint):
+
     def __init__(self):
         super(CreateThreadTracerBP, self).__init__('thread_create')
         self.stop_on = True
@@ -68,6 +71,7 @@ class CreateThreadTracerBP(gdb.Breakpoint):
 
 
 class CreateThreadTracer():
+
     def __init__(self):
         self.createThreadbp = None
 
@@ -91,15 +95,19 @@ def dump_threads(threads):
     for r in rows:
         column_sizes = [max(a, b) for (a, b) in zip(map(len, r), column_sizes)]
     for r in rows:
-        pretty_row = "   ".join([s.ljust(l) for (s, l) in zip(r, column_sizes)])
+        pretty_row = "   ".join([s.ljust(l)
+                                 for (s, l) in zip(r, column_sizes)])
         print(pretty_row)
 
+
 class KernelThreads():
+
     def invoke(self):
         threads = get_all_threads()
         dump_threads(threads)
         print ''
         print 'current thread id: ', thread_id(current_thread())
+
 
 class ThreadPrettyPrinter():
     """
@@ -108,7 +116,8 @@ class ThreadPrettyPrinter():
     because thread structure doesn't have that many fields, but in future
     we might want to distinguish between scheduler, process, etc. sets of fields.
     """
-    def __init__(self,val):
+
+    def __init__(self, val):
         self.val = val
 
     def to_string(self):
@@ -120,9 +129,10 @@ class ThreadPrettyPrinter():
     def display_hint(self):
         return 'map'
 
+
 def addThreadPrettyPrinter():
     pp = gdb.printing.RegexpCollectionPrettyPrinter("threads")
-    pp.add_printer('thread','thread', ThreadPrettyPrinter)
+    pp.add_printer('thread', 'thread', ThreadPrettyPrinter)
     gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
 
 
@@ -148,6 +158,7 @@ class Kthread(gdb.Command):
     If there are more threads with the same name or thread id,
     first one matching will be printed.
     """
+
     def __init__(self):
         super(Kthread, self).__init__("kthread", gdb.COMMAND_USER)
 
@@ -155,11 +166,11 @@ class Kthread(gdb.Command):
         if len(args) < 1:
             raise(gdb.GdbError('Usage: kthread [td_name|td_tid]'))
 
-        #First try to search by thread_id
+        # First try to search by thread_id
         try:
             tid = int(args)
         except ValueError:
-            #If can't find by thread id, search by name
+            # If can't find by thread id, search by name
             for t in get_all_threads():
                 if thread_name(t) == args:
                     print(t)
@@ -174,8 +185,8 @@ class Kthread(gdb.Command):
 
     def complete(self, text, word):
         args = text.split()
-        all_names = sum([map(thread_name,get_all_threads()),
-                    map(thread_id,get_all_threads())],[])
+        all_names = sum([map(thread_name, get_all_threads()),
+                         map(thread_id, get_all_threads())], [])
         if len(args) == 0:
             return all_names
         if len(args) >= 2:
