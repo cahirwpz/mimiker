@@ -39,10 +39,7 @@ int sys_sbrk(thread_t *td, syscall_args_t *args) {
 
   kprintf("[syscall] sbrk(%zu)\n", increment);
 
-  if (!td->td_uspace) {
-    log("sbrk called by a thread with no userspace map");
-    return -ENOMEM;
-  }
+  assert(td->td_uspace);
 
   if (!td->td_uspace->td_brk_entry) {
     /* sbrk was not used before by this thread. */
