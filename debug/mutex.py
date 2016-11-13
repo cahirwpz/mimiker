@@ -21,13 +21,7 @@ def get_threads_blocked_on_mutex(mtx):
 
 
 def pretty_list_of_string(lst):
-    res = "["
-    for i in range(0, len(lst)):
-        res = res + str(lst[i])
-        if(i != len(lst) - 1):
-            res = res + ", "
-    res = res + "]"
-    return res
+    return "[" + ", ".join(lst) + "]"
 
 
 class MutexPrettyPrinter():
