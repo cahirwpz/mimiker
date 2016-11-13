@@ -5,24 +5,28 @@
     .set noat
 
 /* This implementation uses newlib-specific errno processing. */
-#define DO_SYSCALL(num)  \
-    addiu $sp, $sp, -16; \
-    sw $ra, 12($sp);     \
-    li $v0, num;         \
-    syscall;             \
-    bgez $v0, 1f;        \
-    nop;                 \
-    sw $v0, 8($sp);      \
-    jal __errno;         \
-    nop;                 \
-    lw $v1, 8($sp);      \
-    negu $v1, $v1;       \
-    sw $v1, 0($v0);      \
-    li $v0, -1;          \
-1:  lw $ra, 12($sp);     \
-    addiu $sp, $sp, 16;  \
-    jr $ra;              \
+#define DO_SYSCALL(num)       \
+    li $v0, num;              \
+    syscall;                  \
+    bltz $v0, syscall_failed; \
+    nop;                      \
+    jr $ra;                   \
     nop;
+
+SNESTED(syscall_failed, 24, $ra)
+    addiu $sp, $sp, -24;
+    sw $ra, 20($sp);
+    sw $v0, 16($sp);
+    jal __errno;
+    nop;
+    lw $v1, 16($sp);
+    negu $v1, $v1;
+    sw $v1, 0($v0);
+    li $v0, -1;
+    lw $ra, 20($sp);
+    jr $ra;
+    addiu $sp, $sp, 24;
+SEND(syscall_failed)
 
 #define DO_NO_SYSCALL() \
     addiu $sp, $sp, -8; \
