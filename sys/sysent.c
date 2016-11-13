@@ -60,13 +60,14 @@ int sys_sbrk(thread_t *td, syscall_args_t *args) {
     /* There already is a brk segment in user space map. */
     vm_map_entry_t *brk_entry = td->td_uspace->td_brk_entry;
     vm_addr_t brk = td->td_uspace->td_brk;
-    if (brk + increment <= brk_entry->end) {
-      /* No need to expand the segment. */
+    if (brk + increment == brk_entry->end) {
+      /* No need to resize the segment. */
       td->td_uspace->td_brk = brk + increment;
       return brk;
     }
+    /* Shrink or expand the vm_map_entry */
     vm_addr_t new_end = roundup(brk + increment, PAGESIZE);
-    if (vm_map_expand(td->td_uspace, brk_entry, new_end) != 0) {
+    if (vm_map_resize(td->td_uspace, brk_entry, new_end) != 0) {
       /* Map entry expansion failed. */
       return -ENOMEM;
     }

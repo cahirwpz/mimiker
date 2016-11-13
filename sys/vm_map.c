@@ -181,15 +181,22 @@ found:
   return 0;
 }
 
-int vm_map_expand(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
+int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
   assert(is_aligned(new_end, PAGESIZE));
-  assert(new_end > entry->end);
-  vm_map_entry_t *next = TAILQ_NEXT(entry, map_list);
-  vm_addr_t gap_end = next ? next->start : map->pmap->end;
-  if (new_end > gap_end)
-    return -ENOMEM;
-  entry->end = new_end;
+  if (new_end > entry->end) {
+    /* Expanding entry */
+    vm_map_entry_t *next = TAILQ_NEXT(entry, map_list);
+    vm_addr_t gap_end = next ? next->start : map->pmap->end;
+    if (new_end > gap_end)
+      return -ENOMEM;
+  } else {
+    /* Shrinking entry */
+    if (new_end < entry->start)
+      return -ENOMEM;
+    /* TODO: Invalidate tlb? */
+  }
   /* Note that neither tailq nor splay tree require updating. */
+  entry->end = new_end;
   return 0;
 }
 
