@@ -22,6 +22,9 @@ typedef struct vm_map {
   SPLAY_HEAD(vm_map_tree, vm_map_entry) tree;
   size_t nentries;
   pmap_t *pmap;
+  /* sbrk support */
+  vm_map_entry_t *td_brk_entry; /* The entry where brk segment resides in. */
+  vm_addr_t td_brk;             /* Current end of brk segment. */
 } vm_map_t;
 
 /* TODO we will need some functions to allocate address ranges,

@@ -44,7 +44,7 @@ int sys_sbrk(thread_t *td, syscall_args_t *args) {
     return -ENOMEM;
   }
 
-  if (!td->td_brk_entry) {
+  if (!td->td_uspace->td_brk_entry) {
     /* sbrk was not used before by this thread. */
     size_t size = roundup(increment, PAGESIZE);
     vm_addr_t addr;
@@ -54,17 +54,17 @@ int sys_sbrk(thread_t *td, syscall_args_t *args) {
                                              VM_PROT_READ | VM_PROT_WRITE);
     entry->object = default_pager->pgr_alloc();
 
-    td->td_brk_entry = entry;
-    td->td_brk = addr + increment;
+    td->td_uspace->td_brk_entry = entry;
+    td->td_uspace->td_brk = addr + increment;
 
     return addr;
   } else {
     /* There already is a brk segment in user space map. */
-    vm_map_entry_t *brk_entry = td->td_brk_entry;
-    vm_addr_t brk = td->td_brk;
+    vm_map_entry_t *brk_entry = td->td_uspace->td_brk_entry;
+    vm_addr_t brk = td->td_uspace->td_brk;
     if (brk + increment <= brk_entry->end) {
       /* No need to expand the segment. */
-      td->td_brk = brk + increment;
+      td->td_uspace->td_brk = brk + increment;
       return brk;
     }
     vm_addr_t new_end = roundup(brk + increment, PAGESIZE);
@@ -72,7 +72,7 @@ int sys_sbrk(thread_t *td, syscall_args_t *args) {
       /* Map entry expansion failed. */
       return -ENOMEM;
     }
-    td->td_brk += increment;
+    td->td_uspace->td_brk += increment;
     return brk;
   }
 }
