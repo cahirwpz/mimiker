@@ -16,8 +16,7 @@ def thread_state(thr):
 
 def get_all_threads():
     tdq = gdb.parse_and_eval('all_threads')
-    threads = tailq.collect_values(tdq, 'td_all')
-    return threads
+    return tailq.collect_values(tdq, 'td_all')
 
 
 def current_thread():
@@ -103,27 +102,24 @@ def dump_threads(threads):
 class KernelThreads():
 
     def invoke(self):
-        threads = get_all_threads()
-        dump_threads(threads)
-        print ''
-        print 'current thread id: ', thread_id(current_thread())
+        dump_threads(get_all_threads())
+        print('')
+        print('current thread id: ', thread_id(current_thread()))
 
 
 class ThreadPrettyPrinter():
     """
     Pretty prints single thread.
-    Note that this prints ALL fields of thread. This looks OK for now
-    because thread structure doesn't have that many fields, but in future
-    we might want to distinguish between scheduler, process, etc. sets of fields.
+    Note that this prints ALL fields of thread. This looks OK for now because
+    thread structure doesn't have that many fields, but in future we might want
+    to distinguish between scheduler, process, etc. sets of fields.
     """
 
     def __init__(self, val):
         self.val = val
 
     def to_string(self):
-        res = []
-        for field in self.val.type:
-            res.append(field + ' = ' + str(self.val[field]))
+        res = ['%s = %s' % (field, self.val[field]) for field in self.val.type]
         return "\n".join(res)
 
     def display_hint(self):
@@ -155,7 +151,7 @@ class Kthread(gdb.Command):
     $ kthread 1
     or
     $ kthread kernel-thread-1
-    If there are more threads with the same name, gdb will print warning message.
+    If there are more threads with the same name, gdb will print a warning.
     """
 
     def __init__(self):
@@ -167,17 +163,14 @@ class Kthread(gdb.Command):
 
         # First try to search by thread_id
         try:
-            tid = int(args)
+            int(args)
         except ValueError:
             # If can't find by thread id, search by name
-            tds = []
-            for t in get_all_threads():
-                if thread_name(t) == args:
-                    tds.append(t)
-            if(len(tds) > 1):
-                print "Warning! There is more than 1 thread with name ", args
-            if(len(tds) > 0):
-                print(t)
+            tds = filter(lambda t: thread_name(t) == args, get_all_threads())
+            if len(tds) > 1:
+                print("Warning! There is more than 1 thread with name ", args)
+            if len(tds) > 0:
+                print(tds[0])
                 return
 
         for t in get_all_threads():
@@ -185,7 +178,7 @@ class Kthread(gdb.Command):
                 print(t)
                 return
 
-        print "Can't find thread with '", args, "' id or name"
+        print("Can't find thread with '", args, "' id or name")
 
     def complete(self, text, word):
         args = text.split()
