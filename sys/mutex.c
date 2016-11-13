@@ -35,6 +35,7 @@ void mtx_lock(mtx_t *mtx) {
     }
     assert(mtx_owned(mtx));
     turnstile_wait(&mtx->turnstile);
+    cs_leave();
   }
 }
 
