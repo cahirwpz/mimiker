@@ -7,6 +7,11 @@
 
 typedef struct vm_map_entry vm_map_entry_t;
 
+/* The brk segment will be located at the first large enough gap after this
+   address. The total space available to sbrk is indirectly influenced by this
+   value. */
+#define BRK_SEARCH_START 0x08000000
+
 struct vm_map_entry {
   TAILQ_ENTRY(vm_map_entry) map_list;
   SPLAY_ENTRY(vm_map_entry) map_tree;

@@ -45,7 +45,7 @@ int sys_sbrk(thread_t *td, syscall_args_t *args) {
     /* sbrk was not used before by this thread. */
     size_t size = roundup(increment, PAGESIZE);
     vm_addr_t addr;
-    if (vm_map_findspace(td->td_uspace, 0x08000000, size, &addr) != 0)
+    if (vm_map_findspace(td->td_uspace, BRK_SEARCH_START, size, &addr) != 0)
       return -ENOMEM;
     vm_map_entry_t *entry = vm_map_add_entry(td->td_uspace, addr, addr + size,
                                              VM_PROT_READ | VM_PROT_WRITE);
