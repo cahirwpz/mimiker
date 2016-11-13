@@ -20,6 +20,9 @@
 # Build dependency files
 .*.D
 
+# Python cache
+*.pyc
+
 # ctags & cscope files
 cscope.out
 tags
