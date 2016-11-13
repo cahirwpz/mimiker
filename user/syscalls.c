@@ -17,8 +17,16 @@ struct timeval;
 #include <sys/types.h>
 #endif
 
-void _exit(int __status) {
-  /* Exit may not return! */
+void _exit(int status) {
+  int retval;
+  asm volatile("move $a0, %1\n"
+               "li $v0, 1\n" /* SYS_EXIT */
+               "syscall\n"
+               "move %0, $v0\n"
+               : "=r"(retval)
+               : "r"(status)
+               : "%a0", "%v0");
+  /* This should be unreachable */
   while (1)
     ;
 }

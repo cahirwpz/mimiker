@@ -4,6 +4,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <assert.h>
 
 #define TEXTAREA_SIZE 100
 // This should land in .bss, accessed by a pointer in .data
@@ -18,13 +19,6 @@ void marquee(const char *string, int offset) {
     textarea[i] = string[(i + offset) % n];
   }
   textarea[TEXTAREA_SIZE - 1] = 0;
-}
-
-/* Temporarily required, because I don't want to mix printf with sbrk_test. */
-void assert(int cond) {
-  if (!cond)
-    while (1)
-      ;
 }
 
 void sbrk_test() {
