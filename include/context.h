@@ -13,13 +13,13 @@ typedef struct thread thread_t;
 
 /*
  * Initializes thread context so it can be resumed in such a way,
- * as if @target function was called.
+ * as if @target function was called with @arg argument.
  *
  * Such thread can be resumed either by switch or return from exception.
  *
  * TODO: A thread should call `thread_exit(NULL)` on return.
  */
-void ctx_init(thread_t *td, void (*target)());
+void ctx_init(thread_t *td, void (*target)(void *), void *arg);
 
 /*
  * Enters into a context initialized by @ctx_init function.

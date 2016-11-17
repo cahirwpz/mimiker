@@ -36,8 +36,8 @@ int main(int argc, char **argv, char **envp) {
   kprintf("argp = %p\n", envp);
 
   td0 = thread_self();
-  td1 = thread_create("first", demo_thread_1);
-  td2 = thread_create("second", demo_thread_2);
+  td1 = thread_create("first", demo_thread_1, NULL);
+  td2 = thread_create("second", demo_thread_2, NULL);
 
   thread_switch_to(td1);
 
