@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
 #define TEXTAREA_SIZE 100
 // This should land in .bss, accessed by a pointer in .data
@@ -23,6 +24,9 @@ int main(int argc, char **argv) {
   /* TODO: Actually, the 0-th argument should be the program name. */
   if (argc < 1)
     abort();
+
+  if (strcmp(argv[0], "abort_test") == 0)
+    assert(0);
 
   /* Test some libstd functions. They will mostly fail, because many system
      calls are not implemented yet, but at least printf works!*/

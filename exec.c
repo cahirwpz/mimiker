@@ -22,7 +22,7 @@ void program_thread_2() {
 void program_thread_3() {
   exec_args_t exec_args;
   exec_args.prog_name = "prog";
-  exec_args.argv = (char *[]){"Totally different string."};
+  exec_args.argv = (char *[]){"abort_test"};
   exec_args.argc = 1;
   do_exec(&exec_args);
 }
