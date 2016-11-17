@@ -79,9 +79,6 @@ void syscall_handler(exc_frame_t *frame) {
   syscall_args_t args;
   cpu_get_syscall_args(frame, &args);
 
-  kprintf("[syscall] entered #%d from %s mode!\n", (int)args.code,
-          (frame->sr & SR_KSU_MASK) ? "user" : "kernel");
-
   int retval = 0;
 
   if (args.code > SYS_LAST) {

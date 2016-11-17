@@ -5,7 +5,7 @@
 #include <sched.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
-  log("No such system call: %ld", args->code);
+  kprintf("[syscall] unimplemented system call %ld\n", args->code);
   return -ENOSYS;
 };
 
@@ -15,6 +15,8 @@ int sys_write(thread_t *td, syscall_args_t *args) {
   int fd = args->args[0];
   const char *buf = (const char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
+
+  kprintf("[syscall] write(%d, %p, %zu)\n", fd, buf, count);
 
   /* TODO: copyout string from userspace */
   if (fd == 1 || fd == 2) {
