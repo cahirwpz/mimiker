@@ -1,6 +1,8 @@
 #include <sysent.h>
 #include <stdc.h>
 #include <errno.h>
+#include <thread.h>
+#include <sched.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   log("No such system call: %ld", args->code);
@@ -24,8 +26,21 @@ int sys_write(thread_t *td, syscall_args_t *args) {
   return -EBADF;
 }
 
+/* This is just a stub. A full implementation of this syscall will probably
+   deserve a separate file. */
+int sys_exit(thread_t *td, syscall_args_t *args) {
+  int status = args->args[0];
+
+  kprintf("[syscall] exit(%d)\n", status);
+
+  /* Temporary implementation. */
+  td->td_state = TDS_INACTIVE;
+  sched_yield();
+  __builtin_unreachable();
+}
+
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
-  {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_write},
+  {sys_nosys}, {sys_exit},  {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_write},
   {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys},
 };
