@@ -1,6 +1,8 @@
 #include <mips/asm.h>
 #include <errno.h>
 
+        .set noreorder
+
 AENT(sbrk)
 AENT(execve)
 AENT(link)
