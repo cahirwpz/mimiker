@@ -3,7 +3,6 @@
 
         .set noreorder
 
-AENT(sbrk)
 AENT(execve)
 AENT(link)
 AENT(symlink)
@@ -57,5 +56,6 @@ SYSCALL(unlink,7)
 SYSCALL(getpid,8)
 SYSCALL(kill,9)
 SYSCALL(fstat,10)
+SYSCALL(sbrk,11)
 
 # vim: sw=8 ts=8 et

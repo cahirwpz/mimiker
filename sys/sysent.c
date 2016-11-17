@@ -36,9 +36,16 @@ int sys_write(thread_t *td, syscall_args_t *args) {
    that we are actually expanding .data, it will use the pointer returned by
    sbrk. */
 int sys_sbrk(thread_t *td, syscall_args_t *args) {
-  size_t increment = (size_t)args->args[0];
+  intptr_t increment = (size_t)args->args[0];
 
   kprintf("[syscall] sbrk(%zu)\n", increment);
+
+  /* TODO: Shrinking sbrk is impossible, because it requires unmapping pages,
+   * which is not yet implemented! */
+  if (increment < 0) {
+    log("WARNING: sbrk called with a negative argument!");
+    return -ENOMEM;
+  }
 
   assert(td->td_uspace);
 

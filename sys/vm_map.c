@@ -183,6 +183,14 @@ found:
 
 int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
   assert(is_aligned(new_end, PAGESIZE));
+
+  /* TODO: As for now, we are unable to decrease the size of an entry, because
+     it would require unmapping physical pages, which in turn should clean
+     TLB. This is not implemented yet, and therefore shrinking an entry
+     immediately leads to very confusing behavior, as the vm_map and TLB entries
+     do not match. */
+  assert(new_end >= entry->end);
+
   if (new_end > entry->end) {
     /* Expanding entry */
     vm_map_entry_t *next = TAILQ_NEXT(entry, map_list);
