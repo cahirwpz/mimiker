@@ -54,6 +54,9 @@ int main(int argc, char **argv) {
   if (argc < 1)
     abort();
 
+  if (strcmp(argv[0], "abort_test") == 0)
+    assert(0);
+
   sbrk_test();
 
   /* Test some libstd functions. They will mostly fail, because many system
