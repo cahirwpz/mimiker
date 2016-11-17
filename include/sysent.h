@@ -18,6 +18,7 @@ typedef struct { syscall_t *call; } sysent_t;
 
 extern sysent_t sysent[];
 
+/* If you edit this list, please keep user/syscalls.c in sync. */
 #define SYS_EXIT 1
 #define SYS_OPEN 2
 #define SYS_CLOSE 3

@@ -53,9 +53,8 @@ int main(int argc, char **argv) {
 
   sbrk_test();
 
-  /* Test some libstd functions. They will all fail, because system calls are
-     not hooked up yet, but this should at least compile and link
-     successfully. */
+  /* Test some libstd functions. They will mostly fail, because many system
+     calls are not implemented yet, but at least printf works!*/
   printf("Hello libc!\n");
 
   int *ptr = malloc(10 * sizeof(int));
@@ -63,6 +62,8 @@ int main(int argc, char **argv) {
 
   FILE *f = fopen("/etc/passwd", "rw");
   fclose(f);
+
+  printf("Test complete.\n");
 
   uint32_t o = 0;
   while (1) {

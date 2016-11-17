@@ -23,7 +23,7 @@ assert(DEFAULT_DEBUGGER in DEBUGGERS)
 
 
 def find_triplet():
-    for triplet in ['mips-mti-elf', 'mipsel-unknown-elf']:
+    for triplet in ['mipsel-unknown-elf', 'mips-mti-elf']:
         if shutil.which(triplet + '-gcc'):
             return triplet
 
