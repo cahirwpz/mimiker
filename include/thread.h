@@ -7,6 +7,7 @@
 #include <exception.h>
 
 typedef uint8_t td_prio_t;
+typedef uint32_t tid_t;
 typedef struct vm_page vm_page_t;
 typedef struct sleepq sleepq_t;
 typedef struct vm_map vm_map_t;
@@ -15,10 +16,12 @@ typedef struct vm_map vm_map_t;
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 
 typedef struct thread {
+  TAILQ_ENTRY(thread) td_all;    /* a link on all threads list */
   TAILQ_ENTRY(thread) td_runq;   /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq; /* a link on sleep queue */
-  TAILQ_ENTRY(thread) td_lock;    /* a link on turnstile */
+  TAILQ_ENTRY(thread) td_lock;   /* a link on turnstile */
   const char *td_name;
+  tid_t td_tid; /* Thread ID*/
   /* thread state */
   enum { TDS_INACTIVE = 0x0, TDS_WAITING, TDS_READY, TDS_RUNNING } td_state;
   uint32_t td_flags;           /* TDF_* flags */
@@ -30,7 +33,7 @@ typedef struct thread {
   ctx_t td_kctx;          /* kernel context (switch) */
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
-  vm_map_t *td_uspace;    /* thread's user space map */
+  vm_map_t *td_uspace; /* thread's user space map */
   /* waiting channel */
   sleepq_t *td_sleepqueue;
   void *td_wchan;
@@ -42,9 +45,15 @@ typedef struct thread {
 
 thread_t *thread_self();
 noreturn void thread_init(void (*fn)(), int n, ...);
-thread_t *thread_create(const char *name, void (*fn)());
+thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
 void thread_delete(thread_t *td);
 
 void thread_switch_to(thread_t *td_ready);
+
+/* Debugging utility that prints out the summary of all_threads contents. */
+void thread_dump_all();
+
+/* Returns the thread matching the given ID, or null if none found. */
+thread_t *thread_get_by_tid(tid_t id);
 
 #endif // __THREAD_H__

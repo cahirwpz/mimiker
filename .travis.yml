@@ -4,11 +4,13 @@ language: c
 compiler: gcc
 before_install:
  - sudo apt-get -qq update
- - sudo apt-get install -y qemu-system-mips ctags cscope wget
+ - sudo apt-get install -y qemu-system-mips ctags cscope wget python3-pip
+ - sudo pip3 install -I pexpect
  - TOOLCHAIN=`mktemp -d toolchain.XXXXXX`
  - cd ${TOOLCHAIN}
  - wget -c http://codescape-mips-sdk.imgtec.com/components/toolchain/2016.05-03/Codescape.GNU.Tools.Package.2016.05-03.for.MIPS.MTI.Bare.Metal.CentOS-5.x86_64.tar.gz
  - tar -xf Codescape.GNU.Tools.Package.2016.05-03.for.MIPS.MTI.Bare.Metal.CentOS-5.x86_64.tar.gz
  - export PATH=$PATH:$(pwd)/mips-mti-elf/2016.05-03/bin
  - cd ..
-script: make 
+script:
+ - make

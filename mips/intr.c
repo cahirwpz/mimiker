@@ -2,6 +2,9 @@
 #include <mips/exc.h>
 #include <mips/mips.h>
 #include <pmap.h>
+#include <sysent.h>
+#include <errno.h>
+#include <thread.h>
 
 extern const char _ebase[];
 
@@ -62,9 +65,33 @@ void kernel_oops(exc_frame_t *frame) {
   panic("Unhandled exception");
 }
 
+void cpu_get_syscall_args(const exc_frame_t *frame, syscall_args_t *args) {
+  args->code = frame->v0;
+  args->args[0] = frame->a0;
+  args->args[1] = frame->a1;
+  args->args[2] = frame->a2;
+  args->args[3] = frame->a3;
+}
+
 void syscall_handler(exc_frame_t *frame) {
-  kprintf("[syscall] entered #%d from %s mode!\n", frame->v0,
-          (frame->sr & SR_KSU_MASK) ? "user" : "kernel");
+  /* Eventually we will want a platform-independent syscall entry, so
+     argument retrieval is done separately */
+  syscall_args_t args;
+  cpu_get_syscall_args(frame, &args);
+
+  int retval = 0;
+
+  if (args.code > SYS_LAST) {
+    retval = -ENOSYS;
+    goto finalize;
+  }
+
+  /* Call the handler. */
+  retval = sysent[args.code].call(thread_self(), &args);
+
+finalize:
+  /* Store returned value. */
+  frame->v0 = retval;
   /* we need to fix return address to point to next instruction */
   frame->pc += 4;
 }

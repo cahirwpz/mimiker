@@ -1,8 +1,27 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-SOURCES_C = callout.c clock.c exception.c exec.c interrupt.c malloc.c pci_ids.c	\
-	    physmem.c runq.c sched.c sleepq.c startup.c sys_mmap.c thread.c			\
-	    turnstile.c vm_map.c vm_object.c vm_pager.c pcpu.c
+SOURCES_C  = \
+	callout.c \
+	clock.c \
+	exception.c \
+	exec.c \
+	interrupt.c \
+	malloc.c \
+	mutex.c \
+	pci_ids.c \
+	pcpu.c \
+	physmem.c \
+	runq.c \
+	sched.c \
+	sleepq.c \
+	startup.c \
+	sysent.c \
+	sys_mmap.c \
+	thread.c \
+	turnstile.c \
+	vm_map.c \
+	vm_object.c \
+	vm_pager.c
 SOURCES_ASM = 
 
 all: $(DEPFILES) libsys.a 
