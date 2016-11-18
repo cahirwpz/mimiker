@@ -1,5 +1,22 @@
 #ifndef _SYS_SYSENT_H_
 #define _SYS_SYSENT_H_
+
+#define SYS_EXIT 1
+#define SYS_OPEN 2
+#define SYS_CLOSE 3
+#define SYS_READ 4
+#define SYS_WRITE 5
+#define SYS_LSEEK 6
+#define SYS_UNLINK 7
+#define SYS_GETPID 8
+#define SYS_KILL 9
+#define SYS_FSTAT 10
+#define SYS_SBRK 11
+
+#define SYS_LAST 11
+
+#ifndef __ASSEMBLER__
+
 #include <stdint.h>
 #include <mips/mips.h>
 
@@ -18,24 +35,11 @@ typedef struct { syscall_t *call; } sysent_t;
 
 extern sysent_t sysent[];
 
-/* If you edit this list, please keep user/syscalls.c in sync. */
-#define SYS_EXIT 1
-#define SYS_OPEN 2
-#define SYS_CLOSE 3
-#define SYS_READ 4
-#define SYS_WRITE 5
-#define SYS_LSEEK 6
-#define SYS_UNLINK 7
-#define SYS_GETPID 8
-#define SYS_KILL 9
-#define SYS_FSTAT 10
-#define SYS_SBRK 11
-
-#define SYS_LAST 11
-
 int syscall(int n);
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 int sys_nosys(thread_t *, syscall_args_t *);
+
+#endif /* __ASSEMBLER__ */
 
 #endif /* !_SYS_SYSENT_H_ */

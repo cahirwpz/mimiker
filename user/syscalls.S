@@ -1,5 +1,6 @@
 #include <mips/asm.h>
 #include <errno.h>
+#include <sysent.h>
 
         .set noreorder
 
@@ -46,16 +47,16 @@ SEND(set_errno)
         DO_SYSCALL(num)         \
         END(name)
 
-SYSCALL(_exit,1)
-SYSCALL(open,2)
-SYSCALL(close,3)
-SYSCALL(read,4)
-SYSCALL(write,5)
-SYSCALL(lseek,6)
-SYSCALL(unlink,7)
-SYSCALL(getpid,8)
-SYSCALL(kill,9)
-SYSCALL(fstat,10)
-SYSCALL(sbrk,11)
+SYSCALL(_exit, SYS_EXIT)
+SYSCALL(open, SYS_OPEN)
+SYSCALL(close, SYS_CLOSE)
+SYSCALL(read, SYS_READ)
+SYSCALL(write, SYS_WRITE)
+SYSCALL(lseek, SYS_LSEEK)
+SYSCALL(unlink, SYS_UNLINK)
+SYSCALL(getpid, SYS_GETPID)
+SYSCALL(kill, SYS_KILL)
+SYSCALL(fstat, SYS_FSTAT)
+SYSCALL(sbrk, SYS_SBRK)
 
 # vim: sw=8 ts=8 et
