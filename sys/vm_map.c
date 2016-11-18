@@ -181,6 +181,33 @@ found:
   return 0;
 }
 
+int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
+  assert(is_aligned(new_end, PAGESIZE));
+
+  /* TODO: As for now, we are unable to decrease the size of an entry, because
+     it would require unmapping physical pages, which in turn should clean
+     TLB. This is not implemented yet, and therefore shrinking an entry
+     immediately leads to very confusing behavior, as the vm_map and TLB entries
+     do not match. */
+  assert(new_end >= entry->end);
+
+  if (new_end > entry->end) {
+    /* Expanding entry */
+    vm_map_entry_t *next = TAILQ_NEXT(entry, map_list);
+    vm_addr_t gap_end = next ? next->start : map->pmap->end;
+    if (new_end > gap_end)
+      return -ENOMEM;
+  } else {
+    /* Shrinking entry */
+    if (new_end < entry->start)
+      return -ENOMEM;
+    /* TODO: Invalidate tlb? */
+  }
+  /* Note that neither tailq nor splay tree require updating. */
+  entry->end = new_end;
+  return 0;
+}
+
 void vm_map_dump(vm_map_t *map) {
   vm_map_entry_t *it;
   kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n", map->pmap->start,
