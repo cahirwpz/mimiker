@@ -6,7 +6,7 @@
 int kernel_argc;
 char **kernel_argv;
 
-void parse_args(int argc, char **argv, char **envp) {
+void kernel_args_parse(int argc, char **argv, char **envp) {
 
   /* First, calculate total length so that we can allocate memory where we will
    * copy kernel arguments.
@@ -49,4 +49,19 @@ void parse_args(int argc, char **argv, char **envp) {
     kprintf("%s=%s ", key, val);
   }
   kprintf("\n");
+}
+
+const char *kernel_args_get(const char *key) {
+  int n = strlen(key);
+  for (int i = 0; i < kernel_argc; i++)
+    if (strncmp(key, kernel_argv[i], n) == 0)
+      return kernel_argv[i];
+  return NULL;
+}
+
+int kernel_args_get_flag(const char *flag) {
+  for (int i = 0; i < kernel_argc; i++)
+    if (strcmp(flag, kernel_argv[i]) == 0)
+      return 1;
+  return 0;
 }

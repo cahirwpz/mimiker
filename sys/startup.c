@@ -23,7 +23,7 @@ extern int main(int argc, char **argv, char **envp);
 
 int kernel_boot(int argc, char **argv, char **envp) {
   uart_init();
-  parse_args(argc, argv, envp);
+  kernel_args_parse(argc, argv, envp);
   cpu_init();
   pcpu_init();
   pci_init();
