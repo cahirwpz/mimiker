@@ -1,6 +1,7 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
 TESTS = \
+	args.elf \
 	callout.elf \
 	exec.elf \
 	exec_syscall.elf \
