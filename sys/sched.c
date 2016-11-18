@@ -86,4 +86,3 @@ noreturn void sched_run() {
   while (true)
     idle_thread->td_flags |= TDF_NEEDSWITCH;
 }
-

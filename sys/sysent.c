@@ -5,6 +5,7 @@
 #include <vm_map.h>
 #include <vm_pager.h>
 #include <sched.h>
+#include <sys_mmap.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   kprintf("[syscall] unimplemented system call %ld\n", args->code);
@@ -100,6 +101,7 @@ int sys_exit(thread_t *td, syscall_args_t *args) {
 
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
-  {sys_nosys}, {sys_exit},  {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_write},
-  {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_sbrk},
+  {sys_nosys}, {sys_exit},  {sys_nosys}, {sys_nosys}, {sys_nosys},
+  {sys_write}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys},
+  {sys_nosys}, {sys_sbrk},  {sys_mmap},
 };

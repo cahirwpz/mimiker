@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <assert.h>
+#include <sys/mman.h>
 
 #define TEXTAREA_SIZE 100
 // This should land in .bss, accessed by a pointer in .data
@@ -49,6 +50,21 @@ void sbrk_test() {
 #endif
 }
 
+void mmap_test() {
+  void *addr;
+  addr = mmap((void *)0x0, 12345, MMAP_PROT_READ | MMAP_PROT_WRITE,
+              MMAP_FLAG_ANONYMOUS);
+  assert(addr != (void *)-1);
+  printf("mmap returned pointer: %p\n", addr);
+  memset(addr, -1, 12345);
+  /* Provide a hint address that is not page aligned or anything. */
+  addr = mmap((void *)0x12345678, 99, MMAP_PROT_READ | MMAP_PROT_WRITE,
+              MMAP_FLAG_ANONYMOUS);
+  assert(addr != (void *)-1);
+  printf("mmap returned pointer: %p\n", addr);
+  memset(addr, -1, 99);
+}
+
 int main(int argc, char **argv) {
   /* TODO: Actually, the 0-th argument should be the program name. */
   if (argc < 1)
@@ -58,6 +74,7 @@ int main(int argc, char **argv) {
     assert(0);
 
   sbrk_test();
+  mmap_test();
 
   /* Test some libstd functions. They will mostly fail, because many system
      calls are not implemented yet, but at least printf works!*/

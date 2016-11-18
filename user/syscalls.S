@@ -58,5 +58,6 @@ SYSCALL(getpid, SYS_GETPID)
 SYSCALL(kill, SYS_KILL)
 SYSCALL(fstat, SYS_FSTAT)
 SYSCALL(sbrk, SYS_SBRK)
+SYSCALL(mmap, SYS_MMAP)
 
 # vim: sw=8 ts=8 et

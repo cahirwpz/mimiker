@@ -5,6 +5,22 @@
 #include <vm_map.h>
 #include <vm_pager.h>
 
+int sys_mmap(thread_t *td, syscall_args_t *args) {
+  vm_addr_t addr = args->args[0];
+  size_t length = args->args[1];
+  vm_prot_t prot = args->args[2];
+  int flags = args->args[3];
+
+  kprintf("[syscall] mmap(%p, %zu, %d, %d)\n", (void *)addr, length, prot,
+          flags);
+
+  int error = 0;
+  vm_addr_t result = do_mmap(addr, length, prot, flags, &error);
+  if (error < 0)
+    return -error;
+  return result;
+}
+
 vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
                   int *error) {
   thread_t *td = thread_self();

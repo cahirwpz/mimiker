@@ -87,32 +87,8 @@ void findspace_demo() {
   log("Test passed.");
 }
 
-void mmap_demo() {
-  /* Assign a new user space map. */
-  vm_map_t *umap = vm_map_new();
-  thread_self()->td_uspace = umap;
-  vm_map_activate(umap);
-
-  /* This test will be much more valuable when performed by a user program. But
-   * for now, this will have to do. */
-  int error = 0;
-  void *addr;
-  addr = (void *)do_mmap(0x0, 12345, VM_PROT_READ | VM_PROT_WRITE,
-                         MMAP_FLAG_ANONYMOUS, &error);
-  log("mmap: %p", addr);
-  memset(addr, -1, 12345);
-  /* Provide a hint address that is not page aligned or anything. */
-  addr = (void *)do_mmap(0x12345678, 99, VM_PROT_READ | VM_PROT_WRITE,
-                         MMAP_FLAG_ANONYMOUS, &error);
-  log("mmap: %p", addr);
-  memset(addr, -1, 99);
-
-  log("Test passed.");
-}
-
 int main() {
   paging_on_demand_and_memory_protection_demo();
   findspace_demo();
-  mmap_demo();
   return 0;
 }
