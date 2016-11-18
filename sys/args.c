@@ -14,7 +14,6 @@ void kernel_args_parse(int argc, char **argv, char **envp) {
   size_t total_len = 0;
   for (unsigned int i = 0; i < argc; i++)
     total_len += 1 + strlen(argv[i]);
-  kprintf("Total len: %zu\n", total_len);
   /* Now correct argc, by counting spaces in each argument. */
   kernel_argc = argc;
   for (unsigned int i = 0; i < argc; i++)
@@ -23,7 +22,7 @@ void kernel_args_parse(int argc, char **argv, char **envp) {
         kernel_argc++;
   /* Allocate memory for arguments. We never free this memory. */
   char *args = kernel_sbrk(total_len);
-  kernel_argv = kernel_sbrk(argc * sizeof(char *));
+  kernel_argv = kernel_sbrk(kernel_argc * sizeof(char *));
   /* Copy arguments and prepare values for kernel_argv. */
   char *curr = args;
   unsigned int i = 0, j = 0;
@@ -55,7 +54,7 @@ const char *kernel_args_get(const char *key) {
   int n = strlen(key);
   for (int i = 0; i < kernel_argc; i++)
     if (strncmp(key, kernel_argv[i], n) == 0)
-      return kernel_argv[i];
+      return kernel_argv[i] + n + 1;
   return NULL;
 }
 
