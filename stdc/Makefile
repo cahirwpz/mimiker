@@ -41,6 +41,8 @@ LIB_SOURCES += stdlib/qsort.c
 EXTRA_SOURCES += wctomb.c
 EXTRA_SOURCES += kprintf.c
 EXTRA_SOURCES += snprintf.c
+# strsep provided by smallclib handles empty fields incorrectly!
+EXTRA_SOURCES += strsep.c
 
 # The default rule.
 all: $(LIBNAME).a
