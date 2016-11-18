@@ -5,7 +5,7 @@
 extern noreturn void kernel_exit();
 extern noreturn void kern_exc_leave();
 
-void ctx_init(thread_t *td, void (*target)()) {
+void ctx_init(thread_t *td, void (*target)(void *), void *arg) {
   register void *gp asm("$gp");
 
   void *sp = td->td_kstack.stk_base + td->td_kstack.stk_size;
@@ -29,6 +29,7 @@ void ctx_init(thread_t *td, void (*target)()) {
   kframe->gp = (reg_t)gp;
   kframe->sp = (reg_t)sp;
   kframe->sr = (reg_t)sr;
+  kframe->a0 = (reg_t)arg;
 }
 
 void uctx_init(thread_t *td, vm_addr_t pc, vm_addr_t sp) {

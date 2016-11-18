@@ -3,28 +3,25 @@
 #include <thread.h>
 #include <sched.h>
 
-void program_thread_1() {
+void program_thread(void *data) {
   exec_args_t exec_args;
-  exec_args.prog_name = "prog";
-  exec_args.argv = (char *[]){"argument1", "ARGUMENT2", "a-r-g-u-m-e-n-t-3"};
-  exec_args.argc = 3;
-  do_exec(&exec_args);
-}
-
-void program_thread_2() {
-  exec_args_t exec_args;
-  exec_args.prog_name = "prog";
-  exec_args.argv = (char *[]){"String passed as argument."};
-  exec_args.argc = 1;
-  do_exec(&exec_args);
-}
-
-void program_thread_3() {
-  exec_args_t exec_args;
-  exec_args.prog_name = "prog";
-  exec_args.argv = (char *[]){"abort_test"};
-  exec_args.argc = 1;
-  do_exec(&exec_args);
+  switch ((int)data) {
+  case 1:
+    exec_args.prog_name = "prog";
+    exec_args.argv = (char *[]){"argument1", "ARGUMENT2", "a-r-g-u-m-e-n-t-3"};
+    exec_args.argc = 3;
+    do_exec(&exec_args);
+  case 2:
+    exec_args.prog_name = "prog";
+    exec_args.argv = (char *[]){"String passed as argument."};
+    exec_args.argc = 1;
+    do_exec(&exec_args);
+  case 3:
+    exec_args.prog_name = "prog";
+    exec_args.argv = (char *[]){"abort_test"};
+    exec_args.argc = 1;
+    do_exec(&exec_args);
+  }
 }
 
 int main() {
@@ -45,9 +42,9 @@ int main() {
    * .bss.
    */
 
-  thread_t *td1 = thread_create("user_thread1", program_thread_1);
-  thread_t *td2 = thread_create("user_thread2", program_thread_2);
-  thread_t *td3 = thread_create("user_thread3", program_thread_3);
+  thread_t *td1 = thread_create("user_thread1", program_thread, (void *)1);
+  thread_t *td2 = thread_create("user_thread2", program_thread, (void *)2);
+  thread_t *td3 = thread_create("user_thread3", program_thread, (void *)3);
 
   sched_add(td1);
   sched_add(td2);

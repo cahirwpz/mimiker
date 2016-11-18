@@ -20,7 +20,7 @@ noreturn void thread_init(void (*fn)(), int n, ...) {
 
   TAILQ_INIT(&all_threads);
 
-  td = thread_create("main", fn);
+  td = thread_create("main", fn, NULL);
 
   /* Pass arguments to called function. */
   exc_frame_t *kframe = td->td_kframe;
@@ -44,7 +44,7 @@ static tid_t make_tid() {
   return tid++;
 }
 
-thread_t *thread_create(const char *name, void (*fn)()) {
+thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
 
   td->td_name = name;
@@ -53,7 +53,7 @@ thread_t *thread_create(const char *name, void (*fn)()) {
   td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
   td->td_kstack.stk_size = PAGESIZE;
 
-  ctx_init(td, fn);
+  ctx_init(td, fn, arg);
 
   TAILQ_INSERT_TAIL(&all_threads, td, td_all);
 
