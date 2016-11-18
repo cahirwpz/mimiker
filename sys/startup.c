@@ -16,26 +16,14 @@
 #include <thread.h>
 #include <vm_object.h>
 #include <vm_map.h>
+#include <string.h>
+#include <args.h>
 
 extern int main(int argc, char **argv, char **envp);
 
 int kernel_boot(int argc, char **argv, char **envp) {
   uart_init();
-
-  kprintf("Kernel arguments: ");
-  for (int i = 0; i < argc; i++)
-    kprintf("%s ", argv[i]);
-  kprintf("\n");
-
-  kprintf("Kernel environment: ");
-  char **_envp = envp;
-  while (*_envp) {
-    char *key = *_envp++;
-    char *val = *_envp++;
-    kprintf("%s=%s ", key, val);
-  }
-  kprintf("\n");
-
+  parse_args(argc, argv, envp);
   cpu_init();
   pcpu_init();
   pci_init();
