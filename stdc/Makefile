@@ -26,9 +26,10 @@ LIB_SOURCES += string/memset.c
 LIB_SOURCES += string/bzero.c
 LIB_SOURCES += string/memcpy.c
 LIB_SOURCES += string/strlen.c
-LIB_SOURCES += string/strcpy.c
 LIB_SOURCES += string/strcmp.c
+LIB_SOURCES += string/strcpy.c
 LIB_SOURCES += string/strspn.c
+LIB_SOURCES += string/strtok.c
 LIB_SOURCES += stdlib/qsort.c
 
 # LIB_SOURCES += stdlib/wctomb.c
