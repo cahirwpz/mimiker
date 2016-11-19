@@ -2,9 +2,9 @@
 #include <malloc.h>
 
 void clear_bss() {
-  extern unsigned int __bss;
-  extern unsigned int __ebss;
-  for (unsigned int *p = &__bss, *end = &__ebss; p < end; ++p) *p = 0;
+  extern unsigned int __bss[];
+  extern unsigned int __ebss[];
+  for (unsigned int *p = __bss, *end = __ebss; p < end; ++p) *p = 0;
 }
 
 #define ISSPACE(a) ((a) == ' ' || ((a) >= '\t' && (a) <= '\r'))
