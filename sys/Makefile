@@ -20,7 +20,8 @@ SOURCES_C  = \
 	turnstile.c \
 	vm_map.c \
 	vm_object.c \
-	vm_pager.c
+	vm_pager.c \
+	args.c
 SOURCES_ASM = 
 
 all: $(DEPFILES) libsys.a 

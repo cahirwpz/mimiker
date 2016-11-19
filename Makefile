@@ -14,7 +14,7 @@ TESTS = \
 	syscall.elf \
 	thread.elf \
 	vm_map.elf \
-	argv_test.elf
+	args.elf
 SOURCES_C =
 SOURCES_ASM =
 

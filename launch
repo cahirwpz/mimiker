@@ -50,9 +50,6 @@ def configure_ovpsim(args):
         'command': quote(' '.join(escape(a) for a in args.args))
     }
 
-    print(args.args)
-    print(OVPSIM_OVERRIDES['command'])
-
     try:
         os.remove('uartCBUS.log')
         os.remove('uartTTY0.log')
