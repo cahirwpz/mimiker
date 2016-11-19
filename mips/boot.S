@@ -3,7 +3,6 @@
 
         .set noreorder
 
-        .local clear_bss
         .local kernel_go
 
 # Boot environment is described in MIPS® YAMON™ User's Manual, Chapter 5
