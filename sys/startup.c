@@ -1,5 +1,6 @@
 #include <common.h>
 #include <stdc.h>
+#include <mips/malta.h>
 #include <mips/cpuinfo.h>
 #include <mips/uart_cbus.h>
 #include <mips/tlb.h>
@@ -20,9 +21,10 @@
 extern int main(int argc, char **argv, char **envp);
 
 int kernel_boot(int argc, char **argv, char **envp) {
+  platform_init(&argc, &argv);
   uart_init();
 
-  kprintf("Kernel arguments: ");
+  kprintf("Kernel arguments (%d): ", argc);
   for (int i = 0; i < argc; i++)
     kprintf("%s ", argv[i]);
   kprintf("\n");

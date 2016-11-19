@@ -30,14 +30,28 @@ def find_triplet():
     raise SystemExit('No cross compiler found!')
 
 
+def quote(s, q='\''):
+    return q + s.replace(q, '\\'+q) + q
+
+def escape(s):
+    s = s.replace('\\', '\\\\')
+    if set(s) & set(' \t\n\v\f\r\'"'):
+        s = quote(s)
+    return s
+
+
 def configure_ovpsim(args):
     OVPSIM_OVERRIDES = {
         'mipsle1/vectoredinterrupt': 1,
         'mipsle1/srsctlHSS': 1,
         'rtc/timefromhost': 1,
         'uartCBUS/console': 1,
-        'uartCBUS/portnum': PORT
+        'uartCBUS/portnum': PORT,
+        'command': quote(' '.join(escape(a) for a in args.args))
     }
+
+    print(args.args)
+    print(OVPSIM_OVERRIDES['command'])
 
     try:
         os.remove('uartCBUS.log')
@@ -137,6 +151,9 @@ if __name__ == '__main__':
                               (', '.join(sim_choices.keys()), sim_default)))
     parser.add_argument('-t', '--test', action='store_true',
                         help='Use current stdin & stdout for simulated UART.')
+    parser.add_argument('args', metavar='ARGS', type=str, nargs='*',
+                        help='Kernel arguments.')
+
 
     args = parser.parse_args()
 

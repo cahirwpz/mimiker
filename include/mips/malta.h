@@ -81,4 +81,6 @@
 #define MALTA_SMSC_KYBD_DATA MALTA_PCI0_ADDR(0x60)
 #define MALTA_SMSC_KYBD_CTRL MALTA_PCI0_ADDR(0x64)
 
+void platform_init(int *p_argc, char ***p_argv);
+
 #endif

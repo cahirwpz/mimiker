@@ -1,7 +1,7 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
 SOURCES_C = atomic.c clock.c context.c cpu.c intr.c pci.c physmem.c pmap.c	\
-	    stack.c sync.c tlb.c uart_cbus.c
+	    stack.c sync.c tlb.c uart_cbus.c malta.c
 SOURCES_ASM = boot.S exc.S switch.S syscall.S tlb_ops.S ebase.S
 
 all: $(DEPFILES) genassym.h libmips.a

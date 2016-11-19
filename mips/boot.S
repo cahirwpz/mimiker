@@ -24,14 +24,6 @@ LEAF(_start)
         sw      $a3,($t0)
         la      $gp, _gp
 
-clear_bss:
-        la      $t0, __bss
-        la      $t1, __ebss
-
-1:      sw      $zero, ($t0)
-        bne     $t0, $t1, 1b
-        addiu   $t0, 4
-
 kernel_go:
 	# Let's preserve SR_BEV for now, until interrupts are propely set up
 	# later. SR_SR (Soft Reset) bit will be preserved as well to support

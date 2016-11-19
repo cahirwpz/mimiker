@@ -13,7 +13,8 @@ TESTS = \
 	sleepq.elf \
 	syscall.elf \
 	thread.elf \
-	vm_map.elf
+	vm_map.elf \
+	argv_test.elf
 SOURCES_C =
 SOURCES_ASM =
 
