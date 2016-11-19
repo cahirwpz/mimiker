@@ -1,13 +1,36 @@
 #include <mips/malta.h>
 #include <malloc.h>
+#include <stdc.h>
 
 void clear_bss() {
   extern unsigned int __bss[];
   extern unsigned int __ebss[];
-  for (unsigned int *p = __bss, *end = __ebss; p < end; ++p) *p = 0;
+  bzero(__bss, __ebss - __bss);
 }
 
 #define ISSPACE(a) ((a) == ' ' || ((a) >= '\t' && (a) <= '\r'))
+
+/*
+ * For some reason arguments passed to the kernel are stored in one string -
+ * it means that argc is always equals 2 and argv[1] string contains all passed
+ * parameters. Because we want each parameter in separate argv entry
+ * (as it should be) we need to fix it. This function parse that argv[1]
+ * string, split it to separate arguments, creates new argv table with proper
+ * entries and corrects argc.
+ *
+ * Example:
+ *
+ *   before:
+ *     argc=2;
+ *     argv={"<program name>", "arg1 arg2=val   arg3='foo bar'  "};
+ *
+ *   fixing:
+ *     fix_argv(&argc, &argv);
+ *
+ *   after:
+ *     argc=4;
+ *     argv={"<program name>", "arg1", "arg2=val", "arg3=foo bar"};
+ */
 
 void fix_argv(int *p_argc, char ***p_argv) {
   char *cmd = (*p_argv)[1];
@@ -16,6 +39,9 @@ void fix_argv(int *p_argc, char ***p_argv) {
   int escape = 0;
   int argc;
   char **argv;
+
+  if (*p_argc < 2)
+    return;
 
   while(ISSPACE(*p)) ++p;
   for (argc = 1; *p; ++argc) {
