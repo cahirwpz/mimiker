@@ -33,6 +33,7 @@ def find_triplet():
 def quote(s, q='\''):
     return q + s.replace(q, '\\'+q) + q
 
+
 def escape(s):
     s = s.replace('\\', '\\\\')
     if set(s) & set(' \t\n\v\f\r\'"'):
