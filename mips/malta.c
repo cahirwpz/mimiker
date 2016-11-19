@@ -22,62 +22,42 @@ void clear_bss() {
  *
  *   before:
  *     argc=2;
- *     argv={"<program name>", "arg1 arg2=val   arg3='foo bar'  "};
+ *     argv={"<program name>", "arg1 arg2=val   arg3=foobar  "};
  *
  *   fixing:
  *     fix_argv(&argc, &argv);
  *
  *   after:
  *     argc=4;
- *     argv={"<program name>", "arg1", "arg2=val", "arg3=foo bar"};
+ *     argv={"<program name>", "arg1", "arg2=val", "arg3=foobar"};
  */
 
 void fix_argv(int *p_argc, char ***p_argv) {
-  char *cmd = (*p_argv)[1];
-  char *s = cmd, *p = cmd;
-  char quote = 0;
-  int escape = 0;
-  int argc;
-  char **argv;
-
   if (*p_argc < 2)
     return;
 
-  while(ISSPACE(*p)) ++p;
+  char *cmd = (*p_argv)[1];
+  char *s = cmd, *p = cmd;
+  int argc;
+  char **argv;
+
+  // argv[1] string is modified - all whitespaces are overwritten 
+  // by non-whitespace characters and every parameter is terminated 
+  // with null character
+  while (ISSPACE(*p)) ++p;
   for (argc = 1; *p; ++argc) {
-    for (; *p; ++p) {
-      if (escape) {
-        escape = 0;
-        *s++ = *p;
-      }
-      else if (*p == '\\') {
-        escape = 1;
-      }
-      else if (*p == quote) {
-        quote = 0;
-      }
-      else if (!quote && (*p == '\'' || *p == '"')) {
-        quote = *p;
-      }
-      else if (quote || !ISSPACE(*p)) {
-        *s++ = *p;
-      }
-      else {
-        ++p;
-        break;
-      }
-    }
+    while (*p && !ISSPACE(*p)) *s++ = *p++;
+    while (ISSPACE(*p)) ++p;
     *s++ = 0;
-    while(ISSPACE(*p)) ++p;
   }
 
   argv = kernel_sbrk(argc * sizeof(char *));
-  argv[0] = (*p_argv)[0];
 
   p = cmd;
+  argv[0] = (*p_argv)[0];
   for (int i = 1; i < argc; ++i) {
     argv[i] = p;
-    while (*p++);
+    while (*p++);  // find first character of next parameter
   }
 
   *p_argc = argc;
