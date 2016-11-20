@@ -1,6 +1,7 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
 SOURCES_C  = \
+	args.c \
 	callout.c \
 	clock.c \
 	exception.c \
@@ -20,8 +21,7 @@ SOURCES_C  = \
 	turnstile.c \
 	vm_map.c \
 	vm_object.c \
-	vm_pager.c \
-	args.c
+	vm_pager.c
 SOURCES_ASM = 
 
 all: $(DEPFILES) libsys.a 
