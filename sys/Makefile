@@ -1,7 +1,6 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
 SOURCES_C  = \
-	args.c \
 	callout.c \
 	clock.c \
 	exception.c \
