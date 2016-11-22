@@ -3,24 +3,41 @@
 
 #include <common.h>
 
-/* This file contains declarations for standard functions that are
-   imported from smallclib and exposed for use within the kernel, as
-   well as several additional utilities. */
+/*
+ * This file contains declarations for subset of C standard library functions.
+ * Implementation is imported from various places (mainly smallclib and OpenBSD)
+ * and exposed for use within the kernel.
+ *
+ * There're extra utilities here as well.
+ */
 
-/* ============================================
-   These functions are imported from smallclib. */
-void *memset(void *m, int c, size_t n);
-void *memcpy(void *dst0, const void *src0, size_t len0);
-size_t strlen(const char *str);
-void bzero(void *s, size_t n);
-void qsort(void *base, size_t num, size_t width,
-           int (*comp)(const void *, const void *));
-/* ============================================ */
+/* ctype.h function prototypes */
+
+/* stdio.h function prototypes */
 
 /* The snprintf has a custom implementation which cannot format
    floating-point numbers, see snprintf.c */
 int snprintf(char *str, size_t size, const char *fmt, ...)
   __attribute__((format(printf, 3, 4)));
+
+/* stdlib.h function prototypes */
+void qsort(void *base, size_t num, size_t width,
+           int (*comp)(const void *, const void *));
+
+/* strings.h function prototypes */
+
+void bzero(void *b, size_t length);
+void *memchr(const void *s, int c, size_t n);
+void *memcpy(void *s1, const void *s2, size_t n);
+void *memset(void *dst, int c, size_t n);
+int strcmp(const char *s1, const char *s2);
+size_t strcspn(const char *s1, const char *s2);
+size_t strlcat(char *dst, const char *src, size_t dsize);
+size_t strlcpy(char *dst, const char *src, size_t dsize);
+size_t strlen(const char *str);
+int strncmp(const char *s1, const char *s2, size_t n);
+char *strsep(char **stringp, const char *delim);
+size_t strspn(const char *s1, const char *s2);
 
 /* Write a formatted string to UART.
  * Equivalent to standard printf. */
