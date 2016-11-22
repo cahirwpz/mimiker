@@ -2,12 +2,17 @@
 #include <malloc.h>
 #include <stdc.h>
 
-void clear_bss() {
-  extern unsigned int __bss[];
-  extern unsigned int __ebss[];
-  bzero(__bss, __ebss - __bss);
-}
+extern unsigned int __bss[];
+extern unsigned int __ebss[];
 
+unsigned _memsize;
+
+struct {
+  int argc;
+  char **argv;
+} _kenv;
+
+#if 0
 #define ISSPACE(a) ((a) == ' ' || ((a) >= '\t' && (a) <= '\r'))
 
 /*
@@ -32,7 +37,7 @@ void clear_bss() {
  *     argv={"<program name>", "arg1", "arg2=val", "arg3=foobar"};
  */
 
-void fix_argv(int *p_argc, char ***p_argv) {
+static void fix_argv(int *p_argc, char ***p_argv) {
   if (*p_argc < 2)
     return;
 
@@ -63,8 +68,14 @@ void fix_argv(int *p_argc, char ***p_argv) {
   *p_argc = argc;
   *p_argv = argv;
 }
+#endif
 
-void platform_init(int *p_argc, char ***p_argv) {
-  clear_bss();
-  fix_argv(p_argc, p_argv);
+void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
+  /* clear BSS section */
+  bzero(__bss, __ebss - __bss);
+  
+  _memsize = memsize;
+
+  _kenv.argc = argc;
+  _kenv.argv = argv;
 }

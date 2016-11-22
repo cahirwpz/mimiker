@@ -19,9 +19,9 @@
 # C0_STATUS is same as YAMON™ context, but interrupts are disabled.
 
 LEAF(_start)
-        la      $t0, _memsize
-        sw      $a3,($t0)
         la      $gp, _gp
+        jal     platform_init
+        nop
 
 kernel_go:
 	# Let's preserve SR_BEV for now, until interrupts are propely set up
@@ -36,6 +36,9 @@ kernel_go:
 	# Transfer control to `kernel_boot` running in kernel mode with
 	# interrupts and FPU disabled.
 	# If kernel ever decides to return just loop forever.
+        la      $t0, _kenv
+        lw      $a0, 0($t0)
+        lw      $a1, 4($t0)
         la      $ra, kernel_exit
         la      $t0, kernel_boot
         jr      $t0
@@ -47,11 +50,4 @@ LEAF(kernel_exit)
         nop
 END(kernel_exit)
 
-
-        .globl _memsize
-        .type  _memsize,@object
-        .size  _memsize,4
-
-        .data
-_memsize:
-        .long 0
+# vim: sw=8 ts=8 et
