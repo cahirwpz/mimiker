@@ -1,4 +1,4 @@
-/*	$OpenBSD: memset.c,v 1.7 2015/08/31 02:53:57 guenther Exp $ */
+/*	$OpenBSD: strcspn.c,v 1.6 2015/08/31 02:53:57 guenther Exp $ */
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -33,15 +33,26 @@
 
 #include <string.h>
 
-void *
-memset(void *dst, int c, size_t n)
+/*
+ * Span the complement of string s2.
+ */
+size_t
+strcspn(const char *s1, const char *s2)
 {
-	if (n != 0) {
-		unsigned char *d = dst;
+	const char *p, *spanp;
+	char c, sc;
 
-		do
-			*d++ = (unsigned char)c;
-		while (--n != 0);
+	/*
+	 * Stop as soon as we find any character from s2.  Note that there
+	 * must be a NUL in s2; it suffices to stop when we find that, too.
+	 */
+	for (p = s1;;) {
+		c = *p++;
+		spanp = s2;
+		do {
+			if ((sc = *spanp++) == c)
+				return (p - 1 - s1);
+		} while (sc != 0);
 	}
-	return (dst);
+	/* NOTREACHED */
 }

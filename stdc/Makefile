@@ -15,17 +15,18 @@ CPPFLAGS = -Iinclude -I../include
 LIB_SOURCES  = ctype/ctype_.c
 LIB_SOURCES += stdio/__format_parser_int.c
 LIB_SOURCES += stdlib/qsort.c
-LIB_SOURCES += string/memchr.c
-LIB_SOURCES += string/memset.c
 LIB_SOURCES += string/bzero.c
+LIB_SOURCES += string/memchr.c
 LIB_SOURCES += string/memcpy.c
-LIB_SOURCES += string/strlen.c
+LIB_SOURCES += string/memset.c
 LIB_SOURCES += string/strcmp.c
+LIB_SOURCES += string/strcspn.c
+LIB_SOURCES += string/strlcat.c
+LIB_SOURCES += string/strlcpy.c
+LIB_SOURCES += string/strlen.c
 LIB_SOURCES += string/strncmp.c
-LIB_SOURCES += string/strcpy.c
-LIB_SOURCES += string/strspn.c
-LIB_SOURCES += string/strtok.c
 LIB_SOURCES += string/strsep.c
+LIB_SOURCES += string/strspn.c
 
 # LIB_SOURCES += stdlib/wctomb.c
 # NOTE: wctomb IS needed by __format_parser, but it requires the whole

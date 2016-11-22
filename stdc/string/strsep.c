@@ -1,3 +1,5 @@
+/*	$OpenBSD: strsep.c,v 1.8 2015/08/31 02:53:57 guenther Exp $	*/
+
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,17 +29,11 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)strsep.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <sys/param.h>
+#include <string.h>
 
 /*
  * Get next token from string *stringp, where tokens are possibly-empty
- * strings separated by characters from delim.
+ * strings separated by characters from delim.  
  *
  * Writes NULs into the string at *stringp to end tokens.
  * delim need not remain constant from call to call.
@@ -47,9 +43,7 @@ __FBSDID("$FreeBSD$");
  * If *stringp is NULL, strsep returns NULL.
  */
 char *
-strsep(stringp, delim)
-	char **stringp;
-	const char *delim;
+strsep(char **stringp, const char *delim)
 {
 	char *s;
 	const char *spanp;
@@ -74,4 +68,3 @@ strsep(stringp, delim)
 	}
 	/* NOTREACHED */
 }
-
