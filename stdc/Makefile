@@ -8,27 +8,25 @@ include ../Makefile.common
 LIB_CFLAGS = -D__PREFER_SIZE_OVER_SPEED__
 
 LIBNAME = libstdc
-LIB_BUILD_DIR = $(LIBNAME)_build
 
-# Find the path to smallclib within toolchains resources
-LIB_PATH = $(realpath $(join $(dir $(firstword $(MAKEFILE_LIST))), smallclib))
-
-$(info Using MIPS smallclib sources located at: $(LIB_PATH))
-
-CPPFLAGS  = -I$(LIB_PATH)/include
-CPPFLAGS += -I../include
+CPPFLAGS = -Iinclude -I../include
 
 # Explicitly picking files to compile.
 LIB_SOURCES  = ctype/ctype_.c
 LIB_SOURCES += stdio/__format_parser_int.c
-LIB_SOURCES += string/memchr.c
-LIB_SOURCES += string/memset.c
-LIB_SOURCES += string/bzero.c
-LIB_SOURCES += string/memcpy.c
-LIB_SOURCES += string/strlen.c
-LIB_SOURCES += string/strcmp.c
-LIB_SOURCES += string/strspn.c
 LIB_SOURCES += stdlib/qsort.c
+LIB_SOURCES += string/bzero.c
+LIB_SOURCES += string/memchr.c
+LIB_SOURCES += string/memcpy.c
+LIB_SOURCES += string/memset.c
+LIB_SOURCES += string/strcmp.c
+LIB_SOURCES += string/strcspn.c
+LIB_SOURCES += string/strlcat.c
+LIB_SOURCES += string/strlcpy.c
+LIB_SOURCES += string/strlen.c
+LIB_SOURCES += string/strncmp.c
+LIB_SOURCES += string/strsep.c
+LIB_SOURCES += string/strspn.c
 
 # LIB_SOURCES += stdlib/wctomb.c
 # NOTE: wctomb IS needed by __format_parser, but it requires the whole
@@ -43,26 +41,11 @@ EXTRA_SOURCES += snprintf.c
 # The default rule.
 all: $(LIBNAME).a
 
-# This rule creates the build directory.
-$(LIB_BUILD_DIR):
-	mkdir -p $(LIB_BUILD_DIR)
-
 # This rule creates the library archive. To define it, we need a full
 # list of all object files.
-LIB_OBJECTS  = \
-	$(addprefix $(LIB_BUILD_DIR)/,\
-		$(patsubst %.S,%.o,             \
-		$(patsubst %.c,%.o,             \
-			$(notdir $(LIB_SOURCES))    \
-		) \
-		) \
-	)
-EXTRA_OBJECTS = \
-	$(patsubst %.S,%.o, \
-	$(patsubst %.c,%.o, \
-		$(EXTRA_SOURCES) \
-	) \
-	)
+LIB_OBJECTS = $(patsubst %.S,%.o, $(patsubst %.c,%.o, $(LIB_SOURCES)))
+EXTRA_OBJECTS = $(patsubst %.S,%.o, $(patsubst %.c,%.o, $(EXTRA_SOURCES)))
+
 $(LIBNAME).a: $(EXTRA_OBJECTS) $(LIB_OBJECTS)
 
 # Generate rules for each library file separately. A simple pattern
@@ -78,8 +61,8 @@ $(LIBNAME).a: $(EXTRA_OBJECTS) $(LIB_OBJECTS)
 # http://www.gnu.org/software/make/manual/make.html#Prerequisite-Types
 define emit_lib_rule
 CFILE := $(1)
-OFILE := $(patsubst %.S,%.o,$(patsubst %.c,%.o,$(notdir $(1))))
-$(LIB_BUILD_DIR)/$$(OFILE): $(LIB_PATH)/$$(CFILE) | $(LIB_BUILD_DIR)
+OFILE := $(patsubst %.S,%.o, $(patsubst %.c,%.o, $(1)))
+$$(OFILE): $$(CFILE)
 	@echo "[CC] $$< -> $$@"
 	$(CC) $(LIB_CFLAGS) $(CFLAGS) $(CPPFLAGS) -c $$^ -o $$@
 endef
@@ -99,4 +82,3 @@ clean:
 	$(RM) $(EXTRA_OBJECTS)
 	$(RM) $(LIB_OBJECTS)
 	$(RM) *~ tags *.taghl
-	-rmdir $(LIB_BUILD_DIR)
