@@ -37,40 +37,61 @@ int tokenize(char *str, char **tokens) {
   return ntokens;
 }
 
+// Creates new string that is concatenation of given two separated by '='.
+char *env2arg(char *key, char *value) {
+    int keylen = strlen(key);
+    int valuelen = strlen(value);
+    int arglen = keylen + 1 + valuelen + 1;
+    char *arg = kernel_sbrk(arglen * sizeof(char));
+    strlcpy(arg, key, arglen);
+    arg[keylen] = '=';
+    strlcpy(arg + keylen + 1, value, arglen - keylen - 1);
+    return arg;
+}
+
 /* 
  * For some reason arguments passed to kernel are not correctly splitted 
  * in argv array - in our case all arguments are stored in one string argv[1],
  * but we want to keep every argument in separate argv entry. This function
- * tokenize all argv strings and store every token into individual entry of 
- * new array. Also argc is corrected.
+ * tokenize all argv strings and store every single token into individual entry 
+ * of new array.
+ *
+ * For our needs we also convert passed environment variables and put them
+ * into new argv array.
  *
  * Example:
  *
- *   before:
+ *   For arguments:
  *     argc=3;
  *     argv={"test.elf", "arg1 arg2=val   arg3=foobar  ", "  init=/bin/sh "};
+ *     envp={"memsize", "128MiB", "uart.speed", "115200"};
  *
- *   fixing:
- *     fix_argv(&argc, &argv);
+ *   instruction:
+ *     setup_kenv(argc, argv, envp);
  *
- *   after:
- *     argc=5;
- *     argv={"test.elf", "arg1", "arg2=val", "arg3=foobar", "init=/bin/sh"};
+ *   will set global variable _kenv as follows:
+ *     _kenv.argc=5;
+ *     _kenv.argv={"test.elf", "arg1", "arg2=val", "arg3=foobar", 
+ *                 "init=/bin/sh", "memsize=128MiB", "uart.speed=115200"};
  */
-void fix_argv(int *p_argc, char ***p_argv) {
+void setup_kenv(int argc, char **argv, char **envp) {
   int ntokens = 0;
   char **tokens, **p;
 
-  for (int i = 0; i < *p_argc; ++i)
-    ntokens += tokenize((*p_argv)[i], NULL);
+  for (int i = 0; i < argc; ++i)
+    ntokens += tokenize(argv[i], NULL);
+  for (char **key = envp; *key; key += 2)
+    ntokens += 1;
 
   p = tokens = kernel_sbrk(ntokens * sizeof(char *));
 
-  for (int i = 0; i < *p_argc; ++i)
-    p += tokenize((*p_argv)[i], p);
+  for (int i = 0; i < argc; ++i)
+    p += tokenize(argv[i], p);
+  for (char **pair = envp; *pair; pair += 2)
+    *p++ = env2arg(pair[0], pair[1]);
    
-  *p_argc = ntokens;
-  *p_argv = tokens;
+  _kenv.argc = ntokens;
+  _kenv.argv = tokens;
 }
 
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
@@ -79,7 +100,5 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   
   _memsize = memsize;
 
-  fix_argv(&argc, &argv);
-  _kenv.argc = argc;
-  _kenv.argv = argv;
+  setup_kenv(argc, argv, envp);
 }
