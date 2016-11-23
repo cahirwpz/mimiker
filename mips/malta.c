@@ -1,6 +1,6 @@
 #include <mips/malta.h>
 #include <malloc.h>
-#include <stdc.h>
+#include <string.h>
 
 extern unsigned int __bss[];
 extern unsigned int __ebss[];
@@ -12,63 +12,66 @@ struct {
   char **argv;
 } _kenv;
 
-#if 0
-#define ISSPACE(a) ((a) == ' ' || ((a) >= '\t' && (a) <= '\r'))
+/* 
+ * This function works almost like strtok, but it counts tokens in string and 
+ * stores them into given array. If array is NULL, then function only counts 
+ * tokens without modifying string. 
+ */
+int tokenize(char *str, char **tokens) {
+  int ntokens;
+  const char *whitespaces = " \t";
 
-/*
- * For some reason arguments passed to the kernel are stored in one string -
- * it means that argc is always equals 2 and argv[1] string contains all passed
- * parameters. Because we want each parameter in separate argv entry
- * (as it should be) we need to fix it. This function parse that argv[1]
- * string, split it to separate arguments, creates new argv table with proper
- * entries and corrects argc.
+  str += strspn(str, whitespaces); // trim left whitespaces
+  for (ntokens = 0; *str; ++ntokens) {
+    char *token = str;
+    int tokenlen = strcspn(str, whitespaces);
+    str += tokenlen;  // jump over the token
+    str += strspn(str, whitespaces);  // trim left whitespaces
+    if (tokens) {
+      // null-terminate token and store it in array:
+      token[tokenlen] = 0;
+      tokens[ntokens] = token;
+    }
+  }
+
+  return ntokens;
+}
+
+/* 
+ * For some reason arguments passed to kernel are not correctly splitted 
+ * in argv array - in our case all arguments are stored in one string argv[1],
+ * but we want to keep every argument in separate argv entry. This function
+ * tokenize all argv strings and store every token into individual entry of 
+ * new array. Also argc is corrected.
  *
  * Example:
  *
  *   before:
- *     argc=2;
- *     argv={"<program name>", "arg1 arg2=val   arg3=foobar  "};
+ *     argc=3;
+ *     argv={"test.elf", "arg1 arg2=val   arg3=foobar  ", "  init=/bin/sh "};
  *
  *   fixing:
  *     fix_argv(&argc, &argv);
  *
  *   after:
- *     argc=4;
- *     argv={"<program name>", "arg1", "arg2=val", "arg3=foobar"};
+ *     argc=5;
+ *     argv={"test.elf", "arg1", "arg2=val", "arg3=foobar", "init=/bin/sh"};
  */
+void fix_argv(int *p_argc, char ***p_argv) {
+  int ntokens = 0;
+  char **tokens, **p;
 
-static void fix_argv(int *p_argc, char ***p_argv) {
-  if (*p_argc < 2)
-    return;
+  for (int i = 0; i < *p_argc; ++i)
+    ntokens += tokenize((*p_argv)[i], NULL);
 
-  char *cmd = (*p_argv)[1];
-  char *s = cmd, *p = cmd;
-  int argc;
-  char **argv;
+  p = tokens = kernel_sbrk(ntokens * sizeof(char *));
 
-  // argv[1] string is modified - all whitespaces are overwritten 
-  // by non-whitespace characters and every parameter is terminated 
-  // with null character
-  while (ISSPACE(*p)) ++p;
-  for (argc = 1; *p; ++argc) {
-    while (*p && !ISSPACE(*p)) *s++ = *p++;
-    while (ISSPACE(*p)) ++p;
-    *s++ = 0;
-  }
-
-  argv = kernel_sbrk(argc * sizeof(char *));
-
-  p = cmd;
-  argv[0] = (*p_argv)[0];
-  for (int i = 1; i < argc; ++i) {
-    argv[i] = p;
-    while (*p++);  // find first character of next parameter
-  }
-
-  *p_argc = argc;
-  *p_argv = argv;
+  for (int i = 0; i < *p_argc; ++i)
+    p += tokenize((*p_argv)[i], p);
+   
+  *p_argc = ntokens;
+  *p_argv = tokens;
 }
-#endif
 
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   /* clear BSS section */
@@ -76,6 +79,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   
   _memsize = memsize;
 
+  fix_argv(&argc, &argv);
   _kenv.argc = argc;
   _kenv.argv = argv;
 }
