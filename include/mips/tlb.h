@@ -61,6 +61,15 @@ void tlb_invalidate_all();
  * EntryLo0, EntryLo1, and parts in *hi, *lo0, *lo1 respectively. */
 void tlb_read_index(tlbhi_t *hi, tlblo_t *lo0, tlblo_t *lo1, unsigned idx);
 
+/* Reads the TLB entry specified by index and returns the EntryHi */
+tlbhi_t tlb_read_entry_hi(unsigned idx);
+
+/* Reads the TLB entry specified by index and returns the EntryLo0 */
+tlblo_t tlb_read_entry_lo0(unsigned idx);
+
+/* Reads the TLB entry specified by index and returns the EntryLo1 */
+tlblo_t tlb_read_entry_lo1(unsigned idx);
+
 /* Writes hi, lo0, lo1 into the TLB entry specified by index. */
 void tlb_write_index(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1, unsigned idx);
 
