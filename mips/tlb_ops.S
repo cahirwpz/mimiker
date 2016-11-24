@@ -142,6 +142,72 @@ LEAF(tlb_read_index)
 END(tlb_read_index)
 
 #
+# tlbhi_t tlb_read_entry_hi(unsigned index)
+#
+LEAF(tlb_read_entry_hi)
+	mfc0	t0, C0_ENTRYHI				# save ASID
+
+	mtc0	a0, C0_INDEX
+	ehb				# mtc, hazard on tlbr
+
+	tlbr
+	ehb				# tlbr, hazard on entry*, pagemask
+
+	mfc0	v0, C0_ENTRYHI
+
+        mtc0	t0, C0_ENTRYHI          # restore ASID
+ 	.set	push
+	.set	noreorder
+	jr.hb	ra
+	nop
+	.set	pop
+END(tlb_read_entry_hi)
+
+#
+# tlblo_t tlb_read_entry_lo0(unsigned index)
+#
+LEAF(tlb_read_entry_lo0)
+	mfc0	t0, C0_ENTRYHI				# save ASID
+
+	mtc0	a0, C0_INDEX
+	ehb				# mtc, hazard on tlbr
+
+	tlbr
+	ehb				# tlbr, hazard on entry*, pagemask
+
+	mfc0	v0, C0_ENTRYLO0
+
+        mtc0	t0, C0_ENTRYHI          # restore ASID
+ 	.set	push
+	.set	noreorder
+	jr.hb	ra
+	nop
+	.set	pop
+END(tlb_read_entry_lo0)
+
+#
+# tlblo_t tlb_read_entry_lo1(unsigned index)
+#
+LEAF(tlb_read_entry_lo1)
+	mfc0	t0, C0_ENTRYHI				# save ASID
+
+	mtc0	a0, C0_INDEX
+	ehb				# mtc, hazard on tlbr
+
+	tlbr
+	ehb				# tlbr, hazard on entry*, pagemask
+
+	mfc0	v0, C0_ENTRYLO1
+
+        mtc0	t0, C0_ENTRYHI          # restore ASID
+ 	.set	push
+	.set	noreorder
+	jr.hb	ra
+	nop
+	.set	pop
+END(tlb_read_entry_lo1)
+
+#
 # int tlb_probe(tlbhi_t hi, tlblo_t *lo0, tlblo_t *lo1)
 #
 LEAF(tlb_probe)
