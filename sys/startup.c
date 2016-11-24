@@ -42,5 +42,5 @@ int kernel_boot(int argc, char **argv) {
   sleepq_init();
   mips_clock_init();
   kprintf("[startup] subsystems initialized\n");
-  thread_init((void (*)())main, 3, argc, argv);
+  thread_init((void (*)())main, 2, argc, argv);
 }
