@@ -3,6 +3,8 @@
 
 #include <mips/mips.h>
 
+void platform_init(int argc, char **argv, char **envp, unsigned memsize);
+
 /*
  * Malta Memory Map:
  *
