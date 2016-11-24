@@ -12,48 +12,48 @@ struct {
   char **argv;
 } _kenv;
 
-/* 
- * This function works almost like strtok, but it counts tokens in string and 
- * stores them into given array. If array is NULL, then function only counts 
- * tokens without modifying string. 
- */
-int tokenize(char *str, char **tokens) {
-  int ntokens;
-  const char *whitespaces = " \t";
+static const char *whitespaces = " \t";
 
-  str += strspn(str, whitespaces); // trim left whitespaces
-  for (ntokens = 0; *str; ++ntokens) {
-    char *token = str;
-    int tokenlen = strcspn(str, whitespaces);
-    str += tokenlen;  // jump over the token
-    str += strspn(str, whitespaces);  // trim left whitespaces
-    if (tokens) {
-      // null-terminate token and store it in array:
-      token[tokenlen] = 0;
-      tokens[ntokens] = token;
-    }
-  }
+static size_t count_tokens(const char *str) {
+  size_t ntokens = 0;
 
-  return ntokens;
+  do {
+    str += strspn(str, whitespaces);
+    if (*str == '\0')
+      return ntokens;
+    str += strcspn(str, whitespaces);
+    ntokens++;
+  } while (true);
 }
 
-// Creates new string that is concatenation of given two separated by '='.
-char *env2arg(char *key, char *value) {
-    int keylen = strlen(key);
-    int valuelen = strlen(value);
-    int arglen = keylen + 1 + valuelen + 1;
-    char *arg = kernel_sbrk(arglen * sizeof(char));
-    strlcpy(arg, key, arglen);
-    arg[keylen] = '=';
-    strlcpy(arg + keylen + 1, value, arglen - keylen - 1);
-    return arg;
+static char **extract_tokens(const char *str, char **tokens_p) {
+  do {
+    str += strspn(str, whitespaces);
+    if (*str == '\0')
+      return tokens_p;
+    size_t toklen = strcspn(str, whitespaces);
+    /* copy the token to memory managed by the kernel */
+    char *token = kernel_sbrk(toklen + 1);
+    strlcpy(token, str, toklen + 1);
+    *tokens_p++ = token;
+    str += toklen;
+  } while (true);
 }
 
-/* 
- * For some reason arguments passed to kernel are not correctly splitted 
+static char *make_pair(char *key, char *value) {
+  int arglen = strlen(key) + strlen(value) + 2;
+  char *arg = kernel_sbrk(arglen * sizeof(char));
+  strlcpy(arg, key, arglen);
+  strlcat(arg, "=", arglen);
+  strlcat(arg, value, arglen);
+  return arg;
+}
+
+/*
+ * For some reason arguments passed to kernel are not correctly splitted
  * in argv array - in our case all arguments are stored in one string argv[1],
  * but we want to keep every argument in separate argv entry. This function
- * tokenize all argv strings and store every single token into individual entry 
+ * tokenize all argv strings and store every single token into individual entry
  * of new array.
  *
  * For our needs we also convert passed environment variables and put them
@@ -71,33 +71,33 @@ char *env2arg(char *key, char *value) {
  *
  *   will set global variable _kenv as follows:
  *     _kenv.argc=5;
- *     _kenv.argv={"test.elf", "arg1", "arg2=val", "arg3=foobar", 
+ *     _kenv.argv={"test.elf", "arg1", "arg2=val", "arg3=foobar",
  *                 "init=/bin/sh", "memsize=128MiB", "uart.speed=115200"};
  */
-void setup_kenv(int argc, char **argv, char **envp) {
-  int ntokens = 0;
-  char **tokens, **p;
+static void setup_kenv(int argc, char **argv, char **envp) {
+  unsigned ntokens = 0;
 
   for (int i = 0; i < argc; ++i)
-    ntokens += tokenize(argv[i], NULL);
-  for (char **key = envp; *key; key += 2)
-    ntokens += 1;
-
-  p = tokens = kernel_sbrk(ntokens * sizeof(char *));
-
-  for (int i = 0; i < argc; ++i)
-    p += tokenize(argv[i], p);
+    ntokens += count_tokens(argv[i]);
   for (char **pair = envp; *pair; pair += 2)
-    *p++ = env2arg(pair[0], pair[1]);
-   
+    ntokens++;
+
   _kenv.argc = ntokens;
+
+  char **tokens = kernel_sbrk(ntokens * sizeof(char *));
+
   _kenv.argv = tokens;
+
+  for (int i = 0; i < argc; ++i)
+    tokens = extract_tokens(argv[i], tokens);
+  for (char **pair = envp; *pair; pair += 2)
+    *tokens++ = make_pair(pair[0], pair[1]);
 }
 
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   /* clear BSS section */
   bzero(__bss, __ebss - __bss);
-  
+
   _memsize = memsize;
 
   setup_kenv(argc, argv, envp);
