@@ -28,9 +28,9 @@ NESTED(_start, CALLFRAME_SIZE, $ra)
     jal main
     nop
 
-    # Main returned. Normally we would syscall exit, but it's not implemented yet.
-1:
-    b 1b
+    # Main returned. Call _exit.
+    move $a0, $v0
+    j _exit
     nop
 
 END(_start)
