@@ -96,10 +96,10 @@ void thread_switch_to(thread_t *newtd) {
 }
 
 /* For now this is only a stub */
-void thread_exit() {
+noreturn void thread_exit() {
   thread_t *td = thread_self();
 
-  log("Thread %s is exiting.", td->td_name);
+  log("Thread '%s' {%p} has finished.", td->td_name, td);
 
   /* Thread must not exit while in critical section! */
   assert(td->td_csnest == 0);

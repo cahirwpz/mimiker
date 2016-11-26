@@ -73,13 +73,13 @@ typedef unsigned long pm_addr_t;
 
 #ifndef _USERSPACE
 
-/* Terminate kernel. */
-noreturn void kernel_exit();
+/* Terminate thread. */
+noreturn void thread_exit();
 
 #define panic(FMT, ...)                                                        \
   __extension__({                                                              \
-    kprintf("[panic] %s:%d " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);     \
-    kernel_exit();                                                             \
+    kprintf("[%s:%d] " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);           \
+    thread_exit();                                                             \
   })
 
 #define log(FMT, ...)                                                          \

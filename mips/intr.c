@@ -54,15 +54,14 @@ const char *const exceptions[32] = {
 };
 
 void kernel_oops(exc_frame_t *frame) {
-  unsigned code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
-  unsigned errpc = mips32_get_c0(C0_ERRPC);
-  unsigned badvaddr = mips32_get_c0(C0_BADVADDR);
+  unsigned code = (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
 
-  kprintf("[oops] %s at $%08x!\n", exceptions[code], errpc);
-  if (code == EXC_ADEL || code == EXC_ADES)
-    kprintf("[oops] Caused by reference to $%08x!\n", badvaddr);
+  log("%s at $%08x!", exceptions[code], frame->pc);
+  if ((code == EXC_ADEL || code == EXC_ADES) ||
+      (code == EXC_IBE || code == EXC_DBE))
+    log("Caused by reference to $%08x!", frame->badvaddr);
 
-  panic("Unhandled exception");
+  panic("Unhandled exception!");
 }
 
 void cpu_get_syscall_args(const exc_frame_t *frame, syscall_args_t *args) {
