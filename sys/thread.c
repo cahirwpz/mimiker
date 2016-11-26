@@ -5,6 +5,7 @@
 #include <context.h>
 #include <interrupt.h>
 #include <pcpu.h>
+#include <sync.h>
 #include <sched.h>
 
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
@@ -103,9 +104,13 @@ void thread_exit() {
   /* Thread must not exit while in critical section! */
   assert(td->td_csnest == 0);
 
+  cs_enter();
   td->td_state = TDS_INACTIVE;
-  sched_remove(td);
   sched_yield();
+  cs_leave();
+
+  /* sched_yield will return immediately when scheduler is not active */
+  while (true);
 }
 
 void thread_dump_all() {
