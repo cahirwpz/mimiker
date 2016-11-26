@@ -2,7 +2,7 @@
 #include <context.h>
 #include <thread.h>
 
-extern noreturn void kernel_exit();
+extern noreturn void thread_exit();
 extern noreturn void kern_exc_leave();
 
 void ctx_init(thread_t *td, void (*target)(void *), void *arg) {
@@ -25,7 +25,7 @@ void ctx_init(thread_t *td, void (*target)(void *), void *arg) {
 
   /* This is the context that ctx_boot will restore. */
   kframe->pc = (reg_t)target;
-  kframe->ra = (reg_t)kernel_exit;
+  kframe->ra = (reg_t)thread_exit;
   kframe->gp = (reg_t)gp;
   kframe->sp = (reg_t)sp;
   kframe->sr = (reg_t)sr;

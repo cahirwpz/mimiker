@@ -6,6 +6,7 @@ typedef struct pmap pmap_t;
 
 typedef struct pcpu {
   thread_t *curthread;
+  thread_t *idle_thread;
   pmap_t *curpmap;
 } pcpu_t;
 
