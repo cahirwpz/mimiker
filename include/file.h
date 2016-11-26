@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <mutex.h>
 
 struct thread;
 struct file;
@@ -35,6 +36,7 @@ struct file {
   file_type_t f_type; /* file type */
   uint32_t f_count;   /* reference count */
   uint32_t f_flag;    /* F* flags */
+  mtx_t f_mtx;
 };
 
 #endif /* __FILE_H__ */

@@ -35,6 +35,31 @@ static void filedesc_mark_used(struct filedesc *fdesc, int fd) {
   bit_set(fdesc->fd_map, fd);
 }
 
+/* Called when the last reference to a file is dropped. */
+void file_free(struct file *f) {
+  assert(mtx_is_locked(&f->f_mtx));
+  assert(f->f_count == 0);
+
+  /* TODO: Do not close an invalid file (badfileops) */
+  /* TODO: What if an error happens during close? */
+  f->f_ops.fo_close(f, thread_self());
+
+  kfree(file_pool, f);
+}
+
+void file_hold(struct file *f) {
+  mtx_lock(&f->f_mtx);
+  ++f->f_count;
+  mtx_unlock(&f->f_mtx);
+}
+
+void file_drop(struct file *f) {
+  mtx_lock(&f->f_mtx);
+  if (0 == --f->f_count)
+    file_free(f);
+  mtx_unlock(&f->f_mtx);
+}
+
 /* Allocates a new file descriptor in a file descriptor table. Returns 0 on
  * success and sets *result to new descriptor number. Must be called with
  * fd->fd_mtx already locked. */
@@ -78,7 +103,7 @@ int file_install(struct filedesc *fdesc, struct file *f, int *fd) {
 
   struct filedescent *fde = &fdesc->fd_ofiles[*fd];
   fde->fde_file = f;
-  // file_hold(f)
+  file_hold(f);
   mtx_unlock(&fdesc->fd_mtx);
   return 0;
 }
@@ -93,13 +118,13 @@ int file_alloc_install(struct filedesc *fdesc, struct file **resultf,
   f = file_alloc_noinstall();
   int res = file_install(fdesc, f, &fd);
   if (res < 0) {
-    // file_drop(f)
+    file_drop(f);
     return res;
   }
 
   if (resultf == NULL) {
     /* Caller does not want a pointer to file, release local reference. */
-    // file_drop(f)
+    file_drop(f);
   } else {
     *resultf = f;
   }
@@ -144,7 +169,7 @@ struct filedesc *fdcopy(struct filedesc *fd) {
 
     newfd->fd_ofiles[i] = *fde;
 
-    // fhold(fde->fde_file);
+    file_hold(fde->fde_file);
   }
 
   mtx_unlock(&fd->fd_mtx);
