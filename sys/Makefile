@@ -3,6 +3,7 @@
 SOURCES_C  = \
 	callout.c \
 	clock.c \
+	descrip.c \
 	exception.c \
 	exec.c \
 	interrupt.c \

@@ -21,4 +21,7 @@ void mtx_lock(mtx_t *);
  * wakes up the thread in FIFO manner. */
 void mtx_unlock(mtx_t *);
 
+/* Returns true iff the mutex is locked and we are the owner. */
+bool mtx_is_locked(mtx_t *);
+
 #endif /* __MUTEX_H__ */
