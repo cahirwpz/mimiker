@@ -4,21 +4,23 @@
 #include <bitstring.h>
 #include <mutex.h>
 
-struct filedescent {
-  struct file *fde_file; /* Link to file structure */
-  /* Also: Per-process and per-descriptor file struct overrrides */
-};
+typedef struct {
+  file_t **fdt_ofiles; /* Open files array */
+  bitstr_t *fdt_map;   /* Bitmap of used fds */
+  int fdt_nfiles;      /* Number of files allocated */
+  uint32_t fdt_count;  /* Thread reference count */
+  mtx_t fdt_mtx;
+} file_desc_table_t;
 
-struct filedesc {
-  struct filedescent *fd_ofiles; /* Open files array */
-  bitstr_t *fd_map;              /* Bitmap of used fds */
-  int fd_nfiles;                 /* Number of files allocated */
-  uint32_t fd_refcount;          /* Thread reference count */
-  mtx_t fd_mtx;
-};
+void file_desc_init();
 
-void fd_init();
+/* Allocates a new descriptor table. */
+file_desc_table_t *file_desc_table_init();
+/* Allocates a new descriptor table making it a copy of an existing one. */
+file_desc_table_t *filedesc_copy(file_desc_table_t *fdt);
 
-extern struct fileops badfileops;
+void file_desc_table_free(file_desc_table_t *fdt);
+
+extern fileops_t badfileops;
 
 #endif /* __FILEDESC_H__ */

@@ -2,6 +2,7 @@
 #define __MUTEX_H__
 
 #include <turnstile.h>
+#include <stdbool.h>
 
 typedef struct {
   volatile uint32_t mtx_state; /* 0 if unowned or has address of the owner */

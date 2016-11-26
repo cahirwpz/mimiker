@@ -49,7 +49,7 @@ int kernel_boot(int argc, char **argv, char **envp) {
   vm_map_init();
   sched_init();
   sleepq_init();
-  fd_init();
+  file_desc_init();
   mips_clock_init();
   kprintf("[startup] subsystems initialized\n");
   thread_init((void (*)())main, 3, argc, argv, envp);

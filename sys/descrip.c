@@ -4,6 +4,7 @@
 #include <stdc.h>
 #include <errno.h>
 #include <mutex.h>
+#include <thread.h>
 
 static MALLOC_DEFINE(fd_pool, "file descriptors pool");
 static MALLOC_DEFINE(file_pool, "file pool");
@@ -16,7 +17,7 @@ static MALLOC_DEFINE(file_pool, "file pool");
 /* Separate macro defining a hard limit on open files. */
 #define MAXFILES 20
 
-void fd_init() {
+void file_desc_init() {
   vm_page_t *pg = pm_alloc(2);
   kmalloc_init(fd_pool);
   kmalloc_add_arena(fd_pool, pg->vaddr, PG_SIZE(pg));
@@ -26,17 +27,22 @@ void fd_init() {
 }
 
 /* Test whether a file descriptor is in use. */
-static int filedesc_isused(struct filedesc *fdesc, int fd) {
-  return bit_test(fdesc->fd_map, fd);
+static int file_desc_isused(file_desc_table_t *fdt, int fd) {
+  return bit_test(fdt->fdt_map, fd);
 }
 
-static void filedesc_mark_used(struct filedesc *fdesc, int fd) {
-  assert(!filedesc_isused(fdesc, fd));
-  bit_set(fdesc->fd_map, fd);
+static void file_desc_mark_used(file_desc_table_t *fdt, int fd) {
+  assert(!file_desc_isused(fdt, fd));
+  bit_set(fdt->fdt_map, fd);
+}
+
+static void file_desc_mark_unused(file_desc_table_t *fdt, int fd) {
+  assert(!file_desc_isused(fdt, fd));
+  bit_clear(fdt->fdt_map, fd);
 }
 
 /* Called when the last reference to a file is dropped. */
-void file_free(struct file *f) {
+static void file_free(file_t *f) {
   assert(mtx_is_locked(&f->f_mtx));
   assert(f->f_count == 0);
 
@@ -47,41 +53,77 @@ void file_free(struct file *f) {
   kfree(file_pool, f);
 }
 
-void file_hold(struct file *f) {
+void file_hold(file_t *f) {
   mtx_lock(&f->f_mtx);
   ++f->f_count;
   mtx_unlock(&f->f_mtx);
 }
 
-void file_drop(struct file *f) {
+void file_drop(file_t *f) {
   mtx_lock(&f->f_mtx);
-  if (0 == --f->f_count)
-    file_free(f);
+  int i = --f->f_count;
   mtx_unlock(&f->f_mtx);
+  if (i == 0)
+    file_free(f);
+}
+
+void file_desc_table_hold(file_desc_table_t *fdt) {
+  mtx_lock(&fdt->fdt_mtx);
+  ++fdt->fdt_count;
+  mtx_unlock(&fdt->fdt_mtx);
+}
+
+void file_desc_table_drop(file_desc_table_t *fdt) {
+  mtx_lock(&fdt->fdt_mtx);
+  int i = --fdt->fdt_count;
+  mtx_unlock(&fdt->fdt_mtx);
+  /* Don't worry that something might happen to the filedesc after we released a
+   * mutex, since we know nobody else has a reference to it. */
+  if (i == 0) {
+    assert(mtx_is_locked(&fdt->fdt_mtx));
+    assert(fdt->fdt_count == 0);
+    kfree(fd_pool, fdt->fdt_ofiles);
+    kfree(fd_pool, fdt->fdt_map);
+    kfree(fd_pool, fdt);
+  }
+}
+
+/* Called e.g. when a thread exits. */
+void file_desc_table_free(file_desc_table_t *fdt) {
+  file_desc_table_drop(fdt);
 }
 
 /* Allocates a new file descriptor in a file descriptor table. Returns 0 on
  * success and sets *result to new descriptor number. Must be called with
  * fd->fd_mtx already locked. */
-int filedesc_alloc(struct filedesc *fd, int *result) {
-  assert(mtx_is_locked(&fd->fd_mtx));
+int file_desc_alloc(file_desc_table_t *fdt, int *fd) {
+  assert(mtx_is_locked(&fdt->fdt_mtx));
 
   int first_free = MAXFILES;
-  bit_ffc(fd->fd_map, fd->fd_nfiles, &first_free);
+  bit_ffc(fdt->fdt_map, fdt->fdt_nfiles, &first_free);
 
-  if (first_free >= fd->fd_nfiles) {
-    /* No more space to allocate a descriptor! The descriptor table should grow,
+  if (first_free >= fdt->fdt_nfiles) {
+    /* No more space to allocate a descriptor! The descriptor table should
+       grow,
        but we can't do that yet. */
     return -EMFILE;
   }
-  filedesc_mark_used(fd, first_free);
-  *result = first_free;
+  file_desc_mark_used(fdt, first_free);
+  *fd = first_free;
   return 0;
 }
 
+void file_desc_free(file_desc_table_t *fdt, int fd) {
+  file_t *f = fdt->fdt_ofiles[fd];
+  assert(f != NULL);
+  file_drop(f);
+  fdt->fdt_ofiles[fd] = NULL;
+  file_desc_mark_unused(fdt, fd);
+}
+
 /* Allocate a new file structure, but do not install it as a descriptor. */
-struct file *file_alloc_noinstall() {
-  struct file *f;
+file_t *file_alloc_noinstall() {
+  file_t *f;
   f = kmalloc(file_pool, sizeof(struct file), M_ZERO);
   f->f_ops = badfileops;
   f->f_count = 1;
@@ -90,33 +132,32 @@ struct file *file_alloc_noinstall() {
 }
 
 /* Install a file structure to a new descriptor. */
-int file_install(struct filedesc *fdesc, struct file *f, int *fd) {
+int file_install_desc(file_desc_table_t *fdt, file_t *f, int *fd) {
   assert(f != NULL);
   assert(fd != NULL);
 
-  mtx_lock(&fdesc->fd_mtx);
-  int res = filedesc_alloc(fdesc, fd);
+  mtx_lock(&fdt->fdt_mtx);
+  int res = file_desc_alloc(fdt, fd);
   if (res < 0) {
-    mtx_unlock(&fdesc->fd_mtx);
+    mtx_unlock(&fdt->fdt_mtx);
     return res;
   }
 
-  struct filedescent *fde = &fdesc->fd_ofiles[*fd];
-  fde->fde_file = f;
+  fdt->fdt_ofiles[*fd] = f;
   file_hold(f);
-  mtx_unlock(&fdesc->fd_mtx);
+  mtx_unlock(&fdt->fdt_mtx);
   return 0;
 }
 
 /* Allocates a new file structure and installs it to a new descriptor. On
  * success, returns 0 and sets *resultf and *resultfd to the file struct and
  * descriptor no respectively. */
-int file_alloc_install(struct filedesc *fdesc, struct file **resultf,
-                       int *resultfd) {
-  struct file *f;
+int file_alloc_install_desc(file_desc_table_t *fdt, file_t **resultf,
+                            int *resultfd) {
+  file_t *f;
   int fd;
   f = file_alloc_noinstall();
-  int res = file_install(fdesc, f, &fd);
+  int res = file_install_desc(fdt, f, &fd);
   if (res < 0) {
     file_drop(f);
     return res;
@@ -138,58 +179,56 @@ int file_alloc_install(struct filedesc *fdesc, struct file **resultf,
 /* In FreeBSD this function takes a filedesc* argument, so that
    current dir may be copied. Since we don't use these fields, this
    argument doest not make sense yet. */
-struct filedesc *fdinit() {
-  struct filedesc *fdesc;
-  fdesc = kmalloc(fd_pool, sizeof(struct filedesc), M_ZERO);
-  fdesc->fd_ofiles =
-    kmalloc(fd_pool, NDFILE * sizeof(struct filedescent), M_ZERO);
-  fdesc->fd_map =
+file_desc_table_t *file_desc_table_init() {
+  file_desc_table_t *fdt;
+  fdt = kmalloc(fd_pool, sizeof(file_desc_table_t), M_ZERO);
+  fdt->fdt_ofiles = kmalloc(fd_pool, NDFILE * sizeof(file_t *), M_ZERO);
+  fdt->fdt_map =
     kmalloc(fd_pool, bitstr_size(NDFILE) * sizeof(bitstr_t), M_ZERO);
-  fdesc->fd_nfiles = NDFILE;
-  fdesc->fd_refcount = 1;
-  return fdesc;
+  fdt->fdt_nfiles = NDFILE;
+  fdt->fdt_count = 1;
+  return fdt;
 }
 
-struct filedesc *fdcopy(struct filedesc *fd) {
-  struct filedesc *newfd;
+file_desc_table_t *file_desc_table_copy(file_desc_table_t *fdt) {
+  file_desc_table_t *newfdt;
 
-  newfd = fdinit();
+  newfdt = file_desc_table_init();
 
-  if (!fd)
-    return newfd;
+  if (!fdt)
+    return newfdt;
 
-  mtx_lock(&fd->fd_mtx);
+  mtx_lock(&fdt->fdt_mtx);
 
   /* We can assume both filedescs use 20 descriptors, because we don't support
    * other numbers. */
-  assert(fd->fd_nfiles == newfd->fd_nfiles);
+  assert(fdt->fdt_nfiles == newfdt->fdt_nfiles);
 
-  for (int i = 0; i < fd->fd_nfiles; i++) {
-    struct filedescent *fde = &fd->fd_ofiles[i];
+  for (int i = 0; i < fdt->fdt_nfiles; i++) {
+    file_t *f = fdt->fdt_ofiles[i];
 
-    newfd->fd_ofiles[i] = *fde;
+    /* TODO: Deep or shallow copy? */
+    newfdt->fdt_ofiles[i] = f;
 
-    file_hold(fde->fde_file);
+    file_hold(f);
   }
 
-  mtx_unlock(&fd->fd_mtx);
+  mtx_unlock(&fdt->fdt_mtx);
 
-  return newfd;
+  return newfdt;
 }
 
 /* Operations on invalid file descriptors */
-static int badfo_read(struct file *f, struct thread *td, char *buf,
-                      size_t count) {
+static int badfo_read(file_t *f, struct thread *td, char *buf, size_t count) {
   return -EBADF;
 }
-static int badfo_write(struct file *f, struct thread *td, char *buf,
-                       size_t count) {
+static int badfo_write(file_t *f, struct thread *td, char *buf, size_t count) {
   return -EBADF;
 }
-static int badfo_close(struct file *f, struct thread *td) {
+static int badfo_close(file_t *f, struct thread *td) {
   return -EBADF;
 }
 
-struct fileops badfileops = {
+fileops_t badfileops = {
   .fo_read = badfo_read, .fo_write = badfo_write, .fo_close = badfo_close,
 };

@@ -5,6 +5,7 @@
 #include <queue.h>
 #include <context.h>
 #include <exception.h>
+#include <filedesc.h>
 
 typedef uint8_t td_prio_t;
 typedef uint32_t tid_t;
@@ -34,6 +35,8 @@ typedef struct thread {
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
   vm_map_t *td_uspace; /* thread's user space map */
+  /* descriptors */
+  file_desc_table_t *td_filedesc;
   /* waiting channel */
   sleepq_t *td_sleepqueue;
   void *td_wchan;
