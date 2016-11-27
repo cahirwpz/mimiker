@@ -1,5 +1,6 @@
 #include <common.h>
 #include <stdc.h>
+#include <mips/malta.h>
 #include <mips/cpuinfo.h>
 #include <mips/uart_cbus.h>
 #include <mips/tlb.h>
@@ -18,23 +19,14 @@
 #include <vm_map.h>
 #include <filedesc.h>
 
-extern int main(int argc, char **argv, char **envp);
+extern int main(int argc, char **argv);
 
-int kernel_boot(int argc, char **argv, char **envp) {
+int kernel_boot(int argc, char **argv) {
   uart_init();
 
-  kprintf("Kernel arguments: ");
+  kprintf("Kernel arguments (%d): ", argc);
   for (int i = 0; i < argc; i++)
     kprintf("%s ", argv[i]);
-  kprintf("\n");
-
-  kprintf("Kernel environment: ");
-  char **_envp = envp;
-  while (*_envp) {
-    char *key = *_envp++;
-    char *val = *_envp++;
-    kprintf("%s=%s ", key, val);
-  }
   kprintf("\n");
 
   cpu_init();
@@ -52,5 +44,5 @@ int kernel_boot(int argc, char **argv, char **envp) {
   file_desc_init();
   mips_clock_init();
   kprintf("[startup] subsystems initialized\n");
-  thread_init((void (*)())main, 3, argc, argv, envp);
+  thread_init((void (*)())main, 2, argc, argv);
 }

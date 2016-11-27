@@ -313,11 +313,11 @@ pmap_t *get_active_pmap_by_addr(vm_addr_t addr) {
 }
 
 void tlb_exception_handler(exc_frame_t *frame) {
-  int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
-  vm_addr_t vaddr = mips32_get_c0(C0_BADVADDR);
+  int code = (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
+  vm_addr_t vaddr = frame->badvaddr;
 
-  log("%s at %08lx, caused by reference to %08lx!", exceptions[code],
-      mips32_get_c0(C0_EPC), vaddr);
+  log("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
+      frame->pc, vaddr);
   tlb_print();
 
   /* If the fault was in virtual pt range it means it's time to refill */

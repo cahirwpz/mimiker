@@ -5,6 +5,8 @@
 #include <context.h>
 #include <interrupt.h>
 #include <pcpu.h>
+#include <sync.h>
+#include <sched.h>
 
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
 
@@ -99,6 +101,24 @@ void thread_switch_to(thread_t *newtd) {
   td->td_state = TDS_READY;
   newtd->td_state = TDS_RUNNING;
   ctx_switch(td, newtd);
+}
+
+/* For now this is only a stub */
+noreturn void thread_exit() {
+  thread_t *td = thread_self();
+
+  log("Thread '%s' {%p} has finished.", td->td_name, td);
+
+  /* Thread must not exit while in critical section! */
+  assert(td->td_csnest == 0);
+
+  cs_enter();
+  td->td_state = TDS_INACTIVE;
+  sched_yield();
+  cs_leave();
+
+  /* sched_yield will return immediately when scheduler is not active */
+  while (true);
 }
 
 void thread_dump_all() {

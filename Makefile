@@ -2,6 +2,7 @@
 
 TESTS = \
 	callout.elf \
+	crash.elf \
 	exec.elf \
 	exec_syscall.elf \
 	malloc.elf \
