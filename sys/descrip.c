@@ -43,12 +43,13 @@ static void file_desc_mark_unused(file_desc_table_t *fdt, int fd) {
 
 /* Called when the last reference to a file is dropped. */
 static void file_free(file_t *f) {
-  assert(mtx_is_locked(&f->f_mtx));
   assert(f->f_count == 0);
 
-  /* TODO: Do not close an invalid file (badfileops) */
+  /* Note: If the file failed to open, we shall not close it. In such case its
+     fileops are set to badfileops. */
   /* TODO: What if an error happens during close? */
-  f->f_ops.fo_close(f, thread_self());
+  if (f->f_ops != &badfileops)
+    f->f_ops->fo_close(f, thread_self());
 
   kfree(file_pool, f);
 }
@@ -132,7 +133,7 @@ void file_desc_table_destroy(file_desc_table_t *fdt) {
 file_t *file_alloc_noinstall() {
   file_t *f;
   f = kmalloc(file_pool, sizeof(struct file), M_ZERO);
-  f->f_ops = badfileops;
+  f->f_ops = &badfileops;
   f->f_count = 1;
   f->f_data = 0;
   return f;

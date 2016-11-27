@@ -30,7 +30,7 @@ typedef enum {
 
 typedef struct file {
   void *f_data; /* file descriptor specific data */
-  fileops_t f_ops;
+  fileops_t *f_ops;
   file_type_t f_type; /* file type */
   uint32_t f_count;   /* reference count */
   uint32_t f_flag;    /* F* flags */

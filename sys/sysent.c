@@ -26,7 +26,7 @@ int sys_write(thread_t *td, syscall_args_t *args) {
   int res = file_get_write(td, fd, &f);
   if (res)
     return res;
-  res = f->f_ops.fo_write(f, td, buf, count);
+  res = f->f_ops->fo_write(f, td, buf, count);
   file_drop(f);
   return res;
 }
@@ -42,7 +42,7 @@ int sys_read(thread_t *td, syscall_args_t *args) {
   int res = file_get_read(td, fd, &f);
   if (res)
     return res;
-  res = f->f_ops.fo_read(f, td, buf, count);
+  res = f->f_ops->fo_read(f, td, buf, count);
   file_drop(f);
   return res;
 }
@@ -57,7 +57,7 @@ int sys_close(thread_t *td, syscall_args_t *args) {
 
 int do_open(file_t *f, char *pathname, int flags, int mode) {
   /* Note: We lack file system, so this implementation is very silly. */
-  if (strcmp(pathname, "/dev/null")) {
+  if (strcmp(pathname, "/dev/null") == 0) {
     return dev_null_open(f, flags, mode);
   }
   return -ENOENT;
