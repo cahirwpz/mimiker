@@ -268,8 +268,10 @@ int file_get_write(thread_t *td, int fd, file_t **f) {
 int file_desc_close(file_desc_table_t *fdt, int fd) {
   mtx_lock(&fdt->fdt_mtx);
 
-  if (fd < 0 || fd > fdt->fdt_nfiles || !file_desc_isused(fdt, fd))
+  if (fd < 0 || fd > fdt->fdt_nfiles || !file_desc_isused(fdt, fd)) {
+    mtx_unlock(&fdt->fdt_mtx);
     return -EBADF;
+  }
 
   file_desc_free(fdt, fd);
 
