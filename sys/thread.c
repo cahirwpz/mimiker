@@ -75,9 +75,6 @@ void thread_delete(thread_t *td) {
 
   TAILQ_REMOVE(&all_threads, td, td_all);
 
-  if (td->td_fdt)
-    file_desc_table_destroy(td->td_fdt);
-
   pm_free(td->td_kstack_obj);
   kfree(td_pool, td);
 }
@@ -113,12 +110,17 @@ noreturn void thread_exit() {
   assert(td->td_csnest == 0);
 
   cs_enter();
+
+  if (td->td_fdt)
+    file_desc_table_destroy(td->td_fdt);
+
   td->td_state = TDS_INACTIVE;
   sched_yield();
   cs_leave();
 
   /* sched_yield will return immediately when scheduler is not active */
-  while (true);
+  while (true)
+    ;
 }
 
 void thread_dump_all() {

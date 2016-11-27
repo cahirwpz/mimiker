@@ -37,7 +37,7 @@ static void file_desc_mark_used(file_desc_table_t *fdt, int fd) {
 }
 
 static void file_desc_mark_unused(file_desc_table_t *fdt, int fd) {
-  assert(!file_desc_isused(fdt, fd));
+  assert(file_desc_isused(fdt, fd));
   bit_clear(fdt->fdt_map, fd);
 }
 

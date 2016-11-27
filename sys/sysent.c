@@ -85,6 +85,9 @@ int sys_open(thread_t *td, syscall_args_t *args) {
   if (error)
     goto fail;
 
+  /* The file is stored in the descriptor table, but we got our own reference
+     when we asked to allocate the file. Thus we need to release that initial
+     ref. */
   file_drop(f);
   return fd;
 
@@ -155,9 +158,7 @@ int sys_exit(thread_t *td, syscall_args_t *args) {
 
   kprintf("[syscall] exit(%d)\n", status);
 
-  /* Temporary implementation. */
-  td->td_state = TDS_INACTIVE;
-  sched_yield();
+  thread_exit();
   __builtin_unreachable();
 }
 
