@@ -85,6 +85,7 @@ int sys_open(thread_t *td, syscall_args_t *args) {
   if (error)
     goto fail;
 
+  file_drop(f);
   return fd;
 
 fail:
