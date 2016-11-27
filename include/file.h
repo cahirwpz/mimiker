@@ -5,12 +5,12 @@
 #include <stddef.h>
 #include <mutex.h>
 
-struct thread;
+typedef struct thread thread_t;
 typedef struct file file_t;
 
-typedef int fo_read_t(file_t *f, struct thread *td, char *buf, size_t count);
-typedef int fo_write_t(file_t *f, struct thread *td, char *buf, size_t count);
-typedef int fo_close_t(file_t *f, struct thread *td);
+typedef int fo_read_t(file_t *f, thread_t *td, char *buf, size_t count);
+typedef int fo_write_t(file_t *f, thread_t *td, char *buf, size_t count);
+typedef int fo_close_t(file_t *f, thread_t *td);
 
 typedef struct {
   fo_read_t *fo_read;
@@ -36,5 +36,8 @@ typedef struct file {
   uint32_t f_flag;    /* F* flags */
   mtx_t f_mtx;
 } file_t;
+
+void file_hold(file_t *f);
+void file_drop(file_t *f);
 
 #endif /* __FILE_H__ */

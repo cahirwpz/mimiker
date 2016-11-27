@@ -62,7 +62,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   /* TODO: File descriptor table is only meaningful for threads running user
    * programs. Thus td_filedesc should be set on exec(), fork() and PID0 init.
    * To keep it simple for now, all threads are given a descriptor table.*/
-  td->td_filedesc = file_desc_table_init();
+  td->td_fdt = file_desc_table_init();
 
   return td;
 }
@@ -73,8 +73,8 @@ void thread_delete(thread_t *td) {
 
   TAILQ_REMOVE(&all_threads, td, td_all);
 
-  if (td->td_filedesc)
-    file_desc_table_free(td->td_filedesc);
+  if (td->td_fdt)
+    file_desc_table_destroy(td->td_fdt);
 
   pm_free(td->td_kstack_obj);
   kfree(td_pool, td);

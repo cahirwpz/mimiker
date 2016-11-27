@@ -5,29 +5,45 @@
 #include <vm_map.h>
 #include <vm_pager.h>
 #include <sched.h>
+#include <file.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   kprintf("[syscall] unimplemented system call %ld\n", args->code);
   return -ENOSYS;
 };
 
-/* This is just a stub. A full implementation of this syscall will probably
+/* These are just stubs. A full implementation of some syscalls will probably
    deserve a separate file. */
 int sys_write(thread_t *td, syscall_args_t *args) {
   int fd = args->args[0];
-  const char *buf = (const char *)(uintptr_t)args->args[1];
+  char *buf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
   kprintf("[syscall] write(%d, %p, %zu)\n", fd, buf, count);
 
-  /* TODO: copyout string from userspace */
-  if (fd == 1 || fd == 2) {
-    kprintf("%.*s", (int)count, buf);
+  file_t *f;
+  int res = file_get_write(td, fd, &f);
+  if (res)
+    return res;
+  res = f->f_ops.fo_write(f, td, buf, count);
+  file_drop(f);
+  return res;
+}
 
-    return count;
-  }
+int sys_read(thread_t *td, syscall_args_t *args) {
+  int fd = args->args[0];
+  char *buf = (char *)(uintptr_t)args->args[1];
+  size_t count = args->args[2];
 
-  return -EBADF;
+  kprintf("[syscall] read(%d, %p, %zu)\n", fd, buf, count);
+
+  file_t *f;
+  int res = file_get_read(td, fd, &f);
+  if (res)
+    return res;
+  res = f->f_ops.fo_read(f, td, buf, count);
+  file_drop(f);
+  return res;
 }
 
 /* This is just a stub. A full implementation of this syscall will probably
@@ -100,6 +116,6 @@ int sys_exit(thread_t *td, syscall_args_t *args) {
 
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
-  {sys_nosys}, {sys_exit},  {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_write},
+  {sys_nosys}, {sys_exit},  {sys_nosys}, {sys_nosys}, {sys_read},  {sys_write},
   {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_sbrk},
 };

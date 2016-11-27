@@ -67,32 +67,6 @@ void file_drop(file_t *f) {
     file_free(f);
 }
 
-void file_desc_table_hold(file_desc_table_t *fdt) {
-  mtx_lock(&fdt->fdt_mtx);
-  ++fdt->fdt_count;
-  mtx_unlock(&fdt->fdt_mtx);
-}
-
-void file_desc_table_drop(file_desc_table_t *fdt) {
-  mtx_lock(&fdt->fdt_mtx);
-  int i = --fdt->fdt_count;
-  mtx_unlock(&fdt->fdt_mtx);
-  /* Don't worry that something might happen to the filedesc after we released a
-   * mutex, since we know nobody else has a reference to it. */
-  if (i == 0) {
-    assert(mtx_is_locked(&fdt->fdt_mtx));
-    assert(fdt->fdt_count == 0);
-    kfree(fd_pool, fdt->fdt_ofiles);
-    kfree(fd_pool, fdt->fdt_map);
-    kfree(fd_pool, fdt);
-  }
-}
-
-/* Called e.g. when a thread exits. */
-void file_desc_table_free(file_desc_table_t *fdt) {
-  file_desc_table_drop(fdt);
-}
-
 /* Allocates a new file descriptor in a file descriptor table. Returns 0 on
  * success and sets *result to new descriptor number. Must be called with
  * fd->fd_mtx already locked. */
@@ -103,8 +77,7 @@ int file_desc_alloc(file_desc_table_t *fdt, int *fd) {
   bit_ffc(fdt->fdt_map, fdt->fdt_nfiles, &first_free);
 
   if (first_free >= fdt->fdt_nfiles) {
-    /* No more space to allocate a descriptor! The descriptor table should
-       grow,
+    /* No more space to allocate a descriptor! The descriptor table should grow,
        but we can't do that yet. */
     return -EMFILE;
   }
@@ -119,6 +92,41 @@ void file_desc_free(file_desc_table_t *fdt, int fd) {
   file_drop(f);
   fdt->fdt_ofiles[fd] = NULL;
   file_desc_mark_unused(fdt, fd);
+}
+
+void file_desc_table_free(file_desc_table_t *fdt) {
+  assert(fdt->fdt_count == 0);
+  /* No need to lock mutex, we have the only reference left. */
+
+  /* Cleanup used descriptors. This possibly closes underlying files. */
+  for (int i = 0; i < fdt->fdt_nfiles; i++)
+    if (file_desc_isused(fdt, i))
+      file_desc_free(fdt, i);
+
+  kfree(fd_pool, fdt->fdt_ofiles);
+  kfree(fd_pool, fdt->fdt_map);
+  kfree(fd_pool, fdt);
+}
+
+void file_desc_table_hold(file_desc_table_t *fdt) {
+  mtx_lock(&fdt->fdt_mtx);
+  ++fdt->fdt_count;
+  mtx_unlock(&fdt->fdt_mtx);
+}
+
+void file_desc_table_drop(file_desc_table_t *fdt) {
+  mtx_lock(&fdt->fdt_mtx);
+  int i = --fdt->fdt_count;
+  mtx_unlock(&fdt->fdt_mtx);
+  /* Don't worry that something might happen to the filedesc after we released a
+   * mutex, since we know nobody else has a reference to it. */
+  if (i == 0)
+    file_desc_table_free(fdt);
+}
+
+/* Called e.g. when a thread exits. */
+void file_desc_table_destroy(file_desc_table_t *fdt) {
+  file_desc_table_drop(fdt);
 }
 
 /* Allocate a new file structure, but do not install it as a descriptor. */
@@ -216,6 +224,62 @@ file_desc_table_t *file_desc_table_copy(file_desc_table_t *fdt) {
   mtx_unlock(&fdt->fdt_mtx);
 
   return newfdt;
+}
+
+/* Extracts file pointer from descriptor number for a particular thread. If
+   flags are non-zero, returns -EBADF if the file does not match flags. */
+static int _file_get(thread_t *td, int fd, int flags, file_t **resultf) {
+  file_desc_table_t *fdt = td->td_fdt;
+  if (!fdt)
+    return -EBADF;
+
+  mtx_lock(&fdt->fdt_mtx);
+
+  if (fd < 0 || fd >= fdt->fdt_nfiles || !file_desc_isused(fdt, fd))
+    goto fail;
+
+  file_t *f = fdt->fdt_ofiles[fd];
+  file_hold(f);
+
+  if (flags | FREAD && !(f->f_flag | FREAD))
+    goto fail2;
+  if (flags | FWRITE && !(f->f_flag | FWRITE))
+    goto fail2;
+
+  mtx_unlock(&fdt->fdt_mtx);
+  *resultf = f;
+  return 0;
+
+fail2:
+  file_drop(f);
+fail:
+  mtx_unlock(&fdt->fdt_mtx);
+  return -EBADF;
+}
+
+int file_get(thread_t *td, int fd, file_t **f) {
+  return _file_get(td, fd, 0, f);
+}
+int file_get_read(thread_t *td, int fd, file_t **f) {
+  return _file_get(td, fd, FREAD, f);
+}
+int file_get_write(thread_t *td, int fd, file_t **f) {
+  return _file_get(td, fd, FWRITE, f);
+}
+
+/* Closes a file descriptor. If it was the last reference to a file, the file is
+ * also closed. */
+int file_desc_close(file_desc_table_t *fdt, int fd) {
+  mtx_lock(&fdt->fdt_mtx);
+
+  if (fd < 0 || fd > fdt->fdt_nfiles || !file_desc_isused(fdt, fd))
+    return -EBADF;
+
+  file_desc_free(fdt, fd);
+
+  mtx_unlock(&fdt->fdt_mtx);
+
+  return 0;
 }
 
 /* Operations on invalid file descriptors */
