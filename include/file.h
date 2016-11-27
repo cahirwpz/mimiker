@@ -28,6 +28,12 @@ typedef enum {
 #define FWRITE 0x0002
 #define FAPPEND 0x0004
 
+/* File open modes as passed to sys_open. These need to be consistent with what
+   newlib probides to user programs. */
+#define O_RDONLY 0
+#define O_WRONLY 1
+#define O_RDWR 2
+
 typedef struct file {
   void *f_data; /* file descriptor specific data */
   fileops_t *f_ops;

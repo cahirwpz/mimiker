@@ -237,9 +237,9 @@ static int _file_get(thread_t *td, int fd, int flags, file_t **resultf) {
   file_t *f = fdt->fdt_ofiles[fd];
   file_hold(f);
 
-  if (flags | FREAD && !(f->f_flag | FREAD))
+  if ((flags & FREAD) && !(f->f_flag & FREAD))
     goto fail2;
-  if (flags | FWRITE && !(f->f_flag | FWRITE))
+  if ((flags & FWRITE) && !(f->f_flag & FWRITE))
     goto fail2;
 
   mtx_unlock(&fdt->fdt_mtx);
