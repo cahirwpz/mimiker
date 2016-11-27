@@ -129,7 +129,6 @@ void file_desc_table_destroy(file_desc_table_t *fdt) {
   file_desc_table_drop(fdt);
 }
 
-/* Allocate a new file structure, but do not install it as a descriptor. */
 file_t *file_alloc_noinstall() {
   file_t *f;
   f = kmalloc(file_pool, sizeof(struct file), M_ZERO);
@@ -139,7 +138,6 @@ file_t *file_alloc_noinstall() {
   return f;
 }
 
-/* Install a file structure to a new descriptor. */
 int file_install_desc(file_desc_table_t *fdt, file_t *f, int *fd) {
   assert(f != NULL);
   assert(fd != NULL);
@@ -157,9 +155,6 @@ int file_install_desc(file_desc_table_t *fdt, file_t *f, int *fd) {
   return 0;
 }
 
-/* Allocates a new file structure and installs it to a new descriptor. On
- * success, returns 0 and sets *resultf and *resultfd to the file struct and
- * descriptor no respectively. */
 int file_alloc_install_desc(file_desc_table_t *fdt, file_t **resultf,
                             int *resultfd) {
   file_t *f;

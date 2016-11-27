@@ -25,6 +25,16 @@ file_desc_table_t *filedesc_copy(file_desc_table_t *fdt);
  * it also frees the table and possibly closes underlying files. */
 void file_desc_table_destroy(file_desc_table_t *fdt);
 
+/* Allocate a new file structure, but do not install it as a descriptor. */
+file_t *file_alloc_noinstall();
+/* Install a file structure to a new descriptor. */
+int file_install_desc(file_desc_table_t *fdt, file_t *f, int *fd);
+/* Allocates a new file structure and installs it to a new descriptor. On
+ * success, returns 0 and sets *resultf and *resultfd to the file struct and
+ * descriptor no respectively. */
+int file_alloc_install_desc(file_desc_table_t *fdt, file_t **resultf,
+                            int *resultfd);
+
 /* Extracts a reference to file from a descriptor number, for a particular
  * thread. */
 int file_get(thread_t *td, int fd, file_t **f);

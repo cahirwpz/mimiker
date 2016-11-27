@@ -1,6 +1,7 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
 SOURCES_C  = \
+	basic_dev.c \
 	callout.c \
 	clock.c \
 	descrip.c \

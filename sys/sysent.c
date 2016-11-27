@@ -6,6 +6,7 @@
 #include <vm_pager.h>
 #include <sched.h>
 #include <file.h>
+#include <basic_dev.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   kprintf("[syscall] unimplemented system call %ld\n", args->code);
@@ -44,6 +45,51 @@ int sys_read(thread_t *td, syscall_args_t *args) {
   res = f->f_ops.fo_read(f, td, buf, count);
   file_drop(f);
   return res;
+}
+
+int sys_close(thread_t *td, syscall_args_t *args) {
+  int fd = args->args[0];
+
+  kprintf("[syscall] close(%d)\n", fd);
+
+  return file_desc_close(td->td_fdt, fd);
+}
+
+int do_open(file_t *f, char *pathname, int flags, int mode) {
+  /* Note: We lack file system, so this implementation is very silly. */
+  if (strcmp(pathname, "/dev/null")) {
+    return dev_null_open(f, flags, mode);
+  }
+  return -ENOENT;
+}
+
+int sys_open(thread_t *td, syscall_args_t *args) {
+  char *pathname = (char *)args->args[0];
+  int flags = args->args[1];
+  int mode = args->args[2];
+
+  int error = 0;
+
+  /* TODO: Copyout pathname! */
+  kprintf("[syscall] open(%s, %d, %d)\n", pathname, flags, mode);
+
+  /* Allocate a file structure, but do not install descriptor yet. */
+  file_t *f = file_alloc_noinstall();
+  /* Try opening file. Fill the file structure. */
+  error = do_open(f, pathname, flags, mode);
+  if (error)
+    goto fail;
+  /* Now install the file in descriptor table. */
+  int fd;
+  error = file_install_desc(td->td_fdt, f, &fd);
+  if (error)
+    goto fail;
+
+  return fd;
+
+fail:
+  file_drop(f);
+  return error;
 }
 
 /* This is just a stub. A full implementation of this syscall will probably
@@ -116,6 +162,6 @@ int sys_exit(thread_t *td, syscall_args_t *args) {
 
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
-  {sys_nosys}, {sys_exit},  {sys_nosys}, {sys_nosys}, {sys_read},  {sys_write},
+  {sys_nosys}, {sys_exit},  {sys_open},  {sys_close}, {sys_read},  {sys_write},
   {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_sbrk},
 };
