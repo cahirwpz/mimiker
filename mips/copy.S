@@ -10,7 +10,8 @@
 	.set	noreorder		# Noreorder is default style!
 
 /*
- * int copystr(void *kfaddr, void *kdaddr, size_t maxlen, size_t *lencopied)
+ * int copystr(const void *kfaddr, void *kdaddr, size_t len, size_t *lencopied)
+ *
  * Copy a NIL-terminated string, at most maxlen characters long.  Return the
  * number of characters copied (including the NIL) in *lencopied.  If the
  * string is too long, return ENAMETOOLONG; else return 0.
@@ -38,14 +39,10 @@ LEAF(copystr)
 END(copystr)
 
 /*
+ * int copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *lencopied)
+ *
  * Copy a null terminated string from the user address space into
  * the kernel address space.
- *
- *	copyinstr(fromaddr, toaddr, maxlength, &lencopied)
- *		caddr_t fromaddr;
- *		caddr_t toaddr;
- *		u_int maxlength;
- *		u_int *lencopied;
  */
 NESTED(copyinstr, CALLFRAME_SIZ, ra)
 	PTR_SUBU sp, sp, CALLFRAME_SIZ
@@ -64,37 +61,9 @@ NESTED(copyinstr, CALLFRAME_SIZ, ra)
 END(copyinstr)
 
 /*
- * Copy a null terminated string from the kernel address space into
- * the user address space.
+ * int copyin(const void *udaddr, void *kaddr, size_t len)
  *
- *	copyoutstr(fromaddr, toaddr, maxlength, &lencopied)
- *		caddr_t fromaddr;
- *		caddr_t toaddr;
- *		u_int maxlength;
- *		u_int *lencopied;
- */
-NESTED(copyoutstr, CALLFRAME_SIZ, ra)
-	PTR_SUBU sp, sp, CALLFRAME_SIZ
-	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
-	LA	v0, copyerr
-	blt	a1, zero, copyerr       # make sure address is in user space
-	REG_S	ra, CALLFRAME_RA(sp)
-	LOAD_PCPU(v1)
-	jal	copystr
-	PTR_S	v0, TD_ONFAULT(v1)
-	REG_L	ra, CALLFRAME_RA(sp)
-	LOAD_PCPU(v1)
-	PTR_S	zero, TD_ONFAULT(v1)
-	j	ra
-	PTR_ADDU sp, sp, CALLFRAME_SIZ
-END(copyoutstr)
-
-/*
- * Copy specified amount of data from user space into the kernel
- *	copyin(from, to, len)
- *		caddr_t *from;	(user source address)
- *		caddr_t *to;	(kernel destination address)
- *		unsigned len;
+ * Copy specified amount of data from user space into the kernel.
  */
 NESTED(copyin, CALLFRAME_SIZ, ra)
 	PTR_SUBU sp, sp, CALLFRAME_SIZ
@@ -114,11 +83,9 @@ NESTED(copyin, CALLFRAME_SIZ, ra)
 END(copyin)
 
 /*
- * Copy specified amount of data from kernel to the user space
- *	copyout(from, to, len)
- *		caddr_t *from;	(kernel source address)
- *		caddr_t *to;	(user destination address)
- *		unsigned len;
+ * int copyout(const void *kaddr, void *udaddr, size_t len)
+ *
+ * Copy specified amount of data from kernel to the user space.
  */
 NESTED(copyout, CALLFRAME_SIZ, ra)
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
@@ -146,8 +113,10 @@ LEAF(copyerr)
 END(copyerr)
 
 /*
- * {fu,su}{iword32} fetch or store 32-bit word to user text space.
- * {fu,su}{word32} fetch or store 32-bit word to user data space.
+ * int32_t fuword32(const void *ptr)
+ * int suword32(void *ptr, int32_t word)
+ * 
+ * {fu,su}{iword32} fetch / store 32-bit word from / to the user space.
  */
 
 LEAF(fuword32)
