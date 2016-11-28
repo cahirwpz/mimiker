@@ -11,8 +11,7 @@ typedef unsigned long vm_addr_t;
 typedef unsigned long pm_addr_t;
 
 /* Wrapper for various GCC attributes */
-#define __nonnull(x)    __attribute__((__nonnull__(x)))
-#define __returns_twice __attribute__((__returns_twice__))
+#define __nonnull(x) __attribute__((__nonnull__(x)))
 
 /* Macros for counting and rounding. */
 #ifndef howmany

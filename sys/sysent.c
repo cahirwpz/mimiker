@@ -22,7 +22,6 @@ int sys_write(thread_t *td, syscall_args_t *args) {
 
   log("sys_write(%d, %p, %zu)", fd, buf, count);
 
-  /* TODO: copyout string from userspace */
   if (fd == 1 || fd == 2) {
     char kbuf[80];
     size_t done = min(count, sizeof(kbuf));
