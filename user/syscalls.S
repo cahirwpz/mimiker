@@ -20,7 +20,8 @@ SLEAF(no_syscall)
 END(no_syscall)
 
 SNESTED(set_errno, CALLFRAME_SIZ, ra)
-        addiu   sp, sp, CALLFRAME_SIZ
+        PTR_SUBU sp, sp, CALLFRAME_SIZ
+        .mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
         sw      ra, CALLFRAME_RA(sp)
         sw      v0, 16(sp)
         jal     __errno
@@ -31,7 +32,7 @@ SNESTED(set_errno, CALLFRAME_SIZ, ra)
         li      v0, -1
         lw      ra, CALLFRAME_RA(sp)
         jr      ra
-        addiu   sp, sp, CALLFRAME_SIZ
+        PTR_ADDU sp, sp, CALLFRAME_SIZ
 SEND(set_errno)
 
 /* This implementation uses newlib-specific errno processing. */
