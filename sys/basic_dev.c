@@ -4,14 +4,16 @@
 #include <stdc.h>
 
 static int devnull_read(file_t *f, struct thread *td, char *buf, size_t count) {
-  if (!(f->f_flag | FREAD))
+  /* For /dev/null such flag tests are redundant. Some other file providers may
+     want to interpret these flags in their own way. */
+  if (!(f->f_flags | FILE_FLAG_READ))
     return -EBADF;
   bzero(buf, count);
   return count;
 }
 static int devnull_write(file_t *f, struct thread *td, char *buf,
                          size_t count) {
-  if (!(f->f_flag | FWRITE))
+  if (!(f->f_flags | FILE_FLAG_WRITE))
     return -EBADF;
   return count;
 }
@@ -27,18 +29,18 @@ static fileops_t devnull_ops = {
 int dev_null_open(file_t *f, int flags, int mode) {
   log("Opening a /dev/null");
   f->f_data = NULL;
-  f->f_type = FTYPE_DEV;
+  f->f_type = FILE_TYPE_DEV;
   f->f_ops = &devnull_ops;
   /* Mode selection is trivial in case of a /dev/null */
   switch (mode) {
   case O_RDONLY:
-    f->f_flag = FREAD;
+    f->f_flags = FILE_FLAG_READ;
     break;
   case O_WRONLY:
-    f->f_flag = FWRITE;
+    f->f_flags = FILE_FLAG_WRITE;
     break;
   case O_RDWR:
-    f->f_flag = FREAD | FWRITE;
+    f->f_flags = FILE_FLAG_READ | FILE_FLAG_WRITE;
     break;
   default:
     return -EINVAL;

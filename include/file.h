@@ -19,27 +19,27 @@ typedef struct {
 } fileops_t;
 
 typedef enum {
-  FTYPE_VNODE = 1, /* regualar file */
-  FTYPE_PIPE = 2,  /* pipe */
-  FTYPE_DEV = 3,   /* device specific */
+  FILE_TYPE_VNODE = 1, /* regualar file */
+  FILE_TYPE_PIPE = 2,  /* pipe */
+  FILE_TYPE_DEV = 3,   /* device specific */
 } file_type_t;
 
-#define FREAD 0x0001
-#define FWRITE 0x0002
-#define FAPPEND 0x0004
+#define FILE_FLAG_READ 0x0001
+#define FILE_FLAG_WRITE 0x0002
+#define FILE_FLAG_APPEND 0x0004
 
-/* File open modes as passed to sys_open. These need to be consistent with what
-   newlib probides to user programs. */
+/* File open modes as passed to sys_open. These need match what newlib provides
+   to user programs. */
 #define O_RDONLY 0
 #define O_WRONLY 1
 #define O_RDWR 2
 
 typedef struct file {
-  void *f_data; /* file descriptor specific data */
+  void *f_data; /* File specific data */
   fileops_t *f_ops;
-  file_type_t f_type; /* file type */
-  uint32_t f_count;   /* reference count */
-  uint32_t f_flag;    /* F* flags */
+  file_type_t f_type; /* File type */
+  uint32_t f_count;   /* Reference count */
+  uint32_t f_flags;   /* FILE_FLAG_* */
   mtx_t f_mtx;
 } file_t;
 

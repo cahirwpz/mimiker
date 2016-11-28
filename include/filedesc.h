@@ -7,10 +7,10 @@
 typedef struct thread thread_t;
 
 typedef struct {
-  file_t **fdt_ofiles; /* Open files array */
-  bitstr_t *fdt_map;   /* Bitmap of used fds */
-  int fdt_nfiles;      /* Number of files allocated */
-  uint32_t fdt_count;  /* Thread reference count */
+  file_t **fdt_files; /* Open files array */
+  bitstr_t *fdt_map;  /* Bitmap of used fds */
+  int fdt_nfiles;     /* Number of files allocated */
+  uint32_t fdt_count; /* Reference count */
   mtx_t fdt_mtx;
 } file_desc_table_t;
 

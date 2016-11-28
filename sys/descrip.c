@@ -88,10 +88,10 @@ int file_desc_alloc(file_desc_table_t *fdt, int *fd) {
 }
 
 void file_desc_free(file_desc_table_t *fdt, int fd) {
-  file_t *f = fdt->fdt_ofiles[fd];
+  file_t *f = fdt->fdt_files[fd];
   assert(f != NULL);
   file_drop(f);
-  fdt->fdt_ofiles[fd] = NULL;
+  fdt->fdt_files[fd] = NULL;
   file_desc_mark_unused(fdt, fd);
 }
 
@@ -104,7 +104,7 @@ void file_desc_table_free(file_desc_table_t *fdt) {
     if (file_desc_isused(fdt, i))
       file_desc_free(fdt, i);
 
-  kfree(fd_pool, fdt->fdt_ofiles);
+  kfree(fd_pool, fdt->fdt_files);
   kfree(fd_pool, fdt->fdt_map);
   kfree(fd_pool, fdt);
 }
@@ -150,7 +150,7 @@ int file_install_desc(file_desc_table_t *fdt, file_t *f, int *fd) {
     return res;
   }
 
-  fdt->fdt_ofiles[*fd] = f;
+  fdt->fdt_files[*fd] = f;
   file_hold(f);
   mtx_unlock(&fdt->fdt_mtx);
   return 0;
@@ -186,7 +186,7 @@ int file_alloc_install_desc(file_desc_table_t *fdt, file_t **resultf,
 file_desc_table_t *file_desc_table_init() {
   file_desc_table_t *fdt;
   fdt = kmalloc(fd_pool, sizeof(file_desc_table_t), M_ZERO);
-  fdt->fdt_ofiles = kmalloc(fd_pool, NDFILE * sizeof(file_t *), M_ZERO);
+  fdt->fdt_files = kmalloc(fd_pool, NDFILE * sizeof(file_t *), M_ZERO);
   fdt->fdt_map =
     kmalloc(fd_pool, bitstr_size(NDFILE) * sizeof(bitstr_t), M_ZERO);
   fdt->fdt_nfiles = NDFILE;
@@ -209,10 +209,10 @@ file_desc_table_t *file_desc_table_copy(file_desc_table_t *fdt) {
   assert(fdt->fdt_nfiles == newfdt->fdt_nfiles);
 
   for (int i = 0; i < fdt->fdt_nfiles; i++) {
-    file_t *f = fdt->fdt_ofiles[i];
+    file_t *f = fdt->fdt_files[i];
 
     /* TODO: Deep or shallow copy? */
-    newfdt->fdt_ofiles[i] = f;
+    newfdt->fdt_files[i] = f;
 
     file_hold(f);
   }
@@ -234,12 +234,12 @@ static int _file_get(thread_t *td, int fd, int flags, file_t **resultf) {
   if (fd < 0 || fd >= fdt->fdt_nfiles || !file_desc_isused(fdt, fd))
     goto fail;
 
-  file_t *f = fdt->fdt_ofiles[fd];
+  file_t *f = fdt->fdt_files[fd];
   file_hold(f);
 
-  if ((flags & FREAD) && !(f->f_flag & FREAD))
+  if ((flags & FILE_FLAG_READ) && !(f->f_flags & FILE_FLAG_READ))
     goto fail2;
-  if ((flags & FWRITE) && !(f->f_flag & FWRITE))
+  if ((flags & FILE_FLAG_WRITE) && !(f->f_flags & FILE_FLAG_WRITE))
     goto fail2;
 
   mtx_unlock(&fdt->fdt_mtx);
@@ -257,10 +257,10 @@ int file_get(thread_t *td, int fd, file_t **f) {
   return _file_get(td, fd, 0, f);
 }
 int file_get_read(thread_t *td, int fd, file_t **f) {
-  return _file_get(td, fd, FREAD, f);
+  return _file_get(td, fd, FILE_FLAG_READ, f);
 }
 int file_get_write(thread_t *td, int fd, file_t **f) {
-  return _file_get(td, fd, FWRITE, f);
+  return _file_get(td, fd, FILE_FLAG_WRITE, f);
 }
 
 /* Closes a file descriptor. If it was the last reference to a file, the file is
