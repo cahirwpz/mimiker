@@ -3,12 +3,13 @@ all: prog.uelf.o
 include ../Makefile.common
 
 PROGRAMS_C = prog.c syscall_test.c
-SOURCES_ASM = syscalls.S
+SOURCES_ASM = syscalls.S start.S
 
 CFLAGS   = -std=gnu11 -O0 -Wall -Werror -fno-builtin -ffreestanding -mhard-float
 LDFLAGS  = -nostdlib -T mimiker.ld
 LDLIBS   = -lc -lgcc
 
+SOURCES_OBJS = $(SOURCES_ASM:%.S=%.o)
 PROGRAMS_OBJS = $(PROGRAMS_C:%.c=%.o)
 PROGRAMS_UELFS = $(PROGRAMS_C:%.c=%.uelf)
 PROGRAMS_UELF_OS = $(PROGRAMS_C:%.c=%.uelf.o)
@@ -32,4 +33,4 @@ all: $(PROGRAMS_UELF_OS) $(PROGRAMS_UELFS)
 	$(OBJCOPY) -I binary --rename-section .data=.rodata,contents,readonly,data -O elf32-little --alt-machine-code=8 $< $@
 
 clean:
-	rm -f $(PROGRAMS_UELF_OS) $(PROGRAMS_UELFS) $(PROGRAMS_OBJS)
+	rm -f $(PROGRAMS_UELF_OS) $(PROGRAMS_UELFS) $(PROGRAMS_OBJS) $(SOURCES_OBJS)
