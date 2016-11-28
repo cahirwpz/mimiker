@@ -38,11 +38,17 @@ int do_read(int fd, char *buf, size_t count) {
 
 int sys_write(thread_t *td, syscall_args_t *args) {
   int fd = args->args[0];
-  char *buf = (char *)(uintptr_t)args->args[1];
+  char *ubuf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  log("sys_write(%d, %p, %zu)", fd, buf, count);
-  /* TODO: Copyin buf */
+  log("sys_write(%d, %p, %zu)", fd, ubuf, count);
+
+  /* Copyin buf */
+  char buf[256];
+  int error = copyin(ubuf, buf, sizeof(buf));
+  if (error)
+    return error;
+
   return do_write(fd, buf, count);
 }
 
@@ -72,13 +78,19 @@ int do_open(file_t *f, char *pathname, int flags, int mode) {
 }
 
 int sys_open(thread_t *td, syscall_args_t *args) {
-  char *pathname = (char *)args->args[0];
+  char *user_pathname = (char *)args->args[0];
   int flags = args->args[1];
   int mode = args->args[2];
 
   int error = 0;
+  char pathname[256];
+  size_t n = 0;
 
-  /* TODO: Copyout pathname! */
+  /* Copyout pathname. */
+  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
+  if (error)
+    return error;
+
   kprintf("[syscall] open(%s, %d, %d)\n", pathname, flags, mode);
 
   /* Allocate a file structure, but do not install descriptor yet. */

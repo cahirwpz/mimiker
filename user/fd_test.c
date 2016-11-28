@@ -96,6 +96,28 @@ int main(int argc, char **argv) {
   error = write(fd0, str, strlen(str));
   assert(error >= 0);
 
+  /* Try opening a file with a name too long. */
+  char too_long[500];
+  memset(too_long, 'c', sizeof(too_long));
+  too_long[sizeof(too_long) - 1] = 0;
+  error = open(too_long, 0, O_RDWR);
+  assert(error < 0);
+  /* This is very unfortunate! In our errno.h: ENAMETOOLONG is 63, but errno.h
+     provided by newlib (since we DID NOT port newlib to our system, which would
+     include providing our custom sys/errno.h) uses ENAMETOOLONG 91. */
+  assert(errno == 63);
+  /* Now, try passing some invalid pointers as data to read/write. */
+  /* Kernel space */
+  char *naughty_ptr1 = (char *)0x80001000;
+  /* User space, hopefully not mapped */
+  char *naughty_ptr2 = (char *)0x00001000;
+  error = write(fd0, naughty_ptr1, 200);
+  assert(error < 0);
+  assert(errno == EFAULT);
+  error = write(fd0, naughty_ptr2, 200);
+  assert(error < 0);
+  assert(errno == EFAULT);
+
   /* At this point fd0 and fd2 are left open. */
   /* After this thread returns, all files should get closed. */
   return 0;
