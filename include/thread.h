@@ -32,6 +32,7 @@ typedef struct thread {
   fpu_ctx_t td_uctx_fpu;  /* user FPU context (always exception) */
   exc_frame_t *td_kframe; /* kernel context (last exception frame) */
   ctx_t td_kctx;          /* kernel context (switch) */
+  intptr_t td_onfault;    /* program counter for copyin/copyout faults */
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
   vm_map_t *td_uspace; /* thread's user space map */

@@ -7,6 +7,7 @@
 #include <sched.h>
 #include <file.h>
 #include <basic_dev.h>
+#include <systm.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   kprintf("[syscall] unimplemented system call %ld\n", args->code);
@@ -20,7 +21,7 @@ int sys_write(thread_t *td, syscall_args_t *args) {
   char *buf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  kprintf("[syscall] write(%d, %p, %zu)\n", fd, buf, count);
+  log("sys_write(%d, %p, %zu)", fd, buf, count);
 
   file_t *f;
   int res = file_get_write(td, fd, &f);
