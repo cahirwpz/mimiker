@@ -67,6 +67,6 @@ int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end);
 
 void vm_map_dump(vm_map_t *vm_map);
 
-void vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type);
+int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type);
 
 #endif /* _VM_MAP_H */

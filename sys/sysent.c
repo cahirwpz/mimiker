@@ -15,25 +15,29 @@ int sys_nosys(thread_t *td, syscall_args_t *args) {
 /* This is just a stub. A full implementation of this syscall will probably
    deserve a separate file. */
 int sys_write(thread_t *td, syscall_args_t *args) {
+  int retval;
   int fd = args->args[0];
   const char *buf = (const char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  kprintf("[syscall] write(%d, %p, %zu)\n", fd, buf, count);
+  log("sys_write(%d, %p, %zu)", fd, buf, count);
 
   /* TODO: copyout string from userspace */
   if (fd == 1 || fd == 2) {
     char kbuf[80];
     size_t done = min(count, sizeof(kbuf));
 
-    copyin(buf, kbuf, done);
-
-    kprintf("%.*s", (int)done, buf);
-
-    return done;
+    retval = copyin(buf, kbuf, done);
+    if (retval == 0) {
+      kprintf("%.*s", (int)done, buf);
+      retval = done;
+    }
+  } else {
+    retval = -EBADF;
   }
 
-  return -EBADF;
+  log("sys_write(...) = %d", retval);
+  return retval;
 }
 
 /* This is just a stub. A full implementation of this syscall will probably
