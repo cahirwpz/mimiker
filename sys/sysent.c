@@ -5,6 +5,7 @@
 #include <vm_map.h>
 #include <vm_pager.h>
 #include <sched.h>
+#include <systm.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   kprintf("[syscall] unimplemented system call %ld\n", args->code);
@@ -22,9 +23,14 @@ int sys_write(thread_t *td, syscall_args_t *args) {
 
   /* TODO: copyout string from userspace */
   if (fd == 1 || fd == 2) {
-    kprintf("%.*s", (int)count, buf);
+    char kbuf[80];
+    size_t done = min(count, sizeof(kbuf));
 
-    return count;
+    copyin(buf, kbuf, done);
+
+    kprintf("%.*s", (int)done, buf);
+
+    return done;
   }
 
   return -EBADF;
