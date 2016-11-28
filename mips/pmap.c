@@ -7,6 +7,7 @@
 #include <pmap.h>
 #include <sync.h>
 #include <vm_map.h>
+#include <thread.h>
 
 #define PTE_MASK 0xfffff000
 #define PTE_SHIFT 12
@@ -313,6 +314,15 @@ pmap_t *get_active_pmap_by_addr(vm_addr_t addr) {
 }
 
 void tlb_exception_handler(exc_frame_t *frame) {
+  thread_t *td = thread_self();
+
+  /* handle copyin / copyout faults */
+  if (td->td_onfault) {
+    frame->pc = td->td_onfault;
+    td->td_onfault = 0;
+    return;
+  }
+
   int code = (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
   vm_addr_t vaddr = frame->badvaddr;
 
@@ -357,5 +367,7 @@ void tlb_exception_handler(exc_frame_t *frame) {
   vm_map_t *map = get_active_vm_map_by_addr(vaddr);
   if (!map)
     panic("No virtual address space defined for %08lx!", vaddr);
-  vm_page_fault(map, vaddr, code == EXC_TLBL ? VM_PROT_READ : VM_PROT_WRITE);
+  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
+  if (vm_page_fault(map, vaddr, access))
+    thread_exit();
 }

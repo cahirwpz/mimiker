@@ -1,5 +1,5 @@
-#ifndef __COMMON_H__
-#define __COMMON_H__
+#ifndef _SYS_COMMON_H_
+#define _SYS_COMMON_H_
 
 #include <stdint.h>      /* uint*_t, int*_t */
 #include <stddef.h>      /* offsetof, NULL, ptrdiff_t, size_t, etc. */
@@ -9,6 +9,9 @@
 
 typedef unsigned long vm_addr_t;
 typedef unsigned long pm_addr_t;
+
+/* Wrapper for various GCC attributes */
+#define __nonnull(x) __attribute__((__nonnull__(x)))
 
 /* Macros for counting and rounding. */
 #ifndef howmany
@@ -100,4 +103,4 @@ noreturn void thread_exit();
 #include <assert.h>
 #endif // _USERSPACE
 
-#endif // __COMMON_H__
+#endif // _SYS_COMMON_H_

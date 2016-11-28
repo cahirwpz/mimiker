@@ -14,6 +14,7 @@ ASSYM(TD_KCTX, offsetof(thread_t, td_kctx));
 ASSYM(TD_KSTACK, offsetof(thread_t, td_kstack));
 ASSYM(TD_FLAGS, offsetof(thread_t, td_flags));
 ASSYM(TD_USPACE, offsetof(thread_t, td_uspace));
+ASSYM(TD_ONFAULT, offsetof(thread_t, td_onfault));
 
 ASSYM(STK_BASE, offsetof(stack_t, stk_base));
 ASSYM(STK_SIZE, offsetof(stack_t, stk_size));
