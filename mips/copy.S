@@ -72,7 +72,10 @@ NESTED(copyin, CALLFRAME_SIZ, ra)
 	blt	a0, zero, copyerr       # make sure address is in user space
 	REG_S	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
-	jal	bcopy
+	move    t0, a0                  # swap a0, a1 for call to memcpy
+	move    a0, a1
+	move    a1, t0
+	jal	memcpy
 	PTR_S	v0, TD_ONFAULT(v1)
 	REG_L	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
@@ -88,14 +91,16 @@ END(copyin)
  * Copy specified amount of data from kernel to the user space.
  */
 NESTED(copyout, CALLFRAME_SIZ, ra)
-	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	PTR_SUBU sp, sp, CALLFRAME_SIZ
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	LA	v0, copyerr
 	blt	a1, zero, copyerr       # make sure address is in user space
 	REG_S	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
-	PTR_L	v1, PC_CURPCB(v1)
-	jal	bcopy
+	move    t0, a0                  # swap a0, a1 for call to memcpy
+	move    a0, a1
+	move    a1, t0
+	jal	memcpy
 	PTR_S	v0, TD_ONFAULT(v1)
 	REG_L	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
@@ -107,7 +112,7 @@ END(copyout)
 
 LEAF(copyerr)
 	REG_L	ra, CALLFRAME_RA(sp)
-	PTR_ADDU	sp, sp, CALLFRAME_SIZ
+	PTR_ADDU sp, sp, CALLFRAME_SIZ
 	j	ra
 	li	v0, EFAULT			# return error
 END(copyerr)
