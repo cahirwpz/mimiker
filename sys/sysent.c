@@ -14,15 +14,8 @@ int sys_nosys(thread_t *td, syscall_args_t *args) {
   return -ENOSYS;
 };
 
-/* These are just stubs. A full implementation of some syscalls will probably
-   deserve a separate file. */
-int sys_write(thread_t *td, syscall_args_t *args) {
-  int fd = args->args[0];
-  char *buf = (char *)(uintptr_t)args->args[1];
-  size_t count = args->args[2];
-
-  log("sys_write(%d, %p, %zu)", fd, buf, count);
-
+int do_write(int fd, char *buf, size_t count) {
+  thread_t *td = thread_self();
   file_t *f;
   int res = file_get_write(td, fd, &f);
   if (res)
@@ -32,13 +25,8 @@ int sys_write(thread_t *td, syscall_args_t *args) {
   return res;
 }
 
-int sys_read(thread_t *td, syscall_args_t *args) {
-  int fd = args->args[0];
-  char *buf = (char *)(uintptr_t)args->args[1];
-  size_t count = args->args[2];
-
-  kprintf("[syscall] read(%d, %p, %zu)\n", fd, buf, count);
-
+int do_read(int fd, char *buf, size_t count) {
+  thread_t *td = thread_self();
   file_t *f;
   int res = file_get_read(td, fd, &f);
   if (res)
@@ -46,6 +34,25 @@ int sys_read(thread_t *td, syscall_args_t *args) {
   res = f->f_ops->fo_read(f, td, buf, count);
   file_drop(f);
   return res;
+}
+
+int sys_write(thread_t *td, syscall_args_t *args) {
+  int fd = args->args[0];
+  char *buf = (char *)(uintptr_t)args->args[1];
+  size_t count = args->args[2];
+
+  log("sys_write(%d, %p, %zu)", fd, buf, count);
+  /* TODO: Copyin buf */
+  return do_write(fd, buf, count);
+}
+
+int sys_read(thread_t *td, syscall_args_t *args) {
+  int fd = args->args[0];
+  char *buf = (char *)(uintptr_t)args->args[1];
+  size_t count = args->args[2];
+
+  kprintf("[syscall] read(%d, %p, %zu)\n", fd, buf, count);
+  return do_read(fd, buf, count);
 }
 
 int sys_close(thread_t *td, syscall_args_t *args) {
