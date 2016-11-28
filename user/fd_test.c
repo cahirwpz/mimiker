@@ -117,6 +117,19 @@ int main(int argc, char **argv) {
   error = write(fd0, naughty_ptr2, 200);
   assert(error < 0);
   assert(errno == EFAULT);
+  error = read(fd0, naughty_ptr1, 200);
+  assert(error < 0);
+  assert(errno == EFAULT);
+  error = read(fd0, naughty_ptr2, 200);
+  assert(error < 0);
+  assert(errno == EFAULT);
+  /* Also, try opening a file using a bad pointer */
+  error = open(naughty_ptr1, 0, O_RDWR);
+  assert(error < 0);
+  assert(errno == EFAULT);
+  error = open(naughty_ptr2, 0, O_RDWR);
+  assert(error < 0);
+  assert(errno == EFAULT);
 
   /* At this point fd0 and fd2 are left open. */
   /* After this thread returns, all files should get closed. */

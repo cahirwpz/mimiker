@@ -54,11 +54,19 @@ int sys_write(thread_t *td, syscall_args_t *args) {
 
 int sys_read(thread_t *td, syscall_args_t *args) {
   int fd = args->args[0];
-  char *buf = (char *)(uintptr_t)args->args[1];
+  char *ubuf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  kprintf("[syscall] read(%d, %p, %zu)\n", fd, buf, count);
-  return do_read(fd, buf, count);
+  char buf[256];
+
+  kprintf("[syscall] read(%d, %p, %zu)\n", fd, ubuf, count);
+  int read = do_read(fd, buf, count);
+  if (read < 0)
+    return read;
+  int error = copyout(buf, ubuf, read);
+  if (error)
+    return error;
+  return read;
 }
 
 int sys_close(thread_t *td, syscall_args_t *args) {
