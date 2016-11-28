@@ -1,4 +1,5 @@
 #include <mips/asm.h>
+#include <mips/regdef.h>
 
     .set noreorder
     .global _start
@@ -8,29 +9,31 @@
 # For details about environment in which this procedure starts, refer
 # to prepare_program_stack in exec.c.
 
-NESTED(_start, CALLFRAME_SIZE, $ra)
-    # Adhere to calling convention wrt return address so that GDB can properly recognize stack frames.
-    # However, store zero as RA, to mark stack bottom.
-    addiu $sp,$sp,-8
-    li $ra,0x0
-    sw $ra,4($sp)
-    sw $sp,0($sp)
+NESTED(_start, CALLFRAME_SIZ, ra)
+        # Adhere to calling convention wrt return address so that GDB can
+        # properly recognize stack frames.
+        # However, store zero as RA, to mark stack bottom.
+        addiu   sp, sp, -8
+        li      ra, 0x0
+        sw      ra, 4(sp)
+        sw      sp, 0(sp)
 
-    # Prepare $gp
-    la $gp, _gp
+        # Prepare $gp
+        la      gp, _gp
 
-    # Grab argc from below stack
-    lw $a0,8($sp)
-    # Prepare argv pointing at argument vector below stack
-    addiu $a1,$sp,12
+        # Grab argc from below stack
+        lw      a0, 8(sp)
+        # Prepare argv pointing at argument vector below stack
+        addiu   a1, sp, 12
 
-    # Jump to main
-    jal main
-    nop
+        # Jump to main
+        jal     main
+        nop
 
-    # Main returned. Call _exit.
-    move $a0, $v0
-    j _exit
-    nop
-
+        # Main returned. Call _exit.
+        move a0, v0
+        j _exit
+        nop
 END(_start)
+
+# vim: sw=8 ts=8 et

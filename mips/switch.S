@@ -3,7 +3,7 @@
 #include <mips/ctx.h>
 #include <mips/pcpu.h>
 
-#include "genassym.h"
+#include "assym.h"
 
         .set noreorder
 
