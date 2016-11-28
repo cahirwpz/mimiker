@@ -2,7 +2,7 @@ all: prog.uelf.o
 
 include ../Makefile.common
 
-PROGRAMS_C = prog.c syscall_test.c
+PROGRAMS_C = prog.c misbehave.c
 SOURCES_ASM = syscalls.S start.S
 
 CFLAGS   = -std=gnu11 -O0 -Wall -Werror -fno-builtin -ffreestanding -mhard-float
