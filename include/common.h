@@ -6,6 +6,7 @@
 #include <stdbool.h>     /* bool, true, false */
 #include <stdalign.h>    /* alignof, alignas */
 #include <stdnoreturn.h> /* noreturn */
+#include <sys/types.h>
 
 typedef unsigned long vm_addr_t;
 typedef unsigned long pm_addr_t;
