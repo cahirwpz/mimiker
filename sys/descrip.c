@@ -9,14 +9,6 @@
 static MALLOC_DEFINE(fd_pool, "file descriptors pool");
 static MALLOC_DEFINE(file_pool, "file pool");
 
-/* The initial size of space allocated for file descriptors. According
-   to FreeBSD, this is more than enough for most applications. Each
-   process starts with this many descriptors, and more are allocated
-   on demand. */
-#define NDFILE 20
-/* Separate macro defining a hard limit on open files. */
-#define MAXFILES 20
-
 void file_desc_init() {
   vm_page_t *pg = pm_alloc(2);
   kmalloc_init(fd_pool);
@@ -104,8 +96,6 @@ void file_desc_table_free(file_desc_table_t *fdt) {
     if (file_desc_isused(fdt, i))
       file_desc_free(fdt, i);
 
-  kfree(fd_pool, fdt->fdt_files);
-  kfree(fd_pool, fdt->fdt_map);
   kfree(fd_pool, fdt);
 }
 
@@ -186,9 +176,8 @@ int file_alloc_install_desc(file_desc_table_t *fdt, file_t **resultf,
 file_desc_table_t *file_desc_table_init() {
   file_desc_table_t *fdt;
   fdt = kmalloc(fd_pool, sizeof(file_desc_table_t), M_ZERO);
-  fdt->fdt_files = kmalloc(fd_pool, NDFILE * sizeof(file_t *), M_ZERO);
-  fdt->fdt_map =
-    kmalloc(fd_pool, bitstr_size(NDFILE) * sizeof(bitstr_t), M_ZERO);
+  /* For now, fdt_files and fdt_map have a static size, so there is no need to
+   * separately allocate memory for them. */
   fdt->fdt_nfiles = NDFILE;
   fdt->fdt_count = 1;
   return fdt;
