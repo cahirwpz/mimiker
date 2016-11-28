@@ -15,6 +15,7 @@ SOURCES_C  = \
 	sched.c \
 	sleepq.c \
 	startup.c \
+	subr_copy.c \
 	sysent.c \
 	thread.c \
 	turnstile.c \
