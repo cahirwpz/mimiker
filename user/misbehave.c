@@ -9,8 +9,12 @@ int main(int argc, char **argv) {
   /* Successful syscall */
   assert(write(STDOUT_FILENO, str, sizeof(str) - 1) == sizeof(str) - 1);
 
-  /* Pass bad pointer */
+  /* Pass bad pointer (kernel space) */
   assert(write(STDOUT_FILENO, (char *)0xDEADC0DE, 100) == -1);
+  assert(errno == EFAULT);
+
+  /* Pass bad pointer (user space) */
+  assert(write(STDOUT_FILENO, (char *)0x1EE7C0DE, 100) == -1);
   assert(errno == EFAULT);
 
   return 1;

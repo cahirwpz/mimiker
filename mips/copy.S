@@ -51,10 +51,12 @@ NESTED(copyinstr, CALLFRAME_SIZ, ra)
 	blt	a0, zero, copyerr       # make sure address is in user space
 	REG_S	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
+        PTR_L   v1, PCPU_CURTHREAD(v1)
 	jal	copystr
 	PTR_S	v0, TD_ONFAULT(v1)
 	REG_L	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
+        PTR_L   v1, PCPU_CURTHREAD(v1)
 	PTR_S	zero, TD_ONFAULT(v1)
 	j	ra
 	PTR_ADDU sp, sp, CALLFRAME_SIZ
@@ -72,6 +74,7 @@ NESTED(copyin, CALLFRAME_SIZ, ra)
 	blt	a0, zero, copyerr       # make sure address is in user space
 	REG_S	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
+        PTR_L   v1, PCPU_CURTHREAD(v1)
 	move    t0, a0                  # swap a0, a1 for call to memcpy
 	move    a0, a1
 	move    a1, t0
@@ -79,6 +82,7 @@ NESTED(copyin, CALLFRAME_SIZ, ra)
 	PTR_S	v0, TD_ONFAULT(v1)
 	REG_L	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
+        PTR_L   v1, PCPU_CURTHREAD(v1)
 	PTR_S	zero, TD_ONFAULT(v1)
 	PTR_ADDU sp, sp, CALLFRAME_SIZ
 	j	ra
@@ -97,6 +101,7 @@ NESTED(copyout, CALLFRAME_SIZ, ra)
 	blt	a1, zero, copyerr       # make sure address is in user space
 	REG_S	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
+        PTR_L   v1, PCPU_CURTHREAD(v1)
 	move    t0, a0                  # swap a0, a1 for call to memcpy
 	move    a0, a1
 	move    a1, t0
@@ -104,6 +109,7 @@ NESTED(copyout, CALLFRAME_SIZ, ra)
 	PTR_S	v0, TD_ONFAULT(v1)
 	REG_L	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
+        PTR_L   v1, PCPU_CURTHREAD(v1)
 	PTR_S	zero, TD_ONFAULT(v1)
 	PTR_ADDU sp, sp, CALLFRAME_SIZ
 	j	ra
@@ -129,6 +135,7 @@ LEAF(fuword32)
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
 	LOAD_PCPU(v1)
+        PTR_L   v1, PCPU_CURTHREAD(v1)
 	PTR_S	v0, TD_ONFAULT(v1)
 	lw	v0, 0(a0)		# fetch word
 	j	ra
@@ -140,6 +147,7 @@ LEAF(suword32)
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
 	LOAD_PCPU(v1)
+        PTR_L   v1, PCPU_CURTHREAD(v1)
 	PTR_S	v0, TD_ONFAULT(v1)
 	sw	a1, 0(a0)		# store short
 	PTR_S	zero, TD_ONFAULT(v1)
