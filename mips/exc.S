@@ -1,7 +1,7 @@
 #include <mips/exc.h>
 #include <mips/pcpu.h>
 
-#include "genassym.h"
+#include "assym.h"
 
         # Don't allow the assembler to reorder instructions.
         .set	noreorder

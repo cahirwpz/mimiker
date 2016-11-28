@@ -30,7 +30,7 @@ etags
 *.taghl
 
 # generated assembly files
-genassym.h
+assym.h
 
 # toolchain build artifacts
 toolchain/

@@ -73,9 +73,9 @@ endef
 	@echo "[AR] $(addprefix $(DIR),$^) -> $(DIR)$@"
 	$(AR) rs $@ $^
 
-%.h: %.o
-	@echo "[ASSYM] $(DIR)$<"
-	$(GENASSYM) $<
+%.h: gen%.o
+	@echo "[ASSYM] $(DIR)$@"
+	$(GENASSYM) $< $@
 
 .PHONY: all clean
 

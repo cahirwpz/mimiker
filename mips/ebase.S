@@ -1,7 +1,7 @@
 #include <mips/ctx.h>
 #include <mips/m32c0.h>
 
-#include "genassym.h"
+#include "assym.h"
 
         # Don't allow the assembler to reorder instructions.
         .set	noreorder
