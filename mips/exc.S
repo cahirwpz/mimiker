@@ -172,7 +172,7 @@ user_exc_leave:
 
 kern_exc_enter:
         # Push stack frame.
-        subu    $sp, EXC_FRAME_SIZE
+        subu    $sp, EXC_FRAME_SIZ
 
         # Save all user registers...
         SAVE_REG($at, AT, $sp)
@@ -201,7 +201,7 @@ kern_exc_enter:
         SAVE_REG($t8, T8, $sp)
         SAVE_REG($t9, T9, $sp)
         SAVE_REG($gp, GP, $sp)
-        add     $t0, $sp, EXC_FRAME_SIZE
+        add     $t0, $sp, EXC_FRAME_SIZ
         SAVE_REG($t0, SP, $sp)
         SAVE_REG($fp, FP, $sp)
         SAVE_REG($ra, RA, $sp)

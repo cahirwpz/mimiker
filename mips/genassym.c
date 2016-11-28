@@ -82,6 +82,6 @@ ASSYM(EXC_SR, offsetof(exc_frame_t, sr));
 ASSYM(EXC_BADVADDR, offsetof(exc_frame_t, badvaddr));
 ASSYM(EXC_CAUSE, offsetof(exc_frame_t, cause));
 
-ASSYM(EXC_FRAME_SIZE, sizeof(exc_frame_t) + CALLFRAME_SIZE);
+ASSYM(EXC_FRAME_SIZ, sizeof(exc_frame_t) + CALLFRAME_SIZ);
 
 ASSYM(PCPU_CURTHREAD, offsetof(pcpu_t, curthread));

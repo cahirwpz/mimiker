@@ -1,4 +1,5 @@
 #include <mips/asm.h>
+#include <mips/regdef.h>
 #include <errno.h>
 #include <sysent.h>
 
@@ -15,31 +16,31 @@ AENT(gettimeofday)
 
 SLEAF(no_syscall)
         b       set_errno
-        li      $v0, -ENOSYS
+        li      v0, -ENOSYS
 END(no_syscall)
 
-SNESTED(set_errno, 24, $ra)
-        addiu   $sp, $sp, -24
-        sw      $ra, 20($sp)
-        sw      $v0, 16($sp)
+SNESTED(set_errno, CALLFRAME_SIZ, ra)
+        addiu   sp, sp, CALLFRAME_SIZ
+        sw      ra, CALLFRAME_RA(sp)
+        sw      v0, 16(sp)
         jal     __errno
         nop
-        lw      $v1, 16($sp)
-        negu    $v1, $v1
-        sw      $v1, 0($v0)
-        li      $v0, -1
-        lw      $ra, 20($sp)
-        jr      $ra
-        addiu   $sp, $sp, 24
+        lw      v1, 16(sp)
+        negu    v1, v1
+        sw      v1, 0(v0)
+        li      v0, -1
+        lw      ra, CALLFRAME_RA(sp)
+        jr      ra
+        addiu   sp, sp, CALLFRAME_SIZ
 SEND(set_errno)
 
 /* This implementation uses newlib-specific errno processing. */
 #define DO_SYSCALL(num)         \
-        li      $v0, num;       \
+        li      v0, num;        \
         syscall;                \
-        bltz    $v0, set_errno; \
+        bltz    v0, set_errno;  \
         nop;                    \
-        jr $ra;                 \
+        jr      ra;             \
         nop;
 
 #define SYSCALL(name, num)      \
