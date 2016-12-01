@@ -20,6 +20,10 @@
 #define VM_ACCESSED 1 /* page has been accessed since last check */
 #define VM_MODIFIED 2 /* page has been modified since last check */
 
+typedef intptr_t vm_paddr_t;
+typedef intptr_t vm_offset_t;
+typedef uintptr_t vm_size_t;
+
 typedef enum {
   VM_PROT_NONE = 0,
   VM_PROT_READ = 1,
