@@ -15,10 +15,10 @@ SOURCES_C  = \
 	sched.c \
 	sleepq.c \
 	startup.c \
-	subr_copy.c \
 	sysent.c \
 	thread.c \
 	turnstile.c \
+	uio.c \
 	vm_map.c \
 	vm_object.c \
 	vm_pager.c
