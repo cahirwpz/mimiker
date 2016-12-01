@@ -126,6 +126,7 @@ file_t *file_alloc_noinstall() {
   f->f_ops = &badfileops;
   f->f_count = 1;
   f->f_data = 0;
+  mtx_init(&f->f_mtx);
   return f;
 }
 
@@ -180,6 +181,7 @@ file_desc_table_t *file_desc_table_init() {
    * separately allocate memory for them. */
   fdt->fdt_nfiles = NDFILE;
   fdt->fdt_count = 1;
+  mtx_init(&fdt->fdt_mtx);
   return fdt;
 }
 
