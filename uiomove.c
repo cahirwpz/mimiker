@@ -2,6 +2,7 @@
 #include <systm.h>
 #include <stdc.h>
 #include <vm_map.h>
+#include <devfs.h>
 
 int main() {
   int res = 0;
@@ -55,6 +56,39 @@ int main() {
   buffer2[37] = 0; /* Manually null-terminate */
   res = strcmp(buffer2, "Example ====string ========with data ");
   assert(res == 0);
+
+  /* Now, perform a READ test on /dev/zero, cleaning buffer2. */
+  uio.uio_op = UIO_READ;
+  uio.uio_vmspace = get_kernel_vm_map();
+  iov[0].iov_base = buffer2;
+  iov[0].iov_len = sizeof(buffer2);
+  uio.uio_iovcnt = 1;
+  uio.uio_iov = &iov[0];
+  uio.uio_offset = 0;
+  uio.uio_resid = sizeof(buffer2);
+
+  cdev_t *dev_zero = devfs_find_device("zero");
+  assert(dev_zero != 0);
+  res = dev_zero->cdev_sw.d_read(dev_zero, &uio, 0);
+  assert(res == 0);
+  assert(buffer2[1] == 0 && buffer2[10] == 0);
+  assert(uio.uio_resid == 0);
+
+  /* Now write some data to /dev/null */
+  uio.uio_op = UIO_WRITE;
+  uio.uio_vmspace = get_kernel_vm_map();
+  iov[0].iov_base = buffer2;
+  iov[0].iov_len = sizeof(buffer2);
+  uio.uio_iovcnt = 1;
+  uio.uio_iov = &iov[0];
+  uio.uio_offset = 0;
+  uio.uio_resid = sizeof(buffer2);
+
+  cdev_t *dev_null = devfs_find_device("null");
+  assert(dev_null != 0);
+  res = dev_null->cdev_sw.d_write(dev_null, &uio, 0);
+  assert(res == 0);
+  assert(uio.uio_resid == 0);
 
   return 0;
 }

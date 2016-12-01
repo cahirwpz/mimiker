@@ -3,6 +3,9 @@
 SOURCES_C  = \
 	callout.c \
 	clock.c \
+	cdev.c \
+	dev_null.c \
+	devfs.c \
 	exception.c \
 	exec.c \
 	interrupt.c \
