@@ -17,6 +17,7 @@
 #include <thread.h>
 #include <vm_object.h>
 #include <vm_map.h>
+#include <cdev.h>
 
 extern int main(int argc, char **argv);
 
@@ -41,6 +42,7 @@ int kernel_boot(int argc, char **argv) {
   sched_init();
   sleepq_init();
   mips_clock_init();
+  cdev_init();
   kprintf("[startup] subsystems initialized\n");
   thread_init((void (*)())main, 2, argc, argv);
 }
