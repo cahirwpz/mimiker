@@ -1,5 +1,12 @@
-#include <mips/malta.h>
+#include <interrupt.h>
 #include <malloc.h>
+#include <mips/cpuinfo.h>
+#include <mips/malta.h>
+#include <mips/physmem.h>
+#include <mips/tlb.h>
+#include <mips/uart_cbus.h>
+#include <pcpu.h>
+#include <stdc.h>
 #include <string.h>
 
 extern unsigned int __bss[];
@@ -101,4 +108,13 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   _memsize = memsize;
 
   setup_kenv(argc, argv, envp);
+
+  uart_init();
+  pcpu_init();
+  cpu_init();
+  tlb_init();
+  pm_boot();
+  intr_init();
+
+  kprintf("[startup] platform initialized\n");
 }

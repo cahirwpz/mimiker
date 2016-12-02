@@ -40,7 +40,7 @@ kernel_go:
         lw      $a0, 0($t0)
         lw      $a1, 4($t0)
         la      $ra, kernel_exit
-        la      $t0, kernel_boot
+        la      $t0, kernel_init
         jr      $t0
         nop
 END(_start)
