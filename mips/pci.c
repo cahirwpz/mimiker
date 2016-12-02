@@ -18,6 +18,9 @@
   (((dev) << PCI0_CFG_DEV_SHIFT) | ((funct) << PCI0_CFG_FUNCT_SHIFT) |         \
    ((reg) << PCI0_CFG_REG_SHIFT))
 
+
+static MALLOC_DEFINE(mp, "PCI bus discovery memory pool");
+
 /* For reference look at: http://wiki.osdev.org/PCI */
 
 static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
@@ -44,7 +47,7 @@ static const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
 }
 
 static void pci_bus_enumerate(pci_bus_t *pcibus) {
-  pcibus->dev = kernel_sbrk(0);
+  /* count devices & allocate memory */
   pcibus->ndevs = 0;
 
   for (int j = 0; j < 32; j++) {
@@ -54,7 +57,21 @@ static void pci_bus_enumerate(pci_bus_t *pcibus) {
       if (PCI0_CFG_DATA_R == -1)
         continue;
 
-      pci_device_t *pcidev = kernel_sbrk(sizeof(pci_device_t));
+      pcibus->ndevs++;
+    }
+  }
+
+  pcibus->dev = kmalloc(mp, sizeof(pci_device_t) * pcibus->ndevs, M_ZERO);
+
+  /* read device descriptions into main memory */
+  for (int j = 0, n = 0; j < 32; j++) {
+    for (int k = 0; k < 8; k++) {
+      PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | PCI0_CFG_REG(j, k, 0);
+
+      if (PCI0_CFG_DATA_R == -1)
+        continue;
+
+      pci_device_t *pcidev = &pcibus->dev[n++];
 
       pcidev->addr.bus = 0;
       pcidev->addr.device = j;
@@ -86,8 +103,6 @@ static void pci_bus_enumerate(pci_bus_t *pcibus) {
         bar->addr = addr;
         bar->size = size;
       }
-
-      pcibus->ndevs++;
     }
   }
 }
@@ -105,17 +120,20 @@ static int pci_bar_compare(const void *a, const void *b) {
 
 static void pci_bus_assign_space(pci_bus_t *pcibus, intptr_t mem_base,
                                  intptr_t io_base) {
-  pci_bar_t **bars = kernel_sbrk(0);
+  /* Count PCI base address registers & allocate memory */
   unsigned nbars = 0;
 
   for (int j = 0; j < pcibus->ndevs; j++) {
     pci_device_t *pcidev = &pcibus->dev[j];
+    nbars += pcidev->nbars;
+  }
 
-    for (int i = 0; i < pcidev->nbars; i++) {
-      void *ptr __attribute__((unused));
-      ptr = kernel_sbrk(sizeof(pci_bar_t *));
-      bars[nbars++] = &pcidev->bar[i];
-    }
+  pci_bar_t **bars = kmalloc(mp, sizeof(pci_bar_t *) * nbars, M_ZERO);
+
+  for (int j = 0, n = 0; j < pcibus->ndevs; j++)  {
+    pci_device_t *pcidev = &pcibus->dev[j];
+    for (int i = 0; i < pcidev->nbars; i++)
+      bars[n++] = &pcidev->bar[i];
   }
 
   qsort(bars, nbars, sizeof(pci_bar_t *), pci_bar_compare);
@@ -131,7 +149,7 @@ static void pci_bus_assign_space(pci_bus_t *pcibus, intptr_t mem_base,
     }
   }
 
-  kernel_brk(bars);
+  kfree(mp, bars);
 }
 
 static void pci_bus_dump(pci_bus_t *pcibus) {
@@ -186,6 +204,11 @@ static void pci_bus_dump(pci_bus_t *pcibus) {
 static pci_bus_t pci_bus[1];
 
 void pci_init() {
+  vm_page_t *pg = pm_alloc(1);
+
+  kmalloc_init(mp);
+  kmalloc_add_arena(mp, pg->vaddr, PG_SIZE(pg));
+
   pci_bus_enumerate(pci_bus);
   pci_bus_assign_space(pci_bus, MALTA_PCI0_MEMORY_BASE, PCI_IO_SPACE_BASE);
   pci_bus_dump(pci_bus);
