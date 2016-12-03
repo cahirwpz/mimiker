@@ -32,10 +32,10 @@ static irq_handler_t irq_handlers[8] = {
 };
 
 void mips_irq_handler(exc_frame_t *frame) {
-  unsigned pending = frame->sr & SR_IMASK;
+  unsigned pending = (frame->cause & frame->sr) & CR_IP_MASK;
 
   for (int i = 7; i >= 0; i--) {
-    unsigned irq = SR_IM0 << i;
+    unsigned irq = CR_IP0 << i;
 
     if (pending & irq) {
       irq_handler_t handler = irq_handlers[i];
@@ -48,7 +48,7 @@ void mips_irq_handler(exc_frame_t *frame) {
     }
   }
 
-  assert(pending == 0);
+  mips32_set_c0(C0_CAUSE, frame->cause & ~CR_IP_MASK);
 }
 
 const char *const exceptions[32] = {
