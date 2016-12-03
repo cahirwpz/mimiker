@@ -11,7 +11,7 @@
 #include <vm_object.h>
 #include <vm_map.h>
 
-extern int main(int argc, char **argv);
+extern void main(void *);
 
 int kernel_init(int argc, char **argv) {
   kprintf("Kernel arguments (%d): ", argc);
@@ -28,5 +28,8 @@ int kernel_init(int argc, char **argv) {
   sleepq_init();
   mips_clock_init();
   kprintf("[startup] kernel initialized\n");
-  thread_init((void (*)())main, 2, argc, argv);
+
+  thread_switch_to(thread_create("main", main, NULL));
+
+  sched_run();
 }

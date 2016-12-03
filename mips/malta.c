@@ -7,14 +7,16 @@
 #include <mips/uart_cbus.h>
 #include <pcpu.h>
 #include <stdc.h>
+#include <thread.h>
 #include <string.h>
 
 extern unsigned int __bss[];
 extern unsigned int __ebss[];
+extern int kernel_init(int argc, char **argv);
 
 unsigned _memsize;
 
-struct {
+static struct {
   int argc;
   char **argv;
 } _kenv;
@@ -115,6 +117,16 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   tlb_init();
   pm_boot();
   intr_init();
+  thread_init();
 
-  kprintf("[startup] platform initialized\n");
+  /* Create main kernel thread */
+  thread_t *td = thread_create("kernel-main", (void *)kernel_init, NULL);
+
+  exc_frame_t *kframe = td->td_kframe;
+  kframe->a0 = (reg_t)_kenv.argc;
+  kframe->a1 = (reg_t)_kenv.argv;
+  td->td_state = TDS_RUNNING;
+  PCPU_SET(curthread, td);
+
+  kprintf("[startup] switching to 'kernel-main' thread...\n");
 }
