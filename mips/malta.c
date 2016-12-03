@@ -100,6 +100,31 @@ static void setup_kenv(int argc, char **argv, char **envp) {
     *tokens++ = make_pair(pair[0], pair[1]);
 }
 
+static void pm_bootstrap(unsigned memsize) {
+  pm_init();
+
+  /* Add Malta physical memory segment */
+  pm_add_segment(MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + memsize,
+                 MIPS_KSEG0_START);
+  /* shutdown sbrk allocator and remove used pages from physmem */
+  pm_reserve(MALTA_PHYS_SDRAM_BASE,
+             (pm_addr_t)kernel_sbrk_shutdown() - MIPS_KSEG0_START);
+}
+
+static void thread_bootstrap() {
+  thread_init();
+
+  /* Create main kernel thread */
+  thread_t *td = thread_create("kernel-main", (void *)kernel_init, NULL);
+
+  exc_frame_t *kframe = td->td_kframe;
+  kframe->a0 = (reg_t)_kenv.argc;
+  kframe->a1 = (reg_t)_kenv.argv;
+  kframe->sr |= SR_IE; /* the thread will run with interrupts enabled */
+  td->td_state = TDS_RUNNING;
+  PCPU_SET(curthread, td);
+}
+
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   /* clear BSS section */
   bzero(__bss, __ebss - __bss);
@@ -110,26 +135,9 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   pcpu_init();
   cpu_init();
   tlb_init();
-  pm_init();
-
-  /* Add Malta physical memory segment */
-  pm_add_segment(MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + memsize,
-                 MIPS_KSEG0_START);
-  /* shutdown sbrk allocator and remove used pages from physmem */
-  pm_reserve(MALTA_PHYS_SDRAM_BASE,
-             (pm_addr_t)kernel_sbrk_shutdown() - MIPS_KSEG0_START);
-
   intr_init();
-  thread_init();
+  pm_bootstrap(memsize);
+  thread_bootstrap();
 
-  /* Create main kernel thread */
-  thread_t *td = thread_create("kernel-main", (void *)kernel_init, NULL);
-
-  exc_frame_t *kframe = td->td_kframe;
-  kframe->a0 = (reg_t)_kenv.argc;
-  kframe->a1 = (reg_t)_kenv.argv;
-  td->td_state = TDS_RUNNING;
-  PCPU_SET(curthread, td);
-
-  kprintf("[startup] switching to 'kernel-main' thread...\n");
+  kprintf("[startup] Switching to 'kernel-main' thread...\n");
 }

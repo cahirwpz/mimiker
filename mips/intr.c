@@ -21,20 +21,6 @@ void intr_init() {
   mips32_bs_c0(C0_CAUSE, CR_IV);
   /* Set vector spacing to 0. */
   mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
-
-  /*
-   * Mask out software and hardware interrupts.
-   * You should enable them one by one in driver initialization code.
-   */
-  mips32_set_c0(C0_STATUS, mips32_get_c0(C0_STATUS) & ~SR_IPL_MASK);
-
-  /* Make sure we're in kernel mode */
-  mips32_set_c0(C0_STATUS, mips32_get_c0(C0_STATUS) & ~SR_KSU_MASK);
-
-  /* Clear out error level, leave exception level and enable interrupts. */
-  mips32_bc_c0(C0_STATUS, SR_ERL);
-  mips32_bc_c0(C0_STATUS, SR_EXL);
-  mips32_bs_c0(C0_STATUS, SR_IE);
 }
 
 extern void mips_clock_irq_handler();
