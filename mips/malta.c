@@ -2,7 +2,6 @@
 #include <malloc.h>
 #include <mips/cpuinfo.h>
 #include <mips/malta.h>
-#include <mips/physmem.h>
 #include <mips/tlb.h>
 #include <mips/uart_cbus.h>
 #include <pcpu.h>
@@ -13,8 +12,6 @@
 extern unsigned int __bss[];
 extern unsigned int __ebss[];
 extern int kernel_init(int argc, char **argv);
-
-unsigned _memsize;
 
 static struct {
   int argc;
@@ -107,15 +104,21 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   /* clear BSS section */
   bzero(__bss, __ebss - __bss);
 
-  _memsize = memsize;
-
   setup_kenv(argc, argv, envp);
 
   uart_init();
   pcpu_init();
   cpu_init();
   tlb_init();
-  pm_boot();
+  pm_init();
+
+  /* Add Malta physical memory segment */
+  pm_add_segment(MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + memsize,
+                 MIPS_KSEG0_START);
+  /* shutdown sbrk allocator and remove used pages from physmem */
+  pm_reserve(MALTA_PHYS_SDRAM_BASE,
+             (pm_addr_t)kernel_sbrk_shutdown() - MIPS_KSEG0_START);
+
   intr_init();
   thread_init();
 

@@ -1,5 +1,5 @@
-#ifndef _SYS_PCI_H_
-#define _SYS_PCI_H_
+#ifndef _PCI_H_
+#define _PCI_H_
 
 #include <common.h>
 
@@ -57,4 +57,4 @@ typedef struct {
 
 void pci_init();
 
-#endif /* !_SYS_PCI_H_ */
+#endif /* _PCI_H_ */

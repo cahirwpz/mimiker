@@ -18,7 +18,6 @@
   (((dev) << PCI0_CFG_DEV_SHIFT) | ((funct) << PCI0_CFG_FUNCT_SHIFT) |         \
    ((reg) << PCI0_CFG_REG_SHIFT))
 
-
 static MALLOC_DEFINE(mp, "PCI bus discovery memory pool");
 
 /* For reference look at: http://wiki.osdev.org/PCI */
