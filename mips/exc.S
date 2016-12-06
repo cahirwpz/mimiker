@@ -118,14 +118,20 @@ user_exc_leave:
         lw      $k0, PCPU_CURTHREAD($k0)
         addu    $k0, TD_UCTX
 
-        # Turn on FPU, unmask all interrupts, enter exception level,
+        # Update status register held in user context.
+        LOAD_REG($t0, SR, $k0)
+        # Turn on FPU, enter exception level,
         # enter user mode and enable interrupts
         # (last two applies only after ERET).
-        li      $t1, (SR_CU1|SR_IMASK|SR_KSU_USER|SR_EXL|SR_IE)
+        li      $t1, (SR_CU1|SR_KSU_USER|SR_EXL|SR_IE)
+        # Clear interrupts mask.
+        li      $t2, ~SR_IMASK
         or      $t0, $t1
-        mtc0    $t0, C0_STATUS
-
-        # Update status register held in user context.
+        and     $t0, $t2
+        # Update user-mode interrupts mask based on current one.
+        mfc0    $t1, C0_STATUS
+        andi    $t1, SR_IMASK
+        or      $t0, $t1
         SAVE_REG($t0, SR, $k0)
 
         # Restore exception program counter,
@@ -254,7 +260,7 @@ kern_exc_leave:
         ori     $t0, SR_EXL
         mtc0    $t0, C0_STATUS
 
-        # Update status register held in user context (only interrupt mask).
+        # Update status register held in exception frame (only interrupt mask).
         LOAD_REG($t0, SR, $sp)
         li      $t1, ~SR_IMASK
         and     $t0, $t1

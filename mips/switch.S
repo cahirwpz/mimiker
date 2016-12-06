@@ -17,7 +17,7 @@ LEAF(ctx_switch)
         di      $t0             # $t0 = C0_SR, C0_SR &= ~SR_IE
 
         # don't save context of @from thread if user did not provide one
-        beqz    $a0,ctx_resume
+        beqz    $a0, ctx_resume
 
         addu    $a0, TD_KCTX
         SAVE_REG($t0, SR, $a0)
@@ -67,13 +67,5 @@ ctx_resume:
         jr.hb   $ra
         nop
 END(ctx_switch)
-
-#
-# noreturn void ctx_boot(thread_t *ctx)
-#
-LEAF(ctx_boot)
-        j       ctx_resume
-        move    $a1, $a0
-END(ctx_boot)
 
 # vim: sw=8 ts=8 et
