@@ -90,6 +90,7 @@ user_exc_enter:
 
         # Turn off FPU, enter kernel mode,
         # drop exception level and disable interrupts.
+        mfc0    $t0, C0_STATUS
         li      $t1, ~(SR_CU1|SR_KSU_MASK|SR_EXL|SR_IE)
         and     $t0, $t1
         mtc0    $t0, C0_STATUS
@@ -132,6 +133,7 @@ user_exc_leave:
         mfc0    $t1, C0_STATUS
         andi    $t1, SR_IMASK
         or      $t0, $t1
+        mtc0    $t0, C0_STATUS
         SAVE_REG($t0, SR, $k0)
 
         # Restore exception program counter,
