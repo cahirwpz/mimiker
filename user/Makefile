@@ -14,7 +14,7 @@ PROGRAMS_OBJS = $(PROGRAMS_C:%.c=%.o)
 PROGRAMS_UELFS = $(PROGRAMS_C:%.c=%.uelf)
 PROGRAMS_UELF_OS = $(PROGRAMS_C:%.c=%.uelf.o)
 
-all: $(PROGRAMS_UELF_OS) $(PROGRAMS_UELFS)
+all: $(PROGRAMS_UELF_OS) $(PROGRAMS_UELFS) start.o
 
 # Compiling the program source
 %.o: %.c
