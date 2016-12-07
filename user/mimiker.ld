@@ -40,6 +40,7 @@ SECTIONS
     {
         *(.sdata .sdata.*)
     } : sdata
+    . = ALIGN(4096);
     .sbss :
     {
         *(.sbss .sbss.*)
