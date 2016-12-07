@@ -332,8 +332,8 @@ void tlb_exception_handler(exc_frame_t *frame) {
 
   /* If the fault was in virtual pt range it means it's time to refill */
   if (PT_BASE <= vaddr && vaddr < PT_BASE + PT_SIZE) {
-    uint32_t index = PTE_INDEX(vaddr - PT_BASE) & ~1;
-    uint32_t index2 = PTE_INDEX(vaddr - PT_BASE);
+    uint32_t index = PTE_INDEX(vaddr - PT_BASE);
+    uint32_t base_index = index & ~1;
     vm_addr_t orig_vaddr = (vaddr - PT_BASE) * PTF_ENTRIES;
 
     assert(vaddr < PT_HOLE_START || vaddr >= PT_HOLE_END);
@@ -342,22 +342,22 @@ void tlb_exception_handler(exc_frame_t *frame) {
       /* TLB refill exception can occur within interrupt handler, we have to be
        * prepared for it! */
       vaddr = orig_vaddr;
-      index = PTE_INDEX(vaddr - PT_BASE) & ~1;
-      index2 = PTE_INDEX(vaddr - PT_BASE);
+      index = PTE_INDEX(vaddr - PT_BASE);
+      base_index = index & ~1;
       orig_vaddr = (vaddr - PT_BASE) * PTF_ENTRIES;
     }
 
     pmap_t *pmap = get_active_pmap_by_addr(orig_vaddr);
     if (!pmap)
       panic("Address %08lx not mapped by any active pmap!", orig_vaddr);
-    if (is_valid(pmap->pde[index2])) {
+    if (is_valid(pmap->pde[index])) {
       log("TLB refill for page table fragment %08lx", vaddr & PTE_MASK);
-      vm_addr_t ptf_start = PT_BASE + index * PAGESIZE;
+      vm_addr_t ptf_start = PT_BASE + base_index * PAGESIZE;
 
       /* Both ENTRYLO0 and ENTRYLO1 must have G bit set for address translation
        * to skip ASID check. */
-      tlb_overwrite_random(ptf_start | pmap->asid, pmap->pde[index],
-                           pmap->pde[index + 1]);
+      tlb_overwrite_random(ptf_start | pmap->asid, pmap->pde[base_index],
+                           pmap->pde[base_index + 1]);
       return;
     }
 
