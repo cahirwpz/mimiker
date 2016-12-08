@@ -92,12 +92,6 @@ def dump_threads(threads):
     for thread in threads:
         row = [f(thread) for f in extractors]
         rows.append(row)
-    #for r in rows:
-    #    column_sizes = [max(a, b) for (a, b) in zip(map(len, r), column_sizes)]
-    #for r in rows:
-    #    pretty_row = "   ".join([s.ljust(l)
-    #                             for (s, l) in zip(r, column_sizes)])
-    #    print(pretty_row)
     ptable.ptable(rows, fmt="llll", header=True)
 
 

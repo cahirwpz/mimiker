@@ -74,14 +74,15 @@ class TLB:
     def get_tlb_size(self):
         return gdb.parse_and_eval('tlb_size()')
 
-    def get_tlb_hi(self, idx):
-        return gdb.parse_and_eval('tlb_read_entry_hi(' + str(idx) + ')')
+    def get_tlb_entry(self, idx):
+        gdb.parse_and_eval('_gdb_tlb_read_index(' + str(idx) + ')')
+        return gdb.parse_and_eval('_gdb_tlb_entry')
 
-    def get_tlb_lo0(self, idx):
-        return gdb.parse_and_eval('tlb_read_entry_lo0(' + str(idx) + ')')
+    #def get_tlb_lo0(self, idx):
+    #    return gdb.parse_and_eval('tlb_read_entry_lo0(' + str(idx) + ')')
 
-    def get_tlb_lo1(self, idx):
-        return gdb.parse_and_eval('tlb_read_entry_lo1(' + str(idx) + ')')
+    #def get_tlb_lo1(self, idx):
+    #    return gdb.parse_and_eval('tlb_read_entry_lo1(' + str(idx) + ')')
 
     def dump_tlb_index(self, idx, hi, lo0, lo1):
         row = []
@@ -113,10 +114,12 @@ class TLB:
         tlb_size = self.get_tlb_size();
         rows = [["Index", "ASID", "PFN0", "PFN1"]]
         for idx in range(0, tlb_size):
-            hi = self.get_tlb_hi(idx)
-            lo0 = self.get_tlb_lo0(idx)
-            lo1 = self.get_tlb_lo1(idx)
-            row = self.dump_tlb_index(idx, hi, lo0, lo1)
+            entry = self.get_tlb_entry(idx)
+            #hi = self.get_tlb_hi(idx)
+            #lo0 = self.get_tlb_lo0(idx)
+            #lo1 = self.get_tlb_lo1(idx)
+
+            row = self.dump_tlb_index(idx,entry['hi'], entry['lo0'], entry['lo1'])
             if (row != []):
                 rows.append(row)
         ptable.ptable(rows, fmt="rrll", header=True)
