@@ -151,17 +151,53 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   return 0;
 }
 
-int vfs_lookup(const char *pathname, vnode_t **v) {
-  panic("vfs_lookup not yet supported");
+int vfs_lookup(const char *path, vnode_t **v) {
 
-  /* The *VERY GENERAL* idea of the process:
-   * - Traverse the path, stopping at slashes. Start from root vnode, or
-   *   process' working directory.
-   * - If the current vnode is not a dir, and you reached the end of the path,
-   *   return the vnode.
-   * - If the current vnode is a dir, use lookup to get it's child.
-   * - If the current vnode is a dir and something is mounted here, get the
-   *   mount, and as it for the root.
-   * - When you encounter a .. in the path ????? read FreeBSD sources.
-   */
+  /* TODO: This is a simplified implementation, and it does not support many
+     required features! These include: relative paths, symlinks, parent dirs */
+
+  if (path[0] == '\0')
+    return EINVAL;
+
+  vnode_t *root;
+  if (strncmp(path, "/dev", 5)) {
+    /* Handle the special case of "/dev", since we don't have any filesystem at
+     * / yet. */
+    root = vfs_root_dev_vnode;
+    path = path + 5;
+  } else if (strncmp(path, "/", 2)) {
+    root = vfs_root_vnode;
+    path = path + 1;
+  } else {
+    log("Relative paths are not supported!");
+    return ENOTSUP;
+  }
+
+  /* Copy path into a local buffer, so that we may process it. */
+  size_t n = strlen(path);
+  if (n >= VFS_MAX_PATH_LENGTH)
+    return ENAMETOOLONG;
+  char pathbuf[VFS_MAX_PATH_LENGTH];
+  strlcpy(pathbuf, path, VFS_MAX_PATH_LENGTH);
+  char *path2 = pathbuf;
+
+  vnode_t *current = root;
+  const char *tok;
+  while ((tok = strsep(&path2, "/")) != NULL) {
+    /* If this vnode is a filesystem boundary, request the root vnode of the
+       inner filesystem. */
+    if (current->v_mountedhere != NULL) {
+      mount_t *m = current->v_mountedhere;
+      int error = m->mnt_op->vfs_root(m, &current);
+      if (error != 0)
+        return error;
+    }
+    /* Look up the child vnode */
+    int error = current->v_ops->v_lookup(current, tok, &current);
+    if (error)
+      return error;
+  }
+
+  *v = current;
+  return 0;
 }

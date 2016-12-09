@@ -86,6 +86,7 @@ static int devfs_mount(mount_t *m) {
 
   devfs_mount_t *dfm = kmalloc(devfs_pool, sizeof(devfs_mount_t), M_ZERO);
   dfm->dfsm_root_vnode = root;
+  m->mnt_data = dfm;
 
   return 0;
 }

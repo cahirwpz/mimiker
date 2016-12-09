@@ -16,7 +16,8 @@ TESTS = \
 	syscall.elf \
 	thread.elf \
 	uiomove.elf \
-	vm_map.elf
+	vm_map.elf \
+	vfs.elf
 SOURCES_C =
 SOURCES_ASM =
 

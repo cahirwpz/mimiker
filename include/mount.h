@@ -6,6 +6,8 @@
 
 /* Maximum length of a filesystem type name */
 #define VFCONF_NAME_MAX 32
+/* Maximum length of a path to lookup */
+#define VFS_MAX_PATH_LENGTH 256
 
 /* Forward declarations */
 typedef struct vnode vnode_t;
