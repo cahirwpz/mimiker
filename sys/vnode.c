@@ -28,6 +28,17 @@ vnode_t *vnode_new(enum vnode_type type, vnodeops_t *ops) {
   return v;
 }
 
+void vnode_hold(vnode_t *v) {
+  assert(mtx_isowned(&v->v_mtx));
+  ++v->v_ref;
+}
+void vnode_release(vnode_t *v) {
+  assert(mtx_isowned(&v->v_mtx));
+  if (--v->v_ref == 0) {
+    kfree(vnode_pool, v);
+  }
+}
+
 int vnode_op_notsup() {
   return ENOTSUP;
 }
