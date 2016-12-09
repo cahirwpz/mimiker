@@ -42,6 +42,7 @@ vfsconf_t *vfs_get_by_name(const char *name) {
       return vfsp;
     }
   }
+  mtx_unlock(&vfsconf_list_mtx);
   return NULL;
 }
 
@@ -54,6 +55,8 @@ int vfs_register(vfsconf_t *vfc) {
   mtx_lock(&vfsconf_list_mtx);
   TAILQ_INSERT_TAIL(&vfsconf_list, vfc, vfc_list);
   mtx_unlock(&vfsconf_list_mtx);
+
+  vfc->vfc_mountcount = 0;
 
   /* Ensure the filesystem provides obligatory operations */
   assert(vfc->vfc_vfsops != NULL);

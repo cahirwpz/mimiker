@@ -36,6 +36,8 @@ typedef struct vnode {
   vnodeops_t *v_ops; /* Vnode operations */
   void *v_data;      /* Filesystem-specific arbitrary data */
 
+  mount_t *v_mount; /* Pointer to the mount we are in */
+
   /* Type-specific fields */
   union {
     mount_t *vu_mount; /* The mount covering this vnode */
@@ -47,5 +49,14 @@ typedef struct vnode {
 } vnode_t;
 
 #define v_mountedhere v_un.vu_mount
+
+/* Initializes vnode subsystem */
+void vnode_init();
+
+/* Allocates and initializes a new vnode */
+vnode_t *vnode_new(enum vnode_type type, vnodeops_t *ops);
+
+/* Convenience function for filling in not supported vnodeops */
+int vnode_op_notsup();
 
 #endif /* __SYS_VNODE_H__ */
