@@ -52,6 +52,11 @@ typedef struct mount {
   void *mnt_data; /* Filesystem-specific arbitrary data */
 } mount_t;
 
+/* This is the / node. Since we aren't mounting anything on / just yet, there is
+   also a separate global vnode for /dev .*/
+extern vnode_t *vfs_root_vnode;
+extern vnode_t *vfs_root_dev_vnode;
+
 /* Look up a file system type by name. */
 vfsconf_t *vfs_get_by_name(const char *name);
 /* Register a file system type */

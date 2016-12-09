@@ -1,6 +1,7 @@
 #include <vnode.h>
 #include <malloc.h>
 #include <mutex.h>
+#include <stdc.h>
 #include <errno.h>
 
 static MALLOC_DEFINE(vnode_pool, "vnode pool");
@@ -29,11 +30,11 @@ vnode_t *vnode_new(enum vnode_type type, vnodeops_t *ops) {
 }
 
 void vnode_hold(vnode_t *v) {
-  assert(mtx_isowned(&v->v_mtx));
+  assert(mtx_islocked(&v->v_mtx));
   ++v->v_ref;
 }
 void vnode_release(vnode_t *v) {
-  assert(mtx_isowned(&v->v_mtx));
+  assert(mtx_islocked(&v->v_mtx));
   if (--v->v_ref == 0) {
     kfree(vnode_pool, v);
   }

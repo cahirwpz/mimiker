@@ -2,6 +2,7 @@
 #define __MUTEX_H__
 
 #include <turnstile.h>
+#include <thread.h>
 
 typedef struct {
   volatile uint32_t mtx_state; /* 0 if unowned or has address of the owner */
@@ -20,5 +21,8 @@ void mtx_lock(mtx_t *);
 /* Unlocks the mutex. If some thread blocked for the mutex, then it
  * wakes up the thread in FIFO manner. */
 void mtx_unlock(mtx_t *);
+
+/* Returns true iff the mutex is locked and we are the owner. */
+bool mtx_islocked(mtx_t *);
 
 #endif /* __MUTEX_H__ */

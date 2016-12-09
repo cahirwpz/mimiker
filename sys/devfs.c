@@ -120,6 +120,8 @@ void devfs_init() {
 
   vfs_register(&devfs_conf);
 
-  /* TODO: At some point, mount devfs at /dev. Or maybe at / first, to simplify
-   * things for now. */
+  /* Mount devfs at /dev. */
+  /* TODO: This should actually happen somewhere else in the init process, much
+   * later, and is configuration-dependent. */
+  vfs_domount(&devfs_conf, vfs_root_dev_vnode);
 }

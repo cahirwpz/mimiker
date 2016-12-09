@@ -23,6 +23,18 @@ static vfs_root_t vfs_std_root;
 static vfs_vget_t vfs_std_vget;
 static vfs_init_t vfs_std_init;
 
+/* Global root vnodes */
+vnode_t *vfs_root_vnode;
+vnode_t *vfs_root_dev_vnode;
+
+static vnodeops_t vfs_root_ops = {
+  .v_lookup = vnode_op_notsup,
+  .v_readdir = vnode_op_notsup,
+  .v_open = vnode_op_notsup,
+  .v_read = vnode_op_notsup,
+  .v_write = vnode_op_notsup,
+};
+
 void vfs_init() {
   mtx_init(&vfsconf_list_mtx);
   mtx_init(&mount_list_mtx);
@@ -31,6 +43,9 @@ void vfs_init() {
    * start recycling vnodes */
   kmalloc_init(vfs_pool);
   kmalloc_add_arena(vfs_pool, pm_alloc(2)->vaddr, PAGESIZE);
+
+  vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
+  vfs_root_dev_vnode = vnode_new(V_DIR, &vfs_root_ops);
 }
 
 vfsconf_t *vfs_get_by_name(const char *name) {
