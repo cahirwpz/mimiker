@@ -46,7 +46,7 @@ int devfs_install(const char *name, vnode_t *device) {
     return EEXIST;
 
   devfs_installed_device_t *idev =
-    kmalloc(devfs_pool, sizeof(devfs_installed_device_list_mtx), M_ZERO);
+    kmalloc(devfs_pool, sizeof(devfs_installed_device_t), M_ZERO);
   strlcpy(idev->name, name, DEVFS_DEVICE_NAME_MAX);
   idev->dev = device;
 
@@ -100,7 +100,7 @@ static int devfs_root_lookup(vnode_t *dir, const char *name, vnode_t **res) {
 
   *res = idev->dev;
 
-  return ENOENT;
+  return 0;
 }
 
 static int devfs_root_readdir(vnode_t *dir, uio_t *uio) {
@@ -113,6 +113,8 @@ static int devfs_root(mount_t *m, vnode_t **v) {
   return 0;
 }
 
+extern void init_dev_null();
+
 void devfs_init() {
   kmalloc_init(devfs_pool);
   kmalloc_add_arena(devfs_pool, pm_alloc(1)->vaddr, PAGESIZE);
@@ -120,6 +122,9 @@ void devfs_init() {
   mtx_init(&devfs_installed_device_list_mtx);
 
   vfs_register(&devfs_conf);
+
+  /* Prepare some initial devices */
+  init_dev_null();
 
   /* Mount devfs at /dev. */
   /* TODO: This should actually happen somewhere else in the init process, much
