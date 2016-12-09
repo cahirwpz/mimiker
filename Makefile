@@ -31,7 +31,10 @@ SUBDIRS = mips stdc sys user
 LDLIBS += -Lsys -Lmips -Lstdc \
 	  -Wl,--start-group -lsys -lmips -lstdc -lgcc -Wl,--end-group
 # Files that need to be embedded alongside kernel image
-LD_EMBED = user/prog.uelf.o user/misbehave.uelf.o user/fd_test.uelf.o
+LD_EMBED = \
+	user/prog/prog.uelf.o \
+	user/misbehave/misbehave.uelf.o \
+	user/fd_test/fd_test.uelf.o
 
 # Files required to link kernel image
 KRT = stdc/libstdc.a mips/libmips.a sys/libsys.a $(LD_EMBED)
@@ -61,7 +64,7 @@ $(1):
 endef
 define emit_krt_rule
 # To make an embeddable file, you need to make its directory
-$(1): $(patsubst %/,%,$(dir $(1)))
+$(1): $(firstword $(subst /, ,$(dir $(1))))
 	# This target has to override the generic %.a rule from Makefile.common, so
 	# that it won't get invoked in this case. Otherwise we would try to build,
 	# say, "sys/libsys.a" from "sys" with ar.
