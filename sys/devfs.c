@@ -11,6 +11,52 @@ static MALLOC_DEFINE(devfs_pool, "devfs pool");
 typedef struct devfs_mount { vnode_t *dfsm_root_vnode; } devfs_mount_t;
 #define MOUNT2DEVFS(m) ((devfs_mount_t *)(m)->mnt_data)
 
+/* Structure for storing installed devices */
+typedef struct devfs_installed_device {
+  char name[DEVFS_DEVICE_NAME_MAX];
+  vnode_t *dev;
+  TAILQ_ENTRY(devfs_installed_device) list;
+} devfs_installed_device_t;
+
+/* The list of all installed devices */
+TAILQ_HEAD(devfs_installed_device_list_head, devfs_installed_device);
+static struct devfs_installed_device_list_head devfs_installed_device_list =
+  TAILQ_HEAD_INITIALIZER(devfs_installed_device_list);
+static mtx_t devfs_installed_device_list_mtx;
+
+static devfs_installed_device_t *devfs_get_dev_by_name(const char *name) {
+  devfs_installed_device_t *idev;
+  mtx_lock(&devfs_installed_device_list_mtx);
+  TAILQ_FOREACH (idev, &devfs_installed_device_list, list) {
+    if (!strcmp(name, idev->name)) {
+      mtx_unlock(&devfs_installed_device_list_mtx);
+      return idev;
+    }
+  }
+  mtx_unlock(&devfs_installed_device_list_mtx);
+  return NULL;
+}
+
+int devfs_install(const char *name, vnode_t *device) {
+  size_t n = strlen(name);
+  if (n >= DEVFS_DEVICE_NAME_MAX)
+    return ENAMETOOLONG;
+
+  if (devfs_get_dev_by_name(name) != NULL)
+    return EEXIST;
+
+  devfs_installed_device_t *idev =
+    kmalloc(devfs_pool, sizeof(devfs_installed_device_list_mtx), M_ZERO);
+  strlcpy(idev->name, name, DEVFS_DEVICE_NAME_MAX);
+  idev->dev = device;
+
+  mtx_lock(&devfs_installed_device_list_mtx);
+  TAILQ_INSERT_TAIL(&devfs_installed_device_list, idev, list);
+  mtx_unlock(&devfs_installed_device_list_mtx);
+
+  return 0;
+}
+
 static vfs_mount_t devfs_mount;
 static vfs_root_t devfs_root;
 
@@ -46,7 +92,13 @@ static int devfs_mount(mount_t *m) {
 
 static int devfs_root_lookup(vnode_t *dir, const char *name, vnode_t **res) {
   assert(dir == MOUNT2DEVFS(dir->v_mount)->dfsm_root_vnode);
-  /* TODO: Implement. */
+
+  devfs_installed_device_t *idev = devfs_get_dev_by_name(name);
+  if (!idev)
+    return ENOENT;
+
+  *res = idev->dev;
+
   return ENOENT;
 }
 
@@ -63,6 +115,8 @@ static int devfs_root(mount_t *m, vnode_t **v) {
 void devfs_init() {
   kmalloc_init(devfs_pool);
   kmalloc_add_arena(devfs_pool, pm_alloc(1)->vaddr, PAGESIZE);
+
+  mtx_init(&devfs_installed_device_list_mtx);
 
   vfs_register(&devfs_conf);
 
