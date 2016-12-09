@@ -19,6 +19,7 @@ SOURCES_C  = \
 	thread.c \
 	turnstile.c \
 	uio.c \
+	vfs.c \
 	vm_map.c \
 	vm_object.c \
 	vm_pager.c
