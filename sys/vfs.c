@@ -160,12 +160,12 @@ int vfs_lookup(const char *path, vnode_t **v) {
     return EINVAL;
 
   vnode_t *root;
-  if (strncmp(path, "/dev", 5)) {
+  if (strncmp(path, "/dev", 4) == 0) {
     /* Handle the special case of "/dev", since we don't have any filesystem at
      * / yet. */
     root = vfs_root_dev_vnode;
     path = path + 5;
-  } else if (strncmp(path, "/", 2)) {
+  } else if (strncmp(path, "/", 1) == 0) {
     root = vfs_root_vnode;
     path = path + 1;
   } else {
@@ -184,6 +184,8 @@ int vfs_lookup(const char *path, vnode_t **v) {
   vnode_t *current = root;
   const char *tok;
   while ((tok = strsep(&path2, "/")) != NULL) {
+    if (tok[0] == '\0')
+      continue;
     /* If this vnode is a filesystem boundary, request the root vnode of the
        inner filesystem. */
     if (current->v_mountedhere != NULL) {
