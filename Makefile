@@ -6,6 +6,7 @@ TESTS = \
 	exec.elf \
 	exec_misbehave.elf \
 	exec_fd_test.elf \
+	linkset.elf \
 	malloc.elf \
 	mutex.elf \
 	physmem.elf \
