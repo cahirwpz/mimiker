@@ -36,8 +36,18 @@ void vnode_hold(vnode_t *v) {
 void vnode_release(vnode_t *v) {
   assert(mtx_islocked(&v->v_mtx));
   if (--v->v_ref == 0) {
+    /* Ignore the mutex here, we are the only reference to this vnode left */
     kfree(vnode_pool, v);
   }
+}
+
+void vnode_lock_release(vnode_t *v) {
+  mtx_lock(&v->v_mtx);
+  if (--v->v_ref == 0) {
+    kfree(vnode_pool, v);
+    return;
+  }
+  mtx_unlock(&v->v_mtx);
 }
 
 int vnode_op_notsup() {

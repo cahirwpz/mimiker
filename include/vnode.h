@@ -59,6 +59,7 @@ vnode_t *vnode_new(enum vnode_type type, vnodeops_t *ops);
 /* Increasing and decreasing the reference counter. */
 void vnode_hold(vnode_t *v);
 void vnode_release(vnode_t *v);
+void vnode_lock_release(vnode_t *v);
 
 /* Convenience function for filling in not supported vnodeops */
 int vnode_op_notsup();

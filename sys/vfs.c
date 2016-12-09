@@ -182,6 +182,8 @@ int vfs_lookup(const char *path, vnode_t **v) {
   char *path2 = pathbuf;
 
   vnode_t *current = root;
+  mtx_lock(&current->v_mtx);
+  vnode_hold(current);
   const char *tok;
   while ((tok = strsep(&path2, "/")) != NULL) {
     if (tok[0] == '\0')
@@ -190,16 +192,27 @@ int vfs_lookup(const char *path, vnode_t **v) {
        inner filesystem. */
     if (current->v_mountedhere != NULL) {
       mount_t *m = current->v_mountedhere;
-      int error = m->mnt_op->vfs_root(m, &current);
+      vnode_t *mount_root;
+      int error = m->mnt_op->vfs_root(m, &mount_root);
+      vnode_release(current);
+      mtx_unlock(&current->v_mtx);
       if (error != 0)
         return error;
+      current = mount_root;
+      mtx_lock(&current->v_mtx);
     }
     /* Look up the child vnode */
-    int error = current->v_ops->v_lookup(current, tok, &current);
+    vnode_t *child;
+    int error = current->v_ops->v_lookup(current, tok, &child);
+    vnode_release(current);
+    mtx_unlock(&current->v_mtx);
     if (error)
       return error;
+    current = child;
+    mtx_lock(&current->v_mtx);
   }
 
   *v = current;
+  mtx_unlock(&current->v_mtx);
   return 0;
 }
