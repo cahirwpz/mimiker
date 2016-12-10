@@ -76,5 +76,4 @@ void tlb_overwrite_random(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1);
  * returned in *lo0, *lo1 respectively. */
 int tlb_probe(tlbhi_t hi, tlblo_t *lo0, tlblo_t *lo1);
 
-
 #endif /* __MIPS_TLB_H__ */

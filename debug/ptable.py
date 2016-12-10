@@ -1,39 +1,38 @@
-def format_cell(cell, fmt, column_size):
-    spaces = column_size - len(cell)
+from __future__ import print_function
+
+
+def cellfmt(cell, fmt, width):
     if fmt == 'l':
-        cell = cell + ' ' * spaces
-    elif fmt == 'c':
-        cell = ' ' * (spaces / 2) + cell + ' ' * ((spaces + 1) / 2)
-    else:
-        cell = ' ' * spaces + cell
-    return cell
+        return cell.ljust(width)
+    if fmt == 'c':
+        return cell.center(width)
+    return cell.rjust(width)
+
 
 def ptable(rows, fmt=None, header=False):
     """
     rows : a list of items (all items will be stringified)
-    fmt : string of characters 'lrc' for text justification (all right justified if None)
+    fmt : string of chars 'lrc' for text justification (default: right)
     header : first row will be a table header if True
     """
-    if len(rows) == 0:
+    if not rows:
         return
-    
-    if fmt == None:
-        fmt = []
-    columns_cnt = max(len(row) for row in rows)
-    rows = [row + ([''] * (columns_cnt - len(row))) for row in rows]
-    columns_size = [max([len(row[c]) for row in rows]) for c in range(columns_cnt)]
-    if len(fmt) < columns_cnt:
-        fmt += 'r' * (columns_cnt - len(fmt))
-    rows = [[format_cell(row[col], fmt[col], columns_size[col]) for col in range(len(row))] for row in rows]
-    rows = ['| ' + ' | '.join(row) + ' |'for row in rows]
-    
-    line = '-' * len(rows[0])
-    
-    print line
+
+    fmt = fmt or []
+    columns = max(map(len, rows))
+    rows = [row + ([''] * (columns - len(row))) for row in rows]
+    width = [max([len(row[c]) for row in rows]) for c in range(columns)]
+    if len(fmt) < columns:
+        fmt += 'r' * (columns - len(fmt))
+
+    hline = '-' * len(rows[0])
+
+    print(hline)
     for i, row in enumerate(rows):
-        print row
-        if i==0 and header:
-            print line
-    
-    if not header or header and len(rows)>1:
-        print line
+        cells = [cellfmt(row[i], fmt[i], width[i]) for i in range(columns)]
+        print('| %s |' % ' | '.join(cells))
+        if i == 0 and header:
+            print(hline)
+
+    if not header or (header and len(rows) > 1):
+        print(hline)
