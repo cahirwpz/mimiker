@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stdc.h>
 #include <malloc.h>
+#include <linker_set.h>
 
 static MALLOC_DEFINE(devfs_pool, "devfs pool");
 
@@ -113,8 +114,6 @@ static int devfs_root(mount_t *m, vnode_t **v) {
   return 0;
 }
 
-extern void init_dev_null();
-
 void devfs_init() {
   kmalloc_init(devfs_pool);
   kmalloc_add_arena(devfs_pool, pm_alloc(1)->vaddr, PAGESIZE);
@@ -124,7 +123,13 @@ void devfs_init() {
   vfs_register(&devfs_conf);
 
   /* Prepare some initial devices */
-  init_dev_null();
+  typedef void devfs_init_func_t();
+  SET_DECLARE(devfs_init, devfs_init_func_t);
+  devfs_init_func_t **ptr;
+  SET_FOREACH(ptr, devfs_init) {
+    kprintf("Value in devfs_init: %p\n", **ptr);
+    (**ptr)();
+  }
 
   /* Mount devfs at /dev. */
   /* TODO: This should actually happen somewhere else in the init process, much

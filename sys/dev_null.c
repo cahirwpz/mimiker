@@ -2,6 +2,7 @@
 #include <mount.h>
 #include <devfs.h>
 #include <malloc.h>
+#include <linker_set.h>
 
 vnode_t *dev_null_device;
 vnode_t *dev_zero_device;
@@ -66,3 +67,5 @@ void init_dev_null() {
   devfs_install("null", dev_null_device);
   devfs_install("zero", dev_zero_device);
 }
+
+SET_ENTRY(devfs_init, init_dev_null);

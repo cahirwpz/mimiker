@@ -34,7 +34,14 @@ CPPFLAGS = -Wall -Werror -DDEBUG -I$(TOPDIR)/include
 LDFLAGS  = -nostdlib -T $(TOPDIR)/mips/malta.ld
 
 LDLIBS += -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc \
-	  -Wl,--start-group -lsys -lmips -lstdc -lgcc -Wl,--end-group
+	  -Wl,--start-group \
+        -Wl,--whole-archive \
+          -lsys \
+        -Wl,--no-whole-archive \
+        -lmips \
+        -lstdc \
+        -lgcc \
+      -Wl,--end-group
 
 # Files that need to be embedded alongside kernel image
 LD_EMBED = \
