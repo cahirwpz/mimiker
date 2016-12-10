@@ -29,7 +29,7 @@ def ptable(rows, fmt=None, header=False):
 
     print(hline)
     for i, row in enumerate(rows):
-        cells = [cellfmt(row[i], fmt[i], width[i]) for i in range(columns)]
+        cells = [cellfmt(str(row[i]), fmt[i], width[i]) for i in range(columns)]
         print('| %s |' % ' | '.join(cells))
         if i == 0 and header:
             print(hline)
