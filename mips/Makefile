@@ -6,6 +6,8 @@ SOURCES_ASM = boot.S copy.S exc.S switch.S syscall.S tlb_ops.S ebase.S
 
 all: $(DEPFILES) assym.h libmips.a
 
+$(SOURCES_ASM): assym.h
+
 include ../Makefile.common
 
 libmips.a: $(OBJECTS)
