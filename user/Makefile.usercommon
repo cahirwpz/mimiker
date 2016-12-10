@@ -13,7 +13,7 @@ SOURCES_O = $(SOURCES_C:%.c=%.o)
 all: $(UELF_NAME).uelf.o
 
 clean:
-	rm -rf $(UELF_NAME).uelf.o $(SOURCES_O)
+	rm -rf $(UELF_NAME).uelf.o $(SOURCES_C:%.c=.%.D) $(SOURCES_O)
 
 .PHONY: all clean
 
