@@ -31,7 +31,7 @@ GENASSYM = $(TOPDIR)/script/genassym.py $(NM)
 ASFLAGS  =
 CFLAGS   = -std=gnu11 -Og -Wall -Werror -fno-builtin -ffreestanding
 CPPFLAGS = -Wall -Werror -DDEBUG -I$(TOPDIR)/include
-LDFLAGS  = -nostdlib -T $(TOPDIR)/malta.ld
+LDFLAGS  = -nostdlib -T $(TOPDIR)/mips/malta.ld
 
 LDLIBS += -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc \
 	  -Wl,--start-group -lsys -lmips -lstdc -lgcc -Wl,--end-group
