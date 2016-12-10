@@ -1,5 +1,8 @@
+from __future__ import print_function
+
 import gdb
 import tailq
+import ptable
 
 
 def thread_name(thr):
@@ -86,25 +89,19 @@ class CreateThreadTracer():
 
 def dump_threads(threads):
     extractors = [thread_id, thread_name, thread_state]
-    rows = [['id', 'name', 'state']]
+    rows = [['Id', 'Name', 'State']]
     column_sizes = [0, 0, 0]
     for thread in threads:
         row = [f(thread) for f in extractors]
         rows.append(row)
-    for r in rows:
-        column_sizes = [max(a, b) for (a, b) in zip(map(len, r), column_sizes)]
-    for r in rows:
-        pretty_row = "   ".join([s.ljust(l)
-                                 for (s, l) in zip(r, column_sizes)])
-        print(pretty_row)
+    ptable.ptable(rows, fmt="llll", header=True)
 
 
 class KernelThreads():
 
     def invoke(self):
         dump_threads(get_all_threads())
-        print('')
-        print('current thread id: ', thread_id(current_thread()))
+        print('current thread id: %s' % thread_id(current_thread()))
 
 
 class ThreadPrettyPrinter():
