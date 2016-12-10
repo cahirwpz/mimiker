@@ -7,6 +7,7 @@
 #include <pmap.h>
 #include <sync.h>
 #include <vm_map.h>
+#include <thread.h>
 
 #define PTE_MASK 0xfffff000
 #define PTE_SHIFT 12
@@ -313,39 +314,49 @@ pmap_t *get_active_pmap_by_addr(vm_addr_t addr) {
 }
 
 void tlb_exception_handler(exc_frame_t *frame) {
-  int code = (mips32_get_c0(C0_CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
-  vm_addr_t vaddr = mips32_get_c0(C0_BADVADDR);
+  thread_t *td = thread_self();
 
-  log("%s at %08lx, caused by reference to %08lx!", exceptions[code],
-      mips32_get_c0(C0_EPC), vaddr);
-  tlb_print();
+  int code = (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
+  vm_addr_t vaddr = frame->badvaddr;
+
+  log("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
+      frame->pc, vaddr);
 
   /* If the fault was in virtual pt range it means it's time to refill */
   if (PT_BASE <= vaddr && vaddr < PT_BASE + PT_SIZE) {
-    uint32_t index = PTE_INDEX(vaddr - PT_BASE) & ~1;
+    uint32_t index = PTE_INDEX(vaddr - PT_BASE);
+    /* Restore address that caused a TLB miss into virtualized page table. */
     vm_addr_t orig_vaddr = (vaddr - PT_BASE) * PTF_ENTRIES;
 
+    /* Page table for KSEG0 and KSEG1 must not be queried, cause the address
+     * range is not a subject to TLB based address translation. */
     assert(vaddr < PT_HOLE_START || vaddr >= PT_HOLE_END);
 
     if (PT_BASE <= orig_vaddr && orig_vaddr < PT_BASE + PT_SIZE) {
-      /* TLB refill exception can occur within interrupt handler, we have to be
-       * prepared for it! */
+      /*
+       * TLB refill exception can occur while C0_STATUS.EXL is set, if so then
+       * TLB miss went directly to tlb_exception_handler instead of tlb_refill.
+       */
       vaddr = orig_vaddr;
-      index = PTE_INDEX(vaddr - PT_BASE) & ~1;
+      index = PTE_INDEX(vaddr - PT_BASE);
       orig_vaddr = (vaddr - PT_BASE) * PTF_ENTRIES;
     }
 
     pmap_t *pmap = get_active_pmap_by_addr(orig_vaddr);
-    if (!pmap)
-      panic("Address %08lx not mapped by any active pmap!", orig_vaddr);
-    if (is_valid(pmap->pde[index]) || is_valid(pmap->pde[index + 1])) {
+    if (!pmap) {
+      log("Address %08lx not mapped by any active pmap!", orig_vaddr);
+      goto fault;
+    }
+    if (is_valid(pmap->pde[index])) {
       log("TLB refill for page table fragment %08lx", vaddr & PTE_MASK);
-      vm_addr_t ptf_start = PT_BASE + index * PAGESIZE;
+      uint32_t index0 = index & ~1;
+      uint32_t index1 = index0 | 1;
+      vm_addr_t ptf_start = PT_BASE + index0 * PAGESIZE;
 
       /* Both ENTRYLO0 and ENTRYLO1 must have G bit set for address translation
        * to skip ASID check. */
-      tlb_overwrite_random(ptf_start | pmap->asid, pmap->pde[index],
-                           pmap->pde[index + 1]);
+      tlb_overwrite_random(ptf_start | pmap->asid, pmap->pde[index0],
+                           pmap->pde[index1]);
       return;
     }
 
@@ -355,7 +366,20 @@ void tlb_exception_handler(exc_frame_t *frame) {
   }
 
   vm_map_t *map = get_active_vm_map_by_addr(vaddr);
-  if (!map)
-    panic("No virtual address space defined for %08lx!", vaddr);
-  vm_page_fault(map, vaddr, code == EXC_TLBL ? VM_PROT_READ : VM_PROT_WRITE);
+  if (!map) {
+    log("No virtual address space defined for %08lx!", vaddr);
+    goto fault;
+  }
+  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
+  if (vm_page_fault(map, vaddr, access) == 0)
+    return;
+
+fault:
+  /* handle copyin / copyout faults */
+  if (td->td_onfault) {
+    frame->pc = td->td_onfault;
+    td->td_onfault = 0;
+  } else {
+    thread_exit();
+  }
 }

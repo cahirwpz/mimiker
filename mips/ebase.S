@@ -1,7 +1,7 @@
 #include <mips/ctx.h>
 #include <mips/m32c0.h>
 
-#include "genassym.h"
+#include "assym.h"
 
         # Don't allow the assembler to reorder instructions.
         .set	noreorder
@@ -15,7 +15,8 @@
 
 _ebase:
 
-        .org 0x0
+        .org    0x0
+        .local  tlb_refill
 
 tlb_refill:
         mfc0    $k0, C0_CONTEXT         # Load PT address which contains PTEs
@@ -43,13 +44,15 @@ tlb_refill:
         tlbwr
         eret
 
-        .org 0x100
+        .org    0x100
+        .local  cache_error
 
 cache_error:
 1:      j       1b
         nop
 
-        .org 0x180
+        .org    0x180
+        .local  general_exception
 
 general_exception:
         mfc0    $k1, C0_CAUSE
@@ -63,44 +66,11 @@ general_exception:
         j       exc_enter
         nop
 
-        .org 0x200
-irq0:
-1:      j       1b
-        nop
+        .org    0x200
+        .local  irq
 
-        .org 0x220
-irq1:
-1:      j       1b
-        nop
-
-        .org 0x240
-irq2:
-1:      j       1b
-        nop
-
-        .org 0x260
-irq3:
-1:      j       1b
-        nop
-
-        .org 0x280
-irq4:
-1:      j       1b
-        nop
-
-        .org 0x2a0
-irq5:
-1:      j       1b
-        nop
-
-        .org 0x2c0
-irq6:
-1:      j       1b
-        nop
-
-        .org 0x2e0
-irq7:
-        la      $k1,mips_clock_irq_handler
+irq:
+        la      $k1,mips_irq_handler
         j       exc_enter
         mfc0    $k0, C0_STATUS          # (delay slot) load status register
 

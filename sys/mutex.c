@@ -45,3 +45,7 @@ void mtx_unlock(mtx_t *mtx) {
   turnstile_signal(&mtx->turnstile);
   cs_leave();
 }
+
+bool mtx_islocked(mtx_t *mtx) {
+  return (thread_t *)mtx->mtx_state == thread_self();
+}

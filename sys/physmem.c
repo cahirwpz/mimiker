@@ -19,13 +19,9 @@ typedef struct pm_seg {
 TAILQ_HEAD(pm_seglist, pm_seg);
 
 static struct pm_seglist seglist;
-extern void pm_boot();
 
 void pm_init() {
   TAILQ_INIT(&seglist);
-
-  pm_boot();
-  pm_dump();
 }
 
 void pm_dump() {

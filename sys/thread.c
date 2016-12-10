@@ -1,10 +1,11 @@
-#include <stdarg.h>
 #include <stdc.h>
 #include <malloc.h>
 #include <thread.h>
 #include <context.h>
 #include <interrupt.h>
 #include <pcpu.h>
+#include <sync.h>
+#include <sched.h>
 
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
 
@@ -12,29 +13,11 @@ typedef TAILQ_HEAD(, thread) thread_list_t;
 /* TODO: Synchronize access to the list */
 static thread_list_t all_threads;
 
-noreturn void thread_init(void (*fn)(), int n, ...) {
-  thread_t *td;
-
+void thread_init() {
   kmalloc_init(td_pool);
   kmalloc_add_arena(td_pool, pm_alloc(1)->vaddr, PAGESIZE);
 
   TAILQ_INIT(&all_threads);
-
-  td = thread_create("main", fn, NULL);
-
-  /* Pass arguments to called function. */
-  exc_frame_t *kframe = td->td_kframe;
-  va_list ap;
-
-  assert(n <= 4);
-  va_start(ap, n);
-  for (int i = 0; i < n; i++)
-    (&kframe->a0)[i] = va_arg(ap, reg_t);
-  va_end(ap);
-
-  kprintf("[thread] Activating '%s' {%p} thread!\n", td->td_name, td);
-  td->td_state = TDS_RUNNING;
-  ctx_boot(td);
 }
 
 /* FTTB such a primitive method of creating new TIDs will do. */
@@ -91,6 +74,24 @@ void thread_switch_to(thread_t *newtd) {
   td->td_state = TDS_READY;
   newtd->td_state = TDS_RUNNING;
   ctx_switch(td, newtd);
+}
+
+/* For now this is only a stub */
+noreturn void thread_exit() {
+  thread_t *td = thread_self();
+
+  log("Thread '%s' {%p} has finished.", td->td_name, td);
+
+  /* Thread must not exit while in critical section! */
+  assert(td->td_csnest == 0);
+
+  cs_enter();
+  td->td_state = TDS_INACTIVE;
+  sched_yield();
+  cs_leave();
+
+  /* sched_yield will return immediately when scheduler is not active */
+  while (true);
 }
 
 void thread_dump_all() {

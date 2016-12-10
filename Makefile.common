@@ -31,9 +31,23 @@ GENASSYM = $(TOPDIR)/script/genassym.py $(NM)
 ASFLAGS  =
 CFLAGS   = -std=gnu11 -Og -Wall -Werror -fno-builtin -ffreestanding
 CPPFLAGS = -Wall -Werror -DDEBUG -I$(TOPDIR)/include
-LDLIBS   =
-LDFLAGS  = -nostdlib -T malta.ld
-LD_EMBED =
+LDFLAGS  = -nostdlib -T $(TOPDIR)/mips/malta.ld
+
+LDLIBS += -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc \
+	  -Wl,--start-group -lsys -lmips -lstdc -lgcc -Wl,--end-group
+
+# Files that need to be embedded alongside kernel image
+LD_EMBED = \
+	$(TOPDIR)/user/prog/prog.uelf.o \
+	$(TOPDIR)/user/misbehave/misbehave.uelf.o \
+	$(TOPDIR)/user/fd_test/fd_test.uelf.o
+
+# Files required to link kernel image
+KRT = \
+    $(TOPDIR)/stdc/libstdc.a \
+    $(TOPDIR)/mips/libmips.a \
+    $(TOPDIR)/sys/libsys.a \
+    $(LD_EMBED)
 
 DIR = $(patsubst $(TOPDIR)/%,%,$(CURDIR)/)
 
@@ -49,21 +63,17 @@ endef
 	@echo "[CC] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -S -o $@ $<
 
-%.ko: %.c
-	@echo "[CC] $(DIR)$< -> $(DIR)$@"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -D_KERNELSPACE -c -o $@ $<
-
 %.o: %.c
 	@echo "[CC] $(DIR)$< -> $(DIR)$@"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -D_KERNELSPACE -c -o $@ $<
 
 %.o: %.S
 	@echo "[AS] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
-%.elf:	%.ko
-	@echo "[LD] $(addprefix $(DIR),$(filter %.ko,$^)) -> $(DIR)$@"
-	$(CC) $(LDFLAGS) $(filter %.ko,$^) -Wl,-Map=$@.map $(LDLIBS) $(LD_EMBED) -o $@
+%.elf:	%.o $(KRT)
+	@echo "[LD] $(addprefix $(DIR),$<) -> $(DIR)$@"
+	$(CC) $(LDFLAGS) $< -Wl,-Map=$@.map $(LDLIBS) $(LD_EMBED) -o $@
 
 %.test: %.c
 	@echo "[HOSTCC] $(DIR)$< -> $(DIR)$@"
@@ -73,9 +83,9 @@ endef
 	@echo "[AR] $(addprefix $(DIR),$^) -> $(DIR)$@"
 	$(AR) rs $@ $^
 
-%.h: %.o
-	@echo "[ASSYM] $(DIR)$<"
-	$(GENASSYM) $<
+%.h: gen%.o
+	@echo "[ASSYM] $(DIR)$@"
+	$(GENASSYM) $< $@
 
 .PHONY: all clean
 
