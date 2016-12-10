@@ -256,7 +256,7 @@ int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
 
   if (!frame)
     frame = obj->pgr->pgr_fault(obj, fault_page, offset, fault_type);
-  pmap_map(map->pmap, fault_addr, fault_addr + PAGESIZE, frame->paddr,
+  pmap_map(map->pmap, fault_page, fault_page + PAGESIZE, frame->paddr,
            entry->prot);
 
   return 0;

@@ -26,7 +26,7 @@ SECTIONS
     . = ALIGN(4096);
   } : text
 
-  .data ADDR(.text) + SIZEOF (.text):
+  .data :
   {
     __data = ABSOLUTE(.);
     _gp = .;
@@ -37,7 +37,7 @@ SECTIONS
     __edata = ABSOLUTE(.);
   } : data
 
-  .bss ADDR (.data) + SIZEOF (.data) (NOLOAD) :
+  .bss :
   {
     __bss = ABSOLUTE(.);
     *(.sbss .scommon)
