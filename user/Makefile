@@ -1,3 +1,5 @@
+# vim: tabstop=8 shiftwidth=8 noexpandtab:
+
 include ../Makefile.common
 
 SUBDIRS = $(shell find -mindepth 1 -maxdepth 1 -type d)

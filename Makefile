@@ -6,6 +6,7 @@ TESTS = \
 	exec.elf \
 	exec_misbehave.elf \
 	exec_fd_test.elf \
+	linker_set.elf \
 	malloc.elf \
 	mutex.elf \
 	physmem.elf \
@@ -17,7 +18,7 @@ TESTS = \
 	thread.elf \
 	uiomove.elf \
 	vm_map.elf
-SOURCES_C =
+SOURCES_C = $(patsubst %.elf,%.c,$(TESTS))
 SOURCES_ASM =
 
 all: tags cscope $(TESTS)
@@ -56,7 +57,6 @@ format:
 	@echo "Formatting files: $(FORMATTABLE:./%=%)"
 	clang-format -style=file -i $(FORMATTABLE)
 
-
 define emit_subdir_rules
 # To make a directory, call make recursively
 $(1):
@@ -72,14 +72,13 @@ $(1): $(firstword $(subst /, ,$(dir $(1))))
 endef
 define emit_test_rule
 # To build a test .elf, you require the corresponding .ko and all of $(KRT)
-$(1): $(1:%.elf=%.ko) $(KRT)
+$(1): $(1:%.elf=%.o) $(KRT)
 endef
 
 # Generate targets according to rules above
 $(foreach subdir, $(SUBDIRS), $(eval $(call emit_subdir_rules,$(subdir))))
 $(foreach file, $(KRT), $(eval $(call emit_krt_rule,$(file))))
 $(foreach test, $(TESTS), $(eval $(call emit_test_rule,$(test))))
-
 
 test:
 	for file in $(wildcard *.test); do		\
@@ -93,7 +92,7 @@ test:
 
 clean:
 	$(foreach DIR, $(SUBDIRS), $(MAKE) -C $(DIR) $@;)
-	$(RM) -f .*.D *.ko *.o *.a *.lst *~ *.elf *.map *.log
+	$(RM) -f .*.D *.o *.a *.lst *~ *.elf *.map *.log
 	$(RM) -f tags cscope.out *.taghl
 	$(RM) -f $(TESTS)
 
