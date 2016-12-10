@@ -71,7 +71,7 @@ endef
 	@echo "[AS] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
-%.elf:	%.o
+%.elf:	%.o $(KRT)
 	@echo "[LD] $(addprefix $(DIR),$<) -> $(DIR)$@"
 	$(CC) $(LDFLAGS) $< -Wl,-Map=$@.map $(LDLIBS) $(LD_EMBED) -o $@
 
