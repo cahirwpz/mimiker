@@ -35,7 +35,7 @@ def as_uint32(num):
 
 
 def as_hex(num):
-    return "0x%08x" % as_uint32(num)
+    return "$%08x" % as_uint32(num)
 
 
 class KernelSegments():
@@ -106,7 +106,7 @@ class TLB:
     def dump_tlb_index(self, idx, hi, lo0, lo1):
         if not is_valid(lo0) and not is_valid(lo1):
             return []
-        return ["%02d" % idx, "0x%02x" % asid_of(hi),
+        return ["%02d" % idx, "$%02x" % asid_of(hi),
                 self.dump_entrylo(vpn_of(hi), lo0),
                 self.dump_entrylo(vpn_of(hi), lo1)]
 

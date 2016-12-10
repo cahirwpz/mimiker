@@ -25,11 +25,11 @@ def ptable(rows, fmt=None, header=False):
     if len(fmt) < columns:
         fmt += 'r' * (columns - len(fmt))
 
-    hline = '-' * len(rows[0])
+    hline = '-' * (sum(width) + len(width) * 3 + 1)
 
     print(hline)
     for i, row in enumerate(rows):
-        cells = [cellfmt(str(row[i]), fmt[i], width[i]) for i in range(columns)]
+        cells = [cellfmt(str(row[c]), fmt[c], width[c]) for c in range(columns)]
         print('| %s |' % ' | '.join(cells))
         if i == 0 and header:
             print(hline)
