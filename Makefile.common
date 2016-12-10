@@ -49,21 +49,17 @@ endef
 	@echo "[CC] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -S -o $@ $<
 
-%.ko: %.c
-	@echo "[CC] $(DIR)$< -> $(DIR)$@"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -D_KERNELSPACE -c -o $@ $<
-
 %.o: %.c
 	@echo "[CC] $(DIR)$< -> $(DIR)$@"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -D_KERNELSPACE -c -o $@ $<
 
 %.o: %.S
 	@echo "[AS] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
-%.elf:	%.ko
-	@echo "[LD] $(addprefix $(DIR),$(filter %.ko,$^)) -> $(DIR)$@"
-	$(CC) $(LDFLAGS) $(filter %.ko,$^) -Wl,-Map=$@.map $(LDLIBS) $(LD_EMBED) -o $@
+%.elf:	%.o
+	@echo "[LD] $(addprefix $(DIR),$<) -> $(DIR)$@"
+	$(CC) $(LDFLAGS) $< -Wl,-Map=$@.map $(LDLIBS) $(LD_EMBED) -o $@
 
 %.test: %.c
 	@echo "[HOSTCC] $(DIR)$< -> $(DIR)$@"
