@@ -15,7 +15,7 @@ SET_ENTRY(testset, some_int_5);
 int main() {
   SET_DECLARE(testset, int);
 
-  kprintf("# of elements in testset: %d\n", SET_COUNT(testset));
+  kprintf("# of elements in testset: %zu\n", SET_COUNT(testset));
 
   int **ptr;
   SET_FOREACH(ptr, testset) {
