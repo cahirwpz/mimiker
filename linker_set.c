@@ -1,5 +1,5 @@
-#include <common.h>
 #include <stdc.h>
+#include <linker_set.h>
 
 static int some_int_1 = 1;
 static int some_int_2 = 2;
