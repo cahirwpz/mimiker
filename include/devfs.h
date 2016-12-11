@@ -5,9 +5,6 @@
 
 typedef struct vnode vnode_t;
 
-/* Registers the devfs file system in the vfs. */
-void devfs_init();
-
 /* Installs a new device into the devfs */
 int devfs_install(const char *name, vnode_t *device);
 

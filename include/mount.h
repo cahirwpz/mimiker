@@ -79,8 +79,6 @@ extern vnode_t *vfs_root_dev_vnode;
 
 /* Look up a file system type by name. */
 vfsconf_t *vfs_get_by_name(const char *name);
-/* Register a file system type */
-int vfs_register(vfsconf_t *vfc);
 
 /* Allocates and initializes a new mount struct, using filesystem vfc, covering
  * vnode v. Does not modify v. Does not insert new mount onto the all mounts
