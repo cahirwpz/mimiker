@@ -8,20 +8,20 @@
 static MALLOC_DEFINE(vfs_pool, "VFS pool");
 
 /* The list of all installed filesystem types */
-TAILQ_HEAD(vfsconf_list_head, vfsconf);
-static struct vfsconf_list_head vfsconf_list =
-  TAILQ_HEAD_INITIALIZER(vfsconf_list);
+typedef TAILQ_HEAD(, vfsconf) vfsconf_list_t;
+static vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
 static mtx_t vfsconf_list_mtx;
 
 /* The list of all mounts mounted */
-TAILQ_HEAD(mount_list_head, mount);
-static struct mount_list_head mount_list = TAILQ_HEAD_INITIALIZER(mount_list);
+typedef TAILQ_HEAD(, mount) mount_list_t;
+static mount_list_t mount_list = TAILQ_HEAD_INITIALIZER(mount_list);
 static mtx_t mount_list_mtx;
 
 /* Default vfs operations */
-static vfs_root_t vfs_std_root;
-static vfs_vget_t vfs_std_vget;
-static vfs_init_t vfs_std_init;
+static vfs_root_t vfs_default_root;
+static vfs_statfs_t vfs_default_statfs;
+static vfs_vget_t vfs_default_vget;
+static vfs_init_t vfs_default_init;
 
 /* Global root vnodes */
 vnode_t *vfs_root_vnode;
@@ -42,19 +42,19 @@ void vfs_init() {
   /* TODO: We probably need some fancier allocation, since eventually we should
    * start recycling vnodes */
   kmalloc_init(vfs_pool);
-  kmalloc_add_arena(vfs_pool, pm_alloc(2)->vaddr, PAGESIZE);
+  kmalloc_add_arena(vfs_pool, pm_alloc(2)->vaddr, PAGESIZE * 2);
 
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
   vfs_root_dev_vnode = vnode_new(V_DIR, &vfs_root_ops);
 }
 
 vfsconf_t *vfs_get_by_name(const char *name) {
-  vfsconf_t *vfsp;
+  vfsconf_t *vfc;
   mtx_lock(&vfsconf_list_mtx);
-  TAILQ_FOREACH (vfsp, &vfsconf_list, vfc_list) {
-    if (!strcmp(name, vfsp->vfc_name)) {
+  TAILQ_FOREACH (vfc, &vfsconf_list, vfc_list) {
+    if (!strcmp(name, vfc->vfc_name)) {
       mtx_unlock(&vfsconf_list_mtx);
-      return vfsp;
+      return vfc;
     }
   }
   mtx_unlock(&vfsconf_list_mtx);
@@ -71,7 +71,7 @@ int vfs_register(vfsconf_t *vfc) {
   TAILQ_INSERT_TAIL(&vfsconf_list, vfc, vfc_list);
   mtx_unlock(&vfsconf_list_mtx);
 
-  vfc->vfc_mountcount = 0;
+  vfc->vfc_refcnt = 0;
 
   /* Ensure the filesystem provides obligatory operations */
   assert(vfc->vfc_vfsops != NULL);
@@ -79,11 +79,13 @@ int vfs_register(vfsconf_t *vfc) {
 
   /* Use defaults for other operations, if not provided. */
   if (vfc->vfc_vfsops->vfs_root == NULL)
-    vfc->vfc_vfsops->vfs_root = vfs_std_root;
+    vfc->vfc_vfsops->vfs_root = vfs_default_root;
+  if (vfc->vfc_vfsops->vfs_statfs == NULL)
+    vfc->vfc_vfsops->vfs_statfs = vfs_default_statfs;
   if (vfc->vfc_vfsops->vfs_vget == NULL)
-    vfc->vfc_vfsops->vfs_vget = vfs_std_vget;
+    vfc->vfc_vfsops->vfs_vget = vfs_default_vget;
   if (vfc->vfc_vfsops->vfs_init == NULL)
-    vfc->vfc_vfsops->vfs_init = vfs_std_init;
+    vfc->vfc_vfsops->vfs_init = vfs_default_init;
 
   /* Call init function for this vfs... */
   vfc->vfc_vfsops->vfs_init(vfc);
@@ -91,13 +93,19 @@ int vfs_register(vfsconf_t *vfc) {
   return 0;
 }
 
-int vfs_std_root(mount_t *m, vnode_t **v) {
+static int vfs_default_root(mount_t *m, vnode_t **v) {
   return ENOTSUP;
 }
-int vfs_std_vget(mount_t *m, int ino, vnode_t **v) {
+
+static int vfs_default_statfs(mount_t *m, statfs_t *sb) {
   return ENOTSUP;
 }
-int vfs_std_init(vfsconf_t *vfc) {
+
+static int vfs_default_vget(mount_t *m, ino_t ino, vnode_t **v) {
+  return ENOTSUP;
+}
+
+static int vfs_default_init(vfsconf_t *vfc) {
   return 0;
 }
 
@@ -105,13 +113,13 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
   mount_t *m = kmalloc(vfs_pool, sizeof(mount_t), M_ZERO);
 
   m->mnt_vfc = vfc;
-  m->mnt_op = vfc->vfc_vfsops;
-  vfc->vfc_mountcount++; /* TODO: vfc_mtx? */
+  m->mnt_vfsops = vfc->vfc_vfsops;
+  vfc->vfc_refcnt++; /* TODO: vfc_mtx? */
   m->mnt_data = NULL;
 
   m->mnt_vnodecovered = v;
 
-  m->mnt_ref = 0;
+  m->mnt_refcnt = 0;
   mtx_init(&m->mnt_mtx);
 
   return m;
@@ -129,7 +137,7 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   mount_t *m = vfs_mount_alloc(v, vfc);
 
   /* Mount the filesystem. */
-  int error = vfc->vfc_vfsops->vfs_mount(m);
+  int error = VFS_MOUNT(m);
   if (error != 0) {
     return error;
   }
@@ -151,7 +159,7 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   return 0;
 }
 
-int vfs_lookup(const char *path, vnode_t **v) {
+int vfs_lookup(const char *path, vnode_t **vp) {
 
   /* TODO: This is a simplified implementation, and it does not support many
      required features! These include: relative paths, symlinks, parent dirs */
@@ -159,14 +167,14 @@ int vfs_lookup(const char *path, vnode_t **v) {
   if (path[0] == '\0')
     return EINVAL;
 
-  vnode_t *root;
-  if (strncmp(path, "/dev", 4) == 0) {
-    /* Handle the special case of "/dev", since we don't have any filesystem at
-     * / yet. */
-    root = vfs_root_dev_vnode;
+  vnode_t *v;
+  if (strncmp(path, "/dev/", 5) == 0) {
+    /* Handle the special case of "/dev",
+     * since we don't have any filesystem at / (root) yet. */
+    v = vfs_root_dev_vnode;
     path = path + 5;
   } else if (strncmp(path, "/", 1) == 0) {
-    root = vfs_root_vnode;
+    v = vfs_root_vnode;
     path = path + 1;
   } else {
     log("Relative paths are not supported!");
@@ -175,44 +183,44 @@ int vfs_lookup(const char *path, vnode_t **v) {
 
   /* Copy path into a local buffer, so that we may process it. */
   size_t n = strlen(path);
-  if (n >= VFS_MAX_PATH_LENGTH)
+  if (n >= VFS_PATH_MAX)
     return ENAMETOOLONG;
-  char pathbuf[VFS_MAX_PATH_LENGTH];
-  strlcpy(pathbuf, path, VFS_MAX_PATH_LENGTH);
-  char *path2 = pathbuf;
+  char pathcopy[VFS_PATH_MAX];
+  strlcpy(pathcopy, path, VFS_PATH_MAX);
 
-  vnode_t *current = root;
-  mtx_lock(&current->v_mtx);
-  vnode_hold(current);
-  const char *tok;
-  while ((tok = strsep(&path2, "/")) != NULL) {
-    if (tok[0] == '\0')
+  vnode_lock(v);
+  vnode_hold(v);
+
+  const char *component;
+  char *pathbuf = pathcopy;
+  while ((component = strsep(&pathbuf, "/")) != NULL) {
+    if (component[0] == '\0')
       continue;
-    /* If this vnode is a filesystem boundary, request the root vnode of the
-       inner filesystem. */
-    if (current->v_mountedhere != NULL) {
-      mount_t *m = current->v_mountedhere;
-      vnode_t *mount_root;
-      int error = m->mnt_op->vfs_root(m, &mount_root);
-      vnode_release(current);
-      mtx_unlock(&current->v_mtx);
+    /* If this vnode is a filesystem boundary,
+     * request the root vnode of the inner filesystem. */
+    if (v->v_mountedhere != NULL) {
+      mount_t *m = v->v_mountedhere;
+      vnode_t *v_mntpt;
+      int error = VFS_ROOT(m, &v_mntpt);
+      vnode_release(v);
+      vnode_unlock(v);
       if (error != 0)
         return error;
-      current = mount_root;
-      mtx_lock(&current->v_mtx);
+      vnode_lock(v_mntpt);
+      v = v_mntpt;
     }
     /* Look up the child vnode */
-    vnode_t *child;
-    int error = current->v_ops->v_lookup(current, tok, &child);
-    vnode_release(current);
-    mtx_unlock(&current->v_mtx);
+    vnode_t *v_child;
+    int error = VOP_LOOKUP(v, component, &v_child);
+    vnode_release(v);
+    vnode_unlock(v);
     if (error)
       return error;
-    current = child;
-    mtx_lock(&current->v_mtx);
+    vnode_lock(v_child);
+    v = v_child;
   }
 
-  *v = current;
-  mtx_unlock(&current->v_mtx);
+  *vp = v;
+  vnode_unlock(v);
   return 0;
 }

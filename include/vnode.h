@@ -1,5 +1,5 @@
-#ifndef __SYS_VNODE_H__
-#define __SYS_VNODE_H__
+#ifndef _SYS_VNODE_H_
+#define _SYS_VNODE_H_
 
 #include <mutex.h>
 #include <uio.h>
@@ -9,16 +9,16 @@ typedef struct vnode vnode_t;
 typedef struct mount mount_t;
 typedef struct file file_t;
 
-enum vnode_type {
+typedef enum {
   V_NONE,
   V_REG,
   V_DIR,
   V_DEV,
-};
+} vnodetype_t;
 
-typedef int vnode_lookup_t(vnode_t *dir, const char *name, vnode_t **res);
-typedef int vnode_readdir_t(vnode_t *dir, uio_t *uio);
-typedef int vnode_open_t(vnode_t *v, file_t **f);
+typedef int vnode_lookup_t(vnode_t *dv, const char *name, vnode_t **vp);
+typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio);
+typedef int vnode_open_t(vnode_t *v, file_t **fp);
 typedef int vnode_read_t(vnode_t *v, uio_t *uio);
 typedef int vnode_write_t(vnode_t *v, uio_t *uio);
 
@@ -31,7 +31,8 @@ typedef struct vnodeops {
 } vnodeops_t;
 
 typedef struct vnode {
-  enum vnode_type v_type; /* Vnode type, see above */
+  vnodetype_t v_type; /* Vnode type, see above */
+  TAILQ_ENTRY(vnode) v_list; /* Entry on the mount vnodes list */
 
   vnodeops_t *v_ops; /* Vnode operations */
   void *v_data;      /* Filesystem-specific arbitrary data */
@@ -40,21 +41,41 @@ typedef struct vnode {
 
   /* Type-specific fields */
   union {
-    mount_t *vu_mount; /* The mount covering this vnode */
-  } v_un;
+    mount_t *v_mountedhere; /* The mount covering this vnode */
+  };
 
-  int v_ref; /* Reference count */
+  int v_refcnt; /* Reference count */
   mtx_t v_mtx;
-
 } vnode_t;
 
-#define v_mountedhere v_un.vu_mount
+static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
+  return dv->v_ops->v_lookup(dv, name, vp);
+}
+
+static inline int VOP_READDIR(vnode_t *dv, uio_t *uio) {
+  return dv->v_ops->v_readdir(dv, uio);
+}
+
+static inline int VOP_OPEN(vnode_t *v, file_t **fp) {
+  return v->v_ops->v_open(v, fp);
+}
+
+static inline int VOP_READ(vnode_t *v, uio_t *uio) {
+  return v->v_ops->v_read(v, uio);
+}
+
+static inline int VOP_WRITE(vnode_t *v, uio_t *uio) {
+  return v->v_ops->v_write(v, uio);
+}
 
 /* Initializes vnode subsystem */
 void vnode_init();
 
 /* Allocates and initializes a new vnode */
-vnode_t *vnode_new(enum vnode_type type, vnodeops_t *ops);
+vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops);
+
+static inline void vnode_lock(vnode_t *v) { mtx_lock(&v->v_mtx); }
+static inline void vnode_unlock(vnode_t *v) { mtx_unlock(&v->v_mtx); }
 
 /* Increasing and decreasing the reference counter. */
 void vnode_hold(vnode_t *v);
@@ -64,4 +85,4 @@ void vnode_lock_release(vnode_t *v);
 /* Convenience function for filling in not supported vnodeops */
 int vnode_op_notsup();
 
-#endif /* __SYS_VNODE_H__ */
+#endif /* !_SYS_VNODE_H_ */

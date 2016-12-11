@@ -1,29 +1,32 @@
-#ifndef __SYS_MOUNT_H__
-#define __SYS_MOUNT_H__
+#ifndef _SYS_MOUNT_H_
+#define _SYS_MOUNT_H_
 
 #include <queue.h>
 #include <mutex.h>
 
 /* Maximum length of a filesystem type name */
-#define VFCONF_NAME_MAX 32
+#define VFSCONF_NAME_MAX 32
 /* Maximum length of a path to lookup */
-#define VFS_MAX_PATH_LENGTH 256
+#define VFS_PATH_MAX 256
 
 /* Forward declarations */
 typedef struct vnode vnode_t;
 typedef struct mount mount_t;
 typedef struct vnode vnode_t;
 typedef struct vfsconf vfsconf_t;
+typedef struct statfs statfs_t;
 
 /* VFS operations */
 typedef int vfs_mount_t(mount_t *m);
-typedef int vfs_root_t(mount_t *m, vnode_t **v);
-typedef int vfs_vget_t(mount_t *m, int ino, vnode_t **v);
-typedef int vfs_init_t(vfsconf_t *);
+typedef int vfs_root_t(mount_t *m, vnode_t **vp);
+typedef int vfs_statfs_t(mount_t *m, statfs_t *sb);
+typedef int vfs_vget_t(mount_t *m, ino_t ino, vnode_t **vp);
+typedef int vfs_init_t(vfsconf_t *vfc);
 
 typedef struct vfsops {
   vfs_mount_t *vfs_mount;
   vfs_root_t *vfs_root;
+  vfs_statfs_t *vfs_statfs;
   vfs_vget_t *vfs_vget;
   vfs_init_t *vfs_init;
 } vfsops_t;
@@ -31,28 +34,43 @@ typedef struct vfsops {
 /* Description of a filesystem type. There is one instance of this struct per
  * each filesystem type in the kernel (e.g. tmpfs, devfs). */
 typedef struct vfsconf {
-  char vfc_name[VFCONF_NAME_MAX]; /* Filesystem type name */
-  vfsops_t *vfc_vfsops;           /* Filesystem operations */
-  int vfc_mountcount; /* Number of mounted filesystems of this type */
+  char vfc_name[VFSCONF_NAME_MAX]; /* Filesystem type name */
+  vfsops_t *vfc_vfsops;            /* Filesystem operations */
+  int vfc_refcnt; /* Number of mounted filesystems of this type */
   TAILQ_ENTRY(vfsconf) vfc_list; /* Entry on the list of vfsconfs */
 } vfsconf_t;
 
 /* This structure represents a mount point: a particular instance of a file
    system mounted somewhere in the file tree. */
 typedef struct mount {
-  TAILQ_ENTRY(mount) mnt_list; /* Entry on the mounts list */
+  TAILQ_ENTRY(mount) mnt_list;    /* Entry on the mounts list */
+  TAILQ_HEAD(, vnode) mnt_vnodes; /* List of vnodes on this mount point */
 
-  vfsops_t *mnt_op;          /* Filesystem operations */
+  vfsops_t *mnt_vfsops;      /* Filesystem operations */
   vfsconf_t *mnt_vfc;        /* Link to filesystem info */
   vnode_t *mnt_vnodecovered; /* The vnode covered by this mount */
 
-  int mnt_ref; /* Reference count */
+  int mnt_refcnt; /* Reference count */
   mtx_t mnt_mtx;
-
-  /* TODO: List of vnodes */
 
   void *mnt_data; /* Filesystem-specific arbitrary data */
 } mount_t;
+
+static inline int VFS_MOUNT(mount_t *m) {
+  return m->mnt_vfsops->vfs_mount(m);
+}
+
+static inline int VFS_ROOT(mount_t *m, vnode_t **vp) {
+  return m->mnt_vfsops->vfs_root(m, vp);
+}
+
+static inline int VFS_STATFS(mount_t *m, statfs_t *sb) {
+  return m->mnt_vfsops->vfs_statfs(m, sb);
+}
+
+static inline int VFS_VGET(mount_t *m, ino_t ino, vnode_t **vp) {
+  return m->mnt_vfsops->vfs_vget(m, ino, vp);
+}
 
 /* This is the / node. Since we aren't mounting anything on / just yet, there is
    also a separate global vnode for /dev .*/
@@ -79,4 +97,4 @@ int vfs_lookup(const char *pathname, vnode_t **v);
 /* Initializes the VFS subsystem. */
 void vfs_init();
 
-#endif /* __SYS_MOUNT_H__ */
+#endif /* !_SYS_MOUNT_H_ */

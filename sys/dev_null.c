@@ -4,9 +4,9 @@
 #include <malloc.h>
 #include <linker_set.h>
 
-vnode_t *dev_null_device;
-vnode_t *dev_zero_device;
-vm_page_t *zero_page, *junk_page;
+static vnode_t *dev_null_device;
+static vnode_t *dev_zero_device;
+static vm_page_t *zero_page, *junk_page;
 
 static int dev_null_write(vnode_t *t, uio_t *uio) {
   uio->uio_resid = 0;
@@ -41,7 +41,7 @@ static int dev_zero_read(vnode_t *t, uio_t *uio) {
   return error;
 }
 
-vnodeops_t dev_null_vnodeops = {
+static vnodeops_t dev_null_vnodeops = {
   .v_lookup = vnode_op_notsup,
   .v_readdir = vnode_op_notsup,
   .v_open = vnode_op_notsup,
@@ -49,7 +49,7 @@ vnodeops_t dev_null_vnodeops = {
   .v_read = dev_null_read,
 };
 
-vnodeops_t dev_zero_vnodeops = {
+static vnodeops_t dev_zero_vnodeops = {
   .v_lookup = vnode_op_notsup,
   .v_readdir = vnode_op_notsup,
   .v_open = vnode_op_notsup,
@@ -57,7 +57,7 @@ vnodeops_t dev_zero_vnodeops = {
   .v_read = dev_zero_read,
 };
 
-void init_dev_null() {
+static void init_dev_null() {
   zero_page = pm_alloc(1);
   junk_page = pm_alloc(1);
 
