@@ -15,7 +15,7 @@ int main() {
   error = vfs_lookup("/", &v);
   assert(error == 0 && v == vfs_root_vnode);
   vnode_lock_release(v);
-  mtx_unlock(&v->v_mtx);
+  vnode_unlock(v);
   error = vfs_lookup("/dev////", &v);
   assert(error == 0 && v == vfs_root_dev_vnode);
   vnode_lock_release(v);
@@ -42,7 +42,7 @@ int main() {
   uio.uio_offset = 0;
   uio.uio_resid = sizeof(buffer);
 
-  res = dev_zero->v_ops->v_read(dev_zero, &uio);
+  res = VOP_READ(dev_zero, &uio);
   assert(res == 0);
   assert(buffer[1] == 0 && buffer[10] == 0);
   assert(uio.uio_resid == 0);
@@ -58,7 +58,7 @@ int main() {
   uio.uio_resid = sizeof(buffer);
 
   assert(dev_null != 0);
-  res = dev_null->v_ops->v_write(dev_null, &uio);
+  res = VOP_WRITE(dev_null, &uio);
   assert(res == 0);
   assert(uio.uio_resid == 0);
 
