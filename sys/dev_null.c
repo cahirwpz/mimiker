@@ -2,6 +2,7 @@
 #include <mount.h>
 #include <devfs.h>
 #include <malloc.h>
+#include <vnode.h>
 #include <linker_set.h>
 
 static vnode_t *dev_null_device;
@@ -27,7 +28,7 @@ static int dev_zero_write(vnode_t *t, uio_t *uio) {
       len = PAGESIZE;
     error = uiomove((void *)junk_page->vaddr, len, uio);
   }
-  return error;
+  return -error;
 }
 
 static int dev_zero_read(vnode_t *t, uio_t *uio) {
@@ -38,13 +39,13 @@ static int dev_zero_read(vnode_t *t, uio_t *uio) {
       len = PAGESIZE;
     error = uiomove((void *)zero_page->vaddr, len, uio);
   }
-  return error;
+  return -error;
 }
 
 static vnodeops_t dev_null_vnodeops = {
   .v_lookup = vnode_op_notsup,
   .v_readdir = vnode_op_notsup,
-  .v_open = vnode_op_notsup,
+  .v_open = vnode_open_generic,
   .v_write = dev_null_write,
   .v_read = dev_null_read,
   .v_getattr = vnode_op_notsup,
@@ -53,7 +54,7 @@ static vnodeops_t dev_null_vnodeops = {
 static vnodeops_t dev_zero_vnodeops = {
   .v_lookup = vnode_op_notsup,
   .v_readdir = vnode_op_notsup,
-  .v_open = vnode_op_notsup,
+  .v_open = vnode_open_generic,
   .v_write = dev_zero_write,
   .v_read = dev_zero_read,
   .v_getattr = vnode_op_notsup,

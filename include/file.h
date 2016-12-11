@@ -4,12 +4,14 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <mutex.h>
+#include <uio.h>
 
 typedef struct thread thread_t;
 typedef struct file file_t;
+typedef struct vnode vnode_t;
 
-typedef int fo_read_t(file_t *f, thread_t *td, char *buf, size_t count);
-typedef int fo_write_t(file_t *f, thread_t *td, char *buf, size_t count);
+typedef int fo_read_t(file_t *f, thread_t *td, uio_t *uio);
+typedef int fo_write_t(file_t *f, thread_t *td, uio_t *uio);
 typedef int fo_close_t(file_t *f, thread_t *td);
 
 typedef struct {
@@ -21,7 +23,6 @@ typedef struct {
 typedef enum {
   FILE_TYPE_VNODE = 1, /* regualar file */
   FILE_TYPE_PIPE = 2,  /* pipe */
-  FILE_TYPE_DEV = 3,   /* device specific */
 } file_type_t;
 
 #define FILE_FLAG_READ 0x0001
@@ -38,8 +39,9 @@ typedef struct file {
   void *f_data; /* File specific data */
   fileops_t *f_ops;
   file_type_t f_type; /* File type */
-  uint32_t f_count;   /* Reference count */
-  uint32_t f_flags;   /* FILE_FLAG_* */
+  vnode_t *f_vnode;
+  uint32_t f_count; /* Reference count */
+  uint32_t f_flags; /* FILE_FLAG_* */
   mtx_t f_mtx;
 } file_t;
 

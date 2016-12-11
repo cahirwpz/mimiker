@@ -8,6 +8,8 @@
 #include <file.h>
 #include <basic_dev.h>
 #include <filedesc.h>
+#include <vnode.h>
+#include <mount.h>
 #include <systm.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
@@ -15,24 +17,24 @@ int sys_nosys(thread_t *td, syscall_args_t *args) {
   return -ENOSYS;
 };
 
-int do_write(int fd, char *buf, size_t count) {
+int do_write(int fd, uio_t *uio) {
   thread_t *td = thread_self();
   file_t *f;
   int res = file_get_write(td, fd, &f);
   if (res)
     return res;
-  res = f->f_ops->fo_write(f, td, buf, count);
+  res = f->f_ops->fo_write(f, td, uio);
   file_drop(f);
   return res;
 }
 
-int do_read(int fd, char *buf, size_t count) {
+int do_read(int fd, uio_t *uio) {
   thread_t *td = thread_self();
   file_t *f;
   int res = file_get_read(td, fd, &f);
   if (res)
     return res;
-  res = f->f_ops->fo_read(f, td, buf, count);
+  res = f->f_ops->fo_read(f, td, uio);
   file_drop(f);
   return res;
 }
@@ -46,11 +48,26 @@ int sys_write(thread_t *td, syscall_args_t *args) {
 
   /* Copyin buf */
   char buf[256];
+  count = min(count, 256);
   int error = copyin(ubuf, buf, sizeof(buf));
-  if (error)
+  if (error < 0)
     return error;
 
-  return do_write(fd, buf, count);
+  uio_t uio;
+  iovec_t iov;
+  uio.uio_op = UIO_WRITE;
+  uio.uio_vmspace = get_user_vm_map();
+  iov.iov_base = buf;
+  iov.iov_len = count;
+  uio.uio_iovcnt = 1;
+  uio.uio_iov = &iov;
+  uio.uio_resid = count;
+  uio.uio_offset = 0;
+
+  error = do_write(fd, &uio);
+  if (error)
+    return -error;
+  return count - uio.uio_resid;
 }
 
 int sys_read(thread_t *td, syscall_args_t *args) {
@@ -59,13 +76,27 @@ int sys_read(thread_t *td, syscall_args_t *args) {
   size_t count = args->args[2];
 
   char buf[256];
+  count = min(count, 256);
 
   kprintf("[syscall] read(%d, %p, %zu)\n", fd, ubuf, count);
-  int read = do_read(fd, buf, count);
-  if (read < 0)
-    return read;
-  int error = copyout(buf, ubuf, read);
+
+  uio_t uio;
+  iovec_t iov;
+  uio.uio_op = UIO_WRITE;
+  uio.uio_vmspace = get_user_vm_map();
+  iov.iov_base = buf;
+  iov.iov_len = count;
+  uio.uio_iovcnt = 1;
+  uio.uio_iov = &iov;
+  uio.uio_resid = count;
+  uio.uio_offset = 0;
+
+  int error = do_read(fd, &uio);
   if (error)
+    return -error;
+  int read = count - uio.uio_resid;
+  error = copyout(buf, ubuf, read);
+  if (error < 0)
     return error;
   return read;
 }
@@ -75,15 +106,19 @@ int sys_close(thread_t *td, syscall_args_t *args) {
 
   kprintf("[syscall] close(%d)\n", fd);
 
-  return file_desc_close(td->td_fdt, fd);
+  return -file_desc_close(td->td_fdt, fd);
 }
 
 int do_open(file_t *f, char *pathname, int flags, int mode) {
-  /* Note: We lack file system, so this implementation is very silly. */
-  if (strcmp(pathname, "/dev/null") == 0) {
-    return dev_null_open(f, flags, mode);
-  }
-  return -ENOENT;
+  vnode_t *v;
+  int error;
+  error = vfs_lookup(pathname, &v);
+  if (error)
+    return error;
+  error = VOP_OPEN(v, mode, f);
+  if (error)
+    return error;
+  return 0;
 }
 
 int sys_open(thread_t *td, syscall_args_t *args) {
@@ -97,7 +132,7 @@ int sys_open(thread_t *td, syscall_args_t *args) {
 
   /* Copyout pathname. */
   error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
-  if (error)
+  if (error < 0)
     return error;
 
   kprintf("[syscall] open(%s, %d, %d)\n", pathname, flags, mode);
@@ -122,7 +157,7 @@ int sys_open(thread_t *td, syscall_args_t *args) {
 
 fail:
   file_drop(f);
-  return error;
+  return -error;
 }
 
 /* This is just a stub. A full implementation of this syscall will probably
