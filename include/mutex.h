@@ -1,5 +1,5 @@
-#ifndef __MUTEX_H__
-#define __MUTEX_H__
+#ifndef _SYS_MUTEX_H_
+#define _SYS_MUTEX_H_
 
 #include <turnstile.h>
 #include <thread.h>
@@ -23,6 +23,6 @@ void mtx_lock(mtx_t *);
 void mtx_unlock(mtx_t *);
 
 /* Returns true iff the mutex is locked and we are the owner. */
-bool mtx_islocked(mtx_t *);
+bool mtx_owned(mtx_t *mtx);
 
-#endif /* __MUTEX_H__ */
+#endif /* !_SYS_MUTEX_H_ */

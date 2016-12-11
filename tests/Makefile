@@ -15,7 +15,8 @@ TESTS = \
 	syscall.elf \
 	thread.elf \
 	uiomove.elf \
-	vm_map.elf
+	vm_map.elf \
+	vfs.elf
 SOURCES_C = $(patsubst %.elf,%.c,$(TESTS))
 SOURCES_ASM =
 
