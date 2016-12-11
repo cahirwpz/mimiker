@@ -47,6 +47,7 @@ static vnodeops_t dev_null_vnodeops = {
   .v_open = vnode_op_notsup,
   .v_write = dev_null_write,
   .v_read = dev_null_read,
+  .v_getattr = vnode_op_notsup,
 };
 
 static vnodeops_t dev_zero_vnodeops = {
@@ -55,6 +56,7 @@ static vnodeops_t dev_zero_vnodeops = {
   .v_open = vnode_op_notsup,
   .v_write = dev_zero_write,
   .v_read = dev_zero_read,
+  .v_getattr = vnode_op_notsup,
 };
 
 static void init_dev_null() {

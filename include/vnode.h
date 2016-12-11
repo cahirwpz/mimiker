@@ -6,6 +6,7 @@
 
 /* Forward declarations */
 typedef struct vnode vnode_t;
+typedef struct vattr vattr_t;
 typedef struct mount mount_t;
 typedef struct file file_t;
 
@@ -21,6 +22,7 @@ typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio);
 typedef int vnode_open_t(vnode_t *v, file_t **fp);
 typedef int vnode_read_t(vnode_t *v, uio_t *uio);
 typedef int vnode_write_t(vnode_t *v, uio_t *uio);
+typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
 
 typedef struct vnodeops {
   vnode_lookup_t *v_lookup;
@@ -28,6 +30,7 @@ typedef struct vnodeops {
   vnode_open_t *v_open;
   vnode_read_t *v_read;
   vnode_write_t *v_write;
+  vnode_getattr_t *v_getattr;
 } vnodeops_t;
 
 typedef struct vnode {
@@ -48,6 +51,14 @@ typedef struct vnode {
   mtx_t v_mtx;
 } vnode_t;
 
+typedef struct vattr {
+  uint16_t va_mode;    /* files access mode and type */
+  size_t   va_nlink;   /* number of references to file */
+  uid_t    va_uid;     /* owner user id */
+  gid_t    va_gid;     /* owner group id */
+  size_t   va_size;    /* file size in bytes */
+} vattr_t;
+
 static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
   return dv->v_ops->v_lookup(dv, name, vp);
 }
@@ -66,6 +77,10 @@ static inline int VOP_READ(vnode_t *v, uio_t *uio) {
 
 static inline int VOP_WRITE(vnode_t *v, uio_t *uio) {
   return v->v_ops->v_write(v, uio);
+}
+
+static inline int VOP_GETATTR(vnode_t *v, vattr_t *va) {
+  return v->v_ops->v_getattr(v, va);
 }
 
 /* Initializes vnode subsystem */
