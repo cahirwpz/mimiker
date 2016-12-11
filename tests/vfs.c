@@ -14,29 +14,30 @@ int main() {
   assert(error == ENOTSUP); /* Root filesystem not implemented yet. */
   error = vfs_lookup("/", &v);
   assert(error == 0 && v == vfs_root_vnode);
-  vnode_lock_unref(v);
-  vnode_unlock(v);
+  vnode_unref(v);
   error = vfs_lookup("/dev////", &v);
   assert(error == 0 && v == vfs_root_dev_vnode);
-  vnode_lock_unref(v);
+  vnode_unref(v);
 
   vnode_t *dev_null, *dev_zero;
   error = vfs_lookup("/dev/null", &dev_null);
   assert(error == 0);
+  vnode_unref(dev_null);
   error = vfs_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
+  vnode_unref(dev_zero);
 
-  /* Ask for the same vnode multiple times, to trigger error if the vnode is not
-     held correctly. This should NOT free the singleton dev_zero vnode! */
-  vnode_lock_unref(dev_zero);
+  /* Ask for the same vnode multiple times and check for correct v_usecnt. */
   error = vfs_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
-  vnode_lock_unref(dev_zero);
   error = vfs_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
-  vnode_lock_unref(dev_zero);
   error = vfs_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
+  assert(dev_zero->v_usecnt == 4);
+  vnode_unref(dev_zero);
+  vnode_unref(dev_zero);
+  vnode_unref(dev_zero);
 
   uio_t uio;
   iovec_t iov;

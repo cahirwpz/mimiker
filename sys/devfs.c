@@ -102,7 +102,6 @@ static int devfs_root_lookup(vnode_t *dir, const char *name, vnode_t **res) {
     return ENOENT;
 
   *res = idev->dev;
-  vnode_lock(*res);
   vnode_ref(*res);
 
   return 0;
@@ -115,7 +114,6 @@ static int devfs_root_readdir(vnode_t *dir, uio_t *uio) {
 
 static int devfs_root(mount_t *m, vnode_t **v) {
   *v = devfs_of(m)->root_vnode;
-  vnode_lock(*v);
   vnode_ref(*v);
   return 0;
 }

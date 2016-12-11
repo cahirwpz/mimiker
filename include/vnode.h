@@ -47,7 +47,7 @@ typedef struct vnode {
     mount_t *v_mountedhere; /* The mount covering this vnode */
   };
 
-  int v_usecount; /* Use count */
+  int v_usecnt;
   mtx_t v_mtx;
 } vnode_t;
 
@@ -89,17 +89,15 @@ void vnode_init();
 /* Allocates and initializes a new vnode */
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops);
 
-static inline void vnode_lock(vnode_t *v) {
-  mtx_lock(&v->v_mtx);
-}
-static inline void vnode_unlock(vnode_t *v) {
-  mtx_unlock(&v->v_mtx);
-}
+/* Lock and unlock vnode's mutex.
+ * Call vnode_lock whenever you're about to use vnode's contents. */
+void vnode_lock(vnode_t *v);
+void vnode_unlock(vnode_t *v);
 
-/* Increasing and decreasing the reference counter. */
+/* Increase and decrease the use counter.
+ * Call vnode_ref if you don't want the vnode to be recycled. */
 void vnode_ref(vnode_t *v);
 void vnode_unref(vnode_t *v);
-void vnode_lock_unref(vnode_t *v);
 
 /* Convenience function for filling in not supported vnodeops */
 int vnode_op_notsup();

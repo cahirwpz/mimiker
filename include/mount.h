@@ -91,8 +91,9 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc);
  * remounting. TODO: Additional filesystem-specific arguments. */
 int vfs_domount(vfsconf_t *vfc, vnode_t *v);
 
-/* Finds the vnode corresponding to the given path. */
-int vfs_lookup(const char *pathname, vnode_t **v);
+/* Finds the vnode corresponding to the given path.
+ * Increases use count on returned vnode. */
+int vfs_lookup(const char *pathname, vnode_t **vp);
 
 /* Initializes the VFS subsystem. */
 void vfs_init();

@@ -187,38 +187,42 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     return ENAMETOOLONG;
   char pathcopy[VFS_PATH_MAX];
   strlcpy(pathcopy, path, VFS_PATH_MAX);
-
-  vnode_lock(v);
-  vnode_ref(v);
-
-  const char *component;
   char *pathbuf = pathcopy;
+  const char *component;
+
+  vnode_ref(v);
+  vnode_lock(v);
+
   while ((component = strsep(&pathbuf, "/")) != NULL) {
     if (component[0] == '\0')
       continue;
+
     /* If this vnode is a filesystem boundary,
      * request the root vnode of the inner filesystem. */
     if (v->v_mountedhere != NULL) {
-      mount_t *m = v->v_mountedhere;
       vnode_t *v_mntpt;
-      int error = VFS_ROOT(m, &v_mntpt);
-      vnode_unref(v);
+      int error = VFS_ROOT(v->v_mountedhere, &v_mntpt);
       vnode_unlock(v);
-      if (error != 0)
+      vnode_unref(v);
+      if (error)
         return error;
       v = v_mntpt;
+      vnode_ref(v);
+      vnode_lock(v);
     }
+
     /* Look up the child vnode */
     vnode_t *v_child;
     int error = VOP_LOOKUP(v, component, &v_child);
-    vnode_unref(v);
     vnode_unlock(v);
+    vnode_unref(v);
     if (error)
       return error;
     v = v_child;
   }
 
-  *vp = v;
   vnode_unlock(v);
+  *vp = v;
+
   return 0;
 }
