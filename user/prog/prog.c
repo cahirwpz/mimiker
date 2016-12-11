@@ -50,11 +50,10 @@ void sbrk_test() {
 }
 
 int main(int argc, char **argv) {
-  /* TODO: Actually, the 0-th argument should be the program name. */
-  if (argc < 1)
+  if (argc < 2)
     abort();
 
-  if (strcmp(argv[0], "abort_test") == 0)
+  if (strcmp(argv[1], "abort_test") == 0)
     assert(0);
 
   sbrk_test();
@@ -75,7 +74,7 @@ int main(int argc, char **argv) {
   while (1) {
     o++;
     /* Test both the passed argument, and data accessed with $gp */
-    marquee(argv[0], o);
+    marquee(argv[1], o);
     marquee(str, o);
   }
 

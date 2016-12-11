@@ -6,6 +6,8 @@
 #include <stdbool.h>     /* bool, true, false */
 #include <stdalign.h>    /* alignof, alignas */
 #include <stdnoreturn.h> /* noreturn */
+#include <sys/types.h>   /* provided by the toolchain */
+#include <sys/cdefs.h>   /* ditto */
 
 typedef unsigned long vm_addr_t;
 typedef unsigned long pm_addr_t;
@@ -25,10 +27,6 @@ typedef unsigned long pm_addr_t;
 #define ffs(x) (__builtin_ffs(x))
 #define clz(x) (__builtin_clz(x))
 #define ctz(x) (__builtin_ctz(x))
-
-#ifndef __STRING
-#define __STRING(x) #x
-#endif
 
 #define abs(x)                                                                 \
   ({                                                                           \
@@ -101,6 +99,6 @@ noreturn void thread_exit();
 
 #else
 #include <assert.h>
-#endif // _USERSPACE
+#endif /* !_USERSPACE */
 
-#endif // _SYS_COMMON_H_
+#endif /* !_SYS_COMMON_H_ */

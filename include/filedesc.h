@@ -14,7 +14,7 @@ typedef struct thread thread_t;
 /* Separate macro defining a hard limit on open files. */
 #define MAXFILES 20
 
-typedef struct {
+typedef struct file_desc_table {
   file_t *fdt_files[NDFILE];             /* Open files array */
   bitstr_t fdt_map[bitstr_size(NDFILE)]; /* Bitmap of used fds */
   int fdt_nfiles;                        /* Number of files allocated */

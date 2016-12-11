@@ -1,17 +1,17 @@
-#ifndef __THREAD_H__
-#define __THREAD_H__
+#ifndef _SYS_THREAD_H_
+#define _SYS_THREAD_H_
 
 #include <common.h>
 #include <queue.h>
 #include <context.h>
 #include <exception.h>
-#include <filedesc.h>
 
 typedef uint8_t td_prio_t;
 typedef uint32_t tid_t;
 typedef struct vm_page vm_page_t;
 typedef struct sleepq sleepq_t;
 typedef struct vm_map vm_map_t;
+typedef struct file_desc_table file_desc_table_t;
 
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
@@ -48,7 +48,7 @@ typedef struct thread {
 } thread_t;
 
 thread_t *thread_self();
-noreturn void thread_init(void (*fn)(), int n, ...);
+void thread_init();
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
 void thread_delete(thread_t *td);
 
@@ -62,4 +62,4 @@ void thread_dump_all();
 /* Returns the thread matching the given ID, or null if none found. */
 thread_t *thread_get_by_tid(tid_t id);
 
-#endif // __THREAD_H__
+#endif /* _SYS_THREAD_H_ */

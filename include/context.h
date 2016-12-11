@@ -1,5 +1,5 @@
-#ifndef __CONTEXT_H__
-#define __CONTEXT_H__
+#ifndef _SYS_CONTEXT_H_
+#define _SYS_CONTEXT_H_
 
 #include <common.h>
 #include <mips/ctx.h>
@@ -21,11 +21,6 @@ typedef struct thread thread_t;
  */
 void ctx_init(thread_t *td, void (*target)(void *), void *arg);
 
-/*
- * Enters into a context initialized by @ctx_init function.
- */
-noreturn void ctx_boot(thread_t *td);
-
 /* This function stores the current context to @from, and resumes the
  * context stored in @to. It does not return immediatelly, it returns
  * only when the @from context is resumed. */
@@ -34,4 +29,4 @@ void ctx_switch(thread_t *from, thread_t *to);
 /* Prepare user context for given thread. */
 void uctx_init(thread_t *td, vm_addr_t pc, vm_addr_t sp);
 
-#endif // __CONTEXT_H__
+#endif /* _SYS_CONTEXT_H_ */

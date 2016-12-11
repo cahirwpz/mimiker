@@ -3,6 +3,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.getcwd(), 'debug'))
 import threads
+import physmem
 
 
 class Kdump(gdb.Command):
@@ -17,6 +18,9 @@ class Kdump(gdb.Command):
         # information about structures in the debugger itself later on
         self.structure = {
             'threads': threads.KernelThreads(),
+            'segments': physmem.KernelSegments(),
+            'free_pages': physmem.KernelFreePages(),
+            'tlb': physmem.TLB()
         }
 
     def invoke(self, args, from_tty):

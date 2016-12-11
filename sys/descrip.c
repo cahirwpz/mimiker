@@ -64,7 +64,7 @@ void file_drop(file_t *f) {
  * success and sets *result to new descriptor number. Must be called with
  * fd->fd_mtx already locked. */
 int file_desc_alloc(file_desc_table_t *fdt, int *fd) {
-  assert(mtx_is_locked(&fdt->fdt_mtx));
+  assert(mtx_owned(&fdt->fdt_mtx));
 
   int first_free = MAXFILES;
   bit_ffc(fdt->fdt_map, fdt->fdt_nfiles, &first_free);

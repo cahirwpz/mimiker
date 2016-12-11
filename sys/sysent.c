@@ -7,6 +7,7 @@
 #include <sched.h>
 #include <file.h>
 #include <basic_dev.h>
+#include <filedesc.h>
 #include <systm.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {

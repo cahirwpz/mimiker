@@ -8,6 +8,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sync.h>
+#include <filedesc.h>
 #include <mips/stack.h>
 
 #define EMBED_ELF_DECLARE(name)                                                \
@@ -189,6 +190,10 @@ int do_exec(const exec_args_t *args) {
   /* Prepare program stack, which includes storing program args... */
   log("Stack real bottom at %p", (void *)stack_bottom);
   prepare_program_stack(args, &stack_bottom);
+
+  /* ... file descriptor table ... */
+  /* TODO: Copy/share file descriptor table! */
+  thread_self()->td_fdt = file_desc_table_init();
 
   /* ... and user context. */
   uctx_init(thread_self(), eh->e_entry, stack_bottom);

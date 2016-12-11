@@ -1,4 +1,3 @@
-#include <stdarg.h>
 #include <stdc.h>
 #include <malloc.h>
 #include <thread.h>
@@ -7,6 +6,7 @@
 #include <pcpu.h>
 #include <sync.h>
 #include <sched.h>
+#include <filedesc.h>
 
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
 
@@ -14,29 +14,11 @@ typedef TAILQ_HEAD(, thread) thread_list_t;
 /* TODO: Synchronize access to the list */
 static thread_list_t all_threads;
 
-noreturn void thread_init(void (*fn)(), int n, ...) {
-  thread_t *td;
-
+void thread_init() {
   kmalloc_init(td_pool);
   kmalloc_add_arena(td_pool, pm_alloc(1)->vaddr, PAGESIZE);
 
   TAILQ_INIT(&all_threads);
-
-  td = thread_create("main", fn, NULL);
-
-  /* Pass arguments to called function. */
-  exc_frame_t *kframe = td->td_kframe;
-  va_list ap;
-
-  assert(n <= 4);
-  va_start(ap, n);
-  for (int i = 0; i < n; i++)
-    (&kframe->a0)[i] = va_arg(ap, reg_t);
-  va_end(ap);
-
-  kprintf("[thread] Activating '%s' {%p} thread!\n", td->td_name, td);
-  td->td_state = TDS_RUNNING;
-  ctx_boot(td);
 }
 
 /* FTTB such a primitive method of creating new TIDs will do. */
@@ -60,11 +42,6 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   TAILQ_INSERT_TAIL(&all_threads, td, td_all);
 
   td->td_state = TDS_READY;
-
-  /* TODO: File descriptor table is only meaningful for threads running user
-   * programs. Thus td_filedesc should be set on exec(), fork() and PID0 init.
-   * To keep it simple for now, all threads are given a descriptor table.*/
-  td->td_fdt = file_desc_table_init();
 
   return td;
 }

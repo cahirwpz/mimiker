@@ -5,6 +5,8 @@ SOURCES_C  = \
 	callout.c \
 	clock.c \
 	descrip.c \
+	dev_null.c \
+	devfs.c \
 	exception.c \
 	exec.c \
 	interrupt.c \
@@ -20,9 +22,12 @@ SOURCES_C  = \
 	sysent.c \
 	thread.c \
 	turnstile.c \
+	uio.c \
+	vfs.c \
 	vm_map.c \
 	vm_object.c \
-	vm_pager.c
+	vm_pager.c \
+	vnode.c
 SOURCES_ASM = 
 
 all: $(DEPFILES) libsys.a 

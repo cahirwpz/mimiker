@@ -1,8 +1,8 @@
-#ifndef __MUTEX_H__
-#define __MUTEX_H__
+#ifndef _SYS_MUTEX_H_
+#define _SYS_MUTEX_H_
 
 #include <turnstile.h>
-#include <stdbool.h>
+#include <thread.h>
 
 typedef struct {
   volatile uint32_t mtx_state; /* 0 if unowned or has address of the owner */
@@ -23,6 +23,6 @@ void mtx_lock(mtx_t *);
 void mtx_unlock(mtx_t *);
 
 /* Returns true iff the mutex is locked and we are the owner. */
-bool mtx_is_locked(mtx_t *);
+bool mtx_owned(mtx_t *mtx);
 
-#endif /* __MUTEX_H__ */
+#endif /* !_SYS_MUTEX_H_ */

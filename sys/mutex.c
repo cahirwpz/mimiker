@@ -5,12 +5,12 @@
 
 #define MTX_UNOWNED 0
 
-static bool mtx_owned(mtx_t *mtx) {
-  return mtx->mtx_state != MTX_UNOWNED;
+bool mtx_owned(mtx_t *mtx) {
+  return (mtx->mtx_state == (uint32_t)thread_self());
 }
 
-static thread_t *mtx_owner(mtx_t *mtx) {
-  return (thread_t *)mtx->mtx_state;
+static bool mtx_locked(mtx_t *mtx) {
+  return (mtx->mtx_state != MTX_UNOWNED);
 }
 
 static int mtx_try_lock(mtx_t *mtx) {
@@ -25,7 +25,7 @@ void mtx_init(mtx_t *mtx) {
 
 void mtx_lock(mtx_t *mtx) {
   /* TODO: Implement recursive mutexes */
-  assert(mtx_owner(mtx) != thread_self());
+  assert(!mtx_owned(mtx));
 
   while (!mtx_try_lock(mtx)) {
     cs_enter();
@@ -34,7 +34,7 @@ void mtx_lock(mtx_t *mtx) {
       cs_leave();
       continue;
     }
-    assert(mtx_owned(mtx));
+    assert(mtx_locked(mtx));
     turnstile_wait(&mtx->turnstile);
     cs_leave();
   }

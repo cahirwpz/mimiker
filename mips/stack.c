@@ -53,14 +53,18 @@ void prepare_program_stack(const exec_args_t *args, vm_addr_t *stack_bottom_p) {
     p = align(p, 4);
   }
   assert(p == stack_end);
-  /* Move the stack down and 8byte-align it downwards */
+
+  /* Move the stack down and align it so that the top of the stack will be
+     8-byte alligned. */
   *stack_bottom_p = (*stack_bottom_p - total_arg_size) & 0xfffffff8;
+  if (args->argc % 2 == 0)
+    *stack_bottom_p -= 4;
 
   /* Now, place the argument vector on the stack. */
   size_t arg_vector_size = sizeof(arg_vector);
   vm_addr_t argv = *stack_bottom_p - arg_vector_size;
   memcpy((void *)argv, &arg_vector, arg_vector_size);
-  /* Move the stack down. No need to align it again. */
+  /* Move the stack down. */
   *stack_bottom_p = *stack_bottom_p - arg_vector_size;
 
   /* Finally, place argc on the stack */

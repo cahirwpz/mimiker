@@ -29,11 +29,8 @@ static void demo_thread_2() {
   panic("This line need not be reached!");
 }
 
-int main(int argc, char **argv, char **envp) {
+int main() {
   kprintf("Thread '%s' started.\n", thread_self()->td_name);
-  kprintf("argc = %d\n", argc);
-  kprintf("argv = %p\n", argv);
-  kprintf("argp = %p\n", envp);
 
   td0 = thread_self();
   td1 = thread_create("first", demo_thread_1, NULL);

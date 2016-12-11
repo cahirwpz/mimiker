@@ -19,16 +19,36 @@ void intr_init() {
   mips32_bc_c0(C0_STATUS, SR_BEV);
   /* Use the special interrupt vector at EBase + 0x200. */
   mips32_bs_c0(C0_CAUSE, CR_IV);
-  /* Set vector spacing for 0x20. */
-  mips32_set_c0(C0_INTCTL, INTCTL_VS_32);
+  /* Set vector spacing to 0. */
+  mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
+}
 
-  /*
-   * Mask out software and hardware interrupts.
-   * You should enable them one by one in driver initialization code.
-   */
-  mips32_set_c0(C0_STATUS, mips32_get_c0(C0_STATUS) & ~SR_IPL_MASK);
+extern void mips_clock_irq_handler();
 
-  intr_enable();
+typedef void (*irq_handler_t)();
+
+static irq_handler_t irq_handlers[8] = {
+  [7] = mips_clock_irq_handler
+};
+
+void mips_irq_handler(exc_frame_t *frame) {
+  unsigned pending = (frame->cause & frame->sr) & CR_IP_MASK;
+
+  for (int i = 7; i >= 0; i--) {
+    unsigned irq = CR_IP0 << i;
+
+    if (pending & irq) {
+      irq_handler_t handler = irq_handlers[i];
+      if (handler != NULL) {
+        handler();
+      } else {
+        log("Spurious hardware interrupt #%d!", i);
+      }
+      pending &= ~irq;
+    }
+  }
+
+  mips32_set_c0(C0_CAUSE, frame->cause & ~CR_IP_MASK);
 }
 
 const char *const exceptions[32] = {
