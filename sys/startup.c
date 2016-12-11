@@ -30,12 +30,12 @@ int kernel_init(int argc, char **argv) {
   vm_map_init();
   sched_init();
   sleepq_init();
-  file_desc_init();
   mips_clock_init();
 
   vnode_init();
   vfs_init();
   devfs_init();
+  file_desc_init();
 
   kprintf("[startup] kernel initialized\n");
 
