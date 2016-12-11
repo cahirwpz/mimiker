@@ -26,6 +26,18 @@ int main() {
   error = vfs_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
 
+  /* Ask for the same vnode multiple times, to trigger error if the vnode is not
+     held correctly. This should NOT free the singleton dev_zero vnode! */
+  vnode_lock_release(v);
+  error = vfs_lookup("/dev/zero", &dev_zero);
+  assert(error == 0);
+  vnode_lock_release(v);
+  error = vfs_lookup("/dev/zero", &dev_zero);
+  assert(error == 0);
+  vnode_lock_release(v);
+  error = vfs_lookup("/dev/zero", &dev_zero);
+  assert(error == 0);
+
   uio_t uio;
   iovec_t iov;
   int res = 0;
