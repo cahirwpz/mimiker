@@ -21,28 +21,28 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops) {
   v->v_type = type;
   v->v_data = NULL;
   v->v_ops = ops;
-  v->v_refcnt = 1;
+  v->v_usecount = 1;
   mtx_init(&v->v_mtx);
 
   return v;
 }
 
-void vnode_hold(vnode_t *v) {
+void vnode_ref(vnode_t *v) {
   assert(mtx_owned(&v->v_mtx));
-  ++v->v_refcnt;
+  ++v->v_usecount;
 }
 
-void vnode_release(vnode_t *v) {
+void vnode_unref(vnode_t *v) {
   assert(mtx_owned(&v->v_mtx));
-  if (--v->v_refcnt == 0) {
+  if (--v->v_usecount == 0) {
     /* Ignore the mutex here, we are the only reference to this vnode left */
     kfree(vnode_pool, v);
   }
 }
 
-void vnode_lock_release(vnode_t *v) {
+void vnode_lock_unref(vnode_t *v) {
   mtx_lock(&v->v_mtx);
-  if (--v->v_refcnt == 0) {
+  if (--v->v_usecount == 0) {
     kfree(vnode_pool, v);
     return;
   }

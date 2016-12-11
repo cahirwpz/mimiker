@@ -14,11 +14,11 @@ int main() {
   assert(error == ENOTSUP); /* Root filesystem not implemented yet. */
   error = vfs_lookup("/", &v);
   assert(error == 0 && v == vfs_root_vnode);
-  vnode_lock_release(v);
+  vnode_lock_unref(v);
   vnode_unlock(v);
   error = vfs_lookup("/dev////", &v);
   assert(error == 0 && v == vfs_root_dev_vnode);
-  vnode_lock_release(v);
+  vnode_lock_unref(v);
 
   vnode_t *dev_null, *dev_zero;
   error = vfs_lookup("/dev/null", &dev_null);
@@ -28,13 +28,13 @@ int main() {
 
   /* Ask for the same vnode multiple times, to trigger error if the vnode is not
      held correctly. This should NOT free the singleton dev_zero vnode! */
-  vnode_lock_release(dev_zero);
+  vnode_lock_unref(dev_zero);
   error = vfs_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
-  vnode_lock_release(dev_zero);
+  vnode_lock_unref(dev_zero);
   error = vfs_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
-  vnode_lock_release(dev_zero);
+  vnode_lock_unref(dev_zero);
   error = vfs_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
 

@@ -189,7 +189,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   strlcpy(pathcopy, path, VFS_PATH_MAX);
 
   vnode_lock(v);
-  vnode_hold(v);
+  vnode_ref(v);
 
   const char *component;
   char *pathbuf = pathcopy;
@@ -202,7 +202,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
       mount_t *m = v->v_mountedhere;
       vnode_t *v_mntpt;
       int error = VFS_ROOT(m, &v_mntpt);
-      vnode_release(v);
+      vnode_unref(v);
       vnode_unlock(v);
       if (error != 0)
         return error;
@@ -211,7 +211,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     /* Look up the child vnode */
     vnode_t *v_child;
     int error = VOP_LOOKUP(v, component, &v_child);
-    vnode_release(v);
+    vnode_unref(v);
     vnode_unlock(v);
     if (error)
       return error;

@@ -34,7 +34,7 @@ typedef struct vnodeops {
 } vnodeops_t;
 
 typedef struct vnode {
-  vnodetype_t v_type; /* Vnode type, see above */
+  vnodetype_t v_type;        /* Vnode type, see above */
   TAILQ_ENTRY(vnode) v_list; /* Entry on the mount vnodes list */
 
   vnodeops_t *v_ops; /* Vnode operations */
@@ -47,16 +47,16 @@ typedef struct vnode {
     mount_t *v_mountedhere; /* The mount covering this vnode */
   };
 
-  int v_refcnt; /* Reference count */
+  int v_usecount; /* Use count */
   mtx_t v_mtx;
 } vnode_t;
 
 typedef struct vattr {
-  uint16_t va_mode;    /* files access mode and type */
-  size_t   va_nlink;   /* number of references to file */
-  uid_t    va_uid;     /* owner user id */
-  gid_t    va_gid;     /* owner group id */
-  size_t   va_size;    /* file size in bytes */
+  uint16_t va_mode; /* files access mode and type */
+  size_t va_nlink;  /* number of references to file */
+  uid_t va_uid;     /* owner user id */
+  gid_t va_gid;     /* owner group id */
+  size_t va_size;   /* file size in bytes */
 } vattr_t;
 
 static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
@@ -89,13 +89,17 @@ void vnode_init();
 /* Allocates and initializes a new vnode */
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops);
 
-static inline void vnode_lock(vnode_t *v) { mtx_lock(&v->v_mtx); }
-static inline void vnode_unlock(vnode_t *v) { mtx_unlock(&v->v_mtx); }
+static inline void vnode_lock(vnode_t *v) {
+  mtx_lock(&v->v_mtx);
+}
+static inline void vnode_unlock(vnode_t *v) {
+  mtx_unlock(&v->v_mtx);
+}
 
 /* Increasing and decreasing the reference counter. */
-void vnode_hold(vnode_t *v);
-void vnode_release(vnode_t *v);
-void vnode_lock_release(vnode_t *v);
+void vnode_ref(vnode_t *v);
+void vnode_unref(vnode_t *v);
+void vnode_lock_unref(vnode_t *v);
 
 /* Convenience function for filling in not supported vnodeops */
 int vnode_op_notsup();
