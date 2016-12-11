@@ -74,15 +74,11 @@ static vnodeops_t devfs_root_ops = {
   .v_write = vnode_op_notsup,
 };
 
-static vfsops_t devfs_vfsops = {
-  .vfs_mount = devfs_mount,
-  .vfs_root = devfs_root
-};
+static vfsops_t devfs_vfsops = {.vfs_mount = devfs_mount,
+                                .vfs_root = devfs_root};
 
-static vfsconf_t devfs_conf = {
-  .vfc_name = "devfs",
-  .vfc_vfsops = &devfs_vfsops
-};
+static vfsconf_t devfs_conf = {.vfc_name = "devfs",
+                               .vfc_vfsops = &devfs_vfsops};
 
 static int devfs_mount(mount_t *m) {
   /* Prepare the root vnode. We'll use a single instead of allocating a new
@@ -106,6 +102,8 @@ static int devfs_root_lookup(vnode_t *dir, const char *name, vnode_t **res) {
     return ENOENT;
 
   *res = idev->dev;
+  vnode_lock(*res);
+  vnode_hold(*res);
 
   return 0;
 }
@@ -117,6 +115,8 @@ static int devfs_root_readdir(vnode_t *dir, uio_t *uio) {
 
 static int devfs_root(mount_t *m, vnode_t **v) {
   *v = devfs_of(m)->root_vnode;
+  vnode_lock(*v);
+  vnode_hold(*v);
   return 0;
 }
 

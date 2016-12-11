@@ -206,7 +206,6 @@ int vfs_lookup(const char *path, vnode_t **vp) {
       vnode_unlock(v);
       if (error != 0)
         return error;
-      vnode_lock(v_mntpt);
       v = v_mntpt;
     }
     /* Look up the child vnode */
@@ -216,7 +215,6 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     vnode_unlock(v);
     if (error)
       return error;
-    vnode_lock(v_child);
     v = v_child;
   }
 
