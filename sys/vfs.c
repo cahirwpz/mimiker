@@ -71,7 +71,7 @@ int vfs_register(vfsconf_t *vfc) {
   TAILQ_INSERT_TAIL(&vfsconf_list, vfc, vfc_list);
   mtx_unlock(&vfsconf_list_mtx);
 
-  vfc->vfc_refcnt = 0;
+  vfc->vfc_mountcnt = 0;
 
   /* Ensure the filesystem provides obligatory operations */
   assert(vfc->vfc_vfsops != NULL);
@@ -114,7 +114,7 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
 
   m->mnt_vfc = vfc;
   m->mnt_vfsops = vfc->vfc_vfsops;
-  vfc->vfc_refcnt++; /* TODO: vfc_mtx? */
+  vfc->vfc_mountcnt++; /* TODO: vfc_mtx? */
   m->mnt_data = NULL;
 
   m->mnt_vnodecovered = v;

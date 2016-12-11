@@ -36,7 +36,7 @@ typedef struct vfsops {
 typedef struct vfsconf {
   char vfc_name[VFSCONF_NAME_MAX]; /* Filesystem type name */
   vfsops_t *vfc_vfsops;            /* Filesystem operations */
-  int vfc_refcnt; /* Number of mounted filesystems of this type */
+  int vfc_mountcnt; /* Number of mounted filesystems of this type */
   TAILQ_ENTRY(vfsconf) vfc_list; /* Entry on the list of vfsconfs */
 } vfsconf_t;
 
