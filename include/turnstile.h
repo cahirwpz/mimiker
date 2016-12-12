@@ -1,7 +1,6 @@
 #ifndef __TURNSTILE_H__
 #define __TURNSTILE_H__
 #include <queue.h>
-#include <thread.h>
 
 typedef struct { TAILQ_HEAD(, thread) td_queue; } turnstile_t;
 

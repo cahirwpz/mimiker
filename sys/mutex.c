@@ -1,6 +1,7 @@
 #include <sync.h>
 #include <atomic.h>
 #include <mutex.h>
+#include <thread.h>
 
 #define MTX_UNOWNED 0
 
