@@ -106,21 +106,19 @@ void test_copy() {
    * but we chose to implement a /dev/zero that copies the provided data into a
    * junk page. */
   assert_open_ok(0, "/dev/zero", 0, O_RDWR);
-  assert_open_ok(1, "/dev/zero", 0, O_RDWR);
   /* Kernel space */
   char *naughty_ptr1 = (char *)0x80001000;
   /* User space, hopefully not mapped */
   char *naughty_ptr2 = (char *)0x00001000;
   assert_write_fail(0, naughty_ptr1, 200, EFAULT);
   assert_write_fail(0, naughty_ptr2, 200, EFAULT);
-  assert_read_fail(1, naughty_ptr1, 200, EFAULT);
-  assert_read_fail(1, naughty_ptr2, 200, EFAULT);
+  assert_read_fail(0, naughty_ptr1, 200, EFAULT);
+  assert_read_fail(0, naughty_ptr2, 200, EFAULT);
   /* Also, try opening a file using a bad pointer */
   assert_open_fail(naughty_ptr1, 0, O_RDWR, EFAULT);
   assert_open_fail(naughty_ptr2, 0, O_RDWR, EFAULT);
   /* Clean up */
   assert_close_ok(0);
-  assert_close_ok(1);
 }
 
 /* Tries accessing some invalid descriptor numbers */
