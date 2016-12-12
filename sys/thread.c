@@ -91,7 +91,8 @@ noreturn void thread_exit() {
   critical_leave();
 
   /* sched_yield will return immediately when scheduler is not active */
-  while (true);
+  while (true)
+    ;
 }
 
 void thread_dump_all() {

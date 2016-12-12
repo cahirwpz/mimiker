@@ -14,11 +14,11 @@ static int dev_uart_write(vnode_t *t, uio_t *uio) {
   char buffer[UART_BUF_MAX];
   size_t n = uio->uio_resid;
   int res = uiomove(buffer, UART_BUF_MAX - 1, uio);
-  if (res < 0)
+  if (res)
     return res;
   size_t moved = n - uio->uio_resid;
   uart_write(buffer, moved);
-  return moved;
+  return 0;
 }
 
 static int dev_uart_read(vnode_t *t, uio_t *uio) {

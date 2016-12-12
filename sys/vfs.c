@@ -174,7 +174,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
      required features! These include: relative paths, symlinks, parent dirs */
 
   if (path[0] == '\0')
-    return EINVAL;
+    return ENOENT;
 
   vnode_t *v;
   if (strncmp(path, "/dev/", 5) == 0) {
@@ -187,7 +187,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     path = path + 1;
   } else {
     log("Relative paths are not supported!");
-    return ENOTSUP;
+    return ENOENT;
   }
 
   /* Copy path into a local buffer, so that we may process it. */
@@ -225,6 +225,11 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     int error = VOP_LOOKUP(v, component, &v_child);
     vnode_unlock(v);
     vnode_unref(v);
+    /* Handle the special case of root vnode returning ENOTSUP on lookup. We
+       don't have a filesystem at / (root) yet, but we want to get the correct
+       error when trying to open a non-existent file. */
+    if (error == ENOTSUP && v == vfs_root_vnode)
+      return ENOENT;
     if (error)
       return error;
     v = v_child;

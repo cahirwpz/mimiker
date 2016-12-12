@@ -11,7 +11,7 @@ int main() {
   error = vfs_lookup("/dev/SPAM", &v);
   assert(error == ENOENT);
   error = vfs_lookup("/usr", &v);
-  assert(error == ENOTSUP); /* Root filesystem not implemented yet. */
+  assert(error == ENOENT);
   error = vfs_lookup("/", &v);
   assert(error == 0 && v == vfs_root_vnode);
   vnode_unref(v);
@@ -91,7 +91,7 @@ int main() {
   uio.uio_resid = iov.iov_len;
 
   res = VOP_WRITE(dev_uart, &uio);
-  assert(res > 0);
+  assert(res == 0);
 
   return 0;
 }
