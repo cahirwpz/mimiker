@@ -4,6 +4,7 @@ SOURCES_C  = \
 	callout.c \
 	clock.c \
 	dev_null.c \
+	dev_uart.c \
 	devfs.c \
 	embedfs.c \
 	exception.c \

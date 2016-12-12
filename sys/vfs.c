@@ -75,7 +75,6 @@ vfsconf_t *vfs_get_by_name(const char *name) {
 
 /* Register a file system type */
 static int vfs_register(vfsconf_t *vfc) {
-
   /* Check if this file system type was already registered */
   if (vfs_get_by_name(vfc->vfc_name))
     return EEXIST;
@@ -173,7 +172,6 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
 }
 
 int vfs_lookup(const char *path, vnode_t **vp) {
-
   /* TODO: This is a simplified implementation, and it does not support many
      required features! These include: relative paths, symlinks, parent dirs */
 
