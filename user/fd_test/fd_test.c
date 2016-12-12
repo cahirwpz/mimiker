@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
 #include <errno.h>
 
 const char *str = "Hello world from a user program!\n";
@@ -159,5 +160,8 @@ int main(int argc, char **argv) {
   test_copy();
   test_bad_descrip();
   test_open_path();
+
+  printf("Test passed!\n");
+
   return 0;
 }
