@@ -28,7 +28,7 @@ static int dev_zero_write(vnode_t *t, uio_t *uio) {
       len = PAGESIZE;
     error = uiomove((void *)junk_page->vaddr, len, uio);
   }
-  return -error;
+  return error;
 }
 
 static int dev_zero_read(vnode_t *t, uio_t *uio) {
@@ -39,7 +39,7 @@ static int dev_zero_read(vnode_t *t, uio_t *uio) {
       len = PAGESIZE;
     error = uiomove((void *)zero_page->vaddr, len, uio);
   }
-  return -error;
+  return error;
 }
 
 static vnodeops_t dev_null_vnodeops = {

@@ -90,7 +90,6 @@ noreturn void thread_exit() {
     file_desc_table_destroy(td->td_fdt);
 
   critical_enter();
-
   td->td_state = TDS_INACTIVE;
   sched_yield();
   critical_leave();

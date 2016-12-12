@@ -88,7 +88,7 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
     fp->f_flags = FILE_FLAG_READ | FILE_FLAG_WRITE;
     break;
   default:
-    return -EINVAL;
+    return EINVAL;
   }
   return 0;
 }

@@ -1,5 +1,4 @@
 #include <vfs_syscalls.h>
-#include <thread.h>
 #include <file.h>
 #include <filedesc.h>
 #include <mount.h>
@@ -8,7 +7,7 @@
 #include <stdc.h>
 #include <vm_map.h>
 
-int do_open(thread_t *td, char *pathname, int flags, int mode) {
+int do_open(thread_t *td, char *pathname, int flags, int mode, int *fd) {
   /* Allocate a file structure, but do not install descriptor yet. */
   file_t *f = file_alloc_noinstall();
   /* Try opening file. Fill the file structure. */
@@ -16,8 +15,7 @@ int do_open(thread_t *td, char *pathname, int flags, int mode) {
   if (error)
     goto fail;
   /* Now install the file in descriptor table. */
-  int fd;
-  error = file_install_desc(td->td_fdt, f, &fd);
+  error = file_install_desc(td->td_fdt, f, fd);
   if (error)
     goto fail;
 
@@ -25,15 +23,18 @@ int do_open(thread_t *td, char *pathname, int flags, int mode) {
      when we asked to allocate the file. Thus we need to release that initial
      ref. */
   file_drop(f);
-  return fd;
+  return 0;
 
 fail:
   file_drop(f);
-  return -error;
+  return error;
 }
 
-int do_read(int fd, uio_t *uio) {
-  thread_t *td = thread_self();
+int do_close(thread_t *td, int fd) {
+  return file_desc_close(td->td_fdt, fd);
+}
+
+int do_read(thread_t *td, int fd, uio_t *uio) {
   file_t *f;
   int res = file_get_read(td, fd, &f);
   if (res)
@@ -43,8 +44,7 @@ int do_read(int fd, uio_t *uio) {
   return res;
 }
 
-int do_write(int fd, uio_t *uio) {
-  thread_t *td = thread_self();
+int do_write(thread_t *td, int fd, uio_t *uio) {
   file_t *f;
   int res = file_get_write(td, fd, &f);
   if (res)
@@ -54,7 +54,7 @@ int do_write(int fd, uio_t *uio) {
   return res;
 }
 
-/* == Systemcall interface === */
+/* == System calls interface === */
 
 int sys_open(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
@@ -72,7 +72,11 @@ int sys_open(thread_t *td, syscall_args_t *args) {
 
   kprintf("[syscall] open(%s, %d, %d)\n", pathname, flags, mode);
 
-  return do_open(td, pathname, flags, mode);
+  int fd;
+  error = do_open(td, pathname, flags, mode, &fd);
+  if (error)
+    return -error;
+  return fd;
 }
 
 int sys_close(thread_t *td, syscall_args_t *args) {
@@ -80,7 +84,7 @@ int sys_close(thread_t *td, syscall_args_t *args) {
 
   kprintf("[syscall] close(%d)\n", fd);
 
-  return -file_desc_close(td->td_fdt, fd);
+  return -do_close(td, fd);
 }
 
 int sys_read(thread_t *td, syscall_args_t *args) {
@@ -104,7 +108,7 @@ int sys_read(thread_t *td, syscall_args_t *args) {
   uio.uio_resid = count;
   uio.uio_offset = 0;
 
-  int error = do_read(fd, &uio);
+  int error = do_read(td, fd, &uio);
   if (error)
     return -error;
   int read = count - uio.uio_resid;
@@ -139,7 +143,7 @@ int sys_write(thread_t *td, syscall_args_t *args) {
   uio.uio_resid = count;
   uio.uio_offset = 0;
 
-  error = do_write(fd, &uio);
+  error = do_write(td, fd, &uio);
   if (error)
     return -error;
   return count - uio.uio_resid;

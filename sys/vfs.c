@@ -243,12 +243,9 @@ int vfs_lookup(const char *path, vnode_t **vp) {
 
 int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   vnode_t *v;
-  int error;
+  int error = 0;
   error = vfs_lookup(pathname, &v);
   if (error)
     return error;
-  error = VOP_OPEN(v, mode, f);
-  if (error)
-    return error;
-  return 0;
+  return VOP_OPEN(v, mode, f);
 }
