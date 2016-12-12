@@ -75,5 +75,23 @@ int main() {
   assert(res == 0);
   assert(uio.uio_resid == 0);
 
+  /* Test writing to UART */
+  vnode_t *dev_uart;
+  error = vfs_lookup("/dev/uart", &dev_uart);
+  assert(error == 0);
+  char *str = "Some string for testing UART write\n";
+
+  uio.uio_op = UIO_WRITE;
+  uio.uio_vmspace = get_kernel_vm_map();
+  iov.iov_base = str;
+  iov.iov_len = strlen(str);
+  uio.uio_iovcnt = 1;
+  uio.uio_iov = &iov;
+  uio.uio_offset = 0;
+  uio.uio_resid = iov.iov_len;
+
+  res = VOP_WRITE(dev_uart, &uio);
+  assert(res > 0);
+
   return 0;
 }
