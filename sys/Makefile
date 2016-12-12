@@ -5,6 +5,7 @@ SOURCES_C  = \
 	clock.c \
 	dev_null.c \
 	devfs.c \
+	embedfs.c \
 	exception.c \
 	exec.c \
 	interrupt.c \

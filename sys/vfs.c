@@ -27,6 +27,7 @@ static vfs_init_t vfs_default_init;
 /* Global root vnodes */
 vnode_t *vfs_root_vnode;
 vnode_t *vfs_root_dev_vnode;
+vnode_t *vfs_root_embedfs_vnode;
 
 static vnodeops_t vfs_root_ops = {
   .v_lookup = vnode_op_notsup,
@@ -49,6 +50,7 @@ void vfs_init() {
 
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
   vfs_root_dev_vnode = vnode_new(V_DIR, &vfs_root_ops);
+  vfs_root_embedfs_vnode = vnode_new(V_DIR, &vfs_root_ops);
 
   /* Initialize available filesystem types. */
   SET_DECLARE(vfsconf, vfsconf_t);
@@ -184,6 +186,11 @@ int vfs_lookup(const char *path, vnode_t **vp) {
      * since we don't have any filesystem at / (root) yet. */
     v = vfs_root_dev_vnode;
     path = path + 5;
+  } else if (strncmp(path, "/embed/", 7) == 0) {
+    /* Handle the special case of "/embed",
+     * since we don't have any filesystem at / (root) yet. */
+    v = vfs_root_embedfs_vnode;
+    path = path + 7;
   } else if (strncmp(path, "/", 1) == 0) {
     v = vfs_root_vnode;
     path = path + 1;

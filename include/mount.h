@@ -73,9 +73,10 @@ static inline int VFS_VGET(mount_t *m, ino_t ino, vnode_t **vp) {
 }
 
 /* This is the / node. Since we aren't mounting anything on / just yet, there is
-   also a separate global vnode for /dev .*/
+   also a separate global vnode for /dev and /embed .*/
 extern vnode_t *vfs_root_vnode;
 extern vnode_t *vfs_root_dev_vnode;
+extern vnode_t *vfs_root_embedfs_vnode;
 
 /* Look up a file system type by name. */
 vfsconf_t *vfs_get_by_name(const char *name);

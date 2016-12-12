@@ -3,6 +3,9 @@
 *.ko
 *.a
 
+# Embeddables as object files
+*.eo
+
 # Executables
 *.elf
 *.uelf

@@ -82,6 +82,10 @@ endef
 	@echo "[LD] $(addprefix $(DIR),$<) -> $(DIR)$@"
 	$(CC) $(LDFLAGS) $< -Wl,-Map=$@.map $(LDLIBS) $(LD_EMBED) -o $@
 
+%.eo: %
+	@echo "[LD] $(DIR)$< -> $(DIR)$@"
+	$(OBJCOPY) -I binary --rename-section .data=.rodata,contents,readonly,data -O elf32-little --alt-machine-code=8 $< $@
+
 %.test: %.c
 	@echo "[HOSTCC] $(DIR)$< -> $(DIR)$@"
 	$(HOSTCC) $(CFLAGS) $(CPPFLAGS) -D_USERSPACE -o $@ $<
