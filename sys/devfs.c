@@ -60,9 +60,6 @@ int devfs_install(const char *name, vnode_t *device) {
   return 0;
 }
 
-static vfs_mount_t devfs_mount;
-static vfs_root_t devfs_root;
-
 static vnode_lookup_t devfs_root_lookup;
 static vnode_readdir_t devfs_root_readdir;
 
@@ -73,12 +70,6 @@ static vnodeops_t devfs_root_ops = {
   .v_read = vnode_op_notsup,
   .v_write = vnode_op_notsup,
 };
-
-static vfsops_t devfs_vfsops = {.vfs_mount = devfs_mount,
-                                .vfs_root = devfs_root};
-
-static vfsconf_t devfs_conf = {.vfc_name = "devfs",
-                               .vfc_vfsops = &devfs_vfsops};
 
 static int devfs_mount(mount_t *m) {
   /* Prepare the root vnode. We'll use a single instead of allocating a new
@@ -118,13 +109,11 @@ static int devfs_root(mount_t *m, vnode_t **v) {
   return 0;
 }
 
-void devfs_init() {
+static int devfs_init(vfsconf_t *vfc) {
   kmalloc_init(devfs_pool);
   kmalloc_add_arena(devfs_pool, pm_alloc(1)->vaddr, PAGESIZE);
 
   mtx_init(&devfs_device_list_mtx);
-
-  vfs_register(&devfs_conf);
 
   /* Prepare some initial devices */
   typedef void devfs_init_func_t();
@@ -138,5 +127,20 @@ void devfs_init() {
   /* Mount devfs at /dev. */
   /* TODO: This should actually happen somewhere else in the init process, much
    * later, and is configuration-dependent. */
-  vfs_domount(&devfs_conf, vfs_root_dev_vnode);
+  vfs_domount(vfc, vfs_root_dev_vnode);
+
+  return 0;
 }
+
+static vfsops_t devfs_vfsops = {
+  .vfs_mount = devfs_mount,
+  .vfs_root = devfs_root,
+  .vfs_init = devfs_init
+};
+
+static vfsconf_t devfs_conf = {
+  .vfc_name = "devfs",
+  .vfc_vfsops = &devfs_vfsops
+};
+
+SET_ENTRY(vfsconf, devfs_conf);
