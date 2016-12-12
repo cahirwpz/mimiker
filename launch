@@ -36,7 +36,8 @@ def configure_ovpsim(args):
         'mipsle1/srsctlHSS': 1,
         'rtc/timefromhost': 1,
         'uartCBUS/console': 1,
-        'uartCBUS/portnum': PORT
+        'uartCBUS/portnum': PORT,
+        'command' : '"' + ' '.join(args.args) + '"'
     }
 
     try:
@@ -68,7 +69,8 @@ def configure_qemu(args):
                '-nodefaults',
                '-machine', 'malta',
                '-cpu', '24Kf',
-               '-kernel', args.kernel]
+               '-kernel', args.kernel,
+               '-append', '"' + ' '.join(args.args) + '"']
 
     if args.test:
         options += ['-serial', 'null',
@@ -123,6 +125,8 @@ if __name__ == '__main__':
         description='Launch kernel in Malta board simulator.')
     parser.add_argument('kernel', metavar='KERNEL', type=str,
                         help='Kernel file in ELF format.')
+    parser.add_argument('args', metavar='ARGS', type=str, nargs='*',
+                        help='Kernel arguments.')
     parser.add_argument('-d', '--debug', action='store_true',
                         help='Start simulation under gdb.')
     parser.add_argument('-D', '--debugger', metavar='DEBUGGER', type=str,

@@ -1,14 +1,19 @@
-#ifndef __COMMON_H__
-#define __COMMON_H__
+#ifndef _SYS_COMMON_H_
+#define _SYS_COMMON_H_
 
 #include <stdint.h>      /* uint*_t, int*_t */
 #include <stddef.h>      /* offsetof, NULL, ptrdiff_t, size_t, etc. */
 #include <stdbool.h>     /* bool, true, false */
 #include <stdalign.h>    /* alignof, alignas */
 #include <stdnoreturn.h> /* noreturn */
+#include <sys/types.h>   /* provided by the toolchain */
+#include <sys/cdefs.h>   /* ditto */
 
 typedef unsigned long vm_addr_t;
 typedef unsigned long pm_addr_t;
+
+/* Wrapper for various GCC attributes */
+#define __nonnull(x) __attribute__((__nonnull__(x)))
 
 /* Macros for counting and rounding. */
 #ifndef howmany
@@ -22,10 +27,6 @@ typedef unsigned long pm_addr_t;
 #define ffs(x) (__builtin_ffs(x))
 #define clz(x) (__builtin_clz(x))
 #define ctz(x) (__builtin_ctz(x))
-
-#ifndef __STRING
-#define __STRING(x) #x
-#endif
 
 #define abs(x)                                                                 \
   ({                                                                           \
@@ -73,13 +74,13 @@ typedef unsigned long pm_addr_t;
 
 #ifndef _USERSPACE
 
-/* Terminate kernel. */
-noreturn void kernel_exit();
+/* Terminate thread. */
+noreturn void thread_exit();
 
 #define panic(FMT, ...)                                                        \
   __extension__({                                                              \
-    kprintf("[panic] %s:%d " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);     \
-    kernel_exit();                                                             \
+    kprintf("[%s:%d] " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);           \
+    thread_exit();                                                             \
   })
 
 #define log(FMT, ...)                                                          \
@@ -98,6 +99,6 @@ noreturn void kernel_exit();
 
 #else
 #include <assert.h>
-#endif // _USERSPACE
+#endif /* !_USERSPACE */
 
-#endif // __COMMON_H__
+#endif /* !_SYS_COMMON_H_ */

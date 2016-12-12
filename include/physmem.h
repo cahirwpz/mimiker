@@ -1,9 +1,9 @@
-#ifndef _PHYS_MEM_H_
-#define _PHYS_MEM_H_
+#ifndef _SYS_PHYSMEM_H_
+#define _SYS_PHYSMEM_H_
 
 #include <vm.h>
 
-/* Initialize physical memory manager. */
+/* Platform independant initialization of physical memory manager. */
 void pm_init();
 
 /*
@@ -17,8 +17,6 @@ void pm_init();
  */
 void pm_add_segment(pm_addr_t start, pm_addr_t end, vm_addr_t vm_offset);
 
-/* Allocates fictitious page, one which has no physical counterpart. */
-vm_page_t *pm_alloc_fictitious(size_t n);
 /* Allocates contiguous big page that consists of n machine pages. */
 vm_page_t *pm_alloc(size_t n);
 
@@ -31,4 +29,4 @@ vm_page_t *pm_split_alloc_page(vm_page_t *pg);
  * ebss, or any possibly unwanted places. */
 void pm_reserve(pm_addr_t start, pm_addr_t end);
 
-#endif /* _PHYS_MEM_H */
+#endif /* !_SYS_PHYSMEM_H_ */

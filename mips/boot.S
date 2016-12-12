@@ -1,10 +1,11 @@
 #include <mips/asm.h>
+#include <mips/pcpu.h>
+#include <mips/regdef.h>
 #include <mips/m32c0.h>
 
-        .set noreorder
+#include "assym.h"
 
-        .local clear_bss
-        .local kernel_go
+        .set noreorder
 
 # Boot environment is described in MIPS® YAMON™ User's Manual, Chapter 5
 # ... and MIPS® YAMON™ Reference Manual, Chapter 8.3
@@ -20,47 +21,33 @@
 # C0_STATUS is same as YAMON™ context, but interrupts are disabled.
 
 LEAF(_start)
-        la      $t0, _memsize
-        sw      $a3,($t0)
-        la      $gp, _gp
+        # Load global pointer to make data section addressing possible
+        LA      gp, _gp
 
-clear_bss:
-        la      $t0, __bss
-        la      $t1, __ebss
+        # Mask out software and hardware interrupts,
+        # ensure we're in kernel mode, disable FPU,
+        # leave error level & exception level and disable interrupts.
+        mfc0    t0, C0_STATUS
+        li      t1, ~(SR_IPL_MASK|SR_KSU_MASK|SR_CU1|SR_ERL|SR_EXL|SR_IE)
+        and     t0, t1
+        mtc0    t0, C0_STATUS
 
-1:      sw      $zero, ($t0)
-        bne     $t0, $t1, 1b
-        addiu   $t0, 4
+        # Clear pending software and hardware interrupts
+        mfc0    t0, C0_CAUSE
+        li      t1, ~CR_IP_MASK
+        and     t0, t1
+        mtc0    t0, C0_CAUSE
 
-kernel_go:
-	# Let's preserve SR_BEV for now, until interrupts are propely set up
-	# later. SR_SR (Soft Reset) bit will be preserved as well to support
-	# reboot in the future.
-        li      $t0, (SR_BEV | SR_SR)
-        mfc0    $t1, C0_STATUS
-        and     $t1, $t0
-        mtc0    $t1, C0_STATUS
-        ehb
+        # Initialize the platform
+        jal     platform_init
+        nop
 
-	# Transfer control to `kernel_boot` running in kernel mode with
-	# interrupts and FPU disabled.
-	# If kernel ever decides to return just loop forever.
-        la      $ra, kernel_exit
-        la      $t0, kernel_boot
-        jr      $t0
+        # Switch to kernel main thread
+        LOAD_PCPU(t0)
+        move    a0, zero
+        PTR_L   a1, PCPU_CURTHREAD(t0)
+        j       ctx_switch
         nop
 END(_start)
 
-LEAF(kernel_exit)
-1:      j       1b
-        nop
-END(kernel_exit)
-
-
-        .globl _memsize
-        .type  _memsize,@object
-        .size  _memsize,4
-
-        .data
-_memsize:
-        .long 0
+# vim: sw=8 ts=8 et

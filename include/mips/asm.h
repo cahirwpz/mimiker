@@ -66,9 +66,9 @@
 #define PTR_MTC0 mtc0     /* access CP0 pointer width register */
 #define LA la             /* load an address */
 #define PTR .word         /* pointer type pseudo */
-#define CALLFRAME_SIZE (SZREG * 6)
-#define CALLFRAME_SP (CALLFRAME_SIZE - 2 * SZREG)
-#define CALLFRAME_RA (CALLFRAME_SIZE - 1 * SZREG)
+#define CALLFRAME_SIZ (SZREG * 6)
+#define CALLFRAME_SP (CALLFRAME_SIZ - 2 * SZREG)
+#define CALLFRAME_RA (CALLFRAME_SIZ - 1 * SZREG)
 #elif _MIPS_SIM == _ABIO64
 /* Cygnus O64 */
 #define SZREG 8           /* saved register size */
@@ -262,7 +262,7 @@ _TEXT_SECTION
   .balign 4;                                                                   \
   .globl name;                                                                 \
   .ent name;                                                                   \
-  .frame $sp, framesz, rareg;                                                  \
+  .frame sp, framesz, rareg;                                                  \
   name:
 
 /* Static/Local nested function. */
@@ -270,7 +270,7 @@ _TEXT_SECTION
   _TEXT_SECTION_NAMED(name);                                                   \
   .balign 4;                                                                   \
   .ent name;                                                                   \
-  .frame $sp, framesz, rareg;                                                  \
+  .frame sp, framesz, rareg;                                                  \
   name:
 
 /* Weak nested function. */
@@ -279,7 +279,7 @@ _TEXT_SECTION
   .balign 4;                                                                   \
   .weak name;                                                                  \
   .ent name;                                                                   \
-  .frame $sp, framesz, rareg;                                                  \
+  .frame sp, framesz, rareg;                                                  \
   name:
 
 /* Weak alias nested function. */
@@ -289,7 +289,7 @@ _TEXT_SECTION
   .weak alias;                                                                 \
   .ent name;                                                                   \
   alias = name;                                                                \
-  .frame $sp, framesz, rareg;                                                  \
+  .frame sp, framesz, rareg;                                                  \
   name:
 
 /*

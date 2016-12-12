@@ -8,6 +8,7 @@ PHDRS
     rodata PT_LOAD FLAGS(4); /* read-only */
     sdata  PT_LOAD FLAGS(6); /* read-write */
     bss    PT_LOAD FLAGS(6); /* read-write */
+    sbss   PT_LOAD FLAGS(6); /* read-write */
 }
 SECTIONS
 {
@@ -39,6 +40,12 @@ SECTIONS
     {
         *(.sdata .sdata.*)
     } : sdata
+    . = ALIGN(4096);
+    .sbss :
+    {
+        *(.sbss .sbss.*)
+        *(.scommon)
+    } : sbss
 
     . = ALIGN(4096);
     .bss :

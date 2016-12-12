@@ -1,7 +1,7 @@
 #include <mips/exc.h>
 #include <mips/pcpu.h>
 
-#include "genassym.h"
+#include "assym.h"
 
         # Don't allow the assembler to reorder instructions.
         .set	noreorder
@@ -90,6 +90,7 @@ user_exc_enter:
 
         # Turn off FPU, enter kernel mode,
         # drop exception level and disable interrupts.
+        mfc0    $t0, C0_STATUS
         li      $t1, ~(SR_CU1|SR_KSU_MASK|SR_EXL|SR_IE)
         and     $t0, $t1
         mtc0    $t0, C0_STATUS
@@ -118,14 +119,21 @@ user_exc_leave:
         lw      $k0, PCPU_CURTHREAD($k0)
         addu    $k0, TD_UCTX
 
-        # Turn on FPU, unmask all interrupts, enter exception level,
+        # Update status register held in user context.
+        LOAD_REG($t0, SR, $k0)
+        # Turn on FPU, enter exception level,
         # enter user mode and enable interrupts
         # (last two applies only after ERET).
-        li      $t1, (SR_CU1|SR_IMASK|SR_KSU_USER|SR_EXL|SR_IE)
+        li      $t1, (SR_CU1|SR_KSU_USER|SR_EXL|SR_IE)
+        # Clear interrupts mask.
+        li      $t2, ~SR_IMASK
+        or      $t0, $t1
+        and     $t0, $t2
+        # Update user-mode interrupts mask based on current one.
+        mfc0    $t1, C0_STATUS
+        andi    $t1, SR_IMASK
         or      $t0, $t1
         mtc0    $t0, C0_STATUS
-
-        # Update status register held in user context.
         SAVE_REG($t0, SR, $k0)
 
         # Restore exception program counter,
@@ -172,7 +180,7 @@ user_exc_leave:
 
 kern_exc_enter:
         # Push stack frame.
-        subu    $sp, EXC_FRAME_SIZE
+        subu    $sp, EXC_FRAME_SIZ
 
         # Save all user registers...
         SAVE_REG($at, AT, $sp)
@@ -201,7 +209,7 @@ kern_exc_enter:
         SAVE_REG($t8, T8, $sp)
         SAVE_REG($t9, T9, $sp)
         SAVE_REG($gp, GP, $sp)
-        add     $t0, $sp, EXC_FRAME_SIZE
+        add     $t0, $sp, EXC_FRAME_SIZ
         SAVE_REG($t0, SP, $sp)
         SAVE_REG($fp, FP, $sp)
         SAVE_REG($ra, RA, $sp)
@@ -254,7 +262,7 @@ kern_exc_leave:
         ori     $t0, SR_EXL
         mtc0    $t0, C0_STATUS
 
-        # Update status register held in user context (only interrupt mask).
+        # Update status register held in exception frame (only interrupt mask).
         LOAD_REG($t0, SR, $sp)
         li      $t1, ~SR_IMASK
         and     $t0, $t1

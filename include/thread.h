@@ -1,5 +1,5 @@
-#ifndef __THREAD_H__
-#define __THREAD_H__
+#ifndef _SYS_THREAD_H_
+#define _SYS_THREAD_H_
 
 #include <common.h>
 #include <queue.h>
@@ -31,6 +31,7 @@ typedef struct thread {
   fpu_ctx_t td_uctx_fpu;  /* user FPU context (always exception) */
   exc_frame_t *td_kframe; /* kernel context (last exception frame) */
   ctx_t td_kctx;          /* kernel context (switch) */
+  intptr_t td_onfault;    /* program counter for copyin/copyout faults */
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
   vm_map_t *td_uspace; /* thread's user space map */
@@ -44,11 +45,13 @@ typedef struct thread {
 } thread_t;
 
 thread_t *thread_self();
-noreturn void thread_init(void (*fn)(), int n, ...);
+void thread_init();
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
 void thread_delete(thread_t *td);
 
 void thread_switch_to(thread_t *td_ready);
+
+noreturn void thread_exit();
 
 /* Debugging utility that prints out the summary of all_threads contents. */
 void thread_dump_all();
@@ -56,4 +59,4 @@ void thread_dump_all();
 /* Returns the thread matching the given ID, or null if none found. */
 thread_t *thread_get_by_tid(tid_t id);
 
-#endif // __THREAD_H__
+#endif /* _SYS_THREAD_H_ */
