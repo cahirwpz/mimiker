@@ -25,6 +25,7 @@ SOURCES_C  = \
 	turnstile.c \
 	uio.c \
 	vfs.c \
+	vfs_syscalls.c \
 	vm_map.c \
 	vm_object.c \
 	vm_pager.c \

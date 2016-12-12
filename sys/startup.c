@@ -34,6 +34,7 @@ int kernel_init(int argc, char **argv) {
 
   vnode_init();
   vfs_init();
+  file_desc_init();
 
   kprintf("[startup] kernel initialized\n");
 
