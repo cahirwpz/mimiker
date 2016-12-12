@@ -92,16 +92,13 @@ int sys_read(thread_t *td, syscall_args_t *args) {
   char *ubuf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  char buf[256];
-  count = min(count, 256);
-
   kprintf("[syscall] read(%d, %p, %zu)\n", fd, ubuf, count);
 
   uio_t uio;
   iovec_t iov;
   uio.uio_op = UIO_WRITE;
   uio.uio_vmspace = get_user_vm_map();
-  iov.iov_base = buf;
+  iov.iov_base = ubuf;
   iov.iov_len = count;
   uio.uio_iovcnt = 1;
   uio.uio_iov = &iov;
@@ -111,11 +108,7 @@ int sys_read(thread_t *td, syscall_args_t *args) {
   int error = do_read(td, fd, &uio);
   if (error)
     return -error;
-  int read = count - uio.uio_resid;
-  error = copyout(buf, ubuf, read);
-  if (error < 0)
-    return error;
-  return read;
+  return count - uio.uio_resid;
 }
 
 int sys_write(thread_t *td, syscall_args_t *args) {
@@ -125,25 +118,18 @@ int sys_write(thread_t *td, syscall_args_t *args) {
 
   log("sys_write(%d, %p, %zu)", fd, ubuf, count);
 
-  /* Copyin buf */
-  char buf[256];
-  count = min(count, 256);
-  int error = copyin(ubuf, buf, sizeof(buf));
-  if (error < 0)
-    return error;
-
   uio_t uio;
   iovec_t iov;
   uio.uio_op = UIO_WRITE;
   uio.uio_vmspace = get_user_vm_map();
-  iov.iov_base = buf;
+  iov.iov_base = ubuf;
   iov.iov_len = count;
   uio.uio_iovcnt = 1;
   uio.uio_iov = &iov;
   uio.uio_resid = count;
   uio.uio_offset = 0;
 
-  error = do_write(td, fd, &uio);
+  int error = do_write(td, fd, &uio);
   if (error)
     return -error;
   return count - uio.uio_resid;
