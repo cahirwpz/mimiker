@@ -85,10 +85,10 @@ noreturn void thread_exit() {
   /* Thread must not exit while in critical section! */
   assert(td->td_csnest == 0);
 
-  cs_enter();
+  critical_enter();
   td->td_state = TDS_INACTIVE;
   sched_yield();
-  cs_leave();
+  critical_leave();
 
   /* sched_yield will return immediately when scheduler is not active */
   while (true);

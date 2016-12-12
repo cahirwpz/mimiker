@@ -27,21 +27,21 @@ void mtx_lock(mtx_t *mtx) {
   assert(!mtx_owned(mtx));
 
   while (!mtx_try_lock(mtx)) {
-    cs_enter();
+    critical_enter();
     /* Check if the mutex got unlocked since a call to mtx_try_lock */
     if (mtx->mtx_state == MTX_UNOWNED) {
-      cs_leave();
+      critical_leave();
       continue;
     }
     assert(mtx_locked(mtx));
     turnstile_wait(&mtx->turnstile);
-    cs_leave();
+    critical_leave();
   }
 }
 
 void mtx_unlock(mtx_t *mtx) {
-  cs_enter();
+  critical_enter();
   mtx->mtx_state = MTX_UNOWNED;
   turnstile_signal(&mtx->turnstile);
-  cs_leave();
+  critical_leave();
 }

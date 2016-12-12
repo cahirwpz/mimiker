@@ -14,12 +14,12 @@ static vm_map_t kspace;
 vm_map_t *vm_map_activate(vm_map_t *map) {
   vm_map_t *old;
 
-  cs_enter();
+  critical_enter();
   thread_t *td = thread_self();
   old = td->td_uspace;
   td->td_uspace = map;
   pmap_activate(map ? map->pmap : NULL);
-  cs_leave();
+  critical_leave();
 
   return old;
 }
