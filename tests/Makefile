@@ -23,10 +23,9 @@ SOURCES_ASM =
 
 all: $(TESTS)
 
+LD_EMBED = embedfs.txt.eo
+
 include ../Makefile.common
 
-embedfs.elf: embedfs.txt.eo
-LD_EMBED += embedfs.txt.eo
-
 clean:
-	$(RM) -f .*.D *.o *.elf *.map *~
+	$(RM) -f .*.D *.o *.elf *.map *~ *.eo

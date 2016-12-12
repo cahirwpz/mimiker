@@ -44,7 +44,7 @@ LDLIBS += -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc \
       -Wl,--end-group
 
 # Files that need to be embedded alongside kernel image
-LD_EMBED = \
+LD_EMBED += \
 	$(TOPDIR)/user/prog/prog.uelf.o \
 	$(TOPDIR)/user/misbehave/misbehave.uelf.o \
 	$(TOPDIR)/user/fd_test/fd_test.uelf.o
