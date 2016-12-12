@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <malloc.h>
 #include <vnode.h>
+#include <linker_set.h>
 
 static MALLOC_DEFINE(vfs_pool, "VFS pool");
 
@@ -35,6 +36,8 @@ static vnodeops_t vfs_root_ops = {
   .v_write = vnode_op_notsup,
 };
 
+static int vfs_register(vfsconf_t *vfc);
+
 void vfs_init() {
   mtx_init(&vfsconf_list_mtx);
   mtx_init(&mount_list_mtx);
@@ -46,6 +49,13 @@ void vfs_init() {
 
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
   vfs_root_dev_vnode = vnode_new(V_DIR, &vfs_root_ops);
+
+  /* Initialize available filesystem types. */
+  SET_DECLARE(vfsconf, vfsconf_t);
+  vfsconf_t **ptr;
+  SET_FOREACH(ptr, vfsconf) {
+    vfs_register(*ptr);
+  }
 }
 
 vfsconf_t *vfs_get_by_name(const char *name) {
@@ -61,8 +71,8 @@ vfsconf_t *vfs_get_by_name(const char *name) {
   return NULL;
 }
 
-int vfs_register(vfsconf_t *vfc) {
-
+/* Register a file system type */
+static int vfs_register(vfsconf_t *vfc) {
   /* Check if this file system type was already registered */
   if (vfs_get_by_name(vfc->vfc_name))
     return EEXIST;
@@ -160,7 +170,6 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
 }
 
 int vfs_lookup(const char *path, vnode_t **vp) {
-
   /* TODO: This is a simplified implementation, and it does not support many
      required features! These include: relative paths, symlinks, parent dirs */
 

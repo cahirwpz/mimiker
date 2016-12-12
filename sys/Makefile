@@ -5,6 +5,7 @@ SOURCES_C  = \
 	clock.c \
 	descrip.c \
 	dev_null.c \
+	dev_uart.c \
 	devfs.c \
 	exception.c \
 	exec.c \
@@ -18,6 +19,7 @@ SOURCES_C  = \
 	sched.c \
 	sleepq.c \
 	startup.c \
+	sync.c \
 	sysent.c \
 	thread.c \
 	turnstile.c \

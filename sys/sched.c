@@ -27,13 +27,13 @@ void sched_add(thread_t *td) {
 
   td->td_state = TDS_READY;
   td->td_slice = SLICE;
-  cs_enter();
+  critical_enter();
 
   runq_add(&runq, td);
 
   if (td->td_prio > thread_self()->td_prio)
     thread_self()->td_flags |= TDF_NEEDSWITCH;
-  cs_leave();
+  critical_leave();
 }
 
 void sched_remove(thread_t *td) {
@@ -65,7 +65,7 @@ void sched_switch(thread_t *newtd) {
   if (!sched_active)
     return;
 
-  cs_enter();
+  critical_enter();
 
   thread_t *td = thread_self();
 
@@ -78,7 +78,7 @@ void sched_switch(thread_t *newtd) {
     newtd = sched_choose();
 
   newtd->td_state = TDS_RUNNING;
-  cs_leave();
+  critical_leave();
 
   if (td != newtd)
     ctx_switch(td, newtd);
