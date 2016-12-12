@@ -6,14 +6,14 @@
 #include <mips/uart_cbus.h>
 #include <linker_set.h>
 
-vnode_t *dev_uart_device;
+static vnode_t *dev_uart_device;
 
-#define UART_BUFFER_SIZE 100
+#define UART_BUF_MAX 100
 
 static int dev_uart_write(vnode_t *t, uio_t *uio) {
-  char buffer[UART_BUFFER_SIZE];
+  char buffer[UART_BUF_MAX];
   size_t n = uio->uio_resid;
-  int res = uiomove(buffer, UART_BUFFER_SIZE - 1, uio);
+  int res = uiomove(buffer, UART_BUF_MAX - 1, uio);
   if (res < 0)
     return res;
   size_t moved = n - uio->uio_resid;
@@ -34,9 +34,7 @@ vnodeops_t dev_uart_vnodeops = {
 };
 
 void init_dev_uart() {
-
   dev_uart_device = vnode_new(V_DEV, &dev_uart_vnodeops);
-
   devfs_install("uart", dev_uart_device);
 }
 

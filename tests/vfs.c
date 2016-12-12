@@ -90,7 +90,7 @@ int main() {
   uio.uio_offset = 0;
   uio.uio_resid = iov.iov_len;
 
-  res = dev_uart->v_ops->v_write(dev_uart, &uio);
+  res = VOP_WRITE(dev_uart, &uio);
   assert(res > 0);
 
   return 0;
