@@ -10,9 +10,12 @@ int n;
 int fd0, fd1, fd2;
 char buf[100];
 
+/* The number of standard fds */
+#define FD_OFFSET 3
+
 #define assert_open_ok(fd, file, mode, flag)                                   \
   n = open(file, 0, flag);                                                     \
-  assert(n == fd);
+  assert(n == fd + FD_OFFSET);
 
 #define assert_open_fail(file, mode, flag, err)                                \
   n = open(file, 0, flag);                                                     \
@@ -20,29 +23,29 @@ char buf[100];
   assert(errno == err);
 
 #define assert_read_ok(fd, buf, len)                                           \
-  n = read(fd, buf, len);                                                      \
+  n = read(fd + FD_OFFSET, buf, len);                                          \
   assert(n >= 0);
 
 #define assert_read_fail(fd, buf, len, err)                                    \
-  n = read(fd, buf, len);                                                      \
+  n = read(fd + FD_OFFSET, buf, len);                                          \
   assert(n < 0);                                                               \
   assert(errno == err);
 
 #define assert_write_ok(fd, buf, len)                                          \
-  n = write(fd, buf, len);                                                     \
+  n = write(fd + FD_OFFSET, buf, len);                                         \
   assert(n >= 0);
 
 #define assert_write_fail(fd, buf, len, err)                                   \
-  n = write(fd, buf, len);                                                     \
+  n = write(fd + FD_OFFSET, buf, len);                                         \
   assert(n < 0);                                                               \
   assert(errno == err);
 
 #define assert_close_ok(fd)                                                    \
-  n = close(fd);                                                               \
+  n = close(fd + FD_OFFSET);                                                   \
   assert(n == 0);
 
 #define assert_close_fail(fd, err)                                             \
-  n = close(fd);                                                               \
+  n = close(fd + FD_OFFSET);                                                   \
   assert(n < 0);                                                               \
   assert(errno == err);
 
@@ -96,7 +99,12 @@ void test_readwrite() {
 
 /* Try passing invalid pointers as arguments to open,read,write. */
 void test_copy() {
-  assert_open_ok(0, "/dev/null", 0, O_RDWR);
+  /* /dev/null does not copy any data, so passing an invalid pointer will not
+   * cause any errors - thus we use /dev/zero for this test. However, /dev/zero
+   * might also skip copying data, and in that case this test would also fail -
+   * but we chose to implement a /dev/zero that copies the provided data into a
+   * junk page. */
+  assert_open_ok(0, "/dev/zero", 0, O_RDWR);
   assert_open_ok(1, "/dev/zero", 0, O_RDWR);
   /* Kernel space */
   char *naughty_ptr1 = (char *)0x80001000;

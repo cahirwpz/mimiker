@@ -18,7 +18,7 @@ static int dev_uart_write(vnode_t *t, uio_t *uio) {
     return res;
   size_t moved = n - uio->uio_resid;
   uart_write(buffer, moved);
-  return moved;
+  return 0;
 }
 
 static int dev_uart_read(vnode_t *t, uio_t *uio) {
