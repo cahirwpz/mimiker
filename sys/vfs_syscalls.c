@@ -70,7 +70,7 @@ int sys_open(thread_t *td, syscall_args_t *args) {
   if (error < 0)
     return error;
 
-  kprintf("[syscall] open(%s, %d, %d)\n", pathname, flags, mode);
+  log("open(%s, %d, %d)", pathname, flags, mode);
 
   int fd;
   error = do_open(td, pathname, flags, mode, &fd);
@@ -82,7 +82,7 @@ int sys_open(thread_t *td, syscall_args_t *args) {
 int sys_close(thread_t *td, syscall_args_t *args) {
   int fd = args->args[0];
 
-  kprintf("[syscall] close(%d)\n", fd);
+  log("close(%d)", fd);
 
   return -do_close(td, fd);
 }
@@ -92,11 +92,11 @@ int sys_read(thread_t *td, syscall_args_t *args) {
   char *ubuf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  kprintf("[syscall] read(%d, %p, %zu)\n", fd, ubuf, count);
+  log("sys_read(%d, %p, %zu)", fd, ubuf, count);
 
   uio_t uio;
   iovec_t iov;
-  uio.uio_op = UIO_WRITE;
+  uio.uio_op = UIO_READ;
   uio.uio_vmspace = get_user_vm_map();
   iov.iov_base = ubuf;
   iov.iov_len = count;
