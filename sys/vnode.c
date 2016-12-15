@@ -50,7 +50,7 @@ void vnode_unref(vnode_t *v) {
 }
 
 int vnode_op_notsup() {
-  return ENOTSUP;
+  return -ENOTSUP;
 }
 
 static int vnode_generic_read(file_t *f, thread_t *td, uio_t *uio) {
@@ -88,7 +88,7 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
     fp->f_flags = FILE_FLAG_READ | FILE_FLAG_WRITE;
     break;
   default:
-    return EINVAL;
+      return -EINVAL;
   }
   return 0;
 }

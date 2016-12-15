@@ -44,10 +44,10 @@ static devfs_device_t *devfs_get_by_name(const char *name) {
 int devfs_install(const char *name, vnode_t *device) {
   size_t n = strlen(name);
   if (n >= DEVFS_NAME_MAX)
-    return ENAMETOOLONG;
+    return -ENAMETOOLONG;
 
   if (devfs_get_by_name(name) != NULL)
-    return EEXIST;
+    return -EEXIST;
 
   devfs_device_t *idev = kmalloc(devfs_pool, sizeof(devfs_device_t), M_ZERO);
   strlcpy(idev->name, name, DEVFS_NAME_MAX);
@@ -90,7 +90,7 @@ static int devfs_root_lookup(vnode_t *dir, const char *name, vnode_t **res) {
 
   devfs_device_t *idev = devfs_get_by_name(name);
   if (!idev)
-    return ENOENT;
+    return -ENOENT;
 
   *res = idev->dev;
   vnode_ref(*res);

@@ -22,7 +22,7 @@ static int dev_uart_write(vnode_t *t, uio_t *uio) {
 }
 
 static int dev_uart_read(vnode_t *t, uio_t *uio) {
-  return ENOTSUP;
+  return -ENOTSUP;
 }
 
 vnodeops_t dev_uart_vnodeops = {

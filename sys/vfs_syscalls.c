@@ -75,7 +75,7 @@ int sys_open(thread_t *td, syscall_args_t *args) {
   int fd;
   error = do_open(td, pathname, flags, mode, &fd);
   if (error)
-    return -error;
+    return error;
   return fd;
 }
 
@@ -84,7 +84,7 @@ int sys_close(thread_t *td, syscall_args_t *args) {
 
   log("close(%d)", fd);
 
-  return -do_close(td, fd);
+  return do_close(td, fd);
 }
 
 int sys_read(thread_t *td, syscall_args_t *args) {
@@ -107,7 +107,7 @@ int sys_read(thread_t *td, syscall_args_t *args) {
 
   int error = do_read(td, fd, &uio);
   if (error)
-    return -error;
+    return error;
   return count - uio.uio_resid;
 }
 
@@ -131,6 +131,6 @@ int sys_write(thread_t *td, syscall_args_t *args) {
 
   int error = do_write(td, fd, &uio);
   if (error)
-    return -error;
+    return error;
   return count - uio.uio_resid;
 }

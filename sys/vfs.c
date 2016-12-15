@@ -75,7 +75,7 @@ vfsconf_t *vfs_get_by_name(const char *name) {
 static int vfs_register(vfsconf_t *vfc) {
   /* Check if this file system type was already registered */
   if (vfs_get_by_name(vfc->vfc_name))
-    return EEXIST;
+    return -EEXIST;
 
   mtx_lock(&vfsconf_list_mtx);
   TAILQ_INSERT_TAIL(&vfsconf_list, vfc, vfc_list);
@@ -104,15 +104,15 @@ static int vfs_register(vfsconf_t *vfc) {
 }
 
 static int vfs_default_root(mount_t *m, vnode_t **v) {
-  return ENOTSUP;
+  return -ENOTSUP;
 }
 
 static int vfs_default_statfs(mount_t *m, statfs_t *sb) {
-  return ENOTSUP;
+  return -ENOTSUP;
 }
 
 static int vfs_default_vget(mount_t *m, ino_t ino, vnode_t **v) {
-  return ENOTSUP;
+  return -ENOTSUP;
 }
 
 static int vfs_default_init(vfsconf_t *vfc) {
@@ -138,9 +138,9 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
 int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   /* Start by checking whether this vnode can be used for mounting */
   if (v->v_type != V_DIR)
-    return ENOTDIR;
+    return -ENOTDIR;
   if (v->v_mountedhere != NULL)
-    return EBUSY;
+    return -EBUSY;
 
   /* TODO: Mark the vnode is in-progress of mounting? See VI_MOUNT in FreeBSD */
 
@@ -174,7 +174,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
      required features! These include: relative paths, symlinks, parent dirs */
 
   if (path[0] == '\0')
-    return ENOENT;
+    return -ENOENT;
 
   vnode_t *v;
   if (strncmp(path, "/dev/", 5) == 0) {
@@ -187,13 +187,13 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     path = path + 1;
   } else {
     log("Relative paths are not supported!");
-    return ENOENT;
+    return -ENOENT;
   }
 
   /* Copy path into a local buffer, so that we may process it. */
   size_t n = strlen(path);
   if (n >= VFS_PATH_MAX)
-    return ENAMETOOLONG;
+    return -ENAMETOOLONG;
   char pathcopy[VFS_PATH_MAX];
   strlcpy(pathcopy, path, VFS_PATH_MAX);
   char *pathbuf = pathcopy;
@@ -228,8 +228,8 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     /* Handle the special case of root vnode returning ENOTSUP on lookup. We
        don't have a filesystem at / (root) yet, but we want to get the correct
        error when trying to open a non-existent file. */
-    if (error == ENOTSUP && v == vfs_root_vnode)
-      return ENOENT;
+    if (error == -ENOTSUP && v == vfs_root_vnode)
+      return -ENOENT;
     if (error)
       return error;
     v = v_child;

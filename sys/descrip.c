@@ -218,7 +218,7 @@ file_desc_table_t *file_desc_table_copy(file_desc_table_t *fdt) {
 static int _file_get(thread_t *td, int fd, int flags, file_t **resultf) {
   file_desc_table_t *fdt = td->td_fdt;
   if (!fdt)
-    return EBADF;
+    return -EBADF;
 
   mtx_lock(&fdt->fdt_mtx);
 
@@ -241,7 +241,7 @@ fail2:
   file_drop(f);
 fail:
   mtx_unlock(&fdt->fdt_mtx);
-  return EBADF;
+  return -EBADF;
 }
 
 int file_get(thread_t *td, int fd, file_t **f) {
@@ -252,6 +252,7 @@ int file_get_read(thread_t *td, int fd, file_t **f) {
 }
 int file_get_write(thread_t *td, int fd, file_t **f) {
   return _file_get(td, fd, FILE_FLAG_WRITE, f);
+  return -EBADF;
 }
 
 /* Closes a file descriptor. If it was the last reference to a file, the file is
@@ -261,7 +262,7 @@ int file_desc_close(file_desc_table_t *fdt, int fd) {
 
   if (fd < 0 || fd > fdt->fdt_nfiles || !file_desc_isused(fdt, fd)) {
     mtx_unlock(&fdt->fdt_mtx);
-    return EBADF;
+    return -EBADF;
   }
 
   file_desc_free(fdt, fd);
@@ -273,13 +274,15 @@ int file_desc_close(file_desc_table_t *fdt, int fd) {
 
 /* Operations on invalid file descriptors */
 static int badfo_read(file_t *f, struct thread *td, uio_t *uio) {
-  return EBADF;
+  return -EBADF;
 }
+
 static int badfo_write(file_t *f, struct thread *td, uio_t *uio) {
-  return EBADF;
+  return -EBADF;
 }
+
 static int badfo_close(file_t *f, struct thread *td) {
-  return EBADF;
+  return -EBADF;
 }
 
 fileops_t badfileops = {
