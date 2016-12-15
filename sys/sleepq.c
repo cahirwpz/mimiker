@@ -3,6 +3,8 @@
 #include <stdc.h>
 #include <sleepq.h>
 #include <thread.h>
+#include <sync.h>
+#include <sched.h>
 
 #define SC_TABLESIZE 256 /* Must be power of 2. */
 #define SC_MASK (SC_TABLESIZE - 1)
@@ -32,9 +34,11 @@ sleepq_t *sleepq_lookup(void *wchan) {
   return NULL;
 }
 
-void sleepq_add(void *wchan, const char *wmesg, thread_t *td) {
+void sleepq_wait(void *wchan, const char *wmesg) {
+  critical_enter();
+  thread_t *td = thread_self();
   log("Adding a thread to the sleep queue. *td: %p, *wchan: %p", td, wchan);
-
+  
   assert(td->td_wchan == NULL);
   assert(td->td_wmesg == NULL);
   assert(td->td_sleepqueue != NULL);
@@ -66,11 +70,10 @@ void sleepq_add(void *wchan, const char *wmesg, thread_t *td) {
   td->td_wchan = wchan;
   td->td_wmesg = wmesg;
   td->td_sleepqueue = NULL;
+  td->td_state = TDS_WAITING;
   sq->sq_nblocked++;
-}
-
-void sleepq_wait(void *wchan) {
-  /* Here will be code that makes this thread go to sleep */
+  sched_yield();
+  critical_leave();
 }
 
 /* Remove a thread from the sleep queue and resume it. */
@@ -102,7 +105,7 @@ static void sleepq_resume_thread(sleepq_t *sq, thread_t *td) {
   td->td_wchan = NULL;
   td->td_wmesg = NULL;
 
-  /* Here will be code that wakes this thread. */
+  sched_add(td);
 }
 
 void sleepq_signal(void *wchan) {

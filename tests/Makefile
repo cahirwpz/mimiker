@@ -9,9 +9,9 @@ TESTS = \
 	mutex.elf \
 	physmem.elf \
 	pmap.elf \
+	producer_consumer.elf \
 	rtc.elf \
 	sched.elf \
-	sleepq.elf \
 	syscall.elf \
 	thread.elf \
 	uiomove.elf \

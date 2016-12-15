@@ -30,6 +30,7 @@ static tid_t make_tid() {
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
 
+  td->td_sleepqueue = kmalloc(td_pool, sizeof(sleepq_t), M_ZERO);
   td->td_name = name;
   td->td_tid = make_tid();
   td->td_kstack_obj = pm_alloc(1);
