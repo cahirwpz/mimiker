@@ -217,6 +217,13 @@ void kfree(malloc_pool_t *mp, void *addr) {
   }
 }
 
+char *kstrndup(malloc_pool_t *mp, const char *s, size_t maxlen) {
+  size_t n = strnlen(s, maxlen) + 1;
+  char *copy = kmalloc(mp, n, M_ZERO);
+  memcpy(copy, s, n);
+  return copy;
+}
+
 void kmalloc_dump(malloc_pool_t *mp) {
   mem_arena_t *arena = NULL;
   kprintf("[kmalloc] malloc_pool at %p:\n", mp);

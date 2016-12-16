@@ -15,7 +15,7 @@ static thread_list_t all_threads;
 
 void thread_init() {
   kmalloc_init(td_pool);
-  kmalloc_add_arena(td_pool, pm_alloc(1)->vaddr, PAGESIZE);
+  kmalloc_add_arena(td_pool, pm_alloc(2)->vaddr, PAGESIZE * 2);
 
   TAILQ_INIT(&all_threads);
 }
@@ -30,7 +30,7 @@ static tid_t make_tid() {
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
 
-  td->td_name = name;
+  td->td_name = kstrndup(td_pool, name, TD_NAME_MAX);
   td->td_tid = make_tid();
   td->td_kstack_obj = pm_alloc(1);
   td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
@@ -42,6 +42,8 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
 
   td->td_state = TDS_READY;
 
+  log("Thread '%s' {%p} has been created.", td->td_name, td);
+
   return td;
 }
 
@@ -52,6 +54,7 @@ void thread_delete(thread_t *td) {
   TAILQ_REMOVE(&all_threads, td, td_all);
 
   pm_free(td->td_kstack_obj);
+  kfree(td_pool, td->td_name);
   kfree(td_pool, td);
 }
 
