@@ -8,10 +8,6 @@ void cv_init(condvar_t *cv, const char *name) {
   cv->waiters = 0;
 }
 
-void cv_destroy(condvar_t *cv) {
-  /* TODO */
-}
-
 void cv_wait(condvar_t *cv, mtx_t *mtx) {
   critical_enter();
   cv->waiters++;

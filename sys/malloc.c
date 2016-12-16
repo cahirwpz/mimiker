@@ -1,5 +1,6 @@
 #include <stdc.h>
 #include <malloc.h>
+#include <physmem.h>
 #include <queue.h>
 
 /* Leave synchronization markers in case we need it. */
@@ -146,6 +147,11 @@ void kmalloc_add_arena(malloc_pool_t *mp, vm_addr_t start, size_t arena_size) {
   add_free_memory_block(ma, mb, block_size);
 }
 
+void kmalloc_add_pages(malloc_pool_t *mp, unsigned pages) {
+  vm_page_t *pg = pm_alloc(pages);
+  kmalloc_add_arena(mp, PG_VADDR_START(pg), PG_SIZE(pg));
+}
+
 static mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {
   mem_block_t *current = NULL;
   TAILQ_FOREACH (current, mb_list, mb_list) {
@@ -215,6 +221,13 @@ void kfree(malloc_pool_t *mp, void *addr) {
       add_free_memory_block(current, mb,
                             abs(mb->mb_size) + sizeof(mem_block_t));
   }
+}
+
+char *kstrndup(malloc_pool_t *mp, const char *s, size_t maxlen) {
+  size_t n = strnlen(s, maxlen) + 1;
+  char *copy = kmalloc(mp, n, M_ZERO);
+  memcpy(copy, s, n);
+  return copy;
 }
 
 void kmalloc_dump(malloc_pool_t *mp) {

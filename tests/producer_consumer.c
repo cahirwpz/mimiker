@@ -1,62 +1,89 @@
-#include <stdc.h>
 #include <condvar.h>
-#include <thread.h>
 #include <mutex.h>
 #include <sched.h>
+#include <stdc.h>
+#include <thread.h>
 
-#define NUM_OF_PRODUCTS 1024
-#define BUFFER_LIMIT 32
+#define BUF_MAX 16384
+#define THREADS 3
+#define ITEMS (BUF_MAX * 64)
 
-static mtx_t buffer_mtx;
-static unsigned value = 0;
-static unsigned produced = 0;
-static unsigned consumed = 0;
-static condvar_t not_empty, not_full;
+static struct {
+  mtx_t lock;
+  unsigned items;
+  unsigned all_produced;
+  unsigned all_consumed;
+  condvar_t not_empty, not_full;
+} buf;
 
 static void producer(void *ptr) {
-  log("Producer start");
-  for (int i = 0; i < NUM_OF_PRODUCTS; i++) {
-    log("Producer loop %d.", i);
-    mtx_lock(&buffer_mtx);
-    if (value == BUFFER_LIMIT) {
-      log("Buffer full");
-      cv_wait(&not_full, &buffer_mtx);
+  bool working = true;
+  unsigned produced = 0;
+  log("%s started", thread_self()->td_name);
+  while (working) {
+    mtx_lock(&buf.lock);
+    do {
+      working = (buf.all_produced < ITEMS);
+      if (!working)
+        break;
+      if (buf.items < BUF_MAX)
+        break;
+      cv_wait(&buf.not_full, &buf.lock);
+    } while(true);
+    if (working) {
+      produced++;
+      buf.all_produced++;
+      buf.items++;
+      cv_signal(&buf.not_empty);
     }
-    produced++;
-    value++;
-    cv_signal(&not_empty);
-    mtx_unlock(&buffer_mtx);
+    mtx_unlock(&buf.lock);
   }
-  log("Producer ended. Produced = %d, value = %d.", produced, value);
+  log("%s finished, produced %d of %d.",
+      thread_self()->td_name, produced, buf.all_produced);
 }
 
 static void consumer(void *ptr) {
-  log("Consumer start");
-  for (int i = 0; i < NUM_OF_PRODUCTS; i++) {
-    log("Consumer loop %d.", i);
-    mtx_lock(&buffer_mtx);
-    if (value == 0) {
-      log("Buffer empty");
-      cv_wait(&not_empty, &buffer_mtx);
+  bool working = true;
+  unsigned consumed = 0;
+  log("%s started", thread_self()->td_name);
+  while (working) {
+    mtx_lock(&buf.lock);
+    do {
+      working = (buf.all_consumed < ITEMS);
+      if (!working)
+        break;
+      if (buf.items > 0)
+        break;
+      cv_wait(&buf.not_empty, &buf.lock);
+    } while (true);
+    if (working) {
+      consumed++;
+      buf.all_consumed++;
+      buf.items--;
+      cv_signal(&buf.not_full);
     }
-    consumed++;
-    value--;
-    cv_signal(&not_full);
-    mtx_unlock(&buffer_mtx);
+    mtx_unlock(&buf.lock);
   }
-  log("Consumer ended. Consumed = %d, value = %d.", consumed, value);
+  log("%s finished, consumed %d of %d.",
+      thread_self()->td_name, consumed, buf.all_consumed);
 }
 
 int main() {
-  thread_t *td1 = thread_create("Producer", producer, NULL);
-  thread_t *td2 = thread_create("Consumer", consumer, NULL);
+  buf.items = 0;
+  buf.all_produced = 0;
+  buf.all_consumed = 0;
+  mtx_init(&buf.lock);
+  cv_init(&buf.not_empty, "not_empty");
+  cv_init(&buf.not_full, "not_full");
 
-  mtx_init(&buffer_mtx);
-  cv_init(&not_empty, "not_empty");
-  cv_init(&not_full, "not_full");
+  for (int i = 0; i < THREADS; i++) {
+    char name[20]; 
+    snprintf(name, sizeof(name), "producer-%d", i);
+    sched_add(thread_create(name, producer, (void *)i));
+    snprintf(name, sizeof(name), "consumer-%d", i);
+    sched_add(thread_create(name, consumer, (void *)i));
+  }
 
-  sched_add(td1);
-  sched_add(td2);
   sched_run();
   return 0;
 }
