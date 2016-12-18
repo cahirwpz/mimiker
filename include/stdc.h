@@ -21,6 +21,7 @@ int snprintf(char *str, size_t size, const char *fmt, ...)
   __attribute__((format(printf, 3, 4)));
 
 /* stdlib.h function prototypes */
+long strtol(const char *nptr, char **endptr, int base);
 void qsort(void *base, size_t num, size_t width,
            int (*comp)(const void *, const void *));
 
