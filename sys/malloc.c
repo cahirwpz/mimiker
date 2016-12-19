@@ -9,16 +9,12 @@
 
 /* The end of the kernel's .bss section. Provided by the linker. */
 extern uint8_t __ebss[];
+/* Limit for the end of kernel's bss. Provided by the linker. */
+extern uint8_t __kernel_end[];
 
-static struct {
-  void *ptr; /* Pointer to the end of kernel's bss. */
-  void *end; /* Limit for the end of kernel's bss. */
-  bool shutdown;
-} sbrk = {__ebss, __ebss + 512 * PAGESIZE, false};
+static struct { void *ptr; void *end; } sbrk = { __ebss, __kernel_end };
 
 void kernel_brk(void *addr) {
-  if (sbrk.shutdown)
-    panic("Trying to use kernel_brk after it's been shutdown!");
   cs_enter();
   void *ptr = sbrk.ptr;
   addr = (void *)((intptr_t)addr & -sizeof(uint64_t));
@@ -31,8 +27,6 @@ void kernel_brk(void *addr) {
 }
 
 void *kernel_sbrk(size_t size) {
-  if (sbrk.shutdown)
-    panic("Trying to use kernel_sbrk after it's been shutdown!");
   cs_enter();
   void *ptr = sbrk.ptr;
   size = roundup(size, sizeof(uint64_t));
@@ -41,15 +35,6 @@ void *kernel_sbrk(size_t size) {
   cs_leave();
   bzero(ptr, size);
   return ptr;
-}
-
-void *kernel_sbrk_shutdown() {
-  assert(!sbrk.shutdown);
-  cs_enter();
-  sbrk.end = align(sbrk.ptr, PAGESIZE);
-  sbrk.shutdown = true;
-  cs_leave();
-  return sbrk.end;
 }
 
 /*
