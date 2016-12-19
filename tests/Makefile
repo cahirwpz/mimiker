@@ -2,8 +2,9 @@ TESTS = \
 	callout.elf \
 	crash.elf \
 	exec.elf \
-	exec_misbehave.elf \
 	exec_fd_test.elf \
+	exec_misbehave.elf \
+	initrd.elf \
 	linker_set.elf \
 	malloc.elf \
 	mutex.elf \
@@ -15,8 +16,8 @@ TESTS = \
 	syscall.elf \
 	thread.elf \
 	uiomove.elf \
-	vm_map.elf \
-	vfs.elf
+	vfs.elf \
+	vm_map.elf
 SOURCES_C = $(patsubst %.elf,%.c,$(TESTS))
 SOURCES_ASM =
 

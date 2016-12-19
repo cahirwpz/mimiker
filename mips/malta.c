@@ -9,6 +9,7 @@
 #include <stdc.h>
 #include <thread.h>
 #include <string.h>
+#include <initrd.h>
 
 extern unsigned int __bss[];
 extern unsigned int __ebss[];
@@ -101,7 +102,45 @@ static void setup_kenv(int argc, char **argv, char **envp) {
     *tokens++ = make_pair(pair[0], pair[1]);
 }
 
-static void pm_bootstrap(unsigned memsize) {
+typedef struct kernel_args
+{
+    vm_addr_t rd_start;
+    vm_addr_t rd_size;
+} kernel_args_t;
+
+unsigned strtou(char* addr, int base)
+{
+    unsigned res = 0;
+    while(*addr)
+    {
+        res *= base;
+        res += (*addr <= '9') ? *addr-'0' : *addr -'a'+10;
+        addr++;
+    }
+    return res;
+}
+
+void parse_args(kernel_args_t *args, int argc, char **argv)
+{
+    int len = 0;
+    for(int i = 0; i < argc; i++)
+    {
+        len = strlen("rd_start");
+        if(strncmp(argv[i], "rd_start", len) == 0)
+        {
+            char *val = argv[i] + len + 1 + 2;
+            args->rd_start = strtou(val, 16);
+        }
+        len = strlen("rd_size");
+        if(strncmp(argv[i], "rd_size", len) == 0)
+        {
+            char *val = argv[i] + len + 1;
+            args->rd_size = strtou(val, 10);
+        }
+    }
+}
+
+static void pm_bootstrap(unsigned memsize, vm_addr_t rd_start, vm_addr_t rd_size) {
   pm_init();
 
   /* Add Malta physical memory segment */
@@ -110,6 +149,11 @@ static void pm_bootstrap(unsigned memsize) {
   /* shutdown sbrk allocator and remove used pages from physmem */
   pm_reserve(MALTA_PHYS_SDRAM_BASE,
              (pm_addr_t)kernel_sbrk_shutdown() - MIPS_KSEG0_START);
+  /* Check if there is ramdisk passed */
+  if(rd_size != 0) {
+    pm_addr_t p_rd_start = rd_start - MIPS_KSEG0_START;
+    pm_reserve(p_rd_start, p_rd_start + align(rd_size, PAGESIZE));
+  }
 }
 
 static void thread_bootstrap() {
@@ -129,16 +173,20 @@ static void thread_bootstrap() {
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   /* clear BSS section */
   bzero(__bss, __ebss - __bss);
-
   setup_kenv(argc, argv, envp);
 
+  kernel_args_t args = {0};
+
+  parse_args(&args, _kenv.argc, _kenv.argv);
+
+  ramdisk_init(args.rd_start, args.rd_size);
   uart_init();
   pcpu_init();
   cpu_init();
   tlb_init();
   intr_init();
   mips_intr_init();
-  pm_bootstrap(memsize);
+  pm_bootstrap(memsize, args.rd_start, args.rd_size);
   sleepq_init();
   thread_bootstrap();
 

@@ -13,6 +13,7 @@
 #include <vnode.h>
 #include <mount.h>
 #include <devfs.h>
+#include <initrd.h>
 
 extern void main(void *);
 
@@ -32,6 +33,7 @@ int kernel_init(int argc, char **argv) {
 
   vnode_init();
   vfs_init();
+  cpio_init();
 
   kprintf("[startup] kernel initialized\n");
 

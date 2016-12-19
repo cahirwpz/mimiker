@@ -9,6 +9,7 @@ SOURCES_C  = \
 	devfs.c \
 	exception.c \
 	exec.c \
+	initrd.c \
 	interrupt.c \
 	malloc.c \
 	mutex.c \
