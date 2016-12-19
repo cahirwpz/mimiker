@@ -5,8 +5,10 @@ PHDRS
 {
   text PT_LOAD FLAGS(5); /* read-only, executable */
   data PT_LOAD FLAGS(6); /* read-write */
+  initrd PT_NULL FLAGS(6); /* read-write */
 }
 PROVIDE(__tlb_stride_length = 1);
+PROVIDE(__initrd_pages = 5);
 SECTIONS
 {
   /* RAM is mapped in kseg0 (cacheable) and kseg1 (non-cacheable) */
@@ -36,6 +38,15 @@ SECTIONS
     . = ALIGN(4);
     __edata = ABSOLUTE(.);
   } : data
+
+  _ramdisk_size = 4096*__initrd_pages;
+
+  .initrd :
+  {
+    . = ALIGN(4096);
+    __initrd = ABSOLUTE(.);
+    . = . + _ramdisk_size ;
+  } : initrd
 
   .bss :
   {
