@@ -43,11 +43,17 @@ LDLIBS += -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc \
         -lgcc \
       -Wl,--end-group
 
-# Files that need to be embedded alongside kernel image
+# Files that need to be embedded alongside kernel image.  Note: When the linker
+# merges together sections containing embedded files, it ignores alignment and
+# packs the file data as tightly as possible. In result, the binary instructions
+# in program files may be not 4-byte alligned, if a file appearing earlier had
+# length undivisable by 4. To work around this, we'll embed program files first,
+# and other files afterwards.
 LD_EMBED += \
 	$(TOPDIR)/user/prog/prog.uelf.o \
 	$(TOPDIR)/user/misbehave/misbehave.uelf.o \
-	$(TOPDIR)/user/fd_test/fd_test.uelf.o
+	$(TOPDIR)/user/fd_test/fd_test.uelf.o \
+    $(LD_EMBED_FILES)
 
 # Files required to link kernel image
 KRT = \

@@ -23,7 +23,7 @@ SOURCES_ASM =
 
 all: $(TESTS)
 
-LD_EMBED = embedfs.txt.eo
+LD_EMBED_FILES += embedfs.txt.eo
 
 include ../Makefile.common
 
