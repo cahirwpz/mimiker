@@ -12,11 +12,10 @@ static embedfs_file_list_t embedfs_file_list =
 
 static int embedfs_vnode_read(vnode_t *v, uio_t *uio) {
   embedfs_entry_t *fent = v->v_data;
-  int count = uio->uio_resid;
   int error = uiomove(fent->start, fent->size, uio);
   if (error < 0)
     return -error;
-  return count - uio->uio_resid;
+  return 0;
 }
 
 static vnodeops_t embedfs_vnode_ops = {

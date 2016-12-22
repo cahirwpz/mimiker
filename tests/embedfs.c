@@ -27,7 +27,7 @@ int main() {
   uio.uio_resid = sizeof(buffer);
 
   res = VOP_READ(v, &uio);
-  assert(res == 193);
+  assert(res == 0);
   assert(strncmp(buffer + 20, "le, which is filled ", 20) == 0);
 
   return 0;
