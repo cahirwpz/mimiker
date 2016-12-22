@@ -25,6 +25,7 @@ LIB_SOURCES += string/strlcat.c
 LIB_SOURCES += string/strlcpy.c
 LIB_SOURCES += string/strlen.c
 LIB_SOURCES += string/strncmp.c
+LIB_SOURCES += string/strnlen.c
 LIB_SOURCES += string/strsep.c
 LIB_SOURCES += string/strspn.c
 

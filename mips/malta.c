@@ -2,6 +2,7 @@
 #include <malloc.h>
 #include <mips/cpuinfo.h>
 #include <mips/malta.h>
+#include <mips/intr.h>
 #include <mips/tlb.h>
 #include <mips/uart_cbus.h>
 #include <pcpu.h>
@@ -136,7 +137,9 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   cpu_init();
   tlb_init();
   intr_init();
+  mips_intr_init();
   pm_bootstrap(memsize);
+  sleepq_init();
   thread_bootstrap();
 
   kprintf("[startup] Switching to 'kernel-main' thread...\n");

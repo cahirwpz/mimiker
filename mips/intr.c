@@ -8,7 +8,7 @@
 
 extern const char _ebase[];
 
-void intr_init() {
+void mips_intr_init() {
   /*
    * Enable Vectored Interrupt Mode as described in „MIPS32® 24KETM Processor
    * Core Family Software User’s Manual”, chapter 6.3.1.2.
