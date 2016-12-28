@@ -76,6 +76,7 @@ static inline int VFS_VGET(mount_t *m, ino_t ino, vnode_t **vp) {
    also a separate global vnode for /dev .*/
 extern vnode_t *vfs_root_vnode;
 extern vnode_t *vfs_root_dev_vnode;
+extern vnode_t *vfs_root_initrd_vnode;
 
 /* Look up a file system type by name. */
 vfsconf_t *vfs_get_by_name(const char *name);

@@ -1,5 +1,7 @@
 #ifndef _CPIO_H_
 #include <vm.h>
+#include <vnode.h>
+
 typedef struct cpio_hdr
 {
   char c_magic[6];     /* "070701" for "new" portable format
@@ -37,13 +39,24 @@ typedef struct cpio_file_stat /* Internal representation of a CPIO header */
   long c_rdev_min;
   size_t c_namesize;
   uint32_t c_chksum;
+
   char *c_name;
-  //char *c_tar_linkname; /* We probably don't need this field, but need to make sure */
+  char *c_data;
+
+  vnode_t *vnode;
+
+  TAILQ_ENTRY(cpio_file_stat) stat_list;
+
 } cpio_file_stat_t;
+
+
+typedef TAILQ_HEAD(stat_head, cpio_file_stat) stat_head_t;
 
 vm_addr_t get_rd_start();
 vm_addr_t get_rd_size();
+stat_head_t *get_initrd_headers();
 
+void collect_headers(stat_head_t *hd, char *tape);
 void cpio_init();
 void ramdisk_init(vm_addr_t, vm_addr_t);
 void dump_cpio_stat(cpio_file_stat_t *stat);

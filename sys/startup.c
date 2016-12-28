@@ -31,9 +31,9 @@ int kernel_init(int argc, char **argv) {
   sched_init();
   mips_clock_init();
 
+  cpio_init();
   vnode_init();
   vfs_init();
-  cpio_init();
 
   kprintf("[startup] kernel initialized\n");
 
