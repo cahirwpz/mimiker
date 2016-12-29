@@ -26,7 +26,7 @@ void dump_file(char *path)
     assert(res == 0);
     
     char buffer[1000];
-    memset(buffer, sizeof(buffer), '\0');
+    memset(buffer, '\0', sizeof(buffer));
     uio_t uio;
     iovec_t iov;
     uio.uio_op = UIO_READ;
