@@ -16,9 +16,14 @@ static MALLOC_DEFINE(mpool, "cpio mem_pool");
 
 static vm_addr_t rd_start;
 static vm_addr_t rd_size;
+static int rd_initialized;
 static stat_head_t initrd_head;
 static vnodeops_t initrd_ops;
 
+stat_head_t *get_initrd_headers()
+{
+    return &initrd_head;
+}
 
 vm_addr_t get_rd_start()
 {
@@ -30,30 +35,18 @@ vm_addr_t get_rd_size()
     return rd_size;
 }
 
-stat_head_t *get_initrd_headers()
+int get_rd_initialized()
 {
-    return &initrd_head;
+    return rd_initialized;
 }
 
-int hex_atoi(char *s, int n)
+int base_atoi(char *s, int n, int base)
 {
     int res = 0;
     for(int i = 0; i < n; i++)
     {
         int add = (s[i] <= '9') ? s[i]-'0' : s[i]-'A'+10;
-        res *= 16;
-        res += add;
-    }
-    return res;
-}
-
-int oct_atoi(const char *s, int n)
-{
-    int res = 0;
-    for(int i = 0; i < n; i++)
-    {
-        int add = s[i]-'0';
-        res *= 8;
+        res *= base;
         res += add;
     }
     return res;
@@ -74,7 +67,7 @@ int get_file_padding(int offset)
 void dump_cpio_stat(cpio_file_stat_t *stat)
 {
     kprintf("c_magic: %o\n", stat->c_magic);
-    kprintf("c_ino: %d\n", stat->c_ino);
+    kprintf("c_ino: %u\n", stat->c_ino);
     kprintf("c_mode: %d\n", stat->c_mode);
     kprintf("c_uid: %d\n", stat->c_uid);
     kprintf("c_gid: %d\n", stat->c_gid);
@@ -85,7 +78,7 @@ void dump_cpio_stat(cpio_file_stat_t *stat)
     kprintf("c_dev_min: %ld\n", stat->c_dev_min);
     kprintf("c_rdev_maj: %ld\n", stat->c_rdev_maj);
     kprintf("c_rdev_min: %ld\n", stat->c_rdev_min);
-    kprintf("c_namesize: %u\n", stat->c_namesize);
+    kprintf("c_namesize: %zu\n", stat->c_namesize);
     kprintf("c_chksum: %u\n", (unsigned)stat->c_chksum);
     kprintf("c_name: %s\n", stat->c_name);
     kprintf("\n");
@@ -115,20 +108,20 @@ void fill_header(char **tape, cpio_file_stat_t *stat)
         panic();
     }
 
-    stat->c_magic = oct_atoi(hdr.c_magic, 6);
-    stat->c_ino = hex_atoi(hdr.c_ino, 8);
-    stat->c_mode = hex_atoi(hdr.c_mode, 8);
-    stat->c_uid = hex_atoi(hdr.c_uid, 8);
-    stat->c_gid = hex_atoi(hdr.c_gid, 8);
-    stat->c_nlink = hex_atoi(hdr.c_nlink, 8);
-    stat->c_mtime = hex_atoi(hdr.c_mtime, 8);
-    stat->c_filesize = hex_atoi(hdr.c_filesize, 8);
-    stat->c_dev_maj = hex_atoi(hdr.c_dev_maj, 8);
-    stat->c_dev_min = hex_atoi(hdr.c_dev_min, 8);
-    stat->c_rdev_maj = hex_atoi(hdr.c_rdev_maj, 8);
-    stat->c_rdev_min = hex_atoi(hdr.c_rdev_min, 8);
-    stat->c_namesize = hex_atoi(hdr.c_namesize, 8);
-    stat->c_chksum = hex_atoi(hdr.c_chksum, 8);
+    stat->c_magic = base_atoi(hdr.c_magic, 6, 8);
+    stat->c_ino = base_atoi(hdr.c_ino, 8, 16);
+    stat->c_mode = base_atoi(hdr.c_mode, 8, 16);
+    stat->c_uid = base_atoi(hdr.c_uid, 8, 16);
+    stat->c_gid = base_atoi(hdr.c_gid, 8, 16);
+    stat->c_nlink = base_atoi(hdr.c_nlink, 8, 16);
+    stat->c_mtime = base_atoi(hdr.c_mtime, 8, 16);
+    stat->c_filesize = base_atoi(hdr.c_filesize, 8, 16);
+    stat->c_dev_maj = base_atoi(hdr.c_dev_maj, 8, 16);
+    stat->c_dev_min = base_atoi(hdr.c_dev_min, 8, 16);
+    stat->c_rdev_maj = base_atoi(hdr.c_rdev_maj, 8, 16);
+    stat->c_rdev_min = base_atoi(hdr.c_rdev_min, 8, 16);
+    stat->c_namesize = base_atoi(hdr.c_namesize, 8, 16);
+    stat->c_chksum = base_atoi(hdr.c_chksum, 8, 16);
 
     stat->c_name = (char*)kmalloc(mpool, stat->c_namesize, 0);
     read_from_tape(tape, stat->c_name, stat->c_namesize);
@@ -145,7 +138,12 @@ void cpio_init()
     vm_page_t *pg = pm_alloc(2);
     kmalloc_init(mpool);
     kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
-    collect_headers(&initrd_head, (char*)get_rd_start());
+
+    if(get_rd_initialized())
+    {
+        collect_headers(&initrd_head, (char*)get_rd_start());
+    }
+
 }
 
 void collect_headers(stat_head_t *hd, char *tape)
@@ -156,7 +154,7 @@ void collect_headers(stat_head_t *hd, char *tape)
         stat = (cpio_file_stat_t*)kmalloc(mpool, sizeof(cpio_file_stat_t), M_ZERO);
         fill_header(&tape, stat);
         TAILQ_INSERT_TAIL(hd, stat, stat_list);
-    } while(strcmp(stat->c_name, "TRAILER!!!") != 0);
+    } while(strcmp(stat->c_name, CPIO_TRAILER_NAME) != 0);
 }
 
 int initrd_vnode_lookup(vnode_t *dir, const char *name, vnode_t **res)
@@ -258,11 +256,19 @@ void ramdisk_init(vm_addr_t _rd_start, vm_addr_t _rd_size)
     rd_start = _rd_start;
     rd_size = _rd_size;
     TAILQ_INIT(&initrd_head);
-    initrd_ops.v_lookup = initrd_vnode_lookup;
+
+    initrd_ops.v_lookup = vnode_op_notsup;
     initrd_ops.v_readdir = vnode_op_notsup;
     initrd_ops.v_open = vnode_op_notsup;
-    initrd_ops.v_read = initrd_vnode_read;
+    initrd_ops.v_read =  vnode_op_notsup;
     initrd_ops.v_write = vnode_op_notsup;
+
+    if(rd_start > 0)
+    {
+        rd_initialized = 1;
+        initrd_ops.v_lookup = initrd_vnode_lookup;
+        initrd_ops.v_read = initrd_vnode_read;
+    }
 }
 
 
