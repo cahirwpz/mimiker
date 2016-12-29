@@ -133,13 +133,11 @@ void fill_header(char **tape, cpio_file_stat_t *stat)
     stat->c_name = (char*)kmalloc(mpool, stat->c_namesize, 0);
     read_from_tape(tape, stat->c_name, stat->c_namesize);
 
-    /* Below are few magic moments, i have no idea why it works */
-
-    int pad = get_name_padding(stat->c_namesize); /* +1 has to be here for some reason */
+    int pad = get_name_padding(stat->c_namesize);
     skip_bytes(tape, pad);
     stat->c_data = *tape;
     pad = get_file_padding(stat->c_filesize);
-    skip_bytes(tape, pad+stat->c_filesize); /* -1 has to be here for some reason */
+    skip_bytes(tape, pad+stat->c_filesize);
 }
 
 void cpio_init()
@@ -251,7 +249,7 @@ int initrd_root(mount_t *m, vnode_t **v)
 
 int initrd_init(vfsconf_t *vfc)
 {
-    vfs_domount(vfc, vfs_root_initrd_vnode);
+    vfs_domount(vfc, vfs_root_vnode);
     return 0;
 }
 
@@ -268,7 +266,7 @@ void ramdisk_init(vm_addr_t _rd_start, vm_addr_t _rd_size)
 }
 
 
-vfsops_t initrd_vfsops = { 
+vfsops_t initrd_vfsops = {
     .vfs_mount = initrd_mount,
     .vfs_root = initrd_root,
     .vfs_init = initrd_init
