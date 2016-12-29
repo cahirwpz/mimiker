@@ -6,9 +6,9 @@
 
 void print_headers()
 {
-    char *start = (char*)get_rd_start();
-    stat_head_t *hd = get_initrd_headers();
-    collect_headers(hd, start);
+    char *start = (char*)initrd_get_start();
+    stat_head_t *hd = initrd_get_headers();
+    initrd_collect_headers(hd, start);
     cpio_file_stat_t *it;
 
     TAILQ_FOREACH(it, hd, stat_list)

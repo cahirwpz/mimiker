@@ -52,14 +52,13 @@ typedef struct cpio_file_stat /* Internal representation of a CPIO header */
 
 typedef TAILQ_HEAD(stat_head, cpio_file_stat) stat_head_t;
 
-vm_addr_t get_rd_start();
-vm_addr_t get_rd_size();
-stat_head_t *get_initrd_headers();
+vm_addr_t initrd_get_start();
+vm_addr_t initrd_get_size();
+stat_head_t *initrd_get_headers();
 
-void collect_headers(stat_head_t *hd, char *tape);
+void initrd_collect_headers(stat_head_t *hd, char *tape);
 void cpio_init();
 void ramdisk_init(vm_addr_t, vm_addr_t);
 void dump_cpio_stat(cpio_file_stat_t *stat);
-void fill_header(char** tape, cpio_file_stat_t *hdr);
 
 #endif /* _CPIO_H_ */

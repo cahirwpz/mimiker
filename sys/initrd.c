@@ -20,12 +20,12 @@ static int rd_initialized;
 static stat_head_t initrd_head;
 static vnodeops_t initrd_ops;
 
-stat_head_t *get_initrd_headers()
+stat_head_t *initrd_get_headers()
 {
     return &initrd_head;
 }
 
-vm_addr_t get_rd_start()
+vm_addr_t initrd_get_start()
 {
     return rd_start;
 }
@@ -40,7 +40,7 @@ int get_rd_initialized()
     return rd_initialized;
 }
 
-int base_atoi(char *s, int n, int base)
+static int base_atoi(char *s, int n, int base)
 {
     int res = 0;
     for(int i = 0; i < n; i++)
@@ -52,13 +52,13 @@ int base_atoi(char *s, int n, int base)
     return res;
 }
 
-int get_name_padding(int offset)
+static int get_name_padding(int offset)
 {
     static int pad[4] = {2,1,0,3};
     return pad[offset%4];
 }
 
-int get_file_padding(int offset)
+static int get_file_padding(int offset)
 {
     static int pad[4] = {0,3,2,1};
     return pad[offset%4];
@@ -84,18 +84,18 @@ void dump_cpio_stat(cpio_file_stat_t *stat)
     kprintf("\n");
 }
 
-void read_from_tape(char **tape, void *ptr, size_t bytes)
+static void read_from_tape(char **tape, void *ptr, size_t bytes)
 {
     memcpy(ptr, *tape, bytes);
     *tape += bytes;
 }
 
-void skip_bytes(char **tape, size_t bytes)
+static void skip_bytes(char **tape, size_t bytes)
 {
     *tape += bytes;
 }
 
-void fill_header(char **tape, cpio_file_stat_t *stat)
+static void fill_header(char **tape, cpio_file_stat_t *stat)
 {
     cpio_hdr_t hdr;
     read_from_tape(tape, &hdr, sizeof(cpio_hdr_t));
@@ -141,12 +141,12 @@ void cpio_init()
 
     if(get_rd_initialized())
     {
-        collect_headers(&initrd_head, (char*)get_rd_start());
+        initrd_collect_headers(&initrd_head, (char*)initrd_get_start());
     }
 
 }
 
-void collect_headers(stat_head_t *hd, char *tape)
+void initrd_collect_headers(stat_head_t *hd, char *tape)
 {
     cpio_file_stat_t *stat;
     do 
@@ -157,10 +157,10 @@ void collect_headers(stat_head_t *hd, char *tape)
     } while(strcmp(stat->c_name, CPIO_TRAILER_NAME) != 0);
 }
 
-int initrd_vnode_lookup(vnode_t *dir, const char *name, vnode_t **res)
+static int initrd_vnode_lookup(vnode_t *dir, const char *name, vnode_t **res)
 {
     cpio_file_stat_t *it;
-    stat_head_t *hd = get_initrd_headers();
+    stat_head_t *hd = initrd_get_headers();
 
     cpio_file_stat_t *dir_stat = (cpio_file_stat_t*)dir->v_data;
     int dir_name_len = strlen(dir_stat->c_name);
@@ -199,17 +199,7 @@ int initrd_vnode_lookup(vnode_t *dir, const char *name, vnode_t **res)
     return ENOENT;
 }
 
-int initrd_vnode_readdir(vnode_t *v, uio_t *uio)
-{
-    return 0;
-}
-
-int initrd_vnode_open(vnode_t *v, int mode, file_t *fp)
-{
-    return 0;
-}
-
-int initrd_vnode_read(vnode_t *v, uio_t *uio)
+static int initrd_vnode_read(vnode_t *v, uio_t *uio)
 {
     cpio_file_stat_t *stat = v->v_data;
     int count = uio->uio_resid;
@@ -221,7 +211,7 @@ int initrd_vnode_read(vnode_t *v, uio_t *uio)
     return count - uio->uio_resid;
 }
 
-int initrd_mount(mount_t *m)
+static int initrd_mount(mount_t *m)
 {
     vnode_t *root = vnode_new(V_DIR, &initrd_ops);
 
@@ -238,14 +228,14 @@ int initrd_mount(mount_t *m)
     return 0;
 }
 
-int initrd_root(mount_t *m, vnode_t **v)
+static int initrd_root(mount_t *m, vnode_t **v)
 {
     *v = m->mnt_data;
     vnode_ref(*v);
     return 0;
 }
 
-int initrd_init(vfsconf_t *vfc)
+static int initrd_init(vfsconf_t *vfc)
 {
     vfs_domount(vfc, vfs_root_vnode);
     return 0;
