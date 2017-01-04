@@ -13,7 +13,10 @@ CPPFLAGS = -Iinclude -I../include
 
 # Explicitly picking files to compile.
 LIB_SOURCES  = ctype/ctype_.c
+LIB_SOURCES += ctype/tolower_.c
+LIB_SOURCES += ctype/toupper_.c
 LIB_SOURCES += stdio/__format_parser_int.c
+LIB_SOURCES += stdlib/strtol.c
 LIB_SOURCES += stdlib/qsort.c
 LIB_SOURCES += string/bzero.c
 LIB_SOURCES += string/memchr.c
