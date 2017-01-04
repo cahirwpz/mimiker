@@ -15,42 +15,42 @@ int do_open(thread_t *td, char *pathname, int flags, int mode, int *fd) {
   if (error)
     goto fail;
   /* Now install the file in descriptor table. */
-  error = file_install_desc(td->td_fdt, f, fd);
+  error = file_install_desc(td->td_fdtable, f, fd);
   if (error)
     goto fail;
 
   /* The file is stored in the descriptor table, but we got our own reference
      when we asked to allocate the file. Thus we need to release that initial
-     ref. */
-  file_drop(f);
+     reference. */
+  file_unref(f);
   return 0;
 
 fail:
-  file_drop(f);
+  file_unref(f);
   return error;
 }
 
 int do_close(thread_t *td, int fd) {
-  return file_desc_close(td->td_fdt, fd);
+  return fd_close(td->td_fdtable, fd);
 }
 
 int do_read(thread_t *td, int fd, uio_t *uio) {
   file_t *f;
-  int res = file_get_read(td, fd, &f);
+  int res = fd_file_get(td, fd, FF_READ, &f);
   if (res)
     return res;
-  res = f->f_ops->fo_read(f, td, uio);
-  file_drop(f);
+  res = FOP_READ(f, td, uio);
+  file_unref(f);
   return res;
 }
 
 int do_write(thread_t *td, int fd, uio_t *uio) {
   file_t *f;
-  int res = file_get_write(td, fd, &f);
+  int res = fd_file_get(td, fd, FF_WRITE, &f);
   if (res)
     return res;
-  res = f->f_ops->fo_write(f, td, uio);
-  file_drop(f);
+  res = FOP_WRITE(f, td, uio);
+  file_unref(f);
   return res;
 }
 

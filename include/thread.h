@@ -11,7 +11,7 @@ typedef uint32_t tid_t;
 typedef struct vm_page vm_page_t;
 typedef struct sleepq sleepq_t;
 typedef struct vm_map vm_map_t;
-typedef struct file_desc_table file_desc_table_t;
+typedef struct fd_table fd_table_t;
 
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
@@ -37,7 +37,7 @@ typedef struct thread {
   stack_t td_kstack;
   vm_map_t *td_uspace; /* thread's user space map */
   /* descriptors */
-  file_desc_table_t *td_fdt;
+  fd_table_t *td_fdtable;
   /* waiting channel */
   sleepq_t *td_sleepqueue;
   void *td_wchan;

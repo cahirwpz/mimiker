@@ -54,13 +54,13 @@ int vnode_op_notsup() {
 }
 
 static int vnode_generic_read(file_t *f, thread_t *td, uio_t *uio) {
-  vnode_t *v = f->f_vnode;
-  return v->v_ops->v_read(v, uio);
+  return VOP_READ(f->f_vnode, uio);
 }
+
 static int vnode_generic_write(file_t *f, thread_t *td, uio_t *uio) {
-  vnode_t *v = f->f_vnode;
-  return v->v_ops->v_write(v, uio);
+  return VOP_WRITE(f->f_vnode, uio);
 }
+
 static int vnode_generic_close(file_t *f, thread_t *td) {
   /* TODO: vnode closing is not meaningful yet. */
   return 0;
@@ -75,19 +75,19 @@ static fileops_t vnode_generic_fileops = {
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   vnode_ref(v);
   fp->f_ops = &vnode_generic_fileops;
-  fp->f_type = FILE_TYPE_VNODE;
+  fp->f_type = FT_VNODE;
   fp->f_vnode = v;
   switch (mode) {
-  case O_RDONLY:
-    fp->f_flags = FILE_FLAG_READ;
-    break;
-  case O_WRONLY:
-    fp->f_flags = FILE_FLAG_WRITE;
-    break;
-  case O_RDWR:
-    fp->f_flags = FILE_FLAG_READ | FILE_FLAG_WRITE;
-    break;
-  default:
+    case O_RDONLY:
+      fp->f_flags = FF_READ;
+      break;
+    case O_WRONLY:
+      fp->f_flags = FF_WRITE;
+      break;
+    case O_RDWR:
+      fp->f_flags = FF_READ | FF_WRITE;
+      break;
+    default:
       return -EINVAL;
   }
   return 0;

@@ -1,5 +1,5 @@
-#ifndef __FILE_H__
-#define __FILE_H__
+#ifndef _SYS_FILE_H_
+#define _SYS_FILE_H_
 
 #include <stdint.h>
 #include <stddef.h>
@@ -21,13 +21,13 @@ typedef struct {
 } fileops_t;
 
 typedef enum {
-  FILE_TYPE_VNODE = 1, /* regualar file */
-  FILE_TYPE_PIPE = 2,  /* pipe */
-} file_type_t;
+  FT_VNODE = 1, /* regular file */
+  FT_PIPE = 2,  /* pipe */
+} filetype_t;
 
-#define FILE_FLAG_READ 0x0001
-#define FILE_FLAG_WRITE 0x0002
-#define FILE_FLAG_APPEND 0x0004
+#define FF_READ 0x0001
+#define FF_WRITE 0x0002
+#define FF_APPEND 0x0004
 
 /* File open modes as passed to sys_open. These need match what newlib provides
    to user programs. */
@@ -38,14 +38,27 @@ typedef enum {
 typedef struct file {
   void *f_data; /* File specific data */
   fileops_t *f_ops;
-  file_type_t f_type; /* File type */
+  filetype_t f_type; /* File type */
   vnode_t *f_vnode;
   uint32_t f_count; /* Reference count */
   uint32_t f_flags; /* FILE_FLAG_* */
   mtx_t f_mtx;
 } file_t;
 
-void file_hold(file_t *f);
-void file_drop(file_t *f);
+void file_ref(file_t *f);
+void file_unref(file_t *f);
 
-#endif /* __FILE_H__ */
+
+static inline int FOP_READ(file_t *f, thread_t *td, uio_t *uio) {
+  return f->f_ops->fo_read(f, td, uio);
+}
+
+static inline int FOP_WRITE(file_t *f, thread_t *td, uio_t *uio) {
+  return f->f_ops->fo_write(f, td, uio);
+}
+
+static inline int FOP_CLOSE(file_t *f, thread_t *td) {
+  return f->f_ops->fo_close(f, td);
+}
+
+#endif /* !_SYS_FILE_H_ */

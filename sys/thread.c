@@ -86,8 +86,8 @@ noreturn void thread_exit() {
   /* Thread must not exit while in critical section! */
   assert(td->td_csnest == 0);
 
-  if (td->td_fdt)
-    file_desc_table_destroy(td->td_fdt);
+  if (td->td_fdtable)
+    fd_table_destroy(td->td_fdtable);
 
   critical_enter();
   td->td_state = TDS_INACTIVE;
