@@ -40,7 +40,7 @@ typedef struct file {
   fileops_t *f_ops;
   filetype_t f_type; /* File type */
   vnode_t *f_vnode;
-  int f_count; /* Reference count, ready for disposal if -1 */
+  int f_count;      /* Reference count, ready for disposal if -1 */
   unsigned f_flags; /* File flags FF_* */
   mtx_t f_mtx;
 } file_t;

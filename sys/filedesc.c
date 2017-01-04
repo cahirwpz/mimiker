@@ -64,7 +64,7 @@ void fdtab_unref(fdtab_t *fdt) {
   mtx_lock(&fdt->fdt_mtx);
   assert(fdt->fdt_count > 0);
   if (--fdt->fdt_count == 0)
-	  fdt->fdt_count = -1;
+    fdt->fdt_count = -1;
   mtx_unlock(&fdt->fdt_mtx);
 }
 
@@ -118,9 +118,9 @@ void fdtab_destroy(fdtab_t *fdt) {
 
 void fdtab_release(fdtab_t *fdt) {
   if (fdt) {
-	fdtab_unref(fdt);
-	if (fdt->fdt_count < 0)
-	  fdtab_destroy(fdt);
+    fdtab_unref(fdt);
+    if (fdt->fdt_count < 0)
+      fdtab_destroy(fdt);
   }
 }
 
@@ -185,4 +185,3 @@ int fdtab_close_fd(fdtab_t *fdt, int fd) {
   mtx_unlock(&fdt->fdt_mtx);
   return 0;
 }
-
