@@ -15,11 +15,11 @@ char buf[100];
 #define FD_OFFSET 3
 
 #define assert_open_ok(fd, file, mode, flag)                                   \
-  n = open(file, 0, flag);                                                     \
+  n = open(file, flag, 0);                                                     \
   assert(n == fd + FD_OFFSET);
 
 #define assert_open_fail(file, mode, flag, err)                                \
-  n = open(file, 0, flag);                                                     \
+  n = open(file, flag, 0);                                                     \
   assert(n < 0);                                                               \
   assert(errno == err);
 

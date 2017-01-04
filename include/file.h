@@ -29,7 +29,7 @@ typedef enum {
 #define FF_WRITE 0x0002
 #define FF_APPEND 0x0004
 
-/* File open modes as passed to sys_open. These need match what newlib provides
+/* File open flags as passed to sys_open. These need match what newlib provides
    to user programs. */
 #define O_RDONLY 0
 #define O_WRONLY 1

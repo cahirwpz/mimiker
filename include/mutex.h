@@ -4,7 +4,7 @@
 #include <turnstile.h>
 #include <thread.h>
 
-typedef struct {
+typedef struct mtx {
   volatile uint32_t mtx_state; /* 0 if unowned or has address of the owner */
   turnstile_t turnstile;       /* FIFO Queue for blocked threads */
 } mtx_t;
