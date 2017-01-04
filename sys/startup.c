@@ -33,7 +33,8 @@ int kernel_init(int argc, char **argv) {
 
   vnode_init();
   vfs_init();
-  fds_init();
+  file_init();
+  fd_init();
 
   kprintf("[startup] kernel initialized\n");
 

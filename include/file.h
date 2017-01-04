@@ -40,14 +40,20 @@ typedef struct file {
   fileops_t *f_ops;
   filetype_t f_type; /* File type */
   vnode_t *f_vnode;
-  uint32_t f_count; /* Reference count */
-  uint32_t f_flags; /* FILE_FLAG_* */
+  int f_count; /* Reference count, ready for disposal if -1 */
+  unsigned f_flags; /* File flags FF_* */
   mtx_t f_mtx;
 } file_t;
+
+void file_init();
 
 void file_ref(file_t *f);
 void file_unref(file_t *f);
 
+file_t *file_alloc();
+void file_destroy(file_t *f);
+/* Drop reference counter and possibly destroy the file. */
+void file_release(file_t *f);
 
 static inline int FOP_READ(file_t *f, thread_t *td, uio_t *uio) {
   return f->f_ops->fo_read(f, td, uio);
@@ -60,5 +66,7 @@ static inline int FOP_WRITE(file_t *f, thread_t *td, uio_t *uio) {
 static inline int FOP_CLOSE(file_t *f, thread_t *td) {
   return f->f_ops->fo_close(f, td);
 }
+
+extern fileops_t badfileops;
 
 #endif /* !_SYS_FILE_H_ */

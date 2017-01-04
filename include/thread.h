@@ -11,7 +11,7 @@ typedef uint8_t td_prio_t;
 typedef uint32_t tid_t;
 typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
-typedef struct fd_table fd_table_t;
+typedef struct fdtab fdtab_t;
 
 #define TD_NAME_MAX 32
 
@@ -38,8 +38,8 @@ typedef struct thread {
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
   vm_map_t *td_uspace; /* thread's user space map */
-  /* descriptors */
-  fd_table_t *td_fdtable;
+  /* file descriptors table */
+  fdtab_t *td_fdtable;
   /* waiting channel */
   sleepq_t *td_sleepqueue;
   void *td_wchan;

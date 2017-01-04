@@ -4,12 +4,13 @@ SOURCES_C  = \
 	callout.c \
 	clock.c \
 	condvar.c \
-	descrip.c \
 	dev_null.c \
 	dev_uart.c \
 	devfs.c \
 	exception.c \
 	exec.c \
+	file.c \
+	filedesc.c \
 	interrupt.c \
 	malloc.c \
 	mutex.c \

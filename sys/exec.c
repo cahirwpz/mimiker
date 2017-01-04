@@ -195,7 +195,10 @@ int do_exec(const exec_args_t *args) {
   thread_t *td = thread_self();
   /* ... file descriptor table ... */
   /* TODO: Copy/share file descriptor table! */
-  td->td_fdtable = fd_table_init();
+  fdtab_t *fdt = fdtab_alloc();
+  fdtab_ref(fdt);
+  td->td_fdtable = fdt;
+
   /* Before we have a working fork, let's initialize file descriptors required
      by the standard library. */
   int ignore;

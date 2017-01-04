@@ -9,34 +9,30 @@
 
 int do_open(thread_t *td, char *pathname, int flags, int mode, int *fd) {
   /* Allocate a file structure, but do not install descriptor yet. */
-  file_t *f = file_alloc_noinstall();
+  file_t *f = file_alloc();
   /* Try opening file. Fill the file structure. */
   int error = vfs_open(f, pathname, flags, mode);
   if (error)
     goto fail;
   /* Now install the file in descriptor table. */
-  error = file_install_desc(td->td_fdtable, f, fd);
+  error = fdtab_install_file(td->td_fdtable, f, fd);
   if (error)
     goto fail;
 
-  /* The file is stored in the descriptor table, but we got our own reference
-     when we asked to allocate the file. Thus we need to release that initial
-     reference. */
-  file_unref(f);
   return 0;
 
 fail:
-  file_unref(f);
+  file_destroy(f);
   return error;
 }
 
 int do_close(thread_t *td, int fd) {
-  return fd_close(td->td_fdtable, fd);
+  return fdtab_close_fd(td->td_fdtable, fd);
 }
 
 int do_read(thread_t *td, int fd, uio_t *uio) {
   file_t *f;
-  int res = fd_file_get(td, fd, FF_READ, &f);
+  int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
   if (res)
     return res;
   res = FOP_READ(f, td, uio);
@@ -46,7 +42,7 @@ int do_read(thread_t *td, int fd, uio_t *uio) {
 
 int do_write(thread_t *td, int fd, uio_t *uio) {
   file_t *f;
-  int res = fd_file_get(td, fd, FF_WRITE, &f);
+  int res = fdtab_get_file(td->td_fdtable, fd, FF_WRITE, &f);
   if (res)
     return res;
   res = FOP_WRITE(f, td, uio);
@@ -70,7 +66,7 @@ int sys_open(thread_t *td, syscall_args_t *args) {
   if (error < 0)
     return error;
 
-  log("open(%s, %d, %d)", pathname, flags, mode);
+  log("open(\"%s\", %d, %d)", pathname, flags, mode);
 
   int fd;
   error = do_open(td, pathname, flags, mode, &fd);
