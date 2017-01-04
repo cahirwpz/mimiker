@@ -102,4 +102,6 @@ void vnode_unref(vnode_t *v);
 /* Convenience function for filling in not supported vnodeops */
 int vnode_op_notsup();
 
+int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
+
 #endif /* !_SYS_VNODE_H_ */

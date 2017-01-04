@@ -9,6 +9,8 @@ SOURCES_C  = \
 	devfs.c \
 	exception.c \
 	exec.c \
+	file.c \
+	filedesc.c \
 	interrupt.c \
 	malloc.c \
 	mutex.c \
@@ -25,6 +27,7 @@ SOURCES_C  = \
 	turnstile.c \
 	uio.c \
 	vfs.c \
+	vfs_syscalls.c \
 	vm_map.c \
 	vm_object.c \
 	vm_pager.c \

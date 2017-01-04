@@ -72,6 +72,6 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
     n -= cnt;
   }
 
-  /* Flip error sign, because copy routines use negative error codes */
-  return -error;
+  /* Invert error sign, because copy routines use negative error codes */
+  return error;
 }

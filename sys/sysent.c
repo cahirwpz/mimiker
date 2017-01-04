@@ -4,40 +4,12 @@
 #include <thread.h>
 #include <vm_map.h>
 #include <vm_pager.h>
-#include <sched.h>
-#include <systm.h>
+#include <vfs_syscalls.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   kprintf("[syscall] unimplemented system call %ld\n", args->code);
   return -ENOSYS;
 };
-
-/* This is just a stub. A full implementation of this syscall will probably
-   deserve a separate file. */
-int sys_write(thread_t *td, syscall_args_t *args) {
-  int retval;
-  int fd = args->args[0];
-  const char *buf = (const char *)(uintptr_t)args->args[1];
-  size_t count = args->args[2];
-
-  log("sys_write(%d, %p, %zu)", fd, buf, count);
-
-  if (fd == 1 || fd == 2) {
-    char kbuf[80];
-    size_t done = min(count, sizeof(kbuf));
-
-    retval = copyin(buf, kbuf, done);
-    if (retval == 0) {
-      kprintf("%.*s", (int)done, buf);
-      retval = done;
-    }
-  } else {
-    retval = -EBADF;
-  }
-
-  log("sys_write(...) = %d", retval);
-  return retval;
-}
 
 /* This is just a stub. A full implementation of this syscall will probably
    deserve a separate file. */
@@ -107,6 +79,6 @@ int sys_exit(thread_t *td, syscall_args_t *args) {
 
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
-  {sys_nosys}, {sys_exit},  {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_write},
+  {sys_nosys}, {sys_exit},  {sys_open},  {sys_close}, {sys_read},  {sys_write},
   {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_sbrk},
 };

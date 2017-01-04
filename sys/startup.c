@@ -10,6 +10,7 @@
 #include <thread.h>
 #include <vm_object.h>
 #include <vm_map.h>
+#include <filedesc.h>
 #include <vnode.h>
 #include <mount.h>
 #include <devfs.h>
@@ -32,6 +33,8 @@ int kernel_init(int argc, char **argv) {
 
   vnode_init();
   vfs_init();
+  file_init();
+  fd_init();
 
   kprintf("[startup] kernel initialized\n");
 
