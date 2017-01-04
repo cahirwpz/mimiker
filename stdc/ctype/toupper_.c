@@ -4,13 +4,9 @@
  * Public domain.
  */
 
-#define _ANSI_LIBRARY
-#include <ctype.h>
-#include <stdio.h>
-
 #include "ctype_private.h"
 
-const short _C_toupper_[1 + CTYPE_NUM_CHARS] = {
+static const short _toupper_tab_[1 + CTYPE_NUM_CHARS] = {
 	EOF,
 	0x00,	0x01,	0x02,	0x03,	0x04,	0x05,	0x06,	0x07,
 	0x08,	0x09,	0x0a,	0x0b,	0x0c,	0x0d,	0x0e,	0x0f,
@@ -46,12 +42,7 @@ const short _C_toupper_[1 + CTYPE_NUM_CHARS] = {
 	0xf8,	0xf9,	0xfa,	0xfb,	0xfc,	0xfd,	0xfe,	0xff
 };
 
-const short *_toupper_tab_ = _C_toupper_;
-
-#undef toupper
-int
-toupper(int c)
-{
+int toupper(int c) {
 	if ((unsigned int)c > 255)
 		return(c);
 	return((_toupper_tab_ + 1)[c]);

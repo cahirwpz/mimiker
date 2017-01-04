@@ -32,7 +32,7 @@
  * From: @(#)strtol.c	8.1 (Berkeley) 6/4/93
  */
 
-#include <ctype.h>
+#include <stdc.h>
 #include <limits.h>
 
 /*

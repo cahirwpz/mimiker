@@ -1,4 +1,5 @@
 /*	$OpenBSD: ctype_.c,v 1.12 2015/09/19 04:02:21 guenther Exp $ */
+/*	$OpenBSD: isctype.c,v 1.12 2015/09/13 11:38:08 guenther Exp $ */
 /*
  * Copyright (c) 1989 The Regents of the University of California.
  * All rights reserved.
@@ -33,10 +34,9 @@
  * SUCH DAMAGE.
  */
 
-#include <ctype.h>
 #include "ctype_private.h"
 
-const char _C_ctype_[1 + CTYPE_NUM_CHARS] = {
+static const char _ctype_[1 + CTYPE_NUM_CHARS] = {
 	0,
 	_C,	_C,	_C,	_C,	_C,	_C,	_C,	_C,
 	_C,	_C|_S,	_C|_S,	_C|_S,	_C|_S,	_C|_S,	_C,	_C,
@@ -73,4 +73,59 @@ const char _C_ctype_[1 + CTYPE_NUM_CHARS] = {
 	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0  /* F8 */
 };
 
-const char *_ctype_ = _C_ctype_;
+
+int isalnum(int c) {
+	return (c == EOF ? 0 : ((_ctype_ + 1)[(unsigned char)c] & (_U|_L|_N)));
+}
+
+int isalpha(int c) {
+	return (c == EOF ? 0 : ((_ctype_ + 1)[(unsigned char)c] & (_U|_L)));
+}
+
+int isblank(int c) {
+	return (c == ' ' || c == '\t');
+}
+
+int iscntrl(int c) {
+	return (c == EOF ? 0 : ((_ctype_ + 1)[(unsigned char)c] & _C));
+}
+
+int isdigit(int c) {
+	return (c == EOF ? 0 : ((_ctype_ + 1)[(unsigned char)c] & _N));
+}
+
+int isgraph(int c) {
+	return (c == EOF ? 0 : ((_ctype_ + 1)[(unsigned char)c] & (_P|_U|_L|_N)));
+}
+
+int islower(int c) {
+	return (c == EOF ? 0 : ((_ctype_ + 1)[(unsigned char)c] & _L));
+}
+
+int isprint(int c) {
+	return (c == EOF ? 0 : ((_ctype_ + 1)[(unsigned char)c] & (_P|_U|_L|_N|_B)));
+}
+
+int ispunct(int c) {
+	return (c == EOF ? 0 : ((_ctype_ + 1)[(unsigned char)c] & _P));
+}
+
+int isspace(int c) {
+	return (c == EOF ? 0 : ((_ctype_ + 1)[(unsigned char)c] & _S));
+}
+
+int isupper(int c) {
+	return (c == EOF ? 0 : ((_ctype_ + 1)[(unsigned char)c] & _U));
+}
+
+int isxdigit(int c) {
+	return (c == EOF ? 0 : ((_ctype_ + 1)[(unsigned char)c] & (_N|_X)));
+}
+
+int isascii(int c) {
+	return ((unsigned int)c <= 0177);
+}
+
+int toascii(int c) {
+	return (c & 0177);
+}

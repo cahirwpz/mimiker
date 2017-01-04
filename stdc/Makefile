@@ -15,7 +15,6 @@ CPPFLAGS = -Iinclude -I../include
 LIB_SOURCES  = ctype/ctype_.c
 LIB_SOURCES += ctype/tolower_.c
 LIB_SOURCES += ctype/toupper_.c
-LIB_SOURCES += ctype/isctype.c
 LIB_SOURCES += stdio/__format_parser_int.c
 LIB_SOURCES += stdlib/strtol.c
 LIB_SOURCES += stdlib/qsort.c
