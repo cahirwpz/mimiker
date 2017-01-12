@@ -12,6 +12,22 @@
  */
 
 /* ctype.h function prototypes */
+int isalnum(int);
+int isalpha(int);
+int iscntrl(int);
+int isdigit(int);
+int isgraph(int);
+int islower(int);
+int isprint(int);
+int ispunct(int);
+int isspace(int);
+int isupper(int);
+int isxdigit(int);
+int tolower(int);
+int toupper(int);
+int isblank(int);
+int isascii(int);
+int toascii(int);
 
 /* stdio.h function prototypes */
 
@@ -21,6 +37,8 @@ int snprintf(char *str, size_t size, const char *fmt, ...)
   __attribute__((format(printf, 3, 4)));
 
 /* stdlib.h function prototypes */
+long strtol(const char *nptr, char **endptr, int base);
+unsigned long strtoul(const char *nptr, char **endptr, int base);
 void qsort(void *base, size_t num, size_t width,
            int (*comp)(const void *, const void *));
 

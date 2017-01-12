@@ -37,19 +37,15 @@
 *      current version : $
 ******************************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <ctype.h>
-#include <math.h>
-#include <limits.h>
+#include <stdc.h>
 #include "low/_stdio.h"
 
 typedef long long INT64;
 typedef unsigned long long UINT64;
 
+#ifndef INTMAX_MAX
 #define INTMAX_MAX  (0x7fffffffffffffffLL)
+#endif
 
 /* Some useful macros */
 

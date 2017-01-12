@@ -6,6 +6,7 @@
 #include <pcpu.h>
 #include <sync.h>
 #include <sched.h>
+#include <filedesc.h>
 
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
 
@@ -29,7 +30,6 @@ static tid_t make_tid() {
 
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
-
 
   td->td_sleepqueue = sleepq_alloc();
   td->td_name = kstrndup(td_pool, name, TD_NAME_MAX);
@@ -92,6 +92,8 @@ noreturn void thread_exit() {
 
   /* Thread must not exit while in critical section! */
   assert(td->td_csnest == 0);
+
+  fdtab_release(td->td_fdtable);
 
   critical_enter();
   td->td_state = TDS_INACTIVE;

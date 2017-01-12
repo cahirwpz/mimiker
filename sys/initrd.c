@@ -16,9 +16,10 @@ static MALLOC_DEFINE(mpool, "cpio mem_pool");
 
 static vm_addr_t rd_start;
 static vm_addr_t rd_size;
-static int rd_initialized;
 static stat_head_t initrd_head;
 static vnodeops_t initrd_ops;
+
+extern char *kenv_get(const char *key);
 
 stat_head_t *initrd_get_headers()
 {
@@ -33,11 +34,6 @@ vm_addr_t initrd_get_start()
 vm_addr_t get_rd_size()
 {
     return rd_size;
-}
-
-int get_rd_initialized()
-{
-    return rd_initialized;
 }
 
 static int base_atoi(char *s, int n, int base)
@@ -135,14 +131,6 @@ static void fill_header(char **tape, cpio_file_stat_t *stat)
 
 void cpio_init()
 {
-    vm_page_t *pg = pm_alloc(2);
-    kmalloc_init(mpool);
-    kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
-
-    if(get_rd_initialized())
-    {
-        initrd_collect_headers(&initrd_head, (char*)initrd_get_start());
-    }
 
 }
 
@@ -241,10 +229,13 @@ static int initrd_init(vfsconf_t *vfc)
     return 0;
 }
 
-void ramdisk_init(vm_addr_t _rd_start, vm_addr_t _rd_size)
+void ramdisk_init()
 {
-    rd_start = _rd_start;
-    rd_size = _rd_size;
+    char *s = kenv_get("rd_start");
+    rd_start = s ? strtoul(s, NULL, 0) : 0;
+    s = kenv_get("rd_size");
+    rd_size = s ? align(strtoul(s, NULL, 0), PAGESIZE) : 0;
+
     TAILQ_INIT(&initrd_head);
 
     initrd_ops.v_lookup = vnode_op_notsup;
@@ -253,11 +244,20 @@ void ramdisk_init(vm_addr_t _rd_start, vm_addr_t _rd_size)
     initrd_ops.v_read =  vnode_op_notsup;
     initrd_ops.v_write = vnode_op_notsup;
 
-    if(rd_start > 0)
+
+    if(rd_size > 0)
     {
-        rd_initialized = 1;
         initrd_ops.v_lookup = initrd_vnode_lookup;
         initrd_ops.v_read = initrd_vnode_read;
+    }
+
+    vm_page_t *pg = pm_alloc(2);
+    kmalloc_init(mpool);
+    kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
+
+    if(rd_size > 0)
+    {
+        initrd_collect_headers(&initrd_head, (char*)initrd_get_start());
     }
 }
 

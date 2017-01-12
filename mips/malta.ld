@@ -14,8 +14,9 @@ SECTIONS
   /* RAM is mapped in kseg0 (cacheable) and kseg1 (non-cacheable) */
   _ram = 0x80000000;
 
-  .text 0x80100000:
+  .text 0x80100000: AT(0x00100000) ALIGN(4096) 
   {
+    __kernel_start = .;
     /* Exception handlers. */
     *(.ebase)
     . = ALIGN(4096);
@@ -25,17 +26,16 @@ SECTIONS
     . = ALIGN (4);
     *(.rodata .rodata.*)
     __etext = ABSOLUTE(.);
-    . = ALIGN(4096);
   } : text
 
-  .data :
+  .data : ALIGN(4096)
   {
     __data = ABSOLUTE(.);
     _gp = .;
     *(.data .data.*)
     *(.sdata .sdata.*)
     *(.eh_frame .eh_frame.*)
-    . = ALIGN(4);
+    . = ALIGN (4);
     __edata = ABSOLUTE(.);
   } : data
 
@@ -56,9 +56,12 @@ SECTIONS
     *(COMMON)
     . = ALIGN (4);
     __ebss = ABSOLUTE(.);
+    /* add one page for early malloc */
+    . = . + 4096;
+    . = ALIGN (4096);
   }
 
-  _end = .;
+  __kernel_end = .;
 
   /* Sections to be discarded */
   /DISCARD/ :

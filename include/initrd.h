@@ -58,7 +58,7 @@ stat_head_t *initrd_get_headers();
 
 void initrd_collect_headers(stat_head_t *hd, char *tape);
 void cpio_init();
-void ramdisk_init(vm_addr_t, vm_addr_t);
+void ramdisk_init();
 void dump_cpio_stat(cpio_file_stat_t *stat);
 
 #endif /* _CPIO_H_ */

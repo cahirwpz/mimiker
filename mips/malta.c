@@ -9,7 +9,6 @@
 #include <stdc.h>
 #include <thread.h>
 #include <string.h>
-#include <initrd.h>
 
 extern unsigned int __bss[];
 extern unsigned int __ebss[];
@@ -102,58 +101,56 @@ static void setup_kenv(int argc, char **argv, char **envp) {
     *tokens++ = make_pair(pair[0], pair[1]);
 }
 
-typedef struct kernel_args
-{
-    vm_addr_t rd_start;
-    vm_addr_t rd_size;
-} kernel_args_t;
+char *kenv_get(const char *key) {
+  unsigned n = strlen(key);
 
-unsigned strtou(char* addr, int base)
-{
-    unsigned res = 0;
-    while(*addr)
-    {
-        res *= base;
-        res += (*addr <= '9') ? *addr-'0' : *addr -'a'+10;
-        addr++;
-    }
-    return res;
+  for (int i = 1; i < _kenv.argc; i++) {
+    char *arg = _kenv.argv[i];
+    if ((strncmp(arg, key, n) == 0) && (arg[n] == '='))
+      return arg + n + 1;
+  }
+
+  return NULL;
 }
 
-void parse_args(kernel_args_t *args, int argc, char **argv)
-{
-    int len = 0;
-    for(int i = 0; i < argc; i++)
-    {
-        len = strlen("rd_start");
-        if(strncmp(argv[i], "rd_start", len) == 0)
-        {
-            char *val = argv[i] + len + 1 + 2;
-            args->rd_start = strtou(val, 16);
-        }
-        len = strlen("rd_size");
-        if(strncmp(argv[i], "rd_size", len) == 0)
-        {
-            char *val = argv[i] + len + 1;
-            args->rd_size = strtou(val, 10);
-        }
-    }
-}
+extern uint8_t __kernel_start[];
+extern uint8_t __kernel_end[];
 
-static void pm_bootstrap(unsigned memsize, vm_addr_t rd_start, vm_addr_t rd_size) {
+static void pm_bootstrap(unsigned memsize) {
+  intptr_t rd_start;
+  unsigned rd_size;
+
   pm_init();
 
-  /* Add Malta physical memory segment */
-  pm_add_segment(MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + memsize,
-                 MIPS_KSEG0_START);
-  /* shutdown sbrk allocator and remove used pages from physmem */
-  pm_reserve(MALTA_PHYS_SDRAM_BASE,
-             (pm_addr_t)kernel_sbrk_shutdown() - MIPS_KSEG0_START);
-  /* Check if there is ramdisk passed */
-  if(rd_size != 0) {
-    pm_addr_t p_rd_start = rd_start - MIPS_KSEG0_START;
-    pm_reserve(p_rd_start, p_rd_start + align(rd_size, PAGESIZE));
+  /* ramdisk start address is expected to be page aligned and places directly
+   * after kernel's .bss section */
+  {
+    char *s;
+
+    s = kenv_get("rd_start");
+    rd_start = s ? strtoul(s, NULL, 0) : 0;
+    s = kenv_get("rd_size");
+    rd_size = s ? align(strtoul(s, NULL, 0), PAGESIZE) : 0;
   }
+
+  pm_seg_t *seg = (pm_seg_t *)(__kernel_end + rd_size);
+  size_t seg_size = align(pm_seg_space_needed(memsize), PAGESIZE);
+
+  /* create Malta physical memory segment */
+  pm_seg_init(seg, MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + memsize,
+              MIPS_KSEG0_START);
+  /* reserve kernel image space */
+  pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS((intptr_t)__kernel_start),
+                 MIPS_KSEG0_TO_PHYS((intptr_t)__kernel_end));
+  /* reserve ramdisk space */
+  if (rd_start) {
+    pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS(rd_start),
+                   MIPS_KSEG0_TO_PHYS(rd_start + rd_size));
+  }
+  /* reserve segment description space */
+  pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS((intptr_t)seg),
+                 MIPS_KSEG0_TO_PHYS((intptr_t)seg + seg_size));
+  pm_add_segment(seg);
 }
 
 static void thread_bootstrap() {
@@ -173,20 +170,16 @@ static void thread_bootstrap() {
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   /* clear BSS section */
   bzero(__bss, __ebss - __bss);
+
   setup_kenv(argc, argv, envp);
 
-  kernel_args_t args = {0};
-
-  parse_args(&args, _kenv.argc, _kenv.argv);
-
-  ramdisk_init(args.rd_start, args.rd_size);
   uart_init();
   pcpu_init();
   cpu_init();
   tlb_init();
   intr_init();
   mips_intr_init();
-  pm_bootstrap(memsize, args.rd_start, args.rd_size);
+  pm_bootstrap(memsize);
   sleepq_init();
   thread_bootstrap();
 

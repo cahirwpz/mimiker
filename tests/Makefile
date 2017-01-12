@@ -13,6 +13,7 @@ TESTS = \
 	producer_consumer.elf \
 	rtc.elf \
 	sched.elf \
+	strtol.elf \
 	syscall.elf \
 	thread.elf \
 	uiomove.elf \
