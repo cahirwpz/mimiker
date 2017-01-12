@@ -8,9 +8,13 @@
 #include <vnode.h>
 #include <mount.h>
 #include <string.h>
-#include <cpio.h>
 #include <mount.h>
 #include <linker_set.h>
+
+
+/* Look for more codes in cpio sources */
+#define CPIO_TRAILER_NAME "TRAILER!!!"
+#define C_ISDIR		040000
 
 static MALLOC_DEFINE(mpool, "cpio mem_pool");
 
@@ -127,11 +131,6 @@ static void fill_header(char **tape, cpio_file_stat_t *stat)
     stat->c_data = *tape;
     pad = get_file_padding(stat->c_filesize);
     skip_bytes(tape, pad+stat->c_filesize);
-}
-
-void cpio_init()
-{
-
 }
 
 void initrd_collect_headers(stat_head_t *hd, char *tape)

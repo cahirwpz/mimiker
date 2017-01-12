@@ -57,7 +57,6 @@ vm_addr_t initrd_get_size();
 stat_head_t *initrd_get_headers();
 
 void initrd_collect_headers(stat_head_t *hd, char *tape);
-void cpio_init();
 void ramdisk_init();
 void dump_cpio_stat(cpio_file_stat_t *stat);
 
