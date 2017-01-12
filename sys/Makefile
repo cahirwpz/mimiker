@@ -16,12 +16,14 @@ SOURCES_C  = \
 	sleepq.c \
 	startup.c \
 	sysent.c \
+	taskqueue.c \
 	thread.c \
 	turnstile.c \
 	uio.c \
 	vm_map.c \
 	vm_object.c \
-	vm_pager.c
+	vm_pager.c \
+	worker.c
 SOURCES_ASM = 
 
 all: $(DEPFILES) libsys.a 
