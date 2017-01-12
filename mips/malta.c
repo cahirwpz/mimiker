@@ -143,8 +143,10 @@ static void pm_bootstrap(unsigned memsize) {
   pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS((intptr_t)__kernel_start),
                  MIPS_KSEG0_TO_PHYS((intptr_t)__kernel_end));
   /* reserve ramdisk space */
-  pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS(rd_start),
-                 MIPS_KSEG0_TO_PHYS(rd_start + rd_size));
+  if (rd_start) {
+    pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS(rd_start),
+                   MIPS_KSEG0_TO_PHYS(rd_start + rd_size));
+  }
   /* reserve segment description space */
   pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS((intptr_t)seg),
                  MIPS_KSEG0_TO_PHYS((intptr_t)seg + seg_size));
