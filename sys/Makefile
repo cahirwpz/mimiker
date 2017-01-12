@@ -7,6 +7,7 @@ SOURCES_C  = \
 	dev_null.c \
 	dev_uart.c \
 	devfs.c \
+	embedfs.c \
 	exception.c \
 	exec.c \
 	file.c \
