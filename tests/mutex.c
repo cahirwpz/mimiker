@@ -24,7 +24,7 @@ void mtx_test_main() {
 }
 
 void mtx_test() {
-  mtx_init(&mtx, MT_DEF);
+  mtx_init(&mtx, MTX_DEF);
   td1 = thread_create("td1", mtx_test_main, NULL);
   td2 = thread_create("td2", mtx_test_main, NULL);
   td3 = thread_create("td3", mtx_test_main, NULL);
@@ -59,8 +59,8 @@ void deadlock_main2() {
 }
 
 void deadlock_test() {
-  mtx_init(&mtx1, MT_DEF);
-  mtx_init(&mtx2, MT_DEF);
+  mtx_init(&mtx1, MTX_DEF);
+  mtx_init(&mtx2, MTX_DEF);
   td1 = thread_create("td1", deadlock_main1, NULL);
   td2 = thread_create("td2", deadlock_main2, NULL);
   sched_add(td1);

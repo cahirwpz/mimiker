@@ -1,12 +1,13 @@
 #include <stdc.h>
 #include <sync.h>
 #include <mutex.h>
+#include <sync.h>
 #include <thread.h>
 
 #define MTX_UNOWNED 0
 
-bool mtx_owned(mtx_t *mtx) {
-  return (mtx->mtx_state == (uint32_t)thread_self());
+bool mtx_owned(mtx_t *m) {
+  return (m->m_owner == thread_self());
 }
 
 void mtx_init(mtx_t *m, unsigned type) {
@@ -18,16 +19,16 @@ void mtx_init(mtx_t *m, unsigned type) {
 
 void mtx_lock(mtx_t *m) {
   if (mtx_owned(m)) {
-    assert(m->m_type & MT_RECURSE);
+    assert(m->m_type & MTX_RECURSE);
     m->m_count++;
     return;
   }
 
-  cs_enter();
+  critical_enter();
   while (m->m_owner != NULL)
     turnstile_wait(&m->m_turnstile);
   m->m_owner = thread_self();
-  cs_leave();
+  critical_leave();
 }
 
 void mtx_unlock(mtx_t *m) {
@@ -38,8 +39,8 @@ void mtx_unlock(mtx_t *m) {
     return;
   }
 
-  cs_enter();
+  critical_enter();
   m->m_owner = NULL;
   turnstile_signal(&m->m_turnstile);
-  cs_leave();
+  critical_leave();
 }

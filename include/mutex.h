@@ -6,8 +6,8 @@
 
 typedef struct thread thread_t;
 
-#define MT_DEF 0
-#define MT_RECURSE 1
+#define MTX_DEF 0
+#define MTX_RECURSE 1
 
 typedef struct mtx {
   volatile thread_t *m_owner; /* stores address of the owner */
