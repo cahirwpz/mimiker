@@ -14,12 +14,12 @@ static vm_map_t kspace;
 vm_map_t *vm_map_activate(vm_map_t *map) {
   vm_map_t *old;
 
-  cs_enter();
+  critical_enter();
   thread_t *td = thread_self();
   old = td->td_uspace;
   td->td_uspace = map;
   pmap_activate(map ? map->pmap : NULL);
-  cs_leave();
+  critical_leave();
 
   return old;
 }
@@ -226,22 +226,22 @@ int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
 
   if (!(entry = vm_map_find_entry(map, fault_addr))) {
     log("Tried to access unmapped memory region: 0x%08lx!", fault_addr);
-    return EFAULT;
+    return -EFAULT;
   }
 
   if (entry->prot == VM_PROT_NONE) {
     log("Cannot access to address: 0x%08lx", fault_addr);
-    return EACCES;
+    return -EACCES;
   }
 
   if (!(entry->prot & VM_PROT_WRITE) && (fault_type == VM_PROT_WRITE)) {
     log("Cannot write to address: 0x%08lx", fault_addr);
-    return EACCES;
+    return -EACCES;
   }
 
   if (!(entry->prot & VM_PROT_READ) && (fault_type == VM_PROT_READ)) {
     log("Cannot read from address: 0x%08lx", fault_addr);
-    return EACCES;
+    return -EACCES;
   }
 
   assert(entry->start <= fault_addr && fault_addr < entry->end);

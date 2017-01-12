@@ -5,12 +5,15 @@
 #include <queue.h>
 #include <context.h>
 #include <exception.h>
+#include <sleepq.h>
 
 typedef uint8_t td_prio_t;
 typedef uint32_t tid_t;
 typedef struct vm_page vm_page_t;
-typedef struct sleepq sleepq_t;
 typedef struct vm_map vm_map_t;
+typedef struct fdtab fdtab_t;
+
+#define TD_NAME_MAX 32
 
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
@@ -20,7 +23,7 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_runq;   /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq; /* a link on sleep queue */
   TAILQ_ENTRY(thread) td_lock;   /* a link on turnstile */
-  const char *td_name;
+  char *td_name;
   tid_t td_tid; /* Thread ID*/
   /* thread state */
   enum { TDS_INACTIVE = 0x0, TDS_WAITING, TDS_READY, TDS_RUNNING } td_state;
@@ -35,6 +38,8 @@ typedef struct thread {
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
   vm_map_t *td_uspace; /* thread's user space map */
+  /* file descriptors table */
+  fdtab_t *td_fdtable;
   /* waiting channel */
   sleepq_t *td_sleepqueue;
   void *td_wchan;

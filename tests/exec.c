@@ -8,18 +8,19 @@ void program_thread(void *data) {
   switch ((int)data) {
   case 1:
     exec_args.prog_name = "prog";
-    exec_args.argv = (char *[]){"argument1", "ARGUMENT2", "a-r-g-u-m-e-n-t-3"};
-    exec_args.argc = 3;
+    exec_args.argv =
+      (char *[]){"prog", "argument1", "ARGUMENT2", "a-r-g-u-m-e-n-t-3"};
+    exec_args.argc = 4;
     do_exec(&exec_args);
   case 2:
     exec_args.prog_name = "prog";
-    exec_args.argv = (char *[]){"String passed as argument."};
-    exec_args.argc = 1;
+    exec_args.argv = (char *[]){"prog", "String passed as argument."};
+    exec_args.argc = 2;
     do_exec(&exec_args);
   case 3:
     exec_args.prog_name = "prog";
-    exec_args.argv = (char *[]){"abort_test"};
-    exec_args.argc = 1;
+    exec_args.argv = (char *[]){"prog", "abort_test"};
+    exec_args.argc = 2;
     do_exec(&exec_args);
   }
 }

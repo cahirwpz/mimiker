@@ -2,6 +2,7 @@
 #include <queue.h>
 #include <sched.h>
 #include <turnstile.h>
+#include <thread.h>
 
 void turnstile_init(turnstile_t *ts) {
   TAILQ_INIT(&ts->td_queue);

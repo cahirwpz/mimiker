@@ -8,6 +8,8 @@
 #include <string.h>
 #include <errno.h>
 #include <sync.h>
+#include <filedesc.h>
+#include <vfs_syscalls.h>
 #include <mips/stack.h>
 
 #define EMBED_ELF_DECLARE(name)                                                \
@@ -189,6 +191,20 @@ int do_exec(const exec_args_t *args) {
   /* Prepare program stack, which includes storing program args... */
   log("Stack real bottom at %p", (void *)stack_bottom);
   prepare_program_stack(args, &stack_bottom);
+
+  thread_t *td = thread_self();
+  /* ... file descriptor table ... */
+  /* TODO: Copy/share file descriptor table! */
+  fdtab_t *fdt = fdtab_alloc();
+  fdtab_ref(fdt);
+  td->td_fdtable = fdt;
+
+  /* Before we have a working fork, let's initialize file descriptors required
+     by the standard library. */
+  int ignore;
+  do_open(td, "/dev/uart", O_RDONLY, 0, &ignore);
+  do_open(td, "/dev/uart", O_WRONLY, 0, &ignore);
+  do_open(td, "/dev/uart", O_WRONLY, 0, &ignore);
 
   /* ... and user context. */
   uctx_init(thread_self(), eh->e_entry, stack_bottom);

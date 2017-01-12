@@ -12,8 +12,8 @@ typedef struct pm_seg {
   pm_addr_t start;
   pm_addr_t end;
   pg_list_t freeq[PM_NQUEUES];
-  vm_page_t *pages;
   unsigned npages;
+  vm_page_t pages[];
 } pm_seg_t;
 
 TAILQ_HEAD(pm_seglist, pm_seg);
@@ -42,18 +42,23 @@ void pm_dump() {
   }
 }
 
-void pm_add_segment(pm_addr_t start, pm_addr_t end, vm_addr_t vm_offset) {
+size_t pm_seg_space_needed(size_t size) {
+  assert(is_aligned(size, PAGESIZE));
+
+  return sizeof(pm_seg_t) + size / PAGESIZE * sizeof(vm_page_t);
+}
+
+void pm_seg_init(pm_seg_t *seg,
+                 pm_addr_t start, pm_addr_t end, vm_addr_t vm_offset)
+{
   assert(start < end);
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
   assert(is_aligned(vm_offset, PAGESIZE));
 
-  pm_seg_t *seg = kernel_sbrk(sizeof(pm_seg_t));
   seg->start = start;
   seg->end = end;
   seg->npages = (end - start) / PAGESIZE;
-  seg->pages = kernel_sbrk(seg->npages * sizeof(vm_page_t));
-  TAILQ_INSERT_TAIL(&seglist, seg, segq);
 
   unsigned max_size = min(PM_NQUEUES, ffs(seg->npages)) - 1;
 
@@ -81,6 +86,10 @@ void pm_add_segment(pm_addr_t start, pm_addr_t end, vm_addr_t vm_offset) {
       curr_page += size;
     }
   }
+}
+
+void pm_add_segment(pm_seg_t *seg) {
+  TAILQ_INSERT_TAIL(&seglist, seg, segq);
 }
 
 /* Takes two pages which are buddies, and merges them */
@@ -143,7 +152,15 @@ static void pm_split_page(pm_seg_t *seg, vm_page_t *page) {
 }
 
 /* TODO this can be sped up by removing elements from list on-line. */
-static void pm_reserve_from_seg(pm_seg_t *seg, pm_addr_t start, pm_addr_t end) {
+void pm_seg_reserve(pm_seg_t *seg, pm_addr_t start, pm_addr_t end) {
+  assert(start < end);
+  assert(is_aligned(start, PAGESIZE));
+  assert(is_aligned(end, PAGESIZE));
+  assert(seg->start <= start && end <= seg->end);
+
+  log("pm_seg_reserve: %p - %p from [%p, %p]",
+      (void *)start, (void *)end, (void *)seg->start, (void *)seg->end);
+
   for (int i = PM_NQUEUES - 1; i >= 0; i--) {
     pg_list_t *queue = PM_FREEQ(seg, i);
     vm_page_t *pg = TAILQ_FIRST(queue);
@@ -173,25 +190,6 @@ static void pm_reserve_from_seg(pm_seg_t *seg, pm_addr_t start, pm_addr_t end) {
       }
     }
   }
-}
-
-void pm_reserve(pm_addr_t start, pm_addr_t end) {
-  assert(start < end);
-  assert(is_aligned(start, PAGESIZE));
-  assert(is_aligned(end, PAGESIZE));
-
-  kprintf("[pmem] pm_reserve: 0x%lx - 0x%lx\n", start, end);
-
-  pm_seg_t *seg_it;
-
-  TAILQ_FOREACH (seg_it, &seglist, segq) {
-    if (seg_it->start <= start && seg_it->end >= end) {
-      pm_reserve_from_seg(seg_it, start, end);
-      return;
-    }
-  }
-
-  panic("pm_reverse failed (%p - %p)\n", (void *)start, (void *)end);
 }
 
 static vm_page_t *pm_alloc_from_seg(pm_seg_t *seg, size_t npages) {

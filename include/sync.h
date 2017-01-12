@@ -1,15 +1,17 @@
-#ifndef __SYS_SYNC_H__
-#define __SYS_SYNC_H__
+#ifndef _SYS_SYNC_H_
+#define _SYS_SYNC_H_
 
 /*
  * Entering critical section turns off interrupts - use with care!
  *
- * Thread must not yield or switch when inside critical section!
+ * In most scenarios threads should not yield or switch when inside
+ * critical section. However it should behave correctly, since
+ * context switch routine restores interrupts state of target thread.
  *
- * Calls to @cs_enter can nest, you must use same number of @cs_leave to
- * actually leave a critical section.
+ * Calls to @critical_enter can nest, you must use same number of
+ * @critical_leave to actually leave the critical section.
  */
-void cs_enter();
-void cs_leave();
+void critical_enter();
+void critical_leave();
 
-#endif
+#endif /* !_SYS_SYNC_H_ */

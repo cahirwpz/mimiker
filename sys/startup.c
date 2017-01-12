@@ -12,6 +12,10 @@
 #include <vm_object.h>
 #include <vm_map.h>
 #include <worker.h>
+#include <filedesc.h>
+#include <vnode.h>
+#include <mount.h>
+#include <devfs.h>
 
 extern void main(void *);
 
@@ -31,6 +35,12 @@ int kernel_init(int argc, char **argv) {
   taskqueue_init();
   worker_init();
   mips_clock_init();
+
+  vnode_init();
+  vfs_init();
+  file_init();
+  fd_init();
+
   kprintf("[startup] kernel initialized\n");
 
   thread_switch_to(thread_create("main", main, NULL));

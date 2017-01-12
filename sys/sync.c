@@ -1,15 +1,15 @@
-#include <thread.h>
-#include <sync.h>
-#include <mips/mips.h>
+#include <mips/intr.h>
 #include <stdc.h>
+#include <sync.h>
+#include <thread.h>
 
-void cs_enter() {
+void critical_enter() {
   thread_t *td = thread_self();
   if (td->td_csnest++ == 0)
     intr_disable();
 }
 
-void cs_leave() {
+void critical_leave() {
   thread_t *td = thread_self();
   assert(td->td_csnest > 0);
   if (--td->td_csnest == 0)
