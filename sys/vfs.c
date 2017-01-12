@@ -39,8 +39,8 @@ static vnodeops_t vfs_root_ops = {
 static int vfs_register(vfsconf_t *vfc);
 
 void vfs_init() {
-  mtx_init(&vfsconf_list_mtx);
-  mtx_init(&mount_list_mtx);
+  mtx_init(&vfsconf_list_mtx, MTX_DEF);
+  mtx_init(&mount_list_mtx, MTX_DEF);
 
   /* TODO: We probably need some fancier allocation, since eventually we should
    * start recycling vnodes */
@@ -130,7 +130,7 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
   m->mnt_vnodecovered = v;
 
   m->mnt_refcnt = 0;
-  mtx_init(&m->mnt_mtx);
+  mtx_init(&m->mnt_mtx, MTX_DEF);
 
   return m;
 }

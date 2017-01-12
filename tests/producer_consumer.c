@@ -72,7 +72,7 @@ int main() {
   buf.items = 0;
   buf.all_produced = 0;
   buf.all_consumed = 0;
-  mtx_init(&buf.lock);
+  mtx_init(&buf.lock, MTX_DEF);
   cv_init(&buf.not_empty, "not_empty");
   cv_init(&buf.not_full, "not_full");
 

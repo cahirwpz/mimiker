@@ -1,6 +1,7 @@
 #ifndef _SYS_MOUNT_H_
 #define _SYS_MOUNT_H_
 
+#include <common.h>
 #include <queue.h>
 #include <mutex.h>
 

@@ -3,6 +3,7 @@
 #include <vnode.h>
 #include <errno.h>
 #include <stdc.h>
+#include <mutex.h>
 #include <malloc.h>
 #include <linker_set.h>
 
@@ -113,7 +114,7 @@ static int devfs_init(vfsconf_t *vfc) {
   kmalloc_init(devfs_pool);
   kmalloc_add_arena(devfs_pool, pm_alloc(1)->vaddr, PAGESIZE);
 
-  mtx_init(&devfs_device_list_mtx);
+  mtx_init(&devfs_device_list_mtx, MTX_DEF);
 
   /* Prepare some initial devices */
   typedef void devfs_init_func_t();

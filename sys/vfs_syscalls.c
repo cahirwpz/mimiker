@@ -1,10 +1,11 @@
-#include <vfs_syscalls.h>
-#include <file.h>
 #include <filedesc.h>
+#include <file.h>
 #include <mount.h>
+#include <stdc.h>
 #include <sysent.h>
 #include <systm.h>
-#include <stdc.h>
+#include <thread.h>
+#include <vfs_syscalls.h>
 #include <vm_map.h>
 
 int do_open(thread_t *td, char *pathname, int flags, int mode, int *fd) {
