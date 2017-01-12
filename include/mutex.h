@@ -1,6 +1,7 @@
 #ifndef _SYS_MUTEX_H_
 #define _SYS_MUTEX_H_
 
+#include <stdbool.h>
 #include <turnstile.h>
 
 typedef struct thread thread_t;
