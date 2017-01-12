@@ -7,9 +7,11 @@
 #include <callout.h>
 #include <sched.h>
 #include <sleepq.h>
+#include <taskqueue.h>
 #include <thread.h>
 #include <vm_object.h>
 #include <vm_map.h>
+#include <worker.h>
 #include <filedesc.h>
 #include <vnode.h>
 #include <mount.h>
@@ -29,6 +31,9 @@ int kernel_init(int argc, char **argv) {
   vm_object_init();
   vm_map_init();
   sched_init();
+  sleepq_init();
+  taskqueue_init();
+  worker_init();
   mips_clock_init();
 
   vnode_init();

@@ -15,6 +15,7 @@ TESTS = \
 	strtol.elf \
 	syscall.elf \
 	thread.elf \
+	thread_exit.elf \
 	uiomove.elf \
 	vm_map.elf \
 	vfs.elf

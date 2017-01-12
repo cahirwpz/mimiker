@@ -23,6 +23,7 @@ SOURCES_C  = \
 	startup.c \
 	sync.c \
 	sysent.c \
+	taskqueue.c \
 	thread.c \
 	turnstile.c \
 	uio.c \
@@ -31,7 +32,9 @@ SOURCES_C  = \
 	vm_map.c \
 	vm_object.c \
 	vm_pager.c \
+	worker.c \
 	vnode.c
+
 SOURCES_ASM = 
 
 all: $(DEPFILES) libsys.a 
