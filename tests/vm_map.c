@@ -3,6 +3,7 @@
 #include <vm_object.h>
 #include <vm_map.h>
 #include <errno.h>
+#include <test.h>
 
 static void paging_on_demand_and_memory_protection_demo() {
   vm_map_activate(vm_map_new());
@@ -85,8 +86,10 @@ void findspace_demo() {
   log("Test passed.");
 }
 
-int main() {
+int test_vm_map() {
   paging_on_demand_and_memory_protection_demo();
   findspace_demo();
   return 0;
 }
+
+TEST_ADD(vm_map, test_vm_map);

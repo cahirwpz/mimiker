@@ -12,6 +12,7 @@ SOURCES_C  = \
 	file.c \
 	filedesc.c \
 	interrupt.c \
+	main.c \
 	malloc.c \
 	mutex.c \
 	pci_ids.c \

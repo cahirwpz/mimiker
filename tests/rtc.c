@@ -1,6 +1,7 @@
 #include <common.h>
 #include <mips/malta.h>
 #include <rtc.h>
+#include <test.h>
 
 /* http://geezer.osdevbrasil.net/temp/rtc.txt */
 
@@ -47,7 +48,7 @@ void mdelay(unsigned msec) {
     ;
 }
 
-int main() {
+int test_rtc() {
   rtc_init();
 
   while (1) {
@@ -62,3 +63,5 @@ int main() {
   return 0;
 }
 #endif
+
+TEST_ADD(rtc, test_rtc);

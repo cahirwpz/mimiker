@@ -2,6 +2,7 @@
 #include <sched.h>
 #include <mutex.h>
 #include <thread.h>
+#include <test.h>
 
 mtx_t mtx;
 mtx_t mtx1;
@@ -73,7 +74,9 @@ void deadlock_test() {
     kprintf("elo!\n");
 }
 
-int main() {
+int test_mutex() {
   mtx_test();
   return 0;
 }
+
+TEST_ADD(mutex, test_mutex);

@@ -3,6 +3,7 @@
 #include <sched.h>
 #include <stdc.h>
 #include <thread.h>
+#include <test.h>
 
 #define BUF_MAX 16384
 #define THREADS 3
@@ -29,7 +30,7 @@ static void producer(void *ptr) {
       if (buf.items < BUF_MAX)
         break;
       cv_wait(&buf.not_full, &buf.lock);
-    } while(true);
+    } while (true);
     if (working) {
       produced++;
       buf.all_produced++;
@@ -38,8 +39,8 @@ static void producer(void *ptr) {
     }
     mtx_unlock(&buf.lock);
   }
-  log("%s finished, produced %d of %d.",
-      thread_self()->td_name, produced, buf.all_produced);
+  log("%s finished, produced %d of %d.", thread_self()->td_name, produced,
+      buf.all_produced);
 }
 
 static void consumer(void *ptr) {
@@ -64,11 +65,11 @@ static void consumer(void *ptr) {
     }
     mtx_unlock(&buf.lock);
   }
-  log("%s finished, consumed %d of %d.",
-      thread_self()->td_name, consumed, buf.all_consumed);
+  log("%s finished, consumed %d of %d.", thread_self()->td_name, consumed,
+      buf.all_consumed);
 }
 
-int main() {
+int test_producer_consumer() {
   buf.items = 0;
   buf.all_produced = 0;
   buf.all_consumed = 0;
@@ -77,7 +78,7 @@ int main() {
   cv_init(&buf.not_full, "not_full");
 
   for (int i = 0; i < THREADS; i++) {
-    char name[20]; 
+    char name[20];
     snprintf(name, sizeof(name), "producer-%d", i);
     sched_add(thread_create(name, producer, (void *)i));
     snprintf(name, sizeof(name), "consumer-%d", i);
@@ -87,3 +88,5 @@ int main() {
   sched_run();
   return 0;
 }
+
+TEST_ADD(producer_consumer, test_producer_consumer);

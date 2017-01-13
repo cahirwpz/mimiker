@@ -1,7 +1,8 @@
 #include <stdc.h>
 #include <malloc.h>
+#include <test.h>
 
-int main() {
+int test_malloc() {
   vm_page_t *page = pm_alloc(1);
 
   MALLOC_DEFINE(mp, "testing memory pool");
@@ -37,3 +38,5 @@ int main() {
 
   return 0;
 }
+
+TEST_ADD(malloc, test_malloc);

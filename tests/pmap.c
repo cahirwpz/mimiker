@@ -3,6 +3,7 @@
 #include <pmap.h>
 #include <physmem.h>
 #include <vm.h>
+#include <test.h>
 
 void kernel_pmap_test() {
   pmap_t *pmap = get_kernel_pmap();
@@ -74,10 +75,11 @@ void user_pmap_test() {
   log("Test passed.");
 }
 
-int main() {
+int test_pmap() {
   kernel_pmap_test();
   user_pmap_test();
 
   return 0;
 }
 
+TEST_ADD(pmap, test_pmap);
