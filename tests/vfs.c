@@ -3,8 +3,9 @@
 #include <vnode.h>
 #include <errno.h>
 #include <vm_map.h>
+#include <ktest.h>
 
-int main() {
+static int test_vfs() {
   vnode_t *v;
   int error;
 
@@ -95,3 +96,5 @@ int main() {
 
   return 0;
 }
+
+KTEST_ADD(vfs, test_vfs);

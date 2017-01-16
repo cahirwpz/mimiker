@@ -1,11 +1,12 @@
 #include <stdc.h>
 #include <callout.h>
+#include <ktest.h>
 
 static void callout_foo(void *arg) {
   kprintf("Someone executed me! After %d ticks.\n", *((int *)arg));
 }
 
-int main() {
+int test_callout() {
   callout_t callout[10];
   int timeouts[10] = {2, 5, 3, 1, 6, 3, 7, 10, 5, 3};
   for (int i = 0; i < 10; i++)
@@ -18,3 +19,5 @@ int main() {
 
   return 0;
 }
+
+KTEST_ADD(callout, test_callout);

@@ -70,7 +70,7 @@ def configure_qemu(args):
                '-machine', 'malta',
                '-cpu', '24Kf',
                '-kernel', args.kernel,
-               '-append', '"' + ' '.join(args.args) + '"']
+               '-append', ' '.join(args.args)]
 
     if args.test:
         options += ['-serial', 'null',
@@ -123,8 +123,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description='Launch kernel in Malta board simulator.')
-    parser.add_argument('kernel', metavar='KERNEL', type=str,
-                        help='Kernel file in ELF format.')
+    parser.add_argument('-k', '--kernel', metavar='KERNEL', type=str,
+                        help='Kernel image file in ELF format.',
+                        default='mimiker.elf')
     parser.add_argument('args', metavar='ARGS', type=str, nargs='*',
                         help='Kernel arguments.')
     parser.add_argument('-d', '--debug', action='store_true',
