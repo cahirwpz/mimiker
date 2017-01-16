@@ -3,17 +3,22 @@
 #include <vnode.h>
 #include <mount.h>
 #include <vm_map.h>
+#include <ktest.h>
 
-void print_headers() {
+#if 0
+static void print_headers() {
   char *start = (char *)initrd_get_start();
   stat_head_t *hd = initrd_get_headers();
   initrd_collect_headers(hd, start);
   cpio_file_stat_t *it;
 
-  TAILQ_FOREACH (it, hd, stat_list) { dump_cpio_stat(it); }
+  TAILQ_FOREACH (it, hd, stat_list) {
+    dump_cpio_stat(it);
+  }
 }
+#endif
 
-void dump_file(char *path) {
+static void dump_file(const char *path) {
   // print_headers();
   vnode_t *v;
   int res = vfs_lookup(path, &v);
@@ -40,7 +45,7 @@ void dump_file(char *path) {
   kprintf("file %s:\n%s\n", path, buffer);
 }
 
-int main() {
+static int test_ramdisk() {
   dump_file("/initrd/some_dir/nested_dir/message");
   dump_file("/initrd/some_dir/nested_dir/file5");
   dump_file("/initrd/empty_file");
@@ -51,3 +56,5 @@ int main() {
   dump_file("/initrd/just_another_dir/file6");
   return 0;
 }
+
+KTEST_ADD(ramdisk, test_ramdisk);

@@ -38,7 +38,6 @@ int kernel_init(int argc, char **argv) {
   file_init();
   fd_init();
 
-
   kprintf("[startup] kernel initialized\n");
 
   thread_switch_to(thread_create("main", main, NULL));
