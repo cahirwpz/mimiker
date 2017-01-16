@@ -83,17 +83,18 @@ noreturn void thread_exit();
     thread_exit();                                                             \
   })
 
+#ifdef DEBUG
 #define log(FMT, ...)                                                          \
   __extension__(                                                               \
     { kprintf("[%s:%d] " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__); })
 
-#ifdef DEBUG
 #define assert(EXPR)                                                           \
   __extension__({                                                              \
     if (!(EXPR))                                                               \
       panic("Assertion '" __STRING(EXPR) "' failed!");                         \
   })
 #else
+#define log(...)
 #define assert(expr)
 #endif
 
