@@ -1,5 +1,6 @@
 #include <stdc.h>
 #include <thread.h>
+#include <ktest.h>
 
 static thread_t *td0, *td1, *td2;
 
@@ -29,7 +30,7 @@ static void demo_thread_2() {
   panic("This line need not be reached!");
 }
 
-int main() {
+static int test_thread() {
   kprintf("Thread '%s' started.\n", thread_self()->td_name);
 
   td0 = thread_self();
@@ -52,3 +53,5 @@ int main() {
 
   return 0;
 }
+
+KTEST_ADD(thread, test_thread);

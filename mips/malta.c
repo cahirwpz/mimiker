@@ -101,7 +101,7 @@ static void setup_kenv(int argc, char **argv, char **envp) {
     *tokens++ = make_pair(pair[0], pair[1]);
 }
 
-static char *kenv_get(const char *key) {
+char *kenv_get(const char *key) {
   unsigned n = strlen(key);
 
   for (int i = 1; i < _kenv.argc; i++) {

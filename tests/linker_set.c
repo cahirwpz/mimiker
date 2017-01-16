@@ -1,5 +1,6 @@
 #include <stdc.h>
 #include <linker_set.h>
+#include <ktest.h>
 
 static int some_int_1 = 1;
 static int some_int_2 = 2;
@@ -12,7 +13,7 @@ SET_ENTRY(testset, some_int_3);
 SET_ENTRY(testset, some_int_4);
 SET_ENTRY(testset, some_int_5);
 
-int main() {
+static int test_linker_set() {
   SET_DECLARE(testset, int);
 
   kprintf("# of elements in testset: %zu\n", SET_COUNT(testset));
@@ -23,3 +24,5 @@ int main() {
   }
   return 0;
 }
+
+KTEST_ADD(linker_set, test_linker_set);
