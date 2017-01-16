@@ -70,7 +70,7 @@ def configure_qemu(args):
                '-machine', 'malta',
                '-cpu', '24Kf',
                '-kernel', args.kernel,
-               '-append', '"' + ' '.join(args.args) + '"']
+               '-append', ' '.join(args.args)]
 
     if args.test:
         options += ['-serial', 'null',
