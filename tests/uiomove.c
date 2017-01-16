@@ -2,9 +2,9 @@
 #include <systm.h>
 #include <stdc.h>
 #include <vm_map.h>
-#include <test.h>
+#include <ktest.h>
 
-int test_uiomove() {
+static int test_uiomove() {
   int res = 0;
 
   char buffer1[100];
@@ -60,4 +60,4 @@ int test_uiomove() {
   return 0;
 }
 
-TEST_ADD(uiomove, test_uiomove);
+KTEST_ADD(uiomove, test_uiomove);

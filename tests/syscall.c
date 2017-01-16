@@ -3,9 +3,9 @@
 #include <thread.h>
 #include <vm_map.h>
 #include <vm_pager.h>
-#include <test.h>
+#include <ktest.h>
 
-int test_syscall() {
+static int test_syscall() {
   /* System call from kernel space! */
   kprintf("syscall(1) = %d\n", syscall(1));
 
@@ -41,4 +41,4 @@ int test_syscall() {
   user_exc_leave();
 }
 
-TEST_ADD(syscall, test_syscall);
+KTEST_ADD(syscall, test_syscall);

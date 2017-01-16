@@ -1,5 +1,5 @@
 #include <stdc.h>
-#include <test.h>
+#include "../include/ktest.h"
 
 typedef struct strtol_test {
   const char *str;
@@ -24,4 +24,4 @@ int test_strtol(void) {
   return 0;
 }
 
-TEST_ADD(strtol, test_strtol);
+KTEST_ADD(strtol, test_strtol);

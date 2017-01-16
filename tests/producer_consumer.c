@@ -3,7 +3,7 @@
 #include <sched.h>
 #include <stdc.h>
 #include <thread.h>
-#include <test.h>
+#include <ktest.h>
 
 #define BUF_MAX 16384
 #define THREADS 3
@@ -69,7 +69,7 @@ static void consumer(void *ptr) {
       buf.all_consumed);
 }
 
-int test_producer_consumer() {
+static int test_producer_consumer() {
   buf.items = 0;
   buf.all_produced = 0;
   buf.all_consumed = 0;
@@ -89,4 +89,4 @@ int test_producer_consumer() {
   return 0;
 }
 
-TEST_ADD(producer_consumer, test_producer_consumer);
+KTEST_ADD(producer_consumer, test_producer_consumer);

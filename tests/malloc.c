@@ -1,8 +1,8 @@
 #include <stdc.h>
 #include <malloc.h>
-#include <test.h>
+#include <ktest.h>
 
-int test_malloc() {
+static int test_malloc() {
   vm_page_t *page = pm_alloc(1);
 
   MALLOC_DEFINE(mp, "testing memory pool");
@@ -39,4 +39,4 @@ int test_malloc() {
   return 0;
 }
 
-TEST_ADD(malloc, test_malloc);
+KTEST_ADD(malloc, test_malloc);

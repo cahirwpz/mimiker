@@ -1,10 +1,10 @@
 #include <stdc.h>
 #include <physmem.h>
-#include <test.h>
+#include <ktest.h>
 
 unsigned long pm_hash();
 
-int test_physmem() {
+static int test_physmem() {
   unsigned long pre = pm_hash();
 
   /* Write - read test */
@@ -48,4 +48,4 @@ int test_physmem() {
   return 0;
 }
 
-TEST_ADD(physmem, test_physmem);
+KTEST_ADD(physmem, test_physmem);

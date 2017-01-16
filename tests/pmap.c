@@ -3,9 +3,9 @@
 #include <pmap.h>
 #include <physmem.h>
 #include <vm.h>
-#include <test.h>
+#include <ktest.h>
 
-void kernel_pmap_test() {
+static int test_kernel_pmap() {
   pmap_t *pmap = get_kernel_pmap();
 
   vm_page_t *pg = pm_alloc(16);
@@ -42,9 +42,10 @@ void kernel_pmap_test() {
   pm_free(pg);
 
   log("Test passed.");
+  return 0;
 }
 
-void user_pmap_test() {
+static int test_user_pmap() {
   pmap_t *pmap1 = pmap_new();
   pmap_t *pmap2 = pmap_new();
 
@@ -73,13 +74,8 @@ void user_pmap_test() {
   pmap_delete(pmap1);
   pmap_delete(pmap2);
   log("Test passed.");
-}
-
-int test_pmap() {
-  kernel_pmap_test();
-  user_pmap_test();
-
   return 0;
 }
 
-TEST_ADD(pmap, test_pmap);
+KTEST_ADD(pmap_kernel, test_kernel_pmap);
+KTEST_ADD(pmap_user, test_user_pmap);

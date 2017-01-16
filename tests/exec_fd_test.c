@@ -1,8 +1,8 @@
 #include <common.h>
 #include <exec.h>
-#include <test.h>
+#include <ktest.h>
 
-int test_exec_fd_test() {
+static int test_exec_fd_test() {
   exec_args_t exec_args;
   exec_args.prog_name = "fd_test";
   exec_args.argv = (const char *[]){"fd_test"};
@@ -13,4 +13,4 @@ int test_exec_fd_test() {
   return 0;
 }
 
-TEST_ADD(exec_fd_test, test_exec_fd_test);
+KTEST_ADD(exec_fd_test, test_exec_fd_test);

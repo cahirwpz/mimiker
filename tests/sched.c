@@ -4,7 +4,7 @@
 #include <sched.h>
 #include <vm_map.h>
 #include <vm_pager.h>
-#include <test.h>
+#include <ktest.h>
 
 #if 0
 static void demo_thread_1() {
@@ -57,7 +57,7 @@ static void test_thread(void *p) {
   }
 }
 
-int test_sched() {
+static int test_sched() {
   thread_t *t1 =
     thread_create("kernel-thread-1", test_thread, (void *)range[0].start);
   thread_t *t3 =
@@ -94,4 +94,4 @@ int test_sched() {
   return 0;
 }
 
-TEST_ADD(sched, test_sched);
+KTEST_ADD(sched, test_sched);

@@ -3,7 +3,7 @@
 #include <vm_object.h>
 #include <vm_map.h>
 #include <errno.h>
-#include <test.h>
+#include <ktest.h>
 
 static void paging_on_demand_and_memory_protection_demo() {
   vm_map_activate(vm_map_new());
@@ -43,7 +43,7 @@ static void paging_on_demand_and_memory_protection_demo() {
   log("Test passed.");
 }
 
-void findspace_demo() {
+static void findspace_demo() {
   vm_map_t *umap = vm_map_new();
   vm_map_activate(umap);
 
@@ -86,10 +86,10 @@ void findspace_demo() {
   log("Test passed.");
 }
 
-int test_vm_map() {
+static int test_vm_map() {
   paging_on_demand_and_memory_protection_demo();
   findspace_demo();
   return 0;
 }
 
-TEST_ADD(vm_map, test_vm_map);
+KTEST_ADD(vm_map, test_vm_map);

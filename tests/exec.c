@@ -2,9 +2,9 @@
 #include <exec.h>
 #include <thread.h>
 #include <sched.h>
-#include <test.h>
+#include <ktest.h>
 
-void program_thread(void *data) {
+static void program_thread(void *data) {
   exec_args_t exec_args;
   switch ((int)data) {
   case 1:
@@ -26,7 +26,7 @@ void program_thread(void *data) {
   }
 }
 
-int test_exec() {
+static int test_exec() {
   /* This is a simple demonstration of the exec functionality. It
    * requests to substitute current thread's image with program
    * called "prog", which is implemented in ./user/prog.c, and after
@@ -57,4 +57,4 @@ int test_exec() {
   return 0;
 }
 
-TEST_ADD(exec, test_exec);
+KTEST_ADD(exec, test_exec);

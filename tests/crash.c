@@ -2,7 +2,7 @@
 #include <thread.h>
 #include <sched.h>
 #include <mips/mips.h>
-#include <test.h>
+#include <ktest.h>
 
 __attribute__((noinline)) static int load(intptr_t ptr) {
   return *(volatile int *)ptr;
@@ -30,7 +30,7 @@ static void unmapped_store(void *data) {
 
 #define NEW_THREAD(fn, arg) thread_create(#fn, fn, arg)
 
-int test_crash() {
+static int test_crash() {
   sched_add(NEW_THREAD(unaligned_load, NULL));
   sched_add(NEW_THREAD(unaligned_store, NULL));
   sched_add(NEW_THREAD(unmapped_load, NULL));
@@ -40,4 +40,4 @@ int test_crash() {
   sched_run();
 }
 
-TEST_ADD(crash, test_crash);
+KTEST_ADD(crash, test_crash);

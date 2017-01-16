@@ -1,6 +1,6 @@
 #include <stdc.h>
 #include <callout.h>
-#include <test.h>
+#include <ktest.h>
 
 static void callout_foo(void *arg) {
   kprintf("Someone executed me! After %d ticks.\n", *((int *)arg));
@@ -20,4 +20,4 @@ int test_callout() {
   return 0;
 }
 
-TEST_ADD(callout, test_callout);
+KTEST_ADD(callout, test_callout);

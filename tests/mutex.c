@@ -2,20 +2,18 @@
 #include <sched.h>
 #include <mutex.h>
 #include <thread.h>
-#include <test.h>
+#include <ktest.h>
 
-mtx_t mtx;
-mtx_t mtx1;
-mtx_t mtx2;
-volatile int32_t value;
+static mtx_t mtx;
+static volatile int32_t value;
 
-thread_t *td1;
-thread_t *td2;
-thread_t *td3;
-thread_t *td4;
-thread_t *td5;
+static thread_t *td1;
+static thread_t *td2;
+static thread_t *td3;
+static thread_t *td4;
+static thread_t *td5;
 
-void mtx_test_main() {
+static void mtx_test_main() {
   mtx_lock(&mtx);
   for (size_t i = 0; i < 20000; i++) {
     value++;
@@ -26,8 +24,7 @@ void mtx_test_main() {
     ;
 }
 
-void mtx_test() {
-  mtx_init(&mtx);
+static int mtx_test() {
   mtx_init(&mtx);
   td1 = thread_create("td1", mtx_test_main, NULL);
   td2 = thread_create("td2", mtx_test_main, NULL);
@@ -40,9 +37,14 @@ void mtx_test() {
   sched_add(td4);
   sched_add(td5);
   sched_run();
+  return 0;
 }
 
-void deadlock_main1() {
+#if 0
+static mtx_t mtx1;
+static mtx_t mtx2;
+
+static void deadlock_main1() {
   mtx_lock(&mtx1);
   for (size_t i = 0; i < 400000; i++)
     ;
@@ -52,7 +54,7 @@ void deadlock_main1() {
   mtx_unlock(&mtx1);
 }
 
-void deadlock_main2() {
+static void deadlock_main2() {
   mtx_lock(&mtx2);
   for (size_t i = 0; i < 400000; i++)
     ;
@@ -62,7 +64,7 @@ void deadlock_main2() {
   mtx_unlock(&mtx2);
 }
 
-void deadlock_test() {
+static void deadlock_test() {
   mtx_init(&mtx1);
   mtx_init(&mtx2);
   td1 = thread_create("td1", deadlock_main1, NULL);
@@ -73,10 +75,6 @@ void deadlock_test() {
   while (1)
     kprintf("elo!\n");
 }
+#endif
 
-int test_mutex() {
-  mtx_test();
-  return 0;
-}
-
-TEST_ADD(mutex, test_mutex);
+KTEST_ADD(mutex, mtx_test);
