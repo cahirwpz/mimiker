@@ -76,7 +76,7 @@ fdtab_t *fdtab_alloc() {
   /* For now, fdt_files and fdt_map have a static size, so there is no need to
    * separately allocate memory for them. */
   fdt->fdt_nfiles = NDFILE;
-  mtx_init(&fdt->fdt_mtx);
+  mtx_init(&fdt->fdt_mtx, MTX_DEF);
   return fdt;
 }
 

@@ -39,8 +39,8 @@ static vnodeops_t vfs_root_ops = {
 static int vfs_register(vfsconf_t *vfc);
 
 void vfs_init() {
-  mtx_init(&vfsconf_list_mtx);
-  mtx_init(&mount_list_mtx);
+  mtx_init(&vfsconf_list_mtx, MTX_DEF);
+  mtx_init(&mount_list_mtx, MTX_DEF);
 
   /* TODO: We probably need some fancier allocation, since eventually we should
    * start recycling vnodes */
@@ -130,7 +130,7 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
   m->mnt_vnodecovered = v;
 
   m->mnt_refcnt = 0;
-  mtx_init(&m->mnt_mtx);
+  mtx_init(&m->mnt_mtx, MTX_DEF);
 
   return m;
 }
@@ -225,6 +225,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     int error = VOP_LOOKUP(v, component, &v_child);
     vnode_unlock(v);
     vnode_unref(v);
+
     /* Handle the special case of root vnode returning ENOTSUP on lookup. We
        don't have a filesystem at / (root) yet, but we want to get the correct
        error when trying to open a non-existent file. */
@@ -233,6 +234,8 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     if (error)
       return error;
     v = v_child;
+    vnode_ref(v);
+    vnode_lock(v);
   }
 
   vnode_unlock(v);

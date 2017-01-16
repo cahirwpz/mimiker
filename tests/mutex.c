@@ -14,18 +14,16 @@ static thread_t *td4;
 static thread_t *td5;
 
 static void mtx_test_main() {
-  mtx_lock(&mtx);
-  for (size_t i = 0; i < 20000; i++) {
+  for (size_t i = 0; i < 200000; i++) {
+    mtx_lock(&mtx);
     value++;
-    kprintf("%s: %ld\n", thread_self()->td_name, (long)value);
+    mtx_unlock(&mtx);
   }
-  mtx_unlock(&mtx);
-  while (1)
-    ;
+  kprintf("%s: %ld\n", thread_self()->td_name, (long)value);
 }
 
 static int mtx_test() {
-  mtx_init(&mtx);
+  mtx_init(&mtx, MTX_DEF);
   td1 = thread_create("td1", mtx_test_main, NULL);
   td2 = thread_create("td2", mtx_test_main, NULL);
   td3 = thread_create("td3", mtx_test_main, NULL);
@@ -64,9 +62,9 @@ static void deadlock_main2() {
   mtx_unlock(&mtx2);
 }
 
-static void deadlock_test() {
-  mtx_init(&mtx1);
-  mtx_init(&mtx2);
+void deadlock_test() {
+  mtx_init(&mtx1, MTX_DEF);
+  mtx_init(&mtx2, MTX_DEF);
   td1 = thread_create("td1", deadlock_main1, NULL);
   td2 = thread_create("td2", deadlock_main2, NULL);
   sched_add(td1);
