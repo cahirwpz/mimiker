@@ -9,11 +9,11 @@ typedef struct exec_args {
    * identifier of an embedded ELF image to use, eventually this
    * would become a path to the executable (or an open file
    * descriptor). */
-  char *prog_name;
+  const char *prog_name;
   /* Program arguments. These will get copied to the stack of the
    * starting process. */
   uint8_t argc;
-  char **argv;
+  const char **argv;
   /* TODO: Environment */
 } exec_args_t;
 

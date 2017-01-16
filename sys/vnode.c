@@ -1,9 +1,9 @@
-#include <vnode.h>
+#include <errno.h>
+#include <file.h>
 #include <malloc.h>
 #include <mutex.h>
 #include <stdc.h>
-#include <errno.h>
-#include <file.h>
+#include <vnode.h>
 
 static MALLOC_DEFINE(vnode_pool, "vnode pool");
 
@@ -23,7 +23,7 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops) {
   v->v_data = NULL;
   v->v_ops = ops;
   v->v_usecnt = 1;
-  mtx_init(&v->v_mtx);
+  mtx_init(&v->v_mtx, MTX_DEF);
 
   return v;
 }

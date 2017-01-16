@@ -3,6 +3,7 @@
 #include <stdc.h>
 #include <errno.h>
 #include <mutex.h>
+#include <thread.h>
 
 static MALLOC_DEFINE(file_pool, "file pool");
 
@@ -29,7 +30,7 @@ void file_unref(file_t *f) {
 file_t *file_alloc() {
   file_t *f = kmalloc(file_pool, sizeof(file_t), M_ZERO);
   f->f_ops = &badfileops;
-  mtx_init(&f->f_mtx);
+  mtx_init(&f->f_mtx, MTX_DEF);
   return f;
 }
 

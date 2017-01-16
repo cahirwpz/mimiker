@@ -1,30 +1,31 @@
-TESTS = \
-	callout.elf \
-	crash.elf \
-	exec.elf \
-	exec_fd_test.elf \
-	exec_misbehave.elf \
-	initrd.elf \
-	linker_set.elf \
-	malloc.elf \
-	mutex.elf \
-	physmem.elf \
-	pmap.elf \
-	producer_consumer.elf \
-	rtc.elf \
-	sched.elf \
-	strtol.elf \
-	syscall.elf \
-	thread.elf \
-	uiomove.elf \
-	vfs.elf \
-	vm_map.elf
-SOURCES_C = $(patsubst %.elf,%.c,$(TESTS))
+SOURCES_C = \
+	callout.c \
+	crash.c \
+	exec.c \
+	exec_misbehave.c \
+	exec_fd_test.c \
+	initrd.c \
+	linker_set.c \
+	malloc.c \
+	mutex.c \
+	physmem.c \
+	pmap.c \
+	producer_consumer.c \
+	rtc.c \
+	sched.c \
+	strtol.c \
+	syscall.c \
+	thread.c \
+	uiomove.c \
+	vm_map.c \
+	vfs.c
 SOURCES_ASM =
 
-all: $(TESTS)
+all: $(DEPFILES) libtests.a
 
 include ../Makefile.common
 
+libtests.a: $(OBJECTS)
+
 clean:
-	$(RM) -f .*.D *.o *.elf *.map *~
+	$(RM) -f .*.D *.o *.elf *.a *.map *~
