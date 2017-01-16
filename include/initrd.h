@@ -2,26 +2,24 @@
 #include <vm.h>
 #include <vnode.h>
 
-typedef struct cpio_hdr
-{
-  char c_magic[6];     /* "070701" for "new" portable format
-			  "070702" for CRC format */
+typedef struct cpio_hdr {
+  char c_magic[6]; /* "070701" for "new" portable format
+                      "070702" for CRC format */
   char c_ino[8];
   char c_mode[8];
   char c_uid[8];
   char c_gid[8];
   char c_nlink[8];
   char c_mtime[8];
-  char c_filesize[8];  /* must be 0 for FIFOs and directories */
+  char c_filesize[8]; /* must be 0 for FIFOs and directories */
   char c_dev_maj[8];
   char c_dev_min[8];
-  char c_rdev_maj[8];      /* only valid for chr and blk special files */
-  char c_rdev_min[8];      /* only valid for chr and blk special files */
-  char c_namesize[8];  /* count includes terminating NUL in pathname */
-  char c_chksum[8];    /* 0 for "new" portable format; for CRC format
-			  the sum of all the bytes in the file  */
+  char c_rdev_maj[8]; /* only valid for chr and blk special files */
+  char c_rdev_min[8]; /* only valid for chr and blk special files */
+  char c_namesize[8]; /* count includes terminating NUL in pathname */
+  char c_chksum[8];   /* 0 for "new" portable format; for CRC format
+                         the sum of all the bytes in the file  */
 } cpio_hdr_t;
-
 
 typedef struct cpio_file_stat /* Internal representation of a CPIO header */
 {
@@ -48,7 +46,6 @@ typedef struct cpio_file_stat /* Internal representation of a CPIO header */
   TAILQ_ENTRY(cpio_file_stat) stat_list;
 
 } cpio_file_stat_t;
-
 
 typedef TAILQ_HEAD(stat_head, cpio_file_stat) stat_head_t;
 
