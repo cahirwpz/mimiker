@@ -5,13 +5,21 @@
 #include <queue.h>
 
 typedef uint8_t asid_t;
-typedef uint32_t pte_t;
-typedef uint32_t pde_t;
+
+typedef struct pde {
+  uint32_t lo;
+  uint32_t unused;
+} pde_t;
+
+typedef struct pte {
+  uint32_t lo;
+  uint32_t unused;
+} pte_t;
 
 typedef struct pmap {
   pte_t *pte;          /* page table */
-  pte_t *pde;          /* directory page table */
-  vm_page_t *pde_page; /* pointer to a page with directory page table */
+  pde_t *pde;          /* directory page table */
+  vm_page_t *pde_page; /* pointer to the first page with directory page table */
   TAILQ_HEAD(, vm_page) pte_pages; /* pages we allocate in page table */
   vm_addr_t start, end;
   asid_t asid;
