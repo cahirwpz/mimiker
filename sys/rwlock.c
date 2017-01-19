@@ -25,7 +25,7 @@ void rw_init(rwlock_t *rw, const char *name, bool recurse) {
   rw->state = RW_UNLOCKED;
   rw->recurse = recurse;
   rw->name = name;
-  mtx_init(&rw->mutex);
+  mtx_init(&rw->mutex, MTX_DEF);
   cv_init(&rw->condvar, name);
 }
 
