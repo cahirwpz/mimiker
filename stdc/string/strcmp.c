@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include <string.h>
+#include <stdc.h>
 
 /*
  * Compare strings.

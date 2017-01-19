@@ -1,6 +1,5 @@
 #include <mount.h>
 #include <stdc.h>
-#include <string.h>
 #include <errno.h>
 #include <malloc.h>
 #include <vnode.h>
