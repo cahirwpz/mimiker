@@ -19,6 +19,7 @@ SOURCES_C  = \
 	pcpu.c \
 	physmem.c \
 	runq.c \
+	rwlock.c \
 	sched.c \
 	sleepq.c \
 	startup.c \
