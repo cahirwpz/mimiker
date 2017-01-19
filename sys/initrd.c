@@ -200,7 +200,7 @@ static int initrd_root(mount_t *m, vnode_t **v) {
 }
 
 static int initrd_init(vfsconf_t *vfc) {
-  vfs_domount(vfc, vfs_root_vnode);
+  vfs_domount(vfc, vfs_root_initrd_vnode);
   return 0;
 }
 
