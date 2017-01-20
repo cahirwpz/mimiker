@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <stdc.h>
 
 /*
  * This is designed to be small, not fast.

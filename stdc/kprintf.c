@@ -1,5 +1,5 @@
 #include <stdarg.h>
-#include <stdlib.h>
+#include <stddef.h>
 #include <low/_stdio.h>
 #include <mips/uart_cbus.h>
 

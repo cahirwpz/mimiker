@@ -1,6 +1,5 @@
 #include <mips/stack.h>
 #include <common.h>
-#include <string.h>
 #include <stdc.h>
 
 /* Places program args onto the stack.
