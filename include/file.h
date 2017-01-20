@@ -9,15 +9,18 @@
 typedef struct thread thread_t;
 typedef struct file file_t;
 typedef struct vnode vnode_t;
+typedef struct vattr vattr_t;
 
 typedef int fo_read_t(file_t *f, thread_t *td, uio_t *uio);
 typedef int fo_write_t(file_t *f, thread_t *td, uio_t *uio);
 typedef int fo_close_t(file_t *f, thread_t *td);
+typedef int fo_getattr_t(file_t *f, thread_t *td, vattr_t *va);
 
 typedef struct {
   fo_read_t *fo_read;
   fo_write_t *fo_write;
   fo_close_t *fo_close;
+  fo_getattr_t *fo_getattr;
 } fileops_t;
 
 typedef enum {
@@ -40,6 +43,7 @@ typedef struct file {
   fileops_t *f_ops;
   filetype_t f_type; /* File type */
   vnode_t *f_vnode;
+  off_t f_offset;
   int f_count;      /* Reference count, ready for disposal if -1 */
   unsigned f_flags; /* File flags FF_* */
   mtx_t f_mtx;

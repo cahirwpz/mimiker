@@ -6,6 +6,7 @@
 #include <systm.h>
 #include <thread.h>
 #include <vfs_syscalls.h>
+#include <vnode.h>
 #include <vm_map.h>
 
 int do_open(thread_t *td, char *pathname, int flags, int mode, int *fd) {
@@ -47,6 +48,28 @@ int do_write(thread_t *td, int fd, uio_t *uio) {
   if (res)
     return res;
   res = FOP_WRITE(f, td, uio);
+  file_unref(f);
+  return res;
+}
+
+int do_lseek(thread_t *td, int fd, off_t offset, int whence) {
+  /* TODO: Whence! Now we assume whence == SEEK_SET */
+  /* TODO: RW file flag! For now we just file_get_read */
+  file_t *f;
+  int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
+  if (res)
+    return res;
+  f->f_offset = offset;
+  file_unref(f);
+  return 0;
+}
+
+int do_fstat(thread_t *td, int fd, vattr_t *buf) {
+  file_t *f;
+  int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
+  if (res)
+    return res;
+  res = f->f_ops->fo_getattr(f, td, buf);
   file_unref(f);
   return res;
 }
@@ -130,4 +153,30 @@ int sys_write(thread_t *td, syscall_args_t *args) {
   if (error)
     return error;
   return count - uio.uio_resid;
+}
+
+int sys_lseek(thread_t *td, syscall_args_t *args) {
+  int fd = args->args[0];
+  off_t offset = args->args[1];
+  int whence = args->args[2];
+
+  log("sys_lseek(%d, %ld, %d)", fd, offset, whence);
+
+  return do_lseek(td, fd, offset, whence);
+}
+
+int sys_fstat(thread_t *td, syscall_args_t *args) {
+  int fd = args->args[0];
+  char *buf = (char *)args->args[1];
+
+  log("sys_fstat(%d, %p)", fd, buf);
+
+  vattr_t attr_buf;
+  int error = do_fstat(td, fd, &attr_buf);
+  if (error)
+    return error;
+  error = copyout(&attr_buf, buf, sizeof(vattr_t));
+  if (error < 0)
+    return error;
+  return 0;
 }
