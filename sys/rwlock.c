@@ -1,8 +1,7 @@
 #include <rwlock.h>
-#include <condvar.h>
-#include <mutex.h>
 #include <thread.h>
 #include <stdc.h>
+#include <sync.h>
 
 struct rwlock {
   union {
@@ -14,8 +13,6 @@ struct rwlock {
   rwa_t state;
   bool recurse;
   const char* name;
-  condvar_t condvar;
-  mtx_t mutex;
 };
 
 void rw_init(rwlock_t *rw, const char *name, bool recurse) {
@@ -25,18 +22,16 @@ void rw_init(rwlock_t *rw, const char *name, bool recurse) {
   rw->state = RW_UNLOCKED;
   rw->recurse = recurse;
   rw->name = name;
-  mtx_init(&rw->mutex, MTX_DEF);
-  cv_init(&rw->condvar, name);
 }
 
 void rw_destroy(rwlock_t *rw) {
 }
 
 void rw_enter(rwlock_t *rw, rwo_t who) {
-  mtx_lock(&rw->mutex);
+  critical_enter();
   if(who == RW_READER) {
     while(rw->state == RW_WLOCKED || rw->writers_waiting > 0)
-      cv_wait(&rw->condvar, &rw->mutex);
+      sleepq_wait(&rw->owner, NULL);
     rw->readers++;
     rw->state = RW_RLOCKED;
   }
@@ -46,29 +41,29 @@ void rw_enter(rwlock_t *rw, rwo_t who) {
     while((rw->state == RW_RLOCKED) ||
           (rw->state == RW_WLOCKED && !rw->recurse) ||
           (rw->state == RW_WLOCKED && rw->recurse && rw->owner != thread_self()))
-      cv_wait(&rw->condvar, &rw->mutex);
+      sleepq_wait(&rw->owner, NULL);
     rw->writer_enters++;
     rw->state = RW_WLOCKED;
     rw->owner = thread_self();
     rw->writers_waiting--;
   }
-  mtx_unlock(&rw->mutex);
+  critical_leave();
 }
 
 void rw_leave(rwlock_t *rw) {
-  mtx_lock(&rw->mutex);
+  critical_enter();
   assert(rw->state & RW_LOCKED);
   rw->readers--;
   if(rw->readers == 0) {
-    cv_broadcast(&rw->condvar);
+    sleepq_broadcast(&rw->owner);
     rw->state = RW_UNLOCKED;
     rw->owner = NULL;
   }
-  mtx_unlock(&rw->mutex);
+  critical_leave();
 }
 
 bool rw_try_upgrade(rwlock_t *rw) {
-  mtx_lock(&rw->mutex);
+  critical_enter();
   assert(rw->state == RW_RLOCKED);
   bool result = false;
   if(rw->readers == 1) {
@@ -76,16 +71,16 @@ bool rw_try_upgrade(rwlock_t *rw) {
     rw->owner = thread_self();
     result = true;
   }
-  mtx_unlock(&rw->mutex);
+  critical_leave();
   return result;
 }
 
 void rw_downgrade(rwlock_t *rw) {
-  mtx_lock(&rw->mutex);
+  critical_enter();
   assert(rw->state == RW_WLOCKED && rw->owner == thread_self() && rw->writer_enters == 1);
   rw->state = RW_RLOCKED;
-  cv_broadcast(&rw->condvar);
-  mtx_unlock(&rw->mutex);
+  sleepq_broadcast(&rw->owner);
+  critical_leave();
 }
 
 void __rw_assert(rwlock_t *rw, rwa_t what, const char *file, unsigned line) {
