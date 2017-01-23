@@ -51,6 +51,7 @@ typedef struct vnode {
   mtx_t v_mtx;
 } vnode_t;
 
+#if !defined(IGNORE_NEWLIB_COMPATIBILITY)
 /* This must match newlib's implementation! */
 typedef struct vattr {
   dev_t st_dev;
@@ -62,8 +63,7 @@ typedef struct vattr {
   dev_t st_rdev;
   off_t st_size;
 } vattr_t;
-
-#ifdef IGNORE_NEWLIB_COMPATIBILITY
+#else
 typedef struct vattr {
   uint16_t va_mode; /* files access mode and type */
   size_t va_nlink;  /* number of references to file */

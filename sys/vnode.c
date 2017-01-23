@@ -85,17 +85,17 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
   switch (mode) {
-  case O_RDONLY:
-    fp->f_flags = FF_READ;
-    break;
-  case O_WRONLY:
-    fp->f_flags = FF_WRITE;
-    break;
-  case O_RDWR:
-    fp->f_flags = FF_READ | FF_WRITE;
-    break;
-  default:
-    return -EINVAL;
+    case O_RDONLY:
+      fp->f_flags = FF_READ;
+      break;
+    case O_WRONLY:
+      fp->f_flags = FF_WRITE;
+      break;
+    case O_RDWR:
+      fp->f_flags = FF_READ | FF_WRITE;
+      break;
+    default:
+      return -EINVAL;
   }
   return 0;
 }
