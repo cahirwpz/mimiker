@@ -32,7 +32,7 @@
 #define _CPU_H_
 
 #if !defined(__ASSEMBLER__)
-#include <sys/types.h>
+#include <stddef.h>
 #endif
 
 #ifndef SR_IMASK

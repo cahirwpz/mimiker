@@ -5,7 +5,6 @@
 #include <vm_map.h>
 #include <vm_pager.h>
 #include <thread.h>
-#include <string.h>
 #include <errno.h>
 #include <sync.h>
 #include <filedesc.h>
