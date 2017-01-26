@@ -51,25 +51,12 @@ static int base_atoi(char *s, int n, int base) {
   return res;
 }
 
-#if 0
-void dump_cpio_stat(cpio_file_stat_t *stat) {
-  kprintf("c_magic: %o\n", stat->c_magic);
-  kprintf("c_namesize: %zu\n", stat->c_namesize);
-  kprintf("c_chksum: %lx\n", stat->c_chksum);
-  kprintf("c_name: %s\n", stat->c_name);
-
-  kprintf("st_dev: %ld\n", stat->vattr.st_dev);
-  kprintf("st_ino: %lu\n", stat->vattr.st_ino);
-  kprintf("st_mode: %d\n", stat->vattr.st_mode);
-  kprintf("st_nlink: %zu\n", stat->vattr.st_nlink);
-  kprintf("st_uid: %d\n", stat->vattr.st_uid);
-  kprintf("st_gid: %d\n", stat->vattr.st_gid);
-  kprintf("st_rdev: %ld\n", stat->vattr.st_rdev);
-  kprintf("st_size: %ld\n", stat->vattr.st_size);
-  kprintf("st_mtime: %lu\n", stat->vattr.st_mtime);
-  kprintf("\n");
+static void cpio_node_dump(cpio_node_t *cn) {
+  log("entry '%s': {dev: %ld, ino: %lu, mode: %d, nlink: %d, "
+      "uid: %d, gid: %d, rdev: %ld, size: %ld, mtime: %lu}",
+      cn->c_path, cn->c_dev, cn->c_ino, cn->c_mode, cn->c_nlink, cn->c_uid,
+      cn->c_gid, cn->c_rdev, cn->c_size, cn->c_mtime); 
 }
-#endif
 
 static void read_bytes(char **tape, void *ptr, size_t bytes) {
   memcpy(ptr, *tape, bytes);
@@ -118,7 +105,7 @@ static bool read_cpio_header(char **tape, cpio_node_t *cpio) {
   cpio->c_mtime = c_mtime;
 
   cpio->c_path = *tape;
-  skip_bytes(tape, c_namesize + 1);
+  skip_bytes(tape, c_namesize);
   cpio->c_data = *tape;
   skip_bytes(tape, c_filesize);
 
@@ -130,11 +117,12 @@ static void read_cpio_archive() {
 
   while (true) {
     cpio_node_t *node = kmalloc(mp, sizeof(cpio_node_t), M_ZERO);
-    if (read_cpio_header(&tape, node) || 
+    if (!read_cpio_header(&tape, node) || 
         strcmp(node->c_path, CPIO_TRAILER) == 0) {
       kfree(mp, node);
       break;
     }
+    cpio_node_dump(node);
     TAILQ_INSERT_TAIL(&initrd_head, node, c_list);
   }
 }
@@ -214,7 +202,7 @@ void ramdisk_init() {
   char *s = kenv_get("rd_start");
   rd_start = s ? strtoul(s, NULL, 0) : 0;
   s = kenv_get("rd_size");
-  rd_size = s ? align(strtoul(s, NULL, 0), PAGESIZE) : 0;
+  rd_size = s ? strtoul(s, NULL, 0) : 0;
 
   TAILQ_INIT(&initrd_head);
 
@@ -232,6 +220,7 @@ void ramdisk_init() {
   if (rd_size > 0) {
     kmalloc_init(mp);
     kmalloc_add_pages(mp, 2);
+    log("parsing cpio archive of %zu bytes", rd_size);
     read_cpio_archive();
   }
 }
