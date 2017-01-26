@@ -62,6 +62,9 @@ typedef struct vattr {
   gid_t st_gid;
   dev_t st_rdev;
   off_t st_size;
+  time_t st_atime;
+  time_t st_mtime;
+  time_t st_ctime;
 } vattr_t;
 #else
 typedef struct vattr {
