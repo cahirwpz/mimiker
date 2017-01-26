@@ -25,6 +25,8 @@ typedef struct {
   uint32_t flags;
 } test_entry_t;
 
+void ktest_main(const char *test);
+
 #define KTEST_ADD_FLAGS(name, func, flags)                                     \
   test_entry_t name##_test = {#name, func, flags};                             \
   SET_ENTRY(tests, name##_test);
