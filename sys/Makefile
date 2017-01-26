@@ -26,7 +26,6 @@ SOURCES_C  = \
 	sync.c \
 	sysent.c \
 	thread.c \
-	turnstile.c \
 	uio.c \
 	vfs.c \
 	vfs_syscalls.c \

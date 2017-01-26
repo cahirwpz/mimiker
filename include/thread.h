@@ -22,9 +22,8 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_all;    /* a link on all threads list */
   TAILQ_ENTRY(thread) td_runq;   /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq; /* a link on sleep queue */
-  TAILQ_ENTRY(thread) td_lock;   /* a link on turnstile */
   char *td_name;
-  tid_t td_tid; /* Thread ID*/
+  tid_t td_tid;
   /* thread state */
   enum { TDS_INACTIVE = 0x0, TDS_WAITING, TDS_READY, TDS_RUNNING } td_state;
   uint32_t td_flags;           /* TDF_* flags */

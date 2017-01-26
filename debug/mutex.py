@@ -6,7 +6,7 @@ import tailq
 
 
 def get_mutex_owner(mtx):
-    state = mtx['mtx_state']
+    state = mtx['m_owner']
     td_pointer = gdb.lookup_type('struct thread').pointer()
     owner = state.cast(td_pointer)
     if owner:
@@ -16,12 +16,9 @@ def get_mutex_owner(mtx):
 
 
 def get_threads_blocked_on_mutex(mtx):
-    ts = mtx['turnstile']
-    return map(lambda t: t['td_name'].string(), tailq.collect_values(ts['td_queue'], 'td_lock'))
-
-
-def pretty_list_of_string(lst):
-    return "[" + ", ".join(lst) + "]"
+    sq = gdb.parse_and_eval("sleepq_lookup((void *)%d)" % mtx.address)
+    return map(lambda n: n.string(),
+               tailq.collect_values(sq['sq_blocked'], 'td_name'))
 
 
 class MutexPrettyPrinter():
@@ -30,14 +27,10 @@ class MutexPrettyPrinter():
         self.val = val
 
     def to_string(self):
-        res = []
-        if self.val['mtx_state'] == 0:
+        if self.val['m_owner'] == 0:
             return "Mutex unowned"
-        else:
-            res.append("Owner = " + str(get_mutex_owner(self.val)))
-            res.append("Waiting for access = " +
-                       pretty_list_of_string(get_threads_blocked_on_mutex(self.val)))
-        return "\n".join(res)
+        return "{owner = %s, blocked = %s}" % (
+            get_mutex_owner(self.val), get_threads_blocked_on_mutex(self.val))
 
     def display_hint(self):
         return 'map'

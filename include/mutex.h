@@ -2,7 +2,6 @@
 #define _SYS_MUTEX_H_
 
 #include <stdbool.h>
-#include <turnstile.h>
 
 typedef struct thread thread_t;
 
@@ -13,7 +12,6 @@ typedef struct mtx {
   volatile thread_t *m_owner; /* stores address of the owner */
   volatile unsigned m_count; /* Counter for recursive mutexes */
   unsigned m_type;           /* Normal or recursive mutex */
-  turnstile_t m_turnstile;   /* FIFO Queue for blocked threads */
 } mtx_t;
 
 /* Initializes mutex. Note that EVERY mutex has to be initialized
@@ -24,7 +22,7 @@ void mtx_init(mtx_t *m, unsigned type);
 bool mtx_owned(mtx_t *mtx);
 
 /* Locks the mutex, if the mutex is already owned by someone,
- * then this blocks on turnstile, otherwise it takes the mutex. */
+ * then this blocks on sleepqueue, otherwise it takes the mutex. */
 void mtx_lock(mtx_t *m);
 
 /* Unlocks the mutex. If some thread blocked for the mutex,
