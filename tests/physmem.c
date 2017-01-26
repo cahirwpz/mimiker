@@ -48,4 +48,5 @@ static int test_physmem() {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(physmem, test_physmem);
+/* TODO: At the moment, this test seems broken! */
+KTEST_ADD_FLAGS(physmem, test_physmem, KTEST_FLAG_BROKEN);

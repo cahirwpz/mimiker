@@ -15,6 +15,9 @@
 #define KTEST_FLAG_DIRTY 0x02
 /* Indicates that a test enters usermode. */
 #define KTEST_FLAG_USERMODE 0x04
+/* Excludes the test from being run in auto mode. This flag is only useful for
+   temporarily marking some tests while debugging the testing framework. */
+#define KTEST_FLAG_BROKEN 0x08
 
 typedef struct {
   const char test_name[KTEST_NAME_MAX];
@@ -32,5 +35,9 @@ typedef struct {
  * script running the kernel may want to grep for them. */
 #define TEST_PASSED_STRING "[TEST PASSED]\n"
 #define TEST_FAILED_STRING "[TEST FAILED]\n"
+
+/* This function is called both by run_test, as well as ktest_assert. It
+ * displays some troubleshooting info about the failing test. */
+void ktest_failure();
 
 #endif /* !_SYS_KTEST_H_ */
