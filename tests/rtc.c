@@ -59,10 +59,9 @@ static int test_rtc() {
 
     mdelay(1000);
   }
-
-  return 0;
+  return KTEST_FAILURE;
 }
 
-KTEST_ADD(rtc, test_rtc);
+KTEST_ADD_FLAGS(rtc, test_rtc, KTEST_FLAG_NORETURN);
 
 #endif

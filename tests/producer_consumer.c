@@ -86,7 +86,7 @@ static int test_producer_consumer() {
   }
 
   sched_run();
-  return 0;
+  return KTEST_FAILURE;
 }
 
-KTEST_ADD(producer_consumer, test_producer_consumer);
+KTEST_ADD_FLAGS(producer_consumer, test_producer_consumer, KTEST_FLAG_NORETURN);

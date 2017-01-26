@@ -35,7 +35,7 @@ static int mtx_test() {
   sched_add(td4);
   sched_add(td5);
   sched_run();
-  return 0;
+  return KTEST_FAILURE;
 }
 
 #if 0
@@ -75,4 +75,4 @@ void deadlock_test() {
 }
 #endif
 
-KTEST_ADD(mutex, mtx_test);
+KTEST_ADD_FLAGS(mutex, mtx_test, KTEST_FLAG_NORETURN);

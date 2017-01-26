@@ -42,7 +42,7 @@ static int test_kernel_pmap() {
   pm_free(pg);
 
   log("Test passed.");
-  return 0;
+  return KTEST_SUCCESS;
 }
 
 static int test_user_pmap() {
@@ -74,7 +74,7 @@ static int test_user_pmap() {
   pmap_delete(pmap1);
   pmap_delete(pmap2);
   log("Test passed.");
-  return 0;
+  return KTEST_SUCCESS;
 }
 
 KTEST_ADD(pmap_kernel, test_kernel_pmap);

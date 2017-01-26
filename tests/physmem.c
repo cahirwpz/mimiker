@@ -45,7 +45,7 @@ static int test_physmem() {
   pm_free(pg1);
   assert(pre == pm_hash());
   kprintf("Tests passed\n");
-  return 0;
+  return KTEST_SUCCESS;
 }
 
 KTEST_ADD(physmem, test_physmem);

@@ -36,7 +36,7 @@ static int test_malloc() {
 
   pm_free(page);
 
-  return 0;
+  return KTEST_SUCCESS;
 }
 
 KTEST_ADD(malloc, test_malloc);

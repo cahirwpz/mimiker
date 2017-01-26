@@ -51,7 +51,7 @@ static int test_thread() {
   thread_delete(td2);
   thread_delete(td1);
 
-  return 0;
+  return KTEST_SUCCESS;
 }
 
 KTEST_ADD(thread, test_thread);

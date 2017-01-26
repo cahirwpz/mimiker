@@ -94,7 +94,7 @@ static int test_vfs() {
   res = VOP_WRITE(dev_uart, &uio);
   assert(res == 0);
 
-  return 0;
+  return KTEST_SUCCESS;
 }
 
 KTEST_ADD(vfs, test_vfs);

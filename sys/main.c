@@ -5,6 +5,9 @@
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
 
+/* Stores currently running test data. */
+static test_entry_t *current_test = NULL;
+
 static void run_init(const char *program) {
   log("Starting program \"%s\"", program);
 
@@ -19,17 +22,38 @@ static void run_init(const char *program) {
   }
 }
 
-static void run_test(const char *test) {
-  log("Running test \"%s\"", test);
+static test_entry_t *find_test_by_name(const char *test) {
   SET_DECLARE(tests, test_entry_t);
   test_entry_t **ptr;
   SET_FOREACH(ptr, tests) {
     if (strcmp((*ptr)->test_name, test) == 0) {
-      (*ptr)->test_func();
-      return;
+      return *ptr;
     }
   }
-  log("Test \"%s\" not found!", test);
+  return NULL;
+}
+
+static void run_test(test_entry_t *t) {
+  /* These are messages to the user, so I intentionally use kprintf instead of
+   * log. */
+  kprintf("Running test %s.\n", t->test_name);
+  if (t->flags & KTEST_FLAG_NORETURN)
+    kprintf("WARNING: This test will never return, it is not possible to "
+            "automatically verify its success.\n");
+  if (t->flags & KTEST_FLAG_USERMODE)
+    kprintf("WARNING: This test will enters usermode.\n");
+  if (t->flags & KTEST_FLAG_DIRTY)
+    kprintf("WARNING: This test will break kernel state. Kernel reboot will be "
+            "required to run any other test.\n");
+
+  current_test = t;
+  int result = t->test_func();
+  current_test = NULL;
+
+  if (result == KTEST_SUCCESS)
+    kprintf(TEST_PASSED_STRING);
+  else
+    kprintf(TEST_FAILED_STRING);
 }
 
 int main() {
@@ -38,9 +62,14 @@ int main() {
 
   if (init)
     run_init(init);
-  else if (test)
-    run_test(test);
-  else {
+  else if (test) {
+    test_entry_t *t = find_test_by_name(test);
+    if (!t) {
+      kprintf("Test \"%s\" not found!", test);
+      return 1;
+    }
+    run_test(t);
+  } else {
     /* This is a message to the user, so I intentionally use kprintf instead of
      * log. */
     kprintf("============\n");
