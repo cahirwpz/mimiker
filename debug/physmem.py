@@ -107,8 +107,8 @@ class TLB:
         if not is_valid(lo0) and not is_valid(lo1):
             return []
         return ["%02d" % idx, "$%02x" % asid_of(hi),
-                self.dump_entrylo(vpn_of(hi), lo0),
-                self.dump_entrylo(vpn_of(hi), lo1)]
+                self.dump_entrylo(vpn_of(hi),            lo0),
+                self.dump_entrylo(vpn_of(hi) + PAGESIZE, lo1)]
 
     def dump_tlb(self):
         tlb_size = self.get_tlb_size()

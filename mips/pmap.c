@@ -143,13 +143,15 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
       pg->paddr);
 
   pde_t *pde = &PDE_OF(pmap, vaddr);
-  tlblo_t lo0 = PTE_PFN(pg->paddr) | PTE_VALID | PTE_DIRTY | PTE_GLOBAL;
-  tlblo_t lo1 = PTE_PFN(pg->paddr + PAGESIZE) | PTE_VALID | PTE_DIRTY | PTE_GLOBAL;
-  pde->lo = lo0;
-  pde->unused = 0;
 
   vm_addr_t ptf_start = PTF_ADDR_OF(vaddr);
   assert(!(ptf_start & PAGESIZE));
+
+  tlblo_t global = in_kernel_space(vaddr) ? PTE_GLOBAL : 0;
+  tlblo_t lo0 = PTE_PFN(pg->paddr) | PTE_VALID | PTE_DIRTY | global;
+  tlblo_t lo1 = PTE_PFN(pg->paddr + PAGESIZE) | PTE_VALID | PTE_DIRTY | global;
+  pde->lo = lo0;
+  pde->unused = 0;
 
   tlb_overwrite_random(ptf_start | pmap->asid, lo0, lo1);
 
@@ -321,6 +323,7 @@ void pmap_activate(pmap_t *pmap) {
   critical_enter();
   PCPU_GET(curpmap) = pmap;
   mips32_set_c0(C0_ENTRYHI, pmap ? pmap->asid : 0);
+  //tlb_invalidate_all();
   critical_leave();
 }
 
@@ -359,6 +362,7 @@ void tlb_exception_handler(exc_frame_t *frame) {
      * range is not a subject to TLB based address translation. */
     assert(vaddr < PT_HOLE_START || vaddr >= PT_HOLE_END);
 
+#ifdef __NESTED_PAGE_TABLE_REFERENCE_POSSIBLE__
     if (PT_BASE <= orig_vaddr && orig_vaddr < PT_BASE + PT_SIZE) {
       /*
        * TLB refill exception can occur while C0_STATUS.EXL is set, if so then
@@ -368,6 +372,9 @@ void tlb_exception_handler(exc_frame_t *frame) {
       index = (vaddr - PT_BASE) / PTF_SIZE;
       orig_vaddr = (vaddr - PT_BASE) / sizeof(pte_t) * PAGESIZE;
     }
+#else
+    assert(PT_BASE > orig_vaddr || orig_vaddr >= PT_BASE + PT_SIZE);
+#endif
 
     pmap_t *pmap = get_active_pmap_by_addr(orig_vaddr);
     if (!pmap) {
