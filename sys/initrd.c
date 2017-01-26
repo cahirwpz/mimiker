@@ -4,37 +4,42 @@
 #include <vm.h>
 #include <vm_map.h>
 #include <stdc.h>
+#include <cpio.h>
 #include <initrd.h>
 #include <vnode.h>
 #include <mount.h>
-#include <string.h>
 #include <mount.h>
 #include <linker_set.h>
 
-/* Look for more codes in cpio sources */
-#define CPIO_TRAILER_NAME "TRAILER!!!"
-#define C_ISDIR 040000
+/* ramdisk related data that will be stored in v_data field of vnode */
+typedef struct cpio_node {
+  TAILQ_ENTRY(cpio_node) c_list;
 
-static MALLOC_DEFINE(mpool, "cpio mem_pool");
+  dev_t c_dev; 
+  ino_t c_ino;
+  mode_t c_mode;
+  nlink_t c_nlink;
+  uid_t c_uid;
+  gid_t c_gid;
+  dev_t c_rdev;
+  off_t c_size;
+  time_t c_mtime;
+
+  const char *c_path;
+  void *c_data;
+  
+  vnode_t *c_vnode;
+} cpio_node_t;
+
+static MALLOC_DEFINE(mp, "initial ramdisk memory pool");
+typedef TAILQ_HEAD(, cpio_node) cpio_list_t;
 
 static vm_addr_t rd_start;
-static vm_addr_t rd_size;
-static stat_head_t initrd_head;
+static size_t rd_size;
+static cpio_list_t initrd_head;
 static vnodeops_t initrd_ops;
 
 extern char *kenv_get(const char *key);
-
-stat_head_t *initrd_get_headers() {
-  return &initrd_head;
-}
-
-vm_addr_t initrd_get_start() {
-  return rd_start;
-}
-
-vm_addr_t get_rd_size() {
-  return rd_size;
-}
 
 static int base_atoi(char *s, int n, int base) {
   int res = 0;
@@ -46,130 +51,135 @@ static int base_atoi(char *s, int n, int base) {
   return res;
 }
 
-static int get_name_padding(int offset) {
-  static int pad[4] = {2, 1, 0, 3};
-  return pad[offset % 4];
-}
-
-static int get_file_padding(int offset) {
-  static int pad[4] = {0, 3, 2, 1};
-  return pad[offset % 4];
-}
-
+#if 0
 void dump_cpio_stat(cpio_file_stat_t *stat) {
   kprintf("c_magic: %o\n", stat->c_magic);
-  kprintf("c_ino: %u\n", stat->c_ino);
-  kprintf("c_mode: %d\n", stat->c_mode);
-  kprintf("c_uid: %d\n", stat->c_uid);
-  kprintf("c_gid: %d\n", stat->c_gid);
-  kprintf("c_nlink: %zu\n", stat->c_nlink);
-  kprintf("c_mtime: %ld\n", stat->c_mtime);
-  kprintf("c_filesize: %ld\n", stat->c_filesize);
-  kprintf("c_dev_maj: %ld\n", stat->c_dev_maj);
-  kprintf("c_dev_min: %ld\n", stat->c_dev_min);
-  kprintf("c_rdev_maj: %ld\n", stat->c_rdev_maj);
-  kprintf("c_rdev_min: %ld\n", stat->c_rdev_min);
   kprintf("c_namesize: %zu\n", stat->c_namesize);
-  kprintf("c_chksum: %u\n", (unsigned)stat->c_chksum);
+  kprintf("c_chksum: %lx\n", stat->c_chksum);
   kprintf("c_name: %s\n", stat->c_name);
+
+  kprintf("st_dev: %ld\n", stat->vattr.st_dev);
+  kprintf("st_ino: %lu\n", stat->vattr.st_ino);
+  kprintf("st_mode: %d\n", stat->vattr.st_mode);
+  kprintf("st_nlink: %zu\n", stat->vattr.st_nlink);
+  kprintf("st_uid: %d\n", stat->vattr.st_uid);
+  kprintf("st_gid: %d\n", stat->vattr.st_gid);
+  kprintf("st_rdev: %ld\n", stat->vattr.st_rdev);
+  kprintf("st_size: %ld\n", stat->vattr.st_size);
+  kprintf("st_mtime: %lu\n", stat->vattr.st_mtime);
   kprintf("\n");
 }
+#endif
 
-static void read_from_tape(char **tape, void *ptr, size_t bytes) {
+static void read_bytes(char **tape, void *ptr, size_t bytes) {
   memcpy(ptr, *tape, bytes);
   *tape += bytes;
 }
 
 static void skip_bytes(char **tape, size_t bytes) {
-  *tape += bytes;
+  *tape = align(*tape + bytes, 4);
 }
 
-static void fill_header(char **tape, cpio_file_stat_t *stat) {
-  cpio_hdr_t hdr;
-  read_from_tape(tape, &hdr, sizeof(cpio_hdr_t));
-  if (strncmp("070702", hdr.c_magic, 6) != 0) {
-    kprintf("wrong magic number: ");
-    for (int i = 0; i < 6; i++)
-      kprintf("%c", hdr.c_magic[i]);
-    kprintf("\n");
-    panic();
+#define MKDEV(major, minor) (((major & 0xff) << 8) | (minor & 0xff))
+
+static bool read_cpio_header(char **tape, cpio_node_t *cpio) {
+  cpio_new_hdr_t hdr;
+
+  read_bytes(tape, &hdr, sizeof(hdr));
+
+  uint16_t c_magic = base_atoi(hdr.c_magic, 6, 8);
+
+  if (c_magic != CPIO_NMAGIC && c_magic != CPIO_NCMAGIC) {
+    log("wrong magic number: %o", c_magic);
+    return false;
   }
 
-  stat->c_magic = base_atoi(hdr.c_magic, 6, 8);
-  stat->c_ino = base_atoi(hdr.c_ino, 8, 16);
-  stat->c_mode = base_atoi(hdr.c_mode, 8, 16);
-  stat->c_uid = base_atoi(hdr.c_uid, 8, 16);
-  stat->c_gid = base_atoi(hdr.c_gid, 8, 16);
-  stat->c_nlink = base_atoi(hdr.c_nlink, 8, 16);
-  stat->c_mtime = base_atoi(hdr.c_mtime, 8, 16);
-  stat->c_filesize = base_atoi(hdr.c_filesize, 8, 16);
-  stat->c_dev_maj = base_atoi(hdr.c_dev_maj, 8, 16);
-  stat->c_dev_min = base_atoi(hdr.c_dev_min, 8, 16);
-  stat->c_rdev_maj = base_atoi(hdr.c_rdev_maj, 8, 16);
-  stat->c_rdev_min = base_atoi(hdr.c_rdev_min, 8, 16);
-  stat->c_namesize = base_atoi(hdr.c_namesize, 8, 16);
-  stat->c_chksum = base_atoi(hdr.c_chksum, 8, 16);
+  uint32_t c_ino = base_atoi(hdr.c_ino, 8, 16);
+  uint32_t c_mode = base_atoi(hdr.c_mode, 8, 16);
+  uint32_t c_uid = base_atoi(hdr.c_uid, 8, 16);
+  uint32_t c_gid = base_atoi(hdr.c_gid, 8, 16);
+  uint32_t c_nlink = base_atoi(hdr.c_nlink, 8, 16);
+  uint32_t c_mtime = base_atoi(hdr.c_mtime, 8, 16);
+  uint32_t c_filesize = base_atoi(hdr.c_filesize, 8, 16);
+  uint32_t c_maj = base_atoi(hdr.c_maj, 8, 16);
+  uint32_t c_min = base_atoi(hdr.c_min, 8, 16);
+  uint32_t c_rmaj = base_atoi(hdr.c_rmaj, 8, 16);
+  uint32_t c_rmin = base_atoi(hdr.c_rmin, 8, 16);
+  uint32_t c_namesize = base_atoi(hdr.c_namesize, 8, 16);
+  
+  cpio->c_dev = MKDEV(c_maj, c_min);
+  cpio->c_ino = c_ino;
+  cpio->c_mode = c_mode;
+  cpio->c_nlink = c_nlink;
+  cpio->c_uid = c_uid;
+  cpio->c_gid = c_gid;
+  cpio->c_rdev = MKDEV(c_rmaj, c_rmin);
+  cpio->c_size = c_filesize;
+  cpio->c_mtime = c_mtime;
 
-  stat->c_name = (char *)kmalloc(mpool, stat->c_namesize, 0);
-  read_from_tape(tape, stat->c_name, stat->c_namesize);
+  cpio->c_path = *tape;
+  skip_bytes(tape, c_namesize + 1);
+  cpio->c_data = *tape;
+  skip_bytes(tape, c_filesize);
 
-  int pad = get_name_padding(stat->c_namesize);
-  skip_bytes(tape, pad);
-  stat->c_data = *tape;
-  pad = get_file_padding(stat->c_filesize);
-  skip_bytes(tape, pad + stat->c_filesize);
+  return true;
 }
 
-void initrd_collect_headers(stat_head_t *hd, char *tape) {
-  cpio_file_stat_t *stat;
-  do {
-    stat = (cpio_file_stat_t *)kmalloc(mpool, sizeof(cpio_file_stat_t), M_ZERO);
-    fill_header(&tape, stat);
-    TAILQ_INSERT_TAIL(hd, stat, stat_list);
-  } while (strcmp(stat->c_name, CPIO_TRAILER_NAME) != 0);
+static void read_cpio_archive() {
+  char *tape = (char *)rd_start;
+
+  while (true) {
+    cpio_node_t *node = kmalloc(mp, sizeof(cpio_node_t), M_ZERO);
+    if (read_cpio_header(&tape, node) || 
+        strcmp(node->c_path, CPIO_TRAILER) == 0) {
+      kfree(mp, node);
+      break;
+    }
+    TAILQ_INSERT_TAIL(&initrd_head, node, c_list);
+  }
 }
 
-static int initrd_vnode_lookup(vnode_t *dir, const char *name, vnode_t **res) {
-  cpio_file_stat_t *it;
-  stat_head_t *hd = initrd_get_headers();
+static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
+  cpio_node_t *it;
+  cpio_node_t *cn_dir = (cpio_node_t *)vdir->v_data;
 
-  cpio_file_stat_t *dir_stat = (cpio_file_stat_t *)dir->v_data;
-  int dir_name_len = strlen(dir_stat->c_name);
+  int dir_name_len = strlen(cn_dir->c_path);
   int name_len = strlen(name);
   int buf_len = dir_name_len + name_len + 2;
-  char *buf = kmalloc(mpool, buf_len, 0);
+  char *buf = kmalloc(mp, buf_len, 0);
   buf[0] = '\0';
 
-  strlcat(buf, dir_stat->c_name, buf_len);
-  if (strcmp(dir_stat->c_name, "") != 0)
+  strlcat(buf, cn_dir->c_path, buf_len);
+  if (strcmp(cn_dir->c_path, "") != 0)
     strlcat(buf, "/", buf_len);
   strlcat(buf, name, buf_len);
 
-  TAILQ_FOREACH (it, hd, stat_list) {
-    if (strcmp(buf, it->c_name) == 0) {
-      if (it->vnode == NULL) {
+  TAILQ_FOREACH (it, &initrd_head, c_list) {
+    if (strcmp(buf, it->c_path) == 0) {
+      if (it->c_vnode) {
+        *res = it->c_vnode;
+      } else {
         vnodetype_t type = V_REG;
         if (it->c_mode & C_ISDIR)
           type = V_DIR;
         *res = vnode_new(type, &initrd_ops);
         (*res)->v_data = (void *)it;
-        it->vnode = *res;
+        it->c_vnode = *res;
         vnode_ref(*res);
-      } else
-        *res = it->vnode;
+      }
       vnode_ref(*res);
-      kfree(mpool, buf);
+      kfree(mp, buf);
       return 0;
     }
   }
-  kfree(mpool, buf);
+  kfree(mp, buf);
   return ENOENT;
 }
 
 static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
-  cpio_file_stat_t *stat = v->v_data;
+  cpio_node_t *cn = (cpio_node_t *)v->v_data;
   int count = uio->uio_resid;
-  int error = uiomove(stat->c_data, stat->c_filesize, uio);
+  int error = uiomove(cn->c_data, cn->c_size, uio);
 
   if (error < 0)
     return -error;
@@ -178,17 +188,13 @@ static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
 }
 
 static int initrd_mount(mount_t *m) {
+  cpio_node_t *cn = kmalloc(mp, sizeof(cpio_node_t), M_ZERO);
+  cn->c_path = "";
+
   vnode_t *root = vnode_new(V_DIR, &initrd_ops);
-
-  cpio_file_stat_t *stat = kmalloc(mpool, sizeof(cpio_file_stat_t), M_ZERO);
-
-  char *buf = kmalloc(mpool, 1, M_ZERO);
-  buf[0] = '\0';
-  stat->c_name = buf;
-
-  root->v_data = stat;
-
+  root->v_data = cn;
   root->v_mount = m;
+
   m->mnt_data = root;
   return 0;
 }
@@ -223,22 +229,20 @@ void ramdisk_init() {
     initrd_ops.v_read = initrd_vnode_read;
   }
 
-  vm_page_t *pg = pm_alloc(2);
-  kmalloc_init(mpool);
-  kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
-
   if (rd_size > 0) {
-    initrd_collect_headers(&initrd_head, (char *)initrd_get_start());
+    kmalloc_init(mp);
+    kmalloc_add_pages(mp, 2);
+    read_cpio_archive();
   }
 }
 
-vfsops_t initrd_vfsops = {
+static vfsops_t initrd_vfsops = {
   .vfs_mount = initrd_mount,
   .vfs_root = initrd_root,
   .vfs_init = initrd_init
 };
 
-vfsconf_t initrd_conf = {
+static vfsconf_t initrd_conf = {
   .vfc_name = "initrd",
   .vfc_vfsops = &initrd_vfsops
 };
