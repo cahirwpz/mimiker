@@ -33,9 +33,9 @@ static int test_uiomove() {
   uio.uio_resid = 8 + 5 + 12;
 
   res = uiomove(buffer1, sizeof(buffer1), &uio);
-  assert(res == 0);
+  ktest_assert(res == 0);
   res = strcmp(buffer1, "=====Example data operations.");
-  assert(res == 0);
+  ktest_assert(res == 0);
 
   /* Now, perform a READ from text, using buffer2 as data. */
   uio.uio_op = UIO_READ;
@@ -52,10 +52,10 @@ static int test_uiomove() {
   uio.uio_resid = 8 + 7 + 10;
 
   res = uiomove((char *)text, strlen(text), &uio);
-  assert(res == 0);
+  ktest_assert(res == 0);
   buffer2[37] = 0; /* Manually null-terminate */
   res = strcmp(buffer2, "Example ====string ========with data ");
-  assert(res == 0);
+  ktest_assert(res == 0);
 
   return KTEST_SUCCESS;
 }

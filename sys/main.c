@@ -47,6 +47,16 @@ void ktest_failure() {
   kprintf(TEST_FAILED_STRING);
   if (autorun_tests) {
     kprintf("Failure while running multiple tests.\n");
+    for (test_entry_t **ptr = autorun_tests; *ptr != NULL; ptr++) {
+      test_entry_t *t = *ptr;
+      kprintf("  %s", t->test_name);
+      if (t == current_test) {
+        kprintf("  <---- FAILED\n");
+        break;
+      } else {
+        kprintf("\n");
+      }
+    }
   } else {
     kprintf("Failure while running single test.\n");
     kprintf("Failing test: %s\n", current_test->test_name);

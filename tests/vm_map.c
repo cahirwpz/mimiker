@@ -58,35 +58,36 @@ static int findspace_demo() {
   vm_addr_t t;
   int n;
   n = vm_map_findspace(umap, 0x00010000, PAGESIZE, &t);
-  assert(n == 0 && t == 0x00010000);
+  ktest_assert(n == 0 && t == 0x00010000);
 
   n = vm_map_findspace(umap, addr1, PAGESIZE, &t);
-  assert(n == 0 && t == addr2);
+  ktest_assert(n == 0 && t == addr2);
 
   n = vm_map_findspace(umap, addr1 + 20 * PAGESIZE, PAGESIZE, &t);
-  assert(n == 0 && t == addr2);
+  ktest_assert(n == 0 && t == addr2);
 
   n = vm_map_findspace(umap, addr1, 0x6000, &t);
-  assert(n == 0 && t == addr4);
+  ktest_assert(n == 0 && t == addr4);
 
   n = vm_map_findspace(umap, addr1, 0x5000, &t);
-  assert(n == 0 && t == addr2);
+  ktest_assert(n == 0 && t == addr2);
 
   /* Fill the gap exactly */
   vm_map_add_entry(umap, t, t + 0x5000, VM_PROT_NONE);
 
   n = vm_map_findspace(umap, addr1, 0x5000, &t);
-  assert(n == 0 && t == addr4);
+  ktest_assert(n == 0 && t == addr4);
 
   n = vm_map_findspace(umap, addr4, 0x6000, &t);
-  assert(n == 0 && t == addr4);
+  ktest_assert(n == 0 && t == addr4);
 
   n = vm_map_findspace(umap, 0, 0x40000000, &t);
-  assert(n == -ENOMEM);
+  ktest_assert(n == -ENOMEM);
 
   log("Test passed.");
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD_FLAGS(vm, paging_on_demand_and_memory_protection_demo, 0);
+KTEST_ADD_FLAGS(vm, paging_on_demand_and_memory_protection_demo,
+                KTEST_FLAG_BROKEN);
 KTEST_ADD(findspace, findspace_demo);

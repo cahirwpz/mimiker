@@ -40,4 +40,14 @@ typedef struct {
  * displays some troubleshooting info about the failing test. */
 void ktest_failure();
 
+/* This assert variant will call ktest_failure when assertion fails, which
+   prints out some useful information about the failing test case. */
+#define ktest_assert(EXPR)                                                     \
+  __extension__({                                                              \
+    if (!(EXPR)) {                                                             \
+      kprintf("Assertion '" __STRING(EXPR) "' failed!\n");                     \
+      ktest_failure();                                                         \
+    }                                                                          \
+  })
+
 #endif /* !_SYS_KTEST_H_ */

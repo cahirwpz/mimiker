@@ -21,4 +21,4 @@ int test_callout() {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(callout, test_callout);
+KTEST_ADD_FLAGS(callout, test_callout, KTEST_FLAG_BROKEN);
