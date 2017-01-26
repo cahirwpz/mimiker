@@ -115,7 +115,6 @@ bool pmap_is_mapped(pmap_t *pmap, vm_addr_t vaddr) {
 }
 
 bool pmap_is_range_mapped(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
-  // TODO: rewrite it so that it doesn't invoke any TLB Refill exception
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end);
 
@@ -272,14 +271,6 @@ void pmap_map(pmap_t *pmap, vm_addr_t start, vm_addr_t end, pm_addr_t paddr,
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
   assert(is_aligned(paddr, PAGESIZE));
-  /* The line below may seem to be a coorect assertion
-   * but there is no way for it to work correctly
-   * By checking if a range is mapped it requires adequate PTFs to be already
-   * mapped. If not, there is a tlb_exception.
-   * First, any assertion shouldn't invoke any exception
-   * Second, it is a negation of the whole range being mapped, hence
-   * there is a subrange that is not mapped. It is not what is needed here, is it?
-   */
   //assert(!pmap_is_range_mapped(pmap, start, end));
 
   while (start < end) {
@@ -362,7 +353,9 @@ void tlb_exception_handler(exc_frame_t *frame) {
      * range is not a subject to TLB based address translation. */
     assert(vaddr < PT_HOLE_START || vaddr >= PT_HOLE_END);
 
-#ifdef __NESTED_PAGE_TABLE_REFERENCE_POSSIBLE__
+#if 0 // Not needed anymore because of writing an entry into TLB in pmap_add_pde()
+      // before initialization of PTEs
+
     if (PT_BASE <= orig_vaddr && orig_vaddr < PT_BASE + PT_SIZE) {
       /*
        * TLB refill exception can occur while C0_STATUS.EXL is set, if so then
@@ -373,7 +366,9 @@ void tlb_exception_handler(exc_frame_t *frame) {
       orig_vaddr = (vaddr - PT_BASE) / sizeof(pte_t) * PAGESIZE;
     }
 #else
+
     assert(PT_BASE > orig_vaddr || orig_vaddr >= PT_BASE + PT_SIZE);
+    
 #endif
 
     pmap_t *pmap = get_active_pmap_by_addr(orig_vaddr);
