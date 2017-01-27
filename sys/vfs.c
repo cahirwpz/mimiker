@@ -215,7 +215,8 @@ int vfs_lookup(const char *path, vnode_t **vp) {
       if (error)
         return error;
       v = v_mntpt;
-      vnode_ref(v);
+      /* vnode_ref(v); No need to ref this vnode, VFS_ROOT already did it for
+       * us. */
       vnode_lock(v);
     }
 
@@ -233,7 +234,8 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     if (error)
       return error;
     v = v_child;
-    vnode_ref(v);
+    /* vnode_ref(v); No need to ref this vnode, VFS_LOOKUP already did it for
+     * us. */
     vnode_lock(v);
   }
 
