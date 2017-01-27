@@ -62,6 +62,6 @@ static int test_rtc() {
   return KTEST_FAILURE;
 }
 
-KTEST_ADD_FLAGS(rtc, test_rtc, KTEST_FLAG_NORETURN);
+KTEST_ADD(rtc, test_rtc, KTEST_FLAG_NORETURN);
 
 #endif

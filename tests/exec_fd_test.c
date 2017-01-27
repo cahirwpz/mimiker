@@ -13,5 +13,5 @@ static int test_exec_fd_test() {
   return KTEST_FAILURE;
 }
 
-KTEST_ADD_FLAGS(exec_fd_test, test_exec_fd_test,
+KTEST_ADD(exec_fd_test, test_exec_fd_test,
                 KTEST_FLAG_NORETURN | KTEST_FLAG_USERMODE);

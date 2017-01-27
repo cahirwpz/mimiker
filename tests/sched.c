@@ -94,4 +94,4 @@ static int test_sched() {
   return KTEST_FAILURE;
 }
 
-KTEST_ADD_FLAGS(sched, test_sched, KTEST_FLAG_NORETURN);
+KTEST_ADD(sched, test_sched, KTEST_FLAG_NORETURN);

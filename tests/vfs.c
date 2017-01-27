@@ -98,4 +98,4 @@ static int test_vfs() {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD_FLAGS(vfs, test_vfs, 0);
+KTEST_ADD(vfs, test_vfs, 0);

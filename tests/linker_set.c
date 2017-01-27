@@ -39,4 +39,4 @@ static int test_linker_set() {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(linker_set, test_linker_set);
+KTEST_ADD(linker_set, test_linker_set, 0);

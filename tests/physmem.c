@@ -55,4 +55,4 @@ static int test_physmem() {
    that these allocations won't affect the hash. For this reason, this test is
    marked as BROKEN, and we may want to investigate alternative ways of testing
    physmem.*/
-KTEST_ADD_FLAGS(physmem, test_physmem, KTEST_FLAG_BROKEN);
+KTEST_ADD(physmem, test_physmem, KTEST_FLAG_BROKEN);

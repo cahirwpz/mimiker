@@ -75,4 +75,4 @@ void deadlock_test() {
 }
 #endif
 
-KTEST_ADD_FLAGS(mutex, mtx_test, KTEST_FLAG_NORETURN);
+KTEST_ADD(mutex, mtx_test, KTEST_FLAG_NORETURN);

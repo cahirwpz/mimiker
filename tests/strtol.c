@@ -27,4 +27,4 @@ int test_strtol(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(strtol, test_strtol);
+KTEST_ADD(strtol, test_strtol, 0);

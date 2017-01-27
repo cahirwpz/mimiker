@@ -60,4 +60,4 @@ static int test_uiomove() {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(uiomove, test_uiomove);
+KTEST_ADD(uiomove, test_uiomove, 0);

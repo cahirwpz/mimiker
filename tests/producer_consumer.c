@@ -89,4 +89,4 @@ static int test_producer_consumer() {
   return KTEST_FAILURE;
 }
 
-KTEST_ADD_FLAGS(producer_consumer, test_producer_consumer, KTEST_FLAG_NORETURN);
+KTEST_ADD(producer_consumer, test_producer_consumer, KTEST_FLAG_NORETURN);

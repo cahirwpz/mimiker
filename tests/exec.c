@@ -57,4 +57,4 @@ static int test_exec() {
   return KTEST_FAILURE;
 }
 
-KTEST_ADD_FLAGS(exec, test_exec, KTEST_FLAG_NORETURN | KTEST_FLAG_USERMODE);
+KTEST_ADD(exec, test_exec, KTEST_FLAG_NORETURN | KTEST_FLAG_USERMODE);

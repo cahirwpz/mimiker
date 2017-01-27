@@ -28,11 +28,9 @@ typedef struct {
 
 void ktest_main(const char *test);
 
-#define KTEST_ADD_FLAGS(name, func, flags)                                     \
+#define KTEST_ADD(name, func, flags)                                           \
   test_entry_t name##_test = {#name, func, flags};                             \
   SET_ENTRY(tests, name##_test);
-
-#define KTEST_ADD(name, func) KTEST_ADD_FLAGS(name, func, 0)
 
 /* These are canonical result messages printed to standard output / UART. A
  * script running the kernel may want to grep for them. */

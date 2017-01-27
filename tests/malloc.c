@@ -39,4 +39,4 @@ static int test_malloc() {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(malloc, test_malloc);
+KTEST_ADD(malloc, test_malloc, 0);
