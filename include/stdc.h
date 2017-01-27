@@ -38,7 +38,9 @@ int snprintf(char *str, size_t size, const char *fmt, ...)
 
 /* stdlib.h function prototypes */
 long strtol(const char *nptr, char **endptr, int base);
+long strntol(const char *nptr, size_t len, char **endptr, int base);
 unsigned long strtoul(const char *nptr, char **endptr, int base);
+unsigned long strntoul(const char *nptr, size_t len, char **endptr, int base);
 void qsort(void *base, size_t num, size_t width,
            int (*comp)(const void *, const void *));
 
