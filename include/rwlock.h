@@ -13,7 +13,7 @@ typedef enum {
   RW_LOCKED = 3
 } rwa_t;
 
-void rw_init(rwlock_t *rw, const char *name, bool recurse);
+void rw_init(rwlock_t *rw, const char *name, bool recursive);
 void rw_destroy(rwlock_t *rw);
 void rw_enter(rwlock_t *rw, rwo_t who);
 void rw_leave(rwlock_t *rw);
