@@ -30,9 +30,6 @@ pmap_t *pmap_new();
 void pmap_reset(pmap_t *pmap);
 void pmap_delete(pmap_t *pmap);
 
-bool pmap_is_mapped(pmap_t *pmap, vm_addr_t vaddr);
-bool pmap_is_range_mapped(pmap_t *pmap, vm_addr_t start, vm_addr_t end);
-
 void pmap_map(pmap_t *pmap, vm_addr_t start, vm_addr_t end, pm_addr_t paddr,
               vm_prot_t prot);
 void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end, vm_prot_t prot);
