@@ -348,7 +348,7 @@ void tlb_exception_handler(exc_frame_t *frame) {
       log("Address %08lx not mapped by any active pmap!", orig_vaddr);
       goto fault;
     }
-    if (pmap->pde && is_valid(pmap->pde[index])) {
+    if (is_valid(pmap->pde[index])) {
       log("TLB refill for page table fragment %08lx", vaddr & PTE_MASK);
       uint32_t index0 = index & ~1;
       uint32_t index1 = index0 | 1;
