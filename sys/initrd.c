@@ -41,16 +41,6 @@ static vnodeops_t initrd_ops;
 
 extern char *kenv_get(const char *key);
 
-static int base_atoi(char *s, int n, int base) {
-  int res = 0;
-  for (int i = 0; i < n; i++) {
-    int add = (s[i] <= '9') ? s[i] - '0' : s[i] - 'A' + 10;
-    res *= base;
-    res += add;
-  }
-  return res;
-}
-
 static void cpio_node_dump(cpio_node_t *cn) {
   log("entry '%s': {dev: %ld, ino: %lu, mode: %d, nlink: %d, "
       "uid: %d, gid: %d, rdev: %ld, size: %ld, mtime: %lu}",
@@ -74,25 +64,25 @@ static bool read_cpio_header(char **tape, cpio_node_t *cpio) {
 
   read_bytes(tape, &hdr, sizeof(hdr));
 
-  uint16_t c_magic = base_atoi(hdr.c_magic, 6, 8);
+  uint16_t c_magic = strntoul(hdr.c_magic, 6, NULL, 8);
 
   if (c_magic != CPIO_NMAGIC && c_magic != CPIO_NCMAGIC) {
     log("wrong magic number: %o", c_magic);
     return false;
   }
 
-  uint32_t c_ino = base_atoi(hdr.c_ino, 8, 16);
-  uint32_t c_mode = base_atoi(hdr.c_mode, 8, 16);
-  uint32_t c_uid = base_atoi(hdr.c_uid, 8, 16);
-  uint32_t c_gid = base_atoi(hdr.c_gid, 8, 16);
-  uint32_t c_nlink = base_atoi(hdr.c_nlink, 8, 16);
-  uint32_t c_mtime = base_atoi(hdr.c_mtime, 8, 16);
-  uint32_t c_filesize = base_atoi(hdr.c_filesize, 8, 16);
-  uint32_t c_maj = base_atoi(hdr.c_maj, 8, 16);
-  uint32_t c_min = base_atoi(hdr.c_min, 8, 16);
-  uint32_t c_rmaj = base_atoi(hdr.c_rmaj, 8, 16);
-  uint32_t c_rmin = base_atoi(hdr.c_rmin, 8, 16);
-  uint32_t c_namesize = base_atoi(hdr.c_namesize, 8, 16);
+  uint32_t c_ino = strntoul(hdr.c_ino, 8, NULL, 16);
+  uint32_t c_mode = strntoul(hdr.c_mode, 8, NULL, 16);
+  uint32_t c_uid = strntoul(hdr.c_uid, 8, NULL, 16);
+  uint32_t c_gid = strntoul(hdr.c_gid, 8, NULL, 16);
+  uint32_t c_nlink = strntoul(hdr.c_nlink, 8, NULL, 16);
+  uint32_t c_mtime = strntoul(hdr.c_mtime, 8, NULL, 16);
+  uint32_t c_filesize = strntoul(hdr.c_filesize, 8, NULL, 16);
+  uint32_t c_maj = strntoul(hdr.c_maj, 8, NULL, 16);
+  uint32_t c_min = strntoul(hdr.c_min, 8, NULL, 16);
+  uint32_t c_rmaj = strntoul(hdr.c_rmaj, 8, NULL, 16);
+  uint32_t c_rmin = strntoul(hdr.c_rmin, 8, NULL, 16);
+  uint32_t c_namesize = strntoul(hdr.c_namesize, 8, NULL, 16);
   
   cpio->c_dev = MKDEV(c_maj, c_min);
   cpio->c_ino = c_ino;
