@@ -34,6 +34,9 @@ format:
 	@echo "Formatting files: $(FORMATTABLE:./%=%)"
 	clang-format -style=file -i $(FORMATTABLE)
 
+test: mimiker.elf
+	./run_tests.py
+
 $(SUBDIRS):
 	$(MAKE) -C $@
 
