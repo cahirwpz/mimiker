@@ -147,6 +147,12 @@ static void run_all_tests() {
 
   /* If we've managed to get here, it means all tests passed with no issues. */
   kprintf(TEST_PASSED_STRING);
+
+  /* As the tests are usually very verbose, for user convenience let's print out
+     the order of tests once again. */
+  kprintf("Test order:\n");
+  for (i = 0; i < n; i++)
+    kprintf("  %s\n", autorun_tests[i]->test_name);
 }
 
 void ktest_main(const char *test) {

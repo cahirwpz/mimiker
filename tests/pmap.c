@@ -77,5 +77,5 @@ static int test_user_pmap() {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD_FLAGS(pmap_kernel, test_kernel_pmap, KTEST_FLAG_BROKEN);
-KTEST_ADD_FLAGS(pmap_user, test_user_pmap, KTEST_FLAG_BROKEN);
+KTEST_ADD_FLAGS(pmap_kernel, test_kernel_pmap, 0);
+KTEST_ADD_FLAGS(pmap_user, test_user_pmap, 0);

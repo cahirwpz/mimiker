@@ -88,6 +88,5 @@ static int findspace_demo() {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD_FLAGS(vm, paging_on_demand_and_memory_protection_demo,
-                KTEST_FLAG_BROKEN);
+KTEST_ADD_FLAGS(vm, paging_on_demand_and_memory_protection_demo, 0);
 KTEST_ADD(findspace, findspace_demo);
