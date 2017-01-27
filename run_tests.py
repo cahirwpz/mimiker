@@ -26,7 +26,7 @@ def test_seed(seed):
     child = pexpect.spawn(
         './launch', ['-t', '-S', 'qemu', 'test=all', 'seed=%d' % seed])
     index = child.expect_exact(
-        ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT], timeout=5)
+        ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT], timeout=15)
     if index == 0:
         return
     elif index == 1:
