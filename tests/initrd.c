@@ -5,21 +5,7 @@
 #include <vm_map.h>
 #include <ktest.h>
 
-#if 0
-static void print_headers() {
-  char *start = (char *)initrd_get_start();
-  stat_head_t *hd = initrd_get_headers();
-  initrd_collect_headers(hd, start);
-  cpio_file_stat_t *it;
-
-  TAILQ_FOREACH (it, hd, stat_list) {
-    dump_cpio_stat(it);
-  }
-}
-#endif
-
 static void dump_file(const char *path) {
-  // print_headers();
   vnode_t *v;
   int res = vfs_lookup(path, &v);
   // int res = vfs_lookup("/initrd/empty_file", &v);
@@ -46,6 +32,8 @@ static void dump_file(const char *path) {
 }
 
 static int test_ramdisk() {
+  ramdisk_dump();
+
   dump_file("/initrd/some_dir/nested_dir/message");
   dump_file("/initrd/some_dir/nested_dir/file5");
   dump_file("/initrd/empty_file");

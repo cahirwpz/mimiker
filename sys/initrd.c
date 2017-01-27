@@ -122,7 +122,6 @@ static void read_cpio_archive() {
       kfree(mp, node);
       break;
     }
-    cpio_node_dump(node);
     TAILQ_INSERT_TAIL(&initrd_head, node, c_list);
   }
 }
@@ -222,6 +221,14 @@ void ramdisk_init() {
     kmalloc_add_pages(mp, 2);
     log("parsing cpio archive of %zu bytes", rd_size);
     read_cpio_archive();
+  }
+}
+
+void ramdisk_dump() {
+  cpio_node_t *it;
+
+  TAILQ_FOREACH (it, &initrd_head, c_list) {
+    cpio_node_dump(it);
   }
 }
 
