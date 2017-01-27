@@ -1,20 +1,17 @@
 #include <ktest.h>
 #include <stdc.h>
-#include <malloc.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
 
+#define KTEST_MAX_NO 256
+
 /* Stores currently running test data. */
 static test_entry_t *current_test = NULL;
 /* A null-terminated array of pointers to the tested test list. */
-static test_entry_t **autorun_tests;
+static test_entry_t *autorun_tests[KTEST_MAX_NO] = {NULL};
 
 int ktest_test_running_flag = 0;
-
-/* We only need this pool to allocate some memory for performing operations on
- * the list of all tests. */
-static MALLOC_DEFINE(test_pool, "test data pool");
 
 static uint32_t init_seed = 0; /* The initial seed, as set from command-line. */
 static uint32_t seed = 0;      /* Current seed */
@@ -29,7 +26,7 @@ void ktest_failure() {
     panic("current_test == NULL in ktest_failure! This is most likely a bug in "
           "the test framework!\n");
   kprintf(TEST_FAILED_STRING);
-  if (autorun_tests) {
+  if (autorun_tests[0]) {
     kprintf("Failure while running multiple tests.\n");
     for (test_entry_t **ptr = autorun_tests; *ptr != NULL; ptr++) {
       test_entry_t *t = *ptr;
@@ -96,9 +93,6 @@ static int test_name_compare(const void *a_, const void *b_) {
 }
 
 static void run_all_tests() {
-  kmalloc_init(test_pool);
-  kmalloc_add_pages(test_pool, 1);
-
   /* First, count the number of tests that may be run in any order. */
   unsigned int n = 0;
   SET_DECLARE(tests, test_entry_t);
@@ -107,8 +101,14 @@ static void run_all_tests() {
     if (test_is_autorunnable(*ptr))
       n++;
   }
-  /* Now, allocate memory for test we'll be running. */
-  autorun_tests = kmalloc(test_pool, (n + 1) * sizeof(test_entry_t *), M_ZERO);
+  if (n > KTEST_MAX_NO + 1) {
+    kprintf("Warning: There are more kernel tests registered than there is "
+            "memory available for ktest framework. Please increase "
+            "KTEST_MAX_NO.\n");
+    kprintf(TEST_FAILED_STRING);
+    return;
+  }
+
   /* Collect test pointers. */
   int i = 0;
   SET_FOREACH(ptr, tests) {
@@ -119,7 +119,7 @@ static void run_all_tests() {
 
   /* Sort tests alphabetically by name, so that shuffling may be deterministic
    * and not affected by build/link order. */
-  qsort(autorun_tests, n, sizeof(autorun_tests), test_name_compare);
+  qsort(autorun_tests, n, sizeof(test_entry_t *), test_name_compare);
 
   const char *seed_str = kenv_get("seed");
   if (seed_str)
