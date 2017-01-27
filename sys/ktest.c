@@ -121,7 +121,6 @@ static void run_all_tests() {
    * and not affected by build/link order. */
   qsort(autorun_tests, n, sizeof(autorun_tests), test_name_compare);
 
-  /* TODO: Shuffle autorun_tests pointers using seed from command line! */
   const char *seed_str = kenv_get("seed");
   if (seed_str)
     init_seed = strtoul(seed_str, NULL, 10);
