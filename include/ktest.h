@@ -2,6 +2,7 @@
 #define _SYS_KTEST_H_
 
 #include <linker_set.h>
+#include <stdc.h>
 
 #define KTEST_NAME_MAX 32
 
