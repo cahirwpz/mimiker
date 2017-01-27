@@ -41,12 +41,7 @@
  * Ignores `locale' stuff.  Assumes that the upper and lower case
  * alphabets and digits are each contiguous.
  */
-long
-strtol(nptr, endptr, base)
-	const char *nptr;
-	char **endptr;
-	int base;
-{
+long strtol(const char *nptr, char **endptr, int base) {
 	const char *s = nptr;
 	unsigned long acc;
 	unsigned char c;
@@ -123,3 +118,8 @@ strtol(nptr, endptr, base)
 	return (acc);
 }
 
+long strntol(const char *nptr, size_t len, char **endptr, int base) {
+  char copy[len + 1];
+  strlcpy(copy, nptr, len + 1);
+  return strtol(copy, endptr, base);
+}
