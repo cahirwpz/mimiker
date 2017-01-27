@@ -54,4 +54,4 @@ static int test_thread() {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD_FLAGS(thread, test_thread, KTEST_FLAG_BROKEN);
+KTEST_ADD_FLAGS(thread, test_thread, 0);

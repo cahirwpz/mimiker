@@ -39,6 +39,7 @@ static int test_vfs() {
   vnode_unref(dev_zero);
   vnode_unref(dev_zero);
   vnode_unref(dev_zero);
+  ktest_assert(dev_zero->v_usecnt == 1);
 
   uio_t uio;
   iovec_t iov;
@@ -97,4 +98,4 @@ static int test_vfs() {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD_FLAGS(vfs, test_vfs, KTEST_FLAG_BROKEN);
+KTEST_ADD_FLAGS(vfs, test_vfs, 0);
