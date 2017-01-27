@@ -165,7 +165,8 @@ void ktest_main(const char *test) {
     /* Single test mode */
     test_entry_t *t = find_test_by_name(test);
     if (!t) {
-      kprintf("Test \"%s\" not found!", test);
+      kprintf("Test \"%s\" not found!\n", test);
+      return;
     }
     int result = run_test(t);
     if (result == KTEST_SUCCESS)
