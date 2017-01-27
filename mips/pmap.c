@@ -332,7 +332,7 @@ void tlb_exception_handler(exc_frame_t *frame) {
      * range is not a subject to TLB based address translation. */
     assert(vaddr < PT_HOLE_START || vaddr >= PT_HOLE_END);
 
-#if 0
+#if 1
     /* Not needed anymore because of writing an entry into TLB in pmap_add_pde()
      * before initialization of PTEs */
     if (PT_BASE <= orig_vaddr && orig_vaddr < PT_BASE + PT_SIZE) {

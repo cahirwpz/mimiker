@@ -230,7 +230,7 @@ int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
   }
 
   if (entry->prot == VM_PROT_NONE) {
-    log("Cannot access to address: 0x%08lx", fault_addr);
+    log("Cannot access address: 0x%08lx", fault_addr);
     return -EACCES;
   }
 
