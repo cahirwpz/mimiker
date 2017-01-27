@@ -26,6 +26,7 @@
 
 #define PTE_OF(pmap, addr) ((pmap)->pte[PTE_INDEX(addr)])
 #define PDE_OF(pmap, addr) ((pmap)->pde[PDE_INDEX(addr)])
+#define PTE_ADDR_OF(vaddr) (PT_BASE + PTE_INDEX(vaddr) * sizeof(pte_t))
 #define PTF_ADDR_OF(vaddr) (PT_BASE + PDE_INDEX(vaddr) * PTF_SIZE)
 
 #define PMAP_KERNEL_BEGIN MIPS_KSEG2_START
@@ -33,8 +34,8 @@
 #define PMAP_USER_BEGIN 0x00000000
 #define PMAP_USER_END MIPS_KSEG0_START /* useg */
 
-static const vm_addr_t PT_HOLE_START = PT_BASE + ((MIPS_KSEG0_START / PAGESIZE) * sizeof(pte_t));
-static const vm_addr_t PT_HOLE_END   = PT_BASE + ((MIPS_KSEG2_START / PAGESIZE) * sizeof(pte_t));
+static const vm_addr_t PT_HOLE_START = PTE_ADDR_OF(MIPS_KSEG0_START);
+static const vm_addr_t PT_HOLE_END = PTE_ADDR_OF(MIPS_KSEG2_START);
 
 static bool pde_is_valid(pde_t pde) {
   return (pde).lo & PTE_VALID;
@@ -46,6 +47,10 @@ static bool in_user_space(vm_addr_t addr) {
 
 static bool in_kernel_space(vm_addr_t addr) {
   return (addr >= PMAP_KERNEL_BEGIN && addr < PMAP_KERNEL_END);
+}
+
+static tlblo_t global_of(vm_addr_t vaddr) {
+  return in_kernel_space(vaddr) ? PTE_GLOBAL : 0;
 }
 
 static pmap_t kernel_pmap;
@@ -69,7 +74,7 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   TAILQ_INIT(&pmap->pte_pages);
 
   for (int i = 0; i < PD_ENTRIES; i++) {
-    pmap->pde[i].lo = in_kernel_space(i * PTF_ENTRIES * PAGESIZE) ? PTE_GLOBAL : 0;
+    pmap->pde[i].lo = global_of(i * PTF_ENTRIES * PAGESIZE);
     pmap->pde[i].unused = 0;
   }
 }
@@ -119,11 +124,9 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
   pde_t *pde = &PDE_OF(pmap, vaddr);
 
   vm_addr_t ptf_start = PTF_ADDR_OF(vaddr);
-  assert(!(ptf_start & PAGESIZE));
-
-  tlblo_t global = in_kernel_space(vaddr) ? PTE_GLOBAL : 0;
-  tlblo_t lo0 = PTE_PFN(pg->paddr) | PTE_VALID | PTE_DIRTY | global;
-  tlblo_t lo1 = PTE_PFN(pg->paddr + PAGESIZE) | PTE_VALID | PTE_DIRTY | global;
+  tlblo_t flags = PTE_VALID | PTE_DIRTY | global_of(vaddr);
+  tlblo_t lo0 = PTE_PFN(pg->paddr) | flags;
+  tlblo_t lo1 = PTE_PFN(pg->paddr + PAGESIZE) | flags;
   pde->lo = lo0;
   pde->unused = 0;
 
@@ -141,7 +144,7 @@ void pmap_remove_pde(pmap_t *pmap, vm_addr_t vaddr);
 
 #if 0
 /* Used if CPU implements RI and XI bits in ENTRYLO. */
-static uint32_t vm_prot_map[] = {
+static tlblo_t vm_prot_map[] = {
   [VM_PROT_NONE] = 0,
   [VM_PROT_READ] = PTE_VALID|PTE_NO_EXEC,
   [VM_PROT_WRITE] = PTE_VALID|PTE_DIRTY|PTE_NO_READ|PTE_NO_EXEC,
@@ -152,7 +155,7 @@ static uint32_t vm_prot_map[] = {
   [VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXEC] = PTE_VALID|PTE_DIRTY,
 };
 #else
-static uint32_t vm_prot_map[] = {
+static tlblo_t vm_prot_map[] = {
     [VM_PROT_NONE] = 0,
     [VM_PROT_READ] = PTE_VALID,
     [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY,
@@ -171,11 +174,11 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
     pmap_add_pde(pmap, vaddr);
 
   pte_t *pte = &PTE_OF(pmap, vaddr);
-  pte->lo = PTE_PFN(paddr) | vm_prot_map[prot] |
-            (in_kernel_space(vaddr) ? PTE_GLOBAL : 0);
+  pte->lo = PTE_PFN(paddr) | vm_prot_map[prot] | global_of(vaddr);
   pte->unused = 0;
+
   log("Add mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
-      (vm_addr_t)&PTE_OF(pmap, vaddr));
+      (vm_addr_t)pte);
 
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
@@ -186,8 +189,10 @@ static void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
   pte_t *pte = &PTE_OF(pmap, vaddr);
   pte->lo = 0;
   pte->unused = 0;
+
   log("Remove mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
-      (vm_addr_t)&PTE_OF(pmap, vaddr));
+      (vm_addr_t)pte);
+
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
 
@@ -198,6 +203,8 @@ static void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
 static void pmap_change_pte(pmap_t *pmap, vm_addr_t vaddr, vm_prot_t prot) {
   pte_t *pte = &PTE_OF(pmap, vaddr);
   pte->lo = (pte->lo & ~PTE_PROT_MASK) | vm_prot_map[prot];
+  pte->unused = 0;
+
   log("Change protection bits for page %08lx (PTE at %08lx)",
       (vaddr & PTE_MASK), (vm_addr_t)&PTE_OF(pmap, vaddr));
 
@@ -216,18 +223,19 @@ bool pmap_probe(pmap_t *pmap, vm_addr_t start, vm_addr_t end, vm_prot_t prot) {
   if (start < pmap->start || end > pmap->end)
     return false;
 
-  uint32_t expected = vm_prot_map[prot];
+  tlblo_t expected = vm_prot_map[prot];
 
   while (start < end) {
     tlbhi_t hi = PTE_VPN2(start) | PTE_ASID(pmap->asid);
     tlblo_t lo0, lo1;
     int tlb_idx = tlb_probe(hi, &lo0, &lo1);
-    uint32_t pte_lo = pde_is_valid(PDE_OF(pmap, start)) ? PTE_OF(pmap, start).lo : 0;
+    tlblo_t pte_lo =
+      pde_is_valid(PDE_OF(pmap, start)) ? PTE_OF(pmap, start).lo : 0;
 
     if (tlb_idx >= 0) {
       tlblo_t lo = PTE_LO_INDEX_OF(start) ? lo1 : lo0;
       if (lo != pte_lo)
-        panic("TLB (%08x) vs. PTE (%08lx) mismatch for virtual address %08lx!",
+        panic("TLB (%08x) vs. PTE (%08x) mismatch for virtual address %08lx!",
               lo, pte_lo, start);
     }
 
@@ -237,8 +245,7 @@ bool pmap_probe(pmap_t *pmap, vm_addr_t start, vm_addr_t end, vm_prot_t prot) {
     start += PAGESIZE;
   }
 
-  return true;;
-
+  return true;
 }
 
 void pmap_map(pmap_t *pmap, vm_addr_t start, vm_addr_t end, pm_addr_t paddr,
@@ -286,7 +293,7 @@ void pmap_activate(pmap_t *pmap) {
   critical_enter();
   PCPU_GET(curpmap) = pmap;
   mips32_set_c0(C0_ENTRYHI, pmap ? pmap->asid : 0);
-  //tlb_invalidate_all();
+  /* thanks to ASIDs we can avoid TLB flushes */
   critical_leave();
 }
 
@@ -325,9 +332,9 @@ void tlb_exception_handler(exc_frame_t *frame) {
      * range is not a subject to TLB based address translation. */
     assert(vaddr < PT_HOLE_START || vaddr >= PT_HOLE_END);
 
-#if 0 // Not needed anymore because of writing an entry into TLB in pmap_add_pde()
-      // before initialization of PTEs
-
+#if 0
+    /* Not needed anymore because of writing an entry into TLB in pmap_add_pde()
+     * before initialization of PTEs */
     if (PT_BASE <= orig_vaddr && orig_vaddr < PT_BASE + PT_SIZE) {
       /*
        * TLB refill exception can occur while C0_STATUS.EXL is set, if so then
@@ -338,9 +345,7 @@ void tlb_exception_handler(exc_frame_t *frame) {
       orig_vaddr = (vaddr - PT_BASE) / sizeof(pte_t) * PAGESIZE;
     }
 #else
-
     assert(PT_BASE > orig_vaddr || orig_vaddr >= PT_BASE + PT_SIZE);
-    
 #endif
 
     pmap_t *pmap = get_active_pmap_by_addr(orig_vaddr);
@@ -374,12 +379,12 @@ void tlb_exception_handler(exc_frame_t *frame) {
   if (vm_page_fault(map, vaddr, access) == 0)
     return;
 
- fault:
-   /* handle copyin / copyout faults */
-   if (td->td_onfault) {
-     frame->pc = td->td_onfault;
-     td->td_onfault = 0;
-   } else {
-     thread_exit();
-   }
+fault:
+  /* handle copyin / copyout faults */
+  if (td->td_onfault) {
+    frame->pc = td->td_onfault;
+    td->td_onfault = 0;
+  } else {
+    thread_exit();
+  }
 }
