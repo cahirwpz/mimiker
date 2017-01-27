@@ -47,7 +47,8 @@ void ktest_failure();
 #define ktest_assert(EXPR)                                                     \
   __extension__({                                                              \
     if (!(EXPR)) {                                                             \
-      kprintf("Assertion '" __STRING(EXPR) "' failed!\n");                     \
+      kprintf("Assertion '" __STRING(EXPR) "' at %s:%d failed!\n", __FILE__,   \
+              __LINE__);                                                       \
       ktest_failure();                                                         \
     }                                                                          \
   })

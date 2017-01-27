@@ -2,6 +2,9 @@
 #include <stdc.h>
 #include <malloc.h>
 
+/* Borrowed from mips/malta.c */
+char *kenv_get(const char *key);
+
 /* Stores currently running test data. */
 static test_entry_t *current_test = NULL;
 /* A null-terminated array of pointers to the tested test list. */
@@ -10,6 +13,14 @@ static test_entry_t **autorun_tests;
 /* We only need this pool to allocate some memory for performing operations on
  * the list of all tests. */
 static MALLOC_DEFINE(test_pool, "test data pool");
+
+static uint32_t init_seed = 0; /* The initial seed, as set from command-line. */
+static uint32_t seed = 0;      /* Current seed */
+static uint32_t rand() {
+  /* Just a standard LCG */
+  seed = 1664525 * seed + 1013904223;
+  return seed;
+}
 
 void ktest_failure() {
   if (current_test == NULL)
@@ -28,6 +39,9 @@ void ktest_failure() {
         kprintf("\n");
       }
     }
+    kprintf("The seed used for this test order was: %ld. Start kernel with "
+            "`test=all seed=%ld` to reproduce this test case.\n",
+            init_seed, init_seed);
   } else {
     kprintf("Failure while running single test.\n");
     kprintf("Failing test: %s\n", current_test->test_name);
@@ -104,6 +118,21 @@ static void run_all_tests() {
   qsort(autorun_tests, n, sizeof(autorun_tests), test_name_compare);
 
   /* TODO: Shuffle autorun_tests pointers using seed from command line! */
+  const char *seed_str = kenv_get("seed");
+  if (seed_str)
+    init_seed = strtoul(seed_str, NULL, 10);
+
+  if (init_seed != 0) {
+    /* Initialize LCG with seed.*/
+    seed = init_seed;
+    /* Yates-Fisher shuffle. */
+    for (i = 0; i <= n - 2; i++) {
+      int j = i + rand() % (n - i);
+      register test_entry_t *swap = autorun_tests[i];
+      autorun_tests[i] = autorun_tests[j];
+      autorun_tests[j] = swap;
+    }
+  }
 
   kprintf("Found %d automatically runnable tests.\n", n);
   kprintf("Planned test order:\n");
