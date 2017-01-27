@@ -54,7 +54,7 @@ static int test_exec() {
 
   sched_run();
 
-  return 0;
+  return KTEST_FAILURE;
 }
 
-KTEST_ADD(exec, test_exec);
+KTEST_ADD(exec, test_exec, KTEST_FLAG_NORETURN | KTEST_FLAG_USERMODE);

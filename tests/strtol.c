@@ -13,15 +13,18 @@ strtol_test_t values[] = {
 int test_strtol(void) {
   int max = sizeof(values) / sizeof(strtol_test_t);
   for (int i = 0; i < max; i++)
-    if (values[i].value != strtol(values[i].str, (char **)NULL, values[i].base))
+    if (values[i].value !=
+        strtol(values[i].str, (char **)NULL, values[i].base)) {
       log("Mismatch for test %d: Expected: %ld, Actual: %ld", i,
           values[i].value,
           strtol(values[i].str, (char **)NULL, values[i].base));
-    else
+      return KTEST_FAILURE;
+    } else {
       log("Match for test %d: Expected: %ld, Actual: %ld", i, values[i].value,
           strtol(values[i].str, (char **)NULL, values[i].base));
+    }
 
-  return 0;
+  return KTEST_SUCCESS;
 }
 
-KTEST_ADD(strtol, test_strtol);
+KTEST_ADD(strtol, test_strtol, 0);

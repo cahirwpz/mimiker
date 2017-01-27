@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <ktest.h>
 
-static void paging_on_demand_and_memory_protection_demo() {
+static int paging_on_demand_and_memory_protection_demo() {
   vm_map_activate(vm_map_new());
 
   vm_map_t *kmap = get_kernel_vm_map();
@@ -41,9 +41,10 @@ static void paging_on_demand_and_memory_protection_demo() {
   vm_map_dump(kmap);
 
   log("Test passed.");
+  return KTEST_SUCCESS;
 }
 
-static void findspace_demo() {
+static int findspace_demo() {
   vm_map_t *umap = vm_map_new();
   vm_map_activate(umap);
 
@@ -57,39 +58,35 @@ static void findspace_demo() {
   vm_addr_t t;
   int n;
   n = vm_map_findspace(umap, 0x00010000, PAGESIZE, &t);
-  assert(n == 0 && t == 0x00010000);
+  ktest_assert(n == 0 && t == 0x00010000);
 
   n = vm_map_findspace(umap, addr1, PAGESIZE, &t);
-  assert(n == 0 && t == addr2);
+  ktest_assert(n == 0 && t == addr2);
 
   n = vm_map_findspace(umap, addr1 + 20 * PAGESIZE, PAGESIZE, &t);
-  assert(n == 0 && t == addr2);
+  ktest_assert(n == 0 && t == addr2);
 
   n = vm_map_findspace(umap, addr1, 0x6000, &t);
-  assert(n == 0 && t == addr4);
+  ktest_assert(n == 0 && t == addr4);
 
   n = vm_map_findspace(umap, addr1, 0x5000, &t);
-  assert(n == 0 && t == addr2);
+  ktest_assert(n == 0 && t == addr2);
 
   /* Fill the gap exactly */
   vm_map_add_entry(umap, t, t + 0x5000, VM_PROT_NONE);
 
   n = vm_map_findspace(umap, addr1, 0x5000, &t);
-  assert(n == 0 && t == addr4);
+  ktest_assert(n == 0 && t == addr4);
 
   n = vm_map_findspace(umap, addr4, 0x6000, &t);
-  assert(n == 0 && t == addr4);
+  ktest_assert(n == 0 && t == addr4);
 
   n = vm_map_findspace(umap, 0, 0x40000000, &t);
-  assert(n == -ENOMEM);
+  ktest_assert(n == -ENOMEM);
 
   log("Test passed.");
+  return KTEST_SUCCESS;
 }
 
-static int test_vm_map() {
-  paging_on_demand_and_memory_protection_demo();
-  findspace_demo();
-  return 0;
-}
-
-KTEST_ADD(vm_map, test_vm_map);
+KTEST_ADD(vm, paging_on_demand_and_memory_protection_demo, 0);
+KTEST_ADD(findspace, findspace_demo, 0);

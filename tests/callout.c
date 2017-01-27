@@ -6,6 +6,7 @@ static void callout_foo(void *arg) {
   kprintf("Someone executed me! After %d ticks.\n", *((int *)arg));
 }
 
+/* TODO: This test needs to verify that callouts were processed correctly. */
 int test_callout() {
   callout_t callout[10];
   int timeouts[10] = {2, 5, 3, 1, 6, 3, 7, 10, 5, 3};
@@ -17,7 +18,7 @@ int test_callout() {
     callout_process(i);
   }
 
-  return 0;
+  return KTEST_SUCCESS;
 }
 
-KTEST_ADD(callout, test_callout);
+KTEST_ADD(callout, test_callout, KTEST_FLAG_BROKEN);
