@@ -2,8 +2,15 @@
 
 static int test_broken() {
 
+  /* Invalid memory access. */
+  volatile char *c = (char *)0x55555555;
+  char v = *c;
+  (void)v;
+
+  /* Failing assertion */
   ktest_assert(0);
 
+  /* Failure exit code */
   return KTEST_FAILURE;
 }
 

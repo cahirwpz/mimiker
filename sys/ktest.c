@@ -10,6 +10,8 @@ static test_entry_t *current_test = NULL;
 /* A null-terminated array of pointers to the tested test list. */
 static test_entry_t **autorun_tests;
 
+int ktest_test_running_flag = 0;
+
 /* We only need this pool to allocate some memory for performing operations on
  * the list of all tests. */
 static MALLOC_DEFINE(test_pool, "test data pool");
@@ -74,7 +76,9 @@ static int run_test(test_entry_t *t) {
             "required to run any other test.\n");
 
   current_test = t;
+  ktest_test_running_flag = 1;
   int result = t->test_func();
+  ktest_test_running_flag = 0;
   if (result == KTEST_FAILURE)
     ktest_failure();
   return result;

@@ -8,6 +8,7 @@
 #include <sync.h>
 #include <vm_map.h>
 #include <thread.h>
+#include <ktest.h>
 
 #define PTE_MASK 0xfffff000
 #define PTE_SHIFT 12
@@ -347,7 +348,7 @@ void tlb_exception_handler(exc_frame_t *frame) {
       log("Address %08lx not mapped by any active pmap!", orig_vaddr);
       goto fault;
     }
-    if (is_valid(pmap->pde[index])) {
+    if (pmap->pde && is_valid(pmap->pde[index])) {
       log("TLB refill for page table fragment %08lx", vaddr & PTE_MASK);
       uint32_t index0 = index & ~1;
       uint32_t index1 = index0 | 1;
@@ -379,6 +380,8 @@ fault:
   if (td->td_onfault) {
     frame->pc = td->td_onfault;
     td->td_onfault = 0;
+  } else if (ktest_test_running_flag) {
+    ktest_failure();
   } else {
     thread_exit();
   }
