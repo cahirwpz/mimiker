@@ -7,8 +7,13 @@ import random
 N_SIMPLE = 5
 N_THOROUGH = 200
 TIMEOUT=5
+RETRIES_MAX=5
 
-def test_seed(seed):
+def test_seed(seed, retry=0):
+    if retry == RETRIES_MAX:
+        print("Maximum retries reached, still not output received. Test inconclusive.")
+        sys.exit(1)
+
     print("Testing seed %d..." % seed)
     # QEMU takes much much less time to start, so for testing multiple seeds it
     # is more convenient to use it instead of OVPsim.
@@ -29,14 +34,19 @@ def test_seed(seed):
         print(message)
         sys.exit(1)
     elif index == 2:
-        print("EOF reached without success report. This may indicate a problem with the testing framework.")
+        print("EOF reached without success report. This may indicate a problem with the testing framework or QEMU.")
         sys.exit(1)
     elif index == 3:
         print("Timeout reached.")
         message = child.buffer.decode("utf-8")
+        child.terminate(True)
         print(message)
-        print("No test result reported within timeout. Unable to verify test success. Seed was: %d" % seed)
-        sys.exit(1)
+        if len(message) < 100:
+            print("It looks like kernel did not even start within the time limit. Retrying (%d)..." % (retry + 1))
+            test_seed(seed, retry + 1)
+        else:
+            print("No test result reported within timeout. Unable to verify test success. Seed was: %d" % seed)
+            sys.exit(1)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Automatically performs kernel tests.')
@@ -51,6 +61,9 @@ if __name__ == '__main__':
     if args.thorough:
         n = N_THOROUGH
 
+    # Run tests in alphabetic order
+    test_seed(0)
+    # Run tests using n random seeds
     for i in range(0, n):
         seed = random.randint(0, 2**32)
         test_seed(seed)
