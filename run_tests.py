@@ -6,6 +6,7 @@ import random
 
 N_SIMPLE = 5
 N_THOROUGH = 200
+TIMEOUT=5
 
 def test_seed(seed):
     print("Testing seed %d..." % seed)
@@ -14,7 +15,7 @@ def test_seed(seed):
     child = pexpect.spawn(
         './launch', ['-t', '-S', 'qemu', 'test=all', 'seed=%d' % seed])
     index = child.expect_exact(
-        ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT], timeout=15)
+        ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT], timeout=TIMEOUT)
     if index == 0:
         return
     elif index == 1:
@@ -31,7 +32,10 @@ def test_seed(seed):
         print("EOF reached without success report. This may indicate a problem with the testing framework.")
         sys.exit(1)
     elif index == 3:
-        print("No test result reported within timeout. Unable to verify test success.")
+        print("Timeout reached.")
+        message = child.buffer.decode("utf-8")
+        print(message)
+        print("No test result reported within timeout. Unable to verify test success. Seed was: %d" % seed)
         sys.exit(1)
 
 if __name__ == '__main__':
