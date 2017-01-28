@@ -22,6 +22,7 @@ def test_seed(seed, retry=0):
     index = child.expect_exact(
         ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT], timeout=TIMEOUT)
     if index == 0:
+        child.terminate(True)
         return
     elif index == 1:
         print("Test failure reported!")
