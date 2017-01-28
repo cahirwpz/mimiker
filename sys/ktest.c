@@ -1,5 +1,6 @@
 #include <ktest.h>
 #include <stdc.h>
+#include <sync.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
@@ -21,11 +22,24 @@ static uint32_t rand() {
   return seed;
 }
 
+/* If we get preempted while printing out the [TEST_PASSED] string, the monitor
+   process might not find the pattern it's looking for. */
+static void ktest_atomically_print_success() {
+  critical_enter();
+  kprintf(TEST_PASSED_STRING);
+  critical_leave();
+}
+static void ktest_atomically_print_failure() {
+  critical_enter();
+  kprintf(TEST_FAILED_STRING);
+  critical_leave();
+}
+
 void ktest_failure() {
   if (current_test == NULL)
     panic("current_test == NULL in ktest_failure! This is most likely a bug in "
           "the test framework!\n");
-  kprintf(TEST_FAILED_STRING);
+  ktest_atomically_print_failure();
   if (autorun_tests[0]) {
     kprintf("Failure while running multiple tests.\n");
     for (test_entry_t **ptr = autorun_tests; *ptr != NULL; ptr++) {
@@ -105,7 +119,7 @@ static void run_all_tests() {
     kprintf("Warning: There are more kernel tests registered than there is "
             "memory available for ktest framework. Please increase "
             "KTEST_MAX_NO.\n");
-    kprintf(TEST_FAILED_STRING);
+    ktest_atomically_print_failure();
     return;
   }
 
@@ -149,7 +163,7 @@ static void run_all_tests() {
   }
 
   /* If we've managed to get here, it means all tests passed with no issues. */
-  kprintf(TEST_PASSED_STRING);
+  ktest_atomically_print_success();
 
   /* As the tests are usually very verbose, for user convenience let's print out
      the order of tests once again. */
@@ -170,6 +184,6 @@ void ktest_main(const char *test) {
     }
     int result = run_test(t);
     if (result == KTEST_SUCCESS)
-      kprintf(TEST_PASSED_STRING);
+      ktest_atomically_print_success();
   }
 }
