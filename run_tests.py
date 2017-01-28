@@ -35,8 +35,8 @@ def test_seed(seed, retry=0):
         print(message)
         sys.exit(1)
     elif index == 2:
-        print("EOF reached without success report. This may indicate a problem with the testing framework or QEMU.")
-        sys.exit(1)
+        print("EOF reached without success report. This may indicate a problem with the testing framework or QEMU. Retrying (%d)..." % (retry + 1))
+        test_seed(seed, retry + 1)
     elif index == 3:
         print("Timeout reached.")
         message = child.buffer.decode("utf-8")
