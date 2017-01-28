@@ -2,10 +2,6 @@
 
 static int test_broken() {
 
-  while (1) {
-    // Whoops, am infinite loop in the test!
-  }
-
   /* Invalid memory access. */
   volatile char *c = (char *)0x55555555;
   char v = *c;
