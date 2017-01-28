@@ -46,6 +46,8 @@ static int test_kernel_pmap() {
 }
 
 static int test_user_pmap() {
+  pmap_t *orig = get_user_pmap();
+
   pmap_t *pmap1 = pmap_new();
   pmap_t *pmap2 = pmap_new();
 
@@ -73,6 +75,10 @@ static int test_user_pmap() {
 
   pmap_delete(pmap1);
   pmap_delete(pmap2);
+
+  /* Restore original user pmap */
+  pmap_activate(orig);
+
   log("Test passed.");
   return KTEST_SUCCESS;
 }
