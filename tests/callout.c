@@ -1,24 +1,33 @@
 #include <stdc.h>
 #include <callout.h>
 #include <ktest.h>
+#include <mutex.h>
+#include <condvar.h>
+
+static mtx_t foo_mtx;
+static condvar_t foo_cv;
 
 static void callout_foo(void *arg) {
-  kprintf("Someone executed me! After %d ticks.\n", *((int *)arg));
+  kprintf("The callout got executed!\n");
+
+  mtx_lock(&foo_mtx);
+  cv_signal(&foo_cv);
+  mtx_unlock(&foo_mtx);
 }
 
-/* TODO: This test needs to verify that callouts were processed correctly. */
-int test_callout() {
-  callout_t callout[10];
-  int timeouts[10] = {2, 5, 3, 1, 6, 3, 7, 10, 5, 3};
-  for (int i = 0; i < 10; i++)
-    callout_setup(&callout[i], timeouts[i], callout_foo, (void *)&timeouts[i]);
+static int test_callout_simple() {
+  mtx_init(&foo_mtx, MTX_DEF);
+  cv_init(&foo_cv, "test_callout_simple CV");
 
-  for (int i = 0; i < 10; i++) {
-    kprintf("calling callout_process()\n");
-    callout_process(i);
-  }
+  callout_t callout;
+  callout_setup_relative(&callout, 10, callout_foo, NULL);
+
+  mtx_lock(&foo_mtx);
+  cv_wait(&foo_cv, &foo_mtx);
+  mtx_unlock(&foo_mtx);
+  kprintf("OK\n");
 
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(callout, test_callout, KTEST_FLAG_BROKEN);
+KTEST_ADD(callout_simple, test_callout_simple, 0);
