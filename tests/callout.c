@@ -54,7 +54,7 @@ static int test_callout_order() {
   int order[10] = {2, 5, 4, 6, 9, 0, 8, 1, 3, 7};
   callout_t callouts[10];
   for (int i = 0; i < 10; i++)
-    callout_setup_relative(&callouts[i], 10 + order[i] * 4, callout_ordered,
+    callout_setup_relative(&callouts[i], 20 + order[i] * 15, callout_ordered,
                            (void *)order[i]);
 
   mtx_lock(&foo_mtx);
