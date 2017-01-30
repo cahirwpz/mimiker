@@ -1,7 +1,9 @@
 #include <stdc.h>
 #include <callout.h>
 
-#define CALLOUT_BUCKETS 5
+/* Note: If the difference in time between ticks is greater than the number of
+   buckets, some callouts may be skipped and/or called out-of-order! */
+#define CALLOUT_BUCKETS 10
 
 #define callout_set_active(c) ((c)->c_flags |= CALLOUT_ACTIVE)
 #define callout_clear_active(c) ((c)->c_flags &= ~CALLOUT_ACTIVE)
@@ -43,6 +45,11 @@ void callout_setup(callout_t *handle, realtime_t time, timeout_t fn,
 
   log("Add callout {%p} with wakeup at %lld.", handle, handle->c_time);
   TAILQ_INSERT_TAIL(&ci.heads[index], handle, c_link);
+}
+
+void callout_setup_relative(callout_t *handle, realtime_t time, timeout_t fn,
+                            void *arg) {
+  callout_setup(handle, time + ci.last, fn, arg);
 }
 
 void callout_stop(callout_t *handle) {
