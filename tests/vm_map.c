@@ -6,6 +6,7 @@
 #include <ktest.h>
 
 static int paging_on_demand_and_memory_protection_demo() {
+  vm_map_t *orig = get_user_vm_map();
   vm_map_activate(vm_map_new());
 
   vm_map_t *kmap = get_kernel_vm_map();
@@ -40,11 +41,16 @@ static int paging_on_demand_and_memory_protection_demo() {
   vm_map_dump(umap);
   vm_map_dump(kmap);
 
+  /* Restore original vm_map */
+  vm_map_activate(orig);
+
   log("Test passed.");
   return KTEST_SUCCESS;
 }
 
 static int findspace_demo() {
+  vm_map_t *orig = get_user_vm_map();
+
   vm_map_t *umap = vm_map_new();
   vm_map_activate(umap);
 
@@ -83,6 +89,9 @@ static int findspace_demo() {
 
   n = vm_map_findspace(umap, 0, 0x40000000, &t);
   ktest_assert(n == -ENOMEM);
+
+  /* Restore original vm_map */
+  vm_map_activate(orig);
 
   log("Test passed.");
   return KTEST_SUCCESS;
