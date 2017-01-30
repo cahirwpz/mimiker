@@ -38,7 +38,8 @@ int kernel_init(int argc, char **argv) {
 
   kprintf("[startup] kernel initialized\n");
 
-  thread_switch_to(thread_create("main", main, NULL));
+  thread_t *main_thread = thread_create("main", main, NULL);
+  sched_add(main_thread);
 
   sched_run();
 }
