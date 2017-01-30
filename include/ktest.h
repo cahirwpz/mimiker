@@ -20,6 +20,8 @@
    temporarily marking some tests while debugging the testing framework. */
 #define KTEST_FLAG_BROKEN 0x08
 
+typedef struct thread thread_t;
+
 typedef struct {
   const char test_name[KTEST_NAME_MAX];
   int (*test_func)();
@@ -54,5 +56,14 @@ void ktest_failure();
 
 /* This flag is set to 1 when a kernel test is in progress, and 0 otherwise. */
 extern int ktest_test_running_flag;
+
+/* Called when a user thread exits if a test is in progress. */
+void ktest_usermode_exit(thread_t *thread, int status);
+
+/* Tests may use this function to block until a usermode thread exits. If the
+   usermode thread returns a non-zero exit code, or if the specified timeout is
+   reached first, the test run will be considered a failure. If timeout_ms is
+   set to 0, there will be no time limit imposed. */
+void ktest_wait_for_user_thread(thread_t *thread, int timeout_ms);
 
 #endif /* !_SYS_KTEST_H_ */

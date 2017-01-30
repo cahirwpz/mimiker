@@ -1,6 +1,8 @@
 #include <ktest.h>
 #include <stdc.h>
 #include <sync.h>
+#include <thread.h>
+#include <callout.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
@@ -185,5 +187,42 @@ void ktest_main(const char *test) {
     int result = run_test(t);
     if (result == KTEST_SUCCESS)
       ktest_atomically_print_success();
+  }
+}
+
+void ktest_usermode_exit(thread_t *td, int status) {
+  assert(ktest_test_running_flag);
+
+  mtx_lock(&td->td_ktest_mtx);
+  td->td_ktest_status = status;
+  td->td_ktest_status_reported = 1;
+  cv_signal(&td->td_ktest_cv);
+  mtx_unlock(&td->td_ktest_mtx);
+}
+
+void ktest_usermode_timeout(void *arg) {
+  kprintf("Usermode timed out!\n");
+  ktest_failure();
+}
+
+void ktest_wait_for_user_thread(thread_t *td, int timeout_ms) {
+  callout_t timeout_callout;
+  if (timeout_ms > 0)
+    callout_setup_relative(&timeout_callout, timeout_ms, ktest_usermode_timeout,
+                           NULL);
+
+  mtx_lock(&td->td_ktest_mtx);
+  while (!td->td_ktest_status_reported) {
+    cv_wait(&td->td_ktest_cv, &td->td_ktest_mtx);
+  }
+  int status = td->td_ktest_status;
+  mtx_unlock(&td->td_ktest_mtx);
+
+  if (timeout_ms > 0)
+    callout_stop(&timeout_callout);
+
+  if (status != 0) {
+    kprintf("Usermode thread returned non-zero exit code (%d)!\n", status);
+    ktest_failure();
   }
 }

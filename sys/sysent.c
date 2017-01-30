@@ -4,6 +4,7 @@
 #include <thread.h>
 #include <vm_map.h>
 #include <vm_pager.h>
+#include <ktest.h>
 #include <vfs_syscalls.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
@@ -72,6 +73,9 @@ int sys_exit(thread_t *td, syscall_args_t *args) {
   int status = args->args[0];
 
   kprintf("[syscall] exit(%d)\n", status);
+
+  if (ktest_test_running_flag)
+    ktest_usermode_exit(td, status);
 
   thread_exit();
   __builtin_unreachable();
