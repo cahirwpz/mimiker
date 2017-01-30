@@ -28,6 +28,7 @@ static int test_vfs() {
   ktest_assert(error == 0);
   vnode_unref(dev_zero);
 
+  ktest_assert(dev_zero->v_usecnt == 1);
   /* Ask for the same vnode multiple times and check for correct v_usecnt. */
   error = vfs_lookup("/dev/zero", &dev_zero);
   ktest_assert(error == 0);
