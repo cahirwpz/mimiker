@@ -65,6 +65,7 @@ static int vnode_generic_write(file_t *f, thread_t *td, uio_t *uio) {
 
 static int vnode_generic_close(file_t *f, thread_t *td) {
   /* TODO: vnode closing is not meaningful yet. */
+  vnode_unref(f->f_vnode);
   return 0;
 }
 static int vnode_generic_getattr(file_t *f, thread_t *td, vattr_t *vattr) {
