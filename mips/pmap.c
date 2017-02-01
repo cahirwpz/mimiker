@@ -139,6 +139,23 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
   }
 }
 
+/* Check if PDE for given vaddr resides already in TLB */
+static void pmap_assure_pde_in_tlb(pmap_t *pmap, vm_addr_t vaddr) {
+  assert(pde_is_valid(PDE_OF(pmap, vaddr)));
+  
+  pde_t *pde = &PDE_OF(pmap, vaddr);
+  vm_addr_t ptf_start = PTF_ADDR_OF(vaddr);
+  tlbhi_t hi = ptf_start | pmap->asid;
+  tlblo_t lo0, lo1;
+
+  if (tlb_probe(hi, &lo0, &lo1) >= 0)
+    return;
+
+  lo0 = pde->lo;
+  lo1 = pde->lo | PTE_PFN(PAGESIZE);
+  tlb_overwrite_random(hi, lo0, lo1);
+}
+
 /* TODO: implement */
 void pmap_remove_pde(pmap_t *pmap, vm_addr_t vaddr);
 
@@ -172,6 +189,8 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
                          vm_prot_t prot) {
   if (!pde_is_valid(PDE_OF(pmap, vaddr)))
     pmap_add_pde(pmap, vaddr);
+  else
+    pmap_assure_pde_in_tlb(pmap, vaddr);
 
   pte_t *pte = &PTE_OF(pmap, vaddr);
   pte->lo = PTE_PFN(paddr) | vm_prot_map[prot] | global_of(vaddr);
@@ -332,7 +351,7 @@ void tlb_exception_handler(exc_frame_t *frame) {
      * range is not a subject to TLB based address translation. */
     assert(vaddr < PT_HOLE_START || vaddr >= PT_HOLE_END);
 
-#if 1
+#if 0
     /* Not needed anymore because of writing an entry into TLB in pmap_add_pde()
      * before initialization of PTEs */
     if (PT_BASE <= orig_vaddr && orig_vaddr < PT_BASE + PT_SIZE) {
