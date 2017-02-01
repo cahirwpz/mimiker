@@ -38,7 +38,7 @@ static int test_kernel_pmap() {
   ktest_assert(pmap_probe(pmap, vaddr1, vaddr2, VM_PROT_NONE));
   ktest_assert(pmap_probe(pmap, vaddr2, vaddr3, VM_PROT_READ));
 
-  pmap_reset(pmap);
+  pmap_unmap(pmap, vaddr2, vaddr3);
   pm_free(pg);
 
   log("Test passed.");
