@@ -251,5 +251,9 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   error = vfs_lookup(pathname, &v);
   if (error)
     return error;
-  return VOP_OPEN(v, flags, f);
+  int res = VOP_OPEN(v, flags, f);
+  /* Drop our reference to v. We received it from vfs_lookup, but we no longer
+     need it - file f keeps its own reference to v after open. */
+  vnode_unref(v);
+  return res;
 }
