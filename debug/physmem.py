@@ -121,3 +121,76 @@ class TLB:
                 continue
             rows.append(row)
         ptable(rows, fmt="rrll", header=True)
+
+class PageDirectoryEntries:
+
+    def dump_pdes(self, pmap):
+        rows = [["Index", "Virtual", "Physical"]]
+        pd = pmap['pde']
+        for idx in range(1024):
+            lo = pd[idx]['lo']
+            if not is_valid(lo):
+                continue
+            
+            virtual = as_hex(0xC000000 + idx * 8192)
+            physical = as_hex(ppn_of(lo))
+            flags = ("%c%c") % ('-D'[is_dirty(lo)], '-G'[is_global(lo)])
+            rows.append(["%d" % idx, virtual, physical, flags])
+
+        ptable(rows, fmt="rlll", header=True)
+
+class UserPageDirectoryEntries(PageDirectoryEntries):
+
+    def invoke(self):
+        self.dump_pdes(self.get_user_pmap())
+
+    def get_user_pmap(self):
+        return gdb.parse_and_eval("*get_user_pmap()")
+
+class KernelPageDirectoryEntries(PageDirectoryEntries):
+
+    def invoke(self):
+        self.dump_pdes(self.get_kernel_pmap())
+
+    def get_kernel_pmap(self):
+        return gdb.parse_and_eval("*get_kernel_pmap()")
+
+class PageTableEntries:
+
+    def dump_ptes(self, pmap):
+        rows = [["Index", "Virtual", "Physical"]]
+        pd = pmap['pde']
+        pt = pmap['pte']
+        for idx in range(1024):
+            if not is_valid(pd[idx]['lo']):
+                continue
+
+            for idx2 in range(1024):
+                index = idx * 1024 + idx2
+                lo = pt[index]['lo']
+                if not is_valid(lo):
+                    continue
+
+                virtual = as_hex(PAGESIZE * index)
+                physical = as_hex(ppn_of(lo))
+                flags = ("%c%c") % ('-D'[is_dirty(lo)], '-G'[is_global(lo)])
+                rows.append(["%d" % index, virtual, physical, flags])
+
+        ptable(rows, fmt="rlll", header=True)
+
+class UserPageTableEntries(PageTableEntries):
+
+    def invoke(self):
+        self.dump_ptes(self.get_user_pmap())
+
+    def get_user_pmap(self):
+        return gdb.parse_and_eval("*get_user_pmap()")
+
+class KernelPageTableEntries(PageTableEntries):
+
+    def invoke(self):
+        self.dump_ptes(self.get_kernel_pmap())
+
+    def get_kernel_pmap(self):
+        return gdb.parse_and_eval("*get_kernel_pmap()")
+
