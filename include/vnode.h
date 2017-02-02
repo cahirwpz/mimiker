@@ -51,6 +51,22 @@ typedef struct vnode {
   mtx_t v_mtx;
 } vnode_t;
 
+#if !defined(IGNORE_NEWLIB_COMPATIBILITY)
+/* This must match newlib's implementation! */
+typedef struct vattr {
+  dev_t st_dev;
+  ino_t st_ino;
+  mode_t st_mode;
+  nlink_t st_nlink;
+  uid_t st_uid;
+  gid_t st_gid;
+  dev_t st_rdev;
+  off_t st_size;
+  time_t st_atime;
+  time_t st_mtime;
+  time_t st_ctime;
+} vattr_t;
+#else
 typedef struct vattr {
   uint16_t va_mode; /* files access mode and type */
   size_t va_nlink;  /* number of references to file */
@@ -58,6 +74,7 @@ typedef struct vattr {
   gid_t va_gid;     /* owner group id */
   size_t va_size;   /* file size in bytes */
 } vattr_t;
+#endif
 
 static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
   return dv->v_ops->v_lookup(dv, name, vp);

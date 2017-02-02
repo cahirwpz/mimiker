@@ -38,6 +38,8 @@ static int test_crash() {
 
   thread_dump_all();
   sched_run();
+
+  return KTEST_FAILURE;
 }
 
-KTEST_ADD(crash, test_crash);
+KTEST_ADD(crash, test_crash, KTEST_FLAG_NORETURN);

@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <mutex.h>
 #include <thread.h>
+#include <vnode.h>
 
 static MALLOC_DEFINE(file_pool, "file pool");
 
@@ -68,8 +69,11 @@ static int badfo_close(file_t *f, struct thread *td) {
   return -EBADF;
 }
 
-fileops_t badfileops = {
-  .fo_read = badfo_read,
-  .fo_write = badfo_write,
-  .fo_close = badfo_close,
-};
+static int badfo_getattr(file_t *f, struct thread *td, vattr_t *buf) {
+  return -EBADF;
+}
+
+fileops_t badfileops = {.fo_read = badfo_read,
+                        .fo_write = badfo_write,
+                        .fo_close = badfo_close,
+                        .fo_getattr = badfo_getattr};

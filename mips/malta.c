@@ -8,7 +8,6 @@
 #include <pcpu.h>
 #include <stdc.h>
 #include <thread.h>
-#include <string.h>
 
 extern unsigned int __bss[];
 extern unsigned int __ebss[];

@@ -1,6 +1,7 @@
 #include <stdc.h>
 #include <exec.h>
 #include <ktest.h>
+#include <malloc.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
@@ -19,28 +20,15 @@ static void run_init(const char *program) {
   }
 }
 
-static void run_test(const char *test) {
-  log("Running test \"%s\"", test);
-  SET_DECLARE(tests, test_entry_t);
-  test_entry_t **ptr;
-  SET_FOREACH(ptr, tests) {
-    if (strcmp((*ptr)->test_name, test) == 0) {
-      (*ptr)->test_func();
-      return;
-    }
-  }
-  log("Test \"%s\" not found!", test);
-}
-
 int main() {
   const char *init = kenv_get("init");
   const char *test = kenv_get("test");
 
   if (init)
     run_init(init);
-  else if (test)
-    run_test(test);
-  else {
+  else if (test) {
+    ktest_main(test);
+  } else {
     /* This is a message to the user, so I intentionally use kprintf instead of
      * log. */
     kprintf("============\n");

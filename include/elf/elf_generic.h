@@ -29,7 +29,7 @@
 #ifndef _SYS_ELF_GENERIC_H_
 #define _SYS_ELF_GENERIC_H_ 1
 
-#include <sys/cdefs.h>
+#include <common.h>
 
 /*
  * Definitions of generic ELF names which relieve applications from

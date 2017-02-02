@@ -14,3 +14,4 @@ before_install:
  - cd ..
 script:
  - make
+ - ./run_tests.py --thorough
