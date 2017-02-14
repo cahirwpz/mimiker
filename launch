@@ -15,7 +15,7 @@ DEBUGGERS = {
     'gdb': '%(triplet)s-gdb %(kernel)s',
     'cgdb': 'cgdb -d %(triplet)s-gdb %(kernel)s',
     'ddd': 'ddd --debugger %(triplet)s-gdb %(kernel)s',
-    'gdbtui': '%(triplet)s-gdb -tui',
+    'gdbtui': '%(triplet)s-gdb -tui %(kernel)s',
     'emacs': 'emacsclient -c -e \'(gdb "%(triplet)s-gdb -i=mi %(kernel)s")\''
 }
 DEFAULT_DEBUGGER = 'cgdb'
