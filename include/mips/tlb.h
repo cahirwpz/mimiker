@@ -39,6 +39,10 @@
 
 #define PT_BASE MIPS_KSEG2_START
 
+#define TLB_WIRED_ENTRIES 2
+#define TLB_KERNEL_PDE_ENTRY 0
+#define TLB_USER_PDE_ENTRY 1
+
 void tlb_init();
 void tlb_print();
 

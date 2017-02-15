@@ -25,6 +25,9 @@
 #define PT_ENTRIES (PD_ENTRIES * PTF_ENTRIES)
 #define PT_SIZE (PT_ENTRIES * sizeof(pte_t))
 
+#define KERNEL_PD_BASE (PT_BASE + PT_SIZE)
+#define USER_PD_BASE (KERNEL_PD_BASE + PD_SIZE)
+
 #define PTE_OF(pmap, addr) ((pmap)->pte[PTE_INDEX(addr)])
 #define PDE_OF(pmap, addr) ((pmap)->pde[PDE_INDEX(addr)])
 #define PTE_ADDR_OF(vaddr) (PT_BASE + PTE_INDEX(vaddr) * sizeof(pte_t))
@@ -64,20 +67,58 @@ static asid_t get_new_asid() {
     panic("Out of asids!");
 }
 
+static void pmap_setup_pd_tlb_entry(pmap_t * pmap)
+{
+  tlbhi_t hi = (tlbhi_t)pmap->pde | pmap->asid;
+  tlblo_t flags = PTE_VALID | PTE_DIRTY;
+  tlblo_t lo0 = PTE_PFN(pmap->pde_page->paddr) | flags;
+  tlblo_t lo1 = lo0 | PTE_PFN(PAGESIZE);
+
+  tlb_overwrite_random(hi, lo0, lo1);
+}
+
+static void pmap_setup_pd_wired_tlb_entry(pmap_t * pmap) {
+  bool kernel_setup = (pmap == & kernel_pmap);
+
+  tlbhi_t hi = (tlbhi_t)pmap->pde | pmap->asid;
+  tlblo_t flags = PTE_VALID | PTE_DIRTY | (kernel_setup ? PTE_GLOBAL : 0);
+  tlblo_t lo0 = PTE_PFN(pmap->pde_page->paddr) | flags;
+  tlblo_t lo1 = lo0 | PTE_PFN(PAGESIZE);
+
+  unsigned index = kernel_setup ? TLB_KERNEL_PDE_ENTRY : TLB_USER_PDE_ENTRY;
+
+  tlb_write_index(hi, lo0, lo1, index);
+}
+
 static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
+  bool kernel_setup = (pmap == &kernel_pmap);
+
   pmap->pte = (pte_t *)PT_BASE;
   pmap->pde_page = pm_alloc(2);
-  pmap->pde = (pde_t *)pmap->pde_page->vaddr;
+  pmap->pde = kernel_setup
+            ? (pde_t *)KERNEL_PD_BASE
+            : (pde_t *)USER_PD_BASE;
   pmap->start = start;
   pmap->end = end;
   pmap->asid = get_new_asid();
+
+  if (kernel_setup)
+    pmap_setup_pd_wired_tlb_entry(pmap);
+  else
+    pmap_setup_pd_tlb_entry(pmap);
+
   log("Page directory table allocated at %08lx", (vm_addr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
+
+  asid_t asid_bkup = PTE_ASID(mips32_get_c0(C0_ENTRYHI));
+  mips32_set_c0(C0_ENTRYHI, pmap->asid);
 
   for (int i = 0; i < PD_ENTRIES; i++) {
     pmap->pde[i].lo = global_of(i * PTF_ENTRIES * PAGESIZE);
     pmap->pde[i].unused = 0;
   }
+
+  mips32_set_c0(C0_ENTRYHI, asid_bkup);
 }
 
 /* TODO: remove all mappings from TLB, evict related cache lines */
@@ -98,7 +139,10 @@ void pmap_init() {
   kmalloc_init(mpool);
   kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
 
-  pmap_setup(&kernel_pmap, PMAP_KERNEL_BEGIN + PT_SIZE, PMAP_KERNEL_END);
+  vm_addr_t setup_from = (vm_addr_t)(PMAP_KERNEL_BEGIN + PT_SIZE + 2 * PD_SIZE);
+  vm_addr_t setup_to = (vm_addr_t)PMAP_KERNEL_END;
+
+  pmap_setup(&kernel_pmap, setup_from, setup_to);
 }
 
 pmap_t *pmap_new() {
@@ -246,6 +290,7 @@ bool pmap_probe(pmap_t *pmap, vm_addr_t start, vm_addr_t end, vm_prot_t prot) {
   tlblo_t expected = vm_prot_map[prot];
 
   while (start < end) {
+    pmap_assure_pde_in_tlb(pmap, start);
     tlbhi_t hi = PTE_VPN2(start) | PTE_ASID(pmap->asid);
     tlblo_t lo0, lo1;
     int tlb_idx = tlb_probe(hi, &lo0, &lo1);
@@ -310,9 +355,12 @@ void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
  */
 
 void pmap_activate(pmap_t *pmap) {
+  assert(pmap != &kernel_pmap);
   critical_enter();
   PCPU_GET(curpmap) = pmap;
   mips32_set_c0(C0_ENTRYHI, pmap ? pmap->asid : 0);
+  if (pmap)
+    pmap_setup_pd_wired_tlb_entry(pmap);
   /* thanks to ASIDs we can avoid TLB flushes */
   critical_leave();
 }

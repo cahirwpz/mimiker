@@ -5,9 +5,7 @@
 
 void tlb_init() {
   tlb_invalidate_all();
-  /* Shift C0_CONTEXT left, because we shift it right in tlb_refill_handler.
-   * This is little hack to make page table sized 4MB, but causes us to
-   * keep PTE in KSEG2. */
+  mips32_set_c0(C0_WIRED, TLB_WIRED_ENTRIES);
   mips32_set_c0(C0_CONTEXT, PT_BASE);
 }
 
