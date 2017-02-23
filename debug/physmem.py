@@ -17,6 +17,11 @@ def is_valid(lo):
 def is_dirty(lo):
     return bool(lo & 4)
 
+def is_referenced(ext_flags):
+    return bool(ext_flags & 0x00000020)
+
+def is_modified(ext_flags):
+    return bool(ext_flags & 0x00000040)
 
 def vpn_of(hi):
     return hi & 0xffffe000
@@ -158,7 +163,7 @@ class KernelPageDirectoryEntries(PageDirectoryEntries):
 class PageTableEntries:
 
     def dump_ptes(self, pmap):
-        rows = [["Index", "Virtual", "Physical"]]
+        rows = [["Index", "Virtual", "Physical", "", "Accessed"]]
         pd = pmap['pde']
         pt = pmap['pte']
         for idx in range(1024):
@@ -168,15 +173,19 @@ class PageTableEntries:
             for idx2 in range(1024):
                 index = idx * 1024 + idx2
                 lo = pt[index]['lo']
-                if not is_valid(lo):
+                ext_flags = pt[index]['ext_flags']
+
+                if not is_valid(lo) and not is_valid(ext_flags):
                     continue
 
                 virtual = as_hex(PAGESIZE * index)
                 physical = as_hex(ppn_of(lo))
-                flags = ("%c%c") % ('-D'[is_dirty(lo)], '-G'[is_global(lo)])
-                rows.append(["%d" % index, virtual, physical, flags])
+                flags = ("%c%c") % ('-D'[is_dirty(ext_flags)], '-G'[is_global(ext_flags)])
+                accessed = ("%s/%s") % (("Ref" if is_referenced(ext_flags) else "---"),
+                                        ("Mod" if is_modified(ext_flags)   else "---"))
+                rows.append(["%d" % index, virtual, physical, flags, accessed])
 
-        ptable(rows, fmt="rlll", header=True)
+        ptable(rows, fmt="rllll", header=True)
 
 class UserPageTableEntries(PageTableEntries):
 
@@ -193,4 +202,3 @@ class KernelPageTableEntries(PageTableEntries):
 
     def get_kernel_pmap(self):
         return gdb.parse_and_eval("*get_kernel_pmap()")
-

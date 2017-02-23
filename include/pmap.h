@@ -4,6 +4,9 @@
 #include <vm.h>
 #include <queue.h>
 
+#define PTE_EXT_MODIFIED    0x00000040
+#define PTE_EXT_REFERENCED  0x00000020
+
 typedef uint8_t asid_t;
 
 typedef struct pde {
@@ -13,7 +16,7 @@ typedef struct pde {
 
 typedef struct pte {
   uint32_t lo;
-  uint32_t unused;
+  uint32_t ext_flags;
 } pte_t;
 
 typedef struct pmap {
@@ -40,6 +43,12 @@ void pmap_activate(pmap_t *pmap);
 pmap_t *get_kernel_pmap();
 pmap_t *get_user_pmap();
 
-void tlb_exception_handler();
+typedef struct exc_frame exc_frame_t;
+
+void tlb_exception_handler(exc_frame_t *frame);
+void tlb_load_exception_handler(exc_frame_t *frame);
+void tlb_store_exception_handler(exc_frame_t *frame);
+void tlb_modified_exception_handler(exc_frame_t *frame);
+
 
 #endif /* _PMAP_H_ */

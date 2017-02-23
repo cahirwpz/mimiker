@@ -122,6 +122,8 @@ finalize:
  */
 
 void *general_exception_table[32] = {
-    [EXC_MOD] = tlb_exception_handler, [EXC_TLBL] = tlb_exception_handler,
-    [EXC_TLBS] = tlb_exception_handler, [EXC_SYS] = syscall_handler,
+    [EXC_MOD] = tlb_modified_exception_handler,
+    [EXC_TLBL] = tlb_load_exception_handler,
+    [EXC_TLBS] = tlb_store_exception_handler,
+    [EXC_SYS] = syscall_handler,
 };

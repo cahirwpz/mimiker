@@ -11,6 +11,7 @@ SOURCES_C = \
 	physmem.c \
 	pmap.c \
 	producer_consumer.c \
+	referenced_modified_test.c \
 	rtc.c \
 	sched.c \
 	strtol.c \

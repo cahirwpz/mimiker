@@ -57,6 +57,14 @@ static tlblo_t global_of(vm_addr_t vaddr) {
   return in_kernel_space(vaddr) ? PTE_GLOBAL : 0;
 }
 
+static bool is_referenced(pte_t * pte) {
+  return (pte->ext_flags & PTE_EXT_REFERENCED);
+}
+
+static bool is_modified(pte_t * pte) {
+  return (pte->ext_flags * PTE_EXT_MODIFIED);
+}
+
 static pmap_t kernel_pmap;
 static asid_t asid_counter;
 
@@ -65,16 +73,6 @@ static asid_t get_new_asid() {
     return asid_counter++; /* TODO this needs to be atomic increment */
   else
     panic("Out of asids!");
-}
-
-static void pmap_setup_pd_tlb_entry(pmap_t * pmap)
-{
-  tlbhi_t hi = (tlbhi_t)pmap->pde | pmap->asid;
-  tlblo_t flags = PTE_VALID | PTE_DIRTY;
-  tlblo_t lo0 = PTE_PFN(pmap->pde_page->paddr) | flags;
-  tlblo_t lo1 = lo0 | PTE_PFN(PAGESIZE);
-
-  tlb_overwrite_random(hi, lo0, lo1);
 }
 
 static void pmap_setup_pd_wired_tlb_entry(pmap_t * pmap) {
@@ -102,27 +100,29 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   pmap->end = end;
   pmap->asid = get_new_asid();
 
-  if (kernel_setup)
-    pmap_setup_pd_wired_tlb_entry(pmap);
-  else
-    pmap_setup_pd_tlb_entry(pmap);
-
   log("Page directory table allocated at %08lx", (vm_addr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
 
-  asid_t asid_bkup = PTE_ASID(mips32_get_c0(C0_ENTRYHI));
-  mips32_set_c0(C0_ENTRYHI, pmap->asid);
+  /* Initialize PD using addresses from Kseg0 (to bypass TLB translation) */
+  pde_t * pde = (pde_t *)pmap->pde_page->vaddr;
 
   for (int i = 0; i < PD_ENTRIES; i++) {
-    pmap->pde[i].lo = global_of(i * PTF_ENTRIES * PAGESIZE);
-    pmap->pde[i].unused = 0;
+    pde[i].lo = global_of(i * PTF_ENTRIES * PAGESIZE);
+    pde[i].unused = 0;
   }
-
-  mips32_set_c0(C0_ENTRYHI, asid_bkup);
 }
 
 /* TODO: remove all mappings from TLB, evict related cache lines */
+/* Thanks to ASIDs we don't have to remove those entries,
+ * Just make sure that the pmap is no longer the active one */
 void pmap_reset(pmap_t *pmap) {
+  critical_enter();
+  if (PCPU_GET(curpmap) == pmap) {
+    mips32_set_c0(C0_ENTRYHI, 0);
+    PCPU_SET(curpmap, 0);
+  }
+  critical_leave();
+
   while (!TAILQ_EMPTY(&pmap->pte_pages)) {
     vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
     TAILQ_REMOVE(&pmap->pte_pages, pg, pt.list);
@@ -143,6 +143,7 @@ void pmap_init() {
   vm_addr_t setup_to = (vm_addr_t)PMAP_KERNEL_END;
 
   pmap_setup(&kernel_pmap, setup_from, setup_to);
+  pmap_setup_pd_wired_tlb_entry(&kernel_pmap);
 }
 
 pmap_t *pmap_new() {
@@ -180,7 +181,7 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
   pte_t *pte = (pte_t *)PTF_ADDR_OF(vaddr);
   for (int i = 0; i < PTF_ENTRIES; i++) {
     pte[i].lo = PTE_GLOBAL;
-    pte[i].unused = 0;
+    pte[i].ext_flags = 0;
   }
 }
 
@@ -238,8 +239,8 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
     pmap_assure_pde_in_tlb(pmap, vaddr);
 
   pte_t *pte = &PTE_OF(pmap, vaddr);
-  pte->lo = PTE_PFN(paddr) | vm_prot_map[prot] | global_of(vaddr);
-  pte->unused = 0;
+  pte->lo = PTE_PFN(paddr) | global_of(vaddr);
+  pte->ext_flags = vm_prot_map[prot];
 
   log("Add mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
       (vm_addr_t)pte);
@@ -252,7 +253,7 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
 static void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
   pte_t *pte = &PTE_OF(pmap, vaddr);
   pte->lo = 0;
-  pte->unused = 0;
+  pte->ext_flags = 0;
 
   log("Remove mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
       (vm_addr_t)pte);
@@ -265,9 +266,18 @@ static void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
 
 /* TODO: what about caches? */
 static void pmap_change_pte(pmap_t *pmap, vm_addr_t vaddr, vm_prot_t prot) {
+  pmap_assure_pde_in_tlb(pmap, vaddr);
   pte_t *pte = &PTE_OF(pmap, vaddr);
-  pte->lo = (pte->lo & ~PTE_PROT_MASK) | vm_prot_map[prot];
-  pte->unused = 0;
+
+  tlblo_t prot_mapped = vm_prot_map[prot];
+
+  pte->lo &= ~PTE_PROT_MASK;
+  pte->ext_flags = (pte->ext_flags & ~PTE_PROT_MASK) | prot_mapped;
+
+  if (is_referenced(pte) && (pte->ext_flags & PTE_VALID))
+    pte->lo |= PTE_VALID;
+  if (is_modified(pte) && (pte->ext_flags & PTE_DIRTY))
+    pte->lo |= PTE_DIRTY;
 
   log("Change protection bits for page %08lx (PTE at %08lx)",
       (vaddr & PTE_MASK), (vm_addr_t)&PTE_OF(pmap, vaddr));
@@ -294,17 +304,17 @@ bool pmap_probe(pmap_t *pmap, vm_addr_t start, vm_addr_t end, vm_prot_t prot) {
     tlbhi_t hi = PTE_VPN2(start) | PTE_ASID(pmap->asid);
     tlblo_t lo0, lo1;
     int tlb_idx = tlb_probe(hi, &lo0, &lo1);
-    tlblo_t pte_lo =
-      pde_is_valid(PDE_OF(pmap, start)) ? PTE_OF(pmap, start).lo : 0;
+    pte_t pte =
+      pde_is_valid(PDE_OF(pmap, start)) ? PTE_OF(pmap, start) : (pte_t){0, 0};
 
     if (tlb_idx >= 0) {
       tlblo_t lo = PTE_LO_INDEX_OF(start) ? lo1 : lo0;
-      if (lo != pte_lo)
+      if (lo != pte.lo)
         panic("TLB (%08x) vs. PTE (%08x) mismatch for virtual address %08lx!",
-              lo, pte_lo, start);
+              lo, (unsigned int)pte.lo, start);
     }
 
-    if ((pte_lo & PTE_PROT_MASK) != expected)
+    if (((pte.lo | pte.ext_flags) & PTE_PROT_MASK) != expected)
       return false;
 
     start += PAGESIZE;
@@ -381,73 +391,9 @@ pmap_t *get_active_pmap_by_addr(vm_addr_t addr) {
   return NULL;
 }
 
-void tlb_exception_handler(exc_frame_t *frame) {
+void tlb_fault(exc_frame_t *frame) {
   thread_t *td = thread_self();
 
-  int code = (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
-  vm_addr_t vaddr = frame->badvaddr;
-
-  log("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
-      frame->pc, vaddr);
-
-  /* If the fault was in virtual pt range it means it's time to refill */
-  if (PT_BASE <= vaddr && vaddr < PT_BASE + PT_SIZE) {
-    uint32_t index = (vaddr - PT_BASE) / PTF_SIZE;
-    /* Restore address that caused a TLB miss into virtualized page table. */
-    vm_addr_t orig_vaddr = (vaddr - PT_BASE) / sizeof(pte_t) * PAGESIZE;
-
-    /* Page table for KSEG0 and KSEG1 must not be queried, cause the address
-     * range is not a subject to TLB based address translation. */
-    assert(vaddr < PT_HOLE_START || vaddr >= PT_HOLE_END);
-
-#if 0
-    /* Not needed anymore because of writing an entry into TLB in pmap_add_pde()
-     * before initialization of PTEs */
-    if (PT_BASE <= orig_vaddr && orig_vaddr < PT_BASE + PT_SIZE) {
-      /*
-       * TLB refill exception can occur while C0_STATUS.EXL is set, if so then
-       * TLB miss went directly to tlb_exception_handler instead of tlb_refill.
-       */
-      vaddr = orig_vaddr;
-      index = (vaddr - PT_BASE) / PTF_SIZE;
-      orig_vaddr = (vaddr - PT_BASE) / sizeof(pte_t) * PAGESIZE;
-    }
-#else
-    assert(PT_BASE > orig_vaddr || orig_vaddr >= PT_BASE + PT_SIZE);
-#endif
-
-    pmap_t *pmap = get_active_pmap_by_addr(orig_vaddr);
-    if (!pmap) {
-      log("Address %08lx not mapped by any active pmap!", orig_vaddr);
-      goto fault;
-    }
-    if (pde_is_valid(pmap->pde[index])) {
-      log("TLB refill for page table fragment %08lx", vaddr & PTE_MASK);
-      vm_addr_t ptf_start = PT_BASE + index * PTF_SIZE;
-
-      /* Both ENTRYLO0 and ENTRYLO1 must have G bit set for address translation
-       * to skip ASID check. */
-      tlb_overwrite_random(ptf_start | pmap->asid,
-                           pmap->pde[index].lo,
-                           pmap->pde[index].lo | PTE_PFN(PAGESIZE));
-      return;
-    }
-
-    /* We needed to refill TLB, but the address is not mapped yet!
-     * Forward the request to pager */
-    vaddr = orig_vaddr;
-  }
-
-  vm_map_t *map = get_active_vm_map_by_addr(vaddr);
-  if (!map) {
-    log("No virtual address space defined for %08lx!", vaddr);
-    goto fault;
-  }
-  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
-  if (vm_page_fault(map, vaddr, access) == 0)
-    return;
-
-fault:
   /* handle copyin / copyout faults */
   if (td->td_onfault) {
     frame->pc = td->td_onfault;
@@ -457,4 +403,299 @@ fault:
   } else {
     thread_exit();
   }
+}
+
+/* Returns true on success */
+bool tlb_page_fault(vm_addr_t vaddr, vm_prot_t access) {
+  vm_map_t * map = get_active_vm_map_by_addr(vaddr);
+  if (!map) {
+    log("No virtual address space definde for $%08lx!", vaddr);
+    return false;
+  }
+  if (vm_page_fault(map, vaddr, access) == 0)
+    return true;
+
+  return false;
+}
+
+/* Returns false if page fault is needed
+ * vaddr - original page virtual address */
+bool tlb_pde_refill(exc_frame_t *frame, vm_addr_t orig_vaddr) {
+  pmap_t * pmap = get_active_pmap_by_addr(orig_vaddr);
+  if (!pmap) {
+    log("Address $%08lx not mapped by any active pmap!", orig_vaddr);
+    tlb_fault(frame);
+  }
+
+  pde_t * pde = &PDE_OF(pmap, orig_vaddr);
+  if (pde_is_valid(*pde)) {
+    log("TLB refill for page table fragment $%08lx", orig_vaddr & PTE_MASK);
+    vm_addr_t ptf_start = PTF_ADDR_OF(orig_vaddr);
+
+    /* Both ENTRYLO0 and ENTRYLO1 must have G bit set for address translation
+     * to skip ASID check. */
+    tlb_overwrite_random(ptf_start | pmap->asid,
+                         pde->lo,
+                         pde->lo | PTE_PFN(PAGESIZE));
+    return true;
+  }
+
+  return false;
+}
+
+/* Returns false if page fault is needed */
+bool tlb_pte_refill(exc_frame_t *frame, vm_addr_t vaddr) {
+  pmap_t * pmap = get_active_pmap_by_addr(vaddr);
+  if (!pmap) {
+    log("Address $%08lx not mapped by any active pmap!", vaddr);
+    tlb_fault(frame);
+  }
+
+  if (pde_is_valid(PDE_OF(pmap, vaddr))) {
+    pmap_assure_pde_in_tlb(pmap, vaddr);
+
+    unsigned pte_idx = PTE_INDEX(vaddr);
+    pte_t * pte = &pmap->pte[pte_idx];
+
+    if (pte->ext_flags & PTE_VALID && !(pte->lo & PTE_VALID)) {
+      /* Mark page as referenced */
+      pte->lo |= PTE_VALID;
+      pte->ext_flags |= PTE_EXT_REFERENCED;
+    }
+    if (pte->lo & PTE_VALID)
+    {
+      tlbhi_t hi = mips32_get_c0(C0_ENTRYHI);
+      tlblo_t lo0 = pmap->pte[pte_idx & ~1].lo;
+      tlblo_t lo1 = pmap->pte[pte_idx | 1].lo;
+      tlb_overwrite_random(hi, lo0, lo1);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void tlb_load_exception_handler(exc_frame_t *frame) {
+  assert(frame);
+
+  vm_addr_t vaddr = (vm_addr_t)frame->badvaddr;
+
+  /* Page table for KSEG0 and KSEG1 must not be queried, cause the address
+   * range is not a subject to TLB based address translation. */
+  assert(vaddr < PT_HOLE_START || vaddr >= PT_HOLE_END);
+
+  /* Page directory must not be queried, cause its TLB entries
+   * are supposed to be wired */
+  assert(vaddr < KERNEL_PD_BASE || vaddr >= KERNEL_PD_BASE + PD_SIZE);
+  assert(vaddr < USER_PD_BASE || vaddr >= USER_PD_BASE + PD_SIZE);
+
+  /* First check if TLB contains any entry associated with desired address */
+  tlblo_t lo0, lo1;
+  tlbhi_t hi = mips32_get_c0(C0_ENTRYHI);
+  int tlb_idx = tlb_probe(hi, &lo0, &lo1);
+
+  if (tlb_idx >= 0) {
+    /* If returned TLB index is not negative this means
+     * that an entry is found but is invalid.
+     * Check if it is indeed invalid or is only
+     * marked as such in order to detect page references. */
+
+    assert(tlb_idx >= TLB_WIRED_ENTRIES);
+
+    if (vaddr >= PT_BASE && vaddr < PT_BASE + PT_SIZE) {
+      /* We don't accept invalid TLB entries for page table fragments */
+      vm_addr_t ptf_start = PTF_ADDR_OF(vaddr);
+      log("Found an invalid TLB entry for page table fragment at $%08lx!", ptf_start);
+      tlb_fault(frame);
+      return;
+    }
+
+    pmap_t * pmap = get_active_pmap_by_addr(vaddr);
+    if (!pmap) {
+      log("Address $%08lx not mapped by any active pmap!", vaddr);
+      tlb_fault(frame);
+      return;
+    }
+
+    /* Check if respective PDE is valid */
+    if (pde_is_valid(PDE_OF(pmap, vaddr))) {
+      /* Check if respective PTE is valid */
+      pmap_assure_pde_in_tlb(pmap, vaddr);
+      unsigned pte_idx = PTE_INDEX(vaddr);
+      pte_t * pte = &pmap->pte[pte_idx];
+      if (pte->ext_flags & PTE_VALID) {
+        /* PTE entry is valid. Mark page as referenced and update TLB */
+        pte->lo |= PTE_VALID;
+        pte->ext_flags |= PTE_EXT_REFERENCED;
+
+        lo0 = pmap->pte[pte_idx & ~1].lo;
+        lo1 = pmap->pte[pte_idx | 1].lo;
+
+        tlb_write_index(hi, lo0, lo1, (unsigned)tlb_idx);
+        return;
+      }
+    }
+
+    /* Otherwise, page fault */
+    if (tlb_page_fault(vaddr, VM_PROT_READ))
+      return;
+
+  } else {
+    /* Otherwise, no TLB entry associated with vaddr is found
+     * This means that either vaddr is from the PT range and
+     * TLB refill occured for page table fragment
+     * or TLB refill occured while handling an interrupt/exception */
+
+    if (vaddr >= PT_BASE && vaddr < PT_BASE + PT_SIZE) {
+      /* TLB refill for page table fragment
+       * Assure PDE is valid and update it
+       * Do not overwrite PTE, it will be done in subsequent PTE Refill */
+
+      /* Restore the original address */
+      vm_addr_t orig_vaddr = (vaddr - PT_BASE) / sizeof(pte_t) * PAGESIZE;
+      assert(PT_BASE > orig_vaddr || orig_vaddr >= PT_BASE + PT_SIZE);
+
+      if (tlb_pde_refill(frame, orig_vaddr))
+        return;
+
+      /* Otherwise, page fault */
+      if (tlb_page_fault(orig_vaddr, VM_PROT_READ))
+        return;
+
+    } else {
+      /* TLB refill during an exception/interrupt 
+       * Do not allow page faults here */
+
+      if (tlb_pte_refill(frame, vaddr))
+        return;
+
+      log("Page fault while in an interrupt/exception!");
+    }
+  }
+
+  tlb_fault(frame);
+}
+
+void tlb_store_exception_handler(exc_frame_t *frame) {
+  assert(frame);
+
+  vm_addr_t vaddr = (vm_addr_t)frame->badvaddr;
+
+  /* Page table for KSEG0 and KSEG1 must not be queried, cause the address
+   * range is not a subject to TLB based address translation. */
+  assert(vaddr < PT_HOLE_START || vaddr >= PT_HOLE_END);
+
+  /* Page directory must not be queried, cause its TLB entries
+   * are supposed to be wired */
+  assert(vaddr < KERNEL_PD_BASE || vaddr >= KERNEL_PD_BASE + PD_SIZE);
+  assert(vaddr < USER_PD_BASE || vaddr >= USER_PD_BASE + PD_SIZE);
+
+  /* First check if TLB contains any entry associated with desired address */
+  tlblo_t lo0, lo1;
+  tlbhi_t hi = mips32_get_c0(C0_ENTRYHI);
+  int tlb_idx = tlb_probe(hi, &lo0, &lo1);
+
+  if (tlb_idx >= 0) {
+    /* If returned TLB index is not negative this means
+     * that an entry is found but is invalid.
+     * Check if it is indeed invalid or is only
+     * marked as such in order to detect page references. */
+
+    assert(tlb_idx >= TLB_WIRED_ENTRIES);
+
+    if (vaddr >= PT_BASE && vaddr < PT_BASE + PT_SIZE) {
+      /* We don't accept invalid TLB entries for page table fragments */
+      vm_addr_t ptf_start = PTF_ADDR_OF(vaddr);
+      log("Found an invalid TLB entry for page table fragment at $%08lx!", ptf_start);
+      tlb_fault(frame);
+      return;
+    }
+
+    pmap_t * pmap = get_active_pmap_by_addr(vaddr);
+    if (!pmap) {
+      log("Address $%08lx not mapped by any active pmap!", vaddr);
+      tlb_fault(frame);
+      return;
+    }
+
+    /* Check if respective PDE is valid */
+    if (pde_is_valid(PDE_OF(pmap, vaddr))) {
+      /* Check if respective PTE is valid and writable */
+      pmap_assure_pde_in_tlb(pmap, vaddr);
+      unsigned pte_idx = PTE_INDEX(vaddr);
+      pte_t * pte = &pmap->pte[pte_idx];
+      if (pte->ext_flags & PTE_VALID && pte->ext_flags & PTE_DIRTY) {
+        /* PTE entry is valid and dirty.
+         * Mark page as referenced and modified, then update TLB */
+        pte->lo |= PTE_VALID | PTE_DIRTY;
+        pte->ext_flags |= PTE_EXT_REFERENCED | PTE_EXT_MODIFIED;
+
+        lo0 = pmap->pte[pte_idx & ~1].lo;
+        lo1 = pmap->pte[pte_idx | 1].lo;
+
+        tlb_write_index(hi, lo0, lo1, (unsigned)tlb_idx);
+        return;
+      }
+    }
+
+    /* Otherwise, page fault */
+    if (tlb_page_fault(vaddr, VM_PROT_READ))
+      return;
+
+  } else {
+    /* Otherwise, no TLB entry associated with vaddr is found
+     * This means that either vaddr is from the PT range and
+     * TLB refill occured for page table fragment (which is not possible)
+     * or TLB refill occured while handling an interrupt/exception */
+
+    assert(vaddr < PT_BASE || vaddr >= PT_BASE + PT_SIZE);
+    /* TLB refill during an exception/interrupt 
+     * Do not allow page faults here */
+
+    if (tlb_pte_refill(frame, vaddr))
+      return;
+
+    log("Page fault while in an interrupt/exception!");
+  }
+
+  tlb_fault(frame);
+}
+
+void tlb_modified_exception_handler(exc_frame_t *frame) {
+  assert(frame);
+  /* We are sure here that respective TLB entry resides in TLB */
+
+  vm_addr_t vaddr = (vm_addr_t)frame->badvaddr;
+
+  /* First get TLB index containing an entry associated with desired address */
+  tlblo_t lo0, lo1;
+  tlbhi_t hi = mips32_get_c0(C0_ENTRYHI);
+  int tlb_idx = tlb_probe(hi, &lo0, &lo1);
+  assert(tlb_idx >= 0);
+
+  pmap_t * pmap = get_active_pmap_by_addr(vaddr);
+
+  pmap_assure_pde_in_tlb(pmap, vaddr);
+
+  /* Check if respective PTE is indeed dirty
+   * Otherwise, page fault */
+
+  unsigned pte_idx = PTE_INDEX(vaddr);
+  pte_t * pte = &pmap->pte[pte_idx];
+  if (pte->ext_flags & PTE_DIRTY) {
+    /* PTE entry is dirty. Mark page as modified and update TLB */
+    pte->lo |= PTE_DIRTY;
+    pte->ext_flags |= PTE_EXT_MODIFIED;
+
+    lo0 = pmap->pte[pte_idx & ~1].lo;
+    lo1 = pmap->pte[pte_idx | 1].lo;
+
+    tlb_write_index(hi, lo0, lo1, (unsigned)tlb_idx);
+    return;
+  }
+
+  if (tlb_page_fault(vaddr, VM_PROT_WRITE))
+    return;
+
+  tlb_fault(frame);
 }
