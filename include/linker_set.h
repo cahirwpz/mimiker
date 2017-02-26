@@ -1,7 +1,7 @@
 #ifndef _SYS_LINKER_SET_H_
 #define _SYS_LINKER_SET_H_
 
-#include <sys/cdefs.h>
+#include <common.h>
 
 /* The implementation mostly follows DragonFly BSD's 'sys/linker_set.h' */
 
@@ -13,8 +13,8 @@
 #define SET_ENTRY(set, sym)                                                    \
   __GLOBL(__CONCAT(__start_set_, set));                                        \
   __GLOBL(__CONCAT(__stop_set_, set));                                         \
-  static void const *const __set_##set##_sym_##sym                             \
-    __section("set_" #set) __used = &sym
+  static void const *const __set_##set##_sym_##sym __section(set_##set)        \
+    __used = &sym
 
 #define SET_DECLARE(set, ptype)                                                \
   extern ptype *__CONCAT(__start_set_, set);                                   \

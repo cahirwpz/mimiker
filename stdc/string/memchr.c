@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-#include <string.h>
+#include <stdc.h>
 
 void *
 memchr(const void *s, int c, size_t n)

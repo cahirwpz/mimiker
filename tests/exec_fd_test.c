@@ -10,7 +10,8 @@ static int test_exec_fd_test() {
 
   do_exec(&exec_args);
 
-  return 0;
+  return KTEST_FAILURE;
 }
 
-KTEST_ADD(exec_fd_test, test_exec_fd_test);
+KTEST_ADD(exec_fd_test, test_exec_fd_test,
+                KTEST_FLAG_NORETURN | KTEST_FLAG_USERMODE);

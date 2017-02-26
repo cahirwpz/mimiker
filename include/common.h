@@ -6,14 +6,30 @@
 #include <stdbool.h>     /* bool, true, false */
 #include <stdalign.h>    /* alignof, alignas */
 #include <stdnoreturn.h> /* noreturn */
-#include <sys/types.h>   /* provided by the toolchain */
-#include <sys/cdefs.h>   /* ditto */
 
 typedef unsigned long vm_addr_t;
 typedef unsigned long pm_addr_t;
 
+typedef long off_t;
+typedef long ssize_t;
+typedef int32_t pid_t;
+typedef uint32_t dev_t;
+typedef uint32_t time_t;
+typedef uint16_t uid_t;
+typedef uint16_t gid_t;
+typedef uint16_t mode_t;
+typedef uint16_t nlink_t;
+typedef uint32_t ino_t;
+
+/* Generic preprocessor macros */
+#define __STRING(x) #x
+#define __CONCAT1(x, y) x##y
+#define __CONCAT(x, y) __CONCAT1(x, y)
+
 /* Wrapper for various GCC attributes */
 #define __nonnull(x) __attribute__((__nonnull__(x)))
+#define __section(s) __attribute__((__section__(#s)))
+#define __used __attribute__((used))
 
 /* Macros for counting and rounding. */
 #ifndef howmany

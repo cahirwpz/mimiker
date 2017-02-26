@@ -91,7 +91,7 @@ static int test_sched() {
   thread_dump_all();
 
   sched_run();
-  return 0;
+  return KTEST_FAILURE;
 }
 
-KTEST_ADD(sched, test_sched);
+KTEST_ADD(sched, test_sched, KTEST_FLAG_NORETURN);
