@@ -1,31 +1,20 @@
 #include <stdc.h>
 #include <callout.h>
 #include <ktest.h>
-#include <mutex.h>
-#include <condvar.h>
-
-static mtx_t foo_mtx;
-static condvar_t foo_cv;
+#include <sleepq.h>
 
 /* This test verifies whether callouts work at all. */
 static void callout_simple(void *arg) {
   kprintf("The callout got executed!\n");
 
-  mtx_lock(&foo_mtx);
-  cv_signal(&foo_cv);
-  mtx_unlock(&foo_mtx);
+  sleepq_signal(callout_simple);
 }
 
 static int test_callout_simple() {
-  mtx_init(&foo_mtx, MTX_DEF);
-  cv_init(&foo_cv, "test_callout_simple CV");
-
   callout_t callout;
   callout_setup_relative(&callout, 10, callout_simple, NULL);
 
-  mtx_lock(&foo_mtx);
-  cv_wait(&foo_cv, &foo_mtx);
-  mtx_unlock(&foo_mtx);
+  sleepq_wait(callout_simple, "callout_simple");
 
   return KTEST_SUCCESS;
 }
@@ -39,17 +28,11 @@ static void callout_ordered(void *arg) {
   ktest_assert(current == n);
   current++;
 
-  if (current == 10) {
-    mtx_lock(&foo_mtx);
-    cv_signal(&foo_cv);
-    mtx_unlock(&foo_mtx);
-  }
+  if (current == 10)
+    sleepq_signal(callout_ordered);
 }
 
 static int test_callout_order() {
-  mtx_init(&foo_mtx, MTX_DEF);
-  cv_init(&foo_cv, "test_callout_order CV");
-
   current = 0;
   int order[10] = {2, 5, 4, 6, 9, 0, 8, 1, 3, 7};
   callout_t callouts[10];
@@ -57,9 +40,7 @@ static int test_callout_order() {
     callout_setup_relative(&callouts[i], 20 + order[i] * 15, callout_ordered,
                            (void *)order[i]);
 
-  mtx_lock(&foo_mtx);
-  cv_wait(&foo_cv, &foo_mtx);
-  mtx_unlock(&foo_mtx);
+  sleepq_wait(callout_ordered, "callout_ordered");
   ktest_assert(current == 10);
 
   return KTEST_SUCCESS;
@@ -69,16 +50,12 @@ static int test_callout_order() {
 static void callout_bad(void *arg) {
   ktest_assert(0);
 }
+
 static void callout_good(void *arg) {
-  mtx_lock(&foo_mtx);
-  cv_signal(&foo_cv);
-  mtx_unlock(&foo_mtx);
+  sleepq_signal(callout_good);
 }
 
 static int test_callout_stop() {
-  mtx_init(&foo_mtx, MTX_DEF);
-  cv_init(&foo_cv, "test_callout_order CV");
-
   current = 0;
   callout_t callout1, callout2;
   callout_setup_relative(&callout1, 10, callout_bad, NULL);
@@ -88,9 +65,7 @@ static int test_callout_stop() {
   callout_stop(&callout1);
 
   /* Give some time for callout_bad, wait for callout_good. */
-  mtx_lock(&foo_mtx);
-  cv_wait(&foo_cv, &foo_mtx);
-  mtx_unlock(&foo_mtx);
+  sleepq_wait(callout_good, "callout_good");
 
   return KTEST_SUCCESS;
 }
