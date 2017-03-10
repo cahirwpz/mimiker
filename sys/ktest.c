@@ -14,8 +14,10 @@ static test_entry_t *autorun_tests[KTEST_MAX_NO] = {NULL};
 
 int ktest_test_running_flag = 0;
 
-static uint32_t init_seed = 0; /* The initial seed, as set from command-line. */
-static uint32_t seed = 0;      /* Current seed */
+static uint32_t ktest_seed =
+  0; /* The initial seed, as set from command-line. */
+static uint32_t ktest_repeat = 1; /* Number of repetitions of each test. */
+static uint32_t seed = 0;         /* Current seed */
 static uint32_t rand() {
   /* Just a standard LCG */
   seed = 1664525 * seed + 1013904223;
@@ -29,6 +31,7 @@ static void ktest_atomically_print_success() {
   kprintf(TEST_PASSED_STRING);
   /* critical_leave(); */
 }
+
 static void ktest_atomically_print_failure() {
   /* critical_enter(); */
   kprintf(TEST_FAILED_STRING);
@@ -53,8 +56,8 @@ void ktest_failure() {
       }
     }
     kprintf("The seed used for this test order was: %ld. Start kernel with "
-            "`test=all seed=%ld` to reproduce this test case.\n",
-            init_seed, init_seed);
+            "`test=all seed=%ld, repeat=%ld` to reproduce this test case.\n",
+            ktest_seed, ktest_seed, ktest_repeat);
   } else {
     kprintf("Failure while running single test.\n");
     kprintf("Failing test: %s\n", current_test->test_name);
@@ -107,7 +110,15 @@ static int test_name_compare(const void *a_, const void *b_) {
 }
 
 static void run_all_tests() {
-  /* First, count the number of tests that may be run in any order. */
+  /* Start by gathering command-line arguments. */
+  const char *seed_str = kenv_get("seed");
+  const char *repeat_str = kenv_get("repeat");
+  if (seed_str)
+    ktest_seed = strtoul(seed_str, NULL, 10);
+  if (repeat_str)
+    ktest_repeat = strtoul(repeat_str, NULL, 10);
+
+  /* Count the number of tests that may be run in an arbitrary order. */
   unsigned int n = 0;
   SET_DECLARE(tests, test_entry_t);
   test_entry_t **ptr;
@@ -115,7 +126,9 @@ static void run_all_tests() {
     if (test_is_autorunnable(*ptr))
       n++;
   }
-  if (n > KTEST_MAX_NO + 1) {
+
+  int total_tests = n * ktest_repeat;
+  if (total_tests > KTEST_MAX_NO + 1) {
     kprintf("Warning: There are more kernel tests registered than there is "
             "memory available for ktest framework. Please increase "
             "KTEST_MAX_NO.\n");
@@ -127,24 +140,21 @@ static void run_all_tests() {
   int i = 0;
   SET_FOREACH(ptr, tests) {
     if (test_is_autorunnable(*ptr))
-      autorun_tests[i++] = *ptr;
+      for (int r = 0; r < ktest_repeat; r++)
+        autorun_tests[i++] = *ptr;
   }
   autorun_tests[i] = NULL;
 
   /* Sort tests alphabetically by name, so that shuffling may be deterministic
    * and not affected by build/link order. */
-  qsort(autorun_tests, n, sizeof(test_entry_t *), test_name_compare);
+  qsort(autorun_tests, total_tests, sizeof(test_entry_t *), test_name_compare);
 
-  const char *seed_str = kenv_get("seed");
-  if (seed_str)
-    init_seed = strtoul(seed_str, NULL, 10);
-
-  if (init_seed != 0) {
+  if (ktest_seed != 0) {
     /* Initialize LCG with seed.*/
-    seed = init_seed;
+    seed = ktest_seed;
     /* Yates-Fisher shuffle. */
-    for (i = 0; i <= n - 2; i++) {
-      int j = i + rand() % (n - i);
+    for (i = 0; i <= total_tests - 2; i++) {
+      int j = i + rand() % (total_tests - i);
       register test_entry_t *swap = autorun_tests[i];
       autorun_tests[i] = autorun_tests[j];
       autorun_tests[j] = swap;
@@ -153,10 +163,10 @@ static void run_all_tests() {
 
   kprintf("Found %d automatically runnable tests.\n", n);
   kprintf("Planned test order:\n");
-  for (i = 0; i < n; i++)
+  for (i = 0; i < total_tests; i++)
     kprintf("  %s\n", autorun_tests[i]->test_name);
 
-  for (i = 0; i < n; i++) {
+  for (i = 0; i < total_tests; i++) {
     current_test = autorun_tests[i];
     /* If the test fails, run_test will not return. */
     run_test(current_test);
@@ -168,7 +178,7 @@ static void run_all_tests() {
   /* As the tests are usually very verbose, for user convenience let's print out
      the order of tests once again. */
   kprintf("Test order:\n");
-  for (i = 0; i < n; i++)
+  for (i = 0; i < total_tests; i++)
     kprintf("  %s\n", autorun_tests[i]->test_name);
 }
 
