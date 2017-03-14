@@ -97,7 +97,7 @@ void rw_downgrade(rwlock_t *rw) {
 void __rw_assert(rwlock_t *rw, rwa_t what, const char *file, unsigned line) {
   bool flag = false;
   if (what == RW_UNLOCKED)
-    flag = is_locked(rw) ? true : false;
+    flag = is_locked(rw);
   else
     flag = !(rw->state & what);
   if (flag)
