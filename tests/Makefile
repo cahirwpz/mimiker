@@ -12,6 +12,7 @@ SOURCES_C = \
 	pmap.c \
 	producer_consumer.c \
 	rtc.c \
+        rwlock.c \
 	sched.c \
 	strtol.c \
 	syscall.c \

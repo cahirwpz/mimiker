@@ -3,18 +3,6 @@
 #include <stdc.h>
 #include <sync.h>
 
-struct rwlock {
-  union {
-    int readers;
-    int recurse;
-  };
-  int writers_waiting;
-  thread_t *writer;      /* sleepq address for writers */
-  rwa_t state;
-  bool recursive;
-  const char *name;
-};
-
 void rw_init(rwlock_t *rw, const char *name, bool recursive) {
   rw->readers = 0;
   rw->writers_waiting = 0;
@@ -89,6 +77,7 @@ bool rw_try_upgrade(rwlock_t *rw) {
   if (is_rlocked(rw) && rw->readers == 1 && rw->writers_waiting == 0) {
     rw->state = RW_WLOCKED;
     rw->writer = thread_self();
+    rw->recurse = 0;
     success = true;
   }
   critical_leave();
@@ -97,7 +86,7 @@ bool rw_try_upgrade(rwlock_t *rw) {
 
 void rw_downgrade(rwlock_t *rw) {
   critical_enter();
-  assert(is_owned(rw) && rw->recurse == 0);
+  assert(is_owned(rw) && is_wlocked(rw) && rw->recurse == 0);
   rw->readers++;
   rw->state = RW_RLOCKED;
   rw->writer = NULL;
@@ -106,7 +95,10 @@ void rw_downgrade(rwlock_t *rw) {
 }
 
 void __rw_assert(rwlock_t *rw, rwa_t what, const char *file, unsigned line) {
-  if ((what == RW_UNLOCKED && is_locked(rw)) || !(rw->state & what))
+  bool flag = false;
+  if(what == RW_UNLOCKED) flag = is_locked(rw) ? true : false;
+  else flag = !(rw->state & what);
+  if(flag)
     kprintf("[%s:%d] rwlock (%p) has invalid state: expected %u, actual %u!\n",
             file, line, rw, what, rw->state);
 }
