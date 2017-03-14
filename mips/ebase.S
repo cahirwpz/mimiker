@@ -42,6 +42,7 @@ tlb_refill:
         ehb                             # clear hazard on tlbwr
         tlbwr
         eret
+
         .org    0x100
         .local  cache_error
 

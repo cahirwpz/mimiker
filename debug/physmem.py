@@ -17,11 +17,14 @@ def is_valid(lo):
 def is_dirty(lo):
     return bool(lo & 4)
 
+
 def is_referenced(ext_flags):
     return bool(ext_flags & 0x00000020)
 
+
 def is_modified(ext_flags):
     return bool(ext_flags & 0x00000040)
+
 
 def vpn_of(hi):
     return hi & 0xffffe000
@@ -127,6 +130,7 @@ class TLB:
             rows.append(row)
         ptable(rows, fmt="rrll", header=True)
 
+
 class PageDirectoryEntries:
 
     def dump_pdes(self, pmap):
@@ -136,13 +140,14 @@ class PageDirectoryEntries:
             lo = pd[idx]['lo']
             if not is_valid(lo):
                 continue
-            
+
             virtual = as_hex(0xC000000 + idx * 8192)
             physical = as_hex(ppn_of(lo))
             flags = ("%c%c") % ('-D'[is_dirty(lo)], '-G'[is_global(lo)])
             rows.append(["%d" % idx, virtual, physical, flags])
 
         ptable(rows, fmt="rlll", header=True)
+
 
 class UserPageDirectoryEntries(PageDirectoryEntries):
 
@@ -152,6 +157,7 @@ class UserPageDirectoryEntries(PageDirectoryEntries):
     def get_user_pmap(self):
         return gdb.parse_and_eval("*get_user_pmap()")
 
+
 class KernelPageDirectoryEntries(PageDirectoryEntries):
 
     def invoke(self):
@@ -159,6 +165,7 @@ class KernelPageDirectoryEntries(PageDirectoryEntries):
 
     def get_kernel_pmap(self):
         return gdb.parse_and_eval("*get_kernel_pmap()")
+
 
 class PageTableEntries:
 
@@ -180,12 +187,15 @@ class PageTableEntries:
 
                 virtual = as_hex(PAGESIZE * index)
                 physical = as_hex(ppn_of(lo))
-                flags = ("%c%c") % ('-D'[is_dirty(ext_flags)], '-G'[is_global(ext_flags)])
-                accessed = ("%s/%s") % (("Ref" if is_referenced(ext_flags) else "---"),
-                                        ("Mod" if is_modified(ext_flags)   else "---"))
+                flags = ("%c%c") % ('-D'[is_dirty(ext_flags)],
+                                    '-G'[is_global(ext_flags)])
+                accessed = ("%s/%s") % (
+                    ['Ref', '---'][is_referenced(ext_flags)],
+                    ['Mod', '---'][is_modified(ext_flags)])
                 rows.append(["%d" % index, virtual, physical, flags, accessed])
 
         ptable(rows, fmt="rllll", header=True)
+
 
 class UserPageTableEntries(PageTableEntries):
 
@@ -194,6 +204,7 @@ class UserPageTableEntries(PageTableEntries):
 
     def get_user_pmap(self):
         return gdb.parse_and_eval("*get_user_pmap()")
+
 
 class KernelPageTableEntries(PageTableEntries):
 

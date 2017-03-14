@@ -57,11 +57,11 @@ static tlblo_t global_of(vm_addr_t vaddr) {
   return in_kernel_space(vaddr) ? PTE_GLOBAL : 0;
 }
 
-static bool is_referenced(pte_t * pte) {
+static bool is_referenced(pte_t *pte) {
   return (pte->ext_flags & PTE_EXT_REFERENCED);
 }
 
-static bool is_modified(pte_t * pte) {
+static bool is_modified(pte_t *pte) {
   return (pte->ext_flags * PTE_EXT_MODIFIED);
 }
 
@@ -75,8 +75,8 @@ static asid_t get_new_asid() {
     panic("Out of asids!");
 }
 
-static void pmap_setup_pd_wired_tlb_entry(pmap_t * pmap) {
-  bool kernel_setup = (pmap == & kernel_pmap);
+static void pmap_setup_pd_wired_tlb_entry(pmap_t *pmap) {
+  bool kernel_setup = (pmap == &kernel_pmap);
 
   tlbhi_t hi = (tlbhi_t)pmap->pde | pmap->asid;
   tlblo_t flags = PTE_VALID | PTE_DIRTY | (kernel_setup ? PTE_GLOBAL : 0);
@@ -93,9 +93,7 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
 
   pmap->pte = (pte_t *)PT_BASE;
   pmap->pde_page = pm_alloc(2);
-  pmap->pde = kernel_setup
-            ? (pde_t *)KERNEL_PD_BASE
-            : (pde_t *)USER_PD_BASE;
+  pmap->pde = kernel_setup ? (pde_t *)KERNEL_PD_BASE : (pde_t *)USER_PD_BASE;
   pmap->start = start;
   pmap->end = end;
   pmap->asid = get_new_asid();
@@ -104,7 +102,7 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   TAILQ_INIT(&pmap->pte_pages);
 
   /* Initialize PD using addresses from Kseg0 (to bypass TLB translation) */
-  pde_t * pde = (pde_t *)pmap->pde_page->vaddr;
+  pde_t *pde = (pde_t *)pmap->pde_page->vaddr;
 
   for (int i = 0; i < PD_ENTRIES; i++) {
     pde[i].lo = global_of(i * PTF_ENTRIES * PAGESIZE);
@@ -188,7 +186,7 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
 /* Check if PDE for given vaddr resides already in TLB */
 static void pmap_assure_pde_in_tlb(pmap_t *pmap, vm_addr_t vaddr) {
   assert(pde_is_valid(PDE_OF(pmap, vaddr)));
-  
+
   pde_t *pde = &PDE_OF(pmap, vaddr);
   vm_addr_t ptf_start = PTF_ADDR_OF(vaddr);
   tlbhi_t hi = ptf_start | pmap->asid;
@@ -407,7 +405,7 @@ void tlb_fault(exc_frame_t *frame) {
 
 /* Returns true on success */
 bool tlb_page_fault(vm_addr_t vaddr, vm_prot_t access) {
-  vm_map_t * map = get_active_vm_map_by_addr(vaddr);
+  vm_map_t *map = get_active_vm_map_by_addr(vaddr);
   if (!map) {
     log("No virtual address space definde for $%08lx!", vaddr);
     return false;
@@ -421,21 +419,20 @@ bool tlb_page_fault(vm_addr_t vaddr, vm_prot_t access) {
 /* Returns false if page fault is needed
  * vaddr - original page virtual address */
 bool tlb_pde_refill(exc_frame_t *frame, vm_addr_t orig_vaddr) {
-  pmap_t * pmap = get_active_pmap_by_addr(orig_vaddr);
+  pmap_t *pmap = get_active_pmap_by_addr(orig_vaddr);
   if (!pmap) {
     log("Address $%08lx not mapped by any active pmap!", orig_vaddr);
     tlb_fault(frame);
   }
 
-  pde_t * pde = &PDE_OF(pmap, orig_vaddr);
+  pde_t *pde = &PDE_OF(pmap, orig_vaddr);
   if (pde_is_valid(*pde)) {
     log("TLB refill for page table fragment $%08lx", orig_vaddr & PTE_MASK);
     vm_addr_t ptf_start = PTF_ADDR_OF(orig_vaddr);
 
     /* Both ENTRYLO0 and ENTRYLO1 must have G bit set for address translation
      * to skip ASID check. */
-    tlb_overwrite_random(ptf_start | pmap->asid,
-                         pde->lo,
+    tlb_overwrite_random(ptf_start | pmap->asid, pde->lo,
                          pde->lo | PTE_PFN(PAGESIZE));
     return true;
   }
@@ -445,7 +442,7 @@ bool tlb_pde_refill(exc_frame_t *frame, vm_addr_t orig_vaddr) {
 
 /* Returns false if page fault is needed */
 bool tlb_pte_refill(exc_frame_t *frame, vm_addr_t vaddr) {
-  pmap_t * pmap = get_active_pmap_by_addr(vaddr);
+  pmap_t *pmap = get_active_pmap_by_addr(vaddr);
   if (!pmap) {
     log("Address $%08lx not mapped by any active pmap!", vaddr);
     tlb_fault(frame);
@@ -455,15 +452,14 @@ bool tlb_pte_refill(exc_frame_t *frame, vm_addr_t vaddr) {
     pmap_assure_pde_in_tlb(pmap, vaddr);
 
     unsigned pte_idx = PTE_INDEX(vaddr);
-    pte_t * pte = &pmap->pte[pte_idx];
+    pte_t *pte = &pmap->pte[pte_idx];
 
     if (pte->ext_flags & PTE_VALID && !(pte->lo & PTE_VALID)) {
       /* Mark page as referenced */
       pte->lo |= PTE_VALID;
       pte->ext_flags |= PTE_EXT_REFERENCED;
     }
-    if (pte->lo & PTE_VALID)
-    {
+    if (pte->lo & PTE_VALID) {
       tlbhi_t hi = mips32_get_c0(C0_ENTRYHI);
       tlblo_t lo0 = pmap->pte[pte_idx & ~1].lo;
       tlblo_t lo1 = pmap->pte[pte_idx | 1].lo;
@@ -505,12 +501,13 @@ void tlb_load_exception_handler(exc_frame_t *frame) {
     if (vaddr >= PT_BASE && vaddr < PT_BASE + PT_SIZE) {
       /* We don't accept invalid TLB entries for page table fragments */
       vm_addr_t ptf_start = PTF_ADDR_OF(vaddr);
-      log("Found an invalid TLB entry for page table fragment at $%08lx!", ptf_start);
+      log("Found an invalid TLB entry for page table fragment at $%08lx!",
+          ptf_start);
       tlb_fault(frame);
       return;
     }
 
-    pmap_t * pmap = get_active_pmap_by_addr(vaddr);
+    pmap_t *pmap = get_active_pmap_by_addr(vaddr);
     if (!pmap) {
       log("Address $%08lx not mapped by any active pmap!", vaddr);
       tlb_fault(frame);
@@ -522,7 +519,7 @@ void tlb_load_exception_handler(exc_frame_t *frame) {
       /* Check if respective PTE is valid */
       pmap_assure_pde_in_tlb(pmap, vaddr);
       unsigned pte_idx = PTE_INDEX(vaddr);
-      pte_t * pte = &pmap->pte[pte_idx];
+      pte_t *pte = &pmap->pte[pte_idx];
       if (pte->ext_flags & PTE_VALID) {
         /* PTE entry is valid. Mark page as referenced and update TLB */
         pte->lo |= PTE_VALID;
@@ -563,7 +560,7 @@ void tlb_load_exception_handler(exc_frame_t *frame) {
         return;
 
     } else {
-      /* TLB refill during an exception/interrupt 
+      /* TLB refill during an exception/interrupt
        * Do not allow page faults here */
 
       if (tlb_pte_refill(frame, vaddr))
@@ -606,12 +603,13 @@ void tlb_store_exception_handler(exc_frame_t *frame) {
     if (vaddr >= PT_BASE && vaddr < PT_BASE + PT_SIZE) {
       /* We don't accept invalid TLB entries for page table fragments */
       vm_addr_t ptf_start = PTF_ADDR_OF(vaddr);
-      log("Found an invalid TLB entry for page table fragment at $%08lx!", ptf_start);
+      log("Found an invalid TLB entry for page table fragment at $%08lx!",
+          ptf_start);
       tlb_fault(frame);
       return;
     }
 
-    pmap_t * pmap = get_active_pmap_by_addr(vaddr);
+    pmap_t *pmap = get_active_pmap_by_addr(vaddr);
     if (!pmap) {
       log("Address $%08lx not mapped by any active pmap!", vaddr);
       tlb_fault(frame);
@@ -623,7 +621,7 @@ void tlb_store_exception_handler(exc_frame_t *frame) {
       /* Check if respective PTE is valid and writable */
       pmap_assure_pde_in_tlb(pmap, vaddr);
       unsigned pte_idx = PTE_INDEX(vaddr);
-      pte_t * pte = &pmap->pte[pte_idx];
+      pte_t *pte = &pmap->pte[pte_idx];
       if (pte->ext_flags & PTE_VALID && pte->ext_flags & PTE_DIRTY) {
         /* PTE entry is valid and dirty.
          * Mark page as referenced and modified, then update TLB */
@@ -649,7 +647,7 @@ void tlb_store_exception_handler(exc_frame_t *frame) {
      * or TLB refill occured while handling an interrupt/exception */
 
     assert(vaddr < PT_BASE || vaddr >= PT_BASE + PT_SIZE);
-    /* TLB refill during an exception/interrupt 
+    /* TLB refill during an exception/interrupt
      * Do not allow page faults here */
 
     if (tlb_pte_refill(frame, vaddr))
@@ -673,7 +671,7 @@ void tlb_modified_exception_handler(exc_frame_t *frame) {
   int tlb_idx = tlb_probe(hi, &lo0, &lo1);
   assert(tlb_idx >= 0);
 
-  pmap_t * pmap = get_active_pmap_by_addr(vaddr);
+  pmap_t *pmap = get_active_pmap_by_addr(vaddr);
 
   pmap_assure_pde_in_tlb(pmap, vaddr);
 
@@ -681,7 +679,7 @@ void tlb_modified_exception_handler(exc_frame_t *frame) {
    * Otherwise, page fault */
 
   unsigned pte_idx = PTE_INDEX(vaddr);
-  pte_t * pte = &pmap->pte[pte_idx];
+  pte_t *pte = &pmap->pte[pte_idx];
   if (pte->ext_flags & PTE_DIRTY) {
     /* PTE entry is dirty. Mark page as modified and update TLB */
     pte->lo |= PTE_DIRTY;

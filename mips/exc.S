@@ -86,7 +86,7 @@ user_exc_enter:
         add     $sp, $t1
 
         # No exeception frame so set td_frame to NULL.
-        sw      $0,  TD_KFRAME($t0)
+        sw      $0, TD_KFRAME($t0)
 
         # Turn off FPU, enter kernel mode,
         # drop exception level and disable interrupts.
