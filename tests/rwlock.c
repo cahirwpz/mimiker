@@ -4,7 +4,7 @@
 #include <rwlock.h>
 #include <ktest.h>
 
-const char * const test_rwlock_name = "TEST_RWLOCK_NAME";
+const char *const test_rwlock_name = "TEST_RWLOCK_NAME";
 
 static void read_lock_test(bool recursive) {
   rwlock_t rw;
@@ -21,11 +21,11 @@ static void multiple_read_lock_test(bool recursive) {
   rwlock_t rw;
   rw_init(&rw, test_rwlock_name, recursive);
   rw_assert(&rw, RW_UNLOCKED);
-  for(int i=0;i<10;i++) {
+  for (int i = 0; i < 10; i++) {
     rw_enter(&rw, RW_READER);
     rw_assert(&rw, RW_RLOCKED);
   }
-  for(int i=0;i<9;i++){
+  for (int i = 0; i < 9; i++) {
     rw_leave(&rw);
     rw_assert(&rw, RW_RLOCKED);
   }
@@ -49,14 +49,14 @@ static void recursive_write_lock_test(void) {
   rwlock_t rw;
   rw_init(&rw, test_rwlock_name, true);
   rw_assert(&rw, RW_UNLOCKED);
-  for(int i=0;i<10;i++) {
+  for (int i = 0; i < 10; i++) {
     rw_enter(&rw, RW_WRITER);
     rw_assert(&rw, RW_WLOCKED);
   }
-  for(int i=0;i<9;i++) {
+  for (int i = 0; i < 9; i++) {
     rw_leave(&rw);
     rw_assert(&rw, RW_WLOCKED);
-  } 
+  }
   rw_leave(&rw);
   rw_assert(&rw, RW_UNLOCKED);
   rw_destroy(&rw);
