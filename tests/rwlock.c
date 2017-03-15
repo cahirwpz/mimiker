@@ -6,7 +6,7 @@
 
 const char *const test_rwlock_name = "TEST_RWLOCK_NAME";
 
-static void read_lock_test(bool recursive) {
+static int read_lock(bool recursive) {
   rwlock_t rw;
   rw_init(&rw, test_rwlock_name, recursive);
   rw_assert(&rw, RW_UNLOCKED);
@@ -15,9 +15,18 @@ static void read_lock_test(bool recursive) {
   rw_leave(&rw);
   rw_assert(&rw, RW_UNLOCKED);
   rw_destroy(&rw);
+  return KTEST_SUCCESS;
 }
 
-static void multiple_read_lock_test(bool recursive) {
+static int rwlock_read_lock(void) {
+  return read_lock(false);
+}
+
+static int recursive_rwlock_read_lock(void) {
+  return read_lock(true);
+}
+
+static int multiple_read_locks(bool recursive) {
   rwlock_t rw;
   rw_init(&rw, test_rwlock_name, recursive);
   rw_assert(&rw, RW_UNLOCKED);
@@ -32,9 +41,18 @@ static void multiple_read_lock_test(bool recursive) {
   rw_leave(&rw);
   rw_assert(&rw, RW_UNLOCKED);
   rw_destroy(&rw);
+  return KTEST_SUCCESS;
 }
 
-static void write_lock_test(void) {
+static int rwlock_multiple_read_locks(void) {
+  return multiple_read_lock(false);
+}
+
+static int recursive_rwlock_multiple_read_locks(void) {
+  return multiple_read_locks(true);
+}
+
+static int rwlock_write_lock(void) {
   rwlock_t rw;
   rw_init(&rw, test_rwlock_name, false);
   rw_assert(&rw, RW_UNLOCKED);
@@ -43,9 +61,10 @@ static void write_lock_test(void) {
   rw_leave(&rw);
   rw_assert(&rw, RW_UNLOCKED);
   rw_destroy(&rw);
+  return KTEST_SUCCESS;
 }
 
-static void recursive_write_lock_test(void) {
+static int recursive_rwlock_write_locks(void) {
   rwlock_t rw;
   rw_init(&rw, test_rwlock_name, true);
   rw_assert(&rw, RW_UNLOCKED);
@@ -60,24 +79,34 @@ static void recursive_write_lock_test(void) {
   rw_leave(&rw);
   rw_assert(&rw, RW_UNLOCKED);
   rw_destroy(&rw);
+  return KTEST_SUCCESS;
 }
 
-static void upgrade_test(void) {
+static int upgrade(bool recursive) {
   rwlock_t rw;
-  rw_init(&rw, test_rwlock_name, false);
+  rw_init(&rw, test_rwlock_name, recursive);
   rw_assert(&rw, RW_UNLOCKED);
   rw_enter(&rw, RW_READER);
   rw_assert(&rw, RW_RLOCKED);
-  assert(rw_try_upgrade(&rw));
+  ktest_assert(rw_try_upgrade(&rw));
   rw_assert(&rw, RW_WLOCKED);
   rw_leave(&rw);
   rw_assert(&rw, RW_UNLOCKED);
   rw_destroy(&rw);
+  return KTEST_SUCCESS;
 }
 
-static void downgrade_test(void) {
+static int rwlock_upgrade(void) {
+  return upgrade(false);
+}
+
+static int recursive_rwlock_upgrade(void) {
+  return upgrade(true);
+}
+
+static int downgrade(bool recursive) {
   rwlock_t rw;
-  rw_init(&rw, test_rwlock_name, false);
+  rw_init(&rw, test_rwlock_name, recursive);
   rw_assert(&rw, RW_UNLOCKED);
   rw_enter(&rw, RW_WRITER);
   rw_assert(&rw, RW_WLOCKED);
@@ -86,26 +115,24 @@ static void downgrade_test(void) {
   rw_leave(&rw);
   rw_assert(&rw, RW_UNLOCKED);
   rw_destroy(&rw);
-}
-
-static int test_rwlock(void) {
-  read_lock_test(false);
-  log("read_lock_test passed");
-  multiple_read_lock_test(false);
-  log("multiple_read_lock_test passed");
-  read_lock_test(true);
-  log("read_lock_test passed");
-  multiple_read_lock_test(true);
-  log("multiple_read_lock_test passed");
-  write_lock_test();
-  log("write_lock_test passed");
-  recursive_write_lock_test();
-  log("recursive_write_lock_test passed");
-  upgrade_test();
-  log("upgrade_test passed");
-  downgrade_test();
-  log("downgrade_test passed");
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(rwlock, test_rwlock, 0);
+static int rwlock_downgrade(void) {
+  return downgrade(false);
+}
+
+static int recursive_rwlock_downgrade(void) {
+  return downgrade(true);
+}
+
+KTEST_ADD(rwlock, rwlock_read_lock, 0);
+KTEST_ADD(rwlock, recursive_rwlock_read_lock, 0);
+KTEST_ADD(rwlock, rwlock_multiple_read_locks, 0);
+KTEST_ADD(rwlock, recursive_rwlock_multiple_read_locks, 0);
+KTEST_ADD(rwlock, rwlock_write_lock, 0);
+KTEST_ADD(rwlock, recursive_rwlock_write_locks, 0);
+KTEST_ADD(rwlock, rwlock_upgrade, 0);
+KTEST_ADD(rwlock, recursive_rwlock_upgrade, 0);
+KTEST_ADD(rwlock, rwlock_downgrade, 0);
+KTEST_ADD(rwlock, recursive_rwlock_downgrade, 0);
