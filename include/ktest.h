@@ -4,7 +4,7 @@
 #include <linker_set.h>
 #include <stdc.h>
 
-#define KTEST_NAME_MAX 32
+#define KTEST_NAME_MAX 40
 
 #define KTEST_SUCCESS 0
 #define KTEST_FAILURE 1
