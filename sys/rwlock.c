@@ -86,7 +86,7 @@ bool rw_try_upgrade(rwlock_t *rw) {
 
 void rw_downgrade(rwlock_t *rw) {
   critical_enter();
-  assert(is_owned(rw) && is_wlocked(rw) && rw->recurse == 0);
+  assert(is_owned(rw) && rw->recurse == 0);
   rw->readers++;
   rw->state = RW_RLOCKED;
   rw->writer = NULL;
