@@ -91,7 +91,7 @@ static int run_test(test_entry_t *t) {
 
   current_test = t;
   int result;
-  if (t->flags & KTEST_FLAG_RANDINT){
+  if (t->flags & KTEST_FLAG_RANDINT) {
     int (*f)(unsigned int) = t->test_func;
     int randint = rand() % t->randint_max;
     /* NOTE: Numbers generated here will be the same on each run, since test are
@@ -102,7 +102,7 @@ static int run_test(test_entry_t *t) {
     ktest_test_running_flag = 1;
     result = f(randint);
     ktest_test_running_flag = 0;
-  }else{
+  } else {
 
     ktest_test_running_flag = 1;
     result = t->test_func();

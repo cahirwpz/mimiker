@@ -41,7 +41,7 @@ static int test_malloc() {
 
 #define MALLOC_RANDINT_PAGES 64
 static int test_malloc_random_size(unsigned int randint) {
-  if(randint == 0)
+  if (randint == 0)
     randint = 64;
 
   vm_page_t *page = pm_alloc(MALLOC_RANDINT_PAGES);
@@ -58,4 +58,5 @@ static int test_malloc_random_size(unsigned int randint) {
 }
 
 KTEST_ADD(malloc, test_malloc, 0);
-KTEST_ADD_RANDINT(malloc_randint, test_malloc_random_size, 0, MALLOC_RANDINT_PAGES * PAGESIZE);
+KTEST_ADD_RANDINT(malloc_randint, test_malloc_random_size, 0,
+                  MALLOC_RANDINT_PAGES *PAGESIZE);
