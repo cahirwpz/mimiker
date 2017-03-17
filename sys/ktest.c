@@ -200,13 +200,6 @@ void ktest_main(const char *test) {
   }
 }
 
-void ktest_usermode_exit(thread_t *td, int status) {
-  assert(ktest_test_running_flag);
-
-  sleepq_signal(td);
-  td->td_ktest_status = status;
-}
-
 void ktest_usermode_timeout(void *arg) {
   kprintf("Usermode timed out!\n");
   ktest_failure();
@@ -219,13 +212,13 @@ void ktest_wait_for_user_thread(thread_t *td, int timeout_ms) {
                            NULL);
 
   sleepq_wait(td, "usermode ktest");
-  int status = td->td_ktest_status;
+  int exitcode = td->td_exitcode;
 
   if (timeout_ms > 0)
     callout_stop(&timeout_callout);
 
-  if (status != 0) {
-    kprintf("Usermode thread returned non-zero exit code (%d)!\n", status);
+  if (exitcode != 0) {
+    kprintf("Usermode thread returned non-zero exit code (%d)!\n", exitcode);
     ktest_failure();
   }
 }

@@ -28,6 +28,7 @@ typedef struct thread {
   enum { TDS_INACTIVE = 0x0, TDS_WAITING, TDS_READY, TDS_RUNNING } td_state;
   uint32_t td_flags;           /* TDF_* flags */
   volatile uint32_t td_csnest; /* critical section nest level */
+  int td_exitcode;
   /* thread context */
   exc_frame_t td_uctx;    /* user context (always exception) */
   fpu_ctx_t td_uctx_fpu;  /* user FPU context (always exception) */
@@ -46,8 +47,6 @@ typedef struct thread {
   /* scheduler part */
   td_prio_t td_prio;
   int td_slice;
-  /* ktest status */
-  int td_ktest_status;
 } thread_t;
 
 thread_t *thread_self();
