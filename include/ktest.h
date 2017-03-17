@@ -41,17 +41,6 @@ void ktest_main(const char *test);
  * displays some troubleshooting info about the failing test. */
 void ktest_failure();
 
-/* This assert variant will call ktest_failure when assertion fails, which
-   prints out some useful information about the failing test case. */
-#define ktest_assert(EXPR)                                                     \
-  __extension__({                                                              \
-    if (!(EXPR)) {                                                             \
-      kprintf("Assertion '" __STRING(EXPR) "' at %s:%d failed!\n", __FILE__,   \
-              __LINE__);                                                       \
-      ktest_failure();                                                         \
-    }                                                                          \
-  })
-
 /* This flag is set to 1 when a kernel test is in progress, and 0 otherwise. */
 extern int ktest_test_running_flag;
 

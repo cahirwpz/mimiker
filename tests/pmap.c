@@ -24,19 +24,19 @@ static int test_kernel_pmap() {
     for (int i = 0; i < size / sizeof(int); i++)
       *(x + i) = i;
     for (int i = 0; i < size / sizeof(int); i++)
-      ktest_assert(*(x + i) == i);
+      assert(*(x + i) == i);
 
     log("TLB after:");
     tlb_print();
   }
 
-  ktest_assert(pmap_probe(pmap, vaddr1, vaddr3, VM_PROT_READ | VM_PROT_WRITE));
+  assert(pmap_probe(pmap, vaddr1, vaddr3, VM_PROT_READ | VM_PROT_WRITE));
 
   pmap_unmap(pmap, vaddr1, vaddr2);
   pmap_protect(pmap, vaddr2, vaddr3, VM_PROT_READ);
 
-  ktest_assert(pmap_probe(pmap, vaddr1, vaddr2, VM_PROT_NONE));
-  ktest_assert(pmap_probe(pmap, vaddr2, vaddr3, VM_PROT_READ));
+  assert(pmap_probe(pmap, vaddr1, vaddr2, VM_PROT_NONE));
+  assert(pmap_probe(pmap, vaddr2, vaddr3, VM_PROT_READ));
 
   pmap_unmap(pmap, vaddr2, vaddr3);
   pm_free(pg);
@@ -67,10 +67,10 @@ static int test_user_pmap() {
   pmap_activate(pmap1);
   *ptr = 200;
   pmap_activate(pmap2);
-  ktest_assert(*ptr == 100);
+  assert(*ptr == 100);
   log("*ptr == %d", *ptr);
   pmap_activate(pmap1);
-  ktest_assert(*ptr == 200);
+  assert(*ptr == 200);
   log("*ptr == %d", *ptr);
 
   pmap_delete(pmap1);

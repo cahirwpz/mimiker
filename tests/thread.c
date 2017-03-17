@@ -41,10 +41,10 @@ static int test_thread() {
 
   kprintf("Thread '%s' running.\n", thread_self()->td_name);
 
-  ktest_assert(td0 == thread_get_by_tid(td0->td_tid));
-  ktest_assert(td1 == thread_get_by_tid(td1->td_tid));
-  ktest_assert(td2 == thread_get_by_tid(td2->td_tid));
-  ktest_assert(NULL == thread_get_by_tid(1234));
+  assert(td0 == thread_get_by_tid(td0->td_tid));
+  assert(td1 == thread_get_by_tid(td1->td_tid));
+  assert(td2 == thread_get_by_tid(td2->td_tid));
+  assert(NULL == thread_get_by_tid(1234));
 
   thread_dump_all();
 
