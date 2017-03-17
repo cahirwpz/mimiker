@@ -14,4 +14,4 @@ static int test_exec_misbehave() {
 }
 
 KTEST_ADD(exec_misbehave, test_exec_misbehave,
-                KTEST_FLAG_NORETURN | KTEST_FLAG_USERMODE);
+          KTEST_FLAG_NORETURN | KTEST_FLAG_USERMODE);

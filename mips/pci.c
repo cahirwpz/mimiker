@@ -129,7 +129,7 @@ static void pci_bus_assign_space(pci_bus_t *pcibus, intptr_t mem_base,
 
   pci_bar_t **bars = kmalloc(mp, sizeof(pci_bar_t *) * nbars, M_ZERO);
 
-  for (int j = 0, n = 0; j < pcibus->ndevs; j++)  {
+  for (int j = 0, n = 0; j < pcibus->ndevs; j++) {
     pci_device_t *pcidev = &pcibus->dev[j];
     for (int i = 0; i < pcidev->nbars; i++)
       bars[n++] = &pcidev->bar[i];
