@@ -63,7 +63,6 @@ void callout_stop(callout_t *handle) {
  * position.
 */
 void callout_process(realtime_t time) {
-  kprintf("Processing callout time %ld\n", (long int)time);
   unsigned int current_bucket = ci.last % CALLOUT_BUCKETS, last_bucket;
   if (time - ci.last > CALLOUT_BUCKETS) {
     /* Process all buckets */
@@ -73,6 +72,8 @@ void callout_process(realtime_t time) {
     last_bucket = time % CALLOUT_BUCKETS; 
   }
 
+  kprintf("Processing callout time %ld, range %d->%d\n", (long int)time, current_bucket, last_bucket);
+  
   while (1) {
     callout_head_t *head = &ci.heads[current_bucket];
     callout_t *elem = TAILQ_FIRST(head);
@@ -82,8 +83,8 @@ void callout_process(realtime_t time) {
       next = TAILQ_NEXT(elem, c_link);
 
       if (elem->c_time <= time) {
-        kprintf("Callout triggered: c_time = %ld, time = %ld\n",
-                (long int)elem->c_time, (long int)time);
+        kprintf("Callout triggered: c_time = %ld, time = %ld (bucket %d)\n",
+                (long int)elem->c_time, (long int)time, current_bucket);
 
         callout_set_active(elem);
         callout_clear_pending(elem);
