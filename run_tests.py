@@ -6,12 +6,13 @@ import sys
 import random
 
 N_SIMPLE = 5
-N_THOROUGH = 200
+N_THOROUGH = 100
 TIMEOUT = 5
 RETRIES_MAX = 5
+REPEAT = 5
 
 
-def test_seed(seed, retry=0):
+def test_seed(seed, repeat=1, retry=0):
     if retry == RETRIES_MAX:
         print("Maximum retries reached, still not output received. "
               "Test inconclusive.")
@@ -20,8 +21,8 @@ def test_seed(seed, retry=0):
     print("Testing seed %d..." % seed)
     # QEMU takes much much less time to start, so for testing multiple seeds it
     # is more convenient to use it instead of OVPsim.
-    child = pexpect.spawn(
-        './launch', ['-t', '-S', 'qemu', 'test=all', 'seed=%d' % seed])
+    child = pexpect.spawn('./launch', ['-t', '-S', 'qemu', 'test=all',
+                                       'seed=%d' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact(
         ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT],
         timeout=TIMEOUT)
@@ -29,8 +30,9 @@ def test_seed(seed, retry=0):
         child.terminate(True)
         return
     elif index == 1:
-        print("Test failure reported!")
-        message = child.buffer.decode("ascii")
+        print("Test failure reported!\n")
+        message = child.before.decode("ascii")
+        message += child.buffer.decode("ascii")
         try:
             while len(message) < 20000:
                 message += child.read_nonblocking(timeout=1).decode("ascii")
@@ -42,19 +44,19 @@ def test_seed(seed, retry=0):
         print("EOF reached without success report. This may indicate "
               "a problem with the testing framework or QEMU. "
               "Retrying (%d)..." % (retry + 1))
-        test_seed(seed, retry + 1)
+        test_seed(seed, repeat, retry + 1)
     elif index == 3:
-        print("Timeout reached.")
+        print("Timeout reached.\n")
         message = child.buffer.decode("utf-8")
         child.terminate(True)
         print(message)
         if len(message) < 100:
             print("It looks like kernel did not even start within the time "
                   "limit. Retrying (%d)..." % (retry + 1))
-            test_seed(seed, retry + 1)
+            test_seed(seed, repeat, retry + 1)
         else:
             print("No test result reported within timeout. Unable to verify "
-                  "test success. Seed was: %d" % seed)
+                  "test success. Seed was: %d, repeat: %d" % (seed, repeat))
             sys.exit(1)
 
 if __name__ == '__main__':
@@ -78,7 +80,7 @@ if __name__ == '__main__':
     # Run tests using n random seeds
     for i in range(0, n):
         seed = random.randint(0, 2**32)
-        test_seed(seed)
+        test_seed(seed, REPEAT)
 
     print("Tests successful!")
     sys.exit(0)

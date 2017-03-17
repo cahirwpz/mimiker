@@ -41,5 +41,4 @@ static int test_syscall() {
   user_exc_leave();
 }
 
-KTEST_ADD(syscall, test_syscall,
-                KTEST_FLAG_NORETURN | KTEST_FLAG_USERMODE);
+KTEST_ADD(syscall, test_syscall, KTEST_FLAG_NORETURN | KTEST_FLAG_USERMODE);
