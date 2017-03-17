@@ -38,9 +38,6 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
   td->td_kstack.stk_size = PAGESIZE;
 
-  mtx_init(&td->td_ktest_mtx, MTX_DEF);
-  cv_init(&td->td_ktest_cv, "thread ktest cv");
-
   ctx_init(td, fn, arg);
 
   TAILQ_INSERT_TAIL(&all_threads, td, td_all);

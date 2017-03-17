@@ -6,8 +6,6 @@
 #include <context.h>
 #include <exception.h>
 #include <sleepq.h>
-#include <mutex.h>
-#include <condvar.h>
 
 typedef uint8_t td_prio_t;
 typedef uint32_t tid_t;
@@ -50,9 +48,6 @@ typedef struct thread {
   int td_slice;
   /* ktest status */
   int td_ktest_status;
-  int td_ktest_status_reported;
-  mtx_t td_ktest_mtx;
-  condvar_t td_ktest_cv;
 } thread_t;
 
 thread_t *thread_self();
