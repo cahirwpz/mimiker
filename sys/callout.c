@@ -62,6 +62,7 @@ void callout_stop(callout_t *handle) {
  * position.
 */
 void callout_process(realtime_t time) {
+  kprintf("Processing callout time %ld\n", (long int)time);
   int now = time % CALLOUT_BUCKETS;
   bool done = false;
 
