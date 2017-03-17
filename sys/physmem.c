@@ -48,9 +48,8 @@ size_t pm_seg_space_needed(size_t size) {
   return sizeof(pm_seg_t) + size / PAGESIZE * sizeof(vm_page_t);
 }
 
-void pm_seg_init(pm_seg_t *seg,
-                 pm_addr_t start, pm_addr_t end, vm_addr_t vm_offset)
-{
+void pm_seg_init(pm_seg_t *seg, pm_addr_t start, pm_addr_t end,
+                 vm_addr_t vm_offset) {
   assert(start < end);
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
@@ -158,8 +157,8 @@ void pm_seg_reserve(pm_seg_t *seg, pm_addr_t start, pm_addr_t end) {
   assert(is_aligned(end, PAGESIZE));
   assert(seg->start <= start && end <= seg->end);
 
-  log("pm_seg_reserve: %p - %p from [%p, %p]",
-      (void *)start, (void *)end, (void *)seg->start, (void *)seg->end);
+  log("pm_seg_reserve: %p - %p from [%p, %p]", (void *)start, (void *)end,
+      (void *)seg->start, (void *)seg->end);
 
   for (int i = PM_NQUEUES - 1; i >= 0; i--) {
     pg_list_t *queue = PM_FREEQ(seg, i);

@@ -12,7 +12,10 @@ extern uint8_t __ebss[];
 /* Limit for the end of kernel's bss. Provided by the linker. */
 extern uint8_t __kernel_end[];
 
-static struct { void *ptr; void *end; } sbrk = { __ebss, __kernel_end };
+static struct {
+  void *ptr;
+  void *end;
+} sbrk = {__ebss, __kernel_end};
 
 void kernel_brk(void *addr) {
   cs_enter();
