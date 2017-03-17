@@ -79,7 +79,7 @@ void callout_process(realtime_t time) {
       next = TAILQ_NEXT(elem, c_link);
 
       if (elem->c_time <= time) {
-        kprintf("Callout triggered: c_time = %lld, time = %lld\n", elem->c_time, time);
+        kprintf("Callout triggered: c_time = %ld, time = %ld\n", (long int)elem->c_time, (long int)time);
         
         callout_set_active(elem);
         callout_clear_pending(elem);
