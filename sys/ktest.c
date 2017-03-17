@@ -56,7 +56,7 @@ void ktest_failure() {
       }
     }
     kprintf("The seed used for this test order was: %ld. Start kernel with "
-            "`test=all seed=%ld, repeat=%ld` to reproduce this test case.\n",
+            "`test=all seed=%ld repeat=%ld` to reproduce this test case.\n",
             ktest_seed, ktest_seed, ktest_repeat);
   } else {
     kprintf("Failure while running single test.\n");
