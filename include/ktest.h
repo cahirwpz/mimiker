@@ -19,17 +19,24 @@
 /* Excludes the test from being run in auto mode. This flag is only useful for
    temporarily marking some tests while debugging the testing framework. */
 #define KTEST_FLAG_BROKEN 0x08
+/* Marks that the test wishes to receive a random integer as an argument. */
+#define KTEST_FLAG_RANDINT 0x10
 
 typedef struct {
   const char test_name[KTEST_NAME_MAX];
   int (*test_func)();
   uint32_t flags;
+  uint32_t randint_max;
 } test_entry_t;
 
 void ktest_main(const char *test);
 
 #define KTEST_ADD(name, func, flags)                                           \
   test_entry_t name##_test = {#name, func, flags};                             \
+  SET_ENTRY(tests, name##_test);
+
+#define KTEST_ADD_RANDINT(name, func, flags, max)                              \
+  test_entry_t name##_test = {#name, func, flags | KTEST_FLAG_RANDINT, max};   \
   SET_ENTRY(tests, name##_test);
 
 /* These are canonical result messages printed to standard output / UART. A
