@@ -49,7 +49,6 @@ void callout_setup(callout_t *handle, realtime_t time, timeout_t fn,
 
 void callout_setup_relative(callout_t *handle, realtime_t time, timeout_t fn,
                             void *arg) {
-  kprintf("ci.last = %ld\n", (long int)ci.last);
   callout_setup(handle, time + ci.last, fn, arg);
 }
 
@@ -72,7 +71,7 @@ void callout_process(realtime_t time) {
     last_bucket = time % CALLOUT_BUCKETS; 
   }
 
-  kprintf("Processing callout time %ld, range %d->%d\n", (long int)time, current_bucket, last_bucket);
+  kprintf("C/o t %ld, r %d->%d\n", (long int)time, current_bucket, last_bucket);
   
   while (1) {
     callout_head_t *head = &ci.heads[current_bucket];
@@ -83,7 +82,7 @@ void callout_process(realtime_t time) {
       next = TAILQ_NEXT(elem, c_link);
 
       if (elem->c_time <= time) {
-        kprintf("Callout triggered: c_time = %ld, time = %ld (bucket %d)\n",
+        kprintf("Callout: c_time = %ld, time = %ld (b %d)\n",
                 (long int)elem->c_time, (long int)time, current_bucket);
 
         callout_set_active(elem);
