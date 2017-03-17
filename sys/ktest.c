@@ -27,9 +27,9 @@ static uint32_t rand() {
 /* If we get preempted while printing out the [TEST_PASSED] string, the monitor
    process might not find the pattern it's looking for. */
 static void ktest_atomically_print_success() {
-  critical_enter();
+  /* critical_enter(); */
   kprintf(TEST_PASSED_STRING);
-  critical_leave();
+  /* critical_leave(); */
 }
 
 static void ktest_atomically_print_failure() {

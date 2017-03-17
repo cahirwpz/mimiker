@@ -70,8 +70,6 @@ void callout_process(realtime_t time) {
     /* Process only buckets in time range ci.last to time */
     last_bucket = time % CALLOUT_BUCKETS; 
   }
-
-  kprintf("C/o t %ld, r %d->%d\n", (long int)time, current_bucket, last_bucket);
   
   while (1) {
     callout_head_t *head = &ci.heads[current_bucket];
@@ -82,9 +80,6 @@ void callout_process(realtime_t time) {
       next = TAILQ_NEXT(elem, c_link);
 
       if (elem->c_time <= time) {
-        kprintf("Callout: c_time = %ld, time = %ld (b %d)\n",
-                (long int)elem->c_time, (long int)time, current_bucket);
-
         callout_set_active(elem);
         callout_clear_pending(elem);
 

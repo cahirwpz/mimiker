@@ -23,13 +23,10 @@ static int test_callout_simple() {
 /* This test checks if the order of execution for scheduled callouts is correct.
  */
 static int current = 0;
-static int problem = 0;
 
 static void callout_ordered(void *arg) {
   int n = (int)arg;
-  kprintf("callout_ordered current = %d, n = %d\n", current, n);
-  if (current != n)
-    problem = 1;
+  ktest_assert(current == n);
   current++;
 
   if (current == 10)
@@ -51,7 +48,6 @@ static int test_callout_order() {
 
   sleepq_wait(callout_ordered, "callout_ordered");
   ktest_assert(current == 10);
-  ktest_assert(!problem);
 
   return KTEST_SUCCESS;
 }
