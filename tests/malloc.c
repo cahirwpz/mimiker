@@ -50,7 +50,7 @@ static int test_malloc_random_size(unsigned int randint) {
   kmalloc_add_arena(mp, page->vaddr, MALLOC_RANDINT_PAGES * PAGESIZE);
 
   void *ptr = kmalloc(mp, randint, 0);
-  ktest_assert(ptr != NULL);
+  assert(ptr != NULL);
   kfree(mp, ptr);
 
   pm_free(page);
