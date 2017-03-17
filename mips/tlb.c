@@ -32,9 +32,14 @@ void tlb_print() {
   }
 }
 
-static struct { tlbhi_t hi; tlblo_t lo0; tlblo_t lo1; } _gdb_tlb_entry;
+static struct {
+  tlbhi_t hi;
+  tlblo_t lo0;
+  tlblo_t lo1;
+} _gdb_tlb_entry;
 
 /* Fills _dgb_tlb_entry structure with TLB entry. Used by debugger. */
 void _gdb_tlb_read_index(unsigned idx) {
-  tlb_read_index(&_gdb_tlb_entry.hi, &_gdb_tlb_entry.lo0, &_gdb_tlb_entry.lo1, idx);
+  tlb_read_index(&_gdb_tlb_entry.hi, &_gdb_tlb_entry.lo0, &_gdb_tlb_entry.lo1,
+                 idx);
 }

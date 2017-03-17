@@ -37,8 +37,8 @@ typedef TAILQ_HEAD(, intr_handler) intr_handler_list_t;
 typedef struct intr_chain {
   TAILQ_ENTRY(intr_chain) ic_list;
   intr_handler_list_t ic_handlers; /* interrupt handlers */
-  char *ic_name;   /* individual chain name */
-  unsigned ic_irq; /* physical interrupt request line number */
+  char *ic_name;                   /* individual chain name */
+  unsigned ic_irq;                 /* physical interrupt request line number */
 } intr_chain_t;
 
 /* Initializes and enables interrupts. */

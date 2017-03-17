@@ -9,7 +9,7 @@ struct rwlock {
     int recurse;
   };
   int writers_waiting;
-  thread_t *writer;      /* sleepq address for writers */
+  thread_t *writer; /* sleepq address for writers */
   rwa_t state;
   bool recursive;
   const char *name;
@@ -27,10 +27,18 @@ void rw_init(rwlock_t *rw, const char *name, bool recursive) {
 void rw_destroy(rwlock_t *rw) {
 }
 
-static bool is_owned(rwlock_t *rw) { return rw->writer == thread_self(); }
-static bool is_locked(rwlock_t *rw) { return rw->state & RW_LOCKED; }
-static bool is_rlocked(rwlock_t *rw) { return rw->state == RW_RLOCKED; }
-static bool is_wlocked(rwlock_t *rw) { return rw->state == RW_WLOCKED; }
+static bool is_owned(rwlock_t *rw) {
+  return rw->writer == thread_self();
+}
+static bool is_locked(rwlock_t *rw) {
+  return rw->state & RW_LOCKED;
+}
+static bool is_rlocked(rwlock_t *rw) {
+  return rw->state == RW_RLOCKED;
+}
+static bool is_wlocked(rwlock_t *rw) {
+  return rw->state == RW_WLOCKED;
+}
 
 void rw_enter(rwlock_t *rw, rwo_t who) {
   critical_enter();
