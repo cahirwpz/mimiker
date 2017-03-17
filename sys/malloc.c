@@ -222,7 +222,7 @@ void kmalloc_dump(malloc_pool_t *mp) {
     mem_block_t *block = (void *)arena->ma_data;
     mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
 
-    kprintf("[kmalloc]  malloc_arena %p – %p:\n", block, end);
+    kprintf("[kmalloc]  malloc_arena %p - %p:\n", block, end);
 
     while (block < end) {
       assert(block->mb_magic == MB_MAGIC);
