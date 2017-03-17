@@ -12,7 +12,10 @@ extern uint8_t __ebss[];
 /* Limit for the end of kernel's bss. Provided by the linker. */
 extern uint8_t __kernel_end[];
 
-static struct { void *ptr; void *end; } sbrk = { __ebss, __kernel_end };
+static struct {
+  void *ptr;
+  void *end;
+} sbrk = {__ebss, __kernel_end};
 
 void kernel_brk(void *addr) {
   cs_enter();
@@ -222,7 +225,7 @@ void kmalloc_dump(malloc_pool_t *mp) {
     mem_block_t *block = (void *)arena->ma_data;
     mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
 
-    kprintf("[kmalloc]  malloc_arena %p – %p:\n", block, end);
+    kprintf("[kmalloc]  malloc_arena %p - %p:\n", block, end);
 
     while (block < end) {
       assert(block->mb_magic == MB_MAGIC);

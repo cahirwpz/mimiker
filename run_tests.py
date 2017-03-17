@@ -30,8 +30,9 @@ def test_seed(seed, repeat=1, retry=0):
         child.terminate(True)
         return
     elif index == 1:
-        print("Test failure reported!")
-        message = child.buffer.decode("ascii")
+        print("Test failure reported!\n")
+        message = child.before.decode("ascii")
+        message += child.buffer.decode("ascii")
         try:
             while len(message) < 20000:
                 message += child.read_nonblocking(timeout=1).decode("ascii")
@@ -45,7 +46,7 @@ def test_seed(seed, repeat=1, retry=0):
               "Retrying (%d)..." % (retry + 1))
         test_seed(seed, repeat, retry + 1)
     elif index == 3:
-        print("Timeout reached.")
+        print("Timeout reached.\n")
         message = child.buffer.decode("utf-8")
         child.terminate(True)
         print(message)

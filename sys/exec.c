@@ -111,61 +111,61 @@ int do_exec(const exec_args_t *args) {
   for (uint8_t i = 0; i < eh->e_phnum; i++) {
     const Elf32_Phdr *ph = (Elf32_Phdr *)(phs_base + i * eh->e_phentsize);
     switch (ph->p_type) {
-    case PT_NULL:
-    case PT_NOTE:
-    case PT_PHDR:
-    default:
-      /* Ignore the section. */
-      break;
-    case PT_DYNAMIC:
-    case PT_INTERP:
-      log("Exec failed: ELF file requests dynamic linking"
-          "by providing a PT_DYNAMIC and/or PT_INTERP segment.");
-      goto exec_fail;
-    case PT_SHLIB:
-      log("Exec failed: ELF file contains a PT_SHLIB segment");
-      goto exec_fail;
-    case PT_LOAD:
-      log("Processing a PT_LOAD segment: VirtAddr = %p, "
-          "Offset = 0x%08x, FileSiz = 0x%08x, MemSiz = 0x%08x, Flags = %d",
-          (void *)ph->p_vaddr, (unsigned int)ph->p_offset,
-          (unsigned int)ph->p_filesz, (unsigned int)ph->p_memsz,
-          (unsigned int)ph->p_flags);
-      if (ph->p_vaddr % PAGESIZE) {
-        log("Exec failed: Segment p_vaddr is not page alligned");
+      case PT_NULL:
+      case PT_NOTE:
+      case PT_PHDR:
+      default:
+        /* Ignore the section. */
+        break;
+      case PT_DYNAMIC:
+      case PT_INTERP:
+        log("Exec failed: ELF file requests dynamic linking"
+            "by providing a PT_DYNAMIC and/or PT_INTERP segment.");
         goto exec_fail;
-      }
-      if (ph->p_memsz == 0) {
-        /* Avoid creating empty vm_map entries for segments that
-           occupy no space in memory, as they might overlap with
-           subsequent segments. */
-        continue;
-      }
-      vm_addr_t start = ph->p_vaddr;
-      vm_addr_t end = roundup(ph->p_vaddr + ph->p_memsz, PAGESIZE);
-      /* TODO: What if segments overlap? */
-      /* Temporarily permissive protection. */
-      vm_map_entry_t *segment = vm_map_add_entry(
-        vmap, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC);
-      /* Allocate pages backing this segment. */
-      segment->object = default_pager->pgr_alloc();
-      /* Copy data into the segment */
-      memcpy((uint8_t *)start, elf_image + ph->p_offset, ph->p_filesz);
-      /* Zero the rest */
-      if (ph->p_filesz < ph->p_memsz) {
-        bzero((uint8_t *)start + ph->p_filesz, ph->p_memsz - ph->p_filesz);
-      }
-      /* Apply correct permissions */
-      vm_prot_t prot = VM_PROT_NONE;
-      if (ph->p_flags | PF_R)
-        prot |= VM_PROT_READ;
-      if (ph->p_flags | PF_W)
-        prot |= VM_PROT_WRITE;
-      if (ph->p_flags | PF_X)
-        prot |= VM_PROT_EXEC;
-      /* Note: vm_map_protect is not yet implemented, so
-       * this will have no effect as of now */
-      vm_map_protect(vmap, start, end, prot);
+      case PT_SHLIB:
+        log("Exec failed: ELF file contains a PT_SHLIB segment");
+        goto exec_fail;
+      case PT_LOAD:
+        log("Processing a PT_LOAD segment: VirtAddr = %p, "
+            "Offset = 0x%08x, FileSiz = 0x%08x, MemSiz = 0x%08x, Flags = %d",
+            (void *)ph->p_vaddr, (unsigned int)ph->p_offset,
+            (unsigned int)ph->p_filesz, (unsigned int)ph->p_memsz,
+            (unsigned int)ph->p_flags);
+        if (ph->p_vaddr % PAGESIZE) {
+          log("Exec failed: Segment p_vaddr is not page alligned");
+          goto exec_fail;
+        }
+        if (ph->p_memsz == 0) {
+          /* Avoid creating empty vm_map entries for segments that
+             occupy no space in memory, as they might overlap with
+             subsequent segments. */
+          continue;
+        }
+        vm_addr_t start = ph->p_vaddr;
+        vm_addr_t end = roundup(ph->p_vaddr + ph->p_memsz, PAGESIZE);
+        /* TODO: What if segments overlap? */
+        /* Temporarily permissive protection. */
+        vm_map_entry_t *segment = vm_map_add_entry(
+          vmap, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC);
+        /* Allocate pages backing this segment. */
+        segment->object = default_pager->pgr_alloc();
+        /* Copy data into the segment */
+        memcpy((uint8_t *)start, elf_image + ph->p_offset, ph->p_filesz);
+        /* Zero the rest */
+        if (ph->p_filesz < ph->p_memsz) {
+          bzero((uint8_t *)start + ph->p_filesz, ph->p_memsz - ph->p_filesz);
+        }
+        /* Apply correct permissions */
+        vm_prot_t prot = VM_PROT_NONE;
+        if (ph->p_flags | PF_R)
+          prot |= VM_PROT_READ;
+        if (ph->p_flags | PF_W)
+          prot |= VM_PROT_WRITE;
+        if (ph->p_flags | PF_X)
+          prot |= VM_PROT_EXEC;
+        /* Note: vm_map_protect is not yet implemented, so
+         * this will have no effect as of now */
+        vm_map_protect(vmap, start, end, prot);
     }
   }
 

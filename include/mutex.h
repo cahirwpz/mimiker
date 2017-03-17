@@ -10,8 +10,8 @@ typedef struct thread thread_t;
 
 typedef struct mtx {
   volatile thread_t *m_owner; /* stores address of the owner */
-  volatile unsigned m_count; /* Counter for recursive mutexes */
-  unsigned m_type;           /* Normal or recursive mutex */
+  volatile unsigned m_count;  /* Counter for recursive mutexes */
+  unsigned m_type;            /* Normal or recursive mutex */
 } mtx_t;
 
 /* Initializes mutex. Note that EVERY mutex has to be initialized
