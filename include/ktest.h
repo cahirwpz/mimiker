@@ -3,6 +3,7 @@
 
 #include <linker_set.h>
 #include <stdc.h>
+#include <common.h>
 
 #define KTEST_NAME_MAX 32
 
@@ -51,6 +52,11 @@ void ktest_failure();
       ktest_failure();                                                         \
     }                                                                          \
   })
+
+#ifdef COMPILING_TESTS
+#undef assert
+#define assert(EXPR) ktest_assert(EXPR)
+#endif
 
 /* This flag is set to 1 when a kernel test is in progress, and 0 otherwise. */
 extern int ktest_test_running_flag;
