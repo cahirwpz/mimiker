@@ -2,8 +2,8 @@
 #include <callout.h>
 
 /* Note: If the difference in time between ticks is greater than the number of
-   buckets, some callouts may be skipped and/or called out-of-order! */
-#define CALLOUT_BUCKETS 10
+   buckets, some callouts may be called out-of-order! */
+#define CALLOUT_BUCKETS 64
 
 #define callout_set_active(c) ((c)->c_flags |= CALLOUT_ACTIVE)
 #define callout_clear_active(c) ((c)->c_flags &= ~CALLOUT_ACTIVE)
