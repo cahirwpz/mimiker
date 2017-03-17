@@ -95,4 +95,8 @@ void callout_process(realtime_t time) {
       elem = next;
     }
   }
+
+  /* Ensure ci.last is synced with time - the main loop increments it only until
+     it is congruent to time (mode CALLOUT_BUCKETS). */
+  ci.last = time;
 }
