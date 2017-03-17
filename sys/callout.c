@@ -68,6 +68,7 @@ void callout_process(realtime_t time) {
 
   while (!done) {
     int last = ci.last++ % CALLOUT_BUCKETS;
+    kprintf("ci.last = %ld\n", (long int)ci.last);
 
     if (last == now)
       done = true;
