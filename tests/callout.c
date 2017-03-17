@@ -25,6 +25,7 @@ static int current = 0;
 
 static void callout_ordered(void *arg) {
   int n = (int)arg;
+  kprintf("callout_ordered current = %d, n = %d", current, n);
   ktest_assert(current == n);
   current++;
 
