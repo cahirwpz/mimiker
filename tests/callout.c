@@ -25,7 +25,7 @@ static int current = 0;
 
 static void callout_ordered(void *arg) {
   int n = (int)arg;
-  ktest_assert(current == n);
+  assert(current == n);
   current++;
 
   if (current == 10)
@@ -41,14 +41,14 @@ static int test_callout_order() {
                            (void *)order[i]);
 
   sleepq_wait(callout_ordered, "callout_ordered");
-  ktest_assert(current == 10);
+  assert(current == 10);
 
   return KTEST_SUCCESS;
 }
 
 /* This test verifies that callouts removed with callout_stop are not run. */
 static void callout_bad(void *arg) {
-  ktest_assert(0);
+  assert(0);
 }
 
 static void callout_good(void *arg) {

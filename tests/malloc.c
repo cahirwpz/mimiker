@@ -11,19 +11,19 @@ static int test_malloc() {
   kmalloc_add_arena(mp, page->vaddr, PAGESIZE);
 
   void *ptr1 = kmalloc(mp, 15, 0);
-  ktest_assert(ptr1 != NULL);
+  assert(ptr1 != NULL);
 
   void *ptr2 = kmalloc(mp, 23, 0);
-  ktest_assert(ptr2 != NULL && ptr2 > ptr1);
+  assert(ptr2 != NULL && ptr2 > ptr1);
 
   void *ptr3 = kmalloc(mp, 7, 0);
-  ktest_assert(ptr3 != NULL && ptr3 > ptr2);
+  assert(ptr3 != NULL && ptr3 > ptr2);
 
   void *ptr4 = kmalloc(mp, 2000, 0);
-  ktest_assert(ptr4 != NULL && ptr4 > ptr3);
+  assert(ptr4 != NULL && ptr4 > ptr3);
 
   void *ptr5 = kmalloc(mp, 1000, 0);
-  ktest_assert(ptr5 != NULL);
+  assert(ptr5 != NULL);
 
   kfree(mp, ptr1);
   kfree(mp, ptr2);
@@ -32,7 +32,7 @@ static int test_malloc() {
   kfree(mp, ptr5);
 
   void *ptr6 = kmalloc(mp, 2000, M_NOWAIT);
-  ktest_assert(ptr6 == NULL);
+  assert(ptr6 == NULL);
 
   pm_free(page);
 
@@ -50,7 +50,7 @@ static int test_malloc_random_size(unsigned int randint) {
   kmalloc_add_arena(mp, page->vaddr, MALLOC_RANDINT_PAGES * PAGESIZE);
 
   void *ptr = kmalloc(mp, randint, 0);
-  ktest_assert(ptr != NULL);
+  assert(ptr != NULL);
   kfree(mp, ptr);
 
   pm_free(page);
