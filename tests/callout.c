@@ -28,7 +28,8 @@ static int problem = 0;
 static void callout_ordered(void *arg) {
   int n = (int)arg;
   kprintf("callout_ordered current = %d, n = %d\n", current, n);
-  if(current != n) problem = 1;
+  if (current != n)
+    problem = 1;
   current++;
 
   if (current == 10)

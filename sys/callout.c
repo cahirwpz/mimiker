@@ -64,16 +64,17 @@ void callout_stop(callout_t *handle) {
 */
 void callout_process(realtime_t time) {
   kprintf("Processing callout time %ld\n", (long int)time);
-  int now = time % CALLOUT_BUCKETS;
-  bool done = false;
+  unsigned int current_bucket = ci.last % CALLOUT_BUCKETS, last_bucket;
+  if (time - ci.last > CALLOUT_BUCKETS) {
+    /* Process all buckets */
+    last_bucket = (ci.last - 1) % CALLOUT_BUCKETS;
+  } else {
+    /* Process only buckets in time range ci.last to time */
+    last_bucket = time % CALLOUT_BUCKETS; 
+  }
 
-  while (!done) {
-    int last = ci.last++ % CALLOUT_BUCKETS;
-
-    if (last == now)
-      done = true;
-
-    callout_head_t *head = &ci.heads[last];
+  while (1) {
+    callout_head_t *head = &ci.heads[current_bucket];
     callout_t *elem = TAILQ_FIRST(head);
     callout_t *next;
 
@@ -81,8 +82,9 @@ void callout_process(realtime_t time) {
       next = TAILQ_NEXT(elem, c_link);
 
       if (elem->c_time <= time) {
-        kprintf("Callout triggered: c_time = %ld, time = %ld\n", (long int)elem->c_time, (long int)time);
-        
+        kprintf("Callout triggered: c_time = %ld, time = %ld\n",
+                (long int)elem->c_time, (long int)time);
+
         callout_set_active(elem);
         callout_clear_pending(elem);
 
@@ -94,9 +96,12 @@ void callout_process(realtime_t time) {
 
       elem = next;
     }
+    if (current_bucket == last_bucket)
+      break;
+
+    current_bucket = (current_bucket + 1) % CALLOUT_BUCKETS;
   }
 
-  /* Ensure ci.last is synced with time - the main loop increments it only until
-     it is congruent to time (mode CALLOUT_BUCKETS). */
+  /* Update ci.last. */
   ci.last = time;
 }
