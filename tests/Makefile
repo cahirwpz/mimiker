@@ -25,8 +25,6 @@ all: $(DEPFILES) libtests.a
 
 include ../Makefile.common
 
-CFLAGS += -DCOMPILING_TESTS
-
 libtests.a: $(OBJECTS)
 
 clean:

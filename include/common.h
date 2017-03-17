@@ -104,10 +104,12 @@ noreturn void thread_exit();
   __extension__(                                                               \
     { kprintf("[%s:%d] " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__); })
 
+void assert_fail(const char *expr, const char *file, unsigned int line);
+
 #define assert(EXPR)                                                           \
   __extension__({                                                              \
     if (!(EXPR))                                                               \
-      panic("Assertion '" __STRING(EXPR) "' failed!");                         \
+      assert_fail(__STRING(EXPR), __FILE__, __LINE__);                         \
   })
 #else
 #define log(...)
