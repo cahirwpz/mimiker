@@ -49,6 +49,7 @@ void callout_setup(callout_t *handle, realtime_t time, timeout_t fn,
 
 void callout_setup_relative(callout_t *handle, realtime_t time, timeout_t fn,
                             void *arg) {
+  kprintf("ci.last = %ld\n", (long int)ci.last);
   callout_setup(handle, time + ci.last, fn, arg);
 }
 
@@ -68,7 +69,6 @@ void callout_process(realtime_t time) {
 
   while (!done) {
     int last = ci.last++ % CALLOUT_BUCKETS;
-    kprintf("ci.last = %ld\n", (long int)ci.last);
 
     if (last == now)
       done = true;
