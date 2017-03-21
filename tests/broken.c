@@ -8,7 +8,7 @@ static int test_broken() {
   (void)v;
 
   /* Failing assertion */
-  ktest_assert(0);
+  assert(0);
 
   /* Failure exit code */
   return KTEST_FAILURE;

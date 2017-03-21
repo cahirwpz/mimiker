@@ -14,7 +14,7 @@ static int test_physmem() {
   for (int i = 0; i < size; i++)
     arr[i] = 42; /* Write non-zero value */
   for (int i = 0; i < size; i++)
-    ktest_assert(arr[i] == 42);
+    assert(arr[i] == 42);
 
   /* Allocate deallocate test */
   const int N = 7;
@@ -26,9 +26,9 @@ static int test_physmem() {
   for (int i = 1; i < N; i += 2)
     pm_free(pgs[i]);
 
-  ktest_assert(pre != pm_hash());
+  assert(pre != pm_hash());
   pm_free(pg);
-  ktest_assert(pre == pm_hash());
+  assert(pre == pm_hash());
 
   pre = pm_hash();
   vm_page_t *pg1 = pm_alloc(4);
@@ -37,13 +37,13 @@ static int test_physmem() {
   vm_page_t *pg4 = pm_split_alloc_page(pg3);
 
   pm_free(pg3);
-  ktest_assert(pre != pm_hash());
+  assert(pre != pm_hash());
   pm_free(pg4);
-  ktest_assert(pre != pm_hash());
+  assert(pre != pm_hash());
   pm_free(pg2);
-  ktest_assert(pre != pm_hash());
+  assert(pre != pm_hash());
   pm_free(pg1);
-  ktest_assert(pre == pm_hash());
+  assert(pre == pm_hash());
   kprintf("Tests passed\n");
   return KTEST_SUCCESS;
 }
