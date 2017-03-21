@@ -22,6 +22,9 @@ TAILQ_HEAD(callout_head, callout);
 
 static struct {
   callout_head_t heads[CALLOUT_BUCKETS];
+  /* Stores the value of the argument callout_process was previously
+     called with. All callouts up to this timestamp have already been
+     processed. */
   realtime_t last;
 } ci;
 
@@ -62,7 +65,8 @@ void callout_stop(callout_t *handle) {
  * position.
 */
 void callout_process(realtime_t time) {
-  unsigned int current_bucket = ci.last % CALLOUT_BUCKETS, last_bucket;
+  unsigned int last_bucket;
+  unsigned int current_bucket = ci.last % CALLOUT_BUCKETS;
   if (time - ci.last > CALLOUT_BUCKETS) {
     /* Process all buckets */
     last_bucket = (ci.last - 1) % CALLOUT_BUCKETS;
@@ -97,6 +101,5 @@ void callout_process(realtime_t time) {
     current_bucket = (current_bucket + 1) % CALLOUT_BUCKETS;
   }
 
-  /* Update ci.last. */
   ci.last = time;
 }
