@@ -38,14 +38,16 @@ static int test_kernel_pmap() {
   assert(pmap_probe(pmap, vaddr1, vaddr2, VM_PROT_NONE));
   assert(pmap_probe(pmap, vaddr2, vaddr3, VM_PROT_READ));
 
-  pmap_reset(pmap);
+  pmap_unmap(pmap, vaddr2, vaddr3);
   pm_free(pg);
 
   log("Test passed.");
-  return 0;
+  return KTEST_SUCCESS;
 }
 
 static int test_user_pmap() {
+  pmap_t *orig = get_user_pmap();
+
   pmap_t *pmap1 = pmap_new();
   pmap_t *pmap2 = pmap_new();
 
@@ -73,9 +75,13 @@ static int test_user_pmap() {
 
   pmap_delete(pmap1);
   pmap_delete(pmap2);
+
+  /* Restore original user pmap */
+  pmap_activate(orig);
+
   log("Test passed.");
-  return 0;
+  return KTEST_SUCCESS;
 }
 
-KTEST_ADD(pmap_kernel, test_kernel_pmap);
-KTEST_ADD(pmap_user, test_user_pmap);
+KTEST_ADD(pmap_kernel, test_kernel_pmap, 0);
+KTEST_ADD(pmap_user, test_user_pmap, 0);

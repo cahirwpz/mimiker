@@ -3,20 +3,34 @@
 
 #include <stdbool.h>
 
-typedef struct rwlock rwlock_t;
-
 typedef enum { RW_READER, RW_WRITER } rwo_t;
-typedef enum { RW_RECURSE = 1 } rwf_t;
+
 typedef enum {
   RW_UNLOCKED = 0,
   RW_RLOCKED = 1,
   RW_WLOCKED = 2,
-  RW_LOCKED = 3,
+  RW_LOCKED = 3
 } rwa_t;
 
-void rw_init(rwlock_t *rw, const char *name, rwf_t flags);
+typedef struct thread thread_t;
+
+typedef struct rwlock {
+  /* private */
+  union {
+    int readers;
+    int recurse;
+  };
+  int writers_waiting;
+  thread_t *writer;     /* sleepq address for writers */
+  rwa_t state;
+  bool recursive;
+  /* public, read-only */
+  const char *name;
+} rwlock_t;
+
+void rw_init(rwlock_t *rw, const char *name, bool recursive);
 void rw_destroy(rwlock_t *rw);
-void rw_enter(rwlock_t *rw, rw_t who);
+void rw_enter(rwlock_t *rw, rwo_t who);
 void rw_leave(rwlock_t *rw);
 bool rw_try_upgrade(rwlock_t *rw);
 void rw_downgrade(rwlock_t *rw);

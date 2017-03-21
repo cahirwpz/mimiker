@@ -220,7 +220,8 @@ int vfs_lookup(const char *path, vnode_t **vp) {
       if (error)
         return error;
       v = v_mntpt;
-      vnode_ref(v);
+      /* vnode_ref(v); No need to ref this vnode, VFS_ROOT already did it for
+       * us. */
       vnode_lock(v);
     }
 
@@ -238,7 +239,8 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     if (error)
       return error;
     v = v_child;
-    vnode_ref(v);
+    /* vnode_ref(v); No need to ref this vnode, VFS_LOOKUP already did it for
+     * us. */
     vnode_lock(v);
   }
 
@@ -254,5 +256,9 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   error = vfs_lookup(pathname, &v);
   if (error)
     return error;
-  return VOP_OPEN(v, flags, f);
+  int res = VOP_OPEN(v, flags, f);
+  /* Drop our reference to v. We received it from vfs_lookup, but we no longer
+     need it - file f keeps its own reference to v after open. */
+  vnode_unref(v);
+  return res;
 }

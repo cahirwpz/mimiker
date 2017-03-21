@@ -134,14 +134,9 @@ static int devfs_init(vfsconf_t *vfc) {
 }
 
 static vfsops_t devfs_vfsops = {
-  .vfs_mount = devfs_mount,
-  .vfs_root = devfs_root,
-  .vfs_init = devfs_init
-};
+  .vfs_mount = devfs_mount, .vfs_root = devfs_root, .vfs_init = devfs_init};
 
-static vfsconf_t devfs_conf = {
-  .vfc_name = "devfs",
-  .vfc_vfsops = &devfs_vfsops
-};
+static vfsconf_t devfs_conf = {.vfc_name = "devfs",
+                               .vfc_vfsops = &devfs_vfsops};
 
 SET_ENTRY(vfsconf, devfs_conf);

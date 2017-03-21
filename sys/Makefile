@@ -1,6 +1,7 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
 SOURCES_C  = \
+	assert.c \
 	callout.c \
 	clock.c \
 	condvar.c \
@@ -13,6 +14,7 @@ SOURCES_C  = \
 	filedesc.c \
 	initrd.c \
 	interrupt.c \
+	ktest.c \
 	main.c \
 	malloc.c \
 	mutex.c \
@@ -20,6 +22,7 @@ SOURCES_C  = \
 	pcpu.c \
 	physmem.c \
 	runq.c \
+	rwlock.c \
 	sched.c \
 	sleepq.c \
 	startup.c \
