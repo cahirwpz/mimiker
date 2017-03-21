@@ -45,4 +45,4 @@ static int test_ramdisk() {
   return 0;
 }
 
-KTEST_ADD(ramdisk, test_ramdisk);
+KTEST_ADD(ramdisk, test_ramdisk, KTEST_FLAG_BROKEN);

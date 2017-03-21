@@ -194,6 +194,8 @@ void ramdisk_init() {
   rd_size = s ? strtoul(s, NULL, 0) : 0;
 
   TAILQ_INIT(&initrd_head);
+  kmalloc_init(mp);
+  kmalloc_add_pages(mp, 2);
 
   initrd_ops.v_lookup = vnode_op_notsup;
   initrd_ops.v_readdir = vnode_op_notsup;
@@ -204,11 +206,6 @@ void ramdisk_init() {
   if (rd_size > 0) {
     initrd_ops.v_lookup = initrd_vnode_lookup;
     initrd_ops.v_read = initrd_vnode_read;
-  }
-
-  if (rd_size > 0) {
-    kmalloc_init(mp);
-    kmalloc_add_pages(mp, 2);
     log("parsing cpio archive of %zu bytes", rd_size);
     read_cpio_archive();
   }
