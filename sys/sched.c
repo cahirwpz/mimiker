@@ -85,7 +85,7 @@ void sched_switch(thread_t *newtd) {
 }
 
 noreturn void sched_run() {
-  thread_t *td = thread_self(); 
+  thread_t *td = thread_self();
 
   PCPU_SET(idle_thread, td);
 
@@ -96,4 +96,3 @@ noreturn void sched_run() {
     td->td_flags |= TDF_NEEDSWITCH;
   }
 }
-

@@ -88,7 +88,7 @@ static int upgrade(bool recursive) {
   rw_assert(&rw, RW_UNLOCKED);
   rw_enter(&rw, RW_READER);
   rw_assert(&rw, RW_RLOCKED);
-  ktest_assert(rw_try_upgrade(&rw));
+  assert(rw_try_upgrade(&rw));
   rw_assert(&rw, RW_WLOCKED);
   rw_leave(&rw);
   rw_assert(&rw, RW_UNLOCKED);
