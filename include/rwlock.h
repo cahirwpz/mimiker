@@ -15,14 +15,16 @@ typedef enum {
 typedef struct thread thread_t;
 
 typedef struct rwlock {
+  /* private */
   union {
     int readers;
     int recurse;
   };
   int writers_waiting;
-  thread_t *writer; /* sleepq address for writers */
+  thread_t *writer;     /* sleepq address for writers */
   rwa_t state;
   bool recursive;
+  /* public, read-only */
   const char *name;
 } rwlock_t;
 

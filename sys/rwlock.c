@@ -95,12 +95,8 @@ void rw_downgrade(rwlock_t *rw) {
 }
 
 void __rw_assert(rwlock_t *rw, rwa_t what, const char *file, unsigned line) {
-  bool flag = false;
-  if (what == RW_UNLOCKED)
-    flag = is_locked(rw);
-  else
-    flag = !(rw->state & what);
-  if (flag)
+  bool ok = (what == RW_UNLOCKED) ? !is_locked(rw) : (rw->state & what);
+  if (!ok)
     kprintf("[%s:%d] rwlock (%p) has invalid state: expected %u, actual %u!\n",
             file, line, rw, what, rw->state);
 }
