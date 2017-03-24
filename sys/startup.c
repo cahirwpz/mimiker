@@ -11,7 +11,7 @@
 #include <thread.h>
 #include <vm_object.h>
 #include <vm_map.h>
-#include <worker.h>
+#include <workqueue.h>
 #include <filedesc.h>
 #include <vnode.h>
 #include <mount.h>
@@ -33,7 +33,7 @@ int kernel_init(int argc, char **argv) {
   sched_init();
   sleepq_init();
   taskqueue_init();
-  worker_init();
+  workqueue_init();
   mips_clock_init();
 
   vnode_init();

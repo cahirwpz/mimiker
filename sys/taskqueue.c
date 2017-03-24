@@ -1,32 +1,56 @@
 #include <malloc.h>
 #include <queue.h>
 #include <taskqueue.h>
+#include <thread.h>
+#include <sched.h>
 
-static MALLOC_DEFINE(tq_pool, "taskqueue pool");
+static MALLOC_DEFINE(tq_pool, "taskqueues pool");
 
 void taskqueue_init() {
   kmalloc_init(tq_pool);
   kmalloc_add_arena(tq_pool, pm_alloc(1)->vaddr, PAGESIZE);
 }
 
+static void taskqueue_worker_thread(void* p){
+  taskqueue_t* tq = (taskqueue_t*)p;
+  
+  while (true) {
+    mtx_lock(&tq->tq_mutex);
+    while(STAILQ_EMPTY(&tq->tq_list))
+      cv_wait(&tq->tq_nonempty, &tq->tq_mutex);
+    taskqueue_run(tq);
+    mtx_unlock(&tq->tq_mutex);
+    
+    sched_yield();
+  }
+}
+
 taskqueue_t *taskqueue_create() {
   taskqueue_t *tq = kmalloc(tq_pool, sizeof(taskqueue_t), M_WAITOK);
-  STAILQ_INIT(tq);
+  STAILQ_INIT(&tq->tq_list);
+  mtx_init(&tq->tq_mutex, MTX_RECURSE);
+  cv_init(&tq->tq_nonempty, "taskqueue nonempty");
+  tq->tq_worker = thread_create("taskqueue worker thread", taskqueue_worker_thread, tq);
+  sched_add(tq->tq_worker);
   return tq;
 }
 
 void taskqueue_add(taskqueue_t *tq, task_t *task) {
-  STAILQ_INSERT_TAIL(tq, task, tq_link);
+  mtx_lock(&tq->tq_mutex);
+  STAILQ_INSERT_TAIL(&tq->tq_list, task, tq_link);
+  cv_signal(&tq->tq_nonempty);
+  mtx_unlock(&tq->tq_mutex);
 }
 
 void taskqueue_run(taskqueue_t *tq) {
   task_t *task;
-
-  while (!STAILQ_EMPTY(tq)) {
-    task = STAILQ_FIRST(tq);
+  mtx_lock(&tq->tq_mutex);
+  while (!STAILQ_EMPTY(&tq->tq_list)) {
+    task = STAILQ_FIRST(&tq->tq_list);
     task->func(task->arg);
-    STAILQ_REMOVE_HEAD(tq, tq_link);
+    STAILQ_REMOVE_HEAD(&tq->tq_list, tq_link);
   }
+  mtx_unlock(&tq->tq_mutex);
 }
 
 task_t *task_create(void (*func)(void *), void *arg) {

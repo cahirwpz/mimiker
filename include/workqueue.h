@@ -4,6 +4,6 @@
 #include <taskqueue.h>
 
 extern taskqueue_t *workqueue;
-void worker_init();
+void workqueue_init();
 
 #endif
