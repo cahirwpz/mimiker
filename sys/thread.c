@@ -95,22 +95,24 @@ noreturn void thread_exit(int exitcode) {
   /* Thread must not exit while in critical section! However, we can't use
      assert here, because assert also calls thread_exit. Thus, in case this
      condition is not met, we'll log the problem, and try to fix the problem. */
-  if(td->td_csnest != 0){
+  if (td->td_csnest != 0) {
     log("ERROR: Thread must not exit within a critical section!");
-    while(td->td_csnest--) critical_leave();
+    while (td->td_csnest--)
+      critical_leave();
   }
 
   fdtab_release(td->td_fdtable);
 
-  task_t* thread_cleanup_task = task_create((void (*)(void*))thread_delete, td);
-  
+  task_t *thread_cleanup_task =
+    task_create((void (*)(void *))thread_delete, td);
+
   critical_enter();
   taskqueue_add(workqueue, thread_cleanup_task);
   td->td_exitcode = exitcode;
   sleepq_broadcast(&td->td_exitcode);
   td->td_state = TDS_INACTIVE;
   critical_leave();
-  
+
   sched_yield();
 
   /* sched_yield will return immediately when scheduler is not active */
@@ -123,9 +125,10 @@ void thread_join(void *p) {
   thread_t *otd = p;
   log("Joining '%s' {%p} with '%s' {%p}", td->td_name, td, otd->td_name, otd);
 
-  if(otd->td_state == TDS_INACTIVE) return;
-  
-  sleepq_wait(&otd->td_exitcode, "Joining threads"); 
+  if (otd->td_state == TDS_INACTIVE)
+    return;
+
+  sleepq_wait(&otd->td_exitcode, "Joining threads");
 }
 
 void thread_dump_all() {

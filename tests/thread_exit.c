@@ -30,7 +30,7 @@ static int test_thread_join() {
   tid_t t1_id = t1->td_tid;
   tid_t t2_id = t2->td_tid;
   tid_t t3_id = t3->td_tid;
-  
+
   start = clock_get();
   sched_add(t1);
   sched_add(t2);

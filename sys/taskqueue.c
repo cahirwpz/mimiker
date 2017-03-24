@@ -11,16 +11,16 @@ void taskqueue_init() {
   kmalloc_add_arena(tq_pool, pm_alloc(1)->vaddr, PAGESIZE);
 }
 
-static void taskqueue_worker_thread(void* p){
-  taskqueue_t* tq = (taskqueue_t*)p;
-  
+static void taskqueue_worker_thread(void *p) {
+  taskqueue_t *tq = (taskqueue_t *)p;
+
   while (true) {
     mtx_lock(&tq->tq_mutex);
-    while(STAILQ_EMPTY(&tq->tq_list))
+    while (STAILQ_EMPTY(&tq->tq_list))
       cv_wait(&tq->tq_nonempty, &tq->tq_mutex);
     taskqueue_run(tq);
     mtx_unlock(&tq->tq_mutex);
-    
+
     sched_yield();
   }
 }
@@ -30,7 +30,8 @@ taskqueue_t *taskqueue_create() {
   STAILQ_INIT(&tq->tq_list);
   mtx_init(&tq->tq_mutex, MTX_RECURSE);
   cv_init(&tq->tq_nonempty, "taskqueue nonempty");
-  tq->tq_worker = thread_create("taskqueue worker thread", taskqueue_worker_thread, tq);
+  tq->tq_worker =
+    thread_create("taskqueue worker thread", taskqueue_worker_thread, tq);
   sched_add(tq->tq_worker);
   return tq;
 }

@@ -13,7 +13,8 @@ typedef struct task {
 
 typedef struct taskqueue {
   mtx_t tq_mutex;
-  condvar_t tq_nonempty; /* worker waits on this cv for tq_list to become non empty */
+  condvar_t
+    tq_nonempty; /* worker waits on this cv for tq_list to become non empty */
   STAILQ_HEAD(, task) tq_list;
   thread_t *tq_worker;
 } taskqueue_t;
