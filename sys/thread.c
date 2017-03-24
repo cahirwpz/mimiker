@@ -6,6 +6,8 @@
 #include <pcpu.h>
 #include <sync.h>
 #include <sched.h>
+#include <taskqueue.h>
+#include <worker.h>
 #include <filedesc.h>
 
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
@@ -87,6 +89,7 @@ void thread_switch_to(thread_t *newtd) {
 /* For now this is only a stub */
 noreturn void thread_exit() {
   thread_t *td = thread_self();
+  task_t *t = task_create();
 
   log("Thread '%s' {%p} has finished.", td->td_name, td);
 
@@ -95,7 +98,12 @@ noreturn void thread_exit() {
 
   fdtab_release(td->td_fdtable);
 
+  t->func = thread_join;
+  t->arg = td;
+
   critical_enter();
+  taskqueue_add(workqueue, t);
+
   td->td_state = TDS_INACTIVE;
   sched_yield();
   critical_leave();
@@ -103,6 +111,12 @@ noreturn void thread_exit() {
   /* sched_yield will return immediately when scheduler is not active */
   while (true)
     ;
+}
+
+void thread_join(void *p) {
+  thread_t *td = p;
+  log("Joining '%s' {%p} with ...", td->td_name, td);
+  //...
 }
 
 void thread_dump_all() {

@@ -56,6 +56,7 @@ void thread_delete(thread_t *td);
 void thread_switch_to(thread_t *td_ready);
 
 noreturn void thread_exit();
+void thread_join(void *p);
 
 /* Debugging utility that prints out the summary of all_threads contents. */
 void thread_dump_all();
