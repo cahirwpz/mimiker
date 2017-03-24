@@ -11,7 +11,6 @@ void taskqueue_init() {
 
 taskqueue_t *taskqueue_create() {
   taskqueue_t *tq = kmalloc(tq_pool, sizeof(taskqueue_t), M_WAITOK);
-
   STAILQ_INIT(tq);
   return tq;
 }
@@ -20,7 +19,6 @@ void taskqueue_add(taskqueue_t *tq, task_t *task) {
   STAILQ_INSERT_TAIL(tq, task, tq_link);
 }
 
-//void taskqueue_rem(task_t *tq, task_t *task);
 void taskqueue_run(taskqueue_t *tq) {
   task_t *task;
 
@@ -31,6 +29,9 @@ void taskqueue_run(taskqueue_t *tq) {
   }
 }
 
-task_t *task_create() {
-    return kmalloc(tq_pool, sizeof(task_t), M_WAITOK);
+task_t *task_create(void (*func)(void *), void *arg) {
+  task_t *task = kmalloc(tq_pool, sizeof(task_t), M_WAITOK);
+  task->func = func;
+  task->arg = arg;
+  return task;
 }

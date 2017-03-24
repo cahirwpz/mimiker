@@ -2,16 +2,17 @@
 #include <thread.h>
 #include <worker.h>
 
-void worker_init() {
-  thread_t *t = thread_create("worker thread", worker_invoke, 0);
+taskqueue_t *workqueue;
 
-  workqueue = taskqueue_create();
-  sched_add(t);
-}
-
-void worker_invoke(void *p) {
-  while(true) {
+static void worker_invoke(void *p) {
+  while (true) {
     taskqueue_run(workqueue);
     sched_yield();
   }
+}
+
+void worker_init() {
+  workqueue = taskqueue_create();
+  thread_t *t = thread_create("worker thread", worker_invoke, 0);
+  sched_add(t);
 }

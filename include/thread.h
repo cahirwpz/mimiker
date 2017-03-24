@@ -28,6 +28,7 @@ typedef struct thread {
   enum { TDS_INACTIVE = 0x0, TDS_WAITING, TDS_READY, TDS_RUNNING } td_state;
   uint32_t td_flags;           /* TDF_* flags */
   volatile uint32_t td_csnest; /* critical section nest level */
+  int td_exitcode;
   /* thread context */
   exc_frame_t td_uctx;    /* user context (always exception) */
   fpu_ctx_t td_uctx_fpu;  /* user FPU context (always exception) */
@@ -55,7 +56,7 @@ void thread_delete(thread_t *td);
 
 void thread_switch_to(thread_t *td_ready);
 
-noreturn void thread_exit();
+noreturn void thread_exit(int exitcode);
 void thread_join(void *p);
 
 /* Debugging utility that prints out the summary of all_threads contents. */
