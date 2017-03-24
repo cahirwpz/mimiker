@@ -64,8 +64,8 @@ static void callout_good(void *arg) {
 static int test_callout_stop() {
   current = 0;
   callout_t callout1, callout2;
-  callout_setup_relative(&callout1, 10, callout_bad, NULL);
-  callout_setup_relative(&callout2, 20, callout_good, NULL);
+  callout_setup_relative(&callout1, 40, callout_bad, NULL);
+  callout_setup_relative(&callout2, 60, callout_good, NULL);
 
   /* Remove callout1, hope that callout_bad won't be called! */
   callout_stop(&callout1);
