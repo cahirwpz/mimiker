@@ -18,35 +18,31 @@ int do_fork() {
   critical_enter();
 
   /* Clone the thread. Since we don't use fork-oriented thread_t layout, we copy
-     all fields one-by one for clarity. */
-
-  /* The new thread is already on the all_thread list, has name and tid set. */
+     all fields one-by one for clarity. The new thread is already on the
+     all_thread list, has name and tid set. */
 
   newtd->td_state = td->td_state;
   newtd->td_flags = td->td_flags;
-  newtd->td_csnest =
-    td->td_csnest - 1; /* Subtract this section we're currently in. */
+  newtd->td_csnest = td->td_csnest;
+  newtd->td_csnest -= 1; /* Subtract this section we're currently in. */
 
-  /* Copy user context, modify it accordingly. */
+  /* Copy user context.. */
   newtd->td_uctx = td->td_uctx;
-  newtd->td_uctx.v0 = 0; /* Set return value for child. */
-  newtd->td_uctx.pc +=
-    4; /* Advance child PC so that it follows instructions after syscall. */
   newtd->td_uctx_fpu = td->td_uctx_fpu;
-  newtd->td_kframe =
-    td->td_kframe; /* Shallow copy, the new thread won't use kframe anyway. */
-  newtd->td_kctx = td->td_kctx;
-  newtd->td_kctx.pc = (reg_t)user_exc_leave;
-  newtd->td_onfault = td->td_onfault;
+  exc_frame_set_retval(&newtd->td_uctx, 0);
 
-  /* New thread already has its own kstack, but we need to copy the contents. */
-  memcpy((char *)newtd->td_kstack_obj->vaddr, (char *)td->td_kstack_obj->vaddr,
-         td->td_kstack_obj->size);
-  /* Compute the offset of SP into stack. */
-  off_t sp_off = td->td_kctx.sp - td->td_kstack_obj->vaddr;
-  newtd->td_kctx.sp = newtd->td_kstack_obj->vaddr + sp_off;
+  /* New thread does not need the exception frame just yet. */
+  newtd->td_kframe = NULL;
+  newtd->td_onfault = 0;
 
-  /* Share userspace memory with parent. */
+  /* The new thread already has a new kernel stack allocated. There is no need
+     to copy its contents, it will be discarded anyway. We just prepare the
+     thread's kernel context to a fresh one so that it will continue execution
+     starting from user_exc_leave (which serves as fork_trampoline). */
+  ctx_init(newtd, user_exc_leave, NULL);
+
+  /* Share userspace memory with parent. TODO: (optionally?) clone user
+     memory. */
   newtd->td_uspace = td->td_uspace;
 
   /* Copy the parent descriptor table. */

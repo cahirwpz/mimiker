@@ -1,6 +1,7 @@
 #include <stdc.h>
 #include <context.h>
 #include <thread.h>
+#include <mips/exc.h>
 
 extern noreturn void thread_exit();
 extern noreturn void kern_exc_leave();
@@ -40,4 +41,9 @@ void uctx_init(thread_t *td, vm_addr_t pc, vm_addr_t sp) {
   td->td_uctx.pc = pc;
   td->td_uctx.sp = sp;
   td->td_uctx.ra = 0; /* Explicit. */
+}
+
+void exc_frame_set_retval(exc_frame_t *frame, reg_t value) {
+  frame->v0 = value;
+  frame->pc += 4;
 }
