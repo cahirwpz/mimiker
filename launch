@@ -75,7 +75,6 @@ def configure_qemu(args):
     if args.test:
         options += ['-serial', 'null',
                     '-serial', 'null',
-                    '-monitor', 'stdio',
                     '-serial', 'tcp:127.0.0.1:%d,server,nowait' % PORT]
     else:
         options += ['-serial', 'none',
