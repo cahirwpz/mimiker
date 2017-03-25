@@ -72,9 +72,9 @@ void callout_process(realtime_t time) {
     last_bucket = (ci.last - 1) % CALLOUT_BUCKETS;
   } else {
     /* Process only buckets in time range ci.last to time */
-    last_bucket = time % CALLOUT_BUCKETS; 
+    last_bucket = time % CALLOUT_BUCKETS;
   }
-  
+
   while (1) {
     callout_head_t *head = &ci.heads[current_bucket];
     callout_t *elem = TAILQ_FIRST(head);

@@ -21,7 +21,7 @@ typedef struct rwlock {
     int recurse;
   };
   int writers_waiting;
-  thread_t *writer;     /* sleepq address for writers */
+  thread_t *writer; /* sleepq address for writers */
   rwa_t state;
   bool recursive;
   /* public, read-only */
