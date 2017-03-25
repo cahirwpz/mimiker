@@ -45,3 +45,4 @@ $(USERDIR)/syscalls.o $(USERDIR)/start.o:
 	$(OBJCOPY) -I binary --rename-section .data=.rodata,contents,readonly,data -O elf32-little --alt-machine-code=8 $< $@
 
 .SUFFIXES:
+.PRECIOUS: %.uelf

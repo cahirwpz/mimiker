@@ -60,5 +60,6 @@ SYSCALL(getpid, SYS_GETPID)
 SYSCALL(kill, SYS_KILL)
 SYSCALL(fstat, SYS_FSTAT)
 SYSCALL(sbrk, SYS_SBRK)
+SYSCALL(fork, SYS_FORK)
 
 # vim: sw=8 ts=8 et

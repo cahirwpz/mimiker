@@ -12,8 +12,9 @@
 #define SYS_KILL 9
 #define SYS_FSTAT 10
 #define SYS_SBRK 11
+#define SYS_FORK 12
 
-#define SYS_LAST 11
+#define SYS_LAST 12
 
 #ifndef __ASSEMBLER__
 

@@ -19,6 +19,7 @@
 EMBED_ELF_DECLARE(prog);
 EMBED_ELF_DECLARE(misbehave);
 EMBED_ELF_DECLARE(fd_test);
+EMBED_ELF_DECLARE(test_fork);
 
 int get_elf_image(const exec_args_t *args, uint8_t **out_image,
                   size_t *out_size) {
@@ -33,6 +34,7 @@ int get_elf_image(const exec_args_t *args, uint8_t **out_image,
   EMBED_ELF_BY_NAME(prog);
   EMBED_ELF_BY_NAME(misbehave);
   EMBED_ELF_BY_NAME(fd_test);
+  EMBED_ELF_BY_NAME(test_fork);
   return -ENOENT;
 }
 

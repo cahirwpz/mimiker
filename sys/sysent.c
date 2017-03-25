@@ -5,6 +5,7 @@
 #include <vm_map.h>
 #include <vm_pager.h>
 #include <vfs_syscalls.h>
+#include <fork.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   kprintf("[syscall] unimplemented system call %ld\n", args->code);
@@ -77,8 +78,13 @@ int sys_exit(thread_t *td, syscall_args_t *args) {
   __builtin_unreachable();
 }
 
+int sys_fork(thread_t *td, syscall_args_t *args) {
+  kprintf("[syscall] fork()\n");
+  return do_fork();
+}
+
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
   {sys_nosys}, {sys_exit},  {sys_open},  {sys_close}, {sys_read},  {sys_write},
-  {sys_lseek}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_fstat}, {sys_sbrk},
+  {sys_lseek}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_fstat}, {sys_sbrk}, {sys_fork}
 };
