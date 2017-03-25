@@ -19,9 +19,16 @@ typedef struct taskqueue {
   thread_t *tq_worker;
 } taskqueue_t;
 
+/* Initializes the taskqueues subsystem. */
 void taskqueue_init();
+/* Creates a new taskqueue. */
 taskqueue_t *taskqueue_create();
+/* Appends a task onto a taskqueue. The task will be executed later by the
+   taskqueue worker thread.  */
 void taskqueue_add(taskqueue_t *tq, task_t *task);
+/* Do not use this function. It is periodically called by the task queue worker
+   thread. The only reason it is exposed is that some tests need to wait until
+   the task queue is empty, and they exploit taskqueue_run to do that. */
 void taskqueue_run(taskqueue_t *tq);
 task_t *task_create(void (*func)(void *), void *arg);
 
