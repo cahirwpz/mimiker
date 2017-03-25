@@ -72,15 +72,10 @@ def configure_qemu(args):
                '-kernel', args.kernel,
                '-append', ' '.join(args.args)]
 
-    if args.test:
-        options += ['-serial', 'null',
-                    '-serial', 'null',
-                    '-serial', 'tcp:127.0.0.1:%d,server,nowait' % PORT]
-    else:
-        options += ['-serial', 'none',
-                    '-serial', 'null',
-                    '-serial', 'null',
-                    '-serial', 'stdio']
+    options += ['-serial', 'none',
+                '-serial', 'null',
+                '-serial', 'null',
+                '-serial', 'stdio']
 
     if args.debug:
         options += ['-s', '-S']
@@ -166,12 +161,10 @@ if __name__ == '__main__':
                 break
             except KeyboardInterrupt:
                 gdb.send_signal(signal.SIGINT)
-    elif args.test:
+    elif args.test and args.simulator == 'ovpsim':
+        # Redirect ovpsim output from dedicated console to stdout using nc.
         sim = popen_spawn.PopenSpawn(sim_cmd)
-        if args.simulator == 'ovpsim':
-            sim.expect('Waiting for connection on port %d' % PORT, timeout=5)
-        elif args.simulator == 'qemu':
-            sim.expect('QEMU .* monitor', timeout=5)
+        sim.expect('Waiting for connection on port %d' % PORT, timeout=5)
         nc = subprocess.Popen(['nc', 'localhost', str(PORT)])
         while True:
             try:
