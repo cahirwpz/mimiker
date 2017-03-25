@@ -48,8 +48,16 @@ void taskqueue_run(taskqueue_t *tq) {
   mtx_lock(&tq->tq_mutex);
   while (!STAILQ_EMPTY(&tq->tq_list)) {
     task = STAILQ_FIRST(&tq->tq_list);
+    mtx_unlock(&tq->tq_mutex);
+
     task->func(task->arg);
+
+    mtx_lock(&tq->tq_mutex);
+    /* Note: Even though we unlocked the mutex for a while, task is still at the
+       head of the queue, since we only append to the tail, and this is the only
+       function which removes elements from the queue. */
     STAILQ_REMOVE_HEAD(&tq->tq_list, tq_link);
+    kfree(tq_pool, task);
   }
   mtx_unlock(&tq->tq_mutex);
 }
