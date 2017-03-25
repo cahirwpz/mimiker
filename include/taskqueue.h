@@ -11,11 +11,12 @@ typedef struct task {
   void (*func)(void *); /* function pointer */
 } task_t;
 
+typedef STAILQ_HEAD(, task) tq_list_t;
 typedef struct taskqueue {
   mtx_t tq_mutex;
   condvar_t
     tq_nonempty; /* worker waits on this cv for tq_list to become non empty */
-  STAILQ_HEAD(, task) tq_list;
+  tq_list_t tq_list;
   thread_t *tq_worker;
 } taskqueue_t;
 

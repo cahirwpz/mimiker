@@ -45,21 +45,18 @@ void taskqueue_add(taskqueue_t *tq, task_t *task) {
 
 void taskqueue_run(taskqueue_t *tq) {
   task_t *task;
+  /* Copy the list head into a local var, and empty the original head. */
   mtx_lock(&tq->tq_mutex);
-  while (!STAILQ_EMPTY(&tq->tq_list)) {
-    task = STAILQ_FIRST(&tq->tq_list);
-    mtx_unlock(&tq->tq_mutex);
+  tq_list_t tq_list_copy = tq->tq_list;
+  STAILQ_INIT(&tq->tq_list);
+  mtx_unlock(&tq->tq_mutex);
 
+  while (!STAILQ_EMPTY(&tq_list_copy)) {
+    task = STAILQ_FIRST(&tq_list_copy);
     task->func(task->arg);
-
-    mtx_lock(&tq->tq_mutex);
-    /* Note: Even though we unlocked the mutex for a while, task is still at the
-       head of the queue, since we only append to the tail, and this is the only
-       function which removes elements from the queue. */
-    STAILQ_REMOVE_HEAD(&tq->tq_list, tq_link);
+    STAILQ_REMOVE_HEAD(&tq_list_copy, tq_link);
     kfree(tq_pool, task);
   }
-  mtx_unlock(&tq->tq_mutex);
 }
 
 task_t *task_create(void (*func)(void *), void *arg) {
