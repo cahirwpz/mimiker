@@ -2,8 +2,8 @@
 #include <callout.h>
 
 /* Note: If the difference in time between ticks is greater than the number of
-   buckets, some callouts may be skipped and/or called out-of-order! */
-#define CALLOUT_BUCKETS 10
+   buckets, some callouts may be called out-of-order! */
+#define CALLOUT_BUCKETS 64
 
 #define callout_set_active(c) ((c)->c_flags |= CALLOUT_ACTIVE)
 #define callout_clear_active(c) ((c)->c_flags &= ~CALLOUT_ACTIVE)
@@ -22,6 +22,9 @@ TAILQ_HEAD(callout_head, callout);
 
 static struct {
   callout_head_t heads[CALLOUT_BUCKETS];
+  /* Stores the value of the argument callout_process was previously
+     called with. All callouts up to this timestamp have already been
+     processed. */
   realtime_t last;
 } ci;
 
@@ -62,16 +65,18 @@ void callout_stop(callout_t *handle) {
  * position.
 */
 void callout_process(realtime_t time) {
-  int now = time % CALLOUT_BUCKETS;
-  bool done = false;
+  unsigned int last_bucket;
+  unsigned int current_bucket = ci.last % CALLOUT_BUCKETS;
+  if (time - ci.last > CALLOUT_BUCKETS) {
+    /* Process all buckets */
+    last_bucket = (ci.last - 1) % CALLOUT_BUCKETS;
+  } else {
+    /* Process only buckets in time range ci.last to time */
+    last_bucket = time % CALLOUT_BUCKETS;
+  }
 
-  while (!done) {
-    int last = ci.last++ % CALLOUT_BUCKETS;
-
-    if (last == now)
-      done = true;
-
-    callout_head_t *head = &ci.heads[last];
+  while (1) {
+    callout_head_t *head = &ci.heads[current_bucket];
     callout_t *elem = TAILQ_FIRST(head);
     callout_t *next;
 
@@ -90,5 +95,11 @@ void callout_process(realtime_t time) {
 
       elem = next;
     }
+    if (current_bucket == last_bucket)
+      break;
+
+    current_bucket = (current_bucket + 1) % CALLOUT_BUCKETS;
   }
+
+  ci.last = time;
 }

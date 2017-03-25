@@ -64,31 +64,31 @@ static int findspace_demo() {
   vm_addr_t t;
   int n;
   n = vm_map_findspace(umap, 0x00010000, PAGESIZE, &t);
-  ktest_assert(n == 0 && t == 0x00010000);
+  assert(n == 0 && t == 0x00010000);
 
   n = vm_map_findspace(umap, addr1, PAGESIZE, &t);
-  ktest_assert(n == 0 && t == addr2);
+  assert(n == 0 && t == addr2);
 
   n = vm_map_findspace(umap, addr1 + 20 * PAGESIZE, PAGESIZE, &t);
-  ktest_assert(n == 0 && t == addr2);
+  assert(n == 0 && t == addr2);
 
   n = vm_map_findspace(umap, addr1, 0x6000, &t);
-  ktest_assert(n == 0 && t == addr4);
+  assert(n == 0 && t == addr4);
 
   n = vm_map_findspace(umap, addr1, 0x5000, &t);
-  ktest_assert(n == 0 && t == addr2);
+  assert(n == 0 && t == addr2);
 
   /* Fill the gap exactly */
   vm_map_add_entry(umap, t, t + 0x5000, VM_PROT_NONE);
 
   n = vm_map_findspace(umap, addr1, 0x5000, &t);
-  ktest_assert(n == 0 && t == addr4);
+  assert(n == 0 && t == addr4);
 
   n = vm_map_findspace(umap, addr4, 0x6000, &t);
-  ktest_assert(n == 0 && t == addr4);
+  assert(n == 0 && t == addr4);
 
   n = vm_map_findspace(umap, 0, 0x40000000, &t);
-  ktest_assert(n == -ENOMEM);
+  assert(n == -ENOMEM);
 
   /* Restore original vm_map */
   vm_map_activate(orig);

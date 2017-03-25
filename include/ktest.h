@@ -4,7 +4,7 @@
 #include <linker_set.h>
 #include <stdc.h>
 
-#define KTEST_NAME_MAX 32
+#define KTEST_NAME_MAX 40
 
 #define KTEST_SUCCESS 0
 #define KTEST_FAILURE 1
@@ -19,6 +19,8 @@
 /* Excludes the test from being run in auto mode. This flag is only useful for
    temporarily marking some tests while debugging the testing framework. */
 #define KTEST_FLAG_BROKEN 0x08
+/* Marks that the test wishes to receive a random integer as an argument. */
+#define KTEST_FLAG_RANDINT 0x10
 
 typedef struct thread thread_t;
 
@@ -26,12 +28,17 @@ typedef struct {
   const char test_name[KTEST_NAME_MAX];
   int (*test_func)();
   uint32_t flags;
+  uint32_t randint_max;
 } test_entry_t;
 
 void ktest_main(const char *test);
 
 #define KTEST_ADD(name, func, flags)                                           \
   test_entry_t name##_test = {#name, func, flags};                             \
+  SET_ENTRY(tests, name##_test);
+
+#define KTEST_ADD_RANDINT(name, func, flags, max)                              \
+  test_entry_t name##_test = {#name, func, flags | KTEST_FLAG_RANDINT, max};   \
   SET_ENTRY(tests, name##_test);
 
 /* These are canonical result messages printed to standard output / UART. A
@@ -42,17 +49,6 @@ void ktest_main(const char *test);
 /* This function is called both by run_test, as well as ktest_assert. It
  * displays some troubleshooting info about the failing test. */
 void ktest_failure();
-
-/* This assert variant will call ktest_failure when assertion fails, which
-   prints out some useful information about the failing test case. */
-#define ktest_assert(EXPR)                                                     \
-  __extension__({                                                              \
-    if (!(EXPR)) {                                                             \
-      kprintf("Assertion '" __STRING(EXPR) "' at %s:%d failed!\n", __FILE__,   \
-              __LINE__);                                                       \
-      ktest_failure();                                                         \
-    }                                                                          \
-  })
 
 /* This flag is set to 1 when a kernel test is in progress, and 0 otherwise. */
 extern int ktest_test_running_flag;

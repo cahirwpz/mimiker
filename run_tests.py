@@ -12,16 +12,14 @@ RETRIES_MAX = 5
 REPEAT = 5
 
 
-def test_seed(seed, repeat=1, retry=0):
+def test_seed(seed, sim='qemu', repeat=1, retry=0):
     if retry == RETRIES_MAX:
         print("Maximum retries reached, still not output received. "
               "Test inconclusive.")
         sys.exit(1)
 
     print("Testing seed %d..." % seed)
-    # QEMU takes much much less time to start, so for testing multiple seeds it
-    # is more convenient to use it instead of OVPsim.
-    child = pexpect.spawn('./launch', ['-t', '-S', 'qemu', 'test=all',
+    child = pexpect.spawn('./launch', ['-t', '-S', sim, 'test=all',
                                        'seed=%d' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact(
         ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT],
@@ -65,6 +63,8 @@ if __name__ == '__main__':
     parser.add_argument('--thorough', action='store_true',
                         help='Generate much more test seeds.'
                         'Testing will take much more time.')
+    parser.add_argument('--ovpsim', action='store_true',
+                        help='Use OVPSim instead of QEMU.')
 
     try:
         args = parser.parse_args()
@@ -75,12 +75,18 @@ if __name__ == '__main__':
     if args.thorough:
         n = N_THOROUGH
 
+    # QEMU takes slightly less time to start, thus it is the default option for
+    # running tests on multiple seeds.
+    sim = 'qemu'
+    if args.ovpsim:
+        sim = 'ovpsim'
+
     # Run tests in alphabetic order
-    test_seed(0)
+    test_seed(0, sim)
     # Run tests using n random seeds
     for i in range(0, n):
         seed = random.randint(0, 2**32)
-        test_seed(seed, REPEAT)
+        test_seed(seed, sim, REPEAT)
 
     print("Tests successful!")
     sys.exit(0)

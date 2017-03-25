@@ -2,6 +2,7 @@
 #include <callout.h>
 #include <ktest.h>
 #include <sleepq.h>
+#include <sync.h>
 
 /* This test verifies whether callouts work at all. */
 static void callout_simple(void *arg) {
@@ -25,7 +26,7 @@ static int current = 0;
 
 static void callout_ordered(void *arg) {
   int n = (int)arg;
-  ktest_assert(current == n);
+  assert(current == n);
   current++;
 
   if (current == 10)
@@ -36,19 +37,24 @@ static int test_callout_order() {
   current = 0;
   int order[10] = {2, 5, 4, 6, 9, 0, 8, 1, 3, 7};
   callout_t callouts[10];
+
+  /* Register callouts within a critical section, to ensure they use the same
+     base time! */
+  critical_enter();
   for (int i = 0; i < 10; i++)
     callout_setup_relative(&callouts[i], 20 + order[i] * 15, callout_ordered,
                            (void *)order[i]);
+  critical_leave();
 
   sleepq_wait(callout_ordered, "callout_ordered");
-  ktest_assert(current == 10);
+  assert(current == 10);
 
   return KTEST_SUCCESS;
 }
 
 /* This test verifies that callouts removed with callout_stop are not run. */
 static void callout_bad(void *arg) {
-  ktest_assert(0);
+  assert(0);
 }
 
 static void callout_good(void *arg) {
@@ -58,8 +64,8 @@ static void callout_good(void *arg) {
 static int test_callout_stop() {
   current = 0;
   callout_t callout1, callout2;
-  callout_setup_relative(&callout1, 10, callout_bad, NULL);
-  callout_setup_relative(&callout2, 20, callout_good, NULL);
+  callout_setup_relative(&callout1, 40, callout_bad, NULL);
+  callout_setup_relative(&callout2, 60, callout_good, NULL);
 
   /* Remove callout1, hope that callout_bad won't be called! */
   callout_stop(&callout1);

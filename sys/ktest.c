@@ -92,9 +92,24 @@ static int run_test(test_entry_t *t) {
             "required to run any other test.\n");
 
   current_test = t;
-  ktest_test_running_flag = 1;
-  int result = t->test_func();
-  ktest_test_running_flag = 0;
+  int result;
+  if (t->flags & KTEST_FLAG_RANDINT) {
+    int (*f)(unsigned int) = t->test_func;
+    int randint = rand() % t->randint_max;
+    /* NOTE: Numbers generated here will be the same on each run, since test are
+       started in a deterministic order. This is not a bug! In fact, it allows
+       to reproduce test cases easily, just by reusing the seed.*/
+    /* TODO: Low discrepancy sampling? */
+
+    ktest_test_running_flag = 1;
+    result = f(randint);
+    ktest_test_running_flag = 0;
+  } else {
+
+    ktest_test_running_flag = 1;
+    result = t->test_func();
+    ktest_test_running_flag = 0;
+  }
   if (result == KTEST_FAILURE)
     ktest_failure();
   return result;
