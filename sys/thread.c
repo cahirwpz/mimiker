@@ -148,16 +148,15 @@ noreturn void thread_exit(int exitcode) {
     ;
 }
 
-int thread_join(thread_t *p) {
+void thread_join(thread_t *p) {
   thread_t *td = thread_self();
   thread_t *otd = p;
   log("Joining '%s' {%p} with '%s' {%p}", td->td_name, td, otd->td_name, otd);
 
   if (otd->td_state == TDS_INACTIVE)
-    return otd->td_exitcode;
+    return;
 
   sleepq_wait(&otd->td_exitcode, "Joining threads");
-  return otd->td_exitcode;
 }
 
 /* It would be better to have a hash-map from tid_t to thread_t,
