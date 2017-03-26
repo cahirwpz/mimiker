@@ -1,8 +1,6 @@
 #include <ktest.h>
 #include <stdc.h>
 #include <sync.h>
-#include <thread.h>
-#include <callout.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);

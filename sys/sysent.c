@@ -4,7 +4,6 @@
 #include <thread.h>
 #include <vm_map.h>
 #include <vm_pager.h>
-#include <ktest.h>
 #include <vfs_syscalls.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {

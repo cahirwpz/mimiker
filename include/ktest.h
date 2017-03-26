@@ -22,8 +22,6 @@
 /* Marks that the test wishes to receive a random integer as an argument. */
 #define KTEST_FLAG_RANDINT 0x10
 
-typedef struct thread thread_t;
-
 typedef struct {
   const char test_name[KTEST_NAME_MAX];
   int (*test_func)();
