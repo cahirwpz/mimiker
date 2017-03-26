@@ -11,7 +11,8 @@
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
 
 typedef TAILQ_HEAD(, thread) thread_list_t;
-/* TODO: Synchronize access to the list */
+
+static mtx_t all_threads_mtx;
 static thread_list_t all_threads;
 
 static mtx_t zombie_threads_mtx;
@@ -21,6 +22,8 @@ void thread_init() {
   kmalloc_init(td_pool);
   kmalloc_add_pages(td_pool, 2);
 
+  log("Thread init.");
+  mtx_init(&all_threads_mtx, MTX_DEF);
   TAILQ_INIT(&all_threads);
 
   mtx_init(&zombie_threads_mtx, MTX_DEF);
@@ -69,7 +72,19 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
 
   ctx_init(td, fn, arg);
 
+  /* Do not lock the mutex if this call to thread_create was done before any
+     threads exists (from thread_bootstrap). Locking the mutex would cause
+     problems because during thread bootstrap the current thread is NULL, so a
+     fresh unused mutex looks like it is already owned (because mtx->owner also
+     is NULL). The proper solution to this problem would be either to use a
+     dummy value for PCPU(currthread) during thread_bootstrap, or to use a
+     non-NULL (e.g. -1) value for unowned mutexes. Both options require
+     discussion, so let's handle this case manually for now. */
+  if (thread_self() != NULL)
+    mtx_lock(&all_threads_mtx);
   TAILQ_INSERT_TAIL(&all_threads, td, td_all);
+  if (thread_self() != NULL)
+    mtx_unlock(&all_threads_mtx);
 
   td->td_state = TDS_READY;
 
@@ -83,7 +98,9 @@ void thread_delete(thread_t *td) {
   assert(td != thread_self());
   assert(td->td_sleepqueue != NULL);
 
+  mtx_lock(&all_threads_mtx);
   TAILQ_REMOVE(&all_threads, td, td_all);
+  mtx_unlock(&all_threads_mtx);
 
   pm_free(td->td_kstack_obj);
 
@@ -168,19 +185,26 @@ void thread_dump_all() {
      function, or move state_names close to td_state enum! */
   const char *state_names[] = {"inactive", "waiting", "ready", "running"};
   kprintf("[thread] All threads:\n");
+
+  mtx_lock(&all_threads_mtx);
   TAILQ_FOREACH (td, &all_threads, td_all) {
     kprintf("[thread]  % 3ld: %p %s, \"%s\"\n", td->td_tid, (void *)td,
             state_names[td->td_state], td->td_name);
   }
+  mtx_unlock(&all_threads_mtx);
 }
 
 /* It would be better to have a hash-map from tid_t to thread_t,
  * but using a list is sufficient for now. */
 thread_t *thread_get_by_tid(tid_t id) {
   thread_t *td = NULL;
+
+  mtx_lock(&all_threads_mtx);
   TAILQ_FOREACH (td, &all_threads, td_all) {
     if (td->td_tid == id)
       break;
   }
+  mtx_unlock(&all_threads_mtx);
+
   return td;
 }
