@@ -36,8 +36,6 @@ void main() {
   sched_add(t4);
   sched_add(t5);
 
-  thread_dump_all();
-
   sched_run();
 }
 #endif
@@ -87,8 +85,6 @@ static int test_sched() {
   sched_add(t1);
   sched_add(t3);
   sched_add(t4);
-
-  thread_dump_all();
 
   sched_run();
   return KTEST_FAILURE;
