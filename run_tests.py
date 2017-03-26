@@ -11,6 +11,32 @@ TIMEOUT = 5
 RETRIES_MAX = 5
 REPEAT = 5
 
+# Tries to start gdb in order to investigate kernel state on deadlock.
+def gdb_inspect():
+    gdb_command = 'mipsel-unknown-elf-gdb'
+    # Note: These options are different than .gdbinit.
+    gdb_opts = ['-nx',
+                'mimiker.elf',
+                '-ex=target remote localhost:1234',
+                '-ex=source debug/kdump.py']
+    gdb = pexpect.spawn(gdb_command, gdb_opts, timeout=1)
+    gdb.expect_exact('(gdb)', timeout=2)
+    gdb.sendline('info registers')
+    gdb.expect_exact('(gdb)')
+    print(gdb.before.decode("ascii"))
+    gdb.sendline('frame')
+    gdb.expect_exact('(gdb)')
+    print(gdb.before.decode("ascii"))
+    gdb.sendline('backtrace')
+    gdb.expect_exact('(gdb)')
+    print(gdb.before.decode("ascii"))
+    gdb.sendline('list')
+    gdb.expect_exact('(gdb)')
+    print(gdb.before.decode("ascii"))
+    gdb.sendline('kdump threads')
+    gdb.expect_exact('(gdb)')
+    print(gdb.before.decode("ascii"))
+
 
 def test_seed(seed, sim='qemu', repeat=1, retry=0):
     if retry == RETRIES_MAX:
@@ -46,13 +72,14 @@ def test_seed(seed, sim='qemu', repeat=1, retry=0):
     elif index == 3:
         print("Timeout reached.\n")
         message = child.buffer.decode("utf-8")
-        child.terminate(True)
         print(message)
         if len(message) < 100:
             print("It looks like kernel did not even start within the time "
                   "limit. Retrying (%d)..." % (retry + 1))
+            child.terminate(True)
             test_seed(seed, repeat, retry + 1)
         else:
+            gdb_inspect()
             print("No test result reported within timeout. Unable to verify "
                   "test success. Seed was: %d, repeat: %d" % (seed, repeat))
             sys.exit(1)
