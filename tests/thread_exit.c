@@ -4,7 +4,6 @@
 #include <sched.h>
 #include <ktest.h>
 #include <taskqueue.h>
-#include <workqueue.h>
 
 int exit_time[] = {100, 200, 150};
 realtime_t start;

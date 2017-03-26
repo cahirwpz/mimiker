@@ -6,9 +6,12 @@
 
 static MALLOC_DEFINE(tq_pool, "taskqueues pool");
 
+taskqueue_t *workqueue;
+
 void taskqueue_init() {
   kmalloc_init(tq_pool);
   kmalloc_add_arena(tq_pool, pm_alloc(1)->vaddr, PAGESIZE);
+  workqueue = taskqueue_create();
 }
 
 static void taskqueue_worker_thread(void *p) {

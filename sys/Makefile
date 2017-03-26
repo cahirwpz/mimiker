@@ -35,7 +35,6 @@ SOURCES_C  = \
 	vm_map.c \
 	vm_object.c \
 	vm_pager.c \
-	workqueue.c \
 	vnode.c
 
 SOURCES_ASM = 

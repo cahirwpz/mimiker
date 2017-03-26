@@ -33,4 +33,6 @@ void taskqueue_add(taskqueue_t *tq, task_t *task);
 void taskqueue_run(taskqueue_t *tq);
 task_t *task_create(void (*func)(void *), void *arg);
 
+extern taskqueue_t *workqueue;
+
 #endif

@@ -7,7 +7,6 @@
 #include <sync.h>
 #include <sched.h>
 #include <taskqueue.h>
-#include <workqueue.h>
 #include <filedesc.h>
 
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
