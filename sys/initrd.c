@@ -13,9 +13,13 @@
 
 /* ramdisk related data that will be stored in v_data field of vnode */
 typedef struct cpio_node {
-  TAILQ_ENTRY(cpio_node) c_list;
+  TAILQ_ENTRY(cpio_node) c_list; /* link to global list of all ramdisk nodes */
 
-  dev_t c_dev; 
+  TAILQ_HEAD(, cpio_node)
+  c_children; /* head of list that stores direct descendants */
+  TAILQ_ENTRY(cpio_node) c_siblings; /* nodes that have the same parent */
+
+  dev_t c_dev;
   ino_t c_ino;
   mode_t c_mode;
   nlink_t c_nlink;
@@ -25,10 +29,9 @@ typedef struct cpio_node {
   off_t c_size;
   time_t c_mtime;
 
-  const char *c_path;
+  const char *c_path; /* contains exact path to file as archived from cpio */
+  const char *c_name; /* contains name of file */
   void *c_data;
-  
-  vnode_t *c_vnode;
 } cpio_node_t;
 
 static MALLOC_DEFINE(mp, "initial ramdisk memory pool");
@@ -45,7 +48,7 @@ static void cpio_node_dump(cpio_node_t *cn) {
   log("entry '%s': {dev: %ld, ino: %lu, mode: %d, nlink: %d, "
       "uid: %d, gid: %d, rdev: %ld, size: %ld, mtime: %lu}",
       cn->c_path, cn->c_dev, cn->c_ino, cn->c_mode, cn->c_nlink, cn->c_uid,
-      cn->c_gid, cn->c_rdev, cn->c_size, cn->c_mtime); 
+      cn->c_gid, cn->c_rdev, cn->c_size, cn->c_mtime);
 }
 
 static void read_bytes(char **tape, void *ptr, size_t bytes) {
@@ -83,7 +86,7 @@ static bool read_cpio_header(char **tape, cpio_node_t *cpio) {
   uint32_t c_rmaj = strntoul(hdr.c_rmaj, 8, NULL, 16);
   uint32_t c_rmin = strntoul(hdr.c_rmin, 8, NULL, 16);
   uint32_t c_namesize = strntoul(hdr.c_namesize, 8, NULL, 16);
-  
+
   cpio->c_dev = MKDEV(c_maj, c_min);
   cpio->c_ino = c_ino;
   cpio->c_mode = c_mode;
@@ -107,7 +110,8 @@ static void read_cpio_archive() {
 
   while (true) {
     cpio_node_t *node = kmalloc(mp, sizeof(cpio_node_t), M_ZERO);
-    if (!read_cpio_header(&tape, node) || 
+    TAILQ_INIT(&node->c_children);
+    if (!read_cpio_header(&tape, node) ||
         strcmp(node->c_path, CPIO_TRAILER) == 0) {
       kfree(mp, node);
       break;
@@ -116,40 +120,81 @@ static void read_cpio_archive() {
   }
 }
 
+static bool is_direct_descendant(const char *A, const char *B) {
+  const char *ai = A, *bi = B;
+  /* if B is empty or dot, A is of form entry_name where
+   * entry_name has no "/" character */
+  if (*bi == '\0' || *bi == '.') {
+    if (*bi == '.')
+      bi++;
+    while (*ai && *ai != '/')
+      ai++;
+    if (*ai == '\0')
+      return true;
+    return false;
+  }
+  /* order to check if A is direct descendant of B
+   * it is enough to check if A is of the form "B/entry_name"
+   * where entry_name does not contain "/" character */
+  else {
+    while (*ai && *ai == *bi) {
+      ai++;
+      bi++;
+    }
+    if (*bi != '\0' || *ai != '/')
+      return false;
+    ai++;
+    while (*ai && *ai != '/')
+      ai++;
+    if (*ai == '\0')
+      return true;
+    return false;
+  }
+}
+
+void initrd_construct_c_name(cpio_node_t *cn) {
+  int c_path_len = strlen(cn->c_path);
+  cn->c_name = cn->c_path + c_path_len;
+  while (cn->c_name != cn->c_path) {
+    if (*cn->c_name == '.' || *cn->c_name == '/') {
+      cn->c_name++;
+      break;
+    }
+    cn->c_name--;
+  }
+}
+
+void initrd_build_tree_and_names() {
+  cpio_node_t *it_i, *it_j;
+
+  TAILQ_FOREACH (it_i, &initrd_head, c_list) {
+    TAILQ_FOREACH (it_j, &initrd_head, c_list) {
+      if (it_i == it_j)
+        continue;
+      if (is_direct_descendant(it_j->c_path, it_i->c_path))
+        TAILQ_INSERT_TAIL(&it_i->c_children, it_j, c_siblings);
+    }
+  }
+
+  cpio_node_t *it;
+  TAILQ_FOREACH (it, &initrd_head, c_list) { initrd_construct_c_name(it); }
+}
+
 static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
   cpio_node_t *it;
   cpio_node_t *cn_dir = (cpio_node_t *)vdir->v_data;
 
-  int dir_name_len = strlen(cn_dir->c_path);
-  int name_len = strlen(name);
-  int buf_len = dir_name_len + name_len + 2;
-  char *buf = kmalloc(mp, buf_len, 0);
-  buf[0] = '\0';
-
-  strlcat(buf, cn_dir->c_path, buf_len);
-  if (strcmp(cn_dir->c_path, "") != 0)
-    strlcat(buf, "/", buf_len);
-  strlcat(buf, name, buf_len);
-
-  TAILQ_FOREACH (it, &initrd_head, c_list) {
-    if (strcmp(buf, it->c_path) == 0) {
-      if (it->c_vnode) {
-        *res = it->c_vnode;
-      } else {
-        vnodetype_t type = V_REG;
-        if (it->c_mode & C_ISDIR)
-          type = V_DIR;
-        *res = vnode_new(type, &initrd_ops);
-        (*res)->v_data = (void *)it;
-        it->c_vnode = *res;
-        vnode_ref(*res);
-      }
+  TAILQ_FOREACH (it, &cn_dir->c_children, c_siblings) {
+    if (strcmp(name, it->c_name) == 0) {
+      vnodetype_t type = V_REG;
+      if (it->c_mode & C_ISDIR)
+        type = V_DIR;
+      *res = vnode_new(type, &initrd_ops);
+      (*res)->v_data = (void *)it;
       vnode_ref(*res);
-      kfree(mp, buf);
       return 0;
     }
   }
-  kfree(mp, buf);
   return ENOENT;
 }
 
@@ -166,7 +211,14 @@ static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
 
 static int initrd_mount(mount_t *m) {
   cpio_node_t *cn = kmalloc(mp, sizeof(cpio_node_t), M_ZERO);
+  TAILQ_INIT(&cn->c_children);
   cn->c_path = "";
+
+  cpio_node_t *it;
+  TAILQ_FOREACH (it, &initrd_head, c_list) {
+    if (is_direct_descendant(it->c_path, ""))
+      TAILQ_INSERT_TAIL(&cn->c_children, it, c_siblings);
+  }
 
   vnode_t *root = vnode_new(V_DIR, &initrd_ops);
   root->v_data = cn;
@@ -208,26 +260,20 @@ void ramdisk_init() {
     initrd_ops.v_read = initrd_vnode_read;
     log("parsing cpio archive of %zu bytes", rd_size);
     read_cpio_archive();
+    initrd_build_tree_and_names();
   }
 }
 
 void ramdisk_dump() {
   cpio_node_t *it;
 
-  TAILQ_FOREACH (it, &initrd_head, c_list) {
-    cpio_node_dump(it);
-  }
+  TAILQ_FOREACH (it, &initrd_head, c_list) { cpio_node_dump(it); }
 }
 
 static vfsops_t initrd_vfsops = {
-  .vfs_mount = initrd_mount,
-  .vfs_root = initrd_root,
-  .vfs_init = initrd_init
-};
+  .vfs_mount = initrd_mount, .vfs_root = initrd_root, .vfs_init = initrd_init};
 
-static vfsconf_t initrd_conf = {
-  .vfc_name = "initrd",
-  .vfc_vfsops = &initrd_vfsops
-};
+static vfsconf_t initrd_conf = {.vfc_name = "initrd",
+                                .vfc_vfsops = &initrd_vfsops};
 
 SET_ENTRY(vfsconf, initrd_conf);
