@@ -4,8 +4,8 @@
 #include <sched.h>
 #include <ktest.h>
 
-int exit_time[] = {100, 200, 150};
-realtime_t start;
+static int exit_time[] = {100, 200, 150};
+static realtime_t start;
 
 /* TODO: callout + sleepq, once we've implemented callout_schedule. */
 static void test_thread(void *p) {

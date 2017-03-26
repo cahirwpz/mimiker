@@ -14,7 +14,7 @@ typedef TAILQ_HEAD(, thread) thread_list_t;
 /* TODO: Synchronize access to the list */
 static thread_list_t all_threads;
 
-mtx_t zombie_threads_mtx;
+static mtx_t zombie_threads_mtx;
 static thread_list_t zombie_threads;
 
 void thread_init() {
