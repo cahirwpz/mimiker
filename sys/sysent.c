@@ -73,7 +73,7 @@ int sys_exit(thread_t *td, syscall_args_t *args) {
 
   kprintf("[syscall] exit(%d)\n", status);
 
-  thread_exit(status);
+  thread_exit();
   __builtin_unreachable();
 }
 

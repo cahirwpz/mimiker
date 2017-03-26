@@ -383,6 +383,6 @@ fault:
   } else if (ktest_test_running_flag) {
     ktest_failure();
   } else {
-    thread_exit(-1);
+    thread_exit();
   }
 }
