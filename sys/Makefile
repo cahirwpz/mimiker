@@ -36,7 +36,6 @@ SOURCES_C  = \
 	vm_object.c \
 	vm_pager.c \
 	vnode.c
-
 SOURCES_ASM = 
 
 all: $(DEPFILES) libsys.a 

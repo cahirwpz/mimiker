@@ -6,7 +6,6 @@
 #include <pcpu.h>
 #include <sync.h>
 #include <sched.h>
-#include <taskqueue.h>
 #include <filedesc.h>
 
 static MALLOC_DEFINE(td_pool, "kernel threads pool");
@@ -141,6 +140,7 @@ noreturn void thread_exit(int exitcode) {
   critical_leave();
 
   mtx_unlock(&zombie_threads_mtx);
+
   sched_yield();
 
   /* sched_yield will return immediately when scheduler is not active */
