@@ -19,9 +19,10 @@ typedef struct fdtab fdtab_t;
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 
 typedef struct thread {
-  TAILQ_ENTRY(thread) td_all;    /* a link on all threads list */
-  TAILQ_ENTRY(thread) td_runq;   /* a link on run queue */
-  TAILQ_ENTRY(thread) td_sleepq; /* a link on sleep queue */
+  TAILQ_ENTRY(thread) td_all;     /* a link on all threads list */
+  TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
+  TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
+  TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
   char *td_name;
   tid_t td_tid;
   /* thread state */
@@ -64,5 +65,14 @@ void thread_dump_all();
 
 /* Returns the thread matching the given ID, or null if none found. */
 thread_t *thread_get_by_tid(tid_t id);
+
+/* Joins the specified thread, effectively waiting until it exits. */
+void thread_join(thread_t *td);
+
+/* Reaps zombie threads. You do not need to call this function on your own,
+   reaping will automatically take place when convenient. The reason this
+   function is exposed is because some tests need to explicitly wait until
+   threads are reaped before they can verify test success. */
+void thread_reap();
 
 #endif /* _SYS_THREAD_H_ */

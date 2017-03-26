@@ -3,10 +3,9 @@
 #include <thread.h>
 #include <sched.h>
 #include <ktest.h>
-#include <taskqueue.h>
 
-int exit_time[] = {100, 200, 150};
-realtime_t start;
+static int exit_time[] = {100, 200, 150};
+static realtime_t start;
 
 /* TODO: callout + sleepq, once we've implemented callout_schedule. */
 static void test_thread(void *p) {
@@ -39,9 +38,8 @@ static int test_thread_join() {
   thread_join(t2);
   thread_join(t3);
 
-  /* Ensure that the workqueue is empty. Not the most elegant way to do that,
-     but we only need it for testing thread_join. */
-  taskqueue_run(workqueue);
+  /* Ensure that all zombie threads were reaped. */
+  thread_reap();
 
   /* Checks that the threads no longer exist. */
   assert(thread_get_by_tid(t1_id) == NULL);
