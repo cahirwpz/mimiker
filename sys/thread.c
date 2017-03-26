@@ -113,23 +113,6 @@ thread_t *thread_self() {
   return PCPU_GET(curthread);
 }
 
-void thread_switch_to(thread_t *newtd) {
-  thread_t *td = thread_self();
-
-  if (newtd == NULL || newtd == td)
-    return;
-
-  /* Thread must not switch while in critical section! */
-  assert(td->td_csnest == 0);
-
-  log("Switching from '%s' {%p} to '%s' {%p}.", td->td_name, td, newtd->td_name,
-      newtd);
-
-  td->td_state = TDS_READY;
-  newtd->td_state = TDS_RUNNING;
-  ctx_switch(td, newtd);
-}
-
 /* For now this is only a stub */
 noreturn void thread_exit(int exitcode) {
   thread_t *td = thread_self();
@@ -174,24 +157,6 @@ void thread_join(thread_t *p) {
     return;
 
   sleepq_wait(&otd->td_exitcode, "Joining threads");
-}
-
-void thread_dump_all() {
-  thread_t *td;
-  /* TODO: Using an array as the one below is risky, as it needs to be kept in
-     sync with td_state enum. However, this function will be removed very soon,
-     because debugger scripts will replace it entirely, so I decided to keep
-     this array here. If you see this message in 2017, please either remove this
-     function, or move state_names close to td_state enum! */
-  const char *state_names[] = {"inactive", "waiting", "ready", "running"};
-  kprintf("[thread] All threads:\n");
-
-  mtx_lock(&all_threads_mtx);
-  TAILQ_FOREACH (td, &all_threads, td_all) {
-    kprintf("[thread]  % 3ld: %p %s, \"%s\"\n", td->td_tid, (void *)td,
-            state_names[td->td_state], td->td_name);
-  }
-  mtx_unlock(&all_threads_mtx);
 }
 
 /* It would be better to have a hash-map from tid_t to thread_t,
