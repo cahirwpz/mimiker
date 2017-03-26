@@ -14,11 +14,17 @@ typedef TAILQ_HEAD(, thread) thread_list_t;
 /* TODO: Synchronize access to the list */
 static thread_list_t all_threads;
 
+mtx_t zombie_threads_mtx;
+static thread_list_t zombie_threads;
+
 void thread_init() {
   kmalloc_init(td_pool);
   kmalloc_add_pages(td_pool, 2);
 
   TAILQ_INIT(&all_threads);
+
+  mtx_init(&zombie_threads_mtx, MTX_DEF);
+  TAILQ_INIT(&zombie_threads);
 }
 
 /* FTTB such a primitive method of creating new TIDs will do. */
@@ -28,7 +34,30 @@ static tid_t make_tid() {
   return tid++;
 }
 
+void thread_reap() {
+  /* Exit early if there are no zombie threads. This is particularly important
+     during kernel startup. The first thread is created before mtx is
+     initialized! Luckily, we don't need to lock it to check whether the list is
+     empty. */
+  if (TAILQ_EMPTY(&zombie_threads))
+    return;
+
+  mtx_lock(&zombie_threads_mtx);
+  thread_list_t thq = zombie_threads;
+  TAILQ_INIT(&zombie_threads);
+  mtx_unlock(&zombie_threads_mtx);
+
+  thread_t *td;
+  TAILQ_FOREACH (td, &thq, td_zombieq) {
+    log("Reaping thread %ld (%s)", td->td_tid, td->td_name);
+    thread_delete(td);
+  }
+}
+
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
+
+  thread_reap();
+
   thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
 
   td->td_sleepqueue = sleepq_alloc();
@@ -85,24 +114,49 @@ void thread_switch_to(thread_t *newtd) {
 }
 
 /* For now this is only a stub */
-noreturn void thread_exit() {
+noreturn void thread_exit(int exitcode) {
   thread_t *td = thread_self();
 
   log("Thread '%s' {%p} has finished.", td->td_name, td);
 
-  /* Thread must not exit while in critical section! */
-  assert(td->td_csnest == 0);
+  /* Thread must not exit while in critical section! However, we can't use
+     assert here, because assert also calls thread_exit. Thus, in case this
+     condition is not met, we'll log the problem, and try to fix the problem. */
+  if (td->td_csnest != 0) {
+    log("ERROR: Thread must not exit within a critical section!");
+    while (td->td_csnest--)
+      critical_leave();
+  }
 
   fdtab_release(td->td_fdtable);
 
+  mtx_lock(&zombie_threads_mtx);
+
   critical_enter();
+  TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
+  td->td_exitcode = exitcode;
+  sleepq_broadcast(&td->td_exitcode);
   td->td_state = TDS_INACTIVE;
-  sched_yield();
   critical_leave();
+
+  mtx_unlock(&zombie_threads_mtx);
+
+  sched_yield();
 
   /* sched_yield will return immediately when scheduler is not active */
   while (true)
     ;
+}
+
+void thread_join(thread_t *p) {
+  thread_t *td = thread_self();
+  thread_t *otd = p;
+  log("Joining '%s' {%p} with '%s' {%p}", td->td_name, td, otd->td_name, otd);
+
+  if (otd->td_state == TDS_INACTIVE)
+    return;
+
+  sleepq_wait(&otd->td_exitcode, "Joining threads");
 }
 
 void thread_dump_all() {
