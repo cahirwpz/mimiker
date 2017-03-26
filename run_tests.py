@@ -11,17 +11,41 @@ TIMEOUT = 5
 RETRIES_MAX = 5
 REPEAT = 5
 
+# Tries to start gdb in order to investigate kernel state on deadlock.
+def gdb_inspect():
+    gdb_command = 'mipsel-unknown-elf-gdb'
+    # Note: These options are different than .gdbinit.
+    gdb_opts = ['-nx',
+                'mimiker.elf',
+                '-ex=target remote localhost:1234',
+                '-ex=source debug/kdump.py']
+    gdb = pexpect.spawn(gdb_command, gdb_opts, timeout=1)
+    gdb.expect_exact('(gdb)', timeout=2)
+    gdb.sendline('info registers')
+    gdb.expect_exact('(gdb)')
+    print(gdb.before.decode("ascii"))
+    gdb.sendline('frame')
+    gdb.expect_exact('(gdb)')
+    print(gdb.before.decode("ascii"))
+    gdb.sendline('backtrace')
+    gdb.expect_exact('(gdb)')
+    print(gdb.before.decode("ascii"))
+    gdb.sendline('list')
+    gdb.expect_exact('(gdb)')
+    print(gdb.before.decode("ascii"))
+    gdb.sendline('kdump threads')
+    gdb.expect_exact('(gdb)')
+    print(gdb.before.decode("ascii"))
 
-def test_seed(seed, repeat=1, retry=0):
+
+def test_seed(seed, sim='qemu', repeat=1, retry=0):
     if retry == RETRIES_MAX:
         print("Maximum retries reached, still not output received. "
               "Test inconclusive.")
         sys.exit(1)
 
     print("Testing seed %d..." % seed)
-    # QEMU takes much much less time to start, so for testing multiple seeds it
-    # is more convenient to use it instead of OVPsim.
-    child = pexpect.spawn('./launch', ['-t', '-S', 'qemu', 'test=all',
+    child = pexpect.spawn('./launch', ['-t', '-S', sim, 'test=all',
                                        'seed=%d' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact(
         ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT],
@@ -48,13 +72,14 @@ def test_seed(seed, repeat=1, retry=0):
     elif index == 3:
         print("Timeout reached.\n")
         message = child.buffer.decode("utf-8")
-        child.terminate(True)
         print(message)
         if len(message) < 100:
             print("It looks like kernel did not even start within the time "
                   "limit. Retrying (%d)..." % (retry + 1))
+            child.terminate(True)
             test_seed(seed, repeat, retry + 1)
         else:
+            gdb_inspect()
             print("No test result reported within timeout. Unable to verify "
                   "test success. Seed was: %d, repeat: %d" % (seed, repeat))
             sys.exit(1)
@@ -65,6 +90,8 @@ if __name__ == '__main__':
     parser.add_argument('--thorough', action='store_true',
                         help='Generate much more test seeds.'
                         'Testing will take much more time.')
+    parser.add_argument('--ovpsim', action='store_true',
+                        help='Use OVPSim instead of QEMU.')
 
     try:
         args = parser.parse_args()
@@ -75,12 +102,18 @@ if __name__ == '__main__':
     if args.thorough:
         n = N_THOROUGH
 
+    # QEMU takes slightly less time to start, thus it is the default option for
+    # running tests on multiple seeds.
+    sim = 'qemu'
+    if args.ovpsim:
+        sim = 'ovpsim'
+
     # Run tests in alphabetic order
-    test_seed(0)
+    test_seed(0, sim)
     # Run tests using n random seeds
     for i in range(0, n):
         seed = random.randint(0, 2**32)
-        test_seed(seed, REPEAT)
+        test_seed(seed, sim, REPEAT)
 
     print("Tests successful!")
     sys.exit(0)
