@@ -74,12 +74,7 @@ int sys_exit(thread_t *td, syscall_args_t *args) {
 
   kprintf("[syscall] exit(%d)\n", status);
 
-  td->td_exitcode = status;
-
-  if (ktest_test_running_flag)
-    sleepq_broadcast(td);
-
-  thread_exit();
+  thread_exit(status);
   __builtin_unreachable();
 }
 

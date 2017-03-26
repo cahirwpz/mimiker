@@ -12,11 +12,11 @@ SOURCES_C = \
 	pmap.c \
 	producer_consumer.c \
 	rtc.c \
-        rwlock.c \
+	rwlock.c \
 	sched.c \
 	strtol.c \
 	syscall.c \
-	thread.c \
+	thread_exit.c \
 	uiomove.c \
 	vm_map.c \
 	vfs.c
