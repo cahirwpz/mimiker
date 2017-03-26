@@ -66,7 +66,7 @@ void thread_dump_all();
 thread_t *thread_get_by_tid(tid_t id);
 
 /* Joins the specified thread, effectively waiting until it exits. */
-void thread_join(thread_t *td);
+int thread_join(thread_t *td);
 
 /* Reaps zombie threads. You do not need to call this function on your own,
    reaping will automatically take place when convenient. The reason this
