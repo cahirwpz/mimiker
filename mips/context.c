@@ -29,7 +29,7 @@ void ctx_init(thread_t *td, void (*target)(void *), void *arg) {
   kframe->ra = (reg_t)thread_exit;
   kframe->gp = (reg_t)gp;
   kframe->sp = (reg_t)sp;
-  kframe->sr = (reg_t)sr;
+  kframe->sr = (reg_t)sr | SR_EXL;
   kframe->a0 = (reg_t)arg;
 }
 
