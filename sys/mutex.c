@@ -25,7 +25,7 @@ void mtx_lock(mtx_t *m) {
 
   critical_enter();
   while (m->m_owner != NULL)
-    sleepq_wait(&m->m_owner, NULL);
+    sleepq_wait(&m->m_owner, "mutex");
   m->m_owner = thread_self();
   critical_leave();
 }
