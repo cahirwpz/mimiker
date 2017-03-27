@@ -4,6 +4,7 @@
 #include <queue.h>
 #include <pmap.h>
 #include <vm.h>
+#include <rwlock.h>
 
 typedef struct vm_map_entry vm_map_entry_t;
 
@@ -26,7 +27,9 @@ typedef struct vm_map {
   TAILQ_HEAD(vm_map_list, vm_map_entry) list;
   SPLAY_HEAD(vm_map_tree, vm_map_entry) tree;
   size_t nentries;
-  pmap_t *pmap;
+  pmap_t *const pmap;
+  rwlock_t rwlock; /* The recursive RW lock guarding vm_map structure and all
+                      its entries. */
   /* program segments */
   vm_map_entry_t *sbrk_entry; /* The entry where brk segment resides in. */
   vm_addr_t sbrk_end;         /* Current end of brk segment. */
@@ -61,12 +64,11 @@ vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
 int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
                      vm_addr_t /*out*/ *addr);
 
-/* Tries to resize an entry, by moving its end if there
-   are no other mappings in the way. On success, returns 0. */
-int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end);
-
 void vm_map_dump(vm_map_t *vm_map);
 
 int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type);
+
+/* sbrk support in vm_map. */
+vm_addr_t vm_map_sbrk(vm_map_t *map, intptr_t increment);
 
 #endif /* _VM_MAP_H */
