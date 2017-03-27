@@ -153,10 +153,10 @@ void thread_join(thread_t *p) {
   thread_t *otd = p;
   log("Joining '%s' {%p} with '%s' {%p}", td->td_name, td, otd->td_name, otd);
 
-  if (otd->td_state == TDS_INACTIVE)
-    return;
-
-  sleepq_wait(&otd->td_exitcode, "Joining threads");
+  critical_enter();
+  while (otd->td_state != TDS_INACTIVE)
+    sleepq_wait(&otd->td_exitcode, "Joining threads");
+  critical_leave();
 }
 
 /* It would be better to have a hash-map from tid_t to thread_t,
