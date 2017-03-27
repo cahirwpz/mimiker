@@ -137,9 +137,9 @@ noreturn void thread_exit(int exitcode) {
   td->td_exitcode = exitcode;
   sleepq_broadcast(&td->td_exitcode);
   td->td_state = TDS_INACTIVE;
-  critical_leave();
 
   mtx_unlock(&zombie_threads_mtx);
+  critical_leave();
 
   sched_yield();
 
