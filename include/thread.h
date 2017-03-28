@@ -19,15 +19,17 @@ typedef struct fdtab fdtab_t;
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 
 typedef struct thread {
-  TAILQ_ENTRY(thread) td_all;    /* a link on all threads list */
-  TAILQ_ENTRY(thread) td_runq;   /* a link on run queue */
-  TAILQ_ENTRY(thread) td_sleepq; /* a link on sleep queue */
+  TAILQ_ENTRY(thread) td_all;     /* a link on all threads list */
+  TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
+  TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
+  TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
   char *td_name;
   tid_t td_tid;
   /* thread state */
   enum { TDS_INACTIVE = 0x0, TDS_WAITING, TDS_READY, TDS_RUNNING } td_state;
   uint32_t td_flags;           /* TDF_* flags */
   volatile uint32_t td_csnest; /* critical section nest level */
+  int td_exitcode;
   /* thread context */
   exc_frame_t td_uctx;    /* user context (always exception) */
   fpu_ctx_t td_uctx_fpu;  /* user FPU context (always exception) */
@@ -55,12 +57,21 @@ void thread_delete(thread_t *td);
 
 void thread_switch_to(thread_t *td_ready);
 
-noreturn void thread_exit();
+noreturn void thread_exit(int exitcode);
 
 /* Debugging utility that prints out the summary of all_threads contents. */
 void thread_dump_all();
 
 /* Returns the thread matching the given ID, or null if none found. */
 thread_t *thread_get_by_tid(tid_t id);
+
+/* Joins the specified thread, effectively waiting until it exits. */
+void thread_join(thread_t *td);
+
+/* Reaps zombie threads. You do not need to call this function on your own,
+   reaping will automatically take place when convenient. The reason this
+   function is exposed is because some tests need to explicitly wait until
+   threads are reaped before they can verify test success. */
+void thread_reap();
 
 #endif /* _SYS_THREAD_H_ */

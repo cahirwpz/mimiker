@@ -52,7 +52,7 @@ def configure_ovpsim(args):
                '--wallclock',
                '--kernel', args.kernel]
 
-    if args.test:
+    if args.test or args.server:
         OVPSIM_OVERRIDES['uartCBUS/console'] = 0
 
     for item in OVPSIM_OVERRIDES.items():
@@ -74,21 +74,20 @@ def configure_qemu(args):
                '-machine', 'malta',
                '-cpu', '24Kf',
                '-kernel', args.kernel,
-               '-append', ' '.join(args.args)]
+               '-append', ' '.join(args.args),
+               '-gdb', 'tcp::1234']
 
-    if args.test:
-        options += ['-serial', 'null',
-                    '-serial', 'null',
-                    '-monitor', 'stdio',
-                    '-serial', 'tcp:127.0.0.1:%d,server,nowait' % PORT]
+    options += ['-serial', 'none',
+                '-serial', 'null',
+                '-serial', 'null']
+
+    if args.server:
+        options += ['-serial', 'tcp:127.0.0.1:%d,server,wait' % PORT]
     else:
-        options += ['-serial', 'none',
-                    '-serial', 'null',
-                    '-serial', 'null',
-                    '-serial', 'stdio']
+        options += ['-serial', 'stdio']
 
     if args.debug:
-        options += ['-s', '-S']
+        options += ['-S']
 
     return options
 
@@ -147,12 +146,17 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--test', action='store_true',
                         help='Use current stdin & stdout for simulated UART.')
     parser.add_argument('--ramdisk',
-                        help='Give initial ramdisk to OVPSim. ')
+                        help='Give initial ramdisk to OVPSim. '),
+    parser.add_argument('-s', '--server', action='store_true',
+                        help='Start a server for simulated UART (port: %d).' % PORT)
 
     args = parser.parse_args()
 
     if not os.path.isfile(args.kernel):
         raise SystemExit('%s: file does not exist!' % args.kernel)
+
+    if args.server and args.test:
+        raise SystemExit('Options --server and --test are exclusive!')
 
     if args.debugger != DEFAULT_DEBUGGER:
         args.debug = True
@@ -173,12 +177,10 @@ if __name__ == '__main__':
                 break
             except KeyboardInterrupt:
                 gdb.send_signal(signal.SIGINT)
-    elif args.test:
+    elif args.test and args.simulator == 'ovpsim':
+        # Redirect ovpsim output from dedicated console to stdout using nc.
         sim = popen_spawn.PopenSpawn(sim_cmd)
-        if args.simulator == 'ovpsim':
-            sim.expect('Waiting for connection on port %d' % PORT, timeout=5)
-        elif args.simulator == 'qemu':
-            sim.expect('QEMU .* monitor', timeout=5)
+        sim.expect('Waiting for connection on port %d' % PORT, timeout=5)
         nc = subprocess.Popen(['nc', 'localhost', str(PORT)])
         while True:
             try:

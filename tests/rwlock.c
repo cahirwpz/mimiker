@@ -129,7 +129,8 @@ static int recursive_rwlock_downgrade(void) {
 KTEST_ADD(rwlock_read_lock, rwlock_read_lock, 0);
 KTEST_ADD(recursive_rwlock_read_lock, recursive_rwlock_read_lock, 0);
 KTEST_ADD(rwlock_multiple_read_locks, rwlock_multiple_read_locks, 0);
-KTEST_ADD(recursive_rwlock_multiple_read_locks, recursive_rwlock_multiple_read_locks, 0);
+KTEST_ADD(recursive_rwlock_multiple_read_locks,
+          recursive_rwlock_multiple_read_locks, 0);
 KTEST_ADD(rwlock_write_lock, rwlock_write_lock, 0);
 KTEST_ADD(recursive_rwlock_write_locks, recursive_rwlock_write_locks, 0);
 KTEST_ADD(rwlock_upgrade, rwlock_upgrade, 0);

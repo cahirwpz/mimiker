@@ -96,7 +96,7 @@ noreturn void thread_exit();
 #define panic(FMT, ...)                                                        \
   __extension__({                                                              \
     kprintf("[%s:%d] " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);           \
-    thread_exit();                                                             \
+    thread_exit(-1);                                                           \
   })
 
 #ifdef DEBUG
