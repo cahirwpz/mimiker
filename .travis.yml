@@ -12,4 +12,5 @@ before_install:
  - rm mipsel-unknown-elf_1.0ubuntu1_all.deb
 script:
  - make
+ - ./verify-format.sh
  - ./run_tests.py --thorough
