@@ -32,7 +32,7 @@ FORMATTABLE_EXCLUDE = include/elf stdc/ include/mips/asm.h include/mips/m32c0.h
 FORMATTABLE = $(shell find -type f -not -path "*/toolchain/*" -and \( -name '*.c' -or -name '*.h' \) | grep -v $(FORMATTABLE_EXCLUDE:%=-e %))
 format:
 	@echo "Formatting files: $(FORMATTABLE:./%=%)"
-	clang-format-3.8 -style=file -i $(FORMATTABLE)
+	clang-format -style=file -i $(FORMATTABLE)
 
 test: mimiker.elf
 	./run_tests.py
