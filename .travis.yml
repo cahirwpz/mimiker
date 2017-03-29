@@ -4,13 +4,15 @@ language: c
 compiler: gcc
 before_install:
  - sudo apt-get -qq update
- - sudo apt-get install -y qemu-system-mips ctags cscope wget python3-pip
+ - sudo apt-get install -y qemu-system-mips ctags cscope wget python3-pip clang-format-3.8
  - sudo pip3 install -I pexpect
  - wget http://mimiker.ii.uni.wroc.pl/download/mipsel-unknown-elf_1.0ubuntu1_all.deb 
  - sudo dpkg -i mipsel-unknown-elf_1.0ubuntu1_all.deb
  - export PATH="/opt/mipsel-unknown-elf/bin/:$PATH"
  - rm mipsel-unknown-elf_1.0ubuntu1_all.deb
 script:
- - make
- - ./verify-format.sh
- - ./run_tests.py --thorough
+ - |
+   set -e
+   make
+   ./verify-format.sh
+   ./run_tests.py --thorough
