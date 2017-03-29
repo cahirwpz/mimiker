@@ -33,7 +33,7 @@ etags
 assym.h
 
 # toolchain build artifacts
-toolchain/
+toolchain
 
 # Editor swap files
 *.swp
