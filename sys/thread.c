@@ -82,7 +82,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
      discussion, so let's handle this case manually for now. */
   if (thread_self() != NULL)
     mtx_lock(&all_threads_mtx);
-  TAILQ_INSERT_TAIL(&all_threads, td, td_all);
+  TAILQ_INSERT_TAIL(&all_threads   , td, td_all);
   if (thread_self() != NULL)
     mtx_unlock(&all_threads_mtx);
 
