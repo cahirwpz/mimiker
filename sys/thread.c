@@ -69,7 +69,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   td->td_kstack_obj = pm_alloc(1);
   td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
   td->td_kstack.stk_size = PAGESIZE;
-                   
+
   ctx_init(td, fn, arg);
 
   /* Do not lock the mutex if this call to thread_create was done before any
