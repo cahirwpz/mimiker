@@ -37,7 +37,7 @@ typedef struct thread {
   ctx_t td_kctx;          /* kernel context (switch) */
   intptr_t td_onfault;    /* program counter for copyin/copyout faults */
   vm_page_t *td_kstack_obj;
-  stack_t td_kstack;
+  stack_t        td_kstack;
   vm_map_t *td_uspace; /* thread's user space map */
   /* file descriptors table */
   fdtab_t *td_fdtable;
