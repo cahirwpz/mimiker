@@ -29,8 +29,13 @@ void ctx_init(thread_t *td, void (*target)(void *), void *arg) {
   kframe->ra = (reg_t)thread_exit;
   kframe->gp = (reg_t)gp;
   kframe->sp = (reg_t)sp;
-  kframe->sr = (reg_t)sr | SR_EXL;
   kframe->a0 = (reg_t)arg;
+
+  /* Status register: Take interrupt mask and exception vector location from
+     caller's context. */
+  kframe->sr = sr & (SR_IMASK | SR_BEV);
+  /* Set Interrupt Enable and Exception Level. */
+  kframe->sr |= SR_EXL | SR_IE;
 }
 
 void uctx_init(thread_t *td, vm_addr_t pc, vm_addr_t sp) {
