@@ -58,5 +58,8 @@ static int test_malloc_random_size(unsigned int randint) {
 }
 
 KTEST_ADD(malloc, test_malloc, 0);
+
+/* Reserve some memory for mem_block_t. */
+#define RESERVED 1024
 KTEST_ADD_RANDINT(malloc_randint, test_malloc_random_size, 0,
-                  MALLOC_RANDINT_PAGES *PAGESIZE);
+                  MALLOC_RANDINT_PAGES *PAGESIZE - RESERVED);

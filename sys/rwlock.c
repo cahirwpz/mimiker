@@ -30,20 +30,19 @@ static bool is_wlocked(rwlock_t *rw) {
 
 void rw_enter(rwlock_t *rw, rwo_t who) {
   critical_enter();
-
-  if (is_owned(rw)) {
-    assert(rw->recursive);
-    rw->recurse++;
-  } else {
-    if (who == RW_READER) {
-      while (is_wlocked(rw) || rw->writers_waiting > 0)
-        sleepq_wait(&rw->readers, NULL);
-      rw->readers++;
-      rw->state = RW_RLOCKED;
-    } else if (who == RW_WRITER) {
+  if (who == RW_READER) {
+    while (is_wlocked(rw) || rw->writers_waiting > 0)
+      sleepq_wait(&rw->readers, rw->name);
+    rw->readers++;
+    rw->state = RW_RLOCKED;
+  } else if (who == RW_WRITER) {
+    if (is_owned(rw)) {
+      assert(rw->recursive);
+      rw->recurse++;
+    } else {
       rw->writers_waiting++;
       while (is_locked(rw))
-        sleepq_wait(&rw->writer, NULL);
+        sleepq_wait(&rw->writer, rw->name);
       rw->state = RW_WLOCKED;
       rw->writer = thread_self();
       rw->writers_waiting--;

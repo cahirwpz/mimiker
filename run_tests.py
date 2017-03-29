@@ -90,6 +90,9 @@ if __name__ == '__main__':
     parser.add_argument('--thorough', action='store_true',
                         help='Generate much more test seeds.'
                         'Testing will take much more time.')
+    parser.add_argument('--infinite', action='store_true',
+                        help='Keep testing until some error'
+                        ' is found. ')
     parser.add_argument('--ovpsim', action='store_true',
                         help='Use OVPSim instead of QEMU.')
 
@@ -110,6 +113,11 @@ if __name__ == '__main__':
 
     # Run tests in alphabetic order
     test_seed(0, sim)
+    # Run infinitely many tests, until some problem is found.
+    if args.infinite:
+        while True:
+            seed = random.randint(0, 2**32)
+            test_seed(seed, sim, REPEAT)
     # Run tests using n random seeds
     for i in range(0, n):
         seed = random.randint(0, 2**32)
