@@ -14,8 +14,6 @@ before_install:
 script:
  - |
    set -e
-   which clang-format
-   clang-format --version
    make
    ./verify-format.sh
    ./run_tests.py --thorough
