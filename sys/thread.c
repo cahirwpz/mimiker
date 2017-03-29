@@ -71,7 +71,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   td->td_kstack.stk_size = PAGESIZE;
 
   mtx_init(&td->td_lock, MTX_DEF);
-  cv_init(&td->td_waitcv, "wait");
+  cv_init(&td->td_waitcv, "td_waitcv");
 
   ctx_init(td, fn, arg);
 
