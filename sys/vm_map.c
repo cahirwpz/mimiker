@@ -153,8 +153,8 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot) {
 }
 
-int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
-                     vm_addr_t /*out*/ *addr) {
+static int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start, size_t length,
+                                   vm_addr_t /*out*/ *addr) {
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(length, PAGESIZE));
 
@@ -163,8 +163,6 @@ int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
     start = map->pmap->start;
   if (start + length > map->pmap->end)
     return -ENOMEM;
-
-  rw_enter(&map->rwlock, RW_READER);
 
   /* Entire space free? */
   if (TAILQ_EMPTY(&map->list))
@@ -192,13 +190,20 @@ int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
   }
 
   /* Failed to find free space. */
-  rw_leave(&map->rwlock);
   return -ENOMEM;
 
 found:
-  rw_leave(&map->rwlock);
   *addr = start;
   return 0;
+}
+
+
+int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
+                     vm_addr_t /*out*/ *addr){
+  rw_enter(&map->rwlock, RW_READER);
+  int result = vm_map_findspace_nolock(map, start, length, addr);
+  rw_leave(&map->rwlock);
+  return result;
 }
 
 static int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry,
@@ -253,7 +258,7 @@ vm_addr_t vm_map_sbrk(vm_map_t *map, intptr_t increment) {
     /* sbrk was not used before by this thread. */
     size_t size = roundup(increment, PAGESIZE);
     vm_addr_t addr;
-    if (vm_map_findspace(map, BRK_SEARCH_START, size, &addr) != 0) {
+    if (vm_map_findspace_nolock(map, BRK_SEARCH_START, size, &addr) != 0) {
       result = -ENOMEM;
       goto end;
     }
