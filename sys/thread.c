@@ -70,6 +70,9 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
   td->td_kstack.stk_size = PAGESIZE;
 
+  mtx_init(&td->td_lock, MTX_DEF);
+  cv_init(&td->td_waitcv, "wait");
+
   ctx_init(td, fn, arg);
 
   /* Do not lock the mutex if this call to thread_create was done before any
@@ -119,6 +122,8 @@ noreturn void thread_exit(int exitcode) {
 
   log("Thread '%s' {%p} has finished.", td->td_name, td);
 
+  mtx_lock(&td->td_lock);
+
   /* Thread must not exit while in critical section! However, we can't use
      assert here, because assert also calls thread_exit. Thus, in case this
      condition is not met, we'll log the problem, and try to fix the problem. */
@@ -131,14 +136,16 @@ noreturn void thread_exit(int exitcode) {
   fdtab_release(td->td_fdtable);
 
   mtx_lock(&zombie_threads_mtx);
+  TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
+  mtx_unlock(&zombie_threads_mtx);
 
   critical_enter();
-  TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
-  td->td_exitcode = exitcode;
-  sleepq_broadcast(&td->td_exitcode);
-  td->td_state = TDS_INACTIVE;
-
-  mtx_unlock(&zombie_threads_mtx);
+  {
+    td->td_exitcode = exitcode;
+    td->td_state = TDS_INACTIVE;
+    cv_signal(&td->td_waitcv);
+    mtx_unlock(&td->td_lock);
+  }
   critical_leave();
 
   sched_yield();
@@ -153,10 +160,10 @@ void thread_join(thread_t *p) {
   thread_t *otd = p;
   log("Joining '%s' {%p} with '%s' {%p}", td->td_name, td, otd->td_name, otd);
 
-  critical_enter();
+  mtx_lock(&otd->td_lock);
   while (otd->td_state != TDS_INACTIVE)
-    sleepq_wait(&otd->td_exitcode, "Joining threads");
-  critical_leave();
+    cv_wait(&otd->td_waitcv, &otd->td_lock);
+  mtx_unlock(&otd->td_lock);
 }
 
 /* It would be better to have a hash-map from tid_t to thread_t,
