@@ -60,10 +60,7 @@ static void vm_map_setup(vm_map_t *map) {
 static MALLOC_DEFINE(mpool, "vm_map memory pool");
 
 void vm_map_init() {
-  vm_page_t *pg = pm_alloc(2);
-  kmalloc_init(mpool);
-  kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
-
+  kmalloc_init(mpool, 2);
   vm_map_setup(&kspace);
   kspace.pmap = get_kernel_pmap();
 }

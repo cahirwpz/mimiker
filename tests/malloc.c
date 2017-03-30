@@ -3,12 +3,9 @@
 #include <ktest.h>
 
 static int test_malloc() {
-  vm_page_t *page = pm_alloc(1);
-
   MALLOC_DEFINE(mp, "testing memory pool");
 
-  kmalloc_init(mp);
-  kmalloc_add_arena(mp, page->vaddr, PAGESIZE);
+  kmalloc_init(mp, 1);
 
   void *ptr1 = kmalloc(mp, 15, 0);
   assert(ptr1 != NULL);
@@ -34,8 +31,6 @@ static int test_malloc() {
   void *ptr6 = kmalloc(mp, 2000, M_NOWAIT);
   assert(ptr6 == NULL);
 
-  pm_free(page);
-
   return KTEST_SUCCESS;
 }
 
@@ -44,16 +39,12 @@ static int test_malloc_random_size(unsigned int randint) {
   if (randint == 0)
     randint = 64;
 
-  vm_page_t *page = pm_alloc(MALLOC_RANDINT_PAGES);
   MALLOC_DEFINE(mp, "testing memory pool");
-  kmalloc_init(mp);
-  kmalloc_add_arena(mp, page->vaddr, MALLOC_RANDINT_PAGES * PAGESIZE);
+  kmalloc_init(mp, MALLOC_RANDINT_PAGES);
 
   void *ptr = kmalloc(mp, randint, 0);
   assert(ptr != NULL);
   kfree(mp, ptr);
-
-  pm_free(page);
   return KTEST_SUCCESS;
 }
 

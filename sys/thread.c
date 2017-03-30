@@ -15,9 +15,7 @@ typedef TAILQ_HEAD(, thread) thread_list_t;
 static thread_list_t all_threads;
 
 void thread_init() {
-  kmalloc_init(td_pool);
-  kmalloc_add_pages(td_pool, 2);
-
+  kmalloc_init(td_pool, 2);
   TAILQ_INIT(&all_threads);
 }
 

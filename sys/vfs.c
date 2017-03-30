@@ -43,8 +43,7 @@ void vfs_init() {
 
   /* TODO: We probably need some fancier allocation, since eventually we should
    * start recycling vnodes */
-  kmalloc_init(vfs_pool);
-  kmalloc_add_arena(vfs_pool, pm_alloc(2)->vaddr, PAGESIZE * 2);
+  kmalloc_init(vfs_pool, 2);
 
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
   vfs_root_dev_vnode = vnode_new(V_DIR, &vfs_root_ops);

@@ -17,6 +17,7 @@ static struct {
   void *end;
 } sbrk = {__ebss, __kernel_end};
 
+/*
 void kernel_brk(void *addr) {
   cs_enter();
   void *ptr = sbrk.ptr;
@@ -28,6 +29,7 @@ void kernel_brk(void *addr) {
   if (addr > ptr)
     bzero(ptr, (intptr_t)addr - (intptr_t)ptr);
 }
+*/
 
 void *kernel_sbrk(size_t size) {
   cs_enter();
@@ -111,11 +113,8 @@ static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
   }
 }
 
-void kmalloc_init(malloc_pool_t *mp) {
-  TAILQ_INIT(&mp->mp_arena);
-}
-
-void kmalloc_add_arena(malloc_pool_t *mp, vm_addr_t start, size_t arena_size) {
+static void kmalloc_add_arena(malloc_pool_t *mp, vm_addr_t start,
+                              size_t arena_size) {
   if (arena_size < sizeof(mem_arena_t))
     return;
 
@@ -135,7 +134,7 @@ void kmalloc_add_arena(malloc_pool_t *mp, vm_addr_t start, size_t arena_size) {
   add_free_memory_block(ma, mb, block_size);
 }
 
-void kmalloc_add_pages(malloc_pool_t *mp, unsigned pages) {
+static void kmalloc_add_pages(malloc_pool_t *mp, unsigned pages) {
   vm_page_t *pg = pm_alloc(pages);
   kmalloc_add_arena(mp, PG_VADDR_START(pg), PG_SIZE(pg));
 }
@@ -171,6 +170,13 @@ static mem_block_t *try_allocating_in_area(mem_arena_t *ma,
   return mb;
 }
 
+void kmalloc_init(malloc_pool_t *mp, uint32_t pages) {
+  TAILQ_INIT(&mp->mp_arena);
+  mtx_init(&mp->mutex, MTX_DEF);
+  kmalloc_add_pages(mp, pages);
+  mp->pages_used = pages;
+}
+
 void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
   size_t size_aligned = align(size, MB_ALIGNMENT);
 
@@ -197,6 +203,7 @@ void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
 }
 
 void kfree(malloc_pool_t *mp, void *addr) {
+  mtx_lock(&mp->mutex);
   mem_block_t *mb = (mem_block_t *)(((char *)addr) - sizeof(mem_block_t));
 
   if (mb->mb_magic != MB_MAGIC || mp->mp_magic != MB_MAGIC || mb->mb_size >= 0)
@@ -209,6 +216,7 @@ void kfree(malloc_pool_t *mp, void *addr) {
       add_free_memory_block(current, mb,
                             abs(mb->mb_size) + sizeof(mem_block_t));
   }
+  mtx_unlock(&mp->mutex);
 }
 
 char *kstrndup(malloc_pool_t *mp, const char *s, size_t maxlen) {
@@ -219,6 +227,7 @@ char *kstrndup(malloc_pool_t *mp, const char *s, size_t maxlen) {
 }
 
 void kmalloc_dump(malloc_pool_t *mp) {
+  mtx_lock(&mp->mutex);
   mem_arena_t *arena = NULL;
   kprintf("[kmalloc] malloc_pool at %p:\n", mp);
   TAILQ_FOREACH (arena, &mp->mp_arena, ma_list) {
@@ -234,4 +243,5 @@ void kmalloc_dump(malloc_pool_t *mp) {
       block = mb_next(block);
     }
   }
+  mtx_unlock(&mp->mutex);
 }

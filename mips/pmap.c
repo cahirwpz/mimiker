@@ -87,10 +87,7 @@ void pmap_reset(pmap_t *pmap) {
 static MALLOC_DEFINE(mpool, "pmap memory pool");
 
 void pmap_init() {
-  vm_page_t *pg = pm_alloc(1);
-  kmalloc_init(mpool);
-  kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
-
+  kmalloc_init(mpool, 1);
   pmap_setup(&kernel_pmap, PMAP_KERNEL_BEGIN + PT_SIZE, PMAP_KERNEL_END);
 }
 

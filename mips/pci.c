@@ -203,11 +203,7 @@ static void pci_bus_dump(pci_bus_t *pcibus) {
 static pci_bus_t pci_bus[1];
 
 void pci_init() {
-  vm_page_t *pg = pm_alloc(1);
-
-  kmalloc_init(mp);
-  kmalloc_add_arena(mp, pg->vaddr, PG_SIZE(pg));
-
+  kmalloc_init(mp, 1);
   pci_bus_enumerate(pci_bus);
   pci_bus_assign_space(pci_bus, MALTA_PCI0_MEMORY_BASE, PCI_IO_SPACE_BASE);
   pci_bus_dump(pci_bus);

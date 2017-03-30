@@ -8,8 +8,7 @@
 static MALLOC_DEFINE(fd_pool, "file descriptors pool");
 
 void fd_init() {
-  kmalloc_init(fd_pool);
-  kmalloc_add_pages(fd_pool, 2);
+  kmalloc_init(fd_pool, 2);
 }
 
 /* Test whether a file descriptor is in use. */

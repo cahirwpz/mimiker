@@ -111,9 +111,7 @@ static int devfs_root(mount_t *m, vnode_t **v) {
 }
 
 static int devfs_init(vfsconf_t *vfc) {
-  kmalloc_init(devfs_pool);
-  kmalloc_add_arena(devfs_pool, pm_alloc(1)->vaddr, PAGESIZE);
-
+  kmalloc_init(devfs_pool, 1);
   mtx_init(&devfs_device_list_mtx, MTX_DEF);
 
   /* Prepare some initial devices */
