@@ -172,7 +172,7 @@ static mem_block_t *try_allocating_in_area(mem_arena_t *ma,
 
 void kmalloc_init(malloc_pool_t *mp, uint32_t pages) {
   TAILQ_INIT(&mp->mp_arena);
-  mtx_init(&mp->mutex, MTX_DEF);
+  mtx_init(&mp->mutex, MTX_RECURSE);
   kmalloc_add_pages(mp, pages);
   mp->pages_used = pages;
 }
@@ -182,6 +182,7 @@ void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
 
   /* Search for the first area in the list that has enough space. */
   mem_arena_t *current = NULL;
+  mtx_lock(&mp->mutex);
   TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
     assert(current->ma_magic == MB_MAGIC);
 
@@ -190,11 +191,11 @@ void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
     if (mb) {
       if (flags == M_ZERO)
         memset(mb->mb_data, 0, size);
-
+      mtx_unlock(&mp->mutex);
       return mb->mb_data;
     }
   }
-
+  mtx_unlock(&mp->mutex);
   /* Couldn't find any continuous memory with the requested size. */
   if (flags & M_NOWAIT)
     return NULL;
@@ -203,13 +204,13 @@ void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
 }
 
 void kfree(malloc_pool_t *mp, void *addr) {
-  mtx_lock(&mp->mutex);
   mem_block_t *mb = (mem_block_t *)(((char *)addr) - sizeof(mem_block_t));
 
   if (mb->mb_magic != MB_MAGIC || mp->mp_magic != MB_MAGIC || mb->mb_size >= 0)
     panic("Memory corruption detected!");
 
   mem_arena_t *current = NULL;
+  mtx_lock(&mp->mutex);
   TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
     char *start = ((char *)current) + sizeof(mem_arena_t);
     if ((char *)addr >= start && (char *)addr < start + current->ma_size)
@@ -227,9 +228,9 @@ char *kstrndup(malloc_pool_t *mp, const char *s, size_t maxlen) {
 }
 
 void kmalloc_dump(malloc_pool_t *mp) {
-  mtx_lock(&mp->mutex);
   mem_arena_t *arena = NULL;
   kprintf("[kmalloc] malloc_pool at %p:\n", mp);
+  mtx_lock(&mp->mutex);
   TAILQ_FOREACH (arena, &mp->mp_arena, ma_list) {
     mem_block_t *block = (void *)arena->ma_data;
     mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
