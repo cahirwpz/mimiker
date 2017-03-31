@@ -40,7 +40,7 @@ typedef struct malloc_pool {
   struct ma_list mp_arena;          /* Queue of managed arenas. */
   mtx_t mutex;                      /* Mutex protecting structure */
   uint32_t pages_used;              /* Current number of pages */
-  // uint32_t pages_limit;             /* Number of pages allowed */
+  uint32_t pages_limit;             /* Number of pages allowed */
 } malloc_pool_t;
 
 /* Defines a local pool of memory for use by a subsystem. */
@@ -54,7 +54,7 @@ typedef struct malloc_pool {
 #define M_NOWAIT 0x0001 /* may return NULL, but cannot sleep */
 #define M_ZERO 0x0002   /* clear allocated block */
 
-void kmalloc_init(malloc_pool_t *mp, uint32_t pages);
+void kmalloc_init(malloc_pool_t *mp, uint32_t pages, uint32_t pages_limit);
 void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags)
   __attribute__((warn_unused_result));
 void kfree(malloc_pool_t *mp, void *addr);

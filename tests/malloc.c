@@ -5,7 +5,7 @@
 static int test_malloc() {
   MALLOC_DEFINE(mp, "testing memory pool");
 
-  kmalloc_init(mp, 1);
+  kmalloc_init(mp, 1, 1);
 
   void *ptr1 = kmalloc(mp, 15, 0);
   assert(ptr1 != NULL);
@@ -40,7 +40,7 @@ static int test_malloc_random_size(unsigned int randint) {
     randint = 64;
 
   MALLOC_DEFINE(mp, "testing memory pool");
-  kmalloc_init(mp, MALLOC_RANDINT_PAGES);
+  kmalloc_init(mp, MALLOC_RANDINT_PAGES, MALLOC_RANDINT_PAGES);
 
   void *ptr = kmalloc(mp, randint, 0);
   assert(ptr != NULL);

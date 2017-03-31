@@ -60,7 +60,7 @@ static void vm_map_setup(vm_map_t *map) {
 static MALLOC_DEFINE(mpool, "vm_map memory pool");
 
 void vm_map_init() {
-  kmalloc_init(mpool, 2);
+  kmalloc_init(mpool, 2, 2);
   vm_map_setup(&kspace);
   kspace.pmap = get_kernel_pmap();
 }

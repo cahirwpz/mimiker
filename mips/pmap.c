@@ -87,7 +87,7 @@ void pmap_reset(pmap_t *pmap) {
 static MALLOC_DEFINE(mpool, "pmap memory pool");
 
 void pmap_init() {
-  kmalloc_init(mpool, 1);
+  kmalloc_init(mpool, 1, 1);
   pmap_setup(&kernel_pmap, PMAP_KERNEL_BEGIN + PT_SIZE, PMAP_KERNEL_END);
 }
 

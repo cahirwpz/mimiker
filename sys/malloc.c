@@ -170,11 +170,12 @@ static mem_block_t *try_allocating_in_area(mem_arena_t *ma,
   return mb;
 }
 
-void kmalloc_init(malloc_pool_t *mp, uint32_t pages) {
+void kmalloc_init(malloc_pool_t *mp, uint32_t pages, uint32_t pages_limit) {
   TAILQ_INIT(&mp->mp_arena);
   mtx_init(&mp->mutex, MTX_RECURSE);
   kmalloc_add_pages(mp, pages);
   mp->pages_used = pages;
+  mp->pages_limit = pages_limit;
 }
 
 void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
@@ -195,8 +196,16 @@ void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
       return mb->mb_data;
     }
   }
-  mtx_unlock(&mp->mutex);
   /* Couldn't find any continuous memory with the requested size. */
+  if (mp->pages_used < mp->pages_limit) {
+    kmalloc_add_pages(mp, 1);
+    mp->pages_used++;
+    void *ret = kmalloc(mp, size, flags);
+    mtx_unlock(&mp->mutex);
+    return ret;
+  }
+
+  mtx_unlock(&mp->mutex);
   if (flags & M_NOWAIT)
     return NULL;
 
