@@ -22,9 +22,26 @@
 #define KL_SYSCALL      0x00080000 /* syscall processing */
 #define KL_ALL          0x7fffffff
 
+#ifndef KL_SIZE
+#define KL_SIZE 1024
+#endif
+
+// By default save all logs.
+#ifndef KL_MASK
+#define KL_MASK KL_ALL
+#endif
+
+volatile int first_message;
+volatile int last_message;
+
+
 void klog_append(unsigned mask, const char *file, unsigned line,
                  const char *format, intptr_t arg1, intptr_t arg2,
                  intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6);
+
+void klog_dump_all();
+
+void klog_clear();
 
 #define klog_(m, format, p1, p2, p3, p4, p5, p6, ...)                          \
   do {                                                                         \
