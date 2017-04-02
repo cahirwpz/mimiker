@@ -45,7 +45,14 @@ static int test_physmem() {
   pm_free(pg1);
   assert(pre == pm_hash());
   kprintf("Tests passed\n");
-  return 0;
+  return KTEST_SUCCESS;
 }
 
-KTEST_ADD(physmem, test_physmem);
+/* If I understand it correctly, this test is not guaranteed to be always
+   successful. It relies on the pm_hash changing when allocations are
+   done. However, if the kernel has been running for a while (or some other
+   components were initialized), the internal state of pm may happen to be such
+   that these allocations won't affect the hash. For this reason, this test is
+   marked as BROKEN, and we may want to investigate alternative ways of testing
+   physmem.*/
+KTEST_ADD(physmem, test_physmem, KTEST_FLAG_BROKEN);

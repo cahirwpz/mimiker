@@ -1,4 +1,3 @@
-#undef DEBUG
 #include <common.h>
 #include <queue.h>
 #include <stdc.h>
@@ -67,7 +66,7 @@ sleepq_t *sleepq_lookup(void *wchan) {
 void sleepq_wait(void *wchan, const char *wmesg) {
   thread_t *td = thread_self();
   log("Sleep '%s' thread on '%s' (%p)", td->td_name, wmesg, wchan);
-  
+
   assert(td->td_wchan == NULL);
   assert(td->td_wmesg == NULL);
   assert(td->td_sleepqueue != NULL);
@@ -109,8 +108,8 @@ void sleepq_wait(void *wchan, const char *wmesg) {
 
 /* Remove a thread from the sleep queue and resume it. */
 static void sleepq_resume_thread(sleepq_t *sq, thread_t *td) {
-  log("Wakeup '%s' thread from '%s' (%p)",
-      td->td_name, td->td_wmesg, td->td_wchan);
+  log("Wakeup '%s' thread from '%s' (%p)", td->td_name, td->td_wmesg,
+      td->td_wchan);
 
   assert(td->td_wchan != NULL);
   assert(td->td_sleepqueue == NULL);

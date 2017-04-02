@@ -28,6 +28,13 @@ void callout_init();
 void callout_setup(callout_t *handle, realtime_t time, timeout_t fn, void *arg);
 
 /*
+ * Add a callout to the queue, using timing relative to current time.
+ * After ticks @time passed the function @fn is called with argument @arg.
+ */
+void callout_setup_relative(callout_t *handle, realtime_t time, timeout_t fn,
+                            void *arg);
+
+/*
  * Delete a callout from the queue without handling it.
  */
 void callout_stop(callout_t *handle);

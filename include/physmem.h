@@ -19,8 +19,8 @@ size_t pm_seg_space_needed(size_t size);
  * offset for pages, i.e. all pages in this segment will be visible under
  * addresses (start + offset, end + offset) by default.
  */
-void pm_seg_init(pm_seg_t *seg,
-                 pm_addr_t start, pm_addr_t end, vm_addr_t offset);
+void pm_seg_init(pm_seg_t *seg, pm_addr_t start, pm_addr_t end,
+                 vm_addr_t offset);
 /* After using this function pages in range (start, end) are never going to be
  * allocated. Should be used at start to avoid allocating from text, data,
  * ebss, or any possibly unwanted places. */

@@ -60,6 +60,12 @@ argument. Some useful kernel aguments:
   for currently available programs.
 * `test=TEST` - Requests the kernel to run the specified test (from `./tests`
   directory).
+* `test=all` - Runs a number of tests one after another, and reports success
+  only when all of them passed.
+* `seed=UINT` - Sets the RNG seed for shuffling the list of test when using
+  `test=all`.
+* `repeat=UINT` - Specifies the number of (shuffled) repetitions of each test
+  when using `test=all`.
 
 Documentation
 ---

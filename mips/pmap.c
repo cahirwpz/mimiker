@@ -8,6 +8,7 @@
 #include <sync.h>
 #include <vm_map.h>
 #include <thread.h>
+#include <ktest.h>
 
 #define PTE_MASK 0xfffff000
 #define PTE_SHIFT 12
@@ -379,7 +380,9 @@ fault:
   if (td->td_onfault) {
     frame->pc = td->td_onfault;
     td->td_onfault = 0;
+  } else if (ktest_test_running_flag) {
+    ktest_failure();
   } else {
-    thread_exit();
+    thread_exit(-1);
   }
 }

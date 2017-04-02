@@ -57,7 +57,7 @@ static int test_uiomove() {
   res = strcmp(buffer2, "Example ====string ========with data ");
   assert(res == 0);
 
-  return 0;
+  return KTEST_SUCCESS;
 }
 
-KTEST_ADD(uiomove, test_uiomove);
+KTEST_ADD(uiomove, test_uiomove, 0);

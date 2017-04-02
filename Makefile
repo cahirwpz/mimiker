@@ -27,12 +27,15 @@ tags:
 	find -iname '*.S' -not -path "*/toolchain/*" | ctags -a --language-force=asm -L- -e -f etags
 
 # These files get destroyed by clang-format, so we exclude them from formatting
-FORMATTABLE_EXCLUDE = include/elf stdc/smallclib include/mips/asm.h include/mips/m32c0.h
+FORMATTABLE_EXCLUDE = include/elf stdc/ include/mips/asm.h include/mips/m32c0.h
 # Search for all .c and .h files, excluding toolchain build directory and files from FORMATTABLE_EXCLUDE
 FORMATTABLE = $(shell find -type f -not -path "*/toolchain/*" -and \( -name '*.c' -or -name '*.h' \) | grep -v $(FORMATTABLE_EXCLUDE:%=-e %))
 format:
 	@echo "Formatting files: $(FORMATTABLE:./%=%)"
 	clang-format -style=file -i $(FORMATTABLE)
+
+test: mimiker.elf
+	./run_tests.py
 
 $(SUBDIRS):
 	$(MAKE) -C $@

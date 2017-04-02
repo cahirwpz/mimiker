@@ -28,6 +28,7 @@ static int test_vfs() {
   assert(error == 0);
   vnode_unref(dev_zero);
 
+  assert(dev_zero->v_usecnt == 1);
   /* Ask for the same vnode multiple times and check for correct v_usecnt. */
   error = vfs_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
@@ -39,6 +40,7 @@ static int test_vfs() {
   vnode_unref(dev_zero);
   vnode_unref(dev_zero);
   vnode_unref(dev_zero);
+  assert(dev_zero->v_usecnt == 1);
 
   uio_t uio;
   iovec_t iov;
@@ -94,7 +96,7 @@ static int test_vfs() {
   res = VOP_WRITE(dev_uart, &uio);
   assert(res == 0);
 
-  return 0;
+  return KTEST_SUCCESS;
 }
 
-KTEST_ADD(vfs, test_vfs);
+KTEST_ADD(vfs, test_vfs, 0);

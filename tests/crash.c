@@ -36,8 +36,9 @@ static int test_crash() {
   sched_add(NEW_THREAD(unmapped_load, NULL));
   sched_add(NEW_THREAD(unmapped_store, NULL));
 
-  thread_dump_all();
   sched_run();
+
+  return KTEST_FAILURE;
 }
 
-KTEST_ADD(crash, test_crash);
+KTEST_ADD(crash, test_crash, KTEST_FLAG_NORETURN);
