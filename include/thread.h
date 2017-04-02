@@ -21,15 +21,16 @@ typedef struct fdtab fdtab_t;
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 
 typedef struct thread {
+  /* Locks*/
+  mtx_t td_lock;
+  condvar_t td_waitcv; /* CV for thread exit, used by join */
+  /* List links */
   TAILQ_ENTRY(thread) td_all;     /* a link on all threads list */
   TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
   TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
   char *td_name;
   tid_t td_tid;
-  /* Locks*/
-  mtx_t td_lock;
-  condvar_t td_waitcv;
   /* thread state */
   enum { TDS_INACTIVE = 0x0, TDS_WAITING, TDS_READY, TDS_RUNNING } td_state;
   uint32_t td_flags;           /* TDF_* flags */

@@ -143,7 +143,7 @@ noreturn void thread_exit(int exitcode) {
   {
     td->td_exitcode = exitcode;
     td->td_state = TDS_INACTIVE;
-    cv_signal(&td->td_waitcv);
+    cv_broadcast(&td->td_waitcv);
     mtx_unlock(&td->td_lock);
   }
   critical_leave();
