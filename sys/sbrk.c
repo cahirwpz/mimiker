@@ -14,7 +14,8 @@ vm_addr_t sbrk_create(vm_map_t *map) {
 
   size_t size = roundup(SBRK_INITIAL_SIZE, PAGESIZE);
   vm_addr_t addr;
-  assert(vm_map_findspace(map, BRK_SEARCH_START, size, &addr) == 0);
+  int res = vm_map_findspace(map, BRK_SEARCH_START, size, &addr);
+  assert(res == 0);
   vm_map_entry_t *entry =
     vm_map_add_entry(map, addr, addr + size, VM_PROT_READ | VM_PROT_WRITE);
   entry->object = default_pager->pgr_alloc();
