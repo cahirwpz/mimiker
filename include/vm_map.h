@@ -58,8 +58,6 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
 vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                                  vm_prot_t prot);
 
-int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end);
-
 /* Looks up a gap of @length size in @map. The search starts at @start address.
  * On success, returns 0 and sets *addr. @start and @length arguments must be
  * page-aligned. */
@@ -67,6 +65,10 @@ int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
                      vm_addr_t /*out*/ *addr);
 int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start, size_t length,
                             vm_addr_t /*out*/ *addr);
+
+/* Tries to resize an entry, by moving its end if there
+   are no other mappings in the way. On success, returns 0. */
+int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end);
 
 void vm_map_dump(vm_map_t *vm_map);
 
