@@ -180,6 +180,8 @@ void kmalloc_init(malloc_pool_t *mp, uint32_t pages, uint32_t pages_limit) {
 
 void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
   size_t size_aligned = align(size, MB_ALIGNMENT);
+  if (size == 0 || size_aligned == 0)
+    return NULL;
 
   /* Search for the first area in the list that has enough space. */
   mem_arena_t *current = NULL;
