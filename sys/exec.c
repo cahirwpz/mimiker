@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <sync.h>
 #include <filedesc.h>
+#include <sbrk.h>
 #include <vfs_syscalls.h>
 #include <mips/stack.h>
 
@@ -204,6 +205,9 @@ int do_exec(const exec_args_t *args) {
   do_open(td, "/dev/uart", O_RDONLY, 0, &ignore);
   do_open(td, "/dev/uart", O_WRONLY, 0, &ignore);
   do_open(td, "/dev/uart", O_WRONLY, 0, &ignore);
+
+  /* ... sbrk segment ... */
+  sbrk_create(vmap);
 
   /* ... and user context. */
   uctx_init(thread_self(), eh->e_entry, stack_bottom);
