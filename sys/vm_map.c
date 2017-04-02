@@ -153,8 +153,8 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot) {
 }
 
-static int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start, size_t length,
-                                   vm_addr_t /*out*/ *addr) {
+int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start, size_t length,
+                            vm_addr_t /*out*/ *addr) {
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(length, PAGESIZE));
 
@@ -197,17 +197,15 @@ found:
   return 0;
 }
 
-
 int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
-                     vm_addr_t /*out*/ *addr){
+                     vm_addr_t /*out*/ *addr) {
   rw_enter(&map->rwlock, RW_READER);
   int result = vm_map_findspace_nolock(map, start, length, addr);
   rw_leave(&map->rwlock);
   return result;
 }
 
-static int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry,
-                         vm_addr_t new_end) {
+int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
   assert(is_aligned(new_end, PAGESIZE));
   rw_assert(&map->rwlock, RW_WLOCKED);
 
@@ -248,51 +246,6 @@ void vm_map_dump(vm_map_t *map) {
     vm_map_object_dump(it->object);
   }
   rw_leave(&map->rwlock);
-}
-
-vm_addr_t vm_map_sbrk(vm_map_t *map, intptr_t increment) {
-  vm_addr_t result = 0;
-  rw_enter(&map->rwlock, RW_WRITER);
-
-  if (!map->sbrk_entry) {
-    /* sbrk was not used before by this thread. */
-    size_t size = roundup(increment, PAGESIZE);
-    vm_addr_t addr;
-    if (vm_map_findspace_nolock(map, BRK_SEARCH_START, size, &addr) != 0) {
-      result = -ENOMEM;
-      goto end;
-    }
-    vm_map_entry_t *entry =
-      vm_map_add_entry(map, addr, addr + size, VM_PROT_READ | VM_PROT_WRITE);
-    entry->object = default_pager->pgr_alloc();
-
-    map->sbrk_entry = entry;
-    map->sbrk_end = addr + increment;
-
-    result = addr;
-  } else {
-    /* There already is a brk segment in user space map. */
-    vm_map_entry_t *brk_entry = map->sbrk_entry;
-    vm_addr_t brk = map->sbrk_end;
-    if (brk + increment == brk_entry->end) {
-      /* No need to resize the segment. */
-      map->sbrk_end = brk + increment;
-      result = brk;
-    } else {
-      /* Shrink or expand the vm_map_entry */
-      vm_addr_t new_end = roundup(brk + increment, PAGESIZE);
-      if (vm_map_resize(map, brk_entry, new_end) != 0) {
-        /* Map entry expansion failed. */
-        result = -ENOMEM;
-        goto end;
-      }
-      map->sbrk_end += increment;
-      result = brk;
-    }
-  }
-end:
-  rw_leave(&map->rwlock);
-  return result;
 }
 
 int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
