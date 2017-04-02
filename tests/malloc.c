@@ -69,5 +69,7 @@ KTEST_ADD(malloc_one_allocation, malloc_one_allocation, 0);
 KTEST_ADD(malloc_invalid_values, malloc_invalid_values, 0);
 KTEST_ADD(malloc_multiple_allocations, malloc_multiple_allocations, 0);
 KTEST_ADD(malloc_dynamic_pages_addition, malloc_dynamic_pages_addition, 0);
+/* Reserve some memory for mem_block_t. */
+#define RESERVED 1024
 KTEST_ADD_RANDINT(malloc_random_size, malloc_random_size, 0,
-                  MALLOC_RANDINT_PAGES *PAGESIZE);
+                  MALLOC_RANDINT_PAGES *PAGESIZE - RESERVED);

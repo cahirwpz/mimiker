@@ -22,10 +22,13 @@ void sched_init() {
 void sched_add(thread_t *td) {
   // log("Add '%s' {%p} thread to scheduler", td->td_name, td);
 
+  td->td_state = TDS_READY;
+
+  /* Idle thread does not get inserted to the runqueue, and it does not require
+     increasing its time slice. */
   if (td == PCPU_GET(idle_thread))
     return;
 
-  td->td_state = TDS_READY;
   td->td_slice = SLICE;
   critical_enter();
 
@@ -89,6 +92,7 @@ noreturn void sched_run() {
 
   PCPU_SET(idle_thread, td);
 
+  td->td_name = "idle-thread";
   td->td_slice = 0;
   sched_active = true;
 
