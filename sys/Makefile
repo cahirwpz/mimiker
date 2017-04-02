@@ -22,6 +22,7 @@ SOURCES_C  = \
 	physmem.c \
 	runq.c \
 	rwlock.c \
+	sbrk.c \
 	sched.c \
 	sleepq.c \
 	startup.c \

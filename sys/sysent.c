@@ -5,19 +5,13 @@
 #include <vm_map.h>
 #include <vm_pager.h>
 #include <vfs_syscalls.h>
+#include <sbrk.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   kprintf("[syscall] unimplemented system call %ld\n", args->code);
   return -ENOSYS;
 };
 
-/* This is just a stub. A full implementation of this syscall will probably
-   deserve a separate file. */
-/* Note that this sbrk implementation does not actually extend .data section,
-   because we have no guarantee that there is any free space after .data in the
-   memory map. But it does not matter much, because no application would assume
-   that we are actually expanding .data, it will use the pointer returned by
-   sbrk. */
 int sys_sbrk(thread_t *td, syscall_args_t *args) {
   intptr_t increment = (size_t)args->args[0];
 
@@ -32,7 +26,7 @@ int sys_sbrk(thread_t *td, syscall_args_t *args) {
 
   assert(td->td_uspace);
 
-  return vm_map_sbrk(td->td_uspace, increment);
+  return sbrk_resize(td->td_uspace, increment);
 }
 
 /* This is just a stub. A full implementation of this syscall will probably
