@@ -5,9 +5,9 @@
 #include <queue.h>
 
 typedef enum {
-  IF_STRAY = 1,           /* this device did not trigger the interrupt */
-  IF_HANDLED = 2,         /* the interrupt has been handled and can be EOId */
-  IF_SCHEDULE_THREAD = 4, /* the handler should be run in private thread */
+  IF_STRAY = 0,           /* this device did not trigger the interrupt */
+  IF_HANDLED = 1,         /* the interrupt has been handled and can be EOId */
+  IF_SCHEDULE_THREAD = 2, /* the handler should be run in private thread */
 } intr_filter_t;
 
 /*
@@ -34,12 +34,21 @@ typedef struct intr_handler {
 
 typedef TAILQ_HEAD(, intr_handler) intr_handler_list_t;
 
+#define INTR_HANDLER_DEFINE(name, filter, handler, argument, desc, prio)       \
+  intr_handler_t name##_intr_handler[1] = {{.ih_filter = (filter),             \
+                                            .ih_handler = (handler),           \
+                                            .ih_argument = (argument),         \
+                                            .ih_name = (desc),                 \
+                                            .ih_prio = (prio)}}
+
 typedef struct intr_chain {
   TAILQ_ENTRY(intr_chain) ic_list;
   intr_handler_list_t ic_handlers; /* interrupt handlers */
   char *ic_name;                   /* individual chain name */
   unsigned ic_irq;                 /* physical interrupt request line number */
 } intr_chain_t;
+
+#define INTR_CHAIN_DECLARE(name) extern intr_chain_t name##_intr_chain[1]
 
 /* Initializes and enables interrupts. */
 void intr_init();

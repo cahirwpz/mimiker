@@ -3,12 +3,15 @@
 #include <stdc.h>
 #include <mips/exc.h>
 #include <mips/mips.h>
+#include <interrupt.h>
 #include <pmap.h>
 #include <sysent.h>
 #include <errno.h>
 #include <thread.h>
 
 extern const char _ebase[];
+
+intr_chain_t mips_cpu_intr_chain[8];
 
 void mips_intr_init() {
   /*
@@ -23,13 +26,19 @@ void mips_intr_init() {
   mips32_bs_c0(C0_CAUSE, CR_IV);
   /* Set vector spacing to 0. */
   mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
+
+  /* Initialize software interrupts handler chains. */
+  intr_chain_init(&mips_cpu_intr_chain[0], 0, "swint(0)");
+  intr_chain_init(&mips_cpu_intr_chain[1], 1, "swint(1)");
+
+  /* Initialize hardware interrupts handler chains. */
+  intr_chain_init(&mips_cpu_intr_chain[2], 2, "hwint(0)");
+  intr_chain_init(&mips_cpu_intr_chain[3], 3, "hwint(1)");
+  intr_chain_init(&mips_cpu_intr_chain[4], 4, "hwint(2)");
+  intr_chain_init(&mips_cpu_intr_chain[5], 5, "hwint(3)");
+  intr_chain_init(&mips_cpu_intr_chain[6], 6, "hwint(4)");
+  intr_chain_init(&mips_cpu_intr_chain[7], 7, "hwint(5)");
 }
-
-extern void mips_clock_irq_handler();
-
-typedef void (*irq_handler_t)();
-
-static irq_handler_t irq_handlers[8] = {[7] = mips_clock_irq_handler};
 
 void mips_irq_handler(exc_frame_t *frame) {
   unsigned pending = (frame->cause & frame->sr) & CR_IP_MASK;
@@ -38,12 +47,7 @@ void mips_irq_handler(exc_frame_t *frame) {
     unsigned irq = CR_IP0 << i;
 
     if (pending & irq) {
-      irq_handler_t handler = irq_handlers[i];
-      if (handler != NULL) {
-        handler();
-      } else {
-        klog("Spurious hardware interrupt #%d!", i);
-      }
+      intr_chain_run_handlers(&mips_cpu_intr_chain[i]);
       pending &= ~irq;
     }
   }

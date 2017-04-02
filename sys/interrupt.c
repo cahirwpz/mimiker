@@ -1,3 +1,5 @@
+#include <common.h>
+#include <stdc.h>
 #include <interrupt.h>
 
 static TAILQ_HEAD(, intr_chain) intr_chain_list;
@@ -15,16 +17,20 @@ void intr_chain_init(intr_chain_t *ic, unsigned irq, char *name) {
 
 void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
   intr_handler_t *it;
-  /* Add new handler according to it's priority */
-  TAILQ_FOREACH (it, &ic->ic_handlers, ih_list) {
-    if (ih->ih_prio > it->ih_prio)
-      break;
-  }
-  if (it) {
-    TAILQ_INSERT_BEFORE(it, ih, ih_list);
-  } else {
-    /* List is empty */
+
+  ih->ih_chain = ic;
+
+  if (TAILQ_EMPTY(&ic->ic_handlers)) {
     TAILQ_INSERT_HEAD(&ic->ic_handlers, ih, ih_list);
+  } else {
+    /* Add new handler according to it's priority */
+    TAILQ_FOREACH (it, &ic->ic_handlers, ih_list) {
+      if (ih->ih_prio > it->ih_prio) {
+        TAILQ_INSERT_BEFORE(it, ih, ih_list);
+        return;
+      }
+    }
+    TAILQ_INSERT_TAIL(&ic->ic_handlers, ih, ih_list);
   }
 }
 
@@ -37,13 +43,17 @@ void intr_chain_remove_handler(intr_handler_t *ih) {
  * With current implementation all filters have to either handle filter or
  * report that it is stray interrupt.
  */
-void intr_chain_execute_handlers(intr_chain_t *ic) {
-  intr_handler_t *it;
-  int flag = 0;
-  TAILQ_FOREACH (it, &ic->ic_handlers, ih_list) {
-    flag |= it->ih_filter(it->ih_argument);
-    /* Filter captured interrupt */
-    if (flag & IF_HANDLED)
+void intr_chain_run_handlers(intr_chain_t *ic) {
+  intr_handler_t *ih;
+  intr_filter_t status = IF_STRAY;
+
+  TAILQ_FOREACH (ih, &ic->ic_handlers, ih_list) {
+    status |= ih->ih_filter ? ih->ih_filter(ih->ih_argument) : IF_HANDLED;
+    if (status & IF_HANDLED) {
+      ih->ih_handler(ih->ih_argument);
       return;
+    }
   }
+
+  log("Spurious %s interrupt!", ic->ic_name);
 }
