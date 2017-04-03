@@ -10,11 +10,13 @@
    sbrk. */
 
 vm_addr_t sbrk_create(vm_map_t *map) {
+  rw_enter(&map->rwlock, RW_WRITER);
+
   assert(!map->sbrk_entry);
 
   size_t size = roundup(SBRK_INITIAL_SIZE, PAGESIZE);
   vm_addr_t addr;
-  int res = vm_map_findspace(map, BRK_SEARCH_START, size, &addr);
+  int res = vm_map_findspace_nolock(map, BRK_SEARCH_START, size, &addr);
   assert(res == 0);
   vm_map_entry_t *entry =
     vm_map_add_entry(map, addr, addr + size, VM_PROT_READ | VM_PROT_WRITE);
@@ -23,10 +25,14 @@ vm_addr_t sbrk_create(vm_map_t *map) {
   map->sbrk_entry = entry;
   map->sbrk_end = addr;
 
+  rw_leave(&map->rwlock);
   return addr;
 }
 
 vm_addr_t sbrk_resize(vm_map_t *map, intptr_t increment) {
+  rw_enter(&map->rwlock, RW_WRITER);
+  vm_addr_t result;
+
   assert(map->sbrk_entry);
 
   vm_map_entry_t *brk_entry = map->sbrk_entry;
@@ -34,14 +40,20 @@ vm_addr_t sbrk_resize(vm_map_t *map, intptr_t increment) {
   if (brk + increment == brk_entry->end) {
     /* No need to resize the segment. */
     map->sbrk_end = brk + increment;
-    return brk;
+    result = brk;
+    goto end;
   }
   /* Shrink or expand the vm_map_entry */
   vm_addr_t new_end = roundup(brk + increment, PAGESIZE);
   if (vm_map_resize(map, brk_entry, new_end) != 0) {
     /* Map entry expansion failed. */
-    return -ENOMEM;
+    result = -ENOMEM;
+    goto end;
   }
   map->sbrk_end += increment;
-  return brk;
+  result = brk;
+
+end:
+  rw_leave(&map->rwlock);
+  return result;
 }
