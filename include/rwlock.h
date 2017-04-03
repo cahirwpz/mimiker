@@ -2,6 +2,7 @@
 #define _SYS_RWLOCK_H_
 
 #include <stdbool.h>
+#include <common.h>
 
 typedef enum { RW_READER, RW_WRITER } rwo_t;
 
@@ -34,6 +35,12 @@ void rw_enter(rwlock_t *rw, rwo_t who);
 void rw_leave(rwlock_t *rw);
 bool rw_try_upgrade(rwlock_t *rw);
 void rw_downgrade(rwlock_t *rw);
+
+DEFINE_CLEANUP_FUNCTION(rwlock_t *, rw_leave);
+#define rw_lock_guard(prwlock, mode)                                           \
+  rwlock_t *rw_lock_guard_##__LINE__                                           \
+    __attribute__((cleanup(cleanup_rw_leave))) = prwlock;                      \
+  rw_enter(prwlock, mode);
 
 #define rw_assert(rw, what) __rw_assert((rw), (what), __FILE__, __LINE__)
 void __rw_assert(rwlock_t *rw, rwa_t what, const char *file, unsigned line);
