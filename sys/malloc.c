@@ -170,7 +170,7 @@ static mem_block_t *try_allocating_in_area(mem_arena_t *ma,
   return mb;
 }
 
-void kmalloc_init(malloc_pool_t *mp, uint32_t pages, uint32_t pages_max) {
+void kmalloc_init(malloc_pool_t *mp, unsigned pages, unsigned pages_max) {
   TAILQ_INIT(&mp->mp_arena);
   mtx_init(&mp->mp_lock, MTX_RECURSE);
   kmalloc_add_pages(mp, pages);
