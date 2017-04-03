@@ -88,6 +88,7 @@ typedef uint32_t ino_t;
     !(_addr & (_size - 1));                                                    \
   })
 
+#define cleanup(func) __attribute__((__cleanup__(cleanup_##func)))
 #define DEFINE_CLEANUP_FUNCTION(type, func)                                    \
   static inline void cleanup_##func(type *ptr) {                               \
     if (*ptr)                                                                  \
