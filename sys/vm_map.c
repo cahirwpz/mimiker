@@ -95,14 +95,13 @@ static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
   vm_map_entry_t *etr_it;
   rw_enter(&vm_map->rwlock, RW_READER);
-  TAILQ_FOREACH (etr_it, &vm_map->list, map_list) {
-    if (etr_it->start <= vaddr && vaddr < etr_it->end) {
-      rw_leave(&vm_map->rwlock);
-      return etr_it;
-    }
-  }
+  TAILQ_FOREACH (etr_it, &vm_map->list, map_list)
+    if (etr_it->start <= vaddr && vaddr < etr_it->end)
+      goto end;
+  etr_it = NULL;
+end:
   rw_leave(&vm_map->rwlock);
-  return NULL;
+  return etr_it;
 }
 
 static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
