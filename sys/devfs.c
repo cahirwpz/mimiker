@@ -31,14 +31,10 @@ static mtx_t devfs_device_list_mtx;
 
 static devfs_device_t *devfs_get_by_name(const char *name) {
   devfs_device_t *idev;
-  mtx_lock(&devfs_device_list_mtx);
-  TAILQ_FOREACH (idev, &devfs_device_list, list) {
-    if (!strcmp(name, idev->name)) {
-      mtx_unlock(&devfs_device_list_mtx);
+  mtx_lock_guard(&devfs_device_list_mtx);
+  TAILQ_FOREACH (idev, &devfs_device_list, list)
+    if (!strcmp(name, idev->name))
       return idev;
-    }
-  }
-  mtx_unlock(&devfs_device_list_mtx);
   return NULL;
 }
 

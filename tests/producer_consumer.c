@@ -22,7 +22,7 @@ static void producer(void *ptr) {
   unsigned produced = 0;
   log("%s started", thread_self()->td_name);
   while (working) {
-    mtx_lock(&buf.lock);
+    mtx_lock_guard(&buf.lock);
     do {
       working = (buf.all_produced < ITEMS);
       if (!working)
@@ -37,7 +37,6 @@ static void producer(void *ptr) {
       buf.items++;
       cv_signal(&buf.not_empty);
     }
-    mtx_unlock(&buf.lock);
   }
   log("%s finished, produced %d of %d.", thread_self()->td_name, produced,
       buf.all_produced);
@@ -48,7 +47,7 @@ static void consumer(void *ptr) {
   unsigned consumed = 0;
   log("%s started", thread_self()->td_name);
   while (working) {
-    mtx_lock(&buf.lock);
+    mtx_lock_guard(&buf.lock);
     do {
       working = (buf.all_consumed < ITEMS);
       if (!working)
@@ -63,7 +62,6 @@ static void consumer(void *ptr) {
       buf.items--;
       cv_signal(&buf.not_full);
     }
-    mtx_unlock(&buf.lock);
   }
   log("%s finished, consumed %d of %d.", thread_self()->td_name, consumed,
       buf.all_consumed);

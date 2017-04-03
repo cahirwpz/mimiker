@@ -2,6 +2,7 @@
 #define _SYS_MUTEX_H_
 
 #include <stdbool.h>
+#include <common.h>
 
 typedef struct thread thread_t;
 
@@ -28,5 +29,13 @@ void mtx_lock(mtx_t *m);
 /* Unlocks the mutex. If some thread blocked for the mutex,
  * then it wakes up the thread in FIFO manner. */
 void mtx_unlock(mtx_t *m);
+
+/* Use mtx_lock_guard to lock a mutex and have it automatically unlock when
+   leaving current scope. */
+DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
+#define mtx_lock_guard(pmtx)                                                   \
+  mtx_t *mtx_lock_guard_##__LINE__                                             \
+    __attribute__((cleanup(cleanup_mtx_unlock))) = pmtx;                       \
+  mtx_lock(pmtx);
 
 #endif /* !_SYS_MUTEX_H_ */
