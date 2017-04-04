@@ -4,6 +4,7 @@ import argparse
 import pexpect
 import sys
 import random
+import subprocess
 
 N_SIMPLE = 5
 N_THOROUGH = 100
@@ -111,6 +112,8 @@ if __name__ == '__main__':
     if args.ovpsim:
         sim = 'ovpsim'
 
+    # Build initial ramdisk before running tests
+    subprocess.call('./build_cpio.sh')
     # Run tests in alphabetic order
     test_seed(0, sim)
     # Run infinitely many tests, until some problem is found.

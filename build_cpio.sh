@@ -30,6 +30,7 @@ gen_file "initrd/level1" "level1"
 cd initrd 
 find -depth -print | cpio --format=crc -o > ../initrd.cpio
 cd ..
+echo "initial ramdisk built in initrd.cpio"
 
 rm -r initrd
 

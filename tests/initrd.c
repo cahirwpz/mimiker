@@ -48,7 +48,7 @@ static int test_ramdisk() {
   dump_file("/initrd/level1/level2/level3/level123");
   dump_file("/initrd/level1/level2/level12");
   dump_file("/initrd/level1/level1");
-  return 0;
+  return KTEST_SUCCESS;
 }
 
-KTEST_ADD(ramdisk, test_ramdisk, KTEST_FLAG_BROKEN);
+KTEST_ADD(ramdisk, test_ramdisk, 0);
