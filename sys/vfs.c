@@ -59,7 +59,7 @@ void vfs_init() {
 
 vfsconf_t *vfs_get_by_name(const char *name) {
   vfsconf_t *vfc;
-  mtx_lock_guard(&vfsconf_list_mtx);
+  mtx_scoped_lock(&vfsconf_list_mtx);
   TAILQ_FOREACH (vfc, &vfsconf_list, vfc_list)
     if (!strcmp(name, vfc->vfc_name))
       return vfc;

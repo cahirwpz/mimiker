@@ -86,7 +86,7 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
   if (fdt == NULL)
     return newfdt;
 
-  mtx_lock_guard(&fdt->fdt_mtx);
+  mtx_scoped_lock(&fdt->fdt_mtx);
 
   /* We can assume both filedescs use 20 descriptors,
    * because we don't support other numbers. */
@@ -128,7 +128,7 @@ int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fd) {
   assert(f != NULL);
   assert(fd != NULL);
 
-  mtx_lock_guard(&fdt->fdt_mtx);
+  mtx_scoped_lock(&fdt->fdt_mtx);
   int res = fd_alloc(fdt, fd);
   if (res < 0)
     return res;
@@ -171,7 +171,7 @@ fail:
 /* Closes a file descriptor. If it was the last reference to a file, the file is
  * also closed. */
 int fdtab_close_fd(fdtab_t *fdt, int fd) {
-  mtx_lock_guard(&fdt->fdt_mtx);
+  mtx_scoped_lock(&fdt->fdt_mtx);
 
   if (fd < 0 || fd > fdt->fdt_nfiles || !fd_is_used(fdt, fd))
     return -EBADF;

@@ -94,7 +94,7 @@ static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
   vm_map_entry_t *etr_it;
-  rw_lock_guard(&vm_map->rwlock, RW_READER);
+  rw_scoped_enter(&vm_map->rwlock, RW_READER);
   TAILQ_FOREACH (etr_it, &vm_map->list, map_list)
     if (etr_it->start <= vaddr && vaddr < etr_it->end)
       return etr_it;
@@ -125,7 +125,7 @@ vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
 
-  rw_lock_guard(&map->rwlock, RW_WRITER);
+  rw_scoped_enter(&map->rwlock, RW_WRITER);
 #if 0
   assert(vm_map_find_entry(map, start) == NULL);
   assert(vm_map_find_entry(map, end) == NULL);
@@ -193,7 +193,7 @@ found:
 
 int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
                      vm_addr_t /*out*/ *addr) {
-  rw_lock_guard(&map->rwlock, RW_READER);
+  rw_scoped_enter(&map->rwlock, RW_READER);
   return vm_map_findspace_nolock(map, start, length, addr);
 }
 
@@ -229,7 +229,7 @@ void vm_map_dump(vm_map_t *map) {
   vm_map_entry_t *it;
   kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n", map->pmap->start,
           map->pmap->end);
-  rw_lock_guard(&map->rwlock, RW_READER);
+  rw_scoped_enter(&map->rwlock, RW_READER);
   TAILQ_FOREACH (it, &map->list, map_list) {
     kprintf("[vm_map] * %08lx - %08lx [%c%c%c]\n", it->start, it->end,
             (it->prot & VM_PROT_READ) ? 'r' : '-',
@@ -241,7 +241,7 @@ void vm_map_dump(vm_map_t *map) {
 
 int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
   vm_map_entry_t *entry;
-  rw_lock_guard(&map->rwlock, RW_READER);
+  rw_scoped_enter(&map->rwlock, RW_READER);
 
   if (!(entry = vm_map_find_entry(map, fault_addr))) {
     log("Tried to access unmapped memory region: 0x%08lx!", fault_addr);

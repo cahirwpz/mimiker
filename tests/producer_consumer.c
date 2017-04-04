@@ -22,7 +22,7 @@ static void producer(void *ptr) {
   unsigned produced = 0;
   log("%s started", thread_self()->td_name);
   while (working) {
-    mtx_lock_guard(&buf.lock);
+    mtx_scoped_lock(&buf.lock);
     do {
       working = (buf.all_produced < ITEMS);
       if (!working)
@@ -47,7 +47,7 @@ static void consumer(void *ptr) {
   unsigned consumed = 0;
   log("%s started", thread_self()->td_name);
   while (working) {
-    mtx_lock_guard(&buf.lock);
+    mtx_scoped_lock(&buf.lock);
     do {
       working = (buf.all_consumed < ITEMS);
       if (!working)
