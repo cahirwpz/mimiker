@@ -37,8 +37,8 @@ bool rw_try_upgrade(rwlock_t *rw);
 void rw_downgrade(rwlock_t *rw);
 
 DEFINE_CLEANUP_FUNCTION(rwlock_t *, rw_leave);
-#define rw_lock_guard(prwlock, mode)                                           \
-  rwlock_t *rw_lock_guard_##__LINE__ cleanup(rw_leave) = prwlock;              \
+#define rw_scoped_enter(prwlock, mode)                                         \
+  rwlock_t *rw_scoped_enter_##__LINE__ cleanup(rw_leave) = prwlock;            \
   rw_enter(prwlock, mode);
 
 #define rw_assert(rw, what) __rw_assert((rw), (what), __FILE__, __LINE__)

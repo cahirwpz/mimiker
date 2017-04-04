@@ -33,8 +33,8 @@ void mtx_unlock(mtx_t *m);
 /* Use mtx_lock_guard to lock a mutex and have it automatically unlock when
    leaving current scope. */
 DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
-#define mtx_lock_guard(pmtx)                                                   \
-  mtx_t *mtx_lock_guard_##__LINE__ cleanup(mtx_unlock) = pmtx;                 \
+#define mtx_scoped_lock(pmtx)                                                  \
+  mtx_t *mtx_scoped_lock_##__LINE__ cleanup(mtx_unlock) = pmtx;                \
   mtx_lock(pmtx);
 
 #endif /* !_SYS_MUTEX_H_ */
