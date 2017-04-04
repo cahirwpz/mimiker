@@ -140,7 +140,7 @@ static bool is_name(const char *A) {
   if (!A)
     return false;
   for (const char *ai = A; *ai; ai++)
-    if (*ai == '/' || *ai == '.')
+    if (*ai == '/')
       return false;
   return true;
 }
@@ -148,9 +148,6 @@ static bool is_name(const char *A) {
 /* Check if string A is direct descendant of B. Specifically
  * if A is a path to file/directory which can be contained directly inside B */
 static bool is_direct_descendant(const char *A, const char *B) {
-  /* Direct descendants of '.' directory don't start with '.' */
-  if (B[0] == '.')
-    return is_name(A);
   const char *A_suff = split_by_prefix(A, B);
   if (A_suff)
     return is_name(A_suff + 1);
@@ -233,7 +230,6 @@ static int initrd_mount(mount_t *m) {
   cpio_node_t *it;
   TAILQ_FOREACH (it, &initrd_head, c_list) {
     if (is_direct_descendant(it->c_path, "")) {
-      kprintf("Added: %s\n", it->c_path);
       TAILQ_INSERT_TAIL(&cn->c_children, it, c_siblings);
     }
   }
