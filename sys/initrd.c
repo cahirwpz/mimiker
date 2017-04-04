@@ -120,48 +120,64 @@ static void read_cpio_archive() {
   }
 }
 
-static bool is_direct_descendant(const char *A, const char *B) {
+/* If B is prefix of A, returns the remaining suffix of A,
+ * otherwise returns NULL */
+static const char *split_by_prefix(const char *A, const char *B) {
+  if (!A || !B)
+    return NULL;
   const char *ai = A, *bi = B;
-  /* if B is empty or dot, A is of form entry_name where
-   * entry_name has no "/" character */
-  if (*bi == '\0' || *bi == '.') {
-    if (*bi == '.')
-      bi++;
-    while (*ai && *ai != '/')
-      ai++;
-    if (*ai == '\0')
-      return true;
-    return false;
-  }
-  /* order to check if A is direct descendant of B
-   * it is enough to check if A is of the form "B/entry_name"
-   * where entry_name does not contain "/" character */
-  else {
-    while (*ai && *ai == *bi) {
-      ai++;
-      bi++;
-    }
-    if (*bi != '\0' || *ai != '/')
-      return false;
+  while (*ai && *ai == *bi) {
     ai++;
-    while (*ai && *ai != '/')
-      ai++;
-    if (*ai == '\0')
-      return true;
-    return false;
+    bi++;
   }
+  if (*bi == '\0')
+    return ai;
+  return NULL;
 }
 
-void initrd_construct_c_name(cpio_node_t *cn) {
+/* Check whether A is valid filename (does not contain '/' and '.') */
+static bool is_name(const char *A) {
+  if (!A)
+    return false;
+  for (const char *ai = A; *ai; ai++)
+    if (*ai == '/' || *ai == '.')
+      return false;
+  return true;
+}
+
+/* Check if string A is direct descendant of B. Specifically
+ * if A is a path to file/directory which can be contained directly inside B */
+static bool is_direct_descendant(const char *A, const char *B) {
+  /* Direct descendants of '.' directory don't start with '.' */
+  if (B[0] == '.')
+    return is_name(A);
+  const char *A_suff = split_by_prefix(A, B);
+  if (A_suff)
+    return is_name(A_suff + 1);
+  return false;
+}
+
+/* Set c_name field in cpio_node so it is absolute name of the file.
+ * Name of file is already contained within c_path field. This function sets up
+ * the name string to be shared with path. */
+static void initrd_construct_c_name(cpio_node_t *cn) {
   int c_path_len = strlen(cn->c_path);
-  cn->c_name = cn->c_path + c_path_len;
-  while (cn->c_name != cn->c_path) {
-    if (*cn->c_name == '.' || *cn->c_name == '/') {
-      cn->c_name++;
+  const char *it = cn->c_path + c_path_len;
+  while (it != cn->c_path) {
+    if (*it == '/') {
+      it++; /* Shift one forward so / isn't part of name */
       break;
     }
-    cn->c_name--;
+    it--;
   }
+  cn->c_name = it;
+
+  /* Simplified version using strrchr */
+  // it = strrchr(cn->c_path, '/');
+  // if(it)
+  //    cn->c_name = it+1;
+  // else
+  //    cn->c_name = cn->c_path;
 }
 
 void initrd_build_tree_and_names() {
@@ -216,14 +232,15 @@ static int initrd_mount(mount_t *m) {
 
   cpio_node_t *it;
   TAILQ_FOREACH (it, &initrd_head, c_list) {
-    if (is_direct_descendant(it->c_path, ""))
+    if (is_direct_descendant(it->c_path, "")) {
+      kprintf("Added: %s\n", it->c_path);
       TAILQ_INSERT_TAIL(&cn->c_children, it, c_siblings);
+    }
   }
 
   vnode_t *root = vnode_new(V_DIR, &initrd_ops);
   root->v_data = cn;
   root->v_mount = m;
-
   m->mnt_data = root;
   return 0;
 }
