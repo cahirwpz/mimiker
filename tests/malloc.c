@@ -38,14 +38,12 @@ static int malloc_multiple_allocations(void) {
 static int malloc_dynamic_pages_addition(void) {
   MALLOC_DEFINE(mp, "testing memory pool");
   kmalloc_init(mp, 1, 3);
-  void *ptr1 = kmalloc(mp, 4000, M_NOWAIT);
+  void *ptr1 = kmalloc(mp, 4000, 0);
   assert(ptr1 != NULL);
-  void *ptr2 = kmalloc(mp, 4000, M_NOWAIT);
+  void *ptr2 = kmalloc(mp, 4000, 0);
   assert(ptr2 != NULL);
-  void *ptr3 = kmalloc(mp, 4000, M_NOWAIT);
+  void *ptr3 = kmalloc(mp, 4000, 0);
   assert(ptr3 != NULL);
-  void *ptr4 = kmalloc(mp, 4000, M_NOWAIT);
-  assert(ptr4 == NULL);
   kfree(mp, ptr1);
   kfree(mp, ptr2);
   kfree(mp, ptr3);
