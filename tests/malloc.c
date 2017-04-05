@@ -50,34 +50,28 @@ static int malloc_dynamic_pages_addition(void) {
   return KTEST_SUCCESS;
 }
 
+#define ALLOCATIONS_PER_THREAD 1000
 #define THREADS_NUMBER 10
-#define ALLOCATIONS_PER_THREAD 200
-#define ALLOCATIONS (THREADS_NUMBER * ALLOCATIONS_PER_THREAD)
-
-void *ptrs[ALLOCATIONS];
-static malloc_pool_t test_pool[1] = {
-  {{NULL}, MB_MAGIC, "testing memory pool", {NULL, NULL}}};
 
 static void threads_function(void *arg) {
-  const unsigned start = ALLOCATIONS_PER_THREAD * (unsigned)arg;
-  for (unsigned i = 0; i < ALLOCATIONS_PER_THREAD; i++) {
-    ptrs[i + start] = kmalloc(test_pool, 1, 0);
-    assert(NULL != ptrs[i + start]);
+  for (int i = 0; i < ALLOCATIONS_PER_THREAD; i++) {
+    void *ptr = kmalloc(arg, 1 + (i * (int)arg) % 32, 0);
+    assert(ptr != NULL);
+    kfree(arg, ptr);
   }
 }
 
 static int malloc_multiple_threads(void) {
-  kmalloc_init(test_pool, 1, 40);
+  MALLOC_DEFINE(mp, "testing memory pool");
+  kmalloc_init(mp, 1, 1);
   thread_t *threads[THREADS_NUMBER];
   for (int i = 0; i < THREADS_NUMBER; i++)
     threads[i] =
-      thread_create("Malloc test thread", threads_function, (void *)i);
+      thread_create("Malloc test thread", threads_function, (void *)mp);
   for (int i = 0; i < THREADS_NUMBER; i++)
     sched_add(threads[i]);
   for (int i = 0; i < THREADS_NUMBER; i++)
     thread_join(threads[i]);
-  for (int i = 0; i < ALLOCATIONS; i++)
-    kfree(test_pool, ptrs[i]);
   return KTEST_SUCCESS;
 }
 
