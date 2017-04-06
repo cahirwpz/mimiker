@@ -55,7 +55,7 @@ static int malloc_dynamic_pages_addition(void) {
 
 static void threads_function(void *arg) {
   for (int i = 0; i < ALLOCATIONS_PER_THREAD; i++) {
-    void *ptr = kmalloc(arg, 1 + (i * (int)arg) % 32, 0);
+    void *ptr = kmalloc(arg, 1 + (i * (unsigned)arg) % 256, 0);
     assert(ptr != NULL);
     kfree(arg, ptr);
   }
