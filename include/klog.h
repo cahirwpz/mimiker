@@ -1,7 +1,7 @@
 #ifndef _SYS_KLOG_H_
 #define _SYS_KLOG_H_
 
-#include <stdint.h>
+#include <common.h>
 
 /* Kernel log sources */
 #define KL_NONE 0x00000000 /* don't log anything */
@@ -21,31 +21,55 @@
 #define KL_VNODE 0x00020000   /* vnode operations tracing */
 #define KL_PROC 0x00040000    /* user process management */
 #define KL_SYSCALL 0x00080000 /* syscall processing */
-#define KL_DEF 0x00100000     /* default mask for undefined subsystems */
+#define KL_DEF 0x40000000     /* default mask for undefined subsystems */
 #define KL_ALL 0x7fffffff
 
-// Mask for subsystem using klog. If not specified using default mask.
-#ifndef SYS_MASK
-#define SYS_MASK KL_DEF
+/* Mask for subsystem using klog. If not specified using default mask. */
+#ifndef KL_LOG
+#define KL_LOG KL_DEF
 #endif
 
-extern volatile int first_message;
-extern volatile int last_message;
-extern int kl_size;
+#ifdef _KLOG_PRIVATE
+#undef _KLOG_PRIVATE
+
+#include <clock.h>
+
+#define KL_SIZE 1024
+
+typedef struct {
+  realtime_t kl_timestamp;
+  unsigned kl_line;
+  const char *kl_file;
+  const char *kl_format;
+  intptr_t kl_params[6];
+} klog_entry_t;
+
+typedef struct {
+  klog_entry_t array[KL_SIZE];
+  unsigned mask;
+  bool verbose;
+  volatile unsigned first;
+  volatile unsigned last;
+} klog_t;
+
+extern klog_t klog;
+#endif
+
+void klog_init();
 
 void klog_append(unsigned mask, const char *file, unsigned line,
                  const char *format, intptr_t arg1, intptr_t arg2,
                  intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6);
 
-// Print all logs on screen.
-void klog_dump_all();
+/* Print all logs on screen. */
+void klog_dump();
 
-// Delete all logs.
+/* Delete all logs. */
 void klog_clear();
 
 #define klog_(format, p1, p2, p3, p4, p5, p6, ...)                             \
   do {                                                                         \
-    klog_append(SYS_MASK, __FILE__, __LINE__, format, (intptr_t)(p1),          \
+    klog_append(KL_LOG, __FILE__, __LINE__, format, (intptr_t)(p1),            \
                 (intptr_t)(p2), (intptr_t)(p3), (intptr_t)(p4),                \
                 (intptr_t)(p5), (intptr_t)(p6));                               \
   } while (0)
