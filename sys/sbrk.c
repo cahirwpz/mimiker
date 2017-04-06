@@ -10,11 +10,12 @@
    sbrk. */
 
 vm_addr_t sbrk_create(vm_map_t *map) {
+  rw_scoped_enter(&map->rwlock, RW_WRITER);
   assert(!map->sbrk_entry);
 
   size_t size = roundup(SBRK_INITIAL_SIZE, PAGESIZE);
   vm_addr_t addr;
-  int res = vm_map_findspace(map, BRK_SEARCH_START, size, &addr);
+  int res = vm_map_findspace_nolock(map, BRK_SEARCH_START, size, &addr);
   assert(res == 0);
   vm_map_entry_t *entry =
     vm_map_add_entry(map, addr, addr + size, VM_PROT_READ | VM_PROT_WRITE);
@@ -27,6 +28,7 @@ vm_addr_t sbrk_create(vm_map_t *map) {
 }
 
 vm_addr_t sbrk_resize(vm_map_t *map, intptr_t increment) {
+  rw_scoped_enter(&map->rwlock, RW_WRITER);
   assert(map->sbrk_entry);
 
   vm_map_entry_t *brk_entry = map->sbrk_entry;

@@ -162,13 +162,10 @@ void thread_join(thread_t *p) {
  * but using a list is sufficient for now. */
 thread_t *thread_get_by_tid(tid_t id) {
   thread_t *td = NULL;
-
-  mtx_lock(&all_threads_mtx);
+  mtx_scoped_lock(&all_threads_mtx);
   TAILQ_FOREACH (td, &all_threads, td_all) {
     if (td->td_tid == id)
       break;
   }
-  mtx_unlock(&all_threads_mtx);
-
   return td;
 }

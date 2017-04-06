@@ -32,7 +32,8 @@ vm_map_t *get_kernel_vm_map() {
 }
 
 static bool in_range(vm_map_t *map, vm_addr_t addr) {
-  return map && (map->pmap->start <= addr && addr < map->pmap->end);
+  /* No need to enter RWlock, the pmap field is const. */
+  return map && map->pmap->start <= addr && addr < map->pmap->end;
 }
 
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr) {
@@ -55,6 +56,7 @@ SPLAY_GENERATE(vm_map_tree, vm_map_entry, map_tree, vm_map_entry_cmp);
 static void vm_map_setup(vm_map_t *map) {
   TAILQ_INIT(&map->list);
   SPLAY_INIT(&map->tree);
+  rw_init(&map->rwlock, "vm map rwlock", 1);
 }
 
 static MALLOC_DEFINE(mpool, "vm_map memory pool");
@@ -62,18 +64,19 @@ static MALLOC_DEFINE(mpool, "vm_map memory pool");
 void vm_map_init() {
   kmalloc_init(mpool, 2, 2);
   vm_map_setup(&kspace);
-  kspace.pmap = get_kernel_pmap();
+  *((pmap_t **)(&kspace.pmap)) = get_kernel_pmap();
 }
 
 vm_map_t *vm_map_new() {
   vm_map_t *map = kmalloc(mpool, sizeof(vm_map_t), M_ZERO);
 
   vm_map_setup(map);
-  map->pmap = pmap_new();
+  *((pmap_t **)&map->pmap) = pmap_new();
   return map;
 }
 
 static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
+  rw_assert(&vm_map->rwlock, RW_WLOCKED);
   if (!SPLAY_INSERT(vm_map_tree, &vm_map->tree, entry)) {
     vm_map_entry_t *next = SPLAY_NEXT(vm_map_tree, &vm_map->tree, entry);
     if (next)
@@ -88,6 +91,7 @@ static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
   vm_map_entry_t *etr_it;
+  rw_scoped_enter(&vm_map->rwlock, RW_READER);
   TAILQ_FOREACH (etr_it, &vm_map->list, map_list)
     if (etr_it->start <= vaddr && vaddr < etr_it->end)
       return etr_it;
@@ -95,6 +99,7 @@ vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
 }
 
 static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
+  rw_assert(&vm_map->rwlock, RW_WLOCKED);
   vm_map->nentries--;
   vm_object_free(entry->object);
   TAILQ_REMOVE(&vm_map->list, entry, map_list);
@@ -102,8 +107,11 @@ static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
 }
 
 void vm_map_delete(vm_map_t *map) {
+  rw_enter(&map->rwlock, RW_WRITER);
   while (map->nentries > 0)
     vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
+  rw_leave(&map->rwlock);
+
   kfree(mpool, map);
 }
 
@@ -114,6 +122,7 @@ vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
 
+  rw_scoped_enter(&map->rwlock, RW_WRITER);
 #if 0
   assert(vm_map_find_entry(map, start) == NULL);
   assert(vm_map_find_entry(map, end) == NULL);
@@ -126,6 +135,7 @@ vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
   entry->prot = prot;
 
   vm_map_insert_entry(map, entry);
+
   return entry;
 }
 
@@ -134,8 +144,8 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot) {
 }
 
-int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
-                     vm_addr_t /*out*/ *addr) {
+int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start, size_t length,
+                            vm_addr_t /*out*/ *addr) {
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(length, PAGESIZE));
 
@@ -178,8 +188,15 @@ found:
   return 0;
 }
 
+int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
+                     vm_addr_t /*out*/ *addr) {
+  rw_scoped_enter(&map->rwlock, RW_READER);
+  return vm_map_findspace_nolock(map, start, length, addr);
+}
+
 int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
   assert(is_aligned(new_end, PAGESIZE));
+  rw_assert(&map->rwlock, RW_WLOCKED);
 
   /* TODO: As for now, we are unable to decrease the size of an entry, because
      it would require unmapping physical pages, which in turn should clean
@@ -209,6 +226,7 @@ void vm_map_dump(vm_map_t *map) {
   vm_map_entry_t *it;
   kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n", map->pmap->start,
           map->pmap->end);
+  rw_scoped_enter(&map->rwlock, RW_READER);
   TAILQ_FOREACH (it, &map->list, map_list) {
     kprintf("[vm_map] * %08lx - %08lx [%c%c%c]\n", it->start, it->end,
             (it->prot & VM_PROT_READ) ? 'r' : '-',
@@ -220,6 +238,7 @@ void vm_map_dump(vm_map_t *map) {
 
 int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
   vm_map_entry_t *entry;
+  rw_scoped_enter(&map->rwlock, RW_READER);
 
   if (!(entry = vm_map_find_entry(map, fault_addr))) {
     log("Tried to access unmapped memory region: 0x%08lx!", fault_addr);
