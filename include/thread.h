@@ -6,6 +6,8 @@
 #include <context.h>
 #include <exception.h>
 #include <sleepq.h>
+#include <mutex.h>
+#include <condvar.h>
 
 typedef uint8_t td_prio_t;
 typedef uint32_t tid_t;
@@ -19,6 +21,10 @@ typedef struct fdtab fdtab_t;
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 
 typedef struct thread {
+  /* Locks*/
+  mtx_t td_lock;
+  condvar_t td_waitcv; /* CV for thread exit, used by join */
+  /* List links */
   TAILQ_ENTRY(thread) td_all;     /* a link on all threads list */
   TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
