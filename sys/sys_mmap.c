@@ -41,37 +41,33 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
     return MMAP_FAILED;
   }
 
-  {
-    rw_scoped_enter(&vmap->rwlock, RW_WRITER);
+  length = roundup(length, PAGESIZE);
 
-    length = roundup(length, PAGESIZE);
+  /* Regardless of whether addr is 0 or an address hint, we correct it a
+     bit. */
+  if (addr < MMAP_LOW_ADDR)
+    addr = MMAP_LOW_ADDR;
+  addr = roundup(addr, PAGESIZE);
 
-    /* Regardless of whether addr is 0 or an address hint, we correct it a
-       bit. */
-    if (addr < MMAP_LOW_ADDR)
-      addr = MMAP_LOW_ADDR;
-    addr = roundup(addr, PAGESIZE);
+  rw_scoped_enter(&vmap->rwlock, RW_WRITER);
 
-    if (vm_map_findspace_nolock(vmap, addr, length, &addr) != 0) {
-      /* No memory was found following the hint. Search again entire address
-         space. */
-      if (vm_map_findspace_nolock(vmap, MMAP_LOW_ADDR, length, &addr) != 0) {
-        /* Still no memory found. */
-        *error = ENOMEM;
-        return MMAP_FAILED;
-      }
+  if (vm_map_findspace_nolock(vmap, addr, length, &addr) != 0) {
+    /* No memory was found following the hint. Search again entire address
+       space. */
+    if (vm_map_findspace_nolock(vmap, MMAP_LOW_ADDR, length, &addr) != 0) {
+      /* Still no memory found. */
+      *error = ENOMEM;
+      return MMAP_FAILED;
     }
+  }
 
-    /* Create new vm map entry for this allocation. Temporarily use permissive
-     * protection, so that we may optionally initialize the entry. */
-    vm_map_entry_t *entry = vm_map_add_entry(vmap, addr, addr + length, prot);
+  /* Create new vm map entry for this allocation. */
+  vm_map_entry_t *entry = vm_map_add_entry(vmap, addr, addr + length, prot);
 
-    if (flags & MMAP_FLAG_ANONYMOUS) {
-      /* Assign a pager which creates cleared pages . */
-      entry->object = default_pager->pgr_alloc();
-    }
-
-  } /* Release vm_map rwlock. */
+  if (flags & MMAP_FLAG_ANONYMOUS) {
+    /* Assign a pager which creates cleared pages . */
+    entry->object = default_pager->pgr_alloc();
+  }
 
   log("Created entry at %p, length: %zu", (void *)addr, length);
 
