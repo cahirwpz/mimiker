@@ -92,6 +92,7 @@ noreturn void sched_run() {
 
   PCPU_SET(idle_thread, td);
 
+  td->td_name = "idle-thread";
   td->td_slice = 0;
   sched_active = true;
 

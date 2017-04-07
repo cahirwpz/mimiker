@@ -1,4 +1,3 @@
-#undef DEBUG
 #include <common.h>
 #include <queue.h>
 #include <stdc.h>

@@ -29,6 +29,7 @@ typedef uint32_t ino_t;
 /* Wrapper for various GCC attributes */
 #define __nonnull(x) __attribute__((__nonnull__(x)))
 #define __section(s) __attribute__((__section__(#s)))
+#define __unused __attribute__((unused))
 #define __used __attribute__((used))
 
 /* Macros for counting and rounding. */
@@ -88,6 +89,14 @@ typedef uint32_t ino_t;
     !(_addr & (_size - 1));                                                    \
   })
 
+#define cleanup(func) __attribute__((__cleanup__(cleanup_##func)))
+#define DEFINE_CLEANUP_FUNCTION(type, func)                                    \
+  static inline void cleanup_##func(type *ptr) {                               \
+    if (*ptr)                                                                  \
+      func(*ptr);                                                              \
+  }                                                                            \
+  struct __force_semicolon__
+
 #ifndef _USERSPACE
 
 /* Terminate thread. */
@@ -96,7 +105,7 @@ noreturn void thread_exit();
 #define panic(FMT, ...)                                                        \
   __extension__({                                                              \
     kprintf("[%s:%d] " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);           \
-    thread_exit();                                                             \
+    thread_exit(-1);                                                           \
   })
 
 #ifdef DEBUG
