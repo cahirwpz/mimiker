@@ -66,18 +66,15 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
      * protection, so that we may optionally initialize the entry. */
     vm_map_entry_t *entry =
       vm_map_add_entry(vmap, addr, addr + length, VM_PROT_READ | VM_PROT_WRITE);
-    /* Assign a pager. */
-    entry->object = default_pager->pgr_alloc();
+
+    if (flags & MMAP_FLAG_ANONYMOUS) {
+      /* Assign a pager which creates cleared pages . */
+      entry->object = default_pager->pgr_alloc();
+    }
 
   } /* Release vm_map rwlock. */
 
   log("Created entry at %p, length: %zu", (void *)addr, length);
-
-  if (flags & MMAP_FLAG_ANONYMOUS) {
-    /* Calling bzero here defeats the purpose of paging on demand, but I do not
-       know if I can assume that the pager provides us with zeroed pages. */
-    bzero((void *)addr, 1);
-  }
 
   /* Apply requested protection. */
   vm_map_protect(vmap, addr, addr + length, prot);
