@@ -70,7 +70,7 @@ static int test_callout_stop() {
   callout_t callout1, callout2;
 
   critical_enter();
-  
+
   callout_setup_relative(&callout1, 5, callout_bad, NULL);
   callout_setup_relative(&callout2, 10, callout_good, NULL);
 
@@ -79,7 +79,7 @@ static int test_callout_stop() {
 
   /* Give some time for callout_bad, wait for callout_good. */
   sleepq_wait(callout_good, "callout_good");
-  
+
   critical_leave();
 
   return KTEST_SUCCESS;
