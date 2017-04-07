@@ -135,7 +135,7 @@ static const char *split_by_prefix(const char *A, const char *B) {
   return NULL;
 }
 
-/* Check whether A is valid filename (does not contain '/' and '.') */
+/* Check whether A is valid filename (does not contain '/') */
 static bool is_name(const char *A) {
   if (!A)
     return false;
