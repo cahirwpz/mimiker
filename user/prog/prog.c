@@ -66,10 +66,7 @@ void mmap_test() {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 2)
-    abort();
-
-  if (strcmp(argv[1], "abort_test") == 0)
+  if (argc >= 2 && strcmp(argv[1], "abort_test") == 0)
     assert(0);
 
   sbrk_test();
