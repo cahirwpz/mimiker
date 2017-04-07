@@ -43,7 +43,7 @@ int sys_exit(thread_t *td, syscall_args_t *args) {
 
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
-  {sys_nosys}, {sys_exit},  {sys_nosys}, {sys_nosys}, {sys_nosys},
-  {sys_write}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_nosys},
+  {sys_nosys}, {sys_exit},  {sys_open},  {sys_close}, {sys_read},
+  {sys_write}, {sys_lseek}, {sys_nosys}, {sys_nosys}, {sys_fstat},
   {sys_nosys}, {sys_sbrk},  {sys_mmap},
 };
