@@ -64,8 +64,7 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
 
     /* Create new vm map entry for this allocation. Temporarily use permissive
      * protection, so that we may optionally initialize the entry. */
-    vm_map_entry_t *entry =
-      vm_map_add_entry(vmap, addr, addr + length, prot);
+    vm_map_entry_t *entry = vm_map_add_entry(vmap, addr, addr + length, prot);
 
     if (flags & MMAP_FLAG_ANONYMOUS) {
       /* Assign a pager which creates cleared pages . */
