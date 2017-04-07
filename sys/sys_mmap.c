@@ -29,43 +29,36 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
 
   assert(vmap);
 
+  if (addr >= vmap->pmap->end) {
+    /* mmap cannot callocate memory in kernel space! */
+    *error = EINVAL;
+    return MMAP_FAILED;
+  }
+
+  if (!flags & MMAP_FLAG_ANONYMOUS) {
+    log("Non-anonymous memory mappings are not yet implemented.");
+    *error = EINVAL;
+    return MMAP_FAILED;
+  }
+
   {
     rw_scoped_enter(&vmap->rwlock, RW_WRITER);
 
-    if (addr >= vmap->pmap->end) {
-      /* mmap cannot callocate memory in kernel space! */
-      *error = EINVAL;
-      return MMAP_FAILED;
-    }
-
-    if (!flags & MMAP_FLAG_ANONYMOUS) {
-      log("Non-anonymous memory mappings are not yet implemented.");
-      *error = EINVAL;
-      return MMAP_FAILED;
-    }
-
     length = roundup(length, PAGESIZE);
 
-    if (addr == 0x0) {
-      /* We will choose an appropriate place in vm map. */
+    /* Regardless of whether addr is 0 or an address hint, we correct it a
+       bit. */
+    if (addr < MMAP_LOW_ADDR)
+      addr = MMAP_LOW_ADDR;
+    addr = roundup(addr, PAGESIZE);
+
+    if (vm_map_findspace_nolock(vmap, addr, length, &addr) != 0) {
+      /* No memory was found following the hint. Search again entire address
+         space. */
       if (vm_map_findspace_nolock(vmap, MMAP_LOW_ADDR, length, &addr) != 0) {
-        /* No space in memory was found. */
+        /* Still no memory found. */
         *error = ENOMEM;
         return MMAP_FAILED;
-      }
-    } else {
-      if (addr < MMAP_LOW_ADDR)
-        addr = MMAP_LOW_ADDR;
-      addr = roundup(addr, PAGESIZE);
-      /* Treat addr as a hint on where to place the new mapping. */
-      if (vm_map_findspace_nolock(vmap, addr, length, &addr) != 0) {
-        /* No memory was found following the hint. Search again entire address
-           space. */
-        if (vm_map_findspace_nolock(vmap, MMAP_LOW_ADDR, length, &addr) != 0) {
-          /* Still no memory found. */
-          *error = ENOMEM;
-          return MMAP_FAILED;
-        }
       }
     }
 
