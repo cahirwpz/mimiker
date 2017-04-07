@@ -50,7 +50,6 @@ extern "C" {
 
 #include <low/_flavour.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <stdarg.h>
 
 #define STD_IO_BUFSIZ  128           /* for stdio and stdout buffer */
@@ -75,7 +74,6 @@ typedef struct
   int _ursize;                        /* unget buffer remaining */
   void *_cookie;                      /* for funopen() function */
   char *_tmpfname;                    /* name of the temporary file */
-  _mbstate_t _mbstate;                /* multi-byte state */
   short _flags2;                      /* for wide/byte orientation */
   unsigned char _nbuf;                /* used when stream is un-buffered */
 } __smFILE;
@@ -89,13 +87,10 @@ typedef struct
     FP->_cookie = 0;                  \
     FP->_flags2 = 0;                  \
     FP->_tmpfname = 0;                \
-    FP->_mbstate.__count = 0;         \
-    FP->_mbstate.__value.__wch = 0;   \
   }
 
 typedef int (*funread) (void *_cookie, char *_buf, int _n);
 typedef int (*funwrite) (void *_cookie, const char *_buf, int _n);
-typedef fpos_t (*funseek) (void *_cookie, fpos_t _off, int _whence);
 typedef int (*funclose) (void *_cookie);
 
 typedef struct funcookie 
@@ -103,7 +98,6 @@ typedef struct funcookie
   void *cookie;
   funread readfn;
   funwrite writefn;
-  funseek seekfn;
   funclose closefn;
 } funcookie;
 
@@ -138,7 +132,6 @@ int __refill (__smFILE *);
 
 int low_read (__smFILE *fp, char* base, int size);
 int low_write (__smFILE *fp, char* base, int size);
-_fpos_t low_seek (__smFILE *fp, int off, int dir);
 int low_close (__smFILE *fp);
 
 int __low_printf(ReadWriteInfo *rw, const void *src, size_t len);
@@ -152,9 +145,6 @@ int __low_asprintf (ReadWriteInfo *rw, const void *src, size_t len);
 int __low_asnprintf (ReadWriteInfo *rw, const void *src, size_t len);
 int __low_wprintf (ReadWriteInfo *rw, const wchar_t *s, size_t len);
 int __low_swprintf (ReadWriteInfo *rw, const void *src, size_t len);
-wint_t  __low_wscanf (ReadWriteInfo *rw);
-wint_t __low_swscanf(ReadWriteInfo *rw);
-wint_t  __low_fwscanf (ReadWriteInfo *rw);
 size_t _format_parser(ReadWriteInfo *rw, const char *fmt, va_list *ap, unsigned int integeronly);
 size_t _wformat_parser(ReadWriteInfo *rw, const wchar_t *fmt, va_list *ap);
 int __scanf_core (ReadWriteInfo *rw, const char *fmt, va_list ap, unsigned int flags);
@@ -165,10 +155,6 @@ size_t _format_parser_float (ReadWriteInfo *rw, const char *fmt, va_list *ap);
 size_t _format_parser_int (ReadWriteInfo *rw, const char *fmt, va_list *ap);
 int __scanf_core_float (ReadWriteInfo *rw, const char *fmt, va_list ap, unsigned int flags);
 int __scanf_core_int (ReadWriteInfo *rw, const char *fmt, va_list ap, unsigned int flags);
-
-extern FILE *__stdin;
-extern FILE *__stdout;
-extern FILE *__stderr;
 
 #ifdef __cplusplus
 }

@@ -1,6 +1,6 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-all: tags cscope tests
+all: mimiker.elf tags cscope
 
 include Makefile.common
 $(info Using CC: $(CC))
@@ -8,9 +8,14 @@ $(info Using CC: $(CC))
 # Directories which require calling make recursively
 SUBDIRS = mips stdc sys user tests
 
-# This ensures that the test subdirectory may only be built once these specified
-# dirs are brought up-to-date.
-tests: | mips stdc sys user
+# This rule ensures that all subdirectories are processed before any file
+# generated within them is used for linking the main kernel image.
+$(KRT): | $(SUBDIRS)
+	true # Disable default recipe from Makefile.common
+
+mimiker.elf: $(KRT)
+	@echo "[LD] Linking kernel image: $@"
+	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) $(LD_EMBED) -o $@
 
 cscope:
 	cscope -b include/*.h ./*/*.[cS]
@@ -22,19 +27,22 @@ tags:
 	find -iname '*.S' -not -path "*/toolchain/*" | ctags -a --language-force=asm -L- -e -f etags
 
 # These files get destroyed by clang-format, so we exclude them from formatting
-FORMATTABLE_EXCLUDE = include/elf stdc/smallclib include/mips/asm.h include/mips/m32c0.h
+FORMATTABLE_EXCLUDE = include/elf stdc/ include/mips/asm.h include/mips/m32c0.h
 # Search for all .c and .h files, excluding toolchain build directory and files from FORMATTABLE_EXCLUDE
 FORMATTABLE = $(shell find -type f -not -path "*/toolchain/*" -and \( -name '*.c' -or -name '*.h' \) | grep -v $(FORMATTABLE_EXCLUDE:%=-e %))
 format:
 	@echo "Formatting files: $(FORMATTABLE:./%=%)"
 	clang-format -style=file -i $(FORMATTABLE)
 
+test: mimiker.elf
+	./run_tests.py
+
 $(SUBDIRS):
 	$(MAKE) -C $@
 
 clean:
 	$(foreach DIR, $(SUBDIRS), $(MAKE) -C $(DIR) $@;)
-	$(RM) -f *.a *.lst *~ *.log
+	$(RM) -f *.a *.elf *.map *.lst *~ *.log
 	$(RM) -f tags etags cscope.out *.taghl
 
 .PHONY: format tags cscope $(SUBDIRS)

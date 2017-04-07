@@ -21,7 +21,6 @@
  */
 void kernel_brk(void *addr);
 void *kernel_sbrk(size_t size) __attribute__((warn_unused_result));
-void *kernel_sbrk_shutdown();
 
 /*
  * General purpose kernel memory allocator.
@@ -52,9 +51,11 @@ typedef struct malloc_pool {
 
 void kmalloc_init(malloc_pool_t *mp);
 void kmalloc_add_arena(malloc_pool_t *mp, vm_addr_t, size_t size);
+void kmalloc_add_pages(malloc_pool_t *mp, unsigned pages);
 void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags)
   __attribute__((warn_unused_result));
 void kfree(malloc_pool_t *mp, void *addr);
+char *kstrndup(malloc_pool_t *mp, const char *s, size_t maxlen);
 void kmalloc_dump(malloc_pool_t *mp);
 
 #endif /* _MALLOC_H_ */

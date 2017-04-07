@@ -28,15 +28,22 @@ HOSTCC	 = gcc -g
 SYSROOT  = $(realpath $(dir $(shell which $(P)gcc))/..)
 GENASSYM = $(TOPDIR)/script/genassym.py $(NM)
 
+GCC_INSTALL_PATH = $(shell LANG=C $(CC)  -print-search-dirs | sed -n -e 's/install:\(.*\)/\1/p')
+# The _LIBC_LIMITS_H_ prevents include-fixed/limits.h from forcefully including
+# the system version of limits.h, which is not present in a freestanding
+# environment. I feel like this is a workaround for a bug in GCC.
+GCC_SYSTEM_INC = -I$(GCC_INSTALL_PATH)include/ -I$(GCC_INSTALL_PATH)include-fixed/ -D_LIBC_LIMITS_H_
+
 ASFLAGS  =
-CFLAGS   = -std=gnu11 -Og -Wall -Werror -fno-builtin -ffreestanding
+CFLAGS   = -std=gnu11 -Og -Wall -Werror -fno-builtin -nostdinc -nostdlib $(GCC_SYSTEM_INC) -ffreestanding
 CPPFLAGS = -Wall -Werror -DDEBUG -I$(TOPDIR)/include
 LDFLAGS  = -nostdlib -T $(TOPDIR)/mips/malta.ld
 
-LDLIBS += -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc \
+LDLIBS += -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc -L$(TOPDIR)/tests \
 	  -Wl,--start-group \
         -Wl,--whole-archive \
           -lsys \
+          -ltests \
         -Wl,--no-whole-archive \
         -lmips \
         -lstdc \
@@ -54,6 +61,7 @@ KRT = \
     $(TOPDIR)/stdc/libstdc.a \
     $(TOPDIR)/mips/libmips.a \
     $(TOPDIR)/sys/libsys.a \
+    $(TOPDIR)/tests/libtests.a \
     $(LD_EMBED)
 
 DIR = $(patsubst $(TOPDIR)/%,%,$(CURDIR)/)
@@ -77,10 +85,6 @@ endef
 %.o: %.S
 	@echo "[AS] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
-
-%.elf:	%.o $(KRT)
-	@echo "[LD] $(addprefix $(DIR),$<) -> $(DIR)$@"
-	$(CC) $(LDFLAGS) $< -Wl,-Map=$@.map $(LDLIBS) $(LD_EMBED) -o $@
 
 %.test: %.c
 	@echo "[HOSTCC] $(DIR)$< -> $(DIR)$@"

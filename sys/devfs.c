@@ -3,6 +3,7 @@
 #include <vnode.h>
 #include <errno.h>
 #include <stdc.h>
+#include <mutex.h>
 #include <malloc.h>
 #include <linker_set.h>
 
@@ -30,24 +31,20 @@ static mtx_t devfs_device_list_mtx;
 
 static devfs_device_t *devfs_get_by_name(const char *name) {
   devfs_device_t *idev;
-  mtx_lock(&devfs_device_list_mtx);
-  TAILQ_FOREACH (idev, &devfs_device_list, list) {
-    if (!strcmp(name, idev->name)) {
-      mtx_unlock(&devfs_device_list_mtx);
+  mtx_scoped_lock(&devfs_device_list_mtx);
+  TAILQ_FOREACH (idev, &devfs_device_list, list)
+    if (!strcmp(name, idev->name))
       return idev;
-    }
-  }
-  mtx_unlock(&devfs_device_list_mtx);
   return NULL;
 }
 
 int devfs_install(const char *name, vnode_t *device) {
   size_t n = strlen(name);
   if (n >= DEVFS_NAME_MAX)
-    return ENAMETOOLONG;
+    return -ENAMETOOLONG;
 
   if (devfs_get_by_name(name) != NULL)
-    return EEXIST;
+    return -EEXIST;
 
   devfs_device_t *idev = kmalloc(devfs_pool, sizeof(devfs_device_t), M_ZERO);
   strlcpy(idev->name, name, DEVFS_NAME_MAX);
@@ -90,7 +87,7 @@ static int devfs_root_lookup(vnode_t *dir, const char *name, vnode_t **res) {
 
   devfs_device_t *idev = devfs_get_by_name(name);
   if (!idev)
-    return ENOENT;
+    return -ENOENT;
 
   *res = idev->dev;
   vnode_ref(*res);
@@ -113,7 +110,7 @@ static int devfs_init(vfsconf_t *vfc) {
   kmalloc_init(devfs_pool);
   kmalloc_add_arena(devfs_pool, pm_alloc(1)->vaddr, PAGESIZE);
 
-  mtx_init(&devfs_device_list_mtx);
+  mtx_init(&devfs_device_list_mtx, MTX_DEF);
 
   /* Prepare some initial devices */
   typedef void devfs_init_func_t();
@@ -133,14 +130,9 @@ static int devfs_init(vfsconf_t *vfc) {
 }
 
 static vfsops_t devfs_vfsops = {
-  .vfs_mount = devfs_mount,
-  .vfs_root = devfs_root,
-  .vfs_init = devfs_init
-};
+  .vfs_mount = devfs_mount, .vfs_root = devfs_root, .vfs_init = devfs_init};
 
-static vfsconf_t devfs_conf = {
-  .vfc_name = "devfs",
-  .vfc_vfsops = &devfs_vfsops
-};
+static vfsconf_t devfs_conf = {.vfc_name = "devfs",
+                               .vfc_vfsops = &devfs_vfsops};
 
 SET_ENTRY(vfsconf, devfs_conf);

@@ -3,8 +3,9 @@
 #include <pmap.h>
 #include <physmem.h>
 #include <vm.h>
+#include <ktest.h>
 
-void kernel_pmap_test() {
+static int test_kernel_pmap() {
   pmap_t *pmap = get_kernel_pmap();
 
   vm_page_t *pg = pm_alloc(16);
@@ -37,13 +38,16 @@ void kernel_pmap_test() {
   assert(pmap_probe(pmap, vaddr1, vaddr2, VM_PROT_NONE));
   assert(pmap_probe(pmap, vaddr2, vaddr3, VM_PROT_READ));
 
-  pmap_reset(pmap);
+  pmap_unmap(pmap, vaddr2, vaddr3);
   pm_free(pg);
 
   log("Test passed.");
+  return KTEST_SUCCESS;
 }
 
-void user_pmap_test() {
+static int test_user_pmap() {
+  pmap_t *orig = get_user_pmap();
+
   pmap_t *pmap1 = pmap_new();
   pmap_t *pmap2 = pmap_new();
 
@@ -71,13 +75,13 @@ void user_pmap_test() {
 
   pmap_delete(pmap1);
   pmap_delete(pmap2);
+
+  /* Restore original user pmap */
+  pmap_activate(orig);
+
   log("Test passed.");
+  return KTEST_SUCCESS;
 }
 
-int main() {
-  kernel_pmap_test();
-  user_pmap_test();
-
-  return 0;
-}
-
+KTEST_ADD(pmap_kernel, test_kernel_pmap, 0);
+KTEST_ADD(pmap_user, test_user_pmap, 0);

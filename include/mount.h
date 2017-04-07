@@ -1,6 +1,7 @@
 #ifndef _SYS_MOUNT_H_
 #define _SYS_MOUNT_H_
 
+#include <common.h>
 #include <queue.h>
 #include <mutex.h>
 
@@ -15,6 +16,7 @@ typedef struct mount mount_t;
 typedef struct vnode vnode_t;
 typedef struct vfsconf vfsconf_t;
 typedef struct statfs statfs_t;
+typedef struct file file_t;
 
 /* VFS operations */
 typedef int vfs_mount_t(mount_t *m);
@@ -92,6 +94,9 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v);
 /* Finds the vnode corresponding to the given path.
  * Increases use count on returned vnode. */
 int vfs_lookup(const char *pathname, vnode_t **vp);
+
+/* Looks up the vnode corresponding to the pathname and opens it into f. &*/
+int vfs_open(file_t *f, char *pathname, int flags, int mode);
 
 /* Initializes the VFS subsystem. */
 void vfs_init();

@@ -19,7 +19,7 @@ typedef enum {
 
 typedef int vnode_lookup_t(vnode_t *dv, const char *name, vnode_t **vp);
 typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio);
-typedef int vnode_open_t(vnode_t *v, file_t **fp);
+typedef int vnode_open_t(vnode_t *v, int mode, file_t *fp);
 typedef int vnode_read_t(vnode_t *v, uio_t *uio);
 typedef int vnode_write_t(vnode_t *v, uio_t *uio);
 typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
@@ -51,6 +51,22 @@ typedef struct vnode {
   mtx_t v_mtx;
 } vnode_t;
 
+#if !defined(IGNORE_NEWLIB_COMPATIBILITY)
+/* This must match newlib's implementation! */
+typedef struct vattr {
+  dev_t st_dev;
+  ino_t st_ino;
+  mode_t st_mode;
+  nlink_t st_nlink;
+  uid_t st_uid;
+  gid_t st_gid;
+  dev_t st_rdev;
+  off_t st_size;
+  time_t st_atime;
+  time_t st_mtime;
+  time_t st_ctime;
+} vattr_t;
+#else
 typedef struct vattr {
   uint16_t va_mode; /* files access mode and type */
   size_t va_nlink;  /* number of references to file */
@@ -58,6 +74,7 @@ typedef struct vattr {
   gid_t va_gid;     /* owner group id */
   size_t va_size;   /* file size in bytes */
 } vattr_t;
+#endif
 
 static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
   return dv->v_ops->v_lookup(dv, name, vp);
@@ -67,8 +84,8 @@ static inline int VOP_READDIR(vnode_t *dv, uio_t *uio) {
   return dv->v_ops->v_readdir(dv, uio);
 }
 
-static inline int VOP_OPEN(vnode_t *v, file_t **fp) {
-  return v->v_ops->v_open(v, fp);
+static inline int VOP_OPEN(vnode_t *v, int mode, file_t *fp) {
+  return v->v_ops->v_open(v, mode, fp);
 }
 
 static inline int VOP_READ(vnode_t *v, uio_t *uio) {
@@ -101,5 +118,7 @@ void vnode_unref(vnode_t *v);
 
 /* Convenience function for filling in not supported vnodeops */
 int vnode_op_notsup();
+
+int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 
 #endif /* !_SYS_VNODE_H_ */

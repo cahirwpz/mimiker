@@ -38,7 +38,7 @@
 ******************************************************************************/
 
 
-#include <stdlib.h>
+#include <stddef.h>
 
 static void swap(char *p, char *q, unsigned int width);
 

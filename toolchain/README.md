@@ -14,4 +14,4 @@ $ make && make install
 $ ct-ng build
 ```
 
-If the build succeeds the toolchain should be installed in `${HOME}/local/{$TARGET}`.
+If the build succeeds the toolchain should be installed in `${HOME}/local/${TARGET}`.

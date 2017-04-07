@@ -1,6 +1,5 @@
 #include <mount.h>
 #include <stdc.h>
-#include <string.h>
 #include <errno.h>
 #include <malloc.h>
 #include <vnode.h>
@@ -39,8 +38,8 @@ static vnodeops_t vfs_root_ops = {
 static int vfs_register(vfsconf_t *vfc);
 
 void vfs_init() {
-  mtx_init(&vfsconf_list_mtx);
-  mtx_init(&mount_list_mtx);
+  mtx_init(&vfsconf_list_mtx, MTX_DEF);
+  mtx_init(&mount_list_mtx, MTX_DEF);
 
   /* TODO: We probably need some fancier allocation, since eventually we should
    * start recycling vnodes */
@@ -60,14 +59,10 @@ void vfs_init() {
 
 vfsconf_t *vfs_get_by_name(const char *name) {
   vfsconf_t *vfc;
-  mtx_lock(&vfsconf_list_mtx);
-  TAILQ_FOREACH (vfc, &vfsconf_list, vfc_list) {
-    if (!strcmp(name, vfc->vfc_name)) {
-      mtx_unlock(&vfsconf_list_mtx);
+  mtx_scoped_lock(&vfsconf_list_mtx);
+  TAILQ_FOREACH (vfc, &vfsconf_list, vfc_list)
+    if (!strcmp(name, vfc->vfc_name))
       return vfc;
-    }
-  }
-  mtx_unlock(&vfsconf_list_mtx);
   return NULL;
 }
 
@@ -75,7 +70,7 @@ vfsconf_t *vfs_get_by_name(const char *name) {
 static int vfs_register(vfsconf_t *vfc) {
   /* Check if this file system type was already registered */
   if (vfs_get_by_name(vfc->vfc_name))
-    return EEXIST;
+    return -EEXIST;
 
   mtx_lock(&vfsconf_list_mtx);
   TAILQ_INSERT_TAIL(&vfsconf_list, vfc, vfc_list);
@@ -104,15 +99,15 @@ static int vfs_register(vfsconf_t *vfc) {
 }
 
 static int vfs_default_root(mount_t *m, vnode_t **v) {
-  return ENOTSUP;
+  return -ENOTSUP;
 }
 
 static int vfs_default_statfs(mount_t *m, statfs_t *sb) {
-  return ENOTSUP;
+  return -ENOTSUP;
 }
 
 static int vfs_default_vget(mount_t *m, ino_t ino, vnode_t **v) {
-  return ENOTSUP;
+  return -ENOTSUP;
 }
 
 static int vfs_default_init(vfsconf_t *vfc) {
@@ -130,7 +125,7 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
   m->mnt_vnodecovered = v;
 
   m->mnt_refcnt = 0;
-  mtx_init(&m->mnt_mtx);
+  mtx_init(&m->mnt_mtx, MTX_DEF);
 
   return m;
 }
@@ -138,9 +133,9 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
 int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   /* Start by checking whether this vnode can be used for mounting */
   if (v->v_type != V_DIR)
-    return ENOTDIR;
+    return -ENOTDIR;
   if (v->v_mountedhere != NULL)
-    return EBUSY;
+    return -EBUSY;
 
   /* TODO: Mark the vnode is in-progress of mounting? See VI_MOUNT in FreeBSD */
 
@@ -174,7 +169,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
      required features! These include: relative paths, symlinks, parent dirs */
 
   if (path[0] == '\0')
-    return EINVAL;
+    return -ENOENT;
 
   vnode_t *v;
   if (strncmp(path, "/dev/", 5) == 0) {
@@ -187,13 +182,13 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     path = path + 1;
   } else {
     log("Relative paths are not supported!");
-    return ENOTSUP;
+    return -ENOENT;
   }
 
   /* Copy path into a local buffer, so that we may process it. */
   size_t n = strlen(path);
   if (n >= VFS_PATH_MAX)
-    return ENAMETOOLONG;
+    return -ENAMETOOLONG;
   char pathcopy[VFS_PATH_MAX];
   strlcpy(pathcopy, path, VFS_PATH_MAX);
   char *pathbuf = pathcopy;
@@ -216,7 +211,8 @@ int vfs_lookup(const char *path, vnode_t **vp) {
       if (error)
         return error;
       v = v_mntpt;
-      vnode_ref(v);
+      /* vnode_ref(v); No need to ref this vnode, VFS_ROOT already did it for
+       * us. */
       vnode_lock(v);
     }
 
@@ -225,13 +221,35 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     int error = VOP_LOOKUP(v, component, &v_child);
     vnode_unlock(v);
     vnode_unref(v);
+
+    /* Handle the special case of root vnode returning ENOTSUP on lookup. We
+       don't have a filesystem at / (root) yet, but we want to get the correct
+       error when trying to open a non-existent file. */
+    if (error == -ENOTSUP && v == vfs_root_vnode)
+      return -ENOENT;
     if (error)
       return error;
     v = v_child;
+    /* vnode_ref(v); No need to ref this vnode, VFS_LOOKUP already did it for
+     * us. */
+    vnode_lock(v);
   }
 
   vnode_unlock(v);
   *vp = v;
 
   return 0;
+}
+
+int vfs_open(file_t *f, char *pathname, int flags, int mode) {
+  vnode_t *v;
+  int error = 0;
+  error = vfs_lookup(pathname, &v);
+  if (error)
+    return error;
+  int res = VOP_OPEN(v, flags, f);
+  /* Drop our reference to v. We received it from vfs_lookup, but we no longer
+     need it - file f keeps its own reference to v after open. */
+  vnode_unref(v);
+  return res;
 }

@@ -5,27 +5,37 @@
 #include <queue.h>
 #include <context.h>
 #include <exception.h>
+#include <sleepq.h>
+#include <mutex.h>
+#include <condvar.h>
 
 typedef uint8_t td_prio_t;
 typedef uint32_t tid_t;
 typedef struct vm_page vm_page_t;
-typedef struct sleepq sleepq_t;
 typedef struct vm_map vm_map_t;
+typedef struct fdtab fdtab_t;
+
+#define TD_NAME_MAX 32
 
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 
 typedef struct thread {
-  TAILQ_ENTRY(thread) td_all;    /* a link on all threads list */
-  TAILQ_ENTRY(thread) td_runq;   /* a link on run queue */
-  TAILQ_ENTRY(thread) td_sleepq; /* a link on sleep queue */
-  TAILQ_ENTRY(thread) td_lock;   /* a link on turnstile */
-  const char *td_name;
-  tid_t td_tid; /* Thread ID*/
+  /* Locks*/
+  mtx_t td_lock;
+  condvar_t td_waitcv; /* CV for thread exit, used by join */
+  /* List links */
+  TAILQ_ENTRY(thread) td_all;     /* a link on all threads list */
+  TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
+  TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
+  TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
+  char *td_name;
+  tid_t td_tid;
   /* thread state */
   enum { TDS_INACTIVE = 0x0, TDS_WAITING, TDS_READY, TDS_RUNNING } td_state;
   uint32_t td_flags;           /* TDF_* flags */
   volatile uint32_t td_csnest; /* critical section nest level */
+  int td_exitcode;
   /* thread context */
   exc_frame_t td_uctx;    /* user context (always exception) */
   fpu_ctx_t td_uctx_fpu;  /* user FPU context (always exception) */
@@ -35,6 +45,8 @@ typedef struct thread {
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
   vm_map_t *td_uspace; /* thread's user space map */
+  /* file descriptors table */
+  fdtab_t *td_fdtable;
   /* waiting channel */
   sleepq_t *td_sleepqueue;
   void *td_wchan;
@@ -44,19 +56,29 @@ typedef struct thread {
   int td_slice;
 } thread_t;
 
-thread_t *thread_self();
 void thread_init();
+
+thread_t *thread_self();
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
 void thread_delete(thread_t *td);
 
-void thread_switch_to(thread_t *td_ready);
-
-noreturn void thread_exit();
+/* Exit from a kernel thread. Thread becomes zombie which resources will
+ * eventually be recycled. */
+noreturn void thread_exit(int exitcode);
 
 /* Debugging utility that prints out the summary of all_threads contents. */
 void thread_dump_all();
 
 /* Returns the thread matching the given ID, or null if none found. */
 thread_t *thread_get_by_tid(tid_t id);
+
+/* Joins the specified thread, effectively waiting until it exits. */
+void thread_join(thread_t *td);
+
+/* Reaps zombie threads. You do not need to call this function on your own,
+   reaping will automatically take place when convenient. The reason this
+   function is exposed is because some tests need to explicitly wait until
+   threads are reaped before they can verify test success. */
+void thread_reap();
 
 #endif /* _SYS_THREAD_H_ */

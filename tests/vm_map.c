@@ -4,9 +4,10 @@
 #include <vm_map.h>
 #include <errno.h>
 #include <thread.h>
-#include <sys_mmap.h>
+#include <ktest.h>
 
-static void paging_on_demand_and_memory_protection_demo() {
+static int paging_on_demand_and_memory_protection_demo() {
+  vm_map_t *orig = get_user_vm_map();
   vm_map_activate(vm_map_new());
 
   vm_map_t *kmap = get_kernel_vm_map();
@@ -41,10 +42,16 @@ static void paging_on_demand_and_memory_protection_demo() {
   vm_map_dump(umap);
   vm_map_dump(kmap);
 
+  /* Restore original vm_map */
+  vm_map_activate(orig);
+
   log("Test passed.");
+  return KTEST_SUCCESS;
 }
 
-void findspace_demo() {
+static int findspace_demo() {
+  vm_map_t *orig = get_user_vm_map();
+
   vm_map_t *umap = vm_map_new();
   vm_map_activate(umap);
 
@@ -84,11 +91,12 @@ void findspace_demo() {
   n = vm_map_findspace(umap, 0, 0x40000000, &t);
   assert(n == -ENOMEM);
 
+  /* Restore original vm_map */
+  vm_map_activate(orig);
+
   log("Test passed.");
+  return KTEST_SUCCESS;
 }
 
-int main() {
-  paging_on_demand_and_memory_protection_demo();
-  findspace_demo();
-  return 0;
-}
+KTEST_ADD(vm, paging_on_demand_and_memory_protection_demo, 0);
+KTEST_ADD(findspace, findspace_demo, 0);

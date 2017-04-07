@@ -3,15 +3,16 @@
 #include <vnode.h>
 #include <errno.h>
 #include <vm_map.h>
+#include <ktest.h>
 
-int main() {
+static int test_vfs() {
   vnode_t *v;
   int error;
 
   error = vfs_lookup("/dev/SPAM", &v);
-  assert(error == ENOENT);
+  assert(error == -ENOENT);
   error = vfs_lookup("/usr", &v);
-  assert(error == ENOTSUP); /* Root filesystem not implemented yet. */
+  assert(error == -ENOENT); /* Root filesystem not implemented yet. */
   error = vfs_lookup("/", &v);
   assert(error == 0 && v == vfs_root_vnode);
   vnode_unref(v);
@@ -27,6 +28,7 @@ int main() {
   assert(error == 0);
   vnode_unref(dev_zero);
 
+  assert(dev_zero->v_usecnt == 1);
   /* Ask for the same vnode multiple times and check for correct v_usecnt. */
   error = vfs_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
@@ -38,6 +40,7 @@ int main() {
   vnode_unref(dev_zero);
   vnode_unref(dev_zero);
   vnode_unref(dev_zero);
+  assert(dev_zero->v_usecnt == 1);
 
   uio_t uio;
   iovec_t iov;
@@ -91,7 +94,9 @@ int main() {
   uio.uio_resid = iov.iov_len;
 
   res = VOP_WRITE(dev_uart, &uio);
-  assert(res > 0);
+  assert(res == 0);
 
-  return 0;
+  return KTEST_SUCCESS;
 }
+
+KTEST_ADD(vfs, test_vfs, 0);

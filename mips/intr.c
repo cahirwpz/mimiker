@@ -8,7 +8,7 @@
 
 extern const char _ebase[];
 
-void intr_init() {
+void mips_intr_init() {
   /*
    * Enable Vectored Interrupt Mode as described in „MIPS32® 24KETM Processor
    * Core Family Software User’s Manual”, chapter 6.3.1.2.
@@ -27,9 +27,7 @@ extern void mips_clock_irq_handler();
 
 typedef void (*irq_handler_t)();
 
-static irq_handler_t irq_handlers[8] = {
-  [7] = mips_clock_irq_handler
-};
+static irq_handler_t irq_handlers[8] = {[7] = mips_clock_irq_handler};
 
 void mips_irq_handler(exc_frame_t *frame) {
   unsigned pending = (frame->cause & frame->sr) & CR_IP_MASK;

@@ -4,6 +4,7 @@
 #include <sched.h>
 #include <vm_map.h>
 #include <vm_pager.h>
+#include <ktest.h>
 
 #if 0
 static void demo_thread_1() {
@@ -35,8 +36,6 @@ void main() {
   sched_add(t4);
   sched_add(t5);
 
-  thread_dump_all();
-
   sched_run();
 }
 #endif
@@ -46,7 +45,7 @@ static struct {
 } range[] = {
   {0xd0000000, 0xd0001000}, {0x1000000, 0x1001000}, {0x2000000, 0x2001000}};
 
-void test_thread(void *p) {
+static void test_thread(void *p) {
   int *ptr = p;
   kprintf("ptr: %p\n", ptr);
   while (1) {
@@ -56,7 +55,7 @@ void test_thread(void *p) {
   }
 }
 
-void main() {
+static int test_sched() {
   thread_t *t1 =
     thread_create("kernel-thread-1", test_thread, (void *)range[0].start);
   thread_t *t3 =
@@ -87,7 +86,8 @@ void main() {
   sched_add(t3);
   sched_add(t4);
 
-  thread_dump_all();
-
   sched_run();
+  return KTEST_FAILURE;
 }
+
+KTEST_ADD(sched, test_sched, KTEST_FLAG_NORETURN);

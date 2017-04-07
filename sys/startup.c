@@ -10,6 +10,7 @@
 #include <thread.h>
 #include <vm_object.h>
 #include <vm_map.h>
+#include <filedesc.h>
 #include <vnode.h>
 #include <mount.h>
 #include <devfs.h>
@@ -28,15 +29,17 @@ int kernel_init(int argc, char **argv) {
   vm_object_init();
   vm_map_init();
   sched_init();
-  sleepq_init();
   mips_clock_init();
 
   vnode_init();
   vfs_init();
+  file_init();
+  fd_init();
 
   kprintf("[startup] kernel initialized\n");
 
-  thread_switch_to(thread_create("main", main, NULL));
+  thread_t *main_thread = thread_create("main", main, NULL);
+  sched_add(main_thread);
 
   sched_run();
 }

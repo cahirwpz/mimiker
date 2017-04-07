@@ -1,56 +1,71 @@
 # Mimiker: MIPS Micro-Kernel
 
-An experiment with implementation of very simple operating system for [Malta](https://www.linux-mips.org/wiki/MIPS_Malta) board.
+An experiment with implementation of very simple operating system
+for [Malta](https://www.linux-mips.org/wiki/MIPS_Malta) board.
 
-Setup
+Building
 ---
 
-Let's assume you'll install all required software in your home directory under
-*local* directory.
+To build Mimiker you will need to prepare a custom MIPS toolchain we use. We
+use crosstool-ng for building the toolchain, you can get
+it [from here](http://crosstool-ng.org/).
 
-1. Register at [ovpworld.org](http://www.ovpworld.org/forum/profile.php?mode=register)
+```
+cd toolchain/mips/
+ct-ng build
+```
 
-2. Download OVPsim simulator package for Linux, release
-   [20160323](http://www.ovpworld.org/dlp/?action=dl&dl_id=23612&site=dlp.OVPworld.org)
+By default, this will build and install the `mipsel-unknown-elf` toolchnain to
+`~/local`. Update your `$PATH` so that it provides `mipsel-unknown-elf-*`,
+i.e. unless you've changed the install location you will need to append
+`~/local/mipsel-unknown-elf/bin` to your `PATH`.
 
-3. Unpack the downloaded package `OVPsim.20160323.0.Linux32.exe`.
-   Install the unpacked directory as: `${HOME}/local/Imperas.20160323`.
+With toolchain in place, you are ready to compile Mimiker. Run
 
-4. Add to `.bashrc` following lines:
+```
+make
+```
 
-   ```
-   source ${HOME}/local/Imperas.20160323.0/bin/setup.sh
-   setupImperas ${HOME}/local/Imperas.20160323.0 -m32 
-   ```
+in project root. This will result with a `mimiker.elf` file containing the
+kernel image.
 
-5. Get your host ID, needed for a license:
+Running
+---
 
-   ```
-   $ $IMPERAS_HOME/bin/Linux32/lmutil lmhostid
-   lmutil - Copyright (c) 1989-2011 Flexera Software, Inc. All Rights Reserved.
-   The FLEXnet host ID of this machine is "00123f7c25ed"
-   ```
+As you presumably do not own a MIPS Malta board, you will need a simulator to
+test the kernel. We currently support *OVPsim* (incl. Imperas proprietary
+variant) and QEMU. If you're using OVPsim, make sure your `$IMPERAS_HOME` is set
+correctly.
 
-6. Fill a [form](http://www.ovpworld.org/likey/) and send request for OVPsim
-   license. Use host ID from previous step. Ask for a free license for
-   personal non-commercial usage.
+We provide a python script which simplifies loading the kernel image to
+simulator. In project root dir, run:
 
-7. When license received by email, put it to the file
-   `$IMPERAS_HOME/OVPsim.lic`.
+```
+./launch
+```
 
-After you've built and installed *OVPsim* you need to fetch MIPS toolchain from
-Imagination Technologies. It's based on *gcc*, *binutils* and *gdb* - hopefully
-you're familiar with these tools. The installer is available
-[here](http://community.imgtec.com/developers/mips/tools/codescape-mips-sdk/).
-In my case downloaded file was named
-`CodescapeMIPSSDK-1.3.0.42-linux-x64-installer.run`. During installation
-process you should choose to install into `${HOME}/local/imgtec` directory. We
-need only a cross-compiler for *Bare Metal Applications* and *MIPS Classic
-Legacy CPU IP Cores*.
+This will start the kernel using OVPsim if available, or QEMU otherwise.
 
-After toolchain installation you should comment out the last line of
-`${HOME}/.imgtec.sh` file (with reference to QEMU path). Instead of that please
-add `${HOME}/local/bin` to user's path.
+Some useful flags to the `launch` script:
+
+* `-d` - Starts simulation under a debugger.
+* `-D DEBUGGER` - Selects debugger to use.
+* `-S SIMULATOR` - Manually selects the simulator to use.
+* `-t` - Bind simulator UART to current stdio.
+
+Any other argument is passed to the kernel as a kernel command-line
+argument. Some useful kernel aguments:
+
+* `init=PROGRAM` - Specifies the userspace program for PID 1. Browse `./user`
+  for currently available programs.
+* `test=TEST` - Requests the kernel to run the specified test (from `./tests`
+  directory).
+* `test=all` - Runs a number of tests one after another, and reports success
+  only when all of them passed.
+* `seed=UINT` - Sets the RNG seed for shuffling the list of test when using
+  `test=all`.
+* `repeat=UINT` - Specifies the number of (shuffled) repetitions of each test
+  when using `test=all`.
 
 Documentation
 ---

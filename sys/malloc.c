@@ -1,5 +1,6 @@
 #include <stdc.h>
 #include <malloc.h>
+#include <physmem.h>
 #include <queue.h>
 
 /* Leave synchronization markers in case we need it. */
@@ -8,16 +9,15 @@
 
 /* The end of the kernel's .bss section. Provided by the linker. */
 extern uint8_t __ebss[];
+/* Limit for the end of kernel's bss. Provided by the linker. */
+extern uint8_t __kernel_end[];
 
 static struct {
-  void *ptr; /* Pointer to the end of kernel's bss. */
-  void *end; /* Limit for the end of kernel's bss. */
-  bool shutdown;
-} sbrk = {__ebss, __ebss + 512 * PAGESIZE, false};
+  void *ptr;
+  void *end;
+} sbrk = {__ebss, __kernel_end};
 
 void kernel_brk(void *addr) {
-  if (sbrk.shutdown)
-    panic("Trying to use kernel_brk after it's been shutdown!");
   cs_enter();
   void *ptr = sbrk.ptr;
   addr = (void *)((intptr_t)addr & -sizeof(uint64_t));
@@ -30,8 +30,6 @@ void kernel_brk(void *addr) {
 }
 
 void *kernel_sbrk(size_t size) {
-  if (sbrk.shutdown)
-    panic("Trying to use kernel_sbrk after it's been shutdown!");
   cs_enter();
   void *ptr = sbrk.ptr;
   size = roundup(size, sizeof(uint64_t));
@@ -40,15 +38,6 @@ void *kernel_sbrk(size_t size) {
   cs_leave();
   bzero(ptr, size);
   return ptr;
-}
-
-void *kernel_sbrk_shutdown() {
-  assert(!sbrk.shutdown);
-  cs_enter();
-  sbrk.end = align(sbrk.ptr, PAGESIZE);
-  sbrk.shutdown = true;
-  cs_leave();
-  return sbrk.end;
 }
 
 /*
@@ -146,6 +135,11 @@ void kmalloc_add_arena(malloc_pool_t *mp, vm_addr_t start, size_t arena_size) {
   add_free_memory_block(ma, mb, block_size);
 }
 
+void kmalloc_add_pages(malloc_pool_t *mp, unsigned pages) {
+  vm_page_t *pg = pm_alloc(pages);
+  kmalloc_add_arena(mp, PG_VADDR_START(pg), PG_SIZE(pg));
+}
+
 static mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {
   mem_block_t *current = NULL;
   TAILQ_FOREACH (current, mb_list, mb_list) {
@@ -217,6 +211,13 @@ void kfree(malloc_pool_t *mp, void *addr) {
   }
 }
 
+char *kstrndup(malloc_pool_t *mp, const char *s, size_t maxlen) {
+  size_t n = strnlen(s, maxlen) + 1;
+  char *copy = kmalloc(mp, n, M_ZERO);
+  memcpy(copy, s, n);
+  return copy;
+}
+
 void kmalloc_dump(malloc_pool_t *mp) {
   mem_arena_t *arena = NULL;
   kprintf("[kmalloc] malloc_pool at %p:\n", mp);
@@ -224,7 +225,7 @@ void kmalloc_dump(malloc_pool_t *mp) {
     mem_block_t *block = (void *)arena->ma_data;
     mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
 
-    kprintf("[kmalloc]  malloc_arena %p – %p:\n", block, end);
+    kprintf("[kmalloc]  malloc_arena %p - %p:\n", block, end);
 
     while (block < end) {
       assert(block->mb_magic == MB_MAGIC);

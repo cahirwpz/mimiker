@@ -1,7 +1,8 @@
 #include <stdc.h>
 #include <malloc.h>
+#include <ktest.h>
 
-int main() {
+static int test_malloc() {
   vm_page_t *page = pm_alloc(1);
 
   MALLOC_DEFINE(mp, "testing memory pool");
@@ -35,5 +36,30 @@ int main() {
 
   pm_free(page);
 
-  return 0;
+  return KTEST_SUCCESS;
 }
+
+#define MALLOC_RANDINT_PAGES 64
+static int test_malloc_random_size(unsigned int randint) {
+  if (randint == 0)
+    randint = 64;
+
+  vm_page_t *page = pm_alloc(MALLOC_RANDINT_PAGES);
+  MALLOC_DEFINE(mp, "testing memory pool");
+  kmalloc_init(mp);
+  kmalloc_add_arena(mp, page->vaddr, MALLOC_RANDINT_PAGES * PAGESIZE);
+
+  void *ptr = kmalloc(mp, randint, 0);
+  assert(ptr != NULL);
+  kfree(mp, ptr);
+
+  pm_free(page);
+  return KTEST_SUCCESS;
+}
+
+KTEST_ADD(malloc, test_malloc, 0);
+
+/* Reserve some memory for mem_block_t. */
+#define RESERVED 1024
+KTEST_ADD_RANDINT(malloc_randint, test_malloc_random_size, 0,
+                  MALLOC_RANDINT_PAGES *PAGESIZE - RESERVED);

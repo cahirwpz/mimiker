@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  */
 
-#include <string.h>
+#include <stdc.h>
 
 /*
  * bzero -- vax movc5 instruction

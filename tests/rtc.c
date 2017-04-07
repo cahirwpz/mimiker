@@ -1,6 +1,7 @@
 #include <common.h>
 #include <mips/malta.h>
 #include <rtc.h>
+#include <ktest.h>
 
 /* http://geezer.osdevbrasil.net/temp/rtc.txt */
 
@@ -47,7 +48,7 @@ void mdelay(unsigned msec) {
     ;
 }
 
-int main() {
+static int test_rtc() {
   rtc_init();
 
   while (1) {
@@ -58,7 +59,9 @@ int main() {
 
     mdelay(1000);
   }
-
-  return 0;
+  return KTEST_FAILURE;
 }
+
+KTEST_ADD(rtc, test_rtc, KTEST_FLAG_NORETURN);
+
 #endif

@@ -2,8 +2,9 @@
 #include <systm.h>
 #include <stdc.h>
 #include <vm_map.h>
+#include <ktest.h>
 
-int main() {
+static int test_uiomove() {
   int res = 0;
 
   char buffer1[100];
@@ -56,5 +57,7 @@ int main() {
   res = strcmp(buffer2, "Example ====string ========with data ");
   assert(res == 0);
 
-  return 0;
+  return KTEST_SUCCESS;
 }
+
+KTEST_ADD(uiomove, test_uiomove, 0);
