@@ -4,6 +4,7 @@
 #include <filedesc.h>
 #include <sched.h>
 #include <stdc.h>
+#include <vm_map.h>
 
 int do_fork() {
   thread_t *td = thread_self();
@@ -36,9 +37,8 @@ int do_fork() {
      starting from user_exc_leave (which serves as fork_trampoline). */
   ctx_init(newtd, user_exc_leave, NULL);
 
-  /* Share userspace memory with parent. TODO: (optionally?) clone user
-     memory. */
-  newtd->td_uspace = td->td_uspace;
+  /* Clone the entire process memory space. */
+  newtd->td_uspace = vm_map_clone(td->td_uspace);
 
   /* Copy the parent descriptor table. */
   newtd->td_fdtable = fdtab_copy(td->td_fdtable);
