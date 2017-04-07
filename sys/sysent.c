@@ -4,7 +4,7 @@
 #include <thread.h>
 #include <vm_map.h>
 #include <vm_pager.h>
-#include <sys_mmap.h>
+#include <mmap.h>
 #include <vfs_syscalls.h>
 #include <sbrk.h>
 

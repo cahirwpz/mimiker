@@ -28,7 +28,7 @@ SOURCES_C  = \
 	startup.c \
 	sync.c \
 	sysent.c \
-	sys_mmap.c \
+	mmap.c \
 	thread.c \
 	uio.c \
 	vfs.c \
