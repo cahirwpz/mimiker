@@ -27,12 +27,7 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
   thread_t *td = thread_self();
   vm_map_t *vmap = td->td_uspace;
 
-  if (!vmap) {
-    log("mmap called by a thread with no user space.");
-    /* I have no idea what would be a good error code for this case. */
-    *error = ENOENT;
-    return MMAP_FAILED;
-  }
+  assert(vmap);
 
   {
     rw_scoped_enter(&vmap->rwlock, RW_WRITER);
