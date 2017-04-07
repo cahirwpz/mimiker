@@ -23,11 +23,13 @@ SOURCES_C  = \
 	physmem.c \
 	runq.c \
 	rwlock.c \
+	sbrk.c \
 	sched.c \
 	sleepq.c \
 	startup.c \
 	sync.c \
 	sysent.c \
+	mmap.c \
 	thread.c \
 	uio.c \
 	vfs.c \

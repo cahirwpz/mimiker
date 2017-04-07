@@ -2,7 +2,7 @@
 
 include ../Makefile.common
 
-SUBDIRS = $(shell find -mindepth 1 -maxdepth 1 -type d)
+SUBDIRS = $(shell find -mindepth 1 -maxdepth 1 -type d -not -name include)
 
 .PHONY: clean common all $(SUBDIRS)
 
