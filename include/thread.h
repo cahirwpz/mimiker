@@ -56,13 +56,14 @@ typedef struct thread {
   int td_slice;
 } thread_t;
 
-thread_t *thread_self();
 void thread_init();
+
+thread_t *thread_self();
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
 void thread_delete(thread_t *td);
 
-void thread_switch_to(thread_t *td_ready);
-
+/* Exit from a kernel thread. Thread becomes zombie which resources will
+ * eventually be recycled. */
 noreturn void thread_exit(int exitcode);
 
 /* Debugging utility that prints out the summary of all_threads contents. */
