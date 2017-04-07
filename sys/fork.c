@@ -44,12 +44,11 @@ int do_fork() {
   newtd->td_fdtable = fdtab_copy(td->td_fdtable);
   fdtab_ref(newtd->td_fdtable);
 
-  newtd->td_sleepqueue = td->td_sleepqueue;
-  newtd->td_wchan = td->td_wchan;
-  newtd->td_wmesg = td->td_wmesg;
+  newtd->td_sleepqueue = sleepq_alloc();
+  newtd->td_wchan = NULL;
+  newtd->td_wmesg = NULL;
 
   newtd->td_prio = td->td_prio;
-  newtd->td_slice = td->td_slice;
 
   sched_add(newtd);
 
