@@ -32,8 +32,7 @@ static void klog_entry_dump(klog_entry_t *entry) {
 
 void klog_append(unsigned mask, const char *file, unsigned line,
                  const char *format, intptr_t arg1, intptr_t arg2,
-                 intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6)
-{
+                 intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6) {
   if (!(mask & klog.mask))
     return;
 
@@ -41,13 +40,11 @@ void klog_append(unsigned mask, const char *file, unsigned line,
 
   klog_entry_t *entry = &klog.array[klog.last];
 
-  *entry = (klog_entry_t){
-    .kl_timestamp = clock_get(),
-    .kl_line = line,
-    .kl_file = file,
-    .kl_format = format,
-    .kl_params = {arg1, arg2, arg3, arg4, arg5, arg6}
-  };
+  *entry = (klog_entry_t){.kl_timestamp = clock_get(),
+                          .kl_line = line,
+                          .kl_file = file,
+                          .kl_format = format,
+                          .kl_params = {arg1, arg2, arg3, arg4, arg5, arg6}};
 
   klog.last = next(klog.last);
   if (klog.first == klog.last)
