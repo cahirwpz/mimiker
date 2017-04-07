@@ -42,7 +42,6 @@ int do_fork() {
 
   /* Copy the parent descriptor table. */
   newtd->td_fdtable = fdtab_copy(td->td_fdtable);
-  fdtab_ref(newtd->td_fdtable);
 
   newtd->td_sleepqueue = sleepq_alloc();
   newtd->td_wchan = NULL;
