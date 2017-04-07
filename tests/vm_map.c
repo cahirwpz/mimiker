@@ -3,6 +3,7 @@
 #include <vm_object.h>
 #include <vm_map.h>
 #include <errno.h>
+#include <thread.h>
 #include <ktest.h>
 
 static int paging_on_demand_and_memory_protection_demo() {
