@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <vm_map.h>
 #include <vm_pager.h>
+#include <rwlock.h>
 
 int sys_mmap(thread_t *td, syscall_args_t *args) {
   vm_addr_t addr = args->args[0];
@@ -33,6 +34,8 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
     return MMAP_FAILED;
   }
 
+  rw_scoped_enter(&vmap->rwlock, RW_WRITER);
+
   if (addr >= vmap->pmap->end) {
     /* mmap cannot callocate memory in kernel space! */
     *error = EINVAL;
@@ -49,7 +52,7 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
 
   if (addr == 0x0) {
     /* We will choose an appropriate place in vm map. */
-    if (vm_map_findspace(vmap, MMAP_LOW_ADDR, length, &addr) != 0) {
+    if (vm_map_findspace_nolock(vmap, MMAP_LOW_ADDR, length, &addr) != 0) {
       /* No space in memory was found. */
       *error = ENOMEM;
       return MMAP_FAILED;
@@ -59,10 +62,10 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
       addr = MMAP_LOW_ADDR;
     addr = roundup(addr, PAGESIZE);
     /* Treat addr as a hint on where to place the new mapping. */
-    if (vm_map_findspace(vmap, addr, length, &addr) != 0) {
+    if (vm_map_findspace_nolock(vmap, addr, length, &addr) != 0) {
       /* No memory was found following the hint. Search again entire address
          space. */
-      if (vm_map_findspace(vmap, MMAP_LOW_ADDR, length, &addr) != 0) {
+      if (vm_map_findspace_nolock(vmap, MMAP_LOW_ADDR, length, &addr) != 0) {
         /* Still no memory found. */
         *error = ENOMEM;
         return MMAP_FAILED;
