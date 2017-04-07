@@ -13,10 +13,6 @@ int do_fork() {
 
   thread_t *newtd = thread_create(td->td_name, NULL, NULL);
 
-  /* Prevent preemption, so that the copied thread won't run while we're copying
-     it. */
-  critical_enter();
-
   /* Clone the thread. Since we don't use fork-oriented thread_t layout, we copy
      all fields one-by one for clarity. The new thread is already on the
      all_thread list, has name and tid set. */
@@ -24,7 +20,6 @@ int do_fork() {
   newtd->td_state = td->td_state;
   newtd->td_flags = td->td_flags;
   newtd->td_csnest = td->td_csnest;
-  newtd->td_csnest -= 1; /* Subtract this section we're currently in. */
 
   /* Copy user context.. */
   newtd->td_uctx = td->td_uctx;
@@ -55,8 +50,6 @@ int do_fork() {
 
   newtd->td_prio = td->td_prio;
   newtd->td_slice = td->td_slice;
-
-  critical_leave();
 
   sched_add(newtd);
 
