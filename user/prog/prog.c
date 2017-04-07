@@ -52,14 +52,12 @@ void sbrk_test() {
 
 void mmap_test() {
   void *addr;
-  addr = mmap((void *)0x0, 12345, MMAP_PROT_READ | MMAP_PROT_WRITE,
-              MMAP_FLAG_ANONYMOUS);
+  addr = mmap((void *)0x0, 12345, PROT_READ | PROT_WRITE, MMAP_ANON);
   assert(addr != (void *)-1);
   printf("mmap returned pointer: %p\n", addr);
   memset(addr, -1, 12345);
   /* Provide a hint address that is not page aligned or anything. */
-  addr = mmap((void *)0x12345678, 99, MMAP_PROT_READ | MMAP_PROT_WRITE,
-              MMAP_FLAG_ANONYMOUS);
+  addr = mmap((void *)0x12345678, 99, PROT_READ | PROT_WRITE, MMAP_ANON);
   assert(addr != (void *)-1);
   printf("mmap returned pointer: %p\n", addr);
   memset(addr, -1, 99);
