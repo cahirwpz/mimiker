@@ -62,9 +62,6 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
       }
     }
 
-    /* TODO: Check if the range of addresses we are about to map is not already
-       mapped. */
-
     /* Create new vm map entry for this allocation. Temporarily use permissive
      * protection, so that we may optionally initialize the entry. */
     vm_map_entry_t *entry =
