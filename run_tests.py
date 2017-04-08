@@ -47,8 +47,8 @@ def test_seed(seed, sim='qemu', repeat=1, retry=0):
 
     print("Testing seed %d..." % seed)
     child = pexpect.spawn('./launch', ['-t', '-S', sim, 'test=all',
-                                       '--ramdisk=initrd.cpio',
-                                       'seed=%d' % seed, 'repeat=%d' % repeat])
+                                       'seed=%d' % seed, 'repeat=%d' % repeat,
+                                       '--ramdisk', 'tests/test_initrd.cpio'])
     index = child.expect_exact(
         ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT],
         timeout=TIMEOUT)

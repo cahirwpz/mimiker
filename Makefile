@@ -1,6 +1,6 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-all: mimiker.elf tags cscope initrd.cpio
+all: mimiker.elf tags cscope
 
 include Makefile.common
 $(info Using CC: $(CC))
@@ -16,9 +16,6 @@ $(KRT): | $(SUBDIRS)
 mimiker.elf: $(KRT)
 	@echo "[LD] Linking kernel image: $@"
 	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) $(LD_EMBED) -o $@
-
-initrd.cpio: build_cpio.sh
-	./build_cpio.sh
 
 cscope:
 	cscope -b include/*.h ./*/*.[cS]

@@ -23,7 +23,10 @@ SOURCES_C = \
 	vfs.c
 SOURCES_ASM =
 
-all: $(DEPFILES) libtests.a
+all: $(DEPFILES) libtests.a test_initrd.cpio
+
+test_initrd.cpio: build_test_initrd.sh
+	./build_test_initrd.sh
 
 include ../Makefile.common
 
