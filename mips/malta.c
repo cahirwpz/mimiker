@@ -139,7 +139,7 @@ static void pm_bootstrap(unsigned memsize) {
   assert(is_aligned(rd_start+rd_size, PAGESIZE));
 
   /* If rd_start > 0 then assert(kernel_end < rd_start) */
-  assert(rd_start == 0 || (intptr_t)__kernel_end < rd_start);
+  assert(rd_start == 0 || (intptr_t)__kernel_end <= rd_start);
 
   intptr_t real_kernel_end = (rd_start == 0 ? (intptr_t)(__kernel_end) : (intptr_t)(rd_start + rd_size));;
 
