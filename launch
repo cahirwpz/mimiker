@@ -90,7 +90,7 @@ def configure_qemu(args):
         options += ['-S']
 
     if args.ramdisk:
-        print("WARNING: Ramdisk for qemu not supported!")
+        options += ['-initrd', args.ramdisk]
 
     return options
 
