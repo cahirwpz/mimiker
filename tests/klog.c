@@ -4,161 +4,113 @@
 #include <ktest.h>
 #define _KLOG_PRIVATE
 #include <klog.h>
+#include <thread.h>
+#include <sched.h>
 
-static int test_klog_shorter() {
-  int number_of_logs = KL_SIZE - 1;
-  kprintf("Testing %d logs in array size %d\n", number_of_logs, KL_SIZE);
-  for (int i = 1; i <= number_of_logs; ++i)
-    klog("Testing shorter; Message %d, of %d", i, number_of_logs);
-  assert(((klog.first + number_of_logs) & (KL_SIZE - 1)) ==
-         (klog.last & (KL_SIZE - 1)));
-  klog_dump();
+static int logging_with_custom_mask() {
+  kprintf("Testing klog with custom mask.\n");
+  klog_mask(KL_NONE, "Testing custom mask %d", KL_NONE);
   assert(klog.first == klog.last);
-  kprintf("Testing %d logs in array size %d. Succesful.\n", number_of_logs,
-          KL_SIZE);
-
-  return 0;
-}
-
-static int test_klog_equal() {
-  int number_of_logs = KL_SIZE;
-  kprintf("Testing %d logs in array size %d\n", number_of_logs, KL_SIZE);
-  for (int i = 1; i <= number_of_logs; ++i)
-    klog("Testing longer; Message %d, of %d", i, number_of_logs);
-  assert(((klog.first + KL_SIZE - 1) & (KL_SIZE - 1)) ==
-         (klog.last & (KL_SIZE - 1)));
-  klog_dump();
-  assert(klog.first == klog.last);
-  kprintf("Testing %d logs in array size %d. Succesful.\n", number_of_logs,
-          KL_SIZE);
-
-  return 0;
-}
-
-static int test_klog_longer() {
-  int number_of_logs = KL_SIZE + 1;
-  kprintf("Testing %d logs in array size %d\n", number_of_logs, KL_SIZE);
-  for (int i = 1; i <= number_of_logs; ++i)
-    klog("Testing longer; Message %d, of %d", i, number_of_logs);
-  assert(((klog.first + KL_SIZE - 1) & (KL_SIZE - 1)) ==
-         (klog.last & (KL_SIZE - 1)));
-  klog_dump();
-  assert(klog.first == klog.last);
-  kprintf("Testing %d logs in array size %d. Succesful.\n", number_of_logs,
-          KL_SIZE);
-
-  return 0;
-}
-
-static int test_klog_long() {
-  int number_of_logs = 55 * KL_SIZE + 1;
-  kprintf("Testing %d logs in array size %d\n", number_of_logs, KL_SIZE);
-  for (int i = 1; i <= number_of_logs; ++i)
-    klog("Testing longer; Message %d, of %d", i, number_of_logs);
-  assert(((klog.first + KL_SIZE - 1) & (KL_SIZE - 1)) ==
-         (klog.last & (KL_SIZE - 1)));
-  klog_dump();
-  assert(klog.first == klog.last);
-  kprintf("Testing %d logs in array size %d. Succesful.\n", number_of_logs,
-          KL_SIZE);
-
-  return 0;
-}
-
-static int test_klog_clear() {
-  int number_of_logs = 2 * KL_SIZE + 1;
-  kprintf("Testing clear\n");
-  for (int i = 1; i <= number_of_logs; ++i)
-    klog("Testing clear; Message %d, of %d", i, number_of_logs);
-  assert(((klog.first + KL_SIZE - 1) & (KL_SIZE - 1)) ==
-         (klog.last & (KL_SIZE - 1)));
-  klog_clear();
-
-  number_of_logs = KL_SIZE - 1;
-  for (int i = 1; i <= number_of_logs; ++i)
-    klog("Testing clear; Message %d, of %d", i, number_of_logs);
-  assert(((klog.first + number_of_logs) & (KL_SIZE - 1)) ==
-         (klog.last & (KL_SIZE - 1)));
-  assert((klog.first + number_of_logs) == klog.last);
-  klog_dump();
-  assert(klog.first == klog.last);
-  kprintf("Testing clear. Succesful.\n");
-
-  return 0;
-}
-
-static int test_klog_no_log() {
-  kprintf("Testing no log\n");
-  int number_of_logs = 2 * KL_SIZE + 1;
-  klog_clear();
-  for (int i = 1; i <= number_of_logs; ++i)
-    klog_mask(KL_NONE, "Testing no log; Message %d, of %d", i, number_of_logs);
-  assert(klog.first == klog.last);
-  klog_clear();
-  kprintf("Testing no log. Succesful.\n");
-
-  return 0;
-}
-
-static int test_klog_no_log2() {
-  kprintf("Testing no log2\n");
-  int number_of_logs = 2 * KL_SIZE + 1;
-  klog_clear();
-  // kprintf("klog.last = %d, klog.first = %d\n", klog.last,
-  // klog.first);
-  for (int i = 1; i <= number_of_logs; ++i)
-    klog("Testing no log2; Message %d, of %d", i, number_of_logs);
-  assert(klog.first == klog.last);
-  klog_clear();
-  kprintf("Testing no log2. Succesful.\n");
-
-  return 0;
-}
-
-static int is_mask_zero() {
-  int old = klog.last;
-  klog_mask(KL_ALL, "Testing if we can put %d in log", 1);
-  if (old == klog.last)
-    return 1;
-  klog_clear();
-  return 0;
-}
-
-// static int test_zero_params() {
-//     klog("Message with zero parameters.");
-//     return 0;
-// }
-
-static int test_six_params() {
-  klog("Message with %d, %d, %d, %d, %d, %d parameters.", 6, 6, 6, 6, 6, 6);
-  return 0;
-}
-
-// static int test_seven_params() {
-//     klog("Message with %d, %d, %d, %d, %d, %d, %d parameters.", 7, 7, 7, 7,
-//     7, 7, 7, 7);
-//     return 0;
-// }
-
-static int test_klog() {
-  kprintf("Testing klog, %x\n", KL_LOG);
-  assert(test_klog_no_log() == 0);
-
-  if (is_mask_zero())
-    assert(test_klog_no_log2() == 0);
-  else {
-    assert(test_klog_shorter() == 0);
-    assert(test_klog_equal() == 0);
-    assert(test_klog_longer() == 0);
-    assert(test_klog_long() == 0);
-    assert(test_klog_clear() == 0);
+  if (klog.mask) {
+    klog_mask(KL_ALL, "Testing custom mask %d", KL_ALL);
+    assert((klog.first + 1) % KL_SIZE == klog.last);
   }
 
   klog_clear();
-  // test_zero_params();
-  test_six_params();
-  // test_seven_params();
+  return 0;
+}
+
+/* Testing logging when klog don't accept logs (mask = KL-NONE) */
+static int logging_klog_zero_mask() {
+  kprintf("Testing klog while acceptance mask is %d.\n", klog.mask);
+  klog("Testing klog while acceptance mask is %d", klog.mask);
+  assert(klog.first == klog.last);
+  klog_clear();
+
+  return 0;
+}
+
+static int test_log_messages(const int number_of_logs) {
+  kprintf("Testing loging with %d messages in array length %d.\n",
+          number_of_logs, KL_SIZE);
+
+  for (int i = 0; i < number_of_logs; ++i)
+    klog("Testing logger; Message %d, of %d", i, number_of_logs);
+
+  int saved_logs = (number_of_logs < KL_SIZE) ? number_of_logs : KL_SIZE - 1;
+  assert(((klog.first + saved_logs) % KL_SIZE) == klog.last);
+
+  klog_clear();
+  assert(klog.first == klog.last);
+
+  return 0;
+}
+
+static int testing_different_number_of_parametars() {
+  /* Logging without parameters don't works. */
+  /* klog("Message with zero parameters."); */
+  klog("Message with %d parameter.", 1);
+  klog("Message with %d, %d, %d, %d, %d parameters.", 5, 5, 5, 5, 5);
+  klog("Message with %d, %d, %d, %d, %d, %d parameters.", 6, 6, 6, 6, 6, 6);
   klog_dump();
+
+  return 0;
+}
+
+const int number_of_logs_per_thread = 200;
+
+static void thread_logs(void *p) {
+  int thread_number = thread_self()->td_tid;
+  for (int i = 0; i < number_of_logs_per_thread; i++)
+    klog("Message number %d of thread %d.", i, thread_number);
+
+  thread_exit(0);
+}
+
+static int multithreads_test(const int number_of_threads) {
+  kprintf("Testing logging with %d threads.\n", number_of_threads);
+  thread_t *threads[number_of_threads];
+  for (int i = 0; i < number_of_threads; i++) {
+    threads[i] = thread_create("Thread", thread_logs, NULL);
+    sched_add(threads[i]);
+  }
+  for (int i = 0; i < number_of_threads; i++)
+    thread_join(threads[i]);
+
+  int saved_logs = (number_of_logs_per_thread * number_of_threads < KL_SIZE)
+                     ? number_of_logs_per_thread * number_of_threads
+                     : KL_SIZE - 1;
+  assert(((klog.first + saved_logs) % KL_SIZE) == klog.last);
+
+  klog_clear();
+
+  return 0;
+}
+
+static int test_klog() {
+  kprintf("Testing klog with mask %x while acceptance mask is %x\n", KL_LOG,
+          klog.mask);
+  /* Deleting logs if there are some old left. */
+  klog_clear();
+
+  if (klog.mask) {
+    /* Testing logging with different number of messages. */
+    assert(test_log_messages(1) == 0);
+    assert(test_log_messages(KL_SIZE - 1) == 0);
+    assert(test_log_messages(KL_SIZE) == 0);
+    assert(test_log_messages(KL_SIZE + 1) == 0);
+    assert(test_log_messages(3 * KL_SIZE + 1) == 0);
+    /* Testing logging messages with multiple threads. */
+    assert(multithreads_test(1) == 0);
+    assert(multithreads_test(5) == 0);
+    assert(multithreads_test(10) == 0);
+  } else {
+    /* Testing logging while klog don't accept any logs. */
+    assert(logging_klog_zero_mask() == 0);
+  }
+
+  assert(logging_with_custom_mask() == 0);
+  assert(testing_different_number_of_parametars() == 0);
 
   kprintf("Testing klog. Succesful!\n");
 
