@@ -252,21 +252,20 @@ static int initrd_init(vfsconf_t *vfc) {
   return 0;
 }
 
-intptr_t parse_rd_start(const char *s)
-{
-    int s_len = strlen(s);
-    if(s_len == 10) /* OVPSim version*/
-        return strtoul(s, NULL, 0);
-    if(s_len > 10) /* Qemu version */
-    {
-        char buf[20];
-        int padding_len = strlen("0xffffffff")-2;
-        memcpy(buf,s,s_len+1);
-        buf[padding_len] = '0';
-        buf[padding_len+1] = 'x';
-        return strtoul(buf+padding_len, NULL, 0);
-    }
-    return 0;
+intptr_t parse_rd_start(const char *s) {
+  int s_len = strlen(s);
+  if (s_len == 10) /* OVPSim version*/
+    return strtoul(s, NULL, 0);
+  if (s_len > 10) /* Qemu version */
+  {
+    char buf[20];
+    int padding_len = strlen("0xffffffff") - 2;
+    memcpy(buf, s, s_len + 1);
+    buf[padding_len] = '0';
+    buf[padding_len + 1] = 'x';
+    return strtoul(buf + padding_len, NULL, 0);
+  }
+  return 0;
 }
 
 void ramdisk_init() {

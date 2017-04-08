@@ -115,7 +115,7 @@ char *kenv_get(const char *key) {
 extern uint8_t __kernel_start[];
 extern uint8_t __kernel_end[];
 
-extern intptr_t parse_rd_start(const char* s);
+extern intptr_t parse_rd_start(const char *s);
 
 static void pm_bootstrap(unsigned memsize) {
   intptr_t rd_start;
@@ -136,14 +136,16 @@ static void pm_bootstrap(unsigned memsize) {
   }
 
   assert(is_aligned(rd_start, PAGESIZE));
-  assert(is_aligned(rd_start+rd_size, PAGESIZE));
+  assert(is_aligned(rd_start + rd_size, PAGESIZE));
 
   /* If rd_start > 0 then assert(kernel_end < rd_start) */
   assert(rd_start == 0 || (intptr_t)__kernel_end <= rd_start);
 
-  intptr_t real_kernel_end = (rd_start == 0 ? (intptr_t)(__kernel_end) : (intptr_t)(rd_start + rd_size));;
+  intptr_t real_kernel_end =
+    (rd_start == 0 ? (intptr_t)(__kernel_end) : (intptr_t)(rd_start + rd_size));
+  ;
 
-  pm_seg_t *seg = (pm_seg_t*) real_kernel_end;
+  pm_seg_t *seg = (pm_seg_t *)real_kernel_end;
   size_t seg_size = align(pm_seg_space_needed(memsize), PAGESIZE);
 
   /* create Malta physical memory segment */
