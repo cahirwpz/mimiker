@@ -115,6 +115,8 @@ char *kenv_get(const char *key) {
 extern uint8_t __kernel_start[];
 extern uint8_t __kernel_end[];
 
+extern intptr_t parse_rd_start(const char* s);
+
 static void pm_bootstrap(unsigned memsize) {
   intptr_t rd_start;
   unsigned rd_size;
@@ -127,7 +129,7 @@ static void pm_bootstrap(unsigned memsize) {
     char *s;
 
     s = kenv_get("rd_start");
-    rd_start = s ? strtoul(s, NULL, 0) : 0;
+    rd_start = parse_rd_start(s);
     s = kenv_get("rd_size");
     rd_size = s ? align(strtoul(s, NULL, 0), PAGESIZE) : 0;
   }
