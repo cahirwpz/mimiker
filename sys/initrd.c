@@ -35,8 +35,6 @@ typedef struct cpio_node {
 static MALLOC_DEFINE(mp, "initial ramdisk memory pool");
 typedef TAILQ_HEAD(, cpio_node) cpio_list_t;
 
-static vm_addr_t rd_start;
-static size_t rd_size;
 static cpio_list_t initrd_head;
 static cpio_node_t *root_node;
 static vnodeops_t initrd_ops = {.v_lookup = vnode_op_notsup,
@@ -60,18 +58,18 @@ static void cpio_node_dump(cpio_node_t *cn) {
       cn->c_gid, cn->c_rdev, cn->c_size, cn->c_mtime);
 }
 
-static void read_bytes(char **tape, void *ptr, size_t bytes) {
+static void read_bytes(void **tape, void *ptr, size_t bytes) {
   memcpy(ptr, *tape, bytes);
   *tape += bytes;
 }
 
-static void skip_bytes(char **tape, size_t bytes) {
+static void skip_bytes(void **tape, size_t bytes) {
   *tape = align(*tape + bytes, 4);
 }
 
 #define MKDEV(major, minor) (((major & 0xff) << 8) | (minor & 0xff))
 
-static bool read_cpio_header(char **tape, cpio_node_t *cpio) {
+static bool read_cpio_header(void **tape, cpio_node_t *cpio) {
   cpio_new_hdr_t hdr;
 
   read_bytes(tape, &hdr, sizeof(hdr));
@@ -115,7 +113,7 @@ static bool read_cpio_header(char **tape, cpio_node_t *cpio) {
 }
 
 static void read_cpio_archive() {
-  char *tape = (char *)rd_start;
+  void *tape = (void *)ramdisk_get_start();
 
   while (true) {
     cpio_node_t *node = cpio_node_alloc();
@@ -224,22 +222,27 @@ static int initrd_init(vfsconf_t *vfc) {
   return 0;
 }
 
-intptr_t parse_rd_start(const char *s) {
+intptr_t ramdisk_get_start() {
+  char *s = kenv_get("rd_start");
+  if (s == NULL)
+    return 0;
   int s_len = strlen(s);
   return strtoul(s + s_len - 8, NULL, 16);
 }
 
+unsigned ramdisk_get_size() {
+  char *s = kenv_get("rd_size");
+  return s ? strtoul(s, NULL, 0) : 0;
+}
+
 void ramdisk_init() {
-  char *s = kenv_get("rd_start");
-  rd_start = parse_rd_start(s);
-  s = kenv_get("rd_size");
-  rd_size = s ? strtoul(s, NULL, 0) : 0;
+  unsigned rd_size = ramdisk_get_size();
 
   TAILQ_INIT(&initrd_head);
   kmalloc_init(mp);
   kmalloc_add_pages(mp, 2);
 
-  if (rd_size > 0) {
+  if (rd_size) {
     initrd_ops.v_lookup = initrd_vnode_lookup;
     initrd_ops.v_read = initrd_vnode_read;
     log("parsing cpio archive of %zu bytes", rd_size);

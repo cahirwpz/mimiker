@@ -8,6 +8,7 @@
 #include <pcpu.h>
 #include <stdc.h>
 #include <thread.h>
+#include <initrd.h>
 
 extern unsigned int __bss[];
 extern unsigned int __ebss[];
@@ -118,27 +119,18 @@ extern uint8_t __kernel_end[];
 extern intptr_t parse_rd_start(const char *s);
 
 static void pm_bootstrap(unsigned memsize) {
-  intptr_t rd_start;
-  unsigned rd_size;
-
   pm_init();
 
-  /* ramdisk start address is expected to be page aligned and placed:
+  intptr_t rd_start = ramdisk_get_start();
+  unsigned rd_size = align(ramdisk_get_size(), PAGESIZE);
+
+  /*
+   * Ramdisk start address is expected to be page aligned and placed:
    * - Directly after kernel's .bss section in case of OVPSim
-   * - One page after kernel's .bss section in case of Qemu */
-  {
-    char *s;
-
-    s = kenv_get("rd_start");
-    rd_start = parse_rd_start(s);
-    s = kenv_get("rd_size");
-    rd_size = s ? align(strtoul(s, NULL, 0), PAGESIZE) : 0;
-  }
-
+   * - One page after kernel's .bss section in case of Qemu
+   */
   assert(is_aligned(rd_start, PAGESIZE));
   assert(is_aligned(rd_start + rd_size, PAGESIZE));
-
-  /* If rd_start > 0 then assert(kernel_end < rd_start) */
   assert(rd_start == 0 || (intptr_t)__kernel_end <= rd_start);
 
   intptr_t real_kernel_end =
