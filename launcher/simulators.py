@@ -3,7 +3,7 @@ from .common import *
 
 class OVPsim(Launchable):
     def __init__(self):
-        Launchable.__init__(self, 'ovpsim', needs_new_session=True)
+        Launchable.__init__(self, 'ovpsim')
         
     def probe(self):
         try:
@@ -18,8 +18,6 @@ class OVPsim(Launchable):
             return True
         except KeyError:
             return False
-    
-
         
     def configure(self, kernel, args="", debug=False, uart_port=8000):
         try:

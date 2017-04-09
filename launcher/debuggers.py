@@ -4,7 +4,7 @@ from .common import *
 
 class GDBWrapper(Launchable):
     def __init__(self, name, probe_command, cmdstring):
-        Launchable.__init__(self, name, needs_new_session=True)
+        Launchable.__init__(self, name)
         self.probe_command = probe_command
         self.cmdstring = cmdstring
     def probe(self):

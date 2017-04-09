@@ -11,7 +11,7 @@ class ServerOutput(Launchable):
 
 class XTermOutput(Launchable):
     def __init__(self):
-        Launchable.__init__(self, 'xterm', needs_new_session=True)
+        Launchable.__init__(self, 'xterm')
     def probe(self):
         self.cmd = shutil.which('xterm')
         return self.cmd is not None

@@ -79,10 +79,20 @@ if __name__ == '__main__':
     out.start()
     dbg.start()
 
-    # Wait until any of these program terminates. This way the user may end
-    # their session by either closing the simulator, the debugger, or even the
-    # xterm window.
-    common.wait_any([out, sim, dbg])
+    while True:
+        try:
+            # Wait until any of these program terminates. This way the user may end
+            # their session by either closing the simulator, the debugger, or even the
+            # xterm window.
+            common.wait_any([out, sim, dbg])
+            break
+        except KeyboardInterrupt:
+            if debug:
+                # Pass the interrupt only to debugger
+                dbg.interrupt()
+            else:
+                # Quit.
+                break
 
     dbg.stop()
     out.stop()

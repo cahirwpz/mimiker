@@ -7,11 +7,10 @@ UART_PORT = 8000
 TRIPLET = 'mipsel-unknown-elf'
 
 class Launchable:
-    def __init__(self, name, needs_new_session=False):
+    def __init__(self, name):
         self.name = name
         self.process = None
         self.cmd = None
-        self.needs_new_session = needs_new_session
     def probe(self):
         raise NotImplementedError('This launchable is not probable')
 
@@ -21,9 +20,8 @@ class Launchable:
     def start(self):
         if self.cmd is None:
             return
-        print(self.needs_new_session)
         self.process = subprocess.Popen([self.cmd] + self.options,
-                                        start_new_session=self.needs_new_session)
+                                        start_new_session=True)
 
     # Returns true iff the process terminated
     def wait(self, timeout=None):
@@ -43,6 +41,9 @@ class Launchable:
             self.process.send_signal(signal.SIGKILL)
         self.process = None
 
+    def interrupt(self):
+        if self.process is not None:
+            self.process.send_signal(signal.SIGINT)
         
 def find_available(l):
     result, default = {}, None
@@ -59,9 +60,7 @@ def wait_any(launchables):
                 print(l.name + ' terminated')
                 return
         except subprocess.TimeoutExpired:
-            pass
-        except KeyboardInterrupt:
-            return
+            continue
 
 def find_toolchain():
     if not shutil.which(TRIPLET + '-gcc'):
