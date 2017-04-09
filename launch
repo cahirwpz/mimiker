@@ -1,124 +1,21 @@
 #!/usr/bin/python3
 
 import argparse
-import os
-import os.path
-import signal
-import subprocess
-import shlex
 import shutil
-from pexpect import popen_spawn
-
-PORT = 8000
-
-DEBUGGERS = {
-    'gdb': '%(triplet)s-gdb %(kernel)s',
-    'cgdb': 'cgdb -d %(triplet)s-gdb %(kernel)s',
-    'ddd': 'ddd --debugger %(triplet)s-gdb %(kernel)s',
-    'gdbtui': '%(triplet)s-gdb -tui %(kernel)s',
-    'emacs': 'emacsclient -c -e \'(gdb "%(triplet)s-gdb -i=mi %(kernel)s")\''
-}
-DEFAULT_DEBUGGER = 'cgdb'
-assert(DEFAULT_DEBUGGER in DEBUGGERS)
-
-
-def find_triplet():
-    for triplet in ['mipsel-unknown-elf', 'mips-mti-elf']:
-        if shutil.which(triplet + '-gcc'):
-            return triplet
-
-    raise SystemExit('No cross compiler found!')
-
-
-def configure_ovpsim(args):
-    OVPSIM_OVERRIDES = {
-        'mipsle1/vectoredinterrupt': 1,
-        'mipsle1/srsctlHSS': 1,
-        'rtc/timefromhost': 1,
-        'uartCBUS/console': 1,
-        'uartCBUS/portnum': PORT,
-        'command': '"' + ' '.join(args.args) + '"'
-    }
-
-    try:
-        os.remove('uartCBUS.log')
-        os.remove('uartTTY0.log')
-        os.remove('uartTTY1.log')
-    except OSError:
-        pass
-
-    options = ['--root', '/dev/null',
-               '--nographics',
-               '--wallclock',
-               '--kernel', args.kernel]
-
-    if args.test or args.server:
-        OVPSIM_OVERRIDES['uartCBUS/console'] = 0
-
-    for item in OVPSIM_OVERRIDES.items():
-        options += ['--override', '%s=%s' % item]
-
-    if args.debug:
-        options += ['--port', '1234']
-
-    return options
-
-
-def configure_qemu(args):
-    options = ['-nographic',
-               '-nodefaults',
-               '-machine', 'malta',
-               '-cpu', '24Kf',
-               '-kernel', args.kernel,
-               '-append', ' '.join(args.args),
-               '-gdb', 'tcp::1234']
-
-    options += ['-serial', 'none',
-                '-serial', 'null',
-                '-serial', 'null']
-
-    if args.server:
-        options += ['-serial', 'tcp:127.0.0.1:%d,server,wait' % PORT]
-    else:
-        options += ['-serial', 'stdio']
-
-    if args.debug:
-        options += ['-S']
-
-    return options
-
-
-def find_simulator():
-    sim_choices = {}
-    sim_default = None
-
-    if shutil.which('qemu-system-mipsel'):
-        sim_choices['qemu'] = ['qemu-system-mipsel', configure_qemu]
-        sim_default = 'qemu'
-
-    try:
-        OVPSIM_VENDOR = 'mips.ovpworld.org'
-        OVPSIM_PLATFORM = 'MipsMalta/1.0'
-        IMPERAS_VLNV = os.environ['IMPERAS_VLNV']
-        IMPERAS_ARCH = os.environ['IMPERAS_ARCH']
-
-        ovpsim_path = os.path.join(
-            IMPERAS_VLNV, OVPSIM_VENDOR, 'platform', OVPSIM_PLATFORM,
-            'platform.%s.exe' % IMPERAS_ARCH)
-        sim_choices['ovpsim'] = [ovpsim_path, configure_ovpsim]
-        sim_default = 'ovpsim'
-    except KeyError:
-        pass
-
-    if not sim_default:
-        raise SystemExit('No simulator found!')
-
-    return sim_default, sim_choices
-
+import os.path
+from launcher import *
 
 if __name__ == '__main__':
-    triplet = find_triplet()
-    sim_default, sim_choices = find_simulator()
+    # Check if a cross-compiler is present
+    common.find_toolchain()
+
+    # Probe which tools are available.
+    simulators, sim_default = common.find_available(SIMULATORS)
+    outputs, out_default = common.find_available(OUTPUTS)
+    debuggers, dbg_default = common.find_available(DEBUGGERS)
+
+    if len(simulators) < 1:
+        raise SystemExit('No simulators found!')
 
     parser = argparse.ArgumentParser(
         description='Launch kernel in Malta board simulator.')
@@ -127,68 +24,66 @@ if __name__ == '__main__':
                         default='mimiker.elf')
     parser.add_argument('args', metavar='ARGS', type=str, nargs='*',
                         help='Kernel arguments.')
-    parser.add_argument('-d', '--debug', action='store_true',
-                        help='Start simulation under gdb.')
     parser.add_argument('-D', '--debugger', metavar='DEBUGGER', type=str,
-                        choices=DEBUGGERS.keys(),
-                        help=('Debugger to use. Implies -d. ' +
+                        choices=debuggers.keys(), default=dbg_default,
+                        help=('Selet the debugger to attach. ' +
                               'Available options: %s. Default: %s.' %
-                              (', '.join(DEBUGGERS.keys()), DEFAULT_DEBUGGER)))
+                              (', '.join(sorted(debuggers)), dbg_default)))
     parser.add_argument('-S', '--simulator', metavar='SIMULATOR', type=str,
-                        choices=sim_choices.keys(), default=sim_default,
+                        choices=simulators.keys(), default=sim_default,
                         help=('Simulator to use. ' +
                               'Available options: %s. Default: %s.' %
-                              (', '.join(sim_choices.keys()), sim_default)))
-    parser.add_argument('-t', '--test', action='store_true',
-                        help='Use current stdin & stdout for simulated UART.')
-    parser.add_argument('-s', '--server', action='store_true',
-                        help='Start a server for simulated UART (port: %d).' % PORT)
+                              (', '.join(sorted(simulators)), sim_default)))
+    parser.add_argument('-O', '--output', metavar='OUTPUT', type=str,
+                        choices=outputs, default=out_default,
+                        help=('Where to direct UART output and kernel messages. ' +
+                              'Available options: %s. Default: %s.' %
+                              (', '.join(sorted(outputs)), out_default)))
+
+    parser.add_argument('-t', action='store_true', help='Shorthand for --output stdio')
+    parser.add_argument('-s', action='store_true', help='Shorthand for --output server')
+    parser.add_argument('-d', action='store_true', help='Shorthand for --debugger cgdb.')
 
     args = parser.parse_args()
 
+    # Check if the kernel file is available
     if not os.path.isfile(args.kernel):
         raise SystemExit('%s: file does not exist!' % args.kernel)
 
-    if args.server and args.test:
-        raise SystemExit('Options --server and --test are exclusive!')
+    # Support convenient -s and -t options
+    if args.t and args.s:
+        raise SystemExit('Options -s and -t are exclusive')
+    elif args.t:
+        args.output = 'stdio'
+    elif args.s:
+        args.output = 'server'
 
-    if args.debug and not args.debugger:
-        args.debugger = DEFAULT_DEBUGGER
+    # Support -d option
+    if args.d:
+        args.debugger = 'cgdb'
 
-    if args.debugger:
-        args.debug = True
+    debug = args.debugger != 'none'
 
-    sim_cmd, sim_opts = sim_choices[args.simulator]
-    sim_cmd = [sim_cmd] + sim_opts(args)
+    if debug and args.output == 'stdio':
+        raise SystemExit('ERROR: Unable to start both debugger and simulator in stdio output mode.')
 
-    if args.debug:
-        dbg_cmd = shlex.split(DEBUGGERS[args.debugger] %
-                              {'kernel': args.kernel, 'triplet': triplet})
+    sim = simulators[args.simulator]
+    out = outputs[args.output]
+    dbg = debuggers[args.debugger]
 
-        sim = subprocess.Popen(sim_cmd, start_new_session=True)
-        gdb = subprocess.Popen(dbg_cmd, start_new_session=True)
-        while True:
-            try:
-                gdb.wait()
-                break
-            except KeyboardInterrupt:
-                pass
-        sim.terminate()
-        uart.terminate()
-    elif args.test and args.simulator == 'ovpsim':
-        # Redirect ovpsim output from dedicated console to stdout using nc.
-        sim = popen_spawn.PopenSpawn(sim_cmd)
-        sim.expect('Waiting for connection on port %d' % PORT, timeout=5)
-        nc = subprocess.Popen(['nc', 'localhost', str(PORT)])
-        while True:
-            try:
-                sim.wait()
-                break
-            except KeyboardInterrupt:
-                sim.kill(signal.SIGINT)
-    else:
-        sim = subprocess.Popen(sim_cmd)
-        try:
-            sim.wait()
-        except KeyboardInterrupt:
-            sim.send_signal(signal.SIGINT)
+    sim.configure(args.kernel, ' '.join(args.args), debug, UART_PORT)
+    out.configure(args.kernel, ' '.join(args.args), debug, UART_PORT)
+    dbg.configure(args.kernel, ' '.join(args.args), debug, UART_PORT)
+
+    sim.start()
+    out.start()
+    dbg.start()
+
+    # Wait until any of these program terminates. This way the user may end
+    # their session by either closing the simulator, the debugger, or even the
+    # xterm window.
+    common.wait_any([out, sim, dbg])
+
+    dbg.stop()
+    out.stop()
+    sim.stop()
