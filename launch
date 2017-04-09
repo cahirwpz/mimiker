@@ -40,9 +40,12 @@ if __name__ == '__main__':
                               'Available options: %s. Default: %s.' %
                               (', '.join(sorted(outputs)), out_default)))
 
-    parser.add_argument('-t', action='store_true', help='Shorthand for --output stdio')
-    parser.add_argument('-s', action='store_true', help='Shorthand for --output server')
-    parser.add_argument('-d', action='store_true', help='Shorthand for --debugger cgdb.')
+    parser.add_argument(
+        '-t', action='store_true', help='Shorthand for --output stdio')
+    parser.add_argument(
+        '-s', action='store_true', help='Shorthand for --output server')
+    parser.add_argument(
+        '-d', action='store_true', help='Shorthand for --debugger cgdb.')
 
     args = parser.parse_args()
 
@@ -65,7 +68,8 @@ if __name__ == '__main__':
     debug = args.debugger != 'none'
 
     if debug and args.output == 'stdio':
-        raise SystemExit('ERROR: Unable to start both debugger and simulator in stdio output mode.')
+        raise SystemExit(
+            'ERROR: Unable to start both debugger and simulator in stdio output mode.')
 
     sim = simulators[args.simulator]
     out = outputs[args.output]
