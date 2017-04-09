@@ -38,6 +38,7 @@ typedef TAILQ_HEAD(, cpio_node) cpio_list_t;
 static vm_addr_t rd_start;
 static size_t rd_size;
 static cpio_list_t initrd_head;
+static cpio_node_t *root_node;
 static vnodeops_t initrd_ops = {.v_lookup = vnode_op_notsup,
                                 .v_readdir = vnode_op_notsup,
                                 .v_open = vnode_op_notsup,
@@ -45,6 +46,12 @@ static vnodeops_t initrd_ops = {.v_lookup = vnode_op_notsup,
                                 .v_write = vnode_op_notsup};
 
 extern char *kenv_get(const char *key);
+
+static cpio_node_t *cpio_node_alloc() {
+  cpio_node_t *node = kmalloc(mp, sizeof(cpio_node_t), M_ZERO);
+  TAILQ_INIT(&node->c_children);
+  return node;
+}
 
 static void cpio_node_dump(cpio_node_t *cn) {
   log("entry '%s': {dev: %ld, ino: %lu, mode: %d, nlink: %d, "
@@ -111,8 +118,7 @@ static void read_cpio_archive() {
   char *tape = (char *)rd_start;
 
   while (true) {
-    cpio_node_t *node = kmalloc(mp, sizeof(cpio_node_t), M_ZERO);
-    TAILQ_INIT(&node->c_children);
+    cpio_node_t *node = cpio_node_alloc();
     if (!read_cpio_header(&tape, node) ||
         strcmp(node->c_path, CPIO_TRAILER) == 0) {
       kfree(mp, node);
@@ -159,6 +165,15 @@ static void initrd_build_tree_and_names() {
   TAILQ_FOREACH (it, &initrd_head, c_list) {
     it->c_name = basename(it->c_path);
   }
+
+  /* Construct a node that represent the root of filesystem. */
+  root_node = cpio_node_alloc();
+  root_node->c_path = "";
+  TAILQ_FOREACH (it, &initrd_head, c_list) {
+    if (is_direct_descendant(it->c_path, "")) {
+      TAILQ_INSERT_TAIL(&root_node->c_children, it, c_siblings);
+    }
+  }
 }
 
 static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
@@ -191,19 +206,8 @@ static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
 }
 
 static int initrd_mount(mount_t *m) {
-  cpio_node_t *cn = kmalloc(mp, sizeof(cpio_node_t), M_ZERO);
-  TAILQ_INIT(&cn->c_children);
-  cn->c_path = "";
-
-  cpio_node_t *it;
-  TAILQ_FOREACH (it, &initrd_head, c_list) {
-    if (is_direct_descendant(it->c_path, "")) {
-      TAILQ_INSERT_TAIL(&cn->c_children, it, c_siblings);
-    }
-  }
-
   vnode_t *root = vnode_new(V_DIR, &initrd_ops);
-  root->v_data = cn;
+  root->v_data = (void *)root_node;
   root->v_mount = m;
   m->mnt_data = root;
   return 0;
@@ -222,18 +226,7 @@ static int initrd_init(vfsconf_t *vfc) {
 
 intptr_t parse_rd_start(const char *s) {
   int s_len = strlen(s);
-  if (s_len == 10) /* OVPSim version*/
-    return strtoul(s, NULL, 0);
-  if (s_len > 10) /* Qemu version */
-  {
-    char buf[20];
-    int padding_len = strlen("0xffffffff") - 2;
-    memcpy(buf, s, s_len + 1);
-    buf[padding_len] = '0';
-    buf[padding_len + 1] = 'x';
-    return strtoul(buf + padding_len, NULL, 0);
-  }
-  return 0;
+  return strtoul(s + s_len - 8, NULL, 16)
 }
 
 void ramdisk_init() {
