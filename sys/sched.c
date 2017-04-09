@@ -81,10 +81,21 @@ void sched_switch(thread_t *newtd) {
     newtd = sched_choose();
 
   newtd->td_state = TDS_RUNNING;
-  critical_leave();
 
-  if (td != newtd)
-    ctx_switch(td, newtd);
+  if (td == newtd) {
+    critical_leave();
+    return;
+  }
+
+  td->td_nctxsw++;
+  newtd->td_nctxsw++;
+  realtime_t now = clock_get();
+  td->td_runtime += now - td->td_last_ctxsw;
+  newtd->td_slptime += now - newtd->td_last_ctxsw;
+  td->td_last_ctxsw = now;
+  newtd->td_last_ctxsw = now;
+  critical_leave();
+  ctx_switch(td, newtd);
 }
 
 noreturn void sched_run() {

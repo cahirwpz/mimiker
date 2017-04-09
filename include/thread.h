@@ -8,6 +8,7 @@
 #include <sleepq.h>
 #include <mutex.h>
 #include <condvar.h>
+#include <clock.h>
 
 typedef uint8_t td_prio_t;
 typedef uint32_t tid_t;
@@ -54,6 +55,10 @@ typedef struct thread {
   /* scheduler part */
   td_prio_t td_prio;
   int td_slice;
+  uint32_t td_runtime;      /* ticks spent running */
+  uint32_t td_slptime;      /* ticks spent sleeping */
+  uint64_t td_nctxsw;       /* total number of context switches */
+  realtime_t td_last_ctxsw; /* last context switch time */
 } thread_t;
 
 void thread_init();
