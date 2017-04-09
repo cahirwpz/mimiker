@@ -7,15 +7,18 @@ import signal
 import subprocess
 import shlex
 import shutil
+import time
 from pexpect import popen_spawn
 
 PORT = 8000
+
+XTERM = ['x-terminal-emulator', '-geometry', '120x40']
 
 DEBUGGERS = {
     'gdb': '%(triplet)s-gdb %(kernel)s',
     'cgdb': 'cgdb -d %(triplet)s-gdb %(kernel)s',
     'ddd': 'ddd --debugger %(triplet)s-gdb %(kernel)s',
-    'gdbtui': '%(triplet)s-gdb -tui',
+    'gdbtui': '%(triplet)s-gdb -tui %(kernel)s',
     'emacs': 'emacsclient -c -e \'(gdb "%(triplet)s-gdb -i=mi %(kernel)s")\''
 }
 DEFAULT_DEBUGGER = 'cgdb'
@@ -37,7 +40,7 @@ def configure_ovpsim(args):
         'rtc/timefromhost': 1,
         'uartCBUS/console': 1,
         'uartCBUS/portnum': PORT,
-        'command' : '"' + ' '.join(args.args) + '"'
+        'command': '"' + ' '.join(args.args) + '"'
     }
 
     try:
@@ -52,7 +55,7 @@ def configure_ovpsim(args):
                '--wallclock',
                '--kernel', args.kernel]
 
-    if args.test or args.server:
+    if args.test or args.debug:
         OVPSIM_OVERRIDES['uartCBUS/console'] = 0
 
     for item in OVPSIM_OVERRIDES.items():
@@ -77,7 +80,7 @@ def configure_qemu(args):
                 '-serial', 'null',
                 '-serial', 'null']
 
-    if args.server:
+    if args.debug:
         options += ['-serial', 'tcp:127.0.0.1:%d,server,wait' % PORT]
     else:
         options += ['-serial', 'stdio']
@@ -130,7 +133,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--debug', action='store_true',
                         help='Start simulation under gdb.')
     parser.add_argument('-D', '--debugger', metavar='DEBUGGER', type=str,
-                        choices=DEBUGGERS.keys(), default=DEFAULT_DEBUGGER,
+                        choices=DEBUGGERS.keys(),
                         help=('Debugger to use. Implies -d. ' +
                               'Available options: %s. Default: %s.' %
                               (', '.join(DEBUGGERS.keys()), DEFAULT_DEBUGGER)))
@@ -141,18 +144,16 @@ if __name__ == '__main__':
                               (', '.join(sim_choices.keys()), sim_default)))
     parser.add_argument('-t', '--test', action='store_true',
                         help='Use current stdin & stdout for simulated UART.')
-    parser.add_argument('-s', '--server', action='store_true',
-                        help='Start a server for simulated UART (port: %d).' % PORT)
 
     args = parser.parse_args()
 
     if not os.path.isfile(args.kernel):
         raise SystemExit('%s: file does not exist!' % args.kernel)
 
-    if args.server and args.test:
-        raise SystemExit('Options --server and --test are exclusive!')
+    if args.debug and not args.debugger:
+        args.debugger = DEFAULT_DEBUGGER
 
-    if args.debugger != DEFAULT_DEBUGGER:
+    if args.debugger:
         args.debug = True
 
     sim_cmd, sim_opts = sim_choices[args.simulator]
@@ -162,15 +163,25 @@ if __name__ == '__main__':
         dbg_cmd = shlex.split(DEBUGGERS[args.debugger] %
                               {'kernel': args.kernel, 'triplet': triplet})
 
+        # start_new_session creates new process group in fresh session,
+        # so when the terminal emulator sends a signal on CTRL+C,
+        # SIGINT will not propagate it to *sim* and *uart* processes
         sim = subprocess.Popen(sim_cmd, start_new_session=True)
-        gdb = subprocess.Popen(dbg_cmd, start_new_session=True)
+        # FIXME Because popen_spawn.PopenSpawn cannot accept start_new_session,
+        # we need to resort to sleep synchronization :(
+        time.sleep(1)
+        uart = subprocess.Popen(XTERM + ['-title', 'UART2',
+                                '-e', 'nc', 'localhost', str(PORT)],
+                                start_new_session=True)
+        gdb = subprocess.Popen(dbg_cmd)
         while True:
             try:
                 gdb.wait()
-                sim.send_signal(signal.SIGINT)
                 break
             except KeyboardInterrupt:
-                gdb.send_signal(signal.SIGINT)
+                pass
+        sim.terminate()
+        uart.terminate()
     elif args.test and args.simulator == 'ovpsim':
         # Redirect ovpsim output from dedicated console to stdout using nc.
         sim = popen_spawn.PopenSpawn(sim_cmd)
