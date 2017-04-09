@@ -4,9 +4,6 @@ import argparse
 import pexpect
 import sys
 import random
-import signal
-import time
-import os
 
 N_SIMPLE = 5
 N_THOROUGH = 100
