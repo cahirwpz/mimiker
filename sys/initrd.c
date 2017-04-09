@@ -14,10 +14,8 @@
 /* ramdisk related data that will be stored in v_data field of vnode */
 typedef struct cpio_node {
   TAILQ_ENTRY(cpio_node) c_list; /* link to global list of all ramdisk nodes */
-
-  TAILQ_HEAD(, cpio_node)
-  c_children; /* head of list that stores direct descendants */
-  TAILQ_ENTRY(cpio_node) c_siblings; /* nodes that have the same parent */
+  TAILQ_HEAD(, cpio_node) c_children; /* head of list of direct descendants */
+  TAILQ_ENTRY(cpio_node) c_siblings;  /* nodes that have the same parent */
 
   dev_t c_dev;
   ino_t c_ino;
@@ -29,7 +27,7 @@ typedef struct cpio_node {
   off_t c_size;
   time_t c_mtime;
 
-  const char *c_path; /* contains exact path to file as archived from cpio */
+  const char *c_path; /* contains exact path to file as archived by cpio */
   const char *c_name; /* contains name of file */
   void *c_data;
 } cpio_node_t;
@@ -40,7 +38,11 @@ typedef TAILQ_HEAD(, cpio_node) cpio_list_t;
 static vm_addr_t rd_start;
 static size_t rd_size;
 static cpio_list_t initrd_head;
-static vnodeops_t initrd_ops;
+static vnodeops_t initrd_ops = {.v_lookup = vnode_op_notsup,
+                                .v_readdir = vnode_op_notsup,
+                                .v_open = vnode_op_notsup,
+                                .v_read = vnode_op_notsup,
+                                .v_write = vnode_op_notsup};
 
 extern char *kenv_get(const char *key);
 
@@ -120,64 +122,28 @@ static void read_cpio_archive() {
   }
 }
 
-/* If B is prefix of A, returns the remaining suffix of A,
- * otherwise returns NULL */
-static const char *split_by_prefix(const char *A, const char *B) {
-  if (!A || !B)
-    return NULL;
-  const char *ai = A, *bi = B;
-  while (*ai && *ai == *bi) {
-    ai++;
-    bi++;
+/* Check if `p1` is a path to file/directory which can be contained directly
+ * inside `p2` directory. */
+static bool is_direct_descendant(const char *p1, const char *p2) {
+  while (*p1 && *p1 == *p2) {
+    p1++, p2++;
   }
-  if (*bi == '\0')
-    return ai;
-  return NULL;
-}
 
-/* Check whether A is valid filename (does not contain '/') */
-static bool is_name(const char *A) {
-  if (!A)
+  if (*p2)
     return false;
-  for (const char *ai = A; *ai; ai++)
-    if (*ai == '/')
-      return false;
-  return true;
+
+  /* Check whether p is valid filename (does not contain '/') */
+  p1++; /* skip trailing '/' */
+  return (strchr(p1, '/') == NULL);
 }
 
-/* Check if string A is direct descendant of B. Specifically
- * if A is a path to file/directory which can be contained directly inside B */
-static bool is_direct_descendant(const char *A, const char *B) {
-  const char *A_suff = split_by_prefix(A, B);
-  if (A_suff)
-    return is_name(A_suff + 1);
-  return false;
+/* Extract last component of the path. */
+static const char *basename(const char *path) {
+  char *name = strrchr(path, '/');
+  return name ? name + 1 : path;
 }
 
-/* Set c_name field in cpio_node so it is absolute name of the file.
- * Name of file is already contained within c_path field. This function sets up
- * the name string to be shared with path. */
-static void initrd_construct_c_name(cpio_node_t *cn) {
-  int c_path_len = strlen(cn->c_path);
-  const char *it = cn->c_path + c_path_len;
-  while (it != cn->c_path) {
-    if (*it == '/') {
-      it++; /* Shift one forward so / isn't part of name */
-      break;
-    }
-    it--;
-  }
-  cn->c_name = it;
-
-  /* Simplified version using strrchr */
-  // it = strrchr(cn->c_path, '/');
-  // if(it)
-  //    cn->c_name = it+1;
-  // else
-  //    cn->c_name = cn->c_path;
-}
-
-void initrd_build_tree_and_names() {
+static void initrd_build_tree_and_names() {
   cpio_node_t *it_i, *it_j;
 
   TAILQ_FOREACH (it_i, &initrd_head, c_list) {
@@ -190,7 +156,9 @@ void initrd_build_tree_and_names() {
   }
 
   cpio_node_t *it;
-  TAILQ_FOREACH (it, &initrd_head, c_list) { initrd_construct_c_name(it); }
+  TAILQ_FOREACH (it, &initrd_head, c_list) {
+    it->c_name = basename(it->c_path);
+  }
 }
 
 static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
@@ -277,12 +245,6 @@ void ramdisk_init() {
   TAILQ_INIT(&initrd_head);
   kmalloc_init(mp);
   kmalloc_add_pages(mp, 2);
-
-  initrd_ops.v_lookup = vnode_op_notsup;
-  initrd_ops.v_readdir = vnode_op_notsup;
-  initrd_ops.v_open = vnode_op_notsup;
-  initrd_ops.v_read = vnode_op_notsup;
-  initrd_ops.v_write = vnode_op_notsup;
 
   if (rd_size > 0) {
     initrd_ops.v_lookup = initrd_vnode_lookup;
