@@ -241,7 +241,7 @@ void vm_map_dump(vm_map_t *map) {
 }
 
 /* This entire function is a nasty hack, but we'll live with it until proper COW
-   is implemented. Since*/
+   is implemented. */
 vm_map_t *vm_map_clone(vm_map_t *map) {
   vm_map_t *orig_current_map = get_user_vm_map();
   vm_map_t *newmap = vm_map_new();

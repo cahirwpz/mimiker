@@ -15,12 +15,12 @@ int do_fork() {
   thread_t *newtd = thread_create(td->td_name, NULL, NULL);
 
   /* Clone the thread. Since we don't use fork-oriented thread_t layout, we copy
-     all fields one-by one for clarity. The new thread is already on the
-     all_thread list, has name and tid set. */
+     all necessary fields one-by one for clarity. The new thread is already on
+     the all_thread list, has name and tid set. Many fields don't require setup
+     as they will be prepared by sched_add. */
 
-  newtd->td_state = td->td_state;
-  newtd->td_flags = td->td_flags;
-  newtd->td_csnest = td->td_csnest;
+  assert(td->td_csnest == 0);
+  newtd->td_csnest = 0;
 
   /* Copy user context.. */
   newtd->td_uctx = td->td_uctx;
