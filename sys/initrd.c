@@ -226,7 +226,7 @@ static int initrd_init(vfsconf_t *vfc) {
 
 intptr_t parse_rd_start(const char *s) {
   int s_len = strlen(s);
-  return strtoul(s + s_len - 8, NULL, 16)
+  return strtoul(s + s_len - 8, NULL, 16);
 }
 
 void ramdisk_init() {

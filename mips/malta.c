@@ -142,8 +142,7 @@ static void pm_bootstrap(unsigned memsize) {
   assert(rd_start == 0 || (intptr_t)__kernel_end <= rd_start);
 
   intptr_t real_kernel_end =
-    (rd_start == 0 ? (intptr_t)(__kernel_end) : (intptr_t)(rd_start + rd_size));
-  ;
+    (rd_start == 0) ? (intptr_t)(__kernel_end) : (intptr_t)(rd_start + rd_size);
 
   pm_seg_t *seg = (pm_seg_t *)real_kernel_end;
   size_t seg_size = align(pm_seg_space_needed(memsize), PAGESIZE);
