@@ -49,6 +49,8 @@ class Launchable:
             self.process.send_signal(signal.SIGINT)
 
 
+# The items on these lists should be ordered from the most desirable. The first
+# available item will become the default option.
 def find_available(l):
     result, default = {}, None
     for item in reversed(l):
@@ -62,7 +64,6 @@ def wait_any(launchables):
     for l in itertools.cycle(launchables):
         try:
             if l.wait(0.2):
-                print(l.name + ' terminated')
                 return
         except subprocess.TimeoutExpired:
             continue

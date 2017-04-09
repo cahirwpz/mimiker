@@ -45,3 +45,8 @@ class StdIOOutput(Launchable):
         # reconnecting until success.
         self.cmd = 'socat'
         self.options = ['STDIO', 'tcp:localhost:%d,retry,forever' % uart_port]
+
+
+OUTPUTS = [XTermOutput(),
+           StdIOOutput(),
+           ServerOutput()]

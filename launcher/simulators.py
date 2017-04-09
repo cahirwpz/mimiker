@@ -73,3 +73,8 @@ class QEMU(Launchable):
                         '-serial', 'tcp:127.0.0.1:%d,server,wait' % uart_port]
         if debug:
             self.options += ['-S']
+
+            
+SIMULATORS = [OVPsim(),
+              QEMU()]
+            

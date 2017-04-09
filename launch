@@ -20,25 +20,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Launch kernel in Malta board simulator.')
     parser.add_argument('-k', '--kernel', metavar='KERNEL', type=str,
-                        help='Kernel image file in ELF format.',
-                        default='mimiker.elf')
-    parser.add_argument('args', metavar='ARGS', type=str, nargs='*',
-                        help='Kernel arguments.')
-    parser.add_argument('-D', '--debugger', metavar='DEBUGGER', type=str,
-                        choices=debuggers.keys(), default=dbg_default,
-                        help=('Selet the debugger to attach. ' +
-                              'Available options: %s. Default: %s.' %
-                              (', '.join(sorted(debuggers)), dbg_default)))
-    parser.add_argument('-S', '--simulator', metavar='SIMULATOR', type=str,
-                        choices=simulators.keys(), default=sim_default,
-                        help=('Simulator to use. ' +
-                              'Available options: %s. Default: %s.' %
-                              (', '.join(sorted(simulators)), sim_default)))
-    parser.add_argument('-O', '--output', metavar='OUTPUT', type=str,
-                        choices=outputs, default=out_default,
-                        help=('Where to direct UART output and kernel messages. ' +
-                              'Available options: %s. Default: %s.' %
-                              (', '.join(sorted(outputs)), out_default)))
+                        help='Kernel image file in ELF format.', default='mimiker.elf')
+    parser.add_argument('args', metavar='ARGS',
+                        type=str, nargs='*', help='Kernel arguments.')
+    parser.add_argument('-D', '--debugger', metavar='DEBUGGER', type=str, choices=debuggers.keys(), default=dbg_default, help=(
+        'Selet the debugger to attach. ' + 'Available options: %s. Default: %s.' % (', '.join(sorted(debuggers)), dbg_default)))
+    parser.add_argument(
+        '-S', '--simulator', metavar='SIMULATOR', type=str, choices=simulators.keys(), default=sim_default,
+                        help=('Simulator to use. ' + 'Available options: %s. Default: %s.' % (', '.join(sorted(simulators)), sim_default)))
+    parser.add_argument('-O', '--output', metavar='OUTPUT', type=str, choices=outputs, default=out_default, help=(
+        'Where to direct UART output and kernel messages. ' + 'Available options: %s. Default: %s.' % (', '.join(sorted(outputs)), out_default)))
 
     parser.add_argument(
         '-t', action='store_true', help='Shorthand for --output stdio')
@@ -98,6 +89,7 @@ if __name__ == '__main__':
                 # Quit.
                 break
 
+    # Stop the programs in reverse order, so they won't get confused.
     dbg.stop()
     out.stop()
     sim.stop()

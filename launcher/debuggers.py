@@ -37,3 +37,14 @@ class NoDebugger(Launchable):
 
     def configure(self, kernel, args="", debug=False, uart_port=8000):
         return
+
+
+    
+DEBUGGERS = [NoDebugger(),
+             GDBWrapper('cgdb', 'cgdb', 'cgdb -d %(triplet)s-gdb %(kernel)s'),
+             GDBWrapper(
+                 'ddd', 'ddd', 'ddd --debugger %(triplet)s-gdb %(kernel)s'),
+             GDBWrapper(
+                 'emacs', 'emacs', 'emacsclient -c -e \'(gdb "%(triplet)s-gdb -i=mi %(kernel)s")\''),
+             GDBWrapper('gdbtui', 'gdbtui', '%(triplet)s-gdb -tui %(kernel)s'),
+             GDBWrapper('gdb', '', '%(triplet)s-gdb %(kernel)s'), ]
