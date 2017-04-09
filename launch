@@ -6,7 +6,7 @@ import os
 import os.path
 import signal
 from launcher import *
-        
+
 if __name__ == '__main__':
     # Check if a cross-compiler is present
     common.find_toolchain()
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     # generates SIGTTOU which normally kills the process, so we need to ignore
     # this signal.
     signal.signal(signal.SIGTTOU, signal.SIG_IGN)
-    
+
     sim.start()
     out.start()
     dbg.start()

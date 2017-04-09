@@ -74,7 +74,6 @@ class QEMU(Launchable):
         if debug:
             self.options += ['-S']
 
-            
+
 SIMULATORS = [OVPsim(),
               QEMU()]
-            

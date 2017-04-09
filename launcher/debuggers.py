@@ -39,12 +39,12 @@ class NoDebugger(Launchable):
         return
 
 
-    
-DEBUGGERS =[
+DEBUGGERS = [
     NoDebugger(),
     GDBWrapper('cgdb', 'cgdb', 'cgdb -d %(triplet)s-gdb %(kernel)s', True),
     GDBWrapper('ddd', 'ddd', 'ddd --debugger %(triplet)s-gdb %(kernel)s'),
-    GDBWrapper('emacs', 'emacs', 'emacsclient -c -e \'(gdb "%(triplet)s-gdb -i=mi %(kernel)s")\''),
+    GDBWrapper('emacs', 'emacs',
+               'emacsclient -c -e \'(gdb "%(triplet)s-gdb -i=mi %(kernel)s")\''),
     GDBWrapper('gdbtui', 'gdbtui', '%(triplet)s-gdb -tui %(kernel)s', True),
     GDBWrapper('gdb', '', '%(triplet)s-gdb %(kernel)s', True),
 ]

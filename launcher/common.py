@@ -19,6 +19,7 @@ def set_as_tty_foreground():
     # Become terminal foreground
     os.tcsetpgrp(tty, os.getpgrp())
 
+
 class Launchable:
 
     def __init__(self, name, needs_foreground=False):
@@ -26,7 +27,7 @@ class Launchable:
         self.process = None
         self.cmd = None
         self.needs_foreground = needs_foreground
-        
+
     def probe(self):
         raise NotImplementedError('This launchable is not probable')
 
@@ -38,7 +39,7 @@ class Launchable:
             return
         self.process = subprocess.Popen([self.cmd] + self.options,
                                         start_new_session=False,
-                                        preexec_fn = (set_as_tty_foreground if self.needs_foreground else None))
+                                        preexec_fn=(set_as_tty_foreground if self.needs_foreground else None))
 
     # Returns true iff the process terminated
     def wait(self, timeout=None):
