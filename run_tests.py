@@ -54,7 +54,7 @@ def test_seed(seed, sim='qemu', repeat=1, retry=0):
         ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT],
         timeout=TIMEOUT)
     if index == 0:
-        child.terminate()
+        child.terminate(True)
         return
     elif index == 1:
         print("Test failure reported!\n")
@@ -79,8 +79,7 @@ def test_seed(seed, sim='qemu', repeat=1, retry=0):
         if len(message) < 100:
             print("It looks like kernel did not even start within the time "
                   "limit. Retrying (%d)..." % (retry + 1))
-            os.kill(child.pid, 15)
-            time.wait(1)
+            child.terminate(True)
             test_seed(seed, repeat, retry + 1)
         else:
             gdb_inspect()
