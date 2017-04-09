@@ -52,13 +52,10 @@ class Launchable:
         if self.process is None:
             return
         # Give a chance to exit gracefuly.
-        print("TERMING " + self.name)
         self.process.send_signal(signal.SIGTERM)
-        self.process.send_signal(signal.SIGQUIT)
         try:
             self.process.wait(0.2)
         except subprocess.TimeoutExpired:
-            print("KILLING " + self.name)
             self.process.send_signal(signal.SIGKILL)
         self.process = None
 
@@ -82,7 +79,7 @@ def wait_any(launchables):
     for l in itertools.cycle(launchables):
         try:
             if l.wait(0.2):
-                print(l.name + ' terminated')
+                # print(l.name + ' terminated')
                 return
         except subprocess.TimeoutExpired:
             continue
