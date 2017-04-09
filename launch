@@ -2,9 +2,11 @@
 
 import argparse
 import shutil
+import os
 import os.path
+import signal
 from launcher import *
-
+        
 if __name__ == '__main__':
     # Check if a cross-compiler is present
     common.find_toolchain()
@@ -70,26 +72,24 @@ if __name__ == '__main__':
     out.configure(args.kernel, ' '.join(args.args), debug, UART_PORT)
     dbg.configure(args.kernel, ' '.join(args.args), debug, UART_PORT)
 
+    # When the debugger exits, we'll regain the terminal foreground. This
+    # generates SIGTTOU which normally kills the process, so we need to ignore
+    # this signal.
+    signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+    
     sim.start()
     out.start()
     dbg.start()
 
-    while True:
-        try:
-            # Wait until any of these program terminates. This way the user may end
-            # their session by either closing the simulator, the debugger, or even the
-            # xterm window.
-            common.wait_any([out, sim, dbg])
-            break
-        except KeyboardInterrupt:
-            if debug:
-                # Pass the interrupt only to debugger
-                dbg.interrupt()
-            else:
-                # Quit.
-                break
+    # Wait until any of these program terminates. This way the user may end
+    # their session by either closing the simulator, the debugger, or even the
+    # xterm window.
+    try:
+        common.wait_any([out, sim, dbg])
+    except KeyboardInterrupt:
+        pass
 
-    # Stop the programs in reverse order, so they won't get confused.
+    # Stop the programs in reverse order, less chance they'll be confused
     dbg.stop()
     out.stop()
     sim.stop()

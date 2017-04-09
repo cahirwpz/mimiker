@@ -5,8 +5,8 @@ from .common import *
 
 class GDBWrapper(Launchable):
 
-    def __init__(self, name, probe_command, cmdstring):
-        Launchable.__init__(self, name)
+    def __init__(self, name, probe_command, cmdstring, needs_foreground=False):
+        Launchable.__init__(self, name, needs_foreground)
         self.probe_command = probe_command
         self.cmdstring = cmdstring
 
@@ -40,11 +40,11 @@ class NoDebugger(Launchable):
 
 
     
-DEBUGGERS = [NoDebugger(),
-             GDBWrapper('cgdb', 'cgdb', 'cgdb -d %(triplet)s-gdb %(kernel)s'),
-             GDBWrapper(
-                 'ddd', 'ddd', 'ddd --debugger %(triplet)s-gdb %(kernel)s'),
-             GDBWrapper(
-                 'emacs', 'emacs', 'emacsclient -c -e \'(gdb "%(triplet)s-gdb -i=mi %(kernel)s")\''),
-             GDBWrapper('gdbtui', 'gdbtui', '%(triplet)s-gdb -tui %(kernel)s'),
-             GDBWrapper('gdb', '', '%(triplet)s-gdb %(kernel)s'), ]
+DEBUGGERS =[
+    NoDebugger(),
+    GDBWrapper('cgdb', 'cgdb', 'cgdb -d %(triplet)s-gdb %(kernel)s', True),
+    GDBWrapper('ddd', 'ddd', 'ddd --debugger %(triplet)s-gdb %(kernel)s'),
+    GDBWrapper('emacs', 'emacs', 'emacsclient -c -e \'(gdb "%(triplet)s-gdb -i=mi %(kernel)s")\''),
+    GDBWrapper('gdbtui', 'gdbtui', '%(triplet)s-gdb -tui %(kernel)s', True),
+    GDBWrapper('gdb', '', '%(triplet)s-gdb %(kernel)s', True),
+]
