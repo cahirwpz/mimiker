@@ -12,6 +12,7 @@ SOURCES_C  = \
 	exec.c \
 	file.c \
 	filedesc.c \
+	fork.c \
 	initrd.c \
 	interrupt.c \
 	ktest.c \
