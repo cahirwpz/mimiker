@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <sync.h>
 #include <filedesc.h>
+#include <sbrk.h>
 #include <vfs_syscalls.h>
 #include <mips/stack.h>
 
@@ -19,6 +20,7 @@
 EMBED_ELF_DECLARE(prog);
 EMBED_ELF_DECLARE(misbehave);
 EMBED_ELF_DECLARE(fd_test);
+EMBED_ELF_DECLARE(test_fork);
 
 int get_elf_image(const exec_args_t *args, uint8_t **out_image,
                   size_t *out_size) {
@@ -33,6 +35,7 @@ int get_elf_image(const exec_args_t *args, uint8_t **out_image,
   EMBED_ELF_BY_NAME(prog);
   EMBED_ELF_BY_NAME(misbehave);
   EMBED_ELF_BY_NAME(fd_test);
+  EMBED_ELF_BY_NAME(test_fork);
   return -ENOENT;
 }
 
@@ -204,6 +207,9 @@ int do_exec(const exec_args_t *args) {
   do_open(td, "/dev/uart", O_RDONLY, 0, &ignore);
   do_open(td, "/dev/uart", O_WRONLY, 0, &ignore);
   do_open(td, "/dev/uart", O_WRONLY, 0, &ignore);
+
+  /* ... sbrk segment ... */
+  sbrk_create(vmap);
 
   /* ... and user context. */
   uctx_init(thread_self(), eh->e_entry, stack_bottom);

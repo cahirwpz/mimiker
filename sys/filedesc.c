@@ -86,23 +86,22 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
   if (fdt == NULL)
     return newfdt;
 
-  mtx_lock(&fdt->fdt_mtx);
+  mtx_scoped_lock(&fdt->fdt_mtx);
 
   /* We can assume both filedescs use 20 descriptors,
    * because we don't support other numbers. */
   assert(fdt->fdt_nfiles == newfdt->fdt_nfiles);
 
   for (int i = 0; i < fdt->fdt_nfiles; i++) {
-    file_t *f = fdt->fdt_files[i];
-    /* TODO: Deep or shallow copy? */
-    newfdt->fdt_files[i] = f;
-    if (f)
+    if (fd_is_used(fdt, i)) {
+      file_t *f = fdt->fdt_files[i];
+      newfdt->fdt_files[i] = f;
       file_ref(f);
+    }
   }
   memcpy(newfdt->fdt_map, fdt->fdt_map, sizeof(bitstr_t) * bitstr_size(NDFILE));
 
-  mtx_unlock(&fdt->fdt_mtx);
-
+  fdtab_ref(newfdt);
   return newfdt;
 }
 
@@ -130,16 +129,13 @@ int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fd) {
   assert(f != NULL);
   assert(fd != NULL);
 
-  mtx_lock(&fdt->fdt_mtx);
+  mtx_scoped_lock(&fdt->fdt_mtx);
   int res = fd_alloc(fdt, fd);
-  if (res < 0) {
-    mtx_unlock(&fdt->fdt_mtx);
+  if (res < 0)
     return res;
-  }
 
   fdt->fdt_files[*fd] = f;
   file_ref(f);
-  mtx_unlock(&fdt->fdt_mtx);
   return 0;
 }
 
@@ -176,14 +172,11 @@ fail:
 /* Closes a file descriptor. If it was the last reference to a file, the file is
  * also closed. */
 int fdtab_close_fd(fdtab_t *fdt, int fd) {
-  mtx_lock(&fdt->fdt_mtx);
+  mtx_scoped_lock(&fdt->fdt_mtx);
 
-  if (fd < 0 || fd > fdt->fdt_nfiles || !fd_is_used(fdt, fd)) {
-    mtx_unlock(&fdt->fdt_mtx);
+  if (fd < 0 || fd > fdt->fdt_nfiles || !fd_is_used(fdt, fd))
     return -EBADF;
-  }
 
   fd_free(fdt, fd);
-  mtx_unlock(&fdt->fdt_mtx);
   return 0;
 }

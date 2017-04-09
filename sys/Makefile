@@ -12,16 +12,19 @@ SOURCES_C  = \
 	exec.c \
 	file.c \
 	filedesc.c \
+	fork.c \
 	interrupt.c \
 	ktest.c \
 	main.c \
 	malloc.c \
 	mutex.c \
+	mmap.c \
 	pci_ids.c \
 	pcpu.c \
 	physmem.c \
 	runq.c \
 	rwlock.c \
+	sbrk.c \
 	sched.c \
 	sleepq.c \
 	startup.c \

@@ -4,20 +4,16 @@
 #include <thread.h>
 #include <vm_map.h>
 #include <vm_pager.h>
+#include <mmap.h>
 #include <vfs_syscalls.h>
+#include <fork.h>
+#include <sbrk.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   kprintf("[syscall] unimplemented system call %ld\n", args->code);
   return -ENOSYS;
 };
 
-/* This is just a stub. A full implementation of this syscall will probably
-   deserve a separate file. */
-/* Note that this sbrk implementation does not actually extend .data section,
-   because we have no guarantee that there is any free space after .data in the
-   memory map. But it does not matter much, because no application would assume
-   that we are actually expanding .data, it will use the pointer returned by
-   sbrk. */
 int sys_sbrk(thread_t *td, syscall_args_t *args) {
   intptr_t increment = (size_t)args->args[0];
 
@@ -32,38 +28,7 @@ int sys_sbrk(thread_t *td, syscall_args_t *args) {
 
   assert(td->td_uspace);
 
-  if (!td->td_uspace->sbrk_entry) {
-    /* sbrk was not used before by this thread. */
-    size_t size = roundup(increment, PAGESIZE);
-    vm_addr_t addr;
-    if (vm_map_findspace(td->td_uspace, BRK_SEARCH_START, size, &addr) != 0)
-      return -ENOMEM;
-    vm_map_entry_t *entry = vm_map_add_entry(td->td_uspace, addr, addr + size,
-                                             VM_PROT_READ | VM_PROT_WRITE);
-    entry->object = default_pager->pgr_alloc();
-
-    td->td_uspace->sbrk_entry = entry;
-    td->td_uspace->sbrk_end = addr + increment;
-
-    return addr;
-  } else {
-    /* There already is a brk segment in user space map. */
-    vm_map_entry_t *brk_entry = td->td_uspace->sbrk_entry;
-    vm_addr_t brk = td->td_uspace->sbrk_end;
-    if (brk + increment == brk_entry->end) {
-      /* No need to resize the segment. */
-      td->td_uspace->sbrk_end = brk + increment;
-      return brk;
-    }
-    /* Shrink or expand the vm_map_entry */
-    vm_addr_t new_end = roundup(brk + increment, PAGESIZE);
-    if (vm_map_resize(td->td_uspace, brk_entry, new_end) != 0) {
-      /* Map entry expansion failed. */
-      return -ENOMEM;
-    }
-    td->td_uspace->sbrk_end += increment;
-    return brk;
-  }
+  return sbrk_resize(td->td_uspace, increment);
 }
 
 /* This is just a stub. A full implementation of this syscall will probably
@@ -73,12 +38,20 @@ int sys_exit(thread_t *td, syscall_args_t *args) {
 
   kprintf("[syscall] exit(%d)\n", status);
 
-  thread_exit();
+  thread_exit(status);
   __builtin_unreachable();
 }
 
+int sys_fork(thread_t *td, syscall_args_t *args) {
+  kprintf("[syscall] fork()\n");
+  return do_fork();
+}
+
 /* clang-format hates long arrays. */
-sysent_t sysent[] = {
-  {sys_nosys}, {sys_exit},  {sys_open},  {sys_close}, {sys_read},  {sys_write},
-  {sys_lseek}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_fstat}, {sys_sbrk},
-};
+sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},    [SYS_OPEN] = {sys_open},
+                     [SYS_CLOSE] = {sys_close},  [SYS_READ] = {sys_read},
+                     [SYS_WRITE] = {sys_write},  [SYS_LSEEK] = {sys_lseek},
+                     [SYS_UNLINK] = {sys_nosys}, [SYS_GETPID] = {sys_nosys},
+                     [SYS_KILL] = {sys_nosys},   [SYS_FSTAT] = {sys_fstat},
+                     [SYS_SBRK] = {sys_sbrk},    [SYS_MMAP] = {sys_mmap},
+                     [SYS_FORK] = {sys_fork}};
