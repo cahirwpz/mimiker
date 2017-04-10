@@ -67,11 +67,13 @@ static void malloc_one_block_at_a_time(void *arg) {
 #define MAX_BLOCK_SIZE 128
 static void malloc_many_blocks_at_a_time(void *arg) {
   void *ptrs[BLOCKS_AT_A_TIME];
-  memset(ptrs, 0, sizeof(ptrs));
-  for (int i = 0; i < ALLOCATIONS_PER_THREAD; i++) {
+  for (int i = 0; i < BLOCKS_AT_A_TIME; i++) {
+    ptrs[i] = kmalloc(arg, 1, 0);
+    assert(ptrs[i] != NULL);
+  }
+  for (int i = BLOCKS_AT_A_TIME; i < ALLOCATIONS_PER_THREAD; i++) {
     int idx = i % BLOCKS_AT_A_TIME;
-    if (ptrs[idx] != NULL)
-      kfree(arg, ptrs[idx]);
+    kfree(arg, ptrs[idx]);
     ptrs[idx] = kmalloc(arg, 1, 0);
     assert(ptrs[idx] != NULL);
   }
