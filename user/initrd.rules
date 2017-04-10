@@ -1,0 +1,4 @@
+prog/prog.uelf /bin/prog
+fd_test/fd_test.uelf /bin/fd_test
+test_fork/test_fork.uelf /bin/test_fork
+misbehave/misbehave.uelf /bin/misbehave
