@@ -9,4 +9,4 @@ all: main
 main: main.o pool_alloc.o
 
 clean:
-	$(RM) main *.o *~
+	$(RM) main *.o *~ out.txt

@@ -175,6 +175,13 @@ void *pool_alloc(pool_t *pool,
   */
   DEBUG_PRINT("Entering pool_alloc\n");
 
+  uint64_t *tmp = (uint64_t *)pool;
+  for (size_t i = 0; i < sizeof(pool_t) / 8; i++) {
+    if (tmp[i] == PP_FREED_WORD) {
+      panic("operation on a free pool 0x%lx\n", (uint64_t)pool);
+    }
+  }
+
   pool_slab_t *new_slab;
   if (pool->pp_nitems) {
     if (LIST_EMPTY(&(pool->pp_part_slabs))) {
@@ -203,6 +210,14 @@ void *pool_alloc(pool_t *pool,
 void pool_free(pool_t *pool,
                void *ptr) { // TODO: implement empty slab management
   DEBUG_PRINT("Entering pool_free\n");
+
+  uint64_t *tmp = (uint64_t *)pool;
+  for (size_t i = 0; i < sizeof(pool_t) / 8; i++) {
+    if (tmp[i] == PP_FREED_WORD) {
+      panic("operation on a free pool 0x%lx\n", (uint64_t)pool);
+    }
+  }
+
   pool_item_t *curr_pi = ptr - sizeof(pool_item_t);
   if (curr_pi->pi_guard_number != PI_MAGIC_WORD) {
     panic("memory corruption at item 0x%lx\n", (uint64_t)curr_pi);
@@ -212,7 +227,7 @@ void pool_free(pool_t *pool,
                     (uint64_t)(curr_slab->ph_start)) /
                    ((pool->pp_itemsize) + sizeof(pool_item_t));
   bitstr_t *bitmap = curr_slab->ph_bitmap;
-  if (bit_test(bitmap, index)) {
+  if (!bit_test(bitmap, index)) {
     panic("double free at item 0x%lx\n", (uint64_t)ptr);
   }
 

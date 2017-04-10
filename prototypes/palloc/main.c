@@ -30,22 +30,22 @@ void test_destr(__attribute__((unused)) void *buf,
 int main() {
   pool_t test;
   pool_init(&test, sizeof(int), int_constr, int_destr);
-  int *item[10000];
-  for (int i = 0; i < 10000; i++) {
+  int *item[10];
+  for (int i = 0; i < 10; i++) {
     item[i] = pool_alloc(&test, 0);
   }
-  for (int i = 0; i < 10000; i++) {
+  for (int i = 0; i < 10; i++) {
     pool_free(&test, item[i]);
   }
   pool_destroy(&test);
   pool_t another_test;
   pool_init(&another_test, sizeof(test_t), test_constr, test_destr);
-  test_t *another_item[10000];
-  for (int i = 0; i < 10000; i++) {
+  test_t *another_item[10];
+  for (int i = 0; i < 10; i++) {
     another_item[i] = pool_alloc(&another_test, 0);
   }
   // memset(another_item[0], 0, 100); //memory corruption test
-  for (int i = 0; i < 10000; i++) {
+  for (int i = 0; i < 10; i++) {
     pool_free(&another_test, another_item[i]);
   }
   pool_destroy(&another_test);
