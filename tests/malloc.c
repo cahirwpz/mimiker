@@ -28,8 +28,10 @@ static int malloc_multiple_allocations(void) {
   kmalloc_init(mp, 1, 1);
   const int n = 50;
   void *ptrs[n];
-  for (int i = 0; i < n; i++)
-    assert(NULL != (ptrs[i] = kmalloc(mp, i + 1, M_NOWAIT)));
+  for (int i = 0; i < n; i++) {
+    ptrs[i] = kmalloc(mp, i + 1, M_NOWAIT);
+    assert(NULL != ptrs[i]);
+  }
   for (int i = 0; i < n; i++)
     kfree(mp, ptrs[i]);
   return KTEST_SUCCESS;
@@ -50,20 +52,34 @@ static int malloc_dynamic_pages_addition(void) {
   return KTEST_SUCCESS;
 }
 
-#define ALLOCATIONS_PER_THREAD 1000
+#define ALLOCATIONS_PER_THREAD 10000
 #define THREADS_NUMBER 10
 
-static void threads_function(void *arg) {
+static void malloc_one_block_at_a_time(void *arg) {
   for (int i = 0; i < ALLOCATIONS_PER_THREAD; i++) {
-    void *ptr = kmalloc(arg, 1 + (i * (unsigned)arg) % 256, 0);
+    void *ptr = kmalloc(arg, 1, 0);
     assert(ptr != NULL);
     kfree(arg, ptr);
   }
 }
 
-static int malloc_multiple_threads(void) {
+#define BLOCKS_AT_A_TIME 100
+#define MAX_BLOCK_SIZE 128
+static void malloc_many_blocks_at_a_time(void *arg) {
+  void *ptrs[BLOCKS_AT_A_TIME];
+  memset(ptrs, 0, sizeof(ptrs));
+  for (int i = 0; i < ALLOCATIONS_PER_THREAD; i++) {
+    int idx = i % BLOCKS_AT_A_TIME;
+    if (ptrs[idx] != NULL)
+      kfree(arg, ptrs[idx]);
+    ptrs[idx] = kmalloc(arg, 1, 0);
+    assert(ptrs[idx] != NULL);
+  }
+}
+
+static void malloc_multithreaded(void (*threads_function)(void *)) {
   MALLOC_DEFINE(mp, "testing memory pool");
-  kmalloc_init(mp, 1, 1);
+  kmalloc_init(mp, 1, 10);
   thread_t *threads[THREADS_NUMBER];
   for (int i = 0; i < THREADS_NUMBER; i++)
     threads[i] =
@@ -72,6 +88,15 @@ static int malloc_multiple_threads(void) {
     sched_add(threads[i]);
   for (int i = 0; i < THREADS_NUMBER; i++)
     thread_join(threads[i]);
+}
+
+static int malloc_threads_one_block(void) {
+  malloc_multithreaded(malloc_one_block_at_a_time);
+  return KTEST_SUCCESS;
+}
+
+static int malloc_threads_many_blocks(void) {
+  malloc_multithreaded(malloc_many_blocks_at_a_time);
   return KTEST_SUCCESS;
 }
 
@@ -93,7 +118,8 @@ KTEST_ADD(malloc_one_allocation, malloc_one_allocation, 0);
 KTEST_ADD(malloc_invalid_values, malloc_invalid_values, 0);
 KTEST_ADD(malloc_multiple_allocations, malloc_multiple_allocations, 0);
 KTEST_ADD(malloc_dynamic_pages_addition, malloc_dynamic_pages_addition, 0);
-KTEST_ADD(malloc_multiple_threads, malloc_multiple_threads, 0);
+KTEST_ADD(malloc_threads_one_block, malloc_threads_one_block, 0);
+KTEST_ADD(malloc_threads_many_blocks, malloc_threads_many_blocks, 0);
 /* Reserve some memory for mem_block_t. */
 #define RESERVED 1024
 KTEST_ADD_RANDINT(malloc_random_size, malloc_random_size, 0,
