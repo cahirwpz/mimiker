@@ -11,12 +11,13 @@
 
 #define PP_FREED_WORD 0xdeadbeefbaadf00d
 
-#define GET_PI_AT_IDX(slab, i, size) (pool_item_t *)((uint64_t)slab + (slab->ph_start) + \
-                                           (i) * (size + sizeof(pool_item_t)))
+#define GET_PI_AT_IDX(slab, i, size)                                           \
+  (pool_item_t *)((uint64_t)slab + (slab->ph_start) +                          \
+                  (i) * (size + sizeof(pool_item_t)))
 
-#define align_to_binary_pow(x, a) ((((x) >> (a)) + 1) << (a))
+#define ALIGN_TO_BINARY_POW(x, a) ((((x) >> (a)) + 1) << (a))
 
-#define DEBUG 1
+#define DEBUG 0
 
 #if defined(DEBUG) && DEBUG > 0
 #define DEBUG_PRINT(text, args...)                                             \
@@ -26,14 +27,14 @@
 #define DEBUG_PRINT(text, args...)
 #endif
 
-#define panic(text, args...)                                                   \
+#define PANIC(text, args...)                                                   \
   __extension__({                                                              \
     fprintf(stderr, "FATAL ERROR: %s:%d:%s(): " text, __FILE__, __LINE__,      \
             __func__, ##args);                                                 \
     exit(EXIT_FAILURE);                                                        \
   })
 
-int page_size;
+int pp_page_size;
 
 typedef struct pool_item {
   uint64_t pi_guard_number; // PI_MAGIC_WORD by default, normally isn't
@@ -46,17 +47,17 @@ typedef struct pool_item {
 pool_slab_t *create_slab(size_t size, void (*constructor)(void *, size_t)) {
   DEBUG_PRINT("Entering create_slab\n");
   pool_slab_t *slab =
-    malloc(page_size); // TODO: Change this during implementation into kernel
+    malloc(pp_page_size); // TODO: Change this during implementation into kernel
   slab->ph_nused = 0;
-  slab->ph_ntotal = (page_size - sizeof(pool_slab_t) - 7) /
+  slab->ph_ntotal = (pp_page_size - sizeof(pool_slab_t) - 7) /
                     (sizeof(pool_item_t) + size +
                      1); // sizeof(pool_slab_t)+n*(sizeof(pool_item_t)+size+1)+7
-                         // <= page_size, 7 is maximum number of padding bytes
-                         // for a bitmap
+  // <= pp_page_size, 7 is maximum number of padding bytes
+  // for a bitmap
 
   slab->ph_nfree = slab->ph_ntotal;
   slab->ph_start =
-    sizeof(pool_slab_t) + align_to_binary_pow(slab->ph_ntotal, 3);
+    sizeof(pool_slab_t) + ALIGN_TO_BINARY_POW(slab->ph_ntotal, 3);
   memset(slab->ph_bitmap, 0, slab->ph_ntotal);
   for (int i = 0; i < slab->ph_ntotal; i++) {
     pool_item_t *curr_pi = GET_PI_AT_IDX(slab, i, size);
@@ -71,9 +72,9 @@ void destroy_slab(pool_slab_t *slab, pool_t *pool) {
   DEBUG_PRINT("Entering destroy_slab\n");
   for (int i = 0; i < slab->ph_ntotal; i++) {
     pool_item_t *curr_pi = GET_PI_AT_IDX(slab, i, pool->pp_itemsize);
-    (pool->pp_destructor)(curr_pi->pi_data, (pool->pp_itemsize));
+    (pool->pp_destructor)(curr_pi->pi_data, pool->pp_itemsize);
   }
-  free(slab);
+  free(slab); // TODO: change this during implementation into kernel
 }
 
 void *slab_alloc(pool_slab_t *slab, size_t size) {
@@ -82,10 +83,10 @@ void *slab_alloc(pool_slab_t *slab, size_t size) {
   bit_ffc(bitmap, slab->ph_ntotal, &i);
   pool_item_t *found_pi = GET_PI_AT_IDX(slab, i, size);
   if (found_pi->pi_guard_number != PI_MAGIC_WORD) {
-    panic("memory corruption at item 0x%lx\n", (uint64_t)found_pi);
+    PANIC("memory corruption at item 0x%lx\n", (uint64_t)found_pi);
   }
-  (slab->ph_nused)++;
-  (slab->ph_nfree)--;
+  slab->ph_nused++;
+  slab->ph_nfree--;
   bit_set(bitmap, i);
   DEBUG_PRINT("Allocated an item (0x%lx) at slab 0x%lx, index %d\n",
               (uint64_t)found_pi->pi_data, (uint64_t)found_pi->pi_slab, i);
@@ -98,12 +99,12 @@ void pool_init(pool_t *pool, size_t size, void (*constructor)(void *, size_t),
   init object and give it 1-page cache;
   */
   DEBUG_PRINT("Entering pool_init\n");
-  size = align_to_binary_pow(size, 3); // Align to 64-bit (8 byte) word
-  LIST_INIT(&(pool->pp_empty_slabs));
-  LIST_INIT(&(pool->pp_full_slabs));
-  LIST_INIT(&(pool->pp_part_slabs));
+  size = ALIGN_TO_BINARY_POW(size, 3); // Align to 64-bit (8 byte) word
+  LIST_INIT(&pool->pp_empty_slabs);
+  LIST_INIT(&pool->pp_full_slabs);
+  LIST_INIT(&pool->pp_part_slabs);
   pool_slab_t *first_slab = create_slab(size, constructor);
-  LIST_INSERT_HEAD(&(pool->pp_empty_slabs), first_slab, ph_slablist);
+  LIST_INSERT_HEAD(&pool->pp_empty_slabs, first_slab, ph_slablist);
   pool->pp_constructor = constructor;
   pool->pp_destructor = destructor;
   pool->pp_itemsize = size;
@@ -114,7 +115,6 @@ void pool_init(pool_t *pool, size_t size, void (*constructor)(void *, size_t),
 
 void pool_destroy(pool_t *pool) {
   /*
-  take some objects from the cache;
   destroy the objects;
   free the underlying memory;
   */
@@ -123,14 +123,14 @@ void pool_destroy(pool_t *pool) {
 
   uint64_t *tmp = (uint64_t *)pool;
 
-  for (size_t i = 0; i < sizeof(pool_t) / 8; i++) {
+  for (size_t i = 0; i < sizeof(pool_t) / sizeof(uint64_t); i++) {
     if (tmp[i] == PP_FREED_WORD) {
-      panic("double free at pool 0x%lx\n", (uint64_t)pool);
+      PANIC("double free at pool 0x%lx\n", (uint64_t)pool);
     }
   }
 
   DEBUG_PRINT("Destroying empty slabs\n");
-  pool_slab_t *it = LIST_FIRST(&(pool->pp_empty_slabs));
+  pool_slab_t *it = LIST_FIRST(&pool->pp_empty_slabs);
   while (it) {
     pool_slab_t *next = LIST_NEXT(it, ph_slablist);
     LIST_REMOVE(it, ph_slablist);
@@ -139,7 +139,7 @@ void pool_destroy(pool_t *pool) {
   }
 
   DEBUG_PRINT("Destroying partially filled slabs\n");
-  it = LIST_FIRST(&(pool->pp_part_slabs));
+  it = LIST_FIRST(&pool->pp_part_slabs);
   while (it) {
     pool_slab_t *next = LIST_NEXT(it, ph_slablist);
     LIST_REMOVE(it, ph_slablist);
@@ -148,7 +148,7 @@ void pool_destroy(pool_t *pool) {
   }
 
   DEBUG_PRINT("Destroying full slabs\n");
-  it = LIST_FIRST(&(pool->pp_full_slabs));
+  it = LIST_FIRST(&pool->pp_full_slabs);
   while (it) {
     pool_slab_t *next = LIST_NEXT(it, ph_slablist);
     LIST_REMOVE(it, ph_slablist);
@@ -156,7 +156,7 @@ void pool_destroy(pool_t *pool) {
     it = next;
   }
 
-  for (size_t i = 0; i < sizeof(pool_t) / 8; i++) {
+  for (size_t i = 0; i < sizeof(pool_t) / sizeof(uint64_t); i++) {
     tmp[i] = PP_FREED_WORD;
   }
   DEBUG_PRINT("Destroyed pool at 0x%lx\n", (uint64_t)pool);
@@ -176,34 +176,29 @@ void *pool_alloc(pool_t *pool,
   DEBUG_PRINT("Entering pool_alloc\n");
 
   uint64_t *tmp = (uint64_t *)pool;
-  for (size_t i = 0; i < sizeof(pool_t) / 8; i++) {
+  for (size_t i = 0; i < sizeof(pool_t) / sizeof(uint64_t); i++) {
     if (tmp[i] == PP_FREED_WORD) {
-      panic("operation on a free pool 0x%lx\n", (uint64_t)pool);
+      PANIC("operation on a free pool 0x%lx\n", (uint64_t)pool);
     }
   }
 
-  pool_slab_t *new_slab;
+  pool_slab_t *slab_to_use;
   if (pool->pp_nitems) {
-    if (LIST_EMPTY(&(pool->pp_part_slabs))) {
-      new_slab = LIST_FIRST(&(pool->pp_empty_slabs));
-      LIST_REMOVE(new_slab, ph_slablist);
-    } else {
-      new_slab = LIST_FIRST(&(pool->pp_part_slabs));
-      LIST_REMOVE(new_slab, ph_slablist);
-    }
+    slab_to_use = LIST_EMPTY(&pool->pp_part_slabs)
+                    ? LIST_FIRST(&pool->pp_empty_slabs)
+                    : LIST_FIRST(&pool->pp_part_slabs);
+    LIST_REMOVE(slab_to_use, ph_slablist);
   } else {
-    new_slab = create_slab(pool->pp_itemsize, pool->pp_constructor);
-    pool->pp_nitems += new_slab->ph_ntotal;
+    slab_to_use = create_slab(pool->pp_itemsize, pool->pp_constructor);
+    pool->pp_nitems += slab_to_use->ph_ntotal;
     pool->pp_nslabs++;
     DEBUG_PRINT("Growing pool 0x%lx\n", (uint64_t)pool);
   }
-  void *p = slab_alloc(new_slab, pool->pp_itemsize);
+  void *p = slab_alloc(slab_to_use, pool->pp_itemsize);
   pool->pp_nitems--;
-  if (new_slab->ph_nfree) {
-    LIST_INSERT_HEAD(&(pool->pp_part_slabs), new_slab, ph_slablist);
-  } else {
-    LIST_INSERT_HEAD(&(pool->pp_full_slabs), new_slab, ph_slablist);
-  }
+  pool_slab_list_t *slab_list_to_insert =
+    slab_to_use->ph_nfree ? &pool->pp_part_slabs : &pool->pp_full_slabs;
+  LIST_INSERT_HEAD(slab_list_to_insert, slab_to_use, ph_slablist);
 
   return p;
 }
@@ -212,15 +207,15 @@ void pool_free(pool_t *pool,
   DEBUG_PRINT("Entering pool_free\n");
 
   uint64_t *tmp = (uint64_t *)pool;
-  for (size_t i = 0; i < sizeof(pool_t) / 8; i++) {
+  for (size_t i = 0; i < sizeof(pool_t) / sizeof(uint64_t); i++) {
     if (tmp[i] == PP_FREED_WORD) {
-      panic("operation on a free pool 0x%lx\n", (uint64_t)pool);
+      PANIC("operation on a free pool 0x%lx\n", (uint64_t)pool);
     }
   }
 
   pool_item_t *curr_pi = ptr - sizeof(pool_item_t);
   if (curr_pi->pi_guard_number != PI_MAGIC_WORD) {
-    panic("memory corruption at item 0x%lx\n", (uint64_t)curr_pi);
+    PANIC("memory corruption at item 0x%lx\n", (uint64_t)curr_pi);
   }
   pool_slab_t *curr_slab = curr_pi->pi_slab;
   uint64_t index = ((uint64_t)curr_pi - (uint64_t)curr_slab -
@@ -228,22 +223,22 @@ void pool_free(pool_t *pool,
                    ((pool->pp_itemsize) + sizeof(pool_item_t));
   bitstr_t *bitmap = curr_slab->ph_bitmap;
   if (!bit_test(bitmap, index)) {
-    panic("double free at item 0x%lx\n", (uint64_t)ptr);
+    PANIC("double free at item 0x%lx\n", (uint64_t)ptr);
   }
 
   bit_clear(bitmap, index);
   LIST_REMOVE(curr_slab, ph_slablist);
-  (curr_slab->ph_nused)--;
-  (curr_slab->ph_nfree)++;
+  curr_slab->ph_nused--;
+  curr_slab->ph_nfree++;
   if (!(curr_slab->ph_nused)) {
-    LIST_INSERT_HEAD(&(pool->pp_empty_slabs), curr_slab, ph_slablist);
+    LIST_INSERT_HEAD(&pool->pp_empty_slabs, curr_slab, ph_slablist);
   } else {
-    LIST_INSERT_HEAD(&(pool->pp_part_slabs), curr_slab, ph_slablist);
+    LIST_INSERT_HEAD(&pool->pp_part_slabs, curr_slab, ph_slablist);
   }
   DEBUG_PRINT("Freed an item (0x%lx) at slab 0x%lx, index %ld\n", (uint64_t)ptr,
               (uint64_t)curr_slab, index);
 }
 
 __attribute__((constructor)) void initialize(void) { // does this even work?
-  page_size = getpagesize();
+  pp_page_size = getpagesize();
 }
