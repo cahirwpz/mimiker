@@ -14,6 +14,7 @@
 #include <vnode.h>
 #include <mount.h>
 #include <devfs.h>
+#include <initrd.h>
 
 extern void main(void *);
 
@@ -31,6 +32,7 @@ int kernel_init(int argc, char **argv) {
   sched_init();
   mips_clock_init();
 
+  ramdisk_init();
   vnode_init();
   vfs_init();
   file_init();
