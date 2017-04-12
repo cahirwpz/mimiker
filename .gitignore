@@ -41,8 +41,5 @@ toolchain
 # Editor swap files
 *.swp
 
-# initrd build directory
-initrd
-
 # Temporary test data
 tests/*_test_files
