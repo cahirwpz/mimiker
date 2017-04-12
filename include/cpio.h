@@ -1,11 +1,10 @@
-/*	$NetBSD: cpio.h,v 1.3 2008/04/28 20:22:54 martin Exp $	*/
-
 /*-
- * Copyright (c) 1996 The NetBSD Foundation, Inc.
- * All rights reserved.
+ * Copyright (c) 1992 Keith Muller.
+ * Copyright (c) 1992, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
- * This code is derived from software contributed to The NetBSD Foundation
- * by J.T. Conklin.
+ * This code is derived from software contributed to Berkeley by
+ * Keith Muller of the University of California, San Diego.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,44 +14,86 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	@(#)cpio.h	8.1 (Berkeley) 5/31/93
  */
 
-#ifndef _CPIO_H_
-#define _CPIO_H_
+#ifndef _SYS_CPIO_H_
+#define _SYS_CPIO_H_
 
-#define C_IRUSR 0000400
-#define C_IWUSR 0000200
-#define C_IXUSR 0000100
-#define C_IRGRP 0000040
-#define C_IWGRP 0000020
-#define C_IXGRP 0000010
-#define C_IROTH 0000004
-#define C_IWOTH 0000002
-#define C_IXOTH 0000001
-#define C_ISUID 0004000
-#define C_ISGID 0002000
-#define C_ISVTX 0001000
-#define C_ISDIR 0040000
-#define C_ISFIFO 0010000
-#define C_ISREG 0100000
-#define C_ISBLK 0060000
-#define C_ISCHR 0020000
-#define C_ISCTG 0110000
-#define C_ISLNK 0120000
-#define C_ISSOCK 0140000
+/*
+ * Defines common to all versions of cpio
+ */
+#define CPIO_TRAILER "TRAILER!!!" /* name in last archive record */
 
-#define MAGIC "070707"
+/*
+ * Header encoding of the different file types
+ */
+#define C_ISDIR 040000  /* Directory */
+#define C_ISFIFO 010000 /* FIFO */
+#define C_ISREG 0100000 /* Regular file */
+#define C_ISBLK 060000  /* Block special file */
+#define C_ISCHR 020000  /* Character special file */
+#define C_ISCTG 0110000 /* Reserved for contiguous files */
+#define C_ISLNK 0120000 /* Reserved for symbolic links */
+#define C_ISOCK 0140000 /* Reserved for sockets */
+#define C_IFMT 0170000  /* type of file */
 
-#endif /* _CPIO_H_ */
+/*
+ * Data Interchange Format - Extended cpio header format - POSIX 1003.1-1990
+ */
+typedef struct {
+  char c_magic[6];     /* magic cookie */
+  char c_dev[6];       /* device number */
+  char c_ino[6];       /* inode number */
+  char c_mode[6];      /* file type/access */
+  char c_uid[6];       /* owners uid */
+  char c_gid[6];       /* owners gid */
+  char c_nlink[6];     /* # of links at archive creation */
+  char c_rdev[6];      /* block/char major/minor # */
+  char c_mtime[11];    /* modification time */
+  char c_namesize[6];  /* length of pathname */
+  char c_filesize[11]; /* length of file in bytes */
+} cpio_old_hdr_t;
+
+#define CPIO_OMAGIC 070707 /* transportable archive id */
+
+/*
+ * SVR4 cpio header structure (with/without file data crc)
+ */
+typedef struct {
+  char c_magic[6];    /* magic cookie */
+  char c_ino[8];      /* inode number */
+  char c_mode[8];     /* file type/access */
+  char c_uid[8];      /* owners uid */
+  char c_gid[8];      /* owners gid */
+  char c_nlink[8];    /* # of links at archive creation */
+  char c_mtime[8];    /* modification time */
+  char c_filesize[8]; /* length of file in bytes */
+  char c_maj[8];      /* block/char major # */
+  char c_min[8];      /* block/char minor # */
+  char c_rmaj[8];     /* special file major # */
+  char c_rmin[8];     /* special file minor # */
+  char c_namesize[8]; /* length of pathname */
+  char c_chksum[8];   /* 0 OR CRC of bytes of FILE data */
+} cpio_new_hdr_t;
+
+#define CPIO_NMAGIC 070701  /* SVR4 new portable archive id */
+#define CPIO_NCMAGIC 070702 /* SVR4 new portable archive id CRC */
+
+#endif /* !_SYS_CPIO_H_ */
