@@ -20,8 +20,9 @@ for rulefile in $RULEFILES; do
     echo "Processing file $rulefile"
     sourcedir=$(dirname $rulefile)
     while read -r line; do
-        source=$sourcedir/$(echo "$line" | cut  -d' ' -f1)
-        target=$BUILDDIR/$(echo "$line" | cut  -d' ' -f2)
+        read source target <<< $line
+        source=$sourcedir/$source
+        target=$BUILDDIR/$target
         echo "$source -> $target"
         mkdir -p $(dirname $target)
         cp -r $source $target
