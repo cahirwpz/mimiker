@@ -75,6 +75,9 @@ int main(int argc, char **argv) {
   if (argc >= 2 && strcmp(argv[1], "abort_test") == 0)
     assert(0);
 
+  int x;
+  scanf("%d",&x);
+  
   sbrk_test();
   mmap_test();
 
@@ -89,7 +92,7 @@ int main(int argc, char **argv) {
   fclose(f);
 
   printf("Test complete.\n");
-
+  
   uint32_t o = 0;
   while (1) {
     o++;
