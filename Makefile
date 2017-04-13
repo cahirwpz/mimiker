@@ -42,7 +42,7 @@ $(SUBDIRS):
 
 clean:
 	$(foreach DIR, $(SUBDIRS), $(MAKE) -C $(DIR) $@;)
-	$(RM) -f *.a *.elf *.map *.lst *~ *.log
+	$(RM) -f *.a *.elf *.map *.lst *~ *.log *.cpio
 	$(RM) -f tags etags cscope.out *.taghl
 
 .PHONY: format tags cscope $(SUBDIRS)

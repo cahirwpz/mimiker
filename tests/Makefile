@@ -5,6 +5,7 @@ SOURCES_C = \
 	exec.c \
 	exec_misbehave.c \
 	exec_fd_test.c \
+	initrd.c \
 	linker_set.c \
 	malloc.c \
 	mutex.c \
@@ -22,7 +23,10 @@ SOURCES_C = \
 	vfs.c
 SOURCES_ASM =
 
-all: $(DEPFILES) libtests.a
+all: $(DEPFILES) libtests.a test_initrd.cpio
+
+test_initrd.cpio: build_test_initrd.sh
+	./build_test_initrd.sh
 
 include ../Makefile.common
 
