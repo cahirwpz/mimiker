@@ -15,6 +15,7 @@
 #include <mount.h>
 #include <devfs.h>
 #include <initrd.h>
+#include <drivers.h>
 
 extern void main(void *);
 
@@ -24,7 +25,6 @@ int kernel_init(int argc, char **argv) {
     kprintf("%s ", argv[i]);
   kprintf("\n");
 
-  pci_init();
   callout_init();
   pmap_init();
   vm_object_init();
@@ -37,6 +37,10 @@ int kernel_init(int argc, char **argv) {
   vfs_init();
   file_init();
   fd_init();
+
+  register_builtin_drivers();
+
+  pci_init();
 
   kprintf("[startup] kernel initialized\n");
 

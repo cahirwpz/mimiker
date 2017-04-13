@@ -1,12 +1,16 @@
 #include <pci.h>
 #include <pci_drivers.h>
+#include <drivers.h>
 
 #include <stdc.h>
 #include <common.h>
 
 int pci_driver_probe(device_t *device) {
-  // Perform pci-specific probing
-  return 0;
+  pci_device_t *pcidev = device_to_pci_device(device);
+  pci_driver_t *pcidrv = driver_to_pci_driver(device->driver);
+  pci_devid_t devid = {.vendor = pcidev->vendor_id,
+                       .device = pcidev->device_id};
+  return pcidrv->probe(pcidev, &devid);
 }
 
 int pci_driver_register(pci_driver_t *drv) {
@@ -14,9 +18,5 @@ int pci_driver_register(pci_driver_t *drv) {
   drv->driver.bus = &pci_bus_type;
   drv->driver.probe = pci_driver_probe;
 
-  driver_register(&drv->driver);
-  return 0;
+  return driver_register(&drv->driver);
 }
-
-// Example pci driver
-pci_driver_t vga_driver = {.name = "vga"};

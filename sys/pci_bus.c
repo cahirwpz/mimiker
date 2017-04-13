@@ -1,6 +1,7 @@
 #include <pci.h>
 #include <stdc.h>
 #include <malloc.h>
+#include <pci_drivers.h>
 
 static MALLOC_DEFINE(mp, "PCI bus discovery memory pool");
 
@@ -73,6 +74,15 @@ void pci_bus_assign_space(pci_bus_t *pcibus, intptr_t mem_base,
 }
 
 int pci_bus_match(device_t *device, driver_t *driver) {
+  pci_device_t *pcidev = device_to_pci_device(device);
+  pci_driver_t *pcidrv = driver_to_pci_driver(driver);
+  pci_devid_t **idptr = &pcidrv->devids;
+  while (*idptr != NULL) {
+    if (pcidev->vendor_id == (*idptr)->vendor &&
+        pcidev->device_id == (*idptr)->device)
+      return 1;
+    idptr++;
+  }
   return 0;
 }
 
@@ -122,10 +132,15 @@ static void pci_bus_dump(pci_bus_t *pcibus) {
       kprintf("%s Region %d: %s at %p [size=$%x]\n", devstr, i, type,
               (void *)addr, (unsigned)size);
     }
+
+    if (pcidev->device.driver) {
+      kprintf("   driver: %s\n", pcidev->device.driver->name);
+    }
   }
 }
 
-bus_type_t pci_bus_type = {.name = "pci", .match = pci_bus_match};
+bus_type_t pci_bus_type = {
+  .name = "pci", .match = pci_bus_match};
 
 static pci_bus_t pci_bus[1];
 
@@ -135,16 +150,18 @@ void pci_init() {
   kmalloc_init(mp);
   kmalloc_add_arena(mp, pg->vaddr, PG_SIZE(pg));
 
-  bus_register(&pci_bus_type);
   pci_bus->ndevs = platform_pci_bus_count();
   pci_bus->dev = kmalloc(mp, sizeof(pci_device_t) * pci_bus->ndevs, M_ZERO);
   platform_pci_bus_enumerate(pci_bus);
-  pci_bus_dump(pci_bus);
 
   for (int i = 0; i < pci_bus->ndevs; i++) {
     pci_device_t *pcidev = &pci_bus->dev[i];
 
-    pcidev->dev.bus = &pci_bus_type;
-    device_register(&pcidev->dev);
+    pcidev->device.bus = &pci_bus_type;
+    snprintf(pcidev->device.bus_id, 100, "%02x:%02x.%02x", pcidev->addr.bus,
+             pcidev->addr.device, pcidev->addr.function);
+    device_register(&pcidev->device);
   }
+
+  pci_bus_dump(pci_bus);
 }

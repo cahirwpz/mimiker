@@ -3,7 +3,8 @@
 
 #include <common.h>
 #include <drivers.h>
-#include <pci_drivers.h>
+
+typedef struct pci_driver pci_driver_t;
 
 typedef struct {
   uint16_t id;
@@ -51,17 +52,22 @@ typedef struct {
   unsigned nbars;
   pci_bar_t bar[6];
 
-  pci_driver_t *driver; /* The driver managing this device. */
-  device_t dev;
+  device_t device;
 } pci_device_t;
+
+#define device_to_pci_device(dev)                                              \
+  (pci_device_t *)container_of(dev, pci_device_t, device)
+#define driver_to_pci_driver(drv)                                              \
+  (pci_driver_t *)container_of(drv, pci_driver_t, driver)
 
 typedef struct {
   unsigned ndevs;
   pci_device_t *dev;
-
 } pci_bus_t;
 
 void pci_init();
+
+extern bus_type_t pci_bus_type;
 
 void pci_bus_assign_space(pci_bus_t *pcibus, intptr_t mem_base,
                           intptr_t io_base);
