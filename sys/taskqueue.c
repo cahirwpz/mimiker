@@ -13,14 +13,11 @@ void workqueue_init() {
 static void taskqueue_worker_thread(void *p) {
   taskqueue_t *tq = (taskqueue_t *)p;
 
-  while (true) {
-    mtx_lock(&tq->tq_mutex);
+  mtx_lock(&tq->tq_mutex);
+  while (tq->tq_alive) {
     while (STAILQ_EMPTY(&tq->tq_list))
       cv_wait(&tq->tq_nonempty, &tq->tq_mutex);
     taskqueue_run(tq);
-    mtx_unlock(&tq->tq_mutex);
-
-    sched_yield();
   }
 }
 
@@ -30,7 +27,15 @@ void taskqueue_init(taskqueue_t *tq) {
   cv_init(&tq->tq_nonempty, "taskqueue nonempty");
   tq->tq_worker =
     thread_create("taskqueue worker thread", taskqueue_worker_thread, tq);
+  tq->tq_alive = 1;
   sched_add(tq->tq_worker);
+}
+
+void taskqueue_destroy(taskqueue_t *tq) {
+  mtx_lock(&tq->tq_mutex);
+  tq->tq_alive = 0;
+  mtx_unlock(&tq->tq_mutex);
+  thread_join(tq->tq_worker);
 }
 
 void taskqueue_add(taskqueue_t *tq, task_t *task) {

@@ -18,10 +18,13 @@ typedef struct taskqueue {
     tq_nonempty; /* worker waits on this cv for tq_list to become non empty */
   tq_list_t tq_list;
   thread_t *tq_worker;
+  int tq_alive;
 } taskqueue_t;
 
 /* Creates a new taskqueue. */
 void taskqueue_init(taskqueue_t *tq);
+/* Destroys a taskqueue and stops the worker thread. */
+void taskqueue_destroy(taskqueue_t *tq);
 /* Appends a task onto a taskqueue. The task will be executed later by the
    taskqueue worker thread.  */
 void taskqueue_add(taskqueue_t *tq, task_t *task);
