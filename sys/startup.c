@@ -31,7 +31,7 @@ int kernel_init(int argc, char **argv) {
   vm_object_init();
   vm_map_init();
   sched_init();
-  taskqueue_init();
+  workqueue_init();
   mips_clock_init();
 
   ramdisk_init();

@@ -4,14 +4,10 @@
 #include <thread.h>
 #include <sched.h>
 
-static MALLOC_DEFINE(tq_pool, "taskqueues pool");
+taskqueue_t workqueue;
 
-taskqueue_t *workqueue;
-
-void taskqueue_init() {
-  kmalloc_init(tq_pool);
-  kmalloc_add_arena(tq_pool, pm_alloc(1)->vaddr, PAGESIZE);
-  workqueue = taskqueue_create();
+void workqueue_init() {
+  taskqueue_init(&workqueue);
 }
 
 static void taskqueue_worker_thread(void *p) {
@@ -28,15 +24,13 @@ static void taskqueue_worker_thread(void *p) {
   }
 }
 
-taskqueue_t *taskqueue_create() {
-  taskqueue_t *tq = kmalloc(tq_pool, sizeof(taskqueue_t), M_WAITOK);
+void taskqueue_init(taskqueue_t* tq) {
   STAILQ_INIT(&tq->tq_list);
   mtx_init(&tq->tq_mutex, MTX_RECURSE);
   cv_init(&tq->tq_nonempty, "taskqueue nonempty");
   tq->tq_worker =
     thread_create("taskqueue worker thread", taskqueue_worker_thread, tq);
   sched_add(tq->tq_worker);
-  return tq;
 }
 
 void taskqueue_add(taskqueue_t *tq, task_t *task) {
@@ -58,13 +52,10 @@ void taskqueue_run(taskqueue_t *tq) {
     task = STAILQ_FIRST(&tq_list_copy);
     task->func(task->arg);
     STAILQ_REMOVE_HEAD(&tq_list_copy, tq_link);
-    kfree(tq_pool, task);
   }
 }
 
-task_t *task_create(void (*func)(void *), void *arg) {
-  task_t *task = kmalloc(tq_pool, sizeof(task_t), M_WAITOK);
+void task_init(task_t* task, void (*func)(void *), void *arg) {
   task->func = func;
   task->arg = arg;
-  return task;
 }
