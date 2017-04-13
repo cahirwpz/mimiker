@@ -8,6 +8,7 @@ SOURCES_C  = \
 	dev_null.c \
 	dev_uart.c \
 	devfs.c \
+	devices.c \
 	exception.c \
 	exec.c \
 	file.c \
@@ -19,6 +20,7 @@ SOURCES_C  = \
 	main.c \
 	malloc.c \
 	mutex.c \
+	pci_bus.c \
 	pci_ids.c \
 	pcpu.c \
 	physmem.c \

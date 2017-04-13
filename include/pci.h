@@ -2,6 +2,8 @@
 #define _PCI_H_
 
 #include <common.h>
+#include <drivers.h>
+#include <pci_drivers.h>
 
 typedef struct {
   uint16_t id;
@@ -48,13 +50,22 @@ typedef struct {
 
   unsigned nbars;
   pci_bar_t bar[6];
+
+  pci_driver_t *driver; /* The driver managing this device. */
+  device_t dev;
 } pci_device_t;
 
 typedef struct {
   unsigned ndevs;
   pci_device_t *dev;
+
 } pci_bus_t;
 
 void pci_init();
+
+void pci_bus_assign_space(pci_bus_t *pcibus, intptr_t mem_base,
+                          intptr_t io_base);
+unsigned platform_pci_bus_count();
+void platform_pci_bus_enumerate(pci_bus_t *pcibus);
 
 #endif /* _PCI_H_ */
