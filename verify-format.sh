@@ -12,6 +12,11 @@ cd $TMPDIR
 make format > /dev/null
 
 # Compare directories, again excluding some ignored files.
+# TODO: Diff matches exclude pattern with target file base name, so rules like
+# "tests/*_test_files" won't work. For this reason it's reccomended to run this
+# script on a clean source tree - until we come up with a workaround, or diff
+# devs stop ignoring their mailing list:
+# http://lists.gnu.org/archive/html/bug-diffutils/2016-05/msg00008.html
 diff -Naur $THISDIR/ $TMPDIR -X .gitignore -x .git
 RES=$?
 

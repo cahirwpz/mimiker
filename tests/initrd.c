@@ -43,8 +43,9 @@ static int test_ramdisk() {
   dump_file("/initrd/tests/initrd/just_file.cpp");
   dump_file("/initrd/tests/initrd/some_file.c");
   dump_file("/initrd/tests/initrd/just_file.hs");
-  dump_file("/initrd/tests/initrd/very/very/very/very/very/very/very/very/very/deep/"
-            "directory/deep_inside");
+  dump_file(
+    "/initrd/tests/initrd/very/very/very/very/very/very/very/very/very/deep/"
+    "directory/deep_inside");
   dump_file("/initrd/tests/initrd/short_file_name/a");
   dump_file("/initrd/tests/initrd/level1/level2/level3/level123");
   dump_file("/initrd/tests/initrd/level1/level2/level12");
