@@ -34,7 +34,7 @@ static int test_taskqueue() {
   assert(counter == 1 + 2 + 3);
 
   taskqueue_destroy(&tq);
-  
+
   return KTEST_SUCCESS;
 }
 
