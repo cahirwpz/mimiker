@@ -17,6 +17,7 @@ SOURCES_C = \
 	sched.c \
 	strtol.c \
 	syscall.c \
+	taskqueue.c \
 	thread_exit.c \
 	uiomove.c \
 	vm_map.c \

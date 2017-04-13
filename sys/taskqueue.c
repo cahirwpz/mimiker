@@ -24,7 +24,7 @@ static void taskqueue_worker_thread(void *p) {
   }
 }
 
-void taskqueue_init(taskqueue_t* tq) {
+void taskqueue_init(taskqueue_t *tq) {
   STAILQ_INIT(&tq->tq_list);
   mtx_init(&tq->tq_mutex, MTX_RECURSE);
   cv_init(&tq->tq_nonempty, "taskqueue nonempty");
@@ -55,7 +55,7 @@ void taskqueue_run(taskqueue_t *tq) {
   }
 }
 
-void task_init(task_t* task, void (*func)(void *), void *arg) {
+void task_init(task_t *task, void (*func)(void *), void *arg) {
   task->func = func;
   task->arg = arg;
 }
