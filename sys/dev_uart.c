@@ -24,19 +24,19 @@ static int dev_uart_write(vnode_t *t, uio_t *uio) {
 static int dev_uart_read(vnode_t *t, uio_t *uio) {
   char buffer[UART_BUF_MAX];
   unsigned curr = 0;
-  while(curr < UART_BUF_MAX && curr < uio->uio_resid){
+  while (curr < UART_BUF_MAX && curr < uio->uio_resid) {
     buffer[curr] = uart_getchar();
-    if(buffer[curr] == '\n')
+    if (buffer[curr] == '\n')
       break;
     curr++;
   }
   int res = uiomove(buffer, UART_BUF_MAX - 1, uio);
-  if(res)
+  if (res)
     return res;
   return 0;
 }
 
-static int dev_uart_getattr(vnode_t *t, vattr_t *buf){
+static int dev_uart_getattr(vnode_t *t, vattr_t *buf) {
   return -ENOTSUP;
 }
 
