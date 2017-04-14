@@ -27,10 +27,10 @@
 #endif
 
 typedef struct pool_item {
-  unsigned long pi_guard_number; // PI_MAGIC_WORD by default, normally isn't
-                                 // changed, so if it has another value, memory
-                                 // corruption has taken place
-  pool_slab_t *pi_slab;          // pointer to slab containing this item
+  unsigned long pi_guard_number; /* PI_MAGIC_WORD by default, normally isn't */
+                                 /* changed, so if it has another value, memory */
+                                 /* corruption has taken place */
+  pool_slab_t *pi_slab;          /* pointer to slab containing this item */
   unsigned long pi_data[0];
 } pool_item_t;
 
@@ -38,17 +38,17 @@ pool_slab_t *create_slab(size_t size, pool_t *pool,
                          void (*constructor)(void *, size_t)) {
   PALLOC_DEBUG_PRINT("Entering create_slab\n");
   vm_page_t *page_for_slab =
-    pm_alloc(1); // TODO: Change this during implementation into kernel
+    pm_alloc(1);
   pool_slab_t *slab = (pool_slab_t *)page_for_slab->vaddr;
   slab->ph_page = page_for_slab;
   slab->ph_nused = 0;
   slab->ph_ntotal =
     (PAGESIZE - sizeof(pool_slab_t) - 3) /
     (sizeof(pool_item_t) + size +
-     1); // sizeof(pool_slab_t)+n*(sizeof(pool_item_t)+size+1)+7+sizeof(unsigned
-         // long)
-  // <= PAGESIZE, 7 is maximum number of padding bytes
-  // for a bitmap
+     1); /* sizeof(pool_slab_t)+n*(sizeof(pool_item_t)+size+1)+7+sizeof(unsigned
+          long) 
+   <= PAGESIZE, 7 is maximum number of padding bytes
+   for a bitmap */
 
   slab->ph_nfree = slab->ph_ntotal;
   slab->ph_start =
@@ -69,7 +69,7 @@ void destroy_slab(pool_slab_t *slab, pool_t *pool) {
     pool_item_t *curr_pi = GET_PI_AT_IDX(slab, i, pool->pp_itemsize);
     (pool->pp_destructor)(curr_pi->pi_data, pool->pp_itemsize);
   }
-  pm_free(slab->ph_page); // TODO: change this during implementation into kernel
+  pm_free(slab->ph_page);
 }
 
 void *slab_alloc(pool_slab_t *slab, size_t size) {
@@ -95,7 +95,7 @@ void pool_init(pool_t *pool, size_t size, void (*constructor)(void *, size_t),
   init object and give it 1-page cache;
   */
   PALLOC_DEBUG_PRINT("Entering pool_init\n");
-  size = ALIGN_TO_BINARY_POW(size, 2); // Align to 32-bit (4 byte) word
+  size = ALIGN_TO_BINARY_POW(size, 2); /* Align to 32-bit (4 byte) word */
   LIST_INIT(&pool->pp_empty_slabs);
   LIST_INIT(&pool->pp_full_slabs);
   LIST_INIT(&pool->pp_part_slabs);
@@ -159,7 +159,7 @@ void pool_destroy(pool_t *pool) {
 }
 
 void *pool_alloc(pool_t *pool,
-                 __unused uint32_t flags) { // TODO: implement different flags
+                 __unused uint32_t flags) { /* TODO: implement different flags */
   /*
   if (there’s an object in the cache)
       take it (no construction required);
@@ -198,7 +198,7 @@ void *pool_alloc(pool_t *pool,
   return p;
 }
 void pool_free(pool_t *pool,
-               void *ptr) { // TODO: implement empty slab management
+               void *ptr) { /* TODO: implement empty slab management */
   PALLOC_DEBUG_PRINT("Entering pool_free\n");
 
   unsigned long *tmp = (unsigned long *)pool;

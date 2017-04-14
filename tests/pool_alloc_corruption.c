@@ -2,13 +2,14 @@
 #include <stdc.h>
 #include <malloc.h>
 #include <ktest.h>
+#include <common.h>
 
-void another_int_constr(void *buf, __attribute__((unused)) size_t size) {
+void another_int_constr(void *buf, __unused size_t size) {
   int *num = buf;
   *num = 0;
 }
-void another_int_destr(__attribute__((unused)) void *buf,
-               __attribute__((unused)) size_t size) {
+void another_int_destr(__unused void *buf,
+               __unused size_t size) {
 }
 
 int test_pool_alloc_corruption() {
@@ -27,16 +28,16 @@ int test_pool_alloc_corruption() {
       for (int i = 0; i < n; i++) {
         item[i] = pool_alloc(&test, 0);
       }
-      memset(item[0], 0, 100); //WARNING! This line of code causes memory
-      // corruption, uncomment at your own risk!
+      memset(item[0], 0, 100); /* WARNING! This line of code causes memory
+      corruption, uncomment at your own risk! */
       for (int i = 0; i < n; i++) {
         pool_free(&test, item[i]);
       }
-      // pool_free(&test, item[n/2]); ////WARNING! This will obviously crash the
-      // program due to double free, uncomment at your own risk!
+      /* pool_free(&test, item[n/2]); WARNING! This will obviously crash the
+       program due to double free, uncomment at your own risk! */
       pool_destroy(&test);
-      // pool_destroy(&test); //WARNING! This will obviously crash the program
-      // due to double free, uncomment at your own risk!
+      /* pool_destroy(&test); WARNING! This will obviously crash the program
+       due to double free, uncomment at your own risk! */
       kfree(mp, item);
       kprintf("Pool allocator test passed!(n=%d, size=%d)\n", n, size);
     }
