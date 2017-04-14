@@ -91,11 +91,13 @@ int main(int argc, char **argv) {
   printf("Test complete.\n");
 
   uint32_t o = 0;
-  while (1) {
-    o++;
-    /* Test both the passed argument, and data accessed with $gp */
-    marquee(argv[1], o);
-    marquee(str, o);
+  if (argc >= 2) {
+    while (1) {
+      o++;
+      /* Test both the passed argument, and data accessed with $gp */
+      marquee(argv[1], o);
+      marquee(str, o);
+    }
   }
 
   return 0;

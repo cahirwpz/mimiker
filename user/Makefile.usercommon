@@ -10,7 +10,7 @@
 
 SOURCES_O = $(SOURCES_C:%.c=%.o)
 
-all: $(UELF_NAME).uelf.o $(UELF_NAME).uelf
+all: $(UELF_NAME).uelf
 
 clean:
 	rm -rf $(UELF_NAME).uelf $(UELF_NAME).uelf.o $(SOURCES_C:%.c=.%.D) $(SOURCES_O)
@@ -37,12 +37,6 @@ $(USERDIR)/syscalls.o $(USERDIR)/start.o:
 %.uelf: $(SOURCES_O) $(USERDIR)/mimiker.ld $(USERDIR)/start.o $(USERDIR)/syscalls.o
 	@echo "[LD] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(LDFLAGS) $(USERDIR)/start.o -o $@ $(SOURCES_O) $(USERDIR)/syscalls.o $(LDLIBS)
-
-# Treating the liked program as binary data, placing it in .rodata
-# section, and embedding into an object file
-%.uelf.o: %.uelf Makefile
-	@echo "[LD] $(DIR)$< -> $(DIR)$@"
-	$(OBJCOPY) -I binary --rename-section .data=.rodata,contents,readonly,data -O elf32-little --alt-machine-code=8 $< $@
 
 .SUFFIXES:
 .PRECIOUS: %.uelf
