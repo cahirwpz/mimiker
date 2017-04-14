@@ -1,6 +1,9 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-all: mimiker.elf tags cscope
+all: mimiker.elf tags cscope initrd.cpio
+
+# Disable all built-in recipes
+.SUFFIXES:
 
 include Makefile.common
 $(info Using CC: $(CC))
@@ -40,9 +43,15 @@ test: mimiker.elf
 $(SUBDIRS):
 	$(MAKE) -C $@
 
+initrd.cpio: | $(SUBDIRS)
+	./update_initrd.sh
+# Import dependecies for initrd.cpio
+include $(wildcard .*.D)
+
 clean:
 	$(foreach DIR, $(SUBDIRS), $(MAKE) -C $(DIR) $@;)
-	$(RM) -f *.a *.elf *.map *.lst *~ *.log *.cpio
+	$(RM) -f *.a *.elf *.map *.lst *~ *.log *.cpio .*.D
 	$(RM) -f tags etags cscope.out *.taghl
 
 .PHONY: format tags cscope $(SUBDIRS)
+.PRECIOUS: %.uelf

@@ -23,10 +23,10 @@ SOURCES_C = \
 	vfs.c
 SOURCES_ASM =
 
-all: $(DEPFILES) libtests.a test_initrd.cpio
+all: $(DEPFILES) initrd_test_files libtests.a
 
-test_initrd.cpio: build_test_initrd.sh
-	./build_test_initrd.sh
+initrd_test_files: prepare_initrd_test_files.sh
+	./prepare_initrd_test_files.sh
 
 include ../Makefile.common
 
@@ -34,3 +34,4 @@ libtests.a: $(OBJECTS)
 
 clean:
 	$(RM) -f .*.D *.o *.elf *.a *.map *~
+	$(RM) -rf initrd_test_files

@@ -148,7 +148,7 @@ if __name__ == '__main__':
                               (', '.join(sim_choices.keys()), sim_default)))
     parser.add_argument('-t', '--test', action='store_true',
                         help='Use current stdin & stdout for simulated UART.')
-    parser.add_argument('--ramdisk',
+    parser.add_argument('--ramdisk', default='initrd.cpio',
                         help='Give initial ramdisk to OVPSim. '),
     parser.add_argument('-s', '--server', action='store_true',
                         help='Start a server for simulated UART (port: %d).' % PORT)
