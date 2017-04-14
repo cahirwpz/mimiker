@@ -3,17 +3,21 @@
 #include <malloc.h>
 #include <ktest.h>
 
-void int_constr(void *buf, __attribute__((unused)) size_t size) {
+void int_constr(void *buf, __unused size_t size) {
   int *num = buf;
   *num = 0;
 }
-void int_destr(__attribute__((unused)) void *buf,
-               __attribute__((unused)) size_t size) {
-}
 
-void test_pool_alloc(
-  int flag) { /* 0 - regular test, 1 - memory corrruption, 2 - double free */
-  assert(flag >= 0 && flag < 3);
+typedef enum {
+  PALLOC_TEST_REGULAR,
+  PALLOC_TEST_CORRUPTION,
+  PALLOC_TEST_DOUBLEFREE
+} palloc_test_t;
+
+int test_pool_alloc(
+  palloc_test_t flag) { /* PALLOC_TEST_REGULAR - regular test,
+                           PALLOC_TEST_CORRUPTION - memory corrruption,
+                           PALLOC_TEST_DOUBLEFREE - double free */
 
   pool_t test;
   vm_page_t *page = pm_alloc(1);
@@ -24,19 +28,19 @@ void test_pool_alloc(
   kmalloc_add_arena(mp, page->vaddr, PAGESIZE);
 
   for (int n = 1; n < 10; n++) {
-    for (size_t size = 8; size <= 128; size += 8) {
-      pool_init(&test, size, int_constr, int_destr);
+    for (size_t size = 4; size <= 128; size += 4) {
+      pool_init(&test, size, int_constr, pool_default_destructor);
       void **item = kmalloc(mp, sizeof(void *) * n, 0);
       for (int i = 0; i < n; i++) {
         item[i] = pool_alloc(&test, 0);
       }
-      if (flag == 1)
+      if (flag == PALLOC_TEST_CORRUPTION)
         memset(item[0], 0, 100); /* WARNING! This line of code causes memory
 corruptio! */
       for (int i = 0; i < n; i++) {
         pool_free(&test, item[i]);
       }
-      if (flag == 2)
+      if (flag == PALLOC_TEST_DOUBLEFREE)
         pool_free(&test, item[n / 2]); /*WARNING! This will obviously crash the
 program due to double free! */
       pool_destroy(&test);
@@ -48,21 +52,20 @@ program due to double free! */
   }
 
   pm_free(page);
+
+  return KTEST_SUCCESS;
 }
 
 int test_pool_alloc_regular() {
-  test_pool_alloc(0);
-  return KTEST_SUCCESS;
+  return test_pool_alloc(PALLOC_TEST_REGULAR);
 }
 
 int test_pool_alloc_corruption() {
-  test_pool_alloc(1);
-  return KTEST_SUCCESS;
+  return test_pool_alloc(PALLOC_TEST_CORRUPTION);
 }
 
 int test_pool_alloc_doublefree() {
-  test_pool_alloc(2);
-  return KTEST_SUCCESS;
+  return test_pool_alloc(PALLOC_TEST_DOUBLEFREE);
 }
 
 KTEST_ADD(pool_alloc_regular, test_pool_alloc_regular, 0);

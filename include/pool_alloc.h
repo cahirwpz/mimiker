@@ -2,17 +2,6 @@
 #include <vm.h>
 #include <bitstring.h>
 
-typedef struct pool_slab {
-  LIST_ENTRY(pool_slab) ph_slablist; /* pool slab list */
-  vm_page_t *ph_page;                /* page containing this slab*/
-  uint16_t ph_nused;                 /* # of items in use */
-  uint16_t ph_nfree;  /* # of free (and available) items, a bit redundant but
-                         there would be padding abyway*/
-  uint16_t ph_ntotal; /* total number of chunks*/
-  uint16_t ph_start;  /* start offset in page */
-  bitstr_t ph_bitmap[0];
-} pool_slab_t;
-
 typedef LIST_HEAD(, pool_slab) pool_slab_list_t;
 
 typedef struct pool {
@@ -32,3 +21,4 @@ void pool_init(pool_t *buf, size_t size, void (*constructor)(void *, size_t),
 void pool_destroy(pool_t *pool);
 void *pool_alloc(pool_t *pool, uint32_t flags);
 void pool_free(pool_t *pool, void *ptr);
+void pool_default_destructor(void *buf, size_t size);
