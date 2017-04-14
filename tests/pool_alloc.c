@@ -27,7 +27,7 @@ int test_pool_alloc() {
       for (int i = 0; i < n; i++) {
         item[i] = pool_alloc(&test, 0);
       }
-      memset(item[0], 0, 100); //WARNING! This line of code causes memory corruption, uncomment at your own risk!
+      //memset(item[0], 0, 100); //WARNING! This line of code causes memory corruption, uncomment at your own risk!
       for (int i = 0; i < n; i++) {
         pool_free(&test, item[i]);
       }

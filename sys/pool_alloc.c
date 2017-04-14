@@ -20,7 +20,7 @@
 
 #if defined(PALLOC_DEBUG) && PALLOC_DEBUG > 0
 #define PALLOC_DEBUG_PRINT(text, args...)                                             \
-  fprintf(stderr, "DEBUG: %s:%d:%s(): " text, __FILE__, __LINE__, __func__,    \
+  kprintf("PALLOC_DEBUG: %s:%d:%s(): " text, __FILE__, __LINE__, __func__,    \
           ##args)
 #else
 #define PALLOC_DEBUG_PRINT(text, args...)
@@ -42,11 +42,11 @@ pool_slab_t *create_slab(size_t size, pool_t *pool, void (*constructor)(void *, 
   pool_slab_t *slab = (pool_slab_t*) page_for_slab -> vaddr;
   slab -> ph_page = page_for_slab;
   slab->ph_nused = 0;
-  slab->ph_ntotal = (PAGESIZE - sizeof(pool_slab_t) - 7 - sizeof(unsigned long)) /
+  slab->ph_ntotal = (PAGESIZE - sizeof(pool_slab_t) - 3) /
                     (sizeof(pool_item_t) + size +
                      1); // sizeof(pool_slab_t)+n*(sizeof(pool_item_t)+size+1)+7+sizeof(unsigned long)
   // <= PAGESIZE, 7 is maximum number of padding bytes
-  // for a bitmap, unsigned long in the end is guard word
+  // for a bitmap
 
   slab->ph_nfree = slab->ph_ntotal;
   slab->ph_start =
