@@ -28,17 +28,16 @@
 
 typedef struct pool_item {
   unsigned long pi_guard_number; /* PI_MAGIC_WORD by default, normally isn't */
-                                 /* changed, so if it has another value, memory */
-                                 /* corruption has taken place */
-  pool_slab_t *pi_slab;          /* pointer to slab containing this item */
+  /* changed, so if it has another value, memory */
+  /* corruption has taken place */
+  pool_slab_t *pi_slab; /* pointer to slab containing this item */
   unsigned long pi_data[0];
 } pool_item_t;
 
 pool_slab_t *create_slab(size_t size, pool_t *pool,
                          void (*constructor)(void *, size_t)) {
   PALLOC_DEBUG_PRINT("Entering create_slab\n");
-  vm_page_t *page_for_slab =
-    pm_alloc(1);
+  vm_page_t *page_for_slab = pm_alloc(1);
   pool_slab_t *slab = (pool_slab_t *)page_for_slab->vaddr;
   slab->ph_page = page_for_slab;
   slab->ph_nused = 0;
@@ -46,7 +45,7 @@ pool_slab_t *create_slab(size_t size, pool_t *pool,
     (PAGESIZE - sizeof(pool_slab_t) - 3) /
     (sizeof(pool_item_t) + size +
      1); /* sizeof(pool_slab_t)+n*(sizeof(pool_item_t)+size+1)+7+sizeof(unsigned
-          long) 
+          long)
    <= PAGESIZE, 7 is maximum number of padding bytes
    for a bitmap */
 
@@ -158,8 +157,9 @@ void pool_destroy(pool_t *pool) {
   PALLOC_DEBUG_PRINT("Destroyed pool at 0x%lx\n", (unsigned long)pool);
 }
 
-void *pool_alloc(pool_t *pool,
-                 __unused uint32_t flags) { /* TODO: implement different flags */
+void *
+pool_alloc(pool_t *pool,
+           __unused uint32_t flags) { /* TODO: implement different flags */
   /*
   if (there’s an object in the cache)
       take it (no construction required);

@@ -8,8 +8,7 @@ void another_int_constr(void *buf, __unused size_t size) {
   int *num = buf;
   *num = 0;
 }
-void another_int_destr(__unused void *buf,
-               __unused size_t size) {
+void another_int_destr(__unused void *buf, __unused size_t size) {
 }
 
 int test_pool_alloc_corruption() {
