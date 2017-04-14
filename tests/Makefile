@@ -11,6 +11,7 @@ SOURCES_C = \
 	physmem.c \
 	pmap.c \
 	pool_alloc.c \
+	pool_alloc_corruption.c \
 	producer_consumer.c \
 	rtc.c \
 	rwlock.c \
