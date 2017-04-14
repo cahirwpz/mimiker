@@ -11,7 +11,10 @@ void int_destr(__attribute__((unused)) void *buf,
                __attribute__((unused)) size_t size) {
 }
 
-int test_pool_alloc() {
+void test_pool_alloc(
+  int flag) { /* 0 - regular test, 1 - memory corrruption, 2 - double free */
+  assert(flag >= 0 && flag < 3);
+
   pool_t test;
   vm_page_t *page = pm_alloc(1);
 
@@ -27,13 +30,15 @@ int test_pool_alloc() {
       for (int i = 0; i < n; i++) {
         item[i] = pool_alloc(&test, 0);
       }
-      /* memset(item[0], 0, 100); WARNING! This line of code causes memory
-      corruption, uncomment at your own risk! */
+      if (flag == 1)
+        memset(item[0], 0, 100); /* WARNING! This line of code causes memory
+corruptio! */
       for (int i = 0; i < n; i++) {
         pool_free(&test, item[i]);
       }
-      /* pool_free(&test, item[n/2]); WARNING! This will obviously crash the
-       program due to double free, uncomment at your own risk!*/
+      if (flag == 2)
+        pool_free(&test, item[n / 2]); /*WARNING! This will obviously crash the
+program due to double free! */
       pool_destroy(&test);
       /* pool_destroy(&test); WARNING! This will obviously crash the program
        due to double free, uncomment at your own risk!*/
@@ -43,7 +48,23 @@ int test_pool_alloc() {
   }
 
   pm_free(page);
+}
+
+int test_pool_alloc_regular() {
+  test_pool_alloc(0);
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(pool_alloc, test_pool_alloc, 0);
+int test_pool_alloc_corruption() {
+  test_pool_alloc(1);
+  return KTEST_SUCCESS;
+}
+
+int test_pool_alloc_doublefree() {
+  test_pool_alloc(2);
+  return KTEST_SUCCESS;
+}
+
+KTEST_ADD(pool_alloc_regular, test_pool_alloc_regular, 0);
+KTEST_ADD(pool_alloc_corruption, test_pool_alloc_corruption, KTEST_FLAG_BROKEN);
+KTEST_ADD(pool_alloc_doublefree, test_pool_alloc_doublefree, KTEST_FLAG_BROKEN);
