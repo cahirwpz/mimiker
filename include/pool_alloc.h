@@ -1,9 +1,10 @@
-#include <stdlib.h>
 #include <queue.h>
+#include <vm.h>
 #include <bitstring.h>
 
 typedef struct pool_slab {
   LIST_ENTRY(pool_slab) ph_slablist; /* pool slab list */
+  vm_page_t *ph_page;  /* page containing this slab*/
   uint16_t ph_nused;                 /* # of items in use */
   uint16_t ph_nfree;  /* # of free (and available) items, a bit redundant but
                          there would be padding abyway*/
