@@ -245,6 +245,7 @@ void ramdisk_init() {
   if (rd_size) {
     initrd_ops.v_lookup = initrd_vnode_lookup;
     initrd_ops.v_read = initrd_vnode_read;
+    initrd_ops.v_open = vnode_open_generic;
     log("parsing cpio archive of %zu bytes", rd_size);
     read_cpio_archive();
     initrd_build_tree_and_names();

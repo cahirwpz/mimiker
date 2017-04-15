@@ -151,6 +151,39 @@ void test_open_path() {
   assert_open_fail(too_long, 0, O_RDONLY, 63);
 }
 
+#define test_file_from_ramdisk(path, name)                                     \
+  {                                                                            \
+    assert_open_ok(0, path "/" name, 0, O_RDONLY);                             \
+    const char *content =                                                      \
+      "This is the content of file " name " in directory " path "!";           \
+    int content_len = 1;                                                       \
+    assert_read_ok(0, buf, content_len);                                       \
+    assert(strncmp(buf, content, content_len) == 0);                           \
+    assert_close_ok(0);                                                        \
+  }
+
+void test_ramdisk() {
+  test_file_from_ramdisk("/initrd/directory1", "file1");
+  test_file_from_ramdisk("/initrd/directory1", "file1");
+  test_file_from_ramdisk("/initrd/directory1", "file2");
+  test_file_from_ramdisk("/initrd/directory1", "file3");
+  test_file_from_ramdisk("/initrd/directory2", "file1");
+  test_file_from_ramdisk("/initrd/directory2", "file2");
+  test_file_from_ramdisk("/initrd/directory2", "file3");
+  test_file_from_ramdisk("/initrd", "random_file.txt");
+  test_file_from_ramdisk("/initrd", "some_file.exe");
+  test_file_from_ramdisk("/initrd", "just_file.cpp");
+  test_file_from_ramdisk("/initrd", "some_file.c");
+  test_file_from_ramdisk("/initrd", "just_file.hs");
+  test_file_from_ramdisk(
+    "/initrd/very/very/very/very/very/very/very/very/very/deep/directory",
+    "deep_inside");
+  test_file_from_ramdisk("/initrd/short_file_name", "a");
+  test_file_from_ramdisk("/initrd/level1/level2/level3", "level123");
+  test_file_from_ramdisk("/initrd/level1/level2", "level12");
+  test_file_from_ramdisk("/initrd/level1", "level1");
+}
+
 int main(int argc, char **argv) {
   test_devnull();
   test_multiple_descriptors();
@@ -158,6 +191,7 @@ int main(int argc, char **argv) {
   test_copy();
   test_bad_descrip();
   test_open_path();
+  test_ramdisk();
 
   printf("Test passed!\n");
 
