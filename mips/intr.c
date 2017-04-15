@@ -15,8 +15,7 @@
 extern const char _ebase[];
 
 static void mips_cpu_intr_setup(bus_t *bus, unsigned num,
-                                intr_handler_t *handler)
-{
+                                intr_handler_t *handler) {
   intr_chain_t *chain = &bus->intr_chain[num];
   critical_enter();
   intr_chain_add_handler(chain, handler);
@@ -25,8 +24,7 @@ static void mips_cpu_intr_setup(bus_t *bus, unsigned num,
   critical_leave();
 }
 
-static void mips_cpu_intr_teardown(bus_t *bus, intr_handler_t *handler)
-{
+static void mips_cpu_intr_teardown(bus_t *bus, intr_handler_t *handler) {
   intr_chain_t *chain = handler->ih_chain;
   critical_enter();
   if (chain->ic_count == 1)
