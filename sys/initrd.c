@@ -10,10 +10,12 @@
 #include <mount.h>
 #include <mount.h>
 #include <linker_set.h>
+#include <dirent.h>
 
 /* ramdisk related data that will be stored in v_data field of vnode */
 typedef struct cpio_node {
   TAILQ_ENTRY(cpio_node) c_list; /* link to global list of all ramdisk nodes */
+  int c_n_children; /* number of direct descendants (c_children) */
   TAILQ_HEAD(, cpio_node) c_children; /* head of list of direct descendants */
   TAILQ_ENTRY(cpio_node) c_siblings;  /* nodes that have the same parent */
 
@@ -147,6 +149,12 @@ static const char *basename(const char *path) {
   return name ? name + 1 : path;
 }
 
+static void insert_child(cpio_node_t *parent, cpio_node_t *child)
+{
+    parent->c_n_children++;
+    TAILQ_INSERT_TAIL(&parent->c_children, child, c_siblings);
+}
+
 static void initrd_build_tree_and_names() {
   cpio_node_t *it_i, *it_j;
 
@@ -155,7 +163,7 @@ static void initrd_build_tree_and_names() {
       if (it_i == it_j)
         continue;
       if (is_direct_descendant(it_j->c_path, it_i->c_path))
-        TAILQ_INSERT_TAIL(&it_i->c_children, it_j, c_siblings);
+          insert_child(it_i, it_j);
     }
   }
 
@@ -168,9 +176,8 @@ static void initrd_build_tree_and_names() {
   root_node = cpio_node_alloc();
   root_node->c_path = "";
   TAILQ_FOREACH (it, &initrd_head, c_list) {
-    if (is_direct_descendant(it->c_path, "")) {
-      TAILQ_INSERT_TAIL(&root_node->c_children, it, c_siblings);
-    }
+    if (is_direct_descendant(it->c_path, ""))
+      insert_child(root_node, it);
   }
 }
 
@@ -211,6 +218,53 @@ static int initrd_mount(mount_t *m) {
   return 0;
 }
 
+static void cpio_to_direntry(cpio_node_t* cn, dirent_t *dir)
+{
+    int name_len = strlen(cn->c_name);
+    dir->d_fileno = cn->c_ino; /* Shall we implement our inode numbers or leave ones from ramdisk? */
+    dir->d_reclen = sizeof(dirent_t)+name_len+1;
+    dir->d_namlen = name_len;
+    dir->d_type = DT_UNKNOWN;
+    if(cn->c_mode & C_ISDIR) dir->d_type = DT_DIR;
+    if(cn->c_mode & C_ISREG) dir->d_type = DT_REG;
+    memcpy(dir->d_name, cn->c_name, name_len+1);
+}
+
+static int initrd_vnode_readdir(vnode_t *v, uio_t *uio)
+{
+  cpio_node_t *cn = (cpio_node_t*)v->v_data;
+
+  /* Calculate size of buffer */
+  int buf_size = 0;
+  cpio_node_t *it;
+  TAILQ_FOREACH(it, &cn->c_children, c_siblings)
+  {
+    buf_size += sizeof(dirent_t);
+    buf_size += strlen(it->c_name)+1;
+  }
+  char *buf = kmalloc(mp, buf_size, 0);
+
+  /* Fill buffer with data */
+  char *cur = buf;
+  TAILQ_FOREACH(it, &cn->c_children, c_siblings)
+  {
+    dirent_t *dir = (dirent_t*)cur;
+    cpio_to_direntry(cn, dir);
+    cur += dir->d_reclen;
+  }
+
+  int count = uio->uio_resid;
+  int error = uiomove(cn->c_data, buf_size, uio);
+
+  kfree(mp, buf);
+
+  if (error < 0)
+    return -error;
+
+  return count - uio->uio_resid;
+
+}
+
 static int initrd_root(mount_t *m, vnode_t **v) {
   *v = m->mnt_data;
   vnode_ref(*v);
@@ -245,6 +299,8 @@ void ramdisk_init() {
   if (rd_size) {
     initrd_ops.v_lookup = initrd_vnode_lookup;
     initrd_ops.v_read = initrd_vnode_read;
+    initrd_ops.v_open = vnode_open_generic;
+    initrd_ops.v_readdir = initrd_vnode_readdir;
     log("parsing cpio archive of %zu bytes", rd_size);
     read_cpio_archive();
     initrd_build_tree_and_names();
