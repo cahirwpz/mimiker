@@ -239,6 +239,7 @@ static int initrd_vnode_readdir(vnode_t *v, uio_t *uio)
   cpio_node_t *it;
   TAILQ_FOREACH(it, &cn->c_children, c_siblings)
   {
+    /* Possible align problems? */
     buf_size += sizeof(dirent_t);
     buf_size += strlen(it->c_name)+1;
   }
