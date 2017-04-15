@@ -10,32 +10,38 @@ void intr_init() {
 
 void intr_chain_init(intr_chain_t *ic, unsigned irq, char *name) {
   ic->ic_irq = irq;
+  ic->ic_count = 0;
   ic->ic_name = name;
   TAILQ_INIT(&ic->ic_handlers);
   TAILQ_INSERT_TAIL(&intr_chain_list, ic, ic_list);
 }
 
 void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
-  intr_handler_t *it;
-
-  ih->ih_chain = ic;
-
   if (TAILQ_EMPTY(&ic->ic_handlers)) {
     TAILQ_INSERT_HEAD(&ic->ic_handlers, ih, ih_list);
   } else {
     /* Add new handler according to it's priority */
+    intr_handler_t *it;
+
     TAILQ_FOREACH (it, &ic->ic_handlers, ih_list) {
       if (ih->ih_prio > it->ih_prio) {
         TAILQ_INSERT_BEFORE(it, ih, ih_list);
-        return;
+        goto done;
       }
     }
     TAILQ_INSERT_TAIL(&ic->ic_handlers, ih, ih_list);
   }
+
+done:
+  ih->ih_chain = ic;
+  ic->ic_count++;
 }
 
 void intr_chain_remove_handler(intr_handler_t *ih) {
-  TAILQ_REMOVE(&ih->ih_chain->ic_handlers, ih, ih_list);
+  intr_chain_t *ic = ih->ih_chain;
+  TAILQ_REMOVE(&ic->ic_handlers, ih, ih_list);
+  ih->ih_chain = NULL;
+  ic->ic_count--;
 }
 
 /*

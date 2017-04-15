@@ -8,10 +8,36 @@
 #include <sysent.h>
 #include <errno.h>
 #include <thread.h>
+#include <interrupt.h>
+#include <sync.h>
+#include <bus.h>
 
 extern const char _ebase[];
 
-intr_chain_t mips_cpu_intr_chain[8];
+static void mips_cpu_intr_setup(bus_t *bus, unsigned num,
+                                intr_handler_t *handler)
+{
+  intr_chain_t *chain = &bus->intr_chain[num];
+  critical_enter();
+  intr_chain_add_handler(chain, handler);
+  if (chain->ic_count == 1)
+    mips32_bs_c0(C0_STATUS, SR_IM0 << num);
+  critical_leave();
+}
+
+static void mips_cpu_intr_teardown(bus_t *bus, intr_handler_t *handler)
+{
+  intr_chain_t *chain = handler->ih_chain;
+  critical_enter();
+  if (chain->ic_count == 1)
+    mips32_bc_c0(C0_STATUS, SR_IM0 << chain->ic_irq);
+  intr_chain_remove_handler(handler);
+  critical_leave();
+}
+
+static intr_chain_t mips_cpu_intr_chain[8];
+
+BUS_DEFINE(mips_cpu);
 
 void mips_intr_init() {
   /*
@@ -27,27 +53,30 @@ void mips_intr_init() {
   /* Set vector spacing to 0. */
   mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
 
+  intr_chain_t *chain = mips_cpu_bus->intr_chain;
+
   /* Initialize software interrupts handler chains. */
-  intr_chain_init(&mips_cpu_intr_chain[0], 0, "swint(0)");
-  intr_chain_init(&mips_cpu_intr_chain[1], 1, "swint(1)");
+  intr_chain_init(&chain[0], 0, "swint(0)");
+  intr_chain_init(&chain[1], 1, "swint(1)");
 
   /* Initialize hardware interrupts handler chains. */
-  intr_chain_init(&mips_cpu_intr_chain[2], 2, "hwint(0)");
-  intr_chain_init(&mips_cpu_intr_chain[3], 3, "hwint(1)");
-  intr_chain_init(&mips_cpu_intr_chain[4], 4, "hwint(2)");
-  intr_chain_init(&mips_cpu_intr_chain[5], 5, "hwint(3)");
-  intr_chain_init(&mips_cpu_intr_chain[6], 6, "hwint(4)");
-  intr_chain_init(&mips_cpu_intr_chain[7], 7, "hwint(5)");
+  intr_chain_init(&chain[2], 2, "hwint(0)");
+  intr_chain_init(&chain[3], 3, "hwint(1)");
+  intr_chain_init(&chain[4], 4, "hwint(2)");
+  intr_chain_init(&chain[5], 5, "hwint(3)");
+  intr_chain_init(&chain[6], 6, "hwint(4)");
+  intr_chain_init(&chain[7], 7, "hwint(5)");
 }
 
 void mips_irq_handler(exc_frame_t *frame) {
   unsigned pending = (frame->cause & frame->sr) & CR_IP_MASK;
+  intr_chain_t *chain = mips_cpu_bus->intr_chain;
 
   for (int i = 7; i >= 0; i--) {
     unsigned irq = CR_IP0 << i;
 
     if (pending & irq) {
-      intr_chain_run_handlers(&mips_cpu_intr_chain[i]);
+      intr_chain_run_handlers(&chain[i]);
       pending &= ~irq;
     }
   }

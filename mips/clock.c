@@ -3,9 +3,7 @@
 #include <mips/mips.h>
 #include <mips/clock.h>
 #include <interrupt.h>
-#include <callout.h>
-#include <mutex.h>
-#include <sched.h>
+#include <bus.h>
 
 /* This counter is incremented every millisecond. */
 static volatile realtime_t mips_clock_ms;
@@ -35,7 +33,7 @@ static void intr_handler() {
 static INTR_HANDLER_DEFINE(mips_clock, NULL, intr_handler, NULL,
                            "MIPS counter clock", 0);
 
-INTR_CHAIN_DECLARE(mips_cpu);
+BUS_DECLARE(mips_cpu);
 
 void mips_clock_init() {
   mips32_set_c0(C0_COUNT, 0);
@@ -43,8 +41,5 @@ void mips_clock_init() {
 
   mips_clock_ms = 0;
 
-  intr_chain_add_handler(&mips_cpu_intr_chain[7], mips_clock_intr_handler);
-
-  /* Enable core timer interrupts. */
-  mips32_bs_c0(C0_STATUS, SR_IM7);
+  bus_intr_setup(mips_cpu_bus, 7, mips_clock_intr_handler);
 }

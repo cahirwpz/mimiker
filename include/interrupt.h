@@ -46,6 +46,7 @@ typedef struct intr_chain {
   intr_handler_list_t ic_handlers; /* interrupt handlers */
   char *ic_name;                   /* individual chain name */
   unsigned ic_irq;                 /* physical interrupt request line number */
+  unsigned ic_count;               /* number of handlers attached */
 } intr_chain_t;
 
 #define INTR_CHAIN_DECLARE(name) extern intr_chain_t name##_intr_chain[1]

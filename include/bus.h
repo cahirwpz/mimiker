@@ -2,11 +2,12 @@
 #define _SYS_BUS_H_
 
 #include <common.h>
+#include <device.h>
 
 typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
-typedef struct bus_methods {
-} bus_methods_t;
+typedef struct bus_methods bus_methods_t;
+typedef struct intr_handler intr_handler_t;
 
 /* `bus space` accessor routines */
 typedef uint8_t (*bus_space_read_1_t)(resource_t *handle, unsigned offset);
@@ -88,6 +89,32 @@ static inline void bus_space_read_region_1(resource_t *handle, unsigned offset,
 static inline void bus_space_write_region_1(resource_t *handle, unsigned offset,
                                             const uint8_t *src, size_t count) {
   handle->r_bus_space->write_region_1(handle, offset, src, count);
+}
+
+typedef void (*bus_intr_setup_t)(device_t *dev, unsigned num,
+                                 intr_handler_t *handler);
+
+typedef void (*bus_intr_teardown_t)(device_t *dev, intr_handler_t *handler);
+
+struct bus_methods {
+  bus_intr_setup_t intr_setup;
+  bus_intr_teardown_t intr_teardown;
+};
+
+struct bus_driver {
+  driver_t driver;
+  bus_methods_t bus;
+};
+
+#define BUS_DRIVER(dev) ((bus_driver_t *)((dev)->parent->driver))
+
+static inline void bus_intr_setup(device_t *dev, unsigned num,
+                                  intr_handler_t *handler) {
+  BUS_DRIVER(dev)->bus.intr_setup(dev, num, handler);
+}
+
+static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
+  BUS_DRIVER(dev)->bus.intr_teardown(dev, handler);
 }
 
 #endif

@@ -7,6 +7,7 @@
 
 typedef struct device device_t;
 typedef struct driver driver_t;
+typedef struct bus_driver bus_driver_t;
 typedef TAILQ_HEAD(, device) device_list_t;
 
 typedef void (*d_identify_t)(driver_t *driver, device_t *parent);
