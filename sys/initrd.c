@@ -252,7 +252,7 @@ static int initrd_vnode_readdir(vnode_t *v, uio_t *uio)
   }
 
   int count = uio->uio_resid;
-  int error = uiomove(cn->c_data, buf_size, uio);
+  int error = uiomove(buf, buf_size, uio);
 
   kfree(mp, buf);
 
