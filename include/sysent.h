@@ -14,8 +14,9 @@
 #define SYS_SBRK 11
 #define SYS_MMAP 12
 #define SYS_FORK 13
+#define SYS_GETDENTS 14
 
-#define SYS_LAST 13
+#define SYS_LAST 14
 
 #ifndef __ASSEMBLER__
 

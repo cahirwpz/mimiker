@@ -82,7 +82,13 @@ int do_readdir(thread_t *td, int fd, uio_t *uio)
     return res;
 
   vnode_t *vn = f->f_vnode;
+  uio->uio_offset = f->f_offset;
   res = VOP_READDIR(vn, uio);
+
+  if (res) {
+    f->f_offset += res;
+    return res;
+  }
   file_unref(f);
 
   return res;
