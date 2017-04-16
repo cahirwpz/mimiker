@@ -51,17 +51,16 @@ static pool_slab_t *create_slab(pool_t *pool) {
   pool_slab_t *slab = (pool_slab_t *)page_for_slab->vaddr;
   slab->ph_page = page_for_slab;
   slab->ph_nused = 0;
-  slab->ph_ntotal = (PAGESIZE - sizeof(pool_slab_t) - 3) /
-                    (sizeof(pool_item_t) + pool->pp_itemsize +
-                     1); /* sizeof(pool_slab_t)+n*(sizeof(pool_item_t)+size+1)+3
-                   <= PAGESIZE, 3 is maximum number of padding bytes
-                   for a bitmap */
+  slab->ph_ntotal = (8*(PAGESIZE - sizeof(pool_slab_t)) - 31) /
+                    (8*(sizeof(pool_item_t) + pool->pp_itemsize)+1); /* sizeof(pool_slab_t)+n*(sizeof(pool_item_t)+size)+((n+31)/32)*4
+                   <= PAGESIZE */
 
   slab->ph_nfree = slab->ph_ntotal;
-  slab->ph_start = sizeof(pool_slab_t) + align(slab->ph_ntotal, 4);
+  slab->ph_start = sizeof(pool_slab_t)+((slab->ph_ntotal+31) >> 5)*4;
   memset(slab->ph_bitmap, 0, bitstr_size(slab->ph_ntotal));
   for (int i = 0; i < slab->ph_ntotal; i++) {
     pool_item_t *curr_pi = GET_PI_AT_IDX(slab, i, pool->pp_itemsize);
+    //PALLOC_DEBUG_PRINT("Still alive, are we? %d\n", i);
     curr_pi->pi_slab = slab;
     curr_pi->pi_guard_number = PI_MAGIC_WORD;
     (pool->pp_constructor)(curr_pi->pi_data, pool->pp_itemsize);
