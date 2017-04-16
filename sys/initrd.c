@@ -220,14 +220,14 @@ static int initrd_mount(mount_t *m) {
 
 static void cpio_to_direntry(cpio_node_t* cn, dirent_t *dir)
 {
-    int name_len = strlen(cn->c_name);
+    int namlen = strlen(cn->c_name);
     dir->d_fileno = cn->c_ino; /* Shall we implement our inode numbers or leave ones from ramdisk? */
-    dir->d_reclen = sizeof(dirent_t)+name_len+1;
-    dir->d_namlen = name_len;
+    dir->d_reclen = _DIRENT_RECLEN(dir, namlen);
+    dir->d_namlen = namlen;
     dir->d_type = DT_UNKNOWN;
     if(cn->c_mode & C_ISDIR) dir->d_type = DT_DIR;
     if(cn->c_mode & C_ISREG) dir->d_type = DT_REG;
-    memcpy(dir->d_name, cn->c_name, name_len+1);
+    memcpy(dir->d_name, cn->c_name, namlen+1);
 }
 
 static int initrd_vnode_readdir(vnode_t *v, uio_t *uio)
@@ -237,21 +237,18 @@ static int initrd_vnode_readdir(vnode_t *v, uio_t *uio)
   /* Calculate size of buffer */
   int buf_size = 0;
   cpio_node_t *it;
+  dirent_t dummy; /* Make dummy argument because _DIRENT_RECLEN macro requires it */
   TAILQ_FOREACH(it, &cn->c_children, c_siblings)
-  {
-    /* Possible align problems? */
-    buf_size += sizeof(dirent_t);
-    buf_size += strlen(it->c_name)+1;
-  }
+    buf_size += _DIRENT_RECLEN(&dummy, strlen(it->c_name));
+
   char *buf = kmalloc(mp, buf_size, 0);
 
   /* Fill buffer with data */
-  char *cur = buf;
+  dirent_t *dir = (dirent_t*)buf;
   TAILQ_FOREACH(it, &cn->c_children, c_siblings)
   {
-    dirent_t *dir = (dirent_t*)cur;
     cpio_to_direntry(cn, dir);
-    cur += dir->d_reclen;
+    dir = _DIRENT_NEXT(dir);
   }
 
   int count = uio->uio_resid;
@@ -263,7 +260,6 @@ static int initrd_vnode_readdir(vnode_t *v, uio_t *uio)
     return -error;
 
   return count - uio->uio_resid;
-
 }
 
 static int initrd_root(mount_t *m, vnode_t **v) {
