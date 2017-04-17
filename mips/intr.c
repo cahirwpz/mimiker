@@ -107,10 +107,7 @@ void syscall_handler(exc_frame_t *frame) {
   retval = sysent[args.code].call(thread_self(), &args);
 
 finalize:
-  /* Store returned value. */
-  frame->v0 = retval;
-  /* we need to fix return address to point to next instruction */
-  frame->pc += 4;
+  exc_frame_set_retval(frame, retval);
 }
 
 /*

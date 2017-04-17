@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <assert.h>
+#include <sys/mman.h>
 
 #define TEXTAREA_SIZE 100
 // This should land in .bss, accessed by a pointer in .data
@@ -49,14 +50,33 @@ void sbrk_test() {
 #endif
 }
 
-int main(int argc, char **argv) {
-  if (argc < 2)
-    abort();
+void mmap_test() {
+  void *addr;
+  addr = mmap((void *)0x0, 12345, PROT_READ | PROT_WRITE, MMAP_ANON);
+  assert(addr != (void *)-1);
+  printf("mmap returned pointer: %p\n", addr);
+  /* Ensure mapped area is cleared. */
+  assert(*(char *)(addr + 10) == 0);
+  assert(*(char *)(addr + 1000) == 0);
+  /* Check whether writing to area works correctly. */
+  memset(addr, -1, 12345);
+  /* Provide a hint address that is not page aligned or anything. */
+  addr = mmap((void *)0x12345678, 99, PROT_READ | PROT_WRITE, MMAP_ANON);
+  assert(addr != (void *)-1);
+  printf("mmap returned pointer: %p\n", addr);
+  /* Ensure mapped area is cleared. */
+  assert(*(char *)(addr + 10) == 0);
+  assert(*(char *)(addr + 50) == 0);
+  /* Check whether writing to area works correctly. */
+  memset(addr, -1, 99);
+}
 
-  if (strcmp(argv[1], "abort_test") == 0)
+int main(int argc, char **argv) {
+  if (argc >= 2 && strcmp(argv[1], "abort_test") == 0)
     assert(0);
 
   sbrk_test();
+  mmap_test();
 
   /* Test some libstd functions. They will mostly fail, because many system
      calls are not implemented yet, but at least printf works!*/

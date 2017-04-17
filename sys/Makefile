@@ -12,6 +12,8 @@ SOURCES_C  = \
 	exec.c \
 	file.c \
 	filedesc.c \
+	fork.c \
+	initrd.c \
 	interrupt.c \
 	ktest.c \
 	main.c \
@@ -28,6 +30,7 @@ SOURCES_C  = \
 	startup.c \
 	sync.c \
 	sysent.c \
+	mmap.c \
 	thread.c \
 	uio.c \
 	vfs.c \

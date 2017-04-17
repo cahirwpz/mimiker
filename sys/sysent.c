@@ -4,7 +4,9 @@
 #include <thread.h>
 #include <vm_map.h>
 #include <vm_pager.h>
+#include <mmap.h>
 #include <vfs_syscalls.h>
+#include <fork.h>
 #include <sbrk.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
@@ -40,8 +42,16 @@ int sys_exit(thread_t *td, syscall_args_t *args) {
   __builtin_unreachable();
 }
 
+int sys_fork(thread_t *td, syscall_args_t *args) {
+  kprintf("[syscall] fork()\n");
+  return do_fork();
+}
+
 /* clang-format hates long arrays. */
-sysent_t sysent[] = {
-  {sys_nosys}, {sys_exit},  {sys_open},  {sys_close}, {sys_read},  {sys_write},
-  {sys_lseek}, {sys_nosys}, {sys_nosys}, {sys_nosys}, {sys_fstat}, {sys_sbrk},
-};
+sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},    [SYS_OPEN] = {sys_open},
+                     [SYS_CLOSE] = {sys_close},  [SYS_READ] = {sys_read},
+                     [SYS_WRITE] = {sys_write},  [SYS_LSEEK] = {sys_lseek},
+                     [SYS_UNLINK] = {sys_nosys}, [SYS_GETPID] = {sys_nosys},
+                     [SYS_KILL] = {sys_nosys},   [SYS_FSTAT] = {sys_fstat},
+                     [SYS_SBRK] = {sys_sbrk},    [SYS_MMAP] = {sys_mmap},
+                     [SYS_FORK] = {sys_fork}};

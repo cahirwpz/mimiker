@@ -8,6 +8,7 @@
 #include <vm_object.h>
 #include <vm_map.h>
 #include <errno.h>
+#include <mips/mips.h>
 
 static vm_map_t kspace;
 
@@ -234,6 +235,37 @@ void vm_map_dump(vm_map_t *map) {
             (it->prot & VM_PROT_EXEC) ? 'x' : '-');
     vm_map_object_dump(it->object);
   }
+}
+
+/* This entire function is a nasty hack, but we'll live with it until proper COW
+   is implemented. */
+vm_map_t *vm_map_clone(vm_map_t *map) {
+  vm_map_t *orig_current_map = get_user_vm_map();
+  vm_map_t *newmap = vm_map_new();
+
+  rw_scoped_enter(&map->rwlock, RW_READER);
+
+  /* Temporarily switch to the new map, so that we may write contents. Note that
+     it's okay if we get preempted - the working vm map will be restored on
+     context switch. */
+  vm_map_activate(newmap);
+
+  vm_map_entry_t *it;
+  TAILQ_FOREACH (it, &map->list, map_list) {
+    vm_map_entry_t *entry =
+      vm_map_add_entry(newmap, it->start, it->end, it->prot);
+    entry->object = default_pager->pgr_alloc();
+    vm_page_t *page;
+    TAILQ_FOREACH (page, &it->object->list, obj.list) {
+      memcpy((char *)it->start + page->vm_offset,
+             (char *)MIPS_PHYS_TO_KSEG0(page->paddr), page->size * PAGESIZE);
+    }
+  }
+
+  /* Return to original vm map. */
+  vm_map_activate(orig_current_map);
+
+  return newmap;
 }
 
 int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {

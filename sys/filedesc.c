@@ -92,14 +92,15 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
   assert(fdt->fdt_nfiles == newfdt->fdt_nfiles);
 
   for (int i = 0; i < fdt->fdt_nfiles; i++) {
-    file_t *f = fdt->fdt_files[i];
-    /* TODO: Deep or shallow copy? */
-    newfdt->fdt_files[i] = f;
-    if (f)
+    if (fd_is_used(fdt, i)) {
+      file_t *f = fdt->fdt_files[i];
+      newfdt->fdt_files[i] = f;
       file_ref(f);
+    }
   }
   memcpy(newfdt->fdt_map, fdt->fdt_map, sizeof(bitstr_t) * bitstr_size(NDFILE));
 
+  fdtab_ref(newfdt);
   return newfdt;
 }
 
