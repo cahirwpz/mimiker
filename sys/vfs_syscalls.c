@@ -37,7 +37,9 @@ int do_read(thread_t *td, int fd, uio_t *uio) {
   int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
   if (res)
     return res;
+  uio->uio_offset = f->f_offset;
   res = FOP_READ(f, td, uio);
+  f->f_offset = uio->uio_offset;
   file_unref(f);
   return res;
 }
@@ -47,7 +49,9 @@ int do_write(thread_t *td, int fd, uio_t *uio) {
   int res = fdtab_get_file(td->td_fdtable, fd, FF_WRITE, &f);
   if (res)
     return res;
+  uio->uio_offset = f->f_offset;
   res = FOP_WRITE(f, td, uio);
+  f->f_offset = uio->uio_offset;
   file_unref(f);
   return res;
 }
