@@ -74,7 +74,7 @@ int do_fstat(thread_t *td, int fd, vattr_t *buf) {
   return res;
 }
 
-int do_readdir(thread_t *td, int fd, uio_t *uio)
+int do_getdirentries(thread_t *td, int fd, uio_t *uio)
 {
   file_t *f;
   int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
@@ -221,7 +221,7 @@ int sys_getdirentries(thread_t *td, syscall_args_t *args)
   uio.uio_resid = count;
   uio.uio_offset = 0;
 
-  int res = do_readdir(td, fd, &uio);
+  int res = do_getdirentries(td, fd, &uio);
   *basep += count-uio.uio_resid;
   return res;
 }

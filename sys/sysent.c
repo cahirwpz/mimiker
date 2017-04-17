@@ -54,4 +54,4 @@ sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},    [SYS_OPEN] = {sys_open},
                      [SYS_UNLINK] = {sys_nosys}, [SYS_GETPID] = {sys_nosys},
                      [SYS_KILL] = {sys_nosys},   [SYS_FSTAT] = {sys_fstat},
                      [SYS_SBRK] = {sys_sbrk},    [SYS_MMAP] = {sys_mmap},
-                     [SYS_FORK] = {sys_fork},    [SYS_GETDENTS] = {sys_readdir} };
+                     [SYS_FORK] = {sys_fork},    [SYS_GETDENTS] = {sys_getdirentries} };
