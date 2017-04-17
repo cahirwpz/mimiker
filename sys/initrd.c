@@ -233,33 +233,40 @@ static void cpio_to_direntry(cpio_node_t* cn, dirent_t *dir)
 static int initrd_vnode_readdir(vnode_t *v, uio_t *uio)
 {
   cpio_node_t *cn = (cpio_node_t*)v->v_data;
-
-  /* Calculate size of buffer */
-  int buf_size = 0;
+  dirent_t dir;
   cpio_node_t *it;
-  dirent_t dummy; /* Make dummy argument because _DIRENT_RECLEN macro requires it */
-  TAILQ_FOREACH(it, &cn->c_children, c_siblings)
-    buf_size += _DIRENT_RECLEN(&dummy, strlen(it->c_name));
+  off_t offset = 0;
 
-  char *buf = kmalloc(mp, buf_size, 0);
-
-  /* Fill buffer with data */
-  dirent_t *dir = (dirent_t*)buf;
+  /* Locate proper directory based on offset */
   TAILQ_FOREACH(it, &cn->c_children, c_siblings)
   {
-    cpio_to_direntry(cn, dir);
-    dir = _DIRENT_NEXT(dir);
+    cpio_to_direntry(it, &dir);
+    if(offset + dir.d_reclen < uio->uio_offset)
+      offset += dir.d_reclen;
+    else
+    {
+      assert(offset == uio->uio_offset);
+      break;
+    }
   }
+  uio->uio_offset = 0;
 
-  int count = uio->uio_resid;
-  int error = uiomove(buf, buf_size, uio);
-
-  kfree(mp, buf);
-
-  if (error < 0)
-    return -error;
-
-  return count - uio->uio_resid;
+  int res = 0;
+  for(; it; it = TAILQ_NEXT(it, c_siblings))
+  {
+    int count = uio->uio_resid;
+    cpio_to_direntry(it, &dir);
+    if(count >= dir.d_reclen)
+    {
+        int error = uiomove(&dir, dir.d_reclen, uio);
+        if (error < 0)
+          return -error;
+    }
+    else
+        break;
+    res += count-uio->uio_resid;
+  }
+  return res;
 }
 
 static int initrd_root(mount_t *m, vnode_t **v) {
