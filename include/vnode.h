@@ -53,14 +53,17 @@ typedef struct vnode {
 
 #if !defined(IGNORE_NEWLIB_COMPATIBILITY)
 /* This must match newlib's implementation! */
-typedef struct vattr {
-  dev_t st_dev;
-  ino_t st_ino;
-  mode_t st_mode;
+typedef uint16_t newlib_dev_t;
+typedef uint16_t newlib_ino_t;
+typedef uint32_t newlib_mode_t;
+typedef struct __attribute__((packed)) vattr {
+  newlib_dev_t st_dev;
+  newlib_ino_t st_ino;
+  newlib_mode_t st_mode;
   nlink_t st_nlink;
   uid_t st_uid;
   gid_t st_gid;
-  dev_t st_rdev;
+  newlib_dev_t st_rdev;
   off_t st_size;
   time_t st_atime;
   time_t st_mtime;
