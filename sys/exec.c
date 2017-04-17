@@ -223,7 +223,7 @@ int do_exec(const exec_args_t *args) {
    * when the stack underflows.
    */
   vm_addr_t stack_bottom = 0x70000000;
-  const size_t stack_size = PAGESIZE * 2;
+  const size_t stack_size = 8 * 1024 * 1024; /* 8 MiB */
 
   vm_addr_t stack_start = stack_bottom - stack_size;
   vm_addr_t stack_end = stack_bottom;
