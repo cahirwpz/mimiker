@@ -23,6 +23,7 @@ LIB_SOURCES += string/bzero.c
 LIB_SOURCES += string/memchr.c
 LIB_SOURCES += string/memcpy.c
 LIB_SOURCES += string/memset.c
+LIB_SOURCES += string/strchr.c
 LIB_SOURCES += string/strcmp.c
 LIB_SOURCES += string/strcspn.c
 LIB_SOURCES += string/strlcat.c
@@ -30,6 +31,7 @@ LIB_SOURCES += string/strlcpy.c
 LIB_SOURCES += string/strlen.c
 LIB_SOURCES += string/strncmp.c
 LIB_SOURCES += string/strnlen.c
+LIB_SOURCES += string/strrchr.c
 LIB_SOURCES += string/strsep.c
 LIB_SOURCES += string/strspn.c
 

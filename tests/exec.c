@@ -8,18 +8,18 @@ static void program_thread(void *data) {
   exec_args_t exec_args;
   switch ((int)data) {
     case 1:
-      exec_args.prog_name = "prog";
+      exec_args.prog_name = "/bin/prog";
       exec_args.argv =
         (const char *[]){"prog", "argument1", "ARGUMENT2", "a-r-g-u-m-e-n-t-3"};
       exec_args.argc = 4;
       do_exec(&exec_args);
     case 2:
-      exec_args.prog_name = "prog";
+      exec_args.prog_name = "/bin/prog";
       exec_args.argv = (const char *[]){"prog", "String passed as argument."};
       exec_args.argc = 2;
       do_exec(&exec_args);
     case 3:
-      exec_args.prog_name = "prog";
+      exec_args.prog_name = "/bin/prog";
       exec_args.argv = (const char *[]){"prog", "abort_test"};
       exec_args.argc = 2;
       do_exec(&exec_args);
@@ -30,7 +30,7 @@ static int test_exec() {
   /* This is a simple demonstration of the exec functionality. It
    * requests to substitute current thread's image with program
    * called "prog", which is implemented in ./user/prog.c, and after
-   * compilation embedded in the kernel image.
+   * compilation stored in kernel ramdisk.
 
    * As the loaded program has no means to communicate with the
    * system, because system calls are not yet implemented, it runs

@@ -14,7 +14,7 @@ static MALLOC_DEFINE(vnode_pool, "vnode pool");
 
 void vnode_init() {
   kmalloc_init(vnode_pool);
-  kmalloc_add_arena(vnode_pool, pm_alloc(2)->vaddr, PAGESIZE * 2);
+  kmalloc_add_arena(vnode_pool, pm_alloc(16)->vaddr, PAGESIZE * 16);
 }
 
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops) {
