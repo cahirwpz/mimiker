@@ -18,7 +18,7 @@ $(KRT): | $(SUBDIRS)
 
 mimiker.elf: $(KRT)
 	@echo "[LD] Linking kernel image: $@"
-	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) $(LD_EMBED) -o $@
+	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
 
 cscope:
 	cscope -b include/*.h ./*/*.[cS]

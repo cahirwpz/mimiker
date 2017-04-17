@@ -4,7 +4,7 @@
 
 static int test_exec_misbehave() {
   exec_args_t exec_args;
-  exec_args.prog_name = "misbehave";
+  exec_args.prog_name = "/bin/misbehave";
   exec_args.argv = (const char *[]){"misbehave"};
   exec_args.argc = 1;
 
