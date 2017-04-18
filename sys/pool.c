@@ -11,10 +11,10 @@
 
 typedef struct pool_slab {
   LIST_ENTRY(pool_slab) ph_slablist; /* pool slab list */
-  vm_page_t *ph_page;                /* page containing this slab*/
+  vm_page_t *ph_page;                /* page containing this slab */
   uint16_t ph_nused;                 /* # of items in use */
   uint16_t ph_nfree;  /* # of free (and available) items, a bit redundant but
-                         there would be padding abyway*/
+                         there would be padding anyway */
   uint16_t ph_ntotal; /* total number of chunks*/
   uint16_t ph_start;  /* start offset in page */
   bitstr_t ph_bitmap[0];
@@ -96,15 +96,27 @@ void pool_init(pool_t *pool, size_t size, pool_ctor_t ctor, pool_dtor_t dtor) {
   log("pool_init: initialized new pool at %p (item size = %d)", pool, size);
 }
 
+static bool is_pool_dead(pool_t *pool) {
+  unsigned long *tmp = (unsigned long *)pool;
+  for (size_t i = 0; i < sizeof(pool_t) / sizeof(unsigned long); i++) {
+    if (tmp[i] == PP_FREED_WORD)
+      return true;
+  }
+  return false;
+}
+
+static void mark_pool_dead(pool_t *pool) {
+  unsigned long *tmp = (unsigned long *)pool;
+  for (size_t i = 0; i < sizeof(pool_t) / sizeof(unsigned long); i++) {
+    tmp[i] = PP_FREED_WORD;
+  }
+}
+
 void pool_destroy(pool_t *pool) {
   log("pool_destroy: pool = %p", pool);
 
-  unsigned long *tmp = (unsigned long *)pool;
-
-  for (size_t i = 0; i < sizeof(pool_t) / sizeof(unsigned long); i++) {
-    if (tmp[i] == PP_FREED_WORD)
-      panic("double free at pool %p", pool);
-  }
+  if (is_pool_dead(pool))
+    panic("attempt to free dead pool %p", pool);
 
   pool_slab_t *it, *next;
 
@@ -126,9 +138,7 @@ void pool_destroy(pool_t *pool) {
     destroy_slab(pool, it);
   }
 
-  for (size_t i = 0; i < sizeof(pool_t) / sizeof(unsigned long); i++) {
-    tmp[i] = PP_FREED_WORD;
-  }
+  mark_pool_dead(pool);
 
   log("pool_destroy: destroyed pool at %p", pool);
 }
@@ -137,12 +147,8 @@ void pool_destroy(pool_t *pool) {
 void *pool_alloc(pool_t *pool, __unused unsigned flags) {
   log("pool_alloc: pool=%p", pool);
 
-  unsigned long *tmp = (unsigned long *)pool;
-  for (size_t i = 0; i < sizeof(pool_t) / sizeof(unsigned long); i++) {
-    if (tmp[i] == PP_FREED_WORD) {
-      panic("operation on a free pool %p", pool);
-    }
-  }
+  if (is_pool_dead(pool))
+    panic("operation on dead pool %p", pool);
 
   pool_slab_t *slab_to_use;
   if (pool->pp_nitems) {
@@ -161,7 +167,6 @@ void *pool_alloc(pool_t *pool, __unused unsigned flags) {
   pool_slab_list_t *slab_list_to_insert =
     slab_to_use->ph_nfree ? &pool->pp_part_slabs : &pool->pp_full_slabs;
   LIST_INSERT_HEAD(slab_list_to_insert, slab_to_use, ph_slablist);
-
   return p;
 }
 
@@ -170,12 +175,8 @@ void *pool_alloc(pool_t *pool, __unused unsigned flags) {
 void pool_free(pool_t *pool, void *ptr) {
   log("pool_free: pool = %p, ptr = %p", pool, ptr);
 
-  unsigned long *tmp = (unsigned long *)pool;
-  for (size_t i = 0; i < sizeof(pool_t) / sizeof(unsigned long); i++) {
-    if (tmp[i] == PP_FREED_WORD) {
-      panic("operation on a free pool %p", pool);
-    }
-  }
+  if (is_pool_dead(pool))
+    panic("operation on dead pool %p", pool);
 
   pool_item_t *curr_pi = ptr - sizeof(pool_item_t);
   if (curr_pi->pi_canary != PI_MAGIC_WORD) {
