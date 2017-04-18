@@ -101,6 +101,11 @@ static void pci_bus_enumerate(pci_bus_t *pcibus) {
         pci_bar_t *bar = &pcidev->bar[pcidev->nbars++];
         bar->addr = addr;
         bar->size = size;
+        /* The two fields below are stored for convenience. They seem redundant,
+           but as we'll be sorting all bars by their size, keeping a reference
+           to where an entry came from is useful. */
+        bar->dev = pcidev;
+        bar->i = i;
       }
     }
   }
@@ -146,6 +151,12 @@ static void pci_bus_assign_space(pci_bus_t *pcibus, intptr_t mem_base,
       bar->addr |= mem_base;
       mem_base += bar->size;
     }
+
+    /* Write the BAR address back to PCI bus config. */
+    PCI0_CFG_ADDR_R =
+      PCI0_CFG_ENABLE |
+      PCI0_CFG_REG(bar->dev->addr.device, bar->dev->addr.function, 4 + bar->i);
+    PCI0_CFG_DATA_R = bar->addr;
   }
 
   kfree(mp, bars);
