@@ -34,7 +34,7 @@ static int copyout_vmspace(vm_map_t *vm, const void *restrict kaddr,
 /* Heavily inspired by NetBSD's uiomove */
 /* This function modifies uio to reflect on the progress. */
 int uiomove(void *buf, size_t n, uio_t *uio) {
-  char *cbuf = buf + uio->uio_offset;
+  char *cbuf = buf;
   int error = 0;
 
   assert(uio->uio_op == UIO_READ || uio->uio_op == UIO_WRITE);
@@ -68,10 +68,19 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
     iov->iov_base = (char *)iov->iov_base + cnt;
     iov->iov_len -= cnt;
     uio->uio_resid -= cnt;
+    uio->uio_offset += cnt;
     cbuf += cnt;
     n -= cnt;
   }
 
   /* Invert error sign, because copy routines use negative error codes */
   return error;
+}
+
+int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio) {
+  size_t offset = uio->uio_offset;
+  assert(offset < buflen);
+  assert(uio->uio_offset >= 0);
+
+  return (uiomove((char *)buf + offset, buflen - offset, uio));
 }
