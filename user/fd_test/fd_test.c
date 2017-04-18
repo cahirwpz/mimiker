@@ -114,12 +114,12 @@ void test_read() {
   /* Read all at once */
   const char *contents = "This is the content of file \"file1\" in directory "
                          "\"initrd_test_files/directory1\"!";
-  assert_open_ok(0, "/initrd/tests/initrd/directory1/file1", 0, O_RDONLY);
+  assert_open_ok(0, "/tests/initrd/directory1/file1", 0, O_RDONLY);
   assert_read_equal(0, buf, contents);
   assert_close_ok(0);
 
   /* Read in parts */
-  assert_open_ok(0, "/initrd/tests/initrd/directory1/file1", 0, O_RDONLY);
+  assert_open_ok(0, "/tests/initrd/directory1/file1", 0, O_RDONLY);
   assert_read_equal(0, buf, "This is the ");
   assert_read_equal(0, buf, "content of file ");
   assert_read_equal(0, buf, "\"file1\" in directory ");
@@ -127,7 +127,7 @@ void test_read() {
   assert_close_ok(0);
 
   /* Read in parts, using lseek aswell */
-  assert_open_ok(0, "/initrd/tests/initrd/directory1/file1", 0, O_RDONLY);
+  assert_open_ok(0, "/tests/initrd/directory1/file1", 0, O_RDONLY);
   assert_lseek_ok(0, strlen("This is the "), SEEK_SET);
   assert_read_equal(0, buf, "content of file ");
   assert_lseek_ok(0, strlen("This is the "), SEEK_SET);
