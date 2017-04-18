@@ -11,7 +11,7 @@ SOURCES_C = \
 	mutex.c \
 	physmem.c \
 	pmap.c \
-	pool_alloc.c \
+	pool.c \
 	producer_consumer.c \
 	rtc.c \
 	rwlock.c \

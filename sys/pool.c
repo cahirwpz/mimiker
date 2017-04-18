@@ -4,25 +4,10 @@
 #include <queue.h>
 #include <bitstring.h>
 #include <common.h>
-#include <pool_alloc.h>
+#include <pool.h>
 
 #define PI_MAGIC_WORD 0xcafebabe
-
 #define PP_FREED_WORD 0xdeadbeef
-
-#define GET_PI_AT_IDX(slab, i, size)                                           \
-  (pool_item_t *)((unsigned long)slab + (slab->ph_start) +                     \
-                  (i) * (size + sizeof(pool_item_t)))
-
-#define PALLOC_DEBUG 0
-
-#if defined(PALLOC_DEBUG) && PALLOC_DEBUG > 0
-#define PALLOC_DEBUG_PRINT(text, args...)                                      \
-  kprintf("PALLOC_DEBUG: %s:%d:%s(): " text, __FILE__, __LINE__, __func__,     \
-          ##args)
-#else
-#define PALLOC_DEBUG_PRINT(text, args...)
-#endif
 
 typedef struct pool_slab {
   LIST_ENTRY(pool_slab) ph_slablist; /* pool slab list */
@@ -36,45 +21,48 @@ typedef struct pool_slab {
 } pool_slab_t;
 
 typedef struct pool_item {
-  unsigned long pi_guard_number; /* PI_MAGIC_WORD by default, normally isn't */
-  /* changed, so if it has another value, memory */
-  /* corruption has taken place */
+  uint32_t pi_canary;   /* PI_MAGIC_WORD by default, if modified then memory
+                           corruption has occured */
   pool_slab_t *pi_slab; /* pointer to slab containing this item */
   unsigned long pi_data[0];
 } pool_item_t;
 
-void pool_default_destructor(__unused void *buf, __unused size_t size){};
+static pool_item_t *get_pi_at_idx(pool_slab_t *slab, unsigned i, size_t size) {
+  return (pool_item_t *)((intptr_t)slab + slab->ph_start +
+                         i * (size + sizeof(pool_item_t)));
+}
 
 static pool_slab_t *create_slab(pool_t *pool) {
-  PALLOC_DEBUG_PRINT("Entering create_slab, size=%d\n", pool->pp_itemsize);
+  log("create_slab: pool = %p, pp_itemsize = %d", pool, pool->pp_itemsize);
   vm_page_t *page_for_slab = pm_alloc(1);
   pool_slab_t *slab = (pool_slab_t *)page_for_slab->vaddr;
   slab->ph_page = page_for_slab;
   slab->ph_nused = 0;
-  slab->ph_ntotal =
-    (8 * (PAGESIZE - sizeof(pool_slab_t)) - 31) /
-    (8 * (sizeof(pool_item_t) + pool->pp_itemsize) +
-     1); /* sizeof(pool_slab_t)+n*(sizeof(pool_item_t)+size)+((n+31)/32)*4
-<= PAGESIZE */
+  /* sizeof(pool_slab_t) + n * (sizeof(pool_item_t) + size)
+   * + ((n + 31) / 32) * 4 <= PAGESIZE */
+  slab->ph_ntotal = (8 * (PAGESIZE - sizeof(pool_slab_t)) - 31) /
+                    (8 * (sizeof(pool_item_t) + pool->pp_itemsize) + 1);
 
   slab->ph_nfree = slab->ph_ntotal;
-  slab->ph_start = sizeof(pool_slab_t) + ((slab->ph_ntotal + 31) >> 5) * 4;
+  slab->ph_start = sizeof(pool_slab_t) + howmany(slab->ph_ntotal, 32) * 4;
   memset(slab->ph_bitmap, 0, bitstr_size(slab->ph_ntotal));
   for (int i = 0; i < slab->ph_ntotal; i++) {
-    pool_item_t *curr_pi = GET_PI_AT_IDX(slab, i, pool->pp_itemsize);
+    pool_item_t *curr_pi = get_pi_at_idx(slab, i, pool->pp_itemsize);
     // PALLOC_DEBUG_PRINT("Still alive, are we? %d\n", i);
     curr_pi->pi_slab = slab;
-    curr_pi->pi_guard_number = PI_MAGIC_WORD;
-    (pool->pp_constructor)(curr_pi->pi_data, pool->pp_itemsize);
+    curr_pi->pi_canary = PI_MAGIC_WORD;
+    if (pool->pp_ctor)
+      pool->pp_ctor(curr_pi->pi_data, pool->pp_itemsize);
   }
   return slab;
 }
 
 static void destroy_slab(pool_slab_t *slab, pool_t *pool) {
-  PALLOC_DEBUG_PRINT("Entering destroy_slab\n");
+  log("destroy_slab: pool = %p, slab = %p", pool, slab);
   for (int i = 0; i < slab->ph_ntotal; i++) {
-    pool_item_t *curr_pi = GET_PI_AT_IDX(slab, i, pool->pp_itemsize);
-    (pool->pp_destructor)(curr_pi->pi_data, pool->pp_itemsize);
+    pool_item_t *curr_pi = get_pi_at_idx(slab, i, pool->pp_itemsize);
+    if (pool->pp_dtor)
+      pool->pp_dtor(curr_pi->pi_data, pool->pp_itemsize);
   }
   pm_free(slab->ph_page);
 }
@@ -83,39 +71,36 @@ static void *slab_alloc(pool_slab_t *slab, size_t size) {
   bitstr_t *bitmap = slab->ph_bitmap;
   int i = 0;
   bit_ffc(bitmap, slab->ph_ntotal, &i);
-  pool_item_t *found_pi = GET_PI_AT_IDX(slab, i, size);
-  if (found_pi->pi_guard_number != PI_MAGIC_WORD) {
+  pool_item_t *found_pi = get_pi_at_idx(slab, i, size);
+  if (found_pi->pi_canary != PI_MAGIC_WORD) {
     panic("memory corruption at item 0x%lx\n", (unsigned long)found_pi);
   }
   slab->ph_nused++;
   slab->ph_nfree--;
   bit_set(bitmap, i);
-  PALLOC_DEBUG_PRINT("Allocated an item (0x%lx) at slab 0x%lx, index %d\n",
-                     (unsigned long)found_pi->pi_data,
-                     (unsigned long)found_pi->pi_slab, i);
+  log("slab_alloc: allocated item %p at slab %p, index %d", found_pi->pi_data,
+      found_pi->pi_slab, i);
   return found_pi->pi_data;
 }
 
-void pool_init(pool_t *pool, size_t size, void (*constructor)(void *, size_t),
-               void (*destructor)(void *, size_t)) {
-  PALLOC_DEBUG_PRINT("Entering pool_init\n");
+void pool_init(pool_t *pool, size_t size, pool_ctor_t ctor, pool_dtor_t dtor) {
+  log("pool_init: pool = %p, size = %d", pool, size);
   size = align(size, 4); /* Align to 32-bit word */
   pool->pp_itemsize = size;
   LIST_INIT(&pool->pp_empty_slabs);
   LIST_INIT(&pool->pp_full_slabs);
   LIST_INIT(&pool->pp_part_slabs);
-  pool->pp_constructor = constructor;
-  pool->pp_destructor = destructor;
+  pool->pp_ctor = ctor;
+  pool->pp_dtor = dtor;
   pool_slab_t *first_slab = create_slab(pool);
   LIST_INSERT_HEAD(&pool->pp_empty_slabs, first_slab, ph_slablist);
   pool->pp_nslabs = 1;
   pool->pp_nitems = first_slab->ph_ntotal;
-  PALLOC_DEBUG_PRINT("Initialized new pool at 0x%lx\n", (unsigned long)pool);
+  log("pool_init: initialized new pool at %p", pool);
 }
 
 void pool_destroy(pool_t *pool) {
-
-  PALLOC_DEBUG_PRINT("Entering pool_destroy\n");
+  log("pool_destroy: pool = %p", pool);
 
   unsigned long *tmp = (unsigned long *)pool;
 
@@ -125,7 +110,7 @@ void pool_destroy(pool_t *pool) {
     }
   }
 
-  PALLOC_DEBUG_PRINT("Destroying empty slabs\n");
+  log("pool_destroy: destroying empty slabs");
   pool_slab_t *it = LIST_FIRST(&pool->pp_empty_slabs);
   while (it) {
     pool_slab_t *next = LIST_NEXT(it, ph_slablist);
@@ -134,7 +119,7 @@ void pool_destroy(pool_t *pool) {
     it = next;
   }
 
-  PALLOC_DEBUG_PRINT("Destroying partially filled slabs\n");
+  log("pool_destroy: destroying partially filled slabs");
   it = LIST_FIRST(&pool->pp_part_slabs);
   while (it) {
     pool_slab_t *next = LIST_NEXT(it, ph_slablist);
@@ -143,7 +128,7 @@ void pool_destroy(pool_t *pool) {
     it = next;
   }
 
-  PALLOC_DEBUG_PRINT("Destroying full slabs\n");
+  log("pool_destroy: destroying full slabs");
   it = LIST_FIRST(&pool->pp_full_slabs);
   while (it) {
     pool_slab_t *next = LIST_NEXT(it, ph_slablist);
@@ -155,19 +140,18 @@ void pool_destroy(pool_t *pool) {
   for (size_t i = 0; i < sizeof(pool_t) / sizeof(unsigned long); i++) {
     tmp[i] = PP_FREED_WORD;
   }
-  PALLOC_DEBUG_PRINT("Destroyed pool at 0x%lx\n", (unsigned long)pool);
+
+  log("pool_destroy: destroyed pool at %p", pool);
 }
 
-void *
-pool_alloc(pool_t *pool,
-           __unused uint32_t
-             flags) { /* TODO: implement different flags (no idea which, tbh) */
-  PALLOC_DEBUG_PRINT("Entering pool_alloc\n");
+/* TODO: find some use for flags */
+void *pool_alloc(pool_t *pool, __unused unsigned flags) {
+  log("pool_alloc: pool=%p", pool);
 
   unsigned long *tmp = (unsigned long *)pool;
   for (size_t i = 0; i < sizeof(pool_t) / sizeof(unsigned long); i++) {
     if (tmp[i] == PP_FREED_WORD) {
-      panic("operation on a free pool 0x%lx\n", (unsigned long)pool);
+      panic("operation on a free pool %p", pool);
     }
   }
 
@@ -181,7 +165,7 @@ pool_alloc(pool_t *pool,
     slab_to_use = create_slab(pool);
     pool->pp_nitems += slab_to_use->ph_ntotal;
     pool->pp_nslabs++;
-    PALLOC_DEBUG_PRINT("Growing pool 0x%lx\n", (unsigned long)pool);
+    log("pool_alloc: growing pool at %p", pool);
   }
   void *p = slab_alloc(slab_to_use, pool->pp_itemsize);
   pool->pp_nitems--;
@@ -191,10 +175,11 @@ pool_alloc(pool_t *pool,
 
   return p;
 }
-void pool_free(pool_t *pool,
-               void *ptr) { /* TODO: destroy empty slabs when their number
-                               reaches a certain threshold (maybe leave one) */
-  PALLOC_DEBUG_PRINT("Entering pool_free\n");
+
+/* TODO: destroy empty slabs when their number reaches a certain threshold
+ * (maybe leave one) */
+void pool_free(pool_t *pool, void *ptr) {
+  log("pool_free: pool = %p, ptr = %p", pool, ptr);
 
   unsigned long *tmp = (unsigned long *)pool;
   for (size_t i = 0; i < sizeof(pool_t) / sizeof(unsigned long); i++) {
@@ -204,7 +189,7 @@ void pool_free(pool_t *pool,
   }
 
   pool_item_t *curr_pi = ptr - sizeof(pool_item_t);
-  if (curr_pi->pi_guard_number != PI_MAGIC_WORD) {
+  if (curr_pi->pi_canary != PI_MAGIC_WORD) {
     panic("memory corruption at item 0x%lx\n", (unsigned long)curr_pi);
   }
   pool_slab_t *curr_slab = curr_pi->pi_slab;
@@ -225,6 +210,5 @@ void pool_free(pool_t *pool,
   } else {
     LIST_INSERT_HEAD(&pool->pp_part_slabs, curr_slab, ph_slablist);
   }
-  PALLOC_DEBUG_PRINT("Freed an item (0x%lx) at slab 0x%lx, index %ld\n",
-                     (unsigned long)ptr, (unsigned long)curr_slab, index);
+  log("pool_free: freed item %p at slab %p, index %ld", ptr, curr_slab, index);
 }
