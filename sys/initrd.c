@@ -189,7 +189,7 @@ static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
       return 0;
     }
   }
-  return ENOENT;
+  return -ENOENT;
 }
 
 static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
@@ -201,6 +201,12 @@ static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
     return -error;
 
   return count - uio->uio_resid;
+}
+
+static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
+  cpio_node_t *cn = (cpio_node_t *)v->v_data;
+  va->st_size = cn->c_size;
+  return 0;
 }
 
 static int initrd_mount(mount_t *m) {
@@ -218,7 +224,7 @@ static int initrd_root(mount_t *m, vnode_t **v) {
 }
 
 static int initrd_init(vfsconf_t *vfc) {
-  vfs_domount(vfc, vfs_root_initrd_vnode);
+  vfs_domount(vfc, vfs_root_vnode);
   return 0;
 }
 
@@ -244,6 +250,7 @@ void ramdisk_init() {
   if (rd_size) {
     initrd_ops.v_lookup = initrd_vnode_lookup;
     initrd_ops.v_read = initrd_vnode_read;
+    initrd_ops.v_getattr = initrd_vnode_getattr;
     log("parsing cpio archive of %zu bytes", rd_size);
     read_cpio_archive();
     initrd_build_tree_and_names();

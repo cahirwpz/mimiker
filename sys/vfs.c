@@ -26,7 +26,6 @@ static vfs_init_t vfs_default_init;
 /* Global root vnodes */
 vnode_t *vfs_root_vnode;
 vnode_t *vfs_root_dev_vnode;
-vnode_t *vfs_root_initrd_vnode;
 
 static vnodeops_t vfs_root_ops = {
   .v_lookup = vnode_op_notsup,
@@ -48,7 +47,6 @@ void vfs_init() {
 
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
   vfs_root_dev_vnode = vnode_new(V_DIR, &vfs_root_ops);
-  vfs_root_initrd_vnode = vnode_new(V_DIR, &vfs_root_ops);
 
   /* Initialize available filesystem types. */
   SET_DECLARE(vfsconf, vfsconf_t);
@@ -178,9 +176,6 @@ int vfs_lookup(const char *path, vnode_t **vp) {
      * since we don't have any filesystem at / (root) yet. */
     v = vfs_root_dev_vnode;
     path = path + 5;
-  } else if (strncmp(path, "/initrd/", 8) == 0) {
-    v = vfs_root_initrd_vnode;
-    path = path + 8;
   } else if (strncmp(path, "/", 1) == 0) {
     v = vfs_root_vnode;
     path = path + 1;
@@ -226,11 +221,6 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     vnode_unlock(v);
     vnode_unref(v);
 
-    /* Handle the special case of root vnode returning ENOTSUP on lookup. We
-       don't have a filesystem at / (root) yet, but we want to get the correct
-       error when trying to open a non-existent file. */
-    if (error == -ENOTSUP && v == vfs_root_vnode)
-      return -ENOENT;
     if (error)
       return error;
     v = v_child;
