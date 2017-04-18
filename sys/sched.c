@@ -81,10 +81,11 @@ void sched_switch(thread_t *newtd) {
     newtd = sched_choose();
 
   newtd->td_state = TDS_RUNNING;
-  critical_leave();
 
   if (td != newtd)
     ctx_switch(td, newtd);
+
+  critical_leave();
 }
 
 noreturn void sched_run() {
