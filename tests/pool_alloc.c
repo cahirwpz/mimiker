@@ -20,12 +20,10 @@ int test_pool_alloc(
                            PALLOC_TEST_DOUBLEFREE - double free */
 
   pool_t test;
-  vm_page_t *page = pm_alloc(1);
 
   MALLOC_DEFINE(mp, "memory pool for testing pooled memory allocator");
 
-  kmalloc_init(mp);
-  kmalloc_add_arena(mp, page->vaddr, PAGESIZE);
+  kmalloc_init(mp, 1, 1);
 
   for (int n = 1; n < 10; n++) {
     for (size_t size = 4; size <= 128; size += 4) {
@@ -50,8 +48,6 @@ program due to double free! */
       kprintf("Pool allocator test passed!(n=%d, size=%d)\n", n, size);
     }
   }
-
-  pm_free(page);
 
   return KTEST_SUCCESS;
 }
