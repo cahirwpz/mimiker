@@ -18,7 +18,6 @@ char buf[100];
   n = open(file, flag, 0);                                                     \
   assert(n == fd + FD_OFFSET);
 
-
 #define assert_open_fail(file, mode, flag, err)                                \
   n = open(file, flag, 0);                                                     \
   assert(n < 0);                                                               \
@@ -28,12 +27,12 @@ char buf[100];
   n = read(fd + FD_OFFSET, buf, len);                                          \
   assert(n >= 0);
 
-#define assert_read_equal(fd, buf, str)                                           \
-  {         \
-    int len = strlen(str); \
-    n = read(fd + FD_OFFSET, buf, len);                                          \
-    assert(strncmp(str, buf, len) == 0);\
-    assert(n >= 0); \
+#define assert_read_equal(fd, buf, str)                                        \
+  {                                                                            \
+    int len = strlen(str);                                                     \
+    n = read(fd + FD_OFFSET, buf, len);                                        \
+    assert(strncmp(str, buf, len) == 0);                                       \
+    assert(n >= 0);                                                            \
   }
 
 #define assert_read_fail(fd, buf, len, err)                                    \
@@ -59,8 +58,8 @@ char buf[100];
   assert(n < 0);                                                               \
   assert(errno == err);
 
-#define assert_lseek_ok(fd, offset, whence)                                   \
-  n = lseek(fd + FD_OFFSET, offset, whence);                                                     \
+#define assert_lseek_ok(fd, offset, whence)                                    \
+  n = lseek(fd + FD_OFFSET, offset, whence);                                   \
   assert(n >= 0);
 
 /* Just the basic, correct operations on a single /dev/null */
@@ -111,10 +110,10 @@ void test_readwrite() {
   assert_close_ok(2);
 }
 
-void test_read()
-{
+void test_read() {
   /* Read all at once */
-  const char *contents = "This is the content of file \"file1\" in directory \"initrd_test_files/directory1\"!";
+  const char *contents = "This is the content of file \"file1\" in directory "
+                         "\"initrd_test_files/directory1\"!";
   assert_open_ok(0, "/initrd/tests/initrd/directory1/file1", 0, O_RDONLY);
   assert_read_equal(0, buf, contents);
   assert_close_ok(0);
