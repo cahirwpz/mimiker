@@ -92,6 +92,7 @@ void pool_init(pool_t *pool, size_t size, pool_ctor_t ctor, pool_dtor_t dtor) {
   LIST_INSERT_HEAD(&pool->pp_empty_slabs, first_slab, ph_slablist);
   pool->pp_nslabs = 1;
   pool->pp_nitems = first_slab->ph_ntotal;
+  pool->pp_align = 4;
   log("pool_init: initialized new pool at %p (item size = %d)", pool, size);
 }
 
