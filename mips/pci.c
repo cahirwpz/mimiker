@@ -156,6 +156,8 @@ static void pci_bus_assign_space(pci_bus_t *pcibus, intptr_t mem_base,
     PCI0_CFG_ADDR_R =
       PCI0_CFG_ENABLE |
       PCI0_CFG_REG(bar->dev->addr.device, bar->dev->addr.function, 4 + bar->i);
+    /* It's safe to write the entire address without masking bits - only base
+       address bits are writable. */
     PCI0_CFG_DATA_R = bar->addr;
   }
 

@@ -35,7 +35,7 @@ typedef struct {
   pm_addr_t addr;
   size_t size;
   pci_device_t *dev; /* Reference to the parent device. */
-  int i; /* This BAR no in parent device. */
+  int i;             /* This BAR no in parent device. */
 } pci_bar_t;
 
 typedef struct pci_device {
