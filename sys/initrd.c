@@ -199,7 +199,7 @@ static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
 static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
   cpio_node_t *cn = (cpio_node_t *)v->v_data;
   int count = uio->uio_resid;
-  int error = uiomove(cn->c_data, cn->c_size, uio);
+  int error = uiomove_frombuf(cn->c_data, cn->c_size, uio);
 
   if (error < 0)
     return -error;
@@ -254,6 +254,7 @@ void ramdisk_init() {
   if (rd_size) {
     initrd_ops.v_lookup = initrd_vnode_lookup;
     initrd_ops.v_read = initrd_vnode_read;
+    initrd_ops.v_open = vnode_open_generic;
     initrd_ops.v_getattr = initrd_vnode_getattr;
     log("parsing cpio archive of %zu bytes", rd_size);
     read_cpio_archive();

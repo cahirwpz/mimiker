@@ -53,12 +53,10 @@ int vnode_op_notsup() {
 }
 
 static int vnode_generic_read(file_t *f, thread_t *td, uio_t *uio) {
-  uio->uio_offset += f->f_offset;
   return VOP_READ(f->f_vnode, uio);
 }
 
 static int vnode_generic_write(file_t *f, thread_t *td, uio_t *uio) {
-  uio->uio_offset += f->f_offset;
   return VOP_WRITE(f->f_vnode, uio);
 }
 

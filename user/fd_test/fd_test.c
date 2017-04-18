@@ -27,6 +27,14 @@ char buf[100];
   n = read(fd + FD_OFFSET, buf, len);                                          \
   assert(n >= 0);
 
+#define assert_read_equal(fd, buf, str)                                        \
+  {                                                                            \
+    int len = strlen(str);                                                     \
+    n = read(fd + FD_OFFSET, buf, len);                                        \
+    assert(strncmp(str, buf, len) == 0);                                       \
+    assert(n >= 0);                                                            \
+  }
+
 #define assert_read_fail(fd, buf, len, err)                                    \
   n = read(fd + FD_OFFSET, buf, len);                                          \
   assert(n < 0);                                                               \
@@ -49,6 +57,10 @@ char buf[100];
   n = close(fd + FD_OFFSET);                                                   \
   assert(n < 0);                                                               \
   assert(errno == err);
+
+#define assert_lseek_ok(fd, offset, whence)                                    \
+  n = lseek(fd + FD_OFFSET, offset, whence);                                   \
+  assert(n >= 0);
 
 /* Just the basic, correct operations on a single /dev/null */
 void test_devnull() {
@@ -96,6 +108,33 @@ void test_readwrite() {
   assert_close_ok(0);
   assert_close_ok(1);
   assert_close_ok(2);
+}
+
+void test_read() {
+  /* Read all at once */
+  const char *contents = "This is the content of file \"file1\" in directory "
+                         "\"initrd_test_files/directory1\"!";
+  assert_open_ok(0, "/tests/initrd/directory1/file1", 0, O_RDONLY);
+  assert_read_equal(0, buf, contents);
+  assert_close_ok(0);
+
+  /* Read in parts */
+  assert_open_ok(0, "/tests/initrd/directory1/file1", 0, O_RDONLY);
+  assert_read_equal(0, buf, "This is the ");
+  assert_read_equal(0, buf, "content of file ");
+  assert_read_equal(0, buf, "\"file1\" in directory ");
+  assert_read_equal(0, buf, "\"initrd_test_files/directory1\"!");
+  assert_close_ok(0);
+
+  /* Read in parts, using lseek aswell */
+  assert_open_ok(0, "/tests/initrd/directory1/file1", 0, O_RDONLY);
+  assert_lseek_ok(0, strlen("This is the "), SEEK_SET);
+  assert_read_equal(0, buf, "content of file ");
+  assert_lseek_ok(0, strlen("This is the "), SEEK_SET);
+  assert_read_equal(0, buf, "content of file ");
+  assert_read_equal(0, buf, "\"file1\" in directory ");
+  assert_read_equal(0, buf, "\"initrd_test_files/directory1\"!");
+  assert_close_ok(0);
 }
 
 /* Try passing invalid pointers as arguments to open,read,write. */
@@ -152,6 +191,7 @@ void test_open_path() {
 }
 
 int main(int argc, char **argv) {
+  test_read();
   test_devnull();
   test_multiple_descriptors();
   test_readwrite();
