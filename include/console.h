@@ -16,17 +16,16 @@ typedef struct console {
   int cn_prio;
 } console_t;
 
-#define CONSOLE_DEFINE(name, prio) \
-  console_t name##_console = { \
-    .cn_init = name##_init, \
-    .cn_getc = name##_getc, \
-    .cn_putc = name##_putc, \
-    .cn_prio = (prio),\
-  }; \
+#define CONSOLE_DEFINE(name, prio)                                             \
+  console_t name##_console = {                                                 \
+    .cn_init = name##_init,                                                    \
+    .cn_getc = name##_getc,                                                    \
+    .cn_putc = name##_putc,                                                    \
+    .cn_prio = (prio),                                                         \
+  };                                                                           \
   SET_ENTRY(cn_table, name##_console)
 
-#define CONSOLE_DECLARE(name) \
-  extern console_t name##_console
+#define CONSOLE_DECLARE(name) extern console_t name##_console
 
 void cn_init();
 int cn_getc();

@@ -5,9 +5,13 @@
 
 static console_t *cn;
 
-static void dummy_init(console_t *dev __unused) {}
-static void dummy_putc(console_t *dev __unused, int c __unused) {}
-static int dummy_getc(console_t *dev __unused) { return 0; }
+static void dummy_init(console_t *dev __unused) {
+}
+static void dummy_putc(console_t *dev __unused, int c __unused) {
+}
+static int dummy_getc(console_t *dev __unused) {
+  return 0;
+}
 
 CONSOLE_DEFINE(dummy, -10);
 
