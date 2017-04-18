@@ -42,13 +42,12 @@ static pool_slab_t *create_slab(pool_t *pool) {
    * + ((n + 31) / 32) * 4 <= PAGESIZE */
   slab->ph_ntotal = (8 * (PAGESIZE - sizeof(pool_slab_t)) - 31) /
                     (8 * (sizeof(pool_item_t) + pool->pp_itemsize) + 1);
-
   slab->ph_nfree = slab->ph_ntotal;
   slab->ph_start = sizeof(pool_slab_t) + howmany(slab->ph_ntotal, 32) * 4;
   memset(slab->ph_bitmap, 0, bitstr_size(slab->ph_ntotal));
   for (int i = 0; i < slab->ph_ntotal; i++) {
     pool_item_t *curr_pi = get_pi_at_idx(slab, i, pool->pp_itemsize);
-    // PALLOC_DEBUG_PRINT("Still alive, are we? %d\n", i);
+    /* log("Still alive, are we? %d", i); */
     curr_pi->pi_slab = slab;
     curr_pi->pi_canary = PI_MAGIC_WORD;
     if (pool->pp_ctor)
@@ -57,7 +56,7 @@ static pool_slab_t *create_slab(pool_t *pool) {
   return slab;
 }
 
-static void destroy_slab(pool_slab_t *slab, pool_t *pool) {
+static void destroy_slab(pool_t *pool, pool_slab_t *slab) {
   log("destroy_slab: pool = %p, slab = %p", pool, slab);
   for (int i = 0; i < slab->ph_ntotal; i++) {
     pool_item_t *curr_pi = get_pi_at_idx(slab, i, pool->pp_itemsize);
@@ -68,23 +67,20 @@ static void destroy_slab(pool_slab_t *slab, pool_t *pool) {
 }
 
 static void *slab_alloc(pool_slab_t *slab, size_t size) {
-  bitstr_t *bitmap = slab->ph_bitmap;
-  int i = 0;
-  bit_ffc(bitmap, slab->ph_ntotal, &i);
-  pool_item_t *found_pi = get_pi_at_idx(slab, i, size);
-  if (found_pi->pi_canary != PI_MAGIC_WORD) {
-    panic("memory corruption at item 0x%lx\n", (unsigned long)found_pi);
-  }
+  int found_idx = 0;
+  bit_ffc(slab->ph_bitmap, slab->ph_ntotal, &found_idx);
+  bit_set(slab->ph_bitmap, found_idx);
+  pool_item_t *found_pi = get_pi_at_idx(slab, found_idx, size);
+  if (found_pi->pi_canary != PI_MAGIC_WORD)
+    panic("memory corruption at item %p", found_pi);
   slab->ph_nused++;
   slab->ph_nfree--;
-  bit_set(bitmap, i);
   log("slab_alloc: allocated item %p at slab %p, index %d", found_pi->pi_data,
-      found_pi->pi_slab, i);
+      found_pi->pi_slab, found_idx);
   return found_pi->pi_data;
 }
 
 void pool_init(pool_t *pool, size_t size, pool_ctor_t ctor, pool_dtor_t dtor) {
-  log("pool_init: pool = %p, size = %d", pool, size);
   size = align(size, 4); /* Align to 32-bit word */
   pool->pp_itemsize = size;
   LIST_INIT(&pool->pp_empty_slabs);
@@ -96,7 +92,7 @@ void pool_init(pool_t *pool, size_t size, pool_ctor_t ctor, pool_dtor_t dtor) {
   LIST_INSERT_HEAD(&pool->pp_empty_slabs, first_slab, ph_slablist);
   pool->pp_nslabs = 1;
   pool->pp_nitems = first_slab->ph_ntotal;
-  log("pool_init: initialized new pool at %p", pool);
+  log("pool_init: initialized new pool at %p (item size = %d)", pool, size);
 }
 
 void pool_destroy(pool_t *pool) {
@@ -105,36 +101,28 @@ void pool_destroy(pool_t *pool) {
   unsigned long *tmp = (unsigned long *)pool;
 
   for (size_t i = 0; i < sizeof(pool_t) / sizeof(unsigned long); i++) {
-    if (tmp[i] == PP_FREED_WORD) {
-      panic("double free at pool 0x%lx\n", (unsigned long)pool);
-    }
+    if (tmp[i] == PP_FREED_WORD)
+      panic("double free at pool %p", pool);
   }
 
+  pool_slab_t *it, *next;
+
   log("pool_destroy: destroying empty slabs");
-  pool_slab_t *it = LIST_FIRST(&pool->pp_empty_slabs);
-  while (it) {
-    pool_slab_t *next = LIST_NEXT(it, ph_slablist);
+  LIST_FOREACH_SAFE(it, &pool->pp_empty_slabs, ph_slablist, next) {
     LIST_REMOVE(it, ph_slablist);
-    destroy_slab(it, pool);
-    it = next;
+    destroy_slab(pool, it);
   }
 
   log("pool_destroy: destroying partially filled slabs");
-  it = LIST_FIRST(&pool->pp_part_slabs);
-  while (it) {
-    pool_slab_t *next = LIST_NEXT(it, ph_slablist);
+  LIST_FOREACH_SAFE(it, &pool->pp_part_slabs, ph_slablist, next) {
     LIST_REMOVE(it, ph_slablist);
-    destroy_slab(it, pool);
-    it = next;
+    destroy_slab(pool, it);
   }
 
   log("pool_destroy: destroying full slabs");
-  it = LIST_FIRST(&pool->pp_full_slabs);
-  while (it) {
-    pool_slab_t *next = LIST_NEXT(it, ph_slablist);
+  LIST_FOREACH_SAFE(it, &pool->pp_full_slabs, ph_slablist, next) {
     LIST_REMOVE(it, ph_slablist);
-    destroy_slab(it, pool);
-    it = next;
+    destroy_slab(pool, it);
   }
 
   for (size_t i = 0; i < sizeof(pool_t) / sizeof(unsigned long); i++) {
@@ -184,31 +172,27 @@ void pool_free(pool_t *pool, void *ptr) {
   unsigned long *tmp = (unsigned long *)pool;
   for (size_t i = 0; i < sizeof(pool_t) / sizeof(unsigned long); i++) {
     if (tmp[i] == PP_FREED_WORD) {
-      panic("operation on a free pool 0x%lx\n", (unsigned long)pool);
+      panic("operation on a free pool %p", pool);
     }
   }
 
   pool_item_t *curr_pi = ptr - sizeof(pool_item_t);
   if (curr_pi->pi_canary != PI_MAGIC_WORD) {
-    panic("memory corruption at item 0x%lx\n", (unsigned long)curr_pi);
+    panic("memory corruption at item %p", curr_pi);
   }
   pool_slab_t *curr_slab = curr_pi->pi_slab;
-  unsigned long index = ((unsigned long)curr_pi - (unsigned long)curr_slab -
-                         (unsigned long)(curr_slab->ph_start)) /
-                        ((pool->pp_itemsize) + sizeof(pool_item_t));
+  intptr_t index = ((intptr_t)curr_pi - (intptr_t)curr_slab -
+                    (intptr_t)(curr_slab->ph_start)) /
+                   ((pool->pp_itemsize) + sizeof(pool_item_t));
   bitstr_t *bitmap = curr_slab->ph_bitmap;
-  if (!bit_test(bitmap, index)) {
-    panic("double free at item 0x%lx\n", (unsigned long)ptr);
-  }
-
+  if (!bit_test(bitmap, index))
+    panic("double free at item %p", ptr);
   bit_clear(bitmap, index);
   LIST_REMOVE(curr_slab, ph_slablist);
   curr_slab->ph_nused--;
   curr_slab->ph_nfree++;
-  if (!(curr_slab->ph_nused)) {
-    LIST_INSERT_HEAD(&pool->pp_empty_slabs, curr_slab, ph_slablist);
-  } else {
-    LIST_INSERT_HEAD(&pool->pp_part_slabs, curr_slab, ph_slablist);
-  }
-  log("pool_free: freed item %p at slab %p, index %ld", ptr, curr_slab, index);
+  pool_slab_list_t *slab_list_to_insert =
+    curr_slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
+  LIST_INSERT_HEAD(slab_list_to_insert, curr_slab, ph_slablist);
+  log("pool_free: freed item %p at slab %p, index %d", ptr, curr_slab, index);
 }
