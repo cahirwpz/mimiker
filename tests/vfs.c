@@ -79,8 +79,8 @@ static int test_vfs() {
   assert(uio.uio_resid == 0);
 
   /* Test writing to UART */
-  vnode_t *dev_uart;
-  error = vfs_lookup("/dev/uart", &dev_uart);
+  vnode_t *dev_cons;
+  error = vfs_lookup("/dev/cons", &dev_cons);
   assert(error == 0);
   char *str = "Some string for testing UART write\n";
 
@@ -93,7 +93,7 @@ static int test_vfs() {
   uio.uio_offset = 0;
   uio.uio_resid = iov.iov_len;
 
-  res = VOP_WRITE(dev_uart, &uio);
+  res = VOP_WRITE(dev_cons, &uio);
   assert(res == 0);
 
   return KTEST_SUCCESS;

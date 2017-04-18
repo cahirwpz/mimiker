@@ -4,7 +4,7 @@
 #include <mips/malta.h>
 #include <mips/intr.h>
 #include <mips/tlb.h>
-#include <mips/uart_cbus.h>
+#include <console.h>
 #include <pcpu.h>
 #include <stdc.h>
 #include <thread.h>
@@ -172,7 +172,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
 
   setup_kenv(argc, argv, envp);
 
-  uart_init();
+  cn_init();
   pcpu_init();
   cpu_init();
   tlb_init();

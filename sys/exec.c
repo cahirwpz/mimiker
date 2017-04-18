@@ -246,9 +246,9 @@ int do_exec(const exec_args_t *args) {
   /* Before we have a working fork, let's initialize file descriptors required
      by the standard library. */
   int ignore;
-  do_open(td, "/dev/uart", O_RDONLY, 0, &ignore);
-  do_open(td, "/dev/uart", O_WRONLY, 0, &ignore);
-  do_open(td, "/dev/uart", O_WRONLY, 0, &ignore);
+  do_open(td, "/dev/cons", O_RDONLY, 0, &ignore);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
 
   /* ... sbrk segment ... */
   sbrk_create(vmap);
