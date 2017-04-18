@@ -19,8 +19,7 @@ static mtx_t zombie_threads_mtx;
 static thread_list_t zombie_threads;
 
 void thread_init() {
-  kmalloc_init(td_pool);
-  kmalloc_add_pages(td_pool, 2);
+  kmalloc_init(td_pool, 2, 2);
 
   log("Thread init.");
   mtx_init(&all_threads_mtx, MTX_DEF);

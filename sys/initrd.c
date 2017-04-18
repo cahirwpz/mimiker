@@ -245,8 +245,7 @@ void ramdisk_init() {
   unsigned rd_size = ramdisk_get_size();
 
   TAILQ_INIT(&initrd_head);
-  kmalloc_init(mp);
-  kmalloc_add_pages(mp, 2);
+  kmalloc_init(mp, 2, 2);
 
   if (rd_size) {
     initrd_ops.v_lookup = initrd_vnode_lookup;
