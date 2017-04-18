@@ -76,3 +76,13 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
   /* Invert error sign, because copy routines use negative error codes */
   return error;
 }
+
+int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio)
+{
+    size_t offset = uio->uio_offset;
+    assert(offset < buflen);
+    assert(uio->uio_offset >= 0);
+
+    return (uiomove((char *)buf + offset, buflen - offset, uio));
+}
+

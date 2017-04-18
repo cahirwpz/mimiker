@@ -195,7 +195,7 @@ static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
 static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
   cpio_node_t *cn = (cpio_node_t *)v->v_data;
   int count = uio->uio_resid;
-  int error = uiomove(cn->c_data + uio->uio_offset, cn->c_size, uio);
+  int error = uiomove_frombuf(cn->c_data, cn->c_size, uio);
 
   if (error < 0)
     return -error;

@@ -29,10 +29,10 @@ static int test_uiomove() {
   iov[2].iov_len = 12;
   uio.uio_iovcnt = 3;
   uio.uio_iov = &iov[0];
-  uio.uio_offset = 0;
+  uio.uio_offset = 5;
   uio.uio_resid = 8 + 5 + 12;
 
-  res = uiomove(buffer1 + 5, sizeof(buffer1) - 5, &uio);
+  res = uiomove_frombuf(buffer1, sizeof(buffer1), &uio);
   assert(res == 0);
   res = strcmp(buffer1, "=====Example data operations.");
   assert(res == 0);
