@@ -11,19 +11,23 @@
 #include <mount.h>
 #include <linker_set.h>
 
+typedef uint32_t cpio_dev_t;
+typedef uint32_t cpio_ino_t;
+typedef uint16_t cpio_mode_t;
+
 /* ramdisk related data that will be stored in v_data field of vnode */
 typedef struct cpio_node {
   TAILQ_ENTRY(cpio_node) c_list; /* link to global list of all ramdisk nodes */
   TAILQ_HEAD(, cpio_node) c_children; /* head of list of direct descendants */
   TAILQ_ENTRY(cpio_node) c_siblings;  /* nodes that have the same parent */
 
-  dev_t c_dev;
-  ino_t c_ino;
-  mode_t c_mode;
+  cpio_dev_t c_dev;
+  cpio_ino_t c_ino;
+  cpio_mode_t c_mode;
   nlink_t c_nlink;
   uid_t c_uid;
   gid_t c_gid;
-  dev_t c_rdev;
+  cpio_dev_t c_rdev;
   off_t c_size;
   time_t c_mtime;
 
