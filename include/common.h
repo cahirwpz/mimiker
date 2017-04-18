@@ -45,6 +45,9 @@ typedef uint32_t ino_t;
 #define clz(x) (__builtin_clz(x))
 #define ctz(x) (__builtin_ctz(x))
 
+#define container_of(p, type, field)                                           \
+  ((type *)((char *)(p)-offsetof(type, field)))
+
 #define abs(x)                                                                 \
   ({                                                                           \
     typeof(x) _x = (x);                                                        \
