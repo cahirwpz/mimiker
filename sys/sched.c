@@ -83,7 +83,7 @@ void sched_switch(thread_t *newtd) {
   newtd->td_state = TDS_RUNNING;
   critical_leave();
 
-  if (td != newtd){
+  if (td != newtd) {
     log("ss %lu | %lu", td->td_tid, newtd->td_tid);
     ctx_switch(td, newtd);
   }
