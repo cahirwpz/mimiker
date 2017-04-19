@@ -33,7 +33,8 @@ static pool_item_t *get_pi_at_idx(pool_slab_t *slab, unsigned i, size_t size) {
 }
 
 static pool_slab_t *create_slab(pool_t *pool) {
-  log("create_slab: pool = %p, pp_itemsize = %d", pool, pool->pp_itemsize);
+  /* log("create_slab: pool = %p, pp_itemsize = %d", pool, pool->pp_itemsize);
+   */
   vm_page_t *page_for_slab = pm_alloc(1);
   pool_slab_t *slab = (pool_slab_t *)page_for_slab->vaddr;
   slab->ph_page = page_for_slab;
@@ -75,8 +76,9 @@ static void *slab_alloc(pool_slab_t *slab, size_t size) {
     panic("memory corruption at item %p", found_pi);
   slab->ph_nused++;
   slab->ph_nfree--;
-  log("slab_alloc: allocated item %p at slab %p, index %d", found_pi->pi_data,
-      found_pi->pi_slab, found_idx);
+  /* log("slab_alloc: allocated item %p at slab %p, index %d",
+     found_pi->pi_data,
+      found_pi->pi_slab, found_idx); */
   return found_pi->pi_data;
 }
 
@@ -113,26 +115,26 @@ static void mark_pool_dead(pool_t *pool) {
 }
 
 void pool_destroy(pool_t *pool) {
-  log("pool_destroy: pool = %p", pool);
+  /* log("pool_destroy: pool = %p", pool); */
 
   if (is_pool_dead(pool))
     panic("attempt to free dead pool %p", pool);
 
   pool_slab_t *it, *next;
 
-  log("pool_destroy: destroying empty slabs");
+  /* log("pool_destroy: destroying empty slabs"); */
   LIST_FOREACH_SAFE(it, &pool->pp_empty_slabs, ph_slablist, next) {
     LIST_REMOVE(it, ph_slablist);
     destroy_slab(pool, it);
   }
 
-  log("pool_destroy: destroying partially filled slabs");
+  /* log("pool_destroy: destroying partially filled slabs"); */
   LIST_FOREACH_SAFE(it, &pool->pp_part_slabs, ph_slablist, next) {
     LIST_REMOVE(it, ph_slablist);
     destroy_slab(pool, it);
   }
 
-  log("pool_destroy: destroying full slabs");
+  /* log("pool_destroy: destroying full slabs"); */
   LIST_FOREACH_SAFE(it, &pool->pp_full_slabs, ph_slablist, next) {
     LIST_REMOVE(it, ph_slablist);
     destroy_slab(pool, it);
@@ -145,7 +147,7 @@ void pool_destroy(pool_t *pool) {
 
 /* TODO: find some use for flags */
 void *pool_alloc(pool_t *pool, __unused unsigned flags) {
-  log("pool_alloc: pool=%p", pool);
+  /* log("pool_alloc: pool=%p", pool); */
 
   if (is_pool_dead(pool))
     panic("operation on dead pool %p", pool);
@@ -173,7 +175,7 @@ void *pool_alloc(pool_t *pool, __unused unsigned flags) {
 /* TODO: destroy empty slabs when their number reaches a certain threshold
  * (maybe leave one) */
 void pool_free(pool_t *pool, void *ptr) {
-  log("pool_free: pool = %p, ptr = %p", pool, ptr);
+  /* log("pool_free: pool = %p, ptr = %p", pool, ptr); */
 
   if (is_pool_dead(pool))
     panic("operation on dead pool %p", pool);
@@ -196,5 +198,6 @@ void pool_free(pool_t *pool, void *ptr) {
   pool_slab_list_t *slab_list_to_insert =
     curr_slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
   LIST_INSERT_HEAD(slab_list_to_insert, curr_slab, ph_slablist);
-  log("pool_free: freed item %p at slab %p, index %d", ptr, curr_slab, index);
+  /* log("pool_free: freed item %p at slab %p, index %d", ptr, curr_slab,
+   * index); */
 }
