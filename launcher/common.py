@@ -9,7 +9,7 @@ TRIPLET = 'mipsel-unknown-elf'
 
 
 def set_as_tty_foreground():
-    # Create a new process gropup just for us
+    # Create a new process group just for us
     os.setpgrp()
     # Becoming terminal foreground sends SIGTTOU which normally kills the
     # process. Ignore SIGTTOU.
@@ -37,14 +37,15 @@ class Launchable:
     def start(self):
         if self.cmd is None:
             return
+        on_spawn = set_as_tty_foreground if self.needs_foreground else None
         self.process = subprocess.Popen([self.cmd] + self.options,
                                         start_new_session=False,
-                                        preexec_fn=(set_as_tty_foreground if self.needs_foreground else None))
+                                        preexec_fn=on_spawn)
 
     # Returns true iff the process terminated
     def wait(self, timeout=None):
         if self.process is None:
-            return
+            return False
         self.process.wait(timeout)
         return True
 

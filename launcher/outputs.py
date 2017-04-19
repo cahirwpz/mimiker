@@ -11,7 +11,7 @@ class ServerOutput(Launchable):
         return True
 
     def configure(self, kernel, args="", debug=False, uart_port=8000):
-        return
+        pass
 
 
 class XTermOutput(Launchable):
