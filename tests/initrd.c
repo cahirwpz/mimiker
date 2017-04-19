@@ -42,46 +42,43 @@ void dump_dirent(dirent_t *dir)
   kprintf("%s\n", dir->d_name);
 }
 
-//void dump_directory(const char *path)
-//{
-//  vnode_t *v;
-//  int res = vfs_lookup(path, &v);
-//  assert(res == 0);
-//
-//  char buffer[50];
-//  memset(buffer, '\0', sizeof(buffer));
-//  uio_t uio;
-//  iovec_t iov;
-//
-//  prepare_uio(&uio, &iov, buffer, sizeof(buffer));
-//  int bytes = 0;
-//
-//  kprintf("Contents of directory: %s\n", path);
-//
-//  do
-//  {
-//    bytes = VOP_READDIR(v, &uio);
-//    uio.uio_offset = 0;
-//
-//    /* Dump directories inside buffer */
-//    dirent_t *dir = buffer;
-//    for(int off = 0; off < bytes; off += dir->d_reclen)
-//    {
-//      dump_dirent(dir);
-//      dir = _DIRENT_NEXT(dir);
-//    }
-//    uio.uio_offset = 0;
-//  } while(bytes > 0);
-//
-//  return KTEST_SUCCESS;
-//}
-//
-///* TODO this test should be moved to */
-//static int test_readdir() {
-//  dump_directory("/initrd/directory1/");
-//  dump_directory("/initrd/");
-//  return 0;
-//}
+void dump_directory(const char *path)
+{
+  vnode_t *v;
+  int res = vfs_lookup(path, &v);
+  assert(res == 0);
+
+  char buffer[50];
+  memset(buffer, '\0', sizeof(buffer));
+  uio_t uio;
+  iovec_t iov;
+
+  prepare_uio(&uio, &iov, buffer, sizeof(buffer));
+  int bytes = 0;
+
+  kprintf("Contents of directory: %s\n", path);
+
+  uio.uio_offset = 0;
+  do
+  {
+    bytes = VOP_READDIR(v, &uio);
+
+    /* Dump directories inside buffer */
+    dirent_t *dir = (dirent_t*)buffer;
+    for(int off = 0; off < bytes; off += dir->d_reclen)
+    {
+      dump_dirent(dir);
+      dir = _DIRENT_NEXT(dir);
+    }
+  } while(bytes > 0);
+}
+
+/* TODO this test should be moved to */
+static int test_readdir() {
+  dump_directory("/initrd/directory1/");
+  dump_directory("/initrd/");
+  return 0;
+}
 
 static int test_ramdisk() {
   ramdisk_dump();
@@ -106,3 +103,4 @@ static int test_ramdisk() {
 }
 
 KTEST_ADD(ramdisk, test_ramdisk, 0);
+KTEST_ADD(readdir, test_readdir, 0);
