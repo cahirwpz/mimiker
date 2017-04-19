@@ -57,11 +57,9 @@ static int cbus_uart_getc(console_t *dev __unused) {
   return RBR;
 }
 
-static console_t cbus_uart_console = {
-  .cn_init = cbus_uart_init,
-  .cn_getc = cbus_uart_getc,
-  .cn_putc = cbus_uart_putc,
-  .cn_prio = 10
-};
+static console_t cbus_uart_console = {.cn_init = cbus_uart_init,
+                                      .cn_getc = cbus_uart_getc,
+                                      .cn_putc = cbus_uart_putc,
+                                      .cn_prio = 10};
 
 CONSOLE_ADD(cbus_uart_console);
