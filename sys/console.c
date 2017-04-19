@@ -13,7 +13,14 @@ static int dummy_getc(console_t *dev __unused) {
   return 0;
 }
 
-CONSOLE_DEFINE(dummy, -10);
+static console_t dummy_console = {
+  .cn_init = dummy_init,
+  .cn_getc = dummy_getc,
+  .cn_putc = dummy_putc,
+  .cn_prio = -10,
+};
+
+CONSOLE_ADD(dummy_console);
 
 void cn_init() {
   SET_DECLARE(cn_table, console_t);

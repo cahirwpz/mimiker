@@ -3,7 +3,6 @@
 #include <linker_set.h>
 #include <ns16550.h>
 #include <mips/malta.h>
-#include <mips/uart_cbus.h>
 
 #define CBUS_UART_R(x)                                                         \
   *(volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(MALTA_CBUS_UART) + (x))
@@ -58,4 +57,11 @@ static int cbus_uart_getc(console_t *dev __unused) {
   return RBR;
 }
 
-CONSOLE_DEFINE(cbus_uart, 10);
+static console_t cbus_uart_console = {
+  .cn_init = cbus_uart_init,
+  .cn_getc = cbus_uart_getc,
+  .cn_putc = cbus_uart_putc,
+  .cn_prio = 10
+};
+
+CONSOLE_ADD(cbus_uart_console);
