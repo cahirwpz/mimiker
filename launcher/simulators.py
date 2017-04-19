@@ -21,7 +21,7 @@ class OVPsim(Launchable):
         except KeyError:
             return False
 
-    def configure(self, kernel, args="", debug=False, uart_port=8000):
+    def configure(self, **kwargs):
         try:
             os.remove('uartCBUS.log')
             os.remove('uartTTY0.log')
@@ -34,16 +34,16 @@ class OVPsim(Launchable):
             'mipsle1/srsctlHSS': 1,
             'rtc/timefromhost': 1,
             'uartCBUS/console': 0,
-            'uartCBUS/portnum': uart_port,
-            'command': '"' + args + '"'
+            'uartCBUS/portnum': kwargs['uart_port'],
+            'command': '"' + kwargs['args'] + '"'
         }
 
         self.options = ['--ramdisk', 'initrd.cpio',
                         '--nographics',
                         '--wallclock',
-                        '--kernel', kernel]
+                        '--kernel', kwargs['kernel']]
 
-        if debug:
+        if kwargs['debug']:
             self.options += ['--port', '1234']
 
         for item in OVPSIM_OVERRIDES.items():
@@ -59,22 +59,25 @@ class QEMU(Launchable):
         self.cmd = shutil.which('qemu-system-mipsel')
         return self.cmd is not None
 
-    def configure(self, kernel, args="", debug=False, uart_port=8000):
+    def configure(self, **kwargs):
         self.options = ['-nographic',
                         '-nodefaults',
                         '-machine', 'malta',
                         '-cpu', '24Kf',
-                        '-kernel', kernel,
-                        '-append', args,
+                        '-kernel', kwargs['kernel'],
+                        '-append', kwargs['args'],
                         '-gdb', 'tcp::1234',
                         '-initrd', 'initrd.cpio',
                         '-serial', 'none',
                         '-serial', 'null',
                         '-serial', 'null',
-                        '-serial', 'tcp:127.0.0.1:%d,server,wait' % uart_port]
-        if debug:
+                        '-serial', 'tcp:127.0.0.1:%d,server,wait' % kwargs['uart_port']]
+        if kwargs['debug']:
             self.options += ['-S']
 
 
 SIMULATORS = [OVPsim(),
               QEMU()]
+
+def find_available():
+    return common.find_available(SIMULATORS)

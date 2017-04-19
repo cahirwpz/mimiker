@@ -10,7 +10,7 @@ class ServerOutput(Launchable):
     def probe(self):
         return True
 
-    def configure(self, kernel, args="", debug=False, uart_port=8000):
+    def configure(self, **kwargs):
         return
 
 
@@ -23,12 +23,12 @@ class XTermOutput(Launchable):
         self.cmd = shutil.which('xterm')
         return self.cmd is not None
 
-    def configure(self, kernel, args="", debug=False, uart_port=8000):
+    def configure(self, **kwargs):
         # The simulator will only open the server after some time has
         # passed. OVPsim needs as much as 1 second. To minimize the delay, keep
         # reconnecting until success.
         self.options = ['-title', 'UART2', '-e',
-                        'socat STDIO tcp:localhost:%d,retry,forever' % uart_port]
+                        'socat STDIO tcp:localhost:%d,retry,forever' % kwargs['uart_port']]
 
 
 class StdIOOutput(Launchable):
@@ -39,12 +39,12 @@ class StdIOOutput(Launchable):
     def probe(self):
         return True
 
-    def configure(self, kernel, args="", debug=False, uart_port=8000):
+    def configure(self, **kwargs):
         # The simulator will only open the server after some time has
         # passed. OVPsim needs as much as 1 second. To minimize the delay, keep
         # reconnecting until success.
         self.cmd = 'socat'
-        self.options = ['STDIO', 'tcp:localhost:%d,retry,forever' % uart_port]
+        self.options = ['STDIO', 'tcp:localhost:%d,retry,forever' % kwargs['uart_port']]
 
 
 OUTPUTS = [XTermOutput(),

@@ -4,7 +4,6 @@ import shutil
 import signal
 import os
 
-UART_PORT = 8000
 TRIPLET = 'mipsel-unknown-elf'
 
 
@@ -31,7 +30,7 @@ class Launchable:
     def probe(self):
         raise NotImplementedError('This launchable is not probable')
 
-    def configure(self, kernel, args="", debug=False, uart_port=8000):
+    def configure(self, **kwargs):
         raise NotImplementedError('This launchable is not configurable')
 
     def start(self):
@@ -63,17 +62,16 @@ class Launchable:
         if self.process is not None:
             self.process.send_signal(signal.SIGINT)
 
-
-# The items on these lists should be ordered from the most desirable. The first
-# available item will become the default option.
-def find_available(l):
-    result, default = {}, None
-    for item in reversed(l):
-        if item.probe():
-            result[item.name] = item
-            default = item.name
-    return (result, default)
-
+    @staticmethod
+    # The items on these lists should be ordered from the most desirable. The first
+    # available item will become the default option.
+    def find_available(l):
+        result, default = {}, None
+        for item in reversed(l):
+            if item.probe():
+                result[item.name] = item
+                default = item.name
+        return (result, default)
 
 def wait_any(launchables):
     for l in itertools.cycle(launchables):

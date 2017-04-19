@@ -13,10 +13,10 @@ class GDBWrapper(Launchable):
     def probe(self):
         return self.probe_command == '' or shutil.which(self.probe_command)
 
-    def configure(self, kernel, args="", debug=False, uart_port=8000):
+    def configure(self, **kwargs):
         # TODO: Maybe we don't need a way of configuring the tripet.
         cmd = shlex.split(self.cmdstring %
-                          {'kernel': kernel, 'triplet': TRIPLET})
+                          {'kernel': kwargs['kernel'], 'triplet': TRIPLET})
         self.cmd, self.options = cmd[0], cmd[1:]
 
     def stop(self):
@@ -35,7 +35,7 @@ class NoDebugger(Launchable):
     def probe(self):
         return True
 
-    def configure(self, kernel, args="", debug=False, uart_port=8000):
+    def configure(self, **kwargs):
         return
 
 

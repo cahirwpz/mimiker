@@ -5,16 +5,18 @@ import shutil
 import os
 import os.path
 import signal
-from launcher import *
+import launcher
+
+UART_PORT = 8000
 
 if __name__ == '__main__':
     # Check if a cross-compiler is present
-    common.find_toolchain()
+    launcher.find_toolchain()
 
     # Probe which tools are available.
-    simulators, sim_default = common.find_available(SIMULATORS)
-    outputs, out_default = common.find_available(OUTPUTS)
-    debuggers, dbg_default = common.find_available(DEBUGGERS)
+    simulators, sim_default = launcher.find_simulators()
+    outputs, out_default = launcher.find_outputs()
+    debuggers, dbg_default = launcher.find_debuggers()
 
     if len(simulators) < 1:
         raise SystemExit('No simulators found!')
@@ -68,9 +70,14 @@ if __name__ == '__main__':
     out = outputs[args.output]
     dbg = debuggers[args.debugger]
 
-    sim.configure(args.kernel, ' '.join(args.args), debug, UART_PORT)
-    out.configure(args.kernel, ' '.join(args.args), debug, UART_PORT)
-    dbg.configure(args.kernel, ' '.join(args.args), debug, UART_PORT)
+    cfg_args = {'kernel': args.kernel,
+                'args': ' '.join(args.args),
+                'debug': debug,
+                'uart_port': UART_PORT}
+
+    sim.configure(**cfg_args)
+    out.configure(**cfg_args)
+    dbg.configure(**cfg_args)
 
     # When the debugger exits, we'll regain the terminal foreground. This
     # generates SIGTTOU which normally kills the process, so we need to ignore
@@ -85,7 +92,7 @@ if __name__ == '__main__':
     # their session by either closing the simulator, the debugger, or even the
     # xterm window.
     try:
-        common.wait_any([out, sim, dbg])
+        launcher.wait_any([out, sim, dbg])
     except KeyboardInterrupt:
         pass
 
