@@ -11,45 +11,27 @@
 #include <sbrk.h>
 #include <vfs_syscalls.h>
 #include <mips/stack.h>
-
-#define EMBED_ELF_DECLARE(name)                                                \
-  extern uint8_t _binary_##name##_uelf_start[];                                \
-  extern uint8_t _binary_##name##_uelf_size[];                                 \
-  extern uint8_t _binary_##name##_uelf_end[];
-
-EMBED_ELF_DECLARE(prog);
-EMBED_ELF_DECLARE(misbehave);
-EMBED_ELF_DECLARE(fd_test);
-EMBED_ELF_DECLARE(test_fork);
-
-int get_elf_image(const exec_args_t *args, uint8_t **out_image,
-                  size_t *out_size) {
-
-#define EMBED_ELF_BY_NAME(name)                                                \
-  if (strcmp(args->prog_name, #name) == 0) {                                   \
-    *out_image = _binary_##name##_uelf_start;                                  \
-    *out_size = (size_t)_binary_##name##_uelf_size;                            \
-    return 0;                                                                  \
-  }
-
-  EMBED_ELF_BY_NAME(prog);
-  EMBED_ELF_BY_NAME(misbehave);
-  EMBED_ELF_BY_NAME(fd_test);
-  EMBED_ELF_BY_NAME(test_fork);
-  return -ENOENT;
-}
+#include <mount.h>
+#include <vnode.h>
 
 int do_exec(const exec_args_t *args) {
   log("Loading user ELF: %s", args->prog_name);
 
-  uint8_t *elf_image;
-  size_t elf_size;
-  int n = get_elf_image(args, &elf_image, &elf_size);
-
-  if (n < 0) {
-    log("Exec failed: Failed to access program image '%s'", args->prog_name);
+  vnode_t *elf_vnode;
+  int error = vfs_lookup(args->prog_name, &elf_vnode);
+  if (error == -ENOENT) {
+    log("Exec failed: No such file '%s'", args->prog_name);
     return -ENOENT;
+  } else if (error < 0) {
+    log("Exec failed: Failed to access file '%s'", args->prog_name);
+    return error;
   }
+
+  vattr_t elf_attr;
+  error = VOP_GETATTR(elf_vnode, &elf_attr);
+  if (error)
+    return error;
+  size_t elf_size = elf_attr.st_size;
 
   log("User ELF size: %zu", elf_size);
 
@@ -58,43 +40,61 @@ int do_exec(const exec_args_t *args) {
     return -ENOEXEC;
   }
 
-  const Elf32_Ehdr *eh = (Elf32_Ehdr *)elf_image;
+  Elf32_Ehdr eh;
+  uio_t uio;
+  iovec_t iov;
+
+  /* Read elf header. */
+  uio.uio_op = UIO_READ;
+  uio.uio_vmspace = get_kernel_vm_map();
+  iov.iov_base = &eh;
+  iov.iov_len = sizeof(Elf32_Ehdr);
+  uio.uio_iovcnt = 1;
+  uio.uio_iov = &iov;
+  uio.uio_offset = 0;
+  uio.uio_resid = sizeof(Elf32_Ehdr);
+  error = VOP_READ(elf_vnode, &uio);
+  if (error < 0) {
+    log("Exec failed: Elf file reading failed.");
+    return error;
+  }
+  assert(uio.uio_resid == 0);
 
   /* Start by determining the validity of the elf file. */
 
   /* First, check for the magic header. */
-  if (eh->e_ident[EI_MAG0] != ELFMAG0 || eh->e_ident[EI_MAG1] != ELFMAG1 ||
-      eh->e_ident[EI_MAG2] != ELFMAG2 || eh->e_ident[EI_MAG3] != ELFMAG3) {
+  if (eh.e_ident[EI_MAG0] != ELFMAG0 || eh.e_ident[EI_MAG1] != ELFMAG1 ||
+      eh.e_ident[EI_MAG2] != ELFMAG2 || eh.e_ident[EI_MAG3] != ELFMAG3) {
     log("Exec failed: Incorrect ELF magic number");
     return -ENOEXEC;
   }
   /* Check ELF class */
-  if (eh->e_ident[EI_CLASS] != ELFCLASS32) {
+  if (eh.e_ident[EI_CLASS] != ELFCLASS32) {
     log("Exec failed: Unsupported ELF class (!= ELF32)");
     return -EINVAL;
   }
   /* Check data format endianess */
-  if (eh->e_ident[EI_DATA] != ELFDATA2LSB) {
+  if (eh.e_ident[EI_DATA] != ELFDATA2LSB) {
     log("Exec failed: ELF file is not low-endian");
     return -EINVAL;
   }
   /* Ignore version and os abi field */
   /* Check file type */
-  if (eh->e_type != ET_EXEC) {
+  if (eh.e_type != ET_EXEC) {
     log("Exec failed: ELF is not an executable");
     return -EINVAL;
   }
   /* Check machine architecture field */
-  if (eh->e_machine != EM_MIPS) {
+  if (eh.e_machine != EM_MIPS) {
     log("[exec] Exec failed: ELF target architecture is not MIPS");
     return -EINVAL;
   }
 
   /* Take note of the entry point */
-  log("Entry point will be at 0x%08x.", (unsigned int)eh->e_entry);
+  log("Entry point will be at 0x%08x.", (unsigned int)eh.e_entry);
 
   /* Ensure minimal prog header size */
-  if (eh->e_phentsize < sizeof(Elf32_Phdr)) {
+  if (eh.e_phentsize < sizeof(Elf32_Phdr)) {
     log("Exec failed: ELF uses too small program headers");
     return -ENOEXEC;
   }
@@ -107,12 +107,35 @@ int do_exec(const exec_args_t *args) {
   vm_map_t *old_vmap = vm_map_activate(vmap);
 
   /* Iterate over prog headers */
-  log("ELF has %d program headers", eh->e_phnum);
+  log("ELF has %d program headers", eh.e_phnum);
 
-  const uint8_t *phs_base = elf_image + eh->e_phoff;
+  assert(eh.e_phoff < 64);
+  assert(eh.e_phentsize < 128);
+  /* We allocate this buffer on stack. It's confirmed to be small. A statically
+     allocated buffer won't do, because it would need restrictive
+     synchronization. Using a malloc pool would be probably an overkill for this
+     case. */
+  size_t phs_size = eh.e_phoff * eh.e_phentsize;
+  char phs[phs_size];
 
-  for (uint8_t i = 0; i < eh->e_phnum; i++) {
-    const Elf32_Phdr *ph = (Elf32_Phdr *)(phs_base + i * eh->e_phentsize);
+  /* Read program headers. */
+  uio.uio_op = UIO_READ;
+  uio.uio_vmspace = get_kernel_vm_map();
+  iov.iov_base = &phs;
+  iov.iov_len = phs_size;
+  uio.uio_iovcnt = 1;
+  uio.uio_iov = &iov;
+  uio.uio_offset = eh.e_phoff;
+  uio.uio_resid = phs_size;
+  error = VOP_READ(elf_vnode, &uio);
+  if (error < 0) {
+    log("Exec failed: Elf file reading failed.");
+    return error;
+  }
+  assert(uio.uio_resid == 0);
+
+  for (uint8_t i = 0; i < eh.e_phnum; i++) {
+    const Elf32_Phdr *ph = (Elf32_Phdr *)(phs + i * eh.e_phentsize);
     switch (ph->p_type) {
       case PT_NULL:
       case PT_NOTE:
@@ -152,8 +175,27 @@ int do_exec(const exec_args_t *args) {
           vmap, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC);
         /* Allocate pages backing this segment. */
         segment->object = default_pager->pgr_alloc();
-        /* Copy data into the segment */
-        memcpy((uint8_t *)start, elf_image + ph->p_offset, ph->p_filesz);
+
+        /* Read data from file into the segment */
+        /* TODO: This is a lot of copying! Ideally we would look up the
+           vm_object associated with the elf vnode, create a shadow vm_object on
+           top of it using correct size/offset, and we would use it to page the
+           file contents on demand. But we don't have a vnode_pager yet. */
+        uio.uio_op = UIO_READ;
+        uio.uio_vmspace = get_kernel_vm_map();
+        iov.iov_base = (char *)start;
+        iov.iov_len = ph->p_filesz;
+        uio.uio_iovcnt = 1;
+        uio.uio_iov = &iov;
+        uio.uio_offset = ph->p_offset;
+        uio.uio_resid = ph->p_filesz;
+        error = VOP_READ(elf_vnode, &uio);
+        if (error < 0) {
+          log("Exec failed: Elf file reading failed.");
+          goto exec_fail;
+        }
+        assert(uio.uio_resid == 0);
+
         /* Zero the rest */
         if (ph->p_filesz < ph->p_memsz) {
           bzero((uint8_t *)start + ph->p_filesz, ph->p_memsz - ph->p_filesz);
@@ -181,7 +223,7 @@ int do_exec(const exec_args_t *args) {
    * when the stack underflows.
    */
   vm_addr_t stack_bottom = 0x70000000;
-  const size_t stack_size = PAGESIZE * 2;
+  const size_t stack_size = 8 * 1024 * 1024; /* 8 MiB */
 
   vm_addr_t stack_start = stack_bottom - stack_size;
   vm_addr_t stack_end = stack_bottom;
@@ -204,15 +246,15 @@ int do_exec(const exec_args_t *args) {
   /* Before we have a working fork, let's initialize file descriptors required
      by the standard library. */
   int ignore;
-  do_open(td, "/dev/uart", O_RDONLY, 0, &ignore);
-  do_open(td, "/dev/uart", O_WRONLY, 0, &ignore);
-  do_open(td, "/dev/uart", O_WRONLY, 0, &ignore);
+  do_open(td, "/dev/cons", O_RDONLY, 0, &ignore);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
 
   /* ... sbrk segment ... */
   sbrk_create(vmap);
 
   /* ... and user context. */
-  uctx_init(thread_self(), eh->e_entry, stack_bottom);
+  uctx_init(thread_self(), eh.e_entry, stack_bottom);
 
   /*
    * At this point we are certain that exec suceeds.
