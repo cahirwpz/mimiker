@@ -78,8 +78,7 @@ int do_fstat(thread_t *td, int fd, vattr_t *buf) {
   return res;
 }
 
-int do_getdirentries(thread_t *td, int fd, uio_t *uio)
-{
+int do_getdirentries(thread_t *td, int fd, uio_t *uio) {
   file_t *f;
   int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
   if (res)
@@ -205,12 +204,11 @@ int sys_fstat(thread_t *td, syscall_args_t *args) {
   return 0;
 }
 
-int sys_getdirentries(thread_t *td, syscall_args_t *args)
-{
+int sys_getdirentries(thread_t *td, syscall_args_t *args) {
   int fd = args->args[0];
   char *ubuf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
-  long *basep = (long*)(uintptr_t)args->args[3];
+  long *basep = (long *)(uintptr_t)args->args[3];
 
   log("sys_read(%d, %p, %zu)", fd, ubuf, count);
 
@@ -226,6 +224,6 @@ int sys_getdirentries(thread_t *td, syscall_args_t *args)
   uio.uio_offset = 0;
 
   int res = do_getdirentries(td, fd, &uio);
-  *basep += count-uio.uio_resid;
+  *basep += count - uio.uio_resid;
   return res;
 }

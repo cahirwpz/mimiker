@@ -19,7 +19,7 @@ typedef uint16_t cpio_mode_t;
 /* ramdisk related data that will be stored in v_data field of vnode */
 typedef struct cpio_node {
   TAILQ_ENTRY(cpio_node) c_list; /* link to global list of all ramdisk nodes */
-  int c_n_children; /* number of direct descendants (c_children) */
+  int c_n_children;              /* number of direct descendants (c_children) */
   TAILQ_HEAD(, cpio_node) c_children; /* head of list of direct descendants */
   TAILQ_ENTRY(cpio_node) c_siblings;  /* nodes that have the same parent */
 
@@ -153,10 +153,9 @@ static const char *basename(const char *path) {
   return name ? name + 1 : path;
 }
 
-static void insert_child(cpio_node_t *parent, cpio_node_t *child)
-{
-    parent->c_n_children++;
-    TAILQ_INSERT_TAIL(&parent->c_children, child, c_siblings);
+static void insert_child(cpio_node_t *parent, cpio_node_t *child) {
+  parent->c_n_children++;
+  TAILQ_INSERT_TAIL(&parent->c_children, child, c_siblings);
 }
 
 static void initrd_build_tree_and_names() {
@@ -167,7 +166,7 @@ static void initrd_build_tree_and_names() {
       if (it_i == it_j)
         continue;
       if (is_direct_descendant(it_j->c_path, it_i->c_path))
-          insert_child(it_i, it_j);
+        insert_child(it_i, it_j);
     }
   }
 
@@ -228,53 +227,49 @@ static int initrd_mount(mount_t *m) {
   return 0;
 }
 
-static void cpio_to_direntry(cpio_node_t* cn, dirent_t *dir)
-{
-    int namlen = strlen(cn->c_name);
-    dir->d_fileno = cn->c_ino; /* Shall we implement our inode numbers or leave ones from ramdisk? */
-    dir->d_reclen = _DIRENT_RECLEN(dir, namlen);
-    dir->d_namlen = namlen;
-    dir->d_type = DT_UNKNOWN;
-    if(cn->c_mode & C_ISDIR) dir->d_type = DT_DIR;
-    if(cn->c_mode & C_ISREG) dir->d_type = DT_REG;
-    memcpy(dir->d_name, cn->c_name, namlen+1);
+static void cpio_to_direntry(cpio_node_t *cn, dirent_t *dir) {
+  int namlen = strlen(cn->c_name);
+  dir->d_fileno = cn->c_ino; /* Shall we implement our inode numbers or leave
+                                ones from ramdisk? */
+  dir->d_reclen = _DIRENT_RECLEN(dir, namlen);
+  dir->d_namlen = namlen;
+  dir->d_type = DT_UNKNOWN;
+  if (cn->c_mode & C_ISDIR)
+    dir->d_type = DT_DIR;
+  if (cn->c_mode & C_ISREG)
+    dir->d_type = DT_REG;
+  memcpy(dir->d_name, cn->c_name, namlen + 1);
 }
 
-static int initrd_vnode_readdir(vnode_t *v, uio_t *uio)
-{
-  cpio_node_t *cn = (cpio_node_t*)v->v_data;
+static int initrd_vnode_readdir(vnode_t *v, uio_t *uio) {
+  cpio_node_t *cn = (cpio_node_t *)v->v_data;
   dirent_t dir;
   cpio_node_t *it;
   off_t offset = 0;
 
   /* Locate proper directory based on offset */
-  TAILQ_FOREACH(it, &cn->c_children, c_siblings)
-  {
+  TAILQ_FOREACH (it, &cn->c_children, c_siblings) {
     cpio_to_direntry(it, &dir);
-    if(offset + dir.d_reclen <= uio->uio_offset)
+    if (offset + dir.d_reclen <= uio->uio_offset)
       offset += dir.d_reclen;
-    else
-    {
+    else {
       assert(it == NULL || offset == uio->uio_offset);
       break;
     }
   }
 
-  for(; it; it = TAILQ_NEXT(it, c_siblings))
-  {
+  for (; it; it = TAILQ_NEXT(it, c_siblings)) {
     int count = uio->uio_resid;
     cpio_to_direntry(it, &dir);
-    if(count >= dir.d_reclen)
-    {
-        int error = uiomove(&dir, dir.d_reclen, uio);
-        if (error < 0)
-          return -error;
-    }
-    else
-        break;
+    if (count >= dir.d_reclen) {
+      int error = uiomove(&dir, dir.d_reclen, uio);
+      if (error < 0)
+        return -error;
+    } else
+      break;
   }
 
-  return uio->uio_offset-offset;
+  return uio->uio_offset - offset;
 }
 
 static int initrd_root(mount_t *m, vnode_t **v) {

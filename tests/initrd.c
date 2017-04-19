@@ -6,8 +6,7 @@
 #include <ktest.h>
 #include <dirent.h>
 
-static void prepare_uio(uio_t *uio, iovec_t *iov, char *buffer, int buf_size)
-{
+static void prepare_uio(uio_t *uio, iovec_t *iov, char *buffer, int buf_size) {
   uio->uio_op = UIO_READ;
 
   /* Read entire file - even too much. */
@@ -37,23 +36,19 @@ static void dump_file(const char *path) {
   kprintf("file %s:\n%s\n", path, buffer);
 }
 
-void dump_dirent(dirent_t *dir)
-{
+void dump_dirent(dirent_t *dir) {
   kprintf("%s\n", dir->d_name);
 }
 
-void dump_directory(const char *path)
-{
+void dump_directory(const char *path) {
   vnode_t *v;
   int res = vfs_lookup(path, &v);
   assert(res == 0);
-
 
   char buffer[50];
   memset(buffer, '\0', sizeof(buffer));
   uio_t uio;
   iovec_t iov;
-
 
   prepare_uio(&uio, &iov, buffer, sizeof(buffer));
   int bytes = 0;
@@ -62,26 +57,22 @@ void dump_directory(const char *path)
 
   uio.uio_offset = 0;
 
-  do
-  {
+  do {
     bytes = VOP_READDIR(v, &uio);
 
     /* Dump directories inside buffer */
-    dirent_t *dir = (dirent_t*)buffer;
-    for(int off = 0; off < bytes; off += dir->d_reclen)
-    {
-      if(dir->d_reclen)
-      {
+    dirent_t *dir = (dirent_t *)buffer;
+    for (int off = 0; off < bytes; off += dir->d_reclen) {
+      if (dir->d_reclen) {
         dump_dirent(dir);
         dir = _DIRENT_NEXT(dir);
-      }
-      else
-          break;
+      } else
+        break;
     }
     int old_offset = uio.uio_offset;
     prepare_uio(&uio, &iov, buffer, sizeof(buffer));
     uio.uio_offset = old_offset;
-  } while(bytes > 0);
+  } while (bytes > 0);
 }
 
 static int test_readdir() {
