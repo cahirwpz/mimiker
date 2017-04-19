@@ -62,16 +62,13 @@ char *strrchr(const char *s, int c);
 char *strsep(char **stringp, const char *delim);
 size_t strspn(const char *s1, const char *s2);
 
-/* Write a formatted string to UART.
- * Equivalent to standard printf. */
+/* Write a formatted string to default console. */
 int kprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
-/* Write a character string and a trailing newline to UART.
- * Equivalent to standard puts */
+/* Write a character string and a trailing newline to default console. */
 int kputs(const char *s);
 
-/* Write a character to UART.
- * Equivalent to standard putchar */
+/* Write a character to default console. */
 int kputchar(int c);
 
 #endif /* __STDLIB_H__ */

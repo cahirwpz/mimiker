@@ -1,7 +1,8 @@
 #include <common.h>
+#include <console.h>
+#include <linker_set.h>
 #include <ns16550.h>
 #include <mips/malta.h>
-#include <mips/uart_cbus.h>
 
 #define CBUS_UART_R(x)                                                         \
   *(volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(MALTA_CBUS_UART) + (x))
@@ -18,7 +19,7 @@
 #define LSR CBUS_UART_R(0x28) /* Line Status, read-only */
 #define MSR CBUS_UART_R(0x30) /* Modem Status, read-only */
 
-void uart_init() {
+static void cbus_uart_init(console_t *dev __unused) {
   LCR |= LCR_DLAB;
   DLM = 0;
   DLL = 1; /* 115200 */
@@ -29,7 +30,7 @@ void uart_init() {
   LCR = LCR_8BITS; /* 8-bit data, no parity */
 }
 
-int uart_putchar(int c) {
+static void cbus_uart_putc(console_t *dev __unused, int c) {
   /* Wait for transmitter hold register empty. */
   while (!(LSR & LSR_THRE))
     ;
@@ -46,33 +47,19 @@ again:
     c = '\r';
     goto again;
   }
-  return c;
 }
 
-int kputchar(int c) __attribute__((weak, alias("uart_putchar")));
-
-int uart_puts(const char *str) {
-  int n = 0;
-  while (*str) {
-    uart_putchar(*str++);
-    n++;
-  }
-  uart_putchar('\n');
-  return n + 1;
-}
-
-int kputs(const char *str) __attribute__((weak, alias("uart_puts")));
-
-int uart_write(const char *str, size_t n) {
-  while (n--)
-    uart_putchar(*str++);
-  return n;
-}
-
-int uart_getchar() {
+static int cbus_uart_getc(console_t *dev __unused) {
   /* Wait until receive data available. */
   while (!(LSR & LSR_RXRDY))
     ;
 
   return RBR;
 }
+
+static console_t cbus_uart_console = {.cn_init = cbus_uart_init,
+                                      .cn_getc = cbus_uart_getc,
+                                      .cn_putc = cbus_uart_putc,
+                                      .cn_prio = 10};
+
+CONSOLE_ADD(cbus_uart_console);

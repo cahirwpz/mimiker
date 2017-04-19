@@ -5,8 +5,9 @@ SOURCES_C  = \
 	callout.c \
 	clock.c \
 	condvar.c \
+	console.c \
+	dev_cons.c \
 	dev_null.c \
-	dev_uart.c \
 	devfs.c \
 	exception.c \
 	exec.c \
