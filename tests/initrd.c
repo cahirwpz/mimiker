@@ -32,23 +32,23 @@ static void dump_file(const char *path) {
 
 static int test_ramdisk() {
   ramdisk_dump();
-  dump_file("/initrd/directory1/file1");
-  dump_file("/initrd/directory1/file2");
-  dump_file("/initrd/directory1/file3");
-  dump_file("/initrd/directory2/file1");
-  dump_file("/initrd/directory2/file2");
-  dump_file("/initrd/directory2/file3");
-  dump_file("/initrd/random_file.txt");
-  dump_file("/initrd/some_file.exe");
-  dump_file("/initrd/just_file.cpp");
-  dump_file("/initrd/some_file.c");
-  dump_file("/initrd/just_file.hs");
-  dump_file("/initrd/very/very/very/very/very/very/very/very/very/deep/"
+  dump_file("/tests/initrd/directory1/file1");
+  dump_file("/tests/initrd/directory1/file2");
+  dump_file("/tests/initrd/directory1/file3");
+  dump_file("/tests/initrd/directory2/file1");
+  dump_file("/tests/initrd/directory2/file2");
+  dump_file("/tests/initrd/directory2/file3");
+  dump_file("/tests/initrd/random_file.txt");
+  dump_file("/tests/initrd/some_file.exe");
+  dump_file("/tests/initrd/just_file.cpp");
+  dump_file("/tests/initrd/some_file.c");
+  dump_file("/tests/initrd/just_file.hs");
+  dump_file("/tests/initrd/very/very/very/very/very/very/very/very/very/deep/"
             "directory/deep_inside");
-  dump_file("/initrd/short_file_name/a");
-  dump_file("/initrd/level1/level2/level3/level123");
-  dump_file("/initrd/level1/level2/level12");
-  dump_file("/initrd/level1/level1");
+  dump_file("/tests/initrd/short_file_name/a");
+  dump_file("/tests/initrd/level1/level2/level3/level123");
+  dump_file("/tests/initrd/level1/level2/level12");
+  dump_file("/tests/initrd/level1/level1");
   return KTEST_SUCCESS;
 }
 

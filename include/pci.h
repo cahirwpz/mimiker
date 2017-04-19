@@ -29,12 +29,16 @@ extern const char *pci_class_code[];
 #define PCI_BAR_IO_MASK 3
 #define PCI_BAR_MEMORY_MASK 15
 
+typedef struct pci_device pci_device_t;
+
 typedef struct {
   pm_addr_t addr;
   size_t size;
+  pci_device_t *dev; /* Reference to the parent device. */
+  int i;             /* This BAR no in parent device. */
 } pci_bar_t;
 
-typedef struct {
+typedef struct pci_device {
   struct {
     uint8_t bus;
     uint8_t device;

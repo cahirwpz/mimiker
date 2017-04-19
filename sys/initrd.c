@@ -11,19 +11,23 @@
 #include <mount.h>
 #include <linker_set.h>
 
+typedef uint32_t cpio_dev_t;
+typedef uint32_t cpio_ino_t;
+typedef uint16_t cpio_mode_t;
+
 /* ramdisk related data that will be stored in v_data field of vnode */
 typedef struct cpio_node {
   TAILQ_ENTRY(cpio_node) c_list; /* link to global list of all ramdisk nodes */
   TAILQ_HEAD(, cpio_node) c_children; /* head of list of direct descendants */
   TAILQ_ENTRY(cpio_node) c_siblings;  /* nodes that have the same parent */
 
-  dev_t c_dev;
-  ino_t c_ino;
-  mode_t c_mode;
+  cpio_dev_t c_dev;
+  cpio_ino_t c_ino;
+  cpio_mode_t c_mode;
   nlink_t c_nlink;
   uid_t c_uid;
   gid_t c_gid;
-  dev_t c_rdev;
+  cpio_dev_t c_rdev;
   off_t c_size;
   time_t c_mtime;
 
@@ -189,18 +193,24 @@ static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
       return 0;
     }
   }
-  return ENOENT;
+  return -ENOENT;
 }
 
 static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
   cpio_node_t *cn = (cpio_node_t *)v->v_data;
   int count = uio->uio_resid;
-  int error = uiomove(cn->c_data, cn->c_size, uio);
+  int error = uiomove_frombuf(cn->c_data, cn->c_size, uio);
 
   if (error < 0)
     return -error;
 
   return count - uio->uio_resid;
+}
+
+static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
+  cpio_node_t *cn = (cpio_node_t *)v->v_data;
+  va->st_size = cn->c_size;
+  return 0;
 }
 
 static int initrd_mount(mount_t *m) {
@@ -218,7 +228,7 @@ static int initrd_root(mount_t *m, vnode_t **v) {
 }
 
 static int initrd_init(vfsconf_t *vfc) {
-  vfs_domount(vfc, vfs_root_initrd_vnode);
+  vfs_domount(vfc, vfs_root_vnode);
   return 0;
 }
 
@@ -239,12 +249,13 @@ void ramdisk_init() {
   unsigned rd_size = ramdisk_get_size();
 
   TAILQ_INIT(&initrd_head);
-  kmalloc_init(mp);
-  kmalloc_add_pages(mp, 2);
+  kmalloc_init(mp, 2, 2);
 
   if (rd_size) {
     initrd_ops.v_lookup = initrd_vnode_lookup;
     initrd_ops.v_read = initrd_vnode_read;
+    initrd_ops.v_open = vnode_open_generic;
+    initrd_ops.v_getattr = initrd_vnode_getattr;
     log("parsing cpio archive of %zu bytes", rd_size);
     read_cpio_archive();
     initrd_build_tree_and_names();

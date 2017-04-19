@@ -3,7 +3,7 @@
 
 #include <common.h>
 #include <physmem.h>
-
+#include <mutex.h>
 /*
  * This function provides simple dynamic memory allocation that may be used
  * before any memory management has been initialised. This is useful, because
@@ -19,7 +19,9 @@
  *
  * The returned pointer is word-aligned. The block is filled with 0's.
  */
-void kernel_brk(void *addr);
+/* If you still see this in late 2017 please get rid of it
+ * void kernel_brk(void *addr);
+ */
 void *kernel_sbrk(size_t size) __attribute__((warn_unused_result));
 
 /*
@@ -36,6 +38,9 @@ typedef struct malloc_pool {
   uint32_t mp_magic;                /* Detect programmer error. */
   const char *mp_desc;              /* Printable type name. */
   struct ma_list mp_arena;          /* Queue of managed arenas. */
+  mtx_t mp_lock;                    /* Mutex protecting structure */
+  unsigned mp_pages_used;           /* Current number of pages */
+  unsigned mp_pages_max;            /* Number of pages allowed */
 } malloc_pool_t;
 
 /* Defines a local pool of memory for use by a subsystem. */
@@ -49,9 +54,7 @@ typedef struct malloc_pool {
 #define M_NOWAIT 0x0001 /* may return NULL, but cannot sleep */
 #define M_ZERO 0x0002   /* clear allocated block */
 
-void kmalloc_init(malloc_pool_t *mp);
-void kmalloc_add_arena(malloc_pool_t *mp, vm_addr_t, size_t size);
-void kmalloc_add_pages(malloc_pool_t *mp, unsigned pages);
+void kmalloc_init(malloc_pool_t *mp, unsigned pages, unsigned pages_max);
 void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags)
   __attribute__((warn_unused_result));
 void kfree(malloc_pool_t *mp, void *addr);
