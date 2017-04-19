@@ -9,8 +9,7 @@
 static MALLOC_DEFINE(file_pool, "file pool");
 
 void file_init() {
-  kmalloc_init(file_pool);
-  kmalloc_add_pages(file_pool, 2);
+  kmalloc_init(file_pool, 2, 2);
 }
 
 void file_ref(file_t *f) {

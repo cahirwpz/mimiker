@@ -22,5 +22,6 @@ typedef struct uio {
 } uio_t;
 
 int uiomove(void *buf, size_t n, uio_t *uio);
+int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);
 
 #endif /* !_SYS_UIO_H_ */

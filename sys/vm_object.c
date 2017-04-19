@@ -14,9 +14,7 @@ RB_GENERATE(vm_object_tree, vm_page, obj.tree, vm_page_cmp);
 static MALLOC_DEFINE(mpool, "vm_object memory pool");
 
 void vm_object_init() {
-  vm_page_t *pg = pm_alloc(2);
-  kmalloc_init(mpool);
-  kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
+  kmalloc_init(mpool, 2, 2);
 }
 
 vm_object_t *vm_object_alloc() {
