@@ -48,10 +48,12 @@ void dump_directory(const char *path)
   int res = vfs_lookup(path, &v);
   assert(res == 0);
 
+
   char buffer[50];
   memset(buffer, '\0', sizeof(buffer));
   uio_t uio;
   iovec_t iov;
+
 
   prepare_uio(&uio, &iov, buffer, sizeof(buffer));
   int bytes = 0;
@@ -59,6 +61,7 @@ void dump_directory(const char *path)
   kprintf("Contents of directory: %s\n", path);
 
   uio.uio_offset = 0;
+
   do
   {
     bytes = VOP_READDIR(v, &uio);
@@ -67,17 +70,24 @@ void dump_directory(const char *path)
     dirent_t *dir = (dirent_t*)buffer;
     for(int off = 0; off < bytes; off += dir->d_reclen)
     {
-      dump_dirent(dir);
-      dir = _DIRENT_NEXT(dir);
+      if(dir->d_reclen)
+      {
+        dump_dirent(dir);
+        dir = _DIRENT_NEXT(dir);
+      }
+      else
+          break;
     }
+    int old_offset = uio.uio_offset;
+    prepare_uio(&uio, &iov, buffer, sizeof(buffer));
+    uio.uio_offset = old_offset;
   } while(bytes > 0);
 }
 
-/* TODO this test should be moved to */
 static int test_readdir() {
-  dump_directory("/initrd/directory1/");
-  dump_directory("/initrd/");
-  return 0;
+  dump_directory("/tests/initrd/directory1/");
+  dump_directory("/tests/initrd/");
+  return KTEST_SUCCESS;
 }
 
 static int test_ramdisk() {

@@ -135,6 +135,8 @@ void test_read() {
   assert_read_equal(0, buf, "\"file1\" in directory ");
   assert_read_equal(0, buf, "\"initrd_test_files/directory1\"!");
   assert_close_ok(0);
+
+  printf("test read passed!\n");
 }
 
 /* Try passing invalid pointers as arguments to open,read,write. */

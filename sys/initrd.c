@@ -251,17 +251,15 @@ static int initrd_vnode_readdir(vnode_t *v, uio_t *uio)
   TAILQ_FOREACH(it, &cn->c_children, c_siblings)
   {
     cpio_to_direntry(it, &dir);
-    if(offset + dir.d_reclen < uio->uio_offset)
+    if(offset + dir.d_reclen <= uio->uio_offset)
       offset += dir.d_reclen;
     else
     {
-      assert(offset == uio->uio_offset);
+      assert(it == NULL || offset == uio->uio_offset);
       break;
     }
   }
-  uio->uio_offset = 0;
 
-  int res = 0;
   for(; it; it = TAILQ_NEXT(it, c_siblings))
   {
     int count = uio->uio_resid;
@@ -274,9 +272,9 @@ static int initrd_vnode_readdir(vnode_t *v, uio_t *uio)
     }
     else
         break;
-    res += count-uio->uio_resid;
   }
-  return res;
+
+  return uio->uio_offset-offset;
 }
 
 static int initrd_root(mount_t *m, vnode_t **v) {
