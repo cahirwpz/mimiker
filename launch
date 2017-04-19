@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 import argparse
-import shutil
 import os
 import os.path
 import signal
@@ -24,24 +23,31 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Launch kernel in Malta board simulator.')
     parser.add_argument('-k', '--kernel', metavar='KERNEL', type=str,
-                        help='Kernel image file in ELF format.', default='mimiker.elf')
-    parser.add_argument('args', metavar='ARGS',
-                        type=str, nargs='*', help='Kernel arguments.')
-    parser.add_argument('-D', '--debugger', metavar='DEBUGGER', type=str, choices=debuggers.keys(), default=dbg_default, help=(
-        'Selet the debugger to attach. ' + 'Available options: %s. Default: %s.' % (', '.join(sorted(debuggers)), dbg_default)))
-    parser.add_argument(
-        '-S', '--simulator', metavar='SIMULATOR', type=str, choices=simulators.keys(), default=sim_default,
-                        help=('Simulator to use. ' + 'Available options: %s. Default: %s.' % (', '.join(sorted(simulators)), sim_default)))
-    parser.add_argument('-O', '--output', metavar='OUTPUT', type=str, choices=outputs, default=out_default, help=(
-        'Where to direct UART output and kernel messages. ' + 'Available options: %s. Default: %s.' % (', '.join(sorted(outputs)), out_default)))
-
-    parser.add_argument(
-        '-t', action='store_true', help='Shorthand for --output stdio')
-    parser.add_argument(
-        '-s', action='store_true', help='Shorthand for --output server')
-    parser.add_argument(
-        '-d', action='store_true', help='Shorthand for --debugger cgdb.')
-
+                        default='mimiker.elf',
+                        help='Kernel image file in ELF format.')
+    parser.add_argument('args', metavar='ARGS', type=str, nargs='*',
+                        help='Kernel arguments.')
+    parser.add_argument('-D', '--debugger', metavar='DEBUGGER', type=str,
+                        choices=debuggers.keys(), default=dbg_default,
+                        help=('Run debugging sesion with selected debugger. '
+                              'Available options: %s. Default: %s.' %
+                              (', '.join(sorted(debuggers)), dbg_default)))
+    parser.add_argument('-S', '--simulator', metavar='SIMULATOR', type=str,
+                        choices=simulators.keys(), default=sim_default,
+                        help=('Simulator to use. '
+                              'Available options: %s. Default: %s.' %
+                              (', '.join(sorted(simulators)), sim_default)))
+    parser.add_argument('-O', '--output', metavar='OUTPUT', type=str,
+                        choices=outputs, default=out_default,
+                        help=('Sink for UART output including kernel messages. '
+                              'Available options: %s. Default: %s.' %
+                              (', '.join(sorted(outputs)), out_default)))
+    parser.add_argument('-t', action='store_true',
+                        help='Shorthand for --output stdio')
+    parser.add_argument('-s', action='store_true',
+                        help='Shorthand for --output server')
+    parser.add_argument('-d', action='store_true',
+                        help='Shorthand for --debugger cgdb.')
     args = parser.parse_args()
 
     # Check if the kernel file is available
@@ -63,8 +69,8 @@ if __name__ == '__main__':
     debug = args.debugger != 'none'
 
     if debug and args.output == 'stdio':
-        raise SystemExit(
-            'ERROR: Unable to start both debugger and simulator in stdio output mode.')
+        raise SystemExit('ERROR: Unable to start both debugger and simulator in'
+                         ' stdio output mode.')
 
     sim = simulators[args.simulator]
     out = outputs[args.output]

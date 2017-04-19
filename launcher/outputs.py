@@ -11,7 +11,7 @@ class ServerOutput(Launchable):
         return True
 
     def configure(self, **kwargs):
-        return
+        pass
 
 
 class XTermOutput(Launchable):
