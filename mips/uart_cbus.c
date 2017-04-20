@@ -24,7 +24,7 @@ static void clr(unsigned offset, uint8_t mask) {
 }
 
 static bool is_set(unsigned offset, uint8_t mask) {
-  return in(offset) & mask;
+  return in(offset)&mask;
 }
 
 static void cbus_uart_init(console_t *dev __unused) {
