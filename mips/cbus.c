@@ -11,9 +11,12 @@ static void cbus_write_1(resource_t *handle, unsigned offset, uint8_t value) {
   *(volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(addr)) = value;
 }
 
-static BUS_SPACE_DEFINE(cbus);
+static bus_space_t cbus_bus_space = {
+  .read_1 = cbus_read_1,
+  .write_1 = cbus_write_1,
+};
 
-resource_t cbus_uart[1] = {{.r_bus_space = cbus_bus_space,
+resource_t cbus_uart[1] = {{.r_bus_space = &cbus_bus_space,
                             .r_addr = MALTA_CBUS_UART,
                             .r_start = 0,
                             .r_end = 7}};

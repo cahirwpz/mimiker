@@ -20,12 +20,7 @@ struct bus_space {
   bus_space_write_1_t write_1; /* how to write one byte? */
 };
 
-#define BUS_SPACE_DEFINE(name)                                                 \
-  bus_space_t name##_bus_space[1] = {{                                         \
-    .read_1 = name##_read_1, .write_1 = name##_write_1,                        \
-  }}
-
-#define BUS_SPACE_DECLARE(name) extern bus_space_t name##_bus_space[1]
+#define BUS_SPACE_DECLARE(name) extern bus_space_t name[1]
 
 /* `resource` describes a range of addresses where a resource is mapped within
  * given bus space. A driver will use addresses from `r_start` to `r_end` and
