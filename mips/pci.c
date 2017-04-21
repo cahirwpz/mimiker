@@ -1,22 +1,13 @@
 #include <stdc.h>
 #include <mips/mips.h>
 #include <mips/malta.h>
-#include <mips/gt64120.h>
 #include <malloc.h>
 #include <pci.h>
 
-#define PCI0_CFG_ADDR_R GT_R(GT_PCI0_CFG_ADDR)
-#define PCI0_CFG_DATA_R GT_R(GT_PCI0_CFG_DATA)
-
-#define PCI0_CFG_REG_SHIFT 2
-#define PCI0_CFG_FUNCT_SHIFT 8
-#define PCI0_CFG_DEV_SHIFT 11
-#define PCI0_CFG_BUS_SHIFT 16
-#define PCI0_CFG_ENABLE 0x80000000
-
-#define PCI0_CFG_REG(dev, funct, reg)                                          \
-  (((dev) << PCI0_CFG_DEV_SHIFT) | ((funct) << PCI0_CFG_FUNCT_SHIFT) |         \
-   ((reg) << PCI0_CFG_REG_SHIFT))
+typedef struct {
+  unsigned ndevs;
+  pci_device_t dev[0];
+} pci_dev_list_t;
 
 static MALLOC_DEFINE(mp, "PCI bus discovery memory pool");
 
@@ -45,70 +36,57 @@ static const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
   return NULL;
 }
 
-static void pci_bus_enumerate(pci_bus_t *pcibus) {
+static bool pci_device_present(pci_bus_t *pcib, unsigned bus, unsigned dev,
+                               unsigned func) {
+  pci_device_t pcidev = {.bus = pcib, .addr = {bus, dev, func}};
+  return (pci_read_config(&pcidev, PCIR_DEVICEID, 4) != 0xffffffff);
+}
+
+static pci_dev_list_t *pci_bus_enumerate(pci_bus_t *pcib) {
   /* count devices & allocate memory */
-  pcibus->ndevs = 0;
+  unsigned ndevs = 0;
 
-  for (int j = 0; j < 32; j++) {
-    for (int k = 0; k < 8; k++) {
-      PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | PCI0_CFG_REG(j, k, 0);
+  for (int j = 0; j < 32; j++)
+    for (int k = 0; k < 8; k++)
+      if (pci_device_present(pcib, 0, j, k))
+        ndevs++;
 
-      if (PCI0_CFG_DATA_R == -1)
-        continue;
+  pci_dev_list_t *devtab =
+    kmalloc(mp, sizeof(pci_dev_list_t) + sizeof(pci_device_t) * ndevs, M_ZERO);
 
-      pcibus->ndevs++;
-    }
-  }
-
-  pcibus->dev = kmalloc(mp, sizeof(pci_device_t) * pcibus->ndevs, M_ZERO);
+  devtab->ndevs = ndevs;
 
   /* read device descriptions into main memory */
   for (int j = 0, n = 0; j < 32; j++) {
     for (int k = 0; k < 8; k++) {
-      PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | PCI0_CFG_REG(j, k, 0);
-
-      if (PCI0_CFG_DATA_R == -1)
+      if (!pci_device_present(pcib, 0, j, k))
         continue;
 
-      pci_device_t *pcidev = &pcibus->dev[n++];
-
-      pcidev->addr.bus = 0;
-      pcidev->addr.device = j;
-      pcidev->addr.function = k;
-      pcidev->device_id = PCI0_CFG_DATA_R >> 16;
-      pcidev->vendor_id = PCI0_CFG_DATA_R;
-
-      PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | PCI0_CFG_REG(j, k, 2);
-      pcidev->class_code = (PCI0_CFG_DATA_R & 0xff000000) >> 24;
-
-      PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | PCI0_CFG_REG(j, k, 15);
-      pcidev->pin = PCI0_CFG_DATA_R >> 8;
-      pcidev->irq = PCI0_CFG_DATA_R;
+      pci_device_t *pcidev = &devtab->dev[n++];
+      pcidev->bus = pcib;
+      pcidev->addr = (pci_addr_t){0, j, k};
+      pcidev->device_id = pci_read_config(pcidev, PCIR_DEVICEID, 2);
+      pcidev->vendor_id = pci_read_config(pcidev, PCIR_VENDORID, 2);
+      pcidev->class_code = pci_read_config(pcidev, PCIR_CLASSCODE, 1);
+      pcidev->pin = pci_read_config(pcidev, PCIR_IRQPIN, 1);
+      pcidev->irq = pci_read_config(pcidev, PCIR_IRQLINE, 1);
 
       for (int i = 0; i < 6; i++) {
-        PCI0_CFG_ADDR_R =
-          PCI0_CFG_ENABLE |
-          PCI0_CFG_REG(pcidev->addr.device, pcidev->addr.function, 4 + i);
-        unsigned addr = PCI0_CFG_DATA_R;
-        PCI0_CFG_DATA_R = -1;
-        unsigned size = PCI0_CFG_DATA_R;
+        uint32_t addr = pci_read_config(pcidev, PCIR_BAR(i), 4);
+        uint32_t size = pci_adjust_config(pcidev, PCIR_BAR(i), 4, 0xffffffff);
+
         if (size == 0 || addr == size)
           continue;
 
         size &= (addr & PCI_BAR_IO) ? ~PCI_BAR_IO_MASK : ~PCI_BAR_MEMORY_MASK;
         size = -size;
-
-        pci_bar_t *bar = &pcidev->bar[pcidev->nbars++];
-        bar->addr = addr;
-        bar->size = size;
-        /* The two fields below are stored for convenience. They seem redundant,
-           but as we'll be sorting all bars by their size, keeping a reference
-           to where an entry came from is useful. */
-        bar->dev = pcidev;
-        bar->i = i;
+        pcidev->bar[pcidev->nbars++] =
+          (pci_bar_t){.addr = addr, .size = size, .dev = pcidev, .i = i};
       }
     }
   }
+
+  return devtab;
 }
 
 static int pci_bar_compare(const void *a, const void *b) {
@@ -122,20 +100,22 @@ static int pci_bar_compare(const void *a, const void *b) {
   return 0;
 }
 
-static void pci_bus_assign_space(pci_bus_t *pcibus, intptr_t mem_base,
+static void pci_bus_assign_space(pci_dev_list_t *devtab, intptr_t mem_base,
                                  intptr_t io_base) {
   /* Count PCI base address registers & allocate memory */
   unsigned nbars = 0;
 
-  for (int j = 0; j < pcibus->ndevs; j++) {
-    pci_device_t *pcidev = &pcibus->dev[j];
+  for (int j = 0; j < devtab->ndevs; j++) {
+    pci_device_t *pcidev = &devtab->dev[j];
     nbars += pcidev->nbars;
   }
 
+  log("devs = %d, nbars = %d", devtab->ndevs, nbars);
+
   pci_bar_t **bars = kmalloc(mp, sizeof(pci_bar_t *) * nbars, M_ZERO);
 
-  for (int j = 0, n = 0; j < pcibus->ndevs; j++) {
-    pci_device_t *pcidev = &pcibus->dev[j];
+  for (int j = 0, n = 0; j < devtab->ndevs; j++) {
+    pci_device_t *pcidev = &devtab->dev[j];
     for (int i = 0; i < pcidev->nbars; i++)
       bars[n++] = &pcidev->bar[i];
   }
@@ -152,21 +132,18 @@ static void pci_bus_assign_space(pci_bus_t *pcibus, intptr_t mem_base,
       mem_base += bar->size;
     }
 
-    /* Write the BAR address back to PCI bus config. */
-    PCI0_CFG_ADDR_R =
-      PCI0_CFG_ENABLE |
-      PCI0_CFG_REG(bar->dev->addr.device, bar->dev->addr.function, 4 + bar->i);
-    /* It's safe to write the entire address without masking bits - only base
-       address bits are writable. */
-    PCI0_CFG_DATA_R = bar->addr;
+    /* Write the BAR address back to PCI bus config. It's safe to write the
+     * entire address without masking bits - only base address bits are
+     * writable. */
+    pci_write_config(bar->dev, PCIR_BAR(bar->i), 4, bar->addr);
   }
 
   kfree(mp, bars);
 }
 
-static void pci_bus_dump(pci_bus_t *pcibus) {
-  for (int j = 0; j < pcibus->ndevs; j++) {
-    pci_device_t *pcidev = &pcibus->dev[j];
+static void pci_bus_dump(pci_dev_list_t *devs) {
+  for (int j = 0; j < devs->ndevs; j++) {
+    pci_device_t *pcidev = &devs->dev[j];
     char devstr[16];
 
     snprintf(devstr, sizeof(devstr), "[pci:%02x:%02x.%02x]", pcidev->addr.bus,
@@ -213,11 +190,11 @@ static void pci_bus_dump(pci_bus_t *pcibus) {
   }
 }
 
-static pci_bus_t pci_bus[1];
+PCI_BUS_DECLARE(gt_pci_bus);
 
 void pci_init() {
   kmalloc_init(mp, 1, 1);
-  pci_bus_enumerate(pci_bus);
-  pci_bus_assign_space(pci_bus, MALTA_PCI0_MEMORY_BASE, PCI_IO_SPACE_BASE);
-  pci_bus_dump(pci_bus);
+  pci_dev_list_t *devs = pci_bus_enumerate(gt_pci_bus);
+  pci_bus_assign_space(devs, MALTA_PCI0_MEMORY_BASE, PCI_IO_SPACE_BASE);
+  pci_bus_dump(devs);
 }

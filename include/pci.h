@@ -29,21 +29,48 @@ extern const char *pci_class_code[];
 #define PCI_BAR_IO_MASK 3
 #define PCI_BAR_MEMORY_MASK 15
 
+#define PCIR_DEVICEID 0x00
+#define PCIR_VENDORID 0x02
+#define PCIR_STATUS 0x04
+#define PCIR_COMMAND 0x06
+#define PCIR_CLASSCODE 0x08
+#define PCIR_IRQPIN 0x3e
+#define PCIR_IRQLINE 0x3f
+#define PCIR_BAR(i) (0x10 + (i)*4)
+
 typedef struct pci_device pci_device_t;
 
 typedef struct {
   pm_addr_t addr;
   size_t size;
+  /* The two fields below are stored for convenience. They seem redundant,
+     but as we'll be sorting all bars by their size, keeping a reference
+     to where an entry came from is useful. */
   pci_device_t *dev; /* Reference to the parent device. */
-  int i;             /* This BAR no in parent device. */
+  unsigned i;        /* Current BAR number for parent device. */
 } pci_bar_t;
 
-typedef struct pci_device {
-  struct {
-    uint8_t bus;
-    uint8_t device;
-    uint8_t function;
-  } addr;
+typedef struct pci_addr {
+  uint8_t bus;
+  uint8_t device;
+  uint8_t function;
+} pci_addr_t;
+
+typedef uint32_t (*pci_read_config_t)(pci_device_t *device, unsigned reg,
+                                      unsigned size);
+typedef void (*pci_write_config_t)(pci_device_t *device, unsigned reg,
+                                   unsigned size, uint32_t value);
+
+typedef struct pci_bus {
+  pci_read_config_t read_config;
+  pci_write_config_t write_config;
+} pci_bus_t;
+
+#define PCI_BUS_DECLARE(name) extern pci_bus_t name[1]
+
+struct pci_device {
+  pci_bus_t *bus;
+  pci_addr_t addr;
 
   uint16_t device_id;
   uint16_t vendor_id;
@@ -52,12 +79,23 @@ typedef struct pci_device {
 
   unsigned nbars;
   pci_bar_t bar[6];
-} pci_device_t;
+};
 
-typedef struct {
-  unsigned ndevs;
-  pci_device_t *dev;
-} pci_bus_t;
+static inline uint32_t pci_read_config(pci_device_t *device, unsigned reg,
+                                       unsigned size) {
+  return device->bus->read_config(device, reg, size);
+}
+
+static inline void pci_write_config(pci_device_t *device, unsigned reg,
+                                    unsigned size, uint32_t value) {
+  device->bus->write_config(device, reg, size, value);
+}
+
+static inline uint32_t pci_adjust_config(pci_device_t *device, unsigned reg,
+                                         unsigned size, uint32_t value) {
+  pci_write_config(device, reg, size, value);
+  return pci_read_config(device, reg, size);
+}
 
 void pci_init();
 
