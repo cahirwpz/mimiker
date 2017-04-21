@@ -12,8 +12,7 @@ static void cbus_write_1(resource_t *handle, unsigned offset, uint8_t value) {
 }
 
 static bus_space_t cbus_bus_space = {
-  .read_1 = cbus_read_1,
-  .write_1 = cbus_write_1,
+  .read_1 = cbus_read_1, .write_1 = cbus_write_1,
 };
 
 resource_t cbus_uart[1] = {{.r_bus_space = &cbus_bus_space,
