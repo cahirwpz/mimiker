@@ -6,6 +6,7 @@
 #include <mips/exc.h>
 
 ASSYM(TDF_NEEDSWITCH, TDF_NEEDSWITCH);
+ASSYM(TDF_HASSIG, TDF_HASSIG);
 
 ASSYM(TD_UCTX, offsetof(thread_t, td_uctx));
 ASSYM(TD_UCTX_FPU, offsetof(thread_t, td_uctx_fpu));
