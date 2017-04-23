@@ -86,7 +86,7 @@ void sigint_handler(int signo) {
   raise(SIGUSR1); /* Recursive signals! */
 }
 
-void sigusr2_handler(int signo){
+void sigusr2_handler(int signo) {
   printf("Child process handles sigusr2.\n");
   raise(SIGABRT); /* Terminate self. */
 }
@@ -102,21 +102,21 @@ void signal_test() {
   /* Restore original behavior. */
   my_signal(SIGINT, SIG_DFL);
   my_signal(SIGUSR1, SIG_DFL);
-  
+
   /* Test sending a signal to a different thread. */
   my_signal(SIGUSR2, sigusr2_handler);
   int pid = fork();
-  if(pid == 0){
+  if (pid == 0) {
     /* Child, waits for signal. */
-    while(1)
+    while (1)
       ;
-  }else{
+  } else {
     /* Parent.*/
     kill(pid, SIGUSR2);
     /* wait() for child. */
   }
 
-  /* Test invalid memory access. */
+/* Test invalid memory access. */
 #if 0
   struct {int x;} *ptr = 0x0;
   ptr->x = 42;
