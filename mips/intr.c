@@ -107,7 +107,8 @@ void syscall_handler(exc_frame_t *frame) {
   retval = sysent[args.code].call(thread_self(), &args);
 
 finalize:
-  exc_frame_set_retval(frame, retval);
+  if (retval != -EJUSTRETURN)
+    exc_frame_set_retval(frame, retval);
 }
 
 /*

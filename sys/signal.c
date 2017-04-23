@@ -3,6 +3,8 @@
 #include <malloc.h>
 #include <stdc.h>
 #include <errno.h>
+#include <sysent.h>
+#include <systm.h>
 
 static MALLOC_DEFINE(sig_pool, "signal handlers pool");
 
@@ -163,8 +165,57 @@ int issignal(thread_t *td) {
   }
 }
 
+extern int platform_sendsig(int sig, sigaction_t *sa);
+extern int platform_sigreturn();
+
 void postsig(int sig) {
   thread_t *td = thread_self();
-  sighandler_t *h = get_sigact(sig, td->td_sighand);
-  log("Postsig with handler %p", h);
+  sigaction_t *sa = td->td_sighand->sh_actions + sig;
+
+  assert(sa->sa_handler != SIG_IGN && sa->sa_handler != SIG_DFL);
+
+  log("Postsig with handler %p", sa->sa_handler);
+  /* Normally the postsig would have more to do, but our signal implemetnation
+     is very limited for now, and all postsig has to do is to pass the sa to
+     platform-specific sendsig. */
+
+  platform_sendsig(sig, sa);
+}
+
+int do_sigreturn() {
+  return platform_sigreturn();
+}
+
+int sys_kill(thread_t *td, syscall_args_t *args) {
+  tid_t tid = args->args[0];
+  signo_t sig = args->args[1];
+  kprintf("[syscall] kill(%lu, %d)\n", tid, sig);
+
+  return do_kill(tid, sig);
+}
+
+int sys_sigaction(thread_t *td, syscall_args_t *args) {
+  int signo = args->args[0];
+  char *p_newact = (char *)args->args[1];
+  char *p_oldact = (char *)args->args[2];
+  kprintf("[syscall] sigaction(%d, %p, %p)\n", signo, p_newact, p_oldact);
+
+  sigaction_t newact;
+  sigaction_t oldact;
+
+  copyin(p_newact, &newact, sizeof(sigaction_t));
+
+  int res = do_sigaction(signo, &newact, &oldact);
+  if (res < 0)
+    return res;
+
+  if (p_oldact != NULL)
+    copyout(&oldact, p_oldact, sizeof(sigaction_t));
+
+  return res;
+}
+
+int sys_sigreturn(thread_t *td, syscall_args_t *args) {
+  kprintf("[syscall] sigreturn()\n");
+  return do_sigreturn();
 }

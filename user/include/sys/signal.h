@@ -27,14 +27,20 @@ typedef void (*sighandler_t)(int);
 
 typedef struct sigaction {
   sighandler_t sa_handler;
-  /* TODO: Flags, sa_sigaction, sigset mask */
+  void *sa_restorer;
 } sigaction_t;
 
 int sigaction(int signum, const sigaction_t *act, sigaction_t *oldact);
 int kill(int tid, int sig);
 
-inline int raise(int sig) {
+static inline int raise(int sig) {
   return kill(getpid(), sig);
+}
+
+void sigreturn();
+static inline int my_signal(int sig, sighandler_t handler) {
+  sigaction_t sa = {.sa_handler = handler, .sa_restorer = sigreturn};
+  return sigaction(sig, &sa, NULL);
 }
 
 /* This is necessary to keep newlib happy. */

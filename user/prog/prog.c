@@ -82,10 +82,11 @@ void sigint_handler(int signo) {
 }
 
 void signal_test() {
-  sigaction_t sa;
-  sa.sa_handler = sigint_handler;
-  sigaction(SIGINT, &sa, NULL);
-  raise(SIGKILL);
+  /* TODO: Cannot use signal(...) here, because the one provided by newlib
+     emulates signals in userspace. Please recompile newlib with
+     -DSIGNAL_PROVIDED. */
+  my_signal(SIGINT, sigint_handler);
+  raise(SIGINT);
 }
 
 int main(int argc, char **argv) {

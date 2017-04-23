@@ -9,8 +9,6 @@
 #include <fork.h>
 #include <sbrk.h>
 #include <signal.h>
-#include <uio.h>
-#include <systm.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   kprintf("[syscall] unimplemented system call %ld\n", args->code);
@@ -55,41 +53,13 @@ int sys_getpid(thread_t *td, syscall_args_t *args) {
   return td->td_tid;
 }
 
-int sys_kill(thread_t *td, syscall_args_t *args) {
-  tid_t tid = args->args[0];
-  signo_t sig = args->args[1];
-  kprintf("[syscall] kill(%lu, %d)\n", tid, sig);
-
-  return do_kill(tid, sig);
-}
-
-int sys_sigaction(thread_t *td, syscall_args_t *args) {
-  int signo = args->args[0];
-  char *p_newact = (char *)args->args[1];
-  char *p_oldact = (char *)args->args[2];
-  kprintf("[syscall] sigaction(%d, %p, %p)\n", signo, p_newact, p_oldact);
-
-  sigaction_t newact;
-  sigaction_t oldact;
-
-  copyin(p_newact, &newact, sizeof(sigaction_t));
-
-  int res = do_sigaction(signo, &newact, &oldact);
-  if (res < 0)
-    return res;
-
-  if (p_oldact != NULL)
-    copyout(&oldact, p_oldact, sizeof(sigaction_t));
-
-  return res;
-}
-
 /* clang-format hates long arrays. */
 sysent_t sysent[] =
-  {[SYS_EXIT] = {sys_exit},    [SYS_OPEN] = {sys_open},
-   [SYS_CLOSE] = {sys_close},  [SYS_READ] = {sys_read},
-   [SYS_WRITE] = {sys_write},  [SYS_LSEEK] = {sys_lseek},
-   [SYS_UNLINK] = {sys_nosys}, [SYS_GETPID] = {sys_getpid},
-   [SYS_KILL] = {sys_kill},    [SYS_FSTAT] = {sys_fstat},
-   [SYS_SBRK] = {sys_sbrk},    [SYS_MMAP] = {sys_mmap},
-   [SYS_FORK] = {sys_fork},    [SYS_SIGACTION] = {sys_sigaction}};
+  {[SYS_EXIT] = {sys_exit},          [SYS_OPEN] = {sys_open},
+   [SYS_CLOSE] = {sys_close},        [SYS_READ] = {sys_read},
+   [SYS_WRITE] = {sys_write},        [SYS_LSEEK] = {sys_lseek},
+   [SYS_UNLINK] = {sys_nosys},       [SYS_GETPID] = {sys_getpid},
+   [SYS_KILL] = {sys_kill},          [SYS_FSTAT] = {sys_fstat},
+   [SYS_SBRK] = {sys_sbrk},          [SYS_MMAP] = {sys_mmap},
+   [SYS_FORK] = {sys_fork},          [SYS_SIGACTION] = {sys_sigaction},
+   [SYS_SIGRETURN] = {sys_sigreturn}};

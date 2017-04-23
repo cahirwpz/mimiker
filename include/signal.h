@@ -31,8 +31,7 @@ typedef void (*sighandler_t)(int);
 
 typedef struct sigaction {
   sighandler_t *sa_handler;
-  /* TODO: Flags, sa_sigaction, sigset mask */
-  int flags;
+  void *sa_restorer;
 } sigaction_t;
 
 typedef struct sighand {
@@ -50,9 +49,7 @@ sighand_t *sighand_copy(sighand_t *sh);
 void sighand_ref(sighand_t *);
 void sighand_unref(sighand_t *);
 
-int do_kill(tid_t tid, int sig);
-int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact);
-
+/* Sends a signal to a thread. */
 int signal(thread_t *td, signo_t sig);
 
 /* Process signals pending for the thread. If the thread has received a signal
@@ -61,5 +58,16 @@ int issignal(thread_t *td);
 
 /* Process user action triggered by a signal. */
 void postsig(int sig);
+
+int do_kill(tid_t tid, int sig);
+int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact);
+int do_sigreturn();
+
+/* Syscall interface */
+typedef struct thread thread_t;
+typedef struct syscall_args syscall_args_t;
+int sys_kill(thread_t *td, syscall_args_t *args);
+int sys_sigaction(thread_t *td, syscall_args_t *args);
+int sys_sigreturn(thread_t *td, syscall_args_t *args);
 
 #endif /* _SYS_SIGNAL_H_ */

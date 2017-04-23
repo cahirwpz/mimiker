@@ -63,5 +63,6 @@ SYSCALL(sbrk, SYS_SBRK)
 SYSCALL(fork, SYS_FORK)
 SYSCALL(mmap, SYS_MMAP)
 SYSCALL(sigaction, SYS_SIGACTION)
+SYSCALL(sigreturn, SYS_SIGRETURN)
 
 # vim: sw=8 ts=8 et

@@ -172,7 +172,7 @@
 
 #define ELAST 96 /* Must equal largest errno */
 
-#if defined(_KERNEL) || defined(_KMEMUSER)
+#if defined(_KERNEL) || defined(_KMEMUSER) || defined(_KERNELSPACE)
 /* pseudo-errors returned inside kernel to modify return to process */
 #define EJUSTRETURN -2  /* don't modify regs, just return */
 #define ERESTART -3     /* restart syscall */
