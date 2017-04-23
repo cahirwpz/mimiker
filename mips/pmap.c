@@ -9,6 +9,7 @@
 #include <vm_map.h>
 #include <thread.h>
 #include <ktest.h>
+#include <signal.h>
 
 #define PTE_MASK 0xfffff000
 #define PTE_SHIFT 12
@@ -380,6 +381,12 @@ fault:
   } else if (ktest_test_running_flag) {
     ktest_failure();
   } else {
-    thread_exit(-1);
+    if (td->td_uspace) {
+      /* Send a segmentation fault signal to the user program. */
+      signal(td, SIGSEGV);
+    } else {
+      /* Kernel mode thread violated memory, whoops. */
+      assert(0 && "Invalid memory access.");
+    }
   }
 }

@@ -174,7 +174,7 @@ void postsig(int sig) {
 
   assert(sa->sa_handler != SIG_IGN && sa->sa_handler != SIG_DFL);
 
-  log("Postsig with handler %p", sa->sa_handler);
+  log("Postsig for %s with handler %p", signal_names[sig], sa->sa_handler);
   /* Normally the postsig would have more to do, but our signal implemetnation
      is very limited for now, and all postsig has to do is to pass the sa to
      platform-specific sendsig. */

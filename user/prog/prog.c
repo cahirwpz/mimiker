@@ -77,8 +77,13 @@ void mmap_test() {
   memset(addr, -1, 99);
 }
 
+void sigusr1_handler(int signo) {
+  printf("sigusr1 handled!\n");
+}
+
 void sigint_handler(int signo) {
   printf("sigint handled!\n");
+  raise(SIGUSR1); /* Recursive signals! */
 }
 
 void signal_test() {
@@ -86,6 +91,7 @@ void signal_test() {
      emulates signals in userspace. Please recompile newlib with
      -DSIGNAL_PROVIDED. */
   my_signal(SIGINT, sigint_handler);
+  my_signal(SIGUSR1, sigusr1_handler);
   raise(SIGINT);
 }
 
