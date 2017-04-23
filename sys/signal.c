@@ -35,7 +35,7 @@ sighand_t *sighand_new() {
   return sh;
 }
 static void sighand_free(sighand_t *sh) {
-  assert(sh->sh_refcount == 1);
+  assert(sh->sh_refcount == 0);
   /* No need to lock the mutex, we have the last existing reference. */
   kfree(sig_pool, sh);
 }
