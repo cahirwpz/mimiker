@@ -10,7 +10,7 @@
    syscalls, and can only deliver signals to the process that raised them... The
    temporary workaround is to include sys/signal.h instead, which we override
    with a set of custom definitions. */
-#include <sys/signal.h>
+#include <sys/my_signal.h>
 #include <sys/mman.h>
 
 #define TEXTAREA_SIZE 100
