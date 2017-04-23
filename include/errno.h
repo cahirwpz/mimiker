@@ -174,7 +174,7 @@
 
 #if defined(_KERNEL) || defined(_KMEMUSER) || defined(_KERNELSPACE)
 /* pseudo-errors returned inside kernel to modify return to process */
-#define EJUSTRETURN -2  /* don't modify regs, just return */
+#define EJUSTRETURN 128 /* don't modify regs, just return */
 #define ERESTART -3     /* restart syscall */
 #define EPASSTHROUGH -4 /* ioctl not handled by this layer */
 #define EDUPFD -5       /* Dup given fd */
