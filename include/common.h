@@ -20,6 +20,7 @@ typedef uint16_t gid_t;
 typedef uint32_t mode_t;
 typedef uint16_t nlink_t;
 typedef uint16_t ino_t;
+typedef uint32_t tid_t;
 
 /* Generic preprocessor macros */
 #define __STRING(x) #x

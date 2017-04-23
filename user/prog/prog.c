@@ -5,6 +5,12 @@
 #include <errno.h>
 #include <unistd.h>
 #include <assert.h>
+/* TODO: We need to recompile newlib with -DSIGNAL_PROVIDED. Otherwise it
+   provides it's own signal emulation in signal.h, which does not use any
+   syscalls, and can only deliver signals to the process that raised them... The
+   temporary workaround is to include sys/signal.h instead, which we override
+   with a set of custom definitions. */
+#include <sys/signal.h>
 #include <sys/mman.h>
 
 #define TEXTAREA_SIZE 100
@@ -71,12 +77,24 @@ void mmap_test() {
   memset(addr, -1, 99);
 }
 
+void sigint_handler(int signo) {
+  printf("sigint handled!\n");
+}
+
+void signal_test() {
+  sigaction_t sa;
+  sa.sa_handler = sigint_handler;
+  sigaction(SIGINT, &sa, NULL);
+  kill(getpid(), SIGINT);
+}
+
 int main(int argc, char **argv) {
   if (argc >= 2 && strcmp(argv[1], "abort_test") == 0)
     assert(0);
 
   sbrk_test();
   mmap_test();
+  signal_test();
 
   /* Test some libstd functions. They will mostly fail, because many system
      calls are not implemented yet, but at least printf works!*/
