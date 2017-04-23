@@ -86,6 +86,11 @@ void sigint_handler(int signo) {
   raise(SIGUSR1); /* Recursive signals! */
 }
 
+void sigusr2_handler(int signo){
+  printf("Child process handles sigusr2.\n");
+  raise(SIGABRT); /* Terminate self. */
+}
+
 void signal_test() {
   /* TODO: Cannot use signal(...) here, because the one provided by newlib
      emulates signals in userspace. Please recompile newlib with
@@ -93,6 +98,29 @@ void signal_test() {
   my_signal(SIGINT, sigint_handler);
   my_signal(SIGUSR1, sigusr1_handler);
   raise(SIGINT);
+
+  /* Restore original behavior. */
+  my_signal(SIGINT, SIG_DFL);
+  my_signal(SIGUSR1, SIG_DFL);
+  
+  /* Test sending a signal to a different thread. */
+  my_signal(SIGUSR2, sigusr2_handler);
+  int pid = fork();
+  if(pid == 0){
+    /* Child, waits for signal. */
+    while(1)
+      ;
+  }else{
+    /* Parent.*/
+    kill(pid, SIGUSR2);
+    /* wait() for child. */
+  }
+
+  /* Test invalid memory access. */
+#if 0
+  struct {int x;} *ptr = 0x0;
+  ptr->x = 42;
+#endif
 }
 
 int main(int argc, char **argv) {
