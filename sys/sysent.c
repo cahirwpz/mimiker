@@ -9,6 +9,8 @@
 #include <fork.h>
 #include <sbrk.h>
 #include <signal.h>
+#include <uio.h>
+#include <systm.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   kprintf("[syscall] unimplemented system call %ld\n", args->code);
@@ -70,13 +72,14 @@ int sys_sigaction(thread_t *td, syscall_args_t *args) {
   sigaction_t newact;
   sigaction_t oldact;
 
-  /* Copy in newact. */
+  copyin(p_newact, &newact, sizeof(sigaction_t));
 
   int res = do_sigaction(signo, &newact, &oldact);
   if (res < 0)
     return res;
 
-  /* If p_oldact != null, copyout oldact. */
+  if (p_oldact != NULL)
+    copyout(&oldact, p_oldact, sizeof(sigaction_t));
 
   return res;
 }

@@ -180,6 +180,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   mips_intr_init();
   pm_bootstrap(memsize);
   sleepq_init();
+  sighand_init();
   thread_bootstrap();
 
   kprintf("[startup] Switching to 'kernel-main' thread...\n");

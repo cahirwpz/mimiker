@@ -1,13 +1,170 @@
 #include <signal.h>
 #include <thread.h>
+#include <malloc.h>
 #include <stdc.h>
+#include <errno.h>
 
-int do_kill(tid_t tid, signo_t sig) {
-  log("KILLING");
+static MALLOC_DEFINE(sig_pool, "signal handlers pool");
+
+static sighandler_t *signal_default_actions[SIG_LAST] = {
+    [SIGINT] = SIG_TERM,  [SIGILL] = SIG_TERM,  [SIGFPE] = SIG_TERM,
+    [SIGABRT] = SIG_TERM, [SIGSEGV] = SIG_TERM, [SIGKILL] = SIG_TERM,
+    [SIGCHLD] = SIG_IGN,  [SIGUSR1] = SIG_TERM, [SIGUSR2] = SIG_TERM,
+};
+
+static const char *signal_names[SIG_LAST] = {
+    [SIGINT] = "SIGINT",   [SIGILL] = "SIGILL",   [SIGABRT] = "SIGABRT",
+    [SIGFPE] = "SIGFPE",   [SIGSEGV] = "SIGSEGV", [SIGKILL] = "SIGKILL",
+    [SIGTERM] = "SIGTERM", [SIGCHLD] = "SIGCHLD", [SIGUSR1] = "SIGUSR1",
+    [SIGUSR2] = "SIGUSR2",
+};
+
+void sighand_init() {
+  /* TODO: A lot of kernel components have a init function whose only purpose is
+     to perform a kmalloc_init. Maybe we could collect them with a linker set,
+     and initialize all pools together? */
+  kmalloc_init(sig_pool, 2, 2);
+}
+
+sighand_t *sighand_new() {
+  sighand_t *sh = kmalloc(sig_pool, sizeof(sighand_t), M_ZERO);
+  mtx_init(&sh->sh_mtx, MTX_RECURSE);
+  sh->sh_refcount = 1;
+  return sh;
+}
+static void sighand_free(sighand_t *sh) {
+  assert(sh->sh_refcount == 1);
+  /* No need to lock the mutex, we have the last existing reference. */
+  kfree(sig_pool, sh);
+}
+
+sighand_t *sighand_copy(sighand_t *sh) {
+  sighand_t *new = sighand_new();
+  mtx_scoped_lock(&sh->sh_mtx);
+  memcpy(new->sh_actions, sh->sh_actions, sizeof(sigaction_t) * SIG_LAST);
+  return new;
+}
+
+void sighand_ref(sighand_t *sh) {
+  mtx_scoped_lock(&sh->sh_mtx);
+  sh->sh_refcount++;
+}
+void sighand_unref(sighand_t *sh) {
+  mtx_scoped_lock(&sh->sh_mtx);
+  if (--sh->sh_refcount == 0)
+    sighand_free(sh);
+}
+
+int do_kill(tid_t tid, int sig) {
+  thread_t *target = thread_get_by_tid(tid);
+  if (target == NULL)
+    return -EINVAL;
+
+  return signal(target, sig);
+}
+
+int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact) {
+  thread_t *td = thread_self();
+  /* No need to acquire thread lock, we only look up a reference to the signal
+   * handler structure. */
+  sighand_t *sh = td->td_sighand;
+
+  if (sig < 0 || sig >= SIG_LAST)
+    return -EINVAL;
+
+  if (sig == SIGKILL)
+    return -EINVAL;
+
+  mtx_scoped_lock(&sh->sh_mtx);
+  if (oldact != NULL)
+    memcpy(oldact, &sh->sh_actions[sig], sizeof(sigaction_t));
+
+  memcpy(&sh->sh_actions[sig], act, sizeof(sigaction_t));
+
   return 0;
 }
 
-int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
-  log("SIGACTION");
+static sighandler_t *get_sigact(int sig, sighand_t *sh) {
+  sighandler_t *h = sh->sh_actions[sig].sa_handler;
+  if (h == SIG_DFL)
+    h = signal_default_actions[sig];
+  return h;
+}
+
+int signal(thread_t *target, signo_t sig) {
+
+  /* NOTE: This is a very simple implementation! Unimplemented features:
+     - Thread tracing and debugging
+     - Multiple threads sharing PID (aka: process)
+     - Signal masks
+     - SIGSTOP/SIGCONT
+     These limitations (plus the fact that we currently have very little thread
+     states) make the logic of posting a signal very simple!
+  */
+  assert(sig < SIG_LAST);
+
+  mtx_scoped_lock(&target->td_lock);
+
+  if (target->td_state == TDS_INACTIVE) {
+    /* The thread is already dead. */
+    return -EINVAL;
+  }
+
+  /* If the signal is ignored, don't even bother posting it. */
+  sighand_t *sh = target->td_sighand;
+  if (get_sigact(sig, sh) == SIG_IGN)
+    return 0;
+
+  bit_set(target->td_sigpend, sig);
+
+  /* TODO: If a thread is sleeping, wake it up, so that it continues execution
+     and the signal gets delivered soon. However, we don't currently distinguish
+     between user-mode sleep and kernel-mode waiting. */
+
+  /* If the signal is KILL, wake up the thread regardless of conditions, so that
+     it terminates ASAP. */
+  if (sig == SIGKILL && target->td_state == TDS_WAITING) {
+    target->td_state = TDS_READY;
+  }
+
+  target->td_flags |= TDF_HASSIG;
+
   return 0;
+}
+
+int issignal(thread_t *td) {
+  while (true) {
+    int signo = SIG_LAST;
+    bit_ffs(td->td_sigpend, SIG_LAST, &signo);
+    if (signo < 0 || signo >= SIG_LAST)
+      return 0; /* No pending signals. */
+
+    bit_clear(td->td_sigpend, signo);
+    sighandler_t *h = get_sigact(signo, td->td_sighand);
+    assert(h != SIG_DFL);
+    if (h == SIG_IGN)
+      continue;
+
+    if (h == SIG_TERM) {
+      /* Terminate this thread as result of a signal. */
+
+      /* Diagnostic message */
+      log("Thread %lu terminated due to signal %s!", td->td_tid,
+          signal_names[signo]);
+
+      /* Release the lock held by the parent. */
+      mtx_unlock(&td->td_lock);
+      thread_exit(-1);
+      __builtin_unreachable();
+    }
+
+    /* If we reached here, then the signal has a custom handler. */
+    return signo;
+  }
+}
+
+void postsig(int sig) {
+  thread_t *td = thread_self();
+  sighandler_t *h = get_sigact(sig, td->td_sighand);
+  log("Postsig with handler %p", h);
 }

@@ -8,6 +8,7 @@
 #include <sleepq.h>
 #include <mutex.h>
 #include <condvar.h>
+#include <signal.h>
 
 typedef uint8_t td_prio_t;
 typedef struct vm_page vm_page_t;
@@ -18,6 +19,7 @@ typedef struct fdtab fdtab_t;
 
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
+#define TDF_HASSIG 0x00000004 /* signals were posted since last exc return */
 
 typedef struct thread {
   /* Locks*/
@@ -53,6 +55,10 @@ typedef struct thread {
   /* scheduler part */
   td_prio_t td_prio;
   int td_slice;
+  /* signal stuff */
+  sighand_t *td_sighand; /* Signal handlers data */
+  sigset_t td_sigpend;   /* Pending signals for this thread. */
+  /* TODO: Signal mask, sigsuspend. */
 } thread_t;
 
 void thread_init();

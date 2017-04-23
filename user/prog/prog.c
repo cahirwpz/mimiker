@@ -85,7 +85,7 @@ void signal_test() {
   sigaction_t sa;
   sa.sa_handler = sigint_handler;
   sigaction(SIGINT, &sa, NULL);
-  kill(getpid(), SIGINT);
+  raise(SIGKILL);
 }
 
 int main(int argc, char **argv) {

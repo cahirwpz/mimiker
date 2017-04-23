@@ -1,6 +1,8 @@
 #ifndef _SYS_SIGNAL_H_
 #define _SYS_SIGNAL_H_
 
+#include <unistd.h>
+
 /* TODO: Should we somehow merge this file with kernel's signal.h? */
 
 typedef enum {
@@ -30,6 +32,10 @@ typedef struct sigaction {
 
 int sigaction(int signum, const sigaction_t *act, sigaction_t *oldact);
 int kill(int tid, int sig);
+
+inline int raise(int sig) {
+  return kill(getpid(), sig);
+}
 
 /* This is necessary to keep newlib happy. */
 typedef sighandler_t _sig_func_ptr;
