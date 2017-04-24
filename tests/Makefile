@@ -22,6 +22,7 @@ SOURCES_C = \
 	uiomove.c \
 	vm_map.c \
 	vfs.c
+
 SOURCES_ASM =
 
 all: $(DEPFILES) initrd_test_files libtests.a

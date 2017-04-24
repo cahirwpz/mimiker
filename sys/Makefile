@@ -16,6 +16,7 @@ SOURCES_C  = \
 	fork.c \
 	initrd.c \
 	interrupt.c \
+	klog.c \
 	ktest.c \
 	main.c \
 	malloc.c \
