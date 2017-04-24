@@ -58,7 +58,7 @@ static void fd_growtable(fdtab_t *fdt, size_t new_size) {
 static int fd_alloc(fdtab_t *fdt, int *fdp) {
   assert(mtx_owned(&fdt->fdt_mtx));
 
-  int first_free = fdt->fdt_nfiles;
+  int first_free;
   bit_ffc(fdt->fdt_map, fdt->fdt_nfiles, &first_free);
 
   if (first_free < 0) {
@@ -108,6 +108,7 @@ fdtab_t *fdtab_alloc() {
   fdt->fdt_nfiles = NDFILE;
   fdt->fdt_files = kmalloc(fd_pool, sizeof(file_t *) * NDFILE, M_ZERO);
   fdt->fdt_map = kmalloc(fd_pool, bitstr_size(NDFILE), M_ZERO);
+  memset(fdt->fdt_map, 0, bitstr_size(NDFILE));
   mtx_init(&fdt->fdt_mtx, MTX_DEF);
   return fdt;
 }
