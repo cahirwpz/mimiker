@@ -8,12 +8,14 @@ all: mimiker.elf tags cscope initrd.cpio
 include Makefile.common
 $(info Using CC: $(CC))
 
+# Directories which contain kernel parts
+SYSSUBDIRS  = mips stdc sys tests
 # Directories which require calling make recursively
-SUBDIRS = mips stdc sys user tests
+SUBDIRS = $(SYSSUBDIRS) user
 
 # This rule ensures that all subdirectories are processed before any file
 # generated within them is used for linking the main kernel image.
-$(KRT): | $(SUBDIRS)
+$(KRT): | $(SYSSUBDIRS)
 	true # Disable default recipe from Makefile.common
 
 mimiker.elf: $(KRT)

@@ -45,7 +45,7 @@ toolchain
 tests/*_test_files
 
 # Downloads and source cache
-user/cache
+cache
 
 # Dynamically rebuilt sysroots
 user/sysroot
