@@ -13,8 +13,6 @@ static int test_resizable_fdt() {
 
   fdtab_t *another_fdt_test = fdtab_copy(fdt_test);
 
-  kprintf("%d %d\n", fdt_test->fdt_count, another_fdt_test->fdt_count);
-  
   fdtab_destroy(fdt_test);
   fdtab_release(another_fdt_test);
 

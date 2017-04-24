@@ -31,7 +31,8 @@ static void fd_mark_unused(fdtab_t *fdt, int fd) {
  */
 
 static void fd_growtable(fdtab_t *fdt, size_t new_size) {
-  assert(fdt->fdt_nfiles < new_size && new_size <= MAXFILES && mtx_owned(&fdt->fdt_mtx));
+  assert(fdt->fdt_nfiles < new_size && new_size <= MAXFILES &&
+         mtx_owned(&fdt->fdt_mtx));
 
   file_t **old_fdt_files = fdt->fdt_files;
   bitstr_t *old_fdt_map = fdt->fdt_map;
@@ -118,7 +119,6 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
     return newfdt;
 
   mtx_scoped_lock(&fdt->fdt_mtx);
-  
 
   if (fdt->fdt_nfiles > newfdt->fdt_nfiles) {
     mtx_lock(&newfdt->fdt_mtx);
