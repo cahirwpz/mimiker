@@ -129,9 +129,15 @@ int signal(thread_t *target, signo_t sig) {
     target->td_state = TDS_READY;
   }
 
-  target->td_flags |= TDF_HASSIG;
+  signotify(target);
 
   return 0;
+}
+
+void signotify(thread_t* td){
+  assert(mtx_owned(&td->td_lock));
+  /* TODO: Check if thread really has any pending unmasked signal. */
+  td->td_flags |= TDF_NEEDSIGCHK;
 }
 
 int issignal(thread_t *td) {

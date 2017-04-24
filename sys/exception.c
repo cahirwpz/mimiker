@@ -11,10 +11,11 @@ void exc_before_leave(exc_frame_t *kframe) {
     sched_switch(NULL);
 
   /* First thing after switching to a thread: Process pending signals. */
-  mtx_lock(&td->td_lock);
-  int sig;
-  while ((sig = issignal(td)) != 0)
-    postsig(sig);
-  td->td_flags &= ~TDF_HASSIG;
-  mtx_unlock(&td->td_lock);
+  if(td->td_flags & TDF_NEEDSIGCHK){
+    mtx_scoped_lock(&td->td_lock);
+    int sig;
+    while ((sig = issignal(td)) != 0)
+      postsig(sig);
+    td->td_flags &= ~TDF_NEEDSIGCHK;
+  }
 }

@@ -19,7 +19,7 @@ typedef struct fdtab fdtab_t;
 
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
-#define TDF_HASSIG 0x00000004 /* signals were posted since last exc return */
+#define TDF_NEEDSIGCHK 0x00000004 /* signals were posted since last exc return */
 
 typedef struct thread {
   /* Locks*/
