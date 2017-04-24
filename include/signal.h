@@ -59,8 +59,9 @@ int issignal(thread_t *td);
 /* Process user action triggered by a signal. */
 void postsig(int sig);
 
-/* Arrange for signal delivery when the thread returns from exception context. This must be called whenever new signals are posted to a thread. */
-void signotify(thread_t* td);
+/* Arrange for signal delivery when the thread returns from exception context.
+ * This must be called whenever new signals are posted to a thread. */
+void signotify(thread_t *td);
 
 int do_kill(tid_t tid, int sig);
 int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact);
