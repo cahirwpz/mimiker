@@ -6,16 +6,9 @@ SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
 DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
 
-TRIPLET_CUSTOM  = mipsel-unknown-elf-
-TRIPLET_IMGTECH = mips-mti-elf-
+TRIPLET = mipsel-unknown-elf
+P = $(TRIPLET)-
 
-CUSTOM_TOOLCHAIN_FOUND = $(shell which $(TRIPLET_CUSTOM)gcc > /dev/null; echo $$?)
-# If custom toolchain is available, use it. Otherwise fall back to ImgTech's.
-ifeq ($(CUSTOM_TOOLCHAIN_FOUND),0)
-	P = $(TRIPLET_CUSTOM)
-else
-	P = $(TRIPLET_IMGTECH)
-endif
 CC       = $(P)gcc -mips32r2 -EL -g
 AR       = $(P)ar
 AS       = $(P)as -mips32r2 -EL -g

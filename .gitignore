@@ -43,3 +43,10 @@ toolchain
 
 # Temporary test data
 tests/*_test_files
+
+# Downloads and source cache
+user/cache
+
+# Dynamically rebuilt sysroots
+user/sysroot
+user/sysroot-newlib
