@@ -3,6 +3,18 @@
 
 /* Described in http://www.ti.com/product/pc16550d */
 
+#define RBR 0 /* Receiver Buffer, read-only, DLAB = 0 */
+#define THR 0 /* Transmitter Holding, write-only, DLAB = 0 */
+#define DLL 0 /* Divisor Latch LSB, read-write, DLAB = 1 */
+#define IER 1 /* Interrupt Enable, read-write, DLAB = 0 */
+#define DLM 1 /* Divisor Latch LSB read-write, DLAB = 1 */
+#define IIR 2 /* Interrupt Identification, read-only */
+#define FCR 2 /* FIFO Control, write-only */
+#define LCR 3 /* Line Control, read-write */
+#define MCR 4 /* Modem Control, read-write */
+#define LSR 5 /* Line Status, read-only */
+#define MSR 6 /* Modem Status, read-only */
+
 #define IER_ERXRDY 0x1
 #define IER_ETXRDY 0x2
 

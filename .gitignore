@@ -8,6 +8,9 @@
 *.uelf
 *.test
 
+# Ramdisk
+*.cpio
+
 # Backup and log files
 *~
 *.orig
@@ -37,3 +40,6 @@ toolchain
 
 # Editor swap files
 *.swp
+
+# Temporary test data
+tests/*_test_files

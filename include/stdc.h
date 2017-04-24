@@ -50,6 +50,7 @@ void bzero(void *b, size_t length);
 void *memchr(const void *s, int c, size_t n);
 void *memcpy(void *s1, const void *s2, size_t n);
 void *memset(void *dst, int c, size_t n);
+char *strchr(const char *s, int c);
 int strcmp(const char *s1, const char *s2);
 size_t strcspn(const char *s1, const char *s2);
 size_t strlcat(char *dst, const char *src, size_t dsize);
@@ -57,19 +58,17 @@ size_t strlcpy(char *dst, const char *src, size_t dsize);
 size_t strlen(const char *str);
 int strncmp(const char *s1, const char *s2, size_t n);
 size_t strnlen(const char *str, size_t maxlen);
+char *strrchr(const char *s, int c);
 char *strsep(char **stringp, const char *delim);
 size_t strspn(const char *s1, const char *s2);
 
-/* Write a formatted string to UART.
- * Equivalent to standard printf. */
+/* Write a formatted string to default console. */
 int kprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
-/* Write a character string and a trailing newline to UART.
- * Equivalent to standard puts */
+/* Write a character string and a trailing newline to default console. */
 int kputs(const char *s);
 
-/* Write a character to UART.
- * Equivalent to standard putchar */
+/* Write a character to default console. */
 int kputchar(int c);
 
 #endif /* __STDLIB_H__ */

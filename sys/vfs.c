@@ -43,8 +43,7 @@ void vfs_init() {
 
   /* TODO: We probably need some fancier allocation, since eventually we should
    * start recycling vnodes */
-  kmalloc_init(vfs_pool);
-  kmalloc_add_arena(vfs_pool, pm_alloc(2)->vaddr, PAGESIZE * 2);
+  kmalloc_init(vfs_pool, 2, 2);
 
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
   vfs_root_dev_vnode = vnode_new(V_DIR, &vfs_root_ops);
@@ -222,11 +221,6 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     vnode_unlock(v);
     vnode_unref(v);
 
-    /* Handle the special case of root vnode returning ENOTSUP on lookup. We
-       don't have a filesystem at / (root) yet, but we want to get the correct
-       error when trying to open a non-existent file. */
-    if (error == -ENOTSUP && v == vfs_root_vnode)
-      return -ENOENT;
     if (error)
       return error;
     v = v_child;

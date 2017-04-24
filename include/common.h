@@ -13,13 +13,13 @@ typedef unsigned long pm_addr_t;
 typedef long off_t;
 typedef long ssize_t;
 typedef int32_t pid_t;
-typedef uint32_t dev_t;
+typedef uint16_t dev_t;
 typedef uint32_t time_t;
 typedef uint16_t uid_t;
 typedef uint16_t gid_t;
-typedef uint16_t mode_t;
+typedef uint32_t mode_t;
 typedef uint16_t nlink_t;
-typedef uint32_t ino_t;
+typedef uint16_t ino_t;
 
 /* Generic preprocessor macros */
 #define __STRING(x) #x

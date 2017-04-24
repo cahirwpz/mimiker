@@ -10,38 +10,30 @@
 
 SOURCES_O = $(SOURCES_C:%.c=%.o)
 
-all: $(UELF_NAME).uelf.o $(UELF_NAME).uelf
+all: $(UELF_NAME).uelf
 
 clean:
-	rm -rf $(UELF_NAME).uelf $(UELF_NAME).uelf.o $(SOURCES_C:%.c=.%.D) $(SOURCES_O)
+	rm -rf $(UELF_NAME).uelf $(SOURCES_C:%.c=.%.D) $(SOURCES_O)
 
 .PHONY: all clean
 
 USERDIR = $(realpath $(dir $(filter %Makefile.usercommon, $(MAKEFILE_LIST))))
 include $(USERDIR)/../Makefile.common
 
-CFLAGS   = -std=gnu11 -O0 -Wall -Werror -fno-builtin -ffreestanding -mhard-float -I$(USERDIR)/include
-LDFLAGS  = -nostdlib -T $(USERDIR)/mimiker.ld
-LDLIBS   = -lc -lgcc
+SYSROOT = $(USERDIR)/sysroot
+
+CFLAGS   = --sysroot=$(SYSROOT) -std=gnu11 -O0 -Wall -Werror
+LDFLAGS  = --sysroot=$(SYSROOT) -L= -T mimiker.ld
 
 # Compiling the program source
 %.o: %.c
 	@echo "[CC] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-$(USERDIR)/syscalls.o $(USERDIR)/start.o:
-	$(MAKE) -C $(USERDIR) common
-
 # Linking the program according to the provided script
-#  $(USERDIR)/start.o $(USERDIR)/mimiker.ld $(USERDIR)/syscalls.o
-%.uelf: $(SOURCES_O) $(USERDIR)/mimiker.ld $(USERDIR)/start.o $(USERDIR)/syscalls.o
+%.uelf: $(SOURCES_O) $(SYSROOT)
 	@echo "[LD] $(DIR)$< -> $(DIR)$@"
-	$(CC) $(LDFLAGS) $(USERDIR)/start.o -o $@ $(SOURCES_O) $(USERDIR)/syscalls.o $(LDLIBS)
-
-# Treating the liked program as binary data, placing it in .rodata
-# section, and embedding into an object file
-%.uelf.o: %.uelf Makefile
-	@echo "[LD] $(DIR)$< -> $(DIR)$@"
-	$(OBJCOPY) -I binary --rename-section .data=.rodata,contents,readonly,data -O elf32-little --alt-machine-code=8 $< $@
+	$(CC) $(LDFLAGS) -o $@ $(SOURCES_O)
 
 .SUFFIXES:
+.PRECIOUS: %.uelf
