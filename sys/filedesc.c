@@ -31,7 +31,7 @@ static void fd_mark_unused(fdtab_t *fdt, int fd) {
  */
 
 static void fd_growtable(fdtab_t *fdt, size_t new_size) {
-  assert(fdt->fdt_nfiles < new_size && new_size <= MAXFILES);
+  assert(fdt->fdt_nfiles < new_size && new_size <= MAXFILES && mtx_owned(&fdt->fdt_mtx));
 
   file_t **old_fdt_files = fdt->fdt_files;
   bitstr_t *old_fdt_map = fdt->fdt_map;
@@ -39,7 +39,6 @@ static void fd_growtable(fdtab_t *fdt, size_t new_size) {
   file_t **new_fdt_files =
     kmalloc(fd_pool, sizeof(file_t *) * new_size, M_ZERO);
   bitstr_t *new_fdt_map = kmalloc(fd_pool, bitstr_size(new_size), M_ZERO);
-  memset(new_fdt_map, 0, bitstr_size(fdt->fdt_nfiles * 2));
 
   memcpy(new_fdt_files, old_fdt_files, sizeof(file_t *) * fdt->fdt_nfiles);
   memcpy(new_fdt_map, old_fdt_map, bitstr_size(fdt->fdt_nfiles));
@@ -48,7 +47,7 @@ static void fd_growtable(fdtab_t *fdt, size_t new_size) {
 
   fdt->fdt_files = new_fdt_files;
   fdt->fdt_map = new_fdt_map;
-  fdt->fdt_nfiles *= 2;
+  fdt->fdt_nfiles = new_size;
 }
 
 /* Allocates a new file descriptor in a file descriptor table. Returns 0 on
@@ -108,7 +107,6 @@ fdtab_t *fdtab_alloc() {
   fdt->fdt_nfiles = NDFILE;
   fdt->fdt_files = kmalloc(fd_pool, sizeof(file_t *) * NDFILE, M_ZERO);
   fdt->fdt_map = kmalloc(fd_pool, bitstr_size(NDFILE), M_ZERO);
-  memset(fdt->fdt_map, 0, bitstr_size(NDFILE));
   mtx_init(&fdt->fdt_mtx, MTX_DEF);
   return fdt;
 }
@@ -120,8 +118,13 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
     return newfdt;
 
   mtx_scoped_lock(&fdt->fdt_mtx);
+  
 
-  fd_growtable(newfdt, fdt->fdt_nfiles);
+  if (fdt->fdt_nfiles > newfdt->fdt_nfiles) {
+    mtx_lock(&newfdt->fdt_mtx);
+    fd_growtable(newfdt, fdt->fdt_nfiles);
+    mtx_unlock(&newfdt->fdt_mtx);
+  }
 
   for (int i = 0; i < fdt->fdt_nfiles; i++) {
     if (fd_is_used(fdt, i)) {
