@@ -5,7 +5,6 @@ SOURCES_C = \
 	exec.c \
 	exec_misbehave.c \
 	exec_fd_test.c \
-	klog.c \
 	linker_set.c \
 	malloc.c \
 	mutex.c \
@@ -21,6 +20,7 @@ SOURCES_C = \
 	uiomove.c \
 	vm_map.c \
 	vfs.c
+
 SOURCES_ASM =
 
 all: $(DEPFILES) libtests.a
