@@ -12,6 +12,7 @@ SOURCES_C = \
 	physmem.c \
 	pmap.c \
 	producer_consumer.c \
+	resizable_fdt.c \
 	rtc.c \
 	rwlock.c \
 	sched.c \
