@@ -27,12 +27,10 @@ static void fd_mark_unused(fdtab_t *fdt, int fd) {
 }
 
 /* Grows given file descriptor table to contain new_size file descriptors
- * (up to MAXFILES)
- */
-
+ * (up to MAXFILES) */
 static void fd_growtable(fdtab_t *fdt, size_t new_size) {
-  assert(fdt->fdt_nfiles < new_size && new_size <= MAXFILES &&
-         mtx_owned(&fdt->fdt_mtx));
+  assert(fdt->fdt_nfiles < new_size && new_size <= MAXFILES);
+  assert(mtx_owned(&fdt->fdt_mtx));
 
   file_t **old_fdt_files = fdt->fdt_files;
   bitstr_t *old_fdt_map = fdt->fdt_map;
@@ -54,7 +52,6 @@ static void fd_growtable(fdtab_t *fdt, size_t new_size) {
 /* Allocates a new file descriptor in a file descriptor table. Returns 0 on
  * success and sets *result to new descriptor number. Must be called with
  * fd->fd_mtx already locked. */
-
 static int fd_alloc(fdtab_t *fdt, int *fdp) {
   assert(mtx_owned(&fdt->fdt_mtx));
 
@@ -62,10 +59,9 @@ static int fd_alloc(fdtab_t *fdt, int *fdp) {
   bit_ffc(fdt->fdt_map, fdt->fdt_nfiles, &first_free);
 
   if (first_free < 0) {
-    /* No more space to allocate a descriptor!
-     * Growing table */
+    /* No more space to allocate a descriptor... grow describtor table! */
     if (fdt->fdt_nfiles == MAXFILES) {
-      /* Reached limit of files */
+      /* Reached limit of opened files. */
       return -EMFILE;
     }
     size_t new_size = min(fdt->fdt_nfiles * 2, MAXFILES);
@@ -102,7 +98,7 @@ void fdtab_unref(fdtab_t *fdt) {
 
 /* In FreeBSD this function takes a filedesc* argument, so that
    current dir may be copied. Since we don't use these fields, this
-   argument doest not make sense yet. */
+   argument does not make sense yet. */
 fdtab_t *fdtab_alloc() {
   fdtab_t *fdt = kmalloc(fd_pool, sizeof(fdtab_t), M_ZERO);
   fdt->fdt_nfiles = NDFILE;
@@ -121,9 +117,8 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
   mtx_scoped_lock(&fdt->fdt_mtx);
 
   if (fdt->fdt_nfiles > newfdt->fdt_nfiles) {
-    mtx_lock(&newfdt->fdt_mtx);
+    mtx_scoped_lock(&newfdt->fdt_mtx);
     fd_growtable(newfdt, fdt->fdt_nfiles);
-    mtx_unlock(&newfdt->fdt_mtx);
   }
 
   for (int i = 0; i < fdt->fdt_nfiles; i++) {
@@ -133,6 +128,7 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
       file_ref(f);
     }
   }
+
   memcpy(newfdt->fdt_map, fdt->fdt_map,
          sizeof(bitstr_t) * bitstr_size(fdt->fdt_nfiles));
 
@@ -144,7 +140,7 @@ void fdtab_destroy(fdtab_t *fdt) {
   assert(fdt->fdt_count <= 0);
   /* No need to lock mutex, we have the only reference left. */
 
-  /* Cleanup used descriptors. This possibly closes underlying files. */
+  /* Clean up used descriptors. This possibly closes underlying files. */
   for (int i = 0; i < fdt->fdt_nfiles; i++)
     if (fd_is_used(fdt, i))
       fd_free(fdt, i);
@@ -155,11 +151,11 @@ void fdtab_destroy(fdtab_t *fdt) {
 }
 
 void fdtab_release(fdtab_t *fdt) {
-  if (fdt) {
-    fdtab_unref(fdt);
-    if (fdt->fdt_count < 0)
-      fdtab_destroy(fdt);
-  }
+  if (fdt == NULL)
+    return;
+  fdtab_unref(fdt);
+  if (fdt->fdt_count < 0)
+    fdtab_destroy(fdt);
 }
 
 int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fd) {
@@ -182,27 +178,24 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
   if (!fdt)
     return -EBADF;
 
-  mtx_lock(&fdt->fdt_mtx);
+  mtx_scoped_lock(&fdt->fdt_mtx);
 
   if (fd < 0 || fd >= fdt->fdt_nfiles || !fd_is_used(fdt, fd))
-    goto fail;
+    return -EBADF;
 
   file_t *f = fdt->fdt_files[fd];
   file_ref(f);
 
   if ((flags & FF_READ) && !(f->f_flags & FF_READ))
-    goto fail2;
+    goto fail;
   if ((flags & FF_WRITE) && !(f->f_flags & FF_WRITE))
-    goto fail2;
+    goto fail;
 
-  mtx_unlock(&fdt->fdt_mtx);
   *fp = f;
   return 0;
 
-fail2:
-  file_unref(f);
 fail:
-  mtx_unlock(&fdt->fdt_mtx);
+  file_unref(f);
   return -EBADF;
 }
 
