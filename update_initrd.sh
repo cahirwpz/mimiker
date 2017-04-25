@@ -34,9 +34,6 @@ done
 echo "Generating $CPIOFILE..."
 (cd $BUILDDIR && find -depth -print | cpio --format=crc -o) > "$CPIOFILE"
 
-# Dump archive to stdout.
-base64 < initrd.cpio
-
 # Generate depfile
 rm -f $DEPFILE
 echo "initrd.cpio: $THISSCRIPT $RULEFILES $SOURCEFILES" | tr '\n' ' ' >> $DEPFILE
