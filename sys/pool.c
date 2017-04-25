@@ -5,6 +5,7 @@
 #include <bitstring.h>
 #include <common.h>
 #include <klog.h>
+#include <mutex.h>
 #include <pool.h>
 
 #define PI_MAGIC_WORD 0xcafebabe
@@ -115,6 +116,7 @@ void pool_init(pool_t *pool, size_t size, pool_ctor_t ctor, pool_dtor_t dtor) {
   pool->pp_nslabs = 1;
   pool->pp_nitems = first_slab->ph_ntotal;
   pool->pp_align = 4;
+  mtx_init(&pool->pp_mtx, MTX_DEF);
   klog("pool_init: initialized new pool at %p (item size = %d)", pool, size);
 }
 
@@ -137,6 +139,8 @@ static void mark_pool_dead(pool_t *pool) {
 void pool_destroy(pool_t *pool) {
   debug_log("pool_destroy: pool = %p", pool);
 
+  mtx_lock(&pool->pp_mtx);
+  
   if (is_pool_dead(pool))
     panic("attempt to free dead pool %p", pool);
 
@@ -157,6 +161,8 @@ void pool_destroy(pool_t *pool) {
     destroy_slab(pool, it);
   }
 
+  mtx_unlock(&pool->pp_mtx);
+
   mark_pool_dead(pool);
 
   klog("pool_destroy: destroyed pool at %p", pool);
@@ -166,6 +172,8 @@ void pool_destroy(pool_t *pool) {
 void *pool_alloc(pool_t *pool, __unused unsigned flags) {
   debug_log("pool_alloc: pool=%p", pool);
 
+  mtx_scoped_lock(&pool->pp_mtx);
+  
   if (is_pool_dead(pool))
     panic("operation on dead pool %p", pool);
 
@@ -195,6 +203,8 @@ void *pool_alloc(pool_t *pool, __unused unsigned flags) {
 void pool_free(pool_t *pool, void *ptr) {
   debug_log("pool_free: pool = %p, ptr = %p", pool, ptr);
 
+  mtx_scoped_lock(&pool->pp_mtx);
+  
   if (is_pool_dead(pool))
     panic("operation on dead pool %p", pool);
 
@@ -207,6 +217,7 @@ void pool_free(pool_t *pool, void *ptr) {
                     (intptr_t)(curr_slab->ph_start)) /
                    ((curr_slab->ph_itemsize) + sizeof(pool_item_t));
   bitstr_t *bitmap = curr_slab->ph_bitmap;
+
   if (!bit_test(bitmap, index))
     panic("double free at item %p", ptr);
   bit_clear(bitmap, index);

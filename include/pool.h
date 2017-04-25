@@ -4,12 +4,14 @@
 #include <bitstring.h>
 #include <queue.h>
 #include <vm.h>
+#include <mutex.h>
 
 typedef LIST_HEAD(, pool_slab) pool_slab_list_t;
 typedef void (*pool_ctor_t)(void *, size_t);
 typedef void (*pool_dtor_t)(void *, size_t);
 
 typedef struct pool {
+  mtx_t pp_mtx;
   pool_slab_list_t pp_empty_slabs;
   pool_slab_list_t pp_full_slabs;
   pool_slab_list_t pp_part_slabs; /* Partially-allocated pages */
