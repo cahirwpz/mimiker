@@ -140,7 +140,7 @@ void pool_destroy(pool_t *pool) {
   debug_log("pool_destroy: pool = %p", pool);
 
   mtx_lock(&pool->pp_mtx);
-  
+
   if (is_pool_dead(pool))
     panic("attempt to free dead pool %p", pool);
 
@@ -173,7 +173,7 @@ void *pool_alloc(pool_t *pool, __unused unsigned flags) {
   debug_log("pool_alloc: pool=%p", pool);
 
   mtx_scoped_lock(&pool->pp_mtx);
-  
+
   if (is_pool_dead(pool))
     panic("operation on dead pool %p", pool);
 
@@ -204,7 +204,7 @@ void pool_free(pool_t *pool, void *ptr) {
   debug_log("pool_free: pool = %p, ptr = %p", pool, ptr);
 
   mtx_scoped_lock(&pool->pp_mtx);
-  
+
   if (is_pool_dead(pool))
     panic("operation on dead pool %p", pool);
 
