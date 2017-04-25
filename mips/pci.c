@@ -1,22 +1,9 @@
 #include <stdc.h>
 #include <mips/mips.h>
 #include <mips/malta.h>
-#include <mips/gt64120.h>
+#include <mips/pci.h>
 #include <malloc.h>
 #include <pci.h>
-
-#define PCI0_CFG_ADDR_R GT_R(GT_PCI0_CFG_ADDR)
-#define PCI0_CFG_DATA_R GT_R(GT_PCI0_CFG_DATA)
-
-#define PCI0_CFG_REG_SHIFT 2
-#define PCI0_CFG_FUNCT_SHIFT 8
-#define PCI0_CFG_DEV_SHIFT 11
-#define PCI0_CFG_BUS_SHIFT 16
-#define PCI0_CFG_ENABLE 0x80000000
-
-#define PCI0_CFG_REG(dev, funct, reg)                                          \
-  (((dev) << PCI0_CFG_DEV_SHIFT) | ((funct) << PCI0_CFG_FUNCT_SHIFT) |         \
-   ((reg) << PCI0_CFG_REG_SHIFT))
 
 static MALLOC_DEFINE(mp, "PCI bus discovery memory pool");
 
@@ -101,6 +88,7 @@ static void pci_bus_enumerate(pci_bus_t *pcibus) {
         pci_bar_t *bar = &pcidev->bar[pcidev->nbars++];
         bar->addr = addr;
         bar->size = size;
+
         /* The two fields below are stored for convenience. They seem redundant,
            but as we'll be sorting all bars by their size, keeping a reference
            to where an entry came from is useful. */
@@ -213,7 +201,7 @@ static void pci_bus_dump(pci_bus_t *pcibus) {
   }
 }
 
-static pci_bus_t pci_bus[1];
+pci_bus_t pci_bus[1];
 
 void pci_init() {
   kmalloc_init(mp, 1, 1);

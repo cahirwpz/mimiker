@@ -39,10 +39,12 @@ class OVPsim(Launchable):
         }
 
         self.options = ['--ramdisk', 'initrd.cpio',
-                        '--nographics',
                         '--wallclock',
                         '--kernel', kwargs['kernel']]
 
+        if not kwargs['graphics']:
+            self.options += ['--nographics']
+        
         if kwargs['debug']:
             self.options += ['--port', '1234']
 
@@ -60,8 +62,8 @@ class QEMU(Launchable):
         return self.cmd is not None
 
     def configure(self, **kwargs):
-        self.options = ['-nographic',
-                        '-nodefaults',
+        self.options = ['-nodefaults',
+                        '-vga', 'cirrus',
                         '-machine', 'malta',
                         '-cpu', '24Kf',
                         '-kernel', kwargs['kernel'],
@@ -74,7 +76,9 @@ class QEMU(Launchable):
                         '-serial', 'tcp:127.0.0.1:%d,server,wait' % kwargs['uart_port']]
         if kwargs['debug']:
             self.options += ['-S']
-
+            
+        if not kwargs['graphics']:
+            self.options += ['-display', 'none']
 
 SIMULATORS = [OVPsim(),
               QEMU()]
