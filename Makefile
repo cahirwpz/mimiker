@@ -26,13 +26,14 @@ cscope:
 	cscope -b include/*.h ./*/*.[cS]
 
 tags:
+	@echo "Rebuilding tags"
 	find -iname '*.[ch]' -not -path "*/toolchain/*" | ctags --language-force=c -L-
 	find -iname '*.[ch]' -not -path "*/toolchain/*" | ctags --language-force=c -L- -e -f etags
 	find -iname '*.S' -not -path "*/toolchain/*" | ctags -a --language-force=asm -L-
 	find -iname '*.S' -not -path "*/toolchain/*" | ctags -a --language-force=asm -L- -e -f etags
 
 # These files get destroyed by clang-format, so we exclude them from formatting
-FORMATTABLE_EXCLUDE = include/elf stdc/ include/mips/asm.h include/mips/m32c0.h
+FORMATTABLE_EXCLUDE = include/elf stdc/ include/mips/asm.h include/mips/m32c0.h cache user/sysroot user/sysroot-newlib
 # Search for all .c and .h files, excluding toolchain build directory and files from FORMATTABLE_EXCLUDE
 FORMATTABLE = $(shell find -type f -not -path "*/toolchain/*" -and \( -name '*.c' -or -name '*.h' \) | grep -v $(FORMATTABLE_EXCLUDE:%=-e %))
 format:
