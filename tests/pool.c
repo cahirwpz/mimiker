@@ -21,33 +21,31 @@ static int test_pool_alloc(palloc_test_t flag) {
 
   kmalloc_init(mp, 1, 1);
 
-  for (int n = 1; n < 10; n++) {
-    for (size_t size = 4; size <= 128; size += 4) {
-      pool_init(&test, size, int_ctor, NULL);
-      void **item = kmalloc(mp, sizeof(void *) * n, 0);
-      for (int i = 0; i < n; i++)
-        item[i] = pool_alloc(&test, 0);
-      if (flag == PALLOC_TEST_CORRUPTION) {
-        /* WARNING! Following line of code causes memory corruption! */
-        memset(item[0], 0, 100);
-      }
-      for (int i = 0; i < n; i++)
-        pool_free(&test, item[i]);
-      if (flag == PALLOC_TEST_DOUBLEFREE) {
-        /* WARNING! This will obviously crash kernel due to double free! */
-        pool_free(&test, item[n / 2]);
-      }
-      pool_destroy(&test);
-#if 0
-      /* WARNING! This will obviously crash the program due to double free,
-       * uncomment at your own risk! */
-      pool_destroy(&test);
-#endif
-      kfree(mp, item);
-      kprintf("Pool allocator test passed!(n=%d, size=%d)\n", n, size);
-    }
-  }
+  int size = 64;
+  pool_init(&test, size, int_ctor, NULL);
 
+  for (int n = 1; n < 100; n++) {
+    void **item = kmalloc(mp, sizeof(void *) * n, 0);
+    for (int i = 0; i < n; i++)
+      item[i] = pool_alloc(&test, 0);
+    if (flag == PALLOC_TEST_CORRUPTION) {
+      /* WARNING! Following line of code causes memory corruption! */
+      memset(item[0], 0, 100);
+    }
+    for (int i = 0; i < n; i++)
+      pool_free(&test, item[i]);
+    if (flag == PALLOC_TEST_DOUBLEFREE) {
+      /* WARNING! This will obviously crash kernel due to double free! */
+      pool_free(&test, item[n / 2]);
+    }
+    kfree(mp, item);
+  }
+  pool_destroy(&test);
+#if 0
+  /* WARNING! This will obviously crash the program due to double free,
+   * uncomment at your own risk! */
+  pool_destroy(&test);
+#endif
   return KTEST_SUCCESS;
 }
 

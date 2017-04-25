@@ -212,6 +212,7 @@ void pool_free(pool_t *pool, void *ptr) {
   bit_clear(bitmap, index);
   LIST_REMOVE(curr_slab, ph_slablist);
   curr_slab->ph_nused--;
+  pool->pp_nitems++;
   pool_slab_list_t *slab_list_to_insert =
     curr_slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
   LIST_INSERT_HEAD(slab_list_to_insert, curr_slab, ph_slablist);
