@@ -1,3 +1,5 @@
+#define KL_LOG KL_POOL
+
 #include <stdc.h>
 #include <vm.h>
 #include <physmem.h>
@@ -6,6 +8,7 @@
 #include <common.h>
 #include <klog.h>
 #include <mutex.h>
+#include <sync.h>
 #include <pool.h>
 
 #define PI_MAGIC_WORD 0xcafebabe
@@ -139,7 +142,11 @@ static void mark_pool_dead(pool_t *pool) {
 void pool_destroy(pool_t *pool) {
   debug_log("pool_destroy: pool = %p", pool);
 
-  mtx_lock(&pool->pp_mtx);
+  /* Unfortunately, as for now, there is no way to use mutex here because
+   * mark_pool_dead belongs to critical section and at the same time, it erases
+   * the mutex, that's why low-level sync functions are used here */
+
+  critical_enter();
 
   if (is_pool_dead(pool))
     panic("attempt to free dead pool %p", pool);
@@ -161,14 +168,9 @@ void pool_destroy(pool_t *pool) {
     destroy_slab(pool, it);
   }
 
-  mtx_unlock(&pool->pp_mtx);
-
-  /*TODO: if another thread enters critical section and passes is_pool_dead
-   * before pool is marked as dead, undefined behavior may occur. At the same
-   * time, we can't unlock mutex after marking pool because this mutex will be
-   * full of dead beef*/
-
   mark_pool_dead(pool);
+
+  critical_leave();
 
   klog("pool_destroy: destroyed pool at %p", pool);
 }
@@ -219,9 +221,9 @@ void pool_free(pool_t *pool, void *ptr) {
   }
   pool_slab_t *curr_slab = curr_pi->pi_slab;
 
-  /*We need to find index of curr_pi in the bitmap, it can be easily derived
+  /* We need to find index of curr_pi in the bitmap, it can be easily derived
    * from obvious equation curr_pi = curr_slab + curr_slab->ph_start +
-   * index*(curr_slab->ph_itemsize + sizeof(pool_item_t))*/
+   * index*(curr_slab->ph_itemsize + sizeof(pool_item_t)) */
   intptr_t index = ((intptr_t)curr_pi - (intptr_t)curr_slab -
                     (intptr_t)(curr_slab->ph_start)) /
                    ((curr_slab->ph_itemsize) + sizeof(pool_item_t));
