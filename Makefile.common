@@ -43,9 +43,9 @@ LDLIBS += -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc -L$(TOPDIR)/tests \
 	  -Wl,--start-group \
         -Wl,--whole-archive \
           -lsys \
+	  -lmips \
           -ltests \
         -Wl,--no-whole-archive \
-        -lmips \
         -lstdc \
         -lgcc \
       -Wl,--end-group

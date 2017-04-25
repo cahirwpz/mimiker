@@ -11,11 +11,11 @@
    on demand. */
 #define NDFILE 20
 /* Separate macro defining a hard limit on open files. */
-#define MAXFILES 20
+#define MAXFILES 1024
 
 typedef struct fdtab {
-  file_t *fdt_files[NDFILE];             /* Open files array */
-  bitstr_t fdt_map[bitstr_size(NDFILE)]; /* Bitmap of used fds */
+  file_t **fdt_files; /* Open files array */
+  bitstr_t *fdt_map;  /* Bitmap of used fds */
   unsigned fdt_flags;
   unsigned fdt_nfiles; /* Number of files allocated */
   int fdt_count;       /* Reference count, ready for disposal if -1 */

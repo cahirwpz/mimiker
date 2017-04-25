@@ -1,6 +1,8 @@
 OUTPUT_ARCH(mips)
 ENTRY(_start)
 
+INPUT(-lmimiker -lc -lgcc -lm)
+
 PHDRS
 {
     text   PT_LOAD FLAGS(5); /* read-only, executable */
