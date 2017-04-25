@@ -2,21 +2,20 @@
 
 include ../Makefile.common
 
-SUBDIRS = $(shell find -mindepth 1 -maxdepth 1 -type d -not -name include)
+SUBDIRS = $(shell find -mindepth 1 -maxdepth 1 -type d -not -name sysroot)
 
-.PHONY: clean common all $(SUBDIRS)
+.PHONY: clean sysroot all $(SUBDIRS)
 
 all: $(SUBDIRS)
 
-$(SUBDIRS): | common
+$(SUBDIRS): sysroot
 	$(MAKE) -C $@
 
-# This target may be invoked by make run in a user program subdirectory, so
-# plase do not have it pull any dependencies outside this dir.
-common: start.o syscalls.o
+sysroot: sysroot/lib/libmimiker.a
+sysroot/lib/libmimiker.a: start.o syscalls.o
 
 clean:
-	rm -f start.o syscalls.o
+	rm -f *.o sysroot/lib/*.a
 	for dir in $(SUBDIRS); do \
 	  $(MAKE) -C $$dir clean; \
 	done
