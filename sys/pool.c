@@ -23,8 +23,8 @@ typedef struct pool_slab {
   LIST_ENTRY(pool_slab) ph_slablist; /* pool slab list */
   vm_page_t *ph_page;                /* page containing this slab */
   uint16_t ph_nused;                 /* # of items in use */
-  uint16_t ph_nfree;  /* # of free (and available) items, a bit redundant but
-                         there would be padding anyway */
+  uint16_t ph_itemsize;  /* size of item, a bit redundant but
+                         there would be padding anyway and it simplifies implementation */
   uint16_t ph_ntotal; /* total number of chunks*/
   uint16_t ph_start;  /* start offset in page */
   bitstr_t ph_bitmap[0];
@@ -49,6 +49,7 @@ static pool_slab_t *create_slab(pool_t *pool) {
   pool_slab_t *slab = (pool_slab_t *)page_for_slab->vaddr;
   slab->ph_page = page_for_slab;
   slab->ph_nused = 0;
+  slab->ph_itemsize = pool->pp_itemsize;
 
   /* Now we need to calculate maximum number of items (slab->ph_ntotal as n) in
    * slab, taking into account space occupied by items (which is
@@ -60,18 +61,18 @@ static pool_slab_t *create_slab(pool_t *pool) {
    * + ((n + 31) / 32) * 4 <= PAGESIZE, from which n can be derived pretty
    * easily*/
   slab->ph_ntotal = (8 * (PAGESIZE - sizeof(pool_slab_t)) - 31) /
-                    (8 * (sizeof(pool_item_t) + pool->pp_itemsize) + 1);
+                    (8 * (sizeof(pool_item_t) + slab->ph_itemsize) + 1);
 
-  slab->ph_nfree = slab->ph_ntotal;
+  slab->ph_nused = 0;
   slab->ph_start = sizeof(pool_slab_t) + howmany(slab->ph_ntotal, 32) * 4;
   memset(slab->ph_bitmap, 0, bitstr_size(slab->ph_ntotal));
   for (int i = 0; i < slab->ph_ntotal; i++) {
-    pool_item_t *curr_pi = get_pi_at_idx(slab, i, pool->pp_itemsize);
+    pool_item_t *curr_pi = get_pi_at_idx(slab, i, slab->ph_itemsize);
     debug_log("Still alive, are we? %d", i);
     curr_pi->pi_slab = slab;
     curr_pi->pi_canary = PI_MAGIC_WORD;
     if (pool->pp_ctor)
-      pool->pp_ctor(curr_pi->pi_data, pool->pp_itemsize);
+      pool->pp_ctor(curr_pi->pi_data, slab->ph_itemsize);
   }
   return slab;
 }
@@ -79,22 +80,22 @@ static pool_slab_t *create_slab(pool_t *pool) {
 static void destroy_slab(pool_t *pool, pool_slab_t *slab) {
   klog("destroy_slab: pool = %p, slab = %p", pool, slab);
   for (int i = 0; i < slab->ph_ntotal; i++) {
-    pool_item_t *curr_pi = get_pi_at_idx(slab, i, pool->pp_itemsize);
+    pool_item_t *curr_pi = get_pi_at_idx(slab, i, slab->ph_itemsize);
     if (pool->pp_dtor)
-      pool->pp_dtor(curr_pi->pi_data, pool->pp_itemsize);
+      pool->pp_dtor(curr_pi->pi_data, slab->ph_itemsize);
   }
   pm_free(slab->ph_page);
 }
 
-static void *slab_alloc(pool_slab_t *slab, size_t size) {
+static void *slab_alloc(pool_slab_t *slab) {
+  assert(slab->ph_nused < slab->ph_ntotal);
   int found_idx = 0;
   bit_ffc(slab->ph_bitmap, slab->ph_ntotal, &found_idx);
   bit_set(slab->ph_bitmap, found_idx);
-  pool_item_t *found_pi = get_pi_at_idx(slab, found_idx, size);
+  pool_item_t *found_pi = get_pi_at_idx(slab, found_idx, slab->ph_itemsize);
   if (found_pi->pi_canary != PI_MAGIC_WORD)
     panic("memory corruption at item %p", found_pi);
   slab->ph_nused++;
-  slab->ph_nfree--;
   debug_log("slab_alloc: allocated item %p at slab %p, index %d",
             found_pi->pi_data, found_pi->pi_slab, found_idx);
   return found_pi->pi_data;
@@ -179,10 +180,10 @@ void *pool_alloc(pool_t *pool, __unused unsigned flags) {
     pool->pp_nslabs++;
     klog("pool_alloc: growing pool at %p", pool);
   }
-  void *p = slab_alloc(slab_to_use, pool->pp_itemsize);
+  void *p = slab_alloc(slab_to_use);
   pool->pp_nitems--;
   pool_slab_list_t *slab_list_to_insert =
-    slab_to_use->ph_nfree ? &pool->pp_part_slabs : &pool->pp_full_slabs;
+    slab_to_use->ph_nused < slab_to_use->ph_ntotal ? &pool->pp_part_slabs : &pool->pp_full_slabs;
   LIST_INSERT_HEAD(slab_list_to_insert, slab_to_use, ph_slablist);
   return p;
 }
@@ -202,14 +203,13 @@ void pool_free(pool_t *pool, void *ptr) {
   pool_slab_t *curr_slab = curr_pi->pi_slab;
   intptr_t index = ((intptr_t)curr_pi - (intptr_t)curr_slab -
                     (intptr_t)(curr_slab->ph_start)) /
-                   ((pool->pp_itemsize) + sizeof(pool_item_t));
+                   ((curr_slab->ph_itemsize) + sizeof(pool_item_t));
   bitstr_t *bitmap = curr_slab->ph_bitmap;
   if (!bit_test(bitmap, index))
     panic("double free at item %p", ptr);
   bit_clear(bitmap, index);
   LIST_REMOVE(curr_slab, ph_slablist);
   curr_slab->ph_nused--;
-  curr_slab->ph_nfree++;
   pool_slab_list_t *slab_list_to_insert =
     curr_slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
   LIST_INSERT_HEAD(slab_list_to_insert, curr_slab, ph_slablist);
