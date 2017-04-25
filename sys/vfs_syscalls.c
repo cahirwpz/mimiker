@@ -88,9 +88,8 @@ int do_getdirentries(thread_t *td, int fd, uio_t *uio, long *basep) {
   uio->uio_offset = f->f_offset;
   res = VOP_READDIR(vn, uio);
 
-  if (res)
-    return res;
-
+  /* FOR SOME REASON THIS LINE CAUSES ERROR,
+   * it is caused by dereferencing uio */
   f->f_offset = uio->uio_offset;
   *basep = f->f_offset;
   file_unref(f);
@@ -211,7 +210,7 @@ int sys_getdirentries(thread_t *td, syscall_args_t *args) {
   size_t count = args->args[2];
   long *basep = (long *)(uintptr_t)args->args[3];
 
-  log("sys_read(%d, %p, %zu)", fd, ubuf, count);
+  log("sys_getdirentries(%d, %p, %zu, %p)", fd, ubuf, count, basep);
 
   uio_t uio;
   iovec_t iov;
@@ -225,6 +224,5 @@ int sys_getdirentries(thread_t *td, syscall_args_t *args) {
   uio.uio_offset = 0;
 
   int res = do_getdirentries(td, fd, &uio, basep);
-  *basep += count - uio.uio_resid;
   return res;
 }

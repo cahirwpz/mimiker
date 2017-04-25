@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <sys/my_dirent.h>
 
 const char *str = "Hello world from a user program!\n";
 int error = 0;
@@ -192,7 +193,30 @@ void test_open_path() {
   assert_open_fail(too_long, 0, O_RDONLY, 63);
 }
 
+void test_get_direntries() {
+  char buf[1000];
+  long basep;
+  int fd = open("/tests/initrd/", 0, O_RDONLY);
+  assert(fd == FD_OFFSET);
+  int res = 0;
+  int cnt = 0;
+  dirent_t *dir;
+  printf("Contents of /tests/initrd\n");
+  do {
+    res = getdirentries(fd, buf, sizeof(buf), &basep);
+    dir = (dirent_t *)buf;
+    while ((char *)dir < buf + res) {
+      printf("%s\n", dir->d_name);
+      dir = _DIRENT_NEXT(dir);
+      cnt++;
+    }
+  } while (res > 0);
+  assert(cnt == 10);
+  close(fd);
+}
+
 int main(int argc, char **argv) {
+  test_get_direntries();
   test_read();
   test_devnull();
   test_multiple_descriptors();
