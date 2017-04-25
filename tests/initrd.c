@@ -14,16 +14,7 @@ static void dump_file(const char *path) {
   memset(buffer, '\0', sizeof(buffer));
   uio_t uio;
   iovec_t iov;
-  uio.uio_op = UIO_READ;
-
-  /* Read entire file - even too much. */
-  uio.uio_iovcnt = 1;
-  uio.uio_vmspace = get_kernel_vm_map();
-  uio.uio_iov = &iov;
-  uio.uio_offset = 0;
-  iov.iov_base = buffer;
-  iov.iov_len = sizeof(buffer);
-  uio.uio_resid = sizeof(buffer);
+  prepare_kernel_uio(&uio, &iov, UIO_READ, buffer, sizeof(buffer));
 
   res = VOP_READ(v, &uio);
 

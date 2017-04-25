@@ -21,6 +21,13 @@ typedef struct uio {
   vm_map_t *uio_vmspace; /* destination address space */
 } uio_t;
 
+void prepare_uio(uio_t *uio, iovec_t *iov, uio_op_t op, vm_map_t *vm_map,
+                 void *buffer, size_t buflen);
+void prepare_user_uio(uio_t *uio, iovec_t *iov, uio_op_t op, void *buffer,
+                      size_t buflen);
+void prepare_kernel_uio(uio_t *uio, iovec_t *iov, uio_op_t op, void *buffer,
+                        size_t buflen);
+
 int uiomove(void *buf, size_t n, uio_t *uio);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);
 
