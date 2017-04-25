@@ -14,8 +14,7 @@
 #define PALLOC_DEBUG 0
 
 #if defined(PALLOC_DEBUG) && PALLOC_DEBUG > 0
-#define debug_log(text, args...)                                               \
-  klog(text, __FILE__, __LINE__, __func__, ##args)
+#define debug_log(text, args...) klog(text, ##args)
 #else
 #define debug_log(text, args...)
 #endif
