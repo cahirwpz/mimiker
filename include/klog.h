@@ -74,7 +74,7 @@ void klog_clear();
                 (intptr_t)(p5), (intptr_t)(p6));                               \
   } while (0)
 
-#define klog(format, ...) klog_((format), __VA_ARGS__, 0, 0, 0, 0, 0, 0)
+#define klog(...) klog_(__VA_ARGS__, 0, 0, 0, 0, 0, 0)
 
 #define klog_mask_(m, format, p1, p2, p3, p4, p5, p6, ...)                     \
   do {                                                                         \

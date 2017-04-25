@@ -48,7 +48,7 @@ static int test_log_messages(const int number_of_logs) {
 
 static int testing_different_number_of_parametars() {
   /* Logging without parameters don't works. */
-  /* klog("Message with zero parameters."); */
+  klog("Message with zero parameters.");
   klog("Message with %d parameter.", 1);
   klog("Message with %d, %d, %d, %d, %d parameters.", 5, 5, 5, 5, 5);
   klog("Message with %d, %d, %d, %d, %d, %d parameters.", 6, 6, 6, 6, 6, 6);
