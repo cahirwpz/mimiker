@@ -15,7 +15,7 @@
 
 #if defined(PALLOC_DEBUG) && PALLOC_DEBUG > 0
 #define debug_log(text, args...)                                               \
-  klog("DEBUG: %s:%d:%s(): " text, __FILE__, __LINE__, __func__, ##args)
+  klog(text, __FILE__, __LINE__, __func__, ##args)
 #else
 #define debug_log(text, args...)
 #endif
@@ -53,7 +53,8 @@ static pool_slab_t *create_slab(pool_t *pool) {
   slab->ph_nused = 0;
   slab->ph_itemsize = pool->pp_itemsize;
 
-  /* Now we need to calculate maximum number of items (slab->ph_ntotal as n) in
+  /* Now we need to calculate maximum possible number of items of given size
+   * (ntotal in code below as n here) in
    * slab, taking into account space occupied by items (which is
    * n*(sizeof(pool_item_t)+size)), size of bitmap (which is ((n+31)/32)*4 ==
    * howmany(n, 32)*4) and size of slab structure (which is
@@ -62,20 +63,20 @@ static pool_slab_t *create_slab(pool_t *pool) {
    * sizeof(pool_slab_t) + n * (sizeof(pool_item_t) + size)
    * + ((n + 31) / 32) * 4 <= PAGESIZE, from which n can be derived pretty
    * easily*/
-  slab->ph_ntotal = (8 * (PAGESIZE - sizeof(pool_slab_t)) - 31) /
+  uint16_t ntotal = (8 * (PAGESIZE - sizeof(pool_slab_t)) - 31) /
                     (8 * (sizeof(pool_item_t) + slab->ph_itemsize) + 1);
 
   slab->ph_nused = 0;
-  slab->ph_start = sizeof(pool_slab_t) + howmany(slab->ph_ntotal, 32) * 4;
-  memset(slab->ph_bitmap, 0, bitstr_size(slab->ph_ntotal));
-  for (int i = 0; i < slab->ph_ntotal; i++) {
+  slab->ph_start = sizeof(pool_slab_t) + howmany(ntotal, 32) * 4;
+  memset(slab->ph_bitmap, 0, bitstr_size(ntotal));
+  for (int i = 0; i < ntotal; i++) {
     pool_item_t *curr_pi = get_pi_at_idx(slab, i, slab->ph_itemsize);
-    debug_log("Still alive, are we? %d", i);
     curr_pi->pi_slab = slab;
     curr_pi->pi_canary = PI_MAGIC_WORD;
     if (pool->pp_ctor)
       pool->pp_ctor(curr_pi->pi_data, slab->ph_itemsize);
   }
+  slab->ph_ntotal = ntotal;
   return slab;
 }
 
@@ -163,6 +164,11 @@ void pool_destroy(pool_t *pool) {
 
   mtx_unlock(&pool->pp_mtx);
 
+  /*TODO: if another thread enters critical section and passes is_pool_dead
+   * before pool is marked as dead, undefined behavior may occur. At the same
+   * time, we can't unlock mutex after marking pool because this mutex will be
+   * full of dead beef*/
+
   mark_pool_dead(pool);
 
   klog("pool_destroy: destroyed pool at %p", pool);
@@ -213,6 +219,10 @@ void pool_free(pool_t *pool, void *ptr) {
     panic("memory corruption at item %p", curr_pi);
   }
   pool_slab_t *curr_slab = curr_pi->pi_slab;
+
+  /*We need to find index of curr_pi in the bitmap, it can be easily derived
+   * from obvious equation curr_pi = curr_slab + curr_slab->ph_start +
+   * index*(curr_slab->ph_itemsize + sizeof(pool_item_t))*/
   intptr_t index = ((intptr_t)curr_pi - (intptr_t)curr_slab -
                     (intptr_t)(curr_slab->ph_start)) /
                    ((curr_slab->ph_itemsize) + sizeof(pool_item_t));
