@@ -14,7 +14,7 @@ int do_read(thread_t *td, int fd, uio_t *uio);
 int do_write(thread_t *td, int fd, uio_t *uio);
 int do_lseek(thread_t *td, int fd, off_t offset, int whence);
 int do_fstat(thread_t *td, int fd, vattr_t *buf);
-int do_getdirentries(thread_t *td, int fd, uio_t *uio);
+int do_getdirentries(thread_t *td, int fd, uio_t *uio, long *basep);
 
 /* Syscall interface */
 int sys_open(thread_t *td, syscall_args_t *args);

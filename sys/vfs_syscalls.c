@@ -78,7 +78,7 @@ int do_fstat(thread_t *td, int fd, vattr_t *buf) {
   return res;
 }
 
-int do_getdirentries(thread_t *td, int fd, uio_t *uio) {
+int do_getdirentries(thread_t *td, int fd, uio_t *uio, long *basep) {
   file_t *f;
   int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
   if (res)
@@ -88,10 +88,11 @@ int do_getdirentries(thread_t *td, int fd, uio_t *uio) {
   uio->uio_offset = f->f_offset;
   res = VOP_READDIR(vn, uio);
 
-  if (res) {
-    f->f_offset += res;
+  if (res)
     return res;
-  }
+
+  f->f_offset = uio->uio_offset;
+  *basep = f->f_offset;
   file_unref(f);
 
   return res;
@@ -223,7 +224,7 @@ int sys_getdirentries(thread_t *td, syscall_args_t *args) {
   uio.uio_resid = count;
   uio.uio_offset = 0;
 
-  int res = do_getdirentries(td, fd, &uio);
+  int res = do_getdirentries(td, fd, &uio, basep);
   *basep += count - uio.uio_resid;
   return res;
 }
