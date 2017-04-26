@@ -4,7 +4,7 @@ import shutil
 import signal
 import os
 
-TRIPLET = mipsel-mimiker-elf
+TRIPLET = 'mipsel-mimiker-elf'
 
 def set_as_tty_foreground():
     # Create a new process group just for us
