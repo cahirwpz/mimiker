@@ -69,6 +69,7 @@ static resource_t gt_pci_memory = {.r_addr = MALTA_PCI0_MEMORY_BASE,
                                    .r_end = MALTA_PCI0_MEMORY_SIZE};
 static resource_t gt_pci_ioports = {.r_addr = MALTA_PCI0_IO_BASE,
                                     .r_end = MALTA_PCI0_IO_SIZE};
-pci_bus_device_t gt_pci = {
-  .bus = &gt_pci_bus, .mem_space = &gt_pci_memory, .io_space = &gt_pci_ioports,
-  .devices = TAILQ_HEAD_INITIALIZER(gt_pci.devices) };
+pci_bus_device_t gt_pci = {.bus = &gt_pci_bus,
+                           .mem_space = &gt_pci_memory,
+                           .io_space = &gt_pci_ioports,
+                           .devices = TAILQ_HEAD_INITIALIZER(gt_pci.devices)};
