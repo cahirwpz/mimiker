@@ -31,7 +31,6 @@ static void dump_file(const char *path) {
 }
 
 static int test_ramdisk() {
-  ramdisk_dump();
   dump_file("/tests/initrd/directory1/file1");
   dump_file("/tests/initrd/directory1/file2");
   dump_file("/tests/initrd/directory1/file3");
@@ -53,3 +52,11 @@ static int test_ramdisk() {
 }
 
 KTEST_ADD(ramdisk, test_ramdisk, 0);
+
+/* Completing this test takes far too much time due to its verbosity - so it's
+   disabled with the BROKEN flag. */
+static int test_ramdisk_dump() {
+  ramdisk_dump();
+  return KTEST_SUCCESS;
+}
+KTEST_ADD(ramdisk_dump, test_ramdisk_dump, KTEST_FLAG_BROKEN);
