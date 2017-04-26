@@ -6,7 +6,20 @@ SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
 DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
 
-TRIPLET = mipsel-unknown-elf
+TRIPLET = mipsel-mimiker-elf
+TRIPLET_OLD = mipsel-unknown-elf
+
+TOOLCHAIN_FOUND = $(shell which $(TRIPLET)-gcc > /dev/null; echo $$?)
+OLD_TOOLCHAIN_FOUND = $(shell which $(TRIPLET_OLD)-gcc > /dev/null; echo $$?)
+ifneq ($(TOOLCHAIN_FOUND), 0)
+  ifneq ($(OLD_TOOLCHAIN_FOUND), 0)
+    $(error "mips-mimiker-elf" toolchain not found)
+  else
+    # Old toolchain is present, but the new one is not. Instruct the developer.
+    $(error You are using "mips-unknown-elf" toolchain. Please switch to "mips-mimiker-elf")
+  endif
+endif
+
 P = $(TRIPLET)-
 
 CC       = $(P)gcc -mips32r2 -EL -g

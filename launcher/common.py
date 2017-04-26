@@ -4,9 +4,6 @@ import shutil
 import signal
 import os
 
-TRIPLET = 'mipsel-unknown-elf'
-
-
 def set_as_tty_foreground():
     # Create a new process group just for us
     os.setpgrp()
@@ -82,8 +79,3 @@ def wait_any(launchables):
                 return
         except subprocess.TimeoutExpired:
             continue
-
-
-def find_toolchain():
-    if not shutil.which(TRIPLET + '-gcc'):
-        raise SystemExit('No cross compiler found!')
