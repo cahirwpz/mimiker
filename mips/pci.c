@@ -4,10 +4,7 @@
 #include <malloc.h>
 #include <pci.h>
 
-typedef struct {
-  unsigned ndevs;
-  pci_device_t dev[0];
-} pci_dev_list_t;
+static pci_device_list_t pci_devices;
 
 static MALLOC_DEFINE(mp, "PCI bus discovery memory pool");
 
@@ -42,27 +39,13 @@ static bool pci_device_present(pci_bus_t *pcib, unsigned bus, unsigned dev,
   return (pci_read_config(&pcidev, PCIR_DEVICEID, 4) != 0xffffffff);
 }
 
-static pci_dev_list_t *pci_bus_enumerate(pci_bus_t *pcib) {
-  /* count devices & allocate memory */
-  unsigned ndevs = 0;
-
-  for (int j = 0; j < 32; j++)
-    for (int k = 0; k < 8; k++)
-      if (pci_device_present(pcib, 0, j, k))
-        ndevs++;
-
-  pci_dev_list_t *devtab =
-    kmalloc(mp, sizeof(pci_dev_list_t) + sizeof(pci_device_t) * ndevs, M_ZERO);
-
-  devtab->ndevs = ndevs;
-
-  /* read device descriptions into main memory */
-  for (int j = 0, n = 0; j < 32; j++) {
+static void pci_bus_enumerate(pci_device_list_t *devlst, pci_bus_t *pcib) {
+  for (int j = 0; j < 32; j++) {
     for (int k = 0; k < 8; k++) {
       if (!pci_device_present(pcib, 0, j, k))
         continue;
 
-      pci_device_t *pcidev = &devtab->dev[n++];
+      pci_device_t *pcidev = kmalloc(mp, sizeof(pci_device_t), M_ZERO);
       pcidev->bus = pcib;
       pcidev->addr = (pci_addr_t){0, j, k};
       pcidev->device_id = pci_read_config(pcidev, PCIR_DEVICEID, 2);
@@ -83,10 +66,10 @@ static pci_dev_list_t *pci_bus_enumerate(pci_bus_t *pcib) {
         pcidev->bar[pcidev->nbars++] =
           (pci_bar_t){.addr = addr, .size = size, .dev = pcidev, .i = i};
       }
+
+      TAILQ_INSERT_TAIL(devlst, pcidev, link);
     }
   }
-
-  return devtab;
 }
 
 static int pci_bar_compare(const void *a, const void *b) {
@@ -100,22 +83,23 @@ static int pci_bar_compare(const void *a, const void *b) {
   return 0;
 }
 
-static void pci_bus_assign_space(pci_dev_list_t *devtab, intptr_t mem_base,
+static void pci_bus_assign_space(pci_device_list_t *devlst, intptr_t mem_base,
                                  intptr_t io_base) {
   /* Count PCI base address registers & allocate memory */
-  unsigned nbars = 0;
+  unsigned nbars = 0, ndevs = 0;
+  pci_device_t *pcidev;
 
-  for (int j = 0; j < devtab->ndevs; j++) {
-    pci_device_t *pcidev = &devtab->dev[j];
+  TAILQ_FOREACH(pcidev, devlst, link) {
     nbars += pcidev->nbars;
+    ndevs++;
   }
 
-  log("devs = %d, nbars = %d", devtab->ndevs, nbars);
+  log("devs = %d, nbars = %d", ndevs, nbars);
 
   pci_bar_t **bars = kmalloc(mp, sizeof(pci_bar_t *) * nbars, M_ZERO);
+  unsigned n = 0;
 
-  for (int j = 0, n = 0; j < devtab->ndevs; j++) {
-    pci_device_t *pcidev = &devtab->dev[j];
+  TAILQ_FOREACH(pcidev, devlst, link) {
     for (int i = 0; i < pcidev->nbars; i++)
       bars[n++] = &pcidev->bar[i];
   }
@@ -141,9 +125,10 @@ static void pci_bus_assign_space(pci_dev_list_t *devtab, intptr_t mem_base,
   kfree(mp, bars);
 }
 
-static void pci_bus_dump(pci_dev_list_t *devs) {
-  for (int j = 0; j < devs->ndevs; j++) {
-    pci_device_t *pcidev = &devs->dev[j];
+static void pci_bus_dump(pci_device_list_t *devlst) {
+  pci_device_t *pcidev;
+
+  TAILQ_FOREACH(pcidev, devlst, link) {
     char devstr[16];
 
     snprintf(devstr, sizeof(devstr), "[pci:%02x:%02x.%02x]", pcidev->addr.bus,
@@ -193,8 +178,10 @@ static void pci_bus_dump(pci_dev_list_t *devs) {
 PCI_BUS_DECLARE(gt_pci_bus);
 
 void pci_init() {
+  TAILQ_INIT(&pci_devices);
   kmalloc_init(mp, 1, 1);
-  pci_dev_list_t *devs = pci_bus_enumerate(gt_pci_bus);
-  pci_bus_assign_space(devs, MALTA_PCI0_MEMORY_BASE, PCI_IO_SPACE_BASE);
-  pci_bus_dump(devs);
+
+  pci_bus_enumerate(&pci_devices, gt_pci_bus);
+  pci_bus_assign_space(&pci_devices, MALTA_PCI0_MEMORY_BASE, PCI_IO_SPACE_BASE);
+  pci_bus_dump(&pci_devices);
 }

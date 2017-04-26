@@ -21,7 +21,7 @@ typedef struct fdtab fdtab_t;
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 
 typedef struct thread {
-  /* Locks*/
+  /* Locks */
   mtx_t td_lock;
   condvar_t td_waitcv; /* CV for thread exit, used by join */
   /* List links */

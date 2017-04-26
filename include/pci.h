@@ -1,7 +1,8 @@
-#ifndef _PCI_H_
-#define _PCI_H_
+#ifndef _SYS_PCI_H_
+#define _SYS_PCI_H_
 
 #include <common.h>
+#include <queue.h>
 
 typedef struct {
   uint16_t id;
@@ -39,6 +40,7 @@ extern const char *pci_class_code[];
 #define PCIR_BAR(i) (0x10 + (i)*4)
 
 typedef struct pci_device pci_device_t;
+typedef TAILQ_HEAD(, pci_device) pci_device_list_t;
 
 typedef struct {
   pm_addr_t addr;
@@ -69,6 +71,8 @@ typedef struct pci_bus {
 #define PCI_BUS_DECLARE(name) extern pci_bus_t name[1]
 
 struct pci_device {
+  TAILQ_ENTRY(pci_device) link;
+
   pci_bus_t *bus;
   pci_addr_t addr;
 
@@ -99,4 +103,4 @@ static inline uint32_t pci_adjust_config(pci_device_t *device, unsigned reg,
 
 void pci_init();
 
-#endif /* _PCI_H_ */
+#endif /* _SYS_PCI_H_ */
