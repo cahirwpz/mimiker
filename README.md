@@ -15,10 +15,10 @@ cd toolchain/mips/
 ct-ng build
 ```
 
-By default, this will build and install the `mipsel-unknown-elf` toolchnain to
-`~/local`. Update your `$PATH` so that it provides `mipsel-unknown-elf-*`,
+By default, this will build and install the `mipsel-mimiker-elf` toolchnain to
+`~/local`. Update your `$PATH` so that it provides `mipsel-mimiker-elf-*`,
 i.e. unless you've changed the install location you will need to append
-`~/local/mipsel-unknown-elf/bin` to your `PATH`.
+`~/local/mipsel-mimiker-elf/bin` to your `PATH`.
 
 With toolchain in place, you are ready to compile Mimiker. Run
 
