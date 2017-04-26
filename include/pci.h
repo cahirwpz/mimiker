@@ -3,6 +3,7 @@
 
 #include <common.h>
 #include <queue.h>
+#include <bus.h>
 
 typedef struct {
   uint16_t id;
@@ -84,6 +85,13 @@ struct pci_device {
   unsigned nbars;
   pci_bar_t bar[6];
 };
+
+typedef struct pci_bus_device {
+  pci_bus_t *bus;
+  resource_t *mem_space;
+  resource_t *io_space;
+  pci_device_list_t devices;
+} pci_bus_device_t;
 
 static inline uint32_t pci_read_config(pci_device_t *device, unsigned reg,
                                        unsigned size) {
