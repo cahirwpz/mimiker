@@ -72,11 +72,11 @@ static void pci_bus_enumerate(pci_bus_device_t *pcib) {
         size = -size;
         resource_t *bar = &pcidev->bar[pcidev->nbars++];
         *bar = (resource_t){.r_owner = pcidev,
-                           .r_type = type,
-                           .r_flags = flags,
-                           .r_start = 0,
-                           .r_end = size - 1,
-                           .r_id = i};
+                            .r_type = type,
+                            .r_flags = flags,
+                            .r_start = 0,
+                            .r_end = size - 1,
+                            .r_id = i};
       }
 
       TAILQ_INSERT_TAIL(&pcib->devices, pcidev, link);
