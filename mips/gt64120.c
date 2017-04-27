@@ -65,10 +65,12 @@ static void gt_pci_write_config(pci_device_t *dev, unsigned reg, unsigned size,
 
 static pci_bus_t gt_pci_bus = {.read_config = gt_pci_read_config,
                                .write_config = gt_pci_write_config};
-static resource_t gt_pci_memory = {.r_addr = MALTA_PCI0_MEMORY_BASE,
-                                   .r_end = MALTA_PCI0_MEMORY_SIZE};
-static resource_t gt_pci_ioports = {.r_addr = MALTA_PCI0_IO_BASE,
-                                    .r_end = MALTA_PCI0_IO_SIZE};
+static resource_t gt_pci_memory = {.r_type = RT_MEMORY,
+                                   .r_start = MALTA_PCI0_MEMORY_BASE,
+                                   .r_end = MALTA_PCI0_MEMORY_END};
+static resource_t gt_pci_ioports = {.r_type = RT_IOPORTS,
+                                    .r_start = MALTA_PCI0_IO_BASE,
+                                    .r_end = MALTA_PCI0_IO_END};
 pci_bus_device_t gt_pci = {.bus = &gt_pci_bus,
                            .mem_space = &gt_pci_memory,
                            .io_space = &gt_pci_ioports,

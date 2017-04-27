@@ -43,16 +43,6 @@ extern const char *pci_class_code[];
 typedef struct pci_device pci_device_t;
 typedef TAILQ_HEAD(, pci_device) pci_device_list_t;
 
-typedef struct {
-  pm_addr_t addr;
-  size_t size;
-  /* The two fields below are stored for convenience. They seem redundant,
-     but as we'll be sorting all bars by their size, keeping a reference
-     to where an entry came from is useful. */
-  pci_device_t *dev; /* Reference to the parent device. */
-  unsigned i;        /* Current BAR number for parent device. */
-} pci_bar_t;
-
 typedef struct pci_addr {
   uint8_t bus;
   uint8_t device;
@@ -83,7 +73,7 @@ struct pci_device {
   uint8_t pin, irq;
 
   unsigned nbars;
-  pci_bar_t bar[6];
+  resource_t bar[6];
 };
 
 typedef struct pci_bus_device {

@@ -26,11 +26,22 @@ struct bus_space {
  * given bus space. A driver will use addresses from `r_start` to `r_end` and
  * `r_bus_space` routines to access hardware resource, so that the actual
  * driver code is not tied to way handled device is attached to the system. */
+
+#define RT_UNKNOWN 0
+#define RT_MEMORY 1
+#define RT_IOPORTS 2
+
+#define RF_NONE 0
+#define RF_PREFETCHABLE 1
+
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */
-  intptr_t r_addr;  /* address of a set of resources mapped onto the bus */
-  intptr_t r_start; /* first address of the resource */
-  intptr_t r_end;   /* last address of the resource */
+  void *r_owner;            /* pointer to device that owns this resource */
+  intptr_t r_start;         /* first physical address of the resource */
+  intptr_t r_end;           /* last physical address of the resource */
+  unsigned r_type;
+  unsigned r_flags;
+  int r_id; /* (optional) resource identifier */
 };
 
 #define RESOURCE_DECLARE(name) extern resource_t name[1]

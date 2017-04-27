@@ -64,9 +64,9 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize);
 #define MALTA_PHYS_SDRAM_BASE 0x00000000
 
 #define MALTA_PCI0_MEMORY_BASE 0x10000000
-#define MALTA_PCI0_MEMORY_SIZE 0x8000000
+#define MALTA_PCI0_MEMORY_END 0x17ffffff
 #define MALTA_PCI0_IO_BASE 0x18000000
-#define MALTA_PCI0_IO_SIZE 0x3e00000
+#define MALTA_PCI0_IO_END 0x1bdfffff
 #define MALTA_CORECTRL_BASE 0x1be00000
 #define MALTA_FPGA_BASE 0x1f000000
 
