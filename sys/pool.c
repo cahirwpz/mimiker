@@ -25,13 +25,13 @@
 
 typedef struct pool_slab {
   LIST_ENTRY(pool_slab) ph_slablist; /* pool slab list */
-  vm_page_t *ph_page;                 /* page containing this slab */
-  uint16_t ph_nused;                  /* # of items in use */
-  uint16_t ph_itemsize;               /* size of item, a bit redundant but
-                                       * there would be padding anyway and it
-                                       * simplifies implementation */
-  uint16_t ph_ntotal;                 /* total number of chunks*/
-  uint16_t ph_start;                  /* start offset in page */
+  vm_page_t *ph_page;                /* page containing this slab */
+  uint16_t ph_nused;                 /* # of items in use */
+  uint16_t ph_itemsize;              /* size of item, a bit redundant but
+                                      * there would be padding anyway and it
+                                      * simplifies implementation */
+  uint16_t ph_ntotal;                /* total number of chunks*/
+  uint16_t ph_start;                 /* start offset in page */
   bitstr_t ph_bitmap[0];
 } pool_slab_t;
 
