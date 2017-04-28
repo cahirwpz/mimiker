@@ -6,6 +6,9 @@
 #define VGA_PCI_IO(vga, x)                                                     \
   (volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(vga->pci_io) + (x))
 
+/* Detailed information about VGA registers is available at
+   http://www.osdever.net/FreeVGA/vga/vga.htm */
+
 #define VGA_GR_ADDR(vga) VGA_PCI_IO(vga, 0x3CE)
 #define VGA_GR_DATA(vga) VGA_PCI_IO(vga, 0x3CF)
 #define VGA_CR_ADDR(vga) VGA_PCI_IO(vga, 0x3B4)
@@ -19,6 +22,38 @@
 #define VGA_AR_DATA_READ(vga) VGA_PCI_IO(vga, 0x3C1)
 #define VGA_REG_EXT_MOR_READ VGA_PCI_IO(vga, 0x3CC)
 #define VGA_REG_EXT_MOR_WRITE VGA_PCI_IO(vga, 0x3C2)
+
+#define VGA_SR_SEQ_MEM_MODE_REG 0x04        /* Sequencer Memory Mode register */
+#define VGA_SR_SEQ_MEM_MODE_CHAIN4_BIT 0x08 /* Chain4 Enable */
+
+#define VGA_CIRRUS_SR_EXT_SEQ_MODE_REG                                         \
+  0x07 /* Extended Sequencer Mode register */
+#define VGA_CIRRUS_SR_EXT_SEQ_MODE_BPP_ENABLE 0x01 /* Enable Extended BPP bit  \
+                                                      */
+#define VGA_CIRRUS_SR_EXT_SEQ_MODE_BPP_MASK 0x0e   /* Extended BPP Mask bit */
+#define VGA_CIRRUS_SR_EXT_SEQ_MODE_BPP_8BPP 0x00   /* 8 BPP Mode */
+
+#define VGA_GR_GRAPHICS_MODE_REG 0x05           /* Graphics Mode register */
+#define VGA_GR_GRAPHICS_MODE_SHIFT_256_BIT 0x40 /* 256-color Shift Mode */
+#define VGA_GR_MISC_GRAPHICS_REG 0x06 /* Miscellaneous Graphics register */
+#define VGA_GR_MISC_GRAPHICS_ALNUM_DISABLE_BIT                                 \
+  0x01 /* Alphanumeric Mode Disable bit */
+#define VGA_GR_MISC_GRAPHICS_MEM_MAP_SELECT_MASK                               \
+  0x0c /* Memory Map select mask */
+#define VGA_GR_MISC_GRAPHICS_MEM_MAP_SELECT_SHIFT                              \
+  2 /* Memory Map select shift */
+#define VGA_GR_MISC_GRAPHICS_MEM_MAP_SELECT_A0000_BFFFF                        \
+  0x00 /* Memory Map select A0000-BFFFF (128k) */
+
+#define VGA_CR_END_HORIZ_DISP_REG 0x01  /* End Horizontal Display register */
+#define VGA_CR_VERTI_DISP_END_REG 0x12  /* Vertical Display End register */
+#define VGA_CR_CRTC_MODE_CTRL_REG 0x17  /* CRCT Mode Control register */
+#define VGA_CR_CRTC_MODE_MAP14_BIT 0x02 /* Map Display Address 14 bit */
+#define VGA_CR_CRTC_MODE_MAP13_BIT 0x01 /* Map Display Address 13 bit */
+#define VGA_CR_OFFSET_REG 0x13          /* Offset register */
+#define VGA_CR_LINE_COMPARE_REG 0x18    /* Line Compare register */
+
+#define VGA_MOR_RAM_ENABLE 0x02 /* RAM Enable bit */
 
 #define VGA_FB(vga, n)                                                         \
   (volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(vga->pci_memory) + (n))
@@ -121,9 +156,9 @@ void vga_palette_write(vga_control_t *vga, const uint8_t buf[3 * 256]) {
 
 void vga_set_resolution(vga_control_t *vga, int w, int h) {
   uint8_t wq = w / 8 - 1;
-  *VGA_CR_ADDR(vga) = 0x01;
+  *VGA_CR_ADDR(vga) = VGA_CR_END_HORIZ_DISP_REG;
   *VGA_CR_DATA(vga) = wq;
-  *VGA_CR_ADDR(vga) = 0x12;
+  *VGA_CR_ADDR(vga) = VGA_CR_VERTI_DISP_END_REG;
   *VGA_CR_DATA(vga) = h - 1;
 }
 
@@ -139,40 +174,58 @@ int vga_fb_write(vga_control_t *vga, uio_t *uio) {
 }
 
 void vga_init(vga_control_t *vga) {
+  /* Currently only this resolution is fully supported. */
+  vga->width = 320;
+  vga->height = 200;
+
   /* Set RAM_ENABLE */
-  *VGA_REG_EXT_MOR_WRITE = 0x2;
+  *VGA_REG_EXT_MOR_WRITE = VGA_MOR_RAM_ENABLE;
 
-  // Set memory map select to 0
-  uint8_t memory_map_select = vga_gr_read(vga, 0x06) >> 2 & 0x3;
-  memory_map_select = 0;
-  vga_gr_write(vga, 0x06, memory_map_select << 2);
+  /* Set memory map select to A0000-BFFFF. This is probably irrelevant if we use
+   * PCI LFB. */
+  /*
+  uint8_t gr_misc_graphics = vga_gr_read(vga, VGA_GR_MISC_GRAPHICS_REG);
+  gr_misc_graphics = (gr_misc_graphics &
+  ~VGA_GR_MISC_GRAPHICS_MEM_MAP_SELECT_MASK) |
+  (VGA_GR_MISC_GRAPHICS_MEM_MAP_SELECT_A0000_BFFFF <<
+  VGA_GR_MISC_GRAPHICS_MEM_MAP_SELECT_SHIFT);
+  vga_gr_write(vga, VGA_GR_MISC_GRAPHICS_REG, gr_misc_graphics);
+  */
 
-  // Selected memory range A0000h-BFFFFh. Probably irrelevant, as we use PCI LFB
+  /* Set chain 4 enable (? probably unnecessary for PCI LFB writing */
+  /* ga_sr_write(vga, VGA_SR_SEQ_MEM_MODE_REG, vga_sr_read(vga,
+   * VGA_SR_SEQ_MEM_MODE_REG) | VGA_SR_SEQ_MEM_MODE_CHAIN4_BIT); */
 
-  // Set chain 4 enable (? probably unnecessary for PCI LFB writing
-  vga_sr_write(vga, 0x04, vga_sr_read(vga, 0x04) | 0x08);
+  /* Enable 256-color palette */
+  vga_gr_write(vga, VGA_GR_GRAPHICS_MODE_REG,
+               vga_gr_read(vga, VGA_GR_GRAPHICS_MODE_REG) |
+                 VGA_GR_GRAPHICS_MODE_SHIFT_256_BIT);
 
-  // Enable 256-color palette
-  vga_gr_write(vga, 0x05, vga_gr_read(vga, 0x05) | 0x40);
+  /* Set both Map Display Addresses to 1 */
+  vga_cr_write(vga, VGA_CR_CRTC_MODE_CTRL_REG,
+               vga_cr_read(vga, VGA_CR_CRTC_MODE_CTRL_REG) |
+                 (VGA_CR_CRTC_MODE_MAP13_BIT | VGA_CR_CRTC_MODE_MAP14_BIT));
 
-  // Set both Map Display Addresses to 1
-  vga_cr_write(vga, 0x17, vga_cr_read(vga, 0x17) | 0x03);
+  /* Switch from text mode to graphics mode */
+  vga_gr_write(vga, VGA_GR_MISC_GRAPHICS_REG,
+               vga_gr_read(vga, VGA_GR_MISC_GRAPHICS_REG) |
+                 VGA_GR_MISC_GRAPHICS_ALNUM_DISABLE_BIT);
 
-  // Switch from text mode to graphics mode
-  vga_gr_write(vga, 0x06, vga_gr_read(vga, 0x06) | 0x01);
+  /* Set 8 bits per pixel This is not standard VGA, but a Cirrus extension. */
+  /* TODO: Use VBE registers. */
+  vga_sr_write(vga, VGA_CIRRUS_SR_EXT_SEQ_MODE_REG,
+               VGA_CIRRUS_SR_EXT_SEQ_MODE_BPP_ENABLE |
+                 (VGA_CIRRUS_SR_EXT_SEQ_MODE_BPP_MASK &
+                  VGA_CIRRUS_SR_EXT_SEQ_MODE_BPP_8BPP));
 
-  // Apply resolution
-  vga_set_resolution(vga, 320, 200);
+  /* Apply resolution */
+  vga_set_resolution(vga, vga->width, vga->height);
 
-  // Set 8 bits per pixel
-  /* This is not standard VGA, but a Cirrus extension. */
-  vga_sr_write(vga, 0x07, 0x01);
+  /* Set line offset register */
+  vga_cr_write(vga, VGA_CR_OFFSET_REG, vga->width / 8);
+  /* Set line compare register */
+  vga_cr_write(vga, VGA_CR_LINE_COMPARE_REG, vga->height);
 
-  // Set line offset register
-  vga_cr_write(vga, 0x13, 320 / 8);
-  // Set line compare register
-  vga_cr_write(vga, 0x18, 200);
-
-  // Enable palette access
+  /* Enable palette access */
   vga_set_pallete_addr_source(vga, 1);
 }

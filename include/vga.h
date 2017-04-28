@@ -8,6 +8,8 @@
 typedef struct vga_control {
   uint32_t pci_memory;
   uint32_t pci_io;
+  unsigned int width;
+  unsigned int height;
 } vga_control_t;
 
 /* Initializes a vga_control_t structure using data from a particular
