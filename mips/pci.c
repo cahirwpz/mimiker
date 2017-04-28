@@ -123,10 +123,12 @@ static void pci_bus_assign_space(pci_bus_device_t *pcib) {
   for (int j = 0; j < nbars; j++) {
     resource_t *bar = bars[j];
     if (bar->r_type == RT_IOPORTS) {
+      bar->r_bus_space = pcib->io_space->r_bus_space;
       bar->r_start += io_base;
       bar->r_end += io_base;
       io_base = bar->r_end + 1;
     } else if (bar->r_type == RT_MEMORY) {
+      bar->r_bus_space = pcib->mem_space->r_bus_space;
       bar->r_start += mem_base;
       bar->r_end += mem_base;
       mem_base = bar->r_end + 1;
