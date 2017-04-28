@@ -64,7 +64,6 @@ static inline void bus_space_write_1(resource_t *handle, unsigned offset,
   handle->r_bus_space->write_1(handle, offset, value);
 }
 
-
 static inline void bus_space_read_region_1(resource_t *handle, unsigned offset,
                                            uint8_t *dst, size_t count) {
   return handle->r_bus_space->read_region_1(handle, offset, dst, count);
