@@ -141,7 +141,7 @@ void pool_init(pool_t *pool, size_t size, pool_ctor_t ctor, pool_dtor_t dtor) {
        pool->pp_itemsize);
 }
 
-static void destroy_slab_list(pool_t *pool, pool_slab_list_t *slabs) {
+static void destroy_slab_list(pool_t *pool, pool_slabs_t *slabs) {
   pool_slab_t *it, *next;
 
   LIST_FOREACH_SAFE(it, slabs, ph_slablist, next) {
@@ -178,10 +178,10 @@ void *pool_alloc(pool_t *pool, __unused unsigned flags) {
 
   pool_slab_t *slab;
   if (pool->pp_nitems) {
-    pool_slab_list_t *pool_list = LIST_EMPTY(&pool->pp_part_slabs)
-                                    ? &pool->pp_empty_slabs
-                                    : &pool->pp_part_slabs;
-    slab = LIST_FIRST(pool_list);
+    pool_slabs_t *slabs = LIST_EMPTY(&pool->pp_part_slabs)
+                            ? &pool->pp_empty_slabs
+                            : &pool->pp_part_slabs;
+    slab = LIST_FIRST(slabs);
     LIST_REMOVE(slab, ph_slablist);
   } else {
     slab = create_slab(pool);
@@ -192,10 +192,10 @@ void *pool_alloc(pool_t *pool, __unused unsigned flags) {
 
   void *p = slab_alloc(slab);
   pool->pp_nitems--;
-  pool_slab_list_t *slab_list = (slab->ph_nused < slab->ph_ntotal)
-                                  ? &pool->pp_part_slabs
-                                  : &pool->pp_full_slabs;
-  LIST_INSERT_HEAD(slab_list, slab, ph_slablist);
+  pool_slabs_t *slabs = (slab->ph_nused < slab->ph_ntotal)
+                          ? &pool->pp_part_slabs
+                          : &pool->pp_full_slabs;
+  LIST_INSERT_HEAD(slabs, slab, ph_slablist);
   return p;
 }
 
@@ -222,9 +222,9 @@ void pool_free(pool_t *pool, void *ptr) {
   LIST_REMOVE(slab, ph_slablist);
   slab->ph_nused--;
   pool->pp_nitems++;
-  pool_slab_list_t *slab_list =
+  pool_slabs_t *slabs =
     slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
-  LIST_INSERT_HEAD(slab_list, slab, ph_slablist);
+  LIST_INSERT_HEAD(slabs, slab, ph_slablist);
 
   debug("pool_free: freed item %p at slab %p, index %d", ptr, slab, index);
 }

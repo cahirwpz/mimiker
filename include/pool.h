@@ -4,16 +4,16 @@
 #include <queue.h>
 #include <mutex.h>
 
-typedef LIST_HEAD(, pool_slab) pool_slab_list_t;
+typedef LIST_HEAD(, pool_slab) pool_slabs_t;
 typedef void (*pool_ctor_t)(void *);
 typedef void (*pool_dtor_t)(void *);
 
 typedef struct pool {
   mtx_t pp_mtx;
   uint32_t pp_state;
-  pool_slab_list_t pp_empty_slabs;
-  pool_slab_list_t pp_full_slabs;
-  pool_slab_list_t pp_part_slabs; /* partially allocated slabs */
+  pool_slabs_t pp_empty_slabs;
+  pool_slabs_t pp_full_slabs;
+  pool_slabs_t pp_part_slabs; /* partially allocated slabs */
   pool_ctor_t pp_ctor;
   pool_dtor_t pp_dtor;
   size_t pp_itemsize; /* size of item */
