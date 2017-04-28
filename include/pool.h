@@ -1,9 +1,7 @@
 #ifndef _SYS_POOL_H_
 #define _SYS_POOL_H_
 
-#include <bitstring.h>
 #include <queue.h>
-#include <vm.h>
 #include <mutex.h>
 
 typedef LIST_HEAD(, pool_slab) pool_slab_list_t;
