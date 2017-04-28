@@ -27,11 +27,9 @@ typedef struct pool_slab {
   LIST_ENTRY(pool_slab) ph_slablist; /* pool slab list */
   vm_page_t *ph_page;                /* page containing this slab */
   uint16_t ph_nused;                 /* # of items in use */
-  uint16_t ph_itemsize;              /* size of item, a bit redundant but
-                                      * there would be padding anyway and it
-                                      * simplifies implementation */
-  uint16_t ph_ntotal;                /* total number of chunks*/
-  uint16_t ph_start;                 /* start offset in page */
+  uint16_t ph_ntotal;                /* total number of chunks */
+  unsigned ph_itemsize;              /* total size of item (with header) */
+  void *ph_items;                    /* ptr to array of items after bitmap */
   bitstr_t ph_bitmap[0];
 } pool_slab_t;
 
@@ -43,8 +41,11 @@ typedef struct pool_item {
 } pool_item_t;
 
 static pool_item_t *pool_item_at(pool_slab_t *slab, unsigned i) {
-  return (pool_item_t *)((intptr_t)slab + slab->ph_start +
-                         i * (slab->ph_itemsize + sizeof(pool_item_t)));
+  return (pool_item_t *)(slab->ph_items + i * slab->ph_itemsize);
+}
+
+static unsigned pool_item_index_of(pool_slab_t *slab, pool_item_t *item) {
+  return ((intptr_t)item - (intptr_t)slab->ph_items) / slab->ph_itemsize;
 }
 
 static pool_slab_t *create_slab(pool_t *pool) {
@@ -54,7 +55,7 @@ static pool_slab_t *create_slab(pool_t *pool) {
   pool_slab_t *slab = (pool_slab_t *)page->vaddr;
   slab->ph_page = page;
   slab->ph_nused = 0;
-  slab->ph_itemsize = pool->pp_itemsize;
+  slab->ph_itemsize = pool->pp_itemsize + sizeof(pool_item_t);
 
   /*
    * Now we need to calculate maximum possible number of items of given `size`
@@ -71,12 +72,12 @@ static pool_slab_t *create_slab(pool_t *pool) {
    * (4) ntotal <= (usable * 8 + 7) / (8 * itemisize + 1)
    */
   unsigned usable = PAGESIZE - sizeof(pool_slab_t);
-  unsigned itemsize = sizeof(pool_item_t) + slab->ph_itemsize;
-
-  slab->ph_ntotal = (usable * 8 + 7) / (8 * itemsize + 1);
+  slab->ph_ntotal = (usable * 8 + 7) / (8 * slab->ph_itemsize + 1);
   slab->ph_nused = 0;
-  slab->ph_start =
-    align(sizeof(pool_slab_t) + bitstr_size(slab->ph_ntotal), PI_ALIGNMENT);
+
+  unsigned header = sizeof(pool_slab_t) + bitstr_size(slab->ph_ntotal);
+  slab->ph_items = (void *)slab + align(header, PI_ALIGNMENT);
+
   memset(slab->ph_bitmap, 0, bitstr_size(slab->ph_ntotal));
   for (int i = 0; i < slab->ph_ntotal; i++) {
     pool_item_t *pi = pool_item_at(slab, i);
@@ -227,12 +228,7 @@ void pool_free(pool_t *pool, void *ptr) {
 
   pool_slab_t *curr_slab = curr_pi->pi_slab;
 
-  /* We need to find index of curr_pi in the bitmap, it can be easily derived
-   * from obvious equation curr_pi = curr_slab + curr_slab->ph_start +
-   * index * (curr_slab->ph_itemsize + sizeof(pool_item_t)) */
-  intptr_t index = ((intptr_t)curr_pi - (intptr_t)curr_slab -
-                    (intptr_t)(curr_slab->ph_start)) /
-                   ((curr_slab->ph_itemsize) + sizeof(pool_item_t));
+  unsigned index = pool_item_index_of(curr_slab, curr_pi);
   bitstr_t *bitmap = curr_slab->ph_bitmap;
 
   if (!bit_test(bitmap, index))
