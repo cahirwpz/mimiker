@@ -35,7 +35,7 @@ GCC_INSTALL_PATH = $(shell LANG=C $(CC)  -print-search-dirs | sed -n -e 's/insta
 GCC_SYSTEM_INC = -I$(GCC_INSTALL_PATH)include/ -I$(GCC_INSTALL_PATH)include-fixed/ -D_LIBC_LIMITS_H_
 
 ASFLAGS  =
-CFLAGS   = -std=gnu11 -Og -Wall -Werror -fno-builtin -nostdinc -nostdlib $(GCC_SYSTEM_INC) -ffreestanding
+CFLAGS   = -fplan9-extensions -std=gnu11 -Og -Wall -Werror -fno-builtin -nostdinc -nostdlib $(GCC_SYSTEM_INC) -ffreestanding
 CPPFLAGS = -Wall -Werror -DDEBUG -I$(TOPDIR)/include
 LDFLAGS  = -nostdlib -T $(TOPDIR)/mips/malta.ld
 

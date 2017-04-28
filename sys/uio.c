@@ -77,28 +77,6 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
   return error;
 }
 
-void prepare_uio(uio_t *uio, iovec_t *iov, uio_op_t op, vm_map_t *vm_map,
-                 void *buffer, size_t buflen) {
-  uio->uio_op = op;
-  uio->uio_iovcnt = 1;
-  uio->uio_vmspace = vm_map;
-  uio->uio_iov = iov;
-  uio->uio_offset = 0;
-  iov->iov_base = buffer;
-  iov->iov_len = buflen;
-  uio->uio_resid = buflen;
-}
-
-void prepare_user_uio(uio_t *uio, iovec_t *iov, uio_op_t op, void *buffer,
-                      size_t buflen) {
-  prepare_uio(uio, iov, op, get_user_vm_map(), buffer, buflen);
-}
-
-void prepare_kernel_uio(uio_t *uio, iovec_t *iov, uio_op_t op, void *buffer,
-                        size_t buflen) {
-  prepare_uio(uio, iov, op, get_kernel_vm_map(), buffer, buflen);
-}
-
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio) {
   size_t offset = uio->uio_offset;
   assert(offset < buflen);

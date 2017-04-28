@@ -21,12 +21,25 @@ typedef struct uio {
   vm_map_t *uio_vmspace; /* destination address space */
 } uio_t;
 
-void prepare_uio(uio_t *uio, iovec_t *iov, uio_op_t op, vm_map_t *vm_map,
-                 void *buffer, size_t buflen);
-void prepare_user_uio(uio_t *uio, iovec_t *iov, uio_op_t op, void *buffer,
-                      size_t buflen);
-void prepare_kernel_uio(uio_t *uio, iovec_t *iov, uio_op_t op, void *buffer,
-                        size_t buflen);
+/* Uses -fplan9-extensions described in:
+ * https://gcc.gnu.org/onlinedocs/gcc/Unnamed-Fields.html */
+#define MAKE_UIO(name, op, vm_map, buf, buflen)                                \
+  struct {                                                                     \
+    uio_t;                                                                     \
+    iovec_t iov;                                                               \
+  } name = {(uio_t){.uio_iov = &name.iov,                                      \
+                    .uio_iovcnt = 1,                                           \
+                    .uio_offset = 0,                                           \
+                    .uio_resid = (buflen),                                     \
+                    .uio_op = (op),                                            \
+                    .uio_vmspace = (vm_map)},                                  \
+            (iovec_t){(buf), (buflen)}}
+
+#define MAKE_UIO_USER(name, op, buf, buflen) \
+  MAKE_UIO(name, op, get_user_vm_map(), buf, buflen)
+
+#define MAKE_UIO_KERNEL(name, op, buf, buflen) \
+  MAKE_UIO(name, op, get_kernel_vm_map(), buf, buflen)
 
 int uiomove(void *buf, size_t n, uio_t *uio);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);
