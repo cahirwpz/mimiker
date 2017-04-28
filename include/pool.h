@@ -12,6 +12,7 @@ typedef void (*pool_dtor_t)(void *);
 
 typedef struct pool {
   mtx_t pp_mtx;
+  uint32_t pp_state;
   pool_slab_list_t pp_empty_slabs;
   pool_slab_list_t pp_full_slabs;
   pool_slab_list_t pp_part_slabs; /* partially allocated slabs */

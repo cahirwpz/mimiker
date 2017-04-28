@@ -11,8 +11,10 @@
 #include <sync.h>
 #include <pool.h>
 
+#define ALIVE 0xFACEFEED
+#define DEAD 0xDEADC0DE
+
 #define PI_MAGIC 0xCAFEBABE
-#define PP_FREE 0xDEADBEEF
 #define PI_ALIGNMENT sizeof(uint64_t)
 
 #define POOL_DEBUG 0
@@ -24,11 +26,12 @@
 #endif
 
 typedef struct pool_slab {
+  uint32_t ph_state;                 /* set to ALIVE or DEAD */
   LIST_ENTRY(pool_slab) ph_slablist; /* pool slab list */
   vm_page_t *ph_page;                /* page containing this slab */
   uint16_t ph_nused;                 /* # of items in use */
   uint16_t ph_ntotal;                /* total number of chunks */
-  unsigned ph_itemsize;              /* total size of item (with header) */
+  size_t ph_itemsize;                /* total size of item (with header) */
   void *ph_items;                    /* ptr to array of items after bitmap */
   bitstr_t ph_bitmap[0];
 } pool_slab_t;
@@ -53,6 +56,7 @@ static pool_slab_t *create_slab(pool_t *pool) {
 
   vm_page_t *page = pm_alloc(1);
   pool_slab_t *slab = (pool_slab_t *)page->vaddr;
+  slab->ph_state = ALIVE;
   slab->ph_page = page;
   slab->ph_nused = 0;
   slab->ph_itemsize = pool->pp_itemsize + sizeof(pool_item_t);
@@ -77,8 +81,8 @@ static pool_slab_t *create_slab(pool_t *pool) {
 
   unsigned header = sizeof(pool_slab_t) + bitstr_size(slab->ph_ntotal);
   slab->ph_items = (void *)slab + align(header, PI_ALIGNMENT);
-
   memset(slab->ph_bitmap, 0, bitstr_size(slab->ph_ntotal));
+
   for (int i = 0; i < slab->ph_ntotal; i++) {
     pool_item_t *pi = slab_item_at(slab, i);
     pi->pi_slab = slab;
@@ -86,6 +90,7 @@ static pool_slab_t *create_slab(pool_t *pool) {
     if (pool->pp_ctor)
       pool->pp_ctor(pi->pi_data);
   }
+
   return slab;
 }
 
@@ -98,24 +103,24 @@ static void destroy_slab(pool_t *pool, pool_slab_t *slab) {
       pool->pp_dtor(curr_pi->pi_data);
   }
 
+  slab->ph_state = DEAD;
   pm_free(slab->ph_page);
 }
 
 static void *slab_alloc(pool_slab_t *slab) {
+  assert(slab->ph_state == ALIVE);
   assert(slab->ph_nused < slab->ph_ntotal);
 
-  int found_idx = 0;
-  bit_ffc(slab->ph_bitmap, slab->ph_ntotal, &found_idx);
-  bit_set(slab->ph_bitmap, found_idx);
-  pool_item_t *found_pi = slab_item_at(slab, found_idx);
-
-  if (found_pi->pi_canary != PI_MAGIC)
-    panic("memory corruption at item %p", found_pi);
-
+  int i = 0;
+  bit_ffc(slab->ph_bitmap, slab->ph_ntotal, &i);
+  bit_set(slab->ph_bitmap, i);
+  pool_item_t *pi = slab_item_at(slab, i);
+  assert(pi->pi_canary == PI_MAGIC);
   slab->ph_nused++;
-  debug("slab_alloc: allocated item %p at slab %p, index %d", found_pi->pi_data,
-        found_pi->pi_slab, found_idx);
-  return found_pi->pi_data;
+  debug("slab_alloc: allocated item %p at slab %p, index %d", pi->pi_data,
+        pi->pi_slab, i);
+
+  return pi->pi_data;
 }
 
 void pool_init(pool_t *pool, size_t size, pool_ctor_t ctor, pool_dtor_t dtor) {
@@ -125,28 +130,15 @@ void pool_init(pool_t *pool, size_t size, pool_ctor_t ctor, pool_dtor_t dtor) {
   LIST_INIT(&pool->pp_part_slabs);
   pool->pp_ctor = ctor;
   pool->pp_dtor = dtor;
-  pool_slab_t *first_slab = create_slab(pool);
-  LIST_INSERT_HEAD(&pool->pp_empty_slabs, first_slab, ph_slablist);
+  pool_slab_t *slab = create_slab(pool);
+  LIST_INSERT_HEAD(&pool->pp_empty_slabs, slab, ph_slablist);
   pool->pp_nslabs = 1;
-  pool->pp_nitems = first_slab->ph_ntotal;
+  pool->pp_nitems = slab->ph_ntotal;
   pool->pp_align = PI_ALIGNMENT;
   mtx_init(&pool->pp_mtx, MTX_DEF);
+  pool->pp_state = ALIVE;
   klog("pool_init: initialized new pool at %p (item size = %d)", pool,
        pool->pp_itemsize);
-}
-
-static bool is_pool_dead(pool_t *pool) {
-  uint32_t *tmp = (uint32_t *)pool;
-  for (size_t i = 0; i < sizeof(pool_t) / sizeof(uint32_t); i++)
-    if (tmp[i] == PP_FREE)
-      return true;
-  return false;
-}
-
-static void mark_pool_dead(pool_t *pool) {
-  uint32_t *tmp = (uint32_t *)pool;
-  for (size_t i = 0; i < sizeof(pool_t) / sizeof(uint32_t); i++)
-    tmp[i] = PP_FREE;
 }
 
 static void destroy_slab_list(pool_t *pool, pool_slab_list_t *slabs) {
@@ -161,21 +153,17 @@ static void destroy_slab_list(pool_t *pool, pool_slab_list_t *slabs) {
 void pool_destroy(pool_t *pool) {
   debug("pool_destroy: pool = %p", pool);
 
-  /* Unfortunately, as for now, there is no way to use mutex here because
-   * mark_pool_dead belongs to critical section and at the same time, it erases
-   * the mutex, that's why low-level sync functions are used here */
-
+  /* TODO: there is no way to use pool's mutex here because it could already got
+   * deallocated and we have no method of marking dead mutexes, that's why
+   * low-level sync functions are used here. */
   critical_enter();
-
-  if (is_pool_dead(pool))
-    panic("attempt to free dead pool %p", pool);
+  assert(pool->pp_state == ALIVE);
+  pool->pp_state = DEAD;
+  critical_leave();
 
   destroy_slab_list(pool, &pool->pp_empty_slabs);
   destroy_slab_list(pool, &pool->pp_part_slabs);
   destroy_slab_list(pool, &pool->pp_full_slabs);
-  mark_pool_dead(pool);
-
-  critical_leave();
 
   klog("pool_destroy: destroyed pool at %p", pool);
 }
@@ -184,31 +172,30 @@ void pool_destroy(pool_t *pool) {
 void *pool_alloc(pool_t *pool, __unused unsigned flags) {
   debug("pool_alloc: pool=%p", pool);
 
+  assert(pool->pp_state == ALIVE);
+
   mtx_scoped_lock(&pool->pp_mtx);
 
-  if (is_pool_dead(pool))
-    panic("operation on dead pool %p", pool);
-
-  pool_slab_t *slab_to_use;
+  pool_slab_t *slab;
   if (pool->pp_nitems) {
     pool_slab_list_t *pool_list = LIST_EMPTY(&pool->pp_part_slabs)
                                     ? &pool->pp_empty_slabs
                                     : &pool->pp_part_slabs;
-    slab_to_use = LIST_FIRST(pool_list);
-    LIST_REMOVE(slab_to_use, ph_slablist);
+    slab = LIST_FIRST(pool_list);
+    LIST_REMOVE(slab, ph_slablist);
   } else {
-    slab_to_use = create_slab(pool);
-    pool->pp_nitems += slab_to_use->ph_ntotal;
+    slab = create_slab(pool);
+    pool->pp_nitems += slab->ph_ntotal;
     pool->pp_nslabs++;
     klog("pool_alloc: growing pool at %p", pool);
   }
 
-  void *p = slab_alloc(slab_to_use);
+  void *p = slab_alloc(slab);
   pool->pp_nitems--;
-  pool_slab_list_t *slab_list_to_insert =
-    slab_to_use->ph_nused < slab_to_use->ph_ntotal ? &pool->pp_part_slabs
-                                                   : &pool->pp_full_slabs;
-  LIST_INSERT_HEAD(slab_list_to_insert, slab_to_use, ph_slablist);
+  pool_slab_list_t *slab_list = (slab->ph_nused < slab->ph_ntotal)
+                                  ? &pool->pp_part_slabs
+                                  : &pool->pp_full_slabs;
+  LIST_INSERT_HEAD(slab_list, slab, ph_slablist);
   return p;
 }
 
@@ -217,30 +204,27 @@ void *pool_alloc(pool_t *pool, __unused unsigned flags) {
 void pool_free(pool_t *pool, void *ptr) {
   debug("pool_free: pool = %p, ptr = %p", pool, ptr);
 
+  assert(pool->pp_state == ALIVE);
+
   mtx_scoped_lock(&pool->pp_mtx);
 
-  if (is_pool_dead(pool))
-    panic("operation on dead pool %p", pool);
+  pool_item_t *pi = ptr - sizeof(pool_item_t);
+  assert(pi->pi_canary == PI_MAGIC);
+  pool_slab_t *slab = pi->pi_slab;
+  assert(slab->ph_state == ALIVE);
 
-  pool_item_t *curr_pi = ptr - sizeof(pool_item_t);
-  if (curr_pi->pi_canary != PI_MAGIC)
-    panic("memory corruption at item %p", curr_pi);
+  unsigned index = slab_index_of(slab, pi);
+  bitstr_t *bitmap = slab->ph_bitmap;
 
-  pool_slab_t *curr_slab = curr_pi->pi_slab;
-
-  unsigned index = slab_index_of(curr_slab, curr_pi);
-  bitstr_t *bitmap = curr_slab->ph_bitmap;
-
-  if (!bit_test(bitmap, index))
-    panic("double free at item %p", ptr);
+  assert(bit_test(bitmap, index));
 
   bit_clear(bitmap, index);
-  LIST_REMOVE(curr_slab, ph_slablist);
-  curr_slab->ph_nused--;
+  LIST_REMOVE(slab, ph_slablist);
+  slab->ph_nused--;
   pool->pp_nitems++;
-  pool_slab_list_t *slab_list_to_insert =
-    curr_slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
-  LIST_INSERT_HEAD(slab_list_to_insert, curr_slab, ph_slablist);
+  pool_slab_list_t *slab_list =
+    slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
+  LIST_INSERT_HEAD(slab_list, slab, ph_slablist);
 
-  debug("pool_free: freed item %p at slab %p, index %d", ptr, curr_slab, index);
+  debug("pool_free: freed item %p at slab %p, index %d", ptr, slab, index);
 }
