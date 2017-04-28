@@ -1,7 +1,4 @@
 #include <stdc.h>
-#include <mips/mips.h>
-#include <mips/malta.h>
-#include <mips/pci.h>
 #include <malloc.h>
 #include <pci.h>
 
@@ -32,129 +29,124 @@ static const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
   return NULL;
 }
 
-static void pci_bus_enumerate(pci_bus_t *pcibus) {
-  /* count devices & allocate memory */
-  pcibus->ndevs = 0;
+static bool pci_device_present(pci_bus_t *pcib, unsigned bus, unsigned dev,
+                               unsigned func) {
+  pci_device_t pcidev = {.bus = pcib, .addr = {bus, dev, func}};
+  return (pci_read_config(&pcidev, PCIR_DEVICEID, 4) != 0xffffffff);
+}
 
+static void pci_bus_enumerate(pci_bus_device_t *pcib) {
   for (int j = 0; j < 32; j++) {
     for (int k = 0; k < 8; k++) {
-      PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | PCI0_CFG_REG(j, k, 0);
-
-      if (PCI0_CFG_DATA_R == -1)
+      if (!pci_device_present(pcib->bus, 0, j, k))
         continue;
 
-      pcibus->ndevs++;
-    }
-  }
-
-  pcibus->dev = kmalloc(mp, sizeof(pci_device_t) * pcibus->ndevs, M_ZERO);
-
-  /* read device descriptions into main memory */
-  for (int j = 0, n = 0; j < 32; j++) {
-    for (int k = 0; k < 8; k++) {
-      PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | PCI0_CFG_REG(j, k, 0);
-
-      if (PCI0_CFG_DATA_R == -1)
-        continue;
-
-      pci_device_t *pcidev = &pcibus->dev[n++];
-
-      pcidev->addr.bus = 0;
-      pcidev->addr.device = j;
-      pcidev->addr.function = k;
-      pcidev->device_id = PCI0_CFG_DATA_R >> 16;
-      pcidev->vendor_id = PCI0_CFG_DATA_R;
-
-      PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | PCI0_CFG_REG(j, k, 2);
-      pcidev->class_code = (PCI0_CFG_DATA_R & 0xff000000) >> 24;
-
-      PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | PCI0_CFG_REG(j, k, 15);
-      pcidev->pin = PCI0_CFG_DATA_R >> 8;
-      pcidev->irq = PCI0_CFG_DATA_R;
+      pci_device_t *pcidev = kmalloc(mp, sizeof(pci_device_t), M_ZERO);
+      pcidev->bus = pcib->bus;
+      pcidev->addr = (pci_addr_t){0, j, k};
+      pcidev->device_id = pci_read_config(pcidev, PCIR_DEVICEID, 2);
+      pcidev->vendor_id = pci_read_config(pcidev, PCIR_VENDORID, 2);
+      pcidev->class_code = pci_read_config(pcidev, PCIR_CLASSCODE, 1);
+      pcidev->pin = pci_read_config(pcidev, PCIR_IRQPIN, 1);
+      pcidev->irq = pci_read_config(pcidev, PCIR_IRQLINE, 1);
 
       for (int i = 0; i < 6; i++) {
-        PCI0_CFG_ADDR_R =
-          PCI0_CFG_ENABLE |
-          PCI0_CFG_REG(pcidev->addr.device, pcidev->addr.function, 4 + i);
-        unsigned addr = PCI0_CFG_DATA_R;
-        PCI0_CFG_DATA_R = -1;
-        unsigned size = PCI0_CFG_DATA_R;
+        uint32_t addr = pci_read_config(pcidev, PCIR_BAR(i), 4);
+        uint32_t size = pci_adjust_config(pcidev, PCIR_BAR(i), 4, 0xffffffff);
+
         if (size == 0 || addr == size)
           continue;
 
-        size &= (addr & PCI_BAR_IO) ? ~PCI_BAR_IO_MASK : ~PCI_BAR_MEMORY_MASK;
+        unsigned type, flags;
+
+        if (addr & PCI_BAR_IO) {
+          type = RT_IOPORTS;
+          flags = RF_NONE;
+          size &= ~PCI_BAR_IO_MASK;
+        } else {
+          type = RT_MEMORY;
+          flags = (addr & PCI_BAR_PREFETCHABLE) ? RF_PREFETCHABLE : RF_NONE;
+          size &= ~PCI_BAR_MEMORY_MASK;
+        }
+
         size = -size;
-
-        pci_bar_t *bar = &pcidev->bar[pcidev->nbars++];
-        bar->addr = addr;
-        bar->size = size;
-
-        /* The two fields below are stored for convenience. They seem redundant,
-           but as we'll be sorting all bars by their size, keeping a reference
-           to where an entry came from is useful. */
-        bar->dev = pcidev;
-        bar->i = i;
+        resource_t *bar = &pcidev->bar[pcidev->nbars++];
+        *bar = (resource_t){.r_owner = pcidev,
+                            .r_type = type,
+                            .r_flags = flags,
+                            .r_start = 0,
+                            .r_end = size - 1,
+                            .r_id = i};
       }
+
+      TAILQ_INSERT_TAIL(&pcib->devices, pcidev, link);
     }
   }
 }
 
 static int pci_bar_compare(const void *a, const void *b) {
-  const pci_bar_t *bar0 = *(const pci_bar_t **)a;
-  const pci_bar_t *bar1 = *(const pci_bar_t **)b;
+  const resource_t *bar0 = *(const resource_t **)a;
+  const resource_t *bar1 = *(const resource_t **)b;
 
-  if (bar0->size < bar1->size)
+  if (bar0->r_end < bar1->r_end)
     return 1;
-  if (bar0->size > bar1->size)
+  if (bar0->r_end > bar1->r_end)
     return -1;
   return 0;
 }
 
-static void pci_bus_assign_space(pci_bus_t *pcibus, intptr_t mem_base,
-                                 intptr_t io_base) {
+static void pci_bus_assign_space(pci_bus_device_t *pcib) {
   /* Count PCI base address registers & allocate memory */
-  unsigned nbars = 0;
+  unsigned nbars = 0, ndevs = 0;
+  pci_device_t *pcidev;
 
-  for (int j = 0; j < pcibus->ndevs; j++) {
-    pci_device_t *pcidev = &pcibus->dev[j];
+  TAILQ_FOREACH (pcidev, &pcib->devices, link) {
     nbars += pcidev->nbars;
+    ndevs++;
   }
 
-  pci_bar_t **bars = kmalloc(mp, sizeof(pci_bar_t *) * nbars, M_ZERO);
+  log("devs = %d, nbars = %d", ndevs, nbars);
 
-  for (int j = 0, n = 0; j < pcibus->ndevs; j++) {
-    pci_device_t *pcidev = &pcibus->dev[j];
+  resource_t **bars = kmalloc(mp, sizeof(resource_t *) * nbars, M_ZERO);
+  unsigned n = 0;
+
+  TAILQ_FOREACH (pcidev, &pcib->devices, link) {
     for (int i = 0; i < pcidev->nbars; i++)
       bars[n++] = &pcidev->bar[i];
   }
 
-  qsort(bars, nbars, sizeof(pci_bar_t *), pci_bar_compare);
+  qsort(bars, nbars, sizeof(resource_t *), pci_bar_compare);
+
+  intptr_t io_base = pcib->io_space->r_start;
+  intptr_t mem_base = pcib->mem_space->r_start;
 
   for (int j = 0; j < nbars; j++) {
-    pci_bar_t *bar = bars[j];
-    if (bar->addr & PCI_BAR_IO) {
-      bar->addr |= io_base;
-      io_base += bar->size;
-    } else {
-      bar->addr |= mem_base;
-      mem_base += bar->size;
+    resource_t *bar = bars[j];
+    if (bar->r_type == RT_IOPORTS) {
+      bar->r_bus_space = pcib->io_space->r_bus_space;
+      bar->r_start += io_base;
+      bar->r_end += io_base;
+      io_base = bar->r_end + 1;
+    } else if (bar->r_type == RT_MEMORY) {
+      bar->r_bus_space = pcib->mem_space->r_bus_space;
+      bar->r_start += mem_base;
+      bar->r_end += mem_base;
+      mem_base = bar->r_end + 1;
     }
 
-    /* Write the BAR address back to PCI bus config. */
-    PCI0_CFG_ADDR_R =
-      PCI0_CFG_ENABLE |
-      PCI0_CFG_REG(bar->dev->addr.device, bar->dev->addr.function, 4 + bar->i);
-    /* It's safe to write the entire address without masking bits - only base
-       address bits are writable. */
-    PCI0_CFG_DATA_R = bar->addr;
+    /* Write the BAR address back to PCI bus config. It's safe to write the
+     * entire address without masking bits - only base address bits are
+     * writable. */
+    pci_write_config(bar->r_owner, PCIR_BAR(bar->r_id), 4, bar->r_start);
   }
 
   kfree(mp, bars);
 }
 
-static void pci_bus_dump(pci_bus_t *pcibus) {
-  for (int j = 0; j < pcibus->ndevs; j++) {
-    pci_device_t *pcidev = &pcibus->dev[j];
+static void pci_bus_dump(pci_bus_device_t *pcib) {
+  pci_device_t *pcidev;
+
+  TAILQ_FOREACH (pcidev, &pcib->devices, link) {
     char devstr[16];
 
     snprintf(devstr, sizeof(devstr), "[pci:%02x:%02x.%02x]", pcidev->addr.bus,
@@ -180,32 +172,29 @@ static void pci_bus_dump(pci_bus_t *pcibus) {
               'A' + pcidev->pin - 1, pcidev->irq);
 
     for (int i = 0; i < pcidev->nbars; i++) {
-      pci_bar_t *bar = &pcidev->bar[i];
-      pm_addr_t addr = bar->addr;
-      size_t size = bar->size;
+      resource_t *bar = &pcidev->bar[i];
       char *type;
 
-      if (addr & PCI_BAR_IO) {
-        addr &= ~PCI_BAR_IO_MASK;
+      if (bar->r_type == RT_IOPORTS) {
         type = "I/O ports";
       } else {
-        if (addr & PCI_BAR_PREFETCHABLE)
-          type = "Memory (prefetchable)";
-        else
-          type = "Memory (non-prefetchable)";
-        addr &= ~PCI_BAR_MEMORY_MASK;
+        type = (bar->r_flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
+                                                : "Memory (non-prefetchable)";
       }
       kprintf("%s Region %d: %s at %p [size=$%x]\n", devstr, i, type,
-              (void *)addr, (unsigned)size);
+              (void *)bar->r_start, (unsigned)(bar->r_end - bar->r_start + 1));
     }
   }
 }
 
-pci_bus_t pci_bus[1];
+extern pci_bus_device_t gt_pci;
 
 void pci_init() {
   kmalloc_init(mp, 1, 1);
-  pci_bus_enumerate(pci_bus);
-  pci_bus_assign_space(pci_bus, MALTA_PCI0_MEMORY_BASE, PCI_IO_SPACE_BASE);
-  pci_bus_dump(pci_bus);
+
+  /* TODO: actions below will become a part of `device_attach` function of
+   * generic driver for PCI bus. */
+  pci_bus_enumerate(&gt_pci);
+  pci_bus_assign_space(&gt_pci);
+  pci_bus_dump(&gt_pci);
 }
