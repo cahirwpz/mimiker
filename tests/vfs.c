@@ -47,7 +47,7 @@ static int test_vfs() {
 
   /* Perform a READ test on /dev/zero, cleaning buffer. */
   {
-    MAKE_UIO_KERNEL(uio, UIO_READ, buffer, sizeof(buffer));
+    MAKE_UIO_KERNEL(uio, UIO_READ, buffer, sizeof(buffer), 0);
 
     res = VOP_READ(dev_zero, &uio);
     assert(res == 0);
@@ -57,7 +57,7 @@ static int test_vfs() {
 
   /* Now write some data to /dev/null */
   {
-    MAKE_UIO_KERNEL(uio, UIO_WRITE, buffer, sizeof(buffer));
+    MAKE_UIO_KERNEL(uio, UIO_WRITE, buffer, sizeof(buffer), 0);
 
     assert(dev_null != 0);
     res = VOP_WRITE(dev_null, &uio);
@@ -67,15 +67,15 @@ static int test_vfs() {
 
   /* Test writing to UART */
   {
-  vnode_t *dev_cons;
-  error = vfs_lookup("/dev/cons", &dev_cons);
-  assert(error == 0);
-  char *str = "Some string for testing UART write\n";
+    vnode_t *dev_cons;
+    error = vfs_lookup("/dev/cons", &dev_cons);
+    assert(error == 0);
+    char *str = "Some string for testing UART write\n";
 
-  MAKE_UIO_KERNEL(uio, UIO_WRITE, str, strlen(str));
+    MAKE_UIO_KERNEL(uio, UIO_WRITE, str, strlen(str), 0);
 
-  res = VOP_WRITE(dev_cons, &uio);
-  assert(res == 0);
+    res = VOP_WRITE(dev_cons, &uio);
+    assert(res == 0);
   }
 
   return KTEST_SUCCESS;
