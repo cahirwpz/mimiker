@@ -21,25 +21,19 @@ typedef struct uio {
   vm_map_t *uio_vmspace; /* destination address space */
 } uio_t;
 
-/* Uses -fplan9-extensions described in:
+/* Uses struct subtyping enabled by `-fplan9-extensions` flag described in:
  * https://gcc.gnu.org/onlinedocs/gcc/Unnamed-Fields.html */
-#define MAKE_UIO(name, op, vm_map, buf, count, offset)                         \
-  struct {                                                                     \
-    uio_t;                                                                     \
-    iovec_t iov;                                                               \
-  } name = {(uio_t){.uio_iov = &name.iov,                                      \
-                    .uio_iovcnt = 1,                                           \
-                    .uio_offset = (offset),                                    \
-                    .uio_resid = (count),                                      \
-                    .uio_op = (op),                                            \
-                    .uio_vmspace = (vm_map)},                                  \
-            (iovec_t){(buf), (count)}}
+typedef struct uio_single {
+  uio_t;
+  iovec_t iov;
+} uio_single_t;
 
-#define MAKE_UIO_USER(name, op, buf, count, offset)                            \
-  MAKE_UIO(name, op, get_user_vm_map(), buf, count, offset)
-
-#define MAKE_UIO_KERNEL(name, op, buf, count, offset)                          \
-  MAKE_UIO(name, op, get_kernel_vm_map(), buf, count, offset)
+void make_uio(uio_single_t *uio, uio_op_t op, vm_map_t *vm_map, void *buf,
+              size_t count, off_t offset);
+void make_uio_kernel(uio_single_t *uio, uio_op_t op, void *buf, size_t count,
+                     off_t offset);
+void make_uio_user(uio_single_t *uio, uio_op_t op, void *buf, size_t count,
+                   off_t offset);
 
 int uiomove(void *buf, size_t n, uio_t *uio);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);

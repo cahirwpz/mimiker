@@ -41,42 +41,37 @@ static int test_vfs() {
   assert(dev_zero->v_usecnt == 1);
 
   int res = 0;
+  uio_single_t uio;
 
   char buffer[100];
   memset(buffer, '=', sizeof(buffer));
 
   /* Perform a READ test on /dev/zero, cleaning buffer. */
-  {
-    MAKE_UIO_KERNEL(uio, UIO_READ, buffer, sizeof(buffer), 0);
+  make_uio_kernel(&uio, UIO_READ, buffer, sizeof(buffer), 0);
 
-    res = VOP_READ(dev_zero, &uio);
-    assert(res == 0);
-    assert(buffer[1] == 0 && buffer[10] == 0);
-    assert(uio.uio_resid == 0);
-  }
+  res = VOP_READ(dev_zero, &uio);
+  assert(res == 0);
+  assert(buffer[1] == 0 && buffer[10] == 0);
+  assert(uio.uio_resid == 0);
 
   /* Now write some data to /dev/null */
-  {
-    MAKE_UIO_KERNEL(uio, UIO_WRITE, buffer, sizeof(buffer), 0);
+  make_uio_kernel(&uio, UIO_WRITE, buffer, sizeof(buffer), 0);
 
-    assert(dev_null != 0);
-    res = VOP_WRITE(dev_null, &uio);
-    assert(res == 0);
-    assert(uio.uio_resid == 0);
-  }
+  assert(dev_null != 0);
+  res = VOP_WRITE(dev_null, &uio);
+  assert(res == 0);
+  assert(uio.uio_resid == 0);
 
   /* Test writing to UART */
-  {
-    vnode_t *dev_cons;
-    error = vfs_lookup("/dev/cons", &dev_cons);
-    assert(error == 0);
-    char *str = "Some string for testing UART write\n";
+  vnode_t *dev_cons;
+  error = vfs_lookup("/dev/cons", &dev_cons);
+  assert(error == 0);
+  char *str = "Some string for testing UART write\n";
 
-    MAKE_UIO_KERNEL(uio, UIO_WRITE, str, strlen(str), 0);
+  make_uio_kernel(&uio, UIO_WRITE, str, strlen(str), 0);
 
-    res = VOP_WRITE(dev_cons, &uio);
-    assert(res == 0);
-  }
+  res = VOP_WRITE(dev_cons, &uio);
+  assert(res == 0);
 
   return KTEST_SUCCESS;
 }
