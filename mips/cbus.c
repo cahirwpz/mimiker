@@ -16,6 +16,8 @@ static bus_space_t cbus_bus_space = {
 };
 
 resource_t cbus_uart[1] = {{.r_bus_space = &cbus_bus_space,
+                            /* RT_MEMORY since CBUS UART is a device mapped in
+                             * common physical address space of MIPS CPU. */
                             .r_type = RT_MEMORY,
                             .r_start = MALTA_CBUS_UART,
                             .r_end = MALTA_CBUS_UART + 7}};

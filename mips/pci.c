@@ -190,6 +190,8 @@ extern pci_bus_device_t gt_pci;
 void pci_init() {
   kmalloc_init(mp, 1, 1);
 
+  /* TODO: actions below will become a part of `device_attach` function of
+   * generic driver for PCI bus. */
   pci_bus_enumerate(&gt_pci);
   pci_bus_assign_space(&gt_pci);
   pci_bus_dump(&gt_pci);

@@ -49,11 +49,16 @@ typedef struct pci_addr {
   uint8_t function;
 } pci_addr_t;
 
+/* PCI configuration space can be accessed in various ways depending on PCI bus
+ * controller and platform architecture. For instance classic PC architecture
+ * uses `in` and `out` IA-32 instructions. On MIPS Malta one has to use two
+ * memory mapped registers (address and data). */
 typedef uint32_t (*pci_read_config_t)(pci_device_t *device, unsigned reg,
                                       unsigned size);
 typedef void (*pci_write_config_t)(pci_device_t *device, unsigned reg,
                                    unsigned size, uint32_t value);
 
+/* TODO: pci_bus will become subtype of bus_t (set of actions). */
 typedef struct pci_bus {
   pci_read_config_t read_config;
   pci_write_config_t write_config;
@@ -76,6 +81,7 @@ struct pci_device {
   resource_t bar[6];
 };
 
+/* TODO: pci_bus_device will become a state (device_t) of generic PCI driver. */
 typedef struct pci_bus_device {
   pci_bus_t *bus;
   resource_t *mem_space;

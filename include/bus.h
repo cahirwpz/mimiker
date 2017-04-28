@@ -32,13 +32,16 @@ struct bus_space {
 #define RT_IOPORTS 2
 
 #define RF_NONE 0
+/* According to PCI specification prefetchable bit is CLEAR when memory mapped
+ * resource contains locations with read side-effects or locations in which the
+ * device does not tolerate write merging. */
 #define RF_PREFETCHABLE 1
 
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */
   void *r_owner;            /* pointer to device that owns this resource */
   intptr_t r_start;         /* first physical address of the resource */
-  intptr_t r_end;           /* last physical address of the resource */
+  intptr_t r_end; /* last (inclusive) physical address of the resource */
   unsigned r_type;
   unsigned r_flags;
   int r_id; /* (optional) resource identifier */
