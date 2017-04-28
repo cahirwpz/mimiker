@@ -24,6 +24,7 @@ SOURCES_C  = \
 	pci_ids.c \
 	pcpu.c \
 	physmem.c \
+	pool.c \
 	runq.c \
 	rwlock.c \
 	sbrk.c \
