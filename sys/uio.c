@@ -77,8 +77,8 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
   return error;
 }
 
-void prepare_single_uio(uio_t *uio, iovec_t *iov, uio_op_t op, vm_map_t *vm_map, size_t offset,
-                 void *buffer, size_t buflen) {
+void prepare_single_uio(uio_t *uio, iovec_t *iov, uio_op_t op, vm_map_t *vm_map,
+                        size_t offset, void *buffer, size_t buflen) {
   uio->uio_op = op;
   uio->uio_iovcnt = 1;
   uio->uio_vmspace = vm_map;

@@ -22,19 +22,19 @@ typedef struct uio {
   vm_map_t *uio_vmspace; /* destination address space */
 } uio_t;
 
-
 /* Convenience function for initializing uio, where iov has one buffer */
-void prepare_single_uio(uio_t *uio, iovec_t *iov, uio_op_t op, vm_map_t *vm_map, size_t offset,
-                 void *buffer, size_t buflen);
+void prepare_single_uio(uio_t *uio, iovec_t *iov, uio_op_t op, vm_map_t *vm_map,
+                        size_t offset, void *buffer, size_t buflen);
 
-#define prepare_single_user_uio(uio, op, offset, buffer, buflen) \
-    iovec_t __CONCAT(iov_,__LINE__); \
-    prepare_single_uio((uio), &__CONCAT(iov_,__LINE__), (op), get_user_vm_map(), (offset), (buffer), (buflen));
+#define prepare_single_user_uio(uio, op, offset, buffer, buflen)               \
+  iovec_t __CONCAT(iov_, __LINE__);                                            \
+  prepare_single_uio((uio), &__CONCAT(iov_, __LINE__), (op),                   \
+                     get_user_vm_map(), (offset), (buffer), (buflen));
 
-#define prepare_single_kernel_uio(uio, op, offset, buffer, buflen) \
-    iovec_t __CONCAT(iov_,__LINE__); \
-    prepare_single_uio((uio), &__CONCAT(iov_,__LINE__), (op), get_kernel_vm_map(), (offset), (buffer), (buflen));
-
+#define prepare_single_kernel_uio(uio, op, offset, buffer, buflen)             \
+  iovec_t __CONCAT(iov_, __LINE__);                                            \
+  prepare_single_uio((uio), &__CONCAT(iov_, __LINE__), (op),                   \
+                     get_kernel_vm_map(), (offset), (buffer), (buflen));
 
 int uiomove(void *buf, size_t n, uio_t *uio);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);
