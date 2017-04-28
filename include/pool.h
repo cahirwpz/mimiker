@@ -7,18 +7,18 @@
 #include <mutex.h>
 
 typedef LIST_HEAD(, pool_slab) pool_slab_list_t;
-typedef void (*pool_ctor_t)(void *, size_t);
-typedef void (*pool_dtor_t)(void *, size_t);
+typedef void (*pool_ctor_t)(void *);
+typedef void (*pool_dtor_t)(void *);
 
 typedef struct pool {
   mtx_t pp_mtx;
   pool_slab_list_t pp_empty_slabs;
   pool_slab_list_t pp_full_slabs;
-  pool_slab_list_t pp_part_slabs; /* Partially-allocated pages */
+  pool_slab_list_t pp_part_slabs; /* partially allocated slabs */
   pool_ctor_t pp_ctor;
   pool_dtor_t pp_dtor;
-  size_t pp_itemsize; /* Size of item */
-  size_t pp_align;    /* (ignored) Requested alignment, must be 2^n */
+  size_t pp_itemsize; /* size of item */
+  size_t pp_align;    /* (ignored) requested alignment, must be 2^n */
   size_t pp_nslabs;   /* # of slabs allocated */
   size_t pp_nitems;   /* number of available items in pool */
 } pool_t;

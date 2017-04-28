@@ -9,7 +9,7 @@ typedef enum {
   PALLOC_TEST_DOUBLEFREE, /* double free */
 } palloc_test_t;
 
-static void int_ctor(void *buf, __unused size_t size) {
+static void int_ctor(void *buf) {
   int *num = buf;
   *num = 0;
 }

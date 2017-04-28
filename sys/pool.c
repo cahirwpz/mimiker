@@ -40,11 +40,11 @@ typedef struct pool_item {
   unsigned long pi_data[0] __aligned(PI_ALIGNMENT);
 } pool_item_t;
 
-static pool_item_t *pool_item_at(pool_slab_t *slab, unsigned i) {
+static pool_item_t *slab_item_at(pool_slab_t *slab, unsigned i) {
   return (pool_item_t *)(slab->ph_items + i * slab->ph_itemsize);
 }
 
-static unsigned pool_item_index_of(pool_slab_t *slab, pool_item_t *item) {
+static unsigned slab_index_of(pool_slab_t *slab, pool_item_t *item) {
   return ((intptr_t)item - (intptr_t)slab->ph_items) / slab->ph_itemsize;
 }
 
@@ -80,11 +80,11 @@ static pool_slab_t *create_slab(pool_t *pool) {
 
   memset(slab->ph_bitmap, 0, bitstr_size(slab->ph_ntotal));
   for (int i = 0; i < slab->ph_ntotal; i++) {
-    pool_item_t *pi = pool_item_at(slab, i);
+    pool_item_t *pi = slab_item_at(slab, i);
     pi->pi_slab = slab;
     pi->pi_canary = PI_MAGIC;
     if (pool->pp_ctor)
-      pool->pp_ctor(pi->pi_data, slab->ph_itemsize);
+      pool->pp_ctor(pi->pi_data);
   }
   return slab;
 }
@@ -93,9 +93,9 @@ static void destroy_slab(pool_t *pool, pool_slab_t *slab) {
   klog("destroy_slab: pool = %p, slab = %p", pool, slab);
 
   for (int i = 0; i < slab->ph_ntotal; i++) {
-    pool_item_t *curr_pi = pool_item_at(slab, i);
+    pool_item_t *curr_pi = slab_item_at(slab, i);
     if (pool->pp_dtor)
-      pool->pp_dtor(curr_pi->pi_data, slab->ph_itemsize);
+      pool->pp_dtor(curr_pi->pi_data);
   }
 
   pm_free(slab->ph_page);
@@ -107,7 +107,7 @@ static void *slab_alloc(pool_slab_t *slab) {
   int found_idx = 0;
   bit_ffc(slab->ph_bitmap, slab->ph_ntotal, &found_idx);
   bit_set(slab->ph_bitmap, found_idx);
-  pool_item_t *found_pi = pool_item_at(slab, found_idx);
+  pool_item_t *found_pi = slab_item_at(slab, found_idx);
 
   if (found_pi->pi_canary != PI_MAGIC)
     panic("memory corruption at item %p", found_pi);
@@ -228,7 +228,7 @@ void pool_free(pool_t *pool, void *ptr) {
 
   pool_slab_t *curr_slab = curr_pi->pi_slab;
 
-  unsigned index = pool_item_index_of(curr_slab, curr_pi);
+  unsigned index = slab_index_of(curr_slab, curr_pi);
   bitstr_t *bitmap = curr_slab->ph_bitmap;
 
   if (!bit_test(bitmap, index))
