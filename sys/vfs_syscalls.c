@@ -121,10 +121,10 @@ int sys_read(thread_t *td, syscall_args_t *args) {
   uio_single_t uio;
   make_uio_user(&uio, UIO_READ, ubuf, count, 0);
 
-  int error = do_read(td, fd, &uio);
+  int error = do_read(td, fd, &uio.uio);
   if (error)
     return error;
-  return count - uio.uio_resid;
+  return count - uio.uio.uio_resid;
 }
 
 int sys_write(thread_t *td, syscall_args_t *args) {
@@ -137,10 +137,10 @@ int sys_write(thread_t *td, syscall_args_t *args) {
   uio_single_t uio;
   make_uio_user(&uio, UIO_WRITE, ubuf, count, 0);
 
-  int error = do_write(td, fd, &uio);
+  int error = do_write(td, fd, &uio.uio);
   if (error)
     return error;
-  return count - uio.uio_resid;
+  return count - uio.uio.uio_resid;
 }
 
 int sys_lseek(thread_t *td, syscall_args_t *args) {

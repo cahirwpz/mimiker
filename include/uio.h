@@ -21,10 +21,8 @@ typedef struct uio {
   vm_map_t *uio_vmspace; /* destination address space */
 } uio_t;
 
-/* Uses struct subtyping enabled by `-fplan9-extensions` flag described in:
- * https://gcc.gnu.org/onlinedocs/gcc/Unnamed-Fields.html */
 typedef struct uio_single {
-  uio_t;
+  uio_t uio;
   iovec_t iov;
 } uio_single_t;
 

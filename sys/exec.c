@@ -40,17 +40,17 @@ int do_exec(const exec_args_t *args) {
     return -ENOEXEC;
   }
 
-  uio_single_t uio;
   Elf32_Ehdr eh;
+  uio_single_t uio;
 
   /* Read elf header. */
   make_uio_kernel(&uio, UIO_READ, &eh, sizeof(eh), 0);
-  error = VOP_READ(elf_vnode, &uio);
+  error = VOP_READ(elf_vnode, &uio.uio);
   if (error < 0) {
     log("Exec failed: Elf file reading failed.");
     return error;
   }
-  assert(uio.uio_resid == 0);
+  assert(uio.uio.uio_resid == 0);
 
   /* Start by determining the validity of the elf file. */
 
@@ -112,12 +112,12 @@ int do_exec(const exec_args_t *args) {
 
   /* Read program headers. */
   make_uio_kernel(&uio, UIO_READ, &phs, phs_size, eh.e_phoff);
-  error = VOP_READ(elf_vnode, &uio);
+  error = VOP_READ(elf_vnode, &uio.uio);
   if (error < 0) {
     log("Exec failed: Elf file reading failed.");
     return error;
   }
-  assert(uio.uio_resid == 0);
+  assert(uio.uio.uio_resid == 0);
 
   for (uint8_t i = 0; i < eh.e_phnum; i++) {
     const Elf32_Phdr *ph = (Elf32_Phdr *)(phs + i * eh.e_phentsize);
@@ -168,12 +168,12 @@ int do_exec(const exec_args_t *args) {
            file contents on demand. But we don't have a vnode_pager yet. */
         make_uio_kernel(&uio, UIO_READ, (char *)start, ph->p_filesz,
                         ph->p_offset);
-        error = VOP_READ(elf_vnode, &uio);
+        error = VOP_READ(elf_vnode, &uio.uio);
         if (error < 0) {
           log("Exec failed: Elf file reading failed.");
           goto exec_fail;
         }
-        assert(uio.uio_resid == 0);
+        assert(uio.uio.uio_resid == 0);
 
         /* Zero the rest */
         if (ph->p_filesz < ph->p_memsz) {

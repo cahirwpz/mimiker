@@ -49,18 +49,18 @@ static int test_vfs() {
   /* Perform a READ test on /dev/zero, cleaning buffer. */
   make_uio_kernel(&uio, UIO_READ, buffer, sizeof(buffer), 0);
 
-  res = VOP_READ(dev_zero, &uio);
+  res = VOP_READ(dev_zero, &uio.uio);
   assert(res == 0);
   assert(buffer[1] == 0 && buffer[10] == 0);
-  assert(uio.uio_resid == 0);
+  assert(uio.uio.uio_resid == 0);
 
   /* Now write some data to /dev/null */
   make_uio_kernel(&uio, UIO_WRITE, buffer, sizeof(buffer), 0);
 
   assert(dev_null != 0);
-  res = VOP_WRITE(dev_null, &uio);
+  res = VOP_WRITE(dev_null, &uio.uio);
   assert(res == 0);
-  assert(uio.uio_resid == 0);
+  assert(uio.uio.uio_resid == 0);
 
   /* Test writing to UART */
   vnode_t *dev_cons;
@@ -70,7 +70,7 @@ static int test_vfs() {
 
   make_uio_kernel(&uio, UIO_WRITE, str, strlen(str), 0);
 
-  res = VOP_WRITE(dev_cons, &uio);
+  res = VOP_WRITE(dev_cons, &uio.uio);
   assert(res == 0);
 
   return KTEST_SUCCESS;
