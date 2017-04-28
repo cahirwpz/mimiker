@@ -119,9 +119,7 @@ int sys_read(thread_t *td, syscall_args_t *args) {
   log("sys_read(%d, %p, %zu)", fd, ubuf, count);
 
   uio_t uio;
-  iovec_t iov;
-
-  prepare_user_uio(&uio, &iov, UIO_READ, ubuf, count);
+  prepare_single_user_uio(&uio, UIO_READ, 0, ubuf, count);
 
   int error = do_read(td, fd, &uio);
   if (error)
@@ -137,9 +135,7 @@ int sys_write(thread_t *td, syscall_args_t *args) {
   log("sys_write(%d, %p, %zu)", fd, ubuf, count);
 
   uio_t uio;
-  iovec_t iov;
-
-  prepare_user_uio(&uio, &iov, UIO_WRITE, ubuf, count);
+  prepare_single_user_uio(&uio, UIO_READ, 0, ubuf, count);
 
   int error = do_write(td, fd, &uio);
   if (error)

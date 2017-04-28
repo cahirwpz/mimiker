@@ -13,8 +13,7 @@ static void dump_file(const char *path) {
   char buffer[1000];
   memset(buffer, '\0', sizeof(buffer));
   uio_t uio;
-  iovec_t iov;
-  prepare_kernel_uio(&uio, &iov, UIO_READ, buffer, sizeof(buffer));
+  prepare_single_kernel_uio(&uio, UIO_READ, 0, buffer, sizeof(buffer));
 
   res = VOP_READ(v, &uio);
 

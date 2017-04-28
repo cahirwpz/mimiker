@@ -41,14 +41,13 @@ static int test_vfs() {
   assert(dev_zero->v_usecnt == 1);
 
   uio_t uio;
-  iovec_t iov;
   int res = 0;
 
   char buffer[100];
   memset(buffer, '=', sizeof(buffer));
 
   /* Perform a READ test on /dev/zero, cleaning buffer. */
-  prepare_kernel_uio(&uio, &iov, UIO_READ, buffer, sizeof(buffer));
+  prepare_single_kernel_uio(&uio, UIO_READ, 0, buffer, sizeof(buffer));
 
   res = VOP_READ(dev_zero, &uio);
   assert(res == 0);
@@ -56,7 +55,7 @@ static int test_vfs() {
   assert(uio.uio_resid == 0);
 
   /* Now write some data to /dev/null */
-  prepare_kernel_uio(&uio, &iov, UIO_WRITE, buffer, sizeof(buffer));
+  prepare_single_kernel_uio(&uio, UIO_WRITE, 0, buffer, sizeof(buffer));
 
   assert(dev_null != 0);
   res = VOP_WRITE(dev_null, &uio);
@@ -69,7 +68,7 @@ static int test_vfs() {
   assert(error == 0);
   char *str = "Some string for testing UART write\n";
 
-  prepare_kernel_uio(&uio, &iov, UIO_WRITE, str, strlen(str));
+  prepare_single_kernel_uio(&uio, UIO_WRITE, 0, str, strlen(str));
 
   res = VOP_WRITE(dev_cons, &uio);
   assert(res == 0);
