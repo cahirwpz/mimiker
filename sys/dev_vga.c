@@ -11,17 +11,9 @@ static int dev_vga_framebuffer_write(vnode_t *v, uio_t *uio) {
   return vga_fb_write(vga, uio);
 }
 
-/* TODO: Separate palettes per each VGA device! */
-static uint8_t dev_vga_palette_buffer[255 * 3];
-
 static int dev_vga_palette_write(vnode_t *v, uio_t *uio) {
-  int error = uiomove(dev_vga_palette_buffer, 255 * 3, uio);
-  if (error)
-    return error;
-  /* TODO: It would be more efficient to update just the changed values... */
   vga_device_t *vga = (vga_device_t *)v->v_data;
-  vga_palette_write(vga, dev_vga_palette_buffer);
-  return 0;
+  return vga_palette_write(vga, uio);
 }
 
 vnodeops_t dev_vga_framebuffer_vnodeops = {
