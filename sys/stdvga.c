@@ -7,8 +7,8 @@
 
 typedef struct stdvga_device {
   pci_device_t *pci_device;
-  resource_t mem;
-  resource_t io;
+  resource_t* mem;
+  resource_t* io;
 
   unsigned int width;
   unsigned int height;
@@ -49,20 +49,18 @@ typedef struct stdvga_device {
 #define VGA_QEMU_STDVGA_DEVICE_ID 0x1111
 
 static void stdvga_io_write(stdvga_device_t *vga, uint16_t reg, uint8_t value) {
-  bus_space_write_1(&vga->io, reg + VGA_MMIO_OFFSET, value);
+  bus_space_write_1(vga->io, reg + VGA_MMIO_OFFSET, value);
 }
-static uint8_t stdvga_io_read(stdvga_device_t *vga, uint16_t reg)
-  __attribute__((unused));
-static uint8_t stdvga_io_read(stdvga_device_t *vga, uint16_t reg) {
-  return bus_space_read_1(&vga->io, reg + VGA_MMIO_OFFSET);
+static uint8_t __unused stdvga_io_read(stdvga_device_t *vga, uint16_t reg) {
+  return bus_space_read_1(vga->io, reg + VGA_MMIO_OFFSET);
 }
 static void stdvga_vbe_write(stdvga_device_t *vga, uint16_t reg,
                              uint16_t value) {
   /* <<1 shift enables access to 16-bit registers. */
-  bus_space_write_2(&vga->io, (reg << 1) + VBE_MMIO_OFFSET, value);
+  bus_space_write_2(vga->io, (reg << 1) + VBE_MMIO_OFFSET, value);
 }
 static uint16_t stdvga_vbe_read(stdvga_device_t *vga, uint16_t reg) {
-  return bus_space_read_2(&vga->io, (reg << 1) + VBE_MMIO_OFFSET);
+  return bus_space_read_2(vga->io, (reg << 1) + VBE_MMIO_OFFSET);
 }
 
 static void stdvga_palette_write_single(stdvga_device_t *stdvga, uint8_t offset,
@@ -98,7 +96,7 @@ static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
     uiomove_frombuf(stdvga->fb_buffer, stdvga->width * stdvga->height, uio);
   if (error)
     return error;
-  bus_space_write_region_1(&stdvga->mem, 0, stdvga->fb_buffer,
+  bus_space_write_region_1(stdvga->mem, 0, stdvga->fb_buffer,
                            stdvga->width * stdvga->height);
   return 0;
 }
@@ -117,16 +115,13 @@ int stdvga_pci_attach(pci_device_t *pci) {
   stdvga_device_t *stdvga =
     kmalloc(stdvga_pool, sizeof(stdvga_device_t), M_ZERO);
 
-  uint32_t status_command = pci_read_config(pci, 1, 4);
-  uint32_t command = status_command & 0x0000ffff;
-  uint32_t status = status_command & 0xffff0000;
+  uint16_t command = pci_read_config(pci, PCIR_COMMAND, 2);
   command |= 0x0003; /* Memory Space enable */
-  status_command = status | command;
-  pci_write_config(pci, 1 * 4, 4, status_command);
+  pci_write_config(pci, PCIR_COMMAND, 2, command);
 
   assert(pci->bar[0].r_flags | RF_PREFETCHABLE);
-  stdvga->mem = pci->bar[0];
-  stdvga->io = pci->bar[1];
+  stdvga->mem = &pci->bar[0];
+  stdvga->io = &pci->bar[1];
 
   /* Switching output resolution is straightforward - but not implemented since
      we don't need it ATM. */
