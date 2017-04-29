@@ -7,8 +7,8 @@
 
 typedef struct stdvga_device {
   pci_device_t *pci_device;
-  resource_t* mem;
-  resource_t* io;
+  resource_t *mem;
+  resource_t *io;
 
   unsigned int width;
   unsigned int height;
