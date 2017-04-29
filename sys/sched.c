@@ -90,10 +90,8 @@ void sched_switch(thread_t *newtd) {
   td->td_nctxsw++;
   newtd->td_nctxsw++;
   realtime_t now = clock_get();
-  td->td_runtime += now - td->td_last_ctxsw;
-  // newtd->td_slptime += now - newtd->td_last_ctxsw;
-  td->td_last_ctxsw = now;
-  newtd->td_last_ctxsw = now;
+  td->td_runtime += now - td->td_last_runtime;
+  newtd->td_last_runtime += now;
   critical_leave();
   ctx_switch(td, newtd);
 }
