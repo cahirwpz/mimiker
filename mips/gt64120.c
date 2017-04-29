@@ -75,6 +75,17 @@ static void gt_pci_write_1(resource_t *handle, unsigned offset, uint8_t value) {
   *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
 }
 
+static uint16_t gt_pci_read_2(resource_t *handle, unsigned offset) {
+  intptr_t addr = handle->r_start + offset;
+  return *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr);
+}
+
+static void gt_pci_write_2(resource_t *handle, unsigned offset,
+                           uint16_t value) {
+  intptr_t addr = handle->r_start + offset;
+  *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
+}
+
 static void gt_pci_read_region_1(resource_t *handle, unsigned offset,
                                  uint8_t *dst, size_t count) {
   uint8_t *src = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle->r_start + offset);
@@ -83,7 +94,7 @@ static void gt_pci_read_region_1(resource_t *handle, unsigned offset,
 }
 
 static void gt_pci_write_region_1(resource_t *handle, unsigned offset,
-                                  uint8_t *src, size_t count) {
+                                  const uint8_t *src, size_t count) {
   uint8_t *dst = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle->r_start + offset);
   for (size_t i = 0; i < count; i++)
     *dst++ = *src++;
@@ -91,6 +102,8 @@ static void gt_pci_write_region_1(resource_t *handle, unsigned offset,
 
 static bus_space_t gt_pci_bus_space = {.read_1 = gt_pci_read_1,
                                        .write_1 = gt_pci_write_1,
+                                       .read_2 = gt_pci_read_2,
+                                       .write_2 = gt_pci_write_2,
                                        .read_region_1 = gt_pci_read_region_1,
                                        .write_region_1 = gt_pci_write_region_1};
 

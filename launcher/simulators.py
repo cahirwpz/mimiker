@@ -63,7 +63,7 @@ class QEMU(Launchable):
 
     def configure(self, **kwargs):
         self.options = ['-nodefaults',
-                        '-vga', 'cirrus',
+                        '-device', 'VGA',
                         '-machine', 'malta',
                         '-cpu', '24Kf',
                         '-kernel', kwargs['kernel'],

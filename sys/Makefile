@@ -32,6 +32,7 @@ SOURCES_C  = \
 	sched.c \
 	sleepq.c \
 	startup.c \
+	stdvga.c \
 	sync.c \
 	sysent.c \
 	mmap.c \

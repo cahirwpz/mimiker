@@ -10,10 +10,13 @@ typedef struct bus_space bus_space_t;
 typedef uint8_t (*bus_space_read_1_t)(resource_t *handle, unsigned offset);
 typedef void (*bus_space_write_1_t)(resource_t *handle, unsigned offset,
                                     uint8_t value);
+typedef uint16_t (*bus_space_read_2_t)(resource_t *handle, unsigned offset);
+typedef void (*bus_space_write_2_t)(resource_t *handle, unsigned offset,
+                                    uint16_t value);
 typedef void (*bus_space_read_region_1_t)(resource_t *handle, unsigned offset,
                                           uint8_t *dst, size_t count);
 typedef void (*bus_space_write_region_1_t)(resource_t *handle, unsigned offset,
-                                           uint8_t *src, size_t count);
+                                           const uint8_t *src, size_t count);
 
 /* `bus space` describes a method to access hardware resources mapped at some
  * address. We make no distinction between different kinds of physical address
@@ -22,6 +25,8 @@ typedef void (*bus_space_write_region_1_t)(resource_t *handle, unsigned offset,
 struct bus_space {
   bus_space_read_1_t read_1;   /* how to read one byte? */
   bus_space_write_1_t write_1; /* how to write one byte? */
+  bus_space_read_2_t read_2;   /* how to read two bytes? */
+  bus_space_write_2_t write_2; /* how to write two bytes? */
   bus_space_read_region_1_t read_region_1;
   bus_space_write_region_1_t write_region_1;
 };
@@ -64,13 +69,22 @@ static inline void bus_space_write_1(resource_t *handle, unsigned offset,
   handle->r_bus_space->write_1(handle, offset, value);
 }
 
+static inline uint16_t bus_space_read_2(resource_t *handle, unsigned offset) {
+  return handle->r_bus_space->read_2(handle, offset);
+}
+
+static inline void bus_space_write_2(resource_t *handle, unsigned offset,
+                                     uint16_t value) {
+  handle->r_bus_space->write_2(handle, offset, value);
+}
+
 static inline void bus_space_read_region_1(resource_t *handle, unsigned offset,
                                            uint8_t *dst, size_t count) {
   return handle->r_bus_space->read_region_1(handle, offset, dst, count);
 }
 
 static inline void bus_space_write_region_1(resource_t *handle, unsigned offset,
-                                            uint8_t *src, size_t count) {
+                                            const uint8_t *src, size_t count) {
   handle->r_bus_space->write_region_1(handle, offset, src, count);
 }
 
