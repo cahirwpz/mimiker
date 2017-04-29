@@ -18,8 +18,9 @@ void prepare_resolution() {
   unsigned int width, height, bpp;
   fscanf(resctrl_file, "%d %d %d", &width, &height, &bpp);
   printf("Current resolution: %dx%d, %d BPP\n", width, height, bpp);
-
-  fprintf(resctrl_file, STR(WIDTH) " " STR(HEIGHT " 8"));
+  /* Write new configuration. */
+  int n = fprintf(resctrl_file, "640 480 8");
+  assert(n > 0);
   fclose(resctrl_file);
 }
 

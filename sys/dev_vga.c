@@ -18,6 +18,7 @@ static int dev_vga_palette_write(vnode_t *v, uio_t *uio) {
 
 static int dev_vga_resolution_write(vnode_t *v, uio_t *uio) {
   vga_device_t *vga = (vga_device_t *)v->v_data;
+  uio->uio_offset = 0; /* This file does not support offsets. */
   uint16_t xres, yres;
   unsigned int bpp;
   int error = vga_get_resolution(vga, &xres, &yres, &bpp);
@@ -27,8 +28,13 @@ static int dev_vga_resolution_write(vnode_t *v, uio_t *uio) {
   error = uiomove_frombuf(buffer, RES_CTRL_BUFFER_SIZE, uio);
   if (error)
     return error;
-  /* TODO: Import SNSCANF! */
-  // snsccanf();
+  /* Not specifying BPP leaves it at current value. */
+  int matches = sscanf(buffer, "%hd %hd %d", &xres, &yres, &bpp);
+  if (matches < 2)
+    return -EINVAL;
+  error = vga_set_resolution(vga, xres, yres, bpp);
+  if (error)
+    return error;
   return 0;
 }
 
