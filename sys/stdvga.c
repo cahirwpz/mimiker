@@ -13,7 +13,7 @@ typedef struct stdvga_device {
   vga_device_t vga;
 } stdvga_device_t;
 
-#define STDVGA_FROM_VGA(vga)                                    \
+#define STDVGA_FROM_VGA(vga)                                                   \
   (stdvga_device_t *)container_of(vga, stdvga_device_t, vga)
 
 /* Detailed information about VGA registers is available at
