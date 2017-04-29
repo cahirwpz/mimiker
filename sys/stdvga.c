@@ -112,7 +112,7 @@ int stdvga_pci_attach(pci_device_t *pci) {
 
   /* TODO: Initialize the pool somewhere else... This assumes "attach" will only
      get called once. */
-  kmalloc_init(stdvga_pool, 32, 32);
+  kmalloc_init(stdvga_pool, 128, 128);
 
   stdvga_device_t *stdvga =
     kmalloc(stdvga_pool, sizeof(stdvga_device_t), M_ZERO);

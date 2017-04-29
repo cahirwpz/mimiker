@@ -22,8 +22,7 @@ SOURCES_C = \
 	thread_exit.c \
 	uiomove.c \
 	vm_map.c \
-	vfs.c \
-	vga.c
+	vfs.c
 
 SOURCES_ASM =
 
