@@ -12,10 +12,10 @@ static int dev_vga_framebuffer_write(vnode_t *v, uio_t *uio) {
 }
 
 /* TODO: Separate palettes per each VGA device! */
-static uint8_t dev_vga_palette_buffer[320 * 200];
+static uint8_t dev_vga_palette_buffer[255 * 3];
 
 static int dev_vga_palette_write(vnode_t *v, uio_t *uio) {
-  int error = uiomove(dev_vga_palette_buffer, 230 * 200, uio);
+  int error = uiomove(dev_vga_palette_buffer, 255 * 3, uio);
   if (error)
     return error;
   /* TODO: It would be more efficient to update just the changed values... */
