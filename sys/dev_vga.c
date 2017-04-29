@@ -7,13 +7,11 @@
 #include <vga.h>
 
 static int dev_vga_framebuffer_write(vnode_t *v, uio_t *uio) {
-  vga_device_t *vga = (vga_device_t *)v->v_data;
-  return vga_fb_write(vga, uio);
+  return vga_fb_write((vga_device_t *)v->v_data, uio);
 }
 
 static int dev_vga_palette_write(vnode_t *v, uio_t *uio) {
-  vga_device_t *vga = (vga_device_t *)v->v_data;
-  return vga_palette_write(vga, uio);
+  return vga_palette_write((vga_device_t *)v->v_data, uio);
 }
 
 vnodeops_t dev_vga_framebuffer_vnodeops = {
@@ -56,6 +54,10 @@ vnodeops_t dev_vga_vnodeops = {
 };
 
 void dev_vga_install(vga_device_t *vga) {
+  static int installed = 0;
+  if (installed++) /* Only a single vga device may be installed at /dev/vga. */
+    return;
+
   vnode_t *dev_vga_device = vnode_new(V_DIR, &dev_vga_vnodeops);
   dev_vga_device->v_data = vga;
   devfs_install("vga", dev_vga_device);

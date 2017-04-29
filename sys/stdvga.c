@@ -1,8 +1,9 @@
 #include <pci.h>
 #include <vga.h>
 #include <stdc.h>
+#include <malloc.h>
 
-#define VGA_PALETTE_SIZE 256 * 3
+#define VGA_PALETTE_SIZE (256 * 3)
 
 typedef struct stdvga_device {
   pci_device_t *pci_device;
@@ -12,7 +13,9 @@ typedef struct stdvga_device {
   unsigned int width;
   unsigned int height;
 
-  uint8_t palette_buffer[VGA_PALETTE_SIZE];
+  uint8_t *palette_buffer;
+  uint8_t *fb_buffer; /* This buffer is only needed because we can't pass uio
+                         directly to the bus. */
 
   vga_device_t vga;
 } stdvga_device_t;
@@ -28,17 +31,17 @@ typedef struct stdvga_device {
 #define VGA_AR_ADDR 0x3C0
 #define VGA_AR_PAS 0x20 /* Palette Address Source bit */
 
-/* Offsets for accessing ioports via PCI BAR1 (MMIO) */
-#define VGA_MMIO_OFFSET (-0x3c0 + 0x400)
-#define VBE_MMIO_OFFSET (0x500)
-
 /* Bochs VBE. Simplifies VGA graphics mode configuration a great deal. Some
    documentation is available at http://wiki.osdev.org/Bochs_VBE_Extensions */
-#define VBE_DISPI_INDEX_XRES 1
-#define VBE_DISPI_INDEX_YRES 2
-#define VBE_DISPI_INDEX_BPP 3
-#define VBE_DISPI_INDEX_ENABLE 4
+#define VBE_DISPI_INDEX_XRES 0x01
+#define VBE_DISPI_INDEX_YRES 0x02
+#define VBE_DISPI_INDEX_BPP 0x03
+#define VBE_DISPI_INDEX_ENABLE 0x04
 #define VBE_DISPI_ENABLED 0x01 /* VBE Enabled bit */
+
+/* Offsets for accessing ioports via PCI BAR1 (MMIO) */
+#define VGA_MMIO_OFFSET (0x400 - 0x3c0)
+#define VBE_MMIO_OFFSET 0x500
 
 /* The general overview of the QEMU std vga device is available at
    https://github.com/qemu/qemu/blob/master/docs/specs/standard-vga.txt */
@@ -62,12 +65,12 @@ static uint16_t stdvga_vbe_read(stdvga_device_t *vga, uint16_t reg) {
   return bus_space_read_2(&vga->io, (reg << 1) + VBE_MMIO_OFFSET);
 }
 
-static void stdvga_palette_write_single(stdvga_device_t *vga, uint8_t offset,
+static void stdvga_palette_write_single(stdvga_device_t *stdvga, uint8_t offset,
                                         uint8_t r, uint8_t g, uint8_t b) {
-  stdvga_io_write(vga, VGA_PALETTE_ADDR, offset);
-  stdvga_io_write(vga, VGA_PALETTE_DATA, r >> 2);
-  stdvga_io_write(vga, VGA_PALETTE_DATA, g >> 2);
-  stdvga_io_write(vga, VGA_PALETTE_DATA, b >> 2);
+  stdvga_io_write(stdvga, VGA_PALETTE_ADDR, offset);
+  stdvga_io_write(stdvga, VGA_PALETTE_DATA, r >> 2);
+  stdvga_io_write(stdvga, VGA_PALETTE_DATA, g >> 2);
+  stdvga_io_write(stdvga, VGA_PALETTE_DATA, b >> 2);
 }
 
 static void stdvga_palette_write_buffer(stdvga_device_t *stdvga,
@@ -87,35 +90,32 @@ static int stdvga_palette_write(vga_device_t *vga, uio_t *uio) {
   return 0;
 }
 
-static void stdvga_fb_write_buffer(stdvga_device_t *vga,
-                                   const uint8_t buf[320 * 200]) {
-  bus_space_write_region_1(&vga->mem, 0, buf, 320 * 240);
-}
-
 static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
   stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
   /* TODO: I'd love to pass the uio to the bus directly, instead of using a
      buffer to write out bytes one by one... */
-  static uint8_t buf[320 * 200];
-  int error = uiomove_frombuf(buf, 320 * 200, uio);
+  int error =
+    uiomove_frombuf(stdvga->fb_buffer, stdvga->width * stdvga->height, uio);
   if (error)
     return error;
-  stdvga_fb_write_buffer(stdvga, buf);
+  bus_space_write_region_1(&stdvga->mem, 0, stdvga->fb_buffer,
+                           stdvga->width * stdvga->height);
   return 0;
 }
 
-/* For now, this is allocated statically, because I don't want to create a
-   memory pool just for a single struct! However, that means we are limited to a
-   single device! */
-static stdvga_device_t the_stdvga;
+MALLOC_DEFINE(stdvga_pool, "stdvga VGA driver pool");
 
 int stdvga_pci_attach(pci_device_t *pci) {
   if (pci->vendor_id != VGA_QEMU_STDVGA_VENDOR_ID ||
       pci->device_id != VGA_QEMU_STDVGA_DEVICE_ID)
     return 0;
 
-  /* TODO: kmalloc */
-  stdvga_device_t *stdvga = &the_stdvga;
+  /* TODO: Initialize the pool somewhere else... This assumes "attach" will only
+     get called once. */
+  kmalloc_init(stdvga_pool, 32, 32);
+
+  stdvga_device_t *stdvga =
+    kmalloc(stdvga_pool, sizeof(stdvga_device_t), M_ZERO);
 
   uint32_t status_command = pci_read_config(pci, 1, 4);
   uint32_t command = status_command & 0x0000ffff;
@@ -128,13 +128,20 @@ int stdvga_pci_attach(pci_device_t *pci) {
   stdvga->mem = pci->bar[0];
   stdvga->io = pci->bar[1];
 
-  /* Currently resolution is not configurable. */
+  /* Switching output resolution is straightforward - but not implemented since
+     we don't need it ATM. */
   stdvga->width = 320;
   stdvga->height = 200;
 
   stdvga->vga = (vga_device_t){
     .palette_write = stdvga_palette_write, .fb_write = stdvga_fb_write,
   };
+
+  /* Prepare buffers */
+  stdvga->palette_buffer =
+    kmalloc(stdvga_pool, sizeof(uint8_t) * VGA_PALETTE_SIZE, M_ZERO);
+  stdvga->fb_buffer = kmalloc(
+    stdvga_pool, sizeof(uint8_t) * stdvga->width * stdvga->height, M_ZERO);
 
   /* Apply resolution */
   stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_XRES, stdvga->width);
