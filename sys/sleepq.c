@@ -102,6 +102,10 @@ void sleepq_wait(void *wchan, const char *wmesg) {
   td->td_sleepqueue = NULL;
   td->td_state = TDS_WAITING;
   sq->sq_nblocked++;
+  realtime_t now = clock_get();
+  td->td_slptime += now - td->td_last_slptime;
+  td->td_last_slptime = now;
+
   sched_yield();
   critical_leave();
 }

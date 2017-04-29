@@ -55,10 +55,12 @@ typedef struct thread {
   /* scheduler part */
   td_prio_t td_prio;
   int td_slice;
-  uint32_t td_runtime;      /* ticks spent running */
-  uint32_t td_slptime;      /* ticks spent sleeping */
-  uint64_t td_nctxsw;       /* total number of context switches */
-  realtime_t td_last_ctxsw; /* last context switch time */
+  uint32_t td_runtime;        /* ticks spent running */
+  realtime_t td_last_runtime; /* time of last switch to running state */
+  uint32_t td_slptime;        /* ticks spent sleeping */
+  realtime_t td_last_slptime; /* time of last switch to sleep state */
+  uint64_t td_nctxsw;         /* total number of context switches */
+  realtime_t td_last_ctxsw;   /* last context switch time */
 } thread_t;
 
 void thread_init();
