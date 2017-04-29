@@ -2,8 +2,11 @@
 #include <vga.h>
 #include <stdc.h>
 #include <malloc.h>
+#include <errno.h>
 
 #define VGA_PALETTE_SIZE (256 * 3)
+
+MALLOC_DEFINE(stdvga_pool, "stdvga VGA driver pool");
 
 typedef struct stdvga_device {
   pci_device_t *pci_device;
@@ -12,11 +15,11 @@ typedef struct stdvga_device {
 
   unsigned int width;
   unsigned int height;
+  unsigned int bpp;
 
   uint8_t *palette_buffer;
   uint8_t *fb_buffer; /* This buffer is only needed because we can't pass uio
                          directly to the bus. */
-
   vga_device_t vga;
 } stdvga_device_t;
 
@@ -90,6 +93,45 @@ static int stdvga_palette_write(vga_device_t *vga, uio_t *uio) {
   return 0;
 }
 
+static int stdvga_get_resolution(vga_device_t *vga, uint16_t *xres,
+                                 uint16_t *yres, unsigned int *bpp) {
+  stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
+  *xres = stdvga->width;
+  *yres = stdvga->height;
+  *bpp = stdvga->bpp;
+  return 0;
+}
+
+static int stdvga_set_resolution(vga_device_t *vga, uint16_t xres,
+                                 uint16_t yres, unsigned int bpp) {
+  stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
+
+  /* I have not tested larger resolutions yet. */
+  if (xres > 640 || yres > 480)
+    return -EINVAL;
+
+  if (bpp != 8 && bpp != 16 && bpp != 24)
+    return -EINVAL;
+
+  stdvga->width = xres;
+  stdvga->height = yres;
+  stdvga->bpp = bpp;
+
+  /* Apply resolution */
+  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_XRES, stdvga->width);
+  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_YRES, stdvga->height);
+
+  /* Set BPP */
+  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_BPP, stdvga->bpp);
+
+  if (stdvga->fb_buffer)
+    kfree(stdvga_pool, stdvga->fb_buffer);
+  stdvga->fb_buffer = kmalloc(
+    stdvga_pool, sizeof(uint8_t) * stdvga->width * stdvga->height, M_ZERO);
+
+  return 0;
+}
+
 static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
   stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
   /* TODO: I'd love to pass the uio to the bus directly, instead of using a
@@ -102,8 +144,6 @@ static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
                            stdvga->width * stdvga->height);
   return 0;
 }
-
-MALLOC_DEFINE(stdvga_pool, "stdvga VGA driver pool");
 
 int stdvga_pci_attach(pci_device_t *pci) {
   if (pci->vendor_id != VGA_QEMU_STDVGA_VENDOR_ID ||
@@ -128,30 +168,22 @@ int stdvga_pci_attach(pci_device_t *pci) {
   stdvga->mem = pci->bar[0];
   stdvga->io = pci->bar[1];
 
-  /* Switching output resolution is straightforward - but not implemented since
-     we don't need it ATM. */
-  stdvga->width = 320;
-  stdvga->height = 200;
-
   stdvga->vga = (vga_device_t){
-    .palette_write = stdvga_palette_write, .fb_write = stdvga_fb_write,
+    .palette_write = stdvga_palette_write,
+    .fb_write = stdvga_fb_write,
+    .get_resolution = stdvga_get_resolution,
+    .set_resolution = stdvga_set_resolution,
   };
 
-  /* Prepare buffers */
+  /* Prepare palette buffer */
   stdvga->palette_buffer =
     kmalloc(stdvga_pool, sizeof(uint8_t) * VGA_PALETTE_SIZE, M_ZERO);
-  stdvga->fb_buffer = kmalloc(
-    stdvga_pool, sizeof(uint8_t) * stdvga->width * stdvga->height, M_ZERO);
-
-  /* Apply resolution */
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_XRES, stdvga->width);
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_YRES, stdvga->height);
 
   /* Enable palette access */
   stdvga_io_write(stdvga, VGA_AR_ADDR, VGA_AR_PAS);
 
-  /* Set 8 BPP */
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_BPP, 8);
+  /* Configure initial resolution. */
+  stdvga_set_resolution(&stdvga->vga, 320, 200, 8);
 
   /* Enable VBE. */
   stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_ENABLE,

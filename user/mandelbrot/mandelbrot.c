@@ -2,13 +2,26 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <assert.h>
+#include <stdio.h>
 #include <unistd.h>
 
-#define WIDTH 320
-#define HEIGHT 200
+#define WIDTH 640
+#define HEIGHT 480
+
+#define STR(x) #x
 
 uint8_t image[WIDTH * HEIGHT];
 uint8_t palette[256 * 3];
+
+void prepare_resolution() {
+  FILE *resctrl_file = fopen("/dev/vga/res_ctrl", "r+b");
+  unsigned int width, height, bpp;
+  fscanf(resctrl_file, "%d %d %d", &width, &height, &bpp);
+  printf("Current resolution: %dx%d, %d BPP\n", width, height, bpp);
+
+  fprintf(resctrl_file, STR(WIDTH) " " STR(HEIGHT " 8"));
+  fclose(resctrl_file);
+}
 
 void prepare_palette() {
   for (unsigned int i = 0; i < 256; i++) {
@@ -19,12 +32,14 @@ void prepare_palette() {
   int palette_handle = open("/dev/vga/palette", O_WRONLY, 0);
   assert(palette_handle > 0);
   write(palette_handle, palette, 256 * 3);
+  close(palette_handle);
 }
 
 void display_image() {
   int fb_handle = open("/dev/vga/fb", O_WRONLY, 0);
   assert(fb_handle > 0);
   write(fb_handle, image, WIDTH * HEIGHT);
+  close(fb_handle);
 }
 
 int f(float re, float im) {
@@ -42,6 +57,7 @@ int f(float re, float im) {
 
 int main() {
 
+  prepare_resolution();
   prepare_palette();
 
   for (unsigned int y = 0; y < HEIGHT; y++) {

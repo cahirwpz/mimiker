@@ -35,6 +35,8 @@ int toascii(int);
    floating-point numbers, see snprintf.c */
 int snprintf(char *str, size_t size, const char *fmt, ...)
   __attribute__((format(printf, 3, 4)));
+int snscanf(char *str, size_t size, const char *fmt, ...)
+  __attribute__((format(scanf, 3, 4)));
 
 /* stdlib.h function prototypes */
 long strtol(const char *nptr, char **endptr, int base);
