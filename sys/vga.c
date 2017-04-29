@@ -15,11 +15,8 @@ void vga_init() {
     /* Try initializing it as an stdvga device. */
     int attach = stdvga_pci_attach(pcidev);
     if (attach)
-      goto found;
+      return;
     /* If we had more drivers, this loop would proceed to the next one and try
        attaching it to the next device. */
   }
-  return;
-
-found:;
 }
