@@ -11,6 +11,7 @@ TIMEOUT = 10
 RETRIES_MAX = 5
 REPEAT = 5
 
+
 # Tries to start gdb in order to investigate kernel state on deadlock.
 def gdb_inspect():
     gdb_command = 'mipsel-unknown-elf-gdb'

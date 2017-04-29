@@ -47,7 +47,7 @@ def configure_ovpsim(args):
     except OSError:
         pass
 
-    options = ['--root', '/dev/null',
+    options = [
                '--nographics',
                '--wallclock',
                '--kernel', args.kernel]
@@ -61,6 +61,10 @@ def configure_ovpsim(args):
     if args.debug:
         options += ['--port', '1234']
 
+    if args.ramdisk:
+        options += ['--ramdisk', args.ramdisk]
+    else:
+        options += ['--root', '/dev/null']
     return options
 
 
@@ -84,6 +88,9 @@ def configure_qemu(args):
 
     if args.debug:
         options += ['-S']
+
+    if args.ramdisk:
+        options += ['-initrd', args.ramdisk]
 
     return options
 
@@ -141,6 +148,8 @@ if __name__ == '__main__':
                               (', '.join(sim_choices.keys()), sim_default)))
     parser.add_argument('-t', '--test', action='store_true',
                         help='Use current stdin & stdout for simulated UART.')
+    parser.add_argument('--ramdisk', default='initrd.cpio',
+                        help='Give initial ramdisk to OVPSim. '),
     parser.add_argument('-s', '--server', action='store_true',
                         help='Start a server for simulated UART (port: %d).' % PORT)
 
