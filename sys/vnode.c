@@ -44,8 +44,10 @@ void vnode_ref(vnode_t *v) {
 void vnode_unref(vnode_t *v) {
   vnode_lock(v);
   v->v_usecnt--;
-  /* TODO: if v_usecnt reaches zero, the vnode should be released */
-  vnode_unlock(v);
+  if (v->v_usecnt == 0)
+    kfree(vnode_pool, v);
+  else
+    vnode_unlock(v);
 }
 
 int vnode_op_notsup() {

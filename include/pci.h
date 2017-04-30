@@ -35,6 +35,8 @@ extern const char *pci_class_code[];
 #define PCIR_VENDORID 0x02
 #define PCIR_STATUS 0x04
 #define PCIR_COMMAND 0x06
+#define PCIM_CMD_PORTEN 0x0001
+#define PCIM_CMD_MEMEN 0x0002
 #define PCIR_CLASSCODE 0x08
 #define PCIR_IRQPIN 0x3e
 #define PCIR_IRQLINE 0x3f
