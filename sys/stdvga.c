@@ -132,8 +132,9 @@ static int stdvga_set_resolution(vga_device_t *vga, uint16_t xres,
 
 static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
   stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
-  /* TODO: I'd love to pass the uio to the bus directly, instead of using a
-     buffer to write out bytes one by one... */
+  /* TODO: Some day `bus_space_map` will be implemented. This will allow to map
+   * RT_MEMORY resource into kernel virtual address space. BUS_SPACE_MAP_LINEAR
+   * would be ideal for frambuffer memory, since we could access it directly. */
   int error =
     uiomove_frombuf(stdvga->fb_buffer, stdvga->width * stdvga->height, uio);
   if (error)
@@ -148,18 +149,22 @@ int stdvga_pci_attach(pci_device_t *pci) {
       pci->device_id != VGA_QEMU_STDVGA_DEVICE_ID)
     return 0;
 
-  /* TODO: Initialize the pool somewhere else... This assumes "attach" will only
-     get called once. */
+  /* TODO: It'd be better to have global memory pool for device drives as *BSD
+   * does with M_DEVBUF, but for now we have to create local one.
+   * XXX: This assumes `stdvga_pci_attach` will only get called once. */
   kmalloc_init(stdvga_pool, 128, 128);
 
   stdvga_device_t *stdvga =
     kmalloc(stdvga_pool, sizeof(stdvga_device_t), M_ZERO);
 
+  /* TODO: Enabling PCI regions should probably be performed by PCI bus resource
+   * reservation code. */
   uint16_t command = pci_read_config(pci, PCIR_COMMAND, 2);
-  command |= 0x0003; /* Memory Space enable */
+  command |= PCIM_CMD_PORTEN | PCIM_CMD_MEMEN;
   pci_write_config(pci, PCIR_COMMAND, 2, command);
 
   assert(pci->bar[0].r_flags | RF_PREFETCHABLE);
+  /* TODO: This will get replaced by bus_alloc_resource* function */
   stdvga->mem = &pci->bar[0];
   stdvga->io = &pci->bar[1];
 
@@ -173,6 +178,10 @@ int stdvga_pci_attach(pci_device_t *pci) {
   /* Prepare palette buffer */
   stdvga->palette_buffer =
     kmalloc(stdvga_pool, sizeof(uint8_t) * VGA_PALETTE_SIZE, M_ZERO);
+
+  /* Apply resolution */
+  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_XRES, stdvga->width);
+  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_YRES, stdvga->height);
 
   /* Enable palette access */
   stdvga_io_write(stdvga, VGA_AR_ADDR, VGA_AR_PAS);
