@@ -19,7 +19,7 @@
 
 extern void main(void *);
 
-/* TODO: This probably deserves some header. */
+/* TODO: Does this deserve a new header file? */
 extern void kbd_init();
 
 int kernel_init(int argc, char **argv) {
