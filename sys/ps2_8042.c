@@ -83,7 +83,7 @@ static void kbd_reader_thread(void *arg) {
     uint8_t code, code2 = 0;
     /* See if there is data to read. */
     uint8_t status = bus_space_read_1(ioports, PS2_STATUS);
-    if(!(status & PS2_STATUS_IN_BUF_STATUS)){
+    if (!(status & PS2_STATUS_IN_BUF_STATUS)) {
       /* No data is available. Yield to save CPU time. */
       sched_yield();
       continue;
