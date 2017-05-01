@@ -13,15 +13,15 @@
 uint8_t image[WIDTH * HEIGHT];
 uint8_t palette[256 * 3];
 
-void prepare_resolution() {
-  FILE *resctrl_file = fopen("/dev/vga/res_ctrl", "r+b");
+void prepare_videomode() {
+  FILE *videomode_file = fopen("/dev/vga/videomode", "r+b");
   unsigned int width, height, bpp;
-  fscanf(resctrl_file, "%d %d %d", &width, &height, &bpp);
+  fscanf(videomode_file, "%d %d %d", &width, &height, &bpp);
   printf("Current resolution: %dx%d, %d BPP\n", width, height, bpp);
   /* Write new configuration. */
-  int n = fprintf(resctrl_file, "640 480 8");
+  int n = fprintf(videomode_file, "640 480 8");
   assert(n > 0);
-  fclose(resctrl_file);
+  fclose(videomode_file);
 }
 
 void prepare_palette() {
@@ -58,7 +58,7 @@ int f(float re, float im) {
 
 int main() {
 
-  prepare_resolution();
+  prepare_videomode();
   prepare_palette();
 
   for (unsigned int y = 0; y < HEIGHT; y++) {

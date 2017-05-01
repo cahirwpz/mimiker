@@ -8,16 +8,16 @@ typedef struct vga_device vga_device_t;
 
 typedef int (*vga_palette_write_t)(vga_device_t *vga, uio_t *uio);
 typedef int (*vga_fb_write_t)(vga_device_t *vga, uio_t *uio);
-typedef int (*vga_get_resolution_t)(vga_device_t *vga, uint16_t *xres,
-                                    uint16_t *yres, unsigned int *bpp);
-typedef int (*vga_set_resolution_t)(vga_device_t *vga, uint16_t xres,
-                                    uint16_t yres, unsigned int bpp);
+typedef int (*vga_get_videomode_t)(vga_device_t *vga, unsigned *xres,
+                                    unsigned *yres, unsigned *bpp);
+typedef int (*vga_set_videomode_t)(vga_device_t *vga, unsigned xres,
+                                    unsigned yres, unsigned bpp);
 
 typedef struct vga_device {
   vga_palette_write_t palette_write;
   vga_fb_write_t fb_write;
-  vga_get_resolution_t get_resolution;
-  vga_set_resolution_t set_resolution;
+  vga_get_videomode_t get_videomode;
+  vga_set_videomode_t set_videomode;
 } vga_device_t;
 
 /* Normally this function wouldn't need to exist, as PCI driver attachment would
@@ -33,13 +33,13 @@ static inline int vga_fb_write(vga_device_t *vga, uio_t *uio) {
 static inline int vga_palette_write(vga_device_t *vga, uio_t *uio) {
   return vga->palette_write(vga, uio);
 }
-static inline int vga_get_resolution(vga_device_t *vga, uint16_t *xres,
-                                     uint16_t *yres, unsigned int *bpp) {
-  return vga->get_resolution(vga, xres, yres, bpp);
+static inline int vga_get_videomode(vga_device_t *vga, unsigned *xres,
+                                     unsigned *yres, unsigned *bpp) {
+  return vga->get_videomode(vga, xres, yres, bpp);
 }
-static inline int vga_set_resolution(vga_device_t *vga, uint16_t xres,
-                                     uint16_t yres, unsigned int bpp) {
-  return vga->set_resolution(vga, xres, yres, bpp);
+static inline int vga_set_videomode(vga_device_t *vga, unsigned xres,
+                                     unsigned yres, unsigned bpp) {
+  return vga->set_videomode(vga, xres, yres, bpp);
 }
 
 #endif /* _SYS_VGA_H_ */
