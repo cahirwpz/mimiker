@@ -81,6 +81,13 @@ static void kbd_reader_thread(void *arg) {
        thread would interfere with commands/responses. */
     /* TODO: This should be driven with an interrupt. */
     uint8_t code, code2 = 0;
+    /* See if there is data to read. */
+    uint8_t status = bus_space_read_1(ioports, PS2_STATUS);
+    if(!(status & PS2_STATUS_IN_BUF_STATUS)){
+      /* No data is available. Yield to save CPU time. */
+      sched_yield();
+      continue;
+    }
     code = ps2_dev1_read_byte();
     int is_extended = (code == 0xe0); /* Extended scancode. */
 
