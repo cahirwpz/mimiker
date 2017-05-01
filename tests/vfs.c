@@ -41,7 +41,6 @@ static int test_vfs() {
   assert(dev_zero->v_usecnt == 1);
 
   uio_t uio;
-  iovec_t iov;
   int res = 0;
   char buffer[100];
   memset(buffer, '=', sizeof(buffer));
