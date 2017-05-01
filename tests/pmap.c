@@ -4,8 +4,11 @@
 #include <physmem.h>
 #include <vm.h>
 #include <ktest.h>
+#include <sync.h>
 
 static int test_kernel_pmap() {
+  critical_enter();
+
   pmap_t *pmap = get_kernel_pmap();
 
   vm_page_t *pg = pm_alloc(16);
@@ -42,10 +45,14 @@ static int test_kernel_pmap() {
   pm_free(pg);
 
   log("Test passed.");
+
+  critical_leave();
   return KTEST_SUCCESS;
 }
 
 static int test_user_pmap() {
+  critical_enter();
+
   pmap_t *orig = get_user_pmap();
 
   pmap_t *pmap1 = pmap_new();
@@ -80,6 +87,8 @@ static int test_user_pmap() {
   pmap_activate(orig);
 
   log("Test passed.");
+
+  critical_leave();
   return KTEST_SUCCESS;
 }
 
