@@ -40,41 +40,27 @@ static int test_vfs() {
   vnode_unref(dev_zero);
   assert(dev_zero->v_usecnt == 1);
 
-  uio_t uio;
-  iovec_t iov;
   int res = 0;
+  uio_single_t uio;
+
   char buffer[100];
   memset(buffer, '=', sizeof(buffer));
 
   /* Perform a READ test on /dev/zero, cleaning buffer. */
-  uio.uio_op = UIO_READ;
-  uio.uio_vmspace = get_kernel_vm_map();
-  iov.iov_base = buffer;
-  iov.iov_len = sizeof(buffer);
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_offset = 0;
-  uio.uio_resid = sizeof(buffer);
+  make_uio_kernel(&uio, UIO_READ, buffer, sizeof(buffer), 0);
 
-  res = VOP_READ(dev_zero, &uio);
+  res = VOP_READ(dev_zero, &uio.uio);
   assert(res == 0);
   assert(buffer[1] == 0 && buffer[10] == 0);
-  assert(uio.uio_resid == 0);
+  assert(uio.uio.uio_resid == 0);
 
   /* Now write some data to /dev/null */
-  uio.uio_op = UIO_WRITE;
-  uio.uio_vmspace = get_kernel_vm_map();
-  iov.iov_base = buffer;
-  iov.iov_len = sizeof(buffer);
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_offset = 0;
-  uio.uio_resid = sizeof(buffer);
+  make_uio_kernel(&uio, UIO_WRITE, buffer, sizeof(buffer), 0);
 
   assert(dev_null != 0);
-  res = VOP_WRITE(dev_null, &uio);
+  res = VOP_WRITE(dev_null, &uio.uio);
   assert(res == 0);
-  assert(uio.uio_resid == 0);
+  assert(uio.uio.uio_resid == 0);
 
   /* Test writing to UART */
   vnode_t *dev_cons;
@@ -82,16 +68,9 @@ static int test_vfs() {
   assert(error == 0);
   char *str = "Some string for testing UART write\n";
 
-  uio.uio_op = UIO_WRITE;
-  uio.uio_vmspace = get_kernel_vm_map();
-  iov.iov_base = str;
-  iov.iov_len = strlen(str);
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_offset = 0;
-  uio.uio_resid = iov.iov_len;
+  make_uio_kernel(&uio, UIO_WRITE, str, strlen(str), 0);
 
-  res = VOP_WRITE(dev_cons, &uio);
+  res = VOP_WRITE(dev_cons, &uio.uio);
   assert(res == 0);
 
   return KTEST_SUCCESS;

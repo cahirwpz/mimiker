@@ -12,20 +12,10 @@ static void dump_file(const char *path) {
 
   char buffer[1000];
   memset(buffer, '\0', sizeof(buffer));
-  uio_t uio;
-  iovec_t iov;
-  uio.uio_op = UIO_READ;
 
-  /* Read entire file - even too much. */
-  uio.uio_iovcnt = 1;
-  uio.uio_vmspace = get_kernel_vm_map();
-  uio.uio_iov = &iov;
-  uio.uio_offset = 0;
-  iov.iov_base = buffer;
-  iov.iov_len = sizeof(buffer);
-  uio.uio_resid = sizeof(buffer);
-
-  res = VOP_READ(v, &uio);
+  uio_single_t uio;
+  make_uio_kernel(&uio, UIO_READ, buffer, sizeof(buffer), 0);
+  res = VOP_READ(v, &uio.uio);
 
   kprintf("file %s:\n%s\n", path, buffer);
 }

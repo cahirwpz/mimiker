@@ -41,24 +41,16 @@ int do_exec(const exec_args_t *args) {
   }
 
   Elf32_Ehdr eh;
-  uio_t uio;
-  iovec_t iov;
+  uio_single_t uio;
 
   /* Read elf header. */
-  uio.uio_op = UIO_READ;
-  uio.uio_vmspace = get_kernel_vm_map();
-  iov.iov_base = &eh;
-  iov.iov_len = sizeof(Elf32_Ehdr);
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_offset = 0;
-  uio.uio_resid = sizeof(Elf32_Ehdr);
-  error = VOP_READ(elf_vnode, &uio);
+  make_uio_kernel(&uio, UIO_READ, &eh, sizeof(eh), 0);
+  error = VOP_READ(elf_vnode, &uio.uio);
   if (error < 0) {
     log("Exec failed: Elf file reading failed.");
     return error;
   }
-  assert(uio.uio_resid == 0);
+  assert(uio.uio.uio_resid == 0);
 
   /* Start by determining the validity of the elf file. */
 
@@ -119,20 +111,13 @@ int do_exec(const exec_args_t *args) {
   char phs[phs_size];
 
   /* Read program headers. */
-  uio.uio_op = UIO_READ;
-  uio.uio_vmspace = get_kernel_vm_map();
-  iov.iov_base = &phs;
-  iov.iov_len = phs_size;
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_offset = eh.e_phoff;
-  uio.uio_resid = phs_size;
-  error = VOP_READ(elf_vnode, &uio);
+  make_uio_kernel(&uio, UIO_READ, &phs, phs_size, eh.e_phoff);
+  error = VOP_READ(elf_vnode, &uio.uio);
   if (error < 0) {
     log("Exec failed: Elf file reading failed.");
     return error;
   }
-  assert(uio.uio_resid == 0);
+  assert(uio.uio.uio_resid == 0);
 
   for (uint8_t i = 0; i < eh.e_phnum; i++) {
     const Elf32_Phdr *ph = (Elf32_Phdr *)(phs + i * eh.e_phentsize);
@@ -181,20 +166,14 @@ int do_exec(const exec_args_t *args) {
            vm_object associated with the elf vnode, create a shadow vm_object on
            top of it using correct size/offset, and we would use it to page the
            file contents on demand. But we don't have a vnode_pager yet. */
-        uio.uio_op = UIO_READ;
-        uio.uio_vmspace = get_kernel_vm_map();
-        iov.iov_base = (char *)start;
-        iov.iov_len = ph->p_filesz;
-        uio.uio_iovcnt = 1;
-        uio.uio_iov = &iov;
-        uio.uio_offset = ph->p_offset;
-        uio.uio_resid = ph->p_filesz;
-        error = VOP_READ(elf_vnode, &uio);
+        make_uio_kernel(&uio, UIO_READ, (char *)start, ph->p_filesz,
+                        ph->p_offset);
+        error = VOP_READ(elf_vnode, &uio.uio);
         if (error < 0) {
           log("Exec failed: Elf file reading failed.");
           goto exec_fail;
         }
-        assert(uio.uio_resid == 0);
+        assert(uio.uio.uio_resid == 0);
 
         /* Zero the rest */
         if (ph->p_filesz < ph->p_memsz) {

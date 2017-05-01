@@ -84,3 +84,24 @@ int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio) {
 
   return (uiomove((char *)buf + offset, buflen - offset, uio));
 }
+
+void make_uio(uio_single_t *uio, uio_op_t op, vm_map_t *vm_map, void *buf,
+              size_t count, off_t offset) {
+  *uio = (uio_single_t){{.uio_iov = &uio->iov,
+                         .uio_iovcnt = 1,
+                         .uio_offset = offset,
+                         .uio_resid = count,
+                         .uio_op = op,
+                         .uio_vmspace = vm_map},
+                        {buf, count}};
+}
+
+void make_uio_kernel(uio_single_t *uio, uio_op_t op, void *buf, size_t count,
+                     off_t offset) {
+  make_uio(uio, op, get_kernel_vm_map(), buf, count, offset);
+}
+
+void make_uio_user(uio_single_t *uio, uio_op_t op, void *buf, size_t count,
+                   off_t offset) {
+  make_uio(uio, op, get_user_vm_map(), buf, count, offset);
+}

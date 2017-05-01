@@ -118,21 +118,13 @@ int sys_read(thread_t *td, syscall_args_t *args) {
 
   log("sys_read(%d, %p, %zu)", fd, ubuf, count);
 
-  uio_t uio;
-  iovec_t iov;
-  uio.uio_op = UIO_READ;
-  uio.uio_vmspace = get_user_vm_map();
-  iov.iov_base = ubuf;
-  iov.iov_len = count;
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_resid = count;
-  uio.uio_offset = 0;
+  uio_single_t uio;
+  make_uio_user(&uio, UIO_READ, ubuf, count, 0);
 
-  int error = do_read(td, fd, &uio);
+  int error = do_read(td, fd, &uio.uio);
   if (error)
     return error;
-  return count - uio.uio_resid;
+  return count - uio.uio.uio_resid;
 }
 
 int sys_write(thread_t *td, syscall_args_t *args) {
@@ -142,21 +134,13 @@ int sys_write(thread_t *td, syscall_args_t *args) {
 
   log("sys_write(%d, %p, %zu)", fd, ubuf, count);
 
-  uio_t uio;
-  iovec_t iov;
-  uio.uio_op = UIO_WRITE;
-  uio.uio_vmspace = get_user_vm_map();
-  iov.iov_base = ubuf;
-  iov.iov_len = count;
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_resid = count;
-  uio.uio_offset = 0;
+  uio_single_t uio;
+  make_uio_user(&uio, UIO_WRITE, ubuf, count, 0);
 
-  int error = do_write(td, fd, &uio);
+  int error = do_write(td, fd, &uio.uio);
   if (error)
     return error;
-  return count - uio.uio_resid;
+  return count - uio.uio.uio_resid;
 }
 
 int sys_lseek(thread_t *td, syscall_args_t *args) {
