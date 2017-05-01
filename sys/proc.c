@@ -40,3 +40,13 @@ void proc_add_thread(proc_t *p, thread_t *td) {
   td->td_proc = p;
   TAILQ_INSERT_TAIL(&p->p_threads, td, td_procthreadq);
 }
+
+proc_t *proc_get_by_pid(pid_t pid) {
+  proc_t *p = NULL;
+  mtx_scoped_lock(&all_proc_list_mtx);
+  TAILQ_FOREACH (p, &all_proc_list, p_all) {
+    if (p->p_pid == pid)
+      break;
+  }
+  return p;
+}
