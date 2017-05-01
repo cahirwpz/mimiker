@@ -47,31 +47,15 @@ static int test_vfs() {
   memset(buffer, '=', sizeof(buffer));
 
   /* Perform a READ test on /dev/zero, cleaning buffer. */
-  uio.uio_op = UIO_READ;
-  uio.uio_vmspace = get_kernel_vm_map();
-  iov.iov_base = buffer;
-  iov.iov_len = sizeof(buffer);
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_offset = 0;
-  uio.uio_resid = sizeof(buffer);
-
+  uio = UIO_SINGLE_KERNEL(UIO_READ, 0, buffer, sizeof(buffer));
   res = VOP_READ(dev_zero, &uio);
   assert(res == 0);
   assert(buffer[1] == 0 && buffer[10] == 0);
   assert(uio.uio_resid == 0);
 
   /* Now write some data to /dev/null */
-  uio.uio_op = UIO_WRITE;
-  uio.uio_vmspace = get_kernel_vm_map();
-  iov.iov_base = buffer;
-  iov.iov_len = sizeof(buffer);
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_offset = 0;
-  uio.uio_resid = sizeof(buffer);
-
   assert(dev_null != 0);
+  uio = UIO_SINGLE_KERNEL(UIO_WRITE, 0, buffer, sizeof(buffer));
   res = VOP_WRITE(dev_null, &uio);
   assert(res == 0);
   assert(uio.uio_resid == 0);
@@ -82,15 +66,7 @@ static int test_vfs() {
   assert(error == 0);
   char *str = "Some string for testing UART write\n";
 
-  uio.uio_op = UIO_WRITE;
-  uio.uio_vmspace = get_kernel_vm_map();
-  iov.iov_base = str;
-  iov.iov_len = strlen(str);
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_offset = 0;
-  uio.uio_resid = iov.iov_len;
-
+  uio = UIO_SINGLE_KERNEL(UIO_WRITE, 0, str, strlen(str));
   res = VOP_WRITE(dev_cons, &uio);
   assert(res == 0);
 
