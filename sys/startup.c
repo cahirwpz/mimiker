@@ -16,6 +16,7 @@
 #include <devfs.h>
 #include <initrd.h>
 #include <vga.h>
+#include <proc.h>
 
 extern void main(void *);
 
@@ -38,6 +39,7 @@ int kernel_init(int argc, char **argv) {
   vfs_init();
   file_init();
   fd_init();
+  proc_init();
 
   vga_init();
 

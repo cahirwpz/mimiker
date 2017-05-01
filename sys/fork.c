@@ -5,6 +5,7 @@
 #include <sched.h>
 #include <stdc.h>
 #include <vm_map.h>
+#include <proc.h>
 
 int do_fork() {
   thread_t *td = thread_self();
@@ -49,7 +50,12 @@ int do_fork() {
 
   newtd->td_prio = td->td_prio;
 
+  /* Now, prepare a new process. */
+  assert(td->td_proc);
+  proc_t *proc = proc_create();
+  proc_add_thread(proc, newtd);
+
   sched_add(newtd);
 
-  return newtd->td_tid;
+  return proc->p_pid;
 }
