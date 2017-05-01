@@ -4,6 +4,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <assert.h>
 #include <sys/mman.h>
 
@@ -71,12 +72,24 @@ void mmap_test() {
   memset(addr, -1, 99);
 }
 
+void kbd_test() {
+  int scfd = open("/dev/scancode", O_RDONLY, 0);
+  while (1) {
+    uint8_t buf[100];
+    unsigned n = read(scfd, buf, 100);
+    for (unsigned i = 0; i < n; i++) {
+      printf("Scancode: %x\n", (int)buf[i]);
+    }
+  }
+}
+
 int main(int argc, char **argv) {
   if (argc >= 2 && strcmp(argv[1], "abort_test") == 0)
     assert(0);
 
   sbrk_test();
   mmap_test();
+  // kbd_test();
 
   /* Test some libstd functions. They will mostly fail, because many system
      calls are not implemented yet, but at least printf works!*/
