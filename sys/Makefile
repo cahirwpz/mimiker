@@ -8,6 +8,7 @@ SOURCES_C  = \
 	console.c \
 	dev_cons.c \
 	dev_null.c \
+	dev_vga.c \
 	devfs.c \
 	exception.c \
 	exec.c \
@@ -31,11 +32,13 @@ SOURCES_C  = \
 	sched.c \
 	sleepq.c \
 	startup.c \
+	stdvga.c \
 	sync.c \
 	sysent.c \
 	mmap.c \
 	thread.c \
 	uio.c \
+	vga.c \
 	vfs.c \
 	vfs_syscalls.c \
 	vm_map.c \

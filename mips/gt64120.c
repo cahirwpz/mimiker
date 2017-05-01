@@ -65,12 +65,56 @@ static void gt_pci_write_config(pci_device_t *dev, unsigned reg, unsigned size,
   PCI0_CFG_DATA_R = data.dword;
 }
 
+static uint8_t gt_pci_read_1(resource_t *handle, unsigned offset) {
+  intptr_t addr = handle->r_start + offset;
+  return *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(addr);
+}
+
+static void gt_pci_write_1(resource_t *handle, unsigned offset, uint8_t value) {
+  intptr_t addr = handle->r_start + offset;
+  *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
+}
+
+static uint16_t gt_pci_read_2(resource_t *handle, unsigned offset) {
+  intptr_t addr = handle->r_start + offset;
+  return *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr);
+}
+
+static void gt_pci_write_2(resource_t *handle, unsigned offset,
+                           uint16_t value) {
+  intptr_t addr = handle->r_start + offset;
+  *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
+}
+
+static void gt_pci_read_region_1(resource_t *handle, unsigned offset,
+                                 uint8_t *dst, size_t count) {
+  uint8_t *src = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle->r_start + offset);
+  for (size_t i = 0; i < count; i++)
+    *dst++ = *src++;
+}
+
+static void gt_pci_write_region_1(resource_t *handle, unsigned offset,
+                                  const uint8_t *src, size_t count) {
+  uint8_t *dst = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle->r_start + offset);
+  for (size_t i = 0; i < count; i++)
+    *dst++ = *src++;
+}
+
+static bus_space_t gt_pci_bus_space = {.read_1 = gt_pci_read_1,
+                                       .write_1 = gt_pci_write_1,
+                                       .read_2 = gt_pci_read_2,
+                                       .write_2 = gt_pci_write_2,
+                                       .read_region_1 = gt_pci_read_region_1,
+                                       .write_region_1 = gt_pci_write_region_1};
+
 static pci_bus_t gt_pci_bus = {.read_config = gt_pci_read_config,
                                .write_config = gt_pci_write_config};
-static resource_t gt_pci_memory = {.r_type = RT_MEMORY,
+static resource_t gt_pci_memory = {.r_bus_space = &gt_pci_bus_space,
+                                   .r_type = RT_MEMORY,
                                    .r_start = MALTA_PCI0_MEMORY_BASE,
                                    .r_end = MALTA_PCI0_MEMORY_END};
-static resource_t gt_pci_ioports = {.r_type = RT_IOPORTS,
+static resource_t gt_pci_ioports = {.r_bus_space = &gt_pci_bus_space,
+                                    .r_type = RT_IOPORTS,
                                     .r_start = MALTA_PCI0_IO_BASE,
                                     .r_end = MALTA_PCI0_IO_END};
 pci_bus_device_t gt_pci = {.bus = &gt_pci_bus,

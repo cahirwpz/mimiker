@@ -15,6 +15,7 @@
 #include <mount.h>
 #include <devfs.h>
 #include <initrd.h>
+#include <vga.h>
 
 extern void main(void *);
 
@@ -37,6 +38,8 @@ int kernel_init(int argc, char **argv) {
   vfs_init();
   file_init();
   fd_init();
+
+  vga_init();
 
   kprintf("[startup] kernel initialized\n");
 
