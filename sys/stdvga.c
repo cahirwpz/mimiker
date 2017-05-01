@@ -92,7 +92,7 @@ static int stdvga_palette_write(vga_device_t *vga, uio_t *uio) {
 }
 
 static int stdvga_get_videomode(vga_device_t *vga, unsigned *xres,
-                                 unsigned *yres, unsigned *bpp) {
+                                unsigned *yres, unsigned *bpp) {
   stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
   *xres = stdvga->width;
   *yres = stdvga->height;
@@ -100,8 +100,8 @@ static int stdvga_get_videomode(vga_device_t *vga, unsigned *xres,
   return 0;
 }
 
-static int stdvga_set_videomode(vga_device_t *vga, unsigned xres,
-                                 unsigned yres, unsigned bpp) {
+static int stdvga_set_videomode(vga_device_t *vga, unsigned xres, unsigned yres,
+                                unsigned bpp) {
   stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
 
   /* Impose some reasonable resolution limit. As long as we have to use an

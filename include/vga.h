@@ -9,9 +9,9 @@ typedef struct vga_device vga_device_t;
 typedef int (*vga_palette_write_t)(vga_device_t *vga, uio_t *uio);
 typedef int (*vga_fb_write_t)(vga_device_t *vga, uio_t *uio);
 typedef int (*vga_get_videomode_t)(vga_device_t *vga, unsigned *xres,
-                                    unsigned *yres, unsigned *bpp);
+                                   unsigned *yres, unsigned *bpp);
 typedef int (*vga_set_videomode_t)(vga_device_t *vga, unsigned xres,
-                                    unsigned yres, unsigned bpp);
+                                   unsigned yres, unsigned bpp);
 
 typedef struct vga_device {
   vga_palette_write_t palette_write;
@@ -34,11 +34,11 @@ static inline int vga_palette_write(vga_device_t *vga, uio_t *uio) {
   return vga->palette_write(vga, uio);
 }
 static inline int vga_get_videomode(vga_device_t *vga, unsigned *xres,
-                                     unsigned *yres, unsigned *bpp) {
+                                    unsigned *yres, unsigned *bpp) {
   return vga->get_videomode(vga, xres, yres, bpp);
 }
 static inline int vga_set_videomode(vga_device_t *vga, unsigned xres,
-                                     unsigned yres, unsigned bpp) {
+                                    unsigned yres, unsigned bpp) {
   return vga->set_videomode(vga, xres, yres, bpp);
 }
 
