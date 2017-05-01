@@ -26,6 +26,7 @@ SOURCES_C  = \
 	pcpu.c \
 	physmem.c \
 	pool.c \
+	ps2_8042.c \
 	runq.c \
 	rwlock.c \
 	sbrk.c \

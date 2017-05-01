@@ -19,6 +19,9 @@
 
 extern void main(void *);
 
+/* TODO: This probably deserves some header. */
+extern void kbd_init();
+
 int kernel_init(int argc, char **argv) {
   kprintf("Kernel arguments (%d): ", argc);
   for (int i = 0; i < argc; i++)
@@ -39,6 +42,7 @@ int kernel_init(int argc, char **argv) {
   file_init();
   fd_init();
 
+  kbd_init();
   vga_init();
 
   kprintf("[startup] kernel initialized\n");
