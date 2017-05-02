@@ -2,27 +2,36 @@
 #define _SYS_DEVICE_H_
 
 #include <queue.h>
-#include <uio.h>
 
 typedef struct device device_t;
+typedef struct driver driver_t;
+typedef TAILQ_HEAD(, device) device_list_t;
 
-typedef int d_open_t(device_t *dev, int oflags);
-typedef int d_close_t(device_t *dev);
-typedef int d_read_t(device_t *dev, uio_t *uio, int ioflag);
-typedef int d_write_t(device_t *dev, uio_t *uio, int ioflag);
+typedef void (*d_identify_t)(driver_t *driver, device_t *parent);
+typedef int (*d_probe_t)(device_t *dev);
+typedef int (*d_attach_t)(device_t *dev);
+typedef int (*d_detach_t)(device_t *dev);
+
+struct driver {
+  d_identify_t identify; /* add new device to bus */
+  d_probe_t probe;       /* probe for specific device(s) */
+  d_attach_t attach;     /* attach device to system */
+  d_detach_t detach;     /* detach device from system */
+  size_t state_size;     /* device->state object size */
+};
 
 struct device {
-  LIST_ENTRY(device) d_list;
-  unsigned d_flags;
-  uint8_t d_major;
-  uint8_t d_minor;
-  const char *d_name;
+  /* Device hierarchy. */
+  device_t *parent;        /* parent node (bus?) or null (root or pseudo-dev) */
+  TAILQ_ENTRY(device) all; /* node on list of all devices */
+  TAILQ_ENTRY(device) link; /* node on list of siblings */
+  device_list_t children;   /* head of children devices */
 
-  /* device switch table */
-  d_open_t *d_open;
-  d_close_t *d_close;
-  d_read_t *d_read;
-  d_write_t *d_write;
+  /* Device information and state. */
+  char *nameunit; /* name+unit e.g. tty0 */
+  char *desc;     /* description (set by driver code?) */
+  driver_t *driver;
+  void *state; /* memory requested by driver */
 };
 
 #endif /* _SYS_DEVICE_H_ */
