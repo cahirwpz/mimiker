@@ -49,8 +49,6 @@ typedef struct thread {
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
   vm_map_t *td_uspace; /* thread's user space map */
-  /* file descriptors table */
-  fdtab_t *td_fdtable;
   /* waiting channel */
   sleepq_t *td_sleepqueue;
   void *td_wchan;
