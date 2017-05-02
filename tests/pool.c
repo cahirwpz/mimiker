@@ -17,9 +17,8 @@ static void int_ctor(void *buf) {
 static int test_pool_alloc(palloc_test_t flag) {
   pool_t test;
 
-  MALLOC_DEFINE(mp, "memory pool for testing pooled memory allocator");
-
-  kmalloc_init(mp, 1, 1);
+  kmem_pool_t *mp = KMEM_POOL("test", 1, 2);
+  kmem_init(mp);
 
   int size = 64;
   pool_init(&test, size, int_ctor, NULL);
@@ -46,6 +45,7 @@ static int test_pool_alloc(palloc_test_t flag) {
    * uncomment at your own risk! */
   pool_destroy(&test);
 #endif
+  kmem_destroy(mp);
   return KTEST_SUCCESS;
 }
 
