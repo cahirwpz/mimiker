@@ -2,7 +2,7 @@
 #include <malloc.h>
 #include <thread.h>
 
-static MALLOC_DEFINE(proc_pool, "proc pool");
+static MALLOC_DEFINE(M_PROC, "proc", 1, 2);
 
 static mtx_t all_proc_list_mtx;
 static proc_list_t all_proc_list;
@@ -11,7 +11,6 @@ static mtx_t last_pid_mtx;
 static pid_t last_pid;
 
 void proc_init() {
-  kmalloc_init(proc_pool, 2, 2);
   mtx_init(&all_proc_list_mtx, MTX_DEF);
   TAILQ_INIT(&all_proc_list);
   mtx_init(&last_pid_mtx, MTX_DEF);
@@ -19,7 +18,7 @@ void proc_init() {
 }
 
 proc_t *proc_create() {
-  proc_t *proc = kmalloc(proc_pool, sizeof(proc_t), M_ZERO);
+  proc_t *proc = kmalloc(M_PROC, sizeof(proc_t), M_ZERO);
   mtx_init(&proc->p_lock, MTX_DEF);
   TAILQ_INIT(&proc->p_threads);
 

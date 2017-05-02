@@ -48,8 +48,6 @@ typedef struct thread {
   intptr_t td_onfault;    /* program counter for copyin/copyout faults */
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
-  /* file descriptors table */
-  fdtab_t *td_fdtable;
   /* waiting channel */
   sleepq_t *td_sleepqueue;
   void *td_wchan;

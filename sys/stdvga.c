@@ -6,7 +6,9 @@
 
 #define VGA_PALETTE_SIZE (256 * 3)
 
-MALLOC_DEFINE(stdvga_pool, "stdvga VGA driver pool");
+/* TODO: It'd be better to have global memory pool for device drives as *BSD
+ * does with M_DEVBUF, but for now we have to create local one. */
+MALLOC_DEFINE(M_STDVGA, "stdvga", 128, 256);
 
 typedef struct stdvga_device {
   pci_device_t *pci_device;
@@ -125,9 +127,9 @@ static int stdvga_set_videomode(vga_device_t *vga, unsigned xres, unsigned yres,
   stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_BPP, stdvga->bpp);
 
   if (stdvga->fb_buffer)
-    kfree(stdvga_pool, stdvga->fb_buffer);
-  stdvga->fb_buffer = kmalloc(
-    stdvga_pool, sizeof(uint8_t) * stdvga->width * stdvga->height, M_ZERO);
+    kfree(M_STDVGA, stdvga->fb_buffer);
+  stdvga->fb_buffer =
+    kmalloc(M_STDVGA, sizeof(uint8_t) * stdvga->width * stdvga->height, M_ZERO);
 
   return 0;
 }
@@ -151,13 +153,8 @@ int stdvga_pci_attach(pci_device_t *pci) {
       pci->device_id != VGA_QEMU_STDVGA_DEVICE_ID)
     return 0;
 
-  /* TODO: It'd be better to have global memory pool for device drives as *BSD
-   * does with M_DEVBUF, but for now we have to create local one.
-   * XXX: This assumes `stdvga_pci_attach` will only get called once. */
-  kmalloc_init(stdvga_pool, 128, 256);
-
-  stdvga_device_t *stdvga =
-    kmalloc(stdvga_pool, sizeof(stdvga_device_t), M_ZERO);
+  /* XXX: This assumes `stdvga_pci_attach` will only get called once. */
+  stdvga_device_t *stdvga = kmalloc(M_STDVGA, sizeof(stdvga_device_t), M_ZERO);
 
   /* TODO: Enabling PCI regions should probably be performed by PCI bus resource
    * reservation code. */
@@ -179,7 +176,7 @@ int stdvga_pci_attach(pci_device_t *pci) {
 
   /* Prepare palette buffer */
   stdvga->palette_buffer =
-    kmalloc(stdvga_pool, sizeof(uint8_t) * VGA_PALETTE_SIZE, M_ZERO);
+    kmalloc(M_STDVGA, sizeof(uint8_t) * VGA_PALETTE_SIZE, M_ZERO);
 
   /* Apply resolution */
   stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_XRES, stdvga->width);

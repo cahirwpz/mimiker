@@ -8,6 +8,7 @@
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
+typedef struct fdtab fdtab_t;
 typedef TAILQ_HEAD(, thread) thread_list_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
 
@@ -18,6 +19,8 @@ struct proc {
   pid_t p_pid;             /* Process ID */
   proc_t *p_parent;        /* Parent process */
   vm_map_t *p_uspace;      /* process' user space map */
+  /* file descriptors table */
+  fdtab_t *p_fdtable;
 };
 
 void proc_init();

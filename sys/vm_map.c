@@ -12,6 +12,8 @@
 #include <mips/mips.h>
 #include <pcpu.h>
 
+static MALLOC_DEFINE(M_VMMAP, "vm-map", 1, 2);
+
 static vm_map_t kspace;
 
 void vm_map_activate(vm_map_t *map) {
@@ -57,16 +59,13 @@ static void vm_map_setup(vm_map_t *map) {
   rw_init(&map->rwlock, "vm map rwlock", 1);
 }
 
-static MALLOC_DEFINE(mpool, "vm_map memory pool");
-
 void vm_map_init() {
-  kmalloc_init(mpool, 2, 2);
   vm_map_setup(&kspace);
   *((pmap_t **)(&kspace.pmap)) = get_kernel_pmap();
 }
 
 vm_map_t *vm_map_new() {
-  vm_map_t *map = kmalloc(mpool, sizeof(vm_map_t), M_ZERO);
+  vm_map_t *map = kmalloc(M_VMMAP, sizeof(vm_map_t), M_ZERO);
 
   vm_map_setup(map);
   *((pmap_t **)&map->pmap) = pmap_new();
@@ -101,7 +100,7 @@ static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
   vm_map->nentries--;
   vm_object_free(entry->object);
   TAILQ_REMOVE(&vm_map->list, entry, map_list);
-  kfree(mpool, entry);
+  kfree(M_VMMAP, entry);
 }
 
 void vm_map_delete(vm_map_t *map) {
@@ -110,7 +109,7 @@ void vm_map_delete(vm_map_t *map) {
     vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
   rw_leave(&map->rwlock);
 
-  kfree(mpool, map);
+  kfree(M_VMMAP, map);
 }
 
 vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
@@ -126,7 +125,7 @@ vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
   assert(vm_map_find_entry(map, end) == NULL);
 #endif
 
-  vm_map_entry_t *entry = kmalloc(mpool, sizeof(vm_map_entry_t), M_ZERO);
+  vm_map_entry_t *entry = kmalloc(M_VMMAP, sizeof(vm_map_entry_t), M_ZERO);
 
   entry->start = start;
   entry->end = end;
