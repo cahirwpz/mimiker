@@ -13,6 +13,7 @@
 #include <mips/stack.h>
 #include <mount.h>
 #include <vnode.h>
+#include <proc.h>
 
 int do_exec(const exec_args_t *args) {
   log("Loading user ELF: %s", args->prog_name);
@@ -233,6 +234,13 @@ int do_exec(const exec_args_t *args) {
 
   /* ... and user context. */
   uctx_init(thread_self(), eh.e_entry, stack_bottom);
+
+  /* If this is a kernel thread becoming a user thread, then we need to create
+   * (the first!) process. */
+  if (!td->td_proc) {
+    proc_t *proc = proc_create();
+    proc_populate(proc, td);
+  }
 
   /*
    * At this point we are certain that exec suceeds.

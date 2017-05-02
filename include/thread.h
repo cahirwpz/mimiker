@@ -14,6 +14,7 @@ typedef uint32_t tid_t;
 typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
 typedef struct fdtab fdtab_t;
+typedef struct proc proc_t;
 
 #define TD_NAME_MAX 32
 
@@ -29,6 +30,9 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
   TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
+  TAILQ_ENTRY(thread) td_procq;   /* a link on process threads queue */
+  /* Properties */
+  proc_t *td_proc; /* Parent process, NULL for kernel threads. */
   char *td_name;
   tid_t td_tid;
   /* thread state */
