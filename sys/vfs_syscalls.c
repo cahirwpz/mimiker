@@ -60,7 +60,7 @@ int do_lseek(thread_t *td, int fd, off_t offset, int whence) {
   /* TODO: Whence! Now we assume whence == SEEK_SET */
   /* TODO: RW file flag! For now we just file_get_read */
   file_t *f;
-  int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
+  int res = fdtab_get_file(td->td_fdtable, fd, 0, &f);
   if (res)
     return res;
   f->f_offset = offset;
