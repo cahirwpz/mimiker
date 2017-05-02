@@ -5,7 +5,7 @@
 static MALLOC_DEFINE(proc_pool, "proc pool");
 
 static mtx_t all_proc_list_mtx;
-static TAILQ_HEAD(, proc) all_proc_list;
+static proc_list_t all_proc_list;
 
 static mtx_t last_pid_mtx;
 static pid_t last_pid;
@@ -34,14 +34,14 @@ proc_t *proc_create() {
   return proc;
 }
 
-void proc_add_thread(proc_t *p, thread_t *td) {
+void proc_populate(proc_t *p, thread_t *td) {
   mtx_scoped_lock(&p->p_lock);
   mtx_scoped_lock(&td->td_lock);
   td->td_proc = p;
-  TAILQ_INSERT_TAIL(&p->p_threads, td, td_procthreadq);
+  TAILQ_INSERT_TAIL(&p->p_threads, td, td_procq);
 }
 
-proc_t *proc_get_by_pid(pid_t pid) {
+proc_t *proc_find(pid_t pid) {
   proc_t *p = NULL;
   mtx_scoped_lock(&all_proc_list_mtx);
   TAILQ_FOREACH (p, &all_proc_list, p_all) {

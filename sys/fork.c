@@ -53,7 +53,7 @@ int do_fork() {
   /* Now, prepare a new process. */
   assert(td->td_proc);
   proc_t *proc = proc_create();
-  proc_add_thread(proc, newtd);
+  proc_populate(proc, newtd);
 
   sched_add(newtd);
 

@@ -261,7 +261,7 @@ int do_exec(const exec_args_t *args) {
    * (the first!) process. */
   if (!td->td_proc) {
     proc_t *proc = proc_create();
-    proc_add_thread(proc, td);
+    proc_populate(proc, td);
   }
 
   /*
