@@ -5,10 +5,9 @@
 #include <errno.h>
 #include <mutex.h>
 
-static MALLOC_DEFINE(fd_pool, "file descriptors pool");
+static MALLOC_DEFINE(M_FD, "filedesc", 1, 2);
 
 void fd_init() {
-  kmalloc_init(fd_pool, 2, 2);
 }
 
 /* Test whether a file descriptor is in use. */
@@ -35,14 +34,13 @@ static void fd_growtable(fdtab_t *fdt, size_t new_size) {
   file_t **old_fdt_files = fdt->fdt_files;
   bitstr_t *old_fdt_map = fdt->fdt_map;
 
-  file_t **new_fdt_files =
-    kmalloc(fd_pool, sizeof(file_t *) * new_size, M_ZERO);
-  bitstr_t *new_fdt_map = kmalloc(fd_pool, bitstr_size(new_size), M_ZERO);
+  file_t **new_fdt_files = kmalloc(M_FD, sizeof(file_t *) * new_size, M_ZERO);
+  bitstr_t *new_fdt_map = kmalloc(M_FD, bitstr_size(new_size), M_ZERO);
 
   memcpy(new_fdt_files, old_fdt_files, sizeof(file_t *) * fdt->fdt_nfiles);
   memcpy(new_fdt_map, old_fdt_map, bitstr_size(fdt->fdt_nfiles));
-  kfree(fd_pool, old_fdt_files);
-  kfree(fd_pool, old_fdt_map);
+  kfree(M_FD, old_fdt_files);
+  kfree(M_FD, old_fdt_map);
 
   fdt->fdt_files = new_fdt_files;
   fdt->fdt_map = new_fdt_map;
@@ -100,10 +98,10 @@ void fdtab_unref(fdtab_t *fdt) {
    current dir may be copied. Since we don't use these fields, this
    argument does not make sense yet. */
 fdtab_t *fdtab_alloc() {
-  fdtab_t *fdt = kmalloc(fd_pool, sizeof(fdtab_t), M_ZERO);
+  fdtab_t *fdt = kmalloc(M_FD, sizeof(fdtab_t), M_ZERO);
   fdt->fdt_nfiles = NDFILE;
-  fdt->fdt_files = kmalloc(fd_pool, sizeof(file_t *) * NDFILE, M_ZERO);
-  fdt->fdt_map = kmalloc(fd_pool, bitstr_size(NDFILE), M_ZERO);
+  fdt->fdt_files = kmalloc(M_FD, sizeof(file_t *) * NDFILE, M_ZERO);
+  fdt->fdt_map = kmalloc(M_FD, bitstr_size(NDFILE), M_ZERO);
   mtx_init(&fdt->fdt_mtx, MTX_DEF);
   return fdt;
 }
@@ -145,9 +143,9 @@ void fdtab_destroy(fdtab_t *fdt) {
     if (fd_is_used(fdt, i))
       fd_free(fdt, i);
 
-  kfree(fd_pool, fdt->fdt_files);
-  kfree(fd_pool, fdt->fdt_map);
-  kfree(fd_pool, fdt);
+  kfree(M_FD, fdt->fdt_files);
+  kfree(M_FD, fdt->fdt_map);
+  kfree(M_FD, fdt);
 }
 
 void fdtab_release(fdtab_t *fdt) {

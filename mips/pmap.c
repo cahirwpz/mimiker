@@ -10,6 +10,8 @@
 #include <thread.h>
 #include <ktest.h>
 
+static MALLOC_DEFINE(M_PMAP, "pmap", 1, 1);
+
 #define PTE_MASK 0xfffff000
 #define PTE_SHIFT 12
 #define PDE_MASK 0xffc00000
@@ -84,22 +86,19 @@ void pmap_reset(pmap_t *pmap) {
   memset(pmap, 0, sizeof(pmap_t)); /* Set up for reuse. */
 }
 
-static MALLOC_DEFINE(mpool, "pmap memory pool");
-
 void pmap_init() {
-  kmalloc_init(mpool, 1, 1);
   pmap_setup(&kernel_pmap, PMAP_KERNEL_BEGIN + PT_SIZE, PMAP_KERNEL_END);
 }
 
 pmap_t *pmap_new() {
-  pmap_t *pmap = kmalloc(mpool, sizeof(pmap_t), M_ZERO);
+  pmap_t *pmap = kmalloc(M_PMAP, sizeof(pmap_t), M_ZERO);
   pmap_setup(pmap, PMAP_USER_BEGIN, PMAP_USER_END);
   return pmap;
 }
 
 void pmap_delete(pmap_t *pmap) {
   pmap_reset(pmap);
-  kfree(mpool, pmap);
+  kfree(M_PMAP, pmap);
 }
 
 bool pmap_is_mapped(pmap_t *pmap, vm_addr_t vaddr) {

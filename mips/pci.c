@@ -2,7 +2,7 @@
 #include <malloc.h>
 #include <pci.h>
 
-static MALLOC_DEFINE(mp, "PCI bus discovery memory pool");
+static MALLOC_DEFINE(M_PCIBUS, "pci-bus", 1, 1);
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 
@@ -41,7 +41,7 @@ static void pci_bus_enumerate(pci_bus_device_t *pcib) {
       if (!pci_device_present(pcib->bus, 0, j, k))
         continue;
 
-      pci_device_t *pcidev = kmalloc(mp, sizeof(pci_device_t), M_ZERO);
+      pci_device_t *pcidev = kmalloc(M_PCIBUS, sizeof(pci_device_t), M_ZERO);
       pcidev->bus = pcib->bus;
       pcidev->addr = (pci_addr_t){0, j, k};
       pcidev->device_id = pci_read_config(pcidev, PCIR_DEVICEID, 2);
@@ -107,7 +107,7 @@ static void pci_bus_assign_space(pci_bus_device_t *pcib) {
 
   log("devs = %d, nbars = %d", ndevs, nbars);
 
-  resource_t **bars = kmalloc(mp, sizeof(resource_t *) * nbars, M_ZERO);
+  resource_t **bars = kmalloc(M_PCIBUS, sizeof(resource_t *) * nbars, M_ZERO);
   unsigned n = 0;
 
   TAILQ_FOREACH (pcidev, &pcib->devices, link) {
@@ -140,7 +140,7 @@ static void pci_bus_assign_space(pci_bus_device_t *pcib) {
     pci_write_config(bar->r_owner, PCIR_BAR(bar->r_id), 4, bar->r_start);
   }
 
-  kfree(mp, bars);
+  kfree(M_PCIBUS, bars);
 }
 
 static void pci_bus_dump(pci_bus_device_t *pcib) {
@@ -190,8 +190,6 @@ static void pci_bus_dump(pci_bus_device_t *pcib) {
 extern pci_bus_device_t gt_pci;
 
 void pci_init() {
-  kmalloc_init(mp, 1, 1);
-
   /* TODO: actions below will become a part of `device_attach` function of
    * generic driver for PCI bus. */
   pci_bus_enumerate(&gt_pci);
