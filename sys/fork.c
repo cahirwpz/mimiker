@@ -38,7 +38,6 @@ int do_fork() {
      starting from user_exc_leave (which serves as fork_trampoline). */
   ctx_init(newtd, user_exc_leave, NULL);
 
-
   newtd->td_sleepqueue = sleepq_alloc();
   newtd->td_wchan = NULL;
   newtd->td_wmesg = NULL;
