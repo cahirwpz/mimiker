@@ -7,6 +7,7 @@
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
+typedef struct fdtab fdtab_t;
 typedef TAILQ_HEAD(, thread) thread_list_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
 
@@ -16,6 +17,8 @@ struct proc {
   thread_list_t p_threads; /* Threads belonging to this process */
   pid_t p_pid;             /* Process ID */
   proc_t *p_parent;        /* Parent process */
+  /* file descriptors table */
+  fdtab_t *p_fdtable;
 };
 
 void proc_init();

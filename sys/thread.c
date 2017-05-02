@@ -132,8 +132,6 @@ noreturn void thread_exit(int exitcode) {
       critical_leave();
   }
 
-  fdtab_release(td->td_fdtable);
-
   mtx_lock(&zombie_threads_mtx);
   TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
   mtx_unlock(&zombie_threads_mtx);
