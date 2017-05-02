@@ -4,6 +4,7 @@
 #include <common.h>
 #include <queue.h>
 #include <mutex.h>
+#include <vm_map.h>
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
@@ -16,6 +17,7 @@ struct proc {
   thread_list_t p_threads; /* Threads belonging to this process */
   pid_t p_pid;             /* Process ID */
   proc_t *p_parent;        /* Parent process */
+  vm_map_t *p_uspace;      /* process' user space map */
 };
 
 void proc_init();

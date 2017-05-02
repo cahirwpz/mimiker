@@ -91,12 +91,18 @@ int do_exec(const exec_args_t *args) {
     return -ENOEXEC;
   }
 
+  thread_t *td = thread_self();
   /*
    * We can not destroy the current vm map, because exec can still fail,
    * and in that case we must be able to return to the original address space.
    */
   vm_map_t *vmap = vm_map_new();
-  vm_map_t *old_vmap = vm_map_activate(vmap);
+  vm_map_t *old_vmap = td->td_proc ? td->td_proc->p_uspace : NULL;
+
+  /* Enter critical section to prevent preemption while we're working on a
+     vm_map that is not native to the current process! */
+  critical_enter();
+  vm_map_activate(vmap);
 
   /* Iterate over prog headers */
   log("ELF has %d program headers", eh.e_phnum);
@@ -215,7 +221,6 @@ int do_exec(const exec_args_t *args) {
   log("Stack real bottom at %p", (void *)stack_bottom);
   prepare_program_stack(args, &stack_bottom);
 
-  thread_t *td = thread_self();
   /* ... file descriptor table ... */
   /* TODO: Copy/share file descriptor table! */
   fdtab_t *fdt = fdtab_alloc();
@@ -242,15 +247,20 @@ int do_exec(const exec_args_t *args) {
     proc_populate(proc, td);
   }
 
+  /* TODO: If there were more than one thread in the process that called exec,
+     all other threads must be forcefully terminated! */
+
   /*
-   * At this point we are certain that exec suceeds.
-   * We can safely destroy the previous vm map.
-   *
-   * One can use do_exec() to start new user program from kernel space,
-   * in such case there is no old user vm space to dismantle.
+   * At this point we are certain that exec succeeds.  We can safely destroy the
+   * previous vm map, and permanently assign this one to the current process.
    */
   if (old_vmap)
     vm_map_delete(old_vmap);
+  td->td_proc->p_uspace = vmap;
+
+  /* As the new vm_map is now assigned to this process, it's safe to re-enable
+     preemption. */
+  critical_leave();
 
   vm_map_dump(vmap);
 
@@ -263,6 +273,7 @@ int do_exec(const exec_args_t *args) {
 exec_fail:
   /* Return to the previous map, unmodified by exec. */
   vm_map_activate(old_vmap);
+  critical_leave();
   /* Destroy the vm map we began preparing. */
   vm_map_delete(vmap);
 

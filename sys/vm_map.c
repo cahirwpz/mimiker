@@ -8,25 +8,26 @@
 #include <vm_object.h>
 #include <vm_map.h>
 #include <errno.h>
+#include <proc.h>
 #include <mips/mips.h>
 
 static vm_map_t kspace;
+static vm_map_t *uspace = NULL;
 
-vm_map_t *vm_map_activate(vm_map_t *map) {
-  vm_map_t *old;
-
+void vm_map_activate(vm_map_t *map) {
   critical_enter();
-  thread_t *td = thread_self();
-  old = td->td_uspace;
-  td->td_uspace = map;
+  uspace = map;
   pmap_activate(map ? map->pmap : NULL);
   critical_leave();
+}
 
-  return old;
+void vm_map_switch_uspace(thread_t *td) {
+  if (td->td_proc)
+    vm_map_activate(td->td_proc->p_uspace);
 }
 
 vm_map_t *get_user_vm_map() {
-  return thread_self()->td_uspace;
+  return uspace;
 }
 vm_map_t *get_kernel_vm_map() {
   return &kspace;
@@ -245,9 +246,8 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
 
   rw_scoped_enter(&map->rwlock, RW_READER);
 
-  /* Temporarily switch to the new map, so that we may write contents. Note that
-     it's okay if we get preempted - the working vm map will be restored on
-     context switch. */
+  /* Temporarily switch to the new map, so that we may write contents. */
+  critical_enter();
   vm_map_activate(newmap);
 
   vm_map_entry_t *it;
@@ -264,6 +264,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
 
   /* Return to original vm map. */
   vm_map_activate(orig_current_map);
+  critical_leave();
 
   return newmap;
 }

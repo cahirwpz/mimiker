@@ -11,7 +11,7 @@ int do_fork() {
   thread_t *td = thread_self();
 
   /* Cannot fork non-user threads. */
-  assert(td->td_uspace);
+  assert(td->td_proc);
 
   thread_t *newtd = thread_create(td->td_name, NULL, NULL);
 
@@ -38,9 +38,6 @@ int do_fork() {
      starting from user_exc_leave (which serves as fork_trampoline). */
   ctx_init(newtd, user_exc_leave, NULL);
 
-  /* Clone the entire process memory space. */
-  newtd->td_uspace = vm_map_clone(td->td_uspace);
-
   /* Copy the parent descriptor table. */
   newtd->td_fdtable = fdtab_copy(td->td_fdtable);
 
@@ -54,6 +51,9 @@ int do_fork() {
   assert(td->td_proc);
   proc_t *proc = proc_create();
   proc_populate(proc, newtd);
+
+  /* Clone the entire process memory space. */
+  proc->p_uspace = vm_map_clone(td->td_proc->p_uspace);
 
   sched_add(newtd);
 
