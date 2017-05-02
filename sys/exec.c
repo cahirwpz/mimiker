@@ -228,13 +228,12 @@ int do_exec(const exec_args_t *args) {
   if (!td->td_proc) {
     proc_t *proc = proc_create();
     proc_populate(proc, td);
-  }
 
-  /* Prepare file descriptor table */
-  /* TODO: Copy/share file descriptor table! */
-  fdtab_t *fdt = fdtab_alloc();
-  fdtab_ref(fdt);
-  td->td_proc->p_fdtable = fdt;
+    /* Prepare file descriptor table */
+    fdtab_t *fdt = fdtab_alloc();
+    fdtab_ref(fdt);
+    td->td_proc->p_fdtable = fdt;
+  }
 
   /* Before we have a working fork, let's initialize file descriptors required
      by the standard library. */

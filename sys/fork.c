@@ -53,6 +53,7 @@ int do_fork() {
   proc_populate(proc, newtd);
 
   /* Copy the parent descriptor table. */
+  /* TODO: Optionally share the descriptor table between processes. */
   proc->p_fdtable = fdtab_copy(td->td_proc->p_fdtable);
 
   sched_add(newtd);
