@@ -17,8 +17,6 @@ ASSYM(TD_KSTACK, offsetof(thread_t, td_kstack));
 ASSYM(TD_FLAGS, offsetof(thread_t, td_flags));
 ASSYM(TD_ONFAULT, offsetof(thread_t, td_onfault));
 
-ASSYM(P_USPACE, offsetof(proc_t, p_uspace));
-
 ASSYM(STK_BASE, offsetof(stack_t, stk_base));
 ASSYM(STK_SIZE, offsetof(stack_t, stk_size));
 
@@ -89,3 +87,5 @@ ASSYM(EXC_CAUSE, offsetof(exc_frame_t, cause));
 ASSYM(EXC_FRAME_SIZ, sizeof(exc_frame_t) + CALLFRAME_SIZ);
 
 ASSYM(PCPU_CURTHREAD, offsetof(pcpu_t, curthread));
+ASSYM(PCPU_USPACE, offsetof(pcpu_t, uspace));
+

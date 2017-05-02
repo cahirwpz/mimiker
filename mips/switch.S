@@ -39,8 +39,8 @@ ctx_resume:
         LOAD_PCPU($t0)
         sw      $s0, PCPU_CURTHREAD($t0)
 
-        move    $a0, $s0
-        jal     vm_map_switch_uspace
+        lw      $a0, PCPU_USPACE($t0)
+        jal     vm_map_activate
         nop
 
         addu    $a1, $s0, TD_KCTX

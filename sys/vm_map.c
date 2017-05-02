@@ -21,11 +21,6 @@ void vm_map_activate(vm_map_t *map) {
   critical_leave();
 }
 
-void vm_map_switch_uspace(thread_t *td) {
-  if (td->td_proc)
-    vm_map_activate(td->td_proc->p_uspace);
-}
-
 vm_map_t *get_user_vm_map() {
   return PCPU_GET(uspace);
 }
