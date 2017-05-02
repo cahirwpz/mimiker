@@ -10,13 +10,13 @@
 #include <errno.h>
 #include <proc.h>
 #include <mips/mips.h>
+#include <pcpu.h>
 
 static vm_map_t kspace;
-static vm_map_t *uspace = NULL;
 
 void vm_map_activate(vm_map_t *map) {
   critical_enter();
-  uspace = map;
+  PCPU_SET(uspace, map);
   pmap_activate(map ? map->pmap : NULL);
   critical_leave();
 }
@@ -27,7 +27,7 @@ void vm_map_switch_uspace(thread_t *td) {
 }
 
 vm_map_t *get_user_vm_map() {
-  return uspace;
+  return PCPU_GET(uspace);
 }
 vm_map_t *get_kernel_vm_map() {
   return &kspace;
