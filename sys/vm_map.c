@@ -24,6 +24,7 @@ void vm_map_activate(vm_map_t *map) {
 vm_map_t *get_user_vm_map() {
   return PCPU_GET(uspace);
 }
+
 vm_map_t *get_kernel_vm_map() {
   return &kspace;
 }

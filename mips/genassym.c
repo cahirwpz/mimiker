@@ -2,11 +2,13 @@
 #include <context.h>
 #include <thread.h>
 #include <pcpu.h>
+#include <proc.h>
 #include <mips/ctx.h>
 #include <mips/exc.h>
 
 ASSYM(TDF_NEEDSWITCH, TDF_NEEDSWITCH);
 
+ASSYM(TD_PROC, offsetof(thread_t, td_proc));
 ASSYM(TD_UCTX, offsetof(thread_t, td_uctx));
 ASSYM(TD_UCTX_FPU, offsetof(thread_t, td_uctx_fpu));
 ASSYM(TD_KFRAME, offsetof(thread_t, td_kframe));
@@ -84,5 +86,6 @@ ASSYM(EXC_CAUSE, offsetof(exc_frame_t, cause));
 
 ASSYM(EXC_FRAME_SIZ, sizeof(exc_frame_t) + CALLFRAME_SIZ);
 
+ASSYM(P_USPACE, offsetof(proc_t, p_uspace));
+
 ASSYM(PCPU_CURTHREAD, offsetof(pcpu_t, curthread));
-ASSYM(PCPU_USPACE, offsetof(pcpu_t, uspace));
