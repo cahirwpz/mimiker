@@ -134,7 +134,7 @@ int sys_write(thread_t *td, syscall_args_t *args) {
   log("sys_write(%d, %p, %zu)", fd, ubuf, count);
 
   uio_t uio;
-  uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
+  uio = UIO_SINGLE_USER(UIO_WRITE, 0, ubuf, count);
   int error = do_write(td, fd, &uio);
   if (error)
     return error;
