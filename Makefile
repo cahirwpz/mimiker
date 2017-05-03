@@ -48,7 +48,7 @@ tags:
 	find -iname '*.S' -not -path "*/toolchain/*" -and -not -path "cache/*" | ctags -a --language-force=asm -L- -e -f etags
 
 # These files get destroyed by clang-format, so we exclude them from formatting
-FORMATTABLE_EXCLUDE = include/elf stdc/ include/mips/asm.h include/mips/m32c0.h cache user/sysroot user/sysroot-newlib
+FORMATTABLE_EXCLUDE = include/elf stdc/ include/mips/asm.h include/mips/m32c0.h cache sysroot sysroot-newlib
 # Search for all .c and .h files, excluding toolchain build directory and files from FORMATTABLE_EXCLUDE
 FORMATTABLE = $(shell find -type f -not -path "*/toolchain/*" -and \( -name '*.c' -or -name '*.h' \) | grep -v $(FORMATTABLE_EXCLUDE:%=-e %))
 format:
