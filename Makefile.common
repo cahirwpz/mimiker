@@ -31,7 +31,7 @@ OBJCOPY  = $(P)objcopy
 OBJDUMP  = $(P)objdump
 
 HOSTCC	 = gcc -g
-SYSROOT  = $(realpath $(dir $(shell which $(P)gcc))/..)
+SYSROOT  = $(TOPDIR)/sysroot
 GENASSYM = $(TOPDIR)/script/genassym.py $(NM)
 
 GCC_INSTALL_PATH = $(shell LANG=C $(CC)  -print-search-dirs | sed -n -e 's/install:\(.*\)/\1/p')

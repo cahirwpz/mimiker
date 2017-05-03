@@ -48,5 +48,5 @@ tests/*_test_files
 cache
 
 # Dynamically rebuilt sysroots
-user/sysroot
-user/sysroot-newlib
+sysroot
+sysroot-newlib

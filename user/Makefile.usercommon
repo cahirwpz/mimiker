@@ -20,8 +20,6 @@ clean:
 USERDIR = $(realpath $(dir $(filter %Makefile.usercommon, $(MAKEFILE_LIST))))
 include $(USERDIR)/../Makefile.common
 
-SYSROOT = $(USERDIR)/sysroot
-
 CFLAGS   = --sysroot=$(SYSROOT) -std=gnu11 -O0 -Wall -Werror
 LDFLAGS  = --sysroot=$(SYSROOT) -L= -T mimiker.ld
 

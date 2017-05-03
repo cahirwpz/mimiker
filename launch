@@ -45,6 +45,8 @@ if __name__ == '__main__':
                         help='Shorthand for --output server')
     parser.add_argument('-d', action='store_true',
                         help='Shorthand for --debugger cgdb.')
+    parser.add_argument('-g', '--graphics', action='store_true',
+                        help='Enable VGA output.')
     args = parser.parse_args()
 
     # Check if the kernel file is available
@@ -76,6 +78,7 @@ if __name__ == '__main__':
     cfg_args = {'kernel': args.kernel,
                 'args': ' '.join(args.args),
                 'debug': debug,
+                'graphics': args.graphics,
                 'uart_port': UART_PORT}
 
     sim.configure(**cfg_args)

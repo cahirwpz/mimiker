@@ -7,14 +7,14 @@
 #include <sched.h>
 #include <thread.h>
 
+static MALLOC_DEFINE(M_SLEEPQ, "sleepq", 1, 2);
+
 #define SC_TABLESIZE 256 /* Must be power of 2. */
 #define SC_MASK (SC_TABLESIZE - 1)
 #define SC_SHIFT 8
 #define SC_HASH(wc)                                                            \
   ((((uintptr_t)(wc) >> SC_SHIFT) ^ (uintptr_t)(wc)) & SC_MASK)
 #define SC_LOOKUP(wc) &sleepq_chains[SC_HASH(wc)]
-
-static MALLOC_DEFINE(mp, "sleepqueue pool");
 
 typedef TAILQ_HEAD(sq_head, thread) sq_head_t;
 typedef LIST_HEAD(sq_chain_head, sleepq) sq_chain_head_t;
@@ -34,18 +34,17 @@ typedef struct sleepq_chain {
 static sleepq_chain_t sleepq_chains[SC_TABLESIZE];
 
 void sleepq_init() {
-  kmalloc_init(mp, 1, 1);
   memset(sleepq_chains, 0, sizeof(sleepq_chains));
   for (int i = 0; i < SC_TABLESIZE; i++)
     LIST_INIT(&sleepq_chains[i].sc_queues);
 }
 
 sleepq_t *sleepq_alloc() {
-  return kmalloc(mp, sizeof(sleepq_t), M_ZERO);
+  return kmalloc(M_SLEEPQ, sizeof(sleepq_t), M_ZERO);
 }
 
 void sleepq_destroy(sleepq_t *sq) {
-  kfree(mp, sq);
+  kfree(M_SLEEPQ, sq);
 }
 
 sleepq_t *sleepq_lookup(void *wchan) {
