@@ -107,10 +107,7 @@ clean:
 	$(RM) -f *.a *.elf *.map *.lst *~ *.log *.cpio .*.D
 	$(RM) -f tags etags cscope.out *.taghl
 
-	# Don't remove sysroot-newlib, where compiled & installed newlib files are
-	# stored. Until we introduce major modifications to newlib, keeping that
-	# directory can't cause any harm, and improves build times.  At some point
-	# we may want to introduce a `distclean` target which would also remove
-	# cache and sysroot-newlib.
+distclean: clean
+	$(RM) -rf cache sysroot-newlib
 
 .PRECIOUS: %.uelf
