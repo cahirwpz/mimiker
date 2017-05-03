@@ -41,7 +41,7 @@ cscope:
 	cscope -b include/*.h ./*/*.[cS]
 
 tags:
-	@echo "Rebuilding tags"
+	@echo "Rebuilding tags..."
 	find -iname '*.[ch]' -not -path "*/toolchain/*" -and -not -path "cache/*" | ctags --language-force=c -L-
 	find -iname '*.[ch]' -not -path "*/toolchain/*" -and -not -path "cache/*" | ctags --language-force=c -L- -e -f etags
 	find -iname '*.S' -not -path "*/toolchain/*" -and -not -path "cache/*" | ctags -a --language-force=asm -L-
@@ -58,10 +58,10 @@ format:
 test: mimiker.elf
 	./run_tests.py
 
-initrd.cpio: | user sysroot tests
-	./update_initrd.sh
-# Import dependecies for initrd.cpio
-include $(wildcard .*.D)
+initrd.cpio: sysroot install
+	@echo "Building $@..."
+	cd sysroot && find -depth -print | cpio --format=crc -o -F ../$@ 2> /dev/null
+	cd install && find -depth -print | cpio --format=crc -o --append -F ../$@ 2> /dev/null
 
 sysroot: sysroot-extra sysroot-newlib libmimiker/libmimiker.a
 	@echo "Rebuilding sysroot..."
@@ -72,6 +72,12 @@ sysroot: sysroot-extra sysroot-newlib libmimiker/libmimiker.a
 	cp libmimiker/libmimiker.a sysroot/usr/lib/.
 	# Instal additional files into sysroot
 	cp -rT sysroot-extra/ sysroot/
+
+install: user
+	# Prepare install dir
+	rm -rf install && mkdir install
+	# Install user programs
+	$(MAKE) -C user install
 
 libmimiker/libmimiker.a: libmimiker
 	$(MAKE) -C libmimiker libmimiker.a

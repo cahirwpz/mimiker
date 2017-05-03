@@ -33,5 +33,9 @@ LDFLAGS  = --sysroot=$(SYSROOT) -L= -T mimiker.ld
 	@echo "[LD] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(LDFLAGS) -o $@ $(SOURCES_O)
 
+install: $(UELF_NAME).uelf
+	@echo "[INSTALL] $(DIR)$< -> /bin/$(UELF_NAME)"
+	install -D $(UELF_NAME).uelf $(INSTALL_DIR)/bin/$(UELF_NAME)
+
 .SUFFIXES:
 .PRECIOUS: %.uelf

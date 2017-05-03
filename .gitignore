@@ -50,3 +50,4 @@ cache
 # Dynamically rebuilt sysroots
 sysroot
 sysroot-newlib
+install

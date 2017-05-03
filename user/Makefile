@@ -15,3 +15,9 @@ clean:
 	for dir in $(PROGDIRS); do \
 	  $(MAKE) -C $$dir clean; \
 	done
+
+install:
+	@echo "Installing user programs..."
+	for dir in $(PROGDIRS); do \
+	  $(MAKE) -C $$dir install; \
+	done
