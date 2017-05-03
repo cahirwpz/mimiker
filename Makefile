@@ -26,7 +26,7 @@ $(SUBDIRS):
 # Make sure to have sysroot base and libmimiker prepared before compiling user programs
 user: sysroot
 
-.PHONY: format tags cscope $(SUBDIRS)
+.PHONY: format tags cscope $(SUBDIRS) install
 
 # This rule ensures that all subdirectories are processed before any file
 # generated within them is used for linking the main kernel image.
@@ -112,6 +112,7 @@ clean:
 	$(foreach DIR, $(SUBDIRS), $(MAKE) -C $(DIR) $@;)
 	$(RM) -f *.a *.elf *.map *.lst *~ *.log *.cpio .*.D
 	$(RM) -f tags etags cscope.out *.taghl
+	$(RM) -rf install
 
 distclean: clean
 	$(RM) -rf cache sysroot-newlib
