@@ -47,6 +47,7 @@ int do_fork() {
   /* Now, prepare a new process. */
   assert(td->td_proc);
   proc_t *proc = proc_create();
+  proc->p_parent = td->td_proc;
   proc_populate(proc, newtd);
 
   /* Clone the entire process memory space. */
