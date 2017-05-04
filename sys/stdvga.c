@@ -2,8 +2,13 @@
 #include <vga.h>
 #include <stdc.h>
 #include <malloc.h>
+#include <errno.h>
 
 #define VGA_PALETTE_SIZE (256 * 3)
+
+/* TODO: It'd be better to have global memory pool for device drives as *BSD
+ * does with M_DEVBUF, but for now we have to create local one. */
+MALLOC_DEFINE(M_STDVGA, "stdvga", 128, 256);
 
 typedef struct stdvga_device {
   pci_device_t *pci_device;
@@ -12,11 +17,11 @@ typedef struct stdvga_device {
 
   unsigned int width;
   unsigned int height;
+  unsigned int bpp;
 
   uint8_t *palette_buffer;
   uint8_t *fb_buffer; /* This buffer is only needed because we can't pass uio
                          directly to the bus. */
-
   vga_device_t vga;
 } stdvga_device_t;
 
@@ -88,6 +93,47 @@ static int stdvga_palette_write(vga_device_t *vga, uio_t *uio) {
   return 0;
 }
 
+static int stdvga_get_videomode(vga_device_t *vga, unsigned *xres,
+                                unsigned *yres, unsigned *bpp) {
+  stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
+  *xres = stdvga->width;
+  *yres = stdvga->height;
+  *bpp = stdvga->bpp;
+  return 0;
+}
+
+static int stdvga_set_videomode(vga_device_t *vga, unsigned xres, unsigned yres,
+                                unsigned bpp) {
+  stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
+
+  /* Impose some reasonable resolution limit. As long as we have to use an
+     fb_buffer, the limit is related to the size of memory pool used by the
+     graphics driver. */
+  if (xres > 640 || yres > 480)
+    return -EINVAL;
+
+  if (bpp != 8 && bpp != 16 && bpp != 24)
+    return -EINVAL;
+
+  stdvga->width = xres;
+  stdvga->height = yres;
+  stdvga->bpp = bpp;
+
+  /* Apply resolution */
+  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_XRES, stdvga->width);
+  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_YRES, stdvga->height);
+
+  /* Set BPP */
+  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_BPP, stdvga->bpp);
+
+  if (stdvga->fb_buffer)
+    kfree(M_STDVGA, stdvga->fb_buffer);
+  stdvga->fb_buffer =
+    kmalloc(M_STDVGA, sizeof(uint8_t) * stdvga->width * stdvga->height, M_ZERO);
+
+  return 0;
+}
+
 static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
   stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
   /* TODO: Some day `bus_space_map` will be implemented. This will allow to map
@@ -102,20 +148,13 @@ static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
   return 0;
 }
 
-MALLOC_DEFINE(stdvga_pool, "stdvga VGA driver pool");
-
 int stdvga_pci_attach(pci_device_t *pci) {
   if (pci->vendor_id != VGA_QEMU_STDVGA_VENDOR_ID ||
       pci->device_id != VGA_QEMU_STDVGA_DEVICE_ID)
     return 0;
 
-  /* TODO: It'd be better to have global memory pool for device drives as *BSD
-   * does with M_DEVBUF, but for now we have to create local one.
-   * XXX: This assumes `stdvga_pci_attach` will only get called once. */
-  kmalloc_init(stdvga_pool, 128, 128);
-
-  stdvga_device_t *stdvga =
-    kmalloc(stdvga_pool, sizeof(stdvga_device_t), M_ZERO);
+  /* XXX: This assumes `stdvga_pci_attach` will only get called once. */
+  stdvga_device_t *stdvga = kmalloc(M_STDVGA, sizeof(stdvga_device_t), M_ZERO);
 
   /* TODO: Enabling PCI regions should probably be performed by PCI bus resource
    * reservation code. */
@@ -128,20 +167,16 @@ int stdvga_pci_attach(pci_device_t *pci) {
   stdvga->mem = &pci->bar[0];
   stdvga->io = &pci->bar[1];
 
-  /* Switching output resolution is straightforward - but not implemented since
-     we don't need it ATM. */
-  stdvga->width = 320;
-  stdvga->height = 200;
-
   stdvga->vga = (vga_device_t){
-    .palette_write = stdvga_palette_write, .fb_write = stdvga_fb_write,
+    .palette_write = stdvga_palette_write,
+    .fb_write = stdvga_fb_write,
+    .get_videomode = stdvga_get_videomode,
+    .set_videomode = stdvga_set_videomode,
   };
 
-  /* Prepare buffers */
+  /* Prepare palette buffer */
   stdvga->palette_buffer =
-    kmalloc(stdvga_pool, sizeof(uint8_t) * VGA_PALETTE_SIZE, M_ZERO);
-  stdvga->fb_buffer = kmalloc(
-    stdvga_pool, sizeof(uint8_t) * stdvga->width * stdvga->height, M_ZERO);
+    kmalloc(M_STDVGA, sizeof(uint8_t) * VGA_PALETTE_SIZE, M_ZERO);
 
   /* Apply resolution */
   stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_XRES, stdvga->width);
@@ -150,8 +185,8 @@ int stdvga_pci_attach(pci_device_t *pci) {
   /* Enable palette access */
   stdvga_io_write(stdvga, VGA_AR_ADDR, VGA_AR_PAS);
 
-  /* Set 8 BPP */
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_BPP, 8);
+  /* Configure initial videomode. */
+  stdvga_set_videomode(&stdvga->vga, 320, 200, 8);
 
   /* Enable VBE. */
   stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_ENABLE,

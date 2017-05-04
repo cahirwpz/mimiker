@@ -5,7 +5,9 @@
 #include <vnode.h>
 #include <linker_set.h>
 
-static MALLOC_DEFINE(vfs_pool, "VFS pool");
+/* TODO: We probably need some fancier allocation, since eventually we should
+ * start recycling vnodes */
+static MALLOC_DEFINE(M_VFS, "vfs", 1, 2);
 
 /* The list of all installed filesystem types */
 typedef TAILQ_HEAD(, vfsconf) vfsconf_list_t;
@@ -40,10 +42,6 @@ static int vfs_register(vfsconf_t *vfc);
 void vfs_init() {
   mtx_init(&vfsconf_list_mtx, MTX_DEF);
   mtx_init(&mount_list_mtx, MTX_DEF);
-
-  /* TODO: We probably need some fancier allocation, since eventually we should
-   * start recycling vnodes */
-  kmalloc_init(vfs_pool, 2, 2);
 
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
   vfs_root_dev_vnode = vnode_new(V_DIR, &vfs_root_ops);
@@ -114,7 +112,7 @@ static int vfs_default_init(vfsconf_t *vfc) {
 }
 
 mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
-  mount_t *m = kmalloc(vfs_pool, sizeof(mount_t), M_ZERO);
+  mount_t *m = kmalloc(M_VFS, sizeof(mount_t), M_ZERO);
 
   m->mnt_vfc = vfc;
   m->mnt_vfsops = vfc->vfc_vfsops;

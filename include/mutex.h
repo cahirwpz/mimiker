@@ -34,7 +34,7 @@ void mtx_unlock(mtx_t *m);
    leaving current scope. */
 DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
 #define mtx_scoped_lock(pmtx)                                                  \
-  mtx_t *mtx_scoped_lock_##__LINE__ cleanup(mtx_unlock) = pmtx;                \
+  mtx_t *__CONCAT(mtx_scoped_lock_, __LINE__) cleanup(mtx_unlock) = pmtx;      \
   mtx_lock(pmtx);
 
 #endif /* !_SYS_MUTEX_H_ */

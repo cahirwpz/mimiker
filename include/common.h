@@ -32,6 +32,7 @@ typedef uint16_t ino_t;
 #define __unused __attribute__((unused))
 #define __used __attribute__((used))
 #define __aligned(x) __attribute__((__aligned__(x)))
+#define __warn_unused __attribute__((warn_unused_result));
 
 /* Macros for counting and rounding. */
 #ifndef howmany

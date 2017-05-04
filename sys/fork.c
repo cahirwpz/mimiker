@@ -5,6 +5,7 @@
 #include <sched.h>
 #include <stdc.h>
 #include <vm_map.h>
+#include <proc.h>
 
 int do_fork() {
   thread_t *td = thread_self();
@@ -40,16 +41,22 @@ int do_fork() {
   /* Clone the entire process memory space. */
   newtd->td_uspace = vm_map_clone(td->td_uspace);
 
-  /* Copy the parent descriptor table. */
-  newtd->td_fdtable = fdtab_copy(td->td_fdtable);
-
   newtd->td_sleepqueue = sleepq_alloc();
   newtd->td_wchan = NULL;
   newtd->td_wmesg = NULL;
 
   newtd->td_prio = td->td_prio;
 
+  /* Now, prepare a new process. */
+  assert(td->td_proc);
+  proc_t *proc = proc_create();
+  proc_populate(proc, newtd);
+
+  /* Copy the parent descriptor table. */
+  /* TODO: Optionally share the descriptor table between processes. */
+  proc->p_fdtable = fdtab_copy(td->td_proc->p_fdtable);
+
   sched_add(newtd);
 
-  return newtd->td_tid;
+  return proc->p_pid;
 }
