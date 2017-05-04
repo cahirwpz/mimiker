@@ -285,7 +285,6 @@ exec_fail:
   /* Return to the previous map, unmodified by exec. */
   td->td_proc->p_uspace = old_vmap;
   vm_map_activate(old_vmap);
-  critical_leave();
   /* Destroy the vm map we began preparing. */
   vm_map_delete(vmap);
 
