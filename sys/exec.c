@@ -92,6 +92,38 @@ int do_exec(const exec_args_t *args) {
   }
 
   thread_t *td = thread_self();
+
+  /* If this is a kernel thread becoming a user thread, then we need to create
+   * (the first!) process. */
+  if (!td->td_proc) {
+    proc_t *p = proc_create();
+    proc_populate(p, td);
+
+    /* Prepare file descriptor table */
+    fdtab_t *fdt = fdtab_alloc();
+    fdtab_ref(fdt);
+    td->td_proc->p_fdtable = fdt;
+  }
+
+  /* If there were more than one thread in the process that called exec, all
+     other threads must be forcefully terminated. */
+  proc_t *p = td->td_proc;
+  thread_t *otd;
+  TAILQ_FOREACH (otd, &p->p_threads, td_procq) {
+    if (otd != td) {
+      /* The other thread can't be executing while we are, so we can safely
+         modify it's state to make sure it'll never continue. */
+      otd->td_state = TDS_INACTIVE;
+      /* Now, destroy the other thread. */
+      /* TODO: Consider terminating the thread by calling thread_exit(otd), so
+         that anyone who waits for it gets a chance to react, also, eventually
+         exit may be tasked with gathering thread statistics into the parent
+         process. But ATM thread_exit must be called by the target thread
+         itself.*/
+      thread_delete(otd);
+    }
+  }
+
   /*
    * We can not destroy the current vm map, because exec can still fail,
    * and in that case we must be able to return to the original address space.
@@ -99,9 +131,9 @@ int do_exec(const exec_args_t *args) {
   vm_map_t *vmap = vm_map_new();
   vm_map_t *old_vmap = td->td_proc ? td->td_proc->p_uspace : NULL;
 
-  /* Enter critical section to prevent preemption while we're working on a
-     vm_map that is not native to the current process! */
-  critical_enter();
+  /* We are the only live thread in this process. We can safely give it a new
+   * uspace. */
+  td->td_proc->p_uspace = vmap;
   vm_map_activate(vmap);
 
   /* Iterate over prog headers */
@@ -227,21 +259,6 @@ int do_exec(const exec_args_t *args) {
   /* ... and user context. */
   uctx_init(thread_self(), eh.e_entry, stack_bottom);
 
-  /* If this is a kernel thread becoming a user thread, then we need to create
-   * (the first!) process. */
-  if (!td->td_proc) {
-    proc_t *proc = proc_create();
-    proc_populate(proc, td);
-
-    /* Prepare file descriptor table */
-    fdtab_t *fdt = fdtab_alloc();
-    fdtab_ref(fdt);
-    td->td_proc->p_fdtable = fdt;
-  }
-
-  /* TODO: If there were more than one thread in the process that called exec,
-     all other threads must be forcefully terminated! */
-
   /* Before we have a working fork, let's initialize file descriptors required
      by the standard library. */
   int ignore;
@@ -255,11 +272,6 @@ int do_exec(const exec_args_t *args) {
    */
   if (old_vmap)
     vm_map_delete(old_vmap);
-  td->td_proc->p_uspace = vmap;
-
-  /* As the new vm_map is now assigned to this process, it's safe to re-enable
-     preemption. */
-  critical_leave();
 
   vm_map_dump(vmap);
 
@@ -271,6 +283,7 @@ int do_exec(const exec_args_t *args) {
 
 exec_fail:
   /* Return to the previous map, unmodified by exec. */
+  td->td_proc->p_uspace = old_vmap;
   vm_map_activate(old_vmap);
   critical_leave();
   /* Destroy the vm map we began preparing. */
