@@ -15,8 +15,9 @@ typedef TAILQ_HEAD(, proc) proc_list_t;
 struct proc {
   mtx_t p_lock;            /* Process lock */
   TAILQ_ENTRY(proc) p_all; /* A link on all processes list */
-  /* XXX: At the moment we don't support multiple threads in a single process! */
-  unsigned p_nthreads;     
+  /* XXX: At the moment we don't support multiple threads in a single process!
+   */
+  unsigned p_nthreads;
   thread_list_t p_threads; /* Threads belonging to this process */
   pid_t p_pid;             /* Process ID */
   proc_t *p_parent;        /* Parent process */
