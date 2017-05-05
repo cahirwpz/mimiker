@@ -26,7 +26,7 @@ $(SUBDIRS):
 # Make sure to have sysroot base and libmimiker prepared before compiling user programs
 user: sysroot
 
-.PHONY: format tags cscope $(SUBDIRS)
+.PHONY: format tags cscope $(SUBDIRS) force
 
 # This rule ensures that all subdirectories are processed before any file
 # generated within them is used for linking the main kernel image.
@@ -58,7 +58,13 @@ format:
 test: mimiker.elf
 	./run_tests.py
 
-initrd.cpio: sysroot | user
+# Detecting whether initrd.cpio requires rebuilding is tricky, because even if
+# this target was to depend on $(shell fild sysroot -type f), then make compares
+# sysroot files timestamps BEFORE recursively entering user and installing user
+# programs into sysroot. This sounds silly, but apparently make assumes no files
+# appear "without their explicit target". Thus, the only thing we can do is
+# forcing make to always rebuild the archive.
+initrd.cpio: force | user
 	@echo "Building $@..."
 	cd sysroot && find -depth -print | cpio --format=crc -o -F ../$@ 2> /dev/null
 
