@@ -26,7 +26,7 @@ $(SUBDIRS):
 # Make sure to have sysroot base and libmimiker prepared before compiling user programs
 user: sysroot
 
-.PHONY: format tags cscope $(SUBDIRS) install
+.PHONY: format tags cscope $(SUBDIRS)
 
 # This rule ensures that all subdirectories are processed before any file
 # generated within them is used for linking the main kernel image.
@@ -58,10 +58,9 @@ format:
 test: mimiker.elf
 	./run_tests.py
 
-initrd.cpio: sysroot install
+initrd.cpio: sysroot | user
 	@echo "Building $@..."
 	cd sysroot && find -depth -print | cpio --format=crc -o -F ../$@ 2> /dev/null
-	cd install && find -depth -print | cpio --format=crc -o --append -F ../$@ 2> /dev/null
 
 sysroot: sysroot-extra sysroot-newlib libmimiker/libmimiker.a
 	@echo "Rebuilding sysroot..."
@@ -72,12 +71,6 @@ sysroot: sysroot-extra sysroot-newlib libmimiker/libmimiker.a
 	cp libmimiker/libmimiker.a sysroot/usr/lib/.
 	# Instal additional files into sysroot
 	cp -rT sysroot-extra/ sysroot/
-
-install: user
-	# Prepare install dir
-	rm -rf install && mkdir install
-	# Install user programs
-	$(MAKE) -C user install
 
 libmimiker/libmimiker.a: libmimiker
 	$(MAKE) -C libmimiker libmimiker.a
@@ -112,7 +105,6 @@ clean:
 	$(foreach DIR, $(SUBDIRS), $(MAKE) -C $(DIR) $@;)
 	$(RM) -f *.a *.elf *.map *.lst *~ *.log *.cpio .*.D
 	$(RM) -f tags etags cscope.out *.taghl
-	$(RM) -rf install
 
 distclean: clean
 	$(RM) -rf cache sysroot-newlib
