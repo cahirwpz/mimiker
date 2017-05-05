@@ -105,24 +105,9 @@ int do_exec(const exec_args_t *args) {
     td->td_proc->p_fdtable = fdt;
   }
 
-  /* If there were more than one thread in the process that called exec, all
-     other threads must be forcefully terminated. */
-  proc_t *p = td->td_proc;
-  thread_t *otd;
-  TAILQ_FOREACH (otd, &p->p_threads, td_procq) {
-    if (otd != td) {
-      /* The other thread can't be executing while we are, so we can safely
-         modify it's state to make sure it'll never continue. */
-      otd->td_state = TDS_INACTIVE;
-      /* Now, destroy the other thread. */
-      /* TODO: Consider terminating the thread by calling thread_exit(otd), so
-         that anyone who waits for it gets a chance to react, also, eventually
-         exit may be tasked with gathering thread statistics into the parent
-         process. But ATM thread_exit must be called by the target thread
-         itself.*/
-      thread_delete(otd);
-    }
-  }
+  /* We assume process may only have a single thread. But if there were more
+     than one thread in the process that called exec, all other threads must be
+     forcefully terminated. */
 
   /*
    * We can not destroy the current vm map, because exec can still fail,
