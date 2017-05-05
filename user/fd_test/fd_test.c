@@ -112,7 +112,8 @@ void test_readwrite() {
 
 void test_read() {
   /* Read all at once */
-  const char *contents = "This is the content of file \"fd_test_file\" in directory \"/tests\"!";
+  const char *contents =
+    "This is the content of file \"fd_test_file\" in directory \"/tests\"!";
   assert_open_ok(0, "/tests/fd_test_file", 0, O_RDONLY);
   assert_read_equal(0, buf, contents);
   assert_close_ok(0);
