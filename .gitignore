@@ -47,7 +47,5 @@ tests/*_test_files
 # Downloads and source cache
 cache
 
-# Dynamically rebuilt sysroots
+# Dynamically created sysroot
 sysroot
-sysroot-newlib
-install

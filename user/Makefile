@@ -12,10 +12,22 @@ all: $(PROGDIRS) install
 install: $(PROGDIRS-inst)
 
 $(PROGDIRS):
+	@echo "Maybe compiling $@..."
 	$(MAKE) -C $@
 
+# .inst targets represent the installation of a program into sysroot.
 %.inst: %
+	@echo "Maybe installing $@..."
 	$(MAKE) -C $< install
+
+
+# Dependencies between user programs are currently expressed here.
+newlib: | libmimiker.inst
+prog: | newlib.inst
+fd_test: | newlib.inst
+misbehave: | newlib.inst
+mandelbrot: | newlib.inst
+test_fork: | newlib.inst
 
 clean:
 	for dir in $(PROGDIRS); do \
