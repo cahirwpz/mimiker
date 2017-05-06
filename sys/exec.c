@@ -13,6 +13,7 @@
 #include <mips/stack.h>
 #include <mount.h>
 #include <vnode.h>
+#include <proc.h>
 
 int do_exec(const exec_args_t *args) {
   log("Loading user ELF: %s", args->prog_name);
@@ -42,17 +43,8 @@ int do_exec(const exec_args_t *args) {
 
   Elf32_Ehdr eh;
   uio_t uio;
-  iovec_t iov;
 
-  /* Read elf header. */
-  uio.uio_op = UIO_READ;
-  uio.uio_vmspace = get_kernel_vm_map();
-  iov.iov_base = &eh;
-  iov.iov_len = sizeof(Elf32_Ehdr);
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_offset = 0;
-  uio.uio_resid = sizeof(Elf32_Ehdr);
+  uio = UIO_SINGLE_KERNEL(UIO_READ, 0, &eh, sizeof(Elf32_Ehdr));
   error = VOP_READ(elf_vnode, &uio);
   if (error < 0) {
     log("Exec failed: Elf file reading failed.");
@@ -119,14 +111,7 @@ int do_exec(const exec_args_t *args) {
   char phs[phs_size];
 
   /* Read program headers. */
-  uio.uio_op = UIO_READ;
-  uio.uio_vmspace = get_kernel_vm_map();
-  iov.iov_base = &phs;
-  iov.iov_len = phs_size;
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_offset = eh.e_phoff;
-  uio.uio_resid = phs_size;
+  uio = UIO_SINGLE_KERNEL(UIO_READ, eh.e_phoff, &phs, phs_size);
   error = VOP_READ(elf_vnode, &uio);
   if (error < 0) {
     log("Exec failed: Elf file reading failed.");
@@ -181,14 +166,8 @@ int do_exec(const exec_args_t *args) {
            vm_object associated with the elf vnode, create a shadow vm_object on
            top of it using correct size/offset, and we would use it to page the
            file contents on demand. But we don't have a vnode_pager yet. */
-        uio.uio_op = UIO_READ;
-        uio.uio_vmspace = get_kernel_vm_map();
-        iov.iov_base = (char *)start;
-        iov.iov_len = ph->p_filesz;
-        uio.uio_iovcnt = 1;
-        uio.uio_iov = &iov;
-        uio.uio_offset = ph->p_offset;
-        uio.uio_resid = ph->p_filesz;
+        uio = UIO_SINGLE_KERNEL(UIO_READ, ph->p_offset, (char *)start,
+                                ph->p_filesz);
         error = VOP_READ(elf_vnode, &uio);
         if (error < 0) {
           log("Exec failed: Elf file reading failed.");
@@ -237,11 +216,24 @@ int do_exec(const exec_args_t *args) {
   prepare_program_stack(args, &stack_bottom);
 
   thread_t *td = thread_self();
-  /* ... file descriptor table ... */
-  /* TODO: Copy/share file descriptor table! */
-  fdtab_t *fdt = fdtab_alloc();
-  fdtab_ref(fdt);
-  td->td_fdtable = fdt;
+
+  /* ... sbrk segment ... */
+  sbrk_create(vmap);
+
+  /* ... and user context. */
+  uctx_init(thread_self(), eh.e_entry, stack_bottom);
+
+  /* If this is a kernel thread becoming a user thread, then we need to create
+   * (the first!) process. */
+  if (!td->td_proc) {
+    proc_t *proc = proc_create();
+    proc_populate(proc, td);
+
+    /* Prepare file descriptor table */
+    fdtab_t *fdt = fdtab_alloc();
+    fdtab_ref(fdt);
+    td->td_proc->p_fdtable = fdt;
+  }
 
   /* Before we have a working fork, let's initialize file descriptors required
      by the standard library. */
@@ -249,12 +241,6 @@ int do_exec(const exec_args_t *args) {
   do_open(td, "/dev/cons", O_RDONLY, 0, &ignore);
   do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
   do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
-
-  /* ... sbrk segment ... */
-  sbrk_create(vmap);
-
-  /* ... and user context. */
-  uctx_init(thread_self(), eh.e_entry, stack_bottom);
 
   /*
    * At this point we are certain that exec suceeds.

@@ -6,19 +6,6 @@
 #include <ktest.h>
 #include <dirent.h>
 
-static void prepare_uio(uio_t *uio, iovec_t *iov, char *buffer, int buf_size) {
-  uio->uio_op = UIO_READ;
-
-  /* Read entire file - even too much. */
-  uio->uio_iovcnt = 1;
-  uio->uio_vmspace = get_kernel_vm_map();
-  uio->uio_iov = iov;
-  uio->uio_offset = 0;
-  iov->iov_base = buffer;
-  iov->iov_len = buf_size;
-  uio->uio_resid = buf_size;
-}
-
 static void dump_file(const char *path) {
   vnode_t *v;
   int res = vfs_lookup(path, &v);
@@ -26,11 +13,9 @@ static void dump_file(const char *path) {
 
   char buffer[1000];
   memset(buffer, '\0', sizeof(buffer));
+
   uio_t uio;
-  iovec_t iov;
-
-  prepare_uio(&uio, &iov, buffer, sizeof(buffer));
-
+  uio = UIO_SINGLE_KERNEL(UIO_READ, 0, buffer, sizeof(buffer));
   res = VOP_READ(v, &uio);
 
   kprintf("file %s:\n%s\n", path, buffer);
@@ -47,10 +32,8 @@ void dump_directory(const char *path) {
 
   char buffer[50];
   memset(buffer, '\0', sizeof(buffer));
-  uio_t uio;
-  iovec_t iov;
 
-  prepare_uio(&uio, &iov, buffer, sizeof(buffer));
+  uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, 0, buffer, sizeof(buffer));
   int bytes = 0;
 
   kprintf("Contents of directory: %s\n", path);
@@ -70,8 +53,7 @@ void dump_directory(const char *path) {
         break;
     }
     int old_offset = uio.uio_offset;
-    prepare_uio(&uio, &iov, buffer, sizeof(buffer));
-    uio.uio_offset = old_offset;
+    uio = UIO_SINGLE_KERNEL(UIO_READ, old_offset, buffer, sizeof(buffer));
   } while (bytes > 0);
 }
 

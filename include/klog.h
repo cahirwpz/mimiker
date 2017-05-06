@@ -10,7 +10,7 @@
 #define KL_CALLOUT 0x00000004
 #define KL_PMAP 0x00000010 /* memory management */
 #define KL_VM 0x00000020
-#define KL_MALLOC 0x00000040
+#define KL_KMEM 0x00000040
 #define KL_POOL 0x00000080
 #define KL_LOCK 0x00000100    /* lock operations tracing */
 #define KL_SCHED 0x00000200   /* scheduler tracing */

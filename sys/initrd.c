@@ -12,6 +12,8 @@
 #include <linker_set.h>
 #include <dirent.h>
 
+static MALLOC_DEFINE(M_INITRD, "initrd", 1, 2);
+
 typedef uint32_t cpio_dev_t;
 typedef uint32_t cpio_ino_t;
 typedef uint16_t cpio_mode_t;
@@ -38,7 +40,6 @@ typedef struct cpio_node {
   void *c_data;
 } cpio_node_t;
 
-static MALLOC_DEFINE(mp, "initial ramdisk memory pool");
 typedef TAILQ_HEAD(, cpio_node) cpio_list_t;
 
 static cpio_list_t initrd_head;
@@ -52,7 +53,7 @@ static vnodeops_t initrd_ops = {.v_lookup = vnode_op_notsup,
 extern char *kenv_get(const char *key);
 
 static cpio_node_t *cpio_node_alloc() {
-  cpio_node_t *node = kmalloc(mp, sizeof(cpio_node_t), M_ZERO);
+  cpio_node_t *node = kmalloc(M_INITRD, sizeof(cpio_node_t), M_ZERO);
   TAILQ_INIT(&node->c_children);
   return node;
 }
@@ -125,7 +126,7 @@ static void read_cpio_archive() {
     cpio_node_t *node = cpio_node_alloc();
     if (!read_cpio_header(&tape, node) ||
         strcmp(node->c_path, CPIO_TRAILER) == 0) {
-      kfree(mp, node);
+      kfree(M_INITRD, node);
       break;
     }
     TAILQ_INSERT_TAIL(&initrd_head, node, c_list);
@@ -300,7 +301,6 @@ void ramdisk_init() {
   unsigned rd_size = ramdisk_get_size();
 
   TAILQ_INIT(&initrd_head);
-  kmalloc_init(mp, 2, 2);
 
   if (rd_size) {
     initrd_ops.v_lookup = initrd_vnode_lookup;
