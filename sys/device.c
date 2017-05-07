@@ -20,7 +20,9 @@ device_t *device_add_child(device_t *dev) {
 }
 
 int device_probe(device_t *dev) {
-  return dev->driver->probe ? dev->driver->probe(dev) : 0;
+  if (dev->driver->probe == NULL)
+    return 0;
+  return dev->driver->probe(dev);
 }
 
 int device_attach(device_t *dev) {
@@ -29,21 +31,24 @@ int device_attach(device_t *dev) {
 }
 
 int device_detach(device_t *dev) {
+  if (dev->driver->detach == NULL)
+    return 0;
   int res = dev->driver->detach(dev);
   if (res == 0)
     kfree(M_DEV, dev->state);
   return res;
 }
 
-/* Normally this file an intialization procedure would not exits! This is barely
-   a substitute for currently unimplemented device-driver matching mechanism. */
 extern pci_bus_driver_t gt_pci;
 
 void driver_init() {
+  /* TODO: a platform should expose root bus - probe & attach process should
+   * start from it. */
   device_t *pcib = device_alloc();
   pcib->driver = &gt_pci.driver;
   device_attach(pcib);
 
+  /* TODO: Should following code become a part of generic bus code? */
   device_t *dev;
   SET_DECLARE(driver_table, driver_t);
   log("Scanning %s for known devices.", pcib->driver->desc);
