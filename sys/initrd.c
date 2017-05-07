@@ -12,7 +12,7 @@
 #include <linker_set.h>
 #include <dirent.h>
 
-static MALLOC_DEFINE(M_INITRD, "initrd", 1, 2);
+static MALLOC_DEFINE(M_INITRD, "initrd", 16, 16);
 
 typedef uint32_t cpio_dev_t;
 typedef uint32_t cpio_ino_t;

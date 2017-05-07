@@ -43,3 +43,9 @@ toolchain
 
 # Temporary test data
 tests/*_test_files
+
+# Downloads and source cache
+cache
+
+# Dynamically created sysroot
+sysroot
