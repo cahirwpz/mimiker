@@ -32,7 +32,7 @@ static bool pci_device_present(device_t *pcib, unsigned bus, unsigned dev,
                                unsigned func) {
   device_t pcid = {.parent = pcib,
                    .bus = DEV_BUS_PCI,
-                   .instance = (pci_dev_data_t[1]){{.addr = {bus, dev, func}}}};
+                   .instance = (pci_device_t[1]){{.addr = {bus, dev, func}}}};
   return (pci_read_config(&pcid, PCIR_DEVICEID, 4) != 0xffffffff);
 }
 
@@ -43,10 +43,11 @@ void pci_bus_enumerate(device_t *pcib) {
         continue;
 
       device_t *dev = device_add_child(pcib);
-      dev->instance = kmalloc(M_DEV, sizeof(pci_dev_data_t), M_ZERO);
-      dev->bus = DEV_BUS_PCI;
+      pci_device_t *pcid = kmalloc(M_DEV, sizeof(pci_device_t), M_ZERO);
 
-      pci_dev_data_t *pcid = dev->instance;
+      dev->bus = DEV_BUS_PCI;
+      dev->instance = pcid;
+
       pcid->addr = (pci_addr_t){0, j, k};
       pcid->device_id = pci_read_config(dev, PCIR_DEVICEID, 2);
       pcid->vendor_id = pci_read_config(dev, PCIR_VENDORID, 2);
@@ -103,7 +104,7 @@ void pci_bus_assign_space(device_t *pcib) {
   device_t *dev;
 
   TAILQ_FOREACH (dev, &pcib->children, link) {
-    pci_dev_data_t *pcid = dev->instance;
+    pci_device_t *pcid = pci_device_of(dev);
     nbars += pcid->nbars;
     ndevs++;
   }
@@ -112,7 +113,7 @@ void pci_bus_assign_space(device_t *pcib) {
   unsigned n = 0;
 
   TAILQ_FOREACH (dev, &pcib->children, link) {
-    pci_dev_data_t *pcid = dev->instance;
+    pci_device_t *pcid = pci_device_of(dev);
     for (int i = 0; i < pcid->nbars; i++)
       bars[n++] = &pcid->bar[i];
   }
@@ -150,7 +151,7 @@ void pci_bus_dump(device_t *pcib) {
   device_t *dev;
 
   TAILQ_FOREACH (dev, &pcib->children, link) {
-    pci_dev_data_t *pcid = dev->instance;
+    pci_device_t *pcid = pci_device_of(dev);
 
     char devstr[16];
 

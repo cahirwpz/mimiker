@@ -74,7 +74,7 @@ typedef struct pci_bus_state {
   resource_t *io_space;
 } pci_bus_state_t;
 
-typedef struct pci_dev_data {
+typedef struct pci_device {
   pci_addr_t addr;
 
   uint16_t device_id;
@@ -84,7 +84,7 @@ typedef struct pci_dev_data {
 
   unsigned nbars;
   resource_t bar[6];
-} pci_dev_data_t;
+} pci_device_t;
 
 #define PCI_DRIVER(dev) ((pci_bus_driver_t *)((dev)->parent->driver))
 
@@ -107,5 +107,9 @@ static inline uint32_t pci_adjust_config(device_t *device, unsigned reg,
 void pci_bus_enumerate(device_t *pcib);
 void pci_bus_assign_space(device_t *pcib);
 void pci_bus_dump(device_t *pcib);
+
+static inline pci_device_t *pci_device_of(device_t *device) {
+  return (device->bus == DEV_BUS_PCI) ? device->instance : NULL;
+}
 
 #endif /* _SYS_PCI_H_ */

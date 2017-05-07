@@ -25,7 +25,7 @@ typedef union {
 /* Access configuration space through memory mapped GT-64120 registers. Take
  * care of the fact that MIPS processor cannot handle unaligned accesses. */
 static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
-  pci_dev_data_t *pcid = dev->instance;
+  pci_device_t *pcid = pci_device_of(dev);
 
   if (pcid->addr.bus > 0)
     return -1;
@@ -47,7 +47,7 @@ static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
 
 static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
                                 uint32_t value) {
-  pci_dev_data_t *pcid = dev->instance;
+  pci_device_t *pcid = pci_device_of(dev);
 
   if (pcid->addr.bus > 0)
     return;

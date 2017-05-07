@@ -145,10 +145,10 @@ static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
 }
 
 static int stdvga_probe(device_t *dev) {
-  if (dev->bus != DEV_BUS_PCI)
-    return 0;
+  pci_device_t *pcid = pci_device_of(dev);
 
-  pci_dev_data_t *pcid = dev->instance;
+  if (!pcid)
+    return 0;
 
   if (pcid->vendor_id != VGA_QEMU_STDVGA_VENDOR_ID ||
       pcid->device_id != VGA_QEMU_STDVGA_DEVICE_ID)
@@ -161,7 +161,7 @@ static int stdvga_probe(device_t *dev) {
 }
 
 static int stdvga_attach(device_t *dev) {
-  pci_dev_data_t *pcid = dev->instance;
+  pci_device_t *pcid = pci_device_of(dev);
 
   /* TODO: Enabling PCI regions should probably be performed by PCI bus resource
    * reservation code. */
