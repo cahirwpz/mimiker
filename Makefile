@@ -30,17 +30,25 @@ mimiker.elf: $(KRT) | $(SYSSUBDIRS)
 cscope:
 	cscope -b include/*.h ./*/*.[cS]
 
+# Lists of all files that we consider our sources.
+SOURCE_RULES = -not -path "./toolchain/*" -and \
+               -not -path "./cache*"      -and \
+               -not -path "./sysroot*"
+SOURCES_C = $(shell find -iname '*.[ch]' $(SOURCE_RULES))
+SOURCES_ASM = $(shell find -iname '*.[S]' $(SOURCE_RULES))
+
 tags:
 	@echo "Rebuilding tags..."
-	find -iname '*.[ch]' -not -path "*/toolchain/*" -and -not -path "*newlib*" | ctags --language-force=c -L-
-	find -iname '*.[ch]' -not -path "*/toolchain/*" -and -not -path "*newlib*" | ctags --language-force=c -L- -e -f etags
-	find -iname '*.S' -not -path "*/toolchain/*" -and -not -path "*newlib*" | ctags -a --language-force=asm -L-
-	find -iname '*.S' -not -path "*/toolchain/*" -and -not -path "*newlib*" | ctags -a --language-force=asm -L- -e -f etags
+	echo $(SOURCES_C) | tr " " "\n" | ctags --language-force=c -L-
+	echo $(SOURCES_C) | tr " " "\n" | ctags --language-force=c -L- -e -f etags
+	echo $(SOURCES_ASM) | tr " " "\n" | ctags --language-force=asm -a -L-
+	echo $(SOURCES_ASM) | tr " " "\n" | ctags --language-force=asm -a -L- -e -f etags
 
-# These files get destroyed by clang-format, so we exclude them from formatting
-FORMATTABLE_EXCLUDE = include/elf stdc/ include/mips/asm.h include/mips/m32c0.h sysroot newlib-
-# Search for all .c and .h files, excluding toolchain build directory and files from FORMATTABLE_EXCLUDE
-FORMATTABLE = $(shell find -type f -not -path "*/toolchain/*" -and \( -name '*.c' -or -name '*.h' \) | grep -v $(FORMATTABLE_EXCLUDE:%=-e %))
+# These files get destroyed by clang-format, so we explicitly exclude them from
+# being automatically formatted
+FORMATTABLE_EXCLUDE = \
+	./include/elf/% ./include/mips/asm.h ./include/mips/m32c0.h ./stdc/%
+FORMATTABLE = $(filter-out $(FORMATTABLE_EXCLUDE),$(SOURCES_C))
 format:
 	@echo "Formatting files: $(FORMATTABLE:./%=%)"
 	clang-format -style=file -i $(FORMATTABLE)
