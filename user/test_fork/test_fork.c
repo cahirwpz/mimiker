@@ -6,9 +6,10 @@ int main() {
 
   int n = fork();
   if (n == 0) {
-    printf("This is child!\n");
+    printf("This is child, my pid is %d!\n", getpid());
   } else {
-    printf("This is parent! (%d)\n", n);
+    printf("This is parent, my pid is %d, I was told child is %d!\n", getpid(),
+           n);
   }
 
   return 0;

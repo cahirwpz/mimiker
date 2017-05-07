@@ -6,11 +6,9 @@
 #include <thread.h>
 #include <vnode.h>
 
-static MALLOC_DEFINE(file_pool, "file pool");
+static MALLOC_DEFINE(M_FILE, "file", 1, 2);
 
 void file_init() {
-  kmalloc_init(file_pool);
-  kmalloc_add_pages(file_pool, 2);
 }
 
 void file_ref(file_t *f) {
@@ -29,7 +27,7 @@ void file_unref(file_t *f) {
 }
 
 file_t *file_alloc() {
-  file_t *f = kmalloc(file_pool, sizeof(file_t), M_ZERO);
+  file_t *f = kmalloc(M_FILE, sizeof(file_t), M_ZERO);
   f->f_ops = &badfileops;
   mtx_init(&f->f_mtx, MTX_DEF);
   return f;
@@ -45,7 +43,7 @@ void file_destroy(file_t *f) {
   if (f->f_ops != &badfileops)
     FOP_CLOSE(f, thread_self());
 
-  kfree(file_pool, f);
+  kfree(M_FILE, f);
 }
 
 void file_release(file_t *f) {

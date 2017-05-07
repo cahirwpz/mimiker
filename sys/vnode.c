@@ -5,7 +5,7 @@
 #include <stdc.h>
 #include <vnode.h>
 
-static MALLOC_DEFINE(vnode_pool, "vnode pool");
+static MALLOC_DEFINE(M_VNODE, "vnode", 2, 16);
 
 /* Actually, vnode management should be much more complex than this, because
    this stub does not recycle vnodes, does not store them on a free list,
@@ -13,12 +13,10 @@ static MALLOC_DEFINE(vnode_pool, "vnode pool");
    - but this will do for now. */
 
 void vnode_init() {
-  kmalloc_init(vnode_pool);
-  kmalloc_add_arena(vnode_pool, pm_alloc(16)->vaddr, PAGESIZE * 16);
 }
 
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops) {
-  vnode_t *v = kmalloc(vnode_pool, sizeof(vnode_t), M_ZERO);
+  vnode_t *v = kmalloc(M_VNODE, sizeof(vnode_t), M_ZERO);
   v->v_type = type;
   v->v_data = NULL;
   v->v_ops = ops;
@@ -45,8 +43,10 @@ void vnode_ref(vnode_t *v) {
 void vnode_unref(vnode_t *v) {
   vnode_lock(v);
   v->v_usecnt--;
-  /* TODO: if v_usecnt reaches zero, the vnode should be released */
-  vnode_unlock(v);
+  if (v->v_usecnt == 0)
+    kfree(M_VNODE, v);
+  else
+    vnode_unlock(v);
 }
 
 int vnode_op_notsup() {
@@ -54,12 +54,10 @@ int vnode_op_notsup() {
 }
 
 static int vnode_generic_read(file_t *f, thread_t *td, uio_t *uio) {
-  uio->uio_offset += f->f_offset;
   return VOP_READ(f->f_vnode, uio);
 }
 
 static int vnode_generic_write(file_t *f, thread_t *td, uio_t *uio) {
-  uio->uio_offset += f->f_offset;
   return VOP_WRITE(f->f_vnode, uio);
 }
 

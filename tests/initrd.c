@@ -10,47 +10,29 @@ static void dump_file(const char *path) {
   int res = vfs_lookup(path, &v);
   assert(res == 0);
 
-  char buffer[1000];
+  char buffer[500];
   memset(buffer, '\0', sizeof(buffer));
+
   uio_t uio;
-  iovec_t iov;
-  uio.uio_op = UIO_READ;
-
-  /* Read entire file - even too much. */
-  uio.uio_iovcnt = 1;
-  uio.uio_vmspace = get_kernel_vm_map();
-  uio.uio_iov = &iov;
-  uio.uio_offset = 0;
-  iov.iov_base = buffer;
-  iov.iov_len = sizeof(buffer);
-  uio.uio_resid = sizeof(buffer);
-
+  uio = UIO_SINGLE_KERNEL(UIO_READ, 0, buffer, sizeof(buffer));
   res = VOP_READ(v, &uio);
 
   kprintf("file %s:\n%s\n", path, buffer);
 }
 
 static int test_ramdisk() {
-  ramdisk_dump();
-  dump_file("/initrd/tests/initrd/directory1/file1");
-  dump_file("/initrd/tests/initrd/directory1/file2");
-  dump_file("/initrd/tests/initrd/directory1/file3");
-  dump_file("/initrd/tests/initrd/directory2/file1");
-  dump_file("/initrd/tests/initrd/directory2/file2");
-  dump_file("/initrd/tests/initrd/directory2/file3");
-  dump_file("/initrd/tests/initrd/random_file.txt");
-  dump_file("/initrd/tests/initrd/some_file.exe");
-  dump_file("/initrd/tests/initrd/just_file.cpp");
-  dump_file("/initrd/tests/initrd/some_file.c");
-  dump_file("/initrd/tests/initrd/just_file.hs");
-  dump_file(
-    "/initrd/tests/initrd/very/very/very/very/very/very/very/very/very/deep/"
-    "directory/deep_inside");
-  dump_file("/initrd/tests/initrd/short_file_name/a");
-  dump_file("/initrd/tests/initrd/level1/level2/level3/level123");
-  dump_file("/initrd/tests/initrd/level1/level2/level12");
-  dump_file("/initrd/tests/initrd/level1/level1");
+  dump_file("/usr/include/sys/errno.h");
+  dump_file("/usr/include/sys/dirent.h");
+  dump_file("/usr/include/sys/unistd.h");
   return KTEST_SUCCESS;
 }
 
 KTEST_ADD(ramdisk, test_ramdisk, 0);
+
+/* Completing this test takes far too much time due to its verbosity - so it's
+   disabled with the BROKEN flag. */
+static int test_ramdisk_dump() {
+  ramdisk_dump();
+  return KTEST_SUCCESS;
+}
+KTEST_ADD(ramdisk_dump, test_ramdisk_dump, KTEST_FLAG_BROKEN);

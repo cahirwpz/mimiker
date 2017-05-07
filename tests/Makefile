@@ -11,7 +11,9 @@ SOURCES_C = \
 	mutex.c \
 	physmem.c \
 	pmap.c \
+	pool.c \
 	producer_consumer.c \
+	resizable_fdt.c \
 	rtc.c \
 	rwlock.c \
 	sched.c \
@@ -22,17 +24,14 @@ SOURCES_C = \
 	uiomove.c \
 	vm_map.c \
 	vfs.c
+
 SOURCES_ASM =
 
-all: $(DEPFILES) initrd_test_files libtests.a
-
-initrd_test_files: prepare_initrd_test_files.sh
-	./prepare_initrd_test_files.sh
+all: $(DEPFILES) libtests.a
 
 include ../Makefile.common
 
 libtests.a: $(OBJECTS)
 
 clean:
-	$(RM) -f .*.D *.o *.elf *.a *.map *~
-	$(RM) -rf initrd_test_files
+	$(RM) .*.D *.o *.elf *.a *.map *~

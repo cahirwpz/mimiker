@@ -90,6 +90,7 @@ void sched_switch(thread_t *newtd) {
     newtd->td_nctxsw++;
     ctx_switch(td, newtd);
   }
+
   critical_leave();
 }
 
