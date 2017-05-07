@@ -80,8 +80,6 @@ void pci_bus_enumerate(device_t *pcib) {
                             .r_end = size - 1,
                             .r_id = i};
       }
-
-      TAILQ_INSERT_TAIL(&pcib->children, dev, link);
     }
   }
 }
@@ -107,8 +105,6 @@ void pci_bus_assign_space(device_t *pcib) {
     nbars += pcid->nbars;
     ndevs++;
   }
-
-  log("devs = %d, nbars = %d", ndevs, nbars);
 
   resource_t **bars = kmalloc(M_DEV, sizeof(resource_t *) * nbars, M_ZERO);
   unsigned n = 0;

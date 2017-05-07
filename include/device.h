@@ -3,6 +3,7 @@
 
 #include <queue.h>
 #include <malloc.h>
+#include <linker_set.h>
 
 typedef struct device device_t;
 typedef struct driver driver_t;
@@ -22,6 +23,8 @@ struct driver {
   d_detach_t detach;     /* detach device from system */
 };
 
+#define DRIVER_ADD(name) SET_ENTRY(driver_table, name)
+
 struct device {
   /* Device hierarchy. */
   device_t *parent;        /* parent node (bus?) or null (root or pseudo-dev) */
@@ -35,9 +38,12 @@ struct device {
   void *state;    /* memory requested by driver for its state*/
 };
 
+void driver_init();
+
 device_t *device_add_child(device_t *dev);
-int device_set_driver(device_t *dev, driver_t *driver);
+int device_probe(device_t *dev);
 int device_attach(device_t *dev);
+int device_detach(device_t *dev);
 
 /* A universal memory pool to be used by all drivers. */
 MALLOC_DECLARE(M_DEV);

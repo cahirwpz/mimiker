@@ -11,6 +11,7 @@ SOURCES_C  = \
 	dev_null.c \
 	dev_vga.c \
 	devfs.c \
+	drv_stdvga.c \
 	exception.c \
 	exec.c \
 	file.c \
@@ -35,13 +36,11 @@ SOURCES_C  = \
 	sched.c \
 	sleepq.c \
 	startup.c \
-	drv_stdvga.c \
 	sync.c \
 	sysent.c \
 	mmap.c \
 	thread.c \
 	uio.c \
-	vga.c \
 	vfs.c \
 	vfs_syscalls.c \
 	vm_map.c \

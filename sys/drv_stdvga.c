@@ -7,8 +7,7 @@
 
 #define VGA_PALETTE_SIZE (256 * 3)
 
-typedef struct stdvga_device {
-  pci_device_t *pci_device;
+typedef struct stdvga_state {
   resource_t *mem;
   resource_t *io;
 
@@ -20,10 +19,10 @@ typedef struct stdvga_device {
   uint8_t *fb_buffer; /* This buffer is only needed because we can't pass uio
                          directly to the bus. */
   vga_device_t vga;
-} stdvga_device_t;
+} stdvga_state_t;
 
 #define STDVGA_FROM_VGA(vga)                                                   \
-  (stdvga_device_t *)container_of(vga, stdvga_device_t, vga)
+  (stdvga_state_t *)container_of(vga, stdvga_state_t, vga)
 
 /* Detailed information about VGA registers is available at
    http://www.osdever.net/FreeVGA/vga/vga.htm */
@@ -50,22 +49,22 @@ typedef struct stdvga_device {
 #define VGA_QEMU_STDVGA_VENDOR_ID 0x1234
 #define VGA_QEMU_STDVGA_DEVICE_ID 0x1111
 
-static void stdvga_io_write(stdvga_device_t *vga, uint16_t reg, uint8_t value) {
+static void stdvga_io_write(stdvga_state_t *vga, uint16_t reg, uint8_t value) {
   bus_space_write_1(vga->io, reg + VGA_MMIO_OFFSET, value);
 }
-static uint8_t __unused stdvga_io_read(stdvga_device_t *vga, uint16_t reg) {
+static uint8_t __unused stdvga_io_read(stdvga_state_t *vga, uint16_t reg) {
   return bus_space_read_1(vga->io, reg + VGA_MMIO_OFFSET);
 }
-static void stdvga_vbe_write(stdvga_device_t *vga, uint16_t reg,
+static void stdvga_vbe_write(stdvga_state_t *vga, uint16_t reg,
                              uint16_t value) {
   /* <<1 shift enables access to 16-bit registers. */
   bus_space_write_2(vga->io, (reg << 1) + VBE_MMIO_OFFSET, value);
 }
-static uint16_t stdvga_vbe_read(stdvga_device_t *vga, uint16_t reg) {
+static uint16_t stdvga_vbe_read(stdvga_state_t *vga, uint16_t reg) {
   return bus_space_read_2(vga->io, (reg << 1) + VBE_MMIO_OFFSET);
 }
 
-static void stdvga_palette_write_single(stdvga_device_t *stdvga, uint8_t offset,
+static void stdvga_palette_write_single(stdvga_state_t *stdvga, uint8_t offset,
                                         uint8_t r, uint8_t g, uint8_t b) {
   stdvga_io_write(stdvga, VGA_PALETTE_ADDR, offset);
   stdvga_io_write(stdvga, VGA_PALETTE_DATA, r >> 2);
@@ -73,7 +72,7 @@ static void stdvga_palette_write_single(stdvga_device_t *stdvga, uint8_t offset,
   stdvga_io_write(stdvga, VGA_PALETTE_DATA, b >> 2);
 }
 
-static void stdvga_palette_write_buffer(stdvga_device_t *stdvga,
+static void stdvga_palette_write_buffer(stdvga_state_t *stdvga,
                                         const uint8_t buf[VGA_PALETTE_SIZE]) {
   for (int i = 0; i < VGA_PALETTE_SIZE / 3; i++)
     stdvga_palette_write_single(stdvga, i, buf[3 * i + 0], buf[3 * i + 1],
@@ -81,7 +80,7 @@ static void stdvga_palette_write_buffer(stdvga_device_t *stdvga,
 }
 
 static int stdvga_palette_write(vga_device_t *vga, uio_t *uio) {
-  stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
+  stdvga_state_t *stdvga = STDVGA_FROM_VGA(vga);
   int error = uiomove_frombuf(stdvga->palette_buffer, VGA_PALETTE_SIZE, uio);
   if (error)
     return error;
@@ -92,7 +91,7 @@ static int stdvga_palette_write(vga_device_t *vga, uio_t *uio) {
 
 static int stdvga_get_videomode(vga_device_t *vga, unsigned *xres,
                                 unsigned *yres, unsigned *bpp) {
-  stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
+  stdvga_state_t *stdvga = STDVGA_FROM_VGA(vga);
   *xres = stdvga->width;
   *yres = stdvga->height;
   *bpp = stdvga->bpp;
@@ -101,7 +100,7 @@ static int stdvga_get_videomode(vga_device_t *vga, unsigned *xres,
 
 static int stdvga_set_videomode(vga_device_t *vga, unsigned xres, unsigned yres,
                                 unsigned bpp) {
-  stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
+  stdvga_state_t *stdvga = STDVGA_FROM_VGA(vga);
 
   /* Impose some reasonable resolution limit. As long as we have to use an
      fb_buffer, the limit is related to the size of memory pool used by the
@@ -132,7 +131,7 @@ static int stdvga_set_videomode(vga_device_t *vga, unsigned xres, unsigned yres,
 }
 
 static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
-  stdvga_device_t *stdvga = STDVGA_FROM_VGA(vga);
+  stdvga_state_t *stdvga = STDVGA_FROM_VGA(vga);
   /* TODO: Some day `bus_space_map` will be implemented. This will allow to map
    * RT_MEMORY resource into kernel virtual address space. BUS_SPACE_MAP_LINEAR
    * would be ideal for frambuffer memory, since we could access it directly. */
@@ -145,23 +144,35 @@ static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
   return 0;
 }
 
-int stdvga_pci_attach(pci_device_t *pci) {
-  if (pci->vendor_id != VGA_QEMU_STDVGA_VENDOR_ID ||
-      pci->device_id != VGA_QEMU_STDVGA_DEVICE_ID)
+static int stdvga_probe(device_t *dev) {
+  pci_dev_data_t *pcid = dev->instance;
+
+  if (pcid == NULL)
     return 0;
 
-  stdvga_device_t *stdvga = kmalloc(M_DEV, sizeof(stdvga_device_t), M_ZERO);
+  if (pcid->vendor_id != VGA_QEMU_STDVGA_VENDOR_ID ||
+      pcid->device_id != VGA_QEMU_STDVGA_DEVICE_ID)
+    return 0;
+
+  if (!(pcid->bar[0].r_flags & RF_PREFETCHABLE))
+    return 0;
+
+  return 1;
+}
+
+static int stdvga_attach(device_t *dev) {
+  pci_dev_data_t *pcid = dev->instance;
 
   /* TODO: Enabling PCI regions should probably be performed by PCI bus resource
    * reservation code. */
-  uint16_t command = pci_read_config(pci, PCIR_COMMAND, 2);
+  uint16_t command = pci_read_config(dev, PCIR_COMMAND, 2);
   command |= PCIM_CMD_PORTEN | PCIM_CMD_MEMEN;
-  pci_write_config(pci, PCIR_COMMAND, 2, command);
+  pci_write_config(dev, PCIR_COMMAND, 2, command);
 
-  assert(pci->bar[0].r_flags | RF_PREFETCHABLE);
+  stdvga_state_t *stdvga = dev->state;
   /* TODO: This will get replaced by bus_alloc_resource* function */
-  stdvga->mem = &pci->bar[0];
-  stdvga->io = &pci->bar[1];
+  stdvga->mem = &pcid->bar[0];
+  stdvga->io = &pcid->bar[1];
 
   stdvga->vga = (vga_device_t){
     .palette_write = stdvga_palette_write,
@@ -192,5 +203,14 @@ int stdvga_pci_attach(pci_device_t *pci) {
   /* Install /dev/vga interace. */
   dev_vga_install(&stdvga->vga);
 
-  return 1;
+  return 0;
 }
+
+static driver_t stdvga = {
+  .desc = "Bochs VGA driver",
+  .size = sizeof(stdvga_state_t),
+  .probe = stdvga_probe,
+  .attach = stdvga_attach,
+};
+
+DRIVER_ADD(stdvga);

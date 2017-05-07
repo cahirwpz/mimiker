@@ -119,7 +119,9 @@ static resource_t gt_pci_ioports = {.r_bus_space = &gt_pci_bus_space,
                                     .r_start = MALTA_PCI0_IO_BASE,
                                     .r_end = MALTA_PCI0_IO_END};
 
-int gt_pci_attach(device_t *pcib) {
+static int gt_pci_probe(device_t *pcib) { return 1; }
+
+static int gt_pci_attach(device_t *pcib) {
   pci_bus_state_t *state = pcib->state;
   state->mem_space = &gt_pci_memory;
   state->io_space = &gt_pci_ioports;
@@ -130,12 +132,16 @@ int gt_pci_attach(device_t *pcib) {
   return 0;
 }
 
+static int gt_pci_detach(device_t *pcib) { return 0; }
+
 pci_bus_driver_t gt_pci = {
   .driver =
     {
       .desc = "GT-64120 PCI bus driver",
       .size = sizeof(pci_bus_state_t),
+      .probe = gt_pci_probe,
       .attach = gt_pci_attach,
+      .detach = gt_pci_detach,
     },
   .bus = {},
   .pci_bus =
