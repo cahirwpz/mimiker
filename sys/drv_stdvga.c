@@ -145,6 +145,9 @@ static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
 }
 
 static int stdvga_probe(device_t *dev) {
+  if (dev->bus != DEV_BUS_PCI)
+    return 0;
+
   pci_dev_data_t *pcid = dev->instance;
 
   if (pcid->vendor_id != VGA_QEMU_STDVGA_VENDOR_ID ||

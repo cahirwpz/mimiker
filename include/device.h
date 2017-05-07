@@ -25,6 +25,8 @@ struct driver {
 
 #define DRIVER_ADD(name) SET_ENTRY(driver_table, name)
 
+typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
+
 struct device {
   /* Device hierarchy. */
   device_t *parent;        /* parent node (bus?) or null (root or pseudo-dev) */
@@ -33,6 +35,7 @@ struct device {
   device_list_t children;   /* head of children devices */
 
   /* Device information and state. */
+  device_bus_t bus;
   driver_t *driver;
   void *instance; /* used by bus driver to store data in children */
   void *state;    /* memory requested by driver for its state*/

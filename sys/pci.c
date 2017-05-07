@@ -31,6 +31,7 @@ static const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
 static bool pci_device_present(device_t *pcib, unsigned bus, unsigned dev,
                                unsigned func) {
   device_t pcid = {.parent = pcib,
+                   .bus = DEV_BUS_PCI,
                    .instance = (pci_dev_data_t[1]){{.addr = {bus, dev, func}}}};
   return (pci_read_config(&pcid, PCIR_DEVICEID, 4) != 0xffffffff);
 }
@@ -43,6 +44,7 @@ void pci_bus_enumerate(device_t *pcib) {
 
       device_t *dev = device_add_child(pcib);
       dev->instance = kmalloc(M_DEV, sizeof(pci_dev_data_t), M_ZERO);
+      dev->bus = DEV_BUS_PCI;
 
       pci_dev_data_t *pcid = dev->instance;
       pcid->addr = (pci_addr_t){0, j, k};
