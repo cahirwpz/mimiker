@@ -5,27 +5,29 @@
 #include <sched.h>
 
 static int malloc_one_allocation(void) {
-  MALLOC_DEFINE(mp, "testing memory pool");
-  kmalloc_init(mp, 1, 1);
+  kmem_pool_t *mp = KMEM_POOL("test", 1, 1);
+  kmem_init(mp);
   void *ptr = kmalloc(mp, 1234, M_NOWAIT);
   assert(ptr != NULL);
   kfree(mp, ptr);
+  kmem_destroy(mp);
   return KTEST_SUCCESS;
 }
 
 static int malloc_invalid_values(void) {
-  MALLOC_DEFINE(mp, "testing memory pool");
-  kmalloc_init(mp, 1, 1);
+  kmem_pool_t *mp = KMEM_POOL("test", 1, 1);
+  kmem_init(mp);
   void *ptr = kmalloc(mp, PAGESIZE, M_NOWAIT);
   assert(ptr == NULL);
   ptr = kmalloc(mp, 0, M_NOWAIT);
   assert(ptr == NULL);
+  kmem_destroy(mp);
   return KTEST_SUCCESS;
 }
 
 static int malloc_multiple_allocations(void) {
-  MALLOC_DEFINE(mp, "testing memory pool");
-  kmalloc_init(mp, 1, 1);
+  kmem_pool_t *mp = KMEM_POOL("test", 1, 1);
+  kmem_init(mp);
   const int n = 50;
   void *ptrs[n];
   for (int i = 0; i < n; i++) {
@@ -34,12 +36,13 @@ static int malloc_multiple_allocations(void) {
   }
   for (int i = 0; i < n; i++)
     kfree(mp, ptrs[i]);
+  kmem_destroy(mp);
   return KTEST_SUCCESS;
 }
 
 static int malloc_dynamic_pages_addition(void) {
-  MALLOC_DEFINE(mp, "testing memory pool");
-  kmalloc_init(mp, 1, 3);
+  kmem_pool_t *mp = KMEM_POOL("test", 1, 3);
+  kmem_init(mp);
   void *ptr1 = kmalloc(mp, 4000, 0);
   assert(ptr1 != NULL);
   void *ptr2 = kmalloc(mp, 4000, 0);
@@ -49,6 +52,7 @@ static int malloc_dynamic_pages_addition(void) {
   kfree(mp, ptr1);
   kfree(mp, ptr2);
   kfree(mp, ptr3);
+  kmem_destroy(mp);
   return KTEST_SUCCESS;
 }
 
@@ -57,12 +61,13 @@ static int malloc_random_size(unsigned int randint) {
   if (randint == 0)
     randint = 64;
 
-  MALLOC_DEFINE(mp, "testing memory pool");
-  kmalloc_init(mp, MALLOC_RANDINT_PAGES, MALLOC_RANDINT_PAGES);
-
+  kmem_pool_t *mp =
+    KMEM_POOL("test", MALLOC_RANDINT_PAGES, MALLOC_RANDINT_PAGES);
+  kmem_init(mp);
   void *ptr = kmalloc(mp, randint, M_NOWAIT);
   assert(ptr != NULL);
   kfree(mp, ptr);
+  kmem_destroy(mp);
   return KTEST_SUCCESS;
 }
 

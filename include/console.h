@@ -9,12 +9,12 @@ typedef void (*cn_init_t)(console_t *);
 typedef int (*cn_getc_t)(console_t *);
 typedef void (*cn_putc_t)(console_t *, int);
 
-typedef struct console {
+struct console {
   cn_init_t cn_init;
   cn_getc_t cn_getc;
   cn_putc_t cn_putc;
   int cn_prio;
-} console_t;
+};
 
 #define CONSOLE_ADD(name) SET_ENTRY(cn_table, name)
 

@@ -2,6 +2,7 @@
 #define _SYS_DEVICE_H_
 
 #include <queue.h>
+#include <malloc.h>
 
 typedef struct device device_t;
 typedef struct driver driver_t;
@@ -33,5 +34,8 @@ struct device {
   driver_t *driver;
   void *state; /* memory requested by driver */
 };
+
+/* A universal memory pool to be used by all drivers. */
+MALLOC_DECLARE(M_DEV);
 
 #endif /* _SYS_DEVICE_H_ */

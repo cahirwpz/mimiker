@@ -181,6 +181,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   intr_init();
   mips_intr_init();
   pm_bootstrap(memsize);
+  kmem_bootstrap();
   sleepq_init();
   thread_bootstrap();
 

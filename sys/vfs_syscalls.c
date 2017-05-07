@@ -7,6 +7,7 @@
 #include <thread.h>
 #include <vfs_syscalls.h>
 #include <vnode.h>
+#include <proc.h>
 #include <vm_map.h>
 
 int do_open(thread_t *td, char *pathname, int flags, int mode, int *fd) {
@@ -17,7 +18,8 @@ int do_open(thread_t *td, char *pathname, int flags, int mode, int *fd) {
   if (error)
     goto fail;
   /* Now install the file in descriptor table. */
-  error = fdtab_install_file(td->td_fdtable, f, fd);
+  assert(td->td_proc);
+  error = fdtab_install_file(td->td_proc->p_fdtable, f, fd);
   if (error)
     goto fail;
 
@@ -29,12 +31,14 @@ fail:
 }
 
 int do_close(thread_t *td, int fd) {
-  return fdtab_close_fd(td->td_fdtable, fd);
+  assert(td->td_proc);
+  return fdtab_close_fd(td->td_proc->p_fdtable, fd);
 }
 
 int do_read(thread_t *td, int fd, uio_t *uio) {
   file_t *f;
-  int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
+  assert(td->td_proc);
+  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_READ, &f);
   if (res)
     return res;
   uio->uio_offset = f->f_offset;
@@ -46,7 +50,8 @@ int do_read(thread_t *td, int fd, uio_t *uio) {
 
 int do_write(thread_t *td, int fd, uio_t *uio) {
   file_t *f;
-  int res = fdtab_get_file(td->td_fdtable, fd, FF_WRITE, &f);
+  assert(td->td_proc);
+  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_WRITE, &f);
   if (res)
     return res;
   uio->uio_offset = f->f_offset;
@@ -60,7 +65,8 @@ int do_lseek(thread_t *td, int fd, off_t offset, int whence) {
   /* TODO: Whence! Now we assume whence == SEEK_SET */
   /* TODO: RW file flag! For now we just file_get_read */
   file_t *f;
-  int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
+  assert(td->td_proc);
+  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, 0, &f);
   if (res)
     return res;
   f->f_offset = offset;
@@ -70,7 +76,8 @@ int do_lseek(thread_t *td, int fd, off_t offset, int whence) {
 
 int do_fstat(thread_t *td, int fd, vattr_t *buf) {
   file_t *f;
-  int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
+  assert(td->td_proc);
+  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_READ, &f);
   if (res)
     return res;
   res = f->f_ops->fo_getattr(f, td, buf);
@@ -134,7 +141,7 @@ int sys_write(thread_t *td, syscall_args_t *args) {
   log("sys_write(%d, %p, %zu)", fd, ubuf, count);
 
   uio_t uio;
-  uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
+  uio = UIO_SINGLE_USER(UIO_WRITE, 0, ubuf, count);
   int error = do_write(td, fd, &uio);
   if (error)
     return error;
