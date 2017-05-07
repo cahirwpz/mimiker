@@ -6,7 +6,7 @@
 #include <sysent.h>
 #include <systm.h>
 
-static MALLOC_DEFINE(sig_pool, "signal handlers pool");
+static MALLOC_DEFINE(sig_pool, "signal handlers pool", 2, 2);
 
 static sighandler_t *signal_default_actions[SIG_LAST] = {
     [SIGINT] = SIG_TERM,  [SIGILL] = SIG_TERM,  [SIGFPE] = SIG_TERM,
@@ -20,13 +20,6 @@ static const char *signal_names[SIG_LAST] = {
     [SIGTERM] = "SIGTERM", [SIGCHLD] = "SIGCHLD", [SIGUSR1] = "SIGUSR1",
     [SIGUSR2] = "SIGUSR2",
 };
-
-void sighand_init() {
-  /* TODO: A lot of kernel components have a init function whose only purpose is
-     to perform a kmalloc_init. Maybe we could collect them with a linker set,
-     and initialize all pools together? */
-  kmalloc_init(sig_pool, 2, 2);
-}
 
 sighand_t *sighand_new() {
   sighand_t *sh = kmalloc(sig_pool, sizeof(sighand_t), M_ZERO);

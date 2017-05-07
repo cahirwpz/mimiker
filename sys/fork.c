@@ -41,9 +41,6 @@ int do_fork() {
   /* Clone the entire process memory space. */
   newtd->td_uspace = vm_map_clone(td->td_uspace);
 
-  /* Copy the parent descriptor table. */
-  newtd->td_fdtable = fdtab_copy(td->td_fdtable);
-
   /* Copy signal handler dispatch rules. */
   /* TODO: Signal handlers may be optionally shared between threads. */
   newtd->td_sighand = sighand_copy(td->td_sighand);

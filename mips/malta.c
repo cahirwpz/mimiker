@@ -183,7 +183,6 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   pm_bootstrap(memsize);
   kmem_bootstrap();
   sleepq_init();
-  sighand_init();
   thread_bootstrap();
 
   kprintf("[startup] Switching to 'kernel-main' thread...\n");

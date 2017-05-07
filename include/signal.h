@@ -41,8 +41,6 @@ typedef struct sighand {
   mtx_t sh_mtx;
 } sighand_t;
 
-void sighand_init();
-
 sighand_t *sighand_new();
 sighand_t *sighand_copy(sighand_t *sh);
 
