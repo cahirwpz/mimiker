@@ -9,6 +9,7 @@
 #include <fork.h>
 #include <sbrk.h>
 #include <signal.h>
+#include <proc.h>
 
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   kprintf("[syscall] unimplemented system call %ld\n", args->code);

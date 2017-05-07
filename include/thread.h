@@ -14,6 +14,7 @@ typedef uint8_t td_prio_t;
 typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
 typedef struct fdtab fdtab_t;
+typedef struct proc proc_t;
 
 #define TD_NAME_MAX 32
 
@@ -23,7 +24,7 @@ typedef struct fdtab fdtab_t;
   0x00000004 /* signals were posted since last exc return */
 
 typedef struct thread {
-  /* Locks*/
+  /* Locks */
   mtx_t td_lock;
   condvar_t td_waitcv; /* CV for thread exit, used by join */
   /* List links */
@@ -31,6 +32,9 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
   TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
+  TAILQ_ENTRY(thread) td_procq;   /* a link on process threads queue */
+  /* Properties */
+  proc_t *td_proc; /* Parent process, NULL for kernel threads. */
   char *td_name;
   tid_t td_tid;
   /* thread state */
@@ -47,8 +51,6 @@ typedef struct thread {
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
   vm_map_t *td_uspace; /* thread's user space map */
-  /* file descriptors table */
-  fdtab_t *td_fdtable;
   /* waiting channel */
   sleepq_t *td_sleepqueue;
   void *td_wchan;

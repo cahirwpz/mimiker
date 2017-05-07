@@ -32,6 +32,8 @@ typedef uint32_t tid_t;
 #define __section(s) __attribute__((__section__(#s)))
 #define __unused __attribute__((unused))
 #define __used __attribute__((used))
+#define __aligned(x) __attribute__((__aligned__(x)))
+#define __warn_unused __attribute__((warn_unused_result));
 
 /* Macros for counting and rounding. */
 #ifndef howmany
@@ -89,6 +91,9 @@ typedef uint32_t tid_t;
     intptr_t _size = (intptr_t)(size);                                         \
     !(_addr & (_size - 1));                                                    \
   })
+
+#define container_of(p, type, field)                                           \
+  ((type *)((char *)(p)-offsetof(type, field)))
 
 #define cleanup(func) __attribute__((__cleanup__(cleanup_##func)))
 #define DEFINE_CLEANUP_FUNCTION(type, func)                                    \

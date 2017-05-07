@@ -11,7 +11,9 @@ SOURCES_C = \
 	mutex.c \
 	physmem.c \
 	pmap.c \
+	pool.c \
 	producer_consumer.c \
+	resizable_fdt.c \
 	rtc.c \
 	rwlock.c \
 	sched.c \
@@ -21,6 +23,7 @@ SOURCES_C = \
 	uiomove.c \
 	vm_map.c \
 	vfs.c
+
 SOURCES_ASM =
 
 all: $(DEPFILES) initrd_test_files libtests.a

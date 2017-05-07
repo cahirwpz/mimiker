@@ -8,6 +8,7 @@ SOURCES_C  = \
 	console.c \
 	dev_cons.c \
 	dev_null.c \
+	dev_vga.c \
 	devfs.c \
 	exception.c \
 	exec.c \
@@ -16,6 +17,7 @@ SOURCES_C  = \
 	fork.c \
 	initrd.c \
 	interrupt.c \
+	klog.c \
 	ktest.c \
 	main.c \
 	malloc.c \
@@ -23,6 +25,8 @@ SOURCES_C  = \
 	pci_ids.c \
 	pcpu.c \
 	physmem.c \
+	pool.c \
+	proc.c \
 	runq.c \
 	rwlock.c \
 	sbrk.c \
@@ -30,11 +34,13 @@ SOURCES_C  = \
 	signal.c \
 	sleepq.c \
 	startup.c \
+	stdvga.c \
 	sync.c \
 	sysent.c \
 	mmap.c \
 	thread.c \
 	uio.c \
+	vga.c \
 	vfs.c \
 	vfs_syscalls.c \
 	vm_map.c \

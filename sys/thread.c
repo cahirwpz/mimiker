@@ -8,7 +8,7 @@
 #include <sched.h>
 #include <filedesc.h>
 
-static MALLOC_DEFINE(td_pool, "kernel threads pool");
+static MALLOC_DEFINE(M_THREAD, "thread", 1, 2);
 
 typedef TAILQ_HEAD(, thread) thread_list_t;
 
@@ -19,8 +19,6 @@ static mtx_t zombie_threads_mtx;
 static thread_list_t zombie_threads;
 
 void thread_init() {
-  kmalloc_init(td_pool, 2, 2);
-
   log("Thread init.");
   mtx_init(&all_threads_mtx, MTX_DEF);
   TAILQ_INIT(&all_threads);
@@ -60,10 +58,10 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
 
   thread_reap();
 
-  thread_t *td = kmalloc(td_pool, sizeof(thread_t), M_ZERO);
+  thread_t *td = kmalloc(M_THREAD, sizeof(thread_t), M_ZERO);
 
   td->td_sleepqueue = sleepq_alloc();
-  td->td_name = kstrndup(td_pool, name, TD_NAME_MAX);
+  td->td_name = kstrndup(M_THREAD, name, TD_NAME_MAX);
   td->td_tid = make_tid();
   td->td_kstack_obj = pm_alloc(1);
   td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
@@ -111,8 +109,8 @@ void thread_delete(thread_t *td) {
   pm_free(td->td_kstack_obj);
 
   sleepq_destroy(td->td_sleepqueue);
-  kfree(td_pool, td->td_name);
-  kfree(td_pool, td);
+  kfree(M_THREAD, td->td_name);
+  kfree(M_THREAD, td);
 }
 
 thread_t *thread_self() {
@@ -135,8 +133,6 @@ noreturn void thread_exit(int exitcode) {
     while (td->td_csnest--)
       critical_leave();
   }
-
-  fdtab_release(td->td_fdtable);
 
   mtx_lock(&zombie_threads_mtx);
   TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);

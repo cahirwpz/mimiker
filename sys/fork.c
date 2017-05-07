@@ -5,6 +5,7 @@
 #include <sched.h>
 #include <stdc.h>
 #include <vm_map.h>
+#include <proc.h>
 
 int do_fork() {
   thread_t *td = thread_self();
@@ -53,7 +54,16 @@ int do_fork() {
 
   newtd->td_prio = td->td_prio;
 
+  /* Now, prepare a new process. */
+  assert(td->td_proc);
+  proc_t *proc = proc_create();
+  proc_populate(proc, newtd);
+
+  /* Copy the parent descriptor table. */
+  /* TODO: Optionally share the descriptor table between processes. */
+  proc->p_fdtable = fdtab_copy(td->td_proc->p_fdtable);
+
   sched_add(newtd);
 
-  return newtd->td_tid;
+  return proc->p_pid;
 }
