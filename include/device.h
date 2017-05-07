@@ -3,6 +3,7 @@
 
 #include <queue.h>
 #include <uio.h>
+#include <malloc.h>
 
 typedef struct device device_t;
 
@@ -24,5 +25,8 @@ struct device {
   d_read_t *d_read;
   d_write_t *d_write;
 };
+
+/* A universal memory pool to be used by all drivers. */
+MALLOC_DECLARE(M_DEV);
 
 #endif /* _SYS_DEVICE_H_ */
