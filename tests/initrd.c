@@ -10,7 +10,7 @@ static void dump_file(const char *path) {
   int res = vfs_lookup(path, &v);
   assert(res == 0);
 
-  char buffer[1000];
+  char buffer[500];
   memset(buffer, '\0', sizeof(buffer));
 
   uio_t uio;
@@ -21,25 +21,18 @@ static void dump_file(const char *path) {
 }
 
 static int test_ramdisk() {
-  ramdisk_dump();
-  dump_file("/tests/initrd/directory1/file1");
-  dump_file("/tests/initrd/directory1/file2");
-  dump_file("/tests/initrd/directory1/file3");
-  dump_file("/tests/initrd/directory2/file1");
-  dump_file("/tests/initrd/directory2/file2");
-  dump_file("/tests/initrd/directory2/file3");
-  dump_file("/tests/initrd/random_file.txt");
-  dump_file("/tests/initrd/some_file.exe");
-  dump_file("/tests/initrd/just_file.cpp");
-  dump_file("/tests/initrd/some_file.c");
-  dump_file("/tests/initrd/just_file.hs");
-  dump_file("/tests/initrd/very/very/very/very/very/very/very/very/very/deep/"
-            "directory/deep_inside");
-  dump_file("/tests/initrd/short_file_name/a");
-  dump_file("/tests/initrd/level1/level2/level3/level123");
-  dump_file("/tests/initrd/level1/level2/level12");
-  dump_file("/tests/initrd/level1/level1");
+  dump_file("/usr/include/sys/errno.h");
+  dump_file("/usr/include/sys/dirent.h");
+  dump_file("/usr/include/sys/unistd.h");
   return KTEST_SUCCESS;
 }
 
 KTEST_ADD(ramdisk, test_ramdisk, 0);
+
+/* Completing this test takes far too much time due to its verbosity - so it's
+   disabled with the BROKEN flag. */
+static int test_ramdisk_dump() {
+  ramdisk_dump();
+  return KTEST_SUCCESS;
+}
+KTEST_ADD(ramdisk_dump, test_ramdisk_dump, KTEST_FLAG_BROKEN);

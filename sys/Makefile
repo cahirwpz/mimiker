@@ -6,6 +6,7 @@ SOURCES_C  = \
 	clock.c \
 	condvar.c \
 	console.c \
+	device.c \
 	dev_cons.c \
 	dev_null.c \
 	dev_vga.c \
@@ -34,7 +35,7 @@ SOURCES_C  = \
 	signal.c \
 	sleepq.c \
 	startup.c \
-	stdvga.c \
+	drv_stdvga.c \
 	sync.c \
 	sysent.c \
 	mmap.c \
@@ -56,5 +57,5 @@ include ../Makefile.common
 libsys.a: $(OBJECTS)
 
 clean:
-	$(RM) -f .*.D *.ko *.o *.a *.lst *~
-	$(RM) -f tags *.taghl
+	$(RM) .*.D *.ko *.o *.a *.lst *~
+	$(RM) tags *.taghl

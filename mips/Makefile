@@ -26,6 +26,6 @@ include ../Makefile.common
 libmips.a: $(OBJECTS)
 
 clean:
-	$(RM) -f .*.D *.ko *.o *.a *.lst *~
-	$(RM) -f tags *.taghl
-	$(RM) -f assym.h
+	$(RM) .*.D *.ko *.o *.a *.lst *~
+	$(RM) tags *.taghl
+	$(RM) assym.h

@@ -9,9 +9,6 @@ import launcher
 UART_PORT = 8000
 
 if __name__ == '__main__':
-    # Check if a cross-compiler is present
-    launcher.find_toolchain()
-
     # Probe which tools are available.
     simulators, sim_default = launcher.find_simulators()
     outputs, out_default = launcher.find_outputs()
