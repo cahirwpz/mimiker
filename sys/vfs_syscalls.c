@@ -1,3 +1,5 @@
+#define KL_LOG KL_VFS
+
 #include <filedesc.h>
 #include <file.h>
 #include <mount.h>
@@ -9,6 +11,7 @@
 #include <vnode.h>
 #include <proc.h>
 #include <vm_map.h>
+#include <klog.h>
 
 int do_open(thread_t *td, char *pathname, int flags, int mode, int *fd) {
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -83,6 +86,14 @@ int do_fstat(thread_t *td, int fd, vattr_t *buf) {
   res = f->f_ops->fo_getattr(f, td, buf);
   file_unref(f);
   return res;
+}
+
+int do_dup(thread_t *td, int old, int *new) {
+  return 0;
+}
+
+int do_dup2(thread_t *td, int old, int new) {
+  return 0;
 }
 
 /* == System calls interface === */
@@ -172,4 +183,22 @@ int sys_fstat(thread_t *td, syscall_args_t *args) {
   if (error < 0)
     return error;
   return 0;
+}
+
+int sys_dup(thread_t *td, syscall_args_t *args) {
+  int old = args->args[0];
+  int *new = (int *)(uintptr_t)args->args[1];
+
+  klog("sys_dup(%d, %p)", old, new);
+
+  return do_dup(td, old, new);
+}
+
+int sys_dup2(thread_t *td, syscall_args_t *args) {
+  int old = args->args[0];
+  int new = args->args[1];
+
+  klog("sys_dup2(%d, %d)", old, new);
+
+  return do_dup2(td, old, new);
 }
