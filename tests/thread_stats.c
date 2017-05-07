@@ -24,7 +24,7 @@ static int test_thread_stats(void) {
   }
   for (int i = 0; i < THREADS_NUMBER; i++) {
     log("Thread:%d runtime:%lu sleeptime:%lu context switches:%llu", i,
-        threads[i]->td_runtime, threads[i]->td_slptime, threads[i]->td_nctxsw);
+        threads[i]->td_rtime, threads[i]->td_slptime, threads[i]->td_nctxsw);
   }
   return KTEST_SUCCESS;
 }

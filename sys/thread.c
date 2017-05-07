@@ -90,7 +90,6 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
     mtx_unlock(&all_threads_mtx);
 
   td->td_state = TDS_READY;
-  td->td_last_ctxsw = clock_get();
   log("Thread '%s' {%p} has been created.", td->td_name, td);
 
   return td;
