@@ -2,20 +2,33 @@
 
 include ../Makefile.common
 
-SUBDIRS = $(shell find -mindepth 1 -maxdepth 1 -type d -not -name sysroot)
+PROGDIRS = $(shell find -mindepth 1 -maxdepth 1 -type d)
+PROGDIRS-install = $(PROGDIRS:%=%-install)
 
-.PHONY: clean sysroot all $(SUBDIRS)
+.PHONY: clean all $(PROGDIRS)
 
-all: $(SUBDIRS)
+all: $(PROGDIRS) install
 
-$(SUBDIRS): sysroot
+install: $(PROGDIRS-install)
+
+$(PROGDIRS):
+	# @echo "Maybe compiling $@..." # Diagnostic message
 	$(MAKE) -C $@
 
-sysroot: sysroot/lib/libmimiker.a
-sysroot/lib/libmimiker.a: start.o syscalls.o
+# .inst targets represent the installation of a program into sysroot.
+%-install: %
+	# @echo "Maybe installing $@..." # Diagnostic message
+	$(MAKE) -C $< install
+
+# Dependencies between user programs are currently expressed here.
+newlib: | libmimiker-install
+prog: | newlib-install
+fd_test: | newlib-install
+misbehave: | newlib-install
+mandelbrot: | newlib-install
+test_fork: | newlib-install
 
 clean:
-	rm -f *.o sysroot/lib/*.a
-	for dir in $(SUBDIRS); do \
+	for dir in $(PROGDIRS); do \
 	  $(MAKE) -C $$dir clean; \
 	done
