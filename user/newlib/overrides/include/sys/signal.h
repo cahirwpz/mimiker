@@ -38,7 +38,7 @@ static inline int raise(int sig) {
 }
 
 void sigreturn();
-static inline int my_signal(int sig, sighandler_t handler) {
+static inline int signal(int sig, sighandler_t handler) {
   sigaction_t sa = {.sa_handler = handler, .sa_restorer = sigreturn};
   return sigaction(sig, &sa, NULL);
 }

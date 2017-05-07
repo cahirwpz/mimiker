@@ -10,7 +10,7 @@
    syscalls, and can only deliver signals to the process that raised them... The
    temporary workaround is to include sys/signal.h instead, which we override
    with a set of custom definitions. */
-#include <sys/my_signal.h>
+#include <sys/signal.h>
 #include <sys/mman.h>
 
 #define TEXTAREA_SIZE 100
@@ -95,16 +95,16 @@ void signal_test() {
   /* TODO: Cannot use signal(...) here, because the one provided by newlib
      emulates signals in userspace. Please recompile newlib with
      -DSIGNAL_PROVIDED. */
-  my_signal(SIGINT, sigint_handler);
-  my_signal(SIGUSR1, sigusr1_handler);
+  signal(SIGINT, sigint_handler);
+  signal(SIGUSR1, sigusr1_handler);
   raise(SIGINT);
 
   /* Restore original behavior. */
-  my_signal(SIGINT, SIG_DFL);
-  my_signal(SIGUSR1, SIG_DFL);
+  signal(SIGINT, SIG_DFL);
+  signal(SIGUSR1, SIG_DFL);
 
   /* Test sending a signal to a different thread. */
-  my_signal(SIGUSR2, sigusr2_handler);
+  signal(SIGUSR2, sigusr2_handler);
   int pid = fork();
   if (pid == 0) {
     /* Child, waits for signal. */
