@@ -10,9 +10,9 @@
 #define PCI0_CFG_BUS_SHIFT 16
 #define PCI0_CFG_ENABLE 0x80000000
 
-static unsigned gt_pci_make_addr(pci_device_t *dev, unsigned reg) {
-  return (((dev->addr.device) << PCI0_CFG_DEV_SHIFT) |
-          ((dev->addr.function) << PCI0_CFG_FUNCT_SHIFT) |
+static unsigned gt_pci_make_addr(pci_addr_t addr, unsigned reg) {
+  return (((addr.device) << PCI0_CFG_DEV_SHIFT) |
+          ((addr.function) << PCI0_CFG_FUNCT_SHIFT) |
           ((reg) << PCI0_CFG_REG_SHIFT));
 }
 
@@ -24,12 +24,13 @@ typedef union {
 
 /* Access configuration space through memory mapped GT-64120 registers. Take
  * care of the fact that MIPS processor cannot handle unaligned accesses. */
-static uint32_t gt_pci_read_config(pci_device_t *dev, unsigned reg,
-                                   unsigned size) {
-  if (dev->addr.bus > 0)
+static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
+  pci_dev_data_t *pcid = dev->instance;
+
+  if (pcid->addr.bus > 0)
     return -1;
 
-  PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | gt_pci_make_addr(dev, reg >> 2);
+  PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2);
   pci_reg_t data = (pci_reg_t)PCI0_CFG_DATA_R;
   reg &= 3;
   switch (size) {
@@ -44,12 +45,14 @@ static uint32_t gt_pci_read_config(pci_device_t *dev, unsigned reg,
   }
 }
 
-static void gt_pci_write_config(pci_device_t *dev, unsigned reg, unsigned size,
+static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
                                 uint32_t value) {
-  if (dev->addr.bus > 0)
+  pci_dev_data_t *pcid = dev->instance;
+
+  if (pcid->addr.bus > 0)
     return;
 
-  PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | gt_pci_make_addr(dev, reg >> 2);
+  PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2);
   pci_reg_t data = (pci_reg_t)PCI0_CFG_DATA_R;
   reg &= 3;
   switch (size) {
@@ -107,8 +110,6 @@ static bus_space_t gt_pci_bus_space = {.read_1 = gt_pci_read_1,
                                        .read_region_1 = gt_pci_read_region_1,
                                        .write_region_1 = gt_pci_write_region_1};
 
-static pci_bus_t gt_pci_bus = {.read_config = gt_pci_read_config,
-                               .write_config = gt_pci_write_config};
 static resource_t gt_pci_memory = {.r_bus_space = &gt_pci_bus_space,
                                    .r_type = RT_MEMORY,
                                    .r_start = MALTA_PCI0_MEMORY_BASE,
@@ -117,8 +118,27 @@ static resource_t gt_pci_ioports = {.r_bus_space = &gt_pci_bus_space,
                                     .r_type = RT_IOPORTS,
                                     .r_start = MALTA_PCI0_IO_BASE,
                                     .r_end = MALTA_PCI0_IO_END};
-pci_bus_device_t gt_pci = {
-  .dev = DEVICE_INITIALIZER(gt_pci.dev, "pcib", "GT-64120 PCI bus driver"),
-  .bus = &gt_pci_bus,
-  .mem_space = &gt_pci_memory,
-  .io_space = &gt_pci_ioports};
+
+int gt_pci_attach(device_t *pcib) {
+  pci_bus_state_t *state = pcib->state;
+  state->mem_space = &gt_pci_memory;
+  state->io_space = &gt_pci_ioports;
+
+  pci_bus_enumerate(pcib);
+  pci_bus_assign_space(pcib);
+  pci_bus_dump(pcib);
+  return 0;
+}
+
+pci_bus_driver_t gt_pci = {
+  .driver =
+    {
+      .desc = "GT-64120 PCI bus driver",
+      .size = sizeof(pci_bus_state_t),
+      .attach = gt_pci_attach,
+    },
+  .bus = {},
+  .pci_bus =
+    {
+      .read_config = gt_pci_read_config, .write_config = gt_pci_write_config,
+    }};

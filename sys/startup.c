@@ -26,7 +26,6 @@ int kernel_init(int argc, char **argv) {
     kprintf("%s ", argv[i]);
   kprintf("\n");
 
-  pci_init();
   callout_init();
   pmap_init();
   vm_object_init();

@@ -1,8 +1,7 @@
 #include <stdc.h>
 #include <malloc.h>
+#include <device.h>
 #include <pci.h>
-
-static MALLOC_DEFINE(M_PCIBUS, "pci-bus", 1, 1);
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 
@@ -29,30 +28,33 @@ static const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
   return NULL;
 }
 
-static bool pci_device_present(pci_bus_t *pcib, unsigned bus, unsigned dev,
+static bool pci_device_present(device_t *pcib, unsigned bus, unsigned dev,
                                unsigned func) {
-  pci_device_t pcidev = {.bus = pcib, .addr = {bus, dev, func}};
-  return (pci_read_config(&pcidev, PCIR_DEVICEID, 4) != 0xffffffff);
+  device_t pcid = {.parent = pcib,
+                   .instance = (pci_dev_data_t[1]){{.addr = {bus, dev, func}}}};
+  return (pci_read_config(&pcid, PCIR_DEVICEID, 4) != 0xffffffff);
 }
 
-static void pci_bus_enumerate(pci_bus_device_t *pcib) {
+void pci_bus_enumerate(device_t *pcib) {
   for (int j = 0; j < 32; j++) {
     for (int k = 0; k < 8; k++) {
-      if (!pci_device_present(pcib->bus, 0, j, k))
+      if (!pci_device_present(pcib, 0, j, k))
         continue;
 
-      pci_device_t *pcidev = kmalloc(M_PCIBUS, sizeof(pci_device_t), M_ZERO);
-      pcidev->bus = pcib->bus;
-      pcidev->addr = (pci_addr_t){0, j, k};
-      pcidev->device_id = pci_read_config(pcidev, PCIR_DEVICEID, 2);
-      pcidev->vendor_id = pci_read_config(pcidev, PCIR_VENDORID, 2);
-      pcidev->class_code = pci_read_config(pcidev, PCIR_CLASSCODE, 1);
-      pcidev->pin = pci_read_config(pcidev, PCIR_IRQPIN, 1);
-      pcidev->irq = pci_read_config(pcidev, PCIR_IRQLINE, 1);
+      device_t *dev = device_add_child(pcib);
+      dev->instance = kmalloc(M_DEV, sizeof(pci_dev_data_t), M_ZERO);
+
+      pci_dev_data_t *pcid = dev->instance;
+      pcid->addr = (pci_addr_t){0, j, k};
+      pcid->device_id = pci_read_config(dev, PCIR_DEVICEID, 2);
+      pcid->vendor_id = pci_read_config(dev, PCIR_VENDORID, 2);
+      pcid->class_code = pci_read_config(dev, PCIR_CLASSCODE, 1);
+      pcid->pin = pci_read_config(dev, PCIR_IRQPIN, 1);
+      pcid->irq = pci_read_config(dev, PCIR_IRQLINE, 1);
 
       for (int i = 0; i < 6; i++) {
-        uint32_t addr = pci_read_config(pcidev, PCIR_BAR(i), 4);
-        uint32_t size = pci_adjust_config(pcidev, PCIR_BAR(i), 4, 0xffffffff);
+        uint32_t addr = pci_read_config(dev, PCIR_BAR(i), 4);
+        uint32_t size = pci_adjust_config(dev, PCIR_BAR(i), 4, 0xffffffff);
 
         if (size == 0 || addr == size)
           continue;
@@ -70,8 +72,8 @@ static void pci_bus_enumerate(pci_bus_device_t *pcib) {
         }
 
         size = -size;
-        resource_t *bar = &pcidev->bar[pcidev->nbars++];
-        *bar = (resource_t){.r_owner = pcidev,
+        resource_t *bar = &pcid->bar[pcid->nbars++];
+        *bar = (resource_t){.r_owner = dev,
                             .r_type = type,
                             .r_flags = flags,
                             .r_start = 0,
@@ -79,7 +81,7 @@ static void pci_bus_enumerate(pci_bus_device_t *pcib) {
                             .r_id = i};
       }
 
-      TAILQ_INSERT_TAIL(&pcib->dev.children, (device_t *)pcidev, link);
+      TAILQ_INSERT_TAIL(&pcib->children, dev, link);
     }
   }
 }
@@ -95,42 +97,43 @@ static int pci_bar_compare(const void *a, const void *b) {
   return 0;
 }
 
-static void pci_bus_assign_space(pci_bus_device_t *pcib) {
+void pci_bus_assign_space(device_t *pcib) {
   /* Count PCI base address registers & allocate memory */
   unsigned nbars = 0, ndevs = 0;
   device_t *dev;
 
-  TAILQ_FOREACH (dev, &pcib->dev.children, link) {
-    pci_device_t *pcidev = (pci_device_t *)dev;
-    nbars += pcidev->nbars;
+  TAILQ_FOREACH (dev, &pcib->children, link) {
+    pci_dev_data_t *pcid = dev->instance;
+    nbars += pcid->nbars;
     ndevs++;
   }
 
   log("devs = %d, nbars = %d", ndevs, nbars);
 
-  resource_t **bars = kmalloc(M_PCIBUS, sizeof(resource_t *) * nbars, M_ZERO);
+  resource_t **bars = kmalloc(M_DEV, sizeof(resource_t *) * nbars, M_ZERO);
   unsigned n = 0;
 
-  TAILQ_FOREACH (dev, &pcib->dev.children, link) {
-    pci_device_t *pcidev = (pci_device_t *)dev;
-    for (int i = 0; i < pcidev->nbars; i++)
-      bars[n++] = &pcidev->bar[i];
+  TAILQ_FOREACH (dev, &pcib->children, link) {
+    pci_dev_data_t *pcid = dev->instance;
+    for (int i = 0; i < pcid->nbars; i++)
+      bars[n++] = &pcid->bar[i];
   }
 
   qsort(bars, nbars, sizeof(resource_t *), pci_bar_compare);
 
-  intptr_t io_base = pcib->io_space->r_start;
-  intptr_t mem_base = pcib->mem_space->r_start;
+  pci_bus_state_t *data = pcib->state;
+  intptr_t io_base = data->io_space->r_start;
+  intptr_t mem_base = data->mem_space->r_start;
 
   for (int j = 0; j < nbars; j++) {
     resource_t *bar = bars[j];
     if (bar->r_type == RT_IOPORTS) {
-      bar->r_bus_space = pcib->io_space->r_bus_space;
+      bar->r_bus_space = data->io_space->r_bus_space;
       bar->r_start += io_base;
       bar->r_end += io_base;
       io_base = bar->r_end + 1;
     } else if (bar->r_type == RT_MEMORY) {
-      bar->r_bus_space = pcib->mem_space->r_bus_space;
+      bar->r_bus_space = data->mem_space->r_bus_space;
       bar->r_start += mem_base;
       bar->r_end += mem_base;
       mem_base = bar->r_end + 1;
@@ -142,41 +145,41 @@ static void pci_bus_assign_space(pci_bus_device_t *pcib) {
     pci_write_config(bar->r_owner, PCIR_BAR(bar->r_id), 4, bar->r_start);
   }
 
-  kfree(M_PCIBUS, bars);
+  kfree(M_DEV, bars);
 }
 
-static void pci_bus_dump(pci_bus_device_t *pcib) {
+void pci_bus_dump(device_t *pcib) {
   device_t *dev;
 
-  TAILQ_FOREACH (dev, &pcib->dev.children, link) {
-    pci_device_t *pcidev = (pci_device_t *)dev;
+  TAILQ_FOREACH (dev, &pcib->children, link) {
+    pci_dev_data_t *pcid = dev->instance;
 
     char devstr[16];
 
-    snprintf(devstr, sizeof(devstr), "[pci:%02x:%02x.%02x]", pcidev->addr.bus,
-             pcidev->addr.device, pcidev->addr.function);
+    snprintf(devstr, sizeof(devstr), "[pci:%02x:%02x.%02x]", pcid->addr.bus,
+             pcid->addr.device, pcid->addr.function);
 
-    const pci_vendor_id *vendor = pci_find_vendor(pcidev->vendor_id);
-    const pci_device_id *device = pci_find_device(vendor, pcidev->device_id);
+    const pci_vendor_id *vendor = pci_find_vendor(pcid->vendor_id);
+    const pci_device_id *device = pci_find_device(vendor, pcid->device_id);
 
-    kprintf("%s %s", devstr, pci_class_code[pcidev->class_code]);
+    kprintf("%s %s", devstr, pci_class_code[pcid->class_code]);
 
     if (vendor)
       kprintf(" %s", vendor->name);
     else
-      kprintf(" vendor:$%04x", pcidev->vendor_id);
+      kprintf(" vendor:$%04x", pcid->vendor_id);
 
     if (device)
       kprintf(" %s\n", device->name);
     else
-      kprintf(" device:$%04x\n", pcidev->device_id);
+      kprintf(" device:$%04x\n", pcid->device_id);
 
-    if (pcidev->pin)
+    if (pcid->pin)
       kprintf("%s Interrupt: pin %c routed to IRQ %d\n", devstr,
-              'A' + pcidev->pin - 1, pcidev->irq);
+              'A' + pcid->pin - 1, pcid->irq);
 
-    for (int i = 0; i < pcidev->nbars; i++) {
-      resource_t *bar = &pcidev->bar[i];
+    for (int i = 0; i < pcid->nbars; i++) {
+      resource_t *bar = &pcid->bar[i];
       char *type;
 
       if (bar->r_type == RT_IOPORTS) {
@@ -189,14 +192,4 @@ static void pci_bus_dump(pci_bus_device_t *pcib) {
               (void *)bar->r_start, (unsigned)(bar->r_end - bar->r_start + 1));
     }
   }
-}
-
-extern pci_bus_device_t gt_pci;
-
-void pci_init() {
-  /* TODO: actions below will become a part of `device_attach` function of
-   * generic driver for PCI bus. */
-  pci_bus_enumerate(&gt_pci);
-  pci_bus_assign_space(&gt_pci);
-  pci_bus_dump(&gt_pci);
 }

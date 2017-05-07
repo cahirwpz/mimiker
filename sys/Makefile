@@ -23,6 +23,7 @@ SOURCES_C  = \
 	main.c \
 	malloc.c \
 	mutex.c \
+	pci.c \
 	pci_ids.c \
 	pcpu.c \
 	physmem.c \

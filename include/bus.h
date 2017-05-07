@@ -5,6 +5,8 @@
 
 typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
+typedef struct bus_methods {
+} bus_methods_t;
 
 /* `bus space` accessor routines */
 typedef uint8_t (*bus_space_read_1_t)(resource_t *handle, unsigned offset);
