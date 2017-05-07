@@ -39,10 +39,10 @@ SOURCES_ASM = $(shell find -iname '*.[S]' $(SOURCE_RULES))
 
 tags:
 	@echo "Rebuilding tags..."
-	echo $(SOURCES_C) | tr " " "\n" | ctags --language-force=c -L-
-	echo $(SOURCES_C) | tr " " "\n" | ctags --language-force=c -L- -e -f etags
-	echo $(SOURCES_ASM) | tr " " "\n" | ctags --language-force=asm -a -L-
-	echo $(SOURCES_ASM) | tr " " "\n" | ctags --language-force=asm -a -L- -e -f etags
+	echo $(SOURCES_C) | tr " " "\n"| ctags --language-force=c -L-
+	echo $(SOURCES_C) | tr " " "\n"| ctags --language-force=c -L- -e -f etags
+	echo $(SOURCES_ASM) | tr " " "\n"| ctags --language-force=asm -L- -a
+	echo $(SOURCES_ASM) | tr " " "\n"| ctags --language-force=asm -L- -aef etags
 
 # These files get destroyed by clang-format, so we explicitly exclude them from
 # being automatically formatted

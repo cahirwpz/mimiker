@@ -10,6 +10,7 @@ NEWLIB_DOWNLOADS = ftp://sourceware.org/pub/newlib
 all: $(CACHEDIR)/$(NEWLIB)
 
 install:
+	@echo "Installing newlib..."
 	cd $(CACHEDIR)/$(NEWLIB)/newlib; $(MAKE) install > /dev/null 2>&1
 
 # The .tar.gz archive must be an order-only prerequisite, because the archive
@@ -21,7 +22,8 @@ $(CACHEDIR)/$(NEWLIB): | $(CACHEDIR)/$(NEWLIBFILE)
 	# any of these commands fail, just remove output redirection.
 	@echo "Configuring newlib..."
 	cd $(CACHEDIR)/$(NEWLIB)/newlib; \
-		CC=$(TRIPLET)-gcc ./configure --build=$(TRIPLET) --prefix=$(INSTALL_DIR)/usr > /dev/null
+		CC=$(TRIPLET)-gcc ./configure --build=$(TRIPLET) \
+                                      --prefix=$(INSTALL_DIR)/usr > /dev/null
 	@echo "Compiling newlib..."
 	cd $(CACHEDIR)/$(NEWLIB)/newlib; $(MAKE) > /dev/null 2>&1
 
@@ -30,7 +32,8 @@ $(CACHEDIR)/$(NEWLIBFILE):
 		"there will be no need to do this again."
 	mkdir -p $(CACHEDIR)
 	wget $(NEWLIB_DOWNLOADS)/$(NEWLIBFILE) -O $@ || \
-		(ret=$$?; rm -rf $@; exit $$ret) # Remove incomplete newlib archive on a failed download
+		(ret=$$?; rm -rf $@; exit $$ret) \
+		# Remove incomplete newlib archive on a failed download 
 
 clean:
 	true
