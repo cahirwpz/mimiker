@@ -201,16 +201,7 @@ int sys_getdirentries(thread_t *td, syscall_args_t *args) {
 
   log("sys_getdirentries(%d, %p, %zu, %p)", fd, ubuf, count, basep);
 
-  uio_t uio;
-  iovec_t iov;
-  uio.uio_op = UIO_READ;
-  uio.uio_vmspace = get_user_vm_map();
-  iov.iov_base = ubuf;
-  iov.iov_len = count;
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_resid = count;
-  uio.uio_offset = 0;
+  uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
 
   int res = do_getdirentries(td, fd, &uio, basep);
   return res;
