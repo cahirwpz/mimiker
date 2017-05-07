@@ -22,6 +22,8 @@ proc_t *proc_create() {
   mtx_init(&proc->p_lock, MTX_DEF);
   TAILQ_INIT(&proc->p_threads);
 
+  proc->p_sighand = sighand_new();
+
   mtx_lock(&all_proc_list_mtx);
   TAILQ_INSERT_TAIL(&all_proc_list, proc, p_all);
   mtx_unlock(&all_proc_list_mtx);

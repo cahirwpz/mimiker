@@ -4,6 +4,7 @@
 #include <common.h>
 #include <queue.h>
 #include <mutex.h>
+#include <signal.h>
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
@@ -19,6 +20,8 @@ struct proc {
   proc_t *p_parent;        /* Parent process */
   /* file descriptors table */
   fdtab_t *p_fdtable;
+  /* signal stuff */
+  sighand_t *p_sighand; /* Signal handlers data */
 };
 
 void proc_init();

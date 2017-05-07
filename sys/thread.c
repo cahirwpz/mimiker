@@ -72,8 +72,6 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
 
   ctx_init(td, fn, arg);
 
-  td->td_sighand = sighand_new();
-
   /* Do not lock the mutex if this call to thread_create was done before any
      threads exists (from thread_bootstrap). Locking the mutex would cause
      problems because during thread bootstrap the current thread is NULL, so a
@@ -99,8 +97,6 @@ void thread_delete(thread_t *td) {
   assert(td != NULL);
   assert(td != thread_self());
   assert(td->td_sleepqueue != NULL);
-
-  sighand_unref(td->td_sighand);
 
   mtx_lock(&all_threads_mtx);
   TAILQ_REMOVE(&all_threads, td, td_all);

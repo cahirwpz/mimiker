@@ -58,9 +58,7 @@ typedef struct thread {
   /* scheduler part */
   td_prio_t td_prio;
   int td_slice;
-  /* signal stuff */
-  sighand_t *td_sighand; /* Signal handlers data */
-  sigset_t td_sigpend;   /* Pending signals for this thread. */
+  sigset_t td_sigpend; /* Pending signals for this thread. */
   /* TODO: Signal mask, sigsuspend. */
 } thread_t;
 

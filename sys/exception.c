@@ -1,6 +1,7 @@
 #include <exception.h>
 #include <thread.h>
 #include <sched.h>
+#include <signal.h>
 
 void exc_before_leave(exc_frame_t *kframe) {
   thread_t *td = thread_self();

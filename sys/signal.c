@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <sysent.h>
 #include <systm.h>
+#include <proc.h>
 
 static MALLOC_DEFINE(sig_pool, "signal handlers pool", 2, 2);
 
@@ -60,9 +61,11 @@ int do_kill(tid_t tid, int sig) {
 
 int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact) {
   thread_t *td = thread_self();
+  assert(td->td_proc);
+  mtx_scoped_lock(&td->td_proc->p_lock);
   /* No need to acquire thread lock, we only look up a reference to the signal
    * handler structure. */
-  sighand_t *sh = td->td_sighand;
+  sighand_t *sh = td->td_proc->p_sighand;
 
   if (sig < 0 || sig >= SIG_LAST)
     return -EINVAL;
@@ -79,8 +82,9 @@ int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact) {
   return 0;
 }
 
-static sighandler_t *get_sigact(int sig, sighand_t *sh) {
-  sighandler_t *h = sh->sh_actions[sig].sa_handler;
+static sighandler_t *get_sigact(int sig, proc_t *p) {
+  /* Assume p->p_lock is already owned. */
+  sighandler_t *h = p->p_sighand->sh_actions[sig].sa_handler;
   if (h == SIG_DFL)
     h = signal_default_actions[sig];
   return h;
@@ -97,6 +101,7 @@ int signal(thread_t *target, signo_t sig) {
      states) make the logic of posting a signal very simple!
   */
   assert(sig < SIG_LAST);
+  assert(target->td_proc);
 
   mtx_scoped_lock(&target->td_lock);
 
@@ -106,8 +111,7 @@ int signal(thread_t *target, signo_t sig) {
   }
 
   /* If the signal is ignored, don't even bother posting it. */
-  sighand_t *sh = target->td_sighand;
-  if (get_sigact(sig, sh) == SIG_IGN)
+  if (get_sigact(sig, target->td_proc) == SIG_IGN)
     return 0;
 
   bit_set(target->td_sigpend, sig);
@@ -134,6 +138,7 @@ void signotify(thread_t *td) {
 }
 
 int issignal(thread_t *td) {
+  assert(td->td_proc);
   while (true) {
     int signo = SIG_LAST;
     bit_ffs(td->td_sigpend, SIG_LAST, &signo);
@@ -141,7 +146,9 @@ int issignal(thread_t *td) {
       return 0; /* No pending signals. */
 
     bit_clear(td->td_sigpend, signo);
-    sighandler_t *h = get_sigact(signo, td->td_sighand);
+
+    mtx_scoped_lock(&td->td_proc->p_lock);
+    sighandler_t *h = get_sigact(signo, td->td_proc);
     assert(h != SIG_DFL);
     if (h == SIG_IGN)
       continue;
@@ -155,6 +162,8 @@ int issignal(thread_t *td) {
 
       /* Release the lock held by the parent. */
       mtx_unlock(&td->td_lock);
+      /* Release the lock hold by scoped_lock */
+      mtx_unlock(&td->td_proc->p_lock);
       thread_exit(-1);
       __builtin_unreachable();
     }
@@ -169,7 +178,9 @@ extern int platform_sigreturn();
 
 void postsig(int sig) {
   thread_t *td = thread_self();
-  sigaction_t *sa = td->td_sighand->sh_actions + sig;
+  assert(td->td_proc);
+  mtx_scoped_lock(&td->td_proc->p_lock);
+  sigaction_t *sa = td->td_proc->p_sighand->sh_actions + sig;
 
   assert(sa->sa_handler != SIG_IGN && sa->sa_handler != SIG_DFL);
 
