@@ -23,6 +23,7 @@ GDB      = $(P)gdb
 OBJCOPY  = $(P)objcopy
 OBJDUMP  = $(P)objdump
 CPIO     = cpio --format=crc
+RM       = rm -v -f
 
 HOSTCC	 = gcc -g
 SYSROOT  = $(TOPDIR)/sysroot

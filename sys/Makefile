@@ -55,5 +55,5 @@ include ../Makefile.common
 libsys.a: $(OBJECTS)
 
 clean:
-	$(RM) -f .*.D *.ko *.o *.a *.lst *~
-	$(RM) -f tags *.taghl
+	$(RM) .*.D *.ko *.o *.a *.lst *~
+	$(RM) tags *.taghl

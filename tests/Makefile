@@ -33,4 +33,4 @@ include ../Makefile.common
 libtests.a: $(OBJECTS)
 
 clean:
-	$(RM) -f .*.D *.o *.elf *.a *.map *~
+	$(RM) .*.D *.o *.elf *.a *.map *~
