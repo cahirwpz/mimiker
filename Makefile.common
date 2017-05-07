@@ -7,17 +7,10 @@ OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
 DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
 
 TRIPLET = mipsel-mimiker-elf
-TRIPLET_OLD = mipsel-unknown-elf
 
 TOOLCHAIN_FOUND = $(shell which $(TRIPLET)-gcc > /dev/null; echo $$?)
-OLD_TOOLCHAIN_FOUND = $(shell which $(TRIPLET_OLD)-gcc > /dev/null; echo $$?)
 ifneq ($(TOOLCHAIN_FOUND), 0)
-  ifneq ($(OLD_TOOLCHAIN_FOUND), 0)
-    $(error "mips-mimiker-elf" toolchain not found)
-  else
-    # Old toolchain is present, but the new one is not. Instruct the developer.
-    $(error You are using "mips-unknown-elf" toolchain. Please switch to "mips-mimiker-elf")
-  endif
+  $(error "mips-mimiker-elf" toolchain not found. Please refer to README.md)
 endif
 
 P = $(TRIPLET)-
@@ -29,6 +22,7 @@ NM       = $(P)nm
 GDB      = $(P)gdb
 OBJCOPY  = $(P)objcopy
 OBJDUMP  = $(P)objdump
+CPIO     = cpio --format=crc
 
 HOSTCC	 = gcc -g
 SYSROOT  = $(TOPDIR)/sysroot

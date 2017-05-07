@@ -3,31 +3,30 @@
 include ../Makefile.common
 
 PROGDIRS = $(shell find -mindepth 1 -maxdepth 1 -type d)
-PROGDIRS-inst = $(PROGDIRS:%=%.inst)
+PROGDIRS-install = $(PROGDIRS:%=%-install)
 
 .PHONY: clean all $(PROGDIRS)
 
 all: $(PROGDIRS) install
 
-install: $(PROGDIRS-inst)
+install: $(PROGDIRS-install)
 
 $(PROGDIRS):
-	@echo "Maybe compiling $@..."
+	# @echo "Maybe compiling $@..." # Diagnostic message
 	$(MAKE) -C $@
 
 # .inst targets represent the installation of a program into sysroot.
-%.inst: %
-	@echo "Maybe installing $@..."
+%-install: %
+	# @echo "Maybe installing $@..." # Diagnostic message
 	$(MAKE) -C $< install
 
-
 # Dependencies between user programs are currently expressed here.
-newlib: | libmimiker.inst
-prog: | newlib.inst
-fd_test: | newlib.inst
-misbehave: | newlib.inst
-mandelbrot: | newlib.inst
-test_fork: | newlib.inst
+newlib: | libmimiker-install
+prog: | newlib-install
+fd_test: | newlib-install
+misbehave: | newlib-install
+mandelbrot: | newlib-install
+test_fork: | newlib-install
 
 clean:
 	for dir in $(PROGDIRS); do \

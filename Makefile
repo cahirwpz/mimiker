@@ -56,7 +56,7 @@ test: mimiker.elf
 # forcing make to always rebuild the archive.
 initrd.cpio: force | user
 	@echo "Building $@..."
-	cd sysroot && find -depth -print | cpio --format=crc -o -F ../$@ 2> /dev/null
+	cd sysroot && find -depth -print | $(CPIO) -o -F ../$@ 2> /dev/null
 
 clean:
 	$(foreach DIR, $(SUBDIRS), $(MAKE) -C $(DIR) $@;)
@@ -64,6 +64,6 @@ clean:
 	$(RM) -f tags etags cscope.out *.taghl
 
 distclean: clean
-	$(RM) -rf cache
+	$(RM) -rf cache sysroot
 
 .PRECIOUS: %.uelf
