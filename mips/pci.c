@@ -79,7 +79,7 @@ static void pci_bus_enumerate(pci_bus_device_t *pcib) {
                             .r_id = i};
       }
 
-      TAILQ_INSERT_TAIL(&pcib->devices, pcidev, link);
+      TAILQ_INSERT_TAIL(&pcib->dev.children, (device_t *)pcidev, link);
     }
   }
 }
@@ -98,9 +98,10 @@ static int pci_bar_compare(const void *a, const void *b) {
 static void pci_bus_assign_space(pci_bus_device_t *pcib) {
   /* Count PCI base address registers & allocate memory */
   unsigned nbars = 0, ndevs = 0;
-  pci_device_t *pcidev;
+  device_t *dev;
 
-  TAILQ_FOREACH (pcidev, &pcib->devices, link) {
+  TAILQ_FOREACH (dev, &pcib->dev.children, link) {
+    pci_device_t *pcidev = (pci_device_t *)dev;
     nbars += pcidev->nbars;
     ndevs++;
   }
@@ -110,7 +111,8 @@ static void pci_bus_assign_space(pci_bus_device_t *pcib) {
   resource_t **bars = kmalloc(M_PCIBUS, sizeof(resource_t *) * nbars, M_ZERO);
   unsigned n = 0;
 
-  TAILQ_FOREACH (pcidev, &pcib->devices, link) {
+  TAILQ_FOREACH (dev, &pcib->dev.children, link) {
+    pci_device_t *pcidev = (pci_device_t *)dev;
     for (int i = 0; i < pcidev->nbars; i++)
       bars[n++] = &pcidev->bar[i];
   }
@@ -144,9 +146,11 @@ static void pci_bus_assign_space(pci_bus_device_t *pcib) {
 }
 
 static void pci_bus_dump(pci_bus_device_t *pcib) {
-  pci_device_t *pcidev;
+  device_t *dev;
 
-  TAILQ_FOREACH (pcidev, &pcib->devices, link) {
+  TAILQ_FOREACH (dev, &pcib->dev.children, link) {
+    pci_device_t *pcidev = (pci_device_t *)dev;
+
     char devstr[16];
 
     snprintf(devstr, sizeof(devstr), "[pci:%02x:%02x.%02x]", pcidev->addr.bus,

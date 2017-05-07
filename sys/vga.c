@@ -10,10 +10,10 @@ extern int stdvga_pci_attach(pci_device_t *pci);
 /* Searches for and enables a vga device. */
 void vga_init() {
   /* Look at all pci devices. */
-  pci_device_t *pcidev;
-  TAILQ_FOREACH (pcidev, &gt_pci.devices, link) {
+  device_t *dev;
+  TAILQ_FOREACH (dev, &gt_pci.dev.children, link) {
     /* Try initializing it as an stdvga device. */
-    int attach = stdvga_pci_attach(pcidev);
+    int attach = stdvga_pci_attach((pci_device_t *)dev);
     if (attach)
       return;
     /* If we had more drivers, this loop would proceed to the next one and try

@@ -117,7 +117,8 @@ static resource_t gt_pci_ioports = {.r_bus_space = &gt_pci_bus_space,
                                     .r_type = RT_IOPORTS,
                                     .r_start = MALTA_PCI0_IO_BASE,
                                     .r_end = MALTA_PCI0_IO_END};
-pci_bus_device_t gt_pci = {.bus = &gt_pci_bus,
-                           .mem_space = &gt_pci_memory,
-                           .io_space = &gt_pci_ioports,
-                           .devices = TAILQ_HEAD_INITIALIZER(gt_pci.devices)};
+pci_bus_device_t gt_pci = {
+  .dev = DEVICE_INITIALIZER(gt_pci.dev, "pcib", "GT-64120 PCI bus driver"),
+  .bus = &gt_pci_bus,
+  .mem_space = &gt_pci_memory,
+  .io_space = &gt_pci_ioports};

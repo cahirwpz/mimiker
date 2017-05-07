@@ -35,6 +35,12 @@ struct device {
   void *state; /* memory requested by driver */
 };
 
+#define DEVICE_INITIALIZER(_dev, _nameunit, _desc)                             \
+  (device_t) {                                                                 \
+    .children = TAILQ_HEAD_INITIALIZER((_dev).children),                       \
+    .nameunit = (_nameunit), .desc = (_desc)                                   \
+  }
+
 /* A universal memory pool to be used by all drivers. */
 MALLOC_DECLARE(M_DEV);
 

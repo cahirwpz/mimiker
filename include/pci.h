@@ -3,6 +3,7 @@
 
 #include <common.h>
 #include <queue.h>
+#include <device.h>
 #include <bus.h>
 
 typedef struct {
@@ -43,7 +44,6 @@ extern const char *pci_class_code[];
 #define PCIR_BAR(i) (0x10 + (i)*4)
 
 typedef struct pci_device pci_device_t;
-typedef TAILQ_HEAD(, pci_device) pci_device_list_t;
 
 typedef struct pci_addr {
   uint8_t bus;
@@ -69,7 +69,7 @@ typedef struct pci_bus {
 #define PCI_BUS_DECLARE(name) extern pci_bus_t name[1]
 
 struct pci_device {
-  TAILQ_ENTRY(pci_device) link;
+  device_t dev;
 
   pci_bus_t *bus;
   pci_addr_t addr;
@@ -85,10 +85,11 @@ struct pci_device {
 
 /* TODO: pci_bus_device will become a state (device_t) of generic PCI driver. */
 typedef struct pci_bus_device {
+  device_t dev;
+
   pci_bus_t *bus;
   resource_t *mem_space;
   resource_t *io_space;
-  pci_device_list_t devices;
 } pci_bus_device_t;
 
 static inline uint32_t pci_read_config(pci_device_t *device, unsigned reg,
