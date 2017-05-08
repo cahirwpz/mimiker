@@ -105,12 +105,12 @@ typedef uint16_t ino_t;
 #ifndef _USERSPACE
 
 /* Terminate thread. */
-noreturn void thread_exit();
+noreturn void panic_fail();
 
 #define panic(FMT, ...)                                                        \
   __extension__({                                                              \
-    kprintf("[%s:%d] " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);           \
-    thread_exit(-1);                                                           \
+    kprintf("[%s:%d] PANIC: " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);    \
+    panic_fail();                                                              \
   })
 
 #ifdef DEBUG
