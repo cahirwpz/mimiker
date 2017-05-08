@@ -20,7 +20,7 @@ void mdelay(unsigned msec) {
 
 static int test_rtc() {
   vnode_t *v;
-  int error = vfs_lookup("/dev/mc146818", &v);
+  int error = vfs_lookup("/dev/rtc", &v);
   assert(!error);
 
   uio_t uio;

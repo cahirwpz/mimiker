@@ -96,7 +96,7 @@ static int mc146818_attach(device_t *dev) {
     /* Only the first instance gets to devfs. */
     vnode_t *dev_mc146818 = vnode_new(V_DEV, &dev_mc146818_vnodeops);
     dev_mc146818->v_data = mc146818;
-    devfs_install("mc146818", dev_mc146818);
+    devfs_install("rtc", dev_mc146818);
   }
 
   return 0;
