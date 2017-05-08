@@ -20,6 +20,8 @@
 
 extern void main(void *);
 
+static void mount_fs();
+
 int kernel_init(int argc, char **argv) {
   kprintf("Kernel arguments (%d): ", argc);
   for (int i = 0; i < argc; i++)
@@ -41,6 +43,7 @@ int kernel_init(int argc, char **argv) {
   proc_init();
 
   driver_init();
+  mount_fs();
 
   kprintf("[startup] kernel initialized\n");
 
@@ -48,4 +51,11 @@ int kernel_init(int argc, char **argv) {
   sched_add(main_thread);
 
   sched_run();
+}
+
+/* This function mounts some initial filesystems. Normally this would be done by
+   userspace init program. */
+static void mount_fs() {
+  vfs_domount_named("initrd", "/");
+  vfs_domount_named("devfs", "/dev");
 }

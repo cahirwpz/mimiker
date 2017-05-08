@@ -74,11 +74,8 @@ static inline int VFS_VGET(mount_t *m, ino_t ino, vnode_t **vp) {
   return m->mnt_vfsops->vfs_vget(m, ino, vp);
 }
 
-/* This is the / node. Since we aren't mounting anything on / just yet, there is
-   also a separate global vnode for /dev .*/
+/* This is the / node.*/
 extern vnode_t *vfs_root_vnode;
-extern vnode_t *vfs_root_dev_vnode;
-extern vnode_t *vfs_root_initrd_vnode;
 
 /* Look up a file system type by name. */
 vfsconf_t *vfs_get_by_name(const char *name);
@@ -91,6 +88,9 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc);
 /* Mount a new instance of the filesystem vfc at the vnode v. Does not support
  * remounting. TODO: Additional filesystem-specific arguments. */
 int vfs_domount(vfsconf_t *vfc, vnode_t *v);
+
+/* Mount a new instance of the filesystem named fs at the requested path. */
+int vfs_domount_named(const char *fs, const char *path);
 
 /* Finds the vnode corresponding to the given path.
  * Increases use count on returned vnode. */

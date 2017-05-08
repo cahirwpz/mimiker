@@ -27,7 +27,6 @@ static vfs_init_t vfs_default_init;
 
 /* Global root vnodes */
 vnode_t *vfs_root_vnode;
-vnode_t *vfs_root_dev_vnode;
 
 static vnodeops_t vfs_root_ops = {
   .v_lookup = vnode_op_notsup,
@@ -44,7 +43,6 @@ void vfs_init() {
   mtx_init(&mount_list_mtx, MTX_DEF);
 
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
-  vfs_root_dev_vnode = vnode_new(V_DIR, &vfs_root_ops);
 
   /* Initialize available filesystem types. */
   SET_DECLARE(vfsconf, vfsconf_t);
@@ -161,6 +159,22 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   return 0;
 }
 
+int vfs_domount_named(const char *fs, const char *path) {
+  vfsconf_t *vfs;
+  TAILQ_FOREACH (vfs, &vfsconf_list, vfc_list) {
+    if (strncmp(vfs->vfc_name, fs, VFSCONF_NAME_MAX) == 0) {
+      goto found;
+    }
+  }
+  return -EINVAL;
+found:;
+  vnode_t *v;
+  int error = vfs_lookup(path, &v);
+  if (error)
+    return error;
+  return vfs_domount(vfs, v);
+}
+
 int vfs_lookup(const char *path, vnode_t **vp) {
   /* TODO: This is a simplified implementation, and it does not support many
      required features! These include: relative paths, symlinks, parent dirs */
@@ -168,19 +182,14 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   if (path[0] == '\0')
     return -ENOENT;
 
-  vnode_t *v;
-  if (strncmp(path, "/dev/", 5) == 0) {
-    /* Handle the special case of "/dev",
-     * since we don't have any filesystem at / (root) yet. */
-    v = vfs_root_dev_vnode;
-    path = path + 5;
-  } else if (strncmp(path, "/", 1) == 0) {
-    v = vfs_root_vnode;
-    path = path + 1;
-  } else {
+  if (strncmp(path, "/", 1) != 0) {
     log("Relative paths are not supported!");
     return -ENOENT;
   }
+
+  vnode_t *v = vfs_root_vnode;
+  /* Skip leading '/' */
+  path = path + 1;
 
   /* Copy path into a local buffer, so that we may process it. */
   size_t n = strlen(path);
