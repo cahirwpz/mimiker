@@ -60,13 +60,11 @@ static int dev_mc146818_read(vnode_t *v, uio_t *uio) {
   int year, month, day, hour, minute, second;
   mc146818_read_time(mc146818, &year, &month, &day, &hour, &minute, &second);
   char buffer[DEV_MC146818_BUFFER_SIZE];
-  int error = snprintf(buffer, DEV_MC146818_BUFFER_SIZE, "%d %d %d %d %d %d",
+  int count = snprintf(buffer, DEV_MC146818_BUFFER_SIZE, "%d %d %d %d %d %d",
                        year, month, day, hour, minute, second);
-  if (error < 0)
-    return error;
-  if (error >= DEV_MC146818_BUFFER_SIZE)
+  if (count >= DEV_MC146818_BUFFER_SIZE)
     return -EINVAL;
-  error = uiomove_frombuf(buffer, DEV_MC146818_BUFFER_SIZE, uio);
+  int error = uiomove_frombuf(buffer, DEV_MC146818_BUFFER_SIZE, uio);
   if (error)
     return error;
   return 0;
