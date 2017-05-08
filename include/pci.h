@@ -72,6 +72,7 @@ typedef struct pci_bus_driver {
 typedef struct pci_bus_state {
   resource_t *mem_space;
   resource_t *io_space;
+  resource_t *lowio_space; /* First 64kB */
 } pci_bus_state_t;
 
 typedef struct pci_device {

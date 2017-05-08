@@ -58,7 +58,7 @@ void driver_init() {
       driver_t *drv = *drv_p;
       dev->driver = drv;
       if (device_probe(dev)) {
-        log("%s detected!", drv->desc);
+        log("%s detected on a PCI bus!", drv->desc);
         device_attach(dev);
         break;
       }
