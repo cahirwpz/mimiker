@@ -23,6 +23,9 @@ user: | cache
 cache:
 	mkdir cache
 
+# Process subdirectories before using KRT files.
+$(KRT): | $(SYSSUBDIRS)
+	true # Disable default recipe
 mimiker.elf: $(KRT) | $(SYSSUBDIRS)
 	@echo "[LD] Linking kernel image: $@"
 	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
