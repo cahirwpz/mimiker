@@ -8,7 +8,7 @@
 
 typedef struct isa_device {
   /* A reference to this device's isa bus. */
-  resource_t* isa_bus;
+  resource_t *isa_bus;
 } isa_device_t;
 
 static inline isa_device_t *isa_device_of(device_t *device) {

@@ -19,31 +19,32 @@
 #define MC146818_REG_B_BCD 0x04
 #define MC146818_REG_B_24H 0x02
 
-typedef struct mc146818_state{
-  resource_t* io;
-} mc146818_state_t;
+typedef struct mc146818_state { resource_t *io; } mc146818_state_t;
 
-static int mc146818_probe(device_t* dev){
+static int mc146818_probe(device_t *dev) {
   isa_device_t *isad = isa_device_of(dev);
 
   if (!isad)
     return 0;
 
   /* TODO: Actually do some very basic test to see if the RTC is present. */
-  
+
   return 1;
 }
 
-static void mc146818_write_reg(mc146818_state_t* mc146818, uint8_t reg, uint8_t value){
+static void mc146818_write_reg(mc146818_state_t *mc146818, uint8_t reg,
+                               uint8_t value) {
   bus_space_write_1(mc146818->io, MC146818_ADDR, reg);
-  bus_space_write_1(mc146818->io, MC146818_DATA, value);  
+  bus_space_write_1(mc146818->io, MC146818_DATA, value);
 }
-static uint8_t mc146818_read_reg(mc146818_state_t* mc146818, uint8_t reg){
+static uint8_t mc146818_read_reg(mc146818_state_t *mc146818, uint8_t reg) {
   bus_space_write_1(mc146818->io, MC146818_ADDR, reg);
-  return bus_space_read_1(mc146818->io, MC146818_DATA);  
+  return bus_space_read_1(mc146818->io, MC146818_DATA);
 }
 
-static void mc146818_read_time(mc146818_state_t* mc146818, int* year, int* month, int* day, int* hour, int* minute, int* second){
+static void mc146818_read_time(mc146818_state_t *mc146818, int *year,
+                               int *month, int *day, int *hour, int *minute,
+                               int *second) {
   *second = mc146818_read_reg(mc146818, MC146818_REG_SECOND);
   *minute = mc146818_read_reg(mc146818, MC146818_REG_MINUTE);
   *hour = mc146818_read_reg(mc146818, MC146818_REG_HOUR);
@@ -53,19 +54,20 @@ static void mc146818_read_time(mc146818_state_t* mc146818, int* year, int* month
 }
 
 #define DEV_MC146818_BUFFER_SIZE 32
-static int dev_mc146818_read(vnode_t* v, uio_t* uio){
+static int dev_mc146818_read(vnode_t *v, uio_t *uio) {
   uio->uio_offset = 0; /* This device does not support offsets. */
-  mc146818_state_t* mc146818 = v->v_data;
+  mc146818_state_t *mc146818 = v->v_data;
   int year, month, day, hour, minute, second;
   mc146818_read_time(mc146818, &year, &month, &day, &hour, &minute, &second);
   char buffer[DEV_MC146818_BUFFER_SIZE];
-  int error = snprintf(buffer, DEV_MC146818_BUFFER_SIZE, "%d %d %d %d %d %d", year, month, day, hour, minute, second);
-  if(error < 0)
+  int error = snprintf(buffer, DEV_MC146818_BUFFER_SIZE, "%d %d %d %d %d %d",
+                       year, month, day, hour, minute, second);
+  if (error < 0)
     return error;
-  if(error >= DEV_MC146818_BUFFER_SIZE)
+  if (error >= DEV_MC146818_BUFFER_SIZE)
     return -EINVAL;
   error = uiomove_frombuf(buffer, DEV_MC146818_BUFFER_SIZE, uio);
-  if(error)
+  if (error)
     return error;
   return 0;
 }
@@ -78,24 +80,25 @@ static vnodeops_t dev_mc146818_vnodeops = {
   .v_read = dev_mc146818_read,
 };
 
-static int mc146818_attach(device_t* dev){
+static int mc146818_attach(device_t *dev) {
   isa_device_t *isad = isa_device_of(dev);
-  mc146818_state_t* mc146818 = dev->state;
+  mc146818_state_t *mc146818 = dev->state;
 
   /* TODO: bus_allocate_resource */
   /* TODO: Only allocate 0070-007f!  */
   mc146818->io = isad->isa_bus;
 
-  mc146818_write_reg(mc146818, MC146818_REG_B, MC146818_REG_B_24H | MC146818_REG_B_BCD);
+  mc146818_write_reg(mc146818, MC146818_REG_B,
+                     MC146818_REG_B_24H | MC146818_REG_B_BCD);
 
   static int installed = 0;
-  if(!installed++){
+  if (!installed++) {
     /* Only the first instance gets to devfs. */
-    vnode_t* dev_mc146818 = vnode_new(V_DEV, &dev_mc146818_vnodeops);
+    vnode_t *dev_mc146818 = vnode_new(V_DEV, &dev_mc146818_vnodeops);
     dev_mc146818->v_data = mc146818;
     devfs_install("mc146818", dev_mc146818);
   }
-  
+
   return 0;
 }
 

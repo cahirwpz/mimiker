@@ -115,12 +115,14 @@ static resource_t gt_pci_memory = {.r_bus_space = &gt_pci_bus_space,
                                    .r_start = MALTA_PCI0_MEMORY_BASE,
                                    .r_end = MALTA_PCI0_MEMORY_END};
 static resource_t gt_pci_lowioports = {.r_bus_space = &gt_pci_bus_space,
-                                    .r_type = RT_IOPORTS,
-                                    .r_start = MALTA_PCI0_IO_BASE,
-                                    .r_end = MALTA_PCI0_IO_BASE + PCI_IO_SPACE_BASE - 1};
+                                       .r_type = RT_IOPORTS,
+                                       .r_start = MALTA_PCI0_IO_BASE,
+                                       .r_end = MALTA_PCI0_IO_BASE +
+                                                PCI_IO_SPACE_BASE - 1};
 static resource_t gt_pci_ioports = {.r_bus_space = &gt_pci_bus_space,
                                     .r_type = RT_IOPORTS,
-                                    .r_start = MALTA_PCI0_IO_BASE + PCI_IO_SPACE_BASE,
+                                    .r_start =
+                                      MALTA_PCI0_IO_BASE + PCI_IO_SPACE_BASE,
                                     .r_end = MALTA_PCI0_IO_END};
 
 static int gt_pci_probe(device_t *pcib) {
