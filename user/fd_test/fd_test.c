@@ -194,14 +194,14 @@ void test_open_path() {
 }
 
 void test_get_direntries() {
-  char buf[1000];
+  char buf[50];
   long basep;
-  int fd = open("/tests/initrd/", 0, O_RDONLY);
+  int fd = open("/usr/include", 0, O_RDONLY);
   assert(fd == FD_OFFSET);
   int res = 0;
   int cnt = 0;
   dirent_t *dir;
-  printf("Contents of /tests/initrd\n");
+  printf("Contents of /usr/include\n");
   do {
     res = getdirentries(fd, buf, sizeof(buf), &basep);
     dir = (dirent_t *)buf;

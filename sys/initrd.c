@@ -228,11 +228,18 @@ static int initrd_mount(mount_t *m) {
   return 0;
 }
 
-static void cpio_to_direntry(cpio_node_t *cn, dirent_t *dir) {
+/* dirent returned by this function has to be deallocated with
+ * kfree(M_INITRD, *); */
+static dirent_t* cpio_to_direntry(cpio_node_t *cn) {
+  dirent_t *dir = NULL;
   int namlen = strlen(cn->c_name);
+
+  int reclen = _DIRENT_RECLEN(dir, namlen);
+  dir = (dirent_t*)kmalloc(M_INITRD, reclen, 0);
+
   dir->d_fileno = cn->c_ino; /* Shall we implement our inode numbers or leave
                                 ones from ramdisk? */
-  dir->d_reclen = _DIRENT_RECLEN(dir, namlen);
+  dir->d_reclen = reclen;
   dir->d_namlen = namlen;
   dir->d_type = DT_UNKNOWN;
   if (cn->c_mode & C_ISDIR)
@@ -240,20 +247,25 @@ static void cpio_to_direntry(cpio_node_t *cn, dirent_t *dir) {
   if (cn->c_mode & C_ISREG)
     dir->d_type = DT_REG;
   memcpy(dir->d_name, cn->c_name, namlen + 1);
+  return dir;
 }
 
 static int initrd_vnode_readdir(vnode_t *v, uio_t *uio) {
   cpio_node_t *cn = (cpio_node_t *)v->v_data;
-  dirent_t dir;
+  dirent_t *dir = NULL;
   cpio_node_t *it;
   off_t offset = 0;
 
   /* Locate proper directory based on offset */
   TAILQ_FOREACH (it, &cn->c_children, c_siblings) {
-    cpio_to_direntry(it, &dir);
-    if (offset + dir.d_reclen <= uio->uio_offset)
-      offset += dir.d_reclen;
+    dir = cpio_to_direntry(it);
+    if (offset + dir->d_reclen <= uio->uio_offset)
+    {
+      offset += dir->d_reclen;
+      kfree(M_INITRD, dir);
+    }
     else {
+      kfree(M_INITRD, dir);
       assert(it == NULL || offset == uio->uio_offset);
       break;
     }
@@ -261,13 +273,17 @@ static int initrd_vnode_readdir(vnode_t *v, uio_t *uio) {
 
   for (; it; it = TAILQ_NEXT(it, c_siblings)) {
     int count = uio->uio_resid;
-    cpio_to_direntry(it, &dir);
-    if (count >= dir.d_reclen) {
-      int error = uiomove(&dir, dir.d_reclen, uio);
+    dir = cpio_to_direntry(it);
+    if (count >= dir->d_reclen) {
+      int error = uiomove(dir, dir->d_reclen, uio);
+      kfree(M_INITRD, dir);
       if (error < 0)
         return -error;
     } else
+    {
+      kfree(M_INITRD, dir);
       break;
+    }
   }
 
   return uio->uio_offset - offset;
