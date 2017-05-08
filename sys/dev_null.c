@@ -67,8 +67,8 @@ static void init_dev_null() {
   dev_null_device = vnode_new(V_DEV, &dev_null_vnodeops);
   dev_zero_device = vnode_new(V_DEV, &dev_zero_vnodeops);
 
-  devfs_install("null", dev_null_device);
-  devfs_install("zero", dev_zero_device);
+  devfs_install("null", dev_null_device, 0);
+  devfs_install("zero", dev_zero_device, 0);
 }
 
 SET_ENTRY(devfs_init, init_dev_null);
