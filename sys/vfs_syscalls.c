@@ -11,6 +11,7 @@
 #include <vm_map.h>
 #include <queue.h>
 #include <errno.h>
+#include <malloc.h>
 
 int do_open(thread_t *td, char *pathname, int flags, int mode, int *fd) {
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -192,21 +193,26 @@ int sys_mount(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[1];
 
   int error = 0;
-  char fsysname[256];
-  char pathname[256];
+  const int PATHSIZE_MAX = 256;
+  char* fsysname = kmalloc(M_TEMP, PATHSIZE_MAX, 0);
+  char* pathname = kmalloc(M_TEMP, PATHSIZE_MAX, 0);
   size_t n = 0;
 
   /* Copyout fsysname. */
   error = copyinstr(user_fsysname, fsysname, sizeof(fsysname), &n);
   if (error < 0)
-    return error;
+    goto end;
   n = 0;
   /* Copyout pathname. */
   error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
   if (error < 0)
-    return error;
+    goto end;
 
   log("mount(\"%s\", \"%s\")", pathname, fsysname);
 
-  return do_mount(td, fsysname, pathname);
+  error = do_mount(td, fsysname, pathname);
+ end:
+  kfree(M_TEMP, fsysname);
+  kfree(M_TEMP, pathname);
+  return error;
 }
