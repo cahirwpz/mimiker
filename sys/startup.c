@@ -17,6 +17,7 @@
 #include <initrd.h>
 #include <device.h>
 #include <proc.h>
+#include <vfs_syscalls.h>
 
 extern void main(void *);
 
@@ -56,6 +57,6 @@ int kernel_init(int argc, char **argv) {
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
 static void mount_fs() {
-  vfs_domount_named("initrd", "/");
-  vfs_domount_named("devfs", "/dev");
+  do_mount(thread_self(), "initrd", "/");
+  do_mount(thread_self(), "devfs", "/dev");
 }

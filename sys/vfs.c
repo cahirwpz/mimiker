@@ -10,9 +10,8 @@
 static MALLOC_DEFINE(M_VFS, "vfs", 1, 2);
 
 /* The list of all installed filesystem types */
-typedef TAILQ_HEAD(, vfsconf) vfsconf_list_t;
-static vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
-static mtx_t vfsconf_list_mtx;
+vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
+mtx_t vfsconf_list_mtx;
 
 /* The list of all mounts mounted */
 typedef TAILQ_HEAD(, mount) mount_list_t;
@@ -157,22 +156,6 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
      updates their dirs to reflect on the mounted file system... */
 
   return 0;
-}
-
-int vfs_domount_named(const char *fs, const char *path) {
-  vfsconf_t *vfs;
-  TAILQ_FOREACH (vfs, &vfsconf_list, vfc_list) {
-    if (strncmp(vfs->vfc_name, fs, VFSCONF_NAME_MAX) == 0) {
-      goto found;
-    }
-  }
-  return -EINVAL;
-found:;
-  vnode_t *v;
-  int error = vfs_lookup(path, &v);
-  if (error)
-    return error;
-  return vfs_domount(vfs, v);
 }
 
 int vfs_lookup(const char *path, vnode_t **vp) {

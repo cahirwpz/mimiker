@@ -42,6 +42,11 @@ typedef struct vfsconf {
   TAILQ_ENTRY(vfsconf) vfc_list; /* Entry on the list of vfsconfs */
 } vfsconf_t;
 
+/* The list of all installed filesystem types */
+typedef TAILQ_HEAD(, vfsconf) vfsconf_list_t;
+extern vfsconf_list_t vfsconf_list;
+extern mtx_t vfsconf_list_mtx;
+
 /* This structure represents a mount point: a particular instance of a file
    system mounted somewhere in the file tree. */
 typedef struct mount {
@@ -88,9 +93,6 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc);
 /* Mount a new instance of the filesystem vfc at the vnode v. Does not support
  * remounting. TODO: Additional filesystem-specific arguments. */
 int vfs_domount(vfsconf_t *vfc, vnode_t *v);
-
-/* Mount a new instance of the filesystem named fs at the requested path. */
-int vfs_domount_named(const char *fs, const char *path);
 
 /* Finds the vnode corresponding to the given path.
  * Increases use count on returned vnode. */

@@ -9,6 +9,8 @@
 #include <vnode.h>
 #include <proc.h>
 #include <vm_map.h>
+#include <queue.h>
+#include <errno.h>
 
 int do_open(thread_t *td, char *pathname, int flags, int mode, int *fd) {
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -83,6 +85,17 @@ int do_fstat(thread_t *td, int fd, vattr_t *buf) {
   res = f->f_ops->fo_getattr(f, td, buf);
   file_unref(f);
   return res;
+}
+
+int do_mount(thread_t *td, const char *fs, const char *path) {
+  vfsconf_t *vfs = vfs_get_by_name(fs);
+  if (vfs == NULL)
+    return -EINVAL;
+  vnode_t *v;
+  int error = vfs_lookup(path, &v);
+  if (error)
+    return error;
+  return vfs_domount(vfs, v);
 }
 
 /* == System calls interface === */
@@ -172,4 +185,28 @@ int sys_fstat(thread_t *td, syscall_args_t *args) {
   if (error < 0)
     return error;
   return 0;
+}
+
+int sys_mount(thread_t *td, syscall_args_t *args) {
+  char *user_fsysname = (char *)args->args[0];
+  char *user_pathname = (char *)args->args[1];
+
+  int error = 0;
+  char fsysname[256];
+  char pathname[256];
+  size_t n = 0;
+
+  /* Copyout fsysname. */
+  error = copyinstr(user_fsysname, fsysname, sizeof(fsysname), &n);
+  if (error < 0)
+    return error;
+  n = 0;
+  /* Copyout pathname. */
+  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
+  if (error < 0)
+    return error;
+
+  log("mount(\"%s\", \"%s\")", pathname, fsysname);
+
+  return do_mount(td, fsysname, pathname);
 }
