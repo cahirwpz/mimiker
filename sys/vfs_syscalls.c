@@ -194,8 +194,8 @@ int sys_mount(thread_t *td, syscall_args_t *args) {
 
   int error = 0;
   const int PATHSIZE_MAX = 256;
-  char* fsysname = kmalloc(M_TEMP, PATHSIZE_MAX, 0);
-  char* pathname = kmalloc(M_TEMP, PATHSIZE_MAX, 0);
+  char *fsysname = kmalloc(M_TEMP, PATHSIZE_MAX, 0);
+  char *pathname = kmalloc(M_TEMP, PATHSIZE_MAX, 0);
   size_t n = 0;
 
   /* Copyout fsysname. */
@@ -211,7 +211,7 @@ int sys_mount(thread_t *td, syscall_args_t *args) {
   log("mount(\"%s\", \"%s\")", pathname, fsysname);
 
   error = do_mount(td, fsysname, pathname);
- end:
+end:
   kfree(M_TEMP, fsysname);
   kfree(M_TEMP, pathname);
   return error;
