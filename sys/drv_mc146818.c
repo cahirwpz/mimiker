@@ -35,21 +35,20 @@ static int mc146818_probe(device_t *dev) {
   return 1;
 }
 
-static void mc146817_regs_write_1(resource_t* handle, unsigned offset, uint8_t val){
-  mc146818_state_t* mc146818 = handle->r_owner;
+static void mc146817_regs_write_1(resource_t *handle, unsigned offset,
+                                  uint8_t val) {
+  mc146818_state_t *mc146818 = handle->r_owner;
   bus_space_write_1(mc146818->io, MC146818_ADDR, offset);
   bus_space_write_1(mc146818->io, MC146818_DATA, val);
 }
-static uint8_t mc146817_regs_read_1(resource_t* handle, unsigned offset){
-  mc146818_state_t* mc146818 = handle->r_owner;
+static uint8_t mc146817_regs_read_1(resource_t *handle, unsigned offset) {
+  mc146818_state_t *mc146818 = handle->r_owner;
   bus_space_write_1(mc146818->io, MC146818_ADDR, offset);
   return bus_space_read_1(mc146818->io, MC146818_DATA);
 }
 
-static bus_space_t mc146818_regs_bus_space = {
-  .read_1 = mc146817_regs_read_1,
-  .write_1 = mc146817_regs_write_1
-};
+static bus_space_t mc146818_regs_bus_space = {.read_1 = mc146817_regs_read_1,
+                                              .write_1 = mc146817_regs_write_1};
 
 static void mc146818_read_time(mc146818_state_t *mc146818, int *year,
                                int *month, int *day, int *hour, int *minute,
@@ -95,15 +94,14 @@ static int mc146818_attach(device_t *dev) {
   /* TODO: Only allocate 0070-007f!  */
   mc146818->io = isad->isa_bus;
 
-  mc146818->regs = (resource_t){
-    .r_owner = mc146818,
-    .r_bus_space = &mc146818_regs_bus_space,
-    .r_type = RT_IOPORTS,
-    .r_start = 0,
-    .r_end = 0x3f
-  };
+  mc146818->regs = (resource_t){.r_owner = mc146818,
+                                .r_bus_space = &mc146818_regs_bus_space,
+                                .r_type = RT_IOPORTS,
+                                .r_start = 0,
+                                .r_end = 0x3f};
 
-  bus_space_write_1(&mc146818->regs, MC146818_REG_B, MC146818_REG_B_24H | MC146818_REG_B_BCD);
+  bus_space_write_1(&mc146818->regs, MC146818_REG_B,
+                    MC146818_REG_B_24H | MC146818_REG_B_BCD);
 
   static int installed = 0;
   if (!installed++) {
