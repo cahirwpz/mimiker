@@ -170,6 +170,23 @@ int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fd) {
   return 0;
 }
 
+int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
+  assert(f);
+  assert(fdt);
+
+  mtx_scoped_lock(&fdt->fdt_mtx);
+
+  if (fd < 0 || fd > fdt->fdt_nfiles)
+    return -EBADF;
+
+  if (fd_is_used(fdt, fd))
+    fd_free(fdt, fd);
+
+  fdt->fdt_files[fd] = f;
+  file_ref(f);
+  return 0;
+}
+
 /* Extracts file pointer from descriptor number in given table.
  * If flags are non-zero, returns EBADF if the file does not match flags. */
 int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {

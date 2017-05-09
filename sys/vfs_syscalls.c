@@ -89,11 +89,27 @@ int do_fstat(thread_t *td, int fd, vattr_t *buf) {
 }
 
 int do_dup(thread_t *td, int old, int *new) {
-  return 0;
+  file_t *f;
+  assert(td->td_proc);
+  int res = fdtab_get_file(td->td_proc->p_fdtable, old, 0, &f);
+  if (res)
+    return res;
+  res = fdtab_install_file(td->td_proc->p_fdtable, f, new);
+  file_unref(f);
+  return res;
 }
 
 int do_dup2(thread_t *td, int old, int new) {
-  return 0;
+  file_t *f;
+  assert(td->td_proc);
+  if (old == new)
+    return 0;
+  int res = fdtab_get_file(td->td_proc->p_fdtable, old, 0, &f);
+  if (res)
+    return res;
+  res = fdtab_install_file_at(td->td_proc->p_fdtable, f, new);
+  file_unref(f);
+  return res;
 }
 
 /* == System calls interface === */

@@ -2,6 +2,7 @@ SOURCES_C = \
 	broken.c \
 	callout.c \
 	crash.c \
+	dup.c \
 	exec.c \
 	exec_misbehave.c \
 	exec_fd_test.c \
