@@ -6,7 +6,7 @@ import os.path
 import signal
 import launcher
 
-UART_PORT = 8000
+UART_PORT_BASE = 8000
 
 if __name__ == '__main__':
     # Probe which tools are available.
@@ -71,15 +71,18 @@ if __name__ == '__main__':
         raise SystemExit('ERROR: Unable to start both debugger and simulator in'
                          ' stdio output mode.')
 
+    port = UART_PORT_BASE + os.getuid()
+    print(port)
+    
     sim = simulators[args.simulator]
     out = outputs[args.output]
     dbg = debuggers[args.debugger]
-
+    
     cfg_args = {'kernel': args.kernel,
                 'args': ' '.join(args.args),
                 'debug': debug,
                 'graphics': args.graphics,
-                'uart_port': UART_PORT}
+                'uart_port': port}
 
     sim.configure(**cfg_args)
     out.configure(**cfg_args)
