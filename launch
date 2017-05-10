@@ -72,7 +72,6 @@ if __name__ == '__main__':
                          ' stdio output mode.')
 
     port = UART_PORT_BASE + os.getuid()
-    print(port)
     
     sim = simulators[args.simulator]
     out = outputs[args.output]
