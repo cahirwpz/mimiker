@@ -81,3 +81,12 @@ def wait_any(launchables):
                 return
         except subprocess.TimeoutExpired:
             continue
+
+def prepare_gdbinit(gdb_port):
+    with open('.gdbinit.template', 'r') as file:
+        gdbinit = file.read()
+        
+    gdbinit = gdbinit.replace('GDB_PORT', str(gdb_port))
+    
+    with open('.gdbinit', 'w') as file:
+        file.write(gdbinit)

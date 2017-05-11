@@ -7,6 +7,7 @@ import signal
 import launcher
 
 UART_PORT_BASE = 8000
+GDB_PORT_BASE = 9100
 
 if __name__ == '__main__':
     # Probe which tools are available.
@@ -71,7 +72,10 @@ if __name__ == '__main__':
         raise SystemExit('ERROR: Unable to start both debugger and simulator in'
                          ' stdio output mode.')
 
-    port = UART_PORT_BASE + os.getuid()
+    uart_port = UART_PORT_BASE + os.getuid()
+    gdb_port = GDB_PORT_BASE + os.getuid();
+
+    launcher.prepare_gdbinit(gdb_port)
     
     sim = simulators[args.simulator]
     out = outputs[args.output]
@@ -81,7 +85,8 @@ if __name__ == '__main__':
                 'args': ' '.join(args.args),
                 'debug': debug,
                 'graphics': args.graphics,
-                'uart_port': port}
+                'gdb_port': gdb_port,
+                'uart_port': uart_port}
 
     sim.configure(**cfg_args)
     out.configure(**cfg_args)
