@@ -51,7 +51,7 @@ int sys_fork(thread_t *td, syscall_args_t *args) {
 
 int sys_getpid(thread_t *td, syscall_args_t *args) {
   kprintf("[syscall] getpid()\n");
-  return td->td_tid;
+  return td->td_proc->p_pid;
 }
 
 /* clang-format hates long arrays. */

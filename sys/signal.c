@@ -52,7 +52,7 @@ void sighand_unref(sighand_t *sh) {
 }
 
 int do_kill(tid_t tid, int sig) {
-  thread_t *target = thread_get_by_tid(tid);
+  proc_t *target = proc_find(tid);
   if (target == NULL)
     return -EINVAL;
 
@@ -90,18 +90,22 @@ static sighandler_t *get_sigact(int sig, proc_t *p) {
   return h;
 }
 
-int signal(thread_t *target, signo_t sig) {
+int signal(proc_t *proc, signo_t sig) {
 
   /* NOTE: This is a very simple implementation! Unimplemented features:
      - Thread tracing and debugging
-     - Multiple threads sharing PID (aka: process)
+     - Multiple threads in a process
      - Signal masks
      - SIGSTOP/SIGCONT
      These limitations (plus the fact that we currently have very little thread
      states) make the logic of posting a signal very simple!
   */
   assert(sig < SIG_LAST);
-  assert(target->td_proc);
+  assert(proc->p_nthreads == 1);
+
+  /* XXX: If we were to support multiple threads in a process, repeat everything
+     below for each thread in proc. */
+  thread_t *target = TAILQ_FIRST(&proc->p_threads);
 
   mtx_scoped_lock(&target->td_lock);
 

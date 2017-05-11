@@ -6,6 +6,8 @@
 #include <queue.h>
 #include <mutex.h>
 
+typedef struct proc proc_t;
+
 typedef enum {
   SIGINT = 1,
   SIGILL,
@@ -47,8 +49,8 @@ sighand_t *sighand_copy(sighand_t *sh);
 void sighand_ref(sighand_t *);
 void sighand_unref(sighand_t *);
 
-/* Sends a signal to a thread. */
-int signal(thread_t *td, signo_t sig);
+/* Sends a signal to a process. */
+int signal(proc_t *td, signo_t sig);
 
 /* Process signals pending for the thread. If the thread has received a signal
    that should be caught by the user, return the signal number. */

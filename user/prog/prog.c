@@ -107,11 +107,11 @@ void signal_test() {
   signal(SIGUSR2, sigusr2_handler);
   int pid = fork();
   if (pid == 0) {
-    /* Child, waits for signal. */
+    printf("This is child (mypid = %d)\n", getpid());
     while (1)
       ;
   } else {
-    /* Parent.*/
+    printf("This is parent (childpid = %d, mypid = %d)\n", pid, getpid());
     kill(pid, SIGUSR2);
     /* wait() for child. */
   }
