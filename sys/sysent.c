@@ -28,9 +28,9 @@ int sys_sbrk(thread_t *td, syscall_args_t *args) {
     return -ENOMEM;
   }
 
-  assert(td->td_uspace);
+  assert(td->td_proc);
 
-  return sbrk_resize(td->td_uspace, increment);
+  return sbrk_resize(td->td_proc->p_uspace, increment);
 }
 
 /* This is just a stub. A full implementation of this syscall will probably
