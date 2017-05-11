@@ -45,7 +45,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', action='store_true',
                         help='Shorthand for --output server')
     parser.add_argument('-d', action='store_true',
-                        help='Shorthand for --debugger cgdb.')
+                        help='Shorthand for --debugger gdb.')
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
     args = parser.parse_args()
@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
     # Support -d option
     if args.d:
-        args.debugger = 'cgdb'
+        args.debugger = 'gdb'
 
     debug = args.debugger != 'none'
 
