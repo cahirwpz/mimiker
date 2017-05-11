@@ -230,12 +230,12 @@ static int initrd_mount(mount_t *m) {
 
 /* dirent returned by this function has to be deallocated with
  * kfree(M_INITRD, *); */
-static dirent_t* cpio_to_direntry(cpio_node_t *cn) {
+static dirent_t *cpio_to_direntry(cpio_node_t *cn) {
   dirent_t *dir = NULL;
   int namlen = strlen(cn->c_name);
 
   int reclen = _DIRENT_RECLEN(dir, namlen);
-  dir = (dirent_t*)kmalloc(M_INITRD, reclen, 0);
+  dir = (dirent_t *)kmalloc(M_INITRD, reclen, 0);
 
   dir->d_fileno = cn->c_ino; /* Shall we implement our inode numbers or leave
                                 ones from ramdisk? */
@@ -259,12 +259,10 @@ static int initrd_vnode_readdir(vnode_t *v, uio_t *uio) {
   /* Locate proper directory based on offset */
   TAILQ_FOREACH (it, &cn->c_children, c_siblings) {
     dir = cpio_to_direntry(it);
-    if (offset + dir->d_reclen <= uio->uio_offset)
-    {
+    if (offset + dir->d_reclen <= uio->uio_offset) {
       offset += dir->d_reclen;
       kfree(M_INITRD, dir);
-    }
-    else {
+    } else {
       kfree(M_INITRD, dir);
       assert(it == NULL || offset == uio->uio_offset);
       break;
@@ -279,8 +277,7 @@ static int initrd_vnode_readdir(vnode_t *v, uio_t *uio) {
       kfree(M_INITRD, dir);
       if (error < 0)
         return -error;
-    } else
-    {
+    } else {
       kfree(M_INITRD, dir);
       break;
     }

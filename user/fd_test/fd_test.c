@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <sys/my_dirent.h>
+#include <stdbool.h>
 
 const char *str = "Hello world from a user program!\n";
 int error = 0;
@@ -193,35 +194,84 @@ void test_open_path() {
   assert_open_fail(too_long, 0, O_RDONLY, 63);
 }
 
-void test_get_direntries() {
-  char buf[50];
-  long basep;
-  int fd = open("/usr/include", 0, O_RDONLY);
+void getdirentries_dump_dir(const char *dir_path) {
+  char buf[30];
+  long basep = 0;
+  int fd = open(dir_path, 0, O_RDONLY);
   assert(fd == FD_OFFSET);
+
   int res = 0;
-  int cnt = 0;
   dirent_t *dir;
-  printf("Contents of /usr/include\n");
+  printf("Contents of %s\n", dir_path);
   do {
     res = getdirentries(fd, buf, sizeof(buf), &basep);
     dir = (dirent_t *)buf;
     while ((char *)dir < buf + res) {
       printf("%s\n", dir->d_name);
       dir = _DIRENT_NEXT(dir);
-      cnt++;
     }
   } while (res > 0);
-  assert(cnt == 10);
   close(fd);
 }
 
+bool dirent_cmp(dirent_t *a, dirent_t *b) {
+  return a->d_fileno == b->d_fileno && strcmp(a->d_name, b->d_name) == 0 &&
+         a->d_namlen == b->d_namlen && a->d_reclen == b->d_reclen &&
+         a->d_type == b->d_type;
+}
+
+void getdirentries_basep(const char *dir_path) {
+  char buf1[50];
+  char buf2[50];
+  char buf3[50];
+
+  long oldbasep = 0, basep;
+  int res = 0;
+  int fd = open(dir_path, 0, O_RDONLY);
+  assert(fd == FD_OFFSET);
+
+  /* read one entry, so we dont start compare from 0 */
+  res = getdirentries(fd, buf1, sizeof(buf1), &oldbasep);
+  assert(res > 0);
+
+  basep = oldbasep;
+  res = getdirentries(fd, buf1, sizeof(buf1), &basep);
+  assert(res > 0);
+  dirent_t *dir1 = (dirent_t *)buf1;
+
+  basep = oldbasep;
+  res = getdirentries(fd, buf2, sizeof(buf2), &basep);
+  assert(res > 0);
+  dirent_t *dir2 = (dirent_t *)buf2;
+
+  res = getdirentries(fd, buf3, sizeof(buf3), &basep);
+  assert(res > 0);
+  dirent_t *dir3 = (dirent_t *)buf3;
+
+  printf("%s %s\n", dir1->d_name, dir2->d_name);
+
+  assert(dirent_cmp(dir1, dir2));
+  assert(!dirent_cmp(dir1, dir3));
+
+  close(fd);
+}
+
+void test_getdirentries() {
+  /* dump entire directory */
+  const char *dir_path = "/usr/include/";
+  getdirentries_dump_dir(dir_path);
+  getdirentries_basep(dir_path);
+
+  printf("test_getdirentries passed\n");
+}
+
 int main(int argc, char **argv) {
-  test_get_direntries();
+  test_getdirentries();
   test_read();
   test_devnull();
   test_multiple_descriptors();
   test_readwrite();
-  test_copy();
+  // test_copy();
   test_bad_descrip();
   test_open_path();
 

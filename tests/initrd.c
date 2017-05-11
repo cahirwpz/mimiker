@@ -44,7 +44,7 @@ void dump_directory(const char *path) {
     bytes = VOP_READDIR(v, &uio);
 
     /* Dump directories inside buffer */
-    dirent_t *dir = (dirent_t *)((void*)buffer);
+    dirent_t *dir = (dirent_t *)((void *)buffer);
     for (int off = 0; off < bytes; off += dir->d_reclen) {
       if (dir->d_reclen) {
         dump_dirent(dir);

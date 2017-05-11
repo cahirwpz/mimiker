@@ -92,13 +92,13 @@ int do_getdirentries(thread_t *td, int fd, uio_t *uio, long *basep) {
     return res;
 
   vnode_t *vn = f->f_vnode;
-  uio->uio_offset = f->f_offset;
+  /* uio->uio_offset = *basep; */
+  copyin(basep, &uio->uio_offset, sizeof(basep));
   res = VOP_READDIR(vn, uio);
 
-  /* FOR SOME REASON THIS LINE CAUSES ERROR,
-   * it is caused by dereferencing uio */
   f->f_offset = uio->uio_offset;
-  *basep = f->f_offset;
+  /* uio->uio_offset = *basep; */
+  copyout(&uio->uio_offset, basep, sizeof(basep));
   file_unref(f);
 
   return res;
