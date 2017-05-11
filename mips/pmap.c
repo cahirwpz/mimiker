@@ -373,19 +373,17 @@ void tlb_exception_handler(exc_frame_t *frame) {
     return;
 
 fault:
-  /* handle copyin / copyout faults */
   if (td->td_onfault) {
+    /* handle copyin / copyout faults */
     frame->pc = td->td_onfault;
     td->td_onfault = 0;
+  } else if (td->td_proc) {
+    /* Send a segmentation fault signal to the user program. */
+    signal(td, SIGSEGV);
   } else if (ktest_test_running_flag) {
     ktest_failure();
   } else {
-    if (td->td_uspace) {
-      /* Send a segmentation fault signal to the user program. */
-      signal(td, SIGSEGV);
-    } else {
-      /* Kernel mode thread violated memory, whoops. */
-      assert(0 && "Invalid memory access.");
-    }
+    /* Kernel mode thread violated memory, whoops. */
+    panic("Invalid memory access.");
   }
 }
