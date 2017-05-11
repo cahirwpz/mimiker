@@ -26,15 +26,11 @@ SOURCES_C = \
 
 SOURCES_ASM =
 
-all: $(DEPFILES) initrd_test_files libtests.a
-
-initrd_test_files: prepare_initrd_test_files.sh
-	./prepare_initrd_test_files.sh
+all: $(DEPFILES) libtests.a
 
 include ../Makefile.common
 
 libtests.a: $(OBJECTS)
 
 clean:
-	$(RM) -f .*.D *.o *.elf *.a *.map *~
-	$(RM) -rf initrd_test_files
+	$(RM) .*.D *.o *.elf *.a *.map *~

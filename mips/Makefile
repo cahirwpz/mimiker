@@ -8,7 +8,6 @@ SOURCES_C = atomic.c \
 	    gt64120.c \
 	    intr.c \
 	    malta.c \
-	    pci.c \
 	    pmap.c \
 	    stack.c \
 	    tlb.c \
@@ -25,6 +24,6 @@ include ../Makefile.common
 libmips.a: $(OBJECTS)
 
 clean:
-	$(RM) -f .*.D *.ko *.o *.a *.lst *~
-	$(RM) -f tags *.taghl
-	$(RM) -f assym.h
+	$(RM) .*.D *.ko *.o *.a *.lst *~
+	$(RM) tags *.taghl
+	$(RM) assym.h

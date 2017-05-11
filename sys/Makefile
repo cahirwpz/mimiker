@@ -6,10 +6,12 @@ SOURCES_C  = \
 	clock.c \
 	condvar.c \
 	console.c \
+	device.c \
 	dev_cons.c \
 	dev_null.c \
 	dev_vga.c \
 	devfs.c \
+	drv_stdvga.c \
 	exception.c \
 	exec.c \
 	file.c \
@@ -22,6 +24,7 @@ SOURCES_C  = \
 	main.c \
 	malloc.c \
 	mutex.c \
+	pci.c \
 	pci_ids.c \
 	pcpu.c \
 	physmem.c \
@@ -33,13 +36,11 @@ SOURCES_C  = \
 	sched.c \
 	sleepq.c \
 	startup.c \
-	stdvga.c \
 	sync.c \
 	sysent.c \
 	mmap.c \
 	thread.c \
 	uio.c \
-	vga.c \
 	vfs.c \
 	vfs_syscalls.c \
 	vm_map.c \
@@ -55,5 +56,5 @@ include ../Makefile.common
 libsys.a: $(OBJECTS)
 
 clean:
-	$(RM) -f .*.D *.ko *.o *.a *.lst *~
-	$(RM) -f tags *.taghl
+	$(RM) .*.D *.ko *.o *.a *.lst *~
+	$(RM) tags *.taghl
