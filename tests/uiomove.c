@@ -7,11 +7,6 @@
 static int test_uiomove() {
   int res = 0;
 
-  /* I broke this test in order to test the run_tests.py script. */
-  log("Printing out invalid character ∞ and looping to trigger timeout.");
-  while (1)
-    ;
-
   char buffer1[100];
   char buffer2[100];
   const char *text = "Example string with data to be used for i/o operations.";
