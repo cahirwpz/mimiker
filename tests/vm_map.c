@@ -50,6 +50,12 @@ static int paging_on_demand_and_memory_protection_demo() {
 }
 
 static int findspace_demo() {
+
+  /* I broke this test in order to test the run_tests.py script. */
+  log("Printing out invalid character ∞ and looping to trigger timeout.");
+  while (1)
+    ;
+
   vm_map_t *orig = get_user_vm_map();
 
   vm_map_t *umap = vm_map_new();

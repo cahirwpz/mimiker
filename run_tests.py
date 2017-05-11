@@ -4,6 +4,7 @@ import argparse
 import pexpect
 import sys
 import random
+import base64
 
 N_SIMPLE = 5
 N_THOROUGH = 100
@@ -11,6 +12,19 @@ TIMEOUT = 5
 RETRIES_MAX = 5
 REPEAT = 5
 
+# Tries to decode binary output as ASCII. On failure, prints out the entire buffer in base64.
+def safe_decode(data):
+    try:
+        return data.decode("ascii")
+    except UnicodeDecodeError as e:
+        print("Failed to decode output. Below is the output in base64.")
+        print("==== BEGIN BASE64 ====")
+        print(base64.b64encode(data).decode("ascii"))
+        print("==== END BASE64 ====")
+        print("Failed to decode output. Binary data contains non-ascii character at position %d." % e.start)
+        print("The offending byte value is %d." % data[e.start])
+        print("Above is the entire buffer encoded in base64.")
+        sys.exit(1)
 
 # Tries to start gdb in order to investigate kernel state on deadlock.
 def gdb_inspect():
@@ -56,11 +70,11 @@ def test_seed(seed, sim='qemu', repeat=1, retry=0):
         return
     elif index == 1:
         print("Test failure reported!\n")
-        message = child.before.decode("ascii")
-        message += child.buffer.decode("ascii")
+        message = safe_decode(child.before)
+        message += safe_decode(child.buffer)
         try:
             while len(message) < 20000:
-                message += child.read_nonblocking(timeout=1).decode("ascii")
+                message += safe_decode(child.read_nonblocking(timeout=1))
         except pexpect.exceptions.TIMEOUT:
             pass
         print(message)
@@ -72,7 +86,7 @@ def test_seed(seed, sim='qemu', repeat=1, retry=0):
         test_seed(seed, repeat, retry + 1)
     elif index == 3:
         print("Timeout reached.\n")
-        message = child.buffer.decode("utf-8")
+        message = safe_decode(child.buffer)
         print(message)
         if len(message) < 100:
             print("It looks like kernel did not even start within the time "
