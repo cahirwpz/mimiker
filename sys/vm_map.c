@@ -236,13 +236,17 @@ void vm_map_dump(vm_map_t *map) {
 /* This entire function is a nasty hack, but we'll live with it until proper COW
    is implemented. */
 vm_map_t *vm_map_clone(vm_map_t *map) {
+  thread_t *td = thread_self();
+  assert(td->td_proc);
+  assert(td->td_proc->p_nthreads == 1);
+
   vm_map_t *orig_current_map = get_user_vm_map();
   vm_map_t *newmap = vm_map_new();
 
   rw_scoped_enter(&map->rwlock, RW_READER);
 
   /* Temporarily switch to the new map, so that we may write contents. */
-  critical_enter();
+  td->td_proc->p_uspace = newmap;
   vm_map_activate(newmap);
 
   vm_map_entry_t *it;
@@ -258,8 +262,8 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   }
 
   /* Return to original vm map. */
+  td->td_proc->p_uspace = orig_current_map;
   vm_map_activate(orig_current_map);
-  critical_leave();
 
   return newmap;
 }
