@@ -248,8 +248,6 @@ void getdirentries_basep(const char *dir_path) {
   assert(res > 0);
   dirent_t *dir3 = (dirent_t *)buf3;
 
-  printf("%s %s\n", dir1->d_name, dir2->d_name);
-
   assert(dirent_cmp(dir1, dir2));
   assert(!dirent_cmp(dir1, dir3));
 

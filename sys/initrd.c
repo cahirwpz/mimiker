@@ -258,29 +258,26 @@ static int initrd_vnode_readdir(vnode_t *v, uio_t *uio) {
 
   /* Locate proper directory based on offset */
   TAILQ_FOREACH (it, &cn->c_children, c_siblings) {
-    dir = cpio_to_direntry(it);
-    if (offset + dir->d_reclen <= uio->uio_offset) {
-      offset += dir->d_reclen;
-      kfree(M_INITRD, dir);
+    int reclen = _DIRENT_RECLEN(dir, strlen(it->c_name));
+
+    if (offset + reclen <= uio->uio_offset) {
+      offset += reclen;
     } else {
-      kfree(M_INITRD, dir);
       assert(it == NULL || offset == uio->uio_offset);
       break;
     }
   }
 
   for (; it; it = TAILQ_NEXT(it, c_siblings)) {
-    int count = uio->uio_resid;
-    dir = cpio_to_direntry(it);
-    if (count >= dir->d_reclen) {
+    int reclen = _DIRENT_RECLEN(dir, strlen(it->c_name));
+    if (uio->uio_resid >= reclen) {
+      dir = cpio_to_direntry(it);
       int error = uiomove(dir, dir->d_reclen, uio);
       kfree(M_INITRD, dir);
       if (error < 0)
         return -error;
-    } else {
-      kfree(M_INITRD, dir);
+    } else
       break;
-    }
   }
 
   return uio->uio_offset - offset;

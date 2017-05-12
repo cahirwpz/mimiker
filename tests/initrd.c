@@ -5,6 +5,9 @@
 #include <vm_map.h>
 #include <ktest.h>
 #include <dirent.h>
+#include <malloc.h>
+
+static MALLOC_DEFINE(M_INITRD_TEST, "initrd test", 16, 128);
 
 static void dump_file(const char *path) {
   vnode_t *v;
@@ -25,7 +28,10 @@ void dump_dirent(dirent_t *dir) {
   kprintf("%s\n", dir->d_name);
 }
 
+/* recursively prints directory tree rooted at path */
 void dump_directory(const char *path) {
+  kprintf("Contents of directory: %s\n", path);
+
   vnode_t *v;
   int res = vfs_lookup(path, &v);
   assert(res == 0);
@@ -35,9 +41,6 @@ void dump_directory(const char *path) {
 
   uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, 0, buffer, sizeof(buffer));
   int bytes = 0;
-
-  kprintf("Contents of directory: %s\n", path);
-
   uio.uio_offset = 0;
 
   do {
@@ -48,6 +51,21 @@ void dump_directory(const char *path) {
     for (int off = 0; off < bytes; off += dir->d_reclen) {
       if (dir->d_reclen) {
         dump_dirent(dir);
+
+        if (dir->d_type & DT_DIR) {
+          int new_path_len = strlen(path) + dir->d_namlen + 10;
+          char *new_path = kmalloc(M_INITRD_TEST, new_path_len, 0);
+          new_path[0] = '\0';
+
+          strlcat(new_path, path, new_path_len);
+          strlcat(new_path, dir->d_name, new_path_len);
+          strlcat(new_path, "/", new_path_len);
+
+          dump_directory(new_path);
+
+          kfree(M_INITRD_TEST, new_path);
+        }
+
         dir = _DIRENT_NEXT(dir);
       } else
         break;
@@ -58,7 +76,7 @@ void dump_directory(const char *path) {
 }
 
 static int test_readdir() {
-  dump_directory("/usr/include/");
+  dump_directory("/usr/");
   return KTEST_SUCCESS;
 }
 
