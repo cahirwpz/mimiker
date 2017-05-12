@@ -1,3 +1,5 @@
+#define KL_LOG KL_VFS
+#include <klog.h>
 #include <mount.h>
 #include <stdc.h>
 #include <errno.h>
@@ -166,7 +168,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     return -ENOENT;
 
   if (strncmp(path, "/", 1) != 0) {
-    log("Relative paths are not supported!");
+    klog("Relative paths are not supported!");
     return -ENOENT;
   }
 
