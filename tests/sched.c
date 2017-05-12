@@ -40,6 +40,7 @@ void main() {
 }
 #endif
 
+#if 0
 static struct {
   intptr_t start, end;
 } range[] = {
@@ -91,3 +92,4 @@ static int test_sched() {
 }
 
 KTEST_ADD(sched, test_sched, KTEST_FLAG_NORETURN);
+#endif

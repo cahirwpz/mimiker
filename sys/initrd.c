@@ -38,6 +38,8 @@ typedef struct cpio_node {
   const char *c_path; /* contains exact path to file as archived by cpio */
   const char *c_name; /* contains name of file */
   void *c_data;
+  /* Associated vnode. */
+  vnode_t *c_vnode;
 } cpio_node_t;
 
 typedef TAILQ_HEAD(, cpio_node) cpio_list_t;
@@ -191,11 +193,22 @@ static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
 
   TAILQ_FOREACH (it, &cn_dir->c_children, c_siblings) {
     if (strcmp(name, it->c_name) == 0) {
-      vnodetype_t type = V_REG;
-      if (it->c_mode & C_ISDIR)
-        type = V_DIR;
-      *res = vnode_new(type, &initrd_ops);
-      (*res)->v_data = (void *)it;
+      if (it->c_vnode) {
+        *res = it->c_vnode;
+      } else {
+        /* Create new vnode */
+        vnodetype_t type = V_REG;
+        if (it->c_mode & C_ISDIR)
+          type = V_DIR;
+        *res = vnode_new(type, &initrd_ops);
+        (*res)->v_data = (void *)it;
+
+        /* TODO: Only store a token (weak pointer) that allows looking up the
+           vnode, otherwise the vnode will never get freed. */
+        it->c_vnode = *res;
+        vnode_ref(*res);
+      }
+      /* Reference for the caller */
       vnode_ref(*res);
       return 0;
     }
@@ -290,7 +303,6 @@ static int initrd_root(mount_t *m, vnode_t **v) {
 }
 
 static int initrd_init(vfsconf_t *vfc) {
-  vfs_domount(vfc, vfs_root_vnode);
   return 0;
 }
 

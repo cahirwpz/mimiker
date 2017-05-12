@@ -5,6 +5,7 @@
 #include <vm_map.h>
 #include <vm_pager.h>
 #include <rwlock.h>
+#include <proc.h>
 
 int sys_mmap(thread_t *td, syscall_args_t *args) {
   vm_addr_t addr = args->args[0];
@@ -25,7 +26,8 @@ int sys_mmap(thread_t *td, syscall_args_t *args) {
 vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
                   int *error) {
   thread_t *td = thread_self();
-  vm_map_t *vmap = td->td_uspace;
+  assert(td->td_proc);
+  vm_map_t *vmap = td->td_proc->p_uspace;
 
   assert(vmap);
 

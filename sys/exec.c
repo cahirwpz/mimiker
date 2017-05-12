@@ -91,12 +91,35 @@ int do_exec(const exec_args_t *args) {
     return -ENOEXEC;
   }
 
+  thread_t *td = thread_self();
+
+  /* If this is a kernel thread becoming a user thread, then we need to create
+   * (the first!) process. */
+  if (!td->td_proc) {
+    proc_t *p = proc_create();
+    proc_populate(p, td);
+
+    /* Prepare file descriptor table */
+    fdtab_t *fdt = fdtab_alloc();
+    fdtab_ref(fdt);
+    td->td_proc->p_fdtable = fdt;
+  }
+
+  /* We assume process may only have a single thread. But if there were more
+     than one thread in the process that called exec, all other threads must be
+     forcefully terminated. */
+
   /*
    * We can not destroy the current vm map, because exec can still fail,
    * and in that case we must be able to return to the original address space.
    */
   vm_map_t *vmap = vm_map_new();
-  vm_map_t *old_vmap = vm_map_activate(vmap);
+  vm_map_t *old_vmap = td->td_proc ? td->td_proc->p_uspace : NULL;
+
+  /* We are the only live thread in this process. We can safely give it a new
+   * uspace. */
+  td->td_proc->p_uspace = vmap;
+  vm_map_activate(vmap);
 
   /* Iterate over prog headers */
   log("ELF has %d program headers", eh.e_phnum);
@@ -215,25 +238,11 @@ int do_exec(const exec_args_t *args) {
   log("Stack real bottom at %p", (void *)stack_bottom);
   prepare_program_stack(args, &stack_bottom);
 
-  thread_t *td = thread_self();
-
   /* ... sbrk segment ... */
   sbrk_create(vmap);
 
   /* ... and user context. */
   uctx_init(thread_self(), eh.e_entry, stack_bottom);
-
-  /* If this is a kernel thread becoming a user thread, then we need to create
-   * (the first!) process. */
-  if (!td->td_proc) {
-    proc_t *proc = proc_create();
-    proc_populate(proc, td);
-
-    /* Prepare file descriptor table */
-    fdtab_t *fdt = fdtab_alloc();
-    fdtab_ref(fdt);
-    td->td_proc->p_fdtable = fdt;
-  }
 
   /* Before we have a working fork, let's initialize file descriptors required
      by the standard library. */
@@ -243,11 +252,8 @@ int do_exec(const exec_args_t *args) {
   do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
 
   /*
-   * At this point we are certain that exec suceeds.
-   * We can safely destroy the previous vm map.
-   *
-   * One can use do_exec() to start new user program from kernel space,
-   * in such case there is no old user vm space to dismantle.
+   * At this point we are certain that exec succeeds.  We can safely destroy the
+   * previous vm map, and permanently assign this one to the current process.
    */
   if (old_vmap)
     vm_map_delete(old_vmap);
@@ -262,6 +268,7 @@ int do_exec(const exec_args_t *args) {
 
 exec_fail:
   /* Return to the previous map, unmodified by exec. */
+  td->td_proc->p_uspace = old_vmap;
   vm_map_activate(old_vmap);
   /* Destroy the vm map we began preparing. */
   vm_map_delete(vmap);
