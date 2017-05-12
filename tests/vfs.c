@@ -14,7 +14,8 @@ static int test_vfs() {
   error = vfs_lookup("/", &v);
   assert(error == 0);
   /* Ensure the v is the initrd mountpoint. */
-  assert(strncmp(v->v_mount->mnt_vfc->vfc_name, "initrd", strlen("initrd")) == 0);
+  assert(strncmp(v->v_mount->mnt_vfc->vfc_name, "initrd", strlen("initrd")) ==
+         0);
   vnode_unref(v);
   error = vfs_lookup("/dev////", &v);
   assert(error == 0);

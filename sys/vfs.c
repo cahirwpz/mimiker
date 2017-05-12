@@ -158,8 +158,7 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   return 0;
 }
 
-static int vfs_assign_mounted_child(vnode_t **vnode)
-{
+static int vfs_assign_mounted_child(vnode_t **vnode) {
   vnode_t *v_mntpt;
   int error = VFS_ROOT((*vnode)->v_mountedhere, &v_mntpt);
   vnode_unlock(*vnode);
@@ -201,10 +200,9 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   vnode_ref(v);
   vnode_lock(v);
 
-  while(v->v_mountedhere)
-  {
+  while (v->v_mountedhere) {
     int error = vfs_assign_mounted_child(&v);
-    if(error)
+    if (error)
       return error;
   }
 
@@ -225,10 +223,9 @@ int vfs_lookup(const char *path, vnode_t **vp) {
      * us. */
     vnode_lock(v);
 
-    while(v->v_mountedhere)
-    {
+    while (v->v_mountedhere) {
       int error = vfs_assign_mounted_child(&v);
-      if(error)
+      if (error)
         return error;
     }
   }
