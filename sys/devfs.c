@@ -114,15 +114,8 @@ static int devfs_init(vfsconf_t *vfc) {
   SET_DECLARE(devfs_init, devfs_init_func_t);
   devfs_init_func_t **ptr;
   SET_FOREACH(ptr, devfs_init) {
-    log("Value in devfs_init: %p", **ptr);
     (**ptr)();
   }
-
-  /* Mount devfs at /dev. */
-  /* TODO: This should actually happen somewhere else in the init process, much
-   * later, and is configuration-dependent. */
-  vfs_domount(vfc, vfs_root_dev_vnode);
-
   return 0;
 }
 

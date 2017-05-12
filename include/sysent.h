@@ -14,10 +14,11 @@
 #define SYS_SBRK 11
 #define SYS_MMAP 12
 #define SYS_FORK 13
-#define SYS_SIGACTION 14
-#define SYS_SIGRETURN 15
+#define SYS_MOUNT 14
+#define SYS_SIGACTION 15
+#define SYS_SIGRETURN 16
 
-#define SYS_LAST 15
+#define SYS_LAST 16
 
 #ifndef __ASSEMBLER__
 

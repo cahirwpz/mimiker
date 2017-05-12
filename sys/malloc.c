@@ -267,3 +267,5 @@ void kmem_dump(kmem_pool_t *mp) {
 /* TODO: missing implementation */
 void kmem_destroy(kmem_pool_t *mp) {
 }
+
+MALLOC_DEFINE(M_TEMP, "temporaries pool", 2, 4);
