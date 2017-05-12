@@ -32,7 +32,7 @@ static int test_uiomove() {
   uio.uio_offset = 5;
   uio.uio_resid = 8 + 5 + 12;
 
-  res = uiomove(buffer1, sizeof(buffer1), &uio);
+  res = uiomove_frombuf(buffer1, sizeof(buffer1), &uio);
   assert(res == 0);
   res = strcmp(buffer1, "=====Example data operations.");
   assert(res == 0);

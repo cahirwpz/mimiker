@@ -8,25 +8,25 @@
 #include <vm_object.h>
 #include <vm_map.h>
 #include <errno.h>
+#include <proc.h>
+#include <mips/mips.h>
+#include <pcpu.h>
+
+static MALLOC_DEFINE(M_VMMAP, "vm-map", 1, 2);
 
 static vm_map_t kspace;
 
-vm_map_t *vm_map_activate(vm_map_t *map) {
-  vm_map_t *old;
-
+void vm_map_activate(vm_map_t *map) {
   critical_enter();
-  thread_t *td = thread_self();
-  old = td->td_uspace;
-  td->td_uspace = map;
+  PCPU_SET(uspace, map);
   pmap_activate(map ? map->pmap : NULL);
   critical_leave();
-
-  return old;
 }
 
 vm_map_t *get_user_vm_map() {
-  return thread_self()->td_uspace;
+  return PCPU_GET(uspace);
 }
+
 vm_map_t *get_kernel_vm_map() {
   return &kspace;
 }
@@ -59,19 +59,13 @@ static void vm_map_setup(vm_map_t *map) {
   rw_init(&map->rwlock, "vm map rwlock", 1);
 }
 
-static MALLOC_DEFINE(mpool, "vm_map memory pool");
-
 void vm_map_init() {
-  vm_page_t *pg = pm_alloc(2);
-  kmalloc_init(mpool);
-  kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
-
   vm_map_setup(&kspace);
   *((pmap_t **)(&kspace.pmap)) = get_kernel_pmap();
 }
 
 vm_map_t *vm_map_new() {
-  vm_map_t *map = kmalloc(mpool, sizeof(vm_map_t), M_ZERO);
+  vm_map_t *map = kmalloc(M_VMMAP, sizeof(vm_map_t), M_ZERO);
 
   vm_map_setup(map);
   *((pmap_t **)&map->pmap) = pmap_new();
@@ -106,7 +100,7 @@ static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
   vm_map->nentries--;
   vm_object_free(entry->object);
   TAILQ_REMOVE(&vm_map->list, entry, map_list);
-  kfree(mpool, entry);
+  kfree(M_VMMAP, entry);
 }
 
 void vm_map_delete(vm_map_t *map) {
@@ -115,7 +109,7 @@ void vm_map_delete(vm_map_t *map) {
     vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
   rw_leave(&map->rwlock);
 
-  kfree(mpool, map);
+  kfree(M_VMMAP, map);
 }
 
 vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
@@ -131,7 +125,7 @@ vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
   assert(vm_map_find_entry(map, end) == NULL);
 #endif
 
-  vm_map_entry_t *entry = kmalloc(mpool, sizeof(vm_map_entry_t), M_ZERO);
+  vm_map_entry_t *entry = kmalloc(M_VMMAP, sizeof(vm_map_entry_t), M_ZERO);
 
   entry->start = start;
   entry->end = end;
@@ -237,6 +231,41 @@ void vm_map_dump(vm_map_t *map) {
             (it->prot & VM_PROT_EXEC) ? 'x' : '-');
     vm_map_object_dump(it->object);
   }
+}
+
+/* This entire function is a nasty hack, but we'll live with it until proper COW
+   is implemented. */
+vm_map_t *vm_map_clone(vm_map_t *map) {
+  thread_t *td = thread_self();
+  assert(td->td_proc);
+  assert(td->td_proc->p_nthreads == 1);
+
+  vm_map_t *orig_current_map = get_user_vm_map();
+  vm_map_t *newmap = vm_map_new();
+
+  rw_scoped_enter(&map->rwlock, RW_READER);
+
+  /* Temporarily switch to the new map, so that we may write contents. */
+  td->td_proc->p_uspace = newmap;
+  vm_map_activate(newmap);
+
+  vm_map_entry_t *it;
+  TAILQ_FOREACH (it, &map->list, map_list) {
+    vm_map_entry_t *entry =
+      vm_map_add_entry(newmap, it->start, it->end, it->prot);
+    entry->object = default_pager->pgr_alloc();
+    vm_page_t *page;
+    TAILQ_FOREACH (page, &it->object->list, obj.list) {
+      memcpy((char *)it->start + page->vm_offset,
+             (char *)MIPS_PHYS_TO_KSEG0(page->paddr), page->size * PAGESIZE);
+    }
+  }
+
+  /* Return to original vm map. */
+  td->td_proc->p_uspace = orig_current_map;
+  vm_map_activate(orig_current_map);
+
+  return newmap;
 }
 
 int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {

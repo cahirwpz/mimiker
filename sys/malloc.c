@@ -1,3 +1,5 @@
+#define KL_LOG KL_KMEM
+#include <klog.h>
 #include <stdc.h>
 #include <malloc.h>
 #include <physmem.h>
@@ -17,6 +19,7 @@ static struct {
   void *end;
 } sbrk = {__ebss, __kernel_end};
 
+#if 0
 void kernel_brk(void *addr) {
   cs_enter();
   void *ptr = sbrk.ptr;
@@ -28,6 +31,7 @@ void kernel_brk(void *addr) {
   if (addr > ptr)
     bzero(ptr, (intptr_t)addr - (intptr_t)ptr);
 }
+#endif
 
 void *kernel_sbrk(size_t size) {
   cs_enter();
@@ -42,7 +46,7 @@ void *kernel_sbrk(size_t size) {
 
 /*
   TODO:
-  - use the mp_next field of malloc_pool
+  - use the mp_next field of kmem_pool
 */
 
 TAILQ_HEAD(mb_list, mem_block);
@@ -111,11 +115,8 @@ static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
   }
 }
 
-void kmalloc_init(malloc_pool_t *mp) {
-  TAILQ_INIT(&mp->mp_arena);
-}
-
-void kmalloc_add_arena(malloc_pool_t *mp, vm_addr_t start, size_t arena_size) {
+static void kmalloc_add_arena(kmem_pool_t *mp, vm_addr_t start,
+                              size_t arena_size) {
   if (arena_size < sizeof(mem_arena_t))
     return;
 
@@ -135,7 +136,7 @@ void kmalloc_add_arena(malloc_pool_t *mp, vm_addr_t start, size_t arena_size) {
   add_free_memory_block(ma, mb, block_size);
 }
 
-void kmalloc_add_pages(malloc_pool_t *mp, unsigned pages) {
+static void kmalloc_add_pages(kmem_pool_t *mp, unsigned pages) {
   vm_page_t *pg = pm_alloc(pages);
   kmalloc_add_arena(mp, PG_VADDR_START(pg), PG_SIZE(pg));
 }
@@ -171,11 +172,14 @@ static mem_block_t *try_allocating_in_area(mem_arena_t *ma,
   return mb;
 }
 
-void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
+void *kmalloc(kmem_pool_t *mp, size_t size, unsigned flags) {
   size_t size_aligned = align(size, MB_ALIGNMENT);
+  if (size_aligned == 0)
+    return NULL;
 
   /* Search for the first area in the list that has enough space. */
   mem_arena_t *current = NULL;
+  mtx_scoped_lock(&mp->mp_lock);
   TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
     assert(current->ma_magic == MB_MAGIC);
 
@@ -184,25 +188,32 @@ void *kmalloc(malloc_pool_t *mp, size_t size, uint16_t flags) {
     if (mb) {
       if (flags == M_ZERO)
         memset(mb->mb_data, 0, size);
-
       return mb->mb_data;
     }
   }
-
   /* Couldn't find any continuous memory with the requested size. */
-  if (flags & M_NOWAIT)
+  if (flags & M_NOWAIT) {
     return NULL;
+  }
+
+  if (mp->mp_pages_used < mp->mp_pages_max) {
+    kmalloc_add_pages(mp, 1);
+    mp->mp_pages_used++;
+    void *ret = kmalloc(mp, size, flags);
+    return ret;
+  }
 
   panic("memory exhausted in '%s'", mp->mp_desc);
 }
 
-void kfree(malloc_pool_t *mp, void *addr) {
+void kfree(kmem_pool_t *mp, void *addr) {
   mem_block_t *mb = (mem_block_t *)(((char *)addr) - sizeof(mem_block_t));
 
   if (mb->mb_magic != MB_MAGIC || mp->mp_magic != MB_MAGIC || mb->mb_size >= 0)
     panic("Memory corruption detected!");
 
   mem_arena_t *current = NULL;
+  mtx_scoped_lock(&mp->mp_lock);
   TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
     char *start = ((char *)current) + sizeof(mem_arena_t);
     if ((char *)addr >= start && (char *)addr < start + current->ma_size)
@@ -211,27 +222,50 @@ void kfree(malloc_pool_t *mp, void *addr) {
   }
 }
 
-char *kstrndup(malloc_pool_t *mp, const char *s, size_t maxlen) {
+char *kstrndup(kmem_pool_t *mp, const char *s, size_t maxlen) {
   size_t n = strnlen(s, maxlen) + 1;
   char *copy = kmalloc(mp, n, M_ZERO);
   memcpy(copy, s, n);
   return copy;
 }
 
-void kmalloc_dump(malloc_pool_t *mp) {
+void kmem_bootstrap() {
+  SET_DECLARE(kmem_pool_table, kmem_pool_t *);
+  kmem_pool_t ***ptr;
+  SET_FOREACH(ptr, kmem_pool_table) {
+    kmem_pool_t *mp = **ptr;
+    log("initialize '%s' pool", mp->mp_desc);
+    kmem_init(mp);
+  }
+}
+
+void kmem_init(kmem_pool_t *mp) {
+  TAILQ_INIT(&mp->mp_arena);
+  mtx_init(&mp->mp_lock, MTX_RECURSE);
+  kmalloc_add_pages(mp, mp->mp_pages_used);
+}
+
+void kmem_dump(kmem_pool_t *mp) {
   mem_arena_t *arena = NULL;
-  kprintf("[kmalloc] malloc_pool at %p:\n", mp);
+  log("[kmem] pool at %p:", mp);
+  mtx_scoped_lock(&mp->mp_lock);
   TAILQ_FOREACH (arena, &mp->mp_arena, ma_list) {
     mem_block_t *block = (void *)arena->ma_data;
     mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
 
-    kprintf("[kmalloc]  malloc_arena %p - %p:\n", block, end);
+    log("[kmem]  malloc_arena %p - %p:", block, end);
 
     while (block < end) {
       assert(block->mb_magic == MB_MAGIC);
-      kprintf("[kmalloc]   %c %p %d\n", (block->mb_size > 0) ? 'F' : 'U', block,
-              (unsigned)abs(block->mb_size));
+      log("[kmem]   %c %p %d", (block->mb_size > 0) ? 'F' : 'U', block,
+          (unsigned)abs(block->mb_size));
       block = mb_next(block);
     }
   }
 }
+
+/* TODO: missing implementation */
+void kmem_destroy(kmem_pool_t *mp) {
+}
+
+MALLOC_DEFINE(M_TEMP, "temporaries pool", 2, 4);

@@ -5,12 +5,13 @@
 #include <vnode.h>
 #include <linker_set.h>
 
-static MALLOC_DEFINE(vfs_pool, "VFS pool");
+/* TODO: We probably need some fancier allocation, since eventually we should
+ * start recycling vnodes */
+static MALLOC_DEFINE(M_VFS, "vfs", 1, 2);
 
 /* The list of all installed filesystem types */
-typedef TAILQ_HEAD(, vfsconf) vfsconf_list_t;
-static vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
-static mtx_t vfsconf_list_mtx;
+vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
+mtx_t vfsconf_list_mtx;
 
 /* The list of all mounts mounted */
 typedef TAILQ_HEAD(, mount) mount_list_t;
@@ -25,7 +26,6 @@ static vfs_init_t vfs_default_init;
 
 /* Global root vnodes */
 vnode_t *vfs_root_vnode;
-vnode_t *vfs_root_dev_vnode;
 
 static vnodeops_t vfs_root_ops = {
   .v_lookup = vnode_op_notsup,
@@ -41,13 +41,7 @@ void vfs_init() {
   mtx_init(&vfsconf_list_mtx, MTX_DEF);
   mtx_init(&mount_list_mtx, MTX_DEF);
 
-  /* TODO: We probably need some fancier allocation, since eventually we should
-   * start recycling vnodes */
-  kmalloc_init(vfs_pool);
-  kmalloc_add_arena(vfs_pool, pm_alloc(2)->vaddr, PAGESIZE * 2);
-
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
-  vfs_root_dev_vnode = vnode_new(V_DIR, &vfs_root_ops);
 
   /* Initialize available filesystem types. */
   SET_DECLARE(vfsconf, vfsconf_t);
@@ -115,7 +109,7 @@ static int vfs_default_init(vfsconf_t *vfc) {
 }
 
 mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
-  mount_t *m = kmalloc(vfs_pool, sizeof(mount_t), M_ZERO);
+  mount_t *m = kmalloc(M_VFS, sizeof(mount_t), M_ZERO);
 
   m->mnt_vfc = vfc;
   m->mnt_vfsops = vfc->vfc_vfsops;
@@ -171,19 +165,14 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   if (path[0] == '\0')
     return -ENOENT;
 
-  vnode_t *v;
-  if (strncmp(path, "/dev/", 5) == 0) {
-    /* Handle the special case of "/dev",
-     * since we don't have any filesystem at / (root) yet. */
-    v = vfs_root_dev_vnode;
-    path = path + 5;
-  } else if (strncmp(path, "/", 1) == 0) {
-    v = vfs_root_vnode;
-    path = path + 1;
-  } else {
+  if (strncmp(path, "/", 1) != 0) {
     log("Relative paths are not supported!");
     return -ENOENT;
   }
+
+  vnode_t *v = vfs_root_vnode;
+  /* Skip leading '/' */
+  path = path + 1;
 
   /* Copy path into a local buffer, so that we may process it. */
   size_t n = strlen(path);
@@ -222,11 +211,6 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     vnode_unlock(v);
     vnode_unref(v);
 
-    /* Handle the special case of root vnode returning ENOTSUP on lookup. We
-       don't have a filesystem at / (root) yet, but we want to get the correct
-       error when trying to open a non-existent file. */
-    if (error == -ENOTSUP && v == vfs_root_vnode)
-      return -ENOENT;
     if (error)
       return error;
     v = v_child;

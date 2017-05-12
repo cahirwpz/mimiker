@@ -42,7 +42,7 @@ typedef struct vm_map {
  *
  * vm_map_entry_t* vm_map_allocate_space(vm_map_t* map, size_t length) */
 
-vm_map_t *vm_map_activate(vm_map_t *map);
+void vm_map_activate(vm_map_t *map);
 vm_map_t *get_user_vm_map();
 vm_map_t *get_kernel_vm_map();
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr);
@@ -71,6 +71,8 @@ int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start, size_t length,
 int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end);
 
 void vm_map_dump(vm_map_t *vm_map);
+
+vm_map_t *vm_map_clone(vm_map_t *map);
 
 int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type);
 

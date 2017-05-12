@@ -5,22 +5,31 @@ SOURCES_C  = \
 	callout.c \
 	clock.c \
 	condvar.c \
+	console.c \
+	device.c \
+	dev_cons.c \
 	dev_null.c \
-	dev_uart.c \
+	dev_vga.c \
 	devfs.c \
+	drv_stdvga.c \
 	exception.c \
 	exec.c \
 	file.c \
 	filedesc.c \
+	fork.c \
+	initrd.c \
 	interrupt.c \
 	klog.c \
 	ktest.c \
 	main.c \
 	malloc.c \
 	mutex.c \
+	pci.c \
 	pci_ids.c \
 	pcpu.c \
 	physmem.c \
+	pool.c \
+	proc.c \
 	runq.c \
 	rwlock.c \
 	sbrk.c \
@@ -47,5 +56,5 @@ include ../Makefile.common
 libsys.a: $(OBJECTS)
 
 clean:
-	$(RM) -f .*.D *.ko *.o *.a *.lst *~
-	$(RM) -f tags *.taghl
+	$(RM) .*.D *.ko *.o *.a *.lst *~
+	$(RM) tags *.taghl
