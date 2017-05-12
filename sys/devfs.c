@@ -6,6 +6,7 @@
 #include <mutex.h>
 #include <malloc.h>
 #include <linker_set.h>
+#include <dirent.h>
 
 static MALLOC_DEFINE(M_DEVFS, "devfs", 1, 1);
 
@@ -95,9 +96,55 @@ static int devfs_root_lookup(vnode_t *dir, const char *name, vnode_t **res) {
   return 0;
 }
 
-static int devfs_root_readdir(vnode_t *dir, uio_t *uio) {
-  /* TODO: Implement. */
-  return ENOTSUP;
+/* dirent returned by this function has to be deallocated with
+ * kfree(M_DEVFS, *); */
+static dirent_t *device_to_direntry(devfs_device_t *device)
+{
+    dirent_t *dir = NULL;
+    int namlen = strlen(device->name);
+    int reclen = _DIRENT_RECLEN(dir, namlen);
+    dir = kmalloc(M_DEVFS, reclen, 0);
+
+    /* TODO fill d_fileno and d_type properly */
+    dir->d_fileno = 0;
+    dir->d_reclen = reclen;
+    dir->d_namlen = namlen;
+    dir->d_type = DT_UNKNOWN;
+    memcpy(dir->d_name, device->name, namlen+1);
+    return dir;
+}
+
+static int devfs_root_readdir(vnode_t *v, uio_t *uio) {
+  assert(v == devfs_of(v->v_mount)->root_vnode);
+  dirent_t *dir = NULL;
+  devfs_device_t *it;
+  off_t offset = 0;
+
+  /* Locate proper directory based on offset */
+  TAILQ_FOREACH (it, &devfs_device_list, list) {
+    int reclen = _DIRENT_RECLEN(dir, strlen(it->name));
+
+    if (offset + reclen <= uio->uio_offset) {
+      offset += reclen;
+    } else {
+      assert(it == NULL || offset == uio->uio_offset);
+      break;
+    }
+  }
+
+  for (; it; it = TAILQ_NEXT(it, list)) {
+    int reclen = _DIRENT_RECLEN(dir, strlen(it->name));
+    if (uio->uio_resid >= reclen) {
+      dir = device_to_direntry(it);
+      int error = uiomove(dir, dir->d_reclen, uio);
+      kfree(M_DEVFS, dir);
+      if (error < 0)
+        return -error;
+    } else
+      break;
+  }
+
+  return uio->uio_offset - offset;
 }
 
 static int devfs_root(mount_t *m, vnode_t **v) {

@@ -95,6 +95,7 @@ static void dump_directory(const char *start_path) {
 
 static int test_readdir() {
   dump_directory("/usr/");
+  dump_directory("/dev/");
   return KTEST_SUCCESS;
 }
 
