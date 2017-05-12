@@ -158,6 +158,21 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   return 0;
 }
 
+static int vfs_assign_mounted_child(vnode_t **vnode)
+{
+  vnode_t *v_mntpt;
+  int error = VFS_ROOT((*vnode)->v_mountedhere, &v_mntpt);
+  vnode_unlock(*vnode);
+  vnode_unref(*vnode);
+  if (error)
+    return error;
+  *vnode = v_mntpt;
+  /* vnode_ref(v); No need to ref this vnode, VFS_ROOT already did it for
+   * us. */
+  vnode_lock(*vnode);
+  return 0;
+}
+
 int vfs_lookup(const char *path, vnode_t **vp) {
   /* TODO: This is a simplified implementation, and it does not support many
      required features! These include: relative paths, symlinks, parent dirs */
@@ -186,24 +201,16 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   vnode_ref(v);
   vnode_lock(v);
 
+  while(v->v_mountedhere)
+  {
+    int error = vfs_assign_mounted_child(&v);
+    if(error)
+      return error;
+  }
+
   while ((component = strsep(&pathbuf, "/")) != NULL) {
     if (component[0] == '\0')
       continue;
-
-    /* If this vnode is a filesystem boundary,
-     * request the root vnode of the inner filesystem. */
-    if (v->v_mountedhere != NULL) {
-      vnode_t *v_mntpt;
-      int error = VFS_ROOT(v->v_mountedhere, &v_mntpt);
-      vnode_unlock(v);
-      vnode_unref(v);
-      if (error)
-        return error;
-      v = v_mntpt;
-      /* vnode_ref(v); No need to ref this vnode, VFS_ROOT already did it for
-       * us. */
-      vnode_lock(v);
-    }
 
     /* Look up the child vnode */
     vnode_t *v_child;
@@ -217,6 +224,13 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     /* vnode_ref(v); No need to ref this vnode, VFS_LOOKUP already did it for
      * us. */
     vnode_lock(v);
+
+    while(v->v_mountedhere)
+    {
+      int error = vfs_assign_mounted_child(&v);
+      if(error)
+        return error;
+    }
   }
 
   vnode_unlock(v);
