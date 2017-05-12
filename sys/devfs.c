@@ -122,7 +122,6 @@ static int devfs_root_readdir(vnode_t *v, uio_t *uio) {
   /* Locate proper directory based on offset */
   TAILQ_FOREACH (it, &devfs_device_list, list) {
     int reclen = _DIRENT_RECLEN(dir, strlen(it->name));
-
     if (offset + reclen <= uio->uio_offset) {
       offset += reclen;
     } else {

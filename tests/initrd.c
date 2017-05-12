@@ -34,8 +34,7 @@ static void dump_directory(const char *start_path) {
     char *path;
   };
 
-  TAILQ_HEAD(, dirent_qnode) queue;
-  TAILQ_INIT(&queue);
+  TAILQ_HEAD(, dirent_qnode) queue = TAILQ_HEAD_INITIALIZER(queue);
 
   struct dirent_qnode *start_node =
     kmalloc(M_INITRD_TEST, sizeof(struct dirent_qnode), 0);
@@ -94,7 +93,7 @@ static void dump_directory(const char *start_path) {
 }
 
 static int test_readdir() {
-  dump_directory("/usr/");
+  //dump_directory("/usr/");
   dump_directory("/dev/");
   return KTEST_SUCCESS;
 }
