@@ -15,7 +15,7 @@ static int test_vfs() {
   assert(error == 0 && v == vfs_root_vnode);
   vnode_unref(v);
   error = vfs_lookup("/dev////", &v);
-  assert(error == 0 && v == vfs_root_dev_vnode);
+  assert(error == 0);
   vnode_unref(v);
 
   vnode_t *dev_null, *dev_zero;
