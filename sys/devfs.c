@@ -98,20 +98,19 @@ static int devfs_root_lookup(vnode_t *dir, const char *name, vnode_t **res) {
 
 /* dirent returned by this function has to be deallocated with
  * kfree(M_DEVFS, *); */
-static dirent_t *device_to_direntry(devfs_device_t *device)
-{
-    dirent_t *dir = NULL;
-    int namlen = strlen(device->name);
-    int reclen = _DIRENT_RECLEN(dir, namlen);
-    dir = kmalloc(M_DEVFS, reclen, 0);
+static dirent_t *device_to_direntry(devfs_device_t *device) {
+  dirent_t *dir = NULL;
+  int namlen = strlen(device->name);
+  int reclen = _DIRENT_RECLEN(dir, namlen);
+  dir = kmalloc(M_DEVFS, reclen, 0);
 
-    /* TODO fill d_fileno and d_type properly */
-    dir->d_fileno = 0;
-    dir->d_reclen = reclen;
-    dir->d_namlen = namlen;
-    dir->d_type = DT_UNKNOWN;
-    memcpy(dir->d_name, device->name, namlen+1);
-    return dir;
+  /* TODO fill d_fileno and d_type properly */
+  dir->d_fileno = 0;
+  dir->d_reclen = reclen;
+  dir->d_namlen = namlen;
+  dir->d_type = DT_UNKNOWN;
+  memcpy(dir->d_name, device->name, namlen + 1);
+  return dir;
 }
 
 static int devfs_root_readdir(vnode_t *v, uio_t *uio) {
