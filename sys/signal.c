@@ -7,8 +7,6 @@
 #include <systm.h>
 #include <proc.h>
 
-static MALLOC_DEFINE(sig_pool, "signal handlers pool", 2, 2);
-
 static sighandler_t *signal_default_actions[SIG_LAST] = {
     [SIGINT] = SIG_TERM,  [SIGILL] = SIG_TERM,  [SIGFPE] = SIG_TERM,
     [SIGABRT] = SIG_TERM, [SIGSEGV] = SIG_TERM, [SIGKILL] = SIG_TERM,
@@ -22,37 +20,8 @@ static const char *signal_names[SIG_LAST] = {
     [SIGUSR2] = "SIGUSR2",
 };
 
-sighand_t *sighand_new() {
-  sighand_t *sh = kmalloc(sig_pool, sizeof(sighand_t), M_ZERO);
-  mtx_init(&sh->sh_mtx, MTX_RECURSE);
-  sh->sh_refcount = 1;
-  return sh;
-}
-static void sighand_free(sighand_t *sh) {
-  assert(sh->sh_refcount == 0);
-  /* No need to lock the mutex, we have the last existing reference. */
-  kfree(sig_pool, sh);
-}
-
-sighand_t *sighand_copy(sighand_t *sh) {
-  sighand_t *new = sighand_new();
-  mtx_scoped_lock(&sh->sh_mtx);
-  memcpy(new->sh_actions, sh->sh_actions, sizeof(sigaction_t) * SIG_LAST);
-  return new;
-}
-
-void sighand_ref(sighand_t *sh) {
-  mtx_scoped_lock(&sh->sh_mtx);
-  sh->sh_refcount++;
-}
-void sighand_unref(sighand_t *sh) {
-  mtx_scoped_lock(&sh->sh_mtx);
-  if (--sh->sh_refcount == 0)
-    sighand_free(sh);
-}
-
-int do_kill(tid_t tid, int sig) {
-  proc_t *target = proc_find(tid);
+int do_kill(pid_t pid, int sig) {
+  proc_t *target = proc_find(pid);
   if (target == NULL)
     return -EINVAL;
 
@@ -63,9 +32,6 @@ int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact) {
   thread_t *td = thread_self();
   assert(td->td_proc);
   mtx_scoped_lock(&td->td_proc->p_lock);
-  /* No need to acquire thread lock, we only look up a reference to the signal
-   * handler structure. */
-  sighand_t *sh = td->td_proc->p_sighand;
 
   if (sig < 0 || sig >= SIG_LAST)
     return -EINVAL;
@@ -73,18 +39,17 @@ int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact) {
   if (sig == SIGKILL)
     return -EINVAL;
 
-  mtx_scoped_lock(&sh->sh_mtx);
   if (oldact != NULL)
-    memcpy(oldact, &sh->sh_actions[sig], sizeof(sigaction_t));
+    memcpy(oldact, &td->td_proc->p_sigactions[sig], sizeof(sigaction_t));
 
-  memcpy(&sh->sh_actions[sig], act, sizeof(sigaction_t));
+  memcpy(&td->td_proc->p_sigactions[sig], act, sizeof(sigaction_t));
 
   return 0;
 }
 
 static sighandler_t *get_sigact(int sig, proc_t *p) {
   /* Assume p->p_lock is already owned. */
-  sighandler_t *h = p->p_sighand->sh_actions[sig].sa_handler;
+  sighandler_t *h = p->p_sigactions[sig].sa_handler;
   if (h == SIG_DFL)
     h = signal_default_actions[sig];
   return h;
@@ -184,7 +149,7 @@ void postsig(int sig) {
   thread_t *td = thread_self();
   assert(td->td_proc);
   mtx_scoped_lock(&td->td_proc->p_lock);
-  sigaction_t *sa = td->td_proc->p_sighand->sh_actions + sig;
+  sigaction_t *sa = td->td_proc->p_sigactions + sig;
 
   assert(sa->sa_handler != SIG_IGN && sa->sa_handler != SIG_DFL);
 
@@ -201,11 +166,11 @@ int do_sigreturn() {
 }
 
 int sys_kill(thread_t *td, syscall_args_t *args) {
-  tid_t tid = args->args[0];
+  pid_t pid = args->args[0];
   signo_t sig = args->args[1];
-  kprintf("[syscall] kill(%lu, %d)\n", tid, sig);
+  kprintf("[syscall] kill(%lu, %d)\n", pid, sig);
 
-  return do_kill(tid, sig);
+  return do_kill(pid, sig);
 }
 
 int sys_sigaction(thread_t *td, syscall_args_t *args) {

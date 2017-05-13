@@ -36,19 +36,6 @@ typedef struct sigaction {
   void *sa_restorer;
 } sigaction_t;
 
-typedef struct sighand {
-  sigaction_t sh_actions[SIG_LAST];
-
-  unsigned sh_refcount;
-  mtx_t sh_mtx;
-} sighand_t;
-
-sighand_t *sighand_new();
-sighand_t *sighand_copy(sighand_t *sh);
-
-void sighand_ref(sighand_t *);
-void sighand_unref(sighand_t *);
-
 /* Sends a signal to a process. */
 int signal(proc_t *td, signo_t sig);
 
@@ -63,7 +50,7 @@ void postsig(int sig);
  * This must be called whenever new signals are posted to a thread. */
 void signotify(thread_t *td);
 
-int do_kill(tid_t tid, int sig);
+int do_kill(pid_t pid, int sig);
 int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigreturn();
 
