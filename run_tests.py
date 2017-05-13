@@ -4,7 +4,6 @@ import argparse
 import pexpect
 import sys
 import random
-import base64
 
 N_SIMPLE = 5
 N_THOROUGH = 100
@@ -12,19 +11,11 @@ TIMEOUT = 5
 RETRIES_MAX = 5
 REPEAT = 5
 
-# Tries to decode binary output as ASCII. On failure, prints out the entire buffer in base64.
+
+# Tries to decode binary output as ASCII, as hard as it can.
 def safe_decode(data):
-    try:
-        return data.decode("ascii")
-    except UnicodeDecodeError as e:
-        print("Failed to decode output. Below is the output in base64.")
-        print("==== BEGIN BASE64 ====")
-        print(base64.b64encode(data).decode("ascii"))
-        print("==== END BASE64 ====")
-        print("Failed to decode output. Binary data contains non-ascii character at position %d." % e.start)
-        print("The offending byte value is %d." % data[e.start])
-        print("Above is the entire buffer encoded in base64.")
-        sys.exit(1)
+    return data.decode('unicode_escape', errors='replace')
+
 
 # Tries to start gdb in order to investigate kernel state on deadlock.
 def gdb_inspect():
