@@ -3,11 +3,13 @@
 
 typedef struct thread thread_t;
 typedef struct pmap pmap_t;
+typedef struct vm_map vm_map_t;
 
 typedef struct pcpu {
   thread_t *curthread;
   thread_t *idle_thread;
   pmap_t *curpmap;
+  vm_map_t *uspace;
 } pcpu_t;
 
 extern pcpu_t _pcpu_data[1];

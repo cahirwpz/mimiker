@@ -21,6 +21,7 @@ proc_t *proc_create() {
   proc_t *proc = kmalloc(M_PROC, sizeof(proc_t), M_ZERO);
   mtx_init(&proc->p_lock, MTX_DEF);
   TAILQ_INIT(&proc->p_threads);
+  proc->p_nthreads = 0;
 
   mtx_lock(&all_proc_list_mtx);
   TAILQ_INSERT_TAIL(&all_proc_list, proc, p_all);
@@ -38,6 +39,7 @@ void proc_populate(proc_t *p, thread_t *td) {
   mtx_scoped_lock(&td->td_lock);
   td->td_proc = p;
   TAILQ_INSERT_TAIL(&p->p_threads, td, td_procq);
+  p->p_nthreads += 1;
 }
 
 proc_t *proc_find(pid_t pid) {

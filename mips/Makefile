@@ -8,7 +8,6 @@ SOURCES_C = atomic.c \
 	    gt64120.c \
 	    intr.c \
 	    malta.c \
-	    pci.c \
 	    pmap.c \
 	    stack.c \
 	    tlb.c \
