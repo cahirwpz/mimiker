@@ -5,23 +5,9 @@
 #include <bitstring.h>
 #include <queue.h>
 #include <mutex.h>
+#include <signum.h>
 
 typedef struct proc proc_t;
-
-typedef enum {
-  SIGINT = 1,
-  SIGILL,
-  SIGABRT,
-  SIGFPE,
-  SIGSEGV,
-  SIGKILL,
-  SIGTERM,
-  SIGCHLD,
-  SIGUSR1,
-  SIGUSR2,
-
-  SIG_LAST
-} signo_t;
 
 typedef bitstr_t sigset_t[bitstr_size(SIG_LAST)];
 

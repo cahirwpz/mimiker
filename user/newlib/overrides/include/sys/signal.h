@@ -2,23 +2,7 @@
 #define _SYS_SIGNAL_H_
 
 #include <unistd.h>
-
-/* TODO: Should we somehow merge this file with kernel's signal.h? */
-
-typedef enum {
-  SIGINT = 1,
-  SIGILL,
-  SIGABRT,
-  SIGFPE,
-  SIGSEGV,
-  SIGKILL,
-  SIGTERM,
-  SIGCHLD,
-  SIGUSR1,
-  SIGUSR2,
-
-  SIG_LAST
-} signo_t;
+#include <sys/signum.h>
 
 typedef void (*sighandler_t)(int);
 

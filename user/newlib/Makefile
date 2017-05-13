@@ -16,7 +16,7 @@ install:
 	# it is compiled, so that all refernces within newlib sources are using our
 	# version of the override file. But for now it does not matter, and it's
 	# simpler to copy them directly to $(INSTALL_DIR).
-	cp -R overrides/* $(INSTALL_DIR)/usr/
+	cp -RL overrides/* $(INSTALL_DIR)/usr/
 
 # The .tar.gz archive must be an order-only prerequisite, because the archive
 # has a more recent last-modified date than the source directory.
