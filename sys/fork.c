@@ -58,7 +58,8 @@ int do_fork() {
   proc->p_fdtable = fdtab_copy(td->td_proc->p_fdtable);
 
   /* Copy signal handler dispatch rules. */
-  memcpy(proc->p_sigactions, td->td_proc->p_sigactions, sizeof(proc->p_sigactions));
+  memcpy(proc->p_sigactions, td->td_proc->p_sigactions,
+         sizeof(proc->p_sigactions));
 
   sched_add(newtd);
 
