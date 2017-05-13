@@ -196,18 +196,24 @@ void test_open_path() {
 
 void getdirentries_dump_dir(const char *dir_path) {
   char buf[30];
+  char namebuf[256] = "";
   long basep = 0;
   int fd = open(dir_path, 0, O_RDONLY);
-  assert(fd == FD_OFFSET);
 
   int res = 0;
   dirent_t *dir;
-  printf("Contents of %s\n", dir_path);
   do {
     res = getdirentries(fd, buf, sizeof(buf), &basep);
     dir = (dirent_t *)buf;
     while ((char *)dir < buf + res) {
-      printf("%s\n", dir->d_name);
+      strcat(namebuf, dir_path);
+      if(strcmp(dir_path, "/") != 0)
+          strcat(namebuf, "/");
+      strcat(namebuf, dir->d_name);
+      printf("%s\n", namebuf);
+      if(dir->d_type & DT_DIR)
+          getdirentries_dump_dir(namebuf);
+      namebuf[0] = '\0';
       dir = _DIRENT_NEXT(dir);
     }
   } while (res > 0);
@@ -255,10 +261,8 @@ void getdirentries_basep(const char *dir_path) {
 }
 
 void test_getdirentries() {
-  /* dump entire directory */
-  const char *dir_path = "/usr/include/";
-  getdirentries_dump_dir(dir_path);
-  getdirentries_basep(dir_path);
+  getdirentries_dump_dir("/");
+  getdirentries_basep("/usr/include/");
 
   printf("test_getdirentries passed\n");
 }
@@ -269,7 +273,7 @@ int main(int argc, char **argv) {
   test_devnull();
   test_multiple_descriptors();
   test_readwrite();
-  // test_copy();
+  test_copy();
   test_bad_descrip();
   test_open_path();
 
