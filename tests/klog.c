@@ -176,4 +176,4 @@ static int test_klog() {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(klog, test_klog, 0);
+KTEST_ADD(klog, test_klog, KTEST_FLAG_BROKEN);
