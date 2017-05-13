@@ -226,44 +226,39 @@ bool dirent_cmp(dirent_t *a, dirent_t *b) {
          a->d_type == b->d_type;
 }
 
-void getdirentries_basep(const char *dir_path) {
+void test_getdirentries_basep(const char *dir_path) {
   char buf1[50];
   char buf2[50];
   char buf3[50];
 
-  long oldbasep = 0, basep;
+  long basep;
   int res = 0;
   int fd = open(dir_path, 0, O_RDONLY);
   assert(fd == FD_OFFSET);
 
-  /* read one entry, so we dont start compare from 0 */
-  res = getdirentries(fd, buf1, sizeof(buf1), &oldbasep);
-  assert(res > 0);
-
-  basep = oldbasep;
   res = getdirentries(fd, buf1, sizeof(buf1), &basep);
   assert(res > 0);
   dirent_t *dir1 = (dirent_t *)buf1;
 
-  basep = oldbasep;
   res = getdirentries(fd, buf2, sizeof(buf2), &basep);
   assert(res > 0);
   dirent_t *dir2 = (dirent_t *)buf2;
-
+  lseek(fd, basep, SEEK_SET);
   res = getdirentries(fd, buf3, sizeof(buf3), &basep);
   assert(res > 0);
   dirent_t *dir3 = (dirent_t *)buf3;
 
-  assert(dirent_cmp(dir1, dir2));
-  assert(!dirent_cmp(dir1, dir3));
+  assert(!dirent_cmp(dir1, dir2));
+  assert(dirent_cmp(dir2, dir3));
 
   close(fd);
 }
 
 void test_getdirentries() {
-  getdirentries_dump_dir("/");
-  getdirentries_basep("/usr/include/");
-
+  getdirentries_dump_dir("/bin/");
+  getdirentries_dump_dir("/dev/");
+  getdirentries_dump_dir("/dev/vga");
+  test_getdirentries_basep("/usr/include");
   printf("test_getdirentries passed\n");
 }
 

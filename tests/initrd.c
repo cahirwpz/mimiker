@@ -84,6 +84,13 @@ static void dump_directory(const char *start_path) {
 }
 
 static int test_readdir() {
+  dump_directory("/bin/");
+  dump_directory("/dev/");
+  dump_directory("/dev/vga");
+  return KTEST_SUCCESS;
+}
+
+static int test_root_dump() {
   dump_directory("/");
   return KTEST_SUCCESS;
 }
@@ -97,6 +104,7 @@ static int test_ramdisk() {
 
 KTEST_ADD(ramdisk, test_ramdisk, 0);
 KTEST_ADD(readdir, test_readdir, 0);
+KTEST_ADD(rootdump, test_root_dump, KTEST_FLAG_BROKEN);
 
 /* Completing this test takes far too much time due to its verbosity - so it's
    disabled with the BROKEN flag. */
