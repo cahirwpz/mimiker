@@ -50,41 +50,32 @@ static void dump_directory(const char *start_path) {
     assert(res == 0);
 
     char buffer[50];
-    memset(buffer, '\0', sizeof(buffer));
     uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, 0, buffer, sizeof(buffer));
-    int bytes = 0;
-    uio.uio_offset = 0;
 
-    do {
-      bytes = VOP_READDIR(v, &uio);
-      dirent_t *dir = (dirent_t *)((void *)buffer);
+    for (int bytes = VOP_READDIR(v, &uio); bytes > 0;
+         bytes = VOP_READDIR(v, &uio)) {
+      for (dirent_t *dir = (dirent_t *)((char *)buffer);
+           (char *)dir < (char *)buffer + bytes; dir = _DIRENT_NEXT(dir)) {
+        kprintf("%s%s\n", cur->path, dir->d_name);
+        if (dir->d_type & DT_DIR) {
+          /* Prepare new name */
+          int new_path_len = strlen(cur->path) + dir->d_namlen + 10;
+          char *new_path = kmalloc(M_INITRD_TEST, new_path_len, 0);
+          new_path[0] = '\0';
+          strlcat(new_path, cur->path, new_path_len);
+          strlcat(new_path, dir->d_name, new_path_len);
+          strlcat(new_path, "/", new_path_len);
 
-      for (int off = 0; off < bytes; off += dir->d_reclen) {
-        if (dir->d_reclen) {
-          kprintf("%s%s\n", cur->path, dir->d_name);
-          if (dir->d_type & DT_DIR && strcmp(dir->d_name, ".") != 0 &&
-              strcmp(dir->d_name, "..") != 0) {
-            /* Prepare new name */
-            int new_path_len = strlen(cur->path) + dir->d_namlen + 10;
-            char *new_path = kmalloc(M_INITRD_TEST, new_path_len, 0);
-            new_path[0] = '\0';
-            strlcat(new_path, cur->path, new_path_len);
-            strlcat(new_path, dir->d_name, new_path_len);
-            strlcat(new_path, "/", new_path_len);
-
-            /* Prepare new node */
-            struct dirent_qnode *new_node =
-              kmalloc(M_INITRD_TEST, sizeof(struct dirent_qnode), 0);
-            new_node->path = new_path;
-            TAILQ_INSERT_TAIL(&queue, new_node, link);
-          }
-          dir = _DIRENT_NEXT(dir);
-        } else
-          break;
+          /* Prepare new node */
+          struct dirent_qnode *new_node =
+            kmalloc(M_INITRD_TEST, sizeof(struct dirent_qnode), 0);
+          new_node->path = new_path;
+          TAILQ_INSERT_TAIL(&queue, new_node, link);
+        }
       }
-      int old_offset = uio.uio_offset;
-      uio = UIO_SINGLE_KERNEL(UIO_READ, old_offset, buffer, sizeof(buffer));
-    } while (bytes > 0);
+
+      uio = UIO_SINGLE_KERNEL(UIO_READ, uio.uio_offset, buffer, sizeof(buffer));
+    }
 
     TAILQ_REMOVE(&queue, cur, link);
     kfree(M_INITRD_TEST, cur->path);
