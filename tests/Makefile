@@ -6,6 +6,7 @@ SOURCES_C = \
 	exec_misbehave.c \
 	exec_fd_test.c \
 	initrd.c \
+	klog.c \
 	linker_set.c \
 	malloc.c \
 	mutex.c \

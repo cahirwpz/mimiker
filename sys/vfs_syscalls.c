@@ -1,3 +1,5 @@
+#define KL_LOG KL_SYSCALL
+#include <klog.h>
 #include <filedesc.h>
 #include <file.h>
 #include <mount.h>
@@ -115,7 +117,7 @@ int sys_open(thread_t *td, syscall_args_t *args) {
   if (error < 0)
     return error;
 
-  log("open(\"%s\", %d, %d)", pathname, flags, mode);
+  klog("open(\"%s\", %d, %d)", pathname, flags, mode);
 
   int fd;
   error = do_open(td, pathname, flags, mode, &fd);
@@ -127,7 +129,7 @@ int sys_open(thread_t *td, syscall_args_t *args) {
 int sys_close(thread_t *td, syscall_args_t *args) {
   int fd = args->args[0];
 
-  log("close(%d)", fd);
+  klog("close(%d)", fd);
 
   return do_close(td, fd);
 }
@@ -137,7 +139,7 @@ int sys_read(thread_t *td, syscall_args_t *args) {
   char *ubuf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  log("sys_read(%d, %p, %zu)", fd, ubuf, count);
+  klog("sys_read(%d, %p, %zu)", fd, ubuf, count);
 
   uio_t uio;
   uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
@@ -152,7 +154,7 @@ int sys_write(thread_t *td, syscall_args_t *args) {
   char *ubuf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  log("sys_write(%d, %p, %zu)", fd, ubuf, count);
+  klog("sys_write(%d, %p, %zu)", fd, ubuf, count);
 
   uio_t uio;
   uio = UIO_SINGLE_USER(UIO_WRITE, 0, ubuf, count);
@@ -167,7 +169,7 @@ int sys_lseek(thread_t *td, syscall_args_t *args) {
   off_t offset = args->args[1];
   int whence = args->args[2];
 
-  log("sys_lseek(%d, %ld, %d)", fd, offset, whence);
+  klog("sys_lseek(%d, %ld, %d)", fd, offset, whence);
 
   return do_lseek(td, fd, offset, whence);
 }
@@ -176,7 +178,7 @@ int sys_fstat(thread_t *td, syscall_args_t *args) {
   int fd = args->args[0];
   char *buf = (char *)args->args[1];
 
-  log("sys_fstat(%d, %p)", fd, buf);
+  klog("sys_fstat(%d, %p)", fd, buf);
 
   vattr_t attr_buf;
   int error = do_fstat(td, fd, &attr_buf);
@@ -208,7 +210,7 @@ int sys_mount(thread_t *td, syscall_args_t *args) {
   if (error < 0)
     goto end;
 
-  log("mount(\"%s\", \"%s\")", pathname, fsysname);
+  klog("mount(\"%s\", \"%s\")", pathname, fsysname);
 
   error = do_mount(td, fsysname, pathname);
 end:
