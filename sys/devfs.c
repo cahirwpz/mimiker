@@ -111,6 +111,10 @@ static dirent_t *device_to_direntry(devfs_device_t *device) {
   dir->d_namlen = namlen;
   dir->d_type = DT_UNKNOWN;
   memcpy(dir->d_name, device->name, namlen + 1);
+
+  if (strcmp(dir->d_name, "vga") == 0)
+    dir->d_type = DT_DIR;
+
   return dir;
 }
 
