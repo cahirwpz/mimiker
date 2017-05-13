@@ -9,7 +9,7 @@
 
 /* TODO: We probably need some fancier allocation, since eventually we should
  * start recycling vnodes */
-static MALLOC_DEFINE(M_VFS, "vfs", 1, 2);
+MALLOC_DEFINE(M_VFS, "vfs", 1, 4);
 
 /* The list of all installed filesystem types */
 vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
