@@ -207,12 +207,12 @@ void getdirentries_dump_dir(const char *dir_path) {
     dir = (dirent_t *)buf;
     while ((char *)dir < buf + res) {
       strcat(namebuf, dir_path);
-      if(strcmp(dir_path, "/") != 0)
-          strcat(namebuf, "/");
+      if (strcmp(dir_path, "/") != 0)
+        strcat(namebuf, "/");
       strcat(namebuf, dir->d_name);
       printf("%s\n", namebuf);
-      if(dir->d_type & DT_DIR)
-          getdirentries_dump_dir(namebuf);
+      if (dir->d_type & DT_DIR)
+        getdirentries_dump_dir(namebuf);
       namebuf[0] = '\0';
       dir = _DIRENT_NEXT(dir);
     }
