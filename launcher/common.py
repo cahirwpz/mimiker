@@ -44,18 +44,23 @@ class Launchable:
     def wait(self, timeout=None):
         if self.process is None:
             return False
-        self.process.wait(timeout)
+        self.process.wait(timeout) # Throws exception on timeout
+        self.process = None
         return True
 
     def stop(self):
         if self.process is None:
             return
-        # Give a chance to exit gracefuly.
-        self.process.send_signal(signal.SIGTERM)
         try:
-            self.process.wait(0.2)
-        except subprocess.TimeoutExpired:
-            self.process.send_signal(signal.SIGKILL)
+            # Give it a chance to exit gracefuly.
+            self.process.send_signal(signal.SIGTERM)
+            try:
+                self.process.wait(0.2)
+            except subprocess.TimeoutExpired:
+                self.process.send_signal(signal.SIGKILL)
+        except ProcessLookupError:
+            # Process already quit.
+            pass
         self.process = None
 
     def interrupt(self):
