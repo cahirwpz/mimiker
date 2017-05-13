@@ -51,7 +51,7 @@ vnodeops_t dev_cons_vnodeops = {
 
 void init_dev_cons() {
   dev_cons_device = vnode_new(V_DEV, &dev_cons_vnodeops);
-  devfs_install("cons", dev_cons_device);
+  devfs_install("cons", dev_cons_device, DEVFS_INSTALL_FLAG_NUMBERED);
 }
 
 SET_ENTRY(devfs_init, init_dev_cons);

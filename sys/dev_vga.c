@@ -111,11 +111,7 @@ vnodeops_t dev_vga_vnodeops = {
 };
 
 void dev_vga_install(vga_device_t *vga) {
-  static int installed = 0;
-  if (installed++) /* Only a single vga device may be installed at /dev/vga. */
-    return;
-
   vnode_t *dev_vga_device = vnode_new(V_DIR, &dev_vga_vnodeops);
   dev_vga_device->v_data = vga;
-  devfs_install("vga", dev_vga_device);
+  devfs_install("vga", dev_vga_device, DEVFS_INSTALL_FLAG_NUMBERED);
 }

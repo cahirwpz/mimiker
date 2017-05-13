@@ -7,7 +7,7 @@
 #include <malloc.h>
 #include <linker_set.h>
 
-static MALLOC_DEFINE(M_DEVFS, "devfs", 1, 1);
+static MALLOC_DEFINE(M_DEVFS, "devfs", 2, 4);
 
 /* Structure for storage in mnt_data */
 typedef struct devfs_mount { vnode_t *root_vnode; } devfs_mount_t;
@@ -31,29 +31,48 @@ static mtx_t devfs_device_list_mtx;
 
 static devfs_device_t *devfs_get_by_name(const char *name) {
   devfs_device_t *idev;
-  mtx_scoped_lock(&devfs_device_list_mtx);
+  assert(mtx_owned(&devfs_device_list_mtx));
   TAILQ_FOREACH (idev, &devfs_device_list, list)
     if (!strcmp(name, idev->name))
       return idev;
   return NULL;
 }
 
-int devfs_install(const char *name, vnode_t *device) {
+/* This function assumes the name is unused and valid. */
+static void devfs_install_name(const char *name, vnode_t *device) {
+  devfs_device_t *idev = kmalloc(M_DEVFS, sizeof(devfs_device_t), M_ZERO);
+  strlcpy(idev->name, name, DEVFS_NAME_MAX);
+  idev->dev = device;
+  assert(mtx_owned(&devfs_device_list_mtx));
+  TAILQ_INSERT_TAIL(&devfs_device_list, idev, list);
+}
+
+int devfs_install(const char *name, vnode_t *device, unsigned flags) {
   size_t n = strlen(name);
   if (n >= DEVFS_NAME_MAX)
     return -ENAMETOOLONG;
 
-  if (devfs_get_by_name(name) != NULL)
-    return -EEXIST;
+  mtx_scoped_lock(&devfs_device_list_mtx);
 
-  devfs_device_t *idev = kmalloc(M_DEVFS, sizeof(devfs_device_t), M_ZERO);
-  strlcpy(idev->name, name, DEVFS_NAME_MAX);
-  idev->dev = device;
-
-  mtx_lock(&devfs_device_list_mtx);
-  TAILQ_INSERT_TAIL(&devfs_device_list, idev, list);
-  mtx_unlock(&devfs_device_list_mtx);
-
+  char buffer[DEVFS_NAME_MAX];
+  if (devfs_get_by_name(name) == NULL) {
+    /* This is the first device with this name. */
+    devfs_install_name(name, device);
+    if (flags & DEVFS_INSTALL_FLAG_NUMBERED) {
+      /* Also install "dev0" variant. */
+      snprintf(buffer, DEVFS_NAME_MAX, "%s%d", name, 0);
+      devfs_install_name(buffer, device);
+    }
+  } else if (flags & DEVFS_INSTALL_FLAG_NUMBERED) {
+    /* The base name device already exists. Append a number to the name. */
+    for (int i = 1;; i++) { /* TODO: Upper limit? */
+      snprintf(buffer, DEVFS_NAME_MAX, "%s%d", name, i);
+      if (devfs_get_by_name(buffer) == NULL) {
+        devfs_install_name(buffer, device);
+        break;
+      }
+    }
+  }
   return 0;
 }
 
@@ -85,6 +104,7 @@ static int devfs_mount(mount_t *m) {
 static int devfs_root_lookup(vnode_t *dir, const char *name, vnode_t **res) {
   assert(dir == devfs_of(dir->v_mount)->root_vnode);
 
+  mtx_scoped_lock(&devfs_device_list_mtx);
   devfs_device_t *idev = devfs_get_by_name(name);
   if (!idev)
     return -ENOENT;
