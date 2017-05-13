@@ -4,6 +4,7 @@
 #include <mips/malta.h>
 #include <mips/intr.h>
 #include <mips/tlb.h>
+// #include <mips/uart_cbus.h>
 #include <klog.h>
 #include <console.h>
 #include <pcpu.h>
@@ -172,7 +173,6 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   bzero(__bss, __ebss - __bss);
 
   setup_kenv(argc, argv, envp);
-
   cn_init();
   klog_init();
   pcpu_init();

@@ -1,3 +1,5 @@
+#define KL_LOG KL_CALLOUT
+#include <klog.h>
 #include <stdc.h>
 #include <callout.h>
 
@@ -46,7 +48,7 @@ void callout_setup(callout_t *handle, realtime_t time, timeout_t fn,
   handle->c_index = index;
   callout_set_pending(handle);
 
-  log("Add callout {%p} with wakeup at %lld.", handle, handle->c_time);
+  klog("Add callout {%p} with wakeup at %lld.", handle, handle->c_time);
   TAILQ_INSERT_TAIL(&ci.heads[index], handle, c_link);
 }
 
@@ -56,7 +58,7 @@ void callout_setup_relative(callout_t *handle, realtime_t time, timeout_t fn,
 }
 
 void callout_stop(callout_t *handle) {
-  log("Remove callout {%p} at %lld.", handle, handle->c_time);
+  klog("Remove callout {%p} at %lld.", handle, handle->c_time);
   TAILQ_REMOVE(&ci.heads[handle->c_index], handle, c_link);
 }
 

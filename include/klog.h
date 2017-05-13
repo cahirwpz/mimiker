@@ -8,6 +8,7 @@
 #define KL_RUNQ 0x00000001 /* basic kernel data structures */
 #define KL_SLEEPQ 0x00000002
 #define KL_CALLOUT 0x00000004
+#define KL_MMAP 0x00000008
 #define KL_PMAP 0x00000010 /* memory management */
 #define KL_VM 0x00000020
 #define KL_KMEM 0x00000040
@@ -21,6 +22,8 @@
 #define KL_VNODE 0x00020000   /* vnode operations tracing */
 #define KL_PROC 0x00040000    /* user process management */
 #define KL_SYSCALL 0x00080000 /* syscall processing */
+#define KL_USER 0x00100000    /* user program */
+#define KL_TEST 0x20000000    /* mask for testing purpose */
 #define KL_DEF 0x40000000     /* default mask for undefined subsystems */
 #define KL_ALL 0x7fffffff
 
@@ -73,8 +76,7 @@ void klog_clear();
                 (intptr_t)(p2), (intptr_t)(p3), (intptr_t)(p4),                \
                 (intptr_t)(p5), (intptr_t)(p6));                               \
   } while (0)
-
-#define klog(format, ...) klog_((format), __VA_ARGS__, 0, 0, 0, 0, 0, 0)
+#define klog(...) klog_(__VA_ARGS__, 0, 0, 0, 0, 0, 0)
 
 #define klog_mask_(m, format, p1, p2, p3, p4, p5, p6, ...)                     \
   do {                                                                         \
@@ -82,8 +84,6 @@ void klog_clear();
                 (intptr_t)(p2), (intptr_t)(p3), (intptr_t)(p4),                \
                 (intptr_t)(p5), (intptr_t)(p6));                               \
   } while (0)
-
-#define klog_mask(m, format, ...)                                              \
-  klog_mask_((m), format, __VA_ARGS__, 0, 0, 0, 0, 0, 0)
+#define klog_mask(...) klog_mask_(__VA_ARGS__, 0, 0, 0, 0, 0, 0)
 
 #endif

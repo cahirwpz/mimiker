@@ -8,8 +8,6 @@
 #include <linker_set.h>
 #include <dirent.h>
 
-static MALLOC_DEFINE(M_DEVFS, "devfs", 1, 1);
-
 /* Structure for storage in mnt_data */
 typedef struct devfs_mount { vnode_t *root_vnode; } devfs_mount_t;
 
@@ -47,7 +45,7 @@ int devfs_install(const char *name, vnode_t *device) {
   if (devfs_get_by_name(name) != NULL)
     return -EEXIST;
 
-  devfs_device_t *idev = kmalloc(M_DEVFS, sizeof(devfs_device_t), M_ZERO);
+  devfs_device_t *idev = kmalloc(M_VFS, sizeof(devfs_device_t), M_ZERO);
   strlcpy(idev->name, name, DEVFS_NAME_MAX);
   idev->dev = device;
 
@@ -79,7 +77,7 @@ static int devfs_mount(mount_t *m) {
   vnode_t *root = vnode_new(V_DIR, &devfs_root_ops);
   root->v_mount = m;
 
-  devfs_mount_t *dfm = kmalloc(M_DEVFS, sizeof(devfs_mount_t), M_ZERO);
+  devfs_mount_t *dfm = kmalloc(M_VFS, sizeof(devfs_mount_t), M_ZERO);
   dfm->root_vnode = root;
   m->mnt_data = dfm;
 
@@ -105,7 +103,7 @@ static dirent_t *device_to_direntry(devfs_device_t *device) {
   dirent_t *dir = NULL;
   int namlen = strlen(device->name);
   int reclen = _DIRENT_RECLEN(dir, namlen);
-  dir = kmalloc(M_DEVFS, reclen, 0);
+  dir = kmalloc(M_VFS, reclen, 0);
 
   /* TODO fill d_fileno and d_type properly */
   dir->d_fileno = 0;
@@ -138,7 +136,7 @@ static int devfs_root_readdir(vnode_t *v, uio_t *uio) {
     if (uio->uio_resid >= reclen) {
       dir = device_to_direntry(it);
       int error = uiomove(dir, dir->d_reclen, uio);
-      kfree(M_DEVFS, dir);
+      kfree(M_VFS, dir);
       if (error < 0)
         return -error;
     } else

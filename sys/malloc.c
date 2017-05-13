@@ -247,18 +247,18 @@ void kmem_init(kmem_pool_t *mp) {
 
 void kmem_dump(kmem_pool_t *mp) {
   mem_arena_t *arena = NULL;
-  log("[kmem] pool at %p:", mp);
+  klog("[kmem] pool at %p:", mp);
   mtx_scoped_lock(&mp->mp_lock);
   TAILQ_FOREACH (arena, &mp->mp_arena, ma_list) {
     mem_block_t *block = (void *)arena->ma_data;
     mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
 
-    log("[kmem]  malloc_arena %p - %p:", block, end);
+    klog("[kmem]  malloc_arena %p - %p:", block, end);
 
     while (block < end) {
       assert(block->mb_magic == MB_MAGIC);
-      log("[kmem]   %c %p %d", (block->mb_size > 0) ? 'F' : 'U', block,
-          (unsigned)abs(block->mb_size));
+      klog("[kmem]   %c %p %d", (block->mb_size > 0) ? 'F' : 'U', block,
+           (unsigned)abs(block->mb_size));
       block = mb_next(block);
     }
   }
