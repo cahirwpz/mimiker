@@ -1,3 +1,5 @@
+#define KL_LOG KL_TEST
+#include <klog.h>
 #include <stdc.h>
 #include "../include/ktest.h"
 
@@ -15,13 +17,13 @@ int test_strtol(void) {
   for (int i = 0; i < max; i++)
     if (values[i].value !=
         strtol(values[i].str, (char **)NULL, values[i].base)) {
-      log("Mismatch for test %d: Expected: %ld, Actual: %ld", i,
-          values[i].value,
-          strtol(values[i].str, (char **)NULL, values[i].base));
+      klog("Mismatch for test %d: Expected: %ld, Actual: %ld", i,
+           values[i].value,
+           strtol(values[i].str, (char **)NULL, values[i].base));
       return KTEST_FAILURE;
     } else {
-      log("Match for test %d: Expected: %ld, Actual: %ld", i, values[i].value,
-          strtol(values[i].str, (char **)NULL, values[i].base));
+      klog("Match for test %d: Expected: %ld, Actual: %ld", i, values[i].value,
+           strtol(values[i].str, (char **)NULL, values[i].base));
     }
 
   return KTEST_SUCCESS;
