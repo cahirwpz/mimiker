@@ -64,7 +64,10 @@ static vnode_readdir_t devfs_root_readdir;
 static vnodeops_t devfs_root_ops = {
   .v_lookup = devfs_root_lookup,
   .v_readdir = devfs_root_readdir,
-  .v_open = vnode_op_notsup,
+  /* vnode open generic is used only for readdir,
+    it's not a problem for read and write,
+    since they aren't supported anyway */
+  .v_open = vnode_open_generic,
   .v_read = vnode_op_notsup,
   .v_write = vnode_op_notsup,
 };
