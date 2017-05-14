@@ -8,7 +8,7 @@
 /* This counter is incremented every millisecond. */
 static volatile realtime_t mips_clock_ms;
 
-static void intr_handler() {
+static void mips_clock_intr() {
   uint32_t compare = mips32_get_c0(C0_COMPARE);
   uint32_t count = mips32_get_c0(C0_COUNT);
   int32_t diff = compare - count;
@@ -30,7 +30,7 @@ static void intr_handler() {
   clock(mips_clock_ms);
 }
 
-static INTR_HANDLER_DEFINE(mips_clock, NULL, intr_handler, NULL,
+static INTR_HANDLER_DEFINE(mips_clock_intr_handler, NULL, mips_clock_intr, NULL,
                            "MIPS counter clock", 0);
 
 extern device_t *rootdev;

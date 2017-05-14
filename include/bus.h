@@ -7,6 +7,7 @@
 typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 typedef struct bus_methods bus_methods_t;
+typedef struct bus_driver bus_driver_t;
 typedef struct intr_handler intr_handler_t;
 
 /* `bus space` accessor routines */
@@ -93,7 +94,6 @@ static inline void bus_space_write_region_1(resource_t *handle, unsigned offset,
 
 typedef void (*bus_intr_setup_t)(device_t *dev, unsigned num,
                                  intr_handler_t *handler);
-
 typedef void (*bus_intr_teardown_t)(device_t *dev, intr_handler_t *handler);
 
 struct bus_methods {
