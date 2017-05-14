@@ -11,26 +11,32 @@
 #include <stdbool.h>
 
 void recursive_dump(const char *dir_path) {
-  char buf[30];
+  char buf[256];
   char namebuf[256] = "";
   long basep = 0;
   int fd = open(dir_path, 0, O_RDONLY);
 
   int res = 0;
-  dirent_t *dir;
+  struct dirent *dir;
   do {
     res = getdirentries(fd, buf, sizeof(buf), &basep);
-    dir = (dirent_t *)buf;
+    if(res < 0)
+        return;
+    dir = (struct dirent *)buf;
     while ((char *)dir < buf + res) {
       strcat(namebuf, dir_path);
       if (strcmp(dir_path, "/") != 0)
         strcat(namebuf, "/");
       strcat(namebuf, dir->d_name);
       printf("%s\n", namebuf);
-      if (dir->d_type & DT_DIR)
+      if (dir->d_type == DT_DIR 
+         && strcmp(dir->d_name, ".")
+         && strcmp(dir->d_name, ".."))
+      {
         recursive_dump(namebuf);
+      }
       namebuf[0] = '\0';
-      dir = _DIRENT_NEXT(dir);
+      dir = (struct dirent*)((char*)dir + dir->d_reclen);
     }
   } while (res > 0);
   close(fd);
