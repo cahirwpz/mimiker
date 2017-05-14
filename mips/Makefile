@@ -1,7 +1,6 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
 SOURCES_C = atomic.c \
-	    cbus.c \
 	    clock.c \
 	    context.c \
 	    cpu.c \
@@ -9,6 +8,7 @@ SOURCES_C = atomic.c \
 	    intr.c \
 	    malta.c \
 	    pmap.c \
+	    rootdev.c \
 	    stack.c \
 	    tlb.c \
 	    uart_cbus.c

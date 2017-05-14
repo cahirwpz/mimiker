@@ -33,7 +33,7 @@ static void intr_handler() {
 static INTR_HANDLER_DEFINE(mips_clock, NULL, intr_handler, NULL,
                            "MIPS counter clock", 0);
 
-BUS_DECLARE(mips_cpu);
+extern device_t *rootdev;
 
 void mips_clock_init() {
   mips32_set_c0(C0_COUNT, 0);
@@ -41,5 +41,5 @@ void mips_clock_init() {
 
   mips_clock_ms = 0;
 
-  bus_intr_setup(mips_cpu_bus, 7, mips_clock_intr_handler);
+  bus_intr_setup(rootdev, 7, mips_clock_intr_handler);
 }

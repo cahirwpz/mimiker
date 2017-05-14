@@ -1,4 +1,5 @@
-#include <common.h>
+#define KL_LOG KL_INTR
+#include <klog.h>
 #include <stdc.h>
 #include <interrupt.h>
 
@@ -61,5 +62,5 @@ void intr_chain_run_handlers(intr_chain_t *ic) {
     }
   }
 
-  log("Spurious %s interrupt!", ic->ic_name);
+  klog("Spurious %s interrupt!", ic->ic_name);
 }
