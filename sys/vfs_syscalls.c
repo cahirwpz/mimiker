@@ -242,7 +242,8 @@ int sys_getdirentries(thread_t *td, syscall_args_t *args) {
   size_t count = args->args[2];
   long *basep = (long *)(uintptr_t)args->args[3];
 
-  log("sys_getdirentries(%d, %p, %zu, %p)", fd, ubuf, count, basep);
+  /* Comment out logging for presentation */
+  /* log("sys_getdirentries(%d, %p, %zu, %p)", fd, ubuf, count, basep); */
 
   uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
 
