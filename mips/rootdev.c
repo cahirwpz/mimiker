@@ -6,9 +6,7 @@
 
 extern device_t *rootdev;
 
-typedef struct rootdev {
-  intr_chain_t chain[8];
-} rootdev_t;
+typedef struct rootdev { intr_chain_t chain[8]; } rootdev_t;
 
 static inline rootdev_t *rootdev_of(device_t *dev) {
   return dev->instance;
@@ -89,18 +87,16 @@ void rootdev_init() {
 }
 
 bus_driver_t rootdev_driver = {
-  .driver = {
-    .size = sizeof(rootdev_t),
-    .desc = "MIPS platform root bus driver",
-  },
-  .bus = {
-    .intr_setup = mips_intr_setup,
-    .intr_teardown = mips_intr_teardown,
-  }
-};
+  .driver =
+    {
+      .size = sizeof(rootdev_t), .desc = "MIPS platform root bus driver",
+    },
+  .bus =
+    {
+      .intr_setup = mips_intr_setup, .intr_teardown = mips_intr_teardown,
+    }};
 
 /* globally visible root device */
 device_t *rootdev = (device_t[1]){{
-  .driver = (driver_t *)&rootdev_driver,
-  .instance = (rootdev_t[1]){{}},
+  .driver = (driver_t *)&rootdev_driver, .instance = (rootdev_t[1]){{}},
 }};
