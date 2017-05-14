@@ -1,16 +1,11 @@
 #define KL_LOG KL_INTR
 #include <klog.h>
-#include <stdc.h>
-#include <mips/exc.h>
-#include <mips/mips.h>
-#include <interrupt.h>
-#include <pmap.h>
-#include <sysent.h>
 #include <errno.h>
+#include <mips/exc.h>
+#include <pmap.h>
+#include <stdc.h>
+#include <sysent.h>
 #include <thread.h>
-#include <interrupt.h>
-#include <sync.h>
-#include <bus.h>
 
 const char *const exceptions[32] = {
     [EXC_INTR] = "Interrupt",

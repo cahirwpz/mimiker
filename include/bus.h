@@ -106,7 +106,7 @@ struct bus_driver {
   bus_methods_t bus;
 };
 
-#define BUS_DRIVER(dev) ((bus_driver_t *)((dev)->parent->driver))
+#define BUS_DRIVER(dev) ((bus_driver_t *)((dev)->driver))
 
 static inline void bus_intr_setup(device_t *dev, unsigned num,
                                   intr_handler_t *handler) {
