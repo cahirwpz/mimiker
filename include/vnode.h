@@ -54,6 +54,10 @@ typedef struct vnode {
   mtx_t v_mtx;
 } vnode_t;
 
+static inline bool is_mountpoint(vnode_t *v) {
+  return v->v_mountedhere != NULL;
+}
+
 #if !defined(IGNORE_NEWLIB_COMPATIBILITY)
 /* This must match newlib's implementation! */
 typedef struct vattr {

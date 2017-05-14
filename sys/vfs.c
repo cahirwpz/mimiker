@@ -127,10 +127,12 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
 }
 
 int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
+  int error;
+
   /* Start by checking whether this vnode can be used for mounting */
   if (v->v_type != V_DIR)
     return -ENOTDIR;
-  if (v->v_mountedhere != NULL)
+  if (is_mountpoint(v))
     return -EBUSY;
 
   /* TODO: Mark the vnode is in-progress of mounting? See VI_MOUNT in FreeBSD */
@@ -138,10 +140,8 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   mount_t *m = vfs_mount_alloc(v, vfc);
 
   /* Mount the filesystem. */
-  int error = VFS_MOUNT(m);
-  if (error != 0) {
+  if ((error = VFS_MOUNT(m)))
     return error;
-  }
 
   v->v_mountedhere = m;
 
@@ -164,7 +164,7 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
 static int vfs_maybe_descend(vnode_t **vp) {
   vnode_t *v_mntpt;
   vnode_t *v = *vp;
-  while (v->v_mountedhere) {
+  while (is_mountpoint(v)) {
     int error = VFS_ROOT(v->v_mountedhere, &v_mntpt);
     vnode_unlock(v);
     vnode_unref(v);
@@ -207,8 +207,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   vnode_ref(v);
   vnode_lock(v);
 
-  error = vfs_maybe_descend(&v);
-  if (error)
+  if ((error = vfs_maybe_descend(&v)))
     return error;
 
   while ((component = strsep(&pathbuf, "/")) != NULL) {
@@ -225,9 +224,8 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     v = v_child;
     /* No need to ref this vnode, VFS_LOOKUP already did it for us. */
     vnode_lock(v);
-    
-    error = vfs_maybe_descend(&v);
-    if (error)
+
+    if ((error = vfs_maybe_descend(&v)))
       return error;
   }
 
