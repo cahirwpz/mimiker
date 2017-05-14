@@ -20,8 +20,8 @@ void recursive_dump(const char *dir_path) {
   struct dirent *dir;
   do {
     res = getdirentries(fd, buf, sizeof(buf), &basep);
-    if(res < 0)
-        return;
+    if (res < 0)
+      return;
     dir = (struct dirent *)buf;
     while ((char *)dir < buf + res) {
       strcat(namebuf, dir_path);
@@ -29,14 +29,12 @@ void recursive_dump(const char *dir_path) {
         strcat(namebuf, "/");
       strcat(namebuf, dir->d_name);
       printf("%s\n", namebuf);
-      if (dir->d_type == DT_DIR 
-         && strcmp(dir->d_name, ".")
-         && strcmp(dir->d_name, ".."))
-      {
+      if (dir->d_type == DT_DIR && strcmp(dir->d_name, ".") &&
+          strcmp(dir->d_name, "..")) {
         recursive_dump(namebuf);
       }
       namebuf[0] = '\0';
-      dir = (struct dirent*)((char*)dir + dir->d_reclen);
+      dir = (struct dirent *)((char *)dir + dir->d_reclen);
     }
   } while (res > 0);
   close(fd);
