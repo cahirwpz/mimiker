@@ -51,14 +51,14 @@ void driver_init() {
   /* TODO: Should following code become a part of generic bus code? */
   device_t *dev;
   SET_DECLARE(driver_table, driver_t);
-  log("Scanning %s for known devices.", pcib->driver->desc);
+  klog("Scanning %s for known devices.", pcib->driver->desc);
   TAILQ_FOREACH (dev, &pcib->children, link) {
     driver_t **drv_p;
     SET_FOREACH(drv_p, driver_table) {
       driver_t *drv = *drv_p;
       dev->driver = drv;
       if (device_probe(dev)) {
-        log("%s detected!", drv->desc);
+        klog("%s detected!", drv->desc);
         device_attach(dev);
         break;
       }

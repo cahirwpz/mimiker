@@ -7,8 +7,6 @@
 #include <malloc.h>
 #include <linker_set.h>
 
-static MALLOC_DEFINE(M_DEVFS, "devfs", 1, 1);
-
 /* Structure for storage in mnt_data */
 typedef struct devfs_mount { vnode_t *root_vnode; } devfs_mount_t;
 
@@ -46,7 +44,7 @@ int devfs_install(const char *name, vnode_t *device) {
   if (devfs_get_by_name(name) != NULL)
     return -EEXIST;
 
-  devfs_device_t *idev = kmalloc(M_DEVFS, sizeof(devfs_device_t), M_ZERO);
+  devfs_device_t *idev = kmalloc(M_VFS, sizeof(devfs_device_t), M_ZERO);
   strlcpy(idev->name, name, DEVFS_NAME_MAX);
   idev->dev = device;
 
@@ -75,7 +73,7 @@ static int devfs_mount(mount_t *m) {
   vnode_t *root = vnode_new(V_DIR, &devfs_root_ops);
   root->v_mount = m;
 
-  devfs_mount_t *dfm = kmalloc(M_DEVFS, sizeof(devfs_mount_t), M_ZERO);
+  devfs_mount_t *dfm = kmalloc(M_VFS, sizeof(devfs_mount_t), M_ZERO);
   dfm->root_vnode = root;
   m->mnt_data = dfm;
 

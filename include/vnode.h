@@ -3,6 +3,9 @@
 
 #include <mutex.h>
 #include <uio.h>
+#include <malloc.h>
+
+MALLOC_DECLARE(M_VFS);
 
 /* Forward declarations */
 typedef struct vnode vnode_t;

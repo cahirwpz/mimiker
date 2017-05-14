@@ -1,3 +1,5 @@
+#define KL_LOG KL_SCHED
+#include <klog.h>
 #include <sync.h>
 #include <stdc.h>
 #include <sched.h>
@@ -20,7 +22,7 @@ void sched_init() {
 }
 
 void sched_add(thread_t *td) {
-  // log("Add '%s' {%p} thread to scheduler", td->td_name, td);
+  // klog("Add '%s' {%p} thread to scheduler", td->td_name, td);
 
   td->td_state = TDS_READY;
 
