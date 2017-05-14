@@ -35,11 +35,9 @@ typedef struct intr_handler {
 typedef TAILQ_HEAD(, intr_handler) intr_handler_list_t;
 
 #define INTR_HANDLER_DEFINE(name, filter, handler, argument, desc, prio)       \
-  intr_handler_t *name = (intr_handler_t[1]) {                                 \
-    {                                                                          \
-      .ih_filter = (filter), .ih_handler = (handler),                          \
-      .ih_argument = (argument), .ih_name = (desc), .ih_prio = (prio)          \
-    }                                                                          \
+  intr_handler_t *name = &(intr_handler_t) {                                   \
+    .ih_filter = (filter), .ih_handler = (handler), .ih_argument = (argument), \
+    .ih_name = (desc), .ih_prio = (prio)                                       \
   }
 
 typedef struct intr_chain {

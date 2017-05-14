@@ -97,6 +97,6 @@ bus_driver_t rootdev_driver = {
     }};
 
 /* globally visible root device */
-device_t *rootdev = (device_t[1]){{
-  .driver = (driver_t *)&rootdev_driver, .instance = (rootdev_t[1]){{}},
-}};
+device_t *rootdev = &(device_t){
+  .driver = (driver_t *)&rootdev_driver, .instance = &(rootdev_t){},
+};
