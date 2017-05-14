@@ -2,9 +2,11 @@ import subprocess
 import itertools
 import shutil
 import signal
+import string
 import os
 
 TRIPLET = 'mipsel-mimiker-elf'
+
 
 def set_as_tty_foreground():
     # Create a new process group just for us
@@ -68,8 +70,8 @@ class Launchable:
             self.process.send_signal(signal.SIGINT)
 
     @staticmethod
-    # The items on these lists should be ordered from the most desirable. The first
-    # available item will become the default option.
+    # The items on these lists should be ordered from the most desirable.
+    # The first available item will become the default option.
     def find_available(l):
         result, default = {}, None
         for item in reversed(l):
@@ -77,6 +79,7 @@ class Launchable:
                 result[item.name] = item
                 default = item.name
         return (result, default)
+
 
 def wait_any(launchables):
     for l in itertools.cycle(launchables):
@@ -87,11 +90,12 @@ def wait_any(launchables):
         except subprocess.TimeoutExpired:
             continue
 
+
 def prepare_gdbinit(gdb_port):
-    with open('.gdbinit.template', 'r') as file:
-        gdbinit = file.read()
-        
-    gdbinit = gdbinit.replace('GDB_PORT', str(gdb_port))
-    
-    with open('.gdbinit', 'w') as file:
-        file.write(gdbinit)
+    with open('.gdbinit.template', 'r') as f:
+        gdbinit = string.Template(f.read())
+
+    subs = {'GDB_PORT': gdb_port}
+
+    with open('.gdbinit', 'w') as f:
+        f.write(gdbinit.substitute(subs))
