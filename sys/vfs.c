@@ -127,10 +127,12 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
 }
 
 int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
+  int error;
+
   /* Start by checking whether this vnode can be used for mounting */
   if (v->v_type != V_DIR)
     return -ENOTDIR;
-  if (v->v_mountedhere != NULL)
+  if (is_mountpoint(v))
     return -EBUSY;
 
   /* TODO: Mark the vnode is in-progress of mounting? See VI_MOUNT in FreeBSD */
@@ -138,10 +140,8 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   mount_t *m = vfs_mount_alloc(v, vfc);
 
   /* Mount the filesystem. */
-  int error = VFS_MOUNT(m);
-  if (error != 0) {
+  if ((error = VFS_MOUNT(m)))
     return error;
-  }
 
   v->v_mountedhere = m;
 
@@ -160,9 +160,28 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   return 0;
 }
 
+/* If `*vp` is a mountpoint, then descend into the root of mounted filesys. */
+static int vfs_maybe_descend(vnode_t **vp) {
+  vnode_t *v_mntpt;
+  vnode_t *v = *vp;
+  while (is_mountpoint(v)) {
+    int error = VFS_ROOT(v->v_mountedhere, &v_mntpt);
+    vnode_unlock(v);
+    vnode_unref(v);
+    if (error)
+      return error;
+    v = v_mntpt;
+    /* No need to ref this vnode, VFS_ROOT already did it for us. */
+    vnode_lock(v);
+    *vp = v;
+  }
+  return 0;
+}
+
 int vfs_lookup(const char *path, vnode_t **vp) {
   /* TODO: This is a simplified implementation, and it does not support many
      required features! These include: relative paths, symlinks, parent dirs */
+  int error;
 
   if (path[0] == '\0')
     return -ENOENT;
@@ -188,37 +207,26 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   vnode_ref(v);
   vnode_lock(v);
 
+  if ((error = vfs_maybe_descend(&v)))
+    return error;
+
   while ((component = strsep(&pathbuf, "/")) != NULL) {
     if (component[0] == '\0')
       continue;
 
-    /* If this vnode is a filesystem boundary,
-     * request the root vnode of the inner filesystem. */
-    if (v->v_mountedhere != NULL) {
-      vnode_t *v_mntpt;
-      int error = VFS_ROOT(v->v_mountedhere, &v_mntpt);
-      vnode_unlock(v);
-      vnode_unref(v);
-      if (error)
-        return error;
-      v = v_mntpt;
-      /* vnode_ref(v); No need to ref this vnode, VFS_ROOT already did it for
-       * us. */
-      vnode_lock(v);
-    }
-
     /* Look up the child vnode */
     vnode_t *v_child;
-    int error = VOP_LOOKUP(v, component, &v_child);
+    error = VOP_LOOKUP(v, component, &v_child);
     vnode_unlock(v);
     vnode_unref(v);
-
     if (error)
       return error;
     v = v_child;
-    /* vnode_ref(v); No need to ref this vnode, VFS_LOOKUP already did it for
-     * us. */
+    /* No need to ref this vnode, VFS_LOOKUP already did it for us. */
     vnode_lock(v);
+
+    if ((error = vfs_maybe_descend(&v)))
+      return error;
   }
 
   vnode_unlock(v);
