@@ -131,7 +131,8 @@ static int gt_pci_attach(device_t *pcib) {
   pci_bus_enumerate(pcib);
   pci_bus_assign_space(pcib);
   pci_bus_dump(pcib);
-  return 0;
+
+  return bus_generic_probe(pcib);
 }
 
 static int gt_pci_detach(device_t *pcib) {

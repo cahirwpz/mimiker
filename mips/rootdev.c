@@ -3,6 +3,7 @@
 #include <bus.h>
 #include <sync.h>
 #include <exception.h>
+#include <pci.h>
 
 extern device_t *rootdev;
 
@@ -86,10 +87,21 @@ void rootdev_init() {
   }
 }
 
+extern pci_bus_driver_t gt_pci;
+
+static int rootdev_attach(device_t *dev) {
+  device_t *pcib = device_add_child(dev);
+  pcib->driver = &gt_pci.driver;
+  if (device_probe(pcib))
+    device_attach(pcib);
+  return 0;
+}
+
 bus_driver_t rootdev_driver = {
   .driver =
     {
       .size = sizeof(rootdev_t), .desc = "MIPS platform root bus driver",
+      .attach = rootdev_attach,
     },
   .bus =
     {

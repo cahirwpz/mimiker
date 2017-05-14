@@ -117,4 +117,6 @@ static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
   BUS_DRIVER(dev)->bus.intr_teardown(dev, handler);
 }
 
+int bus_generic_probe(device_t *bus);
+
 #endif
