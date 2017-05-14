@@ -114,10 +114,6 @@ noreturn void panic_fail();
   })
 
 #ifdef DEBUG
-#define log(FMT, ...)                                                          \
-  __extension__(                                                               \
-    { kprintf("[%s:%d] " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__); })
-
 void assert_fail(const char *expr, const char *file, unsigned int line);
 
 #define assert(EXPR)                                                           \
@@ -126,7 +122,6 @@ void assert_fail(const char *expr, const char *file, unsigned int line);
       assert_fail(__STRING(EXPR), __FILE__, __LINE__);                         \
   })
 #else
-#define log(...)
 #define assert(expr)
 #endif
 

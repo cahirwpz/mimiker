@@ -6,13 +6,22 @@
 
 klog_t klog;
 
+static const char *subsystems[] =
+  {[KL_RUNQ] = "runq",   [KL_SLEEPQ] = "sleepq",   [KL_CALLOUT] = "callout",
+   [KL_INIT] = "init",   [KL_PMAP] = "pmap",       [KL_VM] = "vm",
+   [KL_KMEM] = "kmem",   [KL_POOL] = "pool",       [KL_LOCK] = "lock",
+   [KL_SCHED] = "sched", [KL_THREAD] = "thread",   [KL_INTR] = "intr",
+   [KL_DEV] = "dev",     [KL_VFS] = "vfs",         [KL_VNODE] = "vnode",
+   [KL_PROC] = "proc",   [KL_SYSCALL] = "syscall", [KL_USER] = "user",
+   [KL_TEST] = "test",   [KL_UNDEF] = "???"};
+
 /* Borrowed from mips/malta.c */
 char *kenv_get(char *key);
 
 void klog_init() {
   const char *mask = kenv_get("klog-mask");
   klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_ALL;
-  klog.verbose = kenv_get("klog-verbose") ? 1 : 0;
+  klog.verbose = kenv_get("klog-quiet") ? 0 : 1;
   klog.first = 0;
   klog.last = 0;
 }
@@ -22,18 +31,20 @@ static inline unsigned next(unsigned i) {
 }
 
 static void klog_entry_dump(klog_entry_t *entry) {
-  kprintf("(%lld) [%s:%d] ", entry->kl_timestamp, entry->kl_file,
-          entry->kl_line);
+  if (entry->kl_origin == KL_UNDEF)
+    kprintf("[%s:%d] ", entry->kl_file, entry->kl_line);
+  else
+    kprintf("[%s] ", subsystems[entry->kl_origin]);
   kprintf(entry->kl_format, entry->kl_params[0], entry->kl_params[1],
           entry->kl_params[2], entry->kl_params[3], entry->kl_params[4],
           entry->kl_params[5]);
   kprintf("\n");
 }
 
-void klog_append(unsigned mask, const char *file, unsigned line,
+void klog_append(klog_origin_t origin, const char *file, unsigned line,
                  const char *format, intptr_t arg1, intptr_t arg2,
                  intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6) {
-  if (!(mask & klog.mask))
+  if (!(KL_MASK(origin) & klog.mask))
     return;
 
   critical_enter();
@@ -43,6 +54,7 @@ void klog_append(unsigned mask, const char *file, unsigned line,
   *entry = (klog_entry_t){.kl_timestamp = clock_get(),
                           .kl_line = line,
                           .kl_file = file,
+                          .kl_origin = origin,
                           .kl_format = format,
                           .kl_params = {arg1, arg2, arg3, arg4, arg5, arg6}};
 

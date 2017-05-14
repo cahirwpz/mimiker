@@ -21,7 +21,7 @@ static mtx_t zombie_threads_mtx;
 static thread_list_t zombie_threads;
 
 void thread_init() {
-  log("Thread init.");
+  klog("Threads initialization");
   mtx_init(&all_threads_mtx, MTX_DEF);
   TAILQ_INIT(&all_threads);
 
@@ -89,11 +89,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
     mtx_unlock(&all_threads_mtx);
 
   td->td_state = TDS_READY;
-  /* We cannot use klog before kernel-main is initialized */
-  if (strcmp(td->td_name, "kernel-main") == 0)
-    log("Thread '%s' {%p} has been created.", td->td_name, td);
-  else
-    klog("Thread '%s' {%p} has been created.", td->td_name, td);
+  klog("Thread '%s' {%p} has been created.", td->td_name, td);
 
   return td;
 }

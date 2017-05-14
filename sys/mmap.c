@@ -1,4 +1,4 @@
-#define KL_LOG KL_MMAP
+#define KL_LOG KL_SYSCALL
 #include <klog.h>
 #include <mmap.h>
 #include <thread.h>
