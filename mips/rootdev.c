@@ -100,7 +100,8 @@ static int rootdev_attach(device_t *dev) {
 bus_driver_t rootdev_driver = {
   .driver =
     {
-      .size = sizeof(rootdev_t), .desc = "MIPS platform root bus driver",
+      .size = sizeof(rootdev_t),
+      .desc = "MIPS platform root bus driver",
       .attach = rootdev_attach,
     },
   .bus =
