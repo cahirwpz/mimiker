@@ -34,7 +34,7 @@
 #ifndef _SYS_DIRENT_H_
 #define _SYS_DIRENT_H_
 
-#include <common.h>
+#include <stdint.h>
 
 /*
  * The dirent structure defines the format of directory entries returned by
@@ -104,5 +104,9 @@ typedef struct dirent {
  */
 #define IFTODT(mode) (((mode)&0170000) >> 12)
 #define DTTOIF(dirtype) ((dirtype) << 12)
+
+#ifndef _KERNELSPACE
+int getdirentries(int fd, char *buf, size_t nbytes, off_t *basep);
+#endif /* !_KERNELSPACE */
 
 #endif /* !_SYS_DIRENT_H_ */

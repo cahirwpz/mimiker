@@ -2,7 +2,6 @@
 #include <klog.h>
 #include <mmap.h>
 #include <thread.h>
-#include <stdc.h>
 #include <errno.h>
 #include <vm_map.h>
 #include <vm_pager.h>
@@ -15,8 +14,7 @@ int sys_mmap(thread_t *td, syscall_args_t *args) {
   vm_prot_t prot = args->args[2];
   int flags = args->args[3];
 
-  kprintf("[syscall] mmap(%p, %zu, %d, %d)\n", (void *)addr, length, prot,
-          flags);
+  klog("mmap(%p, %zu, %d, %d)", (void *)addr, length, prot, flags);
 
   int error = 0;
   vm_addr_t result = do_mmap(addr, length, prot, flags, &error);
