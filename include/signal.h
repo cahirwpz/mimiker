@@ -15,7 +15,7 @@ typedef enum {
   NSIG = 32
 } signo_t;
 
-typedef void (sighandler_t)(int);
+typedef void sighandler_t(int);
 
 #define SIG_DFL (sighandler_t *)0x00
 #define SIG_IGN (sighandler_t *)0x01
