@@ -46,7 +46,7 @@ class OVPsim(Launchable):
             self.options += ['--nographics']
         
         if kwargs['debug']:
-            self.options += ['--port', '1234']
+            self.options += ['--port', str(kwargs['gdb_port'])]
 
         for item in OVPSIM_OVERRIDES.items():
             self.options += ['--override', '%s=%s' % item]
@@ -68,7 +68,7 @@ class QEMU(Launchable):
                         '-cpu', '24Kf',
                         '-kernel', kwargs['kernel'],
                         '-append', kwargs['args'],
-                        '-gdb', 'tcp::1234',
+                        '-gdb', 'tcp::%d' % kwargs['gdb_port'],
                         '-initrd', 'initrd.cpio',
                         '-serial', 'none',
                         '-serial', 'null',

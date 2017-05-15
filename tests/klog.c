@@ -1,4 +1,4 @@
-#define KL_LOG KL_ALL
+#define KLOG KL_TEST
 
 #include <stdc.h>
 #include <ktest.h>
@@ -23,9 +23,9 @@ static int rand() {
 }
 
 static int logging_with_custom_mask() {
-  klog_mask(KL_NONE, "Testing custom mask %d", KL_NONE);
+  klog("Testing custom mask %d", KL_NONE);
   assert(klog.first == klog.last);
-  klog_mask(KL_ALL, "Testing custom mask %d", KL_ALL);
+  klog("Testing custom mask %d", KL_ALL);
   assert((klog.first + 1) % KL_SIZE == klog.last);
   klog_clear();
   return 0;
@@ -52,7 +52,7 @@ static int test_log_messages(const int number_of_logs) {
 
 static int testing_different_number_of_parametars() {
   klog("Message with zero parameters.");
-  klog_mask(KL_ALL, "Message with zero parameters with custom mask.");
+  klog("Message with zero parameters with custom mask.");
   klog("Message with %d parameter.", 1);
   klog("Message with %d, %d, %d, %d, %d parameters.", 5, 5, 5, 5, 5);
   klog("Message with %d, %d, %d, %d, %d, %d parameters.", 6, 6, 6, 6, 6, 6);

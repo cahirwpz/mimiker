@@ -234,7 +234,7 @@ void kmem_bootstrap() {
   kmem_pool_t ***ptr;
   SET_FOREACH(ptr, kmem_pool_table) {
     kmem_pool_t *mp = **ptr;
-    log("initialize '%s' pool", mp->mp_desc);
+    klog("initialize '%s' pool", mp->mp_desc);
     kmem_init(mp);
   }
 }
