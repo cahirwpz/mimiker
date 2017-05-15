@@ -1,6 +1,52 @@
 #ifndef _SYS_SIGNAL_H_
 #define _SYS_SIGNAL_H_
 
+typedef enum {
+  SIGINT = 1,
+  SIGILL,
+  SIGABRT,
+  SIGFPE,
+  SIGSEGV,
+  SIGKILL,
+  SIGTERM,
+  SIGCHLD,
+  SIGUSR1,
+  SIGUSR2,
+  NSIG = 32
+} signo_t;
+
+typedef void (*sighandler_t)(int);
+
+#define SIG_DFL (sighandler_t *)0x00
+#define SIG_IGN (sighandler_t *)0x01
+
+typedef struct sigaction {
+  sighandler_t sa_handler;
+  void *sa_restorer;
+} sigaction_t;
+
+#ifndef _KERNELSPACE
+#include <unistd.h>
+
+int sigaction(int signum, const sigaction_t *act, sigaction_t *oldact);
+void sigreturn();
+int kill(int tid, int sig);
+
+
+static inline int raise(int sig) {
+  return kill(getpid(), sig);
+}
+
+static inline int signal(int sig, sighandler_t handler) {
+  sigaction_t sa = {.sa_handler = handler, .sa_restorer = sigreturn};
+  return sigaction(sig, &sa, NULL);
+}
+
+/* This is necessary to keep newlib happy. */
+typedef sighandler_t _sig_func_ptr;
+
+#else /* _KERNELSPACE */
+
 #include <common.h>
 #include <bitstring.h>
 #include <queue.h>
@@ -11,10 +57,6 @@ typedef struct proc proc_t;
 
 typedef bitstr_t sigset_t[bitstr_size(SIG_LAST)];
 
-typedef void (*sighandler_t)(int);
-
-#define SIG_DFL (sighandler_t *)0x00
-#define SIG_IGN (sighandler_t *)0x01
 #define SIG_TERM (sighandler_t *)0x02
 
 typedef struct sigaction {
@@ -46,5 +88,6 @@ typedef struct syscall_args syscall_args_t;
 int sys_kill(thread_t *td, syscall_args_t *args);
 int sys_sigaction(thread_t *td, syscall_args_t *args);
 int sys_sigreturn(thread_t *td, syscall_args_t *args);
+#endif /* !_KERNELSPACE */
 
 #endif /* _SYS_SIGNAL_H_ */

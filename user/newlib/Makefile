@@ -12,10 +12,10 @@ all: $(CACHEDIR)/$(NEWLIB)
 install:
 	@echo "Installing newlib..."
 	cd $(CACHEDIR)/$(NEWLIB)/newlib; $(MAKE) install > /dev/null 2>&1
-	# Copy overrides. TODO: These files should be copied into $(NEWLIB) before
-	# it is compiled, so that all refernces within newlib sources are using our
-	# version of the override file. But for now it does not matter, and it's
-	# simpler to copy them directly to $(INSTALL_DIR).
+	# Copy overrides. TODO: These files should be copied into $(NEWLIB)
+	# before it is compiled, so that all references within newlib sources
+	# are using our version of the override file. But for now it does not
+	# matter, and it's simpler to copy them directly to $(INSTALL_DIR).
 	cp -RL overrides/* $(INSTALL_DIR)/usr/
 
 # The .tar.gz archive must be an order-only prerequisite, because the archive
