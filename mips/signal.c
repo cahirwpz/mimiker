@@ -1,7 +1,8 @@
+#define KL_LOG KL_SIGNAL
 #include <signal.h>
 #include <thread.h>
 #include <systm.h>
-#include <stdc.h>
+#include <klog.h>
 #include <errno.h>
 
 #define SIG_CTX_MAGIC 0xDACBAEE3
@@ -36,8 +37,8 @@ int platform_sendsig(int sig, sigaction_t *sa) {
     /* This thread has a corrupted stack, we can no longer send any signals to
        it. Forcefully terminate the thread. TODO: Maybe sending a SIGKILL is
        safe here? */
-    log("Thread %lu is unable to receive a signal, terminating it.",
-        td->td_tid);
+    klog("Thread %lu is unable to receive a signal, terminating it.",
+         td->td_tid);
     thread_exit(-1);
     __builtin_unreachable();
   }

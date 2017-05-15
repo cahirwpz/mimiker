@@ -1,3 +1,5 @@
+#define KL_LOG KL_SIGNAL
+#include <klog.h>
 #include <signal.h>
 #include <thread.h>
 #include <malloc.h>
@@ -126,8 +128,8 @@ int issignal(thread_t *td) {
       /* Terminate this thread as result of a signal. */
 
       /* Diagnostic message */
-      log("Thread %lu terminated due to signal %s!", td->td_tid,
-          signal_names[signo]);
+      klog("Thread %lu terminated due to signal %s!", td->td_tid,
+           signal_names[signo]);
 
       /* Release the lock held by the parent. */
       mtx_unlock(&td->td_lock);
@@ -153,7 +155,7 @@ void postsig(int sig) {
 
   assert(sa->sa_handler != SIG_IGN && sa->sa_handler != SIG_DFL);
 
-  log("Postsig for %s with handler %p", signal_names[sig], sa->sa_handler);
+  klog("Postsig for %s with handler %p", signal_names[sig], sa->sa_handler);
   /* Normally the postsig would have more to do, but our signal implemetnation
      is very limited for now, and all postsig has to do is to pass the sa to
      platform-specific sendsig. */
