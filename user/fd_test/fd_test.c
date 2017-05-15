@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-#include <sys/my_dirent.h>
+#include <sys/dirent.h>
 #include <stdbool.h>
 
 const char *str = "Hello world from a user program!\n";

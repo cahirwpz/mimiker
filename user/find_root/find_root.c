@@ -7,7 +7,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-#include <sys/my_dirent.h>
+#include <sys/dirent.h>
 #include <stdbool.h>
 
 void recursive_dump(const char *dir_path) {
