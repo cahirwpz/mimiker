@@ -1,3 +1,5 @@
+#define KL_LOG KL_INTR
+#include <klog.h>
 #include <stdc.h>
 #include <mips/exc.h>
 #include <mips/mips.h>
@@ -40,7 +42,7 @@ void mips_irq_handler(exc_frame_t *frame) {
       if (handler != NULL) {
         handler();
       } else {
-        log("Spurious hardware interrupt #%d!", i);
+        klog("Spurious hardware interrupt #%d!", i);
       }
       pending &= ~irq;
     }
@@ -74,10 +76,10 @@ const char *const exceptions[32] = {
 void kernel_oops(exc_frame_t *frame) {
   unsigned code = (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
 
-  log("%s at $%08x!", exceptions[code], frame->pc);
+  klog("%s at $%08x!", exceptions[code], frame->pc);
   if ((code == EXC_ADEL || code == EXC_ADES) ||
       (code == EXC_IBE || code == EXC_DBE))
-    log("Caused by reference to $%08x!", frame->badvaddr);
+    klog("Caused by reference to $%08x!", frame->badvaddr);
 
   panic("Unhandled exception!");
 }

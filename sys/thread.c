@@ -1,3 +1,5 @@
+#define KL_LOG KL_THREAD
+#include <klog.h>
 #include <stdc.h>
 #include <malloc.h>
 #include <thread.h>
@@ -19,7 +21,7 @@ static mtx_t zombie_threads_mtx;
 static thread_list_t zombie_threads;
 
 void thread_init() {
-  log("Thread init.");
+  klog("Threads initialization");
   mtx_init(&all_threads_mtx, MTX_DEF);
   TAILQ_INIT(&all_threads);
 
@@ -49,7 +51,7 @@ void thread_reap() {
 
   thread_t *td;
   TAILQ_FOREACH (td, &thq, td_zombieq) {
-    log("Reaping thread %ld (%s)", td->td_tid, td->td_name);
+    klog("Reaping thread %ld (%s)", td->td_tid, td->td_name);
     thread_delete(td);
   }
 }
@@ -87,8 +89,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
     mtx_unlock(&all_threads_mtx);
 
   td->td_state = TDS_READY;
-
-  log("Thread '%s' {%p} has been created.", td->td_name, td);
+  klog("Thread '%s' {%p} has been created.", td->td_name, td);
 
   return td;
 }
@@ -117,7 +118,7 @@ thread_t *thread_self() {
 noreturn void thread_exit(int exitcode) {
   thread_t *td = thread_self();
 
-  log("Thread '%s' {%p} has finished.", td->td_name, td);
+  klog("Thread '%s' {%p} has finished.", td->td_name, td);
 
   mtx_lock(&td->td_lock);
 
@@ -125,7 +126,7 @@ noreturn void thread_exit(int exitcode) {
      assert here, because assert also calls thread_exit. Thus, in case this
      condition is not met, we'll log the problem, and try to fix the problem. */
   if (td->td_csnest != 0) {
-    log("ERROR: Thread must not exit within a critical section!");
+    klog("ERROR: Thread must not exit within a critical section!");
     while (td->td_csnest--)
       critical_leave();
   }
@@ -153,7 +154,7 @@ noreturn void thread_exit(int exitcode) {
 void thread_join(thread_t *p) {
   thread_t *td = thread_self();
   thread_t *otd = p;
-  log("Joining '%s' {%p} with '%s' {%p}", td->td_name, td, otd->td_name, otd);
+  klog("Joining '%s' {%p} with '%s' {%p}", td->td_name, td, otd->td_name, otd);
 
   mtx_lock(&otd->td_lock);
   while (otd->td_state != TDS_INACTIVE)

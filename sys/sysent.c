@@ -1,3 +1,5 @@
+#define KL_LOG KL_SYSCALL
+#include <klog.h>
 #include <sysent.h>
 #include <stdc.h>
 #include <errno.h>
@@ -24,7 +26,7 @@ int sys_sbrk(thread_t *td, syscall_args_t *args) {
   /* TODO: Shrinking sbrk is impossible, because it requires unmapping pages,
    * which is not yet implemented! */
   if (increment < 0) {
-    log("WARNING: sbrk called with a negative argument!");
+    klog("WARNING: sbrk called with a negative argument!");
     return -ENOMEM;
   }
 

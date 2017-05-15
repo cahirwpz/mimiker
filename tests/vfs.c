@@ -5,6 +5,10 @@
 #include <vm_map.h>
 #include <ktest.h>
 
+static bool fsname_of(vnode_t *v, const char *fsname) {
+  return strncmp(v->v_mount->mnt_vfc->vfc_name, fsname, strlen(fsname)) == 0;
+}
+
 static int test_vfs() {
   vnode_t *v;
   int error;
@@ -12,10 +16,16 @@ static int test_vfs() {
   error = vfs_lookup("/dev/SPAM", &v);
   assert(error == -ENOENT);
   error = vfs_lookup("/", &v);
-  assert(error == 0 && v == vfs_root_vnode);
+  assert(error == 0);
+  assert(fsname_of(v, "initrd"));
   vnode_unref(v);
   error = vfs_lookup("/dev////", &v);
   assert(error == 0);
+  assert(fsname_of(v, "devfs"));
+  vnode_unref(v);
+
+  error = vfs_lookup("/dev", &v);
+  assert(error == 0 && !is_mountpoint(v));
   vnode_unref(v);
 
   vnode_t *dev_null, *dev_zero;

@@ -1,3 +1,5 @@
+#define KL_LOG KL_USER
+#include <klog.h>
 #include <stdc.h>
 #include <exec.h>
 #include <ktest.h>
@@ -7,7 +9,7 @@
 char *kenv_get(const char *key);
 
 static void run_init(const char *program) {
-  log("Starting program \"%s\"", program);
+  klog("Starting program \"%s\"", program);
 
   exec_args_t exec_args;
   exec_args.prog_name = program;
@@ -16,7 +18,7 @@ static void run_init(const char *program) {
 
   int res = do_exec(&exec_args);
   if (res) {
-    log("Failed to start init program.");
+    klog("Failed to start init program.");
   }
 }
 

@@ -1,3 +1,5 @@
+#define KL_LOG KL_SYSCALL
+#include <klog.h>
 #include <mmap.h>
 #include <thread.h>
 #include <stdc.h>
@@ -38,7 +40,7 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
   }
 
   if (!flags & MMAP_FLAG_ANONYMOUS) {
-    log("Non-anonymous memory mappings are not yet implemented.");
+    klog("Non-anonymous memory mappings are not yet implemented.");
     *error = EINVAL;
     return MMAP_FAILED;
   }
@@ -71,7 +73,7 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
     entry->object = default_pager->pgr_alloc();
   }
 
-  log("Created entry at %p, length: %zu", (void *)addr, length);
+  klog("Created entry at %p, length: %zu", (void *)addr, length);
 
   return addr;
 }

@@ -6,7 +6,8 @@ import os.path
 import signal
 import launcher
 
-UART_PORT = 8000
+UART_PORT_BASE = 8000
+GDB_PORT_BASE = 9100
 
 if __name__ == '__main__':
     # Probe which tools are available.
@@ -44,7 +45,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', action='store_true',
                         help='Shorthand for --output server')
     parser.add_argument('-d', action='store_true',
-                        help='Shorthand for --debugger cgdb.')
+                        help='Shorthand for --debugger gdb.')
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
     args = parser.parse_args()
@@ -63,7 +64,7 @@ if __name__ == '__main__':
 
     # Support -d option
     if args.d:
-        args.debugger = 'cgdb'
+        args.debugger = 'gdb'
 
     debug = args.debugger != 'none'
 
@@ -71,15 +72,21 @@ if __name__ == '__main__':
         raise SystemExit('ERROR: Unable to start both debugger and simulator in'
                          ' stdio output mode.')
 
+    uart_port = UART_PORT_BASE + os.getuid()
+    gdb_port = GDB_PORT_BASE + os.getuid();
+
+    launcher.prepare_gdbinit(gdb_port)
+    
     sim = simulators[args.simulator]
     out = outputs[args.output]
     dbg = debuggers[args.debugger]
-
+    
     cfg_args = {'kernel': args.kernel,
                 'args': ' '.join(args.args),
                 'debug': debug,
                 'graphics': args.graphics,
-                'uart_port': UART_PORT}
+                'gdb_port': gdb_port,
+                'uart_port': uart_port}
 
     sim.configure(**cfg_args)
     out.configure(**cfg_args)

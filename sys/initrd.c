@@ -1,3 +1,5 @@
+#define KL_LOG KL_PMAP
+#include <klog.h>
 #include <errno.h>
 #include <common.h>
 #include <malloc.h>
@@ -59,10 +61,10 @@ static cpio_node_t *cpio_node_alloc() {
 }
 
 static void cpio_node_dump(cpio_node_t *cn) {
-  log("entry '%s': {dev: %ld, ino: %lu, mode: %d, nlink: %d, "
-      "uid: %d, gid: %d, rdev: %ld, size: %ld, mtime: %lu}",
-      cn->c_path, cn->c_dev, cn->c_ino, cn->c_mode, cn->c_nlink, cn->c_uid,
-      cn->c_gid, cn->c_rdev, cn->c_size, cn->c_mtime);
+  klog("entry '%s': {dev: %ld, ino: %lu, mode: %d, nlink: %d, "
+       "uid: %d, gid: %d, rdev: %ld, size: %ld, mtime: %lu}",
+       cn->c_path, cn->c_dev, cn->c_ino, cn->c_mode, cn->c_nlink, cn->c_uid,
+       cn->c_gid, cn->c_rdev, cn->c_size, cn->c_mtime);
 }
 
 static void read_bytes(void **tape, void *ptr, size_t bytes) {
@@ -84,7 +86,7 @@ static bool read_cpio_header(void **tape, cpio_node_t *cpio) {
   uint16_t c_magic = strntoul(hdr.c_magic, 6, NULL, 8);
 
   if (c_magic != CPIO_NMAGIC && c_magic != CPIO_NCMAGIC) {
-    log("wrong magic number: %o", c_magic);
+    klog("wrong magic number: %o", c_magic);
     return false;
   }
 
@@ -268,7 +270,7 @@ void ramdisk_init() {
     initrd_ops.v_read = initrd_vnode_read;
     initrd_ops.v_open = vnode_open_generic;
     initrd_ops.v_getattr = initrd_vnode_getattr;
-    log("parsing cpio archive of %zu bytes", rd_size);
+    klog("parsing cpio archive of %zu bytes", rd_size);
     read_cpio_archive();
     initrd_build_tree_and_names();
   }
