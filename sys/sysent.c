@@ -7,20 +7,21 @@
 #include <vm_map.h>
 #include <vm_pager.h>
 #include <mmap.h>
-#include <vfs_syscalls.h>
+#include <vfs.h>
 #include <fork.h>
 #include <sbrk.h>
 #include <proc.h>
 
-int sys_nosys(thread_t *td, syscall_args_t *args) {
-  kprintf("[syscall] unimplemented system call %ld\n", args->code);
+/* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
+static int sys_nosys(thread_t *td, syscall_args_t *args) {
+  klog("unimplemented system call %ld", args->code);
   return -ENOSYS;
 };
 
-int sys_sbrk(thread_t *td, syscall_args_t *args) {
+static int sys_sbrk(thread_t *td, syscall_args_t *args) {
   intptr_t increment = (size_t)args->args[0];
 
-  kprintf("[syscall] sbrk(%zu)\n", increment);
+  klog("sbrk(%zu)", increment);
 
   /* TODO: Shrinking sbrk is impossible, because it requires unmapping pages,
    * which is not yet implemented! */
@@ -36,22 +37,22 @@ int sys_sbrk(thread_t *td, syscall_args_t *args) {
 
 /* This is just a stub. A full implementation of this syscall will probably
    deserve a separate file. */
-int sys_exit(thread_t *td, syscall_args_t *args) {
+static int sys_exit(thread_t *td, syscall_args_t *args) {
   int status = args->args[0];
 
-  kprintf("[syscall] exit(%d)\n", status);
+  klog("exit(%d)", status);
 
   thread_exit(status);
-  __builtin_unreachable();
+  __unreachable();
 }
 
-int sys_fork(thread_t *td, syscall_args_t *args) {
-  kprintf("[syscall] fork()\n");
+static int sys_fork(thread_t *td, syscall_args_t *args) {
+  klog("fork()");
   return do_fork();
 }
 
-int sys_getpid(thread_t *td, syscall_args_t *args) {
-  kprintf("[syscall] fork()\n");
+static int sys_getpid(thread_t *td, syscall_args_t *args) {
+  klog("getpid()");
   return td->td_proc->p_pid;
 }
 

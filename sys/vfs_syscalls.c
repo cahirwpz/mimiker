@@ -7,7 +7,7 @@
 #include <sysent.h>
 #include <systm.h>
 #include <thread.h>
-#include <vfs_syscalls.h>
+#include <vfs.h>
 #include <vnode.h>
 #include <proc.h>
 #include <vm_map.h>

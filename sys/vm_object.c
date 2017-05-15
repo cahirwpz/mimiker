@@ -1,4 +1,5 @@
-#include <stdc.h>
+#define KL_LOG KL_VM
+#include <klog.h>
 #include <malloc.h>
 #include <vm_object.h>
 
@@ -65,5 +66,5 @@ void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
 void vm_map_object_dump(vm_object_t *obj) {
   vm_page_t *it;
   RB_FOREACH (it, vm_object_tree, &obj->tree)
-    kprintf("[vm_object] offset: %lu, size: %lu \n", it->vm_offset, it->size);
+    klog("(vm-obj) offset: %lu, size: %lu \n", it->vm_offset, it->size);
 }

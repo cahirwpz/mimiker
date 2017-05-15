@@ -17,7 +17,7 @@
 #include <initrd.h>
 #include <device.h>
 #include <proc.h>
-#include <vfs_syscalls.h>
+#include <vfs.h>
 
 extern void main(void *);
 

@@ -1,5 +1,5 @@
-#ifndef _SYS_VFS_SYSCALLS_H_
-#define _SYS_VFS_SYSCALLS_H_
+#ifndef _SYS_VFS_H_
+#define _SYS_VFS_H_
 
 #include <uio.h>
 
@@ -28,4 +28,4 @@ int sys_fstat(thread_t *td, syscall_args_t *args);
 int sys_mount(thread_t *td, syscall_args_t *args);
 int sys_getdirentries(thread_t *td, syscall_args_t *args);
 
-#endif /* !_SYS_VFS_SYSCALLS_H_ */
+#endif /* !_SYS_VFS_H_ */
