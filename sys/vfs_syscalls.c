@@ -101,12 +101,11 @@ int do_mount(thread_t *td, const char *fs, const char *path) {
   return vfs_domount(vfs, v);
 }
 
-int do_getdirentries(thread_t *td, int fd, uio_t *uio, long *basep) {
+int do_getdirentries(thread_t *td, int fd, uio_t *uio, off_t *basep) {
   file_t *f;
   int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_READ, &f);
   if (res)
     return res;
-
   vnode_t *vn = f->f_vnode;
   /* *basep = current offset in file */
   copyout(&f->f_offset, basep, sizeof(basep));
@@ -114,7 +113,6 @@ int do_getdirentries(thread_t *td, int fd, uio_t *uio, long *basep) {
   res = VOP_READDIR(vn, uio);
   f->f_offset = uio->uio_offset;
   file_unref(f);
-
   return res;
 }
 
@@ -238,15 +236,12 @@ end:
 
 int sys_getdirentries(thread_t *td, syscall_args_t *args) {
   int fd = args->args[0];
-  char *ubuf = (char *)(uintptr_t)args->args[1];
+  char *ubuf = (char *)args->args[1];
   size_t count = args->args[2];
-  long *basep = (long *)(uintptr_t)args->args[3];
+  off_t *basep = (off_t *)args->args[3];
 
-  /* Comment out logging for presentation */
-  /* log("sys_getdirentries(%d, %p, %zu, %p)", fd, ubuf, count, basep); */
+  klog("getdirentries(%d, %p, %zu, %p)", fd, ubuf, count, basep);
 
   uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
-
-  int res = do_getdirentries(td, fd, &uio, basep);
-  return res;
+  return do_getdirentries(td, fd, &uio, basep);
 }
