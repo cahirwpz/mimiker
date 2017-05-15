@@ -1,8 +1,6 @@
 #ifndef _SYS_SIGNAL_H_
 #define _SYS_SIGNAL_H_
 
-#include <unistd.h>
-
 typedef enum {
   SIGINT = 1,
   SIGILL,
@@ -17,15 +15,17 @@ typedef enum {
   NSIG = 32
 } signo_t;
 
-typedef void (*sighandler_t)(int);
+typedef void sighandler_t(int);
 
-#define SIG_DFL 0x00
-#define SIG_IGN 0x01
+#define SIG_DFL (sighandler_t *)0x00
+#define SIG_IGN (sighandler_t *)0x01
 
 typedef struct sigaction {
-  sighandler_t sa_handler;
+  sighandler_t *sa_handler;
   void *sa_restorer;
 } sigaction_t;
+
+#include <unistd.h>
 
 int sigaction(int signum, const sigaction_t *act, sigaction_t *oldact);
 void sigreturn();
