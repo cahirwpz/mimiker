@@ -15,13 +15,13 @@ typedef enum {
   NSIG = 32
 } signo_t;
 
-typedef void (*sighandler_t)(int);
+typedef void (sighandler_t)(int);
 
 #define SIG_DFL (sighandler_t *)0x00
 #define SIG_IGN (sighandler_t *)0x01
 
 typedef struct sigaction {
-  sighandler_t sa_handler;
+  sighandler_t *sa_handler;
   void *sa_restorer;
 } sigaction_t;
 
@@ -31,7 +31,6 @@ typedef struct sigaction {
 int sigaction(int signum, const sigaction_t *act, sigaction_t *oldact);
 void sigreturn();
 int kill(int tid, int sig);
-
 
 static inline int raise(int sig) {
   return kill(getpid(), sig);
@@ -51,18 +50,12 @@ typedef sighandler_t _sig_func_ptr;
 #include <bitstring.h>
 #include <queue.h>
 #include <mutex.h>
-#include <signum.h>
 
 typedef struct proc proc_t;
 
-typedef bitstr_t sigset_t[bitstr_size(SIG_LAST)];
+typedef bitstr_t sigset_t[bitstr_size(NSIG)];
 
 #define SIG_TERM (sighandler_t *)0x02
-
-typedef struct sigaction {
-  sighandler_t *sa_handler;
-  void *sa_restorer;
-} sigaction_t;
 
 /* Sends a signal to a process. */
 int signal(proc_t *td, signo_t sig);

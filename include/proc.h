@@ -26,7 +26,7 @@ struct proc {
   /* file descriptors table */
   fdtab_t *p_fdtable;
   /* signal stuff */
-  sigaction_t p_sigactions[SIG_LAST];
+  sigaction_t p_sigactions[NSIG];
 };
 
 void proc_init();

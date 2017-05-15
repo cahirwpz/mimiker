@@ -9,13 +9,13 @@
 #include <systm.h>
 #include <proc.h>
 
-static sighandler_t *signal_default_actions[SIG_LAST] = {
+static sighandler_t *signal_default_actions[NSIG] = {
     [SIGINT] = SIG_TERM,  [SIGILL] = SIG_TERM,  [SIGFPE] = SIG_TERM,
     [SIGABRT] = SIG_TERM, [SIGSEGV] = SIG_TERM, [SIGKILL] = SIG_TERM,
     [SIGCHLD] = SIG_IGN,  [SIGUSR1] = SIG_TERM, [SIGUSR2] = SIG_TERM,
 };
 
-static const char *signal_names[SIG_LAST] = {
+static const char *signal_names[NSIG] = {
     [SIGINT] = "SIGINT",   [SIGILL] = "SIGILL",   [SIGABRT] = "SIGABRT",
     [SIGFPE] = "SIGFPE",   [SIGSEGV] = "SIGSEGV", [SIGKILL] = "SIGKILL",
     [SIGTERM] = "SIGTERM", [SIGCHLD] = "SIGCHLD", [SIGUSR1] = "SIGUSR1",
@@ -35,7 +35,7 @@ int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact) {
   assert(td->td_proc);
   mtx_scoped_lock(&td->td_proc->p_lock);
 
-  if (sig < 0 || sig >= SIG_LAST)
+  if (sig < 0 || sig >= NSIG)
     return -EINVAL;
 
   if (sig == SIGKILL)
@@ -50,7 +50,7 @@ int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact) {
 }
 
 static sighandler_t *get_sigact(int sig, proc_t *p) {
-  /* Assume p->p_lock is already owned. */
+  assert(mtx_owned(&p->p_lock));
   sighandler_t *h = p->p_sigactions[sig].sa_handler;
   if (h == SIG_DFL)
     h = signal_default_actions[sig];
@@ -67,7 +67,7 @@ int signal(proc_t *proc, signo_t sig) {
      These limitations (plus the fact that we currently have very little thread
      states) make the logic of posting a signal very simple!
   */
-  assert(sig < SIG_LAST);
+  assert(sig < NSIG);
   assert(proc->p_nthreads == 1);
 
   /* XXX: If we were to support multiple threads in a process, repeat everything
@@ -111,9 +111,9 @@ void signotify(thread_t *td) {
 int issignal(thread_t *td) {
   assert(td->td_proc);
   while (true) {
-    int signo = SIG_LAST;
-    bit_ffs(td->td_sigpend, SIG_LAST, &signo);
-    if (signo < 0 || signo >= SIG_LAST)
+    int signo = NSIG;
+    bit_ffs(td->td_sigpend, NSIG, &signo);
+    if (signo < 0 || signo >= NSIG)
       return 0; /* No pending signals. */
 
     bit_clear(td->td_sigpend, signo);
