@@ -12,7 +12,6 @@
 #include <mount.h>
 #include <mount.h>
 #include <linker_set.h>
-#include <dirent.h>
 
 static MALLOC_DEFINE(M_INITRD, "initrd", 16, 16);
 
@@ -23,7 +22,6 @@ typedef uint16_t cpio_mode_t;
 /* ramdisk related data that will be stored in v_data field of vnode */
 typedef struct cpio_node {
   TAILQ_ENTRY(cpio_node) c_list; /* link to global list of all ramdisk nodes */
-  int c_n_children;              /* number of direct descendants (c_children) */
   TAILQ_HEAD(, cpio_node) c_children; /* head of list of direct descendants */
   TAILQ_ENTRY(cpio_node) c_siblings;  /* nodes that have the same parent */
 
@@ -158,11 +156,6 @@ static const char *basename(const char *path) {
   return name ? name + 1 : path;
 }
 
-static void insert_child(cpio_node_t *parent, cpio_node_t *child) {
-  parent->c_n_children++;
-  TAILQ_INSERT_TAIL(&parent->c_children, child, c_siblings);
-}
-
 static void initrd_build_tree_and_names() {
   cpio_node_t *it_i, *it_j;
 
@@ -171,7 +164,7 @@ static void initrd_build_tree_and_names() {
       if (it_i == it_j)
         continue;
       if (is_direct_descendant(it_j->c_path, it_i->c_path))
-        insert_child(it_i, it_j);
+        TAILQ_INSERT_TAIL(&it_i->c_children, it_j, c_siblings);
     }
   }
 
@@ -184,8 +177,9 @@ static void initrd_build_tree_and_names() {
   root_node = cpio_node_alloc();
   root_node->c_path = "";
   TAILQ_FOREACH (it, &initrd_head, c_list) {
-    if (is_direct_descendant(it->c_path, ""))
-      insert_child(root_node, it);
+    if (is_direct_descendant(it->c_path, "")) {
+      TAILQ_INSERT_TAIL(&root_node->c_children, it, c_siblings);
+    }
   }
 }
 
@@ -243,61 +237,6 @@ static int initrd_mount(mount_t *m) {
   return 0;
 }
 
-/* dirent returned by this function has to be deallocated with
- * kfree(M_INITRD, *); */
-static dirent_t *cpio_to_direntry(cpio_node_t *cn) {
-  dirent_t *dir = NULL;
-  int namlen = strlen(cn->c_name);
-
-  int reclen = _DIRENT_RECLEN(dir, namlen);
-  dir = (dirent_t *)kmalloc(M_INITRD, reclen, 0);
-
-  dir->d_fileno = cn->c_ino; /* Shall we implement our inode numbers or leave
-                                ones from ramdisk? */
-  dir->d_reclen = reclen;
-  dir->d_namlen = namlen;
-  dir->d_type = DT_UNKNOWN;
-  if (cn->c_mode & C_ISDIR)
-    dir->d_type = DT_DIR;
-  if (cn->c_mode & C_ISREG)
-    dir->d_type = DT_REG;
-  memcpy(dir->d_name, cn->c_name, namlen + 1);
-  return dir;
-}
-
-static int initrd_vnode_readdir(vnode_t *v, uio_t *uio) {
-  cpio_node_t *cn = (cpio_node_t *)v->v_data;
-  dirent_t *dir = NULL;
-  cpio_node_t *it;
-  off_t offset = 0;
-
-  /* Locate proper directory based on offset */
-  TAILQ_FOREACH (it, &cn->c_children, c_siblings) {
-    int reclen = _DIRENT_RECLEN(dir, strlen(it->c_name));
-
-    if (offset + reclen <= uio->uio_offset) {
-      offset += reclen;
-    } else {
-      assert(it == NULL || offset == uio->uio_offset);
-      break;
-    }
-  }
-
-  for (; it; it = TAILQ_NEXT(it, c_siblings)) {
-    int reclen = _DIRENT_RECLEN(dir, strlen(it->c_name));
-    if (uio->uio_resid >= reclen) {
-      dir = cpio_to_direntry(it);
-      int error = uiomove(dir, dir->d_reclen, uio);
-      kfree(M_INITRD, dir);
-      if (error < 0)
-        return -error;
-    } else
-      break;
-  }
-
-  return uio->uio_offset - offset;
-}
-
 static int initrd_root(mount_t *m, vnode_t **v) {
   *v = m->mnt_data;
   vnode_ref(*v);
@@ -330,7 +269,6 @@ void ramdisk_init() {
     initrd_ops.v_lookup = initrd_vnode_lookup;
     initrd_ops.v_read = initrd_vnode_read;
     initrd_ops.v_open = vnode_open_generic;
-    initrd_ops.v_readdir = initrd_vnode_readdir;
     initrd_ops.v_getattr = initrd_vnode_getattr;
     klog("parsing cpio archive of %zu bytes", rd_size);
     read_cpio_archive();
