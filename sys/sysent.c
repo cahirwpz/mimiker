@@ -56,10 +56,18 @@ int sys_getpid(thread_t *td, syscall_args_t *args) {
 }
 
 /* clang-format hates long arrays. */
-sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},    [SYS_OPEN] = {sys_open},
-                     [SYS_CLOSE] = {sys_close},  [SYS_READ] = {sys_read},
-                     [SYS_WRITE] = {sys_write},  [SYS_LSEEK] = {sys_lseek},
-                     [SYS_UNLINK] = {sys_nosys}, [SYS_GETPID] = {sys_getpid},
-                     [SYS_KILL] = {sys_nosys},   [SYS_FSTAT] = {sys_fstat},
-                     [SYS_SBRK] = {sys_sbrk},    [SYS_MMAP] = {sys_mmap},
-                     [SYS_FORK] = {sys_fork},    [SYS_MOUNT] = {sys_mount}};
+sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
+                     [SYS_OPEN] = {sys_open},
+                     [SYS_CLOSE] = {sys_close},
+                     [SYS_READ] = {sys_read},
+                     [SYS_WRITE] = {sys_write},
+                     [SYS_LSEEK] = {sys_lseek},
+                     [SYS_UNLINK] = {sys_nosys},
+                     [SYS_GETPID] = {sys_getpid},
+                     [SYS_KILL] = {sys_nosys},
+                     [SYS_FSTAT] = {sys_fstat},
+                     [SYS_SBRK] = {sys_sbrk},
+                     [SYS_MMAP] = {sys_mmap},
+                     [SYS_FORK] = {sys_fork},
+                     [SYS_MOUNT] = {sys_mount},
+                     [SYS_GETDENTS] = {sys_getdirentries}};
