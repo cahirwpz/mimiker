@@ -165,4 +165,3 @@ void postsig(int sig) {
 int do_sigreturn() {
   return platform_sigreturn();
 }
-

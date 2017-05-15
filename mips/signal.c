@@ -22,11 +22,8 @@ int platform_sendsig(int sig, sigaction_t *sa) {
   assert(mtx_owned(&td->td_lock));
 
   /* Prepare signal context. */
-  sig_ctx_t ksc;
-
-  ksc.magic = SIG_CTX_MAGIC;
-  ksc.ctx = td->td_uctx;
-  ksc.ctx_fpu = td->td_uctx_fpu;
+  sig_ctx_t ksc = {
+    .magic = SIG_CTX_MAGIC, .ctx = td->td_uctx, .ctx_fpu = td->td_uctx_fpu};
 
   /* Copyout signal context to user stack. */
   sig_ctx_t *scp = (sig_ctx_t *)td->td_uctx.sp;
