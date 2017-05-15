@@ -74,13 +74,6 @@ void signotify(thread_t *td);
 int do_kill(pid_t pid, int sig);
 int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigreturn();
-
-/* Syscall interface */
-typedef struct thread thread_t;
-typedef struct syscall_args syscall_args_t;
-int sys_kill(thread_t *td, syscall_args_t *args);
-int sys_sigaction(thread_t *td, syscall_args_t *args);
-int sys_sigreturn(thread_t *td, syscall_args_t *args);
 #endif /* !_KERNELSPACE */
 
 #endif /* _SYS_SIGNAL_H_ */

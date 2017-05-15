@@ -6,7 +6,6 @@
 #include <stdc.h>
 #include <errno.h>
 #include <sysent.h>
-#include <systm.h>
 #include <proc.h>
 
 static sighandler_t *signal_default_actions[NSIG] = {
@@ -167,36 +166,3 @@ int do_sigreturn() {
   return platform_sigreturn();
 }
 
-int sys_kill(thread_t *td, syscall_args_t *args) {
-  pid_t pid = args->args[0];
-  signo_t sig = args->args[1];
-  kprintf("[syscall] kill(%lu, %d)\n", pid, sig);
-
-  return do_kill(pid, sig);
-}
-
-int sys_sigaction(thread_t *td, syscall_args_t *args) {
-  int signo = args->args[0];
-  char *p_newact = (char *)args->args[1];
-  char *p_oldact = (char *)args->args[2];
-  kprintf("[syscall] sigaction(%d, %p, %p)\n", signo, p_newact, p_oldact);
-
-  sigaction_t newact;
-  sigaction_t oldact;
-
-  copyin(p_newact, &newact, sizeof(sigaction_t));
-
-  int res = do_sigaction(signo, &newact, &oldact);
-  if (res < 0)
-    return res;
-
-  if (p_oldact != NULL)
-    copyout(&oldact, p_oldact, sizeof(sigaction_t));
-
-  return res;
-}
-
-int sys_sigreturn(thread_t *td, syscall_args_t *args) {
-  kprintf("[syscall] sigreturn()\n");
-  return do_sigreturn();
-}
