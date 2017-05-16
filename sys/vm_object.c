@@ -2,6 +2,7 @@
 #include <klog.h>
 #include <malloc.h>
 #include <vm_object.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_VMOBJ, "vm-obj", 1, 2);
 
@@ -68,3 +69,4 @@ void vm_map_object_dump(vm_object_t *obj) {
   RB_FOREACH (it, vm_object_tree, &obj->tree)
     klog("(vm-obj) offset: %lu, size: %lu \n", it->vm_offset, it->size);
 }
+SYSINIT_ADD(vm_object, vm_object_init, DEPS("pmap", NULL));

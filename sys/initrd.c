@@ -12,6 +12,7 @@
 #include <mount.h>
 #include <mount.h>
 #include <linker_set.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_INITRD, "initrd", 16, 16);
 
@@ -289,3 +290,4 @@ static vfsconf_t initrd_conf = {.vfc_name = "initrd",
                                 .vfc_vfsops = &initrd_vfsops};
 
 SET_ENTRY(vfsconf, initrd_conf);
+SYSINIT_ADD(ramdisk, ramdisk_init, DEPS("mips_clock", NULL));

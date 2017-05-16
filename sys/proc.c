@@ -1,6 +1,7 @@
 #include <proc.h>
 #include <malloc.h>
 #include <thread.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_PROC, "proc", 1, 2);
 
@@ -51,3 +52,4 @@ proc_t *proc_find(pid_t pid) {
   }
   return p;
 }
+SYSINIT_ADD(proc, proc_init, DEPS("filedesc", NULL));

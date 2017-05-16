@@ -4,6 +4,7 @@
 #include <mutex.h>
 #include <stdc.h>
 #include <vnode.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_VNODE, "vnode", 2, 16);
 
@@ -98,3 +99,4 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   }
   return 0;
 }
+SYSINIT_ADD(vnode, vnode_init, DEPS("ramdisk", NULL));

@@ -3,6 +3,7 @@
 #include <klog.h>
 #include <device.h>
 #include <pci.h>
+#include <sysinit.h>
 
 MALLOC_DEFINE(M_DEV, "device/driver pool", 128, 1024);
 
@@ -66,3 +67,4 @@ void driver_init() {
     }
   }
 }
+SYSINIT_ADD(driver, driver_init, DEPS("proc", NULL));

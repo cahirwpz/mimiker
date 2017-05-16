@@ -2,7 +2,7 @@
 #include <klog.h>
 #include <stdc.h>
 #include <callout.h>
-
+#include <sysinit.h>
 /* Note: If the difference in time between ticks is greater than the number of
    buckets, some callouts may be called out-of-order! */
 #define CALLOUT_BUCKETS 64
@@ -105,3 +105,4 @@ void callout_process(realtime_t time) {
 
   ci.last = time;
 }
+SYSINIT_ADD(callout, callout_init, DEPS(NULL));

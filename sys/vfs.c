@@ -6,6 +6,7 @@
 #include <malloc.h>
 #include <vnode.h>
 #include <linker_set.h>
+#include <sysinit.h>
 
 /* TODO: We probably need some fancier allocation, since eventually we should
  * start recycling vnodes */
@@ -247,3 +248,4 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   vnode_unref(v);
   return res;
 }
+SYSINIT_ADD(vfs, vfs_init, DEPS("vnode", NULL));

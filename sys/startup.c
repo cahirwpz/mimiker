@@ -32,21 +32,6 @@ int kernel_init(int argc, char **argv) {
 
   sysinit_sort();
 
-  callout_init();
-  pmap_init();
-  vm_object_init();
-  vm_map_init();
-  sched_init();
-  mips_clock_init();
-
-  ramdisk_init();
-  vnode_init();
-  vfs_init();
-  file_init();
-  fd_init();
-  proc_init();
-
-  driver_init();
   mount_fs();
 
   kprintf("[startup] kernel initialized\n");
