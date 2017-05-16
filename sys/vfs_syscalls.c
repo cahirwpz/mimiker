@@ -107,8 +107,7 @@ int do_getdirentries(thread_t *td, int fd, uio_t *uio, off_t *basep) {
   if (res)
     return res;
   vnode_t *vn = f->f_vnode;
-  /* *basep = current offset in file */
-  copyout(&f->f_offset, basep, sizeof(basep));
+  f->f_offset = *basep;
   uio->uio_offset = f->f_offset;
   res = VOP_READDIR(vn, uio);
   f->f_offset = uio->uio_offset;
