@@ -9,6 +9,7 @@ typedef enum {
   KL_RUNQ,    /* scheduler's run queue */
   KL_SLEEPQ,  /* sleep queues */
   KL_CALLOUT, /* callout */
+  KL_SIGNAL,  /* signal processing */
   KL_INIT,    /* system initialization */
   KL_PMAP,    /* physical map management */
   KL_VM,      /* virtual memory */

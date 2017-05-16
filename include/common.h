@@ -20,6 +20,7 @@ typedef uint16_t gid_t;
 typedef uint32_t mode_t;
 typedef uint16_t nlink_t;
 typedef uint16_t ino_t;
+typedef uint32_t tid_t;
 
 /* Generic preprocessor macros */
 #define __STRING(x) #x
@@ -33,6 +34,7 @@ typedef uint16_t ino_t;
 #define __used __attribute__((used))
 #define __aligned(x) __attribute__((__aligned__(x)))
 #define __warn_unused __attribute__((warn_unused_result));
+#define __unreachable() __builtin_unreachable()
 
 /* Macros for counting and rounding. */
 #ifndef howmany
