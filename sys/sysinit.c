@@ -10,6 +10,7 @@ SYSINIT_ADD(first, dummy, DEPS(NULL));
 SYSINIT_ADD(mid1, dummy, DEPS("first", NULL));
 SYSINIT_ADD(mid2, dummy, DEPS("first", NULL));
 SYSINIT_ADD(last, dummy, DEPS("mid1", "mid2", NULL));
+SYSINIT_ADD(fail, dummy, DEPS("fail", NULL));
 
 static sysinit_entry_t *find(const char *name) {
   // locates sysinit_entry_t with given name
