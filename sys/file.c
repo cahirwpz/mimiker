@@ -76,4 +76,4 @@ fileops_t badfileops = {.fo_read = badfo_read,
                         .fo_write = badfo_write,
                         .fo_close = badfo_close,
                         .fo_getattr = badfo_getattr};
-SYSINIT_ADD(file, file_init, DEPS("vfs"));
+SYSINIT_ADD(file, file_init, DEPS("vfs","vnode"));

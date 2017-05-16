@@ -104,4 +104,4 @@ noreturn void sched_run() {
     td->td_flags |= TDF_NEEDSWITCH;
   }
 }
-SYSINIT_ADD(sched, sched_init, DEPS("vm_map"));
+SYSINIT_ADD(sched, sched_init, DEPS("callout"));

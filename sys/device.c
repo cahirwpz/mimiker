@@ -67,4 +67,4 @@ void driver_init() {
     }
   }
 }
-SYSINIT_ADD(driver, driver_init, DEPS("proc"));
+SYSINIT_ADD(driver, driver_init, NODEPS);
