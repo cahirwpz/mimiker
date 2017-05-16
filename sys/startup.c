@@ -18,7 +18,7 @@
 #include <device.h>
 #include <proc.h>
 #include <vfs_syscalls.h>
-
+#include <sysinit.h>
 extern void main(void *);
 
 static void mount_fs();
@@ -28,6 +28,8 @@ int kernel_init(int argc, char **argv) {
   for (int i = 0; i < argc; i++)
     kprintf("%s ", argv[i]);
   kprintf("\n");
+
+  sysinit_sort();
 
   callout_init();
   pmap_init();
