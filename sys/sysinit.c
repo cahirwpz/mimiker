@@ -1,5 +1,8 @@
 #include <sysinit.h>
 #include <stdc.h>
+#define KL_LOG KL_INIT
+#include <klog.h>
+
 static void dummy() {
 }
 char *first[] = {NULL};
@@ -22,7 +25,7 @@ void sysinit_sort() {
 
   sysinit_entry_t **ptr;
   SET_FOREACH(ptr, sysinit) {
-    kprintf("[sysinit] found: %s\n", (*ptr)->name);
+    klog("found module: %s", (*ptr)->name);
     char **deps = (*ptr)->deps;
     while (*deps) {
       sysinit_entry_t *dependency = find(*deps);
@@ -50,7 +53,8 @@ void sysinit_sort() {
     }
   }
   TAILQ_FOREACH (p, &head, entries) {
-    kprintf("[sysinit] launch: %s\n", p->name);
-    p->func();
+    klog("launching module: %s", p->name);
+    if(p->func)
+        p->func();
   }
 }
