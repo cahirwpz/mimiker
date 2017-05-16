@@ -1,21 +1,6 @@
-#include <common.h>
 #include <stdc.h>
-#include <mips/clock.h>
-#include <malloc.h>
-#include <pci.h>
-#include <pmap.h>
-#include <callout.h>
 #include <sched.h>
-#include <sleepq.h>
 #include <thread.h>
-#include <vm_object.h>
-#include <vm_map.h>
-#include <filedesc.h>
-#include <vnode.h>
-#include <mount.h>
-#include <devfs.h>
-#include <initrd.h>
-#include <device.h>
 #include <sysinit.h>
 #include <vfs.h>
 
