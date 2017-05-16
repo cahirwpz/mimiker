@@ -12,6 +12,7 @@ int copyin(const void *restrict udaddr, void *restrict kaddr, size_t len)
 int copyout(const void *restrict kaddr, void *restrict udaddr, size_t len)
   __nonnull(1) __nonnull(2);
 
+/* fuword32() returns the data fetched or -1 on failure. */
 int32_t fuword32(const void *ptr);
 int suword32(void *ptr, int32_t word);
 

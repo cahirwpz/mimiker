@@ -49,3 +49,6 @@ cache
 
 # Dynamically created sysroot
 sysroot
+
+# Dynamically generated gdb config
+.gdbinit

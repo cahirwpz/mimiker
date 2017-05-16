@@ -1,6 +1,10 @@
 #ifndef _SYS_KTEST_H_
 #define _SYS_KTEST_H_
 
+#ifndef KL_LOG
+#define KL_LOG KL_TEST
+#endif
+
 #include <linker_set.h>
 #include <stdc.h>
 

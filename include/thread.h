@@ -11,7 +11,6 @@
 #include <clock.h>
 
 typedef uint8_t td_prio_t;
-typedef uint32_t tid_t;
 typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
 typedef struct fdtab fdtab_t;

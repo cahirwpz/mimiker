@@ -1,5 +1,6 @@
 #include <thread.h>
 #include <ktest.h>
+#include <klog.h>
 #include <sched.h>
 #include <runq.h>
 
@@ -22,8 +23,8 @@ static int test_thread_stats_nop(void) {
     thread_join(threads[i]);
   }
   for (int i = 0; i < THREADS_NUMBER; i++) {
-    log("Thread:%d runtime:%lu sleeptime:%lu context switches:%llu", i,
-        threads[i]->td_rtime, threads[i]->td_slptime, threads[i]->td_nctxsw);
+    klog("Thread:%d runtime:%lu sleeptime:%lu context switches:%llu", i,
+         threads[i]->td_rtime, threads[i]->td_slptime, threads[i]->td_nctxsw);
     if (threads[i]->td_rtime == 0 || threads[i]->td_slptime != 0)
       return KTEST_FAILURE;
   }
@@ -56,8 +57,8 @@ static int test_thread_stats_slp(void) {
   }
   thread_join(waker);
   for (int i = 0; i < THREADS_NUMBER; i++) {
-    log("Thread:%d runtime:%lu sleeptime:%lu context switches:%llu", i,
-        threads[i]->td_rtime, threads[i]->td_slptime, threads[i]->td_nctxsw);
+    klog("Thread:%d runtime:%lu sleeptime:%lu context switches:%llu", i,
+         threads[i]->td_rtime, threads[i]->td_slptime, threads[i]->td_nctxsw);
     if (threads[i]->td_rtime == 0 || threads[i]->td_slptime == 0)
       return KTEST_FAILURE;
   }

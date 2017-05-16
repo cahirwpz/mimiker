@@ -11,7 +11,7 @@
 #include <sync.h>
 #include <filedesc.h>
 #include <sbrk.h>
-#include <vfs_syscalls.h>
+#include <vfs.h>
 #include <mips/stack.h>
 #include <mount.h>
 #include <vnode.h>
@@ -266,7 +266,7 @@ int do_exec(const exec_args_t *args) {
   user_exc_leave();
 
   /*NOTREACHED*/
-  __builtin_unreachable();
+  __unreachable();
 
 exec_fail:
   /* Return to the previous map, unmodified by exec. */
