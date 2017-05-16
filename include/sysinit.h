@@ -5,7 +5,8 @@
 #include <queue.h>
 #define ARRAY_INIT(...)                                                        \
   { __VA_ARGS__ }
-#define DEPS(...) (char *[]) ARRAY_INIT(__VA_ARGS__)
+#define DEPS(...) (char *[]) ARRAY_INIT(__VA_ARGS__,NULL)
+#define NODEPS (char *[]){NULL}
 
 typedef struct sysinit_entry sysinit_entry_t;
 typedef void sysinit_func_t();

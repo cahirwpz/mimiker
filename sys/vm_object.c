@@ -69,4 +69,4 @@ void vm_map_object_dump(vm_object_t *obj) {
   RB_FOREACH (it, vm_object_tree, &obj->tree)
     klog("(vm-obj) offset: %lu, size: %lu \n", it->vm_offset, it->size);
 }
-SYSINIT_ADD(vm_object, vm_object_init, DEPS("pmap", NULL));
+SYSINIT_ADD(vm_object, vm_object_init, DEPS("pmap"));

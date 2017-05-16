@@ -209,4 +209,4 @@ int fdtab_close_fd(fdtab_t *fdt, int fd) {
   fd_free(fdt, fd);
   return 0;
 }
-SYSINIT_ADD(filedesc, fd_init, DEPS("file", NULL));
+SYSINIT_ADD(filedesc, fd_init, DEPS("file"));

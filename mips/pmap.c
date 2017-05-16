@@ -384,4 +384,4 @@ fault:
     thread_exit(-1);
   }
 }
-SYSINIT_ADD(pmap, pmap_init, DEPS("callout", NULL));
+SYSINIT_ADD(pmap, pmap_init, DEPS("callout"));

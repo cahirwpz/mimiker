@@ -16,7 +16,6 @@
 #include <devfs.h>
 #include <initrd.h>
 #include <device.h>
-#include <proc.h>
 #include <sysinit.h>
 #include <vfs.h>
 

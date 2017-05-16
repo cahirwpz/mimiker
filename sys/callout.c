@@ -105,4 +105,4 @@ void callout_process(realtime_t time) {
 
   ci.last = time;
 }
-SYSINIT_ADD(callout, callout_init, DEPS(NULL));
+SYSINIT_ADD(callout, callout_init, NODEPS);

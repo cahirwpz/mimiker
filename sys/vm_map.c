@@ -312,4 +312,4 @@ int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
 
   return 0;
 }
-SYSINIT_ADD(vm_map, vm_map_init, DEPS("vm_object", NULL));
+SYSINIT_ADD(vm_map, vm_map_init, DEPS("vm_object"));

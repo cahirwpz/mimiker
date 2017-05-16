@@ -52,4 +52,4 @@ proc_t *proc_find(pid_t pid) {
   }
   return p;
 }
-SYSINIT_ADD(proc, proc_init, DEPS("filedesc", NULL));
+SYSINIT_ADD(proc, proc_init, DEPS("filedesc"));
