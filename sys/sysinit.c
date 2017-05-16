@@ -58,6 +58,20 @@ static void count_dependants() {
     }
   }
 }
+static void dump_cycle() {
+  // if there's some cycle prints its content, and panics
+  // works properly only after build_queue
+  sysinit_entry_t **ptr;
+  bool cycle_found = false;
+  SET_FOREACH(ptr, sysinit) {
+    if ((*ptr)->dependants != 0) {
+      klog("element of some cycle: %s", (*ptr)->name);
+      cycle_found=true;
+    }
+  }
+  if(cycle_found)
+    panic("Found cycle in modules dependencies");
+}
 void sysinit_sort() {
   // builds topological ordering and lauches modules with built order
   // result is constructed from back, because of direction of relations
@@ -65,6 +79,7 @@ void sysinit_sort() {
   count_dependants();
   sysinit_tailq_t list = TAILQ_HEAD_INITIALIZER(list);
   build_queue(&list);
+  dump_cycle();
   sysinit_entry_t *p;
   TAILQ_FOREACH (p, &list, entries) {
     klog("launching module: %s", p->name);
