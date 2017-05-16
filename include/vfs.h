@@ -4,7 +4,6 @@
 #include <uio.h>
 
 typedef struct thread thread_t;
-typedef struct syscall_args syscall_args_t;
 typedef struct vattr vattr_t;
 
 /* Kernel interface */
@@ -17,15 +16,5 @@ int do_fstat(thread_t *td, int fd, vattr_t *buf);
 /* Mount a new instance of the filesystem named fs at the requested path. */
 int do_mount(thread_t *td, const char *fs, const char *path);
 int do_getdirentries(thread_t *td, int fd, uio_t *uio, off_t *basep);
-
-/* Syscall interface */
-int sys_open(thread_t *td, syscall_args_t *args);
-int sys_close(thread_t *td, syscall_args_t *args);
-int sys_read(thread_t *td, syscall_args_t *args);
-int sys_write(thread_t *td, syscall_args_t *args);
-int sys_lseek(thread_t *td, syscall_args_t *args);
-int sys_fstat(thread_t *td, syscall_args_t *args);
-int sys_mount(thread_t *td, syscall_args_t *args);
-int sys_getdirentries(thread_t *td, syscall_args_t *args);
 
 #endif /* !_SYS_VFS_H_ */

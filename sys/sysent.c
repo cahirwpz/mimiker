@@ -1,13 +1,12 @@
 #define KL_LOG KL_SYSCALL
 #include <klog.h>
 #include <sysent.h>
-#include <stdc.h>
+#include <systm.h>
 #include <errno.h>
 #include <thread.h>
-#include <vm_map.h>
-#include <vm_pager.h>
-#include <mmap.h>
+#include <mman.h>
 #include <vfs.h>
+#include <vnode.h>
 #include <fork.h>
 #include <sbrk.h>
 #include <proc.h>
@@ -54,6 +53,158 @@ static int sys_fork(thread_t *td, syscall_args_t *args) {
 static int sys_getpid(thread_t *td, syscall_args_t *args) {
   klog("getpid()");
   return td->td_proc->p_pid;
+}
+
+static int sys_mmap(thread_t *td, syscall_args_t *args) {
+  vm_addr_t addr = args->args[0];
+  size_t length = args->args[1];
+  vm_prot_t prot = args->args[2];
+  int flags = args->args[3];
+
+  klog("mmap(%p, %zu, %d, %d)", (void *)addr, length, prot, flags);
+
+  int error = 0;
+  vm_addr_t result = do_mmap(addr, length, prot, flags, &error);
+  if (error < 0)
+    return -error;
+  return result;
+}
+
+static int sys_open(thread_t *td, syscall_args_t *args) {
+  char *user_pathname = (char *)args->args[0];
+  int flags = args->args[1];
+  int mode = args->args[2];
+
+  int error = 0;
+  char pathname[256];
+  size_t n = 0;
+
+  /* Copyout pathname. */
+  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
+  if (error < 0)
+    return error;
+
+  klog("open(\"%s\", %d, %d)", pathname, flags, mode);
+
+  int fd;
+  error = do_open(td, pathname, flags, mode, &fd);
+  if (error)
+    return error;
+  return fd;
+}
+
+static int sys_close(thread_t *td, syscall_args_t *args) {
+  int fd = args->args[0];
+
+  klog("close(%d)", fd);
+
+  return do_close(td, fd);
+}
+
+static int sys_read(thread_t *td, syscall_args_t *args) {
+  int fd = args->args[0];
+  char *ubuf = (char *)(uintptr_t)args->args[1];
+  size_t count = args->args[2];
+
+  klog("sys_read(%d, %p, %zu)", fd, ubuf, count);
+
+  uio_t uio;
+  uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
+  int error = do_read(td, fd, &uio);
+  if (error)
+    return error;
+  return count - uio.uio_resid;
+}
+
+static int sys_write(thread_t *td, syscall_args_t *args) {
+  int fd = args->args[0];
+  char *ubuf = (char *)(uintptr_t)args->args[1];
+  size_t count = args->args[2];
+
+  klog("sys_write(%d, %p, %zu)", fd, ubuf, count);
+
+  uio_t uio;
+  uio = UIO_SINGLE_USER(UIO_WRITE, 0, ubuf, count);
+  int error = do_write(td, fd, &uio);
+  if (error)
+    return error;
+  return count - uio.uio_resid;
+}
+
+static int sys_lseek(thread_t *td, syscall_args_t *args) {
+  int fd = args->args[0];
+  off_t offset = args->args[1];
+  int whence = args->args[2];
+
+  klog("sys_lseek(%d, %ld, %d)", fd, offset, whence);
+
+  return do_lseek(td, fd, offset, whence);
+}
+
+static int sys_fstat(thread_t *td, syscall_args_t *args) {
+  int fd = args->args[0];
+  char *buf = (char *)args->args[1];
+
+  klog("sys_fstat(%d, %p)", fd, buf);
+
+  vattr_t attr_buf;
+  int error = do_fstat(td, fd, &attr_buf);
+  if (error)
+    return error;
+  error = copyout(&attr_buf, buf, sizeof(vattr_t));
+  if (error < 0)
+    return error;
+  return 0;
+}
+
+static int sys_mount(thread_t *td, syscall_args_t *args) {
+  char *user_fsysname = (char *)args->args[0];
+  char *user_pathname = (char *)args->args[1];
+
+  int error = 0;
+  const int PATHSIZE_MAX = 256;
+  char *fsysname = kmalloc(M_TEMP, PATHSIZE_MAX, 0);
+  char *pathname = kmalloc(M_TEMP, PATHSIZE_MAX, 0);
+  size_t n = 0;
+
+  /* Copyout fsysname. */
+  error = copyinstr(user_fsysname, fsysname, sizeof(fsysname), &n);
+  if (error < 0)
+    goto end;
+  n = 0;
+  /* Copyout pathname. */
+  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
+  if (error < 0)
+    goto end;
+
+  klog("mount(\"%s\", \"%s\")", pathname, fsysname);
+
+  error = do_mount(td, fsysname, pathname);
+end:
+  kfree(M_TEMP, fsysname);
+  kfree(M_TEMP, pathname);
+  return error;
+}
+
+static int sys_getdirentries(thread_t *td, syscall_args_t *args) {
+  int fd = args->args[0];
+  char *ubuf = (char *)args->args[1];
+  size_t count = args->args[2];
+  off_t *basep = (off_t *)args->args[3];
+  off_t base;
+
+  klog("getdirentries(%d, %p, %zu, %p)", fd, ubuf, count, basep);
+
+  base = fuword32(basep);
+  if (base == -1)
+    return EFAULT;
+  uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
+  int res = do_getdirentries(td, fd, &uio, &base);
+  if (res < 0)
+    return res;
+  if (suword32(basep, base) == -1)
+    return EFAULT;
+  return res;
 }
 
 /* clang-format hates long arrays. */
