@@ -17,7 +17,7 @@ typedef struct sig_ctx {
 } sig_ctx_t;
 
 /* Delivers a signal to user process. */
-int platform_sendsig(int sig, sigaction_t *sa) {
+int platform_sig_deliver(int sig, sigaction_t *sa) {
   thread_t *td = thread_self();
   assert(mtx_owned(&td->td_lock));
 
@@ -37,7 +37,7 @@ int platform_sendsig(int sig, sigaction_t *sa) {
     klog("Thread %lu is unable to receive a signal, terminating it.",
          td->td_tid);
     thread_exit(-1);
-    __builtin_unreachable();
+    __unreachable();
   }
 
   /* Prepare user context so that on return to usermode the handler gets
@@ -54,7 +54,7 @@ int platform_sendsig(int sig, sigaction_t *sa) {
   return 0;
 }
 
-int platform_sigreturn() {
+int platform_sig_return() {
   thread_t *td = thread_self();
   mtx_scoped_lock(&td->td_lock);
   sig_ctx_t ksc;
@@ -68,13 +68,12 @@ int platform_sigreturn() {
      with a wrapper). We don't do any of that fancy stuff yet, but when we do,
      the following will need to get the scp pointer address from a syscall
      argument. */
-  sig_ctx_t *scp = (sig_ctx_t *)((uint32_t *)td->td_uctx.sp + 1);
+  sig_ctx_t *scp = (sig_ctx_t *)((intptr_t *)td->td_uctx.sp + 1);
   int error = copyin(scp, &ksc, sizeof(sig_ctx_t));
   if (error)
     return error;
-  if (ksc.magic != SIG_CTX_MAGIC) {
+  if (ksc.magic != SIG_CTX_MAGIC)
     return -EINVAL;
-  }
 
   /* Restore user context. */
   td->td_uctx = ksc.ctx;

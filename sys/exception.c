@@ -15,8 +15,8 @@ void exc_before_leave(exc_frame_t *kframe) {
   if (td->td_flags & TDF_NEEDSIGCHK) {
     mtx_scoped_lock(&td->td_lock);
     int sig;
-    while ((sig = issignal(td)) != 0)
-      postsig(sig);
+    while ((sig = sig_check(td)) != 0)
+      sig_deliver(sig);
     td->td_flags &= ~TDF_NEEDSIGCHK;
   }
 }

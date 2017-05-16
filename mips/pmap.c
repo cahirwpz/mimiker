@@ -381,7 +381,7 @@ fault:
     td->td_onfault = 0;
   } else if (td->td_proc) {
     /* Send a segmentation fault signal to the user program. */
-    signal(td->td_proc, SIGSEGV);
+    sig_send(td->td_proc, SIGSEGV);
   } else if (ktest_test_running_flag) {
     ktest_failure();
   } else {

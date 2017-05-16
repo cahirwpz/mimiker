@@ -58,22 +58,26 @@ typedef bitstr_t sigset_t[bitstr_size(NSIG)];
 #define SIG_TERM (sighandler_t *)0x02
 
 /* Sends a signal to a process. */
-int signal(proc_t *td, signo_t sig);
+int sig_send(proc_t *td, signo_t sig);
 
 /* Process signals pending for the thread. If the thread has received a signal
    that should be caught by the user, return the signal number. */
-int issignal(thread_t *td);
+int sig_check(thread_t *td);
 
 /* Process user action triggered by a signal. */
-void postsig(int sig);
+void sig_deliver(int sig);
 
 /* Arrange for signal delivery when the thread returns from exception context.
  * This must be called whenever new signals are posted to a thread. */
-void signotify(thread_t *td);
+void sig_notify(thread_t *td);
 
 int do_kill(pid_t pid, int sig);
 int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigreturn();
+
+int platform_sig_deliver(int sig, sigaction_t *sa);
+int platform_sig_return();
+
 #endif /* !_KERNELSPACE */
 
 #endif /* _SYS_SIGNAL_H_ */
