@@ -290,4 +290,4 @@ static vfsconf_t initrd_conf = {.vfc_name = "initrd",
                                 .vfc_vfsops = &initrd_vfsops};
 
 SET_ENTRY(vfsconf, initrd_conf);
-SYSINIT_ADD(ramdisk, ramdisk_init, DEPS("vm_map","vnode"));
+SYSINIT_ADD(ramdisk, ramdisk_init, DEPS("vm_map", "vnode"));

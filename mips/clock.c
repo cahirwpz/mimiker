@@ -41,4 +41,4 @@ void mips_clock_irq_handler() {
 
   clock(mips_clock_ms);
 }
-SYSINIT_ADD(mips_clock, mips_clock_init, DEPS("callout","sched"));
+SYSINIT_ADD(mips_clock, mips_clock_init, DEPS("callout", "sched"));
