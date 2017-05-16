@@ -4,7 +4,7 @@
 #include <systm.h>
 #include <errno.h>
 #include <thread.h>
-#include <mmap.h>
+#include <mman.h>
 #include <vfs.h>
 #include <vnode.h>
 #include <fork.h>

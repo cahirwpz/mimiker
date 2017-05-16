@@ -1,6 +1,6 @@
 #define KL_LOG KL_VM
 #include <klog.h>
-#include <mmap.h>
+#include <mman.h>
 #include <thread.h>
 #include <errno.h>
 #include <vm_map.h>
@@ -22,7 +22,7 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
     return MMAP_FAILED;
   }
 
-  if (!flags & MMAP_FLAG_ANONYMOUS) {
+  if (!flags & MMAP_ANON) {
     klog("Non-anonymous memory mappings are not yet implemented.");
     *error = EINVAL;
     return MMAP_FAILED;
@@ -51,7 +51,7 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
   /* Create new vm map entry for this allocation. */
   vm_map_entry_t *entry = vm_map_add_entry(vmap, addr, addr + length, prot);
 
-  if (flags & MMAP_FLAG_ANONYMOUS) {
+  if (flags & MMAP_ANON) {
     /* Assign a pager which creates cleared pages . */
     entry->object = default_pager->pgr_alloc();
   }
