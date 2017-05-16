@@ -4,8 +4,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-#include <sys/dirent.h>
-#include <stdbool.h>
 
 const char *str = "Hello world from a user program!\n";
 int error = 0;
@@ -137,8 +135,6 @@ void test_read() {
   assert_read_equal(0, buf, "\"fd_test_file\" in directory ");
   assert_read_equal(0, buf, "\"/tests\"!");
   assert_close_ok(0);
-
-  printf("test read passed!\n");
 }
 
 /* Try passing invalid pointers as arguments to open,read,write. */
@@ -194,76 +190,7 @@ void test_open_path() {
   assert_open_fail(too_long, 0, O_RDONLY, 63);
 }
 
-void getdirentries_dump_dir(const char *dir_path) {
-  char buf[30];
-  char namebuf[256] = "";
-  long basep = 0;
-  int fd = open(dir_path, 0, O_RDONLY);
-
-  int res = 0;
-  dirent_t *dir;
-  do {
-    res = getdirentries(fd, buf, sizeof(buf), &basep);
-    dir = (dirent_t *)buf;
-    while ((char *)dir < buf + res) {
-      strcat(namebuf, dir_path);
-      if (strcmp(dir_path, "/") != 0)
-        strcat(namebuf, "/");
-      strcat(namebuf, dir->d_name);
-      printf("%s\n", namebuf);
-      if (dir->d_type & DT_DIR)
-        getdirentries_dump_dir(namebuf);
-      namebuf[0] = '\0';
-      dir = _DIRENT_NEXT(dir);
-    }
-  } while (res > 0);
-  close(fd);
-}
-
-bool dirent_cmp(dirent_t *a, dirent_t *b) {
-  return a->d_fileno == b->d_fileno && strcmp(a->d_name, b->d_name) == 0 &&
-         a->d_namlen == b->d_namlen && a->d_reclen == b->d_reclen &&
-         a->d_type == b->d_type;
-}
-
-void test_getdirentries_basep(const char *dir_path) {
-  char buf1[50];
-  char buf2[50];
-  char buf3[50];
-
-  long basep;
-  int res = 0;
-  int fd = open(dir_path, 0, O_RDONLY);
-  assert(fd == FD_OFFSET);
-
-  res = getdirentries(fd, buf1, sizeof(buf1), &basep);
-  assert(res > 0);
-  dirent_t *dir1 = (dirent_t *)buf1;
-
-  res = getdirentries(fd, buf2, sizeof(buf2), &basep);
-  assert(res > 0);
-  dirent_t *dir2 = (dirent_t *)buf2;
-  lseek(fd, basep, SEEK_SET);
-  res = getdirentries(fd, buf3, sizeof(buf3), &basep);
-  assert(res > 0);
-  dirent_t *dir3 = (dirent_t *)buf3;
-
-  assert(!dirent_cmp(dir1, dir2));
-  assert(dirent_cmp(dir2, dir3));
-
-  close(fd);
-}
-
-void test_getdirentries() {
-  getdirentries_dump_dir("/bin/");
-  getdirentries_dump_dir("/dev/");
-  getdirentries_dump_dir("/dev/vga");
-  test_getdirentries_basep("/usr/include");
-  printf("test_getdirentries passed\n");
-}
-
 int main(int argc, char **argv) {
-  test_getdirentries();
   test_read();
   test_devnull();
   test_multiple_descriptors();
