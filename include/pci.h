@@ -3,6 +3,7 @@
 
 #include <common.h>
 #include <queue.h>
+#include <device.h>
 #include <bus.h>
 
 typedef struct {
@@ -42,9 +43,6 @@ extern const char *pci_class_code[];
 #define PCIR_IRQLINE 0x3f
 #define PCIR_BAR(i) (0x10 + (i)*4)
 
-typedef struct pci_device pci_device_t;
-typedef TAILQ_HEAD(, pci_device) pci_device_list_t;
-
 typedef struct pci_addr {
   uint8_t bus;
   uint8_t device;
@@ -55,23 +53,28 @@ typedef struct pci_addr {
  * controller and platform architecture. For instance classic PC architecture
  * uses `in` and `out` IA-32 instructions. On MIPS Malta one has to use two
  * memory mapped registers (address and data). */
-typedef uint32_t (*pci_read_config_t)(pci_device_t *device, unsigned reg,
+typedef uint32_t (*pci_read_config_t)(device_t *device, unsigned reg,
                                       unsigned size);
-typedef void (*pci_write_config_t)(pci_device_t *device, unsigned reg,
+typedef void (*pci_write_config_t)(device_t *device, unsigned reg,
                                    unsigned size, uint32_t value);
 
-/* TODO: pci_bus will become subtype of bus_t (set of actions). */
-typedef struct pci_bus {
+typedef struct pci_bus_methods {
   pci_read_config_t read_config;
   pci_write_config_t write_config;
-} pci_bus_t;
+} pci_bus_methods_t;
 
-#define PCI_BUS_DECLARE(name) extern pci_bus_t name[1]
+typedef struct pci_bus_driver {
+  driver_t driver;
+  bus_methods_t bus;
+  pci_bus_methods_t pci_bus;
+} pci_bus_driver_t;
 
-struct pci_device {
-  TAILQ_ENTRY(pci_device) link;
+typedef struct pci_bus_state {
+  resource_t *mem_space;
+  resource_t *io_space;
+} pci_bus_state_t;
 
-  pci_bus_t *bus;
+typedef struct pci_device {
   pci_addr_t addr;
 
   uint16_t device_id;
@@ -81,32 +84,32 @@ struct pci_device {
 
   unsigned nbars;
   resource_t bar[6];
-};
+} pci_device_t;
 
-/* TODO: pci_bus_device will become a state (device_t) of generic PCI driver. */
-typedef struct pci_bus_device {
-  pci_bus_t *bus;
-  resource_t *mem_space;
-  resource_t *io_space;
-  pci_device_list_t devices;
-} pci_bus_device_t;
+#define PCI_DRIVER(dev) ((pci_bus_driver_t *)((dev)->parent->driver))
 
-static inline uint32_t pci_read_config(pci_device_t *device, unsigned reg,
+static inline uint32_t pci_read_config(device_t *device, unsigned reg,
                                        unsigned size) {
-  return device->bus->read_config(device, reg, size);
+  return PCI_DRIVER(device)->pci_bus.read_config(device, reg, size);
 }
 
-static inline void pci_write_config(pci_device_t *device, unsigned reg,
+static inline void pci_write_config(device_t *device, unsigned reg,
                                     unsigned size, uint32_t value) {
-  device->bus->write_config(device, reg, size, value);
+  PCI_DRIVER(device)->pci_bus.write_config(device, reg, size, value);
 }
 
-static inline uint32_t pci_adjust_config(pci_device_t *device, unsigned reg,
+static inline uint32_t pci_adjust_config(device_t *device, unsigned reg,
                                          unsigned size, uint32_t value) {
   pci_write_config(device, reg, size, value);
   return pci_read_config(device, reg, size);
 }
 
-void pci_init();
+void pci_bus_enumerate(device_t *pcib);
+void pci_bus_assign_space(device_t *pcib);
+void pci_bus_dump(device_t *pcib);
+
+static inline pci_device_t *pci_device_of(device_t *device) {
+  return (device->bus == DEV_BUS_PCI) ? device->instance : NULL;
+}
 
 #endif /* _SYS_PCI_H_ */

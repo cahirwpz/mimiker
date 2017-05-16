@@ -16,8 +16,10 @@
 #define SYS_FORK 13
 #define SYS_DUP 14
 #define SYS_DUP2 15
+#define SYS_MOUNT 16
+#define SYS_GETDENTS 17
 
-#define SYS_LAST 15
+#define SYS_LAST 17
 
 #ifndef __ASSEMBLER__
 
@@ -40,9 +42,6 @@ typedef struct { syscall_t *call; } sysent_t;
 extern sysent_t sysent[];
 
 int syscall(int n);
-
-/* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
-int sys_nosys(thread_t *, syscall_args_t *);
 
 #endif /* __ASSEMBLER__ */
 

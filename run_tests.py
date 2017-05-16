@@ -12,9 +12,14 @@ RETRIES_MAX = 5
 REPEAT = 5
 
 
+# Tries to decode binary output as ASCII, as hard as it can.
+def safe_decode(data):
+    return data.decode('unicode_escape', errors='replace')
+
+
 # Tries to start gdb in order to investigate kernel state on deadlock.
 def gdb_inspect():
-    gdb_command = 'mipsel-unknown-elf-gdb'
+    gdb_command = 'mipsel-mimiker-elf-gdb'
     # Note: These options are different than .gdbinit.
     gdb_opts = ['-nx',
                 'mimiker.elf',
@@ -56,11 +61,11 @@ def test_seed(seed, sim='qemu', repeat=1, retry=0):
         return
     elif index == 1:
         print("Test failure reported!\n")
-        message = child.before.decode("ascii")
-        message += child.buffer.decode("ascii")
+        message = safe_decode(child.before)
+        message += safe_decode(child.buffer)
         try:
             while len(message) < 20000:
-                message += child.read_nonblocking(timeout=1).decode("ascii")
+                message += safe_decode(child.read_nonblocking(timeout=1))
         except pexpect.exceptions.TIMEOUT:
             pass
         print(message)
@@ -72,7 +77,7 @@ def test_seed(seed, sim='qemu', repeat=1, retry=0):
         test_seed(seed, repeat, retry + 1)
     elif index == 3:
         print("Timeout reached.\n")
-        message = child.buffer.decode("utf-8")
+        message = safe_decode(child.buffer)
         print(message)
         if len(message) < 100:
             print("It looks like kernel did not even start within the time "
