@@ -8,10 +8,10 @@ static void dummy() {
 char *first[] = {NULL};
 char *mid[] = {"first", NULL};
 char *last[] = {"mid1","mid2", NULL};
-SYSINIT_ADD(first, dummy, first);
-SYSINIT_ADD(mid1, dummy, mid);
-SYSINIT_ADD(mid2, dummy, mid);
-SYSINIT_ADD(last, dummy, last);
+SYSINIT_ADD(first, dummy, DEPS(NULL));
+SYSINIT_ADD(mid1, dummy, DEPS("first",NULL));
+SYSINIT_ADD(mid2, dummy, DEPS("first",NULL));
+SYSINIT_ADD(last, dummy, DEPS("mid1","mid2",NULL));
 
 static sysinit_entry_t *find(const char *name) {
   sysinit_entry_t **ptr;

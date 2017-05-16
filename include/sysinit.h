@@ -3,17 +3,19 @@
 
 #include <linker_set.h>
 #include <queue.h>
+#define ARRAY_INIT(...) {__VA_ARGS__}
+#define DEPS(...) (char*[])ARRAY_INIT(__VA_ARGS__)
 
 typedef struct sysinit_entry sysinit_entry_t;
 typedef void sysinit_func_t();
 
-typedef struct sysinit_entry {
+struct sysinit_entry {
   const char *name;
   sysinit_func_t *func;
   char **deps;
-  uint32_t dependants;
+  unsigned dependants;
   TAILQ_ENTRY(sysinit_entry) entries;
-} sysinit_entry_t;
+};
 
 SET_DECLARE(sysinit, sysinit_entry_t);
 
