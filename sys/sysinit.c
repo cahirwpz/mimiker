@@ -66,10 +66,10 @@ static void dump_cycle() {
   SET_FOREACH(ptr, sysinit) {
     if ((*ptr)->dependants != 0) {
       klog("element of some cycle: %s", (*ptr)->name);
-      cycle_found=true;
+      cycle_found = true;
     }
   }
-  if(cycle_found)
+  if (cycle_found)
     panic("Found cycle in modules dependencies");
 }
 void sysinit_sort() {
