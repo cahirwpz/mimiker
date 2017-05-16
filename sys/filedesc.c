@@ -179,10 +179,16 @@ int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
   if (fd < 0 || fd > fdt->fdt_nfiles)
     return -EBADF;
 
-  if (fd_is_used(fdt, fd))
-    fd_free(fdt, fd);
-
-  fdt->fdt_files[fd] = f;
+  if (fd_is_used(fdt, fd)) {
+    if (fdt->fdt_files[fd] != f) {
+      fd_free(fdt, fd);
+      fdt->fdt_files[fd] = f;
+      fd_mark_used(fdt, fd);
+    }
+  } else {
+    fdt->fdt_files[fd] = f;
+    fd_mark_used(fdt, fd);
+  }
   file_ref(f);
   return 0;
 }

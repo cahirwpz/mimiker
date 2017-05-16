@@ -88,15 +88,17 @@ int do_fstat(thread_t *td, int fd, vattr_t *buf) {
   return res;
 }
 
-int do_dup(thread_t *td, int old, int *new) {
+int do_dup(thread_t *td, int old) {
   file_t *f;
   assert(td->td_proc);
   int res = fdtab_get_file(td->td_proc->p_fdtable, old, 0, &f);
   if (res)
     return res;
-  res = fdtab_install_file(td->td_proc->p_fdtable, f, new);
+  int new;
+  res = fdtab_install_file(td->td_proc->p_fdtable, f, &new);
+
   file_unref(f);
-  return res;
+  return res ? res : new;
 }
 
 int do_dup2(thread_t *td, int old, int new) {
@@ -108,8 +110,9 @@ int do_dup2(thread_t *td, int old, int new) {
   if (res)
     return res;
   res = fdtab_install_file_at(td->td_proc->p_fdtable, f, new);
+
   file_unref(f);
-  return res;
+  return res ? res : new;
 }
 
 /* == System calls interface === */
@@ -203,11 +206,10 @@ int sys_fstat(thread_t *td, syscall_args_t *args) {
 
 int sys_dup(thread_t *td, syscall_args_t *args) {
   int old = args->args[0];
-  int *new = (int *)(uintptr_t)args->args[1];
 
-  klog("sys_dup(%d, %p)", old, new);
+  klog("sys_dup(%d)", old);
 
-  return do_dup(td, old, new);
+  return do_dup(td, old);
 }
 
 int sys_dup2(thread_t *td, syscall_args_t *args) {
