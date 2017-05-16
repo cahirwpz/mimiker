@@ -224,7 +224,6 @@ int sys_dup2(thread_t *td, syscall_args_t *args) {
   return do_dup2(td, old, new);
 }
 
-
 /* clang-format hates long arrays. */
 
 sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
@@ -243,5 +242,4 @@ sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
                      [SYS_MOUNT] = {sys_mount},
                      [SYS_GETDENTS] = {sys_getdirentries},
                      [SYS_DUP] = {sys_dup},
-                     [SYS_DUP2] = {sys_dup2}}
-
+                     [SYS_DUP2] = {sys_dup2}};

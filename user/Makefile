@@ -27,6 +27,7 @@ fd_test: | newlib-install
 misbehave: | newlib-install
 mandelbrot: | newlib-install
 test_fork: | newlib-install
+test_dup: | newlib-install
 
 clean:
 	for dir in $(PROGDIRS); do \
