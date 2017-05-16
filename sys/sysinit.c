@@ -3,6 +3,7 @@
 #define KL_LOG KL_INIT
 #include <klog.h>
 
+typedef TAILQ_HEAD(tailhead, sysinit_entry) sysinit_tailq_t;
 static void dummy() {
 }
 SYSINIT_ADD(first, dummy, DEPS(NULL));
@@ -18,8 +19,29 @@ static sysinit_entry_t *find(const char *name) {
   }
   return NULL;
 }
-void sysinit_sort() {
+static void push_last(sysinit_tailq_t *head) {
+  sysinit_entry_t **ptr;
+  SET_FOREACH(ptr, sysinit) {
+    if ((*ptr)->dependants == 0)
+      TAILQ_INSERT_HEAD(head, *ptr, entries);
+  }
+}
+static void build_queue(sysinit_tailq_t *head) {
+  push_last(head);
 
+  sysinit_entry_t *p;
+  TAILQ_FOREACH_REVERSE(p, head, tailhead, entries) {
+    char **deps = p->deps;
+    while (*deps) {
+      sysinit_entry_t *dependency = find(*deps);
+      dependency->dependants--;
+      if (dependency->dependants == 0)
+        TAILQ_INSERT_HEAD(head, dependency, entries);
+      deps++;
+    }
+  }
+}
+static void count_dependants() {
   sysinit_entry_t **ptr;
   SET_FOREACH(ptr, sysinit) {
     klog("found module: %s", (*ptr)->name);
@@ -31,25 +53,13 @@ void sysinit_sort() {
       deps++;
     }
   }
-
-  TAILQ_HEAD(tailhead, sysinit_entry) head = TAILQ_HEAD_INITIALIZER(head);
-  TAILQ_INIT(&head);
-  SET_FOREACH(ptr, sysinit) {
-    if ((*ptr)->dependants == 0)
-      TAILQ_INSERT_HEAD(&head, *ptr, entries);
-  }
+}
+void sysinit_sort() {
+  count_dependants();
+  sysinit_tailq_t list = TAILQ_HEAD_INITIALIZER(list);
+  build_queue(&list);
   sysinit_entry_t *p;
-  TAILQ_FOREACH_REVERSE(p, &head, tailhead, entries) {
-    char **deps = p->deps;
-    while (*deps) {
-      sysinit_entry_t *dependency = find(*deps);
-      dependency->dependants--;
-      if (dependency->dependants == 0)
-        TAILQ_INSERT_HEAD(&head, dependency, entries);
-      deps++;
-    }
-  }
-  TAILQ_FOREACH (p, &head, entries) {
+  TAILQ_FOREACH (p, &list, entries) {
     klog("launching module: %s", p->name);
     if (p->func)
       p->func();
