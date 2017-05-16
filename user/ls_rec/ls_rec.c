@@ -1,5 +1,5 @@
-/* This test dumps all files in kernel
- * the name find_root comes from executing 'find /' */
+/* List recursively files starting from given directory. It performs similar
+ * action to 'find $path' and can be compiled on other unix-like OSes. */
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -7,10 +7,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-#include <sys/dirent.h>
-#include <stdbool.h>
+#include <dirent.h>
 
-void recursive_dump(const char *dir_path) {
+static void list_recursive(const char *dir_path) {
   char buf[256];
   char namebuf[256] = "";
   long basep = 0;
@@ -31,7 +30,7 @@ void recursive_dump(const char *dir_path) {
       printf("%s\n", namebuf);
       if (dir->d_type == DT_DIR && strcmp(dir->d_name, ".") &&
           strcmp(dir->d_name, "..")) {
-        recursive_dump(namebuf);
+        list_recursive(namebuf);
       }
       namebuf[0] = '\0';
       dir = (struct dirent *)((char *)dir + dir->d_reclen);
@@ -41,6 +40,6 @@ void recursive_dump(const char *dir_path) {
 }
 
 int main(int argc, char **argv) {
-  recursive_dump("/");
+  list_recursive(argc > 1 ? argv[1] : "/");
   return 0;
 }
