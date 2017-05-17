@@ -1,6 +1,0 @@
-prog/prog.uelf /bin/prog
-fd_test/fd_test.uelf /bin/fd_test
-test_fork/test_fork.uelf /bin/test_fork
-mandelbrot/mandelbrot.uelf /bin/mandelbrot
-misbehave/misbehave.uelf /bin/misbehave
-test_dup/test_dup.uelf /bin/test_dup

@@ -1,5 +1,4 @@
 #define KL_LOG KL_VFS
-
 #include <klog.h>
 #include <filedesc.h>
 #include <file.h>
@@ -99,7 +98,6 @@ int do_dup(thread_t *td, int old) {
     return res;
   int new;
   res = fdtab_install_file(td->td_proc->p_fdtable, f, &new);
-
   file_unref(f);
   return res ? res : new;
 }
@@ -113,7 +111,6 @@ int do_dup2(thread_t *td, int old, int new) {
   if (res)
     return res;
   res = fdtab_install_file_at(td->td_proc->p_fdtable, f, new);
-
   file_unref(f);
   return res ? res : new;
 }
@@ -124,7 +121,6 @@ int do_mount(thread_t *td, const char *fs, const char *path) {
     return -EINVAL;
   vnode_t *v;
   int error = vfs_lookup(path, &v);
-
   if (error)
     return error;
   return vfs_domount(vfs, v);

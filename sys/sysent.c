@@ -207,25 +207,20 @@ static int sys_getdirentries(thread_t *td, syscall_args_t *args) {
   return res;
 }
 
-int sys_dup(thread_t *td, syscall_args_t *args) {
+static int sys_dup(thread_t *td, syscall_args_t *args) {
   int old = args->args[0];
-
-  klog("sys_dup(%d)", old);
-
+  klog("dup(%d)", old);
   return do_dup(td, old);
 }
 
-int sys_dup2(thread_t *td, syscall_args_t *args) {
+static int sys_dup2(thread_t *td, syscall_args_t *args) {
   int old = args->args[0];
   int new = args->args[1];
-
-  klog("sys_dup2(%d, %d)", old, new);
-
+  klog("dup2(%d, %d)", old, new);
   return do_dup2(td, old, new);
 }
 
 /* clang-format hates long arrays. */
-
 sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
                      [SYS_OPEN] = {sys_open},
                      [SYS_CLOSE] = {sys_close},

@@ -14,11 +14,10 @@
 #define SYS_SBRK 11
 #define SYS_MMAP 12
 #define SYS_FORK 13
-#define SYS_DUP 14
-#define SYS_DUP2 15
-#define SYS_MOUNT 16
-#define SYS_GETDENTS 17
-
+#define SYS_MOUNT 14
+#define SYS_GETDENTS 15
+#define SYS_DUP 16
+#define SYS_DUP2 17
 #define SYS_LAST 17
 
 #ifndef __ASSEMBLER__
