@@ -15,12 +15,13 @@ typedef struct sysinit_entry sysinit_entry_t;
 typedef void sysinit_func_t();
 
 struct sysinit_entry {
-  const char *name;     // name of module
-  sysinit_func_t *func; // init function
-  char **deps;          // names of dependencies
-  unsigned dependants;  // number of modules depending on this module
-  // used during topological ordering
-  TAILQ_ENTRY(sysinit_entry) entries; // linked list reperesenting ordering
+  const char *name;     /* name of module */
+  sysinit_func_t *func; /* init function */
+  char **deps;          /* names of dependencies */
+  unsigned dependants;  /* number of modules depending on this module
+                           used during topological ordering */
+  TAILQ_ENTRY(sysinit_entry) entries; /* linked list reperesenting ordering */
+
 };
 
 SET_DECLARE(sysinit, sysinit_entry_t);
