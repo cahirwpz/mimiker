@@ -24,19 +24,19 @@ static const char *sig_name[NSIG] = {
     [SIGUSR2] = "SIGUSR2",
 };
 
-int do_kill(pid_t pid, int sig) {
+int do_kill(pid_t pid, signo_t sig) {
   proc_t *target = proc_find(pid);
   if (target == NULL)
     return -EINVAL;
   return sig_send(target, sig);
 }
 
-int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact) {
+int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   thread_t *td = thread_self();
   assert(td->td_proc);
   mtx_scoped_lock(&td->td_proc->p_lock);
 
-  if (sig < 0 || sig >= NSIG)
+  if (sig >= NSIG)
     return -EINVAL;
 
   if (sig == SIGKILL)
@@ -50,10 +50,9 @@ int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact) {
   return 0;
 }
 
-static int sig_default(int sig) {
-  if (sig >= 0 && sig < NSIG)
-    return def_sigact[sig];
-  return 0;
+static int sig_default(signo_t sig) {
+  assert(sig <= NSIG);
+  return def_sigact[sig];
 }
 
 /*
@@ -109,29 +108,29 @@ int sig_check(thread_t *td) {
   assert(td->td_proc);
 
   while (true) {
-    int signo = NSIG;
-    bit_ffs(td->td_sigpend, NSIG, &signo);
-    if (signo < 0 || signo >= NSIG)
+    signo_t sig = NSIG;
+    bit_ffs(td->td_sigpend, NSIG, &sig);
+    if (sig >= NSIG)
       return 0; /* No pending signals. */
 
-    bit_clear(td->td_sigpend, signo);
+    bit_clear(td->td_sigpend, sig);
 
     mtx_scoped_lock(&td->td_proc->p_lock);
-    sighandler_t *handler = td->td_proc->p_sigactions[signo].sa_handler;
+    sighandler_t *handler = td->td_proc->p_sigactions[sig].sa_handler;
 
     if (handler == SIG_IGN ||
-        (handler == SIG_DFL && sig_default(signo) == SA_IGNORE))
+        (handler == SIG_DFL && sig_default(sig) == SA_IGNORE))
       continue;
 
     /* Terminate this thread as result of a signal. */
-    if (handler == SIG_DFL && sig_default(signo) == SA_KILL) {
+    if (handler == SIG_DFL && sig_default(sig) == SA_KILL) {
       klog("Thread %lu terminated due to signal %s!", td->td_tid,
-           sig_name[signo]);
+           sig_name[sig]);
       goto term;
     }
 
     /* If we reached here, then the signal has a custom handler. */
-    return signo;
+    return sig;
   }
 
 term:
@@ -141,7 +140,7 @@ term:
   __unreachable();
 }
 
-void sig_deliver(int sig) {
+void sig_deliver(signo_t sig) {
   thread_t *td = thread_self();
   assert(td->td_proc);
   mtx_scoped_lock(&td->td_proc->p_lock);

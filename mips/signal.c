@@ -17,7 +17,7 @@ typedef struct sig_ctx {
 } sig_ctx_t;
 
 /* Delivers a signal to user process. */
-int platform_sig_deliver(int sig, sigaction_t *sa) {
+int platform_sig_deliver(signo_t sig, sigaction_t *sa) {
   thread_t *td = thread_self();
   assert(mtx_owned(&td->td_lock));
 

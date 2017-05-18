@@ -63,17 +63,17 @@ int sig_send(proc_t *td, signo_t sig);
 int sig_check(thread_t *td);
 
 /* Process user action triggered by a signal. */
-void sig_deliver(int sig);
+void sig_deliver(signo_t sig);
 
 /* Arrange for signal delivery when the thread returns from exception context.
  * This must be called whenever new signals are posted to a thread. */
 void sig_notify(thread_t *td);
 
-int do_kill(pid_t pid, int sig);
-int do_sigaction(int sig, const sigaction_t *act, sigaction_t *oldact);
+int do_kill(pid_t pid, signo_t sig);
+int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigreturn();
 
-int platform_sig_deliver(int sig, sigaction_t *sa);
+int platform_sig_deliver(signo_t sig, sigaction_t *sa);
 int platform_sig_return();
 
 #endif /* !_KERNELSPACE */
