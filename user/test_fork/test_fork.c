@@ -14,9 +14,11 @@ int main() {
   } else {
     printf("This is parent, my pid is %d, I was told child is %d!\n", getpid(),
            n);
-    int exitcode = 0;
-    int p = wait(&exitcode);
-    printf("Child exit code is %d.\n", exitcode);
+    int status, exitcode;
+    int p = wait(&status);
+    assert(WIFEXITED(status));
+    exitcode = WEXITSTATUS(status);
+    printf("Child exit status is %d, exit code %d.\n", status, exitcode);
     assert(exitcode == 42);
     assert(p == n);
   }

@@ -63,7 +63,7 @@ proc_t *proc_find(pid_t pid) {
   return p;
 }
 
-void do_exit(int exitcode) {
+void proc_exit(int exitstatus) {
   /* NOTE: This is a significantly simplified implementation! We currently
      assume there is only one thread in a process. */
 
@@ -88,7 +88,7 @@ void do_exit(int exitcode) {
 
   /* Record some process statistics that will stay maintained in zombie
      state. */
-  p->p_exitcode = exitcode;
+  p->p_exitstatus = exitstatus;
 
   /* Turn the process into a zombie. */
   mtx_lock(&all_proc_list_mtx);
@@ -189,7 +189,7 @@ int do_waitpid(pid_t pid, int *status, int options) {
 
   /* Child is now a zombie. Gather its data, cleanup & free. */
   assert(mtx_owned(&child->p_lock));
-  *status = child->p_exitcode;
+  *status = child->p_exitstatus;
   int retval = child->p_pid;
 
   mtx_lock(&zombie_proc_list_mtx);

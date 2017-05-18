@@ -32,7 +32,7 @@ struct proc {
   /* signal stuff */
   sigaction_t p_sigactions[NSIG];
   /* zombie process status */
-  int p_exitcode;
+  int p_exitstatus;
   /* XXX: process resource usage stats */
 };
 
@@ -44,6 +44,7 @@ void proc_populate(proc_t *p, thread_t *td);
 /* Searches for a process with the given PID, returns NULL if not found. */
 proc_t *proc_find(pid_t pid);
 
-void do_exit(int exitcode);
+/* Build your exit status using MAKE_STATUS macros from wait.h */
+void proc_exit(int exitstatus);
 
 #endif /* !_SYS_PROC_H_ */

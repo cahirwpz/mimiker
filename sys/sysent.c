@@ -44,7 +44,7 @@ static int sys_exit(thread_t *td, syscall_args_t *args) {
 
   klog("exit(%d)", status);
 
-  do_exit(status);
+  proc_exit(MAKE_STATUS_EXIT(status));
   __unreachable();
 }
 
@@ -268,7 +268,7 @@ static int sys_wait(thread_t *td, syscall_args_t *args) {
   if (res < 0)
     return res;
 
-  if (suword32(user_status, status) < 0)
+  if (!user_status || suword32(user_status, status) < 0)
     return EFAULT;
   return res;
 }
@@ -285,7 +285,7 @@ static int sys_waitpid(thread_t *td, syscall_args_t *args) {
   if (res < 0)
     return res;
 
-  if (suword32(user_status, status) < 0)
+  if (!user_status || suword32(user_status, status) < 0)
     return EFAULT;
   return res;
 }
