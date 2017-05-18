@@ -5,7 +5,7 @@
 
 #define WNOHANG 1
 
-/* 
+/*
   A process exit status consists of two bytes:
 
     INFO CODE
@@ -22,12 +22,12 @@
     The process got core dumped. We don't use that.
 */
 
-#define WTERMSIG(status) ((status) & 0x7f)
-#define WEXITSTATUS(status) (((status) & 0xff00) >> 8)
-#define WSTOPSIG(status) (((status) & 0xff00) >> 8)
-#define WIFEXITED(status) (((status) & 0x7f) == 0)
-#define WIFSTOPPED(status) (((status) & 0xff) == 0x7f)
-#define WIFSIGNALED(status) (((status) & 0x7f) > 0 && ((status) & 0x7f) < 0x7f)
+#define WTERMSIG(status) ((status)&0x7f)
+#define WEXITSTATUS(status) (((status)&0xff00) >> 8)
+#define WSTOPSIG(status) (((status)&0xff00) >> 8)
+#define WIFEXITED(status) (((status)&0x7f) == 0)
+#define WIFSTOPPED(status) (((status)&0xff) == 0x7f)
+#define WIFSIGNALED(status) (((status)&0x7f) > 0 && ((status)&0x7f) < 0x7f)
 
 #ifndef _KERNELSPACE
 
