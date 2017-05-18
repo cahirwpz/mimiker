@@ -11,6 +11,7 @@
 #include <vm_map.h>
 #include <thread.h>
 #include <ktest.h>
+#include <signal.h>
 #include <sysinit.h>
 
 static MALLOC_DEFINE(M_PMAP, "pmap", 1, 1);
@@ -375,14 +376,18 @@ void tlb_exception_handler(exc_frame_t *frame) {
     return;
 
 fault:
-  /* handle copyin / copyout faults */
   if (td->td_onfault) {
+    /* handle copyin / copyout faults */
     frame->pc = td->td_onfault;
     td->td_onfault = 0;
+  } else if (td->td_proc) {
+    /* Send a segmentation fault signal to the user program. */
+    sig_send(td->td_proc, SIGSEGV);
   } else if (ktest_test_running_flag) {
     ktest_failure();
   } else {
-    thread_exit(-1);
+    /* Kernel mode thread violated memory, whoops. */
+    panic("Invalid memory access.");
   }
 }
 

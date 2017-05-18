@@ -65,5 +65,7 @@ SYSCALL(mmap, SYS_MMAP)
 SYSCALL(dup, SYS_DUP)
 SYSCALL(dup2, SYS_DUP2)	
 SYSCALL(getdirentries, SYS_GETDENTS)
+SYSCALL(sigaction, SYS_SIGACTION)
+SYSCALL(sigreturn, SYS_SIGRETURN)
 
 # vim: sw=8 ts=8 et
