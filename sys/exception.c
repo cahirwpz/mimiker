@@ -1,6 +1,7 @@
 #include <exception.h>
 #include <thread.h>
 #include <sched.h>
+#include <signal.h>
 
 void exc_before_leave(exc_frame_t *kframe) {
   thread_t *td = thread_self();
@@ -9,4 +10,13 @@ void exc_before_leave(exc_frame_t *kframe) {
 
   if (td->td_flags & TDF_NEEDSWITCH)
     sched_switch(NULL);
+
+  /* First thing after switching to a thread: Process pending signals. */
+  if (td->td_flags & TDF_NEEDSIGCHK) {
+    mtx_scoped_lock(&td->td_lock);
+    int sig;
+    while ((sig = sig_check(td)) != 0)
+      sig_deliver(sig);
+    td->td_flags &= ~TDF_NEEDSIGCHK;
+  }
 }

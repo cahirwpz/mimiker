@@ -9,7 +9,9 @@
 #include <vnode.h>
 #include <fork.h>
 #include <sbrk.h>
+#include <signal.h>
 #include <proc.h>
+#include <systm.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 static int sys_nosys(thread_t *td, syscall_args_t *args) {
@@ -53,6 +55,42 @@ static int sys_fork(thread_t *td, syscall_args_t *args) {
 static int sys_getpid(thread_t *td, syscall_args_t *args) {
   klog("getpid()");
   return td->td_proc->p_pid;
+}
+
+static int sys_kill(thread_t *td, syscall_args_t *args) {
+  pid_t pid = args->args[0];
+  signo_t sig = args->args[1];
+  klog("kill(%lu, %d)", pid, sig);
+  return do_kill(pid, sig);
+}
+
+static int sys_sigaction(thread_t *td, syscall_args_t *args) {
+  int signo = args->args[0];
+  char *p_newact = (char *)args->args[1];
+  char *p_oldact = (char *)args->args[2];
+
+  klog("sigaction(%d, %p, %p)", signo, p_newact, p_oldact);
+
+  sigaction_t newact;
+  sigaction_t oldact;
+  int error;
+  if ((error = copyin(p_newact, &newact, sizeof(sigaction_t))))
+    return error;
+
+  int res = do_sigaction(signo, &newact, &oldact);
+  if (res < 0)
+    return res;
+
+  if (p_oldact != NULL)
+    if ((error = copyout(&oldact, p_oldact, sizeof(sigaction_t))))
+      return error;
+
+  return res;
+}
+
+static int sys_sigreturn(thread_t *td, syscall_args_t *args) {
+  klog("sigreturn()");
+  return do_sigreturn();
 }
 
 static int sys_mmap(thread_t *td, syscall_args_t *args) {
@@ -229,12 +267,14 @@ sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
                      [SYS_LSEEK] = {sys_lseek},
                      [SYS_UNLINK] = {sys_nosys},
                      [SYS_GETPID] = {sys_getpid},
-                     [SYS_KILL] = {sys_nosys},
+                     [SYS_KILL] = {sys_kill},
                      [SYS_FSTAT] = {sys_fstat},
                      [SYS_SBRK] = {sys_sbrk},
                      [SYS_MMAP] = {sys_mmap},
                      [SYS_FORK] = {sys_fork},
                      [SYS_MOUNT] = {sys_mount},
                      [SYS_GETDENTS] = {sys_getdirentries},
+                     [SYS_SIGACTION] = {sys_sigaction},
+                     [SYS_SIGRETURN] = {sys_sigreturn},
                      [SYS_DUP] = {sys_dup},
                      [SYS_DUP2] = {sys_dup2}};

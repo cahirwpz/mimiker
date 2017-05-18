@@ -7,6 +7,7 @@
 #include <mips/exc.h>
 
 ASSYM(TDF_NEEDSWITCH, TDF_NEEDSWITCH);
+ASSYM(TDF_NEEDSIGCHK, TDF_NEEDSIGCHK);
 
 ASSYM(TD_PROC, offsetof(thread_t, td_proc));
 ASSYM(TD_UCTX, offsetof(thread_t, td_uctx));
