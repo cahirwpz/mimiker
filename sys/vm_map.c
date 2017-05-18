@@ -13,6 +13,7 @@
 #include <proc.h>
 #include <mips/mips.h>
 #include <pcpu.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_VMMAP, "vm-map", 1, 2);
 
@@ -61,7 +62,7 @@ static void vm_map_setup(vm_map_t *map) {
   rw_init(&map->rwlock, "vm map rwlock", 1);
 }
 
-void vm_map_init() {
+static void vm_map_init() {
   vm_map_setup(&kspace);
   *((pmap_t **)(&kspace.pmap)) = get_kernel_pmap();
 }
@@ -314,3 +315,5 @@ int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
 
   return 0;
 }
+
+SYSINIT_ADD(vm_map, vm_map_init, DEPS("pmap", "vm_object"));

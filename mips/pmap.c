@@ -11,6 +11,7 @@
 #include <vm_map.h>
 #include <thread.h>
 #include <ktest.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_PMAP, "pmap", 1, 1);
 
@@ -88,7 +89,7 @@ void pmap_reset(pmap_t *pmap) {
   memset(pmap, 0, sizeof(pmap_t)); /* Set up for reuse. */
 }
 
-void pmap_init() {
+static void pmap_init() {
   pmap_setup(&kernel_pmap, PMAP_KERNEL_BEGIN + PT_SIZE, PMAP_KERNEL_END);
 }
 
@@ -384,3 +385,5 @@ fault:
     thread_exit(-1);
   }
 }
+
+SYSINIT_ADD(pmap, pmap_init, NODEPS);

@@ -4,6 +4,7 @@
 #include <mutex.h>
 #include <stdc.h>
 #include <vnode.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_VNODE, "vnode", 2, 16);
 
@@ -12,7 +13,7 @@ static MALLOC_DEFINE(M_VNODE, "vnode", 2, 16);
    etc. So at some point we may need a more sophisticated memory management here
    - but this will do for now. */
 
-void vnode_init() {
+static void vnode_init() {
 }
 
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops) {
@@ -99,3 +100,5 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   }
   return 0;
 }
+
+SYSINIT_ADD(vnode, vnode_init, NODEPS);

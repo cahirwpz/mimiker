@@ -1,6 +1,7 @@
 #include <proc.h>
 #include <malloc.h>
 #include <thread.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_PROC, "proc", 1, 2);
 
@@ -10,7 +11,7 @@ static proc_list_t all_proc_list;
 static mtx_t last_pid_mtx;
 static pid_t last_pid;
 
-void proc_init() {
+static void proc_init() {
   mtx_init(&all_proc_list_mtx, MTX_DEF);
   TAILQ_INIT(&all_proc_list);
   mtx_init(&last_pid_mtx, MTX_DEF);
@@ -51,3 +52,5 @@ proc_t *proc_find(pid_t pid) {
   }
   return p;
 }
+
+SYSINIT_ADD(proc, proc_init, NODEPS);

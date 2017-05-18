@@ -29,7 +29,7 @@ $(CACHEDIR)/$(NEWLIB): | $(CACHEDIR)/$(NEWLIBFILE)
 	cd $(CACHEDIR)/$(NEWLIB)/newlib; \
 		CC=$(TRIPLET)-gcc ./configure --build=$(TRIPLET) \
                                       --prefix=$(INSTALL_DIR)/usr \
-                                      CFLAGS="-DSIGNAL_PROVIDED" > /dev/null
+                                      CFLAGS="-g -DSIGNAL_PROVIDED" > /dev/null
 	@echo "Compiling newlib..."
 	cd $(CACHEDIR)/$(NEWLIB)/newlib; $(MAKE) > /dev/null 2>&1
 

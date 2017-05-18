@@ -11,13 +11,14 @@
 #include <interrupt.h>
 #include <mutex.h>
 #include <pcpu.h>
+#include <sysinit.h>
 
 static runq_t runq;
 static bool sched_active = false;
 
 #define SLICE 10
 
-void sched_init() {
+static void sched_init() {
   runq_init(&runq);
 }
 
@@ -100,3 +101,5 @@ noreturn void sched_run() {
     td->td_flags |= TDF_NEEDSWITCH;
   }
 }
+
+SYSINIT_ADD(sched, sched_init, DEPS("callout"));
