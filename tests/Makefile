@@ -2,7 +2,6 @@ SOURCES_C = \
 	broken.c \
 	callout.c \
 	crash.c \
-	exec.c \
 	initrd.c \
 	klog.c \
 	linker_set.c \

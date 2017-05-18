@@ -199,7 +199,7 @@ int test_fd_open_path() {
   return 0;
 }
 
-int test_fd_dup(){
+int test_fd_dup() {
   int x = open("/tests/dup_test_file", O_RDONLY, 0);
   int y = dup(0);
   dup2(x, 0);
@@ -211,7 +211,8 @@ int test_fd_dup(){
 }
 
 int test_fd_all() {
-  /* Call all fd-related tests one by one to see how they impact the process file descriptor table. */
+  /* Call all fd-related tests one by one to see how they impact the process
+   * file descriptor table. */
   test_fd_read();
   test_fd_devnull();
   test_fd_multidesc();

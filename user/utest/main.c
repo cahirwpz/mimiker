@@ -11,9 +11,8 @@ int main(int argc, char **argv) {
   char *test_name = argv[1];
   printf("Starting user test \"%s\".\n", test_name);
 
-
-#define CHECKRUN_TEST(name) \
-  if (strcmp(test_name, #name) == 0) \
+#define CHECKRUN_TEST(name)                                                    \
+  if (strcmp(test_name, #name) == 0)                                           \
     return test_##name();
 
   /* Linker set in userspace would be quite difficult to set up, and it feels
@@ -30,7 +29,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(fd_open_path);
   CHECKRUN_TEST(fd_dup);
   CHECKRUN_TEST(fd_all);
-  
+
   printf("No user test \"%s\" available.\n", test_name);
   return 1;
 }
