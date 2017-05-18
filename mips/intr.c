@@ -114,10 +114,10 @@ finalize:
 }
 
 void fpe_handler(exc_frame_t *frame) {
-  thread_t* td = thread_self();
-  if(td->td_proc){
+  thread_t *td = thread_self();
+  if (td->td_proc) {
     sig_send(td->td_proc, SIGFPE);
-  }else{
+  } else {
     panic("Floating point exception or integer overflow in a kernel thread.");
   }
 }
@@ -128,8 +128,10 @@ void fpe_handler(exc_frame_t *frame) {
  * handlers numbers please check 5.23 Table of MIPS32 4KEc User's Manual.
  */
 
-void *general_exception_table[32] = {
-    [EXC_MOD] = tlb_exception_handler, [EXC_TLBL] = tlb_exception_handler,
-    [EXC_TLBS] = tlb_exception_handler, [EXC_SYS] = syscall_handler,
-    [EXC_FPE] = fpe_handler, [EXC_MSAFPE] = fpe_handler, [EXC_OVF] = fpe_handler
-};
+void *general_exception_table[32] = {[EXC_MOD] = tlb_exception_handler,
+                                     [EXC_TLBL] = tlb_exception_handler,
+                                     [EXC_TLBS] = tlb_exception_handler,
+                                     [EXC_SYS] = syscall_handler,
+                                     [EXC_FPE] = fpe_handler,
+                                     [EXC_MSAFPE] = fpe_handler,
+                                     [EXC_OVF] = fpe_handler};
