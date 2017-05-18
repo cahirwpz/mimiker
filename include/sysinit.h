@@ -3,6 +3,7 @@
 
 #include <linker_set.h>
 #include <queue.h>
+
 #define ARRAY_INIT(...)                                                        \
   { __VA_ARGS__ }
 #define DEPS(...) (char *[]) ARRAY_INIT(__VA_ARGS__, NULL)
@@ -31,5 +32,7 @@ SET_DECLARE(sysinit, sysinit_entry_t);
                                         .deps = (deps_names),                  \
                                         .dependants = 0};                      \
   SET_ENTRY(sysinit, mod_name##_sysinit);
-void sysinit_sort();
-#endif /*!_SYS_SYSINIT_H_*/
+
+void sysinit();
+
+#endif /* !_SYS_SYSINIT_H_ */

@@ -261,7 +261,7 @@ unsigned ramdisk_get_size() {
   return s ? strtoul(s, NULL, 0) : 0;
 }
 
-void ramdisk_init() {
+static void ramdisk_init() {
   unsigned rd_size = ramdisk_get_size();
 
   TAILQ_INIT(&initrd_head);

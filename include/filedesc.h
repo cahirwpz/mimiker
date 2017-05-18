@@ -22,9 +22,6 @@ typedef struct fdtab {
   mtx_t fdt_mtx;
 } fdtab_t;
 
-/* Prepares memory pools for file descriptors and tables. */
-void fd_init();
-
 void fdtab_ref(fdtab_t *fdt);
 void fdtab_unref(fdtab_t *fdt);
 

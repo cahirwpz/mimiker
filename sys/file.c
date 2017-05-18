@@ -9,7 +9,7 @@
 
 static MALLOC_DEFINE(M_FILE, "file", 1, 2);
 
-void file_init() {
+static void file_init() {
 }
 
 void file_ref(file_t *f) {
@@ -76,4 +76,5 @@ fileops_t badfileops = {.fo_read = badfo_read,
                         .fo_write = badfo_write,
                         .fo_close = badfo_close,
                         .fo_getattr = badfo_getattr};
+
 SYSINIT_ADD(file, file_init, DEPS("vfs", "vnode"));

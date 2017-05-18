@@ -3,6 +3,7 @@
 #include <stdc.h>
 #include <callout.h>
 #include <sysinit.h>
+
 /* Note: If the difference in time between ticks is greater than the number of
    buckets, some callouts may be called out-of-order! */
 #define CALLOUT_BUCKETS 64
@@ -30,7 +31,7 @@ static struct {
   realtime_t last;
 } ci;
 
-void callout_init() {
+static void callout_init() {
   bzero(&ci, sizeof(ci));
 
   for (int i = 0; i < CALLOUT_BUCKETS; i++)
@@ -105,4 +106,5 @@ void callout_process(realtime_t time) {
 
   ci.last = time;
 }
+
 SYSINIT_ADD(callout, callout_init, NODEPS);

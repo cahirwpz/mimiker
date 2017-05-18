@@ -14,6 +14,7 @@ static sysinit_entry_t *find(const char *name) {
   }
   return NULL;
 }
+
 static void push_last(sysinit_tailq_t *head) {
   /* dependants field for every sysinit_entry_t need to be calculated */
   sysinit_entry_t **ptr;
@@ -22,6 +23,7 @@ static void push_last(sysinit_tailq_t *head) {
       TAILQ_INSERT_HEAD(head, *ptr, entries);
   }
 }
+
 static void build_queue(sysinit_tailq_t *head) {
   /* dependants field for every sysinit_entry_t need to be calculated */
   push_last(head);
@@ -38,22 +40,24 @@ static void build_queue(sysinit_tailq_t *head) {
     }
   }
 }
+
 static void count_dependants() {
   /* requires dependants field to be zeroed */
   sysinit_entry_t **ptr;
   SET_FOREACH(ptr, sysinit) {
-    klog("found module: %s", (*ptr)->name);
+    klog("found module '%s'", (*ptr)->name);
     char **deps = (*ptr)->deps;
     while (*deps) {
       sysinit_entry_t *dependency = find(*deps);
       if (dependency == NULL)
-        panic("module \"%s\" depends on \"%s\", which is not found",
+        panic("module '%s' depends on '%s', which has not been found",
               (*ptr)->name, *deps);
       dependency->dependants++;
       deps++;
     }
   }
 }
+
 static void dump_cycle() {
   /* if there's some cycle prints its content, and panics
      works properly only after build_queue */
@@ -61,14 +65,15 @@ static void dump_cycle() {
   bool cycle_found = false;
   SET_FOREACH(ptr, sysinit) {
     if ((*ptr)->dependants != 0) {
-      klog("unreachable module: %s", (*ptr)->name);
+      klog("unreachable module '%s'", (*ptr)->name);
       cycle_found = true;
     }
   }
   if (cycle_found)
-    panic("Found cycle in modules dependencies");
+    panic("found cycle in modules dependencies");
 }
-void sysinit_sort() {
+
+void sysinit() {
   /* builds topological ordering and lauches modules with built order
    result is constructed from back, because of direction of relations
    given edges point to earlier modules */
@@ -78,8 +83,9 @@ void sysinit_sort() {
   dump_cycle();
   sysinit_entry_t *p;
   TAILQ_FOREACH (p, &list, entries) {
-    klog("launching module: %s", p->name);
-    if (p->func)
+    if (p->func) {
+      klog("initialize '%s' module", p->name);
       p->func();
+    }
   }
 }

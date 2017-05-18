@@ -13,7 +13,7 @@ static MALLOC_DEFINE(M_VNODE, "vnode", 2, 16);
    etc. So at some point we may need a more sophisticated memory management here
    - but this will do for now. */
 
-void vnode_init() {
+static void vnode_init() {
 }
 
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops) {
@@ -67,6 +67,7 @@ static int vnode_generic_close(file_t *f, thread_t *td) {
   vnode_unref(f->f_vnode);
   return 0;
 }
+
 static int vnode_generic_getattr(file_t *f, thread_t *td, vattr_t *vattr) {
   vnode_t *v = f->f_vnode;
   return v->v_ops->v_getattr(v, vattr);
@@ -99,4 +100,5 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   }
   return 0;
 }
+
 SYSINIT_ADD(vnode, vnode_init, NODEPS);

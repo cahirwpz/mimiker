@@ -40,7 +40,7 @@ static vnodeops_t vfs_root_ops = {
 
 static int vfs_register(vfsconf_t *vfc);
 
-void vfs_init() {
+static void vfs_init() {
   mtx_init(&vfsconf_list_mtx, MTX_DEF);
   mtx_init(&mount_list_mtx, MTX_DEF);
 
@@ -248,4 +248,5 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   vnode_unref(v);
   return res;
 }
+
 SYSINIT_ADD(vfs, vfs_init, DEPS("vnode"));

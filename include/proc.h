@@ -26,8 +26,6 @@ struct proc {
   fdtab_t *p_fdtable;
 };
 
-void proc_init();
-
 proc_t *proc_create();
 
 /* Links a thread with a process, setting td_proc and updating p_threads. */
@@ -36,4 +34,4 @@ void proc_populate(proc_t *p, thread_t *td);
 /* Searches for a process with the given PID, returns NULL if not found. */
 proc_t *proc_find(pid_t pid);
 
-#endif /* _SYS_PROC_H_ */
+#endif /* !_SYS_PROC_H_ */
