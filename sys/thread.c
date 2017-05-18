@@ -136,7 +136,7 @@ noreturn void thread_exit(int exitcode) {
   WITH_MTX_LOCK (&zombie_threads_mtx)
     TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
 
-  IN_CRITICAL_SECTION () {
+  CRITICAL_SECTION {
     td->td_exitcode = exitcode;
     td->td_state = TDS_INACTIVE;
     cv_broadcast(&td->td_waitcv);
@@ -155,21 +155,21 @@ void thread_join(thread_t *p) {
   thread_t *otd = p;
   klog("Joining '%s' {%p} with '%s' {%p}", td->td_name, td, otd->td_name, otd);
 
-  WITH_MTX_LOCK (&otd->td_lock) {
-    while (otd->td_state != TDS_INACTIVE)
-      cv_wait(&otd->td_waitcv, &otd->td_lock);
-  }
+  SCOPED_MTX_LOCK(&otd->td_lock);
+
+  while (otd->td_state != TDS_INACTIVE)
+    cv_wait(&otd->td_waitcv, &otd->td_lock);
 }
 
 /* It would be better to have a hash-map from tid_t to thread_t,
  * but using a list is sufficient for now. */
 thread_t *thread_get_by_tid(tid_t id) {
+  SCOPED_MTX_LOCK(&all_threads_mtx);
+
   thread_t *td = NULL;
-  WITH_MTX_LOCK (&all_threads_mtx) {
-    TAILQ_FOREACH (td, &all_threads, td_all) {
-      if (td->td_tid == id)
-        break;
-    }
+  TAILQ_FOREACH (td, &all_threads, td_all) {
+    if (td->td_tid == id)
+      break;
   }
   return td;
 }

@@ -98,14 +98,13 @@ typedef uint32_t tid_t;
 #define container_of(p, type, field)                                           \
   ((type *)((char *)(p)-offsetof(type, field)))
 
+#define USES_CLEANUP(func) __cleanup(__cleanup_##func)
 #define DEFINE_CLEANUP_FUNCTION(type, func)                                    \
   static inline void __cleanup_##func(type *ptr) {                             \
     if (*ptr)                                                                  \
       func(*ptr);                                                              \
   }                                                                            \
   struct __force_semicolon__
-
-#define WITH_CLEANUP(func) __cleanup(__cleanup_##func)
 
 #ifndef _USERSPACE
 

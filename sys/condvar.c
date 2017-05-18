@@ -9,7 +9,7 @@ void cv_init(condvar_t *cv, const char *name) {
 }
 
 void cv_wait(condvar_t *cv, mtx_t *mtx) {
-  IN_CRITICAL_SECTION () {
+  CRITICAL_SECTION {
     cv->waiters++;
     mtx_unlock(mtx);
     sleepq_wait(cv, cv->name);
@@ -18,19 +18,17 @@ void cv_wait(condvar_t *cv, mtx_t *mtx) {
 }
 
 void cv_signal(condvar_t *cv) {
-  IN_CRITICAL_SECTION () {
-    if (cv->waiters > 0) {
-      cv->waiters--;
-      sleepq_signal(cv);
-    }
+  SCOPED_CRITICAL_SECTION();
+  if (cv->waiters > 0) {
+    cv->waiters--;
+    sleepq_signal(cv);
   }
 }
 
 void cv_broadcast(condvar_t *cv) {
-  IN_CRITICAL_SECTION () {
-    if (cv->waiters > 0) {
-      cv->waiters = 0;
-      sleepq_broadcast(cv);
-    }
+  SCOPED_CRITICAL_SECTION();
+  if (cv->waiters > 0) {
+    cv->waiters = 0;
+    sleepq_broadcast(cv);
   }
 }

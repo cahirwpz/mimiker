@@ -156,7 +156,7 @@ void pool_destroy(pool_t *pool) {
   /* TODO: there is no way to use pool's mutex here because it could already got
    * deallocated and we have no method of marking dead mutexes, that's why
    * low-level sync functions are used here. */
-  IN_CRITICAL_SECTION () {
+  CRITICAL_SECTION {
     assert(pool->pp_state == ALIVE);
     pool->pp_state = DEAD;
   }
@@ -174,31 +174,28 @@ void *pool_alloc(pool_t *pool, __unused unsigned flags) {
 
   assert(pool->pp_state == ALIVE);
 
-  void *p = NULL;
+  SCOPED_MTX_LOCK(&pool->pp_mtx);
 
-  WITH_MTX_LOCK (&pool->pp_mtx) {
-    pool_slab_t *slab;
-    if (pool->pp_nitems) {
-      pool_slabs_t *slabs = LIST_EMPTY(&pool->pp_part_slabs)
-                              ? &pool->pp_empty_slabs
-                              : &pool->pp_part_slabs;
-      slab = LIST_FIRST(slabs);
-      LIST_REMOVE(slab, ph_slablist);
-    } else {
-      slab = create_slab(pool);
-      pool->pp_nitems += slab->ph_ntotal;
-      pool->pp_nslabs++;
-      klog("pool_alloc: growing pool at %p", pool);
-    }
-
-    p = slab_alloc(slab);
-    pool->pp_nitems--;
-    pool_slabs_t *slabs = (slab->ph_nused < slab->ph_ntotal)
-                            ? &pool->pp_part_slabs
-                            : &pool->pp_full_slabs;
-    LIST_INSERT_HEAD(slabs, slab, ph_slablist);
+  pool_slab_t *slab;
+  if (pool->pp_nitems) {
+    pool_slabs_t *slabs = LIST_EMPTY(&pool->pp_part_slabs)
+                            ? &pool->pp_empty_slabs
+                            : &pool->pp_part_slabs;
+    slab = LIST_FIRST(slabs);
+    LIST_REMOVE(slab, ph_slablist);
+  } else {
+    slab = create_slab(pool);
+    pool->pp_nitems += slab->ph_ntotal;
+    pool->pp_nslabs++;
+    klog("pool_alloc: growing pool at %p", pool);
   }
 
+  void *p = slab_alloc(slab);
+  pool->pp_nitems--;
+  pool_slabs_t *slabs = (slab->ph_nused < slab->ph_ntotal)
+                          ? &pool->pp_part_slabs
+                          : &pool->pp_full_slabs;
+  LIST_INSERT_HEAD(slabs, slab, ph_slablist);
   return p;
 }
 

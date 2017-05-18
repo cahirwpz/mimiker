@@ -80,18 +80,16 @@ static void fd_free(fdtab_t *fdt, int fd) {
 }
 
 void fdtab_ref(fdtab_t *fdt) {
-  WITH_MTX_LOCK (&fdt->fdt_mtx) {
-    assert(fdt->fdt_count >= 0);
-    ++fdt->fdt_count;
-  }
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
+  assert(fdt->fdt_count >= 0);
+  ++fdt->fdt_count;
 }
 
 void fdtab_unref(fdtab_t *fdt) {
-  WITH_MTX_LOCK (&fdt->fdt_mtx) {
-    assert(fdt->fdt_count > 0);
-    if (--fdt->fdt_count == 0)
-      fdt->fdt_count = -1;
-  }
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
+  assert(fdt->fdt_count > 0);
+  if (--fdt->fdt_count == 0)
+    fdt->fdt_count = -1;
 }
 
 /* In FreeBSD this function takes a filedesc* argument, so that
@@ -112,23 +110,23 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
   if (fdt == NULL)
     return newfdt;
 
-  WITH_MTX_LOCK (&fdt->fdt_mtx) {
-    if (fdt->fdt_nfiles > newfdt->fdt_nfiles) {
-      WITH_MTX_LOCK (&newfdt->fdt_mtx)
-        fd_growtable(newfdt, fdt->fdt_nfiles);
-    }
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
 
-    for (int i = 0; i < fdt->fdt_nfiles; i++) {
-      if (fd_is_used(fdt, i)) {
-        file_t *f = fdt->fdt_files[i];
-        newfdt->fdt_files[i] = f;
-        file_ref(f);
-      }
-    }
-
-    memcpy(newfdt->fdt_map, fdt->fdt_map,
-           sizeof(bitstr_t) * bitstr_size(fdt->fdt_nfiles));
+  if (fdt->fdt_nfiles > newfdt->fdt_nfiles) {
+    SCOPED_MTX_LOCK(&newfdt->fdt_mtx);
+    fd_growtable(newfdt, fdt->fdt_nfiles);
   }
+
+  for (int i = 0; i < fdt->fdt_nfiles; i++) {
+    if (fd_is_used(fdt, i)) {
+      file_t *f = fdt->fdt_files[i];
+      newfdt->fdt_files[i] = f;
+      file_ref(f);
+    }
+  }
+
+  memcpy(newfdt->fdt_map, fdt->fdt_map,
+         sizeof(bitstr_t) * bitstr_size(fdt->fdt_nfiles));
 
   fdtab_ref(newfdt);
   return newfdt;
@@ -160,13 +158,12 @@ int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fd) {
   assert(f != NULL);
   assert(fd != NULL);
 
-  WITH_MTX_LOCK (&fdt->fdt_mtx) {
-    int res = fd_alloc(fdt, fd);
-    if (res < 0)
-      return res;
-    fdt->fdt_files[*fd] = f;
-  }
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
 
+  int res = fd_alloc(fdt, fd);
+  if (res < 0)
+    return res;
+  fdt->fdt_files[*fd] = f;
   file_ref(f);
   return 0;
 }
@@ -223,10 +220,10 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
 /* Closes a file descriptor. If it was the last reference to a file, the file is
  * also closed. */
 int fdtab_close_fd(fdtab_t *fdt, int fd) {
-  WITH_MTX_LOCK (&fdt->fdt_mtx) {
-    if (fd < 0 || fd > fdt->fdt_nfiles || !fd_is_used(fdt, fd))
-      return -EBADF;
-    fd_free(fdt, fd);
-  }
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
+
+  if (fd < 0 || fd > fdt->fdt_nfiles || !fd_is_used(fdt, fd))
+    return -EBADF;
+  fd_free(fdt, fd);
   return 0;
 }

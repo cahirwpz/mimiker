@@ -12,18 +12,16 @@ void file_init() {
 }
 
 void file_ref(file_t *f) {
-  WITH_MTX_LOCK (&f->f_mtx) {
-    assert(f->f_count >= 0);
-    f->f_count++;
-  }
+  SCOPED_MTX_LOCK(&f->f_mtx);
+  assert(f->f_count >= 0);
+  f->f_count++;
 }
 
 void file_unref(file_t *f) {
-  WITH_MTX_LOCK (&f->f_mtx) {
-    assert(f->f_count > 0);
-    if (--f->f_count == 0)
-      f->f_count = -1;
-  }
+  SCOPED_MTX_LOCK(&f->f_mtx);
+  assert(f->f_count > 0);
+  if (--f->f_count == 0)
+    f->f_count = -1;
 }
 
 file_t *file_alloc() {

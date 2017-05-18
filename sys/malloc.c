@@ -177,31 +177,30 @@ void *kmalloc(kmem_pool_t *mp, size_t size, unsigned flags) {
   if (size_aligned == 0)
     return NULL;
 
+  SCOPED_MTX_LOCK(&mp->mp_lock);
+
   /* Search for the first area in the list that has enough space. */
   mem_arena_t *current = NULL;
+  TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
+    assert(current->ma_magic == MB_MAGIC);
 
-  WITH_MTX_LOCK (&mp->mp_lock) {
-    TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
-      assert(current->ma_magic == MB_MAGIC);
+    mem_block_t *mb = try_allocating_in_area(current, size_aligned);
 
-      mem_block_t *mb = try_allocating_in_area(current, size_aligned);
-
-      if (mb) {
-        if (flags == M_ZERO)
-          memset(mb->mb_data, 0, size);
-        return mb->mb_data;
-      }
+    if (mb) {
+      if (flags == M_ZERO)
+        memset(mb->mb_data, 0, size);
+      return mb->mb_data;
     }
+  }
 
-    /* Couldn't find any continuous memory with the requested size. */
-    if (flags & M_NOWAIT)
-      return NULL;
+  /* Couldn't find any continuous memory with the requested size. */
+  if (flags & M_NOWAIT)
+    return NULL;
 
-    if (mp->mp_pages_used < mp->mp_pages_max) {
-      kmalloc_add_pages(mp, 1);
-      mp->mp_pages_used++;
-      return kmalloc(mp, size, flags);
-    }
+  if (mp->mp_pages_used < mp->mp_pages_max) {
+    kmalloc_add_pages(mp, 1);
+    mp->mp_pages_used++;
+    return kmalloc(mp, size, flags);
   }
 
   panic("memory exhausted in '%s'", mp->mp_desc);
@@ -213,14 +212,14 @@ void kfree(kmem_pool_t *mp, void *addr) {
   if (mb->mb_magic != MB_MAGIC || mp->mp_magic != MB_MAGIC || mb->mb_size >= 0)
     panic("Memory corruption detected!");
 
+  SCOPED_MTX_LOCK(&mp->mp_lock);
+
   mem_arena_t *current = NULL;
-  WITH_MTX_LOCK (&mp->mp_lock) {
-    TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
-      char *start = ((char *)current) + sizeof(mem_arena_t);
-      if ((char *)addr >= start && (char *)addr < start + current->ma_size)
-        add_free_memory_block(current, mb,
-                              abs(mb->mb_size) + sizeof(mem_block_t));
-    }
+  TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
+    char *start = ((char *)current) + sizeof(mem_arena_t);
+    if ((char *)addr >= start && (char *)addr < start + current->ma_size)
+      add_free_memory_block(current, mb,
+                            abs(mb->mb_size) + sizeof(mem_block_t));
   }
 }
 
@@ -249,20 +248,21 @@ void kmem_init(kmem_pool_t *mp) {
 
 void kmem_dump(kmem_pool_t *mp) {
   klog("pool at %p:", mp);
-  WITH_MTX_LOCK (&mp->mp_lock) {
-    mem_arena_t *arena = NULL;
-    TAILQ_FOREACH (arena, &mp->mp_arena, ma_list) {
-      mem_block_t *block = (void *)arena->ma_data;
-      mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
 
-      klog("> malloc_arena %p - %p:", block, end);
+  SCOPED_MTX_LOCK(&mp->mp_lock);
 
-      while (block < end) {
-        assert(block->mb_magic == MB_MAGIC);
-        klog("   %c %p %d", (block->mb_size > 0) ? 'F' : 'U', block,
-             (unsigned)abs(block->mb_size));
-        block = mb_next(block);
-      }
+  mem_arena_t *arena = NULL;
+  TAILQ_FOREACH (arena, &mp->mp_arena, ma_list) {
+    mem_block_t *block = (void *)arena->ma_data;
+    mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
+
+    klog("> malloc_arena %p - %p:", block, end);
+
+    while (block < end) {
+      assert(block->mb_magic == MB_MAGIC);
+      klog("   %c %p %d", (block->mb_size > 0) ? 'F' : 'U', block,
+           (unsigned)abs(block->mb_size));
+      block = mb_next(block);
     }
   }
 }

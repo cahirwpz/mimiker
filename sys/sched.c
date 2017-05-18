@@ -33,7 +33,7 @@ void sched_add(thread_t *td) {
 
   td->td_slice = SLICE;
 
-  IN_CRITICAL_SECTION () {
+  CRITICAL_SECTION {
     runq_add(&runq, td);
     if (td->td_prio > thread_self()->td_prio)
       thread_self()->td_flags |= TDF_NEEDSWITCH;
@@ -69,22 +69,22 @@ void sched_switch(thread_t *newtd) {
   if (!sched_active)
     return;
 
-  IN_CRITICAL_SECTION () {
-    thread_t *td = thread_self();
+  SCOPED_CRITICAL_SECTION();
 
-    td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
+  thread_t *td = thread_self();
 
-    if (td->td_state == TDS_RUNNING)
-      sched_add(td);
+  td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
 
-    if (newtd == NULL)
-      newtd = sched_choose();
+  if (td->td_state == TDS_RUNNING)
+    sched_add(td);
 
-    newtd->td_state = TDS_RUNNING;
+  if (newtd == NULL)
+    newtd = sched_choose();
 
-    if (td != newtd)
-      ctx_switch(td, newtd);
-  }
+  newtd->td_state = TDS_RUNNING;
+
+  if (td != newtd)
+    ctx_switch(td, newtd);
 }
 
 noreturn void sched_run() {

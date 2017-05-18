@@ -16,14 +16,14 @@
 void critical_enter();
 void critical_leave();
 
-unsigned _critical_enter();
+#define SCOPED_CRITICAL_SECTION()                                              \
+  void *__CONCAT(__cs_, __LINE__) __cleanup(critical_leave) = ({               \
+    critical_enter();                                                          \
+    NULL;                                                                      \
+  })
 
-#define critical_scoped()                                                      \
-  unsigned __CONCAT(__cs_, __LINE__) __cleanup(critical_leave) =               \
-    _critical_enter()
-
-#define IN_CRITICAL_SECTION()                                                  \
-  for (critical_scoped(), __CONCAT(__loop_, __LINE__) = 1;                     \
+#define CRITICAL_SECTION                                                       \
+  for (SCOPED_CRITICAL_SECTION(), *__CONCAT(__loop_, __LINE__) = (void *)1;    \
        __CONCAT(__loop_, __LINE__); __CONCAT(__loop_, __LINE__) = 0)
 
 #endif /* !_SYS_SYNC_H_ */

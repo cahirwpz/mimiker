@@ -19,10 +19,10 @@ static MALLOC_DEFINE(M_VMMAP, "vm-map", 1, 2);
 static vm_map_t kspace;
 
 void vm_map_activate(vm_map_t *map) {
-  IN_CRITICAL_SECTION () {
-    PCPU_SET(uspace, map);
-    pmap_activate(map ? map->pmap : NULL);
-  }
+  SCOPED_CRITICAL_SECTION();
+
+  PCPU_SET(uspace, map);
+  pmap_activate(map ? map->pmap : NULL);
 }
 
 vm_map_t *get_user_vm_map() {
@@ -89,12 +89,12 @@ static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
 }
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
+  SCOPED_RW_ENTER(&vm_map->rwlock, RW_READER);
+
   vm_map_entry_t *etr_it;
-  WITH_RW_LOCK (&vm_map->rwlock, RW_READER) {
-    TAILQ_FOREACH (etr_it, &vm_map->list, map_list)
-      if (etr_it->start <= vaddr && vaddr < etr_it->end)
-        return etr_it;
-  }
+  TAILQ_FOREACH (etr_it, &vm_map->list, map_list)
+    if (etr_it->start <= vaddr && vaddr < etr_it->end)
+      return etr_it;
   return NULL;
 }
 
@@ -189,7 +189,7 @@ found:
 
 int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
                      vm_addr_t /*out*/ *addr) {
-  rw_scoped_enter(&map->rwlock, RW_READER);
+  SCOPED_RW_ENTER(&map->rwlock, RW_READER);
   return vm_map_findspace_nolock(map, start, length, addr);
 }
 
@@ -222,16 +222,17 @@ int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
 }
 
 void vm_map_dump(vm_map_t *map) {
-  vm_map_entry_t *it;
   klog("Virtual memory map (%08lx - %08lx):", map->pmap->start, map->pmap->end);
-  WITH_RW_LOCK (&map->rwlock, RW_READER) {
-    TAILQ_FOREACH (it, &map->list, map_list) {
-      klog(" * %08lx - %08lx [%c%c%c]", it->start, it->end,
-           (it->prot & VM_PROT_READ) ? 'r' : '-',
-           (it->prot & VM_PROT_WRITE) ? 'w' : '-',
-           (it->prot & VM_PROT_EXEC) ? 'x' : '-');
-      vm_map_object_dump(it->object);
-    }
+
+  SCOPED_RW_ENTER(&map->rwlock, RW_READER);
+
+  vm_map_entry_t *it;
+  TAILQ_FOREACH (it, &map->list, map_list) {
+    klog(" * %08lx - %08lx [%c%c%c]", it->start, it->end,
+         (it->prot & VM_PROT_READ) ? 'r' : '-',
+         (it->prot & VM_PROT_WRITE) ? 'w' : '-',
+         (it->prot & VM_PROT_EXEC) ? 'x' : '-');
+    vm_map_object_dump(it->object);
   }
 }
 

@@ -49,7 +49,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
 
   klog_entry_t *entry;
 
-  IN_CRITICAL_SECTION () {
+  CRITICAL_SECTION {
     entry = &klog.array[klog.last];
 
     *entry = (klog_entry_t){.kl_timestamp = clock_get(),
@@ -72,7 +72,7 @@ void klog_dump() {
   klog_entry_t entry;
 
   while (klog.first != klog.last) {
-    IN_CRITICAL_SECTION () {
+    CRITICAL_SECTION {
       entry = klog.array[klog.first];
       klog.first = next(klog.first);
     }

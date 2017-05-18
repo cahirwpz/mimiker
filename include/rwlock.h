@@ -37,14 +37,15 @@ bool rw_try_upgrade(rwlock_t *rw);
 void rw_downgrade(rwlock_t *rw);
 
 DEFINE_CLEANUP_FUNCTION(rwlock_t *, rw_leave);
-rwlock_t *_rw_enter(rwlock_t *rw, rwo_t who);
 
-#define rw_scoped_enter(rwlock_p, who)                                         \
-  rwlock_t *__CONCAT(__rwlock_, __LINE__) WITH_CLEANUP(rw_leave) =             \
-    _rw_enter((rwlock_p), (who))
+#define SCOPED_RW_ENTER(rwlock_p, who)                                         \
+  rwlock_t *__CONCAT(__rwlock_, __LINE__) USES_CLEANUP(rw_leave) = ({          \
+    rw_enter((rwlock_p), (who));                                               \
+    rwlock_p;                                                                  \
+  })
 
 #define WITH_RW_LOCK(rwlock_p, who)                                            \
-  for (rw_scoped_enter((rwlock_p), (who)),                                     \
+  for (SCOPED_RW_ENTER((rwlock_p), (who)),                                     \
        *__CONCAT(__loop_, __LINE__) = (rwlock_t *)1;                           \
        __CONCAT(__loop_, __LINE__); __CONCAT(__loop_, __LINE__) = NULL)
 

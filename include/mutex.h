@@ -33,13 +33,15 @@ void mtx_unlock(mtx_t *m);
 /* Use mtx_scoped_lock to lock a mutex and have it automatically unlock when
    leaving current scope. */
 DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
-mtx_t *_mtx_lock(mtx_t *m);
 
-#define mtx_scoped_lock(mtx_p)                                                 \
-  mtx_t *__CONCAT(__mtx_, __LINE__) WITH_CLEANUP(mtx_unlock) = _mtx_lock(mtx_p)
+#define SCOPED_MTX_LOCK(mtx_p)                                                 \
+  mtx_t *__CONCAT(__mtx_, __LINE__) USES_CLEANUP(mtx_unlock) = ({              \
+    mtx_lock(mtx_p);                                                           \
+    mtx_p;                                                                     \
+  })
 
 #define WITH_MTX_LOCK(mtx_p)                                                   \
-  for (mtx_scoped_lock(mtx_p), *__CONCAT(__loop_, __LINE__) = (mtx_t *)1;      \
+  for (SCOPED_MTX_LOCK(mtx_p), *__CONCAT(__loop_, __LINE__) = (mtx_t *)1;      \
        __CONCAT(__loop_, __LINE__); __CONCAT(__loop_, __LINE__) = NULL)
 
 #endif /* !_SYS_MUTEX_H_ */
