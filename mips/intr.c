@@ -113,6 +113,15 @@ finalize:
     exc_frame_set_retval(frame, retval);
 }
 
+void fpe_handler(exc_frame_t *frame) {
+  thread_t* td = thread_self();
+  if(td->td_proc){
+    sig_send(td->td_proc, SIGFPE);
+  }else{
+    panic("Floating point exception or integer overflow in a kernel thread.");
+  }
+}
+
 /*
  * This is exception vector table. Each exeception either has been assigned a
  * handler or kernel_oops is called for it. For exact meaning of exception
@@ -122,4 +131,5 @@ finalize:
 void *general_exception_table[32] = {
     [EXC_MOD] = tlb_exception_handler, [EXC_TLBL] = tlb_exception_handler,
     [EXC_TLBS] = tlb_exception_handler, [EXC_SYS] = syscall_handler,
+    [EXC_FPE] = fpe_handler, [EXC_MSAFPE] = fpe_handler, [EXC_OVF] = fpe_handler
 };
