@@ -16,7 +16,9 @@
 #define SYS_FORK 13
 #define SYS_MOUNT 14
 #define SYS_GETDENTS 15
-#define SYS_LAST 15
+#define SYS_DUP 16
+#define SYS_DUP2 17
+#define SYS_LAST 17
 
 #ifndef __ASSEMBLER__
 
