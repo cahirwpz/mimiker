@@ -56,11 +56,6 @@ static int sig_default(int sig) {
   return 0;
 }
 
-static sighandler_t *get_sigact(int sig, proc_t *p) {
-  assert(mtx_owned(&p->p_lock));
-  return p->p_sigactions[sig].sa_handler;
-}
-
 /*
  * NOTE: This is a very simple implementation! Unimplemented features:
  * - Thread tracing and debugging
@@ -86,7 +81,7 @@ int sig_send(proc_t *proc, signo_t sig) {
 
   mtx_lock(&target->td_proc->p_lock);
   /* If the signal is ignored, don't even bother posting it. */
-  sighandler_t *handler = get_sigact(sig, target->td_proc);
+  sighandler_t *handler = target->td_proc->p_sigactions[sig].sa_handler;
   if (handler == SIG_IGN ||
       (sig_default(sig) == SA_IGNORE && handler == SIG_DFL))
     return 0;
@@ -122,7 +117,7 @@ int sig_check(thread_t *td) {
     bit_clear(td->td_sigpend, signo);
 
     mtx_scoped_lock(&td->td_proc->p_lock);
-    sighandler_t *handler = get_sigact(signo, td->td_proc);
+    sighandler_t *handler = td->td_proc->p_sigactions[signo].sa_handler;
 
     if (handler == SIG_IGN ||
         (handler == SIG_DFL && sig_default(signo) == SA_IGNORE))
