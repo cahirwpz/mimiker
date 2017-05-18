@@ -173,7 +173,7 @@ int do_waitpid(pid_t pid, int *status, int options) {
     mtx_lock(&p->p_lock);
     child = proc_find_child(p, pid);
     mtx_unlock(&p->p_lock);
-    
+
     if (!child) /* No such process, or the process is not a child. */
       return -ECHILD;
 
