@@ -32,13 +32,12 @@ void sched_add(thread_t *td) {
     return;
 
   td->td_slice = SLICE;
-  critical_enter();
 
-  runq_add(&runq, td);
-
-  if (td->td_prio > thread_self()->td_prio)
-    thread_self()->td_flags |= TDF_NEEDSWITCH;
-  critical_leave();
+  IN_CRITICAL_SECTION () {
+    runq_add(&runq, td);
+    if (td->td_prio > thread_self()->td_prio)
+      thread_self()->td_flags |= TDF_NEEDSWITCH;
+  }
 }
 
 void sched_remove(thread_t *td) {
@@ -70,24 +69,22 @@ void sched_switch(thread_t *newtd) {
   if (!sched_active)
     return;
 
-  critical_enter();
+  IN_CRITICAL_SECTION () {
+    thread_t *td = thread_self();
 
-  thread_t *td = thread_self();
+    td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
 
-  td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
+    if (td->td_state == TDS_RUNNING)
+      sched_add(td);
 
-  if (td->td_state == TDS_RUNNING)
-    sched_add(td);
+    if (newtd == NULL)
+      newtd = sched_choose();
 
-  if (newtd == NULL)
-    newtd = sched_choose();
+    newtd->td_state = TDS_RUNNING;
 
-  newtd->td_state = TDS_RUNNING;
-
-  if (td != newtd)
-    ctx_switch(td, newtd);
-
-  critical_leave();
+    if (td != newtd)
+      ctx_switch(td, newtd);
+  }
 }
 
 noreturn void sched_run() {

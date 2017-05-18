@@ -73,36 +73,37 @@ void sleepq_wait(void *wchan, const char *wmesg) {
   assert(LIST_EMPTY(&td->td_sleepqueue->sq_free));
   assert(td->td_sleepqueue->sq_nblocked == 0);
 
-  critical_enter();
+  IN_CRITICAL_SECTION () {
+    sleepq_chain_t *sc = SC_LOOKUP(wchan);
+    sleepq_t *sq = sleepq_lookup(wchan);
 
-  sleepq_chain_t *sc = SC_LOOKUP(wchan);
-  sleepq_t *sq = sleepq_lookup(wchan);
+    /* If a sleepq already exists for wchan, we insert this thread to it.
+       Otherwise use this thread's sleepq. */
+    if (sq == NULL) {
+      /* We need to insert a new sleepq. */
+      sq = td->td_sleepqueue;
+      LIST_INSERT_HEAD(&sc->sc_queues, sq, sq_entry);
+      sq->sq_wchan = wchan;
 
-  /* If a sleepq already exists for wchan, we insert this thread to it.
-     Otherwise use this thread's sleepq. */
-  if (sq == NULL) {
-    /* We need to insert a new sleepq. */
-    sq = td->td_sleepqueue;
-    LIST_INSERT_HEAD(&sc->sc_queues, sq, sq_entry);
-    sq->sq_wchan = wchan;
+      /* It can also be done when allocating memory for a thread's sleepqueue.
+       */
+      TAILQ_INIT(&sq->sq_blocked);
+      LIST_INIT(&sq->sq_free);
+    } else {
+      /* A sleepqueue already exists. We add this thread's sleepqueue to the
+       * free
+       * list. */
+      LIST_INSERT_HEAD(&sq->sq_free, td->td_sleepqueue, sq_entry);
+    }
 
-    /* It can also be done when allocating memory for a thread's sleepqueue. */
-    TAILQ_INIT(&sq->sq_blocked);
-    LIST_INIT(&sq->sq_free);
-  } else {
-    /* A sleepqueue already exists. We add this thread's sleepqueue to the free
-     * list. */
-    LIST_INSERT_HEAD(&sq->sq_free, td->td_sleepqueue, sq_entry);
+    TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_sleepq);
+    td->td_wchan = wchan;
+    td->td_wmesg = wmesg;
+    td->td_sleepqueue = NULL;
+    td->td_state = TDS_WAITING;
+    sq->sq_nblocked++;
+    sched_yield();
   }
-
-  TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_sleepq);
-  td->td_wchan = wchan;
-  td->td_wmesg = wmesg;
-  td->td_sleepqueue = NULL;
-  td->td_state = TDS_WAITING;
-  sq->sq_nblocked++;
-  sched_yield();
-  critical_leave();
 }
 
 /* Remove a thread from the sleep queue and resume it. */
@@ -139,49 +140,40 @@ static void sleepq_resume_thread(sleepq_t *sq, thread_t *td) {
 }
 
 bool sleepq_signal(void *wchan) {
-  critical_enter();
+  IN_CRITICAL_SECTION () {
+    sleepq_t *sq = sleepq_lookup(wchan);
+    if (sq == NULL)
+      return false;
 
-  sleepq_t *sq = sleepq_lookup(wchan);
-  if (sq == NULL) {
-    critical_leave();
-    return false;
+    thread_t *td, *best_td = NULL;
+    TAILQ_FOREACH (td, &sq->sq_blocked, td_sleepq) {
+      /* Search for thread with highest priority */
+      if (best_td == NULL || td->td_prio > best_td->td_prio)
+        best_td = td;
+    }
+    sleepq_resume_thread(sq, best_td);
   }
-
-  thread_t *td, *best_td = NULL;
-  TAILQ_FOREACH (td, &sq->sq_blocked, td_sleepq) {
-    /* Search for thread with highest priority */
-    if (best_td == NULL || td->td_prio > best_td->td_prio)
-      best_td = td;
-  }
-  sleepq_resume_thread(sq, best_td);
-
-  critical_leave();
   return true;
 }
 
 bool sleepq_broadcast(void *wchan) {
-  critical_enter();
+  IN_CRITICAL_SECTION () {
+    sleepq_t *sq = sleepq_lookup(wchan);
+    if (sq == NULL)
+      return false;
 
-  sleepq_t *sq = sleepq_lookup(wchan);
-  if (sq == NULL) {
-    critical_leave();
-    return false;
+    thread_t *td;
+    TAILQ_FOREACH (td, &sq->sq_blocked, td_sleepq)
+      sleepq_resume_thread(sq, td);
   }
-
-  thread_t *td;
-  TAILQ_FOREACH (td, &sq->sq_blocked, td_sleepq) {
-    sleepq_resume_thread(sq, td);
-  }
-
-  critical_leave();
   return true;
 }
 
 void sleepq_remove(thread_t *td, void *wchan) {
-  critical_enter();
-  if (td->td_wchan && td->td_wchan == wchan) {
-    sleepq_t *sq = sleepq_lookup(wchan);
-    sleepq_resume_thread(sq, td);
+  IN_CRITICAL_SECTION () {
+    if (td->td_wchan && td->td_wchan == wchan) {
+      sleepq_t *sq = sleepq_lookup(wchan);
+      sleepq_resume_thread(sq, td);
+    }
   }
-  critical_leave();
 }

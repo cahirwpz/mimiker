@@ -37,9 +37,16 @@ bool rw_try_upgrade(rwlock_t *rw);
 void rw_downgrade(rwlock_t *rw);
 
 DEFINE_CLEANUP_FUNCTION(rwlock_t *, rw_leave);
-#define rw_scoped_enter(prwlock, mode)                                         \
-  rwlock_t *rw_scoped_enter_##__LINE__ cleanup(rw_leave) = prwlock;            \
-  rw_enter(prwlock, mode);
+rwlock_t *_rw_enter(rwlock_t *rw, rwo_t who);
+
+#define rw_scoped_enter(rwlock_p, who)                                         \
+  rwlock_t *__CONCAT(__rwlock_, __LINE__) WITH_CLEANUP(rw_leave) =             \
+    _rw_enter((rwlock_p), (who))
+
+#define WITH_RW_LOCK(rwlock_p, who)                                            \
+  for (rw_scoped_enter((rwlock_p), (who)),                                     \
+       *__CONCAT(__loop_, __LINE__) = (rwlock_t *)1;                           \
+       __CONCAT(__loop_, __LINE__); __CONCAT(__loop_, __LINE__) = NULL)
 
 #define rw_assert(rw, what) __rw_assert((rw), (what), __FILE__, __LINE__)
 void __rw_assert(rwlock_t *rw, rwa_t what, const char *file, unsigned line);

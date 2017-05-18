@@ -156,10 +156,10 @@ void pool_destroy(pool_t *pool) {
   /* TODO: there is no way to use pool's mutex here because it could already got
    * deallocated and we have no method of marking dead mutexes, that's why
    * low-level sync functions are used here. */
-  critical_enter();
-  assert(pool->pp_state == ALIVE);
-  pool->pp_state = DEAD;
-  critical_leave();
+  IN_CRITICAL_SECTION () {
+    assert(pool->pp_state == ALIVE);
+    pool->pp_state = DEAD;
+  }
 
   destroy_slab_list(pool, &pool->pp_empty_slabs);
   destroy_slab_list(pool, &pool->pp_part_slabs);

@@ -136,14 +136,12 @@ noreturn void thread_exit(int exitcode) {
   WITH_MTX_LOCK (&zombie_threads_mtx)
     TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
 
-  critical_enter();
-  {
+  IN_CRITICAL_SECTION () {
     td->td_exitcode = exitcode;
     td->td_state = TDS_INACTIVE;
     cv_broadcast(&td->td_waitcv);
     mtx_unlock(&td->td_lock);
   }
-  critical_leave();
 
   sched_yield();
 

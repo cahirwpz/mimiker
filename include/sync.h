@@ -1,6 +1,8 @@
 #ifndef _SYS_SYNC_H_
 #define _SYS_SYNC_H_
 
+#include <common.h>
+
 /*
  * Entering critical section turns off interrupts - use with care!
  *
@@ -13,5 +15,15 @@
  */
 void critical_enter();
 void critical_leave();
+
+unsigned _critical_enter();
+
+#define critical_scoped()                                                      \
+  unsigned __CONCAT(__cs_, __LINE__) __cleanup(critical_leave) =               \
+    _critical_enter()
+
+#define IN_CRITICAL_SECTION()                                                  \
+  for (critical_scoped(), __CONCAT(__loop_, __LINE__) = 1;                     \
+       __CONCAT(__loop_, __LINE__); __CONCAT(__loop_, __LINE__) = 0)
 
 #endif /* !_SYS_SYNC_H_ */

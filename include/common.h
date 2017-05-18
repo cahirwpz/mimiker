@@ -36,6 +36,7 @@ typedef uint32_t tid_t;
 #define __warn_unused __attribute__((warn_unused_result));
 #define __unreachable() __builtin_unreachable()
 #define __alias(x) __attribute__((alias(#x)))
+#define __cleanup(func) __attribute__((__cleanup__(func)))
 
 /* Macros for counting and rounding. */
 #ifndef howmany
@@ -97,13 +98,14 @@ typedef uint32_t tid_t;
 #define container_of(p, type, field)                                           \
   ((type *)((char *)(p)-offsetof(type, field)))
 
-#define cleanup(func) __attribute__((__cleanup__(cleanup_##func)))
 #define DEFINE_CLEANUP_FUNCTION(type, func)                                    \
-  static inline void cleanup_##func(type *ptr) {                               \
+  static inline void __cleanup_##func(type *ptr) {                             \
     if (*ptr)                                                                  \
       func(*ptr);                                                              \
   }                                                                            \
   struct __force_semicolon__
+
+#define WITH_CLEANUP(func) __cleanup(__cleanup_##func)
 
 #ifndef _USERSPACE
 
