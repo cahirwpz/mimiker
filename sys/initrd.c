@@ -12,7 +12,6 @@
 #include <mount.h>
 #include <mount.h>
 #include <linker_set.h>
-#include <sysinit.h>
 
 static MALLOC_DEFINE(M_INITRD, "initrd", 16, 16);
 
@@ -245,6 +244,19 @@ static int initrd_root(mount_t *m, vnode_t **v) {
 }
 
 static int initrd_init(vfsconf_t *vfc) {
+  unsigned rd_size = ramdisk_get_size();
+
+  if (!rd_size)
+    return ENXIO;
+
+  TAILQ_INIT(&initrd_head);
+  initrd_ops.v_lookup = initrd_vnode_lookup;
+  initrd_ops.v_read = initrd_vnode_read;
+  initrd_ops.v_open = vnode_open_generic;
+  initrd_ops.v_getattr = initrd_vnode_getattr;
+  klog("parsing cpio archive of %zu bytes", rd_size);
+  read_cpio_archive();
+  initrd_build_tree_and_names();
   return 0;
 }
 
@@ -261,22 +273,6 @@ unsigned ramdisk_get_size() {
   return s ? strtoul(s, NULL, 0) : 0;
 }
 
-static void ramdisk_init() {
-  unsigned rd_size = ramdisk_get_size();
-
-  TAILQ_INIT(&initrd_head);
-
-  if (rd_size) {
-    initrd_ops.v_lookup = initrd_vnode_lookup;
-    initrd_ops.v_read = initrd_vnode_read;
-    initrd_ops.v_open = vnode_open_generic;
-    initrd_ops.v_getattr = initrd_vnode_getattr;
-    klog("parsing cpio archive of %zu bytes", rd_size);
-    read_cpio_archive();
-    initrd_build_tree_and_names();
-  }
-}
-
 void ramdisk_dump() {
   cpio_node_t *it;
 
@@ -290,4 +286,3 @@ static vfsconf_t initrd_conf = {.vfc_name = "initrd",
                                 .vfc_vfsops = &initrd_vfsops};
 
 SET_ENTRY(vfsconf, initrd_conf);
-SYSINIT_ADD(ramdisk, ramdisk_init, DEPS("vm_map", "vnode"));
