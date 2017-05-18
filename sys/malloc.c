@@ -213,12 +213,13 @@ void kfree(kmem_pool_t *mp, void *addr) {
     panic("Memory corruption detected!");
 
   mem_arena_t *current = NULL;
-  mtx_scoped_lock(&mp->mp_lock);
-  TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
-    char *start = ((char *)current) + sizeof(mem_arena_t);
-    if ((char *)addr >= start && (char *)addr < start + current->ma_size)
-      add_free_memory_block(current, mb,
-                            abs(mb->mb_size) + sizeof(mem_block_t));
+  WITH_MTX_LOCK (&mp->mp_lock) {
+    TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
+      char *start = ((char *)current) + sizeof(mem_arena_t);
+      if ((char *)addr >= start && (char *)addr < start + current->ma_size)
+        add_free_memory_block(current, mb,
+                              abs(mb->mb_size) + sizeof(mem_block_t));
+    }
   }
 }
 

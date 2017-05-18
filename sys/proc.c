@@ -35,19 +35,22 @@ proc_t *proc_create() {
 }
 
 void proc_populate(proc_t *p, thread_t *td) {
-  mtx_scoped_lock(&p->p_lock);
-  mtx_scoped_lock(&td->td_lock);
-  td->td_proc = p;
-  TAILQ_INSERT_TAIL(&p->p_threads, td, td_procq);
-  p->p_nthreads += 1;
+  WITH_MTX_LOCK (&p->p_lock) {
+    WITH_MTX_LOCK (&td->td_lock) {
+      td->td_proc = p;
+      TAILQ_INSERT_TAIL(&p->p_threads, td, td_procq);
+      p->p_nthreads += 1;
+    }
+  }
 }
 
 proc_t *proc_find(pid_t pid) {
   proc_t *p = NULL;
-  mtx_scoped_lock(&all_proc_list_mtx);
-  TAILQ_FOREACH (p, &all_proc_list, p_all) {
-    if (p->p_pid == pid)
-      break;
+  WITH_MTX_LOCK (&all_proc_list_mtx) {
+    TAILQ_FOREACH (p, &all_proc_list, p_all) {
+      if (p->p_pid == pid)
+        break;
+    }
   }
   return p;
 }

@@ -174,28 +174,31 @@ void *pool_alloc(pool_t *pool, __unused unsigned flags) {
 
   assert(pool->pp_state == ALIVE);
 
-  mtx_scoped_lock(&pool->pp_mtx);
+  void *p = NULL;
 
-  pool_slab_t *slab;
-  if (pool->pp_nitems) {
-    pool_slabs_t *slabs = LIST_EMPTY(&pool->pp_part_slabs)
-                            ? &pool->pp_empty_slabs
-                            : &pool->pp_part_slabs;
-    slab = LIST_FIRST(slabs);
-    LIST_REMOVE(slab, ph_slablist);
-  } else {
-    slab = create_slab(pool);
-    pool->pp_nitems += slab->ph_ntotal;
-    pool->pp_nslabs++;
-    klog("pool_alloc: growing pool at %p", pool);
+  WITH_MTX_LOCK (&pool->pp_mtx) {
+    pool_slab_t *slab;
+    if (pool->pp_nitems) {
+      pool_slabs_t *slabs = LIST_EMPTY(&pool->pp_part_slabs)
+                              ? &pool->pp_empty_slabs
+                              : &pool->pp_part_slabs;
+      slab = LIST_FIRST(slabs);
+      LIST_REMOVE(slab, ph_slablist);
+    } else {
+      slab = create_slab(pool);
+      pool->pp_nitems += slab->ph_ntotal;
+      pool->pp_nslabs++;
+      klog("pool_alloc: growing pool at %p", pool);
+    }
+
+    p = slab_alloc(slab);
+    pool->pp_nitems--;
+    pool_slabs_t *slabs = (slab->ph_nused < slab->ph_ntotal)
+                            ? &pool->pp_part_slabs
+                            : &pool->pp_full_slabs;
+    LIST_INSERT_HEAD(slabs, slab, ph_slablist);
   }
 
-  void *p = slab_alloc(slab);
-  pool->pp_nitems--;
-  pool_slabs_t *slabs = (slab->ph_nused < slab->ph_ntotal)
-                          ? &pool->pp_part_slabs
-                          : &pool->pp_full_slabs;
-  LIST_INSERT_HEAD(slabs, slab, ph_slablist);
   return p;
 }
 
@@ -206,25 +209,25 @@ void pool_free(pool_t *pool, void *ptr) {
 
   assert(pool->pp_state == ALIVE);
 
-  mtx_scoped_lock(&pool->pp_mtx);
+  WITH_MTX_LOCK (&pool->pp_mtx) {
+    pool_item_t *pi = ptr - sizeof(pool_item_t);
+    assert(pi->pi_canary == PI_MAGIC);
+    pool_slab_t *slab = pi->pi_slab;
+    assert(slab->ph_state == ALIVE);
 
-  pool_item_t *pi = ptr - sizeof(pool_item_t);
-  assert(pi->pi_canary == PI_MAGIC);
-  pool_slab_t *slab = pi->pi_slab;
-  assert(slab->ph_state == ALIVE);
+    unsigned index = slab_index_of(slab, pi);
+    bitstr_t *bitmap = slab->ph_bitmap;
 
-  unsigned index = slab_index_of(slab, pi);
-  bitstr_t *bitmap = slab->ph_bitmap;
+    assert(bit_test(bitmap, index));
 
-  assert(bit_test(bitmap, index));
-
-  bit_clear(bitmap, index);
-  LIST_REMOVE(slab, ph_slablist);
-  slab->ph_nused--;
-  pool->pp_nitems++;
-  pool_slabs_t *slabs =
-    slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
-  LIST_INSERT_HEAD(slabs, slab, ph_slablist);
+    bit_clear(bitmap, index);
+    LIST_REMOVE(slab, ph_slablist);
+    slab->ph_nused--;
+    pool->pp_nitems++;
+    pool_slabs_t *slabs =
+      slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
+    LIST_INSERT_HEAD(slabs, slab, ph_slablist);
+  }
 
   debug("pool_free: freed item %p at slab %p, index %d", ptr, slab, index);
 }
