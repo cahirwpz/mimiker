@@ -76,9 +76,11 @@ int sig_send(proc_t *proc, signo_t sig) {
   if (target->td_state == TDS_INACTIVE)
     return -EINVAL;
 
+  mtx_lock(&target->td_proc->p_lock);
   /* If the signal is ignored, don't even bother posting it. */
   if (get_sigact(sig, target->td_proc) == SIG_IGN)
     return 0;
+  mtx_unlock(&target->td_proc->p_lock);
 
   bit_set(target->td_sigpend, sig);
 
