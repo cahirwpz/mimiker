@@ -58,6 +58,10 @@ int do_fork() {
   /* TODO: Optionally share the descriptor table between processes. */
   proc->p_fdtable = fdtab_copy(td->td_proc->p_fdtable);
 
+  /* Copy signal handler dispatch rules. */
+  memcpy(proc->p_sigactions, td->td_proc->p_sigactions,
+         sizeof(proc->p_sigactions));
+
   sched_add(newtd);
 
   return proc->p_pid;

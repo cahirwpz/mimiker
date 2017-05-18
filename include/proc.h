@@ -4,6 +4,7 @@
 #include <common.h>
 #include <queue.h>
 #include <mutex.h>
+#include <signal.h>
 #include <vm_map.h>
 
 typedef struct thread thread_t;
@@ -28,6 +29,8 @@ struct proc {
   vm_map_t *p_uspace;     /* process' user space map */
   /* file descriptors table */
   fdtab_t *p_fdtable;
+  /* signal stuff */
+  sigaction_t p_sigactions[NSIG];
   /* zombie process status */
   int p_exitcode;
   /* XXX: process resource usage stats */
