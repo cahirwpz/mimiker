@@ -46,7 +46,9 @@ static void count_dependants() {
     char **deps = (*ptr)->deps;
     while (*deps) {
       sysinit_entry_t *dependency = find(*deps);
-      assert(dependency != NULL);
+      if (dependency == NULL)
+        panic("module \"%s\" depends on \"%s\", which is not found",
+              (*ptr)->name, *deps);
       dependency->dependants++;
       deps++;
     }
@@ -59,7 +61,7 @@ static void dump_cycle() {
   bool cycle_found = false;
   SET_FOREACH(ptr, sysinit) {
     if ((*ptr)->dependants != 0) {
-      klog("element of some cycle: %s", (*ptr)->name);
+      klog("unreachable module: %s", (*ptr)->name);
       cycle_found = true;
     }
   }
@@ -67,8 +69,8 @@ static void dump_cycle() {
     panic("Found cycle in modules dependencies");
 }
 void sysinit_sort() {
-  /* builds topological ordering and lauches modules with built order 
-   result is constructed from back, because of direction of relations 
+  /* builds topological ordering and lauches modules with built order
+   result is constructed from back, because of direction of relations
    given edges point to earlier modules */
   count_dependants();
   sysinit_tailq_t list = TAILQ_HEAD_INITIALIZER(list);

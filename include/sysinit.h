@@ -21,13 +21,15 @@ struct sysinit_entry {
   unsigned dependants;  /* number of modules depending on this module
                            used during topological ordering */
   TAILQ_ENTRY(sysinit_entry) entries; /* linked list reperesenting ordering */
-
 };
 
 SET_DECLARE(sysinit, sysinit_entry_t);
 
-#define SYSINIT_ADD(name, func, deps)                                          \
-  sysinit_entry_t name##_sysinit = {#name, func, deps, 0};                     \
-  SET_ENTRY(sysinit, name##_sysinit);
+#define SYSINIT_ADD(mod_name, init_func, deps_names)                           \
+  sysinit_entry_t mod_name##_sysinit = {.name = (#mod_name),                   \
+                                        .func = (init_func),                   \
+                                        .deps = (deps_names),                  \
+                                        .dependants = 0};                      \
+  SET_ENTRY(sysinit, mod_name##_sysinit);
 void sysinit_sort();
 #endif /*!_SYS_SYSINIT_H_*/
