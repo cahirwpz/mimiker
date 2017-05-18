@@ -3,6 +3,7 @@
 #include <klog.h>
 #include <device.h>
 #include <pci.h>
+#include <sysinit.h>
 
 MALLOC_DEFINE(M_DEV, "device/driver pool", 128, 1024);
 
@@ -41,7 +42,7 @@ int device_detach(device_t *dev) {
 
 extern pci_bus_driver_t gt_pci;
 
-void driver_init() {
+static void driver_init() {
   /* TODO: a platform should expose root bus - probe & attach process should
    * start from it. */
   device_t *pcib = device_alloc();
@@ -66,3 +67,5 @@ void driver_init() {
     }
   }
 }
+
+SYSINIT_ADD(driver, driver_init, NODEPS);

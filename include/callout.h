@@ -1,5 +1,5 @@
-#ifndef __CALLOUT_H__
-#define __CALLOUT_H__
+#ifndef _SYS_CALLOUT_H_
+#define _SYS_CALLOUT_H_
 
 #include <common.h>
 #include <queue.h>
@@ -18,8 +18,6 @@ typedef struct callout {
 
 #define CALLOUT_ACTIVE 0x0001  /* callout is currently being executed */
 #define CALLOUT_PENDING 0x0002 /* callout is waiting for timeout */
-
-void callout_init();
 
 /*
  * Add a callout to the queue.
@@ -45,4 +43,4 @@ void callout_stop(callout_t *handle);
  */
 void callout_process(realtime_t now);
 
-#endif /* __CALLOUT_H__ */
+#endif /* !_SYS_CALLOUT_H_ */

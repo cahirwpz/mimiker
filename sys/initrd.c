@@ -244,6 +244,19 @@ static int initrd_root(mount_t *m, vnode_t **v) {
 }
 
 static int initrd_init(vfsconf_t *vfc) {
+  unsigned rd_size = ramdisk_get_size();
+
+  if (!rd_size)
+    return ENXIO;
+
+  TAILQ_INIT(&initrd_head);
+  initrd_ops.v_lookup = initrd_vnode_lookup;
+  initrd_ops.v_read = initrd_vnode_read;
+  initrd_ops.v_open = vnode_open_generic;
+  initrd_ops.v_getattr = initrd_vnode_getattr;
+  klog("parsing cpio archive of %zu bytes", rd_size);
+  read_cpio_archive();
+  initrd_build_tree_and_names();
   return 0;
 }
 
@@ -258,22 +271,6 @@ intptr_t ramdisk_get_start() {
 unsigned ramdisk_get_size() {
   char *s = kenv_get("rd_size");
   return s ? strtoul(s, NULL, 0) : 0;
-}
-
-void ramdisk_init() {
-  unsigned rd_size = ramdisk_get_size();
-
-  TAILQ_INIT(&initrd_head);
-
-  if (rd_size) {
-    initrd_ops.v_lookup = initrd_vnode_lookup;
-    initrd_ops.v_read = initrd_vnode_read;
-    initrd_ops.v_open = vnode_open_generic;
-    initrd_ops.v_getattr = initrd_vnode_getattr;
-    klog("parsing cpio archive of %zu bytes", rd_size);
-    read_cpio_archive();
-    initrd_build_tree_and_names();
-  }
 }
 
 void ramdisk_dump() {

@@ -1,12 +1,9 @@
-#ifndef __MIPS_CLOCK_H__
-#define __MIPS_CLOCK_H__
+#ifndef _MIPS_CLOCK_H_
+#define _MIPS_CLOCK_H_
 
 #include <clock.h>
-
-/* Initializes and enables core timer interrupts. */
-void mips_clock_init();
 
 /* Processes core timer interrupts. */
 void mips_clock_irq_handler();
 
-#endif // __MIPS_CLOCK_H__
+#endif /* !_MIPS_CLOCK_H_ */
