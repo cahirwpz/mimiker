@@ -49,9 +49,8 @@ int devfs_install(const char *name, vnode_t *device) {
   strlcpy(idev->name, name, DEVFS_NAME_MAX);
   idev->dev = device;
 
-  mtx_lock(&devfs_device_list_mtx);
-  TAILQ_INSERT_TAIL(&devfs_device_list, idev, list);
-  mtx_unlock(&devfs_device_list_mtx);
+  WITH_MTX_LOCK (&devfs_device_list_mtx)
+    TAILQ_INSERT_TAIL(&devfs_device_list, idev, list);
 
   return 0;
 }

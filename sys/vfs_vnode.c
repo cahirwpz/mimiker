@@ -66,6 +66,7 @@ static int vnode_generic_close(file_t *f, thread_t *td) {
   vnode_unref(f->f_vnode);
   return 0;
 }
+
 static int vnode_generic_getattr(file_t *f, thread_t *td, vattr_t *vattr) {
   vnode_t *v = f->f_vnode;
   return v->v_ops->v_getattr(v, vattr);

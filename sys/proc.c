@@ -23,13 +23,11 @@ proc_t *proc_create() {
   TAILQ_INIT(&proc->p_threads);
   proc->p_nthreads = 0;
 
-  mtx_lock(&all_proc_list_mtx);
-  TAILQ_INSERT_TAIL(&all_proc_list, proc, p_all);
-  mtx_unlock(&all_proc_list_mtx);
+  WITH_MTX_LOCK (&all_proc_list_mtx)
+    TAILQ_INSERT_TAIL(&all_proc_list, proc, p_all);
 
-  mtx_lock(&last_pid_mtx);
-  proc->p_pid = last_pid++;
-  mtx_unlock(&last_pid_mtx);
+  WITH_MTX_LOCK (&last_pid_mtx)
+    proc->p_pid = last_pid++;
 
   return proc;
 }

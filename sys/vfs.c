@@ -69,9 +69,8 @@ static int vfs_register(vfsconf_t *vfc) {
   if (vfs_get_by_name(vfc->vfc_name))
     return -EEXIST;
 
-  mtx_lock(&vfsconf_list_mtx);
-  TAILQ_INSERT_TAIL(&vfsconf_list, vfc, vfc_list);
-  mtx_unlock(&vfsconf_list_mtx);
+  WITH_MTX_LOCK (&vfsconf_list_mtx)
+    TAILQ_INSERT_TAIL(&vfsconf_list, vfc, vfc_list);
 
   vfc->vfc_mountcnt = 0;
 
@@ -146,9 +145,8 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
 
   v->v_mountedhere = m;
 
-  mtx_lock(&mount_list_mtx);
-  TAILQ_INSERT_TAIL(&mount_list, m, mnt_list);
-  mtx_unlock(&mount_list_mtx);
+  WITH_MTX_LOCK (&mount_list_mtx)
+    TAILQ_INSERT_TAIL(&mount_list, m, mnt_list);
 
   /* Note that we do not need to ask the new mount for the root vnode! That
      V_DIR vnode which is at the mount point stays in place. The root vnode is

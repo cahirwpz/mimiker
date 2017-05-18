@@ -179,28 +179,29 @@ void *kmalloc(kmem_pool_t *mp, size_t size, unsigned flags) {
 
   /* Search for the first area in the list that has enough space. */
   mem_arena_t *current = NULL;
-  mtx_scoped_lock(&mp->mp_lock);
-  TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
-    assert(current->ma_magic == MB_MAGIC);
 
-    mem_block_t *mb = try_allocating_in_area(current, size_aligned);
+  WITH_MTX_LOCK (&mp->mp_lock) {
+    TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
+      assert(current->ma_magic == MB_MAGIC);
 
-    if (mb) {
-      if (flags == M_ZERO)
-        memset(mb->mb_data, 0, size);
-      return mb->mb_data;
+      mem_block_t *mb = try_allocating_in_area(current, size_aligned);
+
+      if (mb) {
+        if (flags == M_ZERO)
+          memset(mb->mb_data, 0, size);
+        return mb->mb_data;
+      }
     }
-  }
-  /* Couldn't find any continuous memory with the requested size. */
-  if (flags & M_NOWAIT) {
-    return NULL;
-  }
 
-  if (mp->mp_pages_used < mp->mp_pages_max) {
-    kmalloc_add_pages(mp, 1);
-    mp->mp_pages_used++;
-    void *ret = kmalloc(mp, size, flags);
-    return ret;
+    /* Couldn't find any continuous memory with the requested size. */
+    if (flags & M_NOWAIT)
+      return NULL;
+
+    if (mp->mp_pages_used < mp->mp_pages_max) {
+      kmalloc_add_pages(mp, 1);
+      mp->mp_pages_used++;
+      return kmalloc(mp, size, flags);
+    }
   }
 
   panic("memory exhausted in '%s'", mp->mp_desc);
@@ -247,20 +248,21 @@ void kmem_init(kmem_pool_t *mp) {
 }
 
 void kmem_dump(kmem_pool_t *mp) {
-  mem_arena_t *arena = NULL;
-  klog("[kmem] pool at %p:", mp);
-  mtx_scoped_lock(&mp->mp_lock);
-  TAILQ_FOREACH (arena, &mp->mp_arena, ma_list) {
-    mem_block_t *block = (void *)arena->ma_data;
-    mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
+  klog("pool at %p:", mp);
+  WITH_MTX_LOCK (&mp->mp_lock) {
+    mem_arena_t *arena = NULL;
+    TAILQ_FOREACH (arena, &mp->mp_arena, ma_list) {
+      mem_block_t *block = (void *)arena->ma_data;
+      mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
 
-    klog("[kmem]  malloc_arena %p - %p:", block, end);
+      klog("> malloc_arena %p - %p:", block, end);
 
-    while (block < end) {
-      assert(block->mb_magic == MB_MAGIC);
-      klog("[kmem]   %c %p %d", (block->mb_size > 0) ? 'F' : 'U', block,
-           (unsigned)abs(block->mb_size));
-      block = mb_next(block);
+      while (block < end) {
+        assert(block->mb_magic == MB_MAGIC);
+        klog("   %c %p %d", (block->mb_size > 0) ? 'F' : 'U', block,
+             (unsigned)abs(block->mb_size));
+        block = mb_next(block);
+      }
     }
   }
 }
