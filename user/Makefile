@@ -29,6 +29,7 @@ mandelbrot: | newlib-install
 test_fork: | newlib-install
 test_dup: | newlib-install
 ls_rec: | newlib-install
+utest: | newlib-install
 
 clean:
 	for dir in $(PROGDIRS); do \

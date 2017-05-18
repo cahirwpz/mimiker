@@ -23,6 +23,7 @@ SOURCES_C = \
 	syscall.c \
 	thread_exit.c \
 	uiomove.c \
+	utest.c \
 	vm_map.c \
 	vfs.c
 
