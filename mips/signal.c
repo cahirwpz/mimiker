@@ -40,7 +40,10 @@ int platform_sig_deliver(int sig, sigaction_t *sa) {
   }
 
   /* Prepare user context so that on return to usermode the handler gets
-   * executed. */
+   * executed. No need to check whether the handler address is valid (aligned,
+   * user space, mapped memory, executable). If it is not, an exception will be
+   * raised and the user process will get the punishment it deserves (SIGILL,
+   * SIGSEGV). */
   td->td_uctx.pc = (reg_t)sa->sa_handler;
   td->td_uctx.a0 = sig;
   /* The calling convention is such that the callee may write to the address
