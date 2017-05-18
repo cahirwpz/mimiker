@@ -74,7 +74,7 @@ static int sys_sigaction(thread_t *td, syscall_args_t *args) {
   sigaction_t newact;
   sigaction_t oldact;
   int error;
-  if((error = copyin(p_newact, &newact, sizeof(sigaction_t))))
+  if ((error = copyin(p_newact, &newact, sizeof(sigaction_t))))
     return error;
 
   int res = do_sigaction(signo, &newact, &oldact);
@@ -82,8 +82,8 @@ static int sys_sigaction(thread_t *td, syscall_args_t *args) {
     return res;
 
   if (p_oldact != NULL)
-    if((error = copyout(&oldact, p_oldact, sizeof(sigaction_t))))
-        return error;
+    if ((error = copyout(&oldact, p_oldact, sizeof(sigaction_t))))
+      return error;
 
   return res;
 }

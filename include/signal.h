@@ -55,8 +55,6 @@ typedef struct proc proc_t;
 
 typedef bitstr_t sigset_t[bitstr_size(NSIG)];
 
-#define SIG_TERM (sighandler_t *)0x02
-
 /* Sends a signal to a process. */
 int sig_send(proc_t *td, signo_t sig);
 
