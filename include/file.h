@@ -49,8 +49,6 @@ typedef struct file {
   mtx_t f_mtx;
 } file_t;
 
-void file_init();
-
 void file_ref(file_t *f);
 void file_unref(file_t *f);
 
