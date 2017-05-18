@@ -31,12 +31,11 @@ int platform_sig_deliver(int sig, sigaction_t *sa) {
 
   int error = copyout(&ksc, scp, sizeof(sig_ctx_t));
   if (error) {
-    /* This thread has a corrupted stack, we can no longer send any signals to
-       it. Forcefully terminate the thread. TODO: Maybe sending a SIGKILL is
-       safe here? */
-    klog("Thread %lu is unable to receive a signal, terminating it.",
+    /* This thread has a corrupted stack, it can no longer react on a signal
+       with a custom handler. Kill the process. */
+    klog("Thread %lu is unable to receive a signal, killing its process.",
          td->td_tid);
-    thread_exit(-1);
+    sig_send(td->td_proc, SIGKILL);
     __unreachable();
   }
 
