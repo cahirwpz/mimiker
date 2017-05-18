@@ -10,6 +10,7 @@
 #include <fork.h>
 #include <sbrk.h>
 #include <proc.h>
+#include <wait.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 static int sys_nosys(thread_t *td, syscall_args_t *args) {
@@ -41,7 +42,7 @@ static int sys_exit(thread_t *td, syscall_args_t *args) {
 
   klog("exit(%d)", status);
 
-  thread_exit(status);
+  do_exit(status);
   __unreachable();
 }
 
@@ -220,6 +221,37 @@ static int sys_dup2(thread_t *td, syscall_args_t *args) {
   return do_dup2(td, old, new);
 }
 
+static int sys_wait(thread_t *td, syscall_args_t *args) {
+  int *user_status = (int *)args->args[0];
+  klog("wait(%x)", user_status);
+  int status = 0, res;
+
+  res = do_waitpid(-1, &status, 0);
+  if (res < 0)
+    return res;
+
+  if (suword32(user_status, status) < 0)
+    return EFAULT;
+  return res;
+}
+
+static int sys_waitpid(thread_t *td, syscall_args_t *args) {
+  pid_t pid = args->args[0];
+  int *user_status = (int *)args->args[1];
+  int options = args->args[2];
+
+  klog("waitpid(%d, %x, %d)", pid, user_status, options);
+  int status = 0, res;
+
+  res = do_waitpid(pid, &status, options);
+  if (res < 0)
+    return res;
+
+  if (suword32(user_status, status) < 0)
+    return EFAULT;
+  return res;
+}
+
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
                      [SYS_OPEN] = {sys_open},
@@ -237,4 +269,6 @@ sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
                      [SYS_MOUNT] = {sys_mount},
                      [SYS_GETDENTS] = {sys_getdirentries},
                      [SYS_DUP] = {sys_dup},
-                     [SYS_DUP2] = {sys_dup2}};
+                     [SYS_DUP2] = {sys_dup2},
+                     [SYS_WAIT] = {sys_wait},
+                     [SYS_WAITPID] = {sys_waitpid}};

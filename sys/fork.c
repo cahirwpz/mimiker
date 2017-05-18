@@ -48,6 +48,7 @@ int do_fork() {
   assert(td->td_proc);
   proc_t *proc = proc_create();
   proc->p_parent = td->td_proc;
+  TAILQ_INSERT_TAIL(&td->td_proc->p_children, proc, p_child);
   proc_populate(proc, newtd);
 
   /* Clone the entire process memory space. */

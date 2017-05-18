@@ -18,7 +18,9 @@
 #define SYS_GETDENTS 15
 #define SYS_DUP 16
 #define SYS_DUP2 17
-#define SYS_LAST 17
+#define SYS_WAIT 18
+#define SYS_WAITPID 19
+#define SYS_LAST 19
 
 #ifndef __ASSEMBLER__
 
