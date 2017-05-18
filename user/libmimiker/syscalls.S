@@ -62,6 +62,8 @@ SYSCALL(fstat, SYS_FSTAT)
 SYSCALL(sbrk, SYS_SBRK)
 SYSCALL(fork, SYS_FORK)
 SYSCALL(mmap, SYS_MMAP)
+SYSCALL(dup, SYS_DUP)
+SYSCALL(dup2, SYS_DUP2)	
 SYSCALL(getdirentries, SYS_GETDENTS)
 
 # vim: sw=8 ts=8 et
