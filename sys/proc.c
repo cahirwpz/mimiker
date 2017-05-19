@@ -5,18 +5,11 @@
 
 static MALLOC_DEFINE(M_PROC, "proc", 1, 2);
 
-static mtx_t all_proc_list_mtx;
-static proc_list_t all_proc_list;
+static mtx_t all_proc_list_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static proc_list_t all_proc_list = TAILQ_HEAD_INITIALIZER(all_proc_list);
 
-static mtx_t last_pid_mtx;
-static pid_t last_pid;
-
-static void proc_init() {
-  mtx_init(&all_proc_list_mtx, MTX_DEF);
-  TAILQ_INIT(&all_proc_list);
-  mtx_init(&last_pid_mtx, MTX_DEF);
-  last_pid = 0;
-}
+static mtx_t last_pid_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static pid_t last_pid = 0;
 
 proc_t *proc_create() {
   proc_t *proc = kmalloc(M_PROC, sizeof(proc_t), M_ZERO);
@@ -52,5 +45,3 @@ proc_t *proc_find(pid_t pid) {
   }
   return p;
 }
-
-SYSINIT_ADD(proc, proc_init, NODEPS);

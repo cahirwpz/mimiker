@@ -15,6 +15,8 @@ typedef struct mtx {
   unsigned m_type;            /* Normal or recursive mutex */
 } mtx_t;
 
+#define MUTEX_INITIALIZER(type) (mtx_t){.m_owner = NULL, .m_count = 0, .m_type = type}
+
 /* Initializes mutex. Note that EVERY mutex has to be initialized
  * before it is used. */
 void mtx_init(mtx_t *m, unsigned type);

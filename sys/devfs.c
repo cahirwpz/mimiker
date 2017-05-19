@@ -25,7 +25,7 @@ typedef struct devfs_device {
 typedef TAILQ_HEAD(, devfs_device) devfs_device_list_t;
 static devfs_device_list_t devfs_device_list =
   TAILQ_HEAD_INITIALIZER(devfs_device_list);
-static mtx_t devfs_device_list_mtx;
+static mtx_t devfs_device_list_mtx = MUTEX_INITIALIZER(MTX_DEF);
 
 static devfs_device_t *devfs_get_by_name(const char *name) {
   SCOPED_MTX_LOCK(&devfs_device_list_mtx);
@@ -105,8 +105,6 @@ static int devfs_root(mount_t *m, vnode_t **v) {
 }
 
 static int devfs_init(vfsconf_t *vfc) {
-  mtx_init(&devfs_device_list_mtx, MTX_DEF);
-
   /* Prepare some initial devices */
   typedef void devfs_init_func_t();
   SET_DECLARE(devfs_init, devfs_init_func_t);
