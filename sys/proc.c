@@ -34,28 +34,28 @@ proc_t *proc_create() {
   proc->p_state = PRS_NORMAL;
   TAILQ_INIT(&proc->p_children);
 
-  mtx_lock(&all_proc_list_mtx);
-  TAILQ_INSERT_TAIL(&all_proc_list, proc, p_all);
-  mtx_unlock(&all_proc_list_mtx);
+  WITH_MTX_LOCK (&all_proc_list_mtx)
+    TAILQ_INSERT_TAIL(&all_proc_list, proc, p_all);
 
-  mtx_lock(&last_pid_mtx);
-  proc->p_pid = last_pid++;
-  mtx_unlock(&last_pid_mtx);
+  WITH_MTX_LOCK (&last_pid_mtx)
+    proc->p_pid = last_pid++;
 
   return proc;
 }
 
 void proc_populate(proc_t *p, thread_t *td) {
-  mtx_scoped_lock(&p->p_lock);
-  mtx_scoped_lock(&td->td_lock);
+  SCOPED_MTX_LOCK(&p->p_lock);
+  SCOPED_MTX_LOCK(&td->td_lock);
+
   td->td_proc = p;
   TAILQ_INSERT_TAIL(&p->p_threads, td, td_procq);
   p->p_nthreads += 1;
 }
 
 proc_t *proc_find(pid_t pid) {
+  SCOPED_MTX_LOCK(&all_proc_list_mtx);
+
   proc_t *p = NULL;
-  mtx_scoped_lock(&all_proc_list_mtx);
   TAILQ_FOREACH (p, &all_proc_list, p_all) {
     if (p->p_pid == pid)
       break;

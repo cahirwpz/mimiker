@@ -30,11 +30,14 @@ void mtx_lock(mtx_t *m);
  * then it wakes up the thread in FIFO manner. */
 void mtx_unlock(mtx_t *m);
 
-/* Use mtx_lock_guard to lock a mutex and have it automatically unlock when
+/* Use mtx_scoped_lock to lock a mutex and have it automatically unlock when
    leaving current scope. */
 DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
-#define mtx_scoped_lock(pmtx)                                                  \
-  mtx_t *__CONCAT(mtx_scoped_lock_, __LINE__) cleanup(mtx_unlock) = pmtx;      \
-  mtx_lock(pmtx);
+
+#define SCOPED_MTX_LOCK(mtx_p)                                                 \
+  SCOPED_STMT(mtx_t, mtx_lock, CLEANUP_FUNCTION(mtx_unlock), mtx_p)
+
+#define WITH_MTX_LOCK(mtx_p)                                                   \
+  WITH_STMT(mtx_t, mtx_lock, CLEANUP_FUNCTION(mtx_unlock), mtx_p)
 
 #endif /* !_SYS_MUTEX_H_ */
