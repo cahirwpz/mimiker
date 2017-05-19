@@ -58,7 +58,7 @@ int platform_sig_deliver(signo_t sig, sigaction_t *sa) {
 
 int platform_sig_return() {
   thread_t *td = thread_self();
-  mtx_scoped_lock(&td->td_lock);
+  SCOPED_MTX_LOCK(&td->td_lock);
   sig_ctx_t ksc;
   /* TODO: We assume the stored user context is where user stack is. This
      usually works, but the signal handler may switch the stack, or perform an
