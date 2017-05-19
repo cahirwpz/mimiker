@@ -34,7 +34,7 @@ int do_kill(pid_t pid, signo_t sig) {
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   thread_t *td = thread_self();
   assert(td->td_proc);
-  mtx_scoped_lock(&td->td_proc->p_lock);
+  SCOPED_MTX_LOCK(&td->td_proc->p_lock);
 
   if (sig >= NSIG)
     return -EINVAL;
@@ -72,19 +72,19 @@ int sig_send(proc_t *proc, signo_t sig) {
      below for each thread in proc. */
   thread_t *target = TAILQ_FIRST(&proc->p_threads);
 
-  mtx_scoped_lock(&target->td_lock);
+  SCOPED_MTX_LOCK(&target->td_lock);
 
   /* If the thread is already dead, don't post a signal. */
   if (target->td_state == TDS_INACTIVE)
     return -EINVAL;
 
-  mtx_lock(&target->td_proc->p_lock);
-  /* If the signal is ignored, don't even bother posting it. */
-  sighandler_t *handler = target->td_proc->p_sigactions[sig].sa_handler;
-  if (handler == SIG_IGN ||
-      (sig_default(sig) == SA_IGNORE && handler == SIG_DFL))
-    return 0;
-  mtx_unlock(&target->td_proc->p_lock);
+  WITH_MTX_LOCK (&target->td_proc->p_lock) {
+    /* If the signal is ignored, don't even bother posting it. */
+    sighandler_t *handler = target->td_proc->p_sigactions[sig].sa_handler;
+    if (handler == SIG_IGN ||
+        (sig_default(sig) == SA_IGNORE && handler == SIG_DFL))
+      return 0;
+  }
 
   bit_set(target->td_sigpend, sig);
 
@@ -115,7 +115,7 @@ int sig_check(thread_t *td) {
 
     bit_clear(td->td_sigpend, sig);
 
-    mtx_scoped_lock(&td->td_proc->p_lock);
+    SCOPED_MTX_LOCK(&td->td_proc->p_lock);
     sighandler_t *handler = td->td_proc->p_sigactions[sig].sa_handler;
 
     if (handler == SIG_IGN ||
@@ -143,7 +143,7 @@ term:
 void sig_deliver(signo_t sig) {
   thread_t *td = thread_self();
   assert(td->td_proc);
-  mtx_scoped_lock(&td->td_proc->p_lock);
+  SCOPED_MTX_LOCK(&td->td_proc->p_lock);
   sigaction_t *sa = td->td_proc->p_sigactions + sig;
 
   assert(sa->sa_handler != SIG_IGN && sa->sa_handler != SIG_DFL);

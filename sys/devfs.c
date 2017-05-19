@@ -28,8 +28,9 @@ static devfs_device_list_t devfs_device_list =
 static mtx_t devfs_device_list_mtx;
 
 static devfs_device_t *devfs_get_by_name(const char *name) {
+  SCOPED_MTX_LOCK(&devfs_device_list_mtx);
+
   devfs_device_t *idev;
-  mtx_scoped_lock(&devfs_device_list_mtx);
   TAILQ_FOREACH (idev, &devfs_device_list, list)
     if (!strcmp(name, idev->name))
       return idev;
@@ -48,9 +49,8 @@ int devfs_install(const char *name, vnode_t *device) {
   strlcpy(idev->name, name, DEVFS_NAME_MAX);
   idev->dev = device;
 
-  mtx_lock(&devfs_device_list_mtx);
-  TAILQ_INSERT_TAIL(&devfs_device_list, idev, list);
-  mtx_unlock(&devfs_device_list_mtx);
+  WITH_MTX_LOCK (&devfs_device_list_mtx)
+    TAILQ_INSERT_TAIL(&devfs_device_list, idev, list);
 
   return 0;
 }
