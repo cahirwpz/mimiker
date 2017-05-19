@@ -10,20 +10,17 @@
 static MALLOC_DEFINE(M_PROC, "proc", 1, 2);
 
 static mtx_t all_proc_list_mtx;
-static proc_list_t all_proc_list;
+static proc_list_t all_proc_list = TAILQ_HEAD_INITIALIZER(all_proc_list);
 static mtx_t zombie_proc_list_mtx;
-static proc_list_t zombie_proc_list;
+static proc_list_t zombie_proc_list = TAILQ_HEAD_INITIALIZER(zombie_proc_list);
 
 static mtx_t last_pid_mtx;
-static pid_t last_pid;
+static pid_t last_pid = 0;
 
 static void proc_init() {
   mtx_init(&all_proc_list_mtx, MTX_DEF);
-  TAILQ_INIT(&all_proc_list);
   mtx_init(&zombie_proc_list_mtx, MTX_DEF);
-  TAILQ_INIT(&zombie_proc_list);
   mtx_init(&last_pid_mtx, MTX_DEF);
-  last_pid = 0;
 }
 
 proc_t *proc_create() {
@@ -71,44 +68,43 @@ void proc_exit(int exitstatus) {
   proc_t *p = td->td_proc;
   assert(p);
 
-  mtx_lock(&p->p_lock);
+  WITH_MTX_LOCK (&p->p_lock) {
 
-  assert(p->p_nthreads == 1);
-  /* If the process had other threads, we'd need to wake the sleeping ones,
-     request all of them except this one to call thread_exit from
-     exc_before_leave (using a TDF_? flag), join all of them to wait until they
-     terminate. */
+    assert(p->p_nthreads == 1);
+    /* If the process had other threads, we'd need to wake the sleeping ones,
+       request all of them except this one to call thread_exit from
+       exc_before_leave (using a TDF_? flag), join all of them to wait until
+       they
+       terminate. */
 
-  /* XXX: If this process has any unwaited zombie children, assign them for
-     adoption by pid1 (init), who will wait for them. */
+    /* XXX: If this process has any unwaited zombie children, assign them for
+       adoption by pid1 (init), who will wait for them. */
 
-  /* Clean up process resources. */
-  vm_map_delete(p->p_uspace);
-  fdtab_release(p->p_fdtable);
+    /* Clean up process resources. */
+    vm_map_delete(p->p_uspace);
+    fdtab_release(p->p_fdtable);
 
-  /* Record some process statistics that will stay maintained in zombie
-     state. */
-  p->p_exitstatus = exitstatus;
+    /* Record some process statistics that will stay maintained in zombie
+       state. */
+    p->p_exitstatus = exitstatus;
 
-  /* Turn the process into a zombie. */
-  mtx_lock(&all_proc_list_mtx);
-  TAILQ_REMOVE(&all_proc_list, p, p_all);
-  mtx_unlock(&all_proc_list_mtx);
+    /* Turn the process into a zombie. */
+    WITH_MTX_LOCK (&all_proc_list_mtx)
+      TAILQ_REMOVE(&all_proc_list, p, p_all);
 
-  p->p_state = PRS_ZOMBIE;
+    p->p_state = PRS_ZOMBIE;
 
-  mtx_lock(&zombie_proc_list_mtx);
-  TAILQ_INSERT_TAIL(&zombie_proc_list, p, p_zombie);
-  mtx_unlock(&zombie_proc_list_mtx);
+    WITH_MTX_LOCK (&zombie_proc_list_mtx)
+      TAILQ_INSERT_TAIL(&zombie_proc_list, p, p_zombie);
 
-  /* Notify parent possibly waiting for this process to become zombie that it is
-     now. */
-  if (p->p_parent)
-    sleepq_broadcast(&p->p_parent->p_children);
-  /* Also notify anyone who waits on our state change. */
-  sleepq_broadcast(&p->p_state);
-
-  mtx_unlock(&p->p_lock);
+    /* Notify parent possibly waiting for this process to become zombie that it
+       is
+       now. */
+    if (p->p_parent)
+      sleepq_broadcast(&p->p_parent->p_children);
+    /* Also notify anyone who waits on our state change. */
+    sleepq_broadcast(&p->p_state);
+  }
 
   /* This thread is the last one in the process to exit. */
   thread_exit();
@@ -130,7 +126,7 @@ static proc_t *proc_find_zombiechild(proc_t *p) {
   assert(mtx_owned(&p->p_lock));
   proc_t *child;
   TAILQ_FOREACH (child, &p->p_children, p_child) {
-    mtx_scoped_lock(&child->p_lock);
+    SCOPED_MTX_LOCK(&child->p_lock);
     if (child->p_state == PRS_ZOMBIE)
       return child;
   }
@@ -149,13 +145,13 @@ int do_waitpid(pid_t pid, int *status, int options) {
   proc_t *child = NULL;
 
   if (pid == -1) {
-    mtx_scoped_lock(&p->p_lock);
     while (1) {
-
       /* Search for any zombie children. */
-      child = proc_find_zombiechild(p);
-      if (child)
-        break;
+      WITH_MTX_LOCK (&p->p_lock) {
+        child = proc_find_zombiechild(p);
+        if (child)
+          goto child_is_zombie;
+      }
 
       /* No zombie child was found. */
 
@@ -163,30 +159,31 @@ int do_waitpid(pid_t pid, int *status, int options) {
         return -ECHILD;
 
       /* Wait until a child changes state. */
-      mtx_unlock(&p->p_lock);
       sleepq_wait(&p->p_children, "any child state change");
-      mtx_lock(&p->p_lock);
     }
   } else {
     /* Wait for a particular child. */
-    mtx_lock(&p->p_lock);
-    child = proc_find_child(p, pid);
-    mtx_unlock(&p->p_lock);
+    WITH_MTX_LOCK (&p->p_lock)
+      child = proc_find_child(p, pid);
 
     if (!child) /* No such process, or the process is not a child. */
       return -ECHILD;
 
-    mtx_scoped_lock(&child->p_lock);
-    while (child->p_state != PRS_ZOMBIE) {
+    while (1) {
+      WITH_MTX_LOCK (&child->p_lock)
+        if (child->p_state != PRS_ZOMBIE)
+          goto child_is_zombie;
+
       if (options & WNOHANG)
         return 0;
 
-      mtx_unlock(&child->p_lock);
+      /* Wait until the child changes state. */
       sleepq_wait(&child->p_state, "state change");
-      mtx_lock(&child->p_lock);
     }
   }
 
+  __unreachable();
+child_is_zombie:
   /* Child is now a zombie. Gather its data, cleanup & free. */
   mtx_lock(&child->p_lock);
   /* We should have the only reference to the zombie child now, we're about to
@@ -196,9 +193,8 @@ int do_waitpid(pid_t pid, int *status, int options) {
   *status = child->p_exitstatus;
   int retval = child->p_pid;
 
-  mtx_lock(&zombie_proc_list_mtx);
-  TAILQ_REMOVE(&zombie_proc_list, child, p_zombie);
-  mtx_unlock(&zombie_proc_list_mtx);
+  WITH_MTX_LOCK (&zombie_proc_list_mtx)
+    TAILQ_REMOVE(&zombie_proc_list, child, p_zombie);
 
   kfree(M_PROC, child);
 
