@@ -66,7 +66,6 @@ SYSCALL(dup2, SYS_DUP2)
 SYSCALL(getdirentries, SYS_GETDENTS)
 SYSCALL(sigaction, SYS_SIGACTION)
 SYSCALL(sigreturn, SYS_SIGRETURN)
-SYSCALL(wait, SYS_WAIT)
 SYSCALL(waitpid, SYS_WAITPID)
 
 # vim: sw=8 ts=8 et

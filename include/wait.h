@@ -31,8 +31,8 @@
 
 #ifndef _KERNELSPACE
 
-int wait(int *status);
 int waitpid(int pid, int *status, int options);
+#define wait(statusptr) waitpid(-1, statusptr, 0)
 
 #else /* _KERNELSPACE */
 
