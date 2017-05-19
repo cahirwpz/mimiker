@@ -26,6 +26,7 @@ typedef uint32_t tid_t;
 #define __STRING(x) #x
 #define __CONCAT1(x, y) x##y
 #define __CONCAT(x, y) __CONCAT1(x, y)
+#define __UNIQUE(x) __CONCAT(x, __LINE__)
 
 /* Wrapper for various GCC attributes */
 #define __nonnull(x) __attribute__((__nonnull__(x)))
@@ -98,13 +99,24 @@ typedef uint32_t tid_t;
 #define container_of(p, type, field)                                           \
   ((type *)((char *)(p)-offsetof(type, field)))
 
-#define USES_CLEANUP(func) __cleanup(__cleanup_##func)
+#define CLEANUP_FUNCTION(func) __CONCAT(__cleanup_, func)
 #define DEFINE_CLEANUP_FUNCTION(type, func)                                    \
   static inline void __cleanup_##func(type *ptr) {                             \
     if (*ptr)                                                                  \
       func(*ptr);                                                              \
   }                                                                            \
   struct __force_semicolon__
+
+#define SCOPED_STMT(TYP, ACQUIRE, RELEASE, VAL, ...)                           \
+  TYP *__UNIQUE(__scoped) __cleanup(RELEASE) = ({                              \
+    ACQUIRE(VAL, ##__VA_ARGS__);                                               \
+    VAL;                                                                       \
+  })
+
+#define WITH_STMT(TYP, ACQUIRE, RELEASE, VAL, ...)                             \
+  for (SCOPED_STMT(TYP, ACQUIRE, RELEASE, VAL, ##__VA_ARGS__),                 \
+       *__UNIQUE(__loop) = (TYP *)1;                                           \
+       __UNIQUE(__loop); __UNIQUE(__loop) = NULL)
 
 #ifndef _USERSPACE
 

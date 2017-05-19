@@ -78,7 +78,7 @@ int sig_send(proc_t *proc, signo_t sig) {
   if (target->td_state == TDS_INACTIVE)
     return -EINVAL;
 
-  WITH_MTX_LOCK(&target->td_proc->p_lock) {
+  WITH_MTX_LOCK (&target->td_proc->p_lock) {
     /* If the signal is ignored, don't even bother posting it. */
     sighandler_t *handler = target->td_proc->p_sigactions[sig].sa_handler;
     if (handler == SIG_IGN ||

@@ -35,13 +35,9 @@ void mtx_unlock(mtx_t *m);
 DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
 
 #define SCOPED_MTX_LOCK(mtx_p)                                                 \
-  mtx_t *__CONCAT(__mtx_, __LINE__) USES_CLEANUP(mtx_unlock) = ({              \
-    mtx_lock(mtx_p);                                                           \
-    mtx_p;                                                                     \
-  })
+  SCOPED_STMT(mtx_t, mtx_lock, CLEANUP_FUNCTION(mtx_unlock), mtx_p)
 
 #define WITH_MTX_LOCK(mtx_p)                                                   \
-  for (SCOPED_MTX_LOCK(mtx_p), *__CONCAT(__loop_, __LINE__) = (mtx_t *)1;      \
-       __CONCAT(__loop_, __LINE__); __CONCAT(__loop_, __LINE__) = NULL)
+  WITH_STMT(mtx_t, mtx_lock, CLEANUP_FUNCTION(mtx_unlock), mtx_p)
 
 #endif /* !_SYS_MUTEX_H_ */

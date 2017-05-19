@@ -17,13 +17,8 @@ void critical_enter();
 void critical_leave();
 
 #define SCOPED_CRITICAL_SECTION()                                              \
-  void *__CONCAT(__cs_, __LINE__) __cleanup(critical_leave) = ({               \
-    critical_enter();                                                          \
-    NULL;                                                                      \
-  })
+  SCOPED_STMT(void, critical_enter, critical_leave, NULL)
 
-#define CRITICAL_SECTION                                                       \
-  for (SCOPED_CRITICAL_SECTION(), *__CONCAT(__loop_, __LINE__) = (void *)1;    \
-       __CONCAT(__loop_, __LINE__); __CONCAT(__loop_, __LINE__) = 0)
+#define CRITICAL_SECTION WITH_STMT(void, critical_enter, critical_leave, NULL)
 
 #endif /* !_SYS_SYNC_H_ */
