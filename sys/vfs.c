@@ -1,18 +1,20 @@
+#define KL_LOG KL_VFS
+#include <klog.h>
 #include <mount.h>
 #include <stdc.h>
 #include <errno.h>
 #include <malloc.h>
 #include <vnode.h>
 #include <linker_set.h>
+#include <sysinit.h>
 
 /* TODO: We probably need some fancier allocation, since eventually we should
  * start recycling vnodes */
-static MALLOC_DEFINE(M_VFS, "vfs", 1, 2);
+MALLOC_DEFINE(M_VFS, "vfs", 1, 4);
 
 /* The list of all installed filesystem types */
-typedef TAILQ_HEAD(, vfsconf) vfsconf_list_t;
-static vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
-static mtx_t vfsconf_list_mtx;
+vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
+mtx_t vfsconf_list_mtx;
 
 /* The list of all mounts mounted */
 typedef TAILQ_HEAD(, mount) mount_list_t;
@@ -27,7 +29,6 @@ static vfs_init_t vfs_default_init;
 
 /* Global root vnodes */
 vnode_t *vfs_root_vnode;
-vnode_t *vfs_root_dev_vnode;
 
 static vnodeops_t vfs_root_ops = {
   .v_lookup = vnode_op_notsup,
@@ -39,12 +40,11 @@ static vnodeops_t vfs_root_ops = {
 
 static int vfs_register(vfsconf_t *vfc);
 
-void vfs_init() {
+static void vfs_init() {
   mtx_init(&vfsconf_list_mtx, MTX_DEF);
   mtx_init(&mount_list_mtx, MTX_DEF);
 
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
-  vfs_root_dev_vnode = vnode_new(V_DIR, &vfs_root_ops);
 
   /* Initialize available filesystem types. */
   SET_DECLARE(vfsconf, vfsconf_t);
@@ -128,10 +128,12 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
 }
 
 int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
+  int error;
+
   /* Start by checking whether this vnode can be used for mounting */
   if (v->v_type != V_DIR)
     return -ENOTDIR;
-  if (v->v_mountedhere != NULL)
+  if (is_mountpoint(v))
     return -EBUSY;
 
   /* TODO: Mark the vnode is in-progress of mounting? See VI_MOUNT in FreeBSD */
@@ -139,10 +141,8 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   mount_t *m = vfs_mount_alloc(v, vfc);
 
   /* Mount the filesystem. */
-  int error = VFS_MOUNT(m);
-  if (error != 0) {
+  if ((error = VFS_MOUNT(m)))
     return error;
-  }
 
   v->v_mountedhere = m;
 
@@ -161,26 +161,40 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   return 0;
 }
 
+/* If `*vp` is a mountpoint, then descend into the root of mounted filesys. */
+static int vfs_maybe_descend(vnode_t **vp) {
+  vnode_t *v_mntpt;
+  vnode_t *v = *vp;
+  while (is_mountpoint(v)) {
+    int error = VFS_ROOT(v->v_mountedhere, &v_mntpt);
+    vnode_unlock(v);
+    vnode_unref(v);
+    if (error)
+      return error;
+    v = v_mntpt;
+    /* No need to ref this vnode, VFS_ROOT already did it for us. */
+    vnode_lock(v);
+    *vp = v;
+  }
+  return 0;
+}
+
 int vfs_lookup(const char *path, vnode_t **vp) {
   /* TODO: This is a simplified implementation, and it does not support many
      required features! These include: relative paths, symlinks, parent dirs */
+  int error;
 
   if (path[0] == '\0')
     return -ENOENT;
 
-  vnode_t *v;
-  if (strncmp(path, "/dev/", 5) == 0) {
-    /* Handle the special case of "/dev",
-     * since we don't have any filesystem at / (root) yet. */
-    v = vfs_root_dev_vnode;
-    path = path + 5;
-  } else if (strncmp(path, "/", 1) == 0) {
-    v = vfs_root_vnode;
-    path = path + 1;
-  } else {
-    log("Relative paths are not supported!");
+  if (strncmp(path, "/", 1) != 0) {
+    klog("Relative paths are not supported!");
     return -ENOENT;
   }
+
+  vnode_t *v = vfs_root_vnode;
+  /* Skip leading '/' */
+  path = path + 1;
 
   /* Copy path into a local buffer, so that we may process it. */
   size_t n = strlen(path);
@@ -194,37 +208,26 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   vnode_ref(v);
   vnode_lock(v);
 
+  if ((error = vfs_maybe_descend(&v)))
+    return error;
+
   while ((component = strsep(&pathbuf, "/")) != NULL) {
     if (component[0] == '\0')
       continue;
 
-    /* If this vnode is a filesystem boundary,
-     * request the root vnode of the inner filesystem. */
-    if (v->v_mountedhere != NULL) {
-      vnode_t *v_mntpt;
-      int error = VFS_ROOT(v->v_mountedhere, &v_mntpt);
-      vnode_unlock(v);
-      vnode_unref(v);
-      if (error)
-        return error;
-      v = v_mntpt;
-      /* vnode_ref(v); No need to ref this vnode, VFS_ROOT already did it for
-       * us. */
-      vnode_lock(v);
-    }
-
     /* Look up the child vnode */
     vnode_t *v_child;
-    int error = VOP_LOOKUP(v, component, &v_child);
+    error = VOP_LOOKUP(v, component, &v_child);
     vnode_unlock(v);
     vnode_unref(v);
-
     if (error)
       return error;
     v = v_child;
-    /* vnode_ref(v); No need to ref this vnode, VFS_LOOKUP already did it for
-     * us. */
+    /* No need to ref this vnode, VFS_LOOKUP already did it for us. */
     vnode_lock(v);
+
+    if ((error = vfs_maybe_descend(&v)))
+      return error;
   }
 
   vnode_unlock(v);
@@ -245,3 +248,5 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   vnode_unref(v);
   return res;
 }
+
+SYSINIT_ADD(vfs, vfs_init, DEPS("vnode"));

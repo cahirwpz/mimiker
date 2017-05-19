@@ -1,5 +1,5 @@
-#ifndef _VM_MAP_H_
-#define _VM_MAP_H_
+#ifndef _SYS_VM_MAP_H_
+#define _SYS_VM_MAP_H_
 
 #include <queue.h>
 #include <pmap.h>
@@ -42,12 +42,11 @@ typedef struct vm_map {
  *
  * vm_map_entry_t* vm_map_allocate_space(vm_map_t* map, size_t length) */
 
-vm_map_t *vm_map_activate(vm_map_t *map);
+void vm_map_activate(vm_map_t *map);
 vm_map_t *get_user_vm_map();
 vm_map_t *get_kernel_vm_map();
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr);
 
-void vm_map_init();
 vm_map_t *vm_map_new();
 void vm_map_delete(vm_map_t *vm_map);
 
@@ -76,4 +75,4 @@ vm_map_t *vm_map_clone(vm_map_t *map);
 
 int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type);
 
-#endif /* _VM_MAP_H */
+#endif /* !_SYS_VM_MAP_H_ */

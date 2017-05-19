@@ -1,3 +1,5 @@
+#define KL_LOG KL_PMAP
+#include <klog.h>
 #include <stdc.h>
 #include <malloc.h>
 #include <mips/exc.h>
@@ -9,6 +11,8 @@
 #include <vm_map.h>
 #include <thread.h>
 #include <ktest.h>
+#include <signal.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_PMAP, "pmap", 1, 1);
 
@@ -68,7 +72,7 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   pmap->start = start;
   pmap->end = end;
   pmap->asid = get_new_asid();
-  log("Page directory table allocated at %08lx", (vm_addr_t)pmap->pde);
+  klog("Page directory table allocated at %08lx", (vm_addr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
 
   for (int i = 0; i < PD_ENTRIES; i++)
@@ -86,7 +90,7 @@ void pmap_reset(pmap_t *pmap) {
   memset(pmap, 0, sizeof(pmap_t)); /* Set up for reuse. */
 }
 
-void pmap_init() {
+static void pmap_init() {
   pmap_setup(&kernel_pmap, PMAP_KERNEL_BEGIN + PT_SIZE, PMAP_KERNEL_END);
 }
 
@@ -133,8 +137,8 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
 
   vm_page_t *pg = pm_alloc(1);
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pt.list);
-  log("Page table fragment %08lx allocated at %08lx", PTF_ADDR_OF(vaddr),
-      pg->paddr);
+  klog("Page table fragment %08lx allocated at %08lx", PTF_ADDR_OF(vaddr),
+       pg->paddr);
 
   PDE_OF(pmap, vaddr) = PTE_PFN(pg->paddr) | PTE_VALID | PTE_DIRTY | PTE_GLOBAL;
 
@@ -179,8 +183,8 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
 
   PTE_OF(pmap, vaddr) = PTE_PFN(paddr) | vm_prot_map[prot] |
                         (in_kernel_space(vaddr) ? PTE_GLOBAL : 0);
-  log("Add mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
-      (vm_addr_t)&PTE_OF(pmap, vaddr));
+  klog("Add mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
+       (vm_addr_t)&PTE_OF(pmap, vaddr));
 
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
@@ -189,8 +193,8 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
 /* TODO: what about caches? */
 static void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
   PTE_OF(pmap, vaddr) = 0;
-  log("Remove mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
-      (vm_addr_t)&PTE_OF(pmap, vaddr));
+  klog("Remove mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
+       (vm_addr_t)&PTE_OF(pmap, vaddr));
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
 
@@ -201,8 +205,8 @@ static void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
 static void pmap_change_pte(pmap_t *pmap, vm_addr_t vaddr, vm_prot_t prot) {
   PTE_OF(pmap, vaddr) =
     (PTE_OF(pmap, vaddr) & ~PTE_PROT_MASK) | vm_prot_map[prot];
-  log("Change protection bits for page %08lx (PTE at %08lx)",
-      (vaddr & PTE_MASK), (vm_addr_t)&PTE_OF(pmap, vaddr));
+  klog("Change protection bits for page %08lx (PTE at %08lx)",
+       (vaddr & PTE_MASK), (vm_addr_t)&PTE_OF(pmap, vaddr));
 
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
@@ -316,8 +320,8 @@ void tlb_exception_handler(exc_frame_t *frame) {
   int code = (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
   vm_addr_t vaddr = frame->badvaddr;
 
-  log("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
-      frame->pc, vaddr);
+  klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
+       frame->pc, vaddr);
 
   /* If the fault was in virtual pt range it means it's time to refill */
   if (PT_BASE <= vaddr && vaddr < PT_BASE + PT_SIZE) {
@@ -341,11 +345,11 @@ void tlb_exception_handler(exc_frame_t *frame) {
 
     pmap_t *pmap = get_active_pmap_by_addr(orig_vaddr);
     if (!pmap) {
-      log("Address %08lx not mapped by any active pmap!", orig_vaddr);
+      klog("Address %08lx not mapped by any active pmap!", orig_vaddr);
       goto fault;
     }
     if (is_valid(pmap->pde[index])) {
-      log("TLB refill for page table fragment %08lx", vaddr & PTE_MASK);
+      klog("TLB refill for page table fragment %08lx", vaddr & PTE_MASK);
       uint32_t index0 = index & ~1;
       uint32_t index1 = index0 | 1;
       vm_addr_t ptf_start = PT_BASE + index0 * PAGESIZE;
@@ -364,7 +368,7 @@ void tlb_exception_handler(exc_frame_t *frame) {
 
   vm_map_t *map = get_active_vm_map_by_addr(vaddr);
   if (!map) {
-    log("No virtual address space defined for %08lx!", vaddr);
+    klog("No virtual address space defined for %08lx!", vaddr);
     goto fault;
   }
   vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
@@ -372,13 +376,19 @@ void tlb_exception_handler(exc_frame_t *frame) {
     return;
 
 fault:
-  /* handle copyin / copyout faults */
   if (td->td_onfault) {
+    /* handle copyin / copyout faults */
     frame->pc = td->td_onfault;
     td->td_onfault = 0;
+  } else if (td->td_proc) {
+    /* Send a segmentation fault signal to the user program. */
+    sig_send(td->td_proc, SIGSEGV);
   } else if (ktest_test_running_flag) {
     ktest_failure();
   } else {
-    thread_exit(-1);
+    /* Kernel mode thread violated memory, whoops. */
+    panic("Invalid memory access.");
   }
 }
+
+SYSINIT_ADD(pmap, pmap_init, NODEPS);

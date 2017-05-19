@@ -104,7 +104,7 @@ user_exc_enter:
         LOAD_PCPU($t0)
         lw      $t0, PCPU_CURTHREAD($t0)
         lw      $t1, TD_FLAGS($t0)
-        andi    $t1, TDF_NEEDSWITCH
+        andi    $t1, (TDF_NEEDSWITCH | TDF_NEEDSIGCHK)
         beqz    $t1, user_exc_leave
         move    $a0, $sp
         jal     exc_before_leave
@@ -175,6 +175,8 @@ user_exc_leave:
         LOAD_REG($v0, V0, $k0)
         LOAD_REG($at, AT, $k0)
 
+        # This label is useful for debugging.
+user_return:
         sync
         eret
 
@@ -250,7 +252,7 @@ kern_exc_enter:
         LOAD_PCPU($t0)
         lw      $t0, PCPU_CURTHREAD($t0)
         lw      $t1, TD_FLAGS($t0)
-        andi    $t1, TDF_NEEDSWITCH
+        andi    $t1, (TDF_NEEDSWITCH | TDF_NEEDSIGCHK)
         beqz    $t1, kern_exc_leave
         move    $a0, $sp
         jal     exc_before_leave

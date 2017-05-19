@@ -74,4 +74,6 @@ void *kmalloc(kmem_pool_t *mp, size_t size, unsigned flags) __warn_unused;
 void kfree(kmem_pool_t *mp, void *addr);
 char *kstrndup(kmem_pool_t *mp, const char *s, size_t maxlen);
 
+MALLOC_DECLARE(M_TEMP);
+
 #endif /* _MALLOC_H_ */

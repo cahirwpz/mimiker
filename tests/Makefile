@@ -5,7 +5,9 @@ SOURCES_C = \
 	exec.c \
 	exec_misbehave.c \
 	exec_fd_test.c \
+	exec_test_dup.c \
 	initrd.c \
+	klog.c \
 	linker_set.c \
 	malloc.c \
 	mutex.c \

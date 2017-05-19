@@ -3,6 +3,9 @@
 
 #include <mutex.h>
 #include <uio.h>
+#include <malloc.h>
+
+MALLOC_DECLARE(M_VFS);
 
 /* Forward declarations */
 typedef struct vnode vnode_t;
@@ -50,6 +53,10 @@ typedef struct vnode {
   int v_usecnt;
   mtx_t v_mtx;
 } vnode_t;
+
+static inline bool is_mountpoint(vnode_t *v) {
+  return v->v_mountedhere != NULL;
+}
 
 #if !defined(IGNORE_NEWLIB_COMPATIBILITY)
 /* This must match newlib's implementation! */
@@ -99,9 +106,6 @@ static inline int VOP_WRITE(vnode_t *v, uio_t *uio) {
 static inline int VOP_GETATTR(vnode_t *v, vattr_t *va) {
   return v->v_ops->v_getattr(v, va);
 }
-
-/* Initializes vnode subsystem */
-void vnode_init();
 
 /* Allocates and initializes a new vnode */
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops);

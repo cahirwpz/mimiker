@@ -12,6 +12,11 @@ all: $(CACHEDIR)/$(NEWLIB)
 install:
 	@echo "Installing newlib..."
 	cd $(CACHEDIR)/$(NEWLIB)/newlib; $(MAKE) install > /dev/null 2>&1
+	# Copy overrides. TODO: These files should be copied into $(NEWLIB)
+	# before it is compiled, so that all references within newlib sources
+	# are using our version of the override file. But for now it does not
+	# matter, and it's simpler to copy them directly to $(INSTALL_DIR).
+	cp -RL overrides/* $(INSTALL_DIR)/usr/
 
 # The .tar.gz archive must be an order-only prerequisite, because the archive
 # has a more recent last-modified date than the source directory.
@@ -23,7 +28,8 @@ $(CACHEDIR)/$(NEWLIB): | $(CACHEDIR)/$(NEWLIBFILE)
 	@echo "Configuring newlib..."
 	cd $(CACHEDIR)/$(NEWLIB)/newlib; \
 		CC=$(TRIPLET)-gcc ./configure --build=$(TRIPLET) \
-                                      --prefix=$(INSTALL_DIR)/usr > /dev/null
+                                      --prefix=$(INSTALL_DIR)/usr \
+                                      CFLAGS="-g -DSIGNAL_PROVIDED" > /dev/null
 	@echo "Compiling newlib..."
 	cd $(CACHEDIR)/$(NEWLIB)/newlib; $(MAKE) > /dev/null 2>&1
 

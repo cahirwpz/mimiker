@@ -5,6 +5,12 @@
 #include <errno.h>
 #include <unistd.h>
 #include <assert.h>
+/* TODO: We need to recompile newlib with -DSIGNAL_PROVIDED. Otherwise it
+   provides it's own signal emulation in signal.h, which does not use any
+   syscalls, and can only deliver signals to the process that raised them... The
+   temporary workaround is to include sys/signal.h instead, which we override
+   with a set of custom definitions. */
+#include <sys/signal.h>
 #include <sys/mman.h>
 
 #define TEXTAREA_SIZE 100
@@ -71,12 +77,59 @@ void mmap_test() {
   memset(addr, -1, 99);
 }
 
+void sigusr1_handler(int signo) {
+  printf("sigusr1 handled!\n");
+}
+
+void sigint_handler(int signo) {
+  printf("sigint handled!\n");
+  raise(SIGUSR1); /* Recursive signals! */
+}
+
+void sigusr2_handler(int signo) {
+  printf("Child process handles sigusr2.\n");
+  raise(SIGABRT); /* Terminate self. */
+}
+
+void signal_test() {
+  /* TODO: Cannot use signal(...) here, because the one provided by newlib
+     emulates signals in userspace. Please recompile newlib with
+     -DSIGNAL_PROVIDED. */
+  signal(SIGINT, sigint_handler);
+  signal(SIGUSR1, sigusr1_handler);
+  raise(SIGINT);
+
+  /* Restore original behavior. */
+  signal(SIGINT, SIG_DFL);
+  signal(SIGUSR1, SIG_DFL);
+
+  /* Test sending a signal to a different thread. */
+  signal(SIGUSR2, sigusr2_handler);
+  int pid = fork();
+  if (pid == 0) {
+    printf("This is child (mypid = %d)\n", getpid());
+    while (1)
+      ;
+  } else {
+    printf("This is parent (childpid = %d, mypid = %d)\n", pid, getpid());
+    kill(pid, SIGUSR2);
+    /* wait() for child. */
+  }
+
+/* Test invalid memory access. */
+#if 0
+  struct {int x;} *ptr = 0x0;
+  ptr->x = 42;
+#endif
+}
+
 int main(int argc, char **argv) {
   if (argc >= 2 && strcmp(argv[1], "abort_test") == 0)
     assert(0);
 
   sbrk_test();
   mmap_test();
+  signal_test();
 
   /* Test some libstd functions. They will mostly fail, because many system
      calls are not implemented yet, but at least printf works!*/

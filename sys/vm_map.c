@@ -1,3 +1,5 @@
+#define KL_LOG KL_VM
+#include <klog.h>
 #include <stdc.h>
 #include <malloc.h>
 #include <pmap.h>
@@ -8,27 +10,24 @@
 #include <vm_object.h>
 #include <vm_map.h>
 #include <errno.h>
+#include <proc.h>
 #include <mips/mips.h>
+#include <pcpu.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_VMMAP, "vm-map", 1, 2);
 
 static vm_map_t kspace;
 
-vm_map_t *vm_map_activate(vm_map_t *map) {
-  vm_map_t *old;
-
+void vm_map_activate(vm_map_t *map) {
   critical_enter();
-  thread_t *td = thread_self();
-  old = td->td_uspace;
-  td->td_uspace = map;
+  PCPU_SET(uspace, map);
   pmap_activate(map ? map->pmap : NULL);
   critical_leave();
-
-  return old;
 }
 
 vm_map_t *get_user_vm_map() {
-  return thread_self()->td_uspace;
+  return PCPU_GET(uspace);
 }
 
 vm_map_t *get_kernel_vm_map() {
@@ -63,7 +62,7 @@ static void vm_map_setup(vm_map_t *map) {
   rw_init(&map->rwlock, "vm map rwlock", 1);
 }
 
-void vm_map_init() {
+static void vm_map_init() {
   vm_map_setup(&kspace);
   *((pmap_t **)(&kspace.pmap)) = get_kernel_pmap();
 }
@@ -240,14 +239,17 @@ void vm_map_dump(vm_map_t *map) {
 /* This entire function is a nasty hack, but we'll live with it until proper COW
    is implemented. */
 vm_map_t *vm_map_clone(vm_map_t *map) {
+  thread_t *td = thread_self();
+  assert(td->td_proc);
+  assert(td->td_proc->p_nthreads == 1);
+
   vm_map_t *orig_current_map = get_user_vm_map();
   vm_map_t *newmap = vm_map_new();
 
   rw_scoped_enter(&map->rwlock, RW_READER);
 
-  /* Temporarily switch to the new map, so that we may write contents. Note that
-     it's okay if we get preempted - the working vm map will be restored on
-     context switch. */
+  /* Temporarily switch to the new map, so that we may write contents. */
+  td->td_proc->p_uspace = newmap;
   vm_map_activate(newmap);
 
   vm_map_entry_t *it;
@@ -263,6 +265,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   }
 
   /* Return to original vm map. */
+  td->td_proc->p_uspace = orig_current_map;
   vm_map_activate(orig_current_map);
 
   return newmap;
@@ -273,22 +276,22 @@ int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
   rw_scoped_enter(&map->rwlock, RW_READER);
 
   if (!(entry = vm_map_find_entry(map, fault_addr))) {
-    log("Tried to access unmapped memory region: 0x%08lx!", fault_addr);
+    klog("Tried to access unmapped memory region: 0x%08lx!", fault_addr);
     return -EFAULT;
   }
 
   if (entry->prot == VM_PROT_NONE) {
-    log("Cannot access to address: 0x%08lx", fault_addr);
+    klog("Cannot access to address: 0x%08lx", fault_addr);
     return -EACCES;
   }
 
   if (!(entry->prot & VM_PROT_WRITE) && (fault_type == VM_PROT_WRITE)) {
-    log("Cannot write to address: 0x%08lx", fault_addr);
+    klog("Cannot write to address: 0x%08lx", fault_addr);
     return -EACCES;
   }
 
   if (!(entry->prot & VM_PROT_READ) && (fault_type == VM_PROT_READ)) {
-    log("Cannot read from address: 0x%08lx", fault_addr);
+    klog("Cannot read from address: 0x%08lx", fault_addr);
     return -EACCES;
   }
 
@@ -309,3 +312,5 @@ int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
 
   return 0;
 }
+
+SYSINIT_ADD(vm_map, vm_map_init, DEPS("pmap", "vm_object"));
