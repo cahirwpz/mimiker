@@ -2,6 +2,7 @@
 #include <pci.h>
 #include <isa.h>
 #include <stdc.h>
+#include <klog.h>
 
 #define PIIX4_ISA_VENDOR_ID 0x8086
 #define PIIX4_ISA_DEVICE_ID 0x7110
@@ -101,7 +102,7 @@ static int piix4_isa_attach(device_t *dev) {
     chdev->instance = isa_dev;
     chdev->driver = drv;
     if (device_probe(chdev)) {
-      log("%s detected on PIIX4 PCI-ISA bridge!", drv->desc);
+      klog("%s detected on PIIX4 PCI-ISA bridge!", drv->desc);
       device_attach(chdev);
       break;
     }
