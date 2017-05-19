@@ -105,6 +105,8 @@ void proc_exit(int exitstatus) {
      now. */
   if (p->p_parent)
     sleepq_broadcast(&p->p_parent->p_children);
+  /* Also notify anyone who waits on our state change. */
+  sleepq_broadcast(&p->p_state);
 
   mtx_unlock(&p->p_lock);
 
@@ -124,15 +126,13 @@ static proc_t *proc_find_child(proc_t *p, pid_t pid) {
   return NULL;
 }
 
-/* Note: Returned child is locked. */
 static proc_t *proc_find_zombiechild(proc_t *p) {
   assert(mtx_owned(&p->p_lock));
   proc_t *child;
   TAILQ_FOREACH (child, &p->p_children, p_child) {
-    mtx_lock(&child->p_lock);
+    mtx_scoped_lock(&child->p_lock);
     if (child->p_state == PRS_ZOMBIE)
       return child;
-    mtx_unlock(&child->p_lock);
   }
   return NULL;
 }
@@ -149,7 +149,7 @@ int do_waitpid(pid_t pid, int *status, int options) {
   proc_t *child = NULL;
 
   if (pid == -1) {
-    mtx_lock(&p->p_lock);
+    mtx_scoped_lock(&p->p_lock);
     while (1) {
 
       /* Search for any zombie children. */
@@ -159,15 +159,14 @@ int do_waitpid(pid_t pid, int *status, int options) {
 
       /* No zombie child was found. */
 
-      mtx_unlock(&p->p_lock);
       if (options & WNOHANG)
         return -ECHILD;
 
       /* Wait until a child changes state. */
-      sleepq_wait(&p->p_children, "child process");
+      mtx_unlock(&p->p_lock);
+      sleepq_wait(&p->p_children, "any child state change");
       mtx_lock(&p->p_lock);
     }
-    mtx_unlock(&p->p_lock);
   } else {
     /* Wait for a particular child. */
     mtx_lock(&p->p_lock);
@@ -177,18 +176,23 @@ int do_waitpid(pid_t pid, int *status, int options) {
     if (!child) /* No such process, or the process is not a child. */
       return -ECHILD;
 
-    mtx_lock(&child->p_lock);
+    mtx_scoped_lock(&child->p_lock);
     while (child->p_state != PRS_ZOMBIE) {
-      mtx_unlock(&child->p_lock);
       if (options & WNOHANG)
         return 0;
-      sleepq_wait(&p->p_children, "child process");
+
+      mtx_unlock(&child->p_lock);
+      sleepq_wait(&child->p_state, "state change");
       mtx_lock(&child->p_lock);
     }
   }
 
   /* Child is now a zombie. Gather its data, cleanup & free. */
-  assert(mtx_owned(&child->p_lock));
+  mtx_lock(&child->p_lock);
+  /* We should have the only reference to the zombie child now, we're about to
+     free it. I don't think it may ever happen that there would be multiple
+     references to a terminated process, but if it does, we would need to
+     introduce refcounting for processes. */
   *status = child->p_exitstatus;
   int retval = child->p_pid;
 
