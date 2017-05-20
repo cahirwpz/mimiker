@@ -265,9 +265,9 @@ static int sys_waitpid(thread_t *td, syscall_args_t *args) {
   int res = do_waitpid(pid, &status, options);
   if (res < 0)
     return res;
-  if (status_p != NULL){
+  if (status_p != NULL) {
     int error = copyout_s(status, status_p);
-    if(error)
+    if (error)
       return error;
   }
   return res;
