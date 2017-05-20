@@ -18,7 +18,7 @@ static void dump_file(const char *path) {
   memset(buffer, '\0', sizeof(buffer));
 
   uio_t uio;
-  uio = UIO_SINGLE_KERNEL(UIO_READ, 0, buffer, sizeof(buffer));
+  uio = UIO_SINGLE_KERNEL(UIO_READ, 0, buffer, sizeof(buffer) - 1);
   res = VOP_READ(v, &uio);
 
   kprintf("file %s:\n%s\n", path, buffer);

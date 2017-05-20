@@ -22,9 +22,6 @@ typedef struct fdtab {
   mtx_t fdt_mtx;
 } fdtab_t;
 
-/* Prepares memory pools for file descriptors and tables. */
-void fd_init();
-
 void fdtab_ref(fdtab_t *fdt);
 void fdtab_unref(fdtab_t *fdt);
 
@@ -38,6 +35,8 @@ void fdtab_destroy(fdtab_t *fdt);
 void fdtab_release(fdtab_t *fdt);
 /* Assign a file structure to a new descriptor. */
 int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fdp);
+/* Assign a file structure to a certain descriptor */
+int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fdp);
 /* Extracts a reference to file from descriptor table for given number. */
 int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp);
 /* Closes a file descriptor.

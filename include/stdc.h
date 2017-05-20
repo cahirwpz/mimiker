@@ -45,6 +45,7 @@ unsigned long strtoul(const char *nptr, char **endptr, int base);
 unsigned long strntoul(const char *nptr, size_t len, char **endptr, int base);
 void qsort(void *base, size_t num, size_t width,
            int (*comp)(const void *, const void *));
+int rand_r(unsigned *seedp);
 
 /* strings.h function prototypes */
 

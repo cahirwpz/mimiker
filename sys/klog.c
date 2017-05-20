@@ -47,35 +47,45 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
   if (!(KL_MASK(origin) & klog.mask))
     return;
 
-  critical_enter();
+  klog_entry_t *entry;
 
-  klog_entry_t *entry = &klog.array[klog.last];
+  CRITICAL_SECTION {
+    entry = &klog.array[klog.last];
 
-  *entry = (klog_entry_t){.kl_timestamp = clock_get(),
-                          .kl_line = line,
-                          .kl_file = file,
-                          .kl_origin = origin,
-                          .kl_format = format,
-                          .kl_params = {arg1, arg2, arg3, arg4, arg5, arg6}};
+    *entry = (klog_entry_t){.kl_timestamp = clock_get(),
+                            .kl_line = line,
+                            .kl_file = file,
+                            .kl_origin = origin,
+                            .kl_format = format,
+                            .kl_params = {arg1, arg2, arg3, arg4, arg5, arg6}};
 
-  klog.last = next(klog.last);
-  if (klog.first == klog.last)
-    klog.first = next(klog.first);
-
-  critical_leave();
+    klog.last = next(klog.last);
+    if (klog.first == klog.last)
+      klog.first = next(klog.first);
+  }
 
   if (klog.verbose)
     klog_entry_dump(entry);
+}
+
+unsigned klog_setmask(unsigned newmask) {
+  unsigned oldmask;
+
+  CRITICAL_SECTION {
+    oldmask = klog.mask;
+    klog.mask = newmask;
+  }
+  return oldmask;
 }
 
 void klog_dump() {
   klog_entry_t entry;
 
   while (klog.first != klog.last) {
-    critical_enter();
-    entry = klog.array[klog.first];
-    klog.first = next(klog.first);
-    critical_leave();
+    CRITICAL_SECTION {
+      entry = klog.array[klog.first];
+      klog.first = next(klog.first);
+    }
     klog_entry_dump(&entry);
   }
 }
