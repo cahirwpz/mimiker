@@ -13,7 +13,7 @@ void exc_before_leave(exc_frame_t *kframe) {
 
   /* First thing after switching to a thread: Process pending signals. */
   if (td->td_flags & TDF_NEEDSIGCHK) {
-    mtx_scoped_lock(&td->td_lock);
+    SCOPED_MTX_LOCK(&td->td_lock);
     int sig;
     while ((sig = sig_check(td)) != 0)
       sig_deliver(sig);

@@ -36,20 +36,22 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
     addr = MMAP_LOW_ADDR;
   addr = roundup(addr, PAGESIZE);
 
-  rw_scoped_enter(&vmap->rwlock, RW_WRITER);
+  vm_map_entry_t *entry;
 
-  if (vm_map_findspace_nolock(vmap, addr, length, &addr) != 0) {
-    /* No memory was found following the hint. Search again entire address
-       space. */
-    if (vm_map_findspace_nolock(vmap, MMAP_LOW_ADDR, length, &addr) != 0) {
-      /* Still no memory found. */
-      *error = ENOMEM;
-      return MMAP_FAILED;
+  WITH_RW_LOCK (&vmap->rwlock, RW_WRITER) {
+    if (vm_map_findspace_nolock(vmap, addr, length, &addr) != 0) {
+      /* No memory was found following the hint. Search again entire address
+         space. */
+      if (vm_map_findspace_nolock(vmap, MMAP_LOW_ADDR, length, &addr) != 0) {
+        /* Still no memory found. */
+        *error = ENOMEM;
+        return MMAP_FAILED;
+      }
     }
-  }
 
-  /* Create new vm map entry for this allocation. */
-  vm_map_entry_t *entry = vm_map_add_entry(vmap, addr, addr + length, prot);
+    /* Create new vm map entry for this allocation. */
+    entry = vm_map_add_entry(vmap, addr, addr + length, prot);
+  }
 
   if (flags & MMAP_ANON) {
     /* Assign a pager which creates cleared pages . */

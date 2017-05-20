@@ -292,10 +292,10 @@ void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
  */
 
 void pmap_activate(pmap_t *pmap) {
-  critical_enter();
+  SCOPED_CRITICAL_SECTION();
+
   PCPU_GET(curpmap) = pmap;
   mips32_set_c0(C0_ENTRYHI, pmap ? pmap->asid : 0);
-  critical_leave();
 }
 
 pmap_t *get_kernel_pmap() {

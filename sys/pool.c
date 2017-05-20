@@ -156,10 +156,10 @@ void pool_destroy(pool_t *pool) {
   /* TODO: there is no way to use pool's mutex here because it could already got
    * deallocated and we have no method of marking dead mutexes, that's why
    * low-level sync functions are used here. */
-  critical_enter();
-  assert(pool->pp_state == ALIVE);
-  pool->pp_state = DEAD;
-  critical_leave();
+  CRITICAL_SECTION {
+    assert(pool->pp_state == ALIVE);
+    pool->pp_state = DEAD;
+  }
 
   destroy_slab_list(pool, &pool->pp_empty_slabs);
   destroy_slab_list(pool, &pool->pp_part_slabs);
@@ -174,7 +174,7 @@ void *pool_alloc(pool_t *pool, __unused unsigned flags) {
 
   assert(pool->pp_state == ALIVE);
 
-  mtx_scoped_lock(&pool->pp_mtx);
+  SCOPED_MTX_LOCK(&pool->pp_mtx);
 
   pool_slab_t *slab;
   if (pool->pp_nitems) {
@@ -206,25 +206,25 @@ void pool_free(pool_t *pool, void *ptr) {
 
   assert(pool->pp_state == ALIVE);
 
-  mtx_scoped_lock(&pool->pp_mtx);
+  WITH_MTX_LOCK (&pool->pp_mtx) {
+    pool_item_t *pi = ptr - sizeof(pool_item_t);
+    assert(pi->pi_canary == PI_MAGIC);
+    pool_slab_t *slab = pi->pi_slab;
+    assert(slab->ph_state == ALIVE);
 
-  pool_item_t *pi = ptr - sizeof(pool_item_t);
-  assert(pi->pi_canary == PI_MAGIC);
-  pool_slab_t *slab = pi->pi_slab;
-  assert(slab->ph_state == ALIVE);
+    unsigned index = slab_index_of(slab, pi);
+    bitstr_t *bitmap = slab->ph_bitmap;
 
-  unsigned index = slab_index_of(slab, pi);
-  bitstr_t *bitmap = slab->ph_bitmap;
+    assert(bit_test(bitmap, index));
 
-  assert(bit_test(bitmap, index));
-
-  bit_clear(bitmap, index);
-  LIST_REMOVE(slab, ph_slablist);
-  slab->ph_nused--;
-  pool->pp_nitems++;
-  pool_slabs_t *slabs =
-    slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
-  LIST_INSERT_HEAD(slabs, slab, ph_slablist);
+    bit_clear(bitmap, index);
+    LIST_REMOVE(slab, ph_slablist);
+    slab->ph_nused--;
+    pool->pp_nitems++;
+    pool_slabs_t *slabs =
+      slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
+    LIST_INSERT_HEAD(slabs, slab, ph_slablist);
+  }
 
   debug("pool_free: freed item %p at slab %p, index %d", ptr, slab, index);
 }

@@ -14,12 +14,12 @@ MALLOC_DEFINE(M_VFS, "vfs", 1, 4);
 
 /* The list of all installed filesystem types */
 vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
-mtx_t vfsconf_list_mtx;
+mtx_t vfsconf_list_mtx = MUTEX_INITIALIZER(MTX_DEF);
 
 /* The list of all mounts mounted */
 typedef TAILQ_HEAD(, mount) mount_list_t;
 static mount_list_t mount_list = TAILQ_HEAD_INITIALIZER(mount_list);
-static mtx_t mount_list_mtx;
+static mtx_t mount_list_mtx = MUTEX_INITIALIZER(MTX_DEF);
 
 /* Default vfs operations */
 static vfs_root_t vfs_default_root;
@@ -41,9 +41,6 @@ static vnodeops_t vfs_root_ops = {
 static int vfs_register(vfsconf_t *vfc);
 
 static void vfs_init() {
-  mtx_init(&vfsconf_list_mtx, MTX_DEF);
-  mtx_init(&mount_list_mtx, MTX_DEF);
-
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
 
   /* Initialize available filesystem types. */
@@ -55,8 +52,9 @@ static void vfs_init() {
 }
 
 vfsconf_t *vfs_get_by_name(const char *name) {
+  SCOPED_MTX_LOCK(&vfsconf_list_mtx);
+
   vfsconf_t *vfc;
-  mtx_scoped_lock(&vfsconf_list_mtx);
   TAILQ_FOREACH (vfc, &vfsconf_list, vfc_list)
     if (!strcmp(name, vfc->vfc_name))
       return vfc;
@@ -69,9 +67,8 @@ static int vfs_register(vfsconf_t *vfc) {
   if (vfs_get_by_name(vfc->vfc_name))
     return -EEXIST;
 
-  mtx_lock(&vfsconf_list_mtx);
-  TAILQ_INSERT_TAIL(&vfsconf_list, vfc, vfc_list);
-  mtx_unlock(&vfsconf_list_mtx);
+  WITH_MTX_LOCK (&vfsconf_list_mtx)
+    TAILQ_INSERT_TAIL(&vfsconf_list, vfc, vfc_list);
 
   vfc->vfc_mountcnt = 0;
 
@@ -146,9 +143,8 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
 
   v->v_mountedhere = m;
 
-  mtx_lock(&mount_list_mtx);
-  TAILQ_INSERT_TAIL(&mount_list, m, mnt_list);
-  mtx_unlock(&mount_list_mtx);
+  WITH_MTX_LOCK (&mount_list_mtx)
+    TAILQ_INSERT_TAIL(&mount_list, m, mnt_list);
 
   /* Note that we do not need to ask the new mount for the root vnode! That
      V_DIR vnode which is at the mount point stays in place. The root vnode is

@@ -20,8 +20,8 @@
 #define SYS_DUP2 17
 #define SYS_SIGACTION 18
 #define SYS_SIGRETURN 19
-
-#define SYS_LAST 19
+#define SYS_WAITPID 20
+#define SYS_LAST 20
 
 #ifndef __ASSEMBLER__
 

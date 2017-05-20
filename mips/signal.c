@@ -58,7 +58,7 @@ int platform_sig_deliver(signo_t sig, sigaction_t *sa) {
 
 int platform_sig_return() {
   thread_t *td = thread_self();
-  mtx_scoped_lock(&td->td_lock);
+  SCOPED_MTX_LOCK(&td->td_lock);
   sig_ctx_t ksc;
   /* TODO: We assume the stored user context is where user stack is. This
      usually works, but the signal handler may switch the stack, or perform an
@@ -71,7 +71,7 @@ int platform_sig_return() {
      the following will need to get the scp pointer address from a syscall
      argument. */
   sig_ctx_t *scp = (sig_ctx_t *)((intptr_t *)td->td_uctx.sp + 1);
-  int error = copyin(scp, &ksc, sizeof(sig_ctx_t));
+  int error = copyin_s(scp, ksc);
   if (error)
     return error;
   if (ksc.magic != SIG_CTX_MAGIC)
