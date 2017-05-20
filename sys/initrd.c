@@ -193,7 +193,7 @@ static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
       } else {
         /* Create new vnode */
         vnodetype_t type = V_REG;
-        if (it->c_mode & C_ISDIR)
+        if (CMTOFT(it->c_mode) == C_DIR)
           type = V_DIR;
         *res = vnode_new(type, &initrd_vops);
         (*res)->v_data = (void *)it;
@@ -244,26 +244,16 @@ static unsigned cpio_dirent_namlen(void *entry) {
   return strlen(cn->c_name);
 }
 
+static const unsigned ft2dt[16] = {[C_FIFO] = DT_FIFO, [C_CHR] = DT_CHR,
+                                   [C_DIR] = DT_DIR,   [C_BLK] = DT_BLK,
+                                   [C_REG] = DT_REG,   [C_CTG] = DT_UNKNOWN,
+                                   [C_LNK] = DT_LNK,   [C_SOCK] = DT_SOCK};
+
 static void cpio_to_dirent(void *entry, dirent_t *dir) {
   cpio_node_t *cn = (cpio_node_t *)entry;
-  unsigned mode = cn->c_mode & C_IFMT;
-
   /* XXX: Shall we implement our inode numbers or leave ones from ramdisk? */
   dir->d_fileno = cn->c_ino;
-  if (mode == C_ISDIR)
-    dir->d_type = DT_DIR;
-  else if (mode == C_ISREG)
-    dir->d_type = DT_REG;
-  else if (mode == C_ISCHR)
-    dir->d_type = DT_CHR;
-  else if (mode == C_ISCHR)
-    dir->d_type = DT_CHR;
-  else if (mode == C_ISBLK)
-    dir->d_type = DT_BLK;
-  else if (mode == C_ISLNK)
-    dir->d_type = DT_LNK;
-  else
-    dir->d_type = DT_UNKNOWN;
+  dir->d_type = ft2dt[CMTOFT(cn->c_mode)];
   memcpy(dir->d_name, cn->c_name, dir->d_namlen + 1);
 }
 
