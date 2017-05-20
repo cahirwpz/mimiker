@@ -11,7 +11,7 @@
 static timeval_t *sys_clock = &TIMEVAL_INIT(0, 0);
 static timeval_t *msec = &TIMEVAL_INIT(0, 1000);
 
-static void cpu_clock_init() {
+static void cpu_timer_init() {
   mips32_set_c0(C0_COUNT, 0);
   mips32_set_c0(C0_COMPARE, TICKS_PER_MS);
 
@@ -19,7 +19,7 @@ static void cpu_clock_init() {
   mips32_bs_c0(C0_STATUS, SR_IM7);
 }
 
-void cpu_clock_irq_handler() {
+void cpu_timer_irq_handler() {
   uint32_t compare = mips32_get_c0(C0_COMPARE);
   uint32_t count = mips32_get_c0(C0_COUNT);
   int32_t diff = compare - count;
@@ -41,4 +41,4 @@ void cpu_clock_irq_handler() {
   clock(timeval_to_ms(sys_clock));
 }
 
-SYSINIT_ADD(cpu_clock, cpu_clock_init, DEPS("callout", "sched"));
+SYSINIT_ADD(cpu_timer, cpu_timer_init, DEPS("callout", "sched"));

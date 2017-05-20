@@ -1,6 +1,7 @@
 #define KL_LOG KL_INTR
 #include <klog.h>
 #include <stdc.h>
+#include <mips/clock.h>
 #include <mips/exc.h>
 #include <mips/mips.h>
 #include <pmap.h>
@@ -25,11 +26,9 @@ void mips_intr_init() {
   mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
 }
 
-extern void cpu_clock_irq_handler();
-
 typedef void (*irq_handler_t)();
 
-static irq_handler_t irq_handlers[8] = {[7] = cpu_clock_irq_handler};
+static irq_handler_t irq_handlers[8] = {[7] = cpu_timer_irq_handler};
 
 void mips_irq_handler(exc_frame_t *frame) {
   unsigned pending = (frame->cause & frame->sr) & CR_IP_MASK;
