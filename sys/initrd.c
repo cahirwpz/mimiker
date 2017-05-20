@@ -23,7 +23,7 @@ typedef uint16_t cpio_mode_t;
 /* ramdisk related data that will be stored in v_data field of vnode */
 typedef struct cpio_node {
   TAILQ_ENTRY(cpio_node) c_list; /* link to global list of all ramdisk nodes */
-  int c_n_children;              /* number of direct descendants (c_children) */
+  size_t c_nchildren;            /* number of direct descendants (c_children) */
   TAILQ_HEAD(, cpio_node) c_children; /* head of list of direct descendants */
   TAILQ_ENTRY(cpio_node) c_siblings;  /* nodes that have the same parent */
 
@@ -48,11 +48,7 @@ typedef TAILQ_HEAD(, cpio_node) cpio_list_t;
 
 static cpio_list_t initrd_head = TAILQ_HEAD_INITIALIZER(initrd_head);
 static cpio_node_t *root_node;
-static vnodeops_t initrd_ops = {.v_lookup = vnode_op_notsup,
-                                .v_readdir = vnode_op_notsup,
-                                .v_open = vnode_op_notsup,
-                                .v_read = vnode_op_notsup,
-                                .v_write = vnode_op_notsup};
+static vnodeops_t initrd_vops;
 
 extern char *kenv_get(const char *key);
 
@@ -159,7 +155,7 @@ static const char *basename(const char *path) {
 }
 
 static void insert_child(cpio_node_t *parent, cpio_node_t *child) {
-  parent->c_n_children++;
+  parent->c_nchildren++;
   TAILQ_INSERT_TAIL(&parent->c_children, child, c_siblings);
 }
 
@@ -202,7 +198,7 @@ static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
         vnodetype_t type = V_REG;
         if (it->c_mode & C_ISDIR)
           type = V_DIR;
-        *res = vnode_new(type, &initrd_ops);
+        *res = vnode_new(type, &initrd_vops);
         (*res)->v_data = (void *)it;
 
         /* TODO: Only store a token (weak pointer) that allows looking up the
@@ -235,72 +231,86 @@ static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
   return 0;
 }
 
-static int initrd_mount(mount_t *m) {
-  vnode_t *root = vnode_new(V_DIR, &initrd_ops);
-  root->v_data = (void *)root_node;
-  root->v_mount = m;
-  m->mnt_data = root;
-  return 0;
+static unsigned cpio_dirent_namlen(cpio_node_t *cn) {
+  return strlen(cn->c_name);
 }
 
-/* dirent returned by this function has to be deallocated with
- * kfree(M_INITRD, *); */
-static dirent_t *cpio_to_direntry(cpio_node_t *cn) {
-  dirent_t *dir = NULL;
-  int namlen = strlen(cn->c_name);
+static void cpio_to_dirent(cpio_node_t *cn, dirent_t *dir) {
+  unsigned mode = cn->c_mode & C_IFMT;
 
-  int reclen = _DIRENT_RECLEN(dir, namlen);
-  dir = (dirent_t *)kmalloc(M_INITRD, reclen, 0);
-
-  dir->d_fileno = cn->c_ino; /* Shall we implement our inode numbers or leave
-                                ones from ramdisk? */
-  dir->d_reclen = reclen;
-  dir->d_namlen = namlen;
-  dir->d_type = DT_UNKNOWN;
-  if (cn->c_mode & C_ISDIR)
+  /* XXX: Shall we implement our inode numbers or leave ones from ramdisk? */
+  dir->d_fileno = cn->c_ino;
+  if (mode == C_ISDIR)
     dir->d_type = DT_DIR;
-  if (cn->c_mode & C_ISREG)
+  else if (mode == C_ISREG)
     dir->d_type = DT_REG;
-  memcpy(dir->d_name, cn->c_name, namlen + 1);
-  return dir;
+  else if (mode == C_ISCHR)
+    dir->d_type = DT_CHR;
+  else if (mode == C_ISCHR)
+    dir->d_type = DT_CHR;
+  else if (mode == C_ISBLK)
+    dir->d_type = DT_BLK;
+  else if (mode == C_ISLNK)
+    dir->d_type = DT_LNK;
+  else
+    dir->d_type = DT_UNKNOWN;
+  memcpy(dir->d_name, cn->c_name, dir->d_namlen + 1);
 }
 
 static int initrd_vnode_readdir(vnode_t *v, uio_t *uio) {
   cpio_node_t *cn = (cpio_node_t *)v->v_data;
-  dirent_t *dir = NULL;
   cpio_node_t *it;
+  dirent_t *dir;
   off_t offset = 0;
+  int error;
 
   /* Locate proper directory based on offset */
   TAILQ_FOREACH (it, &cn->c_children, c_siblings) {
-    int reclen = _DIRENT_RECLEN(dir, strlen(it->c_name));
-
-    if (offset + reclen <= uio->uio_offset) {
-      offset += reclen;
-    } else {
+    unsigned reclen = _DIRENT_RECLEN(dir, cpio_dirent_namlen(it));
+    if (offset + reclen > uio->uio_offset) {
       assert(it == NULL || offset == uio->uio_offset);
       break;
     }
+    offset += reclen;
   }
 
   for (; it; it = TAILQ_NEXT(it, c_siblings)) {
-    int reclen = _DIRENT_RECLEN(dir, strlen(it->c_name));
-    if (uio->uio_resid >= reclen) {
-      dir = cpio_to_direntry(it);
-      int error = uiomove(dir, dir->d_reclen, uio);
-      kfree(M_INITRD, dir);
-      if (error < 0)
-        return -error;
-    } else
+    unsigned namlen = cpio_dirent_namlen(it);
+    unsigned reclen = _DIRENT_RECLEN(dir, namlen);
+
+    if (uio->uio_resid < reclen)
       break;
+
+    dir = kmalloc(M_TEMP, reclen, M_ZERO);
+    dir->d_namlen = namlen;
+    dir->d_reclen = reclen;
+    cpio_to_dirent(it, dir);
+    error = uiomove(dir, reclen, uio);
+    kfree(M_TEMP, dir);
+    if (error < 0)
+      return -error;
   }
 
   return uio->uio_offset - offset;
 }
 
+static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
+                                 .v_read = initrd_vnode_read,
+                                 .v_open = vnode_open_generic,
+                                 .v_getattr = initrd_vnode_getattr,
+                                 .v_readdir = initrd_vnode_readdir};
+
 static int initrd_root(mount_t *m, vnode_t **v) {
   *v = m->mnt_data;
   vnode_ref(*v);
+  return 0;
+}
+
+static int initrd_mount(mount_t *m) {
+  vnode_t *root = vnode_new(V_DIR, &initrd_vops);
+  root->v_data = (void *)root_node;
+  root->v_mount = m;
+  m->mnt_data = root;
   return 0;
 }
 
@@ -310,16 +320,19 @@ static int initrd_init(vfsconf_t *vfc) {
   if (!rd_size)
     return ENXIO;
 
-  initrd_ops.v_lookup = initrd_vnode_lookup;
-  initrd_ops.v_read = initrd_vnode_read;
-  initrd_ops.v_open = vnode_open_generic;
-  initrd_ops.v_getattr = initrd_vnode_getattr;
-  initrd_ops.v_readdir = initrd_vnode_readdir;
   klog("parsing cpio archive of %zu bytes", rd_size);
   read_cpio_archive();
   initrd_build_tree_and_names();
   return 0;
 }
+
+static vfsops_t initrd_vfsops = {
+  .vfs_mount = initrd_mount, .vfs_root = initrd_root, .vfs_init = initrd_init};
+
+static vfsconf_t initrd_conf = {.vfc_name = "initrd",
+                                .vfc_vfsops = &initrd_vfsops};
+
+SET_ENTRY(vfsconf, initrd_conf);
 
 intptr_t ramdisk_get_start() {
   char *s = kenv_get("rd_start");
@@ -339,11 +352,3 @@ void ramdisk_dump() {
 
   TAILQ_FOREACH (it, &initrd_head, c_list) { cpio_node_dump(it); }
 }
-
-static vfsops_t initrd_vfsops = {
-  .vfs_mount = initrd_mount, .vfs_root = initrd_root, .vfs_init = initrd_init};
-
-static vfsconf_t initrd_conf = {.vfc_name = "initrd",
-                                .vfc_vfsops = &initrd_vfsops};
-
-SET_ENTRY(vfsconf, initrd_conf);
