@@ -134,8 +134,8 @@ void proc_exit(int exitstatus) {
         if (p->p_sigactions[SIGCHLD].sa_handler == SIG_IGN) {
           int ignore_status;
           proc_reap(p, &ignore_status);
-          thread_exit();
-          __unreachable();
+          /* Can't call [noreturn] thread_exit() from within a WITH scope. */
+          goto exit;
         }
       }
       /* sig_send must be called with target process lock not acquired. */
@@ -143,6 +143,7 @@ void proc_exit(int exitstatus) {
     }
   }
 
+exit:
   /* This thread is the last one in the process to exit. */
   thread_exit();
 }
