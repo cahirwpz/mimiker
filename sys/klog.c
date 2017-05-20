@@ -68,6 +68,16 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
     klog_entry_dump(entry);
 }
 
+unsigned klog_setmask(unsigned newmask) {
+  unsigned oldmask;
+
+  CRITICAL_SECTION {
+    oldmask = klog.mask;
+    klog.mask = newmask;
+  }
+  return oldmask;
+}
+
 void klog_dump() {
   klog_entry_t entry;
 

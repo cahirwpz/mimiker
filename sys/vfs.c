@@ -14,12 +14,12 @@ MALLOC_DEFINE(M_VFS, "vfs", 1, 4);
 
 /* The list of all installed filesystem types */
 vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
-mtx_t vfsconf_list_mtx;
+mtx_t vfsconf_list_mtx = MUTEX_INITIALIZER(MTX_DEF);
 
 /* The list of all mounts mounted */
 typedef TAILQ_HEAD(, mount) mount_list_t;
 static mount_list_t mount_list = TAILQ_HEAD_INITIALIZER(mount_list);
-static mtx_t mount_list_mtx;
+static mtx_t mount_list_mtx = MUTEX_INITIALIZER(MTX_DEF);
 
 /* Default vfs operations */
 static vfs_root_t vfs_default_root;
@@ -41,9 +41,6 @@ static vnodeops_t vfs_root_ops = {
 static int vfs_register(vfsconf_t *vfc);
 
 static void vfs_init() {
-  mtx_init(&vfsconf_list_mtx, MTX_DEF);
-  mtx_init(&mount_list_mtx, MTX_DEF);
-
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
 
   /* Initialize available filesystem types. */

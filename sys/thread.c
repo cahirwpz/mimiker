@@ -14,20 +14,11 @@ static MALLOC_DEFINE(M_THREAD, "thread", 1, 2);
 
 typedef TAILQ_HEAD(, thread) thread_list_t;
 
-static mtx_t all_threads_mtx;
-static thread_list_t all_threads;
+static mtx_t all_threads_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static thread_list_t all_threads = TAILQ_HEAD_INITIALIZER(all_threads);
 
-static mtx_t zombie_threads_mtx;
-static thread_list_t zombie_threads;
-
-void thread_init() {
-  klog("Threads initialization");
-  mtx_init(&all_threads_mtx, MTX_DEF);
-  TAILQ_INIT(&all_threads);
-
-  mtx_init(&zombie_threads_mtx, MTX_DEF);
-  TAILQ_INIT(&zombie_threads);
-}
+static mtx_t zombie_threads_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static thread_list_t zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 
 /* FTTB such a primitive method of creating new TIDs will do. */
 static tid_t make_tid() {

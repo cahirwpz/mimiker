@@ -70,6 +70,8 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
                  const char *format, intptr_t arg1, intptr_t arg2,
                  intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6);
 
+unsigned klog_setmask(unsigned newmask);
+
 /* Print all logs on screen. */
 void klog_dump();
 

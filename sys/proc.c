@@ -10,19 +10,14 @@
 
 static MALLOC_DEFINE(M_PROC, "proc", 1, 2);
 
-static mtx_t all_proc_list_mtx;
+static mtx_t all_proc_list_mtx  = MUTEX_INITIALIZER(MTX_DEF);
 static proc_list_t all_proc_list = TAILQ_HEAD_INITIALIZER(all_proc_list);
-static mtx_t zombie_proc_list_mtx;
+static mtx_t zombie_proc_list_mtx  = MUTEX_INITIALIZER(MTX_DEF);
 static proc_list_t zombie_proc_list = TAILQ_HEAD_INITIALIZER(zombie_proc_list);
 
-static mtx_t last_pid_mtx;
+static mtx_t last_pid_mtx  = MUTEX_INITIALIZER(MTX_DEF);
 static pid_t last_pid = 0;
 
-static void proc_init() {
-  mtx_init(&all_proc_list_mtx, MTX_DEF);
-  mtx_init(&zombie_proc_list_mtx, MTX_DEF);
-  mtx_init(&last_pid_mtx, MTX_DEF);
-}
 
 proc_t *proc_create() {
   proc_t *proc = kmalloc(M_PROC, sizeof(proc_t), M_ZERO);
@@ -227,5 +222,3 @@ int do_waitpid(pid_t pid, int *status, int options) {
 
   __unreachable();
 }
-
-SYSINIT_ADD(proc, proc_init, NODEPS);
