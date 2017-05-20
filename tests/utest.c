@@ -21,7 +21,7 @@ static void utest_generic_thread(void *arg) {
 
 static int utest_generic(const char *name, int status_success) {
   thread_t *utest_thread =
-    thread_create("fd_test", utest_generic_thread, (void *)name);
+    thread_create(name, utest_generic_thread, (void *)name);
   sched_add(utest_thread);
 
   /* NOTE: It looks like waitpid should be used here... but keep in mind, that
