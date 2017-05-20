@@ -10,7 +10,9 @@ realtime_t clock_get() {
 }
 
 void clock(realtime_t _ms) {
-  ms = _ms;
-  callout_process(_ms);
-  sched_clock();
+  if (ms != _ms) {
+    ms = _ms;
+    callout_process(_ms);
+    sched_clock();
+  }
 }

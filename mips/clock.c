@@ -12,7 +12,7 @@ static timeval_t mips_clock_us;
 
 static void mips_clock_init() {
   mips32_set_c0(C0_COUNT, 0);
-  mips32_set_c0(C0_COMPARE, TICKS_PER_MS);
+  mips32_set_c0(C0_COMPARE, CPU_CLOCK);
 
   timeval_clear(&mips_clock_us);
 
@@ -29,10 +29,10 @@ void mips_clock_irq_handler() {
   if (diff > 0)
     return;
 
-  timeval_t us = (timeval_t){.tv_sec = 0, .tv_usec = 1000};
+  timeval_t us = (timeval_t){.tv_sec = 0, .tv_usec = 1};
   /* This loop is necessary, because sometimes we may miss some ticks. */
-  while (diff < TICKS_PER_MS) {
-    compare += TICKS_PER_MS;
+  while (diff < CPU_CLOCK) {
+    compare += CPU_CLOCK;
     timeval_add(&mips_clock_us, &us, &mips_clock_us);
     diff = compare - count;
   }
