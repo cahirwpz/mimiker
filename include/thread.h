@@ -60,8 +60,6 @@ typedef struct thread {
   /* TODO: Signal mask, sigsuspend. */
 } thread_t;
 
-void thread_init();
-
 thread_t *thread_self();
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
 void thread_delete(thread_t *td);

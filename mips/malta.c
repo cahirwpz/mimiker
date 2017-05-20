@@ -155,8 +155,6 @@ static void pm_bootstrap(unsigned memsize) {
 }
 
 static void thread_bootstrap() {
-  thread_init();
-
   /* Create main kernel thread */
   thread_t *td = thread_create("kernel-main", (void *)kernel_init, NULL);
 
@@ -178,7 +176,6 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   pcpu_init();
   cpu_init();
   tlb_init();
-  intr_init();
   mips_intr_init();
   pm_bootstrap(memsize);
   kmem_bootstrap();
