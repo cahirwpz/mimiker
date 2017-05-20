@@ -190,7 +190,7 @@ int do_waitpid(pid_t pid, int *status, int options) {
 
     for (;;) {
       WITH_MTX_LOCK (&child->p_lock)
-        if (child->p_state != PRS_ZOMBIE)
+        if (child->p_state == PRS_ZOMBIE)
           return proc_reap(child, status);
 
       if (options & WNOHANG)
