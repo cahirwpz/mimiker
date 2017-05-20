@@ -32,6 +32,8 @@ typedef enum {
 #define KL_MASK(l) (1 << (l))
 #define KL_ALL 0xffffffff /* log everything */
 
+#define KL_DEFAULT_MASK (KL_ALL & (~KL_MASK(KL_PMAP)))
+
 /* Mask for subsystem using klog. If not specified using default subsystem. */
 #ifndef KL_LOG
 #define KL_LOG KL_UNDEF
