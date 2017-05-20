@@ -50,3 +50,6 @@ UTEST_ADD(fd_bad_desc, 0);
 UTEST_ADD(fd_open_path, 0);
 UTEST_ADD(fd_dup, 0);
 UTEST_ADD(fd_all, 0);
+
+UTEST_ADD(signal_basic, 0);
+UTEST_ADD(signal_send, 0);

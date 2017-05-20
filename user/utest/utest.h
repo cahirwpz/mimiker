@@ -15,4 +15,7 @@ int test_fd_open_path();
 int test_fd_dup();
 int test_fd_all();
 
+int test_signal_basic();
+int test_signal_send();
+
 #endif /* __UTEST_H__ */

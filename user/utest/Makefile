@@ -1,4 +1,10 @@
-SOURCES_C = main.c mmap.c sbrk.c misbehave.c fd.c
-UELF_NAME = utest
+UELF_NAME=utest
+SOURCES_C= \
+	fd.c \
+	main.c \
+	misbehave.c \
+	mmap.c \
+	sbrk.c \
+	signal.c
 
 include ../Makefile.usercommon
