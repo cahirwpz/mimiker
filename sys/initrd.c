@@ -1,16 +1,13 @@
 #define KL_LOG KL_PMAP
 #include <klog.h>
 #include <errno.h>
-#include <common.h>
 #include <malloc.h>
-#include <vm.h>
-#include <vm_map.h>
 #include <stdc.h>
 #include <cpio.h>
 #include <initrd.h>
 #include <vnode.h>
 #include <mount.h>
-#include <mount.h>
+#include <vfs.h>
 #include <linker_set.h>
 #include <dirent.h>
 
@@ -231,11 +228,24 @@ static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
   return 0;
 }
 
-static unsigned cpio_dirent_namlen(cpio_node_t *cn) {
+static void *cpio_first_dirent(vnode_t *v) {
+  cpio_node_t *cn = (cpio_node_t *)v->v_data;
+  assert(v->v_type == V_DIR);
+  return TAILQ_FIRST(&cn->c_children);
+}
+
+static void *cpio_next_dirent(void *entry) {
+  cpio_node_t *cn = (cpio_node_t *)entry;
+  return TAILQ_NEXT(cn, c_siblings);
+}
+
+static unsigned cpio_dirent_namlen(void *entry) {
+  cpio_node_t *cn = (cpio_node_t *)entry;
   return strlen(cn->c_name);
 }
 
-static void cpio_to_dirent(cpio_node_t *cn, dirent_t *dir) {
+static void cpio_to_dirent(void *entry, dirent_t *dir) {
+  cpio_node_t *cn = (cpio_node_t *)entry;
   unsigned mode = cn->c_mode & C_IFMT;
 
   /* XXX: Shall we implement our inode numbers or leave ones from ramdisk? */
@@ -257,41 +267,15 @@ static void cpio_to_dirent(cpio_node_t *cn, dirent_t *dir) {
   memcpy(dir->d_name, cn->c_name, dir->d_namlen + 1);
 }
 
+static readdir_ops_t cpio_readdir_ops = {
+  .first = cpio_first_dirent,
+  .next = cpio_next_dirent,
+  .namlen_of = cpio_dirent_namlen,
+  .convert = cpio_to_dirent,
+};
+
 static int initrd_vnode_readdir(vnode_t *v, uio_t *uio) {
-  cpio_node_t *cn = (cpio_node_t *)v->v_data;
-  cpio_node_t *it;
-  dirent_t *dir;
-  off_t offset = 0;
-  int error;
-
-  /* Locate proper directory based on offset */
-  TAILQ_FOREACH (it, &cn->c_children, c_siblings) {
-    unsigned reclen = _DIRENT_RECLEN(dir, cpio_dirent_namlen(it));
-    if (offset + reclen > uio->uio_offset) {
-      assert(it == NULL || offset == uio->uio_offset);
-      break;
-    }
-    offset += reclen;
-  }
-
-  for (; it; it = TAILQ_NEXT(it, c_siblings)) {
-    unsigned namlen = cpio_dirent_namlen(it);
-    unsigned reclen = _DIRENT_RECLEN(dir, namlen);
-
-    if (uio->uio_resid < reclen)
-      break;
-
-    dir = kmalloc(M_TEMP, reclen, M_ZERO);
-    dir->d_namlen = namlen;
-    dir->d_reclen = reclen;
-    cpio_to_dirent(it, dir);
-    error = uiomove(dir, reclen, uio);
-    kfree(M_TEMP, dir);
-    if (error < 0)
-      return -error;
-  }
-
-  return uio->uio_offset - offset;
+  return readdir_generic(v, uio, &cpio_readdir_ops);
 }
 
 static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
