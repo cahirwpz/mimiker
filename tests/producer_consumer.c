@@ -1,3 +1,5 @@
+#define KL_LOG KL_TEST
+#include <klog.h>
 #include <condvar.h>
 #include <mutex.h>
 #include <sched.h>
@@ -20,9 +22,9 @@ static struct {
 static void producer(void *ptr) {
   bool working = true;
   unsigned produced = 0;
-  log("%s started", thread_self()->td_name);
+  klog("%s started", thread_self()->td_name);
   while (working) {
-    mtx_scoped_lock(&buf.lock);
+    SCOPED_MTX_LOCK(&buf.lock);
     do {
       working = (buf.all_produced < ITEMS);
       if (!working)
@@ -38,16 +40,16 @@ static void producer(void *ptr) {
       cv_signal(&buf.not_empty);
     }
   }
-  log("%s finished, produced %d of %d.", thread_self()->td_name, produced,
-      buf.all_produced);
+  klog("%s finished, produced %d of %d.", thread_self()->td_name, produced,
+       buf.all_produced);
 }
 
 static void consumer(void *ptr) {
   bool working = true;
   unsigned consumed = 0;
-  log("%s started", thread_self()->td_name);
+  klog("%s started", thread_self()->td_name);
   while (working) {
-    mtx_scoped_lock(&buf.lock);
+    SCOPED_MTX_LOCK(&buf.lock);
     do {
       working = (buf.all_consumed < ITEMS);
       if (!working)
@@ -63,8 +65,8 @@ static void consumer(void *ptr) {
       cv_signal(&buf.not_full);
     }
   }
-  log("%s finished, consumed %d of %d.", thread_self()->td_name, consumed,
-      buf.all_consumed);
+  klog("%s finished, consumed %d of %d.", thread_self()->td_name, consumed,
+       buf.all_consumed);
 }
 
 static int test_producer_consumer() {

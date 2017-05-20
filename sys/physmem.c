@@ -1,3 +1,5 @@
+#define KL_LOG KL_PMAP
+#include <klog.h>
 #include <stdc.h>
 #include <malloc.h>
 #include <physmem.h>
@@ -157,8 +159,8 @@ void pm_seg_reserve(pm_seg_t *seg, pm_addr_t start, pm_addr_t end) {
   assert(is_aligned(end, PAGESIZE));
   assert(seg->start <= start && end <= seg->end);
 
-  log("pm_seg_reserve: %p - %p from [%p, %p]", (void *)start, (void *)end,
-      (void *)seg->start, (void *)seg->end);
+  klog("pm_seg_reserve: %p - %p from [%p, %p]", (void *)start, (void *)end,
+       (void *)seg->start, (void *)seg->end);
 
   for (int i = PM_NQUEUES - 1; i >= 0; i--) {
     pg_list_t *queue = PM_FREEQ(seg, i);
@@ -230,8 +232,7 @@ vm_page_t *pm_alloc(size_t npages) {
   TAILQ_FOREACH (seg_it, &seglist, segq) {
     vm_page_t *page;
     if ((page = pm_alloc_from_seg(seg_it, npages))) {
-      kprintf("[pmem] pm_alloc {paddr:%lx size:%ld}\n", page->paddr,
-              page->size);
+      klog("pm_alloc {paddr:%lx size:%ld}", page->paddr, page->size);
       return page;
     }
   }
@@ -270,7 +271,7 @@ static void pm_free_from_seg(pm_seg_t *seg, vm_page_t *page) {
 void pm_free(vm_page_t *page) {
   pm_seg_t *seg_it = NULL;
 
-  kprintf("[pmem] pm_free {paddr:%lx size:%ld}\n", page->paddr, page->size);
+  klog("pm_free {paddr:%lx size:%ld}", page->paddr, page->size);
 
   TAILQ_FOREACH (seg_it, &seglist, segq) {
     if (PG_START(page) >= seg_it->start && PG_END(page) <= seg_it->end) {
@@ -284,7 +285,7 @@ void pm_free(vm_page_t *page) {
 }
 
 vm_page_t *pm_split_alloc_page(vm_page_t *pg) {
-  kprintf("[pmem] pm_split {paddr:%lx size:%ld}\n", pg->paddr, pg->size);
+  klog("pm_split {paddr:%lx size:%ld}\n", pg->paddr, pg->size);
 
   assert(pg->size > 1);
   assert(pg->pm_flags & PM_ALLOCATED);

@@ -20,6 +20,7 @@ LIB_SOURCES += stdio/__scanf_core_int.c
 LIB_SOURCES += stdlib/strtol.c
 LIB_SOURCES += stdlib/strtoul.c
 LIB_SOURCES += stdlib/qsort.c
+LIB_SOURCES += stdlib/rand.c
 LIB_SOURCES += string/bzero.c
 LIB_SOURCES += string/memchr.c
 LIB_SOURCES += string/memcpy.c

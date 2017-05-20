@@ -5,25 +5,24 @@
 #include <mutex.h>
 #include <thread.h>
 #include <vnode.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_FILE, "file", 1, 2);
 
-void file_init() {
+static void file_init() {
 }
 
 void file_ref(file_t *f) {
-  mtx_lock(&f->f_mtx);
+  SCOPED_MTX_LOCK(&f->f_mtx);
   assert(f->f_count >= 0);
   f->f_count++;
-  mtx_unlock(&f->f_mtx);
 }
 
 void file_unref(file_t *f) {
-  mtx_lock(&f->f_mtx);
+  SCOPED_MTX_LOCK(&f->f_mtx);
   assert(f->f_count > 0);
   if (--f->f_count == 0)
     f->f_count = -1;
-  mtx_unlock(&f->f_mtx);
 }
 
 file_t *file_alloc() {
@@ -75,3 +74,5 @@ fileops_t badfileops = {.fo_read = badfo_read,
                         .fo_write = badfo_write,
                         .fo_close = badfo_close,
                         .fo_getattr = badfo_getattr};
+
+SYSINIT_ADD(file, file_init, DEPS("vfs", "vnode"));

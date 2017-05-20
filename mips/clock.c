@@ -5,11 +5,12 @@
 #include <callout.h>
 #include <mutex.h>
 #include <sched.h>
+#include <sysinit.h>
 
 /* This counter is incremented every millisecond. */
 static volatile realtime_t mips_clock_ms;
 
-void mips_clock_init() {
+static void mips_clock_init() {
   mips32_set_c0(C0_COUNT, 0);
   mips32_set_c0(C0_COMPARE, TICKS_PER_MS);
 
@@ -40,3 +41,5 @@ void mips_clock_irq_handler() {
 
   clock(mips_clock_ms);
 }
+
+SYSINIT_ADD(mips_clock, mips_clock_init, DEPS("callout", "sched"));

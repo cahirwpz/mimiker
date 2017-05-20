@@ -1,3 +1,5 @@
+#define KL_LOG KL_SCHED
+#include <klog.h>
 #include <sync.h>
 #include <stdc.h>
 #include <sched.h>
@@ -9,18 +11,19 @@
 #include <interrupt.h>
 #include <mutex.h>
 #include <pcpu.h>
+#include <sysinit.h>
 
 static runq_t runq;
 static bool sched_active = false;
 
 #define SLICE 10
 
-void sched_init() {
+static void sched_init() {
   runq_init(&runq);
 }
 
 void sched_add(thread_t *td) {
-  // log("Add '%s' {%p} thread to scheduler", td->td_name, td);
+  // klog("Add '%s' {%p} thread to scheduler", td->td_name, td);
 
   td->td_state = TDS_READY;
 
@@ -30,13 +33,12 @@ void sched_add(thread_t *td) {
     return;
 
   td->td_slice = SLICE;
-  critical_enter();
 
-  runq_add(&runq, td);
-
-  if (td->td_prio > thread_self()->td_prio)
-    thread_self()->td_flags |= TDF_NEEDSWITCH;
-  critical_leave();
+  CRITICAL_SECTION {
+    runq_add(&runq, td);
+    if (td->td_prio > thread_self()->td_prio)
+      thread_self()->td_flags |= TDF_NEEDSWITCH;
+  }
 }
 
 void sched_remove(thread_t *td) {
@@ -68,7 +70,7 @@ void sched_switch(thread_t *newtd) {
   if (!sched_active)
     return;
 
-  critical_enter();
+  SCOPED_CRITICAL_SECTION();
 
   thread_t *td = thread_self();
 
@@ -84,8 +86,6 @@ void sched_switch(thread_t *newtd) {
 
   if (td != newtd)
     ctx_switch(td, newtd);
-
-  critical_leave();
 }
 
 noreturn void sched_run() {
@@ -101,3 +101,5 @@ noreturn void sched_run() {
     td->td_flags |= TDF_NEEDSWITCH;
   }
 }
+
+SYSINIT_ADD(sched, sched_init, DEPS("callout"));

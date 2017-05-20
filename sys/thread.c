@@ -1,3 +1,5 @@
+#define KL_LOG KL_THREAD
+#include <klog.h>
 #include <stdc.h>
 #include <malloc.h>
 #include <thread.h>
@@ -19,7 +21,7 @@ static mtx_t zombie_threads_mtx;
 static thread_list_t zombie_threads;
 
 void thread_init() {
-  log("Thread init.");
+  klog("Threads initialization");
   mtx_init(&all_threads_mtx, MTX_DEF);
   TAILQ_INIT(&all_threads);
 
@@ -42,14 +44,16 @@ void thread_reap() {
   if (TAILQ_EMPTY(&zombie_threads))
     return;
 
-  mtx_lock(&zombie_threads_mtx);
-  thread_list_t thq = zombie_threads;
-  TAILQ_INIT(&zombie_threads);
-  mtx_unlock(&zombie_threads_mtx);
+  thread_list_t thq;
+
+  WITH_MTX_LOCK (&zombie_threads_mtx) {
+    thq = zombie_threads;
+    TAILQ_INIT(&zombie_threads);
+  }
 
   thread_t *td;
   TAILQ_FOREACH (td, &thq, td_zombieq) {
-    log("Reaping thread %ld (%s)", td->td_tid, td->td_name);
+    klog("Reaping thread %ld (%s)", td->td_tid, td->td_name);
     thread_delete(td);
   }
 }
@@ -67,7 +71,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
   td->td_kstack.stk_size = PAGESIZE;
 
-  mtx_init(&td->td_lock, MTX_DEF);
+  mtx_init(&td->td_lock, MTX_RECURSE);
   cv_init(&td->td_waitcv, "td_waitcv");
 
   ctx_init(td, fn, arg);
@@ -87,8 +91,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
     mtx_unlock(&all_threads_mtx);
 
   td->td_state = TDS_READY;
-
-  log("Thread '%s' {%p} has been created.", td->td_name, td);
+  klog("Thread '%s' {%p} has been created.", td->td_name, td);
 
   return td;
 }
@@ -117,7 +120,7 @@ thread_t *thread_self() {
 noreturn void thread_exit(int exitcode) {
   thread_t *td = thread_self();
 
-  log("Thread '%s' {%p} has finished.", td->td_name, td);
+  klog("Thread '%s' {%p} has finished.", td->td_name, td);
 
   mtx_lock(&td->td_lock);
 
@@ -125,23 +128,20 @@ noreturn void thread_exit(int exitcode) {
      assert here, because assert also calls thread_exit. Thus, in case this
      condition is not met, we'll log the problem, and try to fix the problem. */
   if (td->td_csnest != 0) {
-    log("ERROR: Thread must not exit within a critical section!");
+    klog("ERROR: Thread must not exit within a critical section!");
     while (td->td_csnest--)
       critical_leave();
   }
 
-  mtx_lock(&zombie_threads_mtx);
-  TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
-  mtx_unlock(&zombie_threads_mtx);
+  WITH_MTX_LOCK (&zombie_threads_mtx)
+    TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
 
-  critical_enter();
-  {
+  CRITICAL_SECTION {
     td->td_exitcode = exitcode;
     td->td_state = TDS_INACTIVE;
     cv_broadcast(&td->td_waitcv);
     mtx_unlock(&td->td_lock);
   }
-  critical_leave();
 
   sched_yield();
 
@@ -153,19 +153,20 @@ noreturn void thread_exit(int exitcode) {
 void thread_join(thread_t *p) {
   thread_t *td = thread_self();
   thread_t *otd = p;
-  log("Joining '%s' {%p} with '%s' {%p}", td->td_name, td, otd->td_name, otd);
+  klog("Joining '%s' {%p} with '%s' {%p}", td->td_name, td, otd->td_name, otd);
 
-  mtx_lock(&otd->td_lock);
+  SCOPED_MTX_LOCK(&otd->td_lock);
+
   while (otd->td_state != TDS_INACTIVE)
     cv_wait(&otd->td_waitcv, &otd->td_lock);
-  mtx_unlock(&otd->td_lock);
 }
 
 /* It would be better to have a hash-map from tid_t to thread_t,
  * but using a list is sufficient for now. */
 thread_t *thread_get_by_tid(tid_t id) {
+  SCOPED_MTX_LOCK(&all_threads_mtx);
+
   thread_t *td = NULL;
-  mtx_scoped_lock(&all_threads_mtx);
   TAILQ_FOREACH (td, &all_threads, td_all) {
     if (td->td_tid == id)
       break;

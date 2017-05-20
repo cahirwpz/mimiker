@@ -1,3 +1,4 @@
+#define KLOG KL_INIT
 #include <interrupt.h>
 #include <malloc.h>
 #include <mips/cpuinfo.h>
@@ -172,7 +173,6 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   bzero(__bss, __ebss - __bss);
 
   setup_kenv(argc, argv, envp);
-
   cn_init();
   klog_init();
   pcpu_init();
@@ -185,5 +185,5 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   sleepq_init();
   thread_bootstrap();
 
-  kprintf("[startup] Switching to 'kernel-main' thread...\n");
+  klog("Switching to 'kernel-main' thread...");
 }

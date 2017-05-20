@@ -3,6 +3,7 @@
 #include <klog.h>
 #include <device.h>
 #include <pci.h>
+#include <sysinit.h>
 
 MALLOC_DEFINE(M_DEV, "device/driver pool", 128, 1024);
 
@@ -41,7 +42,7 @@ int device_detach(device_t *dev) {
 
 extern pci_bus_driver_t gt_pci;
 
-void driver_init() {
+static void driver_init() {
   /* TODO: a platform should expose root bus - probe & attach process should
    * start from it. */
   device_t *pcib = device_alloc();
@@ -51,14 +52,14 @@ void driver_init() {
   /* TODO: Should following code become a part of generic bus code? */
   device_t *dev;
   SET_DECLARE(driver_table, driver_t);
-  log("Scanning %s for known devices.", pcib->driver->desc);
+  klog("Scanning %s for known devices.", pcib->driver->desc);
   TAILQ_FOREACH (dev, &pcib->children, link) {
     driver_t **drv_p;
     SET_FOREACH(drv_p, driver_table) {
       driver_t *drv = *drv_p;
       dev->driver = drv;
       if (device_probe(dev)) {
-        log("%s detected!", drv->desc);
+        klog("%s detected!", drv->desc);
         device_attach(dev);
         break;
       }
@@ -66,3 +67,5 @@ void driver_init() {
     }
   }
 }
+
+SYSINIT_ADD(driver, driver_init, NODEPS);

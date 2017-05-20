@@ -1,3 +1,5 @@
+#define KL_LOG KL_INTR
+#include <klog.h>
 #include <stdc.h>
 #include <mips/exc.h>
 #include <mips/mips.h>
@@ -40,7 +42,7 @@ void mips_irq_handler(exc_frame_t *frame) {
       if (handler != NULL) {
         handler();
       } else {
-        log("Spurious hardware interrupt #%d!", i);
+        klog("Spurious hardware interrupt #%d!", i);
       }
       pending &= ~irq;
     }
@@ -74,10 +76,10 @@ const char *const exceptions[32] = {
 void kernel_oops(exc_frame_t *frame) {
   unsigned code = (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
 
-  log("%s at $%08x!", exceptions[code], frame->pc);
+  klog("%s at $%08x!", exceptions[code], frame->pc);
   if ((code == EXC_ADEL || code == EXC_ADES) ||
       (code == EXC_IBE || code == EXC_DBE))
-    log("Caused by reference to $%08x!", frame->badvaddr);
+    klog("Caused by reference to $%08x!", frame->badvaddr);
 
   panic("Unhandled exception!");
 }
@@ -107,7 +109,17 @@ void syscall_handler(exc_frame_t *frame) {
   retval = sysent[args.code].call(thread_self(), &args);
 
 finalize:
-  exc_frame_set_retval(frame, retval);
+  if (retval != -EJUSTRETURN)
+    exc_frame_set_retval(frame, retval);
+}
+
+void fpe_handler(exc_frame_t *frame) {
+  thread_t *td = thread_self();
+  if (td->td_proc) {
+    sig_send(td->td_proc, SIGFPE);
+  } else {
+    panic("Floating point exception or integer overflow in a kernel thread.");
+  }
 }
 
 /*
@@ -116,7 +128,10 @@ finalize:
  * handlers numbers please check 5.23 Table of MIPS32 4KEc User's Manual.
  */
 
-void *general_exception_table[32] = {
-    [EXC_MOD] = tlb_exception_handler, [EXC_TLBL] = tlb_exception_handler,
-    [EXC_TLBS] = tlb_exception_handler, [EXC_SYS] = syscall_handler,
-};
+void *general_exception_table[32] = {[EXC_MOD] = tlb_exception_handler,
+                                     [EXC_TLBL] = tlb_exception_handler,
+                                     [EXC_TLBS] = tlb_exception_handler,
+                                     [EXC_SYS] = syscall_handler,
+                                     [EXC_FPE] = fpe_handler,
+                                     [EXC_MSAFPE] = fpe_handler,
+                                     [EXC_OVF] = fpe_handler};

@@ -4,6 +4,7 @@
 #include <common.h>
 #include <queue.h>
 #include <mutex.h>
+#include <signal.h>
 #include <vm_map.h>
 
 typedef struct thread thread_t;
@@ -24,9 +25,9 @@ struct proc {
   vm_map_t *p_uspace;      /* process' user space map */
   /* file descriptors table */
   fdtab_t *p_fdtable;
+  /* signal stuff */
+  sigaction_t p_sigactions[NSIG];
 };
-
-void proc_init();
 
 proc_t *proc_create();
 
@@ -36,4 +37,4 @@ void proc_populate(proc_t *p, thread_t *td);
 /* Searches for a process with the given PID, returns NULL if not found. */
 proc_t *proc_find(pid_t pid);
 
-#endif /* _SYS_PROC_H_ */
+#endif /* !_SYS_PROC_H_ */

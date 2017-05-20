@@ -1,11 +1,10 @@
-#ifndef __SCHED_H__
-#define __SCHED_H__
+#ifndef _SYS_SCHED_H_
+#define _SYS_SCHED_H_
 
 #include <common.h>
 
 typedef struct thread thread_t;
 
-void sched_init();
 void sched_add(thread_t *td);
 void sched_remove(thread_t *td);
 void sched_clock();
@@ -14,4 +13,4 @@ void sched_switch(thread_t *newtd);
 
 noreturn void sched_run();
 
-#endif // __SCHED_H__
+#endif /* _SYS_SCHED_H_ */

@@ -177,9 +177,10 @@ void *kmalloc(kmem_pool_t *mp, size_t size, unsigned flags) {
   if (size_aligned == 0)
     return NULL;
 
+  SCOPED_MTX_LOCK(&mp->mp_lock);
+
   /* Search for the first area in the list that has enough space. */
   mem_arena_t *current = NULL;
-  mtx_scoped_lock(&mp->mp_lock);
   TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
     assert(current->ma_magic == MB_MAGIC);
 
@@ -191,16 +192,15 @@ void *kmalloc(kmem_pool_t *mp, size_t size, unsigned flags) {
       return mb->mb_data;
     }
   }
+
   /* Couldn't find any continuous memory with the requested size. */
-  if (flags & M_NOWAIT) {
+  if (flags & M_NOWAIT)
     return NULL;
-  }
 
   if (mp->mp_pages_used < mp->mp_pages_max) {
     kmalloc_add_pages(mp, 1);
     mp->mp_pages_used++;
-    void *ret = kmalloc(mp, size, flags);
-    return ret;
+    return kmalloc(mp, size, flags);
   }
 
   panic("memory exhausted in '%s'", mp->mp_desc);
@@ -212,8 +212,9 @@ void kfree(kmem_pool_t *mp, void *addr) {
   if (mb->mb_magic != MB_MAGIC || mp->mp_magic != MB_MAGIC || mb->mb_size >= 0)
     panic("Memory corruption detected!");
 
+  SCOPED_MTX_LOCK(&mp->mp_lock);
+
   mem_arena_t *current = NULL;
-  mtx_scoped_lock(&mp->mp_lock);
   TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
     char *start = ((char *)current) + sizeof(mem_arena_t);
     if ((char *)addr >= start && (char *)addr < start + current->ma_size)
@@ -234,7 +235,7 @@ void kmem_bootstrap() {
   kmem_pool_t ***ptr;
   SET_FOREACH(ptr, kmem_pool_table) {
     kmem_pool_t *mp = **ptr;
-    log("initialize '%s' pool", mp->mp_desc);
+    klog("initialize '%s' pool", mp->mp_desc);
     kmem_init(mp);
   }
 }
@@ -246,19 +247,21 @@ void kmem_init(kmem_pool_t *mp) {
 }
 
 void kmem_dump(kmem_pool_t *mp) {
+  klog("pool at %p:", mp);
+
+  SCOPED_MTX_LOCK(&mp->mp_lock);
+
   mem_arena_t *arena = NULL;
-  log("[kmem] pool at %p:", mp);
-  mtx_scoped_lock(&mp->mp_lock);
   TAILQ_FOREACH (arena, &mp->mp_arena, ma_list) {
     mem_block_t *block = (void *)arena->ma_data;
     mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
 
-    log("[kmem]  malloc_arena %p - %p:", block, end);
+    klog("> malloc_arena %p - %p:", block, end);
 
     while (block < end) {
       assert(block->mb_magic == MB_MAGIC);
-      log("[kmem]   %c %p %d", (block->mb_size > 0) ? 'F' : 'U', block,
-          (unsigned)abs(block->mb_size));
+      klog("   %c %p %d", (block->mb_size > 0) ? 'F' : 'U', block,
+           (unsigned)abs(block->mb_size));
       block = mb_next(block);
     }
   }
@@ -267,3 +270,5 @@ void kmem_dump(kmem_pool_t *mp) {
 /* TODO: missing implementation */
 void kmem_destroy(kmem_pool_t *mp) {
 }
+
+MALLOC_DEFINE(M_TEMP, "temporaries pool", 2, 4);

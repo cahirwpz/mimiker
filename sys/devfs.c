@@ -7,8 +7,6 @@
 #include <malloc.h>
 #include <linker_set.h>
 
-static MALLOC_DEFINE(M_DEVFS, "devfs", 1, 1);
-
 /* Structure for storage in mnt_data */
 typedef struct devfs_mount { vnode_t *root_vnode; } devfs_mount_t;
 
@@ -30,8 +28,9 @@ static devfs_device_list_t devfs_device_list =
 static mtx_t devfs_device_list_mtx;
 
 static devfs_device_t *devfs_get_by_name(const char *name) {
+  SCOPED_MTX_LOCK(&devfs_device_list_mtx);
+
   devfs_device_t *idev;
-  mtx_scoped_lock(&devfs_device_list_mtx);
   TAILQ_FOREACH (idev, &devfs_device_list, list)
     if (!strcmp(name, idev->name))
       return idev;
@@ -46,13 +45,12 @@ int devfs_install(const char *name, vnode_t *device) {
   if (devfs_get_by_name(name) != NULL)
     return -EEXIST;
 
-  devfs_device_t *idev = kmalloc(M_DEVFS, sizeof(devfs_device_t), M_ZERO);
+  devfs_device_t *idev = kmalloc(M_VFS, sizeof(devfs_device_t), M_ZERO);
   strlcpy(idev->name, name, DEVFS_NAME_MAX);
   idev->dev = device;
 
-  mtx_lock(&devfs_device_list_mtx);
-  TAILQ_INSERT_TAIL(&devfs_device_list, idev, list);
-  mtx_unlock(&devfs_device_list_mtx);
+  WITH_MTX_LOCK (&devfs_device_list_mtx)
+    TAILQ_INSERT_TAIL(&devfs_device_list, idev, list);
 
   return 0;
 }
@@ -75,7 +73,7 @@ static int devfs_mount(mount_t *m) {
   vnode_t *root = vnode_new(V_DIR, &devfs_root_ops);
   root->v_mount = m;
 
-  devfs_mount_t *dfm = kmalloc(M_DEVFS, sizeof(devfs_mount_t), M_ZERO);
+  devfs_mount_t *dfm = kmalloc(M_VFS, sizeof(devfs_mount_t), M_ZERO);
   dfm->root_vnode = root;
   m->mnt_data = dfm;
 
@@ -114,15 +112,8 @@ static int devfs_init(vfsconf_t *vfc) {
   SET_DECLARE(devfs_init, devfs_init_func_t);
   devfs_init_func_t **ptr;
   SET_FOREACH(ptr, devfs_init) {
-    log("Value in devfs_init: %p", **ptr);
     (**ptr)();
   }
-
-  /* Mount devfs at /dev. */
-  /* TODO: This should actually happen somewhere else in the init process, much
-   * later, and is configuration-dependent. */
-  vfs_domount(vfc, vfs_root_dev_vnode);
-
   return 0;
 }
 
