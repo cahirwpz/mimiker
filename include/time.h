@@ -11,7 +11,10 @@ typedef struct timeval {
   long tv_usec; /* microseconds */
 } timeval_t;
 
-#define TIMEVAL_INIT(sec, usec) (timeval_t){.tv_sec = (sec), .tv_usec = (usec)}
+#define TIMEVAL_INIT(sec, usec)                                                \
+  (timeval_t) {                                                                \
+    .tv_sec = (sec), .tv_usec = (usec)                                         \
+  }
 
 /* Operations on timevals. */
 static inline void timeval_clear(timeval_t *tvp) {
