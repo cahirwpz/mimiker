@@ -1,10 +1,7 @@
 #include <interrupt.h>
 
-static TAILQ_HEAD(, intr_chain) intr_chain_list;
-
-void intr_init() {
-  TAILQ_INIT(&intr_chain_list);
-}
+static TAILQ_HEAD(, intr_chain)
+  intr_chain_list = TAILQ_HEAD_INITIALIZER(intr_chain_list);
 
 void intr_chain_init(intr_chain_t *ic, unsigned irq, char *name) {
   ic->ic_irq = irq;

@@ -34,6 +34,7 @@ SOURCES_C  = \
 	rwlock.c \
 	sbrk.c \
 	sched.c \
+	signal.c \
 	sleepq.c \
 	startup.c \
 	sync.c \

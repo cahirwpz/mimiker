@@ -41,9 +41,6 @@ typedef struct intr_chain {
   unsigned ic_irq;                 /* physical interrupt request line number */
 } intr_chain_t;
 
-/* Initializes and enables interrupts. */
-void intr_init();
-
 void intr_chain_init(intr_chain_t *ic, unsigned irq, char *name);
 void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih);
 void intr_chain_remove_handler(intr_handler_t *ih);
