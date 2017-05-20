@@ -12,11 +12,11 @@ typedef struct timeval {
 } timeval_t;
 
 /* Operations on timevals. */
-static inline void timeval_clear(volatile timeval_t *tvp) {
+static inline void timeval_clear(timeval_t *tvp) {
   *tvp = (timeval_t){.tv_sec = 0, .tv_usec = 0};
 }
 
-static inline bool timeval_isset(volatile timeval_t *tvp) {
+static inline bool timeval_isset(timeval_t *tvp) {
   return tvp->tv_sec || tvp->tv_usec;
 }
 
@@ -24,8 +24,7 @@ static inline bool timeval_isset(volatile timeval_t *tvp) {
   (((tvp)->tv_sec == (uvp)->tv_sec) ? (((tvp)->tv_usec)cmp((uvp)->tv_usec))    \
                                     : (((tvp)->tv_sec)cmp((uvp)->tv_sec)))
 
-static inline void timeval_add(volatile timeval_t *tvp, volatile timeval_t *uvp,
-                               volatile timeval_t *vvp) {
+static inline void timeval_add(timeval_t *tvp, timeval_t *uvp, timeval_t *vvp) {
   vvp->tv_sec = tvp->tv_sec + uvp->tv_sec;
   vvp->tv_usec = tvp->tv_usec + uvp->tv_usec;
   if (vvp->tv_usec >= 1000000) {
@@ -34,8 +33,7 @@ static inline void timeval_add(volatile timeval_t *tvp, volatile timeval_t *uvp,
   }
 }
 
-static inline void timeval_sub(volatile timeval_t *tvp, volatile timeval_t *uvp,
-                               volatile timeval_t *vvp) {
+static inline void timeval_sub(timeval_t *tvp, timeval_t *uvp, timeval_t *vvp) {
   vvp->tv_sec = tvp->tv_sec - uvp->tv_sec;
   vvp->tv_usec = tvp->tv_usec - uvp->tv_usec;
   if (vvp->tv_usec < 0) {
@@ -44,7 +42,7 @@ static inline void timeval_sub(volatile timeval_t *tvp, volatile timeval_t *uvp,
   }
 }
 
-static inline long timeval_get_ms(volatile timeval_t *tvp) {
+static inline long timeval_get_ms(timeval_t *tvp) {
   return (tvp->tv_sec * 1000) + (tvp->tv_usec / 1000);
 }
 

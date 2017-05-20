@@ -8,7 +8,7 @@
 #include <sysinit.h>
 
 /* This counter is incremented every microsecond. */
-static volatile timeval_t mips_clock_us;
+static timeval_t mips_clock_us;
 
 static void mips_clock_init() {
   mips32_set_c0(C0_COUNT, 0);
@@ -21,9 +21,9 @@ static void mips_clock_init() {
 }
 
 void mips_clock_irq_handler() {
-  volatile uint32_t compare = mips32_get_c0(C0_COMPARE);
-  volatile uint32_t count = mips32_get_c0(C0_COUNT);
-  volatile int32_t diff = compare - count;
+  uint32_t compare = mips32_get_c0(C0_COMPARE);
+  uint32_t count = mips32_get_c0(C0_COUNT);
+  int32_t diff = compare - count;
 
   /* Should not happen. Potentially spurious interrupt. */
   if (diff > 0)
