@@ -17,5 +17,7 @@ int test_fd_all();
 
 int test_signal_basic();
 int test_signal_send();
+int test_signal_abort();
+int test_signal_segfault();
 
 #endif /* __UTEST_H__ */

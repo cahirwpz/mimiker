@@ -31,6 +31,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(fd_all);
   CHECKRUN_TEST(signal_basic);
   CHECKRUN_TEST(signal_send);
+  CHECKRUN_TEST(signal_abort);
+  CHECKRUN_TEST(signal_segfault);
 
   printf("No user test \"%s\" available.\n", test_name);
   return 1;
