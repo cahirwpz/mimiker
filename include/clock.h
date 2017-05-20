@@ -1,9 +1,9 @@
-#ifndef __CLOCK_H__
-#define __CLOCK_H__
+#ifndef _SYS_CLOCK_H_
+#define _SYS_CLOCK_H_
 
 #include <time.h>
 
 realtime_t clock_get();
 void clock(realtime_t ms);
 
-#endif // __CLOCK_H__
+#endif /* !_SYS_CLOCK_H_ */

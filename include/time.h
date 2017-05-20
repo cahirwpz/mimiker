@@ -11,6 +11,8 @@ typedef struct timeval {
   long tv_usec; /* microseconds */
 } timeval_t;
 
+#define TIMEVAL_INIT(sec, usec) (timeval_t){.tv_sec = (sec), .tv_usec = (usec)}
+
 /* Operations on timevals. */
 static inline void timeval_clear(timeval_t *tvp) {
   *tvp = (timeval_t){.tv_sec = 0, .tv_usec = 0};
@@ -42,7 +44,7 @@ static inline void timeval_sub(timeval_t *tvp, timeval_t *uvp, timeval_t *vvp) {
   }
 }
 
-static inline long timeval_get_ms(timeval_t *tvp) {
+static inline long timeval_to_ms(timeval_t *tvp) {
   return (tvp->tv_sec * 1000) + (tvp->tv_usec / 1000);
 }
 

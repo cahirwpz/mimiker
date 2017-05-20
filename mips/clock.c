@@ -7,15 +7,13 @@
 #include <sched.h>
 #include <sysinit.h>
 
-#define CLOCK_STEP_US 40
-/* This counter is incremented every microsecond. */
-static timeval_t mips_clock_us;
+/* This counter is incremented every milisecond. */
+static timeval_t *mips_clock = &TIMEVAL_INIT(0, 0);
+static timeval_t *msec = &TIMEVAL_INIT(0, 1000);
 
 static void mips_clock_init() {
   mips32_set_c0(C0_COUNT, 0);
-  mips32_set_c0(C0_COMPARE, CLOCK_STEP_US * CPU_CLOCK);
-
-  timeval_clear(&mips_clock_us);
+  mips32_set_c0(C0_COMPARE, TICKS_PER_MS);
 
   /* Enable core timer interrupts. */
   mips32_bs_c0(C0_STATUS, SR_IM7);
@@ -30,17 +28,17 @@ void mips_clock_irq_handler() {
   if (diff > 0)
     return;
 
-  timeval_t us = (timeval_t){.tv_sec = 0, .tv_usec = CLOCK_STEP_US};
   /* This loop is necessary, because sometimes we may miss some ticks. */
-  while (diff < CLOCK_STEP_US * CPU_CLOCK) {
-    compare += CLOCK_STEP_US * CPU_CLOCK;
-    timeval_add(&mips_clock_us, &us, &mips_clock_us);
+  while (diff < TICKS_PER_MS) {
+    compare += TICKS_PER_MS;
+    timeval_add(mips_clock, msec, mips_clock);
     diff = compare - count;
   }
 
   /* Set compare register. */
+  assert(compare % TICKS_PER_MS == 0);
   mips32_set_c0(C0_COMPARE, compare);
-  clock(timeval_get_ms(&mips_clock_us));
+  clock(timeval_to_ms(mips_clock));
 }
 
 SYSINIT_ADD(mips_clock, mips_clock_init, DEPS("callout", "sched"));
