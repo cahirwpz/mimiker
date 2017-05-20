@@ -115,8 +115,9 @@ typedef struct rsb_test_args {
 
 static void malloc_random_shared_blocks(void *arg) {
   rsb_test_args_t *args = (rsb_test_args_t *)arg;
+  unsigned seed = (unsigned)thread_self();
   for (int i = 0; i < ALLOCATIONS_PER_THREAD;) {
-    int idx = i % PTRS_ARRAY_SIZE;
+    unsigned idx = ((unsigned)rand_r(&seed)) % PTRS_ARRAY_SIZE;
     mtx_lock(&args->lock);
     if (args->ptrs[idx]) {
       kfree(args->mem_pool, args->ptrs[idx]);
