@@ -234,15 +234,13 @@ static int sys_getdirentries(thread_t *td, syscall_args_t *args) {
 
   klog("getdirentries(%d, %p, %zu, %p)", fd, ubuf, count, basep);
 
-  base = fuword32(basep);
-  if (base == -1)
-    return EFAULT;
   uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
   int res = do_getdirentries(td, fd, &uio, &base);
   if (res < 0)
     return res;
-  if (suword32(basep, base) == -1)
-    return EFAULT;
+  if (basep != NULL)
+    if (suword32(basep, base) == -1)
+      return EFAULT;
   return res;
 }
 
