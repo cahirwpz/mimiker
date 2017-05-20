@@ -33,6 +33,9 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(signal_send);
   CHECKRUN_TEST(signal_abort);
   CHECKRUN_TEST(signal_segfault);
+  CHECKRUN_TEST(fork_wait);
+  CHECKRUN_TEST(fork_signal);
+  CHECKRUN_TEST(fork_sigchld_ignored);
 
   printf("No user test \"%s\" available.\n", test_name);
   return 1;

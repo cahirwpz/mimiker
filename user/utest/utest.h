@@ -20,4 +20,8 @@ int test_signal_send();
 int test_signal_abort();
 int test_signal_segfault();
 
+int test_fork_wait();
+int test_fork_signal();
+int test_fork_sigchld_ignored();
+
 #endif /* __UTEST_H__ */

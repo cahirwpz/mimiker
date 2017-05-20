@@ -75,3 +75,7 @@ UTEST_ADD_SIMPLE(signal_basic);
 UTEST_ADD_SIMPLE(signal_send);
 UTEST_ADD_SIGNAL(signal_abort, SIGABRT);
 UTEST_ADD_SIGNAL(signal_segfault, SIGSEGV);
+
+UTEST_ADD_SIMPLE(fork_wait);
+UTEST_ADD_SIMPLE(fork_signal);
+UTEST_ADD_SIMPLE(fork_sigchld_ignored);
