@@ -108,7 +108,7 @@ thread_t *thread_self() {
 }
 
 /* For now this is only a stub */
-noreturn void thread_exit(int exitcode) {
+noreturn void thread_exit() {
   thread_t *td = thread_self();
 
   klog("Thread '%s' {%p} has finished.", td->td_name, td);
@@ -128,7 +128,6 @@ noreturn void thread_exit(int exitcode) {
     TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
 
   CRITICAL_SECTION {
-    td->td_exitcode = exitcode;
     td->td_state = TDS_INACTIVE;
     cv_broadcast(&td->td_waitcv);
     mtx_unlock(&td->td_lock);

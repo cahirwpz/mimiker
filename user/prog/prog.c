@@ -12,6 +12,7 @@
    with a set of custom definitions. */
 #include <sys/signal.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 
 #define TEXTAREA_SIZE 100
 // This should land in .bss, accessed by a pointer in .data
@@ -113,7 +114,12 @@ void signal_test() {
   } else {
     printf("This is parent (childpid = %d, mypid = %d)\n", pid, getpid());
     kill(pid, SIGUSR2);
-    /* wait() for child. */
+    int status;
+    printf("Waiting for child...\n");
+    wait(&status);
+    assert(WIFSIGNALED(status));
+    assert(WTERMSIG(status) == SIGABRT);
+    printf("Child was stopped by SIGABRT.\n");
   }
 
 /* Test invalid memory access. */

@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <sysent.h>
 #include <proc.h>
+#include <wait.h>
 
 #define SA_IGNORE 0x01
 #define SA_KILL 0x02
@@ -107,8 +108,8 @@ void sig_notify(thread_t *td) {
 int sig_check(thread_t *td) {
   assert(td->td_proc);
 
+  signo_t sig = NSIG;
   while (true) {
-    signo_t sig = NSIG;
     bit_ffs(td->td_sigpend, NSIG, &sig);
     if (sig >= NSIG)
       return 0; /* No pending signals. */
@@ -136,7 +137,7 @@ int sig_check(thread_t *td) {
 term:
   /* Release the lock held by the parent. */
   mtx_unlock(&td->td_lock);
-  thread_exit(-1);
+  proc_exit(MAKE_STATUS_SIG_TERM(sig));
   __unreachable();
 }
 

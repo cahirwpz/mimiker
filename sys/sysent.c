@@ -12,6 +12,7 @@
 #include <signal.h>
 #include <proc.h>
 #include <systm.h>
+#include <wait.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 static int sys_nosys(thread_t *td, syscall_args_t *args) {
@@ -43,7 +44,7 @@ static int sys_exit(thread_t *td, syscall_args_t *args) {
 
   klog("exit(%d)", status);
 
-  thread_exit(status);
+  proc_exit(MAKE_STATUS_EXIT(status));
   __unreachable();
 }
 
@@ -258,6 +259,23 @@ static int sys_dup2(thread_t *td, syscall_args_t *args) {
   return do_dup2(td, old, new);
 }
 
+static int sys_waitpid(thread_t *td, syscall_args_t *args) {
+  pid_t pid = args->args[0];
+  int *user_status = (int *)args->args[1];
+  int options = args->args[2];
+
+  klog("waitpid(%d, %x, %d)", pid, user_status, options);
+  int status = 0, res;
+
+  res = do_waitpid(pid, &status, options);
+  if (res < 0)
+    return res;
+
+  if (!user_status || suword32(user_status, status) < 0)
+    return EFAULT;
+  return res;
+}
+
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
                      [SYS_OPEN] = {sys_open},
@@ -277,4 +295,5 @@ sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
                      [SYS_SIGACTION] = {sys_sigaction},
                      [SYS_SIGRETURN] = {sys_sigreturn},
                      [SYS_DUP] = {sys_dup},
-                     [SYS_DUP2] = {sys_dup2}};
+                     [SYS_DUP2] = {sys_dup2},
+                     [SYS_WAITPID] = {sys_waitpid}};
