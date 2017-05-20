@@ -7,7 +7,7 @@ import random
 
 N_SIMPLE = 5
 N_THOROUGH = 100
-TIMEOUT = 15
+TIMEOUT = 25
 RETRIES_MAX = 5
 REPEAT = 5
 
