@@ -13,6 +13,8 @@ typedef struct fdtab fdtab_t;
 typedef TAILQ_HEAD(, thread) thread_list_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
 
+typedef enum { PRS_NORMAL, PRS_ZOMBIE } proc_state_t;
+
 struct proc {
   mtx_t p_lock;               /* Process lock */
   TAILQ_ENTRY(proc) p_all;    /* A link on all processes list */
@@ -23,10 +25,10 @@ struct proc {
   unsigned p_nthreads;
   thread_list_t p_threads; /* Threads belonging to this process */
   pid_t p_pid;             /* Process ID */
-  enum { PRS_NORMAL, PRS_ZOMBIE } p_state; /* Process state. */
-  proc_t *p_parent;                        /* Parent process */
-  proc_list_t p_children; /* Child processes, including zombies */
-  vm_map_t *p_uspace;     /* process' user space map */
+  proc_state_t p_state;    /* Process state. */
+  proc_t *p_parent;        /* Parent process */
+  proc_list_t p_children;  /* Child processes, including zombies */
+  vm_map_t *p_uspace;      /* process' user space map */
   /* file descriptors table */
   fdtab_t *p_fdtable;
   /* signal stuff */

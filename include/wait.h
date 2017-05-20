@@ -39,9 +39,9 @@ int waitpid(int pid, int *status, int options);
 int do_waitpid(pid_t pid, int *status, int options);
 
 /* Macros for building status values. */
-#define MAKE_STATUS_EXIT(exitcode) ((exitcode & 0xff) << 8)
-#define MAKE_STATUS_SIG_TERM(signo) (signo & 0xff)
-#define MAKE_STATUS_SIG_STOP(signo) (((signo & 0xff) << 8) | 0x7f)
+#define MAKE_STATUS_EXIT(exitcode) (((exitcode)&0xff) << 8)
+#define MAKE_STATUS_SIG_TERM(signo) ((signo)&0xff)
+#define MAKE_STATUS_SIG_STOP(signo) ((((signo)&0xff) << 8) | 0x7f)
 
 #endif
 
