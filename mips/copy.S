@@ -123,41 +123,4 @@ LEAF(copyerr)
 	li	v0, -EFAULT		# return error
 END(copyerr)
 
-/*
- * int32_t fuword32(const void *ptr)
- * int suword32(void *ptr, int32_t word)
- * 
- * {fu,su}{iword32} fetch / store 32-bit word from / to the user space.
- */
-
-LEAF(fuword32)
-	LA	v0, fswberr
-	blt	a0, zero, fswberr	# make sure address is in user space
-	nop
-	LOAD_PCPU(v1)
-        PTR_L   v1, PCPU_CURTHREAD(v1)
-	PTR_S	v0, TD_ONFAULT(v1)
-	lw	v0, 0(a0)		# fetch word
-	j	ra
-	PTR_S	zero, TD_ONFAULT(v1)
-END(fuword32)
-
-LEAF(suword32)
-	LA	v0, fswberr
-	blt	a0, zero, fswberr	# make sure address is in user space
-	nop
-	LOAD_PCPU(v1)
-        PTR_L   v1, PCPU_CURTHREAD(v1)
-	PTR_S	v0, TD_ONFAULT(v1)
-	sw	a1, 0(a0)		# store short
-	PTR_S	zero, TD_ONFAULT(v1)
-	j	ra
-	move	v0, zero
-END(suword32)
-
-LEAF(fswberr)
-	j	ra
-	li	v0, -1
-END(fswberr)
-
 # vim: sw=8 ts=8 et

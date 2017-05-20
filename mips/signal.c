@@ -71,7 +71,7 @@ int platform_sig_return() {
      the following will need to get the scp pointer address from a syscall
      argument. */
   sig_ctx_t *scp = (sig_ctx_t *)((intptr_t *)td->td_uctx.sp + 1);
-  int error = copyin(scp, &ksc, sizeof(sig_ctx_t));
+  int error = copyin_s(scp, ksc);
   if (error)
     return error;
   if (ksc.magic != SIG_CTX_MAGIC)

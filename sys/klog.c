@@ -20,7 +20,7 @@ char *kenv_get(char *key);
 
 void klog_init() {
   const char *mask = kenv_get("klog-mask");
-  klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_ALL;
+  klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_DEFAULT_MASK;
   klog.verbose = kenv_get("klog-quiet") ? 0 : 1;
   klog.first = 0;
   klog.last = 0;
