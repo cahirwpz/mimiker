@@ -118,17 +118,17 @@ static void malloc_random_shared_blocks(void *arg) {
   unsigned seed = (unsigned)thread_self();
   for (int i = 0; i < ALLOCATIONS_PER_THREAD;) {
     unsigned idx = ((unsigned)rand_r(&seed)) % PTRS_ARRAY_SIZE;
-    mtx_lock(&args->lock);
-    if (args->ptrs[idx]) {
-      kfree(args->mem_pool, args->ptrs[idx]);
-      args->ptrs[idx] = NULL;
-    } else {
-      void *ptr = kmalloc(args->mem_pool, 1, 0);
-      assert(ptr != NULL);
-      args->ptrs[idx] = ptr;
-      i++;
+    WITH_MTX_LOCK (&args->lock) {
+      if (args->ptrs[idx]) {
+        kfree(args->mem_pool, args->ptrs[idx]);
+        args->ptrs[idx] = NULL;
+      } else {
+        void *ptr = kmalloc(args->mem_pool, 1, 0);
+        assert(ptr != NULL);
+        args->ptrs[idx] = ptr;
+        i++;
+      }
     }
-    mtx_unlock(&args->lock);
   }
 }
 
