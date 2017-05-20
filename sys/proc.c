@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <filedesc.h>
 #include <wait.h>
+#include <signal.h>
 
 static MALLOC_DEFINE(M_PROC, "proc", 1, 2);
 
@@ -60,6 +61,31 @@ proc_t *proc_find(pid_t pid) {
   return p;
 }
 
+/* Always call proc_reap with parent process locked. */
+static int proc_reap(proc_t *child, int *status) {
+  /* Child is now a zombie. Gather its data, cleanup & free. */
+  mtx_lock(&child->p_lock);
+
+  /* We should have the only reference to the zombie child now, we're about to
+     free it. I don't think it may ever happen that there would be multiple
+     references to a terminated process, but if it does, we would need to
+     introduce refcounting for processes. */
+  *status = child->p_exitstatus;
+
+  int retval = child->p_pid;
+
+  assert(&child->p_parent);
+  assert(mtx_owned(&child->p_parent->p_lock));
+  TAILQ_REMOVE(&child->p_parent->p_children, child, p_child);
+
+  WITH_MTX_LOCK (&zombie_proc_list_mtx)
+    TAILQ_REMOVE(&zombie_proc_list, child, p_zombie);
+
+  kfree(M_PROC, child);
+
+  return retval;
+}
+
 void proc_exit(int exitstatus) {
   /* NOTE: This is a significantly simplified implementation! We currently
      assume there is only one thread in a process. */
@@ -76,8 +102,16 @@ void proc_exit(int exitstatus) {
        exc_before_leave (using a TDF_? flag), join all of them to wait until
        they terminate. */
 
-    /* XXX: If this process has any unwaited zombie children, assign them for
-       adoption by pid1 (init), who will wait for them. */
+    /* Process orphans. They should become children of PID1, but since we don't
+       use an init process yet, I have to make them parent-less (so that can no
+       longer refer to this terminated process). */
+    proc_t *child;
+    TAILQ_FOREACH (child, &p->p_children, p_child) {
+      WITH_MTX_LOCK (&child->p_lock) {
+        child->p_parent = NULL;
+        /* XXX: Assign to init, and send it a SIGCHLD. */
+      }
+    }
 
     /* Clean up process resources. */
     vm_map_delete(p->p_uspace);
@@ -96,13 +130,23 @@ void proc_exit(int exitstatus) {
     WITH_MTX_LOCK (&zombie_proc_list_mtx)
       TAILQ_INSERT_TAIL(&zombie_proc_list, p, p_zombie);
 
-    /* Notify parent possibly waiting for this process to become zombie that it
-       is now. */
-    if (p->p_parent)
-      sleepq_broadcast(&p->p_parent->p_children);
+    /* Notify the parent, in various ways, about state change. */
+    if (p->p_parent) {
+      WITH_MTX_LOCK (&p->p_parent->p_lock) {
+        sleepq_broadcast(&p->p_parent->p_children);
+        sleepq_broadcast(&p->p_state);
 
-    /* Also notify anyone who waits on our state change. */
-    sleepq_broadcast(&p->p_state);
+        /* If the parent explicitly ignores SIGCHLD, reap child immediately. */
+        if (p->p_sigactions[SIGCHLD].sa_handler == SIG_IGN) {
+          int ignore_status;
+          proc_reap(p, &ignore_status);
+          thread_exit();
+          __unreachable();
+        }
+      }
+      /* sig_send must be called with target process lock not acquired. */
+      sig_send(p->p_parent, SIGCHLD);
+    }
   }
 
   /* This thread is the last one in the process to exit. */
@@ -130,26 +174,6 @@ static proc_t *child_find_by_state(proc_t *p, proc_state_t state) {
       return child;
   }
   return NULL;
-}
-
-static int proc_reap(proc_t *child, int *status) {
-  /* Child is now a zombie. Gather its data, cleanup & free. */
-  mtx_lock(&child->p_lock);
-
-  /* We should have the only reference to the zombie child now, we're about to
-     free it. I don't think it may ever happen that there would be multiple
-     references to a terminated process, but if it does, we would need to
-     introduce refcounting for processes. */
-  *status = child->p_exitstatus;
-
-  int retval = child->p_pid;
-
-  WITH_MTX_LOCK (&zombie_proc_list_mtx)
-    TAILQ_REMOVE(&zombie_proc_list, child, p_zombie);
-
-  kfree(M_PROC, child);
-
-  return retval;
 }
 
 int do_waitpid(pid_t pid, int *status, int options) {
