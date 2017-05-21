@@ -20,9 +20,10 @@ typedef intr_filter_t driver_filter_t(void *);
 typedef void driver_intr_t(void *);
 
 typedef struct intr_chain intr_chain_t;
+typedef struct intr_handler intr_handler_t;
 typedef int prio_t;
 
-typedef struct intr_handler {
+struct intr_handler {
   TAILQ_ENTRY(intr_handler) ih_list;
   driver_filter_t *ih_filter; /* driver interrupt filter function */
   driver_intr_t *ih_handler;  /* driver interrupt handler function */
@@ -30,7 +31,7 @@ typedef struct intr_handler {
   void *ih_argument;          /* argument to pass to the handler */
   char *ih_name;              /* name of the handler */
   prio_t ih_prio;             /* priority of the handler */
-} intr_handler_t;
+};
 
 typedef TAILQ_HEAD(, intr_handler) intr_handler_list_t;
 

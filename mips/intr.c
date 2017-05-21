@@ -4,8 +4,77 @@
 #include <mips/exc.h>
 #include <pmap.h>
 #include <stdc.h>
+#include <mips/mips.h>
+#include <sync.h>
+#include <pmap.h>
+#include <queue.h>
+#include <interrupt.h>
 #include <sysent.h>
 #include <thread.h>
+
+extern const char _ebase[];
+
+#define MIPS_INTR_CHAIN(irq, name)                                             \
+  (intr_chain_t) {                                                             \
+    .ic_name = (name), .ic_irq = (irq),                                        \
+    .ic_handlers = TAILQ_HEAD_INITIALIZER(mips_intr_chain[irq].ic_handlers)    \
+  }
+
+static intr_chain_t mips_intr_chain[8] = {
+    /* Initialize software interrupts handler chains. */
+    [0] = MIPS_INTR_CHAIN(0, "swint(0)"), [1] = MIPS_INTR_CHAIN(1, "swint(1)"),
+    /* Initialize hardware interrupts handler chains. */
+    [2] = MIPS_INTR_CHAIN(2, "hwint(0)"), [3] = MIPS_INTR_CHAIN(3, "hwint(1)"),
+    [4] = MIPS_INTR_CHAIN(4, "hwint(2)"), [5] = MIPS_INTR_CHAIN(5, "hwint(3)"),
+    [6] = MIPS_INTR_CHAIN(6, "hwint(4)"), [7] = MIPS_INTR_CHAIN(7, "hwint(5)")};
+
+void mips_intr_init() {
+  /*
+   * Enable Vectored Interrupt Mode as described in „MIPS32® 24KETM Processor
+   * Core Family Software User’s Manual”, chapter 6.3.1.2.
+   */
+
+  /* The location of exception vectors is set to EBase. */
+  mips32_set_c0(C0_EBASE, _ebase);
+  mips32_bc_c0(C0_STATUS, SR_BEV);
+  /* Use the special interrupt vector at EBase + 0x200. */
+  mips32_bs_c0(C0_CAUSE, CR_IV);
+  /* Set vector spacing to 0. */
+  mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
+}
+
+void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
+  intr_chain_t *chain = &mips_intr_chain[irq];
+  CRITICAL_SECTION {
+    intr_chain_add_handler(chain, handler);
+    if (chain->ic_count == 1)
+      mips32_bs_c0(C0_STATUS, SR_IM0 << irq);
+  }
+}
+
+void mips_intr_teardown(intr_handler_t *handler) {
+  intr_chain_t *chain = handler->ih_chain;
+  CRITICAL_SECTION {
+    if (chain->ic_count == 1)
+      mips32_bc_c0(C0_STATUS, SR_IM0 << chain->ic_irq);
+    intr_chain_remove_handler(handler);
+  }
+}
+
+void mips_intr_handler(exc_frame_t *frame) {
+  unsigned pending = (frame->cause & frame->sr) & CR_IP_MASK;
+
+  for (int i = 7; i >= 0; i--) {
+    unsigned irq = CR_IP0 << i;
+
+    if (pending & irq) {
+      intr_chain_run_handlers(&mips_intr_chain[i]);
+      pending &= ~irq;
+    }
+  }
+
+  mips32_set_c0(C0_CAUSE, frame->cause & ~CR_IP_MASK);
+}
 
 const char *const exceptions[32] = {
     [EXC_INTR] = "Interrupt",
