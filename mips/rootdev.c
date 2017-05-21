@@ -33,7 +33,7 @@ static int rootdev_attach(device_t *dev) {
   return 0;
 }
 
-bus_driver_t rootdev_driver = {
+static bus_driver_t rootdev_driver = {
   .driver =
     {
       .size = sizeof(rootdev_t),
@@ -45,14 +45,14 @@ bus_driver_t rootdev_driver = {
       .intr_setup = rootdev_intr_setup, .intr_teardown = rootdev_intr_teardown,
     }};
 
-/* globally visible root device */
-device_t *rootdev = &(device_t){
-  .driver = (driver_t *)&rootdev_driver, .instance = &(rootdev_t){},
+static device_t rootdev = (device_t){
+  .children = TAILQ_HEAD_INITIALIZER(rootdev.children),
+  .driver = (driver_t *)&rootdev_driver,
+  .instance = &(rootdev_t){},
 };
 
 static void rootdev_init() {
-  TAILQ_INIT(&rootdev->children);
-  device_attach(rootdev);
+  device_attach(&rootdev);
 }
 
 SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs"));
