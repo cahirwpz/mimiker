@@ -1,6 +1,8 @@
 #ifndef _SYS_SYNC_H_
 #define _SYS_SYNC_H_
 
+#include <common.h>
+
 /*
  * Entering critical section turns off interrupts - use with care!
  *
@@ -13,5 +15,10 @@
  */
 void critical_enter();
 void critical_leave();
+
+#define SCOPED_CRITICAL_SECTION()                                              \
+  SCOPED_STMT(void, critical_enter, critical_leave, NULL)
+
+#define CRITICAL_SECTION WITH_STMT(void, critical_enter, critical_leave, NULL)
 
 #endif /* !_SYS_SYNC_H_ */

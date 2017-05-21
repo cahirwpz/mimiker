@@ -107,9 +107,6 @@ static inline int VOP_GETATTR(vnode_t *v, vattr_t *va) {
   return v->v_ops->v_getattr(v, va);
 }
 
-/* Initializes vnode subsystem */
-void vnode_init();
-
 /* Allocates and initializes a new vnode */
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops);
 

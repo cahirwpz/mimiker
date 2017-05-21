@@ -34,19 +34,22 @@ SOURCES_C  = \
 	rwlock.c \
 	sbrk.c \
 	sched.c \
+	signal.c \
 	sleepq.c \
 	startup.c \
 	sync.c \
 	sysent.c \
+	sysinit.c \
 	mmap.c \
 	thread.c \
 	uio.c \
 	vfs.c \
+	vfs_vnode.c \
 	vfs_syscalls.c \
 	vm_map.c \
 	vm_object.c \
-	vm_pager.c \
-	vnode.c
+	vm_pager.c
+
 SOURCES_ASM = 
 
 all: $(DEPFILES) libsys.a 

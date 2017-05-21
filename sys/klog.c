@@ -13,14 +13,14 @@ static const char *subsystems[] =
    [KL_SCHED] = "sched", [KL_THREAD] = "thread",   [KL_INTR] = "intr",
    [KL_DEV] = "dev",     [KL_VFS] = "vfs",         [KL_VNODE] = "vnode",
    [KL_PROC] = "proc",   [KL_SYSCALL] = "syscall", [KL_USER] = "user",
-   [KL_TEST] = "test",   [KL_UNDEF] = "???"};
+   [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_UNDEF] = "???"};
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(char *key);
 
 void klog_init() {
   const char *mask = kenv_get("klog-mask");
-  klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_ALL;
+  klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_DEFAULT_MASK;
   klog.verbose = kenv_get("klog-quiet") ? 0 : 1;
   klog.first = 0;
   klog.last = 0;
@@ -47,35 +47,45 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
   if (!(KL_MASK(origin) & klog.mask))
     return;
 
-  critical_enter();
+  klog_entry_t *entry;
 
-  klog_entry_t *entry = &klog.array[klog.last];
+  CRITICAL_SECTION {
+    entry = &klog.array[klog.last];
 
-  *entry = (klog_entry_t){.kl_timestamp = clock_get(),
-                          .kl_line = line,
-                          .kl_file = file,
-                          .kl_origin = origin,
-                          .kl_format = format,
-                          .kl_params = {arg1, arg2, arg3, arg4, arg5, arg6}};
+    *entry = (klog_entry_t){.kl_timestamp = clock_get(),
+                            .kl_line = line,
+                            .kl_file = file,
+                            .kl_origin = origin,
+                            .kl_format = format,
+                            .kl_params = {arg1, arg2, arg3, arg4, arg5, arg6}};
 
-  klog.last = next(klog.last);
-  if (klog.first == klog.last)
-    klog.first = next(klog.first);
-
-  critical_leave();
+    klog.last = next(klog.last);
+    if (klog.first == klog.last)
+      klog.first = next(klog.first);
+  }
 
   if (klog.verbose)
     klog_entry_dump(entry);
+}
+
+unsigned klog_setmask(unsigned newmask) {
+  unsigned oldmask;
+
+  CRITICAL_SECTION {
+    oldmask = klog.mask;
+    klog.mask = newmask;
+  }
+  return oldmask;
 }
 
 void klog_dump() {
   klog_entry_t entry;
 
   while (klog.first != klog.last) {
-    critical_enter();
-    entry = klog.array[klog.first];
-    klog.first = next(klog.first);
-    critical_leave();
+    CRITICAL_SECTION {
+      entry = klog.array[klog.first];
+      klog.first = next(klog.first);
+    }
     klog_entry_dump(&entry);
   }
 }

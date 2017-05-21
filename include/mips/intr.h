@@ -5,6 +5,4 @@
 #define intr_disable() __extension__({ asm("di"); })
 #define intr_enable() __extension__({ asm("ei"); })
 
-void mips_intr_init();
-
 #endif

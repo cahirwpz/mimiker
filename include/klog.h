@@ -9,6 +9,7 @@ typedef enum {
   KL_RUNQ,    /* scheduler's run queue */
   KL_SLEEPQ,  /* sleep queues */
   KL_CALLOUT, /* callout */
+  KL_SIGNAL,  /* signal processing */
   KL_INIT,    /* system initialization */
   KL_PMAP,    /* physical map management */
   KL_VM,      /* virtual memory */
@@ -30,6 +31,8 @@ typedef enum {
 #define KL_NONE 0x00000000 /* don't log anything */
 #define KL_MASK(l) (1 << (l))
 #define KL_ALL 0xffffffff /* log everything */
+
+#define KL_DEFAULT_MASK (KL_ALL & (~KL_MASK(KL_PMAP)))
 
 /* Mask for subsystem using klog. If not specified using default subsystem. */
 #ifndef KL_LOG
@@ -68,6 +71,8 @@ void klog_init();
 void klog_append(klog_origin_t origin, const char *file, unsigned line,
                  const char *format, intptr_t arg1, intptr_t arg2,
                  intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6);
+
+unsigned klog_setmask(unsigned newmask);
 
 /* Print all logs on screen. */
 void klog_dump();

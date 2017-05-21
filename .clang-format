@@ -45,7 +45,8 @@ Cpp11BracedListStyle: true
 DerivePointerAlignment: false
 DisableFormat:   false
 ExperimentalAutoDetectBinPacking: false
-ForEachMacros:   [ TAILQ_FOREACH, SPLAY_FOREACH, RB_FOREACH ]
+ForEachMacros:   [ TAILQ_FOREACH, SPLAY_FOREACH, RB_FOREACH, WITH_MTX_LOCK,
+                   CRITICAL_SECTION, WITH_RW_LOCK ]
 IncludeCategories: 
   - Regex:           '^"(llvm|llvm-c|clang|clang-c)/'
     Priority:        2

@@ -41,8 +41,6 @@ struct device {
   void *state;    /* memory requested by driver for its state*/
 };
 
-void driver_init();
-
 device_t *device_add_child(device_t *dev);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);
@@ -51,4 +49,4 @@ int device_detach(device_t *dev);
 /* A universal memory pool to be used by all drivers. */
 MALLOC_DECLARE(M_DEV);
 
-#endif /* _SYS_DEVICE_H_ */
+#endif /* !_SYS_DEVICE_H_ */
