@@ -166,8 +166,6 @@ static void thread_bootstrap() {
   PCPU_SET(curthread, td);
 }
 
-extern void rootdev_init();
-
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   /* clear BSS section */
   bzero(__bss, __ebss - __bss);
@@ -178,7 +176,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   pcpu_init();
   cpu_init();
   tlb_init();
-  rootdev_init();
+  mips_intr_init();
   pm_bootstrap(memsize);
   kmem_bootstrap();
   sleepq_init();

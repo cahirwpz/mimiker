@@ -3,7 +3,6 @@
 #include <klog.h>
 #include <device.h>
 #include <pci.h>
-#include <sysinit.h>
 
 MALLOC_DEFINE(M_DEV, "devices & drivers", 128, 1024);
 
@@ -66,11 +65,3 @@ int bus_generic_probe(device_t *bus) {
   }
   return 0;
 }
-
-extern device_t *rootdev;
-
-void driver_init() {
-  device_attach(rootdev);
-}
-
-SYSINIT_ADD(driver, driver_init, NODEPS);

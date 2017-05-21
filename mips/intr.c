@@ -1,14 +1,14 @@
 #define KL_LOG KL_INTR
 #include <klog.h>
 #include <errno.h>
+#include <interrupt.h>
 #include <mips/exc.h>
-#include <pmap.h>
-#include <stdc.h>
 #include <mips/mips.h>
-#include <sync.h>
+#include <pmap.h>
 #include <pmap.h>
 #include <queue.h>
-#include <interrupt.h>
+#include <stdc.h>
+#include <sync.h>
 #include <sysent.h>
 #include <thread.h>
 
