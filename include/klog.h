@@ -94,6 +94,6 @@ void klog_clear();
                 (intptr_t)(p2), (intptr_t)(p3), (intptr_t)(p4),                \
                 (intptr_t)(p5), (intptr_t)(p6));                               \
   } while (0)
-#define klog_(o, ...) klog_((o), __VA_ARGS__, 0, 0, 0, 0, 0, 0)
+#define klog_(o, ...) _klog_((o), __VA_ARGS__, 0, 0, 0, 0, 0, 0)
 
 #endif

@@ -1,4 +1,4 @@
-#define KLOG KL_TEST
+#define KL_LOG KL_TEST
 
 #include <stdc.h>
 #include <ktest.h>
@@ -23,9 +23,9 @@ static int rand() {
 }
 
 static int logging_with_custom_mask() {
-  klog("Testing custom mask %d", KL_NONE);
+  klog_(KL_NONE, "Testing custom mask %d", KL_NONE);
   assert(klog.first == klog.last);
-  klog("Testing custom mask %d", KL_ALL);
+  klog_(KL_TEST, "Testing custom mask %d", KL_TEST);
   assert((klog.first + 1) % KL_SIZE == klog.last);
   klog_clear();
   return 0;
@@ -146,7 +146,7 @@ static int stress_test() {
 static int test_klog() {
   kprintf("Testing klog.\n");
   int mask_old = klog.mask;
-  klog.mask = KL_TEST;
+  klog.mask = KL_MASK(KL_LOG);
 
   /* Deleting logs if there are some old left. */
   klog_clear();
