@@ -21,10 +21,10 @@ int do_mount(thread_t *td, const char *fs, const char *path);
 int do_getdirentries(thread_t *td, int fd, uio_t *uio, off_t *basep);
 
 typedef struct readdir_ops {
-  void *(*first)(vnode_t *v);
-  void *(*next)(void *entry);
-  unsigned (*namlen_of)(void *entry);
-  void (*convert)(void *entry, dirent_t *dir);
+  void *(*first)(vnode_t *v);       /* return ptr to first directory entry */
+  void *(*next)(void *entry);       /* take next directory entry */
+  size_t (*namlen_of)(void *entry); /* filename size (to calc. dirent size) */
+  void (*convert)(void *entry, dirent_t *dir); /* make dirent based on entry */
 } readdir_ops_t;
 
 int readdir_generic(vnode_t *v, uio_t *uio, readdir_ops_t *ops);

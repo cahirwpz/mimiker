@@ -26,7 +26,7 @@ typedef struct cpio_node {
   cpio_dev_t c_dev;
   cpio_ino_t c_ino;
   cpio_mode_t c_mode;
-  nlink_t c_nlink; /* number of children (for directories), otherwise 1 */
+  nlink_t c_nlink;
   uid_t c_uid;
   gid_t c_gid;
   cpio_dev_t c_rdev;
@@ -98,7 +98,8 @@ static bool read_cpio_header(void **tape, cpio_node_t *cpio) {
   cpio->c_dev = MKDEV(c_maj, c_min);
   cpio->c_ino = c_ino;
   cpio->c_mode = c_mode;
-  cpio->c_nlink = 1; /* will be set to correct value by build tree routine */
+  /* hardlink count: number of subdirectiories + 2 ('.', '..'), otherwise 1 */
+  cpio->c_nlink = (CMTOFT(c_mode) == C_DIR) ? 2 : 1;
   cpio->c_uid = c_uid;
   cpio->c_gid = c_gid;
   cpio->c_rdev = MKDEV(c_rmaj, c_rmin);
@@ -150,7 +151,8 @@ static const char *basename(const char *path) {
 
 static void insert_child(cpio_node_t *parent, cpio_node_t *child) {
   TAILQ_INSERT_TAIL(&parent->c_children, child, c_siblings);
-  parent->c_nlink++;
+  if (CMTOFT(child->c_mode) == C_DIR)
+    parent->c_nlink++;
 }
 
 static void initrd_build_tree_and_names() {
@@ -236,7 +238,7 @@ static void *cpio_next_dirent(void *entry) {
   return TAILQ_NEXT(cn, c_siblings);
 }
 
-static unsigned cpio_dirent_namlen(void *entry) {
+static size_t cpio_dirent_namlen(void *entry) {
   cpio_node_t *cn = (cpio_node_t *)entry;
   return strlen(cn->c_name);
 }
