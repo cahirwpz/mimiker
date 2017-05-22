@@ -300,14 +300,6 @@ static int initrd_init(vfsconf_t *vfc) {
   return 0;
 }
 
-static vfsops_t initrd_vfsops = {
-  .vfs_mount = initrd_mount, .vfs_root = initrd_root, .vfs_init = initrd_init};
-
-static vfsconf_t initrd_conf = {.vfc_name = "initrd",
-                                .vfc_vfsops = &initrd_vfsops};
-
-SET_ENTRY(vfsconf, initrd_conf);
-
 intptr_t ramdisk_get_start() {
   char *s = kenv_get("rd_start");
   if (s == NULL)
@@ -326,3 +318,11 @@ void ramdisk_dump() {
 
   TAILQ_FOREACH (it, &initrd_head, c_list) { cpio_node_dump(it); }
 }
+
+static vfsops_t initrd_vfsops = {
+  .vfs_mount = initrd_mount, .vfs_root = initrd_root, .vfs_init = initrd_init};
+
+static vfsconf_t initrd_conf = {.vfc_name = "initrd",
+                                .vfc_vfsops = &initrd_vfsops};
+
+SET_ENTRY(vfsconf, initrd_conf);

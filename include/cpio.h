@@ -44,17 +44,21 @@
 /*
  * Header encoding of the different file types
  */
-#define C_FIFO 1  /* FIFO */
-#define C_CHR 2   /* Character special file */
-#define C_DIR 4   /* Directory */
-#define C_BLK 6   /* Block special file */
-#define C_REG 8   /* Regular file */
-#define C_CTG 9   /* Reserved for contiguous files */
-#define C_LNK 10  /* Reserved for symbolic links */
-#define C_SOCK 12 /* Reserved for sockets */
+typedef enum {
+  C_FIFO = 1, /* FIFO */
+  C_CHR = 2,  /* Character special file */
+  C_DIR = 4,  /* Directory */
+  C_BLK = 6,  /* Block special file */
+  C_REG = 8,  /* Regular file */
+  C_CTG = 9,  /* Reserved for contiguous files */
+  C_LNK = 10, /* Reserved for symbolic links */
+  C_SOCK = 12 /* Reserved for sockets */
+} cpio_filetype_t;
 
 /* cpio mode to file type */
-#define CMTOFT(mode) (((mode)&0170000) >> 12)
+static inline cpio_filetype_t CMTOFT(unsigned mode) {
+  return ((mode)&0170000) >> 12;
+}
 
 /*
  * Data Interchange Format - Extended cpio header format - POSIX 1003.1-1990
