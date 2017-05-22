@@ -11,6 +11,8 @@ SOURCES_C  = \
 	dev_null.c \
 	dev_vga.c \
 	devfs.c \
+	drv_mc146818.c \
+	drv_piix4isa.c \
 	drv_stdvga.c \
 	exception.c \
 	exec.c \
