@@ -1,4 +1,4 @@
-#define KL_LOG KL_PMAP
+#define KL_LOG KL_FILESYS
 #include <klog.h>
 #include <errno.h>
 #include <malloc.h>
@@ -20,14 +20,13 @@ typedef uint16_t cpio_mode_t;
 /* ramdisk related data that will be stored in v_data field of vnode */
 typedef struct cpio_node {
   TAILQ_ENTRY(cpio_node) c_list; /* link to global list of all ramdisk nodes */
-  size_t c_nchildren;            /* number of direct descendants (c_children) */
   TAILQ_HEAD(, cpio_node) c_children; /* head of list of direct descendants */
   TAILQ_ENTRY(cpio_node) c_siblings;  /* nodes that have the same parent */
 
   cpio_dev_t c_dev;
   cpio_ino_t c_ino;
   cpio_mode_t c_mode;
-  nlink_t c_nlink;
+  nlink_t c_nlink; /* number of children (for directories), otherwise 1 */
   uid_t c_uid;
   gid_t c_gid;
   cpio_dev_t c_rdev;
@@ -56,10 +55,9 @@ static cpio_node_t *cpio_node_alloc() {
 }
 
 static void cpio_node_dump(cpio_node_t *cn) {
-  klog("entry '%s': {dev: %ld, ino: %lu, mode: %d, nlink: %d, "
-       "uid: %d, gid: %d, rdev: %ld, size: %ld, mtime: %lu}",
-       cn->c_path, cn->c_dev, cn->c_ino, cn->c_mode, cn->c_nlink, cn->c_uid,
-       cn->c_gid, cn->c_rdev, cn->c_size, cn->c_mtime);
+  klog("initrd entry '%s', inode: %lu:", cn->c_path, cn->c_ino);
+  klog(" mode: %o, nlink: %d, uid: %d, gid: %d, size: %ld, mtime: %ld",
+       cn->c_mode, cn->c_nlink, cn->c_uid, cn->c_gid, cn->c_size, cn->c_mtime);
 }
 
 static void read_bytes(void **tape, void *ptr, size_t bytes) {
@@ -89,7 +87,6 @@ static bool read_cpio_header(void **tape, cpio_node_t *cpio) {
   uint32_t c_mode = strntoul(hdr.c_mode, 8, NULL, 16);
   uint32_t c_uid = strntoul(hdr.c_uid, 8, NULL, 16);
   uint32_t c_gid = strntoul(hdr.c_gid, 8, NULL, 16);
-  uint32_t c_nlink = strntoul(hdr.c_nlink, 8, NULL, 16);
   uint32_t c_mtime = strntoul(hdr.c_mtime, 8, NULL, 16);
   uint32_t c_filesize = strntoul(hdr.c_filesize, 8, NULL, 16);
   uint32_t c_maj = strntoul(hdr.c_maj, 8, NULL, 16);
@@ -101,7 +98,7 @@ static bool read_cpio_header(void **tape, cpio_node_t *cpio) {
   cpio->c_dev = MKDEV(c_maj, c_min);
   cpio->c_ino = c_ino;
   cpio->c_mode = c_mode;
-  cpio->c_nlink = c_nlink;
+  cpio->c_nlink = 1; /* will be set to correct value by build tree routine */
   cpio->c_uid = c_uid;
   cpio->c_gid = c_gid;
   cpio->c_rdev = MKDEV(c_rmaj, c_rmin);
@@ -152,8 +149,8 @@ static const char *basename(const char *path) {
 }
 
 static void insert_child(cpio_node_t *parent, cpio_node_t *child) {
-  parent->c_nchildren++;
   TAILQ_INSERT_TAIL(&parent->c_children, child, c_siblings);
+  parent->c_nlink++;
 }
 
 static void initrd_build_tree_and_names() {
