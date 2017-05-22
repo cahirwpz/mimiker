@@ -9,11 +9,12 @@
 #if 0
 static void demo_thread_1() {
   while (true) {
-    realtime_t now = clock_get();
-    kprintf("[%8zu] Running '%s' thread.\n", (size_t)now,
+    timeval_t start = clock_get();
+    kprintf("[%8zu] Running '%s' thread.\n", (size_t)timeval_to_ms(&start),
             thread_self()->td_name);
-    while (clock_get() < now + 20)
-      ;
+    timeval_t now = clock_get();
+    while (timeval_to_ms(&now) < timeval_to_ms(&start) + 20)
+      now = clock_get();
   }
 }
 

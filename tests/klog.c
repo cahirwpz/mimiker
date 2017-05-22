@@ -12,7 +12,7 @@
 #define NUMBER_OF_ROUNDS 25
 #define MAX_SLEEP_TIME 20
 thread_t *threads[MAX_THREAD_NUM];
-static realtime_t start;
+static timeval_t start;
 
 static uint32_t seed = 0; /* Current seed */
 
@@ -91,7 +91,8 @@ static int multithreads_test(const int number_of_threads) {
 
 /* Function that checks if sleep time is over and assigne new sleep time. */
 static int check_time(uint32_t *sleep, const uint32_t freq) {
-  realtime_t tdiff = clock_get() - start;
+  timeval_t now = clock_get();
+  realtime_t tdiff = timeval_to_ms(&now) - timeval_to_ms(&start);
   if (tdiff < (*sleep))
     return 1;
   (*sleep) += (rand() & freq);

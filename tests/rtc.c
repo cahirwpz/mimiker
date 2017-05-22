@@ -42,10 +42,10 @@ void rtc_read(rtc_time_t *t) {
  * nanosecond-accurate.
  */
 void mdelay(unsigned msec) {
-  realtime_t now = clock_get();
-  realtime_t final = now + msec;
-  while (final > clock_get())
-    ;
+  timeval_t now = clock_get();
+  realtime_t final = timeval_to_ms(&now) + msec;
+  while (final > timeval_to_ms(&now))
+    now = clock_get();
 }
 
 static int test_rtc() {

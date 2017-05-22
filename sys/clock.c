@@ -6,10 +6,9 @@
 
 static realtime_t ms;
 
-realtime_t clock_get() {
+timeval_t clock_get() {
   uint32_t count = mips32_get_c0(C0_COUNT);
-  timeval_t now = TIMEVAL_INIT(count / TICKS_PER_SEC, count % TICKS_PER_SEC);
-  return timeval_to_ms(&now);
+  return TIMEVAL_INIT(count / TICKS_PER_SEC, count % TICKS_PER_SEC);
 }
 
 void clock(realtime_t _ms) {

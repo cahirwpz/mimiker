@@ -5,13 +5,14 @@
 #include <ktest.h>
 
 static int exit_time[] = {100, 200, 150};
-static realtime_t start;
+static timeval_t start;
 
 /* TODO: callout + sleepq, once we've implemented callout_schedule. */
 static void test_thread(void *p) {
   int e = *(int *)p;
   while (1) {
-    realtime_t tdiff = clock_get() - start;
+    timeval_t now = clock_get();
+    realtime_t tdiff = timeval_to_ms(&now) - timeval_to_ms(&start);
     if (tdiff > e)
       thread_exit(0);
     else
