@@ -14,20 +14,11 @@ static MALLOC_DEFINE(M_THREAD, "thread", 1, 2);
 
 typedef TAILQ_HEAD(, thread) thread_list_t;
 
-static mtx_t all_threads_mtx;
-static thread_list_t all_threads;
+static mtx_t all_threads_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static thread_list_t all_threads = TAILQ_HEAD_INITIALIZER(all_threads);
 
-static mtx_t zombie_threads_mtx;
-static thread_list_t zombie_threads;
-
-void thread_init() {
-  klog("Threads initialization");
-  mtx_init(&all_threads_mtx, MTX_DEF);
-  TAILQ_INIT(&all_threads);
-
-  mtx_init(&zombie_threads_mtx, MTX_DEF);
-  TAILQ_INIT(&zombie_threads);
-}
+static mtx_t zombie_threads_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static thread_list_t zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 
 /* FTTB such a primitive method of creating new TIDs will do. */
 static tid_t make_tid() {
@@ -44,10 +35,12 @@ void thread_reap() {
   if (TAILQ_EMPTY(&zombie_threads))
     return;
 
-  mtx_lock(&zombie_threads_mtx);
-  thread_list_t thq = zombie_threads;
-  TAILQ_INIT(&zombie_threads);
-  mtx_unlock(&zombie_threads_mtx);
+  thread_list_t thq;
+
+  WITH_MTX_LOCK (&zombie_threads_mtx) {
+    thq = zombie_threads;
+    TAILQ_INIT(&zombie_threads);
+  }
 
   thread_t *td;
   TAILQ_FOREACH (td, &thq, td_zombieq) {
@@ -115,7 +108,7 @@ thread_t *thread_self() {
 }
 
 /* For now this is only a stub */
-noreturn void thread_exit(int exitcode) {
+noreturn void thread_exit() {
   thread_t *td = thread_self();
 
   klog("Thread '%s' {%p} has finished.", td->td_name, td);
@@ -131,18 +124,14 @@ noreturn void thread_exit(int exitcode) {
       critical_leave();
   }
 
-  mtx_lock(&zombie_threads_mtx);
-  TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
-  mtx_unlock(&zombie_threads_mtx);
+  WITH_MTX_LOCK (&zombie_threads_mtx)
+    TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
 
-  critical_enter();
-  {
-    td->td_exitcode = exitcode;
+  CRITICAL_SECTION {
     td->td_state = TDS_INACTIVE;
     cv_broadcast(&td->td_waitcv);
     mtx_unlock(&td->td_lock);
   }
-  critical_leave();
 
   sched_yield();
 
@@ -156,17 +145,18 @@ void thread_join(thread_t *p) {
   thread_t *otd = p;
   klog("Joining '%s' {%p} with '%s' {%p}", td->td_name, td, otd->td_name, otd);
 
-  mtx_lock(&otd->td_lock);
+  SCOPED_MTX_LOCK(&otd->td_lock);
+
   while (otd->td_state != TDS_INACTIVE)
     cv_wait(&otd->td_waitcv, &otd->td_lock);
-  mtx_unlock(&otd->td_lock);
 }
 
 /* It would be better to have a hash-map from tid_t to thread_t,
  * but using a list is sufficient for now. */
 thread_t *thread_get_by_tid(tid_t id) {
+  SCOPED_MTX_LOCK(&all_threads_mtx);
+
   thread_t *td = NULL;
-  mtx_scoped_lock(&all_threads_mtx);
   TAILQ_FOREACH (td, &all_threads, td_all) {
     if (td->td_tid == id)
       break;

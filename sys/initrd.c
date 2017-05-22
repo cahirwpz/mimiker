@@ -44,7 +44,7 @@ typedef struct cpio_node {
 
 typedef TAILQ_HEAD(, cpio_node) cpio_list_t;
 
-static cpio_list_t initrd_head;
+static cpio_list_t initrd_head = TAILQ_HEAD_INITIALIZER(initrd_head);
 static cpio_node_t *root_node;
 static vnodeops_t initrd_ops = {.v_lookup = vnode_op_notsup,
                                 .v_readdir = vnode_op_notsup,
@@ -249,7 +249,6 @@ static int initrd_init(vfsconf_t *vfc) {
   if (!rd_size)
     return ENXIO;
 
-  TAILQ_INIT(&initrd_head);
   initrd_ops.v_lookup = initrd_vnode_lookup;
   initrd_ops.v_read = initrd_vnode_read;
   initrd_ops.v_open = vnode_open_generic;

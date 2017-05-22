@@ -33,13 +33,12 @@ void sched_add(thread_t *td) {
     return;
 
   td->td_slice = SLICE;
-  critical_enter();
 
-  runq_add(&runq, td);
-
-  if (td->td_prio > thread_self()->td_prio)
-    thread_self()->td_flags |= TDF_NEEDSWITCH;
-  critical_leave();
+  CRITICAL_SECTION {
+    runq_add(&runq, td);
+    if (td->td_prio > thread_self()->td_prio)
+      thread_self()->td_flags |= TDF_NEEDSWITCH;
+  }
 }
 
 void sched_remove(thread_t *td) {
@@ -71,7 +70,7 @@ void sched_switch(thread_t *newtd) {
   if (!sched_active)
     return;
 
-  critical_enter();
+  SCOPED_CRITICAL_SECTION();
 
   thread_t *td = thread_self();
 
@@ -87,8 +86,6 @@ void sched_switch(thread_t *newtd) {
 
   if (td != newtd)
     ctx_switch(td, newtd);
-
-  critical_leave();
 }
 
 noreturn void sched_run() {
