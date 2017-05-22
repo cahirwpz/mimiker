@@ -1,7 +1,6 @@
 #define KL_LOG KL_INTR
 #include <klog.h>
 #include <stdc.h>
-#include <mips/clock.h>
 #include <mips/exc.h>
 #include <mips/mips.h>
 #include <sync.h>

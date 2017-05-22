@@ -41,9 +41,6 @@ static INTR_HANDLER_DEFINE(mips_timer_intr_handler, NULL, mips_timer_intr, NULL,
 static void mips_timer_init() {
   mips32_set_c0(C0_COUNT, 0);
   mips32_set_c0(C0_COMPARE, TICKS_PER_MS);
-
-  mips_clock_ms = 0;
-
   mips_intr_setup(mips_timer_intr_handler, 7);
 }
 
