@@ -176,6 +176,18 @@ static void initrd_build_tree() {
   }
 }
 
+static ino_t enumerate_inodes(cpio_node_t *node, ino_t ino) {
+  cpio_node_t *it;
+  node->c_ino = ino++;
+  TAILQ_FOREACH (it, &node->c_children, c_siblings) {
+    if (CMTOFT(it->c_mode) == C_DIR)
+      ino = enumerate_inodes(it, ino);
+    else
+      it->c_ino = ino++;
+  }
+  return ino;
+}
+
 static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
   cpio_node_t *it;
   cpio_node_t *cn_dir = (cpio_node_t *)vdir->v_data;
@@ -291,6 +303,7 @@ static int initrd_init(vfsconf_t *vfc) {
   klog("parsing cpio archive of %zu bytes", rd_size);
   read_cpio_archive();
   initrd_build_tree();
+  enumerate_inodes(root_node, 2);
   return 0;
 }
 
