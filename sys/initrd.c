@@ -69,6 +69,12 @@ static void skip_bytes(void **tape, size_t bytes) {
   *tape = align(*tape + bytes, 4);
 }
 
+/* Extract last component of the path. */
+static const char *basename(const char *path) {
+  char *name = strrchr(path, '/');
+  return name ? name + 1 : path;
+}
+
 #define MKDEV(major, minor) (((major & 0xff) << 8) | (minor & 0xff))
 
 static bool read_cpio_header(void **tape, cpio_node_t *cpio) {
@@ -111,6 +117,13 @@ static bool read_cpio_header(void **tape, cpio_node_t *cpio) {
   cpio->c_data = *tape;
   skip_bytes(tape, c_filesize);
 
+  if (strcmp(cpio->c_path, ".") == 0) {
+    cpio->c_path = "";
+    root_node = cpio;
+  }
+
+  cpio->c_name = basename(cpio->c_path);
+
   return true;
 }
 
@@ -124,7 +137,7 @@ static void read_cpio_archive() {
       kfree(M_INITRD, node);
       break;
     }
-    TAILQ_INSERT_TAIL(&initrd_head, node, c_list);
+    TAILQ_INSERT_HEAD(&initrd_head, node, c_list);
   }
 }
 
@@ -138,15 +151,10 @@ static bool is_direct_descendant(const char *p1, const char *p2) {
   if (*p2)
     return false;
 
-  /* Check whether p is valid filename (does not contain '/') */
-  p1++; /* skip trailing '/' */
+  /* Check whether `p1` is valid filename (does not contain '/') */
+  if (*p1 == '/')
+    p1++; /* skip trailing '/' */
   return (strchr(p1, '/') == NULL);
-}
-
-/* Extract last component of the path. */
-static const char *basename(const char *path) {
-  char *name = strrchr(path, '/');
-  return name ? name + 1 : path;
 }
 
 static void insert_child(cpio_node_t *parent, cpio_node_t *child) {
@@ -155,7 +163,7 @@ static void insert_child(cpio_node_t *parent, cpio_node_t *child) {
     parent->c_nlink++;
 }
 
-static void initrd_build_tree_and_names() {
+static void initrd_build_tree() {
   cpio_node_t *it_i, *it_j;
 
   TAILQ_FOREACH (it_i, &initrd_head, c_list) {
@@ -165,19 +173,6 @@ static void initrd_build_tree_and_names() {
       if (is_direct_descendant(it_j->c_path, it_i->c_path))
         insert_child(it_i, it_j);
     }
-  }
-
-  cpio_node_t *it;
-  TAILQ_FOREACH (it, &initrd_head, c_list) {
-    it->c_name = basename(it->c_path);
-  }
-
-  /* Construct a node that represent the root of filesystem. */
-  root_node = cpio_node_alloc();
-  root_node->c_path = "";
-  TAILQ_FOREACH (it, &initrd_head, c_list) {
-    if (is_direct_descendant(it->c_path, ""))
-      insert_child(root_node, it);
   }
 }
 
@@ -295,7 +290,7 @@ static int initrd_init(vfsconf_t *vfc) {
 
   klog("parsing cpio archive of %zu bytes", rd_size);
   read_cpio_archive();
-  initrd_build_tree_and_names();
+  initrd_build_tree();
   return 0;
 }
 
