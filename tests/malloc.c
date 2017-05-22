@@ -173,7 +173,7 @@ KTEST_ADD(malloc_threads_private_block, malloc_threads_private_block, 0);
 KTEST_ADD(malloc_threads_many_private_blocks,
           malloc_threads_many_private_blocks, 0);
 KTEST_ADD(malloc_threads_random_shared_blocks,
-          malloc_threads_random_shared_blocks, 0);
+          malloc_threads_random_shared_blocks, KTEST_FLAG_BROKEN);
 /* Reserve some memory for mem_block_t. */
 #define RESERVED 1024
 KTEST_ADD_RANDINT(malloc_random_size, malloc_random_size, 0,
