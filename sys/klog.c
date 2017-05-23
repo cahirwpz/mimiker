@@ -52,7 +52,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
   CRITICAL_SECTION {
     entry = &klog.array[klog.last];
 
-    *entry = (klog_entry_t){.kl_timestamp = clock_get(),
+    *entry = (klog_entry_t){.kl_timestamp = get_uptime(),
                             .kl_line = line,
                             .kl_file = file,
                             .kl_origin = origin,

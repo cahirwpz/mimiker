@@ -1,11 +1,10 @@
-#ifndef __CLOCK_H__
-#define __CLOCK_H__
+#ifndef _SYS_CLOCK_H_
+#define _SYS_CLOCK_H_
 
-#include <stdint.h>
+#include <time.h>
 
-typedef int64_t realtime_t;
+timeval_t get_uptime(void);
 
-realtime_t clock_get();
-void clock(realtime_t ms);
+void clock(systime_t ms);
 
-#endif // __CLOCK_H__
+#endif /* !_SYS_CLOCK_H_ */
