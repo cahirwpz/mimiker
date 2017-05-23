@@ -4,16 +4,19 @@
 #include <sched.h>
 #include <ktest.h>
 
-static int exit_time[] = {100, 200, 150};
+static timeval_t exit_time[] = {TIMEVAL_INIT(0, 100 * 1000),
+                                TIMEVAL_INIT(0, 200 * 1000),
+                                TIMEVAL_INIT(0, 150 * 1000)};
 static timeval_t start;
 
 /* TODO: callout + sleepq, once we've implemented callout_schedule. */
 static void test_thread(void *p) {
-  int e = *(int *)p;
+  timeval_t *e = (timeval_t *)p;
   while (1) {
     timeval_t now = clock_get();
-    realtime_t tdiff = timeval_to_ms(&now) - timeval_to_ms(&start);
-    if (tdiff > e)
+    timeval_t diff;
+    timeval_sub(&now, &start, &diff);
+    if (timeval_cmp(&diff, e, >))
       thread_exit(0);
     else
       sched_yield();

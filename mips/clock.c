@@ -13,6 +13,11 @@
 static timeval_t *sys_clock = &TIMEVAL_INIT(0, 0);
 static timeval_t *msec = &TIMEVAL_INIT(0, 1000);
 
+timeval_t cpu_clock_get() {
+  uint32_t count = mips32_get_c0(C0_COUNT);
+  return TIMEVAL_INIT(count / TICKS_PER_SEC, count % TICKS_PER_SEC);
+}
+
 static void mips_timer_intr() {
   uint32_t compare = mips32_get_c0(C0_COMPARE);
   uint32_t count = mips32_get_c0(C0_COUNT);

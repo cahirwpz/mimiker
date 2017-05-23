@@ -51,8 +51,8 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
 
   CRITICAL_SECTION {
     entry = &klog.array[klog.last];
-    timeval_t now = clock_get();
-    *entry = (klog_entry_t){.kl_timestamp = timeval_to_ms(&now),
+
+    *entry = (klog_entry_t){.kl_timestamp = clock_get(),
                             .kl_line = line,
                             .kl_file = file,
                             .kl_origin = origin,
