@@ -48,6 +48,7 @@ int do_fork() {
   assert(td->td_proc);
   proc_t *proc = proc_create();
   proc->p_parent = td->td_proc;
+  TAILQ_INSERT_TAIL(&td->td_proc->p_children, proc, p_child);
   proc_populate(proc, newtd);
 
   /* Clone the entire process memory space. */
@@ -56,6 +57,10 @@ int do_fork() {
   /* Copy the parent descriptor table. */
   /* TODO: Optionally share the descriptor table between processes. */
   proc->p_fdtable = fdtab_copy(td->td_proc->p_fdtable);
+
+  /* Copy signal handler dispatch rules. */
+  memcpy(proc->p_sigactions, td->td_proc->p_sigactions,
+         sizeof(proc->p_sigactions));
 
   sched_add(newtd);
 

@@ -148,7 +148,6 @@ pci_bus_driver_t gt_pci = {
       .detach = gt_pci_detach,
     },
   .bus = {},
-  .pci_bus =
-    {
-      .read_config = gt_pci_read_config, .write_config = gt_pci_write_config,
-    }};
+  .pci_bus = {
+    .read_config = gt_pci_read_config, .write_config = gt_pci_write_config,
+  }};

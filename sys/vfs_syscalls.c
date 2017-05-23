@@ -90,6 +90,31 @@ int do_fstat(thread_t *td, int fd, vattr_t *buf) {
   return res;
 }
 
+int do_dup(thread_t *td, int old) {
+  file_t *f;
+  assert(td->td_proc);
+  int res = fdtab_get_file(td->td_proc->p_fdtable, old, 0, &f);
+  if (res)
+    return res;
+  int new;
+  res = fdtab_install_file(td->td_proc->p_fdtable, f, &new);
+  file_unref(f);
+  return res ? res : new;
+}
+
+int do_dup2(thread_t *td, int old, int new) {
+  file_t *f;
+  assert(td->td_proc);
+  if (old == new)
+    return 0;
+  int res = fdtab_get_file(td->td_proc->p_fdtable, old, 0, &f);
+  if (res)
+    return res;
+  res = fdtab_install_file_at(td->td_proc->p_fdtable, f, new);
+  file_unref(f);
+  return res ? res : new;
+}
+
 int do_mount(thread_t *td, const char *fs, const char *path) {
   vfsconf_t *vfs = vfs_get_by_name(fs);
   if (vfs == NULL)
@@ -107,10 +132,10 @@ int do_getdirentries(thread_t *td, int fd, uio_t *uio, off_t *basep) {
   if (res)
     return res;
   vnode_t *vn = f->f_vnode;
-  f->f_offset = *basep;
   uio->uio_offset = f->f_offset;
   res = VOP_READDIR(vn, uio);
   f->f_offset = uio->uio_offset;
+  *basep = f->f_offset;
   file_unref(f);
   return res;
 }

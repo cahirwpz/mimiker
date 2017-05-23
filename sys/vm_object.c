@@ -2,6 +2,7 @@
 #include <klog.h>
 #include <malloc.h>
 #include <vm_object.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_VMOBJ, "vm-obj", 1, 2);
 
@@ -14,7 +15,7 @@ static inline int vm_page_cmp(vm_page_t *a, vm_page_t *b) {
 RB_PROTOTYPE_STATIC(vm_object_tree, vm_page, obj.tree, vm_page_cmp);
 RB_GENERATE(vm_object_tree, vm_page, obj.tree, vm_page_cmp);
 
-void vm_object_init() {
+static void vm_object_init() {
 }
 
 vm_object_t *vm_object_alloc() {
@@ -66,5 +67,7 @@ void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
 void vm_map_object_dump(vm_object_t *obj) {
   vm_page_t *it;
   RB_FOREACH (it, vm_object_tree, &obj->tree)
-    klog("(vm-obj) offset: %lu, size: %lu \n", it->vm_offset, it->size);
+    klog("(vm-obj) offset: 0x%08lx, size: %ld", it->vm_offset, it->size);
 }
+
+SYSINIT_ADD(vm_object, vm_object_init, DEPS("pmap"));

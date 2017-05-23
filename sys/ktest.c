@@ -17,12 +17,7 @@ int ktest_test_running_flag = 0;
 static uint32_t ktest_seed =
   0; /* The initial seed, as set from command-line. */
 static uint32_t ktest_repeat = 1; /* Number of repetitions of each test. */
-static uint32_t seed = 0;         /* Current seed */
-static uint32_t rand() {
-  /* Just a standard LCG */
-  seed = 1664525 * seed + 1013904223;
-  return seed;
-}
+static unsigned seed = 0;         /* Current seed */
 
 /* If we get preempted while printing out the [TEST_PASSED] string, the monitor
    process might not find the pattern it's looking for. */
@@ -93,7 +88,7 @@ static int run_test(test_entry_t *t) {
   int result;
   if (t->flags & KTEST_FLAG_RANDINT) {
     int (*f)(unsigned int) = t->test_func;
-    int randint = rand() % t->randint_max;
+    int randint = rand_r(&seed) % t->randint_max;
     /* NOTE: Numbers generated here will be the same on each run, since test are
        started in a deterministic order. This is not a bug! In fact, it allows
        to reproduce test cases easily, just by reusing the seed.*/
@@ -169,7 +164,7 @@ static void run_all_tests() {
     seed = ktest_seed;
     /* Yates-Fisher shuffle. */
     for (i = 0; i <= total_tests - 2; i++) {
-      int j = i + rand() % (total_tests - i);
+      int j = i + rand_r(&seed) % (total_tests - i);
       register test_entry_t *swap = autorun_tests[i];
       autorun_tests[i] = autorun_tests[j];
       autorun_tests[j] = swap;

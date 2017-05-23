@@ -10,6 +10,7 @@ SOURCES_C = atomic.c \
 	    malta.c \
 	    pmap.c \
 	    stack.c \
+	    signal.c \
 	    tlb.c \
 	    uart_cbus.c
 

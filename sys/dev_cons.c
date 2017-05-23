@@ -26,11 +26,11 @@ static int dev_cons_read(vnode_t *t, uio_t *uio) {
   unsigned curr = 0;
   while (curr < UART_BUF_MAX && curr < uio->uio_resid) {
     buffer[curr] = cn_getc();
-    if (buffer[curr] == '\n')
+    if (buffer[curr++] == '\n')
       break;
-    curr++;
   }
-  int res = uiomove(buffer, UART_BUF_MAX - 1, uio);
+  uio->uio_offset = 0; /* This device does not support offsets. */
+  int res = uiomove_frombuf(buffer, curr, uio);
   if (res)
     return res;
   return 0;

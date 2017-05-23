@@ -8,13 +8,13 @@
 #define TEST_TIME 500
 
 static void thread_nop_function(void *arg) {
-  while (clock_get() < TEST_TIME + *(realtime_t *)arg)
+  while (tv2st(get_uptime()) < TEST_TIME + tv2st(*(timeval_t *)arg))
     ;
 }
 
 static int test_thread_stats_nop(void) {
   thread_t *threads[THREADS_NUMBER];
-  realtime_t start = clock_get();
+  timeval_t start = get_uptime();
   for (int i = 0; i < THREADS_NUMBER; i++) {
     threads[i] = thread_create("nop thread", thread_nop_function, &start);
     sched_add(threads[i]);
@@ -23,29 +23,35 @@ static int test_thread_stats_nop(void) {
     thread_join(threads[i]);
   }
   for (int i = 0; i < THREADS_NUMBER; i++) {
-    klog("Thread:%d runtime:%lu sleeptime:%lu context switches:%llu", i,
-         threads[i]->td_rtime, threads[i]->td_slptime, threads[i]->td_nctxsw);
-    if (threads[i]->td_rtime == 0 || threads[i]->td_slptime != 0)
+    klog("Thread:%d runtime:%u.%u sleeptime:%u.%u context switches:%llu", i,
+         threads[i]->td_rtime.tv_sec, threads[i]->td_rtime.tv_usec,
+         threads[i]->td_slptime.tv_sec, threads[i]->td_slptime.tv_usec,
+         threads[i]->td_nctxsw);
+    if ((threads[i]->td_rtime.tv_sec == 0 &&
+         threads[i]->td_rtime.tv_usec == 0) ||
+        (threads[i]->td_slptime.tv_sec != 0 &&
+         threads[i]->td_slptime.tv_usec != 0))
       return KTEST_FAILURE;
   }
+
   return KTEST_SUCCESS;
 }
 
 static void thread_wake_function(void *arg) {
-  while (clock_get() < 2 * TEST_TIME + *(realtime_t *)arg)
-    if (clock_get() > thread_self()->td_last_rtime + 10)
+  while (tv2st(get_uptime()) < 2 * TEST_TIME + tv2st(*(timeval_t *)arg))
+    if (tv2st(get_uptime()) > tv2st(thread_self()->td_last_rtime) + 10)
       sleepq_broadcast(arg);
 }
 
 static void thread_sleep_function(void *arg) {
-  while (clock_get() < TEST_TIME + *(realtime_t *)arg)
-    if (clock_get() > thread_self()->td_last_rtime)
+  while (tv2st(get_uptime()) < TEST_TIME + tv2st(*(timeval_t *)arg))
+    if (tv2st(get_uptime()) > tv2st(thread_self()->td_last_rtime))
       sleepq_wait(arg, "Thread stats test sleepq");
 }
 
 static int test_thread_stats_slp(void) {
   thread_t *threads[THREADS_NUMBER];
-  realtime_t start = clock_get();
+  timeval_t start = get_uptime();
   thread_t *waker = thread_create("waker thread", thread_wake_function, &start);
   sched_add(waker);
   for (int i = 0; i < THREADS_NUMBER; i++) {
@@ -57,9 +63,14 @@ static int test_thread_stats_slp(void) {
   }
   thread_join(waker);
   for (int i = 0; i < THREADS_NUMBER; i++) {
-    klog("Thread:%d runtime:%lu sleeptime:%lu context switches:%llu", i,
-         threads[i]->td_rtime, threads[i]->td_slptime, threads[i]->td_nctxsw);
-    if (threads[i]->td_rtime == 0 || threads[i]->td_slptime == 0)
+    klog("Thread:%d runtime:%u.%u sleeptime:%u.%u context switches:%llu", i,
+         threads[i]->td_rtime.tv_sec, threads[i]->td_rtime.tv_usec,
+         threads[i]->td_slptime.tv_sec, threads[i]->td_slptime.tv_usec,
+         threads[i]->td_nctxsw);
+    if ((threads[i]->td_rtime.tv_sec == 0 &&
+         threads[i]->td_rtime.tv_usec == 0) ||
+        (threads[i]->td_slptime.tv_sec == 0 &&
+         threads[i]->td_slptime.tv_usec == 0))
       return KTEST_FAILURE;
   }
   return KTEST_SUCCESS;
