@@ -1,14 +1,13 @@
 #ifndef _SYS_TIME_H_
 #define _SYS_TIME_H_
 
-#include <stdbool.h>
-#include <stdint.h>
+#include <common.h>
 
-typedef long realtime_t;
+typedef uint32_t systime_t; /* kept in miliseconds */
 
 typedef struct timeval {
-  long tv_sec;  /* seconds */
-  long tv_usec; /* microseconds */
+  time_t tv_sec;       /* seconds */
+  suseconds_t tv_usec; /* microseconds */
 } timeval_t;
 
 #define TIMEVAL(fp)                                                            \
@@ -21,6 +20,14 @@ typedef struct timeval {
   (timeval_t) {                                                                \
     .tv_sec = (sec), .tv_usec = (usec)                                         \
   }
+
+static inline timeval_t st2tv(systime_t st) {
+  return TIMEVAL_PAIR(st / 1000, st % 1000);
+}
+
+static inline systime_t tv2st(timeval_t tv) {
+  return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
 
 /* Operations on timevals. */
 static inline void timeval_clear(timeval_t *tvp) {
@@ -51,10 +58,6 @@ static inline void timeval_sub(timeval_t *tvp, timeval_t *uvp, timeval_t *vvp) {
     vvp->tv_sec--;
     vvp->tv_usec += 1000000;
   }
-}
-
-static inline long timeval_to_ms(timeval_t *tvp) {
-  return (tvp->tv_sec * 1000) + (tvp->tv_usec / 1000);
 }
 
 #endif /* !_SYS_TIME_H_ */

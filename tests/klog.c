@@ -90,10 +90,11 @@ static int multithreads_test(const int number_of_threads) {
 }
 
 /* Function that checks if sleep time is over and assigne new sleep time. */
-static int check_time(uint32_t *sleep, const uint32_t freq) {
-  timeval_t now = clock_get();
-  realtime_t tdiff = timeval_to_ms(&now) - timeval_to_ms(&start);
-  if (tdiff < (*sleep))
+static int check_time(systime_t *sleep, const uint32_t freq) {
+  timeval_t now = get_uptime();
+  timeval_t diff;
+  timeval_sub(&now, &start, &diff);
+  if (tv2st(diff) < (*sleep))
     return 1;
   (*sleep) += (rand() & freq);
   return 0;
@@ -132,7 +133,7 @@ static int stress_test() {
   /* threads[5] = thread_create("Thread dump2", thread_test, &klog_dump); */
 
   int number_of_threads = 5;
-  start = clock_get();
+  start = get_uptime();
   for (int i = 0; i < number_of_threads; i++)
     sched_add(threads[i]);
 

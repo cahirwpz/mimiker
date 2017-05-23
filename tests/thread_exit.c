@@ -11,7 +11,7 @@ static timeval_t start;
 static void test_thread(void *p) {
   timeval_t *e = (timeval_t *)p;
   while (1) {
-    timeval_t now = clock_get();
+    timeval_t now = get_uptime();
     timeval_t diff;
     timeval_sub(&now, &start, &diff);
     if (timeval_cmp(&diff, e, >))
@@ -31,7 +31,7 @@ static int test_thread_join() {
   tid_t t2_id = t2->td_tid;
   tid_t t3_id = t3->td_tid;
 
-  start = clock_get();
+  start = get_uptime();
   sched_add(t1);
   sched_add(t2);
   sched_add(t3);

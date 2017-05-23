@@ -10,12 +10,13 @@
 #include <sysinit.h>
 
 /* System clock gets incremented every milisecond. */
-static timeval_t *sys_clock = &TIMEVAL(0);
-static timeval_t *msec = &TIMEVAL(0.001);
+static timeval_t sys_clock = TIMEVAL(0);
+static timeval_t msec = TIMEVAL(0.001);
 
-timeval_t cpu_clock_get() {
-  uint32_t count = mips32_get_c0(C0_COUNT);
-  return TIMEVAL_PAIR(count / TICKS_PER_SEC, count % TICKS_PER_SEC);
+timeval_t get_uptime() {
+  /* BUG: C0_COUNT will overflow every 4294 seconds for 100MHz processor! */
+  uint32_t count = mips32_get_c0(C0_COUNT) / TICKS_PER_US;
+  return TIMEVAL_PAIR(count / 1000000, count % 1000000);
 }
 
 static void mips_timer_intr() {
@@ -30,14 +31,14 @@ static void mips_timer_intr() {
   /* This loop is necessary, because sometimes we may miss some ticks. */
   while (diff < TICKS_PER_MS) {
     compare += TICKS_PER_MS;
-    timeval_add(sys_clock, msec, sys_clock);
+    timeval_add(&sys_clock, &msec, &sys_clock);
     diff = compare - count;
   }
 
   /* Set compare register. */
   assert(compare % TICKS_PER_MS == 0);
   mips32_set_c0(C0_COMPARE, compare);
-  clock(timeval_to_ms(sys_clock));
+  clock(tv2st(sys_clock));
 }
 
 static INTR_HANDLER_DEFINE(mips_timer_intr_handler, NULL, mips_timer_intr, NULL,

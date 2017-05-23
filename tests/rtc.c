@@ -37,13 +37,12 @@ void rtc_read(rtc_time_t *t) {
 #include <stdc.h>
 #include <clock.h>
 
-/* Delays for at least the given number of microseconds. */
-void mdelay(timeval_t *delay) {
-  timeval_t now = clock_get();
-  timeval_t final;
-  timeval_add(&now, delay, & final);
-  while (timeval_cmp(&now, & final, <))
-    now = clock_get();
+static void tv_delay(timeval_t delay) {
+  timeval_t now = get_uptime();
+  timeval_t end;
+  timeval_add(&now, &delay, &end);
+  while (timeval_cmp(&now, &end, <))
+    now = get_uptime();
 }
 
 static int test_rtc() {
@@ -55,7 +54,7 @@ static int test_rtc() {
 
     kprintf("Time is %02d:%02d:%02d\n", rtc.hour, rtc.min, rtc.sec);
 
-    mdelay(&TIMEVAL(1.0));
+    tv_delay(TIMEVAL(1.0));
   }
   return KTEST_FAILURE;
 }
