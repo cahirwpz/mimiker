@@ -20,7 +20,8 @@ class Kdump(gdb.Command):
             'threads': threads.KernelThreads(),
             'segments': physmem.KernelSegments(),
             'free_pages': physmem.KernelFreePages(),
-            'tlb': physmem.TLB()
+            'tlb': physmem.TLB(),
+            'klog': physmem.KernelLog(),
         }
 
     def invoke(self, args, from_tty):

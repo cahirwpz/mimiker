@@ -51,8 +51,8 @@ class KernelSegments():
         segments = self.get_all_segments()
         rows = [['Segment', 'Start', 'End', 'Pages no']]
         for idx, seg in enumerate(segments):
-            rows.append([idx, as_hex(seg['start']), as_hex(seg['end']),
-                         seg['npages']])
+            rows.append([str(idx), as_hex(seg['start']), as_hex(seg['end']),
+                         str(seg['npages'])])
         ptable(rows, header=True)
 
 
@@ -121,3 +121,57 @@ class TLB:
                 continue
             rows.append(row)
         ptable(rows, fmt="rrll", header=True)
+
+
+class KernelLog():
+    def invoke(self):
+        messages, klog = self.load_klog()
+        self.dump_general_info(len(messages), klog)
+        self.dump_kernel_logs(messages)
+
+    def format_message(self, data):
+        message = data['kl_format'].string()
+        arguments = data['kl_params']
+        # If there is % escaped it is not parameter.
+        number_of_parameters = message.count('%') - 2 * message.count('%%')
+        params = ', '.join(str(arguments[i])
+                           for i in range(number_of_parameters))
+        try:
+            message = message.replace('"', '\\"')
+            # TODO: why do we need %zu???
+            message = message.replace('%zu', '%u')
+            # Using gdb printf so we don't need to dereference addresses.
+            formated = gdb.execute(
+                'printf "' + message + ' ", ' + params, to_string=True)
+        except Exception as e:
+            print('Error in formating message "{}" with parameters "{}"\nMessage skipped!!'.format(
+                message, params))
+            formated = message + params
+        return [str(data['kl_timestamp']), str(data['kl_line']), str(data['kl_file'].string()), str(data['kl_origin']), str(formated)]
+
+    def load_klog(self):
+        klog = gdb.parse_and_eval('klog')
+        first = int(klog['first'])
+        last = int(klog['last'])
+        klog_array = klog['array']
+        array_size = int(klog_array.type.range()[1]) + 1
+        number_of_logs = last - first if last >= first else last + array_size - first
+        messages = []
+        while first != last:
+            data = klog_array[first]
+            messages.append(self.format_message(data))
+            first = (first + 1) % array_size
+        return messages, klog
+
+    def dump_general_info(self, number_of_logs, klog):
+        rows_general = [["Mask", "Verbose", "Log number"]]
+        mask = as_hex(klog['mask'])
+        verbose = bool(klog['verbose'])
+        rows_general.append([mask, str(verbose), str(number_of_logs)])
+        ptable(rows_general, header=True, fmt='l')
+
+    def dump_kernel_logs(self, messages):
+        rows_data = [["Time", "Line", "File", "Origin", "Message"]]
+        for message in messages:
+            rows_data.append(message)
+        ptable(rows_data, header=True, fmt='ccrcl')
