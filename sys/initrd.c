@@ -259,7 +259,6 @@ static const unsigned ft2dt[16] = {[C_FIFO] = DT_FIFO, [C_CHR] = DT_CHR,
 
 static void cpio_to_dirent(void *entry, dirent_t *dir) {
   cpio_node_t *cn = (cpio_node_t *)entry;
-  /* XXX: Shall we implement our inode numbers or leave ones from ramdisk? */
   dir->d_fileno = cn->c_ino;
   dir->d_type = ft2dt[CMTOFT(cn->c_mode)];
   memcpy(dir->d_name, cn->c_name, dir->d_namlen + 1);
