@@ -9,11 +9,12 @@
 #if 0
 static void demo_thread_1() {
   while (true) {
-    realtime_t now = clock_get();
-    kprintf("[%8zu] Running '%s' thread.\n", (size_t)now,
+    timeval_t start = get_uptime();
+    kprintf("[%8zu] Running '%s' thread.\n", (size_t)tv2st(start),
             thread_self()->td_name);
-    while (clock_get() < now + 20)
-      ;
+    timeval_t now = get_uptime();
+    while (tv2st(now) < tv2st(start) + 20)
+      now = get_uptime();
   }
 }
 

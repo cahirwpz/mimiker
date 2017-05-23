@@ -4,10 +4,11 @@
 #include <stdc.h>
 #include <errno.h>
 #include <mutex.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_FD, "filedesc", 1, 2);
 
-void fd_init() {
+static void fd_init() {
 }
 
 /* Test whether a file descriptor is in use. */
@@ -80,18 +81,16 @@ static void fd_free(fdtab_t *fdt, int fd) {
 }
 
 void fdtab_ref(fdtab_t *fdt) {
-  mtx_lock(&fdt->fdt_mtx);
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
   assert(fdt->fdt_count >= 0);
   ++fdt->fdt_count;
-  mtx_unlock(&fdt->fdt_mtx);
 }
 
 void fdtab_unref(fdtab_t *fdt) {
-  mtx_lock(&fdt->fdt_mtx);
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
   assert(fdt->fdt_count > 0);
   if (--fdt->fdt_count == 0)
     fdt->fdt_count = -1;
-  mtx_unlock(&fdt->fdt_mtx);
 }
 
 /* In FreeBSD this function takes a filedesc* argument, so that
@@ -112,10 +111,10 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
   if (fdt == NULL)
     return newfdt;
 
-  mtx_scoped_lock(&fdt->fdt_mtx);
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
 
   if (fdt->fdt_nfiles > newfdt->fdt_nfiles) {
-    mtx_scoped_lock(&newfdt->fdt_mtx);
+    SCOPED_MTX_LOCK(&newfdt->fdt_mtx);
     fd_growtable(newfdt, fdt->fdt_nfiles);
   }
 
@@ -160,11 +159,11 @@ int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fd) {
   assert(f != NULL);
   assert(fd != NULL);
 
-  mtx_scoped_lock(&fdt->fdt_mtx);
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
+
   int res = fd_alloc(fdt, fd);
   if (res < 0)
     return res;
-
   fdt->fdt_files[*fd] = f;
   file_ref(f);
   return 0;
@@ -174,19 +173,19 @@ int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
   assert(f);
   assert(fdt);
 
-  mtx_scoped_lock(&fdt->fdt_mtx);
+  WITH_MTX_LOCK (&fdt->fdt_mtx) {
+    if (fd < 0 || fd > fdt->fdt_nfiles)
+      return -EBADF;
 
-  if (fd < 0 || fd > fdt->fdt_nfiles)
-    return -EBADF;
-
-  if (fd_is_used(fdt, fd)) {
-    if (fdt->fdt_files[fd] == f)
-      goto same_fd;
-    fd_free(fdt, fd);
+    if (fd_is_used(fdt, fd)) {
+      if (fdt->fdt_files[fd] == f)
+        break;
+      fd_free(fdt, fd);
+    }
+    fdt->fdt_files[fd] = f;
+    fd_mark_used(fdt, fd);
   }
-  fdt->fdt_files[fd] = f;
-  fd_mark_used(fdt, fd);
-same_fd:
+
   file_ref(f);
   return 0;
 }
@@ -197,23 +196,24 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
   if (!fdt)
     return -EBADF;
 
-  mtx_scoped_lock(&fdt->fdt_mtx);
+  file_t *f;
 
-  if (fd < 0 || fd >= fdt->fdt_nfiles || !fd_is_used(fdt, fd))
-    return -EBADF;
+  WITH_MTX_LOCK (&fdt->fdt_mtx) {
+    if (fd < 0 || fd >= fdt->fdt_nfiles || !fd_is_used(fdt, fd))
+      return -EBADF;
 
-  file_t *f = fdt->fdt_files[fd];
-  file_ref(f);
+    f = fdt->fdt_files[fd];
+    file_ref(f);
 
-  if ((flags & FF_READ) && !(f->f_flags & FF_READ))
-    goto fail;
-  if ((flags & FF_WRITE) && !(f->f_flags & FF_WRITE))
-    goto fail;
+    if ((flags & FF_READ) && !(f->f_flags & FF_READ))
+      break;
+    if ((flags & FF_WRITE) && !(f->f_flags & FF_WRITE))
+      break;
 
-  *fp = f;
-  return 0;
+    *fp = f;
+    return 0;
+  }
 
-fail:
   file_unref(f);
   return -EBADF;
 }
@@ -221,11 +221,12 @@ fail:
 /* Closes a file descriptor. If it was the last reference to a file, the file is
  * also closed. */
 int fdtab_close_fd(fdtab_t *fdt, int fd) {
-  mtx_scoped_lock(&fdt->fdt_mtx);
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
 
   if (fd < 0 || fd > fdt->fdt_nfiles || !fd_is_used(fdt, fd))
     return -EBADF;
-
   fd_free(fdt, fd);
   return 0;
 }
+
+SYSINIT_ADD(filedesc, fd_init, DEPS("file"));

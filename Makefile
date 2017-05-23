@@ -37,8 +37,8 @@ cscope:
 SOURCE_RULES = -not -path "./toolchain/*" -and \
                -not -path "./cache*"      -and \
                -not -path "./sysroot*"
-SOURCES_C = $(shell find -iname '*.[ch]' $(SOURCE_RULES))
-SOURCES_ASM = $(shell find -iname '*.[S]' $(SOURCE_RULES))
+SOURCES_C = $(shell find -iname '*.[ch]' -type f $(SOURCE_RULES))
+SOURCES_ASM = $(shell find -iname '*.[S]' -type f $(SOURCE_RULES))
 
 tags:
 	@echo "[CTAGS] Rebuilding tags..."

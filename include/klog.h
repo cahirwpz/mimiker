@@ -33,6 +33,8 @@ typedef enum {
 #define KL_MASK(l) (1 << (l))
 #define KL_ALL 0xffffffff /* log everything */
 
+#define KL_DEFAULT_MASK (KL_ALL & (~KL_MASK(KL_PMAP)))
+
 /* Mask for subsystem using klog. If not specified using default subsystem. */
 #ifndef KL_LOG
 #define KL_LOG KL_UNDEF
@@ -46,7 +48,7 @@ typedef enum {
 #define KL_SIZE 1024
 
 typedef struct {
-  realtime_t kl_timestamp;
+  timeval_t kl_timestamp;
   unsigned kl_line;
   const char *kl_file;
   klog_origin_t kl_origin;
@@ -70,6 +72,8 @@ void klog_init();
 void klog_append(klog_origin_t origin, const char *file, unsigned line,
                  const char *format, intptr_t arg1, intptr_t arg2,
                  intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6);
+
+unsigned klog_setmask(unsigned newmask);
 
 /* Print all logs on screen. */
 void klog_dump();

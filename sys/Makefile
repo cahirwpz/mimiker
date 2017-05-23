@@ -35,10 +35,12 @@ SOURCES_C  = \
 	rwlock.c \
 	sbrk.c \
 	sched.c \
+	signal.c \
 	sleepq.c \
 	startup.c \
 	sync.c \
 	sysent.c \
+	sysinit.c \
 	mmap.c \
 	thread.c \
 	uio.c \

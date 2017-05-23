@@ -13,16 +13,17 @@
 #include <proc.h>
 #include <mips/mips.h>
 #include <pcpu.h>
+#include <sysinit.h>
 
 static MALLOC_DEFINE(M_VMMAP, "vm-map", 1, 2);
 
 static vm_map_t kspace;
 
 void vm_map_activate(vm_map_t *map) {
-  critical_enter();
+  SCOPED_CRITICAL_SECTION();
+
   PCPU_SET(uspace, map);
   pmap_activate(map ? map->pmap : NULL);
-  critical_leave();
 }
 
 vm_map_t *get_user_vm_map() {
@@ -61,7 +62,7 @@ static void vm_map_setup(vm_map_t *map) {
   rw_init(&map->rwlock, "vm map rwlock", 1);
 }
 
-void vm_map_init() {
+static void vm_map_init() {
   vm_map_setup(&kspace);
   *((pmap_t **)(&kspace.pmap)) = get_kernel_pmap();
 }
@@ -89,8 +90,9 @@ static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
 }
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
+  SCOPED_RW_ENTER(&vm_map->rwlock, RW_READER);
+
   vm_map_entry_t *etr_it;
-  rw_scoped_enter(&vm_map->rwlock, RW_READER);
   TAILQ_FOREACH (etr_it, &vm_map->list, map_list)
     if (etr_it->start <= vaddr && vaddr < etr_it->end)
       return etr_it;
@@ -106,11 +108,10 @@ static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
 }
 
 void vm_map_delete(vm_map_t *map) {
-  rw_enter(&map->rwlock, RW_WRITER);
-  while (map->nentries > 0)
-    vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
-  rw_leave(&map->rwlock);
-
+  WITH_RW_LOCK (&map->rwlock, RW_WRITER) {
+    while (map->nentries > 0)
+      vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
+  }
   kfree(M_VMMAP, map);
 }
 
@@ -121,7 +122,6 @@ vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
 
-  rw_scoped_enter(&map->rwlock, RW_WRITER);
 #if 0
   assert(vm_map_find_entry(map, start) == NULL);
   assert(vm_map_find_entry(map, end) == NULL);
@@ -133,7 +133,8 @@ vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
   entry->end = end;
   entry->prot = prot;
 
-  vm_map_insert_entry(map, entry);
+  WITH_RW_LOCK (&map->rwlock, RW_WRITER)
+    vm_map_insert_entry(map, entry);
 
   return entry;
 }
@@ -189,7 +190,7 @@ found:
 
 int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
                      vm_addr_t /*out*/ *addr) {
-  rw_scoped_enter(&map->rwlock, RW_READER);
+  SCOPED_RW_ENTER(&map->rwlock, RW_READER);
   return vm_map_findspace_nolock(map, start, length, addr);
 }
 
@@ -222,15 +223,16 @@ int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
 }
 
 void vm_map_dump(vm_map_t *map) {
+  klog("Virtual memory map (%08lx - %08lx):", map->pmap->start, map->pmap->end);
+
+  SCOPED_RW_ENTER(&map->rwlock, RW_READER);
+
   vm_map_entry_t *it;
-  kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n", map->pmap->start,
-          map->pmap->end);
-  rw_scoped_enter(&map->rwlock, RW_READER);
   TAILQ_FOREACH (it, &map->list, map_list) {
-    kprintf("[vm_map] * %08lx - %08lx [%c%c%c]\n", it->start, it->end,
-            (it->prot & VM_PROT_READ) ? 'r' : '-',
-            (it->prot & VM_PROT_WRITE) ? 'w' : '-',
-            (it->prot & VM_PROT_EXEC) ? 'x' : '-');
+    klog(" * %08lx - %08lx [%c%c%c]", it->start, it->end,
+         (it->prot & VM_PROT_READ) ? 'r' : '-',
+         (it->prot & VM_PROT_WRITE) ? 'w' : '-',
+         (it->prot & VM_PROT_EXEC) ? 'x' : '-');
     vm_map_object_dump(it->object);
   }
 }
@@ -245,21 +247,21 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   vm_map_t *orig_current_map = get_user_vm_map();
   vm_map_t *newmap = vm_map_new();
 
-  rw_scoped_enter(&map->rwlock, RW_READER);
+  WITH_RW_LOCK (&map->rwlock, RW_READER) {
+    /* Temporarily switch to the new map, so that we may write contents. */
+    td->td_proc->p_uspace = newmap;
+    vm_map_activate(newmap);
 
-  /* Temporarily switch to the new map, so that we may write contents. */
-  td->td_proc->p_uspace = newmap;
-  vm_map_activate(newmap);
-
-  vm_map_entry_t *it;
-  TAILQ_FOREACH (it, &map->list, map_list) {
-    vm_map_entry_t *entry =
-      vm_map_add_entry(newmap, it->start, it->end, it->prot);
-    entry->object = default_pager->pgr_alloc();
-    vm_page_t *page;
-    TAILQ_FOREACH (page, &it->object->list, obj.list) {
-      memcpy((char *)it->start + page->vm_offset,
-             (char *)MIPS_PHYS_TO_KSEG0(page->paddr), page->size * PAGESIZE);
+    vm_map_entry_t *it;
+    TAILQ_FOREACH (it, &map->list, map_list) {
+      vm_map_entry_t *entry =
+        vm_map_add_entry(newmap, it->start, it->end, it->prot);
+      entry->object = default_pager->pgr_alloc();
+      vm_page_t *page;
+      TAILQ_FOREACH (page, &it->object->list, obj.list) {
+        memcpy((char *)it->start + page->vm_offset,
+               (char *)MIPS_PHYS_TO_KSEG0(page->paddr), page->size * PAGESIZE);
+      }
     }
   }
 
@@ -271,10 +273,12 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
 }
 
 int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
-  vm_map_entry_t *entry;
-  rw_scoped_enter(&map->rwlock, RW_READER);
+  vm_map_entry_t *entry = NULL;
 
-  if (!(entry = vm_map_find_entry(map, fault_addr))) {
+  WITH_RW_LOCK (&map->rwlock, RW_READER)
+    entry = vm_map_find_entry(map, fault_addr);
+
+  if (!entry) {
     klog("Tried to access unmapped memory region: 0x%08lx!", fault_addr);
     return -EFAULT;
   }
@@ -311,3 +315,5 @@ int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
 
   return 0;
 }
+
+SYSINIT_ADD(vm_map, vm_map_init, DEPS("pmap", "vm_object"));
