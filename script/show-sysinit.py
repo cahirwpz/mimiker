@@ -16,7 +16,6 @@ if __name__ == "__main__":
       line=line.partition('(')[2]
       line=line.rpartition(')')[0]
       name,fname,deps=line.split(', ',2)
-      # print('{} [label={}];'.format(name,fname))
       print('{};'.format(name,fname))
       if deps =='NODEPS':
         continue
