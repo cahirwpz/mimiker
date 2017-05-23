@@ -11,7 +11,13 @@ typedef struct timeval {
   long tv_usec; /* microseconds */
 } timeval_t;
 
-#define TIMEVAL_INIT(sec, usec)                                                \
+#define TIMEVAL(fp)                                                            \
+  (timeval_t) {                                                                \
+    .tv_sec = (long)((fp)*1000000L) / 1000000L,                                \
+    .tv_usec = (long)((fp)*1000000L) % 1000000L                                \
+  }
+
+#define TIMEVAL_PAIR(sec, usec)                                                \
   (timeval_t) {                                                                \
     .tv_sec = (sec), .tv_usec = (usec)                                         \
   }

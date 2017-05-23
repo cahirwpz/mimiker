@@ -55,7 +55,7 @@ static int test_rtc() {
 
     kprintf("Time is %02d:%02d:%02d\n", rtc.hour, rtc.min, rtc.sec);
 
-    mdelay(&TIMEVAL_INIT(1, 0));
+    mdelay(&TIMEVAL(1.0));
   }
   return KTEST_FAILURE;
 }

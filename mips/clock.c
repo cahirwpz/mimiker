@@ -10,12 +10,12 @@
 #include <sysinit.h>
 
 /* System clock gets incremented every milisecond. */
-static timeval_t *sys_clock = &TIMEVAL_INIT(0, 0);
-static timeval_t *msec = &TIMEVAL_INIT(0, 1000);
+static timeval_t *sys_clock = &TIMEVAL(0);
+static timeval_t *msec = &TIMEVAL(0.001);
 
 timeval_t cpu_clock_get() {
   uint32_t count = mips32_get_c0(C0_COUNT);
-  return TIMEVAL_INIT(count / TICKS_PER_SEC, count % TICKS_PER_SEC);
+  return TIMEVAL_PAIR(count / TICKS_PER_SEC, count % TICKS_PER_SEC);
 }
 
 static void mips_timer_intr() {

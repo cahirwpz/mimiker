@@ -4,9 +4,7 @@
 #include <sched.h>
 #include <ktest.h>
 
-static timeval_t exit_time[] = {TIMEVAL_INIT(0, 100 * 1000),
-                                TIMEVAL_INIT(0, 200 * 1000),
-                                TIMEVAL_INIT(0, 150 * 1000)};
+static timeval_t exit_time[] = {TIMEVAL(0.100), TIMEVAL(0.200), TIMEVAL(0.150)};
 static timeval_t start;
 
 /* TODO: callout + sleepq, once we've implemented callout_schedule. */
