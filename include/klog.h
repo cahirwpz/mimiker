@@ -26,6 +26,7 @@ typedef enum {
   KL_SYSCALL, /* syscall processing */
   KL_USER,    /* user program */
   KL_TEST,    /* mask for testing purpose */
+  KL_PIPE     /* pipes */
 } klog_origin_t;
 
 #define KL_NONE 0x00000000 /* don't log anything */
