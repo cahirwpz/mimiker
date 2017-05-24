@@ -5,11 +5,14 @@
 #include <runq.h>
 
 #define THREADS_NUMBER 10
-#define TEST_TIME 500
+timeval_t test_time = TIMEVAL(0.2);
 
 static void thread_nop_function(void *arg) {
-  while (tv2st(get_uptime()) < TEST_TIME + tv2st(*(timeval_t *)arg))
-    ;
+  timeval_t end = *(timeval_t *)arg;
+  timeval_add(&end, &test_time, &end);
+  timeval_t now = get_uptime();
+  while (timeval_cmp(&now, &end, <))
+    now = get_uptime();
 }
 
 static int test_thread_stats_nop(void) {
@@ -23,14 +26,11 @@ static int test_thread_stats_nop(void) {
     thread_join(threads[i]);
   }
   for (int i = 0; i < THREADS_NUMBER; i++) {
+    thread_t *td = threads[i];
     klog("Thread:%d runtime:%u.%u sleeptime:%u.%u context switches:%llu", i,
-         threads[i]->td_rtime.tv_sec, threads[i]->td_rtime.tv_usec,
-         threads[i]->td_slptime.tv_sec, threads[i]->td_slptime.tv_usec,
-         threads[i]->td_nctxsw);
-    if ((threads[i]->td_rtime.tv_sec == 0 &&
-         threads[i]->td_rtime.tv_usec == 0) ||
-        (threads[i]->td_slptime.tv_sec != 0 &&
-         threads[i]->td_slptime.tv_usec != 0))
+         td->td_rtime.tv_sec, td->td_rtime.tv_usec, td->td_slptime.tv_sec,
+         td->td_slptime.tv_usec, td->td_nctxsw);
+    if (!timeval_isset(&td->td_rtime) && timeval_isset(&td->td_slptime))
       return KTEST_FAILURE;
   }
 
@@ -38,15 +38,30 @@ static int test_thread_stats_nop(void) {
 }
 
 static void thread_wake_function(void *arg) {
-  while (tv2st(get_uptime()) < 2 * TEST_TIME + tv2st(*(timeval_t *)arg))
-    if (tv2st(get_uptime()) > tv2st(thread_self()->td_last_rtime) + 10)
+  timeval_t wake_delay = TIMEVAL(0.01);
+  timeval_t end = *(timeval_t *)arg;
+  timeval_add(&end, &test_time, &end);
+  timeval_add(&end, &test_time, &end);
+
+  timeval_t now = get_uptime();
+  while (timeval_cmp(&now, &end, <)) {
+    timeval_t wake_time = thread_self()->td_last_rtime;
+    timeval_add(&wake_time, &wake_delay, &wake_time);
+    if (timeval_cmp(&now, &wake_time, >))
       sleepq_broadcast(arg);
+    now = get_uptime();
+  }
 }
 
 static void thread_sleep_function(void *arg) {
-  while (tv2st(get_uptime()) < TEST_TIME + tv2st(*(timeval_t *)arg))
-    if (tv2st(get_uptime()) > tv2st(thread_self()->td_last_rtime))
+  timeval_t end = *(timeval_t *)arg;
+  timeval_add(&end, &test_time, &end);
+  timeval_t now = get_uptime();
+  while (timeval_cmp(&now, &end, <)) {
+    if (timeval_cmp(&now, &thread_self()->td_last_rtime, >))
       sleepq_wait(arg, "Thread stats test sleepq");
+    now = get_uptime();
+  }
 }
 
 static int test_thread_stats_slp(void) {
@@ -63,14 +78,11 @@ static int test_thread_stats_slp(void) {
   }
   thread_join(waker);
   for (int i = 0; i < THREADS_NUMBER; i++) {
+    thread_t *td = threads[i];
     klog("Thread:%d runtime:%u.%u sleeptime:%u.%u context switches:%llu", i,
-         threads[i]->td_rtime.tv_sec, threads[i]->td_rtime.tv_usec,
-         threads[i]->td_slptime.tv_sec, threads[i]->td_slptime.tv_usec,
-         threads[i]->td_nctxsw);
-    if ((threads[i]->td_rtime.tv_sec == 0 &&
-         threads[i]->td_rtime.tv_usec == 0) ||
-        (threads[i]->td_slptime.tv_sec == 0 &&
-         threads[i]->td_slptime.tv_usec == 0))
+         td->td_rtime.tv_sec, td->td_rtime.tv_usec, td->td_slptime.tv_sec,
+         td->td_slptime.tv_usec, td->td_nctxsw);
+    if (!timeval_isset(&td->td_rtime) || !timeval_isset(&td->td_slptime))
       return KTEST_FAILURE;
   }
   return KTEST_SUCCESS;
