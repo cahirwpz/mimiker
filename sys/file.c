@@ -55,18 +55,29 @@ void file_release(file_t *f) {
 
 /* Operations on invalid file descriptors */
 static int badfo_read(file_t *f, struct thread *td, uio_t *uio) {
+  (void)f;
+  (void)td;
+  (void)uio;
   return -EBADF;
 }
 
 static int badfo_write(file_t *f, struct thread *td, uio_t *uio) {
+  (void)f;
+  (void)td;
+  (void)uio;
   return -EBADF;
 }
 
 static int badfo_close(file_t *f, struct thread *td) {
+  (void)f;
+  (void)td;
   return -EBADF;
 }
 
 static int badfo_getattr(file_t *f, struct thread *td, vattr_t *buf) {
+  (void)f;
+  (void)td;
+  (void)buf;
   return -EBADF;
 }
 

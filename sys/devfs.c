@@ -95,6 +95,8 @@ static int devfs_root_lookup(vnode_t *dir, const char *name, vnode_t **res) {
 
 static int devfs_root_readdir(vnode_t *dir, uio_t *uio) {
   /* TODO: Implement. */
+  (void)dir;
+  (void)uio;
   return ENOTSUP;
 }
 
@@ -105,6 +107,7 @@ static int devfs_root(mount_t *m, vnode_t **v) {
 }
 
 static int devfs_init(vfsconf_t *vfc) {
+  (void)vfc;
   /* Prepare some initial devices */
   typedef void devfs_init_func_t();
   SET_DECLARE(devfs_init, devfs_init_func_t);

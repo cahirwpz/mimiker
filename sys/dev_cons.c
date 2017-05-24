@@ -11,6 +11,7 @@ static vnode_t *dev_cons_device;
 #define UART_BUF_MAX 100
 
 static int dev_cons_write(vnode_t *t, uio_t *uio) {
+  (void)t;
   char buffer[UART_BUF_MAX];
   size_t n = uio->uio_resid;
   int res = uiomove(buffer, UART_BUF_MAX - 1, uio);
@@ -22,8 +23,9 @@ static int dev_cons_write(vnode_t *t, uio_t *uio) {
 }
 
 static int dev_cons_read(vnode_t *t, uio_t *uio) {
+  (void)t;
   char buffer[UART_BUF_MAX];
-  unsigned curr = 0;
+  int curr = 0;
   while (curr < UART_BUF_MAX && curr < uio->uio_resid) {
     buffer[curr] = cn_getc();
     if (buffer[curr++] == '\n')
@@ -37,6 +39,8 @@ static int dev_cons_read(vnode_t *t, uio_t *uio) {
 }
 
 static int dev_cons_getattr(vnode_t *t, vattr_t *buf) {
+  (void)t;
+  (void)buf;
   return -ENOTSUP;
 }
 

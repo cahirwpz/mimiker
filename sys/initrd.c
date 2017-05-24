@@ -244,6 +244,7 @@ static int initrd_root(mount_t *m, vnode_t **v) {
 }
 
 static int initrd_init(vfsconf_t *vfc) {
+  (void)vfc;
   unsigned rd_size = ramdisk_get_size();
 
   if (!rd_size)

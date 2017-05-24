@@ -120,6 +120,7 @@ static resource_t gt_pci_ioports = {.r_bus_space = &gt_pci_bus_space,
                                     .r_end = MALTA_PCI0_IO_END};
 
 static int gt_pci_probe(device_t *pcib) {
+  (void)pcib;
   return 1;
 }
 
@@ -135,6 +136,7 @@ static int gt_pci_attach(device_t *pcib) {
 }
 
 static int gt_pci_detach(device_t *pcib) {
+  (void)pcib;
   return 0;
 }
 

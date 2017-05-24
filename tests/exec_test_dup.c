@@ -5,6 +5,7 @@
 #include <sched.h>
 
 static void test_dup_user_thread(void *arg) {
+   (void)arg;
   exec_args_t exec_args;
   exec_args.prog_name = "/bin/test_dup";
   exec_args.argv = (const char *[]){"test_dup"};
