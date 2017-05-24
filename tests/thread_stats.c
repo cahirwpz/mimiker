@@ -5,11 +5,10 @@
 #include <runq.h>
 
 #define THREADS_NUMBER 10
-timeval_t test_time = TIMEVAL(0.2);
+timeval_t test_time = TIMEVAL(0.5);
 
 static void thread_nop_function(void *arg) {
-  timeval_t end = *(timeval_t *)arg;
-  timeval_add(&end, &test_time, &end);
+  timeval_t end = timeval_add(arg, &test_time);
   timeval_t now = get_uptime();
   while (timeval_cmp(&now, &end, <))
     now = get_uptime();
@@ -39,14 +38,12 @@ static int test_thread_stats_nop(void) {
 
 static void thread_wake_function(void *arg) {
   timeval_t wake_delay = TIMEVAL(0.01);
-  timeval_t end = *(timeval_t *)arg;
-  timeval_add(&end, &test_time, &end);
-  timeval_add(&end, &TIMEVAL(0.1), &end);
-
+  timeval_t end = timeval_add(arg, &test_time);
+  end = timeval_add(&end, &TIMEVAL(0.1));
   timeval_t now = get_uptime();
   while (timeval_cmp(&now, &end, <)) {
-    timeval_t wake_time = thread_self()->td_last_rtime;
-    timeval_add(&wake_time, &wake_delay, &wake_time);
+    timeval_t wake_time =
+      timeval_add(&thread_self()->td_last_rtime, &wake_delay);
     if (timeval_cmp(&now, &wake_time, >))
       sleepq_broadcast(arg);
     now = get_uptime();
@@ -54,8 +51,7 @@ static void thread_wake_function(void *arg) {
 }
 
 static void thread_sleep_function(void *arg) {
-  timeval_t end = *(timeval_t *)arg;
-  timeval_add(&end, &test_time, &end);
+  timeval_t end = timeval_add(arg, &test_time);
   timeval_t now = get_uptime();
   while (timeval_cmp(&now, &end, <)) {
     if (timeval_cmp(&now, &thread_self()->td_last_rtime, >))

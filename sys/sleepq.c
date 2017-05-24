@@ -136,8 +136,8 @@ static void sleepq_resume_thread(sleepq_t *sq, thread_t *td) {
   td->td_wchan = NULL;
   td->td_wmesg = NULL;
   timeval_t now = get_uptime();
-  timeval_sub(&now, &td->td_last_slptime, &now);
-  timeval_add(&td->td_slptime, &now, &td->td_slptime);
+  now = timeval_sub(&now, &td->td_last_slptime);
+  td->td_slptime = timeval_add(&td->td_slptime, &now);
   sched_add(td);
 }
 

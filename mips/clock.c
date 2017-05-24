@@ -31,7 +31,7 @@ static void mips_timer_intr() {
   /* This loop is necessary, because sometimes we may miss some ticks. */
   while (diff < TICKS_PER_MS) {
     compare += TICKS_PER_MS;
-    timeval_add(&sys_clock, &msec, &sys_clock);
+    sys_clock = timeval_add(&sys_clock, &msec);
     diff = compare - count;
   }
 

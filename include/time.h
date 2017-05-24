@@ -42,22 +42,24 @@ static inline bool timeval_isset(timeval_t *tvp) {
   (((tvp)->tv_sec == (uvp)->tv_sec) ? (((tvp)->tv_usec)cmp((uvp)->tv_usec))    \
                                     : (((tvp)->tv_sec)cmp((uvp)->tv_sec)))
 
-static inline void timeval_add(timeval_t *tvp, timeval_t *uvp, timeval_t *vvp) {
-  vvp->tv_sec = tvp->tv_sec + uvp->tv_sec;
-  vvp->tv_usec = tvp->tv_usec + uvp->tv_usec;
-  if (vvp->tv_usec >= 1000000) {
-    vvp->tv_sec++;
-    vvp->tv_usec -= 1000000;
+static inline timeval_t timeval_add(timeval_t *tvp, timeval_t *uvp) {
+  timeval_t ret =
+    TIMEVAL_PAIR(tvp->tv_sec + uvp->tv_sec, tvp->tv_usec + uvp->tv_usec);
+  if (ret.tv_usec >= 1000000) {
+    ret.tv_sec++;
+    ret.tv_usec -= 1000000;
   }
+  return ret;
 }
 
-static inline void timeval_sub(timeval_t *tvp, timeval_t *uvp, timeval_t *vvp) {
-  vvp->tv_sec = tvp->tv_sec - uvp->tv_sec;
-  vvp->tv_usec = tvp->tv_usec - uvp->tv_usec;
-  if (vvp->tv_usec < 0) {
-    vvp->tv_sec--;
-    vvp->tv_usec += 1000000;
+static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
+  timeval_t ret =
+    TIMEVAL_PAIR(tvp->tv_sec - uvp->tv_sec, tvp->tv_usec - uvp->tv_usec);
+  if (ret.tv_usec < 0) {
+    ret.tv_sec--;
+    ret.tv_usec += 1000000;
   }
+  return ret;
 }
 
 #endif /* !_SYS_TIME_H_ */

@@ -84,9 +84,8 @@ void sched_switch(thread_t *newtd) {
 
   newtd->td_state = TDS_RUNNING;
   timeval_t now = get_uptime();
-  timeval_t diff;
-  timeval_sub(&now, &td->td_last_rtime, &diff);
-  timeval_add(&td->td_rtime, &diff, &td->td_rtime);
+  timeval_t diff = timeval_sub(&now, &td->td_last_rtime);
+  td->td_rtime = timeval_add(&td->td_rtime, &diff);
   newtd->td_last_rtime = now;
 
   if (td != newtd) {
