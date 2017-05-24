@@ -13,13 +13,14 @@
 static timeval_t sys_clock = TIMEVAL(0);
 static timeval_t msec = TIMEVAL(0.001);
 
-timeval_t get_uptime() {
+timeval_t get_uptime(void) {
   /* BUG: C0_COUNT will overflow every 4294 seconds for 100MHz processor! */
   uint32_t count = mips32_get_c0(C0_COUNT) / TICKS_PER_US;
   return TIMEVAL_PAIR(count / 1000000, count % 1000000);
 }
 
-static void mips_timer_intr() {
+static void mips_timer_intr(void *arg) {
+  (void)arg;
   uint32_t compare = mips32_get_c0(C0_COMPARE);
   uint32_t count = mips32_get_c0(C0_COUNT);
   int32_t diff = compare - count;
@@ -44,7 +45,7 @@ static void mips_timer_intr() {
 static INTR_HANDLER_DEFINE(mips_timer_intr_handler, NULL, mips_timer_intr, NULL,
                            "MIPS cpu timer", 0);
 
-static void mips_timer_init() {
+static void mips_timer_init(void) {
   mips32_set_c0(C0_COUNT, 0);
   mips32_set_c0(C0_COMPARE, TICKS_PER_MS);
   mips_intr_setup(mips_timer_intr_handler, 7);

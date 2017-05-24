@@ -41,7 +41,7 @@ GCC_SYSTEM_INC = -I$(GCC_INSTALL_PATH)include/ \
                  -D_LIBC_LIMITS_H_
 
 ASFLAGS  =
-CFLAGS   = -std=gnu11 -Og -Wall -Wextra -Werror -fno-builtin -nostdinc -nostdlib \
+CFLAGS   = -std=gnu11 -Og -Wall -Wextra -Wstrict-prototypes -Werror -fno-builtin -nostdinc -nostdlib \
            $(GCC_SYSTEM_INC) -ffreestanding
 CPPFLAGS = -Wall -Werror -DDEBUG -I$(TOPDIR)/include
 LDFLAGS  = -nostdlib -T $(TOPDIR)/mips/malta.ld

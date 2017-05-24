@@ -122,7 +122,7 @@ typedef uint32_t tid_t;
 #ifndef _USERSPACE
 
 /* Terminate thread. */
-noreturn void panic_fail();
+noreturn void panic_fail(void);
 
 #define panic(FMT, ...)                                                        \
   __extension__({                                                              \

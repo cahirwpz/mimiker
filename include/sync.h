@@ -13,8 +13,8 @@
  * Calls to @critical_enter can nest, you must use same number of
  * @critical_leave to actually leave the critical section.
  */
-void critical_enter();
-void critical_leave();
+void critical_enter(void);
+void critical_leave(void);
 
 #define SCOPED_CRITICAL_SECTION()                                              \
   SCOPED_STMT(void, critical_enter, critical_leave, NULL)

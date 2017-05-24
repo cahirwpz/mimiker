@@ -27,7 +27,7 @@ static intr_chain_t mips_intr_chain[8] = {
     [4] = MIPS_INTR_CHAIN(4, "hwint(2)"), [5] = MIPS_INTR_CHAIN(5, "hwint(3)"),
     [6] = MIPS_INTR_CHAIN(6, "hwint(4)"), [7] = MIPS_INTR_CHAIN(7, "hwint(5)")};
 
-void mips_intr_init() {
+void mips_intr_init(void) {
   /*
    * Enable Vectored Interrupt Mode as described in „MIPS32® 24KETM Processor
    * Core Family Software User’s Manual”, chapter 6.3.1.2.
