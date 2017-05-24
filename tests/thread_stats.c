@@ -41,7 +41,7 @@ static void thread_wake_function(void *arg) {
   timeval_t wake_delay = TIMEVAL(0.01);
   timeval_t end = *(timeval_t *)arg;
   timeval_add(&end, &test_time, &end);
-  timeval_add(&end, &test_time, &end);
+  timeval_add(&end, &TIMEVAL(0.1), &end);
 
   timeval_t now = get_uptime();
   while (timeval_cmp(&now, &end, <)) {
