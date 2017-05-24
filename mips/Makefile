@@ -11,6 +11,7 @@ SOURCES_C = atomic.c \
 	    pmap.c \
 	    stack.c \
 	    signal.c \
+	    timer.c \
 	    tlb.c \
 	    uart_cbus.c
 

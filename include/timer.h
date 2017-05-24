@@ -1,5 +1,5 @@
-#ifndef _MIPS_CLOCK_H_
-#define _MIPS_CLOCK_H_
+#ifndef _TIMER_H_
+#define _TIMER_H_
 
 #include <queue.h>
 #include <clock.h>
@@ -15,11 +15,10 @@ struct timer_event {
   void *tev_data;                        /*  auxiliary data */
 };
 
-/*  call @tev callback after @tvdiff time has passed */
-int cpu_timer_add_event(timer_event_t *tev, timeval_t *tvdiff);
+int cpu_timer_add_event(timer_event_t *tev);
 int cpu_timer_remove_event(timer_event_t *tev);
 
 /*  Processes core timer interrupts. */
-void cpu_timer_irq_handler();
+void cpu_timer_irq_handler(void);
 
-#endif /*  !_MIPS_CLOCK_H_ */
+#endif /*  !_TIMER_H_ */
