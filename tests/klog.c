@@ -64,7 +64,7 @@ static int testing_different_number_of_parametars() {
 }
 
 static void thread_logs(void *arg) {
-   (void)arg;
+  (void)arg;
   int thread_number = thread_self()->td_tid;
   for (int i = 0; i < NUM_OF_LOG_PER_THREAD; i++)
     klog("Message number %d of thread %d.", i, thread_number);

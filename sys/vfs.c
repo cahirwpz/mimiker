@@ -93,26 +93,26 @@ static int vfs_register(vfsconf_t *vfc) {
 }
 
 static int vfs_default_root(mount_t *m, vnode_t **v) {
-   (void)m;
-   (void)v;
+  (void)m;
+  (void)v;
   return -ENOTSUP;
 }
 
 static int vfs_default_statfs(mount_t *m, statfs_t *sb) {
-   (void)m;
-   (void)sb;
+  (void)m;
+  (void)sb;
   return -ENOTSUP;
 }
 
 static int vfs_default_vget(mount_t *m, ino_t ino, vnode_t **v) {
-   (void)m;
-   (void)ino;
-   (void)v;
+  (void)m;
+  (void)ino;
+  (void)v;
   return -ENOTSUP;
 }
 
 static int vfs_default_init(vfsconf_t *vfc) {
-   (void)vfc;
+  (void)vfc;
   return 0;
 }
 
@@ -241,7 +241,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
 }
 
 int vfs_open(file_t *f, char *pathname, int flags, int mode) {
-   (void)mode;
+  (void)mode;
   vnode_t *v;
   int error = 0;
   error = vfs_lookup(pathname, &v);

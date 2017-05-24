@@ -5,7 +5,7 @@
 #include <sched.h>
 
 static void test_fd_user_thread(void *arg) {
-   (void)arg;
+  (void)arg;
   exec_args_t exec_args;
   exec_args.prog_name = "/bin/fd_test";
   exec_args.argv = (const char *[]){"fd_test"};

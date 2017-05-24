@@ -13,7 +13,7 @@ void rw_init(rwlock_t *rw, const char *name, bool recursive) {
 }
 
 void rw_destroy(rwlock_t *rw) {
-   (void)rw;
+  (void)rw;
 }
 
 static bool is_owned(rwlock_t *rw) {

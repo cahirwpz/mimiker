@@ -142,10 +142,10 @@ vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
 /* TODO: not implemented */
 void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot) {
-   (void)map;
-   (void)start;
-   (void)end;
-   (void)prot;
+  (void)map;
+  (void)start;
+  (void)end;
+  (void)prot;
 }
 
 int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start, size_t length,

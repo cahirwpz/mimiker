@@ -20,7 +20,7 @@ static struct {
 } buf;
 
 static void producer(void *arg) {
-   (void)arg;
+  (void)arg;
   bool working = true;
   unsigned produced = 0;
   klog("%s started", thread_self()->td_name);
@@ -46,7 +46,7 @@ static void producer(void *arg) {
 }
 
 static void consumer(void *arg) {
-   (void)arg;
+  (void)arg;
   bool working = true;
   unsigned consumed = 0;
   klog("%s started", thread_self()->td_name);

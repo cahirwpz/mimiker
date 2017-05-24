@@ -15,8 +15,8 @@ static void default_pager_free(vm_object_t *obj) {
 
 static vm_page_t *default_pager_fault(vm_object_t *obj, vm_addr_t fault_addr,
                                       vm_addr_t vm_offset, vm_prot_t vm_prot) {
-   (void)fault_addr;
-   (void)vm_prot;
+  (void)fault_addr;
+  (void)vm_prot;
   assert(obj != NULL);
 
   vm_page_t *new_pg = pm_alloc(1);

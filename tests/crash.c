@@ -13,22 +13,22 @@ __attribute__((noinline)) static void store(intptr_t ptr, int value) {
 }
 
 static void unaligned_load(void *arg) {
-   (void)arg;
+  (void)arg;
   load(0xDEADC0DE);
 }
 
 static void unaligned_store(void *arg) {
-   (void)arg;
+  (void)arg;
   store(0xDEADC0DE, 666);
 }
 
 static void unmapped_load(void *arg) {
-   (void)arg;
+  (void)arg;
   load(0x10000000);
 }
 
 static void unmapped_store(void *arg) {
-   (void)arg;
+  (void)arg;
   store(0x10000000, 666);
 }
 
