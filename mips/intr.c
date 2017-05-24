@@ -138,6 +138,7 @@ finalize:
 }
 
 void fpe_handler(exc_frame_t *frame) {
+  (void)frame;
   thread_t *td = thread_self();
   if (td->td_proc) {
     sig_send(td->td_proc, SIGFPE);
