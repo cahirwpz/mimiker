@@ -1,28 +1,27 @@
 #!/usr/bin/env python3
 
-import os.path
-import sys
-import subprocess
+import os, re, itertools
+
+def listdir_path(d):
+  return [os.path.join(d,f) for f in os.listdir(d)]
 
 if __name__ == "__main__":
+  sysinit = re.compile(r'SYSINIT_ADD\((.*), .*, (?:NODEPS|DEPS\((.*)\))\)')
+  #             matches first argument /\   matches last argument/\
   print('digraph mimiker_modules {')
-  for folder in ['sys','mips']:
-    command='grep {}/* -e SYSINIT_ADD'.format(folder)
-    out=subprocess.check_output(command,shell=True)
-    out=out.decode('UTF-8')
-    for line in out.split('\n'):
-      if not 'SYSINIT_ADD' in line:
-        continue
-      line=line.partition('(')[2]
-      line=line.rpartition(')')[0]
-      name,fname,deps=line.split(', ',2)
-      print('{};'.format(name,fname))
-      if deps =='NODEPS':
-        continue
-      deps=deps.partition('(')[2]
-      deps=deps.rpartition(')')[0]
-      for dependency in deps.split(', '):
-        d=dependency.strip('"').rstrip('"')
-        print('{} -> {};'.format(name,d))
+  folders=["sys","mips"]
+  for source in itertools.chain.from_iterable(map(listdir_path,folders)):
+    try:
+      with open(source,'r',encoding='ascii') as f:
+        matches=sysinit.findall(f.read())
+        for match in matches:
+          module=match[0]
+          print("{};".format(module))
+          deps=match[1].split(', ')
+          deps=[d.lstrip('"').rstrip('"') for d in deps]
+          print("{} -> {{{}}};".format(module," ".join(deps)))
+
+    except UnicodeDecodeError:
+      continue
   print("}")
 
