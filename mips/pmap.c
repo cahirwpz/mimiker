@@ -58,7 +58,7 @@ static bool in_kernel_space(vm_addr_t addr) {
 static pmap_t kernel_pmap;
 static asid_t asid_counter;
 
-static asid_t get_new_asid() {
+static asid_t get_new_asid(void) {
   if (asid_counter < MAX_ASID)
     return asid_counter++; // TODO this needs to be atomic increment
   else
@@ -90,11 +90,11 @@ void pmap_reset(pmap_t *pmap) {
   memset(pmap, 0, sizeof(pmap_t)); /* Set up for reuse. */
 }
 
-static void pmap_init() {
+static void pmap_init(void) {
   pmap_setup(&kernel_pmap, PMAP_KERNEL_BEGIN + PT_SIZE, PMAP_KERNEL_END);
 }
 
-pmap_t *pmap_new() {
+pmap_t *pmap_new(void) {
   pmap_t *pmap = kmalloc(M_PMAP, sizeof(pmap_t), M_ZERO);
   pmap_setup(pmap, PMAP_USER_BEGIN, PMAP_USER_END);
   return pmap;
@@ -298,11 +298,11 @@ void pmap_activate(pmap_t *pmap) {
   mips32_set_c0(C0_ENTRYHI, pmap ? pmap->asid : 0);
 }
 
-pmap_t *get_kernel_pmap() {
+pmap_t *get_kernel_pmap(void) {
   return &kernel_pmap;
 }
 
-pmap_t *get_user_pmap() {
+pmap_t *get_user_pmap(void) {
   return PCPU_GET(curpmap);
 }
 
