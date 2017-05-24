@@ -15,5 +15,6 @@ script:
  - |
    set -e
    ./verify-format.sh
+   ./verify-pep8.sh
    make
    ./run_tests.py --thorough
