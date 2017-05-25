@@ -21,7 +21,7 @@ typedef enum {
 } vnodetype_t;
 
 typedef int vnode_lookup_t(vnode_t *dv, const char *name, vnode_t **vp);
-typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio);
+typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio, void *data);
 typedef int vnode_open_t(vnode_t *v, int mode, file_t *fp);
 typedef int vnode_close_t(vnode_t *v, file_t *fp);
 typedef int vnode_read_t(vnode_t *v, uio_t *uio);
@@ -91,8 +91,8 @@ static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
   return VOP_CALL(lookup, dv, name, vp);
 }
 
-static inline int VOP_READDIR(vnode_t *dv, uio_t *uio) {
-  return VOP_CALL(readdir, dv, uio);
+static inline int VOP_READDIR(vnode_t *dv, uio_t *uio, void *data) {
+  return VOP_CALL(readdir, dv, uio, data);
 }
 
 static inline int VOP_OPEN(vnode_t *v, int mode, file_t *fp) {

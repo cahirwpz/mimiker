@@ -56,12 +56,12 @@ int devfs_install(const char *name, vnode_t *device) {
 }
 
 static vnode_lookup_t devfs_root_lookup;
-static vnode_readdir_t devfs_root_readdir;
 
 static vnodeops_t devfs_root_ops = {
   .v_lookup = devfs_root_lookup,
-  .v_readdir = devfs_root_readdir,
+  .v_readdir = vnode_op_notsup,
   .v_open = vnode_op_notsup,
+  .v_close = vnode_op_notsup,
   .v_read = vnode_op_notsup,
   .v_write = vnode_op_notsup,
 };
@@ -91,11 +91,6 @@ static int devfs_root_lookup(vnode_t *dir, const char *name, vnode_t **res) {
   vnode_ref(*res);
 
   return 0;
-}
-
-static int devfs_root_readdir(vnode_t *dir, uio_t *uio) {
-  /* TODO: Implement. */
-  return ENOTSUP;
 }
 
 static int devfs_root(mount_t *m, vnode_t **v) {

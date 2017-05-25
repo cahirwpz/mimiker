@@ -133,7 +133,7 @@ int do_getdirentries(thread_t *td, int fd, uio_t *uio, off_t *basep) {
     return res;
   vnode_t *vn = f->f_vnode;
   uio->uio_offset = f->f_offset;
-  res = VOP_READDIR(vn, uio);
+  res = VOP_READDIR(vn, uio, f->f_data);
   f->f_offset = uio->uio_offset;
   *basep = f->f_offset;
   file_unref(f);
