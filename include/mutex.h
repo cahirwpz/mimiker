@@ -2,6 +2,7 @@
 #define _SYS_MUTEX_H_
 
 #include <stdbool.h>
+#include <common.h>
 
 typedef struct thread thread_t;
 
@@ -13,6 +14,11 @@ typedef struct mtx {
   volatile unsigned m_count;  /* Counter for recursive mutexes */
   unsigned m_type;            /* Normal or recursive mutex */
 } mtx_t;
+
+#define MUTEX_INITIALIZER(type)                                                \
+  (mtx_t) {                                                                    \
+    .m_owner = NULL, .m_count = 0, .m_type = type                              \
+  }
 
 /* Initializes mutex. Note that EVERY mutex has to be initialized
  * before it is used. */
@@ -28,5 +34,15 @@ void mtx_lock(mtx_t *m);
 /* Unlocks the mutex. If some thread blocked for the mutex,
  * then it wakes up the thread in FIFO manner. */
 void mtx_unlock(mtx_t *m);
+
+/* Use mtx_scoped_lock to lock a mutex and have it automatically unlock when
+   leaving current scope. */
+DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
+
+#define SCOPED_MTX_LOCK(mtx_p)                                                 \
+  SCOPED_STMT(mtx_t, mtx_lock, CLEANUP_FUNCTION(mtx_unlock), mtx_p)
+
+#define WITH_MTX_LOCK(mtx_p)                                                   \
+  WITH_STMT(mtx_t, mtx_lock, CLEANUP_FUNCTION(mtx_unlock), mtx_p)
 
 #endif /* !_SYS_MUTEX_H_ */

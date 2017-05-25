@@ -1,3 +1,5 @@
+#define KL_LOG KL_PMAP
+#include <klog.h>
 #include <stdc.h>
 #include <malloc.h>
 #include <mips/exc.h>
@@ -9,6 +11,10 @@
 #include <vm_map.h>
 #include <thread.h>
 #include <ktest.h>
+#include <signal.h>
+#include <sysinit.h>
+
+static MALLOC_DEFINE(M_PMAP, "pmap", 1, 1);
 
 #define PTE_MASK 0xfffff000
 #define PTE_SHIFT 12
@@ -17,6 +23,11 @@
 
 #define PTE_INDEX(addr) (((addr)&PTE_MASK) >> PTE_SHIFT)
 #define PDE_INDEX(addr) (((addr)&PDE_MASK) >> PDE_SHIFT)
+
+#define PTE_OF(pmap, addr) ((pmap)->pte[PTE_INDEX(addr)])
+#define PDE_OF(pmap, addr) ((pmap)->pde[PDE_INDEX(addr)])
+#define PTF_ADDR_OF(vaddr) (PT_BASE + PDE_INDEX(vaddr) * PTF_SIZE)
+#define PTE_ADDR_OF(vaddr) (PT_BASE + PTE_INDEX(vaddr) * sizeof(pte_t))
 
 #define PD_ENTRIES 1024 /* page directory entries */
 #define PD_SIZE (PD_ENTRIES * sizeof(pde_t))
@@ -27,11 +38,6 @@
 
 #define KERNEL_PD_BASE (PT_BASE + PT_SIZE)
 #define USER_PD_BASE (KERNEL_PD_BASE + PD_SIZE)
-
-#define PTE_OF(pmap, addr) ((pmap)->pte[PTE_INDEX(addr)])
-#define PDE_OF(pmap, addr) ((pmap)->pde[PDE_INDEX(addr)])
-#define PTE_ADDR_OF(vaddr) (PT_BASE + PTE_INDEX(vaddr) * sizeof(pte_t))
-#define PTF_ADDR_OF(vaddr) (PT_BASE + PDE_INDEX(vaddr) * PTF_SIZE)
 
 #define PMAP_KERNEL_BEGIN MIPS_KSEG2_START
 #define PMAP_KERNEL_END 0xfffff000 /* kseg2 & kseg3 */
@@ -97,11 +103,10 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   pmap->start = start;
   pmap->end = end;
   pmap->asid = get_new_asid();
-
-  log("Page directory table allocated at %08lx", (vm_addr_t)pmap->pde);
+  klog("Page directory table allocated at %08lx", (vm_addr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
 
-  /* Initialize PD using addresses from Kseg0 (to bypass TLB translation) */
+  /* Initialize PD using addresses from KSEG0 (to bypass TLB translation) */
   pde_t *pde = (pde_t *)pmap->pde_page->vaddr;
 
   for (int i = 0; i < PD_ENTRIES; i++) {
@@ -114,12 +119,12 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
 /* Thanks to ASIDs we don't have to remove those entries,
  * Just make sure that the pmap is no longer the active one */
 void pmap_reset(pmap_t *pmap) {
-  critical_enter();
-  if (PCPU_GET(curpmap) == pmap) {
-    mips32_set_c0(C0_ENTRYHI, 0);
-    PCPU_SET(curpmap, 0);
+  CRITICAL_SECTION {
+    if (PCPU_GET(curpmap) == pmap) {
+      mips32_set_c0(C0_ENTRYHI, 0);
+      PCPU_SET(curpmap, 0);
+    }
   }
-  critical_leave();
 
   while (!TAILQ_EMPTY(&pmap->pte_pages)) {
     vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
@@ -130,13 +135,7 @@ void pmap_reset(pmap_t *pmap) {
   memset(pmap, 0, sizeof(pmap_t)); /* Set up for reuse. */
 }
 
-static MALLOC_DEFINE(mpool, "pmap memory pool");
-
 void pmap_init() {
-  vm_page_t *pg = pm_alloc(1);
-  kmalloc_init(mpool);
-  kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
-
   vm_addr_t setup_from = (vm_addr_t)(PMAP_KERNEL_BEGIN + PT_SIZE + 2 * PD_SIZE);
   vm_addr_t setup_to = (vm_addr_t)PMAP_KERNEL_END;
 
@@ -145,14 +144,14 @@ void pmap_init() {
 }
 
 pmap_t *pmap_new() {
-  pmap_t *pmap = kmalloc(mpool, sizeof(pmap_t), M_ZERO);
+  pmap_t *pmap = kmalloc(M_PMAP, sizeof(pmap_t), M_ZERO);
   pmap_setup(pmap, PMAP_USER_BEGIN, PMAP_USER_END);
   return pmap;
 }
 
 void pmap_delete(pmap_t *pmap) {
   pmap_reset(pmap);
-  kfree(mpool, pmap);
+  kfree(M_PMAP, pmap);
 }
 
 /* Add PT to PD so kernel can handle access to @vaddr. */
@@ -162,8 +161,8 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
 
   vm_page_t *pg = pm_alloc(2);
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pt.list);
-  log("Page table fragment %08lx allocated at %08lx", PTF_ADDR_OF(vaddr),
-      pg->paddr);
+  klog("Page table fragment %08lx allocated at %08lx", PTF_ADDR_OF(vaddr),
+       pg->paddr);
 
   pde_t *pde = &PDE_OF(pmap, vaddr);
 
@@ -240,8 +239,8 @@ static void pmap_set_pte(pmap_t *pmap, vm_addr_t vaddr, pm_addr_t paddr,
   pte->lo = PTE_PFN(paddr) | global_of(vaddr);
   pte->ext_flags = vm_prot_map[prot];
 
-  log("Add mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
-      (vm_addr_t)pte);
+  klog("Add mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
+       (vm_addr_t)pte);
 
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
@@ -253,8 +252,8 @@ static void pmap_clear_pte(pmap_t *pmap, vm_addr_t vaddr) {
   pte->lo = 0;
   pte->ext_flags = 0;
 
-  log("Remove mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
-      (vm_addr_t)pte);
+  klog("Remove mapping for page %08lx (PTE at %08lx)", (vaddr & PTE_MASK),
+       (vm_addr_t)pte);
 
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
@@ -277,8 +276,8 @@ static void pmap_change_pte(pmap_t *pmap, vm_addr_t vaddr, vm_prot_t prot) {
   if (is_modified(pte) && (pte->ext_flags & PTE_DIRTY))
     pte->lo |= PTE_DIRTY;
 
-  log("Change protection bits for page %08lx (PTE at %08lx)",
-      (vaddr & PTE_MASK), (vm_addr_t)&PTE_OF(pmap, vaddr));
+  klog("Change protection bits for page %08lx (PTE at %08lx)",
+       (vaddr & PTE_MASK), (vm_addr_t)&PTE_OF(pmap, vaddr));
 
   /* invalidate corresponding entry in tlb */
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
@@ -308,8 +307,8 @@ bool pmap_probe(pmap_t *pmap, vm_addr_t start, vm_addr_t end, vm_prot_t prot) {
     if (tlb_idx >= 0) {
       tlblo_t lo = PTE_LO_INDEX_OF(start) ? lo1 : lo0;
       if (lo != pte.lo)
-        panic("TLB (%08x) vs. PTE (%08x) mismatch for virtual address %08lx!",
-              lo, (unsigned int)pte.lo, start);
+        panic("TLB (%08x) vs. PTE (%08lx) mismatch for virtual address %08lx!",
+              lo, pte.lo, start);
     }
 
     if (((pte.lo | pte.ext_flags) & PTE_PROT_MASK) != expected)
@@ -363,14 +362,14 @@ void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
  */
 
 void pmap_activate(pmap_t *pmap) {
+  SCOPED_CRITICAL_SECTION();
+
   assert(pmap != &kernel_pmap);
-  critical_enter();
   PCPU_GET(curpmap) = pmap;
   mips32_set_c0(C0_ENTRYHI, pmap ? pmap->asid : 0);
   if (pmap)
     pmap_setup_pd_wired_tlb_entry(pmap);
   /* thanks to ASIDs we can avoid TLB flushes */
-  critical_leave();
 }
 
 pmap_t *get_kernel_pmap() {
@@ -392,14 +391,18 @@ pmap_t *get_active_pmap_by_addr(vm_addr_t addr) {
 void tlb_fault(exc_frame_t *frame) {
   thread_t *td = thread_self();
 
-  /* handle copyin / copyout faults */
   if (td->td_onfault) {
+    /* handle copyin / copyout faults */
     frame->pc = td->td_onfault;
     td->td_onfault = 0;
+  } else if (td->td_proc) {
+    /* Send a segmentation fault signal to the user program. */
+    sig_send(td->td_proc, SIGSEGV);
   } else if (ktest_test_running_flag) {
     ktest_failure();
   } else {
-    thread_exit();
+    /* Kernel mode thread violated memory, whoops. */
+    panic("Invalid memory access.");
   }
 }
 
@@ -407,7 +410,7 @@ void tlb_fault(exc_frame_t *frame) {
 bool tlb_page_fault(vm_addr_t vaddr, vm_prot_t access) {
   vm_map_t *map = get_active_vm_map_by_addr(vaddr);
   if (!map) {
-    log("No virtual address space definde for $%08lx!", vaddr);
+    klog("No virtual address space definde for $%08lx!", vaddr);
     return false;
   }
   if (vm_page_fault(map, vaddr, access) == 0)
@@ -421,13 +424,13 @@ bool tlb_page_fault(vm_addr_t vaddr, vm_prot_t access) {
 bool tlb_pde_refill(exc_frame_t *frame, vm_addr_t orig_vaddr) {
   pmap_t *pmap = get_active_pmap_by_addr(orig_vaddr);
   if (!pmap) {
-    log("Address $%08lx not mapped by any active pmap!", orig_vaddr);
+    klog("Address $%08lx not mapped by any active pmap!", orig_vaddr);
     tlb_fault(frame);
   }
 
   pde_t *pde = &PDE_OF(pmap, orig_vaddr);
   if (pde_is_valid(*pde)) {
-    log("TLB refill for page table fragment $%08lx", orig_vaddr & PTE_MASK);
+    klog("TLB refill for page table fragment $%08lx", orig_vaddr & PTE_MASK);
     vm_addr_t ptf_start = PTF_ADDR_OF(orig_vaddr);
 
     /* Both ENTRYLO0 and ENTRYLO1 must have G bit set for address translation
@@ -444,7 +447,7 @@ bool tlb_pde_refill(exc_frame_t *frame, vm_addr_t orig_vaddr) {
 bool tlb_pte_refill(exc_frame_t *frame, vm_addr_t vaddr) {
   pmap_t *pmap = get_active_pmap_by_addr(vaddr);
   if (!pmap) {
-    log("Address $%08lx not mapped by any active pmap!", vaddr);
+    klog("Address $%08lx not mapped by any active pmap!", vaddr);
     tlb_fault(frame);
   }
 
@@ -501,15 +504,15 @@ void tlb_load_exception_handler(exc_frame_t *frame) {
     if (vaddr >= PT_BASE && vaddr < PT_BASE + PT_SIZE) {
       /* We don't accept invalid TLB entries for page table fragments */
       vm_addr_t ptf_start = PTF_ADDR_OF(vaddr);
-      log("Found an invalid TLB entry for page table fragment at $%08lx!",
-          ptf_start);
+      klog("Found an invalid TLB entry for page table fragment at $%08lx!",
+           ptf_start);
       tlb_fault(frame);
       return;
     }
 
     pmap_t *pmap = get_active_pmap_by_addr(vaddr);
     if (!pmap) {
-      log("Address $%08lx not mapped by any active pmap!", vaddr);
+      klog("Address $%08lx not mapped by any active pmap!", vaddr);
       tlb_fault(frame);
       return;
     }
@@ -566,7 +569,7 @@ void tlb_load_exception_handler(exc_frame_t *frame) {
       if (tlb_pte_refill(frame, vaddr))
         return;
 
-      log("Page fault while in an interrupt/exception!");
+      klog("Page fault while in an interrupt/exception!");
     }
   }
 
@@ -603,15 +606,15 @@ void tlb_store_exception_handler(exc_frame_t *frame) {
     if (vaddr >= PT_BASE && vaddr < PT_BASE + PT_SIZE) {
       /* We don't accept invalid TLB entries for page table fragments */
       vm_addr_t ptf_start = PTF_ADDR_OF(vaddr);
-      log("Found an invalid TLB entry for page table fragment at $%08lx!",
-          ptf_start);
+      klog("Found an invalid TLB entry for page table fragment at $%08lx!",
+           ptf_start);
       tlb_fault(frame);
       return;
     }
 
     pmap_t *pmap = get_active_pmap_by_addr(vaddr);
     if (!pmap) {
-      log("Address $%08lx not mapped by any active pmap!", vaddr);
+      klog("Address $%08lx not mapped by any active pmap!", vaddr);
       tlb_fault(frame);
       return;
     }
@@ -653,7 +656,7 @@ void tlb_store_exception_handler(exc_frame_t *frame) {
     if (tlb_pte_refill(frame, vaddr))
       return;
 
-    log("Page fault while in an interrupt/exception!");
+    klog("Page fault while in an interrupt/exception!");
   }
 
   tlb_fault(frame);
@@ -697,3 +700,5 @@ void tlb_modified_exception_handler(exc_frame_t *frame) {
 
   tlb_fault(frame);
 }
+
+SYSINIT_ADD(pmap, pmap_init, NODEPS);

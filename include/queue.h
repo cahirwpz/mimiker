@@ -290,6 +290,10 @@
 #define LIST_FOREACH(var, head, field)                                         \
   for ((var) = LIST_FIRST((head)); (var); (var) = LIST_NEXT((var), field))
 
+#define LIST_FOREACH_SAFE(var, head, field, next)                              \
+  for ((var) = LIST_FIRST((head));                                             \
+       (var) != NULL && ((next) = LIST_NEXT((var), field), 1); (var) = (next))
+
 #define LIST_INIT(head)                                                        \
   do {                                                                         \
     LIST_FIRST((head)) = NULL;                                                 \
@@ -355,6 +359,10 @@
 
 #define TAILQ_FOREACH(var, head, field)                                        \
   for ((var) = TAILQ_FIRST((head)); (var); (var) = TAILQ_NEXT((var), field))
+
+#define TAILQ_FOREACH_SAFE(var, head, field, next)                             \
+  for ((var) = TAILQ_FIRST((head));                                            \
+       (var) != NULL && ((next) = TAILQ_NEXT(var, field), 1); (var) = (next))
 
 #define TAILQ_FOREACH_REVERSE(var, head, headname, field)                      \
   for ((var) = TAILQ_LAST((head), headname); (var);                            \

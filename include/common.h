@@ -13,23 +13,32 @@ typedef unsigned long pm_addr_t;
 typedef long off_t;
 typedef long ssize_t;
 typedef int32_t pid_t;
-typedef uint32_t dev_t;
+typedef uint16_t dev_t;
 typedef uint32_t time_t;
+typedef uint32_t suseconds_t; /* microseconds (signed) */
 typedef uint16_t uid_t;
 typedef uint16_t gid_t;
-typedef uint16_t mode_t;
+typedef uint32_t mode_t;
 typedef uint16_t nlink_t;
-typedef uint32_t ino_t;
+typedef uint16_t ino_t;
+typedef uint32_t tid_t;
 
 /* Generic preprocessor macros */
 #define __STRING(x) #x
 #define __CONCAT1(x, y) x##y
 #define __CONCAT(x, y) __CONCAT1(x, y)
+#define __UNIQUE(x) __CONCAT(x, __LINE__)
 
 /* Wrapper for various GCC attributes */
 #define __nonnull(x) __attribute__((__nonnull__(x)))
 #define __section(s) __attribute__((__section__(#s)))
+#define __unused __attribute__((unused))
 #define __used __attribute__((used))
+#define __aligned(x) __attribute__((__aligned__(x)))
+#define __warn_unused __attribute__((warn_unused_result));
+#define __unreachable() __builtin_unreachable()
+#define __alias(x) __attribute__((alias(#x)))
+#define __cleanup(func) __attribute__((__cleanup__(func)))
 
 /* Macros for counting and rounding. */
 #ifndef howmany
@@ -88,22 +97,40 @@ typedef uint32_t ino_t;
     !(_addr & (_size - 1));                                                    \
   })
 
+#define container_of(p, type, field)                                           \
+  ((type *)((char *)(p)-offsetof(type, field)))
+
+#define CLEANUP_FUNCTION(func) __CONCAT(__cleanup_, func)
+#define DEFINE_CLEANUP_FUNCTION(type, func)                                    \
+  static inline void __cleanup_##func(type *ptr) {                             \
+    if (*ptr)                                                                  \
+      func(*ptr);                                                              \
+  }                                                                            \
+  struct __force_semicolon__
+
+#define SCOPED_STMT(TYP, ACQUIRE, RELEASE, VAL, ...)                           \
+  TYP *__UNIQUE(__scoped) __cleanup(RELEASE) = ({                              \
+    ACQUIRE(VAL, ##__VA_ARGS__);                                               \
+    VAL;                                                                       \
+  })
+
+#define WITH_STMT(TYP, ACQUIRE, RELEASE, VAL, ...)                             \
+  for (SCOPED_STMT(TYP, ACQUIRE, RELEASE, VAL, ##__VA_ARGS__),                 \
+       *__UNIQUE(__loop) = (TYP *)1;                                           \
+       __UNIQUE(__loop); __UNIQUE(__loop) = NULL)
+
 #ifndef _USERSPACE
 
 /* Terminate thread. */
-noreturn void thread_exit();
+noreturn void panic_fail();
 
 #define panic(FMT, ...)                                                        \
   __extension__({                                                              \
-    kprintf("[%s:%d] " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);           \
-    thread_exit();                                                             \
+    kprintf("[%s:%d] PANIC: " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);    \
+    panic_fail();                                                              \
   })
 
 #ifdef DEBUG
-#define log(FMT, ...)                                                          \
-  __extension__(                                                               \
-    { kprintf("[%s:%d] " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__); })
-
 void assert_fail(const char *expr, const char *file, unsigned int line);
 
 #define assert(EXPR)                                                           \
@@ -112,7 +139,6 @@ void assert_fail(const char *expr, const char *file, unsigned int line);
       assert_fail(__STRING(EXPR), __FILE__, __LINE__);                         \
   })
 #else
-#define log(...)
 #define assert(expr)
 #endif
 

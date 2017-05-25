@@ -8,6 +8,9 @@
 *.uelf
 *.test
 
+# Ramdisk
+*.cpio
+
 # Backup and log files
 *~
 *.orig
@@ -33,7 +36,19 @@ etags
 assym.h
 
 # toolchain build artifacts
-toolchain/
+toolchain
 
 # Editor swap files
 *.swp
+
+# Temporary test data
+tests/*_test_files
+
+# Downloads and source cache
+cache
+
+# Dynamically created sysroot
+sysroot
+
+# Dynamically generated gdb config
+.gdbinit

@@ -1,13 +1,16 @@
+#define KLOG KL_INIT
 #include <interrupt.h>
 #include <malloc.h>
 #include <mips/cpuinfo.h>
 #include <mips/malta.h>
 #include <mips/intr.h>
 #include <mips/tlb.h>
-#include <mips/uart_cbus.h>
+#include <klog.h>
+#include <console.h>
 #include <pcpu.h>
 #include <stdc.h>
 #include <thread.h>
+#include <initrd.h>
 
 extern unsigned int __bss[];
 extern unsigned int __ebss[];
@@ -115,37 +118,36 @@ char *kenv_get(const char *key) {
 extern uint8_t __kernel_start[];
 extern uint8_t __kernel_end[];
 
-static void pm_bootstrap(unsigned memsize) {
-  intptr_t rd_start;
-  unsigned rd_size;
+extern intptr_t parse_rd_start(const char *s);
 
+static void pm_bootstrap(unsigned memsize) {
   pm_init();
 
-  /* ramdisk start address is expected to be page aligned and places directly
-   * after kernel's .bss section */
-  {
-    char *s;
+  intptr_t rd_start = ramdisk_get_start();
+  unsigned rd_size = align(ramdisk_get_size(), PAGESIZE);
 
-    s = kenv_get("rd_start");
-    rd_start = s ? strtoul(s, NULL, 0) : 0;
-    s = kenv_get("rd_size");
-    rd_size = s ? align(strtoul(s, NULL, 0), PAGESIZE) : 0;
-  }
+  /*
+   * Ramdisk start address is expected to be page aligned and placed:
+   * - Directly after kernel's .bss section in case of OVPSim
+   * - One page after kernel's .bss section in case of Qemu
+   */
+  assert(is_aligned(rd_start, PAGESIZE));
+  assert(is_aligned(rd_start + rd_size, PAGESIZE));
+  assert(rd_start == 0 || (intptr_t)__kernel_end <= rd_start);
 
-  pm_seg_t *seg = (pm_seg_t *)(__kernel_end + rd_size);
+  intptr_t real_kernel_end =
+    (rd_start == 0) ? (intptr_t)(__kernel_end) : (intptr_t)(rd_start + rd_size);
+
+  pm_seg_t *seg = (pm_seg_t *)real_kernel_end;
   size_t seg_size = align(pm_seg_space_needed(memsize), PAGESIZE);
 
   /* create Malta physical memory segment */
   pm_seg_init(seg, MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + memsize,
               MIPS_KSEG0_START);
-  /* reserve kernel image space */
+  /* reserve kernel and ramdisk image space */
   pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS((intptr_t)__kernel_start),
-                 MIPS_KSEG0_TO_PHYS((intptr_t)__kernel_end));
-  /* reserve ramdisk space */
-  if (rd_start) {
-    pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS(rd_start),
-                   MIPS_KSEG0_TO_PHYS(rd_start + rd_size));
-  }
+                 MIPS_KSEG0_TO_PHYS(real_kernel_end));
+
   /* reserve segment description space */
   pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS((intptr_t)seg),
                  MIPS_KSEG0_TO_PHYS((intptr_t)seg + seg_size));
@@ -153,8 +155,6 @@ static void pm_bootstrap(unsigned memsize) {
 }
 
 static void thread_bootstrap() {
-  thread_init();
-
   /* Create main kernel thread */
   thread_t *td = thread_create("kernel-main", (void *)kernel_init, NULL);
 
@@ -171,16 +171,16 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   bzero(__bss, __ebss - __bss);
 
   setup_kenv(argc, argv, envp);
-
-  uart_init();
+  cn_init();
+  klog_init();
   pcpu_init();
   cpu_init();
   tlb_init();
-  intr_init();
   mips_intr_init();
   pm_bootstrap(memsize);
+  kmem_bootstrap();
   sleepq_init();
   thread_bootstrap();
 
-  kprintf("[startup] Switching to 'kernel-main' thread...\n");
+  klog("Switching to 'kernel-main' thread...");
 }

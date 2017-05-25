@@ -1,12 +1,31 @@
+#define KL_LOG KL_INTR
+#include <klog.h>
 #include <stdc.h>
 #include <mips/exc.h>
 #include <mips/mips.h>
+#include <sync.h>
 #include <pmap.h>
+#include <queue.h>
+#include <interrupt.h>
 #include <sysent.h>
 #include <errno.h>
 #include <thread.h>
 
 extern const char _ebase[];
+
+#define MIPS_INTR_CHAIN(irq, name)                                             \
+  (intr_chain_t) {                                                             \
+    .ic_name = (name), .ic_irq = (irq),                                        \
+    .ic_handlers = TAILQ_HEAD_INITIALIZER(mips_intr_chain[irq].ic_handlers)    \
+  }
+
+static intr_chain_t mips_intr_chain[8] = {
+    /* Initialize software interrupts handler chains. */
+    [0] = MIPS_INTR_CHAIN(0, "swint(0)"), [1] = MIPS_INTR_CHAIN(1, "swint(1)"),
+    /* Initialize hardware interrupts handler chains. */
+    [2] = MIPS_INTR_CHAIN(2, "hwint(0)"), [3] = MIPS_INTR_CHAIN(3, "hwint(1)"),
+    [4] = MIPS_INTR_CHAIN(4, "hwint(2)"), [5] = MIPS_INTR_CHAIN(5, "hwint(3)"),
+    [6] = MIPS_INTR_CHAIN(6, "hwint(4)"), [7] = MIPS_INTR_CHAIN(7, "hwint(5)")};
 
 void mips_intr_init() {
   /*
@@ -23,25 +42,32 @@ void mips_intr_init() {
   mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
 }
 
-extern void mips_clock_irq_handler();
+void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
+  intr_chain_t *chain = &mips_intr_chain[irq];
+  CRITICAL_SECTION {
+    intr_chain_add_handler(chain, handler);
+    if (chain->ic_count == 1)
+      mips32_bs_c0(C0_STATUS, SR_IM0 << irq);
+  }
+}
 
-typedef void (*irq_handler_t)();
+void mips_intr_teardown(intr_handler_t *handler) {
+  intr_chain_t *chain = handler->ih_chain;
+  CRITICAL_SECTION {
+    if (chain->ic_count == 1)
+      mips32_bc_c0(C0_STATUS, SR_IM0 << chain->ic_irq);
+    intr_chain_remove_handler(handler);
+  }
+}
 
-static irq_handler_t irq_handlers[8] = {[7] = mips_clock_irq_handler};
-
-void mips_irq_handler(exc_frame_t *frame) {
+void mips_intr_handler(exc_frame_t *frame) {
   unsigned pending = (frame->cause & frame->sr) & CR_IP_MASK;
 
   for (int i = 7; i >= 0; i--) {
     unsigned irq = CR_IP0 << i;
 
     if (pending & irq) {
-      irq_handler_t handler = irq_handlers[i];
-      if (handler != NULL) {
-        handler();
-      } else {
-        log("Spurious hardware interrupt #%d!", i);
-      }
+      intr_chain_run_handlers(&mips_intr_chain[i]);
       pending &= ~irq;
     }
   }
@@ -74,10 +100,10 @@ const char *const exceptions[32] = {
 void kernel_oops(exc_frame_t *frame) {
   unsigned code = (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
 
-  log("%s at $%08x!", exceptions[code], frame->pc);
+  klog("%s at $%08x!", exceptions[code], frame->pc);
   if ((code == EXC_ADEL || code == EXC_ADES) ||
       (code == EXC_IBE || code == EXC_DBE))
-    log("Caused by reference to $%08x!", frame->badvaddr);
+    klog("Caused by reference to $%08x!", frame->badvaddr);
 
   panic("Unhandled exception!");
 }
@@ -107,10 +133,17 @@ void syscall_handler(exc_frame_t *frame) {
   retval = sysent[args.code].call(thread_self(), &args);
 
 finalize:
-  /* Store returned value. */
-  frame->v0 = retval;
-  /* we need to fix return address to point to next instruction */
-  frame->pc += 4;
+  if (retval != -EJUSTRETURN)
+    exc_frame_set_retval(frame, retval);
+}
+
+void fpe_handler(exc_frame_t *frame) {
+  thread_t *td = thread_self();
+  if (td->td_proc) {
+    sig_send(td->td_proc, SIGFPE);
+  } else {
+    panic("Floating point exception or integer overflow in a kernel thread.");
+  }
 }
 
 /*
@@ -119,9 +152,10 @@ finalize:
  * handlers numbers please check 5.23 Table of MIPS32 4KEc User's Manual.
  */
 
-void *general_exception_table[32] = {
-    [EXC_MOD] = tlb_modified_exception_handler,
-    [EXC_TLBL] = tlb_load_exception_handler,
-    [EXC_TLBS] = tlb_store_exception_handler,
-    [EXC_SYS] = syscall_handler,
-};
+void *general_exception_table[32] = {[EXC_MOD] = tlb_modified_exception_handler,
+                                     [EXC_TLBL] = tlb_load_exception_handler,
+                                     [EXC_TLBS] = tlb_store_exception_handler,
+                                     [EXC_SYS] = syscall_handler,
+                                     [EXC_FPE] = fpe_handler,
+                                     [EXC_MSAFPE] = fpe_handler,
+                                     [EXC_OVF] = fpe_handler};

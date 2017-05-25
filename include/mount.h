@@ -42,6 +42,11 @@ typedef struct vfsconf {
   TAILQ_ENTRY(vfsconf) vfc_list; /* Entry on the list of vfsconfs */
 } vfsconf_t;
 
+/* The list of all installed filesystem types */
+typedef TAILQ_HEAD(, vfsconf) vfsconf_list_t;
+extern vfsconf_list_t vfsconf_list;
+extern mtx_t vfsconf_list_mtx;
+
 /* This structure represents a mount point: a particular instance of a file
    system mounted somewhere in the file tree. */
 typedef struct mount {
@@ -74,10 +79,8 @@ static inline int VFS_VGET(mount_t *m, ino_t ino, vnode_t **vp) {
   return m->mnt_vfsops->vfs_vget(m, ino, vp);
 }
 
-/* This is the / node. Since we aren't mounting anything on / just yet, there is
-   also a separate global vnode for /dev .*/
+/* This is the / node.*/
 extern vnode_t *vfs_root_vnode;
-extern vnode_t *vfs_root_dev_vnode;
 
 /* Look up a file system type by name. */
 vfsconf_t *vfs_get_by_name(const char *name);
@@ -97,8 +100,5 @@ int vfs_lookup(const char *pathname, vnode_t **vp);
 
 /* Looks up the vnode corresponding to the pathname and opens it into f. &*/
 int vfs_open(file_t *f, char *pathname, int flags, int mode);
-
-/* Initializes the VFS subsystem. */
-void vfs_init();
 
 #endif /* !_SYS_MOUNT_H_ */

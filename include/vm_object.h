@@ -1,5 +1,5 @@
-#ifndef _VM_OBJECT_H_
-#define _VM_OBJECT_H_
+#ifndef _SYS_VM_OBJECT_H_
+#define _SYS_VM_OBJECT_H_
 
 #include <queue.h>
 #include <pmap.h>
@@ -14,8 +14,6 @@ typedef struct vm_object {
   pager_t *pgr;
 } vm_object_t;
 
-void vm_object_init();
-
 /* TODO in future this function will need to be parametrized by type */
 vm_object_t *vm_object_alloc();
 void vm_object_free(vm_object_t *obj);
@@ -24,4 +22,4 @@ void vm_object_remove_page(vm_object_t *obj, vm_page_t *pg);
 vm_page_t *vm_object_find_page(vm_object_t *obj, vm_addr_t offset);
 void vm_map_object_dump(vm_object_t *obj);
 
-#endif /* _VM_OBJECT_H_ */
+#endif /* !_SYS_VM_OBJECT_H_ */

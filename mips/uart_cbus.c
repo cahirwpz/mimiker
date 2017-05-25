@@ -1,78 +1,73 @@
 #include <common.h>
+#include <console.h>
+#include <linker_set.h>
 #include <ns16550.h>
 #include <mips/malta.h>
-#include <mips/uart_cbus.h>
+#include <bus.h>
 
-#define CBUS_UART_R(x)                                                         \
-  *(volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(MALTA_CBUS_UART) + (x))
+RESOURCE_DECLARE(cbus_uart);
 
-#define RBR CBUS_UART_R(0x00) /* Receiver Buffer, read-only, DLAB = 0 */
-#define THR CBUS_UART_R(0x00) /* Transmitter Holding, write-only, DLAB = 0 */
-#define DLL CBUS_UART_R(0x00) /* Divisor Latch LSB, read-write, DLAB = 1 */
-#define IER CBUS_UART_R(0x08) /* Interrupt Enable, read-write, DLAB = 0 */
-#define DLM CBUS_UART_R(0x08) /* Divisor Latch LSB read-write, DLAB = 1 */
-#define IIR CBUS_UART_R(0x10) /* Interrupt Identification, read-only */
-#define FCR CBUS_UART_R(0x10) /* FIFO Control, write-only */
-#define LCR CBUS_UART_R(0x18) /* Line Control, read-write */
-#define MCR CBUS_UART_R(0x20) /* Modem Control, read-write */
-#define LSR CBUS_UART_R(0x28) /* Line Status, read-only */
-#define MSR CBUS_UART_R(0x30) /* Modem Status, read-only */
-
-void uart_init() {
-  LCR |= LCR_DLAB;
-  DLM = 0;
-  DLL = 1; /* 115200 */
-  LCR &= ~LCR_DLAB;
-
-  IER = 0;
-  FCR = 0;
-  LCR = LCR_8BITS; /* 8-bit data, no parity */
+static uint8_t in(unsigned offset) {
+  return bus_space_read_1(cbus_uart, offset);
 }
 
-int uart_putchar(int c) {
+static void out(unsigned offset, uint8_t value) {
+  bus_space_write_1(cbus_uart, offset, value);
+}
+
+static void set(unsigned offset, uint8_t mask) {
+  out(offset, in(offset) | mask);
+}
+
+static void clr(unsigned offset, uint8_t mask) {
+  out(offset, in(offset) & ~mask);
+}
+
+static bool is_set(unsigned offset, uint8_t mask) {
+  return in(offset)&mask;
+}
+
+static void cbus_uart_init(console_t *dev __unused) {
+  set(LCR, LCR_DLAB);
+  out(DLM, 0);
+  out(DLL, 1); /* 115200 */
+  clr(LCR, LCR_DLAB);
+
+  out(IER, 0);
+  out(FCR, 0);
+  out(LCR, LCR_8BITS); /* 8-bit data, no parity */
+}
+
+static void cbus_uart_putc(console_t *dev __unused, int c) {
   /* Wait for transmitter hold register empty. */
-  while (!(LSR & LSR_THRE))
+  while (!is_set(LSR, LSR_THRE))
     ;
 
 again:
   /* Send byte. */
-  THR = c;
+  out(THR, c);
 
   /* Wait for transmitter hold register empty. */
-  while (!(LSR & LSR_THRE))
+  while (!is_set(LSR, LSR_THRE))
     ;
 
   if (c == '\n') {
     c = '\r';
     goto again;
   }
-  return c;
 }
 
-int kputchar(int c) __attribute__((weak, alias("uart_putchar")));
-
-int uart_puts(const char *str) {
-  int n = 0;
-  while (*str) {
-    uart_putchar(*str++);
-    n++;
-  }
-  uart_putchar('\n');
-  return n + 1;
-}
-
-int kputs(const char *str) __attribute__((weak, alias("uart_puts")));
-
-int uart_write(const char *str, size_t n) {
-  while (n--)
-    uart_putchar(*str++);
-  return n;
-}
-
-int uart_getchar() {
+static int cbus_uart_getc(console_t *dev __unused) {
   /* Wait until receive data available. */
-  while (!(LSR & LSR_RXRDY))
+  while (!is_set(LSR, LSR_RXRDY))
     ;
 
-  return RBR;
+  return in(RBR);
 }
+
+static console_t cbus_uart_console = {.cn_init = cbus_uart_init,
+                                      .cn_getc = cbus_uart_getc,
+                                      .cn_putc = cbus_uart_putc,
+                                      .cn_prio = 10};
+
+CONSOLE_ADD(cbus_uart_console);

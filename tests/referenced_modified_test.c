@@ -1,4 +1,4 @@
-#include <stdc.h>
+#include <klog.h>
 #include <mips/tlb.h>
 #include <pmap.h>
 #include <physmem.h>
@@ -60,12 +60,12 @@ static int referenced_modified_test() {
 
       case TEST_REF_MOD_LOAD:
         temp = *ptr;
-        log("Loading %d from address: 0x%p", temp, ptr);
+        klog("Loading %d from address: 0x%p", temp, ptr);
         break;
 
       case TEST_REF_MOD_STORE:
         *ptr = 0xdeadbeef;
-        log("Storing at address: 0x%p", ptr);
+        klog("Storing at address: 0x%p", ptr);
         break;
     }
   }
@@ -77,7 +77,7 @@ static int referenced_modified_test() {
   pm_free(pg);
   pmap_delete(pmap);
 
-  log("Test passed");
+  klog("Test passed");
 
   return 0;
 }

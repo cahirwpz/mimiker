@@ -3,18 +3,6 @@
 #include <stdc.h>
 #include <sync.h>
 
-struct rwlock {
-  union {
-    int readers;
-    int recurse;
-  };
-  int writers_waiting;
-  thread_t *writer; /* sleepq address for writers */
-  rwa_t state;
-  bool recursive;
-  const char *name;
-};
-
 void rw_init(rwlock_t *rw, const char *name, bool recursive) {
   rw->readers = 0;
   rw->writers_waiting = 0;
@@ -41,10 +29,10 @@ static bool is_wlocked(rwlock_t *rw) {
 }
 
 void rw_enter(rwlock_t *rw, rwo_t who) {
-  critical_enter();
+  SCOPED_CRITICAL_SECTION();
   if (who == RW_READER) {
     while (is_wlocked(rw) || rw->writers_waiting > 0)
-      sleepq_wait(&rw->readers, NULL);
+      sleepq_wait(&rw->readers, rw->name);
     rw->readers++;
     rw->state = RW_RLOCKED;
   } else if (who == RW_WRITER) {
@@ -54,17 +42,16 @@ void rw_enter(rwlock_t *rw, rwo_t who) {
     } else {
       rw->writers_waiting++;
       while (is_locked(rw))
-        sleepq_wait(&rw->writer, NULL);
+        sleepq_wait(&rw->writer, rw->name);
       rw->state = RW_WLOCKED;
       rw->writer = thread_self();
       rw->writers_waiting--;
     }
   }
-  critical_leave();
 }
 
 void rw_leave(rwlock_t *rw) {
-  critical_enter();
+  SCOPED_CRITICAL_SECTION();
   assert(is_locked(rw));
   if (is_rlocked(rw)) {
     rw->readers--;
@@ -87,34 +74,32 @@ void rw_leave(rwlock_t *rw) {
         sleepq_broadcast(&rw->readers);
     }
   }
-  critical_leave();
 }
 
 bool rw_try_upgrade(rwlock_t *rw) {
-  bool success = false;
-  critical_enter();
+  SCOPED_CRITICAL_SECTION();
   assert(is_locked(rw));
   if (is_rlocked(rw) && rw->readers == 1 && rw->writers_waiting == 0) {
     rw->state = RW_WLOCKED;
     rw->writer = thread_self();
-    success = true;
+    rw->recurse = 0;
+    return true;
   }
-  critical_leave();
-  return success;
+  return false;
 }
 
 void rw_downgrade(rwlock_t *rw) {
-  critical_enter();
+  SCOPED_CRITICAL_SECTION();
   assert(is_owned(rw) && rw->recurse == 0);
   rw->readers++;
   rw->state = RW_RLOCKED;
   rw->writer = NULL;
   sleepq_broadcast(&rw->readers);
-  critical_leave();
 }
 
 void __rw_assert(rwlock_t *rw, rwa_t what, const char *file, unsigned line) {
-  if ((what == RW_UNLOCKED && is_locked(rw)) || !(rw->state & what))
+  bool ok = (what == RW_UNLOCKED) ? !is_locked(rw) : (rw->state & what);
+  if (!ok)
     kprintf("[%s:%d] rwlock (%p) has invalid state: expected %u, actual %u!\n",
             file, line, rw, what, rw->state);
 }
