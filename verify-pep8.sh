@@ -1,16 +1,19 @@
-#!/bin/bash
+#!/bin/sh
 
-find . \( -name 'cache' -prune \) -o \( -name '.*.py' -prune \)\
-  -o \( -name '*.py' -print \) |xargs pep8
+PYFILES=$(find . \( -name 'cache' -prune \) \
+              -o \( -name '.*.py' -prune \) \
+              -o \( -name '*.py' -printf '%P\n' \))
+PYEXTRA="launch"
+
+pep8 ${PYEXTRA} ${PYFILES}
 RES=$?
-
 
 if ! [ $RES -eq 0 ]
 then
-    echo "Formatting incorrect. Please manually apply the changes" \
-         "listed above."
+    echo "Formatting incorrect for Python files!"
+    echo "Please manually fix the warnings listed above."
 else
-    echo "Formatting correct."
+    echo "Formatting correct for Python files."
 fi
 
 exit $RES
