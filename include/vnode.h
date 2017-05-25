@@ -26,6 +26,10 @@ typedef int vnode_open_t(vnode_t *v, int mode, file_t *fp);
 typedef int vnode_read_t(vnode_t *v, uio_t *uio);
 typedef int vnode_write_t(vnode_t *v, uio_t *uio);
 typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
+typedef int vnode_create_t(vnode_t *dv, const char *name, vnode_t **vp);
+typedef int vnode_remove_t(vnode_t *dv, const char *name);
+typedef int vnode_mkdir_t(vnode_t *v, const char *name, vnode_t **vp);
+typedef int vnode_rmdir_t(vnode_t *v, const char *name);
 
 typedef struct vnodeops {
   vnode_lookup_t *v_lookup;
@@ -34,7 +38,20 @@ typedef struct vnodeops {
   vnode_read_t *v_read;
   vnode_write_t *v_write;
   vnode_getattr_t *v_getattr;
+  vnode_create_t *v_create;
+  vnode_remove_t *v_remove;
+  vnode_mkdir_t *v_mkdir;
+  vnode_rmdir_t *v_rmdir;
 } vnodeops_t;
+
+#define VNODEOPS_NOTSUP_INITIALIZER()                                          \
+  {                                                                            \
+    .v_lookup = vnode_op_notsup, .v_readdir = vnode_op_notsup,                 \
+    .v_open = vnode_op_notsup, .v_read = vnode_op_notsup,                      \
+    .v_write = vnode_op_notsup, .v_getattr = vnode_op_notsup,                  \
+    .v_create = vnode_op_notsup, .v_remove = vnode_op_notsup,                  \
+    .v_mkdir = vnode_op_notsup, .v_rmdir = vnode_op_notsup                     \
+  }
 
 typedef struct vnode {
   vnodetype_t v_type;        /* Vnode type, see above */
@@ -105,6 +122,22 @@ static inline int VOP_WRITE(vnode_t *v, uio_t *uio) {
 
 static inline int VOP_GETATTR(vnode_t *v, vattr_t *va) {
   return v->v_ops->v_getattr(v, va);
+}
+
+static inline int VOP_CREATE(vnode_t *dv, const char *name, vnode_t **vp) {
+  return dv->v_ops->v_create(dv, name, vp);
+}
+
+static inline int VOP_REMOVE(vnode_t *dv, const char *name) {
+  return dv->v_ops->v_remove(dv, name);
+}
+
+static inline int VOP_MKDIR(vnode_t *dv, const char *name, vnode_t **vp) {
+  return dv->v_ops->v_mkdir(dv, name, vp);
+}
+
+static inline int VOP_RMDIR(vnode_t *dv, const char *name) {
+  return dv->v_ops->v_rmdir(dv, name);
 }
 
 /* Allocates and initializes a new vnode */
