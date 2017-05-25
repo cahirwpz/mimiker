@@ -59,16 +59,16 @@ typedef struct thread {
   /* TODO: Signal mask, sigsuspend. */
 } thread_t;
 
-thread_t *thread_self();
+thread_t *thread_self(void);
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
 void thread_delete(thread_t *td);
 
 /* Exit from a kernel thread. Thread becomes zombie which resources will
  * eventually be recycled. */
-noreturn void thread_exit();
+noreturn void thread_exit(void);
 
 /* Debugging utility that prints out the summary of all_threads contents. */
-void thread_dump_all();
+void thread_dump_all(void);
 
 /* Returns the thread matching the given ID, or null if none found. */
 thread_t *thread_get_by_tid(tid_t id);
@@ -80,6 +80,6 @@ void thread_join(thread_t *td);
    reaping will automatically take place when convenient. The reason this
    function is exposed is because some tests need to explicitly wait until
    threads are reaped before they can verify test success. */
-void thread_reap();
+void thread_reap(void);
 
 #endif /* _SYS_THREAD_H_ */

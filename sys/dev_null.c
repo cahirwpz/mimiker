@@ -10,17 +10,21 @@ static vnode_t *dev_zero_device;
 static vm_page_t *zero_page, *junk_page;
 
 static int dev_null_write(vnode_t *t, uio_t *uio) {
+  (void)t;
   uio->uio_resid = 0;
   return 0;
 }
 
 static int dev_null_read(vnode_t *t, uio_t *uio) {
+  (void)t;
+  (void)uio;
   return 0;
 }
 
 static int dev_zero_write(vnode_t *t, uio_t *uio) {
   /* We might just discard the data, but to demonstrate using uiomove for
    * writing, store the data into a junkyard page. */
+  (void)t;
   int error = 0;
   while (uio->uio_resid && !error) {
     size_t len = uio->uio_resid;
@@ -32,6 +36,7 @@ static int dev_zero_write(vnode_t *t, uio_t *uio) {
 }
 
 static int dev_zero_read(vnode_t *t, uio_t *uio) {
+  (void)t;
   int error = 0;
   while (uio->uio_resid && !error) {
     size_t len = uio->uio_resid;

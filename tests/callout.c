@@ -6,6 +6,7 @@
 
 /* This test verifies whether callouts work at all. */
 static void callout_simple(void *arg) {
+  (void)arg;
   kprintf("The callout got executed!\n");
 
   sleepq_signal(callout_simple);
@@ -27,6 +28,7 @@ static int test_callout_simple() {
 static int current = 0;
 
 static void callout_ordered(void *arg) {
+  (void)arg;
   /* Atomic increment */
   critical_enter();
   current++;
@@ -58,10 +60,12 @@ static int test_callout_order() {
 
 /* This test verifies that callouts removed with callout_stop are not run. */
 static void callout_bad(void *arg) {
+  (void)arg;
   assert(0);
 }
 
 static void callout_good(void *arg) {
+  (void)arg;
   sleepq_signal(callout_good);
 }
 

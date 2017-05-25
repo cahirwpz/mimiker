@@ -67,6 +67,7 @@ int do_write(thread_t *td, int fd, uio_t *uio) {
 }
 
 int do_lseek(thread_t *td, int fd, off_t offset, int whence) {
+  (void)whence;
   /* TODO: Whence! Now we assume whence == SEEK_SET */
   /* TODO: RW file flag! For now we just file_get_read */
   file_t *f;
@@ -116,6 +117,7 @@ int do_dup2(thread_t *td, int old, int new) {
 }
 
 int do_mount(thread_t *td, const char *fs, const char *path) {
+  (void)td;
   vfsconf_t *vfs = vfs_get_by_name(fs);
   if (vfs == NULL)
     return -EINVAL;

@@ -75,6 +75,7 @@ static void store_int (void *dest, int size, int neg, uint64_t i)
 
 int __scanf_core_int (ReadWriteInfo *rw, const char *fmt, va_list ap, unsigned int flags)
 {
+  (void)flags;
   int size, c, t, m, width, category;
   const char *p;
   char *s;

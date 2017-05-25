@@ -3,7 +3,7 @@
 #include <ktest.h>
 #include <sync.h>
 
-noreturn void panic_fail() {
+noreturn void panic_fail(void) {
   /* We used to terminate the current thread, but that is not a great way of
      panicking, as other threads will continue executing, and our panic might go
      unnoticed. */

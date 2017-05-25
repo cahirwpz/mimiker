@@ -16,6 +16,7 @@
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 static int sys_nosys(thread_t *td, syscall_args_t *args) {
+  (void)td;
   klog("unimplemented system call %ld", args->code);
   return -ENOSYS;
 };
@@ -38,6 +39,7 @@ static int sys_sbrk(thread_t *td, syscall_args_t *args) {
 }
 
 static int sys_exit(thread_t *td, syscall_args_t *args) {
+  (void)td;
   int status = args->args[0];
 
   klog("exit(%d)", status);
@@ -47,16 +49,21 @@ static int sys_exit(thread_t *td, syscall_args_t *args) {
 }
 
 static int sys_fork(thread_t *td, syscall_args_t *args) {
+  (void)td;
+  (void)args;
   klog("fork()");
   return do_fork();
 }
 
 static int sys_getpid(thread_t *td, syscall_args_t *args) {
+  (void)td;
+  (void)args;
   klog("getpid()");
   return td->td_proc->p_pid;
 }
 
 static int sys_kill(thread_t *td, syscall_args_t *args) {
+  (void)td;
   pid_t pid = args->args[0];
   signo_t sig = args->args[1];
   klog("kill(%lu, %d)", pid, sig);
@@ -64,6 +71,7 @@ static int sys_kill(thread_t *td, syscall_args_t *args) {
 }
 
 static int sys_sigaction(thread_t *td, syscall_args_t *args) {
+  (void)td;
   int signo = args->args[0];
   char *p_newact = (char *)args->args[1];
   char *p_oldact = (char *)args->args[2];
@@ -88,11 +96,14 @@ static int sys_sigaction(thread_t *td, syscall_args_t *args) {
 }
 
 static int sys_sigreturn(thread_t *td, syscall_args_t *args) {
+  (void)td;
+  (void)args;
   klog("sigreturn()");
   return do_sigreturn();
 }
 
 static int sys_mmap(thread_t *td, syscall_args_t *args) {
+  (void)td;
   vm_addr_t addr = args->args[0];
   size_t length = args->args[1];
   vm_prot_t prot = args->args[2];
@@ -255,6 +266,7 @@ static int sys_dup2(thread_t *td, syscall_args_t *args) {
 }
 
 static int sys_waitpid(thread_t *td, syscall_args_t *args) {
+  (void)td;
   pid_t pid = args->args[0];
   int *status_p = (int *)args->args[1];
   int options = args->args[2];

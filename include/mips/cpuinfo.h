@@ -15,6 +15,6 @@ typedef struct cpuinfo {
 
 extern cpuinfo_t cpuinfo;
 
-void cpu_init();
+void cpu_init(void);
 
 #endif

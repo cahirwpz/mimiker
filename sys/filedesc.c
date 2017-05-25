@@ -63,7 +63,7 @@ static int fd_alloc(fdtab_t *fdt, int *fdp) {
       /* Reached limit of opened files. */
       return -EMFILE;
     }
-    size_t new_size = min(fdt->fdt_nfiles * 2, MAXFILES);
+    size_t new_size = min(fdt->fdt_nfiles * 2, (unsigned)MAXFILES);
     first_free = fdt->fdt_nfiles;
     fd_growtable(fdt, new_size);
   }
@@ -118,7 +118,7 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
     fd_growtable(newfdt, fdt->fdt_nfiles);
   }
 
-  for (int i = 0; i < fdt->fdt_nfiles; i++) {
+  for (unsigned i = 0; i < fdt->fdt_nfiles; i++) {
     if (fd_is_used(fdt, i)) {
       file_t *f = fdt->fdt_files[i];
       newfdt->fdt_files[i] = f;
@@ -138,7 +138,7 @@ void fdtab_destroy(fdtab_t *fdt) {
   /* No need to lock mutex, we have the only reference left. */
 
   /* Clean up used descriptors. This possibly closes underlying files. */
-  for (int i = 0; i < fdt->fdt_nfiles; i++)
+  for (unsigned i = 0; i < fdt->fdt_nfiles; i++)
     if (fd_is_used(fdt, i))
       fd_free(fdt, i);
 
@@ -174,7 +174,7 @@ int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
   assert(fdt);
 
   WITH_MTX_LOCK (&fdt->fdt_mtx) {
-    if (fd < 0 || fd > fdt->fdt_nfiles)
+    if (fd < 0 || fd > (int)fdt->fdt_nfiles)
       return -EBADF;
 
     if (fd_is_used(fdt, fd)) {
@@ -199,7 +199,7 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
   file_t *f;
 
   WITH_MTX_LOCK (&fdt->fdt_mtx) {
-    if (fd < 0 || fd >= fdt->fdt_nfiles || !fd_is_used(fdt, fd))
+    if (fd < 0 || fd >= (int)fdt->fdt_nfiles || !fd_is_used(fdt, fd))
       return -EBADF;
 
     f = fdt->fdt_files[fd];
@@ -223,7 +223,7 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
 int fdtab_close_fd(fdtab_t *fdt, int fd) {
   SCOPED_MTX_LOCK(&fdt->fdt_mtx);
 
-  if (fd < 0 || fd > fdt->fdt_nfiles || !fd_is_used(fdt, fd))
+  if (fd < 0 || fd > (int)fdt->fdt_nfiles || !fd_is_used(fdt, fd))
     return -EBADF;
   fd_free(fdt, fd);
   return 0;
