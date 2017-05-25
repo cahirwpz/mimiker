@@ -16,17 +16,6 @@ static MALLOC_DEFINE(M_VNODE, "vnode", 2, 16);
 static void vnode_init() {
 }
 
-const vnodeops_t vnodeops_notsup = {.v_lookup = vnode_op_notsup,
-                                    .v_readdir = vnode_op_notsup,
-                                    .v_open = vnode_op_notsup,
-                                    .v_read = vnode_op_notsup,
-                                    .v_write = vnode_op_notsup,
-                                    .v_getattr = vnode_op_notsup,
-                                    .v_create = vnode_op_notsup,
-                                    .v_remove = vnode_op_notsup,
-                                    .v_mkdir = vnode_op_notsup,
-                                    .v_rmdir = vnode_op_notsup};
-
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops) {
   vnode_t *v = kmalloc(M_VNODE, sizeof(vnode_t), M_ZERO);
   v->v_type = type;
