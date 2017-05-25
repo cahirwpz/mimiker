@@ -32,7 +32,8 @@ static bool pci_device_present(device_t *pcib, unsigned bus, unsigned dev,
                                unsigned func) {
   device_t pcid = {.parent = pcib,
                    .bus = DEV_BUS_PCI,
-                   .instance = (pci_device_t[1]){{.addr = {bus, dev, func}}}};
+                   .instance = (pci_device_t[1]){{.addr = {bus, dev, func}}},
+                   .state = NULL};
   return (pci_read_config(&pcid, PCIR_DEVICEID, 4) != 0xffffffff);
 }
 
@@ -114,7 +115,7 @@ void pci_bus_assign_space(device_t *pcib) {
 
   TAILQ_FOREACH (dev, &pcib->children, link) {
     pci_device_t *pcid = pci_device_of(dev);
-    for (int i = 0; i < pcid->nbars; i++)
+    for (unsigned i = 0; i < pcid->nbars; i++)
       bars[n++] = &pcid->bar[i];
   }
 
@@ -124,7 +125,7 @@ void pci_bus_assign_space(device_t *pcib) {
   intptr_t io_base = data->io_space->r_start;
   intptr_t mem_base = data->mem_space->r_start;
 
-  for (int j = 0; j < nbars; j++) {
+  for (unsigned j = 0; j < nbars; j++) {
     resource_t *bar = bars[j];
     if (bar->r_type == RT_IOPORTS) {
       bar->r_bus_space = data->io_space->r_bus_space;
@@ -177,7 +178,7 @@ void pci_bus_dump(device_t *pcib) {
       kprintf("%s Interrupt: pin %c routed to IRQ %d\n", devstr,
               'A' + pcid->pin - 1, pcid->irq);
 
-    for (int i = 0; i < pcid->nbars; i++) {
+    for (unsigned i = 0; i < pcid->nbars; i++) {
       resource_t *bar = &pcid->bar[i];
       char *type;
 
