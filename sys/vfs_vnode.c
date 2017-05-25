@@ -101,4 +101,8 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   return 0;
 }
 
+int vnode_close_generic(vnode_t *v, file_t *fp) {
+  return 0;
+}
+
 SYSINIT_ADD(vnode, vnode_init, NODEPS);

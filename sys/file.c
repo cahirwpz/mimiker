@@ -5,6 +5,7 @@
 #include <mutex.h>
 #include <thread.h>
 #include <vnode.h>
+#include <vfs.h>
 #include <sysinit.h>
 
 static MALLOC_DEFINE(M_FILE, "file", 1, 2);
@@ -47,6 +48,7 @@ void file_destroy(file_t *f) {
 
 void file_release(file_t *f) {
   if (f) {
+    vfs_close(f);
     file_unref(f);
     if (f->f_count < 0)
       file_destroy(f);

@@ -4,6 +4,7 @@
 #include <stdc.h>
 #include <errno.h>
 #include <malloc.h>
+#include <file.h>
 #include <vnode.h>
 #include <linker_set.h>
 #include <sysinit.h>
@@ -243,6 +244,13 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
      need it - file f keeps its own reference to v after open. */
   vnode_unref(v);
   return res;
+}
+
+int vfs_close(file_t *f) {
+  vnode_t *v = f->f_vnode;
+  if (v == NULL)
+    return 0;
+  return VOP_CLOSE(v, f);
 }
 
 SYSINIT_ADD(vfs, vfs_init, DEPS("vnode"));

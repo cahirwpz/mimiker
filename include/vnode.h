@@ -23,6 +23,7 @@ typedef enum {
 typedef int vnode_lookup_t(vnode_t *dv, const char *name, vnode_t **vp);
 typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio);
 typedef int vnode_open_t(vnode_t *v, int mode, file_t *fp);
+typedef int vnode_close_t(vnode_t *v, file_t *fp);
 typedef int vnode_read_t(vnode_t *v, uio_t *uio);
 typedef int vnode_write_t(vnode_t *v, uio_t *uio);
 typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
@@ -31,6 +32,7 @@ typedef struct vnodeops {
   vnode_lookup_t *v_lookup;
   vnode_readdir_t *v_readdir;
   vnode_open_t *v_open;
+  vnode_close_t *v_close;
   vnode_read_t *v_read;
   vnode_write_t *v_write;
   vnode_getattr_t *v_getattr;
@@ -83,28 +85,34 @@ typedef struct vattr {
 } vattr_t;
 #endif
 
+#define VOP_CALL(op, vp, ...) ((vp)->v_ops->v_##op)((vp), __VA_ARGS__)
+
 static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
-  return dv->v_ops->v_lookup(dv, name, vp);
+  return VOP_CALL(lookup, dv, name, vp);
 }
 
 static inline int VOP_READDIR(vnode_t *dv, uio_t *uio) {
-  return dv->v_ops->v_readdir(dv, uio);
+  return VOP_CALL(readdir, dv, uio);
 }
 
 static inline int VOP_OPEN(vnode_t *v, int mode, file_t *fp) {
-  return v->v_ops->v_open(v, mode, fp);
+  return VOP_CALL(open, v, mode, fp);
+}
+
+static inline int VOP_CLOSE(vnode_t *v, file_t *fp) {
+  return VOP_CALL(close, v, fp);
 }
 
 static inline int VOP_READ(vnode_t *v, uio_t *uio) {
-  return v->v_ops->v_read(v, uio);
+  return VOP_CALL(read, v, uio);
 }
 
 static inline int VOP_WRITE(vnode_t *v, uio_t *uio) {
-  return v->v_ops->v_write(v, uio);
+  return VOP_CALL(write, v, uio);
 }
 
 static inline int VOP_GETATTR(vnode_t *v, vattr_t *va) {
-  return v->v_ops->v_getattr(v, va);
+  return VOP_CALL(getattr, v, va);
 }
 
 /* Allocates and initializes a new vnode */
@@ -124,5 +132,6 @@ void vnode_unref(vnode_t *v);
 int vnode_op_notsup();
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
+int vnode_close_generic(vnode_t *v, file_t *fp);
 
 #endif /* !_SYS_VNODE_H_ */

@@ -40,16 +40,17 @@ static int dev_cons_getattr(vnode_t *t, vattr_t *buf) {
   return -ENOTSUP;
 }
 
-vnodeops_t dev_cons_vnodeops = {
+static vnodeops_t dev_cons_vnodeops = {
   .v_lookup = vnode_op_notsup,
   .v_readdir = vnode_op_notsup,
   .v_getattr = dev_cons_getattr,
   .v_open = vnode_open_generic,
+  .v_close = vnode_close_generic,
   .v_write = dev_cons_write,
   .v_read = dev_cons_read,
 };
 
-void init_dev_cons() {
+static void init_dev_cons() {
   dev_cons_device = vnode_new(V_DEV, &dev_cons_vnodeops);
   devfs_install("cons", dev_cons_device);
 }
