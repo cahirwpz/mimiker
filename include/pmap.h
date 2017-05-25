@@ -4,8 +4,8 @@
 #include <vm.h>
 #include <queue.h>
 
-#define PTE_EXT_MODIFIED    0x00000040
-#define PTE_EXT_REFERENCED  0x00000020
+#define PTE_EXT_MODIFIED 0x00000040
+#define PTE_EXT_REFERENCED 0x00000020
 
 typedef uint8_t asid_t;
 
@@ -48,6 +48,5 @@ void tlb_exception_handler(exc_frame_t *frame);
 void tlb_load_exception_handler(exc_frame_t *frame);
 void tlb_store_exception_handler(exc_frame_t *frame);
 void tlb_modified_exception_handler(exc_frame_t *frame);
-
 
 #endif /* !_SYS_PMAP_H_ */
