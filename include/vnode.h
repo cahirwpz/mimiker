@@ -21,10 +21,12 @@ typedef enum {
 } vnodetype_t;
 
 typedef int vnode_lookup_t(vnode_t *dv, const char *name, vnode_t **vp);
-typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio);
+typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio, void *state);
 typedef int vnode_open_t(vnode_t *v, int mode, file_t *fp);
+typedef int vnode_close_t(vnode_t *v, file_t *fp);
 typedef int vnode_read_t(vnode_t *v, uio_t *uio);
 typedef int vnode_write_t(vnode_t *v, uio_t *uio);
+typedef int vnode_seek_t(vnode_t *v, off_t oldoff, off_t newoff, void *state);
 typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
 typedef int vnode_create_t(vnode_t *dv, const char *name, vnode_t **vp);
 typedef int vnode_remove_t(vnode_t *dv, const char *name);
@@ -35,8 +37,10 @@ typedef struct vnodeops {
   vnode_lookup_t *v_lookup;
   vnode_readdir_t *v_readdir;
   vnode_open_t *v_open;
+  vnode_close_t *v_close;
   vnode_read_t *v_read;
   vnode_write_t *v_write;
+  vnode_seek_t *v_seek;
   vnode_getattr_t *v_getattr;
   vnode_create_t *v_create;
   vnode_remove_t *v_remove;
@@ -47,8 +51,9 @@ typedef struct vnodeops {
 #define VNODEOPS_NOTSUP_INITIALIZER()                                          \
   {                                                                            \
     .v_lookup = vnode_op_notsup, .v_readdir = vnode_op_notsup,                 \
-    .v_open = vnode_op_notsup, .v_read = vnode_op_notsup,                      \
-    .v_write = vnode_op_notsup, .v_getattr = vnode_op_notsup,                  \
+    .v_open = vnode_op_notsup, .v_close = vnode_op_notsup,                     \
+    .v_read = vnode_op_notsup, .v_write = vnode_op_notsup,                     \
+    .v_seek = vnode_op_notsup, .v_getattr = vnode_op_notsup,                   \
     .v_create = vnode_op_notsup, .v_remove = vnode_op_notsup,                  \
     .v_mkdir = vnode_op_notsup, .v_rmdir = vnode_op_notsup                     \
   }
@@ -104,12 +109,16 @@ static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
   return dv->v_ops->v_lookup(dv, name, vp);
 }
 
-static inline int VOP_READDIR(vnode_t *dv, uio_t *uio) {
-  return dv->v_ops->v_readdir(dv, uio);
+static inline int VOP_READDIR(vnode_t *dv, uio_t *uio, void *data) {
+  return dv->v_ops->v_readdir(dv, uio, data);
 }
 
 static inline int VOP_OPEN(vnode_t *v, int mode, file_t *fp) {
   return v->v_ops->v_open(v, mode, fp);
+}
+
+static inline int VOP_CLOSE(vnode_t *v, file_t *fp) {
+  return v->v_ops->v_close(v, fp);
 }
 
 static inline int VOP_READ(vnode_t *v, uio_t *uio) {
@@ -118,6 +127,11 @@ static inline int VOP_READ(vnode_t *v, uio_t *uio) {
 
 static inline int VOP_WRITE(vnode_t *v, uio_t *uio) {
   return v->v_ops->v_write(v, uio);
+}
+
+static inline int VOP_SEEK(vnode_t *v, off_t oldoff, off_t newoff,
+                           void *state) {
+  return v->v_ops->v_seek(v, oldoff, newoff, state);
 }
 
 static inline int VOP_GETATTR(vnode_t *v, vattr_t *va) {
@@ -157,5 +171,6 @@ void vnode_unref(vnode_t *v);
 int vnode_op_notsup();
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
+int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state);
 
 #endif /* !_SYS_VNODE_H_ */
