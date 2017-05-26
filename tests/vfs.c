@@ -1,5 +1,6 @@
 #include <mount.h>
 #include <stdc.h>
+#include <vfs.h>
 #include <vnode.h>
 #include <errno.h>
 #include <vm_map.h>

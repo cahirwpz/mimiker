@@ -5,6 +5,7 @@
 #include <mutex.h>
 #include <thread.h>
 #include <vnode.h>
+#include <vfs.h>
 #include <sysinit.h>
 
 static MALLOC_DEFINE(M_FILE, "file", 1, 2);
@@ -70,9 +71,14 @@ static int badfo_stat(file_t *f, struct thread *td, stat_t *sb) {
   return -EBADF;
 }
 
+static int badfo_seek(file_t *f, struct thread *td, off_t offset, int whence) {
+  return -EBADF;
+}
+
 fileops_t badfileops = {.fo_read = badfo_read,
                         .fo_write = badfo_write,
                         .fo_close = badfo_close,
-                        .fo_stat = badfo_stat};
+                        .fo_stat = badfo_stat,
+                        .fo_seek = badfo_seek};
 
 SYSINIT_ADD(file, file_init, DEPS("vfs", "vnode"));

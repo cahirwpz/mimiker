@@ -4,6 +4,7 @@
 #include <stdc.h>
 #include <errno.h>
 #include <malloc.h>
+#include <file.h>
 #include <vnode.h>
 #include <linker_set.h>
 #include <sysinit.h>

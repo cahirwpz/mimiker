@@ -174,7 +174,7 @@ static int sys_lseek(thread_t *td, syscall_args_t *args) {
   off_t offset = args->args[1];
   int whence = args->args[2];
 
-  klog("sys_lseek(%d, %ld, %d)", fd, offset, whence);
+  klog("lseek(%d, %ld, %d)", fd, offset, whence);
 
   return do_lseek(td, fd, offset, whence);
 }
