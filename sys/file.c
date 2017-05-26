@@ -72,9 +72,14 @@ static int badfo_getattr(file_t *f, struct thread *td, vattr_t *buf) {
   return -EBADF;
 }
 
+static int badfo_seek(file_t *f, struct thread *td, off_t offset, int whence) {
+  return -EBADF;
+}
+
 fileops_t badfileops = {.fo_read = badfo_read,
                         .fo_write = badfo_write,
                         .fo_close = badfo_close,
-                        .fo_getattr = badfo_getattr};
+                        .fo_getattr = badfo_getattr,
+                        .fo_seek = badfo_seek};
 
 SYSINIT_ADD(file, file_init, DEPS("vfs", "vnode"));

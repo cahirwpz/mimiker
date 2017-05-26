@@ -67,16 +67,15 @@ int do_write(thread_t *td, int fd, uio_t *uio) {
 }
 
 int do_lseek(thread_t *td, int fd, off_t offset, int whence) {
-  /* TODO: Whence! Now we assume whence == SEEK_SET */
+  assert(td->td_proc);
   /* TODO: RW file flag! For now we just file_get_read */
   file_t *f;
-  assert(td->td_proc);
   int res = fdtab_get_file(td->td_proc->p_fdtable, fd, 0, &f);
   if (res)
     return res;
-  f->f_offset = offset;
+  res = FOP_SEEK(f, td, offset, whence);
   file_unref(f);
-  return 0;
+  return res;
 }
 
 int do_fstat(thread_t *td, int fd, vattr_t *buf) {
@@ -85,7 +84,7 @@ int do_fstat(thread_t *td, int fd, vattr_t *buf) {
   int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_READ, &f);
   if (res)
     return res;
-  res = f->f_ops->fo_getattr(f, td, buf);
+  res = FOP_GETATTR(f, td, buf);
   file_unref(f);
   return res;
 }

@@ -242,7 +242,7 @@ static int initrd_root(mount_t *m, vnode_t **v) {
 static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_read = initrd_vnode_read,
                                  .v_open = vnode_open_generic,
-                                 .v_close = vnode_close_generic,
+                                 .v_close = vnode_op_notsup,
                                  .v_getattr = initrd_vnode_getattr,
                                  .v_readdir = vnode_op_notsup};
 

@@ -36,16 +36,12 @@ static int dev_cons_read(vnode_t *t, uio_t *uio) {
   return 0;
 }
 
-static int dev_cons_getattr(vnode_t *t, vattr_t *buf) {
-  return -ENOTSUP;
-}
-
 static vnodeops_t dev_cons_vnodeops = {
   .v_lookup = vnode_op_notsup,
   .v_readdir = vnode_op_notsup,
-  .v_getattr = dev_cons_getattr,
+  .v_getattr = vnode_op_notsup,
   .v_open = vnode_open_generic,
-  .v_close = vnode_close_generic,
+  .v_close = vnode_op_notsup,
   .v_write = dev_cons_write,
   .v_read = dev_cons_read,
 };
