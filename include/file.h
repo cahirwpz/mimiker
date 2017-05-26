@@ -10,19 +10,20 @@ typedef struct thread thread_t;
 typedef struct file file_t;
 typedef struct vnode vnode_t;
 typedef struct vattr vattr_t;
+typedef struct stat stat_t;
 
 typedef int fo_read_t(file_t *f, thread_t *td, uio_t *uio);
 typedef int fo_write_t(file_t *f, thread_t *td, uio_t *uio);
 typedef int fo_close_t(file_t *f, thread_t *td);
 typedef int fo_seek_t(file_t *f, thread_t *td, off_t offset, int whence);
-typedef int fo_getattr_t(file_t *f, thread_t *td, vattr_t *va);
+typedef int fo_stat_t(file_t *f, thread_t *td, stat_t *sb);
 
 typedef struct {
   fo_read_t *fo_read;
   fo_write_t *fo_write;
   fo_close_t *fo_close;
   fo_seek_t *fo_seek;
-  fo_getattr_t *fo_getattr;
+  fo_stat_t *fo_stat;
 } fileops_t;
 
 typedef enum {
@@ -75,8 +76,8 @@ static inline int FOP_SEEK(file_t *f, thread_t *td, off_t offset, int whence) {
   return f->f_ops->fo_seek(f, td, offset, whence);
 }
 
-static inline int FOP_GETATTR(file_t *f, thread_t *td, vattr_t *vattr) {
-  return f->f_ops->fo_getattr(f, td, vattr);
+static inline int FOP_STAT(file_t *f, thread_t *td, stat_t *sb) {
+  return f->f_ops->fo_stat(f, td, sb);
 }
 
 extern fileops_t badfileops;

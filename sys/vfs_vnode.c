@@ -3,6 +3,7 @@
 #include <malloc.h>
 #include <mutex.h>
 #include <stdc.h>
+#include <stat.h>
 #include <vnode.h>
 #include <sysinit.h>
 
@@ -69,8 +70,20 @@ static int default_vnclose(file_t *f, thread_t *td) {
   return 0;
 }
 
-static int default_vngetattr(file_t *f, thread_t *td, vattr_t *vattr) {
-  return VOP_GETATTR(f->f_vnode, vattr);
+static int default_vnstat(file_t *f, thread_t *td, stat_t *sb) {
+  vnode_t *v = f->f_vnode;
+  vattr_t va;
+  int error;
+  error = VOP_GETATTR(v, &va);
+  if (error < 0)
+    return error;
+  memset(sb, 0, sizeof(stat_t));
+  sb->st_mode = va.va_mode;
+  sb->st_nlink = va.va_nlink;
+  sb->st_uid = va.va_uid;
+  sb->st_gid = va.va_gid;
+  sb->st_size = va.va_size;
+  return 0;
 }
 
 static int default_vnseek(file_t *f, thread_t *td, off_t offset, int whence) {
@@ -92,7 +105,7 @@ static fileops_t default_vnode_fileops = {
   .fo_write = default_vnwrite,
   .fo_close = default_vnclose,
   .fo_seek = default_vnseek,
-  .fo_getattr = default_vngetattr,
+  .fo_stat = default_vnstat,
 };
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {

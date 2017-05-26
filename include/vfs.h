@@ -5,7 +5,7 @@
 
 typedef struct thread thread_t;
 typedef struct vnode vnode_t;
-typedef struct vattr vattr_t;
+typedef struct stat stat_t;
 typedef struct file file_t;
 
 /* Kernel interface */
@@ -14,7 +14,7 @@ int do_close(thread_t *td, int fd);
 int do_read(thread_t *td, int fd, uio_t *uio);
 int do_write(thread_t *td, int fd, uio_t *uio);
 int do_lseek(thread_t *td, int fd, off_t offset, int whence);
-int do_fstat(thread_t *td, int fd, vattr_t *buf);
+int do_fstat(thread_t *td, int fd, stat_t *sb);
 int do_dup(thread_t *td, int old);
 int do_dup2(thread_t *td, int old, int new);
 /* Mount a new instance of the filesystem named fs at the requested path. */

@@ -11,6 +11,7 @@
 #include <sbrk.h>
 #include <signal.h>
 #include <proc.h>
+#include <stat.h>
 #include <systm.h>
 #include <wait.h>
 
@@ -180,15 +181,15 @@ static int sys_lseek(thread_t *td, syscall_args_t *args) {
 
 static int sys_fstat(thread_t *td, syscall_args_t *args) {
   int fd = args->args[0];
-  char *buf = (char *)args->args[1];
+  stat_t *statbuf_p = (stat_t *)args->args[1];
 
-  klog("sys_fstat(%d, %p)", fd, buf);
+  klog("fstat(%d, %p)", fd, statbuf_p);
 
-  vattr_t attr_buf;
-  int error = do_fstat(td, fd, &attr_buf);
+  stat_t statbuf;
+  int error = do_fstat(td, fd, &statbuf);
   if (error)
     return error;
-  error = copyout_s(attr_buf, buf);
+  error = copyout_s(statbuf, statbuf_p);
   if (error < 0)
     return error;
   return 0;
