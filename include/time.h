@@ -10,6 +10,11 @@ typedef struct timeval {
   suseconds_t tv_usec; /* microseconds */
 } timeval_t;
 
+typedef struct timespec {
+  time_t tv_sec; /* seconds */
+  long tv_nsec;  /* and nanoseconds */
+} timespec_t;
+
 #define TIMEVAL(fp)                                                            \
   (timeval_t) {                                                                \
     .tv_sec = (long)((fp)*1000000L) / 1000000L,                                \
