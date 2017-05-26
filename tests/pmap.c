@@ -22,10 +22,10 @@ static int test_kernel_pmap() {
     klog("TLB before:");
     tlb_print();
 
-    int *x = (int *)vaddr1;
-    for (int i = 0; i < (int)(size / sizeof(int)); i++)
+    unsigned *x = (unsigned *)vaddr1;
+    for (unsigned i = 0; i < size / sizeof(int); i++)
       *(x + i) = i;
-    for (int i = 0; i < (int)(size / sizeof(int)); i++)
+    for (unsigned i = 0; i < size / sizeof(int); i++)
       assert(*(x + i) == i);
 
     klog("TLB after:");

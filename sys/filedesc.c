@@ -26,6 +26,10 @@ static void fd_mark_unused(fdtab_t *fdt, int fd) {
   bit_clear(fdt->fdt_map, fd);
 }
 
+static inline bool is_bad_fd(fdtab_t *fdt, int fd) {
+  return (fd < 0 || fd > (int)fdt->fdt_nfiles);
+}
+
 /* Grows given file descriptor table to contain new_size file descriptors
  * (up to MAXFILES) */
 static void fd_growtable(fdtab_t *fdt, size_t new_size) {
@@ -63,7 +67,7 @@ static int fd_alloc(fdtab_t *fdt, int *fdp) {
       /* Reached limit of opened files. */
       return -EMFILE;
     }
-    size_t new_size = min(fdt->fdt_nfiles * 2, (unsigned)MAXFILES);
+    size_t new_size = min(fdt->fdt_nfiles * 2, MAXFILES);
     first_free = fdt->fdt_nfiles;
     fd_growtable(fdt, new_size);
   }
@@ -174,7 +178,7 @@ int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
   assert(fdt);
 
   WITH_MTX_LOCK (&fdt->fdt_mtx) {
-    if (fd < 0 || fd > (int)fdt->fdt_nfiles)
+    if (is_bad_fd(fdt, fd))
       return -EBADF;
 
     if (fd_is_used(fdt, fd)) {
@@ -199,7 +203,7 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
   file_t *f;
 
   WITH_MTX_LOCK (&fdt->fdt_mtx) {
-    if (fd < 0 || fd >= (int)fdt->fdt_nfiles || !fd_is_used(fdt, fd))
+    if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))
       return -EBADF;
 
     f = fdt->fdt_files[fd];
@@ -223,7 +227,7 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
 int fdtab_close_fd(fdtab_t *fdt, int fd) {
   SCOPED_MTX_LOCK(&fdt->fdt_mtx);
 
-  if (fd < 0 || fd > (int)fdt->fdt_nfiles || !fd_is_used(fdt, fd))
+  if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))
     return -EBADF;
   fd_free(fdt, fd);
   return 0;
