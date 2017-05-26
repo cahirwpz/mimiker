@@ -240,11 +240,13 @@ static int initrd_root(mount_t *m, vnode_t **v) {
 }
 
 static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
-                                 .v_read = initrd_vnode_read,
+                                 .v_readdir = vnode_op_notsup,
                                  .v_open = vnode_open_generic,
                                  .v_close = vnode_op_notsup,
-                                 .v_getattr = initrd_vnode_getattr,
-                                 .v_readdir = vnode_op_notsup};
+                                 .v_read = initrd_vnode_read,
+                                 .v_write = vnode_op_notsup,
+                                 .v_seek = vnode_seek_generic,
+                                 .v_getattr = initrd_vnode_getattr};
 
 static int initrd_init(vfsconf_t *vfc) {
   unsigned rd_size = ramdisk_get_size();

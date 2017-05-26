@@ -116,4 +116,9 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   return 0;
 }
 
+int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
+  /* Operation went ok, assuming the file is seekable. */
+  return 0;
+}
+
 SYSINIT_ADD(vnode, vnode_init, NODEPS);

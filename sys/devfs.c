@@ -64,6 +64,8 @@ static vnodeops_t devfs_root_ops = {
   .v_close = vnode_op_notsup,
   .v_read = vnode_op_notsup,
   .v_write = vnode_op_notsup,
+  .v_seek = vnode_op_notsup,
+  .v_getattr = vnode_op_notsup,
 };
 
 static int devfs_mount(mount_t *m) {

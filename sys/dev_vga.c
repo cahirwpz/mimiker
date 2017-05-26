@@ -70,9 +70,10 @@ static vnodeops_t dev_vga_palette_vnodeops = {
   .v_readdir = vnode_op_notsup,
   .v_open = vnode_open_generic,
   .v_close = vnode_op_notsup,
-  .v_getattr = vnode_op_notsup,
   .v_write = dev_vga_palette_write,
   .v_read = vnode_op_notsup,
+  .v_seek = vnode_op_notsup,
+  .v_getattr = vnode_op_notsup,
 };
 
 static vnodeops_t dev_vga_videomode_vnodeops = {
@@ -80,9 +81,10 @@ static vnodeops_t dev_vga_videomode_vnodeops = {
   .v_readdir = vnode_op_notsup,
   .v_open = vnode_open_generic,
   .v_close = vnode_op_notsup,
-  .v_getattr = vnode_op_notsup,
-  .v_write = dev_vga_videomode_write,
   .v_read = dev_vga_videomode_read,
+  .v_write = dev_vga_videomode_write,
+  .v_seek = vnode_op_notsup,
+  .v_getattr = vnode_op_notsup,
 };
 
 static int dev_vga_lookup(vnode_t *v, const char *name, vnode_t **res) {
@@ -110,8 +112,10 @@ static vnodeops_t dev_vga_vnodeops = {
   .v_readdir = vnode_op_notsup,
   .v_open = vnode_op_notsup,
   .v_close = vnode_op_notsup,
-  .v_write = vnode_op_notsup,
   .v_read = vnode_op_notsup,
+  .v_write = vnode_op_notsup,
+  .v_seek = vnode_op_notsup,
+  .v_getattr = vnode_op_notsup,
 };
 
 void dev_vga_install(vga_device_t *vga) {

@@ -171,5 +171,6 @@ void vnode_unref(vnode_t *v);
 int vnode_op_notsup();
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
+int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state);
 
 #endif /* !_SYS_VNODE_H_ */
