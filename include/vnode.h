@@ -85,7 +85,7 @@ typedef struct vattr {
   nlink_t va_nlink; /* number of references to file */
   uid_t va_uid;     /* owner user id */
   gid_t va_gid;     /* owner group id */
-  off_t va_size;    /* file size in bytes */
+  size_t va_size;   /* file size in bytes */
 } vattr_t;
 
 static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {

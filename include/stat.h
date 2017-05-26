@@ -49,8 +49,6 @@
 #include <time.h>
 #endif
 
-_Static_assert(sizeof(blksize_t) == 4, "");
-
 typedef struct stat {
   dev_t st_dev;                 /* inode's device */
   ino_t st_ino;                 /* inode's number */
