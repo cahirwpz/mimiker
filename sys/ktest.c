@@ -150,7 +150,7 @@ static void run_all_tests() {
   int i = 0;
   SET_FOREACH(ptr, tests) {
     if (test_is_autorunnable(*ptr))
-      for (int r = 0; r < ktest_repeat; r++)
+      for (unsigned r = 0; r < ktest_repeat; r++)
         autorun_tests[i++] = *ptr;
   }
   autorun_tests[i] = NULL;
