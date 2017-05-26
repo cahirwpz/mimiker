@@ -10,17 +10,18 @@ typedef struct thread thread_t;
 typedef struct file file_t;
 typedef struct vnode vnode_t;
 typedef struct vattr vattr_t;
+typedef struct stat stat_t;
 
 typedef int fo_read_t(file_t *f, thread_t *td, uio_t *uio);
 typedef int fo_write_t(file_t *f, thread_t *td, uio_t *uio);
 typedef int fo_close_t(file_t *f, thread_t *td);
-typedef int fo_getattr_t(file_t *f, thread_t *td, vattr_t *va);
+typedef int fo_stat_t(file_t *f, thread_t *td, stat_t *sb);
 
 typedef struct {
   fo_read_t *fo_read;
   fo_write_t *fo_write;
   fo_close_t *fo_close;
-  fo_getattr_t *fo_getattr;
+  fo_stat_t *fo_stat;
 } fileops_t;
 
 typedef enum {
@@ -67,6 +68,10 @@ static inline int FOP_WRITE(file_t *f, thread_t *td, uio_t *uio) {
 
 static inline int FOP_CLOSE(file_t *f, thread_t *td) {
   return f->f_ops->fo_close(f, td);
+}
+
+static inline int FOP_STAT(file_t *f, thread_t *td, stat_t *sb) {
+  return f->f_ops->fo_stat(f, td, sb);
 }
 
 extern fileops_t badfileops;

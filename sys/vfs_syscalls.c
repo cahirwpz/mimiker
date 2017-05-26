@@ -79,13 +79,13 @@ int do_lseek(thread_t *td, int fd, off_t offset, int whence) {
   return 0;
 }
 
-int do_fstat(thread_t *td, int fd, vattr_t *buf) {
+int do_fstat(thread_t *td, int fd, stat_t *sb) {
   file_t *f;
   assert(td->td_proc);
   int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_READ, &f);
   if (res)
     return res;
-  res = f->f_ops->fo_getattr(f, td, buf);
+  res = FOP_STAT(f, td, sb);
   file_unref(f);
   return res;
 }

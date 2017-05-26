@@ -68,16 +68,22 @@ static int vnode_generic_close(file_t *f, thread_t *td) {
   return 0;
 }
 
-static int vnode_generic_getattr(file_t *f, thread_t *td, vattr_t *vattr) {
+static int vnode_generic_stat(file_t *f, thread_t *td, stat_t *sb) {
   vnode_t *v = f->f_vnode;
-  return v->v_ops->v_getattr(v, vattr);
+  vattr_t va;
+  int error;
+  error = VOP_GETATTR(v, &va);
+  if (error < 0)
+    return error;
+  /* TODO: translate `vattr_t` to `stat_t` */
+  return 0;
 }
 
 static fileops_t vnode_generic_fileops = {
   .fo_read = vnode_generic_read,
   .fo_write = vnode_generic_write,
   .fo_close = vnode_generic_close,
-  .fo_getattr = vnode_generic_getattr,
+  .fo_stat = vnode_generic_stat,
 };
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
