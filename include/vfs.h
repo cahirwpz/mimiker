@@ -28,7 +28,4 @@ int vfs_lookup(const char *pathname, vnode_t **vp);
 /* Looks up the vnode corresponding to the pathname and opens it into f. */
 int vfs_open(file_t *f, char *pathname, int flags, int mode);
 
-/* Releases f_vnode and f_data (if applicable) resources. */
-int vfs_close(file_t *f);
-
 #endif /* !_SYS_VFS_H_ */

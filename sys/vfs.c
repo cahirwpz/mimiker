@@ -240,11 +240,4 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   return res;
 }
 
-int vfs_close(file_t *f) {
-  vnode_t *v = f->f_vnode;
-  if (v == NULL)
-    return 0;
-  return VOP_CLOSE(v, f);
-}
-
 SYSINIT_ADD(vfs, vfs_init, DEPS("vnode"));
