@@ -3,6 +3,7 @@
 #include <malloc.h>
 #include <mutex.h>
 #include <stdc.h>
+#include <stat.h>
 #include <vnode.h>
 #include <sysinit.h>
 
@@ -76,7 +77,12 @@ static int default_vnstat(file_t *f, thread_t *td, stat_t *sb) {
   error = VOP_GETATTR(v, &va);
   if (error < 0)
     return error;
-  /* TODO: translate `vattr_t` to `stat_t` */
+  memset(sb, 0, sizeof(stat_t));
+  sb->st_mode = va.va_mode;
+  sb->st_nlink = va.va_nlink;
+  sb->st_uid = va.va_uid;
+  sb->st_gid = va.va_gid;
+  sb->st_size = va.va_size;
   return 0;
 }
 

@@ -221,7 +221,11 @@ static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
 
 static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
   cpio_node_t *cn = (cpio_node_t *)v->v_data;
-  va->st_size = cn->c_size;
+  va->va_mode = cn->c_mode;
+  va->va_nlink = cn->c_nlink;
+  va->va_uid = cn->c_uid;
+  va->va_gid = cn->c_gid;
+  va->va_size = cn->c_size;
   return 0;
 }
 

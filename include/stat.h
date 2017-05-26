@@ -41,24 +41,31 @@
 #ifndef _SYS_STAT_H_
 #define _SYS_STAT_H_
 
+#ifndef _KERNELSPACE
+#include <sys/types.h>
+#include <sys/time.h>
+#else
 #include <stdint.h>
 #include <time.h>
+#endif
 
-struct stat {
-  dev_t st_dev;            /* inode's device */
-  ino_t st_ino;            /* inode's number */
-  mode_t st_mode;          /* inode protection mode */
-  nlink_t st_nlink;        /* number of hard links */
-  uid_t st_uid;            /* user ID of the file's owner */
-  gid_t st_gid;            /* group ID of the file's group */
-  dev_t st_rdev;           /* device type */
-  timespec_t st_atimespec; /* time of last access */
-  timespec_t st_mtimespec; /* time of last data modification */
-  timespec_t st_ctimespec; /* time of last file status change */
-  off_t st_size;           /* file size, in bytes */
-  blkcnt_t st_blocks;      /* blocks allocated for file */
-  blksize_t st_blksize;    /* optimal blocksize for I/O */
-};
+_Static_assert(sizeof(blksize_t) == 4, "");
+
+typedef struct stat {
+  dev_t st_dev;                 /* inode's device */
+  ino_t st_ino;                 /* inode's number */
+  mode_t st_mode;               /* inode protection mode */
+  nlink_t st_nlink;             /* number of hard links */
+  uid_t st_uid;                 /* user ID of the file's owner */
+  gid_t st_gid;                 /* group ID of the file's group */
+  dev_t st_rdev;                /* device type */
+  struct timespec st_atimespec; /* time of last access */
+  struct timespec st_mtimespec; /* time of last data modification */
+  struct timespec st_ctimespec; /* time of last file status change */
+  off_t st_size;                /* file size, in bytes */
+  blkcnt_t st_blocks;           /* blocks allocated for file */
+  blksize_t st_blksize;         /* optimal blocksize for I/O */
+} stat_t;
 
 #define S_ISUID 0004000 /* set user id on execution */
 #define S_ISGID 0002000 /* set group id on execution */
@@ -102,5 +109,9 @@ struct stat {
 #define S_ISSOCK(m) ((m & S_IFMT) == S_IFSOCK) /* socket */
 
 #define S_BLKSIZE 512 /* block size used in the stat struct */
+
+#ifndef _KERNELSPACE
+int fstat(int fd, stat_t *sb);
+#endif
 
 #endif /* !_SYS_STAT_H_ */
