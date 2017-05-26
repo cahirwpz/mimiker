@@ -4,15 +4,17 @@
 #include <sched.h>
 #include <ktest.h>
 
-static int exit_time[] = {100, 200, 150};
-static realtime_t start;
+static timeval_t exit_time[] = {TIMEVAL(0.100), TIMEVAL(0.200), TIMEVAL(0.150)};
+static timeval_t start;
 
 /* TODO: callout + sleepq, once we've implemented callout_schedule. */
 static void test_thread(void *p) {
-  int e = *(int *)p;
+  timeval_t *e = (timeval_t *)p;
   while (1) {
-    realtime_t tdiff = clock_get() - start;
-    if (tdiff > e)
+    timeval_t now = get_uptime();
+    timeval_t diff;
+    timeval_sub(&now, &start, &diff);
+    if (timeval_cmp(&diff, e, >))
       thread_exit(0);
     else
       sched_yield();
@@ -29,7 +31,7 @@ static int test_thread_join() {
   tid_t t2_id = t2->td_tid;
   tid_t t3_id = t3->td_tid;
 
-  start = clock_get();
+  start = get_uptime();
   sched_add(t1);
   sched_add(t2);
   sched_add(t3);

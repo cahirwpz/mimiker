@@ -21,7 +21,7 @@ char *kenv_get(char *key);
 
 void klog_init() {
   const char *mask = kenv_get("klog-mask");
-  klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_ALL;
+  klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_DEFAULT_MASK;
   klog.verbose = kenv_get("klog-quiet") ? 0 : 1;
   klog.first = 0;
   klog.last = 0;
@@ -53,7 +53,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
   CRITICAL_SECTION {
     entry = &klog.array[klog.last];
 
-    *entry = (klog_entry_t){.kl_timestamp = clock_get(),
+    *entry = (klog_entry_t){.kl_timestamp = get_uptime(),
                             .kl_line = line,
                             .kl_file = file,
                             .kl_origin = origin,

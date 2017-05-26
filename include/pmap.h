@@ -3,6 +3,7 @@
 
 #include <vm.h>
 #include <queue.h>
+#include <context.h>
 
 typedef uint8_t asid_t;
 typedef uint32_t pte_t;
@@ -34,6 +35,6 @@ void pmap_activate(pmap_t *pmap);
 pmap_t *get_kernel_pmap();
 pmap_t *get_user_pmap();
 
-void tlb_exception_handler();
+void tlb_exception_handler(exc_frame_t *frame);
 
 #endif /* !_SYS_PMAP_H_ */

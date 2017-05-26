@@ -232,7 +232,11 @@ static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
 
 static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
   cpio_node_t *cn = (cpio_node_t *)v->v_data;
-  va->st_size = cn->c_size;
+  va->va_mode = cn->c_mode;
+  va->va_nlink = cn->c_nlink;
+  va->va_uid = cn->c_uid;
+  va->va_gid = cn->c_gid;
+  va->va_size = cn->c_size;
   return 0;
 }
 
@@ -271,15 +275,9 @@ static readdir_ops_t cpio_readdir_ops = {
   .convert = cpio_to_dirent,
 };
 
-static int initrd_vnode_readdir(vnode_t *v, uio_t *uio) {
+static int initrd_vnode_readdir(vnode_t *v, uio_t *uio, void *state) {
   return readdir_generic(v, uio, &cpio_readdir_ops);
 }
-
-static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
-                                 .v_read = initrd_vnode_read,
-                                 .v_open = vnode_open_generic,
-                                 .v_getattr = initrd_vnode_getattr,
-                                 .v_readdir = initrd_vnode_readdir};
 
 static int initrd_root(mount_t *m, vnode_t **v) {
   *v = m->mnt_data;
@@ -294,6 +292,15 @@ static int initrd_mount(mount_t *m) {
   m->mnt_data = root;
   return 0;
 }
+
+static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
+                                 .v_readdir = initrd_vnode_readdir,
+                                 .v_open = vnode_open_generic,
+                                 .v_close = vnode_op_notsup,
+                                 .v_read = initrd_vnode_read,
+                                 .v_write = vnode_op_notsup,
+                                 .v_seek = vnode_seek_generic,
+                                 .v_getattr = initrd_vnode_getattr};
 
 static int initrd_init(vfsconf_t *vfc) {
   unsigned rd_size = ramdisk_get_size();

@@ -67,25 +67,24 @@ int do_write(thread_t *td, int fd, uio_t *uio) {
 }
 
 int do_lseek(thread_t *td, int fd, off_t offset, int whence) {
-  /* TODO: Whence! Now we assume whence == SEEK_SET */
+  assert(td->td_proc);
   /* TODO: RW file flag! For now we just file_get_read */
   file_t *f;
-  assert(td->td_proc);
   int res = fdtab_get_file(td->td_proc->p_fdtable, fd, 0, &f);
   if (res)
     return res;
-  f->f_offset = offset;
+  res = FOP_SEEK(f, td, offset, whence);
   file_unref(f);
-  return 0;
+  return res;
 }
 
-int do_fstat(thread_t *td, int fd, vattr_t *buf) {
+int do_fstat(thread_t *td, int fd, stat_t *sb) {
   file_t *f;
   assert(td->td_proc);
   int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_READ, &f);
   if (res)
     return res;
-  res = f->f_ops->fo_getattr(f, td, buf);
+  res = FOP_STAT(f, td, sb);
   file_unref(f);
   return res;
 }
@@ -133,7 +132,7 @@ int do_getdirentries(thread_t *td, int fd, uio_t *uio, off_t *basep) {
     return res;
   vnode_t *vn = f->f_vnode;
   uio->uio_offset = f->f_offset;
-  res = VOP_READDIR(vn, uio);
+  res = VOP_READDIR(vn, uio, f->f_data);
   f->f_offset = uio->uio_offset;
   *basep = f->f_offset;
   file_unref(f);

@@ -2,7 +2,7 @@
 #include <dirent.h>
 #include <malloc.h>
 #include <uio.h>
-#include <vfs.h>
+#include <vnode.h>
 
 int readdir_generic(vnode_t *v, uio_t *uio, readdir_ops_t *ops) {
   void *it = ops->first(v);
@@ -13,7 +13,7 @@ int readdir_generic(vnode_t *v, uio_t *uio, readdir_ops_t *ops) {
   /* Locate proper directory based on offset */
   for (; it; it = ops->next(it)) {
     unsigned reclen = _DIRENT_RECLEN(dir, ops->namlen_of(it));
-    if (offset + reclen > uio->uio_offset) {
+    if (offset + reclen > (unsigned)uio->uio_offset) {
       assert(it == NULL || offset == uio->uio_offset);
       break;
     }

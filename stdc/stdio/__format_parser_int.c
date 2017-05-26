@@ -161,7 +161,7 @@ static void pop_arg(union arg *arg, int type, va_list *ap)
    return;
 }
 
-static void pad(ReadWriteInfo *rw, char c, int width, int len, int flags)
+static void pad(ReadWriteInfo *rw, char c, unsigned width, unsigned len, int flags)
 {
   char pad[256];
   int (*fnptr)(ReadWriteInfo *, void *, size_t); 
@@ -363,7 +363,7 @@ size_t _format_parser_int(ReadWriteInfo *rw, const char *fmt, va_list *ap)
         }
       continue;
       case 'p':
-       p = MAX(p, 2*sizeof(void*));
+       p = MAX(p,2*(int)sizeof(void*));
        t = 'x';
        flags |= ALT_FORM;
       case 'x': case 'X':

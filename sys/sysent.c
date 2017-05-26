@@ -11,6 +11,7 @@
 #include <sbrk.h>
 #include <signal.h>
 #include <proc.h>
+#include <stat.h>
 #include <systm.h>
 #include <wait.h>
 
@@ -37,8 +38,6 @@ static int sys_sbrk(thread_t *td, syscall_args_t *args) {
   return sbrk_resize(td->td_proc->p_uspace, increment);
 }
 
-/* This is just a stub. A full implementation of this syscall will probably
-   deserve a separate file. */
 static int sys_exit(thread_t *td, syscall_args_t *args) {
   int status = args->args[0];
 
@@ -75,7 +74,7 @@ static int sys_sigaction(thread_t *td, syscall_args_t *args) {
   sigaction_t newact;
   sigaction_t oldact;
   int error;
-  if ((error = copyin(p_newact, &newact, sizeof(sigaction_t))))
+  if ((error = copyin_s(p_newact, newact)))
     return error;
 
   int res = do_sigaction(signo, &newact, &oldact);
@@ -83,7 +82,7 @@ static int sys_sigaction(thread_t *td, syscall_args_t *args) {
     return res;
 
   if (p_oldact != NULL)
-    if ((error = copyout(&oldact, p_oldact, sizeof(sigaction_t))))
+    if ((error = copyout_s(oldact, p_oldact)))
       return error;
 
   return res;
@@ -175,22 +174,22 @@ static int sys_lseek(thread_t *td, syscall_args_t *args) {
   off_t offset = args->args[1];
   int whence = args->args[2];
 
-  klog("sys_lseek(%d, %ld, %d)", fd, offset, whence);
+  klog("lseek(%d, %ld, %d)", fd, offset, whence);
 
   return do_lseek(td, fd, offset, whence);
 }
 
 static int sys_fstat(thread_t *td, syscall_args_t *args) {
   int fd = args->args[0];
-  char *buf = (char *)args->args[1];
+  stat_t *statbuf_p = (stat_t *)args->args[1];
 
-  klog("sys_fstat(%d, %p)", fd, buf);
+  klog("fstat(%d, %p)", fd, statbuf_p);
 
-  vattr_t attr_buf;
-  int error = do_fstat(td, fd, &attr_buf);
+  stat_t statbuf;
+  int error = do_fstat(td, fd, &statbuf);
   if (error)
     return error;
-  error = copyout(&attr_buf, buf, sizeof(vattr_t));
+  error = copyout_s(statbuf, statbuf_p);
   if (error < 0)
     return error;
   return 0;
@@ -229,18 +228,17 @@ static int sys_getdirentries(thread_t *td, syscall_args_t *args) {
   int fd = args->args[0];
   char *ubuf = (char *)args->args[1];
   size_t count = args->args[2];
-  off_t *basep = (off_t *)args->args[3];
+  off_t *base_p = (off_t *)args->args[3];
   off_t base;
 
-  klog("getdirentries(%d, %p, %zu, %p)", fd, ubuf, count, basep);
+  klog("getdirentries(%d, %p, %zu, %p)", fd, ubuf, count, base_p);
 
   uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
   int res = do_getdirentries(td, fd, &uio, &base);
   if (res < 0)
     return res;
-  if (basep != NULL)
-    if (suword32(basep, base) == -1)
-      return EFAULT;
+  if (base_p != NULL)
+    res = copyout_s(base, base_p);
   return res;
 }
 
@@ -259,18 +257,20 @@ static int sys_dup2(thread_t *td, syscall_args_t *args) {
 
 static int sys_waitpid(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
-  int *user_status = (int *)args->args[1];
+  int *status_p = (int *)args->args[1];
   int options = args->args[2];
+  int status = 0;
 
-  klog("waitpid(%d, %x, %d)", pid, user_status, options);
-  int status = 0, res;
+  klog("waitpid(%d, %x, %d)", pid, status_p, options);
 
-  res = do_waitpid(pid, &status, options);
+  int res = do_waitpid(pid, &status, options);
   if (res < 0)
     return res;
-
-  if (!user_status || suword32(user_status, status) < 0)
-    return EFAULT;
+  if (status_p != NULL) {
+    int error = copyout_s(status, status_p);
+    if (error)
+      return error;
+  }
   return res;
 }
 
