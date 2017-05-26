@@ -49,9 +49,9 @@ typedef uint32_t tid_t;
 #define roundup(x, y) ((((x) + ((y)-1)) / (y)) * (y))
 #define powerof2(x) ((((x)-1) & (x)) == 0)
 #define log2(x) (__builtin_ffs(x) - 1)
-#define ffs(x) (__builtin_ffs(x))
-#define clz(x) (__builtin_clz(x))
-#define ctz(x) (__builtin_ctz(x))
+#define ffs(x) (size_t)(__builtin_ffs(x))
+#define clz(x) (size_t)(__builtin_clz(x))
+#define ctz(x) (size_t)(__builtin_ctz(x))
 
 #define abs(x)                                                                 \
   ({                                                                           \

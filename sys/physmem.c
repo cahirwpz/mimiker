@@ -7,7 +7,7 @@
 #define PM_QUEUE_OF(seg, page) ((seg)->freeq + log2((page)->size))
 #define PM_FREEQ(seg, i) ((seg)->freeq + (i))
 
-#define PM_NQUEUES 16
+#define PM_NQUEUES 16U
 
 typedef struct pm_seg {
   TAILQ_ENTRY(pm_seg) segq;
@@ -33,7 +33,7 @@ void pm_dump() {
   TAILQ_FOREACH (seg_it, &seglist, segq) {
     kprintf("[pmem] segment %p - %p:\n", (void *)seg_it->start,
             (void *)seg_it->end);
-    for (int i = 0; i < PM_NQUEUES; i++) {
+    for (unsigned i = 0; i < PM_NQUEUES; i++) {
       if (!TAILQ_EMPTY(PM_FREEQ(seg_it, i))) {
         kprintf("[pmem]  %6dKiB:", (PAGESIZE / 1024) << i);
         TAILQ_FOREACH (pg_it, PM_FREEQ(seg_it, i), freeq)
@@ -68,10 +68,10 @@ void pm_seg_init(pm_seg_t *seg, pm_addr_t start, pm_addr_t end,
     bzero(page, sizeof(vm_page_t));
     page->paddr = seg->start + PAGESIZE * i;
     page->vaddr = seg->start + PAGESIZE * i + vm_offset;
-    page->size = 1 << min(max_size, (unsigned)ctz(i));
+    page->size = 1 << min(max_size, ctz(i));
   }
 
-  for (int i = 0; i < PM_NQUEUES; i++)
+  for (unsigned i = 0; i < PM_NQUEUES; i++)
     TAILQ_INIT(PM_FREEQ(seg, i));
 
   int curr_page = 0;
@@ -309,7 +309,7 @@ unsigned long pm_hash() {
   vm_page_t *pg_it;
 
   TAILQ_FOREACH (seg_it, &seglist, segq) {
-    for (int i = 0; i < PM_NQUEUES; i++) {
+    for (unsigned i = 0; i < PM_NQUEUES; i++) {
       if (!TAILQ_EMPTY(PM_FREEQ(seg_it, i))) {
         TAILQ_FOREACH (pg_it, PM_FREEQ(seg_it, i), freeq)
           hash = hash * 33 + PG_START(pg_it);
