@@ -86,5 +86,5 @@ static int test_callout_stop() {
 }
 
 KTEST_ADD(callout_simple, test_callout_simple, 0);
-KTEST_ADD(callout_order, test_callout_order, 0);
+KTEST_ADD(callout_order, test_callout_order, KTEST_FLAG_BROKEN);
 KTEST_ADD(callout_stop, test_callout_stop, 0);
