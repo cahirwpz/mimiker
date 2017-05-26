@@ -6,6 +6,7 @@
 #include <mutex.h>
 #include <malloc.h>
 #include <linker_set.h>
+#include <dirent.h>
 
 /* Structure for storage in mnt_data */
 typedef struct devfs_mount { vnode_t *root_vnode; } devfs_mount_t;
@@ -61,7 +62,10 @@ static vnode_readdir_t devfs_root_readdir;
 static vnodeops_t devfs_root_ops = {
   .v_lookup = devfs_root_lookup,
   .v_readdir = devfs_root_readdir,
-  .v_open = vnode_op_notsup,
+  /* vnode open generic is used only for readdir,
+    it's not a problem for read and write,
+    since they aren't supported anyway */
+  .v_open = vnode_open_generic,
   .v_read = vnode_op_notsup,
   .v_write = vnode_op_notsup,
 };
@@ -93,9 +97,57 @@ static int devfs_root_lookup(vnode_t *dir, const char *name, vnode_t **res) {
   return 0;
 }
 
-static int devfs_root_readdir(vnode_t *dir, uio_t *uio) {
-  /* TODO: Implement. */
-  return ENOTSUP;
+/* dirent returned by this function has to be deallocated with
+ * kfree(M_DEVFS, *); */
+static dirent_t *device_to_direntry(devfs_device_t *device) {
+  dirent_t *dir = NULL;
+  int namlen = strlen(device->name);
+  int reclen = _DIRENT_RECLEN(dir, namlen);
+  dir = kmalloc(M_VFS, reclen, 0);
+
+  /* TODO fill d_fileno and d_type properly */
+  dir->d_fileno = 0;
+  dir->d_reclen = reclen;
+  dir->d_namlen = namlen;
+  dir->d_type = DT_UNKNOWN;
+  memcpy(dir->d_name, device->name, namlen + 1);
+
+  if (strcmp(dir->d_name, "vga") == 0)
+    dir->d_type = DT_DIR;
+
+  return dir;
+}
+
+static int devfs_root_readdir(vnode_t *v, uio_t *uio) {
+  assert(v == devfs_of(v->v_mount)->root_vnode);
+  dirent_t *dir = NULL;
+  devfs_device_t *it;
+  off_t offset = 0;
+
+  /* Locate proper directory based on offset */
+  TAILQ_FOREACH (it, &devfs_device_list, list) {
+    int reclen = _DIRENT_RECLEN(dir, strlen(it->name));
+    if (offset + reclen <= uio->uio_offset) {
+      offset += reclen;
+    } else {
+      assert(it == NULL || offset == uio->uio_offset);
+      break;
+    }
+  }
+
+  for (; it; it = TAILQ_NEXT(it, list)) {
+    int reclen = _DIRENT_RECLEN(dir, strlen(it->name));
+    if (uio->uio_resid >= reclen) {
+      dir = device_to_direntry(it);
+      int error = uiomove(dir, dir->d_reclen, uio);
+      kfree(M_VFS, dir);
+      if (error < 0)
+        return -error;
+    } else
+      break;
+  }
+
+  return uio->uio_offset - offset;
 }
 
 static int devfs_root(mount_t *m, vnode_t **v) {
