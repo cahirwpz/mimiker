@@ -5,7 +5,7 @@
 #include <runq.h>
 
 #define THREADS_NUMBER 10
-timeval_t test_time = TIMEVAL(0.5);
+timeval_t test_time = TIMEVAL(1);
 
 static void thread_nop_function(void *arg) {
   timeval_t end = timeval_add(arg, &test_time);
