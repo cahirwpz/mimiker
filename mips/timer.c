@@ -11,20 +11,20 @@ typedef TAILQ_HEAD(, timer_event) timer_event_list_t;
 static timer_event_list_t events = TAILQ_HEAD_INITIALIZER(events);
 
 int cpu_timer_add_event(timer_event_t *tev) {
-  //NOT READY
+  // NOT READY
   TAILQ_INSERT_HEAD(&events, tev, tev_link);
   mips32_set_c0(C0_COMPARE, tv2tk(tev->tev_when));
   return 0;
 }
 
-int cpu_timer_remove_event(timer_event_t *tev) {
+void cpu_timer_remove_event(timer_event_t *tev) {
   timer_event_t *event;
   TAILQ_FOREACH (event, &events, tev_link)
     if (event == tev) {
       TAILQ_REMOVE(&events, event, tev_link);
       break;
     }
-  return 0;
+  mips32_set_c0(C0_COMPARE, tv2tk(TAILQ_FIRST(&events)->tev_when));
 }
 
 void cpu_timer_intr(void *arg) {
