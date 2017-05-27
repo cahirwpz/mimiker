@@ -46,11 +46,7 @@ typedef TAILQ_HEAD(, cpio_node) cpio_list_t;
 
 static cpio_list_t initrd_head = TAILQ_HEAD_INITIALIZER(initrd_head);
 static cpio_node_t *root_node;
-static vnodeops_t initrd_ops = {.v_lookup = vnode_op_notsup,
-                                .v_readdir = vnode_op_notsup,
-                                .v_open = vnode_op_notsup,
-                                .v_read = vnode_op_notsup,
-                                .v_write = vnode_op_notsup};
+static vnodeops_t initrd_vops;
 
 extern char *kenv_get(const char *key);
 
@@ -196,7 +192,7 @@ static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
         vnodetype_t type = V_REG;
         if (it->c_mode & C_ISDIR)
           type = V_DIR;
-        *res = vnode_new(type, &initrd_ops);
+        *res = vnode_new(type, &initrd_vops);
         (*res)->v_data = (void *)it;
 
         /* TODO: Only store a token (weak pointer) that allows looking up the
@@ -225,12 +221,16 @@ static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
 
 static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
   cpio_node_t *cn = (cpio_node_t *)v->v_data;
-  va->st_size = cn->c_size;
+  va->va_mode = cn->c_mode;
+  va->va_nlink = cn->c_nlink;
+  va->va_uid = cn->c_uid;
+  va->va_gid = cn->c_gid;
+  va->va_size = cn->c_size;
   return 0;
 }
 
 static int initrd_mount(mount_t *m) {
-  vnode_t *root = vnode_new(V_DIR, &initrd_ops);
+  vnode_t *root = vnode_new(V_DIR, &initrd_vops);
   root->v_data = (void *)root_node;
   root->v_mount = m;
   m->mnt_data = root;
@@ -243,16 +243,21 @@ static int initrd_root(mount_t *m, vnode_t **v) {
   return 0;
 }
 
+static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
+                                 .v_readdir = vnode_op_notsup,
+                                 .v_open = vnode_open_generic,
+                                 .v_close = vnode_op_notsup,
+                                 .v_read = initrd_vnode_read,
+                                 .v_write = vnode_op_notsup,
+                                 .v_seek = vnode_seek_generic,
+                                 .v_getattr = initrd_vnode_getattr};
+
 static int initrd_init(vfsconf_t *vfc) {
   unsigned rd_size = ramdisk_get_size();
 
   if (!rd_size)
     return ENXIO;
 
-  initrd_ops.v_lookup = initrd_vnode_lookup;
-  initrd_ops.v_read = initrd_vnode_read;
-  initrd_ops.v_open = vnode_open_generic;
-  initrd_ops.v_getattr = initrd_vnode_getattr;
   klog("parsing cpio archive of %zu bytes", rd_size);
   read_cpio_archive();
   initrd_build_tree_and_names();

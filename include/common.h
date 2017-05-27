@@ -15,13 +15,15 @@ typedef long ssize_t;
 typedef int32_t pid_t;
 typedef uint16_t dev_t;
 typedef uint32_t time_t;
-typedef uint32_t suseconds_t; /* microseconds (signed) */
+typedef int32_t suseconds_t; /* microseconds (signed) */
 typedef uint16_t uid_t;
 typedef uint16_t gid_t;
 typedef uint32_t mode_t;
 typedef uint16_t nlink_t;
 typedef uint16_t ino_t;
 typedef uint32_t tid_t;
+typedef int32_t blkcnt_t;  /* fs block count */
+typedef int32_t blksize_t; /* fs optimal block size */
 
 /* Generic preprocessor macros */
 #define __STRING(x) #x
@@ -49,9 +51,9 @@ typedef uint32_t tid_t;
 #define roundup(x, y) ((((x) + ((y)-1)) / (y)) * (y))
 #define powerof2(x) ((((x)-1) & (x)) == 0)
 #define log2(x) (__builtin_ffs(x) - 1)
-#define ffs(x) (__builtin_ffs(x))
-#define clz(x) (__builtin_clz(x))
-#define ctz(x) (__builtin_ctz(x))
+#define ffs(x) (size_t)(__builtin_ffs(x))
+#define clz(x) (size_t)(__builtin_clz(x))
+#define ctz(x) (size_t)(__builtin_ctz(x))
 
 #define abs(x)                                                                 \
   ({                                                                           \

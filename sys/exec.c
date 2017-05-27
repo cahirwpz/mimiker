@@ -34,7 +34,7 @@ int do_exec(const exec_args_t *args) {
   error = VOP_GETATTR(elf_vnode, &elf_attr);
   if (error)
     return error;
-  size_t elf_size = elf_attr.st_size;
+  size_t elf_size = elf_attr.va_size;
 
   klog("User ELF size: %zu", elf_size);
 
