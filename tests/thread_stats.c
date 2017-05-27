@@ -37,15 +37,11 @@ static int test_thread_stats_nop(void) {
 }
 
 static void thread_wake_function(void *arg) {
-  timeval_t wake_delay = TIMEVAL(0.01);
   timeval_t end = timeval_add(arg, &test_time);
   end = timeval_add(&end, &TIMEVAL(0.1));
   timeval_t now = get_uptime();
   while (timeval_cmp(&now, &end, <)) {
-    timeval_t wake_time =
-      timeval_add(&thread_self()->td_last_rtime, &wake_delay);
-    if (timeval_cmp(&now, &wake_time, >))
-      sleepq_broadcast(arg);
+    sleepq_broadcast(arg);
     now = get_uptime();
   }
 }
@@ -54,8 +50,7 @@ static void thread_sleep_function(void *arg) {
   timeval_t end = timeval_add(arg, &test_time);
   timeval_t now = get_uptime();
   while (timeval_cmp(&now, &end, <)) {
-    if (timeval_cmp(&now, &thread_self()->td_last_rtime, >))
-      sleepq_wait(arg, "Thread stats test sleepq");
+    sleepq_wait(arg, "Thread stats test sleepq");
     now = get_uptime();
   }
 }
