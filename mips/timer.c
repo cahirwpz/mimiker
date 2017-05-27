@@ -6,12 +6,14 @@
 #include <mips/clock.h>
 #include <sysinit.h>
 #include <malloc.h>
-#include <klog.h>
+
 typedef TAILQ_HEAD(, timer_event) timer_event_list_t;
 static timer_event_list_t events = TAILQ_HEAD_INITIALIZER(events);
 
 int cpu_timer_add_event(timer_event_t *tev) {
+  //NOT READY
   TAILQ_INSERT_HEAD(&events, tev, tev_link);
+  mips32_set_c0(C0_COMPARE, tv2tk(tev->tev_when));
   return 0;
 }
 
@@ -34,14 +36,12 @@ void cpu_timer_intr(void *arg) {
 
   struct timer_event *event;
   TAILQ_FOREACH (event, &events, tev_link) {
-    if (tv2st(event->tev_when) * 1000 > compare) {
-      compare = event->tev_when.tv_sec * 1000000 + event->tev_when.tv_usec;
-      mips32_set_c0(C0_COMPARE, compare);
+    if (tv2tk(event->tev_when) > compare) {
+      mips32_set_c0(C0_COMPARE, tv2tk(event->tev_when));
       break;
     }
     TAILQ_REMOVE(&events, event, tev_link);
     event->tev_func(event);
-    break;
   }
 }
 
