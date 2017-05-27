@@ -15,7 +15,7 @@ struct timer_event {
   void *tev_data;                        /*  auxiliary data */
 };
 
-int cpu_timer_add_event(timer_event_t *tev);
+void cpu_timer_add_event(timer_event_t *tev);
 void cpu_timer_remove_event(timer_event_t *tev);
 
 /*  Processes core timer interrupts. */

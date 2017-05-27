@@ -6,15 +6,23 @@
 #include <mips/clock.h>
 #include <sysinit.h>
 #include <malloc.h>
+#include <sync.h>
 
 typedef TAILQ_HEAD(, timer_event) timer_event_list_t;
 static timer_event_list_t events = TAILQ_HEAD_INITIALIZER(events);
 
-int cpu_timer_add_event(timer_event_t *tev) {
-  // NOT READY
-  TAILQ_INSERT_HEAD(&events, tev, tev_link);
-  mips32_set_c0(C0_COMPARE, tv2tk(tev->tev_when));
-  return 0;
+void cpu_timer_add_event(timer_event_t *tev) {
+  bool added = false;
+  timer_event_t *event;
+  TAILQ_FOREACH (event, &events, tev_link)
+    if (timeval_cmp(&event->tev_when, &tev->tev_when, >)) {
+      TAILQ_INSERT_BEFORE(event, tev, tev_link);
+      added = true;
+      break;
+    }
+  if (!added)
+    TAILQ_INSERT_TAIL(&events, tev, tev_link);
+  mips32_set_c0(C0_COMPARE, tv2tk(TAILQ_FIRST(&events)->tev_when));
 }
 
 void cpu_timer_remove_event(timer_event_t *tev) {
@@ -29,20 +37,22 @@ void cpu_timer_remove_event(timer_event_t *tev) {
 }
 
 void cpu_timer_intr(void *arg) {
-  uint32_t compare = mips32_get_c0(C0_COMPARE);
-  // uint32_t count = mips32_get_c0(C0_COUNT);
-  /* Should not happen. Potentially spurious interrupt. */
-  // if (compare != count)
-  //  return;
+  CRITICAL_SECTION {
+    uint32_t compare = mips32_get_c0(C0_COMPARE);
+    uint32_t count = mips32_get_c0(C0_COUNT);
+    /* Should not happen. Potentially spurious interrupt. */
+    if (compare != count)
+      return;
 
-  struct timer_event *event;
-  TAILQ_FOREACH (event, &events, tev_link) {
-    if (tv2tk(event->tev_when) > compare) {
-      mips32_set_c0(C0_COMPARE, tv2tk(event->tev_when));
-      break;
+    struct timer_event *event;
+    TAILQ_FOREACH (event, &events, tev_link) {
+      if (tv2tk(event->tev_when) > compare) {
+        mips32_set_c0(C0_COMPARE, tv2tk(event->tev_when));
+        break;
+      }
+      TAILQ_REMOVE(&events, event, tev_link);
+      event->tev_func(event);
     }
-    TAILQ_REMOVE(&events, event, tev_link);
-    event->tev_func(event);
   }
 }
 
