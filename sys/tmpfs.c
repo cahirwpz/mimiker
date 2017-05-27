@@ -10,13 +10,15 @@
 static MALLOC_DEFINE(TMPFS_POOL, "tmpfs", 8, 128);
 
 #define TMPFS_BUF_SIZE 1024
+#define TMPFS_MAX_NAMELEN 256
 
 static tmpfs_node_t *tmpfs_new_node(tmpfs_node_type type, const char *name) {
   tmpfs_node_t *res = kmalloc(TMPFS_POOL, sizeof(tmpfs_node_t), 0);
-  res->name = name;
+  res->name = kstrndup(TMPFS_POOL, name, TMPFS_MAX_NAMELEN);
   res->type = type;
+
   if (type == T_DIR) {
-    TAILQ_INIT(&res->dirdata.node);
+    TAILQ_INIT(&res->dirdata.head);
   }
 
   if (type == T_REG) {
@@ -27,27 +29,43 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_node_type type, const char *name) {
   return res;
 }
 
-int tmpfs_vnode_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
-  tmpfs_node_t *node = (tmpfs_node_t *)dv->v_data;
-  assert(node->type == T_DIR);
+static void tmpfs_dirnode_insert(tmpfs_dirnode_data_t *dirdata,
+                                 tmpfs_node *node) {
+  TAILQ_INSERT_TAIL(&dirdata->head, node, direntry);
+}
 
-  tmpfs_dirnode_data_t *dirdata = &node->dirdata;
+static void tmpfs_dirnode_remove(tmpfs_dirnode_data_t *dirdata,
+                                 tmpfs_node *node) {
+  TAILQ_REMOVE(&dirdata->head, node, direntry);
+}
+
+static tmpfs_node_t *tmpfs_dirnode_find(tmpfs_dirnode_data_t *dirdata,
+                                        const char *name) {
   tmpfs_node_t *it;
-
-  TAILQ_FOREACH (it, &dirdata->node, direntry) {
+  TAILQ_FOREACH (it, &dirdata->head, direntry) {
     if (strcmp(name, it->name) == 0) {
-
-      vnodetype_t type = V_REG;
-      if (it->type == T_DIR)
-        type = V_DIR;
-
-      *vp = vnode_new(type, &tmpfs_ops);
-      (*vp)->v_data = (void *)it;
-
-      vnode_ref(*vp);
-      return 0;
+      return it;
     }
   }
+  return NULL;
+}
+
+int tmpfs_vnode_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
+  tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
+  assert(node->type == T_DIR);
+  tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
+  tmpfs_node_t *node = tmpfs_dirnode_find(dirdata, name);
+
+  if (!node) {
+    vnodetype_t type = V_REG;
+    if (node->type == T_DIR)
+      type = V_DIR;
+    *vp = vnode_new(type, &tmpfs_ops);
+    (*vp)->v_data = (void *)node;
+    vnode_ref(*vp);
+    return 0;
+  }
+
   return -ENOENT;
 }
 
@@ -78,14 +96,29 @@ int tmpfs_vnode_getattr(vnode_t *v, vattr_t *va) {
 }
 
 int tmpfs_vnode_create(vnode_t *dv, const char *name, vnode_t **vp) {
-  tmpfs_node_t *node = (tmpfs_node_t *)dv->v_data;
-  assert(node->type == T_DIR);
+  tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
+  assert(dirnode->type == T_DIR);
+  tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
+
+  vnode_t *res = vnode_new(T_REG, &tmpfs_ops);
+  *vp = res;
+
+  tmpfs_node_t *node = tmpfs_new_node(T_REG, name);
+  tmpfs_dirnode_insert(dirdata, node);
+
   return 0;
 }
 
 int tmpfs_vnode_remove(vnode_t *dv, const char *name) {
-  tmpfs_node_t *node = (tmpfs_node_t *)dv->v_data;
+  tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
   assert(node->type == T_DIR);
+  tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
+
+  tmpfs_node_t *node = tmpfs_dirnode_find(dirdata, name);
+  assert(node->type == T_REG);
+  if (!node)
+    tmpfs_dirnode_remove(node);
+
   return 0;
 }
 

@@ -4,7 +4,7 @@
 struct tmpfs_node;
 
 typedef struct tmpfs_dirnode_data {
-  TAILQ_HEAD(, tmpfs_node) node;
+  TAILQ_HEAD(, tmpfs_node) head;
 } tmpfs_dirnode_data_t;
 
 typedef struct tmpfs_node_data {
