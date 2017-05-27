@@ -29,6 +29,11 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_node_type type, const char *name) {
   return res;
 }
 
+static void tmpfs_delete_node(tmpfs_node_t *node) {
+  kfree(TMPFS_POOL, node->name)
+  kfree(TMPFS_POOL, node);
+}
+
 static void tmpfs_dirnode_insert(tmpfs_dirnode_data_t *dirdata,
                                  tmpfs_node *node) {
   TAILQ_INSERT_TAIL(&dirdata->head, node, direntry);
@@ -116,8 +121,10 @@ int tmpfs_vnode_remove(vnode_t *dv, const char *name) {
 
   tmpfs_node_t *node = tmpfs_dirnode_find(dirdata, name);
   assert(node->type == T_REG);
-  if (!node)
+  if (!node) {
     tmpfs_dirnode_remove(node);
+    tmpfs_delete_node(node);
+  }
 
   return 0;
 }
