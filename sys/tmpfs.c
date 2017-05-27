@@ -6,6 +6,8 @@
 #include <errno.h>
 #include <common.h>
 #include <stdc.h>
+#include <dirent.h>
+#include <file.h>
 
 static MALLOC_DEFINE(TMPFS_POOL, "tmpfs", 8, 128);
 
@@ -67,16 +69,55 @@ int tmpfs_vnode_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
       type = V_DIR;
     *vp = vnode_new(type, &tmpfs_ops);
     (*vp)->v_data = (void *)node;
-    vnode_ref(*vp);
     return 0;
   }
 
   return -ENOENT;
 }
 
+static dirent_t *tmpfs_create_dirent(tmpfs_node_t *node) {
+  dirent_t *res = NULL;
+  int dirent_reclen = _DIRENT_RECLEN(res, strlen(node->name));
+  res = kmalloc(TMPFS_POOL, dirent_reclen, 0);
+  res->d_reclen = dirent_reclen;
+  res->d_namlen = strlen(node->name);
+  if (node->type == T_DIR)
+    res->d_type = DT_REG;
+  if (node->type == T_REG)
+    res->d_type = DT_DIR;
+  memcpy(res->d_name, node->name, res->d_namlen + 1);
+  return res;
+}
+
+typedef struct tmpfs_last_readdir {
+  bool first;
+  tmpfs_node_t *it;
+} tmpfs_last_readdir_t;
+
 int tmpfs_vnode_readdir(vnode_t *dv, uio_t *uio, void *state) {
-  tmpfs_node_t *node = (tmpfs_node_t *)dv->v_data;
-  assert(node->type == T_DIR);
+  tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
+  assert(dirnode->type == T_DIR);
+
+  tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
+
+  tmpfs_last_readdir_t *last_read = (tmpfs_last_readdir_t *)state;
+  tmpfs_node_t *it = last_read->it;
+  if (!last_read)
+    it = TAILQ_FIRST(&dirdata->head);
+
+  for (; it; it = TAILQ_NEXT(it, direntry)) {
+    dirent_t *dir = tmpfs_create_dirent(it);
+    if (uio->uio_resid >= dir->d_reclen) {
+      uiomove(dir, dir->d_reclen, uio);
+      last_read->first = 1;
+      kfree(TMPFS_POOL, dir);
+    } else {
+      kfree(TMPFS_POOL, dir);
+      last_read->it = it;
+      return 0;
+    }
+  }
+  last_read->it = it;
   return 0;
 }
 
@@ -94,6 +135,16 @@ int tmpfs_vnode_write(vnode_t *v, uio_t *uio) {
 
   tmpfs_node_data_t *data = &node->data;
   return uiomove_frombuf(data->buf, data->size, uio);
+}
+
+int tmpfs_vnode_open(vnode_t *v, int mode, file_t *fp) {
+  fp->f_data = kmalloc(TMPFS_POOL, sizeof(tmpfs_last_readdir_t), M_ZERO);
+  return vnode_open_generic(v, mode, fp);
+}
+
+int tmpfs_vnode_close(vnode_t *v, file_t *fp) {
+  kfree(TMPFS_POOL, fp->f_data);
+  return 0;
 }
 
 int tmpfs_vnode_getattr(vnode_t *v, vattr_t *va) {
@@ -160,7 +211,8 @@ int tmpfs_vnode_rmdir(vnode_t *dv, const char *name) {
 
 vnodeops_t tmpfs_ops = {.v_lookup = tmpfs_vnode_lookup,
                         .v_readdir = tmpfs_vnode_readdir,
-                        .v_open = vnode_open_generic,
+                        .v_open = tmpfs_vnode_open,
+                        .v_close = tmpfs_vnode_close,
                         .v_read = tmpfs_vnode_read,
                         .v_write = tmpfs_vnode_write,
                         .v_getattr = tmpfs_vnode_getattr,
