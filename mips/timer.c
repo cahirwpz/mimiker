@@ -24,7 +24,8 @@ void cpu_timer_remove_event(timer_event_t *tev) {
       TAILQ_REMOVE(&events, event, tev_link);
       break;
     }
-  mips32_set_c0(C0_COMPARE, tv2tk(TAILQ_FIRST(&events)->tev_when));
+  if (!TAILQ_EMPTY(&events))
+    mips32_set_c0(C0_COMPARE, tv2tk(TAILQ_FIRST(&events)->tev_when));
 }
 
 void cpu_timer_intr(void *arg) {
