@@ -1,7 +1,7 @@
 #include <stdc.h>
 #include <initrd.h>
 #include <vnode.h>
-#include <mount.h>
+#include <vfs.h>
 #include <vm_map.h>
 #include <ktest.h>
 

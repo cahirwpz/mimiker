@@ -145,7 +145,7 @@ static mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {
   mem_block_t *current = NULL;
   TAILQ_FOREACH (current, mb_list, mb_list) {
     assert(current->mb_magic == MB_MAGIC);
-    if (current->mb_size >= total_size)
+    if (current->mb_size >= (ssize_t)total_size)
       return current;
   }
   return NULL;

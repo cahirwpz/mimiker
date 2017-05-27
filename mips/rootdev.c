@@ -49,6 +49,7 @@ static device_t rootdev = (device_t){
   .children = TAILQ_HEAD_INITIALIZER(rootdev.children),
   .driver = (driver_t *)&rootdev_driver,
   .instance = &(rootdev_t){},
+  .state = NULL,
 };
 
 static void rootdev_init() {
