@@ -13,6 +13,7 @@ extern void main(void *);
 static void mount_fs() {
   do_mount(thread_self(), "initrd", "/");
   do_mount(thread_self(), "devfs", "/dev");
+  do_mount(thread_self(), "tmpfs", "/tmp");
 }
 
 int kernel_init(int argc, char **argv) {

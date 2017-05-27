@@ -239,9 +239,10 @@ static int tmpfs_mount(mount_t *m) {
 
   return 0;
 }
+
 vfsops_t tmpfs_vfsops = {
   .vfs_mount = tmpfs_mount, .vfs_root = tmpfs_root, .vfs_init = tmpfs_init};
 
-vfsconf_t tmpfs_conf = {.vfc_name = "tmpsfs", .vfc_vfsops = &tmpfs_vfsops};
+vfsconf_t tmpfs_conf = {.vfc_name = "tmpfs", .vfc_vfsops = &tmpfs_vfsops};
 
 SET_ENTRY(vfsconf, tmpfs_conf);
