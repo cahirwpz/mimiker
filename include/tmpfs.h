@@ -25,3 +25,5 @@ typedef struct tmpfs_node {
   };
 
 } tmpfs_node_t;
+
+extern vnodeops_t tmpfs_ops;

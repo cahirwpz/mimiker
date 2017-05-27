@@ -6,11 +6,11 @@ SOURCES_C  = \
 	clock.c \
 	condvar.c \
 	console.c \
-	device.c \
 	dev_cons.c \
 	dev_null.c \
 	dev_vga.c \
 	devfs.c \
+	device.c \
 	drv_stdvga.c \
 	exception.c \
 	exec.c \
@@ -23,6 +23,7 @@ SOURCES_C  = \
 	ktest.c \
 	main.c \
 	malloc.c \
+	mmap.c \
 	mutex.c \
 	pci.c \
 	pci_ids.c \
@@ -40,12 +41,12 @@ SOURCES_C  = \
 	sync.c \
 	sysent.c \
 	sysinit.c \
-	mmap.c \
 	thread.c \
+	tmpfs.c \
 	uio.c \
 	vfs.c \
-	vfs_vnode.c \
 	vfs_syscalls.c \
+	vfs_vnode.c \
 	vm_map.c \
 	vm_object.c \
 	vm_pager.c
