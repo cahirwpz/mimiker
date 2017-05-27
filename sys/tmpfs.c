@@ -30,17 +30,17 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_node_type type, const char *name) {
 }
 
 static void tmpfs_delete_node(tmpfs_node_t *node) {
-  kfree(TMPFS_POOL, node->name)
+  kfree(TMPFS_POOL, node->name);
   kfree(TMPFS_POOL, node);
 }
 
 static void tmpfs_dirnode_insert(tmpfs_dirnode_data_t *dirdata,
-                                 tmpfs_node *node) {
+                                 tmpfs_node_t *node) {
   TAILQ_INSERT_TAIL(&dirdata->head, node, direntry);
 }
 
 static void tmpfs_dirnode_remove(tmpfs_dirnode_data_t *dirdata,
-                                 tmpfs_node *node) {
+                                 tmpfs_node_t *node) {
   TAILQ_REMOVE(&dirdata->head, node, direntry);
 }
 
@@ -57,7 +57,7 @@ static tmpfs_node_t *tmpfs_dirnode_find(tmpfs_dirnode_data_t *dirdata,
 
 int tmpfs_vnode_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
   tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
-  assert(node->type == T_DIR);
+  assert(dirnode->type == T_DIR);
   tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
   tmpfs_node_t *node = tmpfs_dirnode_find(dirdata, name);
 
@@ -116,28 +116,45 @@ int tmpfs_vnode_create(vnode_t *dv, const char *name, vnode_t **vp) {
 
 int tmpfs_vnode_remove(vnode_t *dv, const char *name) {
   tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
-  assert(node->type == T_DIR);
+  assert(dirnode->type == T_DIR);
   tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
 
   tmpfs_node_t *node = tmpfs_dirnode_find(dirdata, name);
   assert(node->type == T_REG);
   if (!node) {
-    tmpfs_dirnode_remove(node);
+    tmpfs_dirnode_remove(dirdata, node);
     tmpfs_delete_node(node);
   }
 
   return 0;
 }
 
-int tmpfs_vnode_mkdir(vnode_t *v, const char *name, vnode_t **vp) {
-  tmpfs_node_t *node = (tmpfs_node_t *)v->v_data;
-  assert(node->type == T_DIR);
+int tmpfs_vnode_mkdir(vnode_t *dv, const char *name, vnode_t **vp) {
+  tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
+  assert(dirnode->type == T_DIR);
+  tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
+
+  vnode_t *res = vnode_new(T_DIR, &tmpfs_ops);
+  *vp = res;
+
+  tmpfs_node_t *node = tmpfs_new_node(T_REG, name);
+  tmpfs_dirnode_insert(dirdata, node);
+
   return 0;
 }
 
-int tmpfs_vnode_rmdir(vnode_t *v, const char *name) {
-  tmpfs_node_t *node = (tmpfs_node_t *)v->v_data;
+int tmpfs_vnode_rmdir(vnode_t *dv, const char *name) {
+  tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
+  assert(dirnode->type == T_DIR);
+  tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
+
+  tmpfs_node_t *node = tmpfs_dirnode_find(dirdata, name);
   assert(node->type == T_DIR);
+  if (!node) {
+    tmpfs_dirnode_remove(dirdata, node);
+    tmpfs_delete_node(node);
+  }
+
   return 0;
 }
 

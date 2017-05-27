@@ -15,7 +15,7 @@ typedef struct tmpfs_node_data {
 typedef enum { T_REG, T_DIR } tmpfs_node_type;
 
 typedef struct tmpfs_node {
-  const char *name;
+  char *name;
   TAILQ_ENTRY(tmpfs_node) direntry;
 
   tmpfs_node_type type;
