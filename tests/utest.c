@@ -19,7 +19,12 @@ static void utest_generic_thread(void *arg) {
   __unreachable();
 }
 
+/* This is the klog mask used with utests. */
+#define KL_UTEST_MASK (KL_ALL & (~KL_MASK(KL_PMAP)) & (~KL_MASK(KL_VM)))
+
 static int utest_generic(const char *name, int status_success) {
+  unsigned old_klog_mask = klog_setmask(KL_UTEST_MASK);
+
   thread_t *utest_thread =
     thread_create(name, utest_generic_thread, (void *)name);
   sched_add(utest_thread);
@@ -37,6 +42,11 @@ static int utest_generic(const char *name, int status_success) {
      exit or get killed, and we need to clean up afterwards. */
   int status;
   proc_reap(utest_thread->td_proc, &status);
+
+  /* Restore previous klog mask */
+  /* XXX: If we'll use klog_setmask heavily, maybe we should consider
+     klog_{push,pop}_mask. */
+  klog_setmask(old_klog_mask);
 
   klog("User test %s finished with status: %d, expected: %d", name, status,
        status_success);
