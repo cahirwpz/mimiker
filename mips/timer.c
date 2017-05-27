@@ -30,10 +30,10 @@ void cpu_timer_remove_event(timer_event_t *tev) {
 
 void cpu_timer_intr(void *arg) {
   uint32_t compare = mips32_get_c0(C0_COMPARE);
-  uint32_t count = mips32_get_c0(C0_COUNT);
+  // uint32_t count = mips32_get_c0(C0_COUNT);
   /* Should not happen. Potentially spurious interrupt. */
-  if (compare - count > 0)
-    return;
+  // if (compare != count)
+  //  return;
 
   struct timer_event *event;
   TAILQ_FOREACH (event, &events, tev_link) {
