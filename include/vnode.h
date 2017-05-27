@@ -157,11 +157,17 @@ int vnode_op_notsup();
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state);
 
+#define DIRENT_DOT ((void *)-2)
+#define DIRENT_DOTDOT ((void *)-1)
+#define DIRENT_EOF NULL
+
 typedef struct readdir_ops {
-  void *(*first)(vnode_t *v);       /* return ptr to first directory entry */
-  void *(*next)(void *entry);       /* take next directory entry */
-  size_t (*namlen_of)(void *entry); /* filename size (to calc. dirent size) */
-  void (*convert)(void *entry, dirent_t *dir); /* make dirent based on entry */
+  /* take next directory entry */
+  void *(*next)(vnode_t *dir, void *entry);
+  /* filename size (to calc. dirent size) */
+  size_t (*namlen_of)(vnode_t *dir, void *entry);
+  /* make dirent based on entry */
+  void (*convert)(vnode_t *dir, void *entry, dirent_t *dirent);
 } readdir_ops_t;
 
 int readdir_generic(vnode_t *v, uio_t *uio, readdir_ops_t *ops);

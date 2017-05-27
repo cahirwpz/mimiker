@@ -7,6 +7,7 @@
 #include <initrd.h>
 #include <vnode.h>
 #include <mount.h>
+#include <file.h>
 #include <vfs.h>
 #include <linker_set.h>
 #include <dirent.h>
@@ -240,20 +241,26 @@ static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
   return 0;
 }
 
-static void *cpio_first_dirent(vnode_t *v) {
-  cpio_node_t *cn = (cpio_node_t *)v->v_data;
-  assert(v->v_type == V_DIR);
-  return TAILQ_FIRST(&cn->c_children);
+static inline cpio_node_t *vn2cn(vnode_t *v) {
+  return (cpio_node_t *)v->v_data;
 }
 
-static void *cpio_next_dirent(void *entry) {
-  cpio_node_t *cn = (cpio_node_t *)entry;
-  return TAILQ_NEXT(cn, c_siblings);
+static void *cpio_dirent_next(vnode_t *v, void *it) {
+  assert(it != NULL);
+  if (it == DIRENT_DOT)
+    return DIRENT_DOTDOT;
+  if (it == DIRENT_DOTDOT)
+    return TAILQ_FIRST(&vn2cn(v)->c_children);
+  return TAILQ_NEXT((cpio_node_t *)it, c_siblings);
 }
 
-static size_t cpio_dirent_namlen(void *entry) {
-  cpio_node_t *cn = (cpio_node_t *)entry;
-  return strlen(cn->c_name);
+static size_t cpio_dirent_namlen(vnode_t *v, void *it) {
+  assert(it != NULL);
+  if (it == DIRENT_DOT)
+    return 1;
+  if (it == DIRENT_DOTDOT)
+    return 2;
+  return strlen(((cpio_node_t *)it)->c_name);
 }
 
 static const unsigned ft2dt[16] = {[C_FIFO] = DT_FIFO, [C_CHR] = DT_CHR,
@@ -261,16 +268,27 @@ static const unsigned ft2dt[16] = {[C_FIFO] = DT_FIFO, [C_CHR] = DT_CHR,
                                    [C_REG] = DT_REG,   [C_CTG] = DT_UNKNOWN,
                                    [C_LNK] = DT_LNK,   [C_SOCK] = DT_SOCK};
 
-static void cpio_to_dirent(void *entry, dirent_t *dir) {
-  cpio_node_t *cn = (cpio_node_t *)entry;
-  dir->d_fileno = cn->c_ino;
-  dir->d_type = ft2dt[CMTOFT(cn->c_mode)];
-  memcpy(dir->d_name, cn->c_name, dir->d_namlen + 1);
+static void cpio_to_dirent(vnode_t *v, void *it, dirent_t *dir) {
+  assert(it != NULL);
+  cpio_node_t *node;
+  const char *name;
+  if (it == DIRENT_DOT) {
+    node = vn2cn(v);
+    name = ".";
+  } else if (it == DIRENT_DOTDOT) {
+    node = vn2cn(v)->c_parent;
+    name = "..";
+  } else {
+    node = (cpio_node_t *)it;
+    name = node->c_name;
+  }
+  dir->d_fileno = node->c_ino;
+  dir->d_type = ft2dt[CMTOFT(node->c_mode)];
+  memcpy(dir->d_name, name, dir->d_namlen + 1);
 }
 
 static readdir_ops_t cpio_readdir_ops = {
-  .first = cpio_first_dirent,
-  .next = cpio_next_dirent,
+  .next = cpio_dirent_next,
   .namlen_of = cpio_dirent_namlen,
   .convert = cpio_to_dirent,
 };
