@@ -35,7 +35,8 @@ class CtxSwitchTracerBP(gdb.Breakpoint):
     def stop(self):
         frm = gdb.parse_and_eval('(struct thread*)$a0').dereference()
         to = gdb.parse_and_eval('(struct thread*)$a1').dereference()
-        print('context switch from ', thread_name(frm), ' to ', thread_name(to))
+        print('context switch from {} to {}'.format(thread_name(frm),
+                                                    thread_name(to)))
         return self.stop_on
 
     def set_stop_on(self, arg):

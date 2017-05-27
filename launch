@@ -37,8 +37,8 @@ if __name__ == '__main__':
                               (', '.join(sorted(simulators)), sim_default)))
     parser.add_argument('-O', '--output', metavar='OUTPUT', type=str,
                         choices=outputs, default=out_default,
-                        help=('Sink for UART output including kernel messages. '
-                              'Available options: %s. Default: %s.' %
+                        help=('Sink for UART output including kernel messages.'
+                              ' Available options: %s. Default: %s.' %
                               (', '.join(sorted(outputs)), out_default)))
     parser.add_argument('-t', action='store_true',
                         help='Shorthand for --output stdio')
@@ -69,18 +69,18 @@ if __name__ == '__main__':
     debug = args.debugger != 'none'
 
     if debug and args.output == 'stdio':
-        raise SystemExit('ERROR: Unable to start both debugger and simulator in'
-                         ' stdio output mode.')
+        raise SystemExit('ERROR: Unable to start both debugger and simulator '
+                         'in stdio output mode.')
 
     uart_port = UART_PORT_BASE + os.getuid()
-    gdb_port = GDB_PORT_BASE + os.getuid();
+    gdb_port = GDB_PORT_BASE + os.getuid()
 
     launcher.prepare_gdbinit(gdb_port)
-    
+
     sim = simulators[args.simulator]
     out = outputs[args.output]
     dbg = debuggers[args.debugger]
-    
+
     cfg_args = {'kernel': args.kernel,
                 'args': ' '.join(args.args),
                 'debug': debug,

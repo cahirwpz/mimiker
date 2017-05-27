@@ -26,11 +26,11 @@ rm -rf $TMPDIR
 
 if ! [ $RES -eq 0 ]
 then
-    echo "Formatting incorrect. Please run 'make format' before"  \
-         "committing your changes, or manually apply the changes" \
-         "listed above."
+    echo "Formatting incorrect for C files!"
+    echo "Please run 'make format' before committing your changes,"\
+         "or manually apply the changes listed above."
 else
-    echo "Formatting correct."
+    echo "Formatting correct for C files."
 fi
 
 exit $RES

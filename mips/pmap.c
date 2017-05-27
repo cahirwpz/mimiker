@@ -48,7 +48,7 @@ static bool is_valid(pte_t pte) {
 }
 
 static bool in_user_space(vm_addr_t addr) {
-  return (addr >= PMAP_USER_BEGIN && addr < PMAP_USER_END);
+  return addr < PMAP_USER_END;
 }
 
 static bool in_kernel_space(vm_addr_t addr) {

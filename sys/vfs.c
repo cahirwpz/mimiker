@@ -4,6 +4,7 @@
 #include <stdc.h>
 #include <errno.h>
 #include <malloc.h>
+#include <file.h>
 #include <vnode.h>
 #include <linker_set.h>
 #include <sysinit.h>
@@ -30,13 +31,7 @@ static vfs_init_t vfs_default_init;
 /* Global root vnodes */
 vnode_t *vfs_root_vnode;
 
-static vnodeops_t vfs_root_ops = {
-  .v_lookup = vnode_op_notsup,
-  .v_readdir = vnode_op_notsup,
-  .v_open = vnode_op_notsup,
-  .v_read = vnode_op_notsup,
-  .v_write = vnode_op_notsup,
-};
+static vnodeops_t vfs_root_ops = VNODEOPS_NOTSUP_INITIALIZER();
 
 static int vfs_register(vfsconf_t *vfc);
 

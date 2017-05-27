@@ -31,7 +31,7 @@ static int test_linker_set() {
   }
 
   int key[6] = {0, 1, 1, 1, 1, 1};
-  for (int k = 0; k < sizeof(key) / sizeof(key[0]); k++) {
+  for (unsigned k = 0; k < sizeof(key) / sizeof(key[0]); k++) {
     if (found[k] != key[k])
       return KTEST_FAILURE;
   }
