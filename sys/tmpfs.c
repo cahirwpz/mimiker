@@ -63,7 +63,7 @@ int tmpfs_vnode_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
   tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
   tmpfs_node_t *node = tmpfs_dirnode_find(dirdata, name);
 
-  if (!node) {
+  if (node) {
     vnodetype_t type = V_REG;
     if (node->type == T_DIR)
       type = V_DIR;
@@ -158,11 +158,12 @@ int tmpfs_vnode_create(vnode_t *dv, const char *name, vattr_t *va,
     return -ENOTDIR;
   tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
 
-  vnode_t *res = vnode_new(T_REG, &tmpfs_ops);
-  *vp = res;
 
   tmpfs_node_t *node = tmpfs_new_node(T_REG, name);
   tmpfs_dirnode_insert(dirdata, node);
+  vnode_t *res = vnode_new(T_REG, &tmpfs_ops);
+  res->v_data = node;
+  *vp = res;
 
   return 0;
 }
@@ -236,6 +237,7 @@ static int tmpfs_root(mount_t *m, vnode_t **v) {
 static int tmpfs_mount(mount_t *m) {
   vnode_t *root = vnode_new(V_DIR, &tmpfs_ops);
   root->v_mount = m;
+  m->mnt_data = root;
 
   tmpfs_node_t *node = tmpfs_new_node(T_DIR, "/");
   root->v_data = node;
