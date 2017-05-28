@@ -137,6 +137,12 @@ int tmpfs_vnode_write(vnode_t *v, uio_t *uio) {
   return uiomove_frombuf(data->buf, data->size, uio);
 }
 
+int tmpfs_vnode_seek(vnode_t *v, off_t oldoff, off_t newoff, void *state)
+{
+  /* TODO add support for readdir */
+  return vnode_seek_generic(v, oldoff, newoff, state);
+}
+
 int tmpfs_vnode_open(vnode_t *v, int mode, file_t *fp) {
   fp->f_data = kmalloc(TMPFS_POOL, sizeof(tmpfs_last_readdir_t), M_ZERO);
   return vnode_open_generic(v, mode, fp);
@@ -219,6 +225,7 @@ vnodeops_t tmpfs_ops = {.v_lookup = tmpfs_vnode_lookup,
                         .v_close = tmpfs_vnode_close,
                         .v_read = tmpfs_vnode_read,
                         .v_write = tmpfs_vnode_write,
+                        .v_seek = tmpfs_vnode_seek,
                         .v_getattr = tmpfs_vnode_getattr,
                         .v_create = tmpfs_vnode_create,
                         .v_remove = tmpfs_vnode_remove,
