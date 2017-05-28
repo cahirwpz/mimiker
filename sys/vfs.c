@@ -233,8 +233,8 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   int error = 0;
 
   if (flags & O_CREAT) {
-    char *name = strchr(pathname, '/');
-    *name = '/';
+    char *name = strrchr(pathname, '/');
+    *name = '\0';
     name++;
     error = vfs_lookup(pathname, &v);
     if (error)
