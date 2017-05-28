@@ -160,7 +160,7 @@ int do_mkdir(thread_t *td, char *path, mode_t mode) {
   vnode_t *vn;
   int error = 0;
 
-  char *name = strchr(path, '/');
+  char *name = strrchr(path, '/');
   *name = '\0';
   name++;
 
@@ -176,7 +176,7 @@ int do_rmdir(thread_t *td, char *path) {
   vnode_t *vn;
   int error = 0;
 
-  char *name = strchr(path, '/');
+  char *name = strrchr(path, '/');
   *name = '\0';
   name++;
 
