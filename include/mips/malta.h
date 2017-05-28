@@ -85,4 +85,9 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize);
 #define MALTA_SMSC_KYBD_DATA MALTA_PCI0_ADDR(0x60)
 #define MALTA_SMSC_KYBD_CTRL MALTA_PCI0_ADDR(0x64)
 
+#define MALTA_ICU1_ADDR MALTA_PCI0_ADDR(0x20)
+#define MALTA_ICU1_DATA MALTA_PCI0_ADDR(0x21)
+#define MALTA_ICU2_ADDR MALTA_PCI0_ADDR(0xA0)
+#define MALTA_ICU2_DATA MALTA_PCI0_ADDR(0xA1)
+
 #endif

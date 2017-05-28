@@ -110,11 +110,11 @@ struct bus_driver {
 
 static inline void bus_intr_setup(device_t *dev, unsigned num,
                                   intr_handler_t *handler) {
-  BUS_DRIVER(dev)->bus.intr_setup(dev, num, handler);
+  BUS_DRIVER(dev->parent)->bus.intr_setup(dev, num, handler);
 }
 
 static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
-  BUS_DRIVER(dev)->bus.intr_teardown(dev, handler);
+  BUS_DRIVER(dev->parent)->bus.intr_teardown(dev, handler);
 }
 
 int bus_generic_probe(device_t *bus);

@@ -8,12 +8,24 @@
 #define RTC_ADDR_R *(volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(MALTA_RTC_ADDR))
 #define RTC_DATA_R *(volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(MALTA_RTC_DATA))
 
+#define REG_B 0x0B
+#define REG_B_SET 128
+#define REG_B_PIE 64
+#define REG_B_AIE 32
+#define REG_B_UIE 16
 #define REG_B_DM 4
 #define REG_B_24 2
+#define REG_B_DSE 1
+
+#define REG_C 0x0C
+#define REG_C_IRQF 128
+#define REG_C_PF 64
+#define REG_C_AF 32
+#define REG_C_UF 16
 
 void rtc_init() {
-  RTC_ADDR_R = 0xb;
-  RTC_DATA_R = RTC_DATA_R | REG_B_DM | REG_B_24;
+  RTC_ADDR_R = REG_B;
+  RTC_DATA_R = RTC_DATA_R | REG_B_DM | REG_B_24 | REG_B_PIE;
 }
 
 void rtc_read(rtc_time_t *t) {
@@ -52,7 +64,11 @@ static int test_rtc() {
     rtc_time_t rtc;
     rtc_read(&rtc);
 
-    kprintf("Time is %02d:%02d:%02d\n", rtc.hour, rtc.min, rtc.sec);
+    RTC_ADDR_R = REG_C;
+    unsigned reg_c = RTC_DATA_R;
+
+    kprintf("Time is %02d:%02d:%02d, C(%02x)\n", rtc.hour, rtc.min, rtc.sec,
+            reg_c);
 
     tv_delay(TIMEVAL(1.0));
   }

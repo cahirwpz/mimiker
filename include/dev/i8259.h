@@ -62,14 +62,12 @@
  */
 
 /* Operation control word type 2.  Bit 3 (0x08) must be zero. Even address. */
-#define OCW2_L0 0x01 /* Level */
-#define OCW2_L1 0x02
-#define OCW2_L2 0x04
-/* 0x08 must be 0 to select OCW2 vs OCW3 */
+#define OCW2_ILS(x) ((x)&7) /* interrupt level select */
+#define OCW2_SEL 0x00       /* select OCW2 */
 /* 0x10 must be 0 to select OCW2 vs ICW1 */
 #define OCW2_EOI 0x20 /* 1 = EOI */
-#define OCW2_SL 0x40  /* EOI mode */
-#define OCW2_R 0x80   /* EOI mode */
+#define OCW2_SL 0x40  /* EOI mode (specific) */
+#define OCW2_R 0x80   /* EOI mode (rotate) */
 
 /* Operation control word type 3.  Bit 3 (0x08) must be set. Even address. */
 #define OCW3_RIS 0x01 /* 1 = read IS, 0 = read IR */

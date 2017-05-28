@@ -53,7 +53,7 @@ void intr_chain_run_handlers(intr_chain_t *ic) {
 
   TAILQ_FOREACH (ih, &ic->ic_handlers, ih_list) {
     status |= ih->ih_filter ? ih->ih_filter(ih->ih_argument) : IF_HANDLED;
-    if (status & IF_HANDLED) {
+    if (ih->ih_handler && (status & IF_HANDLED)) {
       ih->ih_handler(ih->ih_argument);
       return;
     }

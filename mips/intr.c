@@ -47,8 +47,10 @@ void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
   intr_chain_t *chain = &mips_intr_chain[irq];
   CRITICAL_SECTION {
     intr_chain_add_handler(chain, handler);
-    if (chain->ic_count == 1)
-      mips32_bs_c0(C0_STATUS, SR_IM0 << irq);
+    if (chain->ic_count == 1) {
+      mips32_bs_c0(C0_STATUS, SR_IM0 << irq); /* enable interrupt */
+      mips32_bc_c0(C0_CAUSE, CR_IP0 << irq);  /* clear pending flag */
+    }
   }
 }
 
