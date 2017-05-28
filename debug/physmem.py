@@ -67,18 +67,20 @@ class KernelFreePages():
 
     def dump_segment_freeq(self, idx, freeq, size):
         pages = tailq.collect_values(freeq, 'freeq')
-        return [[idx, size, as_hex(page['paddr']), as_hex(page['vaddr'])]
+        return [[str(idx), str(size), as_hex(page['paddr']), as_hex(page['vaddr'])]
                 for page in pages]
 
     def dump_segment_free_pages(self, idx, segment):
-        return [self.dump_segment_freeq(idx, segment['freeq'][q], 4 << q)
-                for q in range(16)]
+        helper = []
+        for q in range(16):
+            helper.extend(self.dump_segment_freeq(idx, segment['freeq'][q], 4 << q))
+        return helper
 
     def dump_free_pages(self):
         segments = self.get_all_segments()
         rows = [['Segment', 'Page size', 'Physical', 'Virtual']]
         for idx, seg in enumerate(segments):
-            rows.append(self.dump_segment_free_pages(idx, seg))
+            rows.extend(self.dump_segment_free_pages(idx, seg))
         ptable(rows, header=True)
 
 
@@ -147,7 +149,8 @@ class KernelLog():
             print('Error in formating message "{}" with parameters "{}"\nMessage skipped!!'.format(
                 message, params))
             formated = message + params
-        return [str(data['kl_timestamp']), str(data['kl_line']), str(data['kl_file'].string()), str(data['kl_origin']), str(formated)]
+        time = data['kl_timestamp']['tv_sec']*1e6 + data['kl_timestamp']['tv_usec']
+        return [str(time), str(data['kl_line']), str(data['kl_file'].string()), str(data['kl_origin']), str(formated)]
 
     def load_klog(self):
         klog = gdb.parse_and_eval('klog')
