@@ -3,37 +3,21 @@
 #include <mips/m32c0.h>
 #include <mips/config.h>
 #include <mips/intr.h>
-#include <mips/clock.h>
 #include <sysinit.h>
 #include <malloc.h>
 #include <sync.h>
 
 typedef TAILQ_HEAD(, timer_event) timer_event_list_t;
 static timer_event_list_t events = TAILQ_HEAD_INITIALIZER(events);
+static unsigned nevents = 0;
 
-void cpu_timer_add_event(timer_event_t *tev) {
-  bool added = false;
-  timer_event_t *event;
-  TAILQ_FOREACH (event, &events, tev_link)
-    if (timeval_cmp(&event->tev_when, &tev->tev_when, >)) {
-      TAILQ_INSERT_BEFORE(event, tev, tev_link);
-      added = true;
-      break;
-    }
-  if (!added)
-    TAILQ_INSERT_TAIL(&events, tev, tev_link);
-  mips32_set_c0(C0_COMPARE, tv2tk(TAILQ_FIRST(&events)->tev_when));
-}
+static void cpu_timer_intr(void *arg);
 
-void cpu_timer_remove_event(timer_event_t *tev) {
-  timer_event_t *event;
-  TAILQ_FOREACH (event, &events, tev_link)
-    if (event == tev) {
-      TAILQ_REMOVE(&events, event, tev_link);
-      break;
-    }
-  if (!TAILQ_EMPTY(&events))
-    mips32_set_c0(C0_COMPARE, tv2tk(TAILQ_FIRST(&events)->tev_when));
+static INTR_HANDLER_DEFINE(cpu_timer_intr_handler, NULL, cpu_timer_intr, NULL,
+                           "CPU timer", 0);
+
+static void cpu_timer_init(void) {
+  mips32_set_c0(C0_COUNT, 0);
 }
 
 static void cpu_timer_intr(void *arg) {
@@ -50,23 +34,45 @@ static void cpu_timer_intr(void *arg) {
         mips32_set_c0(C0_COMPARE, tv2tk(event->tev_when));
         break;
       }
+      nevents--;
       TAILQ_REMOVE(&events, event, tev_link);
       event->tev_func(event);
     }
+    if (nevents > 0)
+      mips32_set_c0(C0_COMPARE, tv2tk(TAILQ_FIRST(&events)->tev_when));
+    else
+      mips_intr_teardown(cpu_timer_intr_handler);
   }
 }
 
-static INTR_HANDLER_DEFINE(cpu_timer_intr_handler, NULL, cpu_timer_intr, NULL,
-                           "CPU timer", 0);
+void cpu_timer_add_event(timer_event_t *tev) {
+  bool added = false;
+  timer_event_t *event;
+  TAILQ_FOREACH (event, &events, tev_link)
+    if (timeval_cmp(&event->tev_when, &tev->tev_when, >)) {
+      TAILQ_INSERT_BEFORE(event, tev, tev_link);
+      added = true;
+      break;
+    }
+  if (!added)
+    TAILQ_INSERT_TAIL(&events, tev, tev_link);
+  nevents++;
+  if (nevents == 1)
+    mips_intr_setup(cpu_timer_intr_handler, 7);
+  mips32_set_c0(C0_COMPARE, tv2tk(TAILQ_FIRST(&events)->tev_when));
+}
 
-static void cpu_timer_init(void) {
-  mips32_set_c0(C0_COUNT, 0);
-  mips32_set_c0(C0_COMPARE, TICKS_PER_MS);
-  mips_intr_setup(cpu_timer_intr_handler, 7);
-  timer_event_t *clock = kmalloc(M_TEMP, sizeof(*clock), M_ZERO);
-  clock->tev_when = TIMEVAL(0.001);
-  clock->tev_func = mips_clock;
-  cpu_timer_add_event(clock);
+void cpu_timer_remove_event(timer_event_t *tev) {
+  timer_event_t *event;
+  TAILQ_FOREACH (event, &events, tev_link)
+    if (event == tev) {
+      TAILQ_REMOVE(&events, event, tev_link);
+      break;
+    }
+  if (nevents > 0)
+    mips32_set_c0(C0_COMPARE, tv2tk(TAILQ_FIRST(&events)->tev_when));
+  else
+    mips_intr_teardown(cpu_timer_intr_handler);
 }
 
 SYSINIT_ADD(cpu_timer, cpu_timer_init, DEPS("callout", "sched"));
