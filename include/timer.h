@@ -18,7 +18,4 @@ struct timer_event {
 void cpu_timer_add_event(timer_event_t *tev);
 void cpu_timer_remove_event(timer_event_t *tev);
 
-/*  Processes core timer interrupts. */
-void cpu_timer_intr(void *arg);
-
 #endif /*  !_TIMER_H_ */

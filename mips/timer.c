@@ -36,7 +36,7 @@ void cpu_timer_remove_event(timer_event_t *tev) {
     mips32_set_c0(C0_COMPARE, tv2tk(TAILQ_FIRST(&events)->tev_when));
 }
 
-void cpu_timer_intr(void *arg) {
+static void cpu_timer_intr(void *arg) {
   CRITICAL_SECTION {
     uint32_t compare = mips32_get_c0(C0_COMPARE);
     uint32_t count = mips32_get_c0(C0_COUNT);
