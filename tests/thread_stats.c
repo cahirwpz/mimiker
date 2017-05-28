@@ -40,6 +40,7 @@ static void thread_wake_function(void *arg) {
   timeval_t end = timeval_add(arg, &test_time);
   end = timeval_add(&end, &TIMEVAL(0.1));
   timeval_t now = get_uptime();
+  sleepq_broadcast(arg);
   while (timeval_cmp(&now, &end, <)) {
     sleepq_broadcast(arg);
     now = get_uptime();
@@ -49,6 +50,7 @@ static void thread_wake_function(void *arg) {
 static void thread_sleep_function(void *arg) {
   timeval_t end = timeval_add(arg, &test_time);
   timeval_t now = get_uptime();
+  sleepq_wait(arg, "Thread stats test sleepq");
   while (timeval_cmp(&now, &end, <)) {
     sleepq_wait(arg, "Thread stats test sleepq");
     now = get_uptime();
@@ -59,11 +61,11 @@ static int test_thread_stats_slp(void) {
   thread_t *threads[THREADS_NUMBER];
   timeval_t start = get_uptime();
   thread_t *waker = thread_create("waker thread", thread_wake_function, &start);
-  sched_add(waker);
   for (int i = 0; i < THREADS_NUMBER; i++) {
     threads[i] = thread_create("sleeper thread", thread_sleep_function, &start);
     sched_add(threads[i]);
   }
+  sched_add(waker);
   for (int i = 0; i < THREADS_NUMBER; i++) {
     thread_join(threads[i]);
   }
