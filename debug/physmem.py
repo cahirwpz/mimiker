@@ -150,10 +150,10 @@ class KernelLog():
             print('''Error in formating message "{}" with parameters "{}"\n
             Message skipped!!'''.format(message, params))
             formated = message + params
-        time = str(data['kl_timestamp']['tv_sec'] * 1e6
-                        + data['kl_timestamp']['tv_usec'])
+        time = str(data['kl_timestamp']['tv_sec'] * 1e6 +
+                   data['kl_timestamp']['tv_usec'])
         return [time, str(data['kl_line']), str(data['kl_file'].string()),
-                            str(data['kl_origin']), str(formated)]
+                str(data['kl_origin']), str(formated)]
 
     def load_klog(self):
         klog = gdb.parse_and_eval('klog')
@@ -162,7 +162,7 @@ class KernelLog():
         klog_array = klog['array']
         array_size = int(klog_array.type.range()[1]) + 1
         number_of_logs = (last - first
-                            if last >= first else last + array_size - first)
+                          if last >= first else last + array_size - first)
         messages = []
         while first != last:
             data = klog_array[first]
