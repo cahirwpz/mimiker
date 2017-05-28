@@ -96,8 +96,8 @@ typedef struct tmpfs_last_readdir {
 
 int tmpfs_vnode_readdir(vnode_t *dv, uio_t *uio, void *state) {
   tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
-  if(dirnode->type != T_DIR)
-      return -ENOTDIR;
+  if (dirnode->type != T_DIR)
+    return -ENOTDIR;
   tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
 
   tmpfs_last_readdir_t *last_read = (tmpfs_last_readdir_t *)state;
@@ -151,10 +151,11 @@ int tmpfs_vnode_getattr(vnode_t *v, vattr_t *va) {
   return 0;
 }
 
-int tmpfs_vnode_create(vnode_t *dv, const char *name, vnode_t **vp) {
+int tmpfs_vnode_create(vnode_t *dv, const char *name, vattr_t *va,
+                       vnode_t **vp) {
   tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
-  if(dirnode->type != T_DIR)
-      return -ENOTDIR;
+  if (dirnode->type != T_DIR)
+    return -ENOTDIR;
   tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
 
   vnode_t *res = vnode_new(T_REG, &tmpfs_ops);
@@ -168,8 +169,8 @@ int tmpfs_vnode_create(vnode_t *dv, const char *name, vnode_t **vp) {
 
 int tmpfs_vnode_remove(vnode_t *dv, const char *name) {
   tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
-  if(dirnode->type != T_DIR)
-      return -ENOTDIR;
+  if (dirnode->type != T_DIR)
+    return -ENOTDIR;
   tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
 
   tmpfs_node_t *node = tmpfs_dirnode_find(dirdata, name);
@@ -182,16 +183,13 @@ int tmpfs_vnode_remove(vnode_t *dv, const char *name) {
   return 0;
 }
 
-int tmpfs_vnode_mkdir(vnode_t *dv, const char *name, vnode_t **vp) {
+int tmpfs_vnode_mkdir(vnode_t *dv, const char *name, vattr_t *va) {
   tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
 
-  if(dirnode->type != T_DIR)
-      return -ENOTDIR;
+  if (dirnode->type != T_DIR)
+    return -ENOTDIR;
 
   tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
-
-  vnode_t *res = vnode_new(T_DIR, &tmpfs_ops);
-  *vp = res;
 
   tmpfs_node_t *node = tmpfs_new_node(T_REG, name);
   tmpfs_dirnode_insert(dirdata, node);
