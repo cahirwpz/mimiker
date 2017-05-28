@@ -16,7 +16,7 @@
 #include <wait.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
-static int sys_nosys(thread_t *td, syscall_args_t *args) {
+int sys_nosys(thread_t *td, syscall_args_t *args) {
   klog("unimplemented system call %ld", args->code);
   return -ENOSYS;
 };
@@ -111,7 +111,7 @@ static int sys_mmap(thread_t *td, syscall_args_t *args) {
 static int sys_open(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
   int flags = args->args[1];
-  int mode = args->args[2];
+  mode_t mode = args->args[2];
 
   int error = 0;
   char pathname[256];
@@ -274,24 +274,77 @@ static int sys_waitpid(thread_t *td, syscall_args_t *args) {
   return res;
 }
 
+static int sys_unlink(thread_t *td, syscall_args_t *args) {
+  char *user_pathname = (char *)args->args[0];
+  char pathname[256];
+  size_t n = 0;
+  int error = 0;
+
+  /* Copyout pathname. */
+  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
+  if (error < 0)
+    return error;
+
+  klog("unlink(%s)", pathname);
+
+  return do_unlink(td, pathname);
+}
+
+static int sys_mkdir(thread_t *td, syscall_args_t *args) {
+  char *user_pathname = (char *)args->args[0];
+  mode_t mode = (int)args->args[1];
+  char pathname[256];
+  size_t n = 0;
+  int error = 0;
+
+  /* Copyout pathname. */
+  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
+  if (error < 0)
+    return error;
+
+  klog("mkdir(%s, %d)", user_pathname, mode);
+
+  return do_mkdir(td, pathname, mode);
+}
+
+static int sys_rmdir(thread_t *td, syscall_args_t *args) {
+  char *user_pathname = (char *)args->args[0];
+  char pathname[256];
+  size_t n = 0;
+  int error = 0;
+
+  /* Copyout pathname. */
+  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
+  if (error < 0)
+    return error;
+
+  klog("rmdir(%s)", pathname);
+
+  return do_rmdir(td, pathname);
+}
+
 /* clang-format hates long arrays. */
-sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
-                     [SYS_OPEN] = {sys_open},
-                     [SYS_CLOSE] = {sys_close},
-                     [SYS_READ] = {sys_read},
-                     [SYS_WRITE] = {sys_write},
-                     [SYS_LSEEK] = {sys_lseek},
-                     [SYS_UNLINK] = {sys_nosys},
-                     [SYS_GETPID] = {sys_getpid},
-                     [SYS_KILL] = {sys_kill},
-                     [SYS_FSTAT] = {sys_fstat},
-                     [SYS_SBRK] = {sys_sbrk},
-                     [SYS_MMAP] = {sys_mmap},
-                     [SYS_FORK] = {sys_fork},
-                     [SYS_MOUNT] = {sys_mount},
-                     [SYS_GETDENTS] = {sys_getdirentries},
-                     [SYS_SIGACTION] = {sys_sigaction},
-                     [SYS_SIGRETURN] = {sys_sigreturn},
-                     [SYS_DUP] = {sys_dup},
-                     [SYS_DUP2] = {sys_dup2},
-                     [SYS_WAITPID] = {sys_waitpid}};
+sysent_t sysent[] = {
+    [SYS_EXIT] = {sys_exit},
+    [SYS_OPEN] = {sys_open},
+    [SYS_CLOSE] = {sys_close},
+    [SYS_READ] = {sys_read},
+    [SYS_WRITE] = {sys_write},
+    [SYS_LSEEK] = {sys_lseek},
+    [SYS_UNLINK] = {sys_unlink},
+    [SYS_GETPID] = {sys_getpid},
+    [SYS_KILL] = {sys_kill},
+    [SYS_FSTAT] = {sys_fstat},
+    [SYS_SBRK] = {sys_sbrk},
+    [SYS_MMAP] = {sys_mmap},
+    [SYS_FORK] = {sys_fork},
+    [SYS_MOUNT] = {sys_mount},
+    [SYS_GETDENTS] = {sys_getdirentries},
+    [SYS_SIGACTION] = {sys_sigaction},
+    [SYS_SIGRETURN] = {sys_sigreturn},
+    [SYS_DUP] = {sys_dup},
+    [SYS_DUP2] = {sys_dup2},
+    [SYS_WAITPID] = {sys_waitpid},
+    [SYS_MKDIR] = {sys_mkdir},
+    [SYS_RMDIR] = {sys_rmdir},
+};
