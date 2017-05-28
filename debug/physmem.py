@@ -67,13 +67,14 @@ class KernelFreePages():
 
     def dump_segment_freeq(self, idx, freeq, size):
         pages = tailq.collect_values(freeq, 'freeq')
-        return [[str(idx), str(size), as_hex(page['paddr']), as_hex(page['vaddr'])]
-                for page in pages]
+        return [[str(idx), str(size), as_hex(page['paddr']),
+                 as_hex(page['vaddr'])] for page in pages]
 
     def dump_segment_free_pages(self, idx, segment):
         helper = []
         for q in range(16):
-            helper.extend(self.dump_segment_freeq(idx, segment['freeq'][q], 4 << q))
+            helper.extend(self.dump_segment_freeq(
+                idx, segment['freeq'][q], 4 << q))
         return helper
 
     def dump_free_pages(self):
@@ -146,11 +147,13 @@ class KernelLog():
             formated = gdb.execute(
                 'printf "' + message + ' ", ' + params, to_string=True)
         except Exception as e:
-            print('Error in formating message "{}" with parameters "{}"\nMessage skipped!!'.format(
-                message, params))
+            print('''Error in formating message "{}" with parameters "{}"\n
+            Message skipped!!'''.format(message, params))
             formated = message + params
-        time = data['kl_timestamp']['tv_sec']*1e6 + data['kl_timestamp']['tv_usec']
-        return [str(time), str(data['kl_line']), str(data['kl_file'].string()), str(data['kl_origin']), str(formated)]
+        time = str(data['kl_timestamp']['tv_sec'] * 1e6
+                        + data['kl_timestamp']['tv_usec'])
+        return [time, str(data['kl_line']), str(data['kl_file'].string()),
+                            str(data['kl_origin']), str(formated)]
 
     def load_klog(self):
         klog = gdb.parse_and_eval('klog')
@@ -158,7 +161,8 @@ class KernelLog():
         last = int(klog['last'])
         klog_array = klog['array']
         array_size = int(klog_array.type.range()[1]) + 1
-        number_of_logs = last - first if last >= first else last + array_size - first
+        number_of_logs = (last - first
+                            if last >= first else last + array_size - first)
         messages = []
         while first != last:
             data = klog_array[first]
