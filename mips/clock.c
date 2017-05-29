@@ -48,7 +48,7 @@ static INTR_HANDLER_DEFINE(mips_timer_intr_handler, mips_timer_intr, NULL, NULL,
 static void mips_timer_init() {
   mips32_set_c0(C0_COUNT, 0);
   mips32_set_c0(C0_COMPARE, TICKS_PER_MS);
-  mips_intr_setup(mips_timer_intr_handler, 7);
+  mips_intr_setup(mips_timer_intr_handler, MIPS_HWINT5);
 }
 
 SYSINIT_ADD(mips_timer, mips_timer_init, DEPS("callout", "sched"));
