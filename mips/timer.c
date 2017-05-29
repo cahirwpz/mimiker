@@ -32,14 +32,13 @@ static intr_filter_t cpu_timer_intr(void *arg) {
     if (ticks(event) > compare)
       break;
     TAILQ_REMOVE(&events, event, tev_link);
+    if (TAILQ_EMPTY(&events))
+      mips_intr_teardown(cpu_timer_intr_handler);
     assert(event->tev_func != NULL);
     event->tev_func(event);
   }
 
-  if (TAILQ_EMPTY(&events))
-    mips_intr_teardown(cpu_timer_intr_handler);
-  else
-    mips32_set_c0(C0_COMPARE, ticks(TAILQ_FIRST(&events)));
+  mips32_set_c0(C0_COMPARE, ticks(TAILQ_FIRST(&events)));
 
   return IF_FILTERED;
 }
@@ -48,7 +47,7 @@ void cpu_timer_add_event(timer_event_t *tev) {
   SCOPED_CRITICAL_SECTION();
 
   if (TAILQ_EMPTY(&events)) {
-    TAILQ_INSERT_TAIL(&events, tev, tev_link);
+    TAILQ_INSERT_HEAD(&events, tev, tev_link);
     mips_intr_setup(cpu_timer_intr_handler, MIPS_HWINT5);
   } else {
     timer_event_t *event;
@@ -68,13 +67,7 @@ void cpu_timer_add_event(timer_event_t *tev) {
 void cpu_timer_remove_event(timer_event_t *tev) {
   SCOPED_CRITICAL_SECTION();
 
-  timer_event_t *event;
-  TAILQ_FOREACH (event, &events, tev_link) {
-    if (event == tev) {
-      TAILQ_REMOVE(&events, event, tev_link);
-      break;
-    }
-  }
+  TAILQ_REMOVE(&events, tev, tev_link);
 
   if (TAILQ_EMPTY(&events))
     mips_intr_teardown(cpu_timer_intr_handler);
