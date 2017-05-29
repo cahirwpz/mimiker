@@ -101,6 +101,8 @@ void sleepq_wait(void *wchan, const char *wmesg) {
   td->td_sleepqueue = NULL;
   td->td_state = TDS_WAITING;
   sq->sq_nblocked++;
+  td->td_last_slptime = get_uptime();
+
   sched_yield();
 }
 
@@ -133,7 +135,9 @@ static void sleepq_resume_thread(sleepq_t *sq, thread_t *td) {
 
   td->td_wchan = NULL;
   td->td_wmesg = NULL;
-
+  timeval_t now = get_uptime();
+  now = timeval_sub(&now, &td->td_last_slptime);
+  td->td_slptime = timeval_add(&td->td_slptime, &now);
   sched_add(td);
 }
 
