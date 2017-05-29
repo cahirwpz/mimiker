@@ -40,6 +40,7 @@ typedef enum {
 #define O_RDONLY 0
 #define O_WRONLY 1
 #define O_RDWR 2
+#define O_RDWR_MASK 0x3
 #define O_CREAT 0x0200
 
 typedef struct file {
