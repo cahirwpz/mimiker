@@ -9,9 +9,9 @@
    to FreeBSD, this is more than enough for most applications. Each
    process starts with this many descriptors, and more are allocated
    on demand. */
-#define NDFILE 20
+#define NDFILE 20U
 /* Separate macro defining a hard limit on open files. */
-#define MAXFILES 1024
+#define MAXFILES 1024U
 
 typedef struct fdtab {
   file_t **fdt_files; /* Open files array */

@@ -36,20 +36,18 @@ static int dev_cons_read(vnode_t *t, uio_t *uio) {
   return 0;
 }
 
-static int dev_cons_getattr(vnode_t *t, vattr_t *buf) {
-  return -ENOTSUP;
-}
-
-vnodeops_t dev_cons_vnodeops = {
+static vnodeops_t dev_cons_vnodeops = {
   .v_lookup = vnode_op_notsup,
   .v_readdir = vnode_op_notsup,
-  .v_getattr = dev_cons_getattr,
   .v_open = vnode_open_generic,
-  .v_write = dev_cons_write,
+  .v_close = vnode_op_notsup,
   .v_read = dev_cons_read,
+  .v_write = dev_cons_write,
+  .v_seek = vnode_op_notsup,
+  .v_getattr = vnode_op_notsup,
 };
 
-void init_dev_cons() {
+static void init_dev_cons() {
   dev_cons_device = vnode_new(V_DEV, &dev_cons_vnodeops);
   devfs_install("cons", dev_cons_device);
 }

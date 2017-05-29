@@ -15,14 +15,14 @@ class GDBWrapper(Launchable):
 
     def configure(self, **kwargs):
         # TODO: Maybe we don't need a way of configuring the tripet.
-        cmd = shlex.split(self.cmdstring %
-                          {'kernel': kwargs['kernel'], 'gdb': TRIPLET + '-gdb'})
+        cmd = shlex.split(self.cmdstring % {'kernel': kwargs['kernel'],
+                                            'gdb': TRIPLET + '-gdb'})
         self.cmd, self.options = cmd[0], cmd[1:]
 
     def stop(self):
         Launchable.stop(self)
-        # This is necessary because cgdb is irresponsible, and does not clean up
-        # terminal configuration (e.g. disabled keystroke echo)
+        # This is necessary because cgdb is irresponsible, and does not clean
+        # up terminal configuration (e.g. disabled keystroke echo)
         os.system("stty sane")
 
 

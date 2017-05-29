@@ -48,7 +48,7 @@ static bool is_valid(pte_t pte) {
 }
 
 static bool in_user_space(vm_addr_t addr) {
-  return (addr >= PMAP_USER_BEGIN && addr < PMAP_USER_END);
+  return addr < PMAP_USER_END;
 }
 
 static bool in_kernel_space(vm_addr_t addr) {
@@ -387,7 +387,8 @@ fault:
     ktest_failure();
   } else {
     /* Kernel mode thread violated memory, whoops. */
-    panic("Invalid memory access.");
+    panic("%s at $%08x, caused by reference to $%08lx in thread %p!",
+          exceptions[code], frame->pc, vaddr, td);
   }
 }
 

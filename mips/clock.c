@@ -15,7 +15,7 @@
 timeval_t get_uptime(void) {
   /* BUG: C0_COUNT will overflow every 4294 seconds for 100MHz processor! */
   uint32_t count = mips32_get_c0(C0_COUNT) / TICKS_PER_US;
-  return TIMEVAL_PAIR(count / 1000000, count % 1000000);
+  return (timeval_t){.tv_sec = count / 1000000, .tv_usec = count % 1000000};
 }
 
 static void mips_clock(timer_event_t *tev) {

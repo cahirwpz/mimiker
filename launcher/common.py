@@ -46,7 +46,8 @@ class Launchable:
     def wait(self, timeout=None):
         if self.process is None:
             return False
-        self.process.wait(timeout) # Throws exception on timeout
+        # Throws exception on timeout
+        self.process.wait(timeout)
         self.process = None
         return True
 

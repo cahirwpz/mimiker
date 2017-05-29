@@ -1,4 +1,4 @@
-#define KLOG KL_TEST
+#define KL_LOG KL_TEST
 
 #include <stdc.h>
 #include <ktest.h>
@@ -23,9 +23,9 @@ static int rand() {
 }
 
 static int logging_with_custom_mask() {
-  klog("Testing custom mask %d", KL_NONE);
+  klog_(KL_NONE, "Testing custom mask %d", KL_NONE);
   assert(klog.first == klog.last);
-  klog("Testing custom mask %d", KL_ALL);
+  klog_(KL_TEST, "Testing custom mask %d", KL_TEST);
   assert((klog.first + 1) % KL_SIZE == klog.last);
   klog_clear();
   return 0;
@@ -92,8 +92,7 @@ static int multithreads_test(const int number_of_threads) {
 /* Function that checks if sleep time is over and assigne new sleep time. */
 static int check_time(systime_t *sleep, const uint32_t freq) {
   timeval_t now = get_uptime();
-  timeval_t diff;
-  timeval_sub(&now, &start, &diff);
+  timeval_t diff = timeval_sub(&now, &start);
   if (tv2st(diff) < (*sleep))
     return 1;
   (*sleep) += (rand() & freq);
@@ -148,7 +147,7 @@ static int stress_test() {
 static int test_klog() {
   kprintf("Testing klog.\n");
   int mask_old = klog.mask;
-  klog.mask = KL_TEST;
+  klog.mask = KL_MASK(KL_LOG);
 
   /* Deleting logs if there are some old left. */
   klog_clear();

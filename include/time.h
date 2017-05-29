@@ -11,19 +11,19 @@ typedef struct timeval {
   suseconds_t tv_usec; /* microseconds */
 } timeval_t;
 
+typedef struct timespec {
+  time_t tv_sec; /* seconds */
+  long tv_nsec;  /* and nanoseconds */
+} timespec_t;
+
 #define TIMEVAL(fp)                                                            \
   (timeval_t) {                                                                \
     .tv_sec = (long)((fp)*1000000L) / 1000000L,                                \
     .tv_usec = (long)((fp)*1000000L) % 1000000L                                \
   }
 
-#define TIMEVAL_PAIR(sec, usec)                                                \
-  (timeval_t) {                                                                \
-    .tv_sec = (sec), .tv_usec = (usec)                                         \
-  }
-
 static inline timeval_t st2tv(systime_t st) {
-  return TIMEVAL_PAIR(st / 1000, st % 1000);
+  return (timeval_t){.tv_sec = st / 1000, .tv_usec = st % 1000};
 }
 
 static inline systime_t tv2st(timeval_t tv) {
@@ -47,22 +47,24 @@ static inline bool timeval_isset(timeval_t *tvp) {
   (((tvp)->tv_sec == (uvp)->tv_sec) ? (((tvp)->tv_usec)cmp((uvp)->tv_usec))    \
                                     : (((tvp)->tv_sec)cmp((uvp)->tv_sec)))
 
-static inline void timeval_add(timeval_t *tvp, timeval_t *uvp, timeval_t *vvp) {
-  vvp->tv_sec = tvp->tv_sec + uvp->tv_sec;
-  vvp->tv_usec = tvp->tv_usec + uvp->tv_usec;
-  if (vvp->tv_usec >= 1000000) {
-    vvp->tv_sec++;
-    vvp->tv_usec -= 1000000;
+static inline timeval_t timeval_add(timeval_t *tvp, timeval_t *uvp) {
+  timeval_t res = {.tv_sec = tvp->tv_sec + uvp->tv_sec,
+                   .tv_usec = tvp->tv_usec + uvp->tv_usec};
+  if (res.tv_usec >= 1000000) {
+    res.tv_sec++;
+    res.tv_usec -= 1000000;
   }
+  return res;
 }
 
-static inline void timeval_sub(timeval_t *tvp, timeval_t *uvp, timeval_t *vvp) {
-  vvp->tv_sec = tvp->tv_sec - uvp->tv_sec;
-  vvp->tv_usec = tvp->tv_usec - uvp->tv_usec;
-  if (vvp->tv_usec < 0) {
-    vvp->tv_sec--;
-    vvp->tv_usec += 1000000;
+static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
+  timeval_t res = {.tv_sec = tvp->tv_sec - uvp->tv_sec,
+                   .tv_usec = tvp->tv_usec - uvp->tv_usec};
+  if (res.tv_usec < 0) {
+    res.tv_sec--;
+    res.tv_usec += 1000000;
   }
+  return res;
 }
 
 #endif /* !_SYS_TIME_H_ */
