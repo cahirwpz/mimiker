@@ -250,6 +250,15 @@ static intr_filter_t gt_pci_intr(void *data) {
 INTR_HANDLER_DEFINE(gt_pci_intr_handler, gt_pci_intr, NULL, NULL,
                     "GT64120 interrupt", 0);
 
+static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
+                                          const char *name) {
+  gtpci->intr_chain[irq] = (intr_chain_t){
+    .ic_name = (name),
+    .ic_irq = (irq),
+    .ic_handlers = TAILQ_HEAD_INITIALIZER(gtpci->intr_chain[irq].ic_handlers)};
+  intr_chain_register(&gtpci->intr_chain[irq]);
+}
+
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
   gtpci->pci_bus.mem_space = &gt_pci_memory;
@@ -268,23 +277,22 @@ static int gt_pci_attach(device_t *pcib) {
   bus_space_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
   bus_space_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
-  intr_chain_t *chain = gtpci->intr_chain;
-  intr_chain_init(&chain[0], 0, "timer");     /* timer */
-  intr_chain_init(&chain[1], 1, "kbd");       /* kbd controller (keyboard) */
-  intr_chain_init(&chain[2], 2, "pic-slave"); /* PIC cascade */
-  intr_chain_init(&chain[3], 3, "uart(1)");   /* COM 2 */
-  intr_chain_init(&chain[4], 4, "uart(0)");   /* COM 1 */
-  intr_chain_init(&chain[5], 5, "unused(0)");
-  intr_chain_init(&chain[6], 6, "floppy");   /* floppy */
-  intr_chain_init(&chain[7], 7, "parallel"); /* centronics */
-  intr_chain_init(&chain[8], 8, "rtc");      /* RTC */
-  intr_chain_init(&chain[9], 9, "i2c");      /* I2C */
-  intr_chain_init(&chain[10], 10, "unused(1)");
-  intr_chain_init(&chain[11], 11, "unused(2)");
-  intr_chain_init(&chain[12], 12, "mouse"); /* kbd controller (mouse) */
-  intr_chain_init(&chain[13], 13, "unused(3)");
-  intr_chain_init(&chain[14], 14, "ide(0)"); /* IDE primary */
-  intr_chain_init(&chain[15], 15, "ide(1)"); /* IDE secondary */
+  gt_pci_intr_chain_init(gtpci, 0, "timer");
+  gt_pci_intr_chain_init(gtpci, 1, "kbd");       /* kbd controller (keyboard) */
+  gt_pci_intr_chain_init(gtpci, 2, "pic-slave"); /* PIC cascade */
+  gt_pci_intr_chain_init(gtpci, 3, "uart(1)");   /* COM 2 */
+  gt_pci_intr_chain_init(gtpci, 4, "uart(0)");   /* COM 1 */
+  gt_pci_intr_chain_init(gtpci, 5, "unused(0)");
+  gt_pci_intr_chain_init(gtpci, 6, "floppy");   /* floppy */
+  gt_pci_intr_chain_init(gtpci, 7, "parallel"); /* centronics */
+  gt_pci_intr_chain_init(gtpci, 8, "rtc");      /* RTC */
+  gt_pci_intr_chain_init(gtpci, 9, "i2c");      /* I2C */
+  gt_pci_intr_chain_init(gtpci, 10, "unused(1)");
+  gt_pci_intr_chain_init(gtpci, 11, "unused(2)");
+  gt_pci_intr_chain_init(gtpci, 12, "mouse"); /* kbd controller (mouse) */
+  gt_pci_intr_chain_init(gtpci, 13, "unused(3)");
+  gt_pci_intr_chain_init(gtpci, 14, "ide(0)"); /* IDE primary */
+  gt_pci_intr_chain_init(gtpci, 15, "ide(1)"); /* IDE secondary */
 
   pci_bus_enumerate(pcib);
   pci_bus_assign_space(pcib);

@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <interrupt.h>
 #include <mips/exc.h>
+#include <mips/intr.h>
 #include <mips/mips.h>
 #include <pmap.h>
 #include <pmap.h>
@@ -15,18 +16,22 @@
 extern const char _ebase[];
 
 #define MIPS_INTR_CHAIN(irq, name)                                             \
-  (intr_chain_t) {                                                             \
+  [irq] = (intr_chain_t) {                                                     \
     .ic_name = (name), .ic_irq = (irq),                                        \
     .ic_handlers = TAILQ_HEAD_INITIALIZER(mips_intr_chain[irq].ic_handlers)    \
   }
 
 static intr_chain_t mips_intr_chain[8] = {
-    /* Initialize software interrupts handler chains. */
-    [0] = MIPS_INTR_CHAIN(0, "swint(0)"), [1] = MIPS_INTR_CHAIN(1, "swint(1)"),
-    /* Initialize hardware interrupts handler chains. */
-    [2] = MIPS_INTR_CHAIN(2, "hwint(0)"), [3] = MIPS_INTR_CHAIN(3, "hwint(1)"),
-    [4] = MIPS_INTR_CHAIN(4, "hwint(2)"), [5] = MIPS_INTR_CHAIN(5, "hwint(3)"),
-    [6] = MIPS_INTR_CHAIN(6, "hwint(4)"), [7] = MIPS_INTR_CHAIN(7, "hwint(5)")};
+  /* Initialize software interrupts handler chains. */
+  MIPS_INTR_CHAIN(MIPS_SWINT0, "swint(0)"),
+  MIPS_INTR_CHAIN(MIPS_SWINT1, "swint(1)"),
+  /* Initialize hardware interrupts handler chains. */
+  MIPS_INTR_CHAIN(MIPS_HWINT0, "hwint(0)"),
+  MIPS_INTR_CHAIN(MIPS_HWINT1, "hwint(1)"),
+  MIPS_INTR_CHAIN(MIPS_HWINT2, "hwint(2)"),
+  MIPS_INTR_CHAIN(MIPS_HWINT3, "hwint(3)"),
+  MIPS_INTR_CHAIN(MIPS_HWINT4, "hwint(4)"),
+  MIPS_INTR_CHAIN(MIPS_HWINT5, "hwint(5)")};
 
 void mips_intr_init() {
   /*
@@ -41,6 +46,9 @@ void mips_intr_init() {
   mips32_bs_c0(C0_CAUSE, CR_IV);
   /* Set vector spacing to 0. */
   mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
+
+  for (unsigned i = 0; i < 8; i++)
+    intr_chain_register(&mips_intr_chain[i]);
 }
 
 void mips_intr_setup(intr_handler_t *handler, unsigned irq) {

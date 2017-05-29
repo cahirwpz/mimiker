@@ -1,17 +1,16 @@
 #define KL_LOG KL_INTR
 #include <klog.h>
 #include <stdc.h>
+#include <mutex.h>
 #include <interrupt.h>
 
-static TAILQ_HEAD(, intr_chain)
-  intr_chain_list = TAILQ_HEAD_INITIALIZER(intr_chain_list);
+static mtx_t all_ichains_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static intr_chain_list_t all_ichains_list =
+  TAILQ_HEAD_INITIALIZER(all_ichains_list);
 
-void intr_chain_init(intr_chain_t *ic, unsigned irq, char *name) {
-  ic->ic_irq = irq;
-  ic->ic_count = 0;
-  ic->ic_name = name;
-  TAILQ_INIT(&ic->ic_handlers);
-  TAILQ_INSERT_TAIL(&intr_chain_list, ic, ic_list);
+void intr_chain_register(intr_chain_t *ic) {
+  WITH_MTX_LOCK (&all_ichains_mtx)
+    TAILQ_INSERT_TAIL(&all_ichains_list, ic, ic_list);
 }
 
 void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
