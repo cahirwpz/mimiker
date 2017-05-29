@@ -8,7 +8,7 @@ import os
 
 N_SIMPLE = 5
 N_THOROUGH = 100
-TIMEOUT = 15
+TIMEOUT = 5
 RETRIES_MAX = 5
 REPEAT = 5
 

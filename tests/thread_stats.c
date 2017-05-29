@@ -5,7 +5,8 @@
 #include <runq.h>
 
 #define THREADS_NUMBER 10
-timeval_t test_time = TIMEVAL(0.2);
+
+static timeval_t test_time = TIMEVAL(0.2);
 
 static void thread_nop_function(void *arg) {
   timeval_t end = timeval_add(arg, &test_time);
@@ -71,8 +72,8 @@ static int test_thread_stats_slp(void) {
   thread_join(waker);
   for (int i = 0; i < THREADS_NUMBER; i++) {
     thread_t *td = threads[i];
-    klog("Thread:%d runtime:%u.%u sleeptime:%u.%u context switches:%llu", i,
-         td->td_rtime.tv_sec, td->td_rtime.tv_usec, td->td_slptime.tv_sec,
+    klog("Thread: %d, runtime: %u.%u, sleeptime: %u.%u, context switches: %llu",
+         i, td->td_rtime.tv_sec, td->td_rtime.tv_usec, td->td_slptime.tv_sec,
          td->td_slptime.tv_usec, td->td_nctxsw);
     if (!timeval_isset(&td->td_rtime) || !timeval_isset(&td->td_slptime))
       return KTEST_FAILURE;
@@ -80,5 +81,7 @@ static int test_thread_stats_slp(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(thread_stats_nop, test_thread_stats_nop, 0);
-KTEST_ADD(thread_stats_slp, test_thread_stats_slp, 0);
+/* TODO: These tests take too long to run to be a part of regular test run.
+ * For now we have to run them manually. */
+KTEST_ADD(thread_stats_nop, test_thread_stats_nop, KTEST_FLAG_BROKEN);
+KTEST_ADD(thread_stats_slp, test_thread_stats_slp, KTEST_FLAG_BROKEN);
