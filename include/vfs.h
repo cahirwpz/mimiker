@@ -1,8 +1,7 @@
 #ifndef _SYS_VFS_H_
 #define _SYS_VFS_H_
 
-#include <uio.h>
-
+typedef struct uio uio_t;
 typedef struct thread thread_t;
 typedef struct vnode vnode_t;
 typedef struct stat stat_t;
