@@ -20,7 +20,7 @@ timeval_t get_uptime(void) {
 
 static void mips_clock(timer_event_t *tev) {
   systime_t st = tv2st(tev->tev_when);
-  timeval_add(&tev->tev_when, &TIMEVAL(0.001), &tev->tev_when);
+  tev->tev_when = timeval_add(&tev->tev_when, &TIMEVAL(0.001));
   cpu_timer_add_event(tev);
   clock(st);
 }
