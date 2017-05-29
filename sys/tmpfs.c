@@ -137,8 +137,7 @@ int tmpfs_vnode_write(vnode_t *v, uio_t *uio) {
   return uiomove_frombuf(data->buf, data->size, uio);
 }
 
-int tmpfs_vnode_seek(vnode_t *v, off_t oldoff, off_t newoff, void *state)
-{
+int tmpfs_vnode_seek(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
   /* TODO add support for readdir */
   return vnode_seek_generic(v, oldoff, newoff, state);
 }
@@ -163,7 +162,6 @@ int tmpfs_vnode_create(vnode_t *dv, const char *name, vattr_t *va,
   if (dirnode->type != T_DIR)
     return -ENOTDIR;
   tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
-
 
   tmpfs_node_t *node = tmpfs_new_node(T_REG, name);
   tmpfs_dirnode_insert(dirdata, node);
