@@ -29,8 +29,7 @@ static void mips_clock_init(void) {
   timer_event_t *clock = kmalloc(M_TEMP, sizeof(*clock), M_ZERO);
   clock->tev_when = TIMEVAL(0.001);
   clock->tev_func = mips_clock;
-  CRITICAL_SECTION
-    cpu_timer_add_event(clock);
+  cpu_timer_add_event(clock);
 }
 
 SYSINIT_ADD(mips_clock, mips_clock_init, DEPS("cpu_timer"));
