@@ -13,7 +13,7 @@ static void clock(timer_event_t *tev) {
   sched_clock();
 }
 
-static timer_event_t *clock_event = &(timer_event_t){ .tev_func = clock };
+static timer_event_t *clock_event = &(timer_event_t){.tev_func = clock};
 
 static void clock_init(void) {
   timeval_t now = get_uptime();

@@ -9,7 +9,7 @@
 static timer_event_list_t events = TAILQ_HEAD_INITIALIZER(events);
 
 static inline uint32_t ticks(timer_event_t *tev) {
-  return tev->tev_when.tv_sec * TICKS_PER_SEC + 
+  return tev->tev_when.tv_sec * TICKS_PER_SEC +
          tev->tev_when.tv_usec * TICKS_PER_US;
 }
 
@@ -28,7 +28,7 @@ static intr_filter_t cpu_timer_intr(void *arg) {
   uint32_t compare = mips32_get_c0(C0_COMPARE);
 
   timer_event_t *event, *next;
-  TAILQ_FOREACH_SAFE (event, &events, tev_link, next) {
+  TAILQ_FOREACH_SAFE(event, &events, tev_link, next) {
     if (ticks(event) > compare)
       break;
     TAILQ_REMOVE(&events, event, tev_link);
