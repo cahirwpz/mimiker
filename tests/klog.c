@@ -92,8 +92,7 @@ static int multithreads_test(const int number_of_threads) {
 /* Function that checks if sleep time is over and assigne new sleep time. */
 static int check_time(systime_t *sleep, const uint32_t freq) {
   timeval_t now = get_uptime();
-  timeval_t diff;
-  timeval_sub(&now, &start, &diff);
+  timeval_t diff = timeval_sub(&now, &start);
   if (tv2st(diff) < (*sleep))
     return 1;
   (*sleep) += (rand() & freq);
