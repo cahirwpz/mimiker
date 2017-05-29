@@ -5,9 +5,9 @@
 #include <queue.h>
 
 typedef enum {
-  IF_STRAY = 0,           /* this device did not trigger the interrupt */
-  IF_HANDLED = 1,         /* the interrupt has been handled and can be EOId */
-  IF_SCHEDULE_THREAD = 2, /* the handler should be run in private thread */
+  IF_STRAY = 0,    /* this device did not trigger the interrupt */
+  IF_FILTERED = 1, /* the interrupt has been handled and can be EOId */
+  IF_DELEGATE = 2, /* the handler should be run in private thread */
 } intr_filter_t;
 
 /*

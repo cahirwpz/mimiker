@@ -217,13 +217,16 @@ static void init_8259(resource_t *io, unsigned icu, unsigned imask) {
 #define OCW3_POLL_PENDING (1U << 7)
 
 static intr_filter_t gt_pci_intr(void *data) {
+  gt_pci_state_t *gtpci = data;
   unsigned irq;
+
+  assert(data != NULL);
 
   for (;;) {
     ICU1_ADDR_R = OCW3_SEL | OCW3_P;
     irq = ICU1_DATA_R;
     if ((irq & OCW3_POLL_PENDING) == 0)
-      return IF_HANDLED;
+      return IF_FILTERED;
     irq = OCW3_POLL_IRQ(irq);
     /* slave PIC ? */
     if (irq == 2) {
@@ -235,6 +238,9 @@ static intr_filter_t gt_pci_intr(void *data) {
         irq = 2;
     }
 
+    if (irq != 2)
+      intr_chain_run_handlers(&gtpci->intr_chain[irq]);
+
     /* Send a specific EOI to the 8259. */
     if (irq > 7) {
       ICU2_ADDR_R = OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq & 7);
@@ -244,11 +250,11 @@ static intr_filter_t gt_pci_intr(void *data) {
     ICU1_ADDR_R = OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq);
   }
 
-  return IF_HANDLED;
+  return IF_FILTERED;
 }
 
-INTR_HANDLER_DEFINE(gt_pci_intr_handler, gt_pci_intr, NULL, NULL,
-                    "GT64120 interrupt", 0);
+static INTR_HANDLER_DEFINE(gt_pci_intr_handler, gt_pci_intr, NULL, NULL,
+                           "GT64120 interrupt", 0);
 
 static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
                                           const char *name) {
@@ -297,6 +303,10 @@ static int gt_pci_attach(device_t *pcib) {
   pci_bus_enumerate(pcib);
   pci_bus_assign_space(pcib);
   pci_bus_dump(pcib);
+
+  /* XXX: This is an awful kludge. I guess handlers should have a dynamically
+   * allocated part. */
+  gt_pci_intr_handler->ih_argument = gtpci;
 
   bus_intr_setup(pcib, 2, gt_pci_intr_handler);
 

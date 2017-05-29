@@ -51,8 +51,13 @@ void intr_chain_run_handlers(intr_chain_t *ic) {
   intr_filter_t status = IF_STRAY;
 
   TAILQ_FOREACH (ih, &ic->ic_handlers, ih_list) {
-    status |= ih->ih_filter ? ih->ih_filter(ih->ih_argument) : IF_HANDLED;
-    if (ih->ih_handler && (status & IF_HANDLED)) {
+    assert(ih->ih_filter != NULL);
+    status = ih->ih_filter(ih->ih_argument);
+    if (status == IF_FILTERED)
+      return;
+    if (status == IF_DELEGATE) {
+      assert(ih->ih_handler != NULL);
+      /* TODO: delegate the handler to be run in interrupt thread context */
       ih->ih_handler(ih->ih_argument);
       return;
     }

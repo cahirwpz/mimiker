@@ -19,14 +19,14 @@ timeval_t get_uptime() {
   return (timeval_t){.tv_sec = count / 1000000, .tv_usec = count % 1000000};
 }
 
-static void mips_timer_intr() {
+static intr_filter_t mips_timer_intr(void *data) {
   uint32_t compare = mips32_get_c0(C0_COMPARE);
   uint32_t count = mips32_get_c0(C0_COUNT);
   int32_t diff = compare - count;
 
   /* Should not happen. Potentially spurious interrupt. */
   if (diff > 0)
-    return;
+    return IF_STRAY;
 
   /* This loop is necessary, because sometimes we may miss some ticks. */
   while (diff < TICKS_PER_MS) {
@@ -39,9 +39,10 @@ static void mips_timer_intr() {
   assert(compare % TICKS_PER_MS == 0);
   mips32_set_c0(C0_COMPARE, compare);
   clock(tv2st(sys_clock));
+  return IF_FILTERED;
 }
 
-static INTR_HANDLER_DEFINE(mips_timer_intr_handler, NULL, mips_timer_intr, NULL,
+static INTR_HANDLER_DEFINE(mips_timer_intr_handler, mips_timer_intr, NULL, NULL,
                            "MIPS cpu timer", 0);
 
 static void mips_timer_init() {
