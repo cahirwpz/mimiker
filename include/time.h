@@ -2,7 +2,6 @@
 #define _SYS_TIME_H_
 
 #include <common.h>
-#include <mips/config.h>
 
 typedef uint32_t systime_t; /* kept in miliseconds */
 
@@ -28,10 +27,6 @@ static inline timeval_t st2tv(systime_t st) {
 
 static inline systime_t tv2st(timeval_t tv) {
   return tv.tv_sec * 1000 + tv.tv_usec / 1000;
-}
-
-static inline uint32_t tv2tk(timeval_t tv) {
-  return (tv.tv_sec * TICKS_PER_SEC) + (tv.tv_usec * TICKS_PER_US);
 }
 
 /* Operations on timevals. */
@@ -66,5 +61,7 @@ static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
   }
   return res;
 }
+
+timeval_t get_uptime(void);
 
 #endif /* !_SYS_TIME_H_ */

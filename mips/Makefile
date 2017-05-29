@@ -2,7 +2,6 @@
 
 SOURCES_C = atomic.c \
 	    cbus.c \
-	    clock.c \
 	    context.c \
 	    cpu.c \
 	    gt64120.c \

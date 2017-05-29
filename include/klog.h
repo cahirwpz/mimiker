@@ -43,7 +43,7 @@ typedef enum {
 #ifdef _KLOG_PRIVATE
 #undef _KLOG_PRIVATE
 
-#include <clock.h>
+#include <time.h>
 
 #define KL_SIZE 1024
 
