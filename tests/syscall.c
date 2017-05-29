@@ -5,7 +5,7 @@
 #include <vm_pager.h>
 #include <ktest.h>
 
-static int test_syscall() {
+static int test_syscall(void) {
   /* System call from kernel space! */
   kprintf("syscall(1) = %d\n", syscall(1));
 

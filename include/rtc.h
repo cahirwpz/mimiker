@@ -11,7 +11,7 @@ typedef struct {
   int year;
 } rtc_time_t;
 
-void rtc_init();
+void rtc_init(void);
 void rtc_read(rtc_time_t *t);
 
 #endif

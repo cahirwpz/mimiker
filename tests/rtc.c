@@ -11,7 +11,7 @@
 #define REG_B_DM 4
 #define REG_B_24 2
 
-void rtc_init() {
+void rtc_init(void) {
   RTC_ADDR_R = 0xb;
   RTC_DATA_R = RTC_DATA_R | REG_B_DM | REG_B_24;
 }
@@ -44,7 +44,7 @@ static void tv_delay(timeval_t delay) {
     now = get_uptime();
 }
 
-static int test_rtc() {
+static int test_rtc(void) {
   rtc_init();
 
   while (1) {

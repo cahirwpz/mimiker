@@ -10,7 +10,7 @@
 
 static MALLOC_DEFINE(M_FILE, "file", 1, 2);
 
-static void file_init() {
+static void file_init(void) {
 }
 
 void file_ref(file_t *f) {
@@ -26,7 +26,7 @@ void file_unref(file_t *f) {
     f->f_count = -1;
 }
 
-file_t *file_alloc() {
+file_t *file_alloc(void) {
   file_t *f = kmalloc(M_FILE, sizeof(file_t), M_ZERO);
   f->f_ops = &badfileops;
   mtx_init(&f->f_mtx, MTX_DEF);

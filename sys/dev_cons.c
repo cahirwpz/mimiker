@@ -37,17 +37,16 @@ static int dev_cons_read(vnode_t *t, uio_t *uio) {
 }
 
 static vnodeops_t dev_cons_vnodeops = {
-  .v_lookup = vnode_op_notsup,
-  .v_readdir = vnode_op_notsup,
+  .v_lookup = (vnode_lookup_t *)vnode_op_notsup,
+  .v_readdir = (vnode_readdir_t *)vnode_op_notsup,
   .v_open = vnode_open_generic,
-  .v_close = vnode_op_notsup,
+  .v_close = (vnode_close_t *)vnode_op_notsup,
   .v_read = dev_cons_read,
   .v_write = dev_cons_write,
-  .v_seek = vnode_op_notsup,
-  .v_getattr = vnode_op_notsup,
-};
+  .v_seek = (vnode_seek_t *)vnode_op_notsup,
+  .v_getattr = (vnode_getattr_t *)vnode_op_notsup};
 
-static void init_dev_cons() {
+static void init_dev_cons(void) {
   dev_cons_device = vnode_new(V_DEV, &dev_cons_vnodeops);
   devfs_install("cons", dev_cons_device);
 }

@@ -14,7 +14,7 @@ static MALLOC_DEFINE(M_VNODE, "vnode", 2, 16);
    etc. So at some point we may need a more sophisticated memory management here
    - but this will do for now. */
 
-static void vnode_init() {
+static void vnode_init(void) {
 }
 
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops) {
@@ -51,7 +51,7 @@ void vnode_unref(vnode_t *v) {
     vnode_unlock(v);
 }
 
-int vnode_op_notsup() {
+int vnode_op_notsup(void) {
   return -ENOTSUP;
 }
 

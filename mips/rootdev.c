@@ -52,7 +52,7 @@ static device_t rootdev = (device_t){
   .state = NULL,
 };
 
-static void rootdev_init() {
+static void rootdev_init(void) {
   device_attach(&rootdev);
 }
 

@@ -7,7 +7,7 @@
 #include <ktest.h>
 
 #if 0
-static void demo_thread_1() {
+static void demo_thread_1(void) {
   while (true) {
     timeval_t start = get_uptime();
     kprintf("[%8zu] Running '%s' thread.\n", (size_t)tv2st(start),
@@ -18,13 +18,13 @@ static void demo_thread_1() {
   }
 }
 
-static void demo_thread_2() {
+static void demo_thread_2(void) {
   kprintf("Running '%s' thread. Let's yield!\n", thread_self()->td_name);
   sched_yield();
   demo_thread_1();
 }
 
-void main() {
+void main(void) {
   thread_t *t1 = thread_create("t1", demo_thread_1, NULL);
   thread_t *t2 = thread_create("t2", demo_thread_1, NULL);
   thread_t *t3 = thread_create("t3", demo_thread_1, NULL);
@@ -57,7 +57,7 @@ static void test_thread(void *p) {
   }
 }
 
-static int test_sched() {
+static int test_sched(void) {
   thread_t *t1 =
     thread_create("kernel-thread-1", test_thread, (void *)range[0].start);
   thread_t *t3 =

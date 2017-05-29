@@ -51,12 +51,18 @@ typedef struct vnodeops {
 
 #define VNODEOPS_NOTSUP_INITIALIZER()                                          \
   {                                                                            \
-    .v_lookup = vnode_op_notsup, .v_readdir = vnode_op_notsup,                 \
-    .v_open = vnode_op_notsup, .v_close = vnode_op_notsup,                     \
-    .v_read = vnode_op_notsup, .v_write = vnode_op_notsup,                     \
-    .v_seek = vnode_op_notsup, .v_getattr = vnode_op_notsup,                   \
-    .v_create = vnode_op_notsup, .v_remove = vnode_op_notsup,                  \
-    .v_mkdir = vnode_op_notsup, .v_rmdir = vnode_op_notsup                     \
+    .v_lookup = (vnode_lookup_t *)vnode_op_notsup,                             \
+    .v_readdir = (vnode_readdir_t *)vnode_op_notsup,                           \
+    .v_open = (vnode_open_t *)vnode_op_notsup,                                 \
+    .v_close = (vnode_close_t *)vnode_op_notsup,                               \
+    .v_read = (vnode_read_t *)vnode_op_notsup,                                 \
+    .v_write = (vnode_write_t *)vnode_op_notsup,                               \
+    .v_seek = (vnode_seek_t *)vnode_op_notsup,                                 \
+    .v_getattr = (vnode_getattr_t *)vnode_op_notsup,                           \
+    .v_create = (vnode_create_t *)vnode_op_notsup,                             \
+    .v_remove = (vnode_remove_t *)vnode_op_notsup,                             \
+    .v_mkdir = (vnode_mkdir_t *)vnode_op_notsup,                               \
+    .v_rmdir = (vnode_rmdir_t *)vnode_op_notsup                                \
   }
 
 typedef struct vnode {
@@ -152,7 +158,7 @@ void vnode_ref(vnode_t *v);
 void vnode_unref(vnode_t *v);
 
 /* Convenience function for filling in not supported vnodeops */
-int vnode_op_notsup();
+int vnode_op_notsup(void);
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state);

@@ -1,6 +1,6 @@
 #include <ktest.h>
 
-static int test_broken() {
+static int test_broken(void) {
 
   /* Invalid memory access. */
   volatile char *c = (char *)0x55555555;
