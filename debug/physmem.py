@@ -150,8 +150,8 @@ class KernelLog():
             print('''Error in formating message "{}" with parameters "{}"\n
             Message skipped!!'''.format(message, params))
             formated = message + params
-        time = str(data['kl_timestamp']['tv_sec'] * 1e6 +
-                   data['kl_timestamp']['tv_usec'])
+        time = "%d.%06d" % (data['kl_timestamp']['tv_sec'],
+                            data['kl_timestamp']['tv_usec'])
         return [time, str(data['kl_line']), str(data['kl_file'].string()),
                 str(data['kl_origin']), str(formated)]
 
@@ -179,6 +179,5 @@ class KernelLog():
 
     def dump_kernel_logs(self, messages):
         rows_data = [["Time", "Line", "File", "Origin", "Message"]]
-        for message in messages:
-            rows_data.append(message)
+        rows_data.extend(messages)
         ptable(rows_data, header=True, fmt='ccrcl')
