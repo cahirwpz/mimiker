@@ -45,6 +45,7 @@ SOURCES_C  = \
 	tmpfs.c \
 	uio.c \
 	vfs.c \
+	vfs_readdir.c \
 	vfs_syscalls.c \
 	vfs_vnode.c \
 	vm_map.c \

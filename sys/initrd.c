@@ -1,17 +1,16 @@
-#define KL_LOG KL_PMAP
+#define KL_LOG KL_FILESYS
 #include <klog.h>
 #include <errno.h>
-#include <common.h>
 #include <malloc.h>
-#include <vm.h>
-#include <vm_map.h>
 #include <stdc.h>
 #include <cpio.h>
 #include <initrd.h>
 #include <vnode.h>
 #include <mount.h>
-#include <mount.h>
+#include <file.h>
+#include <vfs.h>
 #include <linker_set.h>
+#include <dirent.h>
 
 static MALLOC_DEFINE(M_INITRD, "initrd", 16, 16);
 
@@ -19,11 +18,15 @@ typedef uint32_t cpio_dev_t;
 typedef uint32_t cpio_ino_t;
 typedef uint16_t cpio_mode_t;
 
+typedef struct cpio_node cpio_node_t;
+typedef TAILQ_HEAD(, cpio_node) cpio_list_t;
+
 /* ramdisk related data that will be stored in v_data field of vnode */
-typedef struct cpio_node {
+struct cpio_node {
   TAILQ_ENTRY(cpio_node) c_list; /* link to global list of all ramdisk nodes */
-  TAILQ_HEAD(, cpio_node) c_children; /* head of list of direct descendants */
-  TAILQ_ENTRY(cpio_node) c_siblings;  /* nodes that have the same parent */
+  cpio_list_t c_children;        /* head of list of direct descendants */
+  cpio_node_t *c_parent;         /* pointer to parent or NULL for root node */
+  TAILQ_ENTRY(cpio_node) c_siblings; /* nodes that have the same parent */
 
   cpio_dev_t c_dev;
   cpio_ino_t c_ino;
@@ -40,9 +43,7 @@ typedef struct cpio_node {
   void *c_data;
   /* Associated vnode. */
   vnode_t *c_vnode;
-} cpio_node_t;
-
-typedef TAILQ_HEAD(, cpio_node) cpio_list_t;
+};
 
 static cpio_list_t initrd_head = TAILQ_HEAD_INITIALIZER(initrd_head);
 static cpio_node_t *root_node;
@@ -57,10 +58,9 @@ static cpio_node_t *cpio_node_alloc() {
 }
 
 static void cpio_node_dump(cpio_node_t *cn) {
-  klog("entry '%s': {dev: %ld, ino: %lu, mode: %d, nlink: %d, "
-       "uid: %d, gid: %d, rdev: %ld, size: %ld, mtime: %lu}",
-       cn->c_path, cn->c_dev, cn->c_ino, cn->c_mode, cn->c_nlink, cn->c_uid,
-       cn->c_gid, cn->c_rdev, cn->c_size, cn->c_mtime);
+  klog("initrd entry '%s', inode: %lu:", cn->c_path, cn->c_ino);
+  klog(" mode: %o, nlink: %d, uid: %d, gid: %d, size: %ld, mtime: %ld",
+       cn->c_mode, cn->c_nlink, cn->c_uid, cn->c_gid, cn->c_size, cn->c_mtime);
 }
 
 static void read_bytes(void **tape, void *ptr, size_t bytes) {
@@ -90,7 +90,6 @@ static bool read_cpio_header(void **tape, cpio_node_t *cpio) {
   uint32_t c_mode = strntoul(hdr.c_mode, 8, NULL, 16);
   uint32_t c_uid = strntoul(hdr.c_uid, 8, NULL, 16);
   uint32_t c_gid = strntoul(hdr.c_gid, 8, NULL, 16);
-  uint32_t c_nlink = strntoul(hdr.c_nlink, 8, NULL, 16);
   uint32_t c_mtime = strntoul(hdr.c_mtime, 8, NULL, 16);
   uint32_t c_filesize = strntoul(hdr.c_filesize, 8, NULL, 16);
   uint32_t c_maj = strntoul(hdr.c_maj, 8, NULL, 16);
@@ -102,7 +101,8 @@ static bool read_cpio_header(void **tape, cpio_node_t *cpio) {
   cpio->c_dev = MKDEV(c_maj, c_min);
   cpio->c_ino = c_ino;
   cpio->c_mode = c_mode;
-  cpio->c_nlink = c_nlink;
+  /* hardlink count: number of subdirectiories + 2 ('.', '..'), otherwise 1 */
+  cpio->c_nlink = (CMTOFT(c_mode) == C_DIR) ? 2 : 1;
   cpio->c_uid = c_uid;
   cpio->c_gid = c_gid;
   cpio->c_rdev = MKDEV(c_rmaj, c_rmin);
@@ -117,6 +117,12 @@ static bool read_cpio_header(void **tape, cpio_node_t *cpio) {
   return true;
 }
 
+/* Extract last component of the path. */
+static const char *basename(const char *path) {
+  char *name = strrchr(path, '/');
+  return name ? name + 1 : path;
+}
+
 static void read_cpio_archive() {
   void *tape = (void *)ramdisk_get_start();
 
@@ -127,7 +133,17 @@ static void read_cpio_archive() {
       kfree(M_INITRD, node);
       break;
     }
-    TAILQ_INSERT_TAIL(&initrd_head, node, c_list);
+
+    /* Take care of root node denoted with '.' in cpio archive. */
+    if (strcmp(node->c_path, ".") == 0) {
+      node->c_path = "";
+      node->c_parent = node;
+      root_node = node;
+    }
+
+    node->c_name = basename(node->c_path);
+
+    TAILQ_INSERT_HEAD(&initrd_head, node, c_list);
   }
 }
 
@@ -141,42 +157,38 @@ static bool is_direct_descendant(const char *p1, const char *p2) {
   if (*p2)
     return false;
 
-  /* Check whether p is valid filename (does not contain '/') */
-  p1++; /* skip trailing '/' */
+  /* Check whether `p1` is valid filename (does not contain '/') */
+  if (*p1 == '/')
+    p1++; /* skip trailing '/' */
   return (strchr(p1, '/') == NULL);
 }
 
-/* Extract last component of the path. */
-static const char *basename(const char *path) {
-  char *name = strrchr(path, '/');
-  return name ? name + 1 : path;
+static void initrd_build_tree() {
+  cpio_node_t *parent, *child;
+
+  TAILQ_FOREACH (parent, &initrd_head, c_list) {
+    TAILQ_FOREACH (child, &initrd_head, c_list) {
+      if (parent == child)
+        continue;
+      if (is_direct_descendant(child->c_path, parent->c_path))
+        TAILQ_INSERT_TAIL(&parent->c_children, child, c_siblings);
+    }
+  }
 }
 
-static void initrd_build_tree_and_names() {
-  cpio_node_t *it_i, *it_j;
-
-  TAILQ_FOREACH (it_i, &initrd_head, c_list) {
-    TAILQ_FOREACH (it_j, &initrd_head, c_list) {
-      if (it_i == it_j)
-        continue;
-      if (is_direct_descendant(it_j->c_path, it_i->c_path))
-        TAILQ_INSERT_TAIL(&it_i->c_children, it_j, c_siblings);
-    }
-  }
-
+static ino_t initrd_enum_inodes(cpio_node_t *parent, ino_t ino) {
   cpio_node_t *it;
-  TAILQ_FOREACH (it, &initrd_head, c_list) {
-    it->c_name = basename(it->c_path);
-  }
-
-  /* Construct a node that represent the root of filesystem. */
-  root_node = cpio_node_alloc();
-  root_node->c_path = "";
-  TAILQ_FOREACH (it, &initrd_head, c_list) {
-    if (is_direct_descendant(it->c_path, "")) {
-      TAILQ_INSERT_TAIL(&root_node->c_children, it, c_siblings);
+  parent->c_ino = ino++;
+  TAILQ_FOREACH (it, &parent->c_children, c_siblings) {
+    it->c_parent = parent;
+    if (CMTOFT(it->c_mode) == C_DIR) {
+      parent->c_nlink++;
+      ino = initrd_enum_inodes(it, ino);
+    } else {
+      it->c_ino = ino++;
     }
   }
+  return ino;
 }
 
 static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
@@ -190,7 +202,7 @@ static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
       } else {
         /* Create new vnode */
         vnodetype_t type = V_REG;
-        if (it->c_mode & C_ISDIR)
+        if (CMTOFT(it->c_mode) == C_DIR)
           type = V_DIR;
         *res = vnode_new(type, &initrd_vops);
         (*res)->v_data = (void *)it;
@@ -229,12 +241,60 @@ static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
   return 0;
 }
 
-static int initrd_mount(mount_t *m) {
-  vnode_t *root = vnode_new(V_DIR, &initrd_vops);
-  root->v_data = (void *)root_node;
-  root->v_mount = m;
-  m->mnt_data = root;
-  return 0;
+static inline cpio_node_t *vn2cn(vnode_t *v) {
+  return (cpio_node_t *)v->v_data;
+}
+
+static void *cpio_dirent_next(vnode_t *v, void *it) {
+  assert(it != NULL);
+  if (it == DIRENT_DOT)
+    return DIRENT_DOTDOT;
+  if (it == DIRENT_DOTDOT)
+    return TAILQ_FIRST(&vn2cn(v)->c_children);
+  return TAILQ_NEXT((cpio_node_t *)it, c_siblings);
+}
+
+static size_t cpio_dirent_namlen(vnode_t *v, void *it) {
+  assert(it != NULL);
+  if (it == DIRENT_DOT)
+    return 1;
+  if (it == DIRENT_DOTDOT)
+    return 2;
+  return strlen(((cpio_node_t *)it)->c_name);
+}
+
+static const unsigned ft2dt[16] = {[C_FIFO] = DT_FIFO, [C_CHR] = DT_CHR,
+                                   [C_DIR] = DT_DIR,   [C_BLK] = DT_BLK,
+                                   [C_REG] = DT_REG,   [C_CTG] = DT_UNKNOWN,
+                                   [C_LNK] = DT_LNK,   [C_SOCK] = DT_SOCK};
+
+static void cpio_to_dirent(vnode_t *v, void *it, dirent_t *dir) {
+  assert(it != NULL);
+  cpio_node_t *node;
+  const char *name;
+  if (it == DIRENT_DOT) {
+    node = vn2cn(v);
+    name = ".";
+  } else if (it == DIRENT_DOTDOT) {
+    node = vn2cn(v)->c_parent;
+    name = "..";
+  } else {
+    node = (cpio_node_t *)it;
+    name = node->c_name;
+  }
+  dir->d_fileno = node->c_ino;
+  dir->d_type = ft2dt[CMTOFT(node->c_mode)];
+  memcpy(dir->d_name, name, dir->d_namlen + 1);
+}
+
+static readdir_ops_t cpio_readdir_ops = {
+  .next = cpio_dirent_next,
+  .namlen_of = cpio_dirent_namlen,
+  .convert = cpio_to_dirent,
+};
+
+static int initrd_vnode_readdir(vnode_t *v, uio_t *uio, void *state) {
+  return readdir_generic(v, uio, &cpio_readdir_ops);
 }
 
 static int initrd_root(mount_t *m, vnode_t **v) {
@@ -243,8 +303,16 @@ static int initrd_root(mount_t *m, vnode_t **v) {
   return 0;
 }
 
+static int initrd_mount(mount_t *m) {
+  vnode_t *root = vnode_new(V_DIR, &initrd_vops);
+  root->v_data = (void *)root_node;
+  root->v_mount = m;
+  m->mnt_data = root;
+  return 0;
+}
+
 static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
-                                 .v_readdir = vnode_op_notsup,
+                                 .v_readdir = initrd_vnode_readdir,
                                  .v_open = vnode_open_generic,
                                  .v_close = vnode_op_notsup,
                                  .v_read = initrd_vnode_read,
@@ -260,7 +328,8 @@ static int initrd_init(vfsconf_t *vfc) {
 
   klog("parsing cpio archive of %zu bytes", rd_size);
   read_cpio_archive();
-  initrd_build_tree_and_names();
+  initrd_build_tree();
+  initrd_enum_inodes(root_node, 2);
   return 0;
 }
 

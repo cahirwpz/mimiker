@@ -9,6 +9,7 @@ SOURCES_C = atomic.c \
 	    intr.c \
 	    malta.c \
 	    pmap.c \
+	    rootdev.c \
 	    stack.c \
 	    signal.c \
 	    tlb.c \

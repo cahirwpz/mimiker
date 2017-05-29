@@ -39,8 +39,7 @@ void rtc_read(rtc_time_t *t) {
 
 static void tv_delay(timeval_t delay) {
   timeval_t now = get_uptime();
-  timeval_t end;
-  timeval_add(&now, &delay, &end);
+  timeval_t end = timeval_add(&now, &delay);
   while (timeval_cmp(&now, &end, <))
     now = get_uptime();
 }

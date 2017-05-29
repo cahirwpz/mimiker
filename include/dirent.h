@@ -36,6 +36,8 @@
 
 #include <stdint.h>
 
+#define MAXNAMLEN 255
+
 /*
  * The dirent structure defines the format of directory entries returned by
  * the getdents(2) system call.

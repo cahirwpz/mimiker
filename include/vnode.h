@@ -12,6 +12,7 @@ typedef struct vnode vnode_t;
 typedef struct vattr vattr_t;
 typedef struct mount mount_t;
 typedef struct file file_t;
+typedef struct dirent dirent_t;
 
 typedef enum {
   V_NONE,
@@ -157,5 +158,20 @@ int vnode_op_notsup();
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state);
+
+#define DIRENT_DOT ((void *)-2)
+#define DIRENT_DOTDOT ((void *)-1)
+#define DIRENT_EOF NULL
+
+typedef struct readdir_ops {
+  /* take next directory entry */
+  void *(*next)(vnode_t *dir, void *entry);
+  /* filename size (to calc. dirent size) */
+  size_t (*namlen_of)(vnode_t *dir, void *entry);
+  /* make dirent based on entry */
+  void (*convert)(vnode_t *dir, void *entry, dirent_t *dirent);
+} readdir_ops_t;
+
+int readdir_generic(vnode_t *v, uio_t *uio, readdir_ops_t *ops);
 
 #endif /* !_SYS_VNODE_H_ */

@@ -16,6 +16,8 @@ static void mount_fs() {
   do_mount(thread_self(), "tmpfs", "/tmp");
 }
 
+SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs", "filedesc"));
+
 int kernel_init(int argc, char **argv) {
   kprintf("Kernel arguments (%d): ", argc);
   for (int i = 0; i < argc; i++)
@@ -24,8 +26,6 @@ int kernel_init(int argc, char **argv) {
 
   sysinit();
   klog("Kernel initialized!");
-
-  mount_fs();
 
   thread_t *main_thread = thread_create("main", main, NULL);
   sched_add(main_thread);
