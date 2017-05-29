@@ -3,6 +3,7 @@
 #include <stdc.h>
 #include <mutex.h>
 #include <interrupt.h>
+#include <sync.h>
 
 static mtx_t all_ichains_mtx = MUTEX_INITIALIZER(MTX_DEF);
 static intr_chain_list_t all_ichains_list =
@@ -14,6 +15,8 @@ void intr_chain_register(intr_chain_t *ic) {
 }
 
 void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
+  SCOPED_CRITICAL_SECTION();
+
   if (TAILQ_EMPTY(&ic->ic_handlers)) {
     TAILQ_INSERT_HEAD(&ic->ic_handlers, ih, ih_list);
   } else {
@@ -35,6 +38,8 @@ done:
 }
 
 void intr_chain_remove_handler(intr_handler_t *ih) {
+  SCOPED_CRITICAL_SECTION();
+
   intr_chain_t *ic = ih->ih_chain;
   TAILQ_REMOVE(&ic->ic_handlers, ih, ih_list);
   ih->ih_chain = NULL;

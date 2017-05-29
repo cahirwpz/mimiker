@@ -4,11 +4,13 @@
 #include <mips/config.h>
 #include <mips/intr.h>
 #include <sync.h>
+#include <stdc.h>
 
 static timer_event_list_t events = TAILQ_HEAD_INITIALIZER(events);
 
-static inline uint32_t ticks(timeval_t tv) {
-  return (tv.tv_sec * TICKS_PER_SEC) + (tv.tv_usec * TICKS_PER_US);
+static inline uint32_t ticks(timer_event_t *tev) {
+  return tev->tev_when.tv_sec * TICKS_PER_SEC + 
+         tev->tev_when.tv_usec * TICKS_PER_US;
 }
 
 timeval_t get_uptime(void) {
@@ -24,15 +26,10 @@ static INTR_HANDLER_DEFINE(cpu_timer_intr_handler, cpu_timer_intr, NULL, NULL,
 
 static intr_filter_t cpu_timer_intr(void *arg) {
   uint32_t compare = mips32_get_c0(C0_COMPARE);
-  uint32_t count = mips32_get_c0(C0_COUNT);
-
-  /* Should not happen. Potentially spurious interrupt. */
-  if (compare != count)
-    return IF_STRAY;
 
   timer_event_t *event, *next;
   TAILQ_FOREACH_SAFE (event, &events, tev_link, next) {
-    if (ticks(event->tev_when) > compare)
+    if (ticks(event) > compare)
       break;
     TAILQ_REMOVE(&events, event, tev_link);
     assert(event->tev_func != NULL);
@@ -42,7 +39,7 @@ static intr_filter_t cpu_timer_intr(void *arg) {
   if (TAILQ_EMPTY(&events))
     mips_intr_teardown(cpu_timer_intr_handler);
   else
-    mips32_set_c0(C0_COMPARE, ticks(TAILQ_FIRST(&events)->tev_when));
+    mips32_set_c0(C0_COMPARE, ticks(TAILQ_FIRST(&events)));
 
   return IF_FILTERED;
 }
@@ -64,7 +61,8 @@ void cpu_timer_add_event(timer_event_t *tev) {
     else
       TAILQ_INSERT_TAIL(&events, tev, tev_link);
   }
-  mips32_set_c0(C0_COMPARE, ticks(TAILQ_FIRST(&events)->tev_when));
+
+  mips32_set_c0(C0_COMPARE, ticks(TAILQ_FIRST(&events)));
 }
 
 void cpu_timer_remove_event(timer_event_t *tev) {
@@ -81,5 +79,5 @@ void cpu_timer_remove_event(timer_event_t *tev) {
   if (TAILQ_EMPTY(&events))
     mips_intr_teardown(cpu_timer_intr_handler);
   else
-    mips32_set_c0(C0_COMPARE, ticks(TAILQ_FIRST(&events)->tev_when));
+    mips32_set_c0(C0_COMPARE, ticks(TAILQ_FIRST(&events)));
 }
