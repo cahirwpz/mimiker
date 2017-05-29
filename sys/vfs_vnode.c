@@ -134,4 +134,4 @@ int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
   return 0;
 }
 
-SYSINIT_ADD(vnode, vnode_init, NODEPS);
+SYSINIT_ADD(vnode, vnode_init, DEPS("vm_map"));
