@@ -1,6 +1,10 @@
 #ifndef _SYS_KTEST_H_
 #define _SYS_KTEST_H_
 
+#ifndef KL_LOG
+#define KL_LOG KL_TEST
+#endif
+
 #include <linker_set.h>
 #include <stdc.h>
 
@@ -32,7 +36,7 @@ typedef struct {
 void ktest_main(const char *test);
 
 #define KTEST_ADD(name, func, flags)                                           \
-  test_entry_t name##_test = {#name, func, flags};                             \
+  test_entry_t name##_test = {#name, func, flags, 0};                          \
   SET_ENTRY(tests, name##_test);
 
 #define KTEST_ADD_RANDINT(name, func, flags, max)                              \

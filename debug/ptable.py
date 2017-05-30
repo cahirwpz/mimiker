@@ -1,4 +1,13 @@
 from __future__ import print_function
+import ctypes
+
+
+def as_uint32(num):
+    return ctypes.c_ulong(num).value & 0xffffffff
+
+
+def as_hex(num):
+    return "$%08x" % as_uint32(num)
 
 
 def cellfmt(cell, fmt, width):
@@ -29,7 +38,8 @@ def ptable(rows, fmt=None, header=False):
 
     print(hline)
     for i, row in enumerate(rows):
-        cells = [cellfmt(str(row[c]), fmt[c], width[c]) for c in range(columns)]
+        cells = [cellfmt(str(row[c]), fmt[c], width[c])
+                 for c in range(columns)]
         print('| %s |' % ' | '.join(cells))
         if i == 0 and header:
             print(hline)

@@ -1,5 +1,5 @@
 #include <stdc.h>
-#include <clock.h>
+#include <time.h>
 #include <thread.h>
 #include <sched.h>
 #include <ktest.h>
@@ -12,8 +12,7 @@ static void test_thread(void *p) {
   timeval_t *e = (timeval_t *)p;
   while (1) {
     timeval_t now = get_uptime();
-    timeval_t diff;
-    timeval_sub(&now, &start, &diff);
+    timeval_t diff = timeval_sub(&now, &start);
     if (timeval_cmp(&diff, e, >))
       thread_exit(0);
     else

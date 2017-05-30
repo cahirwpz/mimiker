@@ -4,12 +4,15 @@ import argparse
 import pexpect
 import sys
 import random
+import os
 
 N_SIMPLE = 5
 N_THOROUGH = 100
 TIMEOUT = 5
 RETRIES_MAX = 5
 REPEAT = 5
+
+GDB_PORT_BASE = 9100
 
 
 # Tries to decode binary output as ASCII, as hard as it can.
@@ -19,12 +22,15 @@ def safe_decode(data):
 
 # Tries to start gdb in order to investigate kernel state on deadlock.
 def gdb_inspect():
+    gdb_port = GDB_PORT_BASE + os.getuid()
     gdb_command = 'mipsel-mimiker-elf-gdb'
     # Note: These options are different than .gdbinit.
     gdb_opts = ['-nx',
                 'mimiker.elf',
-                '-ex=target remote localhost:1234',
-                '-ex=source debug/kdump.py']
+                '-ex=target remote localhost:%d' % gdb_port,
+                '-ex=python import os, sys',
+                '-ex=python sys.path.append(os.getcwd())',
+                '-ex=python import debug']
     gdb = pexpect.spawn(gdb_command, gdb_opts, timeout=1)
     gdb.expect_exact('(gdb)', timeout=2)
     gdb.sendline('info registers')

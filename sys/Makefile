@@ -45,8 +45,9 @@ SOURCES_C  = \
 	thread.c \
 	uio.c \
 	vfs.c \
-	vfs_vnode.c \
+	vfs_readdir.c \
 	vfs_syscalls.c \
+	vfs_vnode.c \
 	vm_map.c \
 	vm_object.c \
 	vm_pager.c
