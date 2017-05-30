@@ -1,6 +1,7 @@
 import gdb
 import threads
 import physmem
+import klog
 
 
 class Kdump(gdb.Command):
@@ -18,7 +19,7 @@ class Kdump(gdb.Command):
             'segments': physmem.KernelSegments(),
             'free_pages': physmem.KernelFreePages(),
             'tlb': physmem.TLB(),
-            'klog': physmem.KernelLog(),
+            'klog': klog.KernelLog(),
         }
 
     def invoke(self, args, from_tty):
