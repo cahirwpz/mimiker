@@ -238,6 +238,7 @@ static int tmpfs_init(vfsconf_t *vfc) {
 
 static int tmpfs_root(mount_t *m, vnode_t **v) {
   *v = (vnode_t *)m->mnt_data;
+  vnode_ref(*v);
   return 0;
 }
 
