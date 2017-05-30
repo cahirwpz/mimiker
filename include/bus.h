@@ -17,6 +17,9 @@ typedef void (*bus_space_write_1_t)(resource_t *handle, unsigned offset,
 typedef uint16_t (*bus_space_read_2_t)(resource_t *handle, unsigned offset);
 typedef void (*bus_space_write_2_t)(resource_t *handle, unsigned offset,
                                     uint16_t value);
+typedef uint32_t (*bus_space_read_4_t)(resource_t *handle, unsigned offset);
+typedef void (*bus_space_write_4_t)(resource_t *handle, unsigned offset,
+                                    uint32_t value);
 typedef void (*bus_space_read_region_1_t)(resource_t *handle, unsigned offset,
                                           uint8_t *dst, size_t count);
 typedef void (*bus_space_write_region_1_t)(resource_t *handle, unsigned offset,
@@ -29,8 +32,10 @@ typedef void (*bus_space_write_region_1_t)(resource_t *handle, unsigned offset,
 struct bus_space {
   bus_space_read_1_t read_1;   /* how to read one byte? */
   bus_space_write_1_t write_1; /* how to write one byte? */
-  bus_space_read_2_t read_2;   /* how to read two bytes? */
-  bus_space_write_2_t write_2; /* how to write two bytes? */
+  bus_space_read_2_t read_2;   /* how to read word? */
+  bus_space_write_2_t write_2; /* how to write word? */
+  bus_space_read_4_t read_4;   /* how to read double word? */
+  bus_space_write_4_t write_4; /* how to write double word? */
   bus_space_read_region_1_t read_region_1;
   bus_space_write_region_1_t write_region_1;
 };
@@ -82,6 +87,15 @@ static inline void bus_space_write_2(resource_t *handle, unsigned offset,
   handle->r_bus_space->write_2(handle, offset, value);
 }
 
+static inline uint32_t bus_space_read_4(resource_t *handle, unsigned offset) {
+  return handle->r_bus_space->read_4(handle, offset);
+}
+
+static inline void bus_space_write_4(resource_t *handle, unsigned offset,
+                                     uint32_t value) {
+  handle->r_bus_space->write_4(handle, offset, value);
+}
+
 static inline void bus_space_read_region_1(resource_t *handle, unsigned offset,
                                            uint8_t *dst, size_t count) {
   return handle->r_bus_space->read_region_1(handle, offset, dst, count);
@@ -106,15 +120,15 @@ struct bus_driver {
   bus_methods_t bus;
 };
 
-#define BUS_DRIVER(dev) ((bus_driver_t *)((dev)->driver))
+#define BUS_DRIVER(dev) ((bus_driver_t *)((dev)->parent->driver))
 
 static inline void bus_intr_setup(device_t *dev, unsigned num,
                                   intr_handler_t *handler) {
-  BUS_DRIVER(dev->parent)->bus.intr_setup(dev, num, handler);
+  BUS_DRIVER(dev)->bus.intr_setup(dev, num, handler);
 }
 
 static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
-  BUS_DRIVER(dev->parent)->bus.intr_teardown(dev, handler);
+  BUS_DRIVER(dev)->bus.intr_teardown(dev, handler);
 }
 
 int bus_generic_probe(device_t *bus);

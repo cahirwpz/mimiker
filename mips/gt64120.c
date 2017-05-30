@@ -1,18 +1,17 @@
 /* Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file. */
 
 #define KL_LOG KL_DEV
-#include <mips/gt64120.h>
+#include <mips/malta.h>
+#include <mips/intr.h>
 #include <dev/i8259.h>
 #include <dev/piixreg.h>
 #include <dev/isareg.h>
+#include <dev/gt64120reg.h>
 #include <interrupt.h>
 #include <pci.h>
 #include <stdc.h>
 #include <klog.h>
 #include <sync.h>
-
-#define PCI0_CFG_ADDR_R GT_R(GT_PCI0_CFG_ADDR)
-#define PCI0_CFG_DATA_R GT_R(GT_PCI0_CFG_DATA)
 
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
@@ -44,6 +43,8 @@ typedef union {
 typedef struct gt_pci_state {
   pci_bus_state_t pci_bus;
 
+  resource_t *corectrl;
+
   intr_chain_t intr_chain[16];
 
   uint16_t imask;
@@ -54,12 +55,16 @@ typedef struct gt_pci_state {
  * care of the fact that MIPS processor cannot handle unaligned accesses. */
 static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
   pci_device_t *pcid = pci_device_of(dev);
+  gt_pci_state_t *gtpci = dev->parent->state;
+  resource_t *pcicfg = gtpci->corectrl;
 
   if (pcid->addr.bus > 0)
     return -1;
 
-  PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2);
-  pci_reg_t data = (pci_reg_t)PCI0_CFG_DATA_R;
+  bus_space_write_4(pcicfg, GT_PCI0_CFG_ADDR,
+                    PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2));
+  pci_reg_t data = (pci_reg_t)bus_space_read_4(pcicfg, GT_PCI0_CFG_DATA);
+
   reg &= 3;
   switch (size) {
     case 1:
@@ -76,12 +81,16 @@ static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
 static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
                                 uint32_t value) {
   pci_device_t *pcid = pci_device_of(dev);
+  gt_pci_state_t *gtpci = dev->parent->state;
+  resource_t *pcicfg = gtpci->corectrl;
 
   if (pcid->addr.bus > 0)
     return;
 
-  PCI0_CFG_ADDR_R = PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2);
-  pci_reg_t data = (pci_reg_t)PCI0_CFG_DATA_R;
+  bus_space_write_4(pcicfg, GT_PCI0_CFG_ADDR,
+                    PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2));
+  pci_reg_t data = (pci_reg_t)bus_space_read_4(pcicfg, GT_PCI0_CFG_DATA);
+
   reg &= 3;
   switch (size) {
     case 1:
@@ -93,7 +102,8 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
     default:
       break;
   }
-  PCI0_CFG_DATA_R = data.dword;
+
+  bus_space_write_4(pcicfg, GT_PCI0_CFG_DATA, data.dword);
 }
 
 static uint8_t gt_pci_read_1(resource_t *handle, unsigned offset) {
@@ -117,6 +127,17 @@ static void gt_pci_write_2(resource_t *handle, unsigned offset,
   *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
 }
 
+static uint32_t gt_pci_read_4(resource_t *handle, unsigned offset) {
+  intptr_t addr = handle->r_start + offset;
+  return *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(addr);
+}
+
+static void gt_pci_write_4(resource_t *handle, unsigned offset,
+                           uint32_t value) {
+  intptr_t addr = handle->r_start + offset;
+  *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
+}
+
 static void gt_pci_read_region_1(resource_t *handle, unsigned offset,
                                  uint8_t *dst, size_t count) {
   uint8_t *src = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle->r_start + offset);
@@ -135,6 +156,8 @@ static bus_space_t gt_pci_bus_space = {.read_1 = gt_pci_read_1,
                                        .write_1 = gt_pci_write_1,
                                        .read_2 = gt_pci_read_2,
                                        .write_2 = gt_pci_write_2,
+                                       .read_4 = gt_pci_read_4,
+                                       .write_4 = gt_pci_write_4,
                                        .read_region_1 = gt_pci_read_region_1,
                                        .write_region_1 = gt_pci_write_region_1};
 
@@ -147,6 +170,11 @@ static resource_t gt_pci_ioports = {.r_bus_space = &gt_pci_bus_space,
                                     .r_type = RT_IOPORTS,
                                     .r_start = MALTA_PCI0_IO_BASE,
                                     .r_end = MALTA_PCI0_IO_END};
+
+static resource_t gt_pci_corectrl = {.r_bus_space = &gt_pci_bus_space,
+                                     .r_type = RT_IOPORTS,
+                                     .r_start = MALTA_CORECTRL_BASE,
+                                     .r_end = MALTA_CORECTRL_BASE + 0x1000};
 
 static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
   /* Enable the cascade IRQ (2) if 8-15 is enabled. */
@@ -221,31 +249,31 @@ static intr_filter_t gt_pci_intr(void *data) {
   assert(data != NULL);
 
   for (;;) {
+    /* Handle master PIC, irq 0..7 */
     bus_space_write_1(io, ICU1_ADDR, OCW3_SEL | OCW3_POLL);
     irq = bus_space_read_1(io, ICU1_DATA);
     if ((irq & OCW3_POLL_PENDING) == 0)
       return IF_FILTERED;
     irq = OCW3_POLL_IRQ(irq);
-    /* slave PIC ? */
+    /* Handle slave PIC, irq 8..15 */
     if (irq == 2) {
       bus_space_write_1(io, ICU2_ADDR, OCW3_SEL | OCW3_POLL);
       irq = bus_space_read_1(io, ICU2_DATA);
-      if (irq & OCW3_POLL_PENDING)
-        irq = OCW3_POLL_IRQ(irq) + 8;
-      else
-        irq = 2;
+      irq = (irq & OCW3_POLL_PENDING) ? (OCW3_POLL_IRQ(irq) + 8) : 2;
     }
 
+    /* Irq 2 is used for PIC chaining, ignore it. */
     if (irq != 2)
       intr_chain_run_handlers(&gtpci->intr_chain[irq]);
 
-    /* Send a specific EOI to the 8259. */
+    /* Send a specific EOI to slave PIC... */
     if (irq > 7) {
       bus_space_write_1(io, ICU2_ADDR,
                         OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq & 7));
       irq = 2;
     }
 
+    /* ... and finally to master PIC. */
     bus_space_write_1(io, ICU1_ADDR,
                       OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq));
   }
@@ -269,6 +297,7 @@ static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
   gtpci->pci_bus.mem_space = &gt_pci_memory;
   gtpci->pci_bus.io_space = &gt_pci_ioports;
+  gtpci->corectrl = &gt_pci_corectrl;
 
   /* All interrupts default to "masked off" and edge-triggered. */
   gtpci->imask = 0xffff;
@@ -304,12 +333,13 @@ static int gt_pci_attach(device_t *pcib) {
   pci_bus_assign_space(pcib);
   pci_bus_dump(pcib);
 
-  /* XXX: This is an awful kludge. I guess handlers should have a dynamically
+  /* XXX This is an awful kludge. I guess handlers should have a dynamically
    * allocated part. */
   gt_pci_intr_handler->ih_argument = gtpci;
 
-  bus_intr_setup(pcib, 2, gt_pci_intr_handler);
+  bus_intr_setup(pcib, MIPS_HWINT0, gt_pci_intr_handler);
 
+  /* XXX Temporarily enable RTC interrupt, for testing. */
   gt_pci_unmask_irq(gtpci, 8);
 
   return bus_generic_probe(pcib);
