@@ -339,13 +339,10 @@ static int gt_pci_attach(device_t *pcib) {
 
   bus_intr_setup(pcib, MIPS_HWINT0, gt_pci_intr_handler);
 
-  /* XXX Temporarily enable RTC interrupt, for testing. */
-  gt_pci_unmask_irq(gtpci, 8);
-
   return bus_generic_probe(pcib);
 }
 
-pci_bus_driver_t gt_pci = {
+pci_bus_driver_t gt_pci_bus = {
   .driver =
     {
       .desc = "GT-64120 PCI bus driver",
