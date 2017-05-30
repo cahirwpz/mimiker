@@ -1,41 +1,40 @@
 #define KL_LOG KL_INTR
 #include <klog.h>
 #include <stdc.h>
+#include <mutex.h>
 #include <interrupt.h>
+#include <sync.h>
 
-static TAILQ_HEAD(, intr_chain)
-  intr_chain_list = TAILQ_HEAD_INITIALIZER(intr_chain_list);
+static mtx_t all_ichains_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static intr_chain_list_t all_ichains_list =
+  TAILQ_HEAD_INITIALIZER(all_ichains_list);
 
-void intr_chain_init(intr_chain_t *ic, unsigned irq, char *name) {
-  ic->ic_irq = irq;
-  ic->ic_count = 0;
-  ic->ic_name = name;
-  TAILQ_INIT(&ic->ic_handlers);
-  TAILQ_INSERT_TAIL(&intr_chain_list, ic, ic_list);
+void intr_chain_register(intr_chain_t *ic) {
+  WITH_MTX_LOCK (&all_ichains_mtx)
+    TAILQ_INSERT_TAIL(&all_ichains_list, ic, ic_list);
 }
 
 void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
-  if (TAILQ_EMPTY(&ic->ic_handlers)) {
-    TAILQ_INSERT_HEAD(&ic->ic_handlers, ih, ih_list);
-  } else {
-    /* Add new handler according to it's priority */
-    intr_handler_t *it;
+  SCOPED_CRITICAL_SECTION();
 
-    TAILQ_FOREACH (it, &ic->ic_handlers, ih_list) {
-      if (ih->ih_prio > it->ih_prio) {
-        TAILQ_INSERT_BEFORE(it, ih, ih_list);
-        goto done;
-      }
-    }
+  /* Add new handler according to it's priority */
+  intr_handler_t *it;
+  TAILQ_FOREACH (it, &ic->ic_handlers, ih_list)
+    if (ih->ih_prio > it->ih_prio)
+      break;
+
+  if (it)
+    TAILQ_INSERT_BEFORE(it, ih, ih_list);
+  else
     TAILQ_INSERT_TAIL(&ic->ic_handlers, ih, ih_list);
-  }
 
-done:
   ih->ih_chain = ic;
   ic->ic_count++;
 }
 
 void intr_chain_remove_handler(intr_handler_t *ih) {
+  SCOPED_CRITICAL_SECTION();
+
   intr_chain_t *ic = ih->ih_chain;
   TAILQ_REMOVE(&ic->ic_handlers, ih, ih_list);
   ih->ih_chain = NULL;
@@ -52,8 +51,13 @@ void intr_chain_run_handlers(intr_chain_t *ic) {
   intr_filter_t status = IF_STRAY;
 
   TAILQ_FOREACH (ih, &ic->ic_handlers, ih_list) {
-    status |= ih->ih_filter ? ih->ih_filter(ih->ih_argument) : IF_HANDLED;
-    if (status & IF_HANDLED) {
+    assert(ih->ih_filter != NULL);
+    status = ih->ih_filter(ih->ih_argument);
+    if (status == IF_FILTERED)
+      return;
+    if (status == IF_DELEGATE) {
+      assert(ih->ih_handler != NULL);
+      /* TODO: delegate the handler to be run in interrupt thread context */
       ih->ih_handler(ih->ih_argument);
       return;
     }

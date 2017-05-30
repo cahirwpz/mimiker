@@ -8,6 +8,7 @@
 #include <sleepq.h>
 #include <mutex.h>
 #include <condvar.h>
+#include <time.h>
 #include <signal.h>
 
 typedef uint8_t td_prio_t;
@@ -55,6 +56,13 @@ typedef struct thread {
   /* scheduler part */
   td_prio_t td_prio;
   int td_slice;
+  /* thread statistics */
+  timeval_t td_rtime;        /* ticks spent running */
+  timeval_t td_last_rtime;   /* time of last switch to running state */
+  timeval_t td_slptime;      /* ticks spent sleeping */
+  timeval_t td_last_slptime; /* time of last switch to sleep state */
+  unsigned td_nctxsw;        /* total number of context switches */
+  /* signal handling */
   sigset_t td_sigpend; /* Pending signals for this thread. */
   /* TODO: Signal mask, sigsuspend. */
 } thread_t;

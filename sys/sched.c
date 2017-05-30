@@ -5,7 +5,7 @@
 #include <sched.h>
 #include <runq.h>
 #include <context.h>
-#include <clock.h>
+#include <time.h>
 #include <thread.h>
 #include <callout.h>
 #include <interrupt.h>
@@ -83,9 +83,16 @@ void sched_switch(thread_t *newtd) {
     newtd = sched_choose();
 
   newtd->td_state = TDS_RUNNING;
+  timeval_t now = get_uptime();
+  timeval_t diff = timeval_sub(&now, &td->td_last_rtime);
+  td->td_rtime = timeval_add(&td->td_rtime, &diff);
+  newtd->td_last_rtime = now;
 
-  if (td != newtd)
+  if (td != newtd) {
+    td->td_nctxsw++;
+    newtd->td_nctxsw++;
     ctx_switch(td, newtd);
+  }
 }
 
 noreturn void sched_run() {

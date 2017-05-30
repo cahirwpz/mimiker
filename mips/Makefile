@@ -2,15 +2,16 @@
 
 SOURCES_C = atomic.c \
 	    cbus.c \
-	    clock.c \
 	    context.c \
 	    cpu.c \
 	    gt64120.c \
 	    intr.c \
 	    malta.c \
 	    pmap.c \
+	    rootdev.c \
 	    stack.c \
 	    signal.c \
+	    timer.c \
 	    tlb.c \
 	    uart_cbus.c
 

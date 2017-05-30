@@ -387,7 +387,8 @@ fault:
     ktest_failure();
   } else {
     /* Kernel mode thread violated memory, whoops. */
-    panic("Invalid memory access.");
+    panic("%s at $%08x, caused by reference to $%08lx in thread %p!",
+          exceptions[code], frame->pc, vaddr, td);
   }
 }
 

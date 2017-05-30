@@ -1,5 +1,5 @@
 #include <stdc.h>
-#include <clock.h>
+#include <time.h>
 #include <thread.h>
 #include <sched.h>
 #include <vm_map.h>
