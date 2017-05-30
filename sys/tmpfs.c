@@ -96,13 +96,14 @@ typedef struct tmpfs_last_readdir {
 
 int tmpfs_vnode_readdir(vnode_t *dv, uio_t *uio, void *state) {
   tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
+  off_t offset = uio->uio_offset;
   if (dirnode->type != T_DIR)
     return -ENOTDIR;
   tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
 
   tmpfs_last_readdir_t *last_read = (tmpfs_last_readdir_t *)state;
   tmpfs_node_t *it = last_read->it;
-  if (!last_read)
+  if (!last_read->first)
     it = TAILQ_FIRST(&dirdata->head);
 
   for (; it; it = TAILQ_NEXT(it, direntry)) {
@@ -113,12 +114,11 @@ int tmpfs_vnode_readdir(vnode_t *dv, uio_t *uio, void *state) {
       kfree(TMPFS_POOL, dir);
     } else {
       kfree(TMPFS_POOL, dir);
-      last_read->it = it;
-      return 0;
+      break;
     }
   }
   last_read->it = it;
-  return 0;
+  return uio->uio_offset - offset;
 }
 
 int tmpfs_vnode_read(vnode_t *v, uio_t *uio) {
@@ -143,12 +143,14 @@ int tmpfs_vnode_seek(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
 }
 
 int tmpfs_vnode_open(vnode_t *v, int mode, file_t *fp) {
-  fp->f_data = kmalloc(TMPFS_POOL, sizeof(tmpfs_last_readdir_t), M_ZERO);
+  if(v->v_type == V_DIR)
+    fp->f_data = kmalloc(TMPFS_POOL, sizeof(tmpfs_last_readdir_t), M_ZERO);
   return vnode_open_generic(v, mode, fp);
 }
 
 int tmpfs_vnode_close(vnode_t *v, file_t *fp) {
-  kfree(TMPFS_POOL, fp->f_data);
+  if(v->v_type == V_DIR)
+    kfree(TMPFS_POOL, fp->f_data);
   return 0;
 }
 
