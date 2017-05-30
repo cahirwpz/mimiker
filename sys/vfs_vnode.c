@@ -87,15 +87,38 @@ static int default_vnstat(file_t *f, thread_t *td, stat_t *sb) {
 }
 
 static int default_vnseek(file_t *f, thread_t *td, off_t offset, int whence) {
-  /* TODO: Whence! Now we assume whence == SEEK_SET */
-  if (whence)
-    return -EINVAL;
-  /* TODO: file cursor must be within file, i.e. [0, vattr.v_size] */
+  /* TODO: Not seekable files like PIPE */
   if (offset < 0)
     return -EINVAL;
   int error = VOP_SEEK(f->f_vnode, f->f_offset, offset, f->f_data);
   if (error)
     return error;
+  vattr_t va;
+  int has_attr=f->f_vnode->v_ops->v_getattr(f->f_vnode,&va);
+  switch(whence)
+  {
+    case SEEK_CUR:
+      /* TODO: offset overflow */
+      offset+=f->f_offset;
+      break;
+
+    case SEEK_END:
+      if(has_attr==-ENOTSUP)
+        return -EINVAL;
+      /* TODO: offset overflow */
+      offset+=va.va_size;
+      break;
+    
+    case SEEK_SET:
+      break;
+
+    default:
+      return -EINVAL;
+  }
+  if(has_attr==0 && offset>0 && (size_t)offset>=va.va_size)
+    /* what if file has attributes but not size? */
+    return -EINVAL;
+
   f->f_offset = offset;
   return 0;
 }
