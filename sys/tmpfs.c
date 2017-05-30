@@ -143,13 +143,13 @@ int tmpfs_vnode_seek(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
 }
 
 int tmpfs_vnode_open(vnode_t *v, int mode, file_t *fp) {
-  if(v->v_type == V_DIR)
+  if (v->v_type == V_DIR)
     fp->f_data = kmalloc(TMPFS_POOL, sizeof(tmpfs_last_readdir_t), M_ZERO);
   return vnode_open_generic(v, mode, fp);
 }
 
 int tmpfs_vnode_close(vnode_t *v, file_t *fp) {
-  if(v->v_type == V_DIR)
+  if (v->v_type == V_DIR)
     kfree(TMPFS_POOL, fp->f_data);
   return 0;
 }

@@ -42,8 +42,7 @@ void list_recursive(const char *dir_path) {
   close(fd);
 }
 
-void create_write_remove()
-{
+void create_write_remove() {
   int fd = open("/tmp/some_file.c", O_RDWR | O_CREAT | O_TRUNC);
 
   printf("contents of tmp: \n");
@@ -72,8 +71,7 @@ void create_write_remove()
 
 extern int mkdir(const char *pathname, mode_t mode);
 
-void mkdir_rmdir()
-{
+void mkdir_rmdir() {
   mkdir("/tmp/dir1", 0);
   mkdir("/tmp/dir2", 0);
   mkdir("/tmp/dir3", 0);
