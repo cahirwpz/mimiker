@@ -65,7 +65,7 @@ static int default_vnwrite(file_t *f, thread_t *td, uio_t *uio) {
 }
 
 static int default_vnclose(file_t *f, thread_t *td) {
-  (void)VOP_CLOSE(f->f_vnode, f->f_data);
+  (void)VOP_CLOSE(f->f_vnode, f);
   vnode_unref(f->f_vnode);
   return 0;
 }

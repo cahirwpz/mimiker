@@ -62,4 +62,6 @@ static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
   return res;
 }
 
+timeval_t get_uptime(void);
+
 #endif /* !_SYS_TIME_H_ */

@@ -1,5 +1,5 @@
 #include <sync.h>
-#include <clock.h>
+#include <time.h>
 #include <stdc.h>
 #define _KLOG_PRIVATE
 #include <klog.h>
@@ -13,7 +13,8 @@ static const char *subsystems[] =
    [KL_SCHED] = "sched", [KL_THREAD] = "thread",   [KL_INTR] = "intr",
    [KL_DEV] = "dev",     [KL_VFS] = "vfs",         [KL_VNODE] = "vnode",
    [KL_PROC] = "proc",   [KL_SYSCALL] = "syscall", [KL_USER] = "user",
-   [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_UNDEF] = "???"};
+   [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_FILESYS] = "filesys",
+   [KL_UNDEF] = "???"};
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(char *key);

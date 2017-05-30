@@ -26,6 +26,7 @@ typedef enum {
   KL_SYSCALL, /* syscall processing */
   KL_USER,    /* user program */
   KL_TEST,    /* mask for testing purpose */
+  KL_FILESYS, /* filesystems */
 } klog_origin_t;
 
 #define KL_NONE 0x00000000 /* don't log anything */
@@ -42,7 +43,7 @@ typedef enum {
 #ifdef _KLOG_PRIVATE
 #undef _KLOG_PRIVATE
 
-#include <clock.h>
+#include <time.h>
 
 #define KL_SIZE 1024
 

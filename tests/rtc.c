@@ -47,7 +47,7 @@ void rtc_read(rtc_time_t *t) {
 
 #ifdef _KERNELSPACE
 #include <stdc.h>
-#include <clock.h>
+#include <time.h>
 
 static void tv_delay(timeval_t delay) {
   timeval_t now = get_uptime();
