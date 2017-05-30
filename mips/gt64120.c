@@ -34,6 +34,12 @@ typedef union {
 
 #define LO(x) ((x)&0xff)
 #define HI(x) (((x) >> 8) & 0xff)
+#define ICU_ADDR(x) ((x) + 0)
+#define ICU_DATA(x) ((x) + 1)
+#define ICU1_ADDR ICU_ADDR(IO_ICU1)
+#define ICU1_DATA ICU_DATA(IO_ICU1)
+#define ICU2_ADDR ICU_ADDR(IO_ICU2)
+#define ICU2_DATA ICU_DATA(IO_ICU2)
 
 typedef struct gt_pci_state {
   pci_bus_state_t pci_bus;
@@ -150,8 +156,8 @@ static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
     gtpci->imask |= (1U << 2);
 
   resource_t *io = gtpci->pci_bus.io_space;
-  bus_space_write_1(io, IO_ICU1 + 1, LO(gtpci->imask));
-  bus_space_write_1(io, IO_ICU2 + 1, HI(gtpci->imask));
+  bus_space_write_1(io, ICU1_DATA, LO(gtpci->imask));
+  bus_space_write_1(io, ICU2_DATA, HI(gtpci->imask));
   bus_space_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
   bus_space_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 }
@@ -195,43 +201,35 @@ static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
 
 static void init_8259(resource_t *io, unsigned icu, unsigned imask) {
   /* reset, program device, 4 bytes */
-  bus_space_write_1(io, icu + 0, ICW1_RESET | ICW1_IC4);
-  bus_space_write_1(io, icu + 1, 0);
-  bus_space_write_1(io, icu + 1, 1 << 2);
-  bus_space_write_1(io, icu + 1, ICW4_8086);
+  bus_space_write_1(io, ICU_ADDR(icu), ICW1_RESET | ICW1_IC4);
+  bus_space_write_1(io, ICU_DATA(icu), 0);
+  bus_space_write_1(io, ICU_DATA(icu), 1 << 2); /* XXX magic value ??? */
+  bus_space_write_1(io, ICU_DATA(icu), ICW4_8086);
   /* mask all interrupts */
-  bus_space_write_1(io, icu + 1, imask);
+  bus_space_write_1(io, ICU_DATA(icu), imask);
   /* enable special mask mode */
-  bus_space_write_1(io, icu + 0, OCW3_SEL | OCW3_ESMM | OCW3_SMM);
+  bus_space_write_1(io, ICU_ADDR(icu), OCW3_SEL | OCW3_ESMM | OCW3_SMM);
   /* read IRR by default */
-  bus_space_write_1(io, icu + 0, OCW3_SEL | OCW3_RR);
+  bus_space_write_1(io, ICU_ADDR(icu), OCW3_SEL | OCW3_RR);
 }
-
-#define ICU1_ADDR_R *(volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(MALTA_ICU1_ADDR))
-#define ICU1_DATA_R *(volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(MALTA_ICU1_DATA))
-
-#define ICU2_ADDR_R *(volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(MALTA_ICU2_ADDR))
-#define ICU2_DATA_R *(volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(MALTA_ICU2_DATA))
-
-#define OCW3_POLL_IRQ(x) ((x)&0x7f)
-#define OCW3_POLL_PENDING (1U << 7)
 
 static intr_filter_t gt_pci_intr(void *data) {
   gt_pci_state_t *gtpci = data;
+  resource_t *io = gtpci->pci_bus.io_space;
   unsigned irq;
 
   assert(data != NULL);
 
   for (;;) {
-    ICU1_ADDR_R = OCW3_SEL | OCW3_P;
-    irq = ICU1_DATA_R;
+    bus_space_write_1(io, ICU1_ADDR, OCW3_SEL | OCW3_POLL);
+    irq = bus_space_read_1(io, ICU1_DATA);
     if ((irq & OCW3_POLL_PENDING) == 0)
       return IF_FILTERED;
     irq = OCW3_POLL_IRQ(irq);
     /* slave PIC ? */
     if (irq == 2) {
-      ICU2_ADDR_R = OCW3_SEL | OCW3_P;
-      irq = ICU2_DATA_R;
+      bus_space_write_1(io, ICU2_ADDR, OCW3_SEL | OCW3_POLL);
+      irq = bus_space_read_1(io, ICU2_DATA);
       if (irq & OCW3_POLL_PENDING)
         irq = OCW3_POLL_IRQ(irq) + 8;
       else
@@ -243,11 +241,13 @@ static intr_filter_t gt_pci_intr(void *data) {
 
     /* Send a specific EOI to the 8259. */
     if (irq > 7) {
-      ICU2_ADDR_R = OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq & 7);
+      bus_space_write_1(io, ICU2_ADDR,
+                        OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq & 7));
       irq = 2;
     }
 
-    ICU1_ADDR_R = OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq);
+    bus_space_write_1(io, ICU1_ADDR,
+                      OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq));
   }
 
   return IF_FILTERED;

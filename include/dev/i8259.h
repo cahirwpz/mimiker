@@ -70,13 +70,16 @@
 #define OCW2_R 0x80   /* EOI mode (rotate) */
 
 /* Operation control word type 3.  Bit 3 (0x08) must be set. Even address. */
-#define OCW3_RIS 0x01 /* 1 = read IS, 0 = read IR */
-#define OCW3_RR 0x02  /* register read */
-#define OCW3_P 0x04   /* poll mode command */
+#define OCW3_RIS 0x01  /* 1 = read IS, 0 = read IR */
+#define OCW3_RR 0x02   /* register read */
+#define OCW3_POLL 0x04 /* poll mode command */
 /* 0x08 must be 1 to select OCW3 vs OCW2 */
 #define OCW3_SEL 0x08 /* must be 1 */
 /* 0x10 must be 0 to select OCW3 vs ICW1 */
 #define OCW3_SMM 0x20  /* special mode mask */
 #define OCW3_ESMM 0x40 /* enable SMM */
+
+#define OCW3_POLL_IRQ(x) ((x)&0x7f)
+#define OCW3_POLL_PENDING (1U << 7)
 
 #endif /* !_DEV_I8259_H_ */
