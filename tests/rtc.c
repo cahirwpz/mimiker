@@ -11,9 +11,7 @@
 #define RTC_ADDR (IO_RTC + 0)
 #define RTC_DATA (IO_RTC + 1)
 
-typedef struct rtc_state {
-  resource_t *regs;
-} rtc_state_t;
+typedef struct rtc_state { resource_t *regs; } rtc_state_t;
 
 static inline uint8_t rtc_read(resource_t *regs, unsigned addr) {
   bus_space_write_1(regs, RTC_ADDR, addr);
