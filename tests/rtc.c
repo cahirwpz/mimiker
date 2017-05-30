@@ -11,6 +11,10 @@
 #define RTC_ADDR_R *(volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(MALTA_RTC_ADDR))
 #define RTC_DATA_R *(volatile uint8_t *)(MIPS_PHYS_TO_KSEG1(MALTA_RTC_DATA))
 
+typedef struct rtc_state {
+  resource_t *regs;
+} rtc_state_t;
+
 static inline uint8_t rtc_read(unsigned reg) {
   RTC_ADDR_R = reg;
   return RTC_DATA_R;
@@ -47,11 +51,15 @@ static intr_filter_t rtc_intr(void *arg) {
 static INTR_HANDLER_DEFINE(rtc_intr_handler, rtc_intr, NULL, NULL, "RTC timer",
                            0);
 
-extern device_t *gt_pci;
+static int rtc_attach(device_t *dev) {
+  assert(dev->parent->bus == DEV_BUS_PCI);
 
-static int test_rtc() {
-  pci_bus_driver_t *gt_pci_drv = (pci_bus_driver_t *)gt_pci->driver;
-  gt_pci_drv->bus.intr_setup(gt_pci, 8, rtc_intr_handler);
+  pci_bus_state_t *pcib = dev->parent->state;
+  rtc_state_t *rtc = dev->state;
+
+  rtc->regs = pcib->io_space;
+
+  bus_intr_setup(dev, 8, rtc_intr_handler);
 
   /* Configure how the time is presented through registers. */
   rtc_setb(MC_REGB, MC_REGB_BINARY | MC_REGB_24HR);
@@ -59,6 +67,28 @@ static int test_rtc() {
   /* Set RTC timer so that it triggers interrupt 2 times per second. */
   rtc_write(MC_REGA, MC_RATE_2_Hz);
   rtc_setb(MC_REGB, MC_REGB_PIE);
+
+  return 0;
+}
+
+static driver_t rtc_driver = {
+  .desc = "RTC example driver",
+  .size = sizeof(rtc_state_t),
+  .attach = rtc_attach,
+};
+
+static device_t *make_device(device_t *parent, driver_t *driver) {
+  device_t *dev = device_add_child(parent);
+  dev->driver = driver;
+  if (device_probe(dev))
+    device_attach(dev);
+  return dev;
+}
+
+extern device_t *gt_pci;
+
+static int test_rtc() {
+  (void)make_device(gt_pci, &rtc_driver);
 
   while (1) {
     tm_t t;
