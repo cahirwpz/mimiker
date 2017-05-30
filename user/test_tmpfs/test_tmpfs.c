@@ -63,14 +63,33 @@ void create_write_remove()
 
   printf("%s\n", buf);
 
-  unlink("/tmp/some_file.c");
-
   close(fd);
+  unlink("/tmp/some_file.c");
 
   printf("contents of tmp: \n");
   list_recursive("/tmp");
 }
 
+extern int mkdir(const char *pathname, mode_t mode);
+
+void mkdir_rmdir()
+{
+  mkdir("/tmp/dir1", 0);
+  mkdir("/tmp/dir2", 0);
+  mkdir("/tmp/dir3", 0);
+  mkdir("/tmp/dir4", 0);
+
+  mkdir("/tmp/dir1/inner_dir1", 0);
+  mkdir("/tmp/dir1/inner_dir2", 0);
+  mkdir("/tmp/dir2/inner_dir3", 0);
+
+  rmdir("/tmp/dir3");
+  rmdir("/tmp/dir4");
+
+  list_recursive("/tmp");
+}
+
 int main(int argc, char **argv) {
   create_write_remove();
+  mkdir_rmdir();
 }

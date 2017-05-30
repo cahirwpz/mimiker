@@ -181,8 +181,8 @@ int tmpfs_vnode_remove(vnode_t *dv, const char *name) {
   tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
 
   tmpfs_node_t *node = tmpfs_dirnode_find(dirdata, name);
-  assert(node->type == T_REG);
-  if (!node) {
+  if (node) {
+    assert(node->type == T_REG);
     tmpfs_dirnode_remove(dirdata, node);
     tmpfs_delete_node(node);
   }
@@ -198,7 +198,7 @@ int tmpfs_vnode_mkdir(vnode_t *dv, const char *name, vattr_t *va) {
 
   tmpfs_dirnode_data_t *dirdata = &dirnode->dirdata;
 
-  tmpfs_node_t *node = tmpfs_new_node(T_REG, name);
+  tmpfs_node_t *node = tmpfs_new_node(T_DIR, name);
   tmpfs_dirnode_insert(dirdata, node);
 
   return 0;

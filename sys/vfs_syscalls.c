@@ -143,7 +143,7 @@ int do_unlink(thread_t *td, char *path) {
   vnode_t *vn;
   int error = 0;
 
-  char *name = strchr(path, '/');
+  char *name = strrchr(path, '/');
   *name = '\0';
   name++;
 
