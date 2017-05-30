@@ -67,7 +67,6 @@ class QEMU(Launchable):
                         '-device', 'VGA',
                         '-machine', 'malta',
                         '-cpu', '24Kf',
-                        '-icount', 'shift=7',
                         '-kernel', kwargs['kernel'],
                         '-append', kwargs['args'],
                         '-gdb', 'tcp::%d' % kwargs['gdb_port'],

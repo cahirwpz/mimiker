@@ -11,6 +11,11 @@ before_install:
  - sudo dpkg -i mipsel-mimiker-elf_1.1_amd64.deb
  - export PATH="/opt/mipsel-mimiker-elf/bin/:$PATH"
  - rm mipsel-mimiker-elf_1.1_amd64.deb
+ - wget http://mimiker.ii.uni.wroc.pl/download/qemu-system-mipsel-2.9_2.9_all.deb
+ - sudo dpkg -i qemu-system-mipsel-2.9_2.9_all.deb
+ - export PATH="/opt/qemu-2.9/bin/:$PATH"
+ - rm qemu-system-mipsel-2.9_2.9_all.deb
+ - qemu-system-mipsel --version
 script:
  - |
    set -e
