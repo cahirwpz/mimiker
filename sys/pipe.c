@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <pipe.h>
 #include <stdc.h>
+#include <stat.h>
 
 MALLOC_DEFINE(M_PIPE, "pipe", 1, 4);
 
@@ -21,8 +22,19 @@ static void reset_values(pipe_t *pipe) {
   pipe->pipe_state = 0;
 }
 
-static void get_pipe(pipe_t **dest) {
+static void get_pipe(pipe_t **dest, pipetype_t type) {
   *dest = pool_alloc(&pipe_cache, 0);
+  pipe_t *pipe = *dest;
+  if (type == PIPE_READ_END) {
+    pipe->pipe_buf.data =
+      kmalloc(M_PIPE, PIPE_SIZE, M_ZERO); /* TODO: improve pooled allocator to
+                                             be able to contain page-sized
+                                             elements */
+    pipe->pipe_buf.size = PIPE_SIZE;
+  } else {
+    pipe->pipe_buf.data = NULL;
+    pipe->pipe_buf.size = 0;
+  }
   reset_values(*dest);
 }
 
@@ -30,8 +42,6 @@ void pipe_ctor(void *ptr) {
   pipe_t *pipe = ptr;
   mtx_init(&pipe->pipe_mtx, MTX_DEF);
   cv_init(&pipe->pipe_read_cv, "pipe_read_cv");
-  pipe->pipe_buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO); /* TODO: improve pooled allocator to be able to contain page-sized elements */
-  pipe->pipe_buf.size = PIPE_SIZE;
   reset_values(pipe);
 }
 
@@ -54,36 +64,37 @@ int pipe_read(file_t *f, thread_t *td, uio_t *uio) {
   pipebuf_t *pipebuf = &pipe->pipe_buf;
   int res = 0;
   int bytes_read = 0;
-  
+
   SCOPED_MTX_LOCK(&pipe->pipe_mtx);
 
   while (uio->uio_resid > 0) {
     if (pipebuf->cnt > 0) {
       /* find number of bytes to feed to uiomove */
       size_t size = pipebuf->size - pipebuf->out;
-      if (size > pipebuf->cnt) 
-	size = pipebuf->cnt;
+      if (size > pipebuf->cnt)
+        size = pipebuf->cnt;
       if (size > uio->uio_resid)
-	size = uio->uio_resid;
+        size = uio->uio_resid;
 
-      res = uiomove((char *)pipebuf->data+pipebuf->out, size, uio);
+      res = uiomove((char *)pipebuf->data + pipebuf->out, size, uio);
 
       if (res)
-	break;
+        break;
 
       /* moving out offset by size bytes */
       pipebuf->out += size;
       if (pipebuf->out >= pipebuf->size)
-	pipebuf->out = 0;
+        pipebuf->out = 0;
 
       pipebuf->cnt -= size;
 
-      /* NetBSD sources say that setting offsets to 0 increases cache hit rate */
+      /* NetBSD sources say that setting offsets to 0 increases cache hit rate
+       */
       if (pipebuf->cnt == 0) {
-	pipebuf->in = 0;
-	pipebuf->out = 0;
+        pipebuf->in = 0;
+        pipebuf->out = 0;
       }
-      
+
       bytes_read += size;
       continue;
     }
@@ -116,32 +127,32 @@ int pipe_write(file_t *f, thread_t *td, uio_t *uio) {
       break;
     }
     /* calculate free space in buffer */
-    int free_space = pipebuf->size - pipebuf->cnt;
+    size_t free_space = pipebuf->size - pipebuf->cnt;
     /* our writes must be atomic */
     if (free_space >= uio->uio_resid) {
       int total_size = uio->uio_resid;
       int move_size = pipebuf->size - pipebuf->in;
       if (move_size > total_size)
-	move_size = total_size;
+        move_size = total_size;
 
-      res = uiomove((char*)pipebuf->data+pipebuf->in, move_size, uio);
+      res = uiomove((char *)pipebuf->data + pipebuf->in, move_size, uio);
       if (res == 0 && move_size < total_size) {
-	assert(pipebuf->in + move_size == pipebuf->size);
-	res = uiomove((char*)pipebuf->data, total_size - move_size, uio);
+        assert(pipebuf->in + move_size == pipebuf->size);
+        res = uiomove((char *)pipebuf->data, total_size - move_size, uio);
       }
       if (res)
-	break;
+        break;
       pipebuf->in += total_size;
       if (pipebuf->in >= pipebuf->size) {
-	assert(pipebuf->in == total_size - move_size + pipebuf->size);
-	pipebuf->in = total_size - move_size;
+        assert(pipebuf->in == total_size - move_size + pipebuf->size);
+        pipebuf->in = total_size - move_size;
       }
       pipebuf->cnt += total_size;
       assert(pipebuf->cnt <= pipebuf->size);
     } else {
       if (rpipe->pipe_state & PIPE_EOF) {
-	res = EPIPE;
-	break;
+        res = EPIPE;
+        break;
       }
       cv_broadcast(&rpipe->pipe_read_cv);
     }
@@ -150,7 +161,7 @@ int pipe_write(file_t *f, thread_t *td, uio_t *uio) {
   /* notify read end about successful write */
   if (pipebuf->cnt > 0)
     cv_broadcast(&rpipe->pipe_read_cv);
-  
+
   return res;
 }
 
@@ -159,7 +170,7 @@ int pipe_close(file_t *f, thread_t *td) {
   pipe_t *pipe = f->f_data;
 
   mtx_lock(&pipe->pipe_mtx);
-  
+
   pipe->pipe_state |= PIPE_EOF;
   if (pipe->pipe_type == PIPE_WRITE_END) {
     pipe->pipe_end->pipe_state |= PIPE_EOF;
@@ -174,28 +185,32 @@ int pipe_close(file_t *f, thread_t *td) {
   return 0;
 }
 
-int pipe_getattr(file_t *f, thread_t *td, vattr_t *va) {
+int pipe_stat(file_t *f, thread_t *td, stat_t *sb) {
   pipe_t *pipe = f->f_data;
 
   SCOPED_MTX_LOCK(&pipe->pipe_mtx);
 
-  memset(va, 0, sizeof(vattr_t));
-  va->st_size = pipe->pipe_buf.cnt;
+  memset(sb, 0, sizeof(stat_t));
+  sb->st_blksize =
+    (pipe->pipe_end) ? pipe->pipe_end->pipe_buf.size : pipe->pipe_buf.size;
+  sb->st_size = pipe->pipe_buf.cnt;
+  sb->st_blocks = (sb->st_size) ? 1 : 0;
   return 0;
 }
+
+int pipe_op_notsup() {
+  return -ENOTSUP;
+}
+
+static const fileops_t pipeops = {.fo_read = pipe_read,
+                                  .fo_write = pipe_write,
+                                  .fo_close = pipe_close,
+                                  .fo_seek = pipe_op_notsup,
+                                  .fo_stat = pipe_stat};
 
 /* pipe syscall */
-
 int do_pipe(thread_t *td, int *fds) {
   pipe_t *pipe;
-  get_pipe(&pipe);
+  get_pipe(&pipe, PIPE_READ_END);
   return 0;
 }
-
-
-static const fileops_t pipeops = {
-  .fo_read = pipe_read,
-  .fo_write = pipe_write,
-  .fo_close = pipe_close,
-  .fo_getattr = pipe_getattr
-};
