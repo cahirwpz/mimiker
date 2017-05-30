@@ -19,16 +19,15 @@ void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
 
   /* Add new handler according to it's priority */
   intr_handler_t *it;
+  TAILQ_FOREACH (it, &ic->ic_handlers, ih_list)
+    if (ih->ih_prio > it->ih_prio)
+      break;
 
-  TAILQ_FOREACH (it, &ic->ic_handlers, ih_list) {
-    if (ih->ih_prio > it->ih_prio) {
-      TAILQ_INSERT_BEFORE(it, ih, ih_list);
-      goto done;
-    }
-  }
-  TAILQ_INSERT_TAIL(&ic->ic_handlers, ih, ih_list);
+  if (it)
+    TAILQ_INSERT_BEFORE(it, ih, ih_list);
+  else
+    TAILQ_INSERT_TAIL(&ic->ic_handlers, ih, ih_list);
 
-done:
   ih->ih_chain = ic;
   ic->ic_count++;
 }
