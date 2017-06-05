@@ -11,6 +11,8 @@
 #include <time.h>
 #include <signal.h>
 
+#define errno (thread_self()->td_errno)
+
 typedef uint8_t td_prio_t;
 typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
@@ -65,6 +67,7 @@ typedef struct thread {
   /* signal handling */
   sigset_t td_sigpend; /* Pending signals for this thread. */
   /* TODO: Signal mask, sigsuspend. */
+  int td_errno;
 } thread_t;
 
 thread_t *thread_self();

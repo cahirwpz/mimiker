@@ -45,6 +45,10 @@ static inline systime_t tv2st(timeval_t tv) {
   return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
+static inline timespec_t tv2ts(timeval_t tv) {
+  return (timespec_t){.tv_sec = tv.tv_sec, .tv_nsec = tv.tv_usec * 1000};
+}
+
 /* Operations on timevals. */
 static inline void timeval_clear(timeval_t *tvp) {
   *tvp = (timeval_t){.tv_sec = 0, .tv_usec = 0};
