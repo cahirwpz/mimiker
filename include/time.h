@@ -29,6 +29,8 @@ typedef struct timespec {
   long tv_nsec;  /* and nanoseconds */
 } timespec_t;
 
+typedef enum clockid { CLOCK_MONOTONIC = 1, CLOCK_REALTIME = 2 } clockid_t;
+
 #define TIMEVAL(fp)                                                            \
   (timeval_t) {                                                                \
     .tv_sec = (long)((fp)*1000000L) / 1000000L,                                \
@@ -77,5 +79,11 @@ static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
 }
 
 timeval_t get_uptime(void);
+
+int do_clock_gettime(clockid_t clk, timespec_t *tp);
+
+int do_nanosleep(timespec_t *rqtp, timespec_t *rmtp);
+
+int do_gettimeofday(timeval_t *tp, void *tzp);
 
 #endif /* !_SYS_TIME_H_ */

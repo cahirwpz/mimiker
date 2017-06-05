@@ -11,7 +11,6 @@ AENT(symlink)
 AENT(readlink)
 AENT(isatty)
 AENT(times)
-AENT(gettimeofday)
 
 SLEAF(no_syscall)
         b       set_errno
@@ -67,5 +66,8 @@ SYSCALL(getdirentries, SYS_GETDENTS)
 SYSCALL(sigaction, SYS_SIGACTION)
 SYSCALL(sigreturn, SYS_SIGRETURN)
 SYSCALL(waitpid, SYS_WAITPID)
+SYSCALL(clock_gettime, SYS_CLOCKGETTIME)
+SYSCALL(nanosleep, SYS_NANOSLEEP)
+SYSCALL(gettimeofday, SYS_GETTIMEOFDAY)
 
 # vim: sw=8 ts=8 et

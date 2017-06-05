@@ -42,6 +42,7 @@ SOURCES_C  = \
 	sysinit.c \
 	mmap.c \
 	thread.c \
+	time.c \
 	uio.c \
 	vfs.c \
 	vfs_readdir.c \

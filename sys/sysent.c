@@ -14,6 +14,7 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <time.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 static int sys_nosys(thread_t *td, syscall_args_t *args) {
@@ -277,6 +278,26 @@ static int sys_waitpid(thread_t *td, syscall_args_t *args) {
   return res;
 }
 
+static int sys_clock_gettime(thread_t *td, syscall_args_t *args) {
+  clockid_t clk = (clockid_t)args->args[0];
+  timespec_t *ts = (timespec_t *)args->args[1];
+  do_clock_gettime(clk, ts);
+  return 0;
+}
+
+static int sys_nanosleep(thread_t *td, syscall_args_t *args) {
+  timespec_t *ts = (timespec_t *)args->args[0];
+  do_nanosleep(ts, NULL);
+  return 0;
+}
+
+static int sys_gettimeofday(thread_t *td, syscall_args_t *args) {
+  timeval_t *tv = (timeval_t *)args->args[0];
+  void *tz = (timeval_t *)args->args[1];
+  do_gettimeofday(tv, tz);
+  return 0;
+}
+
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
                      [SYS_OPEN] = {sys_open},
@@ -297,4 +318,7 @@ sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
                      [SYS_SIGRETURN] = {sys_sigreturn},
                      [SYS_DUP] = {sys_dup},
                      [SYS_DUP2] = {sys_dup2},
-                     [SYS_WAITPID] = {sys_waitpid}};
+                     [SYS_WAITPID] = {sys_waitpid},
+                     [SYS_CLOCKGETTIME] = {sys_clock_gettime},
+                     [SYS_NANOSLEEP] = {sys_nanosleep},
+                     [SYS_GETTIMEOFDAY] = {sys_gettimeofday}};

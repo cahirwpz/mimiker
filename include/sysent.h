@@ -21,7 +21,10 @@
 #define SYS_SIGACTION 18
 #define SYS_SIGRETURN 19
 #define SYS_WAITPID 20
-#define SYS_LAST 20
+#define SYS_CLOCKGETTIME 21
+#define SYS_NANOSLEEP 22
+#define SYS_GETTIMEOFDAY 23
+#define SYS_LAST 24
 
 #ifndef __ASSEMBLER__
 
