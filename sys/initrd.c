@@ -314,9 +314,9 @@ static int initrd_mount(mount_t *m) {
 static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_readdir = initrd_vnode_readdir,
                                  .v_open = vnode_open_generic,
-                                 .v_close = (vnode_close_t *)vnode_op_notsup,
+                                 .v_close = vnode_close_nop,
                                  .v_read = initrd_vnode_read,
-                                 .v_write = (vnode_write_t *)vnode_op_notsup,
+                                 .v_write = vnode_write_nop,
                                  .v_seek = vnode_seek_generic,
                                  .v_getattr = initrd_vnode_getattr};
 
