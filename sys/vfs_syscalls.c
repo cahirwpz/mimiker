@@ -1,3 +1,5 @@
+#define KL_LOG KL_VFS
+#include <klog.h>
 #include <filedesc.h>
 #include <file.h>
 #include <mount.h>
@@ -5,9 +7,13 @@
 #include <sysent.h>
 #include <systm.h>
 #include <thread.h>
-#include <vfs_syscalls.h>
+#include <vfs.h>
 #include <vnode.h>
+#include <proc.h>
 #include <vm_map.h>
+#include <queue.h>
+#include <errno.h>
+#include <malloc.h>
 
 int do_open(thread_t *td, char *pathname, int flags, int mode, int *fd) {
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -17,7 +23,8 @@ int do_open(thread_t *td, char *pathname, int flags, int mode, int *fd) {
   if (error)
     goto fail;
   /* Now install the file in descriptor table. */
-  error = fdtab_install_file(td->td_fdtable, f, fd);
+  assert(td->td_proc);
+  error = fdtab_install_file(td->td_proc->p_fdtable, f, fd);
   if (error)
     goto fail;
 
@@ -29,12 +36,14 @@ fail:
 }
 
 int do_close(thread_t *td, int fd) {
-  return fdtab_close_fd(td->td_fdtable, fd);
+  assert(td->td_proc);
+  return fdtab_close_fd(td->td_proc->p_fdtable, fd);
 }
 
 int do_read(thread_t *td, int fd, uio_t *uio) {
   file_t *f;
-  int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
+  assert(td->td_proc);
+  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_READ, &f);
   if (res)
     return res;
   uio->uio_offset = f->f_offset;
@@ -46,7 +55,8 @@ int do_read(thread_t *td, int fd, uio_t *uio) {
 
 int do_write(thread_t *td, int fd, uio_t *uio) {
   file_t *f;
-  int res = fdtab_get_file(td->td_fdtable, fd, FF_WRITE, &f);
+  assert(td->td_proc);
+  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_WRITE, &f);
   if (res)
     return res;
   uio->uio_offset = f->f_offset;
@@ -57,130 +67,74 @@ int do_write(thread_t *td, int fd, uio_t *uio) {
 }
 
 int do_lseek(thread_t *td, int fd, off_t offset, int whence) {
-  /* TODO: Whence! Now we assume whence == SEEK_SET */
+  assert(td->td_proc);
   /* TODO: RW file flag! For now we just file_get_read */
   file_t *f;
-  int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
+  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, 0, &f);
   if (res)
     return res;
-  f->f_offset = offset;
-  file_unref(f);
-  return 0;
-}
-
-int do_fstat(thread_t *td, int fd, vattr_t *buf) {
-  file_t *f;
-  int res = fdtab_get_file(td->td_fdtable, fd, FF_READ, &f);
-  if (res)
-    return res;
-  res = f->f_ops->fo_getattr(f, td, buf);
+  res = FOP_SEEK(f, td, offset, whence);
   file_unref(f);
   return res;
 }
 
-/* == System calls interface === */
+int do_fstat(thread_t *td, int fd, stat_t *sb) {
+  file_t *f;
+  assert(td->td_proc);
+  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_READ, &f);
+  if (res)
+    return res;
+  res = FOP_STAT(f, td, sb);
+  file_unref(f);
+  return res;
+}
 
-int sys_open(thread_t *td, syscall_args_t *args) {
-  char *user_pathname = (char *)args->args[0];
-  int flags = args->args[1];
-  int mode = args->args[2];
+int do_dup(thread_t *td, int old) {
+  file_t *f;
+  assert(td->td_proc);
+  int res = fdtab_get_file(td->td_proc->p_fdtable, old, 0, &f);
+  if (res)
+    return res;
+  int new;
+  res = fdtab_install_file(td->td_proc->p_fdtable, f, &new);
+  file_unref(f);
+  return res ? res : new;
+}
 
-  int error = 0;
-  char pathname[256];
-  size_t n = 0;
+int do_dup2(thread_t *td, int old, int new) {
+  file_t *f;
+  assert(td->td_proc);
+  if (old == new)
+    return 0;
+  int res = fdtab_get_file(td->td_proc->p_fdtable, old, 0, &f);
+  if (res)
+    return res;
+  res = fdtab_install_file_at(td->td_proc->p_fdtable, f, new);
+  file_unref(f);
+  return res ? res : new;
+}
 
-  /* Copyout pathname. */
-  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
-  if (error < 0)
-    return error;
-
-  log("open(\"%s\", %d, %d)", pathname, flags, mode);
-
-  int fd;
-  error = do_open(td, pathname, flags, mode, &fd);
+int do_mount(thread_t *td, const char *fs, const char *path) {
+  vfsconf_t *vfs = vfs_get_by_name(fs);
+  if (vfs == NULL)
+    return -EINVAL;
+  vnode_t *v;
+  int error = vfs_lookup(path, &v);
   if (error)
     return error;
-  return fd;
+  return vfs_domount(vfs, v);
 }
 
-int sys_close(thread_t *td, syscall_args_t *args) {
-  int fd = args->args[0];
-
-  log("close(%d)", fd);
-
-  return do_close(td, fd);
-}
-
-int sys_read(thread_t *td, syscall_args_t *args) {
-  int fd = args->args[0];
-  char *ubuf = (char *)(uintptr_t)args->args[1];
-  size_t count = args->args[2];
-
-  log("sys_read(%d, %p, %zu)", fd, ubuf, count);
-
-  uio_t uio;
-  iovec_t iov;
-  uio.uio_op = UIO_READ;
-  uio.uio_vmspace = get_user_vm_map();
-  iov.iov_base = ubuf;
-  iov.iov_len = count;
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_resid = count;
-  uio.uio_offset = 0;
-
-  int error = do_read(td, fd, &uio);
-  if (error)
-    return error;
-  return count - uio.uio_resid;
-}
-
-int sys_write(thread_t *td, syscall_args_t *args) {
-  int fd = args->args[0];
-  char *ubuf = (char *)(uintptr_t)args->args[1];
-  size_t count = args->args[2];
-
-  log("sys_write(%d, %p, %zu)", fd, ubuf, count);
-
-  uio_t uio;
-  iovec_t iov;
-  uio.uio_op = UIO_WRITE;
-  uio.uio_vmspace = get_user_vm_map();
-  iov.iov_base = ubuf;
-  iov.iov_len = count;
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_resid = count;
-  uio.uio_offset = 0;
-
-  int error = do_write(td, fd, &uio);
-  if (error)
-    return error;
-  return count - uio.uio_resid;
-}
-
-int sys_lseek(thread_t *td, syscall_args_t *args) {
-  int fd = args->args[0];
-  off_t offset = args->args[1];
-  int whence = args->args[2];
-
-  log("sys_lseek(%d, %ld, %d)", fd, offset, whence);
-
-  return do_lseek(td, fd, offset, whence);
-}
-
-int sys_fstat(thread_t *td, syscall_args_t *args) {
-  int fd = args->args[0];
-  char *buf = (char *)args->args[1];
-
-  log("sys_fstat(%d, %p)", fd, buf);
-
-  vattr_t attr_buf;
-  int error = do_fstat(td, fd, &attr_buf);
-  if (error)
-    return error;
-  error = copyout(&attr_buf, buf, sizeof(vattr_t));
-  if (error < 0)
-    return error;
-  return 0;
+int do_getdirentries(thread_t *td, int fd, uio_t *uio, off_t *basep) {
+  file_t *f;
+  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_READ, &f);
+  if (res)
+    return res;
+  vnode_t *vn = f->f_vnode;
+  uio->uio_offset = f->f_offset;
+  res = VOP_READDIR(vn, uio, f->f_data);
+  f->f_offset = uio->uio_offset;
+  *basep = f->f_offset;
+  file_unref(f);
+  return res;
 }

@@ -16,10 +16,23 @@ typedef struct uio {
   iovec_t *uio_iov;      /* scatter/gather list */
   int uio_iovcnt;        /* length of scatter/gather list */
   off_t uio_offset;      /* offset in target object */
-  ssize_t uio_resid;     /* remaining bytes to process */
+  size_t uio_resid;      /* remaining bytes to process */
   uio_op_t uio_op;       /* operation */
   vm_map_t *uio_vmspace; /* destination address space */
 } uio_t;
+
+#define UIO_SINGLE(op, vm_map, offset, buf, buflen)                            \
+  (uio_t) {                                                                    \
+    .uio_iov = (iovec_t[1]){(iovec_t){(buf), (buflen)}}, .uio_iovcnt = 1,      \
+    .uio_offset = (offset), .uio_resid = (buflen), .uio_op = (op),             \
+    .uio_vmspace = (vm_map)                                                    \
+  }
+
+#define UIO_SINGLE_KERNEL(op, offset, buf, buflen)                             \
+  UIO_SINGLE(op, get_kernel_vm_map(), offset, buf, buflen)
+
+#define UIO_SINGLE_USER(op, offset, buf, buflen)                               \
+  UIO_SINGLE(op, get_user_vm_map(), offset, buf, buflen)
 
 int uiomove(void *buf, size_t n, uio_t *uio);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);

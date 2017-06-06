@@ -11,7 +11,7 @@ static void func(void *arg) {
   counter += n;
 }
 
-static int test_taskqueue() {
+static int test_taskqueue(void) {
   taskqueue_t tq;
   task_t task0;
   task_t task1;

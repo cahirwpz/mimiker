@@ -23,11 +23,11 @@ void mtx_lock(mtx_t *m) {
     return;
   }
 
-  critical_enter();
+  SCOPED_CRITICAL_SECTION();
+
   while (m->m_owner != NULL)
     sleepq_wait(&m->m_owner, "mutex");
   m->m_owner = thread_self();
-  critical_leave();
 }
 
 void mtx_unlock(mtx_t *m) {
@@ -38,8 +38,8 @@ void mtx_unlock(mtx_t *m) {
     return;
   }
 
-  critical_enter();
+  SCOPED_CRITICAL_SECTION();
+
   m->m_owner = NULL;
   sleepq_signal(&m->m_owner);
-  critical_leave();
 }

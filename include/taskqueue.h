@@ -36,6 +36,6 @@ void task_init(task_t *task, void (*func)(void *), void *arg);
 
 extern taskqueue_t workqueue;
 /* Initializes the workqueue subsystem. */
-void workqueue_init();
+void workqueue_init(void);
 
 #endif

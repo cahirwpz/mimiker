@@ -1,26 +1,27 @@
 #include <stdc.h>
-#include <clock.h>
+#include <time.h>
 #include <thread.h>
 #include <sched.h>
 #include <ktest.h>
 
-static int exit_time[] = {100, 200, 150};
-static realtime_t start;
+static timeval_t exit_time[] = {TIMEVAL(0.100), TIMEVAL(0.200), TIMEVAL(0.150)};
+static timeval_t start;
 
 /* TODO: callout + sleepq, once we've implemented callout_schedule. */
 static void test_thread(void *p) {
-  int e = *(int *)p;
+  timeval_t *e = (timeval_t *)p;
   while (1) {
-    realtime_t tdiff = clock_get() - start;
-    if (tdiff > e)
-      thread_exit(0);
+    timeval_t now = get_uptime();
+    timeval_t diff = timeval_sub(&now, &start);
+    if (timeval_cmp(&diff, e, >))
+      thread_exit();
     else
       sched_yield();
   }
 }
 
 /* This tests both thread_join as well as thread_exit. */
-static int test_thread_join() {
+static int test_thread_join(void) {
   thread_t *t1 = thread_create("test-thread-1", test_thread, &exit_time[0]);
   thread_t *t2 = thread_create("test-thread-2", test_thread, &exit_time[1]);
   thread_t *t3 = thread_create("test-thread-3", test_thread, &exit_time[2]);
@@ -29,7 +30,7 @@ static int test_thread_join() {
   tid_t t2_id = t2->td_tid;
   tid_t t3_id = t3->td_tid;
 
-  start = clock_get();
+  start = get_uptime();
   sched_add(t1);
   sched_add(t2);
   sched_add(t3);

@@ -5,12 +5,13 @@
 #include <sched.h>
 #include <stdc.h>
 #include <vm_map.h>
+#include <proc.h>
 
-int do_fork() {
+int do_fork(void) {
   thread_t *td = thread_self();
 
   /* Cannot fork non-user threads. */
-  assert(td->td_uspace);
+  assert(td->td_proc);
 
   thread_t *newtd = thread_create(td->td_name, NULL, NULL);
 
@@ -35,13 +36,7 @@ int do_fork() {
      to copy its contents, it will be discarded anyway. We just prepare the
      thread's kernel context to a fresh one so that it will continue execution
      starting from user_exc_leave (which serves as fork_trampoline). */
-  ctx_init(newtd, user_exc_leave, NULL);
-
-  /* Clone the entire process memory space. */
-  newtd->td_uspace = vm_map_clone(td->td_uspace);
-
-  /* Copy the parent descriptor table. */
-  newtd->td_fdtable = fdtab_copy(td->td_fdtable);
+  ctx_init(newtd, (void (*)(void *))user_exc_leave, NULL);
 
   newtd->td_sleepqueue = sleepq_alloc();
   newtd->td_wchan = NULL;
@@ -49,7 +44,25 @@ int do_fork() {
 
   newtd->td_prio = td->td_prio;
 
+  /* Now, prepare a new process. */
+  assert(td->td_proc);
+  proc_t *proc = proc_create();
+  proc->p_parent = td->td_proc;
+  TAILQ_INSERT_TAIL(&td->td_proc->p_children, proc, p_child);
+  proc_populate(proc, newtd);
+
+  /* Clone the entire process memory space. */
+  proc->p_uspace = vm_map_clone(td->td_proc->p_uspace);
+
+  /* Copy the parent descriptor table. */
+  /* TODO: Optionally share the descriptor table between processes. */
+  proc->p_fdtable = fdtab_copy(td->td_proc->p_fdtable);
+
+  /* Copy signal handler dispatch rules. */
+  memcpy(proc->p_sigactions, td->td_proc->p_sigactions,
+         sizeof(proc->p_sigactions));
+
   sched_add(newtd);
 
-  return newtd->td_tid;
+  return proc->p_pid;
 }

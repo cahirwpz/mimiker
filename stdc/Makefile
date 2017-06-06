@@ -16,9 +16,11 @@ LIB_SOURCES  = ctype/ctype_.c
 LIB_SOURCES += ctype/tolower_.c
 LIB_SOURCES += ctype/toupper_.c
 LIB_SOURCES += stdio/__format_parser_int.c
+LIB_SOURCES += stdio/__scanf_core_int.c
 LIB_SOURCES += stdlib/strtol.c
 LIB_SOURCES += stdlib/strtoul.c
 LIB_SOURCES += stdlib/qsort.c
+LIB_SOURCES += stdlib/rand.c
 LIB_SOURCES += string/bzero.c
 LIB_SOURCES += string/memchr.c
 LIB_SOURCES += string/memcpy.c
@@ -44,6 +46,7 @@ LIB_SOURCES += string/strspn.c
 EXTRA_SOURCES += wctomb.c
 EXTRA_SOURCES += kprintf.c
 EXTRA_SOURCES += snprintf.c
+EXTRA_SOURCES += sscanf.c
 
 # The default rule.
 all: $(LIBNAME).a

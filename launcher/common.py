@@ -2,9 +2,10 @@ import subprocess
 import itertools
 import shutil
 import signal
+import string
 import os
 
-TRIPLET = 'mipsel-unknown-elf'
+TRIPLET = 'mipsel-mimiker-elf'
 
 
 def set_as_tty_foreground():
@@ -45,18 +46,24 @@ class Launchable:
     def wait(self, timeout=None):
         if self.process is None:
             return False
+        # Throws exception on timeout
         self.process.wait(timeout)
+        self.process = None
         return True
 
     def stop(self):
         if self.process is None:
             return
-        # Give a chance to exit gracefuly.
-        self.process.send_signal(signal.SIGTERM)
         try:
-            self.process.wait(0.2)
-        except subprocess.TimeoutExpired:
-            self.process.send_signal(signal.SIGKILL)
+            # Give it a chance to exit gracefuly.
+            self.process.send_signal(signal.SIGTERM)
+            try:
+                self.process.wait(0.2)
+            except subprocess.TimeoutExpired:
+                self.process.send_signal(signal.SIGKILL)
+        except ProcessLookupError:
+            # Process already quit.
+            pass
         self.process = None
 
     def interrupt(self):
@@ -64,8 +71,8 @@ class Launchable:
             self.process.send_signal(signal.SIGINT)
 
     @staticmethod
-    # The items on these lists should be ordered from the most desirable. The first
-    # available item will become the default option.
+    # The items on these lists should be ordered from the most desirable.
+    # The first available item will become the default option.
     def find_available(l):
         result, default = {}, None
         for item in reversed(l):
@@ -73,6 +80,7 @@ class Launchable:
                 result[item.name] = item
                 default = item.name
         return (result, default)
+
 
 def wait_any(launchables):
     for l in itertools.cycle(launchables):
@@ -84,6 +92,11 @@ def wait_any(launchables):
             continue
 
 
-def find_toolchain():
-    if not shutil.which(TRIPLET + '-gcc'):
-        raise SystemExit('No cross compiler found!')
+def prepare_gdbinit(gdb_port):
+    with open('.gdbinit.template', 'r') as f:
+        gdbinit = string.Template(f.read())
+
+    subs = {'GDB_PORT': gdb_port}
+
+    with open('.gdbinit', 'w') as f:
+        f.write(gdbinit.substitute(subs))

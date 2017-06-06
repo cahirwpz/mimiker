@@ -1,3 +1,5 @@
+#define KL_LOG KL_USER
+#include <klog.h>
 #include <common.h>
 #include <exec.h>
 #include <stdc.h>
@@ -9,21 +11,22 @@
 #include <sync.h>
 #include <filedesc.h>
 #include <sbrk.h>
-#include <vfs_syscalls.h>
+#include <vfs.h>
 #include <mips/stack.h>
 #include <mount.h>
 #include <vnode.h>
+#include <proc.h>
 
 int do_exec(const exec_args_t *args) {
-  log("Loading user ELF: %s", args->prog_name);
+  klog("Loading user ELF: %s", args->prog_name);
 
   vnode_t *elf_vnode;
   int error = vfs_lookup(args->prog_name, &elf_vnode);
   if (error == -ENOENT) {
-    log("Exec failed: No such file '%s'", args->prog_name);
+    klog("Exec failed: No such file '%s'", args->prog_name);
     return -ENOENT;
   } else if (error < 0) {
-    log("Exec failed: Failed to access file '%s'", args->prog_name);
+    klog("Exec failed: Failed to access file '%s'", args->prog_name);
     return error;
   }
 
@@ -31,31 +34,22 @@ int do_exec(const exec_args_t *args) {
   error = VOP_GETATTR(elf_vnode, &elf_attr);
   if (error)
     return error;
-  size_t elf_size = elf_attr.st_size;
+  size_t elf_size = elf_attr.va_size;
 
-  log("User ELF size: %zu", elf_size);
+  klog("User ELF size: %zu", elf_size);
 
   if (elf_size < sizeof(Elf32_Ehdr)) {
-    log("Exec failed: ELF file is too small to contain a valid header");
+    klog("Exec failed: ELF file is too small to contain a valid header");
     return -ENOEXEC;
   }
 
   Elf32_Ehdr eh;
   uio_t uio;
-  iovec_t iov;
 
-  /* Read elf header. */
-  uio.uio_op = UIO_READ;
-  uio.uio_vmspace = get_kernel_vm_map();
-  iov.iov_base = &eh;
-  iov.iov_len = sizeof(Elf32_Ehdr);
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_offset = 0;
-  uio.uio_resid = sizeof(Elf32_Ehdr);
+  uio = UIO_SINGLE_KERNEL(UIO_READ, 0, &eh, sizeof(Elf32_Ehdr));
   error = VOP_READ(elf_vnode, &uio);
   if (error < 0) {
-    log("Exec failed: Elf file reading failed.");
+    klog("Exec failed: Elf file reading failed.");
     return error;
   }
   assert(uio.uio_resid == 0);
@@ -65,49 +59,72 @@ int do_exec(const exec_args_t *args) {
   /* First, check for the magic header. */
   if (eh.e_ident[EI_MAG0] != ELFMAG0 || eh.e_ident[EI_MAG1] != ELFMAG1 ||
       eh.e_ident[EI_MAG2] != ELFMAG2 || eh.e_ident[EI_MAG3] != ELFMAG3) {
-    log("Exec failed: Incorrect ELF magic number");
+    klog("Exec failed: Incorrect ELF magic number");
     return -ENOEXEC;
   }
   /* Check ELF class */
   if (eh.e_ident[EI_CLASS] != ELFCLASS32) {
-    log("Exec failed: Unsupported ELF class (!= ELF32)");
+    klog("Exec failed: Unsupported ELF class (!= ELF32)");
     return -EINVAL;
   }
   /* Check data format endianess */
   if (eh.e_ident[EI_DATA] != ELFDATA2LSB) {
-    log("Exec failed: ELF file is not low-endian");
+    klog("Exec failed: ELF file is not low-endian");
     return -EINVAL;
   }
   /* Ignore version and os abi field */
   /* Check file type */
   if (eh.e_type != ET_EXEC) {
-    log("Exec failed: ELF is not an executable");
+    klog("Exec failed: ELF is not an executable");
     return -EINVAL;
   }
   /* Check machine architecture field */
   if (eh.e_machine != EM_MIPS) {
-    log("[exec] Exec failed: ELF target architecture is not MIPS");
+    klog("[exec] Exec failed: ELF target architecture is not MIPS");
     return -EINVAL;
   }
 
   /* Take note of the entry point */
-  log("Entry point will be at 0x%08x.", (unsigned int)eh.e_entry);
+  klog("Entry point will be at 0x%08x.", (unsigned int)eh.e_entry);
 
   /* Ensure minimal prog header size */
   if (eh.e_phentsize < sizeof(Elf32_Phdr)) {
-    log("Exec failed: ELF uses too small program headers");
+    klog("Exec failed: ELF uses too small program headers");
     return -ENOEXEC;
   }
+
+  thread_t *td = thread_self();
+
+  /* If this is a kernel thread becoming a user thread, then we need to create
+   * (the first!) process. */
+  if (!td->td_proc) {
+    proc_t *p = proc_create();
+    proc_populate(p, td);
+
+    /* Prepare file descriptor table */
+    fdtab_t *fdt = fdtab_alloc();
+    fdtab_ref(fdt);
+    td->td_proc->p_fdtable = fdt;
+  }
+
+  /* We assume process may only have a single thread. But if there were more
+     than one thread in the process that called exec, all other threads must be
+     forcefully terminated. */
 
   /*
    * We can not destroy the current vm map, because exec can still fail,
    * and in that case we must be able to return to the original address space.
    */
   vm_map_t *vmap = vm_map_new();
-  vm_map_t *old_vmap = vm_map_activate(vmap);
+  vm_map_t *old_vmap = td->td_proc ? td->td_proc->p_uspace : NULL;
+
+  /* We are the only live thread in this process. We can safely give it a new
+   * uspace. */
+  td->td_proc->p_uspace = vmap;
+  vm_map_activate(vmap);
 
   /* Iterate over prog headers */
-  log("ELF has %d program headers", eh.e_phnum);
+  klog("ELF has %d program headers", eh.e_phnum);
 
   assert(eh.e_phoff < 64);
   assert(eh.e_phentsize < 128);
@@ -119,17 +136,10 @@ int do_exec(const exec_args_t *args) {
   char phs[phs_size];
 
   /* Read program headers. */
-  uio.uio_op = UIO_READ;
-  uio.uio_vmspace = get_kernel_vm_map();
-  iov.iov_base = &phs;
-  iov.iov_len = phs_size;
-  uio.uio_iovcnt = 1;
-  uio.uio_iov = &iov;
-  uio.uio_offset = eh.e_phoff;
-  uio.uio_resid = phs_size;
+  uio = UIO_SINGLE_KERNEL(UIO_READ, eh.e_phoff, &phs, phs_size);
   error = VOP_READ(elf_vnode, &uio);
   if (error < 0) {
-    log("Exec failed: Elf file reading failed.");
+    klog("Exec failed: Elf file reading failed.");
     return error;
   }
   assert(uio.uio_resid == 0);
@@ -145,20 +155,20 @@ int do_exec(const exec_args_t *args) {
         break;
       case PT_DYNAMIC:
       case PT_INTERP:
-        log("Exec failed: ELF file requests dynamic linking"
-            "by providing a PT_DYNAMIC and/or PT_INTERP segment.");
+        klog("Exec failed: ELF file requests dynamic linking"
+             "by providing a PT_DYNAMIC and/or PT_INTERP segment.");
         goto exec_fail;
       case PT_SHLIB:
-        log("Exec failed: ELF file contains a PT_SHLIB segment");
+        klog("Exec failed: ELF file contains a PT_SHLIB segment");
         goto exec_fail;
       case PT_LOAD:
-        log("Processing a PT_LOAD segment: VirtAddr = %p, "
-            "Offset = 0x%08x, FileSiz = 0x%08x, MemSiz = 0x%08x, Flags = %d",
-            (void *)ph->p_vaddr, (unsigned int)ph->p_offset,
-            (unsigned int)ph->p_filesz, (unsigned int)ph->p_memsz,
-            (unsigned int)ph->p_flags);
+        klog("Processing a PT_LOAD segment: VirtAddr = %p, "
+             "Offset = 0x%08x, FileSiz = 0x%08x, MemSiz = 0x%08x, Flags = %d",
+             (void *)ph->p_vaddr, (unsigned int)ph->p_offset,
+             (unsigned int)ph->p_filesz, (unsigned int)ph->p_memsz,
+             (unsigned int)ph->p_flags);
         if (ph->p_vaddr % PAGESIZE) {
-          log("Exec failed: Segment p_vaddr is not page alligned");
+          klog("Exec failed: Segment p_vaddr is not page alligned");
           goto exec_fail;
         }
         if (ph->p_memsz == 0) {
@@ -181,17 +191,11 @@ int do_exec(const exec_args_t *args) {
            vm_object associated with the elf vnode, create a shadow vm_object on
            top of it using correct size/offset, and we would use it to page the
            file contents on demand. But we don't have a vnode_pager yet. */
-        uio.uio_op = UIO_READ;
-        uio.uio_vmspace = get_kernel_vm_map();
-        iov.iov_base = (char *)start;
-        iov.iov_len = ph->p_filesz;
-        uio.uio_iovcnt = 1;
-        uio.uio_iov = &iov;
-        uio.uio_offset = ph->p_offset;
-        uio.uio_resid = ph->p_filesz;
+        uio = UIO_SINGLE_KERNEL(UIO_READ, ph->p_offset, (char *)start,
+                                ph->p_filesz);
         error = VOP_READ(elf_vnode, &uio);
         if (error < 0) {
-          log("Exec failed: Elf file reading failed.");
+          klog("Exec failed: Elf file reading failed.");
           goto exec_fail;
         }
         assert(uio.uio_resid == 0);
@@ -233,22 +237,8 @@ int do_exec(const exec_args_t *args) {
   stack_segment->object = default_pager->pgr_alloc();
 
   /* Prepare program stack, which includes storing program args... */
-  log("Stack real bottom at %p", (void *)stack_bottom);
+  klog("Stack real bottom at %p", (void *)stack_bottom);
   prepare_program_stack(args, &stack_bottom);
-
-  thread_t *td = thread_self();
-  /* ... file descriptor table ... */
-  /* TODO: Copy/share file descriptor table! */
-  fdtab_t *fdt = fdtab_alloc();
-  fdtab_ref(fdt);
-  td->td_fdtable = fdt;
-
-  /* Before we have a working fork, let's initialize file descriptors required
-     by the standard library. */
-  int ignore;
-  do_open(td, "/dev/uart", O_RDONLY, 0, &ignore);
-  do_open(td, "/dev/uart", O_WRONLY, 0, &ignore);
-  do_open(td, "/dev/uart", O_WRONLY, 0, &ignore);
 
   /* ... sbrk segment ... */
   sbrk_create(vmap);
@@ -256,26 +246,31 @@ int do_exec(const exec_args_t *args) {
   /* ... and user context. */
   uctx_init(thread_self(), eh.e_entry, stack_bottom);
 
+  /* Before we have a working fork, let's initialize file descriptors required
+     by the standard library. */
+  int ignore;
+  do_open(td, "/dev/cons", O_RDONLY, 0, &ignore);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
+
   /*
-   * At this point we are certain that exec suceeds.
-   * We can safely destroy the previous vm map.
-   *
-   * One can use do_exec() to start new user program from kernel space,
-   * in such case there is no old user vm space to dismantle.
+   * At this point we are certain that exec succeeds.  We can safely destroy the
+   * previous vm map, and permanently assign this one to the current process.
    */
   if (old_vmap)
     vm_map_delete(old_vmap);
 
   vm_map_dump(vmap);
 
-  log("Entering e_entry NOW");
+  klog("Entering e_entry NOW");
   user_exc_leave();
 
   /*NOTREACHED*/
-  __builtin_unreachable();
+  __unreachable();
 
 exec_fail:
   /* Return to the previous map, unmodified by exec. */
+  td->td_proc->p_uspace = old_vmap;
   vm_map_activate(old_vmap);
   /* Destroy the vm map we began preparing. */
   vm_map_delete(vmap);

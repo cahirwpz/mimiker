@@ -2,9 +2,9 @@
 #include <physmem.h>
 #include <ktest.h>
 
-unsigned long pm_hash();
+unsigned long pm_hash(void);
 
-static int test_physmem() {
+static int test_physmem(void) {
   unsigned long pre = pm_hash();
 
   /* Write - read test */

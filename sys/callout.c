@@ -1,5 +1,8 @@
+#define KL_LOG KL_CALLOUT
+#include <klog.h>
 #include <stdc.h>
 #include <callout.h>
+#include <sysinit.h>
 
 /* Note: If the difference in time between ticks is greater than the number of
    buckets, some callouts may be called out-of-order! */
@@ -25,18 +28,17 @@ static struct {
   /* Stores the value of the argument callout_process was previously
      called with. All callouts up to this timestamp have already been
      processed. */
-  realtime_t last;
+  systime_t last;
 } ci;
 
-void callout_init() {
+static void callout_init(void) {
   bzero(&ci, sizeof(ci));
 
   for (int i = 0; i < CALLOUT_BUCKETS; i++)
     TAILQ_INIT(&ci.heads[i]);
 }
 
-void callout_setup(callout_t *handle, realtime_t time, timeout_t fn,
-                   void *arg) {
+void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg) {
   int index = time % CALLOUT_BUCKETS;
 
   bzero(handle, sizeof(callout_t));
@@ -46,17 +48,17 @@ void callout_setup(callout_t *handle, realtime_t time, timeout_t fn,
   handle->c_index = index;
   callout_set_pending(handle);
 
-  log("Add callout {%p} with wakeup at %lld.", handle, handle->c_time);
+  klog("Add callout {%p} with wakeup at %lld.", handle, handle->c_time);
   TAILQ_INSERT_TAIL(&ci.heads[index], handle, c_link);
 }
 
-void callout_setup_relative(callout_t *handle, realtime_t time, timeout_t fn,
+void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
                             void *arg) {
   callout_setup(handle, time + ci.last, fn, arg);
 }
 
 void callout_stop(callout_t *handle) {
-  log("Remove callout {%p} at %lld.", handle, handle->c_time);
+  klog("Remove callout {%p} at %lld.", handle, handle->c_time);
   TAILQ_REMOVE(&ci.heads[handle->c_index], handle, c_link);
 }
 
@@ -64,7 +66,7 @@ void callout_stop(callout_t *handle) {
  * Handle all timeouted callouts from queues between last position and current
  * position.
 */
-void callout_process(realtime_t time) {
+void callout_process(systime_t time) {
   unsigned int last_bucket;
   unsigned int current_bucket = ci.last % CALLOUT_BUCKETS;
   if (time - ci.last > CALLOUT_BUCKETS) {
@@ -103,3 +105,5 @@ void callout_process(realtime_t time) {
 
   ci.last = time;
 }
+
+SYSINIT_ADD(callout, callout_init, NODEPS);
