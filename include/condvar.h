@@ -9,7 +9,10 @@ typedef struct condvar {
 typedef struct mtx mtx_t;
 
 void cv_init(condvar_t *cv, const char *name);
-/* void cv_destroy(condvar_t *cv); */
+
+/* TODO: Make conditional variable unusable after it has been destroyed. */
+#define cv_destroy(m)
+
 void cv_wait(condvar_t *cv, mtx_t *mtx);
 void cv_signal(condvar_t *cv);
 void cv_broadcast(condvar_t *cv);
