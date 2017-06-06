@@ -12,7 +12,7 @@ typedef struct task {
 } task_t;
 
 #define TASK_INIT(func, arg)                                                   \
-  (task_t) {                                                                  \
+  (task_t) {                                                                   \
     .t_func = (func), .t_arg = (void *)(arg)                                   \
   }
 

@@ -23,7 +23,7 @@ void taskqueue_add(taskqueue_t *tq, task_t *task) {
 void taskqueue_run(taskqueue_t *tq) {
   task_list_t tasklist;
 
-  WITH_MTX_LOCK(&tq->tq_mutex) {
+  WITH_MTX_LOCK (&tq->tq_mutex) {
     while (STAILQ_EMPTY(&tq->tq_list))
       cv_wait(&tq->tq_nonempty, &tq->tq_mutex);
 
