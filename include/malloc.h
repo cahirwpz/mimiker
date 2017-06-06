@@ -65,7 +65,7 @@ typedef struct kmem_pool {
 #define M_NOWAIT 0x0001 /* may return NULL, but cannot sleep */
 #define M_ZERO 0x0002   /* clear allocated block */
 
-void kmem_bootstrap();
+void kmem_bootstrap(void);
 void kmem_init(kmem_pool_t *mp);
 void kmem_dump(kmem_pool_t *mp);
 void kmem_destroy(kmem_pool_t *mp);

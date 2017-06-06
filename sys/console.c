@@ -22,7 +22,7 @@ static console_t dummy_console = {
 
 CONSOLE_ADD(dummy_console);
 
-void cn_init() {
+void cn_init(void) {
   SET_DECLARE(cn_table, console_t);
   int prio = INT_MIN;
   console_t **ptr;
@@ -40,7 +40,7 @@ void cn_putc(int c) {
   cn->cn_putc(cn, c);
 }
 
-int cn_getc() {
+int cn_getc(void) {
   return cn->cn_getc(cn);
 }
 

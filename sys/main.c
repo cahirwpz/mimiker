@@ -22,7 +22,7 @@ static void run_init(const char *program) {
   }
 }
 
-int main() {
+int main(void) {
   const char *init = kenv_get("init");
   const char *test = kenv_get("test");
 

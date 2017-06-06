@@ -29,7 +29,7 @@ typedef struct sigaction {
 #include <unistd.h>
 
 int sigaction(int signum, const sigaction_t *act, sigaction_t *oldact);
-void sigreturn();
+void sigreturn(void);
 int kill(int tid, int sig);
 
 static inline int raise(int sig) {
@@ -71,10 +71,10 @@ void sig_notify(thread_t *td);
 
 int do_kill(pid_t pid, signo_t sig);
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
-int do_sigreturn();
+int do_sigreturn(void);
 
 int platform_sig_deliver(signo_t sig, sigaction_t *sa);
-int platform_sig_return();
+int platform_sig_return(void);
 
 #endif /* !_KERNELSPACE */
 

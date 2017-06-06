@@ -38,7 +38,7 @@ static void tv_delay(timeval_t delay) {
     now = get_uptime();
 }
 
-static int test_rtc() {
+static int test_rtc(void) {
   rtc_setb(MC_REGB, MC_REGB_BINARY | MC_REGB_24HR | MC_REGB_PIE);
 
   while (1) {

@@ -7,7 +7,7 @@
 #include <vm_map.h>
 #include <proc.h>
 
-int do_fork() {
+int do_fork(void) {
   thread_t *td = thread_self();
 
   /* Cannot fork non-user threads. */
@@ -36,7 +36,7 @@ int do_fork() {
      to copy its contents, it will be discarded anyway. We just prepare the
      thread's kernel context to a fresh one so that it will continue execution
      starting from user_exc_leave (which serves as fork_trampoline). */
-  ctx_init(newtd, user_exc_leave, NULL);
+  ctx_init(newtd, (void (*)(void *))user_exc_leave, NULL);
 
   newtd->td_sleepqueue = sleepq_alloc();
   newtd->td_wchan = NULL;
