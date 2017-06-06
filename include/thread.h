@@ -8,7 +8,7 @@
 #include <sleepq.h>
 #include <mutex.h>
 #include <condvar.h>
-#include <clock.h>
+#include <time.h>
 #include <signal.h>
 
 typedef uint8_t td_prio_t;

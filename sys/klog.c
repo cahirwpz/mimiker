@@ -1,5 +1,5 @@
 #include <sync.h>
-#include <clock.h>
+#include <time.h>
 #include <stdc.h>
 #define _KLOG_PRIVATE
 #include <klog.h>

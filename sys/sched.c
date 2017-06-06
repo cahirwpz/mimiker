@@ -5,7 +5,7 @@
 #include <sched.h>
 #include <runq.h>
 #include <context.h>
-#include <clock.h>
+#include <time.h>
 #include <thread.h>
 #include <callout.h>
 #include <interrupt.h>
