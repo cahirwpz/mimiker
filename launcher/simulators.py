@@ -67,6 +67,7 @@ class QEMU(Launchable):
                         '-device', 'VGA',
                         '-machine', 'malta',
                         '-cpu', '24Kf',
+                        '-icount', 'shift=7',
                         '-kernel', kwargs['kernel'],
                         '-append', kwargs['args'],
                         '-gdb', 'tcp::%d' % kwargs['gdb_port'],
@@ -81,7 +82,7 @@ class QEMU(Launchable):
         if not kwargs['graphics']:
             self.options += ['-display', 'none']
 
-SIMULATORS = [OVPsim(), QEMU()]
+SIMULATORS = [QEMU(), OVPsim()]
 
 
 def find_available():
