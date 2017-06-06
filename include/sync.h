@@ -16,9 +16,20 @@
 void critical_enter(void);
 void critical_leave(void);
 
-#define SCOPED_CRITICAL_SECTION()                                              \
-  SCOPED_STMT(void, critical_enter, critical_leave, NULL)
+/* Two following functions are workaround to make critical sections work with
+ * scoped and with statement. */
+static inline void __critical_enter(void *data) {
+  critical_enter();
+}
 
-#define CRITICAL_SECTION WITH_STMT(void, critical_enter, critical_leave, NULL)
+static inline void __critical_leave(void *data) {
+  critical_leave();
+}
+
+#define SCOPED_CRITICAL_SECTION()                                              \
+  SCOPED_STMT(void, __critical_enter, __critical_leave, NULL)
+
+#define CRITICAL_SECTION                                                       \
+  WITH_STMT(void, __critical_enter, __critical_leave, NULL)
 
 #endif /* !_SYS_SYNC_H_ */
