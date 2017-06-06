@@ -3,7 +3,7 @@
 #include <malloc.h>
 #include <taskqueue.h>
 
-static unsigned int counter;
+static unsigned counter;
 
 static void func(void *arg) {
   int n = *(int *)arg;
@@ -13,18 +13,16 @@ static void func(void *arg) {
 
 static int test_taskqueue(void) {
   taskqueue_t tq;
-  task_t task0;
-  task_t task1;
-  task_t task2;
 
-  counter = 0;
   int N[] = {1, 2, 3};
 
-  taskqueue_init(&tq);
-  task_init(&task0, func, N + 0);
-  task_init(&task1, func, N + 1);
-  task_init(&task2, func, N + 2);
+  task_t task0 = TASK_INIT(func, &N[0]);
+  task_t task1 = TASK_INIT(func, &N[1]);
+  task_t task2 = TASK_INIT(func, &N[2]);
 
+  counter = 0;
+
+  taskqueue_init(&tq);
   taskqueue_add(&tq, &task0);
   taskqueue_add(&tq, &task1);
   taskqueue_add(&tq, &task2);
