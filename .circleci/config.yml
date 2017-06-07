@@ -1,10 +1,57 @@
 version: 2
 jobs:
   build:
+    working_directory: ~/mimiker
     docker:
-      - image: ubuntu/xenial
+      - image: ubuntu:xenial
+        environment:
+          PATH: /opt/mipsel-mimiker-elf/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     steps:
       - checkout
       - run:
-        name: 'make'
-        command: 'make'
+          name: 'Trigger format verification jobs' 
+          command: |
+            # Triggering other jobs will be simplified as an upcoming CircleCI feature, for now it needs to touch a webhook.
+            wget --user ${CIRCLE_API_TOKEN}: \    
+              --post-data build_parameters[CIRCLE_JOB]=verify_format \
+              --post-data revision=$CIRCLE_SHA1 \
+              https://circleci.com/api/v1.1/project/github/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/tree/$CIRCLE_BRANCH
+      - run:
+          name: 'Install system deps'
+          command: 'apt-get -q update && apt-get install -y make qemu-system-mips ctags cscope wget python3-pip clang-format-3.8 rsync'
+      - run:
+          name: 'Install python deps'
+          command: 'pip3 install -I pexpect pep8'
+      - run:
+          name: 'Fetch toolchain package'
+          command: 'wget http://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.1_amd64.deb'
+      - run:
+          name: 'Install toolchain package'
+          command: 'dpkg -i mipsel-mimiker-elf_1.1_amd64.deb'
+      - run:
+          name: 'Verify formatting'
+          command: './verify-format.sh'
+      - run:
+          name: 'Verify PEP8'
+          command: './verify-pep8.sh'
+      - run:
+          name: 'Make'
+          command: 'make'
+      - run:
+          name: 'Run kernel tests'
+          command: './run_tests.py --thorough'
+          
+  verify_format:
+    working_directory: ~/mimiker
+    docker:
+      - image: ubuntu:xenial
+        environment:
+          PATH: /opt/mipsel-mimiker-elf/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    steps:
+      - checkout
+      - run:
+          name: 'Install system deps'
+          command: 'apt-get -q update && apt-get install -y clang-format-3.8 rsync'
+      - run:
+          name: 'Verify formatting'
+          command: './verify-format.sh'
