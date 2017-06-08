@@ -6,7 +6,6 @@ SOURCES_C = atomic.c \
 	    cpu.c \
 	    gt64120.c \
 	    intr.c \
-	    ioports.c \
 	    malta.c \
 	    pmap.c \
 	    rootdev.c \

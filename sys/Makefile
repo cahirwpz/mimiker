@@ -11,6 +11,7 @@ SOURCES_C  = \
 	dev_null.c \
 	dev_vga.c \
 	devfs.c \
+	drv_atkbdc.c \
 	drv_stdvga.c \
 	exception.c \
 	exec.c \
@@ -30,7 +31,6 @@ SOURCES_C  = \
 	pcpu.c \
 	physmem.c \
 	pool.c \
-	ps2_8042.c \
 	proc.c \
 	runq.c \
 	rwlock.c \
