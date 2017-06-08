@@ -22,6 +22,7 @@ typedef struct atkbdc_state {
   mtx_t mtx;
   condvar_t nonempty;
   ringbuf_t scancodes;
+  intr_handler_t intr_handler;
   resource_t *regs;
 } atkbdc_state_t;
 
@@ -119,9 +120,6 @@ static intr_filter_t atkbdc_intr(void *data) {
   return IF_FILTERED;
 }
 
-static INTR_HANDLER_DEFINE(atkbdc_intr_handler, atkbdc_intr, NULL, NULL,
-                           "AT keyboard controller", 0);
-
 static int atkbdc_probe(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
   pci_bus_state_t *pcib = dev->parent->state;
@@ -159,8 +157,9 @@ static int atkbdc_attach(device_t *dev) {
   cv_init(&atkbdc->nonempty, "AT keyboard buffer non-empty");
   atkbdc->regs = pcib->io_space;
 
-  atkbdc_intr_handler->ih_argument = atkbdc;
-  bus_intr_setup(dev, 1, atkbdc_intr_handler);
+  atkbdc->intr_handler =
+    INTR_HANDLER_INIT(atkbdc_intr, NULL, atkbdc, "AT keyboard controller", 0);
+  bus_intr_setup(dev, 1, &atkbdc->intr_handler);
 
   /* Enable interrupt */
   write_command(atkbdc->regs, KBDC_SET_COMMAND_BYTE);
