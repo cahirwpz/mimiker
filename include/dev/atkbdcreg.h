@@ -31,11 +31,8 @@
 /* I/O ports */
 #define KBD_STATUS_PORT 4  /* status port, read */
 #define KBD_COMMAND_PORT 4 /* controller command port, write */
-#define KBD_DATA_PORT                                                          \
-  0 /* data port, read/write                                                   \
-     * also used as keyboard command                                           \
-     * and mouse command port                                                  \
-     */
+/* data port, read/write also used as keyboard command and mouse command port */
+#define KBD_DATA_PORT 0
 
 /* controller commands (sent to KBD_COMMAND_PORT) */
 #define KBDC_SET_COMMAND_BYTE 0x0060
