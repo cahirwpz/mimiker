@@ -3,7 +3,7 @@
 #include <mips/tlb.h>
 #include <vm.h>
 
-void tlb_init() {
+void tlb_init(void) {
   tlb_invalidate_all();
   /* Shift C0_CONTEXT left, because we shift it right in tlb_refill_handler.
    * This is little hack to make page table sized 4MB, but causes us to
@@ -11,7 +11,7 @@ void tlb_init() {
   mips32_set_c0(C0_CONTEXT, PT_BASE << 1);
 }
 
-void tlb_print() {
+void tlb_print(void) {
   uint32_t n = tlb_size();
   for (uint32_t i = 0; i < n; i++) {
     tlbhi_t hi;

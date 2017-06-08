@@ -58,14 +58,14 @@ typedef struct kmem_pool {
   kmem_pool_t *pool = KMEM_POOL((desc), (npages), (maxpages));                 \
   SET_ENTRY(kmem_pool_table, pool)
 
-#define MALLOC_DECLARE(pool) extern kmem_pool_t pool[1]
+#define MALLOC_DECLARE(pool) extern kmem_pool_t *pool;
 
 /* Flags to malloc */
 #define M_WAITOK 0x0000 /* always returns memory block, but can sleep */
 #define M_NOWAIT 0x0001 /* may return NULL, but cannot sleep */
 #define M_ZERO 0x0002   /* clear allocated block */
 
-void kmem_bootstrap();
+void kmem_bootstrap(void);
 void kmem_init(kmem_pool_t *mp);
 void kmem_dump(kmem_pool_t *mp);
 void kmem_destroy(kmem_pool_t *mp);
@@ -73,5 +73,7 @@ void kmem_destroy(kmem_pool_t *mp);
 void *kmalloc(kmem_pool_t *mp, size_t size, unsigned flags) __warn_unused;
 void kfree(kmem_pool_t *mp, void *addr);
 char *kstrndup(kmem_pool_t *mp, const char *s, size_t maxlen);
+
+MALLOC_DECLARE(M_TEMP);
 
 #endif /* _MALLOC_H_ */

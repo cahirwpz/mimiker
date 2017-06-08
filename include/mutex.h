@@ -15,9 +15,17 @@ typedef struct mtx {
   unsigned m_type;            /* Normal or recursive mutex */
 } mtx_t;
 
+#define MUTEX_INITIALIZER(type)                                                \
+  (mtx_t) {                                                                    \
+    .m_owner = NULL, .m_count = 0, .m_type = type                              \
+  }
+
 /* Initializes mutex. Note that EVERY mutex has to be initialized
  * before it is used. */
 void mtx_init(mtx_t *m, unsigned type);
+
+/* TODO: Make mutex unusable after it has been destroyed. */
+#define mtx_destroy(m)
 
 /* Returns true iff the mutex is locked and we are the owner. */
 bool mtx_owned(mtx_t *mtx);
@@ -30,11 +38,14 @@ void mtx_lock(mtx_t *m);
  * then it wakes up the thread in FIFO manner. */
 void mtx_unlock(mtx_t *m);
 
-/* Use mtx_lock_guard to lock a mutex and have it automatically unlock when
+/* Use mtx_scoped_lock to lock a mutex and have it automatically unlock when
    leaving current scope. */
 DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
-#define mtx_scoped_lock(pmtx)                                                  \
-  mtx_t *__CONCAT(mtx_scoped_lock_, __LINE__) cleanup(mtx_unlock) = pmtx;      \
-  mtx_lock(pmtx);
+
+#define SCOPED_MTX_LOCK(mtx_p)                                                 \
+  SCOPED_STMT(mtx_t, mtx_lock, CLEANUP_FUNCTION(mtx_unlock), mtx_p)
+
+#define WITH_MTX_LOCK(mtx_p)                                                   \
+  WITH_STMT(mtx_t, mtx_lock, CLEANUP_FUNCTION(mtx_unlock), mtx_p)
 
 #endif /* !_SYS_MUTEX_H_ */

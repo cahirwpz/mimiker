@@ -2,16 +2,17 @@
 
 SOURCES_C = atomic.c \
 	    cbus.c \
-	    clock.c \
 	    context.c \
 	    cpu.c \
 	    gt64120.c \
 	    intr.c \
 	    ioports.c \
 	    malta.c \
-	    pci.c \
 	    pmap.c \
+	    rootdev.c \
 	    stack.c \
+	    signal.c \
+	    timer.c \
 	    tlb.c \
 	    uart_cbus.c
 
@@ -26,6 +27,6 @@ include ../Makefile.common
 libmips.a: $(OBJECTS)
 
 clean:
-	$(RM) -f .*.D *.ko *.o *.a *.lst *~
-	$(RM) -f tags *.taghl
-	$(RM) -f assym.h
+	$(RM) .*.D *.ko *.o *.a *.lst *~
+	$(RM) tags *.taghl
+	$(RM) assym.h

@@ -6,16 +6,15 @@ SOURCES = $(SOURCES_C) $(SOURCES_ASM)
 OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
 DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
 
-TRIPLET_CUSTOM  = mipsel-unknown-elf-
-TRIPLET_IMGTECH = mips-mti-elf-
+TRIPLET = mipsel-mimiker-elf
 
-CUSTOM_TOOLCHAIN_FOUND = $(shell which $(TRIPLET_CUSTOM)gcc > /dev/null; echo $$?)
-# If custom toolchain is available, use it. Otherwise fall back to ImgTech's.
-ifeq ($(CUSTOM_TOOLCHAIN_FOUND),0)
-	P = $(TRIPLET_CUSTOM)
-else
-	P = $(TRIPLET_IMGTECH)
+TOOLCHAIN_FOUND = $(shell which $(TRIPLET)-gcc > /dev/null; echo $$?)
+ifneq ($(TOOLCHAIN_FOUND), 0)
+  $(error "mips-mimiker-elf" toolchain not found. Please refer to README.md)
 endif
+
+P = $(TRIPLET)-
+
 CC       = $(P)gcc -mips32r2 -EL -g
 AR       = $(P)ar
 AS       = $(P)as -mips32r2 -EL -g
@@ -23,19 +22,28 @@ NM       = $(P)nm
 GDB      = $(P)gdb
 OBJCOPY  = $(P)objcopy
 OBJDUMP  = $(P)objdump
+CPIO     = cpio --format=crc
+RM       = rm -v -f
 
 HOSTCC	 = gcc -g
-SYSROOT  = $(realpath $(dir $(shell which $(P)gcc))/..)
+SYSROOT  = $(TOPDIR)/sysroot
+INSTALL_DIR  = $(TOPDIR)/sysroot
+CACHEDIR  = $(TOPDIR)/cache
 GENASSYM = $(TOPDIR)/script/genassym.py $(NM)
 
-GCC_INSTALL_PATH = $(shell LANG=C $(CC)  -print-search-dirs | sed -n -e 's/install:\(.*\)/\1/p')
+GCC_INSTALL_PATH = $(shell LANG=C $(CC) -print-search-dirs | \
+                     sed -n -e 's/install:\(.*\)/\1/p')
 # The _LIBC_LIMITS_H_ prevents include-fixed/limits.h from forcefully including
 # the system version of limits.h, which is not present in a freestanding
 # environment. I feel like this is a workaround for a bug in GCC.
-GCC_SYSTEM_INC = -I$(GCC_INSTALL_PATH)include/ -I$(GCC_INSTALL_PATH)include-fixed/ -D_LIBC_LIMITS_H_
+GCC_SYSTEM_INC = -I$(GCC_INSTALL_PATH)include/ \
+                 -I$(GCC_INSTALL_PATH)include-fixed/ \
+                 -D_LIBC_LIMITS_H_
 
 ASFLAGS  =
-CFLAGS   = -std=gnu11 -Og -Wall -Werror -fno-builtin -nostdinc -nostdlib $(GCC_SYSTEM_INC) -ffreestanding
+WFLAGS   = -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes -Werror
+CFLAGS   = -std=gnu11 -Og $(WFLAGS) -fno-builtin -nostdinc -nostdlib \
+           $(GCC_SYSTEM_INC) -ffreestanding
 CPPFLAGS = -Wall -Werror -DDEBUG -I$(TOPDIR)/include
 LDFLAGS  = -nostdlib -T $(TOPDIR)/mips/malta.ld
 

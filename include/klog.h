@@ -3,43 +3,55 @@
 
 #include <common.h>
 
-/* Kernel log sources */
-#define KL_NONE 0x00000000 /* don't log anything */
-#define KL_RUNQ 0x00000001 /* basic kernel data structures */
-#define KL_SLEEPQ 0x00000002
-#define KL_CALLOUT 0x00000004
-#define KL_PMAP 0x00000010 /* memory management */
-#define KL_VM 0x00000020
-#define KL_KMEM 0x00000040
-#define KL_POOL 0x00000080
-#define KL_LOCK 0x00000100    /* lock operations tracing */
-#define KL_SCHED 0x00000200   /* scheduler tracing */
-#define KL_THREAD 0x00000400  /* kernel threads management */
-#define KL_INTR 0x00001000    /* interrupts management and handling */
-#define KL_DEV 0x00002000     /* device management */
-#define KL_VFS 0x00010000     /* vfs operations tracing */
-#define KL_VNODE 0x00020000   /* vnode operations tracing */
-#define KL_PROC 0x00040000    /* user process management */
-#define KL_SYSCALL 0x00080000 /* syscall processing */
-#define KL_DEF 0x40000000     /* default mask for undefined subsystems */
-#define KL_ALL 0x7fffffff
+/* Kernel log message origin. */
+typedef enum {
+  KL_UNDEF,   /* undefined subsystems */
+  KL_RUNQ,    /* scheduler's run queue */
+  KL_SLEEPQ,  /* sleep queues */
+  KL_CALLOUT, /* callout */
+  KL_SIGNAL,  /* signal processing */
+  KL_INIT,    /* system initialization */
+  KL_PMAP,    /* physical map management */
+  KL_VM,      /* virtual memory */
+  KL_KMEM,    /* generick kernel memory allocator */
+  KL_POOL,    /* pooled allocator */
+  KL_LOCK,    /* lock operations tracing */
+  KL_SCHED,   /* scheduler tracing */
+  KL_THREAD,  /* kernel threads management */
+  KL_INTR,    /* interrupts management and handling */
+  KL_DEV,     /* device management */
+  KL_VFS,     /* vfs operations tracing */
+  KL_VNODE,   /* vnode operations tracing */
+  KL_PROC,    /* user process management */
+  KL_SYSCALL, /* syscall processing */
+  KL_USER,    /* user program */
+  KL_TEST,    /* mask for testing purpose */
+  KL_FILESYS, /* filesystems */
+} klog_origin_t;
 
-/* Mask for subsystem using klog. If not specified using default mask. */
+#define KL_NONE 0x00000000 /* don't log anything */
+#define KL_MASK(l) (1 << (l))
+#define KL_ALL 0xffffffff /* log everything */
+
+#define KL_DEFAULT_MASK (KL_ALL & (~KL_MASK(KL_PMAP)))
+
+/* Mask for subsystem using klog. If not specified using default subsystem. */
 #ifndef KL_LOG
-#define KL_LOG KL_DEF
+#define KL_LOG KL_UNDEF
 #endif
 
 #ifdef _KLOG_PRIVATE
 #undef _KLOG_PRIVATE
 
-#include <clock.h>
+#include <time.h>
 
 #define KL_SIZE 1024
 
 typedef struct {
-  realtime_t kl_timestamp;
+  timeval_t kl_timestamp;
   unsigned kl_line;
   const char *kl_file;
+  klog_origin_t kl_origin;
   const char *kl_format;
   intptr_t kl_params[6];
 } klog_entry_t;
@@ -55,35 +67,34 @@ typedef struct {
 extern klog_t klog;
 #endif
 
-void klog_init();
+void klog_init(void);
 
-void klog_append(unsigned mask, const char *file, unsigned line,
+void klog_append(klog_origin_t origin, const char *file, unsigned line,
                  const char *format, intptr_t arg1, intptr_t arg2,
                  intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6);
 
+unsigned klog_setmask(unsigned newmask);
+
 /* Print all logs on screen. */
-void klog_dump();
+void klog_dump(void);
 
 /* Delete all logs. */
-void klog_clear();
+void klog_clear(void);
 
-#define klog_(format, p1, p2, p3, p4, p5, p6, ...)                             \
+#define _klog(format, p1, p2, p3, p4, p5, p6, ...)                             \
   do {                                                                         \
     klog_append(KL_LOG, __FILE__, __LINE__, format, (intptr_t)(p1),            \
                 (intptr_t)(p2), (intptr_t)(p3), (intptr_t)(p4),                \
                 (intptr_t)(p5), (intptr_t)(p6));                               \
   } while (0)
+#define klog(...) _klog(__VA_ARGS__, 0, 0, 0, 0, 0, 0)
 
-#define klog(format, ...) klog_((format), __VA_ARGS__, 0, 0, 0, 0, 0, 0)
-
-#define klog_mask_(m, format, p1, p2, p3, p4, p5, p6, ...)                     \
+#define _klog_(o, format, p1, p2, p3, p4, p5, p6, ...)                         \
   do {                                                                         \
-    klog_append((m), __FILE__, __LINE__, format, (intptr_t)(p1),               \
+    klog_append((o), __FILE__, __LINE__, format, (intptr_t)(p1),               \
                 (intptr_t)(p2), (intptr_t)(p3), (intptr_t)(p4),                \
                 (intptr_t)(p5), (intptr_t)(p6));                               \
   } while (0)
-
-#define klog_mask(m, format, ...)                                              \
-  klog_mask_((m), format, __VA_ARGS__, 0, 0, 0, 0, 0, 0)
+#define klog_(o, ...) _klog_((o), __VA_ARGS__, 0, 0, 0, 0, 0, 0)
 
 #endif

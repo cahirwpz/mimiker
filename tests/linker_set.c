@@ -13,7 +13,7 @@ SET_ENTRY(testset, some_int_3);
 SET_ENTRY(testset, some_int_4);
 SET_ENTRY(testset, some_int_5);
 
-static int test_linker_set() {
+static int test_linker_set(void) {
   SET_DECLARE(testset, int);
 
   kprintf("# of elements in testset: %zu\n", SET_COUNT(testset));
@@ -31,7 +31,7 @@ static int test_linker_set() {
   }
 
   int key[6] = {0, 1, 1, 1, 1, 1};
-  for (int k = 0; k < sizeof(key) / sizeof(key[0]); k++) {
+  for (unsigned k = 0; k < sizeof(key) / sizeof(key[0]); k++) {
     if (found[k] != key[k])
       return KTEST_FAILURE;
   }

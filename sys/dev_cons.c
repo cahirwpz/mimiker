@@ -26,30 +26,26 @@ static int dev_cons_read(vnode_t *t, uio_t *uio) {
   unsigned curr = 0;
   while (curr < UART_BUF_MAX && curr < uio->uio_resid) {
     buffer[curr] = cn_getc();
-    if (buffer[curr] == '\n')
+    if (buffer[curr++] == '\n')
       break;
-    curr++;
   }
-  int res = uiomove(buffer, UART_BUF_MAX - 1, uio);
+  uio->uio_offset = 0; /* This device does not support offsets. */
+  int res = uiomove_frombuf(buffer, curr, uio);
   if (res)
     return res;
   return 0;
 }
 
-static int dev_cons_getattr(vnode_t *t, vattr_t *buf) {
-  return -ENOTSUP;
-}
+static vnodeops_t dev_cons_vnodeops = {.v_lookup = vnode_lookup_nop,
+                                       .v_readdir = vnode_readdir_nop,
+                                       .v_open = vnode_open_generic,
+                                       .v_close = vnode_close_nop,
+                                       .v_read = dev_cons_read,
+                                       .v_write = dev_cons_write,
+                                       .v_seek = vnode_seek_nop,
+                                       .v_getattr = vnode_getattr_nop};
 
-vnodeops_t dev_cons_vnodeops = {
-  .v_lookup = vnode_op_notsup,
-  .v_readdir = vnode_op_notsup,
-  .v_getattr = dev_cons_getattr,
-  .v_open = vnode_open_generic,
-  .v_write = dev_cons_write,
-  .v_read = dev_cons_read,
-};
-
-void init_dev_cons() {
+static void init_dev_cons(void) {
   dev_cons_device = vnode_new(V_DEV, &dev_cons_vnodeops);
   devfs_install("cons", dev_cons_device);
 }

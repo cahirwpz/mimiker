@@ -8,9 +8,10 @@
 #include <sleepq.h>
 #include <mutex.h>
 #include <condvar.h>
+#include <time.h>
+#include <signal.h>
 
 typedef uint8_t td_prio_t;
-typedef uint32_t tid_t;
 typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
 typedef struct fdtab fdtab_t;
@@ -20,6 +21,7 @@ typedef struct proc proc_t;
 
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
+#define TDF_NEEDSIGCHK 0x00000004 /* signals were posted for delivery */
 
 typedef struct thread {
   /* Locks */
@@ -39,7 +41,6 @@ typedef struct thread {
   enum { TDS_INACTIVE = 0x0, TDS_WAITING, TDS_READY, TDS_RUNNING } td_state;
   uint32_t td_flags;           /* TDF_* flags */
   volatile uint32_t td_csnest; /* critical section nest level */
-  int td_exitcode;
   /* thread context */
   exc_frame_t td_uctx;    /* user context (always exception) */
   fpu_ctx_t td_uctx_fpu;  /* user FPU context (always exception) */
@@ -48,7 +49,6 @@ typedef struct thread {
   intptr_t td_onfault;    /* program counter for copyin/copyout faults */
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
-  vm_map_t *td_uspace; /* thread's user space map */
   /* waiting channel */
   sleepq_t *td_sleepqueue;
   void *td_wchan;
@@ -56,20 +56,27 @@ typedef struct thread {
   /* scheduler part */
   td_prio_t td_prio;
   int td_slice;
+  /* thread statistics */
+  timeval_t td_rtime;        /* ticks spent running */
+  timeval_t td_last_rtime;   /* time of last switch to running state */
+  timeval_t td_slptime;      /* ticks spent sleeping */
+  timeval_t td_last_slptime; /* time of last switch to sleep state */
+  unsigned td_nctxsw;        /* total number of context switches */
+  /* signal handling */
+  sigset_t td_sigpend; /* Pending signals for this thread. */
+  /* TODO: Signal mask, sigsuspend. */
 } thread_t;
 
-void thread_init();
-
-thread_t *thread_self();
+thread_t *thread_self(void);
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
 void thread_delete(thread_t *td);
 
 /* Exit from a kernel thread. Thread becomes zombie which resources will
  * eventually be recycled. */
-noreturn void thread_exit(int exitcode);
+noreturn void thread_exit(void);
 
 /* Debugging utility that prints out the summary of all_threads contents. */
-void thread_dump_all();
+void thread_dump_all(void);
 
 /* Returns the thread matching the given ID, or null if none found. */
 thread_t *thread_get_by_tid(tid_t id);
@@ -81,6 +88,6 @@ void thread_join(thread_t *td);
    reaping will automatically take place when convenient. The reason this
    function is exposed is because some tests need to explicitly wait until
    threads are reaped before they can verify test success. */
-void thread_reap();
+void thread_reap(void);
 
 #endif /* _SYS_THREAD_H_ */

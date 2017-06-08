@@ -5,7 +5,9 @@ SOURCES_C = \
 	exec.c \
 	exec_misbehave.c \
 	exec_fd_test.c \
+	exec_test_dup.c \
 	initrd.c \
+	klog.c \
 	linker_set.c \
 	malloc.c \
 	mutex.c \
@@ -19,6 +21,8 @@ SOURCES_C = \
 	sched.c \
 	strtol.c \
 	syscall.c \
+	taskqueue.c \
+	thread_stats.c \
 	thread_exit.c \
 	uiomove.c \
 	vm_map.c \
@@ -26,15 +30,11 @@ SOURCES_C = \
 
 SOURCES_ASM =
 
-all: $(DEPFILES) initrd_test_files libtests.a
-
-initrd_test_files: prepare_initrd_test_files.sh
-	./prepare_initrd_test_files.sh
+all: $(DEPFILES) libtests.a
 
 include ../Makefile.common
 
 libtests.a: $(OBJECTS)
 
 clean:
-	$(RM) -f .*.D *.o *.elf *.a *.map *~
-	$(RM) -rf initrd_test_files
+	$(RM) .*.D *.o *.elf *.a *.map *~

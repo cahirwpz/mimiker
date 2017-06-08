@@ -1,6 +1,10 @@
 #ifndef _SYS_KTEST_H_
 #define _SYS_KTEST_H_
 
+#ifndef KL_LOG
+#define KL_LOG KL_TEST
+#endif
+
 #include <linker_set.h>
 #include <stdc.h>
 
@@ -24,7 +28,7 @@
 
 typedef struct {
   const char test_name[KTEST_NAME_MAX];
-  int (*test_func)();
+  int (*test_func)(void);
   uint32_t flags;
   uint32_t randint_max;
 } test_entry_t;
@@ -32,7 +36,7 @@ typedef struct {
 void ktest_main(const char *test);
 
 #define KTEST_ADD(name, func, flags)                                           \
-  test_entry_t name##_test = {#name, func, flags};                             \
+  test_entry_t name##_test = {#name, func, flags, 0};                          \
   SET_ENTRY(tests, name##_test);
 
 #define KTEST_ADD_RANDINT(name, func, flags, max)                              \
@@ -46,7 +50,7 @@ void ktest_main(const char *test);
 
 /* This function is called both by run_test, as well as ktest_assert. It
  * displays some troubleshooting info about the failing test. */
-void ktest_failure();
+void ktest_failure(void);
 
 /* This flag is set to 1 when a kernel test is in progress, and 0 otherwise. */
 extern int ktest_test_running_flag;

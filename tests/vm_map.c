@@ -1,3 +1,5 @@
+#define KL_LOG KL_TEST
+#include <klog.h>
 #include <stdc.h>
 #include <vm_pager.h>
 #include <vm_object.h>
@@ -6,15 +8,15 @@
 #include <thread.h>
 #include <ktest.h>
 
-static int paging_on_demand_and_memory_protection_demo() {
+static int paging_on_demand_and_memory_protection_demo(void) {
   vm_map_t *orig = get_user_vm_map();
   vm_map_activate(vm_map_new());
 
   vm_map_t *kmap = get_kernel_vm_map();
   vm_map_t *umap = get_user_vm_map();
 
-  log("Kernel physical map : %08lx-%08lx", kmap->pmap->start, kmap->pmap->end);
-  log("User physical map   : %08lx-%08lx", umap->pmap->start, umap->pmap->end);
+  klog("Kernel physical map : %08lx-%08lx", kmap->pmap->start, kmap->pmap->end);
+  klog("User physical map   : %08lx-%08lx", umap->pmap->start, umap->pmap->end);
 
   vm_addr_t start = 0x1001000;
   vm_addr_t end = 0x1001000 + 2 * PAGESIZE;
@@ -35,7 +37,7 @@ static int paging_on_demand_and_memory_protection_demo() {
 
   /* Start in paged on demand range, but end outside, to cause fault */
   for (int *ptr = (int *)start; ptr != (int *)end; ptr += 256) {
-    log("%p", ptr);
+    klog("%p", ptr);
     *ptr = 0xfeedbabe;
   }
 
@@ -45,11 +47,11 @@ static int paging_on_demand_and_memory_protection_demo() {
   /* Restore original vm_map */
   vm_map_activate(orig);
 
-  log("Test passed.");
+  klog("Test passed.");
   return KTEST_SUCCESS;
 }
 
-static int findspace_demo() {
+static int findspace_demo(void) {
   vm_map_t *orig = get_user_vm_map();
 
   vm_map_t *umap = vm_map_new();
@@ -94,7 +96,7 @@ static int findspace_demo() {
   /* Restore original vm_map */
   vm_map_activate(orig);
 
-  log("Test passed.");
+  klog("Test passed.");
   return KTEST_SUCCESS;
 }
 

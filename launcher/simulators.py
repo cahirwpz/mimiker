@@ -44,9 +44,9 @@ class OVPsim(Launchable):
 
         if not kwargs['graphics']:
             self.options += ['--nographics']
-        
+
         if kwargs['debug']:
-            self.options += ['--port', '1234']
+            self.options += ['--port', str(kwargs['gdb_port'])]
 
         for item in OVPSIM_OVERRIDES.items():
             self.options += ['--override', '%s=%s' % item]
@@ -62,26 +62,28 @@ class QEMU(Launchable):
         return self.cmd is not None
 
     def configure(self, **kwargs):
+        port = kwargs['uart_port']
         self.options = ['-nodefaults',
                         '-device', 'VGA',
                         '-machine', 'malta',
                         '-cpu', '24Kf',
+                        '-icount', 'shift=7',
                         '-kernel', kwargs['kernel'],
                         '-append', kwargs['args'],
-                        '-gdb', 'tcp::1234',
+                        '-gdb', 'tcp::%d' % kwargs['gdb_port'],
                         '-initrd', 'initrd.cpio',
                         '-serial', 'none',
                         '-serial', 'null',
                         '-serial', 'null',
-                        '-serial', 'tcp:127.0.0.1:%d,server,wait' % kwargs['uart_port']]
+                        '-serial', 'tcp:127.0.0.1:%d,server,wait' % port]
         if kwargs['debug']:
             self.options += ['-S']
-            
+
         if not kwargs['graphics']:
             self.options += ['-display', 'none']
 
-SIMULATORS = [OVPsim(),
-              QEMU()]
+SIMULATORS = [QEMU(), OVPsim()]
+
 
 def find_available():
     return common.find_available(SIMULATORS)

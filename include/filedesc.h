@@ -9,9 +9,9 @@
    to FreeBSD, this is more than enough for most applications. Each
    process starts with this many descriptors, and more are allocated
    on demand. */
-#define NDFILE 20
+#define NDFILE 20U
 /* Separate macro defining a hard limit on open files. */
-#define MAXFILES 1024
+#define MAXFILES 1024U
 
 typedef struct fdtab {
   file_t **fdt_files; /* Open files array */
@@ -22,14 +22,11 @@ typedef struct fdtab {
   mtx_t fdt_mtx;
 } fdtab_t;
 
-/* Prepares memory pools for file descriptors and tables. */
-void fd_init();
-
 void fdtab_ref(fdtab_t *fdt);
 void fdtab_unref(fdtab_t *fdt);
 
 /* Allocates a new descriptor table. */
-fdtab_t *fdtab_alloc();
+fdtab_t *fdtab_alloc(void);
 /* Allocates a new descriptor table making it a copy of an existing one. */
 fdtab_t *fdtab_copy(fdtab_t *fdt);
 /* Frees the table and possibly closes underlying files. */
@@ -38,6 +35,8 @@ void fdtab_destroy(fdtab_t *fdt);
 void fdtab_release(fdtab_t *fdt);
 /* Assign a file structure to a new descriptor. */
 int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fdp);
+/* Assign a file structure to a certain descriptor */
+int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fdp);
 /* Extracts a reference to file from descriptor table for given number. */
 int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp);
 /* Closes a file descriptor.

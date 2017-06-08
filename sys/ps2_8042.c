@@ -4,6 +4,7 @@
 #include <sched.h>
 #include <vnode.h>
 #include <devfs.h>
+#include <klog.h>
 
 RESOURCE_DECLARE(ioports);
 
@@ -28,13 +29,13 @@ RESOURCE_DECLARE(ioports);
    PS/2 controller does not generate interrupts for these events. However, this
    is not a major problem, since pretty much always the controller is
    immediately ready to proceed, so the we don't loop in practice. */
-static void ps2_ctrl_wait_before_read() {
+static void ps2_ctrl_wait_before_read(void) {
   uint8_t status;
   do {
     status = bus_space_read_1(ioports, PS2_STATUS);
   } while (!(status & PS2_STATUS_OUT_BUF_STATUS));
 }
-static void ps2_ctrl_wait_before_write() {
+static void ps2_ctrl_wait_before_write(void) {
   uint8_t status;
   do {
     status = bus_space_read_1(ioports, PS2_STATUS);
@@ -53,7 +54,7 @@ uint8_t ps2_ctrl_command_write_response(uint8_t command) {
   return bus_space_read_1(ioports, PS2_DATA);
 }
 
-uint8_t ps2_ctrl_read_data() {
+uint8_t ps2_ctrl_read_data(void) {
   ps2_ctrl_wait_before_read();
   return bus_space_read_1(ioports, PS2_DATA);
 }
@@ -63,7 +64,7 @@ void ps2_dev1_send_byte(uint8_t byte) {
   bus_space_write_1(ioports, PS2_DATA, byte);
 }
 
-uint8_t ps2_dev1_read_byte() {
+uint8_t ps2_dev1_read_byte(void) {
   ps2_ctrl_wait_before_read();
   return bus_space_read_1(ioports, PS2_DATA);
 }
@@ -97,44 +98,46 @@ static void kbd_reader_thread(void *arg) {
     if (is_extended)
       code2 = ps2_dev1_read_byte();
 
-    mtx_scoped_lock(&scancode_buffer_mtx);
-    /* Ensure there are 2 bytes of space in the buffer. */
-    if (scancode_buffer_n >= SCANCODE_BUFFER_SIZE - 1)
-      continue;
+    WITH_MTX_LOCK (&scancode_buffer_mtx) {
+      /* Ensure there are 2 bytes of space in the buffer. */
+      if (scancode_buffer_n >= SCANCODE_BUFFER_SIZE - 1)
+        continue;
 
-    /* Instead of convoluted logic for processing extended scancodes differently
-       than simple scancodes, just store both bytes even when the other one is
-       bogus. */
-    scancode_buffer[scancode_buffer_n + 0] = code;
-    scancode_buffer[scancode_buffer_n + 1] = code2;
+      /* Instead of convoluted logic for processing extended scancodes differently
+         than simple scancodes, just store both bytes even when the other one is
+         bogus. */
+      scancode_buffer[scancode_buffer_n + 0] = code;
+      scancode_buffer[scancode_buffer_n + 1] = code2;
 
-    scancode_buffer_n += is_extended ? 2 : 1;
+      scancode_buffer_n += is_extended ? 2 : 1;
+    }
   }
 }
 
 static int dev_scancode_read(vnode_t *v, uio_t *uio) {
   uio->uio_offset = 0; /* This device does not support offsets. */
-  mtx_scoped_lock(&scancode_buffer_mtx);
-  if (scancode_buffer_n == 0)
-    return 0;
-  int error = uiomove_frombuf(scancode_buffer, scancode_buffer_n, uio);
-  if (error)
-    return error;
-  scancode_buffer_n = 0;
+  WITH_MTX_LOCK (&scancode_buffer_mtx) {
+    if (scancode_buffer_n == 0)
+      return 0;
+    int error = uiomove_frombuf(scancode_buffer, scancode_buffer_n, uio);
+    if (error)
+      return error;
+    scancode_buffer_n = 0;
+  }
   return 0;
 }
 
-vnodeops_t dev_scancode_ops = {
-  .v_lookup = vnode_op_notsup,
-  .v_readdir = vnode_op_notsup,
+static vnodeops_t dev_scancode_ops = {
+  .v_lookup = vnode_lookup_nop,
+  .v_readdir = vnode_readdir_nop,
   .v_open = vnode_open_generic,
-  .v_write = vnode_op_notsup,
+  .v_write = vnode_write_nop,
   .v_read = dev_scancode_read,
 };
 
 /* For now, this is the only keyboard driver we'll want to have, so the
    interface is not very flexible. */
-void kbd_init() {
+void kbd_init(void) {
   uint8_t response;
   /* Reset keyboard and perform a self-test. */
   ps2_dev1_send_byte(PS2_KBD_CMD_RESET);
@@ -143,7 +146,7 @@ void kbd_init() {
   response = ps2_dev1_read_byte();
   if (response != PS2_KBD_SELF_TEST_OK) {
     /* This may indicate a configuration error. */
-    log("Keyboard self-test failed.");
+    klog("Keyboard self-test failed.");
     return;
   }
 

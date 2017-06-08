@@ -1,14 +1,39 @@
-#include <stdc.h>
+#define KL_LOG KL_INTR
+#include <klog.h>
+#include <errno.h>
+#include <interrupt.h>
 #include <mips/exc.h>
+#include <mips/intr.h>
 #include <mips/mips.h>
 #include <pmap.h>
+#include <pmap.h>
+#include <queue.h>
+#include <stdc.h>
+#include <sync.h>
 #include <sysent.h>
-#include <errno.h>
 #include <thread.h>
 
 extern const char _ebase[];
 
-void mips_intr_init() {
+#define MIPS_INTR_CHAIN(irq, name)                                             \
+  [irq] = (intr_chain_t) {                                                     \
+    .ic_name = (name), .ic_irq = (irq),                                        \
+    .ic_handlers = TAILQ_HEAD_INITIALIZER(mips_intr_chain[irq].ic_handlers)    \
+  }
+
+static intr_chain_t mips_intr_chain[8] = {
+  /* Initialize software interrupts handler chains. */
+  MIPS_INTR_CHAIN(MIPS_SWINT0, "swint(0)"),
+  MIPS_INTR_CHAIN(MIPS_SWINT1, "swint(1)"),
+  /* Initialize hardware interrupts handler chains. */
+  MIPS_INTR_CHAIN(MIPS_HWINT0, "hwint(0)"),
+  MIPS_INTR_CHAIN(MIPS_HWINT1, "hwint(1)"),
+  MIPS_INTR_CHAIN(MIPS_HWINT2, "hwint(2)"),
+  MIPS_INTR_CHAIN(MIPS_HWINT3, "hwint(3)"),
+  MIPS_INTR_CHAIN(MIPS_HWINT4, "hwint(4)"),
+  MIPS_INTR_CHAIN(MIPS_HWINT5, "hwint(5)")};
+
+void mips_intr_init(void) {
   /*
    * Enable Vectored Interrupt Mode as described in „MIPS32® 24KETM Processor
    * Core Family Software User’s Manual”, chapter 6.3.1.2.
@@ -21,27 +46,39 @@ void mips_intr_init() {
   mips32_bs_c0(C0_CAUSE, CR_IV);
   /* Set vector spacing to 0. */
   mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
+
+  for (unsigned i = 0; i < 8; i++)
+    intr_chain_register(&mips_intr_chain[i]);
 }
 
-extern void mips_clock_irq_handler();
+void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
+  intr_chain_t *chain = &mips_intr_chain[irq];
+  CRITICAL_SECTION {
+    intr_chain_add_handler(chain, handler);
+    if (chain->ic_count == 1) {
+      mips32_bs_c0(C0_STATUS, SR_IM0 << irq); /* enable interrupt */
+      mips32_bc_c0(C0_CAUSE, CR_IP0 << irq);  /* clear pending flag */
+    }
+  }
+}
 
-typedef void (*irq_handler_t)();
+void mips_intr_teardown(intr_handler_t *handler) {
+  intr_chain_t *chain = handler->ih_chain;
+  CRITICAL_SECTION {
+    if (chain->ic_count == 1)
+      mips32_bc_c0(C0_STATUS, SR_IM0 << chain->ic_irq);
+    intr_chain_remove_handler(handler);
+  }
+}
 
-static irq_handler_t irq_handlers[8] = {[7] = mips_clock_irq_handler};
-
-void mips_irq_handler(exc_frame_t *frame) {
+void mips_intr_handler(exc_frame_t *frame) {
   unsigned pending = (frame->cause & frame->sr) & CR_IP_MASK;
 
   for (int i = 7; i >= 0; i--) {
     unsigned irq = CR_IP0 << i;
 
     if (pending & irq) {
-      irq_handler_t handler = irq_handlers[i];
-      if (handler != NULL) {
-        handler();
-      } else {
-        log("Spurious hardware interrupt #%d!", i);
-      }
+      intr_chain_run_handlers(&mips_intr_chain[i]);
       pending &= ~irq;
     }
   }
@@ -74,10 +111,10 @@ const char *const exceptions[32] = {
 void kernel_oops(exc_frame_t *frame) {
   unsigned code = (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
 
-  log("%s at $%08x!", exceptions[code], frame->pc);
+  klog("%s at $%08x!", exceptions[code], frame->pc);
   if ((code == EXC_ADEL || code == EXC_ADES) ||
       (code == EXC_IBE || code == EXC_DBE))
-    log("Caused by reference to $%08x!", frame->badvaddr);
+    klog("Caused by reference to $%08x!", frame->badvaddr);
 
   panic("Unhandled exception!");
 }
@@ -107,7 +144,17 @@ void syscall_handler(exc_frame_t *frame) {
   retval = sysent[args.code].call(thread_self(), &args);
 
 finalize:
-  exc_frame_set_retval(frame, retval);
+  if (retval != -EJUSTRETURN)
+    exc_frame_set_retval(frame, retval);
+}
+
+void fpe_handler(exc_frame_t *frame) {
+  thread_t *td = thread_self();
+  if (td->td_proc) {
+    sig_send(td->td_proc, SIGFPE);
+  } else {
+    panic("Floating point exception or integer overflow in a kernel thread.");
+  }
 }
 
 /*
@@ -116,7 +163,10 @@ finalize:
  * handlers numbers please check 5.23 Table of MIPS32 4KEc User's Manual.
  */
 
-void *general_exception_table[32] = {
-    [EXC_MOD] = tlb_exception_handler, [EXC_TLBL] = tlb_exception_handler,
-    [EXC_TLBS] = tlb_exception_handler, [EXC_SYS] = syscall_handler,
-};
+void *general_exception_table[32] = {[EXC_MOD] = tlb_exception_handler,
+                                     [EXC_TLBL] = tlb_exception_handler,
+                                     [EXC_TLBS] = tlb_exception_handler,
+                                     [EXC_SYS] = syscall_handler,
+                                     [EXC_FPE] = fpe_handler,
+                                     [EXC_MSAFPE] = fpe_handler,
+                                     [EXC_OVF] = fpe_handler};

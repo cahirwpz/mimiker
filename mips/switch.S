@@ -39,8 +39,11 @@ ctx_resume:
         LOAD_PCPU($t0)
         sw      $s0, PCPU_CURTHREAD($t0)
 
-        lw      $a0, TD_USPACE($s0)
-        jal     vm_map_activate
+        lw      $a0, TD_PROC($s0)
+        beqz    $a0, 1f                # switching to kernel thread ?
+        nop
+        lw      $a0, P_USPACE($a0)
+1:      jal     vm_map_activate
         nop
 
         addu    $a1, $s0, TD_KCTX
