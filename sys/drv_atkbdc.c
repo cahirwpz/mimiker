@@ -198,14 +198,6 @@ static driver_t atkbdc_driver = {
   .attach = atkbdc_attach,
 };
 
-static device_t *make_device(device_t *parent, driver_t *driver) {
-  device_t *dev = device_add_child(parent);
-  dev->driver = driver;
-  if (device_probe(dev))
-    device_attach(dev);
-  return dev;
-}
-
 extern device_t *gt_pci;
 
 static void atkbdc_init(void) {
