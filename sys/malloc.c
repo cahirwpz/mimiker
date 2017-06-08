@@ -230,7 +230,7 @@ char *kstrndup(kmem_pool_t *mp, const char *s, size_t maxlen) {
   return copy;
 }
 
-void kmem_bootstrap() {
+void kmem_bootstrap(void) {
   SET_DECLARE(kmem_pool_table, kmem_pool_t *);
   kmem_pool_t ***ptr;
   SET_FOREACH(ptr, kmem_pool_table) {

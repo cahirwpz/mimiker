@@ -2,7 +2,7 @@
 #include <filedesc.h>
 #include <ktest.h>
 
-static int test_resizable_fdt() {
+static int test_resizable_fdt(void) {
   fdtab_t *fdt_test = fdtab_alloc();
 
   for (int i = 0; i < 100; i++) {

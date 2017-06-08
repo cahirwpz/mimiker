@@ -19,7 +19,7 @@ static const char *subsystems[] =
 /* Borrowed from mips/malta.c */
 char *kenv_get(char *key);
 
-void klog_init() {
+void klog_init(void) {
   const char *mask = kenv_get("klog-mask");
   klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_DEFAULT_MASK;
   klog.verbose = kenv_get("klog-quiet") ? 0 : 1;
@@ -79,7 +79,7 @@ unsigned klog_setmask(unsigned newmask) {
   return oldmask;
 }
 
-void klog_dump() {
+void klog_dump(void) {
   klog_entry_t entry;
 
   while (klog.first != klog.last) {
@@ -91,7 +91,7 @@ void klog_dump() {
   }
 }
 
-void klog_clear() {
+void klog_clear(void) {
   klog.first = 0;
   klog.last = 0;
 }

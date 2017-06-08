@@ -42,29 +42,25 @@ static int dev_zero_read(vnode_t *t, uio_t *uio) {
   return error;
 }
 
-static vnodeops_t dev_null_vnodeops = {
-  .v_lookup = vnode_op_notsup,
-  .v_readdir = vnode_op_notsup,
-  .v_open = vnode_open_generic,
-  .v_close = vnode_op_notsup,
-  .v_read = dev_null_read,
-  .v_write = dev_null_write,
-  .v_seek = vnode_op_notsup,
-  .v_getattr = vnode_op_notsup,
-};
+static vnodeops_t dev_null_vnodeops = {.v_lookup = vnode_lookup_nop,
+                                       .v_readdir = vnode_readdir_nop,
+                                       .v_open = vnode_open_generic,
+                                       .v_close = vnode_close_nop,
+                                       .v_read = dev_null_read,
+                                       .v_write = dev_null_write,
+                                       .v_seek = vnode_seek_nop,
+                                       .v_getattr = vnode_getattr_nop};
 
-static vnodeops_t dev_zero_vnodeops = {
-  .v_lookup = vnode_op_notsup,
-  .v_readdir = vnode_op_notsup,
-  .v_open = vnode_open_generic,
-  .v_close = vnode_op_notsup,
-  .v_read = dev_zero_read,
-  .v_write = dev_zero_write,
-  .v_seek = vnode_op_notsup,
-  .v_getattr = vnode_op_notsup,
-};
+static vnodeops_t dev_zero_vnodeops = {.v_lookup = vnode_lookup_nop,
+                                       .v_readdir = vnode_readdir_nop,
+                                       .v_open = vnode_open_generic,
+                                       .v_close = vnode_close_nop,
+                                       .v_read = dev_zero_read,
+                                       .v_write = dev_zero_write,
+                                       .v_seek = vnode_seek_nop,
+                                       .v_getattr = vnode_getattr_nop};
 
-static void init_dev_null() {
+static void init_dev_null(void) {
   zero_page = pm_alloc(1);
   junk_page = pm_alloc(1);
 

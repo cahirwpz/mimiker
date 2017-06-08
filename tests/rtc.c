@@ -87,7 +87,7 @@ static device_t *make_device(device_t *parent, driver_t *driver) {
 
 extern device_t *gt_pci;
 
-static int test_rtc() {
+static int test_rtc(void) {
   device_t *rtcdev = make_device(gt_pci, &rtc_driver);
   rtc_state_t *rtc = rtcdev->state;
 

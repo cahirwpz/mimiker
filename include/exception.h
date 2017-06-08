@@ -5,6 +5,6 @@
 #include <mips/exc.h>
 
 void exc_before_leave(exc_frame_t *kframe);
-noreturn void user_exc_leave();
+noreturn void user_exc_leave(void);
 
 #endif // __EXCEPTION_H__

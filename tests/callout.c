@@ -11,7 +11,7 @@ static void callout_simple(void *arg) {
   sleepq_signal(callout_simple);
 }
 
-static int test_callout_simple() {
+static int test_callout_simple(void) {
   callout_t callout;
 
   critical_enter();
@@ -36,7 +36,7 @@ static void callout_ordered(void *arg) {
     sleepq_signal(callout_ordered);
 }
 
-static int test_callout_order() {
+static int test_callout_order(void) {
   current = 0;
   int order[10] = {2, 5, 4, 6, 9, 0, 8, 1, 3, 7};
   callout_t callouts[10];
@@ -65,7 +65,7 @@ static void callout_good(void *arg) {
   sleepq_signal(callout_good);
 }
 
-static int test_callout_stop() {
+static int test_callout_stop(void) {
   current = 0;
   callout_t callout1, callout2;
 
