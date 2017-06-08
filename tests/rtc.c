@@ -11,7 +11,10 @@
 #define RTC_ADDR (IO_RTC + 0)
 #define RTC_DATA (IO_RTC + 1)
 
-typedef struct rtc_state { resource_t *regs; } rtc_state_t;
+typedef struct rtc_state {
+  resource_t *regs;
+  intr_handler_t intr_handler;
+} rtc_state_t;
 
 static inline uint8_t rtc_read(resource_t *regs, unsigned addr) {
   bus_space_write_1(regs, RTC_ADDR, addr);
@@ -47,9 +50,6 @@ static intr_filter_t rtc_intr(void *data) {
   return IF_STRAY;
 }
 
-static INTR_HANDLER_DEFINE(rtc_intr_handler, rtc_intr, NULL, NULL, "RTC timer",
-                           0);
-
 static int rtc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
@@ -58,8 +58,9 @@ static int rtc_attach(device_t *dev) {
 
   rtc->regs = pcib->io_space;
 
-  rtc_intr_handler->ih_argument = rtc;
-  bus_intr_setup(dev, 8, rtc_intr_handler);
+  rtc->intr_handler =
+    INTR_HANDLER_INIT(rtc_intr, NULL, rtc, "RTC periodic timer", 0);
+  bus_intr_setup(dev, 8, &rtc->intr_handler);
 
   /* Configure how the time is presented through registers. */
   rtc_setb(rtc->regs, MC_REGB, MC_REGB_BINARY | MC_REGB_24HR);
@@ -72,18 +73,10 @@ static int rtc_attach(device_t *dev) {
 }
 
 static driver_t rtc_driver = {
-  .desc = "RTC example driver",
+  .desc = "MC146818 RTC driver mockup",
   .size = sizeof(rtc_state_t),
   .attach = rtc_attach,
 };
-
-static device_t *make_device(device_t *parent, driver_t *driver) {
-  device_t *dev = device_add_child(parent);
-  dev->driver = driver;
-  if (device_probe(dev))
-    device_attach(dev);
-  return dev;
-}
 
 extern device_t *gt_pci;
 
