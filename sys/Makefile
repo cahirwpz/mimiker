@@ -32,6 +32,7 @@ SOURCES_C  = \
 	physmem.c \
 	pool.c \
 	proc.c \
+	ringbuf.c \
 	runq.c \
 	rwlock.c \
 	sbrk.c \

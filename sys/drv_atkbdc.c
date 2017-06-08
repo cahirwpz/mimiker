@@ -4,6 +4,8 @@
 #include <devfs.h>
 #include <klog.h>
 #include <condvar.h>
+#include <malloc.h>
+#include <ringbuf.h>
 #include <pci.h>
 #include <dev/isareg.h>
 #include <dev/atkbdcreg.h>
@@ -19,30 +21,9 @@
 typedef struct atkbdc_state {
   mtx_t mtx;
   condvar_t nonempty;
-  unsigned head, tail, count;
-  uint8_t buffer[KBD_BUFSIZE];
+  ringbuf_t scancodes;
   resource_t *regs;
 } atkbdc_state_t;
-
-static bool atkbdc_put(atkbdc_state_t *atkbdc, uint8_t data) {
-  if (atkbdc->count == KBD_BUFSIZE)
-    return false;
-  atkbdc->buffer[atkbdc->head++] = data;
-  if (atkbdc->head >= KBD_BUFSIZE)
-    atkbdc->head = 0;
-  atkbdc->count++;
-  return true;
-}
-
-static bool atkbdc_get(atkbdc_state_t *atkbdc, uint8_t *data) {
-  if (atkbdc->count == 0)
-    return false;
-  *data = atkbdc->buffer[atkbdc->tail++];
-  if (atkbdc->tail >= KBD_BUFSIZE)
-    atkbdc->tail = 0;
-  atkbdc->count--;
-  return true;
-}
 
 /* For now, this is the only keyboard driver we'll want to have, so the
    interface is not very flexible. */
@@ -79,15 +60,14 @@ static void write_data(resource_t *regs, uint8_t byte) {
 static int scancode_read(vnode_t *v, uio_t *uio) {
   atkbdc_state_t *atkbdc = v->v_data;
   int error;
-  uint8_t data;
 
   uio->uio_offset = 0; /* This device does not support offsets. */
 
   WITH_MTX_LOCK (&atkbdc->mtx) {
-    while (atkbdc->count == 0)
-      cv_wait(&atkbdc->nonempty, &atkbdc->mtx);
+    uint8_t data;
     /* For simplicity, copy to the user space one byte at a time. */
-    atkbdc_get(atkbdc, &data);
+    while (!ringbuf_getb(&atkbdc->scancodes, &data))
+      cv_wait(&atkbdc->nonempty, &atkbdc->mtx);
     if ((error = uiomove_frombuf(&data, 1, uio)))
       return error;
   }
@@ -130,9 +110,9 @@ static intr_filter_t atkbdc_intr(void *data) {
 
   WITH_MTX_LOCK (&atkbdc->mtx) {
     /* TODO: There's no logic for processing scancodes. */
-    atkbdc_put(atkbdc, code);
+    ringbuf_putb(&atkbdc->scancodes, code);
     if (extended)
-      atkbdc_put(atkbdc, code2);
+      ringbuf_putb(&atkbdc->scancodes, code2);
     cv_signal(&atkbdc->nonempty);
   }
 
@@ -171,6 +151,9 @@ static int atkbdc_attach(device_t *dev) {
 
   pci_bus_state_t *pcib = dev->parent->state;
   atkbdc_state_t *atkbdc = dev->state;
+
+  atkbdc->scancodes.data = kmalloc(M_DEV, KBD_BUFSIZE, M_ZERO);
+  atkbdc->scancodes.size = KBD_BUFSIZE;
 
   mtx_init(&atkbdc->mtx, MTX_DEF);
   cv_init(&atkbdc->nonempty, "AT keyboard buffer non-empty");
