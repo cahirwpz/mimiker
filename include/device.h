@@ -46,6 +46,9 @@ int device_probe(device_t *dev);
 int device_attach(device_t *dev);
 int device_detach(device_t *dev);
 
+/* Manually create a device with given driver and parent device. */
+device_t *make_device(device_t *parent, driver_t *driver);
+
 /* A universal memory pool to be used by all drivers. */
 MALLOC_DECLARE(M_DEV);
 
