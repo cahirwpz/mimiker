@@ -45,6 +45,7 @@ typedef struct gt_pci_state {
 
   resource_t *corectrl;
 
+  intr_handler_t intr_handler;
   intr_chain_t intr_chain[16];
 
   uint16_t imask;
@@ -283,9 +284,6 @@ static intr_filter_t gt_pci_intr(void *data) {
   return IF_FILTERED;
 }
 
-static INTR_HANDLER_DEFINE(gt_pci_intr_handler, gt_pci_intr, NULL, NULL,
-                           "GT64120 interrupt", 0);
-
 static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
                                           const char *name) {
   gtpci->intr_chain[irq] = (intr_chain_t){
@@ -338,11 +336,9 @@ static int gt_pci_attach(device_t *pcib) {
   pci_bus_assign_space(pcib);
   pci_bus_dump(pcib);
 
-  /* XXX This is an awful kludge. I guess handlers should have a dynamically
-   * allocated part. */
-  gt_pci_intr_handler->ih_argument = gtpci;
-
-  bus_intr_setup(pcib, MIPS_HWINT0, gt_pci_intr_handler);
+  gtpci->intr_handler =
+    INTR_HANDLER_INIT(gt_pci_intr, NULL, gtpci, "GT64120 interrupt", 0);
+  bus_intr_setup(pcib, MIPS_HWINT0, &gtpci->intr_handler);
 
   return bus_generic_probe(pcib);
 }

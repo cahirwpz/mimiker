@@ -1,7 +1,7 @@
 #include <common.h>
 #include <console.h>
 #include <linker_set.h>
-#include <ns16550.h>
+#include <dev/ns16550reg.h>
 #include <mips/malta.h>
 #include <bus.h>
 

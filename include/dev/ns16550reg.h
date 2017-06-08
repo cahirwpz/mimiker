@@ -1,6 +1,3 @@
-#ifndef __NS16550_H__
-#define __NS16550_H__
-
 /* Described in http://www.ti.com/product/pc16550d */
 
 #define RBR 0 /* Receiver Buffer, read-only, DLAB = 0 */
@@ -65,5 +62,3 @@
 #define FCR_RX_MEDL 0x40
 #define FCR_RX_MEDH 0x80
 #define FCR_RX_HIGH 0xc0
-
-#endif
