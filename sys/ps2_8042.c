@@ -103,7 +103,8 @@ static void kbd_reader_thread(void *arg) {
       if (scancode_buffer_n >= SCANCODE_BUFFER_SIZE - 1)
         continue;
 
-      /* Instead of convoluted logic for processing extended scancodes differently
+      /* Instead of convoluted logic for processing extended scancodes
+         differently
          than simple scancodes, just store both bytes even when the other one is
          bogus. */
       scancode_buffer[scancode_buffer_n + 0] = code;
