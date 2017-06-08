@@ -12,6 +12,7 @@ SOURCES_C  = \
 	dev_vga.c \
 	devfs.c \
 	drv_atkbdc.c \
+	drv_ns16550.c \
 	drv_stdvga.c \
 	exception.c \
 	exec.c \
