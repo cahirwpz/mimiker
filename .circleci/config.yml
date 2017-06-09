@@ -7,10 +7,10 @@ jobs:
         environment:
           PATH: /opt/mipsel-mimiker-elf/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     steps:
-      - checkout
       - run:
           name: 'Install system deps'
-          command: 'apt-get -q update && apt-get install -y make qemu-system-mips ctags cscope wget python3-pip clang-format-3.8 rsync'
+          command: 'apt-get -q update && apt-get install -y make qemu-system-mips ctags cscope wget python3-pip clang-format-3.8 rsync git'
+      - checkout
       - run:
           name: 'Install python deps'
           command: 'pip3 install -I pexpect pep8'
