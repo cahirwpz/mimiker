@@ -207,7 +207,7 @@ static int sys_stat(thread_t *td, syscall_args_t *args) {
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t path_len = 0;
   int result;
-  
+
   result = copyinstr(user_path, path, PATH_MAX, &path_len);
   if (result < 0)
     goto end;
@@ -226,7 +226,6 @@ end:
   kfree(M_TEMP, path);
   return result;
 }
-
 
 static int sys_mount(thread_t *td, syscall_args_t *args) {
   char *user_fsysname = (char *)args->args[0];
