@@ -9,7 +9,7 @@ jobs:
     steps:
       - run:
           name: 'Install system deps'
-          command: 'apt-get -q update && apt-get install -y make qemu-system-mips ctags cscope wget python3-pip clang-format-3.8 rsync git'
+          command: 'apt-get -q update && apt-get install -y git make wget cpio qemu-system-mips ctags cscope python3-pip clang-format-3.8 rsync'
       - checkout
       - run:
           name: 'Install python deps'
@@ -29,6 +29,12 @@ jobs:
       - run:
           name: 'Make'
           command: 'make'
+      - store_artifacts:
+          path: mimiker.elf
+          prefix: kernel_image
+      - store_artifacts:
+          path: initrd.cpio
+          prefix: ramdisk
       - run:
           name: 'Run kernel tests'
           command: './run_tests.py --thorough'
