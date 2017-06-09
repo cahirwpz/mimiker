@@ -190,7 +190,8 @@ int tmpfs_vnode_remove(vnode_t *dv, const char *name) {
   return 0;
 }
 
-int tmpfs_vnode_mkdir(vnode_t *dv, const char *name, vattr_t *va, vnode_t **vp) {
+int tmpfs_vnode_mkdir(vnode_t *dv, const char *name, vattr_t *va,
+                      vnode_t **vp) {
   tmpfs_node_t *dirnode = (tmpfs_node_t *)dv->v_data;
 
   if (dirnode->type != T_DIR)
