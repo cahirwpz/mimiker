@@ -314,9 +314,7 @@ static int initrd_mount(mount_t *m) {
 static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_readdir = initrd_vnode_readdir,
                                  .v_open = vnode_open_generic,
-                                 .v_close = vnode_close_nop,
                                  .v_read = initrd_vnode_read,
-                                 .v_write = vnode_write_nop,
                                  .v_seek = vnode_seek_generic,
                                  .v_getattr = initrd_vnode_getattr};
 
@@ -326,7 +324,9 @@ static int initrd_init(vfsconf_t *vfc) {
   if (!rd_size)
     return ENXIO;
 
-  klog("parsing cpio archive of %zu bytes", rd_size);
+  vnodeops_init(&initrd_vops);
+
+  klog("parsing cpio archive of %u bytes", rd_size);
   read_cpio_archive();
   initrd_build_tree();
   initrd_enum_inodes(root_node, 2);

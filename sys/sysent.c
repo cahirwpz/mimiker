@@ -15,6 +15,8 @@
 #include <systm.h>
 #include <wait.h>
 
+#define PATH_MAX 1024
+
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 int sys_nosys(thread_t *td, syscall_args_t *args) {
   klog("unimplemented system call %ld", args->code);
@@ -113,22 +115,25 @@ static int sys_open(thread_t *td, syscall_args_t *args) {
   int flags = args->args[1];
   mode_t mode = args->args[2];
 
-  int error = 0;
-  char pathname[256];
+  int result = 0;
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0); /* TODO: with statement? */
   size_t n = 0;
 
   /* Copyout pathname. */
-  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
-  if (error < 0)
-    return error;
+  result = copyinstr(user_pathname, pathname, PATH_MAX, &n);
+  if (result < 0)
+    goto end;
 
   klog("open(\"%s\", %d, %d)", pathname, flags, mode);
 
   int fd;
-  error = do_open(td, pathname, flags, mode, &fd);
-  if (error)
-    return error;
-  return fd;
+  result = do_open(td, pathname, flags, mode, &fd);
+  if (result == 0)
+    result = fd;
+
+end:
+  kfree(M_TEMP, pathname);
+  return result;
 }
 
 static int sys_close(thread_t *td, syscall_args_t *args) {
@@ -144,7 +149,7 @@ static int sys_read(thread_t *td, syscall_args_t *args) {
   char *ubuf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  klog("sys_read(%d, %p, %zu)", fd, ubuf, count);
+  klog("read(%d, %p, %zu)", fd, ubuf, count);
 
   uio_t uio;
   uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
@@ -159,7 +164,7 @@ static int sys_write(thread_t *td, syscall_args_t *args) {
   char *ubuf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  klog("sys_write(%d, %p, %zu)", fd, ubuf, count);
+  klog("write(%d, %p, %zu)", fd, ubuf, count);
 
   uio_t uio;
   uio = UIO_SINGLE_USER(UIO_WRITE, 0, ubuf, count);
@@ -200,18 +205,17 @@ static int sys_mount(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[1];
 
   int error = 0;
-  const int PATHSIZE_MAX = 256;
-  char *fsysname = kmalloc(M_TEMP, PATHSIZE_MAX, 0);
-  char *pathname = kmalloc(M_TEMP, PATHSIZE_MAX, 0);
+  char *fsysname = kmalloc(M_TEMP, PATH_MAX, 0);
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t n = 0;
 
   /* Copyout fsysname. */
-  error = copyinstr(user_fsysname, fsysname, sizeof(fsysname), &n);
+  error = copyinstr(user_fsysname, fsysname, PATH_MAX, &n);
   if (error < 0)
     goto end;
   n = 0;
   /* Copyout pathname. */
-  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
+  error = copyinstr(user_pathname, pathname, PATH_MAX, &n);
   if (error < 0)
     goto end;
 
@@ -279,51 +283,63 @@ static int sys_waitpid(thread_t *td, syscall_args_t *args) {
 
 static int sys_unlink(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
-  char pathname[256];
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t n = 0;
-  int error = 0;
+  int result = 0;
 
   /* Copyout pathname. */
-  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
-  if (error < 0)
-    return error;
+  result = copyinstr(user_pathname, pathname, PATH_MAX, &n);
+  if (result < 0)
+    goto end;
 
   klog("unlink(%s)", pathname);
 
-  return do_unlink(td, pathname);
+  result = do_unlink(td, pathname);
+
+end:
+  kfree(M_TEMP, pathname);
+  return result;
 }
 
 static int sys_mkdir(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
   mode_t mode = (int)args->args[1];
-  char pathname[256];
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t n = 0;
-  int error = 0;
+  int result = 0;
 
   /* Copyout pathname. */
-  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
-  if (error < 0)
-    return error;
+  result = copyinstr(user_pathname, pathname, PATH_MAX, &n);
+  if (result < 0)
+    goto end;
 
   klog("mkdir(%s, %d)", user_pathname, mode);
 
-  return do_mkdir(td, pathname, mode);
+  result = do_mkdir(td, pathname, mode);
+
+end:
+  kfree(M_TEMP, pathname);
+  return result;
 }
 
 static int sys_rmdir(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
-  char pathname[256];
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t n = 0;
-  int error = 0;
+  int result = 0;
 
   /* Copyout pathname. */
-  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
-  if (error < 0)
-    return error;
+  result = copyinstr(user_pathname, pathname, PATH_MAX, &n);
+  if (result < 0)
+    goto end;
 
   klog("rmdir(%s)", pathname);
 
-  return do_rmdir(td, pathname);
+  result = do_rmdir(td, pathname);
+
+end:
+  kfree(M_TEMP, pathname);
+  return result;
 }
 
 /* clang-format hates long arrays. */
