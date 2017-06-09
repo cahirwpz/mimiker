@@ -83,7 +83,7 @@ int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
   return -ENOTSUP;
 }
 
-int vnode_create_nop(vnode_t *dv, const char *name, vnode_t **vp) {
+int vnode_create_nop(vnode_t *dv, const char *name, vattr_t *va, vnode_t **vp) {
   return -ENOTSUP;
 }
 
@@ -91,7 +91,7 @@ int vnode_remove_nop(vnode_t *dv, const char *name) {
   return -ENOTSUP;
 }
 
-int vnode_mkdir_nop(vnode_t *v, const char *name, vnode_t **vp) {
+int vnode_mkdir_nop(vnode_t *v, const char *name, vattr_t *va, vnode_t **vp) {
   return -ENOTSUP;
 }
 

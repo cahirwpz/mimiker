@@ -32,8 +32,9 @@ typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
 typedef int vnode_create_t(vnode_t *dv, const char *name, vattr_t *va,
                            vnode_t **vp);
 typedef int vnode_remove_t(vnode_t *dv, const char *name);
-typedef int vnode_mkdir_t(vnode_t *v, const char *name, vattr_t *va);
-typedef int vnode_rmdir_t(vnode_t *v, const char *name);
+typedef int vnode_mkdir_t(vnode_t *dv, const char *name, vattr_t *va,
+                          vnode_t **vp);
+typedef int vnode_rmdir_t(vnode_t *dv, const char *name);
 
 typedef struct vnodeops {
   vnode_lookup_t *v_lookup;
@@ -132,8 +133,9 @@ static inline int VOP_REMOVE(vnode_t *dv, const char *name) {
   return dv->v_ops->v_remove(dv, name);
 }
 
-static inline int VOP_MKDIR(vnode_t *dv, const char *name, vattr_t *va) {
-  return dv->v_ops->v_mkdir(dv, name, va);
+static inline int VOP_MKDIR(vnode_t *dv, const char *name, vattr_t *va,
+                            vnode_t **vp) {
+  return dv->v_ops->v_mkdir(dv, name, va, vp);
 }
 
 static inline int VOP_RMDIR(vnode_t *dv, const char *name) {
@@ -162,10 +164,10 @@ int vnode_read_nop(vnode_t *v, uio_t *uio);
 int vnode_write_nop(vnode_t *v, uio_t *uio);
 int vnode_seek_nop(vnode_t *v, off_t oldoff, off_t newoff, void *state);
 int vnode_getattr_nop(vnode_t *v, vattr_t *va);
-int vnode_create_nop(vnode_t *dv, const char *name, vnode_t **vp);
+int vnode_create_nop(vnode_t *dv, const char *name, vattr_t *va, vnode_t **vp);
 int vnode_remove_nop(vnode_t *dv, const char *name);
-int vnode_mkdir_nop(vnode_t *v, const char *name, vnode_t **vp);
-int vnode_rmdir_nop(vnode_t *v, const char *name);
+int vnode_mkdir_nop(vnode_t *dv, const char *name, vattr_t *va, vnode_t **vp);
+int vnode_rmdir_nop(vnode_t *dv, const char *name);
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state);

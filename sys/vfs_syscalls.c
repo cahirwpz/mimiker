@@ -164,12 +164,10 @@ int do_mkdir(thread_t *td, char *path, mode_t mode) {
   *name = '\0';
   name++;
 
-  error = vfs_lookup(path, &vn);
-  if (error)
+  if ((error = vfs_lookup(path, &vn)))
     return error;
 
-  error = VOP_MKDIR(vn, name, NULL /* TODO mkdir getattr */);
-  return error;
+  return VOP_MKDIR(vn, name, NULL /* TODO mkdir vattr */, NULL);
 }
 
 int do_rmdir(thread_t *td, char *path) {
