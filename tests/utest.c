@@ -58,7 +58,7 @@ static int utest_generic(const char *name, int status_success) {
 
 /* Adds a new test executed by running /bin/utest. */
 #define UTEST_ADD(name, status_success, flags)                                 \
-  static int utest_test_##name(void) {                                             \
+  static int utest_test_##name(void) {                                         \
     return utest_generic(#name, status_success);                               \
   }                                                                            \
   KTEST_ADD(user_##name, utest_test_##name, flags | KTEST_FLAG_USERMODE);
