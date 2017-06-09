@@ -40,7 +40,7 @@ static vnodeops_t dev_cons_vnodeops = {.v_open = vnode_open_generic,
 
 static void init_dev_cons(void) {
   vnodeops_init(&dev_cons_vnodeops);
-  devfs_install("cons", V_DEV, &dev_cons_vnodeops, NULL);
+  devfs_makedev(NULL, "cons", &dev_cons_vnodeops, NULL);
 }
 
 SET_ENTRY(devfs_init, init_dev_cons);
