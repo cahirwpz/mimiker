@@ -179,7 +179,7 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   fp->f_ops = &default_vnode_fileops;
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
-  switch (mode & O_RDWR) {
+  switch (mode) {
     case O_RDONLY:
       fp->f_flags = FF_READ;
       break;
