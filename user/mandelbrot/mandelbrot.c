@@ -15,6 +15,8 @@ uint8_t palette[256 * 3];
 
 void prepare_videomode() {
   FILE *videomode_file = fopen("/dev/vga/videomode", "r+b");
+  printf("Videomode FILE* %p\n", videomode_file);
+  assert(videomode_file);
   unsigned int width, height, bpp;
   fscanf(videomode_file, "%d %d %d", &width, &height, &bpp);
   printf("Current resolution: %dx%d, %d BPP\n", width, height, bpp);
