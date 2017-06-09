@@ -35,7 +35,7 @@ static vnodeops_t vfs_root_ops = VNODEOPS_NOTSUP_INITIALIZER();
 
 static int vfs_register(vfsconf_t *vfc);
 
-static void vfs_init() {
+static void vfs_init(void) {
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
 
   /* Initialize available filesystem types. */

@@ -56,7 +56,7 @@ typedef struct file {
 void file_ref(file_t *f);
 void file_unref(file_t *f);
 
-file_t *file_alloc();
+file_t *file_alloc(void);
 void file_destroy(file_t *f);
 /* Drop reference counter and possibly destroy the file. */
 void file_release(file_t *f);

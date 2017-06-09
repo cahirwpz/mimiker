@@ -13,7 +13,7 @@
   }
 
 typedef struct sysinit_entry sysinit_entry_t;
-typedef void sysinit_func_t();
+typedef void sysinit_func_t(void);
 
 struct sysinit_entry {
   const char *name;     /* name of module */
@@ -33,6 +33,6 @@ SET_DECLARE(sysinit, sysinit_entry_t);
                                         .dependants = 0};                      \
   SET_ENTRY(sysinit, mod_name##_sysinit);
 
-void sysinit();
+void sysinit(void);
 
 #endif /* !_SYS_SYSINIT_H_ */

@@ -69,7 +69,7 @@ static void consumer(void *ptr) {
        buf.all_consumed);
 }
 
-static int test_producer_consumer() {
+static int test_producer_consumer(void) {
   buf.items = 0;
   buf.all_produced = 0;
   buf.all_consumed = 0;

@@ -10,7 +10,7 @@ static bool fsname_of(vnode_t *v, const char *fsname) {
   return strncmp(v->v_mount->mnt_vfc->vfc_name, fsname, strlen(fsname)) == 0;
 }
 
-static int test_vfs() {
+static int test_vfs(void) {
   vnode_t *v;
   int error;
 

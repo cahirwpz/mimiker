@@ -24,6 +24,9 @@ typedef struct mtx {
  * before it is used. */
 void mtx_init(mtx_t *m, unsigned type);
 
+/* TODO: Make mutex unusable after it has been destroyed. */
+#define mtx_destroy(m)
+
 /* Returns true iff the mutex is locked and we are the owner. */
 bool mtx_owned(mtx_t *mtx);
 

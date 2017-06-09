@@ -3,7 +3,7 @@
 
 #include <common.h>
 #include <queue.h>
-#include <clock.h>
+#include <time.h>
 
 typedef void (*timeout_t)(void *);
 

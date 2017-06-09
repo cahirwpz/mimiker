@@ -51,7 +51,7 @@ static vnodeops_t initrd_vops;
 
 extern char *kenv_get(const char *key);
 
-static cpio_node_t *cpio_node_alloc() {
+static cpio_node_t *cpio_node_alloc(void) {
   cpio_node_t *node = kmalloc(M_INITRD, sizeof(cpio_node_t), M_ZERO);
   TAILQ_INIT(&node->c_children);
   return node;
@@ -123,7 +123,7 @@ static const char *basename(const char *path) {
   return name ? name + 1 : path;
 }
 
-static void read_cpio_archive() {
+static void read_cpio_archive(void) {
   void *tape = (void *)ramdisk_get_start();
 
   while (true) {
@@ -163,7 +163,7 @@ static bool is_direct_descendant(const char *p1, const char *p2) {
   return (strchr(p1, '/') == NULL);
 }
 
-static void initrd_build_tree() {
+static void initrd_build_tree(void) {
   cpio_node_t *parent, *child;
 
   TAILQ_FOREACH (parent, &initrd_head, c_list) {
@@ -314,9 +314,9 @@ static int initrd_mount(mount_t *m) {
 static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_readdir = initrd_vnode_readdir,
                                  .v_open = vnode_open_generic,
-                                 .v_close = vnode_op_notsup,
+                                 .v_close = vnode_close_nop,
                                  .v_read = initrd_vnode_read,
-                                 .v_write = vnode_op_notsup,
+                                 .v_write = vnode_write_nop,
                                  .v_seek = vnode_seek_generic,
                                  .v_getattr = initrd_vnode_getattr};
 
@@ -333,7 +333,7 @@ static int initrd_init(vfsconf_t *vfc) {
   return 0;
 }
 
-intptr_t ramdisk_get_start() {
+intptr_t ramdisk_get_start(void) {
   char *s = kenv_get("rd_start");
   if (s == NULL)
     return 0;
@@ -341,12 +341,12 @@ intptr_t ramdisk_get_start() {
   return strtoul(s + s_len - 8, NULL, 16);
 }
 
-unsigned ramdisk_get_size() {
+unsigned ramdisk_get_size(void) {
   char *s = kenv_get("rd_size");
   return s ? strtoul(s, NULL, 0) : 0;
 }
 
-void ramdisk_dump() {
+void ramdisk_dump(void) {
   cpio_node_t *it;
 
   TAILQ_FOREACH (it, &initrd_head, c_list) { cpio_node_dump(it); }
