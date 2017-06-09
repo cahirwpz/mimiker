@@ -26,7 +26,7 @@ int do_access(thread_t *td, char *path, int flags);
 int do_chmod(thread_t *td, char *path, mode_t mode);
 int do_chown(thread_t *td, char *path, int uid, int gid);
 int do_utimes(thread_t *td, char *path, timeval_t *tptr);
-int do_stat(thread_t *td, char *path, stat_t *ub);
+int do_stat(thread_t *td, char *path, stat_t *sb);
 int do_symlink(thread_t *td, char *path, char *link);
 ssize_t do_readlink(thread_t *td, char *path, char *buf, size_t count);
 int do_rename(thread_t *td, char *from, char *to);

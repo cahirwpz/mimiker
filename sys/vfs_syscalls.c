@@ -139,6 +139,10 @@ int do_getdirentries(thread_t *td, int fd, uio_t *uio, off_t *basep) {
   return res;
 }
 
+int do_stat(thread_t *td, char *path, stat_t *sb) {
+  return -ENOTSUP;
+}
+
 int do_unlink(thread_t *td, char *path) {
   return -ENOTSUP;
 }

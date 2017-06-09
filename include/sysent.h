@@ -23,7 +23,8 @@
 #define SYS_WAITPID 20
 #define SYS_MKDIR 21
 #define SYS_RMDIR 22
-#define SYS_LAST 23
+#define SYS_STAT 23
+#define SYS_LAST 24
 
 #ifndef __ASSEMBLER__
 
