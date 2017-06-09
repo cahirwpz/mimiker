@@ -51,52 +51,74 @@ void vnode_unref(vnode_t *v) {
     vnode_unlock(v);
 }
 
-int vnode_lookup_nop(vnode_t *dv, const char *name, vnode_t **vp) {
+static int vnode_lookup_nop(vnode_t *dv, const char *name, vnode_t **vp) {
   return -ENOTSUP;
 }
 
-int vnode_readdir_nop(vnode_t *dv, uio_t *uio, void *state) {
+static int vnode_readdir_nop(vnode_t *dv, uio_t *uio, void *state) {
   return -ENOTSUP;
 }
 
-int vnode_open_nop(vnode_t *v, int mode, file_t *fp) {
+static int vnode_open_nop(vnode_t *v, int mode, file_t *fp) {
   return -ENOTSUP;
 }
 
-int vnode_close_nop(vnode_t *v, file_t *fp) {
+static int vnode_close_nop(vnode_t *v, file_t *fp) {
   return -ENOTSUP;
 }
 
-int vnode_read_nop(vnode_t *v, uio_t *uio) {
+static int vnode_read_nop(vnode_t *v, uio_t *uio) {
   return -ENOTSUP;
 }
 
-int vnode_write_nop(vnode_t *v, uio_t *uio) {
+static int vnode_write_nop(vnode_t *v, uio_t *uio) {
   return -ENOTSUP;
 }
 
-int vnode_seek_nop(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
+static int vnode_seek_nop(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
   return -ENOTSUP;
 }
 
-int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
+static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
   return -ENOTSUP;
 }
 
-int vnode_create_nop(vnode_t *dv, const char *name, vnode_t **vp) {
+int vnode_create_nop(vnode_t *dv, const char *name, vattr_t *va, vnode_t **vp) {
   return -ENOTSUP;
 }
 
-int vnode_remove_nop(vnode_t *dv, const char *name) {
+static int vnode_remove_nop(vnode_t *dv, const char *name) {
   return -ENOTSUP;
 }
 
-int vnode_mkdir_nop(vnode_t *v, const char *name, vnode_t **vp) {
+static int vnode_mkdir_nop(vnode_t *v, const char *name, vattr_t *va,
+                           vnode_t **vp) {
   return -ENOTSUP;
 }
 
-int vnode_rmdir_nop(vnode_t *v, const char *name) {
+static int vnode_rmdir_nop(vnode_t *v, const char *name) {
   return -ENOTSUP;
+}
+
+#define NOP_IF_NULL(vops, name)                                                \
+  do {                                                                         \
+    if (vops->v_##name == NULL)                                                \
+      vops->v_##name = vnode_##name##_nop;                                     \
+  } while (0)
+
+void vnodeops_init(vnodeops_t *vops) {
+  NOP_IF_NULL(vops, lookup);
+  NOP_IF_NULL(vops, readdir);
+  NOP_IF_NULL(vops, open);
+  NOP_IF_NULL(vops, close);
+  NOP_IF_NULL(vops, read);
+  NOP_IF_NULL(vops, write);
+  NOP_IF_NULL(vops, seek);
+  NOP_IF_NULL(vops, getattr);
+  NOP_IF_NULL(vops, create);
+  NOP_IF_NULL(vops, remove);
+  NOP_IF_NULL(vops, mkdir);
+  NOP_IF_NULL(vops, rmdir);
 }
 
 /* Default file operations using v-nodes. */
@@ -157,7 +179,7 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   fp->f_ops = &default_vnode_fileops;
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
-  switch (mode) {
+  switch (mode & O_RDWR) {
     case O_RDONLY:
       fp->f_flags = FF_READ;
       break;

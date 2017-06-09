@@ -21,7 +21,9 @@
 #define SYS_SIGACTION 18
 #define SYS_SIGRETURN 19
 #define SYS_WAITPID 20
-#define SYS_LAST 20
+#define SYS_MKDIR 21
+#define SYS_RMDIR 22
+#define SYS_LAST 23
 
 #ifndef __ASSEMBLER__
 

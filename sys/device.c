@@ -65,3 +65,11 @@ int bus_generic_probe(device_t *bus) {
   }
   return 0;
 }
+
+device_t *make_device(device_t *parent, driver_t *driver) {
+  device_t *dev = device_add_child(parent);
+  dev->driver = driver;
+  if (device_probe(dev))
+    device_attach(dev);
+  return dev;
+}
