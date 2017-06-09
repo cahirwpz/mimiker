@@ -98,7 +98,5 @@ void dev_vga_install(vga_device_t *vga) {
   vnodeops_init(&dev_vga_videomode_vnodeops);
   vnodeops_init(&dev_vga_vnodeops);
 
-  vnode_t *dev_vga_device = vnode_new(V_DIR, &dev_vga_vnodeops);
-  dev_vga_device->v_data = vga;
-  devfs_install("vga", dev_vga_device);
+  devfs_install("vga", V_DIR, &dev_vga_vnodeops, vga);
 }

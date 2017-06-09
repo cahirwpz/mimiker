@@ -5,20 +5,18 @@
 #include <vnode.h>
 #include <linker_set.h>
 
-static vnode_t *dev_null_device;
-static vnode_t *dev_zero_device;
 static vm_page_t *zero_page, *junk_page;
 
-static int dev_null_write(vnode_t *t, uio_t *uio) {
+static int dev_null_write(vnode_t *v, uio_t *uio) {
   uio->uio_resid = 0;
   return 0;
 }
 
-static int dev_null_read(vnode_t *t, uio_t *uio) {
+static int dev_null_read(vnode_t *v, uio_t *uio) {
   return 0;
 }
 
-static int dev_zero_write(vnode_t *t, uio_t *uio) {
+static int dev_zero_write(vnode_t *v, uio_t *uio) {
   /* We might just discard the data, but to demonstrate using uiomove for
    * writing, store the data into a junkyard page. */
   int error = 0;
@@ -31,7 +29,7 @@ static int dev_zero_write(vnode_t *t, uio_t *uio) {
   return error;
 }
 
-static int dev_zero_read(vnode_t *t, uio_t *uio) {
+static int dev_zero_read(vnode_t *v, uio_t *uio) {
   int error = 0;
   while (uio->uio_resid && !error) {
     size_t len = uio->uio_resid;
@@ -55,12 +53,10 @@ static void init_dev_null(void) {
   junk_page = pm_alloc(1);
 
   vnodeops_init(&dev_null_vnodeops);
-  dev_null_device = vnode_new(V_DEV, &dev_null_vnodeops);
-  devfs_install("null", dev_null_device);
+  devfs_install("null", V_DEV, &dev_null_vnodeops, NULL);
 
   vnodeops_init(&dev_zero_vnodeops);
-  dev_zero_device = vnode_new(V_DEV, &dev_zero_vnodeops);
-  devfs_install("zero", dev_zero_device);
+  devfs_install("zero", V_DEV, &dev_zero_vnodeops, NULL);
 }
 
 SET_ENTRY(devfs_init, init_dev_null);

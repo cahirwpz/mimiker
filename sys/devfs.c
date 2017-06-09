@@ -37,8 +37,10 @@ static devfs_device_t *devfs_get_by_name(const char *name) {
   return NULL;
 }
 
-int devfs_install(const char *name, vnode_t *device) {
+int devfs_install(const char *name, vnodetype_t type, vnodeops_t *vops,
+                  void *data) {
   size_t n = strlen(name);
+
   if (n >= DEVFS_NAME_MAX)
     return -ENAMETOOLONG;
 
@@ -47,7 +49,8 @@ int devfs_install(const char *name, vnode_t *device) {
 
   devfs_device_t *idev = kmalloc(M_VFS, sizeof(devfs_device_t), M_ZERO);
   strlcpy(idev->name, name, DEVFS_NAME_MAX);
-  idev->dev = device;
+  idev->dev = vnode_new(type, vops);
+  idev->dev->v_data = data;
 
   WITH_MTX_LOCK (&devfs_device_list_mtx)
     TAILQ_INSERT_TAIL(&devfs_device_list, idev, list);

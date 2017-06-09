@@ -162,9 +162,7 @@ static int atkbdc_attach(device_t *dev) {
   write_data(atkbdc->regs, KBD_ENABLE_KBD_INT);
 
   /* Prepare /dev/scancode interface. */
-  vnode_t *scancode_device = vnode_new(V_DEV, &dev_scancode_ops);
-  scancode_device->v_data = atkbdc;
-  devfs_install("scancode", scancode_device);
+  devfs_install("scancode", V_DEV, &dev_scancode_ops, atkbdc);
 
   return 0;
 }
