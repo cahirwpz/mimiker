@@ -56,32 +56,15 @@ static int dev_vga_videomode_read(vnode_t *v, uio_t *uio) {
 }
 
 static vnodeops_t dev_vga_framebuffer_vnodeops = {
-  .v_lookup = vnode_lookup_nop,
-  .v_readdir = vnode_readdir_nop,
-  .v_open = vnode_open_generic,
-  .v_close = vnode_close_nop,
-  .v_getattr = vnode_getattr_nop,
-  .v_write = dev_vga_framebuffer_write,
-  .v_read = vnode_read_nop};
+  .v_open = vnode_open_generic, .v_write = dev_vga_framebuffer_write};
 
-static vnodeops_t dev_vga_palette_vnodeops = {.v_lookup = vnode_lookup_nop,
-                                              .v_readdir = vnode_readdir_nop,
-                                              .v_open = vnode_open_generic,
-                                              .v_close = vnode_close_nop,
-                                              .v_write = dev_vga_palette_write,
-                                              .v_read = vnode_read_nop,
-                                              .v_seek = vnode_seek_nop,
-                                              .v_getattr = vnode_getattr_nop};
+static vnodeops_t dev_vga_palette_vnodeops = {.v_open = vnode_open_generic,
+                                              .v_write = dev_vga_palette_write};
 
 static vnodeops_t dev_vga_videomode_vnodeops = {
-  .v_lookup = vnode_lookup_nop,
-  .v_readdir = vnode_readdir_nop,
   .v_open = vnode_open_generic,
-  .v_close = vnode_close_nop,
   .v_read = dev_vga_videomode_read,
-  .v_write = dev_vga_videomode_write,
-  .v_seek = vnode_seek_nop,
-  .v_getattr = vnode_getattr_nop};
+  .v_write = dev_vga_videomode_write};
 
 static int dev_vga_lookup(vnode_t *v, const char *name, vnode_t **res) {
   vga_device_t *vga = (vga_device_t *)v->v_data;
@@ -103,19 +86,17 @@ static int dev_vga_lookup(vnode_t *v, const char *name, vnode_t **res) {
   return ENOENT;
 }
 
-static vnodeops_t dev_vga_vnodeops = {.v_lookup = dev_vga_lookup,
-                                      .v_readdir = vnode_readdir_nop,
-                                      .v_open = vnode_open_nop,
-                                      .v_close = vnode_close_nop,
-                                      .v_read = vnode_read_nop,
-                                      .v_write = vnode_write_nop,
-                                      .v_seek = vnode_seek_nop,
-                                      .v_getattr = vnode_getattr_nop};
+static vnodeops_t dev_vga_vnodeops = {.v_lookup = dev_vga_lookup};
 
 void dev_vga_install(vga_device_t *vga) {
   static int installed = 0;
   if (installed++) /* Only a single vga device may be installed at /dev/vga. */
     return;
+
+  vnodeops_init(&dev_vga_framebuffer_vnodeops);
+  vnodeops_init(&dev_vga_palette_vnodeops);
+  vnodeops_init(&dev_vga_videomode_vnodeops);
+  vnodeops_init(&dev_vga_vnodeops);
 
   vnode_t *dev_vga_device = vnode_new(V_DIR, &dev_vga_vnodeops);
   dev_vga_device->v_data = vga;
