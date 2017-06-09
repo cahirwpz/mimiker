@@ -120,7 +120,7 @@ static int sys_open(thread_t *td, syscall_args_t *args) {
   size_t n = 0;
 
   /* Copyout pathname. */
-  result = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
+  result = copyinstr(user_pathname, pathname, PATH_MAX, &n);
   if (result < 0)
     goto end;
 
@@ -210,12 +210,12 @@ static int sys_mount(thread_t *td, syscall_args_t *args) {
   size_t n = 0;
 
   /* Copyout fsysname. */
-  error = copyinstr(user_fsysname, fsysname, sizeof(fsysname), &n);
+  error = copyinstr(user_fsysname, fsysname, PATH_MAX, &n);
   if (error < 0)
     goto end;
   n = 0;
   /* Copyout pathname. */
-  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
+  error = copyinstr(user_pathname, pathname, PATH_MAX, &n);
   if (error < 0)
     goto end;
 
