@@ -11,14 +11,14 @@ static int framebuffer_write(vnode_t *v, uio_t *uio) {
 }
 
 static vnodeops_t framebuffer_vnodeops = {.v_open = vnode_open_generic,
-                                      .v_write = framebuffer_write};
+                                          .v_write = framebuffer_write};
 
 static int palette_write(vnode_t *v, uio_t *uio) {
   return vga_palette_write((vga_device_t *)v->v_data, uio);
 }
 
 static vnodeops_t palette_vnodeops = {.v_open = vnode_open_generic,
-                                  .v_write = palette_write};
+                                      .v_write = palette_write};
 
 #define RES_CTRL_BUFFER_SIZE 16
 
@@ -61,10 +61,9 @@ static int videomode_read(vnode_t *v, uio_t *uio) {
   return 0;
 }
 
-static vnodeops_t videomode_vnodeops = {
-  .v_open = vnode_open_generic,
-  .v_read = videomode_read,
-  .v_write = videomode_write};
+static vnodeops_t videomode_vnodeops = {.v_open = vnode_open_generic,
+                                        .v_read = videomode_read,
+                                        .v_write = videomode_write};
 
 void dev_vga_install(vga_device_t *vga) {
   devfs_node_t *vga_root;

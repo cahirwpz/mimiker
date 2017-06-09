@@ -7,96 +7,120 @@
 #include <malloc.h>
 #include <linker_set.h>
 
-/* Structure for storage in mnt_data */
-typedef struct devfs_mount { vnode_t *root_vnode; } devfs_mount_t;
+typedef struct devfs_node devfs_node_t;
+typedef TAILQ_HEAD(, devfs_node) devfs_node_list_t;
 
-static inline devfs_mount_t *devfs_of(mount_t *m) {
-  return (devfs_mount_t *)m->mnt_data;
-}
+struct devfs_node {
+  TAILQ_ENTRY(devfs_node) dn_link;
+  char *dn_name;
+  vnode_t *dn_vnode;
+  devfs_node_list_t dn_children;
+};
 
-/* Structure for storing installed devices */
-typedef struct devfs_device {
-  char name[DEVFS_NAME_MAX];
-  vnode_t *dev;
-  TAILQ_ENTRY(devfs_device) list;
-} devfs_device_t;
+/* device filesystem state structure */
+typedef struct devfs_mount {
+  mtx_t lock;
+  devfs_node_t root;
+} devfs_mount_t;
 
-/* The list of all installed devices */
-typedef TAILQ_HEAD(, devfs_device) devfs_device_list_t;
-static devfs_device_list_t devfs_device_list =
-  TAILQ_HEAD_INITIALIZER(devfs_device_list);
-static mtx_t devfs_device_list_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static devfs_mount_t devfs = {.lock = MUTEX_INITIALIZER(MTX_RECURSE),
+                              .root = {}};
+static vnode_lookup_t devfs_vop_lookup;
+static vnodeops_t devfs_vnodeops = {.v_lookup = devfs_vop_lookup};
 
-static devfs_device_t *devfs_get_by_name(const char *name) {
-  SCOPED_MTX_LOCK(&devfs_device_list_mtx);
+static devfs_node_t *devfs_find_child(devfs_node_t *parent, const char *name) {
+  SCOPED_MTX_LOCK(&devfs.lock);
 
-  devfs_device_t *idev;
-  TAILQ_FOREACH (idev, &devfs_device_list, list)
-    if (!strcmp(name, idev->name))
-      return idev;
+  if (parent == NULL)
+    parent = &devfs.root;
+
+  devfs_node_t *dn;
+  TAILQ_FOREACH (dn, &parent->dn_children, dn_link)
+    if (!strcmp(name, dn->dn_name))
+      return dn;
   return NULL;
 }
 
-int devfs_install(const char *name, vnodetype_t type, vnodeops_t *vops,
+int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
                   void *data) {
-  size_t n = strlen(name);
+  if (parent == NULL)
+    parent = &devfs.root;
 
-  if (n >= DEVFS_NAME_MAX)
-    return -ENAMETOOLONG;
+  if (parent->dn_vnode->v_type != V_DIR)
+    return -ENOTDIR;
 
-  if (devfs_get_by_name(name) != NULL)
-    return -EEXIST;
+  devfs_node_t *dn = kmalloc(M_VFS, sizeof(devfs_node_t), M_ZERO);
+  dn->dn_name = kstrndup(M_VFS, name, DEVFS_NAME_MAX);
+  dn->dn_vnode = vnode_new(V_DEV, vops, data);
 
-  devfs_device_t *idev = kmalloc(M_VFS, sizeof(devfs_device_t), M_ZERO);
-  strlcpy(idev->name, name, DEVFS_NAME_MAX);
-  idev->dev = vnode_new(type, vops);
-  idev->dev->v_data = data;
-
-  WITH_MTX_LOCK (&devfs_device_list_mtx)
-    TAILQ_INSERT_TAIL(&devfs_device_list, idev, list);
+  WITH_MTX_LOCK (&devfs.lock) {
+    if (devfs_find_child(parent, name))
+      return -EEXIST;
+    TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
+  }
 
   return 0;
 }
 
-static vnode_lookup_t devfs_root_lookup;
+int devfs_makedir(devfs_node_t *parent, const char *name,
+                  devfs_node_t **dir_p) {
+  if (parent == NULL)
+    parent = &devfs.root;
 
-static vnodeops_t devfs_root_ops = {.v_lookup = devfs_root_lookup};
+  if (parent->dn_vnode->v_type != V_DIR)
+    return -ENOTDIR;
 
+  devfs_node_t *dn = kmalloc(M_VFS, sizeof(devfs_node_t), M_ZERO);
+  dn->dn_name = kstrndup(M_VFS, name, DEVFS_NAME_MAX);
+  dn->dn_vnode = vnode_new(V_DIR, &devfs_vnodeops, dn);
+  TAILQ_INIT(&dn->dn_children);
+
+  WITH_MTX_LOCK (&devfs.lock) {
+    if (devfs_find_child(parent, name))
+      return -EEXIST;
+    TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
+  }
+
+  *dir_p = dn;
+
+  return 0;
+}
+
+/* We are using a single vnode for each devfs_node instead of allocating a new
+   one each time, to simplify things. */
 static int devfs_mount(mount_t *m) {
-  /* Prepare the root vnode. We'll use a single instead of allocating a new
-     vnode each time, because this will suffice for now, and simplifies things a
-     lot. */
-  vnodeops_init(&devfs_root_ops);
-  vnode_t *root = vnode_new(V_DIR, &devfs_root_ops);
-  root->v_mount = m;
-
-  devfs_mount_t *dfm = kmalloc(M_VFS, sizeof(devfs_mount_t), M_ZERO);
-  dfm->root_vnode = root;
-  m->mnt_data = dfm;
+  devfs.root.dn_vnode->v_mount = m;
+  m->mnt_data = &devfs;
 
   return 0;
 }
 
-static int devfs_root_lookup(vnode_t *dir, const char *name, vnode_t **res) {
-  assert(dir == devfs_of(dir->v_mount)->root_vnode);
+static int devfs_vop_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
+  devfs_node_t *dn;
 
-  devfs_device_t *idev = devfs_get_by_name(name);
-  if (!idev)
+  if (dv->v_type != V_DIR)
+    return -ENOTDIR;
+  if (!(dn = devfs_find_child(dv->v_data, name)))
     return -ENOENT;
-
-  *res = idev->dev;
-  vnode_ref(*res);
-
+  *vp = dn->dn_vnode;
+  vnode_ref(*vp);
   return 0;
 }
 
-static int devfs_root(mount_t *m, vnode_t **v) {
-  *v = devfs_of(m)->root_vnode;
-  vnode_ref(*v);
+static int devfs_root(mount_t *m, vnode_t **vp) {
+  *vp = devfs.root.dn_vnode;
+  vnode_ref(*vp);
   return 0;
 }
 
 static int devfs_init(vfsconf_t *vfc) {
+  vnodeops_init(&devfs_vnodeops);
+
+  devfs_node_t *dn = &devfs.root;
+  dn->dn_vnode = vnode_new(V_DIR, &devfs_vnodeops, NULL);
+  dn->dn_name = "";
+  TAILQ_INIT(&dn->dn_children);
+
   /* Prepare some initial devices */
   typedef void devfs_init_func_t(void);
   SET_DECLARE(devfs_init, devfs_init_func_t);

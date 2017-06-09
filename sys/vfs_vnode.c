@@ -17,10 +17,10 @@ static MALLOC_DEFINE(M_VNODE, "vnode", 2, 16);
 static void vnode_init(void) {
 }
 
-vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops) {
+vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
   vnode_t *v = kmalloc(M_VNODE, sizeof(vnode_t), M_ZERO);
   v->v_type = type;
-  v->v_data = NULL;
+  v->v_data = data;
   v->v_ops = ops;
   v->v_usecnt = 1;
   mtx_init(&v->v_mtx, MTX_DEF);
