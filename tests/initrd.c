@@ -20,7 +20,7 @@ static void dump_file(const char *path) {
   kprintf("file %s:\n%s\n", path, buffer);
 }
 
-static int test_ramdisk() {
+static int test_ramdisk(void) {
   dump_file("/usr/include/sys/errno.h");
   dump_file("/usr/include/sys/dirent.h");
   dump_file("/usr/include/sys/unistd.h");
@@ -31,7 +31,7 @@ KTEST_ADD(ramdisk, test_ramdisk, 0);
 
 /* Completing this test takes far too much time due to its verbosity - so it's
    disabled with the BROKEN flag. */
-static int test_ramdisk_dump() {
+static int test_ramdisk_dump(void) {
   ramdisk_dump();
   return KTEST_SUCCESS;
 }

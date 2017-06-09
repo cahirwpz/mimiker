@@ -6,5 +6,5 @@ break panic_fail
 continue
 
 python import os, sys
-python sys.path.append(os.path.join(os.getcwd(), "debug"))
-python import ktrace, kdump, mutex
+python sys.path.append(os.getcwd())
+python import debug

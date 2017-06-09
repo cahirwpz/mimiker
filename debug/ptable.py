@@ -1,4 +1,13 @@
 from __future__ import print_function
+import ctypes
+
+
+def as_uint32(num):
+    return ctypes.c_ulong(num).value & 0xffffffff
+
+
+def as_hex(num):
+    return "$%08x" % as_uint32(num)
 
 
 def cellfmt(cell, fmt, width):

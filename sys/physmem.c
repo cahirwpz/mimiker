@@ -22,11 +22,11 @@ TAILQ_HEAD(pm_seglist, pm_seg);
 
 static struct pm_seglist seglist;
 
-void pm_init() {
+void pm_init(void) {
   TAILQ_INIT(&seglist);
 }
 
-void pm_dump() {
+void pm_dump(void) {
   pm_seg_t *seg_it;
   vm_page_t *pg_it;
 
@@ -303,7 +303,7 @@ vm_page_t *pm_split_alloc_page(vm_page_t *pg) {
  * this would require us to allocate some memory, which we can't do
  * at this moment. However at the moment we need to compare states only,
  * so this solution seems best. */
-unsigned long pm_hash() {
+unsigned long pm_hash(void) {
   unsigned long hash = 5381;
   pm_seg_t *seg_it;
   vm_page_t *pg_it;

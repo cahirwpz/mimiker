@@ -14,7 +14,7 @@ static MALLOC_DEFINE(M_VNODE, "vnode", 2, 16);
    etc. So at some point we may need a more sophisticated memory management here
    - but this will do for now. */
 
-static void vnode_init() {
+static void vnode_init(void) {
 }
 
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops) {
@@ -51,7 +51,51 @@ void vnode_unref(vnode_t *v) {
     vnode_unlock(v);
 }
 
-int vnode_op_notsup() {
+int vnode_lookup_nop(vnode_t *dv, const char *name, vnode_t **vp) {
+  return -ENOTSUP;
+}
+
+int vnode_readdir_nop(vnode_t *dv, uio_t *uio, void *state) {
+  return -ENOTSUP;
+}
+
+int vnode_open_nop(vnode_t *v, int mode, file_t *fp) {
+  return -ENOTSUP;
+}
+
+int vnode_close_nop(vnode_t *v, file_t *fp) {
+  return -ENOTSUP;
+}
+
+int vnode_read_nop(vnode_t *v, uio_t *uio) {
+  return -ENOTSUP;
+}
+
+int vnode_write_nop(vnode_t *v, uio_t *uio) {
+  return -ENOTSUP;
+}
+
+int vnode_seek_nop(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
+  return -ENOTSUP;
+}
+
+int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
+  return -ENOTSUP;
+}
+
+int vnode_create_nop(vnode_t *dv, const char *name, vnode_t **vp) {
+  return -ENOTSUP;
+}
+
+int vnode_remove_nop(vnode_t *dv, const char *name) {
+  return -ENOTSUP;
+}
+
+int vnode_mkdir_nop(vnode_t *v, const char *name, vnode_t **vp) {
+  return -ENOTSUP;
+}
+
+int vnode_rmdir_nop(vnode_t *v, const char *name) {
   return -ENOTSUP;
 }
 
@@ -65,7 +109,7 @@ static int default_vnwrite(file_t *f, thread_t *td, uio_t *uio) {
 }
 
 static int default_vnclose(file_t *f, thread_t *td) {
-  (void)VOP_CLOSE(f->f_vnode, f->f_data);
+  (void)VOP_CLOSE(f->f_vnode, f);
   vnode_unref(f->f_vnode);
   return 0;
 }

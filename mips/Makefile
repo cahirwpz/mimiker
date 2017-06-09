@@ -2,7 +2,6 @@
 
 SOURCES_C = atomic.c \
 	    cbus.c \
-	    clock.c \
 	    context.c \
 	    cpu.c \
 	    gt64120.c \
@@ -12,6 +11,7 @@ SOURCES_C = atomic.c \
 	    rootdev.c \
 	    stack.c \
 	    signal.c \
+	    timer.c \
 	    tlb.c \
 	    uart_cbus.c
 

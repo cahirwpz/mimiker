@@ -43,11 +43,11 @@ typedef struct vm_map {
  * vm_map_entry_t* vm_map_allocate_space(vm_map_t* map, size_t length) */
 
 void vm_map_activate(vm_map_t *map);
-vm_map_t *get_user_vm_map();
-vm_map_t *get_kernel_vm_map();
+vm_map_t *get_user_vm_map(void);
+vm_map_t *get_kernel_vm_map(void);
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr);
 
-vm_map_t *vm_map_new();
+vm_map_t *vm_map_new(void);
 void vm_map_delete(vm_map_t *vm_map);
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr);

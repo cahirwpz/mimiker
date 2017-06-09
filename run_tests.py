@@ -8,7 +8,7 @@ import os
 
 N_SIMPLE = 5
 N_THOROUGH = 100
-TIMEOUT = 5
+TIMEOUT = 10
 RETRIES_MAX = 5
 REPEAT = 5
 
@@ -28,7 +28,9 @@ def gdb_inspect():
     gdb_opts = ['-nx',
                 'mimiker.elf',
                 '-ex=target remote localhost:%d' % gdb_port,
-                '-ex=source debug/kdump.py']
+                '-ex=python import os, sys',
+                '-ex=python sys.path.append(os.getcwd())',
+                '-ex=python import debug']
     gdb = pexpect.spawn(gdb_command, gdb_opts, timeout=1)
     gdb.expect_exact('(gdb)', timeout=2)
     gdb.sendline('info registers')

@@ -12,6 +12,7 @@ typedef struct vnode vnode_t;
 typedef struct vattr vattr_t;
 typedef struct mount mount_t;
 typedef struct file file_t;
+typedef struct dirent dirent_t;
 
 typedef enum {
   V_NONE,
@@ -50,12 +51,12 @@ typedef struct vnodeops {
 
 #define VNODEOPS_NOTSUP_INITIALIZER()                                          \
   {                                                                            \
-    .v_lookup = vnode_op_notsup, .v_readdir = vnode_op_notsup,                 \
-    .v_open = vnode_op_notsup, .v_close = vnode_op_notsup,                     \
-    .v_read = vnode_op_notsup, .v_write = vnode_op_notsup,                     \
-    .v_seek = vnode_op_notsup, .v_getattr = vnode_op_notsup,                   \
-    .v_create = vnode_op_notsup, .v_remove = vnode_op_notsup,                  \
-    .v_mkdir = vnode_op_notsup, .v_rmdir = vnode_op_notsup                     \
+    .v_lookup = vnode_lookup_nop, .v_readdir = vnode_readdir_nop,              \
+    .v_open = vnode_open_nop, .v_close = vnode_close_nop,                      \
+    .v_read = vnode_read_nop, .v_write = vnode_write_nop,                      \
+    .v_seek = vnode_seek_nop, .v_getattr = vnode_getattr_nop,                  \
+    .v_create = vnode_create_nop, .v_remove = vnode_remove_nop,                \
+    .v_mkdir = vnode_mkdir_nop, .v_rmdir = vnode_rmdir_nop,                    \
   }
 
 typedef struct vnode {
@@ -151,9 +152,35 @@ void vnode_ref(vnode_t *v);
 void vnode_unref(vnode_t *v);
 
 /* Convenience function for filling in not supported vnodeops */
-int vnode_op_notsup();
+int vnode_lookup_nop(vnode_t *dv, const char *name, vnode_t **vp);
+int vnode_readdir_nop(vnode_t *dv, uio_t *uio, void *state);
+int vnode_open_nop(vnode_t *v, int mode, file_t *fp);
+int vnode_close_nop(vnode_t *v, file_t *fp);
+int vnode_read_nop(vnode_t *v, uio_t *uio);
+int vnode_write_nop(vnode_t *v, uio_t *uio);
+int vnode_seek_nop(vnode_t *v, off_t oldoff, off_t newoff, void *state);
+int vnode_getattr_nop(vnode_t *v, vattr_t *va);
+int vnode_create_nop(vnode_t *dv, const char *name, vnode_t **vp);
+int vnode_remove_nop(vnode_t *dv, const char *name);
+int vnode_mkdir_nop(vnode_t *v, const char *name, vnode_t **vp);
+int vnode_rmdir_nop(vnode_t *v, const char *name);
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state);
+
+#define DIRENT_DOT ((void *)-2)
+#define DIRENT_DOTDOT ((void *)-1)
+#define DIRENT_EOF NULL
+
+typedef struct readdir_ops {
+  /* take next directory entry */
+  void *(*next)(vnode_t *dir, void *entry);
+  /* filename size (to calc. dirent size) */
+  size_t (*namlen_of)(vnode_t *dir, void *entry);
+  /* make dirent based on entry */
+  void (*convert)(vnode_t *dir, void *entry, dirent_t *dirent);
+} readdir_ops_t;
+
+int readdir_generic(vnode_t *v, uio_t *uio, readdir_ops_t *ops);
 
 #endif /* !_SYS_VNODE_H_ */

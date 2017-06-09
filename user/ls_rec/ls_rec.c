@@ -9,6 +9,11 @@
 #include <errno.h>
 #include <dirent.h>
 
+static const char *filetype[] = {[DT_UNKNOWN] = "???", [DT_FIFO] = "fifo",
+                                 [DT_CHR] = "chr",     [DT_DIR] = "dir",
+                                 [DT_BLK] = "blk",     [DT_REG] = "file",
+                                 [DT_LNK] = "link",    [DT_SOCK] = "sock"};
+
 static void list_recursive(const char *dir_path) {
   char buf[256];
   char namebuf[256] = "";
@@ -27,7 +32,8 @@ static void list_recursive(const char *dir_path) {
       if (strcmp(dir_path, "/") != 0)
         strcat(namebuf, "/");
       strcat(namebuf, dir->d_name);
-      printf("%s\n", namebuf);
+      printf("[%4s, ino=%d] %s\n", filetype[dir->d_type], dir->d_fileno,
+             namebuf);
       if (dir->d_type == DT_DIR && strcmp(dir->d_name, ".") &&
           strcmp(dir->d_name, "..")) {
         list_recursive(namebuf);

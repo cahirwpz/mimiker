@@ -8,7 +8,7 @@
 #include <thread.h>
 #include <ktest.h>
 
-static int paging_on_demand_and_memory_protection_demo() {
+static int paging_on_demand_and_memory_protection_demo(void) {
   vm_map_t *orig = get_user_vm_map();
   vm_map_activate(vm_map_new());
 
@@ -51,7 +51,7 @@ static int paging_on_demand_and_memory_protection_demo() {
   return KTEST_SUCCESS;
 }
 
-static int findspace_demo() {
+static int findspace_demo(void) {
   vm_map_t *orig = get_user_vm_map();
 
   vm_map_t *umap = vm_map_new();

@@ -237,8 +237,11 @@ static int sys_getdirentries(thread_t *td, syscall_args_t *args) {
   int res = do_getdirentries(td, fd, &uio, &base);
   if (res < 0)
     return res;
-  if (base_p != NULL)
-    res = copyout_s(base, base_p);
+  if (base_p != NULL) {
+    int error = copyout_s(base, base_p);
+    if (error)
+      return error;
+  }
   return res;
 }
 

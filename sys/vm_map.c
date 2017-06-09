@@ -26,11 +26,11 @@ void vm_map_activate(vm_map_t *map) {
   pmap_activate(map ? map->pmap : NULL);
 }
 
-vm_map_t *get_user_vm_map() {
+vm_map_t *get_user_vm_map(void) {
   return PCPU_GET(uspace);
 }
 
-vm_map_t *get_kernel_vm_map() {
+vm_map_t *get_kernel_vm_map(void) {
   return &kspace;
 }
 
@@ -62,12 +62,12 @@ static void vm_map_setup(vm_map_t *map) {
   rw_init(&map->rwlock, "vm map rwlock", 1);
 }
 
-static void vm_map_init() {
+static void vm_map_init(void) {
   vm_map_setup(&kspace);
   *((pmap_t **)(&kspace.pmap)) = get_kernel_pmap();
 }
 
-vm_map_t *vm_map_new() {
+vm_map_t *vm_map_new(void) {
   vm_map_t *map = kmalloc(M_VMMAP, sizeof(vm_map_t), M_ZERO);
 
   vm_map_setup(map);
