@@ -189,7 +189,7 @@ int test_fd_open_path() {
   assert_open_fail("123456", 0, O_RDONLY, ENOENT);
 
   /* Also try opening a file with a name too long. */
-  char too_long[500];
+  char too_long[2000];
   memset(too_long, 'c', sizeof(too_long));
   too_long[sizeof(too_long) - 1] = 0;
   /* This is very unfortunate! In our errno.h: ENAMETOOLONG is 63, but errno.h
