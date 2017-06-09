@@ -8,6 +8,7 @@
 #include <sleepq.h>
 #include <mutex.h>
 #include <condvar.h>
+#include <time.h>
 #include <signal.h>
 
 typedef uint8_t td_prio_t;
@@ -55,20 +56,27 @@ typedef struct thread {
   /* scheduler part */
   td_prio_t td_prio;
   int td_slice;
+  /* thread statistics */
+  timeval_t td_rtime;        /* ticks spent running */
+  timeval_t td_last_rtime;   /* time of last switch to running state */
+  timeval_t td_slptime;      /* ticks spent sleeping */
+  timeval_t td_last_slptime; /* time of last switch to sleep state */
+  unsigned td_nctxsw;        /* total number of context switches */
+  /* signal handling */
   sigset_t td_sigpend; /* Pending signals for this thread. */
   /* TODO: Signal mask, sigsuspend. */
 } thread_t;
 
-thread_t *thread_self();
+thread_t *thread_self(void);
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
 void thread_delete(thread_t *td);
 
 /* Exit from a kernel thread. Thread becomes zombie which resources will
  * eventually be recycled. */
-noreturn void thread_exit();
+noreturn void thread_exit(void);
 
 /* Debugging utility that prints out the summary of all_threads contents. */
-void thread_dump_all();
+void thread_dump_all(void);
 
 /* Returns the thread matching the given ID, or null if none found. */
 thread_t *thread_get_by_tid(tid_t id);
@@ -80,6 +88,6 @@ void thread_join(thread_t *td);
    reaping will automatically take place when convenient. The reason this
    function is exposed is because some tests need to explicitly wait until
    threads are reaped before they can verify test success. */
-void thread_reap();
+void thread_reap(void);
 
 #endif /* _SYS_THREAD_H_ */

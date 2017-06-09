@@ -1,11 +1,3 @@
-#ifndef __GT64120_H__
-#define __GT64120_H__
-
-#include <mips/malta.h>
-
-#define GT_R(x)                                                                \
-  *((volatile uint32_t *)(MIPS_PHYS_TO_KSEG1(MALTA_CORECTRL_BASE + (x))))
-
 /* Table 188: PCI_0 Configuration Address */
 #define GT_PCI0_CFG_ADDR 0xcf8
 /* Table 189: PCI_0 Configuration Data */
@@ -43,5 +35,3 @@
 #define GTIM_CPUINTSUM 0x40000000
 /* Table 200: PCI_0 Interrupt Cause Mask */
 #define GT_PCI0_INTR_MASK 0xc24
-
-#endif

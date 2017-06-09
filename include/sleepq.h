@@ -7,8 +7,8 @@
 typedef struct thread thread_t;
 typedef struct sleepq sleepq_t;
 
-void sleepq_init();
-sleepq_t *sleepq_alloc();
+void sleepq_init(void);
+sleepq_t *sleepq_alloc(void);
 void sleepq_destroy(sleepq_t *sq);
 
 /*

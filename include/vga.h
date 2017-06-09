@@ -22,7 +22,7 @@ typedef struct vga_device {
 
 /* Normally this function wouldn't need to exist, as PCI driver attachment would
    be part of PCI device discovery process. */
-void vga_init();
+void vga_init(void);
 
 /* Creates a new /dev/vga entry, linked to the vga device. */
 void dev_vga_install(vga_device_t *vga);

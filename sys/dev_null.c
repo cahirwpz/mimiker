@@ -42,36 +42,24 @@ static int dev_zero_read(vnode_t *t, uio_t *uio) {
   return error;
 }
 
-static vnodeops_t dev_null_vnodeops = {
-  .v_lookup = vnode_op_notsup,
-  .v_readdir = vnode_op_notsup,
-  .v_open = vnode_open_generic,
-  .v_close = vnode_op_notsup,
-  .v_read = dev_null_read,
-  .v_write = dev_null_write,
-  .v_seek = vnode_op_notsup,
-  .v_getattr = vnode_op_notsup,
-};
+static vnodeops_t dev_null_vnodeops = {.v_open = vnode_open_generic,
+                                       .v_read = dev_null_read,
+                                       .v_write = dev_null_write};
 
-static vnodeops_t dev_zero_vnodeops = {
-  .v_lookup = vnode_op_notsup,
-  .v_readdir = vnode_op_notsup,
-  .v_open = vnode_open_generic,
-  .v_close = vnode_op_notsup,
-  .v_read = dev_zero_read,
-  .v_write = dev_zero_write,
-  .v_seek = vnode_op_notsup,
-  .v_getattr = vnode_op_notsup,
-};
+static vnodeops_t dev_zero_vnodeops = {.v_open = vnode_open_generic,
+                                       .v_read = dev_zero_read,
+                                       .v_write = dev_zero_write};
 
-static void init_dev_null() {
+static void init_dev_null(void) {
   zero_page = pm_alloc(1);
   junk_page = pm_alloc(1);
 
+  vnodeops_init(&dev_null_vnodeops);
   dev_null_device = vnode_new(V_DEV, &dev_null_vnodeops);
-  dev_zero_device = vnode_new(V_DEV, &dev_zero_vnodeops);
-
   devfs_install("null", dev_null_device);
+
+  vnodeops_init(&dev_zero_vnodeops);
+  dev_zero_device = vnode_new(V_DEV, &dev_zero_vnodeops);
   devfs_install("zero", dev_zero_device);
 }
 

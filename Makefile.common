@@ -41,7 +41,7 @@ GCC_SYSTEM_INC = -I$(GCC_INSTALL_PATH)include/ \
                  -D_LIBC_LIMITS_H_
 
 ASFLAGS  =
-WFLAGS   = -Wall -Wextra -Wno-unused-parameter -Werror
+WFLAGS   = -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes -Werror
 CFLAGS   = -std=gnu11 -Og $(WFLAGS) -fno-builtin -nostdinc -nostdlib \
            $(GCC_SYSTEM_INC) -ffreestanding
 CPPFLAGS = -Wall -Werror -DDEBUG -I$(TOPDIR)/include

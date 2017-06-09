@@ -5,7 +5,7 @@
 #include <sched.h>
 #include <runq.h>
 #include <context.h>
-#include <clock.h>
+#include <time.h>
 #include <thread.h>
 #include <callout.h>
 #include <interrupt.h>
@@ -18,7 +18,7 @@ static bool sched_active = false;
 
 #define SLICE 10
 
-static void sched_init() {
+static void sched_init(void) {
   runq_init(&runq);
 }
 
@@ -45,7 +45,7 @@ void sched_remove(thread_t *td) {
   runq_remove(&runq, td);
 }
 
-thread_t *sched_choose() {
+thread_t *sched_choose(void) {
   thread_t *td = runq_choose(&runq);
   if (td) {
     sched_remove(td);
@@ -54,7 +54,7 @@ thread_t *sched_choose() {
   return PCPU_GET(idle_thread);
 }
 
-void sched_clock() {
+void sched_clock(void) {
   thread_t *td = thread_self();
 
   if (td != PCPU_GET(idle_thread))
@@ -62,7 +62,7 @@ void sched_clock() {
       td->td_flags |= TDF_NEEDSWITCH | TDF_SLICEEND;
 }
 
-void sched_yield() {
+void sched_yield(void) {
   sched_switch(NULL);
 }
 
@@ -83,12 +83,19 @@ void sched_switch(thread_t *newtd) {
     newtd = sched_choose();
 
   newtd->td_state = TDS_RUNNING;
+  timeval_t now = get_uptime();
+  timeval_t diff = timeval_sub(&now, &td->td_last_rtime);
+  td->td_rtime = timeval_add(&td->td_rtime, &diff);
+  newtd->td_last_rtime = now;
 
-  if (td != newtd)
+  if (td != newtd) {
+    td->td_nctxsw++;
+    newtd->td_nctxsw++;
     ctx_switch(td, newtd);
+  }
 }
 
-noreturn void sched_run() {
+noreturn void sched_run(void) {
   thread_t *td = thread_self();
 
   PCPU_SET(idle_thread, td);

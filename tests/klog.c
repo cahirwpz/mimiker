@@ -16,13 +16,13 @@ static timeval_t start;
 
 static uint32_t seed = 0; /* Current seed */
 
-static int rand() {
+static int rand(void) {
   /* Just a standard LCG */
   seed = 1664525 * seed + 1013904223;
   return seed;
 }
 
-static int logging_with_custom_mask() {
+static int logging_with_custom_mask(void) {
   klog_(KL_NONE, "Testing custom mask %d", KL_NONE);
   assert(klog.first == klog.last);
   klog_(KL_TEST, "Testing custom mask %d", KL_TEST);
@@ -32,7 +32,7 @@ static int logging_with_custom_mask() {
 }
 
 /* Testing logging when klog don't accept logs (klog.mask = KL_NONE) */
-static int logging_klog_zero_mask() {
+static int logging_klog_zero_mask(void) {
   klog("Testing klog while acceptance mask is %d", klog.mask);
   assert(klog.first == klog.last);
   klog_clear();
@@ -50,7 +50,7 @@ static int test_log_messages(const int number_of_logs) {
   return 0;
 }
 
-static int testing_different_number_of_parametars() {
+static int testing_different_number_of_parametars(void) {
   klog("Message with zero parameters.");
   klog("Message with zero parameters with custom mask.");
   klog("Message with %d parameter.", 1);
@@ -68,7 +68,7 @@ static void thread_logs(void *p) {
   for (int i = 0; i < NUM_OF_LOG_PER_THREAD; i++)
     klog("Message number %d of thread %d.", i, thread_number);
 
-  thread_exit(0);
+  thread_exit();
 }
 
 static int multithreads_test(const int number_of_threads) {
@@ -92,15 +92,14 @@ static int multithreads_test(const int number_of_threads) {
 /* Function that checks if sleep time is over and assigne new sleep time. */
 static int check_time(systime_t *sleep, const uint32_t freq) {
   timeval_t now = get_uptime();
-  timeval_t diff;
-  timeval_sub(&now, &start, &diff);
+  timeval_t diff = timeval_sub(&now, &start);
   if (tv2st(diff) < (*sleep))
     return 1;
   (*sleep) += (rand() & freq);
   return 0;
 }
 
-static void logs() {
+static void logs(void) {
   int thread_number = thread_self()->td_tid;
   for (int i = 0; i < 20; i++)
     klog("Message number %d of thread %d.", i, thread_number);
@@ -110,7 +109,7 @@ static void logs() {
 static void thread_test(void *p) {
   /* Initial sleep, waiting for all threads to be created. */
   uint32_t sleep = rand() & 100;
-  void (*klog_function)() = p;
+  void (*klog_function)(void) = p;
 
   for (int i = 0; i < NUMBER_OF_ROUNDS; i++) {
     while (check_time(&sleep, MAX_SLEEP_TIME))
@@ -118,10 +117,10 @@ static void thread_test(void *p) {
     (*klog_function)();
     klog("Function %p ended %d time.", klog_function, i);
   }
-  thread_exit(0);
+  thread_exit();
 }
 
-static int stress_test() {
+static int stress_test(void) {
 
   threads[0] = thread_create("Thread clear1", thread_test, &klog_clear);
   threads[1] = thread_create("Thread add logs1", thread_test, &logs);
@@ -145,7 +144,7 @@ static int stress_test() {
   return 0;
 }
 
-static int test_klog() {
+static int test_klog(void) {
   kprintf("Testing klog.\n");
   int mask_old = klog.mask;
   klog.mask = KL_MASK(KL_LOG);

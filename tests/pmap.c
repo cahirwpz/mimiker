@@ -7,7 +7,7 @@
 #include <vm.h>
 #include <ktest.h>
 
-static int test_kernel_pmap() {
+static int test_kernel_pmap(void) {
   pmap_t *pmap = get_kernel_pmap();
 
   vm_page_t *pg = pm_alloc(16);
@@ -47,7 +47,7 @@ static int test_kernel_pmap() {
   return KTEST_SUCCESS;
 }
 
-static int test_user_pmap() {
+static int test_user_pmap(void) {
   pmap_t *orig = get_user_pmap();
 
   pmap_t *pmap1 = pmap_new();

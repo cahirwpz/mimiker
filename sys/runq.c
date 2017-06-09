@@ -33,7 +33,7 @@ void runq_remove(runq_t *rq, thread_t *td) {
 }
 
 #ifdef _USERSPACE
-int main() {
+int main(void) {
   thread_t t1;
   t1.td_priority = 3 * RQ_PPQ;
   thread_t t2;

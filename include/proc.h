@@ -38,7 +38,7 @@ struct proc {
   /* XXX: process resource usage stats */
 };
 
-proc_t *proc_create();
+proc_t *proc_create(void);
 
 /* Links a thread with a process, setting td_proc and updating p_threads. */
 void proc_populate(proc_t *p, thread_t *td);

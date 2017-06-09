@@ -9,7 +9,7 @@ cpuinfo_t cpuinfo;
  * Read configuration register values, interpret and save them into the cpuinfo
  * structure for later use.
  */
-static bool cpu_read_config() {
+static bool cpu_read_config(void) {
   uint32_t config0 = mips32_getconfig0();
   uint32_t cfg0_mt = config0 & CFG0_MT_MASK;
   char *cfg0_mt_str;
@@ -80,7 +80,7 @@ static bool cpu_read_config() {
   return true;
 }
 
-void cpu_sr_dump() {
+void cpu_sr_dump(void) {
   unsigned sr = mips32_get_c0(C0_STATUS);
   static char *mode[] = {"kernel", "supervisor", "user"};
   static char *boolean[] = {"no", "yes"};
@@ -99,7 +99,7 @@ void cpu_sr_dump() {
 }
 
 /* Print state of control registers. */
-static void cpu_dump() {
+static void cpu_dump(void) {
   unsigned cr = mips32_get_c0(C0_CAUSE);
   unsigned intctl = mips32_get_c0(C0_INTCTL);
   unsigned srsctl = mips32_get_c0(C0_SRSCTL);
@@ -142,7 +142,7 @@ static void cpu_dump() {
  * - The EXL and ERL bits in the Status register are both zero
  */
 
-void cpu_init() {
+void cpu_init(void) {
   cpu_read_config();
   cpu_dump();
 }

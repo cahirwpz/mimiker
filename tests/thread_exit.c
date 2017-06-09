@@ -1,5 +1,5 @@
 #include <stdc.h>
-#include <clock.h>
+#include <time.h>
 #include <thread.h>
 #include <sched.h>
 #include <ktest.h>
@@ -12,17 +12,16 @@ static void test_thread(void *p) {
   timeval_t *e = (timeval_t *)p;
   while (1) {
     timeval_t now = get_uptime();
-    timeval_t diff;
-    timeval_sub(&now, &start, &diff);
+    timeval_t diff = timeval_sub(&now, &start);
     if (timeval_cmp(&diff, e, >))
-      thread_exit(0);
+      thread_exit();
     else
       sched_yield();
   }
 }
 
 /* This tests both thread_join as well as thread_exit. */
-static int test_thread_join() {
+static int test_thread_join(void) {
   thread_t *t1 = thread_create("test-thread-1", test_thread, &exit_time[0]);
   thread_t *t2 = thread_create("test-thread-2", test_thread, &exit_time[1]);
   thread_t *t3 = thread_create("test-thread-3", test_thread, &exit_time[2]);

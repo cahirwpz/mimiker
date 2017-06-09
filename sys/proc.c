@@ -18,7 +18,7 @@ static proc_list_t zombie_proc_list = TAILQ_HEAD_INITIALIZER(zombie_proc_list);
 static mtx_t last_pid_mtx = MUTEX_INITIALIZER(MTX_DEF);
 static pid_t last_pid = 0;
 
-proc_t *proc_create() {
+proc_t *proc_create(void) {
   proc_t *proc = kmalloc(M_PROC, sizeof(proc_t), M_ZERO);
   mtx_init(&proc->p_lock, MTX_DEF);
   TAILQ_INIT(&proc->p_threads);
