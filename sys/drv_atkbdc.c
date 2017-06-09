@@ -77,11 +77,7 @@ static int scancode_read(vnode_t *v, uio_t *uio) {
 }
 
 static vnodeops_t dev_scancode_ops = {
-  .v_lookup = vnode_lookup_nop,
-  .v_readdir = vnode_readdir_nop,
-  .v_open = vnode_open_generic,
-  .v_write = vnode_write_nop,
-  .v_read = scancode_read,
+  .v_open = vnode_open_generic, .v_read = scancode_read,
 };
 
 /* Reset keyboard and perform a self-test. */
@@ -183,6 +179,7 @@ static driver_t atkbdc_driver = {
 extern device_t *gt_pci;
 
 static void atkbdc_init(void) {
+  vnodeops_init(&dev_scancode_ops);
   (void)make_device(gt_pci, &atkbdc_driver);
 }
 

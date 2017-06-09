@@ -67,5 +67,7 @@ SYSCALL(getdirentries, SYS_GETDENTS)
 SYSCALL(sigaction, SYS_SIGACTION)
 SYSCALL(sigreturn, SYS_SIGRETURN)
 SYSCALL(waitpid, SYS_WAITPID)
+SYSCALL(mkdir, SYS_MKDIR)
+SYSCALL(rmdir, SYS_RMDIR)
 
 # vim: sw=8 ts=8 et

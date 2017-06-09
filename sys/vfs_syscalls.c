@@ -15,7 +15,7 @@
 #include <errno.h>
 #include <malloc.h>
 
-int do_open(thread_t *td, char *pathname, int flags, int mode, int *fd) {
+int do_open(thread_t *td, char *pathname, int flags, mode_t mode, int *fd) {
   /* Allocate a file structure, but do not install descriptor yet. */
   file_t *f = file_alloc();
   /* Try opening file. Fill the file structure. */
@@ -137,4 +137,16 @@ int do_getdirentries(thread_t *td, int fd, uio_t *uio, off_t *basep) {
   *basep = f->f_offset;
   file_unref(f);
   return res;
+}
+
+int do_unlink(thread_t *td, char *path) {
+  return -ENOTSUP;
+}
+
+int do_mkdir(thread_t *td, char *path, mode_t mode) {
+  return -ENOTSUP;
+}
+
+int do_rmdir(thread_t *td, char *path) {
+  return -ENOTSUP;
 }
