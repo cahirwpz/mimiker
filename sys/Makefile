@@ -6,11 +6,11 @@ SOURCES_C  = \
 	clock.c \
 	condvar.c \
 	console.c \
+	device.c \
 	dev_cons.c \
 	dev_null.c \
 	dev_vga.c \
 	devfs.c \
-	device.c \
 	drv_atkbdc.c \
 	drv_stdvga.c \
 	exception.c \
@@ -24,8 +24,8 @@ SOURCES_C  = \
 	ktest.c \
 	main.c \
 	malloc.c \
-	mmap.c \
 	mutex.c \
+	mmap.c \
 	pci.c \
 	pci_ids.c \
 	pcpu.c \
