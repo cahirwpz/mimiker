@@ -3,6 +3,7 @@
 #include <stdc.h>
 #include <mutex.h>
 #include <interrupt.h>
+#include <sync.h>
 
 static mtx_t all_ichains_mtx = MUTEX_INITIALIZER(MTX_DEF);
 static intr_chain_list_t all_ichains_list =
@@ -14,27 +15,26 @@ void intr_chain_register(intr_chain_t *ic) {
 }
 
 void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
-  if (TAILQ_EMPTY(&ic->ic_handlers)) {
-    TAILQ_INSERT_HEAD(&ic->ic_handlers, ih, ih_list);
-  } else {
-    /* Add new handler according to it's priority */
-    intr_handler_t *it;
+  SCOPED_CRITICAL_SECTION();
 
-    TAILQ_FOREACH (it, &ic->ic_handlers, ih_list) {
-      if (ih->ih_prio > it->ih_prio) {
-        TAILQ_INSERT_BEFORE(it, ih, ih_list);
-        goto done;
-      }
-    }
+  /* Add new handler according to it's priority */
+  intr_handler_t *it;
+  TAILQ_FOREACH (it, &ic->ic_handlers, ih_list)
+    if (ih->ih_prio > it->ih_prio)
+      break;
+
+  if (it)
+    TAILQ_INSERT_BEFORE(it, ih, ih_list);
+  else
     TAILQ_INSERT_TAIL(&ic->ic_handlers, ih, ih_list);
-  }
 
-done:
   ih->ih_chain = ic;
   ic->ic_count++;
 }
 
 void intr_chain_remove_handler(intr_handler_t *ih) {
+  SCOPED_CRITICAL_SECTION();
+
   intr_chain_t *ic = ih->ih_chain;
   TAILQ_REMOVE(&ic->ic_handlers, ih, ih_list);
   ih->ih_chain = NULL;

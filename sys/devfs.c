@@ -57,21 +57,13 @@ int devfs_install(const char *name, vnode_t *device) {
 
 static vnode_lookup_t devfs_root_lookup;
 
-static vnodeops_t devfs_root_ops = {
-  .v_lookup = devfs_root_lookup,
-  .v_readdir = vnode_op_notsup,
-  .v_open = vnode_op_notsup,
-  .v_close = vnode_op_notsup,
-  .v_read = vnode_op_notsup,
-  .v_write = vnode_op_notsup,
-  .v_seek = vnode_op_notsup,
-  .v_getattr = vnode_op_notsup,
-};
+static vnodeops_t devfs_root_ops = {.v_lookup = devfs_root_lookup};
 
 static int devfs_mount(mount_t *m) {
   /* Prepare the root vnode. We'll use a single instead of allocating a new
      vnode each time, because this will suffice for now, and simplifies things a
      lot. */
+  vnodeops_init(&devfs_root_ops);
   vnode_t *root = vnode_new(V_DIR, &devfs_root_ops);
   root->v_mount = m;
 
@@ -103,7 +95,7 @@ static int devfs_root(mount_t *m, vnode_t **v) {
 
 static int devfs_init(vfsconf_t *vfc) {
   /* Prepare some initial devices */
-  typedef void devfs_init_func_t();
+  typedef void devfs_init_func_t(void);
   SET_DECLARE(devfs_init, devfs_init_func_t);
   devfs_init_func_t **ptr;
   SET_FOREACH(ptr, devfs_init) {

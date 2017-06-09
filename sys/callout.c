@@ -31,7 +31,7 @@ static struct {
   systime_t last;
 } ci;
 
-static void callout_init() {
+static void callout_init(void) {
   bzero(&ci, sizeof(ci));
 
   for (int i = 0; i < CALLOUT_BUCKETS; i++)

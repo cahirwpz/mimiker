@@ -23,13 +23,14 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
   mips_intr_teardown(handler);
 }
 
-extern pci_bus_driver_t gt_pci;
+extern pci_bus_driver_t gt_pci_bus;
+device_t *gt_pci;
 
 static int rootdev_attach(device_t *dev) {
-  device_t *pcib = device_add_child(dev);
-  pcib->driver = &gt_pci.driver;
-  if (device_probe(pcib))
-    device_attach(pcib);
+  gt_pci = device_add_child(dev);
+  gt_pci->driver = &gt_pci_bus.driver;
+  if (device_probe(gt_pci))
+    device_attach(gt_pci);
   return 0;
 }
 
@@ -52,7 +53,7 @@ static device_t rootdev = (device_t){
   .state = NULL,
 };
 
-static void rootdev_init() {
+static void rootdev_init(void) {
   device_attach(&rootdev);
 }
 

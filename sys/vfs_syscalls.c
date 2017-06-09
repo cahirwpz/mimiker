@@ -168,7 +168,7 @@ int do_mkdir(thread_t *td, char *path, mode_t mode) {
   if (error)
     return error;
 
-  error = VOP_MKDIR(vn, name, NULL /* TODO mkdir getattr */);
+  error = VOP_MKDIR(vn, name, NULL /* TODO mkdir getattr */, NULL);
   return error;
 }
 

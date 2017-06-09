@@ -18,8 +18,8 @@ struct console {
 
 #define CONSOLE_ADD(name) SET_ENTRY(cn_table, name)
 
-void cn_init();
-int cn_getc();
+void cn_init(void);
+int cn_getc(void);
 void cn_putc(int c);
 int cn_puts(const char *s);
 int cn_write(const char *s, unsigned n);

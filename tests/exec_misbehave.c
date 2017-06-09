@@ -2,7 +2,7 @@
 #include <exec.h>
 #include <ktest.h>
 
-static int test_exec_misbehave() {
+static int test_exec_misbehave(void) {
   exec_args_t exec_args;
   exec_args.prog_name = "/bin/misbehave";
   exec_args.argv = (const char *[]){"misbehave"};

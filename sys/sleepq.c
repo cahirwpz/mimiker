@@ -35,13 +35,13 @@ typedef struct sleepq_chain {
 
 static sleepq_chain_t sleepq_chains[SC_TABLESIZE];
 
-void sleepq_init() {
+void sleepq_init(void) {
   memset(sleepq_chains, 0, sizeof(sleepq_chains));
   for (int i = 0; i < SC_TABLESIZE; i++)
     LIST_INIT(&sleepq_chains[i].sc_queues);
 }
 
-sleepq_t *sleepq_alloc() {
+sleepq_t *sleepq_alloc(void) {
   return kmalloc(M_SLEEPQ, sizeof(sleepq_t), M_ZERO);
 }
 

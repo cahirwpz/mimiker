@@ -6,7 +6,7 @@
 typedef struct pm_seg pm_seg_t;
 
 /* Platform independant initialization of physical memory manager. */
-void pm_init();
+void pm_init(void);
 
 /* Calculates the size of data structure that should be allocated to describe
  * segment of @size bytes. */
@@ -32,7 +32,7 @@ void pm_add_segment(pm_seg_t *seg);
 vm_page_t *pm_alloc(size_t n);
 
 void pm_free(vm_page_t *page);
-void pm_dump();
+void pm_dump(void);
 vm_page_t *pm_split_alloc_page(vm_page_t *pg);
 
 #endif /* !_SYS_PHYSMEM_H_ */
