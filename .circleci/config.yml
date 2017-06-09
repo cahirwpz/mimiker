@@ -9,7 +9,7 @@ jobs:
     steps:
       - run:
           name: 'Install system deps'
-          command: 'apt-get -q update && apt-get install -y git make wget cpio qemu-system-mips ctags cscope python3-pip clang-format-3.8 rsync'
+          command: 'apt-get -q update && apt-get install -y git make wget cpio socat qemu-system-mips ctags cscope python3-pip clang-format-3.8 rsync'
       - checkout
       - run:
           name: 'Install python deps'
@@ -20,6 +20,9 @@ jobs:
       - run:
           name: 'Install toolchain package'
           command: 'dpkg -i mipsel-mimiker-elf_1.1_amd64.deb'
+      - run:
+          name: 'Select clang-format version to use'
+          command: 'ln -s /usr/bin/clang-format-3.8 /usr/local/bin/clang-format'
       - run:
           name: 'Verify formatting'
           command: './verify-format.sh'
