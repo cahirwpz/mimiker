@@ -229,27 +229,10 @@ int vfs_lookup(const char *path, vnode_t **vp) {
 
 int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   vnode_t *v;
-  vnode_t *created;
   int error = 0;
-
-  if (flags & O_CREAT) {
-    char *name = strrchr(pathname, '/');
-    *name = '\0';
-    name++;
-    error = vfs_lookup(pathname, &v);
-    if (error)
-      return error;
-
-    error = VOP_CREATE(v, name, NULL /* TODO create getattr */, &created);
-    if (error)
-      return error;
-    v = created;
-  } else {
-    error = vfs_lookup(pathname, &v);
-    if (error)
-      return error;
-  }
-
+  error = vfs_lookup(pathname, &v);
+  if (error)
+    return error;
   int res = VOP_OPEN(v, flags, f);
   /* Drop our reference to v. We received it from vfs_lookup, but we no longer
      need it - file f keeps its own reference to v after open. */

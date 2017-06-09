@@ -140,49 +140,13 @@ int do_getdirentries(thread_t *td, int fd, uio_t *uio, off_t *basep) {
 }
 
 int do_unlink(thread_t *td, char *path) {
-  vnode_t *vn;
-  int error = 0;
-
-  char *name = strchr(path, '/');
-  *name = '\0';
-  name++;
-
-  error = vfs_lookup(path, &vn);
-  if (error)
-    return error;
-
-  error = VOP_REMOVE(vn, name);
-
-  return error;
+  return -ENOTSUP;
 }
 
 int do_mkdir(thread_t *td, char *path, mode_t mode) {
-  vnode_t *vn;
-  int error = 0;
-
-  char *name = strrchr(path, '/');
-  *name = '\0';
-  name++;
-
-  if ((error = vfs_lookup(path, &vn)))
-    return error;
-
-  return VOP_MKDIR(vn, name, NULL /* TODO mkdir vattr */, NULL);
+  return -ENOTSUP;
 }
 
 int do_rmdir(thread_t *td, char *path) {
-  vnode_t *vn;
-  int error = 0;
-
-  char *name = strrchr(path, '/');
-  *name = '\0';
-  name++;
-
-  error = vfs_lookup(path, &vn);
-  if (error)
-    return error;
-
-  error = VOP_RMDIR(vn, name);
-
-  return error;
+  return -ENOTSUP;
 }

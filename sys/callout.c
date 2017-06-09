@@ -65,7 +65,7 @@ void callout_stop(callout_t *handle) {
 /*
  * Handle all timeouted callouts from queues between last position and current
  * position.
- */
+*/
 void callout_process(systime_t time) {
   unsigned int last_bucket;
   unsigned int current_bucket = ci.last % CALLOUT_BUCKETS;
