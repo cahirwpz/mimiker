@@ -204,8 +204,7 @@ static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
         vnodetype_t type = V_REG;
         if (CMTOFT(it->c_mode) == C_DIR)
           type = V_DIR;
-        *res = vnode_new(type, &initrd_vops);
-        (*res)->v_data = (void *)it;
+        *res = vnode_new(type, &initrd_vops, it);
 
         /* TODO: Only store a token (weak pointer) that allows looking up the
            vnode, otherwise the vnode will never get freed. */
@@ -304,8 +303,7 @@ static int initrd_root(mount_t *m, vnode_t **v) {
 }
 
 static int initrd_mount(mount_t *m) {
-  vnode_t *root = vnode_new(V_DIR, &initrd_vops);
-  root->v_data = (void *)root_node;
+  vnode_t *root = vnode_new(V_DIR, &initrd_vops, root_node);
   root->v_mount = m;
   m->mnt_data = root;
   return 0;
