@@ -1,18 +1,26 @@
-#include <ktest.h>
 #include <common.h>
 #include <dev/mc146818reg.h>
 #include <dev/isareg.h>
 #include <pci.h>
 #include <interrupt.h>
 #include <klog.h>
+#include <errno.h>
+#include <stdc.h>
+#include <devfs.h>
 #include <sleepq.h>
 #include <time.h>
+#include <vnode.h>
+#include <sysinit.h>
 
 #define RTC_ADDR (IO_RTC + 0)
 #define RTC_DATA (IO_RTC + 1)
 
+#define RTC_ASCTIME_SIZE 32
+
 typedef struct rtc_state {
   resource_t *regs;
+  char asctime[RTC_ASCTIME_SIZE];
+  unsigned counter; /* TODO Should that be part of intr_handler_t ? */
   intr_handler_t intr_handler;
 } rtc_state_t;
 
@@ -44,11 +52,30 @@ static intr_filter_t rtc_intr(void *data) {
   rtc_state_t *rtc = data;
   uint8_t regc = rtc_read(rtc->regs, MC_REGC);
   if (regc & MC_REGC_PF) {
-    sleepq_signal(rtc_intr);
+    if (rtc->counter++ & 1)
+      sleepq_signal(rtc);
     return IF_FILTERED;
   }
   return IF_STRAY;
 }
+
+static int rtc_time_read(vnode_t *v, uio_t *uio) {
+  rtc_state_t *rtc = v->v_data;
+  tm_t t;
+
+  uio->uio_offset = 0; /* This device does not support offsets. */
+  sleepq_wait(rtc, "RTC periodic interrupt");
+  rtc_gettime(rtc->regs, &t);
+  int count =
+    snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d", t.tm_year,
+             t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+  if (count >= RTC_ASCTIME_SIZE)
+    return -EINVAL;
+  return uiomove_frombuf(rtc->asctime, count, uio);
+}
+
+static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
+                                       .v_read = rtc_time_read};
 
 static int rtc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
@@ -69,31 +96,23 @@ static int rtc_attach(device_t *dev) {
   rtc_write(rtc->regs, MC_REGA, MC_RATE_2_Hz);
   rtc_setb(rtc->regs, MC_REGB, MC_REGB_PIE);
 
+  /* Prepare /dev/rtc interface. */
+  devfs_makedev(NULL, "rtc", &rtc_time_vnodeops, rtc);
+
   return 0;
 }
 
 static driver_t rtc_driver = {
-  .desc = "MC146818 RTC driver mockup",
+  .desc = "MC146818 RTC driver",
   .size = sizeof(rtc_state_t),
   .attach = rtc_attach,
 };
 
 extern device_t *gt_pci;
 
-static int test_rtc(void) {
-  device_t *rtcdev = make_device(gt_pci, &rtc_driver);
-  rtc_state_t *rtc = rtcdev->state;
-
-  while (1) {
-    tm_t t;
-    rtc_gettime(rtc->regs, &t);
-
-    klog("Time is %02d:%02d:%02d", t.tm_hour, t.tm_min, t.tm_sec);
-
-    sleepq_wait(rtc_intr, "RTC 2Hz interrupt");
-  }
-
-  return KTEST_FAILURE;
+static void rtc_init(void) {
+  vnodeops_init(&rtc_time_vnodeops);
+  (void)make_device(gt_pci, &rtc_driver);
 }
 
-KTEST_ADD(rtc, test_rtc, KTEST_FLAG_NORETURN);
+SYSINIT_ADD(rtc, rtc_init, DEPS("rootdev"));
