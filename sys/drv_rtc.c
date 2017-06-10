@@ -24,6 +24,14 @@ typedef struct rtc_state {
   intr_handler_t intr_handler;
 } rtc_state_t;
 
+/*
+ * TODO This way of handling MC146818 RTC device is specific to ISA bus.
+ * Registers should be accessible with single bus_space_{read,write}_1
+ * operations on 16 bytes wide bus.
+ *
+ * Hopefully this design issue will get resolved after more work is put into
+ * resource management and ISA bus driver.
+ */
 static inline uint8_t rtc_read(resource_t *regs, unsigned addr) {
   bus_space_write_1(regs, RTC_ADDR, addr);
   return bus_space_read_1(regs, RTC_DATA);
