@@ -13,7 +13,7 @@ static void test_dup_user_thread(void *arg) {
   do_exec(&exec_args);
 }
 
-static int test_exec_test_dup() {
+static int test_exec_test_dup(void) {
   thread_t *user_thread = thread_create("test_dup", test_dup_user_thread, NULL);
   sched_add(user_thread);
   thread_join(user_thread);

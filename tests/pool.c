@@ -49,15 +49,15 @@ static int test_pool_alloc(palloc_test_t flag) {
   return KTEST_SUCCESS;
 }
 
-static int test_pool_alloc_regular() {
+static int test_pool_alloc_regular(void) {
   return test_pool_alloc(PALLOC_TEST_REGULAR);
 }
 
-static int test_pool_alloc_corruption() {
+static int test_pool_alloc_corruption(void) {
   return test_pool_alloc(PALLOC_TEST_CORRUPTION);
 }
 
-static int test_pool_alloc_doublefree() {
+static int test_pool_alloc_doublefree(void) {
   return test_pool_alloc(PALLOC_TEST_DOUBLEFREE);
 }
 

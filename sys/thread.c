@@ -21,13 +21,13 @@ static mtx_t zombie_threads_mtx = MUTEX_INITIALIZER(MTX_DEF);
 static thread_list_t zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 
 /* FTTB such a primitive method of creating new TIDs will do. */
-static tid_t make_tid() {
+static tid_t make_tid(void) {
   static volatile tid_t tid = 0;
   /* TODO: Synchronization is missing here. */
   return tid++;
 }
 
-void thread_reap() {
+void thread_reap(void) {
   /* Exit early if there are no zombie threads. This is particularly important
      during kernel startup. The first thread is created before mtx is
      initialized! Luckily, we don't need to lock it to check whether the list is
@@ -103,12 +103,12 @@ void thread_delete(thread_t *td) {
   kfree(M_THREAD, td);
 }
 
-thread_t *thread_self() {
+thread_t *thread_self(void) {
   return PCPU_GET(curthread);
 }
 
 /* For now this is only a stub */
-noreturn void thread_exit() {
+noreturn void thread_exit(void) {
   thread_t *td = thread_self();
 
   klog("Thread '%s' {%p} has finished.", td->td_name, td);

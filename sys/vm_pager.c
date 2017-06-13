@@ -3,7 +3,7 @@
 #include <vm_object.h>
 #include <vm_pager.h>
 
-static vm_object_t *default_pager_alloc() {
+static vm_object_t *default_pager_alloc(void) {
   vm_object_t *obj = vm_object_alloc();
   obj->pgr = (pager_t *)default_pager;
   return obj;

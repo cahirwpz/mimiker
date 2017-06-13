@@ -16,11 +16,11 @@ SOURCES_C = \
 	pool.c \
 	producer_consumer.c \
 	resizable_fdt.c \
-	rtc.c \
 	rwlock.c \
 	sched.c \
 	strtol.c \
 	syscall.c \
+	taskqueue.c \
 	thread_stats.c \
 	thread_exit.c \
 	uiomove.c \

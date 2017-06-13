@@ -8,7 +8,7 @@
 
 static MALLOC_DEFINE(M_FD, "filedesc", 1, 2);
 
-static void fd_init() {
+static void fd_init(void) {
 }
 
 /* Test whether a file descriptor is in use. */
@@ -100,7 +100,7 @@ void fdtab_unref(fdtab_t *fdt) {
 /* In FreeBSD this function takes a filedesc* argument, so that
    current dir may be copied. Since we don't use these fields, this
    argument does not make sense yet. */
-fdtab_t *fdtab_alloc() {
+fdtab_t *fdtab_alloc(void) {
   fdtab_t *fdt = kmalloc(M_FD, sizeof(fdtab_t), M_ZERO);
   fdt->fdt_nfiles = NDFILE;
   fdt->fdt_files = kmalloc(M_FD, sizeof(file_t *) * NDFILE, M_ZERO);
