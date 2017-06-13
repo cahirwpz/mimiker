@@ -3,41 +3,74 @@ jobs:
   build:
     working_directory: ~/mimiker
     docker:
-      - image: ubuntu:xenial
-        environment:
-          PATH: /opt/mipsel-mimiker-elf/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - image: rafalcieslak/mimiker-build-base:1.1
     steps:
       - run:
-          name: 'Install system deps'
-          command: 'apt-get -q update && apt-get install -y git make wget cpio socat qemu-system-mips ctags cscope python3-pip clang-format-3.8 rsync'
+          name: 'Trigger basic jobs'
+          command: |
+            # One day this function will become a CircleCI built-in.
+            function trigger_job() {
+              curl --user ${CIRCLE_API_TOKEN}: \
+                --data build_parameters[CIRCLE_JOB]=$1 \
+                --data revision=$CIRCLE_SHA1 \
+                https://circleci.com/api/v1.1/project/github/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/tree/$CIRCLE_BRANCH
+            }          
+            trigger_job verify-formatting
+            trigger_job verify-pep8
+            trigger_job compile
+
+  verify-formatting:
+    working_directory: ~/mimiker
+    docker:
+      - image: rafalcieslak/mimiker-build-base:1.1
+    steps:
       - checkout
-      - run:
-          name: 'Install python deps'
-          command: 'pip3 install -I pexpect pep8'
-      - run:
-          name: 'Fetch toolchain package'
-          command: 'wget http://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.1_amd64.deb'
-      - run:
-          name: 'Install toolchain package'
-          command: 'dpkg -i mipsel-mimiker-elf_1.1_amd64.deb'
-      - run:
-          name: 'Select clang-format version to use'
-          command: 'ln -s /usr/bin/clang-format-3.8 /usr/local/bin/clang-format'
-      - run:
-          name: 'Verify formatting'
-          command: './verify-format.sh'
-      - run:
-          name: 'Verify PEP8'
-          command: './verify-pep8.sh'
-      - run:
-          name: 'Make'
-          command: 'make'
+      - run: './verify-format.sh'
+
+  verify-pep8:
+    working_directory: ~/mimiker
+    docker:
+      - image: rafalcieslak/mimiker-build-base:1.1
+    steps:
+      - checkout
+      - run: './verify-pep8.sh'
+
+  compile:
+    working_directory: ~/mimiker
+    docker:
+      - image: rafalcieslak/mimiker-build-base:1.1
+    steps:
+      - checkout
+      - run: 'make'
       - store_artifacts:
           path: mimiker.elf
           prefix: kernel_image
       - store_artifacts:
           path: initrd.cpio
           prefix: ramdisk
+      - save_cache:
+          key: mimiker-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - mimiker.elf
+            - initrd.cpio
       - run:
-          name: 'Run kernel tests'
-          command: './run_tests.py --thorough'
+          name: 'Trigger kernel tests'
+          command: |
+            # One day this function will become a CircleCI built-in.
+            function trigger_job() {
+              curl --user ${CIRCLE_API_TOKEN}: \
+                --data build_parameters[CIRCLE_JOB]=$1 \
+                --data revision=$CIRCLE_SHA1 \
+                https://circleci.com/api/v1.1/project/github/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/tree/$CIRCLE_BRANCH
+            }          
+            trigger_job kernel_tests
+
+  kernel_tests:
+    working_directory: ~/mimiker
+    docker:
+      - image: rafalcieslak/mimiker-build-base:1.1
+    steps:
+      - checkout
+      - restore_cache:
+          key: mimiker-{{ .Branch }}-{{ .Revision }}
+      - run: './run_tests.py --thorough'
