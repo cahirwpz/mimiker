@@ -1,6 +1,6 @@
-#include <time.h>
 #include <errno.h>
 #include <thread.h>
+#include <time.h>
 #include <timer.h>
 #include <sync.h>
 
@@ -28,7 +28,8 @@ static void waker(timer_event_t *tev) {
   sleepq_signal(tev);
 }
 
-int do_nanosleep(timespec_t *rqtp, timespec_t *rmtp) {
+int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
+                       timespec_t *rmtp) {
   if (rqtp == NULL || rqtp->tv_nsec < 0 || rqtp->tv_nsec > 1000000000) {
     errno = EINVAL;
     return -1;
@@ -43,11 +44,5 @@ int do_nanosleep(timespec_t *rqtp, timespec_t *rmtp) {
     cpu_timer_add_event(&tev);
     sleepq_wait(&tev, "nanosleep");
   }
-  return 0;
-}
-
-int do_gettimeofday(timeval_t *tp, void *tzp) {
-  if (tp)
-    *tp = get_uptime();
   return 0;
 }

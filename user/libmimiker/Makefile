@@ -19,7 +19,7 @@ $(INSTALL_DIR)/%: extra/%
 	@echo "[INSTALL] $(DIR)$< -> $*"
 	install -m 755 -D $< $@
 
-libmimiker.a: start.o syscalls.o
+libmimiker.a: start.o syscalls.o time.o
 
 clean:
 	rm -f *.o *.a

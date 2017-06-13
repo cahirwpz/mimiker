@@ -49,6 +49,10 @@ static inline timespec_t tv2ts(timeval_t tv) {
   return (timespec_t){.tv_sec = tv.tv_sec, .tv_nsec = tv.tv_usec * 1000};
 }
 
+static inline timeval_t ts2tv(timespec_t ts) {
+  return (timeval_t){.tv_sec = ts.tv_sec, .tv_usec = ts.tv_nsec / 1000};
+}
+
 /* Operations on timevals. */
 static inline void timeval_clear(timeval_t *tvp) {
   *tvp = (timeval_t){.tv_sec = 0, .tv_usec = 0};
@@ -86,8 +90,7 @@ timeval_t get_uptime(void);
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp);
 
-int do_nanosleep(timespec_t *rqtp, timespec_t *rmtp);
-
-int do_gettimeofday(timeval_t *tp, void *tzp);
+int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
+                       timespec_t *rmtp);
 
 #endif /* !_SYS_TIME_H_ */

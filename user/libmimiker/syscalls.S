@@ -69,7 +69,6 @@ SYSCALL(waitpid, SYS_WAITPID)
 SYSCALL(mkdir, SYS_MKDIR)
 SYSCALL(rmdir, SYS_RMDIR)
 SYSCALL(clock_gettime, SYS_CLOCKGETTIME)
-SYSCALL(nanosleep, SYS_NANOSLEEP)
-SYSCALL(gettimeofday, SYS_GETTIMEOFDAY)
+SYSCALL(clock_nanosleep, SYS_CLOCKNANOSLEEP)
 
 # vim: sw=8 ts=8 et

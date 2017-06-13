@@ -350,16 +350,11 @@ static int sys_clock_gettime(thread_t *td, syscall_args_t *args) {
   return 0;
 }
 
-static int sys_nanosleep(thread_t *td, syscall_args_t *args) {
-  timespec_t *ts = (timespec_t *)args->args[0];
-  do_nanosleep(ts, NULL);
-  return 0;
-}
-
-static int sys_gettimeofday(thread_t *td, syscall_args_t *args) {
-  timeval_t *tv = (timeval_t *)args->args[0];
-  void *tz = (timeval_t *)args->args[1];
-  do_gettimeofday(tv, tz);
+static int sys_clock_nanosleep(thread_t *td, syscall_args_t *args) {
+  clockid_t clk = (clockid_t)args->args[0];
+  int flags = (int)args->args[1];
+  timespec_t *rqtp = (timespec_t *)args->args[2];
+  do_clock_nanosleep(clk, flags, rqtp, NULL);
   return 0;
 }
 
@@ -387,5 +382,4 @@ sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
                      [SYS_MKDIR] = {sys_mkdir},
                      [SYS_RMDIR] = {sys_rmdir},
                      [SYS_CLOCKGETTIME] = {sys_clock_gettime},
-                     [SYS_NANOSLEEP] = {sys_nanosleep},
-                     [SYS_GETTIMEOFDAY] = {sys_gettimeofday}};
+                     [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep}};
