@@ -34,15 +34,14 @@ int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
     errno = EINVAL;
     return -1;
   }
-  timeval_t tv =
-    (timeval_t){.tv_sec = rqtp->tv_sec, .tv_usec = rqtp->tv_nsec / 1000};
+  timeval_t tv = ts2tv(*rqtp);
   timer_event_t tev;
   tev.tev_when = get_uptime();
   tev.tev_when = timeval_add(&tev.tev_when, &tv);
   tev.tev_func = waker;
   CRITICAL_SECTION {
     cpu_timer_add_event(&tev);
-    sleepq_wait(&tev, "nanosleep");
+    sleepq_wait(&tev, "clock_nanosleep");
   }
   return 0;
 }
