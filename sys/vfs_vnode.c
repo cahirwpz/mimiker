@@ -90,6 +90,9 @@ static int default_vnseek(file_t *f, thread_t *td, off_t offset, int whence) {
   /* TODO: Not seekable files like PIPE */
   vattr_t va;
   int has_attr = f->f_vnode->v_ops->v_getattr(f->f_vnode, &va);
+  if (f->f_type != FT_VNODE)
+    return -ESPIPE;
+
   switch (whence) {
     case SEEK_CUR:
       /* TODO: offset overflow */
