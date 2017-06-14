@@ -53,3 +53,4 @@ workflows:
       - kernel-tests:
         requires:
           - compile
+
