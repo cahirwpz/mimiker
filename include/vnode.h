@@ -136,7 +136,7 @@ static inline int VOP_RMDIR(vnode_t *dv, const char *name) {
 }
 
 /* Allocates and initializes a new vnode */
-vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops);
+vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data);
 
 /* Lock and unlock vnode's mutex.
  * Call vnode_lock whenever you're about to use vnode's contents. */

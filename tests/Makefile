@@ -12,7 +12,6 @@ SOURCES_C = \
 	pool.c \
 	producer_consumer.c \
 	resizable_fdt.c \
-	rtc.c \
 	rwlock.c \
 	sched.c \
 	strtol.c \
