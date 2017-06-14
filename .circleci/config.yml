@@ -47,7 +47,9 @@ workflows:
   version: 2
   build_and_test:
     jobs:
-      - compile
       - verify_formatting
       - verify_pep8
-
+      - compile
+      - kernel_tests:
+          requires:
+            - compile
