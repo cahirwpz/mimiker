@@ -1,9 +1,10 @@
+version: 2
+
 defaults: &defaults
   working_directory: ~/mimiker
   docker:
     - image: rafalcieslak/mimiker-build-base:1.1
 
-version: 2
 jobs:
   verify-formatting:
     <<: *defaults
@@ -17,7 +18,7 @@ jobs:
       - checkout
       - run: './verify-pep8.sh'
 
-  compile:
+  build:
     <<: *defaults
     steps:
       - checkout
