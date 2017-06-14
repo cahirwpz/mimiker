@@ -28,8 +28,8 @@ jobs:
       - store_artifacts:
           path: initrd.cpio
           prefix: ramdisk
-      - save_cache:
-          key: mimiker-{{ .Branch }}-{{ .Revision }}
+      - persist_to_workspace:
+          root: ~/mimiker
           paths:
             - mimiker.elf
             - initrd.cpio
@@ -38,14 +38,13 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - restore_cache:
-          key: mimiker-{{ .Branch }}-{{ .Revision }}
+      - attach_workspace:
+          at: ~/mimiker
       - run: './run_tests.py --thorough'
-
 
 workflows:
   version: 2
-  build-and-test:
+  build_and_test:
     jobs:
       - verify-formatting
       - verify-pep8
