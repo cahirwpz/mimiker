@@ -29,8 +29,8 @@ jobs:
       - store_artifacts:
           path: initrd.cpio
           prefix: ramdisk
-      - persist_to_workspace:
-          root: .
+      - save_cache:
+          key: mimiker-{{ .Branch }}-{{ .Revision }}
           paths:
             - mimiker.elf
             - initrd.cpio
@@ -39,8 +39,8 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - attach_workspace:
-          at: ~/mimiker
+      - restore_cache:
+          key: mimiker-{{ .Branch }}-{{ .Revision }}
       - run: './run_tests.py --thorough'
 
 workflows:
