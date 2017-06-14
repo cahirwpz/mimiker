@@ -6,13 +6,13 @@ defaults: &defaults
     - image: rafalcieslak/mimiker-build-base:1.1
 
 jobs:
-  verify-formatting:
+  verify_formatting:
     <<: *defaults
     steps:
       - checkout
       - run: './verify-format.sh'
 
-  verify-pep8:
+  verify_pep8:
     <<: *defaults
     steps:
       - checkout
@@ -35,7 +35,7 @@ jobs:
             - mimiker.elf
             - initrd.cpio
 
-  kernel-tests:
+  kernel_tests:
     <<: *defaults
     steps:
       - checkout
@@ -48,4 +48,6 @@ workflows:
   build_and_test:
     jobs:
       - compile
+      - verify_formatting
+      - verify_pep8
 
