@@ -30,7 +30,7 @@ jobs:
           path: initrd.cpio
           prefix: ramdisk
       - persist_to_workspace:
-          root: ~/mimiker
+          root: .
           paths:
             - mimiker.elf
             - initrd.cpio
