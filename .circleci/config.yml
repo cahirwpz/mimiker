@@ -1,25 +1,25 @@
 version: 2
+
+defaults: &defaults
+  working_directory: ~/mimiker
+  docker:
+    - image: rafalcieslak/mimiker-build-base:1.1
+
 jobs:
   verify-formatting:
-    working_directory: ~/mimiker
-    docker:
-      - image: rafalcieslak/mimiker-build-base:1.1
+    <<: *defaults
     steps:
       - checkout
       - run: './verify-format.sh'
 
   verify-pep8:
-    working_directory: ~/mimiker
-    docker:
-      - image: rafalcieslak/mimiker-build-base:1.1
+    <<: *defaults
     steps:
       - checkout
       - run: './verify-pep8.sh'
 
   compile:
-    working_directory: ~/mimiker
-    docker:
-      - image: rafalcieslak/mimiker-build-base:1.1
+    <<: *defaults
     steps:
       - checkout
       - run: 'make'
@@ -36,9 +36,7 @@ jobs:
             - initrd.cpio
 
   kernel-tests:
-    working_directory: ~/mimiker
-    docker:
-      - image: rafalcieslak/mimiker-build-base:1.1
+    <<: *defaults
     steps:
       - checkout
       - restore_cache:
