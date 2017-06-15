@@ -165,7 +165,6 @@ static proc_t *child_find_by_state(proc_t *p, proc_state_t state) {
   assert(mtx_owned(&p->p_lock));
   proc_t *child;
   TAILQ_FOREACH (child, &p->p_children, p_child) {
-    SCOPED_MTX_LOCK(&child->p_lock);
     if (child->p_state == state)
       return child;
   }
