@@ -24,9 +24,10 @@ $(PROGDIRS):
 newlib: | libmimiker-install
 sandbox: | newlib-install
 mandelbrot: | newlib-install
-test_fork: | newlib-install
 ls_rec: | newlib-install
 utest: | newlib-install
+test_kbd: | newlib-install
+test_rtc: | newlib-install
 
 clean:
 	for dir in $(PROGDIRS); do \
