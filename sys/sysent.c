@@ -14,6 +14,7 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <pipe.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 static int sys_nosys(thread_t *td, syscall_args_t *args) {
@@ -277,6 +278,22 @@ static int sys_waitpid(thread_t *td, syscall_args_t *args) {
   return res;
 }
 
+static int sys_pipe(thread_t *td, syscall_args_t *args) {
+  int pipe_fds[2];
+
+  int error = copyin((void*) args->args[0], pipe_fds, 2*sizeof(int));
+  if (error)
+    return error;
+  
+  klog("pipe()");
+
+  error = do_pipe(td, pipe_fds);
+  if (error)
+    return error;
+
+  return copyout(pipe_fds, (void*) args->args[0], 2*sizeof(int));
+}
+
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
                      [SYS_OPEN] = {sys_open},
@@ -297,4 +314,5 @@ sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
                      [SYS_SIGRETURN] = {sys_sigreturn},
                      [SYS_DUP] = {sys_dup},
                      [SYS_DUP2] = {sys_dup2},
-                     [SYS_WAITPID] = {sys_waitpid}};
+                     [SYS_WAITPID] = {sys_waitpid},
+                     [SYS_PIPE] = {sys_pipe}};

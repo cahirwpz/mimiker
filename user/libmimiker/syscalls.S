@@ -67,5 +67,6 @@ SYSCALL(getdirentries, SYS_GETDENTS)
 SYSCALL(sigaction, SYS_SIGACTION)
 SYSCALL(sigreturn, SYS_SIGRETURN)
 SYSCALL(waitpid, SYS_WAITPID)
-
+SYSCALL(pipe, SYS_PIPE)
+	
 # vim: sw=8 ts=8 et

@@ -10,6 +10,8 @@
 #include <pipe.h>
 #include <stdc.h>
 #include <stat.h>
+#include <filedesc.h>
+#include <proc.h>
 
 MALLOC_DEFINE(M_PIPE, "pipe", 1, 4);
 
@@ -20,6 +22,7 @@ static void reset_values(pipe_t *pipe) {
   pipe->pipe_buf.in = 0;
   pipe->pipe_buf.out = 0;
   pipe->pipe_state = 0;
+  pipe->pipe_end = NULL;
 }
 
 static void get_pipe(pipe_t **dest, pipetype_t type) {
@@ -202,15 +205,37 @@ int pipe_op_notsup() {
   return -ENOTSUP;
 }
 
-static const fileops_t pipeops = {.fo_read = pipe_read,
+static fileops_t pipeops = {.fo_read = pipe_read,
                                   .fo_write = pipe_write,
                                   .fo_close = pipe_close,
                                   .fo_seek = pipe_op_notsup,
                                   .fo_stat = pipe_stat};
 
 /* pipe syscall */
-int do_pipe(thread_t *td, int *fds) {
-  pipe_t *pipe;
-  get_pipe(&pipe, PIPE_READ_END);
+int do_pipe(thread_t *td, int fds[2]) {
+  assert(td->td_proc);
+  pipe_t *rpipe, *wpipe;
+  get_pipe(&rpipe, PIPE_READ_END);
+  get_pipe(&wpipe, PIPE_WRITE_END);
+  wpipe->pipe_end = rpipe;
+  file_t *r = file_alloc();
+  file_t *w = file_alloc();
+  r->f_data = rpipe;
+  r->f_ops = w->f_ops = &pipeops;
+  r->f_type = w-> f_type = FT_PIPE;
+  w->f_data = wpipe;
+
+  int error = fdtab_install_file(td->td_proc->p_fdtable, r, &fds[0]);
+  if (error)
+    goto fail;
+  
+  error = fdtab_install_file(td->td_proc->p_fdtable, w, &fds[1]);
+  if (error)
+    goto fail;
   return 0;
+  
+ fail:
+  file_destroy(r);
+  file_destroy(w);  
+  return error;
 }

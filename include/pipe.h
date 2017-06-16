@@ -38,3 +38,4 @@ int pipe_read(file_t *f, thread_t *td, uio_t *uio);
 int pipe_write(file_t *f, thread_t *td, uio_t *uio);
 int pipe_close(file_t *f, thread_t *td);
 int pipe_getattr(file_t *f, thread_t *td, vattr_t *va);
+int do_pipe(thread_t *td, int fds[2]);
