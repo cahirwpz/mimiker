@@ -26,7 +26,7 @@ void fdtab_ref(fdtab_t *fdt);
 void fdtab_unref(fdtab_t *fdt);
 
 /* Allocates a new descriptor table. */
-fdtab_t *fdtab_alloc();
+fdtab_t *fdtab_alloc(void);
 /* Allocates a new descriptor table making it a copy of an existing one. */
 fdtab_t *fdtab_copy(fdtab_t *fdt);
 /* Frees the table and possibly closes underlying files. */

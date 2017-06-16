@@ -41,7 +41,7 @@ static void build_queue(sysinit_tailq_t *head) {
   }
 }
 
-static void count_dependants() {
+static void count_dependants(void) {
   /* requires dependants field to be zeroed */
   sysinit_entry_t **ptr;
   SET_FOREACH(ptr, sysinit) {
@@ -58,7 +58,7 @@ static void count_dependants() {
   }
 }
 
-static void dump_cycle() {
+static void dump_cycle(void) {
   /* if there's some cycle prints its content, and panics
      works properly only after build_queue */
   sysinit_entry_t **ptr;
@@ -73,7 +73,7 @@ static void dump_cycle() {
     panic("found cycle in modules dependencies");
 }
 
-void sysinit() {
+void sysinit(void) {
   /* builds topological ordering and lauches modules with built order
    result is constructed from back, because of direction of relations
    given edges point to earlier modules */

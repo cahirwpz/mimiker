@@ -11,6 +11,8 @@ SOURCES_C  = \
 	dev_null.c \
 	dev_vga.c \
 	devfs.c \
+	drv_atkbdc.c \
+	drv_rtc.c \
 	drv_stdvga.c \
 	exception.c \
 	exec.c \
@@ -24,6 +26,7 @@ SOURCES_C  = \
 	main.c \
 	malloc.c \
 	mutex.c \
+	mmap.c \
 	pci.c \
 	pci_ids.c \
 	pcpu.c \
@@ -31,6 +34,7 @@ SOURCES_C  = \
 	pipe.c \
 	pool.c \
 	proc.c \
+	ringbuf.c \
 	runq.c \
 	rwlock.c \
 	sbrk.c \
@@ -41,7 +45,7 @@ SOURCES_C  = \
 	sync.c \
 	sysent.c \
 	sysinit.c \
-	mmap.c \
+	taskqueue.c \
 	thread.c \
 	uio.c \
 	vfs.c \

@@ -45,6 +45,7 @@ typedef struct gt_pci_state {
 
   resource_t *corectrl;
 
+  intr_handler_t intr_handler;
   intr_chain_t intr_chain[16];
 
   uint16_t imask;
@@ -202,11 +203,13 @@ static void gt_pci_unmask_irq(gt_pci_state_t *gtpci, unsigned irq) {
   gt_pci_set_icus(gtpci);
 }
 
+pci_bus_driver_t gt_pci_bus;
+
 static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
                               intr_handler_t *handler) {
-  klog("gt_pci_intr_setup(%p, %d, %p)", pcib, irq, handler);
+  assert(pcib->parent->driver == &gt_pci_bus.driver);
 
-  gt_pci_state_t *gtpci = pcib->state;
+  gt_pci_state_t *gtpci = pcib->parent->state;
   intr_chain_t *chain = &gtpci->intr_chain[irq];
   CRITICAL_SECTION {
     intr_chain_add_handler(chain, handler);
@@ -216,9 +219,9 @@ static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
 }
 
 static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
-  klog("gt_pci_intr_teardown(%p, %p)", pcib, handler);
+  assert(pcib->parent->driver == &gt_pci_bus.driver);
 
-  gt_pci_state_t *gtpci = pcib->state;
+  gt_pci_state_t *gtpci = pcib->parent->state;
   intr_chain_t *chain = handler->ih_chain;
   CRITICAL_SECTION {
     if (chain->ic_count == 1)
@@ -281,9 +284,6 @@ static intr_filter_t gt_pci_intr(void *data) {
   return IF_FILTERED;
 }
 
-static INTR_HANDLER_DEFINE(gt_pci_intr_handler, gt_pci_intr, NULL, NULL,
-                           "GT64120 interrupt", 0);
-
 static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
                                           const char *name) {
   gtpci->intr_chain[irq] = (intr_chain_t){
@@ -295,6 +295,9 @@ static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
 
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
+
+  pcib->bus = DEV_BUS_PCI;
+
   gtpci->pci_bus.mem_space = &gt_pci_memory;
   gtpci->pci_bus.io_space = &gt_pci_ioports;
   gtpci->corectrl = &gt_pci_corectrl;
@@ -333,11 +336,9 @@ static int gt_pci_attach(device_t *pcib) {
   pci_bus_assign_space(pcib);
   pci_bus_dump(pcib);
 
-  /* XXX This is an awful kludge. I guess handlers should have a dynamically
-   * allocated part. */
-  gt_pci_intr_handler->ih_argument = gtpci;
-
-  bus_intr_setup(pcib, MIPS_HWINT0, gt_pci_intr_handler);
+  gtpci->intr_handler =
+    INTR_HANDLER_INIT(gt_pci_intr, NULL, gtpci, "GT64120 interrupt", 0);
+  bus_intr_setup(pcib, MIPS_HWINT0, &gtpci->intr_handler);
 
   return bus_generic_probe(pcib);
 }

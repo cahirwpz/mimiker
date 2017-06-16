@@ -68,7 +68,7 @@ typedef struct {
 extern klog_t klog;
 #endif
 
-void klog_init();
+void klog_init(void);
 
 void klog_append(klog_origin_t origin, const char *file, unsigned line,
                  const char *format, intptr_t arg1, intptr_t arg2,
@@ -77,10 +77,10 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
 unsigned klog_setmask(unsigned newmask);
 
 /* Print all logs on screen. */
-void klog_dump();
+void klog_dump(void);
 
 /* Delete all logs. */
-void klog_clear();
+void klog_clear(void);
 
 #define _klog(format, p1, p2, p3, p4, p5, p6, ...)                             \
   do {                                                                         \

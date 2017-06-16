@@ -8,7 +8,7 @@ import os
 
 N_SIMPLE = 5
 N_THOROUGH = 100
-TIMEOUT = 5
+TIMEOUT = 10
 RETRIES_MAX = 5
 REPEAT = 5
 
@@ -77,10 +77,13 @@ def test_seed(seed, sim='qemu', repeat=1, retry=0):
         print(message)
         sys.exit(1)
     elif index == 2:
+        message = safe_decode(child.before)
+        message += safe_decode(child.buffer)
+        print(message)
         print("EOF reached without success report. This may indicate "
               "a problem with the testing framework or QEMU. "
               "Retrying (%d)..." % (retry + 1))
-        test_seed(seed, repeat, retry + 1)
+        test_seed(seed, sim, repeat, retry + 1)
     elif index == 3:
         print("Timeout reached.\n")
         message = safe_decode(child.buffer)

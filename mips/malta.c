@@ -155,7 +155,7 @@ static void pm_bootstrap(unsigned memsize) {
   pm_add_segment(seg);
 }
 
-static void thread_bootstrap() {
+static void thread_bootstrap(void) {
   /* Create main kernel thread */
   thread_t *td = thread_create("kernel-main", (void *)kernel_init, NULL);
 

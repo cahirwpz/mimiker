@@ -31,12 +31,14 @@ static vfs_init_t vfs_default_init;
 /* Global root vnodes */
 vnode_t *vfs_root_vnode;
 
-static vnodeops_t vfs_root_ops = VNODEOPS_NOTSUP_INITIALIZER();
+static vnodeops_t vfs_root_ops = {};
 
 static int vfs_register(vfsconf_t *vfc);
 
-static void vfs_init() {
-  vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
+static void vfs_init(void) {
+  vnodeops_init(&vfs_root_ops);
+
+  vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops, NULL);
 
   /* Initialize available filesystem types. */
   SET_DECLARE(vfsconf, vfsconf_t);

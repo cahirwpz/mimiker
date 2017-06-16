@@ -4,7 +4,7 @@
 #include <vm_map.h>
 #include <ktest.h>
 
-static int test_uiomove() {
+static int test_uiomove(void) {
   int res = 0;
 
   char buffer1[100];

@@ -56,7 +56,7 @@ int platform_sig_deliver(signo_t sig, sigaction_t *sa) {
   return 0;
 }
 
-int platform_sig_return() {
+int platform_sig_return(void) {
   thread_t *td = thread_self();
   SCOPED_MTX_LOCK(&td->td_lock);
   sig_ctx_t ksc;

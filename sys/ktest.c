@@ -21,19 +21,19 @@ static unsigned seed = 0;         /* Current seed */
 
 /* If we get preempted while printing out the [TEST_PASSED] string, the monitor
    process might not find the pattern it's looking for. */
-static void ktest_atomically_print_success() {
+static void ktest_atomically_print_success(void) {
   /* critical_enter(); */
   kprintf(TEST_PASSED_STRING);
   /* critical_leave(); */
 }
 
-static void ktest_atomically_print_failure() {
+static void ktest_atomically_print_failure(void) {
   /* critical_enter(); */
   kprintf(TEST_FAILED_STRING);
   /* critical_leave(); */
 }
 
-void ktest_failure() {
+void ktest_failure(void) {
   if (current_test == NULL)
     panic("current_test == NULL in ktest_failure! This is most likely a bug in "
           "the test framework!\n");
@@ -87,7 +87,7 @@ static int run_test(test_entry_t *t) {
   current_test = t;
   int result;
   if (t->flags & KTEST_FLAG_RANDINT) {
-    int (*f)(unsigned int) = t->test_func;
+    int (*f)(unsigned int) = (int (*)(unsigned int))t->test_func;
     int randint = rand_r(&seed) % t->randint_max;
     /* NOTE: Numbers generated here will be the same on each run, since test are
        started in a deterministic order. This is not a bug! In fact, it allows
@@ -119,7 +119,7 @@ static int test_name_compare(const void *a_, const void *b_) {
   return strncmp(a->test_name, b->test_name, KTEST_NAME_MAX);
 }
 
-static void run_all_tests() {
+static void run_all_tests(void) {
   /* Start by gathering command-line arguments. */
   const char *seed_str = kenv_get("seed");
   const char *repeat_str = kenv_get("repeat");
