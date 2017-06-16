@@ -1,3 +1,5 @@
+#define KL_LOG KL_VFS
+#include <klog.h>
 #include <errno.h>
 #include <file.h>
 #include <malloc.h>
@@ -6,6 +8,7 @@
 #include <stat.h>
 #include <vnode.h>
 #include <sysinit.h>
+#include <ucred.h>
 
 static MALLOC_DEFINE(M_VNODE, "vnode", 2, 16);
 
@@ -100,6 +103,10 @@ static int vnode_rmdir_nop(vnode_t *v, const char *name) {
   return -ENOTSUP;
 }
 
+static int vnode_access_nop(vnode_t *v, mode_t mode, ucred_t *cred) {
+  return -ENOTSUP;
+}
+
 #define NOP_IF_NULL(vops, name)                                                \
   do {                                                                         \
     if (vops->v_##name == NULL)                                                \
@@ -119,6 +126,7 @@ void vnodeops_init(vnodeops_t *vops) {
   NOP_IF_NULL(vops, remove);
   NOP_IF_NULL(vops, mkdir);
   NOP_IF_NULL(vops, rmdir);
+  NOP_IF_NULL(vops, access);
 }
 
 /* Default file operations using v-nodes. */
@@ -198,6 +206,28 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
   /* Operation went ok, assuming the file is seekable. */
   return 0;
+}
+
+int check_access_credentials(mode_t vmode, mode_t mode) {
+  return vmode & mode ? 0 : EACCES;
+}
+
+int vnode_access_generic(vnode_t *v, mode_t mode, ucred_t *cred) {
+  vattr_t v_attributes;
+  VOP_GETATTR(v, &v_attributes);
+
+  if (cred == NULL) {
+    klog("Thread credential is NULL, probably still not implemented. We are "
+         "assuming credentials match.");
+    return 0;
+  }
+
+  if (v_attributes.va_uid == cred->cr_uid)
+    return check_access_credentials(v_attributes.va_mode & S_IRWXU, mode);
+  else if (check_groups(v_attributes.va_gid, cred))
+    return check_access_credentials(v_attributes.va_mode & S_IRWXG, mode);
+  else
+    return check_access_credentials(v_attributes.va_mode & S_IRWXO, mode);
 }
 
 SYSINIT_ADD(vnode, vnode_init, DEPS("vm_map"));

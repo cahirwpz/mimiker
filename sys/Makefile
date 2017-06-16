@@ -46,6 +46,7 @@ SOURCES_C  = \
 	sysinit.c \
 	taskqueue.c \
 	thread.c \
+	ucred.c \
 	uio.c \
 	vfs.c \
 	vfs_readdir.c \
@@ -55,9 +56,9 @@ SOURCES_C  = \
 	vm_object.c \
 	vm_pager.c
 
-SOURCES_ASM = 
+SOURCES_ASM =
 
-all: $(DEPFILES) libsys.a 
+all: $(DEPFILES) libsys.a
 
 include ../Makefile.common
 

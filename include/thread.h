@@ -10,6 +10,7 @@
 #include <condvar.h>
 #include <time.h>
 #include <signal.h>
+#include <ucred.h>
 
 typedef uint8_t td_prio_t;
 typedef struct vm_page vm_page_t;
@@ -65,6 +66,7 @@ typedef struct thread {
   /* signal handling */
   sigset_t td_sigpend; /* Pending signals for this thread. */
   /* TODO: Signal mask, sigsuspend. */
+  ucred_t *cred;
 } thread_t;
 
 thread_t *thread_self(void);

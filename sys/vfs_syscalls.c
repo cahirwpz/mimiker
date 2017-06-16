@@ -14,6 +14,7 @@
 #include <queue.h>
 #include <errno.h>
 #include <malloc.h>
+#include <ucred.h>
 
 int do_open(thread_t *td, char *pathname, int flags, mode_t mode, int *fd) {
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -149,4 +150,23 @@ int do_mkdir(thread_t *td, char *path, mode_t mode) {
 
 int do_rmdir(thread_t *td, char *path) {
   return -ENOTSUP;
+}
+
+int do_access(thread_t *td, char *path, mode_t mode) {
+  /* Check if given mode argument is valid. */
+  if ((mode & (~ALL_OK)) != 0)
+    return -EINVAL;
+
+  vnode_t *v;
+  int error = vfs_lookup(path, &v);
+  if (error)
+    return error;
+
+  int res = VOP_ACCESS(v, mode, td->cred);
+  /* TODO: there is missing check on rest of the path. */
+
+  /* Drop our reference to v. We received it from vfs_lookup, but we no longer
+  need it - file f keeps its own reference to v after open. */
+  vnode_unref(v);
+  return res;
 }

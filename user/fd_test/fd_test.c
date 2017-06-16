@@ -62,6 +62,15 @@ char buf[100];
   n = lseek(fd + FD_OFFSET, offset, whence);                                   \
   assert(n >= 0);
 
+#define assert_access_ok(file, mode)                                           \
+  n = access(file, mode);                                                      \
+  assert(n == 0);
+
+#define assert_access_fail(file, mode, err)                                    \
+  n = access(file, mode);                                                      \
+  assert(n < 0);                                                               \
+  assert(errno == err);
+
 /* Just the basic, correct operations on a single /dev/null */
 void test_devnull() {
   assert_open_ok(0, "/dev/null", 0, O_RDWR);
@@ -190,6 +199,16 @@ void test_open_path() {
   assert_open_fail(too_long, 0, O_RDONLY, 63);
 }
 
+void test_access() {
+  /* After implementing credentials test should be extended. */
+  assert_access_ok("/bin/mandelbrot", R_OK);
+  assert_access_ok("/bin/mandelbrot", 0);
+  assert_access_ok("/bin/mandelbrot", R_OK | W_OK | X_OK);
+  assert_access_fail("/bin/mandelbrot", (R_OK | W_OK | X_OK) + 1, EINVAL);
+  assert_access_fail("/dont/exist", X_OK, ENOENT);
+  assert_access_fail("dont/exist", X_OK, ENOENT);
+}
+
 int main(int argc, char **argv) {
   test_read();
   test_devnull();
@@ -198,6 +217,7 @@ int main(int argc, char **argv) {
   test_copy();
   test_bad_descrip();
   test_open_path();
+  test_access();
 
   printf("Test passed!\n");
 
