@@ -201,7 +201,8 @@ int pipe_stat(file_t *f, thread_t *td, stat_t *sb) {
   return 0;
 }
 
-int pipe_op_notsup(file_t *f, thread_t *td, off_t offset, int whence) { //TODO: very ugly replacement
+int pipe_op_notsup(file_t *f, thread_t *td, off_t offset,
+                   int whence) { // TODO: very ugly replacement
   return -ENOTSUP;
 }
 
