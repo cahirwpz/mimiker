@@ -206,10 +206,10 @@ int pipe_op_notsup() {
 }
 
 static fileops_t pipeops = {.fo_read = pipe_read,
-                                  .fo_write = pipe_write,
-                                  .fo_close = pipe_close,
-                                  .fo_seek = pipe_op_notsup,
-                                  .fo_stat = pipe_stat};
+                            .fo_write = pipe_write,
+                            .fo_close = pipe_close,
+                            .fo_seek = pipe_op_notsup,
+                            .fo_stat = pipe_stat};
 
 /* pipe syscall */
 int do_pipe(thread_t *td, int fds[2]) {
@@ -222,20 +222,20 @@ int do_pipe(thread_t *td, int fds[2]) {
   file_t *w = file_alloc();
   r->f_data = rpipe;
   r->f_ops = w->f_ops = &pipeops;
-  r->f_type = w-> f_type = FT_PIPE;
+  r->f_type = w->f_type = FT_PIPE;
   w->f_data = wpipe;
 
   int error = fdtab_install_file(td->td_proc->p_fdtable, r, &fds[0]);
   if (error)
     goto fail;
-  
+
   error = fdtab_install_file(td->td_proc->p_fdtable, w, &fds[1]);
   if (error)
     goto fail;
   return 0;
-  
- fail:
+
+fail:
   file_destroy(r);
-  file_destroy(w);  
+  file_destroy(w);
   return error;
 }
