@@ -33,7 +33,7 @@ typedef struct pipe {
   struct pipe *pipe_end;  /* link with another end of pipe, NULL for read end */
 } pipe_t;
 
-void pipe_init();
+void pipe_init(void);
 int pipe_read(file_t *f, thread_t *td, uio_t *uio);
 int pipe_write(file_t *f, thread_t *td, uio_t *uio);
 int pipe_close(file_t *f, thread_t *td);
