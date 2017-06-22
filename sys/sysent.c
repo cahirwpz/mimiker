@@ -14,6 +14,8 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <exec.h>
+#include <stdc.h>
 
 #define PATH_MAX 1024
 
@@ -342,6 +344,91 @@ end:
   return result;
 }
 
+
+#define NCARGS (256*1024 )
+
+static int sys_execve(thread_t *td, syscall_args_t *args) {
+
+  const char *user_path = (const char*)args->args[0];
+  const char **user_argv = (const char**)args->args[1];
+
+  /*Unused as environments are not yet implemented*/
+  /*const char **user_envp = (const char**)args->args[2];*/
+  
+  if ( (user_path == NULL) || (user_argv == NULL))
+    return -EFAULT; /*TODO: Perhaps user_argv can be NULL?*/
+
+  char *kern_path, **kern_argv;
+  size_t n;
+  int result;
+  
+  /*Assuming PATH_MAX means max size of path including the filename.*/
+  kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
+  if ((result = copyinstr(user_path, kern_path, PATH_MAX, NULL)) < 0) {
+    kfree(M_TEMP, kern_path);
+    return result;
+  }
+  
+  size_t nbytes = 0, crr_arg = 0;
+  size_t argbytes;
+  size_t argc = 0;
+
+  while ( (crr_arg < NCARGS) && (user_argv[crr_arg] != NULL))
+    crr_arg++;
+    
+  argc = crr_arg;
+  crr_arg  = 0;
+
+  kern_argv = kmalloc(M_TEMP, argc + 1, 0);
+  kern_argv[argc] = NULL;
+  
+  while ( (nbytes < NCARGS) && (crr_arg < argc)) {
+
+    argbytes = strnlen(user_argv[crr_arg], NCARGS - 1);
+
+    if (user_argv[crr_arg][argbytes+1] != '\0') {
+      result = -EFAULT;
+      goto argv_failure;
+    }
+    
+    kern_argv[crr_arg] = kmalloc(M_TEMP, argbytes + 1, 0);
+   
+    if ( (result = copyinstr(user_argv[crr_arg],
+			     kern_argv[crr_arg], argbytes+1, &n)) < 0) {
+      goto argv_failure;
+    }
+
+    if ( nbytes > NCARGS -  argbytes)
+      goto argv_failure;
+    
+    assert(argbytes+1 == n);
+    crr_arg++;
+  }
+
+  /*WARNING: exec_args_t.argv type is probably incorrect. It is const char**, 
+   should be char *const */
+  
+   const exec_args_t exec_args = {.prog_name = kern_path,
+				  .argv = (const char **)kern_argv,
+				  .argc = crr_arg};
+
+
+   return  do_exec(&exec_args);
+
+   /*TODO: proper deallocation in case of errors.*/
+   
+ argv_failure:
+   /*TODO:free path!*/
+   
+  do{
+    kfree(M_TEMP, kern_argv[crr_arg]);
+  } while (crr_arg--); 
+        
+  return -E2BIG; /*Probably wrong. Check it.*/
+  
+}
+
+
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
     [SYS_EXIT] = {sys_exit},
@@ -366,4 +453,5 @@ sysent_t sysent[] = {
     [SYS_WAITPID] = {sys_waitpid},
     [SYS_MKDIR] = {sys_mkdir},
     [SYS_RMDIR] = {sys_rmdir},
+    [SYS_EXECVE] = {sys_execve},
 };
