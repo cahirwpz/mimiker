@@ -345,7 +345,10 @@ end:
 }
 
 
-#define NCARGS (256*1024 )
+/*
+  Assumes: ?
+  Guarantees: ?
+ */
 
 static int sys_execve(thread_t *td, syscall_args_t *args) {
 
@@ -359,49 +362,60 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
     return -EFAULT; /*TODO: Perhaps user_argv can be NULL?*/
 
   char *kern_path, **kern_argv;
-  size_t n;
+  size_t kern_argc = 0;
+
   int result;
   
   /*Assuming PATH_MAX means max size of path including the filename.*/
+  /*Assuming kmalloc always succeeds.*/
   kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
   if ((result = copyinstr(user_path, kern_path, PATH_MAX, NULL)) < 0) {
-    kfree(M_TEMP, kern_path);
-    return result;
+    goto path_copy_failure;
   }
   
-  size_t nbytes = 0, crr_arg = 0;
+  size_t crr_arg = 0;
   size_t argbytes;
-  size_t argc = 0;
 
-  while ( (crr_arg < NCARGS) && (user_argv[crr_arg] != NULL))
+  while ( (crr_arg < ARG_MAX) && (user_argv[crr_arg] != NULL))
     crr_arg++;
-    
-  argc = crr_arg;
+  
+  if ( /*(crr_arg == ARG_MAX) &&*/ (user_argv[crr_arg] != NULL)) {
+    result = -E2BIG;
+    goto free_mem_and_fail;
+  }
+  
+  kern_argc = crr_arg;
+  
+ /* /\*Assuming kern_argc > 0*\/ */
+ /*  if (!kern_argc) { */
+ /*    result = -EFAULT; */
+ /*    goto free_mem_and_fail; */
+ /*  } */
+   
+  kern_argv = kmalloc(M_TEMP, kern_argc + 1, 0);
+  kern_argv[kern_argc] = NULL;
+
+  size_t nbytes = 0;
   crr_arg  = 0;
 
-  kern_argv = kmalloc(M_TEMP, argc + 1, 0);
-  kern_argv[argc] = NULL;
-  
-  while ( (nbytes < NCARGS) && (crr_arg < argc)) {
+  while ( (nbytes < ARG_MAX) && (crr_arg < kern_argc)) {
 
-    argbytes = strnlen(user_argv[crr_arg], NCARGS - 1);
+    argbytes = strnlen(user_argv[crr_arg], ARG_MAX - 1);
+    argbytes++;
+    kern_argv[crr_arg] = kmalloc(M_TEMP, argbytes, 0);
 
-    if (user_argv[crr_arg][argbytes+1] != '\0') {
-      result = -EFAULT;
-      goto argv_failure;
-    }
-    
-    kern_argv[crr_arg] = kmalloc(M_TEMP, argbytes + 1, 0);
+    if ( (user_argv[crr_arg][argbytes - 1] != '\0') ||
+         ( nbytes > ARG_MAX -  argbytes)) {
+      result = -E2BIG;
+      goto argv_copy_failure;
+    }    
    
     if ( (result = copyinstr(user_argv[crr_arg],
-			     kern_argv[crr_arg], argbytes+1, &n)) < 0) {
-      goto argv_failure;
+			     kern_argv[crr_arg], argbytes, 0)) < 0) {
+      goto argv_copy_failure;
     }
 
-    if ( nbytes > NCARGS -  argbytes)
-      goto argv_failure;
-    
-    assert(argbytes+1 == n);
+    nbytes += argbytes;
     crr_arg++;
   }
 
@@ -410,22 +424,19 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   
    const exec_args_t exec_args = {.prog_name = kern_path,
 				  .argv = (const char **)kern_argv,
-				  .argc = crr_arg};
-
-
+				  .argc = kern_argc};
    return  do_exec(&exec_args);
-
-   /*TODO: proper deallocation in case of errors.*/
    
- argv_failure:
-   /*TODO:free path!*/
-   
+ argv_copy_failure:   
   do{
     kfree(M_TEMP, kern_argv[crr_arg]);
   } while (crr_arg--); 
-        
-  return -E2BIG; /*Probably wrong. Check it.*/
-  
+
+ path_copy_failure:
+ free_mem_and_fail:
+  kfree(M_TEMP, kern_path);
+
+ return result;
 }
 
 

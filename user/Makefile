@@ -30,6 +30,7 @@ test_fork: | newlib-install
 test_dup: | newlib-install
 test_kbd: | newlib-install
 ls_rec: | newlib-install
+test_execve: | newlib-install
 
 clean:
 	for dir in $(PROGDIRS); do \
