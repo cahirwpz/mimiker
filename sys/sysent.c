@@ -385,6 +385,8 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   }
   
   kern_argc = crr_arg;
+
+  kprintf("KERN_ARGC is: %d\n", kern_argc);
   
  /* /\*Assuming kern_argc > 0*\/ */
  /*  if (!kern_argc) { */
@@ -392,17 +394,24 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
  /*    goto free_mem_and_fail; */
  /*  } */
    
-  kern_argv = kmalloc(M_TEMP, kern_argc + 1, 0);
+  kern_argv = kmalloc(M_TEMP, (kern_argc + 1)*sizeof(char*), 0);
   kern_argv[kern_argc] = NULL;
 
   size_t nbytes = 0;
   crr_arg  = 0;
 
+ /* kprintf("First is %s\n", user_argv[0]); */
+ /* kprintf("Second is %s\n", user_argv[1]); */
+ 
+  
   while ( (nbytes < ARG_MAX) && (crr_arg < kern_argc)) {
 
     argbytes = strnlen(user_argv[crr_arg], ARG_MAX - 1);
     argbytes++;
+    kprintf("Argbytes is %d\n", argbytes);
+
     kern_argv[crr_arg] = kmalloc(M_TEMP, argbytes, 0);
+  /* kprintf("Argbytes is %d\n", argbytes); */
 
     if ( (user_argv[crr_arg][argbytes - 1] != '\0') ||
          ( nbytes > ARG_MAX -  argbytes)) {
@@ -418,7 +427,7 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
     nbytes += argbytes;
     crr_arg++;
   }
-
+ 
   /*WARNING: exec_args_t.argv type is probably incorrect. It is const char**, 
    should be char *const */
   
