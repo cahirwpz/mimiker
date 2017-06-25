@@ -3,8 +3,8 @@
 #include <thread.h>
 #include <mips/exc.h>
 
-extern noreturn void thread_exit();
-extern noreturn void kern_exc_leave();
+extern noreturn void thread_exit(void);
+extern noreturn void kern_exc_leave(void);
 
 void ctx_init(thread_t *td, void (*target)(void *), void *arg) {
   register void *gp asm("$gp");

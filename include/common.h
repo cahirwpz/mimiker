@@ -124,7 +124,7 @@ typedef int32_t blksize_t; /* fs optimal block size */
 #ifndef _USERSPACE
 
 /* Terminate thread. */
-noreturn void panic_fail();
+noreturn void panic_fail(void);
 
 #define panic(FMT, ...)                                                        \
   __extension__({                                                              \

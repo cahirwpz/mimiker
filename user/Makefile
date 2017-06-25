@@ -29,6 +29,7 @@ mandelbrot: | newlib-install
 test_fork: | newlib-install
 test_dup: | newlib-install
 test_lseek: | newlib-install
+test_kbd: | newlib-install
 ls_rec: | newlib-install
 
 clean:

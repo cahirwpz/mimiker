@@ -21,8 +21,8 @@ timeval_t get_uptime(void) {
 
 static intr_filter_t cpu_timer_intr(void *arg);
 
-static INTR_HANDLER_DEFINE(cpu_timer_intr_handler, cpu_timer_intr, NULL, NULL,
-                           "CPU timer", 0);
+static intr_handler_t cpu_timer_intr_handler =
+  INTR_HANDLER_INIT(cpu_timer_intr, NULL, NULL, "CPU timer", 0);
 
 static intr_filter_t cpu_timer_intr(void *arg) {
   uint32_t compare = mips32_get_c0(C0_COMPARE);
@@ -33,7 +33,7 @@ static intr_filter_t cpu_timer_intr(void *arg) {
       break;
     TAILQ_REMOVE(&events, event, tev_link);
     if (TAILQ_EMPTY(&events))
-      mips_intr_teardown(cpu_timer_intr_handler);
+      mips_intr_teardown(&cpu_timer_intr_handler);
     assert(event->tev_func != NULL);
     event->tev_func(event);
   }
@@ -48,7 +48,7 @@ void cpu_timer_add_event(timer_event_t *tev) {
   SCOPED_CRITICAL_SECTION();
 
   if (TAILQ_EMPTY(&events))
-    mips_intr_setup(cpu_timer_intr_handler, MIPS_HWINT5);
+    mips_intr_setup(&cpu_timer_intr_handler, MIPS_HWINT5);
 
   timer_event_t *event;
   TAILQ_FOREACH (event, &events, tev_link)
@@ -69,7 +69,7 @@ void cpu_timer_remove_event(timer_event_t *tev) {
   TAILQ_REMOVE(&events, tev, tev_link);
 
   if (TAILQ_EMPTY(&events))
-    mips_intr_teardown(cpu_timer_intr_handler);
+    mips_intr_teardown(&cpu_timer_intr_handler);
   else
     mips32_set_c0(C0_COMPARE, ticks(TAILQ_FIRST(&events)));
 }

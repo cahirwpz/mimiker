@@ -1,0 +1,55 @@
+version: 2
+
+defaults: &defaults
+  working_directory: ~/mimiker
+  docker:
+    - image: rafalcieslak/mimiker-build-base:1.1
+
+jobs:
+  verify_formatting:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: './verify-format.sh'
+
+  verify_pep8:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: './verify-pep8.sh'
+
+  compile:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: 'make'
+      - store_artifacts:
+          path: mimiker.elf
+          prefix: kernel_image
+      - store_artifacts:
+          path: initrd.cpio
+          prefix: ramdisk
+      - save_cache:
+          key: mimiker-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - mimiker.elf
+            - initrd.cpio
+
+  kernel_tests:
+    <<: *defaults
+    steps:
+      - checkout
+      - restore_cache:
+          key: mimiker-{{ .Branch }}-{{ .Revision }}
+      - run: './run_tests.py --thorough'
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - verify_formatting
+      - verify_pep8
+      - compile
+      - kernel_tests:
+          requires:
+            - compile

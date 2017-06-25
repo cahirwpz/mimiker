@@ -184,6 +184,7 @@ void test_open_path() {
   char too_long[500];
   memset(too_long, 'c', sizeof(too_long));
   too_long[sizeof(too_long) - 1] = 0;
+  too_long[0] = '/';
   /* This is very unfortunate! In our errno.h: ENAMETOOLONG is 63, but errno.h
      provided by newlib (since we DID NOT port newlib to our system, which would
      include providing our custom sys/errno.h) uses ENAMETOOLONG 91. */

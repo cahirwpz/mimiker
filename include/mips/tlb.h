@@ -39,8 +39,8 @@
 
 #define PT_BASE MIPS_KSEG2_START
 
-void tlb_init();
-void tlb_print();
+void tlb_init(void);
+void tlb_print(void);
 
 /*
  * Note that MIPS implements variable page size by specifying PageMask register,
@@ -49,13 +49,13 @@ void tlb_print();
  */
 
 /* Returns the number of entries in the TLB. */
-int tlb_size();
+int tlb_size(void);
 
 /* Probes the TLB for an entry matching hi, and if present invalidates it. */
 void tlb_invalidate(tlbhi_t hi);
 
 /* Invalidate the entire TLB. */
-void tlb_invalidate_all();
+void tlb_invalidate_all(void);
 
 /* Reads the TLB entry with specified by index, and returns the EntryHi,
  * EntryLo0, EntryLo1, and parts in *hi, *lo0, *lo1 respectively. */

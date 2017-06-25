@@ -26,7 +26,7 @@ static void program_thread(void *data) {
   }
 }
 
-static int test_exec() {
+static int test_exec(void) {
   /* This is a simple demonstration of the exec functionality. It
    * requests to substitute current thread's image with program
    * called "prog", which is implemented in ./user/prog.c, and after

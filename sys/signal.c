@@ -158,6 +158,6 @@ void sig_deliver(signo_t sig) {
   platform_sig_deliver(sig, sa);
 }
 
-int do_sigreturn() {
+int do_sigreturn(void) {
   return platform_sig_return();
 }

@@ -13,7 +13,7 @@ SET_ENTRY(testset, some_int_3);
 SET_ENTRY(testset, some_int_4);
 SET_ENTRY(testset, some_int_5);
 
-static int test_linker_set() {
+static int test_linker_set(void) {
   SET_DECLARE(testset, int);
 
   kprintf("# of elements in testset: %zu\n", SET_COUNT(testset));
