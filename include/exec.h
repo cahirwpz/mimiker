@@ -1,8 +1,7 @@
-#ifndef __EXEC_H__
-#define __EXEC_H__
+#ifndef _SYS_EXEC_H_
+#define _SYS_EXEC_H_
 
-#include <stdint.h>
-#include <stddef.h>
+#include <common.h>
 
 typedef struct exec_args {
   /* Path to the executable. */
@@ -15,6 +14,6 @@ typedef struct exec_args {
 } exec_args_t;
 
 int do_exec(const exec_args_t *prog);
-void run_program(const exec_args_t *prog);
+noreturn void run_program(const exec_args_t *prog);
 
-#endif
+#endif /* !_SYS_EXEC_H_ */

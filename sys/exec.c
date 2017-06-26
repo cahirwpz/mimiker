@@ -258,7 +258,7 @@ exec_fail:
   return -EINVAL;
 }
 
-void run_program(const exec_args_t *prog) {
+noreturn void run_program(const exec_args_t *prog) {
   thread_t *td = thread_self();
 
   assert(td->td_proc == NULL);
