@@ -1,3 +1,5 @@
+#include "utest.h"
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <assert.h>
@@ -63,16 +65,17 @@ char buf[100];
   assert(n >= 0);
 
 /* Just the basic, correct operations on a single /dev/null */
-void test_devnull() {
+int test_fd_devnull() {
   assert_open_ok(0, "/dev/null", 0, O_RDWR);
   assert_read_ok(0, buf, 100);
   assert_write_ok(0, str, strlen(str));
   assert_close_ok(0);
+  return 0;
 }
 
 /* Opens and closes multiple descriptors, checks if descriptor numbers are
    correctly reused */
-void test_multiple_descriptors() {
+int test_fd_multidesc() {
   assert_open_ok(0, "/dev/null", 0, O_RDWR);
   assert_open_ok(1, "/dev/null", 0, O_RDWR);
   assert_open_ok(2, "/dev/null", 0, O_RDWR);
@@ -89,10 +92,11 @@ void test_multiple_descriptors() {
   assert_close_ok(1);
   assert_close_ok(2);
   assert_close_ok(0);
+  return 0;
 }
 
 /* Tests whether READ/WRITE flags are checked correctly */
-void test_readwrite() {
+int test_fd_readwrite() {
   assert_open_ok(0, "/dev/null", 0, O_RDONLY);
   assert_open_ok(1, "/dev/null", 0, O_WRONLY);
   assert_open_ok(2, "/dev/null", 0, O_RDWR);
@@ -108,9 +112,10 @@ void test_readwrite() {
   assert_close_ok(0);
   assert_close_ok(1);
   assert_close_ok(2);
+  return 0;
 }
 
-void test_read() {
+int test_fd_read() {
   /* Read all at once */
   const char *contents =
     "This is the content of file \"fd_test_file\" in directory \"/tests\"!";
@@ -135,10 +140,11 @@ void test_read() {
   assert_read_equal(0, buf, "\"fd_test_file\" in directory ");
   assert_read_equal(0, buf, "\"/tests\"!");
   assert_close_ok(0);
+  return 0;
 }
 
 /* Try passing invalid pointers as arguments to open,read,write. */
-void test_copy() {
+int test_fd_copy() {
   /* /dev/null does not copy any data, so passing an invalid pointer will not
    * cause any errors - thus we use /dev/zero for this test. However, /dev/zero
    * might also skip copying data, and in that case this test would also fail -
@@ -158,10 +164,11 @@ void test_copy() {
   assert_open_fail(naughty_ptr2, 0, O_RDWR, EFAULT);
   /* Clean up */
   assert_close_ok(0);
+  return 0;
 }
 
 /* Tries accessing some invalid descriptor numbers */
-void test_bad_descrip() {
+int test_fd_bad_desc() {
   assert_write_fail(0, buf, 100, EBADF);
   assert_write_fail(42, buf, 100, EBADF);
   assert_write_fail(-10, buf, 100, EBADF);
@@ -171,9 +178,10 @@ void test_bad_descrip() {
   assert_close_fail(0, EBADF);
   assert_close_fail(-10, EBADF);
   assert_close_fail(42, EBADF);
+  return 0;
 }
 
-void test_open_path() {
+int test_fd_open_path() {
   assert_open_fail("/etc/shadow", 0, O_RDONLY, ENOENT);
   assert_open_fail("123456", 0, O_RDONLY, ENOENT);
   assert_open_fail("", 0, O_RDONLY, ENOENT);
@@ -181,7 +189,7 @@ void test_open_path() {
   assert_open_fail("123456", 0, O_RDONLY, ENOENT);
 
   /* Also try opening a file with a name too long. */
-  char too_long[500];
+  char too_long[2000];
   memset(too_long, 'c', sizeof(too_long));
   too_long[sizeof(too_long) - 1] = 0;
   too_long[0] = '/';
@@ -189,18 +197,30 @@ void test_open_path() {
      provided by newlib (since we DID NOT port newlib to our system, which would
      include providing our custom sys/errno.h) uses ENAMETOOLONG 91. */
   assert_open_fail(too_long, 0, O_RDONLY, 63);
+  return 0;
 }
 
-int main(int argc, char **argv) {
-  test_read();
-  test_devnull();
-  test_multiple_descriptors();
-  test_readwrite();
-  test_copy();
-  test_bad_descrip();
-  test_open_path();
+int test_fd_dup() {
+  int x = open("/tests/dup_test_file", O_RDONLY, 0);
+  int y = dup(0);
+  dup2(x, 0);
+  char word[100];
+  scanf("%[^\n]s", word);
+  assert(strcmp(word, "Hello, World!") == 0);
+  dup2(y, 0);
+  return 0;
+}
 
-  printf("Test passed!\n");
-
+int test_fd_all() {
+  /* Call all fd-related tests one by one to see how they impact the process
+   * file descriptor table. */
+  test_fd_read();
+  test_fd_devnull();
+  test_fd_multidesc();
+  test_fd_readwrite();
+  test_fd_copy();
+  test_fd_bad_desc();
+  test_fd_open_path();
+  test_fd_dup();
   return 0;
 }
