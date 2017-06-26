@@ -10,13 +10,12 @@
 
 static void utest_generic_thread(void *arg) {
   const char *test_name = arg;
-  exec_args_t exec_args;
-  exec_args.prog_name = "/bin/utest";
-  exec_args.argv = (const char *[]){"utest", test_name};
-  exec_args.argc = 2;
 
-  do_exec(&exec_args);
-  __unreachable();
+  exec_args_t exec_args = {.prog_name = "/bin/utest",
+                           .argc = 2,
+                           .argv = (const char *[]){"utest", test_name}};
+
+  run_program(&exec_args);
 }
 
 /* This is the klog mask used with utests. */
