@@ -9,14 +9,12 @@ typedef struct exec_args {
   const char *prog_name;
   /* Program arguments. These will get copied to the stack of the
    * starting process. */
-  uint8_t argc;
+  unsigned argc;
   const char **argv;
   /* TODO: Environment */
 } exec_args_t;
 
-int get_elf_image(const exec_args_t *args, uint8_t **out_image,
-                  size_t *out_size);
-
-int do_exec(const exec_args_t *args);
+int do_exec(const exec_args_t *prog);
+void run_program(const exec_args_t *prog);
 
 #endif

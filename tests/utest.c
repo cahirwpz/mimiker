@@ -15,7 +15,7 @@ static void utest_generic_thread(void *arg) {
   exec_args.argv = (const char *[]){"utest", test_name};
   exec_args.argc = 2;
 
-  do_exec(&exec_args);
+  run_program(&exec_args);
   __unreachable();
 }
 

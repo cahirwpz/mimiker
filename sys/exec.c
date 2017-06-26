@@ -9,6 +9,7 @@
 #include <thread.h>
 #include <errno.h>
 #include <sync.h>
+#include <filedesc.h>
 #include <sbrk.h>
 #include <vfs.h>
 #include <mips/stack.h>
@@ -255,4 +256,35 @@ exec_fail:
   vm_map_delete(vmap);
 
   return -EINVAL;
+}
+
+void run_program(const exec_args_t *prog) {
+  thread_t *td = thread_self();
+
+  assert(td->td_proc == NULL);
+
+  klog("Starting program \"%s\"", prog->argv[0]);
+
+  /* This thread will become a main thread of newly created user process. */
+  proc_t *p = proc_create();
+  proc_populate(p, td);
+
+  /* Let's assign an empty virtual address space, to be filled by `do_exec` */
+  p->p_uspace = vm_map_new();
+
+  /* Prepare file descriptor table... */
+  fdtab_t *fdt = fdtab_alloc();
+  fdtab_ref(fdt);
+  td->td_proc->p_fdtable = fdt;
+
+  /* ... and initialize file descriptors required by the standard library. */
+  int ignore;
+  do_open(td, "/dev/cons", O_RDONLY, 0, &ignore);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
+
+  if (do_exec(prog))
+    panic("Failed to start %s program.", prog->argv[0]);
+
+  user_exc_leave();
 }
