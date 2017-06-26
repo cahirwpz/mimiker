@@ -14,10 +14,7 @@ int main(void) {
 
   if (init) {
     exec_args_t init_args = {
-      .prog_name = init,
-      .argc = 1,
-      .argv = (const char *[]){init}
-    };
+      .prog_name = init, .argc = 1, .argv = (const char *[]){init}};
 
     run_program(&init_args);
   } else if (test) {
