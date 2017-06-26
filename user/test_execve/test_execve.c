@@ -34,10 +34,10 @@ int main() {
 /* These tests should succeed, i.e dump_args should report correct arguments  */
 /******************************************************************************/
    /* This always ends in kernel panic due to exhausted memory*/
-  /*  execve_success_test("/bin/test_execve",(char *const[]){NULL});*/
+   /* execve_success_test("/bin/test_execve",(char *const[]){NULL}); */
 
   /* This runs ls_rec*/
-  /*  execve_success_test("/bin/ls_rec",(char *const[]){NULL}); */
+   /* execve_success_test("/bin/ls_rec",(char *const[]){NULL}); */
   
   /* The tests below run dump_args with various parameters.*/
 

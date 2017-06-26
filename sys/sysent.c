@@ -345,10 +345,6 @@ end:
 }
 
 
-/*
-  Assumes: ?
-  Guarantees: ?
- */
 
 static int sys_execve(thread_t *td, syscall_args_t *args) {
 
@@ -386,7 +382,7 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   
   kern_argc = crr_arg;
 
-  kprintf("KERN_ARGC is: %d\n", kern_argc);
+  /* kprintf("KERN_ARGC is: %d\n", kern_argc); */
   
  /* /\*Assuming kern_argc > 0*\/ */
  /*  if (!kern_argc) { */
@@ -408,13 +404,15 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
 
     argbytes = strnlen(user_argv[crr_arg], ARG_MAX - 1);
     argbytes++;
-    kprintf("Argbytes is %d\n", argbytes);
+    /* kprintf("Argbytes is %d\n", argbytes); */
 
     kern_argv[crr_arg] = kmalloc(M_TEMP, argbytes, 0);
   /* kprintf("Argbytes is %d\n", argbytes); */
 
-    if ( (user_argv[crr_arg][argbytes - 1] != '\0') ||
-         ( nbytes > ARG_MAX -  argbytes)) {
+
+    int argumentTooLong = user_argv[crr_arg][argbytes - 1] != '\0';
+    int tooManyBytesInArgv = nbytes > ARG_MAX -  argbytes; 
+    if ( argumentTooLong || tooManyBytesInArgv) {
       result = -E2BIG;
       goto argv_copy_failure;
     }    
