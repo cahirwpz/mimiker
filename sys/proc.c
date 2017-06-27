@@ -56,7 +56,7 @@ proc_t *proc_find(pid_t pid) {
 }
 
 /* Always call proc_reap with parent process locked. */
-static int proc_reap(proc_t *child, int *status) {
+int proc_reap(proc_t *child, int *status) {
   /* Child is now a zombie. Gather its data, cleanup & free. */
   mtx_lock(&child->p_lock);
 
@@ -68,9 +68,10 @@ static int proc_reap(proc_t *child, int *status) {
 
   int retval = child->p_pid;
 
-  assert(&child->p_parent);
-  assert(mtx_owned(&child->p_parent->p_lock));
-  TAILQ_REMOVE(&child->p_parent->p_children, child, p_child);
+  if (child->p_parent) {
+    assert(mtx_owned(&child->p_parent->p_lock));
+    TAILQ_REMOVE(&child->p_parent->p_children, child, p_child);
+  }
 
   WITH_MTX_LOCK (&zombie_proc_list_mtx)
     TAILQ_REMOVE(&zombie_proc_list, child, p_zombie);
@@ -164,7 +165,6 @@ static proc_t *child_find_by_state(proc_t *p, proc_state_t state) {
   assert(mtx_owned(&p->p_lock));
   proc_t *child;
   TAILQ_FOREACH (child, &p->p_children, p_child) {
-    SCOPED_MTX_LOCK(&child->p_lock);
     if (child->p_state == state)
       return child;
   }

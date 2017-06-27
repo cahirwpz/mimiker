@@ -1,22 +1,19 @@
-#ifndef __EXEC_H__
-#define __EXEC_H__
+#ifndef _SYS_EXEC_H_
+#define _SYS_EXEC_H_
 
-#include <stdint.h>
-#include <stddef.h>
+#include <common.h>
 
 typedef struct exec_args {
   /* Path to the executable. */
   const char *prog_name;
   /* Program arguments. These will get copied to the stack of the
    * starting process. */
-  uint8_t argc;
+  unsigned argc;
   const char **argv;
   /* TODO: Environment */
 } exec_args_t;
 
-int get_elf_image(const exec_args_t *args, uint8_t **out_image,
-                  size_t *out_size);
+int do_exec(const exec_args_t *prog);
+noreturn void run_program(const exec_args_t *prog);
 
-int do_exec(const exec_args_t *args);
-
-#endif
+#endif /* !_SYS_EXEC_H_ */
