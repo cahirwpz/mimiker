@@ -8,27 +8,16 @@
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
 
-static void run_init(const char *program) {
-  klog("Starting program \"%s\"", program);
-
-  exec_args_t exec_args;
-  exec_args.prog_name = program;
-  exec_args.argv = (const char *[]){program};
-  exec_args.argc = 1;
-
-  int res = do_exec(&exec_args);
-  if (res) {
-    klog("Failed to start init program.");
-  }
-}
-
 int main(void) {
   const char *init = kenv_get("init");
   const char *test = kenv_get("test");
 
-  if (init)
-    run_init(init);
-  else if (test) {
+  if (init) {
+    exec_args_t init_args = {
+      .prog_name = init, .argc = 1, .argv = (const char *[]){init}};
+
+    run_program(&init_args);
+  } else if (test) {
     ktest_main(test);
   } else {
     /* This is a message to the user, so I intentionally use kprintf instead of

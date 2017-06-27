@@ -14,6 +14,8 @@ typedef struct mount mount_t;
 typedef struct file file_t;
 typedef struct dirent dirent_t;
 
+#define VNOVAL (-1)
+
 typedef enum {
   V_NONE,
   V_REG,

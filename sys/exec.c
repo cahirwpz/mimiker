@@ -18,6 +18,10 @@
 #include <proc.h>
 
 int do_exec(const exec_args_t *args) {
+  thread_t *td = thread_self();
+
+  assert(td->td_proc != NULL);
+
   klog("Loading user ELF: %s", args->prog_name);
 
   vnode_t *elf_vnode;
@@ -93,34 +97,21 @@ int do_exec(const exec_args_t *args) {
     return -ENOEXEC;
   }
 
-  thread_t *td = thread_self();
-
-  /* If this is a kernel thread becoming a user thread, then we need to create
-   * (the first!) process. */
-  if (!td->td_proc) {
-    proc_t *p = proc_create();
-    proc_populate(p, td);
-
-    /* Prepare file descriptor table */
-    fdtab_t *fdt = fdtab_alloc();
-    fdtab_ref(fdt);
-    td->td_proc->p_fdtable = fdt;
-  }
-
   /* We assume process may only have a single thread. But if there were more
      than one thread in the process that called exec, all other threads must be
      forcefully terminated. */
+  proc_t *p = td->td_proc;
 
   /*
    * We can not destroy the current vm map, because exec can still fail,
    * and in that case we must be able to return to the original address space.
    */
   vm_map_t *vmap = vm_map_new();
-  vm_map_t *old_vmap = td->td_proc ? td->td_proc->p_uspace : NULL;
+  vm_map_t *old_vmap = p->p_uspace;
 
   /* We are the only live thread in this process. We can safely give it a new
    * uspace. */
-  td->td_proc->p_uspace = vmap;
+  p->p_uspace = vmap;
   vm_map_activate(vmap);
 
   /* Iterate over prog headers */
@@ -246,34 +237,54 @@ int do_exec(const exec_args_t *args) {
   /* ... and user context. */
   uctx_init(thread_self(), eh.e_entry, stack_bottom);
 
-  /* Before we have a working fork, let's initialize file descriptors required
-     by the standard library. */
-  int ignore;
-  do_open(td, "/dev/cons", O_RDONLY, 0, &ignore);
-  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
-  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
-
   /*
    * At this point we are certain that exec succeeds.  We can safely destroy the
    * previous vm map, and permanently assign this one to the current process.
    */
-  if (old_vmap)
-    vm_map_delete(old_vmap);
+  vm_map_delete(old_vmap);
 
   vm_map_dump(vmap);
 
   klog("Entering e_entry NOW");
-  user_exc_leave();
-
-  /*NOTREACHED*/
-  __unreachable();
+  return 0;
 
 exec_fail:
   /* Return to the previous map, unmodified by exec. */
-  td->td_proc->p_uspace = old_vmap;
+  p->p_uspace = old_vmap;
   vm_map_activate(old_vmap);
   /* Destroy the vm map we began preparing. */
   vm_map_delete(vmap);
 
   return -EINVAL;
+}
+
+noreturn void run_program(const exec_args_t *prog) {
+  thread_t *td = thread_self();
+
+  assert(td->td_proc == NULL);
+
+  klog("Starting program \"%s\"", prog->argv[0]);
+
+  /* This thread will become a main thread of newly created user process. */
+  proc_t *p = proc_create();
+  proc_populate(p, td);
+
+  /* Let's assign an empty virtual address space, to be filled by `do_exec` */
+  p->p_uspace = vm_map_new();
+
+  /* Prepare file descriptor table... */
+  fdtab_t *fdt = fdtab_alloc();
+  fdtab_ref(fdt);
+  td->td_proc->p_fdtable = fdt;
+
+  /* ... and initialize file descriptors required by the standard library. */
+  int ignore;
+  do_open(td, "/dev/cons", O_RDONLY, 0, &ignore);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
+
+  if (do_exec(prog))
+    panic("Failed to start %s program.", prog->argv[0]);
+
+  user_exc_leave();
 }

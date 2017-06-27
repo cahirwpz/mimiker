@@ -5,7 +5,7 @@
 #include <sys/wait.h>
 #include <sys/signal.h>
 
-void fork_test_wait() {
+int test_fork_wait() {
   int n = fork();
   if (n == 0) {
     printf("This is child, my pid is %d!\n", getpid());
@@ -21,9 +21,11 @@ void fork_test_wait() {
     assert(exitcode == 42);
     assert(p == n);
   }
+  return 0;
 }
 
 volatile int done = 0;
+
 void sigchld_handler(int signo) {
   printf("SIGCHLD handler!\n");
   int n = 0;
@@ -33,7 +35,7 @@ void sigchld_handler(int signo) {
   }
 }
 
-void fork_test_signal() {
+int test_fork_signal() {
   signal(SIGCHLD, sigchld_handler);
   int n = fork();
   if (n == 0)
@@ -43,9 +45,10 @@ void fork_test_signal() {
   while (!done)
     ;
   signal(SIGCHLD, SIG_DFL);
+  return 0;
 }
 
-void fork_test_sigchld_ignored() {
+int test_fork_sigchld_ignored() {
   /* Please auto-reap my children. */
   signal(SIGCHLD, SIG_IGN);
   int n = fork();
@@ -55,13 +58,5 @@ void fork_test_sigchld_ignored() {
   /* TODO: Use a timeout here, because otherwise the parent process exits
      first... Which is also a useful test, but doesn't really verify an ignored
      SIGCHILD. */
-}
-
-int main() {
-  printf("Testing fork/wait.\n");
-  fork_test_wait();
-  fork_test_signal();
-  fork_test_sigchld_ignored();
-  printf("Success!\n");
   return 0;
 }
