@@ -25,6 +25,7 @@ int test_fork_wait() {
 }
 
 volatile int done = 0;
+
 void sigchld_handler(int signo) {
   printf("SIGCHLD handler!\n");
   int n = 0;
@@ -33,6 +34,7 @@ void sigchld_handler(int signo) {
     done = 1;
   }
 }
+
 int test_fork_signal() {
   signal(SIGCHLD, sigchld_handler);
   int n = fork();

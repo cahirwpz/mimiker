@@ -8,9 +8,11 @@
 #include <errno.h>
 #include <dirent.h>
 
-static void test_set(const char *dir_path) {
-  int fd = open(dir_path, 0, O_RDONLY);
-  const int size = 256;
+const char *testfile = "/tests/ascii";
+const int size = 256;
+
+int test_lseek_set(void) {
+  int fd = open(testfile, 0, O_RDONLY);
   char buf[size + 1];
   read(fd, buf, size);
   lseek(fd, 0, SEEK_SET);
@@ -18,23 +20,24 @@ static void test_set(const char *dir_path) {
   read(fd, buf2, size);
   assert(strcmp(buf, buf2) == 0);
   close(fd);
+  return 0;
 }
-static void test_cur(const char *dir_path) {
-  int fd = open(dir_path, 0, O_RDONLY);
-  const int size = 256;
+
+int test_lseek_cur(void) {
+  int fd = open(testfile, 0, O_RDONLY);
   char buf[size + 1];
   read(fd, buf, size);
-
   const int shift = 128;
   lseek(fd, -shift, SEEK_CUR);
   char buf2[size + 1];
   read(fd, buf2, size);
   assert(strcmp(buf + size - shift, buf2) == 0);
   close(fd);
+  return 0;
 }
-static void test_end(const char *dir_path) {
-  int fd = open(dir_path, 0, O_RDONLY);
-  const int size = 256;
+
+int test_lseek_end(void) {
+  int fd = open(testfile, 0, O_RDONLY);
   char buf[size + 1]; // beginning of file
   int file_size = read(fd, buf, size);
 
@@ -55,12 +58,5 @@ static void test_end(const char *dir_path) {
   read(fd, buf2, size);
   assert(strcmp(tmp, buf2) == 0); // checks if end maches
   close(fd);
-}
-
-int main(int argc, char **argv) {
-  const char *mypath = "/bin/lseek_test";
-  test_set(argc > 1 ? argv[1] : mypath);
-  test_cur(argc > 1 ? argv[1] : mypath);
-  test_end(argc > 1 ? argv[1] : mypath);
   return 0;
 }

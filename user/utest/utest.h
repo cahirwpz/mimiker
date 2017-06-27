@@ -24,4 +24,8 @@ int test_fork_wait();
 int test_fork_signal();
 int test_fork_sigchld_ignored();
 
+int test_lseek_set(void);
+int test_lseek_cur(void);
+int test_lseek_end(void);
+
 #endif /* __UTEST_H__ */
