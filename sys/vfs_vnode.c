@@ -184,7 +184,7 @@ static int default_vnseek(file_t *f, thread_t *td, off_t offset, int whence) {
     return -EINVAL;
 
   /* TODO offset can go past the end of file when it's open for writing */
-  if (offset >= size)
+  if (offset > size)
     return -EINVAL;
 
   if ((error = VOP_SEEK(v, f->f_offset, offset, f->f_data)))
