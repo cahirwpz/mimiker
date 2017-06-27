@@ -8,20 +8,35 @@
 #include <errno.h>
 #include <dirent.h>
 
+/* ascii file stores consecutive ASCII characters from range 32..127 */
 const char *testfile = "/tests/ascii";
-const int size = 256;
+
+#define pos(x) ((x) + 32)
+#define last (94)
+
+static int readchar(int fd) {
+  char c;
+  int n = read(fd, &c, 1);
+  if (n == 1)
+    return c;
+  return -1;
+}
+
+static void check_lseek_set(int fd, off_t offset) {
+  assert(lseek(fd, offset, SEEK_SET) == offset);
+  assert(readchar(fd) == pos(offset));
+}
 
 int test_lseek_set(void) {
   int fd = open(testfile, 0, O_RDONLY);
-  char buf[size + 1];
-  read(fd, buf, size);
-  lseek(fd, 0, SEEK_SET);
-  char buf2[size + 1];
-  read(fd, buf2, size);
-  assert(strcmp(buf, buf2) == 0);
+  check_lseek_set(fd, 0);
+  check_lseek_set(fd, 42);
+  check_lseek_set(fd, last);
   close(fd);
   return 0;
 }
+
+const int size = 256;
 
 int test_lseek_cur(void) {
   int fd = open(testfile, 0, O_RDONLY);
