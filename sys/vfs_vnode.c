@@ -168,7 +168,7 @@ static int default_vnseek(file_t *f, thread_t *td, off_t offset, int whence) {
   off_t size = va.va_size;
 
   if (size == VNOVAL)
-    return -EINVAL;
+    return -ESPIPE;
 
   if (whence == SEEK_CUR) {
     /* TODO: offset overflow */

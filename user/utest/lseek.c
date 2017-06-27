@@ -75,5 +75,12 @@ int test_lseek_errors(void) {
   assert_fail(lseek(fd, 49, SEEK_CUR), EINVAL);
   close(fd);
 
+  /* Now let's check some weird cases. */
+  assert_fail(lseek(666, 10, SEEK_CUR), EBADF);
+
+  fd = open("/dev/cons", 0, O_RDONLY);
+  assert_fail(lseek(fd, 10, SEEK_CUR), ESPIPE);
+  close(fd);
+
   return 0;
 }
