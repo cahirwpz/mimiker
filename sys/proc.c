@@ -7,6 +7,7 @@
 #include <filedesc.h>
 #include <wait.h>
 #include <signal.h>
+#include <ucred.h>
 
 static MALLOC_DEFINE(M_PROC, "proc", 1, 2);
 
@@ -31,6 +32,8 @@ proc_t *proc_create(void) {
 
   WITH_MTX_LOCK (&last_pid_mtx)
     proc->p_pid = last_pid++;
+
+  proc->p_cred = cr_alloc();
 
   return proc;
 }
@@ -111,6 +114,7 @@ void proc_exit(int exitstatus) {
     /* Clean up process resources. */
     vm_map_delete(p->p_uspace);
     fdtab_release(p->p_fdtable);
+    cr_free(p->p_cred);
 
     /* Record some process statistics that will stay maintained in zombie
        state. */

@@ -357,6 +357,8 @@ static int sys_access(thread_t *td, syscall_args_t *args) {
 
   result = do_access(td, pathname, mode);
 
+  klog("access(\"%s\", 0x%x) = %d", pathname, mode, result);
+
 end:
   kfree(M_TEMP, pathname);
   return result;

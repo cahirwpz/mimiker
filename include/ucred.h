@@ -12,7 +12,8 @@ typedef struct ucred {
 
 #define NOCRED ((ucred_t *)0) /* no credential available */
 
-/* Check if user has given group id. */
-bool groupmember(gid_t gid, ucred_t *cred);
+ucred_t *cr_alloc(void);
+void cr_free(ucred_t *cred);
+bool cr_groupmember(gid_t gid, ucred_t *cred);
 
 #endif /* !_SYS_UCRED_H_ */

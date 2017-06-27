@@ -236,10 +236,6 @@ int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
   return 0;
 }
 
-int check_access_credentials(mode_t vmode, mode_t mode) {
-  return vmode & mode ? 0 : EACCES;
-}
-
 #define accmode(va, mask, shift) (((va).va_mode & (mask)) >> (shift))
 
 int vnode_access_generic(vnode_t *v, mode_t mode, ucred_t *cred) {
@@ -249,15 +245,16 @@ int vnode_access_generic(vnode_t *v, mode_t mode, ucred_t *cred) {
   if ((error = VOP_GETATTR(v, &va)))
     return error;
 
-  /* If credentials are NULL we assume credentials match. */
-  if (cred == NOCRED)
-    return 0;
+  mode_t m;
 
-  if (va.va_uid == cred->cr_uid)
-    return accmode(va, S_IRWXU, 6) == mode;
-  if (groupmember(va.va_gid, cred))
-    return accmode(va, S_IRWXG, 3) == mode;
-  return accmode(va, S_IRWXO, 0) == mode;
+  if (va.va_uid == cred->cr_uid || cred->cr_uid == 0)
+    m = accmode(va, S_IRWXU, 6);
+  else if (cr_groupmember(va.va_gid, cred))
+    m = accmode(va, S_IRWXG, 3);
+  else
+    m = accmode(va, S_IRWXO, 0);
+
+  return (m & mode || mode == 0) ? 0 : -EACCES;
 }
 
 SYSINIT_ADD(vnode, vnode_init, DEPS("vm_map"));

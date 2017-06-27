@@ -13,6 +13,7 @@ int test_access_basic(void) {
   assert_ok(access("/bin/mandelbrot", R_OK));
   assert_ok(access("/bin/mandelbrot", 0));
   assert_ok(access("/bin/mandelbrot", R_OK | W_OK | X_OK));
+  assert_fail(access("/tests/ascii", X_OK), EACCES);
   assert_fail(access("/bin/mandelbrot", (R_OK | W_OK | X_OK) + 1), EINVAL);
   assert_fail(access("/dont/exist", X_OK), ENOENT);
   assert_fail(access("dont/exist", X_OK), ENOENT);
