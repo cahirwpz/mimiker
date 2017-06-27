@@ -14,6 +14,7 @@
 #include <queue.h>
 #include <errno.h>
 #include <malloc.h>
+#include <unistd.h>
 #include <ucred.h>
 
 int do_open(thread_t *td, char *pathname, int flags, mode_t mode, int *fd) {
