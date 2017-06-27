@@ -162,7 +162,7 @@ int do_access(thread_t *td, char *path, mode_t mode) {
   if (error)
     return error;
 
-  int res = VOP_ACCESS(v, mode, td->cred);
+  int res = VOP_ACCESS(v, mode, td->td_proc->p_cred);
   /* TODO: there is missing check on rest of the path. */
 
   /* Drop our reference to v. We received it from vfs_lookup, but we no longer
