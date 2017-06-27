@@ -14,7 +14,7 @@
 #include <signal.h>
 #include <sysinit.h>
 
-static MALLOC_DEFINE(M_PMAP, "pmap", 1, 1);
+static MALLOC_DEFINE(M_PMAP, "pmap", 4, 8);
 
 #define PTE_MASK 0xfffff000
 #define PTE_SHIFT 12
