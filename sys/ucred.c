@@ -1,9 +1,11 @@
 #include <ucred.h>
 
-int check_groups(gid_t group_id, ucred_t *ucred) {
-  for (int i = 0; i < ucred->cr_ngroups; i++) {
-    if (group_id == ucred->cr_groups[i])
-      return 1;
+bool groupmember(gid_t gid, ucred_t *cred) {
+  if (gid == cred->cr_gid)
+    return true;
+  for (int i = 0; i < cred->cr_ngroups; i++) {
+    if (gid == cred->cr_groups[i])
+      return true;
   }
-  return 0;
+  return false;
 }

@@ -240,22 +240,24 @@ int check_access_credentials(mode_t vmode, mode_t mode) {
   return vmode & mode ? 0 : EACCES;
 }
 
+#define accmode(va, mask, shift) (((va).va_mode & (mask)) >> (shift))
+
 int vnode_access_generic(vnode_t *v, mode_t mode, ucred_t *cred) {
-  vattr_t v_attributes;
-  VOP_GETATTR(v, &v_attributes);
+  vattr_t va;
+  int error;
 
-  if (cred == NULL) {
-    klog("Thread credential is NULL, probably still not implemented. We are "
-         "assuming credentials match.");
+  if ((error = VOP_GETATTR(v, &va)))
+    return error;
+
+  /* If credentials are NULL we assume credentials match. */
+  if (cred == NOCRED)
     return 0;
-  }
 
-  if (v_attributes.va_uid == cred->cr_uid)
-    return check_access_credentials(v_attributes.va_mode & S_IRWXU, mode);
-  else if (check_groups(v_attributes.va_gid, cred))
-    return check_access_credentials(v_attributes.va_mode & S_IRWXG, mode);
-  else
-    return check_access_credentials(v_attributes.va_mode & S_IRWXO, mode);
+  if (va.va_uid == cred->cr_uid)
+    return accmode(va, S_IRWXU, 6) == mode;
+  if (groupmember(va.va_gid, cred))
+    return accmode(va, S_IRWXG, 3) == mode;
+  return accmode(va, S_IRWXO, 0) == mode;
 }
 
 SYSINIT_ADD(vnode, vnode_init, DEPS("vm_map"));
