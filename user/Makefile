@@ -22,15 +22,12 @@ $(PROGDIRS):
 
 # Dependencies between user programs are currently expressed here.
 newlib: | libmimiker-install
-prog: | newlib-install
-fd_test: | newlib-install
-misbehave: | newlib-install
+sandbox: | newlib-install
 mandelbrot: | newlib-install
-test_fork: | newlib-install
-test_dup: | newlib-install
-test_lseek: | newlib-install
-test_kbd: | newlib-install
 ls_rec: | newlib-install
+utest: | newlib-install
+test_kbd: | newlib-install
+test_rtc: | newlib-install
 
 clean:
 	for dir in $(PROGDIRS); do \
