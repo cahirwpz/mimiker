@@ -12,7 +12,7 @@
 const char *testfile = "/tests/ascii";
 
 #define pos(x) ((x) + 32)
-#define last (94)
+#define end (95)
 
 static int readchar(int fd) {
   char c;
@@ -22,56 +22,51 @@ static int readchar(int fd) {
   return -1;
 }
 
-static void check_lseek_set(int fd, off_t offset) {
-  assert(lseek(fd, offset, SEEK_SET) == offset);
-  assert(readchar(fd) == pos(offset));
+static void check_lseek(int fd, off_t offset, int whence, off_t expect) {
+  assert(lseek(fd, offset, whence) == expect);
+  assert(readchar(fd) == pos(expect));
 }
 
-int test_lseek_set(void) {
-  int fd = open(testfile, 0, O_RDONLY);
+static void check_lseek_set(int fd, off_t offset) {
+  check_lseek(fd, offset, SEEK_SET, offset);
+}
+
+static void check_lseek_cur(int fd, off_t offset, off_t expect) {
+  check_lseek(fd, offset, SEEK_CUR, expect);
+}
+
+static void check_lseek_end(int fd, off_t offset, off_t expect) {
+  check_lseek(fd, offset, SEEK_END, expect);
+}
+
+int test_lseek_basic(void) {
+  int fd;
+
+  /* Test SEEK_SET behaviour. */
+  fd = open(testfile, 0, O_RDONLY);
   check_lseek_set(fd, 0);
   check_lseek_set(fd, 42);
-  check_lseek_set(fd, last);
+  check_lseek_set(fd, end - 1);
   close(fd);
+
+  /* Test SEEK_CUR behaviour. */
+  fd = open(testfile, 0, O_RDONLY);
+  check_lseek_cur(fd, 20, 20);
+  check_lseek_cur(fd, -1, 20);
+  check_lseek_cur(fd, end - 22, end - 1);
+  check_lseek_cur(fd, -end, 0);
+  close(fd);
+
+  /* Test SEEK_CUR behaviour. */
+  fd = open(testfile, 0, O_RDONLY);
+  check_lseek_end(fd, -1, end - 1);
+  check_lseek_end(fd, -20, end - 20);
+  check_lseek_end(fd, -end, 0);
+  close(fd);
+
   return 0;
 }
 
-const int size = 256;
-
-int test_lseek_cur(void) {
-  int fd = open(testfile, 0, O_RDONLY);
-  char buf[size + 1];
-  read(fd, buf, size);
-  const int shift = 128;
-  lseek(fd, -shift, SEEK_CUR);
-  char buf2[size + 1];
-  read(fd, buf2, size);
-  assert(strcmp(buf + size - shift, buf2) == 0);
-  close(fd);
-  return 0;
-}
-
-int test_lseek_end(void) {
-  int fd = open(testfile, 0, O_RDONLY);
-  char buf[size + 1]; // beginning of file
-  int file_size = read(fd, buf, size);
-
-  char tmp[size + 1];
-  int read_size;
-  int last_size = 0;
-  while ((read_size = read(fd, tmp, size))) // reads until end of file
-  {
-    last_size = file_size;
-    file_size += read_size;
-  }
-  lseek(fd, -file_size, SEEK_END);
-  char buf2[size + 1];
-  read(fd, buf2, size);
-  assert(strcmp(buf, buf2) == 0); // checks if beginning matches
-
-  lseek(fd, -(file_size - last_size), SEEK_END);
-  read(fd, buf2, size);
-  assert(strcmp(tmp, buf2) == 0); // checks if end maches
-  close(fd);
+int test_lseek_errors(void) {
   return 0;
 }

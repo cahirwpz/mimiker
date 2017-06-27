@@ -90,6 +90,5 @@ UTEST_ADD_SIMPLE(fork_wait);
 /* UTEST_ADD_SIMPLE(fork_signal); */
 UTEST_ADD_SIMPLE(fork_sigchld_ignored);
 
-UTEST_ADD_SIMPLE(lseek_cur);
-UTEST_ADD_SIMPLE(lseek_set);
-UTEST_ADD_SIMPLE(lseek_end);
+UTEST_ADD_SIMPLE(lseek_basic);
+UTEST_ADD_SIMPLE(lseek_errors);

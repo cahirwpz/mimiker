@@ -36,9 +36,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(fork_wait);
   CHECKRUN_TEST(fork_signal);
   CHECKRUN_TEST(fork_sigchld_ignored);
-  CHECKRUN_TEST(lseek_set);
-  CHECKRUN_TEST(lseek_cur);
-  CHECKRUN_TEST(lseek_end);
+  CHECKRUN_TEST(lseek_basic);
+  CHECKRUN_TEST(lseek_errors);
 
   printf("No user test \"%s\" available.\n", test_name);
   return 1;

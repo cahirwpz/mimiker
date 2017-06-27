@@ -191,7 +191,7 @@ static int default_vnseek(file_t *f, thread_t *td, off_t offset, int whence) {
     return error;
 
   f->f_offset = offset;
-  return 0;
+  return offset;
 }
 
 static fileops_t default_vnode_fileops = {
