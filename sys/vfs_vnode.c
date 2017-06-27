@@ -155,29 +155,22 @@ static int default_vnstat(file_t *f, thread_t *td, stat_t *sb) {
 static int default_vnseek(file_t *f, thread_t *td, off_t offset, int whence) {
   /* TODO: Not seekable files like PIPE */
   vattr_t va;
-  int has_attr = f->f_vnode->v_ops->v_getattr(f->f_vnode, &va);
+  int has_attr = VOP_GETATTR(f->f_vnode, &va);
   if (f->f_type != FT_VNODE)
     return -ESPIPE;
 
-  switch (whence) {
-    case SEEK_CUR:
-      /* TODO: offset overflow */
-      offset += f->f_offset;
-      break;
-
-    case SEEK_END:
-      if (has_attr == -ENOTSUP)
-        return -EINVAL;
-      /* TODO: offset overflow */
-      offset += va.va_size;
-      break;
-
-    case SEEK_SET:
-      break;
-
-    default:
+  if (whence == SEEK_CUR) {
+    /* TODO: offset overflow */
+    offset += f->f_offset;
+  } else if (whence == SEEK_END) {
+    if (has_attr == -ENOTSUP)
       return -EINVAL;
+    /* TODO: offset overflow */
+    offset += va.va_size;
+  } else if (whence != SEEK_SET) {
+    return -EINVAL;
   }
+
   if (has_attr == 0 && offset > 0 && (size_t)offset >= va.va_size)
     /* what if file has attributes but not size? */
     return -EINVAL;
