@@ -13,7 +13,7 @@
 #include <filedesc.h>
 #include <proc.h>
 
-MALLOC_DEFINE(M_PIPE, "pipe", 1, 4);
+MALLOC_DEFINE(M_PIPE, "pipe", 4, 8);
 
 static pool_t pipe_cache;
 
