@@ -347,17 +347,15 @@ static int sys_access(thread_t *td, syscall_args_t *args) {
   mode_t mode = args->args[1];
 
   int result = 0;
-  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0); /* TODO: with statement? */
-  size_t n = 0;
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
 
-  /* Copyout pathname. */
-  result = copyinstr(user_pathname, pathname, PATH_MAX, &n);
+  result = copyinstr(user_pathname, pathname, PATH_MAX, NULL);
   if (result < 0)
     goto end;
 
-  result = do_access(td, pathname, mode);
+  klog("access(\"%s\", %d)", pathname, mode);
 
-  klog("access(\"%s\", 0x%x) = %d", pathname, mode, result);
+  result = do_access(td, pathname, mode);
 
 end:
   kfree(M_TEMP, pathname);

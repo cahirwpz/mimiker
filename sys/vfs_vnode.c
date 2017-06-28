@@ -235,8 +235,6 @@ int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
   return 0;
 }
 
-#define accmode(va, mask, shift) (((va).va_mode & (mask)) >> (shift))
-
 int vnode_access_generic(vnode_t *v, accmode_t acc) {
   vattr_t va;
   int error;
