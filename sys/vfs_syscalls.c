@@ -153,19 +153,16 @@ int do_rmdir(thread_t *td, char *path) {
 }
 
 int do_access(thread_t *td, char *path, int amode) {
+  int error;
+
   /* Check if given mode argument is valid. */
   if ((mode & (~ALL_OK)) != 0)
     return -EINVAL;
 
   vnode_t *v;
-  int error = vfs_lookup(path, &v);
-  if (error)
+  if ((error = vfs_lookup(path, &v)))
     return error;
-
-  int res = VOP_ACCESS(v, mode);
-
-  /* Drop our reference to v. We received it from vfs_lookup, but we no longer
-   * need it - file f keeps its own reference to v after open. */
+  error = VOP_ACCESS(v, mode);
   vnode_unref(v);
-  return res;
+  return error;
 }
