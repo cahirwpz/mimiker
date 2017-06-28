@@ -155,14 +155,14 @@ int do_rmdir(thread_t *td, char *path) {
 int do_access(thread_t *td, char *path, int amode) {
   int error;
 
-  /* Check if given mode argument is valid. */
-  if ((mode & (~ALL_OK)) != 0)
+  /* Check if access mode argument is valid. */
+  if (amode & ~(R_OK | W_OK | X_OK))
     return -EINVAL;
 
   vnode_t *v;
   if ((error = vfs_lookup(path, &v)))
     return error;
-  error = VOP_ACCESS(v, mode);
+  error = VOP_ACCESS(v, amode);
   vnode_unref(v);
   return error;
 }
