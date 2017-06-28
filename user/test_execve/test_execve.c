@@ -41,7 +41,7 @@ int main() {
   
   /* The tests below run dump_args with various parameters.*/
 
-  /* execve_success_test("/bin/dump_args",(char *const[]){NULL}); */
+  execve_success_test("/bin/dump_args",(char *const[]){"/bin/dump_args", NULL});
   /* execve_success_test("/bin/dump_args",(char *const[]){"FIRST"}); */
   /* execve_success_test("/bin/dump_args",(char *const[]){"FIRST", "SECOND", NULL}); */
   /* execve_success_test("/bin/dump_args",(char *const[]){"FIRST", "SECOND", "THIRD", NULL}); */
