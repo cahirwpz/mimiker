@@ -2,10 +2,6 @@ SOURCES_C = \
 	broken.c \
 	callout.c \
 	crash.c \
-	exec.c \
-	exec_misbehave.c \
-	exec_fd_test.c \
-	exec_test_dup.c \
 	initrd.c \
 	klog.c \
 	linker_set.c \
@@ -16,7 +12,6 @@ SOURCES_C = \
 	pool.c \
 	producer_consumer.c \
 	resizable_fdt.c \
-	rtc.c \
 	rwlock.c \
 	sched.c \
 	strtol.c \
@@ -25,6 +20,7 @@ SOURCES_C = \
 	thread_stats.c \
 	thread_exit.c \
 	uiomove.c \
+	utest.c \
 	vm_map.c \
 	vfs.c
 

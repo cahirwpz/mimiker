@@ -6,17 +6,23 @@
 #include <stdc.h>
 #include <vga.h>
 
-static int dev_vga_framebuffer_write(vnode_t *v, uio_t *uio) {
+static int framebuffer_write(vnode_t *v, uio_t *uio) {
   return vga_fb_write((vga_device_t *)v->v_data, uio);
 }
 
-static int dev_vga_palette_write(vnode_t *v, uio_t *uio) {
+static vnodeops_t framebuffer_vnodeops = {.v_open = vnode_open_generic,
+                                          .v_write = framebuffer_write};
+
+static int palette_write(vnode_t *v, uio_t *uio) {
   return vga_palette_write((vga_device_t *)v->v_data, uio);
 }
 
+static vnodeops_t palette_vnodeops = {.v_open = vnode_open_generic,
+                                      .v_write = palette_write};
+
 #define RES_CTRL_BUFFER_SIZE 16
 
-static int dev_vga_videomode_write(vnode_t *v, uio_t *uio) {
+static int videomode_write(vnode_t *v, uio_t *uio) {
   vga_device_t *vga = (vga_device_t *)v->v_data;
   uio->uio_offset = 0; /* This file does not support offsets. */
   unsigned xres, yres, bpp;
@@ -37,7 +43,7 @@ static int dev_vga_videomode_write(vnode_t *v, uio_t *uio) {
   return 0;
 }
 
-static int dev_vga_videomode_read(vnode_t *v, uio_t *uio) {
+static int videomode_read(vnode_t *v, uio_t *uio) {
   vga_device_t *vga = (vga_device_t *)v->v_data;
   unsigned xres, yres, bpp;
   int error = vga_get_videomode(vga, &xres, &yres, &bpp);
@@ -55,50 +61,21 @@ static int dev_vga_videomode_read(vnode_t *v, uio_t *uio) {
   return 0;
 }
 
-static vnodeops_t dev_vga_framebuffer_vnodeops = {
-  .v_open = vnode_open_generic, .v_write = dev_vga_framebuffer_write};
-
-static vnodeops_t dev_vga_palette_vnodeops = {.v_open = vnode_open_generic,
-                                              .v_write = dev_vga_palette_write};
-
-static vnodeops_t dev_vga_videomode_vnodeops = {
-  .v_open = vnode_open_generic,
-  .v_read = dev_vga_videomode_read,
-  .v_write = dev_vga_videomode_write};
-
-static int dev_vga_lookup(vnode_t *v, const char *name, vnode_t **res) {
-  vga_device_t *vga = (vga_device_t *)v->v_data;
-  if (strncmp(name, "fb", 2) == 0) {
-    *res = vnode_new(V_DEV, &dev_vga_framebuffer_vnodeops);
-    (*res)->v_data = vga;
-    return 0;
-  }
-  if (strncmp(name, "palette", 7) == 0) {
-    *res = vnode_new(V_DEV, &dev_vga_palette_vnodeops);
-    (*res)->v_data = vga;
-    return 0;
-  }
-  if (strncmp(name, "videomode", 7) == 0) {
-    *res = vnode_new(V_DEV, &dev_vga_videomode_vnodeops);
-    (*res)->v_data = vga;
-    return 0;
-  }
-  return ENOENT;
-}
-
-static vnodeops_t dev_vga_vnodeops = {.v_lookup = dev_vga_lookup};
+static vnodeops_t videomode_vnodeops = {.v_open = vnode_open_generic,
+                                        .v_read = videomode_read,
+                                        .v_write = videomode_write};
 
 void dev_vga_install(vga_device_t *vga) {
-  static int installed = 0;
-  if (installed++) /* Only a single vga device may be installed at /dev/vga. */
+  devfs_node_t *vga_root;
+
+  /* Only a single vga device may be installed at /dev/vga. */
+  if (devfs_makedir(NULL, "vga", &vga_root))
     return;
 
-  vnodeops_init(&dev_vga_framebuffer_vnodeops);
-  vnodeops_init(&dev_vga_palette_vnodeops);
-  vnodeops_init(&dev_vga_videomode_vnodeops);
-  vnodeops_init(&dev_vga_vnodeops);
-
-  vnode_t *dev_vga_device = vnode_new(V_DIR, &dev_vga_vnodeops);
-  dev_vga_device->v_data = vga;
-  devfs_install("vga", dev_vga_device);
+  vnodeops_init(&framebuffer_vnodeops);
+  devfs_makedev(vga_root, "fb", &framebuffer_vnodeops, vga);
+  vnodeops_init(&palette_vnodeops);
+  devfs_makedev(vga_root, "palette", &palette_vnodeops, vga);
+  vnodeops_init(&videomode_vnodeops);
+  devfs_makedev(vga_root, "videomode", &videomode_vnodeops, vga);
 }

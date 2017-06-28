@@ -12,6 +12,7 @@ SOURCES_C  = \
 	dev_vga.c \
 	devfs.c \
 	drv_atkbdc.c \
+	drv_rtc.c \
 	drv_stdvga.c \
 	exception.c \
 	exec.c \
@@ -54,9 +55,9 @@ SOURCES_C  = \
 	vm_object.c \
 	vm_pager.c
 
-SOURCES_ASM = 
+SOURCES_ASM =
 
-all: $(DEPFILES) libsys.a 
+all: $(DEPFILES) libsys.a
 
 include ../Makefile.common
 

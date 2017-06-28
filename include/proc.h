@@ -49,4 +49,8 @@ proc_t *proc_find(pid_t pid);
 /* Build your exit status using MAKE_STATUS macros from wait.h */
 void proc_exit(int exitstatus);
 
+/* Removes a zombie process. You don't need to use this function, unless you are
+   destroying a process in an unusual way (e.g. like utest does). */
+int proc_reap(proc_t *child, int *status);
+
 #endif /* !_SYS_PROC_H_ */
