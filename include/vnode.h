@@ -4,7 +4,6 @@
 #include <mutex.h>
 #include <uio.h>
 #include <malloc.h>
-#include <ucred.h>
 
 MALLOC_DECLARE(M_VFS);
 
@@ -14,9 +13,11 @@ typedef struct vattr vattr_t;
 typedef struct mount mount_t;
 typedef struct file file_t;
 typedef struct dirent dirent_t;
-typedef struct ucred ucred_t;
 
 #define VNOVAL (-1)
+
+/* vnode access modes */
+typedef enum { VEXEC = 1, VWRITE = 2, VREAD = 4 } accmode_t;
 
 typedef enum {
   V_NONE,
@@ -39,7 +40,7 @@ typedef int vnode_remove_t(vnode_t *dv, const char *name);
 typedef int vnode_mkdir_t(vnode_t *dv, const char *name, vattr_t *va,
                           vnode_t **vp);
 typedef int vnode_rmdir_t(vnode_t *dv, const char *name);
-typedef int vnode_access_t(vnode_t *v, mode_t mode, ucred_t *cred);
+typedef int vnode_access_t(vnode_t *v, accmode_t mode);
 
 typedef struct vnodeops {
   vnode_lookup_t *v_lookup;
@@ -141,8 +142,8 @@ static inline int VOP_RMDIR(vnode_t *dv, const char *name) {
   return dv->v_ops->v_rmdir(dv, name);
 }
 
-static inline int VOP_ACCESS(vnode_t *v, mode_t mode, ucred_t *cred) {
-  return v->v_ops->v_access(v, mode, cred);
+static inline int VOP_ACCESS(vnode_t *v, mode_t mode) {
+  return v->v_ops->v_access(v, mode);
 }
 
 /* Allocates and initializes a new vnode */
@@ -161,7 +162,7 @@ void vnode_unref(vnode_t *v);
 /* Convenience function with default vnode operation implementation. */
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state);
-int vnode_access_generic(vnode_t *v, mode_t mode, ucred_t *cred);
+int vnode_access_generic(vnode_t *v, accmode_t mode);
 
 #define DIRENT_DOT ((void *)-2)
 #define DIRENT_DOTDOT ((void *)-1)

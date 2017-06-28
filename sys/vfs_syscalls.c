@@ -15,7 +15,6 @@
 #include <errno.h>
 #include <malloc.h>
 #include <unistd.h>
-#include <ucred.h>
 
 int do_open(thread_t *td, char *pathname, int flags, mode_t mode, int *fd) {
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -163,11 +162,10 @@ int do_access(thread_t *td, char *path, mode_t mode) {
   if (error)
     return error;
 
-  int res = VOP_ACCESS(v, mode, td->td_proc->p_cred);
-  /* TODO: there is missing check on rest of the path. */
+  int res = VOP_ACCESS(v, mode);
 
   /* Drop our reference to v. We received it from vfs_lookup, but we no longer
-  need it - file f keeps its own reference to v after open. */
+   * need it - file f keeps its own reference to v after open. */
   vnode_unref(v);
   return res;
 }

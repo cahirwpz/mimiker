@@ -8,7 +8,6 @@
 #include <stat.h>
 #include <vnode.h>
 #include <sysinit.h>
-#include <ucred.h>
 
 static MALLOC_DEFINE(M_VNODE, "vnode", 2, 16);
 
@@ -108,7 +107,7 @@ static int vnode_rmdir_nop(vnode_t *v, const char *name) {
   return -ENOTSUP;
 }
 
-static int vnode_access_nop(vnode_t *v, mode_t mode, ucred_t *cred) {
+static int vnode_access_nop(vnode_t *v, accmode_t mode) {
   return -ENOTSUP;
 }
 
@@ -238,23 +237,23 @@ int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
 
 #define accmode(va, mask, shift) (((va).va_mode & (mask)) >> (shift))
 
-int vnode_access_generic(vnode_t *v, mode_t mode, ucred_t *cred) {
+int vnode_access_generic(vnode_t *v, accmode_t acc) {
   vattr_t va;
   int error;
 
   if ((error = VOP_GETATTR(v, &va)))
     return error;
 
-  mode_t m;
+  mode_t mode = 0;
 
-  if (va.va_uid == cred->cr_uid || cred->cr_uid == 0)
-    m = accmode(va, S_IRWXU, 6);
-  else if (cr_groupmember(va.va_gid, cred))
-    m = accmode(va, S_IRWXG, 3);
-  else
-    m = accmode(va, S_IRWXO, 0);
+  if (acc & VEXEC)
+    mode |= S_IXUSR;
+  if (acc & VWRITE)
+    mode |= S_IWUSR;
+  if (acc & VREAD)
+    mode |= S_IRUSR;
 
-  return (m & mode || mode == 0) ? 0 : -EACCES;
+  return ((va.va_mode & mode) == mode || acc == 0) ? 0 : -EACCES;
 }
 
 SYSINIT_ADD(vnode, vnode_init, DEPS("vm_map"));

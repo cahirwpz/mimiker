@@ -6,7 +6,6 @@
 #include <mutex.h>
 #include <signal.h>
 #include <vm_map.h>
-#include <ucred.h>
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
@@ -34,8 +33,6 @@ struct proc {
   fdtab_t *p_fdtable;
   /* signal stuff */
   sigaction_t p_sigactions[NSIG];
-  /* credentials */
-  ucred_t *p_cred;
   /* zombie process status */
   int p_exitstatus;
   /* XXX: process resource usage stats */
