@@ -8,12 +8,12 @@ int do_clock_gettime(clockid_t clk, timespec_t *tp) {
   if (tp == NULL)
     return -EFAULT;
 
-  int error = -EINVAL;
-
-  if (clk == CLOCK_MONOTONIC)
+  if (clk == CLOCK_MONOTONIC) {
     *tp = tv2ts(get_uptime());
+    return 0;
+  }
 
-  return error;
+  return -EINVAL;
 }
 
 static void waker(timer_event_t *tev) {
