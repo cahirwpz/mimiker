@@ -133,6 +133,15 @@ void vnodeops_init(vnodeops_t *vops) {
   NOP_IF_NULL(vops, access);
 }
 
+void va_convert(vattr_t *va, stat_t *sb) {
+  memset(sb, 0, sizeof(stat_t));
+  sb->st_mode = va->va_mode;
+  sb->st_nlink = va->va_nlink;
+  sb->st_uid = va->va_uid;
+  sb->st_gid = va->va_gid;
+  sb->st_size = va->va_size;
+}
+
 /* Default file operations using v-nodes. */
 static int default_vnread(file_t *f, thread_t *td, uio_t *uio) {
   return VOP_READ(f->f_vnode, uio);
@@ -155,12 +164,7 @@ static int default_vnstat(file_t *f, thread_t *td, stat_t *sb) {
   error = VOP_GETATTR(v, &va);
   if (error < 0)
     return error;
-  memset(sb, 0, sizeof(stat_t));
-  sb->st_mode = va.va_mode;
-  sb->st_nlink = va.va_nlink;
-  sb->st_uid = va.va_uid;
-  sb->st_gid = va.va_gid;
-  sb->st_size = va.va_size;
+  va_convert(&va, sb);
   return 0;
 }
 

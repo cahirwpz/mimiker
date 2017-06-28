@@ -109,6 +109,7 @@ typedef struct stat {
 #define S_BLKSIZE 512 /* block size used in the stat struct */
 
 #ifndef _KERNELSPACE
+int fstat(int fd, stat_t *sb);
 int stat(const char *pathname, stat_t *sb);
 #endif
 
