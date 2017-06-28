@@ -152,7 +152,7 @@ int do_rmdir(thread_t *td, char *path) {
   return -ENOTSUP;
 }
 
-int do_access(thread_t *td, char *path, mode_t mode) {
+int do_access(thread_t *td, char *path, int amode) {
   /* Check if given mode argument is valid. */
   if ((mode & (~ALL_OK)) != 0)
     return -EINVAL;
