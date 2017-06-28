@@ -43,7 +43,7 @@ void prepare_program_stack(const exec_args_t *args, vm_addr_t *stack_bottom_p) {
   /* Store arguments, creating the argument vector. */
   vm_addr_t arg_vector[args->argc];
   vm_addr_t p = *stack_bottom_p - total_arg_size;
-  for (int i = 0; i < args->argc; i++) {
+  for (unsigned i = 0; i < args->argc; i++) {
     size_t n = strlen(args->argv[i]) + 1;
     arg_vector[i] = p;
     memcpy((uint8_t *)p, args->argv[i], n);

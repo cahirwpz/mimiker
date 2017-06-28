@@ -343,6 +343,26 @@ end:
   return result;
 }
 
+static int sys_access(thread_t *td, syscall_args_t *args) {
+  char *user_pathname = (char *)args->args[0];
+  mode_t mode = args->args[1];
+
+  int result = 0;
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  result = copyinstr(user_pathname, pathname, PATH_MAX, NULL);
+  if (result < 0)
+    goto end;
+
+  klog("access(\"%s\", %d)", pathname, mode);
+
+  result = do_access(td, pathname, mode);
+
+end:
+  kfree(M_TEMP, pathname);
+  return result;
+}
+
 static int sys_clock_gettime(thread_t *td, syscall_args_t *args) {
   clockid_t clk = (clockid_t)args->args[0];
   timespec_t *ts = (timespec_t *)args->args[1];
@@ -359,27 +379,30 @@ static int sys_clock_nanosleep(thread_t *td, syscall_args_t *args) {
 }
 
 /* clang-format hates long arrays. */
-sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
-                     [SYS_OPEN] = {sys_open},
-                     [SYS_CLOSE] = {sys_close},
-                     [SYS_READ] = {sys_read},
-                     [SYS_WRITE] = {sys_write},
-                     [SYS_LSEEK] = {sys_lseek},
-                     [SYS_UNLINK] = {sys_unlink},
-                     [SYS_GETPID] = {sys_getpid},
-                     [SYS_KILL] = {sys_kill},
-                     [SYS_FSTAT] = {sys_fstat},
-                     [SYS_SBRK] = {sys_sbrk},
-                     [SYS_MMAP] = {sys_mmap},
-                     [SYS_FORK] = {sys_fork},
-                     [SYS_MOUNT] = {sys_mount},
-                     [SYS_GETDENTS] = {sys_getdirentries},
-                     [SYS_SIGACTION] = {sys_sigaction},
-                     [SYS_SIGRETURN] = {sys_sigreturn},
-                     [SYS_DUP] = {sys_dup},
-                     [SYS_DUP2] = {sys_dup2},
-                     [SYS_WAITPID] = {sys_waitpid},
-                     [SYS_MKDIR] = {sys_mkdir},
-                     [SYS_RMDIR] = {sys_rmdir},
-                     [SYS_CLOCKGETTIME] = {sys_clock_gettime},
-                     [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep}};
+sysent_t sysent[] = {
+    [SYS_EXIT] = {sys_exit},
+    [SYS_OPEN] = {sys_open},
+    [SYS_CLOSE] = {sys_close},
+    [SYS_READ] = {sys_read},
+    [SYS_WRITE] = {sys_write},
+    [SYS_LSEEK] = {sys_lseek},
+    [SYS_UNLINK] = {sys_unlink},
+    [SYS_GETPID] = {sys_getpid},
+    [SYS_KILL] = {sys_kill},
+    [SYS_FSTAT] = {sys_fstat},
+    [SYS_SBRK] = {sys_sbrk},
+    [SYS_MMAP] = {sys_mmap},
+    [SYS_FORK] = {sys_fork},
+    [SYS_MOUNT] = {sys_mount},
+    [SYS_GETDENTS] = {sys_getdirentries},
+    [SYS_SIGACTION] = {sys_sigaction},
+    [SYS_SIGRETURN] = {sys_sigreturn},
+    [SYS_DUP] = {sys_dup},
+    [SYS_DUP2] = {sys_dup2},
+    [SYS_WAITPID] = {sys_waitpid},
+    [SYS_MKDIR] = {sys_mkdir},
+    [SYS_RMDIR] = {sys_rmdir},
+    [SYS_ACCESS] = {sys_access},
+    [SYS_CLOCKGETTIME] = {sys_clock_gettime},
+    [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep}
+};

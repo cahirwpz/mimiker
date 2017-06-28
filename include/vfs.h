@@ -22,7 +22,7 @@ int do_unlink(thread_t *td, char *path);
 int do_mkdir(thread_t *td, char *path, mode_t mode);
 int do_rmdir(thread_t *td, char *path);
 int do_ftruncate(thread_t *td, int fd, off_t length);
-int do_access(thread_t *td, char *path, int flags);
+int do_access(thread_t *td, char *path, int amode);
 int do_chmod(thread_t *td, char *path, mode_t mode);
 int do_chown(thread_t *td, char *path, int uid, int gid);
 int do_utimes(thread_t *td, char *path, timeval_t *tptr);
