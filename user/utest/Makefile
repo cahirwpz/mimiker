@@ -1,5 +1,6 @@
 UELF_NAME=utest
 SOURCES_C= \
+	access.c \
 	fd.c \
 	fork.c \
 	lseek.c \

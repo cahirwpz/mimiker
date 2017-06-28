@@ -1,3 +1,5 @@
+#define KL_LOG KL_VFS
+#include <klog.h>
 #include <errno.h>
 #include <file.h>
 #include <malloc.h>
@@ -105,6 +107,10 @@ static int vnode_rmdir_nop(vnode_t *v, const char *name) {
   return -ENOTSUP;
 }
 
+static int vnode_access_nop(vnode_t *v, accmode_t mode) {
+  return -ENOTSUP;
+}
+
 #define NOP_IF_NULL(vops, name)                                                \
   do {                                                                         \
     if (vops->v_##name == NULL)                                                \
@@ -124,6 +130,7 @@ void vnodeops_init(vnodeops_t *vops) {
   NOP_IF_NULL(vops, remove);
   NOP_IF_NULL(vops, mkdir);
   NOP_IF_NULL(vops, rmdir);
+  NOP_IF_NULL(vops, access);
 }
 
 /* Default file operations using v-nodes. */
@@ -226,6 +233,25 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
   /* Operation went ok, assuming the file is seekable. */
   return 0;
+}
+
+int vnode_access_generic(vnode_t *v, accmode_t acc) {
+  vattr_t va;
+  int error;
+
+  if ((error = VOP_GETATTR(v, &va)))
+    return error;
+
+  mode_t mode = 0;
+
+  if (acc & VEXEC)
+    mode |= S_IXUSR;
+  if (acc & VWRITE)
+    mode |= S_IWUSR;
+  if (acc & VREAD)
+    mode |= S_IRUSR;
+
+  return ((va.va_mode & mode) == mode || acc == 0) ? 0 : -EACCES;
 }
 
 SYSINIT_ADD(vnode, vnode_init, DEPS("vm_map"));

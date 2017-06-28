@@ -14,10 +14,10 @@ install: $(INSTALL_DIR)/usr/lib/$(LIBFILE) $(EXTRAFILES_INST)
 
 $(LIBFILE_INST): $(LIBFILE)
 	@echo "[INSTALL] $(DIR)$(LIBFILE) -> /usr/lib/$(LIBFILE)"
-	install -m 755 -D $(LIBFILE) $(LIBFILE_INST)
+	install -m 644 -D $(LIBFILE) $(LIBFILE_INST)
 $(INSTALL_DIR)/%: extra/%
 	@echo "[INSTALL] $(DIR)$< -> $*"
-	install -m 755 -D $< $@
+	install -m 644 -D $< $@
 
 libmimiker.a: start.o syscalls.o
 
