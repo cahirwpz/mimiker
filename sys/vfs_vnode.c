@@ -80,7 +80,12 @@ static int vnode_seek_nop(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
 }
 
 static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
-  return -ENOTSUP;
+  *va = (vattr_t){.va_mode = VNOVAL,
+                  .va_nlink = VNOVAL,
+                  .va_uid = VNOVAL,
+                  .va_gid = VNOVAL,
+                  .va_size = VNOVAL};
+  return 0;
 }
 
 int vnode_create_nop(vnode_t *dv, const char *name, vattr_t *va, vnode_t **vp) {
@@ -153,17 +158,40 @@ static int default_vnstat(file_t *f, thread_t *td, stat_t *sb) {
 }
 
 static int default_vnseek(file_t *f, thread_t *td, off_t offset, int whence) {
-  /* TODO: Whence! Now we assume whence == SEEK_SET */
-  if (whence)
+  vnode_t *v = f->f_vnode;
+  int error;
+
+  vattr_t va;
+  if ((error = VOP_GETATTR(v, &va)))
     return -EINVAL;
-  /* TODO: file cursor must be within file, i.e. [0, vattr.v_size] */
+
+  off_t size = va.va_size;
+
+  if (size == VNOVAL)
+    return -ESPIPE;
+
+  if (whence == SEEK_CUR) {
+    /* TODO: offset overflow */
+    offset += f->f_offset;
+  } else if (whence == SEEK_END) {
+    /* TODO: offset overflow */
+    offset += size;
+  } else if (whence != SEEK_SET) {
+    return -EINVAL;
+  }
+
   if (offset < 0)
     return -EINVAL;
-  int error = VOP_SEEK(f->f_vnode, f->f_offset, offset, f->f_data);
-  if (error)
+
+  /* TODO offset can go past the end of file when it's open for writing */
+  if (offset > size)
+    return -EINVAL;
+
+  if ((error = VOP_SEEK(v, f->f_offset, offset, f->f_data)))
     return error;
+
   f->f_offset = offset;
-  return 0;
+  return offset;
 }
 
 static fileops_t default_vnode_fileops = {

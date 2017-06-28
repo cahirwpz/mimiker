@@ -89,3 +89,6 @@ UTEST_ADD_SIMPLE(fork_wait);
 /* TODO Why this test takes so long to execute? */
 /* UTEST_ADD_SIMPLE(fork_signal); */
 UTEST_ADD_SIMPLE(fork_sigchld_ignored);
+
+UTEST_ADD_SIMPLE(lseek_basic);
+UTEST_ADD_SIMPLE(lseek_errors);
