@@ -31,10 +31,6 @@
 #ifndef _CPU_H_
 #define _CPU_H_
 
-#if !defined(__ASSEMBLER__)
-#include <stddef.h>
-#endif
-
 #ifndef SR_IMASK
 #if __mips == 64
 #include <mips/m64c0.h>
@@ -48,6 +44,12 @@ extern "C" {
 #endif
 
 #if !defined(__ASSEMBLER__)
+
+#include <stddef.h>
+
+typedef unsigned long paddr_t; /* a physical address */
+typedef unsigned long vaddr_t; /* a virtual address */
+
 /*
  * Generic MIPS cache handling
  *

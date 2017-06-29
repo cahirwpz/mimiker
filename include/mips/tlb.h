@@ -4,6 +4,9 @@
 #include <common.h>
 #include <mips/mips.h>
 
+typedef unsigned int tlbhi_t;
+typedef unsigned int tlblo_t;
+
 /* C0_CONTEXT register */
 #define PTEBASE_MASK 0xff800000
 #define BADVPN2_MASK 0x007ffff0

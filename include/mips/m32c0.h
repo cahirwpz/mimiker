@@ -31,10 +31,6 @@
 #ifndef _M32C0_H_
 #define _M32C0_H_
 
-#ifndef _M64C0_H_
-/* MIPS32-specific MMU interface */
-#include <mips/m32tlb.h>
-#endif
 /*
  * MIPS32 Exception Codes
  */
