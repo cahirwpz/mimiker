@@ -31,7 +31,7 @@
 #include <mips/asm.h>
 #include <mips/regdef.h>
 #include <mips/m32c0.h>
-#include <mips/m32tlb.h>
+#include <mips/mips.h>
 
 #
 # void tlb_write_index(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1, unsigned idx)
@@ -210,7 +210,7 @@ LEAF(tlb_invalidate)
 	li	t1, C0_ENTRYHI_EHINV_MASK
 	b	3f
 
-2:	li	t1, (KSEG0_BASE - 2<<13)
+2:	li	t1, (MIPS_KSEG0_START - 2<<13)
 5:	addiu	t1, t1, 2<<13
 	mtc0	t1, C0_ENTRYHI
 	ehb				# mtc0, Hazard on tlbp
@@ -408,7 +408,7 @@ LEAF(tlb_invalidate_all)
 	b	11f
 
 9:	# Clean invalidate TLB for R1 onwards by loading
-	# 0x(FFFFFFFF)KSEG0_BASE into EntryHi and writing it into index 0
+	# 0x(FFFFFFFF)MIPS_KSEG0_START into EntryHi and writing it into index 0
 	# incrementing by a pagesize, writing into index 1, etc.
 	move	t8, ra
 	jal	tlb_size
@@ -427,7 +427,7 @@ LEAF(tlb_invalidate_all)
 
 	li	t0, -1				# t0 == 0xFFFFFFFF if XPA
 						# is used.
-10:	li	t1, (KSEG0_BASE - 2<<13)
+10:	li	t1, (MIPS_KSEG0_START - 2<<13)
 
 	move	v1, zero
 12:	addiu	t1, t1, (2<<13)
