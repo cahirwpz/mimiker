@@ -245,8 +245,8 @@ int do_exec(const exec_args_t *args) {
 
   vm_map_dump(vmap);
 
-  klog("Entering e_entry NOW");
-  return 0;
+  klog("Enter userspace with: pc=%p, sp=%p", eh.e_entry, stack_bottom);
+  return -EJUSTRETURN;
 
 exec_fail:
   /* Return to the previous map, unmodified by exec. */
@@ -283,7 +283,7 @@ noreturn void run_program(const exec_args_t *prog) {
   do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
   do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
 
-  if (do_exec(prog))
+  if (do_exec(prog) != -EJUSTRETURN)
     panic("Failed to start %s program.", prog->argv[0]);
 
   user_exc_leave();
