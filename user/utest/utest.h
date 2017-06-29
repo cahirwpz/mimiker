@@ -27,4 +27,6 @@ int test_fork_sigchld_ignored();
 int test_lseek_basic(void);
 int test_lseek_errors(void);
 
+int test_access_basic(void);
+
 #endif /* __UTEST_H__ */

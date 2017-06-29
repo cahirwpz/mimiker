@@ -55,9 +55,9 @@ SOURCES_C  = \
 	vm_object.c \
 	vm_pager.c
 
-SOURCES_ASM = 
+SOURCES_ASM =
 
-all: $(DEPFILES) libsys.a 
+all: $(DEPFILES) libsys.a
 
 include ../Makefile.common
 

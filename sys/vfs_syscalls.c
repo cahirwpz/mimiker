@@ -14,6 +14,7 @@
 #include <queue.h>
 #include <errno.h>
 #include <malloc.h>
+#include <unistd.h>
 
 int do_open(thread_t *td, char *pathname, int flags, mode_t mode, int *fd) {
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -149,4 +150,19 @@ int do_mkdir(thread_t *td, char *path, mode_t mode) {
 
 int do_rmdir(thread_t *td, char *path) {
   return -ENOTSUP;
+}
+
+int do_access(thread_t *td, char *path, int amode) {
+  int error;
+
+  /* Check if access mode argument is valid. */
+  if (amode & ~(R_OK | W_OK | X_OK))
+    return -EINVAL;
+
+  vnode_t *v;
+  if ((error = vfs_lookup(path, &v)))
+    return error;
+  error = VOP_ACCESS(v, amode);
+  vnode_unref(v);
+  return error;
 }

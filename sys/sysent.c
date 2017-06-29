@@ -490,6 +490,26 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
 }
 
 
+static int sys_access(thread_t *td, syscall_args_t *args) {
+  char *user_pathname = (char *)args->args[0];
+  mode_t mode = args->args[1];
+
+  int result = 0;
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  result = copyinstr(user_pathname, pathname, PATH_MAX, NULL);
+  if (result < 0)
+    goto end;
+
+  klog("access(\"%s\", %d)", pathname, mode);
+
+  result = do_access(td, pathname, mode);
+
+end:
+  kfree(M_TEMP, pathname);
+  return result;
+}
+
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
     [SYS_EXIT] = {sys_exit},
@@ -515,4 +535,5 @@ sysent_t sysent[] = {
     [SYS_MKDIR] = {sys_mkdir},
     [SYS_RMDIR] = {sys_rmdir},
     [SYS_EXECVE] = {sys_execve},
+    [SYS_ACCESS] = {sys_access},
 };

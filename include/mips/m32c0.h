@@ -28,13 +28,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef _M32C0_H_
-#define _M32C0_H_
+#ifndef _MIPS_M32C0_H_
+#define _MIPS_M32C0_H_
 
-#ifndef _M64C0_H_
-/* MIPS32-specific MMU interface */
-#include <mips/m32tlb.h>
-#endif
 /*
  * MIPS32 Exception Codes
  */
@@ -138,6 +134,7 @@
 #define SR_CU1		0x20000000	/* coprocessor 1 enable */
 #define  SR_CU1_SHIFT		29
 #define SR_CU0		0x10000000	/* coprocessor 0 enable */
+#define SR_CU0_SHIFT 28
 
 #define SR_RP		0x08000000	/* reduce power */
 #define  SR_RP_SHIFT		27
@@ -165,6 +162,7 @@
 #define  SR_IPL_SHIFT		10
 #define  SR_IPL_BITS		 6
 #define SR_IMASK	0x0000ff00
+#define SR_IMASK_SHIFT 8
 
 /* interrupt mask bits */
 #define SR_HINT5	0x00008000	/* enable h/w interrupt 6 */
@@ -1346,7 +1344,7 @@ __extension__ ({ \
 #endif
 
 /* Define MIPS32 user-level intrinsics */
-#include <mips/mips32.h>
+#include <mips/m32ins.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -1401,4 +1399,4 @@ __extension__({ \
 #ifdef __cplusplus
 }
 #endif
-#endif /* _M32C0_H_ */
+#endif /* !_MIPS_M32C0_H_ */
