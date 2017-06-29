@@ -28,8 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef _MIPS32_H_
-#define _MIPS32_H_
+#ifndef _MIPS_M32INS_H_
+#define _MIPS_M32INS_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -175,4 +175,4 @@ extern "C" {
 }
 #endif
 
-#endif /* _MIPS32_H_ */
+#endif /* !_MIPS_M32INS_H_ */

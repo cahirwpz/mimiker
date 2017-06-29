@@ -1,8 +1,10 @@
 #ifndef __MIPS_TLB_H__
 #define __MIPS_TLB_H__
 
-#include <common.h>
-#include <mips/mips.h>
+typedef unsigned int tlbhi_t;
+typedef unsigned int tlblo_t;
+
+#define MAX_ASID C0_ENTRYHI_ASID_MASK
 
 /* C0_CONTEXT register */
 #define PTEBASE_MASK 0xff800000
