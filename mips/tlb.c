@@ -45,21 +45,17 @@ static unsigned _tlb_size = 0;
 
 static void read_tlb_size(void) {
   uint32_t config0 = mips32_getconfig0();
-
   if ((config0 & CFG0_MT_MASK) != CFG0_MT_TLB)
     return;
-
   if (!(config0 & CFG0_M))
     return;
 
   uint32_t config1 = mips32_getconfig1();
-
   _tlb_size = _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS) + 1;
 }
 
 void tlb_init(void) {
   read_tlb_size();
-
   if (tlb_size() == 0)
     panic("No TLB detected!");
 
@@ -74,33 +70,27 @@ void tlb_init(void) {
 
 void tlb_invalidate(tlbhi_t hi) {
   tlbhi_t saved = mips32_getasid();
-
   int i = _tlb_probe(hi);
   if (i >= 0)
     _tlb_invalidate(i);
-
   mips32_setasid(saved);
 }
 
 void tlb_invalidate_all(void) {
   tlbhi_t saved = mips32_getasid();
-
   for (unsigned i = mips32_getwired(); i < tlb_size(); i++)
     _tlb_invalidate(i);
-
   mips32_setasid(saved);
 }
 
 void tlb_invalidate_asid(tlbhi_t invalid) {
   tlbhi_t saved = mips32_getasid();
-
   for (unsigned i = mips32_getwired(); i < tlb_size(); i++) {
     tlbentry_t e;
     _tlb_read(i, &e);
     if ((e.hi & PTE_ASID_MASK) == invalid)
       _tlb_invalidate(i);
   }
-
   mips32_setasid(saved);
 }
 
