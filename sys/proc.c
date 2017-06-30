@@ -55,22 +55,24 @@ proc_t *proc_find(pid_t pid) {
   return p;
 }
 
-/* Always call proc_reap with parent process locked. */
 int proc_reap(proc_t *child, int *status) {
   /* Child is now a zombie. Gather its data, cleanup & free. */
   mtx_lock(&child->p_lock);
+
+  assert(child->p_state == PRS_ZOMBIE);
 
   /* We should have the only reference to the zombie child now, we're about to
      free it. I don't think it may ever happen that there would be multiple
      references to a terminated process, but if it does, we would need to
      introduce refcounting for processes. */
-  *status = child->p_exitstatus;
+  if (status)
+    *status = child->p_exitstatus;
 
   int retval = child->p_pid;
 
   if (child->p_parent) {
-    assert(mtx_owned(&child->p_parent->p_lock));
-    TAILQ_REMOVE(&child->p_parent->p_children, child, p_child);
+    WITH_MTX_LOCK (&child->p_parent->p_lock)
+      TAILQ_REMOVE(&child->p_parent->p_children, child, p_child);
   }
 
   WITH_MTX_LOCK (&zombie_proc_list_mtx)
@@ -89,8 +91,9 @@ void proc_exit(int exitstatus) {
   proc_t *p = td->td_proc;
   assert(p);
 
-  WITH_MTX_LOCK (&p->p_lock) {
+  bool reap_now = false;
 
+  WITH_MTX_LOCK (&p->p_lock) {
     assert(p->p_nthreads == 1);
     /* If the process had other threads, we'd need to wake the sleeping ones,
        request all of them except this one to call thread_exit from
@@ -133,9 +136,7 @@ void proc_exit(int exitstatus) {
 
         /* If the parent explicitly ignores SIGCHLD, reap child immediately. */
         if (p->p_sigactions[SIGCHLD].sa_handler == SIG_IGN) {
-          int ignore_status;
-          proc_reap(p, &ignore_status);
-          /* Can't call [noreturn] thread_exit() from within a WITH scope. */
+          reap_now = true;
           goto exit;
         }
       }
@@ -145,6 +146,11 @@ void proc_exit(int exitstatus) {
   }
 
 exit:
+  /* If process ready for disposal, then reap it immediately. */
+  if (reap_now)
+    proc_reap(p, NULL);
+
+  /* Can't call [noreturn] thread_exit() from within a WITH scope. */
   /* This thread is the last one in the process to exit. */
   thread_exit();
 }
@@ -180,16 +186,16 @@ int do_waitpid(pid_t pid, int *status, int options) {
   proc_t *p = td->td_proc;
   assert(p != NULL);
 
-  proc_t *child = NULL;
+  proc_t *zombie = NULL;
 
   if (pid == -1) {
     for (;;) {
       /* Search for any zombie children. */
-      WITH_MTX_LOCK (&p->p_lock) {
-        child = child_find_by_state(p, PRS_ZOMBIE);
-        if (child)
-          return proc_reap(child, status);
-      }
+      WITH_MTX_LOCK (&p->p_lock)
+        zombie = child_find_by_state(p, PRS_ZOMBIE);
+
+      if (zombie)
+        return proc_reap(zombie, status);
 
       /* No zombie child was found. */
       if (options & WNOHANG)
@@ -199,6 +205,8 @@ int do_waitpid(pid_t pid, int *status, int options) {
       sleepq_wait(&p->p_children, "any child state change");
     }
   } else {
+    proc_t *child = NULL;
+
     /* Wait for a particular child. */
     WITH_MTX_LOCK (&p->p_lock)
       child = child_find_by_pid(p, pid);
@@ -210,7 +218,10 @@ int do_waitpid(pid_t pid, int *status, int options) {
     for (;;) {
       WITH_MTX_LOCK (&child->p_lock)
         if (child->p_state == PRS_ZOMBIE)
-          return proc_reap(child, status);
+          zombie = child;
+
+      if (zombie)
+        return proc_reap(zombie, status);
 
       if (options & WNOHANG)
         return 0;
