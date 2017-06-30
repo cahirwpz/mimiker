@@ -8,6 +8,7 @@ SOURCES_C= \
 	misbehave.c \
 	mmap.c \
 	sbrk.c \
-	signal.c
+	signal.c \
+	execve.c
 
 include ../Makefile.usercommon

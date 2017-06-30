@@ -344,151 +344,85 @@ end:
   return result;
 }
 
-
-
-/* typedef struct temporary_args temporary_args_t; */
-
-
-/* struct temporary_args { */
-/*   char * prog_name; */
-/*   size_t argc; */
-/*   char** argv_off; */
-/*   void* data; */
-/* }; */
-
-  
-
-
 static int sys_execve(thread_t *td, syscall_args_t *args) {
+  const char *user_path = (const char *)args->args[0];
+  const char **user_argv = (const char **)args->args[1];
 
-  const char *user_path = (const char*)args->args[0];
-  const char **user_argv = (const char**)args->args[1];
+  if ((user_path == NULL) || (user_argv == NULL))
+    return -EFAULT;
 
   /*Unused as environments are not yet implemented*/
   /*const char **user_envp = (const char**)args->args[2];*/
-  
-  if ( (user_path == NULL) || (user_argv == NULL))
-    return -EFAULT; /*TODO: Perhaps user_argv can be NULL?*/
 
-  char *kern_path, **kern_argv;
+  char **kern_argv;
   char *data;
 
   size_t argc = 0;
 
-  int result;
-
-  size_t foo;
-  
   /*Assuming PATH_MAX means max size of path including the filename.*/
   /*Assuming kmalloc always succeeds.*/
-  kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
-  if ((result = copyinstr(user_path, kern_path, PATH_MAX, &foo)) < 0) {
+  char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
+  int result = copyinstr(user_path, kern_path, PATH_MAX, 0);
+  if (result < 0)
     goto path_copy_failure;
-  }
-  
+
   size_t i = 0;
   size_t isize;
 
-  while ( (i < ARG_MAX) && (user_argv[i] != NULL))
+  while ((i < ARG_MAX) && (user_argv[i] != NULL))
     i++;
-  
-  if ( /*(i == ARG_MAX) &&*/ (user_argv[i] != NULL)) {
+
+  if (i == ARG_MAX) {
     result = -E2BIG;
     goto free_mem_and_fail;
   }
-  
+
   argc = i;
 
-  /* kprintf("ARGC is: %d\n", argc); */
-  
- /* /\*Assuming argc > 0*\/ */
- /*  if (!argc) { */
- /*    result = -EFAULT; */
- /*    goto free_mem_and_fail; */
- /*  } */
+  if (!argc) {
+    result = -EFAULT;
+    goto free_mem_and_fail;
+  }
 
- 
-  kern_argv = kmalloc(M_TEMP, (argc + 1)*sizeof(char*), 0);
+  kern_argv = kmalloc(M_TEMP, (argc + 1) * sizeof(char *), 0);
   kern_argv[argc] = NULL;
-  data = kmalloc(M_TEMP, ARG_MAX*sizeof(char), 0);
-  
+  data = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0);
+
   size_t data_off = 0;
-  i  = 0;
+  i = 0;
 
- /* kprintf("First is %s\n", user_argv[0]); */
- /* kprintf("Second is %s\n", user_argv[1]); */
-   
-  while ( (data_off < ARG_MAX) && (i < argc)) {
+  while ((data_off < ARG_MAX) && (i < argc)) {
 
+    if ((result = copyinstr(user_argv[i], data + data_off, ARG_MAX - data_off,
+                            &isize)) < 0) {
 
-    if ( (result = copyinstr(user_argv[i], data + data_off,
-			     ARG_MAX - data_off, &isize)) < 0) {
+      result = (result == -ENAMETOOLONG) ? -E2BIG : result;
       goto argv_copy_failure;
     }
 
-    int argumentTooLong = user_argv[i][isize - 1] != '\0';
-    if ( argumentTooLong) {
-      result = -E2BIG;
-      goto argv_copy_failure;
-    }
-    
-    /* isize = strnlen(user_argv[i], ARG_MAX - 1); */
-    /* isize++; */
-    /* kprintf("Isize is %d\n", isize); */
-
-    /* kern_argv[i] = kmalloc(M_TEMP, isize, 0);*/
-    /* kprintf("Isize is %d\n", isize); */
-
-    /* int argumentTooLong = user_argv[i][isize - 1] != '\0'; */
-    /* int tooManyBytesInArgv = nbytes > ARG_MAX -  isize;  */
-    /* if ( argumentTooLong || tooManyBytesInArgv) { */
-    /*   result = -E2BIG; */
-    /*   goto argv_copy_failure; */
-    /* } */
-
-    /* if ( nbytes > ARG_MAX -  isize) { */
-    /*   result = -E2BIG; */
-    /*   goto argv_copy_failure; */
-    /* } */
-    
     kern_argv[i] = data + data_off;
-   
-    /* if ( (result = copyinstr(user_argv[i], */
-    /* 			     data + nbytes, isize, 0)) < 0) { */
-    /*   goto argv_copy_failure; */
-    /* } */
 
     data_off += isize;
     i++;
   }
- 
-  /*WARNING: exec_args_t.argv type is probably incorrect. It is const char**, 
+
+  /*WARNING: exec_args_t.argv type is probably incorrect. It is const char**,
    should be char *const */
-  
-   const exec_args_t exec_args = {.prog_name = kern_path,
-   				  .argv = (const char **)kern_argv,
-   				  .argc = argc};
-   result = do_exec(&exec_args);
 
-   
-  /* temporary_args_t exec_args = {.prog_name = kern_path, */
-  /* 				.argv_off = kern_argv, */
-  /* 				.argc = argc, */
-  /* 				.data = data}; */
+  const exec_args_t exec_args = {
+    .prog_name = kern_path, .argv = (const char **)kern_argv, .argc = argc};
+  result = do_exec(&exec_args);
 
-  
- argv_copy_failure:
- /*   kfree(M_TEMP, data); */
- /*   kfree(M_TEMP, kern_argv); */
-   
+argv_copy_failure:
+  kfree(M_TEMP, data);
+  kfree(M_TEMP, kern_argv);
 
- path_copy_failure:
- free_mem_and_fail:
- /*  kfree(M_TEMP, kern_path); */
+path_copy_failure:
+free_mem_and_fail:
+  kfree(M_TEMP, kern_path);
 
- return result;
+  return result;
 }
-
 
 static int sys_access(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];

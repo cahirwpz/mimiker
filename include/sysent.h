@@ -24,8 +24,8 @@
 #define SYS_MKDIR 21
 #define SYS_RMDIR 22
 #define SYS_ACCESS 23
-#define SYS_LAST 24
-#define SYS_EXECVE 25
+#define SYS_EXECVE 24
+#define SYS_LAST 25
 
 #ifndef __ASSEMBLER__
 
@@ -36,7 +36,7 @@ typedef struct thread thread_t;
 
 /*The number of bytes available for the new process' combined argument
   and environment list. NULL characters included. */
-#define ARG_MAX (256) 
+#define ARG_MAX (256)
 
 #define SYSCALL_ARGS_MAX 4
 

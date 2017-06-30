@@ -69,6 +69,7 @@ SYSCALL(sigreturn, SYS_SIGRETURN)
 SYSCALL(waitpid, SYS_WAITPID)
 SYSCALL(mkdir, SYS_MKDIR)
 SYSCALL(rmdir, SYS_RMDIR)
-SYSCALL(execve, SYS_EXECVE)
 SYSCALL(access, SYS_ACCESS)
+SYSCALL(execve, SYS_EXECVE)
+
 # vim: sw=8 ts=8 et
