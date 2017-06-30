@@ -8,6 +8,7 @@
 #include <klog.h>
 #include <console.h>
 #include <pcpu.h>
+#include <pmap.h>
 #include <stdc.h>
 #include <thread.h>
 #include <initrd.h>
@@ -178,6 +179,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   tlb_init();
   mips_intr_init();
   pm_bootstrap(memsize);
+  pmap_init();
   kmem_bootstrap();
   sleepq_init();
   thread_bootstrap();
