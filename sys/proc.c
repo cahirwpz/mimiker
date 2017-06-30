@@ -20,7 +20,7 @@ static pid_t last_pid = 0;
 
 proc_t *proc_create(void) {
   proc_t *proc = kmalloc(M_PROC, sizeof(proc_t), M_ZERO);
-  mtx_init(&proc->p_lock, MTX_DEF);
+  mtx_init(&proc->p_lock, MTX_RECURSE);
   TAILQ_INIT(&proc->p_threads);
   proc->p_nthreads = 0;
   proc->p_state = PRS_NORMAL;
