@@ -20,7 +20,7 @@ static pid_t last_pid = 0;
 
 proc_t *proc_create(void) {
   proc_t *proc = kmalloc(M_PROC, sizeof(proc_t), M_ZERO);
-  mtx_init(&proc->p_lock, MTX_RECURSE);
+  mtx_init(&proc->p_lock, MTX_DEF);
   TAILQ_INIT(&proc->p_threads);
   proc->p_nthreads = 0;
   proc->p_state = PRS_NORMAL;
@@ -59,6 +59,8 @@ proc_t *proc_find(pid_t pid) {
 int proc_reap(proc_t *child, int *status) {
   /* Child is now a zombie. Gather its data, cleanup & free. */
   mtx_lock(&child->p_lock);
+
+  assert(child->p_state == PRS_ZOMBIE);
 
   /* We should have the only reference to the zombie child now, we're about to
      free it. I don't think it may ever happen that there would be multiple
@@ -122,9 +124,6 @@ void proc_exit(int exitstatus) {
 
     p->p_state = PRS_ZOMBIE;
 
-    WITH_MTX_LOCK (&zombie_proc_list_mtx)
-      TAILQ_INSERT_TAIL(&zombie_proc_list, p, p_zombie);
-
     /* Notify the parent, in various ways, about state change. */
     if (p->p_parent) {
       WITH_MTX_LOCK (&p->p_parent->p_lock) {
@@ -143,6 +142,10 @@ void proc_exit(int exitstatus) {
       sig_send(p->p_parent, SIGCHLD);
     }
   }
+
+  /* Process is ready for disposal, move it to zombie list. */
+  WITH_MTX_LOCK (&zombie_proc_list_mtx)
+    TAILQ_INSERT_TAIL(&zombie_proc_list, p, p_zombie);
 
 exit:
   /* This thread is the last one in the process to exit. */
