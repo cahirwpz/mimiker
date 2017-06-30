@@ -1280,6 +1280,34 @@ __extension__ ({ \
 #define mips32_xchwatchhi(x)	mips32_xch_c0(C0_WATCHHI, x)
 #endif
 
+/* CP0 Context register */
+#define mips32_getcontext() mips32_get_c0(C0_CONTEXT)
+#define mips32_setcontext(x) mips32_set_c0(C0_CONTEXT, (x))
+
+/* CP0 Wired register */
+#define mips32_getwired() mips32_get_c0(C0_WIRED)
+#define mips32_setwired(x) mips32_set_c0(C0_WIRED, (x))
+
+/* CP0 Index register */
+#define mips32_getindex() mips32_get_c0(C0_INDEX)
+#define mips32_setindex(x) mips32_set_c0(C0_INDEX, (x))
+
+/* CP0 EntryHi register */
+#define mips32_getentryhi() mips32_get_c0(C0_ENTRYHI)
+#define mips32_setentryhi(x) mips32_set_c0(C0_ENTRYHI, (x))
+
+/* CP0 EntryLo0 register */
+#define mips32_getentrylo0() mips32_get_c0(C0_ENTRYLO0)
+#define mips32_setentrylo0(x) mips32_set_c0(C0_ENTRYLO0, (x))
+
+/* CP0 EntryLo1 register */
+#define mips32_getentrylo1() mips32_get_c0(C0_ENTRYLO1)
+#define mips32_setentrylo1(x) mips32_set_c0(C0_ENTRYLO1, (x))
+
+/* CP0 PageMask register */
+#define mips32_getpagemask() mips32_get_c0(C0_PAGEMASK)
+#define mips32_setpagemask(x) mips32_set_c0(C0_PAGEMASK, (x))
+
 /*
  * Define macros for accessing the MIPS32 coprocessor 0 registers.  Most
  * apart from "set" return the original register value.  These particular
