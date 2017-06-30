@@ -274,7 +274,8 @@ bool pmap_probe(pmap_t *pmap, vm_addr_t start, vm_addr_t end, vm_prot_t prot) {
       tlblo_t lo = PTE_LO_INDEX_OF(start) ? e.lo1 : e.lo0;
       if (lo != pte)
         panic("TLB[%d] (%08lx) vs. PTE (%08lx) mismatch "
-              "for virtual address %08lx!", i, lo, pte, start);
+              "for virtual address %08lx!",
+              i, lo, pte, start);
     }
 
     if ((pte & PTE_PROT_MASK) != expected)
