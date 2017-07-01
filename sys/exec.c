@@ -227,20 +227,18 @@ int do_exec(const exec_args_t *args) {
     vmap, stack_start, stack_end, VM_PROT_READ | VM_PROT_WRITE);
   stack_segment->object = default_pager->pgr_alloc();
 
-  /* Prepare program stack, which includes storing program args... */
+  /* Prepare program stack, which includes storing program args. */
   klog("Stack real bottom at %p", (void *)stack_bottom);
   prepare_program_stack(args, &stack_bottom);
 
-  /* ... sbrk segment ... */
-  sbrk_create(vmap);
-
-  /* ... and user context. */
+  /* Set up user context. */
   uctx_init(thread_self(), eh.e_entry, stack_bottom);
 
-  /*
-   * At this point we are certain that exec succeeds.  We can safely destroy the
-   * previous vm map, and permanently assign this one to the current process.
-   */
+  /* Attach fresh brk segment. */
+  sbrk_attach(p);
+
+  /* At this point we are certain that exec succeeds.  We can safely destroy the
+   * previous vm map, and permanently assign this one to the current process. */
   vm_map_delete(old_vmap);
 
   vm_map_dump(vmap);
