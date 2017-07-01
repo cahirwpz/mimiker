@@ -26,18 +26,9 @@ int sys_nosys(thread_t *td, syscall_args_t *args) {
 static int sys_sbrk(thread_t *td, syscall_args_t *args) {
   intptr_t increment = (size_t)args->args[0];
 
-  klog("sbrk(%zu)", increment);
+  klog("sbrk(%d)", increment);
 
-  /* TODO: Shrinking sbrk is impossible, because it requires unmapping pages,
-   * which is not yet implemented! */
-  if (increment < 0) {
-    klog("WARNING: sbrk called with a negative argument!");
-    return -ENOMEM;
-  }
-
-  assert(td->td_proc);
-
-  return sbrk_resize(td->td_proc->p_uspace, increment);
+  return sbrk_resize(td->td_proc, increment);
 }
 
 static int sys_exit(thread_t *td, syscall_args_t *args) {
