@@ -8,11 +8,6 @@
 
 typedef struct vm_map_entry vm_map_entry_t;
 
-/* The brk segment will be located at the first large enough gap after this
-   address. The total space available to sbrk is indirectly influenced by this
-   value. */
-#define BRK_SEARCH_START 0x08000000
-
 struct vm_map_entry {
   TAILQ_ENTRY(vm_map_entry) map_list;
   SPLAY_ENTRY(vm_map_entry) map_tree;
@@ -30,9 +25,6 @@ typedef struct vm_map {
   pmap_t *const pmap;
   rwlock_t rwlock; /* The recursive RW lock guarding vm_map structure and all
                       its entries. */
-  /* program segments */
-  vm_map_entry_t *sbrk_entry; /* The entry where brk segment resides in. */
-  vm_addr_t sbrk_end;         /* Current end of brk segment. */
 } vm_map_t;
 
 /* TODO we will need some functions to allocate address ranges,

@@ -1,11 +1,13 @@
 #ifndef _SYS_SBRK_H_
 #define _SYS_SBRK_H_
 
-#include <vm_map.h>
+typedef struct proc proc_t;
 
-#define SBRK_INITIAL_SIZE 2048
+/* The brk segment is located at the first large enough gap after SBRK_START
+ * address. */
+#define SBRK_START 0x08000000U
 
-vm_addr_t sbrk_create(vm_map_t *map);
-vm_addr_t sbrk_resize(vm_map_t *map, intptr_t increment);
+void sbrk_attach(proc_t *p);
+vm_addr_t sbrk_resize(proc_t *p, intptr_t increment);
 
-#endif // _SYS_SBRK_H_
+#endif /* !_SYS_SBRK_H_ */
