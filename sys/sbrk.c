@@ -6,11 +6,6 @@
 #include <proc.h>
 #include <vm_pager.h>
 
-/* The brk segment will be located at the first large enough gap after
- * SBRK_START address. The total space available to sbrk is indirectly
- * influenced by this value. */
-#define SBRK_START 0x08000000U
-
 /* Note that this sbrk implementation does not actually extend .data section,
  * because we have no guarantee that there is any free space after .data in the
  * memory map. But it does not matter much, because no application would assume
