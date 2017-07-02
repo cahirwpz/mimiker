@@ -111,6 +111,7 @@ def build():
   configure('{binutils}',
             '--target={target}',
             '--prefix={prefix}',
+            '--datarootdir={prefix}/{target}/share',
             '--with-sysroot={prefix}/{target}',
             '--disable-mutlilib',
             '--disable-nls',
@@ -118,12 +119,22 @@ def build():
             '--disable-werror',
             '--with-isl={host}')
   make('{binutils}')
-  make('{binutils}', 'install')
+  make('{binutils}', 'install', DESTDIR='{destdir}')
+
+  target_tools = dict(
+    AS_FOR_TARGET='{destdir}{prefix}/bin/{target}-as',
+    AR_FOR_TARGET='{destdir}{prefix}/bin/{target}-ar',
+    LD_FOR_TARGET='{destdir}{prefix}/bin/{target}-ld',
+    NM_FOR_TARGET='{destdir}{prefix}/bin/{target}-nm',
+    STRIP_FOR_TARGET='{destdir}{prefix}/bin/{target}-strip',
+    RANLIB_FOR_TARGET='{destdir}{prefix}/bin/{target}-ranlib')
 
   unpack('{gcc}')
   configure('{gcc}',
             '--target={target}',
             '--prefix={prefix}',
+            '--datarootdir={prefix}/{target}/share',
+            '--libexecdir={prefix}/{target}/libexec',
             '--with-arch=mips32r2',
             '--with-sysroot={prefix}/{target}/sysroot',
             '--with-abi=32',
@@ -140,15 +151,16 @@ def build():
             '--disable-werror',
             '--with-newlib',
             '--without-headers')
-  make('{gcc}', 'all-gcc')
-  make('{gcc}', 'all-target-libgcc')
-  make('{gcc}', 'install-gcc')
-  make('{gcc}', 'install-target-libgcc')
+  make('{gcc}', 'all-gcc', **target_tools)
+  make('{gcc}', 'all-target-libgcc', **target_tools)
+  make('{gcc}', 'install-gcc', DESTDIR='{destdir}', **target_tools)
+  make('{gcc}', 'install-target-libgcc', DESTDIR='{destdir}', **target_tools)
 
   unpack('{gdb}')
   configure('{gdb}',
             '--target={target}',
             '--prefix={prefix}',
+            '--datarootdir={prefix}/{target}/share',
             '--with-sysroot={prefix}/{target}',
             '--with-isl={host}',
             '--disable-binutils',
@@ -159,7 +171,7 @@ def build():
             '--disable-werror',
             '--with-python')
   make('{gdb}')
-  make('{gdb}', 'install')
+  make('{gdb}', 'install', DESTDIR='{destdir}')
 
 
 def clean():
@@ -175,8 +187,6 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Build cross toolchain.')
   parser.add_argument('action', choices=['build', 'clean'], default='build',
                       help='perform action')
-  parser.add_argument('--prefix', type=str, default=None,
-                      help='installation directory')
   args = parser.parse_args()
 
   if platform.system() == 'Darwin':
@@ -188,7 +198,9 @@ if __name__ == "__main__":
 
   setvar(top=path.abspath('.'),
          nproc=str(nproc, encoding='utf-8'),
-         target='mipsel-mimiker-elf')
+         arch='mipsel')
+
+  setvar(target='{arch}-mimiker-elf')
 
   setvar(gmp='gmp-6.1.2',
          mpc='mpc-1.0.3',
@@ -198,20 +210,16 @@ if __name__ == "__main__":
          binutils='binutils-2.28',
          gcc='gcc-6.3.0',
          gdb='gdb-7.12.1',
-         patches=path.join('{top}', 'patches'),
-         submodules=path.join('{top}', 'submodules'),
-         stamps=path.join('{top}', '.build-mips', 'stamps'),
-         build=path.join('{top}', '.build-mips', 'build'),
-         sources=path.join('{top}', '.build-mips', 'sources'),
-         host=path.join('{top}', '.build-mips', 'host'),
-         tmpdir=path.join('{top}', '.build-mips', 'tmp'),
-         prefix=path.join('{top}', '{target}'),
-         archives=path.join('{top}', '.build-mips', 'archives'))
+         stamps=path.join('{top}', '{target}', 'stamps'),
+         build=path.join('{top}', '{target}', 'build'),
+         sources=path.join('{top}', '{target}', 'sources'),
+         host=path.join('{top}', '{target}', 'host'),
+         tmpdir=path.join('{top}', '{target}', 'tmp'),
+         destdir=path.join('{top}', '{target}'),
+         prefix=path.join('/usr'),
+         archives=path.join('{top}', '.download'))
 
-  if args.prefix is not None:
-    setvar(prefix=args.prefix)
-
-  if not path.exists('{prefix}'):
-    mkdir('{prefix}')
+  if not path.exists('{destdir}'):
+    mkdir('{destdir}')
 
   eval(args.action + "()")

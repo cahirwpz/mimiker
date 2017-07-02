@@ -1,10 +1,14 @@
 Toolchain building procedure
 ---
 
-Just run following command:
+1. Run following command to build the toolchain ready to be installed in root
+   filesystem. All files will be installed in `mipsel-mimiker-elf/usr`
+   directory.
 ```
-$ ./toolchain-mipsel --prefix=${HOME}/local build
+$ ./toolchain-mipsel build
 ```
-
-If the build succeeds the toolchain should be installed in
-`${HOME}/local/${TARGET}`.
+2. Go to `mipsel-mimiker-elf` directory and build a Debian package with
+   following command:
+```
+fakeroot ./debian/rules binary
+```

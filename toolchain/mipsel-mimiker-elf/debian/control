@@ -1,0 +1,14 @@
+Source: mipsel-mimiker-elf
+Section: unknown
+Priority: optional
+Maintainer: Krystian Bacławski <cahir@mimiker.ii.uni.wroc.pl>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.8
+Homepage: http://mimiker.ii.uni.wroc.pl
+
+Package: mipsel-mimiker-elf
+Architecture: amd64
+Depends: ${shlibs:Depends} ${misc:Depends}
+Description: toolchain for mimiker kernel
+ This is a cross toolchain targeted at Mimiker operating system running on MIPS
+ little endian platform.
