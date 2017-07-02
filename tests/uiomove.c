@@ -4,7 +4,7 @@
 #include <vm_map.h>
 #include <ktest.h>
 
-static int test_uiomove() {
+static int test_uiomove(void) {
   int res = 0;
 
   char buffer1[100];
@@ -32,7 +32,7 @@ static int test_uiomove() {
   uio.uio_offset = 5;
   uio.uio_resid = 8 + 5 + 12;
 
-  res = uiomove(buffer1, sizeof(buffer1), &uio);
+  res = uiomove_frombuf(buffer1, sizeof(buffer1), &uio);
   assert(res == 0);
   res = strcmp(buffer1, "=====Example data operations.");
   assert(res == 0);
@@ -57,7 +57,7 @@ static int test_uiomove() {
   res = strcmp(buffer2, "Example ====string ========with data ");
   assert(res == 0);
 
-  return 0;
+  return KTEST_SUCCESS;
 }
 
-KTEST_ADD(uiomove, test_uiomove);
+KTEST_ADD(uiomove, test_uiomove, 0);

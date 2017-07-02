@@ -1,18 +1,22 @@
+#define KL_LOG KL_TEST
+#include <klog.h>
 #include <stdc.h>
 #include <vm_pager.h>
 #include <vm_object.h>
 #include <vm_map.h>
 #include <errno.h>
+#include <thread.h>
 #include <ktest.h>
 
-static void paging_on_demand_and_memory_protection_demo() {
+static int paging_on_demand_and_memory_protection_demo(void) {
+  vm_map_t *orig = get_user_vm_map();
   vm_map_activate(vm_map_new());
 
   vm_map_t *kmap = get_kernel_vm_map();
   vm_map_t *umap = get_user_vm_map();
 
-  log("Kernel physical map : %08lx-%08lx", kmap->pmap->start, kmap->pmap->end);
-  log("User physical map   : %08lx-%08lx", umap->pmap->start, umap->pmap->end);
+  klog("Kernel physical map : %08lx-%08lx", kmap->pmap->start, kmap->pmap->end);
+  klog("User physical map   : %08lx-%08lx", umap->pmap->start, umap->pmap->end);
 
   vm_addr_t start = 0x1001000;
   vm_addr_t end = 0x1001000 + 2 * PAGESIZE;
@@ -33,17 +37,23 @@ static void paging_on_demand_and_memory_protection_demo() {
 
   /* Start in paged on demand range, but end outside, to cause fault */
   for (int *ptr = (int *)start; ptr != (int *)end; ptr += 256) {
-    log("%p", ptr);
+    klog("%p", ptr);
     *ptr = 0xfeedbabe;
   }
 
   vm_map_dump(umap);
   vm_map_dump(kmap);
 
-  log("Test passed.");
+  /* Restore original vm_map */
+  vm_map_activate(orig);
+
+  klog("Test passed.");
+  return KTEST_SUCCESS;
 }
 
-static void findspace_demo() {
+static int findspace_demo(void) {
+  vm_map_t *orig = get_user_vm_map();
+
   vm_map_t *umap = vm_map_new();
   vm_map_activate(umap);
 
@@ -83,13 +93,12 @@ static void findspace_demo() {
   n = vm_map_findspace(umap, 0, 0x40000000, &t);
   assert(n == -ENOMEM);
 
-  log("Test passed.");
+  /* Restore original vm_map */
+  vm_map_activate(orig);
+
+  klog("Test passed.");
+  return KTEST_SUCCESS;
 }
 
-static int test_vm_map() {
-  paging_on_demand_and_memory_protection_demo();
-  findspace_demo();
-  return 0;
-}
-
-KTEST_ADD(vm_map, test_vm_map);
+KTEST_ADD(vm, paging_on_demand_and_memory_protection_demo, 0);
+KTEST_ADD(findspace, findspace_demo, 0);

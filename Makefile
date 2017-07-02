@@ -1,45 +1,84 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-all: mimiker.elf tags cscope
+all: cscope tags mimiker.elf initrd.cpio
+
+# Disable all built-in recipes
+.SUFFIXES:
 
 include Makefile.common
 $(info Using CC: $(CC))
 
+# Directories which contain kernel parts
+SYSSUBDIRS  = mips stdc sys tests
 # Directories which require calling make recursively
-SUBDIRS = mips stdc sys user tests
-
-# This rule ensures that all subdirectories are processed before any file
-# generated within them is used for linking the main kernel image.
-$(KRT): | $(SUBDIRS)
-	true # Disable default recipe from Makefile.common
-
-mimiker.elf: $(KRT)
-	@echo "[LD] Linking kernel image: $@"
-	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) $(LD_EMBED) -o $@
-
-cscope:
-	cscope -b include/*.h ./*/*.[cS]
-
-tags:
-	find -iname '*.[ch]' -not -path "*/toolchain/*" | ctags --language-force=c -L-
-	find -iname '*.[ch]' -not -path "*/toolchain/*" | ctags --language-force=c -L- -e -f etags
-	find -iname '*.S' -not -path "*/toolchain/*" | ctags -a --language-force=asm -L-
-	find -iname '*.S' -not -path "*/toolchain/*" | ctags -a --language-force=asm -L- -e -f etags
-
-# These files get destroyed by clang-format, so we exclude them from formatting
-FORMATTABLE_EXCLUDE = include/elf stdc/smallclib include/mips/asm.h include/mips/m32c0.h
-# Search for all .c and .h files, excluding toolchain build directory and files from FORMATTABLE_EXCLUDE
-FORMATTABLE = $(shell find -type f -not -path "*/toolchain/*" -and \( -name '*.c' -or -name '*.h' \) | grep -v $(FORMATTABLE_EXCLUDE:%=-e %))
-format:
-	@echo "Formatting files: $(FORMATTABLE:./%=%)"
-	clang-format -style=file -i $(FORMATTABLE)
+SUBDIRS = $(SYSSUBDIRS) user
 
 $(SUBDIRS):
 	$(MAKE) -C $@
 
+.PHONY: format tags cscope $(SUBDIRS) force
+
+# Make sure the global cache dir exists before building user programs
+user: | cache
+cache:
+	mkdir cache
+
+# Process subdirectories before using KRT files.
+$(KRT): | $(SYSSUBDIRS)
+	true # Disable default recipe
+mimiker.elf: $(KRT) | $(SYSSUBDIRS)
+	@echo "[LD] Linking kernel image: $@"
+	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
+
+cscope:
+	cscope -b include/*.h ./*/*.[cS]
+
+# Lists of all files that we consider our sources.
+SOURCE_RULES = -not -path "./toolchain/*" -and \
+               -not -path "./cache*"      -and \
+               -not -path "./sysroot*"
+SOURCES_C = $(shell find -iname '*.[ch]' -type f $(SOURCE_RULES))
+SOURCES_ASM = $(shell find -iname '*.[S]' -type f $(SOURCE_RULES))
+
+tags:
+	@echo "[CTAGS] Rebuilding tags..."
+	ctags --language-force=c $(SOURCES_C)
+	ctags --language-force=c -e -f etags $(SOURCES_C)
+	ctags --language-force=asm -a $(SOURCES_ASM)
+	ctags --language-force=asm -aef etags $(SOURCES_ASM)
+
+# These files get destroyed by clang-format, so we explicitly exclude them from
+# being automatically formatted
+FORMATTABLE_EXCLUDE = \
+	./include/elf/% \
+	./include/mips/asm.h \
+	./include/mips/m32c0.h \
+	./stdc/%
+FORMATTABLE = $(filter-out $(FORMATTABLE_EXCLUDE),$(SOURCES_C))
+
+format:
+	@echo "Formatting files: $(FORMATTABLE:./%=%)"
+	clang-format -style=file -i $(FORMATTABLE)
+
+test: mimiker.elf
+	./run_tests.py
+
+# Detecting whether initrd.cpio requires rebuilding is tricky, because even if
+# this target was to depend on $(shell fild sysroot -type f), then make compares
+# sysroot files timestamps BEFORE recursively entering user and installing user
+# programs into sysroot. This sounds silly, but apparently make assumes no files
+# appear "without their explicit target". Thus, the only thing we can do is
+# forcing make to always rebuild the archive.
+initrd.cpio: force | user
+	@echo "[INITRD] Building $@..."
+	cd sysroot && find -depth -print | $(CPIO) -o -F ../$@ 2> /dev/null
+
 clean:
 	$(foreach DIR, $(SUBDIRS), $(MAKE) -C $(DIR) $@;)
-	$(RM) -f *.a *.elf *.map *.lst *~ *.log
-	$(RM) -f tags etags cscope.out *.taghl
+	$(RM) *.a *.elf *.map *.lst *~ *.log *.cpio .*.D
+	$(RM) tags etags cscope.out *.taghl
 
-.PHONY: format tags cscope $(SUBDIRS)
+distclean: clean
+	$(RM) -r cache sysroot
+
+.PRECIOUS: %.uelf

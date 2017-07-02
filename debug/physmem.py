@@ -1,7 +1,6 @@
 import gdb
 import tailq
-from ptable import ptable
-import ctypes
+from ptable import ptable, as_hex
 
 PAGESIZE = 0x1000
 
@@ -30,14 +29,6 @@ def asid_of(hi):
     return hi & 0x000000ff
 
 
-def as_uint32(num):
-    return ctypes.c_ulong(num).value & 0xffffffff
-
-
-def as_hex(num):
-    return "$%08x" % as_uint32(num)
-
-
 class KernelSegments():
 
     def invoke(self):
@@ -51,8 +42,8 @@ class KernelSegments():
         segments = self.get_all_segments()
         rows = [['Segment', 'Start', 'End', 'Pages no']]
         for idx, seg in enumerate(segments):
-            rows.append([idx, as_hex(seg['start']), as_hex(seg['end']),
-                         seg['npages']])
+            rows.append([str(idx), as_hex(seg['start']), as_hex(seg['end']),
+                         str(seg['npages'])])
         ptable(rows, header=True)
 
 
@@ -67,22 +58,25 @@ class KernelFreePages():
 
     def dump_segment_freeq(self, idx, freeq, size):
         pages = tailq.collect_values(freeq, 'freeq')
-        return [[idx, size, as_hex(page['paddr']), as_hex(page['vaddr'])]
-                for page in pages]
+        return [[str(idx), str(size), as_hex(page['paddr']),
+                 as_hex(page['vaddr'])] for page in pages]
 
     def dump_segment_free_pages(self, idx, segment):
-        return [self.dump_segment_freeq(idx, segment['freeq'][q], 4 << q)
-                for q in range(16)]
+        helper = []
+        for q in range(16):
+            helper.extend(self.dump_segment_freeq(
+                idx, segment['freeq'][q], 4 << q))
+        return helper
 
     def dump_free_pages(self):
         segments = self.get_all_segments()
         rows = [['Segment', 'Page size', 'Physical', 'Virtual']]
         for idx, seg in enumerate(segments):
-            rows.append(self.dump_segment_free_pages(idx, seg))
+            rows.extend(self.dump_segment_free_pages(idx, seg))
         ptable(rows, header=True)
 
 
-class TLB:
+class TLB():
 
     def invoke(self):
         self.dump_tlb()
@@ -108,7 +102,7 @@ class TLB:
             return []
         return ["%02d" % idx, "$%02x" % asid_of(hi),
                 self.dump_entrylo(vpn_of(hi), lo0),
-                self.dump_entrylo(vpn_of(hi), lo1)]
+                self.dump_entrylo(vpn_of(hi) + PAGESIZE, lo1)]
 
     def dump_tlb(self):
         tlb_size = self.get_tlb_size()

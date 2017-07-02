@@ -64,7 +64,9 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize);
 #define MALTA_PHYS_SDRAM_BASE 0x00000000
 
 #define MALTA_PCI0_MEMORY_BASE 0x10000000
+#define MALTA_PCI0_MEMORY_END 0x17ffffff
 #define MALTA_PCI0_IO_BASE 0x18000000
+#define MALTA_PCI0_IO_END 0x1bdfffff
 #define MALTA_CORECTRL_BASE 0x1be00000
 #define MALTA_FPGA_BASE 0x1f000000
 
@@ -73,9 +75,6 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize);
 
 #define MALTA_PCI0_ADDR(x) (MALTA_PCI0_IO_BASE + (x))
 
-/* Intel 82371EB: RTC (MC146818) */
-#define MALTA_RTC_ADDR MALTA_PCI0_ADDR(0x70)
-#define MALTA_RTC_DATA MALTA_PCI0_ADDR(0x71)
 /* FDC37M817: UART (NS16550) */
 #define MALTA_SMSC_UART0 MALTA_PCI0_ADDR(0x3f8)
 #define MALTA_SMSC_UART1 MALTA_PCI0_ADDR(0x2f8)

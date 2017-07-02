@@ -30,14 +30,15 @@ static void unmapped_store(void *data) {
 
 #define NEW_THREAD(fn, arg) thread_create(#fn, fn, arg)
 
-static int test_crash() {
+static int test_crash(void) {
   sched_add(NEW_THREAD(unaligned_load, NULL));
   sched_add(NEW_THREAD(unaligned_store, NULL));
   sched_add(NEW_THREAD(unmapped_load, NULL));
   sched_add(NEW_THREAD(unmapped_store, NULL));
 
-  thread_dump_all();
   sched_run();
+
+  return KTEST_FAILURE;
 }
 
-KTEST_ADD(crash, test_crash);
+KTEST_ADD(crash, test_crash, KTEST_FLAG_NORETURN);

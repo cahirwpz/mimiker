@@ -35,6 +35,8 @@
  * asm.h: various macros to help assembly language writers
  */
 
+#include <mips/regdef.h>
+
 /*
  * standard callframe {
  *   register_t cf_pad[N];   o32/64 (N=0), n32 (N=1) n64 (N=1)
@@ -363,4 +365,4 @@ _TEXT_SECTION
 
 #endif /* __ASSEMBLER__ */
 
-#endif /*_MIPS_ASM_H_*/
+#endif /* !_MIPS_ASM_H_ */

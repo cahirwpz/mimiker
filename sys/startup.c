@@ -1,21 +1,21 @@
-#include <common.h>
+#define KL_LOG KL_INIT
+#include <klog.h>
 #include <stdc.h>
-#include <mips/clock.h>
-#include <malloc.h>
-#include <pci.h>
-#include <pmap.h>
-#include <callout.h>
 #include <sched.h>
-#include <sleepq.h>
 #include <thread.h>
-#include <vm_object.h>
-#include <vm_map.h>
-#include <filedesc.h>
-#include <vnode.h>
-#include <mount.h>
-#include <devfs.h>
+#include <sysinit.h>
+#include <vfs.h>
 
 extern void main(void *);
+
+/* This function mounts some initial filesystems. Normally this would be done by
+   userspace init program. */
+static void mount_fs(void) {
+  do_mount(thread_self(), "initrd", "/");
+  do_mount(thread_self(), "devfs", "/dev");
+}
+
+SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs", "filedesc"));
 
 int kernel_init(int argc, char **argv) {
   kprintf("Kernel arguments (%d): ", argc);
@@ -23,22 +23,11 @@ int kernel_init(int argc, char **argv) {
     kprintf("%s ", argv[i]);
   kprintf("\n");
 
-  pci_init();
-  callout_init();
-  pmap_init();
-  vm_object_init();
-  vm_map_init();
-  sched_init();
-  mips_clock_init();
+  sysinit();
+  klog("Kernel initialized!");
 
-  vnode_init();
-  vfs_init();
-  file_init();
-  fd_init();
-
-  kprintf("[startup] kernel initialized\n");
-
-  thread_switch_to(thread_create("main", main, NULL));
+  thread_t *main_thread = thread_create("main", main, NULL);
+  sched_add(main_thread);
 
   sched_run();
 }

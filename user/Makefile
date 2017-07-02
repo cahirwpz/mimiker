@@ -2,21 +2,34 @@
 
 include ../Makefile.common
 
-SUBDIRS = $(shell find -mindepth 1 -maxdepth 1 -type d)
+PROGDIRS = $(shell find -mindepth 1 -maxdepth 1 -type d)
+PROGDIRS-install = $(PROGDIRS:%=%-install)
 
-.PHONY: clean common all $(SUBDIRS)
+.PHONY: clean all $(PROGDIRS)
 
-all: $(SUBDIRS)
+all: $(PROGDIRS) install
 
-$(SUBDIRS): | common
+install: $(PROGDIRS-install)
+
+$(PROGDIRS):
+	# @echo "Maybe compiling $@..." # Diagnostic message
 	$(MAKE) -C $@
 
-# This target may be invoked by make run in a user program subdirectory, so
-# plase do not have it pull any dependencies outside this dir.
-common: start.o syscalls.o
+# .inst targets represent the installation of a program into sysroot.
+%-install: %
+	# @echo "Maybe installing $@..." # Diagnostic message
+	$(MAKE) -C $< install
+
+# Dependencies between user programs are currently expressed here.
+newlib: | libmimiker-install
+sandbox: | newlib-install
+mandelbrot: | newlib-install
+ls_rec: | newlib-install
+utest: | newlib-install
+test_kbd: | newlib-install
+test_rtc: | newlib-install
 
 clean:
-	rm -f start.o syscalls.o
-	for dir in $(SUBDIRS); do \
+	for dir in $(PROGDIRS); do \
 	  $(MAKE) -C $$dir clean; \
 	done

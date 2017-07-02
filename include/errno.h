@@ -172,13 +172,11 @@
 
 #define ELAST 96 /* Must equal largest errno */
 
-#if defined(_KERNEL) || defined(_KMEMUSER)
+#if defined(_KERNEL) || defined(_KMEMUSER) || defined(_KERNELSPACE)
 /* pseudo-errors returned inside kernel to modify return to process */
-#define EJUSTRETURN -2  /* don't modify regs, just return */
-#define ERESTART -3     /* restart syscall */
-#define EPASSTHROUGH -4 /* ioctl not handled by this layer */
-#define EDUPFD -5       /* Dup given fd */
-#define EMOVEFD -6      /* Move given fd */
+#define EJUSTRETURN 256 /* don't modify regs, just return to userspace with */
+                        /* current uctx (used by sigreturn and execve) */
+#define ERESTART 257    /* restart syscall */
 #endif
 
 #endif /* !_SYS_ERRNO_H_ */

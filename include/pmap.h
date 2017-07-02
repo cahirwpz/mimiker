@@ -1,8 +1,9 @@
-#ifndef _PMAP_H_
-#define _PMAP_H_
+#ifndef _SYS_PMAP_H_
+#define _SYS_PMAP_H_
 
 #include <vm.h>
 #include <queue.h>
+#include <context.h>
 
 typedef uint8_t asid_t;
 typedef uint32_t pte_t;
@@ -17,8 +18,7 @@ typedef struct pmap {
   asid_t asid;
 } pmap_t;
 
-void pmap_init();
-pmap_t *pmap_new();
+pmap_t *pmap_new(void);
 void pmap_reset(pmap_t *pmap);
 void pmap_delete(pmap_t *pmap);
 
@@ -32,9 +32,9 @@ void pmap_unmap(pmap_t *pmap, vm_addr_t start, vm_addr_t end);
 bool pmap_probe(pmap_t *pmap, vm_addr_t start, vm_addr_t end, vm_prot_t prot);
 
 void pmap_activate(pmap_t *pmap);
-pmap_t *get_kernel_pmap();
-pmap_t *get_user_pmap();
+pmap_t *get_kernel_pmap(void);
+pmap_t *get_user_pmap(void);
 
-void tlb_exception_handler();
+void tlb_exception_handler(exc_frame_t *frame);
 
-#endif /* _PMAP_H_ */
+#endif /* !_SYS_PMAP_H_ */

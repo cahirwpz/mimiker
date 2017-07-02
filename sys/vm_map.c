@@ -1,3 +1,5 @@
+#define KL_LOG KL_VM
+#include <klog.h>
 #include <stdc.h>
 #include <malloc.h>
 #include <pmap.h>
@@ -8,31 +10,33 @@
 #include <vm_object.h>
 #include <vm_map.h>
 #include <errno.h>
+#include <proc.h>
+#include <mips/mips.h>
+#include <pcpu.h>
+#include <sysinit.h>
+
+static MALLOC_DEFINE(M_VMMAP, "vm-map", 1, 2);
 
 static vm_map_t kspace;
 
-vm_map_t *vm_map_activate(vm_map_t *map) {
-  vm_map_t *old;
+void vm_map_activate(vm_map_t *map) {
+  SCOPED_CRITICAL_SECTION();
 
-  critical_enter();
-  thread_t *td = thread_self();
-  old = td->td_uspace;
-  td->td_uspace = map;
+  PCPU_SET(uspace, map);
   pmap_activate(map ? map->pmap : NULL);
-  critical_leave();
-
-  return old;
 }
 
-vm_map_t *get_user_vm_map() {
-  return thread_self()->td_uspace;
+vm_map_t *get_user_vm_map(void) {
+  return PCPU_GET(uspace);
 }
-vm_map_t *get_kernel_vm_map() {
+
+vm_map_t *get_kernel_vm_map(void) {
   return &kspace;
 }
 
 static bool in_range(vm_map_t *map, vm_addr_t addr) {
-  return map && (map->pmap->start <= addr && addr < map->pmap->end);
+  /* No need to enter RWlock, the pmap field is const. */
+  return map && map->pmap->start <= addr && addr < map->pmap->end;
 }
 
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr) {
@@ -55,28 +59,24 @@ SPLAY_GENERATE(vm_map_tree, vm_map_entry, map_tree, vm_map_entry_cmp);
 static void vm_map_setup(vm_map_t *map) {
   TAILQ_INIT(&map->list);
   SPLAY_INIT(&map->tree);
+  rw_init(&map->rwlock, "vm map rwlock", 1);
 }
 
-static MALLOC_DEFINE(mpool, "vm_map memory pool");
-
-void vm_map_init() {
-  vm_page_t *pg = pm_alloc(2);
-  kmalloc_init(mpool);
-  kmalloc_add_arena(mpool, pg->vaddr, PG_SIZE(pg));
-
+static void vm_map_init(void) {
   vm_map_setup(&kspace);
-  kspace.pmap = get_kernel_pmap();
+  *((pmap_t **)(&kspace.pmap)) = get_kernel_pmap();
 }
 
-vm_map_t *vm_map_new() {
-  vm_map_t *map = kmalloc(mpool, sizeof(vm_map_t), M_ZERO);
+vm_map_t *vm_map_new(void) {
+  vm_map_t *map = kmalloc(M_VMMAP, sizeof(vm_map_t), M_ZERO);
 
   vm_map_setup(map);
-  map->pmap = pmap_new();
+  *((pmap_t **)&map->pmap) = pmap_new();
   return map;
 }
 
 static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
+  rw_assert(&vm_map->rwlock, RW_WLOCKED);
   if (!SPLAY_INSERT(vm_map_tree, &vm_map->tree, entry)) {
     vm_map_entry_t *next = SPLAY_NEXT(vm_map_tree, &vm_map->tree, entry);
     if (next)
@@ -90,6 +90,8 @@ static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
 }
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
+  SCOPED_RW_ENTER(&vm_map->rwlock, RW_READER);
+
   vm_map_entry_t *etr_it;
   TAILQ_FOREACH (etr_it, &vm_map->list, map_list)
     if (etr_it->start <= vaddr && vaddr < etr_it->end)
@@ -98,16 +100,19 @@ vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
 }
 
 static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
+  rw_assert(&vm_map->rwlock, RW_WLOCKED);
   vm_map->nentries--;
   vm_object_free(entry->object);
   TAILQ_REMOVE(&vm_map->list, entry, map_list);
-  kfree(mpool, entry);
+  kfree(M_VMMAP, entry);
 }
 
 void vm_map_delete(vm_map_t *map) {
-  while (map->nentries > 0)
-    vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
-  kfree(mpool, map);
+  WITH_RW_LOCK (&map->rwlock, RW_WRITER) {
+    while (map->nentries > 0)
+      vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
+  }
+  kfree(M_VMMAP, map);
 }
 
 vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
@@ -122,13 +127,15 @@ vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
   assert(vm_map_find_entry(map, end) == NULL);
 #endif
 
-  vm_map_entry_t *entry = kmalloc(mpool, sizeof(vm_map_entry_t), M_ZERO);
+  vm_map_entry_t *entry = kmalloc(M_VMMAP, sizeof(vm_map_entry_t), M_ZERO);
 
   entry->start = start;
   entry->end = end;
   entry->prot = prot;
 
-  vm_map_insert_entry(map, entry);
+  WITH_RW_LOCK (&map->rwlock, RW_WRITER)
+    vm_map_insert_entry(map, entry);
+
   return entry;
 }
 
@@ -137,8 +144,8 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot) {
 }
 
-int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
-                     vm_addr_t /*out*/ *addr) {
+int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start, size_t length,
+                            vm_addr_t /*out*/ *addr) {
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(length, PAGESIZE));
 
@@ -181,8 +188,15 @@ found:
   return 0;
 }
 
+int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
+                     vm_addr_t /*out*/ *addr) {
+  SCOPED_RW_ENTER(&map->rwlock, RW_READER);
+  return vm_map_findspace_nolock(map, start, length, addr);
+}
+
 int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
   assert(is_aligned(new_end, PAGESIZE));
+  rw_assert(&map->rwlock, RW_WLOCKED);
 
   /* TODO: As for now, we are unable to decrease the size of an entry, because
      it would require unmapping physical pages, which in turn should clean
@@ -209,38 +223,78 @@ int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
 }
 
 void vm_map_dump(vm_map_t *map) {
+  klog("Virtual memory map (%08lx - %08lx):", map->pmap->start, map->pmap->end);
+
+  SCOPED_RW_ENTER(&map->rwlock, RW_READER);
+
   vm_map_entry_t *it;
-  kprintf("[vm_map] Virtual memory map (%08lx - %08lx):\n", map->pmap->start,
-          map->pmap->end);
   TAILQ_FOREACH (it, &map->list, map_list) {
-    kprintf("[vm_map] * %08lx - %08lx [%c%c%c]\n", it->start, it->end,
-            (it->prot & VM_PROT_READ) ? 'r' : '-',
-            (it->prot & VM_PROT_WRITE) ? 'w' : '-',
-            (it->prot & VM_PROT_EXEC) ? 'x' : '-');
+    klog(" * %08lx - %08lx [%c%c%c]", it->start, it->end,
+         (it->prot & VM_PROT_READ) ? 'r' : '-',
+         (it->prot & VM_PROT_WRITE) ? 'w' : '-',
+         (it->prot & VM_PROT_EXEC) ? 'x' : '-');
     vm_map_object_dump(it->object);
   }
 }
 
-int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
-  vm_map_entry_t *entry;
+/* This entire function is a nasty hack, but we'll live with it until proper COW
+   is implemented. */
+vm_map_t *vm_map_clone(vm_map_t *map) {
+  thread_t *td = thread_self();
+  assert(td->td_proc);
+  assert(td->td_proc->p_nthreads == 1);
 
-  if (!(entry = vm_map_find_entry(map, fault_addr))) {
-    log("Tried to access unmapped memory region: 0x%08lx!", fault_addr);
+  vm_map_t *orig_current_map = get_user_vm_map();
+  vm_map_t *newmap = vm_map_new();
+
+  WITH_RW_LOCK (&map->rwlock, RW_READER) {
+    /* Temporarily switch to the new map, so that we may write contents. */
+    td->td_proc->p_uspace = newmap;
+    vm_map_activate(newmap);
+
+    vm_map_entry_t *it;
+    TAILQ_FOREACH (it, &map->list, map_list) {
+      vm_map_entry_t *entry =
+        vm_map_add_entry(newmap, it->start, it->end, it->prot);
+      entry->object = default_pager->pgr_alloc();
+      vm_page_t *page;
+      TAILQ_FOREACH (page, &it->object->list, obj.list) {
+        memcpy((char *)it->start + page->vm_offset,
+               (char *)MIPS_PHYS_TO_KSEG0(page->paddr), page->size * PAGESIZE);
+      }
+    }
+  }
+
+  /* Return to original vm map. */
+  td->td_proc->p_uspace = orig_current_map;
+  vm_map_activate(orig_current_map);
+
+  return newmap;
+}
+
+int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
+  vm_map_entry_t *entry = NULL;
+
+  WITH_RW_LOCK (&map->rwlock, RW_READER)
+    entry = vm_map_find_entry(map, fault_addr);
+
+  if (!entry) {
+    klog("Tried to access unmapped memory region: 0x%08lx!", fault_addr);
     return -EFAULT;
   }
 
   if (entry->prot == VM_PROT_NONE) {
-    log("Cannot access to address: 0x%08lx", fault_addr);
+    klog("Cannot access to address: 0x%08lx", fault_addr);
     return -EACCES;
   }
 
   if (!(entry->prot & VM_PROT_WRITE) && (fault_type == VM_PROT_WRITE)) {
-    log("Cannot write to address: 0x%08lx", fault_addr);
+    klog("Cannot write to address: 0x%08lx", fault_addr);
     return -EACCES;
   }
 
   if (!(entry->prot & VM_PROT_READ) && (fault_type == VM_PROT_READ)) {
-    log("Cannot read from address: 0x%08lx", fault_addr);
+    klog("Cannot read from address: 0x%08lx", fault_addr);
     return -EACCES;
   }
 
@@ -261,3 +315,5 @@ int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
 
   return 0;
 }
+
+SYSINIT_ADD(vm_map, vm_map_init, DEPS("pmap", "vm_object"));

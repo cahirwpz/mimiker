@@ -1,3 +1,5 @@
+#define KL_LOG KL_PMAP
+#include <klog.h>
 #include <stdc.h>
 #include <malloc.h>
 #include <physmem.h>
@@ -5,7 +7,7 @@
 #define PM_QUEUE_OF(seg, page) ((seg)->freeq + log2((page)->size))
 #define PM_FREEQ(seg, i) ((seg)->freeq + (i))
 
-#define PM_NQUEUES 16
+#define PM_NQUEUES 16U
 
 typedef struct pm_seg {
   TAILQ_ENTRY(pm_seg) segq;
@@ -20,18 +22,18 @@ TAILQ_HEAD(pm_seglist, pm_seg);
 
 static struct pm_seglist seglist;
 
-void pm_init() {
+void pm_init(void) {
   TAILQ_INIT(&seglist);
 }
 
-void pm_dump() {
+void pm_dump(void) {
   pm_seg_t *seg_it;
   vm_page_t *pg_it;
 
   TAILQ_FOREACH (seg_it, &seglist, segq) {
     kprintf("[pmem] segment %p - %p:\n", (void *)seg_it->start,
             (void *)seg_it->end);
-    for (int i = 0; i < PM_NQUEUES; i++) {
+    for (unsigned i = 0; i < PM_NQUEUES; i++) {
       if (!TAILQ_EMPTY(PM_FREEQ(seg_it, i))) {
         kprintf("[pmem]  %6dKiB:", (PAGESIZE / 1024) << i);
         TAILQ_FOREACH (pg_it, PM_FREEQ(seg_it, i), freeq)
@@ -48,9 +50,8 @@ size_t pm_seg_space_needed(size_t size) {
   return sizeof(pm_seg_t) + size / PAGESIZE * sizeof(vm_page_t);
 }
 
-void pm_seg_init(pm_seg_t *seg,
-                 pm_addr_t start, pm_addr_t end, vm_addr_t vm_offset)
-{
+void pm_seg_init(pm_seg_t *seg, pm_addr_t start, pm_addr_t end,
+                 vm_addr_t vm_offset) {
   assert(start < end);
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
@@ -62,7 +63,7 @@ void pm_seg_init(pm_seg_t *seg,
 
   unsigned max_size = min(PM_NQUEUES, ffs(seg->npages)) - 1;
 
-  for (int i = 0; i < seg->npages; i++) {
+  for (unsigned i = 0; i < seg->npages; i++) {
     vm_page_t *page = &seg->pages[i];
     bzero(page, sizeof(vm_page_t));
     page->paddr = seg->start + PAGESIZE * i;
@@ -70,11 +71,11 @@ void pm_seg_init(pm_seg_t *seg,
     page->size = 1 << min(max_size, ctz(i));
   }
 
-  for (int i = 0; i < PM_NQUEUES; i++)
+  for (unsigned i = 0; i < PM_NQUEUES; i++)
     TAILQ_INIT(PM_FREEQ(seg, i));
 
   int curr_page = 0;
-  int to_add = seg->npages;
+  unsigned to_add = seg->npages;
 
   for (int i = PM_NQUEUES - 1; i >= 0; i--) {
     unsigned size = 1 << i;
@@ -119,7 +120,7 @@ static vm_page_t *pm_find_buddy(pm_seg_t *seg, vm_page_t *pg) {
 
   intptr_t index = buddy - seg->pages;
 
-  if (index < 0 || index >= seg->npages)
+  if (index < 0 || index >= (intptr_t)seg->npages)
     return NULL;
 
   if (buddy->size != pg->size)
@@ -158,8 +159,8 @@ void pm_seg_reserve(pm_seg_t *seg, pm_addr_t start, pm_addr_t end) {
   assert(is_aligned(end, PAGESIZE));
   assert(seg->start <= start && end <= seg->end);
 
-  log("pm_seg_reserve: %p - %p from [%p, %p]",
-      (void *)start, (void *)end, (void *)seg->start, (void *)seg->end);
+  klog("pm_seg_reserve: %p - %p from [%p, %p]", (void *)start, (void *)end,
+       (void *)seg->start, (void *)seg->end);
 
   for (int i = PM_NQUEUES - 1; i >= 0; i--) {
     pg_list_t *queue = PM_FREEQ(seg, i);
@@ -231,8 +232,7 @@ vm_page_t *pm_alloc(size_t npages) {
   TAILQ_FOREACH (seg_it, &seglist, segq) {
     vm_page_t *page;
     if ((page = pm_alloc_from_seg(seg_it, npages))) {
-      kprintf("[pmem] pm_alloc {paddr:%lx size:%ld}\n", page->paddr,
-              page->size);
+      klog("pm_alloc {paddr:%lx size:%ld}", page->paddr, page->size);
       return page;
     }
   }
@@ -271,7 +271,7 @@ static void pm_free_from_seg(pm_seg_t *seg, vm_page_t *page) {
 void pm_free(vm_page_t *page) {
   pm_seg_t *seg_it = NULL;
 
-  kprintf("[pmem] pm_free {paddr:%lx size:%ld}\n", page->paddr, page->size);
+  klog("pm_free {paddr:%lx size:%ld}", page->paddr, page->size);
 
   TAILQ_FOREACH (seg_it, &seglist, segq) {
     if (PG_START(page) >= seg_it->start && PG_END(page) <= seg_it->end) {
@@ -285,7 +285,7 @@ void pm_free(vm_page_t *page) {
 }
 
 vm_page_t *pm_split_alloc_page(vm_page_t *pg) {
-  kprintf("[pmem] pm_split {paddr:%lx size:%ld}\n", pg->paddr, pg->size);
+  klog("pm_split {paddr:%lx size:%ld}\n", pg->paddr, pg->size);
 
   assert(pg->size > 1);
   assert(pg->pm_flags & PM_ALLOCATED);
@@ -303,13 +303,13 @@ vm_page_t *pm_split_alloc_page(vm_page_t *pg) {
  * this would require us to allocate some memory, which we can't do
  * at this moment. However at the moment we need to compare states only,
  * so this solution seems best. */
-unsigned long pm_hash() {
+unsigned long pm_hash(void) {
   unsigned long hash = 5381;
   pm_seg_t *seg_it;
   vm_page_t *pg_it;
 
   TAILQ_FOREACH (seg_it, &seglist, segq) {
-    for (int i = 0; i < PM_NQUEUES; i++) {
+    for (unsigned i = 0; i < PM_NQUEUES; i++) {
       if (!TAILQ_EMPTY(PM_FREEQ(seg_it, i))) {
         TAILQ_FOREACH (pg_it, PM_FREEQ(seg_it, i), freeq)
           hash = hash * 33 + PG_START(pg_it);

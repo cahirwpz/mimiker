@@ -41,12 +41,7 @@
  * Ignores `locale' stuff.  Assumes that the upper and lower case
  * alphabets and digits are each contiguous.
  */
-unsigned long
-strtoul(nptr, endptr, base)
-	const char *nptr;
-	char **endptr;
-	int base;
-{
+unsigned long strtoul(const char *nptr, char **endptr, int base) {
 	const char *s = nptr;
 	unsigned long acc;
 	unsigned char c;
@@ -100,4 +95,10 @@ strtoul(nptr, endptr, base)
 	if (endptr != 0)
 		*((const char **)endptr) = any ? s - 1 : nptr;
 	return (acc);
+}
+
+unsigned long strntoul(const char *nptr, size_t len, char **endptr, int base) {
+  char copy[len + 1];
+  strlcpy(copy, nptr, len + 1);
+  return strtoul(copy, endptr, base);
 }

@@ -3,22 +3,31 @@
 An experiment with implementation of very simple operating system
 for [Malta](https://www.linux-mips.org/wiki/MIPS_Malta) board.
 
-Building
+Toolchain
 ---
 
-To build Mimiker you will need to prepare a custom MIPS toolchain we use. We
-use crosstool-ng for building the toolchain, you can get
-it [from here](http://crosstool-ng.org/).
+To build Mimiker you will need a custom MIPS toolchain we use. You can download
+a binary debian package
+[from here](http://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.1_amd64.deb).
+It installs into `/opt`, so you'll need to add `/opt/mipsel-mimiker-elf/bin` to
+your `PATH`.
+
+Otherwise, if you prefer to build the toolchain on your own, download
+crosstool-ng which we use for configuring the toolchain. You can get
+it [from here](http://crosstool-ng.org/). Then:
 
 ```
 cd toolchain/mips/
 ct-ng build
 ```
 
-By default, this will build and install the `mipsel-unknown-elf` toolchnain to
-`~/local`. Update your `$PATH` so that it provides `mipsel-unknown-elf-*`,
+By default, this will build and install the `mipsel-mimiker-elf` toolchnain to
+`~/local`. Update your `$PATH` so that it provides `mipsel-mimiker-elf-*`,
 i.e. unless you've changed the install location you will need to append
-`~/local/mipsel-unknown-elf/bin` to your `PATH`.
+`~/local/mipsel-mimiker-elf/bin` to your `PATH`.
+
+Building
+---
 
 With toolchain in place, you are ready to compile Mimiker. Run
 
@@ -60,6 +69,12 @@ argument. Some useful kernel aguments:
   for currently available programs.
 * `test=TEST` - Requests the kernel to run the specified test (from `./tests`
   directory).
+* `test=all` - Runs a number of tests one after another, and reports success
+  only when all of them passed.
+* `seed=UINT` - Sets the RNG seed for shuffling the list of test when using
+  `test=all`.
+* `repeat=UINT` - Specifies the number of (shuffled) repetitions of each test
+  when using `test=all`.
 
 Documentation
 ---

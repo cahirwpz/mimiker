@@ -3,7 +3,7 @@
 #include <vm_object.h>
 #include <vm_pager.h>
 
-static vm_object_t *default_pager_alloc() {
+static vm_object_t *default_pager_alloc(void) {
   vm_object_t *obj = vm_object_alloc();
   obj->pgr = (pager_t *)default_pager;
   return obj;
@@ -19,6 +19,7 @@ static vm_page_t *default_pager_fault(vm_object_t *obj, vm_addr_t fault_addr,
 
   vm_page_t *new_pg = pm_alloc(1);
   new_pg->vm_offset = vm_offset;
+  memset((char *)new_pg->vaddr, 0, PAGESIZE);
   vm_object_add_page(obj, new_pg);
   return new_pg;
 }

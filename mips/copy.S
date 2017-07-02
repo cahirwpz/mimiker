@@ -7,6 +7,10 @@
 
 #include "assym.h"
 
+# WARNING: copyin and copyout make unsafe assumption that memcpy routine does
+# not modify caller saved registers nor stack pointer. If you're about to
+# change memcpy implementation, make sure it does not violate the assumption!
+
 	.set	noreorder		# Noreorder is default style!
 
 /*
@@ -23,18 +27,18 @@ LEAF(copystr)
 	lbu		v0, 0(a0)
 	PTR_SUBU	a2, a2, 1
 	beq		v0, zero, 2f
-	sb		v0, 0(a1)		# each byte until NIL
+	sb		v0, 0(a1)	        # each byte until NIL
 	PTR_ADDU	a0, a0, 1
-	bne		a2, zero, 1b		# less than maxlen
+	bne		a2, zero, 1b	        # less than maxlen
 	PTR_ADDU	a1, a1, 1
 4:
-	li		v0, -ENAMETOOLONG	# run out of space
+	li		v0, -ENAMETOOLONG       # run out of space
 2:
-	beq		a3, zero, 3f		# return num. of copied bytes
-	PTR_SUBU	a2, t0, a2		# if the 4th arg was non-NULL
+	beq		a3, zero, 3f	        # return num. of copied bytes
+	PTR_SUBU	a2, t0, a2	        # if the 4th arg was non-NULL
 	PTR_S		a2, 0(a3)
 3:
-	j		ra			# v0 is 0 or -ENAMETOOLONG
+	j		ra		        # v0 is 0 or -ENAMETOOLONG
 	nop
 END(copystr)
 
@@ -75,7 +79,7 @@ NESTED(copyin, CALLFRAME_SIZ, ra)
 	REG_S	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
         PTR_L   v1, PCPU_CURTHREAD(v1)
-	move    t0, a0                  # swap a0, a1 for call to memcpy
+	move    t0, a0                  # swap $a0 and $a1 for call to memcpy
 	move    a0, a1
 	move    a1, t0
 	jal	memcpy
@@ -102,7 +106,7 @@ NESTED(copyout, CALLFRAME_SIZ, ra)
 	REG_S	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
         PTR_L   v1, PCPU_CURTHREAD(v1)
-	move    t0, a0                  # swap a0, a1 for call to memcpy
+	move    t0, a0                  # swap $a0 and $a1 for call to memcpy
 	move    a0, a1
 	move    a1, t0
 	jal	memcpy
@@ -122,42 +126,5 @@ LEAF(copyerr)
 	j	ra
 	li	v0, -EFAULT		# return error
 END(copyerr)
-
-/*
- * int32_t fuword32(const void *ptr)
- * int suword32(void *ptr, int32_t word)
- * 
- * {fu,su}{iword32} fetch / store 32-bit word from / to the user space.
- */
-
-LEAF(fuword32)
-	LA	v0, fswberr
-	blt	a0, zero, fswberr	# make sure address is in user space
-	nop
-	LOAD_PCPU(v1)
-        PTR_L   v1, PCPU_CURTHREAD(v1)
-	PTR_S	v0, TD_ONFAULT(v1)
-	lw	v0, 0(a0)		# fetch word
-	j	ra
-	PTR_S	zero, TD_ONFAULT(v1)
-END(fuword32)
-
-LEAF(suword32)
-	LA	v0, fswberr
-	blt	a0, zero, fswberr	# make sure address is in user space
-	nop
-	LOAD_PCPU(v1)
-        PTR_L   v1, PCPU_CURTHREAD(v1)
-	PTR_S	v0, TD_ONFAULT(v1)
-	sw	a1, 0(a0)		# store short
-	PTR_S	zero, TD_ONFAULT(v1)
-	j	ra
-	move	v0, zero
-END(suword32)
-
-LEAF(fswberr)
-	j	ra
-	li	v0, -1
-END(fswberr)
 
 # vim: sw=8 ts=8 et

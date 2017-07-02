@@ -1,7 +1,4 @@
 import gdb
-import sys
-import os
-sys.path.append(os.path.join(os.getcwd(), 'debug'))
 import threads
 
 

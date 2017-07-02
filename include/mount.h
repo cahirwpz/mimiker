@@ -11,12 +11,10 @@
 #define VFS_PATH_MAX 256
 
 /* Forward declarations */
-typedef struct vnode vnode_t;
 typedef struct mount mount_t;
 typedef struct vnode vnode_t;
 typedef struct vfsconf vfsconf_t;
 typedef struct statfs statfs_t;
-typedef struct file file_t;
 
 /* VFS operations */
 typedef int vfs_mount_t(mount_t *m);
@@ -41,6 +39,11 @@ typedef struct vfsconf {
   int vfc_mountcnt; /* Number of mounted filesystems of this type */
   TAILQ_ENTRY(vfsconf) vfc_list; /* Entry on the list of vfsconfs */
 } vfsconf_t;
+
+/* The list of all installed filesystem types */
+typedef TAILQ_HEAD(, vfsconf) vfsconf_list_t;
+extern vfsconf_list_t vfsconf_list;
+extern mtx_t vfsconf_list_mtx;
 
 /* This structure represents a mount point: a particular instance of a file
    system mounted somewhere in the file tree. */
@@ -74,10 +77,8 @@ static inline int VFS_VGET(mount_t *m, ino_t ino, vnode_t **vp) {
   return m->mnt_vfsops->vfs_vget(m, ino, vp);
 }
 
-/* This is the / node. Since we aren't mounting anything on / just yet, there is
-   also a separate global vnode for /dev .*/
+/* This is the / node.*/
 extern vnode_t *vfs_root_vnode;
-extern vnode_t *vfs_root_dev_vnode;
 
 /* Look up a file system type by name. */
 vfsconf_t *vfs_get_by_name(const char *name);
@@ -90,15 +91,5 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc);
 /* Mount a new instance of the filesystem vfc at the vnode v. Does not support
  * remounting. TODO: Additional filesystem-specific arguments. */
 int vfs_domount(vfsconf_t *vfc, vnode_t *v);
-
-/* Finds the vnode corresponding to the given path.
- * Increases use count on returned vnode. */
-int vfs_lookup(const char *pathname, vnode_t **vp);
-
-/* Looks up the vnode corresponding to the pathname and opens it into f. &*/
-int vfs_open(file_t *f, char *pathname, int flags, int mode);
-
-/* Initializes the VFS subsystem. */
-void vfs_init();
 
 #endif /* !_SYS_MOUNT_H_ */
