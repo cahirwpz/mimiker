@@ -1,7 +1,7 @@
 Source: mipsel-mimiker-elf
 Section: unknown
 Priority: optional
-Maintainer: Krystian Bacławski <cahir@mimiker.ii.uni.wroc.pl>
+Maintainer: Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>
 Build-Depends: debhelper (>= 9)
 Standards-Version: 3.9.8
 Homepage: http://mimiker.ii.uni.wroc.pl
