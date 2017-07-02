@@ -4,6 +4,10 @@
 #export DH_VERBOSE = 1
 
 build:
+build-indep:
+build-arch:
+
+binary:
 	dh_testdir
 	dh_testroot
 	dh_installchangelogs
@@ -20,13 +24,10 @@ build:
 	dh_md5sums
 	dh_builddeb
 
-build-indep:
-build-arch:
-
-binary:
 binary-indep:
 binary-arch:
 
 clean:
+	dh_clean
 
 .PHONY: build clean binary-indep binary-arch binary install configure

@@ -178,7 +178,6 @@ def clean():
   rmtree('{stamps}')
   rmtree('{host}')
   rmtree('{build}')
-  rmtree('{sources}')
 
 
 if __name__ == "__main__":
