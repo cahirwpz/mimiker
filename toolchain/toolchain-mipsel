@@ -5,6 +5,7 @@ from os import environ
 import argparse
 import logging
 import platform
+import subprocess
 import sys
 
 URLS = \
@@ -14,7 +15,7 @@ URLS = \
    'http://isl.gforge.inria.fr/isl-0.18.tar.bz2',
    'http://www.bastoul.net/cloog/pages/download/cloog-0.18.4.tar.gz',
    'ftp://ftp.gnu.org/gnu/gdb/gdb-7.12.1.tar.gz',
-   'ftp://ftp.gnu.org/gnu/binutils/binutils-2.27.tar.bz2',
+   'ftp://ftp.gnu.org/gnu/binutils/binutils-2.28.tar.bz2',
    'ftp://ftp.gnu.org/gnu/gcc/gcc-6.3.0/gcc-6.3.0.tar.bz2']
 
 
@@ -52,7 +53,7 @@ def build():
   require_header(['python2.7/Python.h'],
                  lang='c', errmsg='libpython2.7-dev package missing')
 
-  environ['PATH'] = ":".join([path.join('{target}', 'bin'),
+  environ['PATH'] = ":".join([path.join('{prefix}', 'bin'),
                               path.join('{host}', 'bin'),
                               environ['PATH']])
 
@@ -106,33 +107,68 @@ def build():
   make('{cloog}')
   make('{cloog}', 'install')
 
+  # '--disable-sim' '--disable-gdb' '--with-float=hard'
+
   unpack('{binutils}')
   configure('{binutils}',
-            '--prefix={target}',
-            '--with-isl={host}',
-            '--target=mips-elf')
+            '--target={target}',
+            '--prefix={prefix}',
+            '--with-sysroot={prefix}/{target}',
+            '--disable-mutlilib',
+            '--disable-nls',
+            '--disable-shared',
+            '--disable-werror',
+            '--with-isl={host}')
   make('{binutils}')
   make('{binutils}', 'install')
 
+  # 'CFLAGS_FOR_TARGET= -EL -march=mips32r2 -mabi=32    -mhard-float '
+  # 'CXXFLAGS_FOR_TARGET= -EL -march=mips32r2 -mabi=32    -mhard-float '
+  # 'LDFLAGS_FOR_TARGET= -Wl,-EL '
+  # '--enable-threads=no'
+  # '--disable-__cxa_atexit' '--enable-target-optspace' '--with-mips-plt'
+
   unpack('{gcc}')
   configure('{gcc}',
-            '--target=mips-elf',
+            '--target={target}',
+            '--prefix={prefix}',
+            '--with-arch=mips32r2',
+            '--with-sysroot={prefix}/{target}/sysroot',
+            '--with-abi=32',
+            '--with-float=hard',
             '--with-gmp={host}',
             '--with-mpfr={host}',
             '--with-isl={host}',
             '--with-cloog={host}',
-            '--prefix={target}',
+            '--enable-lto',
             '--enable-languages=c',
+            '--disable-multilib',
+            '--disable-nls',
+            '--disable-shared',
+            '--disable-werror',
+            '--with-newlib',
             '--without-headers')
   make('{gcc}', 'all-gcc')
+  make('{gcc}', 'all-target-libgcc')
   make('{gcc}', 'install-gcc')
+  make('{gcc}', 'install-target-libgcc')
+
+  # '--with-build-sysroot=/opt/mipsel-mimiker-elf/mipsel-mimiker-elf'
+  # '--with-expat' '--without-libexpat-prefix' '--disable-threads'
 
   unpack('{gdb}')
   configure('{gdb}',
-            '--prefix={target}',
+            '--target={target}',
+            '--prefix={prefix}',
+            '--with-sysroot={prefix}/{target}',
             '--with-isl={host}',
-            '--with-python',
-            '--target=mips-elf')
+            '--disable-binutils',
+            '--disable-gas',
+            '--disable-ld',
+            '--disable-nls',
+            '--disable-sim',
+            '--disable-werror',
+            '--with-python')
   make('{gdb}')
   make('{gdb}', 'install')
 
@@ -141,6 +177,7 @@ def clean():
   rmtree('{stamps}')
   rmtree('{host}')
   rmtree('{build}')
+  rmtree('{sources}')
 
 
 if __name__ == "__main__":
@@ -163,14 +200,21 @@ if __name__ == "__main__":
                       help='installation directory')
   args = parser.parse_args()
 
-  setvar(top=path.abspath('.'))
+  if platform.system() == 'Darwin':
+    nproc = ['sysctl', '-n', 'hw.ncpu']
+  else:
+    nproc = ['nproc']
+
+  setvar(top=path.abspath('.'),
+         nproc=subprocess.check_output(nproc).strip(),
+         target='mipsel-mimiker-elf')
 
   setvar(gmp='gmp-6.1.2',
          mpc='mpc-1.0.3',
          mpfr='mpfr-3.1.5',
          isl='isl-0.18',
          cloog='cloog-0.18.4',
-         binutils='binutils-2.27',
+         binutils='binutils-2.28',
          gcc='gcc-6.3.0',
          gdb='gdb-7.12.1',
          patches=path.join('{top}', 'patches'),
@@ -180,13 +224,13 @@ if __name__ == "__main__":
          sources=path.join('{top}', '.build-mips', 'sources'),
          host=path.join('{top}', '.build-mips', 'host'),
          tmpdir=path.join('{top}', '.build-mips', 'tmp'),
-         target=path.join('{top}', 'mips-elf'),
+         prefix=path.join('{top}', '{target}'),
          archives=path.join('{top}', '.build-mips', 'archives'))
 
   if args.prefix is not None:
-    setvar(target=args.prefix)
+    setvar(prefix=args.prefix)
 
-  if not path.exists('{target}'):
-    mkdir('{target}')
+  if not path.exists('{prefix}'):
+    mkdir('{prefix}')
 
   eval(args.action + "()")

@@ -64,35 +64,6 @@ def panic(*args):
 
 
 @fill_in_args
-def cmpver(op, v1, v2):
-  assert op in ['eq', 'lt', 'gt']
-
-  v1 = [int(x) for x in v1.split('.')]
-  v2 = [int(x) for x in v2.split('.')]
-
-  def _cmp(l1, l2):
-    if not len(l1) and not len(l2):
-      return 0
-    if not len(l1):
-      return -1
-    if not len(l2):
-      return 1
-
-    if l1[0] < l2[0]:
-      return -1
-    if l1[0] > l2[0]:
-      return 1
-    if l1[0] == l2[0]:
-      return _cmp(l1[1:], l2[1:])
-
-  res = _cmp(v1, v2)
-
-  return ((op == 'eq' and res == 0) or
-          (op == 'lt' and res < 0) or
-          (op == 'gt' and res > 0))
-
-
-@fill_in_args
 def topdir(name):
   if not path.isabs(name):
     name = path.abspath(name)
@@ -183,11 +154,11 @@ def copytree(src, dst, **kwargs):
   mkdir(dst)
 
   for name in find(src, **kwargs):
-    target = path.join(dst, path.relpath(name, src))
+    prefix = path.join(dst, path.relpath(name, src))
     if path.isdir(name):
-      mkdir(target)
+      mkdir(prefix)
     else:
-      copy(name, target)
+      copy(name, prefix)
 
 
 @fill_in_args
@@ -387,27 +358,17 @@ def fetch(name, url):
 
 
 @recipe('unpack', 1)
-def unpack(name, work_dir='{sources}', top_dir=None, dst_dir=None):
+def unpack(name, work_dir='{sources}'):
   try:
     src = (glob(path.join('{archives}', name) + '*') +
            glob(path.join('{submodules}', name) + '*'))[0]
   except IndexError:
     panic('Missing files for "%s".', name)
 
-  dst = path.join(work_dir, dst_dir or name)
-
   info('preparing files for "%s"', name)
 
-  if path.isdir(src):
-    if top_dir is not None:
-      src = path.join(src, top_dir)
-    copytree(src, dst, exclude=['.svn', '.git'])
-  else:
-    tmpdir = mkdtemp(dir='{tmpdir}')
-    with cwd(tmpdir):
-      unarc(src)
-    copytree(path.join(tmpdir, top_dir or name), dst)
-    rmtree(tmpdir)
+  with cwd(work_dir):
+    unarc(src)
 
 
 @recipe('patch', 1)
@@ -452,6 +413,7 @@ def make(name, target=None, makefile=None, **makevars):
       args = [target] + args
     if makefile is not None:
       args = ['-f', makefile] + args
+    args += ['--jobs={nproc}']
     execute('make', *args)
 
 
@@ -485,7 +447,7 @@ def require_header(headers, lang='c', errmsg='', symbol=None, value=None):
   panic(errmsg)
 
 
-__all__ = ['setvar', 'panic', 'cmpver', 'find_executable', 'chmod', 'execute',
+__all__ = ['setvar', 'panic', 'find_executable', 'chmod', 'execute',
            'rmtree', 'mkdir', 'copy', 'copytree', 'unarc', 'fetch', 'cwd',
            'symlink', 'remove', 'move', 'find', 'textfile', 'env', 'path',
            'add_site_dir', 'find_site_dir', 'python_setup', 'recipe',
