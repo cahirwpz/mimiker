@@ -13,7 +13,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import urllib2
+from urllib.request import urlopen
 import zipfile
 
 VARS = {}
@@ -202,7 +202,7 @@ def textfile(*lines):
 def download(url, name):
   info('download "%s" to "%s"', url, topdir(name))
 
-  u = urllib2.urlopen(url)
+  u = urlopen(url)
   meta = u.info()
   try:
     size = int(meta.getheaders('Content-Length')[0])
@@ -230,8 +230,6 @@ def download(url, name):
       status = status + chr(8) * (len(status) + 1)
       sys.stdout.write(status)
       sys.stdout.flush()
-
-  print ""
 
 
 @fill_in_args
@@ -438,7 +436,8 @@ def require_header(headers, lang='c', errmsg='', symbol=None, value=None):
         proc_stdin.append("#error")
         proc_stdin.append("#endif")
 
-    proc_stdout, proc_stderr = proc.communicate('\n'.join(proc_stdin))
+    proc_stdin = bytes('\n'.join(proc_stdin), encoding='utf-8')
+    proc_stdout, proc_stderr = proc.communicate(proc_stdin)
     proc.wait()
 
     if proc.returncode == 0:

@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7 -B
+#!/usr/bin/python3 -B
 
 from fnmatch import fnmatch
 from os import environ
@@ -23,7 +23,7 @@ from common import * # NOQA
 
 
 def build():
-  for var in environ.keys():
+  for var in list(environ.keys()):
     if var not in ['_', 'LOGNAME', 'HOME', 'SHELL', 'TMPDIR', 'PWD']:
       del environ[var]
 
@@ -107,8 +107,6 @@ def build():
   make('{cloog}')
   make('{cloog}', 'install')
 
-  # '--disable-sim' '--disable-gdb' '--with-float=hard'
-
   unpack('{binutils}')
   configure('{binutils}',
             '--target={target}',
@@ -121,12 +119,6 @@ def build():
             '--with-isl={host}')
   make('{binutils}')
   make('{binutils}', 'install')
-
-  # 'CFLAGS_FOR_TARGET= -EL -march=mips32r2 -mabi=32    -mhard-float '
-  # 'CXXFLAGS_FOR_TARGET= -EL -march=mips32r2 -mabi=32    -mhard-float '
-  # 'LDFLAGS_FOR_TARGET= -Wl,-EL '
-  # '--enable-threads=no'
-  # '--disable-__cxa_atexit' '--enable-target-optspace' '--with-mips-plt'
 
   unpack('{gcc}')
   configure('{gcc}',
@@ -152,9 +144,6 @@ def build():
   make('{gcc}', 'all-target-libgcc')
   make('{gcc}', 'install-gcc')
   make('{gcc}', 'install-target-libgcc')
-
-  # '--with-build-sysroot=/opt/mipsel-mimiker-elf/mipsel-mimiker-elf'
-  # '--with-expat' '--without-libexpat-prefix' '--disable-threads'
 
   unpack('{gdb}')
   configure('{gdb}',
@@ -183,16 +172,6 @@ def clean():
 if __name__ == "__main__":
   logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
 
-  if not sys.version_info[:2] == (2, 7):
-    panic('I need Python 2.7 to run!')
-
-  if not (platform.system() in ['Darwin', 'Linux'] or
-          fnmatch(platform.system(), 'CYGWIN*')):
-    panic('Build on %s not supported!', platform.system())
-
-  if platform.machine() not in ['i686', 'x86_64']:
-    panic('Build on %s architecture not supported!', platform.machine())
-
   parser = argparse.ArgumentParser(description='Build cross toolchain.')
   parser.add_argument('action', choices=['build', 'clean'], default='build',
                       help='perform action')
@@ -205,8 +184,10 @@ if __name__ == "__main__":
   else:
     nproc = ['nproc']
 
+  nproc = subprocess.check_output(nproc).strip()
+
   setvar(top=path.abspath('.'),
-         nproc=subprocess.check_output(nproc).strip(),
+         nproc=str(nproc, encoding='utf-8'),
          target='mipsel-mimiker-elf')
 
   setvar(gmp='gmp-6.1.2',
