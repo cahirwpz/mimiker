@@ -197,9 +197,7 @@ if __name__ == "__main__":
 
   setvar(top=path.abspath('.'),
          nproc=str(nproc, encoding='utf-8'),
-         arch='mipsel')
-
-  setvar(target='{arch}-mimiker-elf')
+         target='mipsel-mimiker-elf')
 
   setvar(gmp='gmp-6.1.2',
          mpc='mpc-1.0.3',
