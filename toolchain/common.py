@@ -205,7 +205,7 @@ def download(url, name):
   u = urlopen(url)
   meta = u.info()
   try:
-    size = int(meta.getheaders('Content-Length')[0])
+    size = int(meta['Content-length'])
   except IndexError:
     size = None
 
@@ -358,8 +358,7 @@ def fetch(name, url):
 @recipe('unpack', 1)
 def unpack(name, work_dir='{sources}'):
   try:
-    src = (glob(path.join('{archives}', name) + '*') +
-           glob(path.join('{submodules}', name) + '*'))[0]
+    src = glob(path.join('{archives}', name) + '*')[0]
   except IndexError:
     panic('Missing files for "%s".', name)
 
@@ -406,12 +405,12 @@ def make(name, target=None, makefile=None, **makevars):
   info('running make "%s"', target)
 
   with cwd(path.join('{build}', name)):
-    args = ['%s=%s' % item for item in makevars.items()]
+    args = ['--jobs={nproc}']
     if target is not None:
       args = [target] + args
     if makefile is not None:
       args = ['-f', makefile] + args
-    args += ['--jobs={nproc}']
+    args += [fill_in('%s=%s') % item for item in makevars.items()]
     execute('make', *args)
 
 
