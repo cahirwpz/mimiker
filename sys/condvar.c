@@ -12,7 +12,7 @@ void cv_wait(condvar_t *cv, mtx_t *mtx) {
   CRITICAL_SECTION {
     cv->waiters++;
     mtx_unlock(mtx);
-    sleepq_wait(cv, cv->name);
+    sleepq_wait(cv, __caller(0));
   }
   mtx_lock(mtx);
 }

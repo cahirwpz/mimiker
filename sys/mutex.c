@@ -26,7 +26,7 @@ void mtx_lock(mtx_t *m) {
   SCOPED_CRITICAL_SECTION();
 
   while (m->m_owner != NULL)
-    sleepq_wait(&m->m_owner, "mutex");
+    sleepq_wait(&m->m_owner, __caller(0));
   m->m_owner = thread_self();
 }
 

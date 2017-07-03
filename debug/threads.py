@@ -3,6 +3,7 @@ from __future__ import print_function
 import gdb
 import tailq
 import ptable
+import re
 
 
 def thread_name(thr):
@@ -15,6 +16,17 @@ def thread_id(thr):
 
 def thread_state(thr):
     return str(thr['td_state'])
+
+
+def thread_wmesg(thr):
+    addr = thr['td_wmesg']
+    if addr == 0:
+        return '-'
+    addr = addr.cast(gdb.lookup_type('unsigned long'))
+    line = gdb.execute('info line *0x%x' % addr, to_string=True)
+    m = re.match(r'Line (\d+) of "(.*)"', line)
+    m = m.groups()
+    return "%s:%s" % (m[1], m[0])
 
 
 def get_all_threads():
@@ -89,12 +101,10 @@ class CreateThreadTracer():
 
 
 def dump_threads(threads):
-    extractors = [thread_id, thread_name, thread_state]
-    rows = [['Id', 'Name', 'State']]
-    column_sizes = [0, 0, 0]
-    for thread in threads:
-        row = [f(thread) for f in extractors]
-        rows.append(row)
+    extractors = [thread_id, thread_name, thread_state, thread_wmesg]
+    rows = [['Id', 'Name', 'State', 'Waiting Point']]
+    column_sizes = [0, 0, 0, 0]
+    rows.extend([f(thread) for f in extractors] for thread in threads)
     ptable.ptable(rows, fmt="llll", header=True)
 
 
