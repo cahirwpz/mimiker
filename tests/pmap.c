@@ -1,5 +1,3 @@
-#define KL_LOG KL_PMAP
-#include <klog.h>
 #include <stdc.h>
 #include <mips/tlb.h>
 #include <pmap.h>
@@ -18,19 +16,11 @@ static int test_kernel_pmap(void) {
 
   pmap_map(pmap, vaddr1, vaddr3, pg->paddr, VM_PROT_READ | VM_PROT_WRITE);
 
-  {
-    klog("TLB before:");
-    tlb_print();
-
-    unsigned *x = (unsigned *)vaddr1;
-    for (unsigned i = 0; i < size / sizeof(int); i++)
-      *(x + i) = i;
-    for (unsigned i = 0; i < size / sizeof(int); i++)
-      assert(*(x + i) == i);
-
-    klog("TLB after:");
-    tlb_print();
-  }
+  unsigned *x = (unsigned *)vaddr1;
+  for (unsigned i = 0; i < size / sizeof(int); i++)
+    *(x + i) = i;
+  for (unsigned i = 0; i < size / sizeof(int); i++)
+    assert(*(x + i) == i);
 
   assert(pmap_probe(pmap, vaddr1, vaddr3, VM_PROT_READ | VM_PROT_WRITE));
 
@@ -43,7 +33,6 @@ static int test_kernel_pmap(void) {
   pmap_unmap(pmap, vaddr2, vaddr3);
   pm_free(pg);
 
-  klog("Test passed.");
   return KTEST_SUCCESS;
 }
 
@@ -70,10 +59,8 @@ static int test_user_pmap(void) {
   *ptr = 200;
   pmap_activate(pmap2);
   assert(*ptr == 100);
-  klog("*ptr == %d", *ptr);
   pmap_activate(pmap1);
   assert(*ptr == 200);
-  klog("*ptr == %d", *ptr);
 
   pmap_delete(pmap1);
   pmap_delete(pmap2);
@@ -81,7 +68,6 @@ static int test_user_pmap(void) {
   /* Restore original user pmap */
   pmap_activate(orig);
 
-  klog("Test passed.");
   return KTEST_SUCCESS;
 }
 
