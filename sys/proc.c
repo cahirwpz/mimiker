@@ -202,7 +202,7 @@ int do_waitpid(pid_t pid, int *status, int options) {
         return -ECHILD;
 
       /* Wait until a child changes state. */
-      sleepq_wait(&p->p_children, "any child state change");
+      sleepq_wait(&p->p_children, NULL);
     }
   } else {
     proc_t *child = NULL;
@@ -227,7 +227,7 @@ int do_waitpid(pid_t pid, int *status, int options) {
         return 0;
 
       /* Wait until the child changes state. */
-      sleepq_wait(&child->p_state, "state change");
+      sleepq_wait(&child->p_state, NULL);
     }
   }
 

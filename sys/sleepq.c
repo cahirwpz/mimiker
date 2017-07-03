@@ -62,9 +62,13 @@ sleepq_t *sleepq_lookup(void *wchan) {
   return NULL;
 }
 
-void sleepq_wait(void *wchan, const char *wmesg) {
+void sleepq_wait(void *wchan, const void *wmesg) {
   thread_t *td = thread_self();
-  klog("Sleep '%s' thread on '%s' (%p)", td->td_name, wmesg, wchan);
+
+  if (wmesg == NULL)
+    wmesg = __caller(0);
+
+  klog("Thread '%s' goes to sleep on %p at %p", td->td_name, wchan, wmesg);
 
   assert(td->td_wchan == NULL);
   assert(td->td_wmesg == NULL);

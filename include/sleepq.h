@@ -20,7 +20,7 @@ sleepq_t *sleepq_lookup(void *wchan);
 /*
  * Block the current thread until it is awakened from its sleep queue.
  */
-void sleepq_wait(void *wchan, const char *wmesg);
+void sleepq_wait(void *wchan, const void *wmesg);
 
 /*
  * Find the highest priority thread sleeping on a wait channel and resume it.

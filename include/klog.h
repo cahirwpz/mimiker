@@ -53,7 +53,7 @@ typedef struct {
   const char *kl_file;
   klog_origin_t kl_origin;
   const char *kl_format;
-  intptr_t kl_params[6];
+  uint32_t kl_params[6];
 } klog_entry_t;
 
 typedef struct {
