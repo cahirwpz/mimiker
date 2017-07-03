@@ -40,7 +40,7 @@ int do_exec(const exec_args_t *args) {
     return error;
   size_t elf_size = elf_attr.va_size;
 
-  klog("User ELF size: %zu", elf_size);
+  klog("User ELF size: %u", elf_size);
 
   if (elf_size < sizeof(Elf32_Ehdr)) {
     klog("Exec failed: ELF file is too small to contain a valid header");
