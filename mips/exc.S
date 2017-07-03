@@ -27,7 +27,7 @@ user_exc_enter:
         addu    k0, TD_UCTX
 
         # Save all user registers...
-        SAVE_REG(at, AT, k0)
+        SAVE_REG(AT, AT, k0)
         SAVE_REG(v0, V0, k0)
         SAVE_REG(v1, V1, k0)
         SAVE_REG(a0, A0, k0)
@@ -173,7 +173,7 @@ user_exc_leave:
         LOAD_REG(a0, A0, k0)
         LOAD_REG(v1, V1, k0)
         LOAD_REG(v0, V0, k0)
-        LOAD_REG(at, AT, k0)
+        LOAD_REG(AT, AT, k0)
 
         # This label is useful for debugging.
 user_return:
@@ -185,7 +185,7 @@ kern_exc_enter:
         subu    sp, EXC_FRAME_SIZ
 
         # Save all user registers...
-        SAVE_REG(at, AT, sp)
+        SAVE_REG(AT, AT, sp)
         SAVE_REG(v0, V0, sp)
         SAVE_REG(v1, V1, sp)
         SAVE_REG(a0, A0, sp)
@@ -310,7 +310,7 @@ kern_exc_leave:
         LOAD_REG(a0, A0, sp)
         LOAD_REG(v1, V1, sp)
         LOAD_REG(v0, V0, sp)
-        LOAD_REG(at, AT, sp)
+        LOAD_REG(AT, AT, sp)
 
         # ... and finally status register (assume EXL bit is set)
         LOAD_REG(k1, SR, sp)

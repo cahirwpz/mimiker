@@ -33,7 +33,7 @@
 
 #define zero $0
 
-#define at $1
+#define AT $1
 
 #define v0 $2
 #define v1 $3
