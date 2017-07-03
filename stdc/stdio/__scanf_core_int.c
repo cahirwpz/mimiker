@@ -249,7 +249,7 @@ loop_end:
        {
         if (t == 'i')
           t = 'd';
-          goto int_start;
+        goto int_start;
        }
       c = read(rw);
       if ((c|0x20) != 'x')
@@ -302,8 +302,8 @@ int_start:
 int_finish:
         if (!m)
          goto match_fail;
-         store_int(dest, size, neg, i);
-         break;
+        store_int(dest, size, neg, i);
+        break;
       case 's':
        width = width ? width : INT_MAX ;
        s = dest;
