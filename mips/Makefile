@@ -15,7 +15,7 @@ SOURCES_C = atomic.c \
 	    tlb.c \
 	    uart_cbus.c
 
-SOURCES_ASM = boot.S copy.S exc.S switch.S syscall.S ebase.S
+SOURCES_ASM = boot.S copy.S exc.S switch.S ebase.S
 
 all: $(DEPFILES) assym.h libmips.a
 

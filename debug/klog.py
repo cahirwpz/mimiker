@@ -17,8 +17,6 @@ class KernelLog():
                            for i in range(number_of_parameters))
         try:
             message = message.replace('"', '\\"')
-            # TODO: why do we need %zu???
-            message = message.replace('%zu', '%u')
             # Using gdb printf so we don't need to dereference addresses.
             formated = gdb.execute(
                 'printf "' + message + ' ", ' + params, to_string=True)
@@ -28,7 +26,7 @@ class KernelLog():
             formated = message + params
         time = "%d.%06d" % (data['kl_timestamp']['tv_sec'],
                             data['kl_timestamp']['tv_usec'])
-        return [time, str(data['kl_line']), str(data['kl_file'].string()),
+        return [time, "%s:%d" % (data['kl_file'].string(), data['kl_line']),
                 str(data['kl_origin']), str(formated)]
 
     def load_klog(self):
@@ -51,6 +49,6 @@ class KernelLog():
         ptable(rows_general, header=True, fmt='l')
 
     def dump_kernel_logs(self, messages):
-        rows_data = [["Time", "Line", "File", "Origin", "Message"]]
+        rows_data = [["Time", "Source", "System", "Message"]]
         rows_data.extend(messages)
-        ptable(rows_data, header=True, fmt='ccrcl')
+        ptable(rows_data, header=True, fmt='rrrl')

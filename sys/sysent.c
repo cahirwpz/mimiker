@@ -94,7 +94,7 @@ static int sys_mmap(thread_t *td, syscall_args_t *args) {
   vm_prot_t prot = args->args[2];
   int flags = args->args[3];
 
-  klog("mmap(%p, %zu, %d, %d)", (void *)addr, length, prot, flags);
+  klog("mmap(%p, %u, %d, %d)", (void *)addr, length, prot, flags);
 
   int error = 0;
   vm_addr_t result = do_mmap(addr, length, prot, flags, &error);
@@ -142,7 +142,7 @@ static int sys_read(thread_t *td, syscall_args_t *args) {
   char *ubuf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  klog("read(%d, %p, %zu)", fd, ubuf, count);
+  klog("read(%d, %p, %u)", fd, ubuf, count);
 
   uio_t uio;
   uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
@@ -157,7 +157,7 @@ static int sys_write(thread_t *td, syscall_args_t *args) {
   char *ubuf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  klog("write(%d, %p, %zu)", fd, ubuf, count);
+  klog("write(%d, %p, %u)", fd, ubuf, count);
 
   uio_t uio;
   uio = UIO_SINGLE_USER(UIO_WRITE, 0, ubuf, count);
@@ -228,7 +228,7 @@ static int sys_getdirentries(thread_t *td, syscall_args_t *args) {
   off_t *base_p = (off_t *)args->args[3];
   off_t base;
 
-  klog("getdirentries(%d, %p, %zu, %p)", fd, ubuf, count, base_p);
+  klog("getdirentries(%d, %p, %u, %p)", fd, ubuf, count, base_p);
 
   uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
   int res = do_getdirentries(td, fd, &uio, &base);
