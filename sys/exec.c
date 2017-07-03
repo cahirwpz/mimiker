@@ -110,7 +110,7 @@ int do_exec(const exec_args_t *args) {
     vm_map_t *uspace;
     vm_map_entry_t *sbrk;
     vm_addr_t sbrk_end;
-  } old = { p->p_uspace, p->p_sbrk, p->p_sbrk_end };
+  } old = {p->p_uspace, p->p_sbrk, p->p_sbrk_end};
 
   /* We are the only live thread in this process. We can safely give it a new
    * uspace. */
@@ -119,7 +119,7 @@ int do_exec(const exec_args_t *args) {
   p->p_uspace = vmap;
   p->p_sbrk = NULL;
   p->p_sbrk_end = 0;
-  sbrk_attach(p);	/* Attach fresh brk segment. */
+  sbrk_attach(p); /* Attach fresh brk segment. */
 
   vm_map_activate(vmap);
 
