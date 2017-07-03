@@ -106,12 +106,21 @@ int do_exec(const exec_args_t *args) {
    * We can not destroy the current vm map, because exec can still fail,
    * and in that case we must be able to return to the original address space.
    */
-  vm_map_t *vmap = vm_map_new();
-  vm_map_t *old_vmap = p->p_uspace;
+  struct {
+    vm_map_t *uspace;
+    vm_map_entry_t *sbrk;
+    vm_addr_t sbrk_end;
+  } old = { p->p_uspace, p->p_sbrk, p->p_sbrk_end };
 
   /* We are the only live thread in this process. We can safely give it a new
    * uspace. */
+  vm_map_t *vmap = vm_map_new();
+
   p->p_uspace = vmap;
+  p->p_sbrk = NULL;
+  p->p_sbrk_end = 0;
+  sbrk_attach(p);	/* Attach fresh brk segment. */
+
   vm_map_activate(vmap);
 
   /* Iterate over prog headers */
@@ -234,12 +243,9 @@ int do_exec(const exec_args_t *args) {
   /* Set up user context. */
   uctx_init(thread_self(), eh.e_entry, stack_bottom);
 
-  /* Attach fresh brk segment. */
-  sbrk_attach(p);
-
   /* At this point we are certain that exec succeeds.  We can safely destroy the
    * previous vm map, and permanently assign this one to the current process. */
-  vm_map_delete(old_vmap);
+  vm_map_delete(old.uspace);
 
   vm_map_dump(vmap);
 
@@ -248,8 +254,10 @@ int do_exec(const exec_args_t *args) {
 
 exec_fail:
   /* Return to the previous map, unmodified by exec. */
-  p->p_uspace = old_vmap;
-  vm_map_activate(old_vmap);
+  p->p_uspace = old.uspace;
+  p->p_sbrk = old.sbrk;
+  p->p_sbrk_end = old.sbrk_end;
+  vm_map_activate(old.uspace);
   /* Destroy the vm map we began preparing. */
   vm_map_delete(vmap);
 
