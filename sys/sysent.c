@@ -356,17 +356,23 @@ end:
 
 static int sys_clock_gettime(thread_t *td, syscall_args_t *args) {
   clockid_t clk = (clockid_t)args->args[0];
-  timespec_t *ts = (timespec_t *)args->args[1];
-  do_clock_gettime(clk, ts);
-  return 0;
+  timespec_t *uts = (timespec_t *)args->args[1];
+  timespec_t kts;
+  int result = do_clock_gettime(clk, &kts);
+  if(result != 0)
+      return result;
+  return copyout(&kts, uts, sizeof(kts));
 }
 
 static int sys_clock_nanosleep(thread_t *td, syscall_args_t *args) {
   clockid_t clk = (clockid_t)args->args[0];
   int flags = (int)args->args[1];
-  timespec_t *rqtp = (timespec_t *)args->args[2];
-  do_clock_nanosleep(clk, flags, rqtp, NULL);
-  return 0;
+  timespec_t *urqtp = (timespec_t *)args->args[2];
+  timespec_t krqtp;
+  int result = copyin(urqtp, &krqtp, sizeof(krqtp));
+  if(result != 0)
+      return result;
+  return do_clock_nanosleep(clk, flags, &krqtp, NULL);
 }
 
 /* clang-format hates long arrays. */
