@@ -40,7 +40,7 @@ int do_exec(const exec_args_t *args) {
     return error;
   size_t elf_size = elf_attr.va_size;
 
-  klog("User ELF size: %zu", elf_size);
+  klog("User ELF size: %u", elf_size);
 
   if (elf_size < sizeof(Elf32_Ehdr)) {
     klog("Exec failed: ELF file is too small to contain a valid header");
@@ -227,26 +227,24 @@ int do_exec(const exec_args_t *args) {
     vmap, stack_start, stack_end, VM_PROT_READ | VM_PROT_WRITE);
   stack_segment->object = default_pager->pgr_alloc();
 
-  /* Prepare program stack, which includes storing program args... */
+  /* Prepare program stack, which includes storing program args. */
   klog("Stack real bottom at %p", (void *)stack_bottom);
   prepare_program_stack(args, &stack_bottom);
 
-  /* ... sbrk segment ... */
-  sbrk_create(vmap);
-
-  /* ... and user context. */
+  /* Set up user context. */
   uctx_init(thread_self(), eh.e_entry, stack_bottom);
 
-  /*
-   * At this point we are certain that exec succeeds.  We can safely destroy the
-   * previous vm map, and permanently assign this one to the current process.
-   */
+  /* Attach fresh brk segment. */
+  sbrk_attach(p);
+
+  /* At this point we are certain that exec succeeds.  We can safely destroy the
+   * previous vm map, and permanently assign this one to the current process. */
   vm_map_delete(old_vmap);
 
   vm_map_dump(vmap);
 
-  klog("Entering e_entry NOW");
-  return 0;
+  klog("Enter userspace with: pc=%p, sp=%p", eh.e_entry, stack_bottom);
+  return -EJUSTRETURN;
 
 exec_fail:
   /* Return to the previous map, unmodified by exec. */
@@ -283,7 +281,7 @@ noreturn void run_program(const exec_args_t *prog) {
   do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
   do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
 
-  if (do_exec(prog))
+  if (do_exec(prog) != -EJUSTRETURN)
     panic("Failed to start %s program.", prog->argv[0]);
 
   user_exc_leave();

@@ -2,7 +2,6 @@ SOURCES_C = \
 	broken.c \
 	callout.c \
 	crash.c \
-	initrd.c \
 	klog.c \
 	linker_set.c \
 	malloc.c \
@@ -15,7 +14,6 @@ SOURCES_C = \
 	rwlock.c \
 	sched.c \
 	strtol.c \
-	syscall.c \
 	taskqueue.c \
 	thread_stats.c \
 	thread_exit.c \

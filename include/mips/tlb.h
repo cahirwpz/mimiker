@@ -1,8 +1,21 @@
-#ifndef __MIPS_TLB_H__
-#define __MIPS_TLB_H__
+#ifndef _MIPS_TLB_H_
+#define _MIPS_TLB_H_
 
-#include <common.h>
-#include <mips/mips.h>
+#include <stdint.h>
+
+typedef uint32_t tlbhi_t;
+typedef uint32_t tlblo_t;
+
+/* Choose index specified by the Random Register. */
+#define TLBI_RANDOM (-1U)
+
+typedef struct {
+  tlbhi_t hi;
+  tlblo_t lo0;
+  tlblo_t lo1;
+} tlbentry_t;
+
+#define MAX_ASID C0_ENTRYHI_ASID_MASK
 
 /* C0_CONTEXT register */
 #define PTEBASE_MASK 0xff800000
@@ -49,31 +62,30 @@ void tlb_print(void);
  */
 
 /* Returns the number of entries in the TLB. */
-int tlb_size(void);
+unsigned tlb_size(void);
 
 /* Probes the TLB for an entry matching hi, and if present invalidates it. */
 void tlb_invalidate(tlbhi_t hi);
 
-/* Invalidate the entire TLB. */
+/* Invalidate all TLB entries (save wired). */
 void tlb_invalidate_all(void);
 
-/* Reads the TLB entry with specified by index, and returns the EntryHi,
- * EntryLo0, EntryLo1, and parts in *hi, *lo0, *lo1 respectively. */
-void tlb_read_index(tlbhi_t *hi, tlblo_t *lo0, tlblo_t *lo1, unsigned idx);
+/* Invalidate all TLB entries with given ASID (save wired). */
+void tlb_invalidate_asid(tlbhi_t hi);
 
-/* Writes hi, lo0, lo1 into the TLB entry specified by index. */
-void tlb_write_index(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1, unsigned idx);
+/* Reads the TLB entry specified by @i. */
+void tlb_read(unsigned i, tlbentry_t *e);
 
-/* Writes hi, lo0, lo1 into the TLB entry specified by the Random Register. */
-void tlb_write_random(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1);
+/* Writes the TLB entry specified by @i. */
+void tlb_write(unsigned i, tlbentry_t *e);
 
 /* Probes the TLB for an entry matching hi and if present rewrites that
  * entry, otherwise updates a random entry. A safe way to update the TLB. */
-void tlb_overwrite_random(tlbhi_t hi, tlblo_t lo0, tlblo_t lo1);
+void tlb_overwrite_random(tlbentry_t *e);
 
-/* Probes the TLB for an entry matching hi and returns its index, or -1 if not
- * found. If found, then the EntryLo0, EntryLo1 parts of the entry are also
- * returned in *lo0, *lo1 respectively. */
-int tlb_probe(tlbhi_t hi, tlblo_t *lo0, tlblo_t *lo1);
+/* Probes the TLB for an entry matching @e->hi. If found then @e will be filled
+ * with EntryHi, EntryLo0, EntryLo1 values and index will be returned.
+ * Otherwise tlb_probe will return with negative value. */
+int tlb_probe(tlbentry_t *e);
 
-#endif /* __MIPS_TLB_H__ */
+#endif /* !_MIPS_TLB_H_ */

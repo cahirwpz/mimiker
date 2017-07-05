@@ -1,12 +1,13 @@
 #ifndef __MIPS_MIPS_H__
 #define __MIPS_MIPS_H__
 
-#include <mips/cpu.h>
-#include <mips/m32c0.h>
-#include <mips/mips32.h>
+#ifndef __ASSEMBLER__
+typedef unsigned long paddr_t; /* a physical address */
+typedef unsigned long vaddr_t; /* a virtual address */
+#endif
 
-#define SR_CU0_SHIFT 28
-#define SR_IMASK_SHIFT 8
+#include <mips/m32c0.h>
+#include <mips/m32ins.h>
 
 /*
  * Initial virtual address space is partitioned into four segments:
@@ -21,7 +22,7 @@
 #define MIPS_KSEG1_START 0xa0000000
 #define MIPS_KSEG2_START 0xc0000000
 #define MIPS_PHYS_MASK 0x1fffffff
-#define MAX_ASID C0_ENTRYHI_ASID_MASK
+
 #ifndef __ASSEMBLER__
 
 /*

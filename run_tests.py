@@ -17,7 +17,7 @@ GDB_PORT_BASE = 9100
 
 # Tries to decode binary output as ASCII, as hard as it can.
 def safe_decode(data):
-    return data.decode('unicode_escape', errors='replace')
+    return data.decode('unicode_escape', errors='replace').replace('\r', '')
 
 
 # Tries to start gdb in order to investigate kernel state on deadlock.
