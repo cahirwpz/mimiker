@@ -27,9 +27,14 @@ $(CACHEDIR)/$(NEWLIB): | $(CACHEDIR)/$(NEWLIBFILE)
 	# any of these commands fail, just remove output redirection.
 	@echo "Configuring newlib..."
 	cd $(CACHEDIR)/$(NEWLIB)/newlib; \
-		CC=$(TRIPLET)-gcc ./configure --build=$(TRIPLET) \
-                                      --prefix=$(INSTALL_DIR)/usr \
-                                      CFLAGS="-g -DSIGNAL_PROVIDED" > /dev/null
+		CC="$(TRIPLET)-gcc" \
+		AS="$(TRIPLET)-as" \
+		AR="$(TRIPLET)-ar" \
+		RANLIB="$(TRIPLET)-ranlib" \
+		READELF="$(TRIPLET)-readelf" \
+		./configure --build=$(TRIPLET) \
+		            --prefix=$(INSTALL_DIR)/usr \
+		            CFLAGS="-g -DSIGNAL_PROVIDED" > /dev/null
 	@echo "Compiling newlib..."
 	cd $(CACHEDIR)/$(NEWLIB)/newlib; $(MAKE) > /dev/null 2>&1
 
