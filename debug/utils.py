@@ -49,6 +49,6 @@ class GdbStructMeta(type):
             if '__cast__' in dct:
                 caster = dct['__cast__'].get(f.name, None)
             dct[f.name] = property(mkgetter(f.name, caster))
-        # all classes created with GdbStructMeta will inherit from GdbStructBase
+        # classes created with GdbStructMeta will inherit from GdbStructBase
         return super(GdbStructMeta, cls).__new__(
                 cls, name, (GdbStructBase,) + bases, dct)
