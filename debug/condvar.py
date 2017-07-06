@@ -10,7 +10,8 @@ class CondVar(object):
     __cast__ = {'waiters': int}
 
     def list_waiters(self):
-        sq = gdb.parse_and_eval('sleepq_lookup((void *)%d)' % self._obj.address)
+        sq = gdb.parse_and_eval('sleepq_lookup((void *)%d)' %
+                                self._obj.address)
         if sq == 0:
             return None
         return ', '.join(map(str, TailQueue(sq['sq_blocked'], 'td_sleepq')))

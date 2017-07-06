@@ -6,7 +6,7 @@ import utils
 class TimeVal(object):
     __metaclass__ = utils.GdbValueMeta
     __ctype__ = 'struct timeval'
-    __cast__ = {'tv_sec' : int, 'tv_usec' : int}
+    __cast__ = {'tv_sec': int, 'tv_usec': int}
 
     def as_float(self):
         return float(self.tv_sec) + float(self.tv_usec) * 10e-6
