@@ -2,6 +2,7 @@ import gdb
 import thread
 import physmem
 import klog
+import pmem
 import utils
 
 
@@ -19,7 +20,7 @@ class Kdump(gdb.Command, utils.OneArgAutoCompleteMixin):
             'threads': thread.KernelThreads(),
             'segments': physmem.KernelSegments(),
             'free_pages': physmem.KernelFreePages(),
-            'tlb': physmem.TLB(),
+            'tlb': pmem.TLB(),
         }
 
     def invoke(self, args, from_tty):
