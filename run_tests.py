@@ -25,9 +25,8 @@ def send_command(gdb, cmd):
     gdb.setecho(False)
     gdb.sendline(cmd)
     while True:
-        index = gdb.expect_exact(
-            ['(gdb)', '---Type <return> to continue, or q <return> to quit---'],
-            timeout=2)
+        index = gdb.expect_exact(['(gdb)', '---Type <return> to continue, '
+                                  'or q <return> to quit---'], timeout=2)
         print(safe_decode(gdb.before).lstrip('\n'), end='', flush=True)
         if index == 0:
             break
@@ -61,8 +60,9 @@ def test_seed(seed, sim='qemu', repeat=1, retry=0):
         sys.exit(1)
 
     print("Testing seed %d..." % seed)
-    child = pexpect.spawn('./launch', ['-t', '-S', sim, 'test=all', 'klog-quiet=1',
-                                       'seed=%d' % seed, 'repeat=%d' % repeat])
+    child = pexpect.spawn('./launch',
+                          ['-t', '-S', sim, 'test=all', 'klog-quiet=1',
+                           'seed=%d' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact(
         ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT],
         timeout=TIMEOUT)
