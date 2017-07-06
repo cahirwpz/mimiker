@@ -28,9 +28,6 @@ class Thread(object):
                 'td_state': str,
                 'td_name': lambda x: x.string()}
 
-    def __init__(self, td):
-        self._obj = td
-
     @staticmethod
     def pointer_type():
         return gdb.lookup_type('struct thread')
@@ -59,11 +56,6 @@ class Thread(object):
 
     def __str__(self):
         return 'thread{tid=%d, name="%s"}' % (self.td_tid, self.td_name)
-
-    def dump(self):
-        res = ['%s = %s' % (field, getattr(self, field))
-               for field in self._obj.type]
-        return '\n'.join(res)
 
 
 class CtxSwitchTracerBP(gdb.Breakpoint):

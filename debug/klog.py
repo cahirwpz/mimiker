@@ -8,9 +8,6 @@ class TimeVal(object):
     __ctype__ = 'struct timeval'
     __cast__ = {'tv_sec' : int, 'tv_usec' : int}
 
-    def __init__(self, tv):
-        self._obj = tv
-
     def as_float(self):
         return float(self.tv_sec) + float(self.tv_usec) * 10e-6
 

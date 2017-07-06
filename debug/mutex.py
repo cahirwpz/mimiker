@@ -9,9 +9,6 @@ class Mutex(object):
     __ctype__ = 'struct mtx'
     __cast__ = {'m_count': int}
 
-    def __init__(self, mtx):
-        self._obj = mtx
-
     def list_blocked(self):
         sq = gdb.parse_and_eval("sleepq_lookup((void *)%d)" %
                                 self._obj.address)

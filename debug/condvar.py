@@ -9,9 +9,6 @@ class CondVar(object):
     __ctype__ = 'struct condvar'
     __cast__ = {'waiters': int}
 
-    def __init__(self, cv):
-        self._obj = cv
-
     def list_waiters(self):
         sq = gdb.parse_and_eval('sleepq_lookup((void *)%d)' % self._obj.address)
         if sq == 0:

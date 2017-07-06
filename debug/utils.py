@@ -20,8 +20,16 @@ class OneArgAutoCompleteMixin():
 
 
 class GdbValueMixin(object):
+    def __init__(self, obj):
+        self._obj = obj
+
     def to_string(self):
         return str(self)
+
+    def dump(self):
+        res = ['%s = %s' % (field, getattr(self, field))
+               for field in self._obj.type]
+        return '\n'.join(res)
 
     def display_hint(self):
         return 'map'
