@@ -16,7 +16,8 @@ class Mutex(utils.PrettyPrinterMixin):
             self.owner = owner.dereference()
 
     def list_blocked(self):
-        sq = gdb.parse_and_eval("sleepq_lookup((void *)%d)" % self._obj.address)
+        sq = gdb.parse_and_eval("sleepq_lookup((void *)%d)" %
+                                self._obj.address)
         if sq == 0:
             return None
         return map(Thread, TailQueue(sq['sq_blocked'], 'td_sleepq'))
