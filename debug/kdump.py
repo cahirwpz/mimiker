@@ -4,6 +4,7 @@ import physmem
 import klog
 import pmem
 import utils
+import traceback
 
 
 class Kdump(gdb.Command, utils.OneArgAutoCompleteMixin):
@@ -29,7 +30,10 @@ class Kdump(gdb.Command, utils.OneArgAutoCompleteMixin):
                                .format(self.structure.keys())))
         if args not in self.structure:
             raise gdb.GdbError('No such structure - {}.'.format(args))
-        self.structure[args].invoke()
+        try:
+            self.structure[args].invoke()
+        except:
+            traceback.print_exc()
 
     def options(self):
         return self.structure.keys()

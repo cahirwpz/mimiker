@@ -45,8 +45,8 @@ class Thread(utils.PrettyPrinterMixin):
         rows = [['Id', 'Name', 'State', 'Waiting Point']]
         curr_tid = Thread.current().tid
         rows.extend([['', '(*) '][curr_tid == td.tid] + str(td.tid), td.name,
-                     td.state, str(td.waitpt)] for td in map(Thread, threads))
-        ptable.ptable(rows, fmt="rlll", header=True)
+                     td.state, str(td.waitpt)] for td in threads)
+        ptable.ptable(rows, fmt='rlll', header=True)
 
     @classmethod
     def list_all(cls):
@@ -164,24 +164,26 @@ class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
 
         threads = Thread.list_all()
 
-        # First try to search by thread_id
         try:
-            int(args)
+            args = int(args)
         except ValueError:
-            # If can't find by thread id, search by name
+            pass
+
+        if type(args) == unicode:
             tds = filter(lambda td: td.name == args, threads)
             if len(tds) > 1:
                 print("Warning! There is more than 1 thread with name ", args)
             if len(tds) > 0:
                 print(tds[0].dump())
                 return
+            print('Can\'t find thread with name="%s"!' % args)
 
-        for td in threads:
-            if td.tid == args:
-                print(td.dump())
-                return
-
-        print("Can't find thread with '%s' id or name" % args)
+        if type(args) == int:
+            for td in threads:
+                if td.tid == args:
+                    print(td.dump())
+                    return
+            print('Can\'t find thread with tid=%d!' % args)
 
     def options(self):
         threads = Thread.list_all()

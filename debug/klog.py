@@ -1,14 +1,18 @@
 import gdb
 from ptable import ptable, as_hex
+import utils
 
 
-class TimeVal():
+class TimeVal(utils.PrettyPrinterMixin):
     def __init__(self, tv):
         self.sec = int(tv['tv_sec'])
         self.usec = int(tv['tv_usec'])
 
     def as_float(self):
         return float(self.sec) + float(self.usec) * 10e-6
+
+    def __str__(self):
+        return 'timeval{%.6f}' % self.as_float()
 
 
 class LogEntry():
