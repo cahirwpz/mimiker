@@ -19,6 +19,26 @@ class OneArgAutoCompleteMixin():
         return suggestions
 
 
-class PrettyPrinterMixin():
+class GdbValueMixin(object):
     def to_string(self):
         return str(self)
+
+    def display_hint(self):
+        return 'map'
+
+
+class GdbValueMeta(type):
+    def __new__(cls, name, bases, dct):
+        t = gdb.lookup_type(dct['__ctype__'])
+        # for each field of ctype make property getter of same name
+        for f in t.fields():
+            def mkgetter(fname, caster):
+                if caster is None:
+                    return lambda x: x._obj[fname]
+                return lambda x: caster(x._obj[fname])
+            caster = None
+            if '__cast__' in dct:
+                caster = dct['__cast__'].get(f.name, None)
+            dct[f.name] = property(mkgetter(f.name, caster))
+        return super(GdbValueMeta, cls).__new__(
+                cls, name, (GdbValueMixin,) + bases, dct)

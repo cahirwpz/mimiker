@@ -3,13 +3,16 @@ from ptable import ptable, as_hex
 import utils
 
 
-class TimeVal(utils.PrettyPrinterMixin):
+class TimeVal(object):
+    __metaclass__ = utils.GdbValueMeta
+    __ctype__ = 'struct timeval'
+    __cast__ = {'tv_sec' : int, 'tv_usec' : int}
+
     def __init__(self, tv):
-        self.sec = int(tv['tv_sec'])
-        self.usec = int(tv['tv_usec'])
+        self._obj = tv
 
     def as_float(self):
-        return float(self.sec) + float(self.usec) * 10e-6
+        return float(self.tv_sec) + float(self.tv_usec) * 10e-6
 
     def __str__(self):
         return 'timeval{%.6f}' % self.as_float()
