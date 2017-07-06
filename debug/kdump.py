@@ -20,7 +20,6 @@ class Kdump(gdb.Command, utils.OneArgAutoCompleteMixin):
             'segments': physmem.KernelSegments(),
             'free_pages': physmem.KernelFreePages(),
             'tlb': physmem.TLB(),
-            'klog': klog.KernelLog(),
         }
 
     def invoke(self, args, from_tty):

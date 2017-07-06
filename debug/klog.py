@@ -57,20 +57,23 @@ class LogBuffer():
         return n
 
 
-class KernelLog():
-    def invoke(self):
+class Klog(gdb.Command):
+    def __init__(self):
+        super(Klog, self).__init__('klog', gdb.COMMAND_USER)
+
+    def invoke(self, args, from_tty):
         klog = LogBuffer()
         self.dump_info(klog)
         self.dump_messages(klog)
 
     def dump_info(self, klog):
-        rows = [["Mask", as_hex(klog.mask)],
-                ["Verbose", str(klog.verbose)],
-                ["Messages", str(len(klog))]]
+        rows = [['Mask', as_hex(klog.mask)],
+                ['Verbose', str(klog.verbose)],
+                ['Messages', str(len(klog))]]
         ptable(rows, header=False, fmt='rl')
 
     def dump_messages(self, klog):
-        rows = [["Time", "Source", "System", "Message"]]
+        rows = [['Time', 'Source', 'System', 'Message']]
         for entry in klog:
             rows.append(["%.6f" % entry.timestamp.as_float(),
                          "%s:%d" % (entry.source, entry.line),

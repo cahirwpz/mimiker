@@ -1,6 +1,7 @@
 import gdb
 import ktrace
 import kdump
+import klog
 import mutex
 import thread
 
@@ -15,3 +16,4 @@ addPrettyPrinters()
 ktrace.Ktrace()
 thread.Kthread()
 kdump.Kdump()
+klog.Klog()

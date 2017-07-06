@@ -46,7 +46,7 @@ def gdb_inspect():
                 '--nh', '--nx', 'mimiker.elf']
     gdb = pexpect.spawn(gdb_command, gdb_opts, timeout=1)
     gdb.expect_exact('(gdb)', timeout=2)
-    send_command(gdb, 'kdump klog')
+    send_command(gdb, 'klog')
     send_command(gdb, 'info registers')
     send_command(gdb, 'backtrace')
     send_command(gdb, 'list')
