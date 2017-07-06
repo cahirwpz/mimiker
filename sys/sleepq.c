@@ -62,16 +62,16 @@ sleepq_t *sleepq_lookup(void *wchan) {
   return NULL;
 }
 
-void sleepq_wait(void *wchan, const void *wmesg) {
+void sleepq_wait(void *wchan, const void *waitpt) {
   thread_t *td = thread_self();
 
-  if (wmesg == NULL)
-    wmesg = __caller(0);
+  if (waitpt == NULL)
+    waitpt = __caller(0);
 
-  klog("Thread '%s' goes to sleep on %p at %p", td->td_name, wchan, wmesg);
+  klog("Thread '%s' goes to sleep on %p at $pc=%p", td->td_name, wchan, waitpt);
 
   assert(td->td_wchan == NULL);
-  assert(td->td_wmesg == NULL);
+  assert(td->td_waitpt == NULL);
   assert(td->td_sleepqueue != NULL);
   assert(TAILQ_EMPTY(&td->td_sleepqueue->sq_blocked));
   assert(LIST_EMPTY(&td->td_sleepqueue->sq_free));
@@ -101,7 +101,7 @@ void sleepq_wait(void *wchan, const void *wmesg) {
 
   TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_sleepq);
   td->td_wchan = wchan;
-  td->td_wmesg = wmesg;
+  td->td_waitpt = waitpt;
   td->td_sleepqueue = NULL;
   td->td_state = TDS_WAITING;
   sq->sq_nblocked++;
@@ -112,8 +112,8 @@ void sleepq_wait(void *wchan, const void *wmesg) {
 
 /* Remove a thread from the sleep queue and resume it. */
 static void sleepq_resume_thread(sleepq_t *sq, thread_t *td) {
-  klog("Wakeup '%s' thread from '%s' (%p)", td->td_name, td->td_wmesg,
-       td->td_wchan);
+  klog("Wakeup '%s' thread from %p at $pc=%p", td->td_name, td->td_wchan,
+       td->td_waitpt);
 
   assert(td->td_wchan != NULL);
   assert(td->td_sleepqueue == NULL);
@@ -138,7 +138,7 @@ static void sleepq_resume_thread(sleepq_t *sq, thread_t *td) {
   LIST_REMOVE(td->td_sleepqueue, sq_entry);
 
   td->td_wchan = NULL;
-  td->td_wmesg = NULL;
+  td->td_waitpt = NULL;
   timeval_t now = get_uptime();
   now = timeval_sub(&now, &td->td_last_slptime);
   td->td_slptime = timeval_add(&td->td_slptime, &now);

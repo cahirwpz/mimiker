@@ -41,7 +41,7 @@ int do_fork(void) {
 
   newtd->td_sleepqueue = sleepq_alloc();
   newtd->td_wchan = NULL;
-  newtd->td_wmesg = NULL;
+  newtd->td_waitpt = NULL;
 
   newtd->td_prio = td->td_prio;
 
