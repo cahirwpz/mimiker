@@ -1,6 +1,14 @@
 #ifndef _SYS_TIME_H_
 #define _SYS_TIME_H_
 
+#ifndef _KERNELSPACE
+#include <stdbool.h>
+#include <sys/_timeval.h>
+#include <sys/_timespec.h>
+#include <sys/types.h>
+typedef struct timeval timeval_t;
+typedef struct timespec timespec_t;
+#else
 #include <common.h>
 
 typedef uint32_t systime_t; /* kept in miliseconds */
@@ -53,6 +61,8 @@ static inline timeval_t ts2tv(timespec_t ts) {
   return (timeval_t){.tv_sec = ts.tv_sec, .tv_usec = ts.tv_nsec / 1000};
 }
 
+#endif
+
 /* Operations on timevals. */
 static inline void timeval_clear(timeval_t *tvp) {
   *tvp = (timeval_t){.tv_sec = 0, .tv_usec = 0};
@@ -86,11 +96,25 @@ static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
   return res;
 }
 
+#ifndef _KERNELSPACE
+
+int nanosleep(timespec_t *rqtp, timespec_t *rmtp);
+
+int gettimeofday(timeval_t *tp, void *tzp);
+
+int clock_gettime(clockid_t clk, timespec_t *tp);
+
+int clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
+                    timespec_t *rmtp);
+
+#else  /* _KERNELSPACE */
+
 timeval_t get_uptime(void);
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp);
 
 int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                        timespec_t *rmtp);
+#endif /* !_KERNELSPACE */
 
 #endif /* !_SYS_TIME_H_ */
