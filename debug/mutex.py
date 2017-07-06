@@ -1,5 +1,5 @@
 import gdb
-import tailq
+from tailq import TailQueue
 
 
 def get_mutex_owner(mtx):
@@ -14,8 +14,7 @@ def get_mutex_owner(mtx):
 
 def get_threads_blocked_on_mutex(mtx):
     sq = gdb.parse_and_eval("sleepq_lookup((void *)%d)" % mtx.address)
-    return map(lambda n: n.string(),
-               tailq.collect_values(sq['sq_blocked'], 'td_name'))
+    return map(lambda n: n.string(), TailQueue(sq['sq_blocked'], 'td_name'))
 
 
 class MutexPrettyPrinter():

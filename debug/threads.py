@@ -1,41 +1,50 @@
 from __future__ import print_function
 
 import gdb
-import tailq
+from tailq import TailQueue
 import ptable
 import re
 
 
-def thread_name(thr):
-    return str(thr['td_name'].string())
+class ProgramCounter():
+    def __init__(self, pc):
+        self.pc = pc.cast(gdb.lookup_type('unsigned long'))
+
+    def __str__(self):
+        if self.pc == 0:
+            return '-'
+        line = gdb.execute('info line *0x%x' % self.pc, to_string=True)
+        m = re.match(r'Line (\d+) of "(.*)"', line)
+        m = m.groups()
+        return "%s:%s" % (m[1], m[0])
 
 
-def thread_id(thr):
-    return str(thr['td_tid'])
+class Thread():
+    def __init__(self, td):
+        self.name = td['td_name'].string()
+        self.tid = int(td['td_tid'])
+        self.state = str(td['td_state'])
+        self.waitpt = ProgramCounter(td['td_waitpt'])
 
+    @classmethod
+    def current(cls):
+        return cls(gdb.parse_and_eval('thread_self()'))
 
-def thread_state(thr):
-    return str(thr['td_state'])
+    @classmethod
+    def from_pointer(cls, ptr):
+        return cls(gdb.parse_and_eval('(struct thread *)' + ptr).dereference())
 
+    @staticmethod
+    def dump_list(threads):
+        rows = [['Id', 'Name', 'State', 'Waiting Point']]
+        rows.extend([str(td.tid), td.name, td.state, str(td.waitpt)]
+                    for td in threads)
+        ptable.ptable(rows, fmt="llll", header=True)
 
-def thread_wmesg(thr):
-    addr = thr['td_wmesg']
-    if addr == 0:
-        return '-'
-    addr = addr.cast(gdb.lookup_type('unsigned long'))
-    line = gdb.execute('info line *0x%x' % addr, to_string=True)
-    m = re.match(r'Line (\d+) of "(.*)"', line)
-    m = m.groups()
-    return "%s:%s" % (m[1], m[0])
-
-
-def get_all_threads():
-    tdq = gdb.parse_and_eval('all_threads')
-    return tailq.collect_values(tdq, 'td_all')
-
-
-def current_thread():
-    return gdb.parse_and_eval('thread_self()')
+    @classmethod
+    def list_all(cls):
+        tdq = gdb.parse_and_eval('all_threads')
+        return map(Thread, TailQueue(tdq, 'td_all'))
 
 
 class CtxSwitchTracerBP(gdb.Breakpoint):
@@ -45,10 +54,9 @@ class CtxSwitchTracerBP(gdb.Breakpoint):
         self.stop_on = False
 
     def stop(self):
-        frm = gdb.parse_and_eval('(struct thread*)$a0').dereference()
-        to = gdb.parse_and_eval('(struct thread*)$a1').dereference()
-        print('context switch from {} to {}'.format(thread_name(frm),
-                                                    thread_name(to)))
+        td_from = Thread.from_pointer('$a0')
+        td_to = Thread.from_pointer('$a1')
+        print('context switch from {} to {}'.format(td_from.name, td_to.name))
         return self.stop_on
 
     def set_stop_on(self, arg):
@@ -100,19 +108,11 @@ class CreateThreadTracer():
             self.createThreadbp = CreateThreadTracerBP()
 
 
-def dump_threads(threads):
-    extractors = [thread_id, thread_name, thread_state, thread_wmesg]
-    rows = [['Id', 'Name', 'State', 'Waiting Point']]
-    column_sizes = [0, 0, 0, 0]
-    rows.extend([f(thread) for f in extractors] for thread in threads)
-    ptable.ptable(rows, fmt="llll", header=True)
-
-
 class KernelThreads():
 
     def invoke(self):
-        dump_threads(get_all_threads())
-        print('current thread id: %s' % thread_id(current_thread()))
+        Thread.dump_list(Thread.list_all())
+        print('current thread id: %s' % Thread.current().tid)
 
 
 class ThreadPrettyPrinter():

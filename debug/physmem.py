@@ -1,5 +1,5 @@
 import gdb
-import tailq
+from tailq import TailQueue
 from ptable import ptable, as_hex
 
 PAGESIZE = 0x1000
@@ -35,8 +35,7 @@ class KernelSegments():
         self.dump_segments()
 
     def get_all_segments(self):
-        segq = gdb.parse_and_eval('seglist')
-        return tailq.collect_values(segq, 'segq')
+        return TailQueue(gdb.parse_and_eval('seglist'), 'segq')
 
     def dump_segments(self):
         segments = self.get_all_segments()
@@ -53,11 +52,10 @@ class KernelFreePages():
         self.dump_free_pages()
 
     def get_all_segments(self):
-        segq = gdb.parse_and_eval('seglist')
-        return tailq.collect_values(segq, 'segq')
+        return TailQueue(gdb.parse_and_eval('seglist'), 'segq')
 
     def dump_segment_freeq(self, idx, freeq, size):
-        pages = tailq.collect_values(freeq, 'freeq')
+        pages = TailQueue(freeq, 'freeq')
         return [[str(idx), str(size), as_hex(page['paddr']),
                  as_hex(page['vaddr'])] for page in pages]
 
