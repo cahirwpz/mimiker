@@ -17,8 +17,7 @@ def get_threads_blocked_on_mutex(mtx):
     return map(lambda n: n.string(), TailQueue(sq['sq_blocked'], 'td_name'))
 
 
-class MutexPrettyPrinter():
-
+class PrettyPrinter():
     def __init__(self, val):
         self.val = val
 
@@ -30,11 +29,3 @@ class MutexPrettyPrinter():
 
     def display_hint(self):
         return 'map'
-
-
-def addMutexPrettyPrinter():
-    pp = gdb.printing.RegexpCollectionPrettyPrinter("mutexes")
-    pp.add_printer('mtx', 'mtx', MutexPrettyPrinter)
-    gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
-
-addMutexPrettyPrinter()

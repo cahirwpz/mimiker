@@ -1,10 +1,11 @@
 import gdb
-import threads
+import thread
 import physmem
 import klog
+import utils
 
 
-class Kdump(gdb.Command):
+class Kdump(gdb.Command, utils.OneArgAutoCompleteMixin):
     """
     kdump is command for examining kernel state.
     Currently supported commands:
@@ -15,7 +16,7 @@ class Kdump(gdb.Command):
         # classes instead of functions in case we decide to store
         # information about structures in the debugger itself later on
         self.structure = {
-            'threads': threads.KernelThreads(),
+            'threads': thread.KernelThreads(),
             'segments': physmem.KernelSegments(),
             'free_pages': physmem.KernelFreePages(),
             'tlb': physmem.TLB(),
@@ -30,16 +31,5 @@ class Kdump(gdb.Command):
             raise gdb.GdbError('No such structure - {}.'.format(args))
         self.structure[args].invoke()
 
-    def complete(self, text, word):
-        args = text.split()
-        if len(args) == 0:
-            return self.structure.keys()
-        if len(args) >= 2:
-            return []
-        suggestions = []
-        for k in self.structure.keys():
-            if k.startswith(args[0], 0, len(k) - 1):
-                suggestions.append(k)
-        return suggestions
-
-Kdump()
+    def options(self):
+        return self.structure.keys()

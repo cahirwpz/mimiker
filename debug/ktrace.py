@@ -1,13 +1,14 @@
 import gdb
-import threads
+import thread
+import utils
 
 
-class Ktrace(gdb.Command):
+class Ktrace(gdb.Command, utils.OneArgAutoCompleteMixin):
     def __init__(self):
         super(Ktrace, self).__init__('ktrace', gdb.COMMAND_USER)
         self.tracepoint = {
-            'thread-create': threads.CreateThreadTracer(),
-            'ctx-switch': threads.CtxSwitchTracer()
+            'thread-create': thread.CreateThreadTracer(),
+            'ctx-switch': thread.CtxSwitchTracer()
         }
 
     def invoke(self, args, from_tty):
@@ -18,16 +19,5 @@ class Ktrace(gdb.Command):
             raise gdb.GdbError("No such tracepoint - {}.".format(args))
         self.tracepoint[args].toggle()
 
-    def complete(self, text, word):
-        args = text.split()
-        if len(args) == 0:
-            return self.tracepoint.keys()
-        if len(args) >= 2:
-            return []
-        suggestions = []
-        for k in self.tracepoint.keys():
-            if k.startswith(args[0], 0, len(k) - 1):
-                suggestions.append(k)
-        return suggestions
-
-Ktrace()
+    def options(self):
+        return self.tracepoint.keys()
