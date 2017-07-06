@@ -79,6 +79,7 @@ def test_seed(seed, sim='qemu', repeat=1, retry=0):
         except pexpect.exceptions.TIMEOUT:
             pass
         print(message)
+        gdb_inspect()
         sys.exit(1)
     elif index == 2:
         message = safe_decode(child.before)
