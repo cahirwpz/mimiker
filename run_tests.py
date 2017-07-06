@@ -20,34 +20,38 @@ def safe_decode(data):
     return data.decode('unicode_escape', errors='replace').replace('\r', '')
 
 
-# Tries to start gdb in order to investigate kernel state on deadlock.
+def send_command(gdb, cmd):
+    print('\n>>>', end='', flush=True)
+    gdb.setecho(False)
+    gdb.sendline(cmd)
+    while True:
+        index = gdb.expect_exact(
+            ['(gdb)', '---Type <return> to continue, or q <return> to quit---'],
+            timeout=2)
+        print(safe_decode(gdb.before).lstrip('\n'), end='', flush=True)
+        if index == 0:
+            break
+        gdb.send('\n')
+    gdb.setecho(True)
+
+
+# Tries to start gdb in order to investigate kernel state on deadlock or crash.
 def gdb_inspect():
     gdb_port = GDB_PORT_BASE + os.getuid()
     gdb_command = 'mipsel-mimiker-elf-gdb'
     # Note: These options are different than .gdbinit.
-    gdb_opts = ['-nx',
-                'mimiker.elf',
-                '-ex=target remote localhost:%d' % gdb_port,
+    gdb_opts = ['-ex=target remote localhost:%d' % gdb_port,
                 '-ex=python import os, sys',
                 '-ex=python sys.path.append(os.getcwd())',
-                '-ex=python import debug']
+                '-ex=python import debug',
+                '--nh', '--nx', 'mimiker.elf']
     gdb = pexpect.spawn(gdb_command, gdb_opts, timeout=1)
     gdb.expect_exact('(gdb)', timeout=2)
-    gdb.sendline('info registers')
-    gdb.expect_exact('(gdb)')
-    print(gdb.before.decode("ascii"))
-    gdb.sendline('frame')
-    gdb.expect_exact('(gdb)')
-    print(gdb.before.decode("ascii"))
-    gdb.sendline('backtrace')
-    gdb.expect_exact('(gdb)')
-    print(gdb.before.decode("ascii"))
-    gdb.sendline('list')
-    gdb.expect_exact('(gdb)')
-    print(gdb.before.decode("ascii"))
-    gdb.sendline('kdump threads')
-    gdb.expect_exact('(gdb)')
-    print(gdb.before.decode("ascii"))
+    send_command(gdb, 'kdump klog')
+    send_command(gdb, 'info registers')
+    send_command(gdb, 'backtrace')
+    send_command(gdb, 'list')
+    send_command(gdb, 'kdump threads')
 
 
 def test_seed(seed, sim='qemu', repeat=1, retry=0):
@@ -57,7 +61,7 @@ def test_seed(seed, sim='qemu', repeat=1, retry=0):
         sys.exit(1)
 
     print("Testing seed %d..." % seed)
-    child = pexpect.spawn('./launch', ['-t', '-S', sim, 'test=all',
+    child = pexpect.spawn('./launch', ['-t', '-S', sim, 'test=all', 'klog-quiet=1',
                                        'seed=%d' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact(
         ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT],
