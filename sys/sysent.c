@@ -361,7 +361,7 @@ static int sys_clock_gettime(thread_t *td, syscall_args_t *args) {
   int result = do_clock_gettime(clk, &kts);
   if (result != 0)
     return result;
-  return copyout(&kts, uts, sizeof(kts));
+  return copyout_s(kts, uts);
 }
 
 static int sys_clock_nanosleep(thread_t *td, syscall_args_t *args) {
@@ -369,7 +369,7 @@ static int sys_clock_nanosleep(thread_t *td, syscall_args_t *args) {
   int flags = (int)args->args[1];
   timespec_t *urqtp = (timespec_t *)args->args[2];
   timespec_t krqtp;
-  int result = copyin(urqtp, &krqtp, sizeof(krqtp));
+  int result = copyin_s(urqtp, krqtp);
   if (result != 0)
     return result;
   return do_clock_nanosleep(clk, flags, &krqtp, NULL);
