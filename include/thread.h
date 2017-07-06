@@ -52,7 +52,7 @@ typedef struct thread {
   /* waiting channel */
   sleepq_t *td_sleepqueue;
   void *td_wchan;
-  const void *td_waitpt;  /* a point where program waits */
+  const void *td_waitpt; /* a point where program waits */
   /* scheduler part */
   td_prio_t td_prio;
   int td_slice;
