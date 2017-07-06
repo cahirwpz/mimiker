@@ -14,7 +14,7 @@ void cv_wait(condvar_t *cv, mtx_t *mtx) {
     mtx_unlock(mtx);
     sleepq_wait(cv, __caller(0));
   }
-  mtx_lock(mtx);
+  _mtx_lock(mtx, __caller(0));
 }
 
 void cv_signal(condvar_t *cv) {

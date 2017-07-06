@@ -1,41 +1,32 @@
 import gdb
-import tailq
+from tailq import TailQueue
+from thread import Thread
+import utils
 
 
-def get_mutex_owner(mtx):
-    state = mtx['m_owner']
-    td_pointer = gdb.lookup_type('struct thread').pointer()
-    owner = state.cast(td_pointer)
-    if owner:
-        owner = owner.dereference()
-        return owner['td_name'].string()
-    return None
+class Mutex(utils.PrettyPrinterMixin):
+    def __init__(self, mtx):
+        self._obj = mtx
+        self.typ = mtx['m_type']
+        self.count = mtx['m_count']
+        self.owner = None
 
+        owner = mtx['m_owner']
+        if owner:
+            self.owner = owner.dereference()
 
-def get_threads_blocked_on_mutex(mtx):
-    sq = gdb.parse_and_eval("sleepq_lookup((void *)%d)" % mtx.address)
-    return map(lambda n: n.string(),
-               tailq.collect_values(sq['sq_blocked'], 'td_name'))
+    def list_blocked(self):
+        sq = gdb.parse_and_eval("sleepq_lookup((void *)%d)" %
+                                self._obj.address)
+        if sq == 0:
+            return None
+        return map(Thread, TailQueue(sq['sq_blocked'], 'td_sleepq'))
 
-
-class MutexPrettyPrinter():
-
-    def __init__(self, val):
-        self.val = val
-
-    def to_string(self):
-        if self.val['m_owner'] == 0:
-            return "Mutex unowned"
-        return "{owner = %s, blocked = %s}" % (
-            get_mutex_owner(self.val), get_threads_blocked_on_mutex(self.val))
+    def __str__(self):
+        if self.owner is None:
+            return 'mtx{owner = None}'
+        return 'mtx{owner=%s, count=%d, blocked=%s}' % (
+                Thread(self.owner), self.count, self.list_blocked())
 
     def display_hint(self):
         return 'map'
-
-
-def addMutexPrettyPrinter():
-    pp = gdb.printing.RegexpCollectionPrettyPrinter("mutexes")
-    pp.add_printer('mtx', 'mtx', MutexPrettyPrinter)
-    gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
-
-addMutexPrettyPrinter()
