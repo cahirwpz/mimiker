@@ -21,7 +21,7 @@ class ProgramCounter():
 
 
 class Thread(object):
-    __metaclass__ = utils.GdbValueMeta
+    __metaclass__ = utils.GdbStructMeta
     __ctype__ = 'struct thread'
     __cast__ = {'td_waitpt': ProgramCounter,
                 'td_tid': int,

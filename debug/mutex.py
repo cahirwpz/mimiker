@@ -5,7 +5,7 @@ import utils
 
 
 class Mutex(object):
-    __metaclass__ = utils.GdbValueMeta
+    __metaclass__ = utils.GdbStructMeta
     __ctype__ = 'struct mtx'
     __cast__ = {'m_count': int}
 

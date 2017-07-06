@@ -5,7 +5,7 @@ import utils
 
 
 class CondVar(object):
-    __metaclass__ = utils.GdbValueMeta
+    __metaclass__ = utils.GdbStructMeta
     __ctype__ = 'struct condvar'
     __cast__ = {'waiters': int}
 

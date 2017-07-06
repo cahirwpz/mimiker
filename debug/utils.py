@@ -19,7 +19,7 @@ class OneArgAutoCompleteMixin():
         return suggestions
 
 
-class GdbValueMixin(object):
+class GdbStructBase(object):
     def __init__(self, obj):
         self._obj = obj
 
@@ -35,18 +35,20 @@ class GdbValueMixin(object):
         return 'map'
 
 
-class GdbValueMeta(type):
+class GdbStructMeta(type):
     def __new__(cls, name, bases, dct):
         t = gdb.lookup_type(dct['__ctype__'])
-        # for each field of ctype make property getter of same name
+        # for each field of ctype make property getter of the same name
         for f in t.fields():
             def mkgetter(fname, caster):
                 if caster is None:
                     return lambda x: x._obj[fname]
+                # use cast function if available
                 return lambda x: caster(x._obj[fname])
             caster = None
             if '__cast__' in dct:
                 caster = dct['__cast__'].get(f.name, None)
             dct[f.name] = property(mkgetter(f.name, caster))
-        return super(GdbValueMeta, cls).__new__(
-                cls, name, (GdbValueMixin,) + bases, dct)
+        # all classes created with GdbStructMeta will inherit from GdbStructBase
+        return super(GdbStructMeta, cls).__new__(
+                cls, name, (GdbStructBase,) + bases, dct)

@@ -4,7 +4,7 @@ import utils
 
 
 class TimeVal(object):
-    __metaclass__ = utils.GdbValueMeta
+    __metaclass__ = utils.GdbStructMeta
     __ctype__ = 'struct timeval'
     __cast__ = {'tv_sec': int, 'tv_usec': int}
 
