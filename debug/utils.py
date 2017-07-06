@@ -17,3 +17,8 @@ class OneArgAutoCompleteMixin():
             if o.startswith(args[0], 0, len(o) - 1):
                 suggestions.append(o)
         return suggestions
+
+
+class PrettyPrinterMixin():
+    def to_string(self):
+        return str(self)

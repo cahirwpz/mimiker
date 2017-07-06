@@ -20,12 +20,17 @@ class ProgramCounter():
         return "%s:%s" % (m[1], m[0])
 
 
-class Thread():
+class Thread(utils.PrettyPrinterMixin):
     def __init__(self, td):
+        self._obj = td
         self.name = td['td_name'].string()
         self.tid = int(td['td_tid'])
         self.state = str(td['td_state'])
         self.waitpt = ProgramCounter(td['td_waitpt'])
+
+    @staticmethod
+    def pointer_type():
+        return gdb.lookup_type('struct thread')
 
     @classmethod
     def current(cls):
@@ -40,13 +45,24 @@ class Thread():
         rows = [['Id', 'Name', 'State', 'Waiting Point']]
         curr_tid = Thread.current().tid
         rows.extend([['', '(*) '][curr_tid == td.tid] + str(td.tid), td.name,
-                     td.state, str(td.waitpt)] for td in threads)
+                     td.state, str(td.waitpt)] for td in map(Thread, threads))
         ptable.ptable(rows, fmt="rlll", header=True)
 
     @classmethod
     def list_all(cls):
-        tdq = gdb.parse_and_eval('all_threads')
-        return map(Thread, TailQueue(tdq, 'td_all'))
+        threads = TailQueue(gdb.parse_and_eval('all_threads'), 'td_all')
+        return map(Thread, threads)
+
+    def __str__(self):
+        return 'thread{tid=%d, name="%s"}' % (self.tid, self.name)
+
+    def dump(self):
+        res = ['%s = %s' % (field, self._obj[field])
+               for field in self._obj.type]
+        return '\n'.join(res)
+
+    def display_hint(self):
+        return 'map'
 
 
 class CtxSwitchTracerBP(gdb.Breakpoint):
@@ -58,7 +74,7 @@ class CtxSwitchTracerBP(gdb.Breakpoint):
     def stop(self):
         td_from = Thread.from_pointer('$a0')
         td_to = Thread.from_pointer('$a1')
-        print('context switch from {} to {}'.format(td_from.name, td_to.name))
+        print('context switch from {} to {}'.format(td_from, td_to))
         return self.stop_on
 
     def set_stop_on(self, arg):
@@ -117,25 +133,6 @@ class KernelThreads():
         Thread.dump_list(Thread.list_all())
 
 
-class PrettyPrinter():
-    """
-    Pretty prints single thread.
-    Note that this prints ALL fields of thread. This looks OK for now because
-    thread structure doesn't have that many fields, but in future we might want
-    to distinguish between scheduler, process, etc. sets of fields.
-    """
-
-    def __init__(self, val):
-        self.val = val
-
-    def to_string(self):
-        res = ['%s = %s' % (field, self.val[field]) for field in self.val.type]
-        return "\n".join(res)
-
-    def display_hint(self):
-        return 'map'
-
-
 class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
     """
     kthread prints info about given thread. Thread can be either given by
@@ -176,12 +173,12 @@ class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
             if len(tds) > 1:
                 print("Warning! There is more than 1 thread with name ", args)
             if len(tds) > 0:
-                print(tds[0])
+                print(tds[0].dump())
                 return
 
         for td in threads:
             if td.tid == args:
-                print(td)
+                print(td.dump())
                 return
 
         print("Can't find thread with '%s' id or name" % args)
