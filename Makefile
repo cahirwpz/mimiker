@@ -1,12 +1,10 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
+TOPDIR = $(CURDIR)
+
 all: cscope tags mimiker.elf initrd.cpio
 
-# Disable all built-in recipes
-.SUFFIXES:
-
-include Makefile.common
-$(info Using CC: $(CC))
+include $(TOPDIR)/build/build.kern.mk
 
 # Directories which contain kernel parts
 SYSSUBDIRS  = mips stdc sys tests
@@ -23,9 +21,28 @@ user: | cache
 cache:
 	mkdir cache
 
+# Files required to link kernel image
+KRT = $(TOPDIR)/stdc/libstdc.a \
+      $(TOPDIR)/mips/libmips.a \
+      $(TOPDIR)/sys/libsys.a \
+      $(TOPDIR)/tests/libtests.a
+
 # Process subdirectories before using KRT files.
 $(KRT): | $(SYSSUBDIRS)
 	true # Disable default recipe
+
+LDFLAGS	= -nostdlib -T $(TOPDIR)/mips/malta.ld
+LDLIBS	= -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc -L$(TOPDIR)/tests \
+	  -Wl,--start-group \
+	    -Wl,--whole-archive \
+              -lsys \
+	      -lmips \
+              -ltests \
+            -Wl,--no-whole-archive \
+            -lstdc \
+            -lgcc \
+          -Wl,--end-group
+
 mimiker.elf: $(KRT) | $(SYSSUBDIRS)
 	@echo "[LD] Linking kernel image: $@"
 	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
@@ -80,5 +97,3 @@ clean:
 
 distclean: clean
 	$(RM) -r cache sysroot
-
-.PRECIOUS: %.uelf

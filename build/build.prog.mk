@@ -12,32 +12,21 @@ SOURCES_O = $(SOURCES_C:%.c=%.o)
 
 all: $(UELF_NAME).uelf
 
+include $(TOPDIR)/build/build.mk
+include $(TOPDIR)/build/flags.user.mk
+
 clean:
 	rm -rf $(UELF_NAME).uelf $(SOURCES_C:%.c=.%.D) $(SOURCES_O)
-
-.PHONY: all clean install
-
-USERDIR = $(realpath $(dir $(filter %Makefile.usercommon, $(MAKEFILE_LIST))))
-include $(USERDIR)/../Makefile.common
-
-CFLAGS   = --sysroot=$(SYSROOT) -std=gnu11 -O0 -Wall -Werror
-LDFLAGS  = --sysroot=$(SYSROOT) -L= -T mimiker.ld
-
-# Compiling the program source
-%.o: %.c
-	@echo "[CC] $(DIR)$< -> $(DIR)$@"
-	$(CC) $(CFLAGS) -c -o $@ $<
 
 # Linking the program according to the provided script
 %.uelf: $(SOURCES_O)
 	@echo "[LD] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(LDFLAGS) -o $@ $(SOURCES_O)
 
-install: $(INSTALL_DIR)/bin/$(UELF_NAME)
+install: $(SYSROOT)/bin/$(UELF_NAME)
 
-$(INSTALL_DIR)/bin/$(UELF_NAME): $(UELF_NAME).uelf
+$(SYSROOT)/bin/$(UELF_NAME): $(UELF_NAME).uelf
 	@echo "[INSTALL] $(DIR)$< -> /bin/$(UELF_NAME)"
-	install -D $(UELF_NAME).uelf $(INSTALL_DIR)/bin/$(UELF_NAME)
+	install -D $(UELF_NAME).uelf $(SYSROOT)/bin/$(UELF_NAME)
 
-.SUFFIXES:
 .PRECIOUS: %.uelf
