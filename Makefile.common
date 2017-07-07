@@ -26,8 +26,7 @@ CPIO     = cpio --format=crc
 RM       = rm -v -f
 
 SYSROOT  = $(TOPDIR)/sysroot
-INSTALL_DIR  = $(TOPDIR)/sysroot
-CACHEDIR  = $(TOPDIR)/cache
+CACHEDIR = $(TOPDIR)/cache
 
 ASFLAGS  =
 WFLAGS   = -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes -Werror

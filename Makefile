@@ -24,11 +24,10 @@ cache:
 	mkdir cache
 
 # Files required to link kernel image
-KRT = \
-    $(TOPDIR)/stdc/libstdc.a \
-    $(TOPDIR)/mips/libmips.a \
-    $(TOPDIR)/sys/libsys.a \
-    $(TOPDIR)/tests/libtests.a
+KRT = $(TOPDIR)/stdc/libstdc.a \
+      $(TOPDIR)/mips/libmips.a \
+      $(TOPDIR)/sys/libsys.a \
+      $(TOPDIR)/tests/libtests.a
 
 # Process subdirectories before using KRT files.
 $(KRT): | $(SYSSUBDIRS)
