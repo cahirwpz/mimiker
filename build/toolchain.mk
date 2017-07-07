@@ -11,5 +11,6 @@ AS       = $(TARGET)-as -mips32r2 -EL -g
 NM       = $(TARGET)-nm
 GDB      = $(TARGET)-gdb
 RANLIB	 = $(TARGET)-ranlib
+READELF  = $(TARGET)-readelf
 OBJCOPY  = $(TARGET)-objcopy
 OBJDUMP  = $(TARGET)-objdump

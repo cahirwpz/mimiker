@@ -1,10 +1,5 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-TOPDIR	 = $(realpath $(dir $(filter %Makefile.common, $(MAKEFILE_LIST))))
-SYSROOT  = $(TOPDIR)/sysroot
-CACHEDIR = $(TOPDIR)/cache
-DIR = $(patsubst $(TOPDIR)/%,%,$(CURDIR)/)
-
 include $(TOPDIR)/build/toolchain.mk
 include $(TOPDIR)/build/tools.mk
 include $(TOPDIR)/build/flags.mk

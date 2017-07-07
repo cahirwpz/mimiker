@@ -1,3 +1,5 @@
+TOPDIR = $(realpath ..)
+
 SOURCES_C = \
 	broken.c \
 	callout.c \
@@ -26,7 +28,7 @@ SOURCES_ASM =
 
 all: $(DEPFILES) libtests.a
 
-include ../Makefile.kernel
+include $(TOPDIR)/build/build.kern.mk
 
 libtests.a: $(OBJECTS)
 

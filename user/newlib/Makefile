@@ -1,5 +1,8 @@
-# That won't be necessary in the future, it's just for temporary convnience.
-include ../../Makefile.common
+TOPDIR = $(realpath ../../)
+
+include $(TOPDIR)/build/toolchain.mk
+include $(TOPDIR)/build/tools.mk
+include $(TOPDIR)/build/common.mk
 
 # Newlib config
 NEWLIB = newlib-2.5.0
@@ -34,12 +37,12 @@ configure: configure-stamp
 configure-stamp: unpack-stamp
 	@echo "Configuring newlib..."
 	cd $(CACHEDIR)/$(NEWLIB)/newlib && \
-		CC="$(TRIPLET)-gcc" \
-		AS="$(TRIPLET)-as" \
-		AR="$(TRIPLET)-ar" \
-		RANLIB="$(TRIPLET)-ranlib" \
-		READELF="$(TRIPLET)-readelf" \
-		./configure --build=$(TRIPLET) \
+		CC="$(TARGET)-gcc" \
+		AS="$(TARGET)-as" \
+		AR="$(TARGET)-ar" \
+		RANLIB="$(TARGET)-ranlib" \
+		READELF="$(TARGET)-readelf" \
+		./configure --build=$(TARGET) \
 		            --prefix=$(SYSROOT)/usr \
 		            CFLAGS="-g -DSIGNAL_PROVIDED" > /dev/null
 	touch $@
@@ -63,5 +66,8 @@ install-stamp: build-stamp
 
 clean:
 	$(RM) install-stamp
+
+distclean:
+	$(rm) *-stamp
 
 .PHONY:	download unpack configure build install

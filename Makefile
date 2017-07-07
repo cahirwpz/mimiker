@@ -1,9 +1,10 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
+TOPDIR = $(CURDIR)
+
 all: cscope tags mimiker.elf initrd.cpio
 
-include Makefile.kernel
-$(info Using CC: $(CC))
+include $(TOPDIR)/build/build.kern.mk
 
 # Directories which contain kernel parts
 SYSSUBDIRS  = mips stdc sys tests

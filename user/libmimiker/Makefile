@@ -1,6 +1,8 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-include ../../Makefile.kernel
+TOPDIR = $(realpath ../..)
+
+include $(TOPDIR)/build/build.kern.mk
 
 LIBFILE = libmimiker.a
 EXTRAFILES = $(shell find extra -type f)
@@ -22,4 +24,4 @@ $(SYSROOT)/%: extra/%
 libmimiker.a: start.o syscalls.o
 
 clean:
-	rm -f *.o *.a
+	$(RM) *.o *.a

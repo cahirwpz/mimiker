@@ -1,5 +1,7 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
+TOPDIR = $(realpath ..)
+
 SOURCES_C  = \
 	assert.c \
 	callout.c \
@@ -59,7 +61,7 @@ SOURCES_ASM =
 
 all: $(DEPFILES) libsys.a
 
-include ../Makefile.kernel
+include $(TOPDIR)/build/build.kern.mk
 
 libsys.a: $(OBJECTS)
 

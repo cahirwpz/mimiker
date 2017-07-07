@@ -15,4 +15,4 @@
 
 %.a:
 	@echo "[AR] $(addprefix $(DIR),$^) -> $(DIR)$@"
-	$(AR) rs $@ $^
+	$(AR) rs $@ $^ 2> /dev/null
