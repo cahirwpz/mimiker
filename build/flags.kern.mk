@@ -1,3 +1,5 @@
+include $(TOPDIR)/build/flags.mk
+
 GCC_INSTALL_PATH = $(shell LANG=C $(CC) -print-search-dirs | \
                      sed -n -e 's/install:\(.*\)/\1/p')
 # The _LIBC_LIMITS_H_ prevents include-fixed/limits.h from forcefully including

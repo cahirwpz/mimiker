@@ -13,12 +13,10 @@ SOURCES_O = $(SOURCES_C:%.c=%.o)
 all: $(UELF_NAME).uelf
 
 include $(TOPDIR)/build/build.mk
+include $(TOPDIR)/build/flags.user.mk
 
 clean:
 	rm -rf $(UELF_NAME).uelf $(SOURCES_C:%.c=.%.D) $(SOURCES_O)
-
-CFLAGS   = --sysroot=$(SYSROOT) -std=gnu11 -O0 -Wall -Werror
-LDFLAGS  = --sysroot=$(SYSROOT) -L= -T mimiker.ld
 
 # Linking the program according to the provided script
 %.uelf: $(SOURCES_O)

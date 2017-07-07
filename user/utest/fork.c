@@ -5,7 +5,7 @@
 #include <sys/wait.h>
 #include <sys/signal.h>
 
-int test_fork_wait() {
+int test_fork_wait(void) {
   int n = fork();
   if (n == 0) {
     printf("This is child, my pid is %d!\n", getpid());
@@ -35,7 +35,7 @@ void sigchld_handler(int signo) {
   }
 }
 
-int test_fork_signal() {
+int test_fork_signal(void) {
   signal(SIGCHLD, sigchld_handler);
   int n = fork();
   if (n == 0)
@@ -48,7 +48,7 @@ int test_fork_signal() {
   return 0;
 }
 
-int test_fork_sigchld_ignored() {
+int test_fork_sigchld_ignored(void) {
   /* Please auto-reap my children. */
   signal(SIGCHLD, SIG_IGN);
   int n = fork();
