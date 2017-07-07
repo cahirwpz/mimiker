@@ -62,6 +62,6 @@ install-stamp: build-stamp
 	touch $@
 
 clean:
-	$(RM) *-stamp
+	$(RM) install-stamp
 
 .PHONY:	download unpack configure build install
