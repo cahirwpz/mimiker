@@ -21,7 +21,7 @@ all: $(DEPFILES) assym.h libmips.a
 
 $(SOURCES_ASM): assym.h
 
-include ../Makefile.common
+include ../Makefile.kernel
 
 libmips.a: $(OBJECTS)
 

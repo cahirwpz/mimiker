@@ -5,7 +5,7 @@ all: cscope tags mimiker.elf initrd.cpio
 # Disable all built-in recipes
 .SUFFIXES:
 
-include Makefile.common
+include Makefile.kernel
 $(info Using CC: $(CC))
 
 # Directories which contain kernel parts
@@ -23,9 +23,29 @@ user: | cache
 cache:
 	mkdir cache
 
+# Files required to link kernel image
+KRT = \
+    $(TOPDIR)/stdc/libstdc.a \
+    $(TOPDIR)/mips/libmips.a \
+    $(TOPDIR)/sys/libsys.a \
+    $(TOPDIR)/tests/libtests.a
+
 # Process subdirectories before using KRT files.
 $(KRT): | $(SYSSUBDIRS)
 	true # Disable default recipe
+
+LDFLAGS	= -nostdlib -T $(TOPDIR)/mips/malta.ld
+LDLIBS	= -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc -L$(TOPDIR)/tests \
+	  -Wl,--start-group \
+	    -Wl,--whole-archive \
+              -lsys \
+	      -lmips \
+              -ltests \
+            -Wl,--no-whole-archive \
+            -lstdc \
+            -lgcc \
+          -Wl,--end-group
+
 mimiker.elf: $(KRT) | $(SYSSUBDIRS)
 	@echo "[LD] Linking kernel image: $@"
 	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@

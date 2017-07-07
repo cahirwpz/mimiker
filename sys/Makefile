@@ -59,7 +59,7 @@ SOURCES_ASM =
 
 all: $(DEPFILES) libsys.a
 
-include ../Makefile.common
+include ../Makefile.kernel
 
 libsys.a: $(OBJECTS)
 

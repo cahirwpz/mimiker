@@ -26,7 +26,7 @@ SOURCES_ASM =
 
 all: $(DEPFILES) libtests.a
 
-include ../Makefile.common
+include ../Makefile.kernel
 
 libtests.a: $(OBJECTS)
 
