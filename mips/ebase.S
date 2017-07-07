@@ -1,5 +1,6 @@
 #include <mips/ctx.h>
 #include <mips/m32c0.h>
+#include <mips/regdef.h>
 
 #include "assym.h"
 
