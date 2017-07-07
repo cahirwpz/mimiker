@@ -5,6 +5,7 @@ from tailq import TailQueue
 import utils
 import ptable
 import re
+import traceback
 
 
 class ProgramCounter():
@@ -172,6 +173,7 @@ class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
                 found = tds[0]
             else:
                 print('Can\'t find thread with name="%s"!' % args)
+                return
 
         if type(args) == int:
             for td in threads:
@@ -180,6 +182,7 @@ class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
                     break
             if not found:
                 print('Can\'t find thread with tid=%d!' % args)
+                return
 
         try:
             print(found.dump())
