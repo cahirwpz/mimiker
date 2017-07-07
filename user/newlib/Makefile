@@ -4,59 +4,37 @@ include $(TOPDIR)/build/toolchain.mk
 include $(TOPDIR)/build/tools.mk
 include $(TOPDIR)/build/common.mk
 
-# Newlib config
-NEWLIB = newlib-2.5.0
-NEWLIBFILE = $(NEWLIB).tar.gz
-NEWLIBDIR = $(CACHEDIR)/$(NEWLIBDIR)
-NEWLIBURL = ftp://sourceware.org/pub/newlib/$(NEWLIBFILE)
+SOURCEDIR = $(CURDIR)/newlib-2.5.0
+BUILDDIR = $(CURDIR)/newlib-build
 
 all: install
-
-download: download-stamp
-download-stamp:
-	@echo "Downloading $(NEWLIBFILE)..."
-	@echo "Don't worry, the download is cached so there will be no need " \
-	      "to do this again."
-	mkdir -p $(CACHEDIR)
-	# Remove incomplete newlib archive on a failed download 
-	wget $(NEWLIBURL) -O $(CACHEDIR)/$(NEWLIBFILE) || \
-		(ret=$$?; rm -rf $(CACHEDIR)/$(NEWLIBFILE); exit $$ret)
-	touch $@
-
-# The .tar.gz archive must be an order-only prerequisite, because the archive
-# has a more recent last-modified date than the source directory.
-unpack: unpack-stamp
-unpack-stamp: download-stamp
-	@echo "Unpacking newlib..."
-	cd $(CACHEDIR) && tar -xzf $(NEWLIBFILE)
-	touch $@
 
 # Output from these commands is redirected to /dev/null for readibility.
 # If any of these commands fail, just remove output redirection.
 configure: configure-stamp
-configure-stamp: unpack-stamp
+configure-stamp:
 	@echo "Configuring newlib..."
-	cd $(CACHEDIR)/$(NEWLIB)/newlib && \
+	mkdir -p $(BUILDDIR) && cd $(BUILDDIR) && \
 		CC="$(TARGET)-gcc" \
 		AS="$(TARGET)-as" \
 		AR="$(TARGET)-ar" \
 		RANLIB="$(TARGET)-ranlib" \
 		READELF="$(TARGET)-readelf" \
-		./configure --build=$(TARGET) \
-		            --prefix=$(SYSROOT)/usr \
-		            CFLAGS="-g -DSIGNAL_PROVIDED" > /dev/null
-	touch $@
+		$(SOURCEDIR)/newlib/configure \
+		            --build="$(TARGET)" \
+		            --prefix="$(SYSROOT)/usr" \
+		            CFLAGS="-g -DSIGNAL_PROVIDED" 2>&1 >/dev/null \
+		&& touch $@
 
 build: build-stamp
 build-stamp: configure-stamp
 	@echo "Compiling newlib..."
-	cd $(CACHEDIR)/$(NEWLIB)/newlib && $(MAKE) -s 2>&1
-	touch $@
+	$(MAKE) -C $(BUILDDIR) 2>/dev/null && touch $@
 
 install: install-stamp
 install-stamp: build-stamp
 	@echo "Installing newlib..."
-	cd $(CACHEDIR)/$(NEWLIB)/newlib && $(MAKE) install >/dev/null 2>&1
+	$(MAKE) -C $(BUILDDIR) install 2>&1 >/dev/null
 	# Copy overrides. TODO: These files should be copied into $(NEWLIB)
 	# before it is compiled, so that all references within newlib sources
 	# are using our version of the override file. But for now it does not
@@ -68,6 +46,7 @@ clean:
 	$(RM) install-stamp
 
 distclean:
-	$(rm) *-stamp
+	$(RM) -r $(BUILDDIR)
+	$(RM) *-stamp
 
 .PHONY:	download unpack configure build install

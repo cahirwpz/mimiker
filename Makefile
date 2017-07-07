@@ -16,11 +16,6 @@ $(SUBDIRS):
 
 .PHONY: format tags cscope $(SUBDIRS) force
 
-# Make sure the global cache dir exists before building user programs
-user: | cache
-cache:
-	mkdir cache
-
 # Files required to link kernel image
 KRT = $(TOPDIR)/stdc/libstdc.a \
       $(TOPDIR)/mips/libmips.a \
@@ -52,7 +47,7 @@ cscope:
 
 # Lists of all files that we consider our sources.
 SOURCE_RULES = -not -path "./toolchain/*" -and \
-               -not -path "./cache*"      -and \
+               -not -path "./user/newlib/newlib-*" -and \
                -not -path "./sysroot*"
 SOURCES_C = $(shell find -iname '*.[ch]' -type f $(SOURCE_RULES))
 SOURCES_ASM = $(shell find -iname '*.[S]' -type f $(SOURCE_RULES))
