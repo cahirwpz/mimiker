@@ -2,9 +2,6 @@
 
 all: cscope tags mimiker.elf initrd.cpio
 
-# Disable all built-in recipes
-.SUFFIXES:
-
 include Makefile.kernel
 $(info Using CC: $(CC))
 
@@ -99,5 +96,3 @@ clean:
 
 distclean: clean
 	$(RM) -r cache sysroot
-
-.PRECIOUS: %.uelf

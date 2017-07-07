@@ -1,73 +1,13 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
 TOPDIR	 = $(realpath $(dir $(filter %Makefile.common, $(MAKEFILE_LIST))))
-
-SOURCES = $(SOURCES_C) $(SOURCES_ASM)
-OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
-DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
-
-TRIPLET = mipsel-mimiker-elf
-
-TOOLCHAIN_FOUND = $(shell which $(TRIPLET)-gcc > /dev/null; echo $$?)
-ifneq ($(TOOLCHAIN_FOUND), 0)
-  $(error "mips-mimiker-elf" toolchain not found. Please refer to README.md)
-endif
-
-P = $(TRIPLET)-
-
-CC       = $(P)gcc -mips32r2 -EL -g
-AR       = $(P)ar
-AS       = $(P)as -mips32r2 -EL -g
-NM       = $(P)nm
-GDB      = $(P)gdb
-OBJCOPY  = $(P)objcopy
-OBJDUMP  = $(P)objdump
-CPIO     = cpio --format=crc
-RM       = rm -v -f
-
 SYSROOT  = $(TOPDIR)/sysroot
 CACHEDIR = $(TOPDIR)/cache
-
-ASFLAGS  =
-WFLAGS   = -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes -Werror
-CFLAGS   = -std=gnu11 -Og $(WFLAGS)
-CPPFLAGS = -Wall -Werror -DDEBUG
-
 DIR = $(patsubst $(TOPDIR)/%,%,$(CURDIR)/)
 
-define emit_dep_rule
-CFILE = $(1)
-DFILE = .$(patsubst %.S,%.D,$(patsubst %.c,%.D,$(1)))
-$$(DFILE): $$(CFILE)
-	@echo "[DEP] $$(DIR)$$@"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -MM -MG $$^ -o $$@
-endef
-
-%.S: %.c
-	@echo "[CC] $(DIR)$< -> $(DIR)$@"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -S -o $@ $<
-
-%.o: %.c
-	@echo "[CC] $(DIR)$< -> $(DIR)$@"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
-
-%.o: %.S
-	@echo "[AS] $(DIR)$< -> $(DIR)$@"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
-
-%.a:
-	@echo "[AR] $(addprefix $(DIR),$^) -> $(DIR)$@"
-	$(AR) rs $@ $^
-
-.PHONY: all clean
-
-# Pass "VERBOSE=1" at command line to display command being invoked by GNU Make
-ifneq ($(VERBOSE), 1)
-.SILENT:
-endif
-
-$(foreach file,$(SOURCES) null,$(eval $(call emit_dep_rule,$(file))))
-
-ifeq ($(words $(findstring $(MAKECMDGOALS), clean)), 0)
-  -include $(DEPFILES)
-endif
+include $(TOPDIR)/build/toolchain.mk
+include $(TOPDIR)/build/tools.mk
+include $(TOPDIR)/build/flags.mk
+include $(TOPDIR)/build/recipe.mk
+include $(TOPDIR)/build/compile.mk
+include $(TOPDIR)/build/common.mk
