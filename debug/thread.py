@@ -190,7 +190,7 @@ class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
             print('\n>>> backtrace for %s' % found)
             ctx = Context()
             ctx.save()
-            Context.load(td.td_kctx)
+            Context.load(found.td_kctx)
             gdb.execute('backtrace')
             ctx.restore()
         except:
