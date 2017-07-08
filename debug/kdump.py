@@ -2,7 +2,6 @@ import gdb
 import thread
 import physmem
 import klog
-import pmem
 import utils
 import traceback
 
@@ -14,7 +13,6 @@ class Kdump(gdb.Command, utils.OneArgAutoCompleteMixin):
      * threads    - information about kernel threads
      * segments   - all memory segments
      * free_pages - free pages per segment
-     * tlb        - Translation Lookaside Buffer
     """
     def __init__(self):
         super(Kdump, self).__init__("kdump", gdb.COMMAND_USER)
@@ -24,7 +22,6 @@ class Kdump(gdb.Command, utils.OneArgAutoCompleteMixin):
             'threads': thread.KernelThreads(),
             'segments': physmem.KernelSegments(),
             'free_pages': physmem.KernelFreePages(),
-            'tlb': pmem.TLB(),
         }
 
     def invoke(self, args, from_tty):

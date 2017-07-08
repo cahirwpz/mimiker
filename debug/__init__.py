@@ -2,8 +2,9 @@ import gdb
 import ktrace
 import kdump
 import klog
-import sync
+import cpu
 import thread
+import sync
 
 
 def addPrettyPrinters():
@@ -17,5 +18,6 @@ def addPrettyPrinters():
 addPrettyPrinters()
 ktrace.Ktrace()
 thread.Kthread()
+cpu.Cpu()
 kdump.Kdump()
 klog.Klog()

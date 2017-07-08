@@ -1,4 +1,5 @@
 import gdb
+import utils
 from ptable import ptable, as_hex
 
 
@@ -68,3 +69,27 @@ class TLB():
                 continue
             rows.append(row)
         ptable(rows, fmt="rrll", header=True)
+
+
+class Cpu(gdb.Command, utils.OneArgAutoCompleteMixin):
+    """ examine processor priviliged resources
+
+    Currently supported resources:
+     * tlb - list Translation Lookaside Buffer
+    """
+    def __init__(self):
+        super(Cpu, self).__init__('cpu', gdb.COMMAND_USER)
+        self._options = { 'tlb': TLB() }
+
+    def invoke(self, args, from_tty):
+        if len(args) < 1:
+            raise gdb.GdbError('Usage: cpu [resource]')
+        if args not in self.options():
+            raise gdb.GdbError('No such resource "%s"' % args)
+        try:
+            self._options[args].invoke()
+        except:
+            traceback.print_exc()
+
+    def options(self):
+        return self._options.keys()
