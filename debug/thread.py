@@ -6,6 +6,7 @@ import utils
 import ptable
 import re
 import traceback
+from ctx import Context
 
 
 class ProgramCounter():
@@ -186,6 +187,12 @@ class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
 
         try:
             print(found.dump())
+            print('\n>>> backtrace for %s' % found)
+            ctx = Context()
+            ctx.save()
+            Context.load(td.td_kctx)
+            gdb.execute('backtrace')
+            ctx.restore()
         except:
             traceback.print_exc()
 
