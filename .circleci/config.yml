@@ -42,7 +42,7 @@ jobs:
       - checkout
       - restore_cache:
           key: mimiker-{{ .Branch }}-{{ .Revision }}
-      - run: './run_tests.py --thorough'
+      - run: './run_tests.py --thorough --non-interactive'
 
 workflows:
   version: 2

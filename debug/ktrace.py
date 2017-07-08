@@ -4,6 +4,8 @@ import utils
 
 
 class Ktrace(gdb.Command, utils.OneArgAutoCompleteMixin):
+    """TODO: documentation"""
+
     def __init__(self):
         super(Ktrace, self).__init__('ktrace', gdb.COMMAND_USER)
 

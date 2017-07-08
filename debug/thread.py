@@ -5,28 +5,30 @@ from tailq import TailQueue
 import utils
 import ptable
 import re
+import traceback
+from ctx import Context
 
 
 class ProgramCounter():
     def __init__(self, pc):
-        self.pc = pc.cast(gdb.lookup_type('unsigned long'))
+        self.pc = utils.cast(pc, 'unsigned long')
 
     def __str__(self):
         if self.pc == 0:
-            return '-'
+            return 'null'
         line = gdb.execute('info line *0x%x' % self.pc, to_string=True)
         m = re.match(r'Line (\d+) of "(.*)"', line)
         m = m.groups()
-        return "%s:%s" % (m[1], m[0])
+        return '%s:%s' % (m[1], m[0])
 
 
-class Thread(utils.PrettyPrinterMixin):
-    def __init__(self, td):
-        self._obj = td
-        self.name = td['td_name'].string()
-        self.tid = int(td['td_tid'])
-        self.state = str(td['td_state'])
-        self.waitpt = ProgramCounter(td['td_waitpt'])
+class Thread(object):
+    __metaclass__ = utils.GdbStructMeta
+    __ctype__ = 'struct thread'
+    __cast__ = {'td_waitpt': ProgramCounter,
+                'td_tid': int,
+                'td_state': str,
+                'td_name': lambda x: x.string()}
 
     @staticmethod
     def pointer_type():
@@ -34,7 +36,7 @@ class Thread(utils.PrettyPrinterMixin):
 
     @classmethod
     def current(cls):
-        return cls(gdb.parse_and_eval('thread_self()'))
+        return cls(gdb.parse_and_eval('thread_self()').dereference())
 
     @classmethod
     def from_pointer(cls, ptr):
@@ -43,9 +45,10 @@ class Thread(utils.PrettyPrinterMixin):
     @staticmethod
     def dump_list(threads):
         rows = [['Id', 'Name', 'State', 'Waiting Point']]
-        curr_tid = Thread.current().tid
-        rows.extend([['', '(*) '][curr_tid == td.tid] + str(td.tid), td.name,
-                     td.state, str(td.waitpt)] for td in threads)
+        curr_tid = Thread.current().td_tid
+        rows.extend([['', '(*) '][curr_tid == td.td_tid] + str(td.td_tid),
+                     td.td_name, td.td_state, str(td.td_waitpt)]
+                    for td in threads)
         ptable.ptable(rows, fmt='rlll', header=True)
 
     @classmethod
@@ -54,15 +57,7 @@ class Thread(utils.PrettyPrinterMixin):
         return map(Thread, threads)
 
     def __str__(self):
-        return 'thread{tid=%d, name="%s"}' % (self.tid, self.name)
-
-    def dump(self):
-        res = ['%s = %s' % (field, self._obj[field])
-               for field in self._obj.type]
-        return '\n'.join(res)
-
-    def display_hint(self):
-        return 'map'
+        return 'thread{tid=%d, name="%s"}' % (self.td_tid, self.td_name)
 
 
 class CtxSwitchTracerBP(gdb.Breakpoint):
@@ -126,19 +121,12 @@ class CreateThreadTracer():
             self.createThreadbp = CreateThreadTracerBP()
 
 
-class KernelThreads():
-
-    def invoke(self):
-        print('(*) current thread marker')
-        Thread.dump_list(Thread.list_all())
-
-
 class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
-    """
-    kthread prints info about given thread. Thread can be either given by
-    its identifier (td_tid) or by its name (td_name). This command uses
-    thread pretty printer to print thread structure, and supports tab
-    auto completion.
+    """dump info about threads
+
+    Thread can be either specified by its identifier (td_tid) or by its name
+    (td_name).
+
     Example:
 
     Given list of threads in system:
@@ -156,36 +144,52 @@ class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
     """
 
     def __init__(self):
-        super(Kthread, self).__init__("kthread", gdb.COMMAND_USER)
+        super(Kthread, self).__init__('kthread', gdb.COMMAND_USER)
+
+    def find_by_name(self, name):
+        found = filter(lambda td: td.td_name == name, Thread.list_all())
+
+        if len(found) > 1:
+            print('Warning! There is more than 1 thread with name ', name)
+        elif len(found) > 0:
+            return found[0]
+        else:
+            print('Can\'t find thread with name="%s"!' % name)
+
+    def find_by_id(self, tid):
+        for td in Thread.list_all():
+            if td.td_tid == tid:
+                return td
+        print('Can\'t find thread with tid=%d!' % tid)
+
+    def dump_all(self):
+        print('(*) current thread marker')
+        Thread.dump_list(Thread.list_all())
+
+    def dump_one(self, found):
+        try:
+            print(found.dump())
+            print('\n>>> backtrace for %s' % found)
+            ctx = Context()
+            ctx.save()
+            Context.load(found.td_kctx)
+            gdb.execute('backtrace')
+            ctx.restore()
+        except:
+            traceback.print_exc()
 
     def invoke(self, args, from_tty):
         if len(args) < 1:
-            raise(gdb.GdbError('Usage: kthread [td_name|td_tid]'))
-
-        threads = Thread.list_all()
-
-        try:
-            args = int(args)
-        except ValueError:
-            pass
-
-        if type(args) == unicode:
-            tds = filter(lambda td: td.name == args, threads)
-            if len(tds) > 1:
-                print("Warning! There is more than 1 thread with name ", args)
-            if len(tds) > 0:
-                print(tds[0].dump())
-                return
-            print('Can\'t find thread with name="%s"!' % args)
-
-        if type(args) == int:
-            for td in threads:
-                if td.tid == args:
-                    print(td.dump())
-                    return
-            print('Can\'t find thread with tid=%d!' % args)
+            # give simplified view of all threads in the system
+            self.dump_all()
+        else:
+            try:
+                found = self.find_by_id(int(args))
+            except ValueError:
+                found = self.find_by_name(args)
+            self.dump_one(found)
 
     def options(self):
         threads = Thread.list_all()
-        return sum([map(lambda td: td.name, threads),
-                    map(lambda td: td.tid, threads)], [])
+        return sum([map(lambda td: td.td_name, threads),
+                    map(lambda td: td.td_tid, threads)], [])

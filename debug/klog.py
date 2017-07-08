@@ -3,13 +3,13 @@ from ptable import ptable, as_hex
 import utils
 
 
-class TimeVal(utils.PrettyPrinterMixin):
-    def __init__(self, tv):
-        self.sec = int(tv['tv_sec'])
-        self.usec = int(tv['tv_usec'])
+class TimeVal(object):
+    __metaclass__ = utils.GdbStructMeta
+    __ctype__ = 'struct timeval'
+    __cast__ = {'tv_sec': int, 'tv_usec': int}
 
     def as_float(self):
-        return float(self.sec) + float(self.usec) * 10e-6
+        return float(self.tv_sec) + float(self.tv_usec) * 10e-6
 
     def __str__(self):
         return 'timeval{%.6f}' % self.as_float()
@@ -62,6 +62,8 @@ class LogBuffer():
 
 
 class Klog(gdb.Command):
+    """TODO: documentation"""
+
     def __init__(self):
         super(Klog, self).__init__('klog', gdb.COMMAND_USER)
 
