@@ -129,11 +129,11 @@ class KernelThreads():
 
 
 class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
-    """
-    kthread prints info about given thread. Thread can be either given by
-    its identifier (td_tid) or by its name (td_name). This command uses
-    thread pretty printer to print thread structure, and supports tab
-    auto completion.
+    """dump info about given thread including its backtrace
+
+    Thread can be either specified by its identifier (td_tid) or by its name
+    (td_name).
+
     Example:
 
     Given list of threads in system:

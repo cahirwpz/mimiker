@@ -8,10 +8,13 @@ import traceback
 
 
 class Kdump(gdb.Command, utils.OneArgAutoCompleteMixin):
-    """
-    kdump is command for examining kernel state.
+    """ examine current kernel state
+
     Currently supported commands:
-    kdump threads - lists information about threads in kernel
+     * threads    - information about kernel threads
+     * segments   - all memory segments
+     * free_pages - free pages per segment
+     * tlb        - Translation Lookaside Buffer
     """
     def __init__(self):
         super(Kdump, self).__init__("kdump", gdb.COMMAND_USER)

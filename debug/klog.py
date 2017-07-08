@@ -62,6 +62,8 @@ class LogBuffer():
 
 
 class Klog(gdb.Command):
+    """TODO: documentation"""
+
     def __init__(self):
         super(Klog, self).__init__('klog', gdb.COMMAND_USER)
 
