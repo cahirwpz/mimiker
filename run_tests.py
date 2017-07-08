@@ -50,7 +50,7 @@ def gdb_inspect(interactive):
     send_command(gdb, 'info registers')
     send_command(gdb, 'backtrace')
     send_command(gdb, 'list')
-    send_command(gdb, 'kdump threads')
+    send_command(gdb, 'kthread')
     if interactive:
         gdb.interact()
 

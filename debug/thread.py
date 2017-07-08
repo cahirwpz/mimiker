@@ -121,15 +121,8 @@ class CreateThreadTracer():
             self.createThreadbp = CreateThreadTracerBP()
 
 
-class KernelThreads():
-
-    def invoke(self):
-        print('(*) current thread marker')
-        Thread.dump_list(Thread.list_all())
-
-
 class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
-    """dump info about given thread including its backtrace
+    """dump info about threads
 
     Thread can be either specified by its identifier (td_tid) or by its name
     (td_name).
@@ -151,40 +144,29 @@ class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
     """
 
     def __init__(self):
-        super(Kthread, self).__init__("kthread", gdb.COMMAND_USER)
+        super(Kthread, self).__init__('kthread', gdb.COMMAND_USER)
 
-    def invoke(self, args, from_tty):
-        if len(args) < 1:
-            raise(gdb.GdbError('Usage: kthread [td_name|td_tid]'))
+    def find_by_name(self, name):
+        found = filter(lambda td: td.td_name == name, Thread.list_all())
 
-        threads = Thread.list_all()
+        if len(found) > 1:
+            print('Warning! There is more than 1 thread with name ', name)
+        elif len(found) > 0:
+            return found[0]
+        else:
+            print('Can\'t find thread with name="%s"!' % name)
 
-        try:
-            args = int(args)
-        except ValueError:
-            pass
+    def find_by_id(self, tid):
+        for td in Thread.list_all():
+            if td.td_tid == tid:
+                return td
+        print('Can\'t find thread with tid=%d!' % tid)
 
-        found = None
+    def dump_all(self):
+        print('(*) current thread marker')
+        Thread.dump_list(Thread.list_all())
 
-        if type(args) == unicode:
-            tds = filter(lambda td: td.td_name == args, threads)
-            if len(tds) > 1:
-                print("Warning! There is more than 1 thread with name ", args)
-            elif len(tds) > 0:
-                found = tds[0]
-            else:
-                print('Can\'t find thread with name="%s"!' % args)
-                return
-
-        if type(args) == int:
-            for td in threads:
-                if td.td_tid == args:
-                    found = td
-                    break
-            if not found:
-                print('Can\'t find thread with tid=%d!' % args)
-                return
-
+    def dump_one(self, found):
         try:
             print(found.dump())
             print('\n>>> backtrace for %s' % found)
@@ -195,6 +177,17 @@ class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
             ctx.restore()
         except:
             traceback.print_exc()
+
+    def invoke(self, args, from_tty):
+        if len(args) < 1:
+            # give simplified view of all threads in the system
+            self.dump_all()
+        else:
+            try:
+                found = self.find_by_id(int(args))
+            except ValueError:
+                found = self.find_by_name(args)
+            self.dump_one(found)
 
     def options(self):
         threads = Thread.list_all()

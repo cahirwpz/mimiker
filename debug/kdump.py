@@ -1,7 +1,5 @@
 import gdb
-import thread
 import physmem
-import klog
 import utils
 import traceback
 
@@ -10,7 +8,6 @@ class Kdump(gdb.Command, utils.OneArgAutoCompleteMixin):
     """ examine current kernel state
 
     Currently supported commands:
-     * threads    - information about kernel threads
      * segments   - all memory segments
      * free_pages - free pages per segment
     """
@@ -19,7 +16,6 @@ class Kdump(gdb.Command, utils.OneArgAutoCompleteMixin):
         # classes instead of functions in case we decide to store
         # information about structures in the debugger itself later on
         self.structure = {
-            'threads': thread.KernelThreads(),
             'segments': physmem.KernelSegments(),
             'free_pages': physmem.KernelFreePages(),
         }
