@@ -1,6 +1,10 @@
 import gdb
 
 
+def cast(value, typename):
+    return value.cast(gdb.lookup_type(typename))
+
+
 class OneArgAutoCompleteMixin():
     def options(self):
         raise NotImplementedError

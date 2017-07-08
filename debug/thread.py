@@ -11,7 +11,7 @@ from ctx import Context
 
 class ProgramCounter():
     def __init__(self, pc):
-        self.pc = pc.cast(gdb.lookup_type('unsigned long'))
+        self.pc = utils.cast(pc, 'unsigned long')
 
     def __str__(self):
         if self.pc == 0:
