@@ -2,7 +2,7 @@
 #include <callout.h>
 #include <ktest.h>
 #include <sleepq.h>
-#include <sync.h>
+#include <interrupt.h>
 
 /* This test verifies whether callouts work at all. */
 static void callout_simple(void *arg) {
@@ -14,10 +14,10 @@ static void callout_simple(void *arg) {
 static int test_callout_simple(void) {
   callout_t callout;
 
-  critical_enter();
-  callout_setup_relative(&callout, 5, callout_simple, NULL);
-  sleepq_wait(callout_simple, "callout_simple");
-  critical_leave();
+  WITH_INTR_DISABLED {
+    callout_setup_relative(&callout, 5, callout_simple, NULL);
+    sleepq_wait(callout_simple, "callout_simple");
+  }
 
   return KTEST_SUCCESS;
 }
@@ -28,9 +28,9 @@ static int current = 0;
 
 static void callout_ordered(void *arg) {
   /* Atomic increment */
-  critical_enter();
-  current++;
-  critical_leave();
+  WITH_INTR_DISABLED {
+    current++;
+  }
 
   if (current == 10)
     sleepq_signal(callout_ordered);
@@ -43,13 +43,13 @@ static int test_callout_order(void) {
 
   /* Register callouts within a critical section, to ensure they use the same
      base time! */
-  critical_enter();
-  for (int i = 0; i < 10; i++)
-    callout_setup_relative(&callouts[i], 5 + order[i] * 5, callout_ordered,
-                           (void *)order[i]);
+  WITH_INTR_DISABLED {
+    for (int i = 0; i < 10; i++)
+      callout_setup_relative(&callouts[i], 5 + order[i] * 5, callout_ordered,
+                             (void *)order[i]);
 
-  sleepq_wait(callout_ordered, "callout_ordered");
-  critical_leave();
+    sleepq_wait(callout_ordered, "callout_ordered");
+  }
 
   assert(current == 10);
 
@@ -69,7 +69,7 @@ static int test_callout_stop(void) {
   current = 0;
   callout_t callout1, callout2;
 
-  critical_enter();
+  SCOPED_INTR_DISABLED();
 
   callout_setup_relative(&callout1, 5, callout_bad, NULL);
   callout_setup_relative(&callout2, 10, callout_good, NULL);
@@ -79,8 +79,6 @@ static int test_callout_stop(void) {
 
   /* Give some time for callout_bad, wait for callout_good. */
   sleepq_wait(callout_good, "callout_good");
-
-  critical_leave();
 
   return KTEST_SUCCESS;
 }

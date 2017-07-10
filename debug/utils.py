@@ -5,6 +5,10 @@ def cast(value, typename):
     return value.cast(gdb.lookup_type(typename))
 
 
+def enum(v):
+    return v.type.target().fields()[int(v)].name
+
+
 class OneArgAutoCompleteMixin():
     def options(self):
         raise NotImplementedError

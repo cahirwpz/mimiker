@@ -1,7 +1,7 @@
 #include <rwlock.h>
 #include <thread.h>
 #include <stdc.h>
-#include <sync.h>
+#include <interrupt.h>
 
 void rw_init(rwlock_t *rw, const char *name, bool recursive) {
   rw->readers = 0;
@@ -29,7 +29,7 @@ static bool is_wlocked(rwlock_t *rw) {
 }
 
 void rw_enter(rwlock_t *rw, rwo_t who) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
   if (who == RW_READER) {
     while (is_wlocked(rw) || rw->writers_waiting > 0)
       sleepq_wait(&rw->readers, __caller(0));
@@ -51,7 +51,7 @@ void rw_enter(rwlock_t *rw, rwo_t who) {
 }
 
 void rw_leave(rwlock_t *rw) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
   assert(is_locked(rw));
   if (is_rlocked(rw)) {
     rw->readers--;
@@ -77,7 +77,7 @@ void rw_leave(rwlock_t *rw) {
 }
 
 bool rw_try_upgrade(rwlock_t *rw) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
   assert(is_locked(rw));
   if (is_rlocked(rw) && rw->readers == 1 && rw->writers_waiting == 0) {
     rw->state = RW_WLOCKED;
@@ -89,7 +89,7 @@ bool rw_try_upgrade(rwlock_t *rw) {
 }
 
 void rw_downgrade(rwlock_t *rw) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
   assert(is_owned(rw) && rw->recurse == 0);
   rw->readers++;
   rw->state = RW_RLOCKED;

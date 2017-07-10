@@ -43,7 +43,6 @@ SOURCES_C  = \
 	signal.c \
 	sleepq.c \
 	startup.c \
-	sync.c \
 	sysent.c \
 	sysinit.c \
 	taskqueue.c \

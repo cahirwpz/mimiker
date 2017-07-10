@@ -27,7 +27,7 @@ class Thread(object):
     __ctype__ = 'struct thread'
     __cast__ = {'td_waitpt': ProgramCounter,
                 'td_tid': int,
-                'td_state': str,
+                'td_state': utils.enum,
                 'td_name': lambda x: x.string()}
 
     @staticmethod
@@ -47,7 +47,7 @@ class Thread(object):
         rows = [['Id', 'Name', 'State', 'Waiting Point']]
         curr_tid = Thread.current().td_tid
         rows.extend([['', '(*) '][curr_tid == td.td_tid] + str(td.td_tid),
-                     td.td_name, td.td_state, str(td.td_waitpt)]
+                     td.td_name, str(td.td_state), str(td.td_waitpt)]
                     for td in threads)
         ptable.ptable(rows, fmt='rlll', header=True)
 

@@ -8,7 +8,6 @@
 #include <vm_pager.h>
 #include <thread.h>
 #include <errno.h>
-#include <sync.h>
 #include <filedesc.h>
 #include <sbrk.h>
 #include <vfs.h>

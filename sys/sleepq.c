@@ -5,7 +5,7 @@
 #include <stdc.h>
 #include <sleepq.h>
 #include <malloc.h>
-#include <sync.h>
+#include <interrupt.h>
 #include <sched.h>
 #include <thread.h>
 
@@ -68,7 +68,7 @@ void sleepq_wait(void *wchan, const void *waitpt) {
   if (waitpt == NULL)
     waitpt = __caller(0);
 
-  klog("Thread '%s' goes to sleep on %p at $pc=%p", td->td_name, wchan, waitpt);
+  klog("Thread %ld goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
   assert(td->td_wchan == NULL);
   assert(td->td_waitpt == NULL);
@@ -77,7 +77,7 @@ void sleepq_wait(void *wchan, const void *waitpt) {
   assert(LIST_EMPTY(&td->td_sleepqueue->sq_free));
   assert(td->td_sleepqueue->sq_nblocked == 0);
 
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
 
   sleepq_chain_t *sc = SC_LOOKUP(wchan);
   sleepq_t *sq = sleepq_lookup(wchan);
@@ -112,7 +112,7 @@ void sleepq_wait(void *wchan, const void *waitpt) {
 
 /* Remove a thread from the sleep queue and resume it. */
 static void sleepq_resume_thread(sleepq_t *sq, thread_t *td) {
-  klog("Wakeup '%s' thread from %p at $pc=%p", td->td_name, td->td_wchan,
+  klog("Wakeup %ld thread from %p at pc=%p", td->td_tid, td->td_wchan,
        td->td_waitpt);
 
   assert(td->td_wchan != NULL);
@@ -146,7 +146,7 @@ static void sleepq_resume_thread(sleepq_t *sq, thread_t *td) {
 }
 
 bool sleepq_signal(void *wchan) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
 
   sleepq_t *sq = sleepq_lookup(wchan);
   if (sq == NULL)
@@ -163,7 +163,7 @@ bool sleepq_signal(void *wchan) {
 }
 
 bool sleepq_broadcast(void *wchan) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
 
   sleepq_t *sq = sleepq_lookup(wchan);
   if (sq == NULL)
@@ -176,7 +176,7 @@ bool sleepq_broadcast(void *wchan) {
 }
 
 void sleepq_remove(thread_t *td, void *wchan) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
 
   if (td->td_wchan && td->td_wchan == wchan) {
     sleepq_t *sq = sleepq_lookup(wchan);

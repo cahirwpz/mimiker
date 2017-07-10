@@ -7,11 +7,11 @@
 #include <mips/tlb.h>
 #include <pcpu.h>
 #include <pmap.h>
-#include <sync.h>
 #include <vm_map.h>
 #include <thread.h>
 #include <ktest.h>
 #include <signal.h>
+#include <interrupt.h>
 #include <sysinit.h>
 
 static MALLOC_DEFINE(M_PMAP, "pmap", 4, 8);
@@ -294,7 +294,7 @@ void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
  */
 
 void pmap_activate(pmap_t *pmap) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
 
   PCPU_GET(curpmap) = pmap;
 

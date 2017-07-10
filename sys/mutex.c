@@ -1,10 +1,7 @@
 #include <stdc.h>
-#include <sync.h>
 #include <mutex.h>
-#include <sync.h>
+#include <interrupt.h>
 #include <thread.h>
-
-#define MTX_UNOWNED 0
 
 bool mtx_owned(mtx_t *m) {
   return (m->m_owner == thread_self());
@@ -27,11 +24,11 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
     return;
   }
 
-  SCOPED_CRITICAL_SECTION();
-
-  while (m->m_owner != NULL)
-    sleepq_wait(&m->m_owner, waitpt);
-  m->m_owner = thread_self();
+  WITH_INTR_DISABLED {
+    while (m->m_owner != NULL)
+      sleepq_wait(&m->m_owner, waitpt);
+    m->m_owner = thread_self();
+  }
 }
 
 void mtx_unlock(mtx_t *m) {
@@ -42,8 +39,8 @@ void mtx_unlock(mtx_t *m) {
     return;
   }
 
-  SCOPED_CRITICAL_SECTION();
-
-  m->m_owner = NULL;
-  sleepq_signal(&m->m_owner);
+  WITH_INTR_DISABLED {
+    m->m_owner = NULL;
+    sleepq_signal(&m->m_owner);
+  }
 }

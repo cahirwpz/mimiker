@@ -19,34 +19,69 @@ typedef struct proc proc_t;
 
 #define TD_NAME_MAX 32
 
+/*! \brief Possible thread states.
+ *
+ * Possible state transitions look as follows:
+ *  - INACTIVE -> READY (parent thread)
+ *  - READY -> RUNNING (dispatcher)
+ *  - RUNNING -> READY (dispatcher, self)
+ *  - RUNNING -> WAITING (self)
+ *  - WAITING -> READY (interrupts, other threads)
+ *  - * -> DEAD (other threads or self)
+ */
+typedef enum {
+  /*!< thread was created but it has not been run so far */
+  TDS_INACTIVE,
+  /*!< thread was put onto a run queue and it's ready to be dispatched */
+  TDS_READY,
+  /*!< thread was removed from a run queue and is being run at the moment */
+  TDS_RUNNING,
+  /*!< thread is waiting on a resource and it has been put on a sleep queue */
+  TDS_WAITING,
+  /*!< thread finished or was terminated by the kernel and awaits recycling */
+  TDS_DEAD
+} thread_state_t;
+
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 #define TDF_NEEDSIGCHK 0x00000004 /* signals were posted for delivery */
 
+/*! \brief Thread structure
+ *
+ * Field markings and the corresponding locks:
+ *  - a: threads_lock
+ *  - t: thread_t::td_lock
+ *  - @: read-only access
+ *  - !: can only be accessed by self or from interrupt
+ *  - ~: always safe to access
+ *
+ * Locking order:
+ *  threads_lock >> thread_t::td_lock
+ */
 typedef struct thread {
-  /* Locks */
-  mtx_t td_lock;
-  condvar_t td_waitcv; /* CV for thread exit, used by join */
-  /* List links */
+  /* locks */
+  mtx_t td_lock;       /*!< (~) protects most fields in this structure */
+  condvar_t td_waitcv; /*!< (t) for thread_join */
+  /* linked lists */
   TAILQ_ENTRY(thread) td_all;     /* a link on all threads list */
   TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
   TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
   TAILQ_ENTRY(thread) td_procq;   /* a link on process threads queue */
   /* Properties */
-  proc_t *td_proc; /* Parent process, NULL for kernel threads. */
-  char *td_name;
-  tid_t td_tid;
+  proc_t *td_proc; /*!< (t) parent process (NULL for kernel threads) */
+  char *td_name;   /*!< (@) name of thread */
+  tid_t td_tid;    /*!< (@) thread identifier */
   /* thread state */
-  enum { TDS_INACTIVE = 0x0, TDS_WAITING, TDS_READY, TDS_RUNNING } td_state;
-  uint32_t td_flags;           /* TDF_* flags */
-  volatile uint32_t td_csnest; /* critical section nest level */
+  thread_state_t td_state;
+  uint32_t td_flags; /* TDF_* flags */
   /* thread context */
-  exc_frame_t td_uctx;    /* user context (always exception) */
-  fpu_ctx_t td_uctx_fpu;  /* user FPU context (always exception) */
-  exc_frame_t *td_kframe; /* kernel context (last exception frame) */
-  ctx_t td_kctx;          /* kernel context (switch) */
-  intptr_t td_onfault;    /* program counter for copyin/copyout faults */
+  volatile unsigned td_idnest; /*!< (!) interrupt disable nest level */
+  exc_frame_t td_uctx;         /* user context (always exception) */
+  fpu_ctx_t td_uctx_fpu;       /* user FPU context (always exception) */
+  exc_frame_t *td_kframe;      /* kernel context (last exception frame) */
+  ctx_t td_kctx;               /* kernel context (switch) */
+  intptr_t td_onfault;         /* program counter for copyin/copyout faults */
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
   /* waiting channel */

@@ -1,6 +1,8 @@
 #ifndef _MIPS_INTR_H_
 #define _MIPS_INTR_H_
 
+#include <stdbool.h>
+
 typedef enum {
   MIPS_SWINT0,
   MIPS_SWINT1,
@@ -16,8 +18,9 @@ typedef struct intr_handler intr_handler_t;
 typedef struct exc_frame exc_frame_t;
 
 /* Do not use these! Consider critical_enter / critical_leave instead. */
-#define intr_disable() __extension__({ asm("di"); })
-#define intr_enable() __extension__({ asm("ei"); })
+void mips_intr_enable(void);
+void mips_intr_disable(void);
+bool mips_intr_disabled(void);
 
 void mips_intr_init(void);
 void mips_intr_handler(exc_frame_t *frame);

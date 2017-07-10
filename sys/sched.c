@@ -1,6 +1,5 @@
 #define KL_LOG KL_SCHED
 #include <klog.h>
-#include <sync.h>
 #include <stdc.h>
 #include <sched.h>
 #include <runq.h>
@@ -34,7 +33,7 @@ void sched_add(thread_t *td) {
 
   td->td_slice = SLICE;
 
-  CRITICAL_SECTION {
+  WITH_INTR_DISABLED {
     runq_add(&runq, td);
     if (td->td_prio > thread_self()->td_prio)
       thread_self()->td_flags |= TDF_NEEDSWITCH;
@@ -66,7 +65,7 @@ void sched_switch(void) {
   if (!sched_active)
     return;
 
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
 
   thread_t *td = thread_self();
 

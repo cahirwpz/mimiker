@@ -3,7 +3,6 @@
 #include <stdc.h>
 #include <malloc.h>
 #include <pmap.h>
-#include <sync.h>
 #include <thread.h>
 #include <vm.h>
 #include <vm_pager.h>
@@ -11,6 +10,7 @@
 #include <vm_map.h>
 #include <errno.h>
 #include <proc.h>
+#include <interrupt.h>
 #include <mips/mips.h>
 #include <pcpu.h>
 #include <sysinit.h>
@@ -20,7 +20,7 @@ static MALLOC_DEFINE(M_VMMAP, "vm-map", 1, 2);
 static vm_map_t kspace;
 
 void vm_map_activate(vm_map_t *map) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
 
   PCPU_SET(uspace, map);
   pmap_activate(map ? map->pmap : NULL);
