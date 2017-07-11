@@ -12,8 +12,8 @@ SOURCES_O = $(SOURCES_C:%.c=%.o)
 
 all: $(UELF_NAME).uelf
 
-include $(TOPDIR)/build/build.mk
 include $(TOPDIR)/build/flags.user.mk
+include $(TOPDIR)/build/build.mk
 
 clean:
 	rm -rf $(UELF_NAME).uelf $(SOURCES_C:%.c=.%.D) $(SOURCES_O)

@@ -23,8 +23,8 @@ configure-stamp:
 		$(SOURCEDIR)/newlib/configure \
 		            --build="$(TARGET)" \
 		            --prefix="$(SYSROOT)/usr" \
-		            CFLAGS="-g -DSIGNAL_PROVIDED" 2>&1 >/dev/null \
-		&& touch $@
+		            CFLAGS="-g -DSIGNAL_PROVIDED" 2>&1 >/dev/null
+	touch $@
 
 build: build-stamp
 build-stamp: configure-stamp
