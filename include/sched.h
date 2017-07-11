@@ -8,8 +8,7 @@ typedef struct thread thread_t;
 void sched_add(thread_t *td);
 void sched_remove(thread_t *td);
 void sched_clock(void);
-void sched_yield(void);
-void sched_switch(thread_t *newtd);
+void sched_switch(void);
 
 noreturn void sched_run(void);
 

@@ -133,7 +133,7 @@ noreturn void thread_exit(void) {
     mtx_unlock(&td->td_lock);
   }
 
-  sched_yield();
+  sched_switch();
 
   /* sched_yield will return immediately when scheduler is not active */
   while (true)

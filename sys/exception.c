@@ -9,7 +9,7 @@ void exc_before_leave(exc_frame_t *kframe) {
   td->td_kframe = kframe;
 
   if (td->td_flags & TDF_NEEDSWITCH)
-    sched_switch(NULL);
+    sched_switch();
 
   /* First thing after switching to a thread: Process pending signals. */
   if (td->td_flags & TDF_NEEDSIGCHK) {

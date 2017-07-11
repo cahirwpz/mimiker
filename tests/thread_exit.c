@@ -16,7 +16,7 @@ static void test_thread(void *p) {
     if (timeval_cmp(&diff, e, >))
       thread_exit();
     else
-      sched_yield();
+      sched_switch();
   }
 }
 

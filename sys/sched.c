@@ -62,11 +62,7 @@ void sched_clock(void) {
       td->td_flags |= TDF_NEEDSWITCH | TDF_SLICEEND;
 }
 
-void sched_yield(void) {
-  sched_switch(NULL);
-}
-
-void sched_switch(thread_t *newtd) {
+void sched_switch(void) {
   if (!sched_active)
     return;
 
@@ -79,8 +75,7 @@ void sched_switch(thread_t *newtd) {
   if (td->td_state == TDS_RUNNING)
     sched_add(td);
 
-  if (newtd == NULL)
-    newtd = sched_choose();
+  thread_t *newtd = sched_choose();
 
   newtd->td_state = TDS_RUNNING;
   timeval_t now = get_uptime();

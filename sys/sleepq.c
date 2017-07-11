@@ -107,7 +107,7 @@ void sleepq_wait(void *wchan, const void *waitpt) {
   sq->sq_nblocked++;
   td->td_last_slptime = get_uptime();
 
-  sched_yield();
+  sched_switch();
 }
 
 /* Remove a thread from the sleep queue and resume it. */
