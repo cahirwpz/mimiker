@@ -1,6 +1,8 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-include ../Makefile.common
+TOPDIR = $(realpath ..)
+
+include $(TOPDIR)/build/build.kern.mk
 
 # Flags for the library.  __PREFER_SIZE_OVER_SPEED__ disables some
 # optimized function implementations. -Werror is not enabled since
@@ -9,7 +11,7 @@ LIB_CFLAGS = -D__PREFER_SIZE_OVER_SPEED__
 
 LIBNAME = libstdc
 
-CPPFLAGS = -Iinclude -I../include
+CPPFLAGS += -Iinclude
 
 # Explicitly picking files to compile.
 LIB_SOURCES  = ctype/ctype_.c

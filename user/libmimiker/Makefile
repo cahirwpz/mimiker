@@ -1,25 +1,27 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-include ../../Makefile.common
+TOPDIR = $(realpath ../..)
+
+include $(TOPDIR)/build/build.kern.mk
 
 LIBFILE = libmimiker.a
 EXTRAFILES = $(shell find extra -type f)
 
 # Installation targets
-LIBFILE_INST = $(INSTALL_DIR)/usr/lib/$(LIBFILE)
-EXTRAFILES_INST = $(EXTRAFILES:extra/%=$(INSTALL_DIR)/%)
+LIBFILE_INST = $(SYSROOT)/usr/lib/$(LIBFILE)
+EXTRAFILES_INST = $(EXTRAFILES:extra/%=$(SYSROOT)/%)
 
 all: $(LIBFILE)
-install: $(INSTALL_DIR)/usr/lib/$(LIBFILE) $(EXTRAFILES_INST)
+install: $(SYSROOT)/usr/lib/$(LIBFILE) $(EXTRAFILES_INST)
 
 $(LIBFILE_INST): $(LIBFILE)
 	@echo "[INSTALL] $(DIR)$(LIBFILE) -> /usr/lib/$(LIBFILE)"
 	install -m 644 -D $(LIBFILE) $(LIBFILE_INST)
-$(INSTALL_DIR)/%: extra/%
+$(SYSROOT)/%: extra/%
 	@echo "[INSTALL] $(DIR)$< -> $*"
 	install -m 644 -D $< $@
 
 libmimiker.a: start.o syscalls.o time.o
 
 clean:
-	rm -f *.o *.a
+	$(RM) *.o *.a

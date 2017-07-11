@@ -41,7 +41,7 @@ typedef int32_t blksize_t; /* fs optimal block size */
 #define __unreachable() __builtin_unreachable()
 #define __alias(x) __attribute__((alias(#x)))
 #define __cleanup(func) __attribute__((__cleanup__(func)))
-#define __caller(x) (__builtin_return_address(x) - 1)
+#define __caller(x) (__builtin_return_address(x) - 8)
 
 /* Macros for counting and rounding. */
 #ifndef howmany

@@ -8,5 +8,5 @@
 
 #define LOAD_PCPU(reg) LA reg, _pcpu_data
 
-#endif // !__ASSEMBLER__
-#endif // _MIPS_PCPU_H_
+#endif /* !__ASSEMBLER__ */
+#endif /* !_MIPS_PCPU_H_ */

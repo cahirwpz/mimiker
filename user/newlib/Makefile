@@ -1,45 +1,52 @@
-# That won't be necessary in the future, it's just for temporary convnience.
-include ../../Makefile.common
+TOPDIR = $(realpath ../../)
 
-# Newlib config
-NEWLIB = newlib-2.5.0
-NEWLIBFILE = $(NEWLIB).tar.gz
-NEWLIBDIR = $(CACHEDIR)/$(NEWLIBDIR)
-NEWLIB_DOWNLOADS = ftp://sourceware.org/pub/newlib
+include $(TOPDIR)/build/toolchain.mk
+include $(TOPDIR)/build/tools.mk
+include $(TOPDIR)/build/common.mk
 
-all: $(CACHEDIR)/$(NEWLIB)
+SOURCEDIR = $(CURDIR)/newlib-2.5.0
+BUILDDIR = $(CURDIR)/newlib-build
 
-install:
+all: install
+
+# Output from these commands is redirected to /dev/null for readibility.
+# If any of these commands fail, just remove output redirection.
+configure: configure-stamp
+configure-stamp:
+	@echo "Configuring newlib..."
+	mkdir -p $(BUILDDIR) && cd $(BUILDDIR) && \
+		CC="$(TARGET)-gcc" \
+		AS="$(TARGET)-as" \
+		AR="$(TARGET)-ar" \
+		RANLIB="$(TARGET)-ranlib" \
+		READELF="$(TARGET)-readelf" \
+		$(SOURCEDIR)/newlib/configure \
+		            --build="$(TARGET)" \
+		            --prefix="$(SYSROOT)/usr" \
+		            CFLAGS="-g -DSIGNAL_PROVIDED" 2>&1 >/dev/null \
+		&& touch $@
+
+build: build-stamp
+build-stamp: configure-stamp
+	@echo "Compiling newlib..."
+	$(MAKE) -C $(BUILDDIR) 2>/dev/null && touch $@
+
+install: install-stamp
+install-stamp: build-stamp
 	@echo "Installing newlib..."
-	cd $(CACHEDIR)/$(NEWLIB)/newlib; $(MAKE) install > /dev/null 2>&1
+	$(MAKE) -C $(BUILDDIR) install 2>&1 >/dev/null
 	# Copy overrides. TODO: These files should be copied into $(NEWLIB)
 	# before it is compiled, so that all references within newlib sources
 	# are using our version of the override file. But for now it does not
-	# matter, and it's simpler to copy them directly to $(INSTALL_DIR).
-	cp -RL overrides/* $(INSTALL_DIR)/usr/
-
-# The .tar.gz archive must be an order-only prerequisite, because the archive
-# has a more recent last-modified date than the source directory.
-$(CACHEDIR)/$(NEWLIB): | $(CACHEDIR)/$(NEWLIBFILE)
-	@echo "Unpacking newlib..."
-	tar -xzf $(CACHEDIR)/$(NEWLIBFILE) -C $(CACHEDIR)
-	# Output from these commands is redirected to /dev/null for readibility. If
-	# any of these commands fail, just remove output redirection.
-	@echo "Configuring newlib..."
-	cd $(CACHEDIR)/$(NEWLIB)/newlib; \
-		CC=$(TRIPLET)-gcc ./configure --build=$(TRIPLET) \
-                                      --prefix=$(INSTALL_DIR)/usr \
-                                      CFLAGS="-g -DSIGNAL_PROVIDED" > /dev/null
-	@echo "Compiling newlib..."
-	cd $(CACHEDIR)/$(NEWLIB)/newlib; $(MAKE) > /dev/null 2>&1
-
-$(CACHEDIR)/$(NEWLIBFILE):
-	@echo "Downloading $(NEWLIBFILE). Don't worry, the download is cached so" \
-		"there will be no need to do this again."
-	mkdir -p $(CACHEDIR)
-	wget $(NEWLIB_DOWNLOADS)/$(NEWLIBFILE) -O $@ || \
-		(ret=$$?; rm -rf $@; exit $$ret) \
-		# Remove incomplete newlib archive on a failed download 
+	# matter, and it's simpler to copy them directly to $(SYSROOT).
+	cp -RL overrides/* $(SYSROOT)/usr/
+	touch $@
 
 clean:
-	true
+	$(RM) install-stamp
+
+distclean:
+	$(RM) -r $(BUILDDIR)
+	$(RM) *-stamp
+
+.PHONY:	download unpack configure build install

@@ -1,10 +1,11 @@
 #ifndef __MIPS_EXC_H__
 #define __MIPS_EXC_H__
 
-#include <mips/asm.h>
 #include <mips/mips.h>
 
 #ifdef __ASSEMBLER__
+
+#include <mips/asm.h>
 
 #define SAVE_REG(reg, offset, base) sw reg, (EXC_##offset)(base)
 

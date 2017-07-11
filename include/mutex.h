@@ -34,6 +34,9 @@ bool mtx_owned(mtx_t *mtx);
  * then this blocks on sleepqueue, otherwise it takes the mutex. */
 void mtx_lock(mtx_t *m);
 
+/* Same as above, but with explicitly given waiting point. */
+void _mtx_lock(mtx_t *m, const void *waitpt);
+
 /* Unlocks the mutex. If some thread blocked for the mutex,
  * then it wakes up the thread in FIFO manner. */
 void mtx_unlock(mtx_t *m);
