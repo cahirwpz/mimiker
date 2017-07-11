@@ -11,6 +11,7 @@ AENT(symlink)
 AENT(readlink)
 AENT(isatty)
 AENT(times)
+AENT(gettimeofday)
 
 SLEAF(no_syscall)
         b       set_errno

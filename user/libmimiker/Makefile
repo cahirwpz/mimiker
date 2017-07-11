@@ -21,7 +21,7 @@ $(SYSROOT)/%: extra/%
 	@echo "[INSTALL] $(DIR)$< -> $*"
 	install -m 644 -D $< $@
 
-libmimiker.a: start.o syscalls.o time.o
+libmimiker.a: start.o syscalls.o
 
 clean:
 	$(RM) *.o *.a

@@ -11,7 +11,6 @@ SOURCES_C = \
 	misbehave.c \
 	mmap.c \
 	sbrk.c \
-	signal.c \
-    time.c
+	signal.c
 
 include $(TOPDIR)/build/build.prog.mk
