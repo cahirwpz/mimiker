@@ -1,17 +1,11 @@
 #ifndef _SYS_TIME_H_
 #define _SYS_TIME_H_
 
-#ifndef _KERNELSPACE
-#include <stdbool.h>
-#include <sys/_timeval.h>
-#include <sys/_timespec.h>
-#include <sys/types.h>
-typedef struct timeval timeval_t;
-typedef struct timespec timespec_t;
-#else
+#ifdef _KERNELSPACE
 #include <common.h>
 
 typedef uint32_t systime_t; /* kept in miliseconds */
+#endif
 
 typedef struct tm {
   int tm_sec;     /* seconds after the minute [0-60] */
@@ -45,6 +39,8 @@ typedef enum clockid { CLOCK_MONOTONIC = 1, CLOCK_REALTIME = 2 } clockid_t;
     .tv_usec = (long)((fp)*1000000L) % 1000000L                                \
   }
 
+#ifdef _KERNELSPACE
+
 static inline timeval_t st2tv(systime_t st) {
   return (timeval_t){.tv_sec = st / 1000, .tv_usec = st % 1000};
 }
@@ -53,6 +49,8 @@ static inline systime_t tv2st(timeval_t tv) {
   return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
+#endif /* !_KERNELSPACE */
+
 static inline timespec_t tv2ts(timeval_t tv) {
   return (timespec_t){.tv_sec = tv.tv_sec, .tv_nsec = tv.tv_usec * 1000};
 }
@@ -60,8 +58,6 @@ static inline timespec_t tv2ts(timeval_t tv) {
 static inline timeval_t ts2tv(timespec_t ts) {
   return (timeval_t){.tv_sec = ts.tv_sec, .tv_usec = ts.tv_nsec / 1000};
 }
-
-#endif
 
 /* Operations on timevals. */
 static inline void timeval_clear(timeval_t *tvp) {
@@ -96,8 +92,6 @@ static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
   return res;
 }
 
-#ifndef _KERNELSPACE
-
 int nanosleep(timespec_t *rqtp, timespec_t *rmtp);
 
 int gettimeofday(timeval_t *tp, void *tzp);
@@ -107,7 +101,7 @@ int clock_gettime(clockid_t clk, timespec_t *tp);
 int clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                     timespec_t *rmtp);
 
-#else  /* _KERNELSPACE */
+#ifdef _KERNELSPACE
 
 timeval_t get_uptime(void);
 
@@ -115,6 +109,7 @@ int do_clock_gettime(clockid_t clk, timespec_t *tp);
 
 int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                        timespec_t *rmtp);
+
 #endif /* !_KERNELSPACE */
 
 #endif /* !_SYS_TIME_H_ */
