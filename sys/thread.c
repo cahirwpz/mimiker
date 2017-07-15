@@ -134,15 +134,26 @@ void thread_join(thread_t *otd) {
     cv_wait(&otd->td_waitcv, &otd->td_lock);
 }
 
+void thread_yield(void) {
+  thread_t *td = thread_self();
+
+  WITH_NO_PREEMPTION {
+    td->td_state = TDS_READY;
+    sched_switch();
+  }
+}
+
 /* It would be better to have a hash-map from tid_t to thread_t,
  * but using a list is sufficient for now. */
-thread_t *thread_get_by_tid(tid_t id) {
+thread_t *thread_find(tid_t id) {
   SCOPED_MTX_LOCK(threads_lock);
 
-  thread_t *td = NULL;
+  thread_t *td;
   TAILQ_FOREACH (td, &all_threads, td_all) {
+    mtx_lock(&td->td_lock);
     if (td->td_tid == id)
-      break;
+      return td;
+    mtx_unlock(&td->td_lock);
   }
-  return td;
+  return NULL;
 }

@@ -27,8 +27,8 @@ typedef struct proc proc_t;
  *  - INACTIVE -> READY (parent thread)
  *  - READY -> RUNNING (dispatcher)
  *  - RUNNING -> READY (dispatcher, self)
- *  - RUNNING -> WAITING (self)
- *  - WAITING -> READY (interrupts, other threads)
+ *  - RUNNING -> SLEEPING (self)
+ *  - SLEEPING -> READY (interrupts, other threads)
  *  - * -> DEAD (other threads or self)
  */
 typedef enum {
@@ -39,7 +39,7 @@ typedef enum {
   /*!< thread was removed from a run queue and is being run at the moment */
   TDS_RUNNING,
   /*!< thread is waiting on a resource and it has been put on a sleep queue */
-  TDS_WAITING,
+  TDS_SLEEPING,
   /*!< thread finished or was terminated by the kernel and awaits recycling */
   TDS_DEAD
 } thread_state_t;
@@ -109,23 +109,30 @@ thread_t *thread_self(void);
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
 void thread_delete(thread_t *td);
 
-/* Exit from a kernel thread. Thread becomes zombie which resources will
- * eventually be recycled. */
+/*! \brief Exit from a thread.
+ *
+ * Thread becomes zombie which resources will eventually be recycled.
+ */
 noreturn void thread_exit(void);
 
-/* Debugging utility that prints out the summary of all_threads contents. */
-void thread_dump_all(void);
+/*! \brief Switch voluntarily to another thread. */
+void thread_yield(void);
 
-/* Returns the thread matching the given ID, or null if none found. */
-thread_t *thread_get_by_tid(tid_t id);
+/*! \brief Find thread with matching \a id.
+ *
+ * \return Returned thread is locked.
+ */
+thread_t *thread_find(tid_t id);
 
 /* Joins the specified thread, effectively waiting until it exits. */
 void thread_join(thread_t *td);
 
-/* Reaps zombie threads. You do not need to call this function on your own,
-   reaping will automatically take place when convenient. The reason this
-   function is exposed is because some tests need to explicitly wait until
-   threads are reaped before they can verify test success. */
+/*! \brief Recycles dead threads.
+ *
+ * You do not need to call this function on your own, reaping will automatically
+ * take place when convenient. The reason this function is exposed is because
+ * some tests need to explicitly wait until threads are reaped before they can
+ * verify test success. */
 void thread_reap(void);
 
-#endif /* _SYS_THREAD_H_ */
+#endif /* !_SYS_THREAD_H_ */
