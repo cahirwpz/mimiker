@@ -4,28 +4,14 @@ import gdb
 from tailq import TailQueue
 import utils
 import ptable
-import re
 import traceback
 from ctx import Context
-
-
-class ProgramCounter():
-    def __init__(self, pc):
-        self.pc = utils.cast(pc, 'unsigned long')
-
-    def __str__(self):
-        if self.pc == 0:
-            return 'null'
-        line = gdb.execute('info line *0x%x' % self.pc, to_string=True)
-        m = re.match(r'Line (\d+) of "(.*)"', line)
-        m = m.groups()
-        return '%s:%s' % (m[1], m[0])
 
 
 class Thread(object):
     __metaclass__ = utils.GdbStructMeta
     __ctype__ = 'struct thread'
-    __cast__ = {'td_waitpt': ProgramCounter,
+    __cast__ = {'td_waitpt': utils.ProgramCounter,
                 'td_tid': int,
                 'td_state': utils.enum,
                 'td_name': lambda x: x.string()}
@@ -36,7 +22,7 @@ class Thread(object):
 
     @classmethod
     def current(cls):
-        return cls(gdb.parse_and_eval('thread_self()').dereference())
+        return cls(gdb.parse_and_eval('_pcpu_data->curthread').dereference())
 
     @classmethod
     def from_pointer(cls, ptr):
