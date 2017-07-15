@@ -10,8 +10,7 @@
 #include <vm_map.h>
 #include <errno.h>
 #include <proc.h>
-#include <interrupt.h>
-#include <mips/mips.h>
+#include <sched.h>
 #include <pcpu.h>
 #include <sysinit.h>
 
@@ -20,7 +19,7 @@ static MALLOC_DEFINE(M_VMMAP, "vm-map", 1, 2);
 static vm_map_t kspace;
 
 void vm_map_activate(vm_map_t *map) {
-  SCOPED_INTR_DISABLED();
+  SCOPED_NO_PREEMPTION();
 
   PCPU_SET(uspace, map);
   pmap_activate(map ? map->pmap : NULL);

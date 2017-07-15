@@ -14,13 +14,13 @@ bool intr_disabled(void) {
   return (td->td_idnest > 0) || mips_intr_disabled();
 }
 
-void intr_disable() {
+void intr_disable(void) {
   thread_t *td = thread_self();
   if (td->td_idnest++ == 0)
     mips_intr_disable();
 }
 
-void intr_enable() {
+void intr_enable(void) {
   thread_t *td = thread_self();
   assert(td->td_idnest > 0);
   if (--td->td_idnest == 0)

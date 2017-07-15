@@ -8,7 +8,7 @@
 #include <common.h>
 #include <klog.h>
 #include <mutex.h>
-#include <interrupt.h>
+#include <sched.h>
 #include <pool.h>
 
 #define ALIVE 0xFACEFEED
@@ -156,7 +156,7 @@ void pool_destroy(pool_t *pool) {
   /* TODO: there is no way to use pool's mutex here because it could already got
    * deallocated and we have no method of marking dead mutexes, that's why
    * low-level sync functions are used here. */
-  WITH_INTR_DISABLED {
+  WITH_NO_PREEMPTION {
     assert(pool->pp_state == ALIVE);
     pool->pp_state = DEAD;
   }

@@ -33,7 +33,7 @@ void sched_add(thread_t *td) {
 
   td->td_slice = SLICE;
 
-  WITH_INTR_DISABLED {
+  WITH_NO_PREEMPTION {
     runq_add(&runq, td);
     if (td->td_prio > thread_self()->td_prio)
       thread_self()->td_flags |= TDF_NEEDSWITCH;
@@ -65,7 +65,7 @@ void sched_switch(void) {
   if (!sched_active)
     return;
 
-  SCOPED_INTR_DISABLED();
+  SCOPED_NO_PREEMPTION();
 
   thread_t *td = thread_self();
 
@@ -101,6 +101,22 @@ noreturn void sched_run(void) {
   while (true) {
     td->td_flags |= TDF_NEEDSWITCH;
   }
+}
+
+bool preempt_disabled(void) {
+  thread_t *td = thread_self();
+  return (td->td_pdnest > 0) || intr_disabled();
+}
+
+void preempt_disable(void) {
+  thread_t *td = thread_self();
+  td->td_pdnest++;
+}
+
+void preempt_enable(void) {
+  thread_t *td = thread_self();
+  assert(td->td_pdnest > 0);
+  td->td_pdnest--;
 }
 
 SYSINIT_ADD(sched, sched_init, DEPS("callout"));

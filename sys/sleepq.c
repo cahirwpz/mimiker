@@ -70,14 +70,14 @@ void sleepq_wait(void *wchan, const void *waitpt) {
 
   klog("Thread %ld goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
+  SCOPED_NO_PREEMPTION();
+
   assert(td->td_wchan == NULL);
   assert(td->td_waitpt == NULL);
   assert(td->td_sleepqueue != NULL);
   assert(TAILQ_EMPTY(&td->td_sleepqueue->sq_blocked));
   assert(LIST_EMPTY(&td->td_sleepqueue->sq_free));
   assert(td->td_sleepqueue->sq_nblocked == 0);
-
-  SCOPED_INTR_DISABLED();
 
   sleepq_chain_t *sc = SC_LOOKUP(wchan);
   sleepq_t *sq = sleepq_lookup(wchan);
@@ -146,7 +146,7 @@ static void sleepq_resume_thread(sleepq_t *sq, thread_t *td) {
 }
 
 bool sleepq_signal(void *wchan) {
-  SCOPED_INTR_DISABLED();
+  SCOPED_NO_PREEMPTION();
 
   sleepq_t *sq = sleepq_lookup(wchan);
   if (sq == NULL)
@@ -163,7 +163,7 @@ bool sleepq_signal(void *wchan) {
 }
 
 bool sleepq_broadcast(void *wchan) {
-  SCOPED_INTR_DISABLED();
+  SCOPED_NO_PREEMPTION();
 
   sleepq_t *sq = sleepq_lookup(wchan);
   if (sq == NULL)

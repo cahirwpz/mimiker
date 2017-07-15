@@ -11,6 +11,8 @@
 #include <time.h>
 #include <signal.h>
 
+/*! \file thread.h */
+
 typedef uint8_t td_prio_t;
 typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
@@ -77,6 +79,7 @@ typedef struct thread {
   uint32_t td_flags; /* TDF_* flags */
   /* thread context */
   volatile unsigned td_idnest; /*!< (!) interrupt disable nest level */
+  volatile unsigned td_pdnest; /*!< (!) preemption disable nest level */
   exc_frame_t td_uctx;         /* user context (always exception) */
   fpu_ctx_t td_uctx_fpu;       /* user FPU context (always exception) */
   exc_frame_t *td_kframe;      /* kernel context (last exception frame) */
@@ -87,16 +90,16 @@ typedef struct thread {
   /* waiting channel */
   sleepq_t *td_sleepqueue;
   void *td_wchan;
-  const void *td_waitpt; /* a point where program waits */
+  const void *td_waitpt; /*!< a point where program waits */
   /* scheduler part */
   td_prio_t td_prio;
   int td_slice;
   /* thread statistics */
-  timeval_t td_rtime;        /* ticks spent running */
-  timeval_t td_last_rtime;   /* time of last switch to running state */
-  timeval_t td_slptime;      /* ticks spent sleeping */
-  timeval_t td_last_slptime; /* time of last switch to sleep state */
-  unsigned td_nctxsw;        /* total number of context switches */
+  timeval_t td_rtime;        /*!< time spent running */
+  timeval_t td_last_rtime;   /*!< time of last switch to running state */
+  timeval_t td_slptime;      /*!< time spent sleeping */
+  timeval_t td_last_slptime; /*!< time of last switch to sleep state */
+  unsigned td_nctxsw;        /*!< total number of context switches */
   /* signal handling */
   sigset_t td_sigpend; /* Pending signals for this thread. */
   /* TODO: Signal mask, sigsuspend. */

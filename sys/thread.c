@@ -20,7 +20,7 @@ static thread_list_t zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 /* FTTB such a primitive method of creating new TIDs will do. */
 static tid_t make_tid(void) {
   static volatile tid_t tid = 0;
-  SCOPED_INTR_DISABLED();
+  SCOPED_NO_PREEMPTION();
   return tid++;
 }
 
@@ -100,8 +100,6 @@ noreturn void thread_exit(void) {
       intr_enable();
   }
 
-  SCOPED_INTR_DISABLED();
-
   /*
    * Preemption must be disabled for the code below, otherwise the thread may be
    * kicked out of processor without possiblity to return and finish the job.
@@ -109,6 +107,8 @@ noreturn void thread_exit(void) {
    * The thread may get switched out as a result of acquiring locks but it
    * hardly matters as we start performing actions with both locks acquired.
    */
+  preempt_disable();
+
   WITH_MTX_LOCK (threads_lock) {
     mtx_lock(&td->td_lock); /* force threads_lock >> thread_t::td_lock order */
     TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
@@ -126,9 +126,9 @@ noreturn void thread_exit(void) {
 void thread_join(thread_t *otd) {
   thread_t *td = thread_self();
 
-  klog("Join %ld {%p} with %ld {%p}", td->td_tid, td, otd->td_tid, otd);
-
   SCOPED_MTX_LOCK(&otd->td_lock);
+
+  klog("Join %ld {%p} with %ld {%p}", td->td_tid, td, otd->td_tid, otd);
 
   while (otd->td_state != TDS_DEAD)
     cv_wait(&otd->td_waitcv, &otd->td_lock);
