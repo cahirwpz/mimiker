@@ -4,7 +4,7 @@
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
 
-#define KTEST_MAX_NO 256
+#define KTEST_MAX_NO 1024
 
 /* Stores currently running test data. */
 static test_entry_t *current_test = NULL;
