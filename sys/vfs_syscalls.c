@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <malloc.h>
 #include <unistd.h>
+#include <stat.h>
 
 int do_open(thread_t *td, char *pathname, int flags, mode_t mode, int *fd) {
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -88,6 +89,23 @@ int do_fstat(thread_t *td, int fd, stat_t *sb) {
   res = FOP_STAT(f, td, sb);
   file_unref(f);
   return res;
+}
+
+int do_stat(thread_t *td, char *path, stat_t *sb) {
+  vnode_t *v;
+  vattr_t va;
+  int error;
+
+  if ((error = vfs_lookup(path, &v)))
+    return error;
+  if ((error = VOP_GETATTR(v, &va)))
+    goto fail;
+
+  va_convert(&va, sb);
+
+fail:
+  vnode_unref(v);
+  return error;
 }
 
 int do_dup(thread_t *td, int old) {

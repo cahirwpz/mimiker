@@ -191,6 +191,33 @@ static int sys_fstat(thread_t *td, syscall_args_t *args) {
   return 0;
 }
 
+static int sys_stat(thread_t *td, syscall_args_t *args) {
+  char *user_path = (char *)args->args[0];
+  stat_t *statbuf_p = (stat_t *)args->args[1];
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+  size_t path_len = 0;
+  int result;
+
+  result = copyinstr(user_path, path, PATH_MAX, &path_len);
+  if (result < 0)
+    goto end;
+
+  klog("stat(\"%s\", %p)", path, statbuf_p);
+
+  stat_t statbuf;
+  if ((result = do_stat(td, path, &statbuf)))
+    goto end;
+  result = copyout_s(statbuf, statbuf_p);
+  if (result < 0)
+    goto end;
+  result = 0;
+
+end:
+  kfree(M_TEMP, path);
+  return result;
+}
+
 static int sys_mount(thread_t *td, syscall_args_t *args) {
   char *user_fsysname = (char *)args->args[0];
   char *user_pathname = (char *)args->args[1];
@@ -365,6 +392,7 @@ sysent_t sysent[] = {
     [SYS_GETPID] = {sys_getpid},
     [SYS_KILL] = {sys_kill},
     [SYS_FSTAT] = {sys_fstat},
+    [SYS_STAT] = {sys_stat},
     [SYS_SBRK] = {sys_sbrk},
     [SYS_MMAP] = {sys_mmap},
     [SYS_FORK] = {sys_fork},

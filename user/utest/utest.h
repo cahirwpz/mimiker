@@ -29,4 +29,7 @@ int test_lseek_errors(void);
 
 int test_access_basic(void);
 
+int test_stat(void);
+int test_fstat(void);
+
 #endif /* __UTEST_H__ */
