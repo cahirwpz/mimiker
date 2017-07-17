@@ -6,7 +6,7 @@ int main(int argc, char **argv, char **envp) {
     "I will dump arguments and environment variables passed in commandline.\n");
   printf("Argument count is %d\n", argc);
 
-  size_t i;
+  int i;
 
   if (argv != NULL) {
     for (i = 0; i < argc; i++) {

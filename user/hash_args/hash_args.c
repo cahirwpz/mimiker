@@ -39,7 +39,7 @@ uint32_t jenkins_final(uint32_t hash) {
 /* Returns a hash value of its arguments.*/
 int main(int argc, char **argv) {
 
-  size_t i;
+  int i;
   uint32_t hash = 0;
 
   assert(argv != NULL);
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
 
     // assert(argv[i] != NULL);
 
-    for (int j = 0; j < strlen(argv[i]); j++)
+    for (unsigned int j = 0; j < strlen(argv[i]); j++)
       hash = jenkins_one_step(hash, argv[i][j]);
   }
 

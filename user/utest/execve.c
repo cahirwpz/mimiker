@@ -100,7 +100,7 @@ short hashed_execve_test(char *const argv[]) {
     ;
 
   for (int i = 0; i < argc; i++) {
-    for (int j = 0; j < strlen(argv[i]); j++)
+    for (unsigned int j = 0; j < strlen(argv[i]); j++)
       hash = jenkins_one_step(hash, argv[i][j]);
   }
 
