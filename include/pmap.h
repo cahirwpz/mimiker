@@ -18,6 +18,8 @@ typedef struct pmap {
   asid_t asid;
 } pmap_t;
 
+void pmap_init(void);
+
 pmap_t *pmap_new(void);
 void pmap_reset(pmap_t *pmap);
 void pmap_delete(pmap_t *pmap);
