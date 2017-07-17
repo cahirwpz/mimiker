@@ -101,7 +101,8 @@ vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
 static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
   rw_assert(&vm_map->rwlock, RW_WLOCKED);
   vm_map->nentries--;
-  vm_object_free(entry->object);
+  if (entry->object)
+    vm_object_free(entry->object);
   TAILQ_REMOVE(&vm_map->list, entry, map_list);
   kfree(M_VMMAP, entry);
 }
