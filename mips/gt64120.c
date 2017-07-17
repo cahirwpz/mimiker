@@ -11,7 +11,6 @@
 #include <pci.h>
 #include <stdc.h>
 #include <klog.h>
-#include <sync.h>
 
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
@@ -211,7 +210,7 @@ static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
 
   gt_pci_state_t *gtpci = pcib->parent->state;
   intr_chain_t *chain = &gtpci->intr_chain[irq];
-  CRITICAL_SECTION {
+  WITH_INTR_DISABLED {
     intr_chain_add_handler(chain, handler);
     if (chain->ic_count == 1)
       gt_pci_unmask_irq(gtpci, irq);
@@ -223,7 +222,7 @@ static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
 
   gt_pci_state_t *gtpci = pcib->parent->state;
   intr_chain_t *chain = handler->ih_chain;
-  CRITICAL_SECTION {
+  WITH_INTR_DISABLED {
     if (chain->ic_count == 1)
       gt_pci_mask_irq(gtpci, chain->ic_irq);
     intr_chain_remove_handler(handler);

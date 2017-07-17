@@ -70,4 +70,4 @@ void vm_map_object_dump(vm_object_t *obj) {
     klog("(vm-obj) offset: 0x%08lx, size: %ld", it->vm_offset, it->size);
 }
 
-SYSINIT_ADD(vm_object, vm_object_init, DEPS("pmap"));
+SYSINIT_ADD(vm_object, vm_object_init, NODEPS);

@@ -24,9 +24,10 @@
 #define SYS_MKDIR 21
 #define SYS_RMDIR 22
 #define SYS_ACCESS 23
-#define SYS_CLOCKGETTIME 24
-#define SYS_CLOCKNANOSLEEP 25
-#define SYS_LAST 26
+#define SYS_STAT 24
+#define SYS_CLOCKGETTIME 25
+#define SYS_CLOCKNANOSLEEP 26
+#define SYS_LAST 27
 
 #ifndef __ASSEMBLER__
 

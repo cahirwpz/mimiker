@@ -1,8 +1,26 @@
 import gdb
+import re
 
 
 def cast(value, typename):
     return value.cast(gdb.lookup_type(typename))
+
+
+def enum(v):
+    return v.type.target().fields()[int(v)].name
+
+
+class ProgramCounter():
+    def __init__(self, pc):
+        self.pc = cast(pc, 'unsigned long')
+
+    def __str__(self):
+        if self.pc == 0:
+            return 'null'
+        line = gdb.execute('info line *0x%x' % self.pc, to_string=True)
+        m = re.match(r'Line (\d+) of "(.*)"', line)
+        m = m.groups()
+        return '%s:%s' % (m[1], m[0])
 
 
 class OneArgAutoCompleteMixin():

@@ -8,8 +8,14 @@ void exc_before_leave(exc_frame_t *kframe) {
 
   td->td_kframe = kframe;
 
-  if (td->td_flags & TDF_NEEDSWITCH)
-    sched_switch(NULL);
+  /* If thread requested not to be preempted, then do not switch out! */
+  if (td->td_pdnest > 0)
+    return;
+
+  if (td->td_flags & TDF_NEEDSWITCH) {
+    td->td_state = TDS_READY;
+    sched_switch();
+  }
 
   /* First thing after switching to a thread: Process pending signals. */
   if (td->td_flags & TDF_NEEDSIGCHK) {

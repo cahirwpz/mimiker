@@ -1,4 +1,4 @@
-#include <sync.h>
+#include <interrupt.h>
 #include <time.h>
 #include <stdc.h>
 #define _KLOG_PRIVATE
@@ -53,7 +53,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
 
   klog_entry_t *entry;
 
-  CRITICAL_SECTION {
+  WITH_INTR_DISABLED {
     entry = (klog.prev >= 0) ? &klog.array[klog.prev] : NULL;
 
     /* Do not store repeating log messages, just count them. */
@@ -106,7 +106,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
 unsigned klog_setmask(unsigned newmask) {
   unsigned oldmask;
 
-  CRITICAL_SECTION {
+  WITH_INTR_DISABLED {
     oldmask = klog.mask;
     klog.mask = newmask;
   }
@@ -117,7 +117,7 @@ void klog_dump(void) {
   klog_entry_t entry;
 
   while (klog.first != klog.last) {
-    CRITICAL_SECTION {
+    WITH_INTR_DISABLED {
       entry = klog.array[klog.first];
       klog.first = next(klog.first);
     }

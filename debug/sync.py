@@ -21,13 +21,14 @@ class SleepQueue(object):
 class Mutex(object):
     __metaclass__ = utils.GdbStructMeta
     __ctype__ = 'struct mtx'
-    __cast__ = {'m_count': int}
+    __cast__ = {'m_count': int,
+                'm_lockpt': utils.ProgramCounter}
 
     def __str__(self):
         if self.m_owner:
-            return 'mtx{owner = %s, count = %d, blocked = %s}' % (
-                    Thread(self.m_owner.dereference()), self.m_count,
-                    SleepQueue(self._obj.address))
+            return 'mtx{owner = %s, lockpt = %s, count = %d, blocked = %s}' % (
+                    Thread(self.m_owner.dereference()), self.m_lockpt,
+                    self.m_count, SleepQueue(self._obj.address))
         return 'mtx{owner = None}'
 
 
