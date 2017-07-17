@@ -1,12 +1,10 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
+TOPDIR = $(CURDIR)
+
 all: cscope tags mimiker.elf initrd.cpio
 
-# Disable all built-in recipes
-.SUFFIXES:
-
-include Makefile.common
-$(info Using CC: $(CC))
+include $(TOPDIR)/build/build.kern.mk
 
 # Directories which contain kernel parts
 SYSSUBDIRS  = mips stdc sys tests
@@ -18,14 +16,28 @@ $(SUBDIRS):
 
 .PHONY: format tags cscope $(SUBDIRS) force
 
-# Make sure the global cache dir exists before building user programs
-user: | cache
-cache:
-	mkdir cache
+# Files required to link kernel image
+KRT = $(TOPDIR)/stdc/libstdc.a \
+      $(TOPDIR)/mips/libmips.a \
+      $(TOPDIR)/sys/libsys.a \
+      $(TOPDIR)/tests/libtests.a
 
 # Process subdirectories before using KRT files.
 $(KRT): | $(SYSSUBDIRS)
 	true # Disable default recipe
+
+LDFLAGS	= -nostdlib -T $(TOPDIR)/mips/malta.ld
+LDLIBS	= -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc -L$(TOPDIR)/tests \
+	  -Wl,--start-group \
+	    -Wl,--whole-archive \
+              -lsys \
+	      -lmips \
+              -ltests \
+            -Wl,--no-whole-archive \
+            -lstdc \
+            -lgcc \
+          -Wl,--end-group
+
 mimiker.elf: $(KRT) | $(SYSSUBDIRS)
 	@echo "[LD] Linking kernel image: $@"
 	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
@@ -35,7 +47,7 @@ cscope:
 
 # Lists of all files that we consider our sources.
 SOURCE_RULES = -not -path "./toolchain/*" -and \
-               -not -path "./cache*"      -and \
+               -not -path "./user/newlib/newlib-*" -and \
                -not -path "./sysroot*"
 SOURCES_C = $(shell find -iname '*.[ch]' -type f $(SOURCE_RULES))
 SOURCES_ASM = $(shell find -iname '*.[S]' -type f $(SOURCE_RULES))
@@ -80,5 +92,3 @@ clean:
 
 distclean: clean
 	$(RM) -r cache sysroot
-
-.PRECIOUS: %.uelf

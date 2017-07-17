@@ -58,7 +58,7 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
     entry->object = default_pager->pgr_alloc();
   }
 
-  klog("Created entry at %p, length: %zu", (void *)addr, length);
+  klog("Created entry at %p, length: %u", (void *)addr, length);
 
   return addr;
 }

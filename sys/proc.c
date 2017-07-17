@@ -10,12 +10,12 @@
 
 static MALLOC_DEFINE(M_PROC, "proc", 1, 2);
 
-static mtx_t all_proc_list_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static mtx_t all_proc_list_mtx = MTX_INITIALIZER(MTX_DEF);
 static proc_list_t all_proc_list = TAILQ_HEAD_INITIALIZER(all_proc_list);
-static mtx_t zombie_proc_list_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static mtx_t zombie_proc_list_mtx = MTX_INITIALIZER(MTX_DEF);
 static proc_list_t zombie_proc_list = TAILQ_HEAD_INITIALIZER(zombie_proc_list);
 
-static mtx_t last_pid_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static mtx_t last_pid_mtx = MTX_INITIALIZER(MTX_DEF);
 static pid_t last_pid = 0;
 
 proc_t *proc_create(void) {
@@ -202,7 +202,7 @@ int do_waitpid(pid_t pid, int *status, int options) {
         return -ECHILD;
 
       /* Wait until a child changes state. */
-      sleepq_wait(&p->p_children, "any child state change");
+      sleepq_wait(&p->p_children, NULL);
     }
   } else {
     proc_t *child = NULL;
@@ -227,7 +227,7 @@ int do_waitpid(pid_t pid, int *status, int options) {
         return 0;
 
       /* Wait until the child changes state. */
-      sleepq_wait(&child->p_state, "state change");
+      sleepq_wait(&child->p_state, NULL);
     }
   }
 

@@ -17,4 +17,4 @@ script:
    ./verify-format.sh
    ./verify-pep8.sh
    make
-   ./run_tests.py --thorough
+   ./run_tests.py --thorough --non-interactive
