@@ -63,7 +63,7 @@ static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 
 static asid_t alloc_asid(void) {
   int free;
-  CRITICAL_SECTION {
+  WITH_INTR_DISABLED {
     bit_ffc(asid_used, MAX_ASID, &free);
     if (free < 0)
       panic("Out of asids!");
@@ -75,7 +75,7 @@ static asid_t alloc_asid(void) {
 
 static void free_asid(asid_t asid) {
   klog("free_asid(%d)", asid);
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
   bit_clear(asid_used, (unsigned)asid);
   tlb_invalidate_asid(asid);
 }
