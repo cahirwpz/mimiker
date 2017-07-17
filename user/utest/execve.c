@@ -8,7 +8,6 @@
 
 #include <sys/hash.h>
 
-
 /*A simple hash function stolen from somewhere...*/
 /* uint32_t jenkins_one_at_a_time_hash(char *key, size_t len) { */
 /*   uint32_t hash, i; */
@@ -107,7 +106,6 @@ short hashed_execve_test(char *const argv[]) {
     /*   hash = jenkins_one_step(hash, argv[i][j]); */
 
     hash = hash32_str(argv[i], hash);
-    
   }
 
   /*  hash = jenkins_final(hash) & 255;*/

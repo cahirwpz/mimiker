@@ -31,9 +31,7 @@
 #define __HASH_H__
 
 /* #include <common.h> */
-#include<stdint.h>
-
-
+#include <stdint.h>
 
 #define HASH32_BUF_INIT 5381
 

@@ -4,8 +4,6 @@
 #include <assert.h>
 #include <sys/hash.h>
 
-
-
 /* /\*A simple hash function stolen from somewhere...*\/ */
 /* uint32_t jenkins_one_at_a_time_hash(char *key, size_t len) { */
 /*   uint32_t hash, i; */
