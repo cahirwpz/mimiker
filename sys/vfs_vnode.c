@@ -1,3 +1,5 @@
+#define KL_LOG KL_VFS
+#include <klog.h>
 #include <errno.h>
 #include <file.h>
 #include <malloc.h>
@@ -105,6 +107,10 @@ static int vnode_rmdir_nop(vnode_t *v, const char *name) {
   return -ENOTSUP;
 }
 
+static int vnode_access_nop(vnode_t *v, accmode_t mode) {
+  return -ENOTSUP;
+}
+
 #define NOP_IF_NULL(vops, name)                                                \
   do {                                                                         \
     if (vops->v_##name == NULL)                                                \
@@ -124,6 +130,16 @@ void vnodeops_init(vnodeops_t *vops) {
   NOP_IF_NULL(vops, remove);
   NOP_IF_NULL(vops, mkdir);
   NOP_IF_NULL(vops, rmdir);
+  NOP_IF_NULL(vops, access);
+}
+
+void va_convert(vattr_t *va, stat_t *sb) {
+  memset(sb, 0, sizeof(stat_t));
+  sb->st_mode = va->va_mode;
+  sb->st_nlink = va->va_nlink;
+  sb->st_uid = va->va_uid;
+  sb->st_gid = va->va_gid;
+  sb->st_size = va->va_size;
 }
 
 /* Default file operations using v-nodes. */
@@ -148,12 +164,7 @@ static int default_vnstat(file_t *f, thread_t *td, stat_t *sb) {
   error = VOP_GETATTR(v, &va);
   if (error < 0)
     return error;
-  memset(sb, 0, sizeof(stat_t));
-  sb->st_mode = va.va_mode;
-  sb->st_nlink = va.va_nlink;
-  sb->st_uid = va.va_uid;
-  sb->st_gid = va.va_gid;
-  sb->st_size = va.va_size;
+  va_convert(&va, sb);
   return 0;
 }
 
@@ -226,6 +237,25 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
   /* Operation went ok, assuming the file is seekable. */
   return 0;
+}
+
+int vnode_access_generic(vnode_t *v, accmode_t acc) {
+  vattr_t va;
+  int error;
+
+  if ((error = VOP_GETATTR(v, &va)))
+    return error;
+
+  mode_t mode = 0;
+
+  if (acc & VEXEC)
+    mode |= S_IXUSR;
+  if (acc & VWRITE)
+    mode |= S_IWUSR;
+  if (acc & VREAD)
+    mode |= S_IRUSR;
+
+  return ((va.va_mode & mode) == mode || acc == 0) ? 0 : -EACCES;
 }
 
 SYSINIT_ADD(vnode, vnode_init, DEPS("vm_map"));

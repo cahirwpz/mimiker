@@ -227,7 +227,7 @@ int test_fd_pipe() {
     read(fd[0], test, 10);
     printf("%s\n", test);
   }
-  
+
   return 0;
 }
 

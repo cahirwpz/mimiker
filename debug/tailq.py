@@ -1,8 +1,11 @@
-def collect_values(tq, field):
-    tq_it = tq['tqh_first']
-    values = []
-    while tq_it != 0:
-        tq_it = tq_it.dereference()
-        values.append(tq_it)
-        tq_it = tq_it[field]['tqe_next']
-    return values
+class TailQueue():
+    def __init__(self, tq, field):
+        self.tq = tq
+        self.field = field
+
+    def __iter__(self):
+        item = self.tq['tqh_first']
+        while item != 0:
+            item = item.dereference()
+            yield item
+            item = item[self.field]['tqe_next']

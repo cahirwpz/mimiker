@@ -35,6 +35,9 @@ struct proc {
   sigaction_t p_sigactions[NSIG];
   /* zombie process status */
   int p_exitstatus;
+  /* program segments */
+  vm_map_entry_t *p_sbrk; /* The entry where brk segment resides in. */
+  vm_addr_t p_sbrk_end;   /* Current end of brk segment. */
   /* XXX: process resource usage stats */
 };
 

@@ -1,17 +1,14 @@
 Toolchain building procedure
 ---
 
- 1. Download **release** version of [crosstool-ng](http://crosstool-ng.org/). Using git version is discouraged!
- 2. Unpack `crosstool-ng` to a directory and run following commands: 
+1. Run following command to build the toolchain ready to be installed in root
+   filesystem. All files will be installed in `mipsel-mimiker-elf/usr`
+   directory.
 ```
-$ ./bootstrap
-$ ./configure --prefix=${HOME}/local
-$ make && make install
+$ ./toolchain-mipsel build
 ```
- 3. Remeber to install `python-dev` package so GDB Python scripting can be enabled.
- 4. Provided `${HOME}/local/bin` is in your `PATH` go to `${MIMIKER_TOP}/toolchain/${ARCH}` and run:
+2. Go to `mipsel-mimiker-elf` directory and build a Debian package with
+   following command:
 ```
-$ ct-ng build
+fakeroot ./debian/rules binary
 ```
-
-If the build succeeds the toolchain should be installed in `${HOME}/local/${TARGET}`.

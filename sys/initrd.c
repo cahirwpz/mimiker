@@ -314,7 +314,8 @@ static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_open = vnode_open_generic,
                                  .v_read = initrd_vnode_read,
                                  .v_seek = vnode_seek_generic,
-                                 .v_getattr = initrd_vnode_getattr};
+                                 .v_getattr = initrd_vnode_getattr,
+                                 .v_access = vnode_access_generic};
 
 static int initrd_init(vfsconf_t *vfc) {
   unsigned rd_size = ramdisk_get_size();

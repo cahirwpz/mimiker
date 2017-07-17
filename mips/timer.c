@@ -3,7 +3,6 @@
 #include <mips/m32c0.h>
 #include <mips/config.h>
 #include <mips/intr.h>
-#include <sync.h>
 #include <stdc.h>
 
 static timer_event_list_t events = TAILQ_HEAD_INITIALIZER(events);
@@ -45,7 +44,7 @@ static intr_filter_t cpu_timer_intr(void *arg) {
 }
 
 void cpu_timer_add_event(timer_event_t *tev) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
 
   if (TAILQ_EMPTY(&events))
     mips_intr_setup(&cpu_timer_intr_handler, MIPS_HWINT5);
@@ -64,7 +63,7 @@ void cpu_timer_add_event(timer_event_t *tev) {
 }
 
 void cpu_timer_remove_event(timer_event_t *tev) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
 
   TAILQ_REMOVE(&events, tev, tev_link);
 

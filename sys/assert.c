@@ -1,14 +1,14 @@
 #include <common.h>
 #include <stdc.h>
 #include <ktest.h>
-#include <sync.h>
+#include <interrupt.h>
 
 noreturn void panic_fail(void) {
   /* We used to terminate the current thread, but that is not a great way of
      panicking, as other threads will continue executing, and our panic might go
      unnoticed. */
   /* Permanently lock the kernel. */
-  critical_enter();
+  intr_disable();
   while (1)
     ;
 }

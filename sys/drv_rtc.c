@@ -72,7 +72,7 @@ static int rtc_time_read(vnode_t *v, uio_t *uio) {
   tm_t t;
 
   uio->uio_offset = 0; /* This device does not support offsets. */
-  sleepq_wait(rtc, "RTC periodic interrupt");
+  sleepq_wait(rtc, NULL);
   rtc_gettime(rtc->regs, &t);
   int count =
     snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d", t.tm_year,

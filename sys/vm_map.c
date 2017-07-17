@@ -3,7 +3,6 @@
 #include <stdc.h>
 #include <malloc.h>
 #include <pmap.h>
-#include <sync.h>
 #include <thread.h>
 #include <vm.h>
 #include <vm_pager.h>
@@ -11,7 +10,7 @@
 #include <vm_map.h>
 #include <errno.h>
 #include <proc.h>
-#include <mips/mips.h>
+#include <sched.h>
 #include <pcpu.h>
 #include <sysinit.h>
 
@@ -20,7 +19,7 @@ static MALLOC_DEFINE(M_VMMAP, "vm-map", 1, 2);
 static vm_map_t kspace;
 
 void vm_map_activate(vm_map_t *map) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_NO_PREEMPTION();
 
   PCPU_SET(uspace, map);
   pmap_activate(map ? map->pmap : NULL);
@@ -102,7 +101,8 @@ vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
 static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
   rw_assert(&vm_map->rwlock, RW_WLOCKED);
   vm_map->nentries--;
-  vm_object_free(entry->object);
+  if (entry->object)
+    vm_object_free(entry->object);
   TAILQ_REMOVE(&vm_map->list, entry, map_list);
   kfree(M_VMMAP, entry);
 }
@@ -112,6 +112,7 @@ void vm_map_delete(vm_map_t *map) {
     while (map->nentries > 0)
       vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
   }
+  pmap_delete(map->pmap);
   kfree(M_VMMAP, map);
 }
 
@@ -316,4 +317,4 @@ int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
   return 0;
 }
 
-SYSINIT_ADD(vm_map, vm_map_init, DEPS("pmap", "vm_object"));
+SYSINIT_ADD(vm_map, vm_map_init, DEPS("vm_object"));

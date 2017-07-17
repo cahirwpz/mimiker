@@ -363,4 +363,4 @@ _TEXT_SECTION
 
 #endif /* __ASSEMBLER__ */
 
-#endif /*_MIPS_ASM_H_*/
+#endif /* !_MIPS_ASM_H_ */

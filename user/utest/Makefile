@@ -1,5 +1,9 @@
-UELF_NAME=utest
-SOURCES_C= \
+TOPDIR = $(realpath ../..)
+
+UELF_NAME = utest
+
+SOURCES_C = \
+	access.c \
 	fd.c \
 	fork.c \
 	lseek.c \
@@ -7,6 +11,7 @@ SOURCES_C= \
 	misbehave.c \
 	mmap.c \
 	sbrk.c \
-	signal.c
+	signal.c \
+	stat.c
 
-include ../Makefile.usercommon
+include $(TOPDIR)/build/build.prog.mk

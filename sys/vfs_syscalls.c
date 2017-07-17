@@ -14,6 +14,8 @@
 #include <queue.h>
 #include <errno.h>
 #include <malloc.h>
+#include <unistd.h>
+#include <stat.h>
 
 int do_open(thread_t *td, char *pathname, int flags, mode_t mode, int *fd) {
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -89,6 +91,23 @@ int do_fstat(thread_t *td, int fd, stat_t *sb) {
   return res;
 }
 
+int do_stat(thread_t *td, char *path, stat_t *sb) {
+  vnode_t *v;
+  vattr_t va;
+  int error;
+
+  if ((error = vfs_lookup(path, &v)))
+    return error;
+  if ((error = VOP_GETATTR(v, &va)))
+    goto fail;
+
+  va_convert(&va, sb);
+
+fail:
+  vnode_unref(v);
+  return error;
+}
+
 int do_dup(thread_t *td, int old) {
   file_t *f;
   assert(td->td_proc);
@@ -149,4 +168,19 @@ int do_mkdir(thread_t *td, char *path, mode_t mode) {
 
 int do_rmdir(thread_t *td, char *path) {
   return -ENOTSUP;
+}
+
+int do_access(thread_t *td, char *path, int amode) {
+  int error;
+
+  /* Check if access mode argument is valid. */
+  if (amode & ~(R_OK | W_OK | X_OK))
+    return -EINVAL;
+
+  vnode_t *v;
+  if ((error = vfs_lookup(path, &v)))
+    return error;
+  error = VOP_ACCESS(v, amode);
+  vnode_unref(v);
+  return error;
 }

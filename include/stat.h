@@ -110,6 +110,7 @@ typedef struct stat {
 
 #ifndef _KERNELSPACE
 int fstat(int fd, stat_t *sb);
+int stat(const char *pathname, stat_t *sb);
 #endif
 
 #endif /* !_SYS_STAT_H_ */

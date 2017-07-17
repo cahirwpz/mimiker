@@ -15,12 +15,12 @@ MALLOC_DEFINE(M_VFS, "vfs", 1, 4);
 
 /* The list of all installed filesystem types */
 vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
-mtx_t vfsconf_list_mtx = MUTEX_INITIALIZER(MTX_DEF);
+mtx_t vfsconf_list_mtx = MTX_INITIALIZER(MTX_DEF);
 
 /* The list of all mounts mounted */
 typedef TAILQ_HEAD(, mount) mount_list_t;
 static mount_list_t mount_list = TAILQ_HEAD_INITIALIZER(mount_list);
-static mtx_t mount_list_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static mtx_t mount_list_mtx = MTX_INITIALIZER(MTX_DEF);
 
 /* Default vfs operations */
 static vfs_root_t vfs_default_root;
@@ -211,6 +211,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     /* Look up the child vnode */
     vnode_t *v_child;
     error = VOP_LOOKUP(v, component, &v_child);
+    /* TODO: Check access to child, to verify we can continue with lookup. */
     vnode_unlock(v);
     vnode_unref(v);
     if (error)

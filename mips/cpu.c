@@ -85,17 +85,12 @@ void cpu_sr_dump(void) {
   static char *mode[] = {"kernel", "supervisor", "user"};
   static char *boolean[] = {"no", "yes"};
 
-  klog("Status register :\n"
-       " - FPU enabled        : %s\n"
-       " - Interrupt mask     : %02x\n"
-       " - Operating mode     : %s\n"
-       " - Exception level    : %s\n"
-       " - Interrupts enabled : %s",
-       boolean[(sr & SR_CU1) >> SR_CU1_SHIFT],
-       (sr & SR_IMASK) >> SR_IMASK_SHIFT,
-       mode[(sr & SR_KSU_MASK) >> SR_KSU_SHIFT],
-       boolean[(sr & SR_EXL) >> SR_EXL_SHIFT],
-       boolean[(sr & SR_IE) >> SR_IE_SHIFT]);
+  klog("Status register :");
+  klog(" - FPU enabled        : %s", boolean[(sr & SR_CU1) >> SR_CU1_SHIFT]);
+  klog(" - Interrupt mask     : %02x", (sr & SR_IMASK) >> SR_IMASK_SHIFT);
+  klog(" - Operating mode     : %s", mode[(sr & SR_KSU_MASK) >> SR_KSU_SHIFT]);
+  klog(" - Exception level    : %s", boolean[(sr & SR_EXL) >> SR_EXL_SHIFT]);
+  klog(" - Interrupts enabled : %s", boolean[(sr & SR_IE) >> SR_IE_SHIFT]);
 }
 
 /* Print state of control registers. */
