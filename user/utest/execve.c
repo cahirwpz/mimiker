@@ -6,38 +6,41 @@
 #include <sys/wait.h>
 #include <errno.h>
 
+#include <sys/hash.h>
+
+
 /*A simple hash function stolen from somewhere...*/
-uint32_t jenkins_one_at_a_time_hash(char *key, size_t len) {
-  uint32_t hash, i;
-  for (hash = i = 0; i < len; ++i) {
-    hash += key[i];
-    hash += (hash << 10);
-    hash ^= (hash >> 6);
-  }
-  hash += (hash << 3);
-  hash ^= (hash >> 11);
-  hash += (hash << 15);
-  return hash;
-}
+/* uint32_t jenkins_one_at_a_time_hash(char *key, size_t len) { */
+/*   uint32_t hash, i; */
+/*   for (hash = i = 0; i < len; ++i) { */
+/*     hash += key[i]; */
+/*     hash += (hash << 10); */
+/*     hash ^= (hash >> 6); */
+/*   } */
+/*   hash += (hash << 3); */
+/*   hash ^= (hash >> 11); */
+/*   hash += (hash << 15); */
+/*   return hash; */
+/* } */
 
-/*...and its single-step version.*/
-uint32_t jenkins_one_step(uint32_t hash, char key) {
+/* /\*...and its single-step version.*\/ */
+/* uint32_t jenkins_one_step(uint32_t hash, char key) { */
 
-  hash += key;
-  hash += (hash << 10);
-  hash ^= (hash >> 6);
+/*   hash += key; */
+/*   hash += (hash << 10); */
+/*   hash ^= (hash >> 6); */
 
-  return hash;
-}
+/*   return hash; */
+/* } */
 
-uint32_t jenkins_final(uint32_t hash) {
+/* uint32_t jenkins_final(uint32_t hash) { */
 
-  hash += (hash << 3);
-  hash ^= (hash >> 11);
-  hash += (hash << 15);
+/*   hash += (hash << 3); */
+/*   hash ^= (hash >> 11); */
+/*   hash += (hash << 15); */
 
-  return hash;
-}
+/*   return hash; */
+/* } */
 
 int runexecve(const char *path, char *const argv[]) {
 
@@ -94,17 +97,21 @@ int test_execve_errors(void) {
 short hashed_execve_test(char *const argv[]) {
 
   int argc;
-  int hash = 0;
+  int hash = HASH32_STR_INIT;
 
   for (argc = 0; argv[argc] != NULL; argc++)
     ;
 
   for (int i = 0; i < argc; i++) {
-    for (unsigned int j = 0; j < strlen(argv[i]); j++)
-      hash = jenkins_one_step(hash, argv[i][j]);
+    /* for (unsigned int j = 0; j < strlen(argv[i]); j++) */
+    /*   hash = jenkins_one_step(hash, argv[i][j]); */
+
+    hash = hash32_str(argv[i], hash);
+    
   }
 
-  hash = jenkins_final(hash) & 255;
+  /*  hash = jenkins_final(hash) & 255;*/
+  hash &= 255;
 
   pid_t n = fork();
 
