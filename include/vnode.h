@@ -13,6 +13,7 @@ typedef struct vattr vattr_t;
 typedef struct mount mount_t;
 typedef struct file file_t;
 typedef struct dirent dirent_t;
+typedef struct stat stat_t;
 
 #define VNOVAL (-1)
 
@@ -90,6 +91,8 @@ typedef struct vattr {
   gid_t va_gid;     /* owner group id */
   size_t va_size;   /* file size in bytes */
 } vattr_t;
+
+void va_convert(vattr_t *va, stat_t *sb);
 
 static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
   return dv->v_ops->v_lookup(dv, name, vp);

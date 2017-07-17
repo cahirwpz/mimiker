@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PYFILES=$(find . \( -name 'cache' -prune \)\
+PYFILES=$(find . \( -name 'newlib' -prune \)\
               -o \( -name 'toolchain' -prune \)\
               -o \( -name '.*.py' -prune \) \
               -o \( -name '*.py' -printf '%P\n' \))

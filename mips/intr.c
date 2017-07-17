@@ -9,11 +9,22 @@
 #include <pmap.h>
 #include <queue.h>
 #include <stdc.h>
-#include <sync.h>
 #include <sysent.h>
 #include <thread.h>
 
 extern const char _ebase[];
+
+void mips_intr_disable(void) {
+  asm volatile("di");
+}
+
+void mips_intr_enable(void) {
+  asm volatile("ei");
+}
+
+bool mips_intr_disabled(void) {
+  return (mips32_getsr() & SR_IE) == 0;
+}
 
 #define MIPS_INTR_CHAIN(irq, name)                                             \
   [irq] = (intr_chain_t) {                                                     \
@@ -53,7 +64,7 @@ void mips_intr_init(void) {
 
 void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
   intr_chain_t *chain = &mips_intr_chain[irq];
-  CRITICAL_SECTION {
+  WITH_INTR_DISABLED {
     intr_chain_add_handler(chain, handler);
     if (chain->ic_count == 1) {
       mips32_bs_c0(C0_STATUS, SR_IM0 << irq); /* enable interrupt */
@@ -64,7 +75,7 @@ void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
 
 void mips_intr_teardown(intr_handler_t *handler) {
   intr_chain_t *chain = handler->ih_chain;
-  CRITICAL_SECTION {
+  WITH_INTR_DISABLED {
     if (chain->ic_count == 1)
       mips32_bc_c0(C0_STATUS, SR_IM0 << chain->ic_irq);
     intr_chain_remove_handler(handler);
@@ -119,7 +130,8 @@ void kernel_oops(exc_frame_t *frame) {
   panic("Unhandled exception!");
 }
 
-void cpu_get_syscall_args(const exc_frame_t *frame, syscall_args_t *args) {
+static void cpu_get_syscall_args(const exc_frame_t *frame,
+                                 syscall_args_t *args) {
   args->code = frame->v0;
   args->args[0] = frame->a0;
   args->args[1] = frame->a1;
@@ -127,7 +139,7 @@ void cpu_get_syscall_args(const exc_frame_t *frame, syscall_args_t *args) {
   args->args[3] = frame->a3;
 }
 
-void syscall_handler(exc_frame_t *frame) {
+static void syscall_handler(exc_frame_t *frame) {
   /* Eventually we will want a platform-independent syscall entry, so
      argument retrieval is done separately */
   syscall_args_t args;
@@ -148,7 +160,7 @@ finalize:
     exc_frame_set_retval(frame, retval);
 }
 
-void fpe_handler(exc_frame_t *frame) {
+static void fpe_handler(exc_frame_t *frame) {
   thread_t *td = thread_self();
   if (td->td_proc) {
     sig_send(td->td_proc, SIGFPE);

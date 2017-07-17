@@ -7,35 +7,36 @@
 typedef struct thread thread_t;
 typedef struct sleepq sleepq_t;
 
+/*! \file sleepq.h */
+
+/*! \brief Initializes sleep queues.
+ *
+ * \warning To be called only from early kernel initialization! */
 void sleepq_init(void);
+
+/*! \brief Allocates sleep queue entry. */
 sleepq_t *sleepq_alloc(void);
+
+/*! \brief Deallocates sleep queue entry. */
 void sleepq_destroy(sleepq_t *sq);
 
-/*
- * Lookup the sleep queue associated with a given wait channel.
- * If no queue is found, NULL is returned.
+/*! \brief Blocks the current thread until it is awakened from its sleep queue.
+ *
+ * \param wchan unique sleep queue identifier
+ * \param waitpt caller associated with sleep action
  */
-sleepq_t *sleepq_lookup(void *wchan);
+void sleepq_wait(void *wchan, const void *waitpt);
 
-/*
- * Block the current thread until it is awakened from its sleep queue.
- */
-void sleepq_wait(void *wchan, const char *wmesg);
-
-/*
- * Find the highest priority thread sleeping on a wait channel and resume it.
+/*! \brief Take first thread sleeping on \a wchan and resume it.
+ *
+ * \param wchan unique sleep queue identifier
  */
 bool sleepq_signal(void *wchan);
 
-/*
- * Resume all threads sleeping on a specified wait channel.
+/*! \brief Resume all threads sleeping on \a wchan.
+ *
+ * \param wchan unique sleep queue identifier
  */
 bool sleepq_broadcast(void *wchan);
-
-/*
- * Resumes a specific thread from the sleep queue associated with a specific
- * wait channel if it is on that queue.
- */
-void sleepq_remove(thread_t *td, void *wchan);
 
 #endif /* !_SYS_SLEEPQ_H_ */

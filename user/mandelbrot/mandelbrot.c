@@ -13,7 +13,7 @@
 uint8_t image[WIDTH * HEIGHT];
 uint8_t palette[256 * 3];
 
-void prepare_videomode() {
+void prepare_videomode(void) {
   FILE *videomode_file = fopen("/dev/vga/videomode", "r+b");
   unsigned int width, height, bpp;
   fscanf(videomode_file, "%d %d %d", &width, &height, &bpp);
@@ -24,7 +24,7 @@ void prepare_videomode() {
   fclose(videomode_file);
 }
 
-void prepare_palette() {
+void prepare_palette(void) {
   for (unsigned int i = 0; i < 256; i++) {
     palette[i * 3 + 0] = i;
     palette[i * 3 + 1] = i * i / 255;
@@ -36,7 +36,7 @@ void prepare_palette() {
   close(palette_handle);
 }
 
-void display_image() {
+void display_image(void) {
   int fb_handle = open("/dev/vga/fb", O_WRONLY, 0);
   assert(fb_handle > 0);
   write(fb_handle, image, WIDTH * HEIGHT);
@@ -56,7 +56,7 @@ int f(float re, float im) {
   return (50 - n) * 250 / 50;
 }
 
-int main() {
+int main(void) {
 
   prepare_videomode();
   prepare_palette();

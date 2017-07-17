@@ -1,6 +1,5 @@
 #include <fork.h>
 #include <thread.h>
-#include <sync.h>
 #include <filedesc.h>
 #include <sched.h>
 #include <stdc.h>
@@ -21,8 +20,8 @@ int do_fork(void) {
      the all_thread list, has name and tid set. Many fields don't require setup
      as they will be prepared by sched_add. */
 
-  assert(td->td_csnest == 0);
-  newtd->td_csnest = 0;
+  assert(td->td_idnest == 0);
+  newtd->td_idnest = 0;
 
   /* Copy user context.. */
   newtd->td_uctx = td->td_uctx;
@@ -41,7 +40,7 @@ int do_fork(void) {
 
   newtd->td_sleepqueue = sleepq_alloc();
   newtd->td_wchan = NULL;
-  newtd->td_wmesg = NULL;
+  newtd->td_waitpt = NULL;
 
   newtd->td_prio = td->td_prio;
 

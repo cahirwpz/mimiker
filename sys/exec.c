@@ -8,7 +8,6 @@
 #include <vm_pager.h>
 #include <thread.h>
 #include <errno.h>
-#include <sync.h>
 #include <filedesc.h>
 #include <sbrk.h>
 #include <vfs.h>
@@ -162,11 +161,11 @@ int do_exec(const exec_args_t *args) {
         klog("Exec failed: ELF file contains a PT_SHLIB segment");
         goto exec_fail;
       case PT_LOAD:
-        klog("Processing a PT_LOAD segment: VirtAddr = %p, "
-             "Offset = 0x%08x, FileSiz = 0x%08x, MemSiz = 0x%08x, Flags = %d",
-             (void *)ph->p_vaddr, (unsigned int)ph->p_offset,
-             (unsigned int)ph->p_filesz, (unsigned int)ph->p_memsz,
-             (unsigned int)ph->p_flags);
+        klog("PT_LOAD segment: VAddr = %p, "
+             "Offset = 0x%08x, FileSz = 0x%08x, MemSz = 0x%08x, Flags = %d",
+             (void *)ph->p_vaddr, (unsigned)ph->p_offset,
+             (unsigned)ph->p_filesz, (unsigned)ph->p_memsz,
+             (unsigned)ph->p_flags);
         if (ph->p_vaddr % PAGESIZE) {
           klog("Exec failed: Segment p_vaddr is not page alligned");
           goto exec_fail;
