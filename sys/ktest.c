@@ -1,6 +1,5 @@
 #include <ktest.h>
 #include <stdc.h>
-#include <sync.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);

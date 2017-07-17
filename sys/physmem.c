@@ -3,6 +3,7 @@
 #include <stdc.h>
 #include <malloc.h>
 #include <physmem.h>
+#include <mips/mips.h>
 
 #define PM_QUEUE_OF(seg, page) ((seg)->freeq + log2((page)->size))
 #define PM_FREEQ(seg, i) ((seg)->freeq + (i))
@@ -233,6 +234,7 @@ vm_page_t *pm_alloc(size_t npages) {
     vm_page_t *page;
     if ((page = pm_alloc_from_seg(seg_it, npages))) {
       klog("pm_alloc {paddr:%lx size:%ld}", page->paddr, page->size);
+      page->vaddr = MIPS_PHYS_TO_KSEG0(page->paddr);
       return page;
     }
   }

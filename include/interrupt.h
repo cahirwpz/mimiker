@@ -3,6 +3,43 @@
 
 #include <common.h>
 #include <queue.h>
+#include <mips/intr.h>
+
+/*! \brief Disables interrupts.
+ *
+ * Calls to \fn intr_disable can nest, you must use the same number of calls to
+ * \fn intr_enable to actually enable interrupts.
+ *
+ * In most scenarios threads should not switch out when interrupts are disabled.
+ * However it should behave correctly, since context switch routine restores
+ * interrupts state of target thread.
+ *
+ * If you need to disable preemption refer to \fn preempt_disable.
+ *
+ * \sa preempt_disable()
+ */
+void intr_disable(void);
+
+/*! \brief Enables interrupts. */
+void intr_enable(void);
+
+/*! \brief Checks if interrupts are disabled now. */
+bool intr_disabled(void);
+
+/* Two following functions are workaround to make interrupt disabling work with
+ * scoped and with statement. */
+static inline void __intr_disable(void *data) {
+  intr_disable();
+}
+
+static inline void __intr_enable(void *data) {
+  intr_enable();
+}
+
+#define SCOPED_INTR_DISABLED()                                                 \
+  SCOPED_STMT(void, __intr_disable, __intr_enable, NULL)
+
+#define WITH_INTR_DISABLED WITH_STMT(void, __intr_disable, __intr_enable, NULL)
 
 typedef enum {
   IF_STRAY = 0,    /* this device did not trigger the interrupt */

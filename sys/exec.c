@@ -8,7 +8,6 @@
 #include <vm_pager.h>
 #include <thread.h>
 #include <errno.h>
-#include <sync.h>
 #include <filedesc.h>
 #include <sbrk.h>
 #include <vfs.h>
@@ -40,7 +39,7 @@ int do_exec(const exec_args_t *args) {
     return error;
   size_t elf_size = elf_attr.va_size;
 
-  klog("User ELF size: %zu", elf_size);
+  klog("User ELF size: %u", elf_size);
 
   if (elf_size < sizeof(Elf32_Ehdr)) {
     klog("Exec failed: ELF file is too small to contain a valid header");
@@ -153,11 +152,11 @@ int do_exec(const exec_args_t *args) {
         klog("Exec failed: ELF file contains a PT_SHLIB segment");
         goto exec_fail;
       case PT_LOAD:
-        klog("Processing a PT_LOAD segment: VirtAddr = %p, "
-             "Offset = 0x%08x, FileSiz = 0x%08x, MemSiz = 0x%08x, Flags = %d",
-             (void *)ph->p_vaddr, (unsigned int)ph->p_offset,
-             (unsigned int)ph->p_filesz, (unsigned int)ph->p_memsz,
-             (unsigned int)ph->p_flags);
+        klog("PT_LOAD segment: VAddr = %p, "
+             "Offset = 0x%08x, FileSz = 0x%08x, MemSz = 0x%08x, Flags = %d",
+             (void *)ph->p_vaddr, (unsigned)ph->p_offset,
+             (unsigned)ph->p_filesz, (unsigned)ph->p_memsz,
+             (unsigned)ph->p_flags);
         if (ph->p_vaddr % PAGESIZE) {
           klog("Exec failed: Segment p_vaddr is not page alligned");
           goto exec_fail;
@@ -227,20 +226,18 @@ int do_exec(const exec_args_t *args) {
     vmap, stack_start, stack_end, VM_PROT_READ | VM_PROT_WRITE);
   stack_segment->object = default_pager->pgr_alloc();
 
-  /* Prepare program stack, which includes storing program args... */
+  /* Prepare program stack, which includes storing program args. */
   klog("Stack real bottom at %p", (void *)stack_bottom);
   prepare_program_stack(args, &stack_bottom);
 
-  /* ... sbrk segment ... */
-  sbrk_create(vmap);
-
-  /* ... and user context. */
+  /* Set up user context. */
   uctx_init(thread_self(), eh.e_entry, stack_bottom);
 
-  /*
-   * At this point we are certain that exec succeeds.  We can safely destroy the
-   * previous vm map, and permanently assign this one to the current process.
-   */
+  /* Attach fresh brk segment. */
+  sbrk_attach(p);
+
+  /* At this point we are certain that exec succeeds.  We can safely destroy the
+   * previous vm map, and permanently assign this one to the current process. */
   vm_map_delete(old_vmap);
 
   vm_map_dump(vmap);

@@ -1,5 +1,7 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
+TOPDIR = $(realpath ..)
+
 SOURCES_C  = \
 	assert.c \
 	callout.c \
@@ -41,7 +43,6 @@ SOURCES_C  = \
 	signal.c \
 	sleepq.c \
 	startup.c \
-	sync.c \
 	sysent.c \
 	sysinit.c \
 	taskqueue.c \
@@ -59,7 +60,7 @@ SOURCES_ASM =
 
 all: $(DEPFILES) libsys.a
 
-include ../Makefile.common
+include $(TOPDIR)/build/build.kern.mk
 
 libsys.a: $(OBJECTS)
 

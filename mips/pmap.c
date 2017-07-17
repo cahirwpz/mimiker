@@ -7,11 +7,11 @@
 #include <mips/tlb.h>
 #include <pcpu.h>
 #include <pmap.h>
-#include <sync.h>
 #include <vm_map.h>
 #include <thread.h>
 #include <ktest.h>
 #include <signal.h>
+#include <interrupt.h>
 #include <sysinit.h>
 
 static MALLOC_DEFINE(M_PMAP, "pmap", 4, 8);
@@ -40,6 +40,9 @@ static MALLOC_DEFINE(M_PMAP, "pmap", 4, 8);
 #define PMAP_USER_BEGIN 0x00000000
 #define PMAP_USER_END MIPS_KSEG0_START /* useg */
 
+#define PD_BASE (PT_BASE + PT_SIZE)
+#define PTE_KERNEL (PTE_VALID | PTE_DIRTY | PTE_GLOBAL)
+
 static const vm_addr_t PT_HOLE_START = PT_BASE + MIPS_KSEG0_START / PTF_ENTRIES;
 static const vm_addr_t PT_HOLE_END = PT_BASE + MIPS_KSEG2_START / PTF_ENTRIES;
 
@@ -56,24 +59,59 @@ static bool in_kernel_space(vm_addr_t addr) {
 }
 
 static pmap_t kernel_pmap;
-static asid_t asid_counter;
+static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 
-static asid_t get_new_asid(void) {
-  if (asid_counter < MAX_ASID)
-    return asid_counter++; // TODO this needs to be atomic increment
-  else
-    panic("Out of asids!");
+static asid_t alloc_asid(void) {
+  int free;
+  WITH_INTR_DISABLED {
+    bit_ffc(asid_used, MAX_ASID, &free);
+    if (free < 0)
+      panic("Out of asids!");
+    bit_set(asid_used, free);
+  }
+  klog("alloc_asid() = %d", free);
+  return free;
+}
+
+static void free_asid(asid_t asid) {
+  klog("free_asid(%d)", asid);
+  SCOPED_INTR_DISABLED();
+  bit_clear(asid_used, (unsigned)asid);
+  tlb_invalidate_asid(asid);
+}
+
+static void update_wired_pde(pmap_t *umap) {
+  pmap_t *kmap = get_kernel_pmap();
+
+  /* Both ENTRYLO0 and ENTRYLO1 must have G bit set for address translation
+   * to skip ASID check. */
+  tlbentry_t e = {.hi = PTE_VPN2(PD_BASE),
+                  .lo0 = PTE_GLOBAL,
+                  .lo1 = PTE_PFN(kmap->pde_page->paddr) | PTE_KERNEL};
+
+  if (umap)
+    e.lo0 = PTE_PFN(umap->pde_page->paddr) | PTE_KERNEL;
+
+  tlb_write(0, &e);
 }
 
 static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
+  bool user_pde = in_user_space(start);
+
+  /* Place user & kernel PDEs after virtualized page table. */
+  vm_page_t *pde_page = pm_alloc(1);
+  pde_page->vaddr = PD_BASE + (user_pde ? 0 : PD_SIZE);
+
   pmap->pte = (pte_t *)PT_BASE;
-  pmap->pde_page = pm_alloc(1);
-  pmap->pde = (pte_t *)pmap->pde_page->vaddr;
+  pmap->pde_page = pde_page;
+  pmap->pde = (pte_t *)pde_page->vaddr;
   pmap->start = start;
   pmap->end = end;
-  pmap->asid = get_new_asid();
-  klog("Page directory table allocated at %08lx", (vm_addr_t)pmap->pde);
+  pmap->asid = alloc_asid();
+  klog("Page directory table allocated at %p", (vm_addr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
+
+  update_wired_pde(user_pde ? pmap : NULL);
 
   for (int i = 0; i < PD_ENTRIES; i++)
     pmap->pde[i] = in_kernel_space(i * PTF_ENTRIES * PAGESIZE) ? PTE_GLOBAL : 0;
@@ -87,11 +125,13 @@ void pmap_reset(pmap_t *pmap) {
     pm_free(pg);
   }
   pm_free(pmap->pde_page);
+  free_asid(pmap->asid);
   memset(pmap, 0, sizeof(pmap_t)); /* Set up for reuse. */
 }
 
-static void pmap_init(void) {
-  pmap_setup(&kernel_pmap, PMAP_KERNEL_BEGIN + PT_SIZE, PMAP_KERNEL_END);
+void pmap_init(void) {
+  pmap_setup(&kernel_pmap, PMAP_KERNEL_BEGIN + PT_SIZE + PD_SIZE * 2,
+             PMAP_KERNEL_END);
 }
 
 pmap_t *pmap_new(void) {
@@ -140,7 +180,7 @@ static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr) {
   klog("Page table fragment %08lx allocated at %08lx", PTF_ADDR_OF(vaddr),
        pg->paddr);
 
-  PDE_OF(pmap, vaddr) = PTE_PFN(pg->paddr) | PTE_VALID | PTE_DIRTY | PTE_GLOBAL;
+  PDE_OF(pmap, vaddr) = PTE_PFN(pg->paddr) | PTE_KERNEL;
 
   pte_t *pte = (pte_t *)PTF_ADDR_OF(vaddr);
   for (int i = 0; i < PTF_ENTRIES; i++)
@@ -226,16 +266,16 @@ bool pmap_probe(pmap_t *pmap, vm_addr_t start, vm_addr_t end, vm_prot_t prot) {
   pte_t expected = vm_prot_map[prot];
 
   while (start < end) {
-    tlbhi_t hi = PTE_VPN2(start) | PTE_ASID(pmap->asid);
-    tlblo_t lo0, lo1;
-    int tlb_idx = tlb_probe(hi, &lo0, &lo1);
     pte_t pte = is_valid(PDE_OF(pmap, start)) ? PTE_OF(pmap, start) : 0;
+    tlbentry_t e = {.hi = PTE_VPN2(start) | PTE_ASID(pmap->asid)};
 
-    if (tlb_idx >= 0) {
-      tlblo_t lo = PTE_LO_INDEX_OF(start) ? lo1 : lo0;
+    int i = tlb_probe(&e);
+    if (i >= 0) {
+      tlblo_t lo = PTE_LO_INDEX_OF(start) ? e.lo1 : e.lo0;
       if (lo != pte)
-        panic("TLB (%08x) vs. PTE (%08lx) mismatch for virtual address %08lx!",
-              lo, pte, start);
+        panic("TLB[%d] (%08lx) vs. PTE (%08lx) mismatch "
+              "for virtual address %08lx!",
+              i, lo, pte, start);
     }
 
     if ((pte & PTE_PROT_MASK) != expected)
@@ -292,10 +332,13 @@ void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
  */
 
 void pmap_activate(pmap_t *pmap) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_INTR_DISABLED();
 
   PCPU_GET(curpmap) = pmap;
-  mips32_set_c0(C0_ENTRYHI, pmap ? pmap->asid : 0);
+  update_wired_pde(pmap);
+
+  /* Set ASID for current process */
+  mips32_setentryhi(pmap ? pmap->asid : 0);
 }
 
 pmap_t *get_kernel_pmap() {
@@ -353,11 +396,11 @@ void tlb_exception_handler(exc_frame_t *frame) {
       uint32_t index0 = index & ~1;
       uint32_t index1 = index0 | 1;
       vm_addr_t ptf_start = PT_BASE + index0 * PAGESIZE;
+      tlbhi_t hi = PTE_VPN2(ptf_start) | PTE_ASID(pmap->asid);
 
-      /* Both ENTRYLO0 and ENTRYLO1 must have G bit set for address translation
-       * to skip ASID check. */
-      tlb_overwrite_random(ptf_start | pmap->asid, pmap->pde[index0],
-                           pmap->pde[index1]);
+      tlbentry_t e = {
+        .hi = hi, .lo0 = pmap->pde[index0], .lo1 = pmap->pde[index1]};
+      tlb_overwrite_random(&e);
       return;
     }
 
@@ -391,5 +434,3 @@ fault:
           exceptions[code], frame->pc, vaddr, td);
   }
 }
-
-SYSINIT_ADD(pmap, pmap_init, NODEPS);

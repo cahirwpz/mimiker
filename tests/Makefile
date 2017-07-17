@@ -1,8 +1,9 @@
+TOPDIR = $(realpath ..)
+
 SOURCES_C = \
 	broken.c \
 	callout.c \
 	crash.c \
-	initrd.c \
 	klog.c \
 	linker_set.c \
 	malloc.c \
@@ -15,7 +16,6 @@ SOURCES_C = \
 	rwlock.c \
 	sched.c \
 	strtol.c \
-	syscall.c \
 	taskqueue.c \
 	thread_stats.c \
 	thread_exit.c \
@@ -28,7 +28,7 @@ SOURCES_ASM =
 
 all: $(DEPFILES) libtests.a
 
-include ../Makefile.common
+include $(TOPDIR)/build/build.kern.mk
 
 libtests.a: $(OBJECTS)
 
