@@ -14,6 +14,8 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <exec.h>
+#include <stdc.h>
 
 #define PATH_MAX 1024
 
@@ -360,6 +362,86 @@ end:
   return result;
 }
 
+static int sys_execve(thread_t *td, syscall_args_t *args) {
+  const char *user_path = (const char *)args->args[0];
+  const char **user_argv = (const char **)args->args[1];
+
+  if ((user_path == NULL) || (user_argv == NULL))
+    return -EFAULT;
+
+  /*Unused as environments are not yet implemented*/
+  /*const char **user_envp = (const char**)args->args[2];*/
+
+  char **kern_argv;
+  char *data;
+
+  size_t argc = 0;
+
+  /*Assuming PATH_MAX means max size of path including the filename.*/
+  /*Assuming kmalloc always succeeds.*/
+  char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
+  int result = copyinstr(user_path, kern_path, PATH_MAX, 0);
+  if (result < 0)
+    goto path_copy_failure;
+
+  size_t i = 0;
+  size_t isize;
+
+  while ((i < ARG_MAX) && (user_argv[i] != NULL))
+    i++;
+
+  if (i == ARG_MAX) {
+    result = -E2BIG;
+    goto free_mem_and_fail;
+  }
+
+  argc = i;
+
+  if (!argc) {
+    result = -EFAULT;
+    goto free_mem_and_fail;
+  }
+
+  kern_argv = kmalloc(M_TEMP, (argc + 1) * sizeof(char *), 0);
+  kern_argv[argc] = NULL;
+  data = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0);
+
+  size_t data_off = 0;
+  i = 0;
+
+  while ((data_off < ARG_MAX) && (i < argc)) {
+
+    if ((result = copyinstr(user_argv[i], data + data_off, ARG_MAX - data_off,
+                            &isize)) < 0) {
+
+      result = (result == -ENAMETOOLONG) ? -E2BIG : result;
+      goto argv_copy_failure;
+    }
+
+    kern_argv[i] = data + data_off;
+
+    data_off += isize;
+    i++;
+  }
+
+  /*WARNING: exec_args_t.argv type is probably incorrect. It is const char**,
+   should be char *const */
+
+  const exec_args_t exec_args = {
+    .prog_name = kern_path, .argv = (const char **)kern_argv, .argc = argc};
+  result = do_exec(&exec_args);
+
+argv_copy_failure:
+  kfree(M_TEMP, data);
+  kfree(M_TEMP, kern_argv);
+
+path_copy_failure:
+free_mem_and_fail:
+  kfree(M_TEMP, kern_path);
+
+  return result;
+}
+
 static int sys_access(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
   mode_t mode = args->args[1];
@@ -405,5 +487,6 @@ sysent_t sysent[] = {
     [SYS_WAITPID] = {sys_waitpid},
     [SYS_MKDIR] = {sys_mkdir},
     [SYS_RMDIR] = {sys_rmdir},
+    [SYS_EXECVE] = {sys_execve},
     [SYS_ACCESS] = {sys_access},
 };

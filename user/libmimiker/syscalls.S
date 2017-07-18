@@ -5,7 +5,7 @@
 
         .set noreorder
 
-AENT(execve)
+
 AENT(link)
 AENT(symlink)
 AENT(readlink)
@@ -70,6 +70,7 @@ SYSCALL(waitpid, SYS_WAITPID)
 SYSCALL(mkdir, SYS_MKDIR)
 SYSCALL(rmdir, SYS_RMDIR)
 SYSCALL(access, SYS_ACCESS)
+SYSCALL(execve, SYS_EXECVE)
 SYSCALL(stat, SYS_STAT)
 
 # vim: sw=8 ts=8 et

@@ -21,6 +21,7 @@ newlib: | libmimiker-install
 sandbox: | newlib-install
 mandelbrot: | newlib-install
 ls_rec: | newlib-install
+test_execve: | newlib-install
 utest: | newlib-install
 test_kbd: | newlib-install
 test_rtc: | newlib-install

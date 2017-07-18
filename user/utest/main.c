@@ -39,6 +39,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(lseek_basic);
   CHECKRUN_TEST(lseek_errors);
   CHECKRUN_TEST(access_basic);
+  CHECKRUN_TEST(execve_basic);
+  CHECKRUN_TEST(execve_errors);
   CHECKRUN_TEST(stat);
   CHECKRUN_TEST(fstat);
 

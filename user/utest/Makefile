@@ -12,6 +12,7 @@ SOURCES_C = \
 	mmap.c \
 	sbrk.c \
 	signal.c \
+	execve.c \
 	stat.c
 
 include $(TOPDIR)/build/build.prog.mk
