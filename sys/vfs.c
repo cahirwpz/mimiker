@@ -8,6 +8,7 @@
 #include <vnode.h>
 #include <linker_set.h>
 #include <sysinit.h>
+#include <common.h>
 
 /* TODO: We probably need some fancier allocation, since eventually we should
  * start recycling vnodes */
@@ -193,7 +194,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   size_t n = strlen(path);
   if (n >= PATH_MAX)
     return -ENAMETOOLONG;
-  char pathcopy[PATH_MAX];
+  char *pathcopy = kmalloc(M_TEMP, PATH_MAX, 0);
   strlcpy(pathcopy, path, PATH_MAX);
   char *pathbuf = pathcopy;
   const char *component;
@@ -202,7 +203,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   vnode_lock(v);
 
   if ((error = vfs_maybe_descend(&v)))
-    return error;
+    goto free_mem_and_return;
 
   while ((component = strsep(&pathbuf, "/")) != NULL) {
     if (component[0] == '\0')
@@ -215,19 +216,23 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     vnode_unlock(v);
     vnode_unref(v);
     if (error)
-      return error;
+      goto free_mem_and_return;
     v = v_child;
     /* No need to ref this vnode, VFS_LOOKUP already did it for us. */
     vnode_lock(v);
 
     if ((error = vfs_maybe_descend(&v)))
-      return error;
+      goto free_mem_and_return;
   }
 
   vnode_unlock(v);
   *vp = v;
 
-  return 0;
+  error = 0;
+
+free_mem_and_return:
+  kfree(M_TEMP, pathcopy);
+  return error;
 }
 
 int vfs_open(file_t *f, char *pathname, int flags, int mode) {
