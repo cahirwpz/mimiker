@@ -191,10 +191,10 @@ int vfs_lookup(const char *path, vnode_t **vp) {
 
   /* Copy path into a local buffer, so that we may process it. */
   size_t n = strlen(path);
-  if (n >= VFS_PATH_MAX)
+  if (n >= PATH_MAX)
     return -ENAMETOOLONG;
-  char pathcopy[VFS_PATH_MAX];
-  strlcpy(pathcopy, path, VFS_PATH_MAX);
+  char pathcopy[PATH_MAX];
+  strlcpy(pathcopy, path, PATH_MAX);
   char *pathbuf = pathcopy;
   const char *component;
 
