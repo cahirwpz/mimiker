@@ -211,6 +211,26 @@ int test_fd_dup() {
   return 0;
 }
 
+int test_fd_pipe() {
+  int fd[2];
+  pid_t child;
+  pipe(fd);
+
+  if ((child = fork()) == -1)
+    return 1;
+  if (child != 0) {
+    close(fd[0]);
+    write(fd[1], "test\n", 6);
+  } else {
+    close(fd[1]);
+    char test[10];
+    read(fd[0], test, 10);
+    printf("%s\n", test);
+  }
+
+  return 0;
+}
+
 int test_fd_all() {
   /* Call all fd-related tests one by one to see how they impact the process
    * file descriptor table. */
@@ -221,6 +241,7 @@ int test_fd_all() {
   test_fd_copy();
   test_fd_bad_desc();
   test_fd_open_path();
+  test_fd_pipe();
   test_fd_dup();
   return 0;
 }

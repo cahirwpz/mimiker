@@ -13,6 +13,7 @@
 #include <stdc.h>
 #include <thread.h>
 #include <initrd.h>
+#include <pipe.h>
 
 extern unsigned int __bss[];
 extern unsigned int __ebss[];
@@ -185,6 +186,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   kmem_bootstrap();
   sleepq_init();
   thread_bootstrap();
+  pipe_init();
 
   klog("Switching to 'kernel-main' thread...");
 }
