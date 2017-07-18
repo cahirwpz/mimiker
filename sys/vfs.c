@@ -203,7 +203,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   vnode_lock(v);
 
   if ((error = vfs_maybe_descend(&v)))
-    goto free_mem_and_return;
+    goto end;
 
   while ((component = strsep(&pathbuf, "/")) != NULL) {
     if (component[0] == '\0')
@@ -216,13 +216,13 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     vnode_unlock(v);
     vnode_unref(v);
     if (error)
-      goto free_mem_and_return;
+      goto end;
     v = v_child;
     /* No need to ref this vnode, VFS_LOOKUP already did it for us. */
     vnode_lock(v);
 
     if ((error = vfs_maybe_descend(&v)))
-      goto free_mem_and_return;
+      goto end;
   }
 
   vnode_unlock(v);
@@ -230,7 +230,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
 
   error = 0;
 
-free_mem_and_return:
+end:
   kfree(M_TEMP, pathcopy);
   return error;
 }
