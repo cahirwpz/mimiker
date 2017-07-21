@@ -5,7 +5,7 @@ import klog
 import cpu
 import thread
 import sync
-
+import kmem
 
 def addPrettyPrinters():
     pp = gdb.printing.RegexpCollectionPrettyPrinter('mimiker')
@@ -21,3 +21,4 @@ thread.Kthread()
 cpu.Cpu()
 kdump.Kdump()
 klog.Klog()
+kmem.Kmem()
