@@ -7,6 +7,7 @@ import thread
 import sync
 import kmem
 
+
 def addPrettyPrinters():
     pp = gdb.printing.RegexpCollectionPrettyPrinter('mimiker')
     pp.add_printer('mtx', 'mtx', sync.Mutex)
@@ -14,6 +15,7 @@ def addPrettyPrinters():
     pp.add_printer('thread', 'thread', thread.Thread)
     pp.add_printer('timeval', 'timeval', klog.TimeVal)
     gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
+
 
 addPrettyPrinters()
 ktrace.Ktrace()

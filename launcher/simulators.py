@@ -82,6 +82,7 @@ class QEMU(Launchable):
         if not kwargs['graphics']:
             self.options += ['-display', 'none']
 
+
 SIMULATORS = [QEMU(), OVPsim()]
 
 

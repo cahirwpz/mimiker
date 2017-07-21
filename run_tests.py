@@ -106,6 +106,7 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
                   "test success. Seed was: %d, repeat: %d" % (seed, repeat))
             sys.exit(1)
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Automatically performs kernel tests.')
