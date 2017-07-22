@@ -2,7 +2,7 @@
 #include <thread.h>
 #include <time.h>
 #include <timer.h>
-#include <sync.h>
+#include <interrupt.h>
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp) {
   if (tp == NULL)
@@ -31,7 +31,7 @@ int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
   timeval_t diff = ts2tv(*rqtp);
   timer_event_t tev = {.tev_when = timeval_add(&now, &diff), .tev_func = waker};
 
-  CRITICAL_SECTION {
+  WITH_INTR_DISABLED {
     cpu_timer_add_event(&tev);
     sleepq_wait(&tev, "clock_nanosleep");
   }
