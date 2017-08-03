@@ -56,6 +56,10 @@ class GdbStructBase(object):
     def display_hint(self):
         return 'map'
 
+    @property
+    def address(self):
+        return str(self._obj.address)
+
 
 class GdbStructMeta(type):
     def __new__(cls, name, bases, dct):

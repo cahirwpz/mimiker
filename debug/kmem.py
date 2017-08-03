@@ -1,8 +1,8 @@
+from __future__ import print_function
 import gdb
 import utils
 from ptable import ptable
 from tailq import TailQueue
-
 
 class PoolSet:
     @staticmethod
@@ -29,7 +29,7 @@ class PoolSet:
                 result.append(varname)
 
         return result
-
+    
     @staticmethod
     def __is_local_pool(name):
         type_decl = gdb.execute('whatis %s' % name, False, True)
@@ -55,59 +55,98 @@ class PoolSet:
 class Pool():
     __metaclass__ = utils.GdbStructMeta
     __ctype__ = 'kmem_pool_t'
-    __cast__ = {'mp_desc': str, 'mp_pages_used': str, 'mp_pages_max': str,
+    __cast__ = {'mp_desc': str, 'mp_pages_used': int, 'mp_pages_max': int,
                 'mp_arena': lambda x: map(Arena,
                                           TailQueue(field='ma_list', tq=x))}
 
     def __init__(self, obj, name):
         super(Pool, self).__init__(obj)
         self.name = name
-        self.address = str(obj.address)
-
-    @staticmethod
-    def get_table_header():
-        return [["Pool name", "Pool descr.",
-                 "Pages used", "Pages max."]]
-
-    def get_row(self):
-        return [self.name, self.mp_desc, self.mp_pages_used, self.mp_pages_max]
 
 
 class Arena():
     __metaclass__ = utils.GdbStructMeta
     __ctype__ = 'mem_arena_t'
-    __cast__ = {'ma_size': str, 'ma_flags': str, 'ma_freeblks':
+    __cast__ = {'ma_size': int, 'ma_flags': int, 'ma_freeblks':
                 lambda x: map(Block, TailQueue(field='mb_list', tq=x))}
 
     def __init__(self, obj):
         super(Arena, self).__init__(obj)
-        self.address = str(obj.address)
-
-    @staticmethod
-    def get_header():
-        return [["arena addr.", "ma_size", "ma_flags", "ma_freeblks first"]]
-
-    def get_row(self):
-        return [self.address, self.ma_size, self.ma_flags,
-                str(iter(self.ma_freeblks).next().address)]
 
 
 class Block():
     __metaclass__ = utils.GdbStructMeta
     __ctype__ = 'mem_block_t'
-    __cast__ = {'mb_size': str, 'mb_data': str}
+    __cast__ = {'mb_size': int, 'mb_data': str}
 
     def __init__(self, obj):
         super(Block, self).__init__(obj)
-        self.address = str(obj.address)
+
+
+class OutputCreator():
+    @staticmethod
+    def get_pool_header():
+        return [["Pool name", "Pool descr.",
+                 "Pages used", "Pages max."]]
 
     @staticmethod
-    def get_header():
+    def get_pool_table_row(p):
+        return [p.name, p.mp_desc, str(p.mp_pages_used),
+                str(p.mp_pages_max)]
+
+    @staticmethod
+    def get_arena_header():
+        return [["arena addr.", "ma_size", "ma_flags", "ma_freeblks first"]]
+
+    @staticmethod
+    def get_arena_row(a):
+        return [str(a.address), str(a.ma_size), str(a.ma_flags),
+                str(iter(a.ma_freeblks).next().address)]
+
+    @staticmethod
+    def get_block_header():
         return [["block addr", "mb_size", "mb_data addr."]]
 
-    def get_row(self):
-        return [self.address, self.mb_size, self.mb_data]
+    @staticmethod
+    def get_block_row(b):
+        return [str(b.address), str(b.mb_size), str(b.mb_data)]
 
+    
+    @staticmethod
+    def dump_all_pools(pools):
+        tbl = OutputCreator.get_pool_header()
+
+        tbl.extend([OutputCreator.get_pool_table_row(pool) for pool in pools ])
+
+        ptable(tbl, fmt="cccc", header=True)
+
+    @staticmethod    
+    def dump_pool(pool):
+        tbl = OutputCreator.get_pool_header()
+        tbl.append(OutputCreator.get_pool_table_row(pool))
+        ptable(tbl, fmt="cccc", header=True)
+
+ 
+    @staticmethod
+    def dump_arenas(pool):
+        tbl = OutputCreator.get_arena_header()
+        tbl.extend([OutputCreator.get_arena_row(a) for a in pool.mp_arena])
+
+        print('Arenas of %s pool' % pool.name)
+        ptable(tbl, fmt="cccc", header=True)
+
+        
+    @staticmethod
+    def dump_blocks(pool):
+        for arena in pool.mp_arena:
+            arena_addr = arena.address
+            print('Arena addr: %s' % str(arena_addr))
+            tbl = OutputCreator.get_block_header()
+
+            block_queue = arena.ma_freeblks
+            tbl.extend([OutputCreator.get_block_row(b) for b in block_queue])
+            ptable(tbl, fmt="ccc", header=True)
+       
 
 class Kmem(gdb.Command, utils.OneArgAutoCompleteMixin):
     """dump info about kernel memory pools
@@ -127,67 +166,35 @@ class Kmem(gdb.Command, utils.OneArgAutoCompleteMixin):
         super(Kmem, self).__init__('kmem', gdb.COMMAND_USER)
         self.pool_names = PoolSet.get_global_pools()
 
-    def add_row_to_pool_table(self, table, pool):
-        pool_ptr = gdb.parse_and_eval('%s' % pool)
-        name = str('%s' % pool)
-        p = Pool(pool_ptr, name)
-        table.append(p.get_row())
+        
 
-    def dump_all_pools(self):
-        tbl = Pool.get_table_header()
+    @staticmethod
+    def pool_from_name(name):
+        pool_ptr = gdb.parse_and_eval('%s' % name)
+        return Pool(pool_ptr, name)
+        
+    
+    def is_valid_pool(self, name):
+        return name in self.pool_names
 
-        for pool in self.pool_names:
-            self.add_row_to_pool_table(tbl, pool)
-
-        ptable(tbl, fmt="cccc", header=True)
-
-    def dump_pool(self, pool):
-        if self.is_valid_pool(pool):
-            tbl = Pool.get_table_header()
-            self.add_row_to_pool_table(tbl, pool)
-            ptable(tbl, fmt="cccc", header=True)
-        else:
-            print("Invalid pool name\n")
-
-    def is_valid_pool(self, pool):
-        return pool in self.pool_names
-
-    def dump_arenas(self, pool):
-        tbl = Arena.get_header()
-        pool_ptr = gdb.parse_and_eval('%s' % pool)
-
-        p = Pool(pool_ptr, pool)
-        for arena in p.mp_arena:
-            tbl.append(arena.get_row())
-
-        print 'Arenas of %s pool' % pool
-        ptable(tbl, fmt="cccc", header=True)
-
-    def dump_blocks(self, pool):
-
-        pool_ptr = gdb.parse_and_eval('%s' % pool)
-        p = Pool(pool_ptr, pool)
-
-        for arena in p.mp_arena:
-            arena_addr = arena.address
-            print 'Arena addr: %s' % str(arena_addr)
-            tbl = Block.get_header()
-
-            block_queue = arena.ma_freeblks
-            for block in block_queue:
-                tbl.append(block.get_row())
-            ptable(tbl, fmt="ccc", header=True)
-
+ 
     def invoke(self, args, from_tty):
         self.pool_names = PoolSet.get_global_pools()
 
         if len(args) < 1:
-            self.dump_all_pools()
+            OutputCreator.dump_all_pools([Kmem.pool_from_name(x) for x
+                                          in self.pool_names])
+
         else:
             self.pool_names += PoolSet.get_local_pools()
-            self.dump_pool(args)
-            self.dump_arenas(args)
-            self.dump_blocks(args)
+            if self.is_valid_pool(args):
+                pool = Kmem.pool_from_name(args)
+                OutputCreator.dump_pool(pool)
+                OutputCreator.dump_arenas(pool)
+                OutputCreator.dump_blocks(pool)      
+            else:
+                print("Invalid pool name\n")
+
 
     def options(self):
         return PoolSet.get_global_pools() + \
