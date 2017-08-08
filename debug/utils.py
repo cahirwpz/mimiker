@@ -10,38 +10,35 @@ class Vars():
         output = subprocess.check_output(['mipsel-mimiker-elf-readelf',
                                           '-sW', 'mimiker.elf'],
                                          universal_newlines=True)
-        lines = output.split('\n')
-        lines = lines[3:]
+
+        lines = re.findall('^\s*\S+\s+\S+\s+\S+\s+\S+'
+                           '\s+\S+\s+\S+\s+\S+\s+\S+$',
+                           output, re.MULTILINE)
+
         result = []
-        for line in lines[:-1]:
-            line = line.split()
-            if len(line) == 8:
-                result.append(line[7])
+        for line in lines[1:]:
+            _, _, _, _, _, _, _, varname = line.split()
+            result.append(varname)
 
         return result
 
     @staticmethod
     def local_vars():
         decls_string = gdb.execute('info locals', False, True)
-        decls = decls_string.split('\n')
-        result = []
+        return re.findall('^\S+', decls_string, re.MULTILINE)
 
-        if (decls[0] == ''):
-            return
-
-        for decl in decls[:-1]:
-            name = decl.split()[0]
-            result.append(name)
-
-        return result
+    @staticmethod
+    def get_typename_of(var):
+        output = gdb.execute('whatis %s' % var, False, True)
+        return output[7:-1]
 
     @staticmethod
     def has_type(var, typename):
         try:
-            output = gdb.execute('whatis %s' % var, False, True)
+            typename_of_var = Vars.get_typename_of(var)
         except:
             return False
-        type_decl = Vars.__remove_spaces(output[7:-1])
+        type_decl = Vars.__remove_spaces(typename_of_var)
         return (Vars.__remove_spaces(typename) == type_decl)
 
     @staticmethod

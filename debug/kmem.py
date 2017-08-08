@@ -137,11 +137,10 @@ class Kmem(gdb.Command, utils.OneArgAutoCompleteMixin):
 
     @staticmethod
     def __pool_from_name(name):
-        pool_ptr = gdb.parse_and_eval('%s' % name)
+        pool_ptr = gdb.parse_and_eval(name)
         return Pool(pool_ptr, name)
 
     def invoke(self, args, from_tty):
-
         if len(args) < 1:
             OutputCreator.dump_pools([Kmem.__pool_from_name(var) for var
                                       in self.pool_names])
