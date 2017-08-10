@@ -2,7 +2,7 @@ import gdb
 import subprocess
 
 
-def global_vars():
+def list_of_globals():
     output = subprocess.check_output(['mipsel-mimiker-elf-readelf',
                                       '-sW', 'mimiker.elf'],
                                      universal_newlines=True)
@@ -11,14 +11,14 @@ def global_vars():
     return [fields[7] for fields in records if len(fields) == 8]
 
 
-def local_vars():
+def list_of_locals():
     decls_string = gdb.execute('info locals', False, True)
     return [decl.split()[0] for decl in decls_string.splitlines()[:-1]]
 
 
 def get_typename_of(var):
-    output = gdb.execute('whatis %s' % var, False, True)
-    return output[7:-1]
+    object = gdb.parse_and_eval(var)
+    return str(object.type)
 
 
 def has_type(var, typename):
@@ -31,5 +31,4 @@ def has_type(var, typename):
 
 
 def _remove_spaces(typename):
-    splt = typename.split(' ')
-    return reduce((lambda x, y: x+y), splt)
+    return typename.replace(' ', '')
