@@ -11,6 +11,7 @@ you can use following custom commands:
 
 * `kdump` - Print on screen current state of kernel structures,
 * `ktrace` - Add/remove breakpoint on selected function.
+* `kmem` - Dump info on kernel memory pools.
 
 `kdump` parameter select which state to dump:
 
@@ -28,3 +29,8 @@ breakpoints on:
 
 * `thread-create` - function [thread_create](https://github.com/cahirwpz/mimiker/blob/master/sys/thread.c)
 * `ctx-switch` - function [ctx_switch](https://github.com/cahirwpz/mimiker/blob/master/mips/switch.S)
+
+`kmem` parameter is a name of a pool, either declared globally (most
+likely of the form M_*, e.g. M_TEMP) or locally in current scope. To
+see a list of available pools use autocompletion feature, i.e. write
+`kmem <TAB><TAB>`.
