@@ -66,12 +66,12 @@ class Kmem(gdb.Command, utils.OneArgAutoCompleteMixin):
 
     @staticmethod
     def __local_pool_names():
-        return [var for var in vars.list_of_locals()
+        return [var for var in vars.set_of_locals()
                 if Kmem.__is_local_pool_name(var)]
 
     @staticmethod
     def __global_pool_names():
-        return [var for var in vars.list_of_globals()
+        return [var for var in vars.set_of_globals()
                 if Kmem.__is_global_pool_name(var)]
 
     @staticmethod
