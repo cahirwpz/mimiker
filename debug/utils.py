@@ -58,7 +58,7 @@ class GdbStructBase(object):
 
     @property
     def address(self):
-        return str(self._obj.address)
+        return self._obj.address
 
 
 class GdbStructMeta(type):
