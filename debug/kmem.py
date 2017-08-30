@@ -18,6 +18,9 @@ class Pool():
         super(Pool, self).__init__(obj)
         self.name = name
 
+    def is_valid(self):
+        return self.mp_magic == 0xC0DECAFE
+
 
 class Arena():
     __metaclass__ = utils.GdbStructMeta
@@ -29,6 +32,9 @@ class Arena():
     def __init__(self, obj):
         super(Arena, self).__init__(obj)
 
+    def is_valid(self):
+        return self.ma_magic == 0xC0DECAFE
+
 
 class Block():
     __metaclass__ = utils.GdbStructMeta
@@ -37,6 +43,9 @@ class Block():
 
     def __init__(self, obj):
         super(Block, self).__init__(obj)
+
+    def is_valid(self):
+        return self.mb_magic == 0xC0DECAFE
 
 
 class Kmem(gdb.Command, utils.OneArgAutoCompleteMixin):
@@ -81,32 +90,22 @@ class Kmem(gdb.Command, utils.OneArgAutoCompleteMixin):
         return Pool(pool_ptr, name)
 
     @staticmethod
-    def is_valid(o):
-        canary = {
-            Pool: lambda p: p.mp_magic,
-            Arena: lambda a: a.ma_magic,
-            Block: lambda b: b.mb_magic
-        }[type(o)](o)
-
-        return canary == 0xC0DECAFE
-
-    @staticmethod
     def __kmem_dump(pool):
-        if not Kmem.is_valid(pool):
+        if not pool.is_valid():
             print('Pool is corrupted!')
             return
         print(Kmem.__get_pool_descr(pool))
 
-        for a in pool.mp_arena:
-            if not Kmem.is_valid(a):
+        for arena in pool.mp_arena:
+            if not arena.is_valid():
                 print('\t Arena is corrupted!')
                 continue
-            print('\t' + Kmem.__get_arena_descr(a))
-            for b in a.ma_freeblks:
-                if not Kmem.is_valid(b):
+            print('\t' + Kmem.__get_arena_descr(arena))
+            for block in arena.ma_freeblks:
+                if not block.is_valid():
                     print('\t\t Block is corrupted!')
                     continue
-                print('\t\t' + Kmem.__get_block_descr(b))
+                print('\t\t' + Kmem.__get_block_descr(block))
 
     @staticmethod
     def __get_pool_descr(p):
@@ -127,7 +126,7 @@ class Kmem(gdb.Command, utils.OneArgAutoCompleteMixin):
     @staticmethod
     def __dump_pools(pools):
         def _get_pool_table_row(p):
-            if Kmem.is_valid(p):
+            if p.is_valid():
                 return [p.name, p.mp_desc, str(p.mp_pages_used),
                         str(p.mp_pages_max)]
             else:
