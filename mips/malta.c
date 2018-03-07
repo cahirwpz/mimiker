@@ -165,7 +165,6 @@ static void thread_bootstrap(void) {
   kframe->a1 = (reg_t)_kenv.argv;
   kframe->sr |= SR_IE; /* the thread will run with interrupts enabled */
   td->td_state = TDS_RUNNING;
-  td->td_idnest = 0;
   PCPU_SET(curthread, td);
 }
 

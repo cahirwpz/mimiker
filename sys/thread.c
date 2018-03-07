@@ -94,9 +94,9 @@ noreturn void thread_exit(void) {
   /* Thread must not exit while having interrupts disabled! However, we can't
    * use assert here, because assert also calls thread_exit. Thus, in case this
    * condition is not met, we'll log the problem, and try to fix the problem. */
-  if (td->td_idnest != 0) {
-    klog("ERROR: Thread must not exit within a critical section!");
-    while (td->td_idnest--)
+  if (td->td_idnest > 0) {
+    klog("ERROR: Thread must not exit when interrupts are disabled!");
+    while (td->td_idnest > 0)
       intr_enable();
   }
 
@@ -114,8 +114,8 @@ noreturn void thread_exit(void) {
     TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
   }
 
-  cv_broadcast(&td->td_waitcv);
   td->td_state = TDS_DEAD;
+  cv_broadcast(&td->td_waitcv);
   mtx_unlock(&td->td_lock);
 
   sched_switch();

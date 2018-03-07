@@ -12,19 +12,19 @@ static intr_chain_list_t all_ichains_list =
 
 bool intr_disabled(void) {
   thread_t *td = thread_self();
-  return (td->td_idnest > 0) || mips_intr_disabled();
+  return (td->td_idnest > 0) && mips_intr_disabled();
 }
 
 void intr_disable(void) {
-  thread_t *td = thread_self();
-  if (td->td_idnest++ == 0)
-    mips_intr_disable();
+  mips_intr_disable();
+  thread_self()->td_idnest++;
 }
 
 void intr_enable(void) {
+  assert(intr_disabled());
   thread_t *td = thread_self();
-  assert(td->td_idnest > 0);
-  if (--td->td_idnest == 0)
+  td->td_idnest--;
+  if (td->td_idnest == 0)
     mips_intr_enable();
 }
 

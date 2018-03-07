@@ -104,6 +104,8 @@ void sched_switch(void) {
 }
 
 void sched_clock(void) {
+  assert(intr_disabled());
+
   thread_t *td = thread_self();
 
   if (td != PCPU_GET(idle_thread))

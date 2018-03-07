@@ -3,10 +3,9 @@
 #include <sched.h>
 #include <signal.h>
 
+/* TODO `exc_before_leave` should be called with enabled interrupts. */
 void exc_before_leave(exc_frame_t *kframe) {
   thread_t *td = thread_self();
-
-  td->td_kframe = kframe;
 
   /* If thread requested not to be preempted, then do not switch out! */
   if (td->td_pdnest > 0)
