@@ -11,7 +11,8 @@
 #include <thread.h>
 #include <ktest.h>
 #include <signal.h>
-#include <interrupt.h>
+#include <spinlock.h>
+#include <sched.h>
 #include <sysinit.h>
 
 static MALLOC_DEFINE(M_PMAP, "pmap", 4, 8);
@@ -60,10 +61,11 @@ static bool in_kernel_space(vm_addr_t addr) {
 
 static pmap_t kernel_pmap;
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
+static spinlock_t *asid_lock = &SPINLOCK_INITIALIZER();
 
 static asid_t alloc_asid(void) {
   int free;
-  WITH_INTR_DISABLED {
+  WITH_SPINLOCK(asid_lock) {
     bit_ffc(asid_used, MAX_ASID, &free);
     if (free < 0)
       panic("Out of asids!");
@@ -75,7 +77,7 @@ static asid_t alloc_asid(void) {
 
 static void free_asid(asid_t asid) {
   klog("free_asid(%d)", asid);
-  SCOPED_INTR_DISABLED();
+  SCOPED_SPINLOCK(asid_lock);
   bit_clear(asid_used, (unsigned)asid);
   tlb_invalidate_asid(asid);
 }
@@ -332,7 +334,7 @@ void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
  */
 
 void pmap_activate(pmap_t *pmap) {
-  SCOPED_INTR_DISABLED();
+  SCOPED_NO_PREEMPTION();
 
   PCPU_GET(curpmap) = pmap;
   update_wired_pde(pmap);

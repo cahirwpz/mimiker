@@ -3,9 +3,11 @@
 #include <mips/m32c0.h>
 #include <mips/config.h>
 #include <mips/intr.h>
+#include <spinlock.h>
 #include <stdc.h>
 
 static timer_event_list_t events = TAILQ_HEAD_INITIALIZER(events);
+static spinlock_t *events_lock = &SPINLOCK_INITIALIZER();
 
 static inline uint32_t ticks(timer_event_t *tev) {
   return tev->tev_when.tv_sec * TICKS_PER_SEC +
@@ -44,7 +46,7 @@ static intr_filter_t cpu_timer_intr(void *arg) {
 }
 
 void cpu_timer_add_event(timer_event_t *tev) {
-  SCOPED_INTR_DISABLED();
+  SCOPED_SPINLOCK(events_lock);
 
   if (TAILQ_EMPTY(&events))
     mips_intr_setup(&cpu_timer_intr_handler, MIPS_HWINT5);
@@ -63,7 +65,7 @@ void cpu_timer_add_event(timer_event_t *tev) {
 }
 
 void cpu_timer_remove_event(timer_event_t *tev) {
-  SCOPED_INTR_DISABLED();
+  SCOPED_SPINLOCK(events_lock);
 
   TAILQ_REMOVE(&events, tev, tev_link);
 

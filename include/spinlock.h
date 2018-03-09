@@ -24,6 +24,7 @@ typedef struct thread thread_t;
  */
 typedef struct spinlock {
   volatile thread_t *s_owner; /*!< stores address of the owner */
+  volatile unsigned s_count;  /*!< counter for recursive spinlock */
   const void *s_lockpt;       /*!< place where the lock was acquired */
 } spinlock_t;
 
