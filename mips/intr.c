@@ -6,7 +6,7 @@
 #include <mips/intr.h>
 #include <mips/mips.h>
 #include <pmap.h>
-#include <pmap.h>
+#include <spinlock.h>
 #include <queue.h>
 #include <stdc.h>
 #include <sysent.h>
@@ -64,7 +64,7 @@ void mips_intr_init(void) {
 
 void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
   intr_chain_t *chain = &mips_intr_chain[irq];
-  WITH_INTR_DISABLED {
+  WITH_SPINLOCK(&chain->ic_lock) {
     intr_chain_add_handler(chain, handler);
     if (chain->ic_count == 1) {
       mips32_bs_c0(C0_STATUS, SR_IM0 << irq); /* enable interrupt */
@@ -75,7 +75,7 @@ void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
 
 void mips_intr_teardown(intr_handler_t *handler) {
   intr_chain_t *chain = handler->ih_chain;
-  WITH_INTR_DISABLED {
+  WITH_SPINLOCK(&chain->ic_lock) {
     if (chain->ic_count == 1)
       mips32_bc_c0(C0_STATUS, SR_IM0 << chain->ic_irq);
     intr_chain_remove_handler(handler);

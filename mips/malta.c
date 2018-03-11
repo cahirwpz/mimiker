@@ -9,6 +9,7 @@
 #include <console.h>
 #include <pcpu.h>
 #include <pmap.h>
+#include <pool.h>
 #include <stdc.h>
 #include <thread.h>
 #include <initrd.h>
@@ -165,6 +166,7 @@ static void thread_bootstrap(void) {
   kframe->a1 = (reg_t)_kenv.argv;
   kframe->sr |= SR_IE; /* the thread will run with interrupts enabled */
   td->td_state = TDS_RUNNING;
+  td->td_idnest = 0;
   PCPU_SET(curthread, td);
 }
 
@@ -181,6 +183,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   mips_intr_init();
   pm_bootstrap(memsize);
   pmap_init();
+  pool_bootstrap();
   kmem_bootstrap();
   sleepq_init();
   thread_bootstrap();

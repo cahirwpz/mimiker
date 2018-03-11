@@ -4,11 +4,9 @@
 #include <queue.h>
 #include <stdc.h>
 #include <sleepq.h>
-#include <malloc.h>
+#include <pool.h>
 #include <sched.h>
 #include <thread.h>
-
-static MALLOC_DEFINE(M_SLEEPQ, "sleepq", 1, 2);
 
 #define SC_TABLESIZE 256 /* Must be power of 2. */
 #define SC_MASK (SC_TABLESIZE - 1)
@@ -36,23 +34,32 @@ typedef struct sleepq_chain {
 
 static sleepq_chain_t sleepq_chains[SC_TABLESIZE];
 
+static pool_t P_SLEEPQ;
+
+static void sleepq_ctor(sleepq_t *sq) {
+  TAILQ_INIT(&sq->sq_blocked);
+  LIST_INIT(&sq->sq_free);
+  sq->sq_nblocked = 0;
+  sq->sq_wchan = NULL;
+}
+
 void sleepq_init(void) {
   memset(sleepq_chains, 0, sizeof(sleepq_chains));
   for (int i = 0; i < SC_TABLESIZE; i++) {
     sleepq_chain_t *sc = &sleepq_chains[i];
     LIST_INIT(&sc->sc_queues);
   }
+
+  P_SLEEPQ =
+    pool_create("sleepq", sizeof(sleepq_t), (pool_ctor_t)sleepq_ctor, NULL);
 }
 
 sleepq_t *sleepq_alloc(void) {
-  sleepq_t *sq = kmalloc(M_SLEEPQ, sizeof(sleepq_t), M_ZERO);
-  TAILQ_INIT(&sq->sq_blocked);
-  LIST_INIT(&sq->sq_free);
-  return sq;
+  return pool_alloc(P_SLEEPQ, 0);
 }
 
 void sleepq_destroy(sleepq_t *sq) {
-  kfree(M_SLEEPQ, sq);
+  pool_free(P_SLEEPQ, sq);
 }
 
 /*! \brief Lookup the sleep queue associated with \a wchan.

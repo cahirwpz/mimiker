@@ -4,11 +4,10 @@
 #include <common.h>
 #include <queue.h>
 #include <mutex.h>
+#include <syslimits.h>
 
 /* Maximum length of a filesystem type name */
 #define VFSCONF_NAME_MAX 32
-/* Maximum length of a path to lookup */
-#define VFS_PATH_MAX 256
 
 /* Forward declarations */
 typedef struct mount mount_t;

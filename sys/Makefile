@@ -43,6 +43,7 @@ SOURCES_C  = \
 	sched.c \
 	signal.c \
 	sleepq.c \
+	spinlock.c \
 	startup.c \
 	sysent.c \
 	sysinit.c \

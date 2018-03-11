@@ -3,6 +3,7 @@
 #include <stdc.h>
 #include <mutex.h>
 #include <thread.h>
+#include <mips/intr.h>
 #include <interrupt.h>
 
 static mtx_t all_ichains_mtx = MTX_INITIALIZER(MTX_DEF);
@@ -33,7 +34,7 @@ void intr_chain_register(intr_chain_t *ic) {
 }
 
 void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
-  SCOPED_INTR_DISABLED();
+  SCOPED_SPINLOCK(&ic->ic_lock);
 
   /* Add new handler according to it's priority */
   intr_handler_t *it;
@@ -51,9 +52,10 @@ void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
 }
 
 void intr_chain_remove_handler(intr_handler_t *ih) {
-  SCOPED_INTR_DISABLED();
-
   intr_chain_t *ic = ih->ih_chain;
+
+  SCOPED_SPINLOCK(&ic->ic_lock);
+
   TAILQ_REMOVE(&ic->ic_handlers, ih, ih_list);
   ih->ih_chain = NULL;
   ic->ic_count--;
