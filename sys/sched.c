@@ -114,6 +114,9 @@ void sched_clock(void) {
 noreturn void sched_run(void) {
   thread_t *td = thread_self();
 
+  /* Make sure sched_run is launched once per every CPU */
+  assert(PCPU_GET(idle_thread) == NULL);
+
   PCPU_SET(idle_thread, td);
 
   td->td_name = "idle-thread";
