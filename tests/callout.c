@@ -2,24 +2,50 @@
 #include <callout.h>
 #include <ktest.h>
 #include <sleepq.h>
-#include <spinlock.h>
+#include <sched.h>
+
+static int counter;
+
+static void periodic_callout(void *arg) {
+  callout_t *callout = arg;
+  callout_setup_relative(callout, 1, periodic_callout, arg);
+}
+
+static int test_callout_sync(void) {
+  const int N = 10;
+
+  callout_t callout[N];
+
+  for (int i = 0; i < N; i++)
+    callout_setup_relative(&callout[i], 1, periodic_callout, &callout[i]);
+
+  for (int i = 0; i < N; i++)
+    callout_stop(&callout[i]);
+
+  return KTEST_SUCCESS;
+}
 
 /* This test verifies whether callouts work at all. */
 static void callout_simple(void *arg) {
-  kprintf("The callout got executed!\n");
-
+  counter++;
   sleepq_signal(callout_simple);
 }
 
-static spinlock_t *lock = &SPINLOCK_INITIALIZER();
-
 static int test_callout_simple(void) {
+  const int N = 100;
+
   callout_t callout;
 
-  WITH_SPINLOCK(lock) {
-    callout_setup_relative(&callout, 5, callout_simple, NULL);
-    sleepq_wait(callout_simple, "callout_simple");
+  counter = 0;
+
+  for (int i = 0; i < N; i++) {
+    WITH_NO_PREEMPTION {
+      callout_setup_relative(&callout, 1, callout_simple, NULL);
+      sleepq_wait(callout_simple, "callout_simple");
+    }
   }
+
+  assert(counter == N);
 
   return KTEST_SUCCESS;
 }
@@ -30,7 +56,7 @@ static int current = 0;
 
 static void callout_ordered(void *arg) {
   /* Atomic increment */
-  WITH_SPINLOCK(lock) {
+  WITH_NO_PREEMPTION {
     current++;
   }
 
@@ -40,12 +66,13 @@ static void callout_ordered(void *arg) {
 
 static int test_callout_order(void) {
   current = 0;
+
   int order[10] = {2, 5, 4, 6, 9, 0, 8, 1, 3, 7};
   callout_t callouts[10];
 
   /* Register callouts within a critical section, to ensure they use the same
      base time! */
-  WITH_SPINLOCK(lock) {
+  WITH_NO_PREEMPTION {
     for (int i = 0; i < 10; i++)
       callout_setup_relative(&callouts[i], 5 + order[i] * 5, callout_ordered,
                              (void *)order[i]);
@@ -71,7 +98,7 @@ static int test_callout_stop(void) {
   current = 0;
   callout_t callout1, callout2;
 
-  SCOPED_SPINLOCK(lock);
+  SCOPED_NO_PREEMPTION();
 
   callout_setup_relative(&callout1, 5, callout_bad, NULL);
   callout_setup_relative(&callout2, 10, callout_good, NULL);
@@ -85,6 +112,7 @@ static int test_callout_stop(void) {
   return KTEST_SUCCESS;
 }
 
+KTEST_ADD(callout_sync, test_callout_sync, 0);
 KTEST_ADD(callout_simple, test_callout_simple, KTEST_FLAG_BROKEN);
 KTEST_ADD(callout_order, test_callout_order, KTEST_FLAG_BROKEN);
 KTEST_ADD(callout_stop, test_callout_stop, KTEST_FLAG_BROKEN);

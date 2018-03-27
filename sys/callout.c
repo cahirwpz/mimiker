@@ -2,6 +2,7 @@
 #include <klog.h>
 #include <stdc.h>
 #include <callout.h>
+#include <spinlock.h>
 #include <sysinit.h>
 
 /* Note: If the difference in time between ticks is greater than the number of
@@ -20,8 +21,12 @@
   allowing us to access random elements in constant time.
 */
 
-typedef struct callout_head callout_head_t;
-TAILQ_HEAD(callout_head, callout);
+typedef TAILQ_HEAD(callout_list, callout) callout_list_t;
+
+typedef struct {
+  spinlock_t ch_lock;
+  callout_list_t ch_list;
+} callout_head_t;
 
 static struct {
   callout_head_t heads[CALLOUT_BUCKETS];
@@ -31,11 +36,21 @@ static struct {
   systime_t last;
 } ci;
 
+static inline spinlock_t *ch_lock(int i) {
+  return &ci.heads[i].ch_lock;
+}
+
+static inline callout_list_t *ch_list(int i) {
+  return &ci.heads[i].ch_list;
+}
+
 static void callout_init(void) {
   bzero(&ci, sizeof(ci));
 
-  for (int i = 0; i < CALLOUT_BUCKETS; i++)
-    TAILQ_INIT(&ci.heads[i]);
+  for (int i = 0; i < CALLOUT_BUCKETS; i++) {
+    spin_init(ch_lock(i));
+    TAILQ_INIT(ch_list(i));
+  }
 }
 
 void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg) {
@@ -49,7 +64,9 @@ void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg) {
   callout_set_pending(handle);
 
   klog("Add callout {%p} with wakeup at %lld.", handle, handle->c_time);
-  TAILQ_INSERT_TAIL(&ci.heads[index], handle, c_link);
+  WITH_SPINLOCK(ch_lock(index)) {
+    TAILQ_INSERT_TAIL(ch_list(index), handle, c_link);
+  }
 }
 
 void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
@@ -59,7 +76,9 @@ void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
 
 void callout_stop(callout_t *handle) {
   klog("Remove callout {%p} at %lld.", handle, handle->c_time);
-  TAILQ_REMOVE(&ci.heads[handle->c_index], handle, c_link);
+  WITH_SPINLOCK(ch_lock(handle->c_index)) {
+    TAILQ_REMOVE(ch_list(handle->c_index), handle, c_link);
+  }
 }
 
 /*
@@ -77,8 +96,10 @@ void callout_process(systime_t time) {
     last_bucket = time % CALLOUT_BUCKETS;
   }
 
-  while (1) {
-    callout_head_t *head = &ci.heads[current_bucket];
+  while (true) {
+    SCOPED_SPINLOCK(ch_lock(current_bucket));
+
+    callout_list_t *head = ch_list(current_bucket);
     callout_t *elem = TAILQ_FIRST(head);
     callout_t *next;
 
