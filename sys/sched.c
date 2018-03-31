@@ -6,7 +6,7 @@
 #include <context.h>
 #include <time.h>
 #include <thread.h>
-#include <callout.h>
+#include <spinlock.h>
 #include <interrupt.h>
 #include <mutex.h>
 #include <pcpu.h>
@@ -24,13 +24,13 @@ static void sched_init(void) {
 void sched_add(thread_t *td) {
   klog("Add thread %ld {%p} to scheduler", td->td_tid, td);
 
-  WITH_NO_PREEMPTION {
+  WITH_SPINLOCK(td->td_spin) {
     sched_wakeup(td);
   }
 }
 
 void sched_wakeup(thread_t *td) {
-  assert(preempt_disabled());
+  assert(spin_owned(td->td_spin));
   assert(td != thread_self());
   assert(td->td_state == TDS_SLEEPING || td->td_state == TDS_INACTIVE);
 
@@ -68,10 +68,9 @@ void sched_switch(void) {
   if (!sched_active)
     return;
 
-  SCOPED_NO_PREEMPTION();
-
   thread_t *td = thread_self();
 
+  assert(spin_owned(td->td_spin));
   assert(td->td_state != TDS_RUNNING);
 
   td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
@@ -100,6 +99,9 @@ void sched_switch(void) {
   /* If we got here then a context switch is required. */
   td->td_nctxsw++;
 
+  /* make sure we reacquire td_spin lock on return to current context */
+  td->td_flags |= TDF_NEEDLOCK;
+
   ctx_switch(td, newtd);
 }
 
@@ -108,9 +110,12 @@ void sched_clock(void) {
 
   thread_t *td = thread_self();
 
-  if (td != PCPU_GET(idle_thread))
-    if (--td->td_slice <= 0)
-      td->td_flags |= TDF_NEEDSWITCH | TDF_SLICEEND;
+  if (td != PCPU_GET(idle_thread)) {
+    WITH_SPINLOCK(td->td_spin) {
+      if (--td->td_slice <= 0)
+        td->td_flags |= TDF_NEEDSWITCH | TDF_SLICEEND;
+    }
+  }
 }
 
 noreturn void sched_run(void) {
@@ -127,7 +132,9 @@ noreturn void sched_run(void) {
   sched_active = true;
 
   while (true) {
-    td->td_flags |= TDF_NEEDSWITCH;
+    WITH_SPINLOCK(td->td_spin) {
+      td->td_flags |= TDF_NEEDSWITCH;
+    }
   }
 }
 
