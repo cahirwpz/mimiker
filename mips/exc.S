@@ -94,6 +94,67 @@ user_exc_enter:
         addi    t0, 1
         sw      t0, TD_IDNEST(s0)
 
+
+
+        # Save FPU registers
+        # Skip if process is not using FPU
+        LOAD_PCPU(t0)
+        lw t0, PCPU_CURTHREAD(t0)
+        addu    t0, TD_USES_FPU
+        lb t1, (t0)  # td->td_uses_fpu
+        beq $0, t1, after_fpu_save
+        nop
+
+
+
+        # Turn on FPU before saving
+        mfc0 t0, C0_STATUS
+        li t1, SR_CU1
+        or t0, t1
+        mtc0 t0, C0_STATUS
+
+        # Copy FPU registers
+        LOAD_PCPU(t0)
+        lw t0, PCPU_CURTHREAD(t0)
+        addu    t0, TD_UCTX_FPU
+        SAVE_FPU_REG($f0, F0, t0)
+        SAVE_FPU_REG($f1, F1, t0)
+        SAVE_FPU_REG($f2, F2, t0)
+        SAVE_FPU_REG($f3, F3, t0)
+        SAVE_FPU_REG($f4, F4, t0)
+        SAVE_FPU_REG($f5, F5, t0)
+        SAVE_FPU_REG($f6, F6, t0)
+        SAVE_FPU_REG($f7, F7, t0)
+        SAVE_FPU_REG($f8, F8, t0)
+        SAVE_FPU_REG($f9, F9, t0)
+        SAVE_FPU_REG($f10, F10, t0)
+        SAVE_FPU_REG($f11, F11, t0)
+        SAVE_FPU_REG($f12, F12, t0)
+        SAVE_FPU_REG($f13, F13, t0)
+        SAVE_FPU_REG($f14, F14, t0)
+        SAVE_FPU_REG($f15, F15, t0)
+        SAVE_FPU_REG($f16, F16, t0)
+        SAVE_FPU_REG($f17, F17, t0)
+        SAVE_FPU_REG($f18, F18, t0)
+        SAVE_FPU_REG($f19, F19, t0)
+        SAVE_FPU_REG($f20, F20, t0)
+        SAVE_FPU_REG($f21, F21, t0)
+        SAVE_FPU_REG($f22, F22, t0)
+        SAVE_FPU_REG($f23, F23, t0)
+        SAVE_FPU_REG($f24, F24, t0)
+        SAVE_FPU_REG($f25, F25, t0)
+        SAVE_FPU_REG($f26, F26, t0)
+        SAVE_FPU_REG($f27, F27, t0)
+        SAVE_FPU_REG($f28, F28, t0)
+        SAVE_FPU_REG($f29, F29, t0)
+        SAVE_FPU_REG($f30, F30, t0)
+        SAVE_FPU_REG($f31, F31, t0)
+        SAVE_FPU_REG($31, FSR, t0)
+
+
+after_fpu_save:
+
+
         # Turn off FPU, enter kernel mode,
         # drop exception level and disable interrupts.
         mfc0    t0, C0_STATUS
@@ -142,6 +203,74 @@ user_exc_leave:
         # Restore exception program counter,
         LOAD_REG(t0, PC, k0)
         mtc0    t0, C0_EPC   
+
+
+
+        # Load FPU context process makes use of it
+        # by defaul assume that process does not, and disable FPU
+        mfc0 t0, C0_STATUS
+        li t1, ~(SR_CU1)
+        and t0, t1
+        mtc0 t0, C0_STATUS
+
+        # Skip if process is not using FPU
+        LOAD_PCPU(t0)
+        lw t0, PCPU_CURTHREAD(t0)
+        addu    t0, TD_USES_FPU
+        lb t1, (t0)  # td->td_uses_fpu
+        beq $0, t1, after_fpu_restore
+        nop
+
+        # Turn on FPU before restoring
+        mfc0 t0, C0_STATUS
+        li t1, SR_CU1
+        or t0, t1
+        mtc0 t0, C0_STATUS
+
+        # Copy FPU registers
+        LOAD_PCPU(t0)
+        lw t0, PCPU_CURTHREAD(t0)
+        addu    t0, TD_UCTX_FPU
+
+
+        LOAD_FPU_REG($f0, F0, t0)
+        LOAD_FPU_REG($f1, F1, t0)
+        LOAD_FPU_REG($f2, F2, t0)
+        LOAD_FPU_REG($f3, F3, t0)
+        LOAD_FPU_REG($f4, F4, t0)
+        LOAD_FPU_REG($f5, F5, t0)
+        LOAD_FPU_REG($f6, F6, t0)
+        LOAD_FPU_REG($f7, F7, t0)
+        LOAD_FPU_REG($f8, F8, t0)
+        LOAD_FPU_REG($f9, F9, t0)
+        LOAD_FPU_REG($f10, F10, t0)
+        LOAD_FPU_REG($f11, F11, t0)
+        LOAD_FPU_REG($f12, F12, t0)
+        LOAD_FPU_REG($f13, F13, t0)
+        LOAD_FPU_REG($f14, F14, t0)
+        LOAD_FPU_REG($f15, F15, t0)
+        LOAD_FPU_REG($f16, F16, t0)
+        LOAD_FPU_REG($f17, F17, t0)
+        LOAD_FPU_REG($f18, F18, t0)
+        LOAD_FPU_REG($f19, F19, t0)
+        LOAD_FPU_REG($f20, F20, t0)
+        LOAD_FPU_REG($f21, F21, t0)
+        LOAD_FPU_REG($f22, F22, t0)
+        LOAD_FPU_REG($f23, F23, t0)
+        LOAD_FPU_REG($f24, F24, t0)
+        LOAD_FPU_REG($f25, F25, t0)
+        LOAD_FPU_REG($f26, F26, t0)
+        LOAD_FPU_REG($f27, F27, t0)
+        LOAD_FPU_REG($f28, F28, t0)
+        LOAD_FPU_REG($f29, F29, t0)
+        LOAD_FPU_REG($f30, F30, t0)
+        LOAD_FPU_REG($f31, F31, t0)
+        LOAD_FPU_REG($31, FSR, t0)
+
+
+
+after_fpu_restore:
+
 
         # ... all user registers.
         LOAD_REG(t0, HI, k0)

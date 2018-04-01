@@ -103,6 +103,8 @@ typedef struct thread {
   /* signal handling */
   sigset_t td_sigpend; /* Pending signals for this thread. */
   /* TODO: Signal mask, sigsuspend. */
+
+  bool td_uses_fpu;
 } thread_t;
 
 thread_t *thread_self(void);
