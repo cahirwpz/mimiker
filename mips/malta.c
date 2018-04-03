@@ -184,6 +184,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   pool_bootstrap();
   kmem_bootstrap();
   sleepq_init();
+  turnstile_init();
   thread_bootstrap();
 
   klog("Switching to 'kernel-main' thread...");

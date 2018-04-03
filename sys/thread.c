@@ -44,6 +44,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   thread_t *td = kmalloc(M_THREAD, sizeof(thread_t), M_ZERO);
 
   td->td_sleepqueue = sleepq_alloc();
+  td->td_turnstile = turnstile_alloc();
   td->td_name = kstrndup(M_THREAD, name, TD_NAME_MAX);
   td->td_tid = make_tid();
   td->td_kstack_obj = pm_alloc(1);
@@ -68,6 +69,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
 void thread_delete(thread_t *td) {
   assert(td->td_state == TDS_DEAD);
   assert(td->td_sleepqueue != NULL);
+  assert(td->td_turnstile != NULL);
 
   klog("Freeing up thread %ld {%p}", td->td_tid, td);
 
@@ -77,6 +79,7 @@ void thread_delete(thread_t *td) {
   pm_free(td->td_kstack_obj);
 
   sleepq_destroy(td->td_sleepqueue);
+  turnstile_destroy(td->td_turnstile);
   kfree(M_THREAD, td->td_name);
   kfree(M_THREAD, td);
 }

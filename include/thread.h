@@ -6,6 +6,7 @@
 #include <context.h>
 #include <exception.h>
 #include <sleepq.h>
+#include <turnstile.h>
 #include <mutex.h>
 #include <condvar.h>
 #include <time.h>
@@ -89,6 +90,7 @@ typedef struct thread {
   stack_t td_kstack;
   /* waiting channel */
   sleepq_t *td_sleepqueue;
+  turnstile_t *td_turnstile;
   void *td_wchan;
   const void *td_waitpt; /*!< a point where program waits */
   /* scheduler part */
