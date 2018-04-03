@@ -78,7 +78,7 @@ static int run_test(test_entry_t *t) {
     kprintf("WARNING: This test will never return, it is not possible to "
             "automatically verify its success.\n");
   if (t->flags & KTEST_FLAG_USERMODE)
-    kprintf("WARNING: This test will enters usermode.\n");
+    kprintf("WARNING: This test will enter usermode.\n");
   if (t->flags & KTEST_FLAG_DIRTY)
     kprintf("WARNING: This test will break kernel state. Kernel reboot will be "
             "required to run any other test.\n");
