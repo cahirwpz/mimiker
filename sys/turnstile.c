@@ -21,8 +21,8 @@ void turnstile_init(void) {
   //   LIST_INIT(&tc->tc_queues);
   // }
 
-  P_TURNSTILE =
-    pool_create("turnstile", sizeof(turnstile_t), (pool_ctor_t)turnstile_ctor, NULL);
+  P_TURNSTILE = pool_create("turnstile", sizeof(turnstile_t),
+                            (pool_ctor_t)turnstile_ctor, NULL);
 }
 
 turnstile_t *turnstile_alloc(void) {
