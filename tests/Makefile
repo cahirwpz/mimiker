@@ -19,6 +19,7 @@ SOURCES_C = \
 	taskqueue.c \
 	thread_stats.c \
 	thread_exit.c \
+	turnstile.c \
 	uiomove.c \
 	utest.c \
 	vm_map.c \
