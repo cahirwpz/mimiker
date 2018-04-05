@@ -11,6 +11,7 @@
 #include <condvar.h>
 #include <time.h>
 #include <signal.h>
+#include <spinlock.h>
 
 /*! \file thread.h */
 
@@ -48,6 +49,7 @@ typedef enum {
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 #define TDF_NEEDSIGCHK 0x00000004 /* signals were posted for delivery */
+#define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
 
 /*! \brief Thread structure
  *
@@ -55,7 +57,7 @@ typedef enum {
  *  - a: threads_lock
  *  - t: thread_t::td_lock
  *  - @: read-only access
- *  - !: can only be accessed by self or from interrupt
+ *  - !: thread_t::td_spin
  *  - ~: always safe to access
  *
  * Locking order:
@@ -63,8 +65,9 @@ typedef enum {
  */
 typedef struct thread {
   /* locks */
-  mtx_t td_lock;       /*!< (~) protects most fields in this structure */
-  condvar_t td_waitcv; /*!< (t) for thread_join */
+  spinlock_t td_spin[1]; /*!< (~) synchronizes top & bottom halves */
+  mtx_t td_lock;         /*!< (~) protects most fields in this structure */
+  condvar_t td_waitcv;   /*!< (t) for thread_join */
   /* linked lists */
   TAILQ_ENTRY(thread) td_all;     /* a link on all threads list */
   TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
@@ -76,11 +79,11 @@ typedef struct thread {
   char *td_name;   /*!< (@) name of thread */
   tid_t td_tid;    /*!< (@) thread identifier */
   /* thread state */
-  thread_state_t td_state;
-  uint32_t td_flags; /* TDF_* flags */
+  thread_state_t td_state; /*!< (!) thread state */
+  uint32_t td_flags;       /*!< (!) TDF_* flags */
   /* thread context */
-  volatile unsigned td_idnest; /*!< (!) interrupt disable nest level */
-  volatile unsigned td_pdnest; /*!< (!) preemption disable nest level */
+  volatile unsigned td_idnest; /*!< (?) interrupt disable nest level */
+  volatile unsigned td_pdnest; /*!< (?) preemption disable nest level */
   exc_frame_t td_uctx;         /* user context (always exception) */
   fpu_ctx_t td_uctx_fpu;       /* user FPU context (always exception) */
   exc_frame_t *td_kframe;      /* kernel context (last exception frame) */
