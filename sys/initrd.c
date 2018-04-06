@@ -332,17 +332,15 @@ static int initrd_init(vfsconf_t *vfc) {
   return 0;
 }
 
+extern uint8_t __rd_start[];
+extern intptr_t __rd_size;
+
 intptr_t ramdisk_get_start(void) {
-  char *s = kenv_get("rd_start");
-  if (s == NULL)
-    return 0;
-  int s_len = strlen(s);
-  return strtoul(s + s_len - 8, NULL, 16);
+  return (intptr_t)__rd_start;
 }
 
 unsigned ramdisk_get_size(void) {
-  char *s = kenv_get("rd_size");
-  return s ? strtoul(s, NULL, 0) : 0;
+  return (unsigned)__rd_size;
 }
 
 void ramdisk_dump(void) {

@@ -2,12 +2,12 @@
 
 TOPDIR = $(CURDIR)
 
-all: cscope tags mimiker.elf initrd.cpio
+all: cscope tags mimiker.elf
 
 include $(TOPDIR)/build/build.kern.mk
 
 # Directories which contain kernel parts
-SYSSUBDIRS  = mips stdc sys tests
+SYSSUBDIRS  = mips stdc sys initrd tests
 # Directories which require calling make recursively
 SUBDIRS = $(SYSSUBDIRS) user
 
@@ -20,6 +20,7 @@ $(SUBDIRS):
 KRT = $(TOPDIR)/stdc/libstdc.a \
       $(TOPDIR)/mips/libmips.a \
       $(TOPDIR)/sys/libsys.a \
+      $(TOPDIR)/initrd/initrd.o \
       $(TOPDIR)/tests/libtests.a
 
 # Process subdirectories before using KRT files.
@@ -40,7 +41,7 @@ LDLIBS	= -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc -L$(TOPDIR)/tests \
 
 mimiker.elf: $(KRT) | $(SYSSUBDIRS)
 	@echo "[LD] Linking kernel image: $@"
-	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
+	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -Wl,$(TOPDIR)/initrd/initrd.o -o $@
 
 cscope:
 	cscope -b include/*.h ./*/*.[cS]
@@ -74,16 +75,6 @@ format:
 
 test: mimiker.elf
 	./run_tests.py
-
-# Detecting whether initrd.cpio requires rebuilding is tricky, because even if
-# this target was to depend on $(shell fild sysroot -type f), then make compares
-# sysroot files timestamps BEFORE recursively entering user and installing user
-# programs into sysroot. This sounds silly, but apparently make assumes no files
-# appear "without their explicit target". Thus, the only thing we can do is
-# forcing make to always rebuild the archive.
-initrd.cpio: force | user
-	@echo "[INITRD] Building $@..."
-	cd sysroot && find -depth -print | $(CPIO) -o -F ../$@ 2> /dev/null
 
 clean:
 	$(foreach DIR, $(SUBDIRS), $(MAKE) -C $(DIR) $@;)
