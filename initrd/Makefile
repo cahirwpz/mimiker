@@ -8,7 +8,7 @@ include $(TOPDIR)/build/build.mk
 all: initrd.o
 
 # Detecting whether initrd.cpio requires rebuilding is tricky, because even if
-# this target was to depend on $(shell file sysroot -type f), then make compares
+# this target was to depend on $(shell find sysroot -type f), then make compares
 # sysroot files timestamps BEFORE recursively entering user and installing user
 # programs into sysroot. This sounds silly, but apparently make assumes no files
 # appear "without their explicit target". Thus, the only thing we can do is
