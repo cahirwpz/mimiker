@@ -2,6 +2,7 @@
 #define _SYS_SCHED_H_
 
 #include <common.h>
+#include <thread.h>
 
 typedef struct thread thread_t;
 
@@ -47,6 +48,10 @@ void sched_add(thread_t *td);
  * \note Must be called with preemption disabled!
  */
 void sched_wakeup(thread_t *td);
+
+void sched_lend_prio(thread_t *td, td_prio_t prio);
+
+void sched_unlend_prio(thread_t *td, td_prio_t prio);
 
 /*! \brief Takes care of run-time accounting for current thread. */
 void sched_clock(void);

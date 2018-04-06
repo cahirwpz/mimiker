@@ -64,6 +64,39 @@ static thread_t *sched_choose(void) {
   return td;
 }
 
+/* adjust the priority of a thread,
+ * move it to appropriate run queue if necessary */
+static void sched_thread_priority(thread_t *td, td_prio_t prio) {
+  // nie wiem, czy nie trzeba założyć td_lock
+  // ale mutex używa turnstile, a turnstile używa tego...
+
+  if (td->td_prio == prio)
+    return;
+
+  /* if thread is on a run queue */
+  if (td->td_state == TDS_READY && td != PCPU_GET(idle_thread)) {
+    runq_remove(&runq, td);
+    td->td_prio = prio;
+    runq_add(&runq, td);
+    return;
+  }
+
+  td->td_prio = prio;
+}
+
+void sched_lend_prio(thread_t *td, td_prio_t prio) {
+  td->td_flags |= TDF_BORROWING;
+  sched_thread_priority(td, prio);
+}
+
+void sched_unlend_prio(thread_t *td, td_prio_t prio) {
+  if (prio <= td->td_base_prio) {
+    td->td_flags &= ~TDF_BORROWING;
+    sched_thread_priority(td, td->td_base_prio);
+  } else
+    sched_lend_prio(td, prio);
+}
+
 void sched_switch(void) {
   if (!sched_active)
     return;
