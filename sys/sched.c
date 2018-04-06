@@ -74,7 +74,7 @@ static void sched_thread_priority(thread_t *td, td_prio_t prio) {
     return;
 
   /* if thread is on a run queue */
-  if (td->td_state == TDS_READY && td != PCPU_GET(idle_thread)) {
+  if (td->td_state == TDS_READY) {
     runq_remove(&runq, td);
     td->td_prio = prio;
     runq_add(&runq, td);

@@ -73,6 +73,7 @@ static int test_mutex_priority_inversion(void) {
    * and lock mtx.
    */
 
+  // nie wiem, czy nie powinienem tutaj założyć mutexa td_lock
   WITH_NO_PREEMPTION {
     td[0]->td_prio = HIGH;
     td[1]->td_prio = LOW;

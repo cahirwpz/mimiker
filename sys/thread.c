@@ -56,6 +56,8 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   mtx_init(&td->td_lock, MTX_RECURSE);
   cv_init(&td->td_waitcv, "thread waiters");
 
+  LIST_INIT(&td->td_contested);
+
   ctx_init(td, fn, arg);
 
   /* From now on, you must use locks on new thread structure. */
