@@ -30,7 +30,6 @@
   do {                                                                         \
     MFC1(var, freg);                                                           \
     assert(var == cmp);                                                        \
-    assert(1 == 0);                                                            \
   } while (0)
 
 static inline void check_fpu_all_gpr(int expected_value) {
