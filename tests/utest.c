@@ -97,3 +97,8 @@ UTEST_ADD_SIMPLE(access_basic);
 
 UTEST_ADD_SIMPLE(stat);
 UTEST_ADD_SIMPLE(fstat);
+
+UTEST_ADD_SIMPLE(fpu_fcsr);
+UTEST_ADD_SIMPLE(fpu_gpr_preservation);
+UTEST_ADD_SIMPLE(fpu_cpy_ctx_on_fork);
+UTEST_ADD_SIMPLE(fpu_ctx_signals);

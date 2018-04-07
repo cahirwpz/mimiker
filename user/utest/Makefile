@@ -12,6 +12,7 @@ SOURCES_C = \
 	mmap.c \
 	sbrk.c \
 	signal.c \
-	stat.c
+	stat.c \
+	fpu_ctx.c
 
 include $(TOPDIR)/build/build.prog.mk
