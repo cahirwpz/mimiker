@@ -49,6 +49,9 @@ static cpio_list_t initrd_head = TAILQ_HEAD_INITIALIZER(initrd_head);
 static cpio_node_t *root_node;
 static vnodeops_t initrd_vops;
 
+extern int8_t __rd_start[];
+extern intptr_t __rd_size;
+
 extern char *kenv_get(const char *key);
 
 static cpio_node_t *cpio_node_alloc(void) {
@@ -124,7 +127,7 @@ static const char *basename(const char *path) {
 }
 
 static void read_cpio_archive(void) {
-  void *tape = (void *)ramdisk_get_start();
+  void *tape = (void *)__rd_start;
 
   while (true) {
     cpio_node_t *node = cpio_node_alloc();
@@ -318,29 +321,13 @@ static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_access = vnode_access_generic};
 
 static int initrd_init(vfsconf_t *vfc) {
-  unsigned rd_size = ramdisk_get_size();
-
-  if (!rd_size)
-    return ENXIO;
-
   vnodeops_init(&initrd_vops);
 
-  klog("parsing cpio archive of %u bytes", rd_size);
+  klog("parsing cpio archive of %u bytes", (unsigned)__rd_size);
   read_cpio_archive();
   initrd_build_tree();
   initrd_enum_inodes(root_node, 2);
   return 0;
-}
-
-extern uint8_t __rd_start[];
-extern intptr_t __rd_size;
-
-intptr_t ramdisk_get_start(void) {
-  return (intptr_t)__rd_start;
-}
-
-unsigned ramdisk_get_size(void) {
-  return (unsigned)__rd_size;
 }
 
 void ramdisk_dump(void) {
