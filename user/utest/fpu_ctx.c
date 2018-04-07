@@ -1,9 +1,9 @@
 /*----------------------------------------------------------------------------
  *
  * Floating Point Unit context preservation tests:
- * - test_fpu_fcsr
- * - test_fpu_gpr_preservation
- * - test_fpu_cpy_ctx_on_fork
+ * - test_fpu_fcsr                  - needs context switch. sleep(0)?
+ * - test_fpu_gpr_preservation      - needs context switch. sleep(0)?
+ * - test_fpu_cpy_ctx_on_fork       - needs another process using FPU
  * - test_fpu_ctx_signals
  *
  * Checking 32 FPU FPR's and FPU FCSR register.
@@ -20,8 +20,11 @@
 #include <sys/wait.h>
 #include <sys/signal.h>
 
-#define TEST_TIME 10
-#define PROCESSES 2
+#define TEST_TIME 1000000
+#define PROCESSES 10
+
+#define P_TEST_TIME 100000
+#define P_PROCESSES 10
 
 #define MTC1(var, freg) asm volatile("mtc1 %0, " #freg : : "r"(var))
 #define MFC1(var, freg) asm volatile("mfc1 %0, " #freg : "=r"(var))
@@ -104,28 +107,29 @@ static inline void MTC1_all_gpr(int value) {
   MTC1(value, $f31);
 }
 
-static void spawn_process(int pproc, void (*proc_handler)(int)) {
-  switch (fork()) {
+static int spawn_process(int pproc, void (*proc_handler)(int)) {
+  int pid;
+  switch ((pid = fork())) {
     case -1:
       exit(EXIT_FAILURE);
     case 0:
       proc_handler(pproc);
       exit(EXIT_SUCCESS);
     default:
-      return;
+      return pid;
   }
 }
 
 static void check_fpu_ctx(int value) {
   MTC1_all_gpr(value);
-  for (int i = 0; i < TEST_TIME; i++) {
+  for (int i = 0; i < P_TEST_TIME; i++) {
     check_fpu_all_gpr(value);
   }
 }
 
 int test_fpu_gpr_preservation() {
   int seed = 0xbeefface;
-  for (int i = 0; i < PROCESSES; i++) {
+  for (int i = 0; i < P_PROCESSES; i++) {
     spawn_process(seed + i, check_fpu_ctx);
   }
 
@@ -142,35 +146,15 @@ int test_fpu_gpr_preservation() {
 int test_fpu_cpy_ctx_on_fork() {
   int value = 0xbeefface;
   MTC1_all_gpr(value);
+  spawn_process(0xc0de, MTC1_all_gpr);
   spawn_process(value, check_fpu_all_gpr);
-  int status;
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(EXIT_SUCCESS == WEXITSTATUS(status));
 
-  return 0;
-}
-
-static void signal_handler_usr2(int signo) {
-  MTC1_all_gpr(42);
-}
-
-static void signal_handler_usr1(int signo) {
-  MTC1_all_gpr(1337);
-
-  signal(SIGUSR2, signal_handler_usr2);
-  raise(SIGUSR2);
-
-  check_fpu_all_gpr(1337);
-}
-
-int test_fpu_ctx_signals() {
-  MTC1_all_gpr(0xc0de);
-
-  signal(SIGUSR1, signal_handler_usr1);
-  raise(SIGUSR1);
-
-  check_fpu_all_gpr(0xc0de);
+  for (int i = 0; i < 2; i++) {
+    int status;
+    wait(&status);
+    assert(WIFEXITED(status));
+    assert(EXIT_SUCCESS == WEXITSTATUS(status));
+  }
 
   return 0;
 }
@@ -194,6 +178,29 @@ int test_fpu_fcsr() {
     assert(WIFEXITED(status));
     assert(EXIT_SUCCESS == WEXITSTATUS(status));
   }
+  return 0;
+}
+
+static void signal_handler_usr2(int signo) {
+  MTC1_all_gpr(42);
+}
+
+static void signal_handler_usr1(int signo) {
+  MTC1_all_gpr(1337);
+
+  signal(SIGUSR2, signal_handler_usr2);
+  raise(SIGUSR2);
+
+  check_fpu_all_gpr(1337);
+}
+
+int test_fpu_ctx_signals() {
+  MTC1_all_gpr(0xc0de);
+
+  signal(SIGUSR1, signal_handler_usr1);
+  raise(SIGUSR1);
+
+  check_fpu_all_gpr(0xc0de);
 
   return 0;
 }
