@@ -80,9 +80,6 @@ SECTIONS
 
   __kernel_end = .;
 
-  __real_kernel_end = .;
-
-
   /* Sections to be discarded */
   /DISCARD/ :
   {

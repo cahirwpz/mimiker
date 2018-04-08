@@ -119,7 +119,6 @@ char *kenv_get(const char *key) {
 
 extern uint8_t __kernel_start[];
 extern uint8_t __kernel_end[];
-extern uint8_t __real_kernel_end[];
 extern uint8_t __rd_size[];
 extern uint8_t __rd_start[];
 extern uint8_t __rd_end[];
@@ -133,7 +132,7 @@ static void pm_bootstrap(unsigned memsize) {
   assert(is_aligned((intptr_t)__rd_start, PAGESIZE));
   assert(is_aligned((intptr_t)__rd_end, PAGESIZE));
 
-  pm_seg_t *seg = (pm_seg_t *)__real_kernel_end;
+  pm_seg_t *seg = (pm_seg_t *)__kernel_end;
   size_t seg_size = align(pm_seg_space_needed(memsize), PAGESIZE);
 
   /* create Malta physical memory segment */
@@ -141,7 +140,7 @@ static void pm_bootstrap(unsigned memsize) {
               MIPS_KSEG0_START);
   /* reserve kernel and ramdisk image space */
   pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS((intptr_t)__kernel_start),
-                 MIPS_KSEG0_TO_PHYS(__real_kernel_end));
+                 MIPS_KSEG0_TO_PHYS(__kernel_end));
 
   /* reserve segment description space */
   pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS((intptr_t)seg),
