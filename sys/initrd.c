@@ -50,7 +50,7 @@ static cpio_node_t *root_node;
 static vnodeops_t initrd_vops;
 
 extern int8_t __rd_start[];
-extern intptr_t __rd_size;
+extern int8_t __rd_size[];
 
 extern char *kenv_get(const char *key);
 

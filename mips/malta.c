@@ -120,7 +120,7 @@ char *kenv_get(const char *key) {
 extern uint8_t __kernel_start[];
 extern uint8_t __kernel_end[];
 extern uint8_t __real_kernel_end[];
-extern intptr_t __rd_size;
+extern uint8_t __rd_size[];
 extern uint8_t __rd_start[];
 extern uint8_t __rd_end[];
 
