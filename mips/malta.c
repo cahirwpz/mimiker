@@ -118,26 +118,32 @@ char *kenv_get(const char *key) {
 }
 
 extern uint8_t __kernel_start[];
-extern uint8_t __kernel_end[];
+extern void *kernel_end;
 
 extern intptr_t parse_rd_start(const char *s);
 
 static void pm_bootstrap(unsigned memsize) {
   pm_init();
 
-  pm_seg_t *seg = (pm_seg_t *)__kernel_end;
-  size_t seg_size = align(pm_seg_space_needed(memsize), PAGESIZE);
+  pm_seg_t *seg = kernel_sbrk(pm_seg_space_needed(memsize));
+
+  /* 
+   * We freeze `kernel_end` here because we're about to reserve
+   * the chunk of physical memory occupied by the kernel image
+   * along with all memory allocated using `kernel_sbrk`.
+   * If we don't do it here, the physical memory manager might
+   * unintentionally allocate a frame that was used by `kernel_sbrk`.
+   */
+  kernel_sbrk_freeze(align(kernel_end, PAGESIZE));
 
   /* create Malta physical memory segment */
   pm_seg_init(seg, MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + memsize,
               MIPS_KSEG0_START);
-  /* reserve kernel and ramdisk image space */
-  pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS((intptr_t)__kernel_start),
-                 MIPS_KSEG0_TO_PHYS(__kernel_end));
 
-  /* reserve segment description space */
-  pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS((intptr_t)seg),
-                 MIPS_KSEG0_TO_PHYS((intptr_t)seg + seg_size));
+  /* reserve kernel image and physical memory description space */
+  pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS((intptr_t)__kernel_start),
+                 MIPS_KSEG0_TO_PHYS((intptr_t)kernel_end));
+
   pm_add_segment(seg);
 }
 

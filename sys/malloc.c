@@ -11,13 +11,23 @@
 
 /* The end of the kernel's .bss section. Provided by the linker. */
 extern uint8_t __ebss[];
-/* Limit for the end of kernel's bss. Provided by the linker. */
-extern uint8_t __kernel_end[];
+
+/*
+ * The end of the memory area occupied by the kernel image.
+ * Calls to `kernel_sbrk` expand this area, so the value of
+ * this variable may change at runtime.
+ * Therefore, it is CRITICAL that all calls to `kernel_sbrk`
+ * occur BEFORE running any code that assumes the value of
+ * `kernel_end` to be constant.
+ */
+void *kernel_end = (void *)__ebss;
 
 static struct {
+  /* Pointer to free memory used to service allocation requests. */
   void *ptr;
+  /* Allocation limit -- initially NULL, can be set only once. */
   void *end;
-} sbrk = {__ebss, __kernel_end};
+} sbrk = {__ebss, NULL};
 
 #if 0
 void kernel_brk(void *addr) {
@@ -37,11 +47,24 @@ void *kernel_sbrk(size_t size) {
   cs_enter();
   void *ptr = sbrk.ptr;
   size = roundup(size, sizeof(uint64_t));
-  assert(ptr + size <= sbrk.end);
+  if (sbrk.end != NULL) {
+    assert(ptr + size <= sbrk.end);
+  } else {
+    kernel_end += size;
+  }
   sbrk.ptr += size;
   cs_leave();
   bzero(ptr, size);
   return ptr;
+}
+
+void kernel_sbrk_freeze(void *limit) {
+  assert(limit != NULL);
+  /* The limit can be set only once. */
+  assert(sbrk.end == NULL);
+  assert(sbrk.ptr <= limit);
+  sbrk.end = limit;
+  kernel_end = limit;
 }
 
 /*
