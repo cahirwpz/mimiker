@@ -70,11 +70,12 @@ typedef struct thread {
   mtx_t td_lock;         /*!< (~) protects most fields in this structure */
   condvar_t td_waitcv;   /*!< (t) for thread_join */
   /* linked lists */
-  TAILQ_ENTRY(thread) td_all;     /* a link on all threads list */
-  TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
-  TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
-  TAILQ_ENTRY(thread) td_turnstilesq; /* a link on turnstile queue (ts_blocked
-                                       * or ts_pending) */
+  TAILQ_ENTRY(thread) td_all;    /* a link on all threads list */
+  TAILQ_ENTRY(thread) td_runq;   /* a link on run queue */
+  TAILQ_ENTRY(thread) td_sleepq; /* a link on sleep queue */
+  TAILQ_ENTRY(thread)
+  td_turnstilesq;                 /* a link on turnstile queue
+                                   * (ts_blocked or ts_pending) */
   TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
   TAILQ_ENTRY(thread) td_procq;   /* a link on process threads queue */
   /* Properties */
@@ -96,14 +97,15 @@ typedef struct thread {
   stack_t td_kstack;
   /* waiting channel */
   sleepq_t *td_sleepqueue;
-  turnstile_t *td_blocked; /* lock thread is blocked on */
+  turnstile_t *td_blocked;   /* lock thread is blocked on */
+  uint8_t td_turnstileq_ind; /* index of ts_blocked */
   turnstile_t *td_turnstile;
   LIST_HEAD(, turnstile) td_contested; /* turnstiles of locks that we own */
   void *td_wchan;
   const void *td_waitpt; /*!< a point where program waits */
   /* scheduler part */
   td_prio_t td_base_prio; /* thread base priority */
-  td_prio_t td_prio; /* thread active priority */
+  td_prio_t td_prio;      /* thread active priority */
   int td_slice;
   /* thread statistics */
   timeval_t td_rtime;        /*!< time spent running */

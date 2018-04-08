@@ -1,6 +1,7 @@
 #ifndef _SYS_TURNSTILE_H_
 #define _SYS_TURNSTILE_H_
 
+struct turnstile;
 typedef struct turnstile turnstile_t;
 
 #define TS_EXCLUSIVE_QUEUE 0
