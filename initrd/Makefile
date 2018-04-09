@@ -7,13 +7,16 @@ include $(TOPDIR)/build/build.mk
 
 all: initrd.o
 
+$(SYSROOT):
+	$(MAKE) -C $(TOPDIR)/user
+
 # Detecting whether initrd.cpio requires rebuilding is tricky, because even if
-# this target was to depend on $(shell find sysroot -type f), then make compares
+# this target was to depend on $(shell find ../sysroot -type f), then make compares
 # sysroot files timestamps BEFORE recursively entering user and installing user
 # programs into sysroot. This sounds silly, but apparently make assumes no files
 # appear "without their explicit target". Thus, the only thing we can do is
 # forcing make to always rebuild the archive.
-initrd.cpio: force
+initrd.cpio: force | $(SYSROOT)
 	@echo "[INITRD] Building $@..."
 	cd $(SYSROOT) && find -depth -print | $(CPIO) -o -F $(realpath .)/$@ 2> /dev/null
 
