@@ -329,6 +329,12 @@ static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_access = vnode_access_generic};
 
 static int initrd_init(vfsconf_t *vfc) {
+
+  /* Ramdisk start & end addresses are expected to be page aligned. */
+  assert(is_aligned((intptr_t)ramdisk_get_start(), PAGESIZE));
+  /* If the size is page aligned, the end address is as well. */
+  assert(is_aligned((intptr_t)ramdisk_get_size(), PAGESIZE));
+
   vnodeops_init(&initrd_vops);
 
   klog("parsing cpio archive of %u bytes", ramdisk_get_size());
