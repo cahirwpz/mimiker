@@ -119,8 +119,6 @@ char *kenv_get(const char *key) {
 
 extern uint8_t __kernel_start[];
 extern uint8_t __kernel_end[];
-extern uint8_t __rd_size[];
-extern uint8_t __rd_start[];
 extern uint8_t __rd_end[];
 
 extern intptr_t parse_rd_start(const char *s);
@@ -129,7 +127,7 @@ static void pm_bootstrap(unsigned memsize) {
   pm_init();
 
   /* Ramdisk start & end addresses are expected to be page aligned. */
-  assert(is_aligned((intptr_t)__rd_start, PAGESIZE));
+  assert(is_aligned((intptr_t)ramdisk_get_start(), PAGESIZE));
   assert(is_aligned((intptr_t)__rd_end, PAGESIZE));
 
   pm_seg_t *seg = (pm_seg_t *)__kernel_end;

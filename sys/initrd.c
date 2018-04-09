@@ -127,7 +127,7 @@ static const char *basename(const char *path) {
 }
 
 static void read_cpio_archive(void) {
-  void *tape = (void *)__rd_start;
+  void *tape = ramdisk_get_start();
 
   while (true) {
     cpio_node_t *node = cpio_node_alloc();
@@ -295,6 +295,14 @@ static readdir_ops_t cpio_readdir_ops = {
   .convert = cpio_to_dirent,
 };
 
+void *ramdisk_get_start() {
+  return (void *) __rd_start;
+}
+
+unsigned ramdisk_get_size() {
+  return (unsigned) __rd_size;
+}
+
 static int initrd_vnode_readdir(vnode_t *v, uio_t *uio, void *state) {
   return readdir_generic(v, uio, &cpio_readdir_ops);
 }
@@ -323,7 +331,7 @@ static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
 static int initrd_init(vfsconf_t *vfc) {
   vnodeops_init(&initrd_vops);
 
-  klog("parsing cpio archive of %u bytes", (unsigned)__rd_size);
+  klog("parsing cpio archive of %u bytes", ramdisk_get_size());
   read_cpio_archive();
   initrd_build_tree();
   initrd_enum_inodes(root_node, 2);
