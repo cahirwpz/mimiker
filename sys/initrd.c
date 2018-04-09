@@ -296,11 +296,11 @@ static readdir_ops_t cpio_readdir_ops = {
 };
 
 void *ramdisk_get_start() {
-  return (void *) __rd_start;
+  return (void *)__rd_start;
 }
 
 unsigned ramdisk_get_size() {
-  return (unsigned) __rd_size;
+  return (unsigned)__rd_size;
 }
 
 static int initrd_vnode_readdir(vnode_t *v, uio_t *uio, void *state) {
