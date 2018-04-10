@@ -8,18 +8,13 @@ include $(TOPDIR)/build/build.kern.mk
 
 # Directories which contain kernel parts
 SYSSUBDIRS  = mips stdc sys tests
-# Directories which contain userspace parts
-USRSUBDIRS  = user initrd
 # Directories which require calling make recursively
-SUBDIRS = $(SYSSUBDIRS) $(USRSUBDIRS)
+SUBDIRS = $(SYSSUBDIRS) user
 
 $(SUBDIRS):
 	$(MAKE) -C $@
 
 .PHONY: format tags cscope $(SUBDIRS) force
-
-# Initial ramdisk image
-INITRD = $(TOPDIR)/initrd/initrd.o
 
 # Files required to link kernel image
 KRT = $(TOPDIR)/stdc/libstdc.a \
@@ -30,9 +25,6 @@ KRT = $(TOPDIR)/stdc/libstdc.a \
 # Process subdirectories before using KRT files.
 $(KRT): | $(SYSSUBDIRS)
 	true # Disable default recipe
-
-$(INITRD): | $(SUBDIRS)
-	true
 
 LDFLAGS	= -nostdlib -T $(TOPDIR)/mips/malta.ld
 LDLIBS	= -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc -L$(TOPDIR)/tests \
@@ -46,9 +38,9 @@ LDLIBS	= -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc -L$(TOPDIR)/tests \
             -lgcc \
           -Wl,--end-group
 
-mimiker.elf: $(KRT) $(INITRD)
+mimiker.elf: $(KRT) initrd.o | $(SYSSUBDIRS)
 	@echo "[LD] Linking kernel image: $@"
-	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) $(INITRD) -o $@
+	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) initrd.o -o $@
 
 cscope:
 	cscope -b include/*.h ./*/*.[cS]
@@ -83,10 +75,26 @@ format:
 test: mimiker.elf
 	./run_tests.py
 
+# Detecting whether initrd.cpio requires rebuilding is tricky, because even if
+# this target was to depend on $(shell find sysroot -type f), then make compares
+# sysroot files timestamps BEFORE recursively entering user and installing user
+# programs into sysroot. This sounds silly, but apparently make assumes no files
+# appear "without their explicit target". Thus, the only thing we can do is
+# forcing make to always rebuild the archive.
+initrd.cpio: force | user
+	@echo "[INITRD] Building $@..."
+	cd sysroot && find -depth -print | $(CPIO) -o -F ../$@ 2> /dev/null
+
+initrd.o: initrd.cpio
+	$(OBJCOPY) -I binary -O elf32-littlemips -B mips \
+	  --rename-section .data=.initrd,alloc,load,readonly,data,contents \
+	  $^ $@
+
 clean:
 	$(foreach DIR, $(SUBDIRS), $(MAKE) -C $(DIR) $@;)
-	$(RM) *.a *.elf *.map *.lst *~ *.log *.cpio .*.D
+	$(RM) *.a *.elf *.map *.lst *~ *.log .*.D
 	$(RM) tags etags cscope.out *.taghl
+	$(RM) initrd.o initrd.cpio
 
 distclean: clean
 	$(RM) -r cache sysroot
