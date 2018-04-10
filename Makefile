@@ -7,25 +7,32 @@ all: cscope tags mimiker.elf
 include $(TOPDIR)/build/build.kern.mk
 
 # Directories which contain kernel parts
-SYSSUBDIRS  = mips stdc sys initrd tests
+SYSSUBDIRS  = mips stdc sys tests
+# Directories which contain userspace parts
+USRSUBDIRS  = user initrd
 # Directories which require calling make recursively
-SUBDIRS = $(SYSSUBDIRS) user
+SUBDIRS = $(SYSSUBDIRS) $(USRSUBDIRS)
 
 $(SUBDIRS):
 	$(MAKE) -C $@
 
 .PHONY: format tags cscope $(SUBDIRS) force
 
+# Initial ramdisk image
+INITRD = $(TOPDIR)/initrd/initrd.o
+
 # Files required to link kernel image
 KRT = $(TOPDIR)/stdc/libstdc.a \
       $(TOPDIR)/mips/libmips.a \
       $(TOPDIR)/sys/libsys.a \
-      $(TOPDIR)/initrd/initrd.o \
       $(TOPDIR)/tests/libtests.a
 
 # Process subdirectories before using KRT files.
 $(KRT): | $(SYSSUBDIRS)
 	true # Disable default recipe
+
+$(INITRD): | $(SUBDIRS)
+	true
 
 LDFLAGS	= -nostdlib -T $(TOPDIR)/mips/malta.ld
 LDLIBS	= -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc -L$(TOPDIR)/tests \
@@ -39,9 +46,9 @@ LDLIBS	= -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc -L$(TOPDIR)/tests \
             -lgcc \
           -Wl,--end-group
 
-mimiker.elf: $(KRT) | $(SYSSUBDIRS)
+mimiker.elf: $(KRT) $(INITRD)
 	@echo "[LD] Linking kernel image: $@"
-	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -Wl,$(TOPDIR)/initrd/initrd.o -o $@
+	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) $(INITRD) -o $@
 
 cscope:
 	cscope -b include/*.h ./*/*.[cS]
