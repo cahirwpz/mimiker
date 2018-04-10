@@ -27,4 +27,3 @@ initrd.o: initrd.cpio
 
 clean:
 	$(RM) initrd.cpio initrd.o
-

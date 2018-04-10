@@ -127,7 +127,7 @@ static const char *basename(const char *path) {
 }
 
 static void read_cpio_archive(void) {
-  void *tape = ramdisk_get_start();
+  void *tape = (void *)ramdisk_get_start();
 
   while (true) {
     cpio_node_t *node = cpio_node_alloc();
@@ -295,14 +295,6 @@ static readdir_ops_t cpio_readdir_ops = {
   .convert = cpio_to_dirent,
 };
 
-void *ramdisk_get_start() {
-  return (void *)__rd_start;
-}
-
-unsigned ramdisk_get_size() {
-  return (unsigned)__rd_size;
-}
-
 static int initrd_vnode_readdir(vnode_t *v, uio_t *uio, void *state) {
   return readdir_generic(v, uio, &cpio_readdir_ops);
 }
@@ -329,11 +321,10 @@ static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_access = vnode_access_generic};
 
 static int initrd_init(vfsconf_t *vfc) {
-
   /* Ramdisk start & end addresses are expected to be page aligned. */
-  assert(is_aligned((intptr_t)ramdisk_get_start(), PAGESIZE));
+  assert(is_aligned(ramdisk_get_start(), PAGESIZE));
   /* If the size is page aligned, the end address is as well. */
-  assert(is_aligned((intptr_t)ramdisk_get_size(), PAGESIZE));
+  assert(is_aligned(ramdisk_get_size(), PAGESIZE));
 
   vnodeops_init(&initrd_vops);
 
@@ -342,6 +333,14 @@ static int initrd_init(vfsconf_t *vfc) {
   initrd_build_tree();
   initrd_enum_inodes(root_node, 2);
   return 0;
+}
+
+intptr_t ramdisk_get_start(void) {
+  return (intptr_t)__rd_start;
+}
+
+unsigned ramdisk_get_size(void) {
+  return (unsigned)__rd_size;
 }
 
 void ramdisk_dump(void) {

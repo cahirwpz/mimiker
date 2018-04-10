@@ -3,8 +3,7 @@
 
 #include <common.h>
 
-void *ramdisk_get_start(void);
-
+intptr_t ramdisk_get_start(void);
 unsigned ramdisk_get_size(void);
 
 void ramdisk_dump(void);
