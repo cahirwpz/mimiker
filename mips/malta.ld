@@ -1,4 +1,5 @@
-/* Linker script for OVPsim SmartLoaderLinux firmware. */
+/* Linker scripts are documented here:
+ * https://sourceware.org/binutils/docs/ld/Scripts.html */
 OUTPUT_ARCH(mips)
 ENTRY(_start)
 PHDRS
@@ -19,7 +20,6 @@ SECTIONS
     /* Exception handlers. */
     *(.ebase)
     . = ALIGN(4096);
-    /* Text follows. */
     __text = ABSOLUTE(.);
     *(.text .text.*)
     __etext = ABSOLUTE(.);
@@ -33,16 +33,7 @@ SECTIONS
     *(.initrd)
     . = ALIGN(4096);
     __rd_end = ABSOLUTE(.);
-  /* The ramdisk is read-only, so place it in the read-only segment */
-  } : rodata
-  
-  /* NOTE: The following definition of __rd_size must be outside of the section
-   * block. If it was inside one, the value assigned to the symbol would be
-   * relative to the beginning of the section, which is not what we want in this
-   * case. If we wanted the symbol definition to be inside the section block, it
-   * is possible to achieve the desired effect by wrapping the right hand side
-   * of the assignment inside an ABSOLUTE(). */
-  __rd_size = __rd_end - __rd_start;
+  } : rodata /* The ramdisk is read-only, so place it in read-only segment. */
 
   /* In order to be addressable using a 16-bit signed offset from _gp,
    * this section must be placed close to the .data section, as
@@ -50,9 +41,7 @@ SECTIONS
   .rodata : ALIGN(4)
   {
      *(.rodata .rodata.*)
-  /* We don't specify a segment, so this section is going to be placed
-   * in the same segment as the preceding section, which is what we want. */
-  }
+  } : rodata
 
   .data : ALIGN(4096)
   {

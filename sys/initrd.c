@@ -50,7 +50,7 @@ static cpio_node_t *root_node;
 static vnodeops_t initrd_vops;
 
 extern int8_t __rd_start[];
-extern int8_t __rd_size[];
+extern int8_t __rd_end[];
 
 extern char *kenv_get(const char *key);
 
@@ -340,7 +340,7 @@ intptr_t ramdisk_get_start(void) {
 }
 
 unsigned ramdisk_get_size(void) {
-  return (unsigned)__rd_size;
+  return (unsigned)__rd_end - (unsigned)__rd_start;
 }
 
 void ramdisk_dump(void) {
