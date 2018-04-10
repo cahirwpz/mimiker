@@ -2,7 +2,7 @@
 
 TOPDIR = $(CURDIR)
 
-all: cscope tags mimiker.elf initrd.cpio
+all: cscope tags mimiker.elf
 
 include $(TOPDIR)/build/build.kern.mk
 
@@ -38,9 +38,9 @@ LDLIBS	= -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc -L$(TOPDIR)/tests \
             -lgcc \
           -Wl,--end-group
 
-mimiker.elf: $(KRT) | $(SYSSUBDIRS)
+mimiker.elf: $(KRT) initrd.o | $(SYSSUBDIRS)
 	@echo "[LD] Linking kernel image: $@"
-	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
+	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) initrd.o -o $@
 
 cscope:
 	cscope -b include/*.h ./*/*.[cS]
@@ -76,7 +76,7 @@ test: mimiker.elf
 	./run_tests.py
 
 # Detecting whether initrd.cpio requires rebuilding is tricky, because even if
-# this target was to depend on $(shell fild sysroot -type f), then make compares
+# this target was to depend on $(shell find sysroot -type f), then make compares
 # sysroot files timestamps BEFORE recursively entering user and installing user
 # programs into sysroot. This sounds silly, but apparently make assumes no files
 # appear "without their explicit target". Thus, the only thing we can do is
@@ -85,10 +85,16 @@ initrd.cpio: force | user
 	@echo "[INITRD] Building $@..."
 	cd sysroot && find -depth -print | $(CPIO) -o -F ../$@ 2> /dev/null
 
+initrd.o: initrd.cpio
+	$(OBJCOPY) -I binary -O elf32-littlemips -B mips \
+	  --rename-section .data=.initrd,alloc,load,readonly,data,contents \
+	  $^ $@
+
 clean:
 	$(foreach DIR, $(SUBDIRS), $(MAKE) -C $(DIR) $@;)
-	$(RM) *.a *.elf *.map *.lst *~ *.log *.cpio .*.D
+	$(RM) *.a *.elf *.map *.lst *~ *.log .*.D
 	$(RM) tags etags cscope.out *.taghl
+	$(RM) initrd.o initrd.cpio
 
 distclean: clean
 	$(RM) -r cache sysroot
