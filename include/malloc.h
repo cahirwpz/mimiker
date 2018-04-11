@@ -27,7 +27,8 @@
 void *kernel_sbrk(size_t size) __attribute__((warn_unused_result));
 
 /*
- * Sets the final value of `kernel_end` and the allocation limit for `kernel_sbrk`.
+ * Sets the final value of `kernel_end` and the allocation limit for
+ * `kernel_sbrk`.
  */
 void kernel_sbrk_freeze(void *limit);
 
