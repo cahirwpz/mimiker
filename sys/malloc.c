@@ -22,7 +22,7 @@ extern uint8_t __kernel_start[];
  * occur BEFORE running any code that assumes the value of
  * `kernel_end` to be constant.
  */
-void *kernel_end = (void *)__ebss;
+static void *kernel_end = (void *)__ebss;
 
 static struct {
   /* Pointer to free memory used to service allocation requests. */
