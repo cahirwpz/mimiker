@@ -102,3 +102,5 @@ UTEST_ADD_SIMPLE(fpu_fcsr);
 UTEST_ADD_SIMPLE(fpu_gpr_preservation);
 UTEST_ADD_SIMPLE(fpu_cpy_ctx_on_fork);
 UTEST_ADD_SIMPLE(fpu_ctx_signals);
+
+UTEST_ADD_SIMPLE(call_cp0_from_userspace);

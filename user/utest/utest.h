@@ -37,4 +37,6 @@ int test_fpu_gpr_preservation(void);
 int test_fpu_cpy_ctx_on_fork(void);
 int test_fpu_ctx_signals(void);
 
+int test_call_cp0_from_userspace(void);
+
 #endif /* __UTEST_H__ */
