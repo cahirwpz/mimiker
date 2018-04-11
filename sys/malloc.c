@@ -11,6 +11,8 @@
 
 /* The end of the kernel's .bss section. Provided by the linker. */
 extern uint8_t __ebss[];
+/* Start address of the kernel image. */
+extern uint8_t __kernel_start[];
 
 /*
  * The end of the memory area occupied by the kernel image.
@@ -65,6 +67,14 @@ void kernel_sbrk_freeze(void *limit) {
   assert(sbrk.ptr <= limit);
   sbrk.end = limit;
   kernel_end = limit;
+}
+
+intptr_t kernel_get_start() {
+  return (intptr_t)__kernel_start;
+}
+
+intptr_t kernel_get_end() {
+  return (intptr_t)kernel_end;
 }
 
 /*

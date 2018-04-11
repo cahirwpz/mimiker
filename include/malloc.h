@@ -32,6 +32,20 @@ void *kernel_sbrk(size_t size) __attribute__((warn_unused_result));
 void kernel_sbrk_freeze(void *limit);
 
 /*
+ * Returns the start address of the memory area occupied by the kernel image.
+ */
+intptr_t kernel_get_start(void);
+
+/*
+ * Returns the end address of the memory area occupied by the kernel image.
+ * The value returned by this function may change at runtime due to calls to
+ * `kernel_sbrk`. Therefore, it is CRITICAL that all calls to `kernel_sbrk`
+ * and `kernel_sbrk_freeze` occur BEFORE running any code that assumes the
+ * return value of this function to be constant over time.
+ */
+intptr_t kernel_get_end(void);
+
+/*
  * General purpose kernel memory allocator.
  */
 
