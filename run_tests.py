@@ -44,8 +44,8 @@ def gdb_inspect(interactive):
                 '-ex=python sys.path.append(os.getcwd())',
                 '-ex=python import debug',
                 '--nh', '--nx', 'mimiker.elf']
-    gdb = pexpect.spawn(gdb_command, gdb_opts, timeout=1)
-    gdb.expect_exact('(gdb)', timeout=2)
+    gdb = pexpect.spawn(gdb_command, gdb_opts, timeout=3)
+    gdb.expect_exact('(gdb)', timeout=5)
     send_command(gdb, 'klog')
     send_command(gdb, 'info registers')
     send_command(gdb, 'backtrace')

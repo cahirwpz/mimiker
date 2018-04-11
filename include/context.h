@@ -24,7 +24,10 @@ void ctx_init(thread_t *td, void (*target)(void *), void *arg);
 
 /* This function stores the current context to @from, and resumes the
  * context stored in @to. It does not return immediatelly, it returns
- * only when the @from context is resumed. */
+ * only when the @from context is resumed.
+ *
+ * When switching it atomically releases @from thread spin lock (if applicable)
+ * and acquires @to thread spin lock (if TDF_NEEDLOCK is set for it). */
 void ctx_switch(thread_t *from, thread_t *to);
 
 /* Prepare user context for given thread. */

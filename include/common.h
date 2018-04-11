@@ -1,11 +1,17 @@
 #ifndef _SYS_COMMON_H_
 #define _SYS_COMMON_H_
 
+#include <limits.h>      /* UINT_MAX, LONG_MIN, ... */
 #include <stdint.h>      /* uint*_t, int*_t */
 #include <stddef.h>      /* offsetof, NULL, ptrdiff_t, size_t, etc. */
 #include <stdbool.h>     /* bool, true, false */
 #include <stdalign.h>    /* alignof, alignas */
 #include <stdnoreturn.h> /* noreturn */
+
+typedef unsigned char u_char;
+typedef unsigned short u_short;
+typedef unsigned int u_int;
+typedef unsigned long u_long;
 
 typedef unsigned long vm_addr_t;
 typedef unsigned long pm_addr_t;
@@ -42,6 +48,8 @@ typedef int32_t blksize_t; /* fs optimal block size */
 #define __alias(x) __attribute__((alias(#x)))
 #define __cleanup(func) __attribute__((__cleanup__(func)))
 #define __caller(x) (__builtin_return_address(x) - 8)
+#define __likely(x) __builtin_expect((x), 1)
+#define __unlikely(x) __builtin_expect((x), 0)
 
 /* Macros for counting and rounding. */
 #ifndef howmany

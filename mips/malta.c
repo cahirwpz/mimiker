@@ -125,22 +125,7 @@ extern intptr_t parse_rd_start(const char *s);
 static void pm_bootstrap(unsigned memsize) {
   pm_init();
 
-  intptr_t rd_start = ramdisk_get_start();
-  unsigned rd_size = align(ramdisk_get_size(), PAGESIZE);
-
-  /*
-   * Ramdisk start address is expected to be page aligned and placed:
-   * - Directly after kernel's .bss section in case of OVPSim
-   * - One page after kernel's .bss section in case of Qemu
-   */
-  assert(is_aligned(rd_start, PAGESIZE));
-  assert(is_aligned(rd_start + rd_size, PAGESIZE));
-  assert(rd_start == 0 || (intptr_t)__kernel_end <= rd_start);
-
-  intptr_t real_kernel_end =
-    (rd_start == 0) ? (intptr_t)(__kernel_end) : (intptr_t)(rd_start + rd_size);
-
-  pm_seg_t *seg = (pm_seg_t *)real_kernel_end;
+  pm_seg_t *seg = (pm_seg_t *)__kernel_end;
   size_t seg_size = align(pm_seg_space_needed(memsize), PAGESIZE);
 
   /* create Malta physical memory segment */
@@ -148,7 +133,7 @@ static void pm_bootstrap(unsigned memsize) {
               MIPS_KSEG0_START);
   /* reserve kernel and ramdisk image space */
   pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS((intptr_t)__kernel_start),
-                 MIPS_KSEG0_TO_PHYS(real_kernel_end));
+                 MIPS_KSEG0_TO_PHYS(__kernel_end));
 
   /* reserve segment description space */
   pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS((intptr_t)seg),

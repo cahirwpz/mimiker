@@ -38,8 +38,7 @@ class OVPsim(Launchable):
             'command': '"' + kwargs['args'] + '"'
         }
 
-        self.options = ['--ramdisk', 'initrd.cpio',
-                        '--wallclock',
+        self.options = ['--wallclock',
                         '--kernel', kwargs['kernel']]
 
         if not kwargs['graphics']:
@@ -71,7 +70,6 @@ class QEMU(Launchable):
                         '-kernel', kwargs['kernel'],
                         '-append', kwargs['args'],
                         '-gdb', 'tcp::%d' % kwargs['gdb_port'],
-                        '-initrd', 'initrd.cpio',
                         '-serial', 'none',
                         '-serial', 'null',
                         '-serial', 'null',

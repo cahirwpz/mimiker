@@ -1,8 +1,10 @@
-/*	$OpenBSD: memcpy.c,v 1.3 2013/06/12 16:44:22 deraadt Exp $	*/
-
+/*	$OpenBSD: memcpy.c,v 1.4 2017/11/29 05:13:57 guenther Exp $ */
 /*-
- * Copyright (c) 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1990 The Regents of the University of California.
+ * All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Chris Torek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,15 +34,56 @@
 #include <stdc.h>
 
 /*
- * This is designed to be small, not fast.
+ * sizeof(word) MUST BE A POWER OF TWO
+ * SO THAT wmask BELOW IS ALL ONES
+ */
+typedef	long word;		/* "word" used for optimal copy speed */
+
+#define	wsize	sizeof(word)
+#define	wmask	(wsize - 1)
+
+/*
+ * Copy a block of memory, not handling overlap.
  */
 void *
-memcpy(void *s1, const void *s2, size_t n)
+memcpy(void *dst0, const void *src0, size_t length)
 {
-	register const char *f = s2;
-	register char *t = s1;
+	char *dst = dst0;
+	const char *src = src0;
+	size_t t;
 
-	while (n-- > 0)
-		*t++ = *f++;
-	return s1;
+	if (length == 0 || dst == src)		/* nothing to do */
+		goto done;
+
+	/*
+	 * Macros: loop-t-times; and loop-t-times, t>0
+	 */
+#define	TLOOP(s) if (t) TLOOP1(s)
+#define	TLOOP1(s) do { s; } while (--t)
+
+	/*
+	 * Copy forward.
+	 */
+	t = (long)src;	/* only need low bits */
+	if ((t | (long)dst) & wmask) {
+		/*
+		 * Try to align operands.  This cannot be done
+		 * unless the low bits match.
+		 */
+		if ((t ^ (long)dst) & wmask || length < wsize)
+			t = length;
+		else
+			t = wsize - (t & wmask);
+		length -= t;
+		TLOOP1(*dst++ = *src++);
+	}
+	/*
+	 * Copy whole words, then mop up any trailing bytes.
+	 */
+	t = length / wsize;
+	TLOOP(*(word *)dst = *(word *)src; src += wsize; dst += wsize);
+	t = length & wmask;
+	TLOOP(*dst++ = *src++);
+done:
+	return (dst0);
 }
