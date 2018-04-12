@@ -55,7 +55,7 @@ static void sched_thread_priority(thread_t *td, td_prio_t prio) {
   if (td->td_prio == prio)
     return;
 
-  SCOPED_SPINLOCK(td->td_spin);
+  assert(spin_owned(td->td_spin));
 
   if (td->td_state == TDS_READY) {
     /* Thread is on a run queue. */

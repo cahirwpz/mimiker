@@ -2,6 +2,7 @@
 #define _SYS_SCHED_H_
 
 #include <common.h>
+#include <thread.h>
 
 typedef struct thread thread_t;
 
@@ -51,6 +52,8 @@ void sched_wakeup(thread_t *td);
 /*! \brief Priority propagation.
  *
  * Update thread's priority to prevent priority inversion.
+ *
+ * /note Must be called with td_spin acquired!
  */
 void sched_lend_prio(thread_t *td, td_prio_t prio);
 
@@ -58,6 +61,8 @@ void sched_lend_prio(thread_t *td, td_prio_t prio);
  *
  * Satisfy other priority lend requests that require thread's priority to
  * be at least prio.
+ *
+ * /note Must be called with td_spin acquired!
  */
 void sched_unlend_prio(thread_t *td, td_prio_t prio);
 
