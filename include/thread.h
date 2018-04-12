@@ -74,7 +74,7 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_runq;   /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq; /* a link on sleep queue */
   TAILQ_ENTRY(thread)
-  td_turnstilesq;                 /* a link on turnstile queue
+  td_turnstileq;                  /* a link on turnstile queue
                                    * (ts_blocked or ts_pending) */
   TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
   TAILQ_ENTRY(thread) td_procq;   /* a link on process threads queue */
@@ -97,8 +97,7 @@ typedef struct thread {
   stack_t td_kstack;
   /* waiting channel */
   sleepq_t *td_sleepqueue;
-  turnstile_t *td_blocked;   /* lock thread is blocked on */
-  uint8_t td_turnstileq_ind; /* index of ts_blocked */
+  turnstile_t *td_blocked; /* lock thread is blocked on */
   turnstile_t *td_turnstile;
   LIST_HEAD(, turnstile) td_contested; /* turnstiles of locks that we own */
   void *td_wchan;
