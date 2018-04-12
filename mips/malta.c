@@ -15,6 +15,9 @@
 #include <thread.h>
 #include <initrd.h>
 
+/* Start address of the kernel image. */
+extern uint8_t __kernel_start[];
+
 extern int kernel_init(int argc, char **argv);
 
 static struct {
@@ -130,15 +133,15 @@ static void pm_bootstrap(unsigned memsize) {
    * If we don't do it here, the physical memory manager might
    * unintentionally allocate a frame that was used by `kernel_sbrk`.
    */
-  kbss_fix((void *)align(get_kernel_end(), PAGESIZE));
+  void *__kernel_end = kbss_fix();
 
   /* create Malta physical memory segment */
   pm_seg_init(seg, MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + memsize,
               MIPS_KSEG0_START);
 
   /* reserve kernel image and physical memory description space */
-  pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS(get_kernel_start()),
-                 MIPS_KSEG0_TO_PHYS(get_kernel_end()));
+  pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS(__kernel_start),
+                 MIPS_KSEG0_TO_PHYS(__kernel_end));
 
   pm_add_segment(seg);
 }

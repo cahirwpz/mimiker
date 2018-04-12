@@ -1,6 +1,8 @@
 #ifndef _SYS_KBSS_H_
 #define _SYS_KBSS_H_
 
+#include <common.h>
+
 /* Clears kernel bss section. */
 void kbss_init(void);
 
@@ -13,32 +15,14 @@ void kbss_init(void);
  * further than it originally did. In order to allocate N bytes of memory, it
  * pushes the pointer to the end of kernel's image by N bytes. This way such
  * dynamically allocated structures are appended to the memory already occupied
- * by kernel data. The extended end of kernel image is stored in
- * kernel_bss_end, the physical memory manager will take it into account when
- * started.
+ * by kernel data. The extended end of kernel image will be returned by \a
+ * kbss_fix, the physical memory manager will take it into account when started.
  *
  * The returned pointer is word-aligned. The block is filled with 0's.
  */
-void *kbss_grow(size_t size) __attribute__((warn_unused_result));
+void *kbss_grow(size_t size) __warn_unused;
 
-/*
- * Sets the final value of `kernel_end` and the allocation limit for
- * `kbss_grow`.
- */
-void kbss_fix(void *limit);
-
-/*
- * Returns the start address of the memory area occupied by the kernel image.
- */
-intptr_t get_kernel_start(void);
-
-/*
- * Returns the end address of the memory area occupied by the kernel image.
- * The value returned by this function may change at runtime due to calls to
- * `kernel_sbrk`. Therefore, it is CRITICAL that all calls to `kernel_sbrk`
- * and `kernel_sbrk_freeze` occur BEFORE running any code that assumes the
- * return value of this function to be constant over time.
- */
-intptr_t get_kernel_end(void);
+/* Fixes size of kernel bss section and allocation limit for \a kbss_grow. */
+void *kbss_fix(void);
 
 #endif /* _SYS_KBSS_H_ */

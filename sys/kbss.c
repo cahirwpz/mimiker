@@ -1,7 +1,6 @@
-#define KL_LOG KL_KMEM
-#include <klog.h>
 #include <kbss.h>
 #include <stdc.h>
+#include <vm.h>
 
 /* Leave synchronization markers in case we need it. */
 #define cs_enter()
@@ -10,8 +9,6 @@
 extern uint8_t __bss[];
 /* The end of the kernel's .bss section. Provided by the linker. */
 extern uint8_t __ebss[];
-/* Start address of the kernel image. */
-extern uint8_t __kernel_start[];
 
 /*
  * The end of the memory area occupied by the kernel image.
@@ -49,19 +46,12 @@ void *kbss_grow(size_t size) {
   return ptr;
 }
 
-void kbss_fix(void *limit) {
-  assert(limit != NULL);
+void *kbss_fix(void) {
+  void *limit = align(kernel_end, PAGESIZE);
   /* The limit can be set only once. */
   assert(kbss.end == NULL);
   assert(kbss.ptr <= limit);
   kbss.end = limit;
   kernel_end = limit;
-}
-
-intptr_t get_kernel_start(void) {
-  return (intptr_t)__kernel_start;
-}
-
-intptr_t get_kernel_end(void) {
-  return (intptr_t)kernel_end;
+  return kernel_end;
 }
