@@ -13,7 +13,6 @@
 #include <pool.h>
 #include <stdc.h>
 #include <thread.h>
-#include <initrd.h>
 
 /* Start address of the kernel image. */
 extern uint8_t __kernel_start[];
@@ -119,7 +118,6 @@ char *kenv_get(const char *key) {
   return NULL;
 }
 
-extern intptr_t parse_rd_start(const char *s);
 
 static void pm_bootstrap(unsigned memsize) {
   pm_init();
