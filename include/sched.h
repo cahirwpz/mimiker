@@ -48,6 +48,19 @@ void sched_add(thread_t *td);
  */
 void sched_wakeup(thread_t *td);
 
+/*! \brief Priority propagation.
+ *
+ * Update thread's priority to prevent priority inversion.
+ */
+void sched_lend_prio(thread_t *td, td_prio_t prio);
+
+/*! \brief Priority propagation is over.
+ *
+ * Satisfy other priority lend requests that require thread's priority to
+ * be at least prio.
+ */
+void sched_unlend_prio(thread_t *td, td_prio_t prio);
+
 /*! \brief Takes care of run-time accounting for current thread. */
 void sched_clock(void);
 

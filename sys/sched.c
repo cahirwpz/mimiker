@@ -50,6 +50,36 @@ void sched_wakeup(thread_t *td) {
     oldtd->td_flags |= TDF_NEEDSWITCH;
 }
 
+/*! \brief Adjust thread's priority. */
+static void sched_thread_priority(thread_t *td, td_prio_t prio) {
+  if (td->td_prio == prio)
+    return;
+
+  SCOPED_SPINLOCK(td->td_spin);
+
+  if (td->td_state == TDS_READY) {
+    /* Thread is on a run queue. */
+    runq_remove(&runq, td);
+    td->td_prio = prio;
+    runq_add(&runq, td);
+  } else {
+    td->td_prio = prio;
+  }
+}
+
+void sched_lend_prio(thread_t *td, td_prio_t prio) {
+  td->td_flags |= TDF_BORROWING;
+  sched_thread_priority(td, prio);
+}
+
+void sched_unlend_prio(thread_t *td, td_prio_t prio) {
+  if (prio <= td->td_base_prio) {
+    td->td_flags &= ~TDF_BORROWING;
+    sched_thread_priority(td, td->td_base_prio);
+  } else
+    sched_lend_prio(td, prio);
+}
+
 /*! \brief Chooses next thread to run.
  *
  * \note Returned thread is marked as running!
