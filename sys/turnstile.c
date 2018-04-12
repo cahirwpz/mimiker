@@ -1,5 +1,4 @@
 #include <pool.h>
-#include <thread.h>
 #include <spinlock.h>
 #include <sched.h>
 #include <turnstile.h>
