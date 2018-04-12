@@ -14,9 +14,6 @@
 #include <stdc.h>
 #include <thread.h>
 
-/* Start address of the kernel image. */
-extern uint8_t __kernel_start[];
-
 extern int kernel_init(int argc, char **argv);
 
 static struct {
@@ -118,6 +115,7 @@ char *kenv_get(const char *key) {
   return NULL;
 }
 
+extern uint8_t __kernel_start[];
 
 static void pm_bootstrap(unsigned memsize) {
   pm_init();
@@ -125,11 +123,9 @@ static void pm_bootstrap(unsigned memsize) {
   pm_seg_t *seg = kbss_grow(pm_seg_space_needed(memsize));
 
   /*
-   * We freeze `kernel_end` here because we're about to reserve
-   * the chunk of physical memory occupied by the kernel image
-   * along with all memory allocated using `kernel_sbrk`.
-   * If we don't do it here, the physical memory manager might
-   * unintentionally allocate a frame that was used by `kernel_sbrk`.
+   * Let's fix size of kernel bss section. We need to tell physical memory
+   * allocator not to manage memory used by the kernel image along with all
+   * memory allocated using \a kbss_grow.
    */
   void *__kernel_end = kbss_fix();
 
