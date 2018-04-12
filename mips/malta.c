@@ -6,6 +6,7 @@
 #include <mips/intr.h>
 #include <mips/tlb.h>
 #include <klog.h>
+#include <kbss.h>
 #include <console.h>
 #include <pcpu.h>
 #include <pmap.h>
@@ -14,8 +15,6 @@
 #include <thread.h>
 #include <initrd.h>
 
-extern unsigned int __bss[];
-extern unsigned int __ebss[];
 extern int kernel_init(int argc, char **argv);
 
 static struct {
@@ -44,7 +43,7 @@ static char **extract_tokens(const char *str, char **tokens_p) {
       return tokens_p;
     size_t toklen = strcspn(str, whitespaces);
     /* copy the token to memory managed by the kernel */
-    char *token = kernel_sbrk(toklen + 1);
+    char *token = kbss_grow(toklen + 1);
     strlcpy(token, str, toklen + 1);
     *tokens_p++ = token;
     str += toklen;
@@ -53,7 +52,7 @@ static char **extract_tokens(const char *str, char **tokens_p) {
 
 static char *make_pair(char *key, char *value) {
   int arglen = strlen(key) + strlen(value) + 2;
-  char *arg = kernel_sbrk(arglen * sizeof(char));
+  char *arg = kbss_grow(arglen * sizeof(char));
   strlcpy(arg, key, arglen);
   strlcat(arg, "=", arglen);
   strlcat(arg, value, arglen);
@@ -95,7 +94,7 @@ static void setup_kenv(int argc, char **argv, char **envp) {
 
   _kenv.argc = ntokens;
 
-  char **tokens = kernel_sbrk(ntokens * sizeof(char *));
+  char **tokens = kbss_grow(ntokens * sizeof(char *));
 
   _kenv.argv = tokens;
 
@@ -122,7 +121,7 @@ extern intptr_t parse_rd_start(const char *s);
 static void pm_bootstrap(unsigned memsize) {
   pm_init();
 
-  pm_seg_t *seg = kernel_sbrk(pm_seg_space_needed(memsize));
+  pm_seg_t *seg = kbss_grow(pm_seg_space_needed(memsize));
 
   /*
    * We freeze `kernel_end` here because we're about to reserve
@@ -131,15 +130,15 @@ static void pm_bootstrap(unsigned memsize) {
    * If we don't do it here, the physical memory manager might
    * unintentionally allocate a frame that was used by `kernel_sbrk`.
    */
-  kernel_sbrk_freeze((void *)align(kernel_get_end(), PAGESIZE));
+  kbss_fix((void *)align(get_kernel_end(), PAGESIZE));
 
   /* create Malta physical memory segment */
   pm_seg_init(seg, MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + memsize,
               MIPS_KSEG0_START);
 
   /* reserve kernel image and physical memory description space */
-  pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS(kernel_get_start()),
-                 MIPS_KSEG0_TO_PHYS(kernel_get_end()));
+  pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS(get_kernel_start()),
+                 MIPS_KSEG0_TO_PHYS(get_kernel_end()));
 
   pm_add_segment(seg);
 }
@@ -157,8 +156,7 @@ static void thread_bootstrap(void) {
 }
 
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
-  /* clear BSS section */
-  bzero(__bss, __ebss - __bss);
+  kbss_init();
 
   setup_kenv(argc, argv, envp);
   cn_init();
