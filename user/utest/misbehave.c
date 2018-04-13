@@ -36,12 +36,12 @@ static int spawn_sprocess_calling_cp0(void) {
   // int value;
   switch((pid = fork())) {
     case -1:
-      exit(1);
+      exit(EXIT_FAILURE);
     case 0:
       // MFC0(value, $12, 0);
       // asm volatile("mfc0 %0,$12,0" : "=r"(value));
-      raise(SIGILL);
-      exit(1);
+      // raise(SIGILL);
+      exit(EXIT_FAILURE);
     default : 
       return pid;
   }
