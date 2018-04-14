@@ -62,12 +62,7 @@ SECTIONS
     *(COMMON)
     . = ALIGN (4);
     __ebss = ABSOLUTE(.);
-    /* add one page for early malloc */
-    . = . + 4096;
-    . = ALIGN (4096);
   }
-
-  __kernel_end = .;
 
   /* Sections to be discarded */
   /DISCARD/ :
