@@ -62,8 +62,7 @@ void sched_lend_prio(thread_t *td, td_prio_t prio);
  *
  * The new priority will be lent if it's better than the base priority
  * of the thread.
- * This shall be used as a part of a mechanism for
- * avoiding priority inversion.
+ * This shall be used as a part of a mechanism for avoiding priority inversion.
  *
  * \note Must be called with td_spin acquired!
  */
