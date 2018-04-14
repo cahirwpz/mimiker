@@ -49,20 +49,24 @@ void sched_add(thread_t *td);
  */
 void sched_wakeup(thread_t *td);
 
-/*! \brief Priority propagation.
+/*! \brief Lend a priority to a thread.
  *
- * Update thread's priority to prevent priority inversion.
+ * The new priority must be better than the old one.
+ * This shall be used as a part of a mechanism for
+ * avoiding priority inversion.
  *
- * /note Must be called with td_spin acquired!
+ * \note Must be called with td_spin acquired!
  */
 void sched_lend_prio(thread_t *td, td_prio_t prio);
 
-/*! \brief Priority propagation is over.
+/*! \brief Remove lent priority while offering a new priority to lend.
  *
- * Satisfy other priority lend requests that require thread's priority to
- * be at least prio.
+ * The new priority will be lent if it's better than the base priority
+ * of the thread.
+ * This shall be used as a part of a mechanism for
+ * avoiding priority inversion.
  *
- * /note Must be called with td_spin acquired!
+ * \note Must be called with td_spin acquired!
  */
 void sched_unlend_prio(thread_t *td, td_prio_t prio);
 

@@ -50,12 +50,14 @@ void sched_wakeup(thread_t *td) {
     oldtd->td_flags |= TDF_NEEDSWITCH;
 }
 
-/*! \brief Adjust thread's priority. */
+/*! \brief Adjust thread's priority.
+ * \note Must be called with td_spin acquired!
+ */
 static void sched_thread_priority(thread_t *td, td_prio_t prio) {
+  assert(spin_owned(td->td_spin));
+
   if (td->td_prio == prio)
     return;
-
-  assert(spin_owned(td->td_spin));
 
   if (td->td_state == TDS_READY) {
     /* Thread is on a run queue. */
@@ -68,11 +70,15 @@ static void sched_thread_priority(thread_t *td, td_prio_t prio) {
 }
 
 void sched_lend_prio(thread_t *td, td_prio_t prio) {
+  assert(spin_owned(td->td_spin));
+
   td->td_flags |= TDF_BORROWING;
   sched_thread_priority(td, prio);
 }
 
 void sched_unlend_prio(thread_t *td, td_prio_t prio) {
+  assert(spin_owned(td->td_spin));
+
   if (prio <= td->td_base_prio) {
     td->td_flags &= ~TDF_BORROWING;
     sched_thread_priority(td, td->td_base_prio);
