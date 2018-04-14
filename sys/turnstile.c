@@ -127,7 +127,7 @@ static int turnstile_adjust_thread(turnstile_t *ts, thread_t *td) {
  * of the thread being blocked to all the threads holding locks that have to
  * release their locks before this thread can run again.
  */
-/*static*/ void propagate_priority(thread_t *td) {
+void propagate_priority(thread_t *td) {
   // TODO jakaś blokada na td?
   turnstile_t *ts = td->td_blocked;
   td_prio_t prio = td->td_prio;
@@ -179,6 +179,18 @@ static thread_t *turnstile_first_waiter(turnstile_t *ts) {
   return TAILQ_FIRST(&ts->ts_blocked);
 }
 
+static void turnstile_setowner(turnstile_t *ts, thread_t *owner) {
+  assert(spin_owned(&td_contested_lock));
+  assert(ts->ts_owner == NULL);
+
+  /* a shared lock might not have an owner */
+  if (owner == NULL)
+    return;
+
+  ts->ts_owner = owner;
+  LIST_INSERT_HEAD(&owner->td_contested, ts, ts_link);
+}
+
 /* td - blocked thread (on some turnstile)
  * Gotta:
  * - sort the list on which =td= is (=ts->ts_blocked=)
@@ -215,8 +227,59 @@ void turnstile_adjust(thread_t *td, td_prio_t oldprio) {
   }
 }
 
+/*
+ * Block the current thread on the turnstile assicated with 'lock'.  This
+ * function will context switch and not return until this thread has been
+ * woken back up.  This function must be called with the appropriate
+ * turnstile chain locked and will return with it unlocked.
+ */
 void turnstile_wait(turnstile_t *ts, thread_t *owner) {
-  // TODO
+  assert(spin_owned(&ts->ts_lock));
+
+  turnstile_chain_t *tc = TC_LOOKUP(ts->ts_wchan);
+  assert(spin_owned(&tc->tc_lock));
+
+  thread_t *td = thread_self();
+  if (ts == td->td_turnstile) {
+    LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_hash);
+
+    assert(TAILQ_EMPTY(&ts->ts_pending));
+    assert(TAILQ_EMPTY(&ts->ts_blocked));
+    assert(LIST_EMPTY(&ts->ts_free));
+    assert(ts->ts_wchan != NULL);
+
+    WITH_SPINLOCK (&td_contested_lock) {
+      TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_turnstileq);
+      turnstile_setowner(ts, owner);
+    }
+  } else {
+    thread_t *td1;
+    TAILQ_FOREACH(td1, &ts->ts_blocked, td_turnstileq)
+      if (td1->td_prio < td->td_prio)
+        break;
+    WITH_SPINLOCK (&td_contested_lock) {
+      if (td1 != NULL)
+        TAILQ_INSERT_BEFORE(td1, td, td_turnstileq);
+      else
+        TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_turnstileq);
+      assert(owner == ts->ts_owner);
+    }
+    assert(td->td_turnstile != NULL);
+    LIST_INSERT_HEAD(&ts->ts_free, td->td_turnstile, ts_hash);
+  }
+
+  WITH_SPINLOCK (td->td_spin) {
+    td->td_turnstile = NULL;
+    td->td_blocked = ts;
+    td->td_wchan = ts->ts_wchan;
+    td->td_waitpt = NULL; // TODO
+    td->td_state = TDS_LOCKED;
+
+    spin_release(&tc->tc_lock);
+    propagate_priority(td);
+
+    sched_switch();
+  }
 }
 
 void turnstile_broadcast(turnstile_t *ts) {
@@ -245,9 +308,58 @@ void turnstile_broadcast(turnstile_t *ts) {
   }
 }
 
+
+/*
+ * Wakeup all threads on the pending list and adjust the priority of the
+ * current thread appropriately.  This must be called with the turnstile
+ * chain locked.
+ */
 void turnstile_unpend(turnstile_t *ts) {
-  // TODO
-  // lol, owner_type jest nieużywane we FreeBSD
+  threadqueue_t pending_threads;
+  assert(ts != NULL);
+  assert(spin_owned(&ts->ts_lock));
+  assert(ts->ts_owner == thread_self());
+  assert(!TAILQ_EMPTY(&ts->ts_pending));
+
+  TAILQ_INIT(&pending_threads);
+  TAILQ_CONCAT(&pending_threads, &ts->ts_pending, td_turnstileq);
+
+  if (TAILQ_EMPTY(&ts->ts_blocked))
+    ts->ts_wchan = NULL;
+
+  thread_t *td = thread_self();
+  td_prio_t prio = 0; /* lowest priority */
+
+  WITH_SPINLOCK (td->td_spin) {
+    WITH_SPINLOCK (&td_contested_lock) {
+      if (ts->ts_owner != NULL) {
+        ts->ts_owner = NULL;
+        LIST_REMOVE(ts, ts_link);
+      }
+
+      turnstile_t *ts1;
+      LIST_FOREACH (ts1, &td->td_contested, ts_link) {
+        td_prio_t p = turnstile_first_waiter(ts1)->td_prio;
+        if (p > prio)
+          prio = p;
+      }
+    }
+    sched_unlend_prio(td, prio);
+  }
+
+  while (!TAILQ_EMPTY(&pending_threads)) {
+    td = TAILQ_FIRST(&pending_threads);
+    TAILQ_REMOVE(&pending_threads, td, td_turnstileq);
+
+    WITH_SPINLOCK (td->td_spin) {
+      td->td_blocked = NULL;
+      td->td_wchan = NULL;
+      td->td_waitpt = NULL;
+      sched_wakeup(td);
+    }
+  }
+
+  spin_release(&ts->ts_lock);
 }
 
 // TODO consider locks
@@ -273,19 +385,6 @@ void turnstile_unpend(turnstile_t *ts) {
 
 //   sched_unlend_prio(td, new_prio);
 // }
-
-/* assumes that we own td_contested_lock */
-/*static*/ void turnstile_setowner(turnstile_t *ts, thread_t *owner) {
-  assert(spin_owned(&td_contested_lock));
-  assert(ts->ts_owner == NULL);
-
-  /* a shared lock might not have an owner */
-  if (owner == NULL)
-    return;
-
-  ts->ts_owner = owner;
-  LIST_INSERT_HEAD(&owner->td_contested, ts, ts_link);
-}
 
 void turnstile_chain_lock(void *wchan) {
   turnstile_chain_t *tc = TC_LOOKUP(wchan);

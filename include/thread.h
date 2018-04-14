@@ -41,6 +41,8 @@ typedef enum {
   TDS_RUNNING,
   /*!< thread is waiting on a resource and it has been put on a sleep queue */
   TDS_SLEEPING,
+  /*!< thread is waiting for a lock and it has been put on a turnstile */
+  TDS_LOCKED,
   /*!< thread finished or was terminated by the kernel and awaits recycling */
   TDS_DEAD
 } thread_state_t;
