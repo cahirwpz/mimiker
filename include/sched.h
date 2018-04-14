@@ -52,8 +52,7 @@ void sched_wakeup(thread_t *td);
 /*! \brief Lend a priority to a thread.
  *
  * The new priority must be better than the old one.
- * This shall be used as a part of a mechanism for
- * avoiding priority inversion.
+ * This shall be used as a part of a mechanism for avoiding priority inversion.
  *
  * \note Must be called with td_spin acquired!
  */

@@ -71,6 +71,7 @@ static void sched_thread_priority(thread_t *td, td_prio_t prio) {
 
 void sched_lend_prio(thread_t *td, td_prio_t prio) {
   assert(spin_owned(td->td_spin));
+  assert(td->td_prio < prio);
 
   td->td_flags |= TDF_BORROWING;
   sched_thread_priority(td, prio);
