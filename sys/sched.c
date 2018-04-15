@@ -51,6 +51,7 @@ void sched_wakeup(thread_t *td) {
 }
 
 /*! \brief Adjust thread's priority.
+ *
  * \note Must be called with td_spin acquired!
  */
 static void sched_thread_priority(thread_t *td, td_prio_t prio) {
