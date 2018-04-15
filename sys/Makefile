@@ -23,6 +23,7 @@ SOURCES_C  = \
 	fork.c \
 	initrd.c \
 	interrupt.c \
+	kbss.c \
 	klog.c \
 	ktest.c \
 	main.c \
