@@ -1,6 +1,7 @@
 #include <spinlock.h>
 #include <time.h>
 #include <stdc.h>
+#include <interrupt.h>
 #define _KLOG_PRIVATE
 #include <klog.h>
 
@@ -101,7 +102,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
       klog.first = next(klog.first);
   }
 
-  if (klog.verbose)
+  if (klog.verbose && !intr_disabled())
     klog_entry_dump(entry);
 }
 
