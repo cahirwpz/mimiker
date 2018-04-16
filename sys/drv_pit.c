@@ -70,9 +70,7 @@ static int pit_attach(device_t *dev) {
 }
 
 static driver_t pit_driver = {
-  .desc = "i8253 PIT driver",
-  .size = sizeof(pit_state_t),
-  .attach = pit_attach,
+  .desc = "i8253 PIT driver", .size = sizeof(pit_state_t), .attach = pit_attach,
 };
 
 extern device_t *gt_pci;
