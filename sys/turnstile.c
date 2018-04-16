@@ -248,16 +248,16 @@ void turnstile_wait(turnstile_t *ts, thread_t *owner) {
     assert(LIST_EMPTY(&ts->ts_free));
     assert(ts->ts_wchan != NULL);
 
-    WITH_SPINLOCK (&td_contested_lock) {
+    WITH_SPINLOCK(&td_contested_lock) {
       TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_turnstileq);
       turnstile_setowner(ts, owner);
     }
   } else {
     thread_t *td1;
-    TAILQ_FOREACH(td1, &ts->ts_blocked, td_turnstileq)
+    TAILQ_FOREACH (td1, &ts->ts_blocked, td_turnstileq)
       if (td1->td_prio < td->td_prio)
         break;
-    WITH_SPINLOCK (&td_contested_lock) {
+    WITH_SPINLOCK(&td_contested_lock) {
       if (td1 != NULL)
         TAILQ_INSERT_BEFORE(td1, td, td_turnstileq);
       else
@@ -268,7 +268,7 @@ void turnstile_wait(turnstile_t *ts, thread_t *owner) {
     LIST_INSERT_HEAD(&ts->ts_free, td->td_turnstile, ts_hash);
   }
 
-  WITH_SPINLOCK (td->td_spin) {
+  WITH_SPINLOCK(td->td_spin) {
     td->td_turnstile = NULL;
     td->td_blocked = ts;
     td->td_wchan = ts->ts_wchan;
@@ -308,7 +308,6 @@ void turnstile_broadcast(turnstile_t *ts) {
   }
 }
 
-
 /*
  * Wakeup all threads on the pending list and adjust the priority of the
  * current thread appropriately.  This must be called with the turnstile
@@ -330,15 +329,15 @@ void turnstile_unpend(turnstile_t *ts) {
   thread_t *td = thread_self();
   td_prio_t prio = 0; /* lowest priority */
 
-  WITH_SPINLOCK (td->td_spin) {
-    WITH_SPINLOCK (&td_contested_lock) {
+  WITH_SPINLOCK(td->td_spin) {
+    WITH_SPINLOCK(&td_contested_lock) {
       if (ts->ts_owner != NULL) {
         ts->ts_owner = NULL;
         LIST_REMOVE(ts, ts_link);
       }
 
       turnstile_t *ts1;
-      LIST_FOREACH (ts1, &td->td_contested, ts_link) {
+      LIST_FOREACH(ts1, &td->td_contested, ts_link) {
         td_prio_t p = turnstile_first_waiter(ts1)->td_prio;
         if (p > prio)
           prio = p;
@@ -351,7 +350,7 @@ void turnstile_unpend(turnstile_t *ts) {
     td = TAILQ_FIRST(&pending_threads);
     TAILQ_REMOVE(&pending_threads, td, td_turnstileq);
 
-    WITH_SPINLOCK (td->td_spin) {
+    WITH_SPINLOCK(td->td_spin) {
       td->td_blocked = NULL;
       td->td_wchan = NULL;
       td->td_waitpt = NULL;
