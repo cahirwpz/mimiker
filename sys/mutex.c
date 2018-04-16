@@ -1,4 +1,5 @@
 #include <mutex.h>
+#include <turnstile.h>
 #include <interrupt.h>
 #include <sched.h>
 #include <thread.h>
@@ -21,8 +22,12 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
   }
 
   WITH_NO_PREEMPTION {
-    while (m->m_owner != NULL)
-      sleepq_wait(&m->m_owner, waitpt);
+    while (m->m_owner != NULL) {
+      turnstile_t *ts = turnstile_trywait(m);
+      // if we had SMP then something could happen while
+      // we were spinning on tc_lock
+      turnstile_wait(ts, (thread_t *)m->m_owner);
+    }
     m->m_owner = thread_self();
     m->m_lockpt = waitpt;
   }
@@ -40,6 +45,11 @@ void mtx_unlock(mtx_t *m) {
   WITH_NO_PREEMPTION {
     m->m_owner = NULL;
     m->m_lockpt = NULL;
-    sleepq_signal(&m->m_owner);
+    turnstile_chain_lock(m);
+    turnstile_t *ts = turnstile_lookup(m);
+    turnstile_chain_unlock(m);
+    if (ts != NULL)
+      // TODO signal instead of broadcast (not implemented yet)
+      turnstile_broadcast(ts);
   }
 }
