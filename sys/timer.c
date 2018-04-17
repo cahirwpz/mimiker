@@ -29,7 +29,6 @@ int tm_register(timer_t *tm) {
   }
 
   klog("Registered '%s' timer.", tm->tm_name);
-
   return 0;
 }
 
@@ -45,7 +44,6 @@ int tm_deregister(timer_t *tm) {
   }
 
   klog("Unregistered '%s' timer.", tm->tm_name);
-
   return 0;
 }
 
@@ -61,7 +59,6 @@ timer_t *tm_alloc(const char *name, unsigned flags) {
     }
     tm->tm_flags |= TMF_ALLOCATED;
   }
-
   return tm;
 }
 
@@ -87,10 +84,8 @@ int tm_start(timer_t *tm, unsigned flags, const bintime_t value) {
 
   if (is_active(tm))
     return EBUSY;
-
   if (((tm->tm_flags & flags) & TMF_TYPEMASK) == 0)
     return ENODEV;
-
   if (flags & TMF_PERIODIC) {
     if (bintime_cmp(value, tm->tm_min_period, <) ||
         bintime_cmp(value, tm->tm_max_period, >))
@@ -98,10 +93,8 @@ int tm_start(timer_t *tm, unsigned flags, const bintime_t value) {
   }
 
   int retval = tm->tm_start(tm, flags, value);
-
   if (retval == 0)
     tm->tm_flags |= TMF_ACTIVE;
-
   return retval;
 }
 
@@ -112,10 +105,8 @@ int tm_stop(timer_t *tm) {
     return 0;
 
   int retval = tm->tm_stop(tm);
-
   if (retval == 0)
     tm->tm_flags &= ~TMF_ACTIVE;
-
   return retval;
 }
 
