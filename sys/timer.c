@@ -8,6 +8,11 @@
 static mtx_t timers_mtx = MTX_INITIALIZER(MTX_DEF);
 static timer_list_t timers = TAILQ_HEAD_INITIALIZER(timers);
 
+#define TMF_ACTIVE 0x1000
+#define TMF_INITIALIZED 0x2000
+#define TMF_ALLOCATED 0x4000
+#define TMF_REGISTERED 0x8000
+
 #define is_active(tm) ((tm)->tm_flags & TMF_ACTIVE)
 #define is_initialized(tm) ((tm)->tm_flags & TMF_INITIALIZED)
 #define is_allocated(tm) ((tm)->tm_flags & TMF_ALLOCATED)
