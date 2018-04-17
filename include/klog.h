@@ -17,6 +17,7 @@ typedef enum {
   KL_POOL,    /* pooled allocator */
   KL_LOCK,    /* lock operations tracing */
   KL_SCHED,   /* scheduler tracing */
+  KL_TIME,    /* system clock & timers */
   KL_THREAD,  /* kernel threads management */
   KL_INTR,    /* interrupts management and handling */
   KL_DEV,     /* device management */
