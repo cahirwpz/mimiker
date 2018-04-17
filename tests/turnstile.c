@@ -44,9 +44,13 @@ static void low_prio_task(void *arg) {
    */
 
   WITH_NO_PREEMPTION {
-    sched_lend_prio(td[0], LOW);
-    sched_lend_prio(td[1], MED);
-    sched_lend_prio(td[2], HIGH);
+    td_prio_t prios[3] = {LOW, MED, HIGH};
+
+    for (int i = 0; i < 3; i++) {
+      spin_acquire(td[i]->td_spin);
+      sched_lend_prio(td[i], prios[i]);
+      spin_release(td[i]->td_spin);
+    }
 
     mtx_lock(&mtx);
   }
