@@ -32,8 +32,8 @@ void sched_add(thread_t *td) {
 void sched_wakeup(thread_t *td) {
   assert(spin_owned(td->td_spin));
   assert(td != thread_self());
-  assert(td->td_state == TDS_LOCKED ||
-         td->td_state == TDS_SLEEPING || td->td_state == TDS_INACTIVE);
+  assert(td->td_state == TDS_LOCKED || td->td_state == TDS_SLEEPING ||
+         td->td_state == TDS_INACTIVE);
 
   /* Update sleep time. */
   timeval_t now = get_uptime();
