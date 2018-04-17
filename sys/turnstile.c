@@ -149,7 +149,10 @@ void propagate_priority(thread_t *td) {
       return;
     }
 
+    // TODO think where locking should happen to avoid bad stuff
+    spin_acquire(td->td_spin);
     sched_lend_prio(td, prio);
+    spin_release(td->td_spin);
 
     /* lock holder is in runq or running */
     if (td->td_state == TDS_READY || td->td_state == TDS_RUNNING) {
