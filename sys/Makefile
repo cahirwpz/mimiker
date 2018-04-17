@@ -50,6 +50,7 @@ SOURCES_C  = \
 	sysinit.c \
 	taskqueue.c \
 	thread.c \
+	timer.c \
 	uio.c \
 	vfs.c \
 	vfs_readdir.c \

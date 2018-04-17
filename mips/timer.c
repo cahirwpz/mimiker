@@ -1,10 +1,23 @@
-#include <timer.h>
 #include <interrupt.h>
 #include <mips/m32c0.h>
 #include <mips/config.h>
 #include <mips/intr.h>
 #include <spinlock.h>
-#include <stdc.h>
+#include <time.h>
+
+typedef struct timer_event timer_event_t;
+typedef TAILQ_HEAD(, timer_event) timer_event_list_t;
+
+struct timer_event {
+  /* entry on list of all time events */
+  TAILQ_ENTRY(timer_event) tev_link;
+  /* absolute time when this event should be handled */
+  timeval_t tev_when;
+  /* callback function called in interrupt context */
+  void (*tev_func)(timer_event_t *self);
+  /* auxiliary data */
+  void *tev_data;
+};
 
 static timer_event_list_t events = TAILQ_HEAD_INITIALIZER(events);
 static spinlock_t *events_lock = &SPINLOCK_INITIALIZER();
