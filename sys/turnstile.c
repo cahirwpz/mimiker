@@ -277,7 +277,7 @@ void turnstile_wait(turnstile_t *ts, thread_t *owner) {
 
     spin_release(&tc->tc_lock);
     propagate_priority(td);
-
+    spin_release(&ts->ts_lock);
     sched_switch();
   }
 }
@@ -306,6 +306,8 @@ void turnstile_broadcast(turnstile_t *ts) {
     LIST_REMOVE(ts1, ts_hash);
     td->td_turnstile = ts1;
   }
+
+  spin_release(&ts->ts_lock);
 }
 
 /*
