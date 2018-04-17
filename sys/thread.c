@@ -1,6 +1,5 @@
 #define KL_LOG KL_THREAD
 #include <klog.h>
-#include <stdc.h>
 #include <malloc.h>
 #include <thread.h>
 #include <context.h>

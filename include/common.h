@@ -133,6 +133,9 @@ typedef int32_t blksize_t; /* fs optimal block size */
 
 #ifndef _USERSPACE
 
+/* Write a formatted string to default console. */
+int kprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
 /* Terminate thread. */
 noreturn void panic_fail(void);
 
