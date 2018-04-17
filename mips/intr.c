@@ -8,7 +8,6 @@
 #include <pmap.h>
 #include <spinlock.h>
 #include <queue.h>
-#include <stdc.h>
 #include <sysent.h>
 #include <thread.h>
 
