@@ -51,7 +51,7 @@ typedef enum {
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 #define TDF_NEEDSIGCHK 0x00000004 /* signals were posted for delivery */
 #define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
-#define TDF_BORROWING 0x0000010   /* priority propagation */
+#define TDF_BORROWING 0x00000010  /* priority propagation */
 
 /*! \brief Thread structure
  *
@@ -104,8 +104,8 @@ typedef struct thread {
   void *td_wchan;
   const void *td_waitpt; /*!< a point where program waits */
   /* scheduler part */
-  td_prio_t td_base_prio; /* thread base priority */
-  td_prio_t td_prio;      /* thread active priority */
+  td_prio_t td_base_prio; /*!< base priority */
+  td_prio_t td_prio;      /*!< active priority */
   int td_slice;
   /* thread statistics */
   timeval_t td_rtime;        /*!< time spent running */
