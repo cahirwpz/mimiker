@@ -306,8 +306,6 @@ void turnstile_broadcast(turnstile_t *ts) {
     LIST_REMOVE(ts1, ts_hash);
     td->td_turnstile = ts1;
   }
-
-  spin_release(&ts->ts_lock);
 }
 
 /*
