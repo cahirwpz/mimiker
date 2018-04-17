@@ -50,6 +50,7 @@ void mtx_unlock(mtx_t *m) {
     if (ts != NULL) {
       // TODO signal instead of broadcast (not implemented yet)
       turnstile_broadcast(ts);
+      turnstile_unpend(ts);
     }
     turnstile_chain_unlock(m);
   }
