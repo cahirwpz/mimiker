@@ -163,7 +163,7 @@ void propagate_priority(thread_t *td) {
 
     ts = td->td_blocked;
     // z jakiegoś powodu zakładamy tutaj, że td jest zalokowany na locku
-    // a jeżeli śpi to deadlock i chcemy się wywalić
+    // a jeżeli śpi to deadlock i chcemy się wywalić
     assert(ts != NULL);
 
     /* resort td on the list if needed */
