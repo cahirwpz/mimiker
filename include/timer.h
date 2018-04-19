@@ -7,7 +7,6 @@
 typedef struct timer timer_t;
 typedef TAILQ_HEAD(, timer) timer_list_t;
 
-typedef bintime_t (*tm_gettime_t)(timer_t *tm);
 typedef int (*tm_start_t)(timer_t *tm, unsigned flags, const bintime_t value);
 typedef int (*tm_stop_t)(timer_t *tm);
 
@@ -27,7 +26,6 @@ typedef struct timer {
   uint32_t tm_frequency;      /*!< base frequency of the timer */
   bintime_t tm_min_period;    /*!< valid only for TMF_PERIODIC */
   bintime_t tm_max_period;    /*!< same as above */
-  tm_gettime_t tm_gettime;    /*!< returns current time value */
   tm_start_t tm_start;        /*!< makes timer operational */
   tm_stop_t tm_stop;          /*!< ceases timer from generating new events */
   tm_event_cb_t tm_event_cb;  /*!< callback called when timer triggers */
@@ -51,8 +49,6 @@ int tm_free(timer_t *tm);
 
 /*! \brief Prepares timer to call event trigger callback. */
 int tm_init(timer_t *tm, tm_event_cb_t event, void *arg);
-/*! \brief Reads current timer value. */
-bintime_t tm_gettime(timer_t *tm);
 /*! \brief Configures timer to trigger callback(s). */
 int tm_start(timer_t *tm, unsigned flags, const bintime_t value);
 /*! \brief Stops timer from triggering a callback. */

@@ -74,11 +74,6 @@ int tm_init(timer_t *tm, tm_event_cb_t event, void *arg) {
   return 0;
 }
 
-bintime_t tm_gettime(timer_t *tm) {
-  assert(is_initialized(tm));
-  return tm->tm_gettime(tm);
-}
-
 int tm_start(timer_t *tm, unsigned flags, const bintime_t value) {
   assert(is_initialized(tm));
 

@@ -11,8 +11,6 @@
 typedef struct pit_state {
   resource_t *regs;
   spinlock_t lock;
-  uint32_t ticks;
-  uint16_t period;
   intr_handler_t intr_handler;
   timer_t timer;
 } pit_state_t;
@@ -21,37 +19,21 @@ typedef struct pit_state {
 #define outb(addr, val) bus_space_write_1(pit->regs, IO_TIMER1 + (addr), (val))
 
 static void pit_set_frequency(pit_state_t *pit, unsigned freq) {
+  assert(spin_owned(&pit->lock));
+
   uint16_t period = TIMER_DIV(freq);
 
-  WITH_SPINLOCK(&pit->lock) {
-    outb(TIMER_MODE, TIMER_SEL0 | TIMER_16BIT | TIMER_RATEGEN);
-    outb(TIMER_CNTR0, period & 0xff);
-    outb(TIMER_CNTR0, period >> 8);
-
-    pit->period = period;
-  }
+  outb(TIMER_MODE, TIMER_SEL0 | TIMER_16BIT | TIMER_RATEGEN);
+  outb(TIMER_CNTR0, period & 0xff);
+  outb(TIMER_CNTR0, period >> 8);
 }
 
-#if 0
-static uint16_t pit_get_counter(pit_state_t *pit) {
-  uint16_t val = 0;
+static void pit_set_counter(pit_state_t *pit, uint64_t value) {
+  assert(spin_owned(&pit->lock));
 
-  WITH_SPINLOCK(&pit->lock) {
-    outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
-    val = inb(TIMER_CNTR0);
-    val |= inb(TIMER_CNTR0) << 8;
-  }
-
-  return val;
-}
-#endif
-
-static void pit_set_counter(pit_state_t *pit, uint16_t value) {
-  WITH_SPINLOCK(&pit->lock) {
-    outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
-    outb(TIMER_CNTR0, value & 0xff);
-    outb(TIMER_CNTR0, value >> 8);
-  }
+  outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
+  outb(TIMER_CNTR0, value & 0xff);
+  outb(TIMER_CNTR0, value >> 8);
 }
 
 static intr_filter_t pit_intr(void *data) {
@@ -64,13 +46,6 @@ static device_t *device_of(timer_t *tm) {
   return tm->tm_priv;
 }
 
-static bintime_t timer_pit_gettime(timer_t *tm) {
-  pit_state_t *pit = device_of(tm)->state;
-
-  /* TODO add offset based on current value of PIT counter */
-  return bintime_mul(bintime_mul(HZ2BT(TIMER_FREQ), pit->period), pit->ticks);
-}
-
 static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t value) {
   assert(flags & TMF_PERIODIC);
   assert(!(flags & TMF_ONESHOT));
@@ -79,10 +54,11 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t value) {
   pit_state_t *pit = dev->state;
 
   bintime_t period = bintime_mul(value, TIMER_FREQ);
-  pit_set_frequency(pit, period.sec);
-
+  WITH_SPINLOCK(&pit->lock) {
+    pit_set_frequency(pit, period.sec);
+    pit_set_counter(pit, 0);
+  }
   bus_intr_setup(dev, 0, &pit->intr_handler);
-  pit_set_counter(pit, 0);
   return 0;
 }
 
@@ -111,7 +87,6 @@ static int pit_attach(device_t *dev) {
     .tm_frequency = TIMER_FREQ,
     .tm_min_period = HZ2BT(TIMER_FREQ),
     .tm_max_period = bintime_mul(HZ2BT(TIMER_FREQ), 65536),
-    .tm_gettime = timer_pit_gettime,
     .tm_start = timer_pit_start,
     .tm_stop = timer_pit_stop,
     .tm_priv = dev,

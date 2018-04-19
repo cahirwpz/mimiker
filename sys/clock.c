@@ -6,11 +6,12 @@
 #include <sysinit.h>
 
 static const bintime_t tick = HZ2BT(1000); /* 1ms */
+static systime_t ticks = 0;
 static timer_t *clock = NULL;
 
 static void clock_cb(timer_t *tm, void *arg) {
-  bintime_t now = bintime_mul(tm_gettime(tm), 1000);
-  callout_process(now.sec);
+  ticks++;
+  callout_process(ticks);
   sched_clock();
 }
 
