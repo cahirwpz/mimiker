@@ -53,15 +53,15 @@ static void low_prio_task(void *arg) {
     WITH_SPINLOCK(td[2]->td_spin) {
       sched_lend_prio(td[2], HIGH);
     }
-  }
 
-  klog("low przed mtx");
-  WITH_MTX_LOCK (&mtx) {
-    assert(high_mutex_acquired == 0);
-    thread_yield();
+    klog("low przed mtx");
+    WITH_MTX_LOCK (&mtx) {
+      assert(high_mutex_acquired == 0);
+      thread_yield();
 
-    /* Our priority should've been raised. */
-    assert(td[0]->td_prio == HIGH);
+      /* Our priority should've been raised. */
+      assert(td[0]->td_prio == HIGH);
+    }
   }
   klog("low po mtx");
 
