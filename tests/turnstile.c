@@ -9,7 +9,7 @@
 
 static mtx_t mtx = MTX_INITIALIZER(MTX_DEF);
 static thread_t *td[T];
-static volatile bool high_mutex_acquired = 0;
+static volatile bool high_prio_mtx_acquired = 0;
 
 typedef enum {
   /* Set priorities to multiplies of RunQueue_PriorityPerQueue
@@ -26,14 +26,14 @@ static void high_prio_task(void *arg) {
   klog("high przed mtx");
   WITH_MTX_LOCK (&mtx) {
     klog("high w mtx");
-    high_mutex_acquired = 1;
+    high_prio_mtx_acquired = 1;
   }
   klog("high po mtx");
 }
 
 static void med_prio_task(void *arg) {
   klog("med");
-  while (high_mutex_acquired == 0)
+  while (high_prio_mtx_acquired == 0)
     ; // loop
 }
 
@@ -56,7 +56,7 @@ static void low_prio_task(void *arg) {
 
     klog("low przed mtx");
     WITH_MTX_LOCK (&mtx) {
-      assert(high_mutex_acquired == 0);
+      assert(high_prio_mtx_acquired == 0);
       thread_yield();
 
       /* Our priority should've been raised. */
@@ -65,7 +65,7 @@ static void low_prio_task(void *arg) {
   }
   klog("low po mtx");
 
-  assert(high_mutex_acquired == 1);
+  assert(high_prio_mtx_acquired == 1);
   /* And lowered to base priority. */
   assert(td[0]->td_prio == td[0]->td_base_prio);
   /* Which is LOW. */
