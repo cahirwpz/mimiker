@@ -102,4 +102,4 @@ static int test_mutex_priority_inversion(void) {
 }
 
 // TODO make the test clean because dirty makes testing very slow
-KTEST_ADD(turnstile, test_mutex_priority_inversion, KTEST_FLAG_DIRTY);
+KTEST_ADD(turnstile, test_mutex_priority_inversion, 0);
