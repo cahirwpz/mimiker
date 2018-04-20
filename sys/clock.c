@@ -16,7 +16,7 @@ static void clock_cb(timer_t *tm, void *arg) {
 }
 
 static void clock_init(void) {
-  clock = tm_alloc(NULL, TMF_PERIODIC);
+  clock = tm_reserve(NULL, TMF_PERIODIC);
   if (clock == NULL)
     panic("Missing suitable timer for maintenance of system clock!");
   tm_init(clock, clock_cb, NULL);

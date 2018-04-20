@@ -91,7 +91,7 @@ int tm_release(timer_t *tm) {
 
   WITH_MTX_LOCK (&timers_mtx) {
     TAILQ_INSERT_TAIL(&timers, tm, tm_link);
-    tm->tm_flags &= ~(TM_INITIALIZED | TM_RESERVED);
+    tm->tm_flags &= ~(TMF_INITIALIZED | TMF_RESERVED);
   }
 
   return 0;
