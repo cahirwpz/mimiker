@@ -13,8 +13,7 @@ static volatile bool high_prio_mtx_acquired = 0;
 
 typedef enum {
   /* Set priorities to multiplies of RunQueue_PriorityPerQueue
-   * so that each priority matches different run queue.
-   */
+   * so that each priority matches different run queue. */
   LOW = 0,
   MED = RQ_PPQ,
   HIGH = 2 * RQ_PPQ
@@ -40,8 +39,7 @@ static void med_prio_task(void *arg) {
 static void low_prio_task(void *arg) {
   /* As for now, td1, td2 and td3 have artificial priorities (HIGH, LOW, LOW)
    * to ensure that this code runs first. Now we can set priorities to their
-   * real values (LOW, MED, HIGH).
-   */
+   * real values (LOW, MED, HIGH). */
 
   WITH_NO_PREEMPTION {
     WITH_SPINLOCK(td[0]->td_spin) {
@@ -83,23 +81,22 @@ static int test_mutex_priority_inversion(void) {
   td[2] = thread_create("td3", high_prio_task, NULL);
 
   /* We want to ensure that td1 (low_prio_task) will run as the first one
-   * and lock mtx.
-   */
-
-  // tutaj można nie używać lend_prio (bo jeszcze nie ma go na runq)
-  WITH_SPINLOCK(td[0]->td_spin) {
-    sched_lend_prio(td[0], HIGH);
-  }
-
-  assert(td[1]->td_prio == LOW);
-  assert(td[2]->td_prio == LOW);
-
+   * and lock mtx. */
   WITH_NO_PREEMPTION {
     for (int i = 0; i < T; i++)
       sched_add(td[i]);
+
+    WITH_SPINLOCK(td[0]->td_spin) {
+      sched_lend_prio(td[0], HIGH);
+    }
+
+    assert(td[0]->td_prio == HIGH);
+    assert(td[1]->td_prio == LOW);
+    assert(td[2]->td_prio == LOW);
   }
 
-  thread_join(td[1]);
+  for (int i = 0; i < T; i++)
+    thread_join(td[i]);
 
   return KTEST_SUCCESS;
 }
