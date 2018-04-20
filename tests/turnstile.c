@@ -55,13 +55,18 @@ static void low_prio_task(void *arg) {
     }
 
     klog("low przed mtx");
+
     WITH_MTX_LOCK (&mtx) {
       assert(high_prio_mtx_acquired == 0);
+      klog("low oddaje CPU");
       thread_yield();
+      klog("low wraca");
 
       /* Our priority should've been raised. */
       assert(td[0]->td_prio == HIGH);
     }
+    assert(td[0]->td_prio == LOW);
+    assert(td[3]->td_prio == HIGH);
   }
   klog("low po mtx");
 
@@ -81,6 +86,7 @@ static int test_mutex_priority_inversion(void) {
    * and lock mtx.
    */
 
+  // tutaj można nie używać lend_prio (bo jeszcze nie ma go na runq)
   WITH_SPINLOCK(td[0]->td_spin) {
     sched_lend_prio(td[0], HIGH);
   }
@@ -95,7 +101,8 @@ static int test_mutex_priority_inversion(void) {
 
   thread_join(td[1]);
 
-  return 0;
+  return KTEST_SUCCESS;
 }
 
-KTEST_ADD(turnstile, test_mutex_priority_inversion, 0);
+// TODO make the test clean because dirty makes testing very slow
+KTEST_ADD(turnstile, test_mutex_priority_inversion, KTEST_FLAG_DIRTY);
