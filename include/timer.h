@@ -15,6 +15,7 @@ typedef int (*tm_stop_t)(timer_t *tm);
  * \warning It will be called in interrupt context! */
 typedef void (*tm_event_cb_t)(timer_t *tm, void *arg);
 
+/* There are some flags used by implementation that are not listed here! */
 #define TMF_ONESHOT 0x0001  /*!< triggers callback once */
 #define TMF_PERIODIC 0x0002 /*!< triggers callback on regular basis */
 #define TMF_TYPEMASK 0x0003 /*!< don't use other bits! */
@@ -38,14 +39,14 @@ int tm_register(timer_t *tm);
 /*! \brief Called when unloading a timer driver. */
 int tm_deregister(timer_t *tm);
 
-/*! \brief Allocate a timer for exclusive use according to criteria.
+/*! \brief Find a timer according to criteria and reserve for exclusive use.
  *
  * \arg name specifies name of the timer (can be NULL)
  * \arg flags specifies timer capabilities
  */
-timer_t *tm_alloc(const char *name, unsigned flags);
+timer_t *tm_reserve(const char *name, unsigned flags);
 /*! \brief Releases a timer if it's not needed anymore. */
-int tm_free(timer_t *tm);
+int tm_release(timer_t *tm);
 
 /*! \brief Prepares timer to call event trigger callback. */
 int tm_init(timer_t *tm, tm_event_cb_t event, void *arg);
