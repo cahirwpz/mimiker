@@ -2,6 +2,7 @@
 #include <timer.h>
 #include <mutex.h>
 #include <errno.h>
+#include <stdc.h>
 #include <klog.h>
 #include <interrupt.h>
 
@@ -74,6 +75,8 @@ timer_t *tm_reserve(const char *name, unsigned flags) {
   WITH_MTX_LOCK (&timers_mtx) {
     TAILQ_FOREACH (tm, &timers, tm_link) {
       if (is_reserved(tm))
+        continue;
+      if (name && strcmp(tm->tm_name, name))
         continue;
       if (tm->tm_flags & flags)
         break;
