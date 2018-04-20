@@ -1,5 +1,6 @@
 #include <ktest.h>
 #include <mutex.h>
+#include <klog.h> // potem to usunąć
 #include <runq.h>
 #include <sched.h>
 #include <thread.h>
@@ -8,6 +9,7 @@
 
 static mtx_t mtx = MTX_INITIALIZER(MTX_DEF);
 static thread_t *td[T];
+static volatile bool high_mutex_acquired = 0;
 
 typedef enum {
   /* Set priorities to multiplies of RunQueue_PriorityPerQueue
@@ -18,23 +20,21 @@ typedef enum {
   HIGH = 2 * RQ_PPQ
 } prio_t;
 
-static prio_t last_thread; /* which thread ended running as the last one */
-
 static void high_prio_task(void *arg) {
   assert(mtx.m_owner == td[0]);
 
-  mtx_lock(&mtx);
-  mtx_unlock(&mtx);
-
-  last_thread = HIGH;
+  klog("high przed mtx");
+  WITH_MTX_LOCK (&mtx) {
+    klog("high w mtx");
+    high_mutex_acquired = 1;
+  }
+  klog("high po mtx");
 }
 
 static void med_prio_task(void *arg) {
-  /* Some work of medium importance that should be done
-   * after high_prio_task.
-   */
-
-  last_thread = MED;
+  klog("med");
+  while (high_mutex_acquired == 0)
+    ; // loop
 }
 
 static void low_prio_task(void *arg) {
@@ -44,28 +44,32 @@ static void low_prio_task(void *arg) {
    */
 
   WITH_NO_PREEMPTION {
-    td_prio_t prios[3] = {LOW, MED, HIGH};
-
-    for (int i = 0; i < 3; i++) {
-      spin_acquire(td[i]->td_spin);
-      sched_lend_prio(td[i], prios[i]);
-      spin_release(td[i]->td_spin);
+    WITH_SPINLOCK(td[0]->td_spin) {
+      sched_unlend_prio(td[0], LOW);
     }
-
-    mtx_lock(&mtx);
+    WITH_SPINLOCK(td[1]->td_spin) {
+      sched_lend_prio(td[1], MED);
+    }
+    WITH_SPINLOCK(td[2]->td_spin) {
+      sched_lend_prio(td[2], HIGH);
+    }
   }
 
-  /* Yield, so that high priority task will have to wait for us. */
-  thread_yield();
+  klog("low przed mtx");
+  WITH_MTX_LOCK (&mtx) {
+    assert(high_mutex_acquired == 0);
+    thread_yield();
 
-  /* Our priority should've been raised. */
-  assert(td[0]->td_prio == HIGH);
+    /* Our priority should've been raised. */
+    assert(td[0]->td_prio == HIGH);
+  }
+  klog("low po mtx");
 
-  last_thread = LOW;
-  mtx_unlock(&mtx);
-
-  /* And lowered. */
-  assert(td[0]->td_prio == LOW);
+  assert(high_mutex_acquired == 1);
+  /* And lowered to base priority. */
+  assert(td[0]->td_prio == td[0]->td_base_prio);
+  /* Which is LOW. */
+  assert(td[0]->td_base_prio == LOW);
 }
 
 static int test_mutex_priority_inversion(void) {
@@ -77,23 +81,19 @@ static int test_mutex_priority_inversion(void) {
    * and lock mtx.
    */
 
-  // nie wiem, czy nie powinienem tutaj założyć mutexa td_lock
-  WITH_NO_PREEMPTION {
-    td[0]->td_prio = HIGH;
-    td[1]->td_prio = LOW;
-    td[2]->td_prio = LOW;
+  WITH_SPINLOCK(td[0]->td_spin) {
+    sched_lend_prio(td[0], HIGH);
+  }
 
+  assert(td[1]->td_prio == LOW);
+  assert(td[2]->td_prio == LOW);
+
+  WITH_NO_PREEMPTION {
     for (int i = 0; i < T; i++)
       sched_add(td[i]);
   }
 
-  for (int i = 0; i < T; i++)
-    thread_join(td[i]);
-
-  /* High priority task should've propagated its priority to low priority
-   * task and the last one to run should've been medium priority task.
-   */
-  assert(last_thread == MED);
+  thread_join(td[1]);
 
   return 0;
 }
