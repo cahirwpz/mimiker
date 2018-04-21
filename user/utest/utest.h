@@ -32,4 +32,7 @@ int test_access_basic(void);
 int test_stat(void);
 int test_fstat(void);
 
+int test_userspace_cop_unusable(void);
+int test_reserved_instruction(void);
+
 #endif /* __UTEST_H__ */
