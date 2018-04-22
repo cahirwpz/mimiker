@@ -52,10 +52,14 @@ turnstile_t *turnstile_lookup(void *wchan);
 turnstile_t *turnstile_acquire(void *wchan);
 
 /* Locks turnstile chain associated with wchan and returns pointer
- * to this chain. */
+ * to this chain.
+ *
+ * Acquires tc_lock. */
 turnstile_chain_t *turnstile_chain_lock(void *wchan);
 
-/* Unlocks turnstile chain associated with wchan. */
+/* Unlocks turnstile chain associated with wchan.
+ *
+ * Releases tc_lock. */
 void turnstile_chain_unlock(void *wchan);
 
 #endif /* !_SYS_TURNSTILE_H_ */

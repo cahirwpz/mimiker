@@ -48,11 +48,13 @@ void mtx_unlock(mtx_t *m) {
     m->m_lockpt = NULL;
     turnstile_t *ts = turnstile_lookup(m);
     if (ts != NULL) {
-      /* NOTE using broadcast is faster according to FreeBSD basing on
-       * "Solaris Internals" [McDougall & Mauro, 2006]
+      /* Using broadcast is faster according to
+       * "The Design and Implementation of the FreeBSD Operating System
+       * (2nd Edition)", 4.3 Context Switching, page 138.
+       *
        * The reasoning is that the awakened threads will often be scheduled
        * sequentially and only act on empty mutex on which operations are
-       * cheaper
+       * cheaper.
        */
       turnstile_broadcast(ts);
       turnstile_unpend(ts, m);
