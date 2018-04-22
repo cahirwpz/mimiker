@@ -48,7 +48,12 @@ void mtx_unlock(mtx_t *m) {
     m->m_lockpt = NULL;
     turnstile_t *ts = turnstile_lookup(m);
     if (ts != NULL) {
-      // TODO signal instead of broadcast (not implemented yet)
+      /* NOTE using broadcast is faster according to FreeBSD basing on
+       * "Solaris Internals" [McDougall & Mauro, 2006]
+       * The reasoning is that the awakened threads will often be scheduled
+       * sequentially and only act on empty mutex on which operations are
+       * cheaper
+       */
       turnstile_broadcast(ts);
       turnstile_unpend(ts, m);
     }
