@@ -364,34 +364,11 @@ void turnstile_unpend(turnstile_t *ts) {
   spin_release(&ts->ts_lock);
 }
 
-// TODO consider locks
-// void turnstile_disown(turnstile_t *ts) {
-//   thread_t *td = ts->ts_owner;
-
-//   // TODO who should be the new owner of the turnstile?
-//   // Do we just leave it NULL so that calling procedure will handle it?
-//   // Or should the next thread acquiring the lock do something?
-//   // NOTE (probably the last one?)
-//   ts->ts_owner = NULL;
-
-//   LIST_REMOVE(ts, ts_link);
-
-//   td_prio_t new_prio = td->td_base_prio;
-
-//   turnstile_t *owned;
-//   LIST_FOREACH(owned, &td->td_contested, ts_link) {
-//     // NOTE one waiter must exist because otherwise the turnstile wouldn't
-//     // exist
-//     new_prio = max(new_prio, turnstile_first_waiter(owned)->td_prio);
-//   }
-
-//   sched_unlend_prio(td, new_prio);
-// }
 
 void turnstile_chain_lock(void *wchan) {
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
   spin_acquire(&tc->tc_lock);
-}
+    }
 
 void turnstile_chain_unlock(void *wchan) {
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
