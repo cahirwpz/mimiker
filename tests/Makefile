@@ -8,7 +8,6 @@ SOURCES_C = \
 	linker_set.c \
 	malloc.c \
 	mutex.c \
-	mutex_simple.c \
 	physmem.c \
 	pmap.c \
 	pool.c \
