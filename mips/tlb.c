@@ -1,4 +1,3 @@
-#include <stdc.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
 #include <vm.h>
