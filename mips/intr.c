@@ -182,7 +182,7 @@ static void cp_unusable_handler(exc_frame_t *frame) {
     panic("FPU unusable exception in kernel mode.");
   }
 
-  thread_self()->td_uses_fpu = true;
+  thread_self()->td_flags |= TDF_USESFPU;
 }
 
 /*

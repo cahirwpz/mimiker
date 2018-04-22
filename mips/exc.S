@@ -94,18 +94,12 @@ user_exc_enter:
         addi    t0, 1
         sw      t0, TD_IDNEST(s0)
 
-
-
         # Save FPU registers
         # Skip if process is not using FPU
-        LOAD_PCPU(t0)
-        lw t0, PCPU_CURTHREAD(t0)
-        addu    t0, TD_USES_FPU
-        lb t1, (t0)  # td->td_uses_fpu
-        beq $0, t1, after_fpu_save
+        lw t1, TD_FLAGS(s0)   # td->td_flags
+        andi t1, TDF_USESFPU
+        beqz t1, after_fpu_save
         nop
-
-
 
         # Turn on FPU before saving
         mfc0 t0, C0_STATUS
@@ -114,9 +108,8 @@ user_exc_enter:
         mtc0 t0, C0_STATUS
 
         # Copy FPU registers
-        LOAD_PCPU(t0)
-        lw t0, PCPU_CURTHREAD(t0)
-        addu    t0, TD_UCTX_FPU
+        addi t0, s0, TD_UCTX_FPU  # td->td_uctx_fpu
+                
         SAVE_FPU_REG($f0, F0, t0)
         SAVE_FPU_REG($f1, F1, t0)
         SAVE_FPU_REG($f2, F2, t0)
@@ -151,9 +144,7 @@ user_exc_enter:
         SAVE_FPU_REG($f31, F31, t0)
         SAVE_FPU_REG($31, FSR, t0)
 
-
 after_fpu_save:
-
 
         # Turn off FPU, enter kernel mode,
         # drop exception level and disable interrupts.
@@ -179,9 +170,9 @@ user_exc_leave:
         mtc0    t0, C0_STATUS
 
         # Fetch the context from thread control block.
-        LOAD_PCPU(k0)
-        lw      k0, PCPU_CURTHREAD(k0)
-        addu    k0, TD_UCTX
+        LOAD_PCPU(k1)
+        lw      k1, PCPU_CURTHREAD(k1)
+        addu    k0, k1, TD_UCTX
 
         # Update status register held in user context.
         LOAD_REG(t0, SR, k0)
@@ -204,21 +195,18 @@ user_exc_leave:
         LOAD_REG(t0, PC, k0)
         mtc0    t0, C0_EPC   
 
-
-
-        # Load FPU context process makes use of it
-        # by defaul assume that process does not, and disable FPU
+        # Load FPU context if process makes use of it
+        # by default assume that process does not, and disable FPU
         mfc0 t0, C0_STATUS
         li t1, ~(SR_CU1)
         and t0, t1
         mtc0 t0, C0_STATUS
 
         # Skip if process is not using FPU
-        LOAD_PCPU(t0)
-        lw t0, PCPU_CURTHREAD(t0)
-        addu    t0, TD_USES_FPU
-        lb t1, (t0)  # td->td_uses_fpu
-        beq $0, t1, after_fpu_restore
+        lw t0, TD_FLAGS(k1)   # td->td_flags
+        andi t0, TDF_USESFPU
+        
+        beqz t0, after_fpu_restore
         nop
 
         # Turn on FPU before restoring
@@ -228,10 +216,7 @@ user_exc_leave:
         mtc0 t0, C0_STATUS
 
         # Copy FPU registers
-        LOAD_PCPU(t0)
-        lw t0, PCPU_CURTHREAD(t0)
-        addu    t0, TD_UCTX_FPU
-
+        addi t0, s0, TD_UCTX_FPU  # td->td_uctx_fpu
 
         LOAD_FPU_REG($f0, F0, t0)
         LOAD_FPU_REG($f1, F1, t0)
@@ -267,10 +252,7 @@ user_exc_leave:
         LOAD_FPU_REG($f31, F31, t0)
         LOAD_FPU_REG($31, FSR, t0)
 
-
-
 after_fpu_restore:
-
 
         # ... all user registers.
         LOAD_REG(t0, HI, k0)
