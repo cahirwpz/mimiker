@@ -50,11 +50,11 @@ void sched_wakeup(thread_t *td) {
     oldtd->td_flags |= TDF_NEEDSWITCH;
 }
 
-/*! \brief Adjust thread's priority.
+/*! \brief Set thread's active priority \a td_prio to \a prio.
  *
- * \note Must be called with td_spin acquired!
+ * \note Must be called with \a td_spin acquired!
  */
-static void sched_set_priority(thread_t *td, td_prio_t prio) {
+static void sched_set_active_prio(thread_t *td, td_prio_t prio) {
   assert(spin_owned(td->td_spin));
 
   if (td->td_prio == prio)
@@ -70,12 +70,34 @@ static void sched_set_priority(thread_t *td, td_prio_t prio) {
   }
 }
 
+void sched_set_prio(thread_t *td, td_prio_t prio) {
+  assert(spin_owned(td->td_spin));
+
+  td->td_base_prio = prio;
+
+  /* If thread is borrowing priority, don't lower its active priority. */
+  if (td->td_flags & TDF_BORROWING && td->td_prio > prio)
+    return;
+
+  td_prio_t oldprio = td->td_prio;
+  sched_set_active_prio(td, prio);
+
+  /* If thread is locked on a turnstile, let the turnstile adjust
+   * thread's position on turnstile's \a ts_blocked list. */
+
+  /* These changes are waiting for turnstile pull request because
+   * now we don't have TDS_LOCKED and turnstile_adjust. */
+  // TO BE UNCOMMENTED
+  // if (td->td_state & TDS_LOCKED && oldprio != prio)
+  //   turnstile_adjust(td, oldprio);
+}
+
 void sched_lend_prio(thread_t *td, td_prio_t prio) {
   assert(spin_owned(td->td_spin));
   assert(td->td_prio < prio);
 
   td->td_flags |= TDF_BORROWING;
-  sched_set_priority(td, prio);
+  sched_set_active_prio(td, prio);
 }
 
 void sched_unlend_prio(thread_t *td, td_prio_t prio) {
@@ -83,7 +105,7 @@ void sched_unlend_prio(thread_t *td, td_prio_t prio) {
 
   if (prio <= td->td_base_prio) {
     td->td_flags &= ~TDF_BORROWING;
-    sched_set_priority(td, td->td_base_prio);
+    sched_set_active_prio(td, td->td_base_prio);
   } else
     sched_lend_prio(td, prio);
 }
