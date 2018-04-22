@@ -45,13 +45,11 @@ void mtx_unlock(mtx_t *m) {
   WITH_NO_PREEMPTION {
     m->m_owner = NULL;
     m->m_lockpt = NULL;
-    turnstile_chain_lock(m);
     turnstile_t *ts = turnstile_lookup(m);
     if (ts != NULL) {
       // TODO signal instead of broadcast (not implemented yet)
       turnstile_broadcast(ts);
-      turnstile_unpend(ts);
+      turnstile_unpend(ts, m);
     }
-    turnstile_chain_unlock(m);
   }
 }

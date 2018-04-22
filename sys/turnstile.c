@@ -311,12 +311,25 @@ void turnstile_broadcast(turnstile_t *ts) {
   }
 }
 
+/* locks turnstile chain associated with wchan
+ * and returns pointer to this chain */
+turnstile_chain_t *turnstile_chain_lock(void *wchan) {
+  turnstile_chain_t *tc = TC_LOOKUP(wchan);
+  spin_acquire(&tc->tc_lock);
+  return tc;
+}
+
+void turnstile_chain_unlock(void *wchan) {
+  turnstile_chain_t *tc = TC_LOOKUP(wchan);
+  spin_release(&tc->tc_lock);
+}
+
 /*
  * Wakeup all threads on the pending list and adjust the priority of the
  * current thread appropriately.  This must be called with the turnstile
  * chain locked.
  */
-void turnstile_unpend(turnstile_t *ts) {
+void turnstile_unpend(turnstile_t *ts, void *wchan) {
   threadqueue_t pending_threads;
   assert(ts != NULL);
   assert(spin_owned(&ts->ts_lock));
@@ -326,6 +339,7 @@ void turnstile_unpend(turnstile_t *ts) {
   TAILQ_INIT(&pending_threads);
   TAILQ_CONCAT(&pending_threads, &ts->ts_pending, td_turnstileq);
 
+  assert(wchan == ts->ts_wchan);
   if (TAILQ_EMPTY(&ts->ts_blocked))
     ts->ts_wchan = NULL;
 
@@ -362,24 +376,29 @@ void turnstile_unpend(turnstile_t *ts) {
   }
 
   spin_release(&ts->ts_lock);
+  turnstile_chain_unlock(wchan);
 }
 
+/* looks for turnstile associated with wchan in turnstile chains
+ * and returns NULL is no turnstile is found in chain;
+ * the function acquires tc_lock, ts_lock */
+turnstile_t *turnstile_lookup(void *wchan) {
+  turnstile_chain_t *tc = turnstile_chain_lock(wchan);
 
-void turnstile_chain_lock(void *wchan) {
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-  spin_acquire(&tc->tc_lock);
+  turnstile_t *ts;
+  LIST_FOREACH(ts, &tc->tc_turnstiles, ts_hash) {
+    if (ts->ts_wchan == wchan) {
+      spin_acquire(&ts->ts_lock);
+      return ts;
     }
-
-void turnstile_chain_unlock(void *wchan) {
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-  spin_release(&tc->tc_lock);
+  }
+  return NULL;
 }
 
 /* gets turnstile associated with wchan
  * and acquires tc_lock and ts_lock */
 turnstile_t *turnstile_trywait(void *wchan) {
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-  spin_acquire(&tc->tc_lock);
+  turnstile_chain_t *tc = turnstile_chain_lock(wchan);
 
   turnstile_t *ts;
   LIST_FOREACH(ts, &tc->tc_turnstiles, ts_hash) {
@@ -397,22 +416,4 @@ turnstile_t *turnstile_trywait(void *wchan) {
   ts->ts_wchan = wchan;
 
   return ts;
-}
-
-/* looks for turnstile associated with wchan in turnstile chains
- * assuming that we own tc_lock and returns NULL is no turnstile
- * is found in chain;
- * the function acquires ts_lock */
-turnstile_t *turnstile_lookup(void *wchan) {
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-  assert(spin_owned(&tc->tc_lock));
-
-  turnstile_t *ts;
-  LIST_FOREACH(ts, &tc->tc_turnstiles, ts_hash) {
-    if (ts->ts_wchan == wchan) {
-      spin_acquire(&ts->ts_lock);
-      return ts;
-    }
-  }
-  return NULL;
 }

@@ -30,11 +30,7 @@ void turnstile_broadcast(turnstile_t *ts);
 
 // Needed locks: ts->ts_lock, tc->tc_lock
 // Kept locks: tc->tc_lock
-void turnstile_unpend(turnstile_t *ts);
-
-void turnstile_chain_lock(void *wchan);
-
-void turnstile_chain_unlock(void *wchan);
+void turnstile_unpend(turnstile_t *ts, void *wchan);
 
 turnstile_t *turnstile_trywait(void *wchan);
 
