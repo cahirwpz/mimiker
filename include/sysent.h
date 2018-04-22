@@ -35,10 +35,6 @@
 
 typedef struct thread thread_t;
 
-/*The number of bytes available for the new process' combined argument
-  and environment list. NULL characters included. */
-#define ARG_MAX (256)
-
 #define SYSCALL_ARGS_MAX 4
 
 typedef struct syscall_args {

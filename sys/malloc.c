@@ -221,7 +221,7 @@ void kmem_dump(kmem_pool_t *mp) {
 
     while (block < end) {
       assert(block->mb_magic == MB_MAGIC);
-      klog("   %c %p %d", (block->mb_size > 0) ? 'F' : 'U', block->mb_data,
+      klog("   %c %p %d", (block->mb_size > 0) ? 'F' : 'U', block,
            (unsigned)abs(block->mb_size));
       block = mb_next(block);
     }

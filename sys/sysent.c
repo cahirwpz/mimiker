@@ -14,6 +14,7 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <exec.h>
 #include <syslimits.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
@@ -363,60 +364,62 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   const char *user_path = (const char *)args->args[0];
   const char **user_argv = (const char **)args->args[1];
 
+  /* Unused as environments are not yet implemented */
+  /* const char **user_envp = (const char**)args->args[2]; */
   if ((user_path == NULL) || (user_argv == NULL))
+  {
+    klog("%d", -E2BIG);
     return -EFAULT;
+  }
 
-  /*Unused as environments are not yet implemented*/
-  /*const char **user_envp = (const char**)args->args[2];*/
-
-  char **kern_argv;
-  char *data;
-
+  /* Checking argument count */
   size_t argc = 0;
+  while ((argc < ARG_MAX) && (user_argv[argc] != NULL))
+    argc++;
 
-  /*Assuming PATH_MAX means max size of path including the filename.*/
-  /*Assuming kmalloc always succeeds.*/
-  char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
-  int result = copyinstr(user_path, kern_path, PATH_MAX, 0);
+  if (argc == ARG_MAX)
+  {
+    klog("%d", -E2BIG);
+    return -E2BIG;
+  }
+
+  if (argc == 0)
+  {
+    klog("%d", -EFAULT);
+    return -EFAULT;
+  }
+
+  /* Allocating everything at once */
+  /* It allows us to simplify resource deallocation on failure */
+  int result;
+  char * kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
+  char ** kern_argv = kmalloc(M_TEMP, (argc + 1) * sizeof(char *), 0);
+  char * data = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0);
+
+  /* Copyout pathname */
+  /* Assuming PATH_MAX means max size of path including the filename. */
+  /* Assuming kmalloc always succeeds. */
+  result = copyinstr(user_path, kern_path, PATH_MAX, 0);
   if (result < 0)
-    goto path_copy_failure;
+    goto end;
 
+  /* Copyout argument values */
+  /* Copying out all arguments to one buffer (data) */
+  /* with fields in kern_argv pointing to each argument */
+  size_t data_off = 0;
   size_t i = 0;
   size_t isize;
-
-  while ((i < ARG_MAX) && (user_argv[i] != NULL))
-    i++;
-
-  if (i == ARG_MAX) {
-    result = -E2BIG;
-    goto free_mem_and_fail;
-  }
-
-  argc = i;
-
-  if (!argc) {
-    result = -EFAULT;
-    goto free_mem_and_fail;
-  }
-
-  kern_argv = kmalloc(M_TEMP, (argc + 1) * sizeof(char *), 0);
   kern_argv[argc] = NULL;
-  data = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0);
-
-  size_t data_off = 0;
-  i = 0;
 
   while ((data_off < ARG_MAX) && (i < argc)) {
+    result = copyinstr(user_argv[i], data + data_off, ARG_MAX - data_off, &isize);
 
-    if ((result = copyinstr(user_argv[i], data + data_off, ARG_MAX - data_off,
-                            &isize)) < 0) {
-
+    if (result < 0) {
       result = (result == -ENAMETOOLONG) ? -E2BIG : result;
-      goto argv_copy_failure;
+      goto end;
     }
 
     kern_argv[i] = data + data_off;
-
     data_off += isize;
     i++;
   }
@@ -428,14 +431,12 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
     .prog_name = kern_path, .argv = (const char **)kern_argv, .argc = argc};
   result = do_exec(&exec_args);
 
-argv_copy_failure:
+end:
   kfree(M_TEMP, data);
   kfree(M_TEMP, kern_argv);
-
-path_copy_failure:
-free_mem_and_fail:
   kfree(M_TEMP, kern_path);
 
+  klog("%d", result);
   return result;
 }
 

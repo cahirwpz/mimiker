@@ -18,6 +18,7 @@ int main(int argc, char **argv, char **envp) {
   } else
     printf("Argument list argv is NULL\n");
 
+  /* Commented out for future use (enviroments currently unsupported) */
   /* if (envp != NULL) { */
 
   /*   i = 0; */
