@@ -303,15 +303,13 @@ void turnstile_broadcast(turnstile_t *ts) {
   }
 }
 
-/* Locks turnstile chain associated with wchan and returns pointer
- * to this chain. */
-static turnstile_chain_t *turnstile_chain_lock(void *wchan) {
+turnstile_chain_t *turnstile_chain_lock(void *wchan) {
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
   spin_acquire(&tc->tc_lock);
   return tc;
 }
 
-static void turnstile_chain_unlock(void *wchan) {
+void turnstile_chain_unlock(void *wchan) {
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
   spin_release(&tc->tc_lock);
 }

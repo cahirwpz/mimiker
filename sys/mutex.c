@@ -56,6 +56,7 @@ void mtx_unlock(mtx_t *m) {
        */
       turnstile_broadcast(ts);
       turnstile_unpend(ts, m);
-    }
+    } else
+      turnstile_chain_unlock(m);
   }
 }

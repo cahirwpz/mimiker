@@ -4,6 +4,7 @@
 #include <common.h>
 
 typedef struct turnstile turnstile_t;
+typedef struct turnstile_chain turnstile_chain_t;
 
 /*! \brief Initializes turnstiles.
  *
@@ -49,5 +50,12 @@ turnstile_t *turnstile_lookup(void *wchan);
  *
  * Acquires tc_lock, ts_lock. */
 turnstile_t *turnstile_acquire(void *wchan);
+
+/* Locks turnstile chain associated with wchan and returns pointer
+ * to this chain. */
+turnstile_chain_t *turnstile_chain_lock(void *wchan);
+
+/* Unlocks turnstile chain associated with wchan. */
+void turnstile_chain_unlock(void *wchan);
 
 #endif /* !_SYS_TURNSTILE_H_ */
