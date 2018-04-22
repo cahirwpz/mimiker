@@ -127,7 +127,7 @@ static int turnstile_adjust_thread(turnstile_t *ts, thread_t *td) {
  * of the thread being blocked to all the threads holding locks that have to
  * release their locks before this thread can run again.
  */
-void propagate_priority(thread_t *td) {
+static void propagate_priority(thread_t *td) {
   // TODO jakaś blokada na td?
   turnstile_t *ts = td->td_blocked;
   td_prio_t prio = td->td_prio;
@@ -379,9 +379,6 @@ void turnstile_unpend(turnstile_t *ts, void *wchan) {
   turnstile_chain_unlock(wchan);
 }
 
-/* looks for turnstile associated with wchan in turnstile chains
- * and returns NULL is no turnstile is found in chain;
- * the function acquires tc_lock, ts_lock */
 turnstile_t *turnstile_lookup(void *wchan) {
   turnstile_chain_t *tc = turnstile_chain_lock(wchan);
 
@@ -395,18 +392,10 @@ turnstile_t *turnstile_lookup(void *wchan) {
   return NULL;
 }
 
-/* gets turnstile associated with wchan
- * and acquires tc_lock and ts_lock */
-turnstile_t *turnstile_trywait(void *wchan) {
-  turnstile_chain_t *tc = turnstile_chain_lock(wchan);
-
-  turnstile_t *ts;
-  LIST_FOREACH(ts, &tc->tc_turnstiles, ts_hash) {
-    if (ts->ts_wchan == wchan) {
-      spin_acquire(&ts->ts_lock);
-      return ts;
-    }
-  }
+turnstile_t *turnstile_acquire(void *wchan) {
+  turnstile_t *ts = turnstile_lookup(wchan);
+  if (ts != NULL)
+    return ts;
 
   ts = thread_self()->td_turnstile;
   assert(ts != NULL);

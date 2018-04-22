@@ -32,10 +32,16 @@ void turnstile_broadcast(turnstile_t *ts);
 // Kept locks: tc->tc_lock
 void turnstile_unpend(turnstile_t *ts, void *wchan);
 
-turnstile_t *turnstile_trywait(void *wchan);
-
-void turnstile_cancel(turnstile_t *ts);
-
+/* Looks for turnstile associated with wchan in turnstile chains and returns
+ * it or NULL if no turnstile is found in chains.
+ *
+ * Acquires tc_lock, ts_lock (ts_lock if turnstile is found). */
 turnstile_t *turnstile_lookup(void *wchan);
+
+/* At first it runs turnstile_lookup and returns the result if it's not NULL.
+ * If turnstile was not found in chains, it returns thread_self()'s turnstile.
+ *
+ * Acquires tc_lock, ts_lock. */
+turnstile_t *turnstile_acquire(void *wchan);
 
 #endif /* !_SYS_TURNSTILE_H_ */

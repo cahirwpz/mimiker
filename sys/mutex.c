@@ -23,9 +23,10 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
 
   WITH_NO_PREEMPTION {
     while (m->m_owner != NULL) {
-      turnstile_t *ts = turnstile_trywait(m);
-      // if we had SMP then something could happen while
-      // we were spinning on tc_lock
+      turnstile_t *ts = turnstile_acquire(m);
+      /* In case of SMP we would have to check now whether some other
+       * processor released the mutex while we were spinning for turnstile's
+       * spinlock. */
       turnstile_wait(ts, (thread_t *)m->m_owner);
     }
     m->m_owner = thread_self();
