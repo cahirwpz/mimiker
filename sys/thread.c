@@ -1,6 +1,5 @@
 #define KL_LOG KL_THREAD
 #include <klog.h>
-#include <stdc.h>
 #include <malloc.h>
 #include <thread.h>
 #include <context.h>
@@ -51,6 +50,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   td->td_kstack.stk_size = PAGESIZE;
   td->td_state = TDS_INACTIVE;
 
+  spin_init(td->td_spin);
   mtx_init(&td->td_lock, MTX_RECURSE);
   cv_init(&td->td_waitcv, "thread waiters");
 
@@ -93,12 +93,9 @@ noreturn void thread_exit(void) {
 
   /* Thread must not exit while having interrupts disabled! However, we can't
    * use assert here, because assert also calls thread_exit. Thus, in case this
-   * condition is not met, we'll log the problem, and try to fix the problem. */
-  if (td->td_idnest != 0) {
-    klog("ERROR: Thread must not exit within a critical section!");
-    while (td->td_idnest--)
-      intr_enable();
-  }
+   * condition is not met, we'll log the problem and panic! */
+  if (td->td_idnest > 0)
+    panic("ERROR: Thread must not exit when interrupts are disabled!");
 
   /*
    * Preemption must be disabled for the code below, otherwise the thread may be
@@ -115,10 +112,12 @@ noreturn void thread_exit(void) {
   }
 
   cv_broadcast(&td->td_waitcv);
-  td->td_state = TDS_DEAD;
   mtx_unlock(&td->td_lock);
 
-  sched_switch();
+  WITH_SPINLOCK(td->td_spin) {
+    td->td_state = TDS_DEAD;
+    sched_switch();
+  }
 
   panic("Thread %ld tried to ressurect", td->td_tid);
 }
@@ -137,7 +136,7 @@ void thread_join(thread_t *otd) {
 void thread_yield(void) {
   thread_t *td = thread_self();
 
-  WITH_NO_PREEMPTION {
+  WITH_SPINLOCK(td->td_spin) {
     td->td_state = TDS_READY;
     sched_switch();
   }

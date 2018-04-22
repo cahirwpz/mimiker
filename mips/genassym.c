@@ -9,6 +9,7 @@
 
 ASSYM(TDF_NEEDSWITCH, TDF_NEEDSWITCH);
 ASSYM(TDF_NEEDSIGCHK, TDF_NEEDSIGCHK);
+ASSYM(TDF_NEEDLOCK, TDF_NEEDLOCK);
 
 ASSYM(TD_PROC, offsetof(thread_t, td_proc));
 ASSYM(TD_UCTX, offsetof(thread_t, td_uctx));
@@ -18,6 +19,8 @@ ASSYM(TD_KCTX, offsetof(thread_t, td_kctx));
 ASSYM(TD_KSTACK, offsetof(thread_t, td_kstack));
 ASSYM(TD_FLAGS, offsetof(thread_t, td_flags));
 ASSYM(TD_ONFAULT, offsetof(thread_t, td_onfault));
+ASSYM(TD_IDNEST, offsetof(thread_t, td_idnest));
+ASSYM(TD_SPIN, offsetof(thread_t, td_spin));
 
 ASSYM(STK_BASE, offsetof(stack_t, stk_base));
 ASSYM(STK_SIZE, offsetof(stack_t, stk_size));

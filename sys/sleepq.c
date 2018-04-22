@@ -115,12 +115,13 @@ void sleepq_wait(void *wchan, const void *waitpt) {
   TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_sleepq);
   sq->sq_nblocked++;
 
-  td->td_wchan = wchan;
-  td->td_waitpt = waitpt;
-  td->td_sleepqueue = NULL;
-
-  td->td_state = TDS_SLEEPING;
-  sched_switch();
+  WITH_SPINLOCK(td->td_spin) {
+    td->td_wchan = wchan;
+    td->td_waitpt = waitpt;
+    td->td_sleepqueue = NULL;
+    td->td_state = TDS_SLEEPING;
+    sched_switch();
+  }
 }
 
 /* Remove a thread from the sleep queue and resume it. */
@@ -149,11 +150,12 @@ static void sleepq_wakeup(sleepq_t *sq, thread_t *td) {
   /* Remove the sleep queue from the chain or the free list. */
   LIST_REMOVE(sq, sq_entry);
 
-  td->td_wchan = NULL;
-  td->td_waitpt = NULL;
-  td->td_sleepqueue = sq;
-
-  sched_wakeup(td);
+  WITH_SPINLOCK(td->td_spin) {
+    td->td_wchan = NULL;
+    td->td_waitpt = NULL;
+    td->td_sleepqueue = sq;
+    sched_wakeup(td);
+  }
 }
 
 bool sleepq_signal(void *wchan) {

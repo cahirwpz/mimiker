@@ -14,6 +14,7 @@ SOURCES_C  = \
 	dev_vga.c \
 	devfs.c \
 	drv_atkbdc.c \
+	drv_pit.c \
 	drv_rtc.c \
 	drv_stdvga.c \
 	exception.c \
@@ -23,6 +24,7 @@ SOURCES_C  = \
 	fork.c \
 	initrd.c \
 	interrupt.c \
+	kbss.c \
 	klog.c \
 	ktest.c \
 	main.c \
@@ -42,11 +44,13 @@ SOURCES_C  = \
 	sched.c \
 	signal.c \
 	sleepq.c \
+	spinlock.c \
 	startup.c \
 	sysent.c \
 	sysinit.c \
 	taskqueue.c \
 	thread.c \
+	timer.c \
 	uio.c \
 	vfs.c \
 	vfs_readdir.c \

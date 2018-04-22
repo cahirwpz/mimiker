@@ -1,10 +1,13 @@
-#include <interrupt.h>
+#include <spinlock.h>
 #include <time.h>
 #include <stdc.h>
+#include <interrupt.h>
 #define _KLOG_PRIVATE
 #include <klog.h>
 
 klog_t klog;
+
+static spinlock_t *klog_lock = &SPINLOCK_INITIALIZER();
 
 static const char *subsystems[] =
   {[KL_RUNQ] = "runq",   [KL_SLEEPQ] = "sleepq",   [KL_CALLOUT] = "callout",
@@ -14,7 +17,7 @@ static const char *subsystems[] =
    [KL_DEV] = "dev",     [KL_VFS] = "vfs",         [KL_VNODE] = "vnode",
    [KL_PROC] = "proc",   [KL_SYSCALL] = "syscall", [KL_USER] = "user",
    [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_FILESYS] = "filesys",
-   [KL_UNDEF] = "???"};
+   [KL_TIME] = "time",   [KL_UNDEF] = "???"};
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(char *key);
@@ -53,7 +56,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
 
   klog_entry_t *entry;
 
-  WITH_INTR_DISABLED {
+  WITH_SPINLOCK(klog_lock) {
     entry = (klog.prev >= 0) ? &klog.array[klog.prev] : NULL;
 
     /* Do not store repeating log messages, just count them. */
@@ -99,14 +102,14 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
       klog.first = next(klog.first);
   }
 
-  if (klog.verbose)
+  if (klog.verbose && !intr_disabled())
     klog_entry_dump(entry);
 }
 
 unsigned klog_setmask(unsigned newmask) {
   unsigned oldmask;
 
-  WITH_INTR_DISABLED {
+  WITH_SPINLOCK(klog_lock) {
     oldmask = klog.mask;
     klog.mask = newmask;
   }
@@ -117,7 +120,7 @@ void klog_dump(void) {
   klog_entry_t entry;
 
   while (klog.first != klog.last) {
-    WITH_INTR_DISABLED {
+    WITH_SPINLOCK(klog_lock) {
       entry = klog.array[klog.first];
       klog.first = next(klog.first);
     }

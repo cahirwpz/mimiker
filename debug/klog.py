@@ -9,7 +9,7 @@ class TimeVal(object):
     __cast__ = {'tv_sec': int, 'tv_usec': int}
 
     def as_float(self):
-        return float(self.tv_sec) + float(self.tv_usec) * 10e-6
+        return float(self.tv_sec) + float(self.tv_usec) * 1e-6
 
     def __str__(self):
         return 'timeval{%.6f}' % self.as_float()

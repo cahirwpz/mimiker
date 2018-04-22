@@ -14,10 +14,7 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
-#include <exec.h>
-#include <stdc.h>
-
-#define PATH_MAX 1024
+#include <syslimits.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 int sys_nosys(thread_t *td, syscall_args_t *args) {
