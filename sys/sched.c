@@ -90,6 +90,9 @@ void sched_set_prio(thread_t *td, td_prio_t prio) {
   // TO BE UNCOMMENTED
   // if (td->td_state & TDS_LOCKED && oldprio != prio)
   //   turnstile_adjust(td, oldprio);
+
+  // TO BE DELETED
+  (void)oldprio;
 }
 
 void sched_lend_prio(thread_t *td, td_prio_t prio) {
