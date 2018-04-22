@@ -5,16 +5,22 @@
 
 typedef struct turnstile turnstile_t;
 
-/*** technical stuff ***/
-
+/*! \brief Initializes turnstiles.
+ *
+ * \warning To be called only from early kernel initialization! */
 void turnstile_init(void);
 
+/*! \brief Allocates turnstile entry. */
 turnstile_t *turnstile_alloc(void);
 
+/*! \brief Deallocates turnstile entry. */
 void turnstile_destroy(turnstile_t *ts);
 
-/*** scheduler stuff ***/
-
+/* \brief Adjusts thread on list of threads blocked waiting for some lock.
+ *
+ * \note This function is called from scheduler's \a sched_set_prio when
+ * it changes priority of thread \a td.
+*/
 void turnstile_adjust(thread_t *td, td_prio_t oldprio);
 
 /*** actual stuff ***/

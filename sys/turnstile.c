@@ -204,6 +204,7 @@ static void turnstile_setowner(turnstile_t *ts, thread_t *owner) {
 // TODO consider locks
 void turnstile_adjust(thread_t *td, td_prio_t oldprio) {
   turnstile_t *ts = td->td_blocked;
+  assert(ts != NULL);
 
   // we FreeBSD jest jakieś zamieszanie odnośnie td->td_turnstile != NULL,
   // bo cośtam cośtam SMP. Chyba się nie przejmujemy.
@@ -214,24 +215,15 @@ void turnstile_adjust(thread_t *td, td_prio_t oldprio) {
 
   if (first == new_first)
     return;
-  else {
-    // we FreeBSD poprawiają priorytet jedynie, jeśli nowy jest lepszy
-    // (nie obniżają już pożyczonych priorytetów)
 
-    // If =new_first= isn't =first= then =td= is either of them.
-    // If =td='s priority was increased then it's =new_first= and
-    // we only have to propagate the new (higher) priority
-    if (td->td_prio > oldprio) {
-      propagate_priority(new_first);
-    } else {
-      // patrz wyżej
-      // TODO? remove the old lent priority and propagate the new one
-    }
-  }
+  if (td->td_prio > oldprio)
+    propagate_priority(new_first);
+
+  /* We don't unpropagate priority if td->td_prio < oldprio. */
 }
 
 /*
- * Block the current thread on the turnstile assicated with 'lock'.  This
+ * Block the current thread on the turnstile assicated with 'lock'. This
  * function will context switch and not return until this thread has been
  * woken back up.  This function must be called with the appropriate
  * turnstile chain locked and will return with it unlocked.
@@ -311,15 +303,15 @@ void turnstile_broadcast(turnstile_t *ts) {
   }
 }
 
-/* locks turnstile chain associated with wchan
- * and returns pointer to this chain */
-turnstile_chain_t *turnstile_chain_lock(void *wchan) {
+/* Locks turnstile chain associated with wchan and returns pointer
+ * to this chain. */
+static turnstile_chain_t *turnstile_chain_lock(void *wchan) {
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
   spin_acquire(&tc->tc_lock);
   return tc;
 }
 
-void turnstile_chain_unlock(void *wchan) {
+static void turnstile_chain_unlock(void *wchan) {
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
   spin_release(&tc->tc_lock);
 }
