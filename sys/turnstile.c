@@ -399,17 +399,6 @@ turnstile_t *turnstile_trywait(void *wchan) {
   return ts;
 }
 
-/* cancels turnstile_trywait and releases ts_lock and tc_lock */
-void turnstile_cancel(turnstile_t *ts) {
-  spin_release(&ts->ts_lock);
-  void *wchan = ts->ts_wchan;
-  if (ts == thread_self()->td_turnstile)
-    ts->ts_wchan = NULL;
-
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-  spin_release(&tc->tc_lock);
-}
-
 /* looks for turnstile associated with wchan in turnstile chains
  * assuming that we own tc_lock and returns NULL is no turnstile
  * is found in chain;
