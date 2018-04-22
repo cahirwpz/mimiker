@@ -1,76 +1,60 @@
-#include <timer.h>
-#include <interrupt.h>
 #include <mips/m32c0.h>
 #include <mips/config.h>
 #include <mips/intr.h>
-#include <spinlock.h>
-#include <stdc.h>
+#include <interrupt.h>
+#include <time.h>
 
-static timer_event_list_t events = TAILQ_HEAD_INITIALIZER(events);
-static spinlock_t *events_lock = &SPINLOCK_INITIALIZER();
+/* For now, sole purpose of MIPS CPU timer is to provide accurate timestamps
+ * for various parts of the system.
+ *
+ * TODO Integrate with new timer framework. */
 
-static inline uint32_t ticks(timer_event_t *tev) {
-  return tev->tev_when.tv_sec * TICKS_PER_SEC +
-         tev->tev_when.tv_usec * TICKS_PER_US;
+typedef union {
+  struct {
+    uint32_t lo;
+    uint32_t hi;
+  };
+  uint64_t val;
+} counter_t;
+
+static counter_t count = {.hi = 0, .lo = 0};
+static counter_t compare = {.hi = 1, .lo = 0};
+
+static uint64_t read_count(void) {
+  uint64_t now;
+  intr_disable();
+  count.lo = mips32_get_c0(C0_COUNT);
+  now = count.val;
+  intr_enable();
+  return now;
 }
 
-timeval_t get_uptime(void) {
-  /* BUG: C0_COUNT will overflow every 4294 seconds for 100MHz processor! */
-  uint32_t count = mips32_get_c0(C0_COUNT) / TICKS_PER_US;
-  return (timeval_t){.tv_sec = count / 1000000, .tv_usec = count % 1000000};
-}
-
-static intr_filter_t cpu_timer_intr(void *arg);
-
-static intr_handler_t cpu_timer_intr_handler =
-  INTR_HANDLER_INIT(cpu_timer_intr, NULL, NULL, "CPU timer", 0);
-
-static intr_filter_t cpu_timer_intr(void *arg) {
-  uint32_t compare = mips32_get_c0(C0_COMPARE);
-
-  timer_event_t *event, *next;
-  TAILQ_FOREACH_SAFE(event, &events, tev_link, next) {
-    if (ticks(event) > compare)
-      break;
-    TAILQ_REMOVE(&events, event, tev_link);
-    if (TAILQ_EMPTY(&events))
-      mips_intr_teardown(&cpu_timer_intr_handler);
-    assert(event->tev_func != NULL);
-    event->tev_func(event);
-  }
-
-  if (!TAILQ_EMPTY(&events))
-    mips32_set_c0(C0_COMPARE, ticks(TAILQ_FIRST(&events)));
-
+static intr_filter_t mips_timer_intr(void *data) {
+  count.hi++;
+  compare.hi++;
+  /* To mark interrupt as handled we need to write to compare register! */
+  mips32_set_c0(C0_COMPARE, compare.lo);
   return IF_FILTERED;
 }
 
-void cpu_timer_add_event(timer_event_t *tev) {
-  SCOPED_SPINLOCK(events_lock);
+static intr_handler_t mips_timer_intr_handler =
+  INTR_HANDLER_INIT(mips_timer_intr, NULL, NULL, "MIPS CPU timer", 0);
 
-  if (TAILQ_EMPTY(&events))
-    mips_intr_setup(&cpu_timer_intr_handler, MIPS_HWINT5);
-
-  timer_event_t *event;
-  TAILQ_FOREACH (event, &events, tev_link)
-    if (timeval_cmp(&event->tev_when, &tev->tev_when, >))
-      break;
-
-  if (event)
-    TAILQ_INSERT_BEFORE(event, tev, tev_link);
-  else
-    TAILQ_INSERT_TAIL(&events, tev, tev_link);
-
-  mips32_set_c0(C0_COMPARE, ticks(TAILQ_FIRST(&events)));
+static inline timeval_t ticks2tv(uint64_t ticks) {
+  ticks /= (uint64_t)TICKS_PER_US;
+  return (timeval_t){.tv_sec = ticks / 1000000LL, .tv_usec = ticks % 1000000LL};
 }
 
-void cpu_timer_remove_event(timer_event_t *tev) {
-  SCOPED_SPINLOCK(events_lock);
+timeval_t get_uptime(void) {
+  return ticks2tv(read_count());
+}
 
-  TAILQ_REMOVE(&events, tev, tev_link);
+void mips_timer_init(void) {
+  /* Reset cpu timer. */
+  mips32_set_c0(C0_COUNT, 0);
+  mips32_set_c0(C0_COMPARE, 0);
 
-  if (TAILQ_EMPTY(&events))
-    mips_intr_teardown(&cpu_timer_intr_handler);
-  else
-    mips32_set_c0(C0_COMPARE, ticks(TAILQ_FIRST(&events)));
+  /* Let's permanently enable interrupt handler, as we need to generate
+   * interrupt to register counter overflow to correctly maintain time. */
+  mips_intr_setup(&mips_timer_intr_handler, MIPS_HWINT5);
 }

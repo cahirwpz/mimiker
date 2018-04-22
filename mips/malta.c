@@ -4,6 +4,7 @@
 #include <mips/cpuinfo.h>
 #include <mips/malta.h>
 #include <mips/intr.h>
+#include <mips/timer.h>
 #include <mips/tlb.h>
 #include <klog.h>
 #include <kbss.h>
@@ -161,6 +162,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   pcpu_init();
   cpu_init();
   tlb_init();
+  mips_timer_init();
   mips_intr_init();
   pm_bootstrap(memsize);
   pmap_init();
