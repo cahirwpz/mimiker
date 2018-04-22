@@ -51,7 +51,7 @@ void sched_wakeup(thread_t *td) {
     oldtd->td_flags |= TDF_NEEDSWITCH;
 }
 
-/*! \brief Adjust thread's \a td_prio.
+/*! \brief Set thread's active priority \a td_prio to \a prio.
  *
  * \note Must be called with \a td_spin acquired!
  */
