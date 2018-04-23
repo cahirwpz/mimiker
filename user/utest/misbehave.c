@@ -28,26 +28,25 @@ int test_misbehave() {
   return 0;
 }
 
-static inline void exec_cp0_instr(void){
+static inline void exec_cp0_instr(void) {
   int value;
   asm volatile("mfc0 %0, $12, 0" : "=r"(value));
 }
 
 static inline void exec_reserved_instr(void) {
-  // how to raise Reserved Instruction exception?
-  // int value;
-  // asm volatile("mfc0 %0, $12, 0" : "=r"(value));
+  int value;
+  asm volatile("mfc2 %0, $12, 0" : "=r"(value));
 }
 
 static int spawn_process(void (*proc_handler)(void)) {
   int pid;
   switch ((pid = fork())) {
-    case -1 : 
+    case -1:
       exit(EXIT_FAILURE);
-    case 0 : 
+    case 0:
       proc_handler();
       exit(EXIT_SUCCESS);
-    default : 
+    default:
       return pid;
   }
 }
