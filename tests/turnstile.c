@@ -64,7 +64,7 @@ static void low_prio_task(void *arg) {
       assert(td[0]->td_prio == HIGH);
     }
     assert(td[0]->td_prio == LOW);
-    assert(td[3]->td_prio == HIGH);
+    assert(td[2]->td_prio == HIGH);
   }
   klog("low po mtx");
 
