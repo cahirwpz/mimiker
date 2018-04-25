@@ -49,7 +49,10 @@ int test_execve_errors(void) {
   char *const argv_with_args_too_long[3] = {arg_half_max, arg_half_max, NULL};
 
   assert_fail(runexecve(too_long_path, valid_argv), ENAMETOOLONG);
-  // assert_fail(runexecve(too_long_path, non_terminated_argv), ENAMETOOLONG);
+  /* POSIX doesnt specify which errno should be set if there are multiple
+     reasons for failure. Returning either of those errors is valid. */
+  assert(runexecve(too_long_path, non_terminated_argv) == -1 &&
+    (errno == E2BIG || errno == ENAMETOOLONG));
 
   assert_fail(runexecve(valid_path, too_long_argv), E2BIG);
   assert_fail(runexecve(valid_path, non_terminated_argv), E2BIG);
@@ -68,14 +71,9 @@ short hashed_execve_test(char *const argv[]) {
   for (argc = 0; argv[argc] != NULL; argc++)
     ;
 
-  for (int i = 0; i < argc; i++) {
-    /* for (unsigned int j = 0; j < strlen(argv[i]); j++) */
-    /*   hash = jenkins_one_step(hash, argv[i][j]); */
-
+  for (int i = 0; i < argc; i++) 
     hash = hash32_str(argv[i], hash);
-  }
 
-  /*  hash = jenkins_final(hash) & 255;*/
   hash &= 255;
 
   pid_t n = fork();
