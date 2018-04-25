@@ -9,7 +9,7 @@
 
 static mtx_t mtx = MTX_INITIALIZER(MTX_DEF);
 static thread_t *td[T];
-static volatile bool high_prio_mtx_acquired = 0;
+static volatile bool high_prio_mtx_acquired;
 
 typedef enum {
   /* Set priorities to multiplies of RunQueue_PriorityPerQueue
@@ -31,9 +31,10 @@ static void high_prio_task(void *arg) {
 }
 
 static void med_prio_task(void *arg) {
-  klog("med");
+  klog("med start");
   while (high_prio_mtx_acquired == 0)
     ; // loop
+  klog("med end");
 }
 
 static void low_prio_task(void *arg) {
@@ -76,6 +77,8 @@ static void low_prio_task(void *arg) {
 }
 
 static int test_mutex_priority_inversion(void) {
+  high_prio_mtx_acquired = 0;
+
   td[0] = thread_create("td1", low_prio_task, NULL);
   td[1] = thread_create("td2", med_prio_task, NULL);
   td[2] = thread_create("td3", high_prio_task, NULL);
