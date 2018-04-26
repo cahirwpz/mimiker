@@ -169,13 +169,6 @@ static void propagate_priority(thread_t *td) {
   }
 }
 
-/* Return a pointer to the thread waiting on this turnstile with the
- * most important priority or NULL if the turnstile has no waiters.
- */
-static thread_t *turnstile_first_waiter(turnstile_t *ts) {
-  return TAILQ_FIRST(&ts->ts_blocked);
-}
-
 static void turnstile_setowner(turnstile_t *ts, thread_t *owner) {
   assert(spin_owned(&td_contested_lock));
   assert(ts->ts_owner == NULL);
@@ -203,9 +196,9 @@ void turnstile_adjust(thread_t *td, td_prio_t oldprio) {
   // we FreeBSD jest jakieś zamieszanie odnośnie td->td_turnstile != NULL,
   // bo cośtam cośtam SMP. Chyba się nie przejmujemy.
 
-  thread_t *first = turnstile_first_waiter(ts);
+  thread_t *first = TAILQ_FIRST(&ts->ts_blocked);
   turnstile_adjust_thread(ts, td);
-  thread_t *new_first = turnstile_first_waiter(ts);
+  thread_t *new_first = TAILQ_FIRST(&ts->ts_blocked);
 
   if (first == new_first)
     return;
@@ -347,7 +340,7 @@ void turnstile_unpend(turnstile_t *ts, void *wchan) {
 
       turnstile_t *ts1;
       LIST_FOREACH(ts1, &td->td_contested, ts_link) {
-        td_prio_t p = turnstile_first_waiter(ts1)->td_prio;
+        td_prio_t p = TAILQ_FIRST(&ts1->ts_blocked)->td_prio;
         if (p > prio)
           prio = p;
       }
