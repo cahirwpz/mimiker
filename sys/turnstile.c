@@ -58,12 +58,6 @@ void turnstile_init(void) {
 
   td_contested_lock = SPINLOCK_INITIALIZER();
 
-  /* we FreeBSD tu jest coś takiego:
-   * LIST_INIT(thread0.td_owned);
-   * thread0.td_turnstile = NULL;
-   * nie wiem, czy u nas też powinno
-  */
-
   P_TURNSTILE = pool_create("turnstile", sizeof(turnstile_t),
                             (pool_ctor_t)turnstile_ctor, NULL);
 }
@@ -277,18 +271,11 @@ void turnstile_wait(turnstile_t *ts, thread_t *owner) {
   }
 }
 
-void turnstile_broadcast(turnstile_t *ts) {
-  assert(ts != NULL);
-  assert(spin_owned(&ts->ts_lock));
-  assert(ts->ts_owner == thread_self());
-
-  turnstile_chain_t *tc = TC_LOOKUP(ts->ts_wchan);
-  assert(spin_owned(&tc->tc_lock));
-
-  spin_acquire(&td_contested_lock);
-  TAILQ_CONCAT(&ts->ts_pending, &ts->ts_blocked, td_turnstileq);
-  spin_release(&td_contested_lock);
-
+/* nie mam pomysłu na lepszą nazwę
+ * for each thread td on ts_pending gives back td its turnstile
+ * from ts_free (or gives back ts if ts_free is empty) */
+static void turnstile_free_return(turnstile_t *ts) {
+  // TODO add asserts
   thread_t *td;
   turnstile_t *ts1;
   TAILQ_FOREACH (td, &ts->ts_pending, td_turnstileq) {
@@ -301,6 +288,21 @@ void turnstile_broadcast(turnstile_t *ts) {
     LIST_REMOVE(ts1, ts_hash);
     td->td_turnstile = ts1;
   }
+}
+
+void turnstile_broadcast(turnstile_t *ts) {
+  assert(ts != NULL);
+  assert(spin_owned(&ts->ts_lock));
+  assert(ts->ts_owner == thread_self());
+
+  turnstile_chain_t *tc = TC_LOOKUP(ts->ts_wchan);
+  assert(spin_owned(&tc->tc_lock));
+
+  spin_acquire(&td_contested_lock);
+  TAILQ_CONCAT(&ts->ts_pending, &ts->ts_blocked, td_turnstileq);
+  spin_release(&td_contested_lock);
+
+  turnstile_free_return(ts);
 }
 
 turnstile_chain_t *turnstile_chain_lock(void *wchan) {
