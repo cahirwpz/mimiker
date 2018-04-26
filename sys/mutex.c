@@ -54,11 +54,12 @@ void mtx_unlock(mtx_t *m) {
        *
        * The reasoning is that the awakened threads will often be scheduled
        * sequentially and only act on empty mutex on which operations are
-       * cheaper.
-       */
+       * cheaper. */
       turnstile_broadcast(ts);
       turnstile_unpend(ts, m);
     } else
+      /* The lock wasn't contested, nothing to do with turnstiles.
+       * Just release spinlock acquired in turnstile_lookup. */
       turnstile_chain_unlock(m);
   }
 }
