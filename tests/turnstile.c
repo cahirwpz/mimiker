@@ -1,13 +1,12 @@
 #include <ktest.h>
 #include <mutex.h>
-#include <klog.h> // potem to usunąć
 #include <runq.h>
 #include <sched.h>
 #include <thread.h>
 
 #define T 3
 
-static mtx_t mtx = MTX_INITIALIZER(MTX_DEF);
+static mtx_t *mtx = &MTX_INITIALIZER(MTX_DEF);
 static thread_t *td[T];
 static volatile bool high_prio_mtx_acquired;
 
@@ -20,25 +19,19 @@ typedef enum {
 } prio_t;
 
 static void high_prio_task(void *arg) {
-  assert(mtx.m_owner == td[0]);
+  assert(mtx->m_owner == td[0]);
 
-  klog("high przed mtx");
-  WITH_MTX_LOCK (&mtx) {
-    klog("high w mtx");
+  WITH_MTX_LOCK (mtx) {
     high_prio_mtx_acquired = 1;
   }
-  klog("high po mtx");
 }
 
 static void med_prio_task(void *arg) {
-  klog("med start");
-  while (high_prio_mtx_acquired == 0)
-    ; // loop
-  klog("med end");
+  assert(high_prio_mtx_acquired);
 }
 
 static void low_prio_task(void *arg) {
-  /* As for now, td1, td2 and td3 have artificial priorities (HIGH, LOW, LOW)
+  /* As for now, td0, td1 and td2 have artificial priorities (HIGH, LOW, LOW)
    * to ensure that this code runs first. Now we can set priorities to their
    * real values (LOW, MED, HIGH). */
 
@@ -53,37 +46,44 @@ static void low_prio_task(void *arg) {
       sched_lend_prio(td[2], HIGH);
     }
 
-    klog("low przed mtx");
-
-    WITH_MTX_LOCK (&mtx) {
+    WITH_MTX_LOCK (mtx) {
+      /* High priority task didn't run yet. */
       assert(high_prio_mtx_acquired == 0);
-      klog("low oddaje CPU");
       thread_yield();
-      klog("low wraca");
 
       /* Our priority should've been raised. */
       assert(td[0]->td_prio == HIGH);
-    }
-    assert(td[0]->td_prio == LOW);
-    assert(td[2]->td_prio == HIGH);
-  }
-  klog("low po mtx");
+      assert(td[0]->td_flags & TDF_BORROWING);
 
+      /* And high priority task is still waiting. */
+      assert(high_prio_mtx_acquired == 0);
+    }
+  }
+
+  /* Check that exiting mutex (lowering our priority) preempted us and
+   * ran high priority task. */
   assert(high_prio_mtx_acquired == 1);
-  /* And lowered to base priority. */
+
+  /* We don't borrow anymore. */
+  assert(!(td[0]->td_flags & TDF_BORROWING));
+  /* Our priority was lowered to base priority. */
   assert(td[0]->td_prio == td[0]->td_base_prio);
   /* Which is LOW. */
   assert(td[0]->td_base_prio == LOW);
+
+  /* And we didn't spoil other priorities. */
+  assert(td[1]->td_prio == MED);
+  assert(td[2]->td_prio == HIGH);
 }
 
 static int test_mutex_priority_inversion(void) {
   high_prio_mtx_acquired = 0;
 
-  td[0] = thread_create("td1", low_prio_task, NULL);
-  td[1] = thread_create("td2", med_prio_task, NULL);
-  td[2] = thread_create("td3", high_prio_task, NULL);
+  td[0] = thread_create("td0", low_prio_task, NULL);
+  td[1] = thread_create("td1", med_prio_task, NULL);
+  td[2] = thread_create("td2", high_prio_task, NULL);
 
-  /* We want to ensure that td1 (low_prio_task) will run as the first one
+  /* We want to ensure that td0 (low_prio_task) will run as the first one
    * and lock mtx. */
   WITH_NO_PREEMPTION {
     for (int i = 0; i < T; i++)
@@ -104,5 +104,4 @@ static int test_mutex_priority_inversion(void) {
   return KTEST_SUCCESS;
 }
 
-// TODO make the test clean because dirty makes testing very slow
 KTEST_ADD(turnstile, test_mutex_priority_inversion, 0);
