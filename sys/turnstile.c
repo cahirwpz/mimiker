@@ -71,22 +71,17 @@ void turnstile_destroy(turnstile_t *ts) {
 }
 
 /* Adjusts thread's position on ts_blocked queue after its priority
- * has been changed.
- * Return values:
- * - 1  -- moved towards the end of the list
- * - 0  -- didn't move
- * - -1 -- moved towards the head of the list
- */
+ * has been changed. */
+static void turnstile_adjust_thread(turnstile_t *ts, thread_t *td) {
+  assert(td->td_state & TDS_LOCKED);
+  assert(spin_owned(&ts->ts_lock));
 
-// TODO consider locks
-static int turnstile_adjust_thread(turnstile_t *ts, thread_t *td) {
   thread_t *n = TAILQ_NEXT(td, td_turnstileq);
   thread_t *p = TAILQ_PREV(td, threadqueue, td_turnstileq);
 
-  int moved = 0; // 1 - forward, 0 - not moved, -1 - backward
-
+  bool moved_forward = false;
   if (n != NULL && n->td_prio > td->td_prio) {
-    moved = 1;
+    moved_forward = true;
     TAILQ_REMOVE(&ts->ts_blocked, td, td_turnstileq);
 
     while (n != NULL && n->td_prio > td->td_prio) {
@@ -100,8 +95,7 @@ static int turnstile_adjust_thread(turnstile_t *ts, thread_t *td) {
   }
 
   if (p != NULL && p->td_prio < td->td_prio) {
-    assert(moved == 0);
-    moved = -1;
+    assert(moved_forward == false);
     TAILQ_REMOVE(&ts->ts_blocked, td, td_turnstileq);
 
     while (p != NULL && p->td_prio < td->td_prio) {
@@ -113,8 +107,6 @@ static int turnstile_adjust_thread(turnstile_t *ts, thread_t *td) {
     else
       TAILQ_INSERT_HEAD(&ts->ts_blocked, td, td_turnstileq);
   }
-
-  return moved;
 }
 
 /* Walks the chain of turnstiles and their owners to propagate the priority
@@ -161,11 +153,7 @@ static void propagate_priority(thread_t *td) {
     assert(ts != NULL);
 
     /* resort td on the list if needed */
-    if (!turnstile_adjust_thread(ts, td)) {
-      /* td is in fact not blocked on any lock */
-      spin_release(&ts->ts_lock);
-      return;
-    }
+    turnstile_adjust_thread(ts, td);
   }
 }
 
