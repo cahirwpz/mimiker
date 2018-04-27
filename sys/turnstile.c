@@ -257,26 +257,7 @@ static void turnstile_free_return(turnstile_t *ts) {
   }
 }
 
-void turnstile_broadcast(turnstile_t *ts) {
-  assert(ts != NULL);
-  assert(spin_owned(&ts->ts_lock));
-  assert(ts->ts_owner == thread_self());
-  assert(!TAILQ_EMPTY(&ts->ts_blocked));
-
-  turnstile_chain_t *tc = TC_LOOKUP(ts->ts_wchan);
-  assert(spin_owned(&tc->tc_lock));
-
-  turnstile_free_return(ts);
-
-  threadqueue_t blocked_threads;
-  TAILQ_INIT(&blocked_threads);
-  TAILQ_CONCAT(&blocked_threads, &ts->ts_blocked, td_turnstileq);
-
-  assert(TAILQ_EMPTY(&ts->ts_blocked));
-
-  void *wchan = ts->ts_wchan;
-  ts->ts_wchan = NULL;
-
+static void turnstile_unlend_self(turnstile_t *ts) {
   thread_t *td = thread_self();
   td_prio_t prio = 0; /* lowest priority */
 
@@ -296,9 +277,11 @@ void turnstile_broadcast(turnstile_t *ts) {
     }
     sched_unlend_prio(td, prio);
   }
+}
 
+static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
   while (!TAILQ_EMPTY(&blocked_threads)) {
-    td = TAILQ_FIRST(&blocked_threads);
+    thread_t *td = TAILQ_FIRST(&blocked_threads);
     TAILQ_REMOVE(&blocked_threads, td, td_turnstileq);
 
     WITH_SPINLOCK(td->td_spin) {
@@ -309,6 +292,29 @@ void turnstile_broadcast(turnstile_t *ts) {
       sched_wakeup(td);
     }
   }
+}
+
+void turnstile_broadcast(turnstile_t *ts) {
+  assert(ts != NULL);
+  assert(spin_owned(&ts->ts_lock));
+  assert(ts->ts_owner == thread_self());
+  assert(!TAILQ_EMPTY(&ts->ts_blocked));
+
+  turnstile_chain_t *tc = TC_LOOKUP(ts->ts_wchan);
+  assert(spin_owned(&tc->tc_lock));
+
+  turnstile_free_return(ts);
+
+  threadqueue_t blocked_threads;
+  TAILQ_INIT(&blocked_threads);
+  TAILQ_CONCAT(&blocked_threads, &ts->ts_blocked, td_turnstileq);
+  assert(TAILQ_EMPTY(&ts->ts_blocked));
+
+  void *wchan = ts->ts_wchan;
+  ts->ts_wchan = NULL;
+
+  turnstile_unlend_self(ts);
+  turnstile_wakeup_blocked(&blocked_threads);
 
   spin_release(&ts->ts_lock);
   turnstile_chain_unlock(wchan);
