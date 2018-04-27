@@ -17,11 +17,14 @@ turnstile_t *turnstile_alloc(void);
 /*! \brief Deallocates turnstile entry. */
 void turnstile_destroy(turnstile_t *ts);
 
-/* \brief Adjusts thread on list of threads blocked waiting for some lock.
+/* Re-sort list of blocked threads, on which td is,
+ * after we changed td's priority.
  *
- * \note This function is called from scheduler's \a sched_set_prio when
- * it changes priority of thread \a td.
-*/
+ * Propagate td's priority if td is now first on list and we increased
+ * its priority, i.e. td->td_prio > oldprio.
+ *
+ * \note This function is created for sched_set_prio.
+ */
 void turnstile_adjust(thread_t *td, td_prio_t oldprio);
 
 /*** actual stuff ***/

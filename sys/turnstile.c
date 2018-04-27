@@ -169,32 +169,20 @@ static void turnstile_setowner(turnstile_t *ts, thread_t *owner) {
   LIST_INSERT_HEAD(&owner->td_contested, ts, ts_link);
 }
 
-/* td - blocked thread (on some turnstile)
- * Gotta:
- * - sort the list on which =td= is (=ts->ts_blocked=)
- * - check the priority of the thread owning the lock
- *   - we have to change it only if =td= was the first waiter and
- *     isn't anymore or wasn't then but now is
- */
-// TODO consider locks
 void turnstile_adjust(thread_t *td, td_prio_t oldprio) {
+  assert(spin_owned(td->td_spin));
+  assert(td->td_state & TDS_LOCKED);
+
   turnstile_t *ts = td->td_blocked;
   assert(ts != NULL);
+  // spin_acquire(&ts->ts_lock); TODO? and release
 
-  // we FreeBSD jest jakieś zamieszanie odnośnie td->td_turnstile != NULL,
-  // bo cośtam cośtam SMP. Chyba się nie przejmujemy.
-
-  thread_t *first = TAILQ_FIRST(&ts->ts_blocked);
   turnstile_adjust_thread(ts, td);
-  thread_t *new_first = TAILQ_FIRST(&ts->ts_blocked);
 
-  if (first == new_first)
-    return;
-
-  if (td->td_prio > oldprio)
-    propagate_priority(new_first);
-
-  /* We don't unpropagate priority if td->td_prio < oldprio. */
+  /* If td got higher priority and it is at the head of ts_blocked,
+   * propagate its priority. */
+  if (td == TAILQ_FIRST(&ts->ts_blocked) && td->td_prio > oldprio)
+    propagate_priority(td);
 }
 
 /*
