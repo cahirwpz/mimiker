@@ -280,9 +280,9 @@ static void turnstile_unlend_self(turnstile_t *ts) {
 }
 
 static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
-  while (!TAILQ_EMPTY(&blocked_threads)) {
-    thread_t *td = TAILQ_FIRST(&blocked_threads);
-    TAILQ_REMOVE(&blocked_threads, td, td_turnstileq);
+  while (!TAILQ_EMPTY(blocked_threads)) {
+    thread_t *td = TAILQ_FIRST(blocked_threads);
+    TAILQ_REMOVE(blocked_threads, td, td_turnstileq);
 
     WITH_SPINLOCK(td->td_spin) {
       assert(td->td_state & TDS_LOCKED);
