@@ -38,10 +38,6 @@ void turnstile_wait(turnstile_t *ts, thread_t *owner);
 // Kept locks: all
 void turnstile_broadcast(turnstile_t *ts);
 
-// Needed locks: ts->ts_lock, tc->tc_lock
-// Kept locks: tc->tc_lock
-void turnstile_unpend(turnstile_t *ts, void *wchan);
-
 /* Looks for turnstile associated with wchan in turnstile chains and returns
  * it or NULL if no turnstile is found in chains.
  *

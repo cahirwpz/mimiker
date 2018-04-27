@@ -244,7 +244,10 @@ void turnstile_wait(turnstile_t *ts, thread_t *owner) {
  * for each thread td on ts_pending gives back td its turnstile
  * from ts_free (or gives back ts if ts_free is empty) */
 static void turnstile_free_return(turnstile_t *ts) {
-  // TODO add asserts
+  assert(ts != NULL);
+  assert(spin_owned(&ts->ts_lock));
+  assert(ts->ts_owner == thread_self());
+
   thread_t *td;
   turnstile_t *ts1;
   TAILQ_FOREACH (td, &ts->ts_pending, td_turnstileq) {
@@ -272,35 +275,15 @@ void turnstile_broadcast(turnstile_t *ts) {
   spin_release(&td_contested_lock);
 
   turnstile_free_return(ts);
-}
 
-turnstile_chain_t *turnstile_chain_lock(void *wchan) {
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-  spin_acquire(&tc->tc_lock);
-  return tc;
-}
-
-void turnstile_chain_unlock(void *wchan) {
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-  spin_release(&tc->tc_lock);
-}
-
-/*
- * Wakeup all threads on the pending list and adjust the priority of the
- * current thread appropriately.  This must be called with the turnstile
- * chain locked.
- */
-void turnstile_unpend(turnstile_t *ts, void *wchan) {
-  threadqueue_t pending_threads;
-  assert(ts != NULL);
-  assert(spin_owned(&ts->ts_lock));
-  assert(ts->ts_owner == thread_self());
   assert(!TAILQ_EMPTY(&ts->ts_pending));
 
+  threadqueue_t pending_threads;
   TAILQ_INIT(&pending_threads);
   TAILQ_CONCAT(&pending_threads, &ts->ts_pending, td_turnstileq);
 
-  assert(wchan == ts->ts_wchan);
+  void *wchan = ts->ts_wchan;
+
   if (TAILQ_EMPTY(&ts->ts_blocked))
     ts->ts_wchan = NULL;
 
@@ -340,6 +323,16 @@ void turnstile_unpend(turnstile_t *ts, void *wchan) {
   turnstile_chain_unlock(wchan);
 }
 
+turnstile_chain_t *turnstile_chain_lock(void *wchan) {
+  turnstile_chain_t *tc = TC_LOOKUP(wchan);
+  spin_acquire(&tc->tc_lock);
+  return tc;
+}
+
+void turnstile_chain_unlock(void *wchan) {
+  turnstile_chain_t *tc = TC_LOOKUP(wchan);
+  spin_release(&tc->tc_lock);
+}
 turnstile_t *turnstile_lookup(void *wchan) {
   turnstile_chain_t *tc = turnstile_chain_lock(wchan);
 

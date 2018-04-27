@@ -48,7 +48,7 @@ void mtx_unlock(mtx_t *m) {
     m->m_lockpt = NULL;
     turnstile_t *ts = turnstile_lookup(m);
     if (ts != NULL) {
-      /* Using broadcast is faster according to
+      /* Using broadcast instead of signal is faster according to
        * "The Design and Implementation of the FreeBSD Operating System
        * (2nd Edition)", 4.3 Context Switching, page 138.
        *
@@ -56,7 +56,6 @@ void mtx_unlock(mtx_t *m) {
        * sequentially and only act on empty mutex on which operations are
        * cheaper. */
       turnstile_broadcast(ts);
-      turnstile_unpend(ts, m);
     } else
       /* The lock wasn't contested, nothing to do with turnstiles.
        * Just release spinlock acquired in turnstile_lookup. */
