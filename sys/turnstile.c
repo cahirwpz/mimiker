@@ -17,17 +17,14 @@ typedef LIST_HEAD(turnstilelist, turnstile) turnstilelist_t;
 typedef struct turnstile {
   spinlock_t ts_lock;            /* spinlock for this turnstile */
   LIST_ENTRY(turnstile) ts_hash; /* link on turnstile chain or ts_free list */
-  LIST_ENTRY(turnstile)
-  ts_link;                  /* link on td_contested (turnstiles attached
-                             * to locks that a thread owns) */
-  turnstilelist_t ts_free;  /* free turnstiles left by threads
-                                    * blocked on this turnstile */
-  threadqueue_t ts_blocked; /* blocked threads sorted by
-                                   * decreasing active priority */
-  threadqueue_t ts_pending; /* threads awakened and waiting to be
-                                   * put on run queue */
-  void *ts_wchan;           /* waiting channel */
-  thread_t *ts_owner;       /* who owns the lock */
+  /* link on td_contested (turnstiles attached to locks that a thread owns) */
+  LIST_ENTRY(turnstile) ts_link;
+  /* free turnstiles left by threads blocked on this turnstile */
+  turnstilelist_t ts_free;
+  /* blocked threads sorted by decreasing active priority */
+  threadqueue_t ts_blocked;
+  void *ts_wchan;     /* waiting channel */
+  thread_t *ts_owner; /* who owns the lock */
 } turnstile_t;
 
 typedef struct turnstile_chain {
@@ -44,7 +41,6 @@ static void turnstile_ctor(turnstile_t *ts) {
   ts->ts_lock = SPINLOCK_INITIALIZER();
   LIST_INIT(&ts->ts_free);
   TAILQ_INIT(&ts->ts_blocked);
-  TAILQ_INIT(&ts->ts_pending);
   ts->ts_wchan = NULL;
   ts->ts_owner = NULL;
 }
@@ -201,7 +197,6 @@ void turnstile_wait(turnstile_t *ts, thread_t *owner) {
   if (ts == td->td_turnstile) {
     LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_hash);
 
-    assert(TAILQ_EMPTY(&ts->ts_pending));
     assert(TAILQ_EMPTY(&ts->ts_blocked));
     assert(LIST_EMPTY(&ts->ts_free));
     assert(ts->ts_wchan != NULL);
@@ -241,7 +236,7 @@ void turnstile_wait(turnstile_t *ts, thread_t *owner) {
 }
 
 /* nie mam pomysłu na lepszą nazwę
- * for each thread td on ts_pending gives back td its turnstile
+ * for each thread td on ts_blocked gives back td its turnstile
  * from ts_free (or gives back ts if ts_free is empty) */
 static void turnstile_free_return(turnstile_t *ts) {
   assert(ts != NULL);
@@ -249,16 +244,16 @@ static void turnstile_free_return(turnstile_t *ts) {
   assert(ts->ts_owner == thread_self());
 
   thread_t *td;
-  turnstile_t *ts1;
-  TAILQ_FOREACH (td, &ts->ts_pending, td_turnstileq) {
+  TAILQ_FOREACH (td, &ts->ts_blocked, td_turnstileq) {
+    turnstile_t *ts_for_td;
     if (LIST_EMPTY(&ts->ts_free)) {
       assert(TAILQ_NEXT(td, td_turnstileq) == NULL);
-      ts1 = ts;
+      ts_for_td = ts;
     } else
-      ts1 = LIST_FIRST(&ts->ts_free);
-    assert(ts1 != NULL);
-    LIST_REMOVE(ts1, ts_hash);
-    td->td_turnstile = ts1;
+      ts_for_td = LIST_FIRST(&ts->ts_free);
+    assert(ts_for_td != NULL);
+    LIST_REMOVE(ts_for_td, ts_hash);
+    td->td_turnstile = ts_for_td;
   }
 }
 
@@ -266,39 +261,34 @@ void turnstile_broadcast(turnstile_t *ts) {
   assert(ts != NULL);
   assert(spin_owned(&ts->ts_lock));
   assert(ts->ts_owner == thread_self());
+  assert(!TAILQ_EMPTY(&ts->ts_blocked));
 
   turnstile_chain_t *tc = TC_LOOKUP(ts->ts_wchan);
   assert(spin_owned(&tc->tc_lock));
 
-  spin_acquire(&td_contested_lock);
-  TAILQ_CONCAT(&ts->ts_pending, &ts->ts_blocked, td_turnstileq);
-  spin_release(&td_contested_lock);
-
   turnstile_free_return(ts);
 
-  assert(!TAILQ_EMPTY(&ts->ts_pending));
+  threadqueue_t blocked_threads;
+  TAILQ_INIT(&blocked_threads);
+  TAILQ_CONCAT(&blocked_threads, &ts->ts_blocked, td_turnstileq);
 
-  threadqueue_t pending_threads;
-  TAILQ_INIT(&pending_threads);
-  TAILQ_CONCAT(&pending_threads, &ts->ts_pending, td_turnstileq);
+  assert(TAILQ_EMPTY(&ts->ts_blocked));
 
   void *wchan = ts->ts_wchan;
-
-  if (TAILQ_EMPTY(&ts->ts_blocked))
-    ts->ts_wchan = NULL;
+  ts->ts_wchan = NULL;
 
   thread_t *td = thread_self();
   td_prio_t prio = 0; /* lowest priority */
 
   WITH_SPINLOCK(td->td_spin) {
     WITH_SPINLOCK(&td_contested_lock) {
-      if (ts->ts_owner != NULL) {
-        ts->ts_owner = NULL;
-        LIST_REMOVE(ts, ts_link);
-      }
+      assert(ts->ts_owner != NULL);
+      ts->ts_owner = NULL;
+      LIST_REMOVE(ts, ts_link);
 
       turnstile_t *ts1;
       LIST_FOREACH(ts1, &td->td_contested, ts_link) {
+        assert(ts1->ts_owner == td);
         td_prio_t p = TAILQ_FIRST(&ts1->ts_blocked)->td_prio;
         if (p > prio)
           prio = p;
@@ -307,11 +297,12 @@ void turnstile_broadcast(turnstile_t *ts) {
     sched_unlend_prio(td, prio);
   }
 
-  while (!TAILQ_EMPTY(&pending_threads)) {
-    td = TAILQ_FIRST(&pending_threads);
-    TAILQ_REMOVE(&pending_threads, td, td_turnstileq);
+  while (!TAILQ_EMPTY(&blocked_threads)) {
+    td = TAILQ_FIRST(&blocked_threads);
+    TAILQ_REMOVE(&blocked_threads, td, td_turnstileq);
 
     WITH_SPINLOCK(td->td_spin) {
+      assert(td->td_state & TDS_LOCKED);
       td->td_blocked = NULL;
       td->td_wchan = NULL;
       td->td_waitpt = NULL;
