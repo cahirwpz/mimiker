@@ -11,8 +11,7 @@ static inline void exec_cp0_instr(void) {
 }
 
 static inline void exec_reserved_instr(void) {
-  int value;
-  asm volatile("mfc2 %0, $12, 0" : "=r"(value));
+    asm volatile(".long 1337" :);
 }
 
 static int spawn_process(void (*proc_handler)(void)) {
