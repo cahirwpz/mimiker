@@ -11,7 +11,8 @@ static inline void exec_cp0_instr(void) {
 }
 
 static inline void exec_reserved_instr(void) {
-    asm volatile(".long 1337" :);
+  // Executing reserved opcode (7 << 29) | (3 << 26)
+  asm volatile(".long 3959422976" :);
 }
 
 static int spawn_process(void (*proc_handler)(void)) {
