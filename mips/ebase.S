@@ -6,9 +6,6 @@
 
 #include "assym.h"
 
-#define PT_BASE_UPPER (PT_BASE >> 16)
-#define PD_BASE_UPPER (PD_BASE >> 16)
-
         # Don't allow the assembler to reorder instructions.
         .set	noreorder
         # Forbid the assembler from using $at register.
@@ -121,14 +118,14 @@ pt_access:
         # Precondition:
         # k0 == BadVAddr
 
-        lui     k1, PT_BASE_UPPER
+        lui     k1, %hi(PT_BASE)
         subu    k1, k0, k1              # k1 = offset into PT (22 bits)
         srl     k0, k1, 21              # k0 = if <accessing user part> then 0 else 1
         sll     k0, PAGE_SHIFT          # k0 = if <accessing user part> then 0 else PAGESIZE
         srl     k1, PAGE_SHIFT + 1      # k1 = index of even PDE in pair / 2
         sll     k1, 3                   # k1 = offset into PD
         addu    k0, k1, k0
-        lui     k1, PD_BASE_UPPER
+        lui     k1, %hi(PD_BASE)
         addu    k0, k1, k0
         lw      k1, 0(k0)               # Load even PDE.
         mtc0    k1, C0_ENTRYLO0
@@ -146,7 +143,7 @@ miss:
         srl     k1, 31
         sll     k1, PAGE_SHIFT                  # k1 = <BadVAddr in kuseg> ? 0 : PAGESIZE
         addu    k0, k0, k1
-        lui     k1, PD_BASE_UPPER
+        lui     k1, %hi(PD_BASE)
         addu    k0, k0, k1                      # k0 = address of PDE
         lw      k1, 0(k0)                       # Load PDE.
         andi    k1, ENTRYLO0_V_MASK             # Is it valid?
