@@ -12,6 +12,7 @@ SOURCES_C = \
 	mmap.c \
 	sbrk.c \
 	signal.c \
-	stat.c
+	stat.c \
+	exceptions.c
 
 include $(TOPDIR)/build/build.prog.mk
