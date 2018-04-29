@@ -45,3 +45,29 @@ int test_reserved_instruction(void) {
   check_exception(exec_reserved_instr, SIGILL);
   return 0;
 }
+
+int test_syscall_in_bds(void) {
+
+  unsigned int control = 0;
+  char *text = "write executed\n";
+  int text_len = 16;
+
+  // executing write(1, text, count)
+  asm volatile(".set noreorder;"
+               "addiu $a0, $zero, 1;"
+               "move $a2, %2;"
+               "move $a1, %1;"
+               "addiu $v0, $zero, 5;"
+               "j 1f;"
+               "syscall;"
+               "lw $1, %0;"
+               "ori $1, $1, 1;"
+               "sw $1, %0;"
+               "1:;"
+               : "=m"(control)
+               : "r"(text), "r"(text_len)
+               : "a0", "a1", "a2", "v0", "1", "memory");
+
+  assert(control == 0);
+  return 0;
+}

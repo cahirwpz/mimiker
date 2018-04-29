@@ -100,3 +100,4 @@ UTEST_ADD_SIMPLE(fstat);
 
 // UTEST_ADD_SIMPLE(userspace_cop_unusable);
 // UTEST_ADD_SIMPLE(reserved_instruction);
+// UTEST_ADD_SIMPLE(syscall_in_bds);
