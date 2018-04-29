@@ -1,12 +1,18 @@
 #ifndef _VIRT_MEM_H_
 #define _VIRT_MEM_H_
 
+#ifndef __ASSEMBLER__
+
 #include <common.h>
 #include <queue.h>
 #include <tree.h>
 
+#endif /* !__ASSEMBLER__ */
+
 #define PAGESIZE 4096
 #define PAGE_SHIFT 12
+
+#ifndef __ASSEMBLER__
 
 #define PG_SIZE(pg) ((pg)->size * PAGESIZE)
 #define PG_START(pg) ((pg)->paddr)
@@ -59,5 +65,7 @@ typedef struct vm_map vm_map_t;
 typedef struct vm_map_entry vm_map_entry_t;
 typedef struct vm_object vm_object_t;
 typedef struct pager pager_t;
+
+#endif /* !__ASSEMBLER__ */
 
 #endif /* _VIRT_MEM_H_ */
