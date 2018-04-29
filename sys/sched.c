@@ -189,10 +189,13 @@ void preempt_disable(void) {
 void preempt_enable(void) {
   thread_t *td = thread_self();
   assert(td->td_pdnest > 0);
-  td->td_pdnest--;
 
-  if (td->td_pdnest == 0 && td->td_flags & TDF_NEEDSWITCH) {
-    WITH_SPINLOCK(td->td_spin) {
+  td->td_pdnest--;
+  if (td->td_pdnest > 0)
+    return;
+
+  WITH_SPINLOCK(td->td_spin) {
+    if (td->td_flags & TDF_NEEDSWITCH) {
       td->td_state = TDS_READY;
       sched_switch();
     }
