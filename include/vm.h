@@ -6,6 +6,7 @@
 #include <tree.h>
 
 #define PAGESIZE 4096
+#define PAGE_SHIFT 12
 
 #define PG_SIZE(pg) ((pg)->size * PAGESIZE)
 #define PG_START(pg) ((pg)->paddr)
