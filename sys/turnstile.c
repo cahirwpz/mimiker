@@ -178,7 +178,7 @@ void turnstile_adjust(thread_t *td, td_prio_t oldprio) {
  * woken back up.  This function must be called with the appropriate
  * turnstile chain locked and will return with it unlocked.
  */
-void turnstile_wait(turnstile_t *ts, thread_t *owner) {
+void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt) {
   assert(spin_owned(&ts->ts_lock));
 
   turnstile_chain_t *tc = TC_LOOKUP(ts->ts_wchan);
@@ -216,7 +216,7 @@ void turnstile_wait(turnstile_t *ts, thread_t *owner) {
     td->td_turnstile = NULL;
     td->td_blocked = ts;
     td->td_wchan = ts->ts_wchan;
-    td->td_waitpt = NULL; // TODO
+    td->td_waitpt = waitpt;
     td->td_state = TDS_LOCKED;
 
     spin_release(&tc->tc_lock);

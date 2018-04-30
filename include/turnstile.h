@@ -32,7 +32,7 @@ void turnstile_adjust(thread_t *td, td_prio_t oldprio);
 // Block on turnstile ts.
 // Needed locks: ts->ts_lock, tc->tc_lock
 // Locks kept: none
-void turnstile_wait(turnstile_t *ts, thread_t *owner);
+void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt);
 
 // Needed locks: ts->ts_lock, tc->tc_lock
 // Kept locks: all

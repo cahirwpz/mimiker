@@ -27,7 +27,7 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
       /* In case of SMP we would have to check now whether some other
        * processor released the mutex while we were spinning for turnstile's
        * spinlock. */
-      turnstile_wait(ts, (thread_t *)m->m_owner);
+      turnstile_wait(ts, (thread_t *)m->m_owner, waitpt);
     }
     m->m_owner = thread_self();
     m->m_lockpt = waitpt;
