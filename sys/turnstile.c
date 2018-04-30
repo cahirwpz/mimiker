@@ -172,12 +172,9 @@ void turnstile_adjust(thread_t *td, td_prio_t oldprio) {
     propagate_priority(td);
 }
 
-/*
- * Block the current thread on the turnstile assicated with 'lock'. This
- * function will context switch and not return until this thread has been
- * woken back up.  This function must be called with the appropriate
- * turnstile chain locked and will return with it unlocked.
- */
+/* Block the current thread on turnstile ts. This function will context
+ * switch. This function must be called with turnstile chain locked and will
+ * return with it unlocked. */
 void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt) {
   assert(spin_owned(&ts->ts_lock));
 
@@ -221,7 +218,7 @@ void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt) {
 
     spin_release(&tc->tc_lock);
     propagate_priority(td);
-    spin_release(&ts->ts_lock);
+    spin_release(&ts->ts_lock); // TODO maybe it should be before propagate_p..
     sched_switch();
   }
 }
@@ -249,12 +246,16 @@ static void turnstile_free_return(turnstile_t *ts) {
 }
 
 static void turnstile_unlend_self(turnstile_t *ts) {
+  assert(ts != NULL);
+  assert(spin_owned(&ts->ts_lock));
+
   thread_t *td = thread_self();
+  assert(ts->ts_owner == td);
+
   td_prio_t prio = 0; /* lowest priority */
 
   WITH_SPINLOCK(td->td_spin) {
     WITH_SPINLOCK(&td_contested_lock) {
-      assert(ts->ts_owner != NULL);
       ts->ts_owner = NULL;
       LIST_REMOVE(ts, ts_link);
 
