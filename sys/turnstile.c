@@ -117,11 +117,7 @@ static void propagate_priority(thread_t *td) {
 
   while (1) {
     td = ts->ts_owner;
-    if (td == NULL) {
-      /* read lock with no owner */
-      spin_release(&ts->ts_lock);
-      return;
-    }
+    assert(td != NULL);
 
     spin_release(&ts->ts_lock);
 
@@ -157,9 +153,7 @@ static void turnstile_setowner(turnstile_t *ts, thread_t *owner) {
   assert(spin_owned(&td_contested_lock));
   assert(ts->ts_owner == NULL);
 
-  /* a shared lock might not have an owner */
-  if (owner == NULL)
-    return;
+  assert(owner != NULL);
 
   ts->ts_owner = owner;
   LIST_INSERT_HEAD(&owner->td_contested, ts, ts_link);
