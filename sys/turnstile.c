@@ -106,45 +106,41 @@ static void turnstile_adjust_thread(turnstile_t *ts, thread_t *td) {
 }
 
 /* Walks the chain of turnstiles and their owners to propagate the priority
- * of the thread being blocked to all the threads holding locks that have to
- * release their locks before this thread can run again.
- */
+ * of td to all the threads holding locks that have to be released before
+ * td can run again. */
 static void propagate_priority(thread_t *td) {
-  // TODO jakaś blokada na td?
   turnstile_t *ts = td->td_blocked;
   td_prio_t prio = td->td_prio;
   spin_acquire(&ts->ts_lock);
 
   while (1) {
     td = ts->ts_owner;
+    // TODO Maybe we should acquire td->td_spin here.
     assert(td != NULL);
+    assert(td->td_state != TDS_SLEEPING); /* Deadlock. */
 
     spin_release(&ts->ts_lock);
 
-    if (td->td_prio >= prio) {
-      // thread_unlock(td); -- to robi spin_release(&sched_lock);
-      // ale my nie mamy sched_lock
+    if (td->td_prio >= prio)
       return;
-    }
 
-    // TODO think where locking should happen to avoid bad stuff
-    spin_acquire(td->td_spin);
-    sched_lend_prio(td, prio);
-    spin_release(td->td_spin);
+    WITH_SPINLOCK(td->td_spin)
+      sched_lend_prio(td, prio);
 
-    /* lock holder is in runq or running */
+    /* Lock holder is on run queue or is currently running. */
     if (td->td_state == TDS_READY || td->td_state == TDS_RUNNING) {
       assert(td->td_blocked == NULL);
-      // thread_unlock(td);
       return;
     }
 
+    assert(td != thread_self()); /* Deadlock. */
+    assert(td->td_state == TDS_LOCKED);
+
     ts = td->td_blocked;
-    // z jakiegoś powodu zakładamy tutaj, że td jest zalokowany na locku
-    // a jeżeli śpi to deadlock i chcemy się wywalić
     assert(ts != NULL);
 
-    /* resort td on the list if needed */
+    /* Resort td on the blocked list if needed. */
+    spin_acquire(&ts->ts_lock);
     turnstile_adjust_thread(ts, td);
   }
 }
