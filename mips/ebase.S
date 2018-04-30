@@ -31,6 +31,11 @@ _ebase:
 # Notes for the reader:
 #  - tlbr instruction overwrites EntryHi, so we have restore it,
 #  - handler does not fit into 256B, so it is splitted into two parts.
+#
+# Please verify EHB (clear execution hazard) instruction placement against
+# chapter 2.8 of "MIPS32® 24KETM Processor Core Family Software User’s Manual".
+# EHB has to be put between a producer and a consumer - preferably just before
+# the consumer, not just after the producer.
 
 tlb_refill:
         # Consider special case when an access to page table region was from
