@@ -88,7 +88,7 @@ void sched_set_prio(thread_t *td, td_prio_t prio) {
   /* These changes are waiting for turnstile pull request because
    * now we don't have TDS_LOCKED and turnstile_adjust. */
   // TO BE UNCOMMENTED
-  // if (td->td_state & TDS_LOCKED && oldprio != prio)
+  // if (td->td_state == TDS_LOCKED && oldprio != prio)
   //   turnstile_adjust(td, oldprio);
 
   // TO BE DELETED
