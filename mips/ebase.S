@@ -33,8 +33,9 @@ _ebase:
 #  - handler does not fit into 256B, so it is splitted into two parts.
 
 tlb_refill:
-        # Special case: an access was made to the PT from outside tlb_refill.
-        # This needs to be checked and handled separately.
+        # Consider special case when an access to page table region was from
+        # the kernel (namely pmap module). As UPD & KPD are not mapped within
+        # page table we have to deal with it separately :(
 
         mfc0    k0, C0_BADVADDR
         srl     k1, k0, PDE_SHIFT
