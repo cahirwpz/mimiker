@@ -38,8 +38,8 @@ tlb_refill:
         # page table we have to deal with it separately :(
 
         mfc0    k0, C0_BADVADDR
-        srl     k1, k0, PDE_SHIFT
-        addi    k1, k1, -(PT_BASE >> PDE_SHIFT)
+        srl     k1, k0, PT_SIZE_BITS
+        addi    k1, k1, -(PT_BASE >> PT_SIZE_BITS)
         beqz    k1, pt_access
         nop
 
