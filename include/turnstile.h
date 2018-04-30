@@ -23,42 +23,54 @@ void turnstile_destroy(turnstile_t *ts);
  * Propagate td's priority if td is now first on list and we increased
  * its priority, i.e. td->td_prio > oldprio.
  *
- * \note This function is created for sched_set_prio.
- */
+ * \note This function was created for sched_set_prio.
+ *
+ * Locks:
+ *  needs: td_spin. */
 void turnstile_adjust(thread_t *td, td_prio_t oldprio);
 
-/*** actual stuff ***/
-
-// Block on turnstile ts.
-// Needed locks: ts->ts_lock, tc->tc_lock
-// Locks kept: none
+/* Block the current thread on turnstile ts. This function will context
+ * switch. This function must be called with turnstile chain locked and will
+ * return with it unlocked.
+ *
+ * Locks:
+ *  needs:    ts_lock, tc_lock
+ *  releases: ts_lock, tc_lock. */
 void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt);
 
-// Needed locks: ts->ts_lock, tc->tc_lock
-// Kept locks: all
+/* Wakeup all threads on the blocked list and adjust the priority of the
+ * current thread appropriately.
+ *
+ * Locks:
+ *  needs:    ts_lock, tc_lock
+ *  releases: ts_lock, tc_lock. */
 void turnstile_broadcast(turnstile_t *ts);
 
 /* Looks for turnstile associated with wchan in turnstile chains and returns
  * it or NULL if no turnstile is found in chains.
  *
- * Acquires tc_lock, ts_lock (ts_lock if turnstile is found). */
+ * Locks:
+ *  acquires: tc_lock, ts_lock (ts_lock if turnstile is found). */
 turnstile_t *turnstile_lookup(void *wchan);
 
 /* At first it runs turnstile_lookup and returns the result if it's not NULL.
  * If turnstile was not found in chains, it returns thread_self()'s turnstile.
  *
- * Acquires tc_lock, ts_lock. */
+ * Locks:
+ *  acquires: tc_lock, ts_lock. */
 turnstile_t *turnstile_acquire(void *wchan);
 
 /* Locks turnstile chain associated with wchan and returns pointer
  * to this chain.
  *
- * Acquires tc_lock. */
+ * Locks:
+ *  acquires: tc_lock. */
 turnstile_chain_t *turnstile_chain_lock(void *wchan);
 
 /* Unlocks turnstile chain associated with wchan.
  *
- * Releases tc_lock. */
+ * Locks:
+ *  releases: tc_lock. */
 void turnstile_chain_unlock(void *wchan);
 
 #endif /* !_SYS_TURNSTILE_H_ */

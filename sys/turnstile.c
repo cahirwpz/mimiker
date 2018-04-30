@@ -172,9 +172,6 @@ void turnstile_adjust(thread_t *td, td_prio_t oldprio) {
     propagate_priority(td);
 }
 
-/* Block the current thread on turnstile ts. This function will context
- * switch. This function must be called with turnstile chain locked and will
- * return with it unlocked. */
 void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt) {
   assert(spin_owned(&ts->ts_lock));
 
@@ -223,7 +220,8 @@ void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt) {
   }
 }
 
-/* nie mam pomysłu na lepszą nazwę
+/* TODO this comment
+ * nie mam pomysłu na lepszą nazwę
  * for each thread td on ts_blocked gives back td its turnstile
  * from ts_free (or gives back ts if ts_free is empty) */
 static void turnstile_free_return(turnstile_t *ts) {
@@ -245,6 +243,7 @@ static void turnstile_free_return(turnstile_t *ts) {
   }
 }
 
+// TODO comment
 static void turnstile_unlend_self(turnstile_t *ts) {
   assert(ts != NULL);
   assert(spin_owned(&ts->ts_lock));
@@ -271,6 +270,7 @@ static void turnstile_unlend_self(turnstile_t *ts) {
   }
 }
 
+// TODO comment
 static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
   while (!TAILQ_EMPTY(blocked_threads)) {
     thread_t *td = TAILQ_FIRST(blocked_threads);
@@ -322,6 +322,7 @@ void turnstile_chain_unlock(void *wchan) {
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
   spin_release(&tc->tc_lock);
 }
+
 turnstile_t *turnstile_lookup(void *wchan) {
   turnstile_chain_t *tc = turnstile_chain_lock(wchan);
 
