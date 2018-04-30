@@ -85,7 +85,7 @@ void sched_set_prio(thread_t *td, td_prio_t prio) {
 
   /* If thread is locked on a turnstile, let the turnstile adjust
    * thread's position on turnstile's \a ts_blocked list. */
-  if (td->td_state & TDS_LOCKED && oldprio != prio)
+  if (td->td_state == TDS_LOCKED && oldprio != prio)
     turnstile_adjust(td, oldprio);
 }
 

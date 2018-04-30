@@ -69,7 +69,7 @@ void turnstile_destroy(turnstile_t *ts) {
 /* Adjusts thread's position on ts_blocked queue after its priority
  * has been changed. */
 static void turnstile_adjust_thread(turnstile_t *ts, thread_t *td) {
-  assert(td->td_state & TDS_LOCKED);
+  assert(td->td_state == TDS_LOCKED);
   assert(spin_owned(&ts->ts_lock));
 
   thread_t *n = TAILQ_NEXT(td, td_turnstileq);
@@ -161,7 +161,7 @@ static void turnstile_setowner(turnstile_t *ts, thread_t *owner) {
 
 void turnstile_adjust(thread_t *td, td_prio_t oldprio) {
   assert(spin_owned(td->td_spin));
-  assert(td->td_state & TDS_LOCKED);
+  assert(td->td_state == TDS_LOCKED);
 
   turnstile_t *ts = td->td_blocked;
   assert(ts != NULL);
@@ -279,7 +279,7 @@ static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
     TAILQ_REMOVE(blocked_threads, td, td_turnstileq);
 
     WITH_SPINLOCK(td->td_spin) {
-      assert(td->td_state & TDS_LOCKED);
+      assert(td->td_state == TDS_LOCKED);
       td->td_blocked = NULL;
       td->td_wchan = NULL;
       td->td_waitpt = NULL;
