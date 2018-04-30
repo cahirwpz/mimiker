@@ -12,15 +12,20 @@ static void periodic_callout(void *arg) {
 }
 
 static int test_callout_sync(void) {
-  const int N = 10;
+  const int K = 50;
+  const int N = 7;
 
   callout_t callout[N];
 
-  for (int i = 0; i < N; i++)
-    callout_setup_relative(&callout[i], 1, periodic_callout, &callout[i]);
+  bzero(callout, sizeof(callout_t) * N);
 
-  for (int i = 0; i < N; i++)
-    callout_stop(&callout[i]);
+  for (int j = 0; j < K; j++) {
+    for (int i = 0; i < N; i++)
+      callout_setup_relative(&callout[i], 1, periodic_callout, &callout[i]);
+
+    for (int i = 0; i < N; i++)
+      callout_stop(&callout[i]);
+  }
 
   return KTEST_SUCCESS;
 }

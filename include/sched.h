@@ -2,8 +2,7 @@
 #define _SYS_SCHED_H_
 
 #include <common.h>
-
-typedef struct thread thread_t;
+#include <thread.h>
 
 /*! \brief Disables preemption.
  *
@@ -44,11 +43,32 @@ void sched_add(thread_t *td);
 
 /*! \brief Wake up sleeping thread.
  *
- * \note Must be called with preemption disabled!
+ * \note Must be called with \a td_spin acquired!
  */
 void sched_wakeup(thread_t *td);
 
-/*! \brief Takes care of run-time accounting for current thread. */
+/*! \brief Lend a priority to a thread.
+ *
+ * The new priority must be higher than the old one.
+ * Used as a part of a mechanism for avoiding priority inversion.
+ *
+ * \note Must be called with \a td_spin acquired!
+ */
+void sched_lend_prio(thread_t *td, td_prio_t prio);
+
+/*! \brief Remove lent priority while offering a new priority to lend.
+ *
+ * \a prio priority will be lent if it's higher than thread's \a td_base_prio.
+ * Used as a part of a mechanism for avoiding priority inversion.
+ *
+ * \note Must be called with \a td_spin acquired!
+ */
+void sched_unlend_prio(thread_t *td, td_prio_t prio);
+
+/*! \brief Takes care of run-time accounting for current thread.
+ *
+ * \note Must be called from interrupt context.
+ */
 void sched_clock(void);
 
 /*! \brief Switch out to another thread.
@@ -57,7 +77,7 @@ void sched_clock(void);
  * must be different from TDS_RUNNING. \a sched_switch will modify thread's
  * field to reflect the change in state.
  *
- * \note Must be called with preemption disabled!
+ * \note Must be called with \a td_spin acquired!
  */
 void sched_switch(void);
 

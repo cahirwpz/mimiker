@@ -7,7 +7,7 @@
 static mtx_t mtx = MTX_INITIALIZER(MTX_DEF);
 static volatile int32_t value;
 
-#define N 5000
+#define N 1000
 #define T 5
 
 static thread_t *td[T];

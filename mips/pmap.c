@@ -1,6 +1,5 @@
 #define KL_LOG KL_PMAP
 #include <klog.h>
-#include <stdc.h>
 #include <malloc.h>
 #include <mips/exc.h>
 #include <mips/mips.h>
@@ -13,6 +12,7 @@
 #include <signal.h>
 #include <spinlock.h>
 #include <sched.h>
+#include <interrupt.h>
 #include <sysinit.h>
 
 static MALLOC_DEFINE(M_PMAP, "pmap", 4, 8);
@@ -427,7 +427,13 @@ fault:
     td->td_onfault = 0;
   } else if (td->td_proc) {
     /* Send a segmentation fault signal to the user program. */
+
+    /* TODO it's an awful kludge,
+     * once pmap & vm_map is properly synchronized it will be removed
+     * and whole tlb_exception_handler will run as preemptible code */
+    intr_enable();
     sig_send(td->td_proc, SIGSEGV);
+    intr_disable();
   } else if (ktest_test_running_flag) {
     ktest_failure();
   } else {
