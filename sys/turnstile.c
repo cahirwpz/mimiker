@@ -124,8 +124,9 @@ static void propagate_priority(thread_t *td) {
     if (td->td_prio >= prio)
       return;
 
-    WITH_SPINLOCK(td->td_spin)
+    WITH_SPINLOCK(td->td_spin) {
       sched_lend_prio(td, prio);
+    }
 
     /* Lock holder is on run queue or is currently running. */
     if (td->td_state == TDS_READY || td->td_state == TDS_RUNNING) {
