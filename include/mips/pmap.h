@@ -1,25 +1,11 @@
 #ifndef __MIPS_PMAP_H__
 #define __MIPS_PMAP_H__
 
-#ifndef __ASSEMBLER__
-#include <pmap.h>
-#endif
-
-#include <mips/mips.h>
-
 #define PTE_MASK 0xfffff000
 #define PTE_SHIFT 12
+#define PTE_SIZE 4
 #define PDE_MASK 0xffc00000
 #define PDE_SHIFT 22
-
-#define PTE_SIZE 4
-
-#define PTE_INDEX(x) (((x)&PTE_MASK) >> PTE_SHIFT)
-#define PDE_INDEX(x) (((x)&PDE_MASK) >> PDE_SHIFT)
-
-#define PTE_OF(pmap, addr) ((pmap)->pte[PTE_INDEX(addr)])
-#define PDE_OF(pmap, addr) ((pmap)->pde[PDE_INDEX(addr)])
-#define PTF_ADDR_OF(vaddr) (PT_BASE + PDE_INDEX(vaddr) * PTF_SIZE)
 
 #define PD_ENTRIES 1024 /* page directory entries */
 #define PD_SIZE (PD_ENTRIES * PTE_SIZE)

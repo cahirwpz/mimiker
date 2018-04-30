@@ -18,6 +18,13 @@
 
 static MALLOC_DEFINE(M_PMAP, "pmap", 4, 8);
 
+#define PTE_INDEX(x) (((x)&PTE_MASK) >> PTE_SHIFT)
+#define PDE_INDEX(x) (((x)&PDE_MASK) >> PDE_SHIFT)
+
+#define PTE_OF(pmap, addr) ((pmap)->pte[PTE_INDEX(addr)])
+#define PDE_OF(pmap, addr) ((pmap)->pde[PDE_INDEX(addr)])
+#define PTF_ADDR_OF(vaddr) (PT_BASE + PDE_INDEX(vaddr) * PTF_SIZE)
+
 #define PTE_KERNEL (PTE_VALID | PTE_DIRTY | PTE_GLOBAL)
 
 static bool is_valid(pte_t pte) {
@@ -347,12 +354,13 @@ void tlb_exception_handler(exc_frame_t *frame) {
   vm_map_t *map = get_active_vm_map_by_addr(vaddr);
   if (!map) {
     klog("No virtual address space defined for %08lx!", vaddr);
-  } else {
-    vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
-    if (vm_page_fault(map, vaddr, access) == 0)
-      return;
+    goto fault;
   }
+  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
+  if (vm_page_fault(map, vaddr, access) == 0)
+    return;
 
+fault:
   if (td->td_onfault) {
     /* handle copyin / copyout faults */
     frame->pc = td->td_onfault;
