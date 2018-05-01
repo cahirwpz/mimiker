@@ -199,7 +199,7 @@ static noreturn void kernel_oops(exc_frame_t *frame) {
       (code == EXC_IBE || code == EXC_DBE))
     klog("Caused by reference to $%08x!", frame->badvaddr);
 
-  panic("Unhandled exception!");
+  panic("Unhandled '%s' at $%08x!", exceptions[code], frame->pc);
 }
 
 /* General exception handler is called with interrupts disabled. */
