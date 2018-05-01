@@ -20,7 +20,7 @@ static int spawn_process(void (*proc_handler)(void)) {
 
 static inline void exec_cp0_instr(void) {
   int value;
-  asm volatile("mfc0 %0, $12, 0" : "=r" (value));
+  asm volatile("mfc0 %0, $12, 0" : "=r"(value));
 }
 
 static inline void exec_reserved_instr(void) {
@@ -61,8 +61,8 @@ int test_syscall_in_bds(void) {
                "syscall;"
                "sw $zero, %0;"
                "1:;"
-               : "=m" (control)
-               : "r" (text), "r" (sizeof(text))
+               : "=m"(control)
+               : "r"(text), "r"(sizeof(text))
                : "a0", "a1", "a2", "v0", "memory");
 
   assert(control == 1);
