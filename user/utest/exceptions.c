@@ -18,6 +18,15 @@ static int spawn_process(void (*proc_handler)(void)) {
   }
 }
 
+static int check_exception(void (*code)(void), int signum) {
+  spawn_process(code);
+  int status;
+  wait(&status);
+  assert(WIFSIGNALED(status));
+  assert(signum == WTERMSIG(status));
+  return 0;
+}
+
 static inline void exec_cp0_instr(void) {
   int value;
   asm volatile("mfc0 %0, $12, 0" : "=r"(value));
@@ -28,15 +37,6 @@ static inline void exec_reserved_instr(void) {
    * of the Opcode Field" from "MIPS® Architecture For Programmers Volume II-A:
    * The MIPS32® Instruction Set" */
   asm volatile(".long 0x00000039"); /* objdump fails to disassemble it */
-}
-
-static int check_exception(void (*code)(void), int signum) {
-  spawn_process(code);
-  int status;
-  wait(&status);
-  assert(WIFSIGNALED(status));
-  assert(signum == WTERMSIG(status));
-  return 0;
 }
 
 int test_exc_cop_unusable(void) {
