@@ -5,16 +5,6 @@
 #include <sys/signal.h>
 #include <stdlib.h>
 
-static inline void exec_cp0_instr(void) {
-  int value;
-  asm volatile("mfc0 %0, $12, 0" : "=r"(value));
-}
-
-static inline void exec_reserved_instr(void) {
-  // Executing reserved opcode (7 << 29) | (3 << 26)
-  asm volatile(".long 3959422976" :);
-}
-
 static int spawn_process(void (*proc_handler)(void)) {
   int pid;
   switch ((pid = fork())) {
@@ -28,46 +18,53 @@ static int spawn_process(void (*proc_handler)(void)) {
   }
 }
 
-static void check_exception(void (*code)(void), int signum) {
+static inline void exec_cp0_instr(void) {
+  int value;
+  asm volatile("mfc0 %0, $12, 0" : "=r" (value));
+}
+
+static inline void exec_reserved_instr(void) {
+  /* The choice of reserved opcode was done based on "Table A.2 MIPS32 Encoding
+   * of the Opcode Field" from "MIPS® Architecture For Programmers Volume II-A:
+   * The MIPS32® Instruction Set" */
+  asm volatile(".long 0x00000039"); /* objdump fails to disassemble it */
+}
+
+static int check_exception(void (*code)(void), int signum) {
   spawn_process(code);
   int status;
   wait(&status);
   assert(WIFSIGNALED(status));
   assert(signum == WTERMSIG(status));
-}
-
-int test_userspace_cop_unusable(void) {
-  check_exception(exec_cp0_instr, SIGILL);
   return 0;
 }
 
-int test_reserved_instruction(void) {
-  check_exception(exec_reserved_instr, SIGILL);
-  return 0;
+int test_exc_cop_unusable(void) {
+  return check_exception(exec_cp0_instr, SIGILL);
+}
+
+int test_exc_reserved_instruction(void) {
+  return check_exception(exec_reserved_instr, SIGILL);
 }
 
 int test_syscall_in_bds(void) {
-
-  unsigned int control = 0;
+  unsigned control = 1;
   char *text = "write executed\n";
-  int text_len = 16;
 
-  // executing write(1, text, count)
+  /* executing write(1, text, sizeof(text)) */
   asm volatile(".set noreorder;"
-               "addiu $a0, $zero, 1;"
-               "move $a2, %2;"
+               "li $a0, 1;"
                "move $a1, %1;"
-               "addiu $v0, $zero, 5;"
+               "move $a2, %2;"
+               "li $v0, 5;"
                "j 1f;"
                "syscall;"
-               "lw $1, %0;"
-               "ori $1, $1, 1;"
-               "sw $1, %0;"
+               "sw $zero, %0;"
                "1:;"
-               : "=m"(control)
-               : "r"(text), "r"(text_len)
-               : "a0", "a1", "a2", "v0", "1", "memory");
+               : "=m" (control)
+               : "r" (text), "r" (sizeof(text))
+               : "a0", "a1", "a2", "v0", "memory");
 
-  assert(control == 0);
+  assert(control == 1);
   return 0;
 }

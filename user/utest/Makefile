@@ -4,6 +4,7 @@ UELF_NAME = utest
 
 SOURCES_C = \
 	access.c \
+	exceptions.c \
 	fd.c \
 	fork.c \
 	lseek.c \
@@ -12,7 +13,6 @@ SOURCES_C = \
 	mmap.c \
 	sbrk.c \
 	signal.c \
-	stat.c \
-	exceptions.c
+	stat.c
 
 include $(TOPDIR)/build/build.prog.mk
