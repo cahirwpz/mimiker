@@ -14,6 +14,8 @@
         .globl user_exc_leave
         .local user_exc_enter
         .local kern_exc_enter
+        .local skip_fpu_save
+        .local skip_fpu_restore
 
 # [$k0] must be set to value of C0_STATUS
 exc_enter:
@@ -96,19 +98,19 @@ user_exc_enter:
 
         # Save FPU registers
         # Skip if process is not using FPU
-        lw t1, TD_FLAGS(s0)   # td->td_flags
-        andi t1, TDF_USESFPU
-        beqz t1, after_fpu_save
+        lw      t1, TD_FLAGS(s0)
+        andi    t1, TDF_USESFPU
+        beqz    t1, skip_fpu_save
         nop
 
         # Turn on FPU before saving
-        mfc0 t0, C0_STATUS
-        li t1, SR_CU1
-        or t0, t1
-        mtc0 t0, C0_STATUS
+        mfc0    t0, C0_STATUS
+        li      t1, SR_CU1
+        or      t0, t1
+        mtc0    t0, C0_STATUS
 
         # Copy FPU registers
-        addi t0, s0, TD_UCTX_FPU  # td->td_uctx_fpu
+        addi    t0, s0, TD_UCTX_FPU
                 
         SAVE_FPU_REG($f0, F0, t0)
         SAVE_FPU_REG($f1, F1, t0)
@@ -144,8 +146,7 @@ user_exc_enter:
         SAVE_FPU_REG($f31, F31, t0)
         SAVE_FPU_REG($31, FSR, t0)
 
-after_fpu_save:
-
+skip_fpu_save:
         # Turn off FPU, enter kernel mode,
         # drop exception level and disable interrupts.
         mfc0    t0, C0_STATUS
@@ -197,26 +198,25 @@ user_exc_leave:
 
         # Load FPU context if process makes use of it
         # by default assume that process does not, and disable FPU
-        mfc0 t0, C0_STATUS
-        li t1, ~(SR_CU1)
-        and t0, t1
-        mtc0 t0, C0_STATUS
+        mfc0    t0, C0_STATUS
+        li      t1, ~(SR_CU1)
+        and     t0, t1
+        mtc0    t0, C0_STATUS
 
         # Skip if process is not using FPU
-        lw t0, TD_FLAGS(k1)   # td->td_flags
-        andi t0, TDF_USESFPU
-        
-        beqz t0, after_fpu_restore
+        lw      t0, TD_FLAGS(k1)
+        andi    t0, TDF_USESFPU
+        beqz    t0, skip_fpu_restore
         nop
 
         # Turn on FPU before restoring
-        mfc0 t0, C0_STATUS
-        li t1, SR_CU1
-        or t0, t1
-        mtc0 t0, C0_STATUS
+        mfc0    t0, C0_STATUS
+        li      t1, SR_CU1
+        or      t0, t1
+        mtc0    t0, C0_STATUS
 
         # Copy FPU registers
-        addi t0, s0, TD_UCTX_FPU  # td->td_uctx_fpu
+        addi    t0, s0, TD_UCTX_FPU
 
         LOAD_FPU_REG($f0, F0, t0)
         LOAD_FPU_REG($f1, F1, t0)
@@ -252,8 +252,7 @@ user_exc_leave:
         LOAD_FPU_REG($f31, F31, t0)
         LOAD_FPU_REG($31, FSR, t0)
 
-after_fpu_restore:
-
+skip_fpu_restore:
         # ... all user registers.
         LOAD_REG(t0, HI, k0)
         LOAD_REG(t1, LO, k0)
