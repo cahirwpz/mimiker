@@ -1,10 +1,11 @@
 #include <ktest.h>
 #include <stdc.h>
+#include <time.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
 
-#define KTEST_MAX_NO 256
+#define KTEST_MAX_NO 1024
 
 /* Stores currently running test data. */
 static test_entry_t *current_test = NULL;
@@ -70,23 +71,29 @@ static test_entry_t *find_test_by_name(const char *test) {
   return NULL;
 }
 
+typedef int (*test_func_t)(unsigned);
+
+/* If the test fails, run_test will not return. */
 static int run_test(test_entry_t *t) {
+  timeval_t start = get_uptime();
+
   /* These are messages to the user, so I intentionally use kprintf instead of
    * log. */
-  kprintf("Running test %s.\n", t->test_name);
+  kprintf("# Running test \"%s\".\n", t->test_name);
   if (t->flags & KTEST_FLAG_NORETURN)
     kprintf("WARNING: This test will never return, it is not possible to "
             "automatically verify its success.\n");
   if (t->flags & KTEST_FLAG_USERMODE)
-    kprintf("WARNING: This test will enters usermode.\n");
+    kprintf("WARNING: This test will enter usermode.\n");
   if (t->flags & KTEST_FLAG_DIRTY)
     kprintf("WARNING: This test will break kernel state. Kernel reboot will be "
             "required to run any other test.\n");
 
   current_test = t;
+
   int result;
   if (t->flags & KTEST_FLAG_RANDINT) {
-    int (*f)(unsigned int) = (int (*)(unsigned int))t->test_func;
+    test_func_t f = (test_func_t)t->test_func;
     int randint = rand_r(&seed) % t->randint_max;
     /* NOTE: Numbers generated here will be the same on each run, since test are
        started in a deterministic order. This is not a bug! In fact, it allows
@@ -97,13 +104,17 @@ static int run_test(test_entry_t *t) {
     result = f(randint);
     ktest_test_running_flag = 0;
   } else {
-
     ktest_test_running_flag = 1;
     result = t->test_func();
     ktest_test_running_flag = 0;
   }
   if (result == KTEST_FAILURE)
     ktest_failure();
+
+  timeval_t end = get_uptime();
+  kprintf("# Test \"%s\" took %ldms.\n", t->test_name,
+          tv2st(timeval_sub(&end, &start)));
+
   return result;
 }
 
@@ -116,6 +127,11 @@ static int test_name_compare(const void *a_, const void *b_) {
   const test_entry_t *a = *(test_entry_t **)a_;
   const test_entry_t *b = *(test_entry_t **)b_;
   return strncmp(a->test_name, b->test_name, KTEST_NAME_MAX);
+}
+
+static void print_tests(test_entry_t **tests, int count) {
+  for (int i = 0; i < count; i++)
+    kprintf("  %s\n", tests[i]->test_name);
 }
 
 static void run_all_tests(void) {
@@ -172,14 +188,10 @@ static void run_all_tests(void) {
 
   kprintf("Found %d automatically runnable tests.\n", n);
   kprintf("Planned test order:\n");
-  for (i = 0; i < total_tests; i++)
-    kprintf("  %s\n", autorun_tests[i]->test_name);
+  print_tests(autorun_tests, total_tests);
 
-  for (i = 0; i < total_tests; i++) {
-    current_test = autorun_tests[i];
-    /* If the test fails, run_test will not return. */
-    run_test(current_test);
-  }
+  for (i = 0; i < total_tests; i++)
+    run_test(autorun_tests[i]);
 
   /* If we've managed to get here, it means all tests passed with no issues. */
   ktest_atomically_print_success();
@@ -187,8 +199,7 @@ static void run_all_tests(void) {
   /* As the tests are usually very verbose, for user convenience let's print out
      the order of tests once again. */
   kprintf("Test order:\n");
-  for (i = 0; i < total_tests; i++)
-    kprintf("  %s\n", autorun_tests[i]->test_name);
+  print_tests(autorun_tests, total_tests);
 }
 
 void ktest_main(const char *test) {

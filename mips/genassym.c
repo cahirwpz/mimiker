@@ -9,6 +9,8 @@
 
 ASSYM(TDF_NEEDSWITCH, TDF_NEEDSWITCH);
 ASSYM(TDF_NEEDSIGCHK, TDF_NEEDSIGCHK);
+ASSYM(TDF_NEEDLOCK, TDF_NEEDLOCK);
+ASSYM(TDF_USESFPU, TDF_USESFPU);
 
 ASSYM(TD_PROC, offsetof(thread_t, td_proc));
 ASSYM(TD_UCTX, offsetof(thread_t, td_uctx));
@@ -18,6 +20,8 @@ ASSYM(TD_KCTX, offsetof(thread_t, td_kctx));
 ASSYM(TD_KSTACK, offsetof(thread_t, td_kstack));
 ASSYM(TD_FLAGS, offsetof(thread_t, td_flags));
 ASSYM(TD_ONFAULT, offsetof(thread_t, td_onfault));
+ASSYM(TD_IDNEST, offsetof(thread_t, td_idnest));
+ASSYM(TD_SPIN, offsetof(thread_t, td_spin));
 
 ASSYM(STK_BASE, offsetof(stack_t, stk_base));
 ASSYM(STK_SIZE, offsetof(stack_t, stk_size));
@@ -49,6 +53,40 @@ ASSYM(CTX_SP, offsetof(ctx_t, sp));
 ASSYM(CTX_FP, offsetof(ctx_t, fp));
 ASSYM(CTX_SR, offsetof(ctx_t, sr));
 ASSYM(CTX_PC, offsetof(ctx_t, pc));
+
+ASSYM(FPU_CTX_F0, offsetof(fpu_ctx_t, f0));
+ASSYM(FPU_CTX_F1, offsetof(fpu_ctx_t, f1));
+ASSYM(FPU_CTX_F2, offsetof(fpu_ctx_t, f2));
+ASSYM(FPU_CTX_F3, offsetof(fpu_ctx_t, f3));
+ASSYM(FPU_CTX_F4, offsetof(fpu_ctx_t, f4));
+ASSYM(FPU_CTX_F5, offsetof(fpu_ctx_t, f5));
+ASSYM(FPU_CTX_F6, offsetof(fpu_ctx_t, f6));
+ASSYM(FPU_CTX_F7, offsetof(fpu_ctx_t, f7));
+ASSYM(FPU_CTX_F8, offsetof(fpu_ctx_t, f8));
+ASSYM(FPU_CTX_F9, offsetof(fpu_ctx_t, f9));
+ASSYM(FPU_CTX_F10, offsetof(fpu_ctx_t, f10));
+ASSYM(FPU_CTX_F11, offsetof(fpu_ctx_t, f11));
+ASSYM(FPU_CTX_F12, offsetof(fpu_ctx_t, f12));
+ASSYM(FPU_CTX_F13, offsetof(fpu_ctx_t, f13));
+ASSYM(FPU_CTX_F14, offsetof(fpu_ctx_t, f14));
+ASSYM(FPU_CTX_F15, offsetof(fpu_ctx_t, f15));
+ASSYM(FPU_CTX_F16, offsetof(fpu_ctx_t, f16));
+ASSYM(FPU_CTX_F17, offsetof(fpu_ctx_t, f17));
+ASSYM(FPU_CTX_F18, offsetof(fpu_ctx_t, f18));
+ASSYM(FPU_CTX_F19, offsetof(fpu_ctx_t, f19));
+ASSYM(FPU_CTX_F20, offsetof(fpu_ctx_t, f20));
+ASSYM(FPU_CTX_F21, offsetof(fpu_ctx_t, f21));
+ASSYM(FPU_CTX_F22, offsetof(fpu_ctx_t, f22));
+ASSYM(FPU_CTX_F23, offsetof(fpu_ctx_t, f23));
+ASSYM(FPU_CTX_F24, offsetof(fpu_ctx_t, f24));
+ASSYM(FPU_CTX_F25, offsetof(fpu_ctx_t, f25));
+ASSYM(FPU_CTX_F26, offsetof(fpu_ctx_t, f26));
+ASSYM(FPU_CTX_F27, offsetof(fpu_ctx_t, f27));
+ASSYM(FPU_CTX_F28, offsetof(fpu_ctx_t, f28));
+ASSYM(FPU_CTX_F29, offsetof(fpu_ctx_t, f29));
+ASSYM(FPU_CTX_F30, offsetof(fpu_ctx_t, f30));
+ASSYM(FPU_CTX_F31, offsetof(fpu_ctx_t, f31));
+ASSYM(FPU_CTX_FSR, offsetof(fpu_ctx_t, fsr));
 
 ASSYM(EXC_AT, offsetof(exc_frame_t, at));
 ASSYM(EXC_V0, offsetof(exc_frame_t, v0));

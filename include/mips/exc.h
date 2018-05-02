@@ -11,6 +11,10 @@
 
 #define LOAD_REG(reg, offset, base) lw reg, (EXC_##offset)(base)
 
+#define SAVE_FPU_REG(reg, offset, base) swc1 reg, (FPU_CTX_##offset)(base)
+
+#define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (FPU_CTX_##offset)(base)
+
 #else // !__ASSEMBLER__
 
 typedef struct exc_frame {

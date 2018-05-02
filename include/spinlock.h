@@ -28,7 +28,7 @@ typedef struct spinlock {
   const void *s_lockpt;       /*!< place where the lock was acquired */
 } spinlock_t;
 
-#define SPINLOCK_INITIALIZER(type)                                             \
+#define SPINLOCK_INITIALIZER()                                                 \
   (spinlock_t) {                                                               \
     .s_owner = NULL, .s_lockpt = NULL                                          \
   }
