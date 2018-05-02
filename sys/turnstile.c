@@ -17,8 +17,7 @@ typedef LIST_HEAD(turnstilelist, turnstile) turnstilelist_t;
 typedef struct turnstile {
   spinlock_t ts_lock;            /* spinlock for this turnstile */
   LIST_ENTRY(turnstile) ts_hash; /* link on turnstile chain or ts_free list */
-  /* link on td_contested (turnstiles attached to locks that a thread owns) */
-  LIST_ENTRY(turnstile) ts_link;
+  LIST_ENTRY(turnstile) ts_link; /* link on td_contested */
   /* free turnstiles left by threads blocked on this turnstile */
   turnstilelist_t ts_free;
   /* blocked threads sorted by decreasing active priority */
