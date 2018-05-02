@@ -17,6 +17,7 @@
 #include <pipe.h>
 
 #define PATH_MAX 1024
+#include <syslimits.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 int sys_nosys(thread_t *td, syscall_args_t *args) {
@@ -397,6 +398,7 @@ end:
   return result;
 }
 
+/* clang-format hates long arrays. */
 sysent_t sysent[] = {
     [SYS_EXIT] = {sys_exit},
     [SYS_OPEN] = {sys_open},
