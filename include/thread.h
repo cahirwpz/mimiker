@@ -75,11 +75,10 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_all;    /* a link on all threads list */
   TAILQ_ENTRY(thread) td_runq;   /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq; /* a link on sleep queue */
-  TAILQ_ENTRY(thread)
-  td_turnstileq;                  /* a link on turnstile queue
-                                   * (ts_blocked or ts_pending) */
-  TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
-  TAILQ_ENTRY(thread) td_procq;   /* a link on process threads queue */
+  // TODO pick better name for td_turnstileq
+  TAILQ_ENTRY(thread) td_turnstileq; /* a link on turnstile blocked queue */
+  TAILQ_ENTRY(thread) td_zombieq;    /* a link on zombie queue */
+  TAILQ_ENTRY(thread) td_procq;      /* a link on process threads queue */
   /* Properties */
   proc_t *td_proc; /*!< (t) parent process (NULL for kernel threads) */
   char *td_name;   /*!< (@) name of thread */
@@ -98,12 +97,14 @@ typedef struct thread {
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
   /* waiting channel */
-  sleepq_t *td_sleepqueue;
-  turnstile_t *td_blocked; /* lock thread is blocked on */
-  turnstile_t *td_turnstile;
-  LIST_HEAD(, turnstile) td_contested; /* turnstiles of locks that we own */
   void *td_wchan;
   const void *td_waitpt; /*!< a point where program waits */
+  /* waiting channel - sleepqueue */
+  sleepq_t *td_sleepqueue; /* thread's sleepqueue */
+  /* waiting channel - turnstile */
+  turnstile_t *td_blocked;   /* turnstile on which thread is blocked */
+  turnstile_t *td_turnstile; /* thread's turnstile */
+  LIST_HEAD(, turnstile) td_contested; /* turnstiles of locks that we own */
   /* scheduler part */
   td_prio_t td_base_prio; /*!< base priority */
   td_prio_t td_prio;      /*!< active priority */
