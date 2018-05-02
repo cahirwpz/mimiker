@@ -353,16 +353,6 @@
 /*
  * Tail queue functions.
  */
-#define TAILQ_CONCAT(head1, head2, field)                                      \
-  do {                                                                         \
-    if (!TAILQ_EMPTY(head2)) {                                                 \
-      *(head1)->tqh_last = (head2)->tqh_first;                                 \
-      (head2)->tqh_first->field.tqe_prev = (head1)->tqh_last;                  \
-      (head1)->tqh_last = (head2)->tqh_last;                                   \
-      TAILQ_INIT((head2));                                                     \
-    }                                                                          \
-  } while (0)
-
 #define TAILQ_EMPTY(head) ((head)->tqh_first == NULL)
 
 #define TAILQ_FIRST(head) ((head)->tqh_first)

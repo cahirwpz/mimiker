@@ -296,17 +296,11 @@ void turnstile_broadcast(turnstile_t *ts) {
   assert(spin_owned(&tc->tc_lock));
 
   turnstile_free_return(ts);
-
-  threadqueue_t blocked_threads;
-  TAILQ_INIT(&blocked_threads);
-  TAILQ_CONCAT(&blocked_threads, &ts->ts_blocked, td_turnstileq);
-  assert(TAILQ_EMPTY(&ts->ts_blocked));
+  turnstile_unlend_self(ts);
+  turnstile_wakeup_blocked(&ts->ts_blocked);
 
   void *wchan = ts->ts_wchan;
   ts->ts_wchan = NULL;
-
-  turnstile_unlend_self(ts);
-  turnstile_wakeup_blocked(&blocked_threads);
 
   spin_release(&ts->ts_lock);
   turnstile_chain_unlock(wchan);
