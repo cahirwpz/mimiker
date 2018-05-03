@@ -14,7 +14,6 @@
 
 /*! \file thread.h */
 
-typedef uint8_t td_prio_t;
 typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
 typedef struct fdtab fdtab_t;
@@ -97,8 +96,8 @@ typedef struct thread {
   void *td_wchan;
   const void *td_waitpt; /*!< a point where program waits */
   /* scheduler part */
-  td_prio_t td_base_prio; /*!< base priority */
-  td_prio_t td_prio;      /*!< active priority */
+  prio_t td_base_prio; /*!< base priority */
+  prio_t td_prio;      /*!< active priority */
   int td_slice;
   /* thread statistics */
   timeval_t td_rtime;        /*!< time spent running */

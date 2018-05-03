@@ -54,7 +54,7 @@ void sched_wakeup(thread_t *td) {
  *
  * \note Must be called with td_spin acquired!
  */
-static void sched_set_priority(thread_t *td, td_prio_t prio) {
+static void sched_set_priority(thread_t *td, prio_t prio) {
   assert(spin_owned(td->td_spin));
 
   if (td->td_prio == prio)
@@ -70,7 +70,7 @@ static void sched_set_priority(thread_t *td, td_prio_t prio) {
   }
 }
 
-void sched_lend_prio(thread_t *td, td_prio_t prio) {
+void sched_lend_prio(thread_t *td, prio_t prio) {
   assert(spin_owned(td->td_spin));
   assert(td->td_prio < prio);
 
@@ -78,7 +78,7 @@ void sched_lend_prio(thread_t *td, td_prio_t prio) {
   sched_set_priority(td, prio);
 }
 
-void sched_unlend_prio(thread_t *td, td_prio_t prio) {
+void sched_unlend_prio(thread_t *td, prio_t prio) {
   assert(spin_owned(td->td_spin));
 
   if (prio <= td->td_base_prio) {
