@@ -73,7 +73,7 @@ void sched_unlend_prio(thread_t *td, prio_t prio);
  *
  * \note Must be called with \a td_spin acquired!
  */
-void sched_set_prio(thread_t *td, td_prio_t prio);
+void sched_set_prio(thread_t *td, prio_t prio);
 
 /*! \brief Takes care of run-time accounting for current thread.
  *

@@ -79,7 +79,7 @@ void sched_set_prio(thread_t *td, prio_t prio) {
   if (td->td_flags & TDF_BORROWING && td->td_prio > prio)
     return;
 
-  td_prio_t oldprio = td->td_prio;
+  prio_t oldprio = td->td_prio;
   sched_set_active_prio(td, prio);
 
   /* If thread is locked on a turnstile, let the turnstile adjust
