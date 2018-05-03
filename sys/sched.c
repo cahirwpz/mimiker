@@ -54,7 +54,7 @@ void sched_wakeup(thread_t *td) {
  *
  * \note Must be called with \a td_spin acquired!
  */
-static void sched_set_active_prio(thread_t *td, td_prio_t prio) {
+static void sched_set_active_prio(thread_t *td, prio_t prio) {
   assert(spin_owned(td->td_spin));
 
   if (td->td_prio == prio)
@@ -70,7 +70,7 @@ static void sched_set_active_prio(thread_t *td, td_prio_t prio) {
   }
 }
 
-void sched_set_prio(thread_t *td, td_prio_t prio) {
+void sched_set_prio(thread_t *td, prio_t prio) {
   assert(spin_owned(td->td_spin));
 
   td->td_base_prio = prio;
@@ -95,7 +95,7 @@ void sched_set_prio(thread_t *td, td_prio_t prio) {
   (void)oldprio;
 }
 
-void sched_lend_prio(thread_t *td, td_prio_t prio) {
+void sched_lend_prio(thread_t *td, prio_t prio) {
   assert(spin_owned(td->td_spin));
   assert(td->td_prio < prio);
 
@@ -103,7 +103,7 @@ void sched_lend_prio(thread_t *td, td_prio_t prio) {
   sched_set_active_prio(td, prio);
 }
 
-void sched_unlend_prio(thread_t *td, td_prio_t prio) {
+void sched_unlend_prio(thread_t *td, prio_t prio) {
   assert(spin_owned(td->td_spin));
 
   if (prio <= td->td_base_prio) {
@@ -214,7 +214,17 @@ void preempt_disable(void) {
 void preempt_enable(void) {
   thread_t *td = thread_self();
   assert(td->td_pdnest > 0);
+
   td->td_pdnest--;
+  if (td->td_pdnest > 0)
+    return;
+
+  WITH_SPINLOCK(td->td_spin) {
+    if (td->td_flags & TDF_NEEDSWITCH) {
+      td->td_state = TDS_READY;
+      sched_switch();
+    }
+  }
 }
 
 SYSINIT_ADD(sched, sched_init, DEPS("callout"));

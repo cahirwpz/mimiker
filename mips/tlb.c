@@ -1,4 +1,5 @@
 #include <mips/mips.h>
+#include <mips/pmap.h>
 #include <mips/tlb.h>
 #include <vm.h>
 

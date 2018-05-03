@@ -14,7 +14,6 @@
 
 /*! \file thread.h */
 
-typedef uint8_t td_prio_t;
 typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
 typedef struct fdtab fdtab_t;
@@ -50,6 +49,7 @@ typedef enum {
 #define TDF_NEEDSIGCHK 0x00000004 /* signals were posted for delivery */
 #define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
 #define TDF_BORROWING 0x00000010  /* priority propagation */
+#define TDF_USESFPU 0x00000020    /* thread makes use of FPU */
 
 /*! \brief Thread structure
  *
@@ -96,8 +96,8 @@ typedef struct thread {
   void *td_wchan;
   const void *td_waitpt; /*!< a point where program waits */
   /* scheduler part */
-  td_prio_t td_base_prio; /*!< base priority */
-  td_prio_t td_prio;      /*!< active priority */
+  prio_t td_base_prio; /*!< base priority */
+  prio_t td_prio;      /*!< active priority */
   int td_slice;
   /* thread statistics */
   timeval_t td_rtime;        /*!< time spent running */

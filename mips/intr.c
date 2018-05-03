@@ -168,6 +168,23 @@ static void fpe_handler(exc_frame_t *frame) {
   }
 }
 
+static void cp_unusable_handler(exc_frame_t *frame) {
+  int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
+  bool kernel_mode = (frame->sr & SR_KSU_MASK) == 0;
+
+  if (cp_id != 1) {
+    panic(
+      "Unexpected unusable coprocessor exception, with coprocessor id = %d\n",
+      cp_id);
+  }
+
+  if (kernel_mode) {
+    panic("FPU unusable exception in kernel mode.");
+  }
+
+  thread_self()->td_flags |= TDF_USESFPU;
+}
+
 /*
  * This is exception vector table. Each exeception either has been assigned a
  * handler or kernel_oops is called for it. For exact meaning of exception
@@ -181,7 +198,8 @@ static exc_handler_t user_exception_table[32] =
    [EXC_SYS] = syscall_handler,
    [EXC_FPE] = fpe_handler,
    [EXC_MSAFPE] = fpe_handler,
-   [EXC_OVF] = fpe_handler};
+   [EXC_OVF] = fpe_handler,
+   [EXC_CPU] = cp_unusable_handler};
 
 static exc_handler_t kernel_exception_table[32] =
   {[EXC_MOD] = tlb_exception_handler, [EXC_TLBL] = tlb_exception_handler,
@@ -199,7 +217,7 @@ static noreturn void kernel_oops(exc_frame_t *frame) {
       (code == EXC_IBE || code == EXC_DBE))
     klog("Caused by reference to $%08x!", frame->badvaddr);
 
-  panic("Unhandled exception!");
+  panic("Unhandled '%s' at $%08x!", exceptions[code], frame->pc);
 }
 
 /* General exception handler is called with interrupts disabled. */
