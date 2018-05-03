@@ -109,7 +109,7 @@ static void turnstile_adjust_thread(turnstile_t *ts, thread_t *td) {
  * td can run again. */
 static void propagate_priority(thread_t *td) {
   turnstile_t *ts = td->td_blocked;
-  td_prio_t prio = td->td_prio;
+  prio_t prio = td->td_prio;
   spin_acquire(&ts->ts_lock);
 
   while (1) {
@@ -155,7 +155,7 @@ static void turnstile_setowner(turnstile_t *ts, thread_t *owner) {
   LIST_INSERT_HEAD(&owner->td_contested, ts, ts_link);
 }
 
-void turnstile_adjust(thread_t *td, td_prio_t oldprio) {
+void turnstile_adjust(thread_t *td, prio_t oldprio) {
   assert(spin_owned(td->td_spin));
   assert(td->td_state == TDS_LOCKED);
 
@@ -250,7 +250,7 @@ static void turnstile_unlend_self(turnstile_t *ts) {
   thread_t *td = thread_self();
   assert(ts->ts_owner == td);
 
-  td_prio_t prio = 0; /* lowest priority */
+  prio_t prio = 0; /* lowest priority */
 
   WITH_SPINLOCK(td->td_spin) {
     WITH_SPINLOCK(&td_contested_lock) {
@@ -260,7 +260,7 @@ static void turnstile_unlend_self(turnstile_t *ts) {
       turnstile_t *ts1;
       LIST_FOREACH(ts1, &td->td_contested, ts_link) {
         assert(ts1->ts_owner == td);
-        td_prio_t p = TAILQ_FIRST(&ts1->ts_blocked)->td_prio;
+        prio_t p = TAILQ_FIRST(&ts1->ts_blocked)->td_prio;
         if (p > prio)
           prio = p;
       }

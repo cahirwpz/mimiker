@@ -43,7 +43,6 @@ typedef void driver_intr_t(void *);
 
 typedef struct intr_chain intr_chain_t;
 typedef struct intr_handler intr_handler_t;
-typedef int prio_t;
 
 struct intr_handler {
   TAILQ_ENTRY(intr_handler) ih_list;

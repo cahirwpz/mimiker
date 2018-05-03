@@ -54,7 +54,7 @@ void sched_wakeup(thread_t *td);
  *
  * \note Must be called with \a td_spin acquired!
  */
-void sched_lend_prio(thread_t *td, td_prio_t prio);
+void sched_lend_prio(thread_t *td, prio_t prio);
 
 /*! \brief Remove lent priority while offering a new priority to lend.
  *
@@ -63,7 +63,7 @@ void sched_lend_prio(thread_t *td, td_prio_t prio);
  *
  * \note Must be called with \a td_spin acquired!
  */
-void sched_unlend_prio(thread_t *td, td_prio_t prio);
+void sched_unlend_prio(thread_t *td, prio_t prio);
 
 /*! \brief Set thread's \a td_base_prio and \a td_prio to \a prio.
  *
@@ -73,7 +73,7 @@ void sched_unlend_prio(thread_t *td, td_prio_t prio);
  *
  * \note Must be called with \a td_spin acquired!
  */
-void sched_set_prio(thread_t *td, td_prio_t prio);
+void sched_set_prio(thread_t *td, prio_t prio);
 
 /*! \brief Takes care of run-time accounting for current thread.
  *

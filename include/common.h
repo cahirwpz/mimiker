@@ -18,6 +18,7 @@ typedef unsigned long pm_addr_t;
 
 typedef long off_t;
 typedef long ssize_t;
+typedef uint8_t prio_t;
 typedef int32_t pid_t;
 typedef uint16_t dev_t;
 typedef uint32_t time_t;
@@ -28,7 +29,6 @@ typedef uint32_t mode_t;
 typedef uint16_t nlink_t;
 typedef uint16_t ino_t;
 typedef uint32_t tid_t;
-typedef uint8_t td_prio_t;
 typedef int32_t blkcnt_t;  /* fs block count */
 typedef int32_t blksize_t; /* fs optimal block size */
 

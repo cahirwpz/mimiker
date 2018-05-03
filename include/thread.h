@@ -106,8 +106,8 @@ typedef struct thread {
   turnstile_t *td_turnstile; /* thread's turnstile */
   LIST_HEAD(, turnstile) td_contested; /* turnstiles of locks that we own */
   /* scheduler part */
-  td_prio_t td_base_prio; /*!< base priority */
-  td_prio_t td_prio;      /*!< active priority */
+  prio_t td_base_prio; /*!< base priority */
+  prio_t td_prio;      /*!< active priority */
   int td_slice;
   /* thread statistics */
   timeval_t td_rtime;        /*!< time spent running */

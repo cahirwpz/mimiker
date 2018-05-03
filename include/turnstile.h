@@ -27,7 +27,7 @@ void turnstile_destroy(turnstile_t *ts);
  *
  * Locks:
  *  needs: td_spin. */
-void turnstile_adjust(thread_t *td, td_prio_t oldprio);
+void turnstile_adjust(thread_t *td, prio_t oldprio);
 
 /* Block the current thread on turnstile ts. This function will context
  * switch. This function must be called with turnstile chain locked and will

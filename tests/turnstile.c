@@ -10,13 +10,13 @@ static mtx_t *mtx = &MTX_INITIALIZER(MTX_DEF);
 static thread_t *td[T];
 static volatile bool high_prio_mtx_acquired;
 
-typedef enum {
-  /* Set priorities to multiplies of RunQueue_PriorityPerQueue
+enum {
+  /* Priorities are multiplies of RunQueue_PriorityPerQueue
    * so that each priority matches different run queue. */
   LOW = 0,
   MED = RQ_PPQ,
   HIGH = 2 * RQ_PPQ
-} prio_t;
+};
 
 static void high_prio_task(void *arg) {
   assert(mtx->m_owner == td[0]);
