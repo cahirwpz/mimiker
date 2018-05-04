@@ -49,7 +49,6 @@ typedef enum {
 #define TDF_NEEDSIGCHK 0x00000004 /* signals were posted for delivery */
 #define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
 #define TDF_BORROWING 0x00000010  /* priority propagation */
-#define TDF_USESFPU 0x00000020    /* thread makes use of FPU */
 
 /*! \brief Thread structure
  *
@@ -84,9 +83,8 @@ typedef struct thread {
   /* thread context */
   volatile unsigned td_idnest; /*!< (?) interrupt disable nest level */
   volatile unsigned td_pdnest; /*!< (?) preemption disable nest level */
-  exc_frame_t td_uctx;         /* user context (always exception) */
-  fpu_ctx_t td_uctx_fpu;       /* user FPU context (always exception) */
-  exc_frame_t *td_kframe;      /* kernel context (last exception frame) */
+  exc_frame_t *td_uframe;      /* user context (full exception frame) */
+  exc_frame_t *td_kframe;      /* kernel context (last cpu exception frame) */
   ctx_t td_kctx;               /* kernel context (switch) */
   intptr_t td_onfault;         /* program counter for copyin/copyout faults */
   vm_page_t *td_kstack_obj;

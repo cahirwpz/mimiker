@@ -27,7 +27,7 @@ user_exc_enter:
         # Fetch the context from thread control block.
         LOAD_PCPU(k0)
         lw      k0, PCPU_CURTHREAD(k0)
-        addu    k0, TD_UCTX
+        lw      k0, TD_UFRAME(k0)
 
         # Save all user registers...
         SAVE_REG(AT, AT, k0)
@@ -74,79 +74,64 @@ user_exc_enter:
         SAVE_REG(t2, BADVADDR, k0)
         SAVE_REG(t3, PC, k0)
 
-        # Load kernel global pointer.
-        la      gp, _gp
+        # If FPU is enabled save FPU registers.
+        ext     t1, t0, SR_CU1_SHIFT, 1
+        beqz    t1, skip_fpu_save
+        nop
 
-        # Set kernel stack pointer to the bottom of kernel stack.
-        #
-        # We can enter user mode only with `user_exc_leave`. The routine does
-        # not return and kernel context is not saved while entering user mode.
-        # Hence we don't care about $sp and we can set it to kstack's bottom.
-        LOAD_PCPU(t0)
-        lw      s0, PCPU_CURTHREAD(t0)          # [s0] curthread
-        lw      sp, TD_KSTACK+STK_BASE(s0)
-        lw      t0, TD_KSTACK+STK_SIZE(s0)
-        add     sp, t0
+        SAVE_FPU_REG($f0, F0, k0)
+        SAVE_FPU_REG($f1, F1, k0)
+        SAVE_FPU_REG($f2, F2, k0)
+        SAVE_FPU_REG($f3, F3, k0)
+        SAVE_FPU_REG($f4, F4, k0)
+        SAVE_FPU_REG($f5, F5, k0)
+        SAVE_FPU_REG($f6, F6, k0)
+        SAVE_FPU_REG($f7, F7, k0)
+        SAVE_FPU_REG($f8, F8, k0)
+        SAVE_FPU_REG($f9, F9, k0)
+        SAVE_FPU_REG($f10, F10, k0)
+        SAVE_FPU_REG($f11, F11, k0)
+        SAVE_FPU_REG($f12, F12, k0)
+        SAVE_FPU_REG($f13, F13, k0)
+        SAVE_FPU_REG($f14, F14, k0)
+        SAVE_FPU_REG($f15, F15, k0)
+        SAVE_FPU_REG($f16, F16, k0)
+        SAVE_FPU_REG($f17, F17, k0)
+        SAVE_FPU_REG($f18, F18, k0)
+        SAVE_FPU_REG($f19, F19, k0)
+        SAVE_FPU_REG($f20, F20, k0)
+        SAVE_FPU_REG($f21, F21, k0)
+        SAVE_FPU_REG($f22, F22, k0)
+        SAVE_FPU_REG($f23, F23, k0)
+        SAVE_FPU_REG($f24, F24, k0)
+        SAVE_FPU_REG($f25, F25, k0)
+        SAVE_FPU_REG($f26, F26, k0)
+        SAVE_FPU_REG($f27, F27, k0)
+        SAVE_FPU_REG($f28, F28, k0)
+        SAVE_FPU_REG($f29, F29, k0)
+        SAVE_FPU_REG($f30, F30, k0)
+        SAVE_FPU_REG($f31, F31, k0)
+        SAVE_FPU_REG($31, FSR, k0)
+
+skip_fpu_save:
+        # Set kernel stack pointer just after saved user context.
+        move    sp, k0
+
+        # Fetch thread control block to s0 for later use.
+        LOAD_PCPU(k0)
+        lw      s0, PCPU_CURTHREAD(k0)
 
         # No exeception frame so set td_kframe to NULL.
         sw      $0, TD_KFRAME(s0)
+
+        # Load kernel global pointer.
+        la      gp, _gp
 
         # Increment interrupt nest level.
         lw      t0, TD_IDNEST(s0)
         addi    t0, 1
         sw      t0, TD_IDNEST(s0)
 
-        # Save FPU registers
-        # Skip if process is not using FPU
-        lw      t1, TD_FLAGS(s0)
-        andi    t1, TDF_USESFPU
-        beqz    t1, skip_fpu_save
-        nop
-
-        # Turn on FPU before saving
-        mfc0    t0, C0_STATUS
-        li      t1, SR_CU1
-        or      t0, t1
-        mtc0    t0, C0_STATUS
-
-        # Copy FPU registers
-        addi    t0, s0, TD_UCTX_FPU
-                
-        SAVE_FPU_REG($f0, F0, t0)
-        SAVE_FPU_REG($f1, F1, t0)
-        SAVE_FPU_REG($f2, F2, t0)
-        SAVE_FPU_REG($f3, F3, t0)
-        SAVE_FPU_REG($f4, F4, t0)
-        SAVE_FPU_REG($f5, F5, t0)
-        SAVE_FPU_REG($f6, F6, t0)
-        SAVE_FPU_REG($f7, F7, t0)
-        SAVE_FPU_REG($f8, F8, t0)
-        SAVE_FPU_REG($f9, F9, t0)
-        SAVE_FPU_REG($f10, F10, t0)
-        SAVE_FPU_REG($f11, F11, t0)
-        SAVE_FPU_REG($f12, F12, t0)
-        SAVE_FPU_REG($f13, F13, t0)
-        SAVE_FPU_REG($f14, F14, t0)
-        SAVE_FPU_REG($f15, F15, t0)
-        SAVE_FPU_REG($f16, F16, t0)
-        SAVE_FPU_REG($f17, F17, t0)
-        SAVE_FPU_REG($f18, F18, t0)
-        SAVE_FPU_REG($f19, F19, t0)
-        SAVE_FPU_REG($f20, F20, t0)
-        SAVE_FPU_REG($f21, F21, t0)
-        SAVE_FPU_REG($f22, F22, t0)
-        SAVE_FPU_REG($f23, F23, t0)
-        SAVE_FPU_REG($f24, F24, t0)
-        SAVE_FPU_REG($f25, F25, t0)
-        SAVE_FPU_REG($f26, F26, t0)
-        SAVE_FPU_REG($f27, F27, t0)
-        SAVE_FPU_REG($f28, F28, t0)
-        SAVE_FPU_REG($f29, F29, t0)
-        SAVE_FPU_REG($f30, F30, t0)
-        SAVE_FPU_REG($f31, F31, t0)
-        SAVE_FPU_REG($31, FSR, t0)
-
-skip_fpu_save:
         # Turn off FPU, enter kernel mode,
         # drop exception level and disable interrupts.
         mfc0    t0, C0_STATUS
@@ -155,7 +140,7 @@ skip_fpu_save:
         mtc0    t0, C0_STATUS
 
         # Call C interrupt handler routine.
-        move    a0, k0
+        move    a0, sp
         jalr    k1
         nop
 
@@ -165,94 +150,69 @@ skip_fpu_save:
         sw      t0, TD_IDNEST(s0)
 
 user_exc_leave:
-        # Enter exception level (disable interrupts till ERET).
-        mfc0    t0, C0_STATUS
-        ori     t0, SR_EXL
-        mtc0    t0, C0_STATUS
+        # Disable interrupts saving current SR into t1.
+        di      t1
 
         # Fetch the context from thread control block.
         LOAD_PCPU(k1)
         lw      k1, PCPU_CURTHREAD(k1)
-        addu    k0, k1, TD_UCTX
+        lw      k0, TD_UFRAME(k1)
 
         # Update status register held in user context.
         LOAD_REG(t0, SR, k0)
-        # Turn on FPU, enter exception level,
-        # enter user mode and enable interrupts
+        # Enter exception level, enter user mode and enable interrupts
         # (last two applies only after ERET).
-        li      t1, (SR_CU1|SR_KSU_USER|SR_EXL|SR_IE)
-        # Clear interrupts mask.
-        li      t2, ~SR_IMASK
-        or      t0, t1
-        and     t0, t2
+        ori     t0, (SR_KSU_USER|SR_EXL|SR_IE)
         # Update user-mode interrupts mask based on current one.
-        mfc0    t1, C0_STATUS
-        andi    t1, SR_IMASK
-        or      t0, t1
+        ext     t1, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
+        ins     t0, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
         mtc0    t0, C0_STATUS
         SAVE_REG(t0, SR, k0)
 
+        # If FPU has been enabled, then restore FPU registers.
+        ext     t1, t0, SR_CU1_SHIFT, 1
+        beqz    t1, skip_fpu_restore
+        nop
+
+        LOAD_FPU_REG($f0, F0, k0)
+        LOAD_FPU_REG($f1, F1, k0)
+        LOAD_FPU_REG($f2, F2, k0)
+        LOAD_FPU_REG($f3, F3, k0)
+        LOAD_FPU_REG($f4, F4, k0)
+        LOAD_FPU_REG($f5, F5, k0)
+        LOAD_FPU_REG($f6, F6, k0)
+        LOAD_FPU_REG($f7, F7, k0)
+        LOAD_FPU_REG($f8, F8, k0)
+        LOAD_FPU_REG($f9, F9, k0)
+        LOAD_FPU_REG($f10, F10, k0)
+        LOAD_FPU_REG($f11, F11, k0)
+        LOAD_FPU_REG($f12, F12, k0)
+        LOAD_FPU_REG($f13, F13, k0)
+        LOAD_FPU_REG($f14, F14, k0)
+        LOAD_FPU_REG($f15, F15, k0)
+        LOAD_FPU_REG($f16, F16, k0)
+        LOAD_FPU_REG($f17, F17, k0)
+        LOAD_FPU_REG($f18, F18, k0)
+        LOAD_FPU_REG($f19, F19, k0)
+        LOAD_FPU_REG($f20, F20, k0)
+        LOAD_FPU_REG($f21, F21, k0)
+        LOAD_FPU_REG($f22, F22, k0)
+        LOAD_FPU_REG($f23, F23, k0)
+        LOAD_FPU_REG($f24, F24, k0)
+        LOAD_FPU_REG($f25, F25, k0)
+        LOAD_FPU_REG($f26, F26, k0)
+        LOAD_FPU_REG($f27, F27, k0)
+        LOAD_FPU_REG($f28, F28, k0)
+        LOAD_FPU_REG($f29, F29, k0)
+        LOAD_FPU_REG($f30, F30, k0)
+        LOAD_FPU_REG($f31, F31, k0)
+        LOAD_FPU_REG($31, FSR, k0)
+
+skip_fpu_restore:
         # Restore exception program counter,
         LOAD_REG(t0, PC, k0)
         mtc0    t0, C0_EPC   
 
-        # Load FPU context if process makes use of it
-        # by default assume that process does not, and disable FPU
-        mfc0    t0, C0_STATUS
-        li      t1, ~(SR_CU1)
-        and     t0, t1
-        mtc0    t0, C0_STATUS
-
-        # Skip if process is not using FPU
-        lw      t0, TD_FLAGS(k1)
-        andi    t0, TDF_USESFPU
-        beqz    t0, skip_fpu_restore
-        nop
-
-        # Turn on FPU before restoring
-        mfc0    t0, C0_STATUS
-        li      t1, SR_CU1
-        or      t0, t1
-        mtc0    t0, C0_STATUS
-
-        # Copy FPU registers
-        addi    t0, s0, TD_UCTX_FPU
-
-        LOAD_FPU_REG($f0, F0, t0)
-        LOAD_FPU_REG($f1, F1, t0)
-        LOAD_FPU_REG($f2, F2, t0)
-        LOAD_FPU_REG($f3, F3, t0)
-        LOAD_FPU_REG($f4, F4, t0)
-        LOAD_FPU_REG($f5, F5, t0)
-        LOAD_FPU_REG($f6, F6, t0)
-        LOAD_FPU_REG($f7, F7, t0)
-        LOAD_FPU_REG($f8, F8, t0)
-        LOAD_FPU_REG($f9, F9, t0)
-        LOAD_FPU_REG($f10, F10, t0)
-        LOAD_FPU_REG($f11, F11, t0)
-        LOAD_FPU_REG($f12, F12, t0)
-        LOAD_FPU_REG($f13, F13, t0)
-        LOAD_FPU_REG($f14, F14, t0)
-        LOAD_FPU_REG($f15, F15, t0)
-        LOAD_FPU_REG($f16, F16, t0)
-        LOAD_FPU_REG($f17, F17, t0)
-        LOAD_FPU_REG($f18, F18, t0)
-        LOAD_FPU_REG($f19, F19, t0)
-        LOAD_FPU_REG($f20, F20, t0)
-        LOAD_FPU_REG($f21, F21, t0)
-        LOAD_FPU_REG($f22, F22, t0)
-        LOAD_FPU_REG($f23, F23, t0)
-        LOAD_FPU_REG($f24, F24, t0)
-        LOAD_FPU_REG($f25, F25, t0)
-        LOAD_FPU_REG($f26, F26, t0)
-        LOAD_FPU_REG($f27, F27, t0)
-        LOAD_FPU_REG($f28, F28, t0)
-        LOAD_FPU_REG($f29, F29, t0)
-        LOAD_FPU_REG($f30, F30, t0)
-        LOAD_FPU_REG($f31, F31, t0)
-        LOAD_FPU_REG($31, FSR, t0)
-
-skip_fpu_restore:
         # ... all user registers.
         LOAD_REG(t0, HI, k0)
         LOAD_REG(t1, LO, k0)

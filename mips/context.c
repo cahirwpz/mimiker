@@ -9,13 +9,19 @@ extern noreturn void kern_exc_leave(void);
 void ctx_init(thread_t *td, void (*target)(void *), void *arg) {
   register void *gp asm("$gp");
 
-  void *sp = td->td_kstack.stk_base + td->td_kstack.stk_size;
-  exc_frame_t *kframe = sp - sizeof(exc_frame_t);
+  stack_t *stk = &td->td_kstack;
+  void *sp = stk->stk_base + stk->stk_size - sizeof(exc_frame_t);
+  /* For threads that are allowed to enter user-space (for now - all of them),
+   * full exception frame has to be allocated at the top of kernel stack.
+   * Just under it there's a kernel exception frame (cpu part of full one) that
+   * is used to enter kernel thread for the first time. */
+  exc_frame_t *kframe = sp - sizeof(cpu_exc_frame_t);
   ctx_t *kctx = &td->td_kctx;
 
-  bzero(kframe, sizeof(exc_frame_t));
+  bzero(kframe, sizeof(cpu_exc_frame_t));
   bzero(kctx, sizeof(ctx_t));
 
+  td->td_uframe = sp;
   td->td_kframe = kframe;
 
   reg_t sr = (reg_t)mips32_get_c0(C0_STATUS);
@@ -39,16 +45,20 @@ void ctx_init(thread_t *td, void (*target)(void *), void *arg) {
   kframe->sr |= SR_EXL | SR_IE;
 }
 
-void uctx_init(thread_t *td, vm_addr_t pc, vm_addr_t sp) {
-  bzero(&td->td_uctx, sizeof(exc_frame_t));
+void exc_frame_init(exc_frame_t *frame, vm_addr_t pc, vm_addr_t sp) {
+  bzero(frame, sizeof(exc_frame_t));
 
-  td->td_uctx.gp = 0; /* Explicit. */
-  td->td_uctx.pc = pc;
-  td->td_uctx.sp = sp;
-  td->td_uctx.ra = 0; /* Explicit. */
+  frame->gp = 0; /* Explicit. */
+  frame->pc = (reg_t)pc;
+  frame->sp = (reg_t)sp;
+  frame->ra = 0; /* Explicit. */
 }
 
-void exc_frame_set_retval(exc_frame_t *frame, reg_t value) {
-  frame->v0 = value;
+void exc_frame_copy(exc_frame_t *to, exc_frame_t *from) {
+  memcpy(to, from, sizeof(exc_frame_t));
+}
+
+void exc_frame_set_retval(exc_frame_t *frame, long value) {
+  frame->v0 = (reg_t)value;
   frame->pc += 4;
 }

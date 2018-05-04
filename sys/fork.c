@@ -2,6 +2,7 @@
 #include <thread.h>
 #include <filedesc.h>
 #include <sched.h>
+#include <exception.h>
 #include <stdc.h>
 #include <vm_map.h>
 #include <proc.h>
@@ -24,9 +25,8 @@ int do_fork(void) {
   newtd->td_idnest = 0;
 
   /* Copy user context.. */
-  newtd->td_uctx = td->td_uctx;
-  newtd->td_uctx_fpu = td->td_uctx_fpu;
-  exc_frame_set_retval(&newtd->td_uctx, 0);
+  exc_frame_copy(newtd->td_uframe, td->td_uframe);
+  exc_frame_set_retval(newtd->td_uframe, 0);
 
   /* New thread does not need the exception frame just yet. */
   newtd->td_kframe = NULL;

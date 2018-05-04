@@ -240,7 +240,7 @@ int do_exec(const exec_args_t *args) {
   prepare_program_stack(args, &stack_bottom);
 
   /* Set up user context. */
-  uctx_init(thread_self(), eh.e_entry, stack_bottom);
+  exc_frame_init(td->td_uframe, eh.e_entry, stack_bottom);
 
   /* At this point we are certain that exec succeeds.  We can safely destroy the
    * previous vm map, and permanently assign this one to the current process. */
