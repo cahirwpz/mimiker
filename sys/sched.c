@@ -79,20 +79,7 @@ void sched_set_prio(thread_t *td, prio_t prio) {
   if (td->td_flags & TDF_BORROWING && td->td_prio > prio)
     return;
 
-  prio_t oldprio = td->td_prio;
   sched_set_active_prio(td, prio);
-
-  /* If thread is locked on a turnstile, let the turnstile adjust
-   * thread's position on turnstile's \a ts_blocked list. */
-
-  /* These changes are waiting for turnstile pull request because
-   * now we don't have TDS_LOCKED and turnstile_adjust. */
-  // TO BE UNCOMMENTED
-  // if (td->td_state == TDS_LOCKED && oldprio != prio)
-  //   turnstile_adjust(td, oldprio);
-
-  // TO BE DELETED
-  (void)oldprio;
 }
 
 void sched_lend_prio(thread_t *td, prio_t prio) {
