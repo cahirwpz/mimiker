@@ -65,6 +65,16 @@ void sched_lend_prio(thread_t *td, prio_t prio);
  */
 void sched_unlend_prio(thread_t *td, prio_t prio);
 
+/*! \brief Set thread's \a td_base_prio and \a td_prio to \a prio.
+ *
+ * Base priority \a td_base_prio is changed unconditionally.
+ * Active priority \a td_prio is changed on condition that we are not lowering
+ * priority of a thread that borrows priority via \a sched_lend_prio.
+ *
+ * \note Must be called with \a td_spin acquired!
+ */
+void sched_set_prio(thread_t *td, prio_t prio);
+
 /*! \brief Takes care of run-time accounting for current thread.
  *
  * \note Must be called from interrupt context.
