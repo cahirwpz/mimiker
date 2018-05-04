@@ -7,8 +7,8 @@
 static mtx_t mtx = MTX_INITIALIZER(MTX_DEF);
 static volatile int32_t value;
 
-#define N 1000
-#define T 5
+#define N 1
+#define T 2
 
 static thread_t *td[T];
 
@@ -17,7 +17,7 @@ static void mtx_test_main(void *arg) {
     mtx_lock(&mtx);
     int v = value;
     thread_yield();
-    value = v+1;
+    value = v + 1;
     mtx_unlock(&mtx);
   }
 }
