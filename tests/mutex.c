@@ -23,11 +23,11 @@ static void mtx_test_main(void *arg) {
 static int mtx_test(void) {
   value = 0;
 
-  td[0] = thread_create("td1", mtx_test_main, NULL);
-  td[1] = thread_create("td2", mtx_test_main, NULL);
-  td[2] = thread_create("td3", mtx_test_main, NULL);
-  td[3] = thread_create("td4", mtx_test_main, NULL);
-  td[4] = thread_create("td5", mtx_test_main, NULL);
+  for (int i = 0; i < T; i++) {
+    char name[20];
+    snprintf(name, sizeof(name), "td%d", i);
+    td[i] = thread_create(name, mtx_test_main, NULL);
+  }
 
   for (int i = 0; i < T; i++)
     sched_add(td[i]);
