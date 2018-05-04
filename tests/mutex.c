@@ -15,7 +15,9 @@ static thread_t *td[T];
 static void mtx_test_main(void *arg) {
   for (size_t i = 0; i < N; i++) {
     mtx_lock(&mtx);
-    value++;
+    int v = value;
+    thread_yield();
+    value = v+1;
     mtx_unlock(&mtx);
   }
 }
