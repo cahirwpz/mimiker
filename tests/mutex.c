@@ -4,41 +4,41 @@
 #include <thread.h>
 #include <ktest.h>
 
-static mtx_t mtx = MTX_INITIALIZER(MTX_DEF);
-static volatile int32_t value;
+static mtx_t counter_mtx = MTX_INITIALIZER(MTX_DEF);
+static volatile int32_t counter_value;
 
-#define N 1000
-#define T 5
+#define COUNTER_N 1000
+#define COUNTER_T 5
 
-static thread_t *td[T];
+static thread_t *counter_td[COUNTER_T];
 
-static void mtx_test_main(void *arg) {
-  for (size_t i = 0; i < N; i++) {
-    mtx_lock(&mtx);
-    int v = value;
+static void counter_routine(void *arg) {
+  for (size_t i = 0; i < COUNTER_N; i++) {
+    mtx_lock(&counter_mtx);
+    int v = counter_value;
     thread_yield();
-    value = v + 1;
-    mtx_unlock(&mtx);
+    counter_value = v + 1;
+    mtx_unlock(&counter_mtx);
   }
 }
 
-static int mtx_test(void) {
-  value = 0;
+static int mtx_test_counter(void) {
+  counter_value = 0;
 
-  for (int i = 0; i < T; i++) {
+  for (int i = 0; i < COUNTER_T; i++) {
     char name[20];
     snprintf(name, sizeof(name), "td%d", i);
-    td[i] = thread_create(name, mtx_test_main, NULL);
+    counter_td[i] = thread_create(name, counter_routine, NULL);
   }
 
-  for (int i = 0; i < T; i++)
-    sched_add(td[i]);
-  for (int i = 0; i < T; i++)
-    thread_join(td[i]);
+  for (int i = 0; i < COUNTER_T; i++)
+    sched_add(counter_td[i]);
+  for (int i = 0; i < COUNTER_T; i++)
+    thread_join(counter_td[i]);
 
-  assert(value == N * T);
+  assert(counter_value == COUNTER_N * COUNTER_T);
 
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(mutex, mtx_test, 0);
+KTEST_ADD(mutex, mtx_test_counter, 0);
