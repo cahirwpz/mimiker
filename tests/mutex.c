@@ -15,7 +15,7 @@ static thread_t *counter_td[COUNTER_T];
 static void counter_routine(void *arg) {
   for (size_t i = 0; i < COUNTER_N; i++) {
     mtx_lock(&counter_mtx);
-    int v = counter_value;
+    int32_t v = counter_value;
     thread_yield();
     counter_value = v + 1;
     mtx_unlock(&counter_mtx);
