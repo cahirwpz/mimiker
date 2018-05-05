@@ -18,22 +18,6 @@ int main(int argc, char **argv, char **envp) {
   } else
     printf("Argument list argv is NULL\n");
 
-  /* Commented out for future use (enviroments currently unsupported) */
-  /* if (envp != NULL) { */
-
-  /*   i = 0; */
-  /*   while (envp[i] != NULL) i++; */
-  /*   printf("Environment count is %d\n", i); */
-
-  /*   i = 0; */
-  /*   while (envp[i] != NULL) { */
-  /*     printf("Argument No. %d is: %s\n", i, argv[i]); */
-  /*     i++; */
-  /*   } */
-
-  /* } else */
-  /*   printf("Environment envp is NULL\n"); */
-
   printf("Success!.\n");
 
   return 0;

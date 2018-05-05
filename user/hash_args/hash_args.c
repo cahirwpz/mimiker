@@ -4,7 +4,6 @@
 #include <assert.h>
 #include <sys/hash.h>
 
-
 /* Returns a hash value of its arguments.*/
 int main(int argc, char **argv) {
 

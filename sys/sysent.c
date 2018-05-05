@@ -364,55 +364,43 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   const char *user_path = (const char *)args->args[0];
   const char **user_argv = (const char **)args->args[1];
 
-  /* Unused as environments are not yet implemented */
-  /* const char **user_envp = (const char**)args->args[2]; */
   if ((user_path == NULL) || (user_argv == NULL))
-  {
-    klog("%d", -E2BIG);
     return -EFAULT;
-  }
 
-  /* Checking argument count */
   size_t argc = 0;
   while ((argc < ARG_MAX) && (user_argv[argc] != NULL))
     argc++;
 
   if (argc == ARG_MAX)
-  {
-    klog("%d", -E2BIG);
     return -E2BIG;
-  }
 
   if (argc == 0)
-  {
-    klog("%d", -EFAULT);
     return -EFAULT;
-  }
 
   /* Allocating everything at once */
   /* It allows us to simplify resource deallocation on failure */
   int result;
-  char * kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
-  char ** kern_argv = kmalloc(M_TEMP, (argc + 1) * sizeof(char *), 0);
-  char * data = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0);
+  char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
+  char **kern_argv = kmalloc(M_TEMP, (argc + 1) * sizeof(char *), 0);
+  char *data = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0);
 
-  /* Copyout pathname */
+  /* Copyin pathname */
   /* Assuming PATH_MAX means max size of path including the filename. */
   /* Assuming kmalloc always succeeds. */
   result = copyinstr(user_path, kern_path, PATH_MAX, 0);
   if (result < 0)
     goto end;
 
-  /* Copyout argument values */
+  /* Copyin argument values */
   /* Copying out all arguments to one buffer (data) */
   /* with fields in kern_argv pointing to each argument */
   size_t data_off = 0;
-  size_t i = 0;
   size_t isize;
   kern_argv[argc] = NULL;
 
-  while ((data_off < ARG_MAX) && (i < argc)) {
-    result = copyinstr(user_argv[i], data + data_off, ARG_MAX - data_off, &isize);
+  for (size_t i = 0; i < argc; i++) {
+    result =
+      copyinstr(user_argv[i], data + data_off, ARG_MAX - data_off, &isize);
 
     if (result < 0) {
       result = (result == -ENAMETOOLONG) ? -E2BIG : result;
@@ -421,7 +409,11 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
 
     kern_argv[i] = data + data_off;
     data_off += isize;
-    i++;
+
+    if (data_off >= ARG_MAX) {
+      result = -E2BIG;
+      goto end;
+    }
   }
 
   /*WARNING: exec_args_t.argv type is probably incorrect. It is const char**,
