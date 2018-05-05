@@ -30,18 +30,7 @@ LEAF(ctx_switch)
 ctx_save:
         # save @from context
         SAVE_REG(t0, SR, t1)
-        SAVE_REG(ra, PC, t1)
-        SAVE_REG(fp, FP, t1)
-        SAVE_REG(sp, SP, t1)
-        SAVE_REG(gp, GP, t1)
-        SAVE_REG(s0, S0, t1)
-        SAVE_REG(s1, S1, t1)
-        SAVE_REG(s2, S2, t1)
-        SAVE_REG(s3, S3, t1)
-        SAVE_REG(s4, S4, t1)
-        SAVE_REG(s5, S5, t1)
-        SAVE_REG(s6, S6, t1)
-        SAVE_REG(s7, S7, t1)
+        SAVE_CTX(t1)
 
         # release @from thread spin lock
         addu    a0, a0, TD_SPIN
@@ -75,18 +64,7 @@ ctx_resume:
 
         # restore @to thread context
         addu    a1, s0, TD_KCTX
-        LOAD_REG(ra, PC, a1)
-        LOAD_REG(fp, FP, a1)
-        LOAD_REG(sp, SP, a1)
-        LOAD_REG(gp, GP, a1)
-        LOAD_REG(s0, S0, a1)
-        LOAD_REG(s1, S1, a1)
-        LOAD_REG(s2, S2, a1)
-        LOAD_REG(s3, S3, a1)
-        LOAD_REG(s4, S4, a1)
-        LOAD_REG(s5, S5, a1)
-        LOAD_REG(s6, S6, a1)
-        LOAD_REG(s7, S7, a1)
+        LOAD_CTX(a1)
 
         LOAD_REG(t0, SR, a1)            # restore C0_SR except interrupt mask
         and     t0, t0, ~SR_IMASK

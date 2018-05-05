@@ -11,6 +11,34 @@
 
 #define LOAD_REG(reg, offset, base) lw reg, (CTX_##offset)(base)
 
+#define SAVE_CTX(reg)                                                          \
+  SAVE_REG(ra, PC, reg);                                                       \
+  SAVE_REG(fp, FP, reg);                                                       \
+  SAVE_REG(sp, SP, reg);                                                       \
+  SAVE_REG(gp, GP, reg);                                                       \
+  SAVE_REG(s0, S0, reg);                                                       \
+  SAVE_REG(s1, S1, reg);                                                       \
+  SAVE_REG(s2, S2, reg);                                                       \
+  SAVE_REG(s3, S3, reg);                                                       \
+  SAVE_REG(s4, S4, reg);                                                       \
+  SAVE_REG(s5, S5, reg);                                                       \
+  SAVE_REG(s6, S6, reg);                                                       \
+  SAVE_REG(s7, S7, reg)
+
+#define LOAD_CTX(reg)                                                          \
+  LOAD_REG(ra, PC, reg);                                                       \
+  LOAD_REG(fp, FP, reg);                                                       \
+  LOAD_REG(sp, SP, reg);                                                       \
+  LOAD_REG(gp, GP, reg);                                                       \
+  LOAD_REG(s0, S0, reg);                                                       \
+  LOAD_REG(s1, S1, reg);                                                       \
+  LOAD_REG(s2, S2, reg);                                                       \
+  LOAD_REG(s3, S3, reg);                                                       \
+  LOAD_REG(s4, S4, reg);                                                       \
+  LOAD_REG(s5, S5, reg);                                                       \
+  LOAD_REG(s6, S6, reg);                                                       \
+  LOAD_REG(s7, S7, reg)
+
 #else /* !__ASSEMBLER__ */
 
 typedef struct ctx {
