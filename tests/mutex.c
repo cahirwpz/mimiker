@@ -41,4 +41,45 @@ static int mtx_test_counter(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(mutex, mtx_test_counter, 0);
+static mtx_t simple_mtx = MTX_INITIALIZER(MTX_DEF);
+static thread_t *simple_td0;
+static int simple_status = 0;
+
+static void simple_routine(void *arg) {
+  WITH_NO_PREEMPTION {
+    simple_status = 1;
+    mtx_lock(&simple_mtx);
+  }
+  WITH_NO_PREEMPTION {
+    simple_status = 2;
+    mtx_unlock(&simple_mtx);
+  }
+  simple_status = 3;
+}
+
+static int mtx_test_simple(void) {
+  simple_td0 = thread_create("td0", simple_routine, NULL);
+
+  mtx_lock(&simple_mtx);
+
+  sched_add(simple_td0);
+
+  while (simple_status != 1) {
+    thread_yield();
+  }
+
+  assert(simple_status == 1);
+  mtx_unlock(&simple_mtx);
+
+  thread_join(simple_td0);
+  assert(simple_status == 3);
+  // NOTE This assert is implementation-specific
+  // Some changes might make it invalid
+  // We could assert =!mtx_owned(...)= but that would be less restrictive
+  assert(simple_mtx.m_owner == NULL);
+
+  return KTEST_SUCCESS;
+}
+
+KTEST_ADD(mutex_counter, mtx_test_counter, 0);
+KTEST_ADD(mutex_simle, mtx_test_simple, 0);
