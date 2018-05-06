@@ -45,7 +45,7 @@ static mtx_t simple_mtx = MTX_INITIALIZER(MTX_DEF);
 static thread_t *simple_td0;
 /* `simple_status` equals 2 for a moment but we don't check it during that time
  * (or rather a check shouldn't happen during that time) */
-static volatile int simple_status = 0;
+static volatile int simple_status;
 
 static void simple_routine(void *arg) {
   WITH_NO_PREEMPTION {
@@ -61,6 +61,7 @@ static void simple_routine(void *arg) {
 
 static int mtx_test_simple(void) {
   simple_td0 = thread_create("td0", simple_routine, NULL);
+  simple_status = 0;
 
   mtx_lock(&simple_mtx);
 
