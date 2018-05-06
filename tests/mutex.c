@@ -43,7 +43,7 @@ static int mtx_test_counter(void) {
 
 static mtx_t simple_mtx = MTX_INITIALIZER(MTX_DEF);
 static thread_t *simple_td0;
-static int simple_status = 0;
+static volatile int simple_status = 0;
 
 static void simple_routine(void *arg) {
   WITH_NO_PREEMPTION {
