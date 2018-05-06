@@ -43,6 +43,8 @@ static int mtx_test_counter(void) {
 
 static mtx_t simple_mtx = MTX_INITIALIZER(MTX_DEF);
 static thread_t *simple_td0;
+/* `simple_status` equals 2 for a moment but we don't check it during that time
+ * (or rather a check shouldn't happen during that time) */
 static volatile int simple_status = 0;
 
 static void simple_routine(void *arg) {
