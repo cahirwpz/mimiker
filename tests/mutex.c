@@ -82,4 +82,4 @@ static int mtx_test_simple(void) {
 }
 
 KTEST_ADD(mutex_counter, mtx_test_counter, 0);
-KTEST_ADD(mutex_simle, mtx_test_simple, 0);
+KTEST_ADD(mutex_simple, mtx_test_simple, 0);
