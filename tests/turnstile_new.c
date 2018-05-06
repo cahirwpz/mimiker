@@ -32,11 +32,7 @@ static volatile bool high_prio_mtx2_acquired;
     td->td_base_prio = prio;                                                   \
   }
 
-enum {
-  LOW = 0,
-  MED = RQ_PPQ,
-  HIGH = 2 * RQ_PPQ
-};
+enum { LOW = 0, MED = RQ_PPQ, HIGH = 2 * RQ_PPQ };
 
 static void high_prio_task(void *arg) {
   WITH_MTX_LOCK (mtx2) {
