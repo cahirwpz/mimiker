@@ -20,6 +20,7 @@ SOURCES_C = \
 	thread_stats.c \
 	thread_exit.c \
 	turnstile.c \
+	turnstile_new.c \
 	uiomove.c \
 	utest.c \
 	vm_map.c \
