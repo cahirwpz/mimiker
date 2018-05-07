@@ -127,3 +127,4 @@ ASSYM(EXC_FRAME_SIZ, sizeof(cpu_exc_frame_t) + CALLFRAME_SIZ);
 ASSYM(P_USPACE, offsetof(proc_t, p_uspace));
 
 ASSYM(PCPU_CURTHREAD, offsetof(pcpu_t, curthread));
+ASSYM(PCPU_KSP, offsetof(pcpu_t, ksp));

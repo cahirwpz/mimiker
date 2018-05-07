@@ -16,61 +16,67 @@
 # void ctx_switch(thread_t *from, thread_t *to)
 #
 LEAF(ctx_switch)
-        # enter exception level (prevents interrupts from being enabled)
-        mfc0    t0, C0_SR               # $t0 = C0_SR
-        ori     t1, t0, SR_EXL
-        mtc0    t1, C0_SR
+        # disable interrupts saving SR to t0
+        di      t0
 
         # don't save context of @from thread if user did not provide one
         bnez    a0, ctx_save
         addu    t1, a0, TD_KCTX         # (delay) load context pointer
         j       ctx_resume
-        move    s0, a1                  # (delay) save @to thread pointer
+        move    s1, a1                  # (delay) save @to thread pointer
 
 ctx_save:
-        # save @from context
+        # save context of @from thread
         SAVE_REG(t0, SR, t1)
         SAVE_CTX(t1)
 
+        move    s0, a0                  # save @from pointer
+
+        # disable interrupts so interlock on td_spin can be done safely
+        jal     intr_disable
+        move    s1, a1                  # (delay) save @to thread pointer
+
         # release @from thread spin lock
-        addu    a0, a0, TD_SPIN
         jal     spin_release
-        move    s0, a1                  # (delay) save @to thread pointer
+        addu    a0, s0, TD_SPIN         # (delay) 1st arg - @from spin lock
 
 ctx_resume:
-        # updated curthread pointer to reference @to thread
+        # update curthread pointer to reference @to thread
         LOAD_PCPU(t0)
-        sw      s0, PCPU_CURTHREAD(t0)
+        sw      s1, PCPU_CURTHREAD(t0)
 
         # check for TDF_NEEDLOCK flag
-        lw      t0, TD_FLAGS(s0)
+        lw      t0, TD_FLAGS(s1)
         andi    t0, TDF_NEEDLOCK
         beqz    t0, 1f
         nop
 
         # acquire @to thread spin lock
-        addu    a0, s0, TD_SPIN
-        la      a1, ctx_save
+        la      a1, ctx_resume          # 2nd arg - waiting point
         jal     _spin_acquire
+        addu    a0, s1, TD_SPIN         # (delay) 1st arg - @to spin lock
+
+        # Enable interrupts finishing safe interlock on td_spin.
+        jal     intr_enable
         nop
 
         # switch user space if necessary
-1:      lw      a0, TD_PROC(s0)
-        beqz    a0, 1f                  # switching to kernel thread ?
+1:      lw      a0, TD_PROC(s1)
+        beqz    a0, 2f                  # switching to kernel thread ?
         nop
         lw      a0, P_USPACE(a0)
-1:      jal     vm_map_activate
+2:      jal     vm_map_activate
         nop
 
         # restore @to thread context
-        addu    a1, s0, TD_KCTX
-        LOAD_CTX(a1)
+        addu    t1, s1, TD_KCTX
+        LOAD_CTX(t1)
 
-        LOAD_REG(t0, SR, a1)            # restore C0_SR except interrupt mask
-        and     t0, t0, ~SR_IMASK
+        # restore status register with updated interrupt mask
+        LOAD_REG(t0, SR, t1)
         mfc0    t1, C0_SR
-        and     t1, t1, SR_IMASK
-        or      t0, t0, t1
+        ext     t1, SR_IMASK_SHIFT, SR_IMASK_BITS
+        ins     t0, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
         mtc0    t0, C0_SR
 
         jr.hb   ra

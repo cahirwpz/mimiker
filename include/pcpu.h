@@ -11,6 +11,7 @@ typedef struct pcpu {
   thread_t *idle_thread; /*!< idle thread executed on this CPU */
   pmap_t *curpmap;       /*!< current page table */
   vm_map_t *uspace;      /*!< user space virtual memory map */
+  void *ksp;             /*!< (MIPS) sp restored on user->kernel transition */
 } pcpu_t;
 
 extern pcpu_t _pcpu_data[1];

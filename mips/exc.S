@@ -18,16 +18,20 @@
         .local skip_fpu_restore
 
 # [$k0] must be set to value of C0_STATUS
+# [$k1] exception handler routine address
 exc_enter:
         andi    k0, SR_KSU_MASK         # Did exception occur in kernel mode?
         beqz    k0, kern_exc_enter
         nop
 
+# IMPORTANT: While exception level is active the code may only access kernel
+# stack and local pcpu structure! These are guaranteed to be wired in TLB.
+# It is UNSAFE to use k0/k1 registers when TLB miss handler may be triggered!
+
 user_exc_enter:
-        # Fetch the context from thread control block.
+        # Fetch exception frame pointer where context will be saved.
         LOAD_PCPU(k0)
-        lw      k0, PCPU_CURTHREAD(k0)
-        lw      k0, TD_UFRAME(k0)
+        lw      k0, PCPU_KSP(k0)
 
         SAVE_CPU_CTX(k0)
 
@@ -43,20 +47,11 @@ skip_fpu_save:
         # Set kernel stack pointer just after saved user context.
         move    sp, k0
 
-        # Fetch thread control block to s0 for later use.
-        LOAD_PCPU(k0)
-        lw      s0, PCPU_CURTHREAD(k0)
-
-        # No exeception frame so set td_kframe to NULL.
-        sw      $0, TD_KFRAME(s0)
+        # Register k1 is going to become unsafe soon - move it to s1.
+        move    s1, k1
 
         # Load kernel global pointer.
         la      gp, _gp
-
-        # Increment interrupt nest level.
-        lw      t0, TD_IDNEST(s0)
-        addi    t0, 1
-        sw      t0, TD_IDNEST(s0)
 
         # Turn off FPU, enter kernel mode,
         # drop exception level and disable interrupts.
@@ -65,9 +60,21 @@ skip_fpu_save:
         and     t0, t1
         mtc0    t0, C0_STATUS
 
+        # Fetch thread control block pointer to s0 for later use.
+        LOAD_PCPU(s0)
+        lw      s0, PCPU_CURTHREAD(s0)
+
+        # No exeception frame so set td_kframe to NULL.
+        sw      $0, TD_KFRAME(s0)
+
+        # Increment interrupt nest level.
+        lw      t0, TD_IDNEST(s0)
+        addi    t0, 1
+        sw      t0, TD_IDNEST(s0)
+
         # Call C interrupt handler routine.
         move    a0, sp
-        jalr    k1
+        jalr    s1
         nop
 
         # Decrement interrupt nest level.
@@ -76,33 +83,38 @@ skip_fpu_save:
         sw      t0, TD_IDNEST(s0)
 
 user_exc_leave:
-        # Disable interrupts saving current SR into t1.
+        # Disable interrupts and extract interrupt mask into t1.
         di      t1
+        ext     t1, SR_IMASK_SHIFT, SR_IMASK_BITS
 
-        # Fetch the context from thread control block.
-        LOAD_PCPU(k1)
-        lw      k1, PCPU_CURTHREAD(k1)
-        lw      k0, TD_UFRAME(k1)
+        # Set current stack pointer to user exception frame.
+        # This is crucial on first entry to user-space for this thread.
+        LOAD_PCPU(t0)
+        lw      t1, PCPU_CURTHREAD(t0)
+        lw      sp, TD_UFRAME(t1)
+        
+        # Update kernel stack pointer to be used on kernel reentry.
+        sw      sp, PCPU_KSP(t0)
 
-        # Update status register held in user context.
-        LOAD_REG(t0, SR, k0)
-        # Enter exception level, enter user mode and enable interrupts
-        # (last two applies only after ERET).
-        ori     t0, (SR_KSU_USER|SR_EXL|SR_IE)
-        # Update user-mode interrupts mask based on current one.
-        ext     t1, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
+        # Update status register held in exception frame (only interrupt mask).
+        LOAD_REG(t0, SR, sp)
         ins     t0, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
+        SAVE_REG(t0, SR, sp)
+
+        # Enter exception level with user-mode settings.
+        ori     t0, SR_EXL
         mtc0    t0, C0_STATUS
-        SAVE_REG(t0, SR, k0)
 
         # If FPU has been enabled, then restore FPU registers.
         ext     t1, t0, SR_CU1_SHIFT, 1
         beqz    t1, skip_fpu_restore
         nop
 
-        LOAD_FPU_CTX(k0)
+        LOAD_FPU_CTX(sp)
 
 skip_fpu_restore:
+        # Load context from exception frame on stack, sp will get overwritten.
+        move    k0, sp
         LOAD_CPU_CTX(k0)
 
         # This label is useful for debugging.
@@ -118,17 +130,23 @@ kern_exc_enter:
         # Set kernel stack pointer just after saved kernel context.
         move    sp, k0
 
-        # Drop exception level and disable interrupts.
-        li      t1, ~(SR_EXL|SR_IE)
-        and     t0, t1
-        mtc0    t0, C0_STATUS
+        # Register k1 is going to become unsafe soon - move it to s1.
+        move    s1, k1
 
         # Load kernel global pointer.
         la      gp, _gp
 
-        # Save stack frame pointer into td_kframe.
+        # Drop exception level and disable interrupts.
+        mfc0    t0, C0_STATUS
+        li      t1, ~(SR_EXL|SR_IE)
+        and     t0, t1
+        mtc0    t0, C0_STATUS
+
+        # Fetch thread control block pointer to s0 for later use.
         LOAD_PCPU(t0)
-        lw      s0, PCPU_CURTHREAD(t0)          # [s0] curthread
+        lw      s0, PCPU_CURTHREAD(t0)
+
+        # Save exception frame pointer into td_kframe.
         sw      sp, TD_KFRAME(s0)
 
         # Increment interrupt nest level.
@@ -138,7 +156,7 @@ kern_exc_enter:
 
         # Call C interrupt handler routine.
         move    a0, sp
-        jalr    k1
+        jalr    s1
         nop
 
         # Decrement interrupt nest level.
@@ -147,27 +165,22 @@ kern_exc_enter:
         sw      t0, TD_IDNEST(s0)
 
 kern_exc_leave:
-        # Enter exception level (disable interrupts till ERET).
-        mfc0    t0, C0_STATUS
+        # Disable interrupts and extract interrupt mask into t1.
+        di      t1
+        ext     t1, SR_IMASK_SHIFT, SR_IMASK_BITS
+
+        # Load status register from exception frame and update it with current
+        # interrupt mask.
+        LOAD_REG(t0, SR, sp)
+        ins     t0, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
+
+        # Enter exception level with kernel-mode settings.
         ori     t0, SR_EXL
         mtc0    t0, C0_STATUS
 
-        # Update status register held in exception frame (only interrupt mask).
-        LOAD_REG(t0, SR, sp)
-        li      t1, ~SR_IMASK
-        and     t0, t1
-        mfc0    t1, C0_STATUS
-        andi    t1, SR_IMASK
-        or      t0, t1
-        SAVE_REG(t0, SR, sp)
-
-        # Load context from exception frame on stack, sp will get overwritten,
+        # Load context from exception frame on stack, sp will get overwritten.
         move    k0, sp
         LOAD_CPU_CTX(k0)
-
-        # ... and finally status register (assume EXL bit is set)
-        LOAD_REG(k1, SR, k0)
-        mtc0    k1, C0_STATUS
 
         sync
         eret
