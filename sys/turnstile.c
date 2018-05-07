@@ -161,9 +161,10 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
 
   turnstile_t *ts = td->td_blocked;
   assert(ts != NULL);
-  // spin_acquire(&ts->ts_lock); TODO? and release
 
-  turnstile_adjust_thread(ts, td);
+  WITH_SPINLOCK(ts->ts_lock) {
+    turnstile_adjust_thread(ts, td);
+  }
 
   /* If td got higher priority and it is at the head of ts_blocked,
    * propagate its priority. */
