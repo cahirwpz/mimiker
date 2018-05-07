@@ -5,11 +5,12 @@ typedef struct thread thread_t;
 typedef struct pmap pmap_t;
 typedef struct vm_map vm_map_t;
 
+/*! \brief Private per-cpu structure. */
 typedef struct pcpu {
-  thread_t *curthread;
-  thread_t *idle_thread;
-  pmap_t *curpmap;
-  vm_map_t *uspace;
+  thread_t *curthread;   /*!< thread running on this CPU */
+  thread_t *idle_thread; /*!< idle thread executed on this CPU */
+  pmap_t *curpmap;       /*!< current page table */
+  vm_map_t *uspace;      /*!< user space virtual memory map */
 } pcpu_t;
 
 extern pcpu_t _pcpu_data[1];

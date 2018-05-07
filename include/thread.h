@@ -10,7 +10,9 @@
 #include <condvar.h>
 #include <time.h>
 #include <signal.h>
+#include <stack.h>
 #include <spinlock.h>
+#include <mips/ctx.h> /* TODO leaks ctx_t structure because of td_kctx */
 
 /*! \file thread.h */
 
@@ -18,6 +20,7 @@ typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
 typedef struct fdtab fdtab_t;
 typedef struct proc proc_t;
+typedef void (*entry_fn_t)(void *);
 
 #define TD_NAME_MAX 32
 
@@ -111,6 +114,15 @@ typedef struct thread {
 thread_t *thread_self(void);
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
 void thread_delete(thread_t *td);
+
+/*! \brief Prepares thread to be launched.
+ *
+ * Initializes thread context so it can be resumed in such a way,
+ * as if @target function was called with @arg argument.
+ *
+ * Such thread can be resumed either by switch or return from exception.
+ */
+void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg);
 
 /*! \brief Exit from a thread.
  *
