@@ -162,7 +162,7 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
   turnstile_t *ts = td->td_blocked;
   assert(ts != NULL);
 
-  WITH_SPINLOCK(ts->ts_lock) {
+  WITH_SPINLOCK(&ts->ts_lock) {
     turnstile_adjust_thread(ts, td);
   }
 
