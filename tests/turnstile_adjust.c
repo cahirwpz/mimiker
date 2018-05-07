@@ -7,8 +7,7 @@
 typedef TAILQ_HEAD(threadqueue, thread) threadqueue_t;
 
 #define T 5
-static prio_t first_priorities[T] = {8, 1, 3, 0, 8};
-static prio_t second_priorities[T] = { 5, 3, 1, 6, 7};
+static prio_t new_priorities[T] = {3, 1, 2, 0, 1};
 
 static mtx_t ts_adj_mtx = MTX_INITIALIZER(MTX_DEF);
 static volatile int stopped;
@@ -55,6 +54,11 @@ static int turnstileq_sorted(thread_t *td)
 }
 
 static int test_turnstile_adjust(void) {
+
+  // all the first priorities must be from one runqueue
+  for (int i=0; i < T; i++) {
+    assert(new_priorities[i] < RQ_PPQ);
+  }
   
   for (int i = 0; i < T; i++) {
     char name[20];
@@ -65,24 +69,18 @@ static int test_turnstile_adjust(void) {
   mtx_lock(&ts_adj_mtx);
 
   for (int i = 0; i < T; i++) {
+    stopped = 0;
     sched_add(threads[i]);
+    while(stopped != 1)
+      thread_yield();
   }
 
-  // TODO wait until all the threads stop on mutex
+  // now all the threads should be blocked on the mutex
 
   // TODO could make these random instead
   for (int i = 0; i < T; i++) {
     WITH_SPINLOCK(threads[i]->td_spin) {
-      sched_set_prio(threads[i], first_priorities[i]);
-    }
-    
-    assert(turnstileq_sorted(threads[i]));
-  }
-         
-  // TODO could make these random instead
-  for (int i = 0; i < T; i++) {
-    WITH_SPINLOCK(threads[i]->td_spin) {
-      sched_set_prio(threads[i], second_priorities[i]);
+      sched_set_prio(threads[i], new_priorities[i]);
     }
     
     assert(turnstileq_sorted(threads[i]));
