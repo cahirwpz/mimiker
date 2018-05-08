@@ -89,12 +89,12 @@ user_exc_leave:
 
         # Set current stack pointer to user exception frame.
         # This is crucial on first entry to user-space for this thread.
-        LOAD_PCPU(t0)
-        lw      t1, PCPU_CURTHREAD(t0)
-        lw      sp, TD_UFRAME(t1)
+        LOAD_PCPU(s0)
+        lw      t0, PCPU_CURTHREAD(s0)
+        lw      sp, TD_UFRAME(t0)
         
         # Update kernel stack pointer to be used on kernel reentry.
-        sw      sp, PCPU_KSP(t0)
+        sw      sp, PCPU_KSP(s0)
 
         # Update status register held in exception frame (only interrupt mask).
         LOAD_REG(t0, SR, sp)
