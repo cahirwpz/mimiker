@@ -32,4 +32,8 @@ int test_access_basic(void);
 int test_stat(void);
 int test_fstat(void);
 
+int test_exc_cop_unusable(void);
+int test_exc_reserved_instruction(void);
+int test_syscall_in_bds(void);
+
 #endif /* __UTEST_H__ */

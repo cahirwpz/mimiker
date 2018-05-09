@@ -4,6 +4,7 @@ UELF_NAME = utest
 
 SOURCES_C = \
 	access.c \
+	exceptions.c \
 	fd.c \
 	fork.c \
 	lseek.c \

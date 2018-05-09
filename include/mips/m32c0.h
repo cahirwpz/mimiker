@@ -163,6 +163,7 @@
 #define  SR_IPL_BITS		 6
 #define SR_IMASK	0x0000ff00
 #define SR_IMASK_SHIFT 8
+#define SR_IMASK_BITS 8
 
 /* interrupt mask bits */
 #define SR_HINT5	0x00008000	/* enable h/w interrupt 6 */
