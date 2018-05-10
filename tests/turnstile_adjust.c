@@ -14,18 +14,17 @@ static mtx_t ts_adj_mtx = MTX_INITIALIZER(MTX_DEF);
 static volatile int stopped;
 static thread_t *threads[T];
 
-static void routine(void* _arg) {
-  WITH_NO_PREEMPTION{
+static void routine(void *_arg) {
+  WITH_NO_PREEMPTION {
     stopped = 1;
     mtx_lock(&ts_adj_mtx);
   }
-  
+
   mtx_unlock(&ts_adj_mtx);
 }
 
-static int turnstileq_sorted_forw(thread_t *td)
-{
-  if(td == NULL)
+static int turnstileq_sorted_forw(thread_t *td) {
+  if (td == NULL)
     return 1;
   else {
     thread_t *next = TAILQ_NEXT(td, td_turnstileq);
@@ -36,9 +35,8 @@ static int turnstileq_sorted_forw(thread_t *td)
   }
 }
 
-static int turnstileq_sorted_back(thread_t *td)
-{
-  if(td == NULL)
+static int turnstileq_sorted_back(thread_t *td) {
+  if (td == NULL)
     return 1;
   else {
     thread_t *prev = TAILQ_PREV(td, threadqueue, td_turnstileq);
@@ -49,16 +47,15 @@ static int turnstileq_sorted_back(thread_t *td)
   }
 }
 
-static int turnstileq_sorted(thread_t *td)
-{
+static int turnstileq_sorted(thread_t *td) {
   return turnstileq_sorted_back(td) && turnstileq_sorted_forw(td);
 }
 
 static int test_turnstile_adjust(void) {
-  for (int i=0; i < T; i++) {
+  for (int i = 0; i < T; i++) {
     assert(new_priorities[i] < RQ_PPQ);
   }
-  
+
   for (int i = 0; i < T; i++) {
     char name[20];
     snprintf(name, sizeof(name), "td%d", i);
@@ -70,7 +67,7 @@ static int test_turnstile_adjust(void) {
   for (int i = 0; i < T; i++) {
     stopped = 0;
     sched_add(threads[i]);
-    while(stopped != 1)
+    while (stopped != 1)
       thread_yield();
   }
 
@@ -81,12 +78,12 @@ static int test_turnstile_adjust(void) {
     WITH_SPINLOCK(threads[i]->td_spin) {
       sched_set_prio(threads[i], new_priorities[i]);
     }
-    
+
     assert(turnstileq_sorted(threads[i]));
   }
 
   mtx_unlock(&ts_adj_mtx);
-  
+
   for (int i = 0; i < T; i++)
     thread_join(threads[i]);
 
