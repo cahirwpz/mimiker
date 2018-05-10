@@ -1,4 +1,4 @@
-#define KL_LOG KL_PIPE
+#define KL_LOG KL_FILE
 #include <file.h>
 #include <klog.h>
 #include <mutex.h>
