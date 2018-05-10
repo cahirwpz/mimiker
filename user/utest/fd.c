@@ -11,7 +11,8 @@ static const char *str = "Hello world from a user program!\n";
 static char buf[100];
 static int n;
 
-#define FD_OFFSET 3 /* The number of standard fds */
+/* Shift used fds by 3 so std{in,out,err} are not affected. */
+#define FD_OFFSET 3
 #include "utest_fd.h"
 
 /* Just the basic, correct operations on a single /dev/null */
