@@ -1,14 +1,16 @@
 #define KL_LOG KL_FILE
 #include <klog.h>
-#include <file.h>
 #include <mutex.h>
+#include <condvar.h>
 #include <malloc.h>
 #include <pool.h>
 #include <errno.h>
 #include <pipe.h>
 #include <stdc.h>
 #include <stat.h>
+#include <file.h>
 #include <filedesc.h>
+#include <thread.h>
 #include <proc.h>
 #include <ringbuf.h>
 #include <sysinit.h>
