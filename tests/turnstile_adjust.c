@@ -7,7 +7,7 @@
 typedef TAILQ_HEAD(threadqueue, thread) threadqueue_t;
 
 #define T 5
-// all the priorities must be from one runqueue
+/* All the priorities must be from one runqueue. */
 static prio_t new_priorities[T] = {3, 1, 2, 0, 1};
 
 static mtx_t ts_adj_mtx = MTX_INITIALIZER(MTX_DEF);
@@ -52,9 +52,8 @@ static int turnstileq_sorted(thread_t *td) {
 }
 
 static int test_turnstile_adjust(void) {
-  for (int i = 0; i < T; i++) {
+  for (int i = 0; i < T; i++)
     assert(new_priorities[i] < RQ_PPQ);
-  }
 
   for (int i = 0; i < T; i++) {
     char name[20];
@@ -71,9 +70,9 @@ static int test_turnstile_adjust(void) {
       thread_yield();
   }
 
-  // now all the threads should be blocked on the mutex
+  /* Now all the threads should be blocked on the mutex. */
 
-  // TODO could make these random instead
+  /* TODO Could make these priorities random instead. */
   for (int i = 0; i < T; i++) {
     WITH_SPINLOCK(threads[i]->td_spin) {
       sched_set_prio(threads[i], new_priorities[i]);
