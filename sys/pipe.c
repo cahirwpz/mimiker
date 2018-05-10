@@ -178,7 +178,7 @@ static int pipe_close(file_t *f, thread_t *td) {
   assert(td->td_proc);
   pipe_t *pipe = f->f_data;
 
-  WITH_MTX_LOCK(&pipe->pipe_mtx) {
+  WITH_MTX_LOCK (&pipe->pipe_mtx) {
     pipe->pipe_state |= PIPE_EOF;
     if (pipe->pipe_type == PIPE_WRITE_END) {
       pipe->pipe_end->pipe_state |= PIPE_EOF;
@@ -232,6 +232,7 @@ static pipe_t *make_pipe(file_t *file, pipetype_t type) {
   file->f_data = pipe;
   file->f_ops = &pipeops;
   file->f_type = FT_PIPE;
+  file->f_flags = PIPE_READ_END ? FF_READ : FF_WRITE;
 
   return pipe;
 }

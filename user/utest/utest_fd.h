@@ -1,5 +1,3 @@
-#pragma once
-
 #ifndef FD_OFFSET
 #define FD_OFFSET 0
 #endif
