@@ -3,7 +3,7 @@
 
 #include <vm.h>
 #include <queue.h>
-#include <context.h>
+#include <exception.h>
 
 typedef uint8_t asid_t;
 typedef uint32_t pte_t;

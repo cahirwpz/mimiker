@@ -11,7 +11,7 @@
 #include <filedesc.h>
 #include <sbrk.h>
 #include <vfs.h>
-#include <mips/stack.h>
+#include <stack.h>
 #include <mount.h>
 #include <vnode.h>
 #include <proc.h>
@@ -237,10 +237,11 @@ int do_exec(const exec_args_t *args) {
 
   /* Prepare program stack, which includes storing program args. */
   klog("Stack real bottom at %p", (void *)stack_bottom);
-  prepare_program_stack(args, &stack_bottom);
+  stack_user_entry_setup(args, &stack_bottom);
 
   /* Set up user context. */
-  uctx_init(thread_self(), eh.e_entry, stack_bottom);
+  exc_frame_init(td->td_uframe, (void *)eh.e_entry, (void *)stack_bottom,
+                 EF_USER);
 
   /* At this point we are certain that exec succeeds.  We can safely destroy the
    * previous vm map, and permanently assign this one to the current process. */

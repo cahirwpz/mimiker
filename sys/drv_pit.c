@@ -18,22 +18,12 @@ typedef struct pit_state {
 #define inb(addr) bus_space_read_1(pit->regs, IO_TIMER1 + (addr))
 #define outb(addr, val) bus_space_write_1(pit->regs, IO_TIMER1 + (addr), (val))
 
-static void pit_set_frequency(pit_state_t *pit, unsigned freq) {
+static void pit_set_frequency(pit_state_t *pit, uint16_t period) {
   assert(spin_owned(&pit->lock));
-
-  uint16_t period = TIMER_DIV(freq);
 
   outb(TIMER_MODE, TIMER_SEL0 | TIMER_16BIT | TIMER_RATEGEN);
   outb(TIMER_CNTR0, period & 0xff);
   outb(TIMER_CNTR0, period >> 8);
-}
-
-static void pit_set_counter(pit_state_t *pit, uint64_t value) {
-  assert(spin_owned(&pit->lock));
-
-  outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
-  outb(TIMER_CNTR0, value & 0xff);
-  outb(TIMER_CNTR0, value >> 8);
 }
 
 static intr_filter_t pit_intr(void *data) {
@@ -56,7 +46,6 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t value) {
   bintime_t period = bintime_mul(value, TIMER_FREQ);
   WITH_SPINLOCK(&pit->lock) {
     pit_set_frequency(pit, period.sec);
-    pit_set_counter(pit, 0);
   }
   bus_intr_setup(dev, 0, &pit->intr_handler);
   return 0;

@@ -1,6 +1,7 @@
 #define KL_LOG KL_INTR
 #include <klog.h>
 #include <errno.h>
+#include <exception.h>
 #include <interrupt.h>
 #include <mips/exc.h>
 #include <mips/intr.h>
@@ -182,7 +183,8 @@ static void cp_unusable_handler(exc_frame_t *frame) {
     panic("FPU unusable exception in kernel mode.");
   }
 
-  thread_self()->td_flags |= TDF_USESFPU;
+  /* Enable FPU for interrupted context. */
+  frame->sr |= SR_CU1;
 }
 
 /*
