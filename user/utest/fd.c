@@ -64,6 +64,10 @@ char buf[100];
   n = lseek(fd + FD_OFFSET, offset, whence);                                   \
   assert(n >= 0);
 
+#define assert_pipe_ok(fds)                                                    \
+  n = pipe(fds);                                                               \
+  assert(n == 0);
+
 /* Just the basic, correct operations on a single /dev/null */
 int test_fd_devnull() {
   assert_open_ok(0, "/dev/null", 0, O_RDWR);
@@ -212,20 +216,27 @@ int test_fd_dup() {
 }
 
 int test_fd_pipe() {
-  int fd[2];
-  pid_t child;
-  pipe(fd);
+  const char *str = "\0Hello, World!";
+  int n;
 
-  if ((child = fork()) == -1)
-    return 1;
-  if (child != 0) {
-    close(fd[0]);
-    write(fd[1], "test\n", 6);
+  int fd[2];
+  assert_pipe_ok(fd);
+
+  pid_t pid = fork();
+  assert(pid >= 0);
+
+  if (pid > 0) {
+    /* child */
+    assert_close_ok(fd[0]);
+    assert_write_ok(fd[1], str, sizeof(str));
+    assert_close_ok(fd[1]);
   } else {
-    close(fd[1]);
-    char test[10];
-    read(fd[0], test, 10);
-    printf("%s\n", test);
+    /* parent */
+    assert_close_ok(fd[1]);
+    char buf[10];
+    assert_read_ok(fd[0], buf, sizeof(str));
+    assert(strcmp(buf, str) == 0);
+    assert_close_ok(fd[0]);
   }
 
   return 0;
