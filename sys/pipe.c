@@ -49,20 +49,6 @@ static void pipe_reset(pipe_t *pipe) {
   pipe->pipe_end = NULL;
 }
 
-static pipe_t *make_pipe(pipetype_t type) {
-  pipe_t *pipe = pool_alloc(P_PIPE, 0);
-  if (type == PIPE_READ_END) {
-    /* TODO: improve pooled allocator to contain page-sized elements */
-    pipe->pipe_buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
-    pipe->pipe_buf.size = PIPE_SIZE;
-  } else {
-    pipe->pipe_buf.data = NULL;
-    pipe->pipe_buf.size = 0;
-  }
-  pipe_reset(pipe);
-  return pipe;
-}
-
 static void pipe_ctor(pipe_t *pipe) {
   mtx_init(&pipe->pipe_mtx, MTX_DEF);
   cv_init(&pipe->pipe_read_cv, "pipe_read_cv");
@@ -192,16 +178,14 @@ static int pipe_close(file_t *f, thread_t *td) {
   assert(td->td_proc);
   pipe_t *pipe = f->f_data;
 
-  mtx_lock(&pipe->pipe_mtx);
-
-  pipe->pipe_state |= PIPE_EOF;
-  if (pipe->pipe_type == PIPE_WRITE_END) {
-    pipe->pipe_end->pipe_state |= PIPE_EOF;
-    cv_broadcast(&pipe->pipe_end->pipe_read_cv);
-    pipe->pipe_end = NULL;
+  WITH_MTX_LOCK(&pipe->pipe_mtx) {
+    pipe->pipe_state |= PIPE_EOF;
+    if (pipe->pipe_type == PIPE_WRITE_END) {
+      pipe->pipe_end->pipe_state |= PIPE_EOF;
+      cv_broadcast(&pipe->pipe_end->pipe_read_cv);
+      pipe->pipe_end = NULL;
+    }
   }
-
-  mtx_unlock(&pipe->pipe_mtx);
 
   pool_free(P_PIPE, pipe);
 
@@ -232,32 +216,52 @@ static fileops_t pipeops = {.fo_read = pipe_read,
                             .fo_seek = pipe_op_notsup,
                             .fo_stat = pipe_stat};
 
+static pipe_t *make_pipe(file_t *file, pipetype_t type) {
+  pipe_t *pipe = pool_alloc(P_PIPE, 0);
+
+  if (type == PIPE_READ_END) {
+    /* TODO: improve pooled allocator to contain page-sized elements */
+    pipe->pipe_buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
+    pipe->pipe_buf.size = PIPE_SIZE;
+  } else {
+    pipe->pipe_buf.data = NULL;
+    pipe->pipe_buf.size = 0;
+  }
+  pipe_reset(pipe);
+
+  file->f_data = pipe;
+  file->f_ops = &pipeops;
+  file->f_type = FT_PIPE;
+
+  return pipe;
+}
+
 /* pipe syscall */
 int do_pipe(thread_t *td, int fds[2]) {
   assert(td->td_proc);
 
-  pipe_t *rpipe = make_pipe(PIPE_READ_END);
-  pipe_t *wpipe = make_pipe(PIPE_WRITE_END);
-  wpipe->pipe_end = rpipe;
-  file_t *r = file_alloc();
-  file_t *w = file_alloc();
-  r->f_data = rpipe;
-  r->f_ops = w->f_ops = &pipeops;
-  r->f_type = w->f_type = FT_PIPE;
-  w->f_data = wpipe;
+  file_t *r_file = file_alloc();
+  file_t *w_file = file_alloc();
 
-  int error = fdtab_install_file(td->td_proc->p_fdtable, r, &fds[0]);
+  pipe_t *r_pipe = make_pipe(r_file, PIPE_READ_END);
+  pipe_t *w_pipe = make_pipe(w_file, PIPE_WRITE_END);
+
+  /* Connect write-only end with read-only end. */
+  w_pipe->pipe_end = r_pipe;
+
+  int error;
+
+  error = fdtab_install_file(td->td_proc->p_fdtable, r_file, &fds[0]);
   if (error)
     goto fail;
-
-  error = fdtab_install_file(td->td_proc->p_fdtable, w, &fds[1]);
+  error = fdtab_install_file(td->td_proc->p_fdtable, w_file, &fds[1]);
   if (error)
     goto fail;
   return 0;
 
 fail:
-  file_destroy(r);
-  file_destroy(w);
+  file_destroy(r_file);
+  file_destroy(w_file);
   return error;
 }
 
