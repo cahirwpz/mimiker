@@ -15,8 +15,6 @@
 #include <systm.h>
 #include <wait.h>
 #include <pipe.h>
-
-#define PATH_MAX 1024
 #include <syslimits.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
