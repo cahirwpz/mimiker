@@ -52,11 +52,3 @@ sysroot
 
 # Dynamically generated gdb config
 .gdbinit
-
-# CMake stuff
-CMakeLists.txt
-cmake-build-debug
-
-# JetBrains stuff
-
-.idea
