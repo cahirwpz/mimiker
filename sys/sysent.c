@@ -300,19 +300,15 @@ static int sys_waitpid(thread_t *td, syscall_args_t *args) {
 }
 
 static int sys_pipe(thread_t *td, syscall_args_t *args) {
-  int pipe_fds[2];
+  int *fds_p = (void *)args->args[0];
+  int fds[2];
 
-  int error = copyin((void *)args->args[0], pipe_fds, 2 * sizeof(int));
+  klog("pipe(%x)", fds_p);
+
+  int error = do_pipe(td, fds);
   if (error)
     return error;
-
-  klog("pipe()");
-
-  error = do_pipe(td, pipe_fds);
-  if (error)
-    return error;
-
-  return copyout(pipe_fds, (void *)args->args[0], 2 * sizeof(int));
+  return copyout(fds, fds_p, 2 * sizeof(int));
 }
 
 static int sys_unlink(thread_t *td, syscall_args_t *args) {
