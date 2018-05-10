@@ -6,6 +6,20 @@
 
 #define T 3
 
+#define assert_priorities(p0, p1, p2)                                          \
+  assert(T >= 3 && td[0]->td_prio == p0 && td[1]->td_prio == p1 &&             \
+         td[2]->td_prio == p2);
+
+#define lend_prio(td, prio)                                                    \
+  WITH_SPINLOCK(td->td_spin) {                                                 \
+    sched_lend_prio(td, prio);                                                 \
+  }
+
+#define unlend_prio(td, prio)                                                  \
+  WITH_SPINLOCK(td->td_spin) {                                                 \
+    sched_unlend_prio(td, prio);                                               \
+  }
+
 static mtx_t *mtx = &MTX_INITIALIZER(MTX_DEF);
 static thread_t *td[T];
 static volatile bool high_prio_mtx_acquired;
@@ -26,6 +40,7 @@ static void high_prio_task(void *arg) {
 }
 
 static void med_prio_task(void *arg) {
+  /* Without turnstile mechanism this assert would fail. */
   assert(high_prio_mtx_acquired);
 }
 
@@ -35,15 +50,9 @@ static void low_prio_task(void *arg) {
    * real values (LOW, MED, HIGH). */
 
   WITH_NO_PREEMPTION {
-    WITH_SPINLOCK(td[0]->td_spin) {
-      sched_unlend_prio(td[0], LOW);
-    }
-    WITH_SPINLOCK(td[1]->td_spin) {
-      sched_lend_prio(td[1], MED);
-    }
-    WITH_SPINLOCK(td[2]->td_spin) {
-      sched_lend_prio(td[2], HIGH);
-    }
+    unlend_prio(td[0], LOW);
+    lend_prio(td[1], MED);
+    lend_prio(td[2], HIGH);
 
     WITH_MTX_LOCK (mtx) {
       /* High priority task didn't run yet. */
@@ -51,8 +60,8 @@ static void low_prio_task(void *arg) {
       thread_yield();
 
       /* Our priority should've been raised. */
-      assert(td[0]->td_prio == HIGH);
-      assert(td[0]->td_flags & TDF_BORROWING);
+      assert(thread_self()->td_prio == HIGH);
+      assert(thread_self()->td_flags & TDF_BORROWING);
 
       /* And high priority task is still waiting. */
       assert(high_prio_mtx_acquired == 0);
@@ -63,16 +72,8 @@ static void low_prio_task(void *arg) {
    * ran high priority task. */
   assert(high_prio_mtx_acquired == 1);
 
-  /* We don't borrow anymore. */
-  assert(!(td[0]->td_flags & TDF_BORROWING));
-  /* Our priority was lowered to base priority. */
-  assert(td[0]->td_prio == td[0]->td_base_prio);
-  /* Which is LOW. */
-  assert(td[0]->td_base_prio == LOW);
-
-  /* And we didn't spoil other priorities. */
-  assert(td[1]->td_prio == MED);
-  assert(td[2]->td_prio == HIGH);
+  assert(!(thread_self()->td_flags & TDF_BORROWING));
+  assert_priorities(LOW, MED, HIGH);
 }
 
 static int test_mutex_priority_inversion(void) {
@@ -82,19 +83,13 @@ static int test_mutex_priority_inversion(void) {
   td[1] = thread_create("td1", med_prio_task, NULL);
   td[2] = thread_create("td2", high_prio_task, NULL);
 
-  /* We want to ensure that td0 (low_prio_task) will run as the first one
-   * and lock mtx. */
+  /* We want to ensure that td0 will run as the first one and lock mtx. */
   WITH_NO_PREEMPTION {
     for (int i = 0; i < T; i++)
       sched_add(td[i]);
 
-    WITH_SPINLOCK(td[0]->td_spin) {
-      sched_lend_prio(td[0], HIGH);
-    }
-
-    assert(td[0]->td_prio == HIGH);
-    assert(td[1]->td_prio == LOW);
-    assert(td[2]->td_prio == LOW);
+    lend_prio(td[0], HIGH);
+    assert_priorities(HIGH, LOW, LOW);
   }
 
   for (int i = 0; i < T; i++)
