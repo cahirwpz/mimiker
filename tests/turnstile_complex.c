@@ -128,4 +128,4 @@ static int test_mutex_priority_inversion(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(turnstile_new, test_mutex_priority_inversion, 0);
+KTEST_ADD(turnstile_complex, test_mutex_priority_inversion, 0);
