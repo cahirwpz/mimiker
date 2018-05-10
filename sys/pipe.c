@@ -1,10 +1,8 @@
 #define KL_LOG KL_FILE
-#include <file.h>
 #include <klog.h>
+#include <file.h>
 #include <mutex.h>
-#include <sysent.h>
 #include <malloc.h>
-#include <thread.h>
 #include <pool.h>
 #include <errno.h>
 #include <pipe.h>
@@ -12,51 +10,122 @@
 #include <stat.h>
 #include <filedesc.h>
 #include <proc.h>
+#include <ringbuf.h>
 #include <sysinit.h>
 
-typedef struct pipebuf {
-  size_t cnt;   /* current number of bytes in buffer */
-  uint32_t in;  /* in offset (start of write) */
-  uint32_t out; /* out offset (start of read) */
-  size_t size;  /* size of buffer */
-  void *data;
-} pipebuf_t;
+typedef struct pipe pipe_t;
 
-typedef enum pipetype {
-  PIPE_READ_END, /* indicates read end of the pipe */
-  PIPE_WRITE_END /* indicates write end of the pipe */
-} pipetype_t;
-
-/* pipe structure, currently Mimiker supports only unidirectional pipes */
-typedef struct pipe {
-  mtx_t pipe_mtx;         /* pipe mutex */
-  condvar_t pipe_read_cv; /* condvar for waiting for input while reading */
-  pipebuf_t pipe_buf;     /* pipe buffer at the read endm NULL for write end */
-  uint32_t pipe_state;    /* pipe state mask */
-  pipetype_t pipe_type;   /* read or write */
-  struct pipe *pipe_end;  /* link with another end of pipe, NULL for read end */
-} pipe_t;
+struct pipe {
+  mtx_t mtx;          /*!< protects pipe internals */
+  condvar_t nonempty; /*!< used to wait data to appear in the buffer */
+  condvar_t nonfull;  /*!< used to wait for free space in the buffer */
+  ringbuf_t buf;      /*!< buffer belongs to writer end */
+  bool closed;        /*!< true if this end is closed */
+  pipe_t *end;        /*!< the other end of the pipe */
+};
 
 MALLOC_DEFINE(M_PIPE, "pipe", 4, 8);
 
 static pool_t P_PIPE;
 
-static void pipe_reset(pipe_t *pipe) {
-  pipe->pipe_buf.cnt = 0;
-  pipe->pipe_buf.in = 0;
-  pipe->pipe_buf.out = 0;
-  pipe->pipe_state = 0;
-  pipe->pipe_end = NULL;
+static int pipe_read(file_t *f, thread_t *td, uio_t *uio) {
+  pipe_t *consumer = f->f_data;
+  pipe_t *producer = consumer->end;
+
+  assert(!consumer->closed);
+
+  int len = uio->uio_resid;
+
+  /* no read atomicity for now! */
+  WITH_MTX_LOCK (&producer->mtx) {
+    do {
+      int res = ringbuf_read(&producer->buf, uio);
+      if (res)
+        return res;
+      /* notify producer that free space is available */
+      cv_broadcast(&producer->nonfull);
+      /* nothing left to read? */
+      if (uio->uio_resid == 0)
+        break;
+      /* the buffer is empty so wait for some data to be produced */
+      cv_wait(&producer->nonempty, &producer->mtx);
+    } while (!producer->closed);
+  }
+
+  return len - uio->uio_resid;
 }
 
+static int pipe_write(file_t *f, thread_t *td, uio_t *uio) {
+  pipe_t *producer = f->f_data;
+  pipe_t *consumer = producer->end;
+
+  assert(!producer->closed);
+
+  /* Reading end is closed, no use in sending data there. */
+  if (consumer->closed)
+    return -ESPIPE;
+
+  int len = uio->uio_resid;
+
+  /* no write atomicity for now! */
+  WITH_MTX_LOCK (&producer->mtx) {
+    do {
+      int res = ringbuf_write(&producer->buf, uio);
+      if (res)
+        return res;
+      /* notify consumer that new data is available */
+      cv_broadcast(&producer->nonempty);
+      /* nothing left to write? */
+      if (uio->uio_resid == 0)
+        break;
+      /* buffer is full so wait for some data to be consumed */
+      cv_wait(&producer->nonfull, &producer->mtx);
+    } while (!consumer->closed);
+  }
+
+  return len - uio->uio_resid;
+}
+
+static int pipe_close(file_t *f, thread_t *td) {
+  pipe_t *producer = f->f_data;
+  pipe_t *consumer = producer->end;
+
+  WITH_MTX_LOCK (&producer->mtx) {
+    producer->closed = true;
+    /* Wake up consumers to let them finish their work! */
+    cv_broadcast(&producer->nonempty);
+  }
+
+  if (producer->closed && consumer->closed) {
+    pool_free(P_PIPE, producer);
+    pool_free(P_PIPE, consumer);
+  }
+
+  return 0;
+}
+
+static int pipe_stat(file_t *f, thread_t *td, stat_t *sb) {
+  return -ENOTSUP;
+}
+
+static int pipe_seek(file_t *f, thread_t *td, off_t offset, int whence) {
+  return -ENOTSUP;
+}
+
+static fileops_t pipeops = {.fo_read = pipe_read,
+                            .fo_write = pipe_write,
+                            .fo_close = pipe_close,
+                            .fo_seek = pipe_seek,
+                            .fo_stat = pipe_stat};
+
 static void pipe_ctor(pipe_t *pipe) {
-  mtx_init(&pipe->pipe_mtx, MTX_DEF);
-  cv_init(&pipe->pipe_read_cv, "pipe_read_cv");
-  pipe_reset(pipe);
+  mtx_init(&pipe->mtx, MTX_DEF);
+  cv_init(&pipe->nonempty, "pipe_empty");
+  cv_init(&pipe->nonfull, "pipe_full");
 }
 
 static void pipe_dtor(pipe_t *pipe) {
-  kfree(M_PIPE, pipe->pipe_buf.data);
+  kfree(M_PIPE, pipe->buf.data);
 }
 
 static void pipe_init(void) {
@@ -64,175 +133,20 @@ static void pipe_init(void) {
                        (pool_dtor_t)pipe_dtor);
 }
 
-/* Very simplified versions of NetBSD's pipeops */
-static int pipe_read(file_t *f, thread_t *td, uio_t *uio) {
-  assert(td->td_proc);
-  pipe_t *pipe = f->f_data;
-  if (pipe->pipe_type != PIPE_READ_END)
-    return EINVAL;
-  pipebuf_t *pipebuf = &pipe->pipe_buf;
-  int res = 0;
-  int bytes_read = 0;
-
-  SCOPED_MTX_LOCK(&pipe->pipe_mtx);
-
-  while (uio->uio_resid > 0) {
-    if (pipebuf->cnt > 0) {
-      /* find number of bytes to feed to uiomove */
-      size_t size = pipebuf->size - pipebuf->out;
-      if (size > pipebuf->cnt)
-        size = pipebuf->cnt;
-      if (size > uio->uio_resid)
-        size = uio->uio_resid;
-
-      res = uiomove((char *)pipebuf->data + pipebuf->out, size, uio);
-
-      if (res)
-        break;
-
-      /* moving out offset by size bytes */
-      pipebuf->out += size;
-      if (pipebuf->out >= pipebuf->size)
-        pipebuf->out = 0;
-
-      pipebuf->cnt -= size;
-
-      /* NetBSD sources say that setting offsets to 0 increases cache hit rate
-       */
-      if (pipebuf->cnt == 0) {
-        pipebuf->in = 0;
-        pipebuf->out = 0;
-      }
-
-      bytes_read += size;
-      continue;
-    }
-    /* widowed pipe, jump to return (should return 0) */
-    if (pipe->pipe_state & PIPE_EOF)
-      break;
-    /* read data, so time to quit */
-    if (bytes_read > 0)
-      break;
-    /* none of the previous conditions was met so waiting for input */
-    cv_wait(&pipe->pipe_read_cv, &pipe->pipe_mtx);
-  }
-  return res;
-}
-
-static int pipe_write(file_t *f, thread_t *td, uio_t *uio) {
-  assert(td->td_proc);
-  pipe_t *wpipe = f->f_data;
-  if (wpipe->pipe_type != PIPE_WRITE_END)
-    return EINVAL;
-  pipe_t *rpipe = wpipe->pipe_end;
-  pipebuf_t *pipebuf = &rpipe->pipe_buf;
-  int res = 0;
-
-  SCOPED_MTX_LOCK(&wpipe->pipe_mtx);
-
-  while (uio->uio_resid > 0) {
-    if (uio->uio_resid > PIPE_SIZE) {
-      res = ENOSPC;
-      break;
-    }
-    /* calculate free space in buffer */
-    size_t free_space = pipebuf->size - pipebuf->cnt;
-    /* our writes must be atomic */
-    if (free_space >= uio->uio_resid) {
-      int total_size = uio->uio_resid;
-      int move_size = pipebuf->size - pipebuf->in;
-      if (move_size > total_size)
-        move_size = total_size;
-
-      res = uiomove((char *)pipebuf->data + pipebuf->in, move_size, uio);
-      if (res == 0 && move_size < total_size) {
-        assert(pipebuf->in + move_size == pipebuf->size);
-        res = uiomove((char *)pipebuf->data, total_size - move_size, uio);
-      }
-      if (res)
-        break;
-      pipebuf->in += total_size;
-      if (pipebuf->in >= pipebuf->size) {
-        assert(pipebuf->in == total_size - move_size + pipebuf->size);
-        pipebuf->in = total_size - move_size;
-      }
-      pipebuf->cnt += total_size;
-      assert(pipebuf->cnt <= pipebuf->size);
-    } else {
-      if (rpipe->pipe_state & PIPE_EOF) {
-        res = EPIPE;
-        break;
-      }
-      cv_broadcast(&rpipe->pipe_read_cv);
-    }
-  }
-
-  /* notify read end about successful write */
-  if (pipebuf->cnt > 0)
-    cv_broadcast(&rpipe->pipe_read_cv);
-
-  return res;
-}
-
-static int pipe_close(file_t *f, thread_t *td) {
-  assert(td->td_proc);
-  pipe_t *pipe = f->f_data;
-
-  WITH_MTX_LOCK (&pipe->pipe_mtx) {
-    pipe->pipe_state |= PIPE_EOF;
-    if (pipe->pipe_type == PIPE_WRITE_END) {
-      pipe->pipe_end->pipe_state |= PIPE_EOF;
-      cv_broadcast(&pipe->pipe_end->pipe_read_cv);
-      pipe->pipe_end = NULL;
-    }
-  }
-
-  pool_free(P_PIPE, pipe);
-
-  return 0;
-}
-
-static int pipe_stat(file_t *f, thread_t *td, stat_t *sb) {
-  pipe_t *pipe = f->f_data;
-
-  SCOPED_MTX_LOCK(&pipe->pipe_mtx);
-
-  memset(sb, 0, sizeof(stat_t));
-  sb->st_blksize =
-    (pipe->pipe_end) ? pipe->pipe_end->pipe_buf.size : pipe->pipe_buf.size;
-  sb->st_size = pipe->pipe_buf.cnt;
-  sb->st_blocks = (sb->st_size) ? 1 : 0;
-  return 0;
-}
-
-static int pipe_op_notsup(file_t *f, thread_t *td, off_t offset, int whence) {
-  /* TODO: very ugly replacement */
-  return -ENOTSUP;
-}
-
-static fileops_t pipeops = {.fo_read = pipe_read,
-                            .fo_write = pipe_write,
-                            .fo_close = pipe_close,
-                            .fo_seek = pipe_op_notsup,
-                            .fo_stat = pipe_stat};
-
-static pipe_t *make_pipe(file_t *file, pipetype_t type) {
+static pipe_t *make_pipe(file_t *file) {
   pipe_t *pipe = pool_alloc(P_PIPE, 0);
 
-  if (type == PIPE_READ_END) {
-    /* TODO: improve pooled allocator to contain page-sized elements */
-    pipe->pipe_buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
-    pipe->pipe_buf.size = PIPE_SIZE;
-  } else {
-    pipe->pipe_buf.data = NULL;
-    pipe->pipe_buf.size = 0;
-  }
-  pipe_reset(pipe);
+  pipe->buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
+  pipe->buf.size = PIPE_SIZE;
+  ringbuf_reset(&pipe->buf);
+
+  pipe->closed = false;
+  pipe->end = NULL;
 
   file->f_data = pipe;
   file->f_ops = &pipeops;
   file->f_type = FT_PIPE;
-  file->f_flags = PIPE_READ_END ? FF_READ : FF_WRITE;
+  file->f_flags = FF_READ | FF_WRITE;
 
   return pipe;
 }
@@ -241,28 +155,28 @@ static pipe_t *make_pipe(file_t *file, pipetype_t type) {
 int do_pipe(thread_t *td, int fds[2]) {
   assert(td->td_proc);
 
-  file_t *r_file = file_alloc();
-  file_t *w_file = file_alloc();
+  file_t *file0 = file_alloc();
+  file_t *file1 = file_alloc();
 
-  pipe_t *r_pipe = make_pipe(r_file, PIPE_READ_END);
-  pipe_t *w_pipe = make_pipe(w_file, PIPE_WRITE_END);
+  pipe_t *consumer = make_pipe(file0);
+  pipe_t *producer = make_pipe(file1);
 
-  /* Connect write-only end with read-only end. */
-  w_pipe->pipe_end = r_pipe;
+  producer->end = consumer;
+  consumer->end = producer;
 
   int error;
 
-  error = fdtab_install_file(td->td_proc->p_fdtable, r_file, &fds[0]);
+  error = fdtab_install_file(td->td_proc->p_fdtable, file0, &fds[0]);
   if (error)
     goto fail;
-  error = fdtab_install_file(td->td_proc->p_fdtable, w_file, &fds[1]);
+  error = fdtab_install_file(td->td_proc->p_fdtable, file1, &fds[1]);
   if (error)
     goto fail;
   return 0;
 
 fail:
-  file_destroy(r_file);
-  file_destroy(w_file);
+  file_destroy(file0);
+  file_destroy(file1);
   return error;
 }
 
