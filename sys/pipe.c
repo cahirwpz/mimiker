@@ -128,6 +128,9 @@ static void pipe_ctor(pipe_t *pipe) {
 
 static void pipe_dtor(pipe_t *pipe) {
   kfree(M_PIPE, pipe->buf.data);
+  ringbuf_reset(&pipe->buf);
+  pipe->closed = false;
+  pipe->end = NULL;
 }
 
 static void pipe_init(void) {
@@ -140,10 +143,6 @@ static pipe_t *make_pipe(file_t *file) {
 
   pipe->buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
   pipe->buf.size = PIPE_SIZE;
-  ringbuf_reset(&pipe->buf);
-
-  pipe->closed = false;
-  pipe->end = NULL;
 
   file->f_data = pipe;
   file->f_ops = &pipeops;
