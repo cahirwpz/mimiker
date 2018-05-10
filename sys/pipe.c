@@ -13,11 +13,34 @@
 #include <filedesc.h>
 #include <proc.h>
 
+typedef struct pipebuf {
+  size_t cnt;   /* current number of bytes in buffer */
+  uint32_t in;  /* in offset (start of write) */
+  uint32_t out; /* out offset (start of read) */
+  size_t size;  /* size of buffer */
+  void *data;
+} pipebuf_t;
+
+typedef enum pipetype {
+  PIPE_READ_END, /* indicates read end of the pipe */
+  PIPE_WRITE_END /* indicates write end of the pipe */
+} pipetype_t;
+
+/* pipe structure, currently Mimiker supports only unidirectional pipes */
+typedef struct pipe {
+  mtx_t pipe_mtx;         /* pipe mutex */
+  condvar_t pipe_read_cv; /* condvar for waiting for input while reading */
+  pipebuf_t pipe_buf;     /* pipe buffer at the read endm NULL for write end */
+  uint32_t pipe_state;    /* pipe state mask */
+  pipetype_t pipe_type;   /* read or write */
+  struct pipe *pipe_end;  /* link with another end of pipe, NULL for read end */
+} pipe_t;
+
 MALLOC_DEFINE(M_PIPE, "pipe", 4, 8);
 
-static pool_t pipe_cache;
+static pool_t P_PIPE;
 
-static void reset_values(pipe_t *pipe) {
+static void pipe_reset(pipe_t *pipe) {
   pipe->pipe_buf.cnt = 0;
   pipe->pipe_buf.in = 0;
   pipe->pipe_buf.out = 0;
@@ -25,41 +48,37 @@ static void reset_values(pipe_t *pipe) {
   pipe->pipe_end = NULL;
 }
 
-static void get_pipe(pipe_t **dest, pipetype_t type) {
-  *dest = pool_alloc(&pipe_cache, 0);
-  pipe_t *pipe = *dest;
+static pipe_t *make_pipe(pipetype_t type) {
+  pipe_t *pipe = pool_alloc(P_PIPE, 0);
   if (type == PIPE_READ_END) {
-    pipe->pipe_buf.data =
-      kmalloc(M_PIPE, PIPE_SIZE, M_ZERO); /* TODO: improve pooled allocator to
-                                             be able to contain page-sized
-                                             elements */
+    /* TODO: improve pooled allocator to contain page-sized elements */
+    pipe->pipe_buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
     pipe->pipe_buf.size = PIPE_SIZE;
   } else {
     pipe->pipe_buf.data = NULL;
     pipe->pipe_buf.size = 0;
   }
-  reset_values(*dest);
+  pipe_reset(pipe);
+  return pipe;
 }
 
-void pipe_ctor(void *ptr) {
-  pipe_t *pipe = ptr;
+static void pipe_ctor(pipe_t *pipe) {
   mtx_init(&pipe->pipe_mtx, MTX_DEF);
   cv_init(&pipe->pipe_read_cv, "pipe_read_cv");
-  reset_values(pipe);
+  pipe_reset(pipe);
 }
 
-void pipe_dtor(void *ptr) {
-  pipe_t *pipe = ptr;
+static void pipe_dtor(pipe_t *pipe) {
   kfree(M_PIPE, pipe->pipe_buf.data);
 }
 
 void pipe_init(void) {
-  pool_init(&pipe_cache, sizeof(pipe_t), pipe_ctor, pipe_dtor);
+  P_PIPE = pool_create("pipes", sizeof(pipe_t), (pool_ctor_t)pipe_ctor,
+                       (pool_dtor_t)pipe_dtor);
 }
 
 /* Very simplified versions of NetBSD's pipeops */
-
-int pipe_read(file_t *f, thread_t *td, uio_t *uio) {
+static int pipe_read(file_t *f, thread_t *td, uio_t *uio) {
   assert(td->td_proc);
   pipe_t *pipe = f->f_data;
   if (pipe->pipe_type != PIPE_READ_END)
@@ -113,7 +132,7 @@ int pipe_read(file_t *f, thread_t *td, uio_t *uio) {
   return res;
 }
 
-int pipe_write(file_t *f, thread_t *td, uio_t *uio) {
+static int pipe_write(file_t *f, thread_t *td, uio_t *uio) {
   assert(td->td_proc);
   pipe_t *wpipe = f->f_data;
   if (wpipe->pipe_type != PIPE_WRITE_END)
@@ -168,7 +187,7 @@ int pipe_write(file_t *f, thread_t *td, uio_t *uio) {
   return res;
 }
 
-int pipe_close(file_t *f, thread_t *td) {
+static int pipe_close(file_t *f, thread_t *td) {
   assert(td->td_proc);
   pipe_t *pipe = f->f_data;
 
@@ -183,12 +202,12 @@ int pipe_close(file_t *f, thread_t *td) {
 
   mtx_unlock(&pipe->pipe_mtx);
 
-  pool_free(&pipe_cache, pipe);
+  pool_free(P_PIPE, pipe);
 
   return 0;
 }
 
-int pipe_stat(file_t *f, thread_t *td, stat_t *sb) {
+static int pipe_stat(file_t *f, thread_t *td, stat_t *sb) {
   pipe_t *pipe = f->f_data;
 
   SCOPED_MTX_LOCK(&pipe->pipe_mtx);
@@ -201,8 +220,8 @@ int pipe_stat(file_t *f, thread_t *td, stat_t *sb) {
   return 0;
 }
 
-int pipe_op_notsup(file_t *f, thread_t *td, off_t offset,
-                   int whence) { // TODO: very ugly replacement
+static int pipe_op_notsup(file_t *f, thread_t *td, off_t offset, int whence) {
+  /* TODO: very ugly replacement */
   return -ENOTSUP;
 }
 
@@ -215,9 +234,9 @@ static fileops_t pipeops = {.fo_read = pipe_read,
 /* pipe syscall */
 int do_pipe(thread_t *td, int fds[2]) {
   assert(td->td_proc);
-  pipe_t *rpipe, *wpipe;
-  get_pipe(&rpipe, PIPE_READ_END);
-  get_pipe(&wpipe, PIPE_WRITE_END);
+
+  pipe_t *rpipe = make_pipe(PIPE_READ_END);
+  pipe_t *wpipe = make_pipe(PIPE_WRITE_END);
   wpipe->pipe_end = rpipe;
   file_t *r = file_alloc();
   file_t *w = file_alloc();
