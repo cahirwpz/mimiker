@@ -12,6 +12,7 @@
 #include <stat.h>
 #include <filedesc.h>
 #include <proc.h>
+#include <sysinit.h>
 
 typedef struct pipebuf {
   size_t cnt;   /* current number of bytes in buffer */
@@ -72,7 +73,7 @@ static void pipe_dtor(pipe_t *pipe) {
   kfree(M_PIPE, pipe->pipe_buf.data);
 }
 
-void pipe_init(void) {
+static void pipe_init(void) {
   P_PIPE = pool_create("pipes", sizeof(pipe_t), (pool_ctor_t)pipe_ctor,
                        (pool_dtor_t)pipe_dtor);
 }
@@ -259,3 +260,5 @@ fail:
   file_destroy(w);
   return error;
 }
+
+SYSINIT_ADD(pipe, pipe_init, DEPS("filedesc"));
