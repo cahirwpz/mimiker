@@ -24,3 +24,10 @@ int test_misbehave() {
 
   return 0;
 }
+
+// TODO not working
+int test_exc_sigsys(void){
+  asm volatile("li $v0, 13;"
+               "syscall");
+  return 0;
+}

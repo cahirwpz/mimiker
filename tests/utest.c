@@ -99,6 +99,7 @@ UTEST_ADD_SIMPLE(stat);
 UTEST_ADD_SIMPLE(fstat);
 
 // UTEST_ADD_SIMPLE(exc_fpe);
+// UTEST_ADD_SIMPLE(exc_sigsys);
 
 #if 0
 /* TODO Kernel does not handle such cases yet. */
