@@ -216,7 +216,7 @@ noreturn void kernel_oops(exc_frame_t *frame) {
 
   klog("%s at $%08x!", exceptions[code], frame->pc);
   if ((code == EXC_ADEL || code == EXC_ADES) ||
-      (code == EXC_IBE || code == EXC_DBE) || 
+      (code == EXC_IBE || code == EXC_DBE) ||
       (code == EXC_TLBL || code == EXC_TLBS))
     klog("Caused by reference to $%08x!", frame->badvaddr);
 

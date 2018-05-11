@@ -33,7 +33,7 @@ user_exc_enter:
         LOAD_PCPU(k0)
         lw      k0, PCPU_KSP(k0)
 
-        SAVE_CPU_CTX(k0)
+        SAVE_CPU_CTX(sp, k0)
 
         # If FPU is enabled save FPU registers.
         mfc0    t0, C0_STATUS
@@ -124,11 +124,9 @@ user_return:
 
 kern_exc_enter:
         # Allocate stack frame and save context there.
-        subu    k0, sp, EXC_FRAME_SIZ
-        SAVE_CPU_CTX(k0)
-
-        # Set kernel stack pointer just after saved kernel context.
-        move    sp, k0
+        move    k0, sp                  # save original sp value
+        subu    sp, sp, EXC_FRAME_SIZ   # required by gdb to recognize frame
+        SAVE_CPU_CTX(k0, sp)
 
         # Register k1 is going to become unsafe soon - move it to s1.
         move    s1, k1
