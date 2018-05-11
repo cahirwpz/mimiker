@@ -36,20 +36,6 @@ enum {
   HIGH = 2 * RQ_PPQ
 };
 
-/* td2 */
-static void high_prio_task(void *arg) {
-  assert(mtx->m_owner == td[0]);
-
-  WITH_MTX_LOCK (mtx)
-    high_prio_mtx_acquired = 1;
-}
-
-/* td1 */
-static void med_prio_task(void *arg) {
-  /* Without turnstile mechanism this assert would fail. */
-  assert(high_prio_mtx_acquired);
-}
-
 /* td0 */
 static void low_prio_task(void *arg) {
   /* As for now, td0, td1 and td2 have artificial priorities (HIGH, LOW, LOW)
@@ -81,6 +67,20 @@ static void low_prio_task(void *arg) {
 
   assert(!(thread_self()->td_flags & TDF_BORROWING));
   assert_priorities(LOW, MED, HIGH);
+}
+
+/* td1 */
+static void med_prio_task(void *arg) {
+  /* Without turnstile mechanism this assert would fail. */
+  assert(high_prio_mtx_acquired);
+}
+
+/* td2 */
+static void high_prio_task(void *arg) {
+  assert(mtx->m_owner == td[0]);
+
+  WITH_MTX_LOCK (mtx)
+    high_prio_mtx_acquired = 1;
 }
 
 static int test_mutex_priority_inversion(void) {

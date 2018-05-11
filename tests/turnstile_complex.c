@@ -46,49 +46,6 @@ enum {
   HIGH = 2 * RQ_PPQ
 };
 
-/* td3 */
-static void high_prio_task(void *arg) {
-  WITH_MTX_LOCK (mtx2) {
-    /* When we get here, low_prio_task and med_prio_task1 should've
-       got their mutexes and all priorities should be in initial state. */
-    high_prio_mtx2_acquired = 1;
-    assert(low_prio_mtx1_acquired == 1);
-    assert(med_prio_mtx1_acquired == 1);
-
-    assert_priorities(LOW, MED, MED, HIGH);
-  }
-}
-
-/* td1 */
-static void med_prio_task1(void *arg) {
-  WITH_NO_PREEMPTION {
-    WITH_MTX_LOCK (mtx2) {
-      WITH_MTX_LOCK (mtx1) {
-        /* Td0 (low_prio_task) has released mtx1.
-         * Td3 (high_prio_task) is waiting for mtx2. */
-        med_prio_mtx1_acquired = 1;
-        assert(low_prio_mtx1_acquired == 1);
-        assert(high_prio_mtx2_acquired == 0);
-
-        assert(thread_self()->td_prio == HIGH);
-        assert(thread_self()->td_flags & TDF_BORROWING);
-      }
-    }
-  }
-
-  /* Enabling preemption should've preempted us and switched to
-   * high_prio_task. */
-  assert(high_prio_mtx2_acquired == 1);
-  assert(!(thread_self()->td_flags & TDF_BORROWING));
-  assert_priorities(LOW, MED, MED, HIGH);
-}
-
-/* td2 */
-static void med_prio_task2(void *arg) {
-  /* Without turnstile mechanism this assert would fail. */
-  assert(high_prio_mtx2_acquired);
-}
-
 /* td0 */
 static void low_prio_task(void *arg) {
   WITH_NO_PREEMPTION {
@@ -137,6 +94,49 @@ static void low_prio_task(void *arg) {
   assert(high_prio_mtx2_acquired == 1);
 
   assert_priorities(LOW, MED, MED, HIGH);
+}
+
+/* td1 */
+static void med_prio_task1(void *arg) {
+  WITH_NO_PREEMPTION {
+    WITH_MTX_LOCK (mtx2) {
+      WITH_MTX_LOCK (mtx1) {
+        /* Td0 (low_prio_task) has released mtx1.
+         * Td3 (high_prio_task) is waiting for mtx2. */
+        med_prio_mtx1_acquired = 1;
+        assert(low_prio_mtx1_acquired == 1);
+        assert(high_prio_mtx2_acquired == 0);
+
+        assert(thread_self()->td_prio == HIGH);
+        assert(thread_self()->td_flags & TDF_BORROWING);
+      }
+    }
+  }
+
+  /* Enabling preemption should've preempted us and switched to
+   * high_prio_task. */
+  assert(high_prio_mtx2_acquired == 1);
+  assert(!(thread_self()->td_flags & TDF_BORROWING));
+  assert_priorities(LOW, MED, MED, HIGH);
+}
+
+/* td2 */
+static void med_prio_task2(void *arg) {
+  /* Without turnstile mechanism this assert would fail. */
+  assert(high_prio_mtx2_acquired);
+}
+
+/* td3 */
+static void high_prio_task(void *arg) {
+  WITH_MTX_LOCK (mtx2) {
+    /* When we get here, low_prio_task and med_prio_task1 should've
+       got their mutexes and all priorities should be in initial state. */
+    high_prio_mtx2_acquired = 1;
+    assert(low_prio_mtx1_acquired == 1);
+    assert(med_prio_mtx1_acquired == 1);
+
+    assert_priorities(LOW, MED, MED, HIGH);
+  }
 }
 
 static int test_mutex_priority_inversion(void) {
