@@ -44,10 +44,9 @@ LEAF(_start)
 
         # Switch to kernel main thread
         LOAD_PCPU(t0)
-        move    a0, zero
         PTR_L   a1, PCPU_CURTHREAD(t0)
-        j       ctx_switch
-        nop
+        jal     ctx_switch
+        move    a0, zero                # (delay) 1st arg
 END(_start)
 
 # vim: sw=8 ts=8 et

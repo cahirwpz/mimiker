@@ -88,7 +88,7 @@ typedef struct thread {
   volatile unsigned td_pdnest; /*!< (?) preemption disable nest level */
   exc_frame_t *td_uframe;      /* user context (full exception frame) */
   exc_frame_t *td_kframe;      /* kernel context (last cpu exception frame) */
-  ctx_t td_kctx;               /* kernel context (switch) */
+  ctx_t *td_kctx;              /* kernel context (switch) */
   intptr_t td_onfault;         /* program counter for copyin/copyout faults */
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;

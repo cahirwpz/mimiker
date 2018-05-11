@@ -49,12 +49,14 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
    * is used to enter kernel thread for the first time. */
   exc_frame_t *uframe = stack_alloc_s(stack_bottom(stk), exc_frame_t);
   exc_frame_t *kframe = stack_alloc_s(uframe, cpu_exc_frame_t);
+  ctx_t *kctx = stack_alloc_s(kframe, ctx_t);
 
   td->td_uframe = uframe;
   td->td_kframe = kframe;
+  td->td_kctx = kctx;
 
   /* Initialize registers just for ctx_switch to work correctly. */
-  ctx_init(&td->td_kctx, kern_exc_leave, kframe);
+  ctx_init(kctx, kern_exc_leave, kframe);
 
   /* This is the context that kern_exc_leave will restore. */
   exc_frame_init(kframe, target, uframe, EF_KERNEL);
