@@ -196,6 +196,10 @@ typedef struct exc_frame {
   FPU_FRAME;
 } exc_frame_t;
 
+static inline bool in_kernel_mode(exc_frame_t *frame) {
+  return (frame->sr & SR_KSU_MASK) == SR_KSU_KERN;
+}
+
 #endif
 
 #endif
