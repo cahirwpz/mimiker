@@ -8,17 +8,21 @@
 
 #define assert_priorities(p0, p1, p2)                                          \
   assert(T >= 3 && td[0]->td_prio == p0 && td[1]->td_prio == p1 &&             \
-         td[2]->td_prio == p2);
+         td[2]->td_prio == p2)
 
 #define lend_prio(td, prio)                                                    \
-  WITH_SPINLOCK(td->td_spin) {                                                 \
-    sched_lend_prio(td, prio);                                                 \
-  }
+  do {                                                                         \
+    WITH_SPINLOCK(td->td_spin) {                                               \
+      sched_lend_prio(td, prio);                                               \
+    }                                                                          \
+  } while (0)
 
 #define unlend_prio(td, prio)                                                  \
-  WITH_SPINLOCK(td->td_spin) {                                                 \
-    sched_unlend_prio(td, prio);                                               \
-  }
+  do {                                                                         \
+    WITH_SPINLOCK(td->td_spin) {                                               \
+      sched_unlend_prio(td, prio);                                             \
+    }                                                                          \
+  } while (0)
 
 static mtx_t *mtx = &MTX_INITIALIZER(MTX_DEF);
 static thread_t *td[T];

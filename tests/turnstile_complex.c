@@ -8,22 +8,28 @@
 
 #define assert_priorities(p0, p1, p2, p3)                                      \
   assert(T >= 4 && td[0]->td_prio == p0 && td[1]->td_prio == p1 &&             \
-         td[2]->td_prio == p2 && td[3]->td_prio == p3);
+         td[2]->td_prio == p2 && td[3]->td_prio == p3)
 
 #define lend_prio(td, prio)                                                    \
-  WITH_SPINLOCK(td->td_spin) {                                                 \
-    sched_lend_prio(td, prio);                                                 \
-  }
+  do {                                                                         \
+    WITH_SPINLOCK(td->td_spin) {                                               \
+      sched_lend_prio(td, prio);                                               \
+    }                                                                          \
+  } while (0)
 
 #define unlend_prio(td, prio)                                                  \
-  WITH_SPINLOCK(td->td_spin) {                                                 \
-    sched_unlend_prio(td, prio);                                               \
-  }
+  do {                                                                         \
+    WITH_SPINLOCK(td->td_spin) {                                               \
+      sched_unlend_prio(td, prio);                                             \
+    }                                                                          \
+  } while (0)
 
 #define set_base_prio(td, prio)                                                \
-  WITH_SPINLOCK(td->td_spin) {                                                 \
-    td->td_base_prio = prio;                                                   \
-  }
+  do {                                                                         \
+    WITH_SPINLOCK(td->td_spin) {                                               \
+      td->td_base_prio = prio;                                                 \
+    }                                                                          \
+  } while (0)
 
 static mtx_t *mtx1 = &MTX_INITIALIZER(MTX_DEF);
 static mtx_t *mtx2 = &MTX_INITIALIZER(MTX_DEF);
