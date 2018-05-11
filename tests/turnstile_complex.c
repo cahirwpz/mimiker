@@ -40,6 +40,7 @@ enum {
   HIGH = 2 * RQ_PPQ
 };
 
+/* td3 */
 static void high_prio_task(void *arg) {
   WITH_MTX_LOCK (mtx2) {
     /* When we get here, low_prio_task and med_prio_task1 should've
@@ -52,11 +53,13 @@ static void high_prio_task(void *arg) {
   }
 }
 
+/* td1 */
 static void med_prio_task1(void *arg) {
   WITH_NO_PREEMPTION {
     WITH_MTX_LOCK (mtx2) {
       WITH_MTX_LOCK (mtx1) {
-        /* Td0 released mtx1. Td3 is waiting for mtx2. */
+        /* Td0 (low_prio_task) has released mtx1.
+         * Td3 (high_prio_task) is waiting for mtx2. */
         med_prio_mtx1_acquired = 1;
         assert(low_prio_mtx1_acquired == 1);
         assert(high_prio_mtx2_acquired == 0);
@@ -67,16 +70,20 @@ static void med_prio_task1(void *arg) {
     }
   }
 
+  /* Enabling preemption should've preempted us and switched to
+   * high_prio_task. */
   assert(high_prio_mtx2_acquired == 1);
   assert(!(thread_self()->td_flags & TDF_BORROWING));
   assert_priorities(LOW, MED, MED, HIGH);
 }
 
+/* td2 */
 static void med_prio_task2(void *arg) {
   /* Without turnstile mechanism this assert would fail. */
   assert(high_prio_mtx2_acquired);
 }
 
+/* td0 */
 static void low_prio_task(void *arg) {
   WITH_NO_PREEMPTION {
     unlend_prio(td[0], LOW);
@@ -105,16 +112,20 @@ static void low_prio_task(void *arg) {
       thread_yield();
 
       /* Thread td3 tried to acquire mtx2 (which is in td1's possession).
-       * Td3 lent td1 HIGH priority. We (td0) also got HIGH priority as chain
+       * Td3 lent td1 HIGH priority. We also got HIGH priority as chain
        * propagation happened because td1 is blocked on mtx1, which we
        * possess. */
       assert(thread_self()->td_prio == HIGH);
       assert(thread_self()->td_flags & TDF_BORROWING);
       assert_priorities(HIGH, HIGH, MED, HIGH);
+
+      assert(med_prio_mtx1_acquired == 0);
+      assert(high_prio_mtx2_acquired == 0);
     }
   }
 
-  /* Our priority should've been restored. */
+  /* Enabling preemption should've preempted us and switched to
+   * higher priority tasks. Our priority should've been restored. */
   assert(!(thread_self()->td_flags & TDF_BORROWING));
   assert(med_prio_mtx1_acquired == 1);
   assert(high_prio_mtx2_acquired == 1);

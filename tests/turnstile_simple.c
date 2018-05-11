@@ -32,6 +32,7 @@ enum {
   HIGH = 2 * RQ_PPQ
 };
 
+/* td2 */
 static void high_prio_task(void *arg) {
   assert(mtx->m_owner == td[0]);
 
@@ -39,11 +40,13 @@ static void high_prio_task(void *arg) {
     high_prio_mtx_acquired = 1;
 }
 
+/* td1 */
 static void med_prio_task(void *arg) {
   /* Without turnstile mechanism this assert would fail. */
   assert(high_prio_mtx_acquired);
 }
 
+/* td0 */
 static void low_prio_task(void *arg) {
   /* As for now, td0, td1 and td2 have artificial priorities (HIGH, LOW, LOW)
    * to ensure that this code runs first. Now we can set priorities to their
