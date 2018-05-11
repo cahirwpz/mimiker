@@ -171,7 +171,7 @@ static void fpe_handler(exc_frame_t *frame) {
 
 static void cp_unusable_handler(exc_frame_t *frame) {
   int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
-  bool kernel_mode = (frame->sr & SR_KSU_MASK) == 0;
+  bool kernel_mode = in_kernel_mode(frame);
 
   if (cp_id != 1) {
     panic(
