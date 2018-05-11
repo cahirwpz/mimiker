@@ -22,32 +22,32 @@ static void routine(void *_arg) {
   mtx_unlock(&ts_adj_mtx);
 }
 
-static int turnstileq_sorted_forw(thread_t *td) {
+static int lockq_sorted_forw(thread_t *td) {
   if (td == NULL)
     return 1;
   else {
-    thread_t *next = TAILQ_NEXT(td, td_turnstileq);
+    thread_t *next = TAILQ_NEXT(td, td_lockq);
     if (next != NULL && next->td_prio > td->td_prio)
       return 0;
     else
-      return turnstileq_sorted_forw(next);
+      return lockq_sorted_forw(next);
   }
 }
 
-static int turnstileq_sorted_back(thread_t *td) {
+static int lockq_sorted_back(thread_t *td) {
   if (td == NULL)
     return 1;
   else {
-    thread_t *prev = TAILQ_PREV(td, threadqueue, td_turnstileq);
+    thread_t *prev = TAILQ_PREV(td, threadqueue, td_lockq);
     if (prev != NULL && prev->td_prio < td->td_prio)
       return 0;
     else
-      return turnstileq_sorted_back(prev);
+      return lockq_sorted_back(prev);
   }
 }
 
-static int turnstileq_sorted(thread_t *td) {
-  return turnstileq_sorted_back(td) && turnstileq_sorted_forw(td);
+static int turnstile_sorted(thread_t *td) {
+  return lockq_sorted_back(td) && lockq_sorted_forw(td);
 }
 
 static int test_turnstile_adjust(void) {
@@ -74,7 +74,7 @@ static int test_turnstile_adjust(void) {
       sched_set_prio(threads[i], new_priorities[i]);
     }
 
-    assert(turnstileq_sorted(threads[i]));
+    assert(turnstile_sorted(threads[i]));
   }
 
   mtx_unlock(&ts_adj_mtx);
