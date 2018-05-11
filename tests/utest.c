@@ -98,9 +98,10 @@ UTEST_ADD_SIMPLE(access_basic);
 UTEST_ADD_SIMPLE(stat);
 UTEST_ADD_SIMPLE(fstat);
 
-#if 0
-/* TODO Kernel does not handle such cases yet. */
 UTEST_ADD_SIMPLE(exc_cop_unusable);
 UTEST_ADD_SIMPLE(exc_reserved_instruction);
+
+#if 0
+/* TODO Kernel does not handle this case yet. */
 UTEST_ADD_SIMPLE(syscall_in_bds);
 #endif
