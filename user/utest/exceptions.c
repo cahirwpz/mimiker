@@ -21,6 +21,7 @@ int test_exc_reserved_instruction(void) {
   return 0;
 }
 
+// TODO not working
 int test_exc_fpe(void){
   // #pragma GCC diagnostic push
   // #pragma GCC diagnostic ignored "-Wdiv-by-zero"

@@ -104,6 +104,6 @@ UTEST_ADD_SIMPLE(fstat);
 /* TODO Kernel does not handle such cases yet. */
 UTEST_ADD_SIGNAL(exc_cop_unusable, SIGILL);
 UTEST_ADD_SIGNAL(exc_reserved_instruction, SIGILL);
-UTEST_ADD_SIMPLE(exc_unaligned_access);
+UTEST_ADD_SIGNAL(exc_unaligned_access, SIGBUS);
 UTEST_ADD_SIMPLE(syscall_in_bds);
 #endif
