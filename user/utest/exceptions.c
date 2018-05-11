@@ -21,15 +21,10 @@ int test_exc_reserved_instruction(void) {
   return 0;
 }
 
-// TODO not working
 int test_exc_fpe(void){
-  // #pragma GCC diagnostic push
-  // #pragma GCC diagnostic ignored "-Wdiv-by-zero"
-  float a = 0.0;
-  float b = 1.0;
-  float c = b / a;
-  (void)c;
-  // #pragma GCC diagnostic pop
+  int d = __INT_MAX__;
+  asm volatile ("addi %0, %0, 1" : : "r"(d));
+
   return 0;
 }
 

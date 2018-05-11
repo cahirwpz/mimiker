@@ -98,7 +98,7 @@ UTEST_ADD_SIMPLE(access_basic);
 UTEST_ADD_SIMPLE(stat);
 UTEST_ADD_SIMPLE(fstat);
 
-// UTEST_ADD_SIMPLE(exc_fpe);
+UTEST_ADD_SIGNAL(exc_fpe, SIGFPE);
 // UTEST_ADD_SIMPLE(exc_sigsys);
 
 #if 0
