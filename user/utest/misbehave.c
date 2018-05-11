@@ -25,9 +25,16 @@ int test_misbehave() {
   return 0;
 }
 
-// TODO not working
 int test_exc_sigsys(void){
-  asm volatile("li $v0, 13;"
-               "syscall");
+  int retval = 0;
+  asm volatile("li $v0, 250;"
+               "syscall;"
+               "sw $v0, %0"
+               : "=m"(retval)
+               :
+               : "memory", "v0");
+               
+  assert(retval == -1);
+  assert(errno == ENOSYS);
   return 0;
 }
