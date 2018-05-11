@@ -30,6 +30,21 @@ MALLOC_DEFINE(M_PIPE, "pipe", 4, 8);
 
 static pool_t P_PIPE;
 
+static pipe_t *pipe_alloc(void) {
+  pipe_t *pipe = pool_alloc(P_PIPE, 0);
+  pipe->buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
+  pipe->buf.size = PIPE_SIZE;
+  return pipe;
+}
+
+static void pipe_free(pipe_t *pipe) {
+  kfree(M_PIPE, pipe->buf.data);
+  ringbuf_reset(&pipe->buf);
+  pipe->closed = false;
+  pipe->end = NULL;
+  pool_free(P_PIPE, pipe);
+}
+
 static int pipe_read(file_t *f, thread_t *td, uio_t *uio) {
   pipe_t *consumer = f->f_data;
   pipe_t *producer = consumer->end;
@@ -99,8 +114,8 @@ static int pipe_close(file_t *f, thread_t *td) {
   }
 
   if (producer->closed && consumer->closed) {
-    pool_free(P_PIPE, producer);
-    pool_free(P_PIPE, consumer);
+    pipe_free(producer);
+    pipe_free(consumer);
   }
 
   return 0;
@@ -126,41 +141,27 @@ static void pipe_ctor(pipe_t *pipe) {
   cv_init(&pipe->nonfull, "pipe_full");
 }
 
-static void pipe_dtor(pipe_t *pipe) {
-  kfree(M_PIPE, pipe->buf.data);
-  ringbuf_reset(&pipe->buf);
-  pipe->closed = false;
-  pipe->end = NULL;
-}
-
 static void pipe_init(void) {
-  P_PIPE = pool_create("pipes", sizeof(pipe_t), (pool_ctor_t)pipe_ctor,
-                       (pool_dtor_t)pipe_dtor);
+  P_PIPE = pool_create("pipes", sizeof(pipe_t), (pool_ctor_t)pipe_ctor, NULL);
 }
 
-static pipe_t *make_pipe(file_t *file) {
-  pipe_t *pipe = pool_alloc(P_PIPE, 0);
-
-  pipe->buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
-  pipe->buf.size = PIPE_SIZE;
-
+static file_t *make_pipe_file(pipe_t *pipe) {
+  file_t *file = file_alloc();
   file->f_data = pipe;
   file->f_ops = &pipeops;
   file->f_type = FT_PIPE;
   file->f_flags = FF_READ | FF_WRITE;
-
-  return pipe;
+  return file;
 }
 
-/* pipe syscall */
 int do_pipe(thread_t *td, int fds[2]) {
   assert(td->td_proc);
 
-  file_t *file0 = file_alloc();
-  file_t *file1 = file_alloc();
+  pipe_t *consumer = pipe_alloc();
+  pipe_t *producer = pipe_alloc();
 
-  pipe_t *consumer = make_pipe(file0);
-  pipe_t *producer = make_pipe(file1);
+  file_t *file0 = make_pipe_file(consumer);
+  file_t *file1 = make_pipe_file(producer);
 
   producer->end = consumer;
   consumer->end = producer;
