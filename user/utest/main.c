@@ -44,6 +44,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(exc_cop_unusable);
   CHECKRUN_TEST(exc_reserved_instruction);
   CHECKRUN_TEST(syscall_in_bds);
+  CHECKRUN_TEST(exc_fpe);
+  CHECKRUN_TEST(exc_unaligned_access);
 
   printf("No user test \"%s\" available.\n", test_name);
   return 1;

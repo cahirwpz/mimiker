@@ -98,9 +98,12 @@ UTEST_ADD_SIMPLE(access_basic);
 UTEST_ADD_SIMPLE(stat);
 UTEST_ADD_SIMPLE(fstat);
 
+// UTEST_ADD_SIMPLE(exc_fpe);
+
 #if 0
 /* TODO Kernel does not handle such cases yet. */
 UTEST_ADD_SIGNAL(exc_cop_unusable, SIGILL);
 UTEST_ADD_SIGNAL(exc_reserved_instruction, SIGILL);
+UTEST_ADD_SIMPLE(exc_unaligned_access);
 UTEST_ADD_SIMPLE(syscall_in_bds);
 #endif

@@ -5,6 +5,8 @@
 #include <sys/signal.h>
 #include <stdlib.h>
 
+#include <stdio.h>
+
 int test_exc_cop_unusable(void) {
   int value;
   asm volatile("mfc0 %0, $12, 0" : "=r"(value));
@@ -16,6 +18,28 @@ int test_exc_reserved_instruction(void) {
    * of the Opcode Field" from "MIPS® Architecture For Programmers Volume II-A:
    * The MIPS32® Instruction Set" */
   asm volatile(".long 0x00000039"); /* objdump fails to disassemble it */
+  return 0;
+}
+
+int test_exc_fpe(void){
+  // #pragma GCC diagnostic push
+  // #pragma GCC diagnostic ignored "-Wdiv-by-zero"
+  float a = 0.0;
+  float b = 1.0;
+  float c = b / a;
+  (void)c;
+  // #pragma GCC diagnostic pop
+  return 0;
+}
+
+int test_exc_unaligned_access(void){
+  int a[2];
+  asm volatile ("addiu $a0, %0, 1;"
+                "lw $a1, 0($a0)" 
+                : 
+                : "r"(a)
+                : "a0", "a1");
+
   return 0;
 }
 
