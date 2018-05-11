@@ -35,7 +35,7 @@ static mtx_t *mtx1 = &MTX_INITIALIZER(MTX_DEF);
 static mtx_t *mtx2 = &MTX_INITIALIZER(MTX_DEF);
 static thread_t *td[T];
 static volatile bool low_prio_mtx1_acquired;
-static volatile bool med_prio_mtx1_acquired;
+static volatile bool med_prio_mtx1_acquired, med_prio_mtx2_acquired;
 static volatile bool high_prio_mtx2_acquired;
 
 enum {
@@ -58,16 +58,21 @@ static void low_prio_task(void *arg) {
     WITH_MTX_LOCK (mtx1) {
       low_prio_mtx1_acquired = 1;
       assert(med_prio_mtx1_acquired == 0);
+      assert(med_prio_mtx2_acquired == 0);
       assert(high_prio_mtx2_acquired == 0);
 
       thread_yield();
 
-      /* Thread td1 acquired mtx2. Then it tried to acquire mtx1 and
-       * lent us MED priority. */
+      assert(med_prio_mtx2_acquired == 1);
+
+      /* After acquiring mtx2, td1 tried to acquire mtx1, which we possess,
+       * and lent us MED priority. */
       assert(thread_self()->td_prio == MED);
       assert(thread_self()->td_flags & TDF_BORROWING);
 
-      /* Now we add to the game td2 and td3. */
+      /* Now td2 (med_prio_task2) and td3 (high_prio_task) have LOW priority
+       * to prevent them from running. Let's give them their intended
+       * priority. */
       lend_prio(td[2], MED);
       lend_prio(td[3], HIGH);
       assert_priorities(MED, MED, MED, HIGH);
@@ -99,10 +104,14 @@ static void low_prio_task(void *arg) {
 /* td1 */
 static void med_prio_task1(void *arg) {
   WITH_NO_PREEMPTION {
+    assert(mtx2->m_owner == NULL);
     WITH_MTX_LOCK (mtx2) {
+      med_prio_mtx2_acquired = 1;
+
+      assert(mtx1->m_owner == td[0]);
       WITH_MTX_LOCK (mtx1) {
-        /* Td0 (low_prio_task) has released mtx1.
-         * Td3 (high_prio_task) is waiting for mtx2. */
+        /* Thread td0 (low_prio_task) has released mtx1.
+         * Thread td3 (high_prio_task) is waiting for mtx2. */
         med_prio_mtx1_acquired = 1;
         assert(low_prio_mtx1_acquired == 1);
         assert(high_prio_mtx2_acquired == 0);
@@ -128,6 +137,8 @@ static void med_prio_task2(void *arg) {
 
 /* td3 */
 static void high_prio_task(void *arg) {
+  assert(mtx2->m_owner == td[1]);
+
   WITH_MTX_LOCK (mtx2) {
     /* When we get here, low_prio_task and med_prio_task1 should've
        got their mutexes and all priorities should be in initial state. */
@@ -141,7 +152,7 @@ static void high_prio_task(void *arg) {
 
 static int test_mutex_priority_inversion(void) {
   low_prio_mtx1_acquired = 0;
-  med_prio_mtx1_acquired = 0;
+  med_prio_mtx1_acquired = med_prio_mtx2_acquired = 0;
   high_prio_mtx2_acquired = 0;
 
   td[0] = thread_create("td0", low_prio_task, NULL);
