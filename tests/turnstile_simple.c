@@ -48,7 +48,7 @@ static void low_prio_task(void *arg) {
     lend_prio(td[2], HIGH);
 
     WITH_MTX_LOCK (mtx) {
-      /* High priority task didn't run yet. */
+      /* We were the first to take the mutex. */
       assert(high_prio_mtx_acquired == 0);
       thread_yield();
 
