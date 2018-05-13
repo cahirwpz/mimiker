@@ -71,7 +71,8 @@ static void low_prio_task(void *arg) {
 
 /* td1 */
 static void med_prio_task(void *arg) {
-  /* Without turnstile mechanism this assert would fail. */
+  /* Without turnstile mechanism med_prio_task would run
+   * before high_prio_task gets mtx (priority inversion). */
   assert(high_prio_mtx_acquired);
 }
 
