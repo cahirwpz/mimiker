@@ -68,7 +68,6 @@ static int test_turnstile_adjust(void) {
 
   /* Now all the threads should be blocked on the mutex. */
 
-  /* TODO Could make these priorities random instead. */
   for (int i = 0; i < T; i++) {
     WITH_SPINLOCK(threads[i]->td_spin) {
       sched_set_prio(threads[i], new_priorities[i]);
