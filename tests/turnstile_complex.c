@@ -52,15 +52,15 @@ static void low_prio_task(void *arg) {
     unlend_prio(td[0], LOW);
     lend_prio(td[1], MED);
 
-    /* Thread td1 (med_prio_task1) will run first after next thread_yield(). */
-    assert_priorities(LOW, MED, LOW, LOW);
-
+    assert(mtx1->m_owner == NULL);
     WITH_MTX_LOCK (mtx1) {
       low_prio_mtx1_acquired = 1;
       assert(med_prio_mtx1_acquired == 0);
       assert(med_prio_mtx2_acquired == 0);
       assert(high_prio_mtx2_acquired == 0);
 
+      /* Thread td1 (med_prio_task1) will run first after thread_yield(). */
+      assert_priorities(LOW, MED, LOW, LOW);
       thread_yield();
 
       assert(med_prio_mtx2_acquired == 1);
@@ -108,10 +108,14 @@ static void med_prio_task1(void *arg) {
     WITH_MTX_LOCK (mtx2) {
       med_prio_mtx2_acquired = 1;
 
+      /* Trying to acquire this mutex will lend td0 (low_prio_task) MED
+       * priority. */
       assert(mtx1->m_owner == td[0]);
+      assert_priorities(LOW, MED, LOW, LOW);
       WITH_MTX_LOCK (mtx1) {
-        /* Thread td0 (low_prio_task) has released mtx1.
-         * Thread td3 (high_prio_task) is waiting for mtx2. */
+        /* Thread td0 has released mtx1. */
+        assert(td[3]->td_wchan == mtx2);
+
         med_prio_mtx1_acquired = 1;
         assert(low_prio_mtx1_acquired == 1);
         assert(high_prio_mtx2_acquired == 0);
@@ -138,7 +142,6 @@ static void med_prio_task2(void *arg) {
 /* td3 */
 static void high_prio_task(void *arg) {
   assert(mtx2->m_owner == td[1]);
-
   WITH_MTX_LOCK (mtx2) {
     /* When we get here, low_prio_task and med_prio_task1 should've
        got their mutexes and all priorities should be in initial state. */
