@@ -1,6 +1,7 @@
 #include <spinlock.h>
 #include <time.h>
 #include <stdc.h>
+#include <thread.h>
 #include <interrupt.h>
 #define _KLOG_PRIVATE
 #include <klog.h>
@@ -55,6 +56,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
     return;
 
   klog_entry_t *entry;
+  tid_t tid = thread_self()->td_tid;
 
   WITH_SPINLOCK(klog_lock) {
     entry = (klog.prev >= 0) ? &klog.array[klog.prev] : NULL;
@@ -66,7 +68,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
         (entry->kl_params[2] == arg3) && (entry->kl_params[3] == arg4) &&
         (entry->kl_params[4] == arg5) && (entry->kl_params[5] == arg6) &&
         (entry->kl_origin == origin) && (entry->kl_file == file) &&
-        (entry->kl_line == line);
+        (entry->kl_line == line) && (entry->kl_tid = tid);
 
       if (repeats) {
         if (!klog.repeated) {
@@ -90,6 +92,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
     entry = &klog.array[klog.last];
 
     *entry = (klog_entry_t){.kl_timestamp = get_uptime(),
+                            .kl_tid = tid,
                             .kl_line = line,
                             .kl_file = file,
                             .kl_origin = origin,
