@@ -25,8 +25,7 @@ int test_misbehave() {
   return 0;
 }
 
-/* Should return -1 and set errno to ENOSYS == 38 (as in Linux) */
-int test_exc_sigsys(void){
+int test_exc_sigsys(void) {
   int retval = 0;
   asm volatile("li $v0, 250;"
                "syscall;"
@@ -34,7 +33,7 @@ int test_exc_sigsys(void){
                : "=m"(retval)
                :
                : "memory", "v0");
-               
+
   assert(retval == -1);
   assert(errno == ENOSYS);
   return 0;
