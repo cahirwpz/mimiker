@@ -367,49 +367,54 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   if ((user_path == NULL) || (user_argv == NULL))
     return -EFAULT;
 
-  size_t argc = 0;
-  while ((argc < ARG_MAX) && (user_argv[argc] != NULL))
-    argc++;
-
-  if (argc == ARG_MAX)
-    return -E2BIG;
-
-  if (argc == 0)
-    return -EFAULT;
-
-  /* Allocating everything at once */
-  /* It allows us to simplify resource deallocation on failure */
-  int result;
   char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
-  char **kern_argv = kmalloc(M_TEMP, (argc + 1) * sizeof(char *), 0);
+  char **kern_argv = kmalloc(M_TEMP, ARG_MAX * sizeof(char *), 0);
   char *data = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0);
 
-  /* Copyin pathname */
-  /* Assuming PATH_MAX means max size of path including the filename. */
-  /* Assuming kmalloc always succeeds. */
+  int result;
+
   result = copyinstr(user_path, kern_path, PATH_MAX, 0);
   if (result < 0)
     goto end;
+
+  size_t argc = 0;
+  char *argp;
+
+  do {
+    result = copyin(user_argv + argc, &argp, sizeof(char *));
+    if (result < 0)
+      goto end;
+    kern_argv[argc] = argp;
+    ++argc;
+  } while ((argc < ARG_MAX) && (argp != NULL));
+
+  if (argc == ARG_MAX) {
+    result = -E2BIG;
+    goto end;
+  }
+
+  --argc;
+
+  if (argc == 0) {
+    result = -EFAULT;
+    goto end;
+  }
 
   /* Copyin argument values */
   /* Copying out all arguments to one buffer (data) */
   /* with fields in kern_argv pointing to each argument */
   size_t data_off = 0;
   size_t isize;
-  kern_argv[argc] = NULL;
 
   for (size_t i = 0; i < argc; i++) {
     result =
-      copyinstr(user_argv[i], data + data_off, ARG_MAX - data_off, &isize);
-
+      copyinstr(kern_argv[i], data + data_off, ARG_MAX - data_off, &isize);
     if (result < 0) {
       result = (result == -ENAMETOOLONG) ? -E2BIG : result;
       goto end;
     }
-
     kern_argv[i] = data + data_off;
     data_off += isize;
-
     if (data_off >= ARG_MAX) {
       result = -E2BIG;
       goto end;
@@ -417,18 +422,17 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   }
 
   /*WARNING: exec_args_t.argv type is probably incorrect. It is const char**,
-   should be char *const */
-
+   should be char *const[] */
   const exec_args_t exec_args = {
     .prog_name = kern_path, .argv = (const char **)kern_argv, .argc = argc};
   result = do_exec(&exec_args);
 
+  klog("execve(\"%s\", ... )", kern_argv[0]);
 end:
   kfree(M_TEMP, data);
   kfree(M_TEMP, kern_argv);
   kfree(M_TEMP, kern_path);
 
-  klog("%d", result);
   return result;
 }
 
