@@ -171,7 +171,7 @@ static void fpe_handler(exc_frame_t *frame) {
 
 static void cp_unusable_handler(exc_frame_t *frame) {
   if (in_kernel_mode(frame)) {
-    panic("FPU unusable exception in kernel mode.");
+    panic("Coprocessor unusable exception in kernel mode.");
   }
 
   int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
