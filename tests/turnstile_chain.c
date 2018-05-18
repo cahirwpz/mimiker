@@ -17,8 +17,6 @@
 static mtx_t mtx[T + 1];
 // TODO consider whether this would be any useful
 // volatile int mtx_passed[T + 1];
-// TODO replace this with some accessor to m_owner
-volatile thread_t *mtx_owner[T + 1];
 
 // for simpler code: propagator[0] = starter
 static thread_t *propagator[T + 1];
@@ -44,25 +42,20 @@ static void propagator_routine(void *argn) {
   int n = (int)argn;
 
   assert(thread_self()->td_prio == propagator_prio(n));
-  assert(mtx_owner[n] == NULL);
+  assert(MTX_OWNER(&mtx[n]) == NULL);
   WITH_MTX_LOCK (&mtx[n]) {
-    mtx_owner[n] = thread_self();
 
-    assert(mtx_owner[n - 1] == propagator[n - 1]);
+    assert(MTX_OWNER(&mtx[n - 1]) == propagator[n - 1]);
     WITH_MTX_LOCK (&mtx[n - 1]) {
-      mtx_owner[n - 1] = thread_self();
-
-      mtx_owner[n - 1] = NULL;
+      // nothing here
     }
-    mtx_owner[n] = NULL;
   }
   assert(thread_self()->td_prio == propagator_prio(n));
 }
 
 static void starter_routine(void *_arg) {
-  assert(mtx_owner[0] == NULL);
+  assert(MTX_OWNER(&mtx[0]) == NULL);
   WITH_MTX_LOCK (&mtx[0]) {
-    mtx_owner[0] = thread_self();
 
     for (int i = 1; i <= T; i++) {
       WITH_NO_PREEMPTION {
@@ -77,8 +70,6 @@ static void starter_routine(void *_arg) {
         assert(propagator[j]->td_flags & TDF_BORROWING);
       }
     }
-
-    mtx_owner[0] = NULL;
   }
   assert(thread_self()->td_prio == propagator_prio(0));
   assert(!(thread_self()->td_flags & TDF_BORROWING));
