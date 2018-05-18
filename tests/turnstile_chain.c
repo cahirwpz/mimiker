@@ -9,10 +9,11 @@
 #define T 4
 
 // TODO replace asserts about priority borrowing with some accessor
-// TODO consider where we could check restoring priorities
-// I think that all threads should keep HIGH priority until the last propagator
-// has acquired 2nd mutex and then the priorities would be restored to initial
-// ones (propagator_priority(i) for propagator[i]).
+/* TODO consider where we could check restoring priorities
+ * I think that all threads should keep HIGH priority until the last propagator
+ * has acquired 2nd mutex and then the priorities would be restored to initial
+ * ones (propagator_priority(i) for propagator[i]).
+ */
 
 static mtx_t mtx[T + 1];
 // TODO consider whether this would be any useful
