@@ -31,6 +31,7 @@ static void set_base_prio(thread_t *td, prio_t prio) {
 // n <- [0..T]
 // TODO maybe rename to separate_prio or something?
 static int propagator_prio(int n) {
+  // TODO should this remain `n + 1` and not just `n`?
   return (n + 1) * RQ_PPQ;
 }
 
