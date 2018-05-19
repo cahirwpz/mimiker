@@ -78,7 +78,7 @@ static void med_prio_task(void *arg) {
 
 /* td2 */
 static void high_prio_task(void *arg) {
-  assert(mtx->m_owner == td[0]);
+  assert(MTX_OWNER(mtx) == td[0]);
 
   WITH_MTX_LOCK (mtx)
     high_prio_mtx_acquired = 1;
