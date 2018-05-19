@@ -53,6 +53,9 @@ typedef enum {
 #define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
 #define TDF_BORROWING 0x00000010  /* priority propagation */
 
+/* getter for TDF_BORROWING flag */
+#define TD_IS_BORROWING(tdp) ((tdp)->td_flags & TDF_BORROWING)
+
 /*! \brief Thread structure
  *
  * Field markings and the corresponding locks:
