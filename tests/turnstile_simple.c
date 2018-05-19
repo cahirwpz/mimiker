@@ -54,7 +54,7 @@ static void low_prio_task(void *arg) {
 
       /* Our priority should've been raised. */
       assert(thread_self()->td_prio == HIGH);
-      assert(thread_self()->td_flags & TDF_BORROWING);
+      assert(TD_IS_BORROWING(thread_self()));
 
       /* And high priority task is still waiting. */
       assert(high_prio_mtx_acquired == 0);
@@ -65,7 +65,7 @@ static void low_prio_task(void *arg) {
    * ran high priority task. */
   assert(high_prio_mtx_acquired == 1);
 
-  assert(!(thread_self()->td_flags & TDF_BORROWING));
+  assert(!TD_IS_BORROWING(thread_self()));
   assert_priorities(LOW, MED, HIGH);
 }
 

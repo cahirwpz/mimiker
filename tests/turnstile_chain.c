@@ -69,12 +69,12 @@ static void starter_routine(void *_arg) {
       // check if the priorities have propagated correctly
       for (int j = 0; j < i; j++) {
         assert(propagator[j]->td_prio == propagator_prio(i));
-        assert(propagator[j]->td_flags & TDF_BORROWING);
+        assert(TD_IS_BORROWING(propagator[j]));
       }
     }
   }
   assert(thread_self()->td_prio == propagator_prio(0));
-  assert(!(thread_self()->td_flags & TDF_BORROWING));
+  assert(!TD_IS_BORROWING(thread_self()));
 }
 
 static int test_main(void) {
