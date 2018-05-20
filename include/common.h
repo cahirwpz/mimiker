@@ -40,7 +40,7 @@ typedef int32_t blksize_t; /* fs optimal block size */
 
 /* Wrapper for various GCC attributes */
 #define __nonnull(x) __attribute__((__nonnull__(x)))
-#define __section(s) __attribute__((__section__(#s)))
+#define __section(s) __attribute__((__section__(s)))
 #define __unused __attribute__((unused))
 #define __used __attribute__((used))
 #define __aligned(x) __attribute__((__aligned__(x)))
