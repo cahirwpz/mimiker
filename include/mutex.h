@@ -70,7 +70,7 @@ void mtx_unlock(mtx_t *m);
 DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
 
 /*! \brief Mutex owner getter. */
-static inline thread_t *mtx_owner(mtx_t *m) {
+static inline volatile thread_t *mtx_owner(mtx_t *m) {
   return m->m_owner;
 }
 
