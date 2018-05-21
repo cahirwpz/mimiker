@@ -27,7 +27,7 @@ void sleepq_destroy(sleepq_t *sq);
  */
 void sleepq_wait(void *wchan, const void *waitpt);
 
-/*! \brief Take first thread sleeping on \a wchan and resume it.
+/*! \brief Wakes up highest priority thread waiting on \a wchan.
  *
  * \param wchan unique sleep queue identifier
  */
