@@ -114,7 +114,7 @@ static void propagate_priority(thread_t *td) {
 
   while (1) {
     td = ts->ts_owner;
-    // TODO Maybe we should acquire td->td_spin here.
+    SCOPED_SPINLOCK(td->td_spin);
     assert(td != NULL);
     assert(td->td_state != TDS_SLEEPING); /* Deadlock. */
 
@@ -123,9 +123,7 @@ static void propagate_priority(thread_t *td) {
     if (td->td_prio >= prio)
       return;
 
-    WITH_SPINLOCK(td->td_spin) {
       sched_lend_prio(td, prio);
-    }
 
     /* Lock holder is on run queue or is currently running. */
     if (td->td_state == TDS_READY || td->td_state == TDS_RUNNING) {
@@ -337,6 +335,8 @@ turnstile_t *turnstile_acquire(void *wchan) {
   turnstile_t *ts = turnstile_lookup(wchan);
   if (ts != NULL)
     return ts;
+
+  turnstile_chain_lock(wchan);
 
   ts = thread_self()->td_turnstile;
   assert(ts != NULL);

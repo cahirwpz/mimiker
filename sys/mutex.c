@@ -57,4 +57,5 @@ void mtx_unlock(mtx_t *m) {
        * cheaper. */
       turnstile_broadcast(ts);
     }
+  }
 }
