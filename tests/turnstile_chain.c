@@ -37,8 +37,8 @@ static int propagator_prio(int n) {
 }
 
 /* n <- [1..T]
- * nth propagator will contest nth mutex and block on (n-1)th mutex (owned
- * by (n-1)th propagator) causing priority propagation to [0..n-1]th propagator
+ * propagator[n] will contest mtx[n] and block on mtx[n-1] (owned
+ * by propagator[n-1]) causing priority propagation to propagator[0..n-1]
  */
 static void propagator_routine(int n) {
   assert(thread_self()->td_prio == propagator_prio(n));
