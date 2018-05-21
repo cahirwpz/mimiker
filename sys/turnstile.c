@@ -123,7 +123,7 @@ static void propagate_priority(thread_t *td) {
     if (td->td_prio >= prio)
       return;
 
-      sched_lend_prio(td, prio);
+    sched_lend_prio(td, prio);
 
     /* Lock holder is on run queue or is currently running. */
     if (td->td_state == TDS_READY || td->td_state == TDS_RUNNING) {
@@ -284,6 +284,17 @@ static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
   }
 }
 
+static turnstile_chain_t *turnstile_chain_lock(void *wchan) {
+  turnstile_chain_t *tc = TC_LOOKUP(wchan);
+  spin_acquire(&tc->tc_lock);
+  return tc;
+}
+
+static void turnstile_chain_unlock(void *wchan) {
+  turnstile_chain_t *tc = TC_LOOKUP(wchan);
+  spin_release(&tc->tc_lock);
+}
+
 void turnstile_broadcast(turnstile_t *ts) {
   assert(ts != NULL);
   assert(spin_owned(&ts->ts_lock));
@@ -302,17 +313,6 @@ void turnstile_broadcast(turnstile_t *ts) {
 
   spin_release(&ts->ts_lock);
   turnstile_chain_unlock(wchan);
-}
-
-turnstile_chain_t *turnstile_chain_lock(void *wchan) {
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-  spin_acquire(&tc->tc_lock);
-  return tc;
-}
-
-void turnstile_chain_unlock(void *wchan) {
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-  spin_release(&tc->tc_lock);
 }
 
 turnstile_t *turnstile_lookup(void *wchan) {
