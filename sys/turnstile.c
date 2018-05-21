@@ -327,6 +327,9 @@ turnstile_t *turnstile_lookup(void *wchan) {
       return ts;
     }
   }
+
+  /* The lock wasn't contested. */
+  turnstile_chain_unlock(wchan);
   return NULL;
 }
 

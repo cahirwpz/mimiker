@@ -56,9 +56,5 @@ void mtx_unlock(mtx_t *m) {
        * sequentially and only act on empty mutex on which operations are
        * cheaper. */
       turnstile_broadcast(ts);
-    } else
-      /* The lock wasn't contested, nothing to do with turnstiles.
-       * Just release spinlock acquired in turnstile_lookup. */
-      turnstile_chain_unlock(m);
-  }
+    }
 }
