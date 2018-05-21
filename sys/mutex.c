@@ -49,8 +49,8 @@ void mtx_unlock(mtx_t *m) {
     turnstile_t *ts = turnstile_lookup(m);
     if (ts != NULL) {
       /* Using broadcast instead of signal is faster according to
-       * "The Design and Implementation of the FreeBSD Operating System
-       * (2nd Edition)", 4.3 Context Switching, page 138.
+       * "The Design and Implementation of the FreeBSD Operating System",
+       * 2nd edition, 4.3 Context Switching, page 138.
        *
        * The reasoning is that the awakened threads will often be scheduled
        * sequentially and only act on empty mutex on which operations are
