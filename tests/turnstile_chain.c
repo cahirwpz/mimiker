@@ -40,9 +40,7 @@ static int propagator_prio(int n) {
  * nth propagator will contest nth mutex and block on (n-1)th mutex (owned
  * by (n-1)th propagator) causing priority propagation to [0..n-1]th propagator
  */
-static void propagator_routine(void *argn) {
-  int n = (int)argn;
-
+static void propagator_routine(int n) {
   assert(thread_self()->td_prio == propagator_prio(n));
   assert(MTX_OWNER(&mtx[n]) == NULL);
   WITH_MTX_LOCK (&mtx[n]) {
@@ -86,7 +84,8 @@ static int test_main(void) {
   for (int i = 1; i <= T; i++) {
     char name[20];
     snprintf(name, sizeof(name), "prop%d", i);
-    propagator[i] = thread_create(name, propagator_routine, (void *)i);
+    propagator[i] =
+      thread_create(name, (void (*)(void *))propagator_routine, (void *)i);
   }
   starter = thread_create("starter", starter_routine, NULL);
 
