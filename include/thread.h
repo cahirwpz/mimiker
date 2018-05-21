@@ -43,6 +43,8 @@ typedef enum {
   TDS_RUNNING,
   /*!< thread is waiting on a resource and it has been put on a sleep queue */
   TDS_SLEEPING,
+  /*!< thread is waiting for a lock and it has been put on a turnstile */
+  TDS_LOCKED,
   /*!< thread finished or was terminated by the kernel and awaits recycling */
   TDS_DEAD
 } thread_state_t;
@@ -56,6 +58,7 @@ typedef enum {
 /* getters */
 #define TD_IS_BORROWING(tdp) ((tdp)->td_flags & TDF_BORROWING)
 #define TD_IS_SLEEPING(tdp) ((tdp)->td_flags & TDF_SLEEPING)
+#define TD_IS_LOCKED(tdp) ((tdp)->td_flags & TDF_LOCKED)
 #define TD_ON_RUNQ(tdp) ((tdp)->td_flags & TDF_READY)
 
 /*! \brief Thread structure
