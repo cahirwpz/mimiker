@@ -23,7 +23,7 @@ static mtx_t mtx[T + 1];
 static thread_t *propagator[T + 1];
 static thread_t *starter;
 
-static void set_base_prio(thread_t *td, prio_t prio) {
+static void set_prio(thread_t *td, prio_t prio) {
   WITH_SPINLOCK(td->td_spin) {
     sched_set_prio(td, prio);
   }
@@ -61,7 +61,7 @@ static void starter_routine(void *_arg) {
 
     for (int i = 1; i <= T; i++) {
       WITH_NO_PREEMPTION {
-        set_base_prio(propagator[i], propagator_prio(i));
+        set_prio(propagator[i], propagator_prio(i));
         sched_add(propagator[i]);
         assert(thread_self()->td_prio == propagator_prio(i - 1));
       }
@@ -92,7 +92,7 @@ static int test_main(void) {
 
   propagator[0] = starter;
 
-  set_base_prio(starter, propagator_prio(0));
+  set_prio(starter, propagator_prio(0));
   sched_add(starter);
 
   for (int i = 0; i < T + 1; i++)
