@@ -22,6 +22,7 @@ class LogEntry():
         nparams = self.msg.count('%') - 2 * self.msg.count('%%')
         self.params = [entry['kl_params'][i] for i in range(nparams)]
         self.timestamp = TimeVal(entry['kl_timestamp'])
+        self.tid = int(entry['kl_tid'])
         self.source = entry['kl_file'].string()
         self.line = int(entry['kl_line'])
         self.origin = str(entry['kl_origin'])
@@ -79,9 +80,9 @@ class Klog(gdb.Command):
         ptable(rows, header=False, fmt='rl')
 
     def dump_messages(self, klog):
-        rows = [['Time', 'Source', 'System', 'Message']]
+        rows = [['Time', 'Id', 'Source', 'System', 'Message']]
         for entry in klog:
-            rows.append(["%.6f" % entry.timestamp.as_float(),
+            rows.append(["%.6f" % entry.timestamp.as_float(), str(entry.tid),
                          "%s:%d" % (entry.source, entry.line),
                          entry.origin, entry.format_msg()])
-        ptable(rows, header=True, fmt='rrrl')
+        ptable(rows, header=True, fmt='rrrrl')
