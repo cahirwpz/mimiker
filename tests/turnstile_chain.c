@@ -42,10 +42,10 @@ static int propagator_prio(int n) {
  */
 static void propagator_routine(int n) {
   assert(thread_self()->td_prio == propagator_prio(n));
-  assert(mtx[n].m_owner == NULL);
+  assert(mtx_owner(&mtx[n]) == NULL);
   WITH_MTX_LOCK (&mtx[n]) {
 
-    assert(mtx[n - 1].m_owner == propagator[n - 1]);
+    assert(mtx_owner(&mtx[n - 1]) == propagator[n - 1]);
     WITH_MTX_LOCK (&mtx[n - 1]) {
       /* Lend and unlend for propagator[n - 1] happened. */
       assert(propagator[n - 1]->td_prio == propagator_prio(n - 1));
@@ -55,7 +55,7 @@ static void propagator_routine(int n) {
 }
 
 static void starter_routine(void *_arg) {
-  assert(mtx[0].m_owner == NULL);
+  assert(mtx_owner(&mtx[0]) == NULL);
   WITH_MTX_LOCK (&mtx[0]) {
 
     for (int i = 1; i <= T; i++) {
