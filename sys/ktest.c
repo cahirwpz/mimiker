@@ -78,7 +78,7 @@ static test_entry_t *find_test_by_name_with_len(const char *test, size_t len) {
   return NULL;
 }
 
-static test_entry_t *find_test_by_name(const char *test) {
+static __unused test_entry_t *find_test_by_name(const char *test) {
   return find_test_by_name_with_len(test, strlen(test));
 }
 
@@ -146,13 +146,6 @@ static void print_tests(test_entry_t **tests, int count) {
 }
 
 static void run_all_tests(void) {
-  /* Start by gathering command-line arguments. */
-  const char *seed_str = kenv_get("seed");
-  const char *repeat_str = kenv_get("repeat");
-  if (seed_str)
-    ktest_seed = strtoul(seed_str, NULL, 10);
-  if (repeat_str)
-    ktest_repeat = strtoul(repeat_str, NULL, 10);
 
   /* Count the number of tests that may be run in an arbitrary order. */
   unsigned int n = 0;
@@ -211,18 +204,56 @@ static void run_all_tests(void) {
   print_tests(autorun_tests, total_tests);
 }
 
+/*
+ * Run the tests specified in the test string.
+ * All tests except for the last one must be autorunnable.
+ * If the last test is non-autorunnable, it will be executed once
+ * regardless of the value of ktest_repeat.
+ * All autorunnable tests with one name are executed ktest_repeat times
+ * before moving on to the next test name.
+ */
+static void run_specified_tests(const char *test) {
+  const char *cur = test;
+  while (1) {
+    size_t len = strcspn(cur, ","); /* Find first comma or end of string. */
+    test_entry_t *t = find_test_by_name_with_len(cur, len);
+    int is_last = *(cur + len) == '\0';
+    if (t) {
+      if (test_is_autorunnable(t)) {
+        for (unsigned r = 0; r < ktest_repeat; r++)
+          run_test(t);
+      } else if (is_last) {
+        /* The last test can be non-autorunnable. */
+        run_test(t);
+      } else {
+        /* We found a non-autorunnable test in the middle of the test string. */
+        KTEST_FAIL("Error: test %.*s is not autorunnable."
+                   "Non-autorunnable tests can only be run as the last test.\n",
+                   len, cur);
+        return;
+      }
+    } else {
+      KTEST_FAIL("Error: test %.*s not found.\n", len, cur);
+      return;
+    }
+    if (is_last)
+      break; /* This was the last test name. */
+    else
+      cur += len + 1; /* Skip comma. */
+  }
+}
+
 void ktest_main(const char *test) {
+  /* Start by gathering command-line arguments. */
+  const char *seed_str = kenv_get("seed");
+  const char *repeat_str = kenv_get("repeat");
+  if (seed_str)
+    ktest_seed = strtoul(seed_str, NULL, 10);
+  if (repeat_str)
+    ktest_repeat = strtoul(repeat_str, NULL, 10);
   if (strncmp(test, "all", 3) == 0) {
     run_all_tests();
   } else {
-    /* Single test mode */
-    test_entry_t *t = find_test_by_name(test);
-    if (!t) {
-      kprintf("Test \"%s\" not found!\n", test);
-      return;
-    }
-    int result = run_test(t);
-    if (result == KTEST_SUCCESS)
-      ktest_atomically_print_success();
+    run_specified_tests(test);
   }
 }
