@@ -21,8 +21,7 @@ static void set_prio(thread_t *td, prio_t prio) {
 
 // n <- [0..T]
 static int propagator_prio(int n) {
-  // TODO should this remain `n + 1` and not just `n`?
-  return (n + 1) * RQ_PPQ;
+  return n * RQ_PPQ;
 }
 
 /* n <- [1..T]
