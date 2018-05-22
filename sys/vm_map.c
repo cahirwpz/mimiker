@@ -243,7 +243,6 @@ void vm_map_dump(vm_map_t *map) {
 vm_map_t *vm_map_clone(vm_map_t *map) {
   thread_t *td = thread_self();
   assert(td->td_proc);
-  assert(td->td_proc->p_nthreads == 1);
 
   vm_map_t *orig_current_map = get_user_vm_map();
   vm_map_t *newmap = vm_map_new();

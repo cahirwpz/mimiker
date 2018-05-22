@@ -77,7 +77,6 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
   TAILQ_ENTRY(thread) td_lockq;   /* a link on turnstile blocked queue */
   TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
-  TAILQ_ENTRY(thread) td_procq;   /* a link on process threads queue */
   /* Properties */
   proc_t *td_proc; /*!< (t) parent process (NULL for kernel threads) */
   char *td_name;   /*!< (@) name of thread */
@@ -152,7 +151,7 @@ void thread_join(thread_t *td);
  * verify test success. */
 void thread_reap(void);
 
-/* Getters. */
+/* Please use following functions to read state of a thread! */
 static inline bool td_is_ready(thread_t *td) {
   return td->td_state == TDS_READY;
 }
