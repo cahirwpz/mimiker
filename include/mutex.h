@@ -69,11 +69,6 @@ void mtx_unlock(mtx_t *m);
 
 DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
 
-/*! \brief Mutex owner getter. */
-static inline volatile thread_t *mtx_owner(mtx_t *m) {
-  return m->m_owner;
-}
-
 /*! \brief Acquire mutex and release it when leaving current scope.
  *
  * You may safely leave the scope by using `break` or `return`.

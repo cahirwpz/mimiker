@@ -4,7 +4,7 @@
 #include <thread.h>
 
 bool mtx_owned(mtx_t *m) {
-  return (mtx_owner(m) == thread_self());
+  return (m->m_owner == thread_self());
 }
 
 void mtx_init(mtx_t *m, unsigned type) {
@@ -21,7 +21,7 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
   }
 
   WITH_NO_PREEMPTION {
-    while (mtx_owner(m) != NULL)
+    while (m->m_owner != NULL)
       sleepq_wait(&m->m_owner, waitpt);
     m->m_owner = thread_self();
     m->m_lockpt = waitpt;
