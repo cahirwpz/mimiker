@@ -39,6 +39,7 @@ static void propagator_routine(int n) {
       // Nothing interesting here
     }
   }
+  assert(!td_is_borrowing(thread_self()));
   assert(thread_self()->td_prio == propagator_prio(n));
 }
 
