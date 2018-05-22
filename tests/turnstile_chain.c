@@ -33,7 +33,6 @@ static void propagator_routine(int n) {
   assert(thread_self()->td_prio == propagator_prio(n));
   assert(mtx_owner(&mtx[n]) == NULL);
   WITH_MTX_LOCK (&mtx[n]) {
-
     assert(mtx_owner(&mtx[n - 1]) == propagator[n - 1]);
     WITH_MTX_LOCK (&mtx[n - 1]) {
       // Nothing interesting here
@@ -46,7 +45,6 @@ static void propagator_routine(int n) {
 static void starter_routine(void *_arg) {
   assert(mtx_owner(&mtx[0]) == NULL);
   WITH_MTX_LOCK (&mtx[0]) {
-
     for (int i = 1; i <= T; i++) {
       WITH_NO_PREEMPTION {
         set_prio(propagator[i], propagator_prio(i));
