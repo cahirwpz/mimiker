@@ -23,6 +23,8 @@ static void clock_init(void) {
   if (tm_start(clock, TMF_PERIODIC, tick))
     panic("Failed to start system clock!");
   klog("System clock uses \'%s\' hardware timer.", clock->tm_name);
+  /* XXX timestamp and system clocks synchronization workaround */
+  ticks = tv2st(get_uptime());
 }
 
 SYSINIT_ADD(clock, clock_init, DEPS("sched", "callout", "pit"));

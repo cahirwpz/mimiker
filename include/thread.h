@@ -52,6 +52,7 @@ typedef enum {
 #define TDF_NEEDSIGCHK 0x00000004 /* signals were posted for delivery */
 #define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
 #define TDF_BORROWING 0x00000010  /* priority propagation */
+#define TDF_SLEEPY 0x00000020     /* thread is about to go to sleep */
 
 /*! \brief Thread structure
  *
@@ -75,7 +76,6 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
   TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
-  TAILQ_ENTRY(thread) td_procq;   /* a link on process threads queue */
   /* Properties */
   proc_t *td_proc; /*!< (t) parent process (NULL for kernel threads) */
   char *td_name;   /*!< (@) name of thread */
