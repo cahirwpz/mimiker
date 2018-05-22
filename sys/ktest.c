@@ -8,6 +8,11 @@ SET_DECLARE(tests, test_entry_t);
 char *kenv_get(const char *key);
 
 #define KTEST_MAX_NO 1024
+#define KTEST_FAIL(args...)                                                    \
+  do {                                                                         \
+    kprintf(args);                                                             \
+    ktest_atomically_print_failure();                                          \
+  } while (0)
 
 /* Stores currently running test data. */
 static test_entry_t *current_test = NULL;
@@ -159,10 +164,9 @@ static void run_all_tests(void) {
 
   int total_tests = n * ktest_repeat;
   if (total_tests > KTEST_MAX_NO + 1) {
-    kprintf("Warning: There are more kernel tests registered than there is "
-            "memory available for ktest framework. Please increase "
-            "KTEST_MAX_NO.\n");
-    ktest_atomically_print_failure();
+    KTEST_FAIL("Warning: There are more kernel tests registered than there is "
+               "memory available for ktest framework. Please increase "
+               "KTEST_MAX_NO.\n");
     return;
   }
 
