@@ -6,23 +6,28 @@
 
 #define T 3
 
-#define assert_priorities(p0, p1, p2)                                          \
-  assert(T >= 3 && td[0]->td_prio == p0 && td[1]->td_prio == p1 &&             \
-         td[2]->td_prio == p2);
-
-#define lend_prio(td, prio)                                                    \
-  WITH_SPINLOCK(td->td_spin) {                                                 \
-    sched_lend_prio(td, prio);                                                 \
-  }
-
-#define unlend_prio(td, prio)                                                  \
-  WITH_SPINLOCK(td->td_spin) {                                                 \
-    sched_unlend_prio(td, prio);                                               \
-  }
-
 static mtx_t *mtx = &MTX_INITIALIZER(MTX_DEF);
 static thread_t *td[T];
 static volatile bool high_prio_mtx_acquired;
+
+static void assert_priorities(prio_t p0, prio_t p1, prio_t p2) {
+  assert(T >= 3);
+  assert(td[0]->td_prio == p0);
+  assert(td[1]->td_prio == p1);
+  assert(td[2]->td_prio == p2);
+}
+
+static void lend_prio(thread_t *td, prio_t prio) {
+  WITH_SPINLOCK(td->td_spin) {
+    sched_lend_prio(td, prio);
+  }
+}
+
+static void unlend_prio(thread_t *td, prio_t prio) {
+  WITH_SPINLOCK(td->td_spin) {
+    sched_unlend_prio(td, prio);
+  }
+}
 
 enum {
   /* Priorities are multiplies of RunQueue_PriorityPerQueue
@@ -31,20 +36,6 @@ enum {
   MED = RQ_PPQ,
   HIGH = 2 * RQ_PPQ
 };
-
-/* td2 */
-static void high_prio_task(void *arg) {
-  assert(mtx->m_owner == td[0]);
-
-  WITH_MTX_LOCK (mtx)
-    high_prio_mtx_acquired = 1;
-}
-
-/* td1 */
-static void med_prio_task(void *arg) {
-  /* Without turnstile mechanism this assert would fail. */
-  assert(high_prio_mtx_acquired);
-}
 
 /* td0 */
 static void low_prio_task(void *arg) {
@@ -58,13 +49,13 @@ static void low_prio_task(void *arg) {
     lend_prio(td[2], HIGH);
 
     WITH_MTX_LOCK (mtx) {
-      /* High priority task didn't run yet. */
+      /* We were the first to take the mutex. */
       assert(high_prio_mtx_acquired == 0);
       thread_yield();
 
       /* Our priority should've been raised. */
       assert(thread_self()->td_prio == HIGH);
-      assert(thread_self()->td_flags & TDF_BORROWING);
+      assert(td_is_borrowing(thread_self()));
 
       /* And high priority task is still waiting. */
       assert(high_prio_mtx_acquired == 0);
@@ -75,8 +66,23 @@ static void low_prio_task(void *arg) {
    * ran high priority task. */
   assert(high_prio_mtx_acquired == 1);
 
-  assert(!(thread_self()->td_flags & TDF_BORROWING));
+  assert(!td_is_borrowing(thread_self()));
   assert_priorities(LOW, MED, HIGH);
+}
+
+/* td1 */
+static void med_prio_task(void *arg) {
+  /* Without turnstile mechanism med_prio_task would run
+   * before high_prio_task gets mtx (priority inversion). */
+  assert(high_prio_mtx_acquired);
+}
+
+/* td2 */
+static void high_prio_task(void *arg) {
+  assert(mtx->m_owner == td[0]);
+
+  WITH_MTX_LOCK (mtx)
+    high_prio_mtx_acquired = 1;
 }
 
 static int test_mutex_priority_inversion(void) {
