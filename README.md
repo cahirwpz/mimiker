@@ -57,6 +57,7 @@ This will start the kernel using OVPsim if available, or QEMU otherwise.
 
 Some useful flags to the `launch` script:
 
+* `-h` - Prints usage.
 * `-d` - Starts simulation under a debugger.
 * `-D DEBUGGER` - Selects debugger to use.
 * `-S SIMULATOR` - Manually selects the simulator to use.
@@ -75,6 +76,60 @@ argument. Some useful kernel aguments:
   `test=all`.
 * `repeat=UINT` - Specifies the number of (shuffled) repetitions of each test
   when using `test=all`.
+
+Test infrastructure
+---
+
+There are two sets of tests: 
+* user tests, located in `/user/utest`.
+
+User-space test function signature looks like this: `int test_[name](void)`.
+Should return 0 on success and should be defined in `user/utest/utest.h`.
+One also needs to add one of these lines to `/test/utest.c` in order to enable
+the test:  `UTEST_ADD_SIMPLE([name])` - test fails on assertion. 
+or `UTEST_ADD_SIGNAL([name], [SIGNUMBER])` - terminated with SIGNUMBER,
+or `UTEST_ADD([name], [exit status], flags)` - exited with [exit status] and 
+flags (see bellow).
+
+Also add a line in `/user/utest/main.c` `CHECKRUN_TEST([name])`.
+Don't forget to add new test file to `/user/utest/Makefile`.
+
+* kernel tests, located in `/tests`. Test function signature looks like this:
+`[name](void)` or sometimes `[name](unsigned int)` but needs to be casted to 
+`(int (*)(void))`.
+
+Macros to register tests:
+`KTEST_ADD(name, func, flags)`
+`KTEST_ADD_RANDINT(name, func, flags, max)` - need to cast function pointer to
+`(int (*)(void))`
+
+Where `name` is test name, `func` is pointer to test function, 
+flags as mentioned bellow, and `max` is maximum random argument fed to the test.
+
+Flags:
+/* Signifies that a test does not return. */
+`KTEST_FLAG_NORETURN 0x01`
+/* Signifies that a test irreversibly breaks internal kernel state, and any
+   further test done without restarting the kernel will be inconclusive. */
+`KTEST_FLAG_DIRTY 0x02`
+/* Indicates that a test enters usermode. */
+`KTEST_FLAG_USERMODE 0x04`
+/* Excludes the test from being run in auto mode. This flag is only useful for
+   temporarily marking some tests while debugging the testing framework. */
+`KTEST_FLAG_BROKEN 0x08`
+/* Marks that the test wishes to receive a random integer as an argument. */
+`KTEST_FLAG_RANDINT 0x10`
+
+Running tests:
+* `./launch test=all` - all tests
+* `./launch test=user_[name]` - single user test
+* `./launch test=[name]` - single kernel test
+* `./run_tests.py` - run 5 seeds of all tests.
+* `./run_tests.py --infinite` - infinitely run all tests
+`--non-interactive` - Do not run gdb session if tests fail.
+`--thorough` - Generate much more test seeds (100)
+
+
 
 Documentation
 ---
