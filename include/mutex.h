@@ -26,6 +26,9 @@ typedef struct thread thread_t;
 
 /*! \brief Basic synchronization primitive.
  *
+ * \warning You must never access mutex fields directly outside of its
+ * implementation!
+ *
  * \note Mutex must be released by its owner!
  */
 typedef struct mtx {
@@ -54,8 +57,6 @@ void mtx_init(mtx_t *m, unsigned type);
 bool mtx_owned(mtx_t *m);
 
 /*! \brief Fetch mutex owner.
- *
- * You must never access mutex fields directly outside of its implementation!
  *
  * \note The function is used by some tests. */
 static inline volatile thread_t *mtx_owner(mtx_t *m) {

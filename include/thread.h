@@ -151,7 +151,7 @@ void thread_join(thread_t *td);
  * verify test success. */
 void thread_reap(void);
 
-/* Getters. */
+/* Please use following functions to read state of a thread! */
 static inline bool td_is_ready(thread_t *td) {
   return td->td_state == TDS_READY;
 }
