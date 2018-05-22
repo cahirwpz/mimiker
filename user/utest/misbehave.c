@@ -27,11 +27,12 @@ int test_misbehave() {
 
 int test_exc_sigsys(void) {
   int retval = 0;
-  asm volatile("li $v0, 250;"
+  int sysnum = 9999; /* large enough to be never implemented */
+  asm volatile("li $v0, %1;"
                "syscall;"
                "sw $v0, %0"
                : "=m"(retval)
-               :
+               : "i"(sysnum)
                : "memory", "v0");
 
   assert(retval == -1);

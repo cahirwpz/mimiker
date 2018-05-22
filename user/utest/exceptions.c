@@ -21,7 +21,7 @@ int test_exc_reserved_instruction(void) {
   return 0;
 }
 
-int test_exc_fpe(void) {
+int test_exc_integer_overflow(void) {
   int d = __INT_MAX__;
   asm volatile("addi %0, %0, 1" : : "r"(d));
 
@@ -30,11 +30,10 @@ int test_exc_fpe(void) {
 
 int test_exc_unaligned_access(void) {
   int a[2];
-  asm volatile("addiu $a0, %0, 1;"
-               "lw $a1, 0($a0)"
-               :
-               : "r"(a)
-               : "a0", "a1");
+  int val;
+  asm volatile("lw %0, 1(%1)"
+               : "=r"(val)
+               : "r"(a));
 
   return 0;
 }

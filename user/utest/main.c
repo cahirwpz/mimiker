@@ -43,10 +43,10 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(fstat);
   CHECKRUN_TEST(exc_cop_unusable);
   CHECKRUN_TEST(exc_reserved_instruction);
-  CHECKRUN_TEST(syscall_in_bds);
-  CHECKRUN_TEST(exc_fpe);
+  CHECKRUN_TEST(exc_integer_overflow);
   CHECKRUN_TEST(exc_unaligned_access);
   CHECKRUN_TEST(exc_sigsys);
+  CHECKRUN_TEST(syscall_in_bds);
 
   printf("No user test \"%s\" available.\n", test_name);
   return 1;
