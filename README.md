@@ -68,38 +68,31 @@ argument. Some useful kernel aguments:
 
 * `init=PROGRAM` - Specifies the userspace program for PID 1. Browse `./user`
   for currently available programs.
-* `test=TEST` - Requests the kernel to run the specified test (see [this section](#test-infrastructure)).
-* `test=all` - Runs a number of tests one after another, and reports success
-  only when all of them passed.
-* `seed=UINT` - Sets the RNG seed for shuffling the list of test when using
-  `test=all`.
-* `repeat=UINT` - Specifies the number of (shuffled) repetitions of each test
-  when using `test=all`.
+* test-related arguments described in the [following section](#test-infrastructure).
 
 Test infrastructure
 ---
 
 ##### User tests
 Located in `/user/utest`.
-
 User-space test function signature looks like this: `int test_[name](void)` 
 and should be defined in `user/utest/utest.h`.
-In order to make the test runnable one has add one of these lines to `test/utest.c` file:
+In order to make the test runnable one has to add one of these lines to `test/utest.c` file:
 * `UTEST_ADD_SIMPLE([name])` - test fails on assertion or non-zero return value.
 * `UTEST_ADD_SIGNAL([name], [SIGNUMBER])` - test passes when terminated with `[SIGNUMBER]`.
 * `UTEST_ADD([name], [exit status], flags)` - test passes when exited with status `[exit status]`.
 
 One also needs to add a line `CHECKRUN_TEST([name])` in `/user/utest/main.c`.
-Don't forget to add new test file to `/user/utest/Makefile`.
 
 ##### Kernel tests 
-Located in `/tests`. Test function signature looks like this:
+Located in `/tests`. 
+Test function signature looks like this:
 `[name](void)` or sometimes `[name](unsigned int)` but needs to be casted to 
 `(int (*)(void))`.
 
 Macros to register tests:
-`KTEST_ADD(name, func, flags)`
-`KTEST_ADD_RANDINT(name, func, flags, max)` - need to cast function pointer to
+* `KTEST_ADD(name, func, flags)`
+* `KTEST_ADD_RANDINT(name, func, flags, max)` - need to cast function pointer to
 `(int (*)(void))`
 
 Where `name` is test name, `func` is pointer to test function, 
@@ -115,13 +108,26 @@ flags as mentioned bellow, and `max` is maximum random argument fed to the test.
 * `KTEST_FLAG_RANDINT` - marks that the test wishes to receive a random integer as an argument.
 
 ##### Running tests:
-* `./launch test=all` - runs all tests.
-* `./launch test=user_[name]` - runs single user test.
-* `./launch test=[name]` - runs single kernel test.
 * `./run_tests.py` - runs 5 seeds of all tests.
 * `./run_tests.py --infinite` - infinitely runs all tests.
 * `./run_tests.py --non-interactive` - do not run gdb session if tests fail.
 * `./run_tests.py--thorough` - generate much more test seeds (100).
+
+###### `./launch` test-related arguments:
+* `test=TEST` - Requests the kernel to run the specified test.
+`test=user_[name]` to run single user test, `test=[name]` to run single kernel test.
+* `test=all` - Runs a number of tests one after another, and reports success
+  only when all of them passed.
+* `seed=UINT` - Sets the RNG seed for shuffling the list of test when using
+  `test=all`.
+* `repeat=UINT` - Specifies the number of (shuffled) repetitions of each test
+  when using `test=all`.
+
+###### `./run_tests.py` usefull arguments:
+* `-h` - prints script usage.
+* `--infinite` - keep testing until some error is found. 
+* `--non-interactive` - do not run gdb session if tests fail.
+* `--thorough` - generate much more test seeds. Testing will take much more time.
 
 Documentation
 ---
