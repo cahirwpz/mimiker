@@ -68,8 +68,7 @@ argument. Some useful kernel aguments:
 
 * `init=PROGRAM` - Specifies the userspace program for PID 1. Browse `./user`
   for currently available programs.
-* `test=TEST` - Requests the kernel to run the specified test (from `./tests`
-  directory).
+* `test=TEST` - Requests the kernel to run the specified test (see [this section](#test-infrastructure)).
 * `test=all` - Runs a number of tests one after another, and reports success
   only when all of them passed.
 * `seed=UINT` - Sets the RNG seed for shuffling the list of test when using
@@ -80,8 +79,8 @@ argument. Some useful kernel aguments:
 Test infrastructure
 ---
 
-There are two sets of tests: 
-* user tests, located in `/user/utest`.
+##### User tests
+Located in `/user/utest`.
 
 User-space test function signature looks like this: `int test_[name](void)`.
 Should return 0 on success and should be defined in `user/utest/utest.h`.
@@ -94,7 +93,8 @@ flags (see bellow).
 Also add a line in `/user/utest/main.c` `CHECKRUN_TEST([name])`.
 Don't forget to add new test file to `/user/utest/Makefile`.
 
-* kernel tests, located in `/tests`. Test function signature looks like this:
+##### Kernel tests 
+Located in `/tests`. Test function signature looks like this:
 `[name](void)` or sometimes `[name](unsigned int)` but needs to be casted to 
 `(int (*)(void))`.
 
@@ -106,28 +106,23 @@ Macros to register tests:
 Where `name` is test name, `func` is pointer to test function, 
 flags as mentioned bellow, and `max` is maximum random argument fed to the test.
 
-Flags:
-/* Signifies that a test does not return. */
-`KTEST_FLAG_NORETURN 0x01`
-/* Signifies that a test irreversibly breaks internal kernel state, and any
-   further test done without restarting the kernel will be inconclusive. */
-`KTEST_FLAG_DIRTY 0x02`
-/* Indicates that a test enters usermode. */
-`KTEST_FLAG_USERMODE 0x04`
-/* Excludes the test from being run in auto mode. This flag is only useful for
-   temporarily marking some tests while debugging the testing framework. */
-`KTEST_FLAG_BROKEN 0x08`
-/* Marks that the test wishes to receive a random integer as an argument. */
-`KTEST_FLAG_RANDINT 0x10`
+##### Flags
+* `KTEST_FLAG_NORETURN` - signifies that a test does not return.
+* `KTEST_FLAG_DIRTY` - signifies that a test irreversibly breaks internal kernel state, and any
+   further test done without restarting the kernel will be inconclusive.
+* `KTEST_FLAG_USERMODE` - indicates that a test enters usermode.
+* `KTEST_FLAG_BROKEN` - excludes the test from being run in auto mode. This flag is only useful for
+   temporarily marking some tests while debugging the testing framework.
+* `KTEST_FLAG_RANDINT` - marks that the test wishes to receive a random integer as an argument.
 
-Running tests:
-* `./launch test=all` - all tests
-* `./launch test=user_[name]` - single user test
-* `./launch test=[name]` - single kernel test
-* `./run_tests.py` - run 5 seeds of all tests.
-* `./run_tests.py --infinite` - infinitely run all tests
-`--non-interactive` - Do not run gdb session if tests fail.
-`--thorough` - Generate much more test seeds (100)
+##### Running tests:
+* `./launch test=all` - runs all tests.
+* `./launch test=user_[name]` - runs single user test.
+* `./launch test=[name]` - runs single kernel test.
+* `./run_tests.py` - runs 5 seeds of all tests.
+* `./run_tests.py --infinite` - infinitely runs all tests.
+* `./run_tests.py --non-interactive` - do not run gdb session if tests fail.
+* `./run_tests.py--thorough` - generate much more test seeds (100).
 
 
 
