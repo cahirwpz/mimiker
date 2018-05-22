@@ -168,6 +168,10 @@ static inline bool td_is_dead(thread_t *td) {
   return td->td_state == TDS_DEAD;
 }
 
+static inline bool td_is_locked(thread_t *td) {
+  return td->td_state == TDS_LOCKED;
+}
+
 static inline bool td_is_running(thread_t *td) {
   return td->td_state == TDS_RUNNING;
 }
