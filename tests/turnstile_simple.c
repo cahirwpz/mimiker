@@ -6,27 +6,28 @@
 
 #define T 3
 
-#define assert_priorities(p0, p1, p2)                                          \
-  assert(T >= 3 && td[0]->td_prio == p0 && td[1]->td_prio == p1 &&             \
-         td[2]->td_prio == p2)
-
-#define lend_prio(td, prio)                                                    \
-  do {                                                                         \
-    WITH_SPINLOCK(td->td_spin) {                                               \
-      sched_lend_prio(td, prio);                                               \
-    }                                                                          \
-  } while (0)
-
-#define unlend_prio(td, prio)                                                  \
-  do {                                                                         \
-    WITH_SPINLOCK(td->td_spin) {                                               \
-      sched_unlend_prio(td, prio);                                             \
-    }                                                                          \
-  } while (0)
-
 static mtx_t *mtx = &MTX_INITIALIZER(MTX_DEF);
 static thread_t *td[T];
 static volatile bool high_prio_mtx_acquired;
+
+static void assert_priorities(prio_t p0, prio_t p1, prio_t p2) {
+  assert(T >= 3);
+  assert(td[0]->td_prio == p0);
+  assert(td[1]->td_prio == p1);
+  assert(td[2]->td_prio == p2);
+}
+
+static void lend_prio(thread_t *td, prio_t prio) {
+  WITH_SPINLOCK(td->td_spin) {
+    sched_lend_prio(td, prio);
+  }
+}
+
+static void unlend_prio(thread_t *td, prio_t prio) {
+  WITH_SPINLOCK(td->td_spin) {
+    sched_unlend_prio(td, prio);
+  }
+}
 
 enum {
   /* Priorities are multiplies of RunQueue_PriorityPerQueue
