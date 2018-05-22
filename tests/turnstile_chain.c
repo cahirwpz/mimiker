@@ -24,9 +24,10 @@ static int propagator_prio(int n) {
   return n * RQ_PPQ;
 }
 
-/* n <- [1..T]
- * propagator[n] will acquire mtx[n] and block on mtx[n-1] (owned
- * by propagator[n-1]) causing priority propagation to propagator[0..n-1]
+/* - n <- [1..T]
+ * - mtx[n-1] is already owned by propagator[n-1] (it was run earlier)
+ * - propagator[n] acquires mtx[n] and blocks on mtx[n-1] causing
+ *   priority propagation to propagator[0..n-1]
  */
 static void propagator_routine(int n) {
   assert(thread_self()->td_prio == propagator_prio(n));
