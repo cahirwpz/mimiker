@@ -82,15 +82,14 @@ Test infrastructure
 ##### User tests
 Located in `/user/utest`.
 
-User-space test function signature looks like this: `int test_[name](void)`.
-Should return 0 on success and should be defined in `user/utest/utest.h`.
-One also needs to add one of these lines to `/test/utest.c` in order to enable
-the test:  `UTEST_ADD_SIMPLE([name])` - test fails on assertion. 
-or `UTEST_ADD_SIGNAL([name], [SIGNUMBER])` - terminated with SIGNUMBER,
-or `UTEST_ADD([name], [exit status], flags)` - exited with [exit status] and 
-flags (see bellow).
+User-space test function signature looks like this: `int test_[name](void)` 
+and should be defined in `user/utest/utest.h`.
+In order to make the test runnable one has add one of these lines to `test/utest.c` file:
+* `UTEST_ADD_SIMPLE([name])` - test fails on assertion or non-zero return value.
+* `UTEST_ADD_SIGNAL([name], [SIGNUMBER])` - test passes when terminated with `[SIGNUMBER]`.
+* `UTEST_ADD([name], [exit status], flags)` - test passes when exited with status `[exit status]`.
 
-Also add a line in `/user/utest/main.c` `CHECKRUN_TEST([name])`.
+One also needs to add a line `CHECKRUN_TEST([name])` in `/user/utest/main.c`.
 Don't forget to add new test file to `/user/utest/Makefile`.
 
 ##### Kernel tests 
@@ -123,8 +122,6 @@ flags as mentioned bellow, and `max` is maximum random argument fed to the test.
 * `./run_tests.py --infinite` - infinitely runs all tests.
 * `./run_tests.py --non-interactive` - do not run gdb session if tests fail.
 * `./run_tests.py--thorough` - generate much more test seeds (100).
-
-
 
 Documentation
 ---
