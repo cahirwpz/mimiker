@@ -31,9 +31,7 @@ int test_exc_integer_overflow(void) {
 int test_exc_unaligned_access(void) {
   int a[2];
   int val;
-  asm volatile("lw %0, 1(%1)"
-               : "=r"(val)
-               : "r"(a));
+  asm volatile("lw %0, 1(%1)" : "=r"(val) : "r"(a));
 
   return 0;
 }
