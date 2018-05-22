@@ -19,7 +19,7 @@ static mtx_t mtx[T + 1];
 // TODO consider whether this would be any useful
 // volatile int mtx_passed[T + 1];
 
-// for simpler code: propagator[0] = starter
+/* For simpler code: propagator[0] = starter */
 static thread_t *propagator[T + 1];
 static thread_t *starter;
 
@@ -64,7 +64,7 @@ static void starter_routine(void *_arg) {
         assert(thread_self()->td_prio == propagator_prio(i - 1));
       }
 
-      // check if the priorities have propagated correctly
+      /* Check if the priorities have propagated correctly. */
       for (int j = 0; j < i; j++) {
         assert(propagator[j]->td_prio == propagator_prio(i));
         assert(TD_IS_BORROWING(propagator[j]));
