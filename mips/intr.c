@@ -170,21 +170,22 @@ static void fpe_handler(exc_frame_t *frame) {
 }
 
 static void cp_unusable_handler(exc_frame_t *frame) {
+  if (in_kernel_mode(frame)) {
+    panic("Coprocessor unusable exception in kernel mode.");
+  }
+
   int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
-  bool kernel_mode = in_kernel_mode(frame);
-
   if (cp_id != 1) {
-    panic(
-      "Unexpected unusable coprocessor exception, with coprocessor id = %d\n",
-      cp_id);
+    sig_send(thread_self()->td_proc, SIGILL);
+  } else {
+    /* Enable FPU for interrupted context. */
+    frame->sr |= SR_CU1;
   }
+}
 
-  if (kernel_mode) {
-    panic("FPU unusable exception in kernel mode.");
-  }
-
-  /* Enable FPU for interrupted context. */
-  frame->sr |= SR_CU1;
+static void ri_handler(exc_frame_t *frame) {
+  assert(!in_kernel_mode(frame));
+  sig_send(thread_self()->td_proc, SIGILL);
 }
 
 /*
@@ -201,7 +202,8 @@ static exc_handler_t user_exception_table[32] =
    [EXC_FPE] = fpe_handler,
    [EXC_MSAFPE] = fpe_handler,
    [EXC_OVF] = fpe_handler,
-   [EXC_CPU] = cp_unusable_handler};
+   [EXC_CPU] = cp_unusable_handler,
+   [EXC_RI] = ri_handler};
 
 static exc_handler_t kernel_exception_table[32] =
   {[EXC_MOD] = tlb_exception_handler, [EXC_TLBL] = tlb_exception_handler,
