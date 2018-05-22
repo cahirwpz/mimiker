@@ -2,6 +2,8 @@
 #include <stdc.h>
 #include <time.h>
 
+SET_DECLARE(tests, test_entry_t);
+
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
 
@@ -145,7 +147,6 @@ static void run_all_tests(void) {
 
   /* Count the number of tests that may be run in an arbitrary order. */
   unsigned int n = 0;
-  SET_DECLARE(tests, test_entry_t);
   test_entry_t **ptr;
   SET_FOREACH(ptr, tests) {
     if (test_is_autorunnable(*ptr))
