@@ -54,6 +54,8 @@ static void starter_routine(void *_arg) {
         assert(thread_self()->td_prio == propagator_prio(i - 1));
       }
 
+      // propagator[i] waits for mtx[i-1] (owned by propagator[i-1])
+
       /* Check if the priorities have propagated correctly. */
       for (int j = 0; j < i; j++) {
         assert(propagator[j]->td_prio == propagator_prio(i));
