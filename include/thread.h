@@ -150,4 +150,29 @@ void thread_join(thread_t *td);
  * verify test success. */
 void thread_reap(void);
 
+/* Please use following functions to read state of a thread! */
+static inline bool td_is_ready(thread_t *td) {
+  return td->td_state == TDS_READY;
+}
+
+static inline bool td_is_dead(thread_t *td) {
+  return td->td_state == TDS_DEAD;
+}
+
+static inline bool td_is_running(thread_t *td) {
+  return td->td_state == TDS_RUNNING;
+}
+
+static inline bool td_is_inactive(thread_t *td) {
+  return td->td_state == TDS_INACTIVE;
+}
+
+static inline bool td_is_sleeping(thread_t *td) {
+  return td->td_state == TDS_SLEEPING;
+}
+
+static inline bool td_is_borrowing(thread_t *td) {
+  return td->td_flags & TDF_BORROWING;
+}
+
 #endif /* !_SYS_THREAD_H_ */

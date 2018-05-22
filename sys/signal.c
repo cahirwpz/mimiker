@@ -73,7 +73,7 @@ int sig_send(proc_t *proc, signo_t sig) {
   SCOPED_MTX_LOCK(&target->td_lock);
 
   /* If the thread is already dead, don't post a signal. */
-  if (target->td_state == TDS_DEAD)
+  if (td_is_dead(target))
     return -EINVAL;
 
   WITH_MTX_LOCK (&target->td_proc->p_lock) {
