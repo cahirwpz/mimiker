@@ -177,10 +177,10 @@ static void cp_unusable_handler(exc_frame_t *frame) {
   int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
   if (cp_id != 1) {
     sig_send(thread_self()->td_proc, SIGILL);
+  } else {
+    /* Enable FPU for interrupted context. */
+    frame->sr |= SR_CU1;
   }
-
-  /* Enable FPU for interrupted context. */
-  frame->sr |= SR_CU1;
 }
 
 static void ri_handler(exc_frame_t *frame) {
