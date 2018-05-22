@@ -42,10 +42,10 @@ static int propagator_prio(int n) {
  */
 static void propagator_routine(int n) {
   assert(thread_self()->td_prio == propagator_prio(n));
-  assert(MTX_OWNER(&mtx[n]) == NULL);
+  assert(mtx[n].m_owner == NULL);
   WITH_MTX_LOCK (&mtx[n]) {
 
-    assert(MTX_OWNER(&mtx[n - 1]) == propagator[n - 1]);
+    assert(mtx[n - 1].m_owner == propagator[n - 1]);
     WITH_MTX_LOCK (&mtx[n - 1]) {
       /* Lend and unlend for propagator[n - 1] happened. */
       assert(propagator[n - 1]->td_prio == propagator_prio(n - 1));
@@ -55,7 +55,7 @@ static void propagator_routine(int n) {
 }
 
 static void starter_routine(void *_arg) {
-  assert(MTX_OWNER(&mtx[0]) == NULL);
+  assert(mtx[0].m_owner == NULL);
   WITH_MTX_LOCK (&mtx[0]) {
 
     for (int i = 1; i <= T; i++) {
@@ -68,12 +68,12 @@ static void starter_routine(void *_arg) {
       /* Check if the priorities have propagated correctly. */
       for (int j = 0; j < i; j++) {
         assert(propagator[j]->td_prio == propagator_prio(i));
-        assert(TD_IS_BORROWING(propagator[j]));
+        assert(td_is_borrowing(propagator[j]));
       }
     }
   }
   assert(thread_self()->td_prio == propagator_prio(0));
-  assert(!TD_IS_BORROWING(thread_self()));
+  assert(!td_is_borrowing(thread_self()));
 }
 
 static int test_main(void) {

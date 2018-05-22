@@ -50,6 +50,7 @@ typedef enum {
 
 typedef struct {
   timeval_t kl_timestamp;
+  tid_t kl_tid;
   unsigned kl_line;
   const char *kl_file;
   klog_origin_t kl_origin;

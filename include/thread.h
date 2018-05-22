@@ -52,9 +52,7 @@ typedef enum {
 #define TDF_NEEDSIGCHK 0x00000004 /* signals were posted for delivery */
 #define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
 #define TDF_BORROWING 0x00000010  /* priority propagation */
-
-/* getter for TDF_BORROWING flag */
-#define TD_IS_BORROWING(tdp) ((tdp)->td_flags & TDF_BORROWING)
+#define TDF_SLEEPY 0x00000020     /* thread is about to go to sleep */
 
 /*! \brief Thread structure
  *
@@ -153,5 +151,30 @@ void thread_join(thread_t *td);
  * some tests need to explicitly wait until threads are reaped before they can
  * verify test success. */
 void thread_reap(void);
+
+/* Getters. */
+static inline bool td_is_ready(thread_t *td) {
+  return td->td_state == TDS_READY;
+}
+
+static inline bool td_is_dead(thread_t *td) {
+  return td->td_state == TDS_DEAD;
+}
+
+static inline bool td_is_running(thread_t *td) {
+  return td->td_state == TDS_RUNNING;
+}
+
+static inline bool td_is_inactive(thread_t *td) {
+  return td->td_state == TDS_INACTIVE;
+}
+
+static inline bool td_is_sleeping(thread_t *td) {
+  return td->td_state == TDS_SLEEPING;
+}
+
+static inline bool td_is_borrowing(thread_t *td) {
+  return td->td_flags & TDF_BORROWING;
+}
 
 #endif /* !_SYS_THREAD_H_ */

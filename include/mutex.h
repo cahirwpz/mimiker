@@ -8,9 +8,6 @@ typedef struct thread thread_t;
 
 /*! \file mutex.h */
 
-/*! \brief Mutex owner getter. */
-#define MTX_OWNER(m) ((const thread_t *)((m)->m_owner))
-
 /*! \brief Type of default non-recursive sleeping mutex.
  *
  * When a thread acquires sleeping mutex that is owned by another thread it will
