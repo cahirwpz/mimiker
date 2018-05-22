@@ -7,6 +7,7 @@ typedef struct exc_frame exc_frame_t;
 
 void exc_before_leave(exc_frame_t *kframe);
 noreturn void user_exc_leave(void);
+noreturn void kernel_oops(exc_frame_t *frame);
 
 /* Flags for \a exc_frame_init */
 #define EF_KERNEL 0

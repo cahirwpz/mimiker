@@ -161,8 +161,7 @@ int do_exec(const exec_args_t *args) {
         klog("Exec failed: ELF file contains a PT_SHLIB segment");
         goto exec_fail;
       case PT_LOAD:
-        klog("PT_LOAD segment: VAddr = %p, "
-             "Offset = 0x%08x, FileSz = 0x%08x, MemSz = 0x%08x, Flags = %d",
+        klog("PT_LOAD: VAddr %08x Offset %08x FileSz %08x MemSz %08x Flags %d",
              (void *)ph->p_vaddr, (unsigned)ph->p_offset,
              (unsigned)ph->p_filesz, (unsigned)ph->p_memsz,
              (unsigned)ph->p_flags);

@@ -91,7 +91,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
 }
 
 void thread_delete(thread_t *td) {
-  assert(td->td_state == TDS_DEAD);
+  assert(td_is_dead(td));
   assert(td->td_sleepqueue != NULL);
 
   klog("Freeing up thread %ld {%p}", td->td_tid, td);
@@ -154,7 +154,7 @@ void thread_join(thread_t *otd) {
 
   klog("Join %ld {%p} with %ld {%p}", td->td_tid, td, otd->td_tid, otd);
 
-  while (otd->td_state != TDS_DEAD)
+  while (!td_is_dead(otd))
     cv_wait(&otd->td_waitcv, &otd->td_lock);
 }
 

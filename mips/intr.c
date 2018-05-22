@@ -171,7 +171,7 @@ static void fpe_handler(exc_frame_t *frame) {
 
 static void cp_unusable_handler(exc_frame_t *frame) {
   int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
-  bool kernel_mode = (frame->sr & SR_KSU_MASK) == 0;
+  bool kernel_mode = in_kernel_mode(frame);
 
   if (cp_id != 1) {
     panic(
@@ -211,12 +211,13 @@ static inline unsigned exc_code(exc_frame_t *frame) {
   return (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
 }
 
-static noreturn void kernel_oops(exc_frame_t *frame) {
+noreturn void kernel_oops(exc_frame_t *frame) {
   unsigned code = exc_code(frame);
 
   klog("%s at $%08x!", exceptions[code], frame->pc);
   if ((code == EXC_ADEL || code == EXC_ADES) ||
-      (code == EXC_IBE || code == EXC_DBE))
+      (code == EXC_IBE || code == EXC_DBE) ||
+      (code == EXC_TLBL || code == EXC_TLBS))
     klog("Caused by reference to $%08x!", frame->badvaddr);
 
   panic("Unhandled '%s' at $%08x!", exceptions[code], frame->pc);
@@ -225,7 +226,7 @@ static noreturn void kernel_oops(exc_frame_t *frame) {
 /* General exception handler is called with interrupts disabled. */
 void mips_exc_handler(exc_frame_t *frame) {
   unsigned code = exc_code(frame);
-  bool kernel_mode = (frame->sr & SR_KSU_MASK) == 0;
+  bool kernel_mode = in_kernel_mode(frame);
 
   assert(intr_disabled());
 
