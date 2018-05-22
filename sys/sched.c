@@ -32,8 +32,7 @@ void sched_add(thread_t *td) {
 void sched_wakeup(thread_t *td) {
   assert(spin_owned(td->td_spin));
   assert(td != thread_self());
-  assert(td->td_state == TDS_LOCKED || td->td_state == TDS_SLEEPING ||
-         td->td_state == TDS_INACTIVE);
+  assert(td->td_state == TDS_LOCKED || td_is_sleeping(td) || td_is_inactive(td));
 
   /* Update sleep time. */
   timeval_t now = get_uptime();
@@ -61,7 +60,7 @@ static void sched_set_active_prio(thread_t *td, prio_t prio) {
   if (td->td_prio == prio)
     return;
 
-  if (td->td_state == TDS_READY) {
+  if (td_is_ready(td)) {
     /* Thread is on a run queue. */
     runq_remove(&runq, td);
     td->td_prio = prio;
@@ -77,7 +76,7 @@ void sched_set_prio(thread_t *td, prio_t prio) {
   td->td_base_prio = prio;
 
   /* If thread is borrowing priority, don't lower its active priority. */
-  if (td->td_flags & TDF_BORROWING && td->td_prio > prio)
+  if (td_is_borrowing(td) && td->td_prio > prio)
     return;
 
   prio_t oldprio = td->td_prio;
@@ -128,7 +127,7 @@ void sched_switch(void) {
   thread_t *td = thread_self();
 
   assert(spin_owned(td->td_spin));
-  assert(td->td_state != TDS_RUNNING);
+  assert(!td_is_running(td));
 
   td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
 
@@ -137,14 +136,14 @@ void sched_switch(void) {
   timeval_t diff = timeval_sub(&now, &td->td_last_rtime);
   td->td_rtime = timeval_add(&td->td_rtime, &diff);
 
-  if (td->td_state == TDS_READY) {
+  if (td_is_ready(td)) {
     /* Idle threads need not to be inserted into the run queue. */
     if (td != PCPU_GET(idle_thread))
       runq_add(&runq, td);
-  } else if (td->td_state == TDS_SLEEPING) {
+  } else if (td_is_sleeping(td)) {
     /* Record when the thread fell asleep. */
     td->td_last_slptime = now;
-  } else if (td->td_state == TDS_DEAD) {
+  } else if (td_is_dead(td)) {
     /* Don't add dead threads to run queue. */
   }
 

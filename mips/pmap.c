@@ -366,6 +366,10 @@ fault:
     frame->pc = td->td_onfault;
     td->td_onfault = 0;
   } else if (td->td_proc) {
+    /* Panic when process running in kernel space uses wrong pointer. */
+    if (in_kernel_mode(frame))
+      kernel_oops(frame);
+
     /* Send a segmentation fault signal to the user program. */
 
     /* TODO it's an awful kludge,
@@ -377,8 +381,7 @@ fault:
   } else if (ktest_test_running_flag) {
     ktest_failure();
   } else {
-    /* Kernel mode thread violated memory, whoops. */
-    panic("%s at $%08x, caused by reference to $%08lx in thread %p!",
-          exceptions[code], frame->pc, vaddr, td);
+    /* Panic when kernel-mode thread uses wrong pointer. */
+    kernel_oops(frame);
   }
 }

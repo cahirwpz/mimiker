@@ -12,6 +12,7 @@ typedef enum {
   SIGCHLD,
   SIGUSR1,
   SIGUSR2,
+  SIGBUS,
   NSIG = 32
 } signo_t;
 

@@ -3,6 +3,7 @@
 #include <malloc.h>
 #include <mips/cpuinfo.h>
 #include <mips/malta.h>
+#include <mips/exc.h>
 #include <mips/intr.h>
 #include <mips/timer.h>
 #include <mips/tlb.h>

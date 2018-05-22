@@ -7,62 +7,13 @@
 #include <stdio.h>
 #include <errno.h>
 
-const char *str = "Hello world from a user program!\n";
-int error = 0;
-int n;
-int fd0, fd1, fd2;
-char buf[100];
+static const char *str = "Hello world from a user program!\n";
+static char buf[100];
+static int n;
 
-/* The number of standard fds */
+/* Shift used fds by 3 so std{in,out,err} are not affected. */
 #define FD_OFFSET 3
-
-#define assert_open_ok(fd, file, mode, flag)                                   \
-  n = open(file, flag, 0);                                                     \
-  assert(n == fd + FD_OFFSET);
-
-#define assert_open_fail(file, mode, flag, err)                                \
-  n = open(file, flag, 0);                                                     \
-  assert(n < 0);                                                               \
-  assert(errno == err);
-
-#define assert_read_ok(fd, buf, len)                                           \
-  n = read(fd + FD_OFFSET, buf, len);                                          \
-  assert(n >= 0);
-
-#define assert_read_equal(fd, buf, str)                                        \
-  {                                                                            \
-    int len = strlen(str);                                                     \
-    n = read(fd + FD_OFFSET, buf, len);                                        \
-    assert(strncmp(str, buf, len) == 0);                                       \
-    assert(n >= 0);                                                            \
-  }
-
-#define assert_read_fail(fd, buf, len, err)                                    \
-  n = read(fd + FD_OFFSET, buf, len);                                          \
-  assert(n < 0);                                                               \
-  assert(errno == err);
-
-#define assert_write_ok(fd, buf, len)                                          \
-  n = write(fd + FD_OFFSET, buf, len);                                         \
-  assert(n >= 0);
-
-#define assert_write_fail(fd, buf, len, err)                                   \
-  n = write(fd + FD_OFFSET, buf, len);                                         \
-  assert(n < 0);                                                               \
-  assert(errno == err);
-
-#define assert_close_ok(fd)                                                    \
-  n = close(fd + FD_OFFSET);                                                   \
-  assert(n == 0);
-
-#define assert_close_fail(fd, err)                                             \
-  n = close(fd + FD_OFFSET);                                                   \
-  assert(n < 0);                                                               \
-  assert(errno == err);
-
-#define assert_lseek_ok(fd, offset, whence)                                    \
-  n = lseek(fd + FD_OFFSET, offset, whence);                                   \
-  assert(n >= 0);
+#include "utest_fd.h"
 
 /* Just the basic, correct operations on a single /dev/null */
 int test_fd_devnull() {

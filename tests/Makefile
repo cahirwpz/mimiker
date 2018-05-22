@@ -15,6 +15,7 @@ SOURCES_C = \
 	resizable_fdt.c \
 	rwlock.c \
 	sched.c \
+	sleepq.c \
 	strtol.c \
 	taskqueue.c \
 	thread_stats.c \

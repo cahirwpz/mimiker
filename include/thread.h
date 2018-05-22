@@ -11,7 +11,9 @@
 #include <condvar.h>
 #include <time.h>
 #include <signal.h>
+#include <stack.h>
 #include <spinlock.h>
+#include <mips/ctx.h> /* TODO leaks ctx_t structure because of td_kctx */
 
 /*! \file thread.h */
 
@@ -19,6 +21,7 @@ typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
 typedef struct fdtab fdtab_t;
 typedef struct proc proc_t;
+typedef void (*entry_fn_t)(void *);
 
 #define TD_NAME_MAX 32
 
@@ -52,7 +55,7 @@ typedef enum {
 #define TDF_NEEDSIGCHK 0x00000004 /* signals were posted for delivery */
 #define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
 #define TDF_BORROWING 0x00000010  /* priority propagation */
-#define TDF_USESFPU 0x00000020    /* thread makes use of FPU */
+#define TDF_SLEEPY 0x00000020     /* thread is about to go to sleep */
 
 /*! \brief Thread structure
  *
@@ -77,7 +80,6 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
   TAILQ_ENTRY(thread) td_lockq;   /* a link on turnstile blocked queue */
   TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
-  TAILQ_ENTRY(thread) td_procq;   /* a link on process threads queue */
   /* Properties */
   proc_t *td_proc; /*!< (t) parent process (NULL for kernel threads) */
   char *td_name;   /*!< (@) name of thread */
@@ -88,9 +90,8 @@ typedef struct thread {
   /* thread context */
   volatile unsigned td_idnest; /*!< (?) interrupt disable nest level */
   volatile unsigned td_pdnest; /*!< (?) preemption disable nest level */
-  exc_frame_t td_uctx;         /* user context (always exception) */
-  fpu_ctx_t td_uctx_fpu;       /* user FPU context (always exception) */
-  exc_frame_t *td_kframe;      /* kernel context (last exception frame) */
+  exc_frame_t *td_uframe;      /* user context (full exception frame) */
+  exc_frame_t *td_kframe;      /* kernel context (last cpu exception frame) */
   ctx_t td_kctx;               /* kernel context (switch) */
   intptr_t td_onfault;         /* program counter for copyin/copyout faults */
   vm_page_t *td_kstack_obj;
@@ -123,6 +124,15 @@ thread_t *thread_self(void);
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
 void thread_delete(thread_t *td);
 
+/*! \brief Prepares thread to be launched.
+ *
+ * Initializes thread context so it can be resumed in such a way,
+ * as if @target function was called with @arg argument.
+ *
+ * Such thread can be resumed either by switch or return from exception.
+ */
+void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg);
+
 /*! \brief Exit from a thread.
  *
  * Thread becomes zombie which resources will eventually be recycled.
@@ -148,5 +158,30 @@ void thread_join(thread_t *td);
  * some tests need to explicitly wait until threads are reaped before they can
  * verify test success. */
 void thread_reap(void);
+
+/* Please use following functions to read state of a thread! */
+static inline bool td_is_ready(thread_t *td) {
+  return td->td_state == TDS_READY;
+}
+
+static inline bool td_is_dead(thread_t *td) {
+  return td->td_state == TDS_DEAD;
+}
+
+static inline bool td_is_running(thread_t *td) {
+  return td->td_state == TDS_RUNNING;
+}
+
+static inline bool td_is_inactive(thread_t *td) {
+  return td->td_state == TDS_INACTIVE;
+}
+
+static inline bool td_is_sleeping(thread_t *td) {
+  return td->td_state == TDS_SLEEPING;
+}
+
+static inline bool td_is_borrowing(thread_t *td) {
+  return td->td_flags & TDF_BORROWING;
+}
 
 #endif /* !_SYS_THREAD_H_ */

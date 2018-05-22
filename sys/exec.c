@@ -11,7 +11,7 @@
 #include <filedesc.h>
 #include <sbrk.h>
 #include <vfs.h>
-#include <mips/stack.h>
+#include <stack.h>
 #include <mount.h>
 #include <vnode.h>
 #include <proc.h>
@@ -161,8 +161,7 @@ int do_exec(const exec_args_t *args) {
         klog("Exec failed: ELF file contains a PT_SHLIB segment");
         goto exec_fail;
       case PT_LOAD:
-        klog("PT_LOAD segment: VAddr = %p, "
-             "Offset = 0x%08x, FileSz = 0x%08x, MemSz = 0x%08x, Flags = %d",
+        klog("PT_LOAD: VAddr %08x Offset %08x FileSz %08x MemSz %08x Flags %d",
              (void *)ph->p_vaddr, (unsigned)ph->p_offset,
              (unsigned)ph->p_filesz, (unsigned)ph->p_memsz,
              (unsigned)ph->p_flags);
@@ -237,10 +236,11 @@ int do_exec(const exec_args_t *args) {
 
   /* Prepare program stack, which includes storing program args. */
   klog("Stack real bottom at %p", (void *)stack_bottom);
-  prepare_program_stack(args, &stack_bottom);
+  stack_user_entry_setup(args, &stack_bottom);
 
   /* Set up user context. */
-  uctx_init(thread_self(), eh.e_entry, stack_bottom);
+  exc_frame_init(td->td_uframe, (void *)eh.e_entry, (void *)stack_bottom,
+                 EF_USER);
 
   /* At this point we are certain that exec succeeds.  We can safely destroy the
    * previous vm map, and permanently assign this one to the current process. */

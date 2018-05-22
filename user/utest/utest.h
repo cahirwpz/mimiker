@@ -34,6 +34,9 @@ int test_fstat(void);
 
 int test_exc_cop_unusable(void);
 int test_exc_reserved_instruction(void);
+int test_exc_integer_overflow(void);
+int test_exc_sigsys(void);
+int test_exc_unaligned_access(void);
 int test_syscall_in_bds(void);
 
 #endif /* __UTEST_H__ */
