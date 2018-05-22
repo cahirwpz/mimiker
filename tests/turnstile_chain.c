@@ -5,7 +5,7 @@
 #include <sched.h>
 #include <thread.h>
 
-// length of the propagation chain
+/* Length of the propagation chain. */
 #define T 4
 
 static mtx_t mtx[T + 1];
@@ -35,7 +35,7 @@ static void propagator_routine(int n) {
   WITH_MTX_LOCK (&mtx[n]) {
     assert(mtx_owner(&mtx[n - 1]) == propagator[n - 1]);
     WITH_MTX_LOCK (&mtx[n - 1]) {
-      // Nothing interesting here
+      /* Nothing interesting here. */
     }
   }
   assert(!td_is_borrowing(thread_self()));
@@ -52,7 +52,7 @@ static void starter_routine(void *_arg) {
         assert(thread_self()->td_prio == propagator_prio(i - 1));
       }
 
-      // propagator[i] waits for mtx[i-1] (owned by propagator[i-1])
+      /* propagator[i] waits for mtx[i-1] (owned by propagator[i-1]) */
 
       /* Check if the priorities have propagated correctly. */
       for (int j = 0; j < i; j++) {
