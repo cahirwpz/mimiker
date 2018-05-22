@@ -47,8 +47,7 @@ static void propagator_routine(int n) {
 
     assert(mtx_owner(&mtx[n - 1]) == propagator[n - 1]);
     WITH_MTX_LOCK (&mtx[n - 1]) {
-      /* Lend and unlend for propagator[n - 1] happened. */
-      assert(propagator[n - 1]->td_prio == propagator_prio(n - 1));
+      // Nothing interesting here
     }
   }
   assert(thread_self()->td_prio == propagator_prio(n));
