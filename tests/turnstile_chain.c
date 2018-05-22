@@ -26,7 +26,7 @@ static int propagator_prio(int n) {
 }
 
 /* n <- [1..T]
- * propagator[n] will contest mtx[n] and block on mtx[n-1] (owned
+ * propagator[n] will acquire mtx[n] and block on mtx[n-1] (owned
  * by propagator[n-1]) causing priority propagation to propagator[0..n-1]
  */
 static void propagator_routine(int n) {
