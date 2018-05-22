@@ -62,15 +62,19 @@ void ktest_failure(void) {
   panic("Halting kernel on failed test.\n");
 }
 
-static test_entry_t *find_test_by_name(const char *test) {
-  SET_DECLARE(tests, test_entry_t);
+static test_entry_t *find_test_by_name_with_len(const char *test, size_t len) {
   test_entry_t **ptr;
   SET_FOREACH(ptr, tests) {
-    if (strcmp((*ptr)->test_name, test) == 0) {
+    if (strlen((*ptr)->test_name) == len &&
+        strncmp((*ptr)->test_name, test, len) == 0) {
       return *ptr;
     }
   }
   return NULL;
+}
+
+static test_entry_t *find_test_by_name(const char *test) {
+  return find_test_by_name_with_len(test, strlen(test));
 }
 
 typedef int (*test_func_t)(unsigned);
