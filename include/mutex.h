@@ -53,6 +53,15 @@ void mtx_init(mtx_t *m, unsigned type);
 /*! \brief Check if calling thread is the owner of \a m. */
 bool mtx_owned(mtx_t *m);
 
+/*! \brief Fetch mutex owner.
+ *
+ * You must never access mutex fields directly outside of its implementation!
+ *
+ * \note The function is used by some tests. */
+static inline volatile thread_t *mtx_owner(mtx_t *m) {
+  return m->m_owner;
+}
+
 /*! \brief Locks the mutex (with custom \a waitpt) */
 void _mtx_lock(mtx_t *m, const void *waitpt);
 
