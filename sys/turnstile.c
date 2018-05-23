@@ -43,7 +43,8 @@ static pool_t P_TURNSTILE;
  * Locks:
  *  needs:    ts_lock, tc_lock
  *  releases: ts_lock, tc_lock. */
-static void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt);
+// TODO fix the type when ready
+// static void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt);
 
 /* Wakeup all threads on the blocked list and adjust the priority of the
  * current thread appropriately.
@@ -58,14 +59,16 @@ static void turnstile_broadcast(turnstile_t *ts);
  *
  * Locks:
  *  acquires: tc_lock, ts_lock (ts_lock if turnstile is found). */
-static turnstile_t *turnstile_lookup(void *wchan);
+// TODO fix the type when ready
+// static turnstile_t *turnstile_lookup(void *wchan);
 
 /* At first it runs turnstile_lookup and returns the result if it's not NULL.
  * If turnstile was not found in chains, it returns thread_self()'s turnstile.
  *
  * Locks:
  *  acquires: tc_lock, ts_lock. */
-static turnstile_t *turnstile_acquire(void *wchan);
+// TODO fix the type when ready
+// static turnstile_t *turnstile_acquire(void *wchan);
 
 /* Locks turnstile chain associated with wchan and returns pointer
  * to this chain.
