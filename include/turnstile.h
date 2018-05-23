@@ -73,4 +73,8 @@ turnstile_chain_t *turnstile_chain_lock(void *wchan);
  *  releases: tc_lock. */
 void turnstile_chain_unlock(void *wchan);
 
+void turnstile_broadcast_wchan(void *wchan);
+
+void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt);
+
 #endif /* !_SYS_TURNSTILE_H_ */

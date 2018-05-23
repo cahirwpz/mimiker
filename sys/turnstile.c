@@ -342,3 +342,24 @@ turnstile_t *turnstile_acquire(void *wchan) {
 
   return ts;
 }
+
+void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt)
+{
+  turnstile_t *ts = turnstile_acquire(wchan);
+  /* In case of SMP we would have to check now whether some other
+   * processor released the mutex while we were spinning for turnstile's
+   * spinlock. */
+  turnstile_wait(ts, owner, waitpt);
+}
+
+void turnstile_broadcast_wchan(void *wchan)
+{
+  turnstile_t *ts = turnstile_lookup(wchan);
+  if (ts != NULL) {
+    turnstile_broadcast(ts);
+  } else {
+    /* The lock wasn't contested, nothing to do with turnstiles.
+     * Just release spinlock acquired in turnstile_lookup. */
+    turnstile_chain_unlock(wchan);
+  }
+}
