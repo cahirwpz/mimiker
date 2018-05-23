@@ -123,7 +123,7 @@ static void propagate_priority(thread_t *td) {
     if (td->td_prio >= prio)
       return;
 
-      sched_lend_prio(td, prio);
+    sched_lend_prio(td, prio);
 
     /* Lock holder is on run queue or is currently running. */
     if (td_is_ready(td) || td_is_running(td)) {
