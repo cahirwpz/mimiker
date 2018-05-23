@@ -75,19 +75,19 @@ Test infrastructure
 
 ##### User tests
 Located in `/user/utest`.
-User-space test function signature looks like this: `int test_[name](void)` 
+User-space test function signature looks like this: `int test_{name}(void)` 
 and should be defined in `user/utest/utest.h`.
 In order to make the test runnable one has to add one of these lines to `test/utest.c` file:
-* `UTEST_ADD_SIMPLE([name])` - test fails on assertion or non-zero return value.
-* `UTEST_ADD_SIGNAL([name], [SIGNUMBER])` - test passes when terminated with `[SIGNUMBER]`.
-* `UTEST_ADD([name], [exit status], flags)` - test passes when exited with status `[exit status]`.
+* `UTEST_ADD_SIMPLE({name})` - test fails on assertion or non-zero return value.
+* `UTEST_ADD_SIGNAL({name}, {SIGNUMBER})` - test passes when terminated with `{SIGNUMBER}`.
+* `UTEST_ADD({name}, {exit status}, flags)` - test passes when exited with status `{exit status}`.
 
-One also needs to add a line `CHECKRUN_TEST([name])` in `/user/utest/main.c`.
+One also needs to add a line `CHECKRUN_TEST({name})` in `/user/utest/main.c`.
 
 ##### Kernel tests 
 Located in `/tests`. 
 Test function signature looks like this:
-`[name](void)` or sometimes `[name](unsigned int)` but needs to be casted to 
+`{name}(void)` or sometimes `{name}(unsigned int)` but needs to be casted to 
 `(int (*)(void))`.
 
 Macros to register tests:
@@ -109,7 +109,7 @@ flags as mentioned bellow, and `max` is maximum random argument fed to the test.
 
 ###### `./launch` test-related arguments:
 * `test=TEST` - Requests the kernel to run the specified test.
-`test=user_[name]` to run single user test, `test=[name]` to run single kernel test.
+`test=user_{name}` to run single user test, `test={name}` to run single kernel test.
 * `test=all` - Runs a number of tests one after another, and reports success
   only when all of them passed.
 * `seed=UINT` - Sets the RNG seed for shuffling the list of test when using
@@ -120,7 +120,7 @@ flags as mentioned bellow, and `max` is maximum random argument fed to the test.
 ###### `./run_tests.py` usefull arguments:
 * `-h` - prints script usage.
 * `--infinite` - keep testing until some error is found. 
-* `--non-interactive` - do not run gdb session if tests fail.
+* `--non-interactive` - do not run gdb interactive session if tests fail.
 * `--thorough` - generate much more test seeds. Testing will take much more time.
 
 Documentation
