@@ -23,7 +23,7 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
 
   WITH_NO_PREEMPTION {
     while (m->m_owner != NULL) {
-      turnstile_wait_wchan(m, (thread_t *) m->m_owner, waitpt);
+      turnstile_wait_wchan(m, (thread_t *)m->m_owner, waitpt);
     }
     m->m_owner = thread_self();
     m->m_lockpt = waitpt;

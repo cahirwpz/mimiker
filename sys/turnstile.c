@@ -53,7 +53,8 @@ typedef struct ts_pair {
  *  needs:    ts_lock, tc_lock
  *  releases: ts_lock, tc_lock. */
 // TODO fix the type when ready
-// static void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt);
+// static void turnstile_wait(turnstile_t *ts, thread_t *owner, const void
+// *waitpt);
 
 /* Wakeup all threads on the blocked list and adjust the priority of the
  * current thread appropriately.
@@ -374,10 +375,10 @@ static ts_pair_t turnstile_lookup(void *wchan) {
   LIST_FOREACH(ts, &tc->tc_turnstiles, ts_hash) {
     if (ts->ts_wchan == wchan) {
       spin_acquire(&ts->ts_lock);
-      return (ts_pair_t) { .ts = ts, .tc = tc };
+      return (ts_pair_t){.ts = ts, .tc = tc};
     }
   }
-  return (ts_pair_t) { NULL, tc };
+  return (ts_pair_t){NULL, tc};
 }
 
 static ts_pair_t turnstile_acquire(void *wchan) {
@@ -396,8 +397,7 @@ static ts_pair_t turnstile_acquire(void *wchan) {
   return tp;
 }
 
-void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt)
-{
+void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt) {
   ts_pair_t tp = turnstile_acquire(wchan);
   /* In case of SMP we would have to check now whether some other
    * processor released the mutex while we were spinning for turnstile's
@@ -405,8 +405,7 @@ void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt)
   turnstile_wait(tp.ts, tp.tc, owner, waitpt);
 }
 
-void turnstile_broadcast_wchan(void *wchan)
-{
+void turnstile_broadcast_wchan(void *wchan) {
   ts_pair_t tp = turnstile_lookup(wchan);
   if (tp.ts != NULL) {
     turnstile_broadcast(tp.ts, tp.tc);
