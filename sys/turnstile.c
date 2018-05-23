@@ -227,38 +227,52 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
     propagate_priority(td);
 }
 
-static void turnstile_wait(turnstile_t *ts, turnstile_chain_t *tc,
-                           thread_t *owner, const void *waitpt) {
+// case 1 of former turnstile_wait
+// we use our turnstile to track `owner`
+static void turnstile_provide_own(turnstile_t *ts, turnstile_chain_t *tc,
+                                  thread_t *owner, const void *waitpt) {
+  thread_t *td = thread_self();
+
+  LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_hash);
+
+  assert(TAILQ_EMPTY(&ts->ts_blocked));
+  assert(LIST_EMPTY(&ts->ts_free));
+  assert(ts->ts_wchan != NULL);
+
+  WITH_SPINLOCK(&td_contested_lock) {
+    TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
+    turnstile_setowner(ts, owner);
+  }
+}
+
+// case 2 of former turnstile_wait
+// we donate our turnstile to ts_free list
+static void turnstile_join_waiting(turnstile_t *ts, turnstile_chain_t *tc,
+                                   thread_t *owner, const void *waitpt) {
+  thread_t *td = thread_self();
+  thread_t *td1;
+  TAILQ_FOREACH (td1, &ts->ts_blocked, td_lockq)
+    if (td1->td_prio < td->td_prio)
+      break;
+  WITH_SPINLOCK(&td_contested_lock) {
+    if (td1 != NULL)
+      TAILQ_INSERT_BEFORE(td1, td, td_lockq);
+    else
+      TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
+    assert(owner == ts->ts_owner);
+  }
+  assert(td->td_turnstile != NULL);
+  LIST_INSERT_HEAD(&ts->ts_free, td->td_turnstile, ts_hash);
+}
+
+// final (common) part of former turnstile_wait
+// Call this when all turnstile stuff is ready
+// This changes appropriate thread fields and switches context
+static void turnstile_actually_wait(turnstile_t *ts, turnstile_chain_t *tc,
+                                    thread_t *owner, const void *waitpt) {
+  thread_t *td = thread_self();
   assert(spin_owned(&ts->ts_lock));
   assert(spin_owned(&tc->tc_lock));
-
-  thread_t *td = thread_self();
-  if (ts == td->td_turnstile) {
-    LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_hash);
-
-    assert(TAILQ_EMPTY(&ts->ts_blocked));
-    assert(LIST_EMPTY(&ts->ts_free));
-    assert(ts->ts_wchan != NULL);
-
-    WITH_SPINLOCK(&td_contested_lock) {
-      TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
-      turnstile_setowner(ts, owner);
-    }
-  } else {
-    thread_t *td1;
-    TAILQ_FOREACH (td1, &ts->ts_blocked, td_lockq)
-      if (td1->td_prio < td->td_prio)
-        break;
-    WITH_SPINLOCK(&td_contested_lock) {
-      if (td1 != NULL)
-        TAILQ_INSERT_BEFORE(td1, td, td_lockq);
-      else
-        TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
-      assert(owner == ts->ts_owner);
-    }
-    assert(td->td_turnstile != NULL);
-    LIST_INSERT_HEAD(&ts->ts_free, td->td_turnstile, ts_hash);
-  }
 
   WITH_SPINLOCK(td->td_spin) {
     td->td_turnstile = NULL;
@@ -405,7 +419,7 @@ void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt) {
    * spinlock. */
 
   if (tp.ts != NULL) {
-    turnstile_wait(tp.ts, tp.tc, owner, waitpt);
+    turnstile_join_waiting(tp.ts, tp.tc, owner, waitpt);
   } else {
     tp.ts = thread_self()->td_turnstile;
     assert(tp.ts != NULL);
@@ -414,8 +428,9 @@ void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt) {
     assert(tp.ts->ts_wchan == NULL);
     tp.ts->ts_wchan = wchan;
 
-    turnstile_wait(tp.ts, tp.tc, owner, waitpt);
+    turnstile_provide_own(tp.ts, tp.tc, owner, waitpt);
   }
+  turnstile_actually_wait(tp.ts, tp.tc, owner, waitpt);
 }
 
 void turnstile_broadcast_wchan(void *wchan) {
