@@ -4,6 +4,7 @@
 #include <pci.h>
 
 /* For reference look at: http://wiki.osdev.org/PCI */
+/* GENERIC PCI DRIVER - PLATFORM INDEPENDENT */
 
 static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
                                             uint16_t device_id) {
@@ -61,7 +62,7 @@ void pci_bus_enumerate(device_t *pcib) {
         uint32_t size = pci_adjust_config(dev, PCIR_BAR(i), 4, 0xffffffff);
 
         if (size == 0 || addr == size)
-          continue;
+          continue; // device doesn't have that BAR
 
         unsigned type, flags;
 
@@ -100,6 +101,12 @@ static int pci_bar_compare(const void *a, const void *b) {
 }
 
 void pci_bus_assign_space(device_t *pcib) {
+  /* przypisujac bary chcemy korzystac z rmanow w gt64120.
+  musimy to zrobic jakoś abstrakcyjnie żebynie pci.c nie zależał od gt64120. */
+  /* dodać odpowiednie funkcje w pci.h? a najlepiej w bus.h bo chcemy dla każdego
+  typu urządzeń to robić */
+
+
   /* Count PCI base address registers & allocate memory */
   unsigned nbars = 0, ndevs = 0;
   device_t *dev;

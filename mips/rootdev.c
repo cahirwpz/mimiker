@@ -24,6 +24,8 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
 
 extern pci_bus_driver_t gt_pci_bus;
 device_t *gt_pci;
+/* static rman_t rm_mem; whole phycal address space */
+/* static rman_t rm_irq; all CPU IRQs */
 
 static int rootdev_attach(device_t *dev) {
   gt_pci = device_add_child(dev);

@@ -48,6 +48,12 @@ typedef struct gt_pci_state {
   intr_handler_t intr_handler;
   intr_chain_t intr_chain[16];
 
+  /* rman_t *rm_pci_io; only for PCI BARs */
+  /* rman_t *rm_pci_mem; only for PCI BARs */
+  /* rman_t *rm_ctrl; (only) for gt64120 controller. (child devices do abstract/indirect access) */
+  /* rman_t *rm_irq; in or out IRQs? */
+  /* rman_t *rm_isa_io; (ignore for now) */
+
   uint16_t imask;
   uint16_t elcr;
 } gt_pci_state_t;

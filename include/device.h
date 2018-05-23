@@ -35,7 +35,7 @@ struct device {
   device_list_t children;   /* head of children devices */
 
   /* Device information and state. */
-  device_bus_t bus;
+  device_bus_t bus; /* to which bus is this device connected */
   driver_t *driver;
   void *instance; /* used by bus driver to store data in children */
   void *state;    /* memory requested by driver for its state*/
