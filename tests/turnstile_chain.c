@@ -39,7 +39,7 @@ static void propagator_routine(int n) {
   WITH_MTX_LOCK (&mtx[n]) {
     assert(mtx_owner(&mtx[n - 1]) == propagator[n - 1]);
     WITH_MTX_LOCK (&mtx[n - 1]) {
-      /* Nothing interesting here. */
+      // Nothing interesting here.
     }
   }
   assert(!td_is_borrowing(thread_self()));
@@ -72,8 +72,6 @@ static void starter_routine(void *_arg) {
 }
 
 static int test_main(void) {
-  klog_setmask(KL_MASK(KL_TEST) | KL_MASK(KL_THREAD));
-
   for (int i = 0; i < T + 1; i++)
     mtx[i] = MTX_INITIALIZER(MTX_DEF);
 
@@ -92,8 +90,6 @@ static int test_main(void) {
 
   for (int i = 0; i < T + 1; i++)
     thread_join(propagator[i]);
-
-  klog_setmask(KL_ALL);
 
   return KTEST_SUCCESS;
 }
