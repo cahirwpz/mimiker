@@ -130,7 +130,6 @@ void pci_bus_assign_space(device_t *pcib) {
       bar->r_bus_space = data->io_space->r_bus_space;
       rman_allocate_resource(bar, &rman_iospace, 0, (rman_addr)~0,
                              bar->r_end - bar->r_start + 1);
-      bar->r_bus_space = data->io_space->r_bus_space;
     } else if (bar->r_type == RT_MEMORY) {
       rman_allocate_resource(bar, &rman_memspace, 0, (rman_addr)~0,
                              bar->r_end - bar->r_start + 1);

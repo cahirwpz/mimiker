@@ -5,7 +5,7 @@ typedef size_t rman_addr;
 struct rman {
   rman_addr start;
   rman_addr end;
-  mtx_t mtx;
+  mtx_t mtx; // TODO maybe initialize this mutex
 };
 
 struct rman rman_iospace = {
