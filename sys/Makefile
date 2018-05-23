@@ -38,6 +38,7 @@ SOURCES_C  = \
 	pool.c \
 	proc.c \
 	ringbuf.c \
+	rman.c \
 	runq.c \
 	rwlock.c \
 	sbrk.c \

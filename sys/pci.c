@@ -2,9 +2,18 @@
 #include <malloc.h>
 #include <device.h>
 #include <pci.h>
-#include "rman.h"
+#include <rman.h>
 
 /* For reference look at: http://wiki.osdev.org/PCI */
+
+
+rman_t rman_pci_iospace = {
+  .start = 0x18000000, .end = 0x1bdfffff,
+};
+
+rman_t rman_pci_memspace = {
+  .start = 0x10000000, .end = 0x17ffffff,
+};
 
 static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
                                             uint16_t device_id) {
@@ -128,10 +137,10 @@ void pci_bus_assign_space(device_t *pcib) {
     resource_t *bar = bars[j];
     if (bar->r_type == RT_IOPORTS) {
       bar->r_bus_space = data->io_space->r_bus_space;
-      rman_allocate_resource(bar, &rman_iospace, 0, (rman_addr)~0,
+      rman_allocate_resource(bar, &rman_pci_iospace, 0, (rman_addr)~0,
                              bar->r_end - bar->r_start + 1);
     } else if (bar->r_type == RT_MEMORY) {
-      rman_allocate_resource(bar, &rman_memspace, 0, (rman_addr)~0,
+      rman_allocate_resource(bar, &rman_pci_memspace, 0, (rman_addr)~0,
                              bar->r_end - bar->r_start + 1);
       bar->r_bus_space = data->mem_space->r_bus_space;
     }
