@@ -23,6 +23,7 @@ static rman_block_t *find_block(rman_t *rm, rman_addr start, rman_addr end,
   return NULL;
 }
 
+// divide block into two
 // `where` means start of right block
 // function returns pointer to new (right) block
 static rman_block_t *cut_block(rman_block_t *block, rman_addr where) {
@@ -42,6 +43,8 @@ static rman_block_t *cut_block(rman_block_t *block, rman_addr where) {
   return right_block;
 }
 
+// maybe split block into two or three in order to recover space before and
+// after allocation
 static rman_block_t *split_block(rman_block_t *block, rman_addr start,
                                  rman_addr end, rman_addr count) {
   if (block->start < start) {
@@ -63,6 +66,7 @@ void rman_allocate_resource(resource_t *res, rman_t *rm, rman_addr start,
   assert(block != NULL); // TODO maybe this exception should be recoverable?
 
   block = split_block(block, start, end, count);
+  block->is_allocated = true;
   res->r_start = block->start;
   res->r_end = block->end;
 
@@ -75,11 +79,11 @@ void rman_init(rman_t *rm) {
   mtx_init(&rm->mtx, MTX_DEF);
   LIST_INIT(&rm->blocks);
 
+  // TODO so maybe we don't need to store start and end in rman_t?
   rman_block_t *whole_space = kmalloc(M_DEV, sizeof(rman_block_t), M_ZERO);
 
   whole_space->start = rm->start;
-  whole_space->end =
-    rm->end; // TODO so maybe we don't need to store start and end in rman_t?
+  whole_space->end = rm->end;
   whole_space->is_allocated = false;
 
   LIST_INSERT_HEAD(&rm->blocks, whole_space, blocks);
