@@ -5,7 +5,6 @@
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 
-
 rman_t rman_pci_iospace = {
   .start = 0x18000000, .end = 0x1bdfffff,
 };
@@ -136,11 +135,11 @@ void pci_bus_assign_space(device_t *pcib) {
     resource_t *bar = bars[j];
     if (bar->r_type == RT_IOPORTS) {
       bar->r_bus_space = data->io_space->r_bus_space;
-      rman_allocate_resource(bar, &rman_pci_iospace, 0, (rman_addr)~0,
-                             bar->r_end - bar->r_start + 1);
+      rman_allocate_resource_any(bar, &rman_pci_iospace,
+                                 bar->r_end - bar->r_start + 1);
     } else if (bar->r_type == RT_MEMORY) {
-      rman_allocate_resource(bar, &rman_pci_memspace, 0, (rman_addr)~0,
-                             bar->r_end - bar->r_start + 1);
+      rman_allocate_resource_any(bar, &rman_pci_memspace,
+                                 bar->r_end - bar->r_start + 1);
       bar->r_bus_space = data->mem_space->r_bus_space;
     }
 
