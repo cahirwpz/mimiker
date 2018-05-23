@@ -107,12 +107,6 @@ flags as mentioned bellow, and `max` is maximum random argument fed to the test.
    temporarily marking some tests while debugging the testing framework.
 * `KTEST_FLAG_RANDINT` - marks that the test wishes to receive a random integer as an argument.
 
-##### Running tests:
-* `./run_tests.py` - runs 5 seeds of all tests.
-* `./run_tests.py --infinite` - infinitely runs all tests.
-* `./run_tests.py --non-interactive` - do not run gdb session if tests fail.
-* `./run_tests.py--thorough` - generate much more test seeds (100).
-
 ###### `./launch` test-related arguments:
 * `test=TEST` - Requests the kernel to run the specified test.
 `test=user_[name]` to run single user test, `test=[name]` to run single kernel test.
