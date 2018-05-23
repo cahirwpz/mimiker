@@ -19,7 +19,7 @@ struct rman {
   rman_addr start;
   rman_addr end;
   mtx_t mtx;
-  LIST_HEAD(, rman_block) * blocks;
+  LIST_HEAD(, rman_block) blocks;
 };
 
 

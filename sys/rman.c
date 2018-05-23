@@ -19,5 +19,5 @@ void rman_allocate_resource(resource_t *res, rman_t *rm, rman_addr start,
 
 void rman_init(rman_t *rm) {
   mtx_init(&rm->mtx, MTX_DEF);
-  LIST_INIT(rm->blocks);
+  LIST_INIT(&rm->blocks);
 }

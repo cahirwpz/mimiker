@@ -2,7 +2,6 @@
 #include <malloc.h>
 #include <device.h>
 #include <pci.h>
-#include <rman.h>
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 
