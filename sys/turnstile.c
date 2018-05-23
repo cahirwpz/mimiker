@@ -333,8 +333,6 @@ turnstile_t *turnstile_acquire(void *wchan) {
   if (ts != NULL)
     return ts;
 
-  turnstile_chain_lock(wchan);
-
   ts = thread_self()->td_turnstile;
   assert(ts != NULL);
   spin_acquire(&ts->ts_lock);
