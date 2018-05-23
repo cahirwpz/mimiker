@@ -120,7 +120,7 @@ flags as mentioned bellow, and `max` is maximum random argument fed to the test.
 ###### `./run_tests.py` usefull arguments:
 * `-h` - prints script usage.
 * `--infinite` - keep testing until some error is found. 
-* `--non-interactive` - do not run gdb interactive session if tests fail.
+* `--non-interactive` - do not run interactive gdb session if tests fail.
 * `--thorough` - generate much more test seeds. Testing will take much more time.
 
 Documentation
