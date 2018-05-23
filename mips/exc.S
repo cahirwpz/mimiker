@@ -28,12 +28,12 @@ exc_enter:
 # stack and local pcpu structure! These are guaranteed to be wired in TLB.
 # It is UNSAFE to use k0/k1 registers when TLB miss handler may be triggered!
 
-user_exc_enter:
+NESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         # Fetch exception frame pointer where context will be saved.
         LOAD_PCPU(k0)
         lw      k0, PCPU_KSP(k0)
 
-        SAVE_CPU_CTX(k0)
+        SAVE_CPU_CTX(sp, k0)
 
         # If FPU is enabled save FPU registers.
         mfc0    t0, C0_STATUS
@@ -73,9 +73,8 @@ skip_fpu_save:
         sw      t0, TD_IDNEST(s0)
 
         # Call C interrupt handler routine.
-        move    a0, sp
         jalr    s1
-        nop
+        move    a0, sp                  # (delay) 1st arg
 
         # Decrement interrupt nest level.
         lw      t0, TD_IDNEST(s0)
@@ -121,14 +120,13 @@ skip_fpu_restore:
 user_return:
         sync
         eret
+END(user_exc_enter)
 
-kern_exc_enter:
+NESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         # Allocate stack frame and save context there.
-        subu    k0, sp, EXC_FRAME_SIZ
-        SAVE_CPU_CTX(k0)
-
-        # Set kernel stack pointer just after saved kernel context.
-        move    sp, k0
+        move    k0, sp                  # save original sp value
+        subu    sp, KERN_EXC_FRAME_SIZE # required by gdb to recognize frame
+        SAVE_CPU_CTX(k0, sp)
 
         # Register k1 is going to become unsafe soon - move it to s1.
         move    s1, k1
@@ -155,9 +153,8 @@ kern_exc_enter:
         sw      t0, TD_IDNEST(s0)
 
         # Call C interrupt handler routine.
-        move    a0, sp
         jalr    s1
-        nop
+        move    a0, sp                  # (delay) 1st arg
 
         # Decrement interrupt nest level.
         lw      t0, TD_IDNEST(s0)
@@ -184,5 +181,6 @@ kern_exc_leave:
 
         sync
         eret
+END(kern_exc_enter)
 
 # vim: sw=8 ts=8 et

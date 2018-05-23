@@ -15,7 +15,7 @@
 
 #define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (EXC_FPU_##offset)(base)
 
-#define SAVE_CPU_CTX(reg)                                                      \
+#define SAVE_CPU_CTX(_sp, reg)                                                 \
   SAVE_REG(AT, AT, reg);                                                       \
   SAVE_REG(v0, V0, reg);                                                       \
   SAVE_REG(v1, V1, reg);                                                       \
@@ -42,7 +42,7 @@
   SAVE_REG(t8, T8, reg);                                                       \
   SAVE_REG(t9, T9, reg);                                                       \
   SAVE_REG(gp, GP, reg);                                                       \
-  SAVE_REG(sp, SP, reg);                                                       \
+  SAVE_REG(_sp, SP, reg);                                                      \
   SAVE_REG(fp, FP, reg);                                                       \
   SAVE_REG(ra, RA, reg);                                                       \
   mflo t0;                                                                     \
@@ -195,6 +195,10 @@ typedef struct exc_frame {
   CPU_FRAME;
   FPU_FRAME;
 } exc_frame_t;
+
+static inline bool in_kernel_mode(exc_frame_t *frame) {
+  return (frame->sr & SR_KSU_MASK) == SR_KSU_KERN;
+}
 
 #endif
 
