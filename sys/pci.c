@@ -2,6 +2,7 @@
 #include <malloc.h>
 #include <device.h>
 #include <pci.h>
+#include "rman.h"
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 
@@ -122,21 +123,18 @@ void pci_bus_assign_space(device_t *pcib) {
   qsort(bars, nbars, sizeof(resource_t *), pci_bar_compare);
 
   pci_bus_state_t *data = pcib->state;
-  intptr_t io_base = data->io_space->r_start;
-  intptr_t mem_base = data->mem_space->r_start;
 
   for (unsigned j = 0; j < nbars; j++) {
     resource_t *bar = bars[j];
     if (bar->r_type == RT_IOPORTS) {
       bar->r_bus_space = data->io_space->r_bus_space;
-      bar->r_start += io_base;
-      bar->r_end += io_base;
-      io_base = bar->r_end + 1;
+      rman_allocate_resource(bar, &rman_iospace, 0, (rman_addr)~0,
+                             bar->r_end - bar->r_start + 1);
+      bar->r_bus_space = data->io_space->r_bus_space;
     } else if (bar->r_type == RT_MEMORY) {
+      rman_allocate_resource(bar, &rman_memspace, 0, (rman_addr)~0,
+                             bar->r_end - bar->r_start + 1);
       bar->r_bus_space = data->mem_space->r_bus_space;
-      bar->r_start += mem_base;
-      bar->r_end += mem_base;
-      mem_base = bar->r_end + 1;
     }
 
     /* Write the BAR address back to PCI bus config. It's safe to write the
