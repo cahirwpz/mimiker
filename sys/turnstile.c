@@ -381,6 +381,7 @@ static ts_pair_t turnstile_lookup(void *wchan) {
   return (ts_pair_t){NULL, tc};
 }
 
+/* UNUSED
 static ts_pair_t turnstile_acquire(void *wchan) {
   ts_pair_t tp = turnstile_lookup(wchan);
   if (tp.ts != NULL)
@@ -396,13 +397,25 @@ static ts_pair_t turnstile_acquire(void *wchan) {
   tp.ts = ts;
   return tp;
 }
-
+*/
 void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt) {
-  ts_pair_t tp = turnstile_acquire(wchan);
+  ts_pair_t tp = turnstile_lookup(wchan);
   /* In case of SMP we would have to check now whether some other
    * processor released the mutex while we were spinning for turnstile's
    * spinlock. */
-  turnstile_wait(tp.ts, tp.tc, owner, waitpt);
+
+  if (tp.ts != NULL) {
+    turnstile_wait(tp.ts, tp.tc, owner, waitpt);
+  } else {
+    tp.ts = thread_self()->td_turnstile;
+    assert(tp.ts != NULL);
+    spin_acquire(&tp.ts->ts_lock);
+
+    assert(tp.ts->ts_wchan == NULL);
+    tp.ts->ts_wchan = wchan;
+
+    turnstile_wait(tp.ts, tp.tc, owner, waitpt);
+  }
 }
 
 void turnstile_broadcast_wchan(void *wchan) {
