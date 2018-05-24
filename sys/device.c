@@ -46,7 +46,7 @@ int device_detach(device_t *dev) {
   return res;
 }
 
-int bus_generic_probe(device_t *bus) {
+int bus_generic_probe_and_attach(device_t *bus) {
   device_t *dev;
   SET_DECLARE(driver_table, driver_t);
   klog("Scanning %s for known devices.", bus->driver->desc);
@@ -55,6 +55,7 @@ int bus_generic_probe(device_t *bus) {
     SET_FOREACH(drv_p, driver_table) {
       driver_t *drv = *drv_p;
       dev->driver = drv;
+      kprintf("match? %s\n", drv->desc);
       if (device_probe(dev)) {
         klog("%s detected!", drv->desc);
         device_attach(dev);

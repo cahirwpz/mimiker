@@ -7,6 +7,11 @@
 #include <pci.h>
 #include <sysinit.h>
 
+#define NUM_MIPS_IRQS   6
+
+// static rman_t rm_mem;
+// static rman_t rm_irq;
+
 typedef struct rootdev { void *data; } rootdev_t;
 
 static inline rootdev_t *rootdev_of(device_t *dev) {
@@ -24,15 +29,24 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
 
 extern pci_bus_driver_t gt_pci_bus;
 device_t *gt_pci;
-/* static rman_t rm_mem; whole phycal address space */
-/* static rman_t rm_irq; all CPU IRQs */
 
 static int rootdev_attach(device_t *dev) {
+
+  /* init rmans here */
+
   gt_pci = device_add_child(dev);
   gt_pci->driver = &gt_pci_bus.driver;
   if (device_probe(gt_pci))
     device_attach(gt_pci);
   return 0;
+}
+
+static void rootdev_resource_alloc(device_t *dev, unsigned int flags,
+                                      unsigned long long start,
+                                      unsigned long long end,
+                                      unsigned long long size){
+
+  return;
 }
 
 static bus_driver_t rootdev_driver = {
@@ -44,7 +58,9 @@ static bus_driver_t rootdev_driver = {
     },
   .bus =
     {
-      .intr_setup = rootdev_intr_setup, .intr_teardown = rootdev_intr_teardown,
+      .intr_setup = rootdev_intr_setup, 
+      .intr_teardown = rootdev_intr_teardown,
+      .resource_alloc = rootdev_resource_alloc
     }};
 
 static device_t rootdev = (device_t){

@@ -105,7 +105,34 @@ void pci_bus_assign_space(device_t *pcib) {
   musimy to zrobic jakoś abstrakcyjnie żebynie pci.c nie zależał od gt64120. */
   /* dodać odpowiednie funkcje w pci.h? a najlepiej w bus.h bo chcemy dla każdego
   typu urządzeń to robić */
+  /* przypisując BARY do określonego miejsca powinien korzystać z rmanów gt64120 */
 
+  /* (jakaś funkcja która bierze pcib jako argument?) a konkretnie device które jest szyną */
+  /* bus_assign_space_for_drivers(device_t bus) */
+  /* szyna ma to wołać czy sterownik w attachu?? */
+  /* jednak to w sterowniku np. przy attach ma on wołać coś zo będzie
+  korzystało z rmana w rodzicu(szynie) i przydzielało resourcey */
+
+
+  /* resource_t *bus_alloc_resource(device_t *dev [this device needs some resource],
+      jakie adresy (jeśli na sztywno), unsigned int flags) */
+
+  /* we flagach może być opcja że chcemy adresy na sztywno (zwraca NULL jeśli się nie uda),
+  albo w dowolnym miejscu */
+
+  /* jeszcze trzeba wiedzieć z jakiej puli chcemy te adresy. czy io ports czy mem */
+  /* ale to jest chyba w strukturze urządzenia zrobione już przez bus enumerate */
+
+  /* skąd device ma wiedzieć jakie bary potrzebuje? */
+  /* jest to w dev->instance->bars[] */
+
+  /* rodzic musi implementować procesude do dawania resourceów */
+
+  /* macro BUS_ALLOC_RESOURCE */
+  /* DEVMETHOD(bus_alloc_resource,       ata_pci_alloc_resource), */
+
+  /* zobacz we freebsd http://bxr.su/FreeBSD/sys/dev/pci/pci.c
+  static device_method_t pci_methods[]  */
 
   /* Count PCI base address registers & allocate memory */
   unsigned nbars = 0, ndevs = 0;

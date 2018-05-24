@@ -110,9 +110,16 @@ typedef void (*bus_intr_setup_t)(device_t *dev, unsigned num,
                                  intr_handler_t *handler);
 typedef void (*bus_intr_teardown_t)(device_t *dev, intr_handler_t *handler);
 
+typedef void (*bus_resource_alloc_t)(device_t *dev,
+                                     unsigned int flags,
+                                     unsigned long long start,
+                                     unsigned long long end,
+                                     unsigned long long size); /* temporary definition */
+
 struct bus_methods {
   bus_intr_setup_t intr_setup;
   bus_intr_teardown_t intr_teardown;
+  bus_resource_alloc_t resource_alloc; /* called from childs attach */
 };
 
 struct bus_driver {
@@ -131,6 +138,19 @@ static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
   BUS_DRIVER(dev)->bus.intr_teardown(dev, handler);
 }
 
-int bus_generic_probe(device_t *bus);
+#define RS_SHARED 0x1
+#define RS_EXCLUSIVE 0x2
+#define RS_FIXED 0x4
+#define RS_ANY 0x8
+
+static inline void bus_resource_alloc(device_t *dev, unsigned int flags,
+                                      unsigned long long start,
+                                      unsigned long long end,
+                                      unsigned long long size){
+  BUS_DRIVER(dev)->bus.resource_alloc(dev, flags, start, end, size);
+  return;
+}
+
+int bus_generic_probe_and_attach(device_t *bus);
 
 #endif

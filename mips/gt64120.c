@@ -347,7 +347,15 @@ static int gt_pci_attach(device_t *pcib) {
     INTR_HANDLER_INIT(gt_pci_intr, NULL, gtpci, "GT64120 interrupt", 0);
   bus_intr_setup(pcib, MIPS_HWINT0, &gtpci->intr_handler);
 
-  return bus_generic_probe(pcib);
+  return bus_generic_probe_and_attach(pcib);
+}
+
+static void gt_pci_resource_alloc(device_t *dev,unsigned int flags,
+                                      unsigned long long start,
+                                      unsigned long long end,
+                                      unsigned long long size){
+
+  return;
 }
 
 pci_bus_driver_t gt_pci_bus = {
@@ -359,7 +367,9 @@ pci_bus_driver_t gt_pci_bus = {
     },
   .bus =
     {
-      .intr_setup = gt_pci_intr_setup, .intr_teardown = gt_pci_intr_teardown,
+      .intr_setup = gt_pci_intr_setup, 
+      .intr_teardown = gt_pci_intr_teardown,
+      .resource_alloc = gt_pci_resource_alloc
     },
   .pci_bus =
     {
