@@ -45,6 +45,8 @@ static void rootdev_resource_alloc(device_t *dev, unsigned int flags,
                                       unsigned long long start,
                                       unsigned long long end,
                                       unsigned long long size){
+  
+  /* use rmans to give resource to child device */
 
   return;
 }

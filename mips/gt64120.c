@@ -48,12 +48,6 @@ typedef struct gt_pci_state {
   intr_handler_t intr_handler;
   intr_chain_t intr_chain[16];
 
-  /* rman_t *rm_pci_io; only for PCI BARs */
-  /* rman_t *rm_pci_mem; only for PCI BARs */
-  /* rman_t *rm_ctrl; (only) for gt64120 controller. (child devices do abstract/indirect access) */
-  /* rman_t *rm_irq; in or out IRQs? */
-  /* rman_t *rm_isa_io; (ignore for now) */
-
   uint16_t imask;
   uint16_t elcr;
 } gt_pci_state_t;
@@ -168,6 +162,8 @@ static bus_space_t gt_pci_bus_space = {.read_1 = gt_pci_read_1,
                                        .read_region_1 = gt_pci_read_region_1,
                                        .write_region_1 = gt_pci_write_region_1};
 
+/* Not needed BEGIN */
+
 static resource_t gt_pci_memory = {.r_bus_space = &gt_pci_bus_space,
                                    .r_type = RT_MEMORY,
                                    .r_start = MALTA_PCI0_MEMORY_BASE,
@@ -182,6 +178,8 @@ static resource_t gt_pci_corectrl = {.r_bus_space = &gt_pci_bus_space,
                                      .r_type = RT_IOPORTS,
                                      .r_start = MALTA_CORECTRL_BASE,
                                      .r_end = MALTA_CORECTRL_BASE + 0x1000};
+
+/* Not needed END */
 
 static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
   /* Enable the cascade IRQ (2) if 8-15 is enabled. */
@@ -305,6 +303,24 @@ static int gt_pci_attach(device_t *pcib) {
 
   pcib->bus = DEV_BUS_PCI;
 
+
+  void* rs_mem = bus_alloc_resource(pcib, 0,MALTA_PCI0_MEMORY_BASE, 
+    MALTA_PCI0_MEMORY_END, MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1);
+  void* rs_io = bus_alloc_resource(pcib, 0, MALTA_PCI0_IO_BASE + 0x1000, 
+    MALTA_PCI0_IO_END, MALTA_PCI0_IO_END - (MALTA_PCI0_IO_BASE + 0x1000) + 1);
+  void* rs_ctrl = bus_alloc_resource(pcib, 0, MALTA_PCI0_IO_BASE + 0x1000, 
+    MALTA_PCI0_IO_END, MALTA_PCI0_IO_END - (MALTA_PCI0_IO_BASE + 0x1000) + 1);
+  
+  // if(rs_mem | rs_io | rs_ctrl == NULL)
+    // panic("Couldn't alloc resources for gt64120.");
+
+  // gtpci->pci_bus.mem_space = rs_mem;
+  // gtpci->pci_bus.io_space = rs_io;
+  // gtpci->corectrl = rs_ctrl;
+
+  // gtpci->pci_bus.rm_pci_mem = init_rman_from_resource(rs_mem);
+  // gtpci->pci_bus.rm_pci_io = init_rman_from_resource(rs_io);
+
   gtpci->pci_bus.mem_space = &gt_pci_memory;
   gtpci->pci_bus.io_space = &gt_pci_ioports;
   gtpci->corectrl = &gt_pci_corectrl;
@@ -354,6 +370,8 @@ static void gt_pci_resource_alloc(device_t *dev,unsigned int flags,
                                       unsigned long long start,
                                       unsigned long long end,
                                       unsigned long long size){
+  
+  /* use rmans to give resource to child device */
 
   return;
 }
