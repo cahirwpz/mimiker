@@ -161,43 +161,54 @@ static void turnstile_adjust_thread(turnstile_t *ts, thread_t *td) {
   }
 }
 
+// !!! acquires td_spin
+static thread_t *get_owner(turnstile_t *ts) {
+  assert(spin_owned(&ts->ts_lock));
+  thread_t *td = ts->ts_owner;
+  assert(td != NULL); // TODO maybe it would make sense to move this outside
+  spin_acquire(td->td_spin);
+  assert(!td_is_sleeping(td)); /* Deadlock. */
+  return td;
+}
+
 /* Walks the chain of turnstiles and their owners to propagate the priority
  * of td to all the threads holding locks that have to be released before
  * td can run again. */
 static void propagate_priority(thread_t *td) {
   turnstile_t *ts = td->td_blocked;
   prio_t prio = td->td_prio;
-  spin_acquire(&ts->ts_lock);
 
-  while (1) {
-    td = ts->ts_owner;
-    SCOPED_SPINLOCK(td->td_spin);
-    assert(td != NULL);
-    assert(!td_is_sleeping(td)); /* Deadlock. */
+  WITH_SPINLOCK(&ts->ts_lock) {
+    td = get_owner(ts);
+  } // TODO can we release ts_lock already?
 
-    spin_release(&ts->ts_lock);
-
-    if (td->td_prio >= prio)
-      return;
-
-    sched_lend_prio(td, prio);
-
-    /* Lock holder is on run queue or is currently running. */
-    if (td_is_ready(td) || td_is_running(td)) {
-      assert(td->td_blocked == NULL);
-      return;
-    }
-
+  // walk through blocked threads
+  while (td->td_prio < prio && !td_is_ready(td) && !td_is_running(td)) {
     assert(td != thread_self()); /* Deadlock. */
     assert(td_is_locked(td));
+
+    sched_lend_prio(td, prio);
 
     ts = td->td_blocked;
     assert(ts != NULL);
 
-    /* Resort td on the blocked list if needed. */
-    spin_acquire(&ts->ts_lock);
-    turnstile_adjust_thread(ts, td);
+    WITH_SPINLOCK(&ts->ts_lock) {
+      /* Resort td on the blocked list if needed. */
+      turnstile_adjust_thread(ts, td);
+      spin_release(td->td_spin);
+
+      td = get_owner(ts);
+    }
   }
+
+  // possibly finish at a running/runnable thread
+  if (td->td_prio < prio && (td_is_ready(td) || td_is_running(td))) {
+    sched_lend_prio(td, prio);
+    // TODO we could check this even if td->td_prio < prio
+    assert(td->td_blocked == NULL);
+  }
+
+  spin_release(td->td_spin);
 }
 
 static void turnstile_setowner(turnstile_t *ts, thread_t *owner) {
