@@ -64,7 +64,7 @@ Some useful flags to the `launch` script:
 * `-t` - Bind simulator UART to current stdio.
 
 Any other argument is passed to the kernel as a kernel command-line
-argument. Some useful kernel aguments:
+argument. Some useful kernel arguments:
 
 * `init=PROGRAM` - Specifies the userspace program for PID 1. Browse `./user`
   for currently available programs.
@@ -96,7 +96,7 @@ Macros to register tests:
 `(int (*)(void))`
 
 Where `name` is test name, `func` is pointer to test function, 
-flags as mentioned bellow, and `max` is maximum random argument fed to the test.
+flags as mentioned below, and `max` is maximum random argument fed to the test.
 
 ##### Flags
 * `KTEST_FLAG_NORETURN` - signifies that a test does not return.
@@ -117,7 +117,7 @@ flags as mentioned bellow, and `max` is maximum random argument fed to the test.
 * `repeat=UINT` - Specifies the number of (shuffled) repetitions of each test
   when using `test=all`.
 
-###### `./run_tests.py` usefull arguments:
+###### `./run_tests.py` useful arguments:
 * `-h` - prints script usage.
 * `--infinite` - keep testing until some error is found. 
 * `--non-interactive` - do not run interactive gdb session if tests fail.
