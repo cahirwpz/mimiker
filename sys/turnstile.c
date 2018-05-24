@@ -204,7 +204,7 @@ static void propagate_priority(thread_t *td) {
   // possibly finish at a running/runnable thread
   if (td->td_prio < prio && (td_is_ready(td) || td_is_running(td))) {
     sched_lend_prio(td, prio);
-    // TODO we could check this even if td->td_prio < prio
+    // TODO we could check this even if td->td_prio >= prio
     assert(td->td_blocked == NULL);
   }
 
