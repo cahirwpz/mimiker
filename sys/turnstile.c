@@ -72,26 +72,12 @@ static void turnstile_broadcast(turnstile_t *ts, turnstile_chain_t *tc);
 // TODO fix the type when ready
 // static turnstile_t *turnstile_lookup(void *wchan);
 
-/* At first it runs turnstile_lookup and returns the result if it's not NULL.
- * If turnstile was not found in chains, it returns thread_self()'s turnstile.
- *
- * Locks:
- *  acquires: tc_lock, ts_lock. */
-// TODO fix the type when ready
-// static turnstile_t *turnstile_acquire(void *wchan);
-
 /* Locks turnstile chain associated with wchan and returns pointer
  * to this chain.
  *
  * Locks:
  *  acquires: tc_lock. */
 static turnstile_chain_t *turnstile_chain_lock(void *wchan);
-
-/* Unlocks turnstile chain associated with wchan.
- *
- * Locks:
- *  releases: tc_lock. */
-/* static void turnstile_chain_unlock(void *wchan); */
 
 static void turnstile_ctor(turnstile_t *ts) {
   ts->ts_lock = SPINLOCK_INITIALIZER();
@@ -397,11 +383,6 @@ static turnstile_chain_t *turnstile_chain_lock(void *wchan) {
   return tc;
 }
 
-/* static void turnstile_chain_unlock(void *wchan) { */
-/*   turnstile_chain_t *tc = TC_LOOKUP(wchan); */
-/*   spin_release(&tc->tc_lock); */
-/* } */
-
 static ts_pair_t turnstile_lookup(void *wchan) {
   turnstile_chain_t *tc = turnstile_chain_lock(wchan);
 
@@ -415,23 +396,6 @@ static ts_pair_t turnstile_lookup(void *wchan) {
   return (ts_pair_t){NULL, tc};
 }
 
-/* UNUSED
-static ts_pair_t turnstile_acquire(void *wchan) {
-  ts_pair_t tp = turnstile_lookup(wchan);
-  if (tp.ts != NULL)
-    return tp;
-
-  turnstile_t *ts = thread_self()->td_turnstile;
-  assert(ts != NULL);
-  spin_acquire(&ts->ts_lock);
-
-  assert(ts->ts_wchan == NULL);
-  ts->ts_wchan = wchan;
-
-  tp.ts = ts;
-  return tp;
-}
-*/
 void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt) {
   ts_pair_t tp = turnstile_lookup(wchan);
   /* In case of SMP we would have to check now whether some other
