@@ -94,19 +94,16 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   TAILQ_INIT(&pmap->pte_pages);
 
   pmap_t *old_user_pmap = get_user_pmap();
+
   /*
-   * We need to disable preemption because if the thread got switched out
-   * in the middle of initializing the PD, and then got switched back in,
-   * the PD of the thread, NOT the PD of the pmap we're initializing,
-   * would be mapped to pmap->pde, so we would end up clearing the PD of
-   * the thread that called pmap_setup.
+   * No preemption here! Consider a case where this thread gets preempted and
+   * other thread calls pmap_setup as well.
    */
   WITH_NO_PREEMPTION {
     /*
-     * If we're initializing a user pmap, we temporarily map its PD in place
-     * of the current user pmap's PD so that we can access it using virtual
-     * addresses. There are other, probably better/cleaner ways of doing this,
-     * but this works for now.
+     * XXX: To initialize user pmap its PD is temporarily mapped in place
+     * of current PD. This way we can access the PD using virtual addresses.
+     * This is a workaround and probably can be done better.
      */
     update_wired_pde(user_pde ? pmap : NULL);
 
