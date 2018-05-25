@@ -18,6 +18,7 @@ typedef unsigned long pm_addr_t;
 
 typedef long off_t;
 typedef long ssize_t;
+typedef uint8_t prio_t;
 typedef int32_t pid_t;
 typedef uint16_t dev_t;
 typedef uint32_t time_t;
@@ -131,6 +132,9 @@ typedef int32_t blksize_t; /* fs optimal block size */
        __UNIQUE(__loop); __UNIQUE(__loop) = NULL)
 
 #ifndef _USERSPACE
+
+/* Write a formatted string to default console. */
+int kprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
 /* Terminate thread. */
 noreturn void panic_fail(void);

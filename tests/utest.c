@@ -80,15 +80,15 @@ UTEST_ADD_SIMPLE(fd_open_path);
 UTEST_ADD_SIMPLE(fd_dup);
 UTEST_ADD_SIMPLE(fd_all);
 
-UTEST_ADD_SIMPLE(signal_basic);
-UTEST_ADD_SIMPLE(signal_send);
-UTEST_ADD_SIGNAL(signal_abort, SIGABRT);
-UTEST_ADD_SIGNAL(signal_segfault, SIGSEGV);
+/* XXX UTEST_ADD_SIMPLE(signal_basic); */
+/* XXX UTEST_ADD_SIMPLE(signal_send); */
+/* XXX UTEST_ADD_SIGNAL(signal_abort, SIGABRT); */
+/* XXX UTEST_ADD_SIGNAL(signal_segfault, SIGSEGV); */
 
-UTEST_ADD_SIMPLE(fork_wait);
+/* XXX UTEST_ADD_SIMPLE(fork_wait); */
 /* TODO Why this test takes so long to execute? */
 /* UTEST_ADD_SIMPLE(fork_signal); */
-UTEST_ADD_SIMPLE(fork_sigchld_ignored);
+/* XXX UTEST_ADD_SIMPLE(fork_sigchld_ignored); */
 
 UTEST_ADD_SIMPLE(lseek_basic);
 UTEST_ADD_SIMPLE(lseek_errors);
@@ -103,4 +103,12 @@ UTEST_ADD_SIMPLE(fpu_fcsr);
 UTEST_ADD_SIMPLE(fpu_gpr_preservation);
 UTEST_ADD_SIMPLE(fpu_cpy_ctx_on_fork);
 UTEST_ADD_SIMPLE(fpu_ctx_signals);
+
+/* TODO Kernel does not handle such cases yet. */
+UTEST_ADD_SIGNAL(exc_cop_unusable, SIGILL);
+UTEST_ADD_SIGNAL(exc_reserved_instruction, SIGILL);
+UTEST_ADD_SIGNAL(exc_unaligned_access, SIGBUS);
+UTEST_ADD_SIGNAL(exc_integer_overflow, SIGFPE);
+UTEST_ADD_SIMPLE(exc_sigsys);
+UTEST_ADD_SIMPLE(syscall_in_bds);
 #endif
