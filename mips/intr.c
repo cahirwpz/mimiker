@@ -1,6 +1,7 @@
 #define KL_LOG KL_INTR
 #include <klog.h>
 #include <errno.h>
+#include <exception.h>
 #include <interrupt.h>
 #include <mips/exc.h>
 #include <mips/intr.h>
@@ -168,6 +169,25 @@ static void fpe_handler(exc_frame_t *frame) {
   }
 }
 
+static void cp_unusable_handler(exc_frame_t *frame) {
+  if (in_kernel_mode(frame)) {
+    panic("Coprocessor unusable exception in kernel mode.");
+  }
+
+  int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
+  if (cp_id != 1) {
+    sig_send(thread_self()->td_proc, SIGILL);
+  } else {
+    /* Enable FPU for interrupted context. */
+    frame->sr |= SR_CU1;
+  }
+}
+
+static void ri_handler(exc_frame_t *frame) {
+  assert(!in_kernel_mode(frame));
+  sig_send(thread_self()->td_proc, SIGILL);
+}
+
 /*
  * This is exception vector table. Each exeception either has been assigned a
  * handler or kernel_oops is called for it. For exact meaning of exception
@@ -181,7 +201,9 @@ static exc_handler_t user_exception_table[32] =
    [EXC_SYS] = syscall_handler,
    [EXC_FPE] = fpe_handler,
    [EXC_MSAFPE] = fpe_handler,
-   [EXC_OVF] = fpe_handler};
+   [EXC_OVF] = fpe_handler,
+   [EXC_CPU] = cp_unusable_handler,
+   [EXC_RI] = ri_handler};
 
 static exc_handler_t kernel_exception_table[32] =
   {[EXC_MOD] = tlb_exception_handler, [EXC_TLBL] = tlb_exception_handler,
@@ -191,21 +213,22 @@ static inline unsigned exc_code(exc_frame_t *frame) {
   return (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
 }
 
-static noreturn void kernel_oops(exc_frame_t *frame) {
+noreturn void kernel_oops(exc_frame_t *frame) {
   unsigned code = exc_code(frame);
 
   klog("%s at $%08x!", exceptions[code], frame->pc);
   if ((code == EXC_ADEL || code == EXC_ADES) ||
-      (code == EXC_IBE || code == EXC_DBE))
+      (code == EXC_IBE || code == EXC_DBE) ||
+      (code == EXC_TLBL || code == EXC_TLBS))
     klog("Caused by reference to $%08x!", frame->badvaddr);
 
-  panic("Unhandled exception!");
+  panic("Unhandled '%s' at $%08x!", exceptions[code], frame->pc);
 }
 
 /* General exception handler is called with interrupts disabled. */
 void mips_exc_handler(exc_frame_t *frame) {
   unsigned code = exc_code(frame);
-  bool kernel_mode = (frame->sr & SR_KSU_MASK) == 0;
+  bool kernel_mode = in_kernel_mode(frame);
 
   assert(intr_disabled());
 

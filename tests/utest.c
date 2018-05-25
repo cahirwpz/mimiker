@@ -97,3 +97,13 @@ UTEST_ADD_SIMPLE(access_basic);
 
 UTEST_ADD_SIMPLE(stat);
 UTEST_ADD_SIMPLE(fstat);
+
+#if 0
+/* TODO Kernel does not handle such cases yet. */
+UTEST_ADD_SIGNAL(exc_cop_unusable, SIGILL);
+UTEST_ADD_SIGNAL(exc_reserved_instruction, SIGILL);
+UTEST_ADD_SIGNAL(exc_unaligned_access, SIGBUS);
+UTEST_ADD_SIGNAL(exc_integer_overflow, SIGFPE);
+UTEST_ADD_SIMPLE(exc_sigsys);
+UTEST_ADD_SIMPLE(syscall_in_bds);
+#endif

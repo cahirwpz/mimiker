@@ -7,6 +7,7 @@
 #include <pcpu.h>
 #include <sched.h>
 #include <filedesc.h>
+#include <mips/exc.h>
 
 static MALLOC_DEFINE(M_THREAD, "thread", 1, 2);
 
@@ -36,6 +37,30 @@ void thread_reap(void) {
     thread_delete(td);
 }
 
+extern noreturn void thread_exit(void);
+extern noreturn void kern_exc_leave(void);
+
+void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
+  stack_t *stk = &td->td_kstack;
+
+  /* For threads that are allowed to enter user-space (for now - all of them),
+   * full exception frame has to be allocated at the bottom of kernel stack.
+   * Just under it there's a kernel exception frame (cpu part of full one) that
+   * is used to enter kernel thread for the first time. */
+  exc_frame_t *uframe = stack_alloc_s(stack_bottom(stk), exc_frame_t);
+  exc_frame_t *kframe = stack_alloc_s(uframe, cpu_exc_frame_t);
+
+  td->td_uframe = uframe;
+  td->td_kframe = kframe;
+
+  /* Initialize registers just for ctx_switch to work correctly. */
+  ctx_init(&td->td_kctx, kern_exc_leave, kframe);
+
+  /* This is the context that kern_exc_leave will restore. */
+  exc_frame_init(kframe, target, uframe, EF_KERNEL);
+  exc_frame_setup_call(kframe, thread_exit, (long)arg, 0);
+}
+
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   /* Firstly recycle some threads to free up memory. */
   thread_reap();
@@ -54,7 +79,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   mtx_init(&td->td_lock, MTX_RECURSE);
   cv_init(&td->td_waitcv, "thread waiters");
 
-  ctx_init(td, fn, arg);
+  thread_entry_setup(td, fn, arg);
 
   /* From now on, you must use locks on new thread structure. */
   WITH_MTX_LOCK (threads_lock)
@@ -66,7 +91,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
 }
 
 void thread_delete(thread_t *td) {
-  assert(td->td_state == TDS_DEAD);
+  assert(td_is_dead(td));
   assert(td->td_sleepqueue != NULL);
 
   klog("Freeing up thread %ld {%p}", td->td_tid, td);
@@ -129,7 +154,7 @@ void thread_join(thread_t *otd) {
 
   klog("Join %ld {%p} with %ld {%p}", td->td_tid, td, otd->td_tid, otd);
 
-  while (otd->td_state != TDS_DEAD)
+  while (!td_is_dead(otd))
     cv_wait(&otd->td_waitcv, &otd->td_lock);
 }
 
