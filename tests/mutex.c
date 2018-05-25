@@ -7,7 +7,8 @@
 static mtx_t counter_mtx = MTX_INITIALIZER(MTX_DEF);
 static volatile int32_t counter_value;
 
-#define COUNTER_N 1000
+/* Good test to measure context switch time. */
+#define COUNTER_N 100
 #define COUNTER_T 5
 
 static thread_t *counter_td[COUNTER_T];
@@ -22,7 +23,7 @@ static void counter_routine(void *arg) {
   }
 }
 
-static int mtx_test_counter(void) {
+static int test_mutex_counter(void) {
   counter_value = 0;
 
   for (int i = 0; i < COUNTER_T; i++) {
@@ -66,7 +67,7 @@ static void simple_routine(void *arg) {
   simple_status = ST_DONE;
 }
 
-static int mtx_test_simple(void) {
+static int test_mutex_simple(void) {
   simple_td0 = thread_create("td0", simple_routine, NULL);
   simple_status = ST_INITIAL;
 
@@ -88,5 +89,5 @@ static int mtx_test_simple(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(mutex_counter, mtx_test_counter, 0);
-KTEST_ADD(mutex_simple, mtx_test_simple, 0);
+KTEST_ADD(mutex_counter, test_mutex_counter, 0);
+KTEST_ADD(mutex_simple, test_mutex_simple, 0);
