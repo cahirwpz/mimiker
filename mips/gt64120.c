@@ -356,7 +356,7 @@ static int gt_pci_attach(device_t *pcib) {
   gt_pci_intr_chain_init(gtpci, 15, "ide(1)"); /* IDE secondary */
 
   pci_bus_enumerate(pcib);
-  pci_bus_assign_space(pcib);
+  pci_bus_assign_space(pcib); // need to delete it
   pci_bus_dump(pcib);
 
   gtpci->intr_handler =
