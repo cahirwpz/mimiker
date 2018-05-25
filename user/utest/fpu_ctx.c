@@ -4,6 +4,7 @@
  * - test_fpu_fcsr                  - needs context switch. sleep(0)?
  * - test_fpu_gpr_preservation      - needs context switch. sleep(0)?
  * - test_fpu_cpy_ctx_on_fork       - needs another process using FPU
+ *                                    with a little bit of synchronization
  * - test_fpu_ctx_signals
  *
  * Checking 32 FPU FPR's and FPU FCSR register.
