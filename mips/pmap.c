@@ -93,10 +93,29 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   klog("Page directory table allocated at %p", (vm_addr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
 
-  update_wired_pde(user_pde ? pmap : NULL);
+  pmap_t *old_user_pmap = get_user_pmap();
+  /*
+   * We need to disable preemption because if the thread got switched out
+   * in the middle of initializing the PD, and then got switched back in,
+   * the PD of the thread, NOT the PD of the pmap we're initializing,
+   * would be mapped to pmap->pde, so we would end up clearing the PD of
+   * the thread that called pmap_setup.
+   */
+  WITH_NO_PREEMPTION {
+    /*
+     * If we're initializing a user pmap, we temporarily map its PD in place
+     * of the current user pmap's PD so that we can access it using virtual
+     * addresses. There are other, probably better/cleaner ways of doing this,
+     * but this works for now.
+     */
+    update_wired_pde(user_pde ? pmap : NULL);
 
-  for (int i = 0; i < PD_ENTRIES; i++)
-    pmap->pde[i] = in_kernel_space(i * PTF_ENTRIES * PAGESIZE) ? PTE_GLOBAL : 0;
+    for (int i = 0; i < PD_ENTRIES; i++)
+      pmap->pde[i] =
+        in_kernel_space(i * PTF_ENTRIES * PAGESIZE) ? PTE_GLOBAL : 0;
+
+    update_wired_pde(old_user_pmap);
+  }
 }
 
 /* TODO: remove all mappings from TLB, evict related cache lines */
