@@ -42,11 +42,6 @@ typedef struct ts_pair {
   turnstile_chain_t *tc;
 } ts_pair_t;
 
-/* Locks turnstile chain associated with wchan and returns pointer
- * to this chain.
- */
-static turnstile_chain_t *turnstile_chain_lock(void *wchan);
-
 static void turnstile_ctor(turnstile_t *ts) {
   LIST_INIT(&ts->ts_free);
   TAILQ_INIT(&ts->ts_blocked);
@@ -318,16 +313,11 @@ static void turnstile_broadcast(turnstile_t *ts, turnstile_chain_t *tc) {
   ts->ts_wchan = NULL;
 }
 
-static turnstile_chain_t *turnstile_chain_lock(void *wchan) {
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-  return tc;
-}
-
 /* Looks for turnstile associated with wchan in turnstile chains and returns the
  * chain and either the turnstile or NULL if no turnstile is found in chains.
  */
 static ts_pair_t turnstile_lookup(void *wchan) {
-  turnstile_chain_t *tc = turnstile_chain_lock(wchan);
+  turnstile_chain_t *tc = TC_LOOKUP(wchan);
 
   turnstile_t *ts;
   LIST_FOREACH(ts, &tc->tc_turnstiles, ts_hash) {
