@@ -15,7 +15,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <sys/wait.h>
 #include <sys/signal.h>
 
 #define TEST_TIME 1000000
@@ -34,7 +33,9 @@
     assert(value == expected);                                                 \
   } while (0)
 
-static inline void check_fpu_all_gpr(int expected) {
+static int check_fpu_all_gpr(void *arg) {
+  int expected = (int)arg;
+
   MFC1_ASSERT_CMP($f0);
   MFC1_ASSERT_CMP($f1);
   MFC1_ASSERT_CMP($f2);
@@ -67,9 +68,13 @@ static inline void check_fpu_all_gpr(int expected) {
   MFC1_ASSERT_CMP($f29);
   MFC1_ASSERT_CMP($f30);
   MFC1_ASSERT_CMP($f31);
+
+  return 0;
 }
 
-static inline void MTC1_all_gpr(int value) {
+static int MTC1_all_gpr(void *_value) {
+  int value = (int)_value;
+
   MTC1(value, $f0);
   MTC1(value, $f1);
   MTC1(value, $f2);
@@ -102,101 +107,84 @@ static inline void MTC1_all_gpr(int value) {
   MTC1(value, $f29);
   MTC1(value, $f30);
   MTC1(value, $f31);
+
+  return 0;
 }
 
-static int spawn_process(int pproc, void (*proc_handler)(int)) {
-  int pid;
-  switch ((pid = fork())) {
-    case -1:
-      exit(EXIT_FAILURE);
-    case 0:
-      proc_handler(pproc);
-      exit(EXIT_SUCCESS);
-    default:
-      return pid;
-  }
-}
-
-static void check_fpu_ctx(int value) {
+static int check_fpu_ctx(void *value) {
   MTC1_all_gpr(value);
 
   for (int i = 0; i < P_TEST_TIME; i++)
     check_fpu_all_gpr(value);
+
+  return 0;
 }
 
-int test_fpu_gpr_preservation() {
+int test_fpu_gpr_preservation(void) {
   int seed = 0xbeefface;
 
   for (int i = 0; i < P_PROCESSES; i++)
-    spawn_process(seed + i, check_fpu_ctx);
+    utest_spawn(check_fpu_ctx, (void *)seed + i);
 
-  int status;
-  for (int i = 0; i < PROCESSES; i++) {
-    wait(&status);
-    assert(WIFEXITED(status));
-    assert(EXIT_SUCCESS == WEXITSTATUS(status));
-  }
+  for (int i = 0; i < PROCESSES; i++)
+    utest_child_exited(EXIT_SUCCESS);
 
   return 0;
 }
 
-int test_fpu_cpy_ctx_on_fork() {
-  int value = 0xbeefface;
+int test_fpu_cpy_ctx_on_fork(void) {
+  void *value = (void *)0xbeefface;
 
   MTC1_all_gpr(value);
-  spawn_process(0xc0de, MTC1_all_gpr);
-  spawn_process(value, check_fpu_all_gpr);
+  utest_spawn(MTC1_all_gpr, (void *)0xc0de);
+  utest_spawn(check_fpu_all_gpr, (void *)value);
 
-  for (int i = 0; i < 2; i++) {
-    int status;
-    wait(&status);
-    assert(WIFEXITED(status));
-    assert(EXIT_SUCCESS == WEXITSTATUS(status));
-  }
+  for (int i = 0; i < 2; i++)
+    utest_child_exited(EXIT_SUCCESS);
 
   return 0;
 }
 
-static void check_fcsr(int expected) {
+static int check_fcsr(void *arg) {
+  int expected = (int)arg;
+
   MTC1(expected, $25);
   for (int i = 0; i < TEST_TIME; i++)
     MFC1_ASSERT_CMP($25);
+
+  return 0;
 }
 
 int test_fpu_fcsr() {
   for (int i = 0; i < PROCESSES; i++)
-    spawn_process(i, check_fcsr);
+    utest_spawn(check_fcsr, (void *)i);
 
-  int status;
-  for (int i = 0; i < PROCESSES; i++) {
-    wait(&status);
-    assert(WIFEXITED(status));
-    assert(EXIT_SUCCESS == WEXITSTATUS(status));
-  }
+  for (int i = 0; i < PROCESSES; i++)
+    utest_child_exited(EXIT_SUCCESS);
 
   return 0;
 }
 
 static void signal_handler_usr2(int signo) {
-  MTC1_all_gpr(42);
+  MTC1_all_gpr((void *)42);
 }
 
 static void signal_handler_usr1(int signo) {
-  MTC1_all_gpr(1337);
+  MTC1_all_gpr((void *)1337);
 
   signal(SIGUSR2, signal_handler_usr2);
   raise(SIGUSR2);
 
-  check_fpu_all_gpr(1337);
+  check_fpu_all_gpr((void *)1337);
 }
 
 int test_fpu_ctx_signals() {
-  MTC1_all_gpr(0xc0de);
+  MTC1_all_gpr((void *)0xc0de);
 
   signal(SIGUSR1, signal_handler_usr1);
   raise(SIGUSR1);
 
-  check_fpu_all_gpr(0xc0de);
+  check_fpu_all_gpr((void *)0xc0de);
 
   return 0;
 }

@@ -7,6 +7,7 @@ SOURCES_C = \
 	exceptions.c \
 	fd.c \
 	fork.c \
+	fpu_ctx.c \
 	lseek.c \
 	main.c \
 	misbehave.c \
@@ -14,6 +15,6 @@ SOURCES_C = \
 	sbrk.c \
 	signal.c \
 	stat.c \
-	fpu_ctx.c
+	utest.c
 
 include $(TOPDIR)/build/build.prog.mk
