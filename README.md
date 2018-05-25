@@ -68,7 +68,8 @@ argument. Some useful kernel arguments:
 
 * `init=PROGRAM` - Specifies the userspace program for PID 1. Browse `./user`
   for currently available programs.
-* test-related arguments are described in [this section](tests/README.md).
+
+If you want to run tests please read [this document](tests/README.md).
 
 Documentation
 ---
