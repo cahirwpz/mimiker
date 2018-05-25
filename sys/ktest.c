@@ -2,8 +2,6 @@
 #include <stdc.h>
 #include <time.h>
 
-SET_DECLARE(tests, test_entry_t);
-
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
 
@@ -14,6 +12,8 @@ char *kenv_get(const char *key);
     ktest_atomically_print_failure();                                          \
   } while (0)
 
+/* Linker set that stores all kernel tests. */
+SET_DECLARE(tests, test_entry_t);
 /* Stores currently running test data. */
 static test_entry_t *current_test = NULL;
 /* A null-terminated array of pointers to the tested test list. */
@@ -21,8 +21,8 @@ static test_entry_t *autorun_tests[KTEST_MAX_NO] = {NULL};
 
 int ktest_test_running_flag = 0;
 
-static uint32_t ktest_seed =
-  0; /* The initial seed, as set from command-line. */
+/* The initial seed, as set from command-line. */
+static uint32_t ktest_seed = 0;
 static uint32_t ktest_repeat = 1; /* Number of repetitions of each test. */
 static unsigned seed = 0;         /* Current seed */
 
@@ -217,7 +217,7 @@ static void run_specified_tests(const char *test) {
   while (1) {
     size_t len = strcspn(cur, ","); /* Find first comma or end of string. */
     test_entry_t *t = find_test_by_name_with_len(cur, len);
-    int is_last = *(cur + len) == '\0';
+    int is_last = cur[len] == '\0';
     if (t) {
       if (test_is_autorunnable(t)) {
         for (unsigned r = 0; r < ktest_repeat; r++)
@@ -237,9 +237,8 @@ static void run_specified_tests(const char *test) {
       return;
     }
     if (is_last)
-      break; /* This was the last test name. */
-    else
-      cur += len + 1; /* Skip comma. */
+      break;        /* This was the last test name. */
+    cur += len + 1; /* Skip comma. */
   }
 }
 
