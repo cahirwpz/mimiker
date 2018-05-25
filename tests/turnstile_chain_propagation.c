@@ -8,6 +8,12 @@
 /* Length of the propagation chain. */
 #define T 4
 
+/* This test checks chain priority propagation using mutexes.
+ *
+ * We create one `starter` thread and T `propagator` threads. Each propagator
+ * acquires unowned mutex and tries to acquire mutex owned by previous
+ * propagator causing chain propagation to all previous propagator threads. */
+
 static mtx_t mtx[T + 1];
 /* For simpler code: propagator[0] = starter */
 static thread_t *propagator[T + 1];
@@ -19,7 +25,7 @@ static void set_prio(thread_t *td, prio_t prio) {
   }
 }
 
-// n <- [0..T]
+/* n <- [0..T] */
 static int propagator_prio(int n) {
   return n * RQ_PPQ;
 }
