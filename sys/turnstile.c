@@ -122,42 +122,50 @@ void turnstile_destroy(turnstile_t *ts) {
   pool_free(P_TURNSTILE, ts);
 }
 
+static void adjust_thread_forward(turnstile_t *ts, thread_t *td) {
+  thread_t *n = td;
+
+  do {
+    n = TAILQ_NEXT(n, td_lockq);
+  } while (n != NULL && n->td_prio > td->td_prio);
+
+  if (n == NULL || n != td) {
+    TAILQ_REMOVE(&ts->ts_blocked, td, td_lockq);
+
+    if (n == NULL)
+      TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
+    else /* n != NULL && n != td */
+      TAILQ_INSERT_BEFORE(n, td, td_lockq);
+  }
+}
+
+static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
+  thread_t *p = td;
+
+  do {
+    p = TAILQ_PREV(p, threadqueue, td_lockq);
+  } while (p != NULL && p->td_prio < td->td_prio);
+
+  if (p != NULL || p != td) {
+    TAILQ_REMOVE(&ts->ts_blocked, td, td_lockq);
+
+    if (p == NULL)
+      TAILQ_INSERT_HEAD(&ts->ts_blocked, td, td_lockq);
+    else /* p != NULL && p != td */
+      TAILQ_INSERT_AFTER(&ts->ts_blocked, p, td, td_lockq);
+  }
+}
+
 /* Adjusts thread's position on ts_blocked queue after its priority
  * has been changed. */
-static void turnstile_adjust_thread(turnstile_t *ts, thread_t *td) {
+static void adjust_thread(turnstile_t *ts, thread_t *td, prio_t oldprio) {
   assert(td_is_locked(td));
   assert(spin_owned(&ts->ts_lock));
 
-  thread_t *n = TAILQ_NEXT(td, td_lockq);
-  thread_t *p = TAILQ_PREV(td, threadqueue, td_lockq);
-
-  bool moved_forward = false;
-  if (n != NULL && n->td_prio > td->td_prio) {
-    moved_forward = true;
-    TAILQ_REMOVE(&ts->ts_blocked, td, td_lockq);
-
-    while (n != NULL && n->td_prio > td->td_prio) {
-      n = TAILQ_NEXT(n, td_lockq);
-    }
-
-    if (n != NULL)
-      TAILQ_INSERT_BEFORE(n, td, td_lockq);
-    else
-      TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
-  }
-
-  if (p != NULL && p->td_prio < td->td_prio) {
-    assert(moved_forward == false);
-    TAILQ_REMOVE(&ts->ts_blocked, td, td_lockq);
-
-    while (p != NULL && p->td_prio < td->td_prio) {
-      p = TAILQ_PREV(p, threadqueue, td_lockq);
-    }
-
-    if (p != NULL)
-      TAILQ_INSERT_AFTER(&ts->ts_blocked, p, td, td_lockq);
-    else
-      TAILQ_INSERT_HEAD(&ts->ts_blocked, td, td_lockq);
+  if (td->td_prio > oldprio) {
+    adjust_thread_backward(ts, td);
+  } else if (td->td_prio < oldprio) {
+    adjust_thread_forward(ts, td);
   }
 }
 
@@ -187,6 +195,7 @@ static void propagate_priority(thread_t *td) {
     assert(td != thread_self()); /* Deadlock. */
     assert(td_is_locked(td));
 
+    prio_t prev_prio = td->td_prio;
     sched_lend_prio(td, prio);
 
     ts = td->td_blocked;
@@ -194,7 +203,7 @@ static void propagate_priority(thread_t *td) {
 
     WITH_SPINLOCK(&ts->ts_lock) {
       /* Resort td on the blocked list if needed. */
-      turnstile_adjust_thread(ts, td);
+      adjust_thread(ts, td, prev_prio);
       spin_release(td->td_spin);
 
       td = get_owner(ts);
@@ -229,7 +238,7 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
   assert(ts != NULL);
 
   WITH_SPINLOCK(&ts->ts_lock) {
-    turnstile_adjust_thread(ts, td);
+    adjust_thread(ts, td, oldprio);
   }
 
   /* If td got higher priority and it is at the head of ts_blocked,
