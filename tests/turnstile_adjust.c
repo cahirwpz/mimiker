@@ -6,7 +6,7 @@
 
 #define T 5
 
-/* This test checks correctness of turnstile_adjust function.
+/* Test of turnstile_adjust function.
  *
  * We block T threads on a mutex, then change their priorities via
  * sched_set_prio (which calls turnstile_adjust). Then, test passes if threads
