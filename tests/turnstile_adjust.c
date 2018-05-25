@@ -84,4 +84,4 @@ static int test_turnstile_adjust(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(turnstile_adjust, test_turnstile_adjust, 0);
+KTEST_ADD(turnstile_adjust, test_turnstile_adjust, KTEST_FLAG_BROKEN);

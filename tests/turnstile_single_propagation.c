@@ -85,7 +85,7 @@ static void high_prio_task(void *arg) {
     high_prio_mtx_acquired = 1;
 }
 
-static int test_mutex_priority_inversion(void) {
+static int test_turnstile_single_propagation(void) {
   high_prio_mtx_acquired = 0;
 
   td[0] = thread_create("td0", low_prio_task, NULL);
@@ -107,4 +107,5 @@ static int test_mutex_priority_inversion(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(turnstile_simple, test_mutex_priority_inversion, 0);
+KTEST_ADD(turnstile_single_propagation, test_turnstile_single_propagation,
+          KTEST_FLAG_BROKEN);

@@ -21,8 +21,8 @@ SOURCES_C = \
 	thread_stats.c \
 	thread_exit.c \
 	turnstile_adjust.c \
-	turnstile_chain.c \
-	turnstile_simple.c \
+	turnstile_chain_propagation.c \
+	turnstile_single_propagation.c \
 	uiomove.c \
 	utest.c \
 	vm_map.c \
