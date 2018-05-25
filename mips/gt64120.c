@@ -298,21 +298,31 @@ static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
   intr_chain_register(&gtpci->intr_chain[irq]);
 }
 
-static int gt_pci_attach(device_t *pcib) {
-  gt_pci_state_t *gtpci = pcib->state;
-
-  pcib->bus = DEV_BUS_PCI;
-
-
-  void* rs_mem = bus_alloc_resource(pcib, 0,MALTA_PCI0_MEMORY_BASE, 
+static int gt_pci_probe(device_t *pcib) {
+/*   void* rs_mem = bus_alloc_resource(pcib, 0,MALTA_PCI0_MEMORY_BASE, 
     MALTA_PCI0_MEMORY_END, MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1);
   void* rs_io = bus_alloc_resource(pcib, 0, MALTA_PCI0_IO_BASE + 0x1000, 
     MALTA_PCI0_IO_END, MALTA_PCI0_IO_END - (MALTA_PCI0_IO_BASE + 0x1000) + 1);
   void* rs_ctrl = bus_alloc_resource(pcib, 0, MALTA_PCI0_IO_BASE + 0x1000, 
     MALTA_PCI0_IO_END, MALTA_PCI0_IO_END - (MALTA_PCI0_IO_BASE + 0x1000) + 1);
-  
-  // if(rs_mem | rs_io | rs_ctrl == NULL)
-    // panic("Couldn't alloc resources for gt64120.");
+  void* rs_isa = bus_alloc_resource(pcib, 0, MALTA_PCI0_IO_BASE + 0x1000, 
+    MALTA_PCI0_IO_END, MALTA_PCI0_IO_END - (MALTA_PCI0_IO_BASE + 0x1000) + 1); */
+
+// need ISA resource because this driver accesses ISA devices.
+
+/*   if(rs_mem & rs_io & rs_ctrl & rs_isa == NULL){
+    if(rs_mem != NULL) bus_release_resource(pcib, rs_mem);
+    if(rs_io != NULL) bus_release_resource(pcib, rs_io);
+    if(rs_ctrl != NULL) bus_release_resource(pcib, rs_ctrl);
+    if(rs_isa != NULL) bus_release_resource(pcib, rs_isa);
+
+    return 0;
+  } */
+
+
+
+  // need to place it in some private driver softc
+  // gt_pci_state_t structure?
 
   // gtpci->pci_bus.mem_space = rs_mem;
   // gtpci->pci_bus.io_space = rs_io;
@@ -320,6 +330,14 @@ static int gt_pci_attach(device_t *pcib) {
 
   // gtpci->pci_bus.rm_pci_mem = init_rman_from_resource(rs_mem);
   // gtpci->pci_bus.rm_pci_io = init_rman_from_resource(rs_io);
+
+  return 1;
+}
+
+static int gt_pci_attach(device_t *pcib) {
+  gt_pci_state_t *gtpci = pcib->state;
+
+  pcib->bus = DEV_BUS_PCI;
 
   gtpci->pci_bus.mem_space = &gt_pci_memory;
   gtpci->pci_bus.io_space = &gt_pci_ioports;
@@ -382,6 +400,7 @@ pci_bus_driver_t gt_pci_bus = {
       .desc = "GT-64120 PCI bus driver",
       .size = sizeof(gt_pci_state_t),
       .attach = gt_pci_attach,
+      .probe = gt_pci_probe
     },
   .bus =
     {

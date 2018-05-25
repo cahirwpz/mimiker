@@ -128,10 +128,13 @@ struct bus_driver {
 };
 
 #define BUS_DRIVER(dev) ((bus_driver_t *)((dev)->parent->driver))
+static inline bus_driver_t *get_bus_driver(device_t *dev){
+  return (bus_driver_t *)dev->parent->driver;
+}
 
 static inline void bus_intr_setup(device_t *dev, unsigned num,
                                   intr_handler_t *handler) {
-  BUS_DRIVER(dev)->bus.intr_setup(dev, num, handler);
+  get_bus_driver(dev)->bus.intr_setup(dev, num, handler);
 }
 
 static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
