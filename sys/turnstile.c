@@ -338,6 +338,7 @@ static ts_pair_t turnstile_lookup(void *wchan) {
 }
 
 void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt) {
+  assert(preempt_disabled());
   ts_pair_t tp = turnstile_lookup(wchan);
   /* In case of SMP we would have to check now whether some other
    * processor released the mutex while we were spinning for turnstile's
@@ -358,6 +359,7 @@ void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt) {
 }
 
 void turnstile_broadcast_wchan(void *wchan) {
+  assert(preempt_disabled());
   ts_pair_t tp = turnstile_lookup(wchan);
   if (tp.ts != NULL)
     turnstile_broadcast(tp.ts, tp.tc);
