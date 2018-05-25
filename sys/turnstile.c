@@ -45,33 +45,6 @@ typedef struct ts_pair {
   turnstile_chain_t *tc;
 } ts_pair_t;
 
-/* Block the current thread on turnstile ts. This function will context
- * switch. This function must be called with turnstile chain locked and will
- * return with it unlocked.
- *
- * Locks:
- *  needs:    ts_lock, tc_lock
- *  releases: ts_lock, tc_lock. */
-// TODO fix the type when ready
-// static void turnstile_wait(turnstile_t *ts, thread_t *owner, const void
-// *waitpt);
-
-/* Wakeup all threads on the blocked list and adjust the priority of the
- * current thread appropriately.
- *
- * Locks:
- *  needs:    ts_lock, tc_lock
- *  releases: ts_lock, tc_lock. */
-static void turnstile_broadcast(turnstile_t *ts, turnstile_chain_t *tc);
-
-/* Looks for turnstile associated with wchan in turnstile chains and returns
- * it or NULL if no turnstile is found in chains.
- *
- * Locks:
- *  acquires: tc_lock, ts_lock (ts_lock if turnstile is found). */
-// TODO fix the type when ready
-// static turnstile_t *turnstile_lookup(void *wchan);
-
 /* Locks turnstile chain associated with wchan and returns pointer
  * to this chain.
  *
@@ -383,6 +356,11 @@ static turnstile_chain_t *turnstile_chain_lock(void *wchan) {
   return tc;
 }
 
+/* Looks for turnstile associated with wchan in turnstile chains and returns the
+ * chain and either the turnstile or NULL if no turnstile is found in chains.
+ *
+ * Locks:
+ *  acquires: tc_lock, ts_lock (ts_lock if turnstile is found). */
 static ts_pair_t turnstile_lookup(void *wchan) {
   turnstile_chain_t *tc = turnstile_chain_lock(wchan);
 
