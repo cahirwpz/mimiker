@@ -1,5 +1,4 @@
-/*----------------------------------------------------------------------------
- *
+/*
  * Floating Point Unit context preservation tests:
  * - test_fpu_fcsr                  - needs context switch. sleep(0)?
  * - test_fpu_gpr_preservation      - needs context switch. sleep(0)?
@@ -10,8 +9,6 @@
  * Checking 32 FPU FPR's and FPU FCSR register.
  * FCCR, FEXR, FENR need not to be saved, because they are only better
  * structured views of FCSR.
- *
- *----------------------------------------------------------------------------
  */
 
 #include "utest.h"
@@ -30,47 +27,46 @@
 #define MTC1(var, freg) asm volatile("mtc1 %0, " #freg : : "r"(var))
 #define MFC1(var, freg) asm volatile("mfc1 %0, " #freg : "=r"(var))
 
-#define MFC1_ASSERT_CMP(var, freg, cmp)                                        \
+#define MFC1_ASSERT_CMP(freg)                                                  \
   do {                                                                         \
-    MFC1(var, freg);                                                           \
-    assert(var == cmp);                                                        \
+    int value;                                                                 \
+    MFC1(value, freg);                                                         \
+    assert(value == expected);                                                 \
   } while (0)
 
-static inline void check_fpu_all_gpr(int expected_value) {
-  int current_value;
-
-  MFC1_ASSERT_CMP(current_value, $f0, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f1, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f2, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f3, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f4, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f5, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f6, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f7, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f8, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f9, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f10, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f11, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f12, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f13, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f14, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f15, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f16, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f17, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f18, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f19, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f20, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f21, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f22, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f23, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f24, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f25, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f26, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f27, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f28, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f29, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f30, expected_value);
-  MFC1_ASSERT_CMP(current_value, $f31, expected_value);
+static inline void check_fpu_all_gpr(int expected) {
+  MFC1_ASSERT_CMP($f0);
+  MFC1_ASSERT_CMP($f1);
+  MFC1_ASSERT_CMP($f2);
+  MFC1_ASSERT_CMP($f3);
+  MFC1_ASSERT_CMP($f4);
+  MFC1_ASSERT_CMP($f5);
+  MFC1_ASSERT_CMP($f6);
+  MFC1_ASSERT_CMP($f7);
+  MFC1_ASSERT_CMP($f8);
+  MFC1_ASSERT_CMP($f9);
+  MFC1_ASSERT_CMP($f10);
+  MFC1_ASSERT_CMP($f11);
+  MFC1_ASSERT_CMP($f12);
+  MFC1_ASSERT_CMP($f13);
+  MFC1_ASSERT_CMP($f14);
+  MFC1_ASSERT_CMP($f15);
+  MFC1_ASSERT_CMP($f16);
+  MFC1_ASSERT_CMP($f17);
+  MFC1_ASSERT_CMP($f18);
+  MFC1_ASSERT_CMP($f19);
+  MFC1_ASSERT_CMP($f20);
+  MFC1_ASSERT_CMP($f21);
+  MFC1_ASSERT_CMP($f22);
+  MFC1_ASSERT_CMP($f23);
+  MFC1_ASSERT_CMP($f24);
+  MFC1_ASSERT_CMP($f25);
+  MFC1_ASSERT_CMP($f26);
+  MFC1_ASSERT_CMP($f27);
+  MFC1_ASSERT_CMP($f28);
+  MFC1_ASSERT_CMP($f29);
+  MFC1_ASSERT_CMP($f30);
+  MFC1_ASSERT_CMP($f31);
 }
 
 static inline void MTC1_all_gpr(int value) {
@@ -123,16 +119,16 @@ static int spawn_process(int pproc, void (*proc_handler)(int)) {
 
 static void check_fpu_ctx(int value) {
   MTC1_all_gpr(value);
-  for (int i = 0; i < P_TEST_TIME; i++) {
+
+  for (int i = 0; i < P_TEST_TIME; i++)
     check_fpu_all_gpr(value);
-  }
 }
 
 int test_fpu_gpr_preservation() {
   int seed = 0xbeefface;
-  for (int i = 0; i < P_PROCESSES; i++) {
+
+  for (int i = 0; i < P_PROCESSES; i++)
     spawn_process(seed + i, check_fpu_ctx);
-  }
 
   int status;
   for (int i = 0; i < PROCESSES; i++) {
@@ -146,6 +142,7 @@ int test_fpu_gpr_preservation() {
 
 int test_fpu_cpy_ctx_on_fork() {
   int value = 0xbeefface;
+
   MTC1_all_gpr(value);
   spawn_process(0xc0de, MTC1_all_gpr);
   spawn_process(value, check_fpu_all_gpr);
@@ -160,18 +157,15 @@ int test_fpu_cpy_ctx_on_fork() {
   return 0;
 }
 
-static void check_fcsr(int expected_value) {
-  MTC1(expected_value, $25);
-  for (int i = 0; i < TEST_TIME; i++) {
-    int current_value;
-    MFC1_ASSERT_CMP(current_value, $25, expected_value);
-  }
+static void check_fcsr(int expected) {
+  MTC1(expected, $25);
+  for (int i = 0; i < TEST_TIME; i++)
+    MFC1_ASSERT_CMP($25);
 }
 
 int test_fpu_fcsr() {
-  for (int i = 0; i < PROCESSES; i++) {
+  for (int i = 0; i < PROCESSES; i++)
     spawn_process(i, check_fcsr);
-  }
 
   int status;
   for (int i = 0; i < PROCESSES; i++) {
@@ -179,6 +173,7 @@ int test_fpu_fcsr() {
     assert(WIFEXITED(status));
     assert(EXIT_SUCCESS == WEXITSTATUS(status));
   }
+
   return 0;
 }
 
