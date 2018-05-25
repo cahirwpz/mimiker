@@ -6,6 +6,11 @@
 
 #define T 3
 
+/* This test checks single priority propagation using mutexes.
+ *
+ * High priority task tries to acquire mutex owned by low priority task and
+ * propagates its high priority. */
+
 static mtx_t *mtx = &MTX_INITIALIZER(MTX_DEF);
 static thread_t *td[T];
 static volatile bool high_prio_mtx_acquired;
