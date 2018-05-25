@@ -6,6 +6,11 @@
 
 #define T 3
 
+/* This test checks single priority propagation using mutexes.
+ *
+ * High priority task (td2) tries to acquire mutex and blocks, but firstly lends
+ * its priority to low priority task (td0) that owns the mutex. */
+
 static mtx_t *mtx = &MTX_INITIALIZER(MTX_DEF);
 static thread_t *td[T];
 static volatile bool high_prio_mtx_acquired;
@@ -37,7 +42,7 @@ enum {
   HIGH = 2 * RQ_PPQ
 };
 
-/* td0 */
+/* code executed by td0 */
 static void low_prio_task(void *arg) {
   /* As for now, td0, td1 and td2 have artificial priorities (HIGH, LOW, LOW)
    * to ensure that this code runs first. Now we can set priorities to their
@@ -70,14 +75,14 @@ static void low_prio_task(void *arg) {
   assert_priorities(LOW, MED, HIGH);
 }
 
-/* td1 */
+/* code executed by td1 */
 static void med_prio_task(void *arg) {
   /* Without turnstile mechanism med_prio_task would run
    * before high_prio_task gets mtx (priority inversion). */
   assert(high_prio_mtx_acquired);
 }
 
-/* td2 */
+/* code executed by td2 */
 static void high_prio_task(void *arg) {
   assert(mtx->m_owner == td[0]);
 
@@ -85,7 +90,7 @@ static void high_prio_task(void *arg) {
     high_prio_mtx_acquired = 1;
 }
 
-static int test_mutex_priority_inversion(void) {
+static int test_turnstile_propagate_once(void) {
   high_prio_mtx_acquired = 0;
 
   td[0] = thread_create("td0", low_prio_task, NULL);
@@ -107,4 +112,4 @@ static int test_mutex_priority_inversion(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(turnstile_simple, test_mutex_priority_inversion, 0);
+KTEST_ADD(turnstile_propagate_once, test_turnstile_propagate_once, 0);

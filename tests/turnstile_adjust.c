@@ -4,11 +4,17 @@
 #include <sched.h>
 #include <thread.h>
 
+#define T 5
+
+/* Test of turnstile_adjust function.
+ *
+ * We block T threads on a mutex, then change their priorities via
+ * sched_set_prio (which calls turnstile_adjust).
+ * Test passes if threads are properly sorted on turnstile ts_blocked list. */
+
 typedef TAILQ_HEAD(threadqueue, thread) threadqueue_t;
 
-#define T 5
 static prio_t new_priorities[T] = {3, 1, 2, 0, 1};
-
 static mtx_t ts_adj_mtx = MTX_INITIALIZER(MTX_DEF);
 static volatile int stopped;
 static thread_t *threads[T];
