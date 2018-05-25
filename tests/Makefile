@@ -13,6 +13,7 @@ SOURCES_C = \
 	pool.c \
 	producer_consumer.c \
 	resizable_fdt.c \
+	ringbuf.c \
 	rwlock.c \
 	sched.c \
 	sleepq.c \
@@ -20,9 +21,6 @@ SOURCES_C = \
 	taskqueue.c \
 	thread_stats.c \
 	thread_exit.c \
-	turnstile_adjust.c \
-	turnstile_propagate_once.c \
-	turnstile_propagate_many.c \
 	uiomove.c \
 	utest.c \
 	vm_map.c \
