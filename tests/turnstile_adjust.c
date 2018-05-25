@@ -9,8 +9,8 @@
 /* Test of turnstile_adjust function.
  *
  * We block T threads on a mutex, then change their priorities via
- * sched_set_prio (which calls turnstile_adjust). Then, test passes if threads
- * are properly sorted on turnstile ts_blocked list. */
+ * sched_set_prio (which calls turnstile_adjust).
+ * Test passes if threads are properly sorted on turnstile ts_blocked list. */
 
 typedef TAILQ_HEAD(threadqueue, thread) threadqueue_t;
 

@@ -71,7 +71,7 @@ static void starter_routine(void *_arg) {
   assert(!td_is_borrowing(thread_self()));
 }
 
-static int test_turnstile_chain_propagation(void) {
+static int test_turnstile_propagate_many(void) {
   for (int i = 0; i < T + 1; i++)
     mtx[i] = MTX_INITIALIZER(MTX_DEF);
 
@@ -94,5 +94,5 @@ static int test_turnstile_chain_propagation(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(turnstile_chain_propagation, test_turnstile_chain_propagation,
+KTEST_ADD(turnstile_propagate_many, test_turnstile_propagate_many,
           KTEST_FLAG_BROKEN);
