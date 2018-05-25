@@ -83,10 +83,7 @@ static int mtx_test_simple(void) {
 
   thread_join(simple_td0);
   assert(simple_status == ST_DONE);
-  /* NOTE This assert is implementation-specific
-   * Some changes might make it invalid
-   * We could assert `!mtx_owned(...)` but that would be less restrictive */
-  assert(simple_mtx.m_owner == NULL);
+  assert(mtx_owner(&simple_mtx) == NULL);
 
   return KTEST_SUCCESS;
 }
