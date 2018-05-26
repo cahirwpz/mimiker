@@ -74,14 +74,12 @@ static void adjust_thread_forward(turnstile_t *ts, thread_t *td) {
     n = TAILQ_NEXT(n, td_lockq);
   } while (n != NULL && n->td_prio > td->td_prio);
 
-  if (n == NULL || n != td) {
-    TAILQ_REMOVE(&ts->ts_blocked, td, td_lockq);
+  TAILQ_REMOVE(&ts->ts_blocked, td, td_lockq);
 
-    if (n == NULL)
-      TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
-    else /* n != NULL && n != td */
-      TAILQ_INSERT_BEFORE(n, td, td_lockq);
-  }
+  if (n == NULL)
+    TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
+  else
+    TAILQ_INSERT_BEFORE(n, td, td_lockq);
 }
 
 static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
@@ -91,14 +89,12 @@ static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
     p = TAILQ_PREV(p, threadqueue, td_lockq);
   } while (p != NULL && p->td_prio < td->td_prio);
 
-  if (p != NULL || p != td) {
-    TAILQ_REMOVE(&ts->ts_blocked, td, td_lockq);
+  TAILQ_REMOVE(&ts->ts_blocked, td, td_lockq);
 
-    if (p == NULL)
-      TAILQ_INSERT_HEAD(&ts->ts_blocked, td, td_lockq);
-    else /* p != NULL && p != td */
-      TAILQ_INSERT_AFTER(&ts->ts_blocked, p, td, td_lockq);
-  }
+  if (p == NULL)
+    TAILQ_INSERT_HEAD(&ts->ts_blocked, td, td_lockq);
+  else
+    TAILQ_INSERT_AFTER(&ts->ts_blocked, p, td, td_lockq);
 }
 
 /* Adjusts thread's position on ts_blocked queue after its priority
