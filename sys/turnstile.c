@@ -186,7 +186,7 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
 // case 1 of former turnstile_wait
 // we use our turnstile to track `owner`
 static void turnstile_provide_own(turnstile_t *ts, turnstile_chain_t *tc,
-                                  thread_t *owner, const void *waitpt) {
+                                  thread_t *owner) {
   thread_t *td = thread_self();
 
   LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_hash);
@@ -201,8 +201,7 @@ static void turnstile_provide_own(turnstile_t *ts, turnstile_chain_t *tc,
 
 // case 2 of former turnstile_wait
 // we donate our turnstile to ts_free list
-static void turnstile_join_waiting(turnstile_t *ts, turnstile_chain_t *tc,
-                                   thread_t *owner, const void *waitpt) {
+static void turnstile_join_waiting(turnstile_t *ts, thread_t *owner) {
   thread_t *td = thread_self();
   thread_t *td1;
   TAILQ_FOREACH (td1, &ts->ts_blocked, td_lockq)
@@ -222,8 +221,7 @@ static void turnstile_join_waiting(turnstile_t *ts, turnstile_chain_t *tc,
 // final (common) part of former turnstile_wait
 // Call this when all turnstile stuff is ready
 // This changes appropriate thread fields and switches context
-static void turnstile_actually_wait(turnstile_t *ts, turnstile_chain_t *tc,
-                                    thread_t *owner, const void *waitpt) {
+static void turnstile_actually_wait(turnstile_t *ts, const void *waitpt) {
   thread_t *td = thread_self();
 
   WITH_SPINLOCK(td->td_spin) {
@@ -323,7 +321,7 @@ void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt) {
    * spinlock. */
 
   if (tp.ts != NULL) {
-    turnstile_join_waiting(tp.ts, tp.tc, owner, waitpt);
+    turnstile_join_waiting(tp.ts, owner);
   } else {
     tp.ts = thread_self()->td_turnstile;
     assert(tp.ts != NULL);
@@ -331,9 +329,9 @@ void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt) {
     assert(tp.ts->ts_wchan == NULL);
     tp.ts->ts_wchan = wchan;
 
-    turnstile_provide_own(tp.ts, tp.tc, owner, waitpt);
+    turnstile_provide_own(tp.ts, tp.tc, owner);
   }
-  turnstile_actually_wait(tp.ts, tp.tc, owner, waitpt);
+  turnstile_actually_wait(tp.ts, waitpt);
 }
 
 void turnstile_broadcast_wchan(void *wchan) {
