@@ -255,10 +255,9 @@ static void turnstile_free_return(turnstile_t *ts) {
   }
 }
 
-// TODO comment
+/* Walks td_contested list of thread_self(), counts maximum priority of
+ * threads locked on us, and calls sched_unlend_prio. */
 static void turnstile_unlend_self(turnstile_t *ts) {
-  assert(ts != NULL);
-
   thread_t *td = thread_self();
   assert(ts->ts_owner == td);
 
@@ -279,7 +278,6 @@ static void turnstile_unlend_self(turnstile_t *ts) {
   }
 }
 
-// TODO comment
 static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
   while (!TAILQ_EMPTY(blocked_threads)) {
     thread_t *td = TAILQ_FIRST(blocked_threads);
