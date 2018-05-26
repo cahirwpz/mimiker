@@ -59,7 +59,7 @@ int ringbuf_read(ringbuf_t *buf, uio_t *uio) {
     int res = uiomove((char *)buf->data + buf->tail, size, uio);
     if (res)
       return res;
-    produce(buf, size);
+    consume(buf, size);
   }
   return 0;
 }
@@ -76,7 +76,7 @@ int ringbuf_write(ringbuf_t *buf, uio_t *uio) {
     int res = uiomove((char *)buf->data + buf->head, size, uio);
     if (res)
       return res;
-    consume(buf, size);
+    produce(buf, size);
   }
   return 0;
 }
