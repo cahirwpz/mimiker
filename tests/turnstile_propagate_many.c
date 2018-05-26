@@ -31,6 +31,7 @@ static int propagator_prio(int n) {
 }
 
 static bool td_is_locked_on_mtx(thread_t *td, mtx_t *m) {
+  assert(td_is_locked(td));
   return td->td_wchan == m;
 }
 
@@ -62,7 +63,6 @@ static void starter_routine(void *_arg) {
         assert(thread_self()->td_prio == propagator_prio(i - 1));
       }
 
-      assert(td_is_locked(propagator[i]));
       assert(td_is_locked_on_mtx(propagator[i], &mtx[i - 1]));
       assert(mtx_owner(&mtx[i - 1]) == propagator[i - 1]);
 
