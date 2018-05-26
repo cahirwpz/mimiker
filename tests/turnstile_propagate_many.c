@@ -59,6 +59,7 @@ static void starter_routine(void *_arg) {
       }
 
       /* propagator[i] waits for mtx[i-1] (owned by propagator[i-1]) */
+      // TODO add asserts
 
       /* Check if the priorities have propagated correctly. */
       for (int j = 0; j < i; j++) {
