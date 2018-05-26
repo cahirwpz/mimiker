@@ -33,15 +33,6 @@ static turnstile_chain_t turnstile_chains[TC_TABLESIZE];
 
 static pool_t P_TURNSTILE;
 
-/* a pair type for passing values around in functions
- * holds a turnstile and its associated chain
- * (at a time it might hold a turnstile that isn't yet inserted onto any chain
- *  but the held chain will be the right one) */
-typedef struct ts_pair {
-  turnstile_t *ts;
-  turnstile_chain_t *tc;
-} ts_pair_t;
-
 static void turnstile_ctor(turnstile_t *ts) {
   LIST_INIT(&ts->ts_free);
   TAILQ_INIT(&ts->ts_blocked);
@@ -298,49 +289,50 @@ static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
 /* Looks for turnstile associated with wchan in turnstile chains and returns the
  * chain and either the turnstile or NULL if no turnstile is found in chains.
  */
-static ts_pair_t turnstile_lookup(void *wchan) {
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-
+static turnstile_t *turnstile_lookup(void *wchan, turnstile_chain_t *tc) {
   turnstile_t *ts;
   LIST_FOREACH(ts, &tc->tc_turnstiles, ts_hash) {
     if (ts->ts_wchan == wchan)
-      return (ts_pair_t){.ts = ts, .tc = tc};
+      return ts;
   }
-  return (ts_pair_t){NULL, tc};
+  return NULL;
 }
 
 void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt) {
   assert(preempt_disabled());
-  ts_pair_t tp = turnstile_lookup(wchan);
+  turnstile_chain_t *tc = TC_LOOKUP(wchan);
+  turnstile_t *ts = turnstile_lookup(wchan, tc);
   /* In case of SMP we would have to check now whether some other
    * processor released the mutex while we were spinning for turnstile's
    * spinlock. */
 
-  if (tp.ts != NULL) {
-    turnstile_join_waiting(tp.ts, owner);
+  if (ts != NULL) {
+    turnstile_join_waiting(ts, owner);
   } else {
-    tp.ts = thread_self()->td_turnstile;
-    assert(tp.ts != NULL);
+    ts = thread_self()->td_turnstile;
+    assert(ts != NULL);
 
-    assert(tp.ts->ts_wchan == NULL);
-    tp.ts->ts_wchan = wchan;
+    assert(ts->ts_wchan == NULL);
+    ts->ts_wchan = wchan;
 
-    turnstile_provide_own(tp.ts, tp.tc, owner);
+    turnstile_provide_own(ts, tc, owner);
   }
-  turnstile_actually_wait(tp.ts, waitpt);
+  turnstile_actually_wait(ts, waitpt);
 }
 
 void turnstile_broadcast_wchan(void *wchan) {
   assert(preempt_disabled());
-  ts_pair_t tp = turnstile_lookup(wchan);
-  if (tp.ts != NULL) {
-    assert(tp.ts->ts_owner == thread_self());
-    assert(!TAILQ_EMPTY(&tp.ts->ts_blocked));
 
-    turnstile_free_return(tp.ts);
-    turnstile_unlend_self(tp.ts);
-    turnstile_wakeup_blocked(&tp.ts->ts_blocked);
+  turnstile_chain_t *tc = TC_LOOKUP(wchan);
+  turnstile_t *ts = turnstile_lookup(wchan, tc);
+  if (ts != NULL) {
+    assert(ts->ts_owner == thread_self());
+    assert(!TAILQ_EMPTY(&ts->ts_blocked));
 
-    tp.ts->ts_wchan = NULL;
+    turnstile_free_return(ts);
+    turnstile_unlend_self(ts);
+    turnstile_wakeup_blocked(&ts->ts_blocked);
+
+    ts->ts_wchan = NULL;
   }
 }
