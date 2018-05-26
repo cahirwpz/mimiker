@@ -67,16 +67,13 @@ static int sig_default(signo_t sig) {
  */
 int sig_send(proc_t *proc, signo_t sig) {
   assert(sig < NSIG);
-  assert(proc->p_nthreads == 1);
 
-  /* XXX: If we were to support multiple threads in a process, repeat everything
-     below for each thread in proc. */
-  thread_t *target = TAILQ_FIRST(&proc->p_threads);
+  thread_t *target = proc->p_thread;
 
   SCOPED_MTX_LOCK(&target->td_lock);
 
   /* If the thread is already dead, don't post a signal. */
-  if (target->td_state == TDS_DEAD)
+  if (td_is_dead(target))
     return -EINVAL;
 
   WITH_MTX_LOCK (&target->td_proc->p_lock) {

@@ -100,8 +100,16 @@ UTEST_ADD_SIMPLE(stat);
 UTEST_ADD_SIMPLE(fstat);
 
 #if 0
+UTEST_ADD_SIMPLE(fpu_fcsr);
+UTEST_ADD_SIMPLE(fpu_gpr_preservation);
+UTEST_ADD_SIMPLE(fpu_cpy_ctx_on_fork);
+UTEST_ADD_SIMPLE(fpu_ctx_signals);
+
 /* TODO Kernel does not handle such cases yet. */
-UTEST_ADD_SIMPLE(exc_cop_unusable);
-UTEST_ADD_SIMPLE(exc_reserved_instruction);
+UTEST_ADD_SIGNAL(exc_cop_unusable, SIGILL);
+UTEST_ADD_SIGNAL(exc_reserved_instruction, SIGILL);
+UTEST_ADD_SIGNAL(exc_unaligned_access, SIGBUS);
+UTEST_ADD_SIGNAL(exc_integer_overflow, SIGFPE);
+UTEST_ADD_SIMPLE(exc_sigsys);
 UTEST_ADD_SIMPLE(syscall_in_bds);
 #endif
