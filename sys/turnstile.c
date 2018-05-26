@@ -159,9 +159,7 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
 
 /* Looks for turnstile associated with wchan in turnstile chains and returns
  * it or NULL if no turnstile is found in chains. */
-static turnstile_t *turnstile_lookup(void *wchan) {
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-
+static turnstile_t *turnstile_lookup(void *wchan, turnstile_chain_t *tc) {
   turnstile_t *ts;
   LIST_FOREACH(ts, &tc->tc_turnstiles, ts_chain_link) {
     if (ts->ts_wchan == wchan) {
@@ -174,8 +172,8 @@ static turnstile_t *turnstile_lookup(void *wchan) {
 /* At first it runs turnstile_lookup and returns the result if it's not NULL.
  * If turnstile was not found in chains, it returns thread_self()'s
  * turnstile. */
-static turnstile_t *turnstile_acquire(void *wchan) {
-  turnstile_t *ts = turnstile_lookup(wchan);
+static turnstile_t *turnstile_acquire(void *wchan, turnstile_chain_t *tc) {
+  turnstile_t *ts = turnstile_lookup(wchan, tc);
   if (ts != NULL)
     return ts;
 
@@ -191,8 +189,8 @@ static turnstile_t *turnstile_acquire(void *wchan) {
 void turnstile_wait(void *wchan, thread_t *owner, const void *waitpt) {
   assert(preempt_disabled());
 
-  turnstile_t *ts = turnstile_acquire(wchan);
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
+  turnstile_t *ts = turnstile_acquire(wchan, tc);
 
   thread_t *td = thread_self();
   if (ts == td->td_turnstile) {
@@ -296,7 +294,8 @@ static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
 void turnstile_broadcast(void *wchan) {
   assert(preempt_disabled());
 
-  turnstile_t *ts = turnstile_lookup(wchan);
+  turnstile_chain_t *tc = TC_LOOKUP(wchan);
+  turnstile_t *ts = turnstile_lookup(wchan, tc);
   if (ts == NULL)
     return;
 
