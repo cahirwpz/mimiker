@@ -32,7 +32,9 @@ typedef void (*entry_fn_t)(void *);
  *  - READY -> RUNNING (dispatcher)
  *  - RUNNING -> READY (dispatcher, self)
  *  - RUNNING -> SLEEPING (self)
+ *  - RUNNING -> LOCKED (self)
  *  - SLEEPING -> READY (interrupts, other threads)
+ *  - LOCKED -> READY (other threads)
  *  - * -> DEAD (other threads or self)
  */
 typedef enum {
