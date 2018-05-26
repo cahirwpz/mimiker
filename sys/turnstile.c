@@ -16,8 +16,8 @@ typedef LIST_HEAD(turnstilelist, turnstile) turnstilelist_t;
 
 typedef struct turnstile {
   union {
-    LIST_ENTRY(turnstile) ts_hash_link; /* link on turnstile chain */
-    LIST_ENTRY(turnstile) ts_free_link; /* link on ts_free list */
+    LIST_ENTRY(turnstile) ts_chain_link; /* link on turnstile chain */
+    LIST_ENTRY(turnstile) ts_free_link;  /* link on ts_free list */
   };
   LIST_ENTRY(turnstile) ts_contested_link; /* link on td_contested */
   /* free turnstiles left by threads blocked on this turnstile */
@@ -163,7 +163,7 @@ static turnstile_t *turnstile_lookup(void *wchan) {
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
 
   turnstile_t *ts;
-  LIST_FOREACH(ts, &tc->tc_turnstiles, ts_hash_link) {
+  LIST_FOREACH(ts, &tc->tc_turnstiles, ts_chain_link) {
     if (ts->ts_wchan == wchan) {
       return ts;
     }
@@ -196,7 +196,7 @@ void turnstile_wait(void *wchan, thread_t *owner, const void *waitpt) {
 
   thread_t *td = thread_self();
   if (ts == td->td_turnstile) {
-    LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_hash_link);
+    LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_chain_link);
 
     assert(TAILQ_EMPTY(&ts->ts_blocked));
     assert(LIST_EMPTY(&ts->ts_free));
@@ -245,7 +245,7 @@ static void turnstile_free_return(turnstile_t *ts) {
     if (LIST_EMPTY(&ts->ts_free)) {
       assert(TAILQ_NEXT(td, td_lockq) == NULL);
       ts_for_td = ts;
-      LIST_REMOVE(ts_for_td, ts_hash_link);
+      LIST_REMOVE(ts_for_td, ts_chain_link);
     } else {
       ts_for_td = LIST_FIRST(&ts->ts_free);
       LIST_REMOVE(ts_for_td, ts_free_link);
