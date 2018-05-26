@@ -6,7 +6,14 @@
 char *kenv_get(const char *key);
 
 #define KTEST_MAX_NO 1024
+#define KTEST_FAIL(args...)                                                    \
+  do {                                                                         \
+    kprintf(args);                                                             \
+    ktest_atomically_print_failure();                                          \
+  } while (0)
 
+/* Linker set that stores all kernel tests. */
+SET_DECLARE(tests, test_entry_t);
 /* Stores currently running test data. */
 static test_entry_t *current_test = NULL;
 /* A null-terminated array of pointers to the tested test list. */
@@ -14,8 +21,8 @@ static test_entry_t *autorun_tests[KTEST_MAX_NO] = {NULL};
 
 int ktest_test_running_flag = 0;
 
-static uint32_t ktest_seed =
-  0; /* The initial seed, as set from command-line. */
+/* The initial seed, as set from command-line. */
+static uint32_t ktest_seed = 0;
 static uint32_t ktest_repeat = 1; /* Number of repetitions of each test. */
 static unsigned seed = 0;         /* Current seed */
 
@@ -60,15 +67,19 @@ void ktest_failure(void) {
   panic("Halting kernel on failed test.\n");
 }
 
-static test_entry_t *find_test_by_name(const char *test) {
-  SET_DECLARE(tests, test_entry_t);
+static test_entry_t *find_test_by_name_with_len(const char *test, size_t len) {
   test_entry_t **ptr;
   SET_FOREACH(ptr, tests) {
-    if (strcmp((*ptr)->test_name, test) == 0) {
+    if (strlen((*ptr)->test_name) == len &&
+        strncmp((*ptr)->test_name, test, len) == 0) {
       return *ptr;
     }
   }
   return NULL;
+}
+
+static __unused test_entry_t *find_test_by_name(const char *test) {
+  return find_test_by_name_with_len(test, strlen(test));
 }
 
 typedef int (*test_func_t)(unsigned);
@@ -135,17 +146,9 @@ static void print_tests(test_entry_t **tests, int count) {
 }
 
 static void run_all_tests(void) {
-  /* Start by gathering command-line arguments. */
-  const char *seed_str = kenv_get("seed");
-  const char *repeat_str = kenv_get("repeat");
-  if (seed_str)
-    ktest_seed = strtoul(seed_str, NULL, 10);
-  if (repeat_str)
-    ktest_repeat = strtoul(repeat_str, NULL, 10);
 
   /* Count the number of tests that may be run in an arbitrary order. */
   unsigned int n = 0;
-  SET_DECLARE(tests, test_entry_t);
   test_entry_t **ptr;
   SET_FOREACH(ptr, tests) {
     if (test_is_autorunnable(*ptr))
@@ -154,10 +157,9 @@ static void run_all_tests(void) {
 
   int total_tests = n * ktest_repeat;
   if (total_tests > KTEST_MAX_NO + 1) {
-    kprintf("Warning: There are more kernel tests registered than there is "
-            "memory available for ktest framework. Please increase "
-            "KTEST_MAX_NO.\n");
-    ktest_atomically_print_failure();
+    KTEST_FAIL("Warning: There are more kernel tests registered than there is "
+               "memory available for ktest framework. Please increase "
+               "KTEST_MAX_NO.\n");
     return;
   }
 
@@ -202,18 +204,55 @@ static void run_all_tests(void) {
   print_tests(autorun_tests, total_tests);
 }
 
+/*
+ * Run the tests specified in the test string.
+ * All tests except for the last one must be autorunnable.
+ * If the last test is non-autorunnable, it will be executed once
+ * regardless of the value of ktest_repeat.
+ * All autorunnable tests with one name are executed ktest_repeat times
+ * before moving on to the next test name.
+ */
+static void run_specified_tests(const char *test) {
+  const char *cur = test;
+  while (1) {
+    size_t len = strcspn(cur, ","); /* Find first comma or end of string. */
+    test_entry_t *t = find_test_by_name_with_len(cur, len);
+    int is_last = cur[len] == '\0';
+    if (t) {
+      if (test_is_autorunnable(t)) {
+        for (unsigned r = 0; r < ktest_repeat; r++)
+          run_test(t);
+      } else if (is_last) {
+        /* The last test can be non-autorunnable. */
+        run_test(t);
+      } else {
+        /* We found a non-autorunnable test in the middle of the test string. */
+        KTEST_FAIL("Error: test %.*s is not autorunnable."
+                   "Non-autorunnable tests can only be run as the last test.\n",
+                   len, cur);
+        return;
+      }
+    } else {
+      KTEST_FAIL("Error: test %.*s not found.\n", len, cur);
+      return;
+    }
+    if (is_last)
+      break;        /* This was the last test name. */
+    cur += len + 1; /* Skip comma. */
+  }
+}
+
 void ktest_main(const char *test) {
+  /* Start by gathering command-line arguments. */
+  const char *seed_str = kenv_get("seed");
+  const char *repeat_str = kenv_get("repeat");
+  if (seed_str)
+    ktest_seed = strtoul(seed_str, NULL, 10);
+  if (repeat_str)
+    ktest_repeat = strtoul(repeat_str, NULL, 10);
   if (strncmp(test, "all", 3) == 0) {
     run_all_tests();
   } else {
-    /* Single test mode */
-    test_entry_t *t = find_test_by_name(test);
-    if (!t) {
-      kprintf("Test \"%s\" not found!\n", test);
-      return;
-    }
-    int result = run_test(t);
-    if (result == KTEST_SUCCESS)
-      ktest_atomically_print_success();
+    run_specified_tests(test);
   }
 }

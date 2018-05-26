@@ -19,12 +19,17 @@ listed below:
 * `test=TEST` - Requests the kernel to run the specified test.
   `test=user_{name}` to run single user test, `test={name}` to run single kernel
   test.
+  You can specify multiple tests by separating their names with commas (without spaces),
+  e.g. `test=test1,test2,test3`
 * `test=all` - Runs a number of tests one after another, and reports success
   only when all of them passed.
 * `seed=UINT` - Sets the RNG seed for shuffling the list of test when using
   `test=all`.
 * `repeat=UINT` - Specifies the number of (shuffled) repetitions of each test
   when using `test=all`.
+  When running user-specified tests (i.e. when `test` is not equal to `all`),
+  `repeat` specifies the number of times each test will be run. For example,
+  `test=test1,test2 repeat=4` will run `test1` 4 times and then run `test2` 4 times.
 
 ### Programming tests
 
