@@ -22,13 +22,9 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
   }
 
   WITH_NO_PREEMPTION {
-    while (m->m_owner != NULL) {
-      turnstile_t *ts = turnstile_acquire(m);
-      /* In case of SMP we would have to check now whether some other
-       * processor released the mutex while we were spinning for turnstile's
-       * spinlock. */
-      turnstile_wait(ts, (thread_t *)m->m_owner, waitpt);
-    }
+    while (m->m_owner != NULL)
+      turnstile_wait(m, (thread_t *)m->m_owner, waitpt);
+
     m->m_owner = thread_self();
     m->m_lockpt = waitpt;
   }
@@ -46,16 +42,14 @@ void mtx_unlock(mtx_t *m) {
   WITH_NO_PREEMPTION {
     m->m_owner = NULL;
     m->m_lockpt = NULL;
-    turnstile_t *ts = turnstile_lookup(m);
-    if (ts != NULL) {
-      /* Using broadcast instead of signal is faster according to
-       * "The Design and Implementation of the FreeBSD Operating System",
-       * 2nd edition, 4.3 Context Switching, page 138.
-       *
-       * The reasoning is that the awakened threads will often be scheduled
-       * sequentially and only act on empty mutex on which operations are
-       * cheaper. */
-      turnstile_broadcast(ts);
-    }
+
+    /* Using broadcast instead of signal is faster according to
+     * "The Design and Implementation of the FreeBSD Operating System",
+     * 2nd edition, 4.3 Context Switching, page 138.
+     *
+     * The reasoning is that the awakened threads will often be scheduled
+     * sequentially and only act on empty mutex on which operations are
+     * cheaper. */
+    turnstile_broadcast(m);
   }
 }
