@@ -301,18 +301,6 @@ static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
   }
 }
 
-static void turnstile_broadcast(turnstile_t *ts, turnstile_chain_t *tc) {
-  assert(ts != NULL);
-  assert(ts->ts_owner == thread_self());
-  assert(!TAILQ_EMPTY(&ts->ts_blocked));
-
-  turnstile_free_return(ts);
-  turnstile_unlend_self(ts);
-  turnstile_wakeup_blocked(&ts->ts_blocked);
-
-  ts->ts_wchan = NULL;
-}
-
 /* Looks for turnstile associated with wchan in turnstile chains and returns the
  * chain and either the turnstile or NULL if no turnstile is found in chains.
  */
@@ -351,6 +339,14 @@ void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt) {
 void turnstile_broadcast_wchan(void *wchan) {
   assert(preempt_disabled());
   ts_pair_t tp = turnstile_lookup(wchan);
-  if (tp.ts != NULL)
-    turnstile_broadcast(tp.ts, tp.tc);
+  if (tp.ts != NULL) {
+    assert(tp.ts->ts_owner == thread_self());
+    assert(!TAILQ_EMPTY(&tp.ts->ts_blocked));
+
+    turnstile_free_return(tp.ts);
+    turnstile_unlend_self(tp.ts);
+    turnstile_wakeup_blocked(&tp.ts->ts_blocked);
+
+    tp.ts->ts_wchan = NULL;
+  }
 }
