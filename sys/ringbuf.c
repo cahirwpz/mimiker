@@ -17,7 +17,6 @@ void ringbuf_destroy(kmem_pool_t *pool, ringbuf_t buf) {
   kfree(pool, buf.data);
 }
 
-
 void ringbuf_reset(ringbuf_t *buf) {
   buf->head = 0;
   buf->tail = 0;

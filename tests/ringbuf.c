@@ -93,8 +93,6 @@ static void ringbuf_nontrivial(void) {
   ringbuf_destroy(M_TEST, rbt);
 }
 
-
-
 static void uio_ringbuf_trivial(void) {
 
   ringbuf_t rbt = ringbuf_alloc(M_TEST, 1);
@@ -114,8 +112,6 @@ static void uio_ringbuf_trivial(void) {
   assert(dst[0] == 'c');
   ringbuf_destroy(M_TEST, rbt);
 }
-
-
 
 static void uio_ringbuf_one_transfer(void) {
 
