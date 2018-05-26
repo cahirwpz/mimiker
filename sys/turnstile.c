@@ -155,6 +155,8 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
 }
 
 void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt) {
+  assert(preempt_disabled());
+
   turnstile_chain_t *tc = TC_LOOKUP(ts->ts_wchan);
   thread_t *td = thread_self();
   if (ts == td->td_turnstile) {
@@ -258,6 +260,8 @@ static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
 }
 
 void turnstile_broadcast(turnstile_t *ts) {
+  assert(preempt_disabled());
+
   assert(ts != NULL);
   assert(ts->ts_owner == thread_self());
   assert(!TAILQ_EMPTY(&ts->ts_blocked));
