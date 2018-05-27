@@ -1,6 +1,9 @@
 #include <mips/exc.h>
 #include <mips/pcpu.h>
 #include <mips/regdef.h>
+#include <vm.h>
+
+#define KSTACK_MIN_FREE 0x100
 
 #include "assym.h"
 
@@ -124,10 +127,21 @@ END(user_exc_enter)
 
 NESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         # Allocate stack frame and save context there.
+
+        # We also check if there's enough space left on the stack.
+        # If there's less than KSTACK_MIN_FREE bytes of free space
+        # on the stack after subtracting KERN_EXC_FRAME_SIZE, panic.
+        # The KSTACK_MIN_FREE threshold is because we need to make sure
+        # we can panic without overflowing the stack.
         move    k0, sp                  # save original sp value
         subu    sp, KERN_EXC_FRAME_SIZE # required by gdb to recognize frame
         SAVE_CPU_CTX(k0, sp)
-
+        andi    t0, sp, PAGESIZE - 1
+        subu    t0, KSTACK_MIN_FREE
+        bgez    t0, 1f
+        nop
+        la      k1, kstack_overflow_handler
+1:
         # Register k1 is going to become unsafe soon - move it to s1.
         move    s1, k1
 
