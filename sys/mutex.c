@@ -23,7 +23,7 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
 
   WITH_NO_PREEMPTION {
     while (m->m_owner != NULL) {
-      turnstile_wait_wchan(m, (thread_t *)m->m_owner, waitpt);
+      turnstile_wait(m, (thread_t *)m->m_owner, waitpt);
     }
     m->m_owner = thread_self();
     m->m_lockpt = waitpt;
@@ -49,6 +49,6 @@ void mtx_unlock(mtx_t *m) {
      * The reasoning is that the awakened threads will often be scheduled
      * sequentially and only act on empty mutex on which operations are
      * cheaper. */
-    turnstile_broadcast_wchan(m);
+    turnstile_broadcast(m);
   }
 }

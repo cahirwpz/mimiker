@@ -207,7 +207,7 @@ static void turnstile_join_waiting(turnstile_t *ts, thread_t *owner) {
 // final (common) part of former turnstile_wait
 // Call this when all turnstile stuff is ready
 // This changes appropriate thread fields and switches context
-static void turnstile_actually_wait(turnstile_t *ts, const void *waitpt) {
+static void turnstile_switch(turnstile_t *ts, const void *waitpt) {
   thread_t *td = thread_self();
 
   WITH_SPINLOCK(td->td_spin) {
@@ -297,7 +297,7 @@ static turnstile_t *turnstile_lookup(void *wchan, turnstile_chain_t *tc) {
   return NULL;
 }
 
-void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt) {
+void turnstile_wait(void *wchan, thread_t *owner, const void *waitpt) {
   assert(preempt_disabled());
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
   turnstile_t *ts = turnstile_lookup(wchan, tc);
@@ -316,10 +316,10 @@ void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt) {
 
     turnstile_provide_own(ts, tc, owner);
   }
-  turnstile_actually_wait(ts, waitpt);
+  turnstile_switch(ts, waitpt);
 }
 
-void turnstile_broadcast_wchan(void *wchan) {
+void turnstile_broadcast(void *wchan) {
   assert(preempt_disabled());
 
   turnstile_chain_t *tc = TC_LOOKUP(wchan);

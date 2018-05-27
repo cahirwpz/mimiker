@@ -30,9 +30,9 @@ void turnstile_destroy(turnstile_t *ts);
 void turnstile_adjust(thread_t *td, prio_t oldprio);
 
 // TODO what does it do?
-void turnstile_broadcast_wchan(void *wchan);
+void turnstile_broadcast(void *wchan);
 
 // TODO what does it do?
-void turnstile_wait_wchan(void *wchan, thread_t *owner, const void *waitpt);
+void turnstile_wait(void *wchan, thread_t *owner, const void *waitpt);
 
 #endif /* !_SYS_TURNSTILE_H_ */
