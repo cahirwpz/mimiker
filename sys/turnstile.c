@@ -248,6 +248,8 @@ static void turnstile_free_return(turnstile_t *ts) {
 /* Walks td_contested list of thread_self(), counts maximum priority of
  * threads locked on us, and calls sched_unlend_prio. */
 static void turnstile_unlend_self(turnstile_t *ts) {
+  assert(ts != NULL);
+
   thread_t *td = thread_self();
   assert(ts->ts_owner == td);
 
@@ -264,6 +266,7 @@ static void turnstile_unlend_self(turnstile_t *ts) {
       if (p > prio)
         prio = p;
     }
+
     sched_unlend_prio(td, prio);
   }
 }
@@ -288,9 +291,8 @@ static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
 static turnstile_t *turnstile_lookup(void *wchan, turnstile_chain_t *tc) {
   turnstile_t *ts;
   LIST_FOREACH(ts, &tc->tc_turnstiles, ts_chain_link) {
-    if (ts->ts_wchan == wchan) {
+    if (ts->ts_wchan == wchan)
       return ts;
-    }
   }
   return NULL;
 }
@@ -326,15 +328,14 @@ void turnstile_broadcast(void *wchan) {
 
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
   turnstile_t *ts = turnstile_lookup(wchan, tc);
-  if (ts == NULL)
-    return;
+  if (ts != NULL) {
+    assert(ts->ts_owner == thread_self());
+    assert(!TAILQ_EMPTY(&ts->ts_blocked));
 
-  assert(ts->ts_owner == thread_self());
-  assert(!TAILQ_EMPTY(&ts->ts_blocked));
+    turnstile_free_return(ts);
+    turnstile_unlend_self(ts);
+    turnstile_wakeup_blocked(&ts->ts_blocked);
 
-  turnstile_free_return(ts);
-  turnstile_unlend_self(ts);
-  turnstile_wakeup_blocked(&ts->ts_blocked);
-
-  ts->ts_wchan = NULL;
+    ts->ts_wchan = NULL;
+  }
 }
