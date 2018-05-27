@@ -14,6 +14,8 @@
 typedef TAILQ_HEAD(threadqueue, thread) threadqueue_t;
 typedef LIST_HEAD(turnstilelist, turnstile) turnstilelist_t;
 
+typedef enum { FREE_UNLOCKED, FREE_LOCKED, USED_LOCKED } ts_state_t;
+
 typedef struct turnstile {
   union {
     LIST_ENTRY(turnstile) ts_chain_link; /* link on turnstile chain */
@@ -24,8 +26,9 @@ typedef struct turnstile {
   turnstilelist_t ts_free;
   /* blocked threads sorted by decreasing active priority */
   threadqueue_t ts_blocked;
-  void *ts_wchan;     /* waiting channel */
-  thread_t *ts_owner; /* who owns the lock */
+  void *ts_wchan;      /* waiting channel */
+  thread_t *ts_owner;  /* who owns the lock */
+  ts_state_t ts_state; /* state of turnstile */
 } turnstile_t;
 
 typedef struct turnstile_chain {
@@ -41,6 +44,7 @@ static void turnstile_ctor(turnstile_t *ts) {
   TAILQ_INIT(&ts->ts_blocked);
   ts->ts_wchan = NULL;
   ts->ts_owner = NULL;
+  ts->ts_state = FREE_UNLOCKED;
 }
 
 void turnstile_init(void) {
@@ -104,6 +108,7 @@ static void adjust_thread(turnstile_t *ts, thread_t *td, prio_t oldprio) {
 
 /* \note Acquires td_spin! */
 static thread_t *acquire_owner(turnstile_t *ts) {
+  assert(ts->ts_state == USED_LOCKED);
   thread_t *td = ts->ts_owner;
   assert(td != NULL); /* Turnstile must have an owner. */
   spin_acquire(td->td_spin);
@@ -148,6 +153,7 @@ static void propagate_priority(thread_t *td) {
 }
 
 static void turnstile_setowner(turnstile_t *ts, thread_t *owner) {
+  assert(ts->ts_state == USED_LOCKED);
   assert(ts->ts_owner == NULL);
   assert(owner != NULL);
 
@@ -202,6 +208,8 @@ static void turnstile_join_waiting(turnstile_t *ts, thread_t *owner) {
   assert(owner == ts->ts_owner);
 
   assert(td->td_turnstile != NULL);
+  assert(td->td_turnstile->ts_state == FREE_UNLOCKED);
+  td->td_turnstile->ts_state = FREE_LOCKED;
   LIST_INSERT_HEAD(&ts->ts_free, td->td_turnstile, ts_free_link);
 }
 
@@ -235,12 +243,15 @@ static void turnstile_free_return(turnstile_t *ts) {
     if (LIST_EMPTY(&ts->ts_free)) {
       assert(TAILQ_NEXT(td, td_lockq) == NULL);
       ts_for_td = ts;
+      assert(ts_for_td->ts_state == USED_LOCKED);
       LIST_REMOVE(ts_for_td, ts_chain_link);
     } else {
       ts_for_td = LIST_FIRST(&ts->ts_free);
+      assert(ts_for_td->ts_state == FREE_LOCKED);
       LIST_REMOVE(ts_for_td, ts_free_link);
     }
-    assert(ts_for_td != NULL);
+
+    ts_for_td->ts_state = FREE_UNLOCKED;
     td->td_turnstile = ts_for_td;
   }
 }
@@ -291,6 +302,7 @@ static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
 static turnstile_t *turnstile_lookup(void *wchan, turnstile_chain_t *tc) {
   turnstile_t *ts;
   LIST_FOREACH(ts, &tc->tc_turnstiles, ts_chain_link) {
+    assert(ts->ts_state == USED_LOCKED);
     if (ts->ts_wchan == wchan)
       return ts;
   }
@@ -313,8 +325,10 @@ void turnstile_wait(void *wchan, thread_t *owner, const void *waitpt) {
   else {
     ts = td->td_turnstile;
     assert(ts != NULL);
-
+    assert(ts->ts_state == FREE_UNLOCKED);
     assert(ts->ts_wchan == NULL);
+
+    ts->ts_state = USED_LOCKED;
     ts->ts_wchan = wchan;
 
     turnstile_provide_own(ts, tc, owner);
