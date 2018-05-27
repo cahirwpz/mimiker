@@ -66,6 +66,7 @@ void turnstile_destroy(turnstile_t *ts) {
 }
 
 static void adjust_thread_forward(turnstile_t *ts, thread_t *td) {
+  assert(ts->ts_state == USED_LOCKED);
   thread_t *n = td;
 
   do {
@@ -81,6 +82,7 @@ static void adjust_thread_forward(turnstile_t *ts, thread_t *td) {
 }
 
 static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
+  assert(ts->ts_state == USED_LOCKED);
   thread_t *p = td;
 
   do {
@@ -98,6 +100,7 @@ static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
 /* Adjusts thread's position on ts_blocked queue after its priority
  * has been changed. */
 static void adjust_thread(turnstile_t *ts, thread_t *td, prio_t oldprio) {
+  assert(ts->ts_state == USED_LOCKED);
   assert(td_is_locked(td));
 
   if (td->td_prio > oldprio)
@@ -135,6 +138,7 @@ static void propagate_priority(thread_t *td) {
 
     ts = td->td_blocked;
     assert(ts != NULL);
+    assert(ts->ts_state == USED_LOCKED);
 
     /* Resort td on the blocked list if needed. */
     adjust_thread(ts, td, oldprio);
@@ -167,6 +171,7 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
 
   turnstile_t *ts = td->td_blocked;
   assert(ts != NULL);
+  assert(ts->ts_state == USED_LOCKED);
 
   adjust_thread(ts, td, oldprio);
 
@@ -195,7 +200,9 @@ static void turnstile_provide_own(turnstile_t *ts, turnstile_chain_t *tc,
 /* case 2 of former turnstile_wait
  * we donate our turnstile to ts_free list */
 static void turnstile_join_waiting(turnstile_t *ts, thread_t *owner) {
+  assert(ts->ts_state == USED_LOCKED);
   thread_t *td = thread_self();
+
   thread_t *td1;
   TAILQ_FOREACH (td1, &ts->ts_blocked, td_lockq)
     if (td1->td_prio < td->td_prio)
@@ -217,6 +224,7 @@ static void turnstile_join_waiting(turnstile_t *ts, thread_t *owner) {
  * Call this when all turnstile stuff is ready
  * This changes appropriate thread fields and switches context */
 static void turnstile_switch(turnstile_t *ts, const void *waitpt) {
+  assert(ts->ts_state == USED_LOCKED);
   thread_t *td = thread_self();
 
   WITH_SPINLOCK(td->td_spin) {
@@ -235,6 +243,7 @@ static void turnstile_switch(turnstile_t *ts, const void *waitpt) {
  * from ts_free (or ts if ts_free is empty). */
 static void turnstile_free_return(turnstile_t *ts) {
   assert(ts != NULL);
+  assert(ts->ts_state == USED_LOCKED);
   assert(ts->ts_owner == thread_self());
 
   thread_t *td;
@@ -350,6 +359,7 @@ void turnstile_broadcast(void *wchan) {
     turnstile_unlend_self(ts);
     turnstile_wakeup_blocked(&ts->ts_blocked);
 
+    assert(ts->ts_state == FREE_UNLOCKED);
     ts->ts_wchan = NULL;
   }
 }
