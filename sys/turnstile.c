@@ -302,6 +302,10 @@ void turnstile_wait(void *wchan, thread_t *owner, const void *waitpt) {
   thread_t *td = thread_self();
   turnstile_t *ts = turnstile_lookup(wchan, tc);
 
+  /* In case of SMP we would have to check now whether some other
+   * processor released the mutex while we were spinning for turnstile's
+   * spinlock. */
+
   if (ts != NULL)
     turnstile_join_waiting(ts, owner);
   else {
