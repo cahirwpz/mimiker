@@ -102,6 +102,15 @@ static void adjust_thread(turnstile_t *ts, thread_t *td, prio_t oldprio) {
     adjust_thread_forward(ts, td);
 }
 
+/* \note Acquires td_spin! */
+static thread_t *acquire_owner(turnstile_t *ts) {
+  thread_t *td = ts->ts_owner;
+  assert(td != NULL); /* Turnstile must have an owner. */
+  spin_acquire(td->td_spin);
+  assert(!td_is_sleeping(td)); /* You must not sleep while holding a mutex. */
+  return td;
+}
+
 /* Walks the chain of turnstiles and their owners to propagate the priority
  * of td to all the threads holding locks that have to be released before
  * td can run again. */
@@ -109,33 +118,33 @@ static void propagate_priority(thread_t *td) {
   turnstile_t *ts = td->td_blocked;
   prio_t prio = td->td_prio;
 
-  while (1) {
-    td = ts->ts_owner;
-    SCOPED_SPINLOCK(td->td_spin);
-    assert(td != NULL);
-    assert(!td_is_sleeping(td)); /* Deadlock. */
+  td = acquire_owner(ts);
 
-    prio_t oldprio = td->td_prio;
-    if (oldprio >= prio)
-      return;
-
-    sched_lend_prio(td, prio);
-
-    /* Lock holder is on run queue or is currently running. */
-    if (td_is_ready(td) || td_is_running(td)) {
-      assert(td->td_blocked == NULL);
-      return;
-    }
-
+  /* Walk through blocked threads. */
+  while (td->td_prio < prio && !td_is_ready(td) && !td_is_running(td)) {
     assert(td != thread_self()); /* Deadlock. */
     assert(td_is_locked(td));
+
+    prio_t oldprio = td->td_prio;
+    sched_lend_prio(td, prio);
 
     ts = td->td_blocked;
     assert(ts != NULL);
 
     /* Resort td on the blocked list if needed. */
     adjust_thread(ts, td, oldprio);
+    spin_release(td->td_spin);
+
+    td = acquire_owner(ts);
   }
+
+  /* Possibly finish at a running/runnable thread. */
+  if (td->td_prio < prio && (td_is_ready(td) || td_is_running(td))) {
+    sched_lend_prio(td, prio);
+    assert(td->td_blocked == NULL);
+  }
+
+  spin_release(td->td_spin);
 }
 
 static void turnstile_setowner(turnstile_t *ts, thread_t *owner) {
