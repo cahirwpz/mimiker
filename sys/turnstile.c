@@ -252,7 +252,11 @@ static void turnstile_free_return(turnstile_t *ts) {
     if (LIST_EMPTY(&ts->ts_free)) {
       assert(TAILQ_NEXT(td, td_lockq) == NULL);
       ts_for_td = ts;
+
       assert(ts_for_td->ts_state == USED_LOCKED);
+      assert(ts_for_td->ts_wchan != NULL);
+
+      ts_for_td->ts_wchan = NULL;
       LIST_REMOVE(ts_for_td, ts_chain_link);
     } else {
       ts_for_td = LIST_FIRST(&ts->ts_free);
@@ -350,7 +354,6 @@ void turnstile_broadcast(void *wchan) {
     turnstile_unlend_self(ts);
     turnstile_wakeup_blocked(&ts->ts_blocked);
 
-    ts->ts_wchan = NULL;
     assert(ts->ts_state == FREE_UNLOCKED);
   }
 }
