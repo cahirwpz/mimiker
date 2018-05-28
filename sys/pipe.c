@@ -15,39 +15,71 @@
 #include <ringbuf.h>
 #include <sysinit.h>
 
+typedef struct pipe_end pipe_end_t;
 typedef struct pipe pipe_t;
 
-struct pipe {
-  mtx_t mtx;          /*!< protects pipe internals */
+struct pipe_end {
+  mtx_t mtx;          /*!< protects pipe end internals */
+  pipe_t *pipe;       /*!< pointer back to pipe structure */
+  bool closed;        /*!< true if this end is closed */
   condvar_t nonempty; /*!< used to wait data to appear in the buffer */
   condvar_t nonfull;  /*!< used to wait for free space in the buffer */
   ringbuf_t buf;      /*!< buffer belongs to writer end */
-  bool closed;        /*!< true if this end is closed */
-  pipe_t *end;        /*!< the other end of the pipe */
+  pipe_end_t *other;  /*!< the other end of the pipe */
+};
+
+struct pipe {
+  mtx_t mtx;         /*!< protects reference counter */
+  int refcnt;        /*!< pipe can be freed when reaches zero */
+  pipe_end_t end[2]; /*!< both pipe ends */
 };
 
 MALLOC_DEFINE(M_PIPE, "pipe", 4, 8);
 
 static pool_t P_PIPE;
 
+static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
+  end->buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
+  end->buf.size = PIPE_SIZE;
+  end->other = other;
+}
+
+static void pipe_end_teardown(pipe_end_t *end) {
+  kfree(M_PIPE, end->buf.data);
+  ringbuf_reset(&end->buf);
+  end->buf.data = NULL;
+  end->other = NULL;
+  end->closed = false;
+}
+
 static pipe_t *pipe_alloc(void) {
   pipe_t *pipe = pool_alloc(P_PIPE, 0);
-  pipe->buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
-  pipe->buf.size = PIPE_SIZE;
+  pipe_end_t *end0 = &pipe->end[0];
+  pipe_end_t *end1 = &pipe->end[1];
+  pipe_end_setup(end0, end1);
+  pipe_end_setup(end1, end0);
+  end0->pipe = pipe;
+  end1->pipe = pipe;
+  pipe->refcnt = 2;
   return pipe;
 }
 
 static void pipe_free(pipe_t *pipe) {
-  kfree(M_PIPE, pipe->buf.data);
-  ringbuf_reset(&pipe->buf);
-  pipe->closed = false;
-  pipe->end = NULL;
-  pool_free(P_PIPE, pipe);
+  int refcnt = 0;
+
+  WITH_MTX_LOCK (&pipe->mtx)
+    refcnt = --pipe->refcnt;
+
+  if (refcnt == 0) {
+    pipe_end_teardown(&pipe->end[0]);
+    pipe_end_teardown(&pipe->end[1]);
+    pool_free(P_PIPE, pipe);
+  }
 }
 
 static int pipe_read(file_t *f, thread_t *td, uio_t *uio) {
-  pipe_t *consumer = f->f_data;
-  pipe_t *producer = consumer->end;
+  pipe_end_t *consumer = f->f_data;
+  pipe_end_t *producer = consumer->other;
 
   assert(!consumer->closed);
 
@@ -73,8 +105,8 @@ static int pipe_read(file_t *f, thread_t *td, uio_t *uio) {
 }
 
 static int pipe_write(file_t *f, thread_t *td, uio_t *uio) {
-  pipe_t *producer = f->f_data;
-  pipe_t *consumer = producer->end;
+  pipe_end_t *producer = f->f_data;
+  pipe_end_t *consumer = producer->other;
 
   assert(!producer->closed);
 
@@ -104,19 +136,15 @@ static int pipe_write(file_t *f, thread_t *td, uio_t *uio) {
 }
 
 static int pipe_close(file_t *f, thread_t *td) {
-  pipe_t *producer = f->f_data;
-  pipe_t *consumer = producer->end;
+  pipe_end_t *end = f->f_data;
 
-  WITH_MTX_LOCK (&producer->mtx) {
-    producer->closed = true;
+  WITH_MTX_LOCK (&end->mtx) {
+    end->closed = true;
     /* Wake up consumers to let them finish their work! */
-    cv_broadcast(&producer->nonempty);
+    cv_broadcast(&end->nonempty);
   }
 
-  if (producer->closed && consumer->closed) {
-    pipe_free(producer);
-    pipe_free(consumer);
-  }
+  pipe_free(end->pipe);
 
   return 0;
 }
@@ -135,19 +163,25 @@ static fileops_t pipeops = {.fo_read = pipe_read,
                             .fo_seek = pipe_seek,
                             .fo_stat = pipe_stat};
 
+static void pipe_end_ctor(pipe_end_t *end) {
+  mtx_init(&end->mtx, MTX_DEF);
+  cv_init(&end->nonempty, "pipe_end_empty");
+  cv_init(&end->nonfull, "pipe_end_full");
+}
+
 static void pipe_ctor(pipe_t *pipe) {
   mtx_init(&pipe->mtx, MTX_DEF);
-  cv_init(&pipe->nonempty, "pipe_empty");
-  cv_init(&pipe->nonfull, "pipe_full");
+  pipe_end_ctor(&pipe->end[0]);
+  pipe_end_ctor(&pipe->end[1]);
 }
 
 static void pipe_init(void) {
   P_PIPE = pool_create("pipes", sizeof(pipe_t), (pool_ctor_t)pipe_ctor, NULL);
 }
 
-static file_t *make_pipe_file(pipe_t *pipe) {
+static file_t *make_pipe_file(pipe_end_t *end) {
   file_t *file = file_alloc();
-  file->f_data = pipe;
+  file->f_data = end;
   file->f_ops = &pipeops;
   file->f_type = FT_PIPE;
   file->f_flags = FF_READ | FF_WRITE;
@@ -155,16 +189,14 @@ static file_t *make_pipe_file(pipe_t *pipe) {
 }
 
 int do_pipe(thread_t *td, int fds[2]) {
-  assert(td->td_proc);
+  assert(td_has_process(td));
 
-  pipe_t *consumer = pipe_alloc();
-  pipe_t *producer = pipe_alloc();
+  pipe_t *pipe = pipe_alloc();
+  pipe_end_t *consumer = &pipe->end[0];
+  pipe_end_t *producer = &pipe->end[1];
 
   file_t *file0 = make_pipe_file(consumer);
   file_t *file1 = make_pipe_file(producer);
-
-  producer->end = consumer;
-  consumer->end = producer;
 
   int error;
 
@@ -177,8 +209,8 @@ int do_pipe(thread_t *td, int fds[2]) {
   return 0;
 
 fail:
-  file_destroy(file0);
-  file_destroy(file1);
+  pipe_close(file0, td);
+  pipe_close(file1, td);
   return error;
 }
 
