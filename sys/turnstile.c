@@ -156,15 +156,6 @@ static void propagate_priority(thread_t *td) {
   spin_release(td->td_spin);
 }
 
-static void turnstile_setowner(turnstile_t *ts, thread_t *owner) {
-  assert(ts->ts_state == USED_LOCKED);
-  assert(ts->ts_owner == NULL);
-  assert(owner != NULL);
-
-  ts->ts_owner = owner;
-  LIST_INSERT_HEAD(&owner->td_contested, ts, ts_contested_link);
-}
-
 void turnstile_adjust(thread_t *td, prio_t oldprio) {
   assert(spin_owned(td->td_spin));
   assert(td_is_locked(td));
@@ -183,18 +174,27 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
 
 /* case 1 of former turnstile_wait
  * we use our turnstile to track `owner` */
-static void turnstile_provide_own(turnstile_t *ts, turnstile_chain_t *tc,
-                                  thread_t *owner) {
+static turnstile_t *turnstile_provide_own(turnstile_chain_t *tc,
+                                          thread_t *owner, void *wchan) {
   thread_t *td = thread_self();
-
-  LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_chain_link);
-
+  turnstile_t *ts = td->td_turnstile;
+  assert(ts != NULL);
   assert(TAILQ_EMPTY(&ts->ts_blocked));
   assert(LIST_EMPTY(&ts->ts_free));
-  assert(ts->ts_wchan != NULL);
+  assert(ts->ts_owner == NULL);
+  assert(ts->ts_wchan == NULL);
+  assert(ts->ts_state == FREE_UNLOCKED);
 
+  ts->ts_owner = owner;
+  ts->ts_wchan = wchan;
+
+  LIST_INSERT_HEAD(&owner->td_contested, ts, ts_contested_link);
+  LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_chain_link);
   TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
-  turnstile_setowner(ts, owner);
+
+  ts->ts_state = USED_LOCKED;
+
+  return ts;
 }
 
 /* case 2 of former turnstile_wait
@@ -322,7 +322,6 @@ void turnstile_wait(void *wchan, thread_t *owner, const void *waitpt) {
   assert(preempt_disabled());
 
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
-  thread_t *td = thread_self();
   turnstile_t *ts = turnstile_lookup(wchan, tc);
 
   /* In case of SMP we would have to check now whether some other
@@ -331,17 +330,8 @@ void turnstile_wait(void *wchan, thread_t *owner, const void *waitpt) {
 
   if (ts != NULL)
     turnstile_join_waiting(ts, owner);
-  else {
-    ts = td->td_turnstile;
-    assert(ts != NULL);
-    assert(ts->ts_state == FREE_UNLOCKED);
-    assert(ts->ts_wchan == NULL);
-
-    ts->ts_state = USED_LOCKED;
-    ts->ts_wchan = wchan;
-
-    turnstile_provide_own(ts, tc, owner);
-  }
+  else
+    ts = turnstile_provide_own(tc, owner, wchan);
 
   turnstile_switch(ts, waitpt);
 }
