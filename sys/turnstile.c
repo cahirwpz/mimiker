@@ -352,6 +352,7 @@ void turnstile_broadcast(void *wchan) {
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
   turnstile_t *ts = turnstile_lookup(wchan, tc);
   if (ts != NULL) {
+    assert(ts->ts_state == USED_LOCKED);
     assert(ts->ts_owner == thread_self());
     assert(!TAILQ_EMPTY(&ts->ts_blocked));
 
@@ -359,7 +360,7 @@ void turnstile_broadcast(void *wchan) {
     turnstile_unlend_self(ts);
     turnstile_wakeup_blocked(&ts->ts_blocked);
 
-    assert(ts->ts_state == FREE_UNLOCKED);
     ts->ts_wchan = NULL;
+    assert(ts->ts_state == FREE_UNLOCKED);
   }
 }
