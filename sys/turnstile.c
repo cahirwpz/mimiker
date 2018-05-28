@@ -188,6 +188,8 @@ static turnstile_t *turnstile_provide_own(turnstile_chain_t *tc,
   ts->ts_owner = owner;
   ts->ts_wchan = wchan;
 
+  /* TODO consider acquiring owner->td_spin here.
+   * What about synchronizing other td_..., e.g. td_lockq? */
   LIST_INSERT_HEAD(&owner->td_contested, ts, ts_contested_link);
   LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_chain_link);
   TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
