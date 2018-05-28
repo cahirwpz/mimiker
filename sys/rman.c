@@ -1,90 +1,94 @@
 #include <rman.h>
 
-// TODO all this logic associated with blocks is not really tested
+// TODO all this logic associated with resources is not really tested
 
-static rman_block_t *find_block(rman_t *rm, rman_addr start, rman_addr end,
-                                rman_addr count) {
-  for (rman_block_t *block = rm->blocks.lh_first; block != NULL;
-       block = block->blocks.le_next) {
-    if (block->is_allocated)
+static resource_t *find_resource(rman_t *rm, rman_addr start, rman_addr end,
+                                 rman_addr count) {
+  for (resource_t *resource = rm->resources.lh_first; resource != NULL;
+       resource = resource->resources.le_next) {
+    if (resource->r_flags & RF_ALLOCATED)
       continue;
 
     // calculate common part and check if is big enough
-    rman_addr s = max(start, block->start);
-    rman_addr e = min(end, block->end);
+    rman_addr s = max(start, resource->r_start);
+    rman_addr e = min(end, resource->r_end);
 
     rman_addr len = s - e + 1;
 
     if (len >= count) {
-      return block;
+      return resource;
     }
   }
 
   return NULL;
 }
 
-// divide block into two
-// `where` means start of right block
-// function returns pointer to new (right) block
-static rman_block_t *cut_block(rman_block_t *block, rman_addr where) {
-  assert(where > block->start);
-  assert(where < block->end);
+// divide resource into two
+// `where` means start of right resource
+// function returns pointer to new (right) resource
+static resource_t *cut_resource(resource_t *resource, rman_addr where) {
+  assert(where > resource->r_start);
+  assert(where < resource->r_end);
 
-  rman_block_t *left_block = block;
-  rman_block_t *right_block = kmalloc(M_DEV, sizeof(rman_block_t), M_ZERO);
+  resource_t *left_resource = resource;
+  resource_t *right_resource = kmalloc(M_DEV, sizeof(resource_t), M_ZERO);
 
-  left_block->blocks.le_next = right_block;
-  right_block->blocks.le_prev = &left_block;
+  left_resource->resources.le_next = right_resource;
+  right_resource->resources.le_prev = &left_resource;
 
-  right_block->end = left_block->end;
-  right_block->start = where;
-  left_block->end = where - 1;
+  right_resource->r_end = left_resource->r_end;
+  right_resource->r_start = where;
+  left_resource->r_end = where - 1;
 
-  return right_block;
+  return right_resource;
 }
 
-// maybe split block into two or three in order to recover space before and
+// maybe split resource into two or three in order to recover space before and
 // after allocation
-static rman_block_t *split_block(rman_block_t *block, rman_addr start,
-                                 rman_addr end, rman_addr count) {
-  if (block->start < start) {
-    block = cut_block(block, start);
+static resource_t *split_resource(resource_t *resource, rman_addr start,
+                                  rman_addr end, rman_addr count) {
+  if (resource->r_start < start) {
+    resource = cut_resource(resource, start);
   }
 
-  if (block->end > block->start + count - 1) {
-    block = cut_block(block, block->start + count);
+  if (resource->r_end > resource->r_start + count - 1) {
+    resource = cut_resource(resource, resource->r_start + count);
   }
 
-  return block;
+  return resource;
 }
 
-void rman_allocate_resource(resource_t *res, rman_t *rm, rman_addr start,
-                            rman_addr end, rman_addr count) {
+resource_t *rman_allocate_resource(rman_t *rm, rman_addr start, rman_addr end,
+                                   rman_addr count) {
   SCOPED_MTX_LOCK(&rm->mtx);
+  resource_t *res = kmalloc(M_DEV, sizeof(resource_t), M_ZERO);
 
-  rman_block_t *block = find_block(rm, start, end, count);
-  assert(block != NULL); // TODO maybe this exception should be recoverable?
+  resource_t *resource = find_resource(rm, start, end, count);
+  if (resource == NULL) {
+    return NULL;
+  }
 
-  block = split_block(block, start, end, count);
-  block->is_allocated = true;
-  res->r_start = block->start;
-  res->r_end = block->end;
+  resource = split_resource(resource, start, end, count);
+  resource->r_flags |= RF_ALLOCATED;
+  res->r_start = resource->r_start;
+  res->r_end = resource->r_end;
 
   // TODO alignment
 
   rm->start += count;
+
+  return res;
 }
 
 void rman_init(rman_t *rm) {
   mtx_init(&rm->mtx, MTX_DEF);
-  LIST_INIT(&rm->blocks);
+  LIST_INIT(&rm->resources);
 
   // TODO so maybe we don't need to store start and end in rman_t?
-  rman_block_t *whole_space = kmalloc(M_DEV, sizeof(rman_block_t), M_ZERO);
+  resource_t *whole_space = kmalloc(M_DEV, sizeof(resource_t), M_ZERO);
 
-  whole_space->start = rm->start;
-  whole_space->end = rm->end;
-  whole_space->is_allocated = false;
+  whole_space->r_start = rm->start;
+  whole_space->r_end = rm->end;
 
-  LIST_INSERT_HEAD(&rm->blocks, whole_space, blocks);
+  LIST_INSERT_HEAD(&rm->resources, whole_space, resources);
 }

@@ -3,33 +3,26 @@
 
 #include "bus.h"
 
-typedef size_t rman_addr;
+typedef intptr_t rman_addr; // TODO resource uses other datatype
 
 typedef struct rman rman_t;
 typedef struct rman_block rman_block_t;
-
-struct rman_block {
-  rman_addr start;
-  rman_addr end;
-  bool is_allocated;
-  LIST_ENTRY(rman_block) blocks;
-};
 
 struct rman {
   rman_addr start;
   rman_addr end;
   mtx_t mtx;
-  LIST_HEAD(, rman_block) blocks;
+  LIST_HEAD(, resource) resources;
 };
 
 void rman_init(rman_t *rm);
 
-void rman_allocate_resource(resource_t *res, rman_t *rm, rman_addr start,
-                            rman_addr end, rman_addr count);
+// return null if unable to allocate
+resource_t *rman_allocate_resource(rman_t *rm, rman_addr start, rman_addr end,
+                                   rman_addr count);
 
-inline void rman_allocate_resource_any(resource_t *res, rman_t *rm,
-                                       rman_addr count) {
-  rman_allocate_resource(res, rm, 0, (rman_addr)~0, count);
+inline resource_t *rman_allocate_resource_any(rman_t *rm, rman_addr count) {
+  return rman_allocate_resource(rm, 0, (rman_addr)~0, count);
 }
 
 #endif /* _SYS_RMAN_H_ */
