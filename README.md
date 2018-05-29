@@ -57,24 +57,19 @@ This will start the kernel using OVPsim if available, or QEMU otherwise.
 
 Some useful flags to the `launch` script:
 
+* `-h` - Prints usage.
 * `-d` - Starts simulation under a debugger.
 * `-D DEBUGGER` - Selects debugger to use.
 * `-S SIMULATOR` - Manually selects the simulator to use.
 * `-t` - Bind simulator UART to current stdio.
 
 Any other argument is passed to the kernel as a kernel command-line
-argument. Some useful kernel aguments:
+argument. Some useful kernel arguments:
 
 * `init=PROGRAM` - Specifies the userspace program for PID 1. Browse `./user`
   for currently available programs.
-* `test=TEST` - Requests the kernel to run the specified test (from `./tests`
-  directory).
-* `test=all` - Runs a number of tests one after another, and reports success
-  only when all of them passed.
-* `seed=UINT` - Sets the RNG seed for shuffling the list of test when using
-  `test=all`.
-* `repeat=UINT` - Specifies the number of (shuffled) repetitions of each test
-  when using `test=all`.
+
+If you want to run tests please read [this document](tests/README.md).
 
 Documentation
 ---

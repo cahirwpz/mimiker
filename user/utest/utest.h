@@ -1,6 +1,12 @@
 #ifndef __UTEST_H__
 #define __UTEST_H__
 
+typedef int (*proc_func_t)(void *);
+
+int utest_spawn(proc_func_t func, void *arg);
+void utest_child_exited(int exitcode);
+
+/* List of available tests. */
 int test_mmap(void);
 int test_sbrk(void);
 int test_misbehave(void);
@@ -33,5 +39,17 @@ int test_execve_basic(void);
 int test_execve_errors(void);
 int test_stat(void);
 int test_fstat(void);
+
+int test_fpu_fcsr(void);
+int test_fpu_gpr_preservation(void);
+int test_fpu_cpy_ctx_on_fork(void);
+int test_fpu_ctx_signals(void);
+
+int test_exc_cop_unusable(void);
+int test_exc_reserved_instruction(void);
+int test_exc_integer_overflow(void);
+int test_exc_sigsys(void);
+int test_exc_unaligned_access(void);
+int test_syscall_in_bds(void);
 
 #endif /* __UTEST_H__ */

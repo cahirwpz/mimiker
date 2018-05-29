@@ -4,6 +4,7 @@
 #include <mips/exc.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
+#include <mips/pmap.h>
 #include <pcpu.h>
 #include <pmap.h>
 #include <vm_map.h>
@@ -17,35 +18,14 @@
 
 static MALLOC_DEFINE(M_PMAP, "pmap", 4, 8);
 
-#define PTE_MASK 0xfffff000
-#define PTE_SHIFT 12
-#define PDE_MASK 0xffc00000
-#define PDE_SHIFT 22
-
 #define PTE_INDEX(x) (((x)&PTE_MASK) >> PTE_SHIFT)
 #define PDE_INDEX(x) (((x)&PDE_MASK) >> PDE_SHIFT)
 
 #define PTE_OF(pmap, addr) ((pmap)->pte[PTE_INDEX(addr)])
 #define PDE_OF(pmap, addr) ((pmap)->pde[PDE_INDEX(addr)])
-#define PTF_ADDR_OF(vaddr) (PT_BASE + PDE_INDEX(vaddr) * PAGESIZE)
+#define PTF_ADDR_OF(vaddr) (PT_BASE + PDE_INDEX(vaddr) * PTF_SIZE)
 
-#define PD_ENTRIES 1024 /* page directory entries */
-#define PD_SIZE (PD_ENTRIES * sizeof(pte_t))
-#define PTF_ENTRIES 1024 /* page table fragment entries */
-#define PTF_SIZE (PTF_ENTRIES * sizeof(pte_t))
-#define PT_ENTRIES (PD_ENTRIES * PTF_ENTRIES)
-#define PT_SIZE (PT_ENTRIES * sizeof(pte_t))
-
-#define PMAP_KERNEL_BEGIN MIPS_KSEG2_START
-#define PMAP_KERNEL_END 0xfffff000 /* kseg2 & kseg3 */
-#define PMAP_USER_BEGIN 0x00000000
-#define PMAP_USER_END MIPS_KSEG0_START /* useg */
-
-#define PD_BASE (PT_BASE + PT_SIZE)
 #define PTE_KERNEL (PTE_VALID | PTE_DIRTY | PTE_GLOBAL)
-
-static const vm_addr_t PT_HOLE_START = PT_BASE + MIPS_KSEG0_START / PTF_ENTRIES;
-static const vm_addr_t PT_HOLE_END = PT_BASE + MIPS_KSEG2_START / PTF_ENTRIES;
 
 static bool is_valid(pte_t pte) {
   return pte & PTE_VALID;
@@ -113,10 +93,26 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   klog("Page directory table allocated at %p", (vm_addr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
 
-  update_wired_pde(user_pde ? pmap : NULL);
+  pmap_t *old_user_pmap = get_user_pmap();
 
-  for (int i = 0; i < PD_ENTRIES; i++)
-    pmap->pde[i] = in_kernel_space(i * PTF_ENTRIES * PAGESIZE) ? PTE_GLOBAL : 0;
+  /*
+   * No preemption here! Consider a case where this thread gets preempted and
+   * other thread calls pmap_setup as well.
+   */
+  WITH_NO_PREEMPTION {
+    /*
+     * XXX: To initialize user pmap its PD is temporarily mapped in place
+     * of current PD. This way we can access the PD using virtual addresses.
+     * This is a workaround and probably can be done better.
+     */
+    update_wired_pde(user_pde ? pmap : NULL);
+
+    for (int i = 0; i < PD_ENTRIES; i++)
+      pmap->pde[i] =
+        in_kernel_space(i * PTF_ENTRIES * PAGESIZE) ? PTE_GLOBAL : 0;
+
+    update_wired_pde(old_user_pmap);
+  }
 }
 
 /* TODO: remove all mappings from TLB, evict related cache lines */
@@ -368,48 +364,8 @@ void tlb_exception_handler(exc_frame_t *frame) {
   klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
        frame->pc, vaddr);
 
-  /* If the fault was in virtual pt range it means it's time to refill */
-  if (PT_BASE <= vaddr && vaddr < PT_BASE + PT_SIZE) {
-    uint32_t index = PTE_INDEX(vaddr - PT_BASE);
-    /* Restore address that caused a TLB miss into virtualized page table. */
-    vm_addr_t orig_vaddr = (vaddr - PT_BASE) * PTF_ENTRIES;
-
-    /* Page table for KSEG0 and KSEG1 must not be queried, cause the address
-     * range is not a subject to TLB based address translation. */
-    assert(vaddr < PT_HOLE_START || vaddr >= PT_HOLE_END);
-
-    if (PT_BASE <= orig_vaddr && orig_vaddr < PT_BASE + PT_SIZE) {
-      /*
-       * TLB refill exception can occur while C0_STATUS.EXL is set, if so then
-       * TLB miss went directly to tlb_exception_handler instead of tlb_refill.
-       */
-      vaddr = orig_vaddr;
-      index = PTE_INDEX(vaddr - PT_BASE);
-      orig_vaddr = (vaddr - PT_BASE) * PTF_ENTRIES;
-    }
-
-    pmap_t *pmap = get_active_pmap_by_addr(orig_vaddr);
-    if (!pmap) {
-      klog("Address %08lx not mapped by any active pmap!", orig_vaddr);
-      goto fault;
-    }
-    if (is_valid(pmap->pde[index])) {
-      klog("TLB refill for page table fragment %08lx", vaddr & PTE_MASK);
-      uint32_t index0 = index & ~1;
-      uint32_t index1 = index0 | 1;
-      vm_addr_t ptf_start = PT_BASE + index0 * PAGESIZE;
-      tlbhi_t hi = PTE_VPN2(ptf_start) | PTE_ASID(pmap->asid);
-
-      tlbentry_t e = {
-        .hi = hi, .lo0 = pmap->pde[index0], .lo1 = pmap->pde[index1]};
-      tlb_overwrite_random(&e);
-      return;
-    }
-
-    /* We needed to refill TLB, but the address is not mapped yet!
-     * Forward the request to pager */
-    vaddr = orig_vaddr;
-  }
+  /* Accesses to the page table should never go beyond tlb_refill. */
+  assert(vaddr < PT_BASE || PT_BASE + PT_SIZE + 2 * PAGESIZE <= vaddr);
 
   vm_map_t *map = get_active_vm_map_by_addr(vaddr);
   if (!map) {
@@ -426,6 +382,10 @@ fault:
     frame->pc = td->td_onfault;
     td->td_onfault = 0;
   } else if (td->td_proc) {
+    /* Panic when process running in kernel space uses wrong pointer. */
+    if (in_kernel_mode(frame))
+      kernel_oops(frame);
+
     /* Send a segmentation fault signal to the user program. */
 
     /* TODO it's an awful kludge,
@@ -437,8 +397,7 @@ fault:
   } else if (ktest_test_running_flag) {
     ktest_failure();
   } else {
-    /* Kernel mode thread violated memory, whoops. */
-    panic("%s at $%08x, caused by reference to $%08lx in thread %p!",
-          exceptions[code], frame->pc, vaddr, td);
+    /* Panic when kernel-mode thread uses wrong pointer. */
+    kernel_oops(frame);
   }
 }
