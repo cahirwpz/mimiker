@@ -12,7 +12,7 @@
  * sched_set_prio (which calls turnstile_adjust).
  * Test passes if threads are properly sorted on turnstile ts_blocked list. */
 
-typedef TAILQ_HEAD(threadqueue, thread) threadqueue_t;
+typedef TAILQ_HEAD(td_queue, thread) td_queue_t;
 
 static prio_t new_priorities[T] = {3, 1, 2, 0, 1};
 static mtx_t ts_adj_mtx = MTX_INITIALIZER(MTX_DEF);
@@ -44,7 +44,7 @@ static int lockq_sorted_back(thread_t *td) {
   if (td == NULL)
     return 1;
   else {
-    thread_t *prev = TAILQ_PREV(td, threadqueue, td_blockedq);
+    thread_t *prev = TAILQ_PREV(td, td_queue, td_blockedq);
     if (prev != NULL && prev->td_prio < td->td_prio)
       return 0;
     else

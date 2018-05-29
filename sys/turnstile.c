@@ -11,8 +11,8 @@
   ((((uintptr_t)(wc) >> TC_SHIFT) ^ (uintptr_t)(wc)) & TC_MASK)
 #define TC_LOOKUP(wc) &turnstile_chains[TC_HASH(wc)]
 
-typedef TAILQ_HEAD(threadqueue, thread) threadqueue_t;
-typedef LIST_HEAD(turnstilelist, turnstile) turnstilelist_t;
+typedef TAILQ_HEAD(td_queue, thread) td_queue_t;
+typedef LIST_HEAD(ts_list, turnstile) ts_list_t;
 
 typedef enum { FREE_UNLOCKED, FREE_LOCKED, USED_LOCKED } ts_state_t;
 
@@ -23,17 +23,15 @@ typedef struct turnstile {
   };
   LIST_ENTRY(turnstile) ts_contested_link; /* link on td_contested */
   /* free turnstiles left by threads blocked on this turnstile */
-  turnstilelist_t ts_free;
+  ts_list_t ts_free;
   /* blocked threads sorted by decreasing active priority */
-  threadqueue_t ts_blocked;
+  td_queue_t ts_blocked;
   void *ts_wchan;      /* waiting channel */
   thread_t *ts_owner;  /* who owns the lock */
   ts_state_t ts_state; /* state of turnstile */
 } turnstile_t;
 
-typedef struct turnstile_chain {
-  turnstilelist_t tc_turnstiles;
-} turnstile_chain_t;
+typedef struct turnstile_chain { ts_list_t tc_turnstiles; } turnstile_chain_t;
 
 static turnstile_chain_t turnstile_chains[TC_TABLESIZE];
 
@@ -86,7 +84,7 @@ static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
   thread_t *p = td;
 
   do {
-    p = TAILQ_PREV(p, threadqueue, td_blockedq);
+    p = TAILQ_PREV(p, td_queue, td_blockedq);
   } while (p != NULL && p->td_prio < td->td_prio);
 
   TAILQ_REMOVE(&ts->ts_blocked, td, td_blockedq);
@@ -295,7 +293,7 @@ static void turnstile_unlend_self(turnstile_t *ts) {
   }
 }
 
-static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
+static void turnstile_wakeup_blocked(td_queue_t *blocked_threads) {
   while (!TAILQ_EMPTY(blocked_threads)) {
     thread_t *td = TAILQ_FIRST(blocked_threads);
     TAILQ_REMOVE(blocked_threads, td, td_blockedq);
