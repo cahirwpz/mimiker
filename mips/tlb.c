@@ -1,35 +1,63 @@
 #include <mips/mips.h>
 #include <mips/pmap.h>
 #include <mips/tlb.h>
+#include <interrupt.h>
+#include <common.h>
 #include <vm.h>
 
 #define mips32_getasid() (mips32_getentryhi() & PTE_ASID_MASK)
 #define mips32_setasid(v) mips32_setentryhi((v)&PTE_ASID_MASK)
 
-static inline void _tlb_read(unsigned i, tlbentry_t *e) {
+/*
+ * NOTE: functions that set coprocessor 0 registers like TLBHi/Lo, Index,
+ * etc. must not be interrupted or generate exceptions between setting
+ * these registers and executing the instruction that consumes them
+ * (e.g. tlbwi), as any interrupt or exception can overwrite the contents
+ * of these registers!
+ */
+
+static WIRED_FUN void _tlb_read(unsigned i, tlbentry_t *e) {
+  SCOPED_INTR_DISABLE();
   mips32_setindex(i);
   asm volatile("tlbr; ehb" : : : "memory");
-  *e = (tlbentry_t){.hi = mips32_getentryhi(),
-                    .lo0 = mips32_getentrylo0(),
-                    .lo1 = mips32_getentrylo1()};
+  /*
+   * Save the result to registers first.
+   * If we wrote it directly to memory, we could
+   * generate an exception and overwrite the result!
+   */
+  register tlbhi_t hi = mips32_getentryhi();
+  register tlblo_t lo0 = mips32_getentrylo0();
+  register tlblo_t lo1 = mips32_getentrylo1();
+  *e = (tlbentry_t){.hi = hi, .lo0 = lo0, .lo1 = lo1};
 }
 
-static inline void _tlb_write(unsigned i, tlbentry_t *e) {
-  mips32_setentryhi(e->hi);
-  mips32_setentrylo0(e->lo0);
-  mips32_setentrylo1(e->lo1);
+static inline __always_inline void _load_tlb_entry(tlbentry_t *e) {
+  /*
+   * Again, we don't want to generate exceptions after setting
+   * EntryHi, so we first load the entry from memory to registers.
+   */
+  register tlbhi_t hi = e->hi;
+  register tlblo_t lo0 = e->lo0, lo1 = e->lo1;
+  mips32_setentryhi(hi);
+  mips32_setentrylo0(lo0);
+  mips32_setentrylo1(lo1);
+}
+
+static WIRED_FUN void _tlb_write(unsigned i, tlbentry_t *e) {
+  SCOPED_INTR_DISABLE();
+  _load_tlb_entry(e);
   mips32_setindex(i);
   asm volatile("tlbwi; ehb" : : : "memory");
 }
 
-static inline void _tlb_write_random(tlbentry_t *e) {
-  mips32_setentryhi(e->hi);
-  mips32_setentrylo0(e->lo0);
-  mips32_setentrylo1(e->lo1);
+static WIRED_FUN void _tlb_write_random(tlbentry_t *e) {
+  SCOPED_INTR_DISABLE();
+  _load_tlb_entry(e);
   asm volatile("tlbwr; ehb" : : : "memory");
 }
 
-static inline int _tlb_probe(tlbhi_t hi) {
+static WIRED_FUN int _tlb_probe(tlbhi_t hi) {
+  SCOPED_INTR_DISABLE();
   mips32_setentryhi(hi);
   asm volatile("tlbp; ehb" : : : "memory");
   return mips32_getindex();

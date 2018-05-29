@@ -53,6 +53,7 @@ typedef int32_t blksize_t; /* fs optimal block size */
 #define __unlikely(x) __builtin_expect((x), 0)
 #define __optimize(x) __attribute__((optimize(x)))
 #define __long_call __attribute__((long_call))
+#define __always_inline __attribute__((always_inline))
 
 /* Attribute macros for debug/wired functions/data */
 #define WIRED_DATA __section(".data.wired")
