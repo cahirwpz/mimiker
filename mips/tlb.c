@@ -155,9 +155,20 @@ void tlb_print(void) {
   mips32_setasid(saved);
 }
 
-static tlbentry_t _gdb_tlb_entry;
+static DEBUG_DATA tlbentry_t _gdb_tlb_entry;
+
+DEBUG_FUN unsigned _gdb_tlb_size(void) {
+  uint32_t config1 = mips32_getconfig1();
+  return _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS) + 1;
+}
 
 /* Fills _dgb_tlb_entry structure with TLB entry. Used by debugger. */
-void _gdb_tlb_read_index(unsigned i) {
-  tlb_read(i, &_gdb_tlb_entry);
+DEBUG_FUN void _gdb_tlb_read_index(unsigned i) {
+  tlbhi_t saved = mips32_getentryhi();
+  mips32_setindex(i);
+  asm volatile("tlbr; ehb" : : : "memory");
+  _gdb_tlb_entry = (tlbentry_t){.hi = mips32_getentryhi(),
+                                .lo0 = mips32_getentrylo0(),
+                                .lo1 = mips32_getentrylo1()};
+  mips32_setentryhi(saved);
 }
