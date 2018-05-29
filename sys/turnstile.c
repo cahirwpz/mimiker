@@ -277,18 +277,18 @@ static void turnstile_unlend_self(turnstile_t *ts) {
 
   prio_t prio = 0; /* lowest priority */
 
+  ts->ts_owner = NULL;
+  LIST_REMOVE(ts, ts_contested_link);
+
+  turnstile_t *ts1;
+  LIST_FOREACH(ts1, &td->td_contested, ts_contested_link) {
+    assert(ts1->ts_owner == td);
+    prio_t p = TAILQ_FIRST(&ts1->ts_blocked)->td_prio;
+    if (p > prio)
+      prio = p;
+  }
+
   WITH_SPINLOCK(td->td_spin) {
-    ts->ts_owner = NULL;
-    LIST_REMOVE(ts, ts_contested_link);
-
-    turnstile_t *ts1;
-    LIST_FOREACH(ts1, &td->td_contested, ts_contested_link) {
-      assert(ts1->ts_owner == td);
-      prio_t p = TAILQ_FIRST(&ts1->ts_blocked)->td_prio;
-      if (p > prio)
-        prio = p;
-    }
-
     sched_unlend_prio(td, prio);
   }
 }
