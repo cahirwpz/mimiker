@@ -360,13 +360,11 @@ end:
   return result;
 }
 
-
-
 static int sys_execve(thread_t *td, syscall_args_t *args) {
   const char *user_path = (const char *)args->args[0];
   const char **user_argv = (const char **)args->args[1];
   size_t argc = 0;
-  
+
   if ((user_path == NULL) || (user_argv == NULL))
     return -EFAULT;
 
@@ -378,12 +376,12 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   result = copyinstr(user_path, kern_path, PATH_MAX, 0);
   if (result < 0)
     goto end;
-  
+
   result = copyinargs(data, user_argv, &argc);
   if (result < 0)
     goto end;
 
-  char **kern_argv = (char**) data;
+  char **kern_argv = (char **)data;
 
   /*WARNING: exec_args_t.argv type is probably incorrect. It is const char**,
    should be char *const[] */

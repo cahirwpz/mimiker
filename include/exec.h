@@ -17,7 +17,6 @@ typedef const char **argv_t;
 int copyinargptrs(char *blob, argv_t user_argv, size_t *argc_out);
 int copyinargs(char *blob, argv_t user_argv, size_t *argc_out);
 
-
 int do_exec(const exec_args_t *prog);
 noreturn void run_program(const exec_args_t *prog);
 
