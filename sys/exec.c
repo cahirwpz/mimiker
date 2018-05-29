@@ -15,6 +15,78 @@
 #include <mount.h>
 #include <vnode.h>
 #include <proc.h>
+#include <systm.h>
+
+int copyinargptrs(char *blob, argv_t user_argv, size_t *argc_out) {
+  argv_t kern_argv = (argv_t) blob;
+  size_t argc = 0;
+  int result = 0;
+
+  char *argp;
+  const size_t chunk_size = sizeof(argp);
+  size_t bytes_written = 0;
+   
+  do {
+    result = copyin(user_argv + argc, &argp, chunk_size);
+    if (result < 0)
+      goto end;    
+   
+    kern_argv[argc++] = argp;
+    bytes_written += chunk_size;
+
+  } while ((bytes_written + chunk_size <= ARG_MAX) && (argp != NULL));
+
+  
+  if (argp != NULL) {
+    result = -E2BIG;
+    goto end;
+  }
+
+  --argc;
+
+  if (argc == 0) {
+    result = -EFAULT;
+    goto end;
+  }
+
+    *argc_out = argc;
+ end:
+  return result;
+}
+
+
+int copyinargs(char *blob, argv_t user_argv, size_t *argc_out) {
+  int result = 0;
+
+  result = copyinargptrs(blob, user_argv, argc_out);
+  if (result < 0)
+    goto end;
+  
+  argv_t kern_argv = (argv_t) blob;
+  void *args = (void*)(kern_argv + *argc_out);
+
+  size_t bytes_written = *argc_out*sizeof(char*);
+  size_t max_arg_len = ARG_MAX - bytes_written;   
+  
+  size_t argsize;
+
+  for (size_t i = 0; i < *argc_out; i++) {
+    result =
+      copyinstr(kern_argv[i], args, max_arg_len, &argsize);  
+    if (result < 0) {
+      result = (result == -ENAMETOOLONG) ? -E2BIG : result;
+      goto end;
+    }
+    
+    kern_argv[i] = args;
+    args += argsize;
+    max_arg_len -= argsize;
+  }
+      
+ end:
+  return result;
+}
+
 
 int do_exec(const exec_args_t *args) {
   thread_t *td = thread_self();

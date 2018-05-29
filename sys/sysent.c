@@ -360,66 +360,30 @@ end:
   return result;
 }
 
+
+
 static int sys_execve(thread_t *td, syscall_args_t *args) {
   const char *user_path = (const char *)args->args[0];
   const char **user_argv = (const char **)args->args[1];
-
+  size_t argc = 0;
+  
   if ((user_path == NULL) || (user_argv == NULL))
     return -EFAULT;
 
   char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
-  char **kern_argv = kmalloc(M_TEMP, ARG_MAX * sizeof(char *), 0);
-  char *data = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0);
+  void *data = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0);
 
-  int result;
+  int result = 0;
 
   result = copyinstr(user_path, kern_path, PATH_MAX, 0);
   if (result < 0)
     goto end;
-
-  size_t argc = 0;
-  char *argp;
-
-  do {
-    result = copyin(user_argv + argc, &argp, sizeof(char *));
-    if (result < 0)
-      goto end;
-    kern_argv[argc] = argp;
-    ++argc;
-  } while ((argc < ARG_MAX) && (argp != NULL));
-
-  if (argc == ARG_MAX) {
-    result = -E2BIG;
+  
+  result = copyinargs(data, user_argv, &argc);
+  if (result < 0)
     goto end;
-  }
 
-  --argc;
-
-  if (argc == 0) {
-    result = -EFAULT;
-    goto end;
-  }
-
-  /* Copyin argument values */
-  /* Copying out all arguments to one buffer (data) */
-  /* with fields in kern_argv pointing to each argument */
-  size_t data_off = 0;
-  size_t isize;
-
-  for (size_t i = 0; i < argc; i++) {
-    result =
-      copyinstr(kern_argv[i], data + data_off, ARG_MAX - data_off, &isize);
-    if (result < 0) {
-      result = (result == -ENAMETOOLONG) ? -E2BIG : result;
-      goto end;
-    }
-    kern_argv[i] = data + data_off;
-    data_off += isize;
-    if (data_off >= ARG_MAX) {
-      result = -E2BIG;
-      goto end;
-    }
-  }
+  char **kern_argv = (char**) data;
 
   /*WARNING: exec_args_t.argv type is probably incorrect. It is const char**,
    should be char *const[] */
@@ -430,7 +394,6 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   klog("execve(\"%s\", ... )", kern_argv[0]);
 end:
   kfree(M_TEMP, data);
-  kfree(M_TEMP, kern_argv);
   kfree(M_TEMP, kern_path);
 
   return result;
