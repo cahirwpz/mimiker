@@ -78,11 +78,11 @@ typedef struct thread {
   mtx_t td_lock;         /*!< (~) protects most fields in this structure */
   condvar_t td_waitcv;   /*!< (t) for thread_join */
   /* linked lists */
-  TAILQ_ENTRY(thread) td_all;     /* a link on all threads list */
-  TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
-  TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
-  TAILQ_ENTRY(thread) td_lockq;   /* (#) a link on turnstile blocked queue */
-  TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
+  TAILQ_ENTRY(thread) td_all;      /* a link on all threads list */
+  TAILQ_ENTRY(thread) td_runq;     /* a link on run queue */
+  TAILQ_ENTRY(thread) td_sleepq;   /* a link on sleep queue */
+  TAILQ_ENTRY(thread) td_blockedq; /* (#) a link on turnstile blocked queue */
+  TAILQ_ENTRY(thread) td_zombieq;  /* a link on zombie queue */
   /* Properties */
   proc_t *td_proc; /*!< (t) parent process (NULL for kernel threads) */
   char *td_name;   /*!< (@) name of thread */

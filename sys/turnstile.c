@@ -70,15 +70,15 @@ static void adjust_thread_forward(turnstile_t *ts, thread_t *td) {
   thread_t *n = td;
 
   do {
-    n = TAILQ_NEXT(n, td_lockq);
+    n = TAILQ_NEXT(n, td_blockedq);
   } while (n != NULL && n->td_prio > td->td_prio);
 
-  TAILQ_REMOVE(&ts->ts_blocked, td, td_lockq);
+  TAILQ_REMOVE(&ts->ts_blocked, td, td_blockedq);
 
   if (n == NULL)
-    TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
+    TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_blockedq);
   else
-    TAILQ_INSERT_BEFORE(n, td, td_lockq);
+    TAILQ_INSERT_BEFORE(n, td, td_blockedq);
 }
 
 static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
@@ -86,15 +86,15 @@ static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
   thread_t *p = td;
 
   do {
-    p = TAILQ_PREV(p, threadqueue, td_lockq);
+    p = TAILQ_PREV(p, threadqueue, td_blockedq);
   } while (p != NULL && p->td_prio < td->td_prio);
 
-  TAILQ_REMOVE(&ts->ts_blocked, td, td_lockq);
+  TAILQ_REMOVE(&ts->ts_blocked, td, td_blockedq);
 
   if (p == NULL)
-    TAILQ_INSERT_HEAD(&ts->ts_blocked, td, td_lockq);
+    TAILQ_INSERT_HEAD(&ts->ts_blocked, td, td_blockedq);
   else
-    TAILQ_INSERT_AFTER(&ts->ts_blocked, p, td, td_lockq);
+    TAILQ_INSERT_AFTER(&ts->ts_blocked, p, td, td_blockedq);
 }
 
 /* Adjusts thread's position on ts_blocked queue after its priority
@@ -190,7 +190,7 @@ static turnstile_t *turnstile_provide_own(turnstile_chain_t *tc,
 
   LIST_INSERT_HEAD(&owner->td_contested, ts, ts_contested_link);
   LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_chain_link);
-  TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
+  TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_blockedq);
 
   ts->ts_state = USED_LOCKED;
 
@@ -204,14 +204,14 @@ static void turnstile_join_waiting(turnstile_t *ts, thread_t *owner) {
   thread_t *td = thread_self();
 
   thread_t *td1;
-  TAILQ_FOREACH (td1, &ts->ts_blocked, td_lockq)
+  TAILQ_FOREACH (td1, &ts->ts_blocked, td_blockedq)
     if (td1->td_prio < td->td_prio)
       break;
 
   if (td1 != NULL)
-    TAILQ_INSERT_BEFORE(td1, td, td_lockq);
+    TAILQ_INSERT_BEFORE(td1, td, td_blockedq);
   else
-    TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
+    TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_blockedq);
   assert(owner == ts->ts_owner);
 
   assert(td->td_turnstile != NULL);
@@ -247,10 +247,10 @@ static void turnstile_free_return(turnstile_t *ts) {
   assert(ts->ts_owner == thread_self());
 
   thread_t *td;
-  TAILQ_FOREACH (td, &ts->ts_blocked, td_lockq) {
+  TAILQ_FOREACH (td, &ts->ts_blocked, td_blockedq) {
     turnstile_t *ts_for_td;
     if (LIST_EMPTY(&ts->ts_free)) {
-      assert(TAILQ_NEXT(td, td_lockq) == NULL);
+      assert(TAILQ_NEXT(td, td_blockedq) == NULL);
       ts_for_td = ts;
 
       assert(ts_for_td->ts_state == USED_LOCKED);
@@ -298,7 +298,7 @@ static void turnstile_unlend_self(turnstile_t *ts) {
 static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
   while (!TAILQ_EMPTY(blocked_threads)) {
     thread_t *td = TAILQ_FIRST(blocked_threads);
-    TAILQ_REMOVE(blocked_threads, td, td_lockq);
+    TAILQ_REMOVE(blocked_threads, td, td_blockedq);
 
     WITH_SPINLOCK(td->td_spin) {
       assert(td_is_blocked(td));

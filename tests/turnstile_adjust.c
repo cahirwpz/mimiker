@@ -32,7 +32,7 @@ static int lockq_sorted_forw(thread_t *td) {
   if (td == NULL)
     return 1;
   else {
-    thread_t *next = TAILQ_NEXT(td, td_lockq);
+    thread_t *next = TAILQ_NEXT(td, td_blockedq);
     if (next != NULL && next->td_prio > td->td_prio)
       return 0;
     else
@@ -44,7 +44,7 @@ static int lockq_sorted_back(thread_t *td) {
   if (td == NULL)
     return 1;
   else {
-    thread_t *prev = TAILQ_PREV(td, threadqueue, td_lockq);
+    thread_t *prev = TAILQ_PREV(td, threadqueue, td_blockedq);
     if (prev != NULL && prev->td_prio < td->td_prio)
       return 0;
     else
