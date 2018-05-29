@@ -4,7 +4,6 @@
 #include <common.h>
 
 typedef struct turnstile turnstile_t;
-typedef struct turnstile_chain turnstile_chain_t;
 
 /*! \brief Initializes turnstiles.
  *
@@ -21,7 +20,7 @@ void turnstile_destroy(turnstile_t *ts);
  * after we changed td's priority.
  *
  * Propagate td's priority if td is now first on list and we increased
- * its priority, i.e. td->td_prio > oldprio.
+ * its priority, i.e. td->td_prio is higher than oldprio.
  *
  * \note This function was created for sched_set_prio.
  * \note Requires td_spin acquired. */
