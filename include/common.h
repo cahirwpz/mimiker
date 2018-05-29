@@ -51,6 +51,14 @@ typedef int32_t blksize_t; /* fs optimal block size */
 #define __caller(x) (__builtin_return_address(x) - 8)
 #define __likely(x) __builtin_expect((x), 1)
 #define __unlikely(x) __builtin_expect((x), 0)
+#define __optimize(x) __attribute__((optimize(x)))
+#define __long_call __attribute__((long_call))
+
+/* Attribute macros for debug/wired functions/data */
+#define WIRED_DATA __section(".data.wired")
+#define WIRED_FUN __long_call __section("text.wired")
+#define DEBUG_DATA __section(".data.debug")
+#define DEBUG_FUN __section(".text.debug") __optimize("O0")
 
 /* Macros for counting and rounding. */
 #ifndef howmany
