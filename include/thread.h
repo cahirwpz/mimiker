@@ -67,6 +67,7 @@ typedef enum {
  *  - @: read-only access
  *  - !: thread_t::td_spin
  *  - ~: always safe to access
+ *  - #: UP & no preemption
  *
  * Locking order:
  *  threads_lock >> thread_t::td_lock
@@ -80,7 +81,7 @@ typedef struct thread {
   TAILQ_ENTRY(thread) td_all;     /* a link on all threads list */
   TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
   TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
-  TAILQ_ENTRY(thread) td_lockq;   /* a link on turnstile blocked queue */
+  TAILQ_ENTRY(thread) td_lockq;   /* (#) a link on turnstile blocked queue */
   TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
   /* Properties */
   proc_t *td_proc; /*!< (t) parent process (NULL for kernel threads) */
@@ -104,9 +105,9 @@ typedef struct thread {
   /* waiting channel - sleepqueue */
   sleepq_t *td_sleepqueue; /* thread's sleepqueue */
   /* waiting channel - turnstile */
-  turnstile_t *td_blocked;   /* turnstile on which thread is blocked */
-  turnstile_t *td_turnstile; /* thread's turnstile */
-  LIST_HEAD(, turnstile) td_contested; /* turnstiles of locks that we own */
+  turnstile_t *td_blocked;   /* (#) turnstile on which thread is blocked */
+  turnstile_t *td_turnstile; /* (#) thread's turnstile */
+  LIST_HEAD(, turnstile) td_contested; /* (#) turnstiles of locks that we own */
   /* scheduler part */
   prio_t td_base_prio; /*!< base priority */
   prio_t td_prio;      /*!< active priority */
