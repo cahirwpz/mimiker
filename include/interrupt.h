@@ -26,6 +26,22 @@ void intr_enable(void);
 /*! \brief Checks if interrupts are disabled now. */
 bool intr_disabled(void);
 
+/* Helper routines needed to implement SCOPED_INTR_DISABLE and
+ * WITH_INTR_DISABLED. */
+static inline void __intr_disable(void *dummy) {
+  intr_disable();
+}
+
+static inline void __intr_enable(void *dummy) {
+  intr_enable();
+}
+
+#define SCOPED_INTR_DISABLE()                                                  \
+  SCOPED_STMT(void, __intr_disable, __intr_enable, NULL)
+
+#define WITH_INTR_DISABLED                                                     \
+  WITH_STMT(void, __preempt_disable, __preempt_enable, NULL)
+
 typedef enum {
   IF_STRAY = 0,    /* this device did not trigger the interrupt */
   IF_FILTERED = 1, /* the interrupt has been handled and can be EOId */
