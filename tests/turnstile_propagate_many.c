@@ -30,8 +30,8 @@ static int propagator_prio(int n) {
   return n * RQ_PPQ;
 }
 
-static bool td_is_locked_on_mtx(thread_t *td, mtx_t *m) {
-  assert(td_is_locked(td));
+static bool td_is_blocked_on_mtx(thread_t *td, mtx_t *m) {
+  assert(td_is_blocked(td));
   return td->td_wchan == m;
 }
 
@@ -63,7 +63,7 @@ static void starter_routine(void *_arg) {
         assert(thread_self()->td_prio == propagator_prio(i - 1));
       }
 
-      assert(td_is_locked_on_mtx(propagator[i], &mtx[i - 1]));
+      assert(td_is_blocked_on_mtx(propagator[i], &mtx[i - 1]));
       assert(mtx_owner(&mtx[i - 1]) == propagator[i - 1]);
 
       /* Check if the priorities have propagated correctly. */

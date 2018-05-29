@@ -101,7 +101,7 @@ static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
  * has been changed. */
 static void adjust_thread(turnstile_t *ts, thread_t *td, prio_t oldprio) {
   assert(ts->ts_state == USED_LOCKED);
-  assert(td_is_locked(td));
+  assert(td_is_blocked(td));
 
   if (td->td_prio > oldprio)
     adjust_thread_backward(ts, td);
@@ -131,7 +131,7 @@ static void propagate_priority(thread_t *td) {
   /* Walk through blocked threads. */
   while (td->td_prio < prio && !td_is_ready(td) && !td_is_running(td)) {
     assert(td != thread_self()); /* Deadlock. */
-    assert(td_is_locked(td));
+    assert(td_is_blocked(td));
 
     prio_t oldprio = td->td_prio;
     sched_lend_prio(td, prio);
@@ -158,7 +158,7 @@ static void propagate_priority(thread_t *td) {
 
 void turnstile_adjust(thread_t *td, prio_t oldprio) {
   assert(spin_owned(td->td_spin));
-  assert(td_is_locked(td));
+  assert(td_is_blocked(td));
 
   turnstile_t *ts = td->td_blocked;
   assert(ts != NULL);
@@ -234,7 +234,7 @@ static void turnstile_switch(turnstile_t *ts, const void *waitpt) {
     td->td_blocked = ts;
     td->td_wchan = ts->ts_wchan;
     td->td_waitpt = waitpt;
-    td->td_state = TDS_LOCKED;
+    td->td_state = TDS_BLOCKED;
 
     propagate_priority(td);
     sched_switch();
@@ -303,7 +303,7 @@ static void turnstile_wakeup_blocked(threadqueue_t *blocked_threads) {
     TAILQ_REMOVE(blocked_threads, td, td_lockq);
 
     WITH_SPINLOCK(td->td_spin) {
-      assert(td_is_locked(td));
+      assert(td_is_blocked(td));
       td->td_blocked = NULL;
       td->td_wchan = NULL;
       td->td_waitpt = NULL;

@@ -32,7 +32,7 @@ void sched_add(thread_t *td) {
 void sched_wakeup(thread_t *td) {
   assert(spin_owned(td->td_spin));
   assert(td != thread_self());
-  assert(td_is_locked(td) || td_is_sleeping(td) || td_is_inactive(td));
+  assert(td_is_blocked(td) || td_is_sleeping(td) || td_is_inactive(td));
 
   /* Update sleep time. */
   timeval_t now = get_uptime();
@@ -84,7 +84,7 @@ void sched_set_prio(thread_t *td, prio_t prio) {
 
   /* If thread is locked on a turnstile, let the turnstile adjust
    * thread's position on turnstile's \a ts_blocked list. */
-  if (td_is_locked(td) && oldprio != prio)
+  if (td_is_blocked(td) && oldprio != prio)
     turnstile_adjust(td, oldprio);
 }
 
