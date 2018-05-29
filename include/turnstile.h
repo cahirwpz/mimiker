@@ -16,11 +16,15 @@ turnstile_t *turnstile_alloc(void);
 /*! \brief Deallocates turnstile entry. */
 void turnstile_destroy(turnstile_t *ts);
 
-/* Re-sort list of blocked threads, on which td is,
- * after we changed td's priority.
+/* Scheduler should call this after changing priority of a thread that is
+ * (or might be) blocked on some turnstile.
  *
- * Propagate td's priority if td is now first on list and we increased
- * its priority, i.e. td->td_prio is higher than oldprio.
+ * It will re-sort list of blocked threads, on which `td` is and possibly
+ * propagate `td`'s priority if it was increased.
+ *
+ * If `td` was lending priority and it was decreased, we don't change the
+ * lent priority. The borrowing thread should finish soon anyway and we
+ * don't care enough.
  *
  * \note This function was created for sched_set_prio.
  * \note Requires td_spin acquired. */
