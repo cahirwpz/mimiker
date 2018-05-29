@@ -172,7 +172,7 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
 
 /* case 1 of former turnstile_wait
  * we use our turnstile to track `owner` */
-static turnstile_t *turnstile_provide_own(turnstile_chain_t *tc,
+static turnstile_t *provide_own_turnstile(turnstile_chain_t *tc,
                                           thread_t *owner, void *wchan) {
   thread_t *td = thread_self();
   turnstile_t *ts = td->td_turnstile;
@@ -197,7 +197,7 @@ static turnstile_t *turnstile_provide_own(turnstile_chain_t *tc,
 
 /* case 2 of former turnstile_wait
  * we donate our turnstile to ts_free list */
-static void turnstile_join_waiting(turnstile_t *ts, thread_t *owner) {
+static void join_waiting_threads(turnstile_t *ts, thread_t *owner) {
   assert(ts->ts_state == USED_LOCKED);
   thread_t *td = thread_self();
 
@@ -221,7 +221,7 @@ static void turnstile_join_waiting(turnstile_t *ts, thread_t *owner) {
 /* final (common) part of former turnstile_wait
  * Call this when all turnstile stuff is ready
  * This changes appropriate thread fields and switches context */
-static void turnstile_switch(turnstile_t *ts, const void *waitpt) {
+static void switch_away(turnstile_t *ts, const void *waitpt) {
   assert(ts->ts_state == USED_LOCKED);
   thread_t *td = thread_self();
 
@@ -239,7 +239,7 @@ static void turnstile_switch(turnstile_t *ts, const void *waitpt) {
 
 /* For each thread td on ts_blocked we give td back a turnstile
  * from ts_free (or ts if ts_free is empty). */
-static void turnstile_free_return(turnstile_t *ts) {
+static void give_back_turnstiles(turnstile_t *ts) {
   assert(ts != NULL);
   assert(ts->ts_state == USED_LOCKED);
   assert(ts->ts_owner == thread_self());
@@ -269,7 +269,7 @@ static void turnstile_free_return(turnstile_t *ts) {
 
 /* Walks td_contested list of thread_self(), counts maximum priority of
  * threads locked on us, and calls sched_unlend_prio. */
-static void turnstile_unlend_self(turnstile_t *ts) {
+static void unlend_self(turnstile_t *ts) {
   assert(ts != NULL);
 
   thread_t *td = thread_self();
@@ -293,7 +293,7 @@ static void turnstile_unlend_self(turnstile_t *ts) {
   }
 }
 
-static void turnstile_wakeup_blocked(td_queue_t *blocked_threads) {
+static void wakeup_blocked(td_queue_t *blocked_threads) {
   while (!TAILQ_EMPTY(blocked_threads)) {
     thread_t *td = TAILQ_FIRST(blocked_threads);
     TAILQ_REMOVE(blocked_threads, td, td_blockedq);
@@ -331,11 +331,11 @@ void turnstile_wait(void *wchan, thread_t *owner, const void *waitpt) {
    * spinlock. */
 
   if (ts != NULL)
-    turnstile_join_waiting(ts, owner);
+    join_waiting_threads(ts, owner);
   else
-    ts = turnstile_provide_own(tc, owner, wchan);
+    ts = provide_own_turnstile(tc, owner, wchan);
 
-  turnstile_switch(ts, waitpt);
+  switch_away(ts, waitpt);
 }
 
 void turnstile_broadcast(void *wchan) {
@@ -348,9 +348,9 @@ void turnstile_broadcast(void *wchan) {
     assert(ts->ts_owner == thread_self());
     assert(!TAILQ_EMPTY(&ts->ts_blocked));
 
-    turnstile_free_return(ts);
-    turnstile_unlend_self(ts);
-    turnstile_wakeup_blocked(&ts->ts_blocked);
+    give_back_turnstiles(ts);
+    unlend_self(ts);
+    wakeup_blocked(&ts->ts_blocked);
 
     assert(ts->ts_state == FREE_UNLOCKED);
   }
