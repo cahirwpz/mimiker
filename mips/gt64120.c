@@ -14,11 +14,8 @@
 #include <klog.h>
 #include <rman.h>
 
-
-
 rman_t rman_pci_iospace;
 rman_t rman_pci_memspace;
-
 
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8

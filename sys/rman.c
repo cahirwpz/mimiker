@@ -95,8 +95,7 @@ static void rman_init(rman_t *rm) {
 
 void rman_create(rman_t *rm, intptr_t start, intptr_t end) {
   rm->start = start;
-  rm->end  = end;
+  rm->end = end;
 
   rman_init(rm);
 }
-

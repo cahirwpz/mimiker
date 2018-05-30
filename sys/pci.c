@@ -129,7 +129,7 @@ void pci_bus_assign_space(device_t *pcib) {
     if (bar->r_type == RT_IOPORTS) {
       bar->r_bus_space = data->io_space->r_bus_space;
       r = rman_allocate_resource_anywhere(&rman_pci_iospace,
-                                     bar->r_end - bar->r_start + 1);
+                                          bar->r_end - bar->r_start + 1);
 
       // TODO this is just temporary workaround, returned value from
       // rman_allocate_resource_anywhere should be assigned to bar earlier
@@ -137,7 +137,7 @@ void pci_bus_assign_space(device_t *pcib) {
       bar->r_end = r->r_end;
     } else if (bar->r_type == RT_MEMORY) {
       r = rman_allocate_resource_anywhere(&rman_pci_memspace,
-                                     bar->r_end - bar->r_start + 1);
+                                          bar->r_end - bar->r_start + 1);
       bar->r_bus_space = data->mem_space->r_bus_space;
 
       // TODO this is just temporary workaround, returned value from
