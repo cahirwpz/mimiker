@@ -23,8 +23,8 @@ void turnstile_destroy(turnstile_t *ts);
  * propagate `td`'s priority if it was increased.
  *
  * If `td` was lending priority and it was decreased, we don't change the
- * lent priority. The borrowing thread should finish soon anyway and we
- * don't care enough.
+ * lent priority. Unlending would be expensive or complicated and the borrowing
+ * thread should finish soon anyway.
  *
  * \note Requires td_spin acquired. */
 void turnstile_adjust(thread_t *td, prio_t oldprio);
