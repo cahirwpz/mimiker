@@ -5,14 +5,6 @@
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 
-rman_t rman_pci_iospace = {
-  .start = 0x18000000, .end = 0x1bdfffff,
-};
-
-rman_t rman_pci_memspace = {
-  .start = 0x10000000, .end = 0x17ffffff,
-};
-
 static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
                                             uint16_t device_id) {
   if (vendor) {
@@ -136,20 +128,20 @@ void pci_bus_assign_space(device_t *pcib) {
     resource_t *r;
     if (bar->r_type == RT_IOPORTS) {
       bar->r_bus_space = data->io_space->r_bus_space;
-      r = rman_allocate_resource_any(&rman_pci_iospace,
+      r = rman_allocate_resource_anywhere(&rman_pci_iospace,
                                      bar->r_end - bar->r_start + 1);
 
       // TODO this is just temporary workaround, returned value from
-      // rman_allocate_resource_any should be assigned to bar earlier
+      // rman_allocate_resource_anywhere should be assigned to bar earlier
       bar->r_start = r->r_start;
       bar->r_end = r->r_end;
     } else if (bar->r_type == RT_MEMORY) {
-      r = rman_allocate_resource_any(&rman_pci_memspace,
+      r = rman_allocate_resource_anywhere(&rman_pci_memspace,
                                      bar->r_end - bar->r_start + 1);
       bar->r_bus_space = data->mem_space->r_bus_space;
 
       // TODO this is just temporary workaround, returned value from
-      // rman_allocate_resource_any should be assigned to bar earlier
+      // rman_allocate_resource_anywhere should be assigned to bar earlier
       bar->r_start = r->r_start;
       bar->r_end = r->r_end;
     }

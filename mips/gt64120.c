@@ -14,6 +14,12 @@
 #include <klog.h>
 #include <rman.h>
 
+
+
+rman_t rman_pci_iospace;
+rman_t rman_pci_memspace;
+
+
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
 #define PCI0_CFG_DEV_SHIFT 11
@@ -334,8 +340,8 @@ static int gt_pci_attach(device_t *pcib) {
   gt_pci_intr_chain_init(gtpci, 14, "ide(0)"); /* IDE primary */
   gt_pci_intr_chain_init(gtpci, 15, "ide(1)"); /* IDE secondary */
 
-  rman_init(&rman_pci_memspace);
-  rman_init(&rman_pci_iospace);
+  rman_create(&rman_pci_memspace, 0x10000000, 0x17ffffff);
+  rman_create(&rman_pci_iospace, 0x18000000, 0x1bdfffff);
   pci_bus_enumerate(pcib);
   pci_bus_assign_space(pcib);
   pci_bus_dump(pcib);

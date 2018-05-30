@@ -80,7 +80,7 @@ resource_t *rman_allocate_resource(rman_t *rm, intptr_t start, intptr_t end,
   return res;
 }
 
-void rman_init(rman_t *rm) {
+static void rman_init(rman_t *rm) {
   mtx_init(&rm->mtx, MTX_DEF);
   LIST_INIT(&rm->resources);
 
@@ -92,3 +92,11 @@ void rman_init(rman_t *rm) {
 
   LIST_INSERT_HEAD(&rm->resources, whole_space, resources);
 }
+
+void rman_create(rman_t *rm, intptr_t start, intptr_t end) {
+  rm->start = start;
+  rm->end  = end;
+
+  rman_init(rm);
+}
+
