@@ -169,10 +169,11 @@ static int stdvga_attach(device_t *dev) {
   command |= PCIM_CMD_PORTEN | PCIM_CMD_MEMEN;
   pci_write_config(dev, PCIR_COMMAND, 2, command);
 
+
+  // read bar info which was written by bus_space_enumerate
   stdvga_state_t *stdvga = dev->state;
-  /* TODO: This will get replaced by bus_alloc_resource* function */
-  stdvga->mem = &pcid->bar[0];
-  stdvga->io = &pcid->bar[1];
+  stdvga->mem = bus_resource_alloc(dev,);
+  stdvga->io = bus_resource_alloc(dev);
 
   stdvga->vga = (vga_device_t){
     .palette_write = stdvga_palette_write,

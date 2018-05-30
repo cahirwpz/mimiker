@@ -113,7 +113,8 @@ typedef void (*bus_intr_setup_t)(device_t *dev, unsigned num,
                                  intr_handler_t *handler);
 typedef void (*bus_intr_teardown_t)(device_t *dev, intr_handler_t *handler);
 
-typedef void (*bus_resource_alloc_t)(device_t *dev,
+typedef resource_t* (*bus_resource_alloc_t)(device_t *parent,
+                                    device_t *dev,
                                      unsigned int flags,
                                      unsigned long long start,
                                      unsigned long long end,
@@ -153,7 +154,7 @@ static inline void bus_resource_alloc(device_t *dev, unsigned int flags,
                                       unsigned long long start,
                                       unsigned long long end,
                                       unsigned long long size){
-  BUS_DRIVER(dev)->bus.resource_alloc(dev, flags, start, end, size);
+  BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, flags, start, end, size);
   return;
 }
 

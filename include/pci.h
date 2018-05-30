@@ -21,12 +21,7 @@ typedef struct {
 extern const pci_vendor_id pci_vendor_list[];
 extern const char *pci_class_code[];
 
-rman_t rman_pci_iospace;
-rman_t rman_pci_memspace;
-
 /* Please read http://wiki.osdev.org/PCI */
-
-#define PCI_IO_SPACE_BASE 0x1000
 
 #define PCI_BAR_MEMORY 0
 #define PCI_BAR_IO 1

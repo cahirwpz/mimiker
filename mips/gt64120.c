@@ -45,9 +45,15 @@ typedef struct gt_pci_state {
   pci_bus_state_t pci_bus;
 
   resource_t *corectrl;
+  resource_t *pci_mem;
+  resource_t *pci_io;
+  resource_t *isa_io;
 
   intr_handler_t intr_handler;
   intr_chain_t intr_chain[16];
+
+  rman_t rman_pci_iospace;
+  rman_t rman_pci_memspace;
 
   uint16_t imask;
   uint16_t elcr;
@@ -162,25 +168,6 @@ static bus_space_t gt_pci_bus_space = {.read_1 = gt_pci_read_1,
                                        .write_4 = gt_pci_write_4,
                                        .read_region_1 = gt_pci_read_region_1,
                                        .write_region_1 = gt_pci_write_region_1};
-
-/* Not needed BEGIN */
-
-static resource_t gt_pci_memory = {.r_bus_space = &gt_pci_bus_space,
-                                   .r_type = RT_MEMORY,
-                                   .r_start = MALTA_PCI0_MEMORY_BASE,
-                                   .r_end = MALTA_PCI0_MEMORY_END};
-
-static resource_t gt_pci_ioports = {.r_bus_space = &gt_pci_bus_space,
-                                    .r_type = RT_IOPORTS,
-                                    .r_start = MALTA_PCI0_IO_BASE,
-                                    .r_end = MALTA_PCI0_IO_END};
-
-static resource_t gt_pci_corectrl = {.r_bus_space = &gt_pci_bus_space,
-                                     .r_type = RT_IOPORTS,
-                                     .r_start = MALTA_CORECTRL_BASE,
-                                     .r_end = MALTA_CORECTRL_BASE + 0x1000};
-
-/* Not needed END */
 
 static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
   /* Enable the cascade IRQ (2) if 8-15 is enabled. */
@@ -300,37 +287,33 @@ static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
 }
 
 static int gt_pci_probe(device_t *pcib) {
-/*   void* rs_mem = bus_alloc_resource(pcib, 0,MALTA_PCI0_MEMORY_BASE, 
-    MALTA_PCI0_MEMORY_END, MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1);
-  void* rs_io = bus_alloc_resource(pcib, 0, MALTA_PCI0_IO_BASE + 0x1000, 
-    MALTA_PCI0_IO_END, MALTA_PCI0_IO_END - (MALTA_PCI0_IO_BASE + 0x1000) + 1);
-  void* rs_ctrl = bus_alloc_resource(pcib, 0, MALTA_PCI0_IO_BASE + 0x1000, 
-    MALTA_PCI0_IO_END, MALTA_PCI0_IO_END - (MALTA_PCI0_IO_BASE + 0x1000) + 1);
-  void* rs_isa = bus_alloc_resource(pcib, 0, MALTA_PCI0_IO_BASE + 0x1000, 
-    MALTA_PCI0_IO_END, MALTA_PCI0_IO_END - (MALTA_PCI0_IO_BASE + 0x1000) + 1); */
 
-// need ISA resource because this driver accesses ISA devices.
+  gt_pci_state_t *gtpci = pcib->state;
 
-/*   if(rs_mem & rs_io & rs_ctrl & rs_isa == NULL){
-    if(rs_mem != NULL) bus_release_resource(pcib, rs_mem);
-    if(rs_io != NULL) bus_release_resource(pcib, rs_io);
-    if(rs_ctrl != NULL) bus_release_resource(pcib, rs_ctrl);
-    if(rs_isa != NULL) bus_release_resource(pcib, rs_isa);
+  // RT_MEMORY or RT_IOPORTS
 
-    return 0;
-  } */
+  resource_t *rs_pci_mem = bus_alloc_resource(pcib, 0, MALTA_PCI_MEMORY_BASE, 
+    MALTA_PCI_MEMORY_BASE_END, MALTA_PCI_MEMORY_BASE_END - MALTA_PCI_MEMORY_BASE + 1);
+  resource_t* rs_pci_io = bus_alloc_resource(pcib, 0, MALTA_PCI0_EXCLUSIVE_IO_BASE, 
+    MALTA_PCI0_EXCLUSIVE_IO_END, MALTA_PCI0_EXCLUSIVE_IO_END - MALTA_PCI0_EXCLUSIVE_IO_BASE + 1;
+  resource_t* rs_ctrl = bus_alloc_resource(pcib, 0, MALTA_CORECTRL_BASE, 
+    MALTA_CORECTRL_END, MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1);
+  resource_t* rs_isa_io = bus_alloc_resource(pcib, 0, MALTA_PCI0_TO_ISA_BRIDGE_BASE, 
+    MALTA_PCI0_TO_ISA_BRIDGE_END, MALTA_PCI0_TO_ISA_BRIDGE_END - MALTA_PCI0_TO_ISA_BRIDGE_BASE + 1); 
 
+    i/* f(rs_psi_mem & rs_pci_io & rs_ctrl & rs_isa_io == NULL){
+      if(rs_pci_mem != NULL) bus_release_resource(pcib, rs_pci_mem);
+      if(rs_pci_io != NULL) bus_release_resource(pcib, rs_pci_io);
+      if(rs_ctrl != NULL) bus_release_resource(pcib, rs_ctrl);
+      if(rs_isa_io != NULL) bus_release_resource(pcib, rs_isa_io);
 
+      return 0;
+    } */
 
-  // need to place it in some private driver softc
-  // gt_pci_state_t structure?
-
-  // gtpci->pci_bus.mem_space = rs_mem;
-  // gtpci->pci_bus.io_space = rs_io;
-  // gtpci->corectrl = rs_ctrl;
-
-  // gtpci->pci_bus.rm_pci_mem = init_rman_from_resource(rs_mem);
-  // gtpci->pci_bus.rm_pci_io = init_rman_from_resource(rs_io);
+    gtpci.corectrl = rs_ctrl;
+    gtpci.pci_mem = rs_pci_mem;
+    gtpci.pci_io = rs_pci_io;
+    gtpci.isa_io = rs_isa_io;
 
   return 1;
 }
@@ -338,18 +321,17 @@ static int gt_pci_probe(device_t *pcib) {
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
-  pcib->bus = DEV_BUS_PCI;
+  rman_init(&gt_pci->rman_pci_memspace);
+  rman_init(&gt_pci->rman_pci_iospace)
 
-  gtpci->pci_bus.mem_space = &gt_pci_memory;
-  gtpci->pci_bus.io_space = &gt_pci_ioports;
-  gtpci->corectrl = &gt_pci_corectrl;
+  pcib->bus = DEV_BUS_PCI;
 
   /* All interrupts default to "masked off" and edge-triggered. */
   gtpci->imask = 0xffff;
   gtpci->elcr = 0;
 
   /* Initialize the 8259s. */
-  resource_t *io = gtpci->pci_bus.io_space;
+  resource_t *io = gtpci.isa_io;
   init_8259(io, IO_ICU1, LO(gtpci->imask));
   init_8259(io, IO_ICU2, HI(gtpci->imask));
 
@@ -374,10 +356,7 @@ static int gt_pci_attach(device_t *pcib) {
   gt_pci_intr_chain_init(gtpci, 14, "ide(0)"); /* IDE primary */
   gt_pci_intr_chain_init(gtpci, 15, "ide(1)"); /* IDE secondary */
 
-  rman_init(&rman_pci_memspace);
-  rman_init(&rman_pci_iospace);
   pci_bus_enumerate(pcib);
-  pci_bus_assign_space(pcib); // need to delete it
   pci_bus_dump(pcib);
 
   gtpci->intr_handler =
@@ -387,14 +366,15 @@ static int gt_pci_attach(device_t *pcib) {
   return bus_generic_probe_and_attach(pcib);
 }
 
-static void gt_pci_resource_alloc(device_t *dev,unsigned int flags,
+static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,unsigned int flags,
                                       unsigned long long start,
                                       unsigned long long end,
                                       unsigned long long size){
-  
-  /* use rmans to give resource to child device */
+  /* read flags and allocate in specific resource */
+  gt_pci_state_t *gtpci = pcib->state;
+  resource_t *r = rman_allocate_resource(gtpci->);
+  return r;
 
-  return;
 }
 
 pci_bus_driver_t gt_pci_bus = {
