@@ -12,6 +12,7 @@
 #include <spinlock.h>
 #include <stdc.h>
 #include <klog.h>
+#include <rman.h>
 
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
@@ -373,6 +374,8 @@ static int gt_pci_attach(device_t *pcib) {
   gt_pci_intr_chain_init(gtpci, 14, "ide(0)"); /* IDE primary */
   gt_pci_intr_chain_init(gtpci, 15, "ide(1)"); /* IDE secondary */
 
+  rman_init(&rman_pci_memspace);
+  rman_init(&rman_pci_iospace);
   pci_bus_enumerate(pcib);
   pci_bus_assign_space(pcib); // need to delete it
   pci_bus_dump(pcib);

@@ -6,6 +6,14 @@
 /* For reference look at: http://wiki.osdev.org/PCI */
 /* GENERIC PCI DRIVER - PLATFORM INDEPENDENT */
 
+rman_t rman_pci_iospace = {
+  .start = 0x18000000, .end = 0x1bdfffff,
+};
+
+rman_t rman_pci_memspace = {
+  .start = 0x10000000, .end = 0x17ffffff,
+};
+
 static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
                                             uint16_t device_id) {
   if (vendor) {
@@ -126,21 +134,28 @@ void pci_bus_assign_space(device_t *pcib) {
   qsort(bars, nbars, sizeof(resource_t *), pci_bar_compare);
 
   pci_bus_state_t *data = pcib->state;
-  intptr_t io_base = data->io_space->r_start;
-  intptr_t mem_base = data->mem_space->r_start;
 
   for (unsigned j = 0; j < nbars; j++) {
     resource_t *bar = bars[j];
+    resource_t *r;
     if (bar->r_type == RT_IOPORTS) {
       bar->r_bus_space = data->io_space->r_bus_space;
-      bar->r_start += io_base;
-      bar->r_end += io_base;
-      io_base = bar->r_end + 1;
+      r = rman_allocate_resource_any(&rman_pci_iospace,
+                                     bar->r_end - bar->r_start + 1);
+
+      // TODO this is just temporary workaround, returned value from
+      // rman_allocate_resource_any should be assigned to bar earlier
+      bar->r_start = r->r_start;
+      bar->r_end = r->r_end;
     } else if (bar->r_type == RT_MEMORY) {
+      r = rman_allocate_resource_any(&rman_pci_memspace,
+                                     bar->r_end - bar->r_start + 1);
       bar->r_bus_space = data->mem_space->r_bus_space;
-      bar->r_start += mem_base;
-      bar->r_end += mem_base;
-      mem_base = bar->r_end + 1;
+
+      // TODO this is just temporary workaround, returned value from
+      // rman_allocate_resource_any should be assigned to bar earlier
+      bar->r_start = r->r_start;
+      bar->r_end = r->r_end;
     }
 
     /* Write the BAR address back to PCI bus config. It's safe to write the

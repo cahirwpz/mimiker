@@ -56,6 +56,8 @@ struct bus_space {
  * resource contains locations with read side-effects or locations in which the
  * device does not tolerate write merging. */
 #define RF_PREFETCHABLE 1
+#define RF_SHARED 2 // TODO
+#define RF_ALLOCATED 4
 
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */
@@ -65,6 +67,7 @@ struct resource {
   unsigned r_type;
   unsigned r_flags;
   int r_id; /* (optional) resource identifier */
+  LIST_ENTRY(resource) resources;
 };
 
 #define RESOURCE_DECLARE(name) extern resource_t name[1]
