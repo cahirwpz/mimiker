@@ -17,7 +17,7 @@ turnstile_t *turnstile_alloc(void);
 void turnstile_destroy(turnstile_t *ts);
 
 /* Scheduler should call this after changing priority of a thread that is
- * (or might be) blocked on some turnstile.
+ * blocked on some turnstile.
  *
  * It will re-sort list of blocked threads, on which `td` is and possibly
  * propagate `td`'s priority if it was increased.
