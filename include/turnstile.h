@@ -26,7 +26,6 @@ void turnstile_destroy(turnstile_t *ts);
  * lent priority. The borrowing thread should finish soon anyway and we
  * don't care enough.
  *
- * \note This function was created for sched_set_prio.
  * \note Requires td_spin acquired. */
 void turnstile_adjust(thread_t *td, prio_t oldprio);
 
