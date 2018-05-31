@@ -19,9 +19,9 @@
  * of these registers!
  */
 
-static void _tlb_read(unsigned i, tlbentry_t *e) {
+static inline void _tlb_read(unsigned i, tlbentry_t *e) {
   mips32_setindex(i);
-  asm volatile("tlbr; ehb" ::: "memory");
+  asm volatile("tlbr; ehb" : : : "memory");
   /*
    * Save the result into registers first. If we wrote it directly to memory,
    * we could generate an exception and overwrite the result!
@@ -47,13 +47,13 @@ static inline void _load_tlb_entry(tlbentry_t *e) {
   mips32_setentrylo1(lo1);
 }
 
-static void _tlb_write(unsigned i, tlbentry_t *e) {
+static inline void _tlb_write(unsigned i, tlbentry_t *e) {
   _load_tlb_entry(e);
   mips32_setindex(i);
   asm volatile("tlbwi; ehb" : : : "memory");
 }
 
-static void _tlb_write_random(tlbentry_t *e) {
+static inline void _tlb_write_random(tlbentry_t *e) {
   _load_tlb_entry(e);
   asm volatile("tlbwr; ehb" : : : "memory");
 }
