@@ -195,8 +195,6 @@ static turnstile_t *provide_own_turnstile(turnstile_chain_t *tc,
   return ts;
 }
 
-/* case 2 of former turnstile_wait
- * we donate our turnstile to ts_free list */
 static void join_waiting_threads(turnstile_t *ts, thread_t *owner) {
   assert(ts->ts_state == USED_LOCKED);
   thread_t *td = thread_self();
@@ -218,9 +216,6 @@ static void join_waiting_threads(turnstile_t *ts, thread_t *owner) {
   LIST_INSERT_HEAD(&ts->ts_free, td->td_turnstile, ts_free_link);
 }
 
-/* final (common) part of former turnstile_wait
- * Call this when all turnstile stuff is ready
- * This changes appropriate thread fields and switches context */
 static void switch_away(turnstile_t *ts, const void *waitpt) {
   assert(ts->ts_state == USED_LOCKED);
   thread_t *td = thread_self();
