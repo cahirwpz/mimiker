@@ -62,7 +62,7 @@ static inline void _tlb_write_random(tlbentry_t *e) {
   mips32_tlbwr();
 }
 
-static int _tlb_probe(tlbhi_t hi) {
+static inline int _tlb_probe(tlbhi_t hi) {
   mips32_setentryhi(hi);
   mips32_tlbp();
   return mips32_getindex();
