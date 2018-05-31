@@ -2,11 +2,15 @@
 #include <mips/pmap.h>
 #include <mips/tlb.h>
 #include <interrupt.h>
-#include <common.h>
-#include <vm.h>
 
 #define mips32_getasid() (mips32_getentryhi() & PTE_ASID_MASK)
 #define mips32_setasid(v) mips32_setentryhi((v)&PTE_ASID_MASK)
+
+/* TLB handling instructions */
+#define mips32_tlbr() asm volatile("tlbr; ehb" ::: "memory")
+#define mips32_tlbwi() asm volatile("tlbwi; ehb" ::: "memory")
+#define mips32_tlbwr() asm volatile("tlbwr; ehb" ::: "memory")
+#define mips32_tlbp() asm volatile("tlbp; ehb" ::: "memory")
 
 /* Prevents compiler from reordering load & store instructions. */
 #define barrier() asm volatile("" ::: "memory")
@@ -21,7 +25,7 @@
 
 static inline void _tlb_read(unsigned i, tlbentry_t *e) {
   mips32_setindex(i);
-  asm volatile("tlbr; ehb" : : : "memory");
+  mips32_tlbr();
   /*
    * Save the result into registers first. If we wrote it directly to memory,
    * we could generate an exception and overwrite the result!
@@ -50,17 +54,17 @@ static inline void _load_tlb_entry(tlbentry_t *e) {
 static inline void _tlb_write(unsigned i, tlbentry_t *e) {
   _load_tlb_entry(e);
   mips32_setindex(i);
-  asm volatile("tlbwi; ehb" : : : "memory");
+  mips32_tlbwi();
 }
 
 static inline void _tlb_write_random(tlbentry_t *e) {
   _load_tlb_entry(e);
-  asm volatile("tlbwr; ehb" : : : "memory");
+  mips32_tlbwr();
 }
 
 static int _tlb_probe(tlbhi_t hi) {
   mips32_setentryhi(hi);
-  asm volatile("tlbp; ehb" : : : "memory");
+  mips32_tlbp();
   return mips32_getindex();
 }
 
@@ -193,6 +197,7 @@ void tlb_print(void) {
 }
 #endif
 
+/* Following code is used by gdb scripts. */
 static tlbentry_t _gdb_tlb_entry;
 
 unsigned _gdb_tlb_size(void) {
@@ -200,13 +205,9 @@ unsigned _gdb_tlb_size(void) {
   return _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS) + 1;
 }
 
-/* Fills _dgb_tlb_entry structure with TLB entry. Used by debugger. */
+/* Fills _gdb_tlb_entry structure with TLB entry. */
 void _gdb_tlb_read_index(unsigned i) {
   tlbhi_t saved = mips32_getentryhi();
-  mips32_setindex(i);
-  asm volatile("tlbr; ehb" : : : "memory");
-  _gdb_tlb_entry = (tlbentry_t){.hi = mips32_getentryhi(),
-                                .lo0 = mips32_getentrylo0(),
-                                .lo1 = mips32_getentrylo1()};
+  _tlb_read(i, &_gdb_tlb_entry);
   mips32_setentryhi(saved);
 }
