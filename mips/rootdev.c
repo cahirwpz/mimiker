@@ -6,6 +6,7 @@
 #include <exception.h>
 #include <pci.h>
 #include <sysinit.h>
+#include <rman.h>
 
 #define NUM_MIPS_IRQS   6
 
@@ -31,9 +32,7 @@ device_t *gt_pci;
 
 static int rootdev_attach(device_t *dev) {
 
-  /* init rmans here */
-  rman_init(&rm_mem);
-  rman_manage_region(&rm_mem, 0, MALTA_PHYS_ADDR_SPACE_BASE, MALTA_PHYS_ADDR_SPACE_END);
+  rman_create(&rm_mem, MALTA_PHYS_ADDR_SPACE_BASE, MALTA_PHYS_ADDR_SPACE_END);
 
   gt_pci = device_add_child(dev);
   gt_pci->driver = &gt_pci_bus.driver;
@@ -42,13 +41,11 @@ static int rootdev_attach(device_t *dev) {
   return 0;
 }
 
-static resource_t *rootdev_resource_alloc(device_t *rootdev, device_t *dev, unsigned int flags,
+static inline resource_t *rootdev_resource_alloc(device_t *rootdev, device_t *dev, unsigned int flags,
                                       unsigned long long start,
                                       unsigned long long end,
                                       unsigned long long size){
-  /* read flags and allocate in specific resource */
-  resource_t *r = rman_resource_alloc(&rm_mem);
-
+  resource_t *r = rman_allocate_resource(&rm_mem, start, end, size);
   return r;
 }
 
