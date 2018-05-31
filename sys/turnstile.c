@@ -176,6 +176,7 @@ static turnstile_t *provide_own_turnstile(turnstile_chain_t *tc,
                                           thread_t *owner, void *wchan) {
   thread_t *td = thread_self();
   turnstile_t *ts = td->td_turnstile;
+
   assert(ts != NULL);
   assert(TAILQ_EMPTY(&ts->ts_blocked));
   assert(LIST_EMPTY(&ts->ts_free));
