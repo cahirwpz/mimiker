@@ -13,7 +13,7 @@
 #define SET_ENTRY(set, sym)                                                    \
   __GLOBL(__CONCAT(__start_set_, set));                                        \
   __GLOBL(__CONCAT(__stop_set_, set));                                         \
-  static void const *const __set_##set##_sym_##sym __section("set_" #set)      \
+  static void const *const __set_##set##_sym_##sym __section(set_##set)        \
     __used = &sym
 
 #define SET_DECLARE(set, ptype)                                                \
