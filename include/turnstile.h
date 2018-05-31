@@ -22,8 +22,8 @@ void turnstile_destroy(turnstile_t *ts);
  * It will re-sort list of blocked threads, on which `td` is and possibly
  * propagate `td`'s priority if it was increased.
  *
- * If `td` was lending priority and it was decreased, we don't change the
- * lent priority. Unlending would be expensive or complicated and the borrowing
+ * If `td` was lending priority and it was decreased, we don't change lent
+ * priorities. Unlending would be expensive or complicated and the borrowing
  * thread should finish soon anyway.
  *
  * \note Requires td_spin acquired. */
