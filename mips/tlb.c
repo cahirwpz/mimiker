@@ -17,7 +17,8 @@
  */
 
 static WIRED_FUN void _tlb_read(unsigned i, tlbentry_t *e) {
-  SCOPED_INTR_DISABLE();
+  SCOPED_INTR_DISABLED();
+
   mips32_setindex(i);
   asm volatile("tlbr; ehb" : : : "memory");
   /*
@@ -44,20 +45,23 @@ static inline __always_inline void _load_tlb_entry(tlbentry_t *e) {
 }
 
 static WIRED_FUN void _tlb_write(unsigned i, tlbentry_t *e) {
-  SCOPED_INTR_DISABLE();
+  SCOPED_INTR_DISABLED();
+
   _load_tlb_entry(e);
   mips32_setindex(i);
   asm volatile("tlbwi; ehb" : : : "memory");
 }
 
 static WIRED_FUN void _tlb_write_random(tlbentry_t *e) {
-  SCOPED_INTR_DISABLE();
+  SCOPED_INTR_DISABLED();
+
   _load_tlb_entry(e);
   asm volatile("tlbwr; ehb" : : : "memory");
 }
 
 static WIRED_FUN int _tlb_probe(tlbhi_t hi) {
-  SCOPED_INTR_DISABLE();
+  SCOPED_INTR_DISABLED();
+
   mips32_setentryhi(hi);
   asm volatile("tlbp; ehb" : : : "memory");
   return mips32_getindex();
