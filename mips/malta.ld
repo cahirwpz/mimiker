@@ -4,11 +4,6 @@ OUTPUT_ARCH(mips)
 ENTRY(_start)
 PHDRS
 {
-  /* The lowmem segment is for things like boot code,
-   * exception handlers and debug data/routines that all
-   * must be in kseg0. It has all permission bits set
-   * because it contains code as well as writable data. */
-  lowmem PT_LOAD FLAGS(7);      /* read-write, executable */
   text   PT_LOAD FLAGS(5);      /* read-only, executable */
   rodata PT_LOAD FLAGS(4);      /* read-only */
   data   PT_LOAD FLAGS(6);      /* read-write */
@@ -19,54 +14,14 @@ SECTIONS
   /* RAM is mapped in kseg0 (cacheable) and kseg1 (non-cacheable) */
   _ram = 0x80000000;
 
-  . = _ram;
-  . += 1M;              /* Reserved for Kernel Page Table.  */
-  __ebase_phys_start = . - _ram;
-  .ebase 0x80100000: AT(__ebase_phys_start)
+  .text 0x80100000: AT(0x00100000) ALIGN(4096)
   {
-    __kernel_start = ABSOLUTE(.);
-    /* Exception entry points. */
+    __kernel_start = .;
+    /* Exception handlers. */
     *(.ebase)
-  } : lowmem
-
-  /*
-   * The *.debug sections contain code and data used by GDB commands.
-   * The debugger must always be able to jump to code in this section
-   * and to read/write data in this section, so it should be placed
-   * in kseg0.
-   */
-  .text.debug : ALIGN(4)
-  {
-    *(.text.debug)
-  } : lowmem
-
-  .data.debug : ALIGN(4)
-  {
-    *(.data.debug)
-  } : lowmem
-
-  /*
-   * The *.wired sections contain code and data that must always be safe
-   * to access (i.e. accessing them can't generate exceptions).
-   * For now they're placed in kseg0, but when the kernel is moved to
-   * kseg2, they should be moved there with it, which will require wiring
-   * the mappings for pages containing these sections.
-   */
-  .data.wired : ALIGN(4)
-  {
-    *(.data.wired)
-  } : lowmem
-
-  .text.wired : ALIGN(4)
-  {
-    *exc.o(.text)
-    *(.text.wired)
-  } : lowmem
-
-  .text : ALIGN(4096)
-  {
+    . = ALIGN(4096);
     __text = ABSOLUTE(.);
-    EXCLUDE_FILE (*exc.o) *(.text .text.*)
+    *(.text .text.*)
     __etext = ABSOLUTE(.);
   } : text
 
