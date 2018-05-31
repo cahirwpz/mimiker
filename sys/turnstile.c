@@ -276,10 +276,10 @@ static void unlend_self(turnstile_t *ts) {
   ts->ts_owner = NULL;
   LIST_REMOVE(ts, ts_contested_link);
 
-  turnstile_t *ts1;
-  LIST_FOREACH(ts1, &td->td_contested, ts_contested_link) {
-    assert(ts1->ts_owner == td);
-    prio_t p = TAILQ_FIRST(&ts1->ts_blocked)->td_prio;
+  turnstile_t *ts_owned;
+  LIST_FOREACH(ts_owned, &td->td_contested, ts_contested_link) {
+    assert(ts_owned->ts_owner == td);
+    prio_t p = TAILQ_FIRST(&ts_owned->ts_blocked)->td_prio;
     if (p > prio)
       prio = p;
   }
