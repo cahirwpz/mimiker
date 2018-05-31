@@ -2,18 +2,18 @@
 
 // TODO all this logic associated with resources is not really tested
 
-static resource_t *find_resource(rman_t *rm, rman_addr start, rman_addr end,
-                                 rman_addr count) {
+static resource_t *find_resource(rman_t *rm, intptr_t start, intptr_t end,
+                                 intptr_t count) {
   for (resource_t *resource = rm->resources.lh_first; resource != NULL;
        resource = resource->resources.le_next) {
     if (resource->r_flags & RF_ALLOCATED)
       continue;
 
     // calculate common part and check if is big enough
-    rman_addr s = max(start, resource->r_start);
-    rman_addr e = min(end, resource->r_end);
+    intptr_t s = max(start, resource->r_start);
+    intptr_t e = min(end, resource->r_end);
 
-    rman_addr len = s - e + 1;
+    intptr_t len = s - e + 1;
 
     if (len >= count) {
       return resource;
@@ -26,7 +26,7 @@ static resource_t *find_resource(rman_t *rm, rman_addr start, rman_addr end,
 // divide resource into two
 // `where` means start of right resource
 // function returns pointer to new (right) resource
-static resource_t *cut_resource(resource_t *resource, rman_addr where) {
+static resource_t *cut_resource(resource_t *resource, intptr_t where) {
   assert(where > resource->r_start);
   assert(where < resource->r_end);
 
@@ -45,8 +45,8 @@ static resource_t *cut_resource(resource_t *resource, rman_addr where) {
 
 // maybe split resource into two or three in order to recover space before and
 // after allocation
-static resource_t *split_resource(resource_t *resource, rman_addr start,
-                                  rman_addr end, rman_addr count) {
+static resource_t *split_resource(resource_t *resource, intptr_t start,
+                                  intptr_t end, intptr_t count) {
   if (resource->r_start < start) {
     resource = cut_resource(resource, start);
   }
@@ -58,8 +58,8 @@ static resource_t *split_resource(resource_t *resource, rman_addr start,
   return resource;
 }
 
-resource_t *rman_allocate_resource(rman_t *rm, rman_addr start, rman_addr end,
-                                   rman_addr count) {
+resource_t *rman_allocate_resource(rman_t *rm, intptr_t start, intptr_t end,
+                                   intptr_t count) {
   SCOPED_MTX_LOCK(&rm->mtx);
   resource_t *res = kmalloc(M_DEV, sizeof(resource_t), M_ZERO);
 
@@ -80,7 +80,7 @@ resource_t *rman_allocate_resource(rman_t *rm, rman_addr start, rman_addr end,
   return res;
 }
 
-void rman_init(rman_t *rm) {
+static void rman_init(rman_t *rm) {
   mtx_init(&rm->mtx, MTX_DEF);
   LIST_INIT(&rm->resources);
 
@@ -91,4 +91,11 @@ void rman_init(rman_t *rm) {
   whole_space->r_end = rm->end;
 
   LIST_INSERT_HEAD(&rm->resources, whole_space, resources);
+}
+
+void rman_create(rman_t *rm, intptr_t start, intptr_t end) {
+  rm->start = start;
+  rm->end = end;
+
+  rman_init(rm);
 }
