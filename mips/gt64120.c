@@ -378,6 +378,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,unsigned 
 }
 
 pci_bus_driver_t gt_pci_bus = {
+  /* driver methods */
   .driver =
     {
       .desc = "GT-64120 PCI bus driver",
@@ -385,12 +386,14 @@ pci_bus_driver_t gt_pci_bus = {
       .attach = gt_pci_attach,
       .probe = gt_pci_probe
     },
+  /* bus methods */
   .bus =
     {
       .intr_setup = gt_pci_intr_setup, 
       .intr_teardown = gt_pci_intr_teardown,
       .resource_alloc = gt_pci_resource_alloc
     },
+  /* PCI methods */
   .pci_bus =
     {
       .read_config = gt_pci_read_config, .write_config = gt_pci_write_config,
