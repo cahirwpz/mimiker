@@ -14,7 +14,26 @@
 typedef TAILQ_HEAD(td_queue, thread) td_queue_t;
 typedef LIST_HEAD(ts_list, turnstile) ts_list_t;
 
-typedef enum { FREE_UNLOCKED, FREE_LOCKED, USED_LOCKED } ts_state_t;
+/* Possible turnstile ts states:
+ * - FREE_UNBLOCKED:
+ *   > ts is owned by some unblocked thread td
+ *   > td->td_turnstile is equal to ts
+ *   > ts->ts_wchan is equal to NULL
+ *
+ * - FREE_BLOCKED:
+ *   > ts formerly owned by a thread td
+ *   > td is now blocked on mutex mtx
+ *   > td was not the first one to block on mtx
+ *   > ts->ts_wchan is equal to NULL
+ *
+ * - USED_BLOCKED:
+ *   > ts formerly owned by a thread td
+ *   > td is now blocked on mutex mtx
+ *   > td was the first one to block on mtx
+ *   > ts->ts_wchan is equal to &mtx
+ *   > other threads blocked on mtx are appended to ts->ts_blocked
+ */
+typedef enum { FREE_UNBLOCKED, FREE_BLOCKED, USED_BLOCKED } ts_state_t;
 
 typedef struct turnstile {
   union {
@@ -42,7 +61,7 @@ static void turnstile_ctor(turnstile_t *ts) {
   TAILQ_INIT(&ts->ts_blocked);
   ts->ts_wchan = NULL;
   ts->ts_owner = NULL;
-  ts->ts_state = FREE_UNLOCKED;
+  ts->ts_state = FREE_UNBLOCKED;
 }
 
 void turnstile_init(void) {
@@ -64,7 +83,7 @@ void turnstile_destroy(turnstile_t *ts) {
 }
 
 static void adjust_thread_forward(turnstile_t *ts, thread_t *td) {
-  assert(ts->ts_state == USED_LOCKED);
+  assert(ts->ts_state == USED_BLOCKED);
   thread_t *n = td;
 
   do {
@@ -80,7 +99,7 @@ static void adjust_thread_forward(turnstile_t *ts, thread_t *td) {
 }
 
 static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
-  assert(ts->ts_state == USED_LOCKED);
+  assert(ts->ts_state == USED_BLOCKED);
   thread_t *p = td;
 
   do {
@@ -98,7 +117,7 @@ static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
 /* Adjusts thread's position on ts_blocked queue after its priority
  * has been changed. */
 static void adjust_thread(turnstile_t *ts, thread_t *td, prio_t oldprio) {
-  assert(ts->ts_state == USED_LOCKED);
+  assert(ts->ts_state == USED_BLOCKED);
   assert(td_is_blocked(td));
 
   if (td->td_prio > oldprio)
@@ -109,7 +128,7 @@ static void adjust_thread(turnstile_t *ts, thread_t *td, prio_t oldprio) {
 
 /* \note Acquires td_spin! */
 static thread_t *acquire_owner(turnstile_t *ts) {
-  assert(ts->ts_state == USED_LOCKED);
+  assert(ts->ts_state == USED_BLOCKED);
   thread_t *td = ts->ts_owner;
   assert(td != NULL); /* Turnstile must have an owner. */
   spin_acquire(td->td_spin);
@@ -136,7 +155,7 @@ static void propagate_priority(thread_t *td) {
 
     ts = td->td_blocked;
     assert(ts != NULL);
-    assert(ts->ts_state == USED_LOCKED);
+    assert(ts->ts_state == USED_BLOCKED);
 
     /* Resort td on the blocked list if needed. */
     adjust_thread(ts, td, oldprio);
@@ -160,7 +179,7 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
 
   turnstile_t *ts = td->td_blocked;
   assert(ts != NULL);
-  assert(ts->ts_state == USED_LOCKED);
+  assert(ts->ts_state == USED_BLOCKED);
 
   adjust_thread(ts, td, oldprio);
 
@@ -182,7 +201,7 @@ static turnstile_t *provide_own_turnstile(turnstile_chain_t *tc,
   assert(LIST_EMPTY(&ts->ts_free));
   assert(ts->ts_owner == NULL);
   assert(ts->ts_wchan == NULL);
-  assert(ts->ts_state == FREE_UNLOCKED);
+  assert(ts->ts_state == FREE_UNBLOCKED);
 
   ts->ts_owner = owner;
   ts->ts_wchan = wchan;
@@ -191,13 +210,13 @@ static turnstile_t *provide_own_turnstile(turnstile_chain_t *tc,
   LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_chain_link);
   TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_blockedq);
 
-  ts->ts_state = USED_LOCKED;
+  ts->ts_state = USED_BLOCKED;
 
   return ts;
 }
 
 static void join_waiting_threads(turnstile_t *ts, thread_t *owner) {
-  assert(ts->ts_state == USED_LOCKED);
+  assert(ts->ts_state == USED_BLOCKED);
   thread_t *td = thread_self();
 
   thread_t *td1;
@@ -212,13 +231,13 @@ static void join_waiting_threads(turnstile_t *ts, thread_t *owner) {
   assert(owner == ts->ts_owner);
 
   assert(td->td_turnstile != NULL);
-  assert(td->td_turnstile->ts_state == FREE_UNLOCKED);
-  td->td_turnstile->ts_state = FREE_LOCKED;
+  assert(td->td_turnstile->ts_state == FREE_UNBLOCKED);
+  td->td_turnstile->ts_state = FREE_BLOCKED;
   LIST_INSERT_HEAD(&ts->ts_free, td->td_turnstile, ts_free_link);
 }
 
 static void switch_away(turnstile_t *ts, const void *waitpt) {
-  assert(ts->ts_state == USED_LOCKED);
+  assert(ts->ts_state == USED_BLOCKED);
   thread_t *td = thread_self();
 
   WITH_SPINLOCK(td->td_spin) {
@@ -237,7 +256,7 @@ static void switch_away(turnstile_t *ts, const void *waitpt) {
  * from ts_free (or ts if ts_free is empty). */
 static void give_back_turnstiles(turnstile_t *ts) {
   assert(ts != NULL);
-  assert(ts->ts_state == USED_LOCKED);
+  assert(ts->ts_state == USED_BLOCKED);
   assert(ts->ts_owner == thread_self());
 
   thread_t *td;
@@ -247,18 +266,21 @@ static void give_back_turnstiles(turnstile_t *ts) {
       assert(TAILQ_NEXT(td, td_blockedq) == NULL);
       ts_for_td = ts;
 
-      assert(ts_for_td->ts_state == USED_LOCKED);
+      assert(ts_for_td->ts_state == USED_BLOCKED);
       assert(ts_for_td->ts_wchan != NULL);
 
       ts_for_td->ts_wchan = NULL;
       LIST_REMOVE(ts_for_td, ts_chain_link);
     } else {
       ts_for_td = LIST_FIRST(&ts->ts_free);
-      assert(ts_for_td->ts_state == FREE_LOCKED);
+
+      assert(ts_for_td->ts_state == FREE_BLOCKED);
+      assert(ts_for_td->ts_wchan == NULL);
+
       LIST_REMOVE(ts_for_td, ts_free_link);
     }
 
-    ts_for_td->ts_state = FREE_UNLOCKED;
+    ts_for_td->ts_state = FREE_UNBLOCKED;
     td->td_turnstile = ts_for_td;
   }
 }
@@ -309,7 +331,7 @@ static void wakeup_blocked(td_queue_t *blocked_threads) {
 static turnstile_t *turnstile_lookup(void *wchan, turnstile_chain_t *tc) {
   turnstile_t *ts;
   LIST_FOREACH(ts, &tc->tc_turnstiles, ts_chain_link) {
-    assert(ts->ts_state == USED_LOCKED);
+    assert(ts->ts_state == USED_BLOCKED);
     if (ts->ts_wchan == wchan)
       return ts;
   }
@@ -340,7 +362,7 @@ void turnstile_broadcast(void *wchan) {
   turnstile_chain_t *tc = TC_LOOKUP(wchan);
   turnstile_t *ts = turnstile_lookup(wchan, tc);
   if (ts != NULL) {
-    assert(ts->ts_state == USED_LOCKED);
+    assert(ts->ts_state == USED_BLOCKED);
     assert(ts->ts_owner == thread_self());
     assert(!TAILQ_EMPTY(&ts->ts_blocked));
 
@@ -348,6 +370,6 @@ void turnstile_broadcast(void *wchan) {
     unlend_self(ts);
     wakeup_blocked(&ts->ts_blocked);
 
-    assert(ts->ts_state == FREE_UNLOCKED);
+    assert(ts->ts_state == FREE_UNBLOCKED);
   }
 }
