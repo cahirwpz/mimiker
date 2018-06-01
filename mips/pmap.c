@@ -93,10 +93,26 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   klog("Page directory table allocated at %p", (vm_addr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
 
-  update_wired_pde(user_pde ? pmap : NULL);
+  pmap_t *old_user_pmap = get_user_pmap();
 
-  for (int i = 0; i < PD_ENTRIES; i++)
-    pmap->pde[i] = in_kernel_space(i * PTF_ENTRIES * PAGESIZE) ? PTE_GLOBAL : 0;
+  /*
+   * No preemption here! Consider a case where this thread gets preempted and
+   * other thread calls pmap_setup as well.
+   */
+  WITH_NO_PREEMPTION {
+    /*
+     * XXX: To initialize user pmap its PD is temporarily mapped in place
+     * of current PD. This way we can access the PD using virtual addresses.
+     * This is a workaround and probably can be done better.
+     */
+    update_wired_pde(user_pde ? pmap : NULL);
+
+    for (int i = 0; i < PD_ENTRIES; i++)
+      pmap->pde[i] =
+        in_kernel_space(i * PTF_ENTRIES * PAGESIZE) ? PTE_GLOBAL : 0;
+
+    update_wired_pde(old_user_pmap);
+  }
 }
 
 /* TODO: remove all mappings from TLB, evict related cache lines */

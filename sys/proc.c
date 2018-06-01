@@ -7,6 +7,7 @@
 #include <filedesc.h>
 #include <wait.h>
 #include <signal.h>
+#include <sched.h>
 
 static MALLOC_DEFINE(M_PROC, "proc", 1, 2);
 
@@ -103,7 +104,13 @@ void proc_exit(int exitstatus) {
     }
 
     /* Clean up process resources. */
-    vm_map_delete(p->p_uspace);
+    {
+      /* Make sure uspace will not get activated by context switch while it's
+       * being deleted. */
+      vm_map_t *uspace = p->p_uspace;
+      p->p_uspace = NULL;
+      vm_map_delete(uspace);
+    }
     fdtab_release(p->p_fdtable);
 
     /* Record some process statistics that will stay maintained in zombie
