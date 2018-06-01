@@ -4,10 +4,7 @@
 #include <pci.h>
 
 /* For reference look at: http://wiki.osdev.org/PCI */
-<<<<<<< HEAD
 /* GENERIC PCI DRIVER - PLATFORM INDEPENDENT */
-=======
->>>>>>> wmoczulsky/rman
 
 static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
                                             uint16_t device_id) {
