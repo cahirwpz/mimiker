@@ -71,9 +71,9 @@ typedef struct pci_bus_driver {
 // needs some changes
 typedef struct pci_bus_state {
   resource_t *mem_space;
-  resource_t *io_space;
+  resource_t *isa_io_space;
   /* resource_t *rm_pci_mem; */
-  /* resource_t *rm_pci_io; no ISA bridge addresses here. only PCI */  
+  resource_t *pci_io_space; // no ISA bridge addresses here. only PCI 
 } pci_bus_state_t;
 
 typedef struct pci_device {

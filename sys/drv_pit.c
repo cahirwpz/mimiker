@@ -65,7 +65,7 @@ static int pit_attach(device_t *dev) {
   pci_bus_state_t *pcib = dev->parent->state;
   pit_state_t *pit = dev->state;
 
-  pit->regs = pcib->io_space;
+  pit->regs = pcib->isa_io_space;
 
   pit->lock = SPINLOCK_INITIALIZER();
   pit->intr_handler = INTR_HANDLER_INIT(pit_intr, NULL, pit, "i8254 timer", 0);

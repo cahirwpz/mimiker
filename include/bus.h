@@ -3,8 +3,9 @@
 
 #include <common.h>
 #include <device.h>
+#include <rman.h>
 
-typedef struct resource resource_t;
+// typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 typedef struct bus_methods bus_methods_t;
 typedef struct bus_driver bus_driver_t;
@@ -59,6 +60,7 @@ struct bus_space {
 #define RF_SHARED 2 // TODO
 #define RF_ALLOCATED 4
 
+#if 0
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */
   void *r_owner;            /* pointer to device that owns this resource */
@@ -69,6 +71,7 @@ struct resource {
   int r_id; /* (optional) resource identifier */
   LIST_ENTRY(resource) resources;
 };
+#endif
 
 #define RESOURCE_DECLARE(name) extern resource_t name[1]
 
@@ -115,10 +118,10 @@ typedef void (*bus_intr_teardown_t)(device_t *dev, intr_handler_t *handler);
 
 typedef resource_t* (*bus_resource_alloc_t)(device_t *parent,
                                     device_t *dev,
-                                     unsigned int flags,
-                                     unsigned long long start,
-                                     unsigned long long end,
-                                     unsigned long long size); /* temporary definition */
+                                     unsigned  flags,
+                                     rman_res_t start,
+                                     rman_res_t end,
+                                     rman_res_t size); /* temporary definition */
 
 struct bus_methods {
   bus_intr_setup_t intr_setup;
@@ -150,12 +153,11 @@ static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
 #define RS_FIXED 0x4
 #define RS_ANY 0x8
 
-static inline void bus_resource_alloc(device_t *dev, unsigned int flags,
-                                      unsigned long long start,
-                                      unsigned long long end,
-                                      unsigned long long size){
-  BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, flags, start, end, size);
-  return;
+static inline resource_t *bus_resource_alloc(device_t *dev, unsigned flags,
+                                      rman_res_t start,
+                                      rman_res_t end,
+                                      rman_res_t size){
+  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, flags, start, end, size);
 }
 
 int bus_generic_probe_and_attach(device_t *bus);

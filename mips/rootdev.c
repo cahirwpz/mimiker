@@ -41,10 +41,12 @@ static int rootdev_attach(device_t *dev) {
   return 0;
 }
 
-static inline resource_t *rootdev_resource_alloc(device_t *rootdev, device_t *dev, unsigned int flags,
-                                      unsigned long long start,
-                                      unsigned long long end,
-                                      unsigned long long size){
+static inline resource_t *rootdev_resource_alloc(device_t *rootdev, device_t *dev, unsigned flags,
+                                      rman_res_t start,
+                                      rman_res_t end,
+                                      rman_res_t size){
+
+  // only gt64120 calls this. give'em memory!
   resource_t *r = rman_allocate_resource(&rm_mem, start, end, size);
   return r;
 }

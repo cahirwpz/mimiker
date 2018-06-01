@@ -86,12 +86,12 @@ static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
                                        .v_read = rtc_time_read};
 
 static int rtc_probe(device_t *dev) {
-  // pci_bus_state_t *pcib = get_device_softc(dev->parent);
+  pci_bus_state_t *pcib = get_device_softc(dev->parent);
   rtc_state_t *rtc = get_device_softc(dev);
 
   // bus_assign_space(dev, FIXED, ?SHARED?)
   // need isa
-  rtc->regs = pcib->io_space; // temporarily can change to: 
+  rtc->regs = pcib->isa_io_space; // temporarily can change to: 
   // rtc->regs = pcib->rs_isa; but this could be private. some getter?
   // we also might want to do that in probe in case of a fail
 
@@ -101,7 +101,7 @@ static int rtc_probe(device_t *dev) {
 static int rtc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  pci_bus_state_t *pcib = dev->parent->state;
+  // pci_bus_state_t *pcib = dev->parent->state;
   rtc_state_t *rtc = dev->state;
 
   //rtc->regs = pcib->io_space; // moved to rtc_probe
