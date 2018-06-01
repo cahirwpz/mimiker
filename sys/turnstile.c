@@ -221,6 +221,7 @@ static void join_waiting_threads(turnstile_t *ts, thread_t *owner) {
   assert(owner == ts->ts_owner);
   assert(td->td_turnstile != NULL);
   assert(td->td_turnstile->ts_state == FREE_UNBLOCKED);
+
   td->td_turnstile->ts_state = FREE_BLOCKED;
   LIST_INSERT_HEAD(&ts->ts_free, td->td_turnstile, ts_free_link);
 }
