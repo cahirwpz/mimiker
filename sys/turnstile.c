@@ -84,34 +84,30 @@ void turnstile_destroy(turnstile_t *ts) {
 
 static void adjust_thread_forward(turnstile_t *ts, thread_t *td) {
   assert(ts->ts_state == USED_BLOCKED);
-  thread_t *n = td;
+  thread_t *next = td;
 
-  do {
-    n = TAILQ_NEXT(n, td_blockedq);
-  } while (n != NULL && n->td_prio > td->td_prio);
+  while (TAILQ_NEXT(next, td_blockedq) != NULL &&
+         TAILQ_NEXT(next, td_blockedq)->td_prio > td->td_prio)
+    next = TAILQ_NEXT(next, td_blockedq);
 
-  TAILQ_REMOVE(&ts->ts_blocked, td, td_blockedq);
-
-  if (n == NULL)
-    TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_blockedq);
-  else
-    TAILQ_INSERT_BEFORE(n, td, td_blockedq);
+  if (next != td) {
+    TAILQ_REMOVE(&ts->ts_blocked, td, td_blockedq);
+    TAILQ_INSERT_AFTER(&ts->ts_blocked, next, td, td_blockedq);
+  }
 }
 
 static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
   assert(ts->ts_state == USED_BLOCKED);
-  thread_t *p = td;
+  thread_t *prev = td;
 
-  do {
-    p = TAILQ_PREV(p, td_queue, td_blockedq);
-  } while (p != NULL && p->td_prio < td->td_prio);
+  while (TAILQ_PREV(prev, td_queue, td_blockedq) != NULL &&
+         TAILQ_PREV(prev, td_queue, td_blockedq)->td_prio < td->td_prio)
+    prev = TAILQ_PREV(prev, td_queue, td_blockedq);
 
-  TAILQ_REMOVE(&ts->ts_blocked, td, td_blockedq);
-
-  if (p == NULL)
-    TAILQ_INSERT_HEAD(&ts->ts_blocked, td, td_blockedq);
-  else
-    TAILQ_INSERT_AFTER(&ts->ts_blocked, p, td, td_blockedq);
+  if (prev != td) {
+    TAILQ_REMOVE(&ts->ts_blocked, td, td_blockedq);
+    TAILQ_INSERT_BEFORE(prev, td, td_blockedq);
+  }
 }
 
 /* Adjusts thread's position on ts_blocked queue after its priority
@@ -219,17 +215,10 @@ static void join_waiting_threads(turnstile_t *ts, thread_t *owner) {
   assert(ts->ts_state == USED_BLOCKED);
   thread_t *td = thread_self();
 
-  thread_t *td1;
-  TAILQ_FOREACH (td1, &ts->ts_blocked, td_blockedq)
-    if (td1->td_prio < td->td_prio)
-      break;
+  TAILQ_INSERT_HEAD(&ts->ts_blocked, td, td_blockedq);
+  adjust_thread_forward(ts, td);
 
-  if (td1 != NULL)
-    TAILQ_INSERT_BEFORE(td1, td, td_blockedq);
-  else
-    TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_blockedq);
   assert(owner == ts->ts_owner);
-
   assert(td->td_turnstile != NULL);
   assert(td->td_turnstile->ts_state == FREE_UNBLOCKED);
   td->td_turnstile->ts_state = FREE_BLOCKED;
