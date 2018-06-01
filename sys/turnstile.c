@@ -185,8 +185,8 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
     propagate_priority(td);
 }
 
-/* case 1 of former turnstile_wait
- * we use our turnstile to track `owner` */
+/* Provide thread_self()'s turnstile to be used as a blocking mechanism for
+ * us and other threads that will block on waiting channel wchan. */
 static turnstile_t *provide_own_turnstile(turnstile_chain_t *tc,
                                           thread_t *owner, void *wchan) {
   thread_t *td = thread_self();
@@ -241,8 +241,10 @@ static void switch_away(turnstile_t *ts, const void *waitpt) {
   }
 }
 
-/* For each thread td on ts_blocked we give td back a turnstile
- * from ts_free (or ts if ts_free is empty). */
+/* Give back turnstiles from ts_free to threads blocked on ts_blocked.
+ *
+ * As there are more threads on ts_blocked than turnstiles on ts_free (by one),
+ * one thread instead of getting some turnstile from ts_free will get ts. */
 static void give_back_turnstiles(turnstile_t *ts) {
   assert(ts != NULL);
   assert(ts->ts_state == USED_BLOCKED);
