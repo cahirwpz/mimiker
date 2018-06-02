@@ -375,7 +375,10 @@ void tlb_exception_handler(exc_frame_t *frame) {
     goto fault;
   }
   vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
-  if (vm_page_fault(map, vaddr, access) == 0)
+  intr_enable();
+  int ret = vm_page_fault(map, vaddr, access);
+  intr_disable();
+  if (ret == 0)
     return;
 
 fault:
