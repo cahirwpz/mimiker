@@ -12,6 +12,7 @@
 #include <ktest.h>
 #include <signal.h>
 #include <spinlock.h>
+#include <mutex.h>
 #include <sched.h>
 #include <interrupt.h>
 #include <sysinit.h>
@@ -90,6 +91,7 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   pmap->start = start;
   pmap->end = end;
   pmap->asid = alloc_asid();
+  mtx_init(&pmap->mtx, MTX_DEF);
   klog("Page directory table allocated at %p", (vm_addr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
 
