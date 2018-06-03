@@ -375,22 +375,30 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
                                          rm_res_t end, rm_res_t size) {
 
   gt_pci_state_t *gtpci = pcib->state;
+  resource_t *r;
 
   switch (flags) {
     case 0: // pci memory
-      return rman_allocate_resource(&gtpci->rman_pci_memspace, start, end,
+      r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end,
                                     size);
+      break;
     case 1: // pci io ports
-      return rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size);
+      r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size);
+      break;
     case 2: // temporary isa io workaround
-      return gtpci->isa_io;
+        return gtpci->isa_io;
     case 3: // pci memory anywhere
-      return rman_allocate_resource_anywhere(&gtpci->rman_pci_memspace, size);
+      r = rman_allocate_resource_anywhere(&gtpci->rman_pci_memspace, size);
+      break;
     case 4: // pci io anywhere
-      return rman_allocate_resource_anywhere(&gtpci->rman_pci_iospace, size);
+      r = rman_allocate_resource_anywhere(&gtpci->rman_pci_iospace, size);
+      break;
+    default:
+      return NULL;
   }
 
-  return NULL;
+  r->r_bus_space = &gt_pci_bus_space;
+  return r;
 }
 
 pci_bus_driver_t gt_pci_bus = {
