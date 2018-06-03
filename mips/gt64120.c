@@ -319,6 +319,9 @@ static int gt_pci_probe(device_t *pcib) {
   rs_pci_io->r_bus_space = &gt_pci_bus_space;
   rs_isa_io->r_bus_space = &gt_pci_bus_space;
 
+  rman_create_from_resource(&gtpci->rman_pci_iospace, gtpci->pci_io);
+  rman_create_from_resource(&gtpci->rman_pci_memspace, gtpci->pci_mem);
+
   return 1;
 }
 
