@@ -4,11 +4,7 @@
 #include <common.h>
 #include <device.h>
 
-<<<<<<< HEAD
-typedef unsigned long rm_res_t;
-=======
 typedef long unsigned rman_addr;
->>>>>>> rman
 
 typedef struct rman rman_t;
 typedef struct rman_block rman_block_t;
@@ -35,13 +31,8 @@ typedef struct bus_space bus_space_t;
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */
   void *r_owner;            /* pointer to device that owns this resource */
-<<<<<<< HEAD
-  rm_res_t r_start;         /* first physical address of the resource */
-  rm_res_t r_end; /* last (inclusive) physical address of the resource */
-=======
   rman_addr r_start;        /* first physical address of the resource */
   rman_addr r_end; /* last (inclusive) physical address of the resource */
->>>>>>> rman
   unsigned r_type;
   unsigned r_flags;
   int r_id; /* (optional) resource identifier */
@@ -49,31 +40,26 @@ struct resource {
 };
 
 struct rman {
-  rm_res_t start;
-  rm_res_t end;
+  rman_addr start;
+  rman_addr end;
   mtx_t mtx;
   LIST_HEAD(, resource) resources;
 };
 
 // returns null if unable to allocate
-resource_t *rman_allocate_resource(rman_t *rm, rm_res_t start, rm_res_t end,
-                                   rm_res_t count);
+resource_t *rman_allocate_resource(rman_t *rm, rman_addr start, rman_addr end,
+                                   rman_addr count);
 
 inline resource_t *rman_allocate_resource_any(rman_t *rm) {
-  return rman_allocate_resource(rm, 0, (rm_res_t)~0, 1);
+  return rman_allocate_resource(rm, 0, (rman_addr)~0, 1);
 }
 
-<<<<<<< HEAD
-inline resource_t *rman_allocate_resource_anywhere(rman_t *rm, rm_res_t count) {
-  return rman_allocate_resource(rm, 0, (rm_res_t)~0, count);
-=======
 inline resource_t *rman_allocate_resource_anywhere(rman_t *rm,
                                                    rman_addr count) {
   return rman_allocate_resource(rm, 0, (rman_addr)~0, count);
->>>>>>> rman
 }
 
-void rman_create(rman_t *rm, rm_res_t start, rm_res_t end);
+void rman_create(rman_t *rm, rman_addr start, rman_addr end);
 
 inline void rman_create_from_resource(rman_t *rm, resource_t *res) {
   rman_create(rm, res->r_start, res->r_end);

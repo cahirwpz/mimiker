@@ -7,7 +7,7 @@ static resource_t *find_resource(rman_t *rm, rman_addr start, rman_addr end,
   for (resource_t *resource = rm->resources.lh_first; resource != NULL;
        resource = resource->resources.le_next) {
 
-    if (resource->r_flags & RF_ALLOCATED || start > rm->end || end < rm->start) {
+    if (resource->r_flags & RF_ALLOCATED || start > resource->r_end || end < resource->r_start) {
       continue;
     }
 

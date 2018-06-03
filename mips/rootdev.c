@@ -38,8 +38,8 @@ static int rootdev_attach(device_t *dev) {
 }
 
 static resource_t *rootdev_resource_alloc(device_t *rootdev, device_t *dev,
-                                          unsigned flags, rm_res_t start,
-                                          rm_res_t end, rm_res_t size) {
+                                          unsigned flags, rman_addr start,
+                                          rman_addr end, rman_addr size) {
 
   kprintf("dupa: %s allocates resource [%lx, %lx] of size %ld for %s\n", 
     rootdev->driver->desc, start, end, size, dev->driver->desc);
