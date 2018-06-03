@@ -4,7 +4,7 @@
 #include <common.h>
 #include <device.h>
 
-typedef intptr_t rman_addr;
+typedef long unsigned rman_addr;
 
 typedef struct rman rman_t;
 typedef struct rman_block rman_block_t;
@@ -31,7 +31,7 @@ typedef struct bus_space bus_space_t;
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */
   void *r_owner;            /* pointer to device that owns this resource */
-  rman_addr r_start;         /* first physical address of the resource */
+  rman_addr r_start;        /* first physical address of the resource */
   rman_addr r_end; /* last (inclusive) physical address of the resource */
   unsigned r_type;
   unsigned r_flags;
@@ -54,7 +54,8 @@ inline resource_t *rman_allocate_resource_any(rman_t *rm) {
   return rman_allocate_resource(rm, 0, (rman_addr)~0, 1);
 }
 
-inline resource_t *rman_allocate_resource_anywhere(rman_t *rm, rman_addr count) {
+inline resource_t *rman_allocate_resource_anywhere(rman_t *rm,
+                                                   rman_addr count) {
   return rman_allocate_resource(rm, 0, (rman_addr)~0, count);
 }
 
