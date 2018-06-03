@@ -41,6 +41,8 @@ static resource_t *rootdev_resource_alloc(device_t *rootdev, device_t *dev,
                                           unsigned flags, rm_res_t start,
                                           rm_res_t end, rm_res_t size) {
 
+  kprintf("dupa: %s allocates resource [%lx, %lx] of size %ld for %s\n", 
+    rootdev->driver->desc, start, end, size, dev->driver->desc);
   return rman_allocate_resource(&rm_mem, start, end, size);
 }
 

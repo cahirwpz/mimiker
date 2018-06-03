@@ -4,7 +4,7 @@
 #include <common.h>
 #include <device.h>
 
-typedef long rm_res_t;
+typedef unsigned long rm_res_t;
 
 typedef struct rman rman_t;
 typedef struct rman_block rman_block_t;
