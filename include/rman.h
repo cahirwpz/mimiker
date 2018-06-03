@@ -4,7 +4,11 @@
 #include <common.h>
 #include <device.h>
 
+<<<<<<< HEAD
 typedef unsigned long rm_res_t;
+=======
+typedef long unsigned rman_addr;
+>>>>>>> rman
 
 typedef struct rman rman_t;
 typedef struct rman_block rman_block_t;
@@ -31,8 +35,13 @@ typedef struct bus_space bus_space_t;
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */
   void *r_owner;            /* pointer to device that owns this resource */
+<<<<<<< HEAD
   rm_res_t r_start;         /* first physical address of the resource */
   rm_res_t r_end; /* last (inclusive) physical address of the resource */
+=======
+  rman_addr r_start;        /* first physical address of the resource */
+  rman_addr r_end; /* last (inclusive) physical address of the resource */
+>>>>>>> rman
   unsigned r_type;
   unsigned r_flags;
   int r_id; /* (optional) resource identifier */
@@ -54,8 +63,14 @@ inline resource_t *rman_allocate_resource_any(rman_t *rm) {
   return rman_allocate_resource(rm, 0, (rm_res_t)~0, 1);
 }
 
+<<<<<<< HEAD
 inline resource_t *rman_allocate_resource_anywhere(rman_t *rm, rm_res_t count) {
   return rman_allocate_resource(rm, 0, (rm_res_t)~0, count);
+=======
+inline resource_t *rman_allocate_resource_anywhere(rman_t *rm,
+                                                   rman_addr count) {
+  return rman_allocate_resource(rm, 0, (rman_addr)~0, count);
+>>>>>>> rman
 }
 
 void rman_create(rman_t *rm, rm_res_t start, rm_res_t end);
