@@ -4,8 +4,17 @@
 #include <common.h>
 #include <queue.h>
 
+#define SLPF_INT 0x01
+
+typedef uint8_t sleep_flags_t;
+
 typedef struct thread thread_t;
 typedef struct sleepq sleepq_t;
+
+typedef enum {
+  SLP_WKP_REG, /* regular wakeup */
+  SLP_WKP_INT  /* thread interrupted */
+} slp_wakeup_t;
 
 /*! \file sleepq.h */
 
@@ -25,7 +34,7 @@ void sleepq_destroy(sleepq_t *sq);
  * \param wchan unique sleep queue identifier
  * \param waitpt caller associated with sleep action
  */
-void sleepq_wait(void *wchan, const void *waitpt);
+void sleepq_wait(void *wchan, const void *waitpt, sleep_flags_t flags);
 
 /*! \brief Wakes up highest priority thread waiting on \a wchan.
  *

@@ -193,7 +193,14 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   }
 }
 
-void sleepq_wait(void *wchan, const void *waitpt) {
+static uint32_t tdf_of_slpf(sleep_flags_t flags) {
+  uint32_t td_flags = 0;
+  if (flags & SLPF_INT)
+    td_flags |= TDF_SLEEP_INT;
+  return td_flags;
+}
+
+void sleepq_wait(void *wchan, const void *waitpt, sleep_flags_t f) {
   thread_t *td = thread_self();
 
   if (waitpt == NULL)
@@ -208,9 +215,12 @@ void sleepq_wait(void *wchan, const void *waitpt) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
       td->td_state = TDS_SLEEPING;
+      td->td_flags = (td->td_flags & ~TDF_SLP_MASK) | tdf_of_slpf(f);
       sched_switch();
     }
   }
+  // TODO how do we know that we were woken up by a signal?
+  return SLP_WKP_REG;
 }
 
 /* Remove a thread from the sleep queue and resume it. */

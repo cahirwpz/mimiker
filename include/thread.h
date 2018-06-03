@@ -58,6 +58,11 @@ typedef enum {
 #define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
 #define TDF_BORROWING 0x00000010  /* priority propagation */
 #define TDF_SLEEPY 0x00000020     /* thread is about to go to sleep */
+#define TDF_SLEEP_INT 0x00000040  /* thread is in interruptible sleep */
+
+/* mask for all bits relevant to sleep mode
+ * (in case we want to introduce more modes) */
+#define TDF_SLP_MASK (TDF_SLEEP_INT)
 
 /*! \brief Thread structure
  *
@@ -185,6 +190,10 @@ static inline bool td_is_inactive(thread_t *td) {
 
 static inline bool td_is_sleeping(thread_t *td) {
   return td->td_state == TDS_SLEEPING;
+}
+
+static inline bool td_is_sleeping_int(thread_t *td) {
+  return td->td_state == TDS_SLEEPING && (td->td_flags & TDF_SLEEP_INT);
 }
 
 static inline bool td_is_borrowing(thread_t *td) {
