@@ -9,6 +9,8 @@
 
 typedef struct rootdev { void *data; } rootdev_t;
 
+static rman_t rm_mem;
+
 static inline rootdev_t *rootdev_of(device_t *dev) {
   return dev->instance;
 }
@@ -26,11 +28,20 @@ extern pci_bus_driver_t gt_pci_bus;
 device_t *gt_pci;
 
 static int rootdev_attach(device_t *dev) {
+  rman_create(&rm_mem, MALTA_PHYS_ADDR_SPACE_BASE, MALTA_PHYS_ADDR_SPACE_END);
+
   gt_pci = device_add_child(dev);
   gt_pci->driver = &gt_pci_bus.driver;
   if (device_probe(gt_pci))
     device_attach(gt_pci);
   return 0;
+}
+
+static resource_t *rootdev_resource_alloc(device_t *rootdev, device_t *dev,
+                                          unsigned flags, rm_res_t start,
+                                          rm_res_t end, rm_res_t size) {
+
+  return rman_allocate_resource(&rm_mem, start, end, size);
 }
 
 static bus_driver_t rootdev_driver = {
@@ -40,10 +51,9 @@ static bus_driver_t rootdev_driver = {
       .desc = "MIPS platform root bus driver",
       .attach = rootdev_attach,
     },
-  .bus =
-    {
-      .intr_setup = rootdev_intr_setup, .intr_teardown = rootdev_intr_teardown,
-    }};
+  .bus = {.intr_setup = rootdev_intr_setup,
+          .intr_teardown = rootdev_intr_teardown,
+          .resource_alloc = rootdev_resource_alloc}};
 
 static device_t rootdev = (device_t){
   .children = TAILQ_HEAD_INITIALIZER(rootdev.children),

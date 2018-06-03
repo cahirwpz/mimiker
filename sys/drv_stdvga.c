@@ -4,6 +4,7 @@
 #include <malloc.h>
 #include <errno.h>
 #include <device.h>
+#include <bus.h>
 
 #define VGA_PALETTE_SIZE (256 * 3)
 
@@ -170,9 +171,8 @@ static int stdvga_attach(device_t *dev) {
   pci_write_config(dev, PCIR_COMMAND, 2, command);
 
   stdvga_state_t *stdvga = dev->state;
-  /* TODO: This will get replaced by bus_alloc_resource* function */
-  stdvga->mem = &pcid->bar[0];
-  stdvga->io = &pcid->bar[1];
+  stdvga->mem = bus_resource_alloc(dev, 3, 0, 0, pcid->bar[0].r_end);
+  stdvga->io = bus_resource_alloc(dev, 4, 0, 0, pcid->bar[1].r_end);
 
   stdvga->vga = (vga_device_t){
     .palette_write = stdvga_palette_write,

@@ -88,10 +88,9 @@ static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
 static int rtc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  pci_bus_state_t *pcib = dev->parent->state;
   rtc_state_t *rtc = dev->state;
 
-  rtc->regs = pcib->io_space;
+  rtc->regs = bus_resource_alloc(dev, 2, 0, 0, 0);
 
   rtc->intr_handler =
     INTR_HANDLER_INIT(rtc_intr, NULL, rtc, "RTC periodic timer", 0);
