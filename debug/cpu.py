@@ -77,7 +77,7 @@ class TLB(object):
 
     @staticmethod
     def size():
-        return int(gdb.parse_and_eval('tlb_size()'))
+        return int(gdb.parse_and_eval('_gdb_tlb_size()'))
 
 
 class Cpu(gdb.Command, utils.OneArgAutoCompleteMixin):
