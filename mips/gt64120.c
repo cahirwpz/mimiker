@@ -304,10 +304,10 @@ static int gt_pci_probe(device_t *pcib) {
     pcib, 0, MALTA_PCI0_TO_ISA_BRIDGE_BASE, MALTA_PCI0_TO_ISA_BRIDGE_END,
     MALTA_PCI0_TO_ISA_BRIDGE_END - MALTA_PCI0_TO_ISA_BRIDGE_BASE + 1);
 
-  assert(rs_pci_io != NULL);
   assert(rs_pci_mem != NULL);
-  assert(rs_isa_io != NULL);
+  assert(rs_pci_io != NULL);
   assert(rs_ctrl != NULL);
+  assert(rs_isa_io != NULL);
 
   gtpci->corectrl = rs_ctrl;
   gtpci->pci_mem = rs_pci_mem;
