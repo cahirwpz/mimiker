@@ -58,7 +58,7 @@ SPLAY_GENERATE(vm_map_tree, vm_map_entry, map_tree, vm_map_entry_cmp);
 static void vm_map_setup(vm_map_t *map) {
   TAILQ_INIT(&map->list);
   SPLAY_INIT(&map->tree);
-  rw_init(&map->rwlock, "vm map rwlock", 1);
+  mtx_init(&map->mtx, MTX_DEF);
 }
 
 static void vm_map_init(void) {
@@ -75,7 +75,7 @@ vm_map_t *vm_map_new(void) {
 }
 
 static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
-  rw_assert(&vm_map->rwlock, RW_WLOCKED);
+  assert(mtx_owned(&vm_map->mtx));
   if (!SPLAY_INSERT(vm_map_tree, &vm_map->tree, entry)) {
     vm_map_entry_t *next = SPLAY_NEXT(vm_map_tree, &vm_map->tree, entry);
     if (next)
@@ -89,7 +89,7 @@ static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
 }
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
-  SCOPED_RW_ENTER(&vm_map->rwlock, RW_READER);
+  SCOPED_MTX_LOCK(&vm_map->mtx);
 
   vm_map_entry_t *etr_it;
   TAILQ_FOREACH (etr_it, &vm_map->list, map_list)
@@ -99,7 +99,7 @@ vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
 }
 
 static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
-  rw_assert(&vm_map->rwlock, RW_WLOCKED);
+  assert(mtx_owned(&vm_map->mtx));
   vm_map->nentries--;
   if (entry->object)
     vm_object_free(entry->object);
@@ -108,7 +108,7 @@ static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
 }
 
 void vm_map_delete(vm_map_t *map) {
-  WITH_RW_LOCK (&map->rwlock, RW_WRITER) {
+  WITH_MTX_LOCK (&map->mtx) {
     while (map->nentries > 0)
       vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
   }
@@ -116,8 +116,15 @@ void vm_map_delete(vm_map_t *map) {
   kfree(M_VMMAP, map);
 }
 
+/*
+ * Insert a vm_map_entry without a backing object into a vm_map
+ * at the specified boundaries, with specified protection attributes.
+ *
+ * Assumes the map is locked, and leaves it so.
+ */
 vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                                  vm_prot_t prot) {
+  assert(mtx_owned(&map->mtx));
   assert(start >= map->pmap->start);
   assert(end <= map->pmap->end);
   assert(is_aligned(start, PAGESIZE));
@@ -134,8 +141,7 @@ vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
   entry->end = end;
   entry->prot = prot;
 
-  WITH_RW_LOCK (&map->rwlock, RW_WRITER)
-    vm_map_insert_entry(map, entry);
+  vm_map_insert_entry(map, entry);
 
   return entry;
 }
@@ -191,13 +197,13 @@ found:
 
 int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
                      vm_addr_t /*out*/ *addr) {
-  SCOPED_RW_ENTER(&map->rwlock, RW_READER);
+  SCOPED_MTX_LOCK(&map->mtx);
   return vm_map_findspace_nolock(map, start, length, addr);
 }
 
 int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
   assert(is_aligned(new_end, PAGESIZE));
-  rw_assert(&map->rwlock, RW_WLOCKED);
+  assert(mtx_owned(&map->mtx));
 
   /* TODO: As for now, we are unable to decrease the size of an entry, because
      it would require unmapping physical pages, which in turn should clean
@@ -226,7 +232,7 @@ int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
 void vm_map_dump(vm_map_t *map) {
   klog("Virtual memory map (%08lx - %08lx):", map->pmap->start, map->pmap->end);
 
-  SCOPED_RW_ENTER(&map->rwlock, RW_READER);
+  SCOPED_MTX_LOCK(&map->mtx);
 
   vm_map_entry_t *it;
   TAILQ_FOREACH (it, &map->list, map_list) {
@@ -247,7 +253,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   vm_map_t *orig_current_map = get_user_vm_map();
   vm_map_t *newmap = vm_map_new();
 
-  WITH_RW_LOCK (&map->rwlock, RW_READER) {
+  WITH_MTX_LOCK (&map->mtx) {
     /* Temporarily switch to the new map, so that we may write contents. */
     td->td_proc->p_uspace = newmap;
     vm_map_activate(newmap);
@@ -275,8 +281,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
 int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
   vm_map_entry_t *entry = NULL;
 
-  WITH_RW_LOCK (&map->rwlock, RW_READER)
-    entry = vm_map_find_entry(map, fault_addr);
+  entry = vm_map_find_entry(map, fault_addr);
 
   if (!entry) {
     klog("Tried to access unmapped memory region: 0x%08lx!", fault_addr);

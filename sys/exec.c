@@ -179,10 +179,13 @@ int do_exec(const exec_args_t *args) {
         vm_addr_t end = roundup(ph->p_vaddr + ph->p_memsz, PAGESIZE);
         /* TODO: What if segments overlap? */
         /* Temporarily permissive protection. */
-        vm_map_entry_t *segment = vm_map_add_entry(
-          vmap, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC);
-        /* Allocate pages backing this segment. */
-        segment->object = default_pager->pgr_alloc();
+        vm_map_entry_t *segment;
+        WITH_MTX_LOCK (&vmap->mtx) {
+          segment = vm_map_add_entry(
+            vmap, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC);
+          /* Allocate pages backing this segment. */
+          segment->object = default_pager->pgr_alloc();
+        }
 
         /* Read data from file into the segment */
         /* TODO: This is a lot of copying! Ideally we would look up the
@@ -230,9 +233,12 @@ int do_exec(const exec_args_t *args) {
   vm_addr_t stack_start = stack_bottom - stack_size;
   vm_addr_t stack_end = stack_bottom;
   /* TODO: What if this area overlaps with a loaded segment? */
-  vm_map_entry_t *stack_segment = vm_map_add_entry(
-    vmap, stack_start, stack_end, VM_PROT_READ | VM_PROT_WRITE);
-  stack_segment->object = default_pager->pgr_alloc();
+  vm_map_entry_t *stack_segment;
+  WITH_MTX_LOCK (&vmap->mtx) {
+    stack_segment = vm_map_add_entry(vmap, stack_start, stack_end,
+                                     VM_PROT_READ | VM_PROT_WRITE);
+    stack_segment->object = default_pager->pgr_alloc();
+  }
 
   /* Prepare program stack, which includes storing program args. */
   klog("Stack real bottom at %p", (void *)stack_bottom);

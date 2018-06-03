@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <vm_map.h>
 #include <vm_pager.h>
-#include <rwlock.h>
+#include <mutex.h>
 #include <proc.h>
 
 vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
@@ -38,7 +38,7 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
 
   vm_map_entry_t *entry;
 
-  WITH_RW_LOCK (&vmap->rwlock, RW_WRITER) {
+  WITH_MTX_LOCK (&vmap->mtx) {
     if (vm_map_findspace_nolock(vmap, addr, length, &addr) != 0) {
       /* No memory was found following the hint. Search again entire address
          space. */

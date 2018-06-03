@@ -4,7 +4,7 @@
 #include <queue.h>
 #include <pmap.h>
 #include <vm.h>
-#include <rwlock.h>
+#include <mutex.h>
 
 typedef struct vm_map_entry vm_map_entry_t;
 
@@ -23,8 +23,7 @@ typedef struct vm_map {
   SPLAY_HEAD(vm_map_tree, vm_map_entry) tree;
   size_t nentries;
   pmap_t *const pmap;
-  rwlock_t rwlock; /* The recursive RW lock guarding vm_map structure and all
-                      its entries. */
+  mtx_t mtx; /* Mutex guarding vm_map structure and all its entries. */
 } vm_map_t;
 
 /* TODO we will need some functions to allocate address ranges,
