@@ -380,14 +380,13 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
 
   switch (flags) {
     case 0: // pci memory
-      r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end,
-                                    size);
+      r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size);
       break;
     case 1: // pci io ports
       r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size);
       break;
     case 2: // temporary isa io workaround
-        return gtpci->isa_io;
+      return gtpci->isa_io;
     case 3: // pci memory anywhere
       r = rman_allocate_resource_anywhere(&gtpci->rman_pci_memspace, size);
       break;

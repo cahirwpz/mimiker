@@ -50,18 +50,18 @@ struct rman {
 resource_t *rman_allocate_resource(rman_t *rm, rman_addr start, rman_addr end,
                                    rman_addr count);
 
-inline resource_t *rman_allocate_resource_any(rman_t *rm) {
+static inline resource_t *rman_allocate_resource_any(rman_t *rm) {
   return rman_allocate_resource(rm, 0, (rman_addr)~0, 1);
 }
 
-inline resource_t *rman_allocate_resource_anywhere(rman_t *rm,
-                                                   rman_addr count) {
+static inline resource_t *rman_allocate_resource_anywhere(rman_t *rm,
+                                                          rman_addr count) {
   return rman_allocate_resource(rm, 0, (rman_addr)~0, count);
 }
 
 void rman_create(rman_t *rm, rman_addr start, rman_addr end);
 
-inline void rman_create_from_resource(rman_t *rm, resource_t *res) {
+static inline void rman_create_from_resource(rman_t *rm, resource_t *res) {
   rman_create(rm, res->r_start, res->r_end);
 }
 

@@ -1,13 +1,14 @@
 #include <rman.h>
+#include <klog.h>
 
 // TODO all this logic associated with resources is not really tested
 
 static resource_t *find_resource(rman_t *rm, rman_addr start, rman_addr end,
                                  rman_addr count) {
-  for (resource_t *resource = rm->resources.lh_first; resource != NULL;
-       resource = resource->resources.le_next) {
-
-    if (resource->r_flags & RF_ALLOCATED || start > resource->r_end || end < resource->r_start) {
+  resource_t *resource;
+  LIST_FOREACH(resource, &rm->resources, resources) {
+    if (resource->r_flags & RF_ALLOCATED || start > resource->r_end ||
+        end < resource->r_start) {
       continue;
     }
 
@@ -54,7 +55,7 @@ static resource_t *split_resource(resource_t *resource, rman_addr start,
   }
 
   if (resource->r_end > resource->r_start + count - 1) {
-    resource = cut_resource(resource, resource->r_start + count);
+    cut_resource(resource, resource->r_start + count);
   }
 
   return resource;
