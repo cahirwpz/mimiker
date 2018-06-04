@@ -19,69 +19,57 @@
 
 int copyinargptrs(char *blob, argv_t user_argv, size_t *argc_out) {
   argv_t kern_argv = (argv_t)blob;
-  size_t argc = 0;
-  int result = 0;
 
-  char *argp;
-  const size_t chunk_size = sizeof(argp);
-  size_t bytes_written = 0;
+  char *arg_ptr;
+  const size_t ptr_size = sizeof(arg_ptr);
 
-  do {
-    result = copyin(user_argv + argc, &argp, chunk_size);
+  for (int argc = 0; argc * ptr_size < ARG_MAX; argc++)
+  {
+    int result = copyin(user_argv + argc, &arg_ptr, ptr_size);
     if (result < 0)
-      goto end;
+      return result;
 
-    kern_argv[argc++] = argp;
-    bytes_written += chunk_size;
+    kern_argv[argc] = arg_ptr;
+    if (arg_ptr != NULL) // Do we need to copy more arg ptrs?
+      continue;
 
-  } while ((bytes_written + chunk_size <= ARG_MAX) && (argp != NULL));
+    // We copied all arg ptrs :)
+    if (argc == 0) // Is argument list empty?
+      return -EFAULT;
 
-  if (argp != NULL) {
-    result = -E2BIG;
-    goto end;
+    // Its not empty and we copied all arg ptrs - Success!
+    *argc_out = argc;
+    return 0;
   }
 
-  --argc;
-
-  if (argc == 0) {
-    result = -EFAULT;
-    goto end;
-  }
-
-  *argc_out = argc;
-end:
-  return result;
+  // We execeeded ARG_MAX while copying arguments
+  return -E2BIG;
 }
 
 int copyinargs(char *blob, argv_t user_argv, size_t *argc_out) {
-  int result = 0;
-
-  result = copyinargptrs(blob, user_argv, argc_out);
+  int result = copyinargptrs(blob, user_argv, argc_out);
   if (result < 0)
-    goto end;
+    return result;
 
   argv_t kern_argv = (argv_t)blob;
   void *args = (void *)(kern_argv + *argc_out);
 
   size_t bytes_written = *argc_out * sizeof(char *);
-  size_t max_arg_len = ARG_MAX - bytes_written;
+  size_t bytes_remaining = ARG_MAX - bytes_written;
 
   size_t argsize;
 
   for (size_t i = 0; i < *argc_out; i++) {
-    result = copyinstr(kern_argv[i], args, max_arg_len, &argsize);
-    if (result < 0) {
-      result = (result == -ENAMETOOLONG) ? -E2BIG : result;
-      goto end;
-    }
+    result = copyinstr(kern_argv[i], args, bytes_remaining, &argsize);
+    if (result < 0)
+      return (result == -ENAMETOOLONG) ? -E2BIG : result;
 
     kern_argv[i] = args;
     args += argsize;
-    max_arg_len -= argsize;
+    bytes_remaining -= argsize;
   }
 
-end:
-  return result;
+  return 0;
 }
 
 int do_exec(const exec_args_t *args) {
