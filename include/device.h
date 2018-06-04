@@ -35,7 +35,7 @@ struct device {
   device_list_t children;   /* head of children devices */
 
   /* Device information and state. */
-  device_bus_t bus;
+  device_bus_t bus; /* to which bus is this device connected */
   driver_t *driver;
   void *instance; /* used by bus driver to store data in children */
   void *state;    /* memory requested by driver for its state*/
@@ -48,6 +48,10 @@ int device_detach(device_t *dev);
 
 /* Manually create a device with given driver and parent device. */
 device_t *make_device(device_t *parent, driver_t *driver);
+
+inline void *get_device_softc(device_t *dev){
+  return dev->state;
+}
 
 /* A universal memory pool to be used by all drivers. */
 MALLOC_DECLARE(M_DEV);

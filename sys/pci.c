@@ -4,6 +4,7 @@
 #include <pci.h>
 
 /* For reference look at: http://wiki.osdev.org/PCI */
+/* GENERIC PCI DRIVER - PLATFORM INDEPENDENT */
 
 static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
                                             uint16_t device_id) {
@@ -61,7 +62,7 @@ void pci_bus_enumerate(device_t *pcib) {
         uint32_t size = pci_adjust_config(dev, PCIR_BAR(i), 4, 0xffffffff);
 
         if (size == 0 || addr == size)
-          continue;
+          continue; // device doesn't have that BAR
 
         unsigned type, flags;
 
@@ -86,66 +87,6 @@ void pci_bus_enumerate(device_t *pcib) {
       }
     }
   }
-}
-
-static int pci_bar_compare(const void *a, const void *b) {
-  const resource_t *bar0 = *(const resource_t **)a;
-  const resource_t *bar1 = *(const resource_t **)b;
-
-  if (bar0->r_end < bar1->r_end)
-    return 1;
-  if (bar0->r_end > bar1->r_end)
-    return -1;
-  return 0;
-}
-
-void pci_bus_assign_space(device_t *pcib) {
-  /* Count PCI base address registers & allocate memory */
-  unsigned nbars = 0, ndevs = 0;
-  device_t *dev;
-
-  TAILQ_FOREACH (dev, &pcib->children, link) {
-    pci_device_t *pcid = pci_device_of(dev);
-    nbars += pcid->nbars;
-    ndevs++;
-  }
-
-  resource_t **bars = kmalloc(M_DEV, sizeof(resource_t *) * nbars, M_ZERO);
-  unsigned n = 0;
-
-  TAILQ_FOREACH (dev, &pcib->children, link) {
-    pci_device_t *pcid = pci_device_of(dev);
-    for (unsigned i = 0; i < pcid->nbars; i++)
-      bars[n++] = &pcid->bar[i];
-  }
-
-  qsort(bars, nbars, sizeof(resource_t *), pci_bar_compare);
-
-  pci_bus_state_t *data = pcib->state;
-  intptr_t io_base = data->io_space->r_start;
-  intptr_t mem_base = data->mem_space->r_start;
-
-  for (unsigned j = 0; j < nbars; j++) {
-    resource_t *bar = bars[j];
-    if (bar->r_type == RT_IOPORTS) {
-      bar->r_bus_space = data->io_space->r_bus_space;
-      bar->r_start += io_base;
-      bar->r_end += io_base;
-      io_base = bar->r_end + 1;
-    } else if (bar->r_type == RT_MEMORY) {
-      bar->r_bus_space = data->mem_space->r_bus_space;
-      bar->r_start += mem_base;
-      bar->r_end += mem_base;
-      mem_base = bar->r_end + 1;
-    }
-
-    /* Write the BAR address back to PCI bus config. It's safe to write the
-     * entire address without masking bits - only base address bits are
-     * writable. */
-    pci_write_config(bar->r_owner, PCIR_BAR(bar->r_id), 4, bar->r_start);
-  }
-
-  kfree(M_DEV, bars);
 }
 
 void pci_bus_dump(device_t *pcib) {

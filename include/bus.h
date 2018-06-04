@@ -3,8 +3,9 @@
 
 #include <common.h>
 #include <device.h>
+#include <rman.h>
 
-typedef struct resource resource_t;
+// typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 typedef struct bus_methods bus_methods_t;
 typedef struct bus_driver bus_driver_t;
@@ -56,7 +57,10 @@ struct bus_space {
  * resource contains locations with read side-effects or locations in which the
  * device does not tolerate write merging. */
 #define RF_PREFETCHABLE 1
+#define RF_SHARED 2 // TODO
+#define RF_ALLOCATED 4
 
+#if 0
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */
   void *r_owner;            /* pointer to device that owns this resource */
@@ -65,7 +69,9 @@ struct resource {
   unsigned r_type;
   unsigned r_flags;
   int r_id; /* (optional) resource identifier */
+  LIST_ENTRY(resource) resources;
 };
+#endif
 
 #define RESOURCE_DECLARE(name) extern resource_t name[1]
 
@@ -110,9 +116,17 @@ typedef void (*bus_intr_setup_t)(device_t *dev, unsigned num,
                                  intr_handler_t *handler);
 typedef void (*bus_intr_teardown_t)(device_t *dev, intr_handler_t *handler);
 
+typedef resource_t* (*bus_resource_alloc_t)(device_t *parent,
+                                    device_t *dev,
+                                     unsigned  flags,
+                                     rman_res_t start,
+                                     rman_res_t end,
+                                     rman_res_t size); /* temporary definition */
+
 struct bus_methods {
   bus_intr_setup_t intr_setup;
   bus_intr_teardown_t intr_teardown;
+  bus_resource_alloc_t resource_alloc; /* called from childs attach */
 };
 
 struct bus_driver {
@@ -121,16 +135,31 @@ struct bus_driver {
 };
 
 #define BUS_DRIVER(dev) ((bus_driver_t *)((dev)->parent->driver))
+static inline bus_driver_t *get_bus_driver(device_t *dev){
+  return (bus_driver_t *)dev->parent->driver;
+}
 
 static inline void bus_intr_setup(device_t *dev, unsigned num,
                                   intr_handler_t *handler) {
-  BUS_DRIVER(dev)->bus.intr_setup(dev, num, handler);
+  get_bus_driver(dev)->bus.intr_setup(dev, num, handler);
 }
 
 static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
   BUS_DRIVER(dev)->bus.intr_teardown(dev, handler);
 }
 
-int bus_generic_probe(device_t *bus);
+#define RS_SHARED 0x1
+#define RS_EXCLUSIVE 0x2
+#define RS_FIXED 0x4
+#define RS_ANY 0x8
+
+static inline resource_t *bus_resource_alloc(device_t *dev, unsigned flags,
+                                      rman_res_t start,
+                                      rman_res_t end,
+                                      rman_res_t size){
+  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, flags, start, end, size);
+}
+
+int bus_generic_probe_and_attach(device_t *bus);
 
 #endif

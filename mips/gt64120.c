@@ -12,6 +12,7 @@
 #include <spinlock.h>
 #include <stdc.h>
 #include <klog.h>
+#include <rman.h>
 
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
@@ -44,9 +45,15 @@ typedef struct gt_pci_state {
   pci_bus_state_t pci_bus;
 
   resource_t *corectrl;
+  resource_t *pci_mem;
+  resource_t *pci_io;
+  resource_t *isa_io;
 
   intr_handler_t intr_handler;
   intr_chain_t intr_chain[16];
+
+  rman_t rman_pci_iospace;
+  rman_t rman_pci_memspace;
 
   uint16_t imask;
   uint16_t elcr;
@@ -162,21 +169,6 @@ static bus_space_t gt_pci_bus_space = {.read_1 = gt_pci_read_1,
                                        .read_region_1 = gt_pci_read_region_1,
                                        .write_region_1 = gt_pci_write_region_1};
 
-static resource_t gt_pci_memory = {.r_bus_space = &gt_pci_bus_space,
-                                   .r_type = RT_MEMORY,
-                                   .r_start = MALTA_PCI0_MEMORY_BASE,
-                                   .r_end = MALTA_PCI0_MEMORY_END};
-
-static resource_t gt_pci_ioports = {.r_bus_space = &gt_pci_bus_space,
-                                    .r_type = RT_IOPORTS,
-                                    .r_start = MALTA_PCI0_IO_BASE,
-                                    .r_end = MALTA_PCI0_IO_END};
-
-static resource_t gt_pci_corectrl = {.r_bus_space = &gt_pci_bus_space,
-                                     .r_type = RT_IOPORTS,
-                                     .r_start = MALTA_CORECTRL_BASE,
-                                     .r_end = MALTA_CORECTRL_BASE + 0x1000};
-
 static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
   /* Enable the cascade IRQ (2) if 8-15 is enabled. */
   if ((gtpci->imask & 0xff00) != 0xff00)
@@ -184,11 +176,11 @@ static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
   else
     gtpci->imask |= (1U << 2);
 
-  resource_t *io = gtpci->pci_bus.io_space;
-  bus_space_write_1(io, ICU1_DATA, LO(gtpci->imask));
-  bus_space_write_1(io, ICU2_DATA, HI(gtpci->imask));
-  bus_space_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
-  bus_space_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
+  resource_t *isa_io = gtpci->isa_io;
+  bus_space_write_1(isa_io, ICU1_DATA, LO(gtpci->imask));
+  bus_space_write_1(isa_io, ICU2_DATA, HI(gtpci->imask));
+  bus_space_write_1(isa_io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
+  bus_space_write_1(isa_io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 }
 
 static void gt_pci_mask_irq(gt_pci_state_t *gtpci, unsigned irq) {
@@ -246,22 +238,22 @@ static void init_8259(resource_t *io, unsigned icu, unsigned imask) {
 
 static intr_filter_t gt_pci_intr(void *data) {
   gt_pci_state_t *gtpci = data;
-  resource_t *io = gtpci->pci_bus.io_space;
+  resource_t *isa_io = gtpci->isa_io;
   unsigned irq;
 
   assert(data != NULL);
 
   for (;;) {
     /* Handle master PIC, irq 0..7 */
-    bus_space_write_1(io, ICU1_ADDR, OCW3_SEL | OCW3_POLL);
-    irq = bus_space_read_1(io, ICU1_DATA);
+    bus_space_write_1(isa_io, ICU1_ADDR, OCW3_SEL | OCW3_POLL);
+    irq = bus_space_read_1(isa_io, ICU1_DATA);
     if ((irq & OCW3_POLL_PENDING) == 0)
       return IF_FILTERED;
     irq = OCW3_POLL_IRQ(irq);
     /* Handle slave PIC, irq 8..15 */
     if (irq == 2) {
-      bus_space_write_1(io, ICU2_ADDR, OCW3_SEL | OCW3_POLL);
-      irq = bus_space_read_1(io, ICU2_DATA);
+      bus_space_write_1(isa_io, ICU2_ADDR, OCW3_SEL | OCW3_POLL);
+      irq = bus_space_read_1(isa_io, ICU2_DATA);
       irq = (irq & OCW3_POLL_PENDING) ? (OCW3_POLL_IRQ(irq) + 8) : 2;
     }
 
@@ -271,13 +263,13 @@ static intr_filter_t gt_pci_intr(void *data) {
 
     /* Send a specific EOI to slave PIC... */
     if (irq > 7) {
-      bus_space_write_1(io, ICU2_ADDR,
+      bus_space_write_1(isa_io, ICU2_ADDR,
                         OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq & 7));
       irq = 2;
     }
 
     /* ... and finally to master PIC. */
-    bus_space_write_1(io, ICU1_ADDR,
+    bus_space_write_1(isa_io, ICU1_ADDR,
                       OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq));
   }
 
@@ -294,21 +286,55 @@ static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
   intr_chain_register(&gtpci->intr_chain[irq]);
 }
 
+static int gt_pci_probe(device_t *pcib) {
+
+  gt_pci_state_t *gtpci = pcib->state;
+
+  // RT_MEMORY or RT_IOPORTS
+
+  resource_t *rs_pci_mem = bus_resource_alloc(pcib, 0, MALTA_PCI0_MEMORY_BASE, 
+    MALTA_PCI0_MEMORY_END, MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1);
+  resource_t* rs_pci_io = bus_resource_alloc(pcib, 0, MALTA_PCI0_EXCLUSIVE_IO_BASE, 
+    MALTA_PCI0_EXCLUSIVE_IO_END, MALTA_PCI0_EXCLUSIVE_IO_END - MALTA_PCI0_EXCLUSIVE_IO_BASE + 1);
+  resource_t* rs_ctrl = bus_resource_alloc(pcib, 0, MALTA_CORECTRL_BASE, 
+    MALTA_CORECTRL_END, MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1);
+  resource_t* rs_isa_io = bus_resource_alloc(pcib, 0, MALTA_PCI0_TO_ISA_BRIDGE_BASE, 
+    MALTA_PCI0_TO_ISA_BRIDGE_END, MALTA_PCI0_TO_ISA_BRIDGE_END - MALTA_PCI0_TO_ISA_BRIDGE_BASE + 1); 
+
+
+  // assert(rs_pci_mem & rs_pci_io & rs_ctrl & rs_isa_io != NULL);
+
+    gtpci->corectrl = rs_ctrl;
+    gtpci->pci_mem = rs_pci_mem;
+    gtpci->pci_io = rs_pci_io;
+    gtpci->isa_io = rs_isa_io;
+
+    gtpci->pci_bus.mem_space = gtpci->pci_mem;
+    gtpci->pci_bus.isa_io_space = gtpci->isa_io;
+    gtpci->pci_bus.pci_io_space = gtpci->pci_io;
+
+    rs_ctrl->r_bus_space = &gt_pci_bus_space;
+    rs_pci_mem->r_bus_space = &gt_pci_bus_space;
+    rs_pci_io->r_bus_space = &gt_pci_bus_space;
+    rs_isa_io->r_bus_space = &gt_pci_bus_space;
+
+  return 1;
+}
+
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
-  pcib->bus = DEV_BUS_PCI;
+  rman_create_from_resource(&gtpci->rman_pci_memspace, gtpci->pci_mem);
+  rman_create_from_resource(&gtpci->rman_pci_iospace, gtpci->pci_io);
 
-  gtpci->pci_bus.mem_space = &gt_pci_memory;
-  gtpci->pci_bus.io_space = &gt_pci_ioports;
-  gtpci->corectrl = &gt_pci_corectrl;
+  pcib->bus = DEV_BUS_PCI;
 
   /* All interrupts default to "masked off" and edge-triggered. */
   gtpci->imask = 0xffff;
   gtpci->elcr = 0;
 
   /* Initialize the 8259s. */
-  resource_t *io = gtpci->pci_bus.io_space;
+  resource_t *io = gtpci->isa_io;
   init_8259(io, IO_ICU1, LO(gtpci->imask));
   init_8259(io, IO_ICU2, HI(gtpci->imask));
 
@@ -334,27 +360,47 @@ static int gt_pci_attach(device_t *pcib) {
   gt_pci_intr_chain_init(gtpci, 15, "ide(1)"); /* IDE secondary */
 
   pci_bus_enumerate(pcib);
-  pci_bus_assign_space(pcib);
   pci_bus_dump(pcib);
 
   gtpci->intr_handler =
     INTR_HANDLER_INIT(gt_pci_intr, NULL, gtpci, "GT64120 interrupt", 0);
   bus_intr_setup(pcib, MIPS_HWINT0, &gtpci->intr_handler);
 
-  return bus_generic_probe(pcib);
+  return bus_generic_probe_and_attach(pcib);
+}
+
+static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev, unsigned flags,
+                                      rman_res_t start,
+                                      rman_res_t end,
+                                      rman_res_t size){
+  gt_pci_state_t *gtpci = pcib->state;
+  switch(flags){
+    case 0:
+      return rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size);
+    case 1:
+      return rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size);
+    default:
+      return NULL; 
+  }
 }
 
 pci_bus_driver_t gt_pci_bus = {
+  /* driver methods */
   .driver =
     {
       .desc = "GT-64120 PCI bus driver",
       .size = sizeof(gt_pci_state_t),
       .attach = gt_pci_attach,
+      .probe = gt_pci_probe
     },
+  /* bus methods */
   .bus =
     {
-      .intr_setup = gt_pci_intr_setup, .intr_teardown = gt_pci_intr_teardown,
+      .intr_setup = gt_pci_intr_setup, 
+      .intr_teardown = gt_pci_intr_teardown,
+      .resource_alloc = gt_pci_resource_alloc
     },
+  /* PCI methods */
   .pci_bus =
     {
       .read_config = gt_pci_read_config, .write_config = gt_pci_write_config,

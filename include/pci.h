@@ -5,6 +5,7 @@
 #include <queue.h>
 #include <device.h>
 #include <bus.h>
+#include <rman.h>
 
 typedef struct {
   uint16_t id;
@@ -21,8 +22,6 @@ extern const pci_vendor_id pci_vendor_list[];
 extern const char *pci_class_code[];
 
 /* Please read http://wiki.osdev.org/PCI */
-
-#define PCI_IO_SPACE_BASE 0x1000
 
 #define PCI_BAR_MEMORY 0
 #define PCI_BAR_IO 1
@@ -69,9 +68,12 @@ typedef struct pci_bus_driver {
   pci_bus_methods_t pci_bus;
 } pci_bus_driver_t;
 
+// needs some changes
 typedef struct pci_bus_state {
   resource_t *mem_space;
-  resource_t *io_space;
+  resource_t *isa_io_space;
+  /* resource_t *rm_pci_mem; */
+  resource_t *pci_io_space; // no ISA bridge addresses here. only PCI 
 } pci_bus_state_t;
 
 typedef struct pci_device {

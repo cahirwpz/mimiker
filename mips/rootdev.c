@@ -6,6 +6,11 @@
 #include <exception.h>
 #include <pci.h>
 #include <sysinit.h>
+#include <rman.h>
+
+#define NUM_MIPS_IRQS   6
+
+static rman_t rm_mem;
 
 typedef struct rootdev { void *data; } rootdev_t;
 
@@ -26,11 +31,24 @@ extern pci_bus_driver_t gt_pci_bus;
 device_t *gt_pci;
 
 static int rootdev_attach(device_t *dev) {
+
+  rman_create(&rm_mem, MALTA_PHYS_ADDR_SPACE_BASE, MALTA_PHYS_ADDR_SPACE_END);
+
   gt_pci = device_add_child(dev);
   gt_pci->driver = &gt_pci_bus.driver;
   if (device_probe(gt_pci))
     device_attach(gt_pci);
   return 0;
+}
+
+static inline resource_t *rootdev_resource_alloc(device_t *rootdev, device_t *dev, unsigned flags,
+                                      rman_res_t start,
+                                      rman_res_t end,
+                                      rman_res_t size){
+
+  // only gt64120 calls this. give'em memory!
+  resource_t *r = rman_allocate_resource(&rm_mem, start, end, size);
+  return r;
 }
 
 static bus_driver_t rootdev_driver = {
@@ -42,7 +60,9 @@ static bus_driver_t rootdev_driver = {
     },
   .bus =
     {
-      .intr_setup = rootdev_intr_setup, .intr_teardown = rootdev_intr_teardown,
+      .intr_setup = rootdev_intr_setup, 
+      .intr_teardown = rootdev_intr_teardown,
+      .resource_alloc = rootdev_resource_alloc
     }};
 
 static device_t rootdev = (device_t){

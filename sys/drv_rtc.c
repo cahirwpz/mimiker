@@ -85,13 +85,26 @@ static int rtc_time_read(vnode_t *v, uio_t *uio) {
 static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
                                        .v_read = rtc_time_read};
 
+static int rtc_probe(device_t *dev) {
+  pci_bus_state_t *pcib = get_device_softc(dev->parent);
+  rtc_state_t *rtc = get_device_softc(dev);
+
+  // bus_assign_space(dev, FIXED, ?SHARED?)
+  // need isa
+  rtc->regs = pcib->isa_io_space; // temporarily can change to: 
+  // rtc->regs = pcib->rs_isa; but this could be private. some getter?
+  // we also might want to do that in probe in case of a fail
+
+  return 1;
+}
+
 static int rtc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  pci_bus_state_t *pcib = dev->parent->state;
+  // pci_bus_state_t *pcib = dev->parent->state;
   rtc_state_t *rtc = dev->state;
 
-  rtc->regs = pcib->io_space;
+  //rtc->regs = pcib->io_space; // moved to rtc_probe
 
   rtc->intr_handler =
     INTR_HANDLER_INIT(rtc_intr, NULL, rtc, "RTC periodic timer", 0);
@@ -114,6 +127,7 @@ static driver_t rtc_driver = {
   .desc = "MC146818 RTC driver",
   .size = sizeof(rtc_state_t),
   .attach = rtc_attach,
+  .probe = rtc_probe
 };
 
 extern device_t *gt_pci;

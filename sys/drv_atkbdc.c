@@ -119,7 +119,7 @@ static intr_filter_t atkbdc_intr(void *data) {
 static int atkbdc_probe(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
   pci_bus_state_t *pcib = dev->parent->state;
-  resource_t *regs = pcib->io_space;
+  resource_t *regs = pcib->isa_io_space;
 
   if (!kbd_reset(regs)) {
     klog("Keyboard self-test failed.");
@@ -151,7 +151,7 @@ static int atkbdc_attach(device_t *dev) {
 
   mtx_init(&atkbdc->mtx, MTX_DEF);
   cv_init(&atkbdc->nonempty, "AT keyboard buffer non-empty");
-  atkbdc->regs = pcib->io_space;
+  atkbdc->regs = pcib->isa_io_space;
 
   atkbdc->intr_handler =
     INTR_HANDLER_INIT(atkbdc_intr, NULL, atkbdc, "AT keyboard controller", 0);
