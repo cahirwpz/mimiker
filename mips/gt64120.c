@@ -383,6 +383,10 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
       return NULL;
   }
 
+  if(flags & RF_NEEDS_ACTIVATION && r){
+    pci_write_config(dev, rid, 4, r->r_start);
+  }
+
   r->r_bus_space = &gt_pci_bus_space;
   return r;
 }

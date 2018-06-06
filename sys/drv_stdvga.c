@@ -177,8 +177,6 @@ static int stdvga_attach(device_t *dev) {
   stdvga->io = bus_resource_alloc_anywhere(dev, SYS_RES_PCI_MEM, PCIR_BAR(1), 
     pcid->bar[1].r_end, RF_EXCLUSIVE|RF_NEEDS_ACTIVATION);
 
-  // NEED TO ACTIVATE RESOURCES. WRITE TO BAR
-
   stdvga->vga = (vga_device_t){
     .palette_write = stdvga_palette_write,
     .fb_write = stdvga_fb_write,
