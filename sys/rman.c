@@ -1,7 +1,10 @@
 #include <rman.h>
 
+#define APPLY_ALIGNMENT(addr, align)                                           \
+  (addr % align == 0 ? addr : addr + align - addr % align)
+
 static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                                 rman_addr_t count) {
+                                 rman_addr_t count, rman_addr_t align) {
   resource_t *resource;
   LIST_FOREACH(resource, &rm->rm_resources, r_resources) {
     if (resource->r_flags & RF_ALLOCATED || start > resource->r_end ||
@@ -12,6 +15,8 @@ static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
     // calculate common part and check if is big enough
     rman_addr_t s = max(start, resource->r_start);
     rman_addr_t e = min(end, resource->r_end);
+
+    s = APPLY_ALIGNMENT(s, align);
 
     rman_addr_t len = s - e + 1;
 
@@ -63,16 +68,19 @@ resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
                                    unsigned flags) {
   SCOPED_MTX_LOCK(&rm->rm_mtx);
 
-  resource_t *resource = find_resource(rm, start, end, count);
+  rman_addr_t align = RF_GET_ALIGNMENT(flags);
+  align = min(align, sizeof(void *));
+
+  resource_t *resource = find_resource(rm, start, end, count, align);
   if (resource == NULL) {
     return NULL;
   }
 
-  resource = split_resource(resource, start, end, count);
+  resource =
+    split_resource(resource, APPLY_ALIGNMENT(start, align), end, count);
   resource->r_flags = flags;
   resource->r_flags |= RF_ALLOCATED;
 
-  // TODO alignment
   return resource;
 }
 
@@ -81,6 +89,7 @@ static void rman_init(rman_t *rm) {
   LIST_INIT(&rm->rm_resources);
 
   // TODO so maybe we don't need to store start and end in rman_t?
+  // TODO don't use M_DEV
   resource_t *whole_space = kmalloc(M_DEV, sizeof(resource_t), M_ZERO);
 
   whole_space->r_start = rm->rm_start;
@@ -94,4 +103,13 @@ void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end) {
   rm->rm_end = end;
 
   rman_init(rm);
+}
+
+unsigned rman_make_alignment_flags(rman_addr_t align) {
+  // TODO ceil
+  unsigned log2 = 0;
+
+  while (align >>= 1)
+    ++log2;
+  return log2 << RF_ALIGNMENT_SHIFT;
 }

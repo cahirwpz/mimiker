@@ -3,6 +3,7 @@
 
 #include <common.h>
 #include <device.h>
+#include <mutex.h>
 
 typedef long unsigned rman_addr_t;
 
@@ -11,8 +12,9 @@ typedef struct rman_block rman_block_t;
 typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 
-/* `resource` describes a range of addresses where a resource is mapped within
- * given bus space. A driver will use addresses from `r_start` to `r_end` and
+/* TODO update this comment
+ * `resource` describes a range of addresses where a resource is mapped within
+ * resource. A driver will use addresses from `r_start` to `r_end` and
  * `r_bus_space` routines to access hardware resource, so that the actual
  * driver code is not tied to way handled device is attached to the system. */
 #define RT_UNKNOWN 0
@@ -28,6 +30,12 @@ typedef struct bus_space bus_space_t;
 #define RF_SHARED 2 // TODO
 #define RF_ALLOCATED 4
 #define RF_NEEDS_ACTIVATION 8
+
+/* alingment is always power of two, and log2() of it is stored in rf_flags */
+#define RF_ALIGNMENT_SHIFT 10
+#define RF_ALIGNMENT_MASK (0x003F << RF_ALIGNMENT_SHIFT)
+#define RF_GET_ALIGNMENT(x)                                                    \
+  (1 << (((x)&RF_ALIGNMENT_MASK) >> RF_ALIGNMENT_SHIFT))
 
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */
@@ -62,5 +70,7 @@ void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end);
 static inline void rman_create_from_resource(rman_t *rm, resource_t *res) {
   rman_create(rm, res->r_start, res->r_end);
 }
+
+unsigned rman_make_alignment_flags(rman_addr_t align);
 
 #endif /* _SYS_RMAN_H_ */

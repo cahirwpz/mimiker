@@ -1,5 +1,5 @@
 #ifndef _MACHINE_RESOURCE_H_
-#define _MACHINE_RESOURCE_H_    1
+#define _MACHINE_RESOURCE_H_ 1
 
 #define SYS_RES_PCI_IO 1
 #define SYS_RES_PCI_MEM 2

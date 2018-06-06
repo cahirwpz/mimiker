@@ -289,11 +289,11 @@ static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
-  resource_t *rs_pci_mem =
-    bus_resource_alloc(pcib, 0, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END,
-                       MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1, 0);
+  resource_t *rs_pci_mem = bus_resource_alloc(
+    pcib, 0, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END,
+    MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1, 0);
   resource_t *rs_pci_io = bus_resource_alloc(
-    pcib, 0, 0 ,MALTA_PCI0_EXCLUSIVE_IO_BASE, MALTA_PCI0_EXCLUSIVE_IO_END,
+    pcib, 0, 0, MALTA_PCI0_EXCLUSIVE_IO_BASE, MALTA_PCI0_EXCLUSIVE_IO_END,
     MALTA_PCI0_EXCLUSIVE_IO_END - MALTA_PCI0_EXCLUSIVE_IO_BASE + 1, 0);
   resource_t *rs_ctrl =
     bus_resource_alloc(pcib, 0, 0, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END,
@@ -364,17 +364,20 @@ static int gt_pci_attach(device_t *pcib) {
 
 static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
                                          int type, int rid, rman_addr_t start,
-                                         rman_addr_t end, rman_addr_t size, unsigned flags) {
+                                         rman_addr_t end, rman_addr_t size,
+                                         unsigned flags) {
 
   gt_pci_state_t *gtpci = pcib->state;
   resource_t *r;
 
   switch (type) {
     case SYS_RES_PCI_MEM: // pci memory
-      r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size, 0);
+      r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size,
+                                 RF_NONE);
       break;
     case SYS_RES_PCI_IO: // pci io ports
-      r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size, 0);
+      r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size,
+                                 RF_NONE);
       break;
     case SYS_RES_ISA: // temporary isa io workaround
       return gtpci->isa_io;
@@ -382,7 +385,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
       return NULL;
   }
 
-  if(flags & RF_NEEDS_ACTIVATION && r){
+  if (flags & RF_NEEDS_ACTIVATION && r) {
     pci_write_config(dev, rid, 4, r->r_start);
   }
   r->r_owner = dev;
