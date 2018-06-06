@@ -88,6 +88,7 @@ void pci_bus_enumerate(device_t *pcib) {
   }
 }
 
+#if 0
 static int pci_bar_compare(const void *a, const void *b) {
   const resource_t *bar0 = *(const resource_t **)a;
   const resource_t *bar1 = *(const resource_t **)b;
@@ -154,6 +155,8 @@ void pci_bus_assign_space(device_t *pcib) {
 
   kfree(M_DEV, bars);
 }
+
+#endif
 
 void pci_bus_dump(device_t *pcib) {
   device_t *dev;

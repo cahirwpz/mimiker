@@ -50,6 +50,7 @@ SOURCES_C  = \
 	sysent.c \
 	sysinit.c \
 	taskqueue.c \
+	turnstile.c \
 	thread.c \
 	timer.c \
 	uio.c \

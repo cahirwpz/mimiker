@@ -11,6 +11,7 @@
 #include <dev/atkbdcreg.h>
 #include <interrupt.h>
 #include <sysinit.h>
+#include <mips/resource.h>
 
 #define KBD_DATA (IO_KBD + KBD_DATA_PORT)
 #define KBD_STATUS (IO_KBD + KBD_STATUS_PORT)
@@ -118,8 +119,8 @@ static intr_filter_t atkbdc_intr(void *data) {
 
 static int atkbdc_probe(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
-  pci_bus_state_t *pcib = dev->parent->state;
-  resource_t *regs = pcib->io_space;
+  resource_t *regs =
+    bus_resource_alloc_anywhere(dev, SYS_RES_ISA, 0, 0, RF_SHARED);
 
   if (!kbd_reset(regs)) {
     klog("Keyboard self-test failed.");
@@ -143,7 +144,6 @@ static int atkbdc_probe(device_t *dev) {
 static int atkbdc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  pci_bus_state_t *pcib = dev->parent->state;
   atkbdc_state_t *atkbdc = dev->state;
 
   atkbdc->scancodes.data = kmalloc(M_DEV, KBD_BUFSIZE, M_ZERO);
@@ -151,7 +151,7 @@ static int atkbdc_attach(device_t *dev) {
 
   mtx_init(&atkbdc->mtx, MTX_DEF);
   cv_init(&atkbdc->nonempty, "AT keyboard buffer non-empty");
-  atkbdc->regs = pcib->io_space;
+  atkbdc->regs = bus_resource_alloc_anywhere(dev, SYS_RES_ISA, 0, 0, RF_SHARED);
 
   atkbdc->intr_handler =
     INTR_HANDLER_INIT(atkbdc_intr, NULL, atkbdc, "AT keyboard controller", 0);

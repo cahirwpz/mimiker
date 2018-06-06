@@ -11,6 +11,7 @@
 #include <time.h>
 #include <vnode.h>
 #include <sysinit.h>
+#include <mips/resource.h>
 
 #define RTC_ADDR (IO_RTC + 0)
 #define RTC_DATA (IO_RTC + 1)
@@ -88,10 +89,9 @@ static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
 static int rtc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  pci_bus_state_t *pcib = dev->parent->state;
   rtc_state_t *rtc = dev->state;
 
-  rtc->regs = pcib->io_space;
+  rtc->regs = bus_resource_alloc_anywhere(dev, SYS_RES_ISA, 0, 0, RF_SHARED);
 
   rtc->intr_handler =
     INTR_HANDLER_INIT(rtc_intr, NULL, rtc, "RTC periodic timer", 0);

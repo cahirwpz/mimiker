@@ -1,4 +1,5 @@
 #include <mutex.h>
+#include <turnstile.h>
 #include <interrupt.h>
 #include <sched.h>
 #include <thread.h>
@@ -22,7 +23,8 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
 
   WITH_NO_PREEMPTION {
     while (m->m_owner != NULL)
-      sleepq_wait(&m->m_owner, waitpt);
+      turnstile_wait(m, (thread_t *)m->m_owner, waitpt);
+
     m->m_owner = thread_self();
     m->m_lockpt = waitpt;
   }
@@ -40,6 +42,14 @@ void mtx_unlock(mtx_t *m) {
   WITH_NO_PREEMPTION {
     m->m_owner = NULL;
     m->m_lockpt = NULL;
-    sleepq_signal(&m->m_owner);
+
+    /* Using broadcast instead of signal is faster according to
+     * "The Design and Implementation of the FreeBSD Operating System",
+     * 2nd edition, 4.3 Context Switching, page 138.
+     *
+     * The reasoning is that the awakened threads will often be scheduled
+     * sequentially and only act on empty mutex on which operations are
+     * cheaper. */
+    turnstile_broadcast(m);
   }
 }

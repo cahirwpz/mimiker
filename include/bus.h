@@ -3,7 +3,6 @@
 
 #include <rman.h>
 
-typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 typedef struct bus_methods bus_methods_t;
 typedef struct bus_driver bus_driver_t;
@@ -84,9 +83,15 @@ typedef void (*bus_intr_setup_t)(device_t *dev, unsigned num,
                                  intr_handler_t *handler);
 typedef void (*bus_intr_teardown_t)(device_t *dev, intr_handler_t *handler);
 
+typedef resource_t *(*bus_resource_alloc_t)(device_t *bus, device_t *child,
+                                            int type, int rid,
+                                            rman_addr_t start, rman_addr_t end,
+                                            rman_addr_t size, unsigned flags);
+
 struct bus_methods {
   bus_intr_setup_t intr_setup;
   bus_intr_teardown_t intr_teardown;
+  bus_resource_alloc_t resource_alloc;
 };
 
 struct bus_driver {
@@ -103,6 +108,20 @@ static inline void bus_intr_setup(device_t *dev, unsigned num,
 
 static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
   BUS_DRIVER(dev)->bus.intr_teardown(dev, handler);
+}
+
+static inline resource_t *bus_resource_alloc(device_t *dev, int type, int rid,
+                                             rman_addr_t start, rman_addr_t end,
+                                             rman_addr_t size, unsigned flags) {
+  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, start,
+                                             end, size, flags);
+}
+
+static inline resource_t *bus_resource_alloc_anywhere(device_t *dev, int type,
+                                                      int rid, rman_addr_t size,
+                                                      unsigned flags) {
+  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0, ~0,
+                                             size, flags);
 }
 
 int bus_generic_probe(device_t *bus);

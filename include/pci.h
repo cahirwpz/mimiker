@@ -73,11 +73,6 @@ typedef struct pci_bus_driver {
   pci_bus_methods_t pci_bus;
 } pci_bus_driver_t;
 
-typedef struct pci_bus_state {
-  resource_t *mem_space;
-  resource_t *io_space;
-} pci_bus_state_t;
-
 typedef struct pci_device {
   pci_addr_t addr;
 
