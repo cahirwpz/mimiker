@@ -286,10 +286,8 @@ static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
   intr_chain_register(&gtpci->intr_chain[irq]);
 }
 
-static int gt_pci_probe(device_t *pcib) {
+static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
-
-  // RT_MEMORY or RT_IOPORTS
 
   resource_t *rs_pci_mem =
     bus_resource_alloc(pcib, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END,
@@ -321,12 +319,6 @@ static int gt_pci_probe(device_t *pcib) {
 
   rman_create_from_resource(&gtpci->rman_pci_iospace, gtpci->pci_io);
   rman_create_from_resource(&gtpci->rman_pci_memspace, gtpci->pci_mem);
-
-  return 1;
-}
-
-static int gt_pci_attach(device_t *pcib) {
-  gt_pci_state_t *gtpci = pcib->state;
 
   pcib->bus = DEV_BUS_PCI;
 
@@ -405,8 +397,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
 pci_bus_driver_t gt_pci_bus = {
   .driver = {.desc = "GT-64120 PCI bus driver",
              .size = sizeof(gt_pci_state_t),
-             .attach = gt_pci_attach,
-             .probe = gt_pci_probe},
+             .attach = gt_pci_attach},
   .bus = {.intr_setup = gt_pci_intr_setup,
           .intr_teardown = gt_pci_intr_teardown,
           .resource_alloc = gt_pci_resource_alloc},
