@@ -3,7 +3,6 @@
 
 #include <rman.h>
 
-typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 typedef struct bus_methods bus_methods_t;
 typedef struct bus_driver bus_driver_t;
@@ -85,8 +84,8 @@ typedef void (*bus_intr_setup_t)(device_t *dev, unsigned num,
 typedef void (*bus_intr_teardown_t)(device_t *dev, intr_handler_t *handler);
 
 typedef resource_t *(*bus_resource_alloc_t)(device_t *parent, device_t *dev,
-                                            unsigned flags, rman_addr start,
-                                            rman_addr end, rman_addr size);
+                                            unsigned flags, rman_addr_t start,
+                                            rman_addr_t end, rman_addr_t size);
 
 struct bus_methods {
   bus_intr_setup_t intr_setup;
@@ -111,8 +110,8 @@ static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
 }
 
 static inline resource_t *bus_resource_alloc(device_t *dev, unsigned flags,
-                                             rman_addr start, rman_addr end,
-                                             rman_addr size) {
+                                             rman_addr_t start, rman_addr_t end,
+                                             rman_addr_t size) {
   return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, flags, start,
                                              end, size);
 }

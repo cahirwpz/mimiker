@@ -372,26 +372,27 @@ static int gt_pci_attach(device_t *pcib) {
 }
 
 static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
-                                         unsigned flags, rman_addr start,
-                                         rman_addr end, rman_addr size) {
+                                         unsigned flags, rman_addr_t start,
+                                         rman_addr_t end, rman_addr_t size) {
 
   gt_pci_state_t *gtpci = pcib->state;
   resource_t *r;
 
   switch (flags) {
     case 0: // pci memory
-      r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size);
+      r =
+        rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size, 0);
       break;
     case 1: // pci io ports
-      r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size);
+      r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size, 0);
       break;
     case 2: // temporary isa io workaround
       return gtpci->isa_io;
     case 3: // pci memory anywhere
-      r = rman_allocate_resource_anywhere(&gtpci->rman_pci_memspace, size);
+      r = rman_allocate_resource_anywhere(&gtpci->rman_pci_memspace, size, 0);
       break;
     case 4: // pci io anywhere
-      r = rman_allocate_resource_anywhere(&gtpci->rman_pci_iospace, size);
+      r = rman_allocate_resource_anywhere(&gtpci->rman_pci_iospace, size, 0);
       break;
     default:
       return NULL;

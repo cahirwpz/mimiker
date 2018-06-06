@@ -38,12 +38,12 @@ static int rootdev_attach(device_t *dev) {
 }
 
 static resource_t *rootdev_resource_alloc(device_t *rootdev, device_t *dev,
-                                          unsigned flags, rman_addr start,
-                                          rman_addr end, rman_addr size) {
+                                          unsigned flags, rman_addr_t start,
+                                          rman_addr_t end, rman_addr_t size) {
 
   kprintf("dupa: %s allocates resource [%lx, %lx] of size %ld for %s\n",
           rootdev->driver->desc, start, end, size, dev->driver->desc);
-  return rman_allocate_resource(&rm_mem, start, end, size);
+  return rman_allocate_resource(&rm_mem, start, end, size, 0);
 }
 
 static bus_driver_t rootdev_driver = {
