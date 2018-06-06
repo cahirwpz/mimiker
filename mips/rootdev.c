@@ -42,9 +42,11 @@ static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
                                           int type, int rid, rman_addr_t start,
                                           rman_addr_t end, rman_addr_t size, unsigned flags) {
 
-  klog("%s allocates resource [%lx, %lx] of size %ld for %s\n",
+  klog("%s allocates resource [%lx, %lx] of size %ld for %s",
           bus->driver->desc, start, end, size, child->driver->desc);
-  return rman_allocate_resource(&rm_mem, start, end, size, 0);
+  resource_t *r = rman_allocate_resource(&rm_mem, start, end, size, 0);
+  r->r_owner = child;
+  return r;
 }
 
 static bus_driver_t rootdev_driver = {

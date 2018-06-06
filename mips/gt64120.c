@@ -371,8 +371,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
 
   switch (type) {
     case SYS_RES_PCI_MEM: // pci memory
-      r =
-        rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size, 0);
+      r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size, 0);
       break;
     case SYS_RES_PCI_IO: // pci io ports
       r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size, 0);
@@ -386,7 +385,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   if(flags & RF_NEEDS_ACTIVATION && r){
     pci_write_config(dev, rid, 4, r->r_start);
   }
-
+  r->r_owner = dev;
   r->r_bus_space = &gt_pci_bus_space;
   return r;
 }
