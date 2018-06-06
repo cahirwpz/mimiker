@@ -12,6 +12,7 @@
 #include <ktest.h>
 #include <signal.h>
 #include <spinlock.h>
+#include <mutex.h>
 #include <sched.h>
 #include <interrupt.h>
 #include <sysinit.h>
@@ -90,6 +91,7 @@ static void pmap_setup(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   pmap->start = start;
   pmap->end = end;
   pmap->asid = alloc_asid();
+  mtx_init(&pmap->mtx, MTX_DEF);
   klog("Page directory table allocated at %p", (vm_addr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
 
@@ -145,16 +147,16 @@ void pmap_delete(pmap_t *pmap) {
 
 bool pmap_is_mapped(pmap_t *pmap, vm_addr_t vaddr) {
   assert(is_aligned(vaddr, PAGESIZE));
+  SCOPED_MTX_LOCK(&pmap->mtx);
   if (is_valid(PDE_OF(pmap, vaddr)))
     if (is_valid(PTE_OF(pmap, vaddr)))
       return true;
   return false;
 }
 
-bool pmap_is_range_mapped(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
-  assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
-  assert(start < end);
-
+/* Internal use, assumes pmap is locked. */
+static bool _pmap_is_range_mapped(pmap_t *pmap, vm_addr_t start,
+                                  vm_addr_t end) {
   vm_addr_t addr;
 
   for (addr = start; addr < end; addr += PD_ENTRIES * PAGESIZE)
@@ -166,6 +168,13 @@ bool pmap_is_range_mapped(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
       return false;
 
   return true;
+}
+
+bool pmap_is_range_mapped(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
+  assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
+  assert(start < end);
+  SCOPED_MTX_LOCK(&pmap->mtx);
+  return _pmap_is_range_mapped(pmap, start, end);
 }
 
 /* Add PT to PD so kernel can handle access to @vaddr. */
@@ -262,7 +271,7 @@ bool pmap_probe(pmap_t *pmap, vm_addr_t start, vm_addr_t end, vm_prot_t prot) {
     return false;
 
   pte_t expected = vm_prot_map[prot];
-
+  SCOPED_MTX_LOCK(&pmap->mtx);
   while (start < end) {
     pte_t pte = is_valid(PDE_OF(pmap, start)) ? PTE_OF(pmap, start) : 0;
     tlbentry_t e = {.hi = PTE_VPN2(start) | PTE_ASID(pmap->asid)};
@@ -290,7 +299,8 @@ void pmap_map(pmap_t *pmap, vm_addr_t start, vm_addr_t end, pm_addr_t paddr,
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
   assert(is_aligned(paddr, PAGESIZE));
-  assert(!pmap_is_range_mapped(pmap, start, end));
+  SCOPED_MTX_LOCK(&pmap->mtx);
+  assert(!_pmap_is_range_mapped(pmap, start, end));
 
   while (start < end) {
     pmap_set_pte(pmap, start, paddr, prot);
@@ -301,7 +311,8 @@ void pmap_map(pmap_t *pmap, vm_addr_t start, vm_addr_t end, pm_addr_t paddr,
 void pmap_unmap(pmap_t *pmap, vm_addr_t start, vm_addr_t end) {
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
-  assert(pmap_is_range_mapped(pmap, start, end));
+  SCOPED_MTX_LOCK(&pmap->mtx);
+  assert(_pmap_is_range_mapped(pmap, start, end));
 
   while (start < end) {
     pmap_clear_pte(pmap, start);
@@ -313,7 +324,8 @@ void pmap_protect(pmap_t *pmap, vm_addr_t start, vm_addr_t end,
                   vm_prot_t prot) {
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
-  assert(pmap_is_range_mapped(pmap, start, end));
+  SCOPED_MTX_LOCK(&pmap->mtx);
+  assert(_pmap_is_range_mapped(pmap, start, end));
 
   while (start < end) {
     pmap_change_pte(pmap, start, prot);
@@ -373,7 +385,10 @@ void tlb_exception_handler(exc_frame_t *frame) {
     goto fault;
   }
   vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
-  if (vm_page_fault(map, vaddr, access) == 0)
+  intr_enable();
+  int ret = vm_page_fault(map, vaddr, access);
+  intr_disable();
+  if (ret == 0)
     return;
 
 fault:
