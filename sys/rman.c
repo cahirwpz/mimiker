@@ -3,6 +3,8 @@
 #define APPLY_ALIGNMENT(addr, align)                                           \
   (addr % align == 0 ? addr : addr + align - addr % align)
 
+static MALLOC_DEFINE(M_RMAN, "rman", 1, 2); // TODO are these numbers ok?
+
 static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
                                  rman_addr_t count, rman_addr_t align) {
   resource_t *resource;
@@ -89,8 +91,7 @@ static void rman_init(rman_t *rm) {
   LIST_INIT(&rm->rm_resources);
 
   // TODO so maybe we don't need to store start and end in rman_t?
-  // TODO don't use M_DEV
-  resource_t *whole_space = kmalloc(M_DEV, sizeof(resource_t), M_ZERO);
+  resource_t *whole_space = kmalloc(M_RMAN, sizeof(resource_t), M_ZERO);
 
   whole_space->r_start = rm->rm_start;
   whole_space->r_end = rm->rm_end;
@@ -106,10 +107,14 @@ void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end) {
 }
 
 unsigned rman_make_alignment_flags(rman_addr_t align) {
-  // TODO ceil
+  unsigned num = align;
   unsigned log2 = 0;
 
-  while (align >>= 1)
+  while (num >>= 1)
     ++log2;
+
+  if (log2 << RF_ALIGNMENT_SHIFT != align) // ceil()
+    align <<= 1;
+
   return log2 << RF_ALIGNMENT_SHIFT;
 }
