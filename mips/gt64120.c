@@ -12,8 +12,8 @@
 #include <spinlock.h>
 #include <stdc.h>
 #include <klog.h>
-// #include <rman.h>
 #include <bus.h>
+#include <mips/resource.h>
 
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
@@ -290,17 +290,17 @@ static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
   resource_t *rs_pci_mem =
-    bus_resource_alloc(pcib, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END,
-                       MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1);
+    bus_resource_alloc(pcib, 0, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END,
+                       MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1, 0);
   resource_t *rs_pci_io = bus_resource_alloc(
-    pcib, 0, MALTA_PCI0_EXCLUSIVE_IO_BASE, MALTA_PCI0_EXCLUSIVE_IO_END,
-    MALTA_PCI0_EXCLUSIVE_IO_END - MALTA_PCI0_EXCLUSIVE_IO_BASE + 1);
+    pcib, 0, 0 ,MALTA_PCI0_EXCLUSIVE_IO_BASE, MALTA_PCI0_EXCLUSIVE_IO_END,
+    MALTA_PCI0_EXCLUSIVE_IO_END - MALTA_PCI0_EXCLUSIVE_IO_BASE + 1, 0);
   resource_t *rs_ctrl =
-    bus_resource_alloc(pcib, 0, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END,
-                       MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1);
+    bus_resource_alloc(pcib, 0, 0, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END,
+                       MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1, 0);
   resource_t *rs_isa_io = bus_resource_alloc(
-    pcib, 0, MALTA_PCI0_TO_ISA_BRIDGE_BASE, MALTA_PCI0_TO_ISA_BRIDGE_END,
-    MALTA_PCI0_TO_ISA_BRIDGE_END - MALTA_PCI0_TO_ISA_BRIDGE_BASE + 1);
+    pcib, 0, 0, MALTA_PCI0_TO_ISA_BRIDGE_BASE, MALTA_PCI0_TO_ISA_BRIDGE_END,
+    MALTA_PCI0_TO_ISA_BRIDGE_END - MALTA_PCI0_TO_ISA_BRIDGE_BASE + 1, 0);
 
   assert(rs_pci_mem != NULL);
   assert(rs_pci_io != NULL);
@@ -353,39 +353,32 @@ static int gt_pci_attach(device_t *pcib) {
   gt_pci_intr_chain_init(gtpci, 15, "ide(1)"); /* IDE secondary */
 
   pci_bus_enumerate(pcib);
-  // pci_bus_assign_space(pcib);
-  pci_bus_dump(pcib);
 
   gtpci->intr_handler =
     INTR_HANDLER_INIT(gt_pci_intr, NULL, gtpci, "GT64120 interrupt", 0);
   bus_intr_setup(pcib, MIPS_HWINT0, &gtpci->intr_handler);
 
+  // pci_bus_dump(pcib); // after generic_probe?
   return bus_generic_probe(pcib);
 }
 
 static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
-                                         unsigned flags, rman_addr_t start,
-                                         rman_addr_t end, rman_addr_t size) {
+                                         int type, int rid, rman_addr_t start,
+                                         rman_addr_t end, rman_addr_t size, unsigned flags) {
 
   gt_pci_state_t *gtpci = pcib->state;
   resource_t *r;
 
-  switch (flags) {
-    case 0: // pci memory
+  switch (type) {
+    case SYS_RES_PCI_MEM: // pci memory
       r =
         rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size, 0);
       break;
-    case 1: // pci io ports
+    case SYS_RES_PCI_IO: // pci io ports
       r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size, 0);
       break;
-    case 2: // temporary isa io workaround
+    case SYS_RES_ISA: // temporary isa io workaround
       return gtpci->isa_io;
-    case 3: // pci memory anywhere
-      r = rman_allocate_resource_anywhere(&gtpci->rman_pci_memspace, size, 0);
-      break;
-    case 4: // pci io anywhere
-      r = rman_allocate_resource_anywhere(&gtpci->rman_pci_iospace, size, 0);
-      break;
     default:
       return NULL;
   }

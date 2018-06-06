@@ -23,9 +23,11 @@ typedef struct bus_space bus_space_t;
 /* According to PCI specification prefetchable bit is CLEAR when memory mapped
  * resource contains locations with read side-effects or locations in which the
  * device does not tolerate write merging. */
+#define RF_EXCLUSIVE 0
 #define RF_PREFETCHABLE 1
 #define RF_SHARED 2 // TODO
 #define RF_ALLOCATED 4
+#define RF_NEEDS_ACTIVATION 8
 
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */

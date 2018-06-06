@@ -1,6 +1,7 @@
 #define KL_LOG KL_DEV
 #include <klog.h>
 #include <mips/malta.h>
+#include <mips/resource.h>
 #include <mips/intr.h>
 #include <bus.h>
 #include <exception.h>
@@ -37,12 +38,12 @@ static int rootdev_attach(device_t *dev) {
   return 0;
 }
 
-static resource_t *rootdev_resource_alloc(device_t *rootdev, device_t *dev,
-                                          unsigned flags, rman_addr_t start,
-                                          rman_addr_t end, rman_addr_t size) {
+static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
+                                          int type, int rid, rman_addr_t start,
+                                          rman_addr_t end, rman_addr_t size, unsigned flags) {
 
-  kprintf("dupa: %s allocates resource [%lx, %lx] of size %ld for %s\n",
-          rootdev->driver->desc, start, end, size, dev->driver->desc);
+  klog("%s allocates resource [%lx, %lx] of size %ld for %s\n",
+          bus->driver->desc, start, end, size, child->driver->desc);
   return rman_allocate_resource(&rm_mem, start, end, size, 0);
 }
 
