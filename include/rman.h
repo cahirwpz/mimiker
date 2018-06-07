@@ -25,12 +25,6 @@ typedef struct bus_space bus_space_t;
 #define RF_ALLOCATED 4
 #define RF_NEEDS_ACTIVATION 8
 
-/* alingment is always power of two, and log2() of it is stored in rf_flags */
-#define RF_ALIGNMENT_SHIFT 10
-#define RF_ALIGNMENT_MASK (0x003F << RF_ALIGNMENT_SHIFT)
-#define RF_GET_ALIGNMENT(x)                                                    \
-  (1 << (((x)&RF_ALIGNMENT_MASK) >> RF_ALIGNMENT_SHIFT))
-
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */
   void *r_owner;            /* pointer to device that owns this resource */
@@ -38,6 +32,7 @@ struct resource {
   rman_addr_t r_end; /* last (inclusive) physical address of the resource */
   unsigned r_type;
   unsigned r_flags;
+  size_t r_align;
   int r_id; /* (optional) resource identifier */
   LIST_ENTRY(resource) r_resources;
 };
@@ -51,12 +46,14 @@ struct rman {
 
 /* returns null if unable to allocate */
 resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
-                                   rman_addr_t end, size_t count,
+                                   rman_addr_t end, size_t count, size_t align,
                                    unsigned flags);
 
-static inline resource_t *
-rman_allocate_resource_anywhere(rman_t *rm, size_t count, unsigned flags) {
-  return rman_allocate_resource(rm, 0, (rman_addr_t)~0, count, flags);
+static inline resource_t *rman_allocate_resource_anywhere(rman_t *rm,
+                                                          size_t count,
+                                                          size_t align,
+                                                          unsigned flags) {
+  return rman_allocate_resource(rm, 0, (rman_addr_t)~0, count, align, flags);
 }
 
 void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end);
@@ -64,7 +61,5 @@ void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end);
 static inline void rman_create_from_resource(rman_t *rm, resource_t *res) {
   rman_create(rm, res->r_start, res->r_end);
 }
-
-unsigned rman_make_alignment_flags(rman_addr_t align);
 
 #endif /* _SYS_RMAN_H_ */
