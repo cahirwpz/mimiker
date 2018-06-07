@@ -9,7 +9,6 @@
 typedef long unsigned rman_addr_t;
 
 typedef struct rman rman_t;
-typedef struct rman_block rman_block_t;
 typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 
@@ -52,11 +51,11 @@ struct rman {
 
 /* returns null if unable to allocate */
 resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
-                                   rman_addr_t end, rman_addr_t count,
+                                   rman_addr_t end, size_t count,
                                    unsigned flags);
 
 static inline resource_t *
-rman_allocate_resource_anywhere(rman_t *rm, rman_addr_t count, unsigned flags) {
+rman_allocate_resource_anywhere(rman_t *rm, size_t count, unsigned flags) {
   return rman_allocate_resource(rm, 0, (rman_addr_t)~0, count, flags);
 }
 

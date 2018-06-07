@@ -1,8 +1,5 @@
 #include <rman.h>
 
-#define APPLY_ALIGNMENT(addr, align)                                           \
-  (addr % align == 0 ? addr : addr + align - addr % align)
-
 static MALLOC_DEFINE(M_RMAN, "rman", 1, 2); /* TODO are these numbers ok? */
 
 static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
@@ -18,7 +15,7 @@ static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
     }
 
     /* calculate common part and check if is big enough */
-    rman_addr_t s = APPLY_ALIGNMENT(max(start, resource->r_start), align);
+    rman_addr_t s = align(max(start, resource->r_start), align);
     rman_addr_t e = min(end, resource->r_end);
 
     rman_addr_t len = s - e + 1;
@@ -61,7 +58,7 @@ static resource_t *cut_resource(resource_t *resource, rman_addr_t where) {
 /* maybe split resource into two or three in order to recover space before and
  after allocation */
 static resource_t *split_resource(resource_t *resource, rman_addr_t start,
-                                  rman_addr_t end, rman_addr_t count) {
+                                  rman_addr_t end, size_t count) {
   if (resource->r_start < start) {
     resource = cut_resource(resource, start);
   }
@@ -74,7 +71,7 @@ static resource_t *split_resource(resource_t *resource, rman_addr_t start,
 }
 
 resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
-                                   rman_addr_t end, rman_addr_t count,
+                                   rman_addr_t end, size_t count,
                                    unsigned flags) {
   SCOPED_MTX_LOCK(&rm->rm_mtx);
 
@@ -86,8 +83,7 @@ resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
     return NULL;
   }
 
-  resource =
-    split_resource(resource, APPLY_ALIGNMENT(start, align), end, count);
+  resource = split_resource(resource, align(start, align), end, count);
   resource->r_flags = flags;
   resource->r_flags |= RF_ALLOCATED;
 
