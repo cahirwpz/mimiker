@@ -4,7 +4,6 @@
 #include <common.h>
 #include <mutex.h>
 #include <queue.h>
-#include <malloc.h>
 
 typedef unsigned rman_addr_t;
 
@@ -35,10 +34,7 @@ typedef struct bus_space bus_space_t;
 #define RF_ALLOCATED 4
 #define RF_NEEDS_ACTIVATION 8
 
-
 /* We need PCI-ISA bridge in order to define resource types like this: */
-
-
 
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */

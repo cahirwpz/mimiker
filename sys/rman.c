@@ -1,6 +1,7 @@
 #include <rman.h>
+#include <pool.h>
 
-static MALLOC_DEFINE(M_RMAN, "rman", 1, 2); /* TODO are these numbers ok? */
+static pool_t P_RMAN;
 
 static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
                                  rman_addr_t count, rman_addr_t align,
@@ -43,7 +44,7 @@ static resource_t *cut_resource(resource_t *resource, rman_addr_t where) {
   assert(where < resource->r_end);
 
   resource_t *left_resource = resource;
-  resource_t *right_resource = kmalloc(M_RMAN, sizeof(resource_t), M_ZERO);
+  resource_t *right_resource = pool_alloc(P_RMAN, PF_ZERO);
 
   left_resource->r_resources.le_next = right_resource;
   right_resource->r_resources.le_prev = &left_resource;
@@ -91,11 +92,16 @@ resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
 }
 
 static void rman_init(rman_t *rm) {
+  static int once = 0;
+  if (!once) {
+    once = 1;
+    P_RMAN = pool_create("rman", sizeof(resource_t), NULL, NULL);
+  }
+
   mtx_init(&rm->rm_mtx, MTX_DEF);
   LIST_INIT(&rm->rm_resources);
 
-  // TODO so maybe we don't need to store start and end in rman_t?
-  resource_t *whole_space = kmalloc(M_RMAN, sizeof(resource_t), M_ZERO);
+  resource_t *whole_space = pool_alloc(P_RMAN, PF_ZERO);
 
   whole_space->r_start = rm->rm_start;
   whole_space->r_end = rm->rm_end;
