@@ -5,6 +5,7 @@
 #include <thread.h>
 #include <sched.h>
 
+#if 0
 static volatile int wakeups;
 
 static void test_thread(void *p) {
@@ -47,3 +48,4 @@ static int test_sleepq_sync(void) {
 }
 
 KTEST_ADD(sleepq_sync, test_sleepq_sync, 0);
+#endif

@@ -12,7 +12,9 @@ static intr_chain_list_t all_ichains_list =
 
 bool intr_disabled(void) {
   thread_t *td = thread_self();
-  return (td->td_idnest > 0) && mips_intr_disabled();
+  bool a = td->td_idnest > 0;
+  bool b = mips_intr_disabled();
+  return a && b;
 }
 
 void intr_disable(void) {
