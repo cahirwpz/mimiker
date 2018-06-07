@@ -112,7 +112,8 @@ int tm_init(timer_t *tm, tm_event_cb_t event, void *arg) {
   return 0;
 }
 
-int tm_start(timer_t *tm, unsigned flags, const bintime_t value) {
+int tm_start(timer_t *tm, unsigned flags, const bintime_t start,
+             const bintime_t period) {
   assert(is_initialized(tm));
 
   if (is_active(tm))
@@ -120,12 +121,12 @@ int tm_start(timer_t *tm, unsigned flags, const bintime_t value) {
   if (((tm->tm_flags & flags) & TMF_TYPEMASK) == 0)
     return ENODEV;
   if (flags & TMF_PERIODIC) {
-    if (bintime_cmp(value, tm->tm_min_period, <) ||
-        bintime_cmp(value, tm->tm_max_period, >))
+    if (bintime_cmp(period, tm->tm_min_period, <) ||
+        bintime_cmp(period, tm->tm_max_period, >))
       return EINVAL;
   }
 
-  int retval = tm->tm_start(tm, flags, value);
+  int retval = tm->tm_start(tm, flags, start, period);
   if (retval == 0)
     tm->tm_flags |= TMF_ACTIVE;
   return retval;
@@ -148,4 +149,22 @@ void tm_trigger(timer_t *tm) {
   assert(intr_disabled());
 
   tm->tm_event_cb(tm, tm->tm_arg);
+}
+
+static timer_t *time_source = NULL;
+
+void tm_select(timer_t *tm) {
+  time_source = tm;
+}
+
+bintime_t getbintime(void) {
+  /* XXX: probably a race condition here */
+  timer_t *tm = time_source;
+  if (tm == NULL)
+    return (bintime_t){0, 0};
+  return tm->tm_gettime(tm);
+}
+
+timeval_t get_uptime(void) {
+  return bt2tv(getbintime());
 }
