@@ -3,7 +3,7 @@ Test infrastructure
 
 ### Running tests
 
-If you just want to run all available test please use `./run_tests.py`. This is
+If you just want to run all available tests please use `./run_tests.py`. This is
 the command that is used by continuous integration. Some useful arguments are
 listed below:
 
