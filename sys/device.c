@@ -3,6 +3,7 @@
 #include <klog.h>
 #include <device.h>
 #include <pci.h>
+#include <rman.h>
 
 MALLOC_DEFINE(M_DEV, "devices & drivers", 128, 1024);
 
@@ -72,4 +73,19 @@ device_t *make_device(device_t *parent, driver_t *driver) {
   if (device_probe(dev))
     device_attach(dev);
   return dev;
+}
+
+/* what about rtc devices? */
+void dump_device_tree_resources(device_t *dev, int nest){
+  if(!dev->driver)
+    return;
+  device_t *child;
+  resource_t *r;
+  kprintf("%s resources:\n", dev->driver->desc);
+  LIST_FOREACH(r, &dev->resources, r_device){
+    kprintf("start: %x, end: %x\n", r->r_start, r->r_end);
+  }
+  TAILQ_FOREACH(child, &dev->children, link){
+    dump_device_tree_resources(child, nest + 1);
+  }
 }

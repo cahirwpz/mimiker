@@ -118,18 +118,18 @@ void pci_bus_dump(device_t *pcib) {
       kprintf("%s Interrupt: pin %c routed to IRQ %d\n", devstr,
               'A' + pcid->pin - 1, pcid->irq);
 
-    for (unsigned i = 0; i < pcid->nbars; i++) {
-      resource_t *bar = &pcid->bar[i];
+    resource_t *r = NULL;
+    LIST_FOREACH(r, &dev->resources, r_device){
       char *type;
 
-      if (bar->r_type == RT_IOPORTS) {
+      if (r->r_type == RT_IOPORTS) {
         type = "I/O ports";
       } else {
-        type = (bar->r_flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
+        type = (r->r_flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
                                                 : "Memory (non-prefetchable)";
       }
-      kprintf("%s Region %d: %s at %p [size=$%x]\n", devstr, i, type,
-              (void *)bar->r_start, (unsigned)(bar->r_end - bar->r_start + 1));
+      kprintf("%s Region %x: %s at %p [size=$%x]\n", devstr, r->r_id, type,
+              (void *)r->r_start, (unsigned)(r->r_end - r->r_start + 1));
     }
   }
 }

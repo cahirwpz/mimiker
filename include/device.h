@@ -51,6 +51,9 @@ int device_detach(device_t *dev);
 /* Manually create a device with given driver and parent device. */
 device_t *make_device(device_t *parent, driver_t *driver);
 
+/* Prints device tree with allocated resources. */
+void dump_device_tree_resources(device_t *dev, int nest);
+
 /* A universal memory pool to be used by all drivers. */
 MALLOC_DECLARE(M_DEV);
 
