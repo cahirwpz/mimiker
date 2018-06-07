@@ -289,33 +289,28 @@ static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
-  resource_t *rs_pci_mem = bus_resource_alloc(
+  gtpci->pci_mem = bus_resource_alloc(
     pcib, 0, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END,
     MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1, 0);
-  resource_t *rs_pci_io = bus_resource_alloc(
+  gtpci->pci_io = bus_resource_alloc(
     pcib, 0, 0, MALTA_PCI0_EXCLUSIVE_IO_BASE, MALTA_PCI0_EXCLUSIVE_IO_END,
     MALTA_PCI0_EXCLUSIVE_IO_END - MALTA_PCI0_EXCLUSIVE_IO_BASE + 1, 0);
-  resource_t *rs_ctrl =
+  gtpci->corectrl =
     bus_resource_alloc(pcib, 0, 0, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END,
                        MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1, 0);
-  resource_t *rs_isa_io = bus_resource_alloc(
+  gtpci->isa_io = bus_resource_alloc(
     pcib, 0, 0, MALTA_PCI0_TO_ISA_BRIDGE_BASE, MALTA_PCI0_TO_ISA_BRIDGE_END,
     MALTA_PCI0_TO_ISA_BRIDGE_END - MALTA_PCI0_TO_ISA_BRIDGE_BASE + 1, 0);
 
-  assert(rs_pci_mem != NULL);
-  assert(rs_pci_io != NULL);
-  assert(rs_ctrl != NULL);
-  assert(rs_isa_io != NULL);
+  if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
+      gtpci->pci_io == NULL || gtpci->isa_io == NULL) {
+    panic("gt64120 resource allocation fail");
+  }
 
-  gtpci->corectrl = rs_ctrl;
-  gtpci->pci_mem = rs_pci_mem;
-  gtpci->pci_io = rs_pci_io;
-  gtpci->isa_io = rs_isa_io;
-
-  rs_ctrl->r_bus_space = &gt_pci_bus_space;
-  rs_pci_mem->r_bus_space = &gt_pci_bus_space;
-  rs_pci_io->r_bus_space = &gt_pci_bus_space;
-  rs_isa_io->r_bus_space = &gt_pci_bus_space;
+  gtpci->corectrl->r_bus_space = &gt_pci_bus_space;
+  gtpci->pci_mem->r_bus_space = &gt_pci_bus_space;
+  gtpci->pci_io->r_bus_space = &gt_pci_bus_space;
+  gtpci->isa_io->r_bus_space = &gt_pci_bus_space;
 
   rman_create_from_resource(&gtpci->rman_pci_iospace, gtpci->pci_io);
   rman_create_from_resource(&gtpci->rman_pci_memspace, gtpci->pci_mem);
@@ -368,29 +363,31 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
                                          unsigned flags) {
 
   gt_pci_state_t *gtpci = pcib->state;
-  resource_t *r;
+  resource_t *r = NULL;
 
-  switch (type) {
-    case SYS_RES_PCI_MEM: // pci memory
-      r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size,
-                                 RF_NONE | flags);
-      break;
-    case SYS_RES_PCI_IO: // pci io ports
-      r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size,
-                                 RF_NONE | flags);
-      break;
-    case SYS_RES_ISA: // temporary isa io workaround
-      return gtpci->isa_io;
-    default:
-      return NULL;
+  if (type & SYS_RES_PCI_MEM) {
+    r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size,
+                               RF_NONE | flags);
+  }
+  if (type & SYS_RES_PCI_IO) {
+    r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size,
+                               RF_NONE | flags);
+  }
+  if (type & SYS_RES_ISA) {
+    return gtpci->isa_io;
   }
 
   if (flags & RF_NEEDS_ACTIVATION && r) {
     pci_write_config(dev, rid, 4, r->r_start);
   }
-  r->r_owner = dev;
-  r->r_bus_space = &gt_pci_bus_space;
-  return r;
+
+  if(r){
+    r->r_owner = dev;
+    r->r_bus_space = &gt_pci_bus_space;
+    return r;
+  }
+
+  return NULL;
 }
 
 pci_bus_driver_t gt_pci_bus = {
