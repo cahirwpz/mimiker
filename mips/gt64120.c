@@ -368,10 +368,10 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
 
   if (type & SYS_RES_PCI_MEM) {
     r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size,
-                               RF_NONE | flags);
+                               size, RF_NONE | flags);
   }
   if (type & SYS_RES_PCI_IO) {
-    r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size,
+    r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size, size,
                                RF_NONE | flags);
   }
   if (type & SYS_RES_ISA) {
@@ -382,7 +382,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
     pci_write_config(dev, rid, 4, r->r_start);
   }
 
-  if(r){
+  if (r) {
     r->r_owner = dev;
     r->r_bus_space = &gt_pci_bus_space;
     LIST_INSERT_HEAD(&dev->resources, r ,r_device);
