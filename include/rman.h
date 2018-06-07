@@ -2,8 +2,9 @@
 #define _SYS_RMAN_H_
 
 #include <common.h>
-#include <device.h>
 #include <mutex.h>
+#include <queue.h>
+#include <malloc.h>
 
 typedef long unsigned rman_addr_t;
 
@@ -12,11 +13,6 @@ typedef struct rman_block rman_block_t;
 typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 
-/* TODO update this comment
- * `resource` describes a range of addresses where a resource is mapped within
- * resource. A driver will use addresses from `r_start` to `r_end` and
- * `r_bus_space` routines to access hardware resource, so that the actual
- * driver code is not tied to way handled device is attached to the system. */
 #define RT_UNKNOWN 0
 #define RT_MEMORY 1
 #define RT_IOPORTS 2
@@ -54,7 +50,7 @@ struct rman {
   LIST_HEAD(, resource) rm_resources;
 };
 
-// returns null if unable to allocate
+/* returns null if unable to allocate */
 resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
                                    rman_addr_t end, rman_addr_t count,
                                    unsigned flags);

@@ -3,6 +3,7 @@
 
 #include <rman.h>
 #include <klog.h>
+#include <device.h>
 
 typedef struct bus_space bus_space_t;
 typedef struct bus_methods bus_methods_t;
@@ -115,7 +116,7 @@ static inline resource_t *bus_resource_alloc(device_t *dev, int type, int rid,
                                              rman_addr_t start, rman_addr_t end,
                                              rman_addr_t size, unsigned flags) {
   klog("%s allocates resource [%lx, %lx] of size %lx for %s",
-          dev->parent->driver->desc, start, end, size, dev->driver->desc);
+       dev->parent->driver->desc, start, end, size, dev->driver->desc);
   return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, start,
                                              end, size, flags);
 }
@@ -124,7 +125,7 @@ static inline resource_t *bus_resource_alloc_anywhere(device_t *dev, int type,
                                                       int rid, rman_addr_t size,
                                                       unsigned flags) {
   klog("%s allocates resource anywhere of size %lx for %s",
-          dev->parent->driver->desc, size, dev->driver->desc);
+       dev->parent->driver->desc, size, dev->driver->desc);
   return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0, ~0,
                                              size, flags);
 }

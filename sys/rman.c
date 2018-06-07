@@ -3,7 +3,7 @@
 #define APPLY_ALIGNMENT(addr, align)                                           \
   (addr % align == 0 ? addr : addr + align - addr % align)
 
-static MALLOC_DEFINE(M_RMAN, "rman", 1, 2); // TODO are these numbers ok?
+static MALLOC_DEFINE(M_RMAN, "rman", 1, 2); /* TODO are these numbers ok? */
 
 static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
                                  rman_addr_t count, rman_addr_t align,
@@ -17,13 +17,14 @@ static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
       continue;
     }
 
-    // calculate common part and check if is big enough
+    /* calculate common part and check if is big enough */
     rman_addr_t s = APPLY_ALIGNMENT(max(start, resource->r_start), align);
     rman_addr_t e = min(end, resource->r_end);
 
     rman_addr_t len = s - e + 1;
 
-    // when trying to use existing resource, flags and size should be the same
+    /* when trying to use existing resource, flags and size should be the same
+     */
     if (flags & RF_SHARED)
       if (flags != resource->r_flags ||
           count != resource->r_end - resource->r_start + 1)
@@ -37,15 +38,15 @@ static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
   return NULL;
 }
 
-// divide resource into two
-// `where` means start of right resource
-// function returns pointer to new (right) resource
+/* divide resource into two
+ `where` means start of right resource
+ function returns pointer to new (right) resource */
 static resource_t *cut_resource(resource_t *resource, rman_addr_t where) {
   assert(where > resource->r_start);
   assert(where < resource->r_end);
 
   resource_t *left_resource = resource;
-  resource_t *right_resource = kmalloc(M_DEV, sizeof(resource_t), M_ZERO);
+  resource_t *right_resource = kmalloc(M_RMAN, sizeof(resource_t), M_ZERO);
 
   left_resource->r_resources.le_next = right_resource;
   right_resource->r_resources.le_prev = &left_resource;
@@ -57,8 +58,8 @@ static resource_t *cut_resource(resource_t *resource, rman_addr_t where) {
   return right_resource;
 }
 
-// maybe split resource into two or three in order to recover space before and
-// after allocation
+/* maybe split resource into two or three in order to recover space before and
+ after allocation */
 static resource_t *split_resource(resource_t *resource, rman_addr_t start,
                                   rman_addr_t end, rman_addr_t count) {
   if (resource->r_start < start) {
@@ -120,7 +121,7 @@ unsigned rman_make_alignment_flags(rman_addr_t align) {
   while (num >>= 1)
     ++log2;
 
-  if (log2 << RF_ALIGNMENT_SHIFT != align) // ceil()
+  if (log2 << RF_ALIGNMENT_SHIFT != align) /* ceil() */
     align <<= 1;
 
   return log2 << RF_ALIGNMENT_SHIFT;
