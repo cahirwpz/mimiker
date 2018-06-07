@@ -74,4 +74,6 @@ static inline void rman_create_from_resource(rman_t *rm, resource_t *res) {
   rman_create(rm, res->r_start, res->r_end);
 }
 
+void rman_init(void);
+
 #endif /* _SYS_RMAN_H_ */

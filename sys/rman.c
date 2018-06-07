@@ -91,12 +91,9 @@ resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
   return resource;
 }
 
-static void rman_init(rman_t *rm) {
-  static int once = 0;
-  if (!once) {
-    once = 1;
-    P_RMAN = pool_create("rman", sizeof(resource_t), NULL, NULL);
-  }
+void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end) {
+  rm->rm_start = start;
+  rm->rm_end = end;
 
   mtx_init(&rm->rm_mtx, MTX_DEF);
   LIST_INIT(&rm->rm_resources);
@@ -109,9 +106,6 @@ static void rman_init(rman_t *rm) {
   LIST_INSERT_HEAD(&rm->rm_resources, whole_space, r_resources);
 }
 
-void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end) {
-  rm->rm_start = start;
-  rm->rm_end = end;
-
-  rman_init(rm);
+void rman_init(void) {
+  P_RMAN = pool_create("rman", sizeof(resource_t), NULL, NULL);
 }
