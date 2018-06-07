@@ -13,7 +13,6 @@
 #include <stdc.h>
 #include <klog.h>
 #include <bus.h>
-#include <mips/resource.h>
 
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
@@ -366,30 +365,29 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   gt_pci_state_t *gtpci = pcib->state;
   resource_t *r = NULL;
 
-  if (type & SYS_RES_PCI_MEM) {
+  if (type & RT_PCI_MEMORY) 
     r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size,
                                size, RF_NONE | flags);
-  }
-  if (type & SYS_RES_PCI_IO) {
+
+  if (type & RT_PCI_IOPORTS)
     r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size, size,
                                RF_NONE | flags);
-  }
-  if (type & SYS_RES_ISA) {
-    return gtpci->isa_io;
-  }
 
-  if (flags & RF_NEEDS_ACTIVATION && r) {
+  /* Hack to directly return ISAB resource. Need to implement PCI-ISA bridge */
+  if (type & RT_PCI_ISAB)
+    return gtpci->isa_io;
+  
+  /* Write BAR address to device register. */
+  if (flags & RF_NEEDS_ACTIVATION && r)
     pci_write_config(dev, rid, 4, r->r_start);
-  }
 
   if (r) {
     r->r_owner = dev;
     r->r_bus_space = &gt_pci_bus_space;
     LIST_INSERT_HEAD(&dev->resources, r ,r_device);
-    return r;
   }
 
-  return NULL;
+  return r;
 }
 
 pci_bus_driver_t gt_pci_bus = {

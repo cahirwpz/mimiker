@@ -12,9 +12,19 @@ typedef struct rman rman_t;
 typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 
+/* We need to have some PCI-ISA bridge driver in place. */
+#if 0
 #define RT_UNKNOWN 0
 #define RT_MEMORY 1
 #define RT_IOPORTS 2
+#define RT_IRQ 4
+#else
+#define RT_UNKNOWN 0
+#define RT_PCI_MEMORY 1
+#define RT_PCI_IOPORTS 2
+#define RT_PCI_ISAB 4
+#define RT_IRQ 8
+#endif
 
 #define RF_NONE 0
 /* According to PCI specification prefetchable bit is CLEAR when memory mapped
@@ -24,6 +34,11 @@ typedef struct bus_space bus_space_t;
 #define RF_SHARED 2
 #define RF_ALLOCATED 4
 #define RF_NEEDS_ACTIVATION 8
+
+
+/* We need PCI-ISA bridge in order to define resource types like this: */
+
+
 
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */

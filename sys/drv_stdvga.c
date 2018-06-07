@@ -5,7 +5,6 @@
 #include <errno.h>
 #include <device.h>
 #include <bus.h>
-#include <mips/resource.h>
 
 #define VGA_PALETTE_SIZE (256 * 3)
 
@@ -173,10 +172,10 @@ static int stdvga_attach(device_t *dev) {
 
   stdvga_state_t *stdvga = dev->state;
   stdvga->mem =
-    bus_resource_alloc_anywhere(dev, SYS_RES_PCI_MEM, PCIR_BAR(0),
+    bus_resource_alloc_anywhere(dev, RT_PCI_MEMORY, PCIR_BAR(0),
                                 pcid->bar[1].r_end + 1, RF_NEEDS_ACTIVATION);
   stdvga->io =
-    bus_resource_alloc_anywhere(dev, SYS_RES_PCI_MEM, PCIR_BAR(1),
+    bus_resource_alloc_anywhere(dev, RT_PCI_MEMORY, PCIR_BAR(1),
                                 pcid->bar[1].r_end + 1, RF_NEEDS_ACTIVATION);
 
   stdvga->vga = (vga_device_t){

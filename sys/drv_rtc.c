@@ -11,7 +11,6 @@
 #include <time.h>
 #include <vnode.h>
 #include <sysinit.h>
-#include <mips/resource.h>
 
 #define RTC_ADDR (IO_RTC + 0)
 #define RTC_DATA (IO_RTC + 1)
@@ -91,7 +90,7 @@ static int rtc_attach(device_t *dev) {
 
   rtc_state_t *rtc = dev->state;
 
-  rtc->regs = bus_resource_alloc_anywhere(dev, SYS_RES_ISA, 0, 0, RF_SHARED);
+  rtc->regs = bus_resource_alloc_anywhere(dev, RT_PCI_ISAB, 0, 0, RF_SHARED);
 
   rtc->intr_handler =
     INTR_HANDLER_INIT(rtc_intr, NULL, rtc, "RTC periodic timer", 0);

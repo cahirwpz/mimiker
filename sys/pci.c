@@ -66,11 +66,11 @@ void pci_bus_enumerate(device_t *pcib) {
         unsigned type, flags;
 
         if (addr & PCI_BAR_IO) {
-          type = RT_IOPORTS;
+          type = RT_PCI_IOPORTS;
           flags = RF_NONE;
           size &= ~PCI_BAR_IO_MASK;
         } else {
-          type = RT_MEMORY;
+          type = RT_PCI_MEMORY;
           flags = (addr & PCI_BAR_PREFETCHABLE) ? RF_PREFETCHABLE : RF_NONE;
           size &= ~PCI_BAR_MEMORY_MASK;
         }
@@ -122,7 +122,7 @@ void pci_bus_dump(device_t *pcib) {
     LIST_FOREACH(r, &dev->resources, r_device){
       char *type;
 
-      if (r->r_type == RT_IOPORTS) {
+      if (r->r_type == RT_PCI_IOPORTS) {
         type = "I/O ports";
       } else {
         type = (r->r_flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
