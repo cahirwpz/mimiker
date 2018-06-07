@@ -365,16 +365,16 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   gt_pci_state_t *gtpci = pcib->state;
   resource_t *r = NULL;
 
-  if (type & RT_PCI_MEMORY) 
+  if (type & RT_MEMORY) 
     r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size,
                                size, RF_NONE | flags);
 
-  if (type & RT_PCI_IOPORTS)
+  if (type & RT_IOPORTS)
     r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size, size,
                                RF_NONE | flags);
 
   /* Hack to directly return ISAB resource. Need to implement PCI-ISA bridge */
-  if (type & RT_PCI_ISAB)
+  if (type & RT_ISA)
     return gtpci->isa_io;
   
   /* Write BAR address to device register. */

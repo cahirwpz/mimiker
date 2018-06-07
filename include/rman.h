@@ -20,9 +20,9 @@ typedef struct bus_space bus_space_t;
 #define RT_IRQ 4
 #else
 #define RT_UNKNOWN 0
-#define RT_PCI_MEMORY 1
-#define RT_PCI_IOPORTS 2
-#define RT_PCI_ISAB 4
+#define RT_MEMORY 1
+#define RT_IOPORTS 2
+#define RT_ISA 4
 #define RT_IRQ 8
 #endif
 
