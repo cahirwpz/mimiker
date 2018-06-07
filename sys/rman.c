@@ -6,21 +6,28 @@
 static MALLOC_DEFINE(M_RMAN, "rman", 1, 2); // TODO are these numbers ok?
 
 static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                                 rman_addr_t count, rman_addr_t align) {
+                                 rman_addr_t count, rman_addr_t align,
+                                 unsigned flags) {
   resource_t *resource;
   LIST_FOREACH(resource, &rm->rm_resources, r_resources) {
-    if (resource->r_flags & RF_ALLOCATED || start > resource->r_end ||
-        end < resource->r_start) {
+    if (resource->r_flags & RF_ALLOCATED && !(resource->r_flags & RF_SHARED))
+      continue;
+
+    if (start > resource->r_end || end < resource->r_start) {
       continue;
     }
 
     // calculate common part and check if is big enough
-    rman_addr_t s = max(start, resource->r_start);
+    rman_addr_t s = APPLY_ALIGNMENT(max(start, resource->r_start), align);
     rman_addr_t e = min(end, resource->r_end);
 
-    s = APPLY_ALIGNMENT(s, align);
-
     rman_addr_t len = s - e + 1;
+
+    // when trying to use existing resource, flags and size should be the same
+    if (flags & RF_SHARED)
+      if (flags != resource->r_flags ||
+          count != resource->r_end - resource->r_start + 1)
+        continue;
 
     if (len >= count) {
       return resource;
@@ -73,7 +80,7 @@ resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
   rman_addr_t align = RF_GET_ALIGNMENT(flags);
   align = min(align, sizeof(void *));
 
-  resource_t *resource = find_resource(rm, start, end, count, align);
+  resource_t *resource = find_resource(rm, start, end, count, align, flags);
   if (resource == NULL) {
     return NULL;
   }
