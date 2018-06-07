@@ -63,7 +63,7 @@ static resource_t *split_resource(resource_t *resource, rman_addr_t start,
     resource = cut_resource(resource, start);
   }
 
-  if (resource->r_end > resource->r_start + count - 1) {
+  if ((size_t)resource->r_end > resource->r_start + count - 1) {
     cut_resource(resource, resource->r_start + count);
   }
 

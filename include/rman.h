@@ -6,7 +6,7 @@
 #include <queue.h>
 #include <malloc.h>
 
-typedef long unsigned rman_addr_t;
+typedef intptr_t rman_addr_t;
 
 typedef struct rman rman_t;
 typedef struct resource resource_t;
