@@ -7,7 +7,7 @@ If you just want to run all available tests please use `./run_tests.py`. This is
 the command that is used by continuous integration. Some useful arguments are
 listed below:
 
-* `--infinite` - keep testing until some error is found. 
+* `--infinite` - keep testing until some error is found.
 * `--non-interactive` - do not run interactive gdb session if tests fail.
 * `--thorough` - generate much more test seeds. Testing will take much more time.
 
@@ -33,8 +33,8 @@ listed below:
 
 ### Programming tests
 
-##### Kernel tests 
-Located in `$(TOPDIR)/tests`. 
+##### Kernel tests
+Located in `$(TOPDIR)/tests`.
 Test function signature looks like this: `{name}(void)` or sometimes
 `{name}(unsigned int)` but needs to be coerced to `(int (*)(void))`.
 
@@ -43,7 +43,7 @@ Macros to register tests:
 * `KTEST_ADD_RANDINT(name, func, flags, max)` - need to cast function pointer to
   `(int (*)(void))`
 
-Where `name` is test name, `func` is pointer to test function, 
+Where `name` is test name, `func` is pointer to test function,
 flags as mentioned below, and `max` is maximum random argument fed to the test.
 
 ##### User tests
