@@ -353,8 +353,9 @@ static int gt_pci_attach(device_t *pcib) {
     INTR_HANDLER_INIT(gt_pci_intr, NULL, gtpci, "GT64120 interrupt", 0);
   bus_intr_setup(pcib, MIPS_HWINT0, &gtpci->intr_handler);
 
-  // pci_bus_dump(pcib); // after generic_probe?
-  return bus_generic_probe(pcib);
+  int error = bus_generic_probe(pcib);
+  pci_bus_dump(pcib);
+  return error;
 }
 
 static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
@@ -384,6 +385,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   if(r){
     r->r_owner = dev;
     r->r_bus_space = &gt_pci_bus_space;
+    LIST_INSERT_HEAD(&dev->resources, r ,r_device);
     return r;
   }
 

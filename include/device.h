@@ -26,6 +26,7 @@ struct driver {
 #define DRIVER_ADD(name) SET_ENTRY(driver_table, name)
 
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
+typedef LIST_HEAD(, resource) resource_list_t;
 
 struct device {
   /* Device hierarchy. */
@@ -33,6 +34,7 @@ struct device {
   TAILQ_ENTRY(device) all; /* node on list of all devices */
   TAILQ_ENTRY(device) link; /* node on list of siblings */
   device_list_t children;   /* head of children devices */
+  resource_list_t resources; /* head of resources belonging to this device */
 
   /* Device information and state. */
   device_bus_t bus;

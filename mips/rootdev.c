@@ -45,6 +45,7 @@ static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
 
   resource_t *r = rman_allocate_resource(&rm_mem, start, end, size, RF_NONE);
   r->r_owner = child;
+  LIST_INSERT_HEAD(&child->resources, r ,r_device);
   return r;
 }
 

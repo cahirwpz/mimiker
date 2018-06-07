@@ -40,6 +40,7 @@ struct resource {
   unsigned r_flags;
   int r_id; /* (optional) resource identifier */
   LIST_ENTRY(resource) r_resources;
+  LIST_ENTRY(resource) r_device;
 };
 
 struct rman {
