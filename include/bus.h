@@ -2,6 +2,7 @@
 #define _SYS_BUS_H_
 
 #include <rman.h>
+#include <device.h>
 
 typedef struct bus_space bus_space_t;
 typedef struct bus_methods bus_methods_t;
