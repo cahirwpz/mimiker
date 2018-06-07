@@ -88,6 +88,7 @@ void pci_bus_enumerate(device_t *pcib) {
   }
 }
 
+#if 0
 static int pci_bar_compare(const void *a, const void *b) {
   const resource_t *bar0 = *(const resource_t **)a;
   const resource_t *bar1 = *(const resource_t **)b;
@@ -122,21 +123,28 @@ void pci_bus_assign_space(device_t *pcib) {
   qsort(bars, nbars, sizeof(resource_t *), pci_bar_compare);
 
   pci_bus_state_t *data = pcib->state;
-  intptr_t io_base = data->io_space->r_start;
-  intptr_t mem_base = data->mem_space->r_start;
 
   for (unsigned j = 0; j < nbars; j++) {
     resource_t *bar = bars[j];
+    resource_t *r;
     if (bar->r_type == RT_IOPORTS) {
       bar->r_bus_space = data->io_space->r_bus_space;
-      bar->r_start += io_base;
-      bar->r_end += io_base;
-      io_base = bar->r_end + 1;
+      r = rman_allocate_resource_anywhere(&rman_pci_iospace,
+                                          bar->r_end - bar->r_start + 1);
+
+      // TODO this is just temporary workaround, returned value from
+      // rman_allocate_resource_anywhere should be assigned to bar earlier
+      bar->r_start = r->r_start;
+      bar->r_end = r->r_end;
     } else if (bar->r_type == RT_MEMORY) {
+      r = rman_allocate_resource_anywhere(&rman_pci_memspace,
+                                          bar->r_end - bar->r_start + 1);
       bar->r_bus_space = data->mem_space->r_bus_space;
-      bar->r_start += mem_base;
-      bar->r_end += mem_base;
-      mem_base = bar->r_end + 1;
+
+      // TODO this is just temporary workaround, returned value from
+      // rman_allocate_resource_anywhere should be assigned to bar earlier
+      bar->r_start = r->r_start;
+      bar->r_end = r->r_end;
     }
 
     /* Write the BAR address back to PCI bus config. It's safe to write the
@@ -147,6 +155,8 @@ void pci_bus_assign_space(device_t *pcib) {
 
   kfree(M_DEV, bars);
 }
+
+#endif
 
 void pci_bus_dump(device_t *pcib) {
   device_t *dev;

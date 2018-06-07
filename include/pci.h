@@ -5,6 +5,7 @@
 #include <queue.h>
 #include <device.h>
 #include <bus.h>
+#include <rman.h>
 
 typedef struct {
   uint16_t id;
@@ -19,6 +20,9 @@ typedef struct {
 
 extern const pci_vendor_id pci_vendor_list[];
 extern const char *pci_class_code[];
+
+rman_t rman_pci_iospace;
+rman_t rman_pci_memspace;
 
 /* Please read http://wiki.osdev.org/PCI */
 
@@ -68,11 +72,6 @@ typedef struct pci_bus_driver {
   bus_methods_t bus;
   pci_bus_methods_t pci_bus;
 } pci_bus_driver_t;
-
-typedef struct pci_bus_state {
-  resource_t *mem_space;
-  resource_t *io_space;
-} pci_bus_state_t;
 
 typedef struct pci_device {
   pci_addr_t addr;
