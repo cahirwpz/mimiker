@@ -32,7 +32,7 @@ struct resource {
   rman_addr_t r_end; /* last (inclusive) physical address of the resource */
   unsigned r_type;
   unsigned r_flags;
-  size_t rm_align;
+  size_t r_align;
   int r_id; /* (optional) resource identifier */
   LIST_ENTRY(resource) r_resources;
 };
@@ -49,8 +49,10 @@ resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
                                    rman_addr_t end, size_t count, size_t align,
                                    unsigned flags);
 
-static inline resource_t *
-rman_allocate_resource_anywhere(rman_t *rm, size_t count, size_t align, unsigned flags) {
+static inline resource_t *rman_allocate_resource_anywhere(rman_t *rm,
+                                                          size_t count,
+                                                          size_t align,
+                                                          unsigned flags) {
   return rman_allocate_resource(rm, 0, (rman_addr_t)~0, count, align, flags);
 }
 
