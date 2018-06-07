@@ -373,11 +373,11 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   switch (type) {
     case SYS_RES_PCI_MEM: // pci memory
       r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size,
-                                 RF_NONE);
+                                 RF_NONE | flags);
       break;
     case SYS_RES_PCI_IO: // pci io ports
       r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size,
-                                 RF_NONE);
+                                 RF_NONE | flags);
       break;
     case SYS_RES_ISA: // temporary isa io workaround
       return gtpci->isa_io;
