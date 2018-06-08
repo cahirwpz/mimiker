@@ -13,18 +13,12 @@ typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 
 /* We need to have some PCI-ISA bridge driver in place. */
-#if 0
-#define RT_UNKNOWN 0
-#define RT_MEMORY 1
-#define RT_IOPORTS 2
-#define RT_IRQ 4
-#else
+
 #define RT_UNKNOWN 0
 #define RT_MEMORY 1
 #define RT_IOPORTS 2
 #define RT_ISA 4
 #define RT_IRQ 8
-#endif
 
 #define RF_NONE 0
 /* According to PCI specification prefetchable bit is CLEAR when memory mapped
