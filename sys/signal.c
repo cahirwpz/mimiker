@@ -90,8 +90,14 @@ int sig_send(proc_t *proc, signo_t sig) {
    * continues execution and the signal gets delivered soon.
    * However, we don't currently distinguish between two sleeping states.
    * So even if the signal is SIGKILL we cannot just wake up the thread
-   * regardless of conditions. */
+   * regardless of conditions. */  
   sig_notify(target);
+
+  WITH_SPINLOCK (target->td_spin) {
+    if (td_is_sleeping_int(target))
+      sleepq_signal_thread(target, SLP_WKP_INT);
+  }
+    
 
   return 0;
 }

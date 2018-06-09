@@ -200,7 +200,12 @@ static uint32_t tdf_of_slpf(sleep_flags_t flags) {
   return td_flags;
 }
 
-void sleepq_wait(void *wchan, const void *waitpt, sleep_flags_t f) {
+void sleepq_wait(void *wchan, const void *waitpt) {
+  slp_wakeup_t r = sleepq_wait_flg(wchan, waitpt, 0);
+  assert(r == SLP_WKP_REG);
+}
+
+slp_wakeup_t sleepq_wait_flg(void *wchan, const void *waitpt, sleep_flags_t f) {
   thread_t *td = thread_self();
 
   if (waitpt == NULL)
@@ -210,7 +215,8 @@ void sleepq_wait(void *wchan, const void *waitpt, sleep_flags_t f) {
 
   /* The code can be interrupted in here.
    * A race is avoided by clever use of TDF_SLEEPY flag. */
-
+  
+  slp_wakeup_t r = SLP_WKP_REG;
   WITH_SPINLOCK(td->td_spin) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
@@ -218,16 +224,20 @@ void sleepq_wait(void *wchan, const void *waitpt, sleep_flags_t f) {
       td->td_flags = (td->td_flags & ~TDF_SLP_MASK) | tdf_of_slpf(f);
       sched_switch();
     }
+    // TODO could we get it after unlocking the spinlock?
+    r = td->td_wakeup_reason;
   }
-  // TODO how do we know that we were woken up by a signal?
-  return SLP_WKP_REG;
+
+  return r;
 }
 
 /* Remove a thread from the sleep queue and resume it. */
-static void sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
+static void sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
+                      slp_wakeup_t reason) {
   sq_leave(td, sc, sq);
 
   WITH_SPINLOCK(td->td_spin) {
+    td->td_wakeup_reason = reason;
     /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
@@ -253,11 +263,26 @@ bool sleepq_signal(void *wchan) {
       best_td = td;
   }
 
-  sq_wakeup(best_td, sc, sq);
+  sq_wakeup(best_td, sc, sq, SLP_WKP_REG);
+
   sq_release(sq);
   sc_release(sc);
 
   return true;
+}
+
+void sleepq_signal_thread(thread_t *td, slp_wakeup_t reason) {
+  void *wchan = td->td_wchan;
+  sleepq_chain_t *sc = sc_acquire(wchan);
+  sleepq_t *sq = sq_lookup(sc, wchan);
+
+  assert (sc != NULL);
+  assert (sq != NULL);
+
+  sq_wakeup(td, sc, sq, reason);
+
+  sq_release(sq);
+  sc_release(sc);
 }
 
 bool sleepq_broadcast(void *wchan) {
@@ -271,7 +296,7 @@ bool sleepq_broadcast(void *wchan) {
 
   thread_t *td;
   TAILQ_FOREACH (td, &sq->sq_blocked, td_sleepq)
-    sq_wakeup(td, sc, sq);
+    sq_wakeup(td, sc, sq, SLP_WKP_REG);
   sq_release(sq);
   sc_release(sc);
 
