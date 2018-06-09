@@ -37,7 +37,8 @@ void sleepq_destroy(sleepq_t *sq);
 void sleepq_wait(void *wchan, const void *waitpt);
 
 // TODO description
-slp_wakeup_t sleepq_wait_flg(void *wchan, const void *waitpt, sleep_flags_t flags);
+slp_wakeup_t sleepq_wait_flg(void *wchan, const void *waitpt,
+                             sleep_flags_t flags);
 
 /*! \brief Wakes up highest priority thread waiting on \a wchan.
  *

@@ -215,7 +215,7 @@ slp_wakeup_t sleepq_wait_flg(void *wchan, const void *waitpt, sleep_flags_t f) {
 
   /* The code can be interrupted in here.
    * A race is avoided by clever use of TDF_SLEEPY flag. */
-  
+
   slp_wakeup_t r = SLP_WKP_REG;
   WITH_SPINLOCK(td->td_spin) {
     if (td->td_flags & TDF_SLEEPY) {
@@ -276,8 +276,8 @@ void sleepq_signal_thread(thread_t *td, slp_wakeup_t reason) {
   sleepq_chain_t *sc = sc_acquire(wchan);
   sleepq_t *sq = sq_lookup(sc, wchan);
 
-  assert (sc != NULL);
-  assert (sq != NULL);
+  assert(sc != NULL);
+  assert(sq != NULL);
 
   sq_wakeup(td, sc, sq, reason);
 
