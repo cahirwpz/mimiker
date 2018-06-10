@@ -30,6 +30,7 @@ static int test_sleepq_sync(void) {
   wakeups = 0;
 
   callout_t callout;
+  bzero(&callout, sizeof(callout_t));
   thread_t *td[K];
 
   callout_setup_relative(&callout, 1, periodic_callout, &callout);
