@@ -119,14 +119,14 @@ void pci_bus_dump(device_t *pcib) {
               'A' + pcid->pin - 1, pcid->irq);
 
     resource_t *r = NULL;
-    LIST_FOREACH(r, &dev->resources, r_device){
+    LIST_FOREACH(r, &dev->resources, r_device) {
       char *type;
 
       if (r->r_type == RT_IOPORTS) {
         type = "I/O ports";
       } else {
         type = (r->r_flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
-                                                : "Memory (non-prefetchable)";
+                                              : "Memory (non-prefetchable)";
       }
       kprintf("%s Region %x: %s at %p [size=$%x]\n", devstr, r->r_id, type,
               (void *)r->r_start, (unsigned)(r->r_end - r->r_start + 1));
