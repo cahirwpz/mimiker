@@ -105,16 +105,16 @@ static int test_callout_stop(void) {
   bzero(&callout1, sizeof(callout_t));
   bzero(&callout2, sizeof(callout_t));
 
-  SCOPED_INTR_DISABLED();
+  WITH_INTR_DISABLED {
+    callout_setup_relative(&callout1, 5, callout_bad, NULL);
+    callout_setup_relative(&callout2, 10, callout_good, NULL);
 
-  callout_setup_relative(&callout1, 5, callout_bad, NULL);
-  callout_setup_relative(&callout2, 10, callout_good, NULL);
+    /* Remove callout1, hope that callout_bad won't be called! */
+    callout_stop(&callout1);
 
-  /* Remove callout1, hope that callout_bad won't be called! */
-  callout_stop(&callout1);
-
-  /* Give some time for callout_bad, wait for callout_good. */
-  sleepq_wait(callout_good, "callout_good");
+    /* Give some time for callout_bad, wait for callout_good. */
+    sleepq_wait(callout_good, "callout_good");
+  }
 
   return KTEST_SUCCESS;
 }
