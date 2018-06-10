@@ -6,6 +6,7 @@
 #include <context.h>
 #include <exception.h>
 #include <sleepq.h>
+#include <turnstile.h>
 #include <mutex.h>
 #include <condvar.h>
 #include <time.h>
@@ -31,7 +32,9 @@ typedef void (*entry_fn_t)(void *);
  *  - READY -> RUNNING (dispatcher)
  *  - RUNNING -> READY (dispatcher, self)
  *  - RUNNING -> SLEEPING (self)
+ *  - RUNNING -> BLOCKED (self)
  *  - SLEEPING -> READY (interrupts, other threads)
+ *  - BLOCKED -> READY (other threads)
  *  - * -> DEAD (other threads or self)
  */
 typedef enum {
@@ -43,6 +46,8 @@ typedef enum {
   TDS_RUNNING,
   /*!< thread is waiting on a resource and it has been put on a sleep queue */
   TDS_SLEEPING,
+  /*!< thread is waiting for a lock and it has been put on a turnstile */
+  TDS_BLOCKED,
   /*!< thread finished or was terminated by the kernel and awaits recycling */
   TDS_DEAD
 } thread_state_t;
@@ -62,6 +67,7 @@ typedef enum {
  *  - @: read-only access
  *  - !: thread_t::td_spin
  *  - ~: always safe to access
+ *  - #: UP & no preemption
  *
  * Locking order:
  *  threads_lock >> thread_t::td_lock
@@ -72,11 +78,11 @@ typedef struct thread {
   mtx_t td_lock;         /*!< (~) protects most fields in this structure */
   condvar_t td_waitcv;   /*!< (t) for thread_join */
   /* linked lists */
-  TAILQ_ENTRY(thread) td_all;     /* a link on all threads list */
-  TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
-  TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
-  TAILQ_ENTRY(thread) td_lockq;   /* a link on turnstile blocked queue */
-  TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
+  TAILQ_ENTRY(thread) td_all;      /* a link on all threads list */
+  TAILQ_ENTRY(thread) td_runq;     /* a link on run queue */
+  TAILQ_ENTRY(thread) td_sleepq;   /* a link on sleep queue */
+  TAILQ_ENTRY(thread) td_blockedq; /* (#) a link on turnstile blocked queue */
+  TAILQ_ENTRY(thread) td_zombieq;  /* a link on zombie queue */
   /* Properties */
   proc_t *td_proc; /*!< (t) parent process (NULL for kernel threads) */
   char *td_name;   /*!< (@) name of thread */
@@ -94,9 +100,14 @@ typedef struct thread {
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
   /* waiting channel */
-  sleepq_t *td_sleepqueue;
   void *td_wchan;
   const void *td_waitpt; /*!< a point where program waits */
+  /* waiting channel - sleepqueue */
+  sleepq_t *td_sleepqueue; /* thread's sleepqueue */
+  /* waiting channel - turnstile */
+  turnstile_t *td_blocked;   /* (#) turnstile on which thread is blocked */
+  turnstile_t *td_turnstile; /* (#) thread's turnstile */
+  LIST_HEAD(, turnstile) td_contested; /* (#) turnstiles of locks that we own */
   /* scheduler part */
   prio_t td_base_prio; /*!< base priority */
   prio_t td_prio;      /*!< active priority */
@@ -158,6 +169,10 @@ static inline bool td_is_ready(thread_t *td) {
 
 static inline bool td_is_dead(thread_t *td) {
   return td->td_state == TDS_DEAD;
+}
+
+static inline bool td_is_blocked(thread_t *td) {
+  return td->td_state == TDS_BLOCKED;
 }
 
 static inline bool td_is_running(thread_t *td) {

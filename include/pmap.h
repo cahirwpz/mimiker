@@ -4,6 +4,7 @@
 #include <vm.h>
 #include <queue.h>
 #include <exception.h>
+#include <mutex.h>
 
 typedef uint8_t asid_t;
 typedef uint32_t pte_t;
@@ -16,6 +17,7 @@ typedef struct pmap {
   TAILQ_HEAD(, vm_page) pte_pages; /* pages we allocate in page table */
   vm_addr_t start, end;
   asid_t asid;
+  mtx_t mtx;
 } pmap_t;
 
 void pmap_init(void);

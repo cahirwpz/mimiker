@@ -3,6 +3,7 @@
 #include <mips/intr.h>
 #include <interrupt.h>
 #include <time.h>
+#include <timer.h>
 
 /* For now, sole purpose of MIPS CPU timer is to provide accurate timestamps
  * for various parts of the system.
@@ -40,12 +41,28 @@ static intr_filter_t mips_timer_intr(void *data) {
 static intr_handler_t mips_timer_intr_handler =
   INTR_HANDLER_INIT(mips_timer_intr, NULL, NULL, "MIPS CPU timer", 0);
 
+static bintime_t mips_timer_gettime(timer_t *tm) {
+  uint64_t count = read_count();
+  uint32_t sec = count / CPU_FREQ;
+  uint32_t frac = count % CPU_FREQ;
+  bintime_t bt = bintime_mul(HZ2BT(CPU_FREQ), frac);
+  bt.sec = sec;
+  return bt;
+}
+
+static timer_t mips_timer = {
+  .tm_name = "mips-cpu-timer",
+  .tm_flags = 0,
+  .tm_frequency = CPU_FREQ,
+  .tm_gettime = mips_timer_gettime,
+};
+
 static inline timeval_t ticks2tv(uint64_t ticks) {
   ticks /= (uint64_t)TICKS_PER_US;
   return (timeval_t){.tv_sec = ticks / 1000000LL, .tv_usec = ticks % 1000000LL};
 }
 
-timeval_t get_uptime(void) {
+timeval_t getcputime(void) {
   return ticks2tv(read_count());
 }
 
@@ -57,4 +74,7 @@ void mips_timer_init(void) {
   /* Let's permanently enable interrupt handler, as we need to generate
    * interrupt to register counter overflow to correctly maintain time. */
   mips_intr_setup(&mips_timer_intr_handler, MIPS_HWINT5);
+
+  tm_register(&mips_timer);
+  tm_select(&mips_timer);
 }

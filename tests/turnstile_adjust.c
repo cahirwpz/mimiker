@@ -12,12 +12,25 @@
  * sched_set_prio (which calls turnstile_adjust).
  * Test passes if threads are properly sorted on turnstile ts_blocked list. */
 
-typedef TAILQ_HEAD(threadqueue, thread) threadqueue_t;
+typedef TAILQ_HEAD(td_queue, thread) td_queue_t;
 
-static prio_t new_priorities[T] = {3, 1, 2, 0, 1};
+static prio_t starting_priority = 2;
+static prio_t new_priorities[T] = {2, 1, 3, 0, 1};
+
 static mtx_t ts_adj_mtx = MTX_INITIALIZER(MTX_DEF);
 static volatile int stopped;
 static thread_t *threads[T];
+
+static void set_prio(thread_t *td, prio_t prio) {
+  WITH_SPINLOCK(td->td_spin) {
+    sched_set_prio(td, prio);
+  }
+}
+
+static bool td_is_blocked_on_mtx(thread_t *td, mtx_t *m) {
+  assert(td_is_blocked(td));
+  return td->td_wchan == m;
+}
 
 static void routine(void *_arg) {
   WITH_NO_PREEMPTION {
@@ -32,7 +45,7 @@ static int lockq_sorted_forw(thread_t *td) {
   if (td == NULL)
     return 1;
   else {
-    thread_t *next = TAILQ_NEXT(td, td_lockq);
+    thread_t *next = TAILQ_NEXT(td, td_blockedq);
     if (next != NULL && next->td_prio > td->td_prio)
       return 0;
     else
@@ -44,7 +57,7 @@ static int lockq_sorted_back(thread_t *td) {
   if (td == NULL)
     return 1;
   else {
-    thread_t *prev = TAILQ_PREV(td, threadqueue, td_lockq);
+    thread_t *prev = TAILQ_PREV(td, td_queue, td_blockedq);
     if (prev != NULL && prev->td_prio < td->td_prio)
       return 0;
     else
@@ -61,6 +74,7 @@ static int test_turnstile_adjust(void) {
     char name[20];
     snprintf(name, sizeof(name), "td%d", i);
     threads[i] = thread_create(name, routine, NULL);
+    set_prio(threads[i], starting_priority);
   }
 
   mtx_lock(&ts_adj_mtx);
@@ -72,13 +86,11 @@ static int test_turnstile_adjust(void) {
       thread_yield();
   }
 
-  /* Now all the threads should be blocked on the mutex. */
+  for (int i = 0; i < T; i++)
+    assert(td_is_blocked_on_mtx(threads[i], &ts_adj_mtx));
 
   for (int i = 0; i < T; i++) {
-    WITH_SPINLOCK(threads[i]->td_spin) {
-      sched_set_prio(threads[i], new_priorities[i]);
-    }
-
+    set_prio(threads[i], new_priorities[i]);
     assert(turnstile_sorted(threads[i]));
   }
 
@@ -90,4 +102,4 @@ static int test_turnstile_adjust(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(turnstile_adjust, test_turnstile_adjust, KTEST_FLAG_BROKEN);
+KTEST_ADD(turnstile_adjust, test_turnstile_adjust, 0);
