@@ -116,12 +116,6 @@ void vm_map_delete(vm_map_t *map) {
   kfree(M_VMMAP, map);
 }
 
-/*
- * Insert a vm_map_entry without a backing object into a vm_map
- * at the specified boundaries, with specified protection attributes.
- *
- * Assumes the map is locked, and leaves it so.
- */
 vm_map_entry_t *vm_map_add_entry_nolock(vm_map_t *map, vm_addr_t start,
                                         vm_addr_t end, vm_prot_t prot) {
   assert(mtx_owned(&map->mtx));

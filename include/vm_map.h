@@ -48,9 +48,21 @@ vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr);
 
 void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot);
+
+/*! \brief Inserts a vm_map_entry without a backing object into \a map.
+ *
+ * Inserts a vm_map_entry without a backing object with address range
+ * \a start - \a end and protection \a prot into \a map.
+ * Assumes \a map is locked, and leaves it so.
+ */
 vm_map_entry_t *vm_map_add_entry_nolock(vm_map_t *map, vm_addr_t start,
                                         vm_addr_t end, vm_prot_t prot);
 
+/*! \brief Inserts a vm_map_entry without a backing object into \a map.
+ *
+ * Inserts a vm_map_entry without a backing object with address range
+ * \a start - \a end and protection \a prot into \a map.
+ */
 vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                                  vm_prot_t prot);
 
