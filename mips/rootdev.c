@@ -137,7 +137,7 @@ SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs"));
    What we are doing here is adding dump_device_resources_init call as a module
    which is initialized last. */
 static void dump_device_resources_init(void) {
-  dump_device_tree_resources(&rootdev, 1);
+  dump_device_tree_resources(&rootdev, 0);
 }
 
 SYSINIT_ADD(device_resources_dump, dump_device_resources_init,
