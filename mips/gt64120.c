@@ -238,13 +238,15 @@ static int gt_pci_attach(device_t *pcib) {
     pcib, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END,
     MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1, 0);
   gtpci->pci_io = bus_resource_alloc(
-    pcib, RT_MEMORY, 0, MALTA_PCI0_EXCLUSIVE_IO_BASE, MALTA_PCI0_EXCLUSIVE_IO_END,
+    pcib, RT_MEMORY, 0, MALTA_PCI0_EXCLUSIVE_IO_BASE,
+    MALTA_PCI0_EXCLUSIVE_IO_END,
     MALTA_PCI0_EXCLUSIVE_IO_END - MALTA_PCI0_EXCLUSIVE_IO_BASE + 1, 0);
-  gtpci->corectrl =
-    bus_resource_alloc(pcib, RT_MEMORY, 0, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END,
-                       MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1, 0);
+  gtpci->corectrl = bus_resource_alloc(
+    pcib, RT_MEMORY, 0, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END,
+    MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1, 0);
   gtpci->isa_io = bus_resource_alloc(
-    pcib, RT_MEMORY, 0, MALTA_PCI0_TO_ISA_BRIDGE_BASE, MALTA_PCI0_TO_ISA_BRIDGE_END,
+    pcib, RT_MEMORY, 0, MALTA_PCI0_TO_ISA_BRIDGE_BASE,
+    MALTA_PCI0_TO_ISA_BRIDGE_END,
     MALTA_PCI0_TO_ISA_BRIDGE_END - MALTA_PCI0_TO_ISA_BRIDGE_BASE + 1, 0);
 
   if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
