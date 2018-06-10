@@ -50,7 +50,7 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
     }
 
     /* Create new vm map entry for this allocation. */
-    entry = vm_map_add_entry(vmap, addr, addr + length, prot);
+    entry = vm_map_add_entry_nolock(vmap, addr, addr + length, prot);
   }
 
   if (flags & MMAP_ANON) {

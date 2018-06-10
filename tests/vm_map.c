@@ -22,11 +22,11 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   vm_addr_t end = 0x1001000 + 2 * PAGESIZE;
   WITH_VM_MAP_LOCK(umap) {
     vm_map_entry_t *redzone0 =
-      vm_map_add_entry(umap, start - PAGESIZE, start, VM_PROT_NONE);
+      vm_map_add_entry_nolock(umap, start - PAGESIZE, start, VM_PROT_NONE);
     vm_map_entry_t *redzone1 =
-      vm_map_add_entry(umap, end, end + PAGESIZE, VM_PROT_NONE);
+      vm_map_add_entry_nolock(umap, end, end + PAGESIZE, VM_PROT_NONE);
     vm_map_entry_t *data =
-      vm_map_add_entry(umap, start, end, VM_PROT_READ | VM_PROT_WRITE);
+      vm_map_add_entry_nolock(umap, start, end, VM_PROT_READ | VM_PROT_WRITE);
 
     redzone0->object = vm_object_alloc();
     redzone1->object = vm_object_alloc();
@@ -60,14 +60,12 @@ static int findspace_demo(void) {
   vm_map_t *umap = vm_map_new();
   vm_map_activate(umap);
 
-  WITH_VM_MAP_LOCK(umap) {
 #define addr1 0x10000000
 #define addr2 0x30000000
-    vm_map_add_entry(umap, addr1, addr2, VM_PROT_NONE);
+  vm_map_add_entry(umap, addr1, addr2, VM_PROT_NONE);
 #define addr3 0x30005000
 #define addr4 0x60000000
-    vm_map_add_entry(umap, addr3, addr4, VM_PROT_NONE);
-  }
+  vm_map_add_entry(umap, addr3, addr4, VM_PROT_NONE);
 
   vm_addr_t t;
   int n;
@@ -87,7 +85,6 @@ static int findspace_demo(void) {
   assert(n == 0 && t == addr2);
 
   /* Fill the gap exactly */
-  WITH_VM_MAP_LOCK(umap)
   vm_map_add_entry(umap, t, t + 0x5000, VM_PROT_NONE);
 
   n = vm_map_findspace(umap, addr1, 0x5000, &t);

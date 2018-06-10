@@ -122,8 +122,8 @@ void vm_map_delete(vm_map_t *map) {
  *
  * Assumes the map is locked, and leaves it so.
  */
-vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
-                                 vm_prot_t prot) {
+vm_map_entry_t *vm_map_add_entry_nolock(vm_map_t *map, vm_addr_t start,
+                                        vm_addr_t end, vm_prot_t prot) {
   assert(mtx_owned(&map->mtx));
   assert(start >= map->pmap->start);
   assert(end <= map->pmap->end);
@@ -144,6 +144,12 @@ vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
   vm_map_insert_entry(map, entry);
 
   return entry;
+}
+
+vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
+                                 vm_prot_t prot) {
+  SCOPED_VM_MAP_LOCK(map);
+  return vm_map_add_entry_nolock(map, start, end, prot);
 }
 
 /* TODO: not implemented */
@@ -261,7 +267,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
     vm_map_entry_t *it;
     TAILQ_FOREACH (it, &map->list, map_list) {
       vm_map_entry_t *entry =
-        vm_map_add_entry(newmap, it->start, it->end, it->prot);
+        vm_map_add_entry_nolock(newmap, it->start, it->end, it->prot);
       entry->object = default_pager->pgr_alloc();
       vm_page_t *page;
       TAILQ_FOREACH (page, &it->object->list, obj.list) {

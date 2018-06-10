@@ -48,6 +48,9 @@ vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr);
 
 void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot);
+vm_map_entry_t *vm_map_add_entry_nolock(vm_map_t *map, vm_addr_t start,
+                                        vm_addr_t end, vm_prot_t prot);
+
 vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                                  vm_prot_t prot);
 

@@ -22,8 +22,8 @@ void sbrk_attach(proc_t *p) {
   vm_addr_t addr;
   int res = vm_map_findspace_nolock(map, SBRK_START, PAGESIZE, &addr);
   assert(res == 0);
-  vm_map_entry_t *entry =
-    vm_map_add_entry(map, addr, addr + PAGESIZE, VM_PROT_READ | VM_PROT_WRITE);
+  vm_map_entry_t *entry = vm_map_add_entry_nolock(map, addr, addr + PAGESIZE,
+                                                  VM_PROT_READ | VM_PROT_WRITE);
   entry->object = default_pager->pgr_alloc();
 
   p->p_sbrk = entry;
