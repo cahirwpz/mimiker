@@ -60,10 +60,9 @@ static int test_callout_simple(void) {
 static int current = 0;
 
 static void callout_ordered(void *arg) {
-  /* Atomic increment */
-  WITH_INTR_DISABLED {
-    current++;
-  }
+  assert(intr_disabled());
+  /* This incrementation is safe as callouts run with interrupts disabled. */
+  current++;
 
   if (current == 10)
     sleepq_signal(callout_ordered);
