@@ -324,6 +324,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
 
   if (r) {
     r->r_owner = dev;
+    r->r_type = type;
     r->r_bus_space = mips_bus_space_generic;
     LIST_INSERT_HEAD(&dev->resources, r, r_device);
   }

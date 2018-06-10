@@ -9,6 +9,9 @@
 
 typedef struct rootdev { void *data; } rootdev_t;
 
+extern pci_bus_driver_t gt_pci_bus;
+device_t *gt_pci;
+
 static rman_t rm_mem;
 
 static inline rootdev_t *rootdev_of(device_t *dev) {
@@ -23,9 +26,6 @@ static void rootdev_intr_setup(device_t *dev, unsigned num,
 static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
   mips_intr_teardown(handler);
 }
-
-extern pci_bus_driver_t gt_pci_bus;
-device_t *gt_pci;
 
 static int rootdev_attach(device_t *dev) {
   rman_create(&rm_mem, MALTA_PHYS_ADDR_SPACE_BASE, MALTA_PHYS_ADDR_SPACE_END);
@@ -90,8 +90,6 @@ static struct bus_space generic_space = {.read_1 = mips_read_1,
                                          .read_region_1 = mips_read_region_1,
                                          .write_region_1 = mips_write_region_1};
 
-bus_space_t *mips_bus_space_generic = &generic_space;
-
 static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
                                           int type, int rid, rman_addr_t start,
                                           rman_addr_t end, rman_addr_t size,
@@ -100,7 +98,8 @@ static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
   resource_t *r =
     rman_allocate_resource(&rm_mem, start, end, size, size, RF_NONE);
   r->r_owner = child;
-  r->r_bus_space = mips_bus_space_generic;
+  r->r_bus_space = &generic_space;
+  r->r_type = type;
   LIST_INSERT_HEAD(&child->resources, r, r_device);
   return r;
 }
@@ -126,5 +125,7 @@ static device_t rootdev = (device_t){
 static void rootdev_init(void) {
   device_attach(&rootdev);
 }
+
+bus_space_t *mips_bus_space_generic = &generic_space;
 
 SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs"));
