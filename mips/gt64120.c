@@ -50,6 +50,7 @@ typedef struct gt_pci_state {
 
   rman_t rman_pci_iospace;
   rman_t rman_pci_memspace;
+  rman_t rman_isa_iospace;
 
   intr_handler_t intr_handler;
   intr_chain_t intr_chain[16];
@@ -256,6 +257,7 @@ static int gt_pci_attach(device_t *pcib) {
 
   rman_create_from_resource(&gtpci->rman_pci_iospace, gtpci->pci_io);
   rman_create_from_resource(&gtpci->rman_pci_memspace, gtpci->pci_mem);
+  rman_create_from_resource(&gtpci->rman_isa_iospace, gtpci->isa_io);
 
   pcib->bus = DEV_BUS_PCI;
 
@@ -310,19 +312,23 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
 
   if (type & RT_MEMORY)
     r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size,
-                               size, RF_NONE | flags);
+                               size, flags);
 
   if (type & RT_IOPORTS)
     r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size, size,
-                               RF_NONE | flags);
+                               flags);
 
   /* Hack to directly return ISAB resource. Need to implement PCI-ISA bridge */
-  if (type & RT_ISA)
-    return gtpci->isa_io;
+  if (type & RT_ISA){
+    r = rman_allocate_resource(&gtpci->rman_isa_iospace, 
+      MALTA_PCI0_TO_ISA_BRIDGE_BASE, MALTA_PCI0_TO_ISA_BRIDGE_END, MALTA_PCI0_TO_ISA_BRIDGE_END - MALTA_PCI0_TO_ISA_BRIDGE_BASE + 1, 0,
+                               flags);
+    assert(r);
+  }
 
   /* Write BAR address to device register. */
   if (flags & RF_NEEDS_ACTIVATION && r)
-    pci_write_config(dev, rid, 4, r->r_start);
+    pci_write_config(dev, rid, 4, r->r_start); // BARS r_start?
 
   if (r) {
     r->r_owner = dev;
