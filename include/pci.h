@@ -70,6 +70,14 @@ typedef struct pci_bus_driver {
   pci_bus_methods_t pci_bus;
 } pci_bus_driver_t;
 
+typedef struct pci_bar_info {
+  void *owner;
+  size_t size;
+  int rid; /* BAR number in [1,6] */
+  unsigned type;
+  unsigned flags;
+} pci_bar_info_t;
+
 typedef struct pci_device {
   pci_addr_t addr;
 
@@ -79,7 +87,7 @@ typedef struct pci_device {
   uint8_t pin, irq;
 
   unsigned nbars;
-  resource_t bar[6];
+  pci_bar_info_t bar_info[6]; /* identified BARs */
 } pci_device_t;
 
 #define PCI_DRIVER(dev) ((pci_bus_driver_t *)((dev)->parent->driver))

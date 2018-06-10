@@ -155,7 +155,7 @@ static int stdvga_probe(device_t *dev) {
       pcid->device_id != VGA_QEMU_STDVGA_DEVICE_ID)
     return 0;
 
-  if (!(pcid->bar[0].r_flags & RF_PREFETCHABLE))
+  if (!(pcid->bar_info[0].flags & RF_PREFETCHABLE))
     return 0;
 
   return 1;
@@ -172,11 +172,11 @@ static int __attribute__((optimize("O0"))) stdvga_attach(device_t *dev) {
 
   stdvga_state_t *stdvga = dev->state;
   stdvga->mem = bus_resource_alloc_anywhere(
-    dev, pcid->bar[0].r_type, PCIR_BAR(pcid->bar[0].r_id),
-    pcid->bar[0].r_end + 1, RF_NEEDS_ACTIVATION | pcid->bar[0].r_flags);
+    dev, pcid->bar_info[0].type, PCIR_BAR(pcid->bar_info[0].rid),
+    pcid->bar_info[0].size, RF_NEEDS_ACTIVATION | pcid->bar_info[0].flags);
   stdvga->io = bus_resource_alloc_anywhere(
-    dev, pcid->bar[1].r_type, PCIR_BAR(pcid->bar[1].r_id),
-    pcid->bar[1].r_end + 1, RF_NEEDS_ACTIVATION | pcid->bar[1].r_flags);
+    dev, pcid->bar_info[1].type, PCIR_BAR(pcid->bar_info[1].rid),
+    pcid->bar_info[1].size, RF_NEEDS_ACTIVATION | pcid->bar_info[1].flags);
 
   stdvga->vga = (vga_device_t){
     .palette_write = stdvga_palette_write,

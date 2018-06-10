@@ -76,13 +76,12 @@ void pci_bus_enumerate(device_t *pcib) {
         }
 
         size = -size;
-        resource_t *bar = &pcid->bar[pcid->nbars++];
-        *bar = (resource_t){.r_owner = dev,
-                            .r_type = type,
-                            .r_flags = flags,
-                            .r_start = 0,
-                            .r_end = size - 1,
-                            .r_id = i};
+        pci_bar_info_t *bar = &pcid->bar_info[pcid->nbars++];
+        *bar = (pci_bar_info_t){.owner = dev,
+                            .type = type,
+                            .flags = flags,
+                            .size = size,
+                            .rid = i};
       }
     }
   }
