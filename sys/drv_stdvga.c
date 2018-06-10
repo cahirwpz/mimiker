@@ -161,7 +161,7 @@ static int stdvga_probe(device_t *dev) {
   return 1;
 }
 
-static int __attribute__((optimize("O0"))) stdvga_attach(device_t *dev) {
+static int stdvga_attach(device_t *dev) {
   pci_device_t *pcid = pci_device_of(dev);
 
   /* TODO: Enabling PCI regions should probably be performed by PCI bus resource
@@ -171,6 +171,7 @@ static int __attribute__((optimize("O0"))) stdvga_attach(device_t *dev) {
   pci_write_config(dev, PCIR_COMMAND, 2, command);
 
   stdvga_state_t *stdvga = dev->state;
+
   stdvga->mem = bus_resource_alloc_anywhere(
     dev, pcid->bar_info[0].type, PCIR_BAR(pcid->bar_info[0].rid),
     pcid->bar_info[0].size, RF_NEEDS_ACTIVATION | pcid->bar_info[0].flags);
