@@ -52,8 +52,7 @@ static uint16_t mips_read_2(resource_t *handle, unsigned offset) {
   return *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr);
 }
 
-static void mips_write_2(resource_t *handle, unsigned offset,
-                           uint16_t value) {
+static void mips_write_2(resource_t *handle, unsigned offset, uint16_t value) {
   intptr_t addr = handle->r_start + offset;
   *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
 }
@@ -63,34 +62,33 @@ static uint32_t mips_read_4(resource_t *handle, unsigned offset) {
   return *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(addr);
 }
 
-static void mips_write_4(resource_t *handle, unsigned offset,
-                           uint32_t value) {
+static void mips_write_4(resource_t *handle, unsigned offset, uint32_t value) {
   intptr_t addr = handle->r_start + offset;
   *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
 }
 
 static void mips_read_region_1(resource_t *handle, unsigned offset,
-                                 uint8_t *dst, size_t count) {
+                               uint8_t *dst, size_t count) {
   uint8_t *src = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle->r_start + offset);
   for (size_t i = 0; i < count; i++)
     *dst++ = *src++;
 }
 
 static void mips_write_region_1(resource_t *handle, unsigned offset,
-                                  const uint8_t *src, size_t count) {
+                                const uint8_t *src, size_t count) {
   uint8_t *dst = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle->r_start + offset);
   for (size_t i = 0; i < count; i++)
     *dst++ = *src++;
 }
 
 static struct bus_space generic_space = {.read_1 = mips_read_1,
-                                       .write_1 = mips_write_1,
-                                       .read_2 = mips_read_2,
-                                       .write_2 = mips_write_2,
-                                       .read_4 = mips_read_4,
-                                       .write_4 = mips_write_4,
-                                       .read_region_1 = mips_read_region_1,
-                                       .write_region_1 = mips_write_region_1};
+                                         .write_1 = mips_write_1,
+                                         .read_2 = mips_read_2,
+                                         .write_2 = mips_write_2,
+                                         .read_4 = mips_read_4,
+                                         .write_4 = mips_write_4,
+                                         .read_region_1 = mips_read_region_1,
+                                         .write_region_1 = mips_write_region_1};
 
 bus_space_t *mips_bus_space_generic = &generic_space;
 
