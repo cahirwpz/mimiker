@@ -89,7 +89,7 @@ static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
 }
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
-  SCOPED_MTX_LOCK(&vm_map->mtx);
+  SCOPED_VM_MAP_LOCK(vm_map);
 
   vm_map_entry_t *etr_it;
   TAILQ_FOREACH (etr_it, &vm_map->list, map_list)
@@ -108,7 +108,7 @@ static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
 }
 
 void vm_map_delete(vm_map_t *map) {
-  WITH_MTX_LOCK (&map->mtx) {
+  WITH_VM_MAP_LOCK(map) {
     while (map->nentries > 0)
       vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
   }
@@ -197,7 +197,7 @@ found:
 
 int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
                      vm_addr_t /*out*/ *addr) {
-  SCOPED_MTX_LOCK(&map->mtx);
+  SCOPED_VM_MAP_LOCK(map);
   return vm_map_findspace_nolock(map, start, length, addr);
 }
 
@@ -232,7 +232,7 @@ int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
 void vm_map_dump(vm_map_t *map) {
   klog("Virtual memory map (%08lx - %08lx):", map->pmap->start, map->pmap->end);
 
-  SCOPED_MTX_LOCK(&map->mtx);
+  SCOPED_VM_MAP_LOCK(map);
 
   vm_map_entry_t *it;
   TAILQ_FOREACH (it, &map->list, map_list) {
@@ -253,7 +253,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   vm_map_t *orig_current_map = get_user_vm_map();
   vm_map_t *newmap = vm_map_new();
 
-  WITH_MTX_LOCK (&map->mtx) {
+  WITH_VM_MAP_LOCK(map) {
     /* Temporarily switch to the new map, so that we may write contents. */
     td->td_proc->p_uspace = newmap;
     vm_map_activate(newmap);

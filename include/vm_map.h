@@ -26,6 +26,9 @@ typedef struct vm_map {
   mtx_t mtx; /* Mutex guarding vm_map structure and all its entries. */
 } vm_map_t;
 
+#define WITH_VM_MAP_LOCK(ptr) WITH_MTX_LOCK (&(ptr)->mtx)
+#define SCOPED_VM_MAP_LOCK(ptr) SCOPED_MTX_LOCK(&(ptr)->mtx)
+
 /* TODO we will need some functions to allocate address ranges,
  * since vm_map contains all information about address ranges, it's best idea
  * to embed allocation into this subsystem instead of building new one

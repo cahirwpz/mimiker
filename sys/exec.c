@@ -180,7 +180,7 @@ int do_exec(const exec_args_t *args) {
         /* TODO: What if segments overlap? */
         /* Temporarily permissive protection. */
         vm_map_entry_t *segment;
-        WITH_MTX_LOCK (&vmap->mtx) {
+        WITH_VM_MAP_LOCK(vmap) {
           segment = vm_map_add_entry(
             vmap, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC);
           /* Allocate pages backing this segment. */
@@ -234,7 +234,7 @@ int do_exec(const exec_args_t *args) {
   vm_addr_t stack_end = stack_bottom;
   /* TODO: What if this area overlaps with a loaded segment? */
   vm_map_entry_t *stack_segment;
-  WITH_MTX_LOCK (&vmap->mtx) {
+  WITH_VM_MAP_LOCK(vmap) {
     stack_segment = vm_map_add_entry(vmap, stack_start, stack_end,
                                      VM_PROT_READ | VM_PROT_WRITE);
     stack_segment->object = default_pager->pgr_alloc();

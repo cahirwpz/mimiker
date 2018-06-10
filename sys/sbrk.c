@@ -16,7 +16,7 @@ void sbrk_attach(proc_t *p) {
   assert(p->p_uspace && (p->p_sbrk == NULL));
 
   vm_map_t *map = p->p_uspace;
-  SCOPED_MTX_LOCK(&map->mtx);
+  SCOPED_VM_MAP_LOCK(map);
 
   /* Initially allocate one page for brk segment. */
   vm_addr_t addr;
@@ -43,7 +43,7 @@ vm_addr_t sbrk_resize(proc_t *p, intptr_t increment) {
   vm_addr_t last_end = p->p_sbrk_end;
 
   vm_map_t *map = p->p_uspace;
-  SCOPED_MTX_LOCK(&map->mtx);
+  SCOPED_VM_MAP_LOCK(map);
 
   vm_map_entry_t *sbrk = p->p_sbrk;
   vm_addr_t entry_end = roundup(p->p_sbrk_end + increment, PAGESIZE);

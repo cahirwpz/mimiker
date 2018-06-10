@@ -20,7 +20,7 @@ static int paging_on_demand_and_memory_protection_demo(void) {
 
   vm_addr_t start = 0x1001000;
   vm_addr_t end = 0x1001000 + 2 * PAGESIZE;
-  WITH_MTX_LOCK (&umap->mtx) {
+  WITH_VM_MAP_LOCK(umap) {
     vm_map_entry_t *redzone0 =
       vm_map_add_entry(umap, start - PAGESIZE, start, VM_PROT_NONE);
     vm_map_entry_t *redzone1 =
@@ -60,7 +60,7 @@ static int findspace_demo(void) {
   vm_map_t *umap = vm_map_new();
   vm_map_activate(umap);
 
-  WITH_MTX_LOCK (&umap->mtx) {
+  WITH_VM_MAP_LOCK(umap) {
 #define addr1 0x10000000
 #define addr2 0x30000000
     vm_map_add_entry(umap, addr1, addr2, VM_PROT_NONE);
@@ -87,8 +87,8 @@ static int findspace_demo(void) {
   assert(n == 0 && t == addr2);
 
   /* Fill the gap exactly */
-  WITH_MTX_LOCK (&umap->mtx)
-    vm_map_add_entry(umap, t, t + 0x5000, VM_PROT_NONE);
+  WITH_VM_MAP_LOCK(umap)
+  vm_map_add_entry(umap, t, t + 0x5000, VM_PROT_NONE);
 
   n = vm_map_findspace(umap, addr1, 0x5000, &t);
   assert(n == 0 && t == addr4);

@@ -38,7 +38,7 @@ vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
 
   vm_map_entry_t *entry;
 
-  WITH_MTX_LOCK (&vmap->mtx) {
+  WITH_VM_MAP_LOCK(vmap) {
     if (vm_map_findspace_nolock(vmap, addr, length, &addr) != 0) {
       /* No memory was found following the hint. Search again entire address
          space. */
