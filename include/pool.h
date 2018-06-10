@@ -8,8 +8,6 @@ typedef struct pool *pool_t;
 typedef void (*pool_ctor_t)(void *);
 typedef void (*pool_dtor_t)(void *);
 
-#define PF_ZERO 0x1 /* fill allocated space with zeros */
-
 void pool_bootstrap(void);
 
 pool_t pool_create(const char *desc, size_t size, pool_ctor_t ctor,

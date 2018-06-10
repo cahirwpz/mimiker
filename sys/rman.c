@@ -1,4 +1,5 @@
 #include <rman.h>
+#include <stdc.h>
 #include <pool.h>
 
 static pool_t P_RMAN;
@@ -44,7 +45,9 @@ static resource_t *cut_resource(resource_t *resource, rman_addr_t where) {
   assert(where < resource->r_end);
 
   resource_t *left_resource = resource;
-  resource_t *right_resource = pool_alloc(P_RMAN, PF_ZERO);
+
+  resource_t *right_resource = pool_alloc(P_RMAN, 0);
+  memset(right_resource, 0, sizeof(resource_t));
 
   left_resource->r_resources.le_next = right_resource;
   right_resource->r_resources.le_prev = &left_resource;
@@ -98,7 +101,8 @@ void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end) {
   mtx_init(&rm->rm_mtx, MTX_DEF);
   LIST_INIT(&rm->rm_resources);
 
-  resource_t *whole_space = pool_alloc(P_RMAN, PF_ZERO);
+  resource_t *whole_space = pool_alloc(P_RMAN, 0);
+  memset(whole_space, 0, sizeof(resource_t));
 
   whole_space->r_start = rm->rm_start;
   whole_space->r_end = rm->rm_end;
