@@ -130,3 +130,15 @@ static void rootdev_init(void) {
 bus_space_t *mips_bus_space_generic = &generic_space;
 
 SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs"));
+
+
+/* Hack alert.
+   We have to wait with dumping resources untill all devices are initialized.
+   Some of them are not initialized in a tree-like way starting from rootdev.
+   What we are doing here is adding dump_device_resources_init call as a module
+   which is initialized last. */
+static void dump_device_resources_init(void){
+  dump_device_tree_resources(&rootdev, 1);
+}
+
+SYSINIT_ADD(device_resources_dump, dump_device_resources_init, DEPS("atkbdc", "rtc", "pit"));
