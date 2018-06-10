@@ -77,11 +77,8 @@ void pci_bus_enumerate(device_t *pcib) {
 
         size = -size;
         pci_bar_info_t *bar = &pcid->bar_info[pcid->nbars++];
-        *bar = (pci_bar_info_t){.owner = dev,
-                            .type = type,
-                            .flags = flags,
-                            .size = size,
-                            .rid = i};
+        *bar = (pci_bar_info_t){
+          .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
       }
     }
   }
@@ -127,8 +124,8 @@ void pci_bus_dump(device_t *pcib) {
         type = (r->r_flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
                                               : "Memory (non-prefetchable)";
       }
-      kprintf("%s Region %x: %s at %p [size=$%x]\n", devstr, PCIR_BARR(r->r_id), type,
-              (void *)r->r_start, (unsigned)(r->r_end - r->r_start + 1));
+      kprintf("%s Region %x: %s at %p [size=$%x]\n", devstr, PCIR_BARR(r->r_id),
+              type, (void *)r->r_start, (unsigned)(r->r_end - r->r_start + 1));
     }
   }
 }
