@@ -154,8 +154,7 @@ static void destroy_slab_list(pool_t pool, pool_slabs_t *slabs) {
   }
 }
 
-/* TODO: find some use for flags */
-void *pool_alloc(pool_t pool, __unused unsigned flags) {
+void *pool_alloc(pool_t pool, unsigned flags) {
   debug("pool_alloc: pool=%p", pool);
 
   SCOPED_MTX_LOCK(&pool->pp_mtx);
@@ -181,6 +180,11 @@ void *pool_alloc(pool_t pool, __unused unsigned flags) {
                           ? &pool->pp_part_slabs
                           : &pool->pp_full_slabs;
   LIST_INSERT_HEAD(slabs, slab, ph_slablist);
+
+  if (flags & PF_ZERO) {
+    memset(p, 0, pool->pp_itemsize);
+  }
+
   return p;
 }
 
