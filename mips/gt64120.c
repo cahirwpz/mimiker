@@ -50,9 +50,9 @@ typedef struct gt_pci_state {
 
   rman_t rman_pci_iospace;
   rman_t rman_pci_memspace;
-  #ifdef ISA_SHAREABLE
+#ifdef ISA_SHAREABLE
   rman_t rman_isa_iospace;
-  #endif
+#endif
 
   intr_handler_t intr_handler;
   intr_chain_t intr_chain[16];
@@ -259,9 +259,9 @@ static int gt_pci_attach(device_t *pcib) {
 
   rman_create_from_resource(&gtpci->rman_pci_iospace, gtpci->pci_io);
   rman_create_from_resource(&gtpci->rman_pci_memspace, gtpci->pci_mem);
-  #ifdef ISA_SHAREABLE
+#ifdef ISA_SHAREABLE
   rman_create_from_resource(&gtpci->rman_isa_iospace, gtpci->isa_io);
-  #endif
+#endif
 
   pcib->bus = DEV_BUS_PCI;
 
@@ -323,16 +323,18 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
                                flags);
 
   /* Hack to directly return ISAB resource. Need to implement PCI-ISA bridge */
-  if (type & RT_ISA){
-    #if ISA_SHAREABLE
-      /* rman returns the same resource when RF_SHARED. This overwrites
-         resources list entry. */
-    r = rman_allocate_resource(&gtpci->rman_isa_iospace, 
-      MALTA_PCI0_TO_ISA_BRIDGE_BASE, MALTA_PCI0_TO_ISA_BRIDGE_END, MALTA_PCI0_TO_ISA_BRIDGE_END - MALTA_PCI0_TO_ISA_BRIDGE_BASE + 1, 0,
-                               flags);
-    #else
-    return gtpci->isa_io;                               
-    #endif
+  if (type & RT_ISA) {
+#if ISA_SHAREABLE
+    /* rman returns the same resource when RF_SHARED. This overwrites
+       resources list entry. */
+    r = rman_allocate_resource(
+      &gtpci->rman_isa_iospace, MALTA_PCI0_TO_ISA_BRIDGE_BASE,
+      MALTA_PCI0_TO_ISA_BRIDGE_END,
+      MALTA_PCI0_TO_ISA_BRIDGE_END - MALTA_PCI0_TO_ISA_BRIDGE_BASE + 1, 0,
+      flags);
+#else
+    return gtpci->isa_io;
+#endif
   }
 
   /* Write BAR address to device register. */

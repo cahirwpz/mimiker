@@ -79,12 +79,12 @@ void dump_device_tree_resources(device_t *dev, int nest) {
   device_t *child;
   resource_t *r;
   char *indent = "                    ";
-  indent[nest*2] = '\0';
+  indent[nest * 2] = '\0';
   if (!dev->driver)
     return;
   kprintf("%s* %s resources:\n", indent, dev->driver->desc);
   LIST_FOREACH(r, &dev->resources, r_device) {
-    kprintf("%s  [$%x, $%x]\n",indent, r->r_start, r->r_end);
+    kprintf("%s  [$%x, $%x]\n", indent, r->r_start, r->r_end);
   }
   TAILQ_FOREACH (child, &dev->children, link) {
     dump_device_tree_resources(child, nest + 1);
