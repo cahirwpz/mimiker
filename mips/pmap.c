@@ -145,6 +145,56 @@ void pmap_delete(pmap_t *pmap) {
   kfree(M_PMAP, pmap);
 }
 
+/*! \brief Inserts the TLB entry mapping \a vaddr into the TLB. */
+static inline void pmap_ensure_safe_pt_access(pmap_t *pmap, vm_addr_t vaddr) {
+  tlbhi_t hi = mips32_getentryhi();
+  uintptr_t pte_addr = (uintptr_t)&PTE_OF(pmap, vaddr);
+  tlbentry_t temp = {.hi = PTE_ASID(hi) | PTE_VPN2(pte_addr),
+                     .lo0 = PDE_OF(pmap, vaddr & ~(1 << PDE_SHIFT)),
+                     .lo1 = PDE_OF(pmap, vaddr | (1 << PDE_SHIFT))};
+  tlb_overwrite_random(&temp);
+}
+
+/*
+ * pmap_pte_write calls pmap_add_pde, and pmap_add_pde calls
+ * pmap_pte_write, so we need this declaration.
+ */
+static void pmap_add_pde(pmap_t *pmap, vm_addr_t vaddr);
+
+/*! \brief Reads the PTE mapping virtual address \a vaddr.
+ *
+ * Reads the PTE mapping virtual address \a vaddr from \a pmap.
+ * The Page Table access is guaranteed not to generate a TLB miss.
+ */
+static pte_t pmap_pte_read(pmap_t *pmap, vm_addr_t vaddr) {
+  if (!is_valid(PDE_OF(pmap, vaddr)))
+    return 0;
+  /* Interrupt handlers could generate TLB misses. */
+  SCOPED_INTR_DISABLED();
+  /*
+   * ptep can't be read from the stack after returning from
+   * pmap_ensure_safe_pt_access, as that could generate a TLB miss.
+   */
+  register pte_t *ptep = &PTE_OF(pmap, vaddr);
+  pmap_ensure_safe_pt_access(pmap, vaddr);
+  return *ptep;
+}
+
+/*! \brief Writes \a pte as the new PTE mapping virtual address \a vaddr.
+ *
+ * Writes \a pte as the new PTE mapping virtual address \a vaddr in
+ * \a pmap. The Page Table access is guaranteed not to generate a TLB miss.
+ */
+static void pmap_pte_write(pmap_t *pmap, vm_addr_t vaddr, pte_t pte) {
+  if (!is_valid(PDE_OF(pmap, vaddr)))
+    pmap_add_pde(pmap, vaddr);
+  SCOPED_INTR_DISABLED();
+  register pte_t *ptep = &PTE_OF(pmap, vaddr);
+  pmap_ensure_safe_pt_access(pmap, vaddr);
+  *ptep = pte;
+  tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
+}
+
 bool pmap_is_mapped(pmap_t *pmap, vm_addr_t vaddr) {
   assert(is_aligned(vaddr, PAGESIZE));
   SCOPED_MTX_LOCK(&pmap->mtx);
