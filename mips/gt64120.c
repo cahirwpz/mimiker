@@ -58,6 +58,9 @@ typedef struct gt_pci_state {
   uint16_t elcr;
 } gt_pci_state_t;
 
+extern bus_space_t *mips_bus_space_generic;
+pci_bus_driver_t gt_pci_bus;
+
 /* Access configuration space through memory mapped GT-64120 registers. Take
  * care of the fact that MIPS processor cannot handle unaligned accesses. */
 static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
@@ -113,61 +116,6 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   bus_space_write_4(pcicfg, GT_PCI0_CFG_DATA, data.dword);
 }
 
-static uint8_t gt_pci_read_1(resource_t *handle, unsigned offset) {
-  intptr_t addr = handle->r_start + offset;
-  return *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(addr);
-}
-
-static void gt_pci_write_1(resource_t *handle, unsigned offset, uint8_t value) {
-  intptr_t addr = handle->r_start + offset;
-  *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
-}
-
-static uint16_t gt_pci_read_2(resource_t *handle, unsigned offset) {
-  intptr_t addr = handle->r_start + offset;
-  return *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr);
-}
-
-static void gt_pci_write_2(resource_t *handle, unsigned offset,
-                           uint16_t value) {
-  intptr_t addr = handle->r_start + offset;
-  *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
-}
-
-static uint32_t gt_pci_read_4(resource_t *handle, unsigned offset) {
-  intptr_t addr = handle->r_start + offset;
-  return *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(addr);
-}
-
-static void gt_pci_write_4(resource_t *handle, unsigned offset,
-                           uint32_t value) {
-  intptr_t addr = handle->r_start + offset;
-  *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
-}
-
-static void gt_pci_read_region_1(resource_t *handle, unsigned offset,
-                                 uint8_t *dst, size_t count) {
-  uint8_t *src = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle->r_start + offset);
-  for (size_t i = 0; i < count; i++)
-    *dst++ = *src++;
-}
-
-static void gt_pci_write_region_1(resource_t *handle, unsigned offset,
-                                  const uint8_t *src, size_t count) {
-  uint8_t *dst = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle->r_start + offset);
-  for (size_t i = 0; i < count; i++)
-    *dst++ = *src++;
-}
-
-static bus_space_t gt_pci_bus_space = {.read_1 = gt_pci_read_1,
-                                       .write_1 = gt_pci_write_1,
-                                       .read_2 = gt_pci_read_2,
-                                       .write_2 = gt_pci_write_2,
-                                       .read_4 = gt_pci_read_4,
-                                       .write_4 = gt_pci_write_4,
-                                       .read_region_1 = gt_pci_read_region_1,
-                                       .write_region_1 = gt_pci_write_region_1};
-
 static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
   /* Enable the cascade IRQ (2) if 8-15 is enabled. */
   if ((gtpci->imask & 0xff00) != 0xff00)
@@ -193,8 +141,6 @@ static void gt_pci_unmask_irq(gt_pci_state_t *gtpci, unsigned irq) {
   gtpci->elcr &= ~(1 << irq);
   gt_pci_set_icus(gtpci);
 }
-
-pci_bus_driver_t gt_pci_bus;
 
 static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
                               intr_handler_t *handler) {
@@ -306,11 +252,6 @@ static int gt_pci_attach(device_t *pcib) {
     panic("gt64120 resource allocation fail");
   }
 
-  gtpci->corectrl->r_bus_space = &gt_pci_bus_space;
-  gtpci->pci_mem->r_bus_space = &gt_pci_bus_space;
-  gtpci->pci_io->r_bus_space = &gt_pci_bus_space;
-  gtpci->isa_io->r_bus_space = &gt_pci_bus_space;
-
   rman_create_from_resource(&gtpci->rman_pci_iospace, gtpci->pci_io);
   rman_create_from_resource(&gtpci->rman_pci_memspace, gtpci->pci_mem);
 
@@ -383,7 +324,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
 
   if (r) {
     r->r_owner = dev;
-    r->r_bus_space = &gt_pci_bus_space;
+    r->r_bus_space = mips_bus_space_generic;
     LIST_INSERT_HEAD(&dev->resources, r, r_device);
   }
 
