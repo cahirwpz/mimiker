@@ -75,15 +75,16 @@ device_t *make_device(device_t *parent, driver_t *driver) {
   return dev;
 }
 
-/* what about rtc devices? */
 void dump_device_tree_resources(device_t *dev, int nest) {
-  if (!dev->driver)
-    return;
   device_t *child;
   resource_t *r;
-  kprintf("%s resources:\n", dev->driver->desc);
+  char *indent = "                    ";
+  indent[nest*2] = '\0';
+  if (!dev->driver)
+    return;
+  kprintf("%s* %s resources:\n", indent, dev->driver->desc);
   LIST_FOREACH(r, &dev->resources, r_device) {
-    kprintf("start: %x, end: %x\n", r->r_start, r->r_end);
+    kprintf("%s  [$%x, $%x]\n",indent, r->r_start, r->r_end);
   }
   TAILQ_FOREACH (child, &dev->children, link) {
     dump_device_tree_resources(child, nest + 1);
