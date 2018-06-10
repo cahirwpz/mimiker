@@ -75,7 +75,7 @@ void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
                             void *arg) {
   SCOPED_SPINLOCK(&ci.lock);
 
-  systime_t now = tv2st(get_uptime());
+  systime_t now = getsystime();
   _callout_setup(handle, now + time, fn, arg);
 }
 
