@@ -4,17 +4,19 @@
 #include <common.h>
 #include <queue.h>
 
-#define SLPF_INT 0x01
-
-typedef uint8_t sleep_flags_t;
-
 typedef struct thread thread_t;
 typedef struct sleepq sleepq_t;
 
 typedef enum {
-  SLP_WKP_REG, /* regular wakeup */
+  SLP_WKP_REG, /* regular wakeup
+                * keep it as the first entry (because of flags below) */
   SLP_WKP_INT  /* thread interrupted */
 } slp_wakeup_t;
+
+#define SLPF_OF_WKP(w) (1 << ((w)-1))
+
+typedef uint8_t sleep_flags_t;
+#define SLPF_INT SLPF_OF_WKP(SLP_WKP_INT)
 
 /*! \file sleepq.h */
 
@@ -47,7 +49,7 @@ slp_wakeup_t sleepq_wait_flg(void *wchan, const void *waitpt,
 bool sleepq_signal(void *wchan);
 
 // TODO description
-void sleepq_signal_thread(thread_t *td, slp_wakeup_t reason);
+bool sleepq_signal_thread(thread_t *td, slp_wakeup_t reason);
 
 /*! \brief Resume all threads sleeping on \a wchan.
  *

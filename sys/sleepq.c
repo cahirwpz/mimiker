@@ -232,19 +232,31 @@ slp_wakeup_t sleepq_wait_flg(void *wchan, const void *waitpt, sleep_flags_t f) {
 }
 
 /* Remove a thread from the sleep queue and resume it. */
-static void sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
+static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
                       slp_wakeup_t reason) {
   sq_leave(td, sc, sq);
 
+  bool res = false;
   WITH_SPINLOCK(td->td_spin) {
-    td->td_wakeup_reason = reason;
-    /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
-    if (td->td_flags & TDF_SLEEPY) {
-      td->td_flags &= ~TDF_SLEEPY;
+    // TODO check if thread allows this reason
+    if (reason == SLP_WKP_REG ||
+        td->td_flags & tdf_of_slpf(SLPF_OF_WKP(reason))) {
+      res = true;
+      td->td_wakeup_reason = reason;
+
+      /* Do not try to wake up a thread that is sleepy but did not fall asleep!
+       */
+      if (td->td_flags & TDF_SLEEPY) {
+        td->td_flags &= ~TDF_SLEEPY;
+      } else {
+        sched_wakeup(td);
+      }
     } else {
-      sched_wakeup(td);
+      res = false;
     }
   }
+
+  return res;
 }
 
 bool sleepq_signal(void *wchan) {
@@ -271,7 +283,7 @@ bool sleepq_signal(void *wchan) {
   return true;
 }
 
-void sleepq_signal_thread(thread_t *td, slp_wakeup_t reason) {
+bool sleepq_signal_thread(thread_t *td, slp_wakeup_t reason) {
   void *wchan = td->td_wchan;
   sleepq_chain_t *sc = sc_acquire(wchan);
   sleepq_t *sq = sq_lookup(sc, wchan);
@@ -279,10 +291,13 @@ void sleepq_signal_thread(thread_t *td, slp_wakeup_t reason) {
   assert(sc != NULL);
   assert(sq != NULL);
 
-  sq_wakeup(td, sc, sq, reason);
+  // TODO check if the thread accepts this type of wakeup
+  bool r = sq_wakeup(td, sc, sq, reason);
 
   sq_release(sq);
   sc_release(sc);
+
+  return r;
 }
 
 bool sleepq_broadcast(void *wchan) {
