@@ -5,8 +5,8 @@
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 
-static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
-                                            uint16_t device_id) {
+const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
+                                     uint16_t device_id) {
   if (vendor) {
     const pci_device_id *device = vendor->devices;
     while (device->name) {
@@ -18,7 +18,7 @@ static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
   return NULL;
 }
 
-static const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
+const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
   const pci_vendor_id *vendor = pci_vendor_list;
   while (vendor->name) {
     if (vendor->id == vendor_id)
@@ -84,6 +84,8 @@ void pci_bus_enumerate(device_t *pcib) {
   }
 }
 
+/* TODO: to be replaced with GDB python script */
+#if 0
 void pci_bus_dump(device_t *pcib) {
   device_t *dev;
 
@@ -129,3 +131,4 @@ void pci_bus_dump(device_t *pcib) {
     }
   }
 }
+#endif

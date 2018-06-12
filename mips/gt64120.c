@@ -295,9 +295,7 @@ static int gt_pci_attach(device_t *pcib) {
     INTR_HANDLER_INIT(gt_pci_intr, NULL, gtpci, "GT64120 interrupt", 0);
   bus_intr_setup(pcib, MIPS_HWINT0, &gtpci->intr_handler);
 
-  int error = bus_generic_probe(pcib);
-  pci_bus_dump(pcib);
-  return error;
+  return bus_generic_probe(pcib);
 }
 
 static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
