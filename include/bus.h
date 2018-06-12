@@ -113,13 +113,13 @@ static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
 
 static inline resource_t *bus_resource_alloc(device_t *dev, int type, int rid,
                                              rman_addr_t start, rman_addr_t end,
-                                             rman_addr_t size, unsigned flags) {
+                                             size_t size, unsigned flags) {
   return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, start,
                                              end, size, flags);
 }
 
 static inline resource_t *bus_resource_alloc_anywhere(device_t *dev, int type,
-                                                      int rid, rman_addr_t size,
+                                                      int rid, size_t size,
                                                       unsigned flags) {
   return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0, ~0,
                                              size, flags);
