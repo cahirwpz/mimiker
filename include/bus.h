@@ -111,12 +111,13 @@ static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
   BUS_DRIVER(dev)->bus.intr_teardown(dev, handler);
 }
 
-/*! \brief Allocates resource of size \a size between \a start and
- * \a end
- *
- * \param dev Device which needs resource.
+/*! \brief Allocates resource of size \a size between \a start and \a end.
+ * 
+ * Should be called inside device's \fn attach function.
+ * 
+ * \param dev device which needs resource
  * \param type resource type RT_* defined in rman.h
- * \param rid resource identifier as in resource_t
+ * \param rid resource identifier as in \a resource_t structure
  * \param flags RF_* flags defined in rman.h
  */
 static inline resource_t *bus_resource_alloc(device_t *dev, int type, int rid,
@@ -126,8 +127,11 @@ static inline resource_t *bus_resource_alloc(device_t *dev, int type, int rid,
                                              end, size, flags);
 }
 
-/*! \brief Same as bus_resource_alloc but resource placement in memory is
- * chosen by parent bus. */
+/*! \brief Allocates resource for a device.
+ *
+ * Basically the same as \sa bus_resource_alloc, but resource placement in
+ * memory is chosen by the parent bus.
+ */
 static inline resource_t *bus_resource_alloc_anywhere(device_t *dev, int type,
                                                       int rid, size_t size,
                                                       unsigned flags) {
