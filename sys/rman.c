@@ -5,8 +5,7 @@
 static pool_t P_RMAN;
 
 static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                                 rman_addr_t count, rman_addr_t align,
-                                 unsigned flags) {
+                                 size_t count, size_t align, unsigned flags) {
   resource_t *resource;
   LIST_FOREACH(resource, &rm->rm_resources, r_resources) {
     if (resource->r_flags & RF_ALLOCATED &&
