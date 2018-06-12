@@ -308,7 +308,7 @@ static int gt_pci_attach(device_t *pcib) {
 
 static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
                                          int type, int rid, rman_addr_t start,
-                                         rman_addr_t end, rman_addr_t size,
+                                         rman_addr_t end, size_t size,
                                          unsigned flags) {
 
   gt_pci_state_t *gtpci = pcib->state;

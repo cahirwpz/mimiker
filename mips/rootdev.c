@@ -92,7 +92,7 @@ static struct bus_space generic_space = {.read_1 = mips_read_1,
 
 static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
                                           int type, int rid, rman_addr_t start,
-                                          rman_addr_t end, rman_addr_t size,
+                                          rman_addr_t end, size_t size,
                                           unsigned flags) {
 
   resource_t *r =
