@@ -27,8 +27,6 @@ typedef struct bus_space bus_space_t;
 #define RF_ALLOCATED 4
 #define RF_NEEDS_ACTIVATION 8
 
-/* We need PCI-ISA bridge in order to define resource types like this: */
-
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */
   void *r_owner;            /* pointer to device that owns this resource */
