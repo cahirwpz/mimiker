@@ -9,10 +9,11 @@
 
 typedef struct rootdev { void *data; } rootdev_t;
 
+/* TODO: remove following lines when devclasses are implemented */
 extern pci_bus_driver_t gt_pci_bus;
 device_t *gt_pci;
 
-static rman_t rm_mem;
+static rman_t rm_mem; /* stores all resources of root bus children */
 
 static inline rootdev_t *rootdev_of(device_t *dev) {
   return dev->instance;
