@@ -43,7 +43,7 @@ extern const char *pci_class_code[];
 #define PCIR_IRQPIN 0x3e
 #define PCIR_IRQLINE 0x3f
 #define PCIR_BAR(i) (0x10 + (i)*4)
-#define BAR_NUM(offset) (((offset) - 0x10) >> 2)
+#define BAR_NUM(offset) (((offset)-0x10) >> 2)
 
 typedef struct pci_addr {
   uint8_t bus;
@@ -73,10 +73,10 @@ typedef struct pci_bus_driver {
 
 typedef struct pci_bar_info {
   device_t *owner; /* pci device owner of this bar */
-  size_t size; /* identified size of this bar */
-  int rid; /* BAR number in [0,5] */
-  unsigned type; /* flags defined in rman.h. TODO: make this enum */
-  unsigned flags; /* flags defined in rman.h */
+  size_t size;     /* identified size of this bar */
+  int rid;         /* BAR number in [0,5] */
+  unsigned type;   /* resource type, one of RT_* */
+  unsigned flags;  /* resource flags, or'd RF_* flags */
 } pci_bar_info_t;
 
 typedef struct pci_device {
