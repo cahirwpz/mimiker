@@ -5,11 +5,13 @@
 #include <mutex.h>
 #include <queue.h>
 
-typedef unsigned rman_addr_t;
+typedef intptr_t rman_addr_t;
+#define RMAN_ADDR_MAX INTPTR_MAX
 
 typedef struct rman rman_t;
 typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
+typedef LIST_HEAD(, resource) resource_list_t;
 
 /* We need to have some PCI-ISA bridge driver in place. */
 
@@ -31,19 +33,19 @@ struct resource {
   void *r_owner;            /* pointer to device that owns this resource */
   rman_addr_t r_start;      /* first physical address of the resource */
   rman_addr_t r_end; /* last (inclusive) physical address of the resource */
-  unsigned r_type;
-  unsigned r_flags;
-  size_t r_align;
-  int r_id; /* (optional) resource identifier */
-  LIST_ENTRY(resource) r_resources;
-  LIST_ENTRY(resource) r_device;
+  unsigned r_type;   /* one of RT_* values (possibly or'ed with RT_ISA_F) */
+  unsigned r_flags;  /* or'ed RF_* values */
+  size_t r_align;    /* alignment requirements for starting physical address */
+  int r_id;          /* (optional) resource identifier */
+  LIST_ENTRY(resource) r_resources; /* link on resource manager list */
+  LIST_ENTRY(resource) r_device; /* link on resources list assigned to device */
 };
 
 struct rman {
-  rman_addr_t rm_start;
-  rman_addr_t rm_end;
-  mtx_t rm_mtx;
-  LIST_HEAD(, resource) rm_resources;
+  mtx_t rm_mtx;                 /* protects all fields of resource manager */
+  rman_addr_t rm_start;         /* first physical address */
+  rman_addr_t rm_end;           /* last physical adress */
+  resource_list_t rm_resources; /* all managed resources */
 };
 
 /* returns null if unable to allocate */
@@ -55,7 +57,7 @@ static inline resource_t *rman_allocate_resource_anywhere(rman_t *rm,
                                                           size_t count,
                                                           size_t align,
                                                           unsigned flags) {
-  return rman_allocate_resource(rm, 0, (rman_addr_t)~0, count, align, flags);
+  return rman_allocate_resource(rm, 0, RMAN_ADDR_MAX, count, align, flags);
 }
 
 void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end);

@@ -75,8 +75,8 @@ typedef struct pci_bar_info {
   device_t *owner; /* pci device owner of this bar */
   size_t size;     /* identified size of this bar */
   int rid;         /* BAR number in [0,5] */
-  unsigned type;   /* resource type, one of RT_* */
-  unsigned flags;  /* resource flags, or'd RF_* flags */
+  unsigned type;   /* RT_IOPORTS or RT_MEMORY */
+  unsigned flags;  /* nothing or RF_PREFETACHBLE */
 } pci_bar_info_t;
 
 typedef struct pci_device {

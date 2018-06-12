@@ -9,7 +9,7 @@ static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
   resource_t *resource;
   LIST_FOREACH(resource, &rm->rm_resources, r_resources) {
     if (resource->r_flags & RF_ALLOCATED &&
-        !(resource->r_flags & RF_SHARED && flags & RF_SHARED))
+        !((resource->r_flags & RF_SHARED) && (flags & RF_SHARED)))
       continue;
 
     if (start > resource->r_end || end < resource->r_start) {
@@ -20,15 +20,15 @@ static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
     rman_addr_t s = align(max(start, resource->r_start), align);
     rman_addr_t e = min(end, resource->r_end);
 
-    rman_addr_t len = s - e + 1;
+    rman_addr_t len = e - s + 1;
 
     /* when trying to use existing resource, size should be the same
      */
     if (flags & RF_SHARED)
-      if (count != resource->r_end - resource->r_start + 1)
+      if ((rman_addr_t)count != resource->r_end - resource->r_start + 1)
         continue;
 
-    if (len >= count) {
+    if (len >= (rman_addr_t)count) {
       return resource;
     }
   }
@@ -66,7 +66,7 @@ static resource_t *split_resource(resource_t *resource, rman_addr_t start,
     resource = cut_resource(resource, start);
   }
 
-  if (resource->r_end > resource->r_start + count - 1) {
+  if (resource->r_end > resource->r_start + (rman_addr_t)count - 1) {
     cut_resource(resource, resource->r_start + count);
   }
 
