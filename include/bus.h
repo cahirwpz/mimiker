@@ -121,8 +121,8 @@ static inline resource_t *bus_resource_alloc(device_t *dev, int type, int rid,
 static inline resource_t *bus_resource_alloc_anywhere(device_t *dev, int type,
                                                       int rid, size_t size,
                                                       unsigned flags) {
-  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0, ~0,
-                                             size, flags);
+  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0,
+                                             RMAN_ADDR_MAX, size, flags);
 }
 
 int bus_generic_probe(device_t *bus);

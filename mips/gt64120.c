@@ -326,7 +326,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   if (type & RT_ISA_F) {
 #if ISA_SHAREABLE
     /* rman returns the same resource when RF_SHARED. This overwrites
-       resources list entry. */
+      resources list entry. */
     r = rman_allocate_resource(
       &gtpci->rman_isa_iospace, MALTA_PCI0_TO_ISA_BRIDGE_BASE,
       MALTA_PCI0_TO_ISA_BRIDGE_END,
