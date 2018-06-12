@@ -124,7 +124,7 @@ void pci_bus_dump(device_t *pcib) {
         type = (r->r_flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
                                               : "Memory (non-prefetchable)";
       }
-      kprintf("%s Region %x: %s at %p [size=$%x]\n", devstr, PCIR_BARR(r->r_id),
+      kprintf("%s Region %x: %s at %p [size=$%x]\n", devstr, BAR_NUM(r->r_id),
               type, (void *)r->r_start, (unsigned)(r->r_end - r->r_start + 1));
     }
   }

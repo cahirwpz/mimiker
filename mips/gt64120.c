@@ -323,7 +323,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
                                flags);
 
   /* Hack to directly return ISAB resource. Need to implement PCI-ISA bridge */
-  if (type & RT_ISA) {
+  if (type & RT_ISA_F) {
 #if ISA_SHAREABLE
     /* rman returns the same resource when RF_SHARED. This overwrites
        resources list entry. */

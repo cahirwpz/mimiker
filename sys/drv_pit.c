@@ -97,7 +97,7 @@ static int pit_attach(device_t *dev) {
 
   pit_state_t *pit = dev->state;
 
-  pit->regs = bus_resource_alloc_anywhere(dev, RT_ISA, 0, 0, RF_SHARED);
+  pit->regs = bus_resource_alloc_anywhere(dev, RT_ISA_F, 0, 0, RF_SHARED);
 
   pit->lock = SPINLOCK_INITIALIZER();
   pit->intr_handler = INTR_HANDLER_INIT(pit_intr, NULL, pit, "i8254 timer", 0);

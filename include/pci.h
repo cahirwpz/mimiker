@@ -72,11 +72,11 @@ typedef struct pci_bus_driver {
 } pci_bus_driver_t;
 
 typedef struct pci_bar_info {
-  void *owner; 
-  size_t size;
+  device_t *owner; /* pci device owner of this bar */
+  size_t size; /* identified size of this bar */
   int rid; /* BAR number in [0,5] */
-  unsigned type;
-  unsigned flags;
+  unsigned type; /* flags defined in rman.h. TODO: make this enum */
+  unsigned flags; /* flags defined in rman.h */
 } pci_bar_info_t;
 
 typedef struct pci_device {
