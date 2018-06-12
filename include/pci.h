@@ -43,7 +43,7 @@ extern const char *pci_class_code[];
 #define PCIR_IRQPIN 0x3e
 #define PCIR_IRQLINE 0x3f
 #define PCIR_BAR(i) (0x10 + (i)*4)
-#define PCIR_BARR(offset) (((offset) - 0x10) >> 2)
+#define BAR_NUM(offset) (((offset) - 0x10) >> 2)
 
 typedef struct pci_addr {
   uint8_t bus;
@@ -72,9 +72,9 @@ typedef struct pci_bus_driver {
 } pci_bus_driver_t;
 
 typedef struct pci_bar_info {
-  void *owner;
+  void *owner; 
   size_t size;
-  int rid; /* BAR number in [1,6] */
+  int rid; /* BAR number in [0,5] */
   unsigned type;
   unsigned flags;
 } pci_bar_info_t;
