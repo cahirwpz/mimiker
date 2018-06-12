@@ -97,9 +97,9 @@ static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
 
   resource_t *r =
     rman_allocate_resource(&rm_mem, start, end, size, size, RF_NONE);
-  if (r == NULL) {
+  if (r == NULL)
     return NULL;
-  }
+
   r->r_owner = child;
   r->r_id = rid;
   r->r_bus_space = &generic_space;
