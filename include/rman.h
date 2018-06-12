@@ -16,7 +16,7 @@ typedef struct bus_space bus_space_t;
 #define RT_UNKNOWN 0
 #define RT_MEMORY 1
 #define RT_IOPORTS 2
-#define RT_ISA_F 4 /* temporary hack */
+#define RT_ISA_F 4 /* TODO: remove after ISA-bridge driver is implemented */
 
 #define RF_NONE 0
 /* According to PCI specification prefetchable bit is CLEAR when memory mapped
