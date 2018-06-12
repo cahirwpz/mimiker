@@ -150,7 +150,7 @@ static int atkbdc_attach(device_t *dev) {
 
   mtx_init(&atkbdc->mtx, MTX_DEF);
   cv_init(&atkbdc->nonempty, "AT keyboard buffer non-empty");
-  atkbdc->regs = bus_resource_alloc_anywhere(dev, RT_ISA_F, 0, 0, RF_SHARED);
+  atkbdc->regs = bus_resource_alloc_anywhere(dev, RT_ISA_F | RT_IOPORTS, 0, 0, RF_SHARED);
 
   atkbdc->intr_handler =
     INTR_HANDLER_INIT(atkbdc_intr, NULL, atkbdc, "AT keyboard controller", 0);
