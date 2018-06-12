@@ -43,11 +43,13 @@ typedef union {
 
 typedef struct gt_pci_state {
 
+  /* Resources belonging to this driver. */
   resource_t *corectrl;
   resource_t *isa_io;
   resource_t *pci_io;
   resource_t *pci_mem;
 
+  /* Resource managers which manage resources used by child devices. */
   rman_t rman_pci_iospace;
   rman_t rman_pci_memspace;
 
