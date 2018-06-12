@@ -4,6 +4,7 @@
 #include <queue.h>
 #include <malloc.h>
 #include <linker_set.h>
+#include <rman.h>
 
 typedef struct device device_t;
 typedef struct driver driver_t;
@@ -26,7 +27,6 @@ struct driver {
 #define DRIVER_ADD(name) SET_ENTRY(driver_table, name)
 
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
-typedef LIST_HEAD(, resource) resource_list_t;
 
 struct device {
   /* Device hierarchy. */
