@@ -25,7 +25,6 @@ typedef struct bus_space bus_space_t;
 #define RF_PREFETCHABLE 1
 #define RF_SHARED 2
 #define RF_ALLOCATED 4
-#define RF_NEEDS_ACTIVATION 8
 
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */

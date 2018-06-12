@@ -338,8 +338,8 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   }
 
   /* Write BAR address to device register. */
-  if (flags & RF_NEEDS_ACTIVATION && r)
-    pci_write_config(dev, rid, 4, r->r_start); // BARS r_start?
+  if (flags & RT_MEMORY && r && dev->parent->bus == DEV_BUS_PCI)
+    pci_write_config(dev, rid, 4, r->r_start);
 
   if (r) {
     r->r_owner = dev;

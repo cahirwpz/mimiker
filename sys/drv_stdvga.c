@@ -174,10 +174,10 @@ static int stdvga_attach(device_t *dev) {
 
   stdvga->mem = bus_resource_alloc_anywhere(
     dev, pcid->bar_info[0].type, PCIR_BAR(pcid->bar_info[0].rid),
-    pcid->bar_info[0].size, RF_NEEDS_ACTIVATION | pcid->bar_info[0].flags);
+    pcid->bar_info[0].size, pcid->bar_info[0].flags);
   stdvga->io = bus_resource_alloc_anywhere(
     dev, pcid->bar_info[1].type, PCIR_BAR(pcid->bar_info[1].rid),
-    pcid->bar_info[1].size, RF_NEEDS_ACTIVATION | pcid->bar_info[1].flags);
+    pcid->bar_info[1].size, pcid->bar_info[1].flags);
 
   stdvga->vga = (vga_device_t){
     .palette_write = stdvga_palette_write,
