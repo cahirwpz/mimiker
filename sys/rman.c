@@ -5,72 +5,73 @@
 static pool_t P_RMAN;
 
 static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                                 size_t count, size_t align, unsigned flags) {
+                                 size_t count, size_t alignment,
+                                 unsigned flags) {
   resource_t *resource;
   LIST_FOREACH(resource, &rm->rm_resources, r_resources) {
-    if (resource->r_flags & RF_ALLOCATED &&
+    if ((resource->r_flags & RF_ALLOCATED) &&
         !((resource->r_flags & RF_SHARED) && (flags & RF_SHARED)))
       continue;
 
-    if (start > resource->r_end || end < resource->r_start) {
+    if ((start > resource->r_end) || (end < resource->r_start))
       continue;
-    }
 
     /* calculate common part and check if is big enough */
-    rman_addr_t s = align(max(start, resource->r_start), align);
+    rman_addr_t s = align(max(start, resource->r_start), alignment);
     rman_addr_t e = min(end, resource->r_end);
-
+    /* size of address range after alignment */
     rman_addr_t len = e - s + 1;
 
-    /* when trying to use existing resource, size should be the same
-     */
-    if (flags & RF_SHARED)
-      if ((rman_addr_t)count != resource->r_end - resource->r_start + 1)
-        continue;
+    /* when trying to use existing resource, size should be the same */
+    if ((flags & RF_SHARED) &&
+        ((rman_addr_t)count != resource->r_end - resource->r_start + 1))
+      continue;
 
-    if (len >= (rman_addr_t)count) {
+    if (len >= (rman_addr_t)count)
       return resource;
-    }
   }
 
   return NULL;
 }
 
-/* divide resource into two
- `where` means start of right resource
- function returns pointer to new (right) resource */
-static resource_t *cut_resource(resource_t *resource, rman_addr_t where) {
-  assert(where > resource->r_start);
-  assert(where < resource->r_end);
+/* !\brief ???
+ *
+ * Divide resource into two `where` means start of right resource function
+ * returns pointer to new (right) resource
+ */
+static resource_t *cut_resource(resource_t *res, rman_addr_t where) {
+  assert(where > res->r_start);
+  assert(where < res->r_end);
 
-  resource_t *left_resource = resource;
+  resource_t *left_res = res;
 
-  resource_t *right_resource = pool_alloc(P_RMAN, 0);
-  memset(right_resource, 0, sizeof(resource_t));
+  resource_t *right_res = pool_alloc(P_RMAN, 0);
+  memset(right_res, 0, sizeof(resource_t));
 
-  left_resource->r_resources.le_next = right_resource;
-  right_resource->r_resources.le_prev = &left_resource;
+  left_res->r_resources.le_next = right_res;
+  right_res->r_resources.le_prev = &left_res;
 
-  right_resource->r_end = left_resource->r_end;
-  right_resource->r_start = where;
-  left_resource->r_end = where - 1;
+  right_res->r_end = left_res->r_end;
+  right_res->r_start = where;
+  left_res->r_end = where - 1;
 
-  return right_resource;
+  return right_res;
 }
 
-/* maybe split resource into two or three in order to recover space before and
- after allocation */
-static resource_t *split_resource(resource_t *resource, rman_addr_t start,
+/* !\brief ???
+ *
+ * Maybe split resource into two or three in order to recover space before and
+ * after allocation.
+ */
+static resource_t *split_resource(resource_t *res, rman_addr_t start,
                                   rman_addr_t end, size_t count) {
-  if (resource->r_start < start) {
-    resource = cut_resource(resource, start);
-  }
+  if (res->r_start < start)
+    res = cut_resource(res, start);
 
-  if (resource->r_end > resource->r_start + (rman_addr_t)count - 1) {
-    cut_resource(resource, resource->r_start + count);
-  }
+  if (res->r_end > res->r_start + (rman_addr_t)count - 1)
+    cut_resource(res, res->r_start + count);
 
-  return resource;
+  return res;
 }
 
 resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
@@ -81,9 +82,8 @@ resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
   align = min(align, sizeof(void *));
 
   resource_t *resource = find_resource(rm, start, end, count, align, flags);
-  if (resource == NULL) {
+  if (resource == NULL)
     return NULL;
-  }
 
   resource = split_resource(resource, align(start, align), end, count);
   resource->r_align = align;
