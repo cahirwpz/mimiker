@@ -27,6 +27,7 @@ typedef LIST_HEAD(, resource) resource_list_t;
 #define RF_PREFETCHABLE 1
 #define RF_SHARED 2
 #define RF_ALLOCATED 4
+#define RF_ACTIVATED 8
 
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */

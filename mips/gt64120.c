@@ -317,13 +317,8 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
                                flags);
 
   /* Hack to directly return ISAB resource. Need to implement PCI-ISA bridge */
-  if (type & RT_ISA_F) {
+  if (type & RT_ISA_F)
     return gtpci->isa_io;
-  }
-
-  /* Write BAR address to device register. */
-  if (flags & RT_MEMORY && r && dev->parent->bus == DEV_BUS_PCI)
-    pci_write_config(dev, rid, 4, r->r_start);
 
   if (r) {
     r->r_owner = dev;
@@ -331,6 +326,13 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
     r->r_type = type;
     r->r_bus_space = mips_bus_space_generic;
     LIST_INSERT_HEAD(&dev->resources, r, r_device);
+
+    /* Write BAR address to PCI device register. */
+    if ((dev->parent->bus == DEV_BUS_PCI) && (type & RT_MEMORY) &&
+        !(flags & RF_ACTIVATED)) {
+      pci_write_config(dev, rid, 4, r->r_start);
+      r->r_flags |= RF_ACTIVATED;
+    }
   }
 
   return r;
