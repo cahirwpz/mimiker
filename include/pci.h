@@ -43,7 +43,7 @@ extern const char *pci_class_code[];
 #define PCIR_IRQPIN 0x3e
 #define PCIR_IRQLINE 0x3f
 #define PCIR_BAR(i) (0x10 + (i)*4)
-#define PCIR_BARR(addr) ((addr - 0x10) >> 2)
+#define PCIR_BARR(offset) (((offset) - 0x10) >> 2)
 
 typedef struct pci_addr {
   uint8_t bus;
