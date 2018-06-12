@@ -87,7 +87,7 @@ typedef void (*bus_intr_teardown_t)(device_t *dev, intr_handler_t *handler);
 typedef resource_t *(*bus_resource_alloc_t)(device_t *bus, device_t *child,
                                             int type, int rid,
                                             rman_addr_t start, rman_addr_t end,
-                                            rman_addr_t size, unsigned flags);
+                                            size_t size, unsigned flags);
 
 struct bus_methods {
   bus_intr_setup_t intr_setup;
