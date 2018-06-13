@@ -112,9 +112,9 @@ static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
 }
 
 /*! \brief Allocates resource of size \a size between \a start and \a end.
- * 
+ *
  * Should be called inside device's \fn attach function.
- * 
+ *
  * \param dev device which needs resource
  * \param type resource type RT_* defined in rman.h
  * \param rid resource identifier as in \a resource_t structure
