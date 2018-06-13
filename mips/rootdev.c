@@ -103,8 +103,8 @@ static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
 
   r->r_owner = child;
   r->r_id = rid;
-  r->r_bus_space = &generic_space;
   r->r_type = type;
+  r->r_bus_space = &generic_space;
   LIST_INSERT_HEAD(&child->resources, r, r_device);
   return r;
 }
