@@ -56,7 +56,7 @@ static inline uint16_t bus_space_read_2(resource_t *handle, unsigned offset) {
   return handle->r_bus_space->read_2(handle, offset);
 }
 
-static inline void __attribute__((optimize("O0"))) bus_space_write_2(resource_t *handle, unsigned offset,
+static inline void bus_space_write_2(resource_t *handle, unsigned offset,
                                      uint16_t value) {
   handle->r_bus_space->write_2(handle, offset, value);
 }
@@ -139,6 +139,11 @@ static inline resource_t *bus_resource_alloc_anywhere(device_t *dev, int type,
                                              RMAN_ADDR_MAX, size, flags);
 }
 
+/*! \brief Allocates resource for a device.
+ *
+ * Basically the same as \sa bus_resource_alloc_anywhere, but resource
+ * has to be identifiable by parent bus driver by \param rid.
+ */
 static inline resource_t *bus_resource_alloc_any(device_t *dev, int type,
                                                  int rid, unsigned flags) {
 
