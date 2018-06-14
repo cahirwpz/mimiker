@@ -307,36 +307,52 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
 
   gt_pci_state_t *gtpci = pcib->state;
   resource_t *r = NULL;
+  pci_device_t *pci_dev;
+  pci_bar_info_t *bar = NULL;
 
-  if ((type & RT_MEMORY) && (dev->parent->bus == DEV_BUS_PCI)){
-    pci_device_t *pci_dev = pci_device_of(dev);
-    unsigned i;
-    for(i=0; i<pci_dev->nbars && pci_dev->bar_info[i].rid != BAR_NUM(rid); i++);
-    r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, pci_dev->bar_info[i].size,
-                               pci_dev->bar_info[i].size, flags);
-  }
-
-  if (type & RT_IOPORTS)
-    r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size, size,
-                               flags);
-
-  /* Hack to directly return ISAB resource. Need to implement PCI-ISA bridge */
+  /* Hack to directly return ISA resource. Need to implement PCI-ISA bridge. */
   if (type & RT_ISA_F)
     return gtpci->isa_io;
 
-  if (r) {
-    r->r_owner = dev;
-    r->r_id = rid;
-    r->r_type = type;
-    r->r_bus_space = mips_bus_space_generic;
-    LIST_INSERT_HEAD(&dev->resources, r, r_device);
+  /* Now handle only PCI devices. */
 
-    /* Write BAR address to PCI device register. */
-    if ((dev->parent->bus == DEV_BUS_PCI) && (type & RT_MEMORY) &&
-        !(flags & RF_ACTIVATED)) {
-      pci_write_config(dev, rid, 4, r->r_start);
-      r->r_flags |= RF_ACTIVATED;
-    }
+  /* Currently all devices are logicaly attached to PCI bus, because we don't
+     have PCI-ISA bridge implemented. ISA devices are required to specify
+     RT_ISA_F flag, and have their dev->bus set to DEV_BUS_NONE. */
+  assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
+
+  /* Find identified bar by rid. */
+  pci_dev = pci_device_of(dev);
+  for (unsigned i = 0; i < pci_dev->nbars; i++) {
+    bar = &pci_dev->bar_info[i];
+    if (pci_dev->bar_info[i].rid == BAR_NUM(rid))
+      break;
+  }
+
+  if (!bar)
+    return NULL;
+
+  if (type & RT_MEMORY)
+    r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, bar->size,
+                               bar->size, flags);
+
+  if (type & RT_IOPORTS)
+    r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, bar->size,
+                               bar->size, flags);
+
+  if (!r)
+    return NULL;
+
+  r->r_owner = dev;
+  r->r_id = rid;
+  r->r_type = type;
+  r->r_bus_space = mips_bus_space_generic;
+  LIST_INSERT_HEAD(&dev->resources, r, r_device);
+
+  /* Write BAR address to PCI device register. */
+  if (!(flags & RF_ACTIVATED)) {
+    pci_write_config(dev, rid, 4, r->r_start);
+    r->r_flags |= RF_ACTIVATED;
   }
 
   return r;
