@@ -34,7 +34,7 @@ static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
   return NULL;
 }
 
-/* !\brief cut the resource into two 
+/* !\brief cut the resource into two
  *
  * Divide resource into two `where` means start of right resource function
  * returns pointer to new (right) resource

@@ -26,7 +26,7 @@ typedef LIST_HEAD(, resource) resource_list_t;
  * device does not tolerate write merging. */
 #define RF_PREFETCHABLE 1
 #define RF_SHARED 2
-#define RF_ALLOCATED 4
+#define RF_ALLOCATED 4 /* For internal use. Every returned resource has it. */
 #define RF_ACTIVATED 8
 
 struct resource {
@@ -50,17 +50,19 @@ struct rman {
 };
 
 /* !\brief allocate resource within given rman
- * 
+ *
  * returns NULL if unable to allocate
  */
 resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
                                    rman_addr_t end, size_t count, size_t align,
                                    unsigned flags);
 
-/* !\brief create and initialize new rman 
+/* !\brief create and initialize new rman
  */
 void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end);
 
+/* !\brief consume resource for exclusive use of new rman
+ */
 static inline void rman_create_from_resource(rman_t *rm, resource_t *res) {
   rman_create(rm, res->r_start, res->r_end);
 }
