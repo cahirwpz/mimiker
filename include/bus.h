@@ -56,7 +56,7 @@ static inline uint16_t bus_space_read_2(resource_t *handle, unsigned offset) {
   return handle->r_bus_space->read_2(handle, offset);
 }
 
-static inline void bus_space_write_2(resource_t *handle, unsigned offset,
+static inline void __attribute__((optimize("O0"))) bus_space_write_2(resource_t *handle, unsigned offset,
                                      uint16_t value) {
   handle->r_bus_space->write_2(handle, offset, value);
 }
@@ -137,6 +137,13 @@ static inline resource_t *bus_resource_alloc_anywhere(device_t *dev, int type,
                                                       unsigned flags) {
   return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0,
                                              RMAN_ADDR_MAX, size, flags);
+}
+
+static inline resource_t *bus_resource_alloc_any(device_t *dev, int type,
+                                                 int rid, unsigned flags) {
+
+  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0,
+                                             RMAN_ADDR_MAX, 1, flags);
 }
 
 int bus_generic_probe(device_t *bus);

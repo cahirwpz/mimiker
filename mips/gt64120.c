@@ -308,9 +308,13 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   gt_pci_state_t *gtpci = pcib->state;
   resource_t *r = NULL;
 
-  if (type & RT_MEMORY)
-    r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, size,
-                               size, flags);
+  if ((type & RT_MEMORY) && (dev->parent->bus == DEV_BUS_PCI)){
+    pci_device_t *pci_dev = pci_device_of(dev);
+    unsigned i;
+    for(i=0; i<pci_dev->nbars && pci_dev->bar_info[i].rid != BAR_NUM(rid); i++);
+    r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, pci_dev->bar_info[i].size,
+                               pci_dev->bar_info[i].size, flags);
+  }
 
   if (type & RT_IOPORTS)
     r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, size, size,

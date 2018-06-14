@@ -162,8 +162,7 @@ static int stdvga_probe(device_t *dev) {
 }
 
 static int stdvga_attach(device_t *dev) {
-  pci_device_t *pcid = pci_device_of(dev);
-
+  
   /* TODO: Enabling PCI regions should probably be performed by PCI bus resource
    * reservation code. */
   uint16_t command = pci_read_config(dev, PCIR_COMMAND, 2);
@@ -172,12 +171,11 @@ static int stdvga_attach(device_t *dev) {
 
   stdvga_state_t *stdvga = dev->state;
 
-  stdvga->mem = bus_resource_alloc_anywhere(
-    dev, pcid->bar_info[0].type, PCIR_BAR(pcid->bar_info[0].rid),
-    pcid->bar_info[0].size, pcid->bar_info[0].flags);
-  stdvga->io = bus_resource_alloc_anywhere(
-    dev, pcid->bar_info[1].type, PCIR_BAR(pcid->bar_info[1].rid),
-    pcid->bar_info[1].size, pcid->bar_info[1].flags);
+  stdvga->mem = bus_resource_alloc_any(dev, RT_MEMORY, PCIR_BAR(0), RF_PREFETCHABLE);
+  stdvga->io = bus_resource_alloc_any(dev, RT_MEMORY, PCIR_BAR(2), 0);
+
+  assert(stdvga->mem);
+  assert(stdvga->io);
 
   stdvga->vga = (vga_device_t){
     .palette_write = stdvga_palette_write,
