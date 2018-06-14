@@ -3,7 +3,7 @@
 
 #include <common.h>
 #include <queue.h>
-#include <mips/intr.h>
+#include <spinlock.h>
 
 /*! \brief Disables interrupts.
  *
@@ -58,7 +58,6 @@ typedef void driver_intr_t(void *);
 
 typedef struct intr_chain intr_chain_t;
 typedef struct intr_handler intr_handler_t;
-typedef int prio_t;
 
 struct intr_handler {
   TAILQ_ENTRY(intr_handler) ih_list;
@@ -79,6 +78,7 @@ typedef TAILQ_HEAD(, intr_handler) intr_handler_list_t;
   }
 
 typedef struct intr_chain {
+  spinlock_t ic_lock;
   TAILQ_ENTRY(intr_chain) ic_list;
   intr_handler_list_t ic_handlers; /* interrupt handlers */
   const char *ic_name;             /* individual chain name */

@@ -1,6 +1,7 @@
-#include <mips/stack.h>
 #include <common.h>
 #include <stdc.h>
+#include <stack.h>
+#include <exec.h>
 
 /* Places program args onto the stack.
  * Also modifies value pointed by stack_bottom_p to reflect on changed
@@ -31,8 +32,8 @@
  * the now empty program stack, so that it can naturally grow
  * downwards.
  */
-void prepare_program_stack(const exec_args_t *args, vm_addr_t *stack_bottom_p) {
-
+void stack_user_entry_setup(const exec_args_t *args,
+                            vm_addr_t *stack_bottom_p) {
   vm_addr_t stack_end = *stack_bottom_p;
   /* Begin by calculting arguments total size. This has to be done */
   /* in advance, because stack grows downwards. */

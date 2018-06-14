@@ -7,6 +7,7 @@
 #include <filedesc.h>
 #include <wait.h>
 #include <signal.h>
+#include <sched.h>
 
 static MALLOC_DEFINE(M_PROC, "proc", 1, 2);
 
@@ -21,8 +22,6 @@ static pid_t last_pid = 0;
 proc_t *proc_create(void) {
   proc_t *proc = kmalloc(M_PROC, sizeof(proc_t), M_ZERO);
   mtx_init(&proc->p_lock, MTX_DEF);
-  TAILQ_INIT(&proc->p_threads);
-  proc->p_nthreads = 0;
   proc->p_state = PRS_NORMAL;
   TAILQ_INIT(&proc->p_children);
 
@@ -40,8 +39,7 @@ void proc_populate(proc_t *p, thread_t *td) {
   SCOPED_MTX_LOCK(&td->td_lock);
 
   td->td_proc = p;
-  TAILQ_INSERT_TAIL(&p->p_threads, td, td_procq);
-  p->p_nthreads += 1;
+  p->p_thread = td;
 }
 
 proc_t *proc_find(pid_t pid) {
@@ -94,12 +92,6 @@ void proc_exit(int exitstatus) {
   bool reap_now = false;
 
   WITH_MTX_LOCK (&p->p_lock) {
-    assert(p->p_nthreads == 1);
-    /* If the process had other threads, we'd need to wake the sleeping ones,
-       request all of them except this one to call thread_exit from
-       exc_before_leave (using a TDF_? flag), join all of them to wait until
-       they terminate. */
-
     /* Process orphans. They should become children of PID1, but since we don't
        use an init process yet, I have to make them parent-less (so that can no
        longer refer to this terminated process). */
@@ -112,7 +104,13 @@ void proc_exit(int exitstatus) {
     }
 
     /* Clean up process resources. */
-    vm_map_delete(p->p_uspace);
+    {
+      /* Make sure uspace will not get activated by context switch while it's
+       * being deleted. */
+      vm_map_t *uspace = p->p_uspace;
+      p->p_uspace = NULL;
+      vm_map_delete(uspace);
+    }
     fdtab_release(p->p_fdtable);
 
     /* Record some process statistics that will stay maintained in zombie

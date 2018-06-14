@@ -6,18 +6,22 @@
 #include <context.h>
 #include <exception.h>
 #include <sleepq.h>
+#include <turnstile.h>
 #include <mutex.h>
 #include <condvar.h>
 #include <time.h>
 #include <signal.h>
+#include <stack.h>
+#include <spinlock.h>
+#include <mips/ctx.h> /* TODO leaks ctx_t structure because of td_kctx */
 
 /*! \file thread.h */
 
-typedef uint8_t td_prio_t;
 typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
 typedef struct fdtab fdtab_t;
 typedef struct proc proc_t;
+typedef void (*entry_fn_t)(void *);
 
 #define TD_NAME_MAX 32
 
@@ -28,7 +32,9 @@ typedef struct proc proc_t;
  *  - READY -> RUNNING (dispatcher)
  *  - RUNNING -> READY (dispatcher, self)
  *  - RUNNING -> SLEEPING (self)
+ *  - RUNNING -> BLOCKED (self)
  *  - SLEEPING -> READY (interrupts, other threads)
+ *  - BLOCKED -> READY (other threads)
  *  - * -> DEAD (other threads or self)
  */
 typedef enum {
@@ -40,6 +46,8 @@ typedef enum {
   TDS_RUNNING,
   /*!< thread is waiting on a resource and it has been put on a sleep queue */
   TDS_SLEEPING,
+  /*!< thread is waiting for a lock and it has been put on a turnstile */
+  TDS_BLOCKED,
   /*!< thread finished or was terminated by the kernel and awaits recycling */
   TDS_DEAD
 } thread_state_t;
@@ -47,6 +55,9 @@ typedef enum {
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 #define TDF_NEEDSIGCHK 0x00000004 /* signals were posted for delivery */
+#define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
+#define TDF_BORROWING 0x00000010  /* priority propagation */
+#define TDF_SLEEPY 0x00000020     /* thread is about to go to sleep */
 
 /*! \brief Thread structure
  *
@@ -54,45 +65,52 @@ typedef enum {
  *  - a: threads_lock
  *  - t: thread_t::td_lock
  *  - @: read-only access
- *  - !: can only be accessed by self or from interrupt
+ *  - !: thread_t::td_spin
  *  - ~: always safe to access
+ *  - #: UP & no preemption
  *
  * Locking order:
  *  threads_lock >> thread_t::td_lock
  */
 typedef struct thread {
   /* locks */
-  mtx_t td_lock;       /*!< (~) protects most fields in this structure */
-  condvar_t td_waitcv; /*!< (t) for thread_join */
+  spinlock_t td_spin[1]; /*!< (~) synchronizes top & bottom halves */
+  mtx_t td_lock;         /*!< (~) protects most fields in this structure */
+  condvar_t td_waitcv;   /*!< (t) for thread_join */
   /* linked lists */
-  TAILQ_ENTRY(thread) td_all;     /* a link on all threads list */
-  TAILQ_ENTRY(thread) td_runq;    /* a link on run queue */
-  TAILQ_ENTRY(thread) td_sleepq;  /* a link on sleep queue */
-  TAILQ_ENTRY(thread) td_zombieq; /* a link on zombie queue */
-  TAILQ_ENTRY(thread) td_procq;   /* a link on process threads queue */
+  TAILQ_ENTRY(thread) td_all;      /* a link on all threads list */
+  TAILQ_ENTRY(thread) td_runq;     /* a link on run queue */
+  TAILQ_ENTRY(thread) td_sleepq;   /* a link on sleep queue */
+  TAILQ_ENTRY(thread) td_blockedq; /* (#) a link on turnstile blocked queue */
+  TAILQ_ENTRY(thread) td_zombieq;  /* a link on zombie queue */
   /* Properties */
   proc_t *td_proc; /*!< (t) parent process (NULL for kernel threads) */
   char *td_name;   /*!< (@) name of thread */
   tid_t td_tid;    /*!< (@) thread identifier */
   /* thread state */
-  thread_state_t td_state;
-  uint32_t td_flags; /* TDF_* flags */
+  thread_state_t td_state; /*!< (!) thread state */
+  uint32_t td_flags;       /*!< (!) TDF_* flags */
   /* thread context */
-  volatile unsigned td_idnest; /*!< (!) interrupt disable nest level */
-  volatile unsigned td_pdnest; /*!< (!) preemption disable nest level */
-  exc_frame_t td_uctx;         /* user context (always exception) */
-  fpu_ctx_t td_uctx_fpu;       /* user FPU context (always exception) */
-  exc_frame_t *td_kframe;      /* kernel context (last exception frame) */
+  volatile unsigned td_idnest; /*!< (?) interrupt disable nest level */
+  volatile unsigned td_pdnest; /*!< (?) preemption disable nest level */
+  exc_frame_t *td_uframe;      /* user context (full exception frame) */
+  exc_frame_t *td_kframe;      /* kernel context (last cpu exception frame) */
   ctx_t td_kctx;               /* kernel context (switch) */
   intptr_t td_onfault;         /* program counter for copyin/copyout faults */
   vm_page_t *td_kstack_obj;
   stack_t td_kstack;
   /* waiting channel */
-  sleepq_t *td_sleepqueue;
   void *td_wchan;
   const void *td_waitpt; /*!< a point where program waits */
+  /* waiting channel - sleepqueue */
+  sleepq_t *td_sleepqueue; /* thread's sleepqueue */
+  /* waiting channel - turnstile */
+  turnstile_t *td_blocked;   /* (#) turnstile on which thread is blocked */
+  turnstile_t *td_turnstile; /* (#) thread's turnstile */
+  LIST_HEAD(, turnstile) td_contested; /* (#) turnstiles of locks that we own */
   /* scheduler part */
-  td_prio_t td_prio;
+  prio_t td_base_prio; /*!< base priority */
+  prio_t td_prio;      /*!< active priority */
   int td_slice;
   /* thread statistics */
   timeval_t td_rtime;        /*!< time spent running */
@@ -108,6 +126,15 @@ typedef struct thread {
 thread_t *thread_self(void);
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
 void thread_delete(thread_t *td);
+
+/*! \brief Prepares thread to be launched.
+ *
+ * Initializes thread context so it can be resumed in such a way,
+ * as if @target function was called with @arg argument.
+ *
+ * Such thread can be resumed either by switch or return from exception.
+ */
+void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg);
 
 /*! \brief Exit from a thread.
  *
@@ -134,5 +161,34 @@ void thread_join(thread_t *td);
  * some tests need to explicitly wait until threads are reaped before they can
  * verify test success. */
 void thread_reap(void);
+
+/* Please use following functions to read state of a thread! */
+static inline bool td_is_ready(thread_t *td) {
+  return td->td_state == TDS_READY;
+}
+
+static inline bool td_is_dead(thread_t *td) {
+  return td->td_state == TDS_DEAD;
+}
+
+static inline bool td_is_blocked(thread_t *td) {
+  return td->td_state == TDS_BLOCKED;
+}
+
+static inline bool td_is_running(thread_t *td) {
+  return td->td_state == TDS_RUNNING;
+}
+
+static inline bool td_is_inactive(thread_t *td) {
+  return td->td_state == TDS_INACTIVE;
+}
+
+static inline bool td_is_sleeping(thread_t *td) {
+  return td->td_state == TDS_SLEEPING;
+}
+
+static inline bool td_is_borrowing(thread_t *td) {
+  return td->td_flags & TDF_BORROWING;
+}
 
 #endif /* !_SYS_THREAD_H_ */

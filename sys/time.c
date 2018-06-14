@@ -9,7 +9,7 @@ int do_clock_gettime(clockid_t clk, timespec_t *tp) {
     return -EFAULT;
 
   if (clk == CLOCK_MONOTONIC) {
-    *tp = tv2ts(get_uptime());
+    *tp = bt2ts(getbintime());
     return 0;
   }
 

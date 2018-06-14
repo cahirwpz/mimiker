@@ -1,6 +1,8 @@
 #ifndef _SYS_POOL_H_
 #define _SYS_POOL_H_
 
+#include <common.h>
+
 typedef struct pool *pool_t;
 
 typedef void (*pool_ctor_t)(void *);

@@ -24,3 +24,18 @@ int test_misbehave() {
 
   return 0;
 }
+
+int test_exc_sigsys(void) {
+  int retval = 0;
+  int sysnum = 9999; /* large enough to be never implemented */
+  asm volatile("li $v0, %1;"
+               "syscall;"
+               "sw $v0, %0"
+               : "=m"(retval)
+               : "i"(sysnum)
+               : "memory", "v0");
+
+  assert(retval == -1);
+  assert(errno == ENOSYS);
+  return 0;
+}

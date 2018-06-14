@@ -2,15 +2,18 @@
 #include <klog.h>
 #include <stdc.h>
 #include <callout.h>
+#include <spinlock.h>
 #include <sysinit.h>
 
 /* Note: If the difference in time between ticks is greater than the number of
    buckets, some callouts may be called out-of-order! */
 #define CALLOUT_BUCKETS 64
 
+#define callout_is_active(c) ((c)->c_flags & CALLOUT_ACTIVE)
 #define callout_set_active(c) ((c)->c_flags |= CALLOUT_ACTIVE)
 #define callout_clear_active(c) ((c)->c_flags &= ~CALLOUT_ACTIVE)
 
+#define callout_is_pending(c) ((c)->c_flags & CALLOUT_PENDING)
 #define callout_set_pending(c) ((c)->c_flags |= CALLOUT_PENDING)
 #define callout_clear_pending(c) ((c)->c_flags &= ~CALLOUT_PENDING)
 
@@ -20,25 +23,35 @@
   allowing us to access random elements in constant time.
 */
 
-typedef struct callout_head callout_head_t;
-TAILQ_HEAD(callout_head, callout);
+typedef TAILQ_HEAD(callout_list, callout) callout_list_t;
 
 static struct {
-  callout_head_t heads[CALLOUT_BUCKETS];
+  callout_list_t heads[CALLOUT_BUCKETS];
   /* Stores the value of the argument callout_process was previously
      called with. All callouts up to this timestamp have already been
      processed. */
   systime_t last;
+  spinlock_t lock;
 } ci;
+
+static inline callout_list_t *ci_list(int i) {
+  return &ci.heads[i];
+}
 
 static void callout_init(void) {
   bzero(&ci, sizeof(ci));
 
+  ci.lock = SPINLOCK_INITIALIZER();
+
   for (int i = 0; i < CALLOUT_BUCKETS; i++)
-    TAILQ_INIT(&ci.heads[i]);
+    TAILQ_INIT(ci_list(i));
 }
 
-void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg) {
+static void _callout_setup(callout_t *handle, systime_t time, timeout_t fn,
+                           void *arg) {
+  assert(spin_owned(&ci.lock));
+  assert(!callout_is_pending(handle));
+
   int index = time % CALLOUT_BUCKETS;
 
   bzero(handle, sizeof(callout_t));
@@ -48,18 +61,33 @@ void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg) {
   handle->c_index = index;
   callout_set_pending(handle);
 
-  klog("Add callout {%p} with wakeup at %lld.", handle, handle->c_time);
-  TAILQ_INSERT_TAIL(&ci.heads[index], handle, c_link);
+  klog("Add callout {%p} with wakeup at %ld.", handle, handle->c_time);
+  TAILQ_INSERT_TAIL(ci_list(index), handle, c_link);
+}
+
+void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg) {
+  SCOPED_SPINLOCK(&ci.lock);
+
+  _callout_setup(handle, time, fn, arg);
 }
 
 void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
                             void *arg) {
-  callout_setup(handle, time + ci.last, fn, arg);
+  SCOPED_SPINLOCK(&ci.lock);
+
+  systime_t now = getsystime();
+  _callout_setup(handle, now + time, fn, arg);
 }
 
 void callout_stop(callout_t *handle) {
-  klog("Remove callout {%p} at %lld.", handle, handle->c_time);
-  TAILQ_REMOVE(&ci.heads[handle->c_index], handle, c_link);
+  SCOPED_SPINLOCK(&ci.lock);
+
+  klog("Remove callout {%p} at %ld.", handle, handle->c_time);
+
+  if (callout_is_pending(handle)) {
+    callout_clear_pending(handle);
+    TAILQ_REMOVE(ci_list(handle->c_index), handle, c_link);
+  }
 }
 
 /*
@@ -69,6 +97,7 @@ void callout_stop(callout_t *handle) {
 void callout_process(systime_t time) {
   unsigned int last_bucket;
   unsigned int current_bucket = ci.last % CALLOUT_BUCKETS;
+
   if (time - ci.last > CALLOUT_BUCKETS) {
     /* Process all buckets */
     last_bucket = (ci.last - 1) % CALLOUT_BUCKETS;
@@ -77,26 +106,33 @@ void callout_process(systime_t time) {
     last_bucket = time % CALLOUT_BUCKETS;
   }
 
-  while (1) {
-    callout_head_t *head = &ci.heads[current_bucket];
-    callout_t *elem = TAILQ_FIRST(head);
-    callout_t *next;
+  callout_list_t detached;
 
-    while (elem) {
-      next = TAILQ_NEXT(elem, c_link);
+  SCOPED_SPINLOCK(&ci.lock);
 
+  while (true) {
+    callout_list_t *head = ci_list(current_bucket);
+    callout_t *elem, *next;
+
+    TAILQ_INIT(&detached);
+
+    /* Detach triggered callouts from the queue. */
+    TAILQ_FOREACH_SAFE(elem, head, c_link, next) {
       if (elem->c_time <= time) {
         callout_set_active(elem);
         callout_clear_pending(elem);
-
         TAILQ_REMOVE(head, elem, c_link);
-        elem->c_func(elem->c_arg);
-
-        callout_clear_active(elem);
+        TAILQ_INSERT_TAIL(&detached, elem, c_link);
       }
-
-      elem = next;
     }
+
+    /* Now safely call them one by one. */
+    TAILQ_FOREACH_SAFE(elem, &detached, c_link, next) {
+      TAILQ_REMOVE(&detached, elem, c_link);
+      elem->c_func(elem->c_arg);
+      callout_clear_active(elem);
+    }
+
     if (current_bucket == last_bucket)
       break;
 

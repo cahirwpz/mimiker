@@ -1,25 +1,34 @@
 #define KL_LOG KL_INTR
 #include <klog.h>
 #include <errno.h>
+#include <exception.h>
 #include <interrupt.h>
 #include <mips/exc.h>
 #include <mips/intr.h>
 #include <mips/mips.h>
 #include <pmap.h>
-#include <pmap.h>
+#include <spinlock.h>
 #include <queue.h>
-#include <stdc.h>
 #include <sysent.h>
 #include <thread.h>
 
+typedef void (*exc_handler_t)(exc_frame_t *);
+
 extern const char _ebase[];
 
+/* Extra information regarding DI / EI usage (from MIPS® ISA documentation):
+ *
+ * The instruction creates an execution hazard between the change to SR register
+ * and the point where the change to the interrupt enable takes effect. This
+ * hazard is cleared by the EHB, JALR.HB, JR.HB, or ERET instructions. Software
+ * must not assume that a fixed latency will clear the execution hazard. */
+
 void mips_intr_disable(void) {
-  asm volatile("di");
+  asm volatile("di; ehb");
 }
 
 void mips_intr_enable(void) {
-  asm volatile("ei");
+  asm volatile("ei; ehb");
 }
 
 bool mips_intr_disabled(void) {
@@ -64,7 +73,7 @@ void mips_intr_init(void) {
 
 void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
   intr_chain_t *chain = &mips_intr_chain[irq];
-  WITH_INTR_DISABLED {
+  WITH_SPINLOCK(&chain->ic_lock) {
     intr_chain_add_handler(chain, handler);
     if (chain->ic_count == 1) {
       mips32_bs_c0(C0_STATUS, SR_IM0 << irq); /* enable interrupt */
@@ -75,14 +84,17 @@ void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
 
 void mips_intr_teardown(intr_handler_t *handler) {
   intr_chain_t *chain = handler->ih_chain;
-  WITH_INTR_DISABLED {
+  WITH_SPINLOCK(&chain->ic_lock) {
     if (chain->ic_count == 1)
       mips32_bc_c0(C0_STATUS, SR_IM0 << chain->ic_irq);
     intr_chain_remove_handler(handler);
   }
 }
 
+/* Hardware interrupt handler is called with interrupts disabled. */
 void mips_intr_handler(exc_frame_t *frame) {
+  assert(intr_disabled());
+
   unsigned pending = (frame->cause & frame->sr) & CR_IP_MASK;
 
   for (int i = 7; i >= 0; i--) {
@@ -95,6 +107,10 @@ void mips_intr_handler(exc_frame_t *frame) {
   }
 
   mips32_set_c0(C0_CAUSE, frame->cause & ~CR_IP_MASK);
+
+  exc_before_leave(frame);
+
+  assert(intr_disabled());
 }
 
 const char *const exceptions[32] = {
@@ -119,17 +135,6 @@ const char *const exceptions[32] = {
     [EXC_MCHECK] = "Machine checkcore",
 };
 
-void kernel_oops(exc_frame_t *frame) {
-  unsigned code = (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
-
-  klog("%s at $%08x!", exceptions[code], frame->pc);
-  if ((code == EXC_ADEL || code == EXC_ADES) ||
-      (code == EXC_IBE || code == EXC_DBE))
-    klog("Caused by reference to $%08x!", frame->badvaddr);
-
-  panic("Unhandled exception!");
-}
-
 static void cpu_get_syscall_args(const exc_frame_t *frame,
                                  syscall_args_t *args) {
   args->code = frame->v0;
@@ -140,6 +145,8 @@ static void cpu_get_syscall_args(const exc_frame_t *frame,
 }
 
 static void syscall_handler(exc_frame_t *frame) {
+  assert(!intr_disabled());
+
   /* Eventually we will want a platform-independent syscall entry, so
      argument retrieval is done separately */
   syscall_args_t args;
@@ -169,16 +176,92 @@ static void fpe_handler(exc_frame_t *frame) {
   }
 }
 
+static void cp_unusable_handler(exc_frame_t *frame) {
+  if (in_kernel_mode(frame)) {
+    panic("Coprocessor unusable exception in kernel mode.");
+  }
+
+  int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
+  if (cp_id != 1) {
+    sig_send(thread_self()->td_proc, SIGILL);
+  } else {
+    /* Enable FPU for interrupted context. */
+    frame->sr |= SR_CU1;
+  }
+}
+
+static void ri_handler(exc_frame_t *frame) {
+  assert(!in_kernel_mode(frame));
+  sig_send(thread_self()->td_proc, SIGILL);
+}
+
 /*
  * This is exception vector table. Each exeception either has been assigned a
  * handler or kernel_oops is called for it. For exact meaning of exception
  * handlers numbers please check 5.23 Table of MIPS32 4KEc User's Manual.
  */
 
-void *general_exception_table[32] = {[EXC_MOD] = tlb_exception_handler,
-                                     [EXC_TLBL] = tlb_exception_handler,
-                                     [EXC_TLBS] = tlb_exception_handler,
-                                     [EXC_SYS] = syscall_handler,
-                                     [EXC_FPE] = fpe_handler,
-                                     [EXC_MSAFPE] = fpe_handler,
-                                     [EXC_OVF] = fpe_handler};
+static exc_handler_t user_exception_table[32] =
+  {[EXC_MOD] = tlb_exception_handler,
+   [EXC_TLBL] = tlb_exception_handler,
+   [EXC_TLBS] = tlb_exception_handler,
+   [EXC_SYS] = syscall_handler,
+   [EXC_FPE] = fpe_handler,
+   [EXC_MSAFPE] = fpe_handler,
+   [EXC_OVF] = fpe_handler,
+   [EXC_CPU] = cp_unusable_handler,
+   [EXC_RI] = ri_handler};
+
+static exc_handler_t kernel_exception_table[32] =
+  {[EXC_MOD] = tlb_exception_handler, [EXC_TLBL] = tlb_exception_handler,
+   [EXC_TLBS] = tlb_exception_handler};
+
+static inline unsigned exc_code(exc_frame_t *frame) {
+  return (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
+}
+
+noreturn void kernel_oops(exc_frame_t *frame) {
+  unsigned code = exc_code(frame);
+
+  klog("%s at $%08x!", exceptions[code], frame->pc);
+  if ((code == EXC_ADEL || code == EXC_ADES) ||
+      (code == EXC_IBE || code == EXC_DBE) ||
+      (code == EXC_TLBL || code == EXC_TLBS))
+    klog("Caused by reference to $%08x!", frame->badvaddr);
+
+  panic("Unhandled '%s' at $%08x!", exceptions[code], frame->pc);
+}
+
+/* General exception handler is called with interrupts disabled. */
+void mips_exc_handler(exc_frame_t *frame) {
+  unsigned code = exc_code(frame);
+  bool kernel_mode = in_kernel_mode(frame);
+
+  assert(intr_disabled());
+
+  if (code == EXC_INTR && kernel_mode) {
+    mips_intr_handler(frame);
+    return;
+  }
+
+  exc_handler_t handler =
+    (kernel_mode ? kernel_exception_table : user_exception_table)[code];
+
+  if (!handler)
+    kernel_oops(frame);
+
+  /* TODO If `handler` is not hardware interrupt handler, then it should be
+   * called with interrupts enabled. Preemption state should not be altered. */
+  if (code == EXC_SYS) {
+    /* Handle system calls with interrupts enabled! */
+    intr_enable();
+    (*handler)(frame);
+    intr_disable();
+  } else {
+    (*handler)(frame);
+  }
+
+  exc_before_leave(frame);
+
+  assert(intr_disabled());
+}
