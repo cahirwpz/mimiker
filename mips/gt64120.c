@@ -343,11 +343,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   if (!r)
     return NULL;
 
-  r->r_owner = dev;
-  r->r_id = rid;
-  r->r_type = type;
-  r->r_bus_space = mips_bus_space_generic;
-  LIST_INSERT_HEAD(&dev->resources, r, r_device);
+  bus_generic_new_resource_init(r, dev, type, rid, mips_bus_space_generic);
 
   /* Write BAR address to PCI device register. */
   if (!(flags & RF_ACTIVATED)) {

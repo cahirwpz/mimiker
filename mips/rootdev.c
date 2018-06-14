@@ -98,14 +98,12 @@ static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
 
   resource_t *r =
     rman_allocate_resource(&rm_mem, start, end, size, size, RF_NONE);
-  if (r == NULL)
+
+  if (!r)
     return NULL;
 
-  r->r_owner = child;
-  r->r_id = rid;
-  r->r_type = type;
-  r->r_bus_space = &generic_space;
-  LIST_INSERT_HEAD(&child->resources, r, r_device);
+  bus_generic_new_resource_init(r, child, type, rid, &generic_space);
+
   return r;
 }
 
