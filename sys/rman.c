@@ -34,7 +34,7 @@ static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
   return NULL;
 }
 
-/* !\brief ???
+/* !\brief cut the resource into two 
  *
  * Divide resource into two `where` means start of right resource function
  * returns pointer to new (right) resource
@@ -58,7 +58,7 @@ static resource_t *cut_resource(resource_t *res, rman_addr_t where) {
   return right_res;
 }
 
-/* !\brief ???
+/* !\brief extract resource with given addres range from bigger resource
  *
  * Maybe split resource into two or three in order to recover space before and
  * after allocation.

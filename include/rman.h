@@ -49,18 +49,16 @@ struct rman {
   resource_list_t rm_resources; /* all managed resources */
 };
 
-/* returns null if unable to allocate */
+/* !\brief allocate resource within given rman
+ * 
+ * returns NULL if unable to allocate
+ */
 resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
                                    rman_addr_t end, size_t count, size_t align,
                                    unsigned flags);
 
-static inline resource_t *rman_allocate_resource_anywhere(rman_t *rm,
-                                                          size_t count,
-                                                          size_t align,
-                                                          unsigned flags) {
-  return rman_allocate_resource(rm, 0, RMAN_ADDR_MAX, count, align, flags);
-}
-
+/* !\brief create and initialize new rman 
+ */
 void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end);
 
 static inline void rman_create_from_resource(rman_t *rm, resource_t *res) {
