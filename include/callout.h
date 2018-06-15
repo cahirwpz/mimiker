@@ -43,4 +43,13 @@ void callout_stop(callout_t *handle);
  */
 void callout_process(systime_t now);
 
+/*
+ * Wait until a callout ends its execution or return immediately if the
+ * callout has already been executed or stopped.
+ *
+ * \return True if the function call blocked and waited for callout execution,
+ * or false if the function returned immediately.
+ */
+bool callout_drain(callout_t *handle);
+
 #endif /* !_SYS_CALLOUT_H_ */

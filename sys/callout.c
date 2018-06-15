@@ -4,6 +4,8 @@
 #include <callout.h>
 #include <spinlock.h>
 #include <sysinit.h>
+#include <sleepq.h>
+#include <interrupt.h>
 
 /* Note: If the difference in time between ticks is greater than the number of
    buckets, some callouts may be called out-of-order! */
@@ -108,7 +110,8 @@ void callout_process(systime_t time) {
 
   callout_list_t detached;
 
-  SCOPED_SPINLOCK(&ci.lock);
+  /* We are in kernel's bottom half. */
+  assert(intr_disabled());
 
   while (true) {
     callout_list_t *head = ci_list(current_bucket);
@@ -130,6 +133,7 @@ void callout_process(systime_t time) {
     TAILQ_FOREACH_SAFE(elem, &detached, c_link, next) {
       TAILQ_REMOVE(&detached, elem, c_link);
       elem->c_func(elem->c_arg);
+      sleepq_broadcast(elem);
       callout_clear_active(elem);
     }
 
@@ -140,6 +144,22 @@ void callout_process(systime_t time) {
   }
 
   ci.last = time;
+}
+
+bool callout_drain(callout_t *handle) {
+  /* A callout may be in active state only in callout_process,
+   * which is called in bottom half (with interrupts disabled),
+   * so we can't notice it. */
+  assert(!callout_is_active(handle));
+
+  WITH_INTR_DISABLED {
+    if (callout_is_pending(handle)) {
+      sleepq_wait(handle, NULL);
+      return true;
+    }
+  }
+
+  return false;
 }
 
 SYSINIT_ADD(callout, callout_init, NODEPS);
