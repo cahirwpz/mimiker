@@ -108,6 +108,20 @@ static int test_callout_stop(void) {
   return KTEST_SUCCESS;
 }
 
+static void callout_to_stop(void *arg) {
+  /* Nothing important. */
+}
+
+static int test_callout_drain(void) {
+  callout_t callout;
+  bzero(&callout, sizeof(callout_t));
+
+  callout_setup_relative(&callout, 10, callout_to_stop, NULL);
+  callout_stop(&callout);
+  bool drained = callout_drain(&callout);
+
+  /* There was no need to drain as callout has been already stopped. */
+  assert(!drained);
 
   return KTEST_SUCCESS;
 }
@@ -116,3 +130,4 @@ KTEST_ADD(callout_sync, test_callout_sync, 0);
 KTEST_ADD(callout_simple, test_callout_simple, 0);
 KTEST_ADD(callout_order, test_callout_order, 0);
 KTEST_ADD(callout_stop, test_callout_stop, 0);
+KTEST_ADD(callout_drain, test_callout_drain, 0);
