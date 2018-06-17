@@ -133,6 +133,8 @@ void callout_process(systime_t time) {
     TAILQ_FOREACH_SAFE(elem, &detached, c_link, next) {
       TAILQ_REMOVE(&detached, elem, c_link);
       elem->c_func(elem->c_arg);
+      /* Wake threads that wait for execution of this callout in function
+       * callout_drain. */
       sleepq_broadcast(elem);
       callout_clear_active(elem);
     }
