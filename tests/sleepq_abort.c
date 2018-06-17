@@ -7,7 +7,9 @@
 
 #define RAND_COUNT 13
 /* obtained with totally fair d6 rolls (1-3 true; 4-6 false) */
-static bool kinda_random_values[RAND_COUNT] = {true, true, false, true, false, false, true, false, true, true, false, false, false};
+static bool kinda_random_values[RAND_COUNT] = {true,  true,  false, true, false,
+                                               false, true,  false, true, true,
+                                               false, false, false};
 /* some random ordering for waiters (values from 0 to T-1) */
 static int waiters_ord[T] = {5, 2, 1, 3, 4, 0};
 static thread_t *waiters[T];
@@ -17,7 +19,8 @@ static int some_val;
 static volatile int woken_gracefully;
 static volatile int interrupted;
 
-/* waiters have higher priority so that waker will only execute when waiters can't 
+/* Waiters have higher priority so that waker will only execute
+ * when waiters can't.
  * Therefore there should be only one waiter active at once */
 static void waiter_routine(void *_arg) {
   slp_wakeup_t rsn = sleepq_wait_abortable(&some_val, __caller(0), SLPF_INT);
@@ -50,7 +53,7 @@ static void waker_routine(void *_arg) {
     } else {
       bool succ = false;
       while (!succ) {
-        assert (next_abort < T && waiters_ord[next_abort] < T);
+        assert(next_abort < T && waiters_ord[next_abort] < T);
         succ = sleepq_abort(waiters[waiters_ord[next_abort]], SLEEPQ_WKP_INT);
         next_abort++;
       }
@@ -62,7 +65,7 @@ static void waker_routine(void *_arg) {
 static int test_mult(void) {
   woken_gracefully = 0;
   interrupted = 0;
-  
+
   waker = thread_create("waker", waker_routine, NULL);
   for (int i = 0; i < T; i++) {
     char name[20];
@@ -81,7 +84,7 @@ static int test_mult(void) {
   sched_add(waker);
 
   /* now only wait until the threads finish */
-  
+
   thread_join(waker);
   for (int i = 0; i < T; i++)
     thread_join(waiters[i]);

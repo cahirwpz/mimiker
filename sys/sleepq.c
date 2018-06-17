@@ -205,7 +205,8 @@ void sleepq_wait(void *wchan, const void *waitpt) {
   assert(r == SLEEPQ_WKP_REG);
 }
 
-slp_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt, sleep_flags_t f) {
+slp_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
+                                   sleep_flags_t f) {
   thread_t *td = thread_self();
 
   if (waitpt == NULL)
