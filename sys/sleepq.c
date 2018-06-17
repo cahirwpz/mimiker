@@ -201,11 +201,11 @@ static uint32_t tdf_of_slpf(sleep_flags_t flags) {
 }
 
 void sleepq_wait(void *wchan, const void *waitpt) {
-  slp_wakeup_t r = sleepq_wait_flg(wchan, waitpt, 0);
-  assert(r == SLP_WKP_REG);
+  slp_wakeup_t r = sleepq_wait_abortable(wchan, waitpt, 0);
+  assert(r == SLEEPQ_WKP_REG);
 }
 
-slp_wakeup_t sleepq_wait_flg(void *wchan, const void *waitpt, sleep_flags_t f) {
+slp_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt, sleep_flags_t f) {
   thread_t *td = thread_self();
 
   if (waitpt == NULL)
@@ -216,7 +216,7 @@ slp_wakeup_t sleepq_wait_flg(void *wchan, const void *waitpt, sleep_flags_t f) {
   /* The code can be interrupted in here.
    * A race is avoided by clever use of TDF_SLEEPY flag. */
 
-  slp_wakeup_t r = SLP_WKP_REG;
+  slp_wakeup_t r = SLEEPQ_WKP_REG;
   WITH_SPINLOCK(td->td_spin) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
@@ -239,7 +239,7 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
   bool res = false;
   WITH_SPINLOCK(td->td_spin) {
     // TODO check if thread allows this reason
-    if (reason == SLP_WKP_REG ||
+    if (reason == SLEEPQ_WKP_REG ||
         td->td_flags & tdf_of_slpf(SLPF_OF_WKP(reason))) {
       res = true;
       td->td_wakeup_reason = reason;
@@ -275,7 +275,7 @@ bool sleepq_signal(void *wchan) {
       best_td = td;
   }
 
-  sq_wakeup(best_td, sc, sq, SLP_WKP_REG);
+  sq_wakeup(best_td, sc, sq, SLEEPQ_WKP_REG);
 
   sq_release(sq);
   sc_release(sc);
@@ -283,18 +283,21 @@ bool sleepq_signal(void *wchan) {
   return true;
 }
 
-bool sleepq_signal_thread(thread_t *td, slp_wakeup_t reason) {
+bool sleepq_abort(thread_t *td, slp_wakeup_t reason) {
+  bool r;
   void *wchan = td->td_wchan;
   sleepq_chain_t *sc = sc_acquire(wchan);
   sleepq_t *sq = sq_lookup(sc, wchan);
 
   assert(sc != NULL);
-  assert(sq != NULL);
 
-  // TODO check if the thread accepts this type of wakeup
-  bool r = sq_wakeup(td, sc, sq, reason);
+  if (sq != NULL) {
+    // TODO check if the thread accepts this type of wakeup
+    r = sq_wakeup(td, sc, sq, reason);
+    sq_release(sq);
+  } else
+    r = false;
 
-  sq_release(sq);
   sc_release(sc);
 
   return r;
@@ -311,7 +314,7 @@ bool sleepq_broadcast(void *wchan) {
 
   thread_t *td;
   TAILQ_FOREACH (td, &sq->sq_blocked, td_sleepq)
-    sq_wakeup(td, sc, sq, SLP_WKP_REG);
+    sq_wakeup(td, sc, sq, SLEEPQ_WKP_REG);
   sq_release(sq);
   sc_release(sc);
 

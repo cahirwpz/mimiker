@@ -95,7 +95,7 @@ int sig_send(proc_t *proc, signo_t sig) {
 
   WITH_SPINLOCK(target->td_spin) {
     if (td_is_sleeping_int(target))
-      sleepq_signal_thread(target, SLP_WKP_INT);
+      sleepq_abort(target, SLEEPQ_WKP_INT);
   }
 
   return 0;
