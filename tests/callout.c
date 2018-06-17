@@ -56,7 +56,7 @@ static int test_callout_simple(void) {
 
 #define ORDER_N 10
 static int order[ORDER_N] = {2, 5, 4, 6, 9, 0, 8, 1, 3, 7};
-static bool processed[ORDER_N];
+static int current;
 
 static void callout_ordered(void *arg) {
   /* There is no race condition here as callouts run in bottom half (with
@@ -64,16 +64,14 @@ static void callout_ordered(void *arg) {
   assert(intr_disabled());
 
   int ord = (int)arg;
-  if (ord > 0)
-    assert(processed[ord - 1]);
-
-  processed[ord] = true;
+  assert(current == ord);
+  current++;
 }
 
 static int test_callout_order(void) {
   callout_t callouts[ORDER_N];
   bzero(callouts, sizeof(callout_t) * ORDER_N);
-  bzero(processed, sizeof(bool) * ORDER_N);
+  current = 0;
 
   /* Register callouts within a critical section, to ensure they use the same
      base time! */
