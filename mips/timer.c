@@ -22,7 +22,7 @@ typedef struct mips_timer_state {
   bintime_t time;
   bintime_t period;
   uint32_t period_cntr;
-  volatile bool overflow;
+  uint32_t last_count_lo;
   volatile counter_t count;
   volatile counter_t compare;
   intr_handler_t intr_handler;
@@ -56,6 +56,10 @@ static timer_t mips_timer = {
 static uint64_t read_count(mips_timer_state_t *state) {
   SCOPED_INTR_DISABLED();
   state->count.lo = mips32_get_c0(C0_COUNT);
+  /* detect hardware counter overflow */
+  if (state->count.lo < state->last_count_lo)
+    state->count.hi++;
+  state->last_count_lo = state->count.lo;
   return state->count.val;
 }
 
@@ -87,6 +91,7 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
   state->period = period;
   state->period_cntr = bintime_mul(period, CPU_FREQ).sec;
   state->compare.val = read_count(state);
+  state->last_count_lo = state->count.lo;
   set_next_tick(state);
   mips_intr_setup(&state->intr_handler, MIPS_HWINT5);
   return 0;
