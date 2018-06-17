@@ -73,13 +73,10 @@ static int test_callout_order(void) {
   bzero(callouts, sizeof(callout_t) * ORDER_N);
   current = 0;
 
-  /* Register callouts within a critical section, to ensure they use the same
-     base time! */
-  WITH_INTR_DISABLED {
-    for (int i = 0; i < ORDER_N; i++)
-      callout_setup_relative(&callouts[i], 5 + order[i] * 5, callout_ordered,
-                             (void *)order[i]);
-  }
+  systime_t now = getsystime();
+  for (int i = 0; i < ORDER_N; i++)
+    callout_setup(&callouts[i], now + 5 + order[i] * 5, callout_ordered,
+                  (void *)order[i]);
 
   /* Wait for all callouts. */
   for (int i = 0; i < ORDER_N; i++)
@@ -90,18 +87,16 @@ static int test_callout_order(void) {
 
 /* This test verifies that callouts removed with callout_stop are not run. */
 static void callout_bad(void *arg) {
-  assert(0);
+  panic("%s: should never be called!", __func__);
 }
 
 static int test_callout_stop(void) {
   callout_t callout;
   bzero(&callout, sizeof(callout_t));
 
-  WITH_INTR_DISABLED {
-    callout_setup_relative(&callout, 1, callout_bad, NULL);
-    /* Remove callout, hope that callout_bad won't be called! */
-    callout_stop(&callout);
-  }
+  callout_setup_relative(&callout, 2, callout_bad, NULL);
+  /* Remove callout, hope that callout_bad won't be called! */
+  callout_stop(&callout);
 
   return KTEST_SUCCESS;
 }
