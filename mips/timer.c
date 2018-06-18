@@ -5,12 +5,10 @@
 #include <time.h>
 #include <timer.h>
 
-/* For now, sole purpose of MIPS CPU timer is to provide accurate timestamps
- * for various parts of the system.
- *
- * TODO Integrate with new timer framework. */
+/* XXX Should the timer use driver framework? */
 
 typedef union {
+  /* assumes little endian order */
   struct {
     uint32_t lo;
     uint32_t hi;
@@ -19,12 +17,10 @@ typedef union {
 } counter_t;
 
 typedef struct mips_timer_state {
-  bintime_t time;
-  bintime_t period;
-  uint32_t period_cntr;
-  uint32_t last_count_lo;
-  volatile counter_t count;
-  volatile counter_t compare;
+  uint32_t period_cntr;       /* number of counter ticks in a period */
+  uint32_t last_count_lo;     /* used to detect counter overflow */
+  volatile counter_t count;   /* last written value of counter reg. (64 bits) */
+  volatile counter_t compare; /* last read value of compare reg. (64 bits) */
   intr_handler_t intr_handler;
 } mips_timer_state_t;
 
@@ -65,6 +61,7 @@ static uint64_t read_count(mips_timer_state_t *state) {
 
 static void set_next_tick(mips_timer_state_t *state) {
   SCOPED_INTR_DISABLED();
+  /* calculate next value of compare register based on timer period */
   state->compare.val += state->period_cntr;
   mips32_set_c0(C0_COMPARE, state->compare.lo);
 }
@@ -87,8 +84,6 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
 
   mips_timer_state_t *state = state_of(tm);
 
-  state->time = getbintime();
-  state->period = period;
   state->period_cntr = bintime_mul(period, CPU_FREQ).sec;
   state->compare.val = read_count(state);
   state->last_count_lo = state->count.lo;
