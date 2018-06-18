@@ -1,3 +1,5 @@
+#define KL_LOG KL_TIME
+#include <klog.h>
 #include <mips/m32c0.h>
 #include <mips/config.h>
 #include <mips/intr.h>
@@ -63,6 +65,11 @@ static void set_next_tick(mips_timer_state_t *state) {
   SCOPED_INTR_DISABLED();
   /* calculate next value of compare register based on timer period */
   state->compare.val += state->period_cntr;
+#if 1
+  klog("count: $%x%08x, compare: $%x%08x", state->count.hi, state->count.lo,
+       state->compare.hi, state->compare.lo);
+  assert(state->compare.val > state->count.val);
+#endif
   mips32_set_c0(C0_COMPARE, state->compare.lo);
 }
 
