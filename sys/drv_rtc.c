@@ -90,7 +90,7 @@ static int rtc_attach(device_t *dev) {
 
   rtc_state_t *rtc = dev->state;
 
-  rtc->regs = bus_resource_alloc_anywhere(dev, RT_ISA, 0, 0, RF_SHARED);
+  rtc->regs = bus_resource_alloc_any(dev,RT_ISA,0,RF_SHARED);
 
   rtc->intr_handler =
     INTR_HANDLER_INIT(rtc_intr, NULL, rtc, "RTC periodic timer", 0);
