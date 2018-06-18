@@ -9,7 +9,7 @@ typedef struct sleepq sleepq_t;
 
 typedef enum {
   SLEEPQ_WKP_REG, /* regular wakeup
-                * keep it as the first entry (because of flags below) */
+                   * keep it as the first entry (because of flags below) */
   SLEEPQ_WKP_INT  /* thread interrupted */
 } slp_wakeup_t;
 
