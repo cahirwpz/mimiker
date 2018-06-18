@@ -48,11 +48,11 @@ static resource_t *cut_resource(resource_t *res, rman_addr_t where) {
   resource_t *right_res = pool_alloc(P_RMAN, 0);
   memset(right_res, 0, sizeof(resource_t));
 
-  left_res->r_resources.le_next = right_res;
-  right_res->r_resources.le_prev = &left_res;
+  LIST_INSERT_AFTER(left_res, right_res, r_resources);
 
   right_res->r_end = left_res->r_end;
   right_res->r_start = where;
+  right_res->r_type = res->r_type;
   left_res->r_end = where - 1;
 
   return right_res;
@@ -86,6 +86,7 @@ resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
     return NULL;
 
   resource = split_resource(resource, align(start, align), end, count);
+  resource->r_type = rm->type;
   resource->r_align = align;
   resource->r_flags = flags;
   resource->r_flags |= RF_ALLOCATED;
@@ -93,9 +94,10 @@ resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
   return resource;
 }
 
-void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end) {
+void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end, resource_type_t type) {
   rm->rm_start = start;
   rm->rm_end = end;
+  rm->type = type;
 
   mtx_init(&rm->rm_mtx, MTX_DEF);
   LIST_INIT(&rm->rm_resources);
@@ -105,6 +107,7 @@ void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end) {
 
   whole_space->r_start = rm->rm_start;
   whole_space->r_end = rm->rm_end;
+  whole_space->r_type = type;
 
   LIST_INSERT_HEAD(&rm->rm_resources, whole_space, r_resources);
 }

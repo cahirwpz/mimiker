@@ -5,6 +5,7 @@
 #include <mutex.h>
 #include <queue.h>
 
+typedef enum {RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_ISA} resource_type_t;
 typedef intptr_t rman_addr_t;
 #define RMAN_ADDR_MAX INTPTR_MAX
 
@@ -15,10 +16,12 @@ typedef LIST_HEAD(, resource) resource_list_t;
 
 /* We need to have some PCI-ISA bridge driver in place. */
 
+#if 0
 #define RT_UNKNOWN 0
 #define RT_MEMORY 1
 #define RT_IOPORTS 2
 #define RT_ISA_F 4 /* TODO: remove after ISA-bridge driver is implemented */
+#endif
 
 #define RF_NONE 0
 /* According to PCI specification prefetchable bit is CLEAR when memory mapped
@@ -34,7 +37,7 @@ struct resource {
   void *r_owner;            /* pointer to device that owns this resource */
   rman_addr_t r_start;      /* first physical address of the resource */
   rman_addr_t r_end; /* last (inclusive) physical address of the resource */
-  unsigned r_type;   /* one of RT_* values (possibly or'ed with RT_ISA_F) */
+  resource_type_t r_type;   /* one of RT_* values (possibly or'ed with RT_ISA_F) */
   unsigned r_flags;  /* or'ed RF_* values */
   size_t r_align;    /* alignment requirements for starting physical address */
   int r_id;          /* (optional) resource identifier */
@@ -47,6 +50,7 @@ struct rman {
   rman_addr_t rm_start;         /* first physical address */
   rman_addr_t rm_end;           /* last physical adress */
   resource_list_t rm_resources; /* all managed resources */
+  resource_type_t type;
 };
 
 /* !\brief allocate resource within given rman
@@ -57,14 +61,16 @@ resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
                                    rman_addr_t end, size_t count, size_t align,
                                    unsigned flags);
 
-/* !\brief create and initialize new rman
+/* !\brief Create and initialize new rman.
+ * 
+ * \param type specifies type of resources managed by this rman.
  */
-void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end);
+void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end, resource_type_t type);
 
 /* !\brief consume resource for exclusive use of new rman
  */
 static inline void rman_create_from_resource(rman_t *rm, resource_t *res) {
-  rman_create(rm, res->r_start, res->r_end);
+  rman_create(rm, res->r_start, res->r_end, res->r_type);
 }
 
 void rman_init(void);

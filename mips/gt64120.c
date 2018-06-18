@@ -301,7 +301,7 @@ static int gt_pci_attach(device_t *pcib) {
 }
 
 static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
-                                         int type, int rid, rman_addr_t start,
+                                         resource_type_t type, int rid, rman_addr_t start,
                                          rman_addr_t end, size_t size,
                                          unsigned flags) {
 
@@ -311,7 +311,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   pci_bar_info_t *bar = NULL;
 
   /* Hack to directly return ISA resource. Need to implement PCI-ISA bridge. */
-  if (type & RT_ISA_F)
+  if (type == RT_ISA)
     return gtpci->isa_io;
 
   /* Now handle only PCI devices. */
@@ -332,18 +332,18 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   if (!bar)
     return NULL;
 
-  if (type & RT_MEMORY)
+  if (type == RT_MEMORY)
     r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, bar->size,
                                bar->size, flags);
 
-  if (type & RT_IOPORTS)
+  if (type == RT_IOPORTS)
     r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, bar->size,
                                bar->size, flags);
 
   if (!r)
     return NULL;
 
-  bus_generic_new_resource_init(r, dev, type, rid, mips_bus_space_generic);
+  bus_generic_new_resource_init(r, dev, rid, mips_bus_space_generic);
 
   /* Write BAR address to PCI device register. */
   if (!(flags & RF_ACTIVATED)) {
