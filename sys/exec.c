@@ -184,10 +184,6 @@ int do_exec(const exec_args_t *args) {
         /* Allocate pages backing this segment. */
         segment->object = default_pager->pgr_alloc();
 
-        /* Force pre-paging. */
-        for (vm_addr_t cur = start; cur < end; cur += PAGESIZE)
-          *(int *)cur = 0;
-
         /* Read data from file into the segment */
         /* TODO: This is a lot of copying! Ideally we would look up the
            vm_object associated with the elf vnode, create a shadow vm_object on
