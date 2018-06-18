@@ -44,6 +44,9 @@ void sleepq_wait(void *wchan, const void *waitpt);
  *        an event specified in flags occurs.
  *
  * Other threads can interrupt this sleep with `sleepq_abort(thread, reason)`.
+ *
+ * `SLEEPQ_WKP_REG` is always accepted as a valid reason (because it's used
+ * internally for regular wake-up).
  */
 slp_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
                                    sleep_flags_t flags);
@@ -60,6 +63,10 @@ bool sleepq_signal(void *wchan);
 /* Interrupt some thread's sleep. Returns true on success (false if the thread
  * wasn't sleeping or doesn't accept the reason). The woken up thread will
  * receive the reason as a return value from `sleepq_wait_abortable`.
+ *
+ * `SLEEPQ_WKP_REG` is always accepted as a valid reason (because it's used
+ * internally for regular wake-up) and you probably shouldn't pass it to this
+ * function.
  */
 bool sleepq_abort(thread_t *td, slp_wakeup_t reason);
 
