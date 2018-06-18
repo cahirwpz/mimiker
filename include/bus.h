@@ -120,7 +120,8 @@ static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
  * \param rid resource identifier as in \a resource_t structure
  * \param flags RF_* flags defined in rman.h
  */
-static inline resource_t *bus_resource_alloc(device_t *dev, resource_type_t type, int rid,
+static inline resource_t *bus_resource_alloc(device_t *dev,
+                                             resource_type_t type, int rid,
                                              rman_addr_t start, rman_addr_t end,
                                              size_t size, unsigned flags) {
   return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, start,
@@ -132,7 +133,8 @@ static inline resource_t *bus_resource_alloc(device_t *dev, resource_type_t type
  * Basically the same as \sa bus_resource_alloc, but resource placement in
  * memory is chosen by the parent bus.
  */
-static inline resource_t *bus_resource_alloc_anywhere(device_t *dev, resource_type_t type,
+static inline resource_t *bus_resource_alloc_anywhere(device_t *dev,
+                                                      resource_type_t type,
                                                       int rid, size_t size,
                                                       unsigned flags) {
   return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0,
@@ -144,8 +146,9 @@ static inline resource_t *bus_resource_alloc_anywhere(device_t *dev, resource_ty
  * Basically the same as \sa bus_resource_alloc_anywhere, but resource
  * has to be identifiable by parent bus driver by \param rid.
  */
-static inline resource_t *bus_resource_alloc_any(device_t *dev, resource_type_t type,
-                                                 int rid, unsigned flags) {
+static inline resource_t *bus_resource_alloc_any(device_t *dev,
+                                                 resource_type_t type, int rid,
+                                                 unsigned flags) {
 
   return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0,
                                              RMAN_ADDR_MAX, 1, flags);

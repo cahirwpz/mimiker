@@ -29,7 +29,8 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
 }
 
 static int rootdev_attach(device_t *dev) {
-  rman_create(&rm_mem, MALTA_PHYS_ADDR_SPACE_BASE, MALTA_PHYS_ADDR_SPACE_END, RT_MEMORY);
+  rman_create(&rm_mem, MALTA_PHYS_ADDR_SPACE_BASE, MALTA_PHYS_ADDR_SPACE_END,
+              RT_MEMORY);
 
   gt_pci = device_add_child(dev);
   gt_pci->driver = &gt_pci_bus.driver;
@@ -92,9 +93,9 @@ static struct bus_space generic_space = {.read_1 = mips_read_1,
                                          .write_region_1 = mips_write_region_1};
 
 static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
-                                          resource_type_t type, int rid, rman_addr_t start,
-                                          rman_addr_t end, size_t size,
-                                          unsigned flags) {
+                                          resource_type_t type, int rid,
+                                          rman_addr_t start, rman_addr_t end,
+                                          size_t size, unsigned flags) {
 
   resource_t *r =
     rman_allocate_resource(&rm_mem, start, end, size, size, RF_NONE);

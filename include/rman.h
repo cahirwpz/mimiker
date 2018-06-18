@@ -5,7 +5,8 @@
 #include <mutex.h>
 #include <queue.h>
 
-typedef enum {RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_ISA} resource_type_t;
+/* TODO: remove RT_ISA after ISA-bridge driver is implemented */
+typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_ISA } resource_type_t;
 typedef intptr_t rman_addr_t;
 #define RMAN_ADDR_MAX INTPTR_MAX
 
@@ -13,15 +14,6 @@ typedef struct rman rman_t;
 typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 typedef LIST_HEAD(, resource) resource_list_t;
-
-/* We need to have some PCI-ISA bridge driver in place. */
-
-#if 0
-#define RT_UNKNOWN 0
-#define RT_MEMORY 1
-#define RT_IOPORTS 2
-#define RT_ISA_F 4 /* TODO: remove after ISA-bridge driver is implemented */
-#endif
 
 #define RF_NONE 0
 /* According to PCI specification prefetchable bit is CLEAR when memory mapped
@@ -37,10 +29,11 @@ struct resource {
   void *r_owner;            /* pointer to device that owns this resource */
   rman_addr_t r_start;      /* first physical address of the resource */
   rman_addr_t r_end; /* last (inclusive) physical address of the resource */
-  resource_type_t r_type;   /* one of RT_* values (possibly or'ed with RT_ISA_F) */
-  unsigned r_flags;  /* or'ed RF_* values */
-  size_t r_align;    /* alignment requirements for starting physical address */
-  int r_id;          /* (optional) resource identifier */
+  resource_type_t
+    r_type;         /* one of RT_* values (possibly or'ed with RT_ISA_F) */
+  unsigned r_flags; /* or'ed RF_* values */
+  size_t r_align;   /* alignment requirements for starting physical address */
+  int r_id;         /* (optional) resource identifier */
   LIST_ENTRY(resource) r_resources; /* link on resource manager list */
   LIST_ENTRY(resource) r_device; /* link on resources list assigned to device */
 };
@@ -50,24 +43,25 @@ struct rman {
   rman_addr_t rm_start;         /* first physical address */
   rman_addr_t rm_end;           /* last physical adress */
   resource_list_t rm_resources; /* all managed resources */
-  resource_type_t type;
+  resource_type_t type;         /* type of managed resources */
 };
 
-/* !\brief allocate resource within given rman
+/* !\brief Allocate resource within given rman.
  *
- * returns NULL if unable to allocate
+ * Returns NULL if unable to allocate.
  */
 resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
                                    rman_addr_t end, size_t count, size_t align,
                                    unsigned flags);
 
 /* !\brief Create and initialize new rman.
- * 
+ *
  * \param type specifies type of resources managed by this rman.
  */
-void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end, resource_type_t type);
+void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end,
+                 resource_type_t type);
 
-/* !\brief consume resource for exclusive use of new rman
+/* !\brief Consume resource for exclusive use of new rman.
  */
 static inline void rman_create_from_resource(rman_t *rm, resource_t *res) {
   rman_create(rm, res->r_start, res->r_end, res->r_type);
