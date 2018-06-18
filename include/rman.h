@@ -29,8 +29,7 @@ struct resource {
   void *r_owner;            /* pointer to device that owns this resource */
   rman_addr_t r_start;      /* first physical address of the resource */
   rman_addr_t r_end; /* last (inclusive) physical address of the resource */
-  resource_type_t
-    r_type;         /* one of RT_* values (possibly or'ed with RT_ISA_F) */
+  resource_type_t r_type;
   unsigned r_flags; /* or'ed RF_* values */
   size_t r_align;   /* alignment requirements for starting physical address */
   int r_id;         /* (optional) resource identifier */
