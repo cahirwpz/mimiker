@@ -60,6 +60,8 @@ bool sleepq_signal(void *wchan);
 // TODO how to doxygen
 // TODO should we allow trying to abort a non-sleeping thread? At this (some)
 //      moment we do (and just return false)
+// TODO maybe we should just forbid calling it with reason SLEEPQ_WKP_REG
+//      (with some assert)
 /* Interrupt some thread's sleep. Returns true on success (false if the thread
  * wasn't sleeping or doesn't accept the reason). The woken up thread will
  * receive the reason as a return value from `sleepq_wait_abortable`.
