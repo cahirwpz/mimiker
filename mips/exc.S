@@ -84,6 +84,7 @@ skip_fpu_save:
 user_exc_leave:
         # Disable interrupts and extract interrupt mask into t1.
         di      t1
+        ehb
         ext     t1, SR_IMASK_SHIFT, SR_IMASK_BITS
 
         # Set current stack pointer to user exception frame.
@@ -164,6 +165,7 @@ NESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
 kern_exc_leave:
         # Disable interrupts and extract interrupt mask into t1.
         di      t1
+        ehb
         ext     t1, SR_IMASK_SHIFT, SR_IMASK_BITS
 
         # Load status register from exception frame and update it with current
