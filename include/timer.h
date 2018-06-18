@@ -10,6 +10,10 @@ typedef TAILQ_HEAD(timer_head, timer) timer_list_t;
 typedef int (*tm_start_t)(timer_t *tm, unsigned flags, const bintime_t start,
                           const bintime_t period);
 typedef int (*tm_stop_t)(timer_t *tm);
+
+/*! \brief Type of function for fetching current time.
+ *
+ * \warning This routine cannot log messages, cause it's used by klog! */
 typedef bintime_t (*tm_gettime_t)(timer_t *tm);
 
 /*! \brief Callback function type.
@@ -18,9 +22,10 @@ typedef bintime_t (*tm_gettime_t)(timer_t *tm);
 typedef void (*tm_event_cb_t)(timer_t *tm, void *arg);
 
 /* There are some flags used by implementation that are not listed here! */
-#define TMF_ONESHOT 0x0001  /*!< triggers callback once */
-#define TMF_PERIODIC 0x0002 /*!< triggers callback on regular basis */
-#define TMF_TYPEMASK 0x0003 /*!< don't use other bits! */
+#define TMF_ONESHOT 0x0001    /*!< triggers callback once */
+#define TMF_PERIODIC 0x0002   /*!< triggers callback on regular basis */
+#define TMF_TYPEMASK 0x0003   /*!< don't use other bits! */
+#define TMF_TIMESOURCE 0x0004 /*!< choose this timer as time source */
 
 typedef struct timer {
   TAILQ_ENTRY(timer) tm_link; /*!< entry on list of all timers */

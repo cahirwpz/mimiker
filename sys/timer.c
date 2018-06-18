@@ -8,6 +8,7 @@
 
 static mtx_t timers_mtx = MTX_INITIALIZER(MTX_DEF);
 static timer_list_t timers = TAILQ_HEAD_INITIALIZER(timers);
+static timer_t *time_source = NULL;
 
 /* These flags are used internally to encode timer state.
  * Following state transitions are possible:
@@ -129,6 +130,8 @@ int tm_start(timer_t *tm, unsigned flags, const bintime_t start,
   int retval = tm->tm_start(tm, flags, start, period);
   if (retval == 0)
     tm->tm_flags |= TMF_ACTIVE;
+  if (flags & TMF_TIMESOURCE)
+    time_source = tm;
   return retval;
 }
 
@@ -150,8 +153,6 @@ void tm_trigger(timer_t *tm) {
 
   tm->tm_event_cb(tm, tm->tm_arg);
 }
-
-static timer_t *time_source = NULL;
 
 void tm_select(timer_t *tm) {
   time_source = tm;
