@@ -61,13 +61,17 @@ static uint64_t read_count(mips_timer_state_t *state) {
   return state->count.val;
 }
 
+static inline timeval_t ticks2tv(uint64_t ticks);
+
 static void set_next_tick(mips_timer_state_t *state) {
   SCOPED_INTR_DISABLED();
   /* calculate next value of compare register based on timer period */
   state->compare.val += state->period_cntr;
 #if 1
-  klog("count: $%x%08x, compare: $%x%08x", state->count.hi, state->count.lo,
-       state->compare.hi, state->compare.lo);
+  timeval_t count = ticks2tv(state->count.val);
+  timeval_t compare = ticks2tv(state->compare.val);
+  klog("count: %d.%06d, compare: %d.%06d", count.tv_sec, count.tv_usec,
+       compare.tv_sec, compare.tv_usec);
   assert(state->compare.val > state->count.val);
 #endif
   mips32_set_c0(C0_COMPARE, state->compare.lo);
