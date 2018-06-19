@@ -82,10 +82,11 @@ void pci_bus_enumerate(device_t *pcib) {
       }
     }
   }
+
+  pci_bus_dump(pcib);
 }
 
 /* TODO: to be replaced with GDB python script */
-#if 0
 void pci_bus_dump(device_t *pcib) {
   device_t *dev;
 
@@ -116,19 +117,17 @@ void pci_bus_dump(device_t *pcib) {
       kprintf("%s Interrupt: pin %c routed to IRQ %d\n", devstr,
               'A' + pcid->pin - 1, pcid->irq);
 
-    resource_t *r = NULL;
-    LIST_FOREACH(r, &dev->resources, r_device) {
+    for (unsigned i = 0; i < pcid->nbars; i++) {
+      pci_bar_info_t *bar = &pcid->bar_info[i];
       char *type;
 
-      if (r->r_type == RT_IOPORTS) {
+      if (bar->type == RT_IOPORTS) {
         type = "I/O ports";
       } else {
-        type = (r->r_flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
+        type = (bar->flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
                                               : "Memory (non-prefetchable)";
       }
-      kprintf("%s Region %x: %s at %p [size=$%x]\n", devstr, BAR_NUM(r->r_id),
-              type, (void *)r->r_start, (unsigned)(r->r_end - r->r_start + 1));
+      kprintf("%s Region %x: %s [size=$%x]\n", devstr, i, type, bar->size);
     }
   }
 }
-#endif
