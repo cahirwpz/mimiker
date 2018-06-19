@@ -193,6 +193,7 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   }
 }
 
+// TODO maybe we should just make td_sleep_flags in thread_t?
 static uint32_t tdf_of_slpf(sleep_flags_t flags) {
   uint32_t td_flags = 0;
   if (flags & SLPF_INT)
