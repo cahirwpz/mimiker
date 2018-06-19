@@ -233,23 +233,28 @@ static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
   intr_chain_register(&gtpci->intr_chain[irq]);
 }
 
+#define MALTA_CORECTRL_SIZE (MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1)
+#define MALTA_PCI0_MEMORY_SIZE                                                 \
+  (MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1)
+
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
-  gtpci->pci_mem = bus_resource_alloc(
-    pcib, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END,
-    MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1, 0);
-  gtpci->pci_io = bus_resource_alloc(
-    pcib, RT_MEMORY, 0, MALTA_PCI0_EXCLUSIVE_IO_BASE,
-    MALTA_PCI0_EXCLUSIVE_IO_END,
-    MALTA_PCI0_EXCLUSIVE_IO_END - MALTA_PCI0_EXCLUSIVE_IO_BASE + 1, 0);
-  gtpci->corectrl = bus_resource_alloc(
-    pcib, RT_MEMORY, 0, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END,
-    MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1, 0);
-  gtpci->isa_io = bus_resource_alloc(
-    pcib, RT_MEMORY, 0, MALTA_PCI0_TO_ISA_BRIDGE_BASE,
-    MALTA_PCI0_TO_ISA_BRIDGE_END,
-    MALTA_PCI0_TO_ISA_BRIDGE_END - MALTA_PCI0_TO_ISA_BRIDGE_BASE + 1, 0);
+  /* PCI I/O memory */
+  gtpci->pci_mem =
+    bus_resource_alloc(pcib, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE,
+                       MALTA_PCI0_MEMORY_END, MALTA_PCI0_MEMORY_SIZE, 0);
+  /* PCI I/O ports 0x1000-0xffff */
+  gtpci->pci_io =
+    bus_resource_alloc(pcib, RT_MEMORY, 0, MALTA_PCI0_IO_BASE + 0x1000,
+                       MALTA_PCI0_IO_BASE + 0xffff, 0xf000, 0);
+  /* GT64120 registers */
+  gtpci->corectrl =
+    bus_resource_alloc(pcib, RT_MEMORY, 0, MALTA_CORECTRL_BASE,
+                       MALTA_CORECTRL_END, MALTA_CORECTRL_SIZE, 0);
+  /* ISA I/O ports 0x0000-0x0fff */
+  gtpci->isa_io = bus_resource_alloc(pcib, RT_MEMORY, 0, MALTA_PCI0_IO_BASE,
+                                     MALTA_PCI0_IO_BASE + 0xfff, 0x1000, 0);
 
   if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
       gtpci->pci_io == NULL || gtpci->isa_io == NULL) {

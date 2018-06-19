@@ -113,6 +113,11 @@ void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end,
   LIST_INSERT_HEAD(&rm->rm_resources, whole_space, r_resources);
 }
 
+void rman_create_from_resource(rman_t *rm, resource_t *res) {
+  assert(res->r_flags & RF_ALLOCATED);
+  rman_create(rm, res->r_start, res->r_end, res->r_type);
+}
+
 void rman_init(void) {
   P_RMAN = pool_create("rman", sizeof(resource_t), NULL, NULL);
 }

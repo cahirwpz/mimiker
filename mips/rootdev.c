@@ -29,8 +29,8 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
 }
 
 static int rootdev_attach(device_t *dev) {
-  rman_create(&rm_mem, MALTA_PHYS_ADDR_SPACE_BASE, MALTA_PHYS_ADDR_SPACE_END,
-              RT_MEMORY);
+  /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ... */
+  rman_create(&rm_mem, 0x10000000, 0x1fffffff, RT_MEMORY);
 
   gt_pci = device_add_child(dev);
   gt_pci->driver = &gt_pci_bus.driver;
