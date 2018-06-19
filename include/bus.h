@@ -154,16 +154,6 @@ static inline resource_t *bus_resource_alloc_any(device_t *dev,
                                              RMAN_ADDR_MAX, 1, flags);
 }
 
-/* \brief Inits some of resource_t fields. Should be used in bus drivers. */
-static inline void bus_generic_new_resource_init(resource_t *r, device_t *dev,
-                                                 int rid,
-                                                 bus_space_t *bus_space) {
-  r->r_owner = dev;
-  r->r_id = rid;
-  r->r_bus_space = bus_space;
-  LIST_INSERT_HEAD(&dev->resources, r, r_device);
-}
-
 int bus_generic_probe(device_t *bus);
 
 #endif

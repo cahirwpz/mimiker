@@ -101,7 +101,7 @@ static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
     rman_allocate_resource(&rm_mem, start, end, size, size, RF_NONE);
 
   if (r)
-    bus_generic_new_resource_init(r, child, rid, &generic_space);
+    device_add_resource(child, r, rid, &generic_space);
 
   return r;
 }
