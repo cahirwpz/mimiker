@@ -87,11 +87,7 @@ static int uart_write(vnode_t *v, uio_t *uio) {
 }
 
 static vnodeops_t dev_uart_ops = {
-  .v_lookup = vnode_lookup_nop,
-  .v_readdir = vnode_readdir_nop,
-  .v_open = vnode_open_generic,
-  .v_write = uart_write,
-  .v_read = uart_read,
+  .v_open = vnode_open_generic, .v_write = uart_write, .v_read = uart_read,
 };
 
 static intr_filter_t ns16550_intr(void *data) {
@@ -151,9 +147,7 @@ static int ns16550_attach(device_t *dev) {
   out(&ns16550->regs, IER, IER_ERXRDY | IER_ETXRDY);
 
   /* Prepare /dev/uart interface. */
-  vnode_t *uart_device = vnode_new(V_DEV, &dev_uart_ops);
-  uart_device->v_data = ns16550;
-  devfs_install("uart", uart_device);
+  devfs_makedev(NULL, "uart", &dev_uart_ops, ns16550);
 
   return 0;
 }
