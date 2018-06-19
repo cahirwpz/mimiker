@@ -4,6 +4,7 @@
 #include <queue.h>
 #include <malloc.h>
 #include <linker_set.h>
+#include <rman.h>
 
 typedef struct device device_t;
 typedef struct driver driver_t;
@@ -31,8 +32,9 @@ struct device {
   /* Device hierarchy. */
   device_t *parent;        /* parent node (bus?) or null (root or pseudo-dev) */
   TAILQ_ENTRY(device) all; /* node on list of all devices */
-  TAILQ_ENTRY(device) link; /* node on list of siblings */
-  device_list_t children;   /* head of children devices */
+  TAILQ_ENTRY(device) link;  /* node on list of siblings */
+  device_list_t children;    /* head of children devices */
+  resource_list_t resources; /* head of resources belonging to this device */
 
   /* Device information and state. */
   device_bus_t bus;
@@ -48,6 +50,12 @@ int device_detach(device_t *dev);
 
 /* Manually create a device with given driver and parent device. */
 device_t *make_device(device_t *parent, driver_t *driver);
+
+/*! \brief Prepares and adds a resource to a device.
+ *
+ * \note Mostly used in bus drivers. */
+void device_add_resource(device_t *dev, resource_t *r, int rid,
+                         bus_space_t *bus_space);
 
 /* A universal memory pool to be used by all drivers. */
 MALLOC_DECLARE(M_DEV);
