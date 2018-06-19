@@ -218,6 +218,7 @@ slp_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
   /* The code can be interrupted in here.
    * A race is avoided by clever use of TDF_SLEEPY flag. */
 
+  /* Initial value just to avoid compiler's warning (and therefore error) */
   slp_wakeup_t reason = SLEEPQ_WKP_REG;
   WITH_SPINLOCK(td->td_spin) {
     if (td->td_flags & TDF_SLEEPY) {
