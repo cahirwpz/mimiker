@@ -23,8 +23,6 @@ extern const char *pci_class_code[];
 
 /* Please read http://wiki.osdev.org/PCI */
 
-#define PCI_IO_SPACE_BASE 0x1000
-
 #define PCI_BAR_MEMORY 0
 #define PCI_BAR_IO 1
 #define PCI_BAR_64BIT 4
@@ -43,7 +41,6 @@ extern const char *pci_class_code[];
 #define PCIR_IRQPIN 0x3e
 #define PCIR_IRQLINE 0x3f
 #define PCIR_BAR(i) (0x10 + (i)*4)
-#define BAR_NUM(offset) (((offset)-0x10) >> 2)
 
 typedef struct pci_addr {
   uint8_t bus;
@@ -71,13 +68,13 @@ typedef struct pci_bus_driver {
   pci_bus_methods_t pci_bus;
 } pci_bus_driver_t;
 
-typedef struct pci_bar_info {
+typedef struct pci_bar {
   device_t *owner; /* pci device owner of this bar */
   size_t size;     /* identified size of this bar */
   int rid;         /* BAR number in [0,5] */
   unsigned type;   /* RT_IOPORTS or RT_MEMORY */
   unsigned flags;  /* nothing or RF_PREFETACHBLE */
-} pci_bar_info_t;
+} pci_bar_t;
 
 typedef struct pci_device {
   pci_addr_t addr;
@@ -88,7 +85,7 @@ typedef struct pci_device {
   uint8_t pin, irq;
 
   unsigned nbars;
-  pci_bar_info_t bar_info[6]; /* identified BARs */
+  pci_bar_t bar[6]; /* identified BARs */
 } pci_device_t;
 
 #define PCI_DRIVER(dev) ((pci_bus_driver_t *)((dev)->parent->driver))

@@ -155,7 +155,7 @@ static int stdvga_probe(device_t *dev) {
       pcid->device_id != VGA_QEMU_STDVGA_DEVICE_ID)
     return 0;
 
-  if (!(pcid->bar_info[0].flags & RF_PREFETCHABLE))
+  if (!(pcid->bar[0].flags & RF_PREFETCHABLE))
     return 0;
 
   return 1;
@@ -171,9 +171,8 @@ static int stdvga_attach(device_t *dev) {
 
   stdvga_state_t *stdvga = dev->state;
 
-  stdvga->mem =
-    bus_resource_alloc_any(dev, RT_MEMORY, PCIR_BAR(0), RF_PREFETCHABLE);
-  stdvga->io = bus_resource_alloc_any(dev, RT_MEMORY, PCIR_BAR(2), 0);
+  stdvga->mem = bus_resource_alloc_any(dev, RT_MEMORY, 0, RF_PREFETCHABLE);
+  stdvga->io = bus_resource_alloc_any(dev, RT_MEMORY, 2, 0);
 
   assert(stdvga->mem);
   assert(stdvga->io);

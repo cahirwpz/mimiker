@@ -311,9 +311,6 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
                                          size_t size, unsigned flags) {
 
   gt_pci_state_t *gtpci = pcib->state;
-  resource_t *r = NULL;
-  pci_device_t *pci_dev;
-  pci_bar_info_t *bar = NULL;
 
   /* Hack to directly return ISA resource. Need to implement PCI-ISA bridge. */
   if (type == RT_ISA)
@@ -327,23 +324,23 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
 
   /* Find identified bar by rid. */
-  pci_dev = pci_device_of(dev);
-  for (unsigned i = 0; i < pci_dev->nbars; i++) {
-    bar = &pci_dev->bar_info[i];
-    if (pci_dev->bar_info[i].rid == BAR_NUM(rid))
-      break;
-  }
+  pci_device_t *pcid = pci_device_of(dev);
+  pci_bar_t *bar = &pcid->bar[rid];
 
-  if (!bar)
+  if (bar->size == 0)
     return NULL;
 
-  if (type == RT_MEMORY)
+  resource_t *r = NULL;
+
+  if (type == RT_MEMORY) {
     r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, bar->size,
                                bar->size, flags);
-
-  if (type == RT_IOPORTS)
+  } else if (type == RT_IOPORTS) {
     r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, bar->size,
                                bar->size, flags);
+  } else {
+    panic("Unknown PCI device type: %d", type);
+  }
 
   if (!r)
     return NULL;
@@ -352,7 +349,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
 
   /* Write BAR address to PCI device register. */
   if (!(flags & RF_ACTIVATED)) {
-    pci_write_config(dev, rid, 4, r->r_start);
+    pci_write_config(dev, PCIR_BAR(rid), 4, r->r_start);
     r->r_flags |= RF_ACTIVATED;
   }
 

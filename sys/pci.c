@@ -76,8 +76,7 @@ void pci_bus_enumerate(device_t *pcib) {
         }
 
         size = -size;
-        pci_bar_info_t *bar = &pcid->bar_info[pcid->nbars++];
-        *bar = (pci_bar_info_t){
+        pcid->bar[i] = (pci_bar_t){
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
       }
     }
@@ -117,9 +116,12 @@ void pci_bus_dump(device_t *pcib) {
       kprintf("%s Interrupt: pin %c routed to IRQ %d\n", devstr,
               'A' + pcid->pin - 1, pcid->irq);
 
-    for (unsigned i = 0; i < pcid->nbars; i++) {
-      pci_bar_info_t *bar = &pcid->bar_info[i];
+    for (int i = 0; i < 6; i++) {
+      pci_bar_t *bar = &pcid->bar[i];
       char *type;
+
+      if (bar->size == 0)
+        continue;
 
       if (bar->type == RT_IOPORTS) {
         type = "I/O ports";
