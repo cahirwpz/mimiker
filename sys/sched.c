@@ -1,13 +1,12 @@
 #define KL_LOG KL_SCHED
 #include <klog.h>
-#include <sync.h>
 #include <stdc.h>
 #include <sched.h>
 #include <runq.h>
 #include <context.h>
 #include <time.h>
 #include <thread.h>
-#include <callout.h>
+#include <spinlock.h>
 #include <interrupt.h>
 #include <mutex.h>
 #include <pcpu.h>
@@ -23,89 +22,201 @@ static void sched_init(void) {
 }
 
 void sched_add(thread_t *td) {
-  // klog("Add '%s' {%p} thread to scheduler", td->td_name, td);
+  klog("Add thread %ld {%p} to scheduler", td->td_tid, td);
+
+  WITH_SPINLOCK(td->td_spin) {
+    sched_wakeup(td);
+  }
+}
+
+void sched_wakeup(thread_t *td) {
+  assert(spin_owned(td->td_spin));
+  assert(td != thread_self());
+  assert(td_is_blocked(td) || td_is_sleeping(td) || td_is_inactive(td));
+
+  /* Update sleep time. */
+  timeval_t now = get_uptime();
+  now = timeval_sub(&now, &td->td_last_slptime);
+  td->td_slptime = timeval_add(&td->td_slptime, &now);
 
   td->td_state = TDS_READY;
-
-  /* Idle thread does not get inserted to the runqueue, and it does not require
-     increasing its time slice. */
-  if (td == PCPU_GET(idle_thread))
-    return;
-
   td->td_slice = SLICE;
 
-  CRITICAL_SECTION {
+  runq_add(&runq, td);
+
+  /* Check if we need to reschedule threads. */
+  thread_t *oldtd = thread_self();
+  if (td->td_prio > oldtd->td_prio)
+    oldtd->td_flags |= TDF_NEEDSWITCH;
+}
+
+/*! \brief Set thread's active priority \a td_prio to \a prio.
+ *
+ * \note Must be called with \a td_spin acquired!
+ */
+static void sched_set_active_prio(thread_t *td, prio_t prio) {
+  assert(spin_owned(td->td_spin));
+
+  if (td->td_prio == prio)
+    return;
+
+  if (td_is_ready(td)) {
+    /* Thread is on a run queue. */
+    runq_remove(&runq, td);
+    td->td_prio = prio;
     runq_add(&runq, td);
-    if (td->td_prio > thread_self()->td_prio)
-      thread_self()->td_flags |= TDF_NEEDSWITCH;
+  } else {
+    td->td_prio = prio;
   }
 }
 
-void sched_remove(thread_t *td) {
-  runq_remove(&runq, td);
+void sched_set_prio(thread_t *td, prio_t prio) {
+  assert(spin_owned(td->td_spin));
+
+  td->td_base_prio = prio;
+
+  /* If thread is borrowing priority, don't lower its active priority. */
+  if (td_is_borrowing(td) && td->td_prio > prio)
+    return;
+
+  prio_t oldprio = td->td_prio;
+  sched_set_active_prio(td, prio);
+
+  /* If thread is locked on a turnstile, let the turnstile adjust
+   * thread's position on turnstile's \a ts_blocked list. */
+  if (td_is_blocked(td) && oldprio != prio)
+    turnstile_adjust(td, oldprio);
 }
 
-thread_t *sched_choose(void) {
+void sched_lend_prio(thread_t *td, prio_t prio) {
+  assert(spin_owned(td->td_spin));
+  assert(td->td_prio < prio);
+
+  td->td_flags |= TDF_BORROWING;
+  sched_set_active_prio(td, prio);
+}
+
+void sched_unlend_prio(thread_t *td, prio_t prio) {
+  assert(spin_owned(td->td_spin));
+
+  if (prio <= td->td_base_prio) {
+    td->td_flags &= ~TDF_BORROWING;
+    sched_set_active_prio(td, td->td_base_prio);
+  } else
+    sched_lend_prio(td, prio);
+}
+
+/*! \brief Chooses next thread to run.
+ *
+ * \note Returned thread is marked as running!
+ */
+static thread_t *sched_choose(void) {
   thread_t *td = runq_choose(&runq);
-  if (td) {
-    sched_remove(td);
-    return td;
-  }
-  return PCPU_GET(idle_thread);
+  if (td == NULL)
+    return PCPU_GET(idle_thread);
+  runq_remove(&runq, td);
+  td->td_state = TDS_RUNNING;
+  td->td_last_rtime = get_uptime();
+  return td;
 }
 
-void sched_clock(void) {
-  thread_t *td = thread_self();
-
-  if (td != PCPU_GET(idle_thread))
-    if (--td->td_slice <= 0)
-      td->td_flags |= TDF_NEEDSWITCH | TDF_SLICEEND;
-}
-
-void sched_yield(void) {
-  sched_switch(NULL);
-}
-
-void sched_switch(thread_t *newtd) {
+void sched_switch(void) {
   if (!sched_active)
     return;
 
-  SCOPED_CRITICAL_SECTION();
-
   thread_t *td = thread_self();
+
+  assert(spin_owned(td->td_spin));
+  assert(!td_is_running(td));
 
   td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
 
-  if (td->td_state == TDS_RUNNING)
-    sched_add(td);
-
-  if (newtd == NULL)
-    newtd = sched_choose();
-
-  newtd->td_state = TDS_RUNNING;
+  /* Update running time, */
   timeval_t now = get_uptime();
   timeval_t diff = timeval_sub(&now, &td->td_last_rtime);
   td->td_rtime = timeval_add(&td->td_rtime, &diff);
-  newtd->td_last_rtime = now;
 
-  if (td != newtd) {
-    td->td_nctxsw++;
-    newtd->td_nctxsw++;
-    ctx_switch(td, newtd);
+  if (td_is_ready(td)) {
+    /* Idle threads need not to be inserted into the run queue. */
+    if (td != PCPU_GET(idle_thread))
+      runq_add(&runq, td);
+  } else if (td_is_sleeping(td)) {
+    /* Record when the thread fell asleep. */
+    td->td_last_slptime = now;
+  } else if (td_is_dead(td)) {
+    /* Don't add dead threads to run queue. */
+  }
+
+  thread_t *newtd = sched_choose();
+
+  if (td == newtd)
+    return;
+
+  /* If we got here then a context switch is required. */
+  td->td_nctxsw++;
+
+  /* make sure we reacquire td_spin lock on return to current context */
+  td->td_flags |= TDF_NEEDLOCK;
+
+  ctx_switch(td, newtd);
+}
+
+void sched_clock(void) {
+  assert(intr_disabled());
+
+  thread_t *td = thread_self();
+
+  if (td != PCPU_GET(idle_thread)) {
+    WITH_SPINLOCK(td->td_spin) {
+      if (--td->td_slice <= 0)
+        td->td_flags |= TDF_NEEDSWITCH | TDF_SLICEEND;
+    }
   }
 }
 
 noreturn void sched_run(void) {
   thread_t *td = thread_self();
 
+  /* Make sure sched_run is launched once per every CPU */
+  assert(PCPU_GET(idle_thread) == NULL);
+
   PCPU_SET(idle_thread, td);
 
   td->td_name = "idle-thread";
   td->td_slice = 0;
+
   sched_active = true;
 
   while (true) {
-    td->td_flags |= TDF_NEEDSWITCH;
+    WITH_SPINLOCK(td->td_spin) {
+      td->td_flags |= TDF_NEEDSWITCH;
+    }
+  }
+}
+
+bool preempt_disabled(void) {
+  thread_t *td = thread_self();
+  return (td->td_pdnest > 0) || intr_disabled();
+}
+
+void preempt_disable(void) {
+  thread_t *td = thread_self();
+  td->td_pdnest++;
+}
+
+void preempt_enable(void) {
+  thread_t *td = thread_self();
+  assert(td->td_pdnest > 0);
+
+  td->td_pdnest--;
+  if (td->td_pdnest > 0)
+    return;
+
+  WITH_SPINLOCK(td->td_spin) {
+    if (td->td_flags & TDF_NEEDSWITCH) {
+      td->td_state = TDS_READY;
+      sched_switch();
+    }
   }
 }
 

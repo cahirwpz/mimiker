@@ -16,7 +16,7 @@ static void test_thread(void *p) {
     if (timeval_cmp(&diff, e, >))
       thread_exit();
     else
-      sched_yield();
+      thread_yield();
   }
 }
 
@@ -43,9 +43,9 @@ static int test_thread_join(void) {
   thread_reap();
 
   /* Checks that the threads no longer exist. */
-  assert(thread_get_by_tid(t1_id) == NULL);
-  assert(thread_get_by_tid(t2_id) == NULL);
-  assert(thread_get_by_tid(t3_id) == NULL);
+  assert(thread_find(t1_id) == NULL);
+  assert(thread_find(t2_id) == NULL);
+  assert(thread_find(t3_id) == NULL);
 
   return KTEST_SUCCESS;
 }

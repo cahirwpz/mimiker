@@ -47,6 +47,8 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   /* Restore original vm_map */
   vm_map_activate(orig);
 
+  vm_map_delete(umap);
+
   klog("Test passed.");
   return KTEST_SUCCESS;
 }
@@ -95,6 +97,8 @@ static int findspace_demo(void) {
 
   /* Restore original vm_map */
   vm_map_activate(orig);
+
+  vm_map_delete(umap);
 
   klog("Test passed.");
   return KTEST_SUCCESS;

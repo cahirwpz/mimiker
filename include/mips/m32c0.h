@@ -28,13 +28,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef _M32C0_H_
-#define _M32C0_H_
+#ifndef _MIPS_M32C0_H_
+#define _MIPS_M32C0_H_
 
-#ifndef _M64C0_H_
-/* MIPS32-specific MMU interface */
-#include <mips/m32tlb.h>
-#endif
 /*
  * MIPS32 Exception Codes
  */
@@ -138,6 +134,7 @@
 #define SR_CU1		0x20000000	/* coprocessor 1 enable */
 #define  SR_CU1_SHIFT		29
 #define SR_CU0		0x10000000	/* coprocessor 0 enable */
+#define SR_CU0_SHIFT 28
 
 #define SR_RP		0x08000000	/* reduce power */
 #define  SR_RP_SHIFT		27
@@ -165,6 +162,8 @@
 #define  SR_IPL_SHIFT		10
 #define  SR_IPL_BITS		 6
 #define SR_IMASK	0x0000ff00
+#define SR_IMASK_SHIFT 8
+#define SR_IMASK_BITS 8
 
 /* interrupt mask bits */
 #define SR_HINT5	0x00008000	/* enable h/w interrupt 6 */
@@ -1282,6 +1281,34 @@ __extension__ ({ \
 #define mips32_xchwatchhi(x)	mips32_xch_c0(C0_WATCHHI, x)
 #endif
 
+/* CP0 Context register */
+#define mips32_getcontext() mips32_get_c0(C0_CONTEXT)
+#define mips32_setcontext(x) mips32_set_c0(C0_CONTEXT, (x))
+
+/* CP0 Wired register */
+#define mips32_getwired() mips32_get_c0(C0_WIRED)
+#define mips32_setwired(x) mips32_set_c0(C0_WIRED, (x))
+
+/* CP0 Index register */
+#define mips32_getindex() mips32_get_c0(C0_INDEX)
+#define mips32_setindex(x) mips32_set_c0(C0_INDEX, (x))
+
+/* CP0 EntryHi register */
+#define mips32_getentryhi() mips32_get_c0(C0_ENTRYHI)
+#define mips32_setentryhi(x) mips32_set_c0(C0_ENTRYHI, (x))
+
+/* CP0 EntryLo0 register */
+#define mips32_getentrylo0() mips32_get_c0(C0_ENTRYLO0)
+#define mips32_setentrylo0(x) mips32_set_c0(C0_ENTRYLO0, (x))
+
+/* CP0 EntryLo1 register */
+#define mips32_getentrylo1() mips32_get_c0(C0_ENTRYLO1)
+#define mips32_setentrylo1(x) mips32_set_c0(C0_ENTRYLO1, (x))
+
+/* CP0 PageMask register */
+#define mips32_getpagemask() mips32_get_c0(C0_PAGEMASK)
+#define mips32_setpagemask(x) mips32_set_c0(C0_PAGEMASK, (x))
+
 /*
  * Define macros for accessing the MIPS32 coprocessor 0 registers.  Most
  * apart from "set" return the original register value.  These particular
@@ -1346,7 +1373,7 @@ __extension__ ({ \
 #endif
 
 /* Define MIPS32 user-level intrinsics */
-#include <mips/mips32.h>
+#include <mips/m32ins.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -1401,4 +1428,4 @@ __extension__({ \
 #ifdef __cplusplus
 }
 #endif
-#endif /* _M32C0_H_ */
+#endif /* !_MIPS_M32C0_H_ */

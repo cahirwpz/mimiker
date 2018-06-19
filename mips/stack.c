@@ -1,6 +1,7 @@
-#include <mips/stack.h>
 #include <common.h>
 #include <stdc.h>
+#include <stack.h>
+#include <exec.h>
 
 /* Places program args onto the stack.
  * Also modifies value pointed by stack_bottom_p to reflect on changed
@@ -31,8 +32,8 @@
  * the now empty program stack, so that it can naturally grow
  * downwards.
  */
-void prepare_program_stack(const exec_args_t *args, vm_addr_t *stack_bottom_p) {
-
+void stack_user_entry_setup(const exec_args_t *args,
+                            vm_addr_t *stack_bottom_p) {
   vm_addr_t stack_end = *stack_bottom_p;
   /* Begin by calculting arguments total size. This has to be done */
   /* in advance, because stack grows downwards. */
@@ -43,7 +44,7 @@ void prepare_program_stack(const exec_args_t *args, vm_addr_t *stack_bottom_p) {
   /* Store arguments, creating the argument vector. */
   vm_addr_t arg_vector[args->argc];
   vm_addr_t p = *stack_bottom_p - total_arg_size;
-  for (int i = 0; i < args->argc; i++) {
+  for (unsigned i = 0; i < args->argc; i++) {
     size_t n = strlen(args->argv[i]) + 1;
     arg_vector[i] = p;
     memcpy((uint8_t *)p, args->argv[i], n);

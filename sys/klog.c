@@ -1,10 +1,14 @@
-#include <sync.h>
+#include <spinlock.h>
 #include <time.h>
 #include <stdc.h>
+#include <thread.h>
+#include <interrupt.h>
 #define _KLOG_PRIVATE
 #include <klog.h>
 
 klog_t klog;
+
+static spinlock_t *klog_lock = &SPINLOCK_INITIALIZER();
 
 static const char *subsystems[] =
   {[KL_RUNQ] = "runq",   [KL_SLEEPQ] = "sleepq",   [KL_CALLOUT] = "callout",
@@ -14,7 +18,7 @@ static const char *subsystems[] =
    [KL_DEV] = "dev",     [KL_VFS] = "vfs",         [KL_VNODE] = "vnode",
    [KL_PROC] = "proc",   [KL_SYSCALL] = "syscall", [KL_USER] = "user",
    [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_FILESYS] = "filesys",
-   [KL_UNDEF] = "???"};
+   [KL_TIME] = "time",   [KL_UNDEF] = "???"};
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(char *key);
@@ -25,6 +29,8 @@ void klog_init(void) {
   klog.verbose = kenv_get("klog-quiet") ? 0 : 1;
   klog.first = 0;
   klog.last = 0;
+  klog.repeated = 0;
+  klog.prev = -1;
 }
 
 static inline unsigned next(unsigned i) {
@@ -43,36 +49,72 @@ static void klog_entry_dump(klog_entry_t *entry) {
 }
 
 void klog_append(klog_origin_t origin, const char *file, unsigned line,
-                 const char *format, intptr_t arg1, intptr_t arg2,
-                 intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6) {
+                 const char *format, uintptr_t arg1, uintptr_t arg2,
+                 uintptr_t arg3, uintptr_t arg4, uintptr_t arg5,
+                 uintptr_t arg6) {
   if (!(KL_MASK(origin) & klog.mask))
     return;
 
   klog_entry_t *entry;
+  tid_t tid = thread_self()->td_tid;
 
-  CRITICAL_SECTION {
+  WITH_SPINLOCK(klog_lock) {
+    timeval_t now = get_uptime();
+
+    entry = (klog.prev >= 0) ? &klog.array[klog.prev] : NULL;
+
+    /* Do not store repeating log messages, just count them. */
+    if (entry) {
+      bool repeats =
+        (entry->kl_params[0] == arg1) && (entry->kl_params[1] == arg2) &&
+        (entry->kl_params[2] == arg3) && (entry->kl_params[3] == arg4) &&
+        (entry->kl_params[4] == arg5) && (entry->kl_params[5] == arg6) &&
+        (entry->kl_origin == origin) && (entry->kl_file == file) &&
+        (entry->kl_line == line) && (entry->kl_tid = tid);
+
+      if (repeats) {
+        if (!klog.repeated) {
+          int old_prev = klog.prev;
+          klog.prev = -1;
+          klog_append(entry->kl_origin, entry->kl_file, entry->kl_line,
+                      "Last message repeated %d times.", 0, 0, 0, 0, 0, 0);
+          klog.prev = old_prev;
+          klog.repeated = true;
+        }
+
+        entry = &klog.array[next(klog.prev)];
+        entry->kl_timestamp = now;
+        entry->kl_params[0]++;
+        return;
+      } else {
+        klog.repeated = false;
+      }
+    }
+
     entry = &klog.array[klog.last];
 
-    *entry = (klog_entry_t){.kl_timestamp = get_uptime(),
+    *entry = (klog_entry_t){.kl_timestamp = now,
+                            .kl_tid = tid,
                             .kl_line = line,
                             .kl_file = file,
                             .kl_origin = origin,
                             .kl_format = format,
                             .kl_params = {arg1, arg2, arg3, arg4, arg5, arg6}};
 
+    klog.prev = klog.last;
     klog.last = next(klog.last);
     if (klog.first == klog.last)
       klog.first = next(klog.first);
   }
 
-  if (klog.verbose)
+  if (klog.verbose && !intr_disabled())
     klog_entry_dump(entry);
 }
 
 unsigned klog_setmask(unsigned newmask) {
   unsigned oldmask;
 
-  CRITICAL_SECTION {
+  WITH_SPINLOCK(klog_lock) {
     oldmask = klog.mask;
     klog.mask = newmask;
   }
@@ -83,7 +125,7 @@ void klog_dump(void) {
   klog_entry_t entry;
 
   while (klog.first != klog.last) {
-    CRITICAL_SECTION {
+    WITH_SPINLOCK(klog_lock) {
       entry = klog.array[klog.first];
       klog.first = next(klog.first);
     }

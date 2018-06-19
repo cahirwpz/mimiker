@@ -14,9 +14,10 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <syslimits.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
-static int sys_nosys(thread_t *td, syscall_args_t *args) {
+int sys_nosys(thread_t *td, syscall_args_t *args) {
   klog("unimplemented system call %ld", args->code);
   return -ENOSYS;
 };
@@ -24,18 +25,9 @@ static int sys_nosys(thread_t *td, syscall_args_t *args) {
 static int sys_sbrk(thread_t *td, syscall_args_t *args) {
   intptr_t increment = (size_t)args->args[0];
 
-  klog("sbrk(%zu)", increment);
+  klog("sbrk(%d)", increment);
 
-  /* TODO: Shrinking sbrk is impossible, because it requires unmapping pages,
-   * which is not yet implemented! */
-  if (increment < 0) {
-    klog("WARNING: sbrk called with a negative argument!");
-    return -ENOMEM;
-  }
-
-  assert(td->td_proc);
-
-  return sbrk_resize(td->td_proc->p_uspace, increment);
+  return sbrk_resize(td->td_proc, increment);
 }
 
 static int sys_exit(thread_t *td, syscall_args_t *args) {
@@ -99,7 +91,7 @@ static int sys_mmap(thread_t *td, syscall_args_t *args) {
   vm_prot_t prot = args->args[2];
   int flags = args->args[3];
 
-  klog("mmap(%p, %zu, %d, %d)", (void *)addr, length, prot, flags);
+  klog("mmap(%p, %u, %d, %d)", (void *)addr, length, prot, flags);
 
   int error = 0;
   vm_addr_t result = do_mmap(addr, length, prot, flags, &error);
@@ -111,24 +103,27 @@ static int sys_mmap(thread_t *td, syscall_args_t *args) {
 static int sys_open(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
   int flags = args->args[1];
-  int mode = args->args[2];
+  mode_t mode = args->args[2];
 
-  int error = 0;
-  char pathname[256];
+  int result = 0;
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0); /* TODO: with statement? */
   size_t n = 0;
 
   /* Copyout pathname. */
-  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
-  if (error < 0)
-    return error;
+  result = copyinstr(user_pathname, pathname, PATH_MAX, &n);
+  if (result < 0)
+    goto end;
 
   klog("open(\"%s\", %d, %d)", pathname, flags, mode);
 
   int fd;
-  error = do_open(td, pathname, flags, mode, &fd);
-  if (error)
-    return error;
-  return fd;
+  result = do_open(td, pathname, flags, mode, &fd);
+  if (result == 0)
+    result = fd;
+
+end:
+  kfree(M_TEMP, pathname);
+  return result;
 }
 
 static int sys_close(thread_t *td, syscall_args_t *args) {
@@ -144,7 +139,7 @@ static int sys_read(thread_t *td, syscall_args_t *args) {
   char *ubuf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  klog("sys_read(%d, %p, %zu)", fd, ubuf, count);
+  klog("read(%d, %p, %u)", fd, ubuf, count);
 
   uio_t uio;
   uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
@@ -159,7 +154,7 @@ static int sys_write(thread_t *td, syscall_args_t *args) {
   char *ubuf = (char *)(uintptr_t)args->args[1];
   size_t count = args->args[2];
 
-  klog("sys_write(%d, %p, %zu)", fd, ubuf, count);
+  klog("write(%d, %p, %u)", fd, ubuf, count);
 
   uio_t uio;
   uio = UIO_SINGLE_USER(UIO_WRITE, 0, ubuf, count);
@@ -195,23 +190,49 @@ static int sys_fstat(thread_t *td, syscall_args_t *args) {
   return 0;
 }
 
+static int sys_stat(thread_t *td, syscall_args_t *args) {
+  char *user_path = (char *)args->args[0];
+  stat_t *statbuf_p = (stat_t *)args->args[1];
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+  size_t path_len = 0;
+  int result;
+
+  result = copyinstr(user_path, path, PATH_MAX, &path_len);
+  if (result < 0)
+    goto end;
+
+  klog("stat(\"%s\", %p)", path, statbuf_p);
+
+  stat_t statbuf;
+  if ((result = do_stat(td, path, &statbuf)))
+    goto end;
+  result = copyout_s(statbuf, statbuf_p);
+  if (result < 0)
+    goto end;
+  result = 0;
+
+end:
+  kfree(M_TEMP, path);
+  return result;
+}
+
 static int sys_mount(thread_t *td, syscall_args_t *args) {
   char *user_fsysname = (char *)args->args[0];
   char *user_pathname = (char *)args->args[1];
 
   int error = 0;
-  const int PATHSIZE_MAX = 256;
-  char *fsysname = kmalloc(M_TEMP, PATHSIZE_MAX, 0);
-  char *pathname = kmalloc(M_TEMP, PATHSIZE_MAX, 0);
+  char *fsysname = kmalloc(M_TEMP, PATH_MAX, 0);
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t n = 0;
 
   /* Copyout fsysname. */
-  error = copyinstr(user_fsysname, fsysname, sizeof(fsysname), &n);
+  error = copyinstr(user_fsysname, fsysname, PATH_MAX, &n);
   if (error < 0)
     goto end;
   n = 0;
   /* Copyout pathname. */
-  error = copyinstr(user_pathname, pathname, sizeof(pathname), &n);
+  error = copyinstr(user_pathname, pathname, PATH_MAX, &n);
   if (error < 0)
     goto end;
 
@@ -231,7 +252,7 @@ static int sys_getdirentries(thread_t *td, syscall_args_t *args) {
   off_t *base_p = (off_t *)args->args[3];
   off_t base;
 
-  klog("getdirentries(%d, %p, %zu, %p)", fd, ubuf, count, base_p);
+  klog("getdirentries(%d, %p, %u, %p)", fd, ubuf, count, base_p);
 
   uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, ubuf, count);
   int res = do_getdirentries(td, fd, &uio, &base);
@@ -277,24 +298,111 @@ static int sys_waitpid(thread_t *td, syscall_args_t *args) {
   return res;
 }
 
+static int sys_unlink(thread_t *td, syscall_args_t *args) {
+  char *user_pathname = (char *)args->args[0];
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
+  size_t n = 0;
+  int result = 0;
+
+  /* Copyout pathname. */
+  result = copyinstr(user_pathname, pathname, PATH_MAX, &n);
+  if (result < 0)
+    goto end;
+
+  klog("unlink(%s)", pathname);
+
+  result = do_unlink(td, pathname);
+
+end:
+  kfree(M_TEMP, pathname);
+  return result;
+}
+
+static int sys_mkdir(thread_t *td, syscall_args_t *args) {
+  char *user_pathname = (char *)args->args[0];
+  mode_t mode = (int)args->args[1];
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
+  size_t n = 0;
+  int result = 0;
+
+  /* Copyout pathname. */
+  result = copyinstr(user_pathname, pathname, PATH_MAX, &n);
+  if (result < 0)
+    goto end;
+
+  klog("mkdir(%s, %d)", user_pathname, mode);
+
+  result = do_mkdir(td, pathname, mode);
+
+end:
+  kfree(M_TEMP, pathname);
+  return result;
+}
+
+static int sys_rmdir(thread_t *td, syscall_args_t *args) {
+  char *user_pathname = (char *)args->args[0];
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
+  size_t n = 0;
+  int result = 0;
+
+  /* Copyout pathname. */
+  result = copyinstr(user_pathname, pathname, PATH_MAX, &n);
+  if (result < 0)
+    goto end;
+
+  klog("rmdir(%s)", pathname);
+
+  result = do_rmdir(td, pathname);
+
+end:
+  kfree(M_TEMP, pathname);
+  return result;
+}
+
+static int sys_access(thread_t *td, syscall_args_t *args) {
+  char *user_pathname = (char *)args->args[0];
+  mode_t mode = args->args[1];
+
+  int result = 0;
+  char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  result = copyinstr(user_pathname, pathname, PATH_MAX, NULL);
+  if (result < 0)
+    goto end;
+
+  klog("access(\"%s\", %d)", pathname, mode);
+
+  result = do_access(td, pathname, mode);
+
+end:
+  kfree(M_TEMP, pathname);
+  return result;
+}
+
 /* clang-format hates long arrays. */
-sysent_t sysent[] = {[SYS_EXIT] = {sys_exit},
-                     [SYS_OPEN] = {sys_open},
-                     [SYS_CLOSE] = {sys_close},
-                     [SYS_READ] = {sys_read},
-                     [SYS_WRITE] = {sys_write},
-                     [SYS_LSEEK] = {sys_lseek},
-                     [SYS_UNLINK] = {sys_nosys},
-                     [SYS_GETPID] = {sys_getpid},
-                     [SYS_KILL] = {sys_kill},
-                     [SYS_FSTAT] = {sys_fstat},
-                     [SYS_SBRK] = {sys_sbrk},
-                     [SYS_MMAP] = {sys_mmap},
-                     [SYS_FORK] = {sys_fork},
-                     [SYS_MOUNT] = {sys_mount},
-                     [SYS_GETDENTS] = {sys_getdirentries},
-                     [SYS_SIGACTION] = {sys_sigaction},
-                     [SYS_SIGRETURN] = {sys_sigreturn},
-                     [SYS_DUP] = {sys_dup},
-                     [SYS_DUP2] = {sys_dup2},
-                     [SYS_WAITPID] = {sys_waitpid}};
+sysent_t sysent[] = {
+    [SYS_EXIT] = {sys_exit},
+    [SYS_OPEN] = {sys_open},
+    [SYS_CLOSE] = {sys_close},
+    [SYS_READ] = {sys_read},
+    [SYS_WRITE] = {sys_write},
+    [SYS_LSEEK] = {sys_lseek},
+    [SYS_UNLINK] = {sys_unlink},
+    [SYS_GETPID] = {sys_getpid},
+    [SYS_KILL] = {sys_kill},
+    [SYS_FSTAT] = {sys_fstat},
+    [SYS_STAT] = {sys_stat},
+    [SYS_SBRK] = {sys_sbrk},
+    [SYS_MMAP] = {sys_mmap},
+    [SYS_FORK] = {sys_fork},
+    [SYS_MOUNT] = {sys_mount},
+    [SYS_GETDENTS] = {sys_getdirentries},
+    [SYS_SIGACTION] = {sys_sigaction},
+    [SYS_SIGRETURN] = {sys_sigreturn},
+    [SYS_DUP] = {sys_dup},
+    [SYS_DUP2] = {sys_dup2},
+    [SYS_WAITPID] = {sys_waitpid},
+    [SYS_MKDIR] = {sys_mkdir},
+    [SYS_RMDIR] = {sys_rmdir},
+    [SYS_ACCESS] = {sys_access},
+};

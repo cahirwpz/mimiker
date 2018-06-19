@@ -1,5 +1,7 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
+TOPDIR = $(realpath ..)
+
 SOURCES_C  = \
 	assert.c \
 	callout.c \
@@ -12,7 +14,9 @@ SOURCES_C  = \
 	dev_vga.c \
 	devfs.c \
 	drv_atkbdc.c \
+	drv_pit.c \
 	drv_ns16550.c \
+	drv_rtc.c \
 	drv_stdvga.c \
 	exception.c \
 	exec.c \
@@ -21,6 +25,7 @@ SOURCES_C  = \
 	fork.c \
 	initrd.c \
 	interrupt.c \
+	kbss.c \
 	klog.c \
 	ktest.c \
 	main.c \
@@ -40,12 +45,14 @@ SOURCES_C  = \
 	sched.c \
 	signal.c \
 	sleepq.c \
+	spinlock.c \
 	startup.c \
-	sync.c \
 	sysent.c \
 	sysinit.c \
 	taskqueue.c \
+	turnstile.c \
 	thread.c \
+	timer.c \
 	uio.c \
 	vfs.c \
 	vfs_readdir.c \
@@ -55,11 +62,11 @@ SOURCES_C  = \
 	vm_object.c \
 	vm_pager.c
 
-SOURCES_ASM = 
+SOURCES_ASM =
 
-all: $(DEPFILES) libsys.a 
+all: $(DEPFILES) libsys.a
 
-include ../Makefile.common
+include $(TOPDIR)/build/build.kern.mk
 
 libsys.a: $(OBJECTS)
 

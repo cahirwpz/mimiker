@@ -2,12 +2,31 @@
 #include <klog.h>
 #include <stdc.h>
 #include <mutex.h>
+#include <thread.h>
+#include <mips/intr.h>
 #include <interrupt.h>
-#include <sync.h>
 
-static mtx_t all_ichains_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static mtx_t all_ichains_mtx = MTX_INITIALIZER(MTX_DEF);
 static intr_chain_list_t all_ichains_list =
   TAILQ_HEAD_INITIALIZER(all_ichains_list);
+
+bool intr_disabled(void) {
+  thread_t *td = thread_self();
+  return (td->td_idnest > 0) && mips_intr_disabled();
+}
+
+void intr_disable(void) {
+  mips_intr_disable();
+  thread_self()->td_idnest++;
+}
+
+void intr_enable(void) {
+  assert(intr_disabled());
+  thread_t *td = thread_self();
+  td->td_idnest--;
+  if (td->td_idnest == 0)
+    mips_intr_enable();
+}
 
 void intr_chain_register(intr_chain_t *ic) {
   WITH_MTX_LOCK (&all_ichains_mtx)
@@ -15,7 +34,7 @@ void intr_chain_register(intr_chain_t *ic) {
 }
 
 void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
-  SCOPED_CRITICAL_SECTION();
+  SCOPED_SPINLOCK(&ic->ic_lock);
 
   /* Add new handler according to it's priority */
   intr_handler_t *it;
@@ -33,9 +52,10 @@ void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
 }
 
 void intr_chain_remove_handler(intr_handler_t *ih) {
-  SCOPED_CRITICAL_SECTION();
-
   intr_chain_t *ic = ih->ih_chain;
+
+  SCOPED_SPINLOCK(&ic->ic_lock);
+
   TAILQ_REMOVE(&ic->ic_handlers, ih, ih_list);
   ih->ih_chain = NULL;
   ic->ic_count--;

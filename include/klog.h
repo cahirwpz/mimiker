@@ -17,6 +17,7 @@ typedef enum {
   KL_POOL,    /* pooled allocator */
   KL_LOCK,    /* lock operations tracing */
   KL_SCHED,   /* scheduler tracing */
+  KL_TIME,    /* system clock & timers */
   KL_THREAD,  /* kernel threads management */
   KL_INTR,    /* interrupts management and handling */
   KL_DEV,     /* device management */
@@ -49,11 +50,12 @@ typedef enum {
 
 typedef struct {
   timeval_t kl_timestamp;
+  tid_t kl_tid;
   unsigned kl_line;
   const char *kl_file;
   klog_origin_t kl_origin;
   const char *kl_format;
-  intptr_t kl_params[6];
+  uintptr_t kl_params[6];
 } klog_entry_t;
 
 typedef struct {
@@ -62,6 +64,8 @@ typedef struct {
   bool verbose;
   volatile unsigned first;
   volatile unsigned last;
+  bool repeated;
+  int prev;
 } klog_t;
 
 extern klog_t klog;
@@ -70,8 +74,9 @@ extern klog_t klog;
 void klog_init(void);
 
 void klog_append(klog_origin_t origin, const char *file, unsigned line,
-                 const char *format, intptr_t arg1, intptr_t arg2,
-                 intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6);
+                 const char *format, uintptr_t arg1, uintptr_t arg2,
+                 uintptr_t arg3, uintptr_t arg4, uintptr_t arg5,
+                 uintptr_t arg6);
 
 unsigned klog_setmask(unsigned newmask);
 

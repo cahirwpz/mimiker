@@ -78,5 +78,11 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize);
 /* Intel 82371EB: RTC (MC146818) */
 #define MALTA_RTC_ADDR MALTA_PCI0_ADDR(0x70)
 #define MALTA_RTC_DATA MALTA_PCI0_ADDR(0x71)
+/* FDC37M817: UART (NS16550) */
+#define MALTA_SMSC_UART0 MALTA_PCI0_ADDR(0x3f8)
+#define MALTA_SMSC_UART1 MALTA_PCI0_ADDR(0x2f8)
+/* FDC37M817: Keyboard and Mouse (i8042) */
+#define MALTA_SMSC_KYBD_DATA MALTA_PCI0_ADDR(0x60)
+#define MALTA_SMSC_KYBD_CTRL MALTA_PCI0_ADDR(0x64)
 
 #endif

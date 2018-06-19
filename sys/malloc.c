@@ -5,45 +5,6 @@
 #include <physmem.h>
 #include <queue.h>
 
-/* Leave synchronization markers in case we need it. */
-#define cs_enter()
-#define cs_leave()
-
-/* The end of the kernel's .bss section. Provided by the linker. */
-extern uint8_t __ebss[];
-/* Limit for the end of kernel's bss. Provided by the linker. */
-extern uint8_t __kernel_end[];
-
-static struct {
-  void *ptr;
-  void *end;
-} sbrk = {__ebss, __kernel_end};
-
-#if 0
-void kernel_brk(void *addr) {
-  cs_enter();
-  void *ptr = sbrk.ptr;
-  addr = (void *)((intptr_t)addr & -sizeof(uint64_t));
-  assert((intptr_t)__ebss <= (intptr_t)addr);
-  assert((intptr_t)addr <= (intptr_t)sbrk.end);
-  sbrk.ptr = addr;
-  cs_leave();
-  if (addr > ptr)
-    bzero(ptr, (intptr_t)addr - (intptr_t)ptr);
-}
-#endif
-
-void *kernel_sbrk(size_t size) {
-  cs_enter();
-  void *ptr = sbrk.ptr;
-  size = roundup(size, sizeof(uint64_t));
-  assert(ptr + size <= sbrk.end);
-  sbrk.ptr += size;
-  cs_leave();
-  bzero(ptr, size);
-  return ptr;
-}
-
 /*
   TODO:
   - use the mp_next field of kmem_pool

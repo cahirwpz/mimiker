@@ -76,12 +76,8 @@ static int scancode_read(vnode_t *v, uio_t *uio) {
   return 0;
 }
 
-static vnodeops_t dev_scancode_ops = {
-  .v_lookup = vnode_lookup_nop,
-  .v_readdir = vnode_readdir_nop,
-  .v_open = vnode_open_generic,
-  .v_write = vnode_write_nop,
-  .v_read = scancode_read,
+static vnodeops_t scancode_vnodeops = {
+  .v_open = vnode_open_generic, .v_read = scancode_read,
 };
 
 /* Reset keyboard and perform a self-test. */
@@ -166,9 +162,7 @@ static int atkbdc_attach(device_t *dev) {
   write_data(atkbdc->regs, KBD_ENABLE_KBD_INT);
 
   /* Prepare /dev/scancode interface. */
-  vnode_t *scancode_device = vnode_new(V_DEV, &dev_scancode_ops);
-  scancode_device->v_data = atkbdc;
-  devfs_install("scancode", scancode_device);
+  devfs_makedev(NULL, "scancode", &scancode_vnodeops, atkbdc);
 
   return 0;
 }
@@ -183,6 +177,7 @@ static driver_t atkbdc_driver = {
 extern device_t *gt_pci;
 
 static void atkbdc_init(void) {
+  vnodeops_init(&scancode_vnodeops);
   (void)make_device(gt_pci, &atkbdc_driver);
 }
 

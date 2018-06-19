@@ -13,6 +13,12 @@ typedef struct vattr vattr_t;
 typedef struct mount mount_t;
 typedef struct file file_t;
 typedef struct dirent dirent_t;
+typedef struct stat stat_t;
+
+#define VNOVAL (-1)
+
+/* vnode access modes */
+typedef enum { VEXEC = 1, VWRITE = 2, VREAD = 4 } accmode_t;
 
 typedef enum {
   V_NONE,
@@ -29,10 +35,13 @@ typedef int vnode_read_t(vnode_t *v, uio_t *uio);
 typedef int vnode_write_t(vnode_t *v, uio_t *uio);
 typedef int vnode_seek_t(vnode_t *v, off_t oldoff, off_t newoff, void *state);
 typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
-typedef int vnode_create_t(vnode_t *dv, const char *name, vnode_t **vp);
+typedef int vnode_create_t(vnode_t *dv, const char *name, vattr_t *va,
+                           vnode_t **vp);
 typedef int vnode_remove_t(vnode_t *dv, const char *name);
-typedef int vnode_mkdir_t(vnode_t *v, const char *name, vnode_t **vp);
-typedef int vnode_rmdir_t(vnode_t *v, const char *name);
+typedef int vnode_mkdir_t(vnode_t *dv, const char *name, vattr_t *va,
+                          vnode_t **vp);
+typedef int vnode_rmdir_t(vnode_t *dv, const char *name);
+typedef int vnode_access_t(vnode_t *v, accmode_t mode);
 
 typedef struct vnodeops {
   vnode_lookup_t *v_lookup;
@@ -47,17 +56,11 @@ typedef struct vnodeops {
   vnode_remove_t *v_remove;
   vnode_mkdir_t *v_mkdir;
   vnode_rmdir_t *v_rmdir;
+  vnode_access_t *v_access;
 } vnodeops_t;
 
-#define VNODEOPS_NOTSUP_INITIALIZER()                                          \
-  {                                                                            \
-    .v_lookup = vnode_lookup_nop, .v_readdir = vnode_readdir_nop,              \
-    .v_open = vnode_open_nop, .v_close = vnode_close_nop,                      \
-    .v_read = vnode_read_nop, .v_write = vnode_write_nop,                      \
-    .v_seek = vnode_seek_nop, .v_getattr = vnode_getattr_nop,                  \
-    .v_create = vnode_create_nop, .v_remove = vnode_remove_nop,                \
-    .v_mkdir = vnode_mkdir_nop, .v_rmdir = vnode_rmdir_nop,                    \
-  }
+/* Fill missing entries with default vnode operation. */
+void vnodeops_init(vnodeops_t *vops);
 
 typedef struct vnode {
   vnodetype_t v_type;        /* Vnode type, see above */
@@ -88,6 +91,8 @@ typedef struct vattr {
   gid_t va_gid;     /* owner group id */
   size_t va_size;   /* file size in bytes */
 } vattr_t;
+
+void va_convert(vattr_t *va, stat_t *sb);
 
 static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
   return dv->v_ops->v_lookup(dv, name, vp);
@@ -122,24 +127,30 @@ static inline int VOP_GETATTR(vnode_t *v, vattr_t *va) {
   return v->v_ops->v_getattr(v, va);
 }
 
-static inline int VOP_CREATE(vnode_t *dv, const char *name, vnode_t **vp) {
-  return dv->v_ops->v_create(dv, name, vp);
+static inline int VOP_CREATE(vnode_t *dv, const char *name, vattr_t *va,
+                             vnode_t **vp) {
+  return dv->v_ops->v_create(dv, name, va, vp);
 }
 
 static inline int VOP_REMOVE(vnode_t *dv, const char *name) {
   return dv->v_ops->v_remove(dv, name);
 }
 
-static inline int VOP_MKDIR(vnode_t *dv, const char *name, vnode_t **vp) {
-  return dv->v_ops->v_mkdir(dv, name, vp);
+static inline int VOP_MKDIR(vnode_t *dv, const char *name, vattr_t *va,
+                            vnode_t **vp) {
+  return dv->v_ops->v_mkdir(dv, name, va, vp);
 }
 
 static inline int VOP_RMDIR(vnode_t *dv, const char *name) {
   return dv->v_ops->v_rmdir(dv, name);
 }
 
+static inline int VOP_ACCESS(vnode_t *v, mode_t mode) {
+  return v->v_ops->v_access(v, mode);
+}
+
 /* Allocates and initializes a new vnode */
-vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops);
+vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data);
 
 /* Lock and unlock vnode's mutex.
  * Call vnode_lock whenever you're about to use vnode's contents. */
@@ -151,22 +162,10 @@ void vnode_unlock(vnode_t *v);
 void vnode_ref(vnode_t *v);
 void vnode_unref(vnode_t *v);
 
-/* Convenience function for filling in not supported vnodeops */
-int vnode_lookup_nop(vnode_t *dv, const char *name, vnode_t **vp);
-int vnode_readdir_nop(vnode_t *dv, uio_t *uio, void *state);
-int vnode_open_nop(vnode_t *v, int mode, file_t *fp);
-int vnode_close_nop(vnode_t *v, file_t *fp);
-int vnode_read_nop(vnode_t *v, uio_t *uio);
-int vnode_write_nop(vnode_t *v, uio_t *uio);
-int vnode_seek_nop(vnode_t *v, off_t oldoff, off_t newoff, void *state);
-int vnode_getattr_nop(vnode_t *v, vattr_t *va);
-int vnode_create_nop(vnode_t *dv, const char *name, vnode_t **vp);
-int vnode_remove_nop(vnode_t *dv, const char *name);
-int vnode_mkdir_nop(vnode_t *v, const char *name, vnode_t **vp);
-int vnode_rmdir_nop(vnode_t *v, const char *name);
-
+/* Convenience function with default vnode operation implementation. */
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state);
+int vnode_access_generic(vnode_t *v, accmode_t mode);
 
 #define DIRENT_DOT ((void *)-2)
 #define DIRENT_DOTDOT ((void *)-1)

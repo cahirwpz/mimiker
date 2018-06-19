@@ -3,7 +3,6 @@
 #include <mips/malta.h>
 #include <mips/intr.h>
 #include <bus.h>
-#include <sync.h>
 #include <exception.h>
 #include <pci.h>
 #include <sysinit.h>

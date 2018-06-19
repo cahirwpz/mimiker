@@ -8,6 +8,7 @@
 #include <vnode.h>
 #include <linker_set.h>
 #include <sysinit.h>
+#include <common.h>
 
 /* TODO: We probably need some fancier allocation, since eventually we should
  * start recycling vnodes */
@@ -15,12 +16,12 @@ MALLOC_DEFINE(M_VFS, "vfs", 1, 4);
 
 /* The list of all installed filesystem types */
 vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
-mtx_t vfsconf_list_mtx = MUTEX_INITIALIZER(MTX_DEF);
+mtx_t vfsconf_list_mtx = MTX_INITIALIZER(MTX_DEF);
 
 /* The list of all mounts mounted */
 typedef TAILQ_HEAD(, mount) mount_list_t;
 static mount_list_t mount_list = TAILQ_HEAD_INITIALIZER(mount_list);
-static mtx_t mount_list_mtx = MUTEX_INITIALIZER(MTX_DEF);
+static mtx_t mount_list_mtx = MTX_INITIALIZER(MTX_DEF);
 
 /* Default vfs operations */
 static vfs_root_t vfs_default_root;
@@ -31,12 +32,14 @@ static vfs_init_t vfs_default_init;
 /* Global root vnodes */
 vnode_t *vfs_root_vnode;
 
-static vnodeops_t vfs_root_ops = VNODEOPS_NOTSUP_INITIALIZER();
+static vnodeops_t vfs_root_ops = {};
 
 static int vfs_register(vfsconf_t *vfc);
 
 static void vfs_init(void) {
-  vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops);
+  vnodeops_init(&vfs_root_ops);
+
+  vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops, NULL);
 
   /* Initialize available filesystem types. */
   SET_DECLARE(vfsconf, vfsconf_t);
@@ -189,10 +192,10 @@ int vfs_lookup(const char *path, vnode_t **vp) {
 
   /* Copy path into a local buffer, so that we may process it. */
   size_t n = strlen(path);
-  if (n >= VFS_PATH_MAX)
+  if (n >= PATH_MAX)
     return -ENAMETOOLONG;
-  char pathcopy[VFS_PATH_MAX];
-  strlcpy(pathcopy, path, VFS_PATH_MAX);
+  char *pathcopy = kmalloc(M_TEMP, PATH_MAX, 0);
+  strlcpy(pathcopy, path, PATH_MAX);
   char *pathbuf = pathcopy;
   const char *component;
 
@@ -200,7 +203,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   vnode_lock(v);
 
   if ((error = vfs_maybe_descend(&v)))
-    return error;
+    goto end;
 
   while ((component = strsep(&pathbuf, "/")) != NULL) {
     if (component[0] == '\0')
@@ -209,22 +212,27 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     /* Look up the child vnode */
     vnode_t *v_child;
     error = VOP_LOOKUP(v, component, &v_child);
+    /* TODO: Check access to child, to verify we can continue with lookup. */
     vnode_unlock(v);
     vnode_unref(v);
     if (error)
-      return error;
+      goto end;
     v = v_child;
     /* No need to ref this vnode, VFS_LOOKUP already did it for us. */
     vnode_lock(v);
 
     if ((error = vfs_maybe_descend(&v)))
-      return error;
+      goto end;
   }
 
   vnode_unlock(v);
   *vp = v;
 
-  return 0;
+  error = 0;
+
+end:
+  kfree(M_TEMP, pathcopy);
+  return error;
 }
 
 int vfs_open(file_t *f, char *pathname, int flags, int mode) {

@@ -1,12 +1,9 @@
+TOPDIR = $(realpath ..)
+
 SOURCES_C = \
 	broken.c \
 	callout.c \
 	crash.c \
-	exec.c \
-	exec_misbehave.c \
-	exec_fd_test.c \
-	exec_test_dup.c \
-	initrd.c \
 	klog.c \
 	linker_set.c \
 	malloc.c \
@@ -16,15 +13,18 @@ SOURCES_C = \
 	pool.c \
 	producer_consumer.c \
 	resizable_fdt.c \
-	rtc.c \
 	rwlock.c \
 	sched.c \
+	sleepq.c \
 	strtol.c \
-	syscall.c \
 	taskqueue.c \
 	thread_stats.c \
 	thread_exit.c \
+	turnstile_adjust.c \
+	turnstile_propagate_once.c \
+	turnstile_propagate_many.c \
 	uiomove.c \
+	utest.c \
 	vm_map.c \
 	vfs.c
 
@@ -32,7 +32,7 @@ SOURCES_ASM =
 
 all: $(DEPFILES) libtests.a
 
-include ../Makefile.common
+include $(TOPDIR)/build/build.kern.mk
 
 libtests.a: $(OBJECTS)
 

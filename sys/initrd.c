@@ -49,6 +49,9 @@ static cpio_list_t initrd_head = TAILQ_HEAD_INITIALIZER(initrd_head);
 static cpio_node_t *root_node;
 static vnodeops_t initrd_vops;
 
+extern int8_t __rd_start[];
+extern int8_t __rd_end[];
+
 extern char *kenv_get(const char *key);
 
 static cpio_node_t *cpio_node_alloc(void) {
@@ -204,8 +207,7 @@ static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
         vnodetype_t type = V_REG;
         if (CMTOFT(it->c_mode) == C_DIR)
           type = V_DIR;
-        *res = vnode_new(type, &initrd_vops);
-        (*res)->v_data = (void *)it;
+        *res = vnode_new(type, &initrd_vops, it);
 
         /* TODO: Only store a token (weak pointer) that allows looking up the
            vnode, otherwise the vnode will never get freed. */
@@ -304,8 +306,7 @@ static int initrd_root(mount_t *m, vnode_t **v) {
 }
 
 static int initrd_mount(mount_t *m) {
-  vnode_t *root = vnode_new(V_DIR, &initrd_vops);
-  root->v_data = (void *)root_node;
+  vnode_t *root = vnode_new(V_DIR, &initrd_vops, root_node);
   root->v_mount = m;
   m->mnt_data = root;
   return 0;
@@ -314,19 +315,20 @@ static int initrd_mount(mount_t *m) {
 static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_readdir = initrd_vnode_readdir,
                                  .v_open = vnode_open_generic,
-                                 .v_close = vnode_close_nop,
                                  .v_read = initrd_vnode_read,
-                                 .v_write = vnode_write_nop,
                                  .v_seek = vnode_seek_generic,
-                                 .v_getattr = initrd_vnode_getattr};
+                                 .v_getattr = initrd_vnode_getattr,
+                                 .v_access = vnode_access_generic};
 
 static int initrd_init(vfsconf_t *vfc) {
-  unsigned rd_size = ramdisk_get_size();
+  /* Ramdisk start & end addresses are expected to be page aligned. */
+  assert(is_aligned(ramdisk_get_start(), PAGESIZE));
+  /* If the size is page aligned, the end address is as well. */
+  assert(is_aligned(ramdisk_get_size(), PAGESIZE));
 
-  if (!rd_size)
-    return ENXIO;
+  vnodeops_init(&initrd_vops);
 
-  klog("parsing cpio archive of %zu bytes", rd_size);
+  klog("parsing cpio archive of %u bytes", ramdisk_get_size());
   read_cpio_archive();
   initrd_build_tree();
   initrd_enum_inodes(root_node, 2);
@@ -334,16 +336,11 @@ static int initrd_init(vfsconf_t *vfc) {
 }
 
 intptr_t ramdisk_get_start(void) {
-  char *s = kenv_get("rd_start");
-  if (s == NULL)
-    return 0;
-  int s_len = strlen(s);
-  return strtoul(s + s_len - 8, NULL, 16);
+  return (intptr_t)__rd_start;
 }
 
 unsigned ramdisk_get_size(void) {
-  char *s = kenv_get("rd_size");
-  return s ? strtoul(s, NULL, 0) : 0;
+  return (unsigned)__rd_end - (unsigned)__rd_start;
 }
 
 void ramdisk_dump(void) {

@@ -29,10 +29,26 @@ typedef struct timespec {
   long tv_nsec;  /* and nanoseconds */
 } timespec_t;
 
+typedef struct bintime {
+  time_t sec;    /* second */
+  uint64_t frac; /* a fraction of second */
+} bintime_t;
+
 #define TIMEVAL(fp)                                                            \
   (timeval_t) {                                                                \
     .tv_sec = (long)((fp)*1000000L) / 1000000L,                                \
     .tv_usec = (long)((fp)*1000000L) % 1000000L                                \
+  }
+
+#define BINTIME(fp)                                                            \
+  (bintime_t) {                                                                \
+    .sec = (time_t)__builtin_floor(fp),                                        \
+    .frac = (uint64_t)((fp - __builtin_floor(fp)) * (1ULL << 64))              \
+  }
+
+#define HZ2BT(hz)                                                              \
+  (bintime_t) {                                                                \
+    .sec = 0, .frac = ((1ULL << 63) / (hz)) << 1                               \
   }
 
 static inline timeval_t st2tv(systime_t st) {
@@ -41,6 +57,11 @@ static inline timeval_t st2tv(systime_t st) {
 
 static inline systime_t tv2st(timeval_t tv) {
   return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+static inline timeval_t bt2tv(bintime_t bt) {
+  uint32_t usec = ((uint64_t)1000000 * (uint32_t)(bt.frac >> 32)) >> 32;
+  return (timeval_t){.tv_sec = bt.sec, .tv_usec = usec};
 }
 
 /* Operations on timevals. */
@@ -76,6 +97,36 @@ static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
   return res;
 }
 
+/* Operations on bintime. */
+#define bintime_cmp(a, b, cmp)                                                 \
+  (((a).sec == (b).sec) ? (((a).frac)cmp((b).frac)) : (((a).sec)cmp((b).sec)))
+
+static inline void bintime_add_frac(bintime_t *bt, uint64_t x) {
+  uint64_t old_frac = bt->frac;
+  bt->frac += x;
+  if (old_frac > bt->frac)
+    bt->sec++;
+}
+
+static inline bintime_t bintime_mul(const bintime_t bt, uint32_t x) {
+  uint64_t p1 = (bt.frac & 0xffffffffULL) * x;
+  uint64_t p2 = (bt.frac >> 32) * x + (p1 >> 32);
+  return (bintime_t){.sec = bt.sec * x + (p2 >> 32),
+                     .frac = (p2 << 32) | (p1 & 0xffffffffULL)};
+}
+
+/* XXX: Do not use this function, it'll get removed. */
 timeval_t get_uptime(void);
+
+/* Get high-fidelity time measured from the start of system. */
+bintime_t getbintime(void);
+
+/* System time is measured in ticks (1[ms] by default),
+ * and is maintained by system clock. */
+systime_t getsystime(void);
+
+/* XXX: Do not use this function, it'll get removed.
+ * Raw access to cpu internal timer. */
+timeval_t getcputime(void);
 
 #endif /* !_SYS_TIME_H_ */
