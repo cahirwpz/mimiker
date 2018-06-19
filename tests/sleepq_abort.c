@@ -16,7 +16,7 @@ static thread_t *waiters[T];
 static thread_t *waker;
 /* just to have some unused waiting channel */
 static int some_val;
-static volatile int woken_gracefully;
+static volatile int wakened_gracefully;
 static volatile int interrupted;
 
 /* Waiters have higher priority so that waker will only execute
@@ -28,18 +28,18 @@ static void waiter_routine(void *_arg) {
   if (rsn == SLEEPQ_WKP_INT)
     interrupted++;
   else if (rsn == SLEEPQ_WKP_REG)
-    woken_gracefully++;
+    wakened_gracefully++;
   else
     assert(false);
 }
 
 static void waker_routine(void *_arg) {
-  int woken = 0; /* total */
+  int wakened = 0; /* total */
   int aborted = 0;
   int next_abort = 0;
   int rand_next = 0;
 
-  while (woken < T) {
+  while (wakened < T) {
     /* this is a terrible way for randomizing variables
      * (especially when it's probably not even needed) */
     bool wake = kinda_random_values[rand_next % RAND_COUNT];
@@ -48,8 +48,7 @@ static void waker_routine(void *_arg) {
     if (wake) {
       bool succ = sleepq_signal(&some_val);
       assert(succ);
-      aborted++;
-      woken++;
+      wakened++;
     } else {
       bool succ = false;
       while (!succ) {
@@ -57,13 +56,18 @@ static void waker_routine(void *_arg) {
         succ = sleepq_abort(waiters[waiters_ord[next_abort]], SLEEPQ_WKP_INT);
         next_abort++;
       }
-      woken++;
+      aborted++;
+      wakened++;
     }
   }
+
+  assert(T == wakened);
+  assert(interrupted == aborted);
+  assert(T == interrupted + wakened_gracefully);
 }
 
 static int test_sleepq_abort_mult(void) {
-  woken_gracefully = 0;
+  wakened_gracefully = 0;
   interrupted = 0;
 
   waker = thread_create("waker", waker_routine, NULL);
