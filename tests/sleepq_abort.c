@@ -62,7 +62,7 @@ static void waker_routine(void *_arg) {
   }
 }
 
-static int test_mult(void) {
+static int test_sleepq_abort_mult(void) {
   woken_gracefully = 0;
   interrupted = 0;
 
@@ -97,7 +97,7 @@ static void simple_waker_routine(void *_arg) {
 }
 
 /* waiter routine is shared with test_mult */
-static int test_simple(void) {
+static int test_sleepq_abort_simple(void) {
   waiters[0] = thread_create("waiter", waiter_routine, NULL);
   waker = thread_create("simp-waker", simple_waker_routine, NULL);
 
@@ -114,5 +114,5 @@ static int test_simple(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(sleepq_abort_simple, test_simple, 0);
-KTEST_ADD(sleepq_abort_mult, test_mult, 0);
+KTEST_ADD(sleepq_abort_simple, test_sleepq_abort_simple, 0);
+KTEST_ADD(sleepq_abort_mult, test_sleepq_abort_mult, 0);
