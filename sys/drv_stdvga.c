@@ -174,8 +174,8 @@ static int stdvga_attach(device_t *dev) {
   stdvga->mem = bus_resource_alloc_any(dev, RT_MEMORY, 0, RF_PREFETCHABLE);
   stdvga->io = bus_resource_alloc_any(dev, RT_MEMORY, 2, 0);
 
-  assert(stdvga->mem);
-  assert(stdvga->io);
+  assert(stdvga->mem != NULL);
+  assert(stdvga->io != NULL);
 
   stdvga->vga = (vga_device_t){
     .palette_write = stdvga_palette_write,

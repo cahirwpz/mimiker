@@ -12,10 +12,6 @@
 #include <interrupt.h>
 #include <sysinit.h>
 
-#define KBD_DATA (IO_KBD + KBD_DATA_PORT)
-#define KBD_STATUS (IO_KBD + KBD_STATUS_PORT)
-#define KBD_COMMAND (IO_KBD + KBD_COMMAND_PORT)
-
 #define KBD_BUFSIZE 128
 
 typedef struct atkbdc_state {
@@ -34,28 +30,28 @@ typedef struct atkbdc_state {
    is not a major problem, since pretty much always the controller is
    immediately ready to proceed, so the we don't loop in practice. */
 static inline void wait_before_read(resource_t *regs) {
-  while (!(bus_space_read_1(regs, KBD_STATUS) & KBDS_KBD_BUFFER_FULL))
+  while (!(bus_space_read_1(regs, KBD_STATUS_PORT) & KBDS_KBD_BUFFER_FULL))
     ;
 }
 
 static inline void wait_before_write(resource_t *regs) {
-  while (bus_space_read_1(regs, KBD_STATUS) & KBDS_INPUT_BUFFER_FULL)
+  while (bus_space_read_1(regs, KBD_STATUS_PORT) & KBDS_INPUT_BUFFER_FULL)
     ;
 }
 
 static void write_command(resource_t *regs, uint8_t command) {
   wait_before_write(regs);
-  bus_space_write_1(regs, KBD_COMMAND, command);
+  bus_space_write_1(regs, KBD_COMMAND_PORT, command);
 }
 
 static uint8_t read_data(resource_t *regs) {
   wait_before_read(regs);
-  return bus_space_read_1(regs, KBD_DATA);
+  return bus_space_read_1(regs, KBD_DATA_PORT);
 }
 
 static void write_data(resource_t *regs, uint8_t byte) {
   wait_before_write(regs);
-  bus_space_write_1(regs, KBD_DATA, byte);
+  bus_space_write_1(regs, KBD_DATA_PORT, byte);
 }
 
 static int scancode_read(vnode_t *v, uio_t *uio) {
@@ -92,7 +88,7 @@ static bool kbd_reset(resource_t *regs) {
 static intr_filter_t atkbdc_intr(void *data) {
   atkbdc_state_t *atkbdc = data;
 
-  if (!(bus_space_read_1(atkbdc->regs, KBD_STATUS) & KBDS_KBD_BUFFER_FULL))
+  if (!(bus_space_read_1(atkbdc->regs, KBD_STATUS_PORT) & KBDS_KBD_BUFFER_FULL))
     return IF_STRAY;
 
   /* TODO: Some locking mechanism will be necessary if we want to sent extra
@@ -120,9 +116,10 @@ static int atkbdc_probe(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
   /* TODO: Implement resource deallocation in rman.
-   * When probe is not successful, driver should release claimed resources.
-   */
-  resource_t *regs = bus_resource_alloc_any(dev, RT_ISA, 0, RF_SHARED);
+   * When probe is not successful, driver should release claimed resources. */
+  resource_t *regs = bus_resource_alloc(dev, RT_ISA, 0, IO_KBD,
+                                        IO_KBD + IO_KBDSIZE - 1, IO_KBDSIZE, 0);
+  assert(regs != NULL);
 
   if (!kbd_reset(regs)) {
     klog("Keyboard self-test failed.");
@@ -153,7 +150,9 @@ static int atkbdc_attach(device_t *dev) {
 
   mtx_init(&atkbdc->mtx, MTX_DEF);
   cv_init(&atkbdc->nonempty, "AT keyboard buffer non-empty");
-  atkbdc->regs = bus_resource_alloc_any(dev, RT_ISA, 0, RF_SHARED);
+  atkbdc->regs = bus_resource_alloc(dev, RT_ISA, 0, IO_KBD,
+                                    IO_KBD + IO_KBDSIZE - 1, IO_KBDSIZE, 0);
+  assert(atkbdc->regs != NULL);
 
   atkbdc->intr_handler =
     INTR_HANDLER_INIT(atkbdc_intr, NULL, atkbdc, "AT keyboard controller", 0);

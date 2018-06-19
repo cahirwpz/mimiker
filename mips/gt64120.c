@@ -52,6 +52,7 @@ typedef struct gt_pci_state {
   /* Resource managers which manage resources used by child devices. */
   rman_t rman_pci_iospace;
   rman_t rman_pci_memspace;
+  rman_t rman_isa_iospace;
 
   intr_handler_t intr_handler;
   intr_chain_t intr_chain[16];
@@ -263,6 +264,7 @@ static int gt_pci_attach(device_t *pcib) {
 
   rman_create_from_resource(&gtpci->rman_pci_iospace, gtpci->pci_io);
   rman_create_from_resource(&gtpci->rman_pci_memspace, gtpci->pci_mem);
+  rman_create_from_resource(&gtpci->rman_isa_iospace, gtpci->isa_io);
 
   pcib->bus = DEV_BUS_PCI;
 
@@ -311,49 +313,55 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
                                          size_t size, unsigned flags) {
 
   gt_pci_state_t *gtpci = pcib->state;
+  resource_t *res = NULL;
 
-  /* Hack to directly return ISA resource. Need to implement PCI-ISA bridge. */
-  if (type == RT_ISA)
-    return gtpci->isa_io;
+  /* Hack for ISA devices attached to PIIX4. TODO implement PCI-ISA bridge. */
+  if (type == RT_ISA) {
+    res = rman_allocate_resource(&gtpci->rman_isa_iospace, start, end, size,
+                                 size, flags);
 
-  /* Now handle only PCI devices. */
+    if (res == NULL)
+      return NULL;
 
-  /* Currently all devices are logicaly attached to PCI bus, because we don't
-     have PCI-ISA bridge implemented. ISA devices are required to specify
-     RT_ISA_F flag, and have their dev->bus set to DEV_BUS_NONE. */
-  assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
-
-  /* Find identified bar by rid. */
-  pci_device_t *pcid = pci_device_of(dev);
-  pci_bar_t *bar = &pcid->bar[rid];
-
-  if (bar->size == 0)
-    return NULL;
-
-  resource_t *r = NULL;
-
-  if (type == RT_MEMORY) {
-    r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, bar->size,
-                               bar->size, flags);
-  } else if (type == RT_IOPORTS) {
-    r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, bar->size,
-                               bar->size, flags);
+    device_add_resource(dev, res, rid, mips_bus_space_generic);
   } else {
-    panic("Unknown PCI device type: %d", type);
+    /* Now handle only PCI devices. */
+
+    /* Currently all devices are logicaly attached to PCI bus, because we don't
+       have PCI-ISA bridge implemented. ISA devices are required to specify
+       RT_ISA_F flag, and have their dev->bus set to DEV_BUS_NONE. */
+    assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
+
+    /* Find identified bar by rid. */
+    pci_device_t *pcid = pci_device_of(dev);
+    pci_bar_t *bar = &pcid->bar[rid];
+
+    if (bar->size == 0)
+      return NULL;
+
+    if (type == RT_MEMORY) {
+      res = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end,
+                                   bar->size, bar->size, flags);
+    } else if (type == RT_IOPORTS) {
+      res = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end,
+                                   bar->size, bar->size, flags);
+    } else {
+      panic("Unknown PCI device type: %d", type);
+    }
+
+    if (res == NULL)
+      return NULL;
+
+    device_add_resource(dev, res, rid, mips_bus_space_generic);
+
+    /* Write BAR address to PCI device register. */
+    if (!(flags & RF_ACTIVATED)) {
+      pci_write_config(dev, PCIR_BAR(rid), 4, res->r_start);
+      res->r_flags |= RF_ACTIVATED;
+    }
   }
 
-  if (!r)
-    return NULL;
-
-  device_add_resource(dev, r, rid, mips_bus_space_generic);
-
-  /* Write BAR address to PCI device register. */
-  if (!(flags & RF_ACTIVATED)) {
-    pci_write_config(dev, PCIR_BAR(rid), 4, r->r_start);
-    r->r_flags |= RF_ACTIVATED;
-  }
-
-  return r;
+  return res;
 }
 
 pci_bus_driver_t gt_pci_bus = {

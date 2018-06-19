@@ -12,8 +12,8 @@
 #include <vnode.h>
 #include <sysinit.h>
 
-#define RTC_ADDR (IO_RTC + 0)
-#define RTC_DATA (IO_RTC + 1)
+#define RTC_ADDR 0
+#define RTC_DATA 1
 
 #define RTC_ASCTIME_SIZE 32
 
@@ -90,7 +90,9 @@ static int rtc_attach(device_t *dev) {
 
   rtc_state_t *rtc = dev->state;
 
-  rtc->regs = bus_resource_alloc_any(dev, RT_ISA, 0, RF_SHARED);
+  rtc->regs = bus_resource_alloc(dev, RT_ISA, 0, IO_RTC,
+                                 IO_RTC + IO_RTCSIZE - 1, IO_RTCSIZE, 0);
+  assert(rtc->regs != NULL);
 
   rtc->intr_handler =
     INTR_HANDLER_INIT(rtc_intr, NULL, rtc, "RTC periodic timer", 0);
