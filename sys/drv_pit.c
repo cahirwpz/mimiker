@@ -109,10 +109,9 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
 static int pit_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  pci_bus_state_t *pcib = dev->parent->state;
   pit_state_t *pit = dev->state;
 
-  pit->regs = pcib->io_space;
+  pit->regs = bus_resource_alloc_any(dev, RT_ISA, 0, RF_SHARED);
 
   pit->lock = SPINLOCK_INITIALIZER();
   pit->intr_handler = INTR_HANDLER_INIT(pit_intr, NULL, pit, "i8254 timer", 0);
