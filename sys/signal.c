@@ -86,13 +86,10 @@ int sig_send(proc_t *proc, signo_t sig) {
 
   bit_set(target->td_sigpend, sig);
 
-  /* TODO: If a thread is sleeping interruptibly (!), wake it up, so that it
-   * continues execution and the signal gets delivered soon.
-   * However, we don't currently distinguish between two sleeping states.
-   * So even if the signal is SIGKILL we cannot just wake up the thread
-   * regardless of conditions. */
   sig_notify(target);
 
+  /* If a thread is sleeping interruptibly (!), wake it up, so that it
+   * continues execution and the signal gets delivered soon. */
   WITH_SPINLOCK(target->td_spin) {
     if (td_is_sleeping_int(target))
       sleepq_abort(target, SLEEPQ_WKP_INT);
