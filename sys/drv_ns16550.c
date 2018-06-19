@@ -18,7 +18,7 @@ typedef struct ns16550_state {
   condvar_t tx_nonfull, rx_nonempty;
   ringbuf_t tx_buf, rx_buf;
   intr_handler_t intr_handler;
-  resource_t regs;
+  resource_t *regs;
 } ns16550_state_t;
 
 static uint8_t in(resource_t *regs, unsigned offset) {
@@ -92,7 +92,7 @@ static vnodeops_t dev_uart_ops = {
 
 static intr_filter_t ns16550_intr(void *data) {
   ns16550_state_t *ns16550 = data;
-  resource_t *uart = &ns16550->regs;
+  resource_t *uart = ns16550->regs;
   intr_filter_t res = IF_STRAY;
 
   WITH_MTX_LOCK (&ns16550->mtx) {
@@ -122,7 +122,6 @@ static intr_filter_t ns16550_intr(void *data) {
 static int ns16550_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  pci_bus_state_t *pcib = dev->parent->state;
   ns16550_state_t *ns16550 = dev->state;
 
   ns16550->rx_buf.data = kmalloc(M_DEV, UART_BUFSIZE, M_ZERO);
@@ -134,17 +133,18 @@ static int ns16550_attach(device_t *dev) {
   cv_init(&ns16550->rx_nonempty, "UART receive buffer not empty");
   cv_init(&ns16550->tx_nonfull, "UART transmit buffer not full");
 
-  /* TODO Nasty hack to select COM1 UART */
-  ns16550->regs = *pcib->io_space;
-  ns16550->regs.r_start += IO_COM1;
-
+  /* TODO Small hack to select COM1 UART */
+  ns16550->regs = bus_resource_alloc(dev, RT_ISA, 0, IO_COM1,
+                                     IO_COM1 + IO_COMSIZE - 1, IO_COMSIZE, 0);
+  assert(ns16550->regs != NULL);
   ns16550->intr_handler =
     INTR_HANDLER_INIT(ns16550_intr, NULL, ns16550, "NS16550 UART", 0);
+  /* TODO Do not use magic number "4" here! */
   bus_intr_setup(dev, 4, &ns16550->intr_handler);
 
   /* Setup UART and enable interrupts */
-  setup(&ns16550->regs);
-  out(&ns16550->regs, IER, IER_ERXRDY | IER_ETXRDY);
+  setup(ns16550->regs);
+  out(ns16550->regs, IER, IER_ERXRDY | IER_ETXRDY);
 
   /* Prepare /dev/uart interface. */
   devfs_makedev(NULL, "uart", &dev_uart_ops, ns16550);
