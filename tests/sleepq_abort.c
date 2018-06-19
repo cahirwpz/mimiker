@@ -10,6 +10,16 @@
 static bool kinda_random_values[RAND_COUNT] = {true,  true,  false, true, false,
                                                false, true,  false, true, true,
                                                false, false, false};
+
+/* Puts one thread to sleep and aborts it with a second thread. */
+static int test_sleepq_abort_simple(void);
+/* Runs a couple of threads that sleep on a specified channel and one thread
+ * that kinda randomly wakes them up or aborts their sleep. Keeps track of
+ * the number of threads that were interrupted and woken up normally and
+ * of the number of apparently successful aborts and regular wake-ups.
+ */
+static int test_sleepq_abort_mult(void);
+
 /* some random ordering for waiters (values from 0 to T-1) */
 static int waiters_ord[T] = {5, 2, 1, 3, 4, 0};
 static thread_t *waiters[T];
