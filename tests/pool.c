@@ -21,7 +21,7 @@ static int test_pool_alloc(palloc_test_t flag) {
   kmem_init(mp);
 
   int size = 64;
-  pool_t test = pool_create("test", size, int_ctor, NULL);
+  pool_t *test = pool_create("test", size, int_ctor, NULL);
 
   for (int n = 1; n < N; n++) {
     void **item = kmalloc(mp, sizeof(void *) * n, 0);

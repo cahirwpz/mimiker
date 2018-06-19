@@ -2,7 +2,7 @@
 #include <stdc.h>
 #include <pool.h>
 
-static pool_t P_RMAN;
+static POOL_DEFINE(P_RMAN, "rman", sizeof(resource_t), NULL, NULL);
 
 static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
                                  size_t count, size_t alignment,
@@ -116,8 +116,4 @@ void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end,
 void rman_create_from_resource(rman_t *rm, resource_t *res) {
   assert(res->r_flags & RF_ALLOCATED);
   rman_create(rm, res->r_start, res->r_end, res->r_type);
-}
-
-void rman_init(void) {
-  P_RMAN = pool_create("rman", sizeof(resource_t), NULL, NULL);
 }

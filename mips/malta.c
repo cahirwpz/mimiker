@@ -170,7 +170,6 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   pmap_init();
   pool_bootstrap();
   kmem_bootstrap();
-  rman_init();
   sleepq_init();
   turnstile_init();
   thread_bootstrap();
