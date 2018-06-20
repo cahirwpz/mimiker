@@ -69,7 +69,7 @@ void ktest_failure(void) {
 
 static test_entry_t *find_test_by_name_with_len(const char *test, size_t len) {
   test_entry_t **ptr;
-  SET_FOREACH(ptr, tests) {
+  SET_FOREACH (ptr, tests) {
     if (strlen((*ptr)->test_name) == len &&
         strncmp((*ptr)->test_name, test, len) == 0) {
       return *ptr;
@@ -150,7 +150,7 @@ static void run_all_tests(void) {
   /* Count the number of tests that may be run in an arbitrary order. */
   unsigned int n = 0;
   test_entry_t **ptr;
-  SET_FOREACH(ptr, tests) {
+  SET_FOREACH (ptr, tests) {
     if (test_is_autorunnable(*ptr))
       n++;
   }
@@ -165,7 +165,7 @@ static void run_all_tests(void) {
 
   /* Collect test pointers. */
   int i = 0;
-  SET_FOREACH(ptr, tests) {
+  SET_FOREACH (ptr, tests) {
     if (test_is_autorunnable(*ptr))
       for (unsigned r = 0; r < ktest_repeat; r++)
         autorun_tests[i++] = *ptr;

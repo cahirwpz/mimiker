@@ -198,7 +198,11 @@ void tlb_print(void) {
 #endif
 
 /* Following code is used by gdb scripts. */
-static tlbentry_t _gdb_tlb_entry;
+
+/* Compiler does not know that debugger (external agent) will read
+ * the structure and will remove it and optimize out all references to it.
+ * Hence it has to be marked with `volatile`. */
+static volatile tlbentry_t _gdb_tlb_entry;
 
 unsigned _gdb_tlb_size(void) {
   uint32_t config1 = mips32_getconfig1();
@@ -208,6 +212,6 @@ unsigned _gdb_tlb_size(void) {
 /* Fills _gdb_tlb_entry structure with TLB entry. */
 void _gdb_tlb_read_index(unsigned i) {
   tlbhi_t saved = mips32_getentryhi();
-  _tlb_read(i, &_gdb_tlb_entry);
+  _tlb_read(i, (tlbentry_t *)&_gdb_tlb_entry);
   mips32_setentryhi(saved);
 }

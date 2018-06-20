@@ -4,6 +4,7 @@ TOPDIR = $(realpath ..)
 
 SOURCES_C  = \
 	assert.c \
+	bus.c \
 	callout.c \
 	clock.c \
 	condvar.c \
@@ -38,6 +39,7 @@ SOURCES_C  = \
 	pool.c \
 	proc.c \
 	ringbuf.c \
+	rman.c \
 	runq.c \
 	rwlock.c \
 	sbrk.c \
