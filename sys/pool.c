@@ -257,18 +257,11 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
 /* Pool of pool_t objects. */
 static struct pool P_POOL[1];
 
-typedef void fn_t(void);
-
 void pool_bootstrap(void) {
   pool_ctor(P_POOL);
   pool_init(P_POOL, "master pool", sizeof(struct pool), (pool_ctor_t)pool_ctor,
             (pool_dtor_t)pool_dtor);
-
-  SET_DECLARE(pool_ctor_table, fn_t);
-  fn_t **fn_p;
-  SET_FOREACH(fn_p, pool_ctor_table) {
-    (*fn_p)();
-  }
+  INVOKE_CTORS(pool_ctor_table);
 }
 
 pool_t *pool_create(const char *desc, size_t size, pool_ctor_t ctor,

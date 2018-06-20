@@ -10,7 +10,7 @@ int bus_generic_probe(device_t *bus) {
   klog("Scanning %s for known devices.", bus->driver->desc);
   TAILQ_FOREACH (dev, &bus->children, link) {
     driver_t **drv_p;
-    SET_FOREACH(drv_p, driver_table) {
+    SET_FOREACH (drv_p, driver_table) {
       driver_t *drv = *drv_p;
       dev->driver = drv;
       if (device_probe(dev)) {
