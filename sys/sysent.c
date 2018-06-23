@@ -361,16 +361,22 @@ end:
 }
 
 
+
+int do_exec_proper(const exec_args_t_proper *args);
+
+
+int marshal_args(const char **user_argv, void *blob, size_t blob_size, size_t *written);
+
 static int sys_execve(thread_t *td, syscall_args_t *args) {
   const char *user_path = (const char *)args->args[0];
   const char **user_argv = (const char **)args->args[1];
-  size_t argc = 0;
+  //size_t argc = 0;
 
   if ((user_path == NULL) || (user_argv == NULL))
     return -EFAULT;
 
   char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
-  void *data = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0);
+  void *blob = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0);
 
   int result = 0;
 
@@ -378,25 +384,75 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   if (result < 0)
     goto end;
 
-  result = copyinargs(data, user_argv, &argc);
+  /* result = copyinargs(data, user_argv, &argc); */
+  /* if (result < 0) */
+  /*   goto end; */
+
+  size_t written;
+
+  result = marshal_args(user_argv, blob, ARG_MAX * sizeof(char), &written);
   if (result < 0)
     goto end;
 
-  char **kern_argv = (char **)data;
+
+  
+  //char **kern_argv = (char **)blob;
 
   /*WARNING: exec_args_t.argv type is probably incorrect. It is const char**,
    should be char *const[] */
-  const exec_args_t exec_args = {
-    .prog_name = kern_path, .argv = (const char **)kern_argv, .argc = argc};
-  result = do_exec(&exec_args);
+  /* const exec_args_t exec_args = { */
+  /*   .prog_name = kern_path, .argv = (const char **)kern_argv, .argc = argc}; */
+  /* result = do_exec_proper(&exec_args); */
 
-  klog("execve(\"%s\", ... )", kern_argv[0]);
+   const exec_args_t_proper exec_args = {
+     .prog_name = kern_path, .blob = blob, .written = written};
+  result = do_exec_proper(&exec_args);
+
+  
+  //  klog("execve(\"%s\", ... )", kern_argv[0]);
 end:
-  kfree(M_TEMP, data);
+  kfree(M_TEMP, blob);
   kfree(M_TEMP, kern_path);
 
   return result;
 }
+
+/* static int sys_execve(thread_t *td, syscall_args_t *args) { */
+/*   const char *user_path = (const char *)args->args[0]; */
+/*   const char **user_argv = (const char **)args->args[1]; */
+/*   size_t argc = 0; */
+
+/*   if ((user_path == NULL) || (user_argv == NULL)) */
+/*     return -EFAULT; */
+
+/*   char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0); */
+/*   void *data = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0); */
+
+/*   int result = 0; */
+
+/*   result = copyinstr(user_path, kern_path, PATH_MAX, 0); */
+/*   if (result < 0) */
+/*     goto end; */
+
+/*   result = copyinargs(data, user_argv, &argc); */
+/*   if (result < 0) */
+/*     goto end; */
+
+/*   char **kern_argv = (char **)data; */
+
+/*   /\*WARNING: exec_args_t.argv type is probably incorrect. It is const char**, */
+/*    should be char *const[] *\/ */
+/*   const exec_args_t exec_args = { */
+/*     .prog_name = kern_path, .argv = (const char **)kern_argv, .argc = argc}; */
+/*   result = do_exec(&exec_args); */
+
+/*   klog("execve(\"%s\", ... )", kern_argv[0]); */
+/* end: */
+/*   kfree(M_TEMP, data); */
+/*   kfree(M_TEMP, kern_path); */
+
+/*   return result; */
+/* } */
 
 
 /* static int sys_execve(thread_t *td, syscall_args_t *args) { */
