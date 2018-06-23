@@ -360,32 +360,71 @@ end:
   return result;
 }
 
-static int sys_execve(thread_t *td, syscall_args_t *args) {
-  const char *user_path = (const char*)args->args[0];
-  const char **user_argv = (const char**)args->args[1];
-  const char **user_envp = (const char**)args->args[2];
-  int result;
 
-  if (user_path == NULL)
+static int sys_execve(thread_t *td, syscall_args_t *args) {
+  const char *user_path = (const char *)args->args[0];
+  const char **user_argv = (const char **)args->args[1];
+  size_t argc = 0;
+
+  if ((user_path == NULL) || (user_argv == NULL))
     return -EFAULT;
 
   char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
-  void *stack = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0);
+  void *data = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0);
 
-  size_t stack_size;
-  result = copy_exec_args(stack, ARG_MAX, user_argv, user_envp, &stack_size, &from_userspace);
-  if (result != 0)
-    return result;
+  int result = 0;
 
-  result = do_exec(&kern_path, stack, stack_size);
+  result = copyinstr(user_path, kern_path, PATH_MAX, 0);
+  if (result < 0)
+    goto end;
+
+  result = copyinargs(data, user_argv, &argc);
+  if (result < 0)
+    goto end;
+
+  char **kern_argv = (char **)data;
+
+  /*WARNING: exec_args_t.argv type is probably incorrect. It is const char**,
+   should be char *const[] */
+  const exec_args_t exec_args = {
+    .prog_name = kern_path, .argv = (const char **)kern_argv, .argc = argc};
+  result = do_exec(&exec_args);
 
   klog("execve(\"%s\", ... )", kern_argv[0]);
 end:
-  kfree(M_TEMP, stack);
+  kfree(M_TEMP, data);
   kfree(M_TEMP, kern_path);
 
   return result;
 }
+
+
+/* static int sys_execve(thread_t *td, syscall_args_t *args) { */
+/*   const char *user_path = (const char*)args->args[0]; */
+/*   const char **user_argv = (const char**)args->args[1]; */
+/*   const char **user_envp = (const char**)args->args[2]; */
+/*   int result; */
+
+/*   if (user_path == NULL) */
+/*     return -EFAULT; */
+
+/*   char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0); */
+/*   void *stack = kmalloc(M_TEMP, ARG_MAX * sizeof(char), 0); */
+
+/*   size_t stack_size; */
+/*   result = copy_exec_args(stack, ARG_MAX, user_argv, user_envp, &stack_size, &from_userspace); */
+/*   if (result != 0) */
+/*     return result; */
+
+/*   result = do_exec(&kern_path, stack, stack_size); */
+
+/*   klog("execve(\"%s\", ... )", kern_argv[0]); */
+/* end: */
+/*   kfree(M_TEMP, stack); */
+/*   kfree(M_TEMP, kern_path); */
+
+/*   return result; */
+/* } */
 
 static int sys_access(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
