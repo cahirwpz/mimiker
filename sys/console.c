@@ -26,7 +26,7 @@ void cn_init(void) {
   SET_DECLARE(cn_table, console_t);
   int prio = INT_MIN;
   console_t **ptr;
-  SET_FOREACH(ptr, cn_table) {
+  SET_FOREACH (ptr, cn_table) {
     console_t *cn_ = *ptr;
     cn_->cn_init(cn_);
     if (prio < cn_->cn_prio) {

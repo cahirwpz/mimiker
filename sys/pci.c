@@ -5,8 +5,8 @@
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 
-static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
-                                            uint16_t device_id) {
+const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
+                                     uint16_t device_id) {
   if (vendor) {
     const pci_device_id *device = vendor->devices;
     while (device->name) {
@@ -18,7 +18,7 @@ static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
   return NULL;
 }
 
-static const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
+const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
   const pci_vendor_id *vendor = pci_vendor_list;
   while (vendor->name) {
     if (vendor->id == vendor_id)
@@ -76,78 +76,16 @@ void pci_bus_enumerate(device_t *pcib) {
         }
 
         size = -size;
-        resource_t *bar = &pcid->bar[pcid->nbars++];
-        *bar = (resource_t){.r_owner = dev,
-                            .r_type = type,
-                            .r_flags = flags,
-                            .r_start = 0,
-                            .r_end = size - 1,
-                            .r_id = i};
+        pcid->bar[i] = (pci_bar_t){
+          .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
       }
     }
   }
+
+  pci_bus_dump(pcib);
 }
 
-static int pci_bar_compare(const void *a, const void *b) {
-  const resource_t *bar0 = *(const resource_t **)a;
-  const resource_t *bar1 = *(const resource_t **)b;
-
-  if (bar0->r_end < bar1->r_end)
-    return 1;
-  if (bar0->r_end > bar1->r_end)
-    return -1;
-  return 0;
-}
-
-void pci_bus_assign_space(device_t *pcib) {
-  /* Count PCI base address registers & allocate memory */
-  unsigned nbars = 0, ndevs = 0;
-  device_t *dev;
-
-  TAILQ_FOREACH (dev, &pcib->children, link) {
-    pci_device_t *pcid = pci_device_of(dev);
-    nbars += pcid->nbars;
-    ndevs++;
-  }
-
-  resource_t **bars = kmalloc(M_DEV, sizeof(resource_t *) * nbars, M_ZERO);
-  unsigned n = 0;
-
-  TAILQ_FOREACH (dev, &pcib->children, link) {
-    pci_device_t *pcid = pci_device_of(dev);
-    for (unsigned i = 0; i < pcid->nbars; i++)
-      bars[n++] = &pcid->bar[i];
-  }
-
-  qsort(bars, nbars, sizeof(resource_t *), pci_bar_compare);
-
-  pci_bus_state_t *data = pcib->state;
-  intptr_t io_base = data->io_space->r_start;
-  intptr_t mem_base = data->mem_space->r_start;
-
-  for (unsigned j = 0; j < nbars; j++) {
-    resource_t *bar = bars[j];
-    if (bar->r_type == RT_IOPORTS) {
-      bar->r_bus_space = data->io_space->r_bus_space;
-      bar->r_start += io_base;
-      bar->r_end += io_base;
-      io_base = bar->r_end + 1;
-    } else if (bar->r_type == RT_MEMORY) {
-      bar->r_bus_space = data->mem_space->r_bus_space;
-      bar->r_start += mem_base;
-      bar->r_end += mem_base;
-      mem_base = bar->r_end + 1;
-    }
-
-    /* Write the BAR address back to PCI bus config. It's safe to write the
-     * entire address without masking bits - only base address bits are
-     * writable. */
-    pci_write_config(bar->r_owner, PCIR_BAR(bar->r_id), 4, bar->r_start);
-  }
-
-  kfree(M_DEV, bars);
-}
-
+/* TODO: to be replaced with GDB python script */
 void pci_bus_dump(device_t *pcib) {
   device_t *dev;
 
@@ -178,18 +116,20 @@ void pci_bus_dump(device_t *pcib) {
       kprintf("%s Interrupt: pin %c routed to IRQ %d\n", devstr,
               'A' + pcid->pin - 1, pcid->irq);
 
-    for (unsigned i = 0; i < pcid->nbars; i++) {
-      resource_t *bar = &pcid->bar[i];
+    for (int i = 0; i < 6; i++) {
+      pci_bar_t *bar = &pcid->bar[i];
       char *type;
 
-      if (bar->r_type == RT_IOPORTS) {
+      if (bar->size == 0)
+        continue;
+
+      if (bar->type == RT_IOPORTS) {
         type = "I/O ports";
       } else {
-        type = (bar->r_flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
-                                                : "Memory (non-prefetchable)";
+        type = (bar->flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
+                                              : "Memory (non-prefetchable)";
       }
-      kprintf("%s Region %d: %s at %p [size=$%x]\n", devstr, i, type,
-              (void *)bar->r_start, (unsigned)(bar->r_end - bar->r_start + 1));
+      kprintf("%s Region %x: %s [size=$%x]\n", devstr, i, type, bar->size);
     }
   }
 }

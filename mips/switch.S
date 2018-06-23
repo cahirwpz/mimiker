@@ -18,6 +18,7 @@
 LEAF(ctx_switch)
         # disable interrupts saving SR to t0
         di      t0
+        ehb
 
         # don't save context of @from thread if user did not provide one
         bnez    a0, ctx_save

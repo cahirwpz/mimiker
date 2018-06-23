@@ -112,5 +112,4 @@ static int test_turnstile_propagate_once(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(turnstile_propagate_once, test_turnstile_propagate_once,
-          KTEST_FLAG_BROKEN);
+KTEST_ADD(turnstile_propagate_once, test_turnstile_propagate_once, 0);

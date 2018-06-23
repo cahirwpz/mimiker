@@ -68,6 +68,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize);
 #define MALTA_PCI0_IO_BASE 0x18000000
 #define MALTA_PCI0_IO_END 0x1bdfffff
 #define MALTA_CORECTRL_BASE 0x1be00000
+#define MALTA_CORECTRL_END 0x1dffffff
 #define MALTA_FPGA_BASE 0x1f000000
 
 #define MALTA_CBUS_UART (MALTA_FPGA_BASE + 0x900)
