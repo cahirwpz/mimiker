@@ -195,10 +195,12 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
 
 // TODO maybe we should just make td_sleep_flags in thread_t?
 static uint32_t tdf_of_slpf(sleep_flags_t flags) {
-  uint32_t td_flags = 0;
+  uint32_t thread_flags = 0;
   if (flags & SLPF_INT)
-    td_flags |= TDF_SLEEP_INT;
-  return td_flags;
+    thread_flags |= TDF_SLEEP_INT;
+  if (flags & SLPF_TIME)
+    thread_flags |= TDF_SLEEP_TIME;
+  return thread_flags;
 }
 
 void sleepq_wait(void *wchan, const void *waitpt) {

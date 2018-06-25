@@ -10,13 +10,15 @@ typedef struct sleepq sleepq_t;
 typedef enum {
   SLEEPQ_WKP_REG, /* regular wakeup
                    * keep it as the first entry (because of flags below) */
-  SLEEPQ_WKP_INT  /* thread interrupted */
+  SLEEPQ_WKP_INT, /* thread interrupted */
+  SLEEPQ_WKP_TIME /* time-out */
 } slp_wakeup_t;
 
 #define SLPF_OF_WKP(w) (1 << ((w)-1))
 
 typedef uint8_t sleep_flags_t;
 #define SLPF_INT SLPF_OF_WKP(SLEEPQ_WKP_INT)
+#define SLPF_TIME SLPF_OF_WKP(SLEEPQ_WKP_TIME)
 
 /*! \file sleepq.h */
 
