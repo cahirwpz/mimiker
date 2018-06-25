@@ -48,8 +48,6 @@ typedef struct sleepq {
   void *sq_wchan;                  /*!< associated waiting channel */
 } sleepq_t;
 
-static pool_t P_SLEEPQ;
-
 static void sq_acquire(sleepq_t *sq) {
   spin_acquire(&sq->sq_lock);
 }
@@ -79,9 +77,9 @@ void sleepq_init(void) {
     sc->sc_lock = SPINLOCK_INITIALIZER();
     TAILQ_INIT(&sc->sc_queues);
   }
-
-  P_SLEEPQ = pool_create("sleepq", sizeof(sleepq_t), sq_ctor, NULL);
 }
+
+static POOL_DEFINE(P_SLEEPQ, "sleepq", sizeof(sleepq_t), sq_ctor, NULL);
 
 sleepq_t *sleepq_alloc(void) {
   return pool_alloc(P_SLEEPQ, 0);
