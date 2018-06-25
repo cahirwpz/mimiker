@@ -25,10 +25,10 @@ static void clock_init(void) {
   if (clock == NULL)
     panic("Missing suitable timer for maintenance of system clock!");
   tm_init(clock, clock_cb, NULL);
-  if (tm_start(clock, TMF_PERIODIC, getbintime(), HZ2BT(SYSTIME_FREQ)))
+  if (tm_start(clock, TMF_PERIODIC | TMF_TIMESOURCE, (bintime_t){},
+               HZ2BT(SYSTIME_FREQ)))
     panic("Failed to start system clock!");
   klog("System clock uses \'%s\' hardware timer.", clock->tm_name);
-  tm_select(clock);
 }
 
 SYSINIT_ADD(clock, clock_init, DEPS("sched", "callout", "pit"));

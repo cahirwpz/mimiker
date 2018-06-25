@@ -4,6 +4,7 @@
 #include <malloc.h>
 #include <errno.h>
 #include <device.h>
+#include <bus.h>
 
 #define VGA_PALETTE_SIZE (256 * 3)
 
@@ -154,14 +155,13 @@ static int stdvga_probe(device_t *dev) {
       pcid->device_id != VGA_QEMU_STDVGA_DEVICE_ID)
     return 0;
 
-  if (!(pcid->bar[0].r_flags & RF_PREFETCHABLE))
+  if (!(pcid->bar[0].flags & RF_PREFETCHABLE))
     return 0;
 
   return 1;
 }
 
 static int stdvga_attach(device_t *dev) {
-  pci_device_t *pcid = pci_device_of(dev);
 
   /* TODO: Enabling PCI regions should probably be performed by PCI bus resource
    * reservation code. */
@@ -170,9 +170,12 @@ static int stdvga_attach(device_t *dev) {
   pci_write_config(dev, PCIR_COMMAND, 2, command);
 
   stdvga_state_t *stdvga = dev->state;
-  /* TODO: This will get replaced by bus_alloc_resource* function */
-  stdvga->mem = &pcid->bar[0];
-  stdvga->io = &pcid->bar[1];
+
+  stdvga->mem = bus_resource_alloc_any(dev, RT_MEMORY, 0, RF_PREFETCHABLE);
+  stdvga->io = bus_resource_alloc_any(dev, RT_MEMORY, 2, 0);
+
+  assert(stdvga->mem);
+  assert(stdvga->io);
 
   stdvga->vga = (vga_device_t){
     .palette_write = stdvga_palette_write,

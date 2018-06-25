@@ -5,8 +5,7 @@
 #include <sched.h>
 
 static int malloc_one_allocation(void) {
-  kmem_pool_t *mp = KMEM_POOL("test", 1, 1);
-  kmem_init(mp);
+  kmem_pool_t *mp = kmem_create("test", 1, 1);
   void *ptr = kmalloc(mp, 1234, M_NOWAIT);
   assert(ptr != NULL);
   kfree(mp, ptr);
@@ -15,8 +14,7 @@ static int malloc_one_allocation(void) {
 }
 
 static int malloc_invalid_values(void) {
-  kmem_pool_t *mp = KMEM_POOL("test", 1, 1);
-  kmem_init(mp);
+  kmem_pool_t *mp = kmem_create("test", 1, 1);
   void *ptr = kmalloc(mp, PAGESIZE, M_NOWAIT);
   assert(ptr == NULL);
   ptr = kmalloc(mp, 0, M_NOWAIT);
@@ -26,8 +24,7 @@ static int malloc_invalid_values(void) {
 }
 
 static int malloc_multiple_allocations(void) {
-  kmem_pool_t *mp = KMEM_POOL("test", 1, 1);
-  kmem_init(mp);
+  kmem_pool_t *mp = kmem_create("test", 1, 1);
   const int n = 50;
   void *ptrs[n];
   for (int i = 0; i < n; i++) {
@@ -41,8 +38,7 @@ static int malloc_multiple_allocations(void) {
 }
 
 static int malloc_dynamic_pages_addition(void) {
-  kmem_pool_t *mp = KMEM_POOL("test", 1, 3);
-  kmem_init(mp);
+  kmem_pool_t *mp = kmem_create("test", 1, 3);
   void *ptr1 = kmalloc(mp, 4000, 0);
   assert(ptr1 != NULL);
   void *ptr2 = kmalloc(mp, 4000, 0);
@@ -84,8 +80,7 @@ static void malloc_many_blocks_at_a_time(void *arg) {
 }
 
 static void malloc_multithreaded(void (*threads_function)(void *)) {
-  kmem_pool_t *mp = KMEM_POOL("test", 1, 10);
-  kmem_init(mp);
+  kmem_pool_t *mp = kmem_create("test", 1, 10);
   thread_t *threads[THREADS_NUMBER];
   for (int i = 0; i < THREADS_NUMBER; i++)
     threads[i] =
@@ -133,8 +128,7 @@ static void malloc_random_shared_blocks(void *arg) {
 }
 
 static int malloc_threads_random_shared_blocks(void) {
-  kmem_pool_t *mp = KMEM_POOL("test", 1, 10);
-  kmem_init(mp);
+  kmem_pool_t *mp = kmem_create("test", 1, 10);
   rsb_test_args_t args;
   memset(args.ptrs, 0, sizeof(args.ptrs));
   args.mem_pool = mp;
@@ -156,8 +150,7 @@ static int malloc_random_size(unsigned int randint) {
     randint = 64;
 
   kmem_pool_t *mp =
-    KMEM_POOL("test", MALLOC_RANDINT_PAGES, MALLOC_RANDINT_PAGES);
-  kmem_init(mp);
+    kmem_create("test", MALLOC_RANDINT_PAGES, MALLOC_RANDINT_PAGES);
   void *ptr = kmalloc(mp, randint, M_NOWAIT);
   assert(ptr != NULL);
   kfree(mp, ptr);
