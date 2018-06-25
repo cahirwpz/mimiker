@@ -62,8 +62,7 @@ typedef enum {
 #define TDF_SLEEP_INT 0x00000040  /* thread is in interruptible sleep */
 #define TDF_SLEEP_TIME 0x0000080  /* thread is in time-out-able sleep */
 
-/* mask for all bits relevant to sleep mode
- * (in case we want to introduce more modes) */
+/* mask for all bits relevant to sleep mode */
 #define TDF_SLP_MASK (TDF_SLEEP_INT | TDF_SLEEP_TIME)
 
 /*! \brief Thread structure
