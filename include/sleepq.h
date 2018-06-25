@@ -7,6 +7,7 @@
 typedef struct thread thread_t;
 typedef struct sleepq sleepq_t;
 
+// TODO comma before element?
 typedef enum {
   SLEEPQ_WKP_REG, /* regular wakeup
                    * keep it as the first entry (because of flags below) */
