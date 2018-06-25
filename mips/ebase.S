@@ -38,15 +38,6 @@ _ebase:
 # the consumer, not just after the producer.
 
 tlb_refill:
-        # Consider special case when an access to page table region was from
-        # the kernel (namely pmap module). As UPD & KPD are not mapped within
-        # page table we have to deal with it separately :(
-
-        mfc0    k0, C0_BADVADDR
-        srl     k1, k0, PT_SIZE_BITS
-        addi    k1, k1, -(PT_BASE >> PT_SIZE_BITS)
-        beqz    k1, pt_access
-        nop
 
         mfc0    k0, C0_CONTEXT
         sra     k0, 1
@@ -115,27 +106,6 @@ irq:
         la      k1, mips_intr_handler
         j       exc_enter
         mfc0    k0, C0_STATUS           # (delay slot) load status register
-
-pt_access:
-        # If we're accessing the user part of the PT, take PDE from UPD.
-        # Otherwise lookup in KPD. Preconditions: k0 == BadVAddr.
-
-        lui     k1, %hi(PT_BASE)
-        subu    k1, k0, k1              # k1 = offset into PT (22 bits)
-        srl     k0, k1, 21              # k0 = if <accessing user part> then 0 else 1
-        sll     k0, PTE_SHIFT           # k0 = if <accessing user part> then 0 else PAGESIZE
-        srl     k1, PTE_SHIFT + 1       # k1 = index of even PDE in pair / 2
-        sll     k1, 3                   # k1 = offset into PD
-        addu    k0, k1, k0
-        lui     k1, %hi(PD_BASE)
-        addu    k0, k1, k0
-        lw      k1, 0(k0)               # Load even PDE.
-        mtc0    k1, C0_ENTRYLO0
-        lw      k1, 4(k0)               # Load odd PDE.
-        mtc0    k1, C0_ENTRYLO1
-        ehb
-        tlbwr
-        eret
 
 miss:
         # Find PDE mapping the Page Table Fragment we want to access.

@@ -54,8 +54,6 @@ typedef struct turnstile_chain { ts_list_t tc_turnstiles; } turnstile_chain_t;
 
 static turnstile_chain_t turnstile_chains[TC_TABLESIZE];
 
-static pool_t P_TURNSTILE;
-
 static void turnstile_ctor(turnstile_t *ts) {
   LIST_INIT(&ts->ts_free);
   TAILQ_INIT(&ts->ts_blocked);
@@ -69,10 +67,10 @@ void turnstile_init(void) {
     turnstile_chain_t *tc = &turnstile_chains[i];
     LIST_INIT(&tc->tc_turnstiles);
   }
-
-  P_TURNSTILE = pool_create("turnstile", sizeof(turnstile_t),
-                            (pool_ctor_t)turnstile_ctor, NULL);
 }
+
+static POOL_DEFINE(P_TURNSTILE, "turnstile", sizeof(turnstile_t),
+                   (pool_ctor_t)turnstile_ctor, NULL);
 
 turnstile_t *turnstile_alloc(void) {
   return pool_alloc(P_TURNSTILE, 0);

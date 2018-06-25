@@ -17,11 +17,10 @@ static void int_ctor(void *buf) {
 static int test_pool_alloc(palloc_test_t flag) {
   const int N = 50;
 
-  kmem_pool_t *mp = KMEM_POOL("test", 1, 2);
-  kmem_init(mp);
+  kmem_pool_t *mp = kmem_create("test", 1, 2);
 
   int size = 64;
-  pool_t test = pool_create("test", size, int_ctor, NULL);
+  pool_t *test = pool_create("test", size, int_ctor, NULL);
 
   for (int n = 1; n < N; n++) {
     void **item = kmalloc(mp, sizeof(void *) * n, 0);
