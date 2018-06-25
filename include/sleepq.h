@@ -17,6 +17,7 @@ typedef enum {
 
 #define SLPF_OF_WKP(w) (1 << ((w)-1))
 
+// TODO? rename to sleepq_flags_t
 typedef uint8_t sleep_flags_t;
 #define SLPF_INT SLPF_OF_WKP(SLEEPQ_WKP_INT)
 #define SLPF_TIME SLPF_OF_WKP(SLEEPQ_WKP_TIME)
