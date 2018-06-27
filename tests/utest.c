@@ -7,43 +7,51 @@
 #include <sched.h>
 #include <proc.h>
 #include <wait.h>
-
+#include <syslimits.h>
+#include <malloc.h>
 
 int kspace_marshal_args(const char **user_argv, int8_t *argv_blob,
-			size_t blob_size, size_t *bytes_written);
-
-
+                        size_t blob_size, size_t *bytes_written);
 
 static void utest_generic_thread(void *arg) {
-  const char *test_name = arg;
-
   /* exec_args_t exec_args = {.prog_name = "/bin/utest", */
   /*                          .argc = 2, */
   /*                          .argv = (const char *[]){"utest", test_name}}; */
 
   /* run_program(&exec_args); */
 
+  const char *test_name = arg;
   const char *argv[] = {"utest", test_name};
-  size_t blob_size = roundup(roundup(sizeof(size_t) + 2*sizeof(char*), 8) + roundup( strlen("utest") + 1, 4) + roundup(strlen(test_name) + 1, 4), 8);
-  int8_t blob[blob_size];
 
-  
-      size_t written;
+  size_t blob_size = roundup(roundup(sizeof(size_t) + 2 * sizeof(char *), 8) +
+                               roundup(strlen("utest") + 1, 4) +
+                               roundup(strlen(test_name) + 1, 4),
+                             8);
 
-      
-     kspace_marshal_args(argv, blob, blob_size, &written);
+  int8_t arg_blob[blob_size];
 
-     assert(written == blob_size);
+  /*  size_t blob_size = ARG_MAX; */
 
-  exec_args_t_proper exec_args = {.prog_name = "/bin/utest",
-  				  .blob = blob,
-  				  .written = blob_size
-  };
+  /*  klog("@@@@@@@@@@@before kmalloc\n"); */
 
-  
+  /* int8_t* arg_blob = kmalloc(M_TEMP, blob_size, 0); */
+
+  /*   klog("@@@@@@@@@@@after kmalloc\n"); */
+
+  /*  klog("@@@@@@@@@@@arg_blob is %x", arg_blob); */
+  size_t bytes_written;
+
+  kspace_marshal_args(argv, arg_blob, blob_size, &bytes_written);
+
+  assert(bytes_written == blob_size);
+
+  exec_args_t exec_args = {.prog_name = "/bin/utest",
+                           .arg_blob = arg_blob,
+                           .bytes_written = bytes_written};
+
   run_program(&exec_args);
 
-
+  // kfree(M_TEMP, arg_blob);
 }
 
 /* This is the klog mask used with utests. */

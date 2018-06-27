@@ -16,6 +16,7 @@
 #include <wait.h>
 #include <exec.h>
 #include <syslimits.h>
+#include <stack.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 int sys_nosys(thread_t *td, syscall_args_t *args) {
@@ -360,12 +361,6 @@ end:
   return result;
 }
 
-
-
-int do_exec_proper(const exec_args_t_proper *args);
-
-int uspace_marshal_args(const char **user_argv, void *blob, size_t blob_size, size_t *written);
-
 static int sys_execve(thread_t *td, syscall_args_t *args) {
   const char *user_path = (const char *)args->args[0];
   const char **user_argv = (const char **)args->args[1];
@@ -374,7 +369,7 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
     return -EFAULT;
 
   char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
-  int8_t* arguments_blob = kmalloc(M_TEMP, ARG_MAX, 0);
+  int8_t *arg_blob = kmalloc(M_TEMP, ARG_MAX, 0);
 
   int result = 0;
 
@@ -383,26 +378,25 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
     goto end;
 
   size_t bytes_written;
-  
-  result = uspace_marshal_args(user_argv, arguments_blob, ARG_MAX * sizeof(char),
-			&bytes_written);
+
+  result = uspace_marshal_args(user_argv, arg_blob, ARG_MAX, &bytes_written);
   if (result < 0)
     goto end;
 
-  const exec_args_t_proper exec_args = {
-    .prog_name = kern_path, .blob = arguments_blob, .written = bytes_written };
+  const exec_args_t exec_args = {.prog_name = kern_path,
+                                 .arg_blob = arg_blob,
+                                 .bytes_written = bytes_written};
 
-  result = do_exec_proper(&exec_args);
+  result = do_exec(&exec_args);
 
   klog("execve(\"%s\", ... )", kern_path);
 
 end:
-  kfree(M_TEMP, arguments_blob);
+  kfree(M_TEMP, arg_blob);
   kfree(M_TEMP, kern_path);
 
   return result;
 }
-
 
 static int sys_access(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];

@@ -4,12 +4,10 @@
 #include <exec.h>
 #include <ktest.h>
 #include <malloc.h>
+#include <syslimits.h>
 
 int kspace_marshal_args(const char **user_argv, int8_t *argv_blob,
-			size_t blob_size, size_t *bytes_written);
-
-
-
+                        size_t blob_size, size_t *bytes_written);
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
@@ -24,27 +22,28 @@ int main(void) {
 
     /* run_program(&init_args); */
 
-    
     const char *argv[] = {init, NULL};
-    const size_t blob_size =
-      roundup(sizeof(size_t) + sizeof(char*) + roundup( strlen(init) + 1, 4), 8);
+    /* const size_t blob_size = */
+    /*   roundup(sizeof(size_t) + sizeof(char*) + roundup( strlen(init) + 1, 4),
+     * 8); */
 
-    
-    int8_t blob[blob_size];
+    /* int8_t arg_blob[blob_size]; */
 
-    size_t written;
-    
-    kspace_marshal_args(argv, blob, blob_size, &written);
+    const size_t blob_size = ARG_MAX;
+    int8_t *arg_blob = kmalloc(M_TEMP, blob_size, 0);
 
-    assert(written == blob_size);
-    exec_args_t_proper init_args = {
+    size_t bytes_written;
 
-      
-      .prog_name = init, .blob = (void*)blob,  .written = blob_size};
+    kspace_marshal_args(argv, arg_blob, blob_size, &bytes_written);
+
+    // assert(bytes_written == blob_size);
+    exec_args_t init_args = {
+      .prog_name = init, .arg_blob = arg_blob, .bytes_written = bytes_written};
 
     run_program(&init_args);
 
-    
+    kfree(M_TEMP, arg_blob);
+
   } else if (test) {
     ktest_main(test);
   } else {
