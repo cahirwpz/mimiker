@@ -17,6 +17,7 @@
 #include <proc.h>
 #include <systm.h>
 
+
 /* typedef struct copy_ops */
 /* { */
 /*   int (*cpybytes)(const void* saddr, void* daddr, size_t len); */
@@ -720,7 +721,6 @@ exec_fail:
 
 ///
 
-
 void stack_user_entry_setup_proper(const exec_args_t_proper *args,
 				   vm_addr_t *stack_bottom_p);
 
@@ -746,7 +746,7 @@ int do_exec_proper(const exec_args_t_proper *args) {
   if (error)
     return error;
   size_t elf_size = elf_attr.va_size;
-
+  
   klog("User ELF size: %u", elf_size);
 
   if (elf_size < sizeof(Elf32_Ehdr)) {
@@ -945,7 +945,7 @@ int do_exec_proper(const exec_args_t_proper *args) {
   /* Prepare program stack, which includes storing program args. */
   klog("Stack real bottom at %p", (void *)stack_bottom);
   stack_user_entry_setup_proper(args, &stack_bottom);
-
+  
   /* Set up user context. */
   exc_frame_init(td->td_uframe, (void *)eh.e_entry, (void *)stack_bottom,
                  EF_USER);
@@ -972,85 +972,19 @@ exec_fail:
 }
 
 
-int copyinargptrs_proper(char *blob, argv_t user_argv, size_t *argc_out) {
-  argv_t kern_argv = (argv_t)blob;
 
-  char *arg_ptr;
-  const size_t ptr_size = sizeof(arg_ptr);
-
-  for (int argc = 0; argc * ptr_size < ARG_MAX; argc++)
-  {
-    int result = copyin(user_argv + argc, &arg_ptr, ptr_size);
-    if (result < 0)
-      return result;
-
-    kern_argv[argc] = arg_ptr;
-    if (arg_ptr != NULL) // Do we need to copy more arg ptrs?
-      continue;
-
-    // We copied all arg ptrs :)
-    if (argc == 0) // Is argument list empty?
-      return -EFAULT;
-
-    // Its not empty and we copied all arg ptrs - Success!
-    *argc_out = argc;
-    return 0;
-  }
-
-  // We execeeded ARG_MAX while copying arguments
-  return -E2BIG;
-}
-
-
-
-int marshal_args(const char **user_argv, void *blob, size_t blob_size, size_t *written) {
-
-  size_t argc;
-  
-  int result = copyinargptrs_proper(blob + sizeof(argc), user_argv, &argc);
-  if (result < 0)
-    return result;
-
-  ((size_t *)blob)[0] = argc;
-
-  argv_t kern_argv = (argv_t)(blob + sizeof(argc));
-  void *args = (void *)(kern_argv + argc);
-
-  size_t bytes_written = argc * sizeof(char *);
-  size_t bytes_remaining = ARG_MAX - bytes_written;
-
-  size_t argsize;
-
-  
-
-  for (size_t i = 0; i < argc; i++) {
-    result = copyinstr(kern_argv[i], args, bytes_remaining, &argsize);
-    if (result < 0)
-      return (result == -ENAMETOOLONG) ? -E2BIG : result;
-
-    kern_argv[i] = args;
-    args += argsize;
-    bytes_remaining -= argsize;
-  }
-
-  *written = blob_size - bytes_remaining;
-  
-  return 0;
-
-  
-}
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
 
-noreturn void run_program(const exec_args_t *prog) {
+noreturn void run_program(const exec_args_t_proper *prog) {
   thread_t *td = thread_self();
 
   assert(td->td_proc == NULL);
 
-  klog("Starting program \"%s\"", prog->argv[0]);
+  klog("Starting program \"%s\"", prog->prog_name);
 
   /* This thread will become a main thread of newly created user process. */
   proc_t *p = proc_create();
@@ -1070,8 +1004,40 @@ noreturn void run_program(const exec_args_t *prog) {
   do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
   do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
 
-  if (do_exec(prog) != -EJUSTRETURN)
-    panic("Failed to start %s program.", prog->argv[0]);
+  if (do_exec_proper(prog) != -EJUSTRETURN)
+    panic("Failed to start %s program.", prog->prog_name);
 
   user_exc_leave();
 }
+
+
+/* noreturn void run_program(const exec_args_t *prog) { */
+/*   thread_t *td = thread_self(); */
+
+/*   assert(td->td_proc == NULL); */
+
+/*   klog("Starting program \"%s\"", prog->argv[0]); */
+
+/*   /\* This thread will become a main thread of newly created user process. *\/ */
+/*   proc_t *p = proc_create(); */
+/*   proc_populate(p, td); */
+
+/*   /\* Let's assign an empty virtual address space, to be filled by `do_exec` *\/ */
+/*   p->p_uspace = vm_map_new(); */
+
+/*   /\* Prepare file descriptor table... *\/ */
+/*   fdtab_t *fdt = fdtab_alloc(); */
+/*   fdtab_ref(fdt); */
+/*   td->td_proc->p_fdtable = fdt; */
+
+/*   /\* ... and initialize file descriptors required by the standard library. *\/ */
+/*   int ignore; */
+/*   do_open(td, "/dev/cons", O_RDONLY, 0, &ignore); */
+/*   do_open(td, "/dev/cons", O_WRONLY, 0, &ignore); */
+/*   do_open(td, "/dev/cons", O_WRONLY, 0, &ignore); */
+
+/*   if (do_exec(prog) != -EJUSTRETURN) */
+/*     panic("Failed to start %s program.", prog->argv[0]); */
+
+/*   user_exc_leave(); */
+/* } */
