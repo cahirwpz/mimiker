@@ -144,7 +144,6 @@ int clock_gettime(clockid_t clk, timespec_t *tp);
 int clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                     timespec_t *rmtp);
 
-
 int do_clock_gettime(clockid_t clk, timespec_t *tp);
 
 int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
