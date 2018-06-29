@@ -199,11 +199,6 @@ static uint32_t tdf_of_slpf(sleep_flags_t flags) {
   return td_flags;
 }
 
-void sleepq_wait(void *wchan, const void *waitpt) {
-  slp_wakeup_t reason = sleepq_wait_abortable(wchan, waitpt, 0);
-  assert(reason == SLEEPQ_WKP_REG);
-}
-
 slp_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
                                    sleep_flags_t f) {
   thread_t *td = thread_self();

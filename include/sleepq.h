@@ -32,13 +32,13 @@ sleepq_t *sleepq_alloc(void);
 /*! \brief Deallocates sleep queue entry. */
 void sleepq_destroy(sleepq_t *sq);
 
-// TODO maybe mention that it's equal to `sleepq_wait_abortable(..., ..., 0)` ?
+// TODO how to doxygen?
 /*! \brief Blocks the current thread until it is awakened from its sleep queue.
  *
  * \param wchan unique sleep queue identifier
  * \param waitpt caller associated with sleep action
  */
-void sleepq_wait(void *wchan, const void *waitpt);
+#define sleepq_wait(wchan, waitpt) ((void) sleepq_wait_abortable(wchan, waitpt, 0))
 
 // TODO how to doxygen?
 /* \brief Blocks the current thread until it is awakened from its sleep queue or
