@@ -109,7 +109,7 @@ static sleepq_t *sq_lookup(sleepq_chain_t *sc, void *wchan) {
   return NULL;
 }
 
-static void sq_enter(thread_t *td, void *wchan, const void *waitpt) {
+static void sq_enter(thread_t *td, void *wchan, const void *waitpt, sq_flags_t flags) {
   klog("Thread %ld goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
   assert(td->td_wchan == NULL);
@@ -145,6 +145,7 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt) {
     td->td_wchan = wchan;
     td->td_waitpt = waitpt;
     td->td_sleepqueue = NULL;
+    td->td_sq_flags = flags;
   }
 
   /* The thread is about to fall asleep, but it still needs to reach
@@ -199,7 +200,7 @@ sq_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
   if (waitpt == NULL)
     waitpt = __caller(0);
 
-  sq_enter(td, wchan, waitpt);
+  sq_enter(td, wchan, waitpt, flags);
 
   /* The code can be interrupted in here.
    * A race is avoided by clever use of TDF_SLEEPY flag. */
@@ -210,7 +211,6 @@ sq_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
       td->td_state = TDS_SLEEPING;
-      td->td_sq_flags = flags;
       sched_switch();
     }
     // TODO could we get it after unlocking the spinlock?
