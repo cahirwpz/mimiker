@@ -7,17 +7,14 @@
 typedef struct thread thread_t;
 typedef struct sleepq sleepq_t;
 
-typedef enum {
-  SLEEPQ_WKP_REG, /* regular wakeup
-                   * keep it as the first entry (because of flags below) */
-  SLEEPQ_WKP_INT  /* thread interrupted */
-} slp_wakeup_t;
+/* sq_wakeup_t is a subset of sq_flags_t - only one bit may be set */
+// TODO sq_flags_t could represent a union of sq_wakeup_t - but is there a
+// point?
+typedef uint8_t sq_flags_t;
+typedef uint8_t sq_wakeup_t;
 
-#define SLPF_OF_WKP(w) (1 << ((w)-1))
-
-// TODO? rename to sleepq_flags_t
-typedef uint8_t sleep_flags_t;
-#define SLPF_INT SLPF_OF_WKP(SLEEPQ_WKP_INT)
+#define SQ_REGULAR (1 << 0)
+#define SQ_INTERRUPTED (1 << 1)
 
 /*! \file sleepq.h */
 
@@ -38,7 +35,8 @@ void sleepq_destroy(sleepq_t *sq);
  * \param wchan unique sleep queue identifier
  * \param waitpt caller associated with sleep action
  */
-#define sleepq_wait(wchan, waitpt) ((void) sleepq_wait_abortable(wchan, waitpt, 0))
+#define sleepq_wait(wchan, waitpt)                                             \
+  ((void)sleepq_wait_abortable(wchan, waitpt, 0))
 
 // TODO how to doxygen?
 /* \brief Blocks the current thread until it is awakened from its sleep queue or
@@ -49,8 +47,8 @@ void sleepq_destroy(sleepq_t *sq);
  * `SLEEPQ_WKP_REG` is always accepted as a valid reason (because it's used
  * internally for regular wake-up).
  */
-slp_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
-                                   sleep_flags_t flags);
+sq_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
+                                  sq_flags_t flags);
 
 /*! \brief Wakes up highest priority thread waiting on \a wchan.
  *
@@ -71,7 +69,7 @@ bool sleepq_signal(void *wchan);
  * internally for regular wake-up) and you probably shouldn't pass it to this
  * function.
  */
-bool sleepq_abort(thread_t *td, slp_wakeup_t reason);
+bool sleepq_abort(thread_t *td, sq_wakeup_t reason);
 
 /*! \brief Resume all threads sleeping on \a wchan.
  *
