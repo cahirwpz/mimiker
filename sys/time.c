@@ -8,20 +8,25 @@ int do_clock_gettime(clockid_t clk, timespec_t *tp) {
   if (tp == NULL)
     return -EFAULT;
 
+#if 0
   if (clk == CLOCK_MONOTONIC) {
     *tp = bt2ts(getbintime());
     return 0;
   }
+#endif
 
   return -EINVAL;
 }
 
+#if 0
 static void waker(timer_event_t *tev) {
   sleepq_signal(tev);
 }
+#endif
 
 int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                        timespec_t *rmtp) {
+#if 0
   if (rqtp == NULL)
     return -EFAULT;
   if (rqtp->tv_nsec < 0 || rqtp->tv_nsec > 1000000000)
@@ -35,5 +40,6 @@ int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
     cpu_timer_add_event(&tev);
     sleepq_wait(&tev, "clock_nanosleep");
   }
+#endif
   return 0;
 }

@@ -1,6 +1,7 @@
 #include <ktest.h>
 #include <time.h>
 
+#if 0
 suseconds_t sleep_times[] = {1, 12, 123, 1234, 12345, 123456, 1234567};
 
 static int test_sleep(time_t sec, long nsec, suseconds_t min_us_diff) {
@@ -35,3 +36,4 @@ static int time_syscalls(void) {
 }
 
 KTEST_ADD(time_syscalls, time_syscalls, 0);
+#endif
