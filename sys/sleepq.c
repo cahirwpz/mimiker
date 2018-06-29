@@ -109,7 +109,8 @@ static sleepq_t *sq_lookup(sleepq_chain_t *sc, void *wchan) {
   return NULL;
 }
 
-static void sq_enter(thread_t *td, void *wchan, const void *waitpt) {
+static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
+                     sq_flags_t flags) {
   klog("Thread %ld goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
   assert(td->td_wchan == NULL);
@@ -145,6 +146,7 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt) {
     td->td_wchan = wchan;
     td->td_waitpt = waitpt;
     td->td_sleepqueue = NULL;
+    td->td_sq_flags = flags;
   }
 
   /* The thread is about to fall asleep, but it still needs to reach
@@ -191,40 +193,25 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   }
 }
 
-// TODO maybe we should just make td_sleep_flags in thread_t?
-static uint32_t tdf_of_slpf(sleep_flags_t flags) {
-  uint32_t thread_flags = 0;
-  if (flags & SLPF_INT)
-    thread_flags |= TDF_SLEEP_INT;
-  if (flags & SLPF_TIME)
-    thread_flags |= TDF_SLEEP_TIME;
-  return thread_flags;
-}
-
-void sleepq_wait(void *wchan, const void *waitpt) {
-  slp_wakeup_t reason = sleepq_wait_abortable(wchan, waitpt, 0);
-  assert(reason == SLEEPQ_WKP_REG);
-}
-
-slp_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
-                                   sleep_flags_t f) {
+sq_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
+                                  sq_flags_t flags) {
+  flags |= SQ_REGULAR;
   thread_t *td = thread_self();
 
   if (waitpt == NULL)
     waitpt = __caller(0);
 
-  sq_enter(td, wchan, waitpt);
+  sq_enter(td, wchan, waitpt, flags);
 
   /* The code can be interrupted in here.
    * A race is avoided by clever use of TDF_SLEEPY flag. */
 
   /* Initial value just to avoid compiler's warning (and therefore error) */
-  slp_wakeup_t reason = SLEEPQ_WKP_REG;
+  sq_wakeup_t reason = SQ_REGULAR;
   WITH_SPINLOCK(td->td_spin) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
       td->td_state = TDS_SLEEPING;
-      td->td_flags = (td->td_flags & ~TDF_SLP_MASK) | tdf_of_slpf(f);
       sched_switch();
     }
     // TODO could we get it after unlocking the spinlock?
@@ -236,14 +223,12 @@ slp_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
 
 /* Remove a thread from the sleep queue and resume it. */
 static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
-                      slp_wakeup_t reason) {
+                      sq_wakeup_t reason) {
   sq_leave(td, sc, sq);
 
   bool succeeded = false;
   WITH_SPINLOCK(td->td_spin) {
-    // TODO check if thread allows this reason
-    if (reason == SLEEPQ_WKP_REG ||
-        td->td_flags & tdf_of_slpf(SLPF_OF_WKP(reason))) {
+    if (td->td_sq_flags & reason) {
       succeeded = true;
       td->td_wakeup_reason = reason;
 
@@ -278,7 +263,7 @@ bool sleepq_signal(void *wchan) {
       best_td = td;
   }
 
-  sq_wakeup(best_td, sc, sq, SLEEPQ_WKP_REG);
+  sq_wakeup(best_td, sc, sq, SQ_REGULAR);
 
   sq_release(sq);
   sc_release(sc);
@@ -286,7 +271,7 @@ bool sleepq_signal(void *wchan) {
   return true;
 }
 
-bool sleepq_abort(thread_t *td, slp_wakeup_t reason) {
+bool sleepq_abort(thread_t *td, sq_wakeup_t reason) {
   bool succeeded;
   void *wchan = td->td_wchan;
   sleepq_chain_t *sc = sc_acquire(wchan);
@@ -295,7 +280,6 @@ bool sleepq_abort(thread_t *td, slp_wakeup_t reason) {
   assert(sc != NULL);
 
   if (sq != NULL) {
-    // TODO check if the thread accepts this type of wakeup
     succeeded = sq_wakeup(td, sc, sq, reason);
     sq_release(sq);
   } else
@@ -317,7 +301,7 @@ bool sleepq_broadcast(void *wchan) {
 
   thread_t *td;
   TAILQ_FOREACH (td, &sq->sq_blocked, td_sleepq)
-    sq_wakeup(td, sc, sq, SLEEPQ_WKP_REG);
+    sq_wakeup(td, sc, sq, SQ_REGULAR);
   sq_release(sq);
   sc_release(sc);
 

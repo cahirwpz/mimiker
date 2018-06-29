@@ -59,11 +59,6 @@ typedef enum {
 #define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
 #define TDF_BORROWING 0x00000010  /* priority propagation */
 #define TDF_SLEEPY 0x00000020     /* thread is about to go to sleep */
-#define TDF_SLEEP_INT 0x00000040  /* thread is in interruptible sleep */
-#define TDF_SLEEP_TIME 0x0000080  /* thread is in time-out-able sleep */
-
-/* mask for all bits relevant to sleep mode */
-#define TDF_SLP_MASK (TDF_SLEEP_INT | TDF_SLEEP_TIME)
 
 /*! \brief Thread structure
  *
@@ -96,6 +91,7 @@ typedef struct thread {
   /* thread state */
   thread_state_t td_state; /*!< (!) thread state */
   uint32_t td_flags;       /*!< (!) TDF_* flags */
+  sq_flags_t td_sq_flags;
   /* thread context */
   volatile unsigned td_idnest; /*!< (?) interrupt disable nest level */
   volatile unsigned td_pdnest; /*!< (?) preemption disable nest level */
@@ -110,7 +106,7 @@ typedef struct thread {
   const void *td_waitpt; /*!< a point where program waits */
   /* waiting channel - sleepqueue */
   sleepq_t *td_sleepqueue; /* thread's sleepqueue */
-  slp_wakeup_t td_wakeup_reason;
+  sq_wakeup_t td_wakeup_reason;
   /* waiting channel - turnstile */
   turnstile_t *td_blocked;   /* (#) turnstile on which thread is blocked */
   turnstile_t *td_turnstile; /* (#) thread's turnstile */
@@ -195,7 +191,7 @@ static inline bool td_is_sleeping(thread_t *td) {
 }
 
 static inline bool td_is_sleeping_int(thread_t *td) {
-  return td->td_state == TDS_SLEEPING && (td->td_flags & TDF_SLEEP_INT);
+  return td->td_state == TDS_SLEEPING && (td->td_sq_flags & SQ_INTERRUPTED);
 }
 
 static inline bool td_is_borrowing(thread_t *td) {
