@@ -5,9 +5,7 @@
 #include <ktest.h>
 #include <malloc.h>
 #include <syslimits.h>
-
-int kspace_marshal_args(const char **user_argv, int8_t *argv_blob,
-                        size_t blob_size, size_t *bytes_written);
+#include <stack.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
@@ -34,11 +32,12 @@ int main(void) {
 
     size_t bytes_written;
 
-    kspace_marshal_args(argv, arg_blob, blob_size, &bytes_written);
+    kspace_stack_image_setup(argv, arg_blob, blob_size, &bytes_written);
 
     // assert(bytes_written == blob_size);
-    exec_args_t init_args = {
-      .prog_name = init, .arg_blob = arg_blob, .bytes_written = bytes_written};
+    exec_args_t init_args = {.prog_name = init,
+                             .stack_image = arg_blob,
+                             .stack_byte_cnt = bytes_written};
 
     run_program(&init_args);
 

@@ -369,7 +369,7 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
     return -EFAULT;
 
   char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
-  int8_t *arg_blob = kmalloc(M_TEMP, ARG_MAX, 0);
+  int8_t *stack_image = kmalloc(M_TEMP, ARG_MAX, 0);
 
   int result = 0;
 
@@ -377,22 +377,22 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   if (result < 0)
     goto end;
 
-  size_t bytes_written;
+  size_t byte_cnt;
 
-  result = uspace_marshal_args(user_argv, arg_blob, ARG_MAX, &bytes_written);
+  result = uspace_stack_image_setup(user_argv, stack_image, ARG_MAX, &byte_cnt);
   if (result < 0)
     goto end;
 
   const exec_args_t exec_args = {.prog_name = kern_path,
-                                 .arg_blob = arg_blob,
-                                 .bytes_written = bytes_written};
+                                 .stack_image = stack_image,
+                                 .stack_byte_cnt = byte_cnt};
 
   result = do_exec(&exec_args);
 
   klog("execve(\"%s\", ... )", kern_path);
 
 end:
-  kfree(M_TEMP, arg_blob);
+  kfree(M_TEMP, stack_image);
   kfree(M_TEMP, kern_path);
 
   return result;

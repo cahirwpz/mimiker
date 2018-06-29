@@ -9,9 +9,7 @@
 #include <wait.h>
 #include <syslimits.h>
 #include <malloc.h>
-
-int kspace_marshal_args(const char **user_argv, int8_t *argv_blob,
-                        size_t blob_size, size_t *bytes_written);
+#include <stack.h>
 
 static void utest_generic_thread(void *arg) {
   /* exec_args_t exec_args = {.prog_name = "/bin/utest", */
@@ -41,13 +39,13 @@ static void utest_generic_thread(void *arg) {
   /*  klog("@@@@@@@@@@@arg_blob is %x", arg_blob); */
   size_t bytes_written;
 
-  kspace_marshal_args(argv, arg_blob, blob_size, &bytes_written);
+  kspace_stack_image_setup(argv, arg_blob, blob_size, &bytes_written);
 
   assert(bytes_written == blob_size);
 
   exec_args_t exec_args = {.prog_name = "/bin/utest",
-                           .arg_blob = arg_blob,
-                           .bytes_written = bytes_written};
+                           .stack_image = arg_blob,
+                           .stack_byte_cnt = bytes_written};
 
   run_program(&exec_args);
 

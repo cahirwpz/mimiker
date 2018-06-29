@@ -18,8 +18,8 @@ typedef struct exec_args {
   const char *prog_name;
   /* Program arguments. These will get copied to the stack of the
    * starting process. */
-  int8_t *arg_blob;
-  size_t bytes_written;
+  int8_t *stack_image;
+  size_t stack_byte_cnt;
   /* TODO: Environment */
 } exec_args_t;
 
