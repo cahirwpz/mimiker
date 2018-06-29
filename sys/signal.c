@@ -88,8 +88,6 @@ int sig_send(proc_t *proc, signo_t sig) {
 
   sig_notify(target);
 
-  // TODO should this stay here or should we abort sleep before sig_notify?
-  //      (I suppose it's okay here)
   /* If the thread is sleeping interruptibly (!), wake it up, so that it
    * continues execution and the signal gets delivered soon. */
   WITH_SPINLOCK(target->td_spin) {

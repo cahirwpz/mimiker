@@ -227,7 +227,6 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
 
   bool succeeded = false;
   WITH_SPINLOCK(td->td_spin) {
-    // TODO check if thread allows this reason
     if (td->td_sq_flags & reason) {
       succeeded = true;
       td->td_wakeup_reason = reason;
@@ -280,7 +279,6 @@ bool sleepq_abort(thread_t *td, sq_wakeup_t reason) {
   assert(sc != NULL);
 
   if (sq != NULL) {
-    // TODO check if the thread accepts this type of wakeup
     succeeded = sq_wakeup(td, sc, sq, reason);
     sq_release(sq);
   } else
