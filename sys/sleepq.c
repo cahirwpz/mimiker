@@ -109,7 +109,8 @@ static sleepq_t *sq_lookup(sleepq_chain_t *sc, void *wchan) {
   return NULL;
 }
 
-static void sq_enter(thread_t *td, void *wchan, const void *waitpt, sq_flags_t flags) {
+static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
+                     sq_flags_t flags) {
   klog("Thread %ld goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
   assert(td->td_wchan == NULL);
