@@ -218,6 +218,7 @@ sq_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
     reason = td->td_wakeup_reason;
   }
 
+  assert(flags & reason);
   return reason;
 }
 
