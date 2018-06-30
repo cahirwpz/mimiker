@@ -90,7 +90,6 @@ typedef struct thread {
   /* thread state */
   thread_state_t td_state; /*!< (!) thread state */
   uint32_t td_flags;       /*!< (!) TDF_* flags */
-  sq_flags_t td_sq_flags;
   /* thread context */
   volatile unsigned td_idnest; /*!< (?) interrupt disable nest level */
   volatile unsigned td_pdnest; /*!< (?) preemption disable nest level */
@@ -105,6 +104,7 @@ typedef struct thread {
   const void *td_waitpt; /*!< a point where program waits */
   /* waiting channel - sleepqueue */
   sleepq_t *td_sleepqueue; /* thread's sleepqueue */
+  sq_flags_t td_sq_flags;
   sq_wakeup_t td_wakeup_reason;
   /* waiting channel - turnstile */
   turnstile_t *td_blocked;   /* (#) turnstile on which thread is blocked */
