@@ -93,7 +93,7 @@ int sig_send(proc_t *proc, signo_t sig) {
    * continues execution and the signal gets delivered soon. */
   WITH_SPINLOCK(target->td_spin) {
     if (td_is_sleeping_int(target))
-      sleepq_abort(target, SQ_INTERRUPTED);
+      sleepq_abort(target, SQ_INTERRUPT);
   }
 
   return 0;

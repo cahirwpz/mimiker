@@ -14,7 +14,7 @@ typedef uint8_t sq_flags_t;
 typedef uint8_t sq_wakeup_t;
 
 #define SQ_REGULAR (1 << 0)
-#define SQ_INTERRUPTED (1 << 1)
+#define SQ_INTERRUPT (1 << 1)
 
 /*! \file sleepq.h */
 

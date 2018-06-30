@@ -192,7 +192,7 @@ static inline bool td_is_sleeping(thread_t *td) {
 }
 
 static inline bool td_is_sleeping_int(thread_t *td) {
-  return td->td_state == TDS_SLEEPING && (td->td_sq_flags & SQ_INTERRUPTED);
+  return td->td_state == TDS_SLEEPING && (td->td_sq_flags & SQ_INTERRUPT);
 }
 
 static inline bool td_is_borrowing(thread_t *td) {
