@@ -7,14 +7,14 @@
 typedef struct thread thread_t;
 typedef struct sleepq sleepq_t;
 
-/* sq_wakeup_t is a subset of sq_flags_t - only one bit may be set */
+/* sq_wakeup_t is a subset of sq_flags_t - with exactly one set */
 // TODO sq_flags_t could represent a union of sq_wakeup_t - but is there a
-// point?
+//      point?
 typedef uint8_t sq_flags_t;
 typedef uint8_t sq_wakeup_t;
 
 #define SQ_REGULAR (1 << 0)
-#define SQ_INTERRUPTED (1 << 1)
+#define SQ_INTERRUPT (1 << 1)
 #define SQ_TIMED (1 << 2)
 
 /*! \file sleepq.h */
@@ -30,7 +30,7 @@ sleepq_t *sleepq_alloc(void);
 /*! \brief Deallocates sleep queue entry. */
 void sleepq_destroy(sleepq_t *sq);
 
-// TODO how to doxygen?
+// TODO how to doxygen? (macro)
 /*! \brief Blocks the current thread until it is awakened from its sleep queue.
  *
  * \param wchan unique sleep queue identifier
@@ -43,9 +43,9 @@ void sleepq_destroy(sleepq_t *sq);
 /* \brief Blocks the current thread until it is awakened from its sleep queue or
  *        an event specified in flags occurs.
  *
- * Other threads can interrupt this sleep with `sleepq_abort(thread, reason)`.
+ * Other threads can cancel this sleep with `sleepq_abort(thread, reason)`.
  *
- * `SLEEPQ_WKP_REG` is always accepted as a valid reason (because it's used
+ * `SQ_REGULAR` is always accepted as a valid reason (because it's used
  * internally for regular wake-up).
  */
 sq_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
@@ -60,13 +60,13 @@ bool sleepq_signal(void *wchan);
 // TODO how to doxygen
 // TODO should we allow trying to abort a non-sleeping thread? At this (some)
 //      moment we do (and just return false)
-// TODO maybe we should just forbid calling it with reason SLEEPQ_WKP_REG
-//      (with some assert)
-/* Interrupt some thread's sleep. Returns true on success (false if the thread
+// TODO Maybe we should just forbid calling it with reason SQ_REGULAR
+//      (with some assert) (see description below)
+/* Cancel some thread's sleep. Returns true on success (false if the thread
  * wasn't sleeping or doesn't accept the reason). The woken up thread will
- * receive the reason as a return value from `sleepq_wait_abortable`.
+ * receive the reason as the return value from `sleepq_wait_abortable`.
  *
- * `SLEEPQ_WKP_REG` is always accepted as a valid reason (because it's used
+ * `SQ_REGULAR` is always accepted as a valid reason (because it's used
  * internally for regular wake-up) and you probably shouldn't pass it to this
  * function.
  */

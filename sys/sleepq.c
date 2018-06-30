@@ -193,6 +193,8 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   }
 }
 
+// TODO should we set SQ_REGULAR here or should we let someone
+//      fall into abortable-only sleep?
 sq_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
                                   sq_flags_t flags) {
   flags |= SQ_REGULAR;
@@ -214,10 +216,11 @@ sq_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
       td->td_state = TDS_SLEEPING;
       sched_switch();
     }
-    // TODO could we get it after unlocking the spinlock?
+
     reason = td->td_wakeup_reason;
   }
 
+  assert(flags & reason);
   return reason;
 }
 
