@@ -214,7 +214,7 @@ sq_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
       td->td_state = TDS_SLEEPING;
       sched_switch();
     }
-    // TODO could we get it after unlocking the spinlock?
+
     reason = td->td_wakeup_reason;
   }
 

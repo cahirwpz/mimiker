@@ -72,6 +72,7 @@ typedef enum {
  * Locking order:
  *  threads_lock >> thread_t::td_lock
  */
+// TODO verify description of td_sq_flags and td_wakeup_type
 typedef struct thread {
   /* locks */
   spinlock_t td_spin[1]; /*!< (~) synchronizes top & bottom halves */
@@ -104,9 +105,9 @@ typedef struct thread {
   const void *td_waitpt; /*!< a point where program waits */
   /* waiting channel - sleepqueue */
   sleepq_t *td_sleepqueue; /* thread's sleepqueue */
-  union {
-    sq_flags_t td_sq_flags;
-    sq_wakeup_t td_wakeup_reason;
+  union { /* at most one of these fields is used at any time */
+    sq_flags_t td_sq_flags; /*!< sleepq flags */
+    sq_wakeup_t td_wakeup_reason; /*!< type of sleep wakeup source */
   };
   /* waiting channel - turnstile */
   turnstile_t *td_blocked;   /* (#) turnstile on which thread is blocked */
