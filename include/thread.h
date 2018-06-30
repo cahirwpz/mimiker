@@ -105,8 +105,8 @@ typedef struct thread {
   const void *td_waitpt; /*!< a point where program waits */
   /* waiting channel - sleepqueue */
   sleepq_t *td_sleepqueue; /* thread's sleepqueue */
-  union { /* at most one of these fields is used at any time */
-    sq_flags_t td_sq_flags; /*!< sleepq flags */
+  union {                  /* at most one of these fields is used at any time */
+    sq_flags_t td_sq_flags;       /*!< sleepq flags */
     sq_wakeup_t td_wakeup_reason; /*!< type of sleep wakeup source */
   };
   /* waiting channel - turnstile */
