@@ -8,6 +8,7 @@
 #include <sched.h>
 #include <spinlock.h>
 #include <thread.h>
+#include <callout.h>
 
 #define SC_TABLESIZE 256 /* Must be power of 2. */
 #define SC_MASK (SC_TABLESIZE - 1)
@@ -309,4 +310,29 @@ bool sleepq_broadcast(void *wchan) {
   sc_release(sc);
 
   return true;
+}
+
+static void wakeup_timed(thread_t *td) {
+  sleepq_abort(td, SQ_TIMED);
+}
+
+sq_flags_t sq_prepare_timed(callout_t *wk, systime_t timeout_ms, sq_flags_t f) {
+  callout_setup_relative(wk, timeout_ms, (timeout_t)wakeup_timed,
+                         thread_self());
+  return f | SQ_TIMED;
+}
+
+void sq_finish_timed(callout_t *wk) {
+  callout_stop(wk);
+}
+
+sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
+                              systime_t timeout_ms) {
+  sq_wakeup_t status;
+  sq_flags_t flags = SQ_REGULAR;
+  callout_t wk;
+  flags = sq_prepare_timed(&wk, timeout_ms, flags);
+  status = sleepq_wait_abortable(wchan, waitpt, flags | SQ_INTERRUPT);
+  sq_finish_timed(&wk);
+  return status;
 }

@@ -3,6 +3,7 @@
 
 #include <common.h>
 #include <queue.h>
+#include <callout.h>
 
 typedef struct thread thread_t;
 typedef struct sleepq sleepq_t;
@@ -77,5 +78,36 @@ bool sleepq_abort(thread_t *td, sq_wakeup_t reason);
  * \param wchan unique sleep queue identifier
  */
 bool sleepq_broadcast(void *wchan);
+
+/* \brief Blocks the current thread until it is awakened from its sleep queue or
+ *        the time runs out or a signal is received.
+ *
+ * Other threads can cancel this sleep with `sleepq_abort(thread, reason)` where
+ * `reason` is one of `SQ_REGULAR`, `SQ_INTERRUPT`, `SQ_TIMED`.
+ */
+sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
+                              systime_t timeout_ms);
+
+/* \brief Prepare timed sleep for the current thread.
+ *
+ * The purpose of this function is combining sleep modes in unusual ways. For
+ * usual use see `sleepq_wait_timed` or `sleepq_wait`.
+ *
+ * This will initialize callout in structure pointed by `wk` that will abort
+ * current's thread sleep in `timeout_ms` miliseconds from now. Therefore the
+ * actual sleep should be initiated soon to have accurate timing. To actually
+ * go to sleep use `sleepq_wait_abortable`.
+ *
+ * After the sleep one should call `sq_finish_timed(wk)` before going
+ * to sleep again (best to call it immediately after sleep).
+ */
+sq_flags_t sq_prepare_timed(callout_t *wk, systime_t timeout_ms, sq_flags_t f);
+
+/* \brief Cleanup after timed sleep
+ *
+ * Call this function after sleep preceded by `sq_prepare_timed` before going
+ * to sleep again (best to call it immediately after sleep).
+ */
+void sq_finish_timed(callout_t *wk);
 
 #endif /* !_SYS_SLEEPQ_H_ */
