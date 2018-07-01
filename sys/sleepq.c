@@ -272,6 +272,8 @@ bool sleepq_signal(void *wchan) {
   sq_release(sq);
   sc_release(sc);
 
+  sched_maybe_switch();
+
   return true;
 }
 
@@ -291,6 +293,8 @@ bool sleepq_abort(thread_t *td, sq_wakeup_t reason) {
 
   sc_release(sc);
 
+  sched_maybe_switch();
+
   return succeeded;
 }
 
@@ -308,6 +312,8 @@ bool sleepq_broadcast(void *wchan) {
     sq_wakeup(td, sc, sq, SQ_REGULAR);
   sq_release(sq);
   sc_release(sc);
+
+  sched_maybe_switch();
 
   return true;
 }
