@@ -10,6 +10,7 @@
 /* just to get some unique address for sleepq */
 static int wchan;
 
+// TODO tune the accuracy check
 #define T 6
 #define SLEEP_TIME_MS 4
 #define EPSILON 1
