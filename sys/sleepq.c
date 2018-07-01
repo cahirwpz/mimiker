@@ -292,6 +292,8 @@ bool sleepq_abort(thread_t *td, sq_wakeup_t reason) {
 
   sc_release(sc);
 
+  sched_maybe_switch();
+
   return succeeded;
 }
 
