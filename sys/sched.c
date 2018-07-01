@@ -204,20 +204,24 @@ void preempt_disable(void) {
   td->td_pdnest++;
 }
 
+void sched_maybe_switch(void) {
+  thread_t *td = thread_self();
+  if (!preempt_disabled())
+    WITH_SPINLOCK(td->td_spin) {
+      if (td->td_flags & TDF_NEEDSWITCH) {
+        td->td_state = TDS_READY;
+        sched_switch();
+      }
+    }
+}
+
 void preempt_enable(void) {
   thread_t *td = thread_self();
   assert(td->td_pdnest > 0);
 
   td->td_pdnest--;
-  if (td->td_pdnest > 0)
-    return;
 
-  WITH_SPINLOCK(td->td_spin) {
-    if (td->td_flags & TDF_NEEDSWITCH) {
-      td->td_state = TDS_READY;
-      sched_switch();
-    }
-  }
+  sched_maybe_switch();
 }
 
 SYSINIT_ADD(sched, sched_init, DEPS("callout"));
