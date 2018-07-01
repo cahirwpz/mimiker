@@ -27,7 +27,7 @@ static void snorlax(void *_arg) {
   systime_t before_sleep = getsystime();
   sq_wakeup_t status = sleepq_wait_timed(&wchan, __caller(0), SLEEP_TIME_MS);
   systime_t after_sleep = getsystime();
-    systime_t diff = after_sleep - before_sleep;
+  systime_t diff = after_sleep - before_sleep;
 
   if (status == SQ_TIMED) {
     timed_received++;
