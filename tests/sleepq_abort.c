@@ -69,10 +69,6 @@ static void waker_routine(void *_arg) {
       aborted++;
       wakened++;
     }
-
-    WITH_NO_PREEMPTION {
-      /* plz run higher priority threads */
-    }
   }
 
   assert(T == wakened);
