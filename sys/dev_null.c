@@ -1,7 +1,7 @@
 #include <vnode.h>
 #include <mount.h>
 #include <devfs.h>
-#include <malloc.h>
+#include <physmem.h>
 #include <vnode.h>
 #include <linker_set.h>
 

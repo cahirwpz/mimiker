@@ -1,6 +1,7 @@
 #define KL_LOG KL_PMAP
 #include <klog.h>
-#include <malloc.h>
+#include <pool.h>
+#include <physmem.h>
 #include <mips/exc.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
@@ -17,7 +18,7 @@
 #include <interrupt.h>
 #include <sysinit.h>
 
-static MALLOC_DEFINE(M_PMAP, "pmap", 4, 8);
+static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 
 #define PTE_INDEX(x) (((x)&PTE_MASK) >> PTE_SHIFT)
 #define PDE_INDEX(x) (((x)&PDE_MASK) >> PDE_SHIFT)
@@ -126,7 +127,6 @@ void pmap_reset(pmap_t *pmap) {
   }
   pm_free(pmap->pde_page);
   free_asid(pmap->asid);
-  memset(pmap, 0, sizeof(pmap_t)); /* Set up for reuse. */
 }
 
 void pmap_init(void) {
@@ -135,14 +135,14 @@ void pmap_init(void) {
 }
 
 pmap_t *pmap_new(void) {
-  pmap_t *pmap = kmalloc(M_PMAP, sizeof(pmap_t), M_ZERO);
+  pmap_t *pmap = pool_alloc(P_PMAP, PF_ZERO);
   pmap_setup(pmap, PMAP_USER_BEGIN, PMAP_USER_END);
   return pmap;
 }
 
 void pmap_delete(pmap_t *pmap) {
   pmap_reset(pmap);
-  kfree(M_PMAP, pmap);
+  pool_free(P_PMAP, pmap);
 }
 
 /*! \brief Inserts the TLB entry mapping \a vaddr into the TLB. */

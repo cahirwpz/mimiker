@@ -1,5 +1,5 @@
 #include <stdc.h>
-#include <malloc.h>
+#include <physmem.h>
 #include <vm_object.h>
 #include <vm_pager.h>
 
@@ -19,7 +19,7 @@ static vm_page_t *default_pager_fault(vm_object_t *obj, vm_addr_t fault_addr,
 
   vm_page_t *new_pg = pm_alloc(1);
   new_pg->vm_offset = vm_offset;
-  memset((char *)new_pg->vaddr, 0, PAGESIZE);
+  bzero((char *)new_pg->vaddr, PAGESIZE);
   vm_object_add_page(obj, new_pg);
   return new_pg;
 }

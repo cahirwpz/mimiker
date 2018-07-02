@@ -1,5 +1,6 @@
 #define KLOG KL_INIT
 #include <interrupt.h>
+#include <physmem.h>
 #include <malloc.h>
 #include <mips/cpuinfo.h>
 #include <mips/malta.h>
