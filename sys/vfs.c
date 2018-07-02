@@ -44,9 +44,8 @@ static void vfs_init(void) {
   /* Initialize available filesystem types. */
   SET_DECLARE(vfsconf, vfsconf_t);
   vfsconf_t **ptr;
-  SET_FOREACH(ptr, vfsconf) {
+  SET_FOREACH (ptr, vfsconf)
     vfs_register(*ptr);
-  }
 }
 
 vfsconf_t *vfs_get_by_name(const char *name) {

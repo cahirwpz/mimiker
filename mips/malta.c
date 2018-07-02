@@ -14,6 +14,7 @@
 #include <pmap.h>
 #include <pool.h>
 #include <stdc.h>
+#include <rman.h>
 #include <thread.h>
 
 extern int kernel_init(int argc, char **argv);
@@ -170,6 +171,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   pool_bootstrap();
   kmem_bootstrap();
   sleepq_init();
+  turnstile_init();
   thread_bootstrap();
 
   klog("Switching to 'kernel-main' thread...");

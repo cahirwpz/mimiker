@@ -5,10 +5,16 @@
 #include <time.h>
 
 typedef struct timer timer_t;
-typedef TAILQ_HEAD(, timer) timer_list_t;
+typedef TAILQ_HEAD(timer_head, timer) timer_list_t;
 
-typedef int (*tm_start_t)(timer_t *tm, unsigned flags, const bintime_t value);
+typedef int (*tm_start_t)(timer_t *tm, unsigned flags, const bintime_t start,
+                          const bintime_t period);
 typedef int (*tm_stop_t)(timer_t *tm);
+
+/*! \brief Type of function for fetching current time.
+ *
+ * \warning This routine cannot log messages, cause it's used by klog! */
+typedef bintime_t (*tm_gettime_t)(timer_t *tm);
 
 /*! \brief Callback function type.
  *
@@ -16,9 +22,10 @@ typedef int (*tm_stop_t)(timer_t *tm);
 typedef void (*tm_event_cb_t)(timer_t *tm, void *arg);
 
 /* There are some flags used by implementation that are not listed here! */
-#define TMF_ONESHOT 0x0001  /*!< triggers callback once */
-#define TMF_PERIODIC 0x0002 /*!< triggers callback on regular basis */
-#define TMF_TYPEMASK 0x0003 /*!< don't use other bits! */
+#define TMF_ONESHOT 0x0001    /*!< triggers callback once */
+#define TMF_PERIODIC 0x0002   /*!< triggers callback on regular basis */
+#define TMF_TYPEMASK 0x0003   /*!< don't use other bits! */
+#define TMF_TIMESOURCE 0x0004 /*!< choose this timer as time source */
 
 typedef struct timer {
   TAILQ_ENTRY(timer) tm_link; /*!< entry on list of all timers */
@@ -30,6 +37,7 @@ typedef struct timer {
   tm_start_t tm_start;        /*!< makes timer operational */
   tm_stop_t tm_stop;          /*!< ceases timer from generating new events */
   tm_event_cb_t tm_event_cb;  /*!< callback called when timer triggers */
+  tm_gettime_t tm_gettime;    /*!< fetches current time from the timer */
   void *tm_arg;               /*!< an argument for callback */
   void *tm_priv;              /*!< private data (usually device_t *) */
 } timer_t;
@@ -51,10 +59,14 @@ int tm_release(timer_t *tm);
 /*! \brief Prepares timer to call event trigger callback. */
 int tm_init(timer_t *tm, tm_event_cb_t event, void *arg);
 /*! \brief Configures timer to trigger callback(s). */
-int tm_start(timer_t *tm, unsigned flags, const bintime_t value);
+int tm_start(timer_t *tm, unsigned flags, const bintime_t start,
+             const bintime_t period);
 /*! \brief Stops timer from triggering a callback. */
 int tm_stop(timer_t *tm);
 /*! \brief Used by interrupt filter routine to trigger a callback. */
 void tm_trigger(timer_t *tm);
+
+/*! \brief Select timer used as a main time source (for getbintime, etc.) */
+void tm_select(timer_t *tm);
 
 #endif /* !_SYS_TIMER_H_ */
