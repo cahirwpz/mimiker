@@ -91,6 +91,14 @@ void sched_clock(void);
  */
 void sched_switch(void);
 
+/*! \brief Switch out to another thread if you shouldn't be running anymore.
+ *
+ * This function will switch if your time slice expired or a thread with higher
+ * priority has been added. It doesn't actually perform that check, it only
+ * looks at TDF_NEEDSWITCH flag.
+ */
+void sched_maybe_preempt(void);
+
 /*! \brief Turns calling thread into idle thread. */
 noreturn void sched_run(void);
 
