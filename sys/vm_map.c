@@ -1,7 +1,7 @@
 #define KL_LOG KL_VM
 #include <klog.h>
 #include <stdc.h>
-#include <malloc.h>
+#include <pool.h>
 #include <pmap.h>
 #include <thread.h>
 #include <vm.h>
@@ -14,7 +14,8 @@
 #include <pcpu.h>
 #include <sysinit.h>
 
-static MALLOC_DEFINE(M_VMMAP, "vm-map", 1, 2);
+static POOL_DEFINE(P_VMMAP, "vm_map", sizeof(vm_map_t));
+static POOL_DEFINE(P_VMENTRY, "vm_map_entry", sizeof(vm_map_entry_t));
 
 static vm_map_t kspace;
 
@@ -67,8 +68,7 @@ static void vm_map_init(void) {
 }
 
 vm_map_t *vm_map_new(void) {
-  vm_map_t *map = kmalloc(M_VMMAP, sizeof(vm_map_t), M_ZERO);
-
+  vm_map_t *map = pool_alloc(P_VMMAP, PF_ZERO);
   vm_map_setup(map);
   *((pmap_t **)&map->pmap) = pmap_new();
   return map;
@@ -104,7 +104,7 @@ static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
   if (entry->object)
     vm_object_free(entry->object);
   TAILQ_REMOVE(&vm_map->list, entry, map_list);
-  kfree(M_VMMAP, entry);
+  pool_free(P_VMENTRY, entry);
 }
 
 void vm_map_delete(vm_map_t *map) {
@@ -113,7 +113,7 @@ void vm_map_delete(vm_map_t *map) {
       vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
   }
   pmap_delete(map->pmap);
-  kfree(M_VMMAP, map);
+  pool_free(P_VMMAP, map);
 }
 
 vm_map_entry_t *vm_map_add_entry_nolock(vm_map_t *map, vm_addr_t start,
@@ -129,8 +129,7 @@ vm_map_entry_t *vm_map_add_entry_nolock(vm_map_t *map, vm_addr_t start,
   assert(vm_map_find_entry(map, end) == NULL);
 #endif
 
-  vm_map_entry_t *entry = kmalloc(M_VMMAP, sizeof(vm_map_entry_t), M_ZERO);
-
+  vm_map_entry_t *entry = pool_alloc(P_VMENTRY, PF_ZERO);
   entry->start = start;
   entry->end = end;
   entry->prot = prot;
@@ -321,4 +320,4 @@ int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
   return 0;
 }
 
-SYSINIT_ADD(vm_map, vm_map_init, DEPS("vm_object"));
+SYSINIT_ADD(vm_map, vm_map_init, NODEPS);

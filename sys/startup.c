@@ -15,7 +15,7 @@ static void mount_fs(void) {
   do_mount(thread_self(), "devfs", "/dev");
 }
 
-SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs", "filedesc"));
+SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"));
 
 int kernel_init(int argc, char **argv) {
   kprintf("Kernel arguments (%d): ", argc);

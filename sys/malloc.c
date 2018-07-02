@@ -1,6 +1,7 @@
 #define KL_LOG KL_KMEM
 #include <klog.h>
 #include <stdc.h>
+#include <mutex.h>
 #include <malloc.h>
 #include <physmem.h>
 #include <pool.h>
@@ -219,10 +220,10 @@ static void kmem_init(kmem_pool_t *mp) {
   klog("initialized '%s' kmem at %p ", mp->mp_desc, mp);
 }
 
-static POOL_DEFINE(P_KMEM, "kmem", sizeof(kmem_pool_t), NULL, NULL);
+static POOL_DEFINE(P_KMEM, "kmem", sizeof(kmem_pool_t));
 
 kmem_pool_t *kmem_create(const char *desc, size_t pg_used, size_t pg_max) {
-  kmem_pool_t *mp = pool_alloc(P_KMEM, 0);
+  kmem_pool_t *mp = pool_alloc(P_KMEM, PF_ZERO);
   mp->mp_desc = desc;
   mp->mp_pages_used = pg_used;
   mp->mp_pages_max = pg_max;

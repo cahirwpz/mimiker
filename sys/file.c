@@ -1,17 +1,13 @@
 #include <file.h>
-#include <malloc.h>
+#include <pool.h>
 #include <stdc.h>
 #include <errno.h>
 #include <mutex.h>
 #include <thread.h>
 #include <vnode.h>
 #include <vfs.h>
-#include <sysinit.h>
 
-static MALLOC_DEFINE(M_FILE, "file", 1, 2);
-
-static void file_init(void) {
-}
+static POOL_DEFINE(P_FILE, "file", sizeof(file_t));
 
 void file_ref(file_t *f) {
   SCOPED_MTX_LOCK(&f->f_mtx);
@@ -27,7 +23,7 @@ void file_unref(file_t *f) {
 }
 
 file_t *file_alloc(void) {
-  file_t *f = kmalloc(M_FILE, sizeof(file_t), M_ZERO);
+  file_t *f = pool_alloc(P_FILE, PF_ZERO);
   f->f_ops = &badfileops;
   mtx_init(&f->f_mtx, MTX_DEF);
   return f;
@@ -43,7 +39,7 @@ void file_destroy(file_t *f) {
   if (f->f_ops != &badfileops)
     FOP_CLOSE(f, thread_self());
 
-  kfree(M_FILE, f);
+  pool_free(P_FILE, f);
 }
 
 void file_release(file_t *f) {
@@ -80,5 +76,3 @@ fileops_t badfileops = {.fo_read = badfo_read,
                         .fo_close = badfo_close,
                         .fo_stat = badfo_stat,
                         .fo_seek = badfo_seek};
-
-SYSINIT_ADD(file, file_init, DEPS("vfs", "vnode"));
