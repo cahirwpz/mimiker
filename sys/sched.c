@@ -204,7 +204,7 @@ void preempt_disable(void) {
   td->td_pdnest++;
 }
 
-void sched_maybe_switch(void) {
+void sched_maybe_preempt(void) {
   if (preempt_disabled())
     return;
 
@@ -224,7 +224,7 @@ void preempt_enable(void) {
 
   td->td_pdnest--;
 
-  sched_maybe_switch();
+  sched_maybe_preempt();
 }
 
 SYSINIT_ADD(sched, sched_init, DEPS("callout"));

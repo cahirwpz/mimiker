@@ -97,7 +97,7 @@ void sched_switch(void);
  * priority has been added. It doesn't actually perform that check, it only
  * looks at TDF_NEEDSWITCH flag.
  */
-void sched_maybe_switch(void);
+void sched_maybe_preempt(void);
 
 /*! \brief Turns calling thread into idle thread. */
 noreturn void sched_run(void);
