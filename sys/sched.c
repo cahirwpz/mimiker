@@ -205,14 +205,17 @@ void preempt_disable(void) {
 }
 
 void sched_maybe_switch(void) {
+  if (preempt_disabled())
+    return;
+
   thread_t *td = thread_self();
-  if (!preempt_disabled())
-    WITH_SPINLOCK(td->td_spin) {
-      if (td->td_flags & TDF_NEEDSWITCH) {
-        td->td_state = TDS_READY;
-        sched_switch();
-      }
+
+  WITH_SPINLOCK(td->td_spin) {
+    if (td->td_flags & TDF_NEEDSWITCH) {
+      td->td_state = TDS_READY;
+      sched_switch();
     }
+  }
 }
 
 void preempt_enable(void) {
