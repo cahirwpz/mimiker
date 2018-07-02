@@ -1,5 +1,5 @@
-#ifndef _PAGER_H_
-#define _PAGER_H_
+#ifndef _SYS_VM_PAGER_H_
+#define _SYS_VM_PAGER_H_
 
 #include <vm.h>
 
@@ -16,4 +16,4 @@ typedef struct pager {
 
 extern pager_t default_pager[1];
 
-#endif /* _PAGER_H_ */
+#endif /* !_SYS_VM_PAGER_H_ */

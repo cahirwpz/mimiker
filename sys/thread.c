@@ -1,6 +1,7 @@
 #define KL_LOG KL_THREAD
 #include <klog.h>
 #include <malloc.h>
+#include <physmem.h>
 #include <thread.h>
 #include <context.h>
 #include <interrupt.h>
