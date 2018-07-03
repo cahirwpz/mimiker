@@ -15,23 +15,19 @@ vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr);
 vm_map_t *vm_map_new(void);
 void vm_map_delete(vm_map_t *vm_map);
 
+vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vm_addr_t start,
+                                   size_t length, vm_prot_t prot);
+void vm_map_entry_free(vm_map_entry_t *entry);
+
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr);
 
 void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot);
 
-/*! \brief Inserts a vm_map_entry with given backing object into \a map.
- *
- * New entry is positioned exactly at \a start and has \a length in pages.
- * Note that \a obj may be NULL.
- */
-vm_map_entry_t *vm_map_insert(vm_map_t *map, vm_object_t *obj, vm_addr_t start,
-                              size_t length, vm_prot_t prot);
+/*! \brief Insert given \a entry into the \a map. */
+int vm_map_insert(vm_map_t *map, vm_map_entry_t *entry, vm_flags_t flags);
 
-vm_map_entry_t *vm_map_insert_anywhere(vm_map_t *map, vm_object_t *obj,
-                                       vm_addr_t /* inout */ *start_p,
-                                       size_t length, vm_prot_t prot);
-
+/*! \brief Can address \a addr be mapped by this \a map? */
 bool vm_map_in_range(vm_map_t *map, vm_addr_t addr);
 
 /*! \brief Reports range of addresses that are handled by the map. */

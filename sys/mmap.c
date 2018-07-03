@@ -8,7 +8,8 @@
 #include <mutex.h>
 #include <proc.h>
 
-int do_mmap(vm_addr_t *addr_p, size_t length, vm_prot_t prot, int flags) {
+int do_mmap(vm_addr_t *addr_p, size_t length, vm_prot_t prot,
+            vm_flags_t flags) {
   thread_t *td = thread_self();
   assert(td->td_proc != NULL);
   vm_map_t *vmap = td->td_proc->p_uspace;
@@ -19,7 +20,7 @@ int do_mmap(vm_addr_t *addr_p, size_t length, vm_prot_t prot, int flags) {
 
   length = roundup(length, PAGESIZE);
 
-  if (!(flags & MMAP_ANON)) {
+  if (!(flags & VM_ANON)) {
     klog("Only anonymous memory mappings are supported!");
     return -ENOTSUP;
   }
@@ -34,28 +35,21 @@ int do_mmap(vm_addr_t *addr_p, size_t length, vm_prot_t prot, int flags) {
       (!vm_map_in_range(vmap, addr) || !vm_map_in_range(vmap, addr + length)))
     return -EINVAL;
 
-  int error = 0;
-
   /* Create object with a pager that supplies cleared pages on page fault. */
   vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
+  vm_map_entry_t *entry = vm_map_entry_alloc(obj, addr, length, prot);
 
-  if (addr) {
-    /* Given the hint try to insert the object exactly at given position. */
-    if (vm_map_insert(vmap, obj, addr, length, prot) == NULL)
-      error = -ENOMEM;
-  } else {
-    /* Otherwise let the system choose the best position. */
-    if (vm_map_insert_anywhere(vmap, obj, &addr, length, prot) == NULL)
-      error = -ENOMEM;
+  /* Given the hint try to insert the object at given position or after it. */
+  if (vm_map_insert(vmap, entry, flags)) {
+    vm_map_entry_free(entry);
+    return -ENOMEM;
   }
 
-  if (error) {
-    vm_object_free(obj);
-    return error;
-  }
+  vm_addr_t start, end;
+  vm_map_entry_range(entry, &start, &end);
 
-  klog("Created entry at %p, length: %u", (void *)addr, length);
+  klog("Created entry at %p, length: %u", (void *)start, length);
 
-  *addr_p = addr;
+  *addr_p = start;
   return 0;
 }

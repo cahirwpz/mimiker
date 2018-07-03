@@ -177,11 +177,13 @@ int do_exec(const exec_args_t *args) {
         }
         vm_addr_t start = ph->p_vaddr;
         vm_addr_t length = roundup(ph->p_memsz, PAGESIZE);
-        /* TODO: What if segments overlap? */
         /* Temporarily permissive protection. */
         vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
-        (void)vm_map_insert(vmap, obj, start, length,
-                            VM_PROT_READ | VM_PROT_WRITE);
+        vm_map_entry_t *entry =
+          vm_map_entry_alloc(obj, start, length, VM_PROT_READ | VM_PROT_WRITE);
+        error = vm_map_insert(vmap, entry, VM_FIXED);
+        /* TODO: What if segments overlap? */
+        assert(error == 0);
 
         /* Read data from file into the segment */
         /* TODO: This is a lot of copying! Ideally we would look up the
@@ -223,14 +225,16 @@ int do_exec(const exec_args_t *args) {
    * a bit lower so that it is easier to spot invalid memory access
    * when the stack underflows.
    */
-  vm_addr_t stack_bottom = 0x70000000;
+  vm_addr_t stack_bottom = 0x7f000000;
   const size_t stack_size = 8 * 1024 * 1024; /* 8 MiB */
 
   vm_addr_t stack_start = stack_bottom - stack_size;
-  /* TODO: What if this area overlaps with a loaded segment? */
   vm_object_t *stack_obj = vm_object_alloc(VM_ANONYMOUS);
-  (void)vm_map_insert(vmap, stack_obj, stack_start, stack_size,
-                      VM_PROT_READ | VM_PROT_WRITE);
+  vm_map_entry_t *stack_seg = vm_map_entry_alloc(
+    stack_obj, stack_start, stack_size, VM_PROT_READ | VM_PROT_WRITE);
+  error = vm_map_insert(vmap, stack_seg, VM_FIXED);
+  /* TODO: What if this area overlaps with a loaded segment? */
+  assert(error == 0);
 
   /* Prepare program stack, which includes storing program args. */
   klog("Stack real bottom at %p", (void *)stack_bottom);

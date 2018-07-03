@@ -7,7 +7,7 @@
 #include <sys/mman.h>
 
 static void mmap_no_hint(void) {
-  void *addr = mmap(NULL, 12345, PROT_READ | PROT_WRITE, MMAP_ANON);
+  void *addr = mmap(NULL, 12345, PROT_READ | PROT_WRITE, MAP_ANON);
   assert(addr != MAP_FAILED);
   printf("mmap returned pointer: %p\n", addr);
   /* Ensure mapped area is cleared. */
@@ -20,7 +20,7 @@ static void mmap_no_hint(void) {
 #define TESTADDR (void *)0x12345000
 static void mmap_with_hint(void) {
   /* Provide a hint address that is page aligned. */
-  void *addr = mmap(TESTADDR, 99, PROT_READ | PROT_WRITE, MMAP_ANON);
+  void *addr = mmap(TESTADDR, 99, PROT_READ | PROT_WRITE, MAP_ANON);
   assert(addr != MAP_FAILED);
   assert(addr >= TESTADDR);
   printf("mmap returned pointer: %p\n", addr);
@@ -35,15 +35,15 @@ static void mmap_with_hint(void) {
 static void mmap_bad(void) {
   void *addr;
   /* Address range spans user and kernel space. */
-  addr = mmap((void *)0x7fff0000, 0x20000, PROT_READ | PROT_WRITE, MMAP_ANON);
+  addr = mmap((void *)0x7fff0000, 0x20000, PROT_READ | PROT_WRITE, MAP_ANON);
   assert(addr == MAP_FAILED);
   assert(errno == EINVAL);
   /* Address lies in low memory, that cannot be mapped. */
-  addr = mmap((void *)0x3ff000, 0x1000, PROT_READ | PROT_WRITE, MMAP_ANON);
+  addr = mmap((void *)0x3ff000, 0x1000, PROT_READ | PROT_WRITE, MAP_ANON);
   assert(addr == MAP_FAILED);
   assert(errno == EINVAL);
   /* Hint address is not page aligned. */
-  addr = mmap((void *)0x12345678, 0x1000, PROT_READ | PROT_WRITE, MMAP_ANON);
+  addr = mmap((void *)0x12345678, 0x1000, PROT_READ | PROT_WRITE, MAP_ANON);
   assert(addr == MAP_FAILED);
   assert(errno == EINVAL);
 }
