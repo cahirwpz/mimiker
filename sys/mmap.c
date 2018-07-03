@@ -41,7 +41,7 @@ int do_mmap(vm_addr_t *addr_p, size_t length, vm_prot_t prot, int flags) {
 
   if (addr) {
     /* Given the hint try to insert the object exactly at given position. */
-    if (vm_map_insert(vmap, obj, addr, addr + length, prot) == NULL)
+    if (vm_map_insert(vmap, obj, addr, length, prot) == NULL)
       error = -ENOMEM;
   } else {
     /* Otherwise let the system choose the best position. */

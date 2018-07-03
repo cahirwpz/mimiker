@@ -22,11 +22,11 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
 
 /*! \brief Inserts a vm_map_entry with given backing object into \a map.
  *
- * Assigned address range is exactly in range \a start - \a end.
+ * New entry is positioned exactly at \a start and has \a length in pages.
  * Note that \a obj may be NULL.
  */
 vm_map_entry_t *vm_map_insert(vm_map_t *map, vm_object_t *obj, vm_addr_t start,
-                              vm_addr_t end, vm_prot_t prot);
+                              size_t length, vm_prot_t prot);
 
 vm_map_entry_t *vm_map_insert_anywhere(vm_map_t *map, vm_object_t *obj,
                                        vm_addr_t /* inout */ *start_p,

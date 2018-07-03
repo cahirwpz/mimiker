@@ -218,9 +218,9 @@ int vm_map_findspace(vm_map_t *map, vm_addr_t *start_p, size_t length) {
 }
 
 vm_map_entry_t *vm_map_insert(vm_map_t *map, vm_object_t *obj, vm_addr_t start,
-                              vm_addr_t end, vm_prot_t prot) {
+                              size_t length, vm_prot_t prot) {
   SCOPED_MTX_LOCK(&map->mtx);
-  return vm_map_insert_nolock(map, obj, start, end, prot);
+  return vm_map_insert_nolock(map, obj, start, start + length, prot);
 }
 
 vm_map_entry_t *vm_map_insert_anywhere(vm_map_t *map, vm_object_t *obj,
