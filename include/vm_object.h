@@ -20,6 +20,7 @@ void vm_object_free(vm_object_t *obj);
 bool vm_object_add_page(vm_object_t *obj, vm_page_t *pg);
 void vm_object_remove_page(vm_object_t *obj, vm_page_t *pg);
 vm_page_t *vm_object_find_page(vm_object_t *obj, vm_addr_t offset);
+vm_object_t *vm_map_object_clone(vm_object_t *obj);
 void vm_map_object_dump(vm_object_t *obj);
 
 #endif /* !_SYS_VM_OBJECT_H_ */

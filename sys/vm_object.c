@@ -62,6 +62,10 @@ void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
   obj->npages--;
 }
 
+vm_object_t *vm_map_object_clone(vm_object_t *obj) {
+  panic("Not implemented!");
+}
+
 void vm_map_object_dump(vm_object_t *obj) {
   vm_page_t *it;
   RB_FOREACH (it, vm_object_tree, &obj->tree)

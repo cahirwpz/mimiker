@@ -266,44 +266,25 @@ void vm_map_dump(vm_map_t *map) {
   }
 }
 
-#if 0
-/* This entire function is a nasty hack,
- * but we'll live with it until proper COW is implemented. */
 vm_map_t *vm_map_clone(vm_map_t *map) {
   thread_t *td = thread_self();
   assert(td->td_proc);
 
-  vm_map_t *orig_current_map = get_user_vm_map();
-  vm_map_t *newmap = vm_map_new();
+  vm_map_t *new_map = vm_map_new();
 
   WITH_MTX_LOCK (&map->mtx) {
-    /* Temporarily switch to the new map, so that we may write contents. */
-    td->td_proc->p_uspace = newmap;
-    vm_map_activate(newmap);
-
     vm_map_entry_t *it;
     TAILQ_FOREACH (it, &map->entries, link) {
-      vm_object_t *copy = vm_object_alloc(it->object->pager->pgr_type);
-      (void)vm_map_insert_nolock(newmap, copy, it->start, it->end, it->prot);
-      vm_page_t *page;
-      TAILQ_FOREACH (page, &it->object->entries, obj.entries) {
-        memcpy((char *)it->start + page->vm_offset,
-               (char *)MIPS_PHYS_TO_KSEG0(page->paddr), page->size * PAGESIZE);
-      }
+      vm_object_t *obj = vm_map_object_clone(it->object);
+      vm_map_entry_t *entry =
+        vm_map_entry_alloc(obj, it->start, it->end, it->prot);
+      TAILQ_INSERT_TAIL(&new_map->entries, entry, link);
+      new_map->nentries++;
     }
   }
 
-  /* Return to original vm map. */
-  td->td_proc->p_uspace = orig_current_map;
-  vm_map_activate(orig_current_map);
-
-  return newmap;
+  return new_map;
 }
-#else
-vm_map_t *vm_map_clone(vm_map_t *map) {
-  return NULL;
-}
-#endif
 
 int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
   vm_map_entry_t *entry = NULL;
