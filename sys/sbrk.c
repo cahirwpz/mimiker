@@ -31,27 +31,27 @@ void sbrk_attach(proc_t *p) {
 vm_addr_t sbrk_resize(proc_t *p, intptr_t increment) {
   assert(p->p_uspace && p->p_sbrk);
 
+  if (increment == 0)
+    return p->p_sbrk_end;
+
+  vm_addr_t last_end = p->p_sbrk_end;
+  vm_addr_t new_end = p->p_sbrk_end + increment;
+
+  vm_addr_t sbrk_start, sbrk_end;
+  vm_map_entry_range(p->p_sbrk, &sbrk_start, &sbrk_end);
+
+  if (new_end < sbrk_start)
+    return -EINVAL;
+
   /* TODO: Shrinking sbrk is impossible, because it requires unmapping pages,
    * which is not yet implemented! */
-  if (increment < 0) {
-    klog("WARNING: sbrk called with a negative argument!");
-    return -ENOMEM;
-  }
+  if (new_end < last_end)
+    return -ENOTSUP;
 
-  vm_map_entry_t *sbrk = p->p_sbrk;
-  vm_addr_t last_end = p->p_sbrk_end;
-  vm_addr_t entry_end = roundup(p->p_sbrk_end + increment, PAGESIZE);
+  /* Expand segment break! */
+  if (vm_map_resize(p->p_uspace, p->p_sbrk, roundup(new_end, PAGESIZE)) != 0)
+    return -ENOMEM; /* Map entry expansion failed. */
 
-  /* The segment must be of at least one page. */
-  if (entry_end < SBRK_START + PAGESIZE)
-    entry_end = SBRK_START + PAGESIZE;
-
-  /* Shrink or expand sbrk vm_map_entry ? */
-  if (entry_end != sbrk->end) {
-    if (vm_map_resize(p->p_uspace, sbrk, entry_end) != 0)
-      return -ENOMEM; /* Map entry expansion failed. */
-  }
-
-  p->p_sbrk_end = max(p->p_sbrk_end + increment, SBRK_START);
+  p->p_sbrk_end = new_end;
   return last_end;
 }

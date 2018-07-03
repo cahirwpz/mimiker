@@ -6,18 +6,8 @@
 #include <vm.h>
 #include <mutex.h>
 
-struct vm_map_entry {
-  TAILQ_ENTRY(vm_map_entry) map_list;
-  SPLAY_ENTRY(vm_map_entry) map_tree;
-  vm_object_t *object;
-
-  uint32_t prot;
-  vm_addr_t start;
-  vm_addr_t end;
-};
-
-
 void vm_map_activate(vm_map_t *map);
+
 vm_map_t *get_user_vm_map(void);
 vm_map_t *get_kernel_vm_map(void);
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr);
@@ -46,6 +36,10 @@ bool vm_map_in_range(vm_map_t *map, vm_addr_t addr);
 
 /*! \brief Reports range of addresses that are handled by the map. */
 void vm_map_range(vm_map_t *map, vm_addr_t *start_p, vm_addr_t *end_p);
+
+/*! \brief Reports range of addresses that are handled by the entry. */
+void vm_map_entry_range(vm_map_entry_t *seg, vm_addr_t *start_p,
+                        vm_addr_t *end_p);
 
 /* Looks up a gap of @length size in @map. The search starts at @start address.
  * On success, returns 0 and sets *addr. @start and @length arguments must be

@@ -14,6 +14,16 @@
 #include <pcpu.h>
 #include <sysinit.h>
 
+struct vm_map_entry {
+  TAILQ_ENTRY(vm_map_entry) map_list;
+  SPLAY_ENTRY(vm_map_entry) map_tree;
+  vm_object_t *object;
+
+  vm_prot_t prot;
+  vm_addr_t start;
+  vm_addr_t end;
+};
+
 struct vm_map {
   TAILQ_HEAD(vm_map_list, vm_map_entry) list;
   SPLAY_HEAD(vm_map_tree, vm_map_entry) tree;
@@ -21,7 +31,6 @@ struct vm_map {
   pmap_t *const pmap;
   mtx_t mtx; /* Mutex guarding vm_map structure and all its entries. */
 };
-
 
 static POOL_DEFINE(P_VMMAP, "vm_map", sizeof(vm_map_t));
 static POOL_DEFINE(P_VMENTRY, "vm_map_entry", sizeof(vm_map_entry_t));
@@ -41,6 +50,12 @@ vm_map_t *get_user_vm_map(void) {
 
 vm_map_t *get_kernel_vm_map(void) {
   return &kspace;
+}
+
+void vm_map_entry_range(vm_map_entry_t *seg, vm_addr_t *start_p,
+                        vm_addr_t *end_p) {
+  *start_p = seg->start;
+  *end_p = seg->end;
 }
 
 void vm_map_range(vm_map_t *map, vm_addr_t *start_p, vm_addr_t *end_p) {
