@@ -6,7 +6,7 @@
 #define MMAP_ANON 1
 /* TODO: Other flags that may be simple to implement:
  * FIXED, UNINITIALIZED, GROWSDOWN. */
-#define MMAP_FAILED ((intptr_t)-1)
+#define MAP_FAILED ((void *)-1)
 
 #define PROT_NONE 0
 #define PROT_READ 1
@@ -22,11 +22,7 @@ void *mmap(void *addr, size_t length, int prot, int flags);
 
 #include <vm.h>
 
-/* mmap will never consider allocating memory below this address. */
-#define MMAP_LOW_ADDR 0x00400000
-
-vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
-                  int *error);
+int do_mmap(vm_addr_t *addr_p, size_t length, vm_prot_t prot, int flags);
 int do_munmap(vm_addr_t addr, size_t length);
 
 #endif /* !_KERNELSPACE */

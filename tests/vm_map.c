@@ -20,18 +20,15 @@ static int paging_on_demand_and_memory_protection_demo(void) {
 
   vm_addr_t start = 0x1001000;
   vm_addr_t end = 0x1001000 + 2 * PAGESIZE;
-  WITH_VM_MAP_LOCK(umap) {
-    vm_map_entry_t *redzone0 =
-      vm_map_add_entry_nolock(umap, start - PAGESIZE, start, VM_PROT_NONE);
-    vm_map_entry_t *redzone1 =
-      vm_map_add_entry_nolock(umap, end, end + PAGESIZE, VM_PROT_NONE);
-    vm_map_entry_t *data =
-      vm_map_add_entry_nolock(umap, start, end, VM_PROT_READ | VM_PROT_WRITE);
 
-    redzone0->object = vm_object_alloc();
-    redzone1->object = vm_object_alloc();
-    data->object = default_pager->pgr_alloc();
-  }
+  vm_object_t *redzone_before = vm_object_alloc(VM_DUMMY);
+  vm_object_t *redzone_after = vm_object_alloc(VM_DUMMY);
+  vm_object_t *data = vm_object_alloc(VM_ANONYMOUS);
+
+  (void)vm_map_insert(umap, redzone_before, start - PAGESIZE, start,
+                      VM_PROT_NONE);
+  (void)vm_map_insert(umap, data, start, end, VM_PROT_READ | VM_PROT_WRITE);
+  (void)vm_map_insert(umap, redzone_after, end, end + PAGESIZE, VM_PROT_NONE);
 
   vm_map_dump(umap);
   vm_map_dump(kmap);
@@ -62,15 +59,15 @@ static int findspace_demo(void) {
 
 #define addr1 0x10000000
 #define addr2 0x30000000
-  vm_map_add_entry(umap, addr1, addr2, VM_PROT_NONE);
+  vm_map_insert(umap, NULL, addr1, addr2, VM_PROT_NONE);
 #define addr3 0x30005000
 #define addr4 0x60000000
-  vm_map_add_entry(umap, addr3, addr4, VM_PROT_NONE);
+  vm_map_insert(umap, NULL, addr3, addr4, VM_PROT_NONE);
 
   vm_addr_t t;
   int n;
-  n = vm_map_findspace(umap, 0x00010000, PAGESIZE, &t);
-  assert(n == 0 && t == 0x00010000);
+  n = vm_map_findspace(umap, 0x00400000, PAGESIZE, &t);
+  assert(n == 0 && t == 0x00400000);
 
   n = vm_map_findspace(umap, addr1, PAGESIZE, &t);
   assert(n == 0 && t == addr2);
@@ -85,7 +82,7 @@ static int findspace_demo(void) {
   assert(n == 0 && t == addr2);
 
   /* Fill the gap exactly */
-  vm_map_add_entry(umap, t, t + 0x5000, VM_PROT_NONE);
+  vm_map_insert(umap, NULL, t, t + 0x5000, VM_PROT_NONE);
 
   n = vm_map_findspace(umap, addr1, 0x5000, &t);
   assert(n == 0 && t == addr4);

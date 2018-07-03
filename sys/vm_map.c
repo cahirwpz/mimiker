@@ -34,15 +34,15 @@ vm_map_t *get_kernel_vm_map(void) {
   return &kspace;
 }
 
-static bool in_range(vm_map_t *map, vm_addr_t addr) {
+bool vm_map_in_range(vm_map_t *map, vm_addr_t addr) {
   /* No need to enter RWlock, the pmap field is const. */
   return map && map->pmap->start <= addr && addr < map->pmap->end;
 }
 
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr) {
-  if (in_range(get_user_vm_map(), addr))
+  if (vm_map_in_range(get_user_vm_map(), addr))
     return get_user_vm_map();
-  if (in_range(get_kernel_vm_map(), addr))
+  if (vm_map_in_range(get_kernel_vm_map(), addr))
     return get_kernel_vm_map();
   return NULL;
 }
@@ -88,27 +88,26 @@ static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
   return false;
 }
 
-vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
-  SCOPED_VM_MAP_LOCK(vm_map);
-
-  vm_map_entry_t *etr_it;
-  TAILQ_FOREACH (etr_it, &vm_map->list, map_list)
-    if (etr_it->start <= vaddr && vaddr < etr_it->end)
-      return etr_it;
+vm_map_entry_t *vm_map_find_entry(vm_map_t *map, vm_addr_t vaddr) {
+  SCOPED_MTX_LOCK(&map->mtx);
+  vm_map_entry_t *it;
+  TAILQ_FOREACH (it, &map->list, map_list)
+    if (it->start <= vaddr && vaddr < it->end)
+      return it;
   return NULL;
 }
 
-static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
-  assert(mtx_owned(&vm_map->mtx));
-  vm_map->nentries--;
+static void vm_map_remove_entry(vm_map_t *map, vm_map_entry_t *entry) {
+  assert(mtx_owned(&map->mtx));
+  map->nentries--;
   if (entry->object)
     vm_object_free(entry->object);
-  TAILQ_REMOVE(&vm_map->list, entry, map_list);
+  TAILQ_REMOVE(&map->list, entry, map_list);
   pool_free(P_VMENTRY, entry);
 }
 
 void vm_map_delete(vm_map_t *map) {
-  WITH_VM_MAP_LOCK(map) {
+  WITH_MTX_LOCK (&map->mtx) {
     while (map->nentries > 0)
       vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
   }
@@ -116,33 +115,22 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VMMAP, map);
 }
 
-vm_map_entry_t *vm_map_add_entry_nolock(vm_map_t *map, vm_addr_t start,
-                                        vm_addr_t end, vm_prot_t prot) {
+static vm_map_entry_t *vm_map_insert_nolock(vm_map_t *map, vm_object_t *obj,
+                                            vm_addr_t start, vm_addr_t end,
+                                            vm_prot_t prot) {
   assert(mtx_owned(&map->mtx));
   assert(start >= map->pmap->start);
   assert(end <= map->pmap->end);
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
 
-#if 0
-  assert(vm_map_find_entry(map, start) == NULL);
-  assert(vm_map_find_entry(map, end) == NULL);
-#endif
-
   vm_map_entry_t *entry = pool_alloc(P_VMENTRY, PF_ZERO);
+  entry->object = obj;
   entry->start = start;
   entry->end = end;
   entry->prot = prot;
-
   vm_map_insert_entry(map, entry);
-
   return entry;
-}
-
-vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
-                                 vm_prot_t prot) {
-  SCOPED_VM_MAP_LOCK(map);
-  return vm_map_add_entry_nolock(map, start, end, prot);
 }
 
 /* TODO: not implemented */
@@ -150,8 +138,8 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot) {
 }
 
-int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start, size_t length,
-                            vm_addr_t /*out*/ *addr) {
+static int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start,
+                                   size_t length, vm_addr_t /*out*/ *addr_p) {
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(length, PAGESIZE));
 
@@ -190,19 +178,37 @@ int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start, size_t length,
   return -ENOMEM;
 
 found:
-  *addr = start;
+  *addr_p = start;
   return 0;
 }
 
 int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
-                     vm_addr_t /*out*/ *addr) {
-  SCOPED_VM_MAP_LOCK(map);
-  return vm_map_findspace_nolock(map, start, length, addr);
+                     vm_addr_t /*out*/ *addr_p) {
+  SCOPED_MTX_LOCK(&map->mtx);
+  return vm_map_findspace_nolock(map, start, length, addr_p);
+}
+
+vm_map_entry_t *vm_map_insert(vm_map_t *map, vm_object_t *obj, vm_addr_t start,
+                              vm_addr_t end, vm_prot_t prot) {
+  SCOPED_MTX_LOCK(&map->mtx);
+  return vm_map_insert_nolock(map, obj, start, end, prot);
+}
+
+vm_map_entry_t *vm_map_insert_anywhere(vm_map_t *map, vm_object_t *obj,
+                                       vm_addr_t /* inout */ *start_p,
+                                       size_t length, vm_prot_t prot) {
+  vm_addr_t addr;
+  SCOPED_MTX_LOCK(&map->mtx);
+  if (vm_map_findspace_nolock(map, *start_p, length, &addr) != 0)
+    return NULL;
+  *start_p = addr;
+  return vm_map_insert_nolock(map, obj, addr, addr + length, prot);
 }
 
 int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
   assert(is_aligned(new_end, PAGESIZE));
-  assert(mtx_owned(&map->mtx));
+
+  SCOPED_MTX_LOCK(&map->mtx);
 
   /* TODO: As for now, we are unable to decrease the size of an entry, because
      it would require unmapping physical pages, which in turn should clean
@@ -229,9 +235,9 @@ int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
 }
 
 void vm_map_dump(vm_map_t *map) {
-  klog("Virtual memory map (%08lx - %08lx):", map->pmap->start, map->pmap->end);
+  SCOPED_MTX_LOCK(&map->mtx);
 
-  SCOPED_VM_MAP_LOCK(map);
+  klog("Virtual memory map (%08lx - %08lx):", map->pmap->start, map->pmap->end);
 
   vm_map_entry_t *it;
   TAILQ_FOREACH (it, &map->list, map_list) {
@@ -243,8 +249,8 @@ void vm_map_dump(vm_map_t *map) {
   }
 }
 
-/* This entire function is a nasty hack, but we'll live with it until proper COW
-   is implemented. */
+/* This entire function is a nasty hack,
+ * but we'll live with it until proper COW is implemented. */
 vm_map_t *vm_map_clone(vm_map_t *map) {
   thread_t *td = thread_self();
   assert(td->td_proc);
@@ -252,16 +258,15 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   vm_map_t *orig_current_map = get_user_vm_map();
   vm_map_t *newmap = vm_map_new();
 
-  WITH_VM_MAP_LOCK(map) {
+  WITH_MTX_LOCK (&map->mtx) {
     /* Temporarily switch to the new map, so that we may write contents. */
     td->td_proc->p_uspace = newmap;
     vm_map_activate(newmap);
 
     vm_map_entry_t *it;
     TAILQ_FOREACH (it, &map->list, map_list) {
-      vm_map_entry_t *entry =
-        vm_map_add_entry_nolock(newmap, it->start, it->end, it->prot);
-      entry->object = default_pager->pgr_alloc();
+      vm_object_t *copy = vm_object_alloc(it->object->pager->pgr_type);
+      (void)vm_map_insert_nolock(newmap, copy, it->start, it->end, it->prot);
       vm_page_t *page;
       TAILQ_FOREACH (page, &it->object->list, obj.list) {
         memcpy((char *)it->start + page->vm_offset,
@@ -313,7 +318,7 @@ int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
   vm_page_t *frame = vm_object_find_page(entry->object, offset);
 
   if (!frame)
-    frame = obj->pgr->pgr_fault(obj, fault_page, offset, fault_type);
+    frame = obj->pager->pgr_fault(obj, fault_page, offset, fault_type);
   pmap_map(map->pmap, fault_page, fault_page + PAGESIZE, frame->paddr,
            entry->prot);
 

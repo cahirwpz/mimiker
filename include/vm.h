@@ -59,7 +59,7 @@ typedef struct pg_list pg_list_t;
 typedef struct vm_map vm_map_t;
 typedef struct vm_map_entry vm_map_entry_t;
 typedef struct vm_object vm_object_t;
-typedef struct pager pager_t;
+typedef struct vm_pager vm_pager_t;
 
 #endif /* !__ASSEMBLER__ */
 
