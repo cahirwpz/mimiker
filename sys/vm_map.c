@@ -167,8 +167,9 @@ void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
                     vm_prot_t prot) {
 }
 
-static int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start,
-                                   size_t length, vm_addr_t /*out*/ *addr_p) {
+static int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t /*inout*/ *start_p,
+                                   size_t length) {
+  vm_addr_t start = *start_p;
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(length, PAGESIZE));
 
@@ -207,14 +208,13 @@ static int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start,
   return -ENOMEM;
 
 found:
-  *addr_p = start;
+  *start_p = start;
   return 0;
 }
 
-int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
-                     vm_addr_t /*out*/ *addr_p) {
+int vm_map_findspace(vm_map_t *map, vm_addr_t *start_p, size_t length) {
   SCOPED_MTX_LOCK(&map->mtx);
-  return vm_map_findspace_nolock(map, start, length, addr_p);
+  return vm_map_findspace_nolock(map, start_p, length);
 }
 
 vm_map_entry_t *vm_map_insert(vm_map_t *map, vm_object_t *obj, vm_addr_t start,
@@ -226,11 +226,10 @@ vm_map_entry_t *vm_map_insert(vm_map_t *map, vm_object_t *obj, vm_addr_t start,
 vm_map_entry_t *vm_map_insert_anywhere(vm_map_t *map, vm_object_t *obj,
                                        vm_addr_t /* inout */ *start_p,
                                        size_t length, vm_prot_t prot) {
-  vm_addr_t addr;
   SCOPED_MTX_LOCK(&map->mtx);
-  if (vm_map_findspace_nolock(map, *start_p, length, &addr) != 0)
+  if (vm_map_findspace_nolock(map, start_p, length) != 0)
     return NULL;
-  *start_p = addr;
+  vm_addr_t addr = *start_p;
   return vm_map_insert_nolock(map, obj, addr, addr + length, prot);
 }
 

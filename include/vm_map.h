@@ -41,11 +41,15 @@ void vm_map_range(vm_map_t *map, vm_addr_t *start_p, vm_addr_t *end_p);
 void vm_map_entry_range(vm_map_entry_t *seg, vm_addr_t *start_p,
                         vm_addr_t *end_p);
 
-/* Looks up a gap of @length size in @map. The search starts at @start address.
- * On success, returns 0 and sets *addr. @start and @length arguments must be
- * page-aligned. */
-int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
-                     vm_addr_t /*out*/ *addr);
+/*! \brief Looks up a gap of \a length size in \a map.
+ *
+ * The search starts at an address read from \a start_p location.
+ * Both start address and \a length arguments must be page-aligned.
+ *
+ * \returns 0 on success, sets *start_p as well
+ */
+int vm_map_findspace(vm_map_t *map, vm_addr_t /*inout*/ *start_p,
+                     size_t length);
 
 /* Tries to resize an entry, by moving its end if there
    are no other mappings in the way. On success, returns 0. */

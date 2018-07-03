@@ -61,40 +61,51 @@ static int findspace_demo(void) {
   vm_map_t *umap = vm_map_new();
   vm_map_activate(umap);
 
-#define addr1 0x10000000
-#define addr2 0x30000000
+  const vm_addr_t addr0 = 0x00400000;
+  const vm_addr_t addr1 = 0x10000000;
+  const vm_addr_t addr2 = 0x30000000;
+  const vm_addr_t addr3 = 0x30005000;
+  const vm_addr_t addr4 = 0x60000000;
+
   vm_map_insert(umap, NULL, addr1, addr2, VM_PROT_NONE);
-#define addr3 0x30005000
-#define addr4 0x60000000
   vm_map_insert(umap, NULL, addr3, addr4, VM_PROT_NONE);
 
   vm_addr_t t;
   int n;
-  n = vm_map_findspace(umap, 0x00400000, PAGESIZE, &t);
-  assert(n == 0 && t == 0x00400000);
 
-  n = vm_map_findspace(umap, addr1, PAGESIZE, &t);
+  t = addr0;
+  n = vm_map_findspace(umap, &t, PAGESIZE);
+  assert(n == 0 && t == addr0);
+
+  t = addr1;
+  n = vm_map_findspace(umap, &t, PAGESIZE);
   assert(n == 0 && t == addr2);
 
-  n = vm_map_findspace(umap, addr1 + 20 * PAGESIZE, PAGESIZE, &t);
+  t = addr1 + 20 * PAGESIZE;
+  n = vm_map_findspace(umap, &t, PAGESIZE);
   assert(n == 0 && t == addr2);
 
-  n = vm_map_findspace(umap, addr1, 0x6000, &t);
+  t = addr1;
+  n = vm_map_findspace(umap, &t, 0x6000);
   assert(n == 0 && t == addr4);
 
-  n = vm_map_findspace(umap, addr1, 0x5000, &t);
+  t = addr1;
+  n = vm_map_findspace(umap, &t, 0x5000);
   assert(n == 0 && t == addr2);
 
   /* Fill the gap exactly */
   vm_map_insert(umap, NULL, t, t + 0x5000, VM_PROT_NONE);
 
-  n = vm_map_findspace(umap, addr1, 0x5000, &t);
+  t = addr1;
+  n = vm_map_findspace(umap, &t, 0x5000);
   assert(n == 0 && t == addr4);
 
-  n = vm_map_findspace(umap, addr4, 0x6000, &t);
+  t = addr4;
+  n = vm_map_findspace(umap, &t, 0x6000);
   assert(n == 0 && t == addr4);
 
-  n = vm_map_findspace(umap, 0, 0x40000000, &t);
+  t = 0;
+  n = vm_map_findspace(umap, &t, 0x40000000);
   assert(n == -ENOMEM);
 
   /* Restore original vm_map */
