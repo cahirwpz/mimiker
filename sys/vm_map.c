@@ -89,14 +89,14 @@ vm_map_t *vm_map_new(void) {
 }
 
 vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vm_addr_t start,
-                                   size_t length, vm_prot_t prot) {
+                                   vm_addr_t end, vm_prot_t prot) {
   assert(is_aligned(start, PAGESIZE));
-  assert(is_aligned(length, PAGESIZE));
+  assert(is_aligned(end, PAGESIZE));
 
   vm_map_entry_t *entry = pool_alloc(P_VMENTRY, PF_ZERO);
   entry->object = obj;
   entry->start = start;
-  entry->end = start + length;
+  entry->end = end;
   entry->prot = prot;
   return entry;
 }

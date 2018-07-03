@@ -37,7 +37,7 @@ int do_mmap(vm_addr_t *addr_p, size_t length, vm_prot_t prot,
 
   /* Create object with a pager that supplies cleared pages on page fault. */
   vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_map_entry_t *entry = vm_map_entry_alloc(obj, addr, length, prot);
+  vm_map_entry_t *entry = vm_map_entry_alloc(obj, addr, addr + length, prot);
 
   /* Given the hint try to insert the object at given position or after it. */
   if (vm_map_insert(vmap, entry, flags)) {

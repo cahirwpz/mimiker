@@ -16,7 +16,7 @@ vm_map_t *vm_map_new(void);
 void vm_map_delete(vm_map_t *vm_map);
 
 vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vm_addr_t start,
-                                   size_t length, vm_prot_t prot);
+                                   vm_addr_t end, vm_prot_t prot);
 void vm_map_entry_free(vm_map_entry_t *entry);
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr);

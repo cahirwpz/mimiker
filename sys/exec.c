@@ -176,11 +176,11 @@ int do_exec(const exec_args_t *args) {
           continue;
         }
         vm_addr_t start = ph->p_vaddr;
-        vm_addr_t length = roundup(ph->p_memsz, PAGESIZE);
+        vm_addr_t end = roundup(ph->p_vaddr + ph->p_memsz, PAGESIZE);
         /* Temporarily permissive protection. */
         vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
         vm_map_entry_t *entry =
-          vm_map_entry_alloc(obj, start, length, VM_PROT_READ | VM_PROT_WRITE);
+          vm_map_entry_alloc(obj, start, end, VM_PROT_READ | VM_PROT_WRITE);
         error = vm_map_insert(vmap, entry, VM_FIXED);
         /* TODO: What if segments overlap? */
         assert(error == 0);
@@ -200,9 +200,8 @@ int do_exec(const exec_args_t *args) {
         assert(uio.uio_resid == 0);
 
         /* Zero the rest */
-        if (ph->p_filesz < ph->p_memsz) {
+        if (ph->p_filesz < ph->p_memsz)
           bzero((uint8_t *)start + ph->p_filesz, ph->p_memsz - ph->p_filesz);
-        }
         /* Apply correct permissions */
         vm_prot_t prot = VM_PROT_NONE;
         if (ph->p_flags | PF_R)
@@ -213,7 +212,7 @@ int do_exec(const exec_args_t *args) {
           prot |= VM_PROT_EXEC;
         /* Note: vm_map_protect is not yet implemented, so
          * this will have no effect as of now */
-        vm_map_protect(vmap, start, start + length, prot);
+        vm_map_protect(vmap, start, end, prot);
     }
   }
 
@@ -225,13 +224,12 @@ int do_exec(const exec_args_t *args) {
    * a bit lower so that it is easier to spot invalid memory access
    * when the stack underflows.
    */
-  vm_addr_t stack_bottom = 0x7f000000;
-  const size_t stack_size = 8 * 1024 * 1024; /* 8 MiB */
+  vm_addr_t stack_bottom = 0x7f800000;
+  vm_addr_t stack_top = 0x7f000000; /* stack size is 8 MiB */
 
-  vm_addr_t stack_start = stack_bottom - stack_size;
   vm_object_t *stack_obj = vm_object_alloc(VM_ANONYMOUS);
   vm_map_entry_t *stack_seg = vm_map_entry_alloc(
-    stack_obj, stack_start, stack_size, VM_PROT_READ | VM_PROT_WRITE);
+    stack_obj, stack_top, stack_bottom, VM_PROT_READ | VM_PROT_WRITE);
   error = vm_map_insert(vmap, stack_seg, VM_FIXED);
   /* TODO: What if this area overlaps with a loaded segment? */
   assert(error == 0);
