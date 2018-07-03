@@ -16,13 +16,6 @@ struct vm_map_entry {
   vm_addr_t end;
 };
 
-struct vm_map {
-  TAILQ_HEAD(vm_map_list, vm_map_entry) list;
-  SPLAY_HEAD(vm_map_tree, vm_map_entry) tree;
-  size_t nentries;
-  pmap_t *const pmap;
-  mtx_t mtx; /* Mutex guarding vm_map structure and all its entries. */
-};
 
 void vm_map_activate(vm_map_t *map);
 vm_map_t *get_user_vm_map(void);
@@ -50,6 +43,9 @@ vm_map_entry_t *vm_map_insert_anywhere(vm_map_t *map, vm_object_t *obj,
                                        size_t length, vm_prot_t prot);
 
 bool vm_map_in_range(vm_map_t *map, vm_addr_t addr);
+
+/*! \brief Reports range of addresses that are handled by the map. */
+void vm_map_range(vm_map_t *map, vm_addr_t *start_p, vm_addr_t *end_p);
 
 /* Looks up a gap of @length size in @map. The search starts at @start address.
  * On success, returns 0 and sets *addr. @start and @length arguments must be

@@ -15,11 +15,15 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   vm_map_t *kmap = get_kernel_vm_map();
   vm_map_t *umap = get_user_vm_map();
 
-  klog("Kernel physical map : %08lx-%08lx", kmap->pmap->start, kmap->pmap->end);
-  klog("User physical map   : %08lx-%08lx", umap->pmap->start, umap->pmap->end);
+  vm_addr_t start, end;
 
-  vm_addr_t start = 0x1001000;
-  vm_addr_t end = 0x1001000 + 2 * PAGESIZE;
+  vm_map_range(kmap, &start, &end);
+  klog("Kernel physical map : %08lx-%08lx", start, end);
+  vm_map_range(umap, &start, &end);
+  klog("User physical map   : %08lx-%08lx", start, end);
+
+  start = 0x1001000;
+  end = 0x1001000 + 2 * PAGESIZE;
 
   vm_object_t *redzone_before = vm_object_alloc(VM_DUMMY);
   vm_object_t *redzone_after = vm_object_alloc(VM_DUMMY);
