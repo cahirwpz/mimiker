@@ -58,7 +58,7 @@ void patch_blob(void *blob, size_t addr, bool add) {
 }
 
 void stack_user_entry_setup(const exec_args_t *args,
-                            vm_addr_t *stack_bottom_p) {
+                            vaddr_t *stack_bottom_p) {
 
   size_t total_arg_size = args->stack_byte_cnt;
 
@@ -171,7 +171,7 @@ int stack_image_setup(const char **argv, int8_t *stack_image,
                       size_t max_stack_size, size_t *stack_size,
                       copy_ops_t co) {
 
-  assert(sizeof(vm_addr_t) == 4);
+  assert(sizeof(vaddr_t) == 4);
   assert(sizeof(size_t) == 4);
   assert(sizeof(char *) == 4);
   assert(max_stack_size >= 4);

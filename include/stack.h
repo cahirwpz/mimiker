@@ -25,7 +25,7 @@ static inline void *stack_alloc(void *sp, unsigned n) {
 }
 
 /*! \brief Initialize user stack for entry from kernel space. */
-void stack_user_entry_setup(const exec_args_t *args, vm_addr_t *sp_p);
+void stack_user_entry_setup(const exec_args_t *args, vaddr_t *sp_p);
 
 #define stack_alloc_s(sp, type) stack_alloc(sp, sizeof(type))
 

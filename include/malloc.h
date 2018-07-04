@@ -1,9 +1,7 @@
-#ifndef _MALLOC_H_
-#define _MALLOC_H_
+#ifndef _SYS_MALLOC_H_
+#define _SYS_MALLOC_H_
 
 #include <common.h>
-#include <physmem.h>
-#include <mutex.h>
 #include <linker_set.h>
 
 /*
@@ -38,4 +36,4 @@ char *kstrndup(kmem_pool_t *mp, const char *s, size_t maxlen);
 
 MALLOC_DECLARE(M_TEMP);
 
-#endif /* _MALLOC_H_ */
+#endif /* !_SYS_MALLOC_H_ */

@@ -43,9 +43,10 @@ void sched_add(thread_t *td);
 
 /*! \brief Wake up sleeping thread.
  *
+ * \param reason is a value that will be returned by sched_switch.
  * \note Must be called with \a td_spin acquired!
  */
-void sched_wakeup(thread_t *td);
+void sched_wakeup(thread_t *td, long reason);
 
 /*! \brief Lend a priority to a thread.
  *
@@ -87,9 +88,18 @@ void sched_clock(void);
  * must be different from TDS_RUNNING. \a sched_switch will modify thread's
  * field to reflect the change in state.
  *
+ * \returns a value that was passed to sched_wakeup
  * \note Must be called with \a td_spin acquired!
  */
-void sched_switch(void);
+long sched_switch(void);
+
+/*! \brief Switch out to another thread if you shouldn't be running anymore.
+ *
+ * This function will switch if your time slice expired or a thread with higher
+ * priority has been added. It doesn't actually perform that check, it only
+ * looks at TDF_NEEDSWITCH flag.
+ */
+void sched_maybe_preempt(void);
 
 /*! \brief Turns calling thread into idle thread. */
 noreturn void sched_run(void);

@@ -19,12 +19,11 @@ size_t pm_seg_space_needed(size_t size);
  * offset for pages, i.e. all pages in this segment will be visible under
  * addresses (start + offset, end + offset) by default.
  */
-void pm_seg_init(pm_seg_t *seg, pm_addr_t start, pm_addr_t end,
-                 vm_addr_t offset);
+void pm_seg_init(pm_seg_t *seg, paddr_t start, paddr_t end, off_t offset);
 /* After using this function pages in range (start, end) are never going to be
  * allocated. Should be used at start to avoid allocating from text, data,
  * ebss, or any possibly unwanted places. */
-void pm_seg_reserve(pm_seg_t *seg, pm_addr_t start, pm_addr_t end);
+void pm_seg_reserve(pm_seg_t *seg, paddr_t start, paddr_t end);
 /* Add physical memory segment to physical memory manager. */
 void pm_add_segment(pm_seg_t *seg);
 

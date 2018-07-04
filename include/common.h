@@ -1,20 +1,21 @@
 #ifndef _SYS_COMMON_H_
 #define _SYS_COMMON_H_
 
-#include <limits.h>      /* UINT_MAX, LONG_MIN, ... */
-#include <stdint.h>      /* uint*_t, int*_t */
-#include <stddef.h>      /* offsetof, NULL, ptrdiff_t, size_t, etc. */
-#include <stdbool.h>     /* bool, true, false */
-#include <stdalign.h>    /* alignof, alignas */
-#include <stdnoreturn.h> /* noreturn */
+#include <limits.h>            /* UINT_MAX, LONG_MIN, ... */
+#include <stdint.h>            /* uint*_t, int*_t */
+#include <stddef.h>            /* offsetof, NULL, ptrdiff_t, size_t, etc. */
+#include <stdbool.h>           /* bool, true, false */
+#include <stdalign.h>          /* alignof, alignas */
+#include <stdnoreturn.h>       /* noreturn */
+#include <machine/int_fmtio.h> /* PRIdN, PRIxPTR, ... */
 
 typedef unsigned char u_char;
 typedef unsigned short u_short;
 typedef unsigned int u_int;
 typedef unsigned long u_long;
 
-typedef unsigned long vm_addr_t;
-typedef unsigned long pm_addr_t;
+typedef unsigned long vaddr_t; /* virtual address */
+typedef unsigned long paddr_t; /* physical address */
 
 typedef long off_t;
 typedef long ssize_t;
