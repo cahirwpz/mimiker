@@ -9,11 +9,11 @@ typedef struct sleepq sleepq_t;
 
 /*! \file sleepq.h */
 
-/* When sq_flags_t is used to pass reason of wakeup only one of these is set. */
+/* When sq_wakeup_t is used to return reason of wakeup from _sleepq_wait. */
 typedef enum {
-  SQF_REGULAR = 1,
-  SQF_INTERRUPT = 2,
-} sq_flags_t;
+  SQ_NORMAL = 0,
+  SQ_ABORTED = 1,
+} sq_wakeup_t;
 
 /*! \brief Initializes sleep queues.
  *
@@ -31,18 +31,14 @@ void sleepq_destroy(sleepq_t *sq);
  * \param wchan unique sleep queue identifier
  * \param waitpt caller associated with sleep action
  */
-#define sleepq_wait(wchan, waitpt)                                             \
-  ((void)sleepq_wait_abortable(wchan, waitpt, 0))
+#define sleepq_wait(wchan, waitpt) ((void)_sleepq_wait(wchan, waitpt, false))
+#define sleepq_wait_abortable(wchan, waitpt) (_sleepq_wait(wchan, waitpt, true))
 
 /*! \brief Puts current thread to sleep until it's woken up or interrupted.
  *
  * Other threads can abort this sleep with \a sleepq_abort.
- *
- * \a SQ_REGULAR is always accepted as a valid reason (because it's used
- * internally for regular wake-up).
  */
-sq_flags_t sleepq_wait_abortable(void *wchan, const void *waitpt,
-                                 sq_flags_t flags);
+sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, bool abortable);
 
 /*! \brief Wakes up highest priority thread waiting on \a wchan.
  *
@@ -50,25 +46,22 @@ sq_flags_t sleepq_wait_abortable(void *wchan, const void *waitpt,
  */
 bool sleepq_signal(void *wchan);
 
-// TODO how to doxygen
-// TODO should we allow trying to abort a non-sleeping thread? At this (some)
-//      moment we do (and just return false)
-// TODO Maybe we should just forbid calling it with reason SQ_REGULAR
-//      (with some assert) (see description below)
-/* Cancel some thread's sleep. Returns true on success (false if the thread
- * wasn't sleeping or doesn't accept the reason). The woken up thread will
- * receive the reason as the return value from `sleepq_wait_abortable`.
- *
- * `SQ_REGULAR` is always accepted as a valid reason (because it's used
- * internally for regular wake-up) and you probably shouldn't pass it to this
- * function.
- */
-bool sleepq_abort(thread_t *td, sq_flags_t reason);
-
 /*! \brief Resume all threads sleeping on \a wchan.
  *
  * \param wchan unique sleep queue identifier
  */
 bool sleepq_broadcast(void *wchan);
+
+// TODO how to doxygen
+// TODO should we allow trying to abort a non-sleeping thread? At this (some)
+//      moment we do (and just return false)
+// TODO Maybe we should just forbid calling it with reason SQ_REGULAR
+//      (with some assert) (see description below)
+/*! \brief Break thread's sleep.
+ *
+ * \returns true on success
+ * \returns false if the thread has not been asleep
+ */
+bool sleepq_abort(thread_t *td);
 
 #endif /* !_SYS_SLEEPQ_H_ */

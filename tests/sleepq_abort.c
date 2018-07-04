@@ -33,14 +33,14 @@ static volatile int interrupted;
  * when waiters can't.
  * Therefore there should be only one waiter active at once */
 static void waiter_routine(void *_arg) {
-  sq_flags_t rsn = sleepq_wait_abortable(&some_val, __caller(0), SQF_INTERRUPT);
+  int rsn = sleepq_wait_abortable(&some_val, __caller(0));
 
-  if (rsn == SQF_INTERRUPT)
+  if (rsn == SQ_ABORTED)
     interrupted++;
-  else if (rsn == SQF_REGULAR)
+  else if (rsn == SQ_NORMAL)
     wakened_gracefully++;
   else
-    assert(false);
+    panic("unknown wakeup reason: %d", rsn);
 }
 
 static void waker_routine(void *_arg) {
@@ -63,7 +63,7 @@ static void waker_routine(void *_arg) {
       bool succ = false;
       while (!succ) {
         assert(next_abort < T && waiters_ord[next_abort] < T);
-        succ = sleepq_abort(waiters[waiters_ord[next_abort]], SQF_INTERRUPT);
+        succ = sleepq_abort(waiters[waiters_ord[next_abort]]);
         next_abort++;
       }
       aborted++;
@@ -107,7 +107,7 @@ static int test_sleepq_abort_mult(void) {
 }
 
 static void simple_waker_routine(void *_arg) {
-  sleepq_abort(waiters[0], SQF_INTERRUPT);
+  sleepq_abort(waiters[0]);
 }
 
 /* waiter routine is shared with test_mult */

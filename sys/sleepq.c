@@ -111,7 +111,7 @@ static sleepq_t *sq_lookup(sleepq_chain_t *sc, void *wchan) {
 }
 
 static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
-                     sq_flags_t flags) {
+                     bool abortable) {
   klog("Thread %ld goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
   assert(td->td_wchan == NULL);
@@ -147,12 +147,12 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
     td->td_wchan = wchan;
     td->td_waitpt = waitpt;
     td->td_sleepqueue = NULL;
-    td->td_sleepflags = flags;
+    td->td_wakeup = 0;
   }
 
   /* The thread is about to fall asleep, but it still needs to reach
    * sched_switch - it may get interrupted on the way, so mark our intent. */
-  td->td_flags |= TDF_SLEEPY;
+  td->td_flags |= TDF_SLEEPY | (abortable ? TDF_SLPINTR : 0);
 
   sq_release(sq);
   sc_release(sc);
@@ -191,64 +191,50 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
     td->td_wchan = NULL;
     td->td_waitpt = NULL;
     td->td_sleepqueue = sq;
+    td->td_flags &= ~TDF_SLPINTR;
   }
 }
 
-// TODO should we set SQ_REGULAR here or should we let someone
-//      fall into abortable-only sleep?
-sq_flags_t sleepq_wait_abortable(void *wchan, const void *waitpt,
-                                 sq_flags_t flags) {
-  flags |= SQF_REGULAR;
+sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, bool abortable) {
   thread_t *td = thread_self();
 
   if (waitpt == NULL)
     waitpt = __caller(0);
 
-  sq_enter(td, wchan, waitpt, flags);
+  sq_enter(td, wchan, waitpt, abortable);
 
   /* The code can be interrupted in here.
    * A race is avoided by clever use of TDF_SLEEPY flag. */
 
-  /* Initial value just to avoid compiler's warning (and therefore error) */
-  sq_flags_t reason = SQF_REGULAR;
   WITH_SPINLOCK(td->td_spin) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
       td->td_state = TDS_SLEEPING;
       sched_switch();
     }
-
-    reason = td->td_sleepflags;
   }
 
-  assert(flags & reason);
-  return reason;
+  return td->td_wakeup;
 }
 
 /* Remove a thread from the sleep queue and resume it. */
 static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
-                      sq_flags_t reason) {
+                      sq_wakeup_t wakeup) {
+  assert((wakeup == SQ_NORMAL) || (td->td_flags & TDF_SLPINTR));
+
   sq_leave(td, sc, sq);
 
-  bool succeeded = false;
   WITH_SPINLOCK(td->td_spin) {
-    if (td->td_sleepflags & reason) {
-      succeeded = true;
-      td->td_sleepflags = reason;
+    td->td_wakeup = wakeup;
 
-      /* Do not try to wake up a thread that is sleepy but did not fall asleep!
-       */
-      if (td->td_flags & TDF_SLEEPY) {
-        td->td_flags &= ~TDF_SLEEPY;
-      } else {
-        sched_wakeup(td);
-      }
-    } else {
-      succeeded = false;
+    /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
+    if (td->td_flags & TDF_SLEEPY) {
+      td->td_flags &= ~TDF_SLEEPY;
+      return false;
     }
+    sched_wakeup(td);
   }
-
-  return succeeded;
+  return true;
 }
 
 bool sleepq_signal(void *wchan) {
@@ -267,35 +253,12 @@ bool sleepq_signal(void *wchan) {
       best_td = td;
   }
 
-  sq_wakeup(best_td, sc, sq, SQF_REGULAR);
-
+  sq_wakeup(best_td, sc, sq, SQ_NORMAL);
   sq_release(sq);
   sc_release(sc);
 
   sched_maybe_preempt();
-
   return true;
-}
-
-bool sleepq_abort(thread_t *td, sq_flags_t reason) {
-  bool succeeded;
-  void *wchan = td->td_wchan;
-  sleepq_chain_t *sc = sc_acquire(wchan);
-  sleepq_t *sq = sq_lookup(sc, wchan);
-
-  assert(sc != NULL);
-
-  if (sq != NULL) {
-    succeeded = sq_wakeup(td, sc, sq, reason);
-    sq_release(sq);
-  } else
-    succeeded = false;
-
-  sc_release(sc);
-
-  sched_maybe_preempt();
-
-  return succeeded;
 }
 
 bool sleepq_broadcast(void *wchan) {
@@ -309,11 +272,26 @@ bool sleepq_broadcast(void *wchan) {
 
   thread_t *td;
   TAILQ_FOREACH (td, &sq->sq_blocked, td_sleepq)
-    sq_wakeup(td, sc, sq, SQF_REGULAR);
+    sq_wakeup(td, sc, sq, SQ_NORMAL);
   sq_release(sq);
   sc_release(sc);
 
   sched_maybe_preempt();
-
   return true;
+}
+
+bool sleepq_abort(thread_t *td) {
+  sleepq_chain_t *sc = sc_acquire(td->td_wchan);
+  sleepq_t *sq = sq_lookup(sc, td->td_wchan);
+  bool aborted = false;
+
+  if (sq != NULL) {
+    if (td->td_flags & TDF_SLPINTR)
+      aborted = sq_wakeup(td, sc, sq, SQ_ABORTED);
+    sq_release(sq);
+  }
+  sc_release(sc);
+
+  sched_maybe_preempt();
+  return aborted;
 }

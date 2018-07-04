@@ -58,6 +58,7 @@ typedef enum {
 #define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
 #define TDF_BORROWING 0x00000010  /* priority propagation */
 #define TDF_SLEEPY 0x00000020     /* thread is about to go to sleep */
+#define TDF_SLPINTR 0x00000040    /* sleep is interruptible */
 
 /*! \brief Thread structure
  *
@@ -105,7 +106,7 @@ typedef struct thread {
   const void *td_waitpt; /*!< a point where program waits */
   /* waiting channel - sleepqueue */
   sleepq_t *td_sleepqueue; /* thread's sleepqueue */
-  sq_flags_t td_sleepflags; /*!< type of sleep or wakeup source */
+  sq_wakeup_t td_wakeup;   /*!< type of wakeup source */
   /* waiting channel - turnstile */
   turnstile_t *td_blocked;   /* (#) turnstile on which thread is blocked */
   turnstile_t *td_turnstile; /* (#) thread's turnstile */
@@ -190,7 +191,7 @@ static inline bool td_is_sleeping(thread_t *td) {
 }
 
 static inline bool td_is_interruptible(thread_t *td) {
-  return (td->td_state == TDS_SLEEPING) && (td->td_sleepflags & SQF_INTERRUPT);
+  return (td->td_state == TDS_SLEEPING) && (td->td_flags & TDF_SLPINTR);
 }
 
 static inline bool td_is_borrowing(thread_t *td) {

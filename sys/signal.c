@@ -92,7 +92,7 @@ int sig_send(proc_t *proc, signo_t sig) {
    * continues execution and the signal gets delivered soon. */
   WITH_SPINLOCK(target->td_spin) {
     if (td_is_interruptible(target))
-      sleepq_abort(target, SQF_INTERRUPT);
+      sleepq_abort(target);
   }
 
   return 0;
