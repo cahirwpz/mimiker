@@ -232,7 +232,7 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
       td->td_flags &= ~TDF_SLEEPY;
       return false;
     }
-    sched_wakeup(td);
+    sched_wakeup(td, 0);
   }
   return true;
 }

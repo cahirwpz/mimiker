@@ -3,17 +3,19 @@
 
 #include <vm.h>
 
-typedef vm_object_t *pgr_alloc_t(void);
-typedef vm_page_t *pgr_fault_t(vm_object_t *, vm_addr_t fault_addr,
-                               vm_addr_t offset, vm_prot_t prot);
-typedef void pgr_free_t(vm_object_t *);
+typedef enum {
+  VM_DUMMY,
+  VM_ANONYMOUS,
+} vm_pgr_type_t;
 
-typedef struct pager {
-  pgr_alloc_t *pgr_alloc;
-  pgr_free_t *pgr_free;
-  pgr_fault_t *pgr_fault;
-} pager_t;
+typedef vm_page_t *vm_pgr_fault_t(vm_object_t *obj, vaddr_t fault_addr,
+                                  off_t offset, vm_prot_t prot);
 
-extern pager_t default_pager[1];
+typedef struct vm_pager {
+  vm_pgr_type_t pgr_type;
+  vm_pgr_fault_t *pgr_fault;
+} vm_pager_t;
+
+extern vm_pager_t pagers[];
 
 #endif /* !_SYS_VM_PAGER_H_ */

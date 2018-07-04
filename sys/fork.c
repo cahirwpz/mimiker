@@ -55,7 +55,7 @@ int do_fork(void) {
   proc->p_uspace = vm_map_clone(td->td_proc->p_uspace);
 
   /* Find copied brk segment. */
-  proc->p_sbrk = vm_map_find_entry(proc->p_uspace, SBRK_START);
+  proc->p_sbrk = vm_map_find_segment(proc->p_uspace, SBRK_START);
 
   /* Copy the parent descriptor table. */
   /* TODO: Optionally share the descriptor table between processes. */
