@@ -25,11 +25,11 @@ void sched_add(thread_t *td) {
   klog("Add thread %ld {%p} to scheduler", td->td_tid, td);
 
   WITH_SPINLOCK(td->td_spin) {
-    sched_wakeup(td);
+    sched_wakeup(td, 0);
   }
 }
 
-void sched_wakeup(thread_t *td) {
+void sched_wakeup(thread_t *td, long reason) {
   assert(spin_owned(td->td_spin));
   assert(td != thread_self());
   assert(td_is_blocked(td) || td_is_sleeping(td) || td_is_inactive(td));
@@ -41,6 +41,8 @@ void sched_wakeup(thread_t *td) {
 
   td->td_state = TDS_READY;
   td->td_slice = SLICE;
+
+  ctx_set_retval(&td->td_kctx, reason);
 
   runq_add(&runq, td);
 
@@ -120,9 +122,9 @@ static thread_t *sched_choose(void) {
   return td;
 }
 
-void sched_switch(void) {
+long sched_switch(void) {
   if (!sched_active)
-    return;
+    return 0;
 
   thread_t *td = thread_self();
 
@@ -150,7 +152,7 @@ void sched_switch(void) {
   thread_t *newtd = sched_choose();
 
   if (td == newtd)
-    return;
+    return 0;
 
   /* If we got here then a context switch is required. */
   td->td_nctxsw++;
@@ -158,7 +160,7 @@ void sched_switch(void) {
   /* make sure we reacquire td_spin lock on return to current context */
   td->td_flags |= TDF_NEEDLOCK;
 
-  ctx_switch(td, newtd);
+  return ctx_switch(td, newtd);
 }
 
 void sched_clock(void) {

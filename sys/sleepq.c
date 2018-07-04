@@ -221,7 +221,7 @@ static void sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
     } else {
-      sched_wakeup(td);
+      sched_wakeup(td, 0);
     }
   }
 }
