@@ -15,10 +15,11 @@ static inline int vm_page_cmp(vm_page_t *a, vm_page_t *b) {
 RB_PROTOTYPE_STATIC(vm_object_tree, vm_page, obj.tree, vm_page_cmp);
 RB_GENERATE(vm_object_tree, vm_page, obj.tree, vm_page_cmp);
 
-vm_object_t *vm_object_alloc(void) {
+vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   vm_object_t *obj = pool_alloc(P_VMOBJ, PF_ZERO);
   TAILQ_INIT(&obj->list);
   RB_INIT(&obj->tree);
+  obj->pager = &pagers[type];
   return obj;
 }
 
@@ -59,6 +60,10 @@ void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
   RB_REMOVE(vm_object_tree, &obj->tree, page);
   pm_free(page);
   obj->npages--;
+}
+
+vm_object_t *vm_map_object_clone(vm_object_t *obj) {
+  panic("Not implemented!");
 }
 
 void vm_map_object_dump(vm_object_t *obj) {

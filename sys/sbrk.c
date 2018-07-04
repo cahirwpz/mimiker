@@ -4,27 +4,27 @@
 #include <common.h>
 #include <errno.h>
 #include <proc.h>
-#include <vm_pager.h>
+#include <vm_object.h>
 
 /* Note that this sbrk implementation does not actually extend .data section,
  * because we have no guarantee that there is any free space after .data in the
  * memory map. But it does not matter much, because no application would assume
  * that we are actually expanding .data, it will use the pointer returned by
  * sbrk. */
+/* TODO: make sbrk expand .bss segment. */
 
 void sbrk_attach(proc_t *p) {
   assert(p->p_uspace && (p->p_sbrk == NULL));
 
   vm_map_t *map = p->p_uspace;
-  SCOPED_RW_ENTER(&map->rwlock, RW_WRITER);
 
   /* Initially allocate one page for brk segment. */
-  vm_addr_t addr;
-  int res = vm_map_findspace_nolock(map, SBRK_START, PAGESIZE, &addr);
-  assert(res == 0);
-  vm_map_entry_t *entry =
-    vm_map_add_entry(map, addr, addr + PAGESIZE, VM_PROT_READ | VM_PROT_WRITE);
-  entry->object = default_pager->pgr_alloc();
+  vm_addr_t addr = SBRK_START;
+  vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
+  vm_map_entry_t *entry = vm_map_entry_alloc(obj, addr, addr + PAGESIZE,
+                                             VM_PROT_READ | VM_PROT_WRITE);
+  if (vm_map_insert(map, entry, VM_FIXED))
+    panic("Could not allocate data segment!");
 
   p->p_sbrk = entry;
   p->p_sbrk_end = addr;
@@ -33,31 +33,27 @@ void sbrk_attach(proc_t *p) {
 vm_addr_t sbrk_resize(proc_t *p, intptr_t increment) {
   assert(p->p_uspace && p->p_sbrk);
 
-  /* TODO: Shrinking sbrk is impossible, because it requires unmapping pages,
-   * which is not yet implemented! */
-  if (increment < 0) {
-    klog("WARNING: sbrk called with a negative argument!");
-    return -ENOMEM;
-  }
+  if (increment == 0)
+    return p->p_sbrk_end;
 
   vm_addr_t last_end = p->p_sbrk_end;
+  vm_addr_t new_end = p->p_sbrk_end + increment;
 
-  vm_map_t *map = p->p_uspace;
-  SCOPED_RW_ENTER(&map->rwlock, RW_WRITER);
+  vm_addr_t sbrk_start, sbrk_end;
+  vm_map_entry_range(p->p_sbrk, &sbrk_start, &sbrk_end);
 
-  vm_map_entry_t *sbrk = p->p_sbrk;
-  vm_addr_t entry_end = roundup(p->p_sbrk_end + increment, PAGESIZE);
+  if (new_end < sbrk_start)
+    return -EINVAL;
 
-  /* The segment must be of at least one page. */
-  if (entry_end < SBRK_START + PAGESIZE)
-    entry_end = SBRK_START + PAGESIZE;
+  /* TODO: Shrinking sbrk is impossible, because it requires unmapping pages,
+   * which is not yet implemented! */
+  if (new_end < last_end)
+    return -ENOTSUP;
 
-  /* Shrink or expand sbrk vm_map_entry ? */
-  if (entry_end != sbrk->end) {
-    if (vm_map_resize(map, sbrk, entry_end) != 0)
-      return -ENOMEM; /* Map entry expansion failed. */
-  }
+  /* Expand segment break! */
+  if (vm_map_resize(p->p_uspace, p->p_sbrk, roundup(new_end, PAGESIZE)) != 0)
+    return -ENOMEM; /* Map entry expansion failed. */
 
-  p->p_sbrk_end = max(p->p_sbrk_end + increment, SBRK_START);
+  p->p_sbrk_end = new_end;
   return last_end;
 }

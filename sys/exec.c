@@ -5,7 +5,7 @@
 #include <stdc.h>
 #include <elf/mips_elf.h>
 #include <vm_map.h>
-#include <vm_pager.h>
+#include <vm_object.h>
 #include <thread.h>
 #include <errno.h>
 #include <filedesc.h>
@@ -166,7 +166,7 @@ int do_exec(const exec_args_t *args) {
              (unsigned)ph->p_filesz, (unsigned)ph->p_memsz,
              (unsigned)ph->p_flags);
         if (ph->p_vaddr % PAGESIZE) {
-          klog("Exec failed: Segment p_vaddr is not page alligned");
+          klog("Exec failed: Segment p_vaddr is not page aligned!");
           goto exec_fail;
         }
         if (ph->p_memsz == 0) {
@@ -177,12 +177,13 @@ int do_exec(const exec_args_t *args) {
         }
         vm_addr_t start = ph->p_vaddr;
         vm_addr_t end = roundup(ph->p_vaddr + ph->p_memsz, PAGESIZE);
-        /* TODO: What if segments overlap? */
         /* Temporarily permissive protection. */
-        vm_map_entry_t *segment = vm_map_add_entry(
-          vmap, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC);
-        /* Allocate pages backing this segment. */
-        segment->object = default_pager->pgr_alloc();
+        vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
+        vm_map_entry_t *entry = vm_map_entry_alloc(
+          obj, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC);
+        error = vm_map_insert(vmap, entry, VM_FIXED);
+        /* TODO: What if segments overlap? */
+        assert(error == 0);
 
         /* Read data from file into the segment */
         /* TODO: This is a lot of copying! Ideally we would look up the
@@ -199,9 +200,8 @@ int do_exec(const exec_args_t *args) {
         assert(uio.uio_resid == 0);
 
         /* Zero the rest */
-        if (ph->p_filesz < ph->p_memsz) {
+        if (ph->p_filesz < ph->p_memsz)
           bzero((uint8_t *)start + ph->p_filesz, ph->p_memsz - ph->p_filesz);
-        }
         /* Apply correct permissions */
         vm_prot_t prot = VM_PROT_NONE;
         if (ph->p_flags | PF_R)
@@ -224,15 +224,15 @@ int do_exec(const exec_args_t *args) {
    * a bit lower so that it is easier to spot invalid memory access
    * when the stack underflows.
    */
-  vm_addr_t stack_bottom = 0x70000000;
-  const size_t stack_size = 8 * 1024 * 1024; /* 8 MiB */
+  vm_addr_t stack_bottom = 0x7f800000;
+  vm_addr_t stack_top = 0x7f000000; /* stack size is 8 MiB */
 
-  vm_addr_t stack_start = stack_bottom - stack_size;
-  vm_addr_t stack_end = stack_bottom;
+  vm_object_t *stack_obj = vm_object_alloc(VM_ANONYMOUS);
+  vm_map_entry_t *stack_seg = vm_map_entry_alloc(
+    stack_obj, stack_top, stack_bottom, VM_PROT_READ | VM_PROT_WRITE);
+  error = vm_map_insert(vmap, stack_seg, VM_FIXED);
   /* TODO: What if this area overlaps with a loaded segment? */
-  vm_map_entry_t *stack_segment = vm_map_add_entry(
-    vmap, stack_start, stack_end, VM_PROT_READ | VM_PROT_WRITE);
-  stack_segment->object = default_pager->pgr_alloc();
+  assert(error == 0);
 
   /* Prepare program stack, which includes storing program args. */
   klog("Stack real bottom at %p", (void *)stack_bottom);

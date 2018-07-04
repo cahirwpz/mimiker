@@ -33,6 +33,15 @@ typedef enum {
   VM_PROT_EXEC = 4
 } vm_prot_t;
 
+typedef enum {
+  VM_FILE = 0,    /* map from file (default) */
+  VM_ANON = 1,    /* allocated from memory */
+  VM_SHARED = 2,  /* share changes */
+  VM_PRIVATE = 4, /* changes are private */
+  VM_FIXED = 8,   /* map addr must be exactly as requested */
+  VM_STACK = 16,  /* region grows down, like a stack */
+} vm_flags_t;
+
 typedef struct vm_page {
   union {
     TAILQ_ENTRY(vm_page) freeq; /* list of free pages for buddy system */
@@ -59,7 +68,7 @@ typedef struct pg_list pg_list_t;
 typedef struct vm_map vm_map_t;
 typedef struct vm_map_entry vm_map_entry_t;
 typedef struct vm_object vm_object_t;
-typedef struct pager pager_t;
+typedef struct vm_pager vm_pager_t;
 
 #endif /* !__ASSEMBLER__ */
 
