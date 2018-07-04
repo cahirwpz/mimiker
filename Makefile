@@ -97,4 +97,5 @@ clean:
 	$(RM) initrd.o initrd.cpio
 
 distclean: clean
+	$(MAKE) -C user/newlib distclean
 	$(RM) -r cache sysroot
