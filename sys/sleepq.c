@@ -147,7 +147,6 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
     td->td_wchan = wchan;
     td->td_waitpt = waitpt;
     td->td_sleepqueue = NULL;
-    td->td_wakeup = 0;
   }
 
   /* The thread is about to fall asleep, but it still needs to reach
@@ -210,11 +209,11 @@ sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, bool abortable) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
       td->td_state = TDS_SLEEPING;
-      sched_switch();
+      return sched_switch();
     }
   }
 
-  return td->td_wakeup;
+  return SQ_NORMAL;
 }
 
 /* Remove a thread from the sleep queue and resume it. */
@@ -225,14 +224,12 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
   sq_leave(td, sc, sq);
 
   WITH_SPINLOCK(td->td_spin) {
-    td->td_wakeup = wakeup;
-
     /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
       return false;
     }
-    sched_wakeup(td, 0);
+    sched_wakeup(td, wakeup);
   }
   return true;
 }
