@@ -9,7 +9,7 @@ typedef struct sleepq sleepq_t;
 
 /*! \file sleepq.h */
 
-/* When sq_wakeup_t is used to return reason of wakeup from _sleepq_wait. */
+/* Used to return reason of wakeup from _sleepq_wait. */
 typedef enum {
   SQ_NORMAL = 0,
   SQ_ABORTED = 1,
@@ -32,11 +32,14 @@ void sleepq_destroy(sleepq_t *sq);
  * \param waitpt caller associated with sleep action
  */
 #define sleepq_wait(wchan, waitpt) ((void)_sleepq_wait(wchan, waitpt, false))
+
+/*! \brief Same as \a sleepq_wait but allows the sleep to be aborted. */
 #define sleepq_wait_abortable(wchan, waitpt) (_sleepq_wait(wchan, waitpt, true))
 
-/*! \brief Puts current thread to sleep until it's woken up or interrupted.
+/*! \brief Puts a thread to sleep until it's woken up or its sleep is aborted.
  *
- * Other threads can abort this sleep with \a sleepq_abort.
+ * If sleep is abortable other threads can wake up forcefully the thread with \a
+ * sleepq_abort procedure.
  */
 sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, bool abortable);
 
@@ -52,11 +55,6 @@ bool sleepq_signal(void *wchan);
  */
 bool sleepq_broadcast(void *wchan);
 
-// TODO how to doxygen
-// TODO should we allow trying to abort a non-sleeping thread? At this (some)
-//      moment we do (and just return false)
-// TODO Maybe we should just forbid calling it with reason SQ_REGULAR
-//      (with some assert) (see description below)
 /*! \brief Break thread's sleep.
  *
  * \returns true on success

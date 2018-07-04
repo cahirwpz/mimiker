@@ -73,7 +73,6 @@ typedef enum {
  * Locking order:
  *  threads_lock >> thread_t::td_lock
  */
-// TODO verify description of td_sq_flags and td_wakeup_type
 typedef struct thread {
   /* locks */
   spinlock_t td_spin[1]; /*!< (~) synchronizes top & bottom halves */
