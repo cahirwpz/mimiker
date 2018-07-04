@@ -147,7 +147,7 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
     td->td_wchan = wchan;
     td->td_waitpt = waitpt;
     td->td_sleepqueue = NULL;
-    td->td_sq_flags = flags;
+    td->td_sleepflags = flags;
   }
 
   /* The thread is about to fall asleep, but it still needs to reach
@@ -196,9 +196,9 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
 
 // TODO should we set SQ_REGULAR here or should we let someone
 //      fall into abortable-only sleep?
-sq_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
-                                  sq_flags_t flags) {
-  flags |= SQ_REGULAR;
+sq_flags_t sleepq_wait_abortable(void *wchan, const void *waitpt,
+                                 sq_flags_t flags) {
+  flags |= SQF_REGULAR;
   thread_t *td = thread_self();
 
   if (waitpt == NULL)
@@ -210,7 +210,7 @@ sq_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
    * A race is avoided by clever use of TDF_SLEEPY flag. */
 
   /* Initial value just to avoid compiler's warning (and therefore error) */
-  sq_wakeup_t reason = SQ_REGULAR;
+  sq_flags_t reason = SQF_REGULAR;
   WITH_SPINLOCK(td->td_spin) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
@@ -218,7 +218,7 @@ sq_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
       sched_switch();
     }
 
-    reason = td->td_wakeup_reason;
+    reason = td->td_sleepflags;
   }
 
   assert(flags & reason);
@@ -227,14 +227,14 @@ sq_wakeup_t sleepq_wait_abortable(void *wchan, const void *waitpt,
 
 /* Remove a thread from the sleep queue and resume it. */
 static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
-                      sq_wakeup_t reason) {
+                      sq_flags_t reason) {
   sq_leave(td, sc, sq);
 
   bool succeeded = false;
   WITH_SPINLOCK(td->td_spin) {
-    if (td->td_sq_flags & reason) {
+    if (td->td_sleepflags & reason) {
       succeeded = true;
-      td->td_wakeup_reason = reason;
+      td->td_sleepflags = reason;
 
       /* Do not try to wake up a thread that is sleepy but did not fall asleep!
        */
@@ -267,7 +267,7 @@ bool sleepq_signal(void *wchan) {
       best_td = td;
   }
 
-  sq_wakeup(best_td, sc, sq, SQ_REGULAR);
+  sq_wakeup(best_td, sc, sq, SQF_REGULAR);
 
   sq_release(sq);
   sc_release(sc);
@@ -277,7 +277,7 @@ bool sleepq_signal(void *wchan) {
   return true;
 }
 
-bool sleepq_abort(thread_t *td, sq_wakeup_t reason) {
+bool sleepq_abort(thread_t *td, sq_flags_t reason) {
   bool succeeded;
   void *wchan = td->td_wchan;
   sleepq_chain_t *sc = sc_acquire(wchan);
@@ -309,7 +309,7 @@ bool sleepq_broadcast(void *wchan) {
 
   thread_t *td;
   TAILQ_FOREACH (td, &sq->sq_blocked, td_sleepq)
-    sq_wakeup(td, sc, sq, SQ_REGULAR);
+    sq_wakeup(td, sc, sq, SQF_REGULAR);
   sq_release(sq);
   sc_release(sc);
 

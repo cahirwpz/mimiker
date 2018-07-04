@@ -105,10 +105,7 @@ typedef struct thread {
   const void *td_waitpt; /*!< a point where program waits */
   /* waiting channel - sleepqueue */
   sleepq_t *td_sleepqueue; /* thread's sleepqueue */
-  union {                  /* at most one of these fields is used at any time */
-    sq_flags_t td_sq_flags;       /*!< sleepq flags */
-    sq_wakeup_t td_wakeup_reason; /*!< type of sleep wakeup source */
-  };
+  sq_flags_t td_sleepflags; /*!< type of sleep or wakeup source */
   /* waiting channel - turnstile */
   turnstile_t *td_blocked;   /* (#) turnstile on which thread is blocked */
   turnstile_t *td_turnstile; /* (#) thread's turnstile */
@@ -192,8 +189,8 @@ static inline bool td_is_sleeping(thread_t *td) {
   return td->td_state == TDS_SLEEPING;
 }
 
-static inline bool td_is_sleeping_int(thread_t *td) {
-  return td->td_state == TDS_SLEEPING && (td->td_sq_flags & SQ_INTERRUPT);
+static inline bool td_is_interruptible(thread_t *td) {
+  return (td->td_state == TDS_SLEEPING) && (td->td_sleepflags & SQF_INTERRUPT);
 }
 
 static inline bool td_is_borrowing(thread_t *td) {
