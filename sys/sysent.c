@@ -86,7 +86,7 @@ static int sys_sigreturn(thread_t *td, syscall_args_t *args) {
 }
 
 static int sys_mmap(thread_t *td, syscall_args_t *args) {
-  vm_addr_t addr = args->args[0];
+  vaddr_t addr = args->args[0];
   size_t length = args->args[1];
   vm_prot_t prot = args->args[2];
   int flags = args->args[3];

@@ -107,8 +107,8 @@ int do_exec(const exec_args_t *args) {
    */
   struct {
     vm_map_t *uspace;
-    vm_map_entry_t *sbrk;
-    vm_addr_t sbrk_end;
+    vm_segment_t *sbrk;
+    vaddr_t sbrk_end;
   } old = {p->p_uspace, p->p_sbrk, p->p_sbrk_end};
 
   /* We are the only live thread in this process. We can safely give it a new
@@ -175,13 +175,13 @@ int do_exec(const exec_args_t *args) {
              subsequent segments. */
           continue;
         }
-        vm_addr_t start = ph->p_vaddr;
-        vm_addr_t end = roundup(ph->p_vaddr + ph->p_memsz, PAGESIZE);
+        vaddr_t start = ph->p_vaddr;
+        vaddr_t end = roundup(ph->p_vaddr + ph->p_memsz, PAGESIZE);
         /* Temporarily permissive protection. */
         vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
-        vm_map_entry_t *entry = vm_map_entry_alloc(
+        vm_segment_t *seg = vm_segment_alloc(
           obj, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC);
-        error = vm_map_insert(vmap, entry, VM_FIXED);
+        error = vm_map_insert(vmap, seg, VM_FIXED);
         /* TODO: What if segments overlap? */
         assert(error == 0);
 
@@ -224,12 +224,12 @@ int do_exec(const exec_args_t *args) {
    * a bit lower so that it is easier to spot invalid memory access
    * when the stack underflows.
    */
-  vm_addr_t stack_bottom = 0x7f800000;
-  vm_addr_t stack_top = 0x7f000000; /* stack size is 8 MiB */
+  vaddr_t stack_bottom = 0x7f800000;
+  vaddr_t stack_top = 0x7f000000; /* stack size is 8 MiB */
 
   vm_object_t *stack_obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_map_entry_t *stack_seg = vm_map_entry_alloc(
-    stack_obj, stack_top, stack_bottom, VM_PROT_READ | VM_PROT_WRITE);
+  vm_segment_t *stack_seg = vm_segment_alloc(stack_obj, stack_top, stack_bottom,
+                                             VM_PROT_READ | VM_PROT_WRITE);
   error = vm_map_insert(vmap, stack_seg, VM_FIXED);
   /* TODO: What if this area overlaps with a loaded segment? */
   assert(error == 0);

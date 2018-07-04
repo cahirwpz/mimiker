@@ -1,7 +1,6 @@
 #define KL_LOG KL_PROC
 #include <klog.h>
 #include <sbrk.h>
-#include <common.h>
 #include <errno.h>
 #include <proc.h>
 #include <vm_object.h>
@@ -19,28 +18,28 @@ void sbrk_attach(proc_t *p) {
   vm_map_t *map = p->p_uspace;
 
   /* Initially allocate one page for brk segment. */
-  vm_addr_t addr = SBRK_START;
+  vaddr_t addr = SBRK_START;
   vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_map_entry_t *entry = vm_map_entry_alloc(obj, addr, addr + PAGESIZE,
-                                             VM_PROT_READ | VM_PROT_WRITE);
-  if (vm_map_insert(map, entry, VM_FIXED))
+  vm_segment_t *seg =
+    vm_segment_alloc(obj, addr, addr + PAGESIZE, VM_PROT_READ | VM_PROT_WRITE);
+  if (vm_map_insert(map, seg, VM_FIXED))
     panic("Could not allocate data segment!");
 
-  p->p_sbrk = entry;
+  p->p_sbrk = seg;
   p->p_sbrk_end = addr;
 }
 
-vm_addr_t sbrk_resize(proc_t *p, intptr_t increment) {
+vaddr_t sbrk_resize(proc_t *p, intptr_t increment) {
   assert(p->p_uspace && p->p_sbrk);
 
   if (increment == 0)
     return p->p_sbrk_end;
 
-  vm_addr_t last_end = p->p_sbrk_end;
-  vm_addr_t new_end = p->p_sbrk_end + increment;
+  vaddr_t last_end = p->p_sbrk_end;
+  vaddr_t new_end = p->p_sbrk_end + increment;
 
-  vm_addr_t sbrk_start, sbrk_end;
-  vm_map_entry_range(p->p_sbrk, &sbrk_start, &sbrk_end);
+  vaddr_t sbrk_start, sbrk_end;
+  vm_segment_range(p->p_sbrk, &sbrk_start, &sbrk_end);
 
   if (new_end < sbrk_start)
     return -EINVAL;
@@ -52,7 +51,7 @@ vm_addr_t sbrk_resize(proc_t *p, intptr_t increment) {
 
   /* Expand segment break! */
   if (vm_map_resize(p->p_uspace, p->p_sbrk, roundup(new_end, PAGESIZE)) != 0)
-    return -ENOMEM; /* Map entry expansion failed. */
+    return -ENOMEM; /* Segment expansion failed. */
 
   p->p_sbrk_end = new_end;
   return last_end;

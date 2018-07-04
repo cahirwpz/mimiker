@@ -12,8 +12,8 @@
 
 typedef struct pm_seg {
   TAILQ_ENTRY(pm_seg) segq;
-  pm_addr_t start;
-  pm_addr_t end;
+  paddr_t start;
+  paddr_t end;
   pg_list_t freeq[PM_NQUEUES];
   unsigned npages;
   vm_page_t pages[];
@@ -51,12 +51,11 @@ size_t pm_seg_space_needed(size_t size) {
   return sizeof(pm_seg_t) + size / PAGESIZE * sizeof(vm_page_t);
 }
 
-void pm_seg_init(pm_seg_t *seg, pm_addr_t start, pm_addr_t end,
-                 vm_addr_t vm_offset) {
+void pm_seg_init(pm_seg_t *seg, paddr_t start, paddr_t end, off_t offset) {
   assert(start < end);
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
-  assert(is_aligned(vm_offset, PAGESIZE));
+  assert(is_aligned(offset, PAGESIZE));
 
   seg->start = start;
   seg->end = end;
@@ -68,7 +67,7 @@ void pm_seg_init(pm_seg_t *seg, pm_addr_t start, pm_addr_t end,
     vm_page_t *page = &seg->pages[i];
     bzero(page, sizeof(vm_page_t));
     page->paddr = seg->start + PAGESIZE * i;
-    page->vaddr = seg->start + PAGESIZE * i + vm_offset;
+    page->vaddr = seg->start + PAGESIZE * i + offset;
     page->size = 1 << min(max_size, ctz(i));
   }
 
@@ -154,7 +153,7 @@ static void pm_split_page(pm_seg_t *seg, vm_page_t *page) {
 }
 
 /* TODO this can be sped up by removing elements from list on-line. */
-void pm_seg_reserve(pm_seg_t *seg, pm_addr_t start, pm_addr_t end) {
+void pm_seg_reserve(pm_seg_t *seg, paddr_t start, paddr_t end) {
   assert(start < end);
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));

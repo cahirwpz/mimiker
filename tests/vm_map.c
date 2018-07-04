@@ -15,7 +15,7 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   vm_map_t *kmap = get_kernel_vm_map();
   vm_map_t *umap = get_user_vm_map();
 
-  vm_addr_t pre_start, start, end, post_end;
+  vaddr_t pre_start, start, end, post_end;
   int n;
 
   vm_map_range(kmap, &start, &end);
@@ -31,27 +31,25 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   /* preceding redzone segment */
   {
     vm_object_t *obj = vm_object_alloc(VM_DUMMY);
-    vm_map_entry_t *entry =
-      vm_map_entry_alloc(obj, pre_start, start, VM_PROT_NONE);
-    n = vm_map_insert(umap, entry, VM_FIXED);
+    vm_segment_t *seg = vm_segment_alloc(obj, pre_start, start, VM_PROT_NONE);
+    n = vm_map_insert(umap, seg, VM_FIXED);
     assert(n == 0);
   }
 
   /* data segment */
   {
     vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
-    vm_map_entry_t *entry =
-      vm_map_entry_alloc(obj, start, end, VM_PROT_READ | VM_PROT_WRITE);
-    n = vm_map_insert(umap, entry, VM_FIXED);
+    vm_segment_t *seg =
+      vm_segment_alloc(obj, start, end, VM_PROT_READ | VM_PROT_WRITE);
+    n = vm_map_insert(umap, seg, VM_FIXED);
     assert(n == 0);
   }
 
   /* succeeding redzone segment */
   {
     vm_object_t *obj = vm_object_alloc(VM_DUMMY);
-    vm_map_entry_t *entry =
-      vm_map_entry_alloc(obj, end, post_end, VM_PROT_NONE);
-    n = vm_map_insert(umap, entry, VM_FIXED);
+    vm_segment_t *seg = vm_segment_alloc(obj, end, post_end, VM_PROT_NONE);
+    n = vm_map_insert(umap, seg, VM_FIXED);
     assert(n == 0);
   }
 
@@ -82,22 +80,22 @@ static int findspace_demo(void) {
   vm_map_t *umap = vm_map_new();
   vm_map_activate(umap);
 
-  const vm_addr_t addr0 = 0x00400000;
-  const vm_addr_t addr1 = 0x10000000;
-  const vm_addr_t addr2 = 0x30000000;
-  const vm_addr_t addr3 = 0x30005000;
-  const vm_addr_t addr4 = 0x60000000;
+  const vaddr_t addr0 = 0x00400000;
+  const vaddr_t addr1 = 0x10000000;
+  const vaddr_t addr2 = 0x30000000;
+  const vaddr_t addr3 = 0x30005000;
+  const vaddr_t addr4 = 0x60000000;
 
-  vm_map_entry_t *entry;
-  vm_addr_t t;
+  vm_segment_t *seg;
+  vaddr_t t;
   int n;
 
-  entry = vm_map_entry_alloc(NULL, addr1, addr2, VM_PROT_NONE);
-  n = vm_map_insert(umap, entry, VM_FIXED);
+  seg = vm_segment_alloc(NULL, addr1, addr2, VM_PROT_NONE);
+  n = vm_map_insert(umap, seg, VM_FIXED);
   assert(n == 0);
 
-  entry = vm_map_entry_alloc(NULL, addr3, addr4, VM_PROT_NONE);
-  n = vm_map_insert(umap, entry, VM_FIXED);
+  seg = vm_segment_alloc(NULL, addr3, addr4, VM_PROT_NONE);
+  n = vm_map_insert(umap, seg, VM_FIXED);
   assert(n == 0);
 
   t = addr0;
@@ -121,8 +119,8 @@ static int findspace_demo(void) {
   assert(n == 0 && t == addr2);
 
   /* Fill the gap exactly */
-  entry = vm_map_entry_alloc(NULL, addr2, addr2 + 0x5000, VM_PROT_NONE);
-  n = vm_map_insert(umap, entry, VM_FIXED);
+  seg = vm_segment_alloc(NULL, addr2, addr2 + 0x5000, VM_PROT_NONE);
+  n = vm_map_insert(umap, seg, VM_FIXED);
   assert(n == 0);
 
   t = addr1;

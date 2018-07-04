@@ -93,7 +93,7 @@ static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
   }
 }
 
-static void kmalloc_add_arena(kmem_pool_t *mp, vm_addr_t start,
+static void kmalloc_add_arena(kmem_pool_t *mp, vaddr_t start,
                               size_t arena_size) {
   if (arena_size < sizeof(mem_arena_t))
     return;

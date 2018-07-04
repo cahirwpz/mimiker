@@ -26,8 +26,8 @@ void *mmap(void *addr, size_t length, int prot, int flags);
 
 #include <vm.h>
 
-int do_mmap(vm_addr_t *addr_p, size_t length, vm_prot_t prot, vm_flags_t flags);
-int do_munmap(vm_addr_t addr, size_t length);
+int do_mmap(vaddr_t *addr_p, size_t length, vm_prot_t prot, vm_flags_t flags);
+int do_munmap(vaddr_t addr, size_t length);
 
 #endif /* !_KERNELSPACE */
 
