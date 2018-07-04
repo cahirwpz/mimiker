@@ -23,14 +23,14 @@ struct vm_map_entry {
 struct vm_map {
   TAILQ_HEAD(vm_map_list, vm_map_entry) entries;
   size_t nentries;
-  pmap_t *const pmap;
+  pmap_t *pmap;
   mtx_t mtx; /* Mutex guarding vm_map structure and all its entries. */
 };
 
 static POOL_DEFINE(P_VMMAP, "vm_map", sizeof(vm_map_t));
 static POOL_DEFINE(P_VMENTRY, "vm_map_entry", sizeof(vm_map_entry_t));
 
-static vm_map_t kspace;
+static vm_map_t *kspace = &(vm_map_t){};
 
 void vm_map_activate(vm_map_t *map) {
   SCOPED_NO_PREEMPTION();
@@ -44,7 +44,7 @@ vm_map_t *get_user_vm_map(void) {
 }
 
 vm_map_t *get_kernel_vm_map(void) {
-  return &kspace;
+  return kspace;
 }
 
 void vm_map_entry_range(vm_map_entry_t *seg, vm_addr_t *start_p,
@@ -59,8 +59,7 @@ void vm_map_range(vm_map_t *map, vm_addr_t *start_p, vm_addr_t *end_p) {
 }
 
 bool vm_map_in_range(vm_map_t *map, vm_addr_t addr) {
-  /* XXX: No need to lock the mutex, the pmap field is const. */
-  return map && map->pmap->start <= addr && addr < map->pmap->end;
+  return map && map->pmap && map->pmap->start <= addr && addr < map->pmap->end;
 }
 
 vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr) {
@@ -77,14 +76,14 @@ static void vm_map_setup(vm_map_t *map) {
 }
 
 static void vm_map_init(void) {
-  vm_map_setup(&kspace);
-  *((pmap_t **)(&kspace.pmap)) = get_kernel_pmap();
+  vm_map_setup(kspace);
+  kspace->pmap = get_kernel_pmap();
 }
 
 vm_map_t *vm_map_new(void) {
   vm_map_t *map = pool_alloc(P_VMMAP, PF_ZERO);
   vm_map_setup(map);
-  *((pmap_t **)&map->pmap) = pmap_new();
+  map->pmap = pmap_new();
   return map;
 }
 
@@ -321,8 +320,12 @@ int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
   vm_addr_t offset = fault_page - entry->start;
   vm_page_t *frame = vm_object_find_page(entry->object, offset);
 
-  if (!frame)
+  if (frame == NULL)
     frame = obj->pager->pgr_fault(obj, fault_page, offset, fault_type);
+
+  if (frame == NULL)
+    return -EFAULT;
+
   pmap_map(map->pmap, fault_page, fault_page + PAGESIZE, frame->paddr,
            entry->prot);
 
