@@ -179,8 +179,8 @@ int do_exec(const exec_args_t *args) {
         vm_addr_t end = roundup(ph->p_vaddr + ph->p_memsz, PAGESIZE);
         /* Temporarily permissive protection. */
         vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
-        vm_map_entry_t *entry =
-          vm_map_entry_alloc(obj, start, end, VM_PROT_READ | VM_PROT_WRITE);
+        vm_map_entry_t *entry = vm_map_entry_alloc(
+          obj, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC);
         error = vm_map_insert(vmap, entry, VM_FIXED);
         /* TODO: What if segments overlap? */
         assert(error == 0);

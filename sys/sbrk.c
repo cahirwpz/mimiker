@@ -11,6 +11,7 @@
  * memory map. But it does not matter much, because no application would assume
  * that we are actually expanding .data, it will use the pointer returned by
  * sbrk. */
+/* TODO: make sbrk expand .bss segment. */
 
 void sbrk_attach(proc_t *p) {
   assert(p->p_uspace && (p->p_sbrk == NULL));

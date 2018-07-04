@@ -16,7 +16,7 @@ int do_mmap(vm_addr_t *addr_p, size_t length, vm_prot_t prot,
   assert(vmap != NULL);
 
   vm_addr_t addr = *addr_p;
-  *addr_p = (intptr_t)MAP_FAILED;
+  *addr_p = (vm_addr_t)MAP_FAILED;
 
   length = roundup(length, PAGESIZE);
 
