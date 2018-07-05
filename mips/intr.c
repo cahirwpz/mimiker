@@ -11,6 +11,7 @@
 #include <queue.h>
 #include <sysent.h>
 #include <thread.h>
+#include <ktest.h>
 
 typedef void (*exc_handler_t)(exc_frame_t *);
 
@@ -230,6 +231,14 @@ noreturn void kernel_oops(exc_frame_t *frame) {
     klog("Caused by reference to $%08x!", frame->badvaddr);
 
   panic("Unhandled '%s' at $%08x!", exceptions[code], frame->pc);
+}
+
+void kstack_overflow_handler(exc_frame_t *frame) {
+  kprintf("Kernel stack overflow caught at $%08x!\n", frame->pc);
+  if (ktest_test_running_flag)
+    ktest_failure();
+  else
+    panic();
 }
 
 /* General exception handler is called with interrupts disabled. */
