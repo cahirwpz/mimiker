@@ -1,3 +1,4 @@
+#define _WIREDCODE
 #include <mips/exc.h>
 #include <mips/pcpu.h>
 #include <mips/regdef.h>

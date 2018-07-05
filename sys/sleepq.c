@@ -60,8 +60,7 @@ static void sq_release(sleepq_t *sq) {
   spin_release(&sq->sq_lock);
 }
 
-static void sq_ctor(void *ptr) {
-  sleepq_t *sq = ptr;
+static void sq_ctor(sleepq_t *sq) {
   TAILQ_INIT(&sq->sq_blocked);
   TAILQ_INIT(&sq->sq_free);
   sq->sq_nblocked = 0;
@@ -79,10 +78,12 @@ void sleepq_init(void) {
   }
 }
 
-static POOL_DEFINE(P_SLEEPQ, "sleepq", sizeof(sleepq_t), sq_ctor, NULL);
+static POOL_DEFINE(P_SLEEPQ, "sleepq", sizeof(sleepq_t));
 
 sleepq_t *sleepq_alloc(void) {
-  return pool_alloc(P_SLEEPQ, 0);
+  sleepq_t *sq = pool_alloc(P_SLEEPQ, PF_ZERO);
+  sq_ctor(sq);
+  return sq;
 }
 
 void sleepq_destroy(sleepq_t *sq) {
@@ -220,7 +221,7 @@ static void sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
     } else {
-      sched_wakeup(td);
+      sched_wakeup(td, 0);
     }
   }
 }
@@ -245,6 +246,8 @@ bool sleepq_signal(void *wchan) {
   sq_release(sq);
   sc_release(sc);
 
+  sched_maybe_preempt();
+
   return true;
 }
 
@@ -262,6 +265,8 @@ bool sleepq_broadcast(void *wchan) {
     sq_wakeup(td, sc, sq);
   sq_release(sq);
   sc_release(sc);
+
+  sched_maybe_preempt();
 
   return true;
 }

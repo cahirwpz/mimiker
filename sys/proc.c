@@ -1,5 +1,7 @@
+#define KL_LOG KL_PROC
+#include <klog.h>
 #include <proc.h>
-#include <malloc.h>
+#include <pool.h>
 #include <thread.h>
 #include <sysinit.h>
 #include <klog.h>
@@ -9,7 +11,7 @@
 #include <signal.h>
 #include <sched.h>
 
-static MALLOC_DEFINE(M_PROC, "proc", 1, 2);
+static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
 
 static mtx_t all_proc_list_mtx = MTX_INITIALIZER(MTX_DEF);
 static proc_list_t all_proc_list = TAILQ_HEAD_INITIALIZER(all_proc_list);
@@ -20,7 +22,7 @@ static mtx_t last_pid_mtx = MTX_INITIALIZER(MTX_DEF);
 static pid_t last_pid = 0;
 
 proc_t *proc_create(void) {
-  proc_t *proc = kmalloc(M_PROC, sizeof(proc_t), M_ZERO);
+  proc_t *proc = pool_alloc(P_PROC, PF_ZERO);
   mtx_init(&proc->p_lock, MTX_DEF);
   proc->p_state = PRS_NORMAL;
   TAILQ_INIT(&proc->p_children);
@@ -76,7 +78,7 @@ int proc_reap(proc_t *child, int *status) {
   WITH_MTX_LOCK (&zombie_proc_list_mtx)
     TAILQ_REMOVE(&zombie_proc_list, child, p_zombie);
 
-  kfree(M_PROC, child);
+  pool_free(P_PROC, child);
 
   return retval;
 }

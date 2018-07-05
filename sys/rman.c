@@ -1,8 +1,7 @@
 #include <rman.h>
-#include <stdc.h>
 #include <pool.h>
 
-static POOL_DEFINE(P_RMAN, "rman", sizeof(resource_t), NULL, NULL);
+static POOL_DEFINE(P_RMAN, "rman", sizeof(resource_t));
 
 static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
                                  size_t count, size_t alignment,
@@ -45,8 +44,7 @@ static resource_t *cut_resource(resource_t *res, rman_addr_t where) {
 
   resource_t *left_res = res;
 
-  resource_t *right_res = pool_alloc(P_RMAN, 0);
-  memset(right_res, 0, sizeof(resource_t));
+  resource_t *right_res = pool_alloc(P_RMAN, PF_ZERO);
 
   LIST_INSERT_AFTER(left_res, right_res, r_resources);
 
@@ -103,8 +101,7 @@ void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end,
   mtx_init(&rm->rm_mtx, MTX_DEF);
   LIST_INIT(&rm->rm_resources);
 
-  resource_t *whole_space = pool_alloc(P_RMAN, 0);
-  memset(whole_space, 0, sizeof(resource_t));
+  resource_t *whole_space = pool_alloc(P_RMAN, PF_ZERO);
 
   whole_space->r_start = rm->rm_start;
   whole_space->r_end = rm->rm_end;

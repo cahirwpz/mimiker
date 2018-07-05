@@ -247,4 +247,4 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   return res;
 }
 
-SYSINIT_ADD(vfs, vfs_init, DEPS("vnode"));
+SYSINIT_ADD(vfs, vfs_init, NODEPS);

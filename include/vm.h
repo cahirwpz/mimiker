@@ -22,16 +22,21 @@
 #define VM_ACCESSED 1 /* page has been accessed since last check */
 #define VM_MODIFIED 2 /* page has been modified since last check */
 
-typedef intptr_t vm_paddr_t;
-typedef intptr_t vm_offset_t;
-typedef uintptr_t vm_size_t;
-
 typedef enum {
   VM_PROT_NONE = 0,
   VM_PROT_READ = 1,
   VM_PROT_WRITE = 2,
   VM_PROT_EXEC = 4
 } vm_prot_t;
+
+typedef enum {
+  VM_FILE = 0,    /* map from file (default) */
+  VM_ANON = 1,    /* allocated from memory */
+  VM_SHARED = 2,  /* share changes */
+  VM_PRIVATE = 4, /* changes are private */
+  VM_FIXED = 8,   /* map addr must be exactly as requested */
+  VM_STACK = 16,  /* region grows down, like a stack */
+} vm_flags_t;
 
 typedef struct vm_page {
   union {
@@ -44,22 +49,22 @@ typedef struct vm_page {
       TAILQ_ENTRY(vm_page) list;
     } pt;
   };
-  vm_addr_t vm_offset; /* offset to page in vm_object */
-  vm_addr_t vaddr;     /* virtual address of page */
-  pm_addr_t paddr;     /* physical address of page */
-  vm_prot_t prot;      /* page access rights */
-  uint8_t vm_flags;    /* flags used by virtual memory system */
-  uint8_t pm_flags;    /* flags used by physical memory system */
-  uint32_t size;       /* size of page in PAGESIZE units */
+  off_t offset;     /* offset to page in vm_object */
+  vaddr_t vaddr;    /* virtual address of page */
+  paddr_t paddr;    /* physical address of page */
+  vm_prot_t prot;   /* page access rights */
+  uint8_t vm_flags; /* flags used by virtual memory system */
+  uint8_t pm_flags; /* flags used by physical memory system */
+  uint32_t size;    /* size of page in PAGESIZE units */
 } vm_page_t;
 
 TAILQ_HEAD(pg_list, vm_page);
 typedef struct pg_list pg_list_t;
 
 typedef struct vm_map vm_map_t;
-typedef struct vm_map_entry vm_map_entry_t;
+typedef struct vm_segment vm_segment_t;
 typedef struct vm_object vm_object_t;
-typedef struct pager pager_t;
+typedef struct vm_pager vm_pager_t;
 
 #endif /* !__ASSEMBLER__ */
 

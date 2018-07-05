@@ -69,11 +69,12 @@ void turnstile_init(void) {
   }
 }
 
-static POOL_DEFINE(P_TURNSTILE, "turnstile", sizeof(turnstile_t),
-                   (pool_ctor_t)turnstile_ctor, NULL);
+static POOL_DEFINE(P_TURNSTILE, "turnstile", sizeof(turnstile_t));
 
 turnstile_t *turnstile_alloc(void) {
-  return pool_alloc(P_TURNSTILE, 0);
+  turnstile_t *ts = pool_alloc(P_TURNSTILE, PF_ZERO);
+  turnstile_ctor(ts);
+  return ts;
 }
 
 void turnstile_destroy(turnstile_t *ts) {
@@ -311,7 +312,7 @@ static void wakeup_blocked(td_queue_t *blocked_threads) {
       td->td_blocked = NULL;
       td->td_wchan = NULL;
       td->td_waitpt = NULL;
-      sched_wakeup(td);
+      sched_wakeup(td, 0);
     }
   }
 }
