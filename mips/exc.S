@@ -138,11 +138,8 @@ NESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         subu    t0, KERN_EXC_FRAME_SIZE
         bgez    t0, 1f
         nop
-        # Let's make sure there's enough space on stack to enter kernel stack
-        # overflow handler. Easiest approach is to move stack pointer to its
-        # original position (stack bottom).
-        andi    sp, STACKSIZE - 1
-        addi    sp, STACKSIZE
+        # Hopefully KERN_EXC_FRAME_SIZE bytes of unallocated stack space will be
+        # enough to enter kernel stack overflow handler.
         la      k1, kstack_overflow_handler
 1:
         # Register k1 is going to become unsafe soon - move it to s1.
