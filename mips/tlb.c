@@ -202,18 +202,18 @@ void tlb_print(void) {
 /* Compiler does not know that debugger (external agent) will read
  * the structure and will remove it and optimize out all references to it.
  * Hence it has to be marked with `volatile`. */
-static DEBUG_DATA volatile tlbentry_t _gdb_tlb_entry;
+static __boot_data volatile tlbentry_t _gdb_tlb_entry;
 
-DEBUG_FUN unsigned _gdb_tlb_size(void) {
+__boot_text unsigned _gdb_tlb_size(void) {
   uint32_t config1 = mips32_getconfig1();
   return _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS) + 1;
 }
 
-/* Fills _dgb_tlb_entry structure with TLB entry. Used by debugger. */
-DEBUG_FUN void _gdb_tlb_read_index(unsigned i) {
+/* Fills _gdb_tlb_entry structure with TLB entry. */
+__boot_text void _gdb_tlb_read_index(unsigned i) {
   tlbhi_t saved = mips32_getentryhi();
   mips32_setindex(i);
-  asm volatile("tlbr; ehb" : : : "memory");
+  mips32_tlbr();
   _gdb_tlb_entry = (tlbentry_t){.hi = mips32_getentryhi(),
                                 .lo0 = mips32_getentrylo0(),
                                 .lo1 = mips32_getentrylo1()};

@@ -4,11 +4,11 @@ OUTPUT_ARCH(mips)
 ENTRY(_start)
 PHDRS
 {
-  /* The lowmem segment is for things like boot code,
+  /* The boot segment is for things like boot code,
    * exception handlers and debug data/routines that all
    * must be in kseg0. It has all permission bits set
    * because it contains code as well as writable data. */
-  lowmem PT_LOAD FLAGS(7);      /* read-write, executable */
+  boot   PT_LOAD FLAGS(7);      /* read-write, executable */
   text   PT_LOAD FLAGS(5);      /* read-only, executable */
   rodata PT_LOAD FLAGS(4);      /* read-only */
   data   PT_LOAD FLAGS(6);      /* read-write */
@@ -22,46 +22,45 @@ SECTIONS
   . = _ram;
   . += 1M;              /* Reserved for Kernel Page Table.  */
   __ebase_phys_start = . - _ram;
-  .ebase 0x80100000: AT(__ebase_phys_start)
+  .ebase 0x80100000: AT(__ebase_phys_start) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
     /* Exception entry points. */
     *(.ebase)
-  } : lowmem
+  } : boot
 
   /*
-   * The *.debug sections contain code and data used by GDB commands.
+   * The .boot.* sections contain code and data used by GDB commands.
    * The debugger must always be able to jump to code in this section
    * and to read/write data in this section, so it should be placed
    * in kseg0.
    */
-  .text.debug : ALIGN(4)
+  .boot.text : ALIGN(4096)
   {
-    *(.text.debug)
-  } : lowmem
+    *(.boot.text)
+  } : boot
 
-  .data.debug : ALIGN(4)
+  .boot.data : ALIGN(4096)
   {
-    *(.data.debug)
-  } : lowmem
+    *(.boot.data)
+  } : boot 
 
   /*
-   * The *.wired sections contain code and data that must always be safe
+   * The .wired.* sections contain code and data that must always be safe
    * to access (i.e. accessing them can't generate exceptions).
    * For now they're placed in kseg0, but when the kernel is moved to
    * kseg2, they should be moved there with it, which will require wiring
    * the mappings for pages containing these sections.
    */
-  .data.wired : ALIGN(4)
+  .wired.text : ALIGN(4096)
   {
-    *(.data.wired)
-  } : lowmem
+    *(.wired.text)
+  } : boot
 
-  .text.wired : ALIGN(4)
+  .wired.data : ALIGN(4096)
   {
-    *exc.o(.text)
-    *(.text.wired)
-  } : lowmem
+    *(.wired.data)
+  } : boot
 
   .text : ALIGN(4096)
   {

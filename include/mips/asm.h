@@ -142,26 +142,26 @@
 #define _ASMCONCAT(A, B) A /**/ B
 #endif
 
-/* Name of reset code section. */
-#ifndef _RESET_SECTION
-#define _RESET_SECTION .section .reset, "ax", @progbits
+/* Name of wired code section. */
+#ifndef _WIRED_SECTION
+#define _WIRED_SECTION .section .wired.text, "ax", @progbits
 #endif
 
-#ifndef _RESET_SECTION_NAMED
+#ifndef _WIRED_SECTION_NAMED
 /* No function section support for now, since binutils fails to cope with
    external branches. */
-#define _RESET_SECTION_NAMED(name) .pushsection .reset, "ax", @progbits
+#define _WIRED_SECTION_NAMED(name) .pushsection .wired.text, "ax", @progbits
 #endif
 
 /* Name of boot code section. */
 #ifndef _BOOT_SECTION
-#define _BOOT_SECTION .section .boot, "ax", @progbits
+#define _BOOT_SECTION .section .boot.text, "ax", @progbits
 #endif
 
 #ifndef _BOOT_SECTION_NAMED
 /* No function section support for now, since binutils fails to cope with
    external branches. */
-#define _BOOT_SECTION_NAMED(name) .pushsection .boot, "ax", @progbits
+#define _BOOT_SECTION_NAMED(name) .pushsection .boot.text, "ax", @progbits
 #endif
 
 /* Name of standard code section. */
@@ -170,17 +170,13 @@
 #endif
 
 #ifndef _NORMAL_SECTION_NAMED
-#ifdef _FUNCTION_SECTIONS_
-#define _NORMAL_SECTION_NAMED(name) .pushsection .text##.name, "ax", @progbits
-#else
 #define _NORMAL_SECTION_NAMED(name) .pushsection .text, "ax", @progbits
-#endif
 #endif
 
 /* Default code section. */
 #ifndef _TEXT_SECTION_NAMED
-#if defined(_RESETCODE)
-#define _TEXT_SECTION_NAMED _RESET_SECTION_NAMED
+#if defined(_WIREDCODE)
+#define _TEXT_SECTION_NAMED _WIRED_SECTION_NAMED
 #elif defined(_BOOTCODE)
 #define _TEXT_SECTION_NAMED _BOOT_SECTION_NAMED
 #else
@@ -189,8 +185,8 @@
 #endif
 
 #ifndef _TEXT_SECTION
-#if defined(_RESETCODE)
-#define _TEXT_SECTION _RESET_SECTION
+#if defined(_WIREDCODE)
+#define _TEXT_SECTION _WIRED_SECTION
 #elif defined(_BOOTCODE)
 #define _TEXT_SECTION _BOOT_SECTION
 #else
