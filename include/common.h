@@ -41,7 +41,7 @@ typedef int32_t blksize_t; /* fs optimal block size */
 
 /* Wrapper for various GCC attributes */
 #define __nonnull(x) __attribute__((__nonnull__(x)))
-#define __section(s) __attribute__((__section__(#s)))
+#define __section(s) __attribute__((__section__(s)))
 #define __unused __attribute__((unused))
 #define __used __attribute__((used))
 #define __aligned(x) __attribute__((__aligned__(x)))
@@ -52,6 +52,13 @@ typedef int32_t blksize_t; /* fs optimal block size */
 #define __caller(x) (__builtin_return_address(x) - 8)
 #define __likely(x) __builtin_expect((x), 1)
 #define __unlikely(x) __builtin_expect((x), 0)
+#define __long_call __attribute__((long_call))
+
+/* Attribute macros for boot/wired functions/data */
+#define __boot_text __long_call __section(".boot.text")
+#define __boot_data __section(".boot.data")
+#define __wired_text __section(".wired.text")
+#define __wired_data __section(".wired.data")
 
 /* Macros for counting and rounding. */
 #ifndef howmany
