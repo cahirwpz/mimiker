@@ -1,5 +1,6 @@
 #define KLOG KL_INIT
 #include <interrupt.h>
+#include <physmem.h>
 #include <malloc.h>
 #include <mips/cpuinfo.h>
 #include <mips/malta.h>
@@ -14,6 +15,7 @@
 #include <pmap.h>
 #include <pool.h>
 #include <stdc.h>
+#include <rman.h>
 #include <thread.h>
 
 extern int kernel_init(int argc, char **argv);
@@ -170,6 +172,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   pool_bootstrap();
   kmem_bootstrap();
   sleepq_init();
+  turnstile_init();
   thread_bootstrap();
 
   klog("Switching to 'kernel-main' thread...");

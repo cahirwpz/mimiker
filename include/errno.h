@@ -148,7 +148,11 @@
 
 /* From IEEE Std 1003.1-2001 */
 /* Base, Realtime, Threads or Thread Priority Scheduling option errors */
+#if 0
 #define ENOTSUP 86 /* Not supported */
+#else
+#define ENOTSUP 134 /* XXX: matches newlib declaration! */
+#endif
 
 /* Realtime option errors */
 #define ECANCELED 87 /* Operation canceled */

@@ -1,6 +1,7 @@
 #define KL_LOG KL_THREAD
 #include <klog.h>
 #include <malloc.h>
+#include <physmem.h>
 #include <thread.h>
 #include <context.h>
 #include <interrupt.h>
@@ -68,6 +69,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   thread_t *td = kmalloc(M_THREAD, sizeof(thread_t), M_ZERO);
 
   td->td_sleepqueue = sleepq_alloc();
+  td->td_turnstile = turnstile_alloc();
   td->td_name = kstrndup(M_THREAD, name, TD_NAME_MAX);
   td->td_tid = make_tid();
   td->td_kstack_obj = pm_alloc(1);
@@ -78,6 +80,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   spin_init(td->td_spin);
   mtx_init(&td->td_lock, MTX_RECURSE);
   cv_init(&td->td_waitcv, "thread waiters");
+  LIST_INIT(&td->td_contested);
 
   thread_entry_setup(td, fn, arg);
 
@@ -93,6 +96,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
 void thread_delete(thread_t *td) {
   assert(td_is_dead(td));
   assert(td->td_sleepqueue != NULL);
+  assert(td->td_turnstile != NULL);
 
   klog("Freeing up thread %ld {%p}", td->td_tid, td);
 
@@ -102,6 +106,7 @@ void thread_delete(thread_t *td) {
   pm_free(td->td_kstack_obj);
 
   sleepq_destroy(td->td_sleepqueue);
+  turnstile_destroy(td->td_turnstile);
   kfree(M_THREAD, td->td_name);
   kfree(M_THREAD, td);
 }

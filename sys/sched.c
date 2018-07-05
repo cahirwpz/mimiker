@@ -25,14 +25,14 @@ void sched_add(thread_t *td) {
   klog("Add thread %ld {%p} to scheduler", td->td_tid, td);
 
   WITH_SPINLOCK(td->td_spin) {
-    sched_wakeup(td);
+    sched_wakeup(td, 0);
   }
 }
 
-void sched_wakeup(thread_t *td) {
+void sched_wakeup(thread_t *td, long reason) {
   assert(spin_owned(td->td_spin));
   assert(td != thread_self());
-  assert(td_is_sleeping(td) || td_is_inactive(td));
+  assert(td_is_blocked(td) || td_is_sleeping(td) || td_is_inactive(td));
 
   /* Update sleep time. */
   timeval_t now = get_uptime();
@@ -41,6 +41,8 @@ void sched_wakeup(thread_t *td) {
 
   td->td_state = TDS_READY;
   td->td_slice = SLICE;
+
+  ctx_set_retval(&td->td_kctx, reason);
 
   runq_add(&runq, td);
 
@@ -79,7 +81,13 @@ void sched_set_prio(thread_t *td, prio_t prio) {
   if (td_is_borrowing(td) && td->td_prio > prio)
     return;
 
+  prio_t oldprio = td->td_prio;
   sched_set_active_prio(td, prio);
+
+  /* If thread is locked on a turnstile, let the turnstile adjust
+   * thread's position on turnstile's \a ts_blocked list. */
+  if (td_is_blocked(td) && oldprio != prio)
+    turnstile_adjust(td, oldprio);
 }
 
 void sched_lend_prio(thread_t *td, prio_t prio) {
@@ -114,9 +122,9 @@ static thread_t *sched_choose(void) {
   return td;
 }
 
-void sched_switch(void) {
+long sched_switch(void) {
   if (!sched_active)
-    return;
+    return 0;
 
   thread_t *td = thread_self();
 
@@ -144,7 +152,7 @@ void sched_switch(void) {
   thread_t *newtd = sched_choose();
 
   if (td == newtd)
-    return;
+    return 0;
 
   /* If we got here then a context switch is required. */
   td->td_nctxsw++;
@@ -152,7 +160,7 @@ void sched_switch(void) {
   /* make sure we reacquire td_spin lock on return to current context */
   td->td_flags |= TDF_NEEDLOCK;
 
-  ctx_switch(td, newtd);
+  return ctx_switch(td, newtd);
 }
 
 void sched_clock(void) {
@@ -198,13 +206,11 @@ void preempt_disable(void) {
   td->td_pdnest++;
 }
 
-void preempt_enable(void) {
-  thread_t *td = thread_self();
-  assert(td->td_pdnest > 0);
-
-  td->td_pdnest--;
-  if (td->td_pdnest > 0)
+void sched_maybe_preempt(void) {
+  if (preempt_disabled())
     return;
+
+  thread_t *td = thread_self();
 
   WITH_SPINLOCK(td->td_spin) {
     if (td->td_flags & TDF_NEEDSWITCH) {
@@ -212,6 +218,15 @@ void preempt_enable(void) {
       sched_switch();
     }
   }
+}
+
+void preempt_enable(void) {
+  thread_t *td = thread_self();
+  assert(td->td_pdnest > 0);
+
+  td->td_pdnest--;
+
+  sched_maybe_preempt();
 }
 
 SYSINIT_ADD(sched, sched_init, DEPS("callout"));

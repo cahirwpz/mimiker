@@ -1,9 +1,26 @@
 #define KL_LOG KL_KMEM
 #include <klog.h>
 #include <stdc.h>
+#include <mutex.h>
 #include <malloc.h>
 #include <physmem.h>
+#include <pool.h>
 #include <queue.h>
+
+#define MB_MAGIC 0xC0DECAFE
+#define MB_ALIGNMENT sizeof(uint64_t)
+
+typedef TAILQ_HEAD(, mem_arena) mem_arena_list_t;
+
+typedef struct kmem_pool {
+  SLIST_ENTRY(kmem_pool) mp_next; /* Next in global chain. */
+  uint32_t mp_magic;              /* Detect programmer error. */
+  const char *mp_desc;            /* Printable type name. */
+  mem_arena_list_t mp_arena;      /* Queue of managed arenas. */
+  mtx_t mp_lock;                  /* Mutex protecting structure */
+  unsigned mp_pages_used;         /* Current number of pages */
+  unsigned mp_pages_max;          /* Number of pages allowed */
+} kmem_pool_t;
 
 /*
   TODO:
@@ -76,7 +93,7 @@ static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
   }
 }
 
-static void kmalloc_add_arena(kmem_pool_t *mp, vm_addr_t start,
+static void kmalloc_add_arena(kmem_pool_t *mp, vaddr_t start,
                               size_t arena_size) {
   if (arena_size < sizeof(mem_arena_t))
     return;
@@ -192,19 +209,26 @@ char *kstrndup(kmem_pool_t *mp, const char *s, size_t maxlen) {
 }
 
 void kmem_bootstrap(void) {
-  SET_DECLARE(kmem_pool_table, kmem_pool_t *);
-  kmem_pool_t ***ptr;
-  SET_FOREACH(ptr, kmem_pool_table) {
-    kmem_pool_t *mp = **ptr;
-    klog("initialize '%s' pool", mp->mp_desc);
-    kmem_init(mp);
-  }
+  INVOKE_CTORS(kmem_ctor_table);
 }
 
-void kmem_init(kmem_pool_t *mp) {
+static void kmem_init(kmem_pool_t *mp) {
+  mp->mp_magic = MB_MAGIC;
   TAILQ_INIT(&mp->mp_arena);
   mtx_init(&mp->mp_lock, MTX_RECURSE);
   kmalloc_add_pages(mp, mp->mp_pages_used);
+  klog("initialized '%s' kmem at %p ", mp->mp_desc, mp);
+}
+
+static POOL_DEFINE(P_KMEM, "kmem", sizeof(kmem_pool_t));
+
+kmem_pool_t *kmem_create(const char *desc, size_t pg_used, size_t pg_max) {
+  kmem_pool_t *mp = pool_alloc(P_KMEM, PF_ZERO);
+  mp->mp_desc = desc;
+  mp->mp_pages_used = pg_used;
+  mp->mp_pages_max = pg_max;
+  kmem_init(mp);
+  return mp;
 }
 
 void kmem_dump(kmem_pool_t *mp) {
@@ -230,6 +254,7 @@ void kmem_dump(kmem_pool_t *mp) {
 
 /* TODO: missing implementation */
 void kmem_destroy(kmem_pool_t *mp) {
+  pool_free(P_KMEM, mp);
 }
 
 MALLOC_DEFINE(M_TEMP, "temporaries pool", 2, 4);

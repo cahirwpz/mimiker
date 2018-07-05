@@ -1,10 +1,9 @@
 #ifndef _SYS_BUS_H_
 #define _SYS_BUS_H_
 
-#include <common.h>
+#include <rman.h>
 #include <device.h>
 
-typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 typedef struct bus_methods bus_methods_t;
 typedef struct bus_driver bus_driver_t;
@@ -41,31 +40,6 @@ struct bus_space {
 };
 
 #define BUS_SPACE_DECLARE(name) extern bus_space_t name[1]
-
-/* `resource` describes a range of addresses where a resource is mapped within
- * given bus space. A driver will use addresses from `r_start` to `r_end` and
- * `r_bus_space` routines to access hardware resource, so that the actual
- * driver code is not tied to way handled device is attached to the system. */
-
-#define RT_UNKNOWN 0
-#define RT_MEMORY 1
-#define RT_IOPORTS 2
-
-#define RF_NONE 0
-/* According to PCI specification prefetchable bit is CLEAR when memory mapped
- * resource contains locations with read side-effects or locations in which the
- * device does not tolerate write merging. */
-#define RF_PREFETCHABLE 1
-
-struct resource {
-  bus_space_t *r_bus_space; /* bus space accessor descriptor */
-  void *r_owner;            /* pointer to device that owns this resource */
-  intptr_t r_start;         /* first physical address of the resource */
-  intptr_t r_end; /* last (inclusive) physical address of the resource */
-  unsigned r_type;
-  unsigned r_flags;
-  int r_id; /* (optional) resource identifier */
-};
 
 #define RESOURCE_DECLARE(name) extern resource_t name[1]
 
@@ -110,9 +84,15 @@ typedef void (*bus_intr_setup_t)(device_t *dev, unsigned num,
                                  intr_handler_t *handler);
 typedef void (*bus_intr_teardown_t)(device_t *dev, intr_handler_t *handler);
 
+typedef resource_t *(*bus_resource_alloc_t)(device_t *bus, device_t *child,
+                                            resource_type_t type, int rid,
+                                            rman_addr_t start, rman_addr_t end,
+                                            size_t size, unsigned flags);
+
 struct bus_methods {
   bus_intr_setup_t intr_setup;
   bus_intr_teardown_t intr_teardown;
+  bus_resource_alloc_t resource_alloc;
 };
 
 struct bus_driver {
@@ -129,6 +109,49 @@ static inline void bus_intr_setup(device_t *dev, unsigned num,
 
 static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
   BUS_DRIVER(dev)->bus.intr_teardown(dev, handler);
+}
+
+/*! \brief Allocates resource of size \a size between \a start and \a end.
+ *
+ * Should be called inside device's \fn attach function.
+ *
+ * \param dev device which needs resource
+ * \param type resource type RT_* defined in rman.h
+ * \param rid resource identifier as in \a resource_t structure
+ * \param flags RF_* flags defined in rman.h
+ */
+static inline resource_t *bus_resource_alloc(device_t *dev,
+                                             resource_type_t type, int rid,
+                                             rman_addr_t start, rman_addr_t end,
+                                             size_t size, unsigned flags) {
+  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, start,
+                                             end, size, flags);
+}
+
+/*! \brief Allocates resource for a device.
+ *
+ * Basically the same as \sa bus_resource_alloc, but resource placement in
+ * memory is chosen by the parent bus.
+ */
+static inline resource_t *bus_resource_alloc_anywhere(device_t *dev,
+                                                      resource_type_t type,
+                                                      int rid, size_t size,
+                                                      unsigned flags) {
+  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0,
+                                             RMAN_ADDR_MAX, size, flags);
+}
+
+/*! \brief Allocates resource for a device.
+ *
+ * Basically the same as \sa bus_resource_alloc_anywhere, but resource
+ * has to be identifiable by parent bus driver by \param rid.
+ */
+static inline resource_t *bus_resource_alloc_any(device_t *dev,
+                                                 resource_type_t type, int rid,
+                                                 unsigned flags) {
+
+  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0,
+                                             RMAN_ADDR_MAX, 1, flags);
 }
 
 int bus_generic_probe(device_t *bus);
