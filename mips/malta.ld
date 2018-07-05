@@ -65,7 +65,7 @@ SECTIONS
   .text : ALIGN(4096)
   {
     __text = ABSOLUTE(.);
-    EXCLUDE_FILE (*exc.o) *(.text .text.*)
+    *(.text .text.*)
     __etext = ABSOLUTE(.);
   } : text
 

@@ -1,6 +1,5 @@
 #include <thread.h>
 #include <pcpu.h>
-#include <common.h>
 
 __wired_data pcpu_t _pcpu_data[1] = {{}};
 
