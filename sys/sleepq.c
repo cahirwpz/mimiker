@@ -240,9 +240,9 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
     /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
-      return false;
+    } else {
+      sched_wakeup(td, 0);
     }
-    sched_wakeup(td, 0);
   }
   return true;
 }
