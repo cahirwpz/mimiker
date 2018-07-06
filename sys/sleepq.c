@@ -111,7 +111,7 @@ static sleepq_t *sq_lookup(sleepq_chain_t *sc, void *wchan) {
 }
 
 static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
-                     bool abortable) {
+                     sq_wakeup_t flags) {
   klog("Thread %ld goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
   assert(td->td_wchan == NULL);
@@ -151,7 +151,10 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
 
   /* The thread is about to fall asleep, but it still needs to reach
    * sched_switch - it may get interrupted on the way, so mark our intent. */
-  td->td_flags |= TDF_SLEEPY | (abortable ? TDF_SLPINTR : 0);
+  td->td_flags |= TDF_SLEEPY;
+
+  if (flags & SQ_ABORT)
+    td->td_flags |= TDF_SLPINTR;
 
   sq_release(sq);
   sc_release(sc);
@@ -194,13 +197,13 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   }
 }
 
-sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, bool abortable) {
+sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t flags) {
   thread_t *td = thread_self();
 
   if (waitpt == NULL)
     waitpt = __caller(0);
 
-  sq_enter(td, wchan, waitpt, abortable);
+  sq_enter(td, wchan, waitpt, flags);
 
   /* The code can be interrupted in here.
    * A race is avoided by clever use of TDF_SLEEPY flag. */
@@ -284,7 +287,7 @@ bool sleepq_abort(thread_t *td) {
 
   if (sq != NULL) {
     if (td->td_flags & TDF_SLPINTR)
-      aborted = sq_wakeup(td, sc, sq, SQ_ABORTED);
+      aborted = sq_wakeup(td, sc, sq, SQ_ABORT);
     sq_release(sq);
   }
   sc_release(sc);

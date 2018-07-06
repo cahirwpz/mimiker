@@ -12,7 +12,7 @@ typedef struct sleepq sleepq_t;
 /* Used to return reason of wakeup from _sleepq_wait. */
 typedef enum {
   SQ_NORMAL = 0,
-  SQ_ABORTED = 1,
+  SQ_ABORT = 1,
 } sq_wakeup_t;
 
 /*! \brief Initializes sleep queues.
@@ -31,17 +31,19 @@ void sleepq_destroy(sleepq_t *sq);
  * \param wchan unique sleep queue identifier
  * \param waitpt caller associated with sleep action
  */
-#define sleepq_wait(wchan, waitpt) ((void)_sleepq_wait(wchan, waitpt, false))
+#define sleepq_wait(wchan, waitpt)                                             \
+  ((void)_sleepq_wait(wchan, waitpt, SQ_NORMAL))
 
 /*! \brief Same as \a sleepq_wait but allows the sleep to be aborted. */
-#define sleepq_wait_abortable(wchan, waitpt) (_sleepq_wait(wchan, waitpt, true))
+#define sleepq_wait_abortable(wchan, waitpt)                                   \
+  (_sleepq_wait(wchan, waitpt, SQ_ABORT))
 
 /*! \brief Puts a thread to sleep until it's woken up or its sleep is aborted.
  *
  * If sleep is abortable other threads can wake up forcefully the thread with \a
  * sleepq_abort procedure.
  */
-sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, bool abortable);
+sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t flags);
 
 /*! \brief Wakes up highest priority thread waiting on \a wchan.
  *
