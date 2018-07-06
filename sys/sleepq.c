@@ -235,7 +235,7 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
 
   WITH_SPINLOCK(td->td_spin) {
     /* Clear TDF_SLPINTR flag if thread's sleep was not aborted. */
-    if (wakeup == SQ_NORMAL)
+    if (wakeup != SQ_ABORT)
       td->td_flags &= ~TDF_SLPINTR;
     /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
     if (td->td_flags & TDF_SLEEPY) {
