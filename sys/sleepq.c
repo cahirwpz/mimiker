@@ -147,14 +147,14 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
     td->td_wchan = wchan;
     td->td_waitpt = waitpt;
     td->td_sleepqueue = NULL;
+
+    /* The thread is about to fall asleep, but it still needs to reach
+     * sched_switch - it may get interrupted on the way, so mark our intent. */
+    td->td_flags |= TDF_SLEEPY;
+
+    if (sleep == SQ_ABORT)
+      td->td_flags |= TDF_SLPINTR;
   }
-
-  /* The thread is about to fall asleep, but it still needs to reach
-   * sched_switch - it may get interrupted on the way, so mark our intent. */
-  td->td_flags |= TDF_SLEEPY;
-
-  if (sleep == SQ_ABORT)
-    td->td_flags |= TDF_SLPINTR;
 
   sq_release(sq);
   sc_release(sc);
@@ -227,9 +227,13 @@ sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep) {
 /* Remove a thread from the sleep queue and resume it. */
 static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
                       sq_wakeup_t wakeup) {
-  /* Do not try to abort thread's sleep if it's not prepared for that. */
-  if (!(td->td_flags & TDF_SLPINTR) && (wakeup == SQ_ABORT))
+  /* Only sq_enter sets TDF_SLPINTR flag and it holds the same sleepq spinlock
+   * as sq_wakeup. Hence it's safe to read flags without holding thread's
+   * spinlock. */
+  if (!(td->td_flags & TDF_SLPINTR) && (wakeup == SQ_ABORT)) {
+    /* Do not try to abort thread's sleep if it's not prepared for that. */
     return false;
+  }
 
   sq_leave(td, sc, sq);
 
