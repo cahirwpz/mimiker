@@ -43,7 +43,7 @@ void sleepq_destroy(sleepq_t *sq);
  * If sleep is abortable other threads can wake up forcefully the thread with \a
  * sleepq_abort procedure.
  */
-sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t flags);
+sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep);
 
 /*! \brief Wakes up highest priority thread waiting on \a wchan.
  *

@@ -111,7 +111,7 @@ static sleepq_t *sq_lookup(sleepq_chain_t *sc, void *wchan) {
 }
 
 static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
-                     sq_wakeup_t flags) {
+                     sq_wakeup_t sleep) {
   klog("Thread %ld goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
   assert(td->td_wchan == NULL);
@@ -153,7 +153,7 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
    * sched_switch - it may get interrupted on the way, so mark our intent. */
   td->td_flags |= TDF_SLEEPY;
 
-  if (flags & SQ_ABORT)
+  if (sleep == SQ_ABORT)
     td->td_flags |= TDF_SLPINTR;
 
   sq_release(sq);
@@ -196,14 +196,14 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   }
 }
 
-sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t flags) {
+sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep) {
   thread_t *td = thread_self();
   sq_wakeup_t wakeup = SQ_NORMAL;
 
   if (waitpt == NULL)
     waitpt = __caller(0);
 
-  sq_enter(td, wchan, waitpt, flags);
+  sq_enter(td, wchan, waitpt, sleep);
 
   /* The code can be interrupted in here.
    * A race is avoided by clever use of TDF_SLEEPY flag. */
