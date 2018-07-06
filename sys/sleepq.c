@@ -193,12 +193,12 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
     td->td_wchan = NULL;
     td->td_waitpt = NULL;
     td->td_sleepqueue = sq;
-    td->td_flags &= ~TDF_SLPINTR;
   }
 }
 
 sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t flags) {
   thread_t *td = thread_self();
+  sq_wakeup_t wakeup = SQ_NORMAL;
 
   if (waitpt == NULL)
     waitpt = __caller(0);
@@ -212,27 +212,37 @@ sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t flags) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
       td->td_state = TDS_SLEEPING;
-      return sched_switch();
+      sched_switch();
+    }
+    /* TDF_SLPINTR flag is set after wakeup only if sleep was aborted. */
+    if (td->td_flags & TDF_SLPINTR) {
+      td->td_flags &= ~TDF_SLPINTR;
+      wakeup = SQ_ABORT;
     }
   }
 
-  return SQ_NORMAL;
+  return wakeup;
 }
 
 /* Remove a thread from the sleep queue and resume it. */
 static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
                       sq_wakeup_t wakeup) {
-  assert((wakeup == SQ_NORMAL) || (td->td_flags & TDF_SLPINTR));
+  /* Do not try to abort thread's sleep if it's not prepared for that. */
+  if (!(td->td_flags & TDF_SLPINTR) && (wakeup == SQ_ABORT))
+    return false;
 
   sq_leave(td, sc, sq);
 
   WITH_SPINLOCK(td->td_spin) {
+    /* Clear TDF_SLPINTR flag if thread's sleep was not aborted. */
+    if (wakeup == SQ_NORMAL)
+      td->td_flags &= ~TDF_SLPINTR;
     /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
       return false;
     }
-    sched_wakeup(td, wakeup);
+    sched_wakeup(td, 0);
   }
   return true;
 }
@@ -286,8 +296,7 @@ bool sleepq_abort(thread_t *td) {
   bool aborted = false;
 
   if (sq != NULL) {
-    if (td->td_flags & TDF_SLPINTR)
-      aborted = sq_wakeup(td, sc, sq, SQ_ABORT);
+    aborted = sq_wakeup(td, sc, sq, SQ_ABORT);
     sq_release(sq);
   }
   sc_release(sc);

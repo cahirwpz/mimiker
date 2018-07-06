@@ -89,8 +89,8 @@ typedef struct thread {
   char *td_name;   /*!< (@) name of thread */
   tid_t td_tid;    /*!< (@) thread identifier */
   /* thread state */
-  thread_state_t td_state; /*!< (!) thread state */
-  uint32_t td_flags;       /*!< (!) TDF_* flags */
+  thread_state_t td_state;    /*!< (!) thread state */
+  volatile uint32_t td_flags; /*!< (!) TDF_* flags */
   /* thread context */
   volatile unsigned td_idnest; /*!< (?) interrupt disable nest level */
   volatile unsigned td_pdnest; /*!< (?) preemption disable nest level */
