@@ -3,6 +3,7 @@
 
 #include <common.h>
 #include <queue.h>
+#include <callout.h>
 
 typedef struct thread thread_t;
 typedef struct sleepq sleepq_t;
@@ -13,6 +14,7 @@ typedef struct sleepq sleepq_t;
 typedef enum {
   SQ_NORMAL = 0,
   SQ_ABORT = 1,
+  SQ_TIME = 2
 } sq_wakeup_t;
 
 /*! \brief Initializes sleep queues.
@@ -44,6 +46,8 @@ void sleepq_destroy(sleepq_t *sq);
  * sleepq_abort procedure.
  */
 sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep);
+
+sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout_ms);
 
 /*! \brief Wakes up highest priority thread waiting on \a wchan.
  *

@@ -8,6 +8,7 @@
 #include <sched.h>
 #include <spinlock.h>
 #include <thread.h>
+#include <callout.h>
 
 #define SC_TABLESIZE 256 /* Must be power of 2. */
 #define SC_MASK (SC_TABLESIZE - 1)
@@ -307,4 +308,9 @@ bool sleepq_abort(thread_t *td) {
 
   sched_maybe_preempt();
   return aborted;
+}
+
+sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
+                              systime_t timeout_ms) {
+  return SQ_TIME;
 }
