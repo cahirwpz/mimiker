@@ -295,19 +295,23 @@ bool sleepq_broadcast(void *wchan) {
   return true;
 }
 
-bool sleepq_abort(thread_t *td) {
+static bool sleepq_abort_reason(thread_t *td, sq_wakeup_t reason) {
   sleepq_chain_t *sc = sc_acquire(td->td_wchan);
   sleepq_t *sq = sq_lookup(sc, td->td_wchan);
   bool aborted = false;
 
   if (sq != NULL) {
-    aborted = sq_wakeup(td, sc, sq, SQ_ABORT);
+    aborted = sq_wakeup(td, sc, sq, reason);
     sq_release(sq);
   }
   sc_release(sc);
 
   sched_maybe_preempt();
   return aborted;
+}
+
+bool sleepq_abort(thread_t *td) {
+  return sleepq_abort_reason(td, SQ_ABORT);
 }
 
 sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
