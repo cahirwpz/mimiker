@@ -314,7 +314,20 @@ bool sleepq_abort(thread_t *td) {
   return sleepq_abort_reason(td, SQ_ABORT);
 }
 
+static void sq_timeout(thread_t *td) {
+  sleepq_abort_reason(td, SQ_TIME);
+}
+
+// TODO will timeout_ms == 0 break this?
 sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
                               systime_t timeout_ms) {
-  return SQ_TIME;
+  callout_t wk;
+  sq_wakeup_t reason;
+  callout_setup_relative(&wk, timeout_ms, (timeout_t)sq_timeout, thread_self());
+
+  reason = _sleepq_wait(wchan, waitpt, SQ_TIME);
+
+  callout_stop(&wk);
+
+  return reason;
 }
