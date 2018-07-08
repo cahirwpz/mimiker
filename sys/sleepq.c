@@ -153,8 +153,11 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
      * sched_switch - it may get interrupted on the way, so mark our intent. */
     td->td_flags |= TDF_SLEEPY;
 
-    if (sleep == SQ_ABORT)
+    if (sleep >= SQ_ABORT)
       td->td_flags |= TDF_SLPINTR;
+
+    if (sleep >= SQ_TIME)
+      td->td_flags |= TDF_SLPTIME;
   }
 
   sq_release(sq);
@@ -219,7 +222,13 @@ sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep) {
     if (td->td_flags & TDF_SLPINTR) {
       td->td_flags &= ~TDF_SLPINTR;
       wakeup = SQ_ABORT;
+    } else if (td->td_flags & TDF_SLPTIME) {
+      td->td_flags &= ~TDF_SLPTIME;
+      wakeup = SQ_TIME;
     }
+
+    assert(!(td->td_flags & TDF_SLPINTR));
+    assert(!(td->td_flags & TDF_SLPTIME));
   }
 
   return wakeup;
