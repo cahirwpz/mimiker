@@ -238,10 +238,11 @@ sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep) {
 /* Remove a thread from the sleep queue and resume it. */
 static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
                       sq_wakeup_t wakeup) {
-  /* Only sq_enter sets TDF_SLPINTR flag and it holds the same sleepq spinlock
+  /* Only sq_enter sets TDF_SLP... flags and it holds the same sleepq spinlock
    * as sq_wakeup. Hence it's safe to read flags without holding thread's
    * spinlock. */
-  if (!(td->td_flags & TDF_SLPINTR) && (wakeup == SQ_ABORT)) {
+  if ((!(td->td_flags & TDF_SLPINTR) && (wakeup == SQ_ABORT)) ||
+      (!(td->td_flags & TDF_SLPTIME) && (wakeup == SQ_TIME))) {
     /* Do not try to abort thread's sleep if it's not prepared for that. */
     return false;
   }
@@ -252,6 +253,8 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
     /* Clear TDF_SLPINTR flag if thread's sleep was not aborted. */
     if (wakeup != SQ_ABORT)
       td->td_flags &= ~TDF_SLPINTR;
+    if (wakeup != SQ_TIME)
+      td->td_flags &= ~TDF_SLPTIME;
     /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
