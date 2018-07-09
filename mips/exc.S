@@ -1,6 +1,10 @@
+#define _WIREDCODE
 #include <mips/exc.h>
 #include <mips/pcpu.h>
 #include <mips/regdef.h>
+#include <vm.h>
+
+#define STACKSIZE PAGESIZE
 
 #include "assym.h"
 
@@ -123,11 +127,21 @@ user_return:
 END(user_exc_enter)
 
 NESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
-        # Allocate stack frame and save context there.
+        # Allocate stack frame (of KERN_EXC_FRAME_SIZE bytes) and save context.
         move    k0, sp                  # save original sp value
         subu    sp, KERN_EXC_FRAME_SIZE # required by gdb to recognize frame
         SAVE_CPU_CTX(k0, sp)
 
+        # If there's not enough space on the stack to store another exception
+        # frame we consider situation to be critical and panic.
+        andi    t0, sp, STACKSIZE - 1
+        subu    t0, KERN_EXC_FRAME_SIZE
+        bgez    t0, 1f
+        nop
+        # Hopefully KERN_EXC_FRAME_SIZE bytes of unallocated stack space will be
+        # enough to enter kernel stack overflow handler.
+        la      k1, kstack_overflow_handler
+1:
         # Register k1 is going to become unsafe soon - move it to s1.
         move    s1, k1
 

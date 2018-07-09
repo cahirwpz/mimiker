@@ -14,7 +14,7 @@
         .global _ebase
         .type   tlb_refill,@function
 
-        .section .ebase
+        .section .ebase, "ax"
 
 _ebase:
 
