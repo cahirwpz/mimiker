@@ -19,8 +19,8 @@ static volatile int signaled_received;
 
 static volatile int signaled_sent;
 
-thread_t *waiters[T];
-thread_t *waker;
+static thread_t *waiters[T];
+static thread_t *waker;
 
 static void snorlax(void *_arg) {
   systime_t before_sleep = getsystime();
