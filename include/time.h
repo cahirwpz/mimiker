@@ -3,8 +3,6 @@
 
 #include <common.h>
 
-typedef uint32_t systime_t; /* kept in miliseconds */
-
 typedef struct tm {
   int tm_sec;     /* seconds after the minute [0-60] */
   int tm_min;     /* minutes after the hour [0-59] */

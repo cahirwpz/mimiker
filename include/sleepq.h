@@ -3,7 +3,6 @@
 
 #include <common.h>
 #include <queue.h>
-#include <callout.h>
 
 typedef struct thread thread_t;
 typedef struct sleepq sleepq_t;

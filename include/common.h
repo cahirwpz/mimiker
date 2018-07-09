@@ -22,6 +22,7 @@ typedef long ssize_t;
 typedef uint8_t prio_t;
 typedef int32_t pid_t;
 typedef uint16_t dev_t;
+typedef uint32_t systime_t; /* kept in miliseconds */
 typedef uint32_t time_t;
 typedef int32_t suseconds_t; /* microseconds (signed) */
 typedef uint16_t uid_t;
