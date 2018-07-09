@@ -12,7 +12,6 @@ static int wchan;
 
 #define T 6
 #define SLEEP_TIME_MS 4
-#define EPSILON 1
 
 static volatile int timed_received;
 static volatile int signaled_received;
@@ -31,10 +30,8 @@ static void snorlax(void *_arg) {
   if (status == SQ_TIMEOUT) {
     timed_received++;
     assert(diff >= SLEEP_TIME_MS);
-    assert(diff <= SLEEP_TIME_MS + EPSILON);
   } else if (status == SQ_NORMAL) {
     signaled_received++;
-    assert(diff <= SLEEP_TIME_MS + EPSILON);
   } else {
     assert(false);
   }
