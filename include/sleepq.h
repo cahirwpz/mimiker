@@ -10,7 +10,7 @@ typedef struct sleepq sleepq_t;
 /*! \file sleepq.h */
 
 /* Used to return reason of wakeup from _sleepq_wait. */
-typedef enum { SQ_NORMAL = 0, SQ_ABORT = 1, SQ_TIME = 2 } sq_wakeup_t;
+typedef enum { SQ_NORMAL = 0, SQ_ABORT = 1, SQ_TIMEOUT = 2 } sq_wakeup_t;
 
 /*! \brief Initializes sleep queues.
  *

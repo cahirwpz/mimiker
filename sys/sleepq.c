@@ -157,8 +157,8 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
     if (sleep >= SQ_ABORT)
       td->td_flags |= TDF_SLPINTR;
 
-    if (sleep >= SQ_TIME)
-      td->td_flags |= TDF_SLPTIME;
+    if (sleep >= SQ_TIMEOUT)
+      td->td_flags |= TDF_SLPTIMED;
   }
 
   sq_release(sq);
@@ -223,13 +223,13 @@ sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep) {
     if (td->td_flags & TDF_SLPINTR) {
       td->td_flags &= ~TDF_SLPINTR;
       wakeup = SQ_ABORT;
-    } else if (td->td_flags & TDF_SLPTIME) {
-      td->td_flags &= ~TDF_SLPTIME;
-      wakeup = SQ_TIME;
+    } else if (td->td_flags & TDF_SLPTIMED) {
+      td->td_flags &= ~TDF_SLPTIMED;
+      wakeup = SQ_TIMEOUT;
     }
 
     assert(!(td->td_flags & TDF_SLPINTR));
-    assert(!(td->td_flags & TDF_SLPTIME));
+    assert(!(td->td_flags & TDF_SLPTIMED));
   }
 
   return wakeup;
@@ -242,7 +242,7 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
    * as sq_wakeup. Hence it's safe to read flags without holding thread's
    * spinlock. */
   if ((!(td->td_flags & TDF_SLPINTR) && (wakeup == SQ_ABORT)) ||
-      (!(td->td_flags & TDF_SLPTIME) && (wakeup == SQ_TIME))) {
+      (!(td->td_flags & TDF_SLPTIMED) && (wakeup == SQ_TIMEOUT))) {
     /* Do not try to abort thread's sleep if it's not prepared for that. */
     return false;
   }
@@ -253,8 +253,8 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
     /* Clear TDF_SLPINTR flag if thread's sleep was not aborted. */
     if (wakeup != SQ_ABORT)
       td->td_flags &= ~TDF_SLPINTR;
-    if (wakeup != SQ_TIME)
-      td->td_flags &= ~TDF_SLPTIME;
+    if (wakeup != SQ_TIMEOUT)
+      td->td_flags &= ~TDF_SLPTIMED;
     /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
@@ -328,7 +328,7 @@ bool sleepq_abort(thread_t *td) {
 }
 
 static void sq_timeout(thread_t *td) {
-  sleepq_abort_reason(td, SQ_TIME);
+  sleepq_abort_reason(td, SQ_TIMEOUT);
 }
 
 // TODO will timeout_ms == 0 break this?
@@ -338,7 +338,7 @@ sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
   sq_wakeup_t reason;
   callout_setup_relative(&wk, timeout_ms, (timeout_t)sq_timeout, thread_self());
 
-  reason = _sleepq_wait(wchan, waitpt, SQ_TIME);
+  reason = _sleepq_wait(wchan, waitpt, SQ_TIMEOUT);
 
   callout_stop(&wk);
 

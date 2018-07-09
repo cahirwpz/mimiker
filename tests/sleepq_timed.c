@@ -28,7 +28,7 @@ static void snorlax(void *_arg) {
   systime_t after_sleep = getsystime();
   systime_t diff = after_sleep - before_sleep;
 
-  if (status == SQ_TIME) {
+  if (status == SQ_TIMEOUT) {
     timed_received++;
     assert(diff >= SLEEP_TIME_MS);
     assert(diff <= SLEEP_TIME_MS + EPSILON);
