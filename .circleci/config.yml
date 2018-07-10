@@ -22,7 +22,14 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - run: 'git submodule init && git submodule update'
+      - restore_cache:
+          keys:
+            - v2-newlib-2.5.0
+      - run: 'make download'
+      - save_cache:
+          key: v2-newlib-2.5.0
+          paths:
+            - user/newlib/newlib-2.5.0
       - run: 'make'
       - store_artifacts:
           path: mimiker.elf
