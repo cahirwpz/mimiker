@@ -84,11 +84,11 @@ static void pmap_setup(pmap_t *pmap, vaddr_t start, vaddr_t end) {
 
   /* Place user & kernel PDEs after virtualized page table. */
   vm_page_t *pde_page = pm_alloc(1);
-  pde_page->vaddr = PD_BASE + (user_pde ? 0 : PD_SIZE);
+  vaddr_t pde_addr = PD_BASE + (user_pde ? 0 : PD_SIZE);
 
   pmap->pte = (pte_t *)PT_BASE;
   pmap->pde_page = pde_page;
-  pmap->pde = (pte_t *)pde_page->vaddr;
+  pmap->pde = (pte_t *)pde_addr;
   pmap->start = start;
   pmap->end = end;
   pmap->asid = alloc_asid();
@@ -122,7 +122,7 @@ static void pmap_setup(pmap_t *pmap, vaddr_t start, vaddr_t end) {
 void pmap_reset(pmap_t *pmap) {
   while (!TAILQ_EMPTY(&pmap->pte_pages)) {
     vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
-    TAILQ_REMOVE(&pmap->pte_pages, pg, pt.list);
+    TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
     pm_free(pg);
   }
   pm_free(pmap->pde_page);
@@ -216,7 +216,7 @@ static void pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
   assert(!is_valid(PDE_OF(pmap, vaddr)));
 
   vm_page_t *pg = pm_alloc(1);
-  TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pt.list);
+  TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
   klog("Page table fragment %08lx allocated at %08lx", PTF_ADDR_OF(vaddr),
        pg->paddr);
 
@@ -328,6 +328,14 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
     pmap_change_pte(pmap, start, prot);
     start += PAGESIZE;
   }
+}
+
+void pmap_zero_page(vm_page_t *pg) {
+  bzero(PG_KSEG0_ADDR(pg), PAGESIZE);
+}
+
+void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
+  memcpy(PG_KSEG0_ADDR(dst), PG_KSEG0_ADDR(src), PAGESIZE);
 }
 
 /* TODO: at any given moment there're two page tables in use:

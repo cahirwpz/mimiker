@@ -31,6 +31,9 @@ void pmap_enter(pmap_t *pmap, vaddr_t start, vaddr_t end, paddr_t paddr,
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot);
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end);
 
+void pmap_zero_page(vm_page_t *pg);
+void pmap_copy_page(vm_page_t *src, vm_page_t *dst);
+
 void pmap_activate(pmap_t *pmap);
 pmap_t *get_kernel_pmap(void);
 pmap_t *get_user_pmap(void);

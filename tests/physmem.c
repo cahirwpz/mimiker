@@ -10,7 +10,7 @@ static int test_physmem(void) {
   /* Write - read test */
   vm_page_t *pg = pm_alloc(16);
   int size = PAGESIZE * 16;
-  char *arr = (char *)pg->vaddr;
+  char *arr = PG_KSEG0_ADDR(pg);
   for (int i = 0; i < size; i++)
     arr[i] = 42; /* Write non-zero value */
   for (int i = 0; i < size; i++)

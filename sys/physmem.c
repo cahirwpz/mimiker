@@ -67,7 +67,6 @@ void pm_seg_init(pm_seg_t *seg, paddr_t start, paddr_t end, off_t offset) {
     vm_page_t *page = &seg->pages[i];
     bzero(page, sizeof(vm_page_t));
     page->paddr = seg->start + PAGESIZE * i;
-    page->vaddr = seg->start + PAGESIZE * i + offset;
     page->size = 1 << min(max_size, ctz(i));
   }
 
@@ -233,7 +232,6 @@ vm_page_t *pm_alloc(size_t npages) {
     vm_page_t *page;
     if ((page = pm_alloc_from_seg(seg_it, npages))) {
       klog("pm_alloc {paddr:%lx size:%ld}", page->paddr, page->size);
-      page->vaddr = MIPS_PHYS_TO_KSEG0(page->paddr);
       return page;
     }
   }
