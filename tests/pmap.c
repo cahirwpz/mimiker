@@ -1,36 +1,41 @@
-#include <stdc.h>
-#include <mips/tlb.h>
 #include <pmap.h>
 #include <physmem.h>
 #include <vm.h>
 #include <ktest.h>
 
+#define PAGES 16
+
 static int test_kernel_pmap(void) {
   pmap_t *pmap = get_kernel_pmap();
 
-  vm_page_t *pg = pm_alloc(16);
+  vm_page_t *pg = pm_alloc(PAGES);
   size_t size = pg->size * PAGESIZE;
-  vaddr_t vaddr1 = pmap->start;
-  vaddr_t vaddr2 = pmap->start + size / 2;
-  vaddr_t vaddr3 = pmap->start + size;
 
-  pmap_enter(pmap, vaddr1, vaddr3, pg->paddr, VM_PROT_READ | VM_PROT_WRITE);
+  vaddr_t vaddr = pmap->start;
+  vaddr_t end = pmap->start + size;
 
-  unsigned *x = (unsigned *)vaddr1;
+  pmap_enter(pmap, vaddr, end, pg->paddr, VM_PROT_READ | VM_PROT_WRITE);
+
+  unsigned *array = (void *)vaddr;
   for (unsigned i = 0; i < size / sizeof(int); i++)
-    *(x + i) = i;
-  for (unsigned i = 0; i < size / sizeof(int); i++)
-    assert(*(x + i) == i);
+    assert(try_store_word(&array[i], i));
 
-  assert(pmap_probe(pmap, vaddr1, vaddr3, VM_PROT_READ | VM_PROT_WRITE));
+  pmap_protect(pmap, vaddr, vaddr + size, VM_PROT_READ);
+  for (vaddr_t addr = vaddr; addr < end; addr += PAGESIZE)
+    assert(!try_store_word((void *)addr, 0));
 
-  pmap_remove(pmap, vaddr1, vaddr2);
-  pmap_protect(pmap, vaddr2, vaddr3, VM_PROT_READ);
+  for (unsigned i = 0; i < size / sizeof(int); i++) {
+    unsigned val;
+    assert(try_load_word(&array[i], &val));
+    assert(val == i);
+  }
 
-  assert(pmap_probe(pmap, vaddr1, vaddr2, VM_PROT_NONE));
-  assert(pmap_probe(pmap, vaddr2, vaddr3, VM_PROT_READ));
+  for (vaddr_t addr = vaddr; addr < end; addr += PAGESIZE) {
+    pmap_remove(pmap, addr, addr + PAGESIZE);
+    unsigned val;
+    assert(!try_load_word((void *)addr, &val));
+  }
 
-  pmap_remove(pmap, vaddr2, vaddr3);
   pm_free(pg);
 
   return KTEST_SUCCESS;

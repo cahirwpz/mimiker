@@ -195,17 +195,8 @@ static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte) {
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
 }
 
-bool pmap_is_mapped(pmap_t *pmap, vaddr_t vaddr) {
-  assert(is_aligned(vaddr, PAGESIZE));
-  SCOPED_MTX_LOCK(&pmap->mtx);
-  if (is_valid(PDE_OF(pmap, vaddr)))
-    if (is_valid(pmap_pte_read(pmap, vaddr)))
-      return true;
-  return false;
-}
-
 /* Internal use, assumes pmap is locked. */
-static bool _pmap_is_range_mapped(pmap_t *pmap, vaddr_t start, vaddr_t end) {
+static bool pmap_is_range_mapped(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   vaddr_t addr;
 
   for (addr = start; addr < end; addr += PD_ENTRIES * PAGESIZE)
@@ -217,13 +208,6 @@ static bool _pmap_is_range_mapped(pmap_t *pmap, vaddr_t start, vaddr_t end) {
       return false;
 
   return true;
-}
-
-bool pmap_is_range_mapped(pmap_t *pmap, vaddr_t start, vaddr_t end) {
-  assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
-  assert(start < end);
-  SCOPED_MTX_LOCK(&pmap->mtx);
-  return _pmap_is_range_mapped(pmap, start, end);
 }
 
 /* Add PT to PD so kernel can handle access to @vaddr. */
@@ -308,48 +292,13 @@ static void pmap_change_pte(pmap_t *pmap, vaddr_t vaddr, vm_prot_t prot) {
        (vaddr & PTE_MASK), (vaddr_t)&PTE_OF(pmap, vaddr));
 }
 
-/*
- * Check if given virtual address is mapped according to TLB and page table.
- * Detects any inconsistencies.
- */
-bool pmap_probe(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
-  assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
-  assert(start < end);
-
-  if (start < pmap->start || end > pmap->end)
-    return false;
-
-  pte_t expected = vm_prot_map[prot];
-  SCOPED_MTX_LOCK(&pmap->mtx);
-  while (start < end) {
-    pte_t pte = is_valid(PDE_OF(pmap, start)) ? pmap_pte_read(pmap, start) : 0;
-    tlbentry_t e = {.hi = PTE_VPN2(start) | PTE_ASID(pmap->asid)};
-
-    int i = tlb_probe(&e);
-    if (i >= 0) {
-      tlblo_t lo = PTE_LO_INDEX_OF(start) ? e.lo1 : e.lo0;
-      if (lo != pte)
-        panic("TLB[%d] (%" PRIxPTR ") vs. PTE (%" PRIxPTR ") mismatch "
-              "for virtual address %" PRIxPTR "!",
-              i, lo, pte, start);
-    }
-
-    if ((pte & PTE_PROT_MASK) != expected)
-      return false;
-
-    start += PAGESIZE;
-  }
-
-  return true;
-}
-
 void pmap_enter(pmap_t *pmap, vaddr_t start, vaddr_t end, paddr_t paddr,
                 vm_prot_t prot) {
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
   assert(is_aligned(paddr, PAGESIZE));
   SCOPED_MTX_LOCK(&pmap->mtx);
-  assert(!_pmap_is_range_mapped(pmap, start, end));
+  assert(!pmap_is_range_mapped(pmap, start, end));
 
   while (start < end) {
     pmap_set_pte(pmap, start, paddr, prot);
@@ -361,7 +310,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
   SCOPED_MTX_LOCK(&pmap->mtx);
-  assert(_pmap_is_range_mapped(pmap, start, end));
+  assert(pmap_is_range_mapped(pmap, start, end));
 
   while (start < end) {
     pmap_clear_pte(pmap, start);
@@ -373,7 +322,7 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   assert(is_aligned(start, PAGESIZE) && is_aligned(end, PAGESIZE));
   assert(start < end && start >= pmap->start && end <= pmap->end);
   SCOPED_MTX_LOCK(&pmap->mtx);
-  assert(_pmap_is_range_mapped(pmap, start, end));
+  assert(pmap_is_range_mapped(pmap, start, end));
 
   while (start < end) {
     pmap_change_pte(pmap, start, prot);
