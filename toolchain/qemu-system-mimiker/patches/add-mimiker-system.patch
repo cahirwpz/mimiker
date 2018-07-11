@@ -1,0 +1,18 @@
+Add extra target machine named mimiker.
+--- a/qemu-2.12.0/configure
++++ b/qemu-2.12.0/configure
+@@ -6811,7 +6811,7 @@
+     TARGET_ARCH=microblaze
+     bflt="yes"
+   ;;
+-  mips|mipsel)
++  mips|mipsel|mimiker)
+     TARGET_ARCH=mips
+     echo "TARGET_ABI_MIPSO32=y" >> $config_target_mak
+   ;;
+--- /dev/null
++++ b/qemu-2.12.0/default-configs/mimiker-softmmu.mak
+@@ -0,0 +1,3 @@
++# Default configuration for mimiker-softmmu
++
++include mips-softmmu-common.mak
