@@ -3,6 +3,7 @@
 #include <ktest.h>
 #include <thread.h>
 #include <sched.h>
+#include <vm.h>
 
 static int malloc_one_allocation(void) {
   kmem_pool_t *mp = kmem_create("test", 1, 1);

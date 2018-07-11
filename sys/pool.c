@@ -26,6 +26,9 @@
 #define debug(...)
 #endif
 
+typedef void (*pool_ctor_t)(void *);
+typedef void (*pool_dtor_t)(void *);
+
 typedef LIST_HEAD(, pool_slab) pool_slabs_t;
 
 struct pool {
@@ -73,7 +76,7 @@ static pool_slab_t *add_slab(pool_t *pool) {
   debug("create_slab: pool = %p, pp_itemsize = %d", pool, pool->pp_itemsize);
 
   vm_page_t *page = pm_alloc(1);
-  pool_slab_t *slab = (pool_slab_t *)page->vaddr;
+  pool_slab_t *slab = PG_KSEG0_ADDR(page);
   slab->ph_state = ALIVE;
   slab->ph_page = page;
   slab->ph_nused = 0;
@@ -154,8 +157,7 @@ static void destroy_slab_list(pool_t *pool, pool_slabs_t *slabs) {
   }
 }
 
-/* TODO: find some use for flags */
-void *pool_alloc(pool_t *pool, __unused unsigned flags) {
+void *pool_alloc(pool_t *pool, unsigned flags) {
   debug("pool_alloc: pool=%p", pool);
 
   SCOPED_MTX_LOCK(&pool->pp_mtx);
@@ -181,6 +183,11 @@ void *pool_alloc(pool_t *pool, __unused unsigned flags) {
                           ? &pool->pp_part_slabs
                           : &pool->pp_full_slabs;
   LIST_INSERT_HEAD(slabs, slab, ph_slablist);
+
+  /* XXX: Modify code below when pp_ctor & pp_dtor are reenabled */
+  if (flags & PF_ZERO)
+    bzero(p, pool->pp_itemsize);
+
   return p;
 }
 
@@ -242,6 +249,7 @@ static void pool_dtor(pool_t *pool) {
 
 static void pool_init(pool_t *pool, const char *desc, size_t size,
                       pool_ctor_t ctor, pool_dtor_t dtor) {
+  pool_ctor(pool);
   pool->pp_desc = desc;
   pool->pp_itemsize = align(size, PI_ALIGNMENT);
   pool->pp_ctor = ctor;
@@ -258,19 +266,17 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
 static struct pool P_POOL[1];
 
 void pool_bootstrap(void) {
-  pool_ctor(P_POOL);
-  pool_init(P_POOL, "master pool", sizeof(struct pool), (pool_ctor_t)pool_ctor,
-            (pool_dtor_t)pool_dtor);
+  pool_init(P_POOL, "master pool", sizeof(struct pool), NULL, NULL);
   INVOKE_CTORS(pool_ctor_table);
 }
 
-pool_t *pool_create(const char *desc, size_t size, pool_ctor_t ctor,
-                    pool_dtor_t dtor) {
-  pool_t *pool = pool_alloc(P_POOL, 0);
-  pool_init(pool, desc, size, ctor, dtor);
+pool_t *pool_create(const char *desc, size_t size) {
+  pool_t *pool = pool_alloc(P_POOL, PF_ZERO);
+  pool_init(pool, desc, size, NULL, NULL);
   return pool;
 }
 
 void pool_destroy(pool_t *pool) {
+  pool_dtor(pool);
   pool_free(P_POOL, pool);
 }

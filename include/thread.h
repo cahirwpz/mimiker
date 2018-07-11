@@ -58,6 +58,7 @@ typedef enum {
 #define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
 #define TDF_BORROWING 0x00000010  /* priority propagation */
 #define TDF_SLEEPY 0x00000020     /* thread is about to go to sleep */
+#define TDF_SLPINTR 0x00000040    /* sleep is interruptible */
 
 /*! \brief Thread structure
  *
@@ -88,8 +89,8 @@ typedef struct thread {
   char *td_name;   /*!< (@) name of thread */
   tid_t td_tid;    /*!< (@) thread identifier */
   /* thread state */
-  thread_state_t td_state; /*!< (!) thread state */
-  uint32_t td_flags;       /*!< (!) TDF_* flags */
+  thread_state_t td_state;    /*!< (!) thread state */
+  volatile uint32_t td_flags; /*!< (!) TDF_* flags */
   /* thread context */
   volatile unsigned td_idnest; /*!< (?) interrupt disable nest level */
   volatile unsigned td_pdnest; /*!< (?) preemption disable nest level */
@@ -185,6 +186,10 @@ static inline bool td_is_inactive(thread_t *td) {
 
 static inline bool td_is_sleeping(thread_t *td) {
   return td->td_state == TDS_SLEEPING;
+}
+
+static inline bool td_is_interruptible(thread_t *td) {
+  return (td->td_state == TDS_SLEEPING) && (td->td_flags & TDF_SLPINTR);
 }
 
 static inline bool td_is_borrowing(thread_t *td) {

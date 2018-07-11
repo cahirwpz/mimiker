@@ -9,10 +9,16 @@ BUILDDIR = $(CURDIR)/newlib-build
 
 all: install
 
+$(SOURCEDIR)/configure:
+	@echo "Updating Git submodule..."
+	git submodule update --init $(SOURCEDIR)
+
+download: $(SOURCEDIR)/configure
+
 # Output from these commands is redirected to /dev/null for readibility.
 # If any of these commands fail, just remove output redirection.
 configure: configure-stamp
-configure-stamp:
+configure-stamp: $(SOURCEDIR)/configure
 	@echo "Configuring newlib..."
 	mkdir -p $(BUILDDIR) && cd $(BUILDDIR) && \
 		CC="$(TARGET)-gcc" \
@@ -49,4 +55,4 @@ distclean:
 	$(RM) -r $(BUILDDIR)
 	$(RM) *-stamp
 
-.PHONY:	download unpack configure build install
+.PHONY:	download unpack configure build install distclean download

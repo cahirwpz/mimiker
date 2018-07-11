@@ -1,6 +1,7 @@
 #define KL_LOG KL_KMEM
 #include <klog.h>
 #include <stdc.h>
+#include <mutex.h>
 #include <malloc.h>
 #include <physmem.h>
 #include <pool.h>
@@ -92,7 +93,7 @@ static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
   }
 }
 
-static void kmalloc_add_arena(kmem_pool_t *mp, vm_addr_t start,
+static void kmalloc_add_arena(kmem_pool_t *mp, vaddr_t start,
                               size_t arena_size) {
   if (arena_size < sizeof(mem_arena_t))
     return;
@@ -115,7 +116,7 @@ static void kmalloc_add_arena(kmem_pool_t *mp, vm_addr_t start,
 
 static void kmalloc_add_pages(kmem_pool_t *mp, unsigned pages) {
   vm_page_t *pg = pm_alloc(pages);
-  kmalloc_add_arena(mp, PG_VADDR_START(pg), PG_SIZE(pg));
+  kmalloc_add_arena(mp, (vaddr_t)PG_KSEG0_ADDR(pg), PG_SIZE(pg));
 }
 
 static mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {
@@ -219,10 +220,10 @@ static void kmem_init(kmem_pool_t *mp) {
   klog("initialized '%s' kmem at %p ", mp->mp_desc, mp);
 }
 
-static POOL_DEFINE(P_KMEM, "kmem", sizeof(kmem_pool_t), NULL, NULL);
+static POOL_DEFINE(P_KMEM, "kmem", sizeof(kmem_pool_t));
 
 kmem_pool_t *kmem_create(const char *desc, size_t pg_used, size_t pg_max) {
-  kmem_pool_t *mp = pool_alloc(P_KMEM, 0);
+  kmem_pool_t *mp = pool_alloc(P_KMEM, PF_ZERO);
   mp->mp_desc = desc;
   mp->mp_pages_used = pg_used;
   mp->mp_pages_max = pg_max;
