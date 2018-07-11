@@ -57,7 +57,7 @@ class QEMU(Launchable):
         Launchable.__init__(self, 'qemu')
 
     def probe(self):
-        self.cmd = shutil.which('qemu-system-mipsel')
+        self.cmd = shutil.which('qemu-system-mimiker')
         return self.cmd is not None
 
     def configure(self, **kwargs):
