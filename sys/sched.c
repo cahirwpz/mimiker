@@ -11,6 +11,7 @@
 #include <mutex.h>
 #include <pcpu.h>
 #include <sysinit.h>
+#include <turnstile.h>
 
 static runq_t runq;
 static bool sched_active = false;

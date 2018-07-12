@@ -7,7 +7,9 @@
 #include <interrupt.h>
 #include <pcpu.h>
 #include <sched.h>
+#include <sleepq.h>
 #include <filedesc.h>
+#include <turnstile.h>
 #include <mips/exc.h>
 
 static MALLOC_DEFINE(M_THREAD, "thread", 1, 2);

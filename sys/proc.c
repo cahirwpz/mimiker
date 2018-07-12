@@ -9,6 +9,7 @@
 #include <filedesc.h>
 #include <wait.h>
 #include <signal.h>
+#include <sleepq.h>
 #include <sched.h>
 
 static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
