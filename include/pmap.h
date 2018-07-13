@@ -14,7 +14,7 @@ typedef struct pmap {
   pte_t *pte;          /* page table */
   pte_t *pde;          /* directory page table */
   vm_page_t *pde_page; /* pointer to a page with directory page table */
-  TAILQ_HEAD(, vm_page) pte_pages; /* pages we allocate in page table */
+  pg_list_t pte_pages; /* pages we allocate in page table */
   vaddr_t start, end;
   asid_t asid;
   mtx_t mtx;
@@ -26,8 +26,7 @@ pmap_t *pmap_new(void);
 void pmap_reset(pmap_t *pmap);
 void pmap_delete(pmap_t *pmap);
 
-void pmap_enter(pmap_t *pmap, vaddr_t start, vaddr_t end, paddr_t paddr,
-                vm_prot_t prot);
+void pmap_enter(pmap_t *pmap, vaddr_t start, vm_page_t *page, vm_prot_t prot);
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot);
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end);
 

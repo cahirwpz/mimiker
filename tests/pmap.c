@@ -14,7 +14,7 @@ static int test_kernel_pmap(void) {
   vaddr_t vaddr = pmap->start;
   vaddr_t end = pmap->start + size;
 
-  pmap_enter(pmap, vaddr, end, pg->paddr, VM_PROT_READ | VM_PROT_WRITE);
+  pmap_enter(pmap, vaddr, pg, VM_PROT_READ | VM_PROT_WRITE);
 
   unsigned *array = (void *)vaddr;
   for (unsigned i = 0; i < size / sizeof(int); i++)
@@ -48,15 +48,14 @@ static int test_user_pmap(void) {
   pmap_t *pmap2 = pmap_new();
 
   vaddr_t start = 0x1001000;
-  vaddr_t end = 0x1002000;
 
   vm_page_t *pg1 = pm_alloc(1);
   vm_page_t *pg2 = pm_alloc(1);
 
   pmap_activate(pmap1);
-  pmap_enter(pmap1, start, end, pg1->paddr, VM_PROT_READ | VM_PROT_WRITE);
+  pmap_enter(pmap1, start, pg1, VM_PROT_READ | VM_PROT_WRITE);
   pmap_activate(pmap2);
-  pmap_enter(pmap2, start, end, pg2->paddr, VM_PROT_READ | VM_PROT_WRITE);
+  pmap_enter(pmap2, start, pg2, VM_PROT_READ | VM_PROT_WRITE);
 
   volatile int *ptr = (int *)start;
   *ptr = 100;

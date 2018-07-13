@@ -321,8 +321,7 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   if (frame == NULL)
     return -EFAULT;
 
-  pmap_enter(map->pmap, fault_page, fault_page + PAGESIZE, frame->paddr,
-             seg->prot);
+  pmap_enter(map->pmap, fault_page, frame, seg->prot);
 
   return 0;
 }

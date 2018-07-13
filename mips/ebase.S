@@ -112,10 +112,10 @@ miss:
         # BadVAddr in kuseg => look in UPD; in kseg2 => look in KPD.
 
         mfc0    k1, C0_BADVADDR
-        srl     k0, k1, PDE_SHIFT       # k0 = PDE index
+        srl     k0, k1, PDE_INDEX_SHIFT # k0 = PDE index
         sll     k0, 2                   # k0 = PDE offset = PDE index * 4
         bgez    k1, 1f                  # BadVaddr in kuseg?
-        lui     k1, %hi(PD_BASE)        # yes => k1 = UPD address
+        lui     k1, %hi(UPD_BASE)       # yes => k1 = UPD address
         addi    k1, PAGESIZE            # no => k1 = KPD address
 1:      addu    k0, k1                  # k0 = PDE address
         lw      k1, 0(k0)               # Load PDE!
