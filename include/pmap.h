@@ -11,7 +11,6 @@ typedef uint32_t pte_t;
 typedef uint32_t pde_t;
 
 typedef struct pmap {
-  pte_t *pte;          /* page table */
   pte_t *pde;          /* directory page table */
   vm_page_t *pde_page; /* pointer to a page with directory page table */
   pg_list_t pte_pages; /* pages we allocate in page table */

@@ -92,10 +92,8 @@ void tlb_init(void) {
     panic("No TLB detected!");
 
   tlb_invalidate_all();
-  /* Shift C0_CONTEXT left, because we shift it right in tlb_refill_handler.
-   * This is little hack to make page table sized 4MB, but causes us to
-   * keep PTE in KSEG2. */
-  mips32_setcontext(PT_BASE << 1);
+  /* We're not going to use C0_CONTEXT so set it to zero. */
+  mips32_setcontext(0);
   /* First wired TLB entry is shared between kernel-PDE and user-PDE. */
   mips32_setwired(1);
 }
