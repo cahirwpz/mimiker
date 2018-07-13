@@ -138,7 +138,6 @@ term:
   /* Release the lock held by the parent. */
   mtx_unlock(&td->td_lock);
   proc_exit(MAKE_STATUS_SIG_TERM(sig));
-  __unreachable();
 }
 
 void sig_deliver(signo_t sig) {
