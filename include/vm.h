@@ -15,6 +15,8 @@
 #define PG_END(pg) ((pg)->paddr + PG_SIZE(pg))
 #define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
 
+#define is_page_aligned(addr) is_aligned((addr), PAGESIZE)
+
 #define PM_RESERVED 1  /* non releasable page */
 #define PM_ALLOCATED 2 /* page has been allocated */
 #define PM_MANAGED 4   /* a page is on a freeq */

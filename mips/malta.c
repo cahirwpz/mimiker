@@ -15,8 +15,10 @@
 #include <pmap.h>
 #include <pool.h>
 #include <stdc.h>
+#include <sleepq.h>
 #include <rman.h>
 #include <thread.h>
+#include <turnstile.h>
 
 extern int kernel_init(int argc, char **argv);
 

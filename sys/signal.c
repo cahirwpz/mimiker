@@ -6,6 +6,7 @@
 #include <stdc.h>
 #include <errno.h>
 #include <sysent.h>
+#include <sleepq.h>
 #include <proc.h>
 #include <wait.h>
 

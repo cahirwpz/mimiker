@@ -38,7 +38,6 @@ int do_fork(void) {
      starting from user_exc_leave (which serves as fork_trampoline). */
   thread_entry_setup(newtd, (entry_fn_t)user_exc_leave, NULL);
 
-  newtd->td_sleepqueue = sleepq_alloc();
   newtd->td_wchan = NULL;
   newtd->td_waitpt = NULL;
 
