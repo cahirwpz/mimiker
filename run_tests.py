@@ -50,6 +50,7 @@ def gdb_inspect(interactive, commands):
         send_command(gdb, cmd)
 
     if interactive:
+        print('(gdb)', end='', flush=True)
         gdb.interact()
 
 
