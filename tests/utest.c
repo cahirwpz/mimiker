@@ -26,21 +26,11 @@ static int utest_generic(const char *name, int status_success) {
 
   thread_t *utest_thread =
     thread_create(name, utest_generic_thread, (void *)name);
+  proc_t *child = proc_create(utest_thread, proc_self());
   sched_add(utest_thread);
 
-  /* NOTE: It looks like waitpid should be used here... but keep in mind, that
-     only the parent process may wait for children, and that this thread does
-     not belong to any thread at all. */
-  /* XXX: This only works because, for now, a process may only have one
-     thread. Normally we would need to wait for this process... but we don't
-     know it's PID (and it doesn't have to be 1!) nor a pointer, and we don't
-     know when exactly it will become ready. */
-  thread_join(utest_thread);
-  /* XXX: Normally the operating system has only one "first process", but when
-     running tests we create multiple such. They don't have a parent, yet they
-     exit or get killed, and we need to clean up afterwards. */
   int status;
-  proc_reap(utest_thread->td_proc, &status);
+  do_waitpid(child->p_pid, &status, 0);
 
   /* Restore previous klog mask */
   /* XXX: If we'll use klog_setmask heavily, maybe we should consider
@@ -85,7 +75,7 @@ UTEST_ADD_SIMPLE(fd_all);
 /* XXX UTEST_ADD_SIGNAL(signal_abort, SIGABRT); */
 /* XXX UTEST_ADD_SIGNAL(signal_segfault, SIGSEGV); */
 
-/* XXX UTEST_ADD_SIMPLE(fork_wait); */
+UTEST_ADD_SIMPLE(fork_wait);
 /* TODO Why this test takes so long to execute? */
 /* UTEST_ADD_SIMPLE(fork_signal); */
 /* XXX UTEST_ADD_SIMPLE(fork_sigchld_ignored); */

@@ -18,7 +18,7 @@ download: $(SOURCEDIR)/configure
 # Output from these commands is redirected to /dev/null for readibility.
 # If any of these commands fail, just remove output redirection.
 configure: configure-stamp
-configure-stamp: download
+configure-stamp: $(SOURCEDIR)/configure
 	@echo "Configuring newlib..."
 	mkdir -p $(BUILDDIR) && cd $(BUILDDIR) && \
 		CC="$(TARGET)-gcc" \

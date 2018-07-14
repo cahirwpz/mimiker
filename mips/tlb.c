@@ -92,10 +92,8 @@ void tlb_init(void) {
     panic("No TLB detected!");
 
   tlb_invalidate_all();
-  /* Shift C0_CONTEXT left, because we shift it right in tlb_refill_handler.
-   * This is little hack to make page table sized 4MB, but causes us to
-   * keep PTE in KSEG2. */
-  mips32_setcontext(PT_BASE << 1);
+  /* We're not going to use C0_CONTEXT so set it to zero. */
+  mips32_setcontext(0);
   /* First wired TLB entry is shared between kernel-PDE and user-PDE. */
   mips32_setwired(1);
 }
@@ -183,11 +181,11 @@ void tlb_print(void) {
       kprintf("[tlb] %d => ASID: %02lx", i, e.hi & PTE_ASID_MASK);
       if (e.lo0 & PTE_VALID)
         kprintf(" PFN0: {%08lx => %08lx %c%c}", e.hi & PTE_VPN2_MASK,
-                PTE_PFN_OF(e.lo0), (e.lo0 & PTE_DIRTY) ? 'D' : '-',
+                PTE_PFN_OF(e.lo0) * PAGESIZE, (e.lo0 & PTE_DIRTY) ? 'D' : '-',
                 (e.lo0 & PTE_GLOBAL) ? 'G' : '-');
       if (e.lo1 & PTE_VALID)
         kprintf(" PFN1: {%08lx => %08lx %c%c}",
-                (e.hi & PTE_VPN2_MASK) + PAGESIZE, PTE_PFN_OF(e.lo1),
+                (e.hi & PTE_VPN2_MASK) + PAGESIZE, PTE_PFN_OF(e.lo1) * PAGESIZE,
                 (e.lo1 & PTE_DIRTY) ? 'D' : '-',
                 (e.lo1 & PTE_GLOBAL) ? 'G' : '-');
       kprintf("\n");

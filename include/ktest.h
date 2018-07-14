@@ -55,4 +55,10 @@ void ktest_failure(void);
 /* This flag is set to 1 when a kernel test is in progress, and 0 otherwise. */
 extern int ktest_test_running_flag;
 
+/*! \brief Attempt to load word from memory without crashing the kernel. */
+bool try_load_word(unsigned *ptr, unsigned *val_p);
+
+/*! \brief Attempt to store word to memory without crashing the kernel. */
+bool try_store_word(unsigned *ptr, unsigned val);
+
 #endif /* !_SYS_KTEST_H_ */

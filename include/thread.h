@@ -3,10 +3,7 @@
 
 #include <common.h>
 #include <queue.h>
-#include <context.h>
 #include <exception.h>
-#include <sleepq.h>
-#include <turnstile.h>
 #include <mutex.h>
 #include <condvar.h>
 #include <time.h>
@@ -17,6 +14,9 @@
 
 /*! \file thread.h */
 
+struct turnstile;
+typedef struct turnstile turnstile_t;
+typedef struct sleepq sleepq_t;
 typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
 typedef struct fdtab fdtab_t;

@@ -24,7 +24,7 @@ static int dev_zero_write(vnode_t *v, uio_t *uio) {
     size_t len = uio->uio_resid;
     if (len > PAGESIZE)
       len = PAGESIZE;
-    error = uiomove((void *)junk_page->vaddr, len, uio);
+    error = uiomove(PG_KSEG0_ADDR(junk_page), len, uio);
   }
   return error;
 }
@@ -35,7 +35,7 @@ static int dev_zero_read(vnode_t *v, uio_t *uio) {
     size_t len = uio->uio_resid;
     if (len > PAGESIZE)
       len = PAGESIZE;
-    error = uiomove((void *)zero_page->vaddr, len, uio);
+    error = uiomove(PG_KSEG0_ADDR(zero_page), len, uio);
   }
   return error;
 }

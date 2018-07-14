@@ -272,7 +272,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   WITH_MTX_LOCK (&map->mtx) {
     vm_segment_t *it;
     TAILQ_FOREACH (it, &map->entries, link) {
-      vm_object_t *obj = vm_map_object_clone(it->object);
+      vm_object_t *obj = vm_object_clone(it->object);
       vm_segment_t *seg = vm_segment_alloc(obj, it->start, it->end, it->prot);
       TAILQ_INSERT_TAIL(&new_map->entries, seg, link);
       new_map->nentries++;
@@ -316,13 +316,12 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   vm_page_t *frame = vm_object_find_page(seg->object, offset);
 
   if (frame == NULL)
-    frame = obj->pager->pgr_fault(obj, fault_page, offset, fault_type);
+    frame = obj->pager->pgr_fault(obj, offset);
 
   if (frame == NULL)
     return -EFAULT;
 
-  pmap_enter(map->pmap, fault_page, fault_page + PAGESIZE, frame->paddr,
-             seg->prot);
+  pmap_enter(map->pmap, fault_page, frame, seg->prot);
 
   return 0;
 }

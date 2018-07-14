@@ -7,7 +7,9 @@
 #include <interrupt.h>
 #include <pcpu.h>
 #include <sched.h>
+#include <sleepq.h>
 #include <filedesc.h>
+#include <turnstile.h>
 #include <mips/exc.h>
 
 static MALLOC_DEFINE(M_THREAD, "thread", 1, 2);
@@ -73,7 +75,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   td->td_name = kstrndup(M_THREAD, name, TD_NAME_MAX);
   td->td_tid = make_tid();
   td->td_kstack_obj = pm_alloc(1);
-  td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
+  td->td_kstack.stk_base = PG_KSEG0_ADDR(td->td_kstack_obj);
   td->td_kstack.stk_size = PAGESIZE;
   td->td_state = TDS_INACTIVE;
 
