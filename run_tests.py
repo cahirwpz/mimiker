@@ -116,8 +116,9 @@ if __name__ == '__main__':
     parser.add_argument('--non-interactive', action='store_true',
                         help='Do not run gdb session if tests fail.')
     parser.add_argument('--commands', nargs='*', metavar='CMD',
-                        help='Commands to automatically run in gdb session when a test fails',
-                        default=['klog', 'info registers', 'backtrace', 'list', 'kthread'])
+                        help='Commands to run in gdb session upon failure',
+                        default=['klog', 'info registers', 'backtrace',
+                                 'list', 'kthread'])
 
     try:
         args = parser.parse_args()
