@@ -337,9 +337,10 @@ sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
                               systime_t timeout_ms) {
   callout_t wk;
   sq_wakeup_t reason;
-  callout_setup_relative(&wk, timeout_ms, (timeout_t)sq_timeout, thread_self());
-
-  reason = _sleepq_wait(wchan, waitpt, SQ_TIMEOUT);
+  WITH_NO_PREEMPTION {
+    callout_setup_relative(&wk, timeout_ms, (timeout_t)sq_timeout, thread_self());
+    reason = _sleepq_wait(wchan, waitpt, SQ_TIMEOUT);
+  }
 
   callout_stop(&wk);
 
