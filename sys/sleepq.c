@@ -320,6 +320,8 @@ static bool sleepq_abort_reason(thread_t *td, sq_wakeup_t reason) {
   }
   sc_release(sc);
 
+  // TODO maybe move this out to sleepq_abort?
+  //      it's NOP for sq_timeout anyway
   sched_maybe_preempt();
   return aborted;
 }
