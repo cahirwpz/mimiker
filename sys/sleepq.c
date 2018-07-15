@@ -308,6 +308,7 @@ bool sleepq_broadcast(void *wchan) {
   return true;
 }
 
+// TODO rename this (and possibly `sleepq_abort`)
 static bool sleepq_abort_reason(thread_t *td, sq_wakeup_t reason) {
   sleepq_chain_t *sc = sc_acquire(td->td_wchan);
   sleepq_t *sq = sq_lookup(sc, td->td_wchan);
