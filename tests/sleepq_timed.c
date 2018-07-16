@@ -21,7 +21,7 @@ static volatile int signaled_sent;
 static thread_t *waiters[T];
 static thread_t *waker;
 
-static void snorlax(void *_arg) {
+static void waiter_routine(void *_arg) {
   systime_t before_sleep = getsystime();
   sq_wakeup_t status = sleepq_wait_timed(&wchan, __caller(0), SLEEP_TIME_MS);
   systime_t after_sleep = getsystime();
@@ -37,7 +37,7 @@ static void snorlax(void *_arg) {
   }
 }
 
-static void poke_flute(void *_arg) {
+static void waker_routine(void *_arg) {
   /* try to wake up half of the threads before timeout */
   for (int i = 0; i < T / 2; i++) {
     bool status = sleepq_signal(&wchan);
@@ -51,11 +51,11 @@ static int test_sleepq_timed(void) {
   signaled_received = 0;
   signaled_sent = 0;
 
-  waker = thread_create("waker", poke_flute, NULL);
+  waker = thread_create("waker", waker_routine, NULL);
   for (int i = 0; i < T; i++) {
     char name[20];
     snprintf(name, sizeof(name), "waiter%d", i);
-    waiters[i] = thread_create(name, snorlax, NULL);
+    waiters[i] = thread_create(name, waiter_routine, NULL);
   }
 
   for (int i = 0; i < T; i++) {
