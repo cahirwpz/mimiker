@@ -218,7 +218,9 @@ sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep) {
       td->td_state = TDS_SLEEPING;
       sched_switch();
     }
-    /* TDF_SLPINTR flag is set after wakeup only if sleep was aborted. */
+    /* After wakeup, only one of the following flags may be set:
+     *  - TDF_SLPINTR if sleep was aborted,
+     *  - TDF_SLPTIMED if sleep has timed out. */
     if (td->td_flags & TDF_SLPINTR) {
       td->td_flags &= ~TDF_SLPINTR;
       wakeup = SQ_ABORT;
@@ -226,9 +228,6 @@ sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep) {
       td->td_flags &= ~TDF_SLPTIMED;
       wakeup = SQ_TIMEOUT;
     }
-
-    assert(!(td->td_flags & TDF_SLPINTR));
-    assert(!(td->td_flags & TDF_SLPTIMED));
   }
 
   return wakeup;
