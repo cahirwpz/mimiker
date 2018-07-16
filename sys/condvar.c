@@ -17,6 +17,28 @@ void cv_wait(condvar_t *cv, mtx_t *mtx) {
   _mtx_lock(mtx, __caller(0));
 }
 
+sq_wakeup_t cv_wait_intr(condvar_t *cv, mtx_t *mtx) {
+  sq_wakeup_t status;
+  WITH_NO_PREEMPTION {
+    cv->waiters++;
+    mtx_unlock(mtx);
+    status = sleepq_wait_abortable(cv, __caller(0));
+  }
+  _mtx_lock(mtx, __caller(0));
+  return status;
+}
+
+sq_wakeup_t cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout_ms) {
+  sq_wakeup_t status;
+  WITH_NO_PREEMPTION {
+    cv->waiters++;
+    mtx_unlock(mtx);
+    status = sleepq_wait_timed(cv, __caller(0), timeout_ms);
+  }
+  _mtx_lock(mtx, __caller(0));
+  return status;
+}
+
 void cv_signal(condvar_t *cv) {
   SCOPED_NO_PREEMPTION();
   if (cv->waiters > 0) {
