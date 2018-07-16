@@ -8,6 +8,7 @@
 #include <sched.h>
 #include <spinlock.h>
 #include <thread.h>
+#include <interrupt.h>
 #include <callout.h>
 
 #define SC_TABLESIZE 256 /* Must be power of 2. */
@@ -336,9 +337,9 @@ sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
                               systime_t timeout) {
   assert(timeout > 0);
 
-  callout_t co = {0};
+  callout_t co;
   sq_wakeup_t reason = SQ_NORMAL;
-  WITH_NO_PREEMPTION {
+  WITH_INTR_DISABLED {
     callout_setup_relative(&co, timeout, (timeout_t)sq_timeout, thread_self());
     reason = _sleepq_wait(wchan, waitpt, SQ_TIMEOUT);
   }
