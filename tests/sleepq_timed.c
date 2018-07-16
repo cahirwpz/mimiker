@@ -5,7 +5,14 @@
 #include <sched.h>
 #include <runq.h>
 
-/* This test doesn't check if timed sleep is also indeed interruptible. */
+/* `waiters[i]` wait with timeout on `&wchan`.
+ * `waker` wakes up half of them with `sleepq_signal(&wchan)`.
+ * We count the number of successful `sleepq_signal` from the perspective of
+ * the waker and number of received `SQ_TIMED` and `SQ_NORMAL` from the
+ * perspective of the waiters.
+ *
+ * This test doesn't check if timed sleep is also indeed interruptible.
+ */
 
 /* just to get some unique address for sleepq */
 static int wchan;
