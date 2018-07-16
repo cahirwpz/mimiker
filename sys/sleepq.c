@@ -156,7 +156,6 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
 
     if (sleep >= SQ_ABORT)
       td->td_flags |= TDF_SLPINTR;
-
     if (sleep >= SQ_TIMEOUT)
       td->td_flags |= TDF_SLPTIMED;
   }
@@ -319,8 +318,9 @@ static bool _sleepq_abort(thread_t *td, sq_wakeup_t reason) {
   }
   sc_release(sc);
 
-  // TODO maybe move this out to sleepq_abort?
-  //      it's NOP for sq_timeout anyway
+  /* If we woke up higher priority thread, we should switch to it immediately.
+   * This is useful if `_sleepq_abort` gets called in thread context and
+   * preemption is enabled. */
   sched_maybe_preempt();
   return aborted;
 }
