@@ -308,8 +308,7 @@ bool sleepq_broadcast(void *wchan) {
   return true;
 }
 
-// TODO rename this (and possibly `sleepq_abort`)
-static bool sleepq_abort_reason(thread_t *td, sq_wakeup_t reason) {
+static bool _sleepq_abort(thread_t *td, sq_wakeup_t reason) {
   sleepq_chain_t *sc = sc_acquire(td->td_wchan);
   sleepq_t *sq = sq_lookup(sc, td->td_wchan);
   bool aborted = false;
@@ -327,11 +326,11 @@ static bool sleepq_abort_reason(thread_t *td, sq_wakeup_t reason) {
 }
 
 bool sleepq_abort(thread_t *td) {
-  return sleepq_abort_reason(td, SQ_ABORT);
+  return _sleepq_abort(td, SQ_ABORT);
 }
 
 static void sq_timeout(thread_t *td) {
-  sleepq_abort_reason(td, SQ_TIMEOUT);
+  _sleepq_abort(td, SQ_TIMEOUT);
 }
 
 sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
