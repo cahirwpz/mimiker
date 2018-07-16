@@ -49,6 +49,8 @@ sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep);
 
 /*! \brief Puts a thread to sleep until it's woken up, its sleep is aborted or
  *         the time runs out.
+ *
+ * `timeout_ms` must be greater than 0.
  */
 sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
                               systime_t timeout_ms);

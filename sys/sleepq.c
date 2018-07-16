@@ -333,9 +333,9 @@ static void sq_timeout(thread_t *td) {
   sleepq_abort_reason(td, SQ_TIMEOUT);
 }
 
-// TODO will timeout_ms == 0 break this?
 sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
                               systime_t timeout_ms) {
+  assert(timeout_ms > 0);
   callout_t wk;
   sq_wakeup_t reason;
   WITH_NO_PREEMPTION {
