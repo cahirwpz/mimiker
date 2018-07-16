@@ -50,7 +50,7 @@ sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep);
 
 /*! \brief Performs abortable sleep with timeout.
  *
- * \param timeout_ms must be greater than 0
+ * \param timeout in system ticks must be greater than 0
  * \returns how the thread was actually woken up */
 sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
                               systime_t timeout_ms);

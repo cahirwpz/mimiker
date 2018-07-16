@@ -333,17 +333,15 @@ static void sq_timeout(thread_t *td) {
 }
 
 sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
-                              systime_t timeout_ms) {
-  assert(timeout_ms > 0);
-  callout_t wk;
-  sq_wakeup_t reason;
+                              systime_t timeout) {
+  assert(timeout > 0);
+
+  callout_t co = {0};
+  sq_wakeup_t reason = SQ_NORMAL;
   WITH_NO_PREEMPTION {
-    callout_setup_relative(&wk, timeout_ms, (timeout_t)sq_timeout,
-                           thread_self());
+    callout_setup_relative(&co, timeout, (timeout_t)sq_timeout, thread_self());
     reason = _sleepq_wait(wchan, waitpt, SQ_TIMEOUT);
   }
-
-  callout_stop(&wk);
-
+  callout_stop(&co);
   return reason;
 }
