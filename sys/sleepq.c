@@ -240,11 +240,12 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
   /* Only sq_enter sets TDF_SLP... flags and it holds the same sleepq spinlock
    * as sq_wakeup. Hence it's safe to read flags without holding thread's
    * spinlock. */
-  if ((!(td->td_flags & TDF_SLPINTR) && (wakeup == SQ_ABORT)) ||
-      (!(td->td_flags & TDF_SLPTIMED) && (wakeup == SQ_TIMEOUT))) {
-    /* Do not try to abort thread's sleep if it's not prepared for that. */
+
+  /* Do not try to abort thread's sleep if it's not prepared for that. */
+  if ((wakeup == SQ_ABORT) && !(td->td_flags & TDF_SLPINTR))
     return false;
-  }
+  if ((wakeup == SQ_TIMEOUT) && !(td->td_flags & TDF_SLPTIMED))
+    return false;
 
   sq_leave(td, sc, sq);
 
