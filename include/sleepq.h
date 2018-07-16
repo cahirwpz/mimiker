@@ -9,11 +9,12 @@ typedef struct sleepq sleepq_t;
 
 /*! \file sleepq.h */
 
-/* Used to return reason of wakeup from _sleepq_wait and select sleeping mode
- * in `_sleepq_wait`.
+/*! \typedef sq_wakeup_t
+ * \brief Sleeping mode or wakeup reason.
  *
- * Further modes are extensions of previous modes so you can do checks like
- * `mode >= SQ_ABORT`.
+ * Used to return reason of wakeup from `_sleepq_wait` and select sleeping mode
+ * in `_sleepq_wait`. For sleeping purposes given mode implies former modes,
+ * i.e. sleep with timeout (`SQ_TIMEOUT`) is also abortable (`SQ_ABORT`).
  */
 typedef enum { SQ_NORMAL = 0, SQ_ABORT = 1, SQ_TIMEOUT = 2 } sq_wakeup_t;
 
@@ -47,11 +48,10 @@ void sleepq_destroy(sleepq_t *sq);
  */
 sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep);
 
-/*! \brief Puts a thread to sleep until it's woken up, its sleep is aborted or
- *         the time runs out.
+/*! \brief Performs abortable sleep with timeout.
  *
- * `timeout_ms` must be greater than 0.
- */
+ * \param timeout_ms must be greater than 0
+ * \returns how the thread was actually woken up */
 sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
                               systime_t timeout_ms);
 
