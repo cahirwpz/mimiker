@@ -208,7 +208,7 @@ void preempt_disable(void) {
 }
 
 void sched_maybe_preempt(void) {
-  if (preempt_disabled())
+  if (intr_disabled() || preempt_disabled())
     return;
 
   thread_t *td = thread_self();
