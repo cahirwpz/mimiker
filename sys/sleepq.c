@@ -153,7 +153,6 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
      * sched_switch - it may get interrupted on the way, so mark our intent. */
     td->td_flags |= TDF_SLEEPY;
 
-    // TODO should we explain `>=` somewhere?
     if (sleep >= SQ_ABORT)
       td->td_flags |= TDF_SLPINTR;
 

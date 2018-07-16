@@ -9,7 +9,12 @@ typedef struct sleepq sleepq_t;
 
 /*! \file sleepq.h */
 
-/* Used to return reason of wakeup from _sleepq_wait. */
+/* Used to return reason of wakeup from _sleepq_wait and select sleeping mode
+ * in `_sleepq_wait`.
+ *
+ * Further modes are extensions of previous modes so you can do checks like
+ * `mode >= SQ_ABORT`.
+ */
 typedef enum { SQ_NORMAL = 0, SQ_ABORT = 1, SQ_TIMEOUT = 2 } sq_wakeup_t;
 
 /*! \brief Initializes sleep queues.
