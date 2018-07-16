@@ -33,7 +33,7 @@ static void snorlax(void *_arg) {
   } else if (status == SQ_NORMAL) {
     signaled_received++;
   } else {
-    assert(false);
+    panic("Got unexpected wakeup status");
   }
 }
 
