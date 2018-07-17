@@ -16,7 +16,8 @@ class GDBWrapper(Launchable):
     def configure(self, **kwargs):
         # TODO: Maybe we don't need a way of configuring the tripet.
         cmd = shlex.split(self.cmdstring % {'kernel': kwargs['kernel'],
-                                            'gdb': TRIPLET + '-gdb'})
+                                            'gdb': TRIPLET + '-gdb',
+                                            'opts': '-ex=continue --silent'})
         self.cmd, self.options = cmd[0], cmd[1:]
 
     def stop(self):
@@ -40,10 +41,10 @@ class NoDebugger(Launchable):
 
 DEBUGGERS = [
     NoDebugger(),
-    GDBWrapper('cgdb', 'cgdb', 'cgdb -d %(gdb)s %(kernel)s', True),
-    GDBWrapper('ddd', 'ddd', 'ddd --debugger %(gdb)s %(kernel)s'),
-    GDBWrapper('emacs', 'emacs',
-               'emacsclient -c -e \'(gdb "%(gdb)s -i=mi %(kernel)s")\''),
-    GDBWrapper('gdbtui', 'gdbtui', '%(gdb)s -tui %(kernel)s', True),
-    GDBWrapper('gdb', '', '%(gdb)s %(kernel)s', True),
+    GDBWrapper('cgdb', 'cgdb', 'cgdb -d %(gdb)s %(opts)s %(kernel)s', True),
+    GDBWrapper('ddd', 'ddd', 'ddd --debugger %(gdb)s %(opts)s %(kernel)s'),
+    GDBWrapper('emacs', 'emacs', 'emacsclient -c -e'
+               '\'(gdb "%(gdb)s -i=mi %(opts)s %(kernel)s")\''),
+    GDBWrapper('gdbtui', 'gdbtui', '%(gdb)s %(opts)s -tui %(kernel)s', True),
+    GDBWrapper('gdb', '', '%(gdb)s %(opts)s %(kernel)s', True),
 ]
