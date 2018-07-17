@@ -35,7 +35,7 @@ def send_command(gdb, cmd):
 
 
 # Tries to start gdb in order to investigate kernel state on deadlock or crash.
-def gdb_inspect(interactive):
+def gdb_inspect(interactive, commands):
     gdb_port = GDB_PORT_BASE + os.getuid()
     gdb_command = 'mipsel-mimiker-elf-gdb'
     # Note: These options are different than .gdbinit.
@@ -46,16 +46,15 @@ def gdb_inspect(interactive):
                 '--nh', '--nx', 'mimiker.elf']
     gdb = pexpect.spawn(gdb_command, gdb_opts, timeout=3)
     gdb.expect_exact('(gdb)', timeout=5)
-    send_command(gdb, 'klog')
-    send_command(gdb, 'info registers')
-    send_command(gdb, 'backtrace')
-    send_command(gdb, 'list')
-    send_command(gdb, 'kthread')
+    for cmd in commands:
+        send_command(gdb, cmd)
+
     if interactive:
+        print('(gdb)', end='', flush=True)
         gdb.interact()
 
 
-def test_seed(seed, interactive=True, repeat=1, retry=0):
+def test_seed(seed, gdb_cmds, interactive=True, repeat=1, retry=0):
     if retry == RETRIES_MAX:
         print("Maximum retries reached, still not output received. "
               "Test inconclusive.")
@@ -81,7 +80,7 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
         except pexpect.exceptions.TIMEOUT:
             pass
         print(message)
-        gdb_inspect(interactive)
+        gdb_inspect(interactive, gdb_cmds)
         sys.exit(1)
     elif index == 2:
         message = safe_decode(child.before)
@@ -90,7 +89,7 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
         print("EOF reached without success report. This may indicate "
               "a problem with the testing framework or QEMU. "
               "Retrying (%d)..." % (retry + 1))
-        test_seed(seed, interactive, repeat, retry + 1)
+        test_seed(seed, gdb_cmds, interactive, repeat, retry + 1)
     elif index == 3:
         print("Timeout reached.\n")
         message = safe_decode(child.buffer)
@@ -99,9 +98,9 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
             print("It looks like kernel did not even start within the time "
                   "limit. Retrying (%d)..." % (retry + 1))
             child.terminate(True)
-            test_seed(seed, interactive, repeat, retry + 1)
+            test_seed(seed, gdb_cmds, interactive, repeat, retry + 1)
         else:
-            gdb_inspect(interactive)
+            gdb_inspect(interactive, gdb_cmds)
             print("No test result reported within timeout. Unable to verify "
                   "test success. Seed was: %d, repeat: %d" % (seed, repeat))
             sys.exit(1)
@@ -116,6 +115,10 @@ if __name__ == '__main__':
                         help='Keep testing until some error is found.')
     parser.add_argument('--non-interactive', action='store_true',
                         help='Do not run gdb session if tests fail.')
+    parser.add_argument('--commands', nargs='*', metavar='CMD',
+                        help='Commands to run in gdb session upon failure',
+                        default=['klog', 'info registers', 'backtrace',
+                                 'list', 'kthread'])
 
     try:
         args = parser.parse_args()
@@ -129,16 +132,16 @@ if __name__ == '__main__':
     interactive = not args.non_interactive
 
     # Run tests in alphabetic order
-    test_seed(0, interactive)
+    test_seed(0, args.commands, interactive)
     # Run infinitely many tests, until some problem is found.
     if args.infinite:
         while True:
             seed = random.randint(0, 2**32)
-            test_seed(seed, interactive, REPEAT)
+            test_seed(seed, args.commands, interactive, REPEAT)
     # Run tests using n random seeds
     for i in range(0, n):
         seed = random.randint(0, 2**32)
-        test_seed(seed, interactive, REPEAT)
+        test_seed(seed, args.commands, interactive, REPEAT)
 
     print("Tests successful!")
     sys.exit(0)
