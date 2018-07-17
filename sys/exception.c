@@ -8,7 +8,7 @@ void exc_before_leave(exc_frame_t *kframe) {
   thread_t *td = thread_self();
 
   /* If thread requested not to be preempted, then do not switch out! */
-  if (td->td_pdnest > 0)
+  if (preempt_disabled())
     return;
 
   intr_enable();

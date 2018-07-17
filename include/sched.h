@@ -6,8 +6,10 @@
 
 /*! \brief Disables preemption.
  *
- * Prevents scheduler from switching out current thread. Does not disable
- * interrupts.
+ * Prevents current thread from switching out on return from interrupt,
+ * exception or trap handler. It does not disable interrupts!
+ *
+ * \sa exc_before_leave
  *
  * Calls to \fn preempt_disable can nest, you must use the same number of calls
  * to \fn preempt_enable to actually enable preemption.
