@@ -21,9 +21,6 @@ int do_fork(void) {
      the all_thread list, has name and tid set. Many fields don't require setup
      as they will be prepared by sched_add. */
 
-  assert(td->td_idnest == 0);
-  newtd->td_idnest = 0;
-
   /* Copy user context.. */
   exc_frame_copy(newtd->td_uframe, td->td_uframe);
   exc_frame_set_retval(newtd->td_uframe, 0);

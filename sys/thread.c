@@ -126,7 +126,7 @@ noreturn void thread_exit(void) {
   /* Thread must not exit while having interrupts disabled! However, we can't
    * use assert here, because assert also calls thread_exit. Thus, in case this
    * condition is not met, we'll log the problem and panic! */
-  if (td->td_idnest > 0)
+  if (intr_disabled())
     panic("ERROR: Thread must not exit when interrupts are disabled!");
 
   /*
