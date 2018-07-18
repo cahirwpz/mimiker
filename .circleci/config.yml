@@ -24,12 +24,12 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - v2-newlib-2.5.0
+            - v1-newlib-3.0.0
       - run: 'make download'
       - save_cache:
-          key: v2-newlib-2.5.0
+          key: v1-newlib-3.0.0
           paths:
-            - user/newlib/newlib-2.5.0
+            - user/newlib/newlib-3.0.0
       - run: 'make'
       - store_artifacts:
           path: mimiker.elf

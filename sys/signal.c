@@ -79,7 +79,7 @@ int sig_send(proc_t *proc, signo_t sig) {
 
   WITH_MTX_LOCK (&target->td_proc->p_lock) {
     /* If the signal is ignored, don't even bother posting it. */
-    sighandler_t *handler = target->td_proc->p_sigactions[sig].sa_handler;
+    sighandler_t handler = target->td_proc->p_sigactions[sig].sa_handler;
     if (handler == SIG_IGN ||
         (sig_default(sig) == SA_IGNORE && handler == SIG_DFL))
       return 0;
@@ -117,7 +117,7 @@ int sig_check(thread_t *td) {
     bit_clear(td->td_sigpend, sig);
 
     SCOPED_MTX_LOCK(&td->td_proc->p_lock);
-    sighandler_t *handler = td->td_proc->p_sigactions[sig].sa_handler;
+    sighandler_t handler = td->td_proc->p_sigactions[sig].sa_handler;
 
     if (handler == SIG_IGN ||
         (handler == SIG_DFL && sig_default(sig) == SA_IGNORE))

@@ -11,11 +11,12 @@
  * structured views of FCSR.
  */
 
-#include "utest.h"
-#include <unistd.h>
-#include <stdlib.h>
 #include <assert.h>
-#include <sys/signal.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include "utest.h"
 
 #define TEST_TIME 1000000
 #define PROCESSES 10
