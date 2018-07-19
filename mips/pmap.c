@@ -8,6 +8,7 @@
 #include <mips/pmap.h>
 #include <pcpu.h>
 #include <pmap.h>
+#include <proc.h>
 #include <vm_map.h>
 #include <thread.h>
 #include <ktest.h>
@@ -292,9 +293,7 @@ void tlb_exception_handler(exc_frame_t *frame) {
     goto fault;
   }
   vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
-  intr_enable();
   int ret = vm_page_fault(map, vaddr, access);
-  intr_disable();
   if (ret == 0)
     return;
 
@@ -305,17 +304,11 @@ fault:
     td->td_onfault = 0;
   } else if (td->td_proc) {
     /* Panic when process running in kernel space uses wrong pointer. */
-    if (in_kernel_mode(frame))
+    if (kern_mode_p(frame))
       kernel_oops(frame);
 
     /* Send a segmentation fault signal to the user program. */
-
-    /* TODO it's an awful kludge,
-     * once pmap & vm_map is properly synchronized it will be removed
-     * and whole tlb_exception_handler will run as preemptible code */
-    intr_enable();
-    sig_send(td->td_proc, SIGSEGV);
-    intr_disable();
+    sig_send(proc_self(), SIGSEGV);
   } else if (ktest_test_running_flag) {
     ktest_failure();
   } else {

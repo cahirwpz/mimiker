@@ -11,6 +11,7 @@
 #include <queue.h>
 #include <sysent.h>
 #include <thread.h>
+#include <proc.h>
 #include <ktest.h>
 
 typedef void (*exc_handler_t)(exc_frame_t *);
@@ -93,9 +94,7 @@ void mips_intr_teardown(intr_handler_t *handler) {
 }
 
 /* Hardware interrupt handler is called with interrupts disabled. */
-void mips_intr_handler(exc_frame_t *frame) {
-  assert(intr_disabled());
-
+static void mips_intr_handler(exc_frame_t *frame) {
   unsigned pending = (frame->cause & frame->sr) & CR_IP_MASK;
 
   for (int i = 7; i >= 0; i--) {
@@ -108,10 +107,6 @@ void mips_intr_handler(exc_frame_t *frame) {
   }
 
   mips32_set_c0(C0_CAUSE, frame->cause & ~CR_IP_MASK);
-
-  exc_before_leave(frame);
-
-  assert(intr_disabled());
 }
 
 const char *const exceptions[32] = {
@@ -146,8 +141,6 @@ static void cpu_get_syscall_args(const exc_frame_t *frame,
 }
 
 static void syscall_handler(exc_frame_t *frame) {
-  assert(!intr_disabled());
-
   /* Eventually we will want a platform-independent syscall entry, so
      argument retrieval is done separately */
   syscall_args_t args;
@@ -169,22 +162,19 @@ finalize:
 }
 
 static void fpe_handler(exc_frame_t *frame) {
-  thread_t *td = thread_self();
-  if (td->td_proc) {
-    sig_send(td->td_proc, SIGFPE);
-  } else {
-    panic("Floating point exception or integer overflow in a kernel thread.");
-  }
+  if (kern_mode_p(frame))
+    panic("Floating point exception or integer overflow in kernel mode!");
+
+  sig_send(proc_self(), SIGFPE);
 }
 
 static void cp_unusable_handler(exc_frame_t *frame) {
-  if (in_kernel_mode(frame)) {
-    panic("Coprocessor unusable exception in kernel mode.");
-  }
+  if (kern_mode_p(frame))
+    panic("Coprocessor unusable exception in kernel mode!");
 
   int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
   if (cp_id != 1) {
-    sig_send(thread_self()->td_proc, SIGILL);
+    sig_send(proc_self(), SIGILL);
   } else {
     /* Enable FPU for interrupted context. */
     frame->sr |= SR_CU1;
@@ -192,8 +182,10 @@ static void cp_unusable_handler(exc_frame_t *frame) {
 }
 
 static void ri_handler(exc_frame_t *frame) {
-  assert(!in_kernel_mode(frame));
-  sig_send(thread_self()->td_proc, SIGILL);
+  if (kern_mode_p(frame))
+    panic("Reserved instruction exception in kernel mode!");
+
+  sig_send(proc_self(), SIGILL);
 }
 
 /*
@@ -202,24 +194,27 @@ static void ri_handler(exc_frame_t *frame) {
  * handlers numbers please check 5.23 Table of MIPS32 4KEc User's Manual.
  */
 
-static exc_handler_t user_exception_table[32] =
-  {[EXC_MOD] = tlb_exception_handler,
-   [EXC_TLBL] = tlb_exception_handler,
-   [EXC_TLBS] = tlb_exception_handler,
-   [EXC_SYS] = syscall_handler,
-   [EXC_FPE] = fpe_handler,
-   [EXC_MSAFPE] = fpe_handler,
-   [EXC_OVF] = fpe_handler,
-   [EXC_CPU] = cp_unusable_handler,
-   [EXC_RI] = ri_handler};
+/* clang-format off */
+static exc_handler_t user_exc_swtab[32] = {
+  [EXC_INTR] = mips_intr_handler,
+  [EXC_MOD] = tlb_exception_handler,
+  [EXC_TLBL] = tlb_exception_handler,
+  [EXC_TLBS] = tlb_exception_handler,
+  [EXC_SYS] = syscall_handler,
+  [EXC_FPE] = fpe_handler,
+  [EXC_MSAFPE] = fpe_handler,
+  [EXC_OVF] = fpe_handler,
+  [EXC_CPU] = cp_unusable_handler,
+  [EXC_RI] = ri_handler
+};
 
-static exc_handler_t kernel_exception_table[32] =
-  {[EXC_MOD] = tlb_exception_handler, [EXC_TLBL] = tlb_exception_handler,
-   [EXC_TLBS] = tlb_exception_handler};
-
-static inline unsigned exc_code(exc_frame_t *frame) {
-  return (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
-}
+static exc_handler_t kern_exc_swtab[32] = {
+  [EXC_INTR] = mips_intr_handler,
+  [EXC_MOD] = tlb_exception_handler,
+  [EXC_TLBL] = tlb_exception_handler,
+  [EXC_TLBS] = tlb_exception_handler
+};
+/* clang-format on */
 
 noreturn void kernel_oops(exc_frame_t *frame) {
   unsigned code = exc_code(frame);
@@ -244,33 +239,33 @@ void kstack_overflow_handler(exc_frame_t *frame) {
 /* General exception handler is called with interrupts disabled. */
 void mips_exc_handler(exc_frame_t *frame) {
   unsigned code = exc_code(frame);
-  bool kernel_mode = in_kernel_mode(frame);
+  bool user_mode = user_mode_p(frame);
 
   assert(intr_disabled());
 
-  if (code == EXC_INTR && kernel_mode) {
-    mips_intr_handler(frame);
-    return;
-  }
-
-  exc_handler_t handler =
-    (kernel_mode ? kernel_exception_table : user_exception_table)[code];
+  exc_handler_t handler = (user_mode ? user_exc_swtab : kern_exc_swtab)[code];
 
   if (!handler)
     kernel_oops(frame);
 
-  /* TODO If `handler` is not hardware interrupt handler, then it should be
-   * called with interrupts enabled. Preemption state should not be altered. */
-  if (code == EXC_SYS) {
-    /* Handle system calls with interrupts enabled! */
+  /* Only hardware interrupt handling must work with interrupts disabled. */
+  if (code != EXC_INTR)
     intr_enable();
-    (*handler)(frame);
-    intr_disable();
-  } else {
-    (*handler)(frame);
-  }
 
-  exc_before_leave(frame);
+  (*handler)(frame);
+
+  /* From now on till the end of this procedure interrupts are enabled. */
+  if (code == EXC_INTR)
+    intr_enable();
+
+  /* This is right moment to check if we must switch to another thread. */
+  on_exc_leave();
+
+  /* If we're about to return to user mode then check pending signals, etc. */
+  if (user_mode)
+    on_user_exc_leave();
+
+  intr_disable();
 
   assert(intr_disabled());
 }

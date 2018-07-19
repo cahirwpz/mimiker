@@ -97,7 +97,7 @@ general_exception:
         .local  irq
 
 irq:
-        la      k1, mips_intr_handler
+        la      k1, mips_exc_handler
         j       exc_enter
         mfc0    k0, C0_STATUS           # (delay slot) load status register
 

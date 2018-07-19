@@ -4,23 +4,24 @@
 #include <sched.h>
 #include <signal.h>
 
-void exc_before_leave(exc_frame_t *kframe) {
-  thread_t *td = thread_self();
-
+void on_exc_leave(void) {
   /* If thread requested not to be preempted, then do not switch out! */
   if (preempt_disabled())
     return;
 
-  intr_enable();
-
+  thread_t *td = thread_self();
   if (td->td_flags & TDF_NEEDSWITCH) {
     WITH_SPINLOCK(td->td_spin) {
       td->td_state = TDS_READY;
       sched_switch();
     }
   }
+}
 
-  /* First thing after switching to a thread: Process pending signals. */
+void on_user_exc_leave(void) {
+  thread_t *td = thread_self();
+
+  /* Process pending signals. */
   if (td->td_flags & TDF_NEEDSIGCHK) {
     SCOPED_MTX_LOCK(&td->td_lock);
     int sig;
@@ -28,6 +29,4 @@ void exc_before_leave(exc_frame_t *kframe) {
       sig_deliver(sig);
     td->td_flags &= ~TDF_NEEDSIGCHK;
   }
-
-  intr_disable();
 }
