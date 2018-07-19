@@ -67,6 +67,7 @@ typedef enum {
  * Field markings and the corresponding locks:
  *  - a: threads_lock
  *  - t: thread_t::td_lock
+ *  - p: thread_t::td_proc::p_lock
  *  - @: read-only access
  *  - !: thread_t::td_spin
  *  - ~: always safe to access
@@ -122,7 +123,7 @@ typedef struct thread {
   timeval_t td_last_slptime; /*!< time of last switch to sleep state */
   unsigned td_nctxsw;        /*!< total number of context switches */
   /* signal handling */
-  sigset_t td_sigpend; /* Pending signals for this thread. */
+  sigset_t td_sigpend; /*!< (p) Pending signals for this thread. */
   /* TODO: Signal mask, sigsuspend. */
 } thread_t;
 

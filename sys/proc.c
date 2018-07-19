@@ -47,6 +47,14 @@ static void pid_free(pid_t pid) {
   bit_clear(pid_used, (unsigned)pid);
 }
 
+void proc_lock(proc_t *p) {
+  mtx_lock(&p->p_lock);
+}
+
+void proc_unlock(proc_t *p) {
+  mtx_unlock(&p->p_lock);
+}
+
 proc_t *proc_create(thread_t *td, proc_t *parent) {
   proc_t *p = pool_alloc(P_PROC, PF_ZERO);
 
@@ -76,10 +84,16 @@ proc_t *proc_find(pid_t pid) {
 
   proc_t *p = NULL;
   TAILQ_FOREACH (p, &proc_list, p_all) {
-    mtx_lock(&p->p_lock);
-    if (p->p_pid == pid)
+    proc_lock(p);
+    if (p->p_pid == pid) {
+      /* Skip process if it is not alive. */
+      if (p->p_state != PS_NORMAL) {
+        proc_unlock(p);
+        return NULL;
+      }
       break;
-    mtx_unlock(&p->p_lock);
+    }
+    proc_unlock(p);
   }
   return p;
 }
@@ -108,10 +122,9 @@ noreturn void proc_exit(int exitstatus) {
   proc_t *p = proc_self();
 
   /* Mark this process as dying, so others don't attempt to disturb it. */
-  WITH_MTX_LOCK (&p->p_lock)
+  WITH_PROC_LOCK(p) {
     p->p_state = PS_DYING;
 
-  WITH_MTX_LOCK (&p->p_lock) {
     /* Clean up process resources. */
     klog("Freeing process PID(%d) {%p} resources", p->p_pid, p);
 
@@ -147,18 +160,18 @@ noreturn void proc_exit(int exitstatus) {
     /* When the process is dead we can finally signal the parent. */
     proc_t *parent = p->p_parent;
 
-    klog("Wakeup PID(%d) because child died", parent->p_pid);
+    klog("Wakeup PID(%d) because child PID(%d) died", parent->p_pid, p->p_pid);
 
     cv_broadcast(&parent->p_waitcv);
+    proc_lock(parent);
+    sig_kill(parent, SIGCHLD);
 
-    if (parent->p_sigactions[SIGCHLD].sa_handler != SIG_IGN) {
-      /* sig_send must be called with target process lock not acquired. */
-      sig_send(parent, SIGCHLD);
-    }
+    klog("Turning PID(%d) into zombie!", p->p_pid);
 
     /* Turn the process into a zombie. */
-    WITH_MTX_LOCK (&p->p_lock)
+    WITH_PROC_LOCK(p) {
       p->p_state = PS_ZOMBIE;
+    }
 
     klog("Process PID(%d) {%p} is dead!", p->p_pid, p);
   }

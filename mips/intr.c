@@ -11,7 +11,6 @@
 #include <queue.h>
 #include <sysent.h>
 #include <thread.h>
-#include <proc.h>
 #include <ktest.h>
 
 typedef void (*exc_handler_t)(exc_frame_t *);
@@ -165,7 +164,7 @@ static void fpe_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
     panic("Floating point exception or integer overflow in kernel mode!");
 
-  sig_send(proc_self(), SIGFPE);
+  sig_trap(frame, SIGFPE);
 }
 
 static void cp_unusable_handler(exc_frame_t *frame) {
@@ -174,7 +173,7 @@ static void cp_unusable_handler(exc_frame_t *frame) {
 
   int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
   if (cp_id != 1) {
-    sig_send(proc_self(), SIGILL);
+    sig_trap(frame, SIGILL);
   } else {
     /* Enable FPU for interrupted context. */
     frame->sr |= SR_CU1;
@@ -185,7 +184,7 @@ static void ri_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
     panic("Reserved instruction exception in kernel mode!");
 
-  sig_send(proc_self(), SIGILL);
+  sig_trap(frame, SIGILL);
 }
 
 /*

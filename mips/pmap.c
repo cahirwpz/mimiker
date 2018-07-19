@@ -8,7 +8,6 @@
 #include <mips/pmap.h>
 #include <pcpu.h>
 #include <pmap.h>
-#include <proc.h>
 #include <vm_map.h>
 #include <thread.h>
 #include <ktest.h>
@@ -308,7 +307,7 @@ fault:
       kernel_oops(frame);
 
     /* Send a segmentation fault signal to the user program. */
-    sig_send(proc_self(), SIGSEGV);
+    sig_trap(frame, SIGSEGV);
   } else if (ktest_test_running_flag) {
     ktest_failure();
   } else {
