@@ -12,18 +12,35 @@
 #define SA_IGNORE 0x01
 #define SA_KILL 0x02
 
+/* clang-format off */
 static int def_sigact[NSIG] = {
-    [SIGINT] = SA_KILL,    [SIGILL] = SA_KILL,  [SIGFPE] = SA_KILL,
-    [SIGABRT] = SA_KILL,   [SIGSEGV] = SA_KILL, [SIGKILL] = SA_KILL,
-    [SIGCHLD] = SA_IGNORE, [SIGUSR1] = SA_KILL, [SIGUSR2] = SA_KILL,
+  [SIGINT] = SA_KILL,
+  [SIGILL] = SA_KILL,
+  [SIGABRT] = SA_KILL,
+  [SIGFPE] = SA_KILL,
+  [SIGSEGV] = SA_KILL,
+  [SIGKILL] = SA_KILL,
+  [SIGTERM] = SA_KILL,
+  [SIGCHLD] = SA_IGNORE,
+  [SIGUSR1] = SA_KILL,
+  [SIGUSR2] = SA_KILL,
+  [SIGBUS] = SA_KILL,
 };
 
 static const char *sig_name[NSIG] = {
-    [SIGINT] = "SIGINT",   [SIGILL] = "SIGILL",   [SIGABRT] = "SIGABRT",
-    [SIGFPE] = "SIGFPE",   [SIGSEGV] = "SIGSEGV", [SIGKILL] = "SIGKILL",
-    [SIGTERM] = "SIGTERM", [SIGCHLD] = "SIGCHLD", [SIGUSR1] = "SIGUSR1",
-    [SIGUSR2] = "SIGUSR2",
+  [SIGINT] = "SIGINT",
+  [SIGILL] = "SIGILL",
+  [SIGABRT] = "SIGABRT",
+  [SIGFPE] = "SIGFPE",
+  [SIGSEGV] = "SIGSEGV",
+  [SIGKILL] = "SIGKILL",
+  [SIGTERM] = "SIGTERM",
+  [SIGCHLD] = "SIGCHLD",
+  [SIGUSR1] = "SIGUSR1",
+  [SIGUSR2] = "SIGUSR2",
+  [SIGBUS] = "SIGBUS",
 };
+/* clang-format on */
 
 int do_kill(pid_t pid, signo_t sig) {
   proc_t *target = proc_find(pid);

@@ -114,8 +114,16 @@ static void proc_reap(proc_t *p) {
   pool_free(P_PROC, p);
 }
 
-static void proc_reparent(proc_t *child, proc_t *parent) {
-  child->p_parent = NULL;
+static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
+  assert(mtx_owned(all_proc_mtx));
+
+  proc_t *child, *next;
+  TAILQ_FOREACH_SAFE(child, CHILDREN(old_parent), p_child, next) {
+    child->p_parent = new_parent;
+    TAILQ_REMOVE(CHILDREN(old_parent), child, p_child);
+    if (new_parent)
+      TAILQ_INSERT_TAIL(CHILDREN(new_parent), child, p_child);
+  }
 }
 
 noreturn void proc_exit(int exitstatus) {
@@ -144,21 +152,20 @@ noreturn void proc_exit(int exitstatus) {
   }
 
   WITH_MTX_LOCK (all_proc_mtx) {
-    /*
-     * Process orphans.
-     *
-     * XXX: Orphans should become children of init process, but since we don't
-     * have one yet let's make them parent-less.
-     */
-    proc_t *child;
-    TAILQ_FOREACH (child, CHILDREN(p), p_child)
-      proc_reparent(child, NULL);
+    /* Process orphans, but firstly find init process. */
+    proc_t *init;
+    TAILQ_FOREACH (init, &proc_list, p_all) {
+      if (init->p_pid == 0)
+        break;
+    }
+    proc_reparent(p, init);
 
     TAILQ_REMOVE(&proc_list, p, p_all);
     TAILQ_INSERT_TAIL(&zombie_list, p, p_zombie);
 
     /* When the process is dead we can finally signal the parent. */
     proc_t *parent = p->p_parent;
+    assert(parent != NULL);
 
     klog("Wakeup PID(%d) because child PID(%d) died", parent->p_pid, p->p_pid);
 

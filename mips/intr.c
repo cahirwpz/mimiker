@@ -167,7 +167,7 @@ static void fpe_handler(exc_frame_t *frame) {
   sig_trap(frame, SIGFPE);
 }
 
-static void cp_unusable_handler(exc_frame_t *frame) {
+static void cpu_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
     panic("Coprocessor unusable exception in kernel mode!");
 
@@ -188,30 +188,38 @@ static void ri_handler(exc_frame_t *frame) {
 }
 
 /*
+ * An address error exception occurs under the following circumstances:
+ *  - instruction address is not aligned on a word boundary
+ *  - load/store with an address is not aligned on a word/halfword boundary
+ *  - reference to a kernel/supervisor address from user
+ */
+static void ade_handler(exc_frame_t *frame) {
+  if (kern_mode_p(frame))
+    panic("Address error exception in kernel mode!");
+
+  sig_trap(frame, SIGBUS);
+}
+
+/*
  * This is exception vector table. Each exeception either has been assigned a
  * handler or kernel_oops is called for it. For exact meaning of exception
  * handlers numbers please check 5.23 Table of MIPS32 4KEc User's Manual.
  */
 
 /* clang-format off */
-static exc_handler_t user_exc_swtab[32] = {
+static exc_handler_t exception_switch_table[32] = {
   [EXC_INTR] = mips_intr_handler,
   [EXC_MOD] = tlb_exception_handler,
   [EXC_TLBL] = tlb_exception_handler,
   [EXC_TLBS] = tlb_exception_handler,
+  [EXC_ADEL] = ade_handler,
+  [EXC_ADES] = ade_handler,
   [EXC_SYS] = syscall_handler,
   [EXC_FPE] = fpe_handler,
   [EXC_MSAFPE] = fpe_handler,
   [EXC_OVF] = fpe_handler,
-  [EXC_CPU] = cp_unusable_handler,
+  [EXC_CPU] = cpu_handler,
   [EXC_RI] = ri_handler
-};
-
-static exc_handler_t kern_exc_swtab[32] = {
-  [EXC_INTR] = mips_intr_handler,
-  [EXC_MOD] = tlb_exception_handler,
-  [EXC_TLBL] = tlb_exception_handler,
-  [EXC_TLBS] = tlb_exception_handler
 };
 /* clang-format on */
 
@@ -242,7 +250,7 @@ void mips_exc_handler(exc_frame_t *frame) {
 
   assert(intr_disabled());
 
-  exc_handler_t handler = (user_mode ? user_exc_swtab : kern_exc_swtab)[code];
+  exc_handler_t handler = exception_switch_table[code];
 
   if (!handler)
     kernel_oops(frame);
