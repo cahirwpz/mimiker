@@ -11,6 +11,7 @@
 #include <mutex.h>
 #include <pcpu.h>
 #include <sysinit.h>
+#include <turnstile.h>
 
 static runq_t runq;
 static bool sched_active = false;
@@ -196,18 +197,8 @@ noreturn void sched_run(void) {
   }
 }
 
-bool preempt_disabled(void) {
-  thread_t *td = thread_self();
-  return (td->td_pdnest > 0) || intr_disabled();
-}
-
-void preempt_disable(void) {
-  thread_t *td = thread_self();
-  td->td_pdnest++;
-}
-
 void sched_maybe_preempt(void) {
-  if (preempt_disabled())
+  if (preempt_disabled() || intr_disabled())
     return;
 
   thread_t *td = thread_self();
@@ -220,12 +211,20 @@ void sched_maybe_preempt(void) {
   }
 }
 
+bool preempt_disabled(void) {
+  thread_t *td = thread_self();
+  return td->td_pdnest > 0;
+}
+
+void preempt_disable(void) {
+  thread_t *td = thread_self();
+  td->td_pdnest++;
+}
+
 void preempt_enable(void) {
   thread_t *td = thread_self();
   assert(td->td_pdnest > 0);
-
   td->td_pdnest--;
-
   sched_maybe_preempt();
 }
 

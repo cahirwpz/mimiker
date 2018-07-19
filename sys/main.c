@@ -2,6 +2,8 @@
 #include <klog.h>
 #include <stdc.h>
 #include <exec.h>
+#include <proc.h>
+#include <thread.h>
 #include <ktest.h>
 #include <malloc.h>
 #include <syslimits.h>
@@ -13,6 +15,9 @@ char *kenv_get(const char *key);
 int main(void) {
   const char *init = kenv_get("init");
   const char *test = kenv_get("test");
+
+  /* Main kernel thread becomes PID(0) - a god process! */
+  (void)proc_create(thread_self(), NULL);
 
   if (init) {
     /* exec_args_t init_args = { */

@@ -116,7 +116,7 @@ static void kmalloc_add_arena(kmem_pool_t *mp, vaddr_t start,
 
 static void kmalloc_add_pages(kmem_pool_t *mp, unsigned pages) {
   vm_page_t *pg = pm_alloc(pages);
-  kmalloc_add_arena(mp, PG_VADDR_START(pg), PG_SIZE(pg));
+  kmalloc_add_arena(mp, (vaddr_t)PG_KSEG0_ADDR(pg), PG_SIZE(pg));
 }
 
 static mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {

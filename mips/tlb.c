@@ -92,10 +92,8 @@ void tlb_init(void) {
     panic("No TLB detected!");
 
   tlb_invalidate_all();
-  /* Shift C0_CONTEXT left, because we shift it right in tlb_refill_handler.
-   * This is little hack to make page table sized 4MB, but causes us to
-   * keep PTE in KSEG2. */
-  mips32_setcontext(PT_BASE << 1);
+  /* We're not going to use C0_CONTEXT so set it to zero. */
+  mips32_setcontext(0);
   /* First wired TLB entry is shared between kernel-PDE and user-PDE. */
   mips32_setwired(1);
 }
@@ -183,11 +181,11 @@ void tlb_print(void) {
       kprintf("[tlb] %d => ASID: %02lx", i, e.hi & PTE_ASID_MASK);
       if (e.lo0 & PTE_VALID)
         kprintf(" PFN0: {%08lx => %08lx %c%c}", e.hi & PTE_VPN2_MASK,
-                PTE_PFN_OF(e.lo0), (e.lo0 & PTE_DIRTY) ? 'D' : '-',
+                PTE_PFN_OF(e.lo0) * PAGESIZE, (e.lo0 & PTE_DIRTY) ? 'D' : '-',
                 (e.lo0 & PTE_GLOBAL) ? 'G' : '-');
       if (e.lo1 & PTE_VALID)
         kprintf(" PFN1: {%08lx => %08lx %c%c}",
-                (e.hi & PTE_VPN2_MASK) + PAGESIZE, PTE_PFN_OF(e.lo1),
+                (e.hi & PTE_VPN2_MASK) + PAGESIZE, PTE_PFN_OF(e.lo1) * PAGESIZE,
                 (e.lo1 & PTE_DIRTY) ? 'D' : '-',
                 (e.lo1 & PTE_GLOBAL) ? 'G' : '-');
       kprintf("\n");
@@ -202,16 +200,20 @@ void tlb_print(void) {
 /* Compiler does not know that debugger (external agent) will read
  * the structure and will remove it and optimize out all references to it.
  * Hence it has to be marked with `volatile`. */
-static volatile tlbentry_t _gdb_tlb_entry;
+static __boot_data volatile tlbentry_t _gdb_tlb_entry;
 
-unsigned _gdb_tlb_size(void) {
+__boot_text unsigned _gdb_tlb_size(void) {
   uint32_t config1 = mips32_getconfig1();
   return _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS) + 1;
 }
 
 /* Fills _gdb_tlb_entry structure with TLB entry. */
-void _gdb_tlb_read_index(unsigned i) {
+__boot_text void _gdb_tlb_read_index(unsigned i) {
   tlbhi_t saved = mips32_getentryhi();
-  _tlb_read(i, (tlbentry_t *)&_gdb_tlb_entry);
+  mips32_setindex(i);
+  mips32_tlbr();
+  _gdb_tlb_entry = (tlbentry_t){.hi = mips32_getentryhi(),
+                                .lo0 = mips32_getentrylo0(),
+                                .lo1 = mips32_getentrylo1()};
   mips32_setentryhi(saved);
 }

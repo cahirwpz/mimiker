@@ -8,12 +8,14 @@
 #include <common.h>
 #include <queue.h>
 #include <tree.h>
+#include <mips/mips.h>
 
 #define PG_SIZE(pg) ((pg)->size * PAGESIZE)
 #define PG_START(pg) ((pg)->paddr)
 #define PG_END(pg) ((pg)->paddr + PG_SIZE(pg))
-#define PG_VADDR_START(pg) ((pg)->vaddr)
-#define PG_VADDR_END(pg) ((pg)->vaddr + PG_SIZE(pg))
+#define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
+
+#define is_page_aligned(addr) is_aligned((addr), PAGESIZE)
 
 #define PM_RESERVED 1  /* non releasable page */
 #define PM_ALLOCATED 2 /* page has been allocated */
@@ -38,33 +40,33 @@ typedef enum {
   VM_STACK = 16,  /* region grows down, like a stack */
 } vm_flags_t;
 
-typedef struct vm_page {
-  union {
-    TAILQ_ENTRY(vm_page) freeq; /* list of free pages for buddy system */
-    struct {
-      TAILQ_ENTRY(vm_page) list;
-      RB_ENTRY(vm_page) tree;
-    } obj;
-    struct {
-      TAILQ_ENTRY(vm_page) list;
-    } pt;
-  };
-  off_t offset;     /* offset to page in vm_object */
-  vaddr_t vaddr;    /* virtual address of page */
-  paddr_t paddr;    /* physical address of page */
-  vm_prot_t prot;   /* page access rights */
-  uint8_t vm_flags; /* flags used by virtual memory system */
-  uint8_t pm_flags; /* flags used by physical memory system */
-  uint32_t size;    /* size of page in PAGESIZE units */
-} vm_page_t;
-
+typedef struct vm_page vm_page_t;
 TAILQ_HEAD(pg_list, vm_page);
 typedef struct pg_list pg_list_t;
+RB_HEAD(pg_tree, vm_page);
+typedef struct pg_tree pg_tree_t;
 
 typedef struct vm_map vm_map_t;
 typedef struct vm_segment vm_segment_t;
 typedef struct vm_object vm_object_t;
 typedef struct vm_pager vm_pager_t;
+
+struct vm_page {
+  union {
+    TAILQ_ENTRY(vm_page) freeq; /* list of free pages for buddy system */
+    TAILQ_ENTRY(vm_page) pageq; /* used to group allocated pages */
+    struct {
+      TAILQ_ENTRY(vm_page) list;
+      RB_ENTRY(vm_page) tree;
+    } obj;
+  };
+  vm_object_t *object; /* object owning that page */
+  off_t offset;        /* offset to page in vm_object */
+  paddr_t paddr;       /* physical address of page */
+  uint8_t vm_flags;    /* flags used by virtual memory system */
+  uint8_t pm_flags;    /* flags used by physical memory system */
+  uint32_t size;       /* size of page in PAGESIZE units */
+};
 
 #endif /* !__ASSEMBLER__ */
 

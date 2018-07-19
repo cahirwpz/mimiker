@@ -6,8 +6,10 @@
 
 /*! \brief Disables preemption.
  *
- * Prevents scheduler from switching out current thread. Does not disable
- * interrupts.
+ * Prevents current thread from switching out on return from interrupt,
+ * exception or trap handler. It does not disable interrupts!
+ *
+ * \sa on_exc_leave
  *
  * Calls to \fn preempt_disable can nest, you must use the same number of calls
  * to \fn preempt_enable to actually enable preemption.
@@ -98,6 +100,8 @@ long sched_switch(void);
  * This function will switch if your time slice expired or a thread with higher
  * priority has been added. It doesn't actually perform that check, it only
  * looks at TDF_NEEDSWITCH flag.
+ *
+ * \note Returns immediately if interrupts or preemption are disabled.
  */
 void sched_maybe_preempt(void);
 

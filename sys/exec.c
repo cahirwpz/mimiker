@@ -266,14 +266,11 @@ exec_fail:
 
 noreturn void run_program(const exec_args_t *prog) {
   thread_t *td = thread_self();
+  proc_t *p = proc_self();
 
-  assert(td->td_proc == NULL);
+  assert(p != NULL);
 
   klog("Starting program \"%s\"", prog->prog_name);
-
-  /* This thread will become a main thread of newly created user process. */
-  proc_t *p = proc_create();
-  proc_populate(p, td);
 
   /* Let's assign an empty virtual address space, to be filled by `do_exec` */
   p->p_uspace = vm_map_new();
@@ -281,7 +278,7 @@ noreturn void run_program(const exec_args_t *prog) {
   /* Prepare file descriptor table... */
   fdtab_t *fdt = fdtab_alloc();
   fdtab_ref(fdt);
-  td->td_proc->p_fdtable = fdt;
+  p->p_fdtable = fdt;
 
   /* ... and initialize file descriptors required by the standard library. */
   int ignore;

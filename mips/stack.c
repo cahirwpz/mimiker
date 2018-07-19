@@ -57,8 +57,7 @@ void patch_blob(void *blob, size_t addr, bool add) {
   }
 }
 
-void stack_user_entry_setup(const exec_args_t *args,
-                            vaddr_t *stack_bottom_p) {
+void stack_user_entry_setup(const exec_args_t *args, vaddr_t *stack_bottom_p) {
 
   size_t total_arg_size = args->stack_byte_cnt;
 

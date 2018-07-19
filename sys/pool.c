@@ -76,7 +76,7 @@ static pool_slab_t *add_slab(pool_t *pool) {
   debug("create_slab: pool = %p, pp_itemsize = %d", pool, pool->pp_itemsize);
 
   vm_page_t *page = pm_alloc(1);
-  pool_slab_t *slab = (pool_slab_t *)page->vaddr;
+  pool_slab_t *slab = PG_KSEG0_ADDR(page);
   slab->ph_state = ALIVE;
   slab->ph_page = page;
   slab->ph_nused = 0;

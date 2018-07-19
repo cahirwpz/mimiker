@@ -34,9 +34,7 @@ static int sys_sbrk(thread_t *td, syscall_args_t *args) {
 
 static int sys_exit(thread_t *td, syscall_args_t *args) {
   int status = args->args[0];
-
   klog("exit(%d)", status);
-
   proc_exit(MAKE_STATUS_EXIT(status));
   __unreachable();
 }
