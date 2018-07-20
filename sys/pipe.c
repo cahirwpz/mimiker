@@ -34,11 +34,13 @@ struct pipe {
   pipe_end_t end[2]; /*!< both pipe ends */
 };
 
-MALLOC_DEFINE(M_PIPE, "pipe", 4, 8);
-
-static pool_t P_PIPE;
+static MALLOC_DEFINE(M_PIPE, "pipe", 4, 8);
+static POOL_DEFINE(P_PIPE, "pipes", sizeof(pipe_t));
 
 static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
+  mtx_init(&end->mtx, MTX_DEF);
+  cv_init(&end->nonempty, "pipe_end_empty");
+  cv_init(&end->nonfull, "pipe_end_full");
   end->buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
   end->buf.size = PIPE_SIZE;
   end->other = other;
@@ -53,7 +55,8 @@ static void pipe_end_teardown(pipe_end_t *end) {
 }
 
 static pipe_t *pipe_alloc(void) {
-  pipe_t *pipe = pool_alloc(P_PIPE, 0);
+  pipe_t *pipe = pool_alloc(P_PIPE, PF_ZERO);
+  mtx_init(&pipe->mtx, MTX_DEF);
   pipe_end_t *end0 = &pipe->end[0];
   pipe_end_t *end1 = &pipe->end[1];
   pipe_end_setup(end0, end1);
@@ -163,22 +166,6 @@ static fileops_t pipeops = {.fo_read = pipe_read,
                             .fo_seek = pipe_seek,
                             .fo_stat = pipe_stat};
 
-static void pipe_end_ctor(pipe_end_t *end) {
-  mtx_init(&end->mtx, MTX_DEF);
-  cv_init(&end->nonempty, "pipe_end_empty");
-  cv_init(&end->nonfull, "pipe_end_full");
-}
-
-static void pipe_ctor(pipe_t *pipe) {
-  mtx_init(&pipe->mtx, MTX_DEF);
-  pipe_end_ctor(&pipe->end[0]);
-  pipe_end_ctor(&pipe->end[1]);
-}
-
-static void pipe_init(void) {
-  P_PIPE = pool_create("pipes", sizeof(pipe_t), (pool_ctor_t)pipe_ctor, NULL);
-}
-
 static file_t *make_pipe_file(pipe_end_t *end) {
   file_t *file = file_alloc();
   file->f_data = end;
@@ -213,5 +200,3 @@ fail:
   pipe_close(file1, td);
   return error;
 }
-
-SYSINIT_ADD(pipe, pipe_init, DEPS("filedesc"));
