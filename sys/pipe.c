@@ -140,7 +140,6 @@ static int pipe_close(file_t *f, thread_t *td) {
   }
 
   pipe_free(end->pipe);
-
   return 0;
 }
 
@@ -168,6 +167,8 @@ static file_t *make_pipe_file(pipe_end_t *end) {
 }
 
 int do_pipe(thread_t *td, int fds[2]) {
+  proc_t *p = proc_self();
+
   pipe_t *pipe = pipe_alloc();
   pipe_end_t *consumer = &pipe->end[0];
   pipe_end_t *producer = &pipe->end[1];
@@ -177,16 +178,16 @@ int do_pipe(thread_t *td, int fds[2]) {
 
   int error;
 
-  error = fdtab_install_file(td->td_proc->p_fdtable, file0, &fds[0]);
-  if (error)
-    goto fail;
-  error = fdtab_install_file(td->td_proc->p_fdtable, file1, &fds[1]);
-  if (error)
-    goto fail;
+  error = fdtab_install_file(p->p_fdtable, file0, &fds[0]);
+  if (error) {
+    pipe_close(file0, td);
+    return error;
+  }
+  error = fdtab_install_file(p->p_fdtable, file1, &fds[1]);
+  if (error) {
+    fdtab_close_fd(p->p_fdtable, fds[0]);
+    pipe_close(file1, td);
+    return error;
+  }
   return 0;
-
-fail:
-  pipe_close(file0, td);
-  pipe_close(file1, td);
-  return error;
 }
