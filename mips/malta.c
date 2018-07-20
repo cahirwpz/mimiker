@@ -1,5 +1,6 @@
 #define KLOG KL_INIT
 #include <interrupt.h>
+#include <physmem.h>
 #include <malloc.h>
 #include <mips/cpuinfo.h>
 #include <mips/malta.h>
@@ -14,7 +15,10 @@
 #include <pmap.h>
 #include <pool.h>
 #include <stdc.h>
+#include <sleepq.h>
+#include <rman.h>
 #include <thread.h>
+#include <turnstile.h>
 
 extern int kernel_init(int argc, char **argv);
 

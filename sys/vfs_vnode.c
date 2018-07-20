@@ -2,25 +2,21 @@
 #include <klog.h>
 #include <errno.h>
 #include <file.h>
-#include <malloc.h>
+#include <pool.h>
 #include <mutex.h>
 #include <stdc.h>
 #include <stat.h>
 #include <vnode.h>
-#include <sysinit.h>
 
-static MALLOC_DEFINE(M_VNODE, "vnode", 2, 16);
+static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
 
 /* Actually, vnode management should be much more complex than this, because
    this stub does not recycle vnodes, does not store them on a free list,
    etc. So at some point we may need a more sophisticated memory management here
    - but this will do for now. */
 
-static void vnode_init(void) {
-}
-
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
-  vnode_t *v = kmalloc(M_VNODE, sizeof(vnode_t), M_ZERO);
+  vnode_t *v = pool_alloc(P_VNODE, PF_ZERO);
   v->v_type = type;
   v->v_data = data;
   v->v_ops = ops;
@@ -48,7 +44,7 @@ void vnode_unref(vnode_t *v) {
   vnode_lock(v);
   v->v_usecnt--;
   if (v->v_usecnt == 0)
-    kfree(M_VNODE, v);
+    pool_free(P_VNODE, v);
   else
     vnode_unlock(v);
 }
@@ -257,5 +253,3 @@ int vnode_access_generic(vnode_t *v, accmode_t acc) {
 
   return ((va.va_mode & mode) == mode || acc == 0) ? 0 : -EACCES;
 }
-
-SYSINIT_ADD(vnode, vnode_init, DEPS("vm_map"));

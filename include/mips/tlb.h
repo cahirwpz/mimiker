@@ -36,7 +36,7 @@ typedef struct {
 
 #define PTE_PFN(addr) (((addr) >> PTE_PFN_SHIFT) & PTE_PFN_MASK)
 #define PTE_CACHE(cache) (((cache) << PTE_CACHE_SHIFT) & PTE_CACHE_MASK)
-#define PTE_PFN_OF(pte) (((pte)&PTE_PFN_MASK) << PTE_PFN_SHIFT)
+#define PTE_PFN_OF(pte) (((pte)&PTE_PFN_MASK) >> PTE_PFN_SHIFT)
 #define PTE_CACHE_OF(pte) (((cache)&PTE_CACHE_MASK) >> PTE_CACHE_MASK)
 
 #define PTE_LO_INDEX_MASK 0x00001000
