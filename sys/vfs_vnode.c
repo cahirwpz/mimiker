@@ -35,18 +35,14 @@ void vnode_unlock(vnode_t *v) {
 }
 
 void vnode_ref(vnode_t *v) {
-  vnode_lock(v);
-  v->v_usecnt++;
-  vnode_unlock(v);
+  atomic_fetch_add(&v->v_usecnt, 1);
 }
 
 void vnode_unref(vnode_t *v) {
-  vnode_lock(v);
-  v->v_usecnt--;
-  if (v->v_usecnt == 0)
+  int old = atomic_fetch_sub(&v->v_usecnt, 1);
+  assert(old > 0);
+  if (old == 1)
     pool_free(P_VNODE, v);
-  else
-    vnode_unlock(v);
 }
 
 static int vnode_lookup_nop(vnode_t *dv, const char *name, vnode_t **vp) {

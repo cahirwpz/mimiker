@@ -10,16 +10,12 @@
 static POOL_DEFINE(P_FILE, "file", sizeof(file_t));
 
 void file_ref(file_t *f) {
-  SCOPED_MTX_LOCK(&f->f_mtx);
-  assert(f->f_count >= 0);
-  f->f_count++;
+  atomic_fetch_add(&f->f_count, 1);
 }
 
 void file_unref(file_t *f) {
-  SCOPED_MTX_LOCK(&f->f_mtx);
-  assert(f->f_count > 0);
-  if (--f->f_count == 0)
-    f->f_count = -1;
+  int old = atomic_fetch_sub(&f->f_count, 1);
+  assert(old > 0);
 }
 
 file_t *file_alloc(void) {
@@ -31,7 +27,7 @@ file_t *file_alloc(void) {
 
 /* May be called after the last reference to a file has been dropped. */
 void file_destroy(file_t *f) {
-  assert(f->f_count <= 0);
+  assert(f->f_count == 0);
 
   /* Note: If the file failed to open, we shall not close it. In such case its
      fileops are set to badfileops. */
@@ -40,14 +36,6 @@ void file_destroy(file_t *f) {
     FOP_CLOSE(f, thread_self());
 
   pool_free(P_FILE, f);
-}
-
-void file_release(file_t *f) {
-  if (f) {
-    file_unref(f);
-    if (f->f_count < 0)
-      file_destroy(f);
-  }
 }
 
 /* Operations on invalid file descriptors */

@@ -1,9 +1,8 @@
-#define KL_LOG KL_PMAP
+#define KL_LOG KL_VM
 #include <klog.h>
 #include <stdc.h>
-#include <malloc.h>
+#include <mutex.h>
 #include <physmem.h>
-#include <mips/mips.h>
 
 #define PM_QUEUE_OF(seg, page) ((seg)->freeq + log2((page)->size))
 #define PM_FREEQ(seg, i) ((seg)->freeq + (i))
@@ -19,9 +18,8 @@ typedef struct pm_seg {
   vm_page_t pages[];
 } pm_seg_t;
 
-TAILQ_HEAD(pm_seglist, pm_seg);
-
-static struct pm_seglist seglist;
+static TAILQ_HEAD(, pm_seg) seglist;
+static mtx_t *seglist_lock = &MTX_INITIALIZER(MTX_DEF);
 
 void pm_init(void) {
   TAILQ_INIT(&seglist);
@@ -227,6 +225,8 @@ static vm_page_t *pm_alloc_from_seg(pm_seg_t *seg, size_t npages) {
 vm_page_t *pm_alloc(size_t npages) {
   assert((npages > 0) && powerof2(npages));
 
+  SCOPED_MTX_LOCK(seglist_lock);
+
   pm_seg_t *seg_it;
   TAILQ_FOREACH (seg_it, &seglist, segq) {
     vm_page_t *page;
@@ -271,6 +271,8 @@ void pm_free(vm_page_t *page) {
   pm_seg_t *seg_it = NULL;
 
   klog("pm_free {paddr:%lx size:%ld}", page->paddr, page->size);
+
+  SCOPED_MTX_LOCK(seglist_lock);
 
   TAILQ_FOREACH (seg_it, &seglist, segq) {
     if (PG_START(page) >= seg_it->start && PG_END(page) <= seg_it->end) {
