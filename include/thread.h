@@ -199,8 +199,4 @@ static inline bool td_is_borrowing(thread_t *td) {
   return td->td_flags & TDF_BORROWING;
 }
 
-static inline bool td_has_process(thread_t *td) {
-  return td->td_proc != NULL;
-}
-
 #endif /* !_SYS_THREAD_H_ */

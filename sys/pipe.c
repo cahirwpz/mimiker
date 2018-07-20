@@ -176,8 +176,6 @@ static file_t *make_pipe_file(pipe_end_t *end) {
 }
 
 int do_pipe(thread_t *td, int fds[2]) {
-  assert(td_has_process(td));
-
   pipe_t *pipe = pipe_alloc();
   pipe_end_t *consumer = &pipe->end[0];
   pipe_end_t *producer = &pipe->end[1];
