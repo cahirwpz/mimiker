@@ -4,8 +4,7 @@ TOPDIR = $(realpath ..)
 
 GENASSYM = $(TOPDIR)/script/genassym.py $(NM)
 
-SOURCES_C = atomic.c \
-	    cbus.c \
+SOURCES_C = cbus.c \
 	    context.c \
 	    cpu.c \
 	    gt64120.c \

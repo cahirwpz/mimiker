@@ -24,9 +24,10 @@
 #define SYS_MKDIR 21
 #define SYS_RMDIR 22
 #define SYS_ACCESS 23
-#define SYS_EXECVE 24
-#define SYS_STAT 25
-#define SYS_LAST 26
+#define SYS_STAT 24
+#define SYS_PIPE 25
+#define SYS_EXECVE 26
+#define SYS_LAST 27
 
 #ifndef __ASSEMBLER__
 

@@ -75,7 +75,9 @@ static int fd_alloc(fdtab_t *fdt, int *fdp) {
 static void fd_free(fdtab_t *fdt, int fd) {
   file_t *f = fdt->fdt_files[fd];
   assert(f != NULL);
-  file_release(f);
+  file_unref(f);
+  if (f->f_count == 0)
+    file_destroy(f);
   fdt->fdt_files[fd] = NULL;
   fd_mark_unused(fdt, fd);
 }

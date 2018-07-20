@@ -162,6 +162,32 @@ int test_fd_dup() {
   return 0;
 }
 
+/* Tests below do not use std* file descriptors */
+#undef FD_OFFSET
+#include "utest_fd.h"
+
+int test_fd_pipe() {
+  int fd[2];
+  assert_pipe_ok(fd);
+
+  pid_t pid = fork();
+  assert(pid >= 0);
+
+  if (pid > 0) {
+    /* child */
+    assert_close_ok(fd[0]);
+    assert_write_ok(fd[1], str, strlen(str));
+    assert_close_ok(fd[1]);
+  } else {
+    /* parent */
+    assert_close_ok(fd[1]);
+    assert_read_equal(fd[0], buf, str);
+    assert_close_ok(fd[0]);
+  }
+
+  return 0;
+}
+
 int test_fd_all() {
   /* Call all fd-related tests one by one to see how they impact the process
    * file descriptor table. */
@@ -172,6 +198,7 @@ int test_fd_all() {
   test_fd_copy();
   test_fd_bad_desc();
   test_fd_open_path();
+  test_fd_pipe();
   test_fd_dup();
   return 0;
 }
