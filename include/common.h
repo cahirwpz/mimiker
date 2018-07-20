@@ -6,6 +6,7 @@
 #include <stddef.h>            /* offsetof, NULL, ptrdiff_t, size_t, etc. */
 #include <stdbool.h>           /* bool, true, false */
 #include <stdalign.h>          /* alignof, alignas */
+#include <stdatomic.h>         /* atomic_{load,store,fetch_*,...} */
 #include <stdnoreturn.h>       /* noreturn */
 #include <machine/int_fmtio.h> /* PRIdN, PRIxPTR, ... */
 
