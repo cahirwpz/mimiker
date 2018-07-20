@@ -72,5 +72,7 @@ SYSCALL(mkdir, SYS_MKDIR)
 SYSCALL(rmdir, SYS_RMDIR)
 SYSCALL(access, SYS_ACCESS)
 SYSCALL(stat, SYS_STAT)
+SYSCALL(clock_gettime, SYS_CLOCKGETTIME)
+SYSCALL(clock_nanosleep, SYS_CLOCKNANOSLEEP)
 
 # vim: sw=8 ts=8 et

@@ -14,6 +14,7 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <time.h>
 #include <pipe.h>
 #include <syslimits.h>
 
@@ -389,6 +390,27 @@ end:
   return result;
 }
 
+static int sys_clock_gettime(thread_t *td, syscall_args_t *args) {
+  clockid_t clk = (clockid_t)args->args[0];
+  timespec_t *uts = (timespec_t *)args->args[1];
+  timespec_t kts;
+  int result = do_clock_gettime(clk, &kts);
+  if (result != 0)
+    return result;
+  return copyout_s(kts, uts);
+}
+
+static int sys_clock_nanosleep(thread_t *td, syscall_args_t *args) {
+  clockid_t clk = (clockid_t)args->args[0];
+  int flags = (int)args->args[1];
+  timespec_t *urqtp = (timespec_t *)args->args[2];
+  timespec_t krqtp;
+  int result = copyin_s(urqtp, krqtp);
+  if (result != 0)
+    return result;
+  return do_clock_nanosleep(clk, flags, &krqtp, NULL);
+}
+
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
     [SYS_EXIT] = {sys_exit},
@@ -416,4 +438,6 @@ sysent_t sysent[] = {
     [SYS_RMDIR] = {sys_rmdir},
     [SYS_ACCESS] = {sys_access},
     [SYS_PIPE] = {sys_pipe},
+    [SYS_CLOCKGETTIME] = {sys_clock_gettime},
+    [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep},
 };
