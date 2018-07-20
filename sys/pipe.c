@@ -46,14 +46,6 @@ static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
   end->other = other;
 }
 
-static void pipe_end_teardown(pipe_end_t *end) {
-  kfree(M_PIPE, end->buf.data);
-  ringbuf_reset(&end->buf);
-  end->buf.data = NULL;
-  end->other = NULL;
-  end->closed = false;
-}
-
 static pipe_t *pipe_alloc(void) {
   pipe_t *pipe = pool_alloc(P_PIPE, PF_ZERO);
   mtx_init(&pipe->mtx, MTX_DEF);
@@ -74,8 +66,8 @@ static void pipe_free(pipe_t *pipe) {
     refcnt = --pipe->refcnt;
 
   if (refcnt == 0) {
-    pipe_end_teardown(&pipe->end[0]);
-    pipe_end_teardown(&pipe->end[1]);
+    kfree(M_PIPE, pipe->end[0].buf.data);
+    kfree(M_PIPE, pipe->end[1].buf.data);
     pool_free(P_PIPE, pipe);
   }
 }
