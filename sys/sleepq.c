@@ -200,39 +200,6 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   }
 }
 
-sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep) {
-  thread_t *td = thread_self();
-  sq_wakeup_t wakeup = SQ_NORMAL;
-
-  if (waitpt == NULL)
-    waitpt = __caller(0);
-
-  sq_enter(td, wchan, waitpt, sleep);
-
-  /* The code can be interrupted in here.
-   * A race is avoided by clever use of TDF_SLEEPY flag. */
-
-  WITH_SPINLOCK(td->td_spin) {
-    if (td->td_flags & TDF_SLEEPY) {
-      td->td_flags &= ~TDF_SLEEPY;
-      td->td_state = TDS_SLEEPING;
-      sched_switch();
-    }
-    /* After wakeup, only one of the following flags may be set:
-     *  - TDF_SLPINTR if sleep was aborted,
-     *  - TDF_SLPTIMED if sleep has timed out. */
-    if (td->td_flags & TDF_SLPINTR) {
-      td->td_flags &= ~TDF_SLPINTR;
-      wakeup = SQ_ABORT;
-    } else if (td->td_flags & TDF_SLPTIMED) {
-      td->td_flags &= ~TDF_SLPTIMED;
-      wakeup = SQ_TIMEOUT;
-    }
-  }
-
-  return wakeup;
-}
-
 /* Remove a thread from the sleep queue and resume it. */
 static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
                       sq_wakeup_t wakeup) {
@@ -262,6 +229,79 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
     }
   }
   return true;
+}
+
+static bool _sleepq_abort(thread_t *td, sq_wakeup_t reason) {
+  sleepq_chain_t *sc = sc_acquire(td->td_wchan);
+  sleepq_t *sq = sq_lookup(sc, td->td_wchan);
+  bool aborted = false;
+
+  if (sq != NULL) {
+    aborted = sq_wakeup(td, sc, sq, reason);
+    sq_release(sq);
+  }
+  sc_release(sc);
+
+  /* If we woke up higher priority thread, we should switch to it immediately.
+   * This is useful if `_sleepq_abort` gets called in thread context and
+   * preemption is enabled. */
+  sched_maybe_preempt();
+  return aborted;
+}
+
+bool sleepq_abort(thread_t *td) {
+  return _sleepq_abort(td, SQ_ABORT);
+}
+
+static void sq_timeout(thread_t *td) {
+  _sleepq_abort(td, SQ_TIMEOUT);
+}
+
+sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t mode,
+                         systime_t timeout) {
+  assert(timeout == 0 || mode >= SQ_TIMEOUT);
+  thread_t *td = thread_self();
+  sq_wakeup_t wakeup = SQ_NORMAL;
+  callout_t co;
+
+  if (timeout > 0) {
+    /* Disable interrupts so that the callout won't go off before we sleep */
+    intr_disable();
+    callout_setup_relative(&co, timeout, (timeout_t)sq_timeout, thread_self());
+  }
+
+  if (waitpt == NULL)
+    waitpt = __caller(0);
+
+  sq_enter(td, wchan, waitpt, mode);
+
+  /* The code can be interrupted in here.
+   * A race is avoided by clever use of TDF_SLEEPY flag. */
+
+  WITH_SPINLOCK(td->td_spin) {
+    if (td->td_flags & TDF_SLEEPY) {
+      td->td_flags &= ~TDF_SLEEPY;
+      td->td_state = TDS_SLEEPING;
+      sched_switch();
+    }
+    /* After wakeup, only one of the following flags may be set:
+     *  - TDF_SLPINTR if sleep was aborted,
+     *  - TDF_SLPTIMED if sleep has timed out. */
+    if (td->td_flags & TDF_SLPINTR) {
+      td->td_flags &= ~TDF_SLPINTR;
+      wakeup = SQ_ABORT;
+    } else if (td->td_flags & TDF_SLPTIMED) {
+      td->td_flags &= ~TDF_SLPTIMED;
+      wakeup = SQ_TIMEOUT;
+    }
+  }
+
+  if (timeout > 0) {
+    callout_stop(&co);
+    intr_enable();
+  }
+
+  return wakeup;
 }
 
 bool sleepq_signal(void *wchan) {
@@ -305,44 +345,4 @@ bool sleepq_broadcast(void *wchan) {
 
   sched_maybe_preempt();
   return true;
-}
-
-static bool _sleepq_abort(thread_t *td, sq_wakeup_t reason) {
-  sleepq_chain_t *sc = sc_acquire(td->td_wchan);
-  sleepq_t *sq = sq_lookup(sc, td->td_wchan);
-  bool aborted = false;
-
-  if (sq != NULL) {
-    aborted = sq_wakeup(td, sc, sq, reason);
-    sq_release(sq);
-  }
-  sc_release(sc);
-
-  /* If we woke up higher priority thread, we should switch to it immediately.
-   * This is useful if `_sleepq_abort` gets called in thread context and
-   * preemption is enabled. */
-  sched_maybe_preempt();
-  return aborted;
-}
-
-bool sleepq_abort(thread_t *td) {
-  return _sleepq_abort(td, SQ_ABORT);
-}
-
-static void sq_timeout(thread_t *td) {
-  _sleepq_abort(td, SQ_TIMEOUT);
-}
-
-sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
-                              systime_t timeout) {
-  assert(timeout > 0);
-
-  callout_t co;
-  sq_wakeup_t reason = SQ_NORMAL;
-  WITH_INTR_DISABLED {
-    callout_setup_relative(&co, timeout, (timeout_t)sq_timeout, thread_self());
-    reason = _sleepq_wait(wchan, waitpt, SQ_TIMEOUT);
-  }
-  callout_stop(&co);
-  return reason;
 }

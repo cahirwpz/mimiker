@@ -35,25 +35,27 @@ void sleepq_destroy(sleepq_t *sq);
  * \param waitpt caller associated with sleep action
  */
 #define sleepq_wait(wchan, waitpt)                                             \
-  ((void)_sleepq_wait(wchan, waitpt, SQ_NORMAL))
+  ((void)_sleepq_wait(wchan, waitpt, SQ_NORMAL, 0))
 
 /*! \brief Same as \a sleepq_wait but allows the sleep to be aborted. */
 #define sleepq_wait_abortable(wchan, waitpt)                                   \
-  (_sleepq_wait(wchan, waitpt, SQ_ABORT))
+  (_sleepq_wait(wchan, waitpt, SQ_ABORT, 0))
 
-/*! \brief Puts a thread to sleep until it's woken up or its sleep is aborted.
+/*! \brief Puts a thread to sleep until it's woken up, its sleep is aborted or
+ *         the time runs out.
  *
  * If sleep is abortable other threads can wake up forcefully the thread with \a
  * sleepq_abort procedure.
  */
-sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep);
+sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep,
+                         systime_t timeout);
 
 /*! \brief Performs abortable sleep with timeout.
  *
- * \param timeout in system ticks must be greater than 0
+ * \param timeout in system ticks. 0 is no timeout.
  * \returns how the thread was actually woken up */
-sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
-                              systime_t timeout_ms);
+#define sleepq_wait_timed(wchan, waitpt, timeout)                              \
+  _sleepq_wait(wchan, waitpt, SQ_TIMEOUT, timeout)
 
 /*! \brief Wakes up highest priority thread waiting on \a wchan.
  *
