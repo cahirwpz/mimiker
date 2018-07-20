@@ -20,6 +20,8 @@ static int errno_of_sq_wakeup(sq_wakeup_t s) {
   panic("Unexpected value of sq_wakeup_t");
 }
 
+/* If we exposed this function outside, we would have to
+ * expose `sq_wakeup_t` and whole sleepq stuff as well. */
 static int _cv_wait(condvar_t *cv, mtx_t *mtx, sq_wakeup_t wkp, systime_t tm) {
   sq_wakeup_t status;
   WITH_NO_PREEMPTION {
@@ -31,14 +33,17 @@ static int _cv_wait(condvar_t *cv, mtx_t *mtx, sq_wakeup_t wkp, systime_t tm) {
   return errno_of_sq_wakeup(status);
 }
 
+/* Can't make this a macro because _cv_wait is static */
 void cv_wait(condvar_t *cv, mtx_t *mtx) {
   _cv_wait(cv, mtx, SQ_NORMAL, 0);
 }
 
+/* Can't make this a macro because _cv_wait is static */
 int cv_wait_intr(condvar_t *cv, mtx_t *mtx) {
   return _cv_wait(cv, mtx, SQ_ABORT, 0);
 }
 
+/* Can't make this a macro because _cv_wait is static */
 int cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout) {
   return _cv_wait(cv, mtx, SQ_TIMEOUT, timeout);
 }
