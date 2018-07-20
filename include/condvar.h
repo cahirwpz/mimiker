@@ -3,6 +3,7 @@
 
 #include <common.h>
 
+/* \todo document this? */
 typedef struct condvar {
   const char *name;
   int waiters;
@@ -10,9 +11,25 @@ typedef struct condvar {
 
 typedef struct mtx mtx_t;
 
+/* \todo is the block alignment correct for Doxygen?
+ * \todo should we mention that none of the functions here will deallocate
+ *       the string? (in case the string is dynamically allocated but it
+ *       doesn't really have a reason to be)
+ */
+/* \brief Initialize a condvar.
+ *
+ * Any condvar must be initialized before use.
+ *
+ * \arg name Name of the condvar for debugging purposes. Only the pointer to
+ *           the string is stored so don't modify the string after passing it
+ *           to a condvar.
+ * \arg cv Pointer to the structure that's initialized.
+ */
 void cv_init(condvar_t *cv, const char *name);
 
-/* TODO: Make conditional variable unusable after it has been destroyed. */
+/* \brief I don't know what it's supposed to do because it does nothing.
+ * \todo Make conditional variable unusable after it has been destroyed.
+ */
 #define cv_destroy(m)
 
 void cv_wait(condvar_t *cv, mtx_t *mtx);
@@ -40,7 +57,15 @@ int cv_wait_intr(condvar_t *cv, mtx_t *mtx);
  */
 int cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout);
 
+/* \brief Wake a single thread waiting on the condvar.
+ *
+ * If there are multiple waiting threads then the one with the highest priority
+ * will be woken up (dependence on `sleepq_signal`).
+ */
 void cv_signal(condvar_t *cv);
+
+/* \brief Wake all threads waiting on the condvar.
+ */
 void cv_broadcast(condvar_t *cv);
 
 #endif /* !_SYS_CONDVAR_H_ */
