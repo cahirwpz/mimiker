@@ -1,5 +1,6 @@
 #include <condvar.h>
 #include <sleepq.h>
+#include <errno.h>
 #include <sched.h>
 #include <mutex.h>
 
@@ -17,7 +18,18 @@ void cv_wait(condvar_t *cv, mtx_t *mtx) {
   _mtx_lock(mtx, __caller(0));
 }
 
-sq_wakeup_t cv_wait_intr(condvar_t *cv, mtx_t *mtx) {
+static int errno_of_sq_wakeup(sq_wakeup_t s) {
+  if (s == SQ_NORMAL)
+    return 0;
+  if (s == SQ_TIMEOUT)
+    return ETIMEDOUT;
+  if (s == SQ_ABORT)
+    return EINTR;
+
+  panic("Unexpected value of sq_wakeup_t");
+}
+
+int cv_wait_intr(condvar_t *cv, mtx_t *mtx) {
   sq_wakeup_t status;
   WITH_NO_PREEMPTION {
     cv->waiters++;
@@ -25,10 +37,10 @@ sq_wakeup_t cv_wait_intr(condvar_t *cv, mtx_t *mtx) {
     status = sleepq_wait_abortable(cv, __caller(0));
   }
   _mtx_lock(mtx, __caller(0));
-  return status;
+  return errno_of_sq_wakeup(status);
 }
 
-sq_wakeup_t cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout_ms) {
+int cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout_ms) {
   sq_wakeup_t status;
   WITH_NO_PREEMPTION {
     cv->waiters++;
@@ -36,7 +48,7 @@ sq_wakeup_t cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout_ms) {
     status = sleepq_wait_timed(cv, __caller(0), timeout_ms);
   }
   _mtx_lock(mtx, __caller(0));
-  return status;
+  return errno_of_sq_wakeup(status);
 }
 
 void cv_signal(condvar_t *cv) {
