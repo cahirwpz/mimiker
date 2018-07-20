@@ -5,7 +5,7 @@
 #include <queue.h>
 #include <spinlock.h>
 
-/*! \brief Disables interrupts.
+/*! \brief Disables hardware interrupts.
  *
  * Calls to \fn intr_disable can nest, you must use the same number of calls to
  * \fn intr_enable to actually enable interrupts.

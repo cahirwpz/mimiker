@@ -16,6 +16,8 @@ SOURCES_C = \
 	rwlock.c \
 	sched.c \
 	sleepq.c \
+	sleepq_abort.c \
+	sleepq_timed.c \
 	strtol.c \
 	taskqueue.c \
 	thread_stats.c \

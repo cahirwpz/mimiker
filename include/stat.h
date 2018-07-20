@@ -57,12 +57,12 @@ typedef struct stat {
   uid_t st_uid;                 /* user ID of the file's owner */
   gid_t st_gid;                 /* group ID of the file's group */
   dev_t st_rdev;                /* device type */
+  off_t st_size;                /* file size, in bytes */
   struct timespec st_atimespec; /* time of last access */
   struct timespec st_mtimespec; /* time of last data modification */
   struct timespec st_ctimespec; /* time of last file status change */
-  off_t st_size;                /* file size, in bytes */
-  blkcnt_t st_blocks;           /* blocks allocated for file */
   blksize_t st_blksize;         /* optimal blocksize for I/O */
+  blkcnt_t st_blocks;           /* blocks allocated for file */
 } stat_t;
 
 #define S_ISUID 0004000 /* set user id on execution */

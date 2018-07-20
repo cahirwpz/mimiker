@@ -5,7 +5,6 @@
 
 typedef struct exc_frame exc_frame_t;
 
-void exc_before_leave(exc_frame_t *kframe);
 noreturn void user_exc_leave(void);
 noreturn void kernel_oops(exc_frame_t *frame);
 
@@ -26,5 +25,8 @@ void exc_frame_setup_call(exc_frame_t *frame, void *ra, long arg0, long arg1);
 
 /*! \brief Copy exception frame. */
 void exc_frame_copy(exc_frame_t *to, exc_frame_t *from);
+
+void on_exc_leave(void);
+void on_user_exc_leave(void);
 
 #endif /* !_SYS_EXCEPTION_H_ */

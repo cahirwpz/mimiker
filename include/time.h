@@ -3,8 +3,6 @@
 
 #ifdef _KERNELSPACE
 #include <common.h>
-
-typedef uint32_t systime_t; /* kept in miliseconds */
 #endif
 
 typedef struct tm {

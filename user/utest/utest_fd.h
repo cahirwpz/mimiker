@@ -59,3 +59,8 @@
 #define assert_lseek_ok(fd, offset, whence)                                    \
   n = lseek(fd + FD_OFFSET, offset, whence);                                   \
   assert(n >= 0);
+
+#undef assert_pipe_ok
+#define assert_pipe_ok(fds)                                                    \
+  n = pipe(fds);                                                               \
+  assert(n == 0);

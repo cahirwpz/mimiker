@@ -44,9 +44,8 @@ static void vfs_init(void) {
   /* Initialize available filesystem types. */
   SET_DECLARE(vfsconf, vfsconf_t);
   vfsconf_t **ptr;
-  SET_FOREACH(ptr, vfsconf) {
+  SET_FOREACH (ptr, vfsconf)
     vfs_register(*ptr);
-  }
 }
 
 vfsconf_t *vfs_get_by_name(const char *name) {
@@ -248,4 +247,4 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   return res;
 }
 
-SYSINIT_ADD(vfs, vfs_init, DEPS("vnode"));
+SYSINIT_ADD(vfs, vfs_init, NODEPS);

@@ -2,6 +2,7 @@
 #include <ktest.h>
 #include <klog.h>
 #include <sched.h>
+#include <sleepq.h>
 #include <runq.h>
 
 #define THREADS_NUMBER 10

@@ -1,0 +1,65 @@
+Stop virtual clock as soon as debug exception is triggered.
+--- a/qemu-2.12.0/gdbstub.c
++++ b/qemu-2.12.0/gdbstub.c
+@@ -322,6 +322,7 @@
+     int fd;
+     int running_state;
+ #else
++    bool resume_clock;
+     CharBackend chr;
+     Chardev *mon_chr;
+ #endif
+@@ -429,8 +430,6 @@
+     }
+     s->running_state = 1;
+ #else
+-    int flag = 0;
+-
+     if (!runstate_needs_reset()) {
+         if (vm_prepare_start()) {
+             return 0;
+@@ -445,12 +444,12 @@
+                 trace_gdbstub_op_stepping(cpu->cpu_index);
+                 cpu_single_step(cpu, sstep_flags);
+                 cpu_resume(cpu);
+-                flag = 1;
++                s->resume_clock = true;
+                 break;
+             case 'c':
+                 trace_gdbstub_op_continue_cpu(cpu->cpu_index);
+                 cpu_resume(cpu);
+-                flag = 1;
++                s->resume_clock = true;
+                 break;
+             default:
+                 res = -1;
+@@ -458,9 +457,6 @@
+             }
+         }
+     }
+-    if (flag) {
+-        qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
+-    }
+ #endif
+     return res;
+ }
+@@ -1909,6 +1905,9 @@
+     for (i = 0; i < size; i++) {
+         gdb_read_byte(gdbserver_state, buf[i]);
+     }
++
++    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, gdbserver_state->resume_clock);
++    gdbserver_state->resume_clock = false;
+ }
+ 
+ static void gdb_chr_event(void *opaque, int event)
+--- a/qemu-2.12.0/target/mips/op_helper.c
++++ b/qemu-2.12.0/target/mips/op_helper.c
+@@ -42,6 +42,7 @@
+ 
+ void helper_raise_exception_debug(CPUMIPSState *env)
+ {
++    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, false);
+     do_raise_exception(env, EXCP_DEBUG, 0);
+ }
+ 

@@ -6,6 +6,8 @@ import sys
 import random
 import os
 
+import launcher
+
 N_SIMPLE = 5
 N_THOROUGH = 100
 TIMEOUT = 20
@@ -21,38 +23,41 @@ def safe_decode(data):
 
 
 def send_command(gdb, cmd):
-    print('\n>>>', end='', flush=True)
-    gdb.setecho(False)
+    gdb.expect_exact(['(gdb)'], timeout=10)
     gdb.sendline(cmd)
-    while True:
-        index = gdb.expect_exact(['(gdb)', '---Type <return> to continue, '
-                                  'or q <return> to quit---'], timeout=2)
-        print(safe_decode(gdb.before).lstrip('\n'), end='', flush=True)
-        if index == 0:
-            break
-        gdb.send('\n')
-    gdb.setecho(True)
+    print(safe_decode(gdb.before), end='', flush=True)
+    print(safe_decode(gdb.after), end='', flush=True)
 
 
 # Tries to start gdb in order to investigate kernel state on deadlock or crash.
 def gdb_inspect(interactive):
     gdb_port = GDB_PORT_BASE + os.getuid()
     gdb_command = 'mipsel-mimiker-elf-gdb'
-    # Note: These options are different than .gdbinit.
-    gdb_opts = ['-ex=target remote localhost:%d' % gdb_port,
-                '-ex=python import os, sys',
-                '-ex=python sys.path.append(os.getcwd())',
-                '-ex=python import debug',
-                '--nh', '--nx', 'mimiker.elf']
-    gdb = pexpect.spawn(gdb_command, gdb_opts, timeout=3)
-    gdb.expect_exact('(gdb)', timeout=5)
-    send_command(gdb, 'klog')
-    send_command(gdb, 'info registers')
-    send_command(gdb, 'backtrace')
-    send_command(gdb, 'list')
-    send_command(gdb, 'kthread')
     if interactive:
+        launcher.prepare_gdbinit(gdb_port)
+        gdb_opts = ['-ex=set pagination off',
+                    '--silent', 'mimiker.elf']
+    else:
+        # Note: These options are different than .gdbinit.
+        gdb_opts = ['-ex=target remote localhost:%d' % gdb_port,
+                    '-ex=python import os, sys',
+                    '-ex=python sys.path.append(os.getcwd())',
+                    '-ex=python import debug',
+                    '-ex=set pagination off',
+                    '--nh', '--nx', '--silent', 'mimiker.elf']
+    gdb = pexpect.spawn(gdb_command, gdb_opts, timeout=3)
+    if interactive:
+        send_command(gdb, 'backtrace')
+        send_command(gdb, 'kthread')
         gdb.interact()
+    else:
+        send_command(gdb, 'info registers')
+        send_command(gdb, 'backtrace')
+        # following commands may fail
+        send_command(gdb, 'kthread')
+        send_command(gdb, 'klog')
+        # we need dummy command - otherwise previous one won't appear
+        send_command(gdb, 'quit')
 
 
 def test_seed(seed, interactive=True, repeat=1, retry=0):
@@ -61,9 +66,9 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
               "Test inconclusive.")
         sys.exit(1)
 
-    print("Testing seed %d..." % seed)
+    print("Testing seed %u..." % seed)
     child = pexpect.spawn('./launch',
-                          ['-t', 'test=all', 'klog-quiet=1', 'seed=%d' % seed,
+                          ['-t', 'test=all', 'klog-quiet=1', 'seed=%u' % seed,
                            'repeat=%d' % repeat])
     index = child.expect_exact(
         ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT],
@@ -103,7 +108,7 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
         else:
             gdb_inspect(interactive)
             print("No test result reported within timeout. Unable to verify "
-                  "test success. Seed was: %d, repeat: %d" % (seed, repeat))
+                  "test success. Seed was: %u, repeat: %d" % (seed, repeat))
             sys.exit(1)
 
 if __name__ == '__main__':

@@ -18,7 +18,7 @@ static const char *subsystems[] =
    [KL_DEV] = "dev",     [KL_VFS] = "vfs",         [KL_VNODE] = "vnode",
    [KL_PROC] = "proc",   [KL_SYSCALL] = "syscall", [KL_USER] = "user",
    [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_FILESYS] = "filesys",
-   [KL_TIME] = "time",   [KL_UNDEF] = "???"};
+   [KL_TIME] = "time",   [KL_FILE] = "file",       [KL_UNDEF] = "???"};
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(char *key);
@@ -59,6 +59,8 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
   tid_t tid = thread_self()->td_tid;
 
   WITH_SPINLOCK(klog_lock) {
+    timeval_t now = get_uptime();
+
     entry = (klog.prev >= 0) ? &klog.array[klog.prev] : NULL;
 
     /* Do not store repeating log messages, just count them. */
@@ -81,7 +83,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
         }
 
         entry = &klog.array[next(klog.prev)];
-        entry->kl_timestamp = get_uptime();
+        entry->kl_timestamp = now;
         entry->kl_params[0]++;
         return;
       } else {
@@ -91,7 +93,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
 
     entry = &klog.array[klog.last];
 
-    *entry = (klog_entry_t){.kl_timestamp = get_uptime(),
+    *entry = (klog_entry_t){.kl_timestamp = now,
                             .kl_tid = tid,
                             .kl_line = line,
                             .kl_file = file,

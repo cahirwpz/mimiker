@@ -9,24 +9,18 @@ typedef enum {
   PALLOC_TEST_DOUBLEFREE, /* double free */
 } palloc_test_t;
 
-static void int_ctor(void *buf) {
-  int *num = buf;
-  *num = 0;
-}
-
 static int test_pool_alloc(palloc_test_t flag) {
   const int N = 50;
 
-  kmem_pool_t *mp = KMEM_POOL("test", 1, 2);
-  kmem_init(mp);
+  kmem_pool_t *mp = kmem_create("test", 1, 2);
 
   int size = 64;
-  pool_t test = pool_create("test", size, int_ctor, NULL);
+  pool_t *test = pool_create("test", size);
 
   for (int n = 1; n < N; n++) {
     void **item = kmalloc(mp, sizeof(void *) * n, 0);
     for (int i = 0; i < n; i++)
-      item[i] = pool_alloc(test, 0);
+      item[i] = pool_alloc(test, PF_ZERO);
     if (flag == PALLOC_TEST_CORRUPTION) {
       /* WARNING! Following line of code causes memory corruption! */
       memset(item[0], 0, 100);
