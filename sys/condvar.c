@@ -9,16 +9,7 @@ void cv_init(condvar_t *cv, const char *name) {
   cv->waiters = 0;
 }
 
-static int errno_of_sq_wakeup(sq_wakeup_t s) {
-  if (s == SQ_NORMAL)
-    return 0;
-  if (s == SQ_TIMEOUT)
-    return ETIMEDOUT;
-  if (s == SQ_ABORT)
-    return EINTR;
-
-  panic("Unexpected value of sq_wakeup_t");
-}
+static int errno_of_sq_wakeup(sq_wakeup_t s);
 
 /* If we exposed this function outside, we would have to
  * expose `sq_wakeup_t` and whole sleepq stuff as well. */
@@ -31,6 +22,17 @@ static int _cv_wait(condvar_t *cv, mtx_t *mtx, sq_wakeup_t wkp, systime_t tm) {
   }
   _mtx_lock(mtx, __caller(0));
   return errno_of_sq_wakeup(status);
+}
+
+static int errno_of_sq_wakeup(sq_wakeup_t s) {
+  if (s == SQ_NORMAL)
+    return 0;
+  if (s == SQ_TIMEOUT)
+    return ETIMEDOUT;
+  if (s == SQ_ABORT)
+    return EINTR;
+
+  panic("Unexpected value of sq_wakeup_t");
 }
 
 /* Can't make this a macro because _cv_wait is static */

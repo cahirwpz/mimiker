@@ -200,58 +200,7 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   }
 }
 
-/* Remove a thread from the sleep queue and resume it. */
-static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
-                      sq_wakeup_t wakeup) {
-  /* Only sq_enter sets TDF_SLP... flags and it holds the same sleepq spinlock
-   * as sq_wakeup. Hence it's safe to read flags without holding thread's
-   * spinlock. */
-
-  /* Do not try to abort thread's sleep if it's not prepared for that. */
-  if ((wakeup == SQ_ABORT) && !(td->td_flags & TDF_SLPINTR))
-    return false;
-  if ((wakeup == SQ_TIMEOUT) && !(td->td_flags & TDF_SLPTIMED))
-    return false;
-
-  sq_leave(td, sc, sq);
-
-  WITH_SPINLOCK(td->td_spin) {
-    /* Clear TDF_SLPINTR flag if thread's sleep was not aborted. */
-    if (wakeup != SQ_ABORT)
-      td->td_flags &= ~TDF_SLPINTR;
-    if (wakeup != SQ_TIMEOUT)
-      td->td_flags &= ~TDF_SLPTIMED;
-    /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
-    if (td->td_flags & TDF_SLEEPY) {
-      td->td_flags &= ~TDF_SLEEPY;
-    } else {
-      sched_wakeup(td, 0);
-    }
-  }
-  return true;
-}
-
-static bool _sleepq_abort(thread_t *td, sq_wakeup_t reason) {
-  sleepq_chain_t *sc = sc_acquire(td->td_wchan);
-  sleepq_t *sq = sq_lookup(sc, td->td_wchan);
-  bool aborted = false;
-
-  if (sq != NULL) {
-    aborted = sq_wakeup(td, sc, sq, reason);
-    sq_release(sq);
-  }
-  sc_release(sc);
-
-  /* If we woke up higher priority thread, we should switch to it immediately.
-   * This is useful if `_sleepq_abort` gets called in thread context and
-   * preemption is enabled. */
-  sched_maybe_preempt();
-  return aborted;
-}
-
-bool sleepq_abort(thread_t *td) {
-  return _sleepq_abort(td, SQ_ABORT);
-}
+static bool _sleepq_abort(thread_t *, sq_wakeup_t);
 
 static void sq_timeout(thread_t *td) {
   _sleepq_abort(td, SQ_TIMEOUT);
@@ -304,6 +253,37 @@ sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t mode,
   return wakeup;
 }
 
+/* Remove a thread from the sleep queue and resume it. */
+static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
+                      sq_wakeup_t wakeup) {
+  /* Only sq_enter sets TDF_SLP... flags and it holds the same sleepq spinlock
+   * as sq_wakeup. Hence it's safe to read flags without holding thread's
+   * spinlock. */
+
+  /* Do not try to abort thread's sleep if it's not prepared for that. */
+  if ((wakeup == SQ_ABORT) && !(td->td_flags & TDF_SLPINTR))
+    return false;
+  if ((wakeup == SQ_TIMEOUT) && !(td->td_flags & TDF_SLPTIMED))
+    return false;
+
+  sq_leave(td, sc, sq);
+
+  WITH_SPINLOCK(td->td_spin) {
+    /* Clear TDF_SLPINTR flag if thread's sleep was not aborted. */
+    if (wakeup != SQ_ABORT)
+      td->td_flags &= ~TDF_SLPINTR;
+    if (wakeup != SQ_TIMEOUT)
+      td->td_flags &= ~TDF_SLPTIMED;
+    /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
+    if (td->td_flags & TDF_SLEEPY) {
+      td->td_flags &= ~TDF_SLEEPY;
+    } else {
+      sched_wakeup(td, 0);
+    }
+  }
+  return true;
+}
+
 bool sleepq_signal(void *wchan) {
   sleepq_chain_t *sc = sc_acquire(wchan);
   sleepq_t *sq = sq_lookup(sc, wchan);
@@ -345,4 +325,26 @@ bool sleepq_broadcast(void *wchan) {
 
   sched_maybe_preempt();
   return true;
+}
+
+static bool _sleepq_abort(thread_t *td, sq_wakeup_t reason) {
+  sleepq_chain_t *sc = sc_acquire(td->td_wchan);
+  sleepq_t *sq = sq_lookup(sc, td->td_wchan);
+  bool aborted = false;
+
+  if (sq != NULL) {
+    aborted = sq_wakeup(td, sc, sq, reason);
+    sq_release(sq);
+  }
+  sc_release(sc);
+
+  /* If we woke up higher priority thread, we should switch to it immediately.
+   * This is useful if `_sleepq_abort` gets called in thread context and
+   * preemption is enabled. */
+  sched_maybe_preempt();
+  return aborted;
+}
+
+bool sleepq_abort(thread_t *td) {
+  return _sleepq_abort(td, SQ_ABORT);
 }
