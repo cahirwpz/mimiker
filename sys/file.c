@@ -10,14 +10,13 @@
 static POOL_DEFINE(P_FILE, "file", sizeof(file_t));
 
 void file_ref(file_t *f) {
-  int old = atomic_fetch_add(&f->f_count, 1);
-  assert(old >= 0);
+  atomic_fetch_add(&f->f_count, 1);
 }
 
 void file_unref(file_t *f) {
-  SCOPED_MTX_LOCK(&f->f_mtx);
-  assert(f->f_count > 0);
-  if (--f->f_count == 0)
+  int old = atomic_fetch_sub(&f->f_count, 1);
+  assert(old > 0);
+  if (old == 1)
     f->f_count = -1;
 }
 
