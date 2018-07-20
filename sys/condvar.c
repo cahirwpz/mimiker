@@ -40,12 +40,12 @@ int cv_wait_intr(condvar_t *cv, mtx_t *mtx) {
   return errno_of_sq_wakeup(status);
 }
 
-int cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout_ms) {
+int cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout) {
   sq_wakeup_t status;
   WITH_NO_PREEMPTION {
     cv->waiters++;
     mtx_unlock(mtx);
-    status = sleepq_wait_timed(cv, __caller(0), timeout_ms);
+    status = sleepq_wait_timed(cv, __caller(0), timeout);
   }
   _mtx_lock(mtx, __caller(0));
   return errno_of_sq_wakeup(status);

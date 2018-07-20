@@ -17,7 +17,7 @@ void cv_init(condvar_t *cv, const char *name);
 
 void cv_wait(condvar_t *cv, mtx_t *mtx);
 int cv_wait_intr(condvar_t *cv, mtx_t *mtx);
-int cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout_ms);
+int cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout);
 void cv_signal(condvar_t *cv);
 void cv_broadcast(condvar_t *cv);
 
