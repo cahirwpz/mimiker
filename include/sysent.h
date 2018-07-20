@@ -25,7 +25,8 @@
 #define SYS_RMDIR 22
 #define SYS_ACCESS 23
 #define SYS_STAT 24
-#define SYS_LAST 25
+#define SYS_PIPE 25
+#define SYS_LAST 26
 
 #ifndef __ASSEMBLER__
 

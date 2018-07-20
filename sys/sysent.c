@@ -14,6 +14,7 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <pipe.h>
 #include <syslimits.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
@@ -295,6 +296,18 @@ static int sys_waitpid(thread_t *td, syscall_args_t *args) {
   return res;
 }
 
+static int sys_pipe(thread_t *td, syscall_args_t *args) {
+  int *fds_p = (void *)args->args[0];
+  int fds[2];
+
+  klog("pipe(%x)", fds_p);
+
+  int error = do_pipe(td, fds);
+  if (error)
+    return error;
+  return copyout(fds, fds_p, 2 * sizeof(int));
+}
+
 static int sys_unlink(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
   char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
@@ -402,4 +415,5 @@ sysent_t sysent[] = {
     [SYS_MKDIR] = {sys_mkdir},
     [SYS_RMDIR] = {sys_rmdir},
     [SYS_ACCESS] = {sys_access},
+    [SYS_PIPE] = {sys_pipe},
 };

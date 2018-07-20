@@ -36,6 +36,7 @@ SOURCES_C  = \
 	pci_ids.c \
 	pcpu.c \
 	physmem.c \
+	pipe.c \
 	pool.c \
 	proc.c \
 	ringbuf.c \
