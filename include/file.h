@@ -61,8 +61,6 @@ void file_unref(file_t *f);
 
 file_t *file_alloc(void);
 void file_destroy(file_t *f);
-/* Drop reference counter and possibly destroy the file. */
-void file_release(file_t *f);
 
 static inline int FOP_READ(file_t *f, thread_t *td, uio_t *uio) {
   return f->f_ops->fo_read(f, td, uio);
