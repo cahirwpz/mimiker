@@ -14,7 +14,7 @@ SUBDIRS = $(SYSSUBDIRS) user
 $(SUBDIRS):
 	$(MAKE) -C $@
 
-.PHONY: format tags cscope $(SUBDIRS) force
+.PHONY: format tags cscope $(SUBDIRS) force distclean download
 
 # Files required to link kernel image
 KRT = $(TOPDIR)/stdc/libstdc.a \
@@ -97,4 +97,8 @@ clean:
 	$(RM) initrd.o initrd.cpio
 
 distclean: clean
+	$(MAKE) -C user/newlib distclean
 	$(RM) -r cache sysroot
+
+download:
+	$(MAKE) -C user/newlib download

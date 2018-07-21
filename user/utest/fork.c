@@ -1,9 +1,9 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <assert.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/wait.h>
-#include <sys/signal.h>
+#include <unistd.h>
 
 int test_fork_wait(void) {
   int n = fork();

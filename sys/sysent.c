@@ -14,6 +14,8 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <time.h>
+#include <pipe.h>
 #include <syslimits.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
@@ -32,9 +34,7 @@ static int sys_sbrk(thread_t *td, syscall_args_t *args) {
 
 static int sys_exit(thread_t *td, syscall_args_t *args) {
   int status = args->args[0];
-
   klog("exit(%d)", status);
-
   proc_exit(MAKE_STATUS_EXIT(status));
   __unreachable();
 }
@@ -86,18 +86,17 @@ static int sys_sigreturn(thread_t *td, syscall_args_t *args) {
 }
 
 static int sys_mmap(thread_t *td, syscall_args_t *args) {
-  vm_addr_t addr = args->args[0];
+  vaddr_t addr = args->args[0];
   size_t length = args->args[1];
   vm_prot_t prot = args->args[2];
   int flags = args->args[3];
 
   klog("mmap(%p, %u, %d, %d)", (void *)addr, length, prot, flags);
 
-  int error = 0;
-  vm_addr_t result = do_mmap(addr, length, prot, flags, &error);
+  int error = do_mmap(&addr, length, prot, flags);
   if (error < 0)
-    return -error;
-  return result;
+    return error;
+  return addr;
 }
 
 static int sys_open(thread_t *td, syscall_args_t *args) {
@@ -298,6 +297,18 @@ static int sys_waitpid(thread_t *td, syscall_args_t *args) {
   return res;
 }
 
+static int sys_pipe(thread_t *td, syscall_args_t *args) {
+  int *fds_p = (void *)args->args[0];
+  int fds[2];
+
+  klog("pipe(%x)", fds_p);
+
+  int error = do_pipe(td, fds);
+  if (error)
+    return error;
+  return copyout(fds, fds_p, 2 * sizeof(int));
+}
+
 static int sys_unlink(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
   char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
@@ -379,6 +390,27 @@ end:
   return result;
 }
 
+static int sys_clock_gettime(thread_t *td, syscall_args_t *args) {
+  clockid_t clk = (clockid_t)args->args[0];
+  timespec_t *uts = (timespec_t *)args->args[1];
+  timespec_t kts;
+  int result = do_clock_gettime(clk, &kts);
+  if (result != 0)
+    return result;
+  return copyout_s(kts, uts);
+}
+
+static int sys_clock_nanosleep(thread_t *td, syscall_args_t *args) {
+  clockid_t clk = (clockid_t)args->args[0];
+  int flags = (int)args->args[1];
+  timespec_t *urqtp = (timespec_t *)args->args[2];
+  timespec_t krqtp;
+  int result = copyin_s(urqtp, krqtp);
+  if (result != 0)
+    return result;
+  return do_clock_nanosleep(clk, flags, &krqtp, NULL);
+}
+
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
     [SYS_EXIT] = {sys_exit},
@@ -405,4 +437,7 @@ sysent_t sysent[] = {
     [SYS_MKDIR] = {sys_mkdir},
     [SYS_RMDIR] = {sys_rmdir},
     [SYS_ACCESS] = {sys_access},
+    [SYS_PIPE] = {sys_pipe},
+    [SYS_CLOCKGETTIME] = {sys_clock_gettime},
+    [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep},
 };

@@ -21,9 +21,6 @@ int do_fork(void) {
      the all_thread list, has name and tid set. Many fields don't require setup
      as they will be prepared by sched_add. */
 
-  assert(td->td_idnest == 0);
-  newtd->td_idnest = 0;
-
   /* Copy user context.. */
   exc_frame_copy(newtd->td_uframe, td->td_uframe);
   exc_frame_set_retval(newtd->td_uframe, 0);
@@ -38,7 +35,6 @@ int do_fork(void) {
      starting from user_exc_leave (which serves as fork_trampoline). */
   thread_entry_setup(newtd, (entry_fn_t)user_exc_leave, NULL);
 
-  newtd->td_sleepqueue = sleepq_alloc();
   newtd->td_wchan = NULL;
   newtd->td_waitpt = NULL;
 
@@ -46,16 +42,13 @@ int do_fork(void) {
 
   /* Now, prepare a new process. */
   assert(td->td_proc);
-  proc_t *proc = proc_create();
-  proc->p_parent = td->td_proc;
-  TAILQ_INSERT_TAIL(&td->td_proc->p_children, proc, p_child);
-  proc_populate(proc, newtd);
+  proc_t *proc = proc_create(newtd, td->td_proc);
 
   /* Clone the entire process memory space. */
   proc->p_uspace = vm_map_clone(td->td_proc->p_uspace);
 
   /* Find copied brk segment. */
-  proc->p_sbrk = vm_map_find_entry(proc->p_uspace, SBRK_START);
+  proc->p_sbrk = vm_map_find_segment(proc->p_uspace, SBRK_START);
 
   /* Copy the parent descriptor table. */
   /* TODO: Optionally share the descriptor table between processes. */

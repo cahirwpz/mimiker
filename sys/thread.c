@@ -1,12 +1,15 @@
 #define KL_LOG KL_THREAD
 #include <klog.h>
 #include <malloc.h>
+#include <physmem.h>
 #include <thread.h>
 #include <context.h>
 #include <interrupt.h>
 #include <pcpu.h>
 #include <sched.h>
+#include <sleepq.h>
 #include <filedesc.h>
+#include <turnstile.h>
 #include <mips/exc.h>
 
 static MALLOC_DEFINE(M_THREAD, "thread", 1, 2);
@@ -72,7 +75,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   td->td_name = kstrndup(M_THREAD, name, TD_NAME_MAX);
   td->td_tid = make_tid();
   td->td_kstack_obj = pm_alloc(1);
-  td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
+  td->td_kstack.stk_base = PG_KSEG0_ADDR(td->td_kstack_obj);
   td->td_kstack.stk_size = PAGESIZE;
   td->td_state = TDS_INACTIVE;
 
@@ -123,7 +126,7 @@ noreturn void thread_exit(void) {
   /* Thread must not exit while having interrupts disabled! However, we can't
    * use assert here, because assert also calls thread_exit. Thus, in case this
    * condition is not met, we'll log the problem and panic! */
-  if (td->td_idnest > 0)
+  if (intr_disabled())
     panic("ERROR: Thread must not exit when interrupts are disabled!");
 
   /*

@@ -11,6 +11,7 @@
 #include <mutex.h>
 #include <pcpu.h>
 #include <sysinit.h>
+#include <turnstile.h>
 
 static runq_t runq;
 static bool sched_active = false;
@@ -25,11 +26,11 @@ void sched_add(thread_t *td) {
   klog("Add thread %ld {%p} to scheduler", td->td_tid, td);
 
   WITH_SPINLOCK(td->td_spin) {
-    sched_wakeup(td);
+    sched_wakeup(td, 0);
   }
 }
 
-void sched_wakeup(thread_t *td) {
+void sched_wakeup(thread_t *td, long reason) {
   assert(spin_owned(td->td_spin));
   assert(td != thread_self());
   assert(td_is_blocked(td) || td_is_sleeping(td) || td_is_inactive(td));
@@ -41,6 +42,8 @@ void sched_wakeup(thread_t *td) {
 
   td->td_state = TDS_READY;
   td->td_slice = SLICE;
+
+  ctx_set_retval(&td->td_kctx, reason);
 
   runq_add(&runq, td);
 
@@ -120,9 +123,9 @@ static thread_t *sched_choose(void) {
   return td;
 }
 
-void sched_switch(void) {
+long sched_switch(void) {
   if (!sched_active)
-    return;
+    return 0;
 
   thread_t *td = thread_self();
 
@@ -150,7 +153,7 @@ void sched_switch(void) {
   thread_t *newtd = sched_choose();
 
   if (td == newtd)
-    return;
+    return 0;
 
   /* If we got here then a context switch is required. */
   td->td_nctxsw++;
@@ -158,7 +161,7 @@ void sched_switch(void) {
   /* make sure we reacquire td_spin lock on return to current context */
   td->td_flags |= TDF_NEEDLOCK;
 
-  ctx_switch(td, newtd);
+  return ctx_switch(td, newtd);
 }
 
 void sched_clock(void) {
@@ -194,9 +197,23 @@ noreturn void sched_run(void) {
   }
 }
 
+void sched_maybe_preempt(void) {
+  if (preempt_disabled() || intr_disabled())
+    return;
+
+  thread_t *td = thread_self();
+
+  WITH_SPINLOCK(td->td_spin) {
+    if (td->td_flags & TDF_NEEDSWITCH) {
+      td->td_state = TDS_READY;
+      sched_switch();
+    }
+  }
+}
+
 bool preempt_disabled(void) {
   thread_t *td = thread_self();
-  return (td->td_pdnest > 0) || intr_disabled();
+  return td->td_pdnest > 0;
 }
 
 void preempt_disable(void) {
@@ -207,17 +224,8 @@ void preempt_disable(void) {
 void preempt_enable(void) {
   thread_t *td = thread_self();
   assert(td->td_pdnest > 0);
-
   td->td_pdnest--;
-  if (td->td_pdnest > 0)
-    return;
-
-  WITH_SPINLOCK(td->td_spin) {
-    if (td->td_flags & TDF_NEEDSWITCH) {
-      td->td_state = TDS_READY;
-      sched_switch();
-    }
-  }
+  sched_maybe_preempt();
 }
 
 SYSINIT_ADD(sched, sched_init, DEPS("callout"));

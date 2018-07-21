@@ -1,6 +1,7 @@
 import gdb
 from ptable import ptable, as_hex
 import utils
+import os.path
 
 
 class TimeVal(object):
@@ -23,7 +24,7 @@ class LogEntry():
         self.params = [entry['kl_params'][i] for i in range(nparams)]
         self.timestamp = TimeVal(entry['kl_timestamp'])
         self.tid = int(entry['kl_tid'])
-        self.source = entry['kl_file'].string()
+        self.source = os.path.basename(entry['kl_file'].string())
         self.line = int(entry['kl_line'])
         self.origin = str(entry['kl_origin'])
 

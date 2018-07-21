@@ -35,7 +35,6 @@ int test_exc_sigsys(void) {
                : "i"(sysnum)
                : "memory", "v0");
 
-  assert(retval == -1);
-  assert(errno == ENOSYS);
+  assert(retval == -78); /* XXX kernel ENOSYS */
   return 0;
 }

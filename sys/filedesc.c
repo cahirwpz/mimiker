@@ -4,12 +4,8 @@
 #include <stdc.h>
 #include <errno.h>
 #include <mutex.h>
-#include <sysinit.h>
 
 static MALLOC_DEFINE(M_FD, "filedesc", 1, 2);
-
-static void fd_init(void) {
-}
 
 /* Test whether a file descriptor is in use. */
 static int fd_is_used(fdtab_t *fdt, int fd) {
@@ -79,7 +75,9 @@ static int fd_alloc(fdtab_t *fdt, int *fdp) {
 static void fd_free(fdtab_t *fdt, int fd) {
   file_t *f = fdt->fdt_files[fd];
   assert(f != NULL);
-  file_release(f);
+  file_unref(f);
+  if (f->f_count == 0)
+    file_destroy(f);
   fdt->fdt_files[fd] = NULL;
   fd_mark_unused(fdt, fd);
 }
@@ -232,5 +230,3 @@ int fdtab_close_fd(fdtab_t *fdt, int fd) {
   fd_free(fdt, fd);
   return 0;
 }
-
-SYSINIT_ADD(filedesc, fd_init, DEPS("file"));

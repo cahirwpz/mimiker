@@ -13,7 +13,7 @@
 #define SET_ENTRY(set, sym)                                                    \
   __GLOBL(__CONCAT(__start_set_, set));                                        \
   __GLOBL(__CONCAT(__stop_set_, set));                                         \
-  static void const *const __set_##set##_sym_##sym __section(set_##set)        \
+  static void const *const __set_##set##_sym_##sym __section("set_" #set)      \
     __used = &sym
 
 #define SET_DECLARE(set, ptype)                                                \
@@ -35,5 +35,14 @@
 
 /* Provides a count of the items in a set. */
 #define SET_COUNT(set) (SET_LIMIT(set) - SET_BEGIN(set))
+
+#define INVOKE_CTORS(set)                                                      \
+  {                                                                            \
+    typedef void ctor_t(void);                                                 \
+    SET_DECLARE(set, ctor_t);                                                  \
+    ctor_t **ctor_p;                                                           \
+    SET_FOREACH (ctor_p, set)                                                  \
+      (*ctor_p)();                                                             \
+  }
 
 #endif /* !_SYS_LINKER_SET_H_ */
