@@ -1,6 +1,7 @@
 #include <rwlock.h>
 #include <thread.h>
 #include <stdc.h>
+#include <sleepq.h>
 #include <sched.h>
 
 void rw_init(rwlock_t *rw, const char *name, bool recursive) {

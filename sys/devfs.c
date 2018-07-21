@@ -192,9 +192,8 @@ static int devfs_init(vfsconf_t *vfc) {
   typedef void devfs_init_func_t(void);
   SET_DECLARE(devfs_init, devfs_init_func_t);
   devfs_init_func_t **ptr;
-  SET_FOREACH(ptr, devfs_init) {
+  SET_FOREACH (ptr, devfs_init)
     (**ptr)();
-  }
   return 0;
 }
 

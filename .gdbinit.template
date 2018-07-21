@@ -1,10 +1,24 @@
+# some generic settings
+set output-radix 0x10
+set pagination off
+set confirm off
+set verbose off
+set prompt \033[35;1m(gdb) \033[0m
+
+# QEMU connection settings
 set tcp connect-timeout 30
 target remote localhost:${GDB_PORT}
+
+# favorite set of breakpoints
 break kernel_init
 break assert_fail
 break panic_fail
-continue
 
+# favorite set of debugging printf's
+#dprintf proc_lock,"proc_lock(0x%08x)\n",p
+#dprintf proc_unlock,"proc_unlock(0x%08x)\n",p
+
+# make extra commands available
 python import os, sys
 python sys.path.append(os.getcwd())
 python import debug

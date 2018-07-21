@@ -17,8 +17,8 @@ static const char *subsystems[] =
    [KL_SCHED] = "sched", [KL_THREAD] = "thread",   [KL_INTR] = "intr",
    [KL_DEV] = "dev",     [KL_VFS] = "vfs",         [KL_VNODE] = "vnode",
    [KL_PROC] = "proc",   [KL_SYSCALL] = "syscall", [KL_USER] = "user",
-   [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_FILESYS] = "fs",
-   [KL_TIME] = "time",   [KL_UNDEF] = "???"};
+   [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_FILESYS] = "filesys",
+   [KL_TIME] = "time",   [KL_FILE] = "file",       [KL_UNDEF] = "???"};
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(char *key);

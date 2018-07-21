@@ -16,7 +16,8 @@ void mtx_init(mtx_t *m, unsigned type) {
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {
   if (mtx_owned(m)) {
-    assert(m->m_type == MTX_RECURSE);
+    if (m->m_type != MTX_RECURSE)
+      panic("Mutex %p is not recursive!", m);
     m->m_count++;
     return;
   }
@@ -34,7 +35,8 @@ void mtx_unlock(mtx_t *m) {
   assert(mtx_owned(m));
 
   if (m->m_count > 0) {
-    assert(m->m_type == MTX_RECURSE);
+    if (m->m_type != MTX_RECURSE)
+      panic("Mutex %p is not recursive!", m);
     m->m_count--;
     return;
   }

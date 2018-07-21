@@ -2,7 +2,11 @@
 
 TOPDIR = $(realpath ../..)
 
-include $(TOPDIR)/build/build.kern.mk
+include $(TOPDIR)/build/build.mk
+include $(TOPDIR)/build/flags.mk
+
+CFLAGS   += -ffreestanding
+CPPFLAGS += -I$(TOPDIR)/include
 
 LIBFILE = libmimiker.a
 EXTRAFILES = $(shell find extra -type f)
@@ -21,7 +25,7 @@ $(SYSROOT)/%: extra/%
 	@echo "[INSTALL] $(DIR)$< -> $*"
 	install -m 644 -D $< $@
 
-libmimiker.a: start.o syscalls.o
+libmimiker.a: gettimeofday.o nanosleep.o signal.o start.o syscalls.o
 
 clean:
-	$(RM) *.o *.a
+	$(RM) *.o *.a *~

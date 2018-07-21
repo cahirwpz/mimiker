@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(fd_bad_desc);
   CHECKRUN_TEST(fd_open_path);
   CHECKRUN_TEST(fd_dup);
+  CHECKRUN_TEST(fd_pipe);
   CHECKRUN_TEST(fd_all);
   CHECKRUN_TEST(signal_basic);
   CHECKRUN_TEST(signal_send);

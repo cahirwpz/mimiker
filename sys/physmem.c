@@ -1,9 +1,8 @@
-#define KL_LOG KL_PMAP
+#define KL_LOG KL_VM
 #include <klog.h>
 #include <stdc.h>
-#include <malloc.h>
+#include <mutex.h>
 #include <physmem.h>
-#include <mips/mips.h>
 
 #define PM_QUEUE_OF(seg, page) ((seg)->freeq + log2((page)->size))
 #define PM_FREEQ(seg, i) ((seg)->freeq + (i))
@@ -12,16 +11,15 @@
 
 typedef struct pm_seg {
   TAILQ_ENTRY(pm_seg) segq;
-  pm_addr_t start;
-  pm_addr_t end;
+  paddr_t start;
+  paddr_t end;
   pg_list_t freeq[PM_NQUEUES];
   unsigned npages;
   vm_page_t pages[];
 } pm_seg_t;
 
-TAILQ_HEAD(pm_seglist, pm_seg);
-
-static struct pm_seglist seglist;
+static TAILQ_HEAD(, pm_seg) seglist;
+static mtx_t *seglist_lock = &MTX_INITIALIZER(MTX_DEF);
 
 void pm_init(void) {
   TAILQ_INIT(&seglist);
@@ -51,12 +49,11 @@ size_t pm_seg_space_needed(size_t size) {
   return sizeof(pm_seg_t) + size / PAGESIZE * sizeof(vm_page_t);
 }
 
-void pm_seg_init(pm_seg_t *seg, pm_addr_t start, pm_addr_t end,
-                 vm_addr_t vm_offset) {
+void pm_seg_init(pm_seg_t *seg, paddr_t start, paddr_t end, off_t offset) {
   assert(start < end);
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
-  assert(is_aligned(vm_offset, PAGESIZE));
+  assert(is_aligned(offset, PAGESIZE));
 
   seg->start = start;
   seg->end = end;
@@ -68,7 +65,6 @@ void pm_seg_init(pm_seg_t *seg, pm_addr_t start, pm_addr_t end,
     vm_page_t *page = &seg->pages[i];
     bzero(page, sizeof(vm_page_t));
     page->paddr = seg->start + PAGESIZE * i;
-    page->vaddr = seg->start + PAGESIZE * i + vm_offset;
     page->size = 1 << min(max_size, ctz(i));
   }
 
@@ -154,7 +150,7 @@ static void pm_split_page(pm_seg_t *seg, vm_page_t *page) {
 }
 
 /* TODO this can be sped up by removing elements from list on-line. */
-void pm_seg_reserve(pm_seg_t *seg, pm_addr_t start, pm_addr_t end) {
+void pm_seg_reserve(pm_seg_t *seg, paddr_t start, paddr_t end) {
   assert(start < end);
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
@@ -229,12 +225,13 @@ static vm_page_t *pm_alloc_from_seg(pm_seg_t *seg, size_t npages) {
 vm_page_t *pm_alloc(size_t npages) {
   assert((npages > 0) && powerof2(npages));
 
+  SCOPED_MTX_LOCK(seglist_lock);
+
   pm_seg_t *seg_it;
   TAILQ_FOREACH (seg_it, &seglist, segq) {
     vm_page_t *page;
     if ((page = pm_alloc_from_seg(seg_it, npages))) {
       klog("pm_alloc {paddr:%lx size:%ld}", page->paddr, page->size);
-      page->vaddr = MIPS_PHYS_TO_KSEG0(page->paddr);
       return page;
     }
   }
@@ -274,6 +271,8 @@ void pm_free(vm_page_t *page) {
   pm_seg_t *seg_it = NULL;
 
   klog("pm_free {paddr:%lx size:%ld}", page->paddr, page->size);
+
+  SCOPED_MTX_LOCK(seglist_lock);
 
   TAILQ_FOREACH (seg_it, &seglist, segq) {
     if (PG_START(page) >= seg_it->start && PG_END(page) <= seg_it->end) {
