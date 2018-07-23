@@ -1,6 +1,7 @@
 #include <sleepq.h>
 #include <runq.h>
 #include <ktest.h>
+#include <errno.h>
 #include <sched.h>
 
 #define T 6
@@ -35,9 +36,9 @@ static volatile int interrupted;
 static void waiter_routine(void *_arg) {
   int rsn = sleepq_wait_intr(&some_val, __caller(0));
 
-  if (rsn == SQ_INTR)
+  if (rsn == -EINTR)
     interrupted++;
-  else if (rsn == SQ_NORMAL)
+  else if (rsn == 0)
     wakened_gracefully++;
   else
     panic("unknown wakeup reason: %d", rsn);

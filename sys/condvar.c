@@ -1,23 +1,11 @@
 #include <condvar.h>
 #include <sleepq.h>
-#include <errno.h>
 #include <sched.h>
 #include <mutex.h>
 
 void cv_init(condvar_t *cv, const char *name) {
   cv->name = name;
   cv->waiters = 0;
-}
-
-static int errno_of_sq_wakeup(sq_wakeup_t s) {
-  if (s == SQ_NORMAL)
-    return 0;
-  if (s == SQ_TIMEOUT)
-    return ETIMEDOUT;
-  if (s == SQ_INTR)
-    return EINTR;
-
-  panic("Unexpected value of sq_wakeup_t");
 }
 
 void cv_wait(condvar_t *cv, mtx_t *mtx) {
@@ -30,14 +18,14 @@ void cv_wait(condvar_t *cv, mtx_t *mtx) {
 }
 
 int cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout) {
-  sq_wakeup_t status;
+  int status;
   WITH_NO_PREEMPTION {
     cv->waiters++;
     mtx_unlock(mtx);
     status = sleepq_wait_timed(cv, __caller(0), timeout);
   }
   _mtx_lock(mtx, __caller(0));
-  return errno_of_sq_wakeup(status);
+  return status;
 }
 
 void cv_signal(condvar_t *cv) {

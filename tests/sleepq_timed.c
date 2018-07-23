@@ -3,6 +3,7 @@
 #include <time.h>
 #include <thread.h>
 #include <sched.h>
+#include <errno.h>
 #include <runq.h>
 
 /* `waiters[i]` wait with timeout on `&wchan`.
@@ -29,17 +30,17 @@ static thread_t *waker;
 
 static void waiter_routine(void *_arg) {
   systime_t before_sleep = getsystime();
-  sq_wakeup_t status = sleepq_wait_timed(&wchan, __caller(0), SLEEP_TICKS);
+  int status = sleepq_wait_timed(&wchan, __caller(0), SLEEP_TICKS);
   systime_t after_sleep = getsystime();
   systime_t diff = after_sleep - before_sleep;
 
-  if (status == SQ_TIMEOUT) {
+  if (status == -ETIMEDOUT) {
     timed_received++;
     assert(diff >= SLEEP_TICKS);
-  } else if (status == SQ_NORMAL) {
+  } else if (status == -EINTR) {
     signaled_received++;
   } else {
-    panic("Got unexpected wakeup status");
+    panic("Got unexpected wakeup status: %d!", status);
   }
 }
 
