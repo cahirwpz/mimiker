@@ -32,7 +32,11 @@ void sleepq_wait(void *wchan, const void *waitpt);
 
 /*! \brief Performs interruptible sleep with timeout.
  *
- * \param timeout in system ticks. 0 is no timeout.
+ * Timed sleep is also interruptible. The only guarantee about timeout is that
+ * the thread's sleep will not timeout before the given time passes. It may
+ * happen any time after that point.
+ *
+ * \param timeout in system ticks, if 0 waits indefinitely
  * \returns how the thread was actually woken up */
 int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout);
 

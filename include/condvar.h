@@ -3,32 +3,24 @@
 
 #include <common.h>
 
-/* \todo document this? */
 typedef struct condvar {
-  const char *name;
-  int waiters;
+  const char *name;     /*!< name for debugging purpose */
+  volatile int waiters; /*!< # of threads sleeping in associated sleep queue */
 } condvar_t;
 
 typedef struct mtx mtx_t;
 
-/* \todo is the block alignment correct for Doxygen?
- * \todo should we mention that none of the functions here will deallocate
- *       the string? (in case the string is dynamically allocated but it
- *       doesn't really have a reason to be)
- */
-/*! \brief Initialize a condvar.
+/*! \brief Initialize a conditional variable.
  *
  * Any condvar must be initialized before use.
  *
- * \arg name Name of the condvar for debugging purposes. Only the pointer to
- *           the string is stored so don't modify the string after passing it
- *           to a condvar.
- * \arg cv Pointer to the structure that's initialized.
+ * \arg cv Pointer to the structure that's going to be initialized.
+ * \arg name Pointer to statically (!) allocated string.
  */
 void cv_init(condvar_t *cv, const char *name);
 
-/* \brief I don't know what it's supposed to do because it does nothing.
- * \todo Make conditional variable unusable after it has been destroyed.
+/*! \brief Make conditional variable unusable after it has been destroyed.
+ * XXX Do we really need it?
  */
 #define cv_destroy(m)
 
@@ -44,19 +36,15 @@ void cv_wait(condvar_t *cv, mtx_t *mtx);
 
 /*! \brief Wait on a conditional variable with timeout.
  *
- * Timed sleep is also interruptible. The only guarantee about timeout is that
- * the thread's sleep will not timeout before the given time passes. It may
- * happen any time after that point.
- *
  * \arg timeout The timeout in system ticks, if 0 waits indefinitely.
  *
  * \returns 0 if the thread was awoken normally (`cv_signal`, `cv_broadcast`)
- * \returns EINTR if the thread was interrupted by a signal during the sleep
- * \returns ETIMEDOUT if the sleep timed out.
+ * \returns EINTR if the thread was interrupted during the sleep
+ * \returns ETIMEDOUT if the sleep timed out
  */
 int cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout);
 
-/*! \brief Wake a single thread waiting on the condvar.
+/*! \brief Wake a single thread waiting on a conditional variable.
  *
  * If there are multiple waiting threads then the one with the highest priority
  * will be woken up.
