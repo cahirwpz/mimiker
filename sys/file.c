@@ -9,15 +9,6 @@
 
 static POOL_DEFINE(P_FILE, "file", sizeof(file_t));
 
-void file_ref(file_t *f) {
-  atomic_fetch_add(&f->f_count, 1);
-}
-
-void file_unref(file_t *f) {
-  int old = atomic_fetch_sub(&f->f_count, 1);
-  assert(old > 0);
-}
-
 file_t *file_alloc(void) {
   file_t *f = pool_alloc(P_FILE, PF_ZERO);
   f->f_ops = &badfileops;
@@ -36,6 +27,15 @@ void file_destroy(file_t *f) {
     FOP_CLOSE(f, thread_self());
 
   pool_free(P_FILE, f);
+}
+
+void file_hold(file_t *f) {
+  refcnt_acquire(&f->f_count);
+}
+
+void file_drop(file_t *f) {
+  if (refcnt_release(&f->f_count))
+    file_destroy(f);
 }
 
 /* Operations on invalid file descriptors */

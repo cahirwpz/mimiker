@@ -1,16 +1,16 @@
 #ifndef _SYS_FILE_H_
 #define _SYS_FILE_H_
 
-#include <stdint.h>
-#include <stddef.h>
+#include <common.h>
 #include <mutex.h>
-#include <uio.h>
+#include <refcnt.h>
 
 typedef struct thread thread_t;
 typedef struct file file_t;
 typedef struct vnode vnode_t;
 typedef struct vattr vattr_t;
 typedef struct stat stat_t;
+typedef struct uio uio_t;
 
 typedef int fo_read_t(file_t *f, thread_t *td, uio_t *uio);
 typedef int fo_write_t(file_t *f, thread_t *td, uio_t *uio);
@@ -51,16 +51,19 @@ typedef struct file {
   filetype_t f_type; /* File type */
   vnode_t *f_vnode;
   off_t f_offset;
-  int f_count;      /* Reference count, ready for disposal if -1 */
+  refcnt_t f_count; /* Reference counter */
   unsigned f_flags; /* File flags FF_* */
   mtx_t f_mtx;
 } file_t;
 
-void file_ref(file_t *f);
-void file_unref(file_t *f);
-
 file_t *file_alloc(void);
 void file_destroy(file_t *f);
+
+/*! \brief Increments reference counter. */
+void file_hold(file_t *f);
+
+/*! \brief Decrements refcounter and destroys file if it has reached 0. */
+void file_drop(file_t *f);
 
 static inline int FOP_READ(file_t *f, thread_t *td, uio_t *uio) {
   return f->f_ops->fo_read(f, td, uio);

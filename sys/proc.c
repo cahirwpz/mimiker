@@ -145,7 +145,7 @@ noreturn void proc_exit(int exitstatus) {
     p->p_uspace = NULL;
     vm_map_delete(uspace);
 
-    fdtab_release(p->p_fdtable);
+    fdtab_drop(p->p_fdtable);
 
     /* Record process statistics that will stay maintained in zombie state. */
     p->p_exitstatus = exitstatus;

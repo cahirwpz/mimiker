@@ -117,7 +117,7 @@ static int devfs_vop_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
   if (!(dn = devfs_find_child(dv->v_data, name)))
     return -ENOENT;
   *vp = dn->dn_vnode;
-  vnode_ref(*vp);
+  vnode_hold(*vp);
   return 0;
 }
 
@@ -174,7 +174,7 @@ static int devfs_vop_readdir(vnode_t *v, uio_t *uio, void *state) {
 
 static int devfs_root(mount_t *m, vnode_t **vp) {
   *vp = devfs.root.dn_vnode;
-  vnode_ref(*vp);
+  vnode_hold(*vp);
   return 0;
 }
 
