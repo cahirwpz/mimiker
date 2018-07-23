@@ -277,7 +277,7 @@ noreturn void run_program(const exec_args_t *prog) {
 
   /* Prepare file descriptor table... */
   fdtab_t *fdt = fdtab_alloc();
-  fdtab_ref(fdt);
+  fdtab_hold(fdt);
   p->p_fdtable = fdt;
 
   /* ... and initialize file descriptors required by the standard library. */

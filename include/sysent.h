@@ -26,8 +26,10 @@
 #define SYS_ACCESS 23
 #define SYS_STAT 24
 #define SYS_PIPE 25
-#define SYS_EXECVE 26
-#define SYS_LAST 27
+#define SYS_CLOCKGETTIME 26
+#define SYS_CLOCKNANOSLEEP 27
+#define SYS_EXECVE 28
+#define SYS_LAST 29
 
 #ifndef __ASSEMBLER__
 

@@ -13,6 +13,7 @@
 #include <thread.h>
 #include <proc.h>
 #include <ringbuf.h>
+#include <uio.h>
 #include <sysinit.h>
 
 typedef struct pipe_end pipe_end_t;

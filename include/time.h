@@ -53,6 +53,10 @@ static inline timeval_t st2tv(systime_t st) {
   return (timeval_t){.tv_sec = st / 1000, .tv_usec = st % 1000};
 }
 
+static inline timeval_t ts2tv(timespec_t ts) {
+  return (timeval_t){.tv_sec = ts.tv_sec, .tv_usec = ts.tv_nsec / 1000};
+}
+
 static inline systime_t tv2st(timeval_t tv) {
   return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
@@ -113,6 +117,10 @@ static inline bintime_t bintime_mul(const bintime_t bt, uint32_t x) {
                      .frac = (p2 << 32) | (p1 & 0xffffffffULL)};
 }
 
+typedef enum clockid { CLOCK_MONOTONIC = 1, CLOCK_REALTIME = 2 } clockid_t;
+
+#ifdef _KERNELSPACE
+
 /* XXX: Do not use this function, it'll get removed. */
 timeval_t get_uptime(void);
 
@@ -126,5 +134,23 @@ systime_t getsystime(void);
 /* XXX: Do not use this function, it'll get removed.
  * Raw access to cpu internal timer. */
 timeval_t getcputime(void);
+
+int do_clock_gettime(clockid_t clk, timespec_t *tp);
+
+int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
+                       timespec_t *rmtp);
+
+#else /* _KERNELSPACE */
+
+int nanosleep(timespec_t *rqtp, timespec_t *rmtp);
+
+int gettimeofday(timeval_t *tp, void *tzp);
+
+int clock_gettime(clockid_t clk, timespec_t *tp);
+
+int clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
+                    timespec_t *rmtp);
+
+#endif /* !_KERNELSPACE */
 
 #endif /* !_SYS_TIME_H_ */

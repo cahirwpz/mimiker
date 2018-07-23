@@ -54,6 +54,7 @@ SOURCES_C  = \
 	taskqueue.c \
 	turnstile.c \
 	thread.c \
+	time.c \
 	timer.c \
 	uio.c \
 	vfs.c \
