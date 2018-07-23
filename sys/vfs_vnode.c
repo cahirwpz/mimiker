@@ -34,14 +34,12 @@ void vnode_unlock(vnode_t *v) {
   mtx_unlock(&v->v_mtx);
 }
 
-void vnode_ref(vnode_t *v) {
-  atomic_fetch_add(&v->v_usecnt, 1);
+void vnode_hold(vnode_t *v) {
+  refcnt_acquire(&v->v_usecnt);
 }
 
-void vnode_unref(vnode_t *v) {
-  int old = atomic_fetch_sub(&v->v_usecnt, 1);
-  assert(old > 0);
-  if (old == 1)
+void vnode_drop(vnode_t *v) {
+  if (refcnt_release(&v->v_usecnt))
     pool_free(P_VNODE, v);
 }
 
@@ -145,7 +143,7 @@ static int default_vnwrite(file_t *f, thread_t *td, uio_t *uio) {
 
 static int default_vnclose(file_t *f, thread_t *td) {
   (void)VOP_CLOSE(f->f_vnode, f);
-  vnode_unref(f->f_vnode);
+  vnode_drop(f->f_vnode);
   return 0;
 }
 
@@ -206,7 +204,7 @@ static fileops_t default_vnode_fileops = {
 };
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
-  vnode_ref(v);
+  vnode_hold(v);
   fp->f_ops = &default_vnode_fileops;
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;

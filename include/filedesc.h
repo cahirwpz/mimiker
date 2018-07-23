@@ -3,6 +3,7 @@
 
 #include <file.h>
 #include <bitstring.h>
+#include <refcnt.h>
 #include <mutex.h>
 
 /* The initial size of space allocated for file descriptors. According
@@ -18,12 +19,14 @@ typedef struct fdtab {
   bitstr_t *fdt_map;  /* Bitmap of used fds */
   unsigned fdt_flags;
   unsigned fdt_nfiles; /* Number of files allocated */
-  int fdt_count;       /* Reference count, ready for disposal if -1 */
+  refcnt_t fdt_count;  /* Reference count */
   mtx_t fdt_mtx;
 } fdtab_t;
 
-void fdtab_ref(fdtab_t *fdt);
-void fdtab_unref(fdtab_t *fdt);
+/*! \brief Increments reference counter. */
+void fdtab_hold(fdtab_t *fdt);
+/*! \brief Decrements `fdt_count` and destroys fd table if it has reached 0. */
+void fdtab_drop(fdtab_t *fdt);
 
 /* Allocates a new descriptor table. */
 fdtab_t *fdtab_alloc(void);
@@ -31,8 +34,6 @@ fdtab_t *fdtab_alloc(void);
 fdtab_t *fdtab_copy(fdtab_t *fdt);
 /* Frees the table and possibly closes underlying files. */
 void fdtab_destroy(fdtab_t *fdt);
-/* Drop reference counter and possibly destroy the table. */
-void fdtab_release(fdtab_t *fdt);
 /* Assign a file structure to a new descriptor. */
 int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fdp);
 /* Assign a file structure to a certain descriptor */
