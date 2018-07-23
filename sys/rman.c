@@ -84,7 +84,7 @@ resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
     return NULL;
 
   resource = split_resource(resource, align(start, align), end, count);
-  resource->r_type = rm->type;
+  resource->r_type = rm->rm_type;
   resource->r_align = align;
   resource->r_flags = flags;
   resource->r_flags |= RF_ALLOCATED;
@@ -96,7 +96,7 @@ void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end,
                  resource_type_t type) {
   rm->rm_start = start;
   rm->rm_end = end;
-  rm->type = type;
+  rm->rm_type = type;
 
   mtx_init(&rm->rm_mtx, MTX_DEF);
   LIST_INIT(&rm->rm_resources);
@@ -105,7 +105,7 @@ void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end,
 
   whole_space->r_start = rm->rm_start;
   whole_space->r_end = rm->rm_end;
-  whole_space->r_type = type;
+  whole_space->r_type = rm->rm_type;
 
   LIST_INSERT_HEAD(&rm->rm_resources, whole_space, r_resources);
 }

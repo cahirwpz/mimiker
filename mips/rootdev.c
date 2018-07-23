@@ -39,58 +39,52 @@ static int rootdev_attach(device_t *dev) {
   return 0;
 }
 
-static uint8_t mips_read_1(resource_t *handle, unsigned offset) {
-  intptr_t addr = handle->r_start + offset;
-  return *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(addr);
+static uint8_t mips_read_1(bus_addr_t addr, off_t offset) {
+  return *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(addr + offset);
 }
 
-static void mips_write_1(resource_t *handle, unsigned offset, uint8_t value) {
-  intptr_t addr = handle->r_start + offset;
-  *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
+static uint16_t mips_read_2(bus_addr_t addr, off_t offset) {
+  return *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr + offset);
 }
 
-static uint16_t mips_read_2(resource_t *handle, unsigned offset) {
-  intptr_t addr = handle->r_start + offset;
-  return *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr);
+static uint32_t mips_read_4(bus_addr_t addr, off_t offset) {
+  return *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(addr + offset);
 }
 
-static void mips_write_2(resource_t *handle, unsigned offset, uint16_t value) {
-  intptr_t addr = handle->r_start + offset;
-  *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
+static void mips_write_1(bus_addr_t addr, off_t offset, uint8_t value) {
+  *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(addr + offset) = value;
 }
 
-static uint32_t mips_read_4(resource_t *handle, unsigned offset) {
-  intptr_t addr = handle->r_start + offset;
-  return *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(addr);
+static void mips_write_2(bus_addr_t addr, off_t offset, uint16_t value) {
+  *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr + offset) = value;
 }
 
-static void mips_write_4(resource_t *handle, unsigned offset, uint32_t value) {
-  intptr_t addr = handle->r_start + offset;
-  *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(addr) = value;
+static void mips_write_4(bus_addr_t addr, off_t offset, uint32_t value) {
+  *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(addr + offset) = value;
 }
 
-static void mips_read_region_1(resource_t *handle, unsigned offset,
-                               uint8_t *dst, size_t count) {
-  uint8_t *src = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle->r_start + offset);
+static void mips_read_region_1(bus_addr_t addr, off_t offset, uint8_t *dst,
+                               size_t count) {
+  uint8_t *src = (uint8_t *)MIPS_PHYS_TO_KSEG1(addr + offset);
   for (size_t i = 0; i < count; i++)
     *dst++ = *src++;
 }
 
-static void mips_write_region_1(resource_t *handle, unsigned offset,
+static void mips_write_region_1(bus_addr_t addr, off_t offset,
                                 const uint8_t *src, size_t count) {
-  uint8_t *dst = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle->r_start + offset);
+  uint8_t *dst = (uint8_t *)MIPS_PHYS_TO_KSEG1(addr + offset);
   for (size_t i = 0; i < count; i++)
     *dst++ = *src++;
 }
 
-static struct bus_space generic_space = {.read_1 = mips_read_1,
-                                         .write_1 = mips_write_1,
-                                         .read_2 = mips_read_2,
-                                         .write_2 = mips_write_2,
-                                         .read_4 = mips_read_4,
-                                         .write_4 = mips_write_4,
-                                         .read_region_1 = mips_read_region_1,
-                                         .write_region_1 = mips_write_region_1};
+static bus_space_t generic_space = {.bs_read_1 = mips_read_1,
+                                    .bs_read_2 = mips_read_2,
+                                    .bs_read_4 = mips_read_4,
+                                    .bs_write_1 = mips_write_1,
+                                    .bs_write_2 = mips_write_2,
+                                    .bs_write_4 = mips_write_4,
+                                    .bs_read_region_1 = mips_read_region_1,
+                                    .bs_write_region_1 = mips_write_region_1};
 
 static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
                                           resource_type_t type, int rid,

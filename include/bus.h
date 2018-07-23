@@ -1,84 +1,83 @@
 #ifndef _SYS_BUS_H_
 #define _SYS_BUS_H_
 
-#include <rman.h>
+#include <_bus.h>
 #include <device.h>
+#include <rman.h>
 
-typedef struct bus_space bus_space_t;
 typedef struct bus_methods bus_methods_t;
 typedef struct bus_driver bus_driver_t;
 typedef struct intr_handler intr_handler_t;
-
-/* `bus space` accessor routines */
-typedef uint8_t (*bus_space_read_1_t)(resource_t *handle, unsigned offset);
-typedef void (*bus_space_write_1_t)(resource_t *handle, unsigned offset,
-                                    uint8_t value);
-typedef uint16_t (*bus_space_read_2_t)(resource_t *handle, unsigned offset);
-typedef void (*bus_space_write_2_t)(resource_t *handle, unsigned offset,
-                                    uint16_t value);
-typedef uint32_t (*bus_space_read_4_t)(resource_t *handle, unsigned offset);
-typedef void (*bus_space_write_4_t)(resource_t *handle, unsigned offset,
-                                    uint32_t value);
-typedef void (*bus_space_read_region_1_t)(resource_t *handle, unsigned offset,
-                                          uint8_t *dst, size_t count);
-typedef void (*bus_space_write_region_1_t)(resource_t *handle, unsigned offset,
-                                           const uint8_t *src, size_t count);
 
 /* `bus space` describes a method to access hardware resources mapped at some
  * address. We make no distinction between different kinds of physical address
  * spaces. Same hardware resource can be accessed in many different ways
  * depending on which bus it was attached to (e.g. I/O ports vs. MMIO) */
 struct bus_space {
-  bus_space_read_1_t read_1;   /* how to read one byte? */
-  bus_space_write_1_t write_1; /* how to write one byte? */
-  bus_space_read_2_t read_2;   /* how to read word? */
-  bus_space_write_2_t write_2; /* how to write word? */
-  bus_space_read_4_t read_4;   /* how to read double word? */
-  bus_space_write_4_t write_4; /* how to write double word? */
-  bus_space_read_region_1_t read_region_1;
-  bus_space_write_region_1_t write_region_1;
+  /* read (single) */
+  uint8_t (*bs_read_1)(bus_addr_t, off_t);
+  uint16_t (*bs_read_2)(bus_addr_t, off_t);
+  uint32_t (*bs_read_4)(bus_addr_t, off_t);
+
+  /* write (single) */
+  void (*bs_write_1)(bus_addr_t, off_t, uint8_t);
+  void (*bs_write_2)(bus_addr_t, off_t, uint16_t);
+  void (*bs_write_4)(bus_addr_t, off_t, uint32_t);
+
+  /* read region */
+  void (*bs_read_region_1)(bus_addr_t, off_t, uint8_t *, size_t);
+
+  /* write region */
+  void (*bs_write_region_1)(bus_addr_t, off_t, const uint8_t *, size_t);
 };
 
 #define BUS_SPACE_DECLARE(name) extern bus_space_t name[1]
 
-#define RESOURCE_DECLARE(name) extern resource_t name[1]
+#define __bs_func(bs, op, sz)                                                  \
+  (*(bs)->__CONCAT(__CONCAT(__CONCAT(bs_, op), _), sz))
 
-static inline uint8_t bus_space_read_1(resource_t *handle, unsigned offset) {
-  return handle->r_bus_space->read_1(handle, offset);
-}
+#define __bs_read(bs, ba, o, sz) __bs_func((bs), read, sz)((ba), (o))
+#define bus_space_read_1(bs, ba, o) __bs_read(bs, ba, o, 1)
+#define bus_space_read_2(bs, ba, o) __bs_read(bs, ba, o, 2)
+#define bus_space_read_4(bs, ba, o) __bs_read(bs, ba, o, 4)
 
-static inline void bus_space_write_1(resource_t *handle, unsigned offset,
-                                     uint8_t value) {
-  handle->r_bus_space->write_1(handle, offset, value);
-}
+#define __bs_write(bs, ba, o, v, sz) __bs_func((bs), write, sz)((ba), (o), (v))
+#define bus_space_write_1(bs, ba, o) __bs_write(bs, ba, o, 1)
+#define bus_space_write_2(bs, ba, o) __bs_write(bs, ba, o, 2)
+#define bus_space_write_4(bs, ba, o) __bs_write(bs, ba, o, 4)
 
-static inline uint16_t bus_space_read_2(resource_t *handle, unsigned offset) {
-  return handle->r_bus_space->read_2(handle, offset);
-}
+#define __bs_read_region(bs, ba, o, dst, cnt, sz)                              \
+  __bs_func((bs), read_region, sz)((ba), (o), (dst), (cnt))
+#define bus_space_read_region_1(bs, ba, o, dst, cnt)                           \
+  __bs_read_region(bs, ba, o, dst, cnt, 1)
 
-static inline void bus_space_write_2(resource_t *handle, unsigned offset,
-                                     uint16_t value) {
-  handle->r_bus_space->write_2(handle, offset, value);
-}
+#define __bs_write_region(bs, ba, o, src, cnt, sz)                             \
+  __bs_func((bs), write_region, sz)((ba), (o), (src), (cnt))
+#define bus_space_write_region_1(bs, ba, o, src, cnt)                          \
+  __bs_write_region(bs, ba, o, src, cnt, 1)
 
-static inline uint32_t bus_space_read_4(resource_t *handle, unsigned offset) {
-  return handle->r_bus_space->read_4(handle, offset);
-}
+/* Simplified versions of the above, which take only a pointer to resource. */
+#define __bus_read(r, o, sz)                                                   \
+  __bs_read((r)->r_bus_space, (r)->r_bus_addr, (o) + (r)->r_start, sz)
+#define bus_read_1(r, o) __bus_read(r, o, 1)
+#define bus_read_2(r, o) __bus_read(r, o, 2)
+#define bus_read_4(r, o) __bus_read(r, o, 4)
 
-static inline void bus_space_write_4(resource_t *handle, unsigned offset,
-                                     uint32_t value) {
-  handle->r_bus_space->write_4(handle, offset, value);
-}
+#define __bus_write(r, o, v, sz)                                               \
+  __bs_write((r)->r_bus_space, (r)->r_bus_addr, (o) + (r)->r_start, (v), sz)
+#define bus_write_1(r, o, v) __bus_write(r, o, v, 1)
+#define bus_write_2(r, o, v) __bus_write(r, o, v, 2)
+#define bus_write_4(r, o, v) __bus_write(r, o, v, 4)
 
-static inline void bus_space_read_region_1(resource_t *handle, unsigned offset,
-                                           uint8_t *dst, size_t count) {
-  return handle->r_bus_space->read_region_1(handle, offset, dst, count);
-}
+#define __bus_read_region(r, o, dst, cnt, sz)                                  \
+  __bs_write((r)->r_bus_space, (r)->r_bus_addr, (o) + (r)->r_start, (dst),     \
+             (cnt), sz)
+#define bus_read_region_1(r, o, dst, cnt) __bus_read_region(r, o, dst, cnt, 1)
 
-static inline void bus_space_write_region_1(resource_t *handle, unsigned offset,
-                                            const uint8_t *src, size_t count) {
-  handle->r_bus_space->write_region_1(handle, offset, src, count);
-}
+#define __bus_write_region(r, o, src, cnt, sz)                                 \
+  __bs_write_region((r)->r_bus_space, (r)->r_bus_addr, (o) + (r)->r_start,     \
+                    (src), (cnt), sz)
+#define bus_write_region_1(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 1)
 
 typedef void (*bus_intr_setup_t)(device_t *dev, unsigned num,
                                  intr_handler_t *handler);

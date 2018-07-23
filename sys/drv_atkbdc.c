@@ -30,28 +30,28 @@ typedef struct atkbdc_state {
    is not a major problem, since pretty much always the controller is
    immediately ready to proceed, so the we don't loop in practice. */
 static inline void wait_before_read(resource_t *regs) {
-  while (!(bus_space_read_1(regs, KBD_STATUS_PORT) & KBDS_KBD_BUFFER_FULL))
+  while (!(bus_read_1(regs, KBD_STATUS_PORT) & KBDS_KBD_BUFFER_FULL))
     ;
 }
 
 static inline void wait_before_write(resource_t *regs) {
-  while (bus_space_read_1(regs, KBD_STATUS_PORT) & KBDS_INPUT_BUFFER_FULL)
+  while (bus_read_1(regs, KBD_STATUS_PORT) & KBDS_INPUT_BUFFER_FULL)
     ;
 }
 
 static void write_command(resource_t *regs, uint8_t command) {
   wait_before_write(regs);
-  bus_space_write_1(regs, KBD_COMMAND_PORT, command);
+  bus_write_1(regs, KBD_COMMAND_PORT, command);
 }
 
 static uint8_t read_data(resource_t *regs) {
   wait_before_read(regs);
-  return bus_space_read_1(regs, KBD_DATA_PORT);
+  return bus_read_1(regs, KBD_DATA_PORT);
 }
 
 static void write_data(resource_t *regs, uint8_t byte) {
   wait_before_write(regs);
-  bus_space_write_1(regs, KBD_DATA_PORT, byte);
+  bus_write_1(regs, KBD_DATA_PORT, byte);
 }
 
 static int scancode_read(vnode_t *v, uio_t *uio) {
@@ -88,7 +88,7 @@ static bool kbd_reset(resource_t *regs) {
 static intr_filter_t atkbdc_intr(void *data) {
   atkbdc_state_t *atkbdc = data;
 
-  if (!(bus_space_read_1(atkbdc->regs, KBD_STATUS_PORT) & KBDS_KBD_BUFFER_FULL))
+  if (!(bus_read_1(atkbdc->regs, KBD_STATUS_PORT) & KBDS_KBD_BUFFER_FULL))
     return IF_STRAY;
 
   /* TODO: Some locking mechanism will be necessary if we want to sent extra

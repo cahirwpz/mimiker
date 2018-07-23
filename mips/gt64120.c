@@ -74,9 +74,9 @@ static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
   if (pcid->addr.bus > 0)
     return -1;
 
-  bus_space_write_4(pcicfg, GT_PCI0_CFG_ADDR,
-                    PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2));
-  pci_reg_t data = (pci_reg_t)bus_space_read_4(pcicfg, GT_PCI0_CFG_DATA);
+  bus_write_4(pcicfg, GT_PCI0_CFG_ADDR,
+              PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2));
+  pci_reg_t data = (pci_reg_t)bus_read_4(pcicfg, GT_PCI0_CFG_DATA);
 
   reg &= 3;
   switch (size) {
@@ -100,9 +100,9 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   if (pcid->addr.bus > 0)
     return;
 
-  bus_space_write_4(pcicfg, GT_PCI0_CFG_ADDR,
-                    PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2));
-  pci_reg_t data = (pci_reg_t)bus_space_read_4(pcicfg, GT_PCI0_CFG_DATA);
+  bus_write_4(pcicfg, GT_PCI0_CFG_ADDR,
+              PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2));
+  pci_reg_t data = (pci_reg_t)bus_read_4(pcicfg, GT_PCI0_CFG_DATA);
 
   reg &= 3;
   switch (size) {
@@ -116,7 +116,7 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
       break;
   }
 
-  bus_space_write_4(pcicfg, GT_PCI0_CFG_DATA, data.dword);
+  bus_write_4(pcicfg, GT_PCI0_CFG_DATA, data.dword);
 }
 
 static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
@@ -127,10 +127,10 @@ static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
     gtpci->imask |= (1U << 2);
 
   resource_t *io = gtpci->isa_io;
-  bus_space_write_1(io, ICU1_DATA, LO(gtpci->imask));
-  bus_space_write_1(io, ICU2_DATA, HI(gtpci->imask));
-  bus_space_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
-  bus_space_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
+  bus_write_1(io, ICU1_DATA, LO(gtpci->imask));
+  bus_write_1(io, ICU2_DATA, HI(gtpci->imask));
+  bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
+  bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 }
 
 static void gt_pci_mask_irq(gt_pci_state_t *gtpci, unsigned irq) {
@@ -172,16 +172,16 @@ static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
 
 static void init_8259(resource_t *io, unsigned icu, unsigned imask) {
   /* reset, program device, 4 bytes */
-  bus_space_write_1(io, ICU_ADDR(icu), ICW1_RESET | ICW1_IC4);
-  bus_space_write_1(io, ICU_DATA(icu), 0);
-  bus_space_write_1(io, ICU_DATA(icu), 1 << 2); /* XXX magic value ??? */
-  bus_space_write_1(io, ICU_DATA(icu), ICW4_8086);
+  bus_write_1(io, ICU_ADDR(icu), ICW1_RESET | ICW1_IC4);
+  bus_write_1(io, ICU_DATA(icu), 0);
+  bus_write_1(io, ICU_DATA(icu), 1 << 2); /* XXX magic value ??? */
+  bus_write_1(io, ICU_DATA(icu), ICW4_8086);
   /* mask all interrupts */
-  bus_space_write_1(io, ICU_DATA(icu), imask);
+  bus_write_1(io, ICU_DATA(icu), imask);
   /* enable special mask mode */
-  bus_space_write_1(io, ICU_ADDR(icu), OCW3_SEL | OCW3_ESMM | OCW3_SMM);
+  bus_write_1(io, ICU_ADDR(icu), OCW3_SEL | OCW3_ESMM | OCW3_SMM);
   /* read IRR by default */
-  bus_space_write_1(io, ICU_ADDR(icu), OCW3_SEL | OCW3_RR);
+  bus_write_1(io, ICU_ADDR(icu), OCW3_SEL | OCW3_RR);
 }
 
 static intr_filter_t gt_pci_intr(void *data) {
@@ -193,15 +193,15 @@ static intr_filter_t gt_pci_intr(void *data) {
 
   for (;;) {
     /* Handle master PIC, irq 0..7 */
-    bus_space_write_1(io, ICU1_ADDR, OCW3_SEL | OCW3_POLL);
-    irq = bus_space_read_1(io, ICU1_DATA);
+    bus_write_1(io, ICU1_ADDR, OCW3_SEL | OCW3_POLL);
+    irq = bus_read_1(io, ICU1_DATA);
     if ((irq & OCW3_POLL_PENDING) == 0)
       return IF_FILTERED;
     irq = OCW3_POLL_IRQ(irq);
     /* Handle slave PIC, irq 8..15 */
     if (irq == 2) {
-      bus_space_write_1(io, ICU2_ADDR, OCW3_SEL | OCW3_POLL);
-      irq = bus_space_read_1(io, ICU2_DATA);
+      bus_write_1(io, ICU2_ADDR, OCW3_SEL | OCW3_POLL);
+      irq = bus_read_1(io, ICU2_DATA);
       irq = (irq & OCW3_POLL_PENDING) ? (OCW3_POLL_IRQ(irq) + 8) : 2;
     }
 
@@ -211,14 +211,13 @@ static intr_filter_t gt_pci_intr(void *data) {
 
     /* Send a specific EOI to slave PIC... */
     if (irq > 7) {
-      bus_space_write_1(io, ICU2_ADDR,
-                        OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq & 7));
+      bus_write_1(io, ICU2_ADDR,
+                  OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq & 7));
       irq = 2;
     }
 
     /* ... and finally to master PIC. */
-    bus_space_write_1(io, ICU1_ADDR,
-                      OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq));
+    bus_write_1(io, ICU1_ADDR, OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq));
   }
 
   return IF_FILTERED;
@@ -278,8 +277,8 @@ static int gt_pci_attach(device_t *pcib) {
   init_8259(io, IO_ICU2, HI(gtpci->imask));
 
   /* Default all interrupts to edge-triggered. */
-  bus_space_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
-  bus_space_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
+  bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
+  bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
   gt_pci_intr_chain_init(gtpci, 0, "timer");
   gt_pci_intr_chain_init(gtpci, 1, "kbd");       /* kbd controller (keyboard) */

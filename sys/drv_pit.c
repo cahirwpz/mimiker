@@ -20,8 +20,8 @@ typedef struct pit_state {
   bintime_t time;              /* last time measured by the timer */
 } pit_state_t;
 
-#define inb(addr) bus_space_read_1(pit->regs, IO_TIMER1 + (addr))
-#define outb(addr, val) bus_space_write_1(pit->regs, IO_TIMER1 + (addr), (val))
+#define inb(addr) bus_read_1(pit->regs, IO_TIMER1 + (addr))
+#define outb(addr, val) bus_write_1(pit->regs, IO_TIMER1 + (addr), (val))
 
 static void pit_set_frequency(pit_state_t *pit, uint16_t period) {
   assert(spin_owned(&pit->lock));

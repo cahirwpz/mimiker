@@ -4,6 +4,7 @@
 #include <common.h>
 #include <mutex.h>
 #include <queue.h>
+#include <_bus.h>
 
 /* TODO: remove RT_ISA after ISA-bridge driver is implemented */
 typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_ISA } resource_type_t;
@@ -26,9 +27,10 @@ typedef LIST_HEAD(, resource) resource_list_t;
 
 struct resource {
   bus_space_t *r_bus_space; /* bus space accessor descriptor */
-  void *r_owner;            /* pointer to device that owns this resource */
-  rman_addr_t r_start;      /* first physical address of the resource */
-  rman_addr_t r_end; /* last (inclusive) physical address of the resource */
+  bus_addr_t r_bus_addr;
+  void *r_owner;       /* pointer to device that owns this resource */
+  rman_addr_t r_start; /* first physical address of the resource */
+  rman_addr_t r_end;   /* last (inclusive) physical address of the resource */
   resource_type_t r_type;
   unsigned r_flags; /* or'ed RF_* values */
   size_t r_align;   /* alignment requirements for starting physical address */
@@ -37,12 +39,14 @@ struct resource {
   LIST_ENTRY(resource) r_device; /* link on resources list assigned to device */
 };
 
+#define RESOURCE_DECLARE(name) extern resource_t name[1]
+
 struct rman {
   mtx_t rm_mtx;                 /* protects all fields of resource manager */
   rman_addr_t rm_start;         /* first physical address */
   rman_addr_t rm_end;           /* last physical adress */
   resource_list_t rm_resources; /* all managed resources */
-  resource_type_t type;         /* type of managed resources */
+  resource_type_t rm_type;      /* type of managed resources */
 };
 
 /* !\brief Allocate resource within given rman.
