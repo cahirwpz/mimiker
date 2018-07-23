@@ -47,7 +47,7 @@ static void waiter_routine(void *_arg) {
 static void waker_routine(void *_arg) {
   /* try to wake up half of the threads before timeout */
   for (int i = 0; i < THREADS / 2; i++) {
-    bool status = sleepq_signal(&wchan);
+    bool status = sleepq_abort(waiters[i]);
     if (status)
       signaled_sent++;
   }
