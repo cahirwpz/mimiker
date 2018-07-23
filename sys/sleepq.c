@@ -154,7 +154,7 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
      * sched_switch - it may get interrupted on the way, so mark our intent. */
     td->td_flags |= TDF_SLEEPY;
 
-    if (sleep >= SQ_ABORT)
+    if (sleep >= SQ_INTR)
       td->td_flags |= TDF_SLPINTR;
     if (sleep >= SQ_TIMEOUT)
       td->td_flags |= TDF_SLPTIMED;
@@ -200,24 +200,10 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   }
 }
 
-static bool _sleepq_abort(thread_t *, sq_wakeup_t);
-
-static void sq_timeout(thread_t *td) {
-  _sleepq_abort(td, SQ_TIMEOUT);
-}
-
-sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t mode,
-                         systime_t timeout) {
-  assert(timeout == 0 || mode >= SQ_TIMEOUT);
+static sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt,
+                                sq_wakeup_t mode) {
   thread_t *td = thread_self();
   sq_wakeup_t wakeup = SQ_NORMAL;
-  callout_t co;
-
-  if (timeout > 0) {
-    /* Disable interrupts so that the callout won't go off before we sleep */
-    intr_disable();
-    callout_setup_relative(&co, timeout, (timeout_t)sq_timeout, thread_self());
-  }
 
   if (waitpt == NULL)
     waitpt = __caller(0);
@@ -238,16 +224,11 @@ sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t mode,
      *  - TDF_SLPTIMED if sleep has timed out. */
     if (td->td_flags & TDF_SLPINTR) {
       td->td_flags &= ~TDF_SLPINTR;
-      wakeup = SQ_ABORT;
+      wakeup = SQ_INTR;
     } else if (td->td_flags & TDF_SLPTIMED) {
       td->td_flags &= ~TDF_SLPTIMED;
       wakeup = SQ_TIMEOUT;
     }
-  }
-
-  if (timeout > 0) {
-    callout_stop(&co);
-    intr_enable();
   }
 
   return wakeup;
@@ -261,7 +242,7 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
    * spinlock. */
 
   /* Do not try to abort thread's sleep if it's not prepared for that. */
-  if ((wakeup == SQ_ABORT) && !(td->td_flags & TDF_SLPINTR))
+  if ((wakeup == SQ_INTR) && !(td->td_flags & TDF_SLPINTR))
     return false;
   if ((wakeup == SQ_TIMEOUT) && !(td->td_flags & TDF_SLPTIMED))
     return false;
@@ -270,7 +251,7 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
 
   WITH_SPINLOCK(td->td_spin) {
     /* Clear TDF_SLPINTR flag if thread's sleep was not aborted. */
-    if (wakeup != SQ_ABORT)
+    if (wakeup != SQ_INTR)
       td->td_flags &= ~TDF_SLPINTR;
     if (wakeup != SQ_TIMEOUT)
       td->td_flags &= ~TDF_SLPTIMED;
@@ -346,5 +327,28 @@ static bool _sleepq_abort(thread_t *td, sq_wakeup_t reason) {
 }
 
 bool sleepq_abort(thread_t *td) {
-  return _sleepq_abort(td, SQ_ABORT);
+  return _sleepq_abort(td, SQ_INTR);
+}
+
+void sleepq_wait(void *wchan, const void *waitpt) {
+  (void)_sleepq_wait(wchan, waitpt, SQ_NORMAL);
+}
+
+static void sq_timeout(thread_t *td) {
+  _sleepq_abort(td, SQ_TIMEOUT);
+}
+
+sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
+                              systime_t timeout) {
+  callout_t co;
+  sq_wakeup_t reason = SQ_NORMAL;
+  WITH_INTR_DISABLED {
+    if (timeout > 0)
+      callout_setup_relative(&co, timeout, (timeout_t)sq_timeout,
+                             thread_self());
+    reason = _sleepq_wait(wchan, waitpt, SQ_TIMEOUT);
+  }
+  if (timeout > 0)
+    callout_stop(&co);
+  return reason;
 }
