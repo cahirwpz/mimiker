@@ -161,7 +161,7 @@ static int vfs_maybe_descend(vnode_t **vp) {
   while (is_mountpoint(v)) {
     int error = VFS_ROOT(v->v_mountedhere, &v_mntpt);
     vnode_unlock(v);
-    vnode_unref(v);
+    vnode_drop(v);
     if (error)
       return error;
     v = v_mntpt;
@@ -198,7 +198,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   char *pathbuf = pathcopy;
   const char *component;
 
-  vnode_ref(v);
+  vnode_hold(v);
   vnode_lock(v);
 
   if ((error = vfs_maybe_descend(&v)))
@@ -213,7 +213,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     error = VOP_LOOKUP(v, component, &v_child);
     /* TODO: Check access to child, to verify we can continue with lookup. */
     vnode_unlock(v);
-    vnode_unref(v);
+    vnode_drop(v);
     if (error)
       goto end;
     v = v_child;
@@ -243,7 +243,7 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   int res = VOP_OPEN(v, flags, f);
   /* Drop our reference to v. We received it from vfs_lookup, but we no longer
      need it - file f keeps its own reference to v after open. */
-  vnode_unref(v);
+  vnode_drop(v);
   return res;
 }
 

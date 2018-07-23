@@ -212,10 +212,10 @@ static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
         /* TODO: Only store a token (weak pointer) that allows looking up the
            vnode, otherwise the vnode will never get freed. */
         it->c_vnode = *res;
-        vnode_ref(*res);
+        vnode_hold(*res);
       }
       /* Reference for the caller */
-      vnode_ref(*res);
+      vnode_hold(*res);
       return 0;
     }
   }
@@ -301,7 +301,7 @@ static int initrd_vnode_readdir(vnode_t *v, uio_t *uio, void *state) {
 
 static int initrd_root(mount_t *m, vnode_t **v) {
   *v = m->mnt_data;
-  vnode_ref(*v);
+  vnode_hold(*v);
   return 0;
 }
 
