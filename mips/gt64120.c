@@ -318,10 +318,9 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   if (type == RT_ISA) {
     res = rman_alloc_resource(&gtpci->isa_io_rman, start, end, size, size,
                               flags, dev);
-
     if (res == NULL)
       return NULL;
-
+    res->r_bus_addr = gtpci->isa_io->r_start;
     device_add_resource(dev, res, rid, mips_bus_space_generic);
   } else {
     /* Now handle only PCI devices. */
@@ -341,15 +340,18 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
     if (type == RT_MEMORY) {
       res = rman_alloc_resource(&gtpci->pci_mem_rman, start, end, bar->size,
                                 bar->size, flags, dev);
+      if (res == NULL)
+        return NULL;
+      res->r_bus_addr = gtpci->pci_mem->r_start;
     } else if (type == RT_IOPORTS) {
       res = rman_alloc_resource(&gtpci->pci_io_rman, start, end, bar->size,
                                 bar->size, flags, dev);
+      if (res == NULL)
+        return NULL;
+      res->r_bus_addr = gtpci->pci_io->r_start;
     } else {
       panic("Unknown PCI device type: %d", type);
     }
-
-    if (res == NULL)
-      return NULL;
 
     device_add_resource(dev, res, rid, mips_bus_space_generic);
 

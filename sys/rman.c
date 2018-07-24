@@ -107,5 +107,5 @@ void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end,
 }
 
 void rman_create_from_resource(rman_t *rm, resource_t *res) {
-  rman_create(rm, res->r_start, res->r_end, res->r_type);
+  rman_create(rm, 0, res->r_end - res->r_start, res->r_type);
 }
