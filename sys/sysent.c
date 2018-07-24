@@ -389,8 +389,7 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
     goto end;
 
   size_t byte_cnt;
-
-  result = uspace_stack_image_setup(user_argv, stack_image, ARG_MAX, &byte_cnt);
+  result = uspace_setup_exec_stack(user_argv, stack_image, ARG_MAX, &byte_cnt);
   if (result < 0)
     goto end;
 

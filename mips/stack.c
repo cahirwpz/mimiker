@@ -70,12 +70,12 @@ void stack_user_entry_setup(const exec_args_t *args, vaddr_t *stack_bottom_p) {
   /* /\* TODO: Environment *\/ */
 }
 
-copy_ops_t from_uspace = {.cpybytes = copyin, .cpystr = copyinstr};
+int uspace_setup_exec_stack(const char **user_argv, int8_t *stack,
+                            size_t max_stack_size, size_t *stack_size) {
 
-inline int uspace_stack_image_setup(const char **user_argv, int8_t *stack_image,
-                                    size_t max_stack_size, size_t *stack_size) {
+  copy_ops_t from_uspace = {.cpybytes = copyin, .cpystr = copyinstr};
 
-  return stack_image_setup(user_argv, stack_image, max_stack_size, stack_size,
+  return stack_image_setup(user_argv, stack, max_stack_size, stack_size,
                            from_uspace);
 }
 
@@ -102,13 +102,13 @@ int strlcpy_wrapper(const void *src, void *dst, size_t dst_size,
   return result;
 }
 
-copy_ops_t from_kspace = {.cpybytes = memcpy_wrapper,
-                          .cpystr = strlcpy_wrapper};
+int kspace_setup_exec_stack(const char **kern_argv, int8_t *stack,
+                            size_t max_stack_size, size_t *stack_size) {
 
-inline int kspace_stack_image_setup(const char **kern_argv, int8_t *stack_image,
-                                    size_t max_stack_size, size_t *stack_size) {
+  copy_ops_t from_kspace = {.cpybytes = memcpy_wrapper,
+                            .cpystr = strlcpy_wrapper};
 
-  return stack_image_setup(kern_argv, stack_image, max_stack_size, stack_size,
+  return stack_image_setup(kern_argv, stack, max_stack_size, stack_size,
                            from_kspace);
 }
 

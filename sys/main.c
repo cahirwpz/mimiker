@@ -34,10 +34,15 @@ int main(void) {
 
     const size_t blob_size = ARG_MAX;
     int8_t *arg_blob = kmalloc(M_TEMP, blob_size, 0);
+    int result;
 
     size_t bytes_written;
 
-    kspace_stack_image_setup(argv, arg_blob, blob_size, &bytes_written);
+    result = kspace_setup_exec_stack(argv, arg_blob, blob_size, &bytes_written);
+    if (result < 0)
+      goto end;
+
+    // kspace_stack_image_setup(argv, arg_blob, blob_size, &bytes_written);
 
     // assert(bytes_written == blob_size);
     exec_args_t init_args = {.prog_name = init,
@@ -46,7 +51,9 @@ int main(void) {
 
     run_program(&init_args);
 
+  end:
     kfree(M_TEMP, arg_blob);
+    return result;
 
   } else if (test) {
     ktest_main(test);

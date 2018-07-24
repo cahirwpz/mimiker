@@ -27,6 +27,7 @@ static void utest_generic_thread(void *arg) {
                              8);
 
   int8_t arg_blob[blob_size];
+  int result;
 
   /*  size_t blob_size = ARG_MAX; */
 
@@ -39,7 +40,9 @@ static void utest_generic_thread(void *arg) {
   /*  klog("@@@@@@@@@@@arg_blob is %x", arg_blob); */
   size_t bytes_written;
 
-  kspace_stack_image_setup(argv, arg_blob, blob_size, &bytes_written);
+  result = kspace_setup_exec_stack(argv, arg_blob, blob_size, &bytes_written);
+  if (result < 0)
+    return;
 
   assert(bytes_written == blob_size);
 

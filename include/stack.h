@@ -29,9 +29,10 @@ void stack_user_entry_setup(const exec_args_t *args, vaddr_t *sp_p);
 
 #define stack_alloc_s(sp, type) stack_alloc(sp, sizeof(type))
 
-int uspace_stack_image_setup(const char **user_argv, int8_t *stack_image,
-                             size_t max_stack_size, size_t *stack_size);
-int kspace_stack_image_setup(const char **kern_argv, int8_t *stack_image,
-                             size_t max_stack_size, size_t *stack_size);
+int uspace_setup_exec_stack(const char **user_argv, int8_t *stack,
+                            size_t max_stack_size, size_t *stack_size);
+
+int kspace_setup_exec_stack(const char **kern_argv, int8_t *stack,
+                            size_t max_stack_size, size_t *stack_size);
 
 #endif /* !_SYS_STACK_H_ */
