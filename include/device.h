@@ -32,9 +32,9 @@ struct device {
   /* Device hierarchy. */
   device_t *parent;        /* parent node (bus?) or null (root or pseudo-dev) */
   TAILQ_ENTRY(device) all; /* node on list of all devices */
-  TAILQ_ENTRY(device) link;  /* node on list of siblings */
-  device_list_t children;    /* head of children devices */
-  resource_list_t resources; /* head of resources belonging to this device */
+  TAILQ_ENTRY(device) link; /* node on list of siblings */
+  device_list_t children;   /* head of children devices */
+  res_list_t resources;     /* head of resources belonging to this device */
 
   /* Device information and state. */
   device_bus_t bus;

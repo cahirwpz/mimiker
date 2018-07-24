@@ -93,12 +93,12 @@ static struct bus_space generic_space = {.read_1 = mips_read_1,
                                          .write_region_1 = mips_write_region_1};
 
 static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
-                                          resource_type_t type, int rid,
+                                          res_type_t type, int rid,
                                           rman_addr_t start, rman_addr_t end,
-                                          size_t size, unsigned flags) {
+                                          size_t size, res_flags_t flags) {
 
   resource_t *r =
-    rman_allocate_resource(&rm_mem, start, end, size, size, RF_NONE);
+    rman_alloc_resource(&rm_mem, start, end, size, 1, RF_NONE, child);
 
   if (r)
     device_add_resource(child, r, rid, &generic_space);

@@ -306,9 +306,9 @@ static int gt_pci_attach(device_t *pcib) {
 }
 
 static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
-                                         resource_type_t type, int rid,
+                                         res_type_t type, int rid,
                                          rman_addr_t start, rman_addr_t end,
-                                         size_t size, unsigned flags) {
+                                         size_t size, res_flags_t flags) {
 
   gt_pci_state_t *gtpci = pcib->state;
 
@@ -333,11 +333,11 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   resource_t *r = NULL;
 
   if (type == RT_MEMORY) {
-    r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, bar->size,
-                               bar->size, flags);
+    r = rman_alloc_resource(&gtpci->rman_pci_memspace, start, end, bar->size,
+                            bar->size, flags, dev);
   } else if (type == RT_IOPORTS) {
-    r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, bar->size,
-                               bar->size, flags);
+    r = rman_alloc_resource(&gtpci->rman_pci_iospace, start, end, bar->size,
+                            bar->size, flags, dev);
   } else {
     panic("Unknown PCI device type: %d", type);
   }
