@@ -37,7 +37,7 @@ static void waiter_routine(void *_arg) {
   if (status == -ETIMEDOUT) {
     timed_received++;
     assert(diff >= SLEEP_TICKS);
-  } else if (status == -EINTR) {
+  } else if (status == 0) {
     signaled_received++;
   } else {
     panic("Got unexpected wakeup status: %d!", status);
@@ -47,7 +47,7 @@ static void waiter_routine(void *_arg) {
 static void waker_routine(void *_arg) {
   /* try to wake up half of the threads before timeout */
   for (int i = 0; i < THREADS / 2; i++) {
-    bool status = sleepq_abort(waiters[i]);
+    bool status = sleepq_signal(&wchan);
     if (status)
       signaled_sent++;
   }
