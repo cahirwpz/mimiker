@@ -12,6 +12,10 @@
 #include <interrupt.h>
 #include <sysinit.h>
 
+/* XXX: resource size must be a power of 2 ?! */
+#undef IO_KBDSIZE
+#define IO_KBDSIZE 8
+
 #define KBD_BUFSIZE 128
 
 typedef struct atkbdc_state {
