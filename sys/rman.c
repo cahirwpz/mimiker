@@ -3,13 +3,14 @@
 
 static POOL_DEFINE(P_RES, "resources", sizeof(resource_t));
 
-static rman_addr_t rman_find_gap(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                                 size_t count, size_t bound,
-                                 resource_t **res_p) {
+static bool rman_find_gap(rman_t *rm, rman_addr_t *start_p, rman_addr_t end,
+                          size_t count, size_t bound, resource_t **res_p) {
   assert(mtx_owned(&rm->rm_lock));
 
+  rman_addr_t start = *start_p;
+
   if (end < rm->rm_start || start >= rm->rm_end)
-    return 0;
+    return false;
 
   /* Adjust search boundaries if needed. */
   start = max(start, rm->rm_start);
@@ -18,8 +19,10 @@ static rman_addr_t rman_find_gap(rman_t *rm, rman_addr_t start, rman_addr_t end,
   /* Fits before the first resource on the list ? */
   resource_t *first_r = TAILQ_FIRST(&rm->rm_resources);
   rman_addr_t first_start = first_r ? first_r->r_start : rm->rm_end + 1;
-  if (align(start, bound) + count <= first_start)
-    return align(start, bound);
+  if (align(start, bound) + count <= first_start) {
+    *start_p = align(start, bound);
+    return true;
+  }
 
   /* Look up first element after which we can place our new resource. */
   resource_t *curr_r = NULL;
@@ -42,12 +45,13 @@ static rman_addr_t rman_find_gap(rman_t *rm, rman_addr_t start, rman_addr_t end,
 
     /* Does region of `count` size fit in the gap at `bound` aligned address? */
     if (first + count - 1 <= last) {
+      *start_p = align(first, bound);
       *res_p = curr_r;
-      return align(first, bound);
+      return true;
     }
   }
 
-  return 0;
+  return false;
 }
 
 resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
@@ -60,12 +64,12 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
   r->r_type = rm->rm_type;
   r->r_flags = flags;
   r->r_owner = dev;
-  /* TODO insert onto list of resources that are owned by the device */
+  /* TODO insert onto list of resources that are owned by the device? */
 
   WITH_MTX_LOCK (&rm->rm_lock) {
     resource_t *after = NULL;
-    rman_addr_t start;
-    if ((start = rman_find_gap(rm, first, last, count, bound, &after))) {
+    rman_addr_t start = first;
+    if (rman_find_gap(rm, &start, last, count, bound, &after)) {
       assert(start >= first && start < last);
       assert(start + count - 1 <= last);
       assert(is_aligned(start, bound));
