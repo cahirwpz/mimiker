@@ -89,9 +89,10 @@ static bus_space_t generic_space = {.bs_read_1 = mips_read_1,
 static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
                                           res_type_t type, int rid,
                                           rman_addr_t start, rman_addr_t end,
-                                          size_t size, unsigned flags) {
+                                          size_t size, res_flags_t flags) {
 
-  resource_t *r = rman_alloc_resource(&rm_mem, start, end, size, 1, 0, child);
+  resource_t *r =
+    rman_alloc_resource(&rm_mem, start, end, size, 1, RF_NONE, child);
 
   if (r)
     device_add_resource(child, r, rid, &generic_space);

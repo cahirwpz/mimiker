@@ -23,7 +23,8 @@ typedef enum {
    * resource contains locations with read side-effects or locations in which
    * the device does not tolerate write merging. */
   RF_PREFETCHABLE = 1,
-  RF_ACTIVATED = 2,
+  RF_SHARED = 2, /* XXX: this flag does nothing right now */
+  RF_ACTIVATED = 4,
 } res_flags_t;
 
 struct resource {
