@@ -1,6 +1,7 @@
 #include <sleepq.h>
 #include <runq.h>
 #include <ktest.h>
+#include <errno.h>
 #include <sched.h>
 
 #define T 6
@@ -33,11 +34,11 @@ static volatile int interrupted;
  * when waiters can't.
  * Therefore there should be only one waiter active at once */
 static void waiter_routine(void *_arg) {
-  int rsn = sleepq_wait_abortable(&some_val, __caller(0));
+  int rsn = sleepq_wait_intr(&some_val, __caller(0));
 
-  if (rsn == SQ_ABORT)
+  if (rsn == -EINTR)
     interrupted++;
-  else if (rsn == SQ_NORMAL)
+  else if (rsn == 0)
     wakened_gracefully++;
   else
     panic("unknown wakeup reason: %d", rsn);

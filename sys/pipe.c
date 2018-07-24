@@ -35,8 +35,8 @@ struct pipe {
   pipe_end_t end[2]; /*!< both pipe ends */
 };
 
-static MALLOC_DEFINE(M_PIPE, "pipe", 4, 8);
-static POOL_DEFINE(P_PIPE, "pipes", sizeof(pipe_t));
+static MALLOC_DEFINE(M_PIPE, "pipe buffers", 4, 8);
+static POOL_DEFINE(P_PIPE, "pipe", sizeof(pipe_t));
 
 static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
   mtx_init(&end->mtx, MTX_DEF);

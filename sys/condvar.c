@@ -17,6 +17,17 @@ void cv_wait(condvar_t *cv, mtx_t *mtx) {
   _mtx_lock(mtx, __caller(0));
 }
 
+int cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout) {
+  int status;
+  WITH_NO_PREEMPTION {
+    cv->waiters++;
+    mtx_unlock(mtx);
+    status = sleepq_wait_timed(cv, __caller(0), timeout);
+  }
+  _mtx_lock(mtx, __caller(0));
+  return status;
+}
+
 void cv_signal(condvar_t *cv) {
   SCOPED_NO_PREEMPTION();
   if (cv->waiters > 0) {
