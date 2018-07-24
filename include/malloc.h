@@ -34,6 +34,9 @@ void *kmalloc(kmem_pool_t *mp, size_t size, unsigned flags) __warn_unused;
 void kfree(kmem_pool_t *mp, void *addr);
 char *kstrndup(kmem_pool_t *mp, const char *s, size_t maxlen);
 
+/*! \brief M_TEMP delivers storage for short lived temporary objects. */
 MALLOC_DECLARE(M_TEMP);
+/*! \brief M_STR delivers storage for NUL-terminated strings. */
+MALLOC_DECLARE(M_STR);
 
 #endif /* !_SYS_MALLOC_H_ */

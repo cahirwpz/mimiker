@@ -3,6 +3,7 @@
 #include <mount.h>
 #include <stdc.h>
 #include <errno.h>
+#include <pool.h>
 #include <malloc.h>
 #include <file.h>
 #include <vnode.h>
@@ -12,7 +13,7 @@
 
 /* TODO: We probably need some fancier allocation, since eventually we should
  * start recycling vnodes */
-MALLOC_DEFINE(M_VFS, "vfs", 1, 4);
+static POOL_DEFINE(P_MOUNT, "vfs mount points", sizeof(mount_t));
 
 /* The list of all installed filesystem types */
 vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
@@ -106,7 +107,7 @@ static int vfs_default_init(vfsconf_t *vfc) {
 }
 
 mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
-  mount_t *m = kmalloc(M_VFS, sizeof(mount_t), M_ZERO);
+  mount_t *m = pool_alloc(P_MOUNT, PF_ZERO);
 
   m->mnt_vfc = vfc;
   m->mnt_vfsops = vfc->vfc_vfsops;
