@@ -3,9 +3,7 @@
 
 #include <mutex.h>
 #include <uio.h>
-#include <malloc.h>
-
-MALLOC_DECLARE(M_VFS);
+#include <refcnt.h>
 
 /* Forward declarations */
 typedef struct vnode vnode_t;
@@ -76,7 +74,7 @@ typedef struct vnode {
     mount_t *v_mountedhere; /* The mount covering this vnode */
   };
 
-  int v_usecnt;
+  refcnt_t v_usecnt;
   mtx_t v_mtx;
 } vnode_t;
 
@@ -159,8 +157,8 @@ void vnode_unlock(vnode_t *v);
 
 /* Increase and decrease the use counter.
  * Call vnode_ref if you don't want the vnode to be recycled. */
-void vnode_ref(vnode_t *v);
-void vnode_unref(vnode_t *v);
+void vnode_hold(vnode_t *v);
+void vnode_drop(vnode_t *v);
 
 /* Convenience function with default vnode operation implementation. */
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);

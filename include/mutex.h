@@ -24,14 +24,10 @@ typedef struct thread thread_t;
  */
 #define MTX_RECURSE 1
 
-/*! \brief Type of non-sleeping recursive spin mutex.
- *
- * Acquiring spin mutex enters critical section, thus disables interrupts and
- * thread preemption.
- */
-#define MTX_SPIN 2
-
 /*! \brief Basic synchronization primitive.
+ *
+ * \warning You must never access mutex fields directly outside of its
+ * implementation!
  *
  * \note Mutex must be released by its owner!
  */
@@ -60,14 +56,23 @@ void mtx_init(mtx_t *m, unsigned type);
 /*! \brief Check if calling thread is the owner of \a m. */
 bool mtx_owned(mtx_t *m);
 
+/*! \brief Fetch mutex owner.
+ *
+ * \note The function is used by some tests. */
+static inline volatile thread_t *mtx_owner(mtx_t *m) {
+  return m->m_owner;
+}
+
+/*! \brief Locks the mutex (with custom \a waitpt) */
+void _mtx_lock(mtx_t *m, const void *waitpt);
+
 /*! \brief Locks the mutex.
  *
  * For sleeping mutexes, if mutex is already owned by someone,
  * then the thread is put onto sleep queue. */
-void mtx_lock(mtx_t *m);
-
-/*! \brief Locks the mutex (with custom \a waitpt) */
-void _mtx_lock(mtx_t *m, const void *waitpt);
+static inline void mtx_lock(mtx_t *m) {
+  _mtx_lock(m, __caller(0));
+}
 
 /*! \brief Unlocks the mutex. */
 void mtx_unlock(mtx_t *m);

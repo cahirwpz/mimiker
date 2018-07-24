@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(fd_bad_desc);
   CHECKRUN_TEST(fd_open_path);
   CHECKRUN_TEST(fd_dup);
+  CHECKRUN_TEST(fd_pipe);
   CHECKRUN_TEST(fd_all);
   CHECKRUN_TEST(signal_basic);
   CHECKRUN_TEST(signal_send);
@@ -41,6 +42,17 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(access_basic);
   CHECKRUN_TEST(stat);
   CHECKRUN_TEST(fstat);
+  CHECKRUN_TEST(exc_cop_unusable);
+  CHECKRUN_TEST(exc_reserved_instruction);
+  CHECKRUN_TEST(exc_integer_overflow);
+  CHECKRUN_TEST(exc_unaligned_access);
+  CHECKRUN_TEST(exc_sigsys);
+  CHECKRUN_TEST(syscall_in_bds);
+
+  CHECKRUN_TEST(fpu_fcsr);
+  CHECKRUN_TEST(fpu_gpr_preservation);
+  CHECKRUN_TEST(fpu_cpy_ctx_on_fork);
+  CHECKRUN_TEST(fpu_ctx_signals);
 
   printf("No user test \"%s\" available.\n", test_name);
   return 1;

@@ -1,54 +1,50 @@
 #include <stdc.h>
 #include <context.h>
-#include <thread.h>
+#include <exception.h>
+#include <mips/ctx.h>
 #include <mips/exc.h>
 
-extern noreturn void thread_exit(void);
-extern noreturn void kern_exc_leave(void);
+void ctx_init(ctx_t *ctx, void *pc, void *sp) {
+  bzero(ctx, sizeof(ctx_t));
 
-void ctx_init(thread_t *td, void (*target)(void *), void *arg) {
+  ctx->pc = (reg_t)pc;
+  ctx->sp = (reg_t)sp;
+  /* Take SR from caller's context and enable interrupts. */
+  ctx->sr = (reg_t)mips32_get_c0(C0_STATUS) | SR_IE;
+}
+
+void ctx_set_retval(ctx_t *ctx, long value) {
+  ctx->v0 = (reg_t)value;
+}
+
+void exc_frame_init(exc_frame_t *frame, void *pc, void *sp, unsigned flags) {
   register void *gp asm("$gp");
+  bool usermode = flags & EF_USER;
 
-  void *sp = td->td_kstack.stk_base + td->td_kstack.stk_size;
-  exc_frame_t *kframe = sp - sizeof(exc_frame_t);
-  ctx_t *kctx = &td->td_kctx;
+  bzero(frame, usermode ? sizeof(exc_frame_t) : sizeof(cpu_exc_frame_t));
 
-  bzero(kframe, sizeof(exc_frame_t));
-  bzero(kctx, sizeof(ctx_t));
+  frame->gp = usermode ? 0 : (reg_t)gp;
+  frame->pc = (reg_t)pc;
+  frame->sp = (reg_t)sp;
 
-  td->td_kframe = kframe;
-
-  reg_t sr = (reg_t)mips32_get_c0(C0_STATUS);
-
-  /* Initialize registers just for ctx_switch to work correctly. */
-  kctx->pc = (reg_t)kern_exc_leave;
-  kctx->sr = (reg_t)sr;
-  kctx->sp = (reg_t)kframe;
-
-  /* This is the context that kern_exc_leave will restore. */
-  kframe->pc = (reg_t)target;
-  kframe->ra = (reg_t)thread_exit;
-  kframe->gp = (reg_t)gp;
-  kframe->sp = (reg_t)sp;
-  kframe->a0 = (reg_t)arg;
-
-  /* Status register: Take interrupt mask and exception vector location from
-     caller's context. */
-  kframe->sr = sr & (SR_IMASK | SR_BEV);
-  /* Set Interrupt Enable and Exception Level. */
-  kframe->sr |= SR_EXL | SR_IE;
+  /* For user-mode exception frame we must make sure that:
+   * - user mode is active,
+   * - interrupts are enabled.
+   * The rest will be covered by usr_exc_leave. */
+  frame->sr = mips32_get_c0(C0_STATUS) | SR_IE | (usermode ? SR_KSU_USER : 0);
 }
 
-void uctx_init(thread_t *td, vm_addr_t pc, vm_addr_t sp) {
-  bzero(&td->td_uctx, sizeof(exc_frame_t));
-
-  td->td_uctx.gp = 0; /* Explicit. */
-  td->td_uctx.pc = pc;
-  td->td_uctx.sp = sp;
-  td->td_uctx.ra = 0; /* Explicit. */
+void exc_frame_copy(exc_frame_t *to, exc_frame_t *from) {
+  memcpy(to, from, sizeof(exc_frame_t));
 }
 
-void exc_frame_set_retval(exc_frame_t *frame, reg_t value) {
-  frame->v0 = value;
+void exc_frame_setup_call(exc_frame_t *frame, void *ra, long arg0, long arg1) {
+  frame->ra = (reg_t)ra;
+  frame->a0 = (reg_t)arg0;
+  frame->a1 = (reg_t)arg1;
+}
+
+void exc_frame_set_retval(exc_frame_t *frame, long value) {
+  frame->v0 = (reg_t)value;
   frame->pc += 4;
 }

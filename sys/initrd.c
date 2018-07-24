@@ -1,7 +1,7 @@
 #define KL_LOG KL_FILESYS
 #include <klog.h>
 #include <errno.h>
-#include <malloc.h>
+#include <pool.h>
 #include <stdc.h>
 #include <cpio.h>
 #include <initrd.h>
@@ -11,8 +11,6 @@
 #include <vfs.h>
 #include <linker_set.h>
 #include <dirent.h>
-
-static MALLOC_DEFINE(M_INITRD, "initrd", 16, 16);
 
 typedef uint32_t cpio_dev_t;
 typedef uint32_t cpio_ino_t;
@@ -45,14 +43,19 @@ struct cpio_node {
   vnode_t *c_vnode;
 };
 
+static POOL_DEFINE(P_INITRD, "initrd", sizeof(cpio_node_t));
+
 static cpio_list_t initrd_head = TAILQ_HEAD_INITIALIZER(initrd_head);
 static cpio_node_t *root_node;
 static vnodeops_t initrd_vops;
 
+extern int8_t __rd_start[];
+extern int8_t __rd_end[];
+
 extern char *kenv_get(const char *key);
 
 static cpio_node_t *cpio_node_alloc(void) {
-  cpio_node_t *node = kmalloc(M_INITRD, sizeof(cpio_node_t), M_ZERO);
+  cpio_node_t *node = pool_alloc(P_INITRD, PF_ZERO);
   TAILQ_INIT(&node->c_children);
   return node;
 }
@@ -130,7 +133,7 @@ static void read_cpio_archive(void) {
     cpio_node_t *node = cpio_node_alloc();
     if (!read_cpio_header(&tape, node) ||
         strcmp(node->c_path, CPIO_TRAILER) == 0) {
-      kfree(M_INITRD, node);
+      pool_free(P_INITRD, node);
       break;
     }
 
@@ -209,10 +212,10 @@ static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
         /* TODO: Only store a token (weak pointer) that allows looking up the
            vnode, otherwise the vnode will never get freed. */
         it->c_vnode = *res;
-        vnode_ref(*res);
+        vnode_hold(*res);
       }
       /* Reference for the caller */
-      vnode_ref(*res);
+      vnode_hold(*res);
       return 0;
     }
   }
@@ -298,7 +301,7 @@ static int initrd_vnode_readdir(vnode_t *v, uio_t *uio, void *state) {
 
 static int initrd_root(mount_t *m, vnode_t **v) {
   *v = m->mnt_data;
-  vnode_ref(*v);
+  vnode_hold(*v);
   return 0;
 }
 
@@ -318,14 +321,14 @@ static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_access = vnode_access_generic};
 
 static int initrd_init(vfsconf_t *vfc) {
-  unsigned rd_size = ramdisk_get_size();
-
-  if (!rd_size)
-    return ENXIO;
+  /* Ramdisk start & end addresses are expected to be page aligned. */
+  assert(is_aligned(ramdisk_get_start(), PAGESIZE));
+  /* If the size is page aligned, the end address is as well. */
+  assert(is_aligned(ramdisk_get_size(), PAGESIZE));
 
   vnodeops_init(&initrd_vops);
 
-  klog("parsing cpio archive of %u bytes", rd_size);
+  klog("parsing cpio archive of %u bytes", ramdisk_get_size());
   read_cpio_archive();
   initrd_build_tree();
   initrd_enum_inodes(root_node, 2);
@@ -333,16 +336,11 @@ static int initrd_init(vfsconf_t *vfc) {
 }
 
 intptr_t ramdisk_get_start(void) {
-  char *s = kenv_get("rd_start");
-  if (s == NULL)
-    return 0;
-  int s_len = strlen(s);
-  return strtoul(s + s_len - 8, NULL, 16);
+  return (intptr_t)__rd_start;
 }
 
 unsigned ramdisk_get_size(void) {
-  char *s = kenv_get("rd_size");
-  return s ? strtoul(s, NULL, 0) : 0;
+  return (unsigned)__rd_end - (unsigned)__rd_start;
 }
 
 void ramdisk_dump(void) {

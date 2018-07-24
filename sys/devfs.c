@@ -5,6 +5,7 @@
 #include <stdc.h>
 #include <mutex.h>
 #include <malloc.h>
+#include <pool.h>
 #include <linker_set.h>
 #include <dirent.h>
 
@@ -19,6 +20,8 @@ struct devfs_node {
   devfs_node_t *dn_parent;
   devfs_node_list_t dn_children;
 };
+
+static POOL_DEFINE(P_DEVFS, "devfs nodes", sizeof(devfs_node_t));
 
 /* device filesystem state structure */
 typedef struct devfs_mount {
@@ -56,8 +59,8 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
   if (parent->dn_vnode->v_type != V_DIR)
     return -ENOTDIR;
 
-  devfs_node_t *dn = kmalloc(M_VFS, sizeof(devfs_node_t), M_ZERO);
-  dn->dn_name = kstrndup(M_VFS, name, DEVFS_NAME_MAX);
+  devfs_node_t *dn = pool_alloc(P_DEVFS, PF_ZERO);
+  dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
   dn->dn_vnode = vnode_new(V_DEV, vops, data);
 
   WITH_MTX_LOCK (&devfs.lock) {
@@ -78,8 +81,8 @@ int devfs_makedir(devfs_node_t *parent, const char *name,
   if (parent->dn_vnode->v_type != V_DIR)
     return -ENOTDIR;
 
-  devfs_node_t *dn = kmalloc(M_VFS, sizeof(devfs_node_t), M_ZERO);
-  dn->dn_name = kstrndup(M_VFS, name, DEVFS_NAME_MAX);
+  devfs_node_t *dn = pool_alloc(P_DEVFS, PF_ZERO);
+  dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
   dn->dn_vnode = vnode_new(V_DIR, &devfs_vnodeops, dn);
   dn->dn_parent = parent;
   TAILQ_INIT(&dn->dn_children);
@@ -113,7 +116,7 @@ static int devfs_vop_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
   if (!(dn = devfs_find_child(dv->v_data, name)))
     return -ENOENT;
   *vp = dn->dn_vnode;
-  vnode_ref(*vp);
+  vnode_hold(*vp);
   return 0;
 }
 
@@ -170,7 +173,7 @@ static int devfs_vop_readdir(vnode_t *v, uio_t *uio, void *state) {
 
 static int devfs_root(mount_t *m, vnode_t **vp) {
   *vp = devfs.root.dn_vnode;
-  vnode_ref(*vp);
+  vnode_hold(*vp);
   return 0;
 }
 
@@ -188,9 +191,8 @@ static int devfs_init(vfsconf_t *vfc) {
   typedef void devfs_init_func_t(void);
   SET_DECLARE(devfs_init, devfs_init_func_t);
   devfs_init_func_t **ptr;
-  SET_FOREACH(ptr, devfs_init) {
+  SET_FOREACH (ptr, devfs_init)
     (**ptr)();
-  }
   return 0;
 }
 

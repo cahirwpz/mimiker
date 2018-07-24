@@ -15,10 +15,16 @@ SOURCES_C = \
 	resizable_fdt.c \
 	rwlock.c \
 	sched.c \
+	sleepq.c \
+	sleepq_abort.c \
+	sleepq_timed.c \
 	strtol.c \
 	taskqueue.c \
 	thread_stats.c \
 	thread_exit.c \
+	turnstile_adjust.c \
+	turnstile_propagate_once.c \
+	turnstile_propagate_many.c \
 	uiomove.c \
 	utest.c \
 	vm_map.c \

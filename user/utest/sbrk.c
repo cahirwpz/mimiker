@@ -1,10 +1,13 @@
 #include "utest.h"
 
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
 
-int test_sbrk() {
+static void *sbrk_orig = NULL;
+
+static void sbrk_good(void) {
   /* Initial sbrk */
   char *a1 = sbrk(10);
   /* Test write access. */
@@ -22,13 +25,32 @@ int test_sbrk() {
   memset(a4, -1, 0x5000);
   /* See that previous data is unmodified. */
   assert(*(a1 + 5) == 1);
+}
+
+static void sbrk_bad(void) {
+  void *sbrk_now = sbrk(0);
+  /* Attempt to move sbrk before original start. */
+  sbrk(sbrk_orig - sbrk_now - 0x10000);
+  assert(errno == EINVAL);
 #if 0
-  /* Note: sbrk shrinking not yet implemented! */
   /* Now, try shrinking data. */
   sbrk(-1 * (0x5000 + 50 + 40 + 10));
   /* Get new brk end */
   char *a5 = sbrk(0);
   assert(a1 == a5);
+#else
+  /* Note: sbrk shrinking not yet implemented! */
+  sbrk(4096);
+  sbrk(-4096);
+  assert(errno == ENOTSUP);
 #endif
+}
+
+int test_sbrk() {
+  sbrk_orig = sbrk(0);
+  assert(sbrk_orig != NULL);
+
+  sbrk_bad();
+  sbrk_good();
   return 0;
 }

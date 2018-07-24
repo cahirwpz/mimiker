@@ -1,6 +1,7 @@
-#include <mips/stack.h>
 #include <common.h>
 #include <stdc.h>
+#include <stack.h>
+#include <exec.h>
 
 /* Places program args onto the stack.
  * Also modifies value pointed by stack_bottom_p to reflect on changed
@@ -31,9 +32,8 @@
  * the now empty program stack, so that it can naturally grow
  * downwards.
  */
-void prepare_program_stack(const exec_args_t *args, vm_addr_t *stack_bottom_p) {
-
-  vm_addr_t stack_end = *stack_bottom_p;
+void stack_user_entry_setup(const exec_args_t *args, vaddr_t *stack_bottom_p) {
+  vaddr_t stack_end = *stack_bottom_p;
   /* Begin by calculting arguments total size. This has to be done */
   /* in advance, because stack grows downwards. */
   size_t total_arg_size = 0;
@@ -41,8 +41,8 @@ void prepare_program_stack(const exec_args_t *args, vm_addr_t *stack_bottom_p) {
     total_arg_size += roundup(strlen(args->argv[i]) + 1, 4);
   }
   /* Store arguments, creating the argument vector. */
-  vm_addr_t arg_vector[args->argc];
-  vm_addr_t p = *stack_bottom_p - total_arg_size;
+  vaddr_t arg_vector[args->argc];
+  vaddr_t p = *stack_bottom_p - total_arg_size;
   for (unsigned i = 0; i < args->argc; i++) {
     size_t n = strlen(args->argv[i]) + 1;
     arg_vector[i] = p;
@@ -61,14 +61,14 @@ void prepare_program_stack(const exec_args_t *args, vm_addr_t *stack_bottom_p) {
 
   /* Now, place the argument vector on the stack. */
   size_t arg_vector_size = sizeof(arg_vector);
-  vm_addr_t argv = *stack_bottom_p - arg_vector_size;
+  vaddr_t argv = *stack_bottom_p - arg_vector_size;
   memcpy((void *)argv, &arg_vector, arg_vector_size);
   /* Move the stack down. */
   *stack_bottom_p = *stack_bottom_p - arg_vector_size;
 
   /* Finally, place argc on the stack */
-  *stack_bottom_p = *stack_bottom_p - sizeof(vm_addr_t);
-  vm_addr_t *stack_args = (vm_addr_t *)*stack_bottom_p;
+  *stack_bottom_p = *stack_bottom_p - sizeof(vaddr_t);
+  vaddr_t *stack_args = (vaddr_t *)*stack_bottom_p;
   *stack_args = args->argc;
 
   /* Top of the stack must be 8-byte alligned. */

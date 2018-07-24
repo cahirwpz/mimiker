@@ -1,25 +1,35 @@
 #define KL_LOG KL_INTR
 #include <klog.h>
 #include <errno.h>
+#include <exception.h>
 #include <interrupt.h>
 #include <mips/exc.h>
 #include <mips/intr.h>
 #include <mips/mips.h>
 #include <pmap.h>
-#include <pmap.h>
+#include <spinlock.h>
 #include <queue.h>
-#include <stdc.h>
 #include <sysent.h>
 #include <thread.h>
+#include <ktest.h>
+
+typedef void (*exc_handler_t)(exc_frame_t *);
 
 extern const char _ebase[];
 
+/* Extra information regarding DI / EI usage (from MIPS® ISA documentation):
+ *
+ * The instruction creates an execution hazard between the change to SR register
+ * and the point where the change to the interrupt enable takes effect. This
+ * hazard is cleared by the EHB, JALR.HB, JR.HB, or ERET instructions. Software
+ * must not assume that a fixed latency will clear the execution hazard. */
+
 void mips_intr_disable(void) {
-  asm volatile("di");
+  asm volatile("di; ehb");
 }
 
 void mips_intr_enable(void) {
-  asm volatile("ei");
+  asm volatile("ei; ehb");
 }
 
 bool mips_intr_disabled(void) {
@@ -64,7 +74,7 @@ void mips_intr_init(void) {
 
 void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
   intr_chain_t *chain = &mips_intr_chain[irq];
-  WITH_INTR_DISABLED {
+  WITH_SPINLOCK(&chain->ic_lock) {
     intr_chain_add_handler(chain, handler);
     if (chain->ic_count == 1) {
       mips32_bs_c0(C0_STATUS, SR_IM0 << irq); /* enable interrupt */
@@ -75,14 +85,15 @@ void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
 
 void mips_intr_teardown(intr_handler_t *handler) {
   intr_chain_t *chain = handler->ih_chain;
-  WITH_INTR_DISABLED {
+  WITH_SPINLOCK(&chain->ic_lock) {
     if (chain->ic_count == 1)
       mips32_bc_c0(C0_STATUS, SR_IM0 << chain->ic_irq);
     intr_chain_remove_handler(handler);
   }
 }
 
-void mips_intr_handler(exc_frame_t *frame) {
+/* Hardware interrupt handler is called with interrupts disabled. */
+static void mips_intr_handler(exc_frame_t *frame) {
   unsigned pending = (frame->cause & frame->sr) & CR_IP_MASK;
 
   for (int i = 7; i >= 0; i--) {
@@ -119,17 +130,6 @@ const char *const exceptions[32] = {
     [EXC_MCHECK] = "Machine checkcore",
 };
 
-void kernel_oops(exc_frame_t *frame) {
-  unsigned code = (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
-
-  klog("%s at $%08x!", exceptions[code], frame->pc);
-  if ((code == EXC_ADEL || code == EXC_ADES) ||
-      (code == EXC_IBE || code == EXC_DBE))
-    klog("Caused by reference to $%08x!", frame->badvaddr);
-
-  panic("Unhandled exception!");
-}
-
 static void cpu_get_syscall_args(const exc_frame_t *frame,
                                  syscall_args_t *args) {
   args->code = frame->v0;
@@ -161,12 +161,43 @@ finalize:
 }
 
 static void fpe_handler(exc_frame_t *frame) {
-  thread_t *td = thread_self();
-  if (td->td_proc) {
-    sig_send(td->td_proc, SIGFPE);
+  if (kern_mode_p(frame))
+    panic("Floating point exception or integer overflow in kernel mode!");
+
+  sig_trap(frame, SIGFPE);
+}
+
+static void cpu_handler(exc_frame_t *frame) {
+  if (kern_mode_p(frame))
+    panic("Coprocessor unusable exception in kernel mode!");
+
+  int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
+  if (cp_id != 1) {
+    sig_trap(frame, SIGILL);
   } else {
-    panic("Floating point exception or integer overflow in a kernel thread.");
+    /* Enable FPU for interrupted context. */
+    frame->sr |= SR_CU1;
   }
+}
+
+static void ri_handler(exc_frame_t *frame) {
+  if (kern_mode_p(frame))
+    panic("Reserved instruction exception in kernel mode!");
+
+  sig_trap(frame, SIGILL);
+}
+
+/*
+ * An address error exception occurs under the following circumstances:
+ *  - instruction address is not aligned on a word boundary
+ *  - load/store with an address is not aligned on a word/halfword boundary
+ *  - reference to a kernel/supervisor address from user
+ */
+static void ade_handler(exc_frame_t *frame) {
+  if (kern_mode_p(frame))
+    panic("Address error exception in kernel mode!");
+
+  sig_trap(frame, SIGBUS);
 }
 
 /*
@@ -175,10 +206,73 @@ static void fpe_handler(exc_frame_t *frame) {
  * handlers numbers please check 5.23 Table of MIPS32 4KEc User's Manual.
  */
 
-void *general_exception_table[32] = {[EXC_MOD] = tlb_exception_handler,
-                                     [EXC_TLBL] = tlb_exception_handler,
-                                     [EXC_TLBS] = tlb_exception_handler,
-                                     [EXC_SYS] = syscall_handler,
-                                     [EXC_FPE] = fpe_handler,
-                                     [EXC_MSAFPE] = fpe_handler,
-                                     [EXC_OVF] = fpe_handler};
+/* clang-format off */
+static exc_handler_t exception_switch_table[32] = {
+  [EXC_INTR] = mips_intr_handler,
+  [EXC_MOD] = tlb_exception_handler,
+  [EXC_TLBL] = tlb_exception_handler,
+  [EXC_TLBS] = tlb_exception_handler,
+  [EXC_ADEL] = ade_handler,
+  [EXC_ADES] = ade_handler,
+  [EXC_SYS] = syscall_handler,
+  [EXC_FPE] = fpe_handler,
+  [EXC_MSAFPE] = fpe_handler,
+  [EXC_OVF] = fpe_handler,
+  [EXC_CPU] = cpu_handler,
+  [EXC_RI] = ri_handler
+};
+/* clang-format on */
+
+noreturn void kernel_oops(exc_frame_t *frame) {
+  unsigned code = exc_code(frame);
+
+  klog("%s at $%08x!", exceptions[code], frame->pc);
+  if ((code == EXC_ADEL || code == EXC_ADES) ||
+      (code == EXC_IBE || code == EXC_DBE) ||
+      (code == EXC_TLBL || code == EXC_TLBS))
+    klog("Caused by reference to $%08x!", frame->badvaddr);
+
+  panic("Unhandled '%s' at $%08x!", exceptions[code], frame->pc);
+}
+
+void kstack_overflow_handler(exc_frame_t *frame) {
+  kprintf("Kernel stack overflow caught at $%08x!\n", frame->pc);
+  if (ktest_test_running_flag)
+    ktest_failure();
+  else
+    panic();
+}
+
+/* General exception handler is called with interrupts disabled. */
+void mips_exc_handler(exc_frame_t *frame) {
+  unsigned code = exc_code(frame);
+  bool user_mode = user_mode_p(frame);
+
+  assert(intr_disabled());
+
+  exc_handler_t handler = exception_switch_table[code];
+
+  if (!handler)
+    kernel_oops(frame);
+
+  /* Only hardware interrupt handling must work with interrupts disabled. */
+  if (code != EXC_INTR)
+    intr_enable();
+
+  (*handler)(frame);
+
+  /* From now on till the end of this procedure interrupts are enabled. */
+  if (code == EXC_INTR)
+    intr_enable();
+
+  /* This is right moment to check if we must switch to another thread. */
+  on_exc_leave();
+
+  /* If we're about to return to user mode then check pending signals, etc. */
+  if (user_mode)
+    on_user_exc_leave();
+
+  intr_disable();
+
+  assert(intr_disabled());
+}

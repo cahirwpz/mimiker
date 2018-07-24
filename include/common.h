@@ -1,19 +1,29 @@
 #ifndef _SYS_COMMON_H_
 #define _SYS_COMMON_H_
 
-#include <stdint.h>      /* uint*_t, int*_t */
-#include <stddef.h>      /* offsetof, NULL, ptrdiff_t, size_t, etc. */
-#include <stdbool.h>     /* bool, true, false */
-#include <stdalign.h>    /* alignof, alignas */
-#include <stdnoreturn.h> /* noreturn */
+#include <limits.h>            /* UINT_MAX, LONG_MIN, ... */
+#include <stdint.h>            /* uint*_t, int*_t */
+#include <stddef.h>            /* offsetof, NULL, ptrdiff_t, size_t, etc. */
+#include <stdbool.h>           /* bool, true, false */
+#include <stdalign.h>          /* alignof, alignas */
+#include <stdatomic.h>         /* atomic_{load,store,fetch_*,...} */
+#include <stdnoreturn.h>       /* noreturn */
+#include <machine/int_fmtio.h> /* PRIdN, PRIxPTR, ... */
 
-typedef unsigned long vm_addr_t;
-typedef unsigned long pm_addr_t;
+typedef unsigned char u_char;
+typedef unsigned short u_short;
+typedef unsigned int u_int;
+typedef unsigned long u_long;
+
+typedef unsigned long vaddr_t; /* virtual address */
+typedef unsigned long paddr_t; /* physical address */
 
 typedef long off_t;
 typedef long ssize_t;
+typedef uint8_t prio_t;
 typedef int32_t pid_t;
 typedef uint16_t dev_t;
+typedef uint32_t systime_t; /* kept in system clock ticks */
 typedef uint32_t time_t;
 typedef int32_t suseconds_t; /* microseconds (signed) */
 typedef uint16_t uid_t;
@@ -33,7 +43,7 @@ typedef int32_t blksize_t; /* fs optimal block size */
 
 /* Wrapper for various GCC attributes */
 #define __nonnull(x) __attribute__((__nonnull__(x)))
-#define __section(s) __attribute__((__section__(#s)))
+#define __section(s) __attribute__((__section__(s)))
 #define __unused __attribute__((unused))
 #define __used __attribute__((used))
 #define __aligned(x) __attribute__((__aligned__(x)))
@@ -42,6 +52,15 @@ typedef int32_t blksize_t; /* fs optimal block size */
 #define __alias(x) __attribute__((alias(#x)))
 #define __cleanup(func) __attribute__((__cleanup__(func)))
 #define __caller(x) (__builtin_return_address(x) - 8)
+#define __likely(x) __builtin_expect((x), 1)
+#define __unlikely(x) __builtin_expect((x), 0)
+#define __long_call __attribute__((long_call))
+
+/* Attribute macros for boot/wired functions/data */
+#define __boot_text __long_call __section(".boot.text")
+#define __boot_data __section(".boot.data")
+#define __wired_text __section(".wired.text")
+#define __wired_data __section(".wired.data")
 
 /* Macros for counting and rounding. */
 #ifndef howmany
@@ -123,6 +142,9 @@ typedef int32_t blksize_t; /* fs optimal block size */
        __UNIQUE(__loop); __UNIQUE(__loop) = NULL)
 
 #ifndef _USERSPACE
+
+/* Write a formatted string to default console. */
+int kprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
 /* Terminate thread. */
 noreturn void panic_fail(void);

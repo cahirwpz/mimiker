@@ -1,11 +1,19 @@
 #include <ktest.h>
 #include <stdc.h>
+#include <time.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
 
-#define KTEST_MAX_NO 256
+#define KTEST_MAX_NO 1024
+#define KTEST_FAIL(args...)                                                    \
+  do {                                                                         \
+    kprintf(args);                                                             \
+    ktest_atomically_print_failure();                                          \
+  } while (0)
 
+/* Linker set that stores all kernel tests. */
+SET_DECLARE(tests, test_entry_t);
 /* Stores currently running test data. */
 static test_entry_t *current_test = NULL;
 /* A null-terminated array of pointers to the tested test list. */
@@ -13,8 +21,8 @@ static test_entry_t *autorun_tests[KTEST_MAX_NO] = {NULL};
 
 int ktest_test_running_flag = 0;
 
-static uint32_t ktest_seed =
-  0; /* The initial seed, as set from command-line. */
+/* The initial seed, as set from command-line. */
+static uint32_t ktest_seed = 0;
 static uint32_t ktest_repeat = 1; /* Number of repetitions of each test. */
 static unsigned seed = 0;         /* Current seed */
 
@@ -59,34 +67,44 @@ void ktest_failure(void) {
   panic("Halting kernel on failed test.\n");
 }
 
-static test_entry_t *find_test_by_name(const char *test) {
-  SET_DECLARE(tests, test_entry_t);
+static test_entry_t *find_test_by_name_with_len(const char *test, size_t len) {
   test_entry_t **ptr;
-  SET_FOREACH(ptr, tests) {
-    if (strcmp((*ptr)->test_name, test) == 0) {
+  SET_FOREACH (ptr, tests) {
+    if (strlen((*ptr)->test_name) == len &&
+        strncmp((*ptr)->test_name, test, len) == 0) {
       return *ptr;
     }
   }
   return NULL;
 }
 
+static __unused test_entry_t *find_test_by_name(const char *test) {
+  return find_test_by_name_with_len(test, strlen(test));
+}
+
+typedef int (*test_func_t)(unsigned);
+
+/* If the test fails, run_test will not return. */
 static int run_test(test_entry_t *t) {
+  timeval_t start = get_uptime();
+
   /* These are messages to the user, so I intentionally use kprintf instead of
    * log. */
-  kprintf("Running test %s.\n", t->test_name);
+  kprintf("# Running test \"%s\".\n", t->test_name);
   if (t->flags & KTEST_FLAG_NORETURN)
     kprintf("WARNING: This test will never return, it is not possible to "
             "automatically verify its success.\n");
   if (t->flags & KTEST_FLAG_USERMODE)
-    kprintf("WARNING: This test will enters usermode.\n");
+    kprintf("WARNING: This test will enter usermode.\n");
   if (t->flags & KTEST_FLAG_DIRTY)
     kprintf("WARNING: This test will break kernel state. Kernel reboot will be "
             "required to run any other test.\n");
 
   current_test = t;
+
   int result;
   if (t->flags & KTEST_FLAG_RANDINT) {
-    int (*f)(unsigned int) = (int (*)(unsigned int))t->test_func;
+    test_func_t f = (test_func_t)t->test_func;
     int randint = rand_r(&seed) % t->randint_max;
     /* NOTE: Numbers generated here will be the same on each run, since test are
        started in a deterministic order. This is not a bug! In fact, it allows
@@ -97,13 +115,17 @@ static int run_test(test_entry_t *t) {
     result = f(randint);
     ktest_test_running_flag = 0;
   } else {
-
     ktest_test_running_flag = 1;
     result = t->test_func();
     ktest_test_running_flag = 0;
   }
   if (result == KTEST_FAILURE)
     ktest_failure();
+
+  timeval_t end = get_uptime();
+  kprintf("# Test \"%s\" took %ldms.\n", t->test_name,
+          tv2st(timeval_sub(&end, &start)));
+
   return result;
 }
 
@@ -118,36 +140,32 @@ static int test_name_compare(const void *a_, const void *b_) {
   return strncmp(a->test_name, b->test_name, KTEST_NAME_MAX);
 }
 
+static void print_tests(test_entry_t **tests, int count) {
+  for (int i = 0; i < count; i++)
+    kprintf("  %s\n", tests[i]->test_name);
+}
+
 static void run_all_tests(void) {
-  /* Start by gathering command-line arguments. */
-  const char *seed_str = kenv_get("seed");
-  const char *repeat_str = kenv_get("repeat");
-  if (seed_str)
-    ktest_seed = strtoul(seed_str, NULL, 10);
-  if (repeat_str)
-    ktest_repeat = strtoul(repeat_str, NULL, 10);
 
   /* Count the number of tests that may be run in an arbitrary order. */
   unsigned int n = 0;
-  SET_DECLARE(tests, test_entry_t);
   test_entry_t **ptr;
-  SET_FOREACH(ptr, tests) {
+  SET_FOREACH (ptr, tests) {
     if (test_is_autorunnable(*ptr))
       n++;
   }
 
   int total_tests = n * ktest_repeat;
   if (total_tests > KTEST_MAX_NO + 1) {
-    kprintf("Warning: There are more kernel tests registered than there is "
-            "memory available for ktest framework. Please increase "
-            "KTEST_MAX_NO.\n");
-    ktest_atomically_print_failure();
+    KTEST_FAIL("Warning: There are more kernel tests registered than there is "
+               "memory available for ktest framework. Please increase "
+               "KTEST_MAX_NO.\n");
     return;
   }
 
   /* Collect test pointers. */
   int i = 0;
-  SET_FOREACH(ptr, tests) {
+  SET_FOREACH (ptr, tests) {
     if (test_is_autorunnable(*ptr))
       for (unsigned r = 0; r < ktest_repeat; r++)
         autorun_tests[i++] = *ptr;
@@ -172,14 +190,10 @@ static void run_all_tests(void) {
 
   kprintf("Found %d automatically runnable tests.\n", n);
   kprintf("Planned test order:\n");
-  for (i = 0; i < total_tests; i++)
-    kprintf("  %s\n", autorun_tests[i]->test_name);
+  print_tests(autorun_tests, total_tests);
 
-  for (i = 0; i < total_tests; i++) {
-    current_test = autorun_tests[i];
-    /* If the test fails, run_test will not return. */
-    run_test(current_test);
-  }
+  for (i = 0; i < total_tests; i++)
+    run_test(autorun_tests[i]);
 
   /* If we've managed to get here, it means all tests passed with no issues. */
   ktest_atomically_print_success();
@@ -187,22 +201,58 @@ static void run_all_tests(void) {
   /* As the tests are usually very verbose, for user convenience let's print out
      the order of tests once again. */
   kprintf("Test order:\n");
-  for (i = 0; i < total_tests; i++)
-    kprintf("  %s\n", autorun_tests[i]->test_name);
+  print_tests(autorun_tests, total_tests);
+}
+
+/*
+ * Run the tests specified in the test string.
+ * All tests except for the last one must be autorunnable.
+ * If the last test is non-autorunnable, it will be executed once
+ * regardless of the value of ktest_repeat.
+ * All autorunnable tests with one name are executed ktest_repeat times
+ * before moving on to the next test name.
+ */
+static void run_specified_tests(const char *test) {
+  const char *cur = test;
+  while (1) {
+    size_t len = strcspn(cur, ","); /* Find first comma or end of string. */
+    test_entry_t *t = find_test_by_name_with_len(cur, len);
+    int is_last = cur[len] == '\0';
+    if (t) {
+      if (test_is_autorunnable(t)) {
+        for (unsigned r = 0; r < ktest_repeat; r++)
+          run_test(t);
+      } else if (is_last) {
+        /* The last test can be non-autorunnable. */
+        run_test(t);
+      } else {
+        /* We found a non-autorunnable test in the middle of the test string. */
+        KTEST_FAIL("Error: test %.*s is not autorunnable."
+                   "Non-autorunnable tests can only be run as the last test.\n",
+                   len, cur);
+        return;
+      }
+    } else {
+      KTEST_FAIL("Error: test %.*s not found.\n", len, cur);
+      return;
+    }
+    if (is_last)
+      break;        /* This was the last test name. */
+    cur += len + 1; /* Skip comma. */
+  }
 }
 
 void ktest_main(const char *test) {
+  /* Start by gathering command-line arguments. */
+  const char *seed_str = kenv_get("seed");
+  const char *repeat_str = kenv_get("repeat");
+  if (seed_str)
+    ktest_seed = strtoul(seed_str, NULL, 10);
+  if (repeat_str)
+    ktest_repeat = strtoul(repeat_str, NULL, 10);
   if (strncmp(test, "all", 3) == 0) {
     run_all_tests();
   } else {
-    /* Single test mode */
-    test_entry_t *t = find_test_by_name(test);
-    if (!t) {
-      kprintf("Test \"%s\" not found!\n", test);
-      return;
-    }
-    int result = run_test(t);
-    if (result == KTEST_SUCCESS)
-      ktest_atomically_print_success();
+    run_specified_tests(test);
   }
 }

@@ -21,7 +21,7 @@ static int test_linker_set(void) {
   memset(found, 0, sizeof(found));
 
   int **ptr;
-  SET_FOREACH(ptr, testset) {
+  SET_FOREACH (ptr, testset) {
     int x = **ptr;
     if (x < 0 || x > 5)
       return KTEST_FAILURE;

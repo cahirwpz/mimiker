@@ -1,48 +1,26 @@
 #define KL_LOG KL_KMEM
 #include <klog.h>
 #include <stdc.h>
+#include <mutex.h>
 #include <malloc.h>
 #include <physmem.h>
+#include <pool.h>
 #include <queue.h>
 
-/* Leave synchronization markers in case we need it. */
-#define cs_enter()
-#define cs_leave()
+#define MB_MAGIC 0xC0DECAFE
+#define MB_ALIGNMENT sizeof(uint64_t)
 
-/* The end of the kernel's .bss section. Provided by the linker. */
-extern uint8_t __ebss[];
-/* Limit for the end of kernel's bss. Provided by the linker. */
-extern uint8_t __kernel_end[];
+typedef TAILQ_HEAD(, mem_arena) mem_arena_list_t;
 
-static struct {
-  void *ptr;
-  void *end;
-} sbrk = {__ebss, __kernel_end};
-
-#if 0
-void kernel_brk(void *addr) {
-  cs_enter();
-  void *ptr = sbrk.ptr;
-  addr = (void *)((intptr_t)addr & -sizeof(uint64_t));
-  assert((intptr_t)__ebss <= (intptr_t)addr);
-  assert((intptr_t)addr <= (intptr_t)sbrk.end);
-  sbrk.ptr = addr;
-  cs_leave();
-  if (addr > ptr)
-    bzero(ptr, (intptr_t)addr - (intptr_t)ptr);
-}
-#endif
-
-void *kernel_sbrk(size_t size) {
-  cs_enter();
-  void *ptr = sbrk.ptr;
-  size = roundup(size, sizeof(uint64_t));
-  assert(ptr + size <= sbrk.end);
-  sbrk.ptr += size;
-  cs_leave();
-  bzero(ptr, size);
-  return ptr;
-}
+typedef struct kmem_pool {
+  SLIST_ENTRY(kmem_pool) mp_next; /* Next in global chain. */
+  uint32_t mp_magic;              /* Detect programmer error. */
+  const char *mp_desc;            /* Printable type name. */
+  mem_arena_list_t mp_arena;      /* Queue of managed arenas. */
+  mtx_t mp_lock;                  /* Mutex protecting structure */
+  unsigned mp_pages_used;         /* Current number of pages */
+  unsigned mp_pages_max;          /* Number of pages allowed */
+} kmem_pool_t;
 
 /*
   TODO:
@@ -115,7 +93,7 @@ static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
   }
 }
 
-static void kmalloc_add_arena(kmem_pool_t *mp, vm_addr_t start,
+static void kmalloc_add_arena(kmem_pool_t *mp, vaddr_t start,
                               size_t arena_size) {
   if (arena_size < sizeof(mem_arena_t))
     return;
@@ -138,7 +116,7 @@ static void kmalloc_add_arena(kmem_pool_t *mp, vm_addr_t start,
 
 static void kmalloc_add_pages(kmem_pool_t *mp, unsigned pages) {
   vm_page_t *pg = pm_alloc(pages);
-  kmalloc_add_arena(mp, PG_VADDR_START(pg), PG_SIZE(pg));
+  kmalloc_add_arena(mp, (vaddr_t)PG_KSEG0_ADDR(pg), PG_SIZE(pg));
 }
 
 static mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {
@@ -231,19 +209,26 @@ char *kstrndup(kmem_pool_t *mp, const char *s, size_t maxlen) {
 }
 
 void kmem_bootstrap(void) {
-  SET_DECLARE(kmem_pool_table, kmem_pool_t *);
-  kmem_pool_t ***ptr;
-  SET_FOREACH(ptr, kmem_pool_table) {
-    kmem_pool_t *mp = **ptr;
-    klog("initialize '%s' pool", mp->mp_desc);
-    kmem_init(mp);
-  }
+  INVOKE_CTORS(kmem_ctor_table);
 }
 
-void kmem_init(kmem_pool_t *mp) {
+static void kmem_init(kmem_pool_t *mp) {
+  mp->mp_magic = MB_MAGIC;
   TAILQ_INIT(&mp->mp_arena);
   mtx_init(&mp->mp_lock, MTX_RECURSE);
   kmalloc_add_pages(mp, mp->mp_pages_used);
+  klog("initialized '%s' kmem at %p ", mp->mp_desc, mp);
+}
+
+static POOL_DEFINE(P_KMEM, "kmem", sizeof(kmem_pool_t));
+
+kmem_pool_t *kmem_create(const char *desc, size_t pg_used, size_t pg_max) {
+  kmem_pool_t *mp = pool_alloc(P_KMEM, PF_ZERO);
+  mp->mp_desc = desc;
+  mp->mp_pages_used = pg_used;
+  mp->mp_pages_max = pg_max;
+  kmem_init(mp);
+  return mp;
 }
 
 void kmem_dump(kmem_pool_t *mp) {
@@ -269,6 +254,8 @@ void kmem_dump(kmem_pool_t *mp) {
 
 /* TODO: missing implementation */
 void kmem_destroy(kmem_pool_t *mp) {
+  pool_free(P_KMEM, mp);
 }
 
 MALLOC_DEFINE(M_TEMP, "temporaries pool", 2, 4);
+MALLOC_DEFINE(M_STR, "strings", 2, 4);

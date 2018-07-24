@@ -11,22 +11,43 @@
 
 #define LOAD_REG(reg, offset, base) lw reg, (CTX_##offset)(base)
 
+#define SAVE_CTX(reg)                                                          \
+  SAVE_REG(ra, PC, reg);                                                       \
+  SAVE_REG(fp, FP, reg);                                                       \
+  SAVE_REG(sp, SP, reg);                                                       \
+  SAVE_REG(gp, GP, reg);                                                       \
+  SAVE_REG(zero, V0, reg);                                                     \
+  SAVE_REG(s0, S0, reg);                                                       \
+  SAVE_REG(s1, S1, reg);                                                       \
+  SAVE_REG(s2, S2, reg);                                                       \
+  SAVE_REG(s3, S3, reg);                                                       \
+  SAVE_REG(s4, S4, reg);                                                       \
+  SAVE_REG(s5, S5, reg);                                                       \
+  SAVE_REG(s6, S6, reg);                                                       \
+  SAVE_REG(s7, S7, reg)
+
+#define LOAD_CTX(reg)                                                          \
+  LOAD_REG(ra, PC, reg);                                                       \
+  LOAD_REG(fp, FP, reg);                                                       \
+  LOAD_REG(sp, SP, reg);                                                       \
+  LOAD_REG(gp, GP, reg);                                                       \
+  LOAD_REG(v0, V0, reg);                                                       \
+  LOAD_REG(s0, S0, reg);                                                       \
+  LOAD_REG(s1, S1, reg);                                                       \
+  LOAD_REG(s2, S2, reg);                                                       \
+  LOAD_REG(s3, S3, reg);                                                       \
+  LOAD_REG(s4, S4, reg);                                                       \
+  LOAD_REG(s5, S5, reg);                                                       \
+  LOAD_REG(s6, S6, reg);                                                       \
+  LOAD_REG(s7, S7, reg)
+
 #else /* !__ASSEMBLER__ */
 
 typedef struct ctx {
   reg_t s0, s1, s2, s3, s4, s5, s6, s7;
-  reg_t gp, sp, fp, ra;
+  reg_t v0, gp, sp, fp, ra;
   reg_t pc, sr;
 } ctx_t;
-
-/* Following registers are saved only for user threads. */
-typedef struct fpu_ctx {
-  freg_t f0, f1, f2, f3, f4, f5, f6, f7;
-  freg_t f8, f9, f10, f11, f12, f13, f14, f15;
-  freg_t f16, f17, f18, f19, f20, f21, f22, f23;
-  freg_t f24, f25, f26, f27, f28, f29, f30, f31;
-  reg_t fsr;
-} fpu_ctx_t;
 
 #endif
 

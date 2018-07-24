@@ -38,8 +38,7 @@ class OVPsim(Launchable):
             'command': '"' + kwargs['args'] + '"'
         }
 
-        self.options = ['--ramdisk', 'initrd.cpio',
-                        '--wallclock',
+        self.options = ['--wallclock',
                         '--kernel', kwargs['kernel']]
 
         if not kwargs['graphics']:
@@ -58,7 +57,7 @@ class QEMU(Launchable):
         Launchable.__init__(self, 'qemu')
 
     def probe(self):
-        self.cmd = shutil.which('qemu-system-mipsel')
+        self.cmd = shutil.which('qemu-system-mimiker')
         return self.cmd is not None
 
     def configure(self, **kwargs):
@@ -67,11 +66,10 @@ class QEMU(Launchable):
                         '-device', 'VGA',
                         '-machine', 'malta',
                         '-cpu', '24Kf',
-                        '-icount', 'shift=7',
+                        '-icount', 'shift=3,sleep=on',
                         '-kernel', kwargs['kernel'],
                         '-append', kwargs['args'],
                         '-gdb', 'tcp::%d' % kwargs['gdb_port'],
-                        '-initrd', 'initrd.cpio',
                         '-serial', 'none',
                         '-serial', 'null',
                         '-serial', 'null',

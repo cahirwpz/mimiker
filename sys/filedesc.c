@@ -4,12 +4,8 @@
 #include <stdc.h>
 #include <errno.h>
 #include <mutex.h>
-#include <sysinit.h>
 
 static MALLOC_DEFINE(M_FD, "filedesc", 1, 2);
-
-static void fd_init(void) {
-}
 
 /* Test whether a file descriptor is in use. */
 static int fd_is_used(fdtab_t *fdt, int fd) {
@@ -28,6 +24,15 @@ static void fd_mark_unused(fdtab_t *fdt, int fd) {
 
 static inline bool is_bad_fd(fdtab_t *fdt, int fd) {
   return (fd < 0 || fd > (int)fdt->fdt_nfiles);
+}
+
+void fdtab_hold(fdtab_t *fdt) {
+  refcnt_acquire(&fdt->fdt_count);
+}
+
+void fdtab_drop(fdtab_t *fdt) {
+  if (refcnt_release(&fdt->fdt_count))
+    fdtab_destroy(fdt);
 }
 
 /* Grows given file descriptor table to contain new_size file descriptors
@@ -79,22 +84,9 @@ static int fd_alloc(fdtab_t *fdt, int *fdp) {
 static void fd_free(fdtab_t *fdt, int fd) {
   file_t *f = fdt->fdt_files[fd];
   assert(f != NULL);
-  file_release(f);
+  file_drop(f);
   fdt->fdt_files[fd] = NULL;
   fd_mark_unused(fdt, fd);
-}
-
-void fdtab_ref(fdtab_t *fdt) {
-  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
-  assert(fdt->fdt_count >= 0);
-  ++fdt->fdt_count;
-}
-
-void fdtab_unref(fdtab_t *fdt) {
-  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
-  assert(fdt->fdt_count > 0);
-  if (--fdt->fdt_count == 0)
-    fdt->fdt_count = -1;
 }
 
 /* In FreeBSD this function takes a filedesc* argument, so that
@@ -126,14 +118,14 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
     if (fd_is_used(fdt, i)) {
       file_t *f = fdt->fdt_files[i];
       newfdt->fdt_files[i] = f;
-      file_ref(f);
+      file_hold(f);
     }
   }
 
   memcpy(newfdt->fdt_map, fdt->fdt_map,
          sizeof(bitstr_t) * bitstr_size(fdt->fdt_nfiles));
 
-  fdtab_ref(newfdt);
+  fdtab_hold(newfdt);
   return newfdt;
 }
 
@@ -151,14 +143,6 @@ void fdtab_destroy(fdtab_t *fdt) {
   kfree(M_FD, fdt);
 }
 
-void fdtab_release(fdtab_t *fdt) {
-  if (fdt == NULL)
-    return;
-  fdtab_unref(fdt);
-  if (fdt->fdt_count < 0)
-    fdtab_destroy(fdt);
-}
-
 int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fd) {
   assert(f != NULL);
   assert(fd != NULL);
@@ -169,7 +153,7 @@ int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fd) {
   if (res < 0)
     return res;
   fdt->fdt_files[*fd] = f;
-  file_ref(f);
+  file_hold(f);
   return 0;
 }
 
@@ -190,7 +174,7 @@ int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
     fd_mark_used(fdt, fd);
   }
 
-  file_ref(f);
+  file_hold(f);
   return 0;
 }
 
@@ -207,7 +191,7 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
       return -EBADF;
 
     f = fdt->fdt_files[fd];
-    file_ref(f);
+    file_hold(f);
 
     if ((flags & FF_READ) && !(f->f_flags & FF_READ))
       break;
@@ -218,7 +202,7 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
     return 0;
   }
 
-  file_unref(f);
+  file_drop(f);
   return -EBADF;
 }
 
@@ -232,5 +216,3 @@ int fdtab_close_fd(fdtab_t *fdt, int fd) {
   fd_free(fdt, fd);
   return 0;
 }
-
-SYSINIT_ADD(filedesc, fd_init, DEPS("file"));

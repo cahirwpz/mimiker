@@ -19,23 +19,23 @@ static int test_vfs(void) {
   error = vfs_lookup("/", &v);
   assert(error == 0);
   assert(fsname_of(v, "initrd"));
-  vnode_unref(v);
+  vnode_drop(v);
   error = vfs_lookup("/dev////", &v);
   assert(error == 0);
   assert(fsname_of(v, "devfs"));
-  vnode_unref(v);
+  vnode_drop(v);
 
   error = vfs_lookup("/dev", &v);
   assert(error == 0 && !is_mountpoint(v));
-  vnode_unref(v);
+  vnode_drop(v);
 
   vnode_t *dev_null, *dev_zero;
   error = vfs_lookup("/dev/null", &dev_null);
   assert(error == 0);
-  vnode_unref(dev_null);
+  vnode_drop(dev_null);
   error = vfs_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
-  vnode_unref(dev_zero);
+  vnode_drop(dev_zero);
 
   assert(dev_zero->v_usecnt == 1);
   /* Ask for the same vnode multiple times and check for correct v_usecnt. */
@@ -46,9 +46,9 @@ static int test_vfs(void) {
   error = vfs_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
   assert(dev_zero->v_usecnt == 4);
-  vnode_unref(dev_zero);
-  vnode_unref(dev_zero);
-  vnode_unref(dev_zero);
+  vnode_drop(dev_zero);
+  vnode_drop(dev_zero);
+  vnode_drop(dev_zero);
   assert(dev_zero->v_usecnt == 1);
 
   uio_t uio;

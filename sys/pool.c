@@ -1,5 +1,4 @@
 #define KL_LOG KL_POOL
-
 #include <stdc.h>
 #include <vm.h>
 #include <physmem.h>
@@ -8,6 +7,7 @@
 #include <common.h>
 #include <klog.h>
 #include <mutex.h>
+#include <linker_set.h>
 #include <sched.h>
 #include <pool.h>
 
@@ -25,6 +25,9 @@
 #else
 #define debug(...)
 #endif
+
+typedef void (*pool_ctor_t)(void *);
+typedef void (*pool_dtor_t)(void *);
 
 typedef LIST_HEAD(, pool_slab) pool_slabs_t;
 
@@ -69,11 +72,11 @@ static unsigned slab_index_of(pool_slab_t *slab, pool_item_t *item) {
   return ((intptr_t)item - (intptr_t)slab->ph_items) / slab->ph_itemsize;
 }
 
-static pool_slab_t *add_slab(pool_t pool) {
+static pool_slab_t *add_slab(pool_t *pool) {
   debug("create_slab: pool = %p, pp_itemsize = %d", pool, pool->pp_itemsize);
 
   vm_page_t *page = pm_alloc(1);
-  pool_slab_t *slab = (pool_slab_t *)page->vaddr;
+  pool_slab_t *slab = PG_KSEG0_ADDR(page);
   slab->ph_state = ALIVE;
   slab->ph_page = page;
   slab->ph_nused = 0;
@@ -116,7 +119,7 @@ static pool_slab_t *add_slab(pool_t pool) {
   return slab;
 }
 
-static void destroy_slab(pool_t pool, pool_slab_t *slab) {
+static void destroy_slab(pool_t *pool, pool_slab_t *slab) {
   klog("destroy_slab: pool = %p, slab = %p", pool, slab);
 
   for (int i = 0; i < slab->ph_ntotal; i++) {
@@ -145,7 +148,7 @@ static void *slab_alloc(pool_slab_t *slab) {
   return pi->pi_data;
 }
 
-static void destroy_slab_list(pool_t pool, pool_slabs_t *slabs) {
+static void destroy_slab_list(pool_t *pool, pool_slabs_t *slabs) {
   pool_slab_t *it, *next;
 
   LIST_FOREACH_SAFE(it, slabs, ph_slablist, next) {
@@ -154,8 +157,7 @@ static void destroy_slab_list(pool_t pool, pool_slabs_t *slabs) {
   }
 }
 
-/* TODO: find some use for flags */
-void *pool_alloc(pool_t pool, __unused unsigned flags) {
+void *pool_alloc(pool_t *pool, unsigned flags) {
   debug("pool_alloc: pool=%p", pool);
 
   SCOPED_MTX_LOCK(&pool->pp_mtx);
@@ -181,12 +183,17 @@ void *pool_alloc(pool_t pool, __unused unsigned flags) {
                           ? &pool->pp_part_slabs
                           : &pool->pp_full_slabs;
   LIST_INSERT_HEAD(slabs, slab, ph_slablist);
+
+  /* XXX: Modify code below when pp_ctor & pp_dtor are reenabled */
+  if (flags & PF_ZERO)
+    bzero(p, pool->pp_itemsize);
+
   return p;
 }
 
 /* TODO: destroy empty slabs when their number reaches a certain threshold
  * (maybe leave one) */
-void pool_free(pool_t pool, void *ptr) {
+void pool_free(pool_t *pool, void *ptr) {
   debug("pool_free: pool = %p, ptr = %p", pool, ptr);
 
   assert(pool->pp_state == ALIVE);
@@ -200,7 +207,8 @@ void pool_free(pool_t pool, void *ptr) {
     unsigned index = slab_index_of(slab, pi);
     bitstr_t *bitmap = slab->ph_bitmap;
 
-    assert(bit_test(bitmap, index));
+    if (!bit_test(bitmap, index))
+      panic("Double free detected in '%s' pool at %p!", pool->pp_desc, ptr);
 
     bit_clear(bitmap, index);
     LIST_REMOVE(slab, ph_slablist);
@@ -214,7 +222,7 @@ void pool_free(pool_t pool, void *ptr) {
   debug("pool_free: freed item %p at slab %p, index %d", ptr, slab, index);
 }
 
-static void pool_ctor(pool_t pool) {
+static void pool_ctor(pool_t *pool) {
   LIST_INIT(&pool->pp_empty_slabs);
   LIST_INIT(&pool->pp_full_slabs);
   LIST_INIT(&pool->pp_part_slabs);
@@ -223,7 +231,7 @@ static void pool_ctor(pool_t pool) {
   pool->pp_state = INITME;
 }
 
-static void pool_dtor(pool_t pool) {
+static void pool_dtor(pool_t *pool) {
   /* Turn off preemption while marking the pool dead.
    *
    * There is no way to use pool's mutex here because it could already got
@@ -240,8 +248,9 @@ static void pool_dtor(pool_t pool) {
   klog("destroyed pool '%s' at %p", pool->pp_desc, pool);
 }
 
-static void pool_init(pool_t pool, const char *desc, size_t size,
+static void pool_init(pool_t *pool, const char *desc, size_t size,
                       pool_ctor_t ctor, pool_dtor_t dtor) {
+  pool_ctor(pool);
   pool->pp_desc = desc;
   pool->pp_itemsize = align(size, PI_ALIGNMENT);
   pool->pp_ctor = ctor;
@@ -258,18 +267,17 @@ static void pool_init(pool_t pool, const char *desc, size_t size,
 static struct pool P_POOL[1];
 
 void pool_bootstrap(void) {
-  pool_ctor(P_POOL);
-  pool_init(P_POOL, "master pool", sizeof(struct pool), (pool_ctor_t)pool_ctor,
-            (pool_dtor_t)pool_dtor);
+  pool_init(P_POOL, "master pool", sizeof(struct pool), NULL, NULL);
+  INVOKE_CTORS(pool_ctor_table);
 }
 
-pool_t pool_create(const char *desc, size_t size, pool_ctor_t ctor,
-                   pool_dtor_t dtor) {
-  pool_t pool = pool_alloc(P_POOL, 0);
-  pool_init(pool, desc, size, ctor, dtor);
+pool_t *pool_create(const char *desc, size_t size) {
+  pool_t *pool = pool_alloc(P_POOL, PF_ZERO);
+  pool_init(pool, desc, size, NULL, NULL);
   return pool;
 }
 
-void pool_destroy(pool_t pool) {
+void pool_destroy(pool_t *pool) {
+  pool_dtor(pool);
   pool_free(P_POOL, pool);
 }
