@@ -137,6 +137,8 @@ static int atkbdc_probe(device_t *dev) {
   if (read_data(regs) != KBD_ACK)
     return 0;
 
+  bus_resource_release(dev, RT_ISA, 0, regs);
+
   return 1;
 }
 

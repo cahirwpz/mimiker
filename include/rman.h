@@ -31,6 +31,7 @@ struct resource {
   bus_space_t *r_bus_space;       /* bus space accessor descriptor */
   bus_addr_t r_bus_addr;          /* bus space base address */
   device_t *r_owner;              /* device that owns this resource */
+  rman_t *r_rman;                 /* resource manager of this resource */
   rman_addr_t r_start;            /* first physical address of the resource */
   rman_addr_t r_end;              /* last (inclusive) physical address */
   res_type_t r_type;              /* one of RT_* */
@@ -61,6 +62,8 @@ struct rman {
 resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
                                 size_t count, size_t bound, res_flags_t flags,
                                 device_t *dev);
+
+void rman_release_resource(resource_t *r);
 
 /* !\brief Create and initialize new rman.
  *

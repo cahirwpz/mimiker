@@ -88,10 +88,14 @@ typedef resource_t *(*bus_resource_alloc_t)(device_t *bus, device_t *child,
                                             rman_addr_t start, rman_addr_t end,
                                             size_t size, res_flags_t flags);
 
+typedef void (*bus_resource_release_t)(device_t *bus, device_t *child,
+                                       res_type_t type, int rid, resource_t *r);
+
 struct bus_methods {
   bus_intr_setup_t intr_setup;
   bus_intr_teardown_t intr_teardown;
   bus_resource_alloc_t resource_alloc;
+  bus_resource_release_t resource_release;
 };
 
 struct bus_driver {
@@ -150,6 +154,11 @@ static inline resource_t *bus_resource_alloc_any(device_t *dev, res_type_t type,
 
   return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0,
                                              RMAN_ADDR_MAX, 1, flags);
+}
+
+static inline void bus_resource_release(device_t *dev, res_type_t type, int rid,
+                                        resource_t *r) {
+  BUS_DRIVER(dev)->bus.resource_release(dev->parent, dev, type, rid, r);
 }
 
 int bus_generic_probe(device_t *bus);

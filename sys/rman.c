@@ -61,6 +61,7 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
   assert(powerof2(bound) && (bound > 0));
 
   resource_t *r = pool_alloc(P_RES, PF_ZERO);
+  r->r_rman = rm;
   r->r_type = rm->rm_type;
   r->r_flags = flags;
   r->r_owner = dev;
@@ -86,6 +87,13 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
   }
 
   return r;
+}
+
+void rman_release_resource(resource_t *r) {
+  rman_t *rm = r->r_rman;
+
+  WITH_MTX_LOCK (&rm->rm_lock)
+    TAILQ_REMOVE(&rm->rm_resources, r, r_link);
 }
 
 void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end,

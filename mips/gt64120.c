@@ -363,13 +363,19 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
   return res;
 }
 
+static void gt_pci_resource_release(device_t *pcib, device_t *dev,
+                                    res_type_t type, int rid, resource_t *r) {
+  rman_release_resource(r);
+}
+
 pci_bus_driver_t gt_pci_bus = {
   .driver = {.desc = "GT-64120 PCI bus driver",
              .size = sizeof(gt_pci_state_t),
              .attach = gt_pci_attach},
   .bus = {.intr_setup = gt_pci_intr_setup,
           .intr_teardown = gt_pci_intr_teardown,
-          .resource_alloc = gt_pci_resource_alloc},
+          .resource_alloc = gt_pci_resource_alloc,
+          .resource_release = gt_pci_resource_release},
   .pci_bus =
     {
       .read_config = gt_pci_read_config, .write_config = gt_pci_write_config,
