@@ -1,116 +1,99 @@
 #include <rman.h>
 #include <pool.h>
 
-static POOL_DEFINE(P_RMAN, "rman", sizeof(resource_t));
+static POOL_DEFINE(P_RES, "resources", sizeof(resource_t));
 
-static resource_t *find_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                                 size_t count, size_t alignment,
-                                 unsigned flags) {
-  resource_t *resource;
-  LIST_FOREACH(resource, &rm->rm_resources, r_resources) {
-    if ((resource->r_flags & RF_ALLOCATED) &&
-        !((resource->r_flags & RF_SHARED) && (flags & RF_SHARED)))
+static rman_addr_t rman_find_gap(rman_t *rm, rman_addr_t start, rman_addr_t end,
+                                 size_t count, size_t bound,
+                                 resource_t **res_p) {
+  assert(mtx_owned(&rm->rm_lock));
+
+  if (end < rm->rm_start || start >= rm->rm_end)
+    return 0;
+
+  /* Adjust search boundaries if needed. */
+  start = max(start, rm->rm_start);
+  end = min(end, rm->rm_end);
+
+  /* Fits before the first resource on the list ? */
+  resource_t *first_r = TAILQ_FIRST(&rm->rm_resources);
+  rman_addr_t first_start = first_r ? first_r->r_start : rm->rm_end + 1;
+  if (align(start, bound) + count <= first_start)
+    return align(start, bound);
+
+  /* Look up first element after which we can place our new resource. */
+  resource_t *curr_r = NULL;
+  TAILQ_FOREACH (curr_r, &rm->rm_resources, r_link) {
+    resource_t *next_r = TAILQ_NEXT(curr_r, r_link);
+    rman_addr_t curr_end = curr_r->r_end + 1;
+    rman_addr_t next_start = next_r ? next_r->r_start : rm->rm_end + 1;
+
+    /* Skip elements before `start` address. */
+    if (start >= next_start)
       continue;
 
-    if ((start > resource->r_end) || (end < resource->r_start))
-      continue;
+    /* Do not consider elements after `end` address. */
+    if (end <= curr_end)
+      break;
 
-    /* Calculate common part and check if is big enough. */
-    rman_addr_t s = align(max(start, resource->r_start), alignment);
-    rman_addr_t e = min(end, resource->r_end);
-    /* size of address range after alignment */
-    rman_addr_t len = e - s + 1;
+    /* Calculate first & last address of eligible gap. */
+    rman_addr_t first = align(max(curr_end, start), bound);
+    rman_addr_t last = min(next_start - 1, end);
 
-    /* When trying to use existing resource, size should be the same. */
-    if ((flags & RF_SHARED) &&
-        ((rman_addr_t)count != resource->r_end - resource->r_start + 1))
-      continue;
-
-    if (len >= (rman_addr_t)count)
-      return resource;
+    /* Does region of `count` size fit in the gap at `bound` aligned address? */
+    if (first + count - 1 <= last) {
+      *res_p = curr_r;
+      return align(first, bound);
+    }
   }
 
-  return NULL;
+  return 0;
 }
 
-/* !\brief cut the resource into two
- *
- * Divide resource into two `where` means start of right resource function
- * returns pointer to new (right) resource.
- */
-static resource_t *cut_resource(resource_t *res, rman_addr_t where) {
-  assert(where > res->r_start);
-  assert(where < res->r_end);
+resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
+                                size_t count, size_t bound, res_flags_t flags,
+                                device_t *dev) {
+  assert(first <= last);
+  assert(powerof2(bound) && (bound > 0));
 
-  resource_t *left_res = res;
+  resource_t *r = pool_alloc(P_RES, PF_ZERO);
+  r->r_type = rm->rm_type;
+  r->r_flags = flags;
+  r->r_owner = dev;
+  /* TODO insert onto list of resources that are owned by the device */
 
-  resource_t *right_res = pool_alloc(P_RMAN, PF_ZERO);
+  WITH_MTX_LOCK (&rm->rm_lock) {
+    resource_t *after = NULL;
+    rman_addr_t start;
+    if ((start = rman_find_gap(rm, first, last, count, bound, &after))) {
+      assert(start >= first && start < last);
+      assert(start + count - 1 <= last);
+      assert(is_aligned(start, bound));
+      r->r_start = start;
+      r->r_end = start + count - 1;
+      if (after)
+        TAILQ_INSERT_AFTER(&rm->rm_resources, after, r, r_link);
+      else
+        TAILQ_INSERT_HEAD(&rm->rm_resources, r, r_link);
+    } else {
+      pool_free(P_RES, r);
+      r = NULL;
+    }
+  }
 
-  LIST_INSERT_AFTER(left_res, right_res, r_resources);
-
-  right_res->r_end = left_res->r_end;
-  right_res->r_start = where;
-  right_res->r_type = res->r_type;
-  left_res->r_end = where - 1;
-
-  return right_res;
-}
-
-/* !\brief Extract resource with given addres range from bigger resource.
- *
- * Maybe split resource into two or three in order to recover space before and
- * after allocation.
- */
-static resource_t *split_resource(resource_t *res, rman_addr_t start,
-                                  rman_addr_t end, size_t count) {
-  if (res->r_start < start)
-    res = cut_resource(res, start);
-
-  if (res->r_end > res->r_start + (rman_addr_t)count - 1)
-    cut_resource(res, res->r_start + count);
-
-  return res;
-}
-
-resource_t *rman_allocate_resource(rman_t *rm, rman_addr_t start,
-                                   rman_addr_t end, size_t count, size_t align,
-                                   unsigned flags) {
-  SCOPED_MTX_LOCK(&rm->rm_mtx);
-
-  align = min(align, sizeof(void *));
-
-  resource_t *resource = find_resource(rm, start, end, count, align, flags);
-  if (resource == NULL)
-    return NULL;
-
-  resource = split_resource(resource, align(start, align), end, count);
-  resource->r_type = rm->rm_type;
-  resource->r_align = align;
-  resource->r_flags = flags;
-  resource->r_flags |= RF_ALLOCATED;
-
-  return resource;
+  return r;
 }
 
 void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                 resource_type_t type) {
+                 res_type_t type) {
   rm->rm_start = start;
   rm->rm_end = end;
   rm->rm_type = type;
 
-  mtx_init(&rm->rm_mtx, MTX_DEF);
-  LIST_INIT(&rm->rm_resources);
-
-  resource_t *whole_space = pool_alloc(P_RMAN, PF_ZERO);
-
-  whole_space->r_start = rm->rm_start;
-  whole_space->r_end = rm->rm_end;
-  whole_space->r_type = rm->rm_type;
-
-  LIST_INSERT_HEAD(&rm->rm_resources, whole_space, r_resources);
+  mtx_init(&rm->rm_lock, MTX_DEF);
+  TAILQ_INIT(&rm->rm_resources);
 }
 
 void rman_create_from_resource(rman_t *rm, resource_t *res) {
-  assert(res->r_flags & RF_ALLOCATED);
   rman_create(rm, res->r_start, res->r_end, res->r_type);
 }

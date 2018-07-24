@@ -58,5 +58,5 @@ void device_add_resource(device_t *dev, resource_t *r, int rid,
   r->r_owner = dev;
   r->r_id = rid;
   r->r_bus_space = bus_space;
-  LIST_INSERT_HEAD(&dev->resources, r, r_device);
+  TAILQ_INSERT_HEAD(&dev->resources, r, r_device);
 }

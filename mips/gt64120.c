@@ -50,9 +50,9 @@ typedef struct gt_pci_state {
   resource_t *pci_mem;
 
   /* Resource managers which manage resources used by child devices. */
-  rman_t rman_pci_iospace;
-  rman_t rman_pci_memspace;
-  rman_t rman_isa_iospace;
+  rman_t pci_io_rman;
+  rman_t pci_mem_rman;
+  rman_t isa_io_rman;
 
   intr_handler_t intr_handler;
   intr_chain_t intr_chain[16];
@@ -261,9 +261,9 @@ static int gt_pci_attach(device_t *pcib) {
     panic("gt64120 resource allocation fail");
   }
 
-  rman_create_from_resource(&gtpci->rman_pci_iospace, gtpci->pci_io);
-  rman_create_from_resource(&gtpci->rman_pci_memspace, gtpci->pci_mem);
-  rman_create_from_resource(&gtpci->rman_isa_iospace, gtpci->isa_io);
+  rman_create_from_resource(&gtpci->pci_io_rman, gtpci->pci_io);
+  rman_create_from_resource(&gtpci->pci_mem_rman, gtpci->pci_mem);
+  rman_create_from_resource(&gtpci->isa_io_rman, gtpci->isa_io);
 
   pcib->bus = DEV_BUS_PCI;
 
@@ -307,17 +307,17 @@ static int gt_pci_attach(device_t *pcib) {
 }
 
 static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
-                                         resource_type_t type, int rid,
+                                         res_type_t type, int rid,
                                          rman_addr_t start, rman_addr_t end,
-                                         size_t size, unsigned flags) {
+                                         size_t size, res_flags_t flags) {
 
   gt_pci_state_t *gtpci = pcib->state;
   resource_t *res = NULL;
 
   /* Hack for ISA devices attached to PIIX4. TODO implement PCI-ISA bridge. */
   if (type == RT_ISA) {
-    res = rman_allocate_resource(&gtpci->rman_isa_iospace, start, end, size,
-                                 size, flags);
+    res = rman_alloc_resource(&gtpci->isa_io_rman, start, end, size, size,
+                              flags, dev);
 
     if (res == NULL)
       return NULL;
@@ -339,11 +339,11 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
       return NULL;
 
     if (type == RT_MEMORY) {
-      res = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end,
-                                   bar->size, bar->size, flags);
+      res = rman_alloc_resource(&gtpci->pci_mem_rman, start, end, bar->size,
+                                bar->size, flags, dev);
     } else if (type == RT_IOPORTS) {
-      res = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end,
-                                   bar->size, bar->size, flags);
+      res = rman_alloc_resource(&gtpci->pci_io_rman, start, end, bar->size,
+                                bar->size, flags, dev);
     } else {
       panic("Unknown PCI device type: %d", type);
     }
