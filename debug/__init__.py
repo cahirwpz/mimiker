@@ -4,6 +4,7 @@ import kdump
 import klog
 import cpu
 import thread
+import proc
 import sync
 
 
@@ -21,3 +22,4 @@ thread.Kthread()
 cpu.Cpu()
 kdump.Kdump()
 klog.Klog()
+proc.Kprocess()
