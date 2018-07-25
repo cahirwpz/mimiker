@@ -30,7 +30,7 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
 
 static int rootdev_attach(device_t *dev) {
   /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ... */
-  rman_init(&rm_mem, 0x10000000, 0x1fffffff, RT_MEMORY);
+  rman_init(&rm_mem, "Malta I/O space", 0x10000000, 0x1fffffff, RT_MEMORY);
 
   gt_pci = device_add_child(dev);
   gt_pci->driver = &gt_pci_bus.driver;
@@ -39,55 +39,29 @@ static int rootdev_attach(device_t *dev) {
   return 0;
 }
 
-static uint8_t mips_read_1(bus_space_handle_t handle, bus_size_t offset) {
-  return *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(handle + offset);
+static int rootdev_bs_map(bus_addr_t addr, bus_size_t size, int flags,
+                          bus_space_handle_t *handle_p) {
+  *handle_p = MIPS_PHYS_TO_KSEG1(addr);
+  return 0;
 }
 
-static uint16_t mips_read_2(bus_space_handle_t handle, bus_size_t offset) {
-  return *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(handle + offset);
-}
-
-static uint32_t mips_read_4(bus_space_handle_t handle, bus_size_t offset) {
-  return *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(handle + offset);
-}
-
-static void mips_write_1(bus_space_handle_t handle, bus_size_t offset,
-                         uint8_t value) {
-  *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(handle + offset) = value;
-}
-
-static void mips_write_2(bus_space_handle_t handle, bus_size_t offset,
-                         uint16_t value) {
-  *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(handle + offset) = value;
-}
-
-static void mips_write_4(bus_space_handle_t handle, bus_size_t offset,
-                         uint32_t value) {
-  *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(handle + offset) = value;
-}
-
-static void mips_read_region_1(bus_space_handle_t handle, bus_size_t offset,
-                               uint8_t *dst, bus_size_t count) {
-  uint8_t *src = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle + offset);
-  for (size_t i = 0; i < count; i++)
-    *dst++ = *src++;
-}
-
-static void mips_write_region_1(bus_space_handle_t handle, bus_size_t offset,
-                                const uint8_t *src, bus_size_t count) {
-  uint8_t *dst = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle + offset);
-  for (size_t i = 0; i < count; i++)
-    *dst++ = *src++;
-}
-
-static bus_space_t generic_space = {.bs_read_1 = mips_read_1,
-                                    .bs_read_2 = mips_read_2,
-                                    .bs_read_4 = mips_read_4,
-                                    .bs_write_1 = mips_write_1,
-                                    .bs_write_2 = mips_write_2,
-                                    .bs_write_4 = mips_write_4,
-                                    .bs_read_region_1 = mips_read_region_1,
-                                    .bs_write_region_1 = mips_write_region_1};
+/* clang-format off */
+bus_space_t *rootdev_bus_space = &(bus_space_t){
+  .bs_map = rootdev_bs_map,
+  .bs_read_1 = generic_bs_read_1,
+  .bs_read_2 = generic_bs_read_2,
+  .bs_read_4 = generic_bs_read_4,
+  .bs_write_1 = generic_bs_write_1,
+  .bs_write_2 = generic_bs_write_2,
+  .bs_write_4 = generic_bs_write_4,
+  .bs_read_region_1 = generic_bs_read_region_1,
+  .bs_read_region_2 = generic_bs_read_region_2,
+  .bs_read_region_4 = generic_bs_read_region_4,
+  .bs_write_region_1 = generic_bs_write_region_1,
+  .bs_write_region_2 = generic_bs_write_region_2,
+  .bs_write_region_4 = generic_bs_write_region_4,
+};
+/* clang-format on */
 
 static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
                                           res_type_t type, int rid,
@@ -98,8 +72,9 @@ static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
     rman_alloc_resource(&rm_mem, start, end, size, 1, RF_NONE, child);
 
   if (r) {
-    r->r_bus_tag = &generic_space;
-    r->r_bus_handle = r->r_start; /* XXX should it be something else? */
+    r->r_bus_tag = rootdev_bus_space;
+    bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
+                  BUS_SPACE_MAP_LINEAR, &r->r_bus_handle);
     device_add_resource(child, r, rid);
   }
 
@@ -127,7 +102,5 @@ static device_t rootdev = (device_t){
 static void rootdev_init(void) {
   device_attach(&rootdev);
 }
-
-bus_space_t *mips_bus_space_generic = &generic_space;
 
 SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs"));

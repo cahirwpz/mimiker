@@ -14,9 +14,8 @@ typedef struct intr_handler intr_handler_t;
  * spaces. Same hardware resource can be accessed in many different ways
  * depending on which bus it was attached to (e.g. I/O ports vs. MMIO) */
 struct bus_space {
-  /* mapping/unmapping */
+  /* mapping */
   int (*bs_map)(bus_addr_t, bus_size_t, int, bus_space_handle_t *);
-  void (*bs_unmap)(bus_space_handle_t, bus_size_t);
 
   /* read (single) */
   uint8_t (*bs_read_1)(bus_space_handle_t, bus_size_t);
@@ -44,6 +43,34 @@ struct bus_space {
   void (*bs_write_region_4)(bus_space_handle_t, bus_size_t, const uint32_t *,
                             bus_size_t);
 };
+
+int generic_bs_map(bus_addr_t addr, bus_size_t size, int flags,
+                   bus_space_handle_t *handle_p);
+
+uint8_t generic_bs_read_1(bus_space_handle_t handle, bus_size_t offset);
+uint16_t generic_bs_read_2(bus_space_handle_t handle, bus_size_t offset);
+uint32_t generic_bs_read_4(bus_space_handle_t handle, bus_size_t offset);
+
+void generic_bs_write_1(bus_space_handle_t handle, bus_size_t offset,
+                        uint8_t value);
+void generic_bs_write_2(bus_space_handle_t handle, bus_size_t offset,
+                        uint16_t value);
+void generic_bs_write_4(bus_space_handle_t handle, bus_size_t offset,
+                        uint32_t value);
+
+void generic_bs_read_region_1(bus_space_handle_t handle, bus_size_t offset,
+                              uint8_t *dst, bus_size_t count);
+void generic_bs_read_region_2(bus_space_handle_t handle, bus_size_t offset,
+                              uint16_t *dst, bus_size_t count);
+void generic_bs_read_region_4(bus_space_handle_t handle, bus_size_t offset,
+                              uint32_t *dst, bus_size_t count);
+
+void generic_bs_write_region_1(bus_space_handle_t handle, bus_size_t offset,
+                               const uint8_t *src, bus_size_t count);
+void generic_bs_write_region_2(bus_space_handle_t handle, bus_size_t offset,
+                               const uint16_t *src, bus_size_t count);
+void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
+                               const uint32_t *src, bus_size_t count);
 
 #define BUS_SPACE_DECLARE(name) extern bus_space_t name[1]
 
@@ -104,23 +131,16 @@ struct bus_space {
 #define bus_write_region_2(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 2)
 #define bus_write_region_4(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 4)
 
-typedef void (*bus_intr_setup_t)(device_t *dev, unsigned num,
-                                 intr_handler_t *handler);
-typedef void (*bus_intr_teardown_t)(device_t *dev, intr_handler_t *handler);
-
-typedef resource_t *(*bus_resource_alloc_t)(device_t *bus, device_t *child,
-                                            res_type_t type, int rid,
-                                            rman_addr_t start, rman_addr_t end,
-                                            size_t size, res_flags_t flags);
-
-typedef void (*bus_resource_release_t)(device_t *bus, device_t *child,
-                                       res_type_t type, int rid, resource_t *r);
+#define bus_space_map(t, a, s, f, hp) (*(t)->bs_map)((a), (s), (f), (hp))
 
 struct bus_methods {
-  bus_intr_setup_t intr_setup;
-  bus_intr_teardown_t intr_teardown;
-  bus_resource_alloc_t resource_alloc;
-  bus_resource_release_t resource_release;
+  void (*intr_setup)(device_t *dev, unsigned num, intr_handler_t *handler);
+  void (*intr_teardown)(device_t *dev, intr_handler_t *handler);
+  resource_t *(*resource_alloc)(device_t *bus, device_t *child, res_type_t type,
+                                int rid, rman_addr_t start, rman_addr_t end,
+                                size_t size, res_flags_t flags);
+  void (*resource_release)(device_t *bus, device_t *child, res_type_t type,
+                           int rid, resource_t *r);
 };
 
 struct bus_driver {

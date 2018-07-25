@@ -61,7 +61,7 @@ typedef struct gt_pci_state {
   uint16_t elcr;
 } gt_pci_state_t;
 
-extern bus_space_t *mips_bus_space_generic;
+extern bus_space_t *rootdev_bus_space;
 pci_bus_driver_t gt_pci_bus;
 
 /* Access configuration space through memory mapped GT-64120 registers. Take
@@ -315,17 +315,19 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
                                          size_t size, res_flags_t flags) {
 
   gt_pci_state_t *gtpci = pcib->state;
-  resource_t *res = NULL;
+  bus_space_handle_t bh;
+  resource_t *r = NULL;
 
   /* Hack for ISA devices attached to PIIX4. TODO implement PCI-ISA bridge. */
   if (type == RT_ISA) {
-    res = rman_alloc_resource(&gtpci->isa_io_rman, start, end, size, size,
-                              flags, dev);
-    if (res == NULL)
+    r = rman_alloc_resource(&gtpci->isa_io_rman, start, end, size, size, flags,
+                            dev);
+    if (r == NULL)
       return NULL;
-    res->r_bus_tag = mips_bus_space_generic;
-    res->r_bus_handle = gtpci->isa_io->r_start + res->r_start;
-    device_add_resource(dev, res, rid);
+    bh = gtpci->isa_io->r_start + r->r_start;
+    r->r_bus_tag = rootdev_bus_space;
+    bus_space_map(r->r_bus_tag, bh, 0, BUS_SPACE_MAP_LINEAR, &r->r_bus_handle);
+    device_add_resource(dev, r, rid);
   } else {
     /* Now handle only PCI devices. */
 
@@ -337,38 +339,39 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
     /* Find identified bar by rid. */
     pci_device_t *pcid = pci_device_of(dev);
     pci_bar_t *bar = &pcid->bar[rid];
-    bus_space_handle_t bh;
 
     if (bar->size == 0)
       return NULL;
 
     if (type == RT_MEMORY) {
-      res = rman_alloc_resource(&gtpci->pci_mem_rman, start, end, bar->size,
-                                bar->size, flags, dev);
+      r = rman_alloc_resource(&gtpci->pci_mem_rman, start, end, bar->size,
+                              bar->size, flags, dev);
       bh = gtpci->pci_mem->r_start;
     } else if (type == RT_IOPORTS) {
-      res = rman_alloc_resource(&gtpci->pci_io_rman, start, end, bar->size,
-                                bar->size, flags, dev);
+      r = rman_alloc_resource(&gtpci->pci_io_rman, start, end, bar->size,
+                              bar->size, flags, dev);
       bh = gtpci->pci_io->r_start;
     } else {
       panic("Unknown PCI device type: %d", type);
     }
 
-    if (res == NULL)
+    if (r == NULL)
       return NULL;
 
-    res->r_bus_tag = mips_bus_space_generic;
-    res->r_bus_handle = bh + res->r_start;
-    device_add_resource(dev, res, rid);
+    bh += r->r_start;
+    r->r_bus_tag = rootdev_bus_space;
+    bus_space_map(r->r_bus_tag, bh, r->r_end - r->r_start + 1,
+                  BUS_SPACE_MAP_LINEAR, &r->r_bus_handle);
+    device_add_resource(dev, r, rid);
 
     /* Write BAR address to PCI device register. */
     if (!(flags & RF_ACTIVATED)) {
-      pci_write_config(dev, PCIR_BAR(rid), 4, res->r_bus_handle);
-      res->r_flags |= RF_ACTIVATED;
+      pci_write_config(dev, PCIR_BAR(rid), 4, bh);
+      r->r_flags |= RF_ACTIVATED;
     }
   }
 
-  return res;
+  return r;
 }
 
 static void gt_pci_resource_release(device_t *pcib, device_t *dev,
