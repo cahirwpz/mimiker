@@ -56,8 +56,7 @@ device_t *make_device(device_t *parent, driver_t *driver);
 /*! \brief Prepares and adds a resource to a device.
  *
  * \note Mostly used in bus drivers. */
-void device_add_resource(device_t *dev, resource_t *r, int rid,
-                         bus_space_t *bus_space);
+void device_add_resource(device_t *dev, resource_t *r, int rid);
 
 /* A universal memory pool to be used by all drivers. */
 MALLOC_DECLARE(M_DEV);

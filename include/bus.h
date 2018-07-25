@@ -1,7 +1,7 @@
 #ifndef _SYS_BUS_H_
 #define _SYS_BUS_H_
 
-#include <_bus.h>
+#include <machine/_bus.h>
 #include <device.h>
 #include <rman.h>
 
@@ -14,70 +14,97 @@ typedef struct intr_handler intr_handler_t;
  * spaces. Same hardware resource can be accessed in many different ways
  * depending on which bus it was attached to (e.g. I/O ports vs. MMIO) */
 struct bus_space {
+  /* mapping/unmapping */
+  int (*bs_map)(bus_addr_t, bus_size_t, int, bus_space_handle_t *);
+  void (*bs_unmap)(bus_space_handle_t, bus_size_t);
+
   /* read (single) */
-  uint8_t (*bs_read_1)(bus_addr_t, off_t);
-  uint16_t (*bs_read_2)(bus_addr_t, off_t);
-  uint32_t (*bs_read_4)(bus_addr_t, off_t);
+  uint8_t (*bs_read_1)(bus_space_handle_t, bus_size_t);
+  uint16_t (*bs_read_2)(bus_space_handle_t, bus_size_t);
+  uint32_t (*bs_read_4)(bus_space_handle_t, bus_size_t);
 
   /* write (single) */
-  void (*bs_write_1)(bus_addr_t, off_t, uint8_t);
-  void (*bs_write_2)(bus_addr_t, off_t, uint16_t);
-  void (*bs_write_4)(bus_addr_t, off_t, uint32_t);
+  void (*bs_write_1)(bus_space_handle_t, bus_size_t, uint8_t);
+  void (*bs_write_2)(bus_space_handle_t, bus_size_t, uint16_t);
+  void (*bs_write_4)(bus_space_handle_t, bus_size_t, uint32_t);
 
   /* read region */
-  void (*bs_read_region_1)(bus_addr_t, off_t, uint8_t *, size_t);
+  void (*bs_read_region_1)(bus_space_handle_t, bus_size_t, uint8_t *,
+                           bus_size_t);
+  void (*bs_read_region_2)(bus_space_handle_t, bus_size_t, uint16_t *,
+                           bus_size_t);
+  void (*bs_read_region_4)(bus_space_handle_t, bus_size_t, uint32_t *,
+                           bus_size_t);
 
   /* write region */
-  void (*bs_write_region_1)(bus_addr_t, off_t, const uint8_t *, size_t);
+  void (*bs_write_region_1)(bus_space_handle_t, bus_size_t, const uint8_t *,
+                            bus_size_t);
+  void (*bs_write_region_2)(bus_space_handle_t, bus_size_t, const uint16_t *,
+                            bus_size_t);
+  void (*bs_write_region_4)(bus_space_handle_t, bus_size_t, const uint32_t *,
+                            bus_size_t);
 };
 
 #define BUS_SPACE_DECLARE(name) extern bus_space_t name[1]
 
-#define __bs_func(bs, op, sz)                                                  \
-  (*(bs)->__CONCAT(__CONCAT(__CONCAT(bs_, op), _), sz))
+#define __bs_func(t, op, sz)                                                   \
+  (*(t)->__CONCAT(__CONCAT(__CONCAT(bs_, op), _), sz))
 
-#define __bs_read(bs, ba, o, sz) __bs_func((bs), read, sz)((ba), (o))
-#define bus_space_read_1(bs, ba, o) __bs_read(bs, ba, o, 1)
-#define bus_space_read_2(bs, ba, o) __bs_read(bs, ba, o, 2)
-#define bus_space_read_4(bs, ba, o) __bs_read(bs, ba, o, 4)
+#define __bs_read(t, h, o, sz) __bs_func((t), read, sz)((h), (o))
+#define bus_space_read_1(t, h, o) __bs_read(t, h, o, 1)
+#define bus_space_read_1(t, h, o) __bs_read(t, h, o, 1)
+#define bus_space_read_2(t, h, o) __bs_read(t, h, o, 2)
+#define bus_space_read_4(t, h, o) __bs_read(t, h, o, 4)
 
-#define __bs_write(bs, ba, o, v, sz) __bs_func((bs), write, sz)((ba), (o), (v))
-#define bus_space_write_1(bs, ba, o) __bs_write(bs, ba, o, 1)
-#define bus_space_write_2(bs, ba, o) __bs_write(bs, ba, o, 2)
-#define bus_space_write_4(bs, ba, o) __bs_write(bs, ba, o, 4)
+#define __bs_write(t, h, o, v, sz) __bs_func((t), write, sz)((h), (o), (v))
+#define bus_space_write_1(t, h, o, v) __bs_write(t, h, o, v, 1)
+#define bus_space_write_2(t, h, o, v) __bs_write(t, h, o, v, 2)
+#define bus_space_write_4(t, h, o, v) __bs_write(t, h, o, v, 4)
 
-#define __bs_read_region(bs, ba, o, dst, cnt, sz)                              \
-  __bs_func((bs), read_region, sz)((ba), (o), (dst), (cnt))
-#define bus_space_read_region_1(bs, ba, o, dst, cnt)                           \
-  __bs_read_region(bs, ba, o, dst, cnt, 1)
+#define __bs_read_region(t, h, o, dst, cnt, sz)                                \
+  __bs_func((t), read_region, sz)((h), (o), (dst), (cnt))
+#define bus_space_read_region_1(t, h, o, dst, cnt)                             \
+  __bs_read_region(t, h, o, dst, cnt, 1)
+#define bus_space_read_region_2(t, h, o, dst, cnt)                             \
+  __bs_read_region(t, h, o, dst, cnt, 2)
+#define bus_space_read_region_4(t, h, o, dst, cnt)                             \
+  __bs_read_region(t, h, o, dst, cnt, 4)
 
-#define __bs_write_region(bs, ba, o, src, cnt, sz)                             \
-  __bs_func((bs), write_region, sz)((ba), (o), (src), (cnt))
-#define bus_space_write_region_1(bs, ba, o, src, cnt)                          \
-  __bs_write_region(bs, ba, o, src, cnt, 1)
+#define __bs_write_region(t, h, o, src, cnt, sz)                               \
+  __bs_func((t), write_region, sz)((h), (o), (src), (cnt))
+#define bus_space_write_region_1(t, h, o, src, cnt)                            \
+  __bs_write_region(t, h, o, src, cnt, 1)
+#define bus_space_write_region_2(t, h, o, src, cnt)                            \
+  __bs_write_region(t, h, o, src, cnt, 2)
+#define bus_space_write_region_4(t, h, o, src, cnt)                            \
+  __bs_write_region(t, h, o, src, cnt, 4)
 
 /* Simplified versions of the above, which take only a pointer to resource. */
 #define __bus_read(r, o, sz)                                                   \
-  __bs_read((r)->r_bus_space, (r)->r_bus_addr, (o) + (r)->r_start, sz)
+  __bs_read((r)->r_bus_tag, (r)->r_bus_handle, (o) + (r)->r_start, sz)
 #define bus_read_1(r, o) __bus_read(r, o, 1)
 #define bus_read_2(r, o) __bus_read(r, o, 2)
 #define bus_read_4(r, o) __bus_read(r, o, 4)
 
 #define __bus_write(r, o, v, sz)                                               \
-  __bs_write((r)->r_bus_space, (r)->r_bus_addr, (o) + (r)->r_start, (v), sz)
+  __bs_write((r)->r_bus_tag, (r)->r_bus_handle, (o) + (r)->r_start, (v), sz)
 #define bus_write_1(r, o, v) __bus_write(r, o, v, 1)
 #define bus_write_2(r, o, v) __bus_write(r, o, v, 2)
 #define bus_write_4(r, o, v) __bus_write(r, o, v, 4)
 
 #define __bus_read_region(r, o, dst, cnt, sz)                                  \
-  __bs_write((r)->r_bus_space, (r)->r_bus_addr, (o) + (r)->r_start, (dst),     \
+  __bs_write((r)->r_bus_tag, (r)->r_bus_handle, (o) + (r)->r_start, (dst),     \
              (cnt), sz)
 #define bus_read_region_1(r, o, dst, cnt) __bus_read_region(r, o, dst, cnt, 1)
+#define bus_read_region_2(r, o, dst, cnt) __bus_read_region(r, o, dst, cnt, 2)
+#define bus_read_region_4(r, o, dst, cnt) __bus_read_region(r, o, dst, cnt, 4)
 
 #define __bus_write_region(r, o, src, cnt, sz)                                 \
-  __bs_write_region((r)->r_bus_space, (r)->r_bus_addr, (o) + (r)->r_start,     \
+  __bs_write_region((r)->r_bus_tag, (r)->r_bus_handle, (o) + (r)->r_start,     \
                     (src), (cnt), sz)
 #define bus_write_region_1(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 1)
+#define bus_write_region_2(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 2)
+#define bus_write_region_4(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 4)
 
 typedef void (*bus_intr_setup_t)(device_t *dev, unsigned num,
                                  intr_handler_t *handler);

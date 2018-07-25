@@ -39,40 +39,43 @@ static int rootdev_attach(device_t *dev) {
   return 0;
 }
 
-static uint8_t mips_read_1(bus_addr_t addr, off_t offset) {
-  return *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(addr + offset);
+static uint8_t mips_read_1(bus_space_handle_t handle, bus_size_t offset) {
+  return *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(handle + offset);
 }
 
-static uint16_t mips_read_2(bus_addr_t addr, off_t offset) {
-  return *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr + offset);
+static uint16_t mips_read_2(bus_space_handle_t handle, bus_size_t offset) {
+  return *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(handle + offset);
 }
 
-static uint32_t mips_read_4(bus_addr_t addr, off_t offset) {
-  return *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(addr + offset);
+static uint32_t mips_read_4(bus_space_handle_t handle, bus_size_t offset) {
+  return *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(handle + offset);
 }
 
-static void mips_write_1(bus_addr_t addr, off_t offset, uint8_t value) {
-  *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(addr + offset) = value;
+static void mips_write_1(bus_space_handle_t handle, bus_size_t offset,
+                         uint8_t value) {
+  *(volatile uint8_t *)MIPS_PHYS_TO_KSEG1(handle + offset) = value;
 }
 
-static void mips_write_2(bus_addr_t addr, off_t offset, uint16_t value) {
-  *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(addr + offset) = value;
+static void mips_write_2(bus_space_handle_t handle, bus_size_t offset,
+                         uint16_t value) {
+  *(volatile uint16_t *)MIPS_PHYS_TO_KSEG1(handle + offset) = value;
 }
 
-static void mips_write_4(bus_addr_t addr, off_t offset, uint32_t value) {
-  *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(addr + offset) = value;
+static void mips_write_4(bus_space_handle_t handle, bus_size_t offset,
+                         uint32_t value) {
+  *(volatile uint32_t *)MIPS_PHYS_TO_KSEG1(handle + offset) = value;
 }
 
-static void mips_read_region_1(bus_addr_t addr, off_t offset, uint8_t *dst,
-                               size_t count) {
-  uint8_t *src = (uint8_t *)MIPS_PHYS_TO_KSEG1(addr + offset);
+static void mips_read_region_1(bus_space_handle_t handle, bus_size_t offset,
+                               uint8_t *dst, bus_size_t count) {
+  uint8_t *src = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle + offset);
   for (size_t i = 0; i < count; i++)
     *dst++ = *src++;
 }
 
-static void mips_write_region_1(bus_addr_t addr, off_t offset,
-                                const uint8_t *src, size_t count) {
-  uint8_t *dst = (uint8_t *)MIPS_PHYS_TO_KSEG1(addr + offset);
+static void mips_write_region_1(bus_space_handle_t handle, bus_size_t offset,
+                                const uint8_t *src, bus_size_t count) {
+  uint8_t *dst = (uint8_t *)MIPS_PHYS_TO_KSEG1(handle + offset);
   for (size_t i = 0; i < count; i++)
     *dst++ = *src++;
 }
@@ -94,8 +97,11 @@ static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
   resource_t *r =
     rman_alloc_resource(&rm_mem, start, end, size, 1, RF_NONE, child);
 
-  if (r)
-    device_add_resource(child, r, rid, &generic_space);
+  if (r) {
+    r->r_bus_tag = &generic_space;
+    r->r_bus_handle = 0; /* XXX should it be something else? */
+    device_add_resource(child, r, rid);
+  }
 
   return r;
 }

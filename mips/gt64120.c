@@ -320,8 +320,9 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
                               flags, dev);
     if (res == NULL)
       return NULL;
-    res->r_bus_addr = gtpci->isa_io->r_start;
-    device_add_resource(dev, res, rid, mips_bus_space_generic);
+    res->r_bus_tag = mips_bus_space_generic;
+    res->r_bus_handle = gtpci->isa_io->r_start;
+    device_add_resource(dev, res, rid);
   } else {
     /* Now handle only PCI devices. */
 
@@ -333,6 +334,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
     /* Find identified bar by rid. */
     pci_device_t *pcid = pci_device_of(dev);
     pci_bar_t *bar = &pcid->bar[rid];
+    bus_space_handle_t bh;
 
     if (bar->size == 0)
       return NULL;
@@ -340,20 +342,21 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
     if (type == RT_MEMORY) {
       res = rman_alloc_resource(&gtpci->pci_mem_rman, start, end, bar->size,
                                 bar->size, flags, dev);
-      if (res == NULL)
-        return NULL;
-      res->r_bus_addr = gtpci->pci_mem->r_start;
+      bh = gtpci->pci_mem->r_start;
     } else if (type == RT_IOPORTS) {
       res = rman_alloc_resource(&gtpci->pci_io_rman, start, end, bar->size,
                                 bar->size, flags, dev);
-      if (res == NULL)
-        return NULL;
-      res->r_bus_addr = gtpci->pci_io->r_start;
+      bh = gtpci->pci_io->r_start;
     } else {
       panic("Unknown PCI device type: %d", type);
     }
 
-    device_add_resource(dev, res, rid, mips_bus_space_generic);
+    if (res == NULL)
+      return NULL;
+
+    res->r_bus_tag = mips_bus_space_generic;
+    res->r_bus_handle = bh;
+    device_add_resource(dev, res, rid);
 
     /* Write BAR address to PCI device register. */
     if (!(flags & RF_ACTIVATED)) {

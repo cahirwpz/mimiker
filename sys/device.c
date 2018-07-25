@@ -53,10 +53,8 @@ device_t *make_device(device_t *parent, driver_t *driver) {
   return dev;
 }
 
-void device_add_resource(device_t *dev, resource_t *r, int rid,
-                         bus_space_t *bus_space) {
+void device_add_resource(device_t *dev, resource_t *r, int rid) {
   r->r_owner = dev;
   r->r_id = rid;
-  r->r_bus_space = bus_space;
   TAILQ_INSERT_HEAD(&dev->resources, r, r_device);
 }

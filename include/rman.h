@@ -4,7 +4,7 @@
 #include <common.h>
 #include <mutex.h>
 #include <queue.h>
-#include <_bus.h>
+#include <machine/_bus.h>
 
 /* TODO: remove RT_ISA after ISA-bridge driver is implemented */
 typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_ISA } res_type_t;
@@ -28,17 +28,17 @@ typedef enum {
 } res_flags_t;
 
 struct resource {
-  bus_space_t *r_bus_space;       /* bus space accessor descriptor */
-  bus_addr_t r_bus_addr;          /* bus space base address */
-  device_t *r_owner;              /* device that owns this resource */
-  rman_t *r_rman;                 /* resource manager of this resource */
-  rman_addr_t r_start;            /* first physical address of the resource */
-  rman_addr_t r_end;              /* last (inclusive) physical address */
-  res_type_t r_type;              /* one of RT_* */
-  res_flags_t r_flags;            /* or'ed RF_* values */
-  int r_id;                       /* (optional) resource identifier */
-  TAILQ_ENTRY(resource) r_link;   /* link on resource manager list */
-  TAILQ_ENTRY(resource) r_device; /* resources assigned to `r_owner` */
+  bus_space_tag_t r_bus_tag;       /* bus space methods */
+  bus_space_handle_t r_bus_handle; /* bus space base address */
+  device_t *r_owner;               /* device that owns this resource */
+  rman_t *r_rman;                  /* resource manager of this resource */
+  rman_addr_t r_start;             /* first physical address of the resource */
+  rman_addr_t r_end;               /* last (inclusive) physical address */
+  res_type_t r_type;               /* one of RT_* */
+  res_flags_t r_flags;             /* or'ed RF_* values */
+  int r_id;                        /* (optional) resource identifier */
+  TAILQ_ENTRY(resource) r_link;    /* link on resource manager list */
+  TAILQ_ENTRY(resource) r_device;  /* resources assigned to `r_owner` */
 };
 
 #define RESOURCE_DECLARE(name) extern resource_t name[1]
