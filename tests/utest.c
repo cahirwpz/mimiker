@@ -53,8 +53,8 @@ static void utest_generic_thread(void *arg) {
                            .stack_byte_cnt = bytes_written};
 
   run_program(&exec_args);
- end:
- kfree(M_TEMP, arg_blob);
+end:
+  kfree(M_TEMP, arg_blob);
 }
 
 /* This is the klog mask used with utests. */
