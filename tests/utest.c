@@ -26,7 +26,9 @@ static void utest_generic_thread(void *arg) {
                                roundup(strlen(test_name) + 1, 4),
                              8);
 
-  int8_t arg_blob[blob_size];
+  /* size_t blob_size = ARG_MAX;*/
+  int8_t *arg_blob = kmalloc(M_TEMP, blob_size, 0);
+  /*int8_t arg_blob[blob_size];*/
   int result;
 
   /*  size_t blob_size = ARG_MAX; */
@@ -42,7 +44,7 @@ static void utest_generic_thread(void *arg) {
 
   result = kspace_setup_exec_stack(argv, arg_blob, blob_size, &bytes_written);
   if (result < 0)
-    return;
+    goto end;
 
   assert(bytes_written == blob_size);
 
@@ -51,8 +53,8 @@ static void utest_generic_thread(void *arg) {
                            .stack_byte_cnt = bytes_written};
 
   run_program(&exec_args);
-
-  // kfree(M_TEMP, arg_blob);
+ end:
+ kfree(M_TEMP, arg_blob);
 }
 
 /* This is the klog mask used with utests. */

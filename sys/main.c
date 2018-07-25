@@ -26,13 +26,13 @@ int main(void) {
     /* run_program(&init_args); */
 
     const char *argv[] = {init, NULL};
-    /* const size_t blob_size = */
-    /*   roundup(sizeof(size_t) + sizeof(char*) + roundup( strlen(init) + 1, 4),
-     * 8); */
+    const size_t blob_size =
+      roundup(sizeof(size_t) + sizeof(char*) + roundup( strlen(init) + 1, 4),
+    8);
 
     /* int8_t arg_blob[blob_size]; */
 
-    const size_t blob_size = ARG_MAX;
+    /*    const size_t blob_size = ARG_MAX;*/
     int8_t *arg_blob = kmalloc(M_TEMP, blob_size, 0);
     int result;
 
