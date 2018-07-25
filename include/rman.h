@@ -65,14 +65,13 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
 
 void rman_release_resource(resource_t *r);
 
-/* !\brief Create and initialize new rman.
+/* !\brief Initializes resource manager for further use.
  *
  * \param type specifies type of resources managed by this rman.
  */
-void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                 res_type_t type);
+void rman_init(rman_t *rm, rman_addr_t start, rman_addr_t end, res_type_t type);
 
-/* !\brief Consume resource for exclusive use of new rman. */
-void rman_create_from_resource(rman_t *rm, resource_t *res);
+/* !\brief Consume resource for exclusive use by resource manager. */
+void rman_init_from_resource(rman_t *rm, resource_t *res);
 
 #endif /* _SYS_RMAN_H_ */
