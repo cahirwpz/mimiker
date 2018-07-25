@@ -81,27 +81,25 @@ struct bus_space {
 
 /* Simplified versions of the above, which take only a pointer to resource. */
 #define __bus_read(r, o, sz)                                                   \
-  __bs_read((r)->r_bus_tag, (r)->r_bus_handle, (o) + (r)->r_start, sz)
+  __bs_read((r)->r_bus_tag, (r)->r_bus_handle, (o), sz)
 #define bus_read_1(r, o) __bus_read(r, o, 1)
 #define bus_read_2(r, o) __bus_read(r, o, 2)
 #define bus_read_4(r, o) __bus_read(r, o, 4)
 
 #define __bus_write(r, o, v, sz)                                               \
-  __bs_write((r)->r_bus_tag, (r)->r_bus_handle, (o) + (r)->r_start, (v), sz)
+  __bs_write((r)->r_bus_tag, (r)->r_bus_handle, (o), (v), sz)
 #define bus_write_1(r, o, v) __bus_write(r, o, v, 1)
 #define bus_write_2(r, o, v) __bus_write(r, o, v, 2)
 #define bus_write_4(r, o, v) __bus_write(r, o, v, 4)
 
 #define __bus_read_region(r, o, dst, cnt, sz)                                  \
-  __bs_write((r)->r_bus_tag, (r)->r_bus_handle, (o) + (r)->r_start, (dst),     \
-             (cnt), sz)
+  __bs_write((r)->r_bus_tag, (r)->r_bus_handle, (o), (dst), (cnt), sz)
 #define bus_read_region_1(r, o, dst, cnt) __bus_read_region(r, o, dst, cnt, 1)
 #define bus_read_region_2(r, o, dst, cnt) __bus_read_region(r, o, dst, cnt, 2)
 #define bus_read_region_4(r, o, dst, cnt) __bus_read_region(r, o, dst, cnt, 4)
 
 #define __bus_write_region(r, o, src, cnt, sz)                                 \
-  __bs_write_region((r)->r_bus_tag, (r)->r_bus_handle, (o) + (r)->r_start,     \
-                    (src), (cnt), sz)
+  __bs_write_region((r)->r_bus_tag, (r)->r_bus_handle, (o), (src), (cnt), sz)
 #define bus_write_region_1(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 1)
 #define bus_write_region_2(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 2)
 #define bus_write_region_4(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 4)

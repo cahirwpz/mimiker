@@ -99,7 +99,7 @@ static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
 
   if (r) {
     r->r_bus_tag = &generic_space;
-    r->r_bus_handle = 0; /* XXX should it be something else? */
+    r->r_bus_handle = r->r_start; /* XXX should it be something else? */
     device_add_resource(child, r, rid);
   }
 

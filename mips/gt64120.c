@@ -321,7 +321,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
     if (res == NULL)
       return NULL;
     res->r_bus_tag = mips_bus_space_generic;
-    res->r_bus_handle = gtpci->isa_io->r_start;
+    res->r_bus_handle = gtpci->isa_io->r_start + res->r_start;
     device_add_resource(dev, res, rid);
   } else {
     /* Now handle only PCI devices. */
@@ -355,7 +355,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
       return NULL;
 
     res->r_bus_tag = mips_bus_space_generic;
-    res->r_bus_handle = bh;
+    res->r_bus_handle = bh + res->r_start;
     device_add_resource(dev, res, rid);
 
     /* Write BAR address to PCI device register. */
