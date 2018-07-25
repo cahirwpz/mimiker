@@ -360,7 +360,7 @@ static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
 
     /* Write BAR address to PCI device register. */
     if (!(flags & RF_ACTIVATED)) {
-      pci_write_config(dev, PCIR_BAR(rid), 4, res->r_start);
+      pci_write_config(dev, PCIR_BAR(rid), 4, res->r_bus_handle);
       res->r_flags |= RF_ACTIVATED;
     }
   }
