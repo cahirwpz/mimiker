@@ -45,6 +45,7 @@ struct resource {
 
 struct rman {
   mtx_t rm_lock;           /* protects all fields of resource manager */
+  const char *rm_name;     /* description of the resource manager */
   rman_addr_t rm_start;    /* first physical address */
   rman_addr_t rm_end;      /* last physical adress */
   res_list_t rm_resources; /* all managed resources */
@@ -69,6 +70,7 @@ void rman_release_resource(resource_t *r);
  *
  * \param type specifies type of resources managed by this rman.
  */
-void rman_init(rman_t *rm, rman_addr_t start, rman_addr_t end, res_type_t type);
+void rman_init(rman_t *rm, const char *name, rman_addr_t start, rman_addr_t end,
+               res_type_t type);
 
 #endif /* _SYS_RMAN_H_ */

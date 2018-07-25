@@ -96,8 +96,9 @@ void rman_release_resource(resource_t *r) {
     TAILQ_REMOVE(&rm->rm_resources, r, r_link);
 }
 
-void rman_init(rman_t *rm, rman_addr_t start, rman_addr_t end,
+void rman_init(rman_t *rm, const char *name, rman_addr_t start, rman_addr_t end,
                res_type_t type) {
+  rm->rm_name = name;
   rm->rm_start = start;
   rm->rm_end = end;
   rm->rm_type = type;
