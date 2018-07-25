@@ -105,7 +105,3 @@ void rman_init(rman_t *rm, rman_addr_t start, rman_addr_t end,
   mtx_init(&rm->rm_lock, MTX_DEF);
   TAILQ_INIT(&rm->rm_resources);
 }
-
-void rman_init_from_resource(rman_t *rm, resource_t *res) {
-  rman_init(rm, 0, res->r_end - res->r_start, res->r_type);
-}

@@ -71,7 +71,4 @@ void rman_release_resource(resource_t *r);
  */
 void rman_init(rman_t *rm, rman_addr_t start, rman_addr_t end, res_type_t type);
 
-/* !\brief Consume resource for exclusive use by resource manager. */
-void rman_init_from_resource(rman_t *rm, resource_t *res);
-
 #endif /* _SYS_RMAN_H_ */

@@ -261,9 +261,9 @@ static int gt_pci_attach(device_t *pcib) {
     panic("gt64120 resource allocation fail");
   }
 
-  rman_init_from_resource(&gtpci->pci_io_rman, gtpci->pci_io);
-  rman_init_from_resource(&gtpci->pci_mem_rman, gtpci->pci_mem);
-  rman_init_from_resource(&gtpci->isa_io_rman, gtpci->isa_io);
+  rman_init(&gtpci->isa_io_rman, 0, 0xfff, RT_IOPORTS);
+  rman_init(&gtpci->pci_io_rman, 0, 0xefff, RT_MEMORY);
+  rman_init(&gtpci->pci_mem_rman, 0, MALTA_PCI0_MEMORY_SIZE, RT_MEMORY);
 
   pcib->bus = DEV_BUS_PCI;
 
