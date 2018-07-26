@@ -1,3 +1,5 @@
+#define KL_LOG KL_FILESYS
+#include <klog.h>
 #include <devfs.h>
 #include <mount.h>
 #include <vnode.h>
@@ -69,6 +71,8 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
       return -EEXIST;
     TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
   }
+
+  klog("devfs: registered '%s' device", name);
 
   return 0;
 }

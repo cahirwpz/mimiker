@@ -4,6 +4,7 @@
 #include <common.h>
 #include <mutex.h>
 #include <queue.h>
+#include <machine/_bus.h>
 
 /* TODO: remove RT_ISA after ISA-bridge driver is implemented */
 typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_ISA } res_type_t;
@@ -22,26 +23,29 @@ typedef enum {
    * resource contains locations with read side-effects or locations in which
    * the device does not tolerate write merging. */
   RF_PREFETCHABLE = 1,
-  RF_SHARED = 2, /* XXX: this flag does nothing right now */
-  RF_ACTIVATED = 4,
+  RF_SHAREABLE = 2, /* XXX: this flag does nothing right now */
+  RF_ACTIVE = 4,
 } res_flags_t;
 
 struct resource {
-  bus_space_t *r_bus_space;       /* bus space accessor descriptor */
-  device_t *r_owner;              /* device that owns this resource */
-  rman_addr_t r_start;            /* first physical address of the resource */
-  rman_addr_t r_end;              /* last (inclusive) physical address */
-  res_type_t r_type;              /* one of RT_* */
-  res_flags_t r_flags;            /* or'ed RF_* values */
-  int r_id;                       /* (optional) resource identifier */
-  TAILQ_ENTRY(resource) r_link;   /* link on resource manager list */
-  TAILQ_ENTRY(resource) r_device; /* resources assigned to `r_owner` */
+  bus_space_tag_t r_bus_tag;       /* bus space methods */
+  bus_space_handle_t r_bus_handle; /* bus space base address */
+  device_t *r_owner;               /* device that owns this resource */
+  rman_t *r_rman;                  /* resource manager of this resource */
+  rman_addr_t r_start;             /* first physical address of the resource */
+  rman_addr_t r_end;               /* last (inclusive) physical address */
+  res_type_t r_type;               /* one of RT_* */
+  res_flags_t r_flags;             /* or'ed RF_* values */
+  int r_id;                        /* (optional) resource identifier */
+  TAILQ_ENTRY(resource) r_link;    /* link on resource manager list */
+  TAILQ_ENTRY(resource) r_device;  /* resources assigned to `r_owner` */
 };
 
 #define RESOURCE_DECLARE(name) extern resource_t name[1]
 
 struct rman {
   mtx_t rm_lock;           /* protects all fields of resource manager */
+  const char *rm_name;     /* description of the resource manager */
   rman_addr_t rm_start;    /* first physical address */
   rman_addr_t rm_end;      /* last physical adress */
   res_list_t rm_resources; /* all managed resources */
@@ -60,14 +64,18 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
                                 size_t count, size_t bound, res_flags_t flags,
                                 device_t *dev);
 
-/* !\brief Create and initialize new rman.
- *
- * \param type specifies type of resources managed by this rman.
- */
-void rman_create(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                 res_type_t type);
+/*! \brief Removes a resource from its resource manager and releases memory. */
+void rman_release_resource(resource_t *r);
+/*! \brief Mark resource as ready to be used with bus_space interface. */
+void rman_activate_resource(resource_t *r);
 
-/* !\brief Consume resource for exclusive use of new rman. */
-void rman_create_from_resource(rman_t *rm, resource_t *res);
+/*! \brief Calculate resource size. */
+static inline bus_size_t rman_get_size(resource_t *r) {
+  return r->r_end - r->r_start + 1;
+}
+
+/* !\brief Initializes resource manager for further use. */
+void rman_init(rman_t *rm, const char *name, rman_addr_t start, rman_addr_t end,
+               res_type_t type);
 
 #endif /* _SYS_RMAN_H_ */
