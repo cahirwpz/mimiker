@@ -121,7 +121,7 @@ static int atkbdc_probe(device_t *dev) {
 
   /* TODO: Implement resource deallocation in rman.
    * When probe is not successful, driver should release claimed resources. */
-  resource_t *regs = bus_resource_alloc(dev, RT_ISA, 0, IO_KBD,
+  resource_t *regs = bus_alloc_resource(dev, RT_ISA, 0, IO_KBD,
                                         IO_KBD + IO_KBDSIZE - 1, IO_KBDSIZE, 0);
   assert(regs != NULL);
 
@@ -141,7 +141,7 @@ static int atkbdc_probe(device_t *dev) {
   if (read_data(regs) != KBD_ACK)
     return 0;
 
-  bus_resource_release(dev, RT_ISA, 0, regs);
+  bus_release_resource(dev, RT_ISA, 0, regs);
 
   return 1;
 }
@@ -156,7 +156,7 @@ static int atkbdc_attach(device_t *dev) {
 
   mtx_init(&atkbdc->mtx, MTX_DEF);
   cv_init(&atkbdc->nonempty, "AT keyboard buffer non-empty");
-  atkbdc->regs = bus_resource_alloc(dev, RT_ISA, 0, IO_KBD,
+  atkbdc->regs = bus_alloc_resource(dev, RT_ISA, 0, IO_KBD,
                                     IO_KBD + IO_KBDSIZE - 1, IO_KBDSIZE, 0);
   assert(atkbdc->regs != NULL);
 

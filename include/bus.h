@@ -136,11 +136,13 @@ void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
 struct bus_methods {
   void (*intr_setup)(device_t *dev, unsigned num, intr_handler_t *handler);
   void (*intr_teardown)(device_t *dev, intr_handler_t *handler);
-  resource_t *(*resource_alloc)(device_t *bus, device_t *child, res_type_t type,
+  resource_t *(*alloc_resource)(device_t *bus, device_t *child, res_type_t type,
                                 int rid, rman_addr_t start, rman_addr_t end,
                                 size_t size, res_flags_t flags);
-  void (*resource_release)(device_t *bus, device_t *child, res_type_t type,
+  void (*release_resource)(device_t *bus, device_t *child, res_type_t type,
                            int rid, resource_t *r);
+  void (*activate_resource)(device_t *bus, device_t *child, res_type_t type,
+                            int rid, resource_t *r);
 };
 
 struct bus_driver {
@@ -168,11 +170,11 @@ static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
  * \param rid resource identifier as in \a resource_t structure
  * \param flags RF_* flags defined in rman.h
  */
-static inline resource_t *bus_resource_alloc(device_t *dev, res_type_t type,
+static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
                                              int rid, rman_addr_t start,
                                              rman_addr_t end, size_t size,
                                              res_flags_t flags) {
-  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, start,
+  return BUS_DRIVER(dev)->bus.alloc_resource(dev->parent, dev, type, rid, start,
                                              end, size, flags);
 }
 
@@ -181,29 +183,34 @@ static inline resource_t *bus_resource_alloc(device_t *dev, res_type_t type,
  * Basically the same as \sa bus_resource_alloc, but resource placement in
  * memory is chosen by the parent bus.
  */
-static inline resource_t *bus_resource_alloc_anywhere(device_t *dev,
+static inline resource_t *bus_alloc_resource_anywhere(device_t *dev,
                                                       res_type_t type, int rid,
                                                       size_t size,
                                                       res_flags_t flags) {
-  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0,
+  return BUS_DRIVER(dev)->bus.alloc_resource(dev->parent, dev, type, rid, 0,
                                              RMAN_ADDR_MAX, size, flags);
 }
 
 /*! \brief Allocates resource for a device.
  *
- * Basically the same as \sa bus_resource_alloc_anywhere, but resource
+ * Basically the same as \sa bus_alloc_resource_anywhere, but resource
  * has to be identifiable by parent bus driver by \param rid.
  */
-static inline resource_t *bus_resource_alloc_any(device_t *dev, res_type_t type,
+static inline resource_t *bus_alloc_resource_any(device_t *dev, res_type_t type,
                                                  int rid, res_flags_t flags) {
 
-  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0,
+  return BUS_DRIVER(dev)->bus.alloc_resource(dev->parent, dev, type, rid, 0,
                                              RMAN_ADDR_MAX, 1, flags);
 }
 
-static inline void bus_resource_release(device_t *dev, res_type_t type, int rid,
+static inline void bus_activate_resource(device_t *dev, res_type_t type,
+                                         int rid, resource_t *r) {
+  BUS_DRIVER(dev)->bus.activate_resource(dev->parent, dev, type, rid, r);
+}
+
+static inline void bus_release_resource(device_t *dev, res_type_t type, int rid,
                                         resource_t *r) {
-  BUS_DRIVER(dev)->bus.resource_release(dev->parent, dev, type, rid, r);
+  BUS_DRIVER(dev)->bus.release_resource(dev->parent, dev, type, rid, r);
 }
 
 int bus_generic_probe(device_t *bus);

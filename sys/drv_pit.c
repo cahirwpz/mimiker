@@ -111,7 +111,7 @@ static int pit_attach(device_t *dev) {
 
   pit_state_t *pit = dev->state;
 
-  pit->regs = bus_resource_alloc(dev, RT_ISA, 0, IO_TIMER1,
+  pit->regs = bus_alloc_resource(dev, RT_ISA, 0, IO_TIMER1,
                                  IO_TIMER1 + IO_TMRSIZE - 1, IO_TMRSIZE, 0);
   assert(pit->regs != NULL);
 

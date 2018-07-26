@@ -63,7 +63,7 @@ bus_space_t *rootdev_bus_space = &(bus_space_t){
 };
 /* clang-format on */
 
-static resource_t *rootdev_resource_alloc(device_t *bus, device_t *child,
+static resource_t *rootdev_alloc_resource(device_t *bus, device_t *child,
                                           res_type_t type, int rid,
                                           rman_addr_t start, rman_addr_t end,
                                           size_t size, res_flags_t flags) {
@@ -90,7 +90,7 @@ static bus_driver_t rootdev_driver = {
     },
   .bus = {.intr_setup = rootdev_intr_setup,
           .intr_teardown = rootdev_intr_teardown,
-          .resource_alloc = rootdev_resource_alloc}};
+          .alloc_resource = rootdev_alloc_resource}};
 
 static device_t rootdev = (device_t){
   .children = TAILQ_HEAD_INITIALIZER(rootdev.children),
