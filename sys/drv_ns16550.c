@@ -21,13 +21,8 @@ typedef struct ns16550_state {
   resource_t *regs;
 } ns16550_state_t;
 
-static uint8_t in(resource_t *regs, unsigned offset) {
-  return bus_space_read_1(regs, offset);
-}
-
-static void out(resource_t *regs, unsigned offset, uint8_t value) {
-  bus_space_write_1(regs, offset, value);
-}
+#define in(regs, offset) bus_read_1((regs), (offset))
+#define out(regs, offset, value) bus_write_1((regs), (offset), (value))
 
 static void set(resource_t *regs, unsigned offset, uint8_t mask) {
   out(regs, offset, in(regs, offset) | mask);
@@ -86,8 +81,16 @@ static int uart_write(vnode_t *v, uio_t *uio) {
   return 0;
 }
 
+static int uart_close(vnode_t *v, file_t *fp) {
+  /* TODO release resources */
+  return 0;
+}
+
 static vnodeops_t dev_uart_ops = {
-  .v_open = vnode_open_generic, .v_write = uart_write, .v_read = uart_read,
+  .v_open = vnode_open_generic,
+  .v_write = uart_write,
+  .v_read = uart_read,
+  .v_close = uart_close,
 };
 
 static intr_filter_t ns16550_intr(void *data) {
@@ -134,8 +137,8 @@ static int ns16550_attach(device_t *dev) {
   cv_init(&ns16550->tx_nonfull, "UART transmit buffer not full");
 
   /* TODO Small hack to select COM1 UART */
-  ns16550->regs = bus_resource_alloc(dev, RT_ISA, 0, IO_COM1,
-                                     IO_COM1 + IO_COMSIZE - 1, IO_COMSIZE, 0);
+  ns16550->regs = bus_alloc_resource(
+    dev, RT_ISA, 0, IO_COM1, IO_COM1 + IO_COMSIZE - 1, IO_COMSIZE, RF_ACTIVE);
   assert(ns16550->regs != NULL);
   ns16550->intr_handler =
     INTR_HANDLER_INIT(ns16550_intr, NULL, ns16550, "NS16550 UART", 0);
