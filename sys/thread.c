@@ -1,5 +1,6 @@
 #define KL_LOG KL_THREAD
 #include <klog.h>
+#include <pool.h>
 #include <malloc.h>
 #include <physmem.h>
 #include <thread.h>
@@ -12,7 +13,7 @@
 #include <turnstile.h>
 #include <mips/exc.h>
 
-static MALLOC_DEFINE(M_THREAD, "thread", 1, 2);
+static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t));
 
 typedef TAILQ_HEAD(, thread) thread_list_t;
 
@@ -68,11 +69,11 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   /* Firstly recycle some threads to free up memory. */
   thread_reap();
 
-  thread_t *td = kmalloc(M_THREAD, sizeof(thread_t), M_ZERO);
+  thread_t *td = pool_alloc(P_THREAD, PF_ZERO);
 
   td->td_sleepqueue = sleepq_alloc();
   td->td_turnstile = turnstile_alloc();
-  td->td_name = kstrndup(M_THREAD, name, TD_NAME_MAX);
+  td->td_name = kstrndup(M_STR, name, TD_NAME_MAX);
   td->td_tid = make_tid();
   td->td_kstack_obj = pm_alloc(1);
   td->td_kstack.stk_base = PG_KSEG0_ADDR(td->td_kstack_obj);
@@ -109,8 +110,8 @@ void thread_delete(thread_t *td) {
 
   sleepq_destroy(td->td_sleepqueue);
   turnstile_destroy(td->td_turnstile);
-  kfree(M_THREAD, td->td_name);
-  kfree(M_THREAD, td);
+  kfree(M_STR, td->td_name);
+  pool_free(P_THREAD, td);
 }
 
 thread_t *thread_self(void) {

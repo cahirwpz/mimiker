@@ -51,18 +51,18 @@ typedef struct stdvga_state {
 #define VGA_QEMU_STDVGA_DEVICE_ID 0x1111
 
 static void stdvga_io_write(stdvga_state_t *vga, uint16_t reg, uint8_t value) {
-  bus_space_write_1(vga->io, reg + VGA_MMIO_OFFSET, value);
+  bus_write_1(vga->io, reg + VGA_MMIO_OFFSET, value);
 }
 static uint8_t __unused stdvga_io_read(stdvga_state_t *vga, uint16_t reg) {
-  return bus_space_read_1(vga->io, reg + VGA_MMIO_OFFSET);
+  return bus_read_1(vga->io, reg + VGA_MMIO_OFFSET);
 }
 static void stdvga_vbe_write(stdvga_state_t *vga, uint16_t reg,
                              uint16_t value) {
   /* <<1 shift enables access to 16-bit registers. */
-  bus_space_write_2(vga->io, (reg << 1) + VBE_MMIO_OFFSET, value);
+  bus_write_2(vga->io, (reg << 1) + VBE_MMIO_OFFSET, value);
 }
 static uint16_t stdvga_vbe_read(stdvga_state_t *vga, uint16_t reg) {
-  return bus_space_read_2(vga->io, (reg << 1) + VBE_MMIO_OFFSET);
+  return bus_read_2(vga->io, (reg << 1) + VBE_MMIO_OFFSET);
 }
 
 static void stdvga_palette_write_single(stdvga_state_t *stdvga, uint8_t offset,
@@ -140,8 +140,8 @@ static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
     uiomove_frombuf(stdvga->fb_buffer, stdvga->width * stdvga->height, uio);
   if (error)
     return error;
-  bus_space_write_region_1(stdvga->mem, 0, stdvga->fb_buffer,
-                           stdvga->width * stdvga->height);
+  bus_write_region_1(stdvga->mem, 0, stdvga->fb_buffer,
+                     stdvga->width * stdvga->height);
   return 0;
 }
 
@@ -171,11 +171,12 @@ static int stdvga_attach(device_t *dev) {
 
   stdvga_state_t *stdvga = dev->state;
 
-  stdvga->mem = bus_resource_alloc_any(dev, RT_MEMORY, 0, RF_PREFETCHABLE);
-  stdvga->io = bus_resource_alloc_any(dev, RT_MEMORY, 2, 0);
+  stdvga->mem =
+    bus_alloc_resource_any(dev, RT_MEMORY, 0, RF_ACTIVE | RF_PREFETCHABLE);
+  stdvga->io = bus_alloc_resource_any(dev, RT_MEMORY, 2, RF_ACTIVE);
 
-  assert(stdvga->mem);
-  assert(stdvga->io);
+  assert(stdvga->mem != NULL);
+  assert(stdvga->io != NULL);
 
   stdvga->vga = (vga_device_t){
     .palette_write = stdvga_palette_write,

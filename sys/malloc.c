@@ -258,3 +258,4 @@ void kmem_destroy(kmem_pool_t *mp) {
 }
 
 MALLOC_DEFINE(M_TEMP, "temporaries pool", 2, 4);
+MALLOC_DEFINE(M_STR, "strings", 2, 4);

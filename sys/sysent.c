@@ -16,6 +16,7 @@
 #include <wait.h>
 #include <time.h>
 #include <pipe.h>
+#include <malloc.h>
 #include <syslimits.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */

@@ -1,7 +1,7 @@
 #define KL_LOG KL_FILESYS
 #include <klog.h>
 #include <errno.h>
-#include <malloc.h>
+#include <pool.h>
 #include <stdc.h>
 #include <cpio.h>
 #include <initrd.h>
@@ -11,8 +11,6 @@
 #include <vfs.h>
 #include <linker_set.h>
 #include <dirent.h>
-
-static MALLOC_DEFINE(M_INITRD, "initrd", 16, 16);
 
 typedef uint32_t cpio_dev_t;
 typedef uint32_t cpio_ino_t;
@@ -45,6 +43,8 @@ struct cpio_node {
   vnode_t *c_vnode;
 };
 
+static POOL_DEFINE(P_INITRD, "initrd", sizeof(cpio_node_t));
+
 static cpio_list_t initrd_head = TAILQ_HEAD_INITIALIZER(initrd_head);
 static cpio_node_t *root_node;
 static vnodeops_t initrd_vops;
@@ -55,7 +55,7 @@ extern int8_t __rd_end[];
 extern char *kenv_get(const char *key);
 
 static cpio_node_t *cpio_node_alloc(void) {
-  cpio_node_t *node = kmalloc(M_INITRD, sizeof(cpio_node_t), M_ZERO);
+  cpio_node_t *node = pool_alloc(P_INITRD, PF_ZERO);
   TAILQ_INIT(&node->c_children);
   return node;
 }
@@ -133,7 +133,7 @@ static void read_cpio_archive(void) {
     cpio_node_t *node = cpio_node_alloc();
     if (!read_cpio_header(&tape, node) ||
         strcmp(node->c_path, CPIO_TRAILER) == 0) {
-      kfree(M_INITRD, node);
+      pool_free(P_INITRD, node);
       break;
     }
 

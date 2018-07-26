@@ -12,8 +12,8 @@
 #include <vnode.h>
 #include <sysinit.h>
 
-#define RTC_ADDR (IO_RTC + 0)
-#define RTC_DATA (IO_RTC + 1)
+#define RTC_ADDR 0
+#define RTC_DATA 1
 
 #define RTC_ASCTIME_SIZE 32
 
@@ -26,20 +26,20 @@ typedef struct rtc_state {
 
 /*
  * TODO This way of handling MC146818 RTC device is specific to ISA bus.
- * Registers should be accessible with single bus_space_{read,write}_1
+ * Registers should be accessible with single res_{read,write}_1
  * operations on 16 bytes wide bus.
  *
  * Hopefully this design issue will get resolved after more work is put into
  * resource management and ISA bus driver.
  */
 static inline uint8_t rtc_read(resource_t *regs, unsigned addr) {
-  bus_space_write_1(regs, RTC_ADDR, addr);
-  return bus_space_read_1(regs, RTC_DATA);
+  bus_write_1(regs, RTC_ADDR, addr);
+  return bus_read_1(regs, RTC_DATA);
 }
 
 static inline void rtc_write(resource_t *regs, unsigned addr, uint8_t value) {
-  bus_space_write_1(regs, RTC_ADDR, addr);
-  bus_space_write_1(regs, RTC_DATA, value);
+  bus_write_1(regs, RTC_ADDR, addr);
+  bus_write_1(regs, RTC_DATA, value);
 }
 
 static inline void rtc_setb(resource_t *regs, unsigned addr, uint8_t mask) {
@@ -90,7 +90,9 @@ static int rtc_attach(device_t *dev) {
 
   rtc_state_t *rtc = dev->state;
 
-  rtc->regs = bus_resource_alloc_any(dev, RT_ISA, 0, RF_SHARED);
+  rtc->regs = bus_alloc_resource(
+    dev, RT_ISA, 0, IO_RTC, IO_RTC + IO_RTCSIZE - 1, IO_RTCSIZE, RF_ACTIVE);
+  assert(rtc->regs != NULL);
 
   rtc->intr_handler =
     INTR_HANDLER_INIT(rtc_intr, NULL, rtc, "RTC periodic timer", 0);

@@ -9,15 +9,6 @@ typedef struct sleepq sleepq_t;
 
 /*! \file sleepq.h */
 
-/*! \typedef sq_wakeup_t
- * \brief Sleeping mode or wakeup reason.
- *
- * Used to return reason of wakeup from `_sleepq_wait` and select sleeping mode
- * in `_sleepq_wait`. For sleeping purposes given mode implies former modes,
- * i.e. sleep with timeout (`SQ_TIMEOUT`) is also abortable (`SQ_ABORT`).
- */
-typedef enum { SQ_NORMAL = 0, SQ_ABORT = 1, SQ_TIMEOUT = 2 } sq_wakeup_t;
-
 /*! \brief Initializes sleep queues.
  *
  * \warning To be called only from early kernel initialization! */
@@ -34,26 +25,20 @@ void sleepq_destroy(sleepq_t *sq);
  * \param wchan unique sleep queue identifier
  * \param waitpt caller associated with sleep action
  */
-#define sleepq_wait(wchan, waitpt)                                             \
-  ((void)_sleepq_wait(wchan, waitpt, SQ_NORMAL))
+void sleepq_wait(void *wchan, const void *waitpt);
 
-/*! \brief Same as \a sleepq_wait but allows the sleep to be aborted. */
-#define sleepq_wait_abortable(wchan, waitpt)                                   \
-  (_sleepq_wait(wchan, waitpt, SQ_ABORT))
+/*! \brief Same as \a sleepq_wait but allows the sleep to be interrupted. */
+#define sleepq_wait_intr(wchan, waitpt) sleepq_wait_timed((wchan), (waitpt), 0)
 
-/*! \brief Puts a thread to sleep until it's woken up or its sleep is aborted.
+/*! \brief Performs interruptible sleep with timeout.
  *
- * If sleep is abortable other threads can wake up forcefully the thread with \a
- * sleepq_abort procedure.
- */
-sq_wakeup_t _sleepq_wait(void *wchan, const void *waitpt, sq_wakeup_t sleep);
-
-/*! \brief Performs abortable sleep with timeout.
+ * Timed sleep is also interruptible. The only guarantee about timeout is that
+ * the thread's sleep will not timeout before the given time passes. It may
+ * happen any time after that point.
  *
- * \param timeout in system ticks must be greater than 0
+ * \param timeout in system ticks, if 0 waits indefinitely
  * \returns how the thread was actually woken up */
-sq_wakeup_t sleepq_wait_timed(void *wchan, const void *waitpt,
-                              systime_t timeout_ms);
+int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout);
 
 /*! \brief Wakes up highest priority thread waiting on \a wchan.
  *
