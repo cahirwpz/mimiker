@@ -241,17 +241,17 @@ static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
   /* PCI I/O memory */
-  gtpci->pci_mem =
-    bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE,
-                       MALTA_PCI0_MEMORY_END, MALTA_PCI0_MEMORY_SIZE, 0);
+  gtpci->pci_mem = bus_alloc_resource(
+    pcib, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END,
+    MALTA_PCI0_MEMORY_SIZE, RF_ACTIVE);
   /* PCI I/O ports 0x1000-0xffff */
   gtpci->pci_io =
     bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_PCI0_IO_BASE + 0x1000,
-                       MALTA_PCI0_IO_BASE + 0xffff, 0xf000, 0);
+                       MALTA_PCI0_IO_BASE + 0xffff, 0xf000, RF_ACTIVE);
   /* GT64120 registers */
   gtpci->corectrl =
     bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_CORECTRL_BASE,
-                       MALTA_CORECTRL_END, MALTA_CORECTRL_SIZE, 0);
+                       MALTA_CORECTRL_END, MALTA_CORECTRL_SIZE, RF_ACTIVE);
   /* ISA I/O ports 0x0000-0x0fff */
   gtpci->isa_io = bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_PCI0_IO_BASE,
                                      MALTA_PCI0_IO_BASE + 0xfff, 0x1000, 0);
@@ -322,12 +322,7 @@ static resource_t *gt_pci_alloc_resource(device_t *pcib, device_t *dev,
   if (type == RT_ISA) {
     r = rman_alloc_resource(&gtpci->isa_io_rman, start, end, size, size, flags,
                             dev);
-    if (r == NULL)
-      return NULL;
-    bh = gtpci->isa_io->r_start + r->r_start;
-    r->r_bus_tag = rootdev_bus_space;
-    bus_space_map(r->r_bus_tag, bh, 0, BUS_SPACE_MAP_LINEAR, &r->r_bus_handle);
-    device_add_resource(dev, r, rid);
+    bh = gtpci->isa_io->r_start;
   } else {
     /* Now handle only PCI devices. */
 
@@ -354,23 +349,16 @@ static resource_t *gt_pci_alloc_resource(device_t *pcib, device_t *dev,
     } else {
       panic("Unknown PCI device type: %d", type);
     }
-
-    if (r == NULL)
-      return NULL;
-
-    bh += r->r_start;
-    r->r_bus_tag = rootdev_bus_space;
-    bus_space_map(r->r_bus_tag, bh, r->r_end - r->r_start + 1,
-                  BUS_SPACE_MAP_LINEAR, &r->r_bus_handle);
-    device_add_resource(dev, r, rid);
-
-    /* Write BAR address to PCI device register. */
-    if (!(flags & RF_ACTIVATED)) {
-      pci_write_config(dev, PCIR_BAR(rid), 4, bh);
-      r->r_flags |= RF_ACTIVATED;
-    }
   }
 
+  if (r == NULL)
+    return NULL;
+
+  r->r_bus_handle = bh + r->r_start;
+  r->r_bus_tag = rootdev_bus_space;
+  if (flags & RF_ACTIVE)
+    bus_activate_resource(dev, type, rid, r);
+  device_add_resource(dev, r, rid);
   return r;
 }
 
@@ -379,15 +367,34 @@ static void gt_pci_release_resource(device_t *pcib, device_t *dev,
   rman_release_resource(r);
 }
 
+static void gt_pci_activate_resource(device_t *pcib, device_t *dev,
+                                     res_type_t type, int rid, resource_t *r) {
+  if (type == RT_MEMORY || type == RT_IOPORTS) {
+    /* Write BAR address to PCI device register. */
+    pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
+    rman_activate_resource(r);
+  }
+  bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+                BUS_SPACE_MAP_LINEAR, &r->r_bus_handle);
+}
+
+/* clang-format off */
 pci_bus_driver_t gt_pci_bus = {
-  .driver = {.desc = "GT-64120 PCI bus driver",
-             .size = sizeof(gt_pci_state_t),
-             .attach = gt_pci_attach},
-  .bus = {.intr_setup = gt_pci_intr_setup,
-          .intr_teardown = gt_pci_intr_teardown,
-          .alloc_resource = gt_pci_alloc_resource,
-          .release_resource = gt_pci_release_resource},
-  .pci_bus =
-    {
-      .read_config = gt_pci_read_config, .write_config = gt_pci_write_config,
-    }};
+  .driver = {
+    .desc = "GT-64120 PCI bus driver",
+    .size = sizeof(gt_pci_state_t),
+    .attach = gt_pci_attach
+  },
+  .bus = {
+    .intr_setup = gt_pci_intr_setup,
+    .intr_teardown = gt_pci_intr_teardown,
+    .alloc_resource = gt_pci_alloc_resource,
+    .release_resource = gt_pci_release_resource,
+    .activate_resource = gt_pci_activate_resource,
+  },
+  .pci_bus = {
+    .read_config = gt_pci_read_config,
+    .write_config = gt_pci_write_config,
+  }
+};
+/* clang-format on */

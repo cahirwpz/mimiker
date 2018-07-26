@@ -23,8 +23,8 @@ typedef enum {
    * resource contains locations with read side-effects or locations in which
    * the device does not tolerate write merging. */
   RF_PREFETCHABLE = 1,
-  RF_SHARED = 2, /* XXX: this flag does nothing right now */
-  RF_ACTIVATED = 4,
+  RF_SHAREABLE = 2, /* XXX: this flag does nothing right now */
+  RF_ACTIVE = 4,
 } res_flags_t;
 
 struct resource {
@@ -64,12 +64,17 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
                                 size_t count, size_t bound, res_flags_t flags,
                                 device_t *dev);
 
+/*! \brief Removes a resource from its resource manager and releases memory. */
 void rman_release_resource(resource_t *r);
+/*! \brief Mark resource as ready to be used with bus_space interface. */
+void rman_activate_resource(resource_t *r);
 
-/* !\brief Initializes resource manager for further use.
- *
- * \param type specifies type of resources managed by this rman.
- */
+/*! \brief Calculate resource size. */
+static inline bus_size_t rman_get_size(resource_t *r) {
+  return r->r_end - r->r_start + 1;
+}
+
+/* !\brief Initializes resource manager for further use. */
 void rman_init(rman_t *rm, const char *name, rman_addr_t start, rman_addr_t end,
                res_type_t type);
 

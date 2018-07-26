@@ -94,6 +94,15 @@ void rman_release_resource(resource_t *r) {
 
   WITH_MTX_LOCK (&rm->rm_lock)
     TAILQ_REMOVE(&rm->rm_resources, r, r_link);
+
+  pool_free(P_RES, r);
+}
+
+void rman_activate_resource(resource_t *r) {
+  rman_t *rm = r->r_rman;
+
+  WITH_MTX_LOCK (&rm->rm_lock)
+    r->r_flags |= RF_ACTIVE;
 }
 
 void rman_init(rman_t *rm, const char *name, rman_addr_t start, rman_addr_t end,
