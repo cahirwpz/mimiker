@@ -380,29 +380,26 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
     return -EFAULT;
 
   char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
-  int8_t *stack_image = kmalloc(M_TEMP, ARG_MAX, 0);
+  int8_t *stack = kmalloc(M_TEMP, ARG_MAX, 0);
 
-  int result = 0;
-
-  result = copyinstr(user_path, kern_path, PATH_MAX, 0);
+  int result = copyinstr(user_path, kern_path, PATH_MAX, 0);
   if (result < 0)
     goto end;
 
-  size_t byte_cnt;
-  result = uspace_setup_exec_stack(user_argv, stack_image, ARG_MAX, &byte_cnt);
+  size_t stack_size;
+  result = uspace_setup_exec_stack(user_argv, stack, ARG_MAX, &stack_size);
   if (result < 0)
     goto end;
 
-  const exec_args_t exec_args = {.prog_name = kern_path,
-                                 .stack_image = stack_image,
-                                 .stack_byte_cnt = byte_cnt};
+  const exec_args_t exec_args = {
+    .prog_name = kern_path, .stack_image = stack, .stack_size = stack_size};
 
   result = do_exec(&exec_args);
 
   klog("execve(\"%s\", ... )", kern_path);
 
 end:
-  kfree(M_TEMP, stack_image);
+  kfree(M_TEMP, stack);
   kfree(M_TEMP, kern_path);
 
   return result;

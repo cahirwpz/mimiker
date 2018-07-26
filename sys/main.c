@@ -20,38 +20,28 @@ int main(void) {
   (void)proc_create(thread_self(), NULL);
 
   if (init) {
-    /* exec_args_t init_args = { */
-    /*   .prog_name = init, .argc = 1, .argv = (const char *[]){init}}; */
-
-    /* run_program(&init_args); */
 
     const char *argv[] = {init, NULL};
-    const size_t blob_size = roundup(
+    const size_t max_stack_size = roundup(
       sizeof(size_t) + sizeof(char *) + roundup(strlen(init) + 1, 4), 8);
 
-    /* int8_t arg_blob[blob_size]; */
+    int8_t *stack = kmalloc(M_TEMP, max_stack_size, 0);
+    size_t stack_size;
 
-    /*    const size_t blob_size = ARG_MAX;*/
-    int8_t *arg_blob = kmalloc(M_TEMP, blob_size, 0);
-    int result;
-
-    size_t bytes_written;
-
-    result = kspace_setup_exec_stack(argv, arg_blob, blob_size, &bytes_written);
+    int result =
+      kspace_setup_exec_stack(argv, stack, max_stack_size, &stack_size);
     if (result < 0)
       goto end;
 
-    // kspace_stack_image_setup(argv, arg_blob, blob_size, &bytes_written);
+    assert(stack_size == max_stack_size);
 
-    // assert(bytes_written == blob_size);
-    exec_args_t init_args = {.prog_name = init,
-                             .stack_image = arg_blob,
-                             .stack_byte_cnt = bytes_written};
+    exec_args_t init_args = {
+      .prog_name = init, .stack_image = stack, .stack_size = stack_size};
 
     run_program(&init_args);
 
   end:
-    kfree(M_TEMP, arg_blob);
+    kfree(M_TEMP, stack);
     return result;
 
   } else if (test) {

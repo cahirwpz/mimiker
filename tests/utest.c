@@ -12,49 +12,31 @@
 #include <stack.h>
 
 static void utest_generic_thread(void *arg) {
-  /* exec_args_t exec_args = {.prog_name = "/bin/utest", */
-  /*                          .argc = 2, */
-  /*                          .argv = (const char *[]){"utest", test_name}}; */
-
-  /* run_program(&exec_args); */
 
   const char *test_name = arg;
   const char *argv[] = {"utest", test_name};
 
-  size_t blob_size = roundup(roundup(sizeof(size_t) + 2 * sizeof(char *), 8) +
-                               roundup(strlen("utest") + 1, 4) +
-                               roundup(strlen(test_name) + 1, 4),
-                             8);
+  size_t max_stack_size = roundup(
+    roundup(sizeof(size_t) + 2 * sizeof(char *), 8) +
+      roundup(strlen("utest") + 1, 4) + roundup(strlen(test_name) + 1, 4),
+    8);
 
-  /* size_t blob_size = ARG_MAX;*/
-  int8_t *arg_blob = kmalloc(M_TEMP, blob_size, 0);
-  /*int8_t arg_blob[blob_size];*/
-  int result;
+  int8_t *stack = kmalloc(M_TEMP, max_stack_size, 0);
+  size_t stack_size;
 
-  /*  size_t blob_size = ARG_MAX; */
-
-  /*  klog("@@@@@@@@@@@before kmalloc\n"); */
-
-  /* int8_t* arg_blob = kmalloc(M_TEMP, blob_size, 0); */
-
-  /*   klog("@@@@@@@@@@@after kmalloc\n"); */
-
-  /*  klog("@@@@@@@@@@@arg_blob is %x", arg_blob); */
-  size_t bytes_written;
-
-  result = kspace_setup_exec_stack(argv, arg_blob, blob_size, &bytes_written);
+  int result =
+    kspace_setup_exec_stack(argv, stack, max_stack_size, &stack_size);
   if (result < 0)
     goto end;
 
-  assert(bytes_written == blob_size);
+  assert(stack_size == max_stack_size);
 
-  exec_args_t exec_args = {.prog_name = "/bin/utest",
-                           .stack_image = arg_blob,
-                           .stack_byte_cnt = bytes_written};
+  exec_args_t exec_args = {
+    .prog_name = "/bin/utest", .stack_image = stack, .stack_size = stack_size};
 
   run_program(&exec_args);
 end:
-  kfree(M_TEMP, arg_blob);
+  kfree(M_TEMP, stack);
 }
 
 /* This is the klog mask used with utests. */

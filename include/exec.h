@@ -19,7 +19,7 @@ typedef struct exec_args {
   /* Program arguments. These will get copied to the stack of the
    * starting process. */
   int8_t *stack_image;
-  size_t stack_byte_cnt;
+  size_t stack_size;
   /* TODO: Environment */
 } exec_args_t;
 

@@ -40,11 +40,10 @@ typedef struct copy_ops {
   int (*cpystr)(const void *saddr, void *daddr, size_t len, size_t *lencopied);
 } copy_ops_t;
 
-static int stack_image_setup(const char **argv, int8_t *stack_image,
-                             size_t max_stack_size, size_t *stack_size,
-                             copy_ops_t co);
+int setup_exec_stack(const char **argv, int8_t *stack, size_t max_stack_size,
+                     size_t *stack_size, copy_ops_t co);
 
-void patch_blob(void *blob, size_t addr, bool add) {
+void patch_blob(void *blob, size_t addr) {
 
   size_t argc = ((size_t *)blob)[0];
   char **argv = (char **)(blob + sizeof(argc));
@@ -59,12 +58,13 @@ void patch_blob(void *blob, size_t addr, bool add) {
 
 void stack_user_entry_setup(const exec_args_t *args, vaddr_t *stack_bottom_p) {
 
-  size_t total_arg_size = args->stack_byte_cnt;
+  size_t total_arg_size = args->stack_size;
 
   assert((total_arg_size % 8) == 0);
   assert((*stack_bottom_p % 8) == 0);
+
   *stack_bottom_p = (*stack_bottom_p - total_arg_size);
-  patch_blob(args->stack_image, (size_t)(*stack_bottom_p), true);
+  patch_blob(args->stack_image, (size_t)(*stack_bottom_p));
   memcpy((uint8_t *)*stack_bottom_p, args->stack_image, total_arg_size);
 
   /* /\* TODO: Environment *\/ */
@@ -75,8 +75,8 @@ int uspace_setup_exec_stack(const char **user_argv, int8_t *stack,
 
   copy_ops_t from_uspace = {.cpybytes = copyin, .cpystr = copyinstr};
 
-  return stack_image_setup(user_argv, stack, max_stack_size, stack_size,
-                           from_uspace);
+  return setup_exec_stack(user_argv, stack, max_stack_size, stack_size,
+                          from_uspace);
 }
 
 int memcpy_wrapper(const void *src, void *dst, size_t dst_size) {
@@ -108,11 +108,11 @@ int kspace_setup_exec_stack(const char **kern_argv, int8_t *stack,
   copy_ops_t from_kspace = {.cpybytes = memcpy_wrapper,
                             .cpystr = strlcpy_wrapper};
 
-  return stack_image_setup(kern_argv, stack, max_stack_size, stack_size,
-                           from_kspace);
+  return setup_exec_stack(kern_argv, stack, max_stack_size, stack_size,
+                          from_kspace);
 }
 
-int copy_ptrs(const char **user_argv, int8_t *blob, size_t blob_size,
+int copy_ptrs(const char **user_argv, char **blob, size_t blob_size,
               size_t *argc_out, copy_ops_t co) {
 
   const char **kern_argv = (const char **)blob;
@@ -142,8 +142,8 @@ int copy_ptrs(const char **user_argv, int8_t *blob, size_t blob_size,
   return -E2BIG;
 }
 
-int copy_strings(size_t argc, const char **kern_argv, int8_t *dst,
-                 size_t dst_size, size_t *bytes_written, copy_ops_t co) {
+int copy_strings(size_t argc, char **kern_argv, int8_t *dst, size_t dst_size,
+                 size_t *bytes_written, copy_ops_t co) {
 
   size_t argsize, i = 0;
   int result;
@@ -166,40 +166,31 @@ int copy_strings(size_t argc, const char **kern_argv, int8_t *dst,
   return i < argc ? -E2BIG : 0;
 }
 
-int stack_image_setup(const char **argv, int8_t *stack_image,
-                      size_t max_stack_size, size_t *stack_size,
-                      copy_ops_t co) {
-
-  assert(sizeof(vaddr_t) == 4);
-  assert(sizeof(size_t) == 4);
-  assert(sizeof(char *) == 4);
-  assert(max_stack_size >= 4);
+int setup_exec_stack(const char **argv, int8_t *stack, size_t max_stack_size,
+                     size_t *stack_size, copy_ops_t co) {
 
   size_t argc;
-  const char **kern_argv = (const char **)(stack_image + sizeof(argc));
+  char **kern_argv = (char **)(stack + sizeof(argc));
 
-  int result = copy_ptrs(argv, (int8_t *)kern_argv,
-                         max_stack_size - sizeof(argc), &argc, co);
-
+  int result =
+    copy_ptrs(argv, kern_argv, max_stack_size - sizeof(argc), &argc, co);
   if (result < 0)
     return result;
 
   assert(argc > 0);
 
-  *stack_size = argc * sizeof(char *);
-  ((size_t *)stack_image)[0] = argc;
-  *stack_size += sizeof(argc);
-  *stack_size = roundup(*stack_size, 8);
+  ((size_t *)stack)[0] = argc;
+  *stack_size = roundup(argc * sizeof(char *) + sizeof(argc), 8);
 
-  int8_t *args = stack_image + *stack_size;
-  size_t arguments_size;
+  int8_t *arg_blob_start = stack + *stack_size;
+  size_t arg_blob_size;
 
-  result = copy_strings(argc, kern_argv, args, max_stack_size - *stack_size,
-                        &arguments_size, co);
+  result = copy_strings(argc, kern_argv, arg_blob_start,
+                        max_stack_size - *stack_size, &arg_blob_size, co);
   if (result < 0)
     return result;
 
-  *stack_size = roundup(*stack_size + arguments_size, 8);
+  *stack_size = roundup(*stack_size + arg_blob_size, 8);
 
   return result;
 }
