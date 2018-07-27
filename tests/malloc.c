@@ -39,12 +39,12 @@ static int malloc_multiple_allocations(void) {
 }
 
 static int malloc_dynamic_pages_addition(void) {
-  kmem_pool_t *mp = kmem_create("test", 1, 3);
+  kmem_pool_t *mp = kmem_create("test", 1, 16);
   void *ptr1 = kmalloc(mp, 4000, 0);
   assert(ptr1 != NULL);
-  void *ptr2 = kmalloc(mp, 4000, 0);
+  void *ptr2 = kmalloc(mp, 8000, 0);
   assert(ptr2 != NULL);
-  void *ptr3 = kmalloc(mp, 4000, 0);
+  void *ptr3 = kmalloc(mp, 12000, 0);
   assert(ptr3 != NULL);
   kfree(mp, ptr1);
   kfree(mp, ptr2);
