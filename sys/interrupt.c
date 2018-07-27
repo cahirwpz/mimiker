@@ -6,7 +6,7 @@
 #include <mips/intr.h>
 #include <interrupt.h>
 
-static mtx_t all_ichains_mtx = MTX_INITIALIZER(MTX_DEF);
+static mtx_t all_ichains_mtx = MTX_INITIALIZER(0);
 static intr_chain_list_t all_ichains_list =
   TAILQ_HEAD_INITIALIZER(all_ichains_list);
 
@@ -28,13 +28,20 @@ void intr_enable(void) {
     mips_intr_enable();
 }
 
+void intr_chain_init(intr_chain_t *ic, unsigned irq, const char *name) {
+  ic->ic_irq = irq;
+  ic->ic_name = name;
+  ic->ic_lock = SPIN_INITIALIZER(LK_RECURSE);
+  TAILQ_INIT(&ic->ic_handlers);
+}
+
 void intr_chain_register(intr_chain_t *ic) {
   WITH_MTX_LOCK (&all_ichains_mtx)
     TAILQ_INSERT_TAIL(&all_ichains_list, ic, ic_list);
 }
 
 void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
-  SCOPED_SPINLOCK(&ic->ic_lock);
+  SCOPED_SPIN_LOCK(&ic->ic_lock);
 
   /* Add new handler according to it's priority */
   intr_handler_t *it;
@@ -54,7 +61,7 @@ void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
 void intr_chain_remove_handler(intr_handler_t *ih) {
   intr_chain_t *ic = ih->ih_chain;
 
-  SCOPED_SPINLOCK(&ic->ic_lock);
+  SCOPED_SPIN_LOCK(&ic->ic_lock);
 
   TAILQ_REMOVE(&ic->ic_handlers, ih, ih_list);
   ih->ih_chain = NULL;

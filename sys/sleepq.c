@@ -21,7 +21,7 @@
 
 /*! \brief bucket of sleep queues */
 typedef struct sleepq_chain {
-  spinlock_t sc_lock;
+  spin_t sc_lock;
   TAILQ_HEAD(, sleepq) sc_queues; /*!< list of sleep queues */
 } sleepq_chain_t;
 
@@ -37,7 +37,7 @@ static sleepq_chain_t sleepq_chains[SC_TABLESIZE];
 
 static sleepq_chain_t *sc_acquire(void *wchan) {
   sleepq_chain_t *sc = SC_LOOKUP(wchan);
-  spin_acquire(&sc->sc_lock);
+  spin_lock(&sc->sc_lock);
   return sc;
 }
 
@@ -46,12 +46,12 @@ static bool sc_owned(sleepq_chain_t *sc) {
 }
 
 static void sc_release(sleepq_chain_t *sc) {
-  spin_release(&sc->sc_lock);
+  spin_unlock(&sc->sc_lock);
 }
 
 /*! \brief stores all threads sleeping on the same resource */
 typedef struct sleepq {
-  spinlock_t sq_lock;
+  spin_t sq_lock;
   TAILQ_ENTRY(sleepq) sq_entry;    /*!< link on sleepq_chain */
   TAILQ_HEAD(, sleepq) sq_free;    /*!< unused sleep queue records */
   TAILQ_HEAD(, thread) sq_blocked; /*!< blocked threads */
@@ -60,7 +60,7 @@ typedef struct sleepq {
 } sleepq_t;
 
 static void sq_acquire(sleepq_t *sq) {
-  spin_acquire(&sq->sq_lock);
+  spin_lock(&sq->sq_lock);
 }
 
 static bool sq_owned(sleepq_t *sq) {
@@ -68,7 +68,7 @@ static bool sq_owned(sleepq_t *sq) {
 }
 
 static void sq_release(sleepq_t *sq) {
-  spin_release(&sq->sq_lock);
+  spin_unlock(&sq->sq_lock);
 }
 
 static void sq_ctor(sleepq_t *sq) {
@@ -76,7 +76,7 @@ static void sq_ctor(sleepq_t *sq) {
   TAILQ_INIT(&sq->sq_free);
   sq->sq_nblocked = 0;
   sq->sq_wchan = NULL;
-  sq->sq_lock = SPINLOCK_INITIALIZER();
+  sq->sq_lock = SPIN_INITIALIZER(0);
 }
 
 void sleepq_init(void) {
@@ -84,7 +84,7 @@ void sleepq_init(void) {
 
   for (int i = 0; i < SC_TABLESIZE; i++) {
     sleepq_chain_t *sc = &sleepq_chains[i];
-    sc->sc_lock = SPINLOCK_INITIALIZER();
+    sc->sc_lock = SPIN_INITIALIZER(0);
     TAILQ_INIT(&sc->sc_queues);
   }
 }
@@ -154,7 +154,7 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
   TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_sleepq);
   sq->sq_nblocked++;
 
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin) {
     td->td_wchan = wchan;
     td->td_waitpt = waitpt;
     td->td_sleepqueue = NULL;
@@ -202,7 +202,7 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
     TAILQ_REMOVE(&sq->sq_free, sq, sq_entry);
   }
 
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin) {
     td->td_wchan = NULL;
     td->td_waitpt = NULL;
     td->td_sleepqueue = sq;
@@ -221,7 +221,7 @@ static int _sleepq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
   /* The code can be interrupted in here.
    * A race is avoided by clever use of TDF_SLEEPY flag. */
 
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
       td->td_state = TDS_SLEEPING;
@@ -257,7 +257,7 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
 
   sq_leave(td, sc, sq);
 
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin) {
     /* Clear TDF_SLPINTR flag if thread's sleep was not aborted. */
     if (wakeup != EINTR)
       td->td_flags &= ~TDF_SLPINTR;

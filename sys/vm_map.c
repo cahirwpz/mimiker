@@ -71,7 +71,7 @@ vm_map_t *get_active_vm_map_by_addr(vaddr_t addr) {
 
 static void vm_map_setup(vm_map_t *map) {
   TAILQ_INIT(&map->entries);
-  mtx_init(&map->mtx, MTX_DEF);
+  mtx_init(&map->mtx, 0);
 }
 
 static void vm_map_init(void) {

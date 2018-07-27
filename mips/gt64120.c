@@ -151,7 +151,7 @@ static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
 
   gt_pci_state_t *gtpci = pcib->parent->state;
   intr_chain_t *chain = &gtpci->intr_chain[irq];
-  WITH_SPINLOCK(&chain->ic_lock) {
+  WITH_SPIN_LOCK (&chain->ic_lock) {
     intr_chain_add_handler(chain, handler);
     if (chain->ic_count == 1)
       gt_pci_unmask_irq(gtpci, irq);
@@ -163,7 +163,7 @@ static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
 
   gt_pci_state_t *gtpci = pcib->parent->state;
   intr_chain_t *chain = handler->ih_chain;
-  WITH_SPINLOCK(&chain->ic_lock) {
+  WITH_SPIN_LOCK (&chain->ic_lock) {
     if (chain->ic_count == 1)
       gt_pci_mask_irq(gtpci, chain->ic_irq);
     intr_chain_remove_handler(handler);
@@ -225,11 +225,7 @@ static intr_filter_t gt_pci_intr(void *data) {
 
 static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
                                           const char *name) {
-  gtpci->intr_chain[irq] = (intr_chain_t){
-    .ic_name = (name),
-    .ic_irq = (irq),
-    .ic_lock = SPINLOCK_INITIALIZER(),
-    .ic_handlers = TAILQ_HEAD_INITIALIZER(gtpci->intr_chain[irq].ic_handlers)};
+  intr_chain_init(&gtpci->intr_chain[irq], irq, name);
   intr_chain_register(&gtpci->intr_chain[irq]);
 }
 

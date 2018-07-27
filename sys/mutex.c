@@ -4,20 +4,23 @@
 #include <sched.h>
 #include <thread.h>
 
+#define mtx_recurse_p(m) ((m)->m_type & LK_RECURSE)
+
 bool mtx_owned(mtx_t *m) {
   return (m->m_owner == thread_self());
 }
 
-void mtx_init(mtx_t *m, unsigned type) {
+void mtx_init(mtx_t *m, lock_type_t type) {
   m->m_owner = NULL;
   m->m_count = 0;
+  m->m_lockpt = NULL;
   m->m_type = type;
 }
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {
   if (mtx_owned(m)) {
-    if (m->m_type != MTX_RECURSE)
-      panic("Mutex %p is not recursive!", m);
+    if (!mtx_recurse_p(m))
+      panic("Sleeping mutex %p is not recursive!", m);
     m->m_count++;
     return;
   }
@@ -35,8 +38,7 @@ void mtx_unlock(mtx_t *m) {
   assert(mtx_owned(m));
 
   if (m->m_count > 0) {
-    if (m->m_type != MTX_RECURSE)
-      panic("Mutex %p is not recursive!", m);
+    assert(mtx_recurse_p(m));
     m->m_count--;
     return;
   }

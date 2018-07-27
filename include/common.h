@@ -55,6 +55,7 @@ typedef int32_t blksize_t; /* fs optimal block size */
 #define __likely(x) __builtin_expect((x), 1)
 #define __unlikely(x) __builtin_expect((x), 0)
 #define __long_call __attribute__((long_call))
+#define __transparent_union __attribute__((__transparent_union__))
 
 /* Attribute macros for boot/wired functions/data */
 #define __boot_text __long_call __section(".boot.text")

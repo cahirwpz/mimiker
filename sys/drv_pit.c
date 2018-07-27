@@ -10,7 +10,7 @@
 
 typedef struct pit_state {
   resource_t *regs;
-  spinlock_t lock;
+  spin_t lock;
   intr_handler_t intr_handler;
   timer_t timer;
   uint64_t period_frac;        /* period as a fraction of a second */
@@ -45,7 +45,7 @@ static uint16_t pit_get_counter(pit_state_t *pit) {
 static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
 
-  WITH_SPINLOCK(&pit->lock) {
+  WITH_SPIN_LOCK (&pit->lock) {
     bintime_add_frac(&pit->time, pit->period_frac);
     pit->overflow = false;
     pit->last_cntr = pit_get_counter(pit);
@@ -69,7 +69,7 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   pit->time = getbintime();
   pit->period_frac = period.frac;
   uint16_t counter = bintime_mul(period, TIMER_FREQ).sec;
-  WITH_SPINLOCK(&pit->lock) {
+  WITH_SPIN_LOCK (&pit->lock) {
     pit_set_frequency(pit, counter);
     pit->last_cntr = pit_get_counter(pit);
   }
@@ -90,7 +90,7 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
   pit_state_t *pit = dev->state;
   uint16_t cntr = 0;
   bintime_t bt;
-  WITH_SPINLOCK(&pit->lock) {
+  WITH_SPIN_LOCK (&pit->lock) {
     uint16_t last_cntr = pit->last_cntr;
     bool overflow = pit->overflow;
     bt = pit->time;
@@ -116,7 +116,7 @@ static int pit_attach(device_t *dev) {
                        IO_TMRSIZE, RF_ACTIVE);
   assert(pit->regs != NULL);
 
-  pit->lock = SPINLOCK_INITIALIZER();
+  pit->lock = SPIN_INITIALIZER(0);
   pit->intr_handler = INTR_HANDLER_INIT(pit_intr, NULL, pit, "i8254 timer", 0);
 
   pit->timer = (timer_t){

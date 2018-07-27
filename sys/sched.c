@@ -6,7 +6,6 @@
 #include <context.h>
 #include <time.h>
 #include <thread.h>
-#include <spinlock.h>
 #include <interrupt.h>
 #include <mutex.h>
 #include <pcpu.h>
@@ -25,13 +24,12 @@ static void sched_init(void) {
 void sched_add(thread_t *td) {
   klog("Add thread %ld {%p} to scheduler", td->td_tid, td);
 
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin)
     sched_wakeup(td, 0);
-  }
 }
 
 void sched_wakeup(thread_t *td, long reason) {
-  assert(spin_owned(td->td_spin));
+  assert(spin_owned(&td->td_spin));
   assert(td != thread_self());
   assert(td_is_blocked(td) || td_is_sleeping(td) || td_is_inactive(td));
 
@@ -58,7 +56,7 @@ void sched_wakeup(thread_t *td, long reason) {
  * \note Must be called with \a td_spin acquired!
  */
 static void sched_set_active_prio(thread_t *td, prio_t prio) {
-  assert(spin_owned(td->td_spin));
+  assert(spin_owned(&td->td_spin));
 
   if (td->td_prio == prio)
     return;
@@ -74,7 +72,7 @@ static void sched_set_active_prio(thread_t *td, prio_t prio) {
 }
 
 void sched_set_prio(thread_t *td, prio_t prio) {
-  assert(spin_owned(td->td_spin));
+  assert(spin_owned(&td->td_spin));
 
   td->td_base_prio = prio;
 
@@ -92,7 +90,7 @@ void sched_set_prio(thread_t *td, prio_t prio) {
 }
 
 void sched_lend_prio(thread_t *td, prio_t prio) {
-  assert(spin_owned(td->td_spin));
+  assert(spin_owned(&td->td_spin));
   assert(td->td_prio < prio);
 
   td->td_flags |= TDF_BORROWING;
@@ -100,7 +98,7 @@ void sched_lend_prio(thread_t *td, prio_t prio) {
 }
 
 void sched_unlend_prio(thread_t *td, prio_t prio) {
-  assert(spin_owned(td->td_spin));
+  assert(spin_owned(&td->td_spin));
 
   if (prio <= td->td_base_prio) {
     td->td_flags &= ~TDF_BORROWING;
@@ -129,7 +127,7 @@ long sched_switch(void) {
 
   thread_t *td = thread_self();
 
-  assert(spin_owned(td->td_spin));
+  assert(spin_owned(&td->td_spin));
   assert(!td_is_running(td));
 
   td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
@@ -170,7 +168,7 @@ void sched_clock(void) {
   thread_t *td = thread_self();
 
   if (td != PCPU_GET(idle_thread)) {
-    WITH_SPINLOCK(td->td_spin) {
+    WITH_SPIN_LOCK (&td->td_spin) {
       if (--td->td_slice <= 0)
         td->td_flags |= TDF_NEEDSWITCH | TDF_SLICEEND;
     }
@@ -191,9 +189,8 @@ noreturn void sched_run(void) {
   sched_active = true;
 
   while (true) {
-    WITH_SPINLOCK(td->td_spin) {
+    WITH_SPIN_LOCK (&td->td_spin)
       td->td_flags |= TDF_NEEDSWITCH;
-    }
   }
 }
 
@@ -203,7 +200,7 @@ void sched_maybe_preempt(void) {
 
   thread_t *td = thread_self();
 
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin) {
     if (td->td_flags & TDF_NEEDSWITCH) {
       td->td_state = TDS_READY;
       sched_switch();

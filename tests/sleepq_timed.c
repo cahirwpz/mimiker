@@ -66,9 +66,8 @@ static int test_sleepq_timed(void) {
   }
 
   for (int i = 0; i < THREADS; i++) {
-    WITH_SPINLOCK(waiters[i]->td_spin) {
+    WITH_SPIN_LOCK (&waiters[i]->td_spin)
       sched_set_prio(waiters[i], RQ_PPQ);
-    }
   }
 
   WITH_NO_PREEMPTION {

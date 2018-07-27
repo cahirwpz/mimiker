@@ -33,7 +33,7 @@ typedef struct devfs_mount {
 } devfs_mount_t;
 
 static devfs_mount_t devfs = {
-  .lock = MTX_INITIALIZER(MTX_RECURSE), .next_ino = 2, .root = {}};
+  .lock = MTX_INITIALIZER(LK_RECURSE), .next_ino = 2, .root = {}};
 static vnode_lookup_t devfs_vop_lookup;
 static vnode_readdir_t devfs_vop_readdir;
 static vnodeops_t devfs_vnodeops = {.v_lookup = devfs_vop_lookup,
