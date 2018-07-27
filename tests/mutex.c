@@ -4,7 +4,7 @@
 #include <thread.h>
 #include <ktest.h>
 
-static mtx_t counter_mtx = MTX_INITIALIZER(MTX_DEF);
+static mtx_t counter_mtx = MTX_INITIALIZER(0);
 static volatile int32_t counter_value;
 
 /* Good test to measure context switch time. */
@@ -49,7 +49,7 @@ typedef enum rtn_state {
   ST_DONE
 } rtn_state_t;
 
-static mtx_t simple_mtx = MTX_INITIALIZER(MTX_DEF);
+static mtx_t simple_mtx = MTX_INITIALIZER(0);
 static thread_t *simple_td0;
 /* `simple_status` equals ST_UNLOCKING for a moment but we don't check
  *  it during that time (or rather a check shouldn't happen during that time) */

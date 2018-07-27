@@ -17,7 +17,7 @@ static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t));
 
 typedef TAILQ_HEAD(, thread) thread_list_t;
 
-static mtx_t *threads_lock = &MTX_INITIALIZER(MTX_DEF);
+static mtx_t *threads_lock = &MTX_INITIALIZER(0);
 static thread_list_t all_threads = TAILQ_HEAD_INITIALIZER(all_threads);
 static thread_list_t zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 
@@ -80,8 +80,8 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   td->td_kstack.stk_size = PAGESIZE;
   td->td_state = TDS_INACTIVE;
 
-  spin_init(td->td_spin);
-  mtx_init(&td->td_lock, MTX_RECURSE);
+  td->td_spin = SPIN_INITIALIZER(0);
+  td->td_lock = MTX_INITIALIZER(0);
   cv_init(&td->td_waitcv, "thread waiters");
   LIST_INIT(&td->td_contested);
 
@@ -147,7 +147,7 @@ noreturn void thread_exit(void) {
   cv_broadcast(&td->td_waitcv);
   mtx_unlock(&td->td_lock);
 
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin) {
     td->td_state = TDS_DEAD;
     sched_switch();
   }
@@ -169,7 +169,7 @@ void thread_join(thread_t *otd) {
 void thread_yield(void) {
   thread_t *td = thread_self();
 
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin) {
     td->td_state = TDS_READY;
     sched_switch();
   }

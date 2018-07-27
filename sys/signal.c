@@ -102,7 +102,7 @@ void sig_kill(proc_t *proc, signo_t sig) {
 
   proc_unlock(proc);
 
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin) {
     td->td_flags |= TDF_NEEDSIGCHK;
     /* If the thread is sleeping interruptibly (!), wake it up, so that it
      * continues execution and the signal gets delivered soon. */
@@ -122,9 +122,8 @@ int sig_check(thread_t *td) {
     bit_ffs(td->td_sigpend, NSIG, &sig);
     if (sig >= NSIG) {
       /* No pending signals, signal checking done. */
-      WITH_SPINLOCK(td->td_spin) {
+      WITH_SPIN_LOCK (&td->td_spin)
         td->td_flags &= ~TDF_NEEDSIGCHK;
-      }
       return 0;
     }
     bit_clear(td->td_sigpend, sig);

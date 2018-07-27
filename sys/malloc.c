@@ -215,7 +215,7 @@ void kmem_bootstrap(void) {
 static void kmem_init(kmem_pool_t *mp) {
   mp->mp_magic = MB_MAGIC;
   TAILQ_INIT(&mp->mp_arena);
-  mtx_init(&mp->mp_lock, MTX_RECURSE);
+  mtx_init(&mp->mp_lock, LK_RECURSE);
   kmalloc_add_pages(mp, mp->mp_pages_used);
   klog("initialized '%s' kmem at %p ", mp->mp_desc, mp);
 }

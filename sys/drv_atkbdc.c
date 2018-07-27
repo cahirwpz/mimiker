@@ -19,7 +19,7 @@
 #define KBD_BUFSIZE 128
 
 typedef struct atkbdc_state {
-  mtx_t mtx;
+  spin_t lock;
   condvar_t nonempty;
   ringbuf_t scancodes;
   intr_handler_t intr_handler;
@@ -64,11 +64,11 @@ static int scancode_read(vnode_t *v, uio_t *uio) {
 
   uio->uio_offset = 0; /* This device does not support offsets. */
 
-  WITH_MTX_LOCK (&atkbdc->mtx) {
+  WITH_SPIN_LOCK (&atkbdc->lock) {
     uint8_t data;
     /* For simplicity, copy to the user space one byte at a time. */
     while (!ringbuf_getb(&atkbdc->scancodes, &data))
-      cv_wait(&atkbdc->nonempty, &atkbdc->mtx);
+      cv_wait(&atkbdc->nonempty, &atkbdc->lock);
     if ((error = uiomove_frombuf(&data, 1, uio)))
       return error;
   }
@@ -105,7 +105,7 @@ static intr_filter_t atkbdc_intr(void *data) {
   if (extended)
     code2 = read_data(atkbdc->regs);
 
-  WITH_MTX_LOCK (&atkbdc->mtx) {
+  WITH_SPIN_LOCK (&atkbdc->lock) {
     /* TODO: There's no logic for processing scancodes. */
     ringbuf_putb(&atkbdc->scancodes, code);
     if (extended)
@@ -154,7 +154,7 @@ static int atkbdc_attach(device_t *dev) {
   atkbdc->scancodes.data = kmalloc(M_DEV, KBD_BUFSIZE, M_ZERO);
   atkbdc->scancodes.size = KBD_BUFSIZE;
 
-  mtx_init(&atkbdc->mtx, MTX_DEF);
+  spin_init(&atkbdc->lock, 0);
   cv_init(&atkbdc->nonempty, "AT keyboard buffer non-empty");
   atkbdc->regs = bus_alloc_resource(
     dev, RT_ISA, 0, IO_KBD, IO_KBD + IO_KBDSIZE - 1, IO_KBDSIZE, RF_ACTIVE);

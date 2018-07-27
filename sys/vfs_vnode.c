@@ -21,7 +21,7 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
   v->v_data = data;
   v->v_ops = ops;
   v->v_usecnt = 1;
-  mtx_init(&v->v_mtx, MTX_DEF);
+  mtx_init(&v->v_mtx, 0);
 
   return v;
 }

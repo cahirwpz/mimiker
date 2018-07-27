@@ -17,14 +17,13 @@ typedef TAILQ_HEAD(td_queue, thread) td_queue_t;
 static prio_t starting_priority = 2;
 static prio_t new_priorities[T] = {2, 1, 3, 0, 1};
 
-static mtx_t ts_adj_mtx = MTX_INITIALIZER(MTX_DEF);
+static mtx_t ts_adj_mtx = MTX_INITIALIZER(0);
 static volatile int stopped;
 static thread_t *threads[T];
 
 static void set_prio(thread_t *td, prio_t prio) {
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin)
     sched_set_prio(td, prio);
-  }
 }
 
 static bool td_is_blocked_on_mtx(thread_t *td, mtx_t *m) {

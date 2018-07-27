@@ -3,26 +3,11 @@
 
 #include <stdbool.h>
 #include <common.h>
+#include <lock.h>
 
 typedef struct thread thread_t;
 
 /*! \file mutex.h */
-
-/*! \brief Type of default non-recursive sleeping mutex.
- *
- * When a thread acquires sleeping mutex that is owned by another thread it will
- * be suspended and put on a sleep queue.
- */
-#define MTX_DEF 0
-
-/*! \brief Type of recursive sleeping mutex.
- *
- * The owner may lock it multiple times, but must release it as many times as
- * she acquired it.
- *
- * \sa MTX_DEF
- */
-#define MTX_RECURSE 1
 
 /*! \brief Basic synchronization primitive.
  *
@@ -32,21 +17,21 @@ typedef struct thread thread_t;
  * \note Mutex must be released by its owner!
  */
 typedef struct mtx {
-  volatile thread_t *m_owner; /*!< stores address of the owner */
+  lock_type_t m_type;         /*!< type of lock */
   volatile unsigned m_count;  /*!< counter for recursive mutexes */
-  unsigned m_type;            /*!< type of mutex */
+  volatile thread_t *m_owner; /*!< stores address of the owner */
   const void *m_lockpt;       /*!< place where the lock was acquired */
 } mtx_t;
 
-#define MTX_INITIALIZER(type)                                                  \
+#define MTX_INITIALIZER(recurse)                                               \
   (mtx_t) {                                                                    \
-    .m_owner = NULL, .m_count = 0, .m_type = type, .m_lockpt = NULL            \
+    .m_type = (recurse) | LK_SLEEP                                             \
   }
 
 /*! \brief Initializes mutex.
  *
  * \note Every mutex has to be initialized before it is used. */
-void mtx_init(mtx_t *m, unsigned type);
+void mtx_init(mtx_t *m, lock_type_t type);
 
 /*! \brief Makes mutex unusable for further locking.
  *
@@ -63,23 +48,22 @@ static inline volatile thread_t *mtx_owner(mtx_t *m) {
   return m->m_owner;
 }
 
-/*! \brief Locks the mutex (with custom \a waitpt) */
+/*! \brief Locks sleep mutex (with custom \a waitpt) */
 void _mtx_lock(mtx_t *m, const void *waitpt);
 
-/*! \brief Locks the mutex.
+/*! \brief Locks sleep mutex.
  *
- * For sleeping mutexes, if mutex is already owned by someone,
- * then the thread is put onto sleep queue. */
+ * If mutex is already owned, then the thread is inserted into turnstile. */
 static inline void mtx_lock(mtx_t *m) {
   _mtx_lock(m, __caller(0));
 }
 
-/*! \brief Unlocks the mutex. */
+/*! \brief Unlocks sleep mutex */
 void mtx_unlock(mtx_t *m);
 
 DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
 
-/*! \brief Acquire mutex and release it when leaving current scope.
+/*! \brief Locks sleep mutex and unlocks it when leaving current scope.
  *
  * You may safely leave the scope by using `break` or `return`.
  *
@@ -88,9 +72,9 @@ DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
 #define SCOPED_MTX_LOCK(mtx_p)                                                 \
   SCOPED_STMT(mtx_t, mtx_lock, CLEANUP_FUNCTION(mtx_unlock), mtx_p)
 
-/*! \brief Enter scope with mutex acquired.
+/*! \brief Enter scope with sleep mutex locked.
  *
- * Releases the mutex when leaving the scope.
+ * Unlocks the mutex when leaving the scope.
  *
  * \sa SCOPED_MTX_LOCK
  */

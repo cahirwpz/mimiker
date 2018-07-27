@@ -6,7 +6,7 @@
 #include <klog.h>
 #include <interrupt.h>
 
-static mtx_t timers_mtx = MTX_INITIALIZER(MTX_DEF);
+static mtx_t timers_mtx = MTX_INITIALIZER(0);
 static timer_list_t timers = TAILQ_HEAD_INITIALIZER(timers);
 static timer_t *time_source = NULL;
 

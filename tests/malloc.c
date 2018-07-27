@@ -133,7 +133,7 @@ static int malloc_threads_random_shared_blocks(void) {
   rsb_test_args_t args;
   memset(args.ptrs, 0, sizeof(args.ptrs));
   args.mem_pool = mp;
-  mtx_init(&args.lock, MTX_DEF);
+  mtx_init(&args.lock, 0);
   thread_t *threads[THREADS_NUMBER];
   for (int i = 0; i < THREADS_NUMBER; i++)
     threads[i] =

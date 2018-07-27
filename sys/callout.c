@@ -33,7 +33,7 @@ static struct {
      called with. All callouts up to this timestamp have already been
      processed. */
   systime_t last;
-  spinlock_t lock;
+  spin_t lock;
 } ci;
 
 static inline callout_list_t *ci_list(int i) {
@@ -43,7 +43,7 @@ static inline callout_list_t *ci_list(int i) {
 static void callout_init(void) {
   bzero(&ci, sizeof(ci));
 
-  ci.lock = SPINLOCK_INITIALIZER();
+  ci.lock = SPIN_INITIALIZER(0);
 
   for (int i = 0; i < CALLOUT_BUCKETS; i++)
     TAILQ_INIT(ci_list(i));
@@ -68,21 +68,21 @@ static void _callout_setup(callout_t *handle, systime_t time, timeout_t fn,
 }
 
 void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg) {
-  SCOPED_SPINLOCK(&ci.lock);
+  SCOPED_SPIN_LOCK(&ci.lock);
 
   _callout_setup(handle, time, fn, arg);
 }
 
 void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
                             void *arg) {
-  SCOPED_SPINLOCK(&ci.lock);
+  SCOPED_SPIN_LOCK(&ci.lock);
 
   systime_t now = getsystime();
   _callout_setup(handle, now + time, fn, arg);
 }
 
 void callout_stop(callout_t *handle) {
-  SCOPED_SPINLOCK(&ci.lock);
+  SCOPED_SPIN_LOCK(&ci.lock);
 
   klog("Remove callout {%p} at %ld.", handle, handle->c_time);
 

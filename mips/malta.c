@@ -167,8 +167,8 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   pcpu_init();
   cpu_init();
   tlb_init();
-  mips_timer_init();
   mips_intr_init();
+  mips_timer_init();
   pm_bootstrap(memsize);
   pmap_init();
   pool_bootstrap();

@@ -112,6 +112,6 @@ void rman_init(rman_t *rm, const char *name, rman_addr_t start, rman_addr_t end,
   rm->rm_end = end;
   rm->rm_type = type;
 
-  mtx_init(&rm->rm_lock, MTX_DEF);
+  mtx_init(&rm->rm_lock, 0);
   TAILQ_INIT(&rm->rm_resources);
 }

@@ -226,7 +226,7 @@ static void pool_ctor(pool_t *pool) {
   LIST_INIT(&pool->pp_empty_slabs);
   LIST_INIT(&pool->pp_full_slabs);
   LIST_INIT(&pool->pp_part_slabs);
-  mtx_init(&pool->pp_mtx, MTX_DEF);
+  mtx_init(&pool->pp_mtx, 0);
   pool->pp_align = PI_ALIGNMENT;
   pool->pp_state = INITME;
 }

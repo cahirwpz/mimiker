@@ -89,9 +89,8 @@ static int test_sleepq_abort_mult(void) {
   }
 
   for (int i = 0; i < T; i++) {
-    WITH_SPINLOCK(waiters[i]->td_spin) {
+    WITH_SPIN_LOCK (&waiters[i]->td_spin)
       sched_set_prio(waiters[i], RQ_PPQ);
-    }
   }
 
   for (int i = 0; i < T; i++)
@@ -116,9 +115,8 @@ static int test_sleepq_abort_simple(void) {
   waiters[0] = thread_create("waiter", waiter_routine, NULL);
   waker = thread_create("simp-waker", simple_waker_routine, NULL);
 
-  WITH_SPINLOCK(waiters[0]->td_spin) {
+  WITH_SPIN_LOCK (&waiters[0]->td_spin)
     sched_set_prio(waiters[0], RQ_PPQ);
-  }
 
   sched_add(waiters[0]);
   sched_add(waker);

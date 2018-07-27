@@ -11,7 +11,7 @@
  * High priority task (td2) tries to acquire mutex and blocks, but firstly lends
  * its priority to low priority task (td0) that owns the mutex. */
 
-static mtx_t *mtx = &MTX_INITIALIZER(MTX_DEF);
+static mtx_t *mtx = &MTX_INITIALIZER(0);
 static thread_t *td[T];
 static volatile bool high_prio_mtx_acquired;
 
@@ -23,15 +23,13 @@ static void assert_priorities(prio_t p0, prio_t p1, prio_t p2) {
 }
 
 static void lend_prio(thread_t *td, prio_t prio) {
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin)
     sched_lend_prio(td, prio);
-  }
 }
 
 static void unlend_prio(thread_t *td, prio_t prio) {
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin)
     sched_unlend_prio(td, prio);
-  }
 }
 
 enum {

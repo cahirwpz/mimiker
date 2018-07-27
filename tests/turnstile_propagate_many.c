@@ -20,9 +20,8 @@ static thread_t *propagator[T + 1];
 static thread_t *starter;
 
 static void set_prio(thread_t *td, prio_t prio) {
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin)
     sched_set_prio(td, prio);
-  }
 }
 
 /* n <- [0..T] */
@@ -79,7 +78,7 @@ static void starter_routine(void *_arg) {
 
 static int test_turnstile_propagate_many(void) {
   for (int i = 0; i < T + 1; i++)
-    mtx[i] = MTX_INITIALIZER(MTX_DEF);
+    mtx[i] = MTX_INITIALIZER(0);
 
   for (int i = 1; i <= T; i++) {
     char name[20];
