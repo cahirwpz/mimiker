@@ -9,7 +9,7 @@
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
 
-int main(void) {
+int kmain(void) {
   const char *init = kenv_get("init");
   const char *test = kenv_get("test");
 
