@@ -14,7 +14,7 @@
 #define UART_BUFSIZE 128
 
 typedef struct ns16550_state {
-  mtx_t mtx;
+  spin_t lock;
   condvar_t tx_nonfull, rx_nonempty;
   ringbuf_t tx_buf, rx_buf;
   intr_handler_t intr_handler;
@@ -43,17 +43,17 @@ static void setup(resource_t *regs) {
   out(regs, LCR, LCR_8BITS); /* 8-bit data, no parity */
 }
 
-static int uart_read(vnode_t *v, uio_t *uio) {
+static int ns16550_read(vnode_t *v, uio_t *uio) {
   ns16550_state_t *ns16550 = v->v_data;
   int error;
 
   uio->uio_offset = 0; /* This device does not support offsets. */
 
-  WITH_MTX_LOCK (&ns16550->mtx) {
+  WITH_SPIN_LOCK (&ns16550->lock) {
     uint8_t byte;
     /* For simplicity, copy to the user space one byte at a time. */
     while (!ringbuf_getb(&ns16550->rx_buf, &byte))
-      cv_wait(&ns16550->rx_nonempty, &ns16550->mtx);
+      cv_wait(&ns16550->rx_nonempty, &ns16550->lock);
     if ((error = uiomove_frombuf(&byte, 1, uio)))
       return error;
   }
@@ -61,36 +61,40 @@ static int uart_read(vnode_t *v, uio_t *uio) {
   return 0;
 }
 
-static int uart_write(vnode_t *v, uio_t *uio) {
+static int ns16550_write(vnode_t *v, uio_t *uio) {
   ns16550_state_t *ns16550 = v->v_data;
+  resource_t *uart = ns16550->regs;
   int error;
 
   uio->uio_offset = 0; /* This device does not support offsets. */
 
-  WITH_MTX_LOCK (&ns16550->mtx) {
+  WITH_SPIN_LOCK (&ns16550->lock) {
+    uint8_t byte;
     while (uio->uio_resid > 0) {
-      uint8_t byte;
       /* For simplicity, copy from the user space one byte at a time. */
       if ((error = uiomove(&byte, 1, uio)))
         return error;
       while (!ringbuf_putb(&ns16550->rx_buf, byte))
-        cv_wait(&ns16550->tx_nonfull, &ns16550->mtx);
+        cv_wait(&ns16550->tx_nonfull, &ns16550->lock);
     }
+    if (in(uart, LSR) & LSR_THRE)
+      if (ringbuf_getb(&ns16550->rx_buf, &byte))
+        out(uart, THR, byte);
   }
 
   return 0;
 }
 
-static int uart_close(vnode_t *v, file_t *fp) {
+static int ns16550_close(vnode_t *v, file_t *fp) {
   /* TODO release resources */
   return 0;
 }
 
 static vnodeops_t dev_uart_ops = {
   .v_open = vnode_open_generic,
-  .v_write = uart_write,
-  .v_read = uart_read,
-  .v_close = uart_close,
+  .v_write = ns16550_write,
+  .v_read = ns16550_read,
+  .v_close = ns16550_close,
 };
 
 static intr_filter_t ns16550_intr(void *data) {
@@ -98,7 +102,7 @@ static intr_filter_t ns16550_intr(void *data) {
   resource_t *uart = ns16550->regs;
   intr_filter_t res = IF_STRAY;
 
-  WITH_MTX_LOCK (&ns16550->mtx) {
+  WITH_SPIN_LOCK (&ns16550->lock) {
     uint8_t iir = in(uart, IIR);
 
     /* data ready to be received? */
@@ -132,7 +136,7 @@ static int ns16550_attach(device_t *dev) {
   ns16550->tx_buf.data = kmalloc(M_DEV, UART_BUFSIZE, M_ZERO);
   ns16550->tx_buf.size = UART_BUFSIZE;
 
-  mtx_init(&ns16550->mtx, MTX_DEF);
+  spin_init(&ns16550->lock, 0);
   cv_init(&ns16550->rx_nonempty, "UART receive buffer not empty");
   cv_init(&ns16550->tx_nonfull, "UART transmit buffer not full");
 
