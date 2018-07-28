@@ -11,7 +11,7 @@ typedef struct exec_args {
   unsigned argc;
   const char **argv;
   unsigned envc;
-  const char **envp;  
+  const char **envp;
   /* TODO: Environment */
 } exec_args_t;
 

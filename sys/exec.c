@@ -16,6 +16,21 @@
 #include <vnode.h>
 #include <proc.h>
 
+static int store_strings(ustack_t *us, const char **str_p, char **stack_str_p,
+                         size_t howmany) {
+  int error = 0;
+
+  /* Store arguments, creating the argument vector. */
+  for (size_t i = 0; i <= howmany; i++) {
+    size_t n = strlen(str_p[i]);
+    if ((error = ustack_alloc_string(us, n, &stack_str_p[i])))
+      goto fail;
+    memcpy(stack_str_p[i], str_p[i], n + 1);
+  }
+
+fail:
+  return error;
+}
 
 /*!\brief Places program args onto the stack.
  *
@@ -23,10 +38,17 @@
  * bottom address.  The stack layout will be as follows:
  *
  *  ----------- stack segment high address
+ *  | envp[m] |
+ *  |   ...   |  each of envp[i] is a null-terminated string
+ *  | envp[1] |
+ *  | envp[0] |
+ *  |---------|
  *  | argv[n] |
  *  |   ...   |  each of argv[i] is a null-terminated string
  *  | argv[1] |
  *  | argv[0] |
+ *  |---------|
+ *  | envp    |
  *  |---------|
  *  | argv    |  the argument vector storing pointers to argv[0..n]
  *  |---------|
@@ -39,6 +61,7 @@
  *  |         |
  *  |   ...   |
  *  ----------- stack segment low address
+ * (see System V ABI MIPS RISC Processor Supplement, 3rd edition, p. 30)
  *
  * After this function runs, the value pointed by stack_bottom_p will be the
  * address where argc is stored, which is also the bottom of the now empty
@@ -57,32 +80,19 @@ static int user_entry_setup(const exec_args_t *args, vaddr_t *stack_top_p) {
     goto fail;
   if ((error = ustack_alloc_ptr_n(&us, args->envc + 1, (vaddr_t *)&envp)))
     goto fail;
- 
 
-  /* Store arguments, creating the argument vector. */
-  for (size_t i = 0; i <= args->argc; i++) {
-    size_t n = strlen(args->argv[i]);
-    if ((error = ustack_alloc_string(&us, n, &argv[i])))
-      goto fail;
-    memcpy(argv[i], args->argv[i], n + 1);
-  }
+  if ((error = store_strings(&us, args->argv, argv, args->argc)))
+    goto fail;
+  if ((error = store_strings(&us, args->envp, envp, args->envc)))
+    goto fail;
 
-  /* Store arguments, creating the argument vector. */
-  for (size_t i = 0; i <= args->envc; i++) {
-    size_t n = strlen(args->envp[i]);
-    if ((error = ustack_alloc_string(&us, n, &envp[i])))
-      goto fail;
-    memcpy(argv[i], args->envp[i], n + 1);
-  }
-
-  
   ustack_finalize(&us);
 
   for (size_t i = 0; i <= args->argc; i++)
     ustack_relocate_ptr(&us, (vaddr_t *)&argv[i]);
   for (size_t i = 0; i <= args->envc; i++)
     ustack_relocate_ptr(&us, (vaddr_t *)&envp[i]);
-  
+
   error = ustack_copy(&us, stack_top_p);
 
 fail:
