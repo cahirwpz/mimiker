@@ -11,10 +11,70 @@
 #include <filedesc.h>
 #include <sbrk.h>
 #include <vfs.h>
-#include <stack.h>
+#include <machine/ustack.h>
 #include <mount.h>
 #include <vnode.h>
 #include <proc.h>
+
+/*!\brief Places program args onto the stack.
+ *
+ * Also modifies value pointed by stack_bottom_p to reflect on changed stack
+ * bottom address.  The stack layout will be as follows:
+ *
+ *  ----------- stack segment high address
+ *  | argv[n] |
+ *  |   ...   |  each of argv[i] is a null-terminated string
+ *  | argv[1] |
+ *  | argv[0] |
+ *  |---------|
+ *  | argv    |  the argument vector storing pointers to argv[0..n]
+ *  |---------|
+ *  | argc    |  a single uint32 declaring the number of arguments (n)
+ *  |---------|
+ *  | program |
+ *  |  stack  |
+ *  |   ||    |
+ *  |   \/    |
+ *  |         |
+ *  |   ...   |
+ *  ----------- stack segment low address
+ *
+ * After this function runs, the value pointed by stack_bottom_p will be the
+ * address where argc is stored, which is also the bottom of the now empty
+ * program stack, so that it can naturally grow downwards.
+ */
+static int user_entry_setup(const exec_args_t *args, vaddr_t *stack_top_p) {
+  ustack_t us;
+  char **argv;
+  int error;
+
+  ustack_setup(&us, *stack_top_p, ARG_MAX);
+
+  if ((error = ustack_push_int(&us, args->argc)))
+    goto fail;
+
+  if ((error = ustack_alloc_ptr_n(&us, args->argc + 1, (vaddr_t *)&argv)))
+    goto fail;
+
+  /* Store arguments, creating the argument vector. */
+  for (size_t i = 0; i <= args->argc; i++) {
+    size_t n = strlen(args->argv[i]);
+    if ((error = ustack_alloc_string(&us, n, &argv[i])))
+      goto fail;
+    memcpy(argv[i], args->argv[i], n + 1);
+  }
+
+  ustack_finalize(&us);
+
+  for (size_t i = 0; i <= args->argc; i++)
+    ustack_relocate_ptr(&us, (vaddr_t *)&argv[i]);
+
+  error = ustack_copy(&us, stack_top_p);
+
+fail:
+  ustack_teardown(&us);
+  return error;
+}
 
 int do_exec(const exec_args_t *args) {
   thread_t *td = thread_self();
@@ -224,23 +284,22 @@ int do_exec(const exec_args_t *args) {
    * a bit lower so that it is easier to spot invalid memory access
    * when the stack underflows.
    */
-  vaddr_t stack_bottom = 0x7f800000;
-  vaddr_t stack_top = 0x7f000000; /* stack size is 8 MiB */
+  vaddr_t stack_top = 0x7f800000;
+  vaddr_t stack_limit = 0x7f000000; /* stack size is 8 MiB */
 
   vm_object_t *stack_obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *stack_seg = vm_segment_alloc(stack_obj, stack_top, stack_bottom,
+  vm_segment_t *stack_seg = vm_segment_alloc(stack_obj, stack_limit, stack_top,
                                              VM_PROT_READ | VM_PROT_WRITE);
   error = vm_map_insert(vmap, stack_seg, VM_FIXED);
   /* TODO: What if this area overlaps with a loaded segment? */
   assert(error == 0);
 
   /* Prepare program stack, which includes storing program args. */
-  klog("Stack real bottom at %p", (void *)stack_bottom);
-  stack_user_entry_setup(args, &stack_bottom);
+  klog("Stack real top at %p", (void *)stack_top);
+  user_entry_setup(args, &stack_top);
 
   /* Set up user context. */
-  exc_frame_init(td->td_uframe, (void *)eh.e_entry, (void *)stack_bottom,
-                 EF_USER);
+  exc_frame_init(td->td_uframe, (void *)eh.e_entry, (void *)stack_top, EF_USER);
 
   /* At this point we are certain that exec succeeds.  We can safely destroy the
    * previous vm map, and permanently assign this one to the current process. */

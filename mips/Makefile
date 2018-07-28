@@ -12,7 +12,7 @@ SOURCES_C = cbus.c \
 	    malta.c \
 	    pmap.c \
 	    rootdev.c \
-	    stack.c \
+	    ustack.c \
 	    signal.c \
 	    timer.c \
 	    tlb.c \
