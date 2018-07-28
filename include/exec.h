@@ -10,6 +10,8 @@ typedef struct exec_args {
    * starting process. */
   unsigned argc;
   const char **argv;
+  unsigned envc;
+  const char **envp;  
   /* TODO: Environment */
 } exec_args_t;
 

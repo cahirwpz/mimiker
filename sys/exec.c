@@ -16,6 +16,7 @@
 #include <vnode.h>
 #include <proc.h>
 
+
 /*!\brief Places program args onto the stack.
  *
  * Also modifies value pointed by stack_bottom_p to reflect on changed stack
@@ -45,16 +46,18 @@
  */
 static int user_entry_setup(const exec_args_t *args, vaddr_t *stack_top_p) {
   ustack_t us;
-  char **argv;
+  char **argv, **envp;
   int error;
 
   ustack_setup(&us, *stack_top_p, ARG_MAX);
 
   if ((error = ustack_push_int(&us, args->argc)))
     goto fail;
-
   if ((error = ustack_alloc_ptr_n(&us, args->argc + 1, (vaddr_t *)&argv)))
     goto fail;
+  if ((error = ustack_alloc_ptr_n(&us, args->envc + 1, (vaddr_t *)&envp)))
+    goto fail;
+ 
 
   /* Store arguments, creating the argument vector. */
   for (size_t i = 0; i <= args->argc; i++) {
@@ -64,11 +67,22 @@ static int user_entry_setup(const exec_args_t *args, vaddr_t *stack_top_p) {
     memcpy(argv[i], args->argv[i], n + 1);
   }
 
+  /* Store arguments, creating the argument vector. */
+  for (size_t i = 0; i <= args->envc; i++) {
+    size_t n = strlen(args->envp[i]);
+    if ((error = ustack_alloc_string(&us, n, &envp[i])))
+      goto fail;
+    memcpy(argv[i], args->envp[i], n + 1);
+  }
+
+  
   ustack_finalize(&us);
 
   for (size_t i = 0; i <= args->argc; i++)
     ustack_relocate_ptr(&us, (vaddr_t *)&argv[i]);
-
+  for (size_t i = 0; i <= args->envc; i++)
+    ustack_relocate_ptr(&us, (vaddr_t *)&envp[i]);
+  
   error = ustack_copy(&us, stack_top_p);
 
 fail:

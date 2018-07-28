@@ -18,7 +18,9 @@ int kmain(void) {
 
   if (init) {
     exec_args_t init_args = {
-      .prog_name = init, .argc = 1, .argv = (const char *[]){init}};
+      .prog_name = init, .argc = 1, .argv = (const char *[]){init, NULL},
+      .envc = 0, .envp = (const char *[]){NULL}
+    };
 
     run_program(&init_args);
   } else if (test) {
