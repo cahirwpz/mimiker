@@ -1,8 +1,9 @@
 #include <mips/asm.h>
 #include <mips/regdef.h>
 
-    .set noreorder
-    .global _start
+	.set noreorder
+	.global _start
+	.global environ
 
 # This is the starting procedude for user ELF images, used as their
 # entry point. It takes care of preparing argc and argc for main().
@@ -31,6 +32,7 @@ NESTED(_start, CALLFRAME_SIZ, ra)
 	addiu a2, a2, 1
 	sll a2, 2
 	add a2, a2, a1
+	sw a2, environ
 
         # Jump to main
         jal     main

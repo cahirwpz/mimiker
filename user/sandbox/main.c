@@ -14,9 +14,20 @@ int main(int argc, char **argv, char **envp) {
   printf("%s\n", envp[0]);
   // printf("environ pointer is: %p\n", environ);
   // printf("%s\n", environ[0]);
-  environ = envp;
+  // environ = envp;
   printf("%s\n", getenv("DUMMY"));
-
+  setenv("FOO", "bar", 0);
+  printf("%s\n", getenv("FOO"));
+  printf("%s\n", getenv("DUMMY"));
+  setenv("DUMMY", "bar", 0);
+  printf("%s\n", getenv("DUMMY"));
+  setenv("DUMMY", "bar", 1);
+  printf("%s\n", getenv("DUMMY"));
+  unsetenv("DUMMY");
+  char *yesno = getenv("DUMMY") == NULL ? "YES" : "NO";
+  printf("DUMMY unset: %s\n", yesno);
+  putenv("DUMMY=ymmud");
+  printf("%s\n", getenv("DUMMY"));
   printf("-----------\n");
 
   return 0;
