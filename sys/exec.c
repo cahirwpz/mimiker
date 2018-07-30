@@ -16,22 +16,6 @@
 #include <vnode.h>
 #include <proc.h>
 
-static int store_strings(ustack_t *us, const char **str_p, char **stack_str_p,
-                         size_t howmany) {
-  int error = 0;
-
-  /* Store arguments, creating the argument vector. */
-  for (size_t i = 0; i <= howmany; i++) {
-    size_t n = strlen(str_p[i]);
-    if ((error = ustack_alloc_string(us, n, &stack_str_p[i])))
-      goto fail;
-    memcpy(stack_str_p[i], str_p[i], n + 1);
-  }
-
-fail:
-  return error;
-}
-
 /*!\brief Places program args onto the stack.
  *
  * Also modifies value pointed by stack_bottom_p to reflect on changed stack
@@ -71,26 +55,36 @@ static int user_entry_setup(const exec_args_t *args, vaddr_t *stack_top_p) {
   ustack_t us;
   char **argv, **envp;
   int error;
+  size_t argc = 0, envc = 0;
+  ;
+
+  while (args->argv[argc] != NULL)
+    argc++;
+  while (args->envp[envc] != NULL)
+    envc++;
 
   ustack_setup(&us, *stack_top_p, ARG_MAX);
 
-  if ((error = ustack_push_int(&us, args->argc)))
+  if ((error = ustack_push_int(&us, argc)))
     goto fail;
-  if ((error = ustack_alloc_ptr_n(&us, args->argc + 1, (vaddr_t *)&argv)))
+  if ((error = ustack_alloc_ptr_n(&us, argc + 1, (vaddr_t *)&argv)))
     goto fail;
-  if ((error = ustack_alloc_ptr_n(&us, args->envc + 1, (vaddr_t *)&envp)))
+  if ((error = ustack_alloc_ptr_n(&us, envc + 1, (vaddr_t *)&envp)))
     goto fail;
 
-  if ((error = store_strings(&us, args->argv, argv, args->argc)))
+  ustack_store_nullptr(&us, &argv[argc]);
+  ustack_store_nullptr(&us, &envp[envc]);
+
+  if ((error = ustack_store_strings(&us, args->argv, argv, argc)))
     goto fail;
-  if ((error = store_strings(&us, args->envp, envp, args->envc)))
+  if ((error = ustack_store_strings(&us, args->envp, envp, envc)))
     goto fail;
 
   ustack_finalize(&us);
 
-  for (size_t i = 0; i <= args->argc; i++)
+  for (size_t i = 0; i < argc; i++)
     ustack_relocate_ptr(&us, (vaddr_t *)&argv[i]);
-  for (size_t i = 0; i <= args->envc; i++)
+  for (size_t i = 0; i < envc; i++)
     ustack_relocate_ptr(&us, (vaddr_t *)&envp[i]);
 
   error = ustack_copy(&us, stack_top_p);

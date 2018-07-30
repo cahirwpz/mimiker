@@ -12,10 +12,10 @@ static void utest_generic_thread(void *arg) {
   const char *test_name = arg;
 
   exec_args_t exec_args = {.prog_name = "/bin/utest",
-                           .argc = 2,
-                           .argv = (const char *[]){"utest", test_name},
-                           .envc = 1,
-                           .envp = (const char *[]){NULL}};
+                           .argv = (const char *[]){"utest", test_name, NULL},
+                           .envp = (const char *[]){"DUMMY=dummy", NULL}
+
+  };
 
   run_program(&exec_args);
 }

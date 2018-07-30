@@ -7,6 +7,10 @@
 
 #define STACK_ALIGNMENT 8 /* According to MIPS SystemV ABI */
 
+#define ADDR_IN_RANGE(left, addr, right)                                       \
+  ((((void *)(left)) <= ((void *)(addr))) &&                                   \
+   (((void *)(addr)) <= ((void *)(right))))
+
 static inline bool finalized_p(ustack_t *us) {
   return us->us_finalized;
 }
@@ -69,6 +73,32 @@ int ustack_push_int(ustack_t *us, int value) {
     return error;
   *value_p = value;
   return 0;
+}
+
+int ustack_store_strings(ustack_t *us, const char **str_p, char **stack_str_p,
+                         size_t howmany) {
+  if (howmany > 0) {
+    assert(ADDR_IN_RANGE(us->us_top, stack_str_p, us->us_limit));
+    assert(ADDR_IN_RANGE(us->us_top, stack_str_p + howmany - 1, us->us_limit));
+  }
+
+  int error = 0;
+  /* Store arguments, creating the argument vector. */
+  for (size_t i = 0; i < howmany; i++) {
+    size_t n = strlen(str_p[i]);
+    if ((error = ustack_alloc_string(us, n, &stack_str_p[i])))
+      goto fail;
+    memcpy(stack_str_p[i], str_p[i], n + 1);
+  }
+
+fail:
+  return error;
+}
+
+void ustack_store_nullptr(ustack_t *us, char **where) {
+  assert(ADDR_IN_RANGE(us->us_top, where, us->us_limit));
+
+  *where = NULL;
 }
 
 void ustack_relocate_ptr(ustack_t *us, vaddr_t *ptr_p) {

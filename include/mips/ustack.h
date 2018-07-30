@@ -47,6 +47,17 @@ int ustack_alloc_ptr_n(ustack_t *us, size_t count, vaddr_t *kva_p);
  * \return ENOMEM if there was not enough space on ustack */
 int ustack_push_int(ustack_t *us, int value);
 
+/*! \brief Stores C-strings in ustack and makes stack-allocated pointers
+ *  point on them.
+ *
+ * \return ENOMEM if there was not enough space on ustack */
+int ustack_store_strings(ustack_t *us, const char **str_p, char **stack_str_p,
+                         size_t howmany);
+
+/*! \brief Stores a NULL ptr on a pre-allocate place in ustack
+ *                                            */
+void ustack_store_nullptr(ustack_t *us, char **where);
+
 /*! \brief Fix size of ustack.
  *
  * Use when you pushed all contents onto the stack. */

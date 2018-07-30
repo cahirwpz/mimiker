@@ -25,6 +25,7 @@ NESTED(_start, CALLFRAME_SIZ, ra)
         lw      a0, 8(sp)
         # Prepare argv pointing at argument vector below stack
         addiu   a1, sp, 12
+        addiu   a2, sp, 16
 
         # Jump to main
         jal     main
