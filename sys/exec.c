@@ -16,27 +16,19 @@
 #include <vnode.h>
 #include <proc.h>
 
-#define ADDR_IN_RANGE(left, addr, right)                                       \
-  ((((void *)(left)) <= ((void *)(addr))) &&                                   \
-   (((void *)(addr)) <= ((void *)(right))))
-
 /*! \brief Stores C-strings in ustack and makes stack-allocated pointers
  *  point on them.
  *
  * \return ENOMEM if there was not enough space on ustack */
-static int store_strings(ustack_t *us, const char **str_p, char **stack_str_p,
+static int store_strings(ustack_t *us, const char **strv, char **stack_strv,
                          size_t howmany) {
-  assert((howmany == 0) ||
-         (ADDR_IN_RANGE(us->us_top, stack_str_p, us->us_limit) &&
-          ADDR_IN_RANGE(us->us_top, stack_str_p + howmany - 1, us->us_limit)));
-
   int error;
   /* Store arguments, creating the argument vector. */
   for (size_t i = 0; i < howmany; i++) {
-    size_t n = strlen(str_p[i]);
-    if ((error = ustack_alloc_string(us, n, &stack_str_p[i])))
+    size_t n = strlen(strv[i]);
+    if ((error = ustack_alloc_string(us, n, &stack_strv[i])))
       return error;
-    memcpy(stack_str_p[i], str_p[i], n + 1);
+    memcpy(stack_strv[i], strv[i], n + 1);
   }
   return 0;
 }

@@ -28,11 +28,11 @@ NESTED(_start, CALLFRAME_SIZ, ra)
         addiu   a1, sp, 12
 
         # Prepare envp, it starts at argv + argc + 1
-        move t0, a0
-        addiu t0, t0, 1
-        sll t0, 2
-        add a2, t0, a1
-        sw a2, environ
+        move    t0, a0
+        addi    t0, 1
+        sll     t0, 2
+        add     a2, t0, a1
+        sw      a2, environ
 	
         # Jump to main
         jal     main
