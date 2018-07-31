@@ -30,7 +30,7 @@ int store_strings(ustack_t *us, const char **str_p, char **stack_str_p,
          (ADDR_IN_RANGE(us->us_top, stack_str_p, us->us_limit) &&
           ADDR_IN_RANGE(us->us_top, stack_str_p + howmany - 1, us->us_limit)));
 
-  int error = 0;
+  int error;
   /* Store arguments, creating the argument vector. */
   for (size_t i = 0; i < howmany; i++) {
     size_t n = strlen(str_p[i]);
@@ -38,6 +38,7 @@ int store_strings(ustack_t *us, const char **str_p, char **stack_str_p,
       return error;
     memcpy(stack_str_p[i], str_p[i], n + 1);
   }
+  return 0;
 }
 
 /*!\brief Places program args onto the stack.
