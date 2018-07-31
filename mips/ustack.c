@@ -62,14 +62,18 @@ int ustack_alloc_ptr_n(ustack_t *us, size_t count, vaddr_t *kva_p) {
   return ustack_alloc(us, kva_p, sizeof(void *) * count, sizeof(void *));
 }
 
-int ustack_push_int(ustack_t *us, int value) {
-  int error;
-  int *value_p;
-  if ((error = ustack_alloc(us, &value_p, sizeof(int), sizeof(int))))
-    return error;
-  *value_p = value;
-  return 0;
-}
+#define DEFINE_USTACK_PUSH(TYPE)                                               \
+  int ustack_push_##TYPE(ustack_t *us, TYPE value) {                           \
+    int error;                                                                 \
+    TYPE *value_p;                                                             \
+    if ((error = ustack_alloc(us, &value_p, sizeof(TYPE), sizeof(TYPE))))      \
+      return error;                                                            \
+    *value_p = value;                                                          \
+    return 0;                                                                  \
+  }
+
+DEFINE_USTACK_PUSH(int);
+DEFINE_USTACK_PUSH(long);
 
 void ustack_relocate_ptr(ustack_t *us, vaddr_t *ptr_p) {
   assert(finalized_p(us));

@@ -16,28 +16,58 @@
 #include <vnode.h>
 #include <proc.h>
 
+/*! \brief Stores C-strings in ustack and makes stack-allocated pointers
+ *  point on them.
+ *
+ * \return ENOMEM if there was not enough space on ustack */
+static int store_strings(ustack_t *us, const char **strv, char **stack_strv,
+                         size_t howmany) {
+  int error;
+  /* Store arguments, creating the argument vector. */
+  for (size_t i = 0; i < howmany; i++) {
+    size_t n = strlen(strv[i]);
+    if ((error = ustack_alloc_string(us, n, &stack_strv[i])))
+      return error;
+    memcpy(stack_strv[i], strv[i], n + 1);
+  }
+  return 0;
+}
+
 /*!\brief Places program args onto the stack.
  *
  * Also modifies value pointed by stack_bottom_p to reflect on changed stack
  * bottom address.  The stack layout will be as follows:
  *
  *  ----------- stack segment high address
- *  | argv[n] |
- *  |   ...   |  each of argv[i] is a null-terminated string
- *  | argv[1] |
- *  | argv[0] |
- *  |---------|
- *  | argv    |  the argument vector storing pointers to argv[0..n]
- *  |---------|
- *  | argc    |  a single uint32 declaring the number of arguments (n)
- *  |---------|
- *  | program |
- *  |  stack  |
- *  |   ||    |
- *  |   \/    |
- *  |         |
- *  |   ...   |
+ *  | envp[m-1]|
+ *  |   ...    |  each of envp[i] is a null-terminated string
+ *  | envp[1]  |
+ *  | envp[0]  |
+ *  |----------|
+ *  | argv[n-1]|
+ *  |   ...    |  each of argv[i] is a null-terminated string
+ *  | argv[1]  |
+ *  | argv[0]  |
+ *  |----------|
+ *  |          |
+ *  |  envp    |  NULL-terminated environment vector
+ *  |          |  storing pointers to envp[0..m]
+ *  |----------|
+ *  |          |
+ *  |  argv    |  NULL-terminated argument vector
+ *  |          |  storing pointers to argv[0..n]
+ *  |----------|
+ *  |  argc    |  a single uint32 declaring the number of arguments (n)
+ *  |----------|
+ *  |  program |
+ *  |   stack  |
+ *  |    ||    |
+ *  |    \/    |
+ *  |          |
+ *  |    ...   |
  *  ----------- stack segment low address
+ * Here argc is n and both argv[n] and argc[m] store a NULL-pointer.
+ * (see System V ABI MIPS RISC Processor Supplement, 3rd edition, p. 30)
  *
  * After this function runs, the value pointed by stack_bottom_p will be the
  * address where argc is stored, which is also the bottom of the now empty
@@ -45,29 +75,41 @@
  */
 static int user_entry_setup(const exec_args_t *args, vaddr_t *stack_top_p) {
   ustack_t us;
-  char **argv;
+  char **argv, **envp;
   int error;
+  size_t argc = 0, envc = 0;
+
+  while (args->argv[argc] != NULL)
+    argc++;
+  while (args->envp[envc] != NULL)
+    envc++;
+
+  assert(argc > 0);
 
   ustack_setup(&us, *stack_top_p, ARG_MAX);
 
-  if ((error = ustack_push_int(&us, args->argc)))
+  if ((error = ustack_push_int(&us, argc)))
+    goto fail;
+  if ((error = ustack_alloc_ptr_n(&us, argc, (vaddr_t *)&argv)))
+    goto fail;
+  if ((error = ustack_push_long(&us, (long)NULL)))
+    goto fail;
+  if ((error = ustack_alloc_ptr_n(&us, envc, (vaddr_t *)&envp)))
+    goto fail;
+  if ((error = ustack_push_long(&us, (long)NULL)))
     goto fail;
 
-  if ((error = ustack_alloc_ptr_n(&us, args->argc + 1, (vaddr_t *)&argv)))
+  if ((error = store_strings(&us, args->argv, argv, argc)))
     goto fail;
-
-  /* Store arguments, creating the argument vector. */
-  for (size_t i = 0; i <= args->argc; i++) {
-    size_t n = strlen(args->argv[i]);
-    if ((error = ustack_alloc_string(&us, n, &argv[i])))
-      goto fail;
-    memcpy(argv[i], args->argv[i], n + 1);
-  }
+  if ((error = store_strings(&us, args->envp, envp, envc)))
+    goto fail;
 
   ustack_finalize(&us);
 
-  for (size_t i = 0; i <= args->argc; i++)
+  for (size_t i = 0; i < argc; i++)
     ustack_relocate_ptr(&us, (vaddr_t *)&argv[i]);
+  for (size_t i = 0; i < envc; i++)
+    ustack_relocate_ptr(&us, (vaddr_t *)&envp[i]);
 
   error = ustack_copy(&us, stack_top_p);
 

@@ -47,6 +47,11 @@ int ustack_alloc_ptr_n(ustack_t *us, size_t count, vaddr_t *kva_p);
  * \return ENOMEM if there was not enough space on ustack */
 int ustack_push_int(ustack_t *us, int value);
 
+/*! \brief Pushes a long int on ustack.
+ *
+ * \return ENOMEM if there was not enough space on ustack */
+int ustack_push_long(ustack_t *us, long value);
+
 /*! \brief Fix size of ustack.
  *
  * Use when you pushed all contents onto the stack. */
