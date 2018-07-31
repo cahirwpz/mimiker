@@ -27,13 +27,13 @@ NESTED(_start, CALLFRAME_SIZ, ra)
         # Prepare argv pointing at argument vector below stack
         addiu   a1, sp, 12
 
-	# Prepare envp, it starts at argv + argc + 1
-	move t0, a0
-	addiu t0, t0, 1
-	sll t0, 2
-	add a2, t0, a1
-	sw a2, environ
-
+        # Prepare envp, it starts at argv + argc + 1
+        move t0, a0
+        addiu t0, t0, 1
+        sll t0, 2
+        add a2, t0, a1
+        sw a2, environ
+	
         # Jump to main
         jal     main
         nop

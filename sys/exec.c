@@ -24,8 +24,8 @@
  *  point on them.
  *
  * \return ENOMEM if there was not enough space on ustack */
-int store_strings(ustack_t *us, const char **str_p, char **stack_str_p,
-                  size_t howmany) {
+static int store_strings(ustack_t *us, const char **str_p, char **stack_str_p,
+                         size_t howmany) {
   assert((howmany == 0) ||
          (ADDR_IN_RANGE(us->us_top, stack_str_p, us->us_limit) &&
           ADDR_IN_RANGE(us->us_top, stack_str_p + howmany - 1, us->us_limit)));
