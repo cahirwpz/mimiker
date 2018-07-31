@@ -15,7 +15,7 @@ int main(int argc, char **argv, char **envp) {
   // printf("environ pointer is: %p\n", environ);
   // printf("%s\n", environ[0]);
   // environ = envp;
-  printf("%s\n", getenv("DUMMY"));
+  //  printf("%s\n", getenv("DUMMY"));
   setenv("FOO", "bar", 0);
   printf("%s\n", getenv("FOO"));
   printf("%s\n", getenv("DUMMY"));

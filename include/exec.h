@@ -10,7 +10,6 @@ typedef struct exec_args {
    * starting process. */
   const char **argv;
   const char **envp;
-  /* TODO: Environment */
 } exec_args_t;
 
 int do_exec(const exec_args_t *prog);

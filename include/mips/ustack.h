@@ -3,6 +3,10 @@
 
 #include <common.h>
 
+#define ADDR_IN_RANGE(left, addr, right)                                       \
+  ((((void *)(left)) <= ((void *)(addr))) &&                                   \
+   (((void *)(addr)) <= ((void *)(right))))
+
 /*! \file machine/ustack.h
  * \brief Machine dependent user-space stack frames construction.
  *
@@ -47,16 +51,10 @@ int ustack_alloc_ptr_n(ustack_t *us, size_t count, vaddr_t *kva_p);
  * \return ENOMEM if there was not enough space on ustack */
 int ustack_push_int(ustack_t *us, int value);
 
-/*! \brief Stores C-strings in ustack and makes stack-allocated pointers
- *  point on them.
+/*! \brief Pushes a long int on ustack.
  *
  * \return ENOMEM if there was not enough space on ustack */
-int ustack_store_strings(ustack_t *us, const char **str_p, char **stack_str_p,
-                         size_t howmany);
-
-/*! \brief Stores a NULL ptr on a pre-allocate place in ustack
- *                                            */
-void ustack_store_nullptr(ustack_t *us, char **where);
+int ustack_push_long(ustack_t *us, long value);
 
 /*! \brief Fix size of ustack.
  *

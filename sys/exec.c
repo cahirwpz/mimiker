@@ -16,6 +16,29 @@
 #include <vnode.h>
 #include <proc.h>
 
+/*! \brief Stores C-strings in ustack and makes stack-allocated pointers
+ *  point on them.
+ *
+ * \return ENOMEM if there was not enough space on ustack */
+int store_strings(ustack_t *us, const char **str_p, char **stack_str_p,
+                  size_t howmany) {
+  assert((howmany == 0) ||
+         (ADDR_IN_RANGE(us->us_top, stack_str_p, us->us_limit) &&
+          ADDR_IN_RANGE(us->us_top, stack_str_p + howmany - 1, us->us_limit)));
+
+  int error = 0;
+  /* Store arguments, creating the argument vector. */
+  for (size_t i = 0; i < howmany; i++) {
+    size_t n = strlen(str_p[i]);
+    if ((error = ustack_alloc_string(us, n, &stack_str_p[i])))
+      goto fail;
+    memcpy(stack_str_p[i], str_p[i], n + 1);
+  }
+
+fail:
+  return error;
+}
+
 /*!\brief Places program args onto the stack.
  *
  * Also modifies value pointed by stack_bottom_p to reflect on changed stack
@@ -32,9 +55,13 @@
  *  | argv[1] |
  *  | argv[0] |
  *  |---------|
- *  | envp    |
+ *  |         |
+ *  | envp    |  the NULL-terminated environment vector
+ *  |         |  storing pointers to envp[0..m]
  *  |---------|
- *  | argv    |  the argument vector storing pointers to argv[0..n]
+ *  |         |
+ *  | argv    |  the NULL-terminated argument vector
+ *  |         |  storing pointers to argv[0..n]
  *  |---------|
  *  | argc    |  a single uint32 declaring the number of arguments (n)
  *  |---------|
@@ -56,28 +83,30 @@ static int user_entry_setup(const exec_args_t *args, vaddr_t *stack_top_p) {
   char **argv, **envp;
   int error;
   size_t argc = 0, envc = 0;
-  ;
 
   while (args->argv[argc] != NULL)
     argc++;
   while (args->envp[envc] != NULL)
     envc++;
 
+  assert(argc > 0);
+
   ustack_setup(&us, *stack_top_p, ARG_MAX);
 
   if ((error = ustack_push_int(&us, argc)))
     goto fail;
-  if ((error = ustack_alloc_ptr_n(&us, argc + 1, (vaddr_t *)&argv)))
+  if ((error = ustack_alloc_ptr_n(&us, argc, (vaddr_t *)&argv)))
     goto fail;
-  if ((error = ustack_alloc_ptr_n(&us, envc + 1, (vaddr_t *)&envp)))
+  if ((error = ustack_push_long(&us, (long)NULL)))
+    goto fail;
+  if ((error = ustack_alloc_ptr_n(&us, envc, (vaddr_t *)&envp)))
+    goto fail;
+  if ((error = ustack_push_long(&us, (long)NULL)))
     goto fail;
 
-  ustack_store_nullptr(&us, &argv[argc]);
-  ustack_store_nullptr(&us, &envp[envc]);
-
-  if ((error = ustack_store_strings(&us, args->argv, argv, argc)))
+  if ((error = store_strings(&us, args->argv, argv, argc)))
     goto fail;
-  if ((error = ustack_store_strings(&us, args->envp, envp, envc)))
+  if ((error = store_strings(&us, args->envp, envp, envc)))
     goto fail;
 
   ustack_finalize(&us);
