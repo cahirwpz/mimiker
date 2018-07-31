@@ -16,6 +16,10 @@
 #include <vnode.h>
 #include <proc.h>
 
+#define ADDR_IN_RANGE(left, addr, right)                                       \
+  ((((void *)(left)) <= ((void *)(addr))) &&                                   \
+   (((void *)(addr)) <= ((void *)(right))))
+
 /*! \brief Stores C-strings in ustack and makes stack-allocated pointers
  *  point on them.
  *
@@ -31,12 +35,9 @@ int store_strings(ustack_t *us, const char **str_p, char **stack_str_p,
   for (size_t i = 0; i < howmany; i++) {
     size_t n = strlen(str_p[i]);
     if ((error = ustack_alloc_string(us, n, &stack_str_p[i])))
-      goto fail;
+      return error;
     memcpy(stack_str_p[i], str_p[i], n + 1);
   }
-
-fail:
-  return error;
 }
 
 /*!\brief Places program args onto the stack.
@@ -45,33 +46,34 @@ fail:
  * bottom address.  The stack layout will be as follows:
  *
  *  ----------- stack segment high address
- *  | envp[m] |
- *  |   ...   |  each of envp[i] is a null-terminated string
- *  | envp[1] |
- *  | envp[0] |
- *  |---------|
- *  | argv[n] |
- *  |   ...   |  each of argv[i] is a null-terminated string
- *  | argv[1] |
- *  | argv[0] |
- *  |---------|
- *  |         |
- *  | envp    |  the NULL-terminated environment vector
- *  |         |  storing pointers to envp[0..m]
- *  |---------|
- *  |         |
- *  | argv    |  the NULL-terminated argument vector
- *  |         |  storing pointers to argv[0..n]
- *  |---------|
- *  | argc    |  a single uint32 declaring the number of arguments (n)
- *  |---------|
- *  | program |
- *  |  stack  |
- *  |   ||    |
- *  |   \/    |
- *  |         |
- *  |   ...   |
+ *  | envp[m-1]|
+ *  |   ...    |  each of envp[i] is a null-terminated string
+ *  | envp[1]  |
+ *  | envp[0]  |
+ *  |----------|
+ *  | argv[n-1]|
+ *  |   ...    |  each of argv[i] is a null-terminated string
+ *  | argv[1]  |
+ *  | argv[0]  |
+ *  |----------|
+ *  |          |
+ *  |  envp    |  NULL-terminated environment vector
+ *  |          |  storing pointers to envp[0..m]
+ *  |----------|
+ *  |          |
+ *  |  argv    |  NULL-terminated argument vector
+ *  |          |  storing pointers to argv[0..n]
+ *  |----------|
+ *  |  argc    |  a single uint32 declaring the number of arguments (n)
+ *  |----------|
+ *  |  program |
+ *  |   stack  |
+ *  |    ||    |
+ *  |    \/    |
+ *  |          |
+ *  |    ...   |
  *  ----------- stack segment low address
+ * Here argc is n and both argv[n] and argc[m] store a NULL-pointer.
  * (see System V ABI MIPS RISC Processor Supplement, 3rd edition, p. 30)
  *
  * After this function runs, the value pointed by stack_bottom_p will be the

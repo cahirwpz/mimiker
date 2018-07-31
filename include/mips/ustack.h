@@ -3,10 +3,6 @@
 
 #include <common.h>
 
-#define ADDR_IN_RANGE(left, addr, right)                                       \
-  ((((void *)(left)) <= ((void *)(addr))) &&                                   \
-   (((void *)(addr)) <= ((void *)(right))))
-
 /*! \file machine/ustack.h
  * \brief Machine dependent user-space stack frames construction.
  *
