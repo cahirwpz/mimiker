@@ -13,7 +13,7 @@ static void utest_generic_thread(void *arg) {
 
   exec_args_t exec_args = {.prog_name = "/bin/utest",
                            .argv = (const char *[]){"utest", test_name, NULL},
-                           .envp = (const char *[]){"DUMMY=dummy", NULL}
+                           .envp = (const char *[]){NULL}
 
   };
 
