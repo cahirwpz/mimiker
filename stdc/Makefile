@@ -38,6 +38,7 @@ LIB_SOURCES += string/strnlen.c
 LIB_SOURCES += string/strrchr.c
 LIB_SOURCES += string/strsep.c
 LIB_SOURCES += string/strspn.c
+LIB_SOURCES += string/strstr.c
 
 # LIB_SOURCES += stdlib/wctomb.c
 # NOTE: wctomb IS needed by __format_parser, but it requires the whole
@@ -49,6 +50,7 @@ EXTRA_SOURCES += wctomb.c
 EXTRA_SOURCES += kprintf.c
 EXTRA_SOURCES += snprintf.c
 EXTRA_SOURCES += sscanf.c
+
 
 # The default rule.
 all: $(LIBNAME).a

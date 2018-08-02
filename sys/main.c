@@ -8,6 +8,7 @@
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
+const char **kenv_get_user_argv(void);
 
 int kmain(void) {
   const char *init = kenv_get("init");
@@ -17,8 +18,12 @@ int kmain(void) {
   (void)proc_create(thread_self(), NULL);
 
   if (init) {
+
+    const char **user_argv = kenv_get_user_argv();
+
     exec_args_t init_args = {.prog_name = init,
-                             .argv = (const char *[]){init, NULL},
+                             .argv = user_argv,
+                             //.argv = (const char *[]){init, NULL},
                              .envp = (const char *[]){NULL}};
 
     run_program(&init_args);

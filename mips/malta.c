@@ -21,13 +21,28 @@
 #include <turnstile.h>
 
 extern int kernel_init(int argc, char **argv);
+extern char *strstr(const char *, const char *);
 
 static struct {
   int argc;
   char **argv;
+  char **user_argv;
 } _kenv;
 
 static const char *whitespaces = " \t";
+
+static size_t next_token_size(const char *src) {
+
+  size_t len = strcspn(src, " \t\"");
+  size_t nlen = 0;
+
+  if (src[len] == '\"')
+    nlen = strcspn(src + len + 1, "\"") + 1;
+  else
+    len--;
+
+  return len + 1 + nlen;
+}
 
 static size_t count_tokens(const char *str) {
   size_t ntokens = 0;
@@ -36,7 +51,7 @@ static size_t count_tokens(const char *str) {
     str += strspn(str, whitespaces);
     if (*str == '\0')
       return ntokens;
-    str += strcspn(str, whitespaces);
+    str += next_token_size(str); // strcspn(str, whitespaces);
     ntokens++;
   } while (true);
 }
@@ -46,7 +61,7 @@ static char **extract_tokens(const char *str, char **tokens_p) {
     str += strspn(str, whitespaces);
     if (*str == '\0')
       return tokens_p;
-    size_t toklen = strcspn(str, whitespaces);
+    size_t toklen = next_token_size(str); // strcspn(str, whitespaces);
     /* copy the token to memory managed by the kernel */
     char *token = kbss_grow(toklen + 1);
     strlcpy(token, str, toklen + 1);
@@ -109,6 +124,21 @@ static void setup_kenv(int argc, char **argv, char **envp) {
     *tokens++ = make_pair(pair[0], pair[1]);
 }
 
+static void setup_user_argv(char *user_argv) {
+  if (!user_argv)
+    return;
+
+  unsigned ntokens = 0;
+
+  ntokens = count_tokens(user_argv);
+
+  char **tokens = kbss_grow((ntokens + 1) * sizeof(char *));
+
+  _kenv.user_argv = tokens;
+  extract_tokens(user_argv, tokens);
+  tokens[ntokens] = NULL;
+}
+
 char *kenv_get(const char *key) {
   unsigned n = strlen(key);
 
@@ -120,6 +150,33 @@ char *kenv_get(const char *key) {
 
   return NULL;
 }
+
+char **kenv_get_user_argv(void) {
+  return _kenv.user_argv;
+}
+
+/* char* user_args_get(void) { */
+
+/*   return _kenv.init_args; */
+/* } */
+
+/* static char * init_args(char *argv) { */
+
+/* const char *START_TOKEN = "init_args=\""; */
+/* const char *END_TOKEN = "\""; */
+
+/*   char *start = strstr(argv, START_TOKEN); */
+
+/*   if (start == NULL) return NULL; */
+
+/*   start += strlen(START_TOKEN); */
+/*   size_t args_size = strcspn(start, END_TOKEN); */
+
+/*   char *args = kbss_grow(args_size + 1); */
+/*   strlcpy(args, start, args_size + 1); */
+
+/*   return args; */
+/* } */
 
 extern uint8_t __kernel_start[];
 
@@ -176,6 +233,22 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   sleepq_init();
   turnstile_init();
   thread_bootstrap();
+
+  /* kprintf("%s\n", kenv_get("init_args")); */
+  /* kprintf("%s\n", kenv_get("init_args")); */
+
+  char *init_args = kenv_get("init_args");
+  if (init_args) {
+
+    init_args[0] = init_args[strlen(init_args) - 1] = ' ';
+    setup_user_argv(init_args);
+
+    /* kprintf("%s\n", _kenv.user_argv[0]); */
+    /* kprintf("%s\n", _kenv.user_argv[1]); */
+    /* kprintf("%s\n", _kenv.user_argv[2]); */
+  }
+
+  // kprintf("%s\n", init_args);
 
   klog("Switching to 'kernel-main' thread...");
 }
