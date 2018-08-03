@@ -18,13 +18,9 @@ int kmain(void) {
   (void)proc_create(thread_self(), NULL);
 
   if (init) {
-
     const char **user_argv = kenv_get_user_argv();
-
-    exec_args_t init_args = {.prog_name = init,
-                             .argv = user_argv,
-                             //.argv = (const char *[]){init, NULL},
-                             .envp = (const char *[]){NULL}};
+    exec_args_t init_args = {
+      .prog_name = init, .argv = user_argv, .envp = (const char *[]){NULL}};
 
     run_program(&init_args);
   } else if (test) {

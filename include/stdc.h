@@ -74,4 +74,7 @@ int kputs(const char *s);
 /* Write a character to default console. */
 int kputchar(int c);
 
+/* Find the first occurrence of find in s.*/
+char *strstr(const char *s, const char *find);
+
 #endif /* __STDLIB_H__ */

@@ -51,7 +51,6 @@ EXTRA_SOURCES += kprintf.c
 EXTRA_SOURCES += snprintf.c
 EXTRA_SOURCES += sscanf.c
 
-
 # The default rule.
 all: $(LIBNAME).a
 

@@ -21,7 +21,6 @@
 #include <turnstile.h>
 
 extern int kernel_init(int argc, char **argv);
-extern char *strstr(const char *, const char *);
 
 static struct {
   int argc;
@@ -29,44 +28,54 @@ static struct {
   char **user_argv;
 } _kenv;
 
-static const char *whitespaces = " \t";
+static const char *whitespace = " \t";
+static const char *token_separator = " \t\"";
+static const char *quot_str = "\"";
+static const char quot_char = '\"';
+/*
+<token>        ::= <token_prefix>[<token_suffix>]
+<token_prefix> ::= any sequence of characters distinct
+                   than whitespace or quot_char
+<token_suffix> ::= <quot_char>any sequence of characters distinct
+                   than quot_char<quot_char>
+*/
+static size_t next_token_size(const char *input) {
+  size_t prefix_size = strcspn(input, token_separator);
+  size_t suffix_size = 0;
 
-static size_t next_token_size(const char *src) {
+  if (input[prefix_size] == quot_char)
+    suffix_size = strcspn(input + prefix_size + 1, quot_str) + 2;
 
-  size_t len = strcspn(src, " \t\"");
-  size_t nlen = 0;
-
-  if (src[len] == '\"')
-    nlen = strcspn(src + len + 1, "\"") + 1;
-  else
-    len--;
-
-  return len + 1 + nlen;
+  return prefix_size + suffix_size;
 }
 
-static size_t count_tokens(const char *str) {
+/*
+  <token_sequence> ::=
+  <whitespace>*[<token><whitespace>*(<whitespace><token>(<whitespace>)*)*]
+*/
+static size_t count_tokens(const char *token_sequence) {
   size_t ntokens = 0;
 
   do {
-    str += strspn(str, whitespaces);
-    if (*str == '\0')
+    token_sequence += strspn(token_sequence, whitespace);
+    if (*token_sequence == '\0')
       return ntokens;
-    str += next_token_size(str); // strcspn(str, whitespaces);
+    token_sequence += next_token_size(token_sequence);
     ntokens++;
   } while (true);
 }
 
-static char **extract_tokens(const char *str, char **tokens_p) {
+static char **extract_tokens(const char *token_sequence, char **tokens_p) {
   do {
-    str += strspn(str, whitespaces);
-    if (*str == '\0')
+    token_sequence += strspn(token_sequence, whitespace);
+    if (*token_sequence == '\0')
       return tokens_p;
-    size_t toklen = next_token_size(str); // strcspn(str, whitespaces);
+    size_t token_size = next_token_size(token_sequence);
     /* copy the token to memory managed by the kernel */
-    char *token = kbss_grow(toklen + 1);
-    strlcpy(token, str, toklen + 1);
+    char *token = kbss_grow(token_size + 1);
+    strlcpy(token, token_sequence, token_size + 1);
     *tokens_p++ = token;
-    str += toklen;
+    token_sequence += token_size;
   } while (true);
 }
 
@@ -124,19 +133,20 @@ static void setup_kenv(int argc, char **argv, char **envp) {
     *tokens++ = make_pair(pair[0], pair[1]);
 }
 
-static void setup_user_argv(char *user_argv) {
-  if (!user_argv)
+static void setup_user_argv(char *quoted_args) {
+  if (!quoted_args)
     return;
 
-  unsigned ntokens = 0;
+  const size_t args_size = strlen(quoted_args) - 1;
+  char *args = kbss_grow(args_size);
+  strlcpy(args, quoted_args + 1, args_size);
 
-  ntokens = count_tokens(user_argv);
+  unsigned ntokens = count_tokens(args);
+  char **user_argv = kbss_grow((ntokens + 1) * sizeof(char *));
+  extract_tokens(args, user_argv);
+  user_argv[ntokens] = NULL;
 
-  char **tokens = kbss_grow((ntokens + 1) * sizeof(char *));
-
-  _kenv.user_argv = tokens;
-  extract_tokens(user_argv, tokens);
-  tokens[ntokens] = NULL;
+  _kenv.user_argv = user_argv;
 }
 
 char *kenv_get(const char *key) {
@@ -154,29 +164,6 @@ char *kenv_get(const char *key) {
 char **kenv_get_user_argv(void) {
   return _kenv.user_argv;
 }
-
-/* char* user_args_get(void) { */
-
-/*   return _kenv.init_args; */
-/* } */
-
-/* static char * init_args(char *argv) { */
-
-/* const char *START_TOKEN = "init_args=\""; */
-/* const char *END_TOKEN = "\""; */
-
-/*   char *start = strstr(argv, START_TOKEN); */
-
-/*   if (start == NULL) return NULL; */
-
-/*   start += strlen(START_TOKEN); */
-/*   size_t args_size = strcspn(start, END_TOKEN); */
-
-/*   char *args = kbss_grow(args_size + 1); */
-/*   strlcpy(args, start, args_size + 1); */
-
-/*   return args; */
-/* } */
 
 extern uint8_t __kernel_start[];
 
@@ -233,22 +220,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   sleepq_init();
   turnstile_init();
   thread_bootstrap();
-
-  /* kprintf("%s\n", kenv_get("init_args")); */
-  /* kprintf("%s\n", kenv_get("init_args")); */
-
-  char *init_args = kenv_get("init_args");
-  if (init_args) {
-
-    init_args[0] = init_args[strlen(init_args) - 1] = ' ';
-    setup_user_argv(init_args);
-
-    /* kprintf("%s\n", _kenv.user_argv[0]); */
-    /* kprintf("%s\n", _kenv.user_argv[1]); */
-    /* kprintf("%s\n", _kenv.user_argv[2]); */
-  }
-
-  // kprintf("%s\n", init_args);
+  setup_user_argv(kenv_get("init_args"));
 
   klog("Switching to 'kernel-main' thread...");
 }
