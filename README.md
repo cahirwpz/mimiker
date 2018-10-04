@@ -8,7 +8,7 @@ Toolchain
 
 To build Mimiker you will need a custom MIPS toolchain we use. You can download
 a binary debian package
-[from here](http://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.1_amd64.deb).
+[from here](http://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.2_amd64.deb).
 It installs into `/opt`, so you'll need to add `/opt/mipsel-mimiker-elf/bin` to
 your `PATH`.
 
