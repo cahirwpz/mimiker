@@ -3,6 +3,26 @@
 An experiment with implementation of very simple operating system
 for [Malta](https://www.linux-mips.org/wiki/MIPS_Malta) board.
 
+Quickstart
+---
+
+In order to quickly prepare local environment with all tools required to develop
+mimiker, containerization may be used. You will need to have `docker` and
+`docker-compose` installed to set up environment:
+
+```
+export MIMIKER_SRC_PATH="<path to mimiker source>"
+./run_mimiker.sh
+```
+
+The above script will
+- build `mimiker-dev` docker image
+- attach volume with mimiker source code from your machine
+- compile mimiker
+- run docker container with tmux
+
+Use `docker-compose exec mimiker tmux` to enter container's shell
+
 Toolchain
 ---
 
