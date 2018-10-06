@@ -21,7 +21,7 @@ cd toolchain/mips/
 ct-ng build
 ```
 
-By default, this will build and install the `mipsel-mimiker-elf` toolchnain to
+By default, this will build and install the `mipsel-mimiker-elf` toolchain to
 `~/local`. Update your `$PATH` so that it provides `mipsel-mimiker-elf-*`,
 i.e. unless you've changed the install location you will need to append
 `~/local/mipsel-mimiker-elf/bin` to your `PATH`.
