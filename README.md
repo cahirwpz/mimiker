@@ -23,6 +23,10 @@ The above script will
 
 Use `docker-compose exec mimiker tmux` to enter container's shell
 
+Possible issues:
+- It is assumed that docker can be managed by non-root user. Take a look at the
+first paragraph of the [following page](https://docs.docker.com/install/linux/linux-postinstall/) if unsure
+
 Toolchain
 ---
 
