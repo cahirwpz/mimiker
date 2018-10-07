@@ -11,7 +11,9 @@ typedef struct thread thread_t;
 
 TAILQ_HEAD(rq_head, thread);
 
-typedef struct { struct rq_head rq_queues[RQ_NQS]; } runq_t;
+typedef struct {
+  struct rq_head rq_queues[RQ_NQS];
+} runq_t;
 
 /* Initialize a run structure. */
 void runq_init(runq_t *);

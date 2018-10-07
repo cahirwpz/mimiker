@@ -50,7 +50,9 @@ typedef struct turnstile {
   ts_state_t ts_state; /* state of turnstile */
 } turnstile_t;
 
-typedef struct turnstile_chain { ts_list_t tc_turnstiles; } turnstile_chain_t;
+typedef struct turnstile_chain {
+  ts_list_t tc_turnstiles;
+} turnstile_chain_t;
 
 static turnstile_chain_t turnstile_chains[TC_TABLESIZE];
 

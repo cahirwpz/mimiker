@@ -189,8 +189,12 @@
     reg_t fsr;                                                                 \
   }
 
-typedef struct cpu_exc_frame { CPU_FRAME; } cpu_exc_frame_t;
-typedef struct fpu_exc_frame { FPU_FRAME; } fpu_exc_frame_t;
+typedef struct cpu_exc_frame {
+  CPU_FRAME;
+} cpu_exc_frame_t;
+typedef struct fpu_exc_frame {
+  FPU_FRAME;
+} fpu_exc_frame_t;
 typedef struct exc_frame {
   CPU_FRAME;
   FPU_FRAME;
