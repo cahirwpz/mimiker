@@ -1,4 +1,7 @@
 # docker build . -t cahirwpz/mimiker-circleci:latest
+# docker image tag cahirwpz/mimiker-circleci:latest \
+#                  cahirwpz/mimiker-circleci:1.xx
+# docker push cahirwpz/mimiker-circleci:1.xx
 
 FROM debian:stretch-backports
 
