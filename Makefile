@@ -70,7 +70,7 @@ FORMATTABLE = $(filter-out $(FORMATTABLE_EXCLUDE),$(SOURCES_C))
 
 format:
 	@echo "Formatting files: $(FORMATTABLE:./%=%)"
-	clang-format -style=file -i $(FORMATTABLE)
+	clang-format-6.0 -style=file -i $(FORMATTABLE)
 
 test: mimiker.elf
 	./run_tests.py

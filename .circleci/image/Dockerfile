@@ -16,4 +16,3 @@ RUN wget http://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.2_amd64.deb
 RUN dpkg -i mipsel-mimiker-elf_1.2_amd64.deb
 RUN wget http://mimiker.ii.uni.wroc.pl/download/qemu-system-mimiker_2.12.0-1_amd64.deb
 RUN dpkg -i qemu-system-mimiker_2.12.0-1_amd64.deb
-RUN ln -s /usr/bin/clang-format-6.0 /usr/local/bin/clang-format
