@@ -12,6 +12,7 @@ endef
 
 $(foreach file,$(SOURCES) null,$(eval $(call emit_dep_rule,$(file))))
 
+
 ifeq ($(words $(findstring $(MAKECMDGOALS), clean)), 0)
   -include $(DEPFILES)
 endif
