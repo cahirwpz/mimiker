@@ -7,7 +7,6 @@ SOURCES_C = atkbdc.c \
 	    pit.c \
 	    stdvga.c
 
-
 all:	$(DEPFILES) libdrv.a
 
 include $(TOPDIR)/build/build.kern.mk
