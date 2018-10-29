@@ -37,3 +37,4 @@ clean:
 	$(RM) .*.D *.ko *.o *.a *.lst *~
 	$(RM) tags *.taghl
 	$(RM) assym.h
+	$(RM) libmips.a
