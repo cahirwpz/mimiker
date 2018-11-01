@@ -10,12 +10,12 @@ extern void kmain(void *);
 
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
-static void mount_fs(void) {
+static void mount_fs(void *arg) {
   do_mount(thread_self(), "initrd", "/");
   do_mount(thread_self(), "devfs", "/dev");
 }
 
-SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"));
+SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"), NULL);
 
 int kernel_init(int argc, char **argv) {
   kprintf("Kernel arguments (%d): ", argc);

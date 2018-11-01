@@ -74,7 +74,7 @@ static void vm_map_setup(vm_map_t *map) {
   mtx_init(&map->mtx, 0);
 }
 
-static void vm_map_init(void) {
+static void vm_map_init(void *arg) {
   vm_map_setup(kspace);
   kspace->pmap = get_kernel_pmap();
 }
@@ -326,4 +326,4 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   return 0;
 }
 
-SYSINIT_ADD(vm_map, vm_map_init, NODEPS);
+SYSINIT_ADD(vm_map, vm_map_init, NODEPS, NULL);

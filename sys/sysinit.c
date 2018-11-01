@@ -85,7 +85,7 @@ void sysinit(void) {
   TAILQ_FOREACH (p, &list, entries) {
     if (p->func) {
       klog("initialize '%s' module", p->name);
-      p->func();
+      p->func(p->pdata); // p->priv_data should be zeroed by default
     }
   }
 }

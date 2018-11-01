@@ -17,7 +17,7 @@ static bool sched_active = false;
 
 #define SLICE 10
 
-static void sched_init(void) {
+static void sched_init(void *arg) {
   runq_init(&runq);
 }
 
@@ -225,4 +225,4 @@ void preempt_enable(void) {
   sched_maybe_preempt();
 }
 
-SYSINIT_ADD(sched, sched_init, DEPS("callout"));
+SYSINIT_ADD(sched, sched_init, DEPS("callout"), NULL);

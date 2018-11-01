@@ -119,9 +119,9 @@ static driver_t rtc_driver = {
 
 extern device_t *gt_pci;
 
-static void rtc_init(void) {
+static void rtc_init(void *arg) {
   vnodeops_init(&rtc_time_vnodeops);
   (void)make_device(gt_pci, &rtc_driver);
 }
 
-SYSINIT_ADD(rtc, rtc_init, DEPS("rootdev"));
+SYSINIT_ADD(rtc, rtc_init, DEPS("rootdev"), NULL);

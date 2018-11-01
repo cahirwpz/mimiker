@@ -40,7 +40,7 @@ static inline callout_list_t *ci_list(int i) {
   return &ci.heads[i];
 }
 
-static void callout_init(void) {
+static void callout_init(void *arg) {
   bzero(&ci, sizeof(ci));
 
   ci.lock = SPIN_INITIALIZER(0);
@@ -164,4 +164,4 @@ bool callout_drain(callout_t *handle) {
   return false;
 }
 
-SYSINIT_ADD(callout, callout_init, NODEPS);
+SYSINIT_ADD(callout, callout_init, NODEPS, NULL);

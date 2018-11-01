@@ -144,8 +144,8 @@ static driver_t pit_driver = {
 
 extern device_t *gt_pci;
 
-static void pit_init(void) {
+static void pit_init(void *arg) {
   (void)make_device(gt_pci, &pit_driver);
 }
 
-SYSINIT_ADD(pit, pit_init, DEPS("rootdev"));
+SYSINIT_ADD(pit, pit_init, DEPS("rootdev"), NULL);

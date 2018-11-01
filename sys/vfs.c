@@ -37,7 +37,7 @@ static vnodeops_t vfs_root_ops = {};
 
 static int vfs_register(vfsconf_t *vfc);
 
-static void vfs_init(void) {
+static void vfs_init(void *arg) {
   vnodeops_init(&vfs_root_ops);
 
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops, NULL);
@@ -248,4 +248,4 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   return res;
 }
 
-SYSINIT_ADD(vfs, vfs_init, NODEPS);
+SYSINIT_ADD(vfs, vfs_init, NODEPS, NULL);

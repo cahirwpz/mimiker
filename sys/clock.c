@@ -20,7 +20,7 @@ static void clock_cb(timer_t *tm, void *arg) {
   sched_clock();
 }
 
-static void clock_init(void) {
+static void clock_init(void *arg) {
   clock = tm_reserve(NULL, TMF_PERIODIC);
   if (clock == NULL)
     panic("Missing suitable timer for maintenance of system clock!");
@@ -31,4 +31,4 @@ static void clock_init(void) {
   klog("System clock uses \'%s\' hardware timer.", clock->tm_name);
 }
 
-SYSINIT_ADD(clock, clock_init, DEPS("sched", "callout", "pit"));
+SYSINIT_ADD(clock, clock_init, DEPS("sched", "callout", "pit"), NULL);

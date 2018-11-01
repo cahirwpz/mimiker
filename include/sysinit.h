@@ -13,7 +13,7 @@
   }
 
 typedef struct sysinit_entry sysinit_entry_t;
-typedef void sysinit_func_t(void);
+typedef void sysinit_func_t(void*);
 
 struct sysinit_entry {
   const char *name;     /* name of module */
@@ -21,16 +21,18 @@ struct sysinit_entry {
   char **deps;          /* names of dependencies */
   unsigned dependants;  /* number of modules depending on this module
                            used during topological ordering */
+  void *pdata;		/* module's private data*/
   TAILQ_ENTRY(sysinit_entry) entries; /* linked list reperesenting ordering */
 };
 
 SET_DECLARE(sysinit, sysinit_entry_t);
 
-#define SYSINIT_ADD(mod_name, init_func, deps_names)                           \
+#define SYSINIT_ADD(mod_name, init_func, deps_names, priv_data)                \
   sysinit_entry_t mod_name##_sysinit = {.name = (#mod_name),                   \
                                         .func = (init_func),                   \
                                         .deps = (deps_names),                  \
-                                        .dependants = 0};                      \
+                                        .dependants = 0,                       \
+  					.pdata = priv_data};               \
   SET_ENTRY(sysinit, mod_name##_sysinit);
 
 void sysinit(void);

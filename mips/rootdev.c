@@ -101,8 +101,8 @@ static device_t rootdev = (device_t){
   .state = NULL,
 };
 
-static void rootdev_init(void) {
+static void rootdev_init(void *arg) {
   device_attach(&rootdev);
 }
 
-SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs"));
+SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs"), NULL);
