@@ -69,6 +69,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
 
   WITH_MTX_LOCK (all_proc_mtx) {
     p->p_pid = pid_alloc();
+    p->p_pgid = parent ? parent->p_pgid : p->p_pid;
     TAILQ_INSERT_TAIL(&proc_list, p, p_all);
     if (parent)
       TAILQ_INSERT_TAIL(CHILDREN(parent), p, p_child);
@@ -193,10 +194,6 @@ noreturn void proc_exit(int exitstatus) {
 int do_waitpid(pid_t pid, int *status, int options) {
   proc_t *p = proc_self();
 
-  /* We don't have a concept of process groups yet. */
-  if (pid < -1 || pid == 0)
-    return -ENOTSUP;
-
   WITH_MTX_LOCK (all_proc_mtx) {
     proc_t *child = NULL;
 
@@ -215,9 +212,14 @@ int do_waitpid(pid_t pid, int *status, int options) {
 
       if (child == NULL) {
         /* Search for any zombie children. */
-        TAILQ_FOREACH (zombie, CHILDREN(p), p_child)
+        TAILQ_FOREACH (zombie, CHILDREN(p), p_child) {
+          if (pid < -1 && zombie->p_pgid != -pid)
+            continue;
+          if (pid == 0 && zombie->p_pgid != p->p_pgid)
+            continue;
           if (zombie->p_state == PS_ZOMBIE)
             break;
+        }
       } else {
         /* Is the chosen one zombie? */
         if (child->p_state == PS_ZOMBIE)
