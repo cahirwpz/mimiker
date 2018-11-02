@@ -211,7 +211,7 @@ int do_waitpid(pid_t pid, int *status, int options) {
       proc_t *zombie = NULL;
 
       if (child == NULL) {
-        /* Search for any zombie children. */
+        /* Search within zombie childrens. */
         TAILQ_FOREACH (zombie, CHILDREN(p), p_child) {
           if (pid < -1 && zombie->p_pgid != -pid)
             continue;
