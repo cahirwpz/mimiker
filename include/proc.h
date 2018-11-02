@@ -30,6 +30,7 @@ struct proc {
   TAILQ_ENTRY(proc) p_child;  /* (a) link on parent's children list */
   thread_t *p_thread;         /* (p) the only thread running in this process */
   pid_t p_pid;                /* (@) Process ID */
+  pgid_t p_pgid;              /* (p) Process group ID */
   volatile proc_state_t p_state;  /* (p) process state */
   proc_t *p_parent;               /* (a) parent process */
   proc_list_t p_children;         /* (a) child processes, including zombies */
