@@ -1,3 +1,5 @@
+/* rtc.c - MC146818 Real-time clock driver
+ */
 #include <common.h>
 #include <dev/mc146818reg.h>
 #include <dev/isareg.h>

@@ -1,5 +1,6 @@
-/* Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file. */
-
+/* gt64120.c - GT64120 PCI bus driver
+ *
+ * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file. */
 #define KL_LOG KL_DEV
 #include <mips/malta.h>
 #include <mips/intr.h>
