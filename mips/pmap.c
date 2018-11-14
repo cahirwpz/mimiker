@@ -177,14 +177,14 @@ static pte_t vm_prot_map[] = {
 };
 #else
 static pte_t vm_prot_map[] = {
-    [VM_PROT_NONE] = 0,
-    [VM_PROT_READ] = PTE_VALID,
-    [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY,
-    [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY,
-    [VM_PROT_EXEC] = PTE_VALID,
-    [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID,
-    [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
-    [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
+  [VM_PROT_NONE] = 0,
+  [VM_PROT_READ] = PTE_VALID,
+  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY,
+  [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY,
+  [VM_PROT_EXEC] = PTE_VALID,
+  [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID,
+  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
+  [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
 };
 #endif
 
@@ -199,8 +199,9 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (; va < va_end; va += PAGESIZE, pa += PAGESIZE)
-      pmap_pte_write(pmap, va, PTE_PFN(pa) | vm_prot_map[prot] |
-                                 (in_kernel_space(va) ? PTE_GLOBAL : 0));
+      pmap_pte_write(pmap, va,
+                     PTE_PFN(pa) | vm_prot_map[prot] |
+                       (in_kernel_space(va) ? PTE_GLOBAL : 0));
   }
 }
 

@@ -7,7 +7,9 @@
 #include <pci.h>
 #include <sysinit.h>
 
-typedef struct rootdev { void *data; } rootdev_t;
+typedef struct rootdev {
+  void *data;
+} rootdev_t;
 
 /* TODO: remove following lines when devclasses are implemented */
 extern pci_bus_driver_t gt_pci_bus;

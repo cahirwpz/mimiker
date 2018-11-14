@@ -40,3 +40,4 @@ libtests.a: $(OBJECTS)
 
 clean:
 	$(RM) .*.D *.o *.elf *.a *.map *~
+	$(RM) libtests.a
