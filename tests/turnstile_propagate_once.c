@@ -17,9 +17,9 @@ static volatile bool high_prio_mtx_acquired;
 
 static void assert_priorities(prio_t p0, prio_t p1, prio_t p2) {
   assert(T >= 3);
-  assert(td[0]->td_prio == p0);
-  assert(td[1]->td_prio == p1);
-  assert(td[2]->td_prio == p2);
+  assert(td_prio_cmp(td[0]->td_prio, p0, PRIO_EQ));
+  assert(td_prio_cmp(td[1]->td_prio, p1, PRIO_EQ));
+  assert(td_prio_cmp(td[2]->td_prio, p2, PRIO_EQ));
 }
 
 static void lend_prio(thread_t *td, prio_t prio) {
@@ -57,7 +57,7 @@ static void low_prio_task(void *arg) {
       thread_yield();
 
       /* Our priority should've been raised. */
-      assert(thread_self()->td_prio == HIGH);
+      assert(td_prio_cmp(thread_self()->td_prio, HIGH, PRIO_EQ));
       assert(td_is_borrowing(thread_self()));
 
       /* And high priority task is still waiting. */

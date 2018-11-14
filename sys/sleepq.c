@@ -285,7 +285,7 @@ bool sleepq_signal(void *wchan) {
   thread_t *td, *best_td = TAILQ_FIRST(&sq->sq_blocked);
   TAILQ_FOREACH (td, &sq->sq_blocked, td_sleepq) {
     /* Search for thread with highest priority */
-    if (td->td_prio > best_td->td_prio)
+    if (td_prio_cmp(td->td_prio, best_td->td_prio, PRIO_GT))
       best_td = td;
   }
 

@@ -88,7 +88,7 @@ static void adjust_thread_forward(turnstile_t *ts, thread_t *td) {
   thread_t *next = td;
 
   while (TAILQ_NEXT(next, td_blockedq) != NULL &&
-         TAILQ_NEXT(next, td_blockedq)->td_prio > td->td_prio)
+         td_prio_cmp(TAILQ_NEXT(next, td_blockedq)->td_prio, td->td_prio, PRIO_GT))
     next = TAILQ_NEXT(next, td_blockedq);
 
   if (next != td) {
@@ -102,7 +102,7 @@ static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
   thread_t *prev = td;
 
   while (TAILQ_PREV(prev, td_queue, td_blockedq) != NULL &&
-         TAILQ_PREV(prev, td_queue, td_blockedq)->td_prio < td->td_prio)
+         td_prio_cmp(TAILQ_PREV(prev, td_queue, td_blockedq)->td_prio, td->td_prio, PRIO_LT))
     prev = TAILQ_PREV(prev, td_queue, td_blockedq);
 
   if (prev != td) {
@@ -117,9 +117,9 @@ static void adjust_thread(turnstile_t *ts, thread_t *td, prio_t oldprio) {
   assert(ts->ts_state == USED_BLOCKED);
   assert(td_is_blocked(td));
 
-  if (td->td_prio > oldprio)
+  if (td_prio_cmp(td->td_prio, oldprio, PRIO_GT))
     adjust_thread_backward(ts, td);
-  else if (td->td_prio < oldprio)
+  else if (td_prio_cmp(td->td_prio, oldprio, PRIO_LT))
     adjust_thread_forward(ts, td);
 }
 
@@ -143,7 +143,7 @@ static void propagate_priority(thread_t *td) {
   td = acquire_owner(ts);
 
   /* Walk through blocked threads. */
-  while (td->td_prio < prio && !td_is_ready(td) && !td_is_running(td)) {
+  while (td_prio_cmp(td->td_prio, prio, PRIO_LT) && !td_is_ready(td) && !td_is_running(td)) {
     assert(td != thread_self()); /* Deadlock. */
     assert(td_is_blocked(td));
 
@@ -162,7 +162,7 @@ static void propagate_priority(thread_t *td) {
   }
 
   /* Possibly finish at a running/runnable thread. */
-  if (td->td_prio < prio && (td_is_ready(td) || td_is_running(td))) {
+  if (td_prio_cmp(td->td_prio, prio, PRIO_LT) && (td_is_ready(td) || td_is_running(td))) {
     sched_lend_prio(td, prio);
     assert(td->td_blocked == NULL);
   }
@@ -182,7 +182,7 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
 
   /* If td got higher priority and it is at the head of ts_blocked,
    * propagate its priority. */
-  if (td == TAILQ_FIRST(&ts->ts_blocked) && td->td_prio > oldprio)
+  if (td == TAILQ_FIRST(&ts->ts_blocked) && td_prio_cmp(td->td_prio, oldprio, PRIO_GT))
     propagate_priority(td);
 }
 
@@ -295,7 +295,7 @@ static void unlend_self(turnstile_t *ts) {
   LIST_FOREACH(ts_owned, &td->td_contested, ts_contested_link) {
     assert(ts_owned->ts_owner == td);
     prio_t p = TAILQ_FIRST(&ts_owned->ts_blocked)->td_prio;
-    if (p > prio)
+    if (td_prio_cmp(p, prio, PRIO_GT))
       prio = p;
   }
 

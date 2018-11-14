@@ -40,7 +40,7 @@ static bool td_is_blocked_on_mtx(thread_t *td, mtx_t *m) {
  *   priority propagation to propagator[0..n-1]
  */
 static void propagator_routine(int n) {
-  assert(thread_self()->td_prio == propagator_prio(n));
+  assert(td_prio_cmp(thread_self()->td_prio, propagator_prio(n), PRIO_EQ));
   assert(mtx_owner(&mtx[n]) == NULL);
   WITH_MTX_LOCK (&mtx[n]) {
     assert(mtx_owner(&mtx[n - 1]) == propagator[n - 1]);
@@ -49,7 +49,7 @@ static void propagator_routine(int n) {
     }
   }
   assert(!td_is_borrowing(thread_self()));
-  assert(thread_self()->td_prio == propagator_prio(n));
+  assert(td_prio_cmp(thread_self()->td_prio, propagator_prio(n), PRIO_EQ));
 }
 
 static void starter_routine(void *_arg) {
@@ -59,7 +59,7 @@ static void starter_routine(void *_arg) {
       WITH_NO_PREEMPTION {
         set_prio(propagator[i], propagator_prio(i));
         sched_add(propagator[i]);
-        assert(thread_self()->td_prio == propagator_prio(i - 1));
+        assert(td_prio_cmp(thread_self()->td_prio, propagator_prio(i - 1), PRIO_EQ));
       }
 
       assert(td_is_blocked_on_mtx(propagator[i], &mtx[i - 1]));
@@ -67,12 +67,12 @@ static void starter_routine(void *_arg) {
 
       /* Check if the priorities have propagated correctly. */
       for (int j = 0; j < i; j++) {
-        assert(propagator[j]->td_prio == propagator_prio(i));
+        assert(td_prio_cmp(propagator[j]->td_prio, propagator_prio(i), PRIO_EQ));
         assert(td_is_borrowing(propagator[j]));
       }
     }
   }
-  assert(thread_self()->td_prio == propagator_prio(0));
+  assert(td_prio_cmp(thread_self()->td_prio, propagator_prio(0), PRIO_EQ));
   assert(!td_is_borrowing(thread_self()));
 }
 

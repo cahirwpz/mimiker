@@ -47,7 +47,7 @@ void sched_wakeup(thread_t *td, long reason) {
 
   /* Check if we need to reschedule threads. */
   thread_t *oldtd = thread_self();
-  if (td->td_prio > oldtd->td_prio)
+  if (td_prio_cmp(td->td_prio, oldtd->td_prio, PRIO_GT))
     oldtd->td_flags |= TDF_NEEDSWITCH;
 }
 
@@ -58,7 +58,7 @@ void sched_wakeup(thread_t *td, long reason) {
 static void sched_set_active_prio(thread_t *td, prio_t prio) {
   assert(spin_owned(&td->td_spin));
 
-  if (td->td_prio == prio)
+  if (td_prio_cmp(td->td_prio, prio, PRIO_EQ))
     return;
 
   if (td_is_ready(td)) {
@@ -77,7 +77,7 @@ void sched_set_prio(thread_t *td, prio_t prio) {
   td->td_base_prio = prio;
 
   /* If thread is borrowing priority, don't lower its active priority. */
-  if (td_is_borrowing(td) && td->td_prio > prio)
+  if (td_is_borrowing(td) && td_prio_cmp(td->td_prio, prio, PRIO_GT))
     return;
 
   prio_t oldprio = td->td_prio;
@@ -85,13 +85,13 @@ void sched_set_prio(thread_t *td, prio_t prio) {
 
   /* If thread is locked on a turnstile, let the turnstile adjust
    * thread's position on turnstile's \a ts_blocked list. */
-  if (td_is_blocked(td) && oldprio != prio)
+  if (td_is_blocked(td) && td_prio_cmp(oldprio, prio, PRIO_NE))
     turnstile_adjust(td, oldprio);
 }
 
 void sched_lend_prio(thread_t *td, prio_t prio) {
   assert(spin_owned(&td->td_spin));
-  assert(td->td_prio < prio);
+  assert(td_prio_cmp(td->td_prio, prio, PRIO_LT));
 
   td->td_flags |= TDF_BORROWING;
   sched_set_active_prio(td, prio);
