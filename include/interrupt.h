@@ -63,6 +63,7 @@ struct intr_handler {
   TAILQ_ENTRY(intr_handler) ih_list;
   driver_filter_t *ih_filter; /* driver interrupt filter function */
   driver_intr_t *ih_handler;  /* driver interrupt handler function */
+  driver_intr_t *ih_eoi;      /* driver interrupt signal EOI function */
   intr_chain_t *ih_chain;     /* chain we are connected to */
   void *ih_argument;          /* argument to pass to the handler */
   char *ih_name;              /* name of the handler */
