@@ -100,7 +100,7 @@ void sched_lend_prio(thread_t *td, prio_t prio) {
 void sched_unlend_prio(thread_t *td, prio_t prio) {
   assert(spin_owned(&td->td_spin));
 
-  if (prio <= td->td_base_prio) {
+  if (td_prio_cmp(prio, td->td_base_prio, PRIO_LE)) {
     td->td_flags &= ~TDF_BORROWING;
     sched_set_active_prio(td, td->td_base_prio);
   } else

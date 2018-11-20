@@ -204,6 +204,8 @@ typedef enum {
   PRIO_EQ, PRIO_NE, PRIO_LE, PRIO_LT, PRIO_GE, PRIO_GT
 } prio_cmp;
 
+#define PRIO_MIN 255
+
 static inline bool td_prio_cmp(prio_t p1, prio_t p2, prio_cmp op) {
   if (op == PRIO_EQ) {
       return p1 == p2;
