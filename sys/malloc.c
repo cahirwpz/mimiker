@@ -3,7 +3,7 @@
 #include <stdc.h>
 #include <mutex.h>
 #include <malloc.h>
-#include <physmem.h>
+#include <vm_map.h>
 #include <pool.h>
 #include <queue.h>
 
@@ -115,8 +115,12 @@ static void kmalloc_add_arena(kmem_pool_t *mp, vaddr_t start,
 }
 
 static void kmalloc_add_pages(kmem_pool_t *mp, unsigned pages) {
-  vm_page_t *pg = pm_alloc(pages);
-  kmalloc_add_arena(mp, (vaddr_t)PG_KSEG0_ADDR(pg), PG_SIZE(pg));
+  vm_segment_t *seg = vm_alloc_anyseg(get_kernel_vm_map(), pages);
+  if (!seg)
+		panic("failed to alloc pages for '%s'", mp->mp_desc);
+  vaddr_t start, end;
+  vm_segment_range(seg, &start, &end);
+  kmalloc_add_arena(mp, start, end - start);
 }
 
 static mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {

@@ -326,4 +326,18 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   return 0;
 }
 
+vm_segment_t *vm_alloc_anyseg(vm_map_t *map, size_t pages){
+  vaddr_t start, end;
+  vm_map_range(map, &start, &end);
+  end = start + pages * PAGESIZE;
+  vm_object_t *ann_obj = vm_object_alloc(VM_ANONYMOUS);
+  vm_segment_t *seg = vm_segment_alloc(ann_obj, start, end, VM_PROT_NONE);
+
+  if (vm_map_insert(map, seg, VM_FILE)){
+	  vm_segment_free(seg);	//obj_free() is inside this call
+	  return NULL;
+  }
+  return seg;
+}
+
 SYSINIT_ADD(vm_map, vm_map_init, NODEPS);

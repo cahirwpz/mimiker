@@ -54,4 +54,6 @@ vm_map_t *vm_map_clone(vm_map_t *map);
 
 int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type);
 
+vm_segment_t *vm_alloc_anyseg(vm_map_t *map, size_t pages);
+
 #endif /* !_SYS_VM_MAP_H_ */
