@@ -117,7 +117,7 @@ static void kmalloc_add_arena(kmem_pool_t *mp, vaddr_t start,
 static void kmalloc_add_pages(kmem_pool_t *mp, unsigned pages) {
   vm_segment_t *seg = vm_alloc_anyseg(get_kernel_vm_map(), pages);
   if (!seg)
-		panic("failed to alloc pages for '%s'", mp->mp_desc);
+    panic("failed to alloc pages for '%s'", mp->mp_desc);
   vaddr_t start, end;
   vm_segment_range(seg, &start, &end);
   kmalloc_add_arena(mp, start, end - start);
