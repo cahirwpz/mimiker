@@ -169,7 +169,8 @@ static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
  * \param dev device which needs resource
  * \param type resource type RT_* defined in rman.h
  * \param rid resource identifier as in \a resource_t structure
- * \param start/end start/end addresses of the resource
+ * \param start/end - range of the addresses from which the resource will be
+ * allocated
  * \param size the size of the resource
  * \param flags RF_* flags defined in rman.h
  */

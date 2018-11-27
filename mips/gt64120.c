@@ -1,4 +1,4 @@
-/* gt64120.c - GT64120 PCI bus driver
+/* GT64120 PCI bus driver
  *
  * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file. */
 #define KL_LOG KL_DEV

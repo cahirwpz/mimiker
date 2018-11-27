@@ -1,4 +1,4 @@
-/* pit.c - Programable Interval Timer (PIT) driver for Intel 8253
+/* Programable Interval Timer (PIT) driver for Intel 8253
  */
 #include <common.h>
 #include <dev/i8253reg.h>

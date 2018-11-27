@@ -1,4 +1,4 @@
-/* stdvga.c - Standard VGA driver
+/* Standard VGA driver
  */
 #include <pci.h>
 #include <vga.h>
