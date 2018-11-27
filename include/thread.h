@@ -6,6 +6,7 @@
 #include <exception.h>
 #include <mutex.h>
 #include <condvar.h>
+#include <priority.h>
 #include <time.h>
 #include <signal.h>
 #include <stack.h>
@@ -197,29 +198,6 @@ static inline bool td_is_interruptible(thread_t *td) {
 
 static inline bool td_is_borrowing(thread_t *td) {
   return td->td_flags & TDF_BORROWING;
-}
-
-/* Please use the following code to compare priorities of two threads! */
-typedef enum {
-  PRIO_EQ, PRIO_NE, PRIO_LE, PRIO_LT, PRIO_GE, PRIO_GT
-} prio_cmp;
-
-#define PRIO_MIN 255
-
-static inline bool td_prio_cmp(prio_t p1, prio_t p2, prio_cmp op) {
-  if (op == PRIO_EQ) {
-      return p1 == p2;
-  } else if (op == PRIO_NE) {
-    return p1 != p2;
-  } else if (op == PRIO_LE) {
-      return p1 >= p2;
-  } else if (op == PRIO_LT) {
-      return p1 > p2;
-  } else if (op == PRIO_GE) {
-      return p1 <= p2;
-  } else { /* op == PRIO_GT */
-      return p1 < p2;
-  }
 }
 
 #endif /* !_SYS_THREAD_H_ */
