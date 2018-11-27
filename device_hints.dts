@@ -1,0 +1,20 @@
+/dts-v1/;
+
+/ {
+    pci@0 {
+        isab@0 {
+            isa@0 {
+                uart@0 {
+                    interrupts = <4>;
+                    reg = <0x3F8 0x7>;
+                };
+
+                uart@1 {
+                    interrupts = <3>;
+                    reg = <0x2F8 0x7>;
+                };
+            };
+        };
+    };
+};
+
