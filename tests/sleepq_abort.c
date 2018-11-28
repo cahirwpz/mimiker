@@ -81,11 +81,12 @@ static int test_sleepq_abort_mult(void) {
   wakened_gracefully = 0;
   interrupted = 0;
 
-  waker = thread_create("waker", waker_routine, NULL, RQ_PPQ);
+  /* HACK: Priorities differ by RQ_PPQ so that threads occupy different runq. */
+  waker = thread_create("waker", waker_routine, NULL, prio_kthread(0) + RQ_PPQ);
   for (int i = 0; i < T; i++) {
     char name[20];
     snprintf(name, sizeof(name), "waiter%d", i);
-    waiters[i] = thread_create(name, waiter_routine, NULL, 0);
+    waiters[i] = thread_create(name, waiter_routine, NULL, prio_kthread(0));
   }
 
   for (int i = 0; i < T; i++)
@@ -107,8 +108,10 @@ static void simple_waker_routine(void *_arg) {
 
 /* waiter routine is shared with test_mult */
 static int test_sleepq_abort_simple(void) {
-  waiters[0] = thread_create("waiter", waiter_routine, NULL, 0);
-  waker = thread_create("simp-waker", simple_waker_routine, NULL, RQ_PPQ);
+  /* HACK: Priorities differ by RQ_PPQ so that threads occupy different runq. */
+  waiters[0] = thread_create("waiter", waiter_routine, NULL, prio_kthread(0));
+  waker = thread_create("simp-waker", simple_waker_routine, NULL,
+                        prio_kthread(0) + RQ_PPQ);
 
   sched_add(waiters[0]);
   sched_add(waker);

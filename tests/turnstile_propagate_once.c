@@ -69,8 +69,7 @@ static void high_prio_task(void *arg) {
 static int test_turnstile_propagate_once(void) {
   high_prio_mtx_acquired = 0;
 
-  /* HACK: Priorities differ by RQ_PPQ so that threads occupy different run
-   * queues. */
+  /* HACK: Priorities differ by RQ_PPQ so that threads occupy different runq. */
   HIGH = prio_kthread(0);
   MED = HIGH + RQ_PPQ;
   LOW = MED + RQ_PPQ;

@@ -21,8 +21,7 @@ static thread_t *starter;
 
 /* n <- [0..T] */
 static int propagator_prio(int n) {
-  /* HACK: Priorities differ by RQ_PPQ so that threads occupy different run
-   * queues. */
+  /* HACK: Priorities differ by RQ_PPQ so that threads occupy different runq. */
   return prio_kthread(0) + (T - n) * RQ_PPQ;
 }
 
