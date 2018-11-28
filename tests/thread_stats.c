@@ -20,7 +20,7 @@ static int test_thread_stats_nop(void) {
   thread_t *threads[THREADS_NUMBER];
   timeval_t start = get_uptime();
   for (int i = 0; i < THREADS_NUMBER; i++) {
-    threads[i] = thread_create("nop thread", thread_nop_function, &start);
+    threads[i] = thread_create("nop thread", thread_nop_function, &start, prio_kthread(0));
     sched_add(threads[i]);
   }
   for (int i = 0; i < THREADS_NUMBER; i++) {
@@ -62,10 +62,10 @@ static int test_thread_stats_slp(void) {
   thread_t *threads[THREADS_NUMBER];
   timeval_t start = get_uptime();
   for (int i = 0; i < THREADS_NUMBER; i++) {
-    threads[i] = thread_create("sleeper thread", thread_sleep_function, &start);
+    threads[i] = thread_create("sleeper thread", thread_sleep_function, &start, prio_kthread(0));
     sched_add(threads[i]);
   }
-  thread_t *waker = thread_create("waker thread", thread_wake_function, &start);
+  thread_t *waker = thread_create("waker thread", thread_wake_function, &start, prio_kthread(0));
   sched_add(waker);
   for (int i = 0; i < THREADS_NUMBER; i++) {
     thread_join(threads[i]);

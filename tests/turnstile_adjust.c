@@ -45,7 +45,7 @@ static int lockq_sorted_forw(thread_t *td) {
     return 1;
   else {
     thread_t *next = TAILQ_NEXT(td, td_blockedq);
-    if (next != NULL && td_prio_cmp(next->td_prio, td->td_prio, PRIO_GT))
+    if (next != NULL && prio_gt(next->td_prio, td->td_prio))
       return 0;
     else
       return lockq_sorted_forw(next);
@@ -57,7 +57,7 @@ static int lockq_sorted_back(thread_t *td) {
     return 1;
   else {
     thread_t *prev = TAILQ_PREV(td, td_queue, td_blockedq);
-    if (prev != NULL && td_prio_cmp(prev->td_prio, td->td_prio, PRIO_LT))
+    if (prev != NULL && prio_lt(prev->td_prio, td->td_prio))
       return 0;
     else
       return lockq_sorted_back(prev);
@@ -72,8 +72,7 @@ static int test_turnstile_adjust(void) {
   for (int i = 0; i < T; i++) {
     char name[20];
     snprintf(name, sizeof(name), "td%d", i);
-    threads[i] = thread_create(name, routine, NULL);
-    set_prio(threads[i], starting_priority);
+    threads[i] = thread_create(name, routine, NULL, starting_priority);
   }
 
   mtx_lock(&ts_adj_mtx);

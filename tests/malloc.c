@@ -85,7 +85,7 @@ static void malloc_multithreaded(void (*threads_function)(void *)) {
   thread_t *threads[THREADS_NUMBER];
   for (int i = 0; i < THREADS_NUMBER; i++)
     threads[i] =
-      thread_create("Malloc test thread", threads_function, (void *)mp);
+      thread_create("Malloc test thread", threads_function, (void *)mp, prio_kthread(0));
   for (int i = 0; i < THREADS_NUMBER; i++)
     sched_add(threads[i]);
   for (int i = 0; i < THREADS_NUMBER; i++)
@@ -137,7 +137,7 @@ static int malloc_threads_random_shared_blocks(void) {
   thread_t *threads[THREADS_NUMBER];
   for (int i = 0; i < THREADS_NUMBER; i++)
     threads[i] =
-      thread_create("Malloc test thread", malloc_random_shared_blocks, &args);
+      thread_create("Malloc test thread", malloc_random_shared_blocks, &args, prio_kthread(0));
   for (int i = 0; i < THREADS_NUMBER; i++)
     sched_add(threads[i]);
   for (int i = 0; i < THREADS_NUMBER; i++)

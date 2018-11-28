@@ -35,7 +35,7 @@ static int test_sleepq_sync(void) {
   callout_setup_relative(&callout, 1, periodic_callout, &callout);
 
   for (int i = 0; i < K; i++) {
-    td[i] = thread_create("test-thread", test_thread, (void *)N);
+    td[i] = thread_create("test-thread", test_thread, (void *)N, prio_kthread(0));
     sched_add(td[i]);
   }
 

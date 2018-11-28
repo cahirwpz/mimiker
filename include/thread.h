@@ -129,7 +129,7 @@ typedef struct thread {
 } thread_t;
 
 thread_t *thread_self(void);
-thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
+thread_t *thread_create(const char *name, void (*fn)(void *), void *arg, prio_t priority);
 void thread_delete(thread_t *td);
 
 /*! \brief Prepares thread to be launched.
