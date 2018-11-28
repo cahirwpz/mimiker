@@ -65,7 +65,8 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
   exc_frame_setup_call(kframe, thread_exit, (long)arg, 0);
 }
 
-thread_t *thread_create(const char *name, void (*fn)(void *), void *arg, prio_t priority) {
+thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
+                        prio_t priority) {
   /* Firstly recycle some threads to free up memory. */
   thread_reap();
 

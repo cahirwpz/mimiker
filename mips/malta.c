@@ -148,7 +148,8 @@ static void pm_bootstrap(unsigned memsize) {
 
 static void thread_bootstrap(void) {
   /* Create main kernel thread */
-  thread_t *td = thread_create("kernel-main", (void *)kernel_init, NULL, PRIO_MIN);
+  thread_t *td =
+    thread_create("kernel-main", (void *)kernel_init, NULL, PRIO_MIN);
 
   exc_frame_t *kframe = td->td_kframe;
   kframe->a0 = (reg_t)_kenv.argc;

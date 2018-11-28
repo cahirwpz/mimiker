@@ -122,11 +122,16 @@ static void thread_test(void *p) {
 
 static int stress_test(void) {
 
-  threads[0] = thread_create("Thread clear1", thread_test, &klog_clear, prio_kthread(0));
-  threads[1] = thread_create("Thread add logs1", thread_test, &logs, prio_kthread(0));
-  threads[2] = thread_create("Thread dump1", thread_test, &klog_dump, prio_kthread(0));
-  threads[3] = thread_create("Thread clear2", thread_test, &klog_clear, prio_kthread(0));
-  threads[4] = thread_create("Thread add logs2", thread_test, &logs, prio_kthread(0));
+  threads[0] =
+    thread_create("Thread clear1", thread_test, &klog_clear, prio_kthread(0));
+  threads[1] =
+    thread_create("Thread add logs1", thread_test, &logs, prio_kthread(0));
+  threads[2] =
+    thread_create("Thread dump1", thread_test, &klog_dump, prio_kthread(0));
+  threads[3] =
+    thread_create("Thread clear2", thread_test, &klog_clear, prio_kthread(0));
+  threads[4] =
+    thread_create("Thread add logs2", thread_test, &logs, prio_kthread(0));
   /* Note, if we use more then one dump some output could be lost and/or
    * misplaced */
   /* threads[5] = thread_create("Thread dump2", thread_test, &klog_dump); */

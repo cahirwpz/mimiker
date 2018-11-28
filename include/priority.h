@@ -14,9 +14,10 @@ typedef uint8_t prio_t;
 #define PRIO_KTHRD_QTY 64
 #define PRIO_UTHRD_QTY 160
 
-/* The following functions transform [0, PRIO_QTY - 1] range to the range of priorities of ithreads, kthreads
-   or uthreads. E.g. prio_kthread(0) returns highest kernel thread priority (currently: 32),
-                     prio_kthread(PRIO_QTY - 1) returns lowest kernel thread priority (currently: 95). */
+/* The following functions transform [0, PRIO_QTY - 1] range to the range of
+   priorities of ithreads, kthreads or uthreads. E.g. prio_kthread(0) returns
+   highest kernel thread priority (currently: 32), prio_kthread(PRIO_QTY - 1)
+   returns lowest kernel thread priority (currently: 95). */
 static inline prio_t prio_ithread(int n) {
   return n * (PRIO_ITHRD_QTY - 1) / (PRIO_QTY - 1);
 }
@@ -26,7 +27,8 @@ static inline prio_t prio_kthread(int n) {
 }
 
 static inline prio_t prio_uthread(int n) {
-  return PRIO_ITHRD_QTY + PRIO_KTHRD_QTY + n * (PRIO_UTHRD_QTY - 1) / (PRIO_QTY - 1);
+  return PRIO_ITHRD_QTY + PRIO_KTHRD_QTY +
+         n * (PRIO_UTHRD_QTY - 1) / (PRIO_QTY - 1);
 }
 
 /* Please use the following functions to compare two priorities. */

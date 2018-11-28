@@ -86,9 +86,7 @@ static int test_turnstile_adjust(void) {
   for (int i = 0; i < T; i++) {
     sched_add(threads[i]);
 
-    WITH_MTX_LOCK (&stopped_mtx) {
-      cv_wait(&stopped_cv, &stopped_mtx);
-    }
+    WITH_MTX_LOCK (&stopped_mtx) { cv_wait(&stopped_cv, &stopped_mtx); }
   }
 
   for (int i = 0; i < T; i++)
