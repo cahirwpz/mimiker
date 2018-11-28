@@ -14,6 +14,7 @@
 static mtx_t *mtx = &MTX_INITIALIZER(0);
 static thread_t *td[T];
 static volatile bool high_prio_mtx_acquired;
+static prio_t LOW, MED, HIGH;
 
 static void assert_priorities(prio_t p0, prio_t p1, prio_t p2) {
   assert(T >= 3);
@@ -22,34 +23,11 @@ static void assert_priorities(prio_t p0, prio_t p1, prio_t p2) {
   assert(prio_eq(td[2]->td_prio, p2));
 }
 
-static void lend_prio(thread_t *td, prio_t prio) {
-  WITH_SPIN_LOCK (&td->td_spin)
-    sched_lend_prio(td, prio);
-}
-
-static void unlend_prio(thread_t *td, prio_t prio) {
-  WITH_SPIN_LOCK (&td->td_spin)
-    sched_unlend_prio(td, prio);
-}
-
-enum {
-  /* Priorities are multiplies of RunQueue_PriorityPerQueue
-   * so that each priority matches different run queue. */
-  LOW = 2 * RQ_PPQ,
-  MED = RQ_PPQ,
-  HIGH = 0
-};
-
 /* code executed by td0 */
 static void low_prio_task(void *arg) {
-  /* As for now, td0, td1 and td2 have artificial priorities (HIGH, LOW, LOW)
-   * to ensure that this code runs first. Now we can set priorities to their
-   * real values (LOW, MED, HIGH). */
-
   WITH_NO_PREEMPTION {
-    unlend_prio(td[0], LOW);
-    lend_prio(td[1], MED);
-    lend_prio(td[2], HIGH);
+    sched_add(td[1]);
+    sched_add(td[2]);
 
     WITH_MTX_LOCK (mtx) {
       /* We were the first to take the mutex. */
@@ -82,7 +60,7 @@ static void med_prio_task(void *arg) {
 
 /* code executed by td2 */
 static void high_prio_task(void *arg) {
-  assert(mtx->m_owner == td[0]);
+  assert(mtx_owner(mtx) == td[0]);
 
   WITH_MTX_LOCK (mtx)
     high_prio_mtx_acquired = 1;
@@ -91,20 +69,18 @@ static void high_prio_task(void *arg) {
 static int test_turnstile_propagate_once(void) {
   high_prio_mtx_acquired = 0;
 
-  td[0] = thread_create("td0", low_prio_task, NULL, 0);
-  td[1] = thread_create("td1", med_prio_task, NULL, 0);
-  td[2] = thread_create("td2", high_prio_task, NULL, 0);
+  /* HACK: Priorities differ by RQ_PPQ so that threads occupy different run
+   * queues. */
+  HIGH = prio_kthread(0);
+  MED = HIGH + RQ_PPQ;
+  LOW = MED + RQ_PPQ;
+
+  td[0] = thread_create("td0", low_prio_task, NULL, LOW);
+  td[1] = thread_create("td1", med_prio_task, NULL, MED);
+  td[2] = thread_create("td2", high_prio_task, NULL, HIGH);
 
   /* We want to ensure that td0 will run as the first one and lock mtx. */
-  WITH_NO_PREEMPTION {
-    for (int i = 0; i < T; i++)
-      sched_add(td[i]);
-
-    lend_prio(td[0], HIGH);
-    lend_prio(td[1], LOW);
-    lend_prio(td[2], LOW);
-    assert_priorities(HIGH, LOW, LOW);
-  }
+  sched_add(td[0]);
 
   for (int i = 0; i < T; i++)
     thread_join(td[i]);
@@ -112,4 +88,4 @@ static int test_turnstile_propagate_once(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(turnstile_propagate_once, test_turnstile_propagate_once, KTEST_FLAG_BROKEN);
+KTEST_ADD(turnstile_propagate_once, test_turnstile_propagate_once, 0);

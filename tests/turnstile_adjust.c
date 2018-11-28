@@ -3,6 +3,7 @@
 #include <runq.h>
 #include <sched.h>
 #include <thread.h>
+#include <condvar.h>
 
 #define T 5
 
@@ -14,12 +15,11 @@
 
 typedef TAILQ_HEAD(td_queue, thread) td_queue_t;
 
-static prio_t starting_priority = 2;
-static prio_t new_priorities[T] = {2, 1, 3, 0, 1};
-
 static mtx_t ts_adj_mtx = MTX_INITIALIZER(0);
-static volatile int stopped;
 static thread_t *threads[T];
+
+static condvar_t stopped_cv;
+static mtx_t stopped_mtx = MTX_INITIALIZER(0);
 
 static void set_prio(thread_t *td, prio_t prio) {
   WITH_SPIN_LOCK (&td->td_spin)
@@ -33,7 +33,7 @@ static bool td_is_blocked_on_mtx(thread_t *td, mtx_t *m) {
 
 static void routine(void *_arg) {
   WITH_NO_PREEMPTION {
-    stopped = 1;
+    cv_signal(&stopped_cv);
     mtx_lock(&ts_adj_mtx);
   }
 
@@ -69,6 +69,12 @@ static int turnstile_sorted(thread_t *td) {
 }
 
 static int test_turnstile_adjust(void) {
+  cv_init(&stopped_cv, "stopped-condvar");
+  prio_t starting_priority = prio_kthread(90);
+  prio_t new_priorities[T] = {prio_kthread(80), prio_kthread(50),
+                              prio_kthread(170), prio_kthread(10),
+                              prio_kthread(30)};
+
   for (int i = 0; i < T; i++) {
     char name[20];
     snprintf(name, sizeof(name), "td%d", i);
@@ -78,10 +84,11 @@ static int test_turnstile_adjust(void) {
   mtx_lock(&ts_adj_mtx);
 
   for (int i = 0; i < T; i++) {
-    stopped = 0;
     sched_add(threads[i]);
-    while (stopped != 1)
-      thread_yield();
+
+    WITH_MTX_LOCK (&stopped_mtx) {
+      cv_wait(&stopped_cv, &stopped_mtx);
+    }
   }
 
   for (int i = 0; i < T; i++)

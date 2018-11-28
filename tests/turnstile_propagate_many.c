@@ -19,14 +19,11 @@ static mtx_t mtx[T + 1];
 static thread_t *propagator[T + 1];
 static thread_t *starter;
 
-static void set_prio(thread_t *td, prio_t prio) {
-  WITH_SPIN_LOCK (&td->td_spin)
-    sched_set_prio(td, prio);
-}
-
 /* n <- [0..T] */
 static int propagator_prio(int n) {
-  return (T - n) * RQ_PPQ;
+  /* HACK: Priorities differ by RQ_PPQ so that threads occupy different run
+   * queues. */
+  return prio_kthread(0) + (T - n) * RQ_PPQ;
 }
 
 static bool td_is_blocked_on_mtx(thread_t *td, mtx_t *m) {
@@ -57,7 +54,6 @@ static void starter_routine(void *_arg) {
   WITH_MTX_LOCK (&mtx[0]) {
     for (int i = 1; i <= T; i++) {
       WITH_NO_PREEMPTION {
-        set_prio(propagator[i], propagator_prio(i));
         sched_add(propagator[i]);
         assert(prio_eq(thread_self()->td_prio, propagator_prio(i - 1)));
       }
@@ -83,14 +79,12 @@ static int test_turnstile_propagate_many(void) {
   for (int i = 1; i <= T; i++) {
     char name[20];
     snprintf(name, sizeof(name), "prop%d", i);
-    propagator[i] =
-      thread_create(name, (void (*)(void *))propagator_routine, (void *)i, 0);
+    propagator[i] = thread_create(name, (void (*)(void *))propagator_routine,
+                                  (void *)i, propagator_prio(i));
   }
-  starter = thread_create("starter", starter_routine, NULL, 0);
 
+  starter = thread_create("starter", starter_routine, NULL, propagator_prio(0));
   propagator[0] = starter;
-
-  set_prio(starter, propagator_prio(0));
   sched_add(starter);
 
   for (int i = 0; i < T + 1; i++)
