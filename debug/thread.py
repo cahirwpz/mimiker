@@ -34,7 +34,8 @@ class Thread(object):
         rows = [['Id', 'Name', 'State', 'Priority', 'Waiting Point']]
         curr_tid = Thread.current().td_tid
         rows.extend([['', '(*) '][curr_tid == td.td_tid] + str(td.td_tid),
-                     td.td_name, str(td.td_state), str(td.td_prio), str(td.td_waitpt)]
+                     td.td_name, str(td.td_state), str(td.td_prio),
+                     str(td.td_waitpt)]
                     for td in threads)
         ptable.ptable(rows, fmt='rllrl', header=True)
 
