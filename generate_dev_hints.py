@@ -1,6 +1,4 @@
 import sys
-
-from itertools import imap, ifilter
 from functools import reduce
 
 from pyfdt import pyfdt
@@ -38,8 +36,11 @@ def generate_fdt(filename):
 
 
 def generate_hints(device, path):
-    is_property = lambda node: isinstance(node, pyfdt.FdtProperty)
-    for prop in ifilter(is_property, device.subdata):
+    props = [
+        node for node in device.subdata
+        if isinstance(node, pyfdt.FdtProperty)
+    ]
+    for prop in props:
         yield ('.path', path)
 
         if prop.name == 'reg':
@@ -58,11 +59,11 @@ def generate_hints(device, path):
 
 
 def flatten_ftd(root, path):
-    is_node = lambda node: isinstance(node, pyfdt.FdtNode)
-
-    get_node_path = lambda node: "{}/{}".format(path, node.name)
-    child_hints = imap(lambda node: flatten_ftd(node, get_node_path(node)),
-                       ifilter(is_node, root.subdata))
+    child_hints = [
+        flatten_ftd(node, "{}/{}".format(path, node.name))
+        for node in root.subdata
+        if isinstance(node, pyfdt.FdtNode)
+    ]
 
     hints = reduce(merge_dicts, child_hints, {})
     current_device_hints = dict(generate_hints(root, path))
@@ -77,8 +78,11 @@ def hint_as_c_entry(hint):
         int: lambda: hex(val),
     }[type(val)]())
 
-    str_of_hint = lambda item: "\t{} = {}".format(item[0], to_c_value(item[1]))
-    entry = ',\n'.join(map(str_of_hint, hint.iteritems()))
+    fields_as_strs = [
+        "\t{} = {}".format(resource, to_c_value(value))
+        for resource, value in hint.iteritems()
+    ]
+    entry = ',\n'.join(fields_as_strs)
     return "{{ {} }},\n".format(entry)
 
 
