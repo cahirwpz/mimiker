@@ -5,13 +5,13 @@
 
 /* The implementation mostly follows DragonFly BSD's 'sys/linker_set.h'
  *
- * Having declared a linker set, you can assign objects to the set in various
+ * Having declared a linker set, you can assign items to the set in various
  * compilation units. Linker will go over all compilation units and gather all
- * objects belonging to the set into an array of pointers to the objects.
+ * items belonging to the set into an array of pointers to the items.
  * These arrays are often referred to as linker sets.
  *
- * The order of objects in a linker set is implementation specific.
- * Only objects linked into final file will be placed in a linker set. */
+ * The order of items in a linker set is implementation specific. Only items
+ * linked into final file will be placed in corresponding linker set. */
 
 /* GLOBL macro exists to preserve __start_set_* and __stop_set_* sections of
  * kernel modules which are discarded from binutils 2.17.50+ otherwise. */
@@ -40,7 +40,7 @@
 #define SET_LIMIT(set) (&__CONCAT(__stop_set_, set))
 
 /* Iterate over all the elements of a set. Sets always contain addresses of
- * objects, and "pvar" points to words containing those addresses. Thus is must
+ * items, and "pvar" points to words containing those addresses. Thus is must
  * be declared as "type **pvar", and the address of each set item is obtained
  * inside the loop by "*pvar". */
 #define SET_FOREACH(pvar, set)                                                 \
