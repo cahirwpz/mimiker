@@ -161,8 +161,8 @@ static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
   BUS_DRIVER(dev)->bus.intr_teardown(dev, handler);
 }
 
-/*! \brief Allocates for a device resource of size \a size between
- * \a start and \a end.
+/*! \brief Allocates a resource of type \a type and size \a size between
+ * \a start and \a end for a device \a dev.
  *
  * Should be called inside device's \fn attach function.
  *
