@@ -5,10 +5,13 @@
 
 /* The implementation mostly follows DragonFly BSD's 'sys/linker_set.h'
  *
- * The following macros are used to declare global sets of objects. In each
- * compilation unit you can assign several objects to a set. Linker will
- * gather all objects belonging to the set and put them into an array of
- * pointers to the objects. */
+ * Having declared a linker set, you can assign objects to the set in various
+ * compilation units. Linker will go over all compilation units and gather all
+ * objects belonging to the set into an array of pointers to the objects.
+ * These arrays are often referred to as linker sets.
+ *
+ * The order of objects in a linker set is implementation specific.
+ * Only objects linked into final file will be placed in a linker set. */
 
 /* GLOBL macro exists to preserve __start_set_* and __stop_set_* sections of
  * kernel modules which are discarded from binutils 2.17.50+ otherwise. */
