@@ -52,3 +52,6 @@ sysroot
 
 # Dynamically generated gdb config
 .gdbinit
+
+# Visual Studio Code files
+.vscode
