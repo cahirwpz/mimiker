@@ -225,4 +225,4 @@ void preempt_enable(void) {
   sched_maybe_preempt();
 }
 
-SYSINIT_ADD(sched, sched_init, DEPS("callout"));
+SYSINIT_ADD(sched, sched_init, NODEPS);
