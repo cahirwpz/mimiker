@@ -14,10 +14,6 @@ SOURCES_C  = \
 	dev_null.c \
 	dev_vga.c \
 	devfs.c \
-	drv_atkbdc.c \
-	drv_pit.c \
-	drv_rtc.c \
-	drv_stdvga.c \
 	exception.c \
 	exec.c \
 	file.c \
@@ -76,3 +72,4 @@ libsys.a: $(OBJECTS)
 clean:
 	$(RM) .*.D *.ko *.o *.a *.lst *~
 	$(RM) tags *.taghl
+	$(RM) libsys.a

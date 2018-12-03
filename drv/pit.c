@@ -1,3 +1,4 @@
+/* Programable Interval Timer (PIT) driver for Intel 8253 */
 #include <common.h>
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>
@@ -137,7 +138,9 @@ static int pit_attach(device_t *dev) {
 }
 
 static driver_t pit_driver = {
-  .desc = "i8254 PIT driver", .size = sizeof(pit_state_t), .attach = pit_attach,
+  .desc = "i8254 PIT driver",
+  .size = sizeof(pit_state_t),
+  .attach = pit_attach,
 };
 
 extern device_t *gt_pci;

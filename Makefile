@@ -7,7 +7,7 @@ all: cscope tags mimiker.elf
 include $(TOPDIR)/build/build.kern.mk
 
 # Directories which contain kernel parts
-SYSSUBDIRS  = mips stdc sys tests
+SYSSUBDIRS  = mips stdc sys tests drv
 # Directories which require calling make recursively
 SUBDIRS = $(SYSSUBDIRS) user
 
@@ -20,6 +20,7 @@ $(SUBDIRS):
 KRT = $(TOPDIR)/stdc/libstdc.a \
       $(TOPDIR)/mips/libmips.a \
       $(TOPDIR)/sys/libsys.a \
+      $(TOPDIR)/drv/libdrv.a \
       $(TOPDIR)/tests/libtests.a
 
 # Process subdirectories before using KRT files.
@@ -27,14 +28,15 @@ $(KRT): | $(SYSSUBDIRS)
 	true # Disable default recipe
 
 LDFLAGS	= -nostdlib -T $(TOPDIR)/mips/malta.ld
-LDLIBS	= -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/stdc -L$(TOPDIR)/tests \
+LDLIBS	= -L$(TOPDIR)/sys -L$(TOPDIR)/mips -L$(TOPDIR)/drv -L$(TOPDIR)/stdc -L$(TOPDIR)/tests \
 	  -Wl,--start-group \
 	    -Wl,--whole-archive \
               -lsys \
+	      -ldrv \
 	      -lmips \
+              -lstdc \
               -ltests \
             -Wl,--no-whole-archive \
-            -lstdc \
             -lgcc \
           -Wl,--end-group
 
@@ -70,7 +72,7 @@ FORMATTABLE = $(filter-out $(FORMATTABLE_EXCLUDE),$(SOURCES_C))
 
 format:
 	@echo "Formatting files: $(FORMATTABLE:./%=%)"
-	clang-format -style=file -i $(FORMATTABLE)
+	clang-format-6.0 -style=file -i $(FORMATTABLE)
 
 test: mimiker.elf
 	./run_tests.py

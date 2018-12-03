@@ -1,3 +1,4 @@
+/* AT keybord controller driver */
 #define KL_LOG KL_DEV
 #include <stdc.h>
 #include <vnode.h>
@@ -77,7 +78,8 @@ static int scancode_read(vnode_t *v, uio_t *uio) {
 }
 
 static vnodeops_t scancode_vnodeops = {
-  .v_open = vnode_open_generic, .v_read = scancode_read,
+  .v_open = vnode_open_generic,
+  .v_read = scancode_read,
 };
 
 /* Reset keyboard and perform a self-test. */

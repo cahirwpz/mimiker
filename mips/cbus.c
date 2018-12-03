@@ -11,7 +11,8 @@ static void cbus_write_1(bus_space_handle_t handle, bus_size_t offset,
 }
 
 static bus_space_t cbus_bus_space = {
-  .bs_read_1 = cbus_read_1, .bs_write_1 = cbus_write_1,
+  .bs_read_1 = cbus_read_1,
+  .bs_write_1 = cbus_write_1,
 };
 
 resource_t cbus_uart[1] = {{.r_bus_tag = &cbus_bus_space,
