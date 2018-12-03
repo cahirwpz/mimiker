@@ -66,7 +66,7 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
 }
 
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
-                        prio_t priority) {
+                        prio_t prio) {
   /* Firstly recycle some threads to free up memory. */
   thread_reap();
 
@@ -81,8 +81,8 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   td->td_kstack.stk_size = PAGESIZE;
   td->td_state = TDS_INACTIVE;
 
-  td->td_prio = priority;
-  td->td_base_prio = priority;
+  td->td_prio = prio;
+  td->td_base_prio = prio;
 
   td->td_spin = SPIN_INITIALIZER(0);
   td->td_lock = MTX_INITIALIZER(0);

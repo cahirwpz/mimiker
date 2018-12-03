@@ -1,12 +1,12 @@
 #ifndef _SYS_PRIORITY_H_
 #define _SYS_PRIORITY_H_
 
+#ifdef _KERNELSPACE
+
+/* Priority range spans from 0 (the highest) to 255 (the lowest) */
 typedef uint8_t prio_t;
 
 #define PRIO_QTY 256
-
-#define PRIO_MAX 0
-#define PRIO_MIN (PRIO_QTY - 1)
 
 /* Quantity of interrupt threads, kernel threads and user threads.
    These three numbers must sum up to PRIO_QTY! */
@@ -31,7 +31,7 @@ static inline prio_t prio_uthread(int n) {
          n * (PRIO_UTHRD_QTY - 1) / (PRIO_QTY - 1);
 }
 
-/* Please use the following functions to compare two priorities. */
+/* You must use following functions to compare two priorities. */
 static inline bool prio_le(prio_t p1, prio_t p2) {
   return p1 >= p2;
 }
@@ -55,5 +55,7 @@ static inline bool prio_ne(prio_t p1, prio_t p2) {
 static inline bool prio_eq(prio_t p1, prio_t p2) {
   return p1 == p2;
 }
+
+#endif /* !_KERNELSPACE */
 
 #endif /* !_SYS_PRIORITY_H_ */

@@ -286,7 +286,7 @@ static void unlend_self(turnstile_t *ts) {
   thread_t *td = thread_self();
   assert(ts->ts_owner == td);
 
-  prio_t prio = PRIO_MIN;
+  prio_t prio = prio_uthread(255);
 
   ts->ts_owner = NULL;
   LIST_REMOVE(ts, ts_contested_link);
