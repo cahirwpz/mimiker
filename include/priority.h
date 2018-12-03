@@ -1,10 +1,12 @@
 #ifndef _SYS_PRIORITY_H_
 #define _SYS_PRIORITY_H_
 
-#ifdef _KERNELSPACE
+#include <stdint.h>
 
 /* Priority range spans from 0 (the highest) to 255 (the lowest) */
 typedef uint8_t prio_t;
+
+#ifdef _KERNELSPACE
 
 #define PRIO_QTY 256
 
