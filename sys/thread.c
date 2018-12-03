@@ -65,7 +65,8 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
   exc_frame_setup_call(kframe, thread_exit, (long)arg, 0);
 }
 
-thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
+thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
+                        prio_t prio) {
   /* Firstly recycle some threads to free up memory. */
   thread_reap();
 
@@ -79,6 +80,9 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
   td->td_kstack.stk_base = PG_KSEG0_ADDR(td->td_kstack_obj);
   td->td_kstack.stk_size = PAGESIZE;
   td->td_state = TDS_INACTIVE;
+
+  td->td_prio = prio;
+  td->td_base_prio = prio;
 
   td->td_spin = SPIN_INITIALIZER(0);
   td->td_lock = MTX_INITIALIZER(0);
