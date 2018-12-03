@@ -4,6 +4,7 @@
 #include <common.h>
 #include <queue.h>
 #include <spinlock.h>
+#include <priority.h>
 
 /*! \brief Disables hardware interrupts.
  *

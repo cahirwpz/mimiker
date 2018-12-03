@@ -58,16 +58,13 @@ static int test_sleepq_timed(void) {
   signaled_received = 0;
   signaled_sent = 0;
 
-  waker = thread_create("waker", waker_routine, NULL);
+  /* HACK: Priorities differ by RQ_PPQ so that threads occupy different runq. */
+  waker = thread_create("waker", waker_routine, NULL, prio_kthread(0));
   for (int i = 0; i < THREADS; i++) {
     char name[20];
     snprintf(name, sizeof(name), "waiter%d", i);
-    waiters[i] = thread_create(name, waiter_routine, NULL);
-  }
-
-  for (int i = 0; i < THREADS; i++) {
-    WITH_SPIN_LOCK (&waiters[i]->td_spin)
-      sched_set_prio(waiters[i], RQ_PPQ);
+    waiters[i] =
+      thread_create(name, waiter_routine, NULL, prio_kthread(0) + RQ_PPQ);
   }
 
   WITH_NO_PREEMPTION {
