@@ -11,7 +11,6 @@ export MIMIKER_SRC_PATH="<path to mimiker source>"
 ```
 
 The above script will
-- build `mimiker-dev` docker image
 - attach volume with mimiker source code from your machine
 - compile mimiker
 - run docker container with tmux
