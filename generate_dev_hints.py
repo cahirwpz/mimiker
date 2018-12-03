@@ -1,5 +1,4 @@
 import sys
-from functools import reduce
 
 from pyfdt import pyfdt
 
