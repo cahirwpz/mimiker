@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+"""
+Convert DTB (Device Tree Blop) into a C array.
+"""
 import sys
 
 from pyfdt import pyfdt
@@ -90,8 +94,10 @@ def device_hints_as_c_array(hints):
 
 
 def help():
-    # TODO: format output according to standard
-    print("Pass Device Tree Blop (dtb) file to generate a static C array")
+    print('Script converting DTB (Device Tree Blop) into a C array.\n'
+          'Pass .dtb filename as a first and only argument\n\n'
+          'Exemplary usage:\n'
+          '     {} device_hints.dts'.format(sys.argv[0]))
     exit(1)
 
 
