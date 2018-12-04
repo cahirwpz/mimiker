@@ -16,7 +16,8 @@ class UnsupportedHintError(Exception):
     pass
 
 
-DEVICE_HINT_ARRAY_SIZE = 32
+IOPORT_ARRAY_SIZE = 32
+IOMEM_ARRAY_SIZE = 32
 
 DEVICE_HINTS_TEMPLATE = """
 /* Device hints internal representation.
@@ -29,8 +30,8 @@ DEVICE_HINTS_TEMPLATE = """
 
 typedef struct {{
     char* path;
-    uint64_t iomem[{array_size}];
-    uint64_t ioport[{array_size}];
+    uint64_t iomem[{iomem_array_size}];
+    uint64_t ioport[{ioport_array_size}];
     uint32_t irq;
 }} devhint_t;
 
@@ -120,7 +121,8 @@ def main(*args):
     hints_as_c_array = device_hints_as_c_array(flat_hints)
     with open("device_hints.c", "w") as f:
         f.write(DEVICE_HINTS_TEMPLATE.format(
-            array_size=DEVICE_HINT_ARRAY_SIZE,
+            iomem_array_size=IOMEM_ARRAY_SIZE,
+            ioport_array_size=IOPORT_ARRAY_SIZE,
             hints=hints_as_c_array))
 
 
