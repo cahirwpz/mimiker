@@ -16,18 +16,20 @@ class UnsupportedHintError(Exception):
     pass
 
 
+DEVICE_HINT_ARRAY_SIZE = 32
+
 DEVICE_HINTS_TEMPLATE = """
 #include <stdint.h>
 
 typedef struct {{
     char* path;
-    uint64_t iomem_start;
-    uint64_t iomem_end;
+    uint64_t iomem[{array_size}];
+    uint64_t ioport[{array_size}];
     uint32_t irq;
 }} devhint_t;
 
 devhint_t hints[] = {{
-{}
+{hints}
 }};
 """
 
@@ -46,11 +48,11 @@ def generate_hints(device, path):
     for prop in props:
         yield ('.path', path)
 
-        if prop.name == 'reg':
-            start = prop.words[0]
-            end = prop.words[0] + prop.words[1]
-            yield ('.iomem_start', start)
-            yield ('.iomem_end', end)
+        if prop.name == 'iomem':
+            yield ('.iomem', prop.words)
+
+        elif prop.name == 'ioport':
+            yield ('.ioport', prop.words)
 
         elif prop.name == 'interrupts':
             assert len(prop.words) == 1, "Only one irq per device supported!"
@@ -79,6 +81,7 @@ def hint_as_c_entry(hint):
     to_c_value = (lambda val: {
         str: lambda: '"{}"'.format(val),
         int: lambda: hex(val),
+        list: lambda: '{{{}}}'.format(", ".join(map(str, val))),
     }[type(val)]())
 
     fields_as_strs = [
@@ -109,7 +112,10 @@ def main(*args):
     fdt = generate_fdt(filename)
     flat_hints = flatten_ftd(fdt.get_rootnode(), '/rootdev')
     hints_as_c_array = device_hints_as_c_array(flat_hints)
-    print(DEVICE_HINTS_TEMPLATE.format(hints_as_c_array))
+    with open("device_hints.c", "w") as f:
+        f.write(DEVICE_HINTS_TEMPLATE.format(
+            array_size=DEVICE_HINT_ARRAY_SIZE,
+            hints=hints_as_c_array))
 
 
 if __name__ == "__main__":

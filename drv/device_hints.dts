@@ -6,12 +6,15 @@
             isa@0 {
                 uart@0 {
                     interrupts = <4>;
-                    reg = <0x3F8 0x7>;
+                    iomem = <0x3F8 0x3FF
+                             0x2F8 0x2FF>;
                 };
 
                 uart@1 {
                     interrupts = <3>;
-                    reg = <0x2F8 0x7>;
+                    iomem = <0x2F8 0x2FF>;
+                    ioport = <0x60 0x60
+                              0x64 0x64>;
                 };
             };
         };
