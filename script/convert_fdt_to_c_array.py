@@ -86,7 +86,7 @@ def hint_as_c_entry(hint):
         for resource, value in hint.iteritems()
     ]
     entry = ',\n'.join(fields_as_strs)
-    return "{{ {} }},\n".format(entry)
+    return "{{ {}\n}},\n".format(entry)
 
 
 def device_hints_as_c_array(hints):
