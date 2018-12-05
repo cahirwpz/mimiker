@@ -26,7 +26,7 @@ int kernel_init(int argc, char **argv) {
   sysinit();
   klog("Kernel initialized!");
 
-  thread_t *main_thread = thread_create("main", kmain, NULL);
+  thread_t *main_thread = thread_create("main", kmain, NULL, prio_kthread(0));
   sched_add(main_thread);
 
   sched_run();
