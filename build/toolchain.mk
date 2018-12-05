@@ -14,3 +14,4 @@ RANLIB	 = $(TARGET)-ranlib
 READELF  = $(TARGET)-readelf
 OBJCOPY  = $(TARGET)-objcopy
 OBJDUMP  = $(TARGET)-objdump
+STRIP    = $(TARGET)-strip
