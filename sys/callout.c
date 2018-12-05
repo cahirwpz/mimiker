@@ -46,23 +46,26 @@ callout_list_t shared;
 
 static void callout_thread(void *arg) {
   while (true) {
-    callout_t *first;
+    callout_t *elem;
 
     WITH_INTR_DISABLED {
       while (TAILQ_EMPTY(&shared)) {
         sleepq_wait(&shared, NULL);
       }
 
-      first = TAILQ_FIRST(&shared);
-      TAILQ_REMOVE(&shared, first, c_link);
+      elem = TAILQ_FIRST(&shared);
+      TAILQ_REMOVE(&shared, elem, c_link);
     }
-    
-    assert(first->c_func != NULL);
-    first->c_func(first->c_arg);
+
+    assert(!callout_is_pending(elem));
+    assert(callout_is_active(elem));
+    assert(elem->c_func != NULL);
+
+    elem->c_func(elem->c_arg);
     /* Wake threads that wait for execution of this callout in function
      * callout_drain. */
-    sleepq_broadcast(first);
-    callout_clear_active(first);
+    sleepq_broadcast(elem);
+    callout_clear_active(elem);
   }
 }
 
