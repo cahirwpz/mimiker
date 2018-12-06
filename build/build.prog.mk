@@ -16,26 +16,26 @@ endif
 SOURCES_C ?= $(PROGRAM).c
 SOURCES_O = $(SOURCES_C:%.c=%.o)
 
-all: $(PROGRAM)
+all: $(PROGRAM).uelf
 
 include $(TOPDIR)/build/build.mk
 include $(TOPDIR)/build/flags.user.mk
 
 clean:
-	rm -rf $(PROGRAM) $(SOURCES_C:%.c=.%.D) $(SOURCES_O)
+	rm -rf $(PROGRAM).uelf $(SOURCES_C:%.c=.%.D) $(SOURCES_O)
 	rm -rf *~
 
 # Linking the program according to the provided script
-$(PROGRAM): $(SOURCES_O)
+$(PROGRAM).uelf: $(SOURCES_O)
 	@echo "[LD] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(LDFLAGS) -o $@ $(SOURCES_O)
 
 install: $(SYSROOT)/bin/$(PROGRAM)
 
-$(SYSROOT)/bin/$(PROGRAM): $(PROGRAM)
+$(SYSROOT)/bin/$(PROGRAM): $(PROGRAM).uelf
 	@echo "[INSTALL] $(DIR)$< -> /bin/$(PROGRAM)"
-	install -D $(PROGRAM) $(SYSROOT)/bin/$(PROGRAM)
+	install -D $(PROGRAM).uelf $(SYSROOT)/bin/$(PROGRAM)
 	@echo "[STRIP] /bin/$(PROGRAM)"
 	$(STRIP) --strip-all $(SYSROOT)/bin/$(PROGRAM)
 
-.PRECIOUS: $(PROGRAM)
+.PRECIOUS: $(PROGRAM).uelf
