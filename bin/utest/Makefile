@@ -1,6 +1,6 @@
 TOPDIR = $(realpath ../..)
 
-UELF_NAME = utest
+PROGRAM = utest
 
 SOURCES_C = \
 	access.c \
