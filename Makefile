@@ -83,7 +83,8 @@ test: mimiker.elf
 # programs into sysroot. This sounds silly, but apparently make assumes no files
 # appear "without their explicit target". Thus, the only thing we can do is
 # forcing make to always rebuild the archive.
-initrd.cpio: force | user
+initrd.cpio: force
+	make -C user install
 	@echo "[INITRD] Building $@..."
 	cd sysroot && find -depth -print | $(CPIO) -o -F ../$@ 2> /dev/null
 
