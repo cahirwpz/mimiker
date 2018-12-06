@@ -288,18 +288,21 @@ int do_exec(const exec_args_t *args) {
         assert(error == 0);
 
         /* Read data from file into the segment */
-        /* TODO: This is a lot of copying! Ideally we would look up the
-           vm_object associated with the elf vnode, create a shadow vm_object on
-           top of it using correct size/offset, and we would use it to page the
-           file contents on demand. But we don't have a vnode_pager yet. */
-        uio = UIO_SINGLE_KERNEL(UIO_READ, ph->p_offset, (char *)start,
-                                ph->p_filesz);
-        error = VOP_READ(elf_vnode, &uio);
-        if (error < 0) {
-          klog("Exec failed: Elf file reading failed.");
-          goto exec_fail;
+        if (ph->p_filesz > 0) {
+          /* TODO: This is a lot of copying! Ideally we would look up the
+           * vm_object associated with the elf vnode, create a shadow vm_object
+           * on top of it using correct size/offset, and we would use it to page
+           * the file contents on demand. But we don't have a vnode_pager yet.
+           */
+          uio = UIO_SINGLE_KERNEL(UIO_READ, ph->p_offset, (char *)start,
+                                  ph->p_filesz);
+          error = VOP_READ(elf_vnode, &uio);
+          if (error < 0) {
+            klog("Exec failed: Elf file reading failed.");
+            goto exec_fail;
+          }
+          assert(uio.uio_resid == 0);
         }
-        assert(uio.uio_resid == 0);
 
         /* Zero the rest */
         if (ph->p_filesz < ph->p_memsz)
