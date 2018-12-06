@@ -42,7 +42,7 @@ static inline callout_list_t *ci_list(int i) {
   return &ci.heads[i];
 }
 
-callout_list_t shared;
+static callout_list_t shared;
 
 static void callout_thread(void *arg) {
   while (true) {
@@ -74,14 +74,14 @@ static void callout_init(void) {
 
   ci.lock = SPIN_INITIALIZER(0);
 
+  for (int i = 0; i < CALLOUT_BUCKETS; i++)
+    TAILQ_INIT(ci_list(i));
+
   TAILQ_INIT(&shared);
 
   thread_t *td =
     thread_create("callout-thread", callout_thread, NULL, prio_kthread(0));
   sched_add(td);
-
-  for (int i = 0; i < CALLOUT_BUCKETS; i++)
-    TAILQ_INIT(ci_list(i));
 }
 
 static void _callout_setup(callout_t *handle, systime_t time, timeout_t fn,
