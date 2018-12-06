@@ -249,6 +249,8 @@ noreturn void kernel_oops(exc_frame_t *frame) {
     default:
       break;
   }
+  kprintf("HINT: Type 'info line *0x%08x' into gdb to find faulty code line.\n",
+          frame->pc);
   if (ktest_test_running_flag)
     ktest_failure();
   else
