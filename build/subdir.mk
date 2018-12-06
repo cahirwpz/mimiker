@@ -8,6 +8,7 @@ $(SUBDIR):
 
 install: $(SUBDIR-install)
 clean: $(SUBDIR-clean)
+	$(RM) -f *~
 
 define emit_subdir_rule
 $(1)-$(2):
