@@ -160,14 +160,14 @@ finalize:
 
 static void fpe_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
-    panic("Floating point exception or integer overflow in kernel mode!");
+    kernel_oops(frame);
 
   sig_trap(frame, SIGFPE);
 }
 
 static void cpu_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
-    panic("Coprocessor unusable exception in kernel mode!");
+    kernel_oops(frame);
 
   int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
   if (cp_id != 1) {
@@ -180,7 +180,7 @@ static void cpu_handler(exc_frame_t *frame) {
 
 static void ri_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
-    panic("Reserved instruction exception in kernel mode!");
+    kernel_oops(frame);
 
   sig_trap(frame, SIGILL);
 }
@@ -193,7 +193,7 @@ static void ri_handler(exc_frame_t *frame) {
  */
 static void ade_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
-    panic("Address error exception in kernel mode!");
+    kernel_oops(frame);
 
   sig_trap(frame, SIGBUS);
 }
@@ -224,13 +224,37 @@ static exc_handler_t exception_switch_table[32] = {
 noreturn void kernel_oops(exc_frame_t *frame) {
   unsigned code = exc_code(frame);
 
-  klog("%s at $%08x!", exceptions[code], frame->pc);
-  if ((code == EXC_ADEL || code == EXC_ADES) ||
-      (code == EXC_IBE || code == EXC_DBE) ||
-      (code == EXC_TLBL || code == EXC_TLBS))
-    klog("Caused by reference to $%08x!", frame->badvaddr);
-
-  panic("Unhandled '%s' at $%08x!", exceptions[code], frame->pc);
+  kprintf("KERNEL PANIC!!! \n");
+  kprintf("%s at $%08x!\n", exceptions[code], frame->pc);
+  switch (code) {
+    case EXC_ADEL:
+    case EXC_ADES:
+    case EXC_IBE:
+    case EXC_DBE:
+    case EXC_TLBL:
+    case EXC_TLBS:
+      kprintf("Caused by reference to $%08x!\n", frame->badvaddr);
+      break;
+    case EXC_RI:
+      kprintf("Reserved instruction exception in kernel mode!\n");
+      break;
+    case EXC_CPU:
+      kprintf("Coprocessor unusable exception in kernel mode!\n");
+      break;
+    case EXC_FPE:
+    case EXC_MSAFPE:
+    case EXC_OVF:
+      kprintf("Floating point exception or integer overflow in kernel mode!\n");
+      break;
+    default:
+      break;
+  }
+  kprintf("HINT: Type 'info line *0x%08x' into gdb to find faulty code line.\n",
+          frame->pc);
+  if (ktest_test_running_flag)
+    ktest_failure();
+  else
+    panic();
 }
 
 void kstack_overflow_handler(exc_frame_t *frame) {
@@ -253,8 +277,11 @@ void mips_exc_handler(exc_frame_t *frame) {
   if (!handler)
     kernel_oops(frame);
 
-  /* Only hardware interrupt handling must work with interrupts disabled. */
-  if (code != EXC_INTR)
+  /* Enable interrupts only if you're about to handle an exception that came
+   * from a context that had hardware interrupts enabled.
+   * We don't want to enable interrupts if an exception was generated
+   * in a critical section running with interrupts disabled. */
+  if ((code != EXC_INTR) && (frame->sr & SR_IE))
     intr_enable();
 
   (*handler)(frame);
