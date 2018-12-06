@@ -9,7 +9,7 @@ include $(TOPDIR)/build/build.kern.mk
 # Directories which contain kernel parts
 SYSSUBDIRS  = mips stdc sys tests drv
 # Directories which require calling make recursively
-SUBDIRS = $(SYSSUBDIRS) bin 
+SUBDIRS = $(SYSSUBDIRS) lib bin 
 
 $(SUBDIRS):
 	$(MAKE) -C $@
@@ -49,7 +49,7 @@ cscope:
 
 # Lists of all files that we consider our sources.
 SOURCE_RULES = -not -path "./toolchain/*" -and \
-               -not -path "./bin/newlib/newlib-*" -and \
+               -not -path "./lib/newlib/newlib-*" -and \
                -not -path "./sysroot*"
 SOURCES_C = $(shell find -iname '*.[ch]' -type f $(SOURCE_RULES))
 SOURCES_ASM = $(shell find -iname '*.[S]' -type f $(SOURCE_RULES))
@@ -84,6 +84,7 @@ test: mimiker.elf
 # appear "without their explicit target". Thus, the only thing we can do is
 # forcing make to always rebuild the archive.
 initrd.cpio: force
+	make -C lib install
 	make -C bin install
 	@echo "[INITRD] Building $@..."
 	cd sysroot && find -depth -print | $(CPIO) -o -F ../$@ 2> /dev/null
@@ -100,7 +101,7 @@ clean:
 	$(RM) initrd.o initrd.cpio
 
 distclean: clean
-	$(MAKE) -C bin/newlib distclean
+	$(MAKE) -C lib/newlib distclean
 	$(RM) -r cache sysroot
 
 download:

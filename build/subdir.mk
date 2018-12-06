@@ -1,19 +1,22 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
+SUBDIR-install := $(SUBDIR:%=%-install)
+SUBDIR-clean := $(SUBDIR:%=%-clean)
+
 $(SUBDIR):
 	$(MAKE) -C $@
 
-# install targets represent the installation of a program into sysroot.
-install:
-	for dir in $(SUBDIR); do \
-	  $(MAKE) -C $$dir install; \
-	done
+install: $(SUBDIR-install)
+clean: $(SUBDIR-clean)
 
-clean:
-	for dir in $(SUBDIR); do \
-	  $(MAKE) -C $$dir clean; \
-	done
+define emit_subdir_rule
+$(1)-$(2):
+	$(MAKE) -C $(1) $(2)
+endef
 
-.PHONY: $(SUBDIR)
+$(foreach dir,$(SUBDIR) null,$(eval $(call emit_subdir_rule,$(dir),install)))
+$(foreach dir,$(SUBDIR) null,$(eval $(call emit_subdir_rule,$(dir),clean)))
+
+.PHONY: $(SUBDIR) $(SUBDIR-install) $(SUBDIR-clean)
 
 include $(TOPDIR)/build/common.mk
