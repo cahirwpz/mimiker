@@ -36,6 +36,6 @@ $(SYSROOT)/bin/$(PROGRAM): $(PROGRAM)
 	@echo "[INSTALL] $(DIR)$< -> /bin/$(PROGRAM)"
 	install -D $(PROGRAM) $(SYSROOT)/bin/$(PROGRAM)
 	@echo "[STRIP] /bin/$(PROGRAM)"
-	$(STRIP) --strip-all $(SYSROOT)/bin/$(PROGRAM)
+	$(STRIP) --strip-debug $(SYSROOT)/bin/$(PROGRAM)
 
 .PRECIOUS: $(PROGRAM)
