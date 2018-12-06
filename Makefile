@@ -105,4 +105,4 @@ distclean: clean
 	$(RM) -r cache sysroot
 
 download:
-	$(MAKE) -C bin/newlib download
+	$(MAKE) -C lib/newlib download
