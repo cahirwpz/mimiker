@@ -275,8 +275,11 @@ void mips_exc_handler(exc_frame_t *frame) {
   if (!handler)
     kernel_oops(frame);
 
-  /* Only hardware interrupt handling must work with interrupts disabled. */
-  if (code != EXC_INTR)
+  /* Enable interrupts only if you're about to handle an exception that came
+   * from a context that had hardware interrupts enabled.
+   * We don't want to enable interrupts if an exception was generated
+   * in a critical section running with interrupts disabled. */
+  if ((code != EXC_INTR) && (frame->sr & SR_IE))
     intr_enable();
 
   (*handler)(frame);
