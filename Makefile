@@ -9,7 +9,7 @@ include $(TOPDIR)/build/build.kern.mk
 # Directories which contain kernel parts
 SYSSUBDIRS  = mips stdc sys tests drv
 # Directories which require calling make recursively
-SUBDIRS = $(SYSSUBDIRS) user
+SUBDIRS = $(SYSSUBDIRS) bin 
 
 $(SUBDIRS):
 	$(MAKE) -C $@
@@ -49,7 +49,7 @@ cscope:
 
 # Lists of all files that we consider our sources.
 SOURCE_RULES = -not -path "./toolchain/*" -and \
-               -not -path "./user/newlib/newlib-*" -and \
+               -not -path "./bin/newlib/newlib-*" -and \
                -not -path "./sysroot*"
 SOURCES_C = $(shell find -iname '*.[ch]' -type f $(SOURCE_RULES))
 SOURCES_ASM = $(shell find -iname '*.[S]' -type f $(SOURCE_RULES))
@@ -79,12 +79,12 @@ test: mimiker.elf
 
 # Detecting whether initrd.cpio requires rebuilding is tricky, because even if
 # this target was to depend on $(shell find sysroot -type f), then make compares
-# sysroot files timestamps BEFORE recursively entering user and installing user
+# sysroot files timestamps BEFORE recursively entering bin and installing user
 # programs into sysroot. This sounds silly, but apparently make assumes no files
 # appear "without their explicit target". Thus, the only thing we can do is
 # forcing make to always rebuild the archive.
 initrd.cpio: force
-	make -C user install
+	make -C bin install
 	@echo "[INITRD] Building $@..."
 	cd sysroot && find -depth -print | $(CPIO) -o -F ../$@ 2> /dev/null
 
@@ -100,8 +100,8 @@ clean:
 	$(RM) initrd.o initrd.cpio
 
 distclean: clean
-	$(MAKE) -C user/newlib distclean
+	$(MAKE) -C bin/newlib distclean
 	$(RM) -r cache sysroot
 
 download:
-	$(MAKE) -C user/newlib download
+	$(MAKE) -C bin/newlib download
