@@ -1,6 +1,7 @@
 #include <stdc.h>
 #include <callout.h>
 #include <ktest.h>
+#include <sched.h>
 #include <interrupt.h>
 
 static void periodic_callout(void *arg) {
@@ -59,10 +60,6 @@ static int order[ORDER_N] = {2, 5, 4, 6, 9, 0, 8, 1, 3, 7};
 static int current;
 
 static void callout_ordered(void *arg) {
-  /* There is no race condition here as callouts run in bottom half (with
-   * interrupts disabled). */
-  assert(intr_disabled());
-
   int ord = (int)arg;
   assert(current == ord);
   current++;
@@ -119,8 +116,8 @@ static int test_callout_drain(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(callout_sync, test_callout_sync, 0);
+KTEST_ADD(callout_sync, test_callout_sync, KTEST_FLAG_BROKEN);
 KTEST_ADD(callout_simple, test_callout_simple, 0);
-KTEST_ADD(callout_order, test_callout_order, KTEST_FLAG_BROKEN);
-KTEST_ADD(callout_stop, test_callout_stop, 0);
+KTEST_ADD(callout_order, test_callout_order, 0);
+KTEST_ADD(callout_stop, test_callout_stop, KTEST_FLAG_BROKEN);
 KTEST_ADD(callout_drain, test_callout_drain, 0);

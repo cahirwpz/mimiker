@@ -57,15 +57,14 @@ static void callout_thread(void *arg) {
       TAILQ_REMOVE(&shared, elem, c_link);
     }
 
-    assert(!callout_is_pending(elem));
     assert(callout_is_active(elem));
-    assert(elem->c_func != NULL);
+    assert(!callout_is_pending(elem));
 
     elem->c_func(elem->c_arg);
+    callout_clear_active(elem);
     /* Wake threads that wait for execution of this callout in function
      * callout_drain. */
     sleepq_broadcast(elem);
-    callout_clear_active(elem);
   }
 }
 
@@ -88,6 +87,7 @@ static void _callout_setup(callout_t *handle, systime_t time, timeout_t fn,
                            void *arg) {
   assert(spin_owned(&ci.lock));
   assert(!callout_is_pending(handle));
+  assert(!callout_is_active(handle));
 
   int index = time % CALLOUT_BUCKETS;
 
@@ -174,13 +174,8 @@ void callout_process(systime_t time) {
 }
 
 bool callout_drain(callout_t *handle) {
-  /* A callout may be in active state only in callout_process,
-   * which is called in bottom half (with interrupts disabled),
-   * so we can't notice it. */
-  assert(!callout_is_active(handle));
-
   WITH_INTR_DISABLED {
-    if (callout_is_pending(handle)) {
+    if (callout_is_pending(handle) || callout_is_active(handle)) {
       sleepq_wait(handle, NULL);
       return true;
     }
