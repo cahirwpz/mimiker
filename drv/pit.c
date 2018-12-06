@@ -1,3 +1,4 @@
+/* Programable Interval Timer (PIT) driver for Intel 8253 */
 #include <common.h>
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>

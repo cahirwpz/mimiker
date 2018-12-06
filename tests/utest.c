@@ -27,7 +27,7 @@ static int utest_generic(const char *name, int status_success) {
   unsigned old_klog_mask = klog_setmask(KL_UTEST_MASK);
 
   thread_t *utest_thread =
-    thread_create(name, utest_generic_thread, (void *)name);
+    thread_create(name, utest_generic_thread, (void *)name, prio_kthread(0));
   proc_t *child = proc_create(utest_thread, proc_self());
   sched_add(utest_thread);
 
