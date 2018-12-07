@@ -76,4 +76,4 @@ static int test_user_pmap(void) {
 }
 
 KTEST_ADD(pmap_kernel, test_kernel_pmap, KTEST_FLAG_BROKEN);
-KTEST_ADD(pmap_user, test_user_pmap, KTEST_FLAG_BROKEN);
+KTEST_ADD(pmap_user, test_user_pmap, 0);
