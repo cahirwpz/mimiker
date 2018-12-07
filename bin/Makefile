@@ -4,6 +4,6 @@ TOPDIR = $(realpath ..)
 
 SUBDIR = ls_rec mandelbrot sandbox test_kbd test_rtc utest
 
-all: $(SUBDIR)
+all: build
 
-include $(TOPDIR)/build/subdir.mk
+include $(TOPDIR)/build/common.mk

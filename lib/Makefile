@@ -4,9 +4,9 @@ TOPDIR = $(realpath ..)
 
 SUBDIR = libmimiker newlib
 
-all: $(SUBDIR) install
+all: build
 
 # Dependencies between user programs are currently expressed here.
-newlib: | libmimiker-install
+newlib-before: libmimiker-install
 
-include $(TOPDIR)/build/subdir.mk
+include $(TOPDIR)/build/common.mk
