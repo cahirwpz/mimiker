@@ -5,8 +5,8 @@ TOPDIR = $(realpath ..)
 # Flags for the library.  __PREFER_SIZE_OVER_SPEED__ disables some
 # optimized function implementations. -Werror is not enabled since
 # this is an external library.
-CFLAGS = -D__PREFER_SIZE_OVER_SPEED__
-CPPFLAGS = -Iinclude
+CFLAGS += -D__PREFER_SIZE_OVER_SPEED__
+CPPFLAGS += -Iinclude
 
 # Explicitly picking files to compile.
 SOURCES  = ctype/ctype_.c
@@ -44,6 +44,6 @@ SOURCES += kprintf.c
 SOURCES += snprintf.c
 SOURCES += sscanf.c
 
-all: libstdc.ka
-
 include $(TOPDIR)/build/build.kobj.mk
+
+build-here: libstdc.ka

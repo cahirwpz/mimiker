@@ -61,6 +61,6 @@ SOURCES = \
 	vm_object.c \
 	vm_pager.c
 
-all: libsys.ka
-
 include $(TOPDIR)/build/build.kobj.mk
+
+build-here: libsys.ka

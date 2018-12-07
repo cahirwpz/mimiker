@@ -30,6 +30,6 @@ SOURCES = \
 	vm_map.c \
 	vfs.c
 
-all: libtests.ka
-
 include $(TOPDIR)/build/build.kobj.mk
+
+build-here: libtests.ka

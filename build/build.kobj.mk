@@ -1,5 +1,7 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
+all: build
+
 include $(TOPDIR)/build/flags.kern.mk
 include $(TOPDIR)/build/build.mk
 
@@ -7,5 +9,4 @@ include $(TOPDIR)/build/build.mk
 	@echo "[AR] $(addprefix $(DIR),$^) -> $(DIR)$@"
 	$(AR) rs $@ $^ 2> /dev/null
 
-clean::
-	$(RM) *.ka
+CLEAN-FILES += *.ka

@@ -8,6 +8,6 @@ SOURCES = \
 	pit.c \
 	stdvga.c
 
-all:	libdrv.ka
+build-here: libdrv.ka
 
 include $(TOPDIR)/build/build.kobj.mk

@@ -1,6 +1,3 @@
-# Disable all built-in recipes
-.SUFFIXES:
-
 %.S: %.c
 	@echo "[CC] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -S -o $@ $(realpath $<)

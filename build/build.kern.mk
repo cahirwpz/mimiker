@@ -1,11 +1,14 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
+include $(TOPDIR)/build/flags.kern.mk
+include $(TOPDIR)/build/recipe.mk
+include $(TOPDIR)/build/tools.mk
+include $(TOPDIR)/build/common.mk
+
+build-kernel: mimiker.elf
+
 # Files required to link kernel image
 KRT = $(foreach dir,$(KERNDIR),$(TOPDIR)/$(dir)/lib$(dir).ka)
-
-# Process subdirectories before using KRT files.
-$(KRT): | $(KERNDIR)
-	true # Disable default recipe
 
 LDFLAGS = -T $(TOPDIR)/mips/malta.ld
 LDLIBS	= -Wl,--start-group \
@@ -13,6 +16,7 @@ LDLIBS	= -Wl,--start-group \
             -lgcc \
           -Wl,--end-group
 
+# Process subdirectories before using KRT files.
 mimiker.elf: $(KRT) initrd.o | $(KERNDIR)
 	@echo "[LD] Linking kernel image: $@"
 	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) initrd.o -o $@
@@ -23,9 +27,7 @@ mimiker.elf: $(KRT) initrd.o | $(KERNDIR)
 # programs into sysroot. This sounds silly, but apparently make assumes no files
 # appear "without their explicit target". Thus, the only thing we can do is
 # forcing make to always rebuild the archive.
-initrd.cpio: force
-	$(MAKE) -C lib install
-	$(MAKE) -C bin install
+initrd.cpio: bin-install
 	@echo "[INITRD] Building $@..."
 	cd sysroot && find -depth -print | $(CPIO) -o -F ../$@ 2> /dev/null
 
@@ -34,7 +36,5 @@ initrd.o: initrd.cpio
 	  --rename-section .data=.initrd,alloc,load,readonly,data,contents \
 	  $^ $@
 
-include $(TOPDIR)/build/flags.kern.mk
-include $(TOPDIR)/build/toolchain.mk
-include $(TOPDIR)/build/tools.mk
-include $(TOPDIR)/build/common.mk
+CLEAN-FILES += mimiker.elf mimiker.elf.map initrd.cpio initrd.o
+PHONY-TARGETS += initrd.cpio

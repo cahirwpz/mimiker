@@ -4,35 +4,36 @@ TOPDIR = $(CURDIR)
 
 # Directories which contain kernel parts
 KERNDIR = drv mips stdc sys tests
-
-all: cscope tags mimiker.elf
-
-include $(TOPDIR)/build/build.kern.mk
-
 # Directories which require calling make recursively
-SUBDIRS = $(KERNDIR) lib bin 
+SUBDIR = $(KERNDIR) lib bin 
 
-$(SUBDIRS):
-	@$(MAKE) -C $@
+all: build install
 
-.PHONY: format tags cscope $(SUBDIRS) force distclean download
+build-here: cscope.out tags build-kernel
+bin-before: lib-install
+
+clean-here:
+	$(RM) tags etags cscope.out *.taghl
+
+distclean-here:
+	$(RM) -r sysroot
 
 # Lists of all files that we consider operating system sources.
 SRCDIRS = include $(KERNDIR) lib/libmimiker 
-SOURCES_C = $(shell find $(SRCDIRS) -iname '*.[ch]')
-SOURCES_ASM = $(shell find $(SRCDIRS) -iname '*.S')
-SOURCES = $(SOURCES_C) $(SOURCES_ASM)
+SRCFILES_C = $(shell find $(SRCDIRS) -iname '*.[ch]')
+SRCFILES_ASM = $(shell find $(SRCDIRS) -iname '*.S')
+SRCFILES = $(SRCFILES_C) $(SRCFILES_ASM)
 
-cscope.out: $(SOURCES)
+cscope.out: $(SRCFILES)
 	@echo "[CSCOPE] Rebuilding database..."
-	$(CSCOPE) $(SOURCES)
+	$(CSCOPE) $(SRCFILES)
 
 tags:
 	@echo "[CTAGS] Rebuilding tags..."
-	$(CTAGS) --language-force=c $(SOURCES_C)
-	$(CTAGS) --language-force=c -e -f etags $(SOURCES_C)
-	$(CTAGS) --language-force=asm -a $(SOURCES_ASM)
-	$(CTAGS) --language-force=asm -aef etags $(SOURCES_ASM)
+	$(CTAGS) --language-force=c $(SRCFILES_C)
+	$(CTAGS) --language-force=c -e -f etags $(SRCFILES_C)
+	$(CTAGS) --language-force=asm -a $(SRCFILES_ASM)
+	$(CTAGS) --language-force=asm -aef etags $(SRCFILES_ASM)
 
 # These files get destroyed by clang-format, so we explicitly exclude them from
 # being automatically formatted
@@ -41,7 +42,7 @@ FORMATTABLE_EXCLUDE = \
 	include/mips/asm.h \
 	include/mips/m32c0.h \
 	stdc/%
-FORMATTABLE = $(filter-out $(FORMATTABLE_EXCLUDE),$(SOURCES_C))
+FORMATTABLE = $(filter-out $(FORMATTABLE_EXCLUDE),$(SRCFILES_C))
 
 format:
 	@echo "Formatting files: $(FORMATTABLE:./%=%)"
@@ -50,15 +51,6 @@ format:
 test: mimiker.elf
 	./run_tests.py
 
-clean:
-	$(foreach DIR, $(SUBDIRS), $(MAKE) -C $(DIR) $@;)
-	$(RM) *.a *.elf *.map *.lst *~ *.log .*.D
-	$(RM) tags etags cscope.out *.taghl
-	$(RM) initrd.o initrd.cpio
+PHONY-TARGETS += format tags cscope test
 
-distclean: clean
-	$(MAKE) -C lib/newlib distclean
-	$(RM) -r cache sysroot
-
-download:
-	$(MAKE) -C lib/newlib download
+include $(TOPDIR)/build/build.kern.mk

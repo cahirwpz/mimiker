@@ -15,25 +15,21 @@ endif
 
 SOURCES ?= $(PROGRAM).c
 
-all: $(PROGRAM).uelf
+BUILD-FILES += $(PROGRAM).uelf
+INSTALL-FILES += $(SYSROOT)/bin/$(PROGRAM)
 
-include $(TOPDIR)/build/build.mk
+all: build
+
 include $(TOPDIR)/build/flags.user.mk
-
-clean::
-	$(RM) $(PROGRAM).uelf
+include $(TOPDIR)/build/build.mk
 
 # Linking the program according to the provided script
 $(PROGRAM).uelf: $(OBJECTS)
 	@echo "[LD] $(DIR)$< -> $(DIR)$@"
 	$(CC) $(LDFLAGS) -o $@ $(OBJECTS)
 
-install: $(SYSROOT)/bin/$(PROGRAM)
-
 $(SYSROOT)/bin/$(PROGRAM): $(PROGRAM).uelf
 	@echo "[INSTALL] $(DIR)$< -> /bin/$(PROGRAM)"
 	install -D $(PROGRAM).uelf $(SYSROOT)/bin/$(PROGRAM)
 	@echo "[STRIP] /bin/$(PROGRAM)"
 	$(STRIP) --strip-all $(SYSROOT)/bin/$(PROGRAM)
-
-.PRECIOUS: $(PROGRAM).uelf

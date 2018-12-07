@@ -27,7 +27,7 @@ EXTRAFILES = $(shell find extra -type f)
 LIBFILE_INST = $(SYSROOT)/usr/lib/$(LIBFILE)
 EXTRAFILES_INST = $(EXTRAFILES:extra/%=$(SYSROOT)/%)
 
-install: $(SYSROOT)/usr/lib/$(LIBFILE) $(EXTRAFILES_INST)
+install-here: $(SYSROOT)/usr/lib/$(LIBFILE) $(EXTRAFILES_INST)
 
 $(LIBFILE_INST): $(LIBFILE)
 	@echo "[INSTALL] $(DIR)$(LIBFILE) -> /usr/lib/$(LIBFILE)"

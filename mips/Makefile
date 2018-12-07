@@ -25,7 +25,9 @@ SOURCES = \
 	uart_cbus.c \
 	ustack.c
 
-all: libmips.ka
+include $(TOPDIR)/build/build.kobj.mk
+
+build-here: libmips.ka
 
 $(SOURCES): assym.h
 
@@ -33,7 +35,5 @@ $(SOURCES): assym.h
 	@echo "[ASSYM] $(DIR)$@"
 	$(GENASSYM) $< $@
 
-clean::
+clean-here:
 	$(RM) assym.h
-
-include $(TOPDIR)/build/build.kobj.mk
