@@ -17,7 +17,8 @@ LIBFILE = libmimiker.a
 all: $(LIBFILE)
 
 include $(TOPDIR)/build/flags.mk
-include $(TOPDIR)/build/build.mk
+include $(TOPDIR)/build/compile.mk
+include $(TOPDIR)/build/common.mk
 
 $(LIBFILE): $(OBJECTS)
 

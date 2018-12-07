@@ -21,7 +21,8 @@ INSTALL-FILES += $(SYSROOT)/bin/$(PROGRAM)
 all: build
 
 include $(TOPDIR)/build/flags.user.mk
-include $(TOPDIR)/build/build.mk
+include $(TOPDIR)/build/compile.mk
+include $(TOPDIR)/build/common.mk
 
 # Linking the program according to the provided script
 $(PROGRAM).uelf: $(OBJECTS)

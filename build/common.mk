@@ -13,6 +13,24 @@ endif
 MAKEFLAGS += -r
 .SUFFIXES:
 
+# Define our own recipes
+%.S: %.c
+	@echo "[CC] $(DIR)$< -> $(DIR)$@"
+	$(CC) $(CFLAGS) $(CPPFLAGS) -S -o $@ $(realpath $<)
+
+%.o: %.c
+	@echo "[CC] $(DIR)$< -> $(DIR)$@"
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $(realpath $<)
+
+%.o: %.S
+	@echo "[AS] $(DIR)$< -> $(DIR)$@"
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $(realpath $<)
+
+%.a:
+	@echo "[AR] $(addprefix $(DIR),$^) -> $(DIR)$@"
+	$(AR) rs $@ $^ 2> /dev/null
+
+# Generate recursive rules for subdirectories
 define emit_subdir_rule
 $(1)-$(2):
 	@echo "[MAKE] $(2) $(1)"
@@ -39,6 +57,7 @@ clean-recursive: $(SUBDIR:%=%-clean)
 distclean-recursive: $(SUBDIR:%=%-distclean)
 download-recursive: $(SUBDIR:%=%-download)
 
+# Define main rules of the build system
 download: download-recursive download-here
 build: build-dependencies build-recursive $(BUILD-FILES) build-here
 install: install-recursive $(INSTALL-FILES) install-here
@@ -57,3 +76,5 @@ PHONY-TARGETS += download download-recursive download-here
 
 .PHONY: $(PHONY-TARGETS)
 .PRECIOUS: $(BUILD-FILES)
+
+include $(TOPDIR)/build/tools.mk
