@@ -19,6 +19,7 @@
 #include <rman.h>
 #include <thread.h>
 #include <turnstile.h>
+#include <vm_map.h>
 
 extern int kernel_init(int argc, char **argv);
 
@@ -173,6 +174,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   pm_bootstrap(memsize);
   pmap_init();
   pool_bootstrap();
+  vm_map_init();
   kmem_bootstrap();
   sleepq_init();
   turnstile_init();

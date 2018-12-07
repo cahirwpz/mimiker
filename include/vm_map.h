@@ -6,6 +6,8 @@
 #include <vm.h>
 #include <mutex.h>
 
+void vm_map_init(void);
+
 void vm_map_activate(vm_map_t *map);
 
 vm_map_t *get_user_vm_map(void);

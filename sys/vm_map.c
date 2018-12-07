@@ -10,7 +10,6 @@
 #include <proc.h>
 #include <sched.h>
 #include <pcpu.h>
-#include <sysinit.h>
 
 struct vm_segment {
   TAILQ_ENTRY(vm_segment) link;
@@ -74,9 +73,10 @@ static void vm_map_setup(vm_map_t *map) {
   mtx_init(&map->mtx, 0);
 }
 
-static void vm_map_init(void) {
+void vm_map_init(void) {
   vm_map_setup(kspace);
   kspace->pmap = get_kernel_pmap();
+  vm_map_activate(kspace);
 }
 
 vm_map_t *vm_map_new(void) {
@@ -331,7 +331,8 @@ vm_segment_t *vm_alloc_anyseg(vm_map_t *map, size_t pages) {
   vm_map_range(map, &start, &end);
   end = start + pages * PAGESIZE;
   vm_object_t *ann_obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *seg = vm_segment_alloc(ann_obj, start, end, VM_PROT_NONE);
+  vm_segment_t *seg =
+    vm_segment_alloc(ann_obj, start, end, VM_PROT_READ | VM_PROT_WRITE);
 
   if (vm_map_insert(map, seg, VM_FILE)) {
     vm_segment_free(seg); // obj_free() is inside this call
@@ -339,5 +340,3 @@ vm_segment_t *vm_alloc_anyseg(vm_map_t *map, size_t pages) {
   }
   return seg;
 }
-
-SYSINIT_ADD(vm_map, vm_map_init, NODEPS);
