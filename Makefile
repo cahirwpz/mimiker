@@ -37,10 +37,10 @@ tags:
 # These files get destroyed by clang-format, so we explicitly exclude them from
 # being automatically formatted
 FORMATTABLE_EXCLUDE = \
-	./include/elf/% \
-	./include/mips/asm.h \
-	./include/mips/m32c0.h \
-	./stdc/%
+	include/elf/% \
+	include/mips/asm.h \
+	include/mips/m32c0.h \
+	stdc/%
 FORMATTABLE = $(filter-out $(FORMATTABLE_EXCLUDE),$(SOURCES_C))
 
 format:
