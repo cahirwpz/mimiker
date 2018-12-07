@@ -4,15 +4,15 @@ SUBDIR-install := $(SUBDIR:%=%-install)
 SUBDIR-clean := $(SUBDIR:%=%-clean)
 
 $(SUBDIR):
-	$(MAKE) -C $@
+	@$(MAKE) -C $@
 
-install: $(SUBDIR-install)
-clean: $(SUBDIR-clean)
-	$(RM) -f *~
+install:: $(SUBDIR-install)
+clean:: $(SUBDIR-clean)
+	$(RM) *~
 
 define emit_subdir_rule
-$(1)-$(2):
-	$(MAKE) -C $(1) $(2)
+$(1)-$(2)::
+	@$(MAKE) -C $(1) $(2)
 endef
 
 $(foreach dir,$(SUBDIR) null,$(eval $(call emit_subdir_rule,$(dir),install)))

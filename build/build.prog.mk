@@ -6,29 +6,27 @@
 # This template assumes following make variables are set:
 #  PROGRAM: The name for the resulting userspace ELF file. Generally, this will
 #  be the program name installed into /bin directory.
-#  SOURCES_C: The C files to compile. Can be omitted if there's only one file
-#  to compile named $(PROGRAM).c
+#  SOURCES: C or assembly files to compile. Can be omitted if there's only one
+#  file to compile named $(PROGRAM).c
 
 ifndef PROGRAM 
 $(error PROGRAM is not set)
 endif
 
-SOURCES_C ?= $(PROGRAM).c
-SOURCES_O = $(SOURCES_C:%.c=%.o)
+SOURCES ?= $(PROGRAM).c
 
 all: $(PROGRAM).uelf
 
 include $(TOPDIR)/build/build.mk
 include $(TOPDIR)/build/flags.user.mk
 
-clean:
-	rm -rf $(PROGRAM).uelf $(SOURCES_C:%.c=.%.D) $(SOURCES_O)
-	rm -rf *~
+clean::
+	$(RM) $(PROGRAM).uelf
 
 # Linking the program according to the provided script
-$(PROGRAM).uelf: $(SOURCES_O)
+$(PROGRAM).uelf: $(OBJECTS)
 	@echo "[LD] $(DIR)$< -> $(DIR)$@"
-	$(CC) $(LDFLAGS) -o $@ $(SOURCES_O)
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS)
 
 install: $(SYSROOT)/bin/$(PROGRAM)
 

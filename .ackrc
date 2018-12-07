@@ -1,0 +1,7 @@
+--ignore-dir=toolchain/mipsel-mimiker-elf
+--ignore-dir=lib/newlib
+--ignore-dir=sysroot
+--asm
+--cc
+--python
+--make
