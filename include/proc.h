@@ -8,6 +8,22 @@
 #include <signal.h>
 #include <vm_map.h>
 
+/*
+ * One structure allocated per process group.
+ *
+ * List of locks
+ * (m)		locked by pg_mtx mtx
+ * (e)		locked by proctree_lock sx
+ * (c)		const until freeing
+ */
+struct pgrp {
+	LIST_ENTRY(pgrp) pg_hash;	/* (e) Hash chain. */
+	LIST_HEAD(, proc) pg_members;	/* (m + e) Pointer to pgrp members. */
+	struct sigiolst	pg_sigiolst;	/* (m) List of sigio sources. */
+	pid_t		pg_id;		/* (c) Process group id. */
+	struct mtx	pg_mtx;		/* Mutex to protect members */
+};
+
 typedef struct thread thread_t;
 typedef struct proc proc_t;
 typedef struct fdtab fdtab_t;
@@ -30,7 +46,13 @@ struct proc {
   TAILQ_ENTRY(proc) p_child;  /* (a) link on parent's children list */
   thread_t *p_thread;         /* (p) the only thread running in this process */
   pid_t p_pid;                /* (@) Process ID */
-  pgid_t p_pgid;              /* (p) Process group ID */
+  LIST_ENTRY(proc) p_pglist;  /* (g+e) List of processes in pgrp
+ 				   g - process group mtx
+			       	   e - locked by proctree_lock lock
+			      */
+  struct pgrp *p_pgrp;        /* (c + e) Pointer to process group.
+				    c - locked by proc mtx
+			      */
   volatile proc_state_t p_state;  /* (p) process state */
   proc_t *p_parent;               /* (a) parent process */
   proc_list_t p_children;         /* (a) child processes, including zombies */
