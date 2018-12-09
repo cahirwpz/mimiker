@@ -510,10 +510,6 @@ sysent_t sysent[] = {
   [SYS_GETPPID] = {sys_getppid},
   [SYS_SETPGID] = {sys_setpgid},
   [SYS_GETPGID] = {sys_getpgid},
-<<<<<<< HEAD
-=======
-  [SYS_GETPGRP] = {sys_getpgrp},
->>>>>>> Start adding GETPPID, SETPGID, GETPGID, GETPGRP syscalls and create pgrp struct.
   [SYS_KILL] = {sys_kill},
   [SYS_FSTAT] = {sys_fstat},
   [SYS_STAT] = {sys_stat},
