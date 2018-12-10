@@ -23,6 +23,7 @@
 
 # Build dependency files
 .*.D
+*-stamp
 
 # Python cache
 *.pyc
