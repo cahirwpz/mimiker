@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Convert DTB (Device Tree Blop) into a C array.
+Convert DTS (Device Tree Source) into a C array.
 """
 import sys
 from functools import reduce
@@ -38,7 +38,7 @@ devhint_t hints[] = {{
 
 
 def generate_fdt(filename):
-    with open(filename, "r", encoding = "ISO-8859-1") as f:
+    with open(filename, "r") as f:
         data = f.read()
         dtb = fdt.parse_dts(data)
     return dtb

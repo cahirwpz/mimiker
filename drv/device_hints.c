@@ -9,8 +9,8 @@
 
 typedef struct {
     char* path;
-    uint64_t iomem[32];
-    uint64_t ioport[32];
+    uint32_t iomem[32];
+    uint32_t ioport[32];
     uint32_t irq;
 } devhint_t;
 
