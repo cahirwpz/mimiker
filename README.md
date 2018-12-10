@@ -6,7 +6,11 @@ for [Malta](https://www.linux-mips.org/wiki/MIPS_Malta) board.
 Quickstart
 ---
 
-For container-based local development, please refer to `docker` directory
+To set up container-based local environment:
+
+    `make docker`
+
+For more details please refer to `docker` directory.
 
 Toolchain
 ---
