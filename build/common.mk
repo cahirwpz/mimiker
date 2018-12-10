@@ -10,7 +10,6 @@ ifneq ($(VERBOSE), 1)
 endif
 
 # Disable all built-in recipes
-MAKEFLAGS += -r
 .SUFFIXES:
 
 # Define our own recipes

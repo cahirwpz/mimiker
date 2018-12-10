@@ -20,4 +20,7 @@ CPIO    = cpio --format=crc
 CSCOPE  = cscope -b
 CTAGS   = ctags
 FORMAT  = clang-format-6.0 -style=file 
+INSTALL = install
 RM      = rm -v -f
+TAR	= tar
+CURL	= curl -J -L

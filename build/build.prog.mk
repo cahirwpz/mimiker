@@ -31,6 +31,6 @@ $(PROGRAM).uelf: $(OBJECTS)
 
 $(SYSROOT)/bin/$(PROGRAM): $(PROGRAM).uelf
 	@echo "[INSTALL] $(DIR)$< -> /bin/$(PROGRAM)"
-	install -D $(PROGRAM).uelf $(SYSROOT)/bin/$(PROGRAM)
+	$(INSTALL) -D $(PROGRAM).uelf $(SYSROOT)/bin/$(PROGRAM)
 	@echo "[STRIP] /bin/$(PROGRAM)"
 	$(STRIP) --strip-all $(SYSROOT)/bin/$(PROGRAM)
