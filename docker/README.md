@@ -1,14 +1,13 @@
 Docker-based local development
 ---
 
-In order to quickly prepare local environment with all tools required to develop
-mimiker, containerization may be used. You will need to have `docker` and
-`docker-compose` installed to set up environment:
+Docker image with environment prepared for mimiker compilation and testing.
 
-```
-export MIMIKER_SRC_PATH="<path to mimiker source>"
-./run_mimiker.sh
-```
+In order to quickly prepare local environment with all tools required to develop
+mimiker, you will need to have `docker` and `docker-compose` installed.
+To set up enviroment:
+
+    `make run`
 
 The above script will
 - attach volume with mimiker source code from your machine
@@ -17,10 +16,24 @@ The above script will
 
 Other commands reference:
 
-`make tmux` - enter the container's shell in a tmux session
-`make compile` - compile the mimiker kernel
 `make build` - build the mimiker-dev image with tag latest
 `make push` - push the mimiker-dev image to the docker hub
+`make up` - bring the containers up
+`make compile` - compile the mimiker kernel
+`make tmux` - enter the container's shell in a tmux session
+
+If you would like to tag the built image with a specific version, please run:
+
+```
+docker image tag cahirwpz/mimiker-circleci:latest \
+                  cahirwpz/mimiker-circleci:X.Y
+```
+
+where X, Y are version numbers, and then run the following command to push the
+tag to the docker hub:
+
+ `docker push cahirwpz/mimiker-circleci:X.Y`
+
 
 Possible issues:
 - It is assumed that docker can be managed by non-root user. Take a look at the

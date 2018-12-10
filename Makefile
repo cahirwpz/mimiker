@@ -104,3 +104,7 @@ distclean: clean
 
 download:
 	$(MAKE) -C user/newlib download
+
+docker:
+	cd docker && make run
+

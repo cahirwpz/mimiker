@@ -3,7 +3,7 @@ mimiker:
   image: cahirwpz/mimiker-dev:latest
   hostname: mimiker
   volumes:
-    - "${MIMIKER_SRC_PATH}:/root/mimiker"
+    - "../:/root/mimiker"
   restart: on-failure
   working_dir: /root/mimiker
   entrypoint:
