@@ -1,15 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Convert DTB (Device Tree Blop) into a C array.
 """
 import sys
+from functools import reduce
 
-from pyfdt import pyfdt
-
-
-def merge_dicts(a, b):
-    a.update(b)
-    return a
+import fdt
 
 
 class UnsupportedHintError(Exception):
@@ -30,8 +26,8 @@ DEVICE_HINTS_TEMPLATE = """
 
 typedef struct {{
     char* path;
-    uint64_t iomem[{iomem_array_size}];
-    uint64_t ioport[{ioport_array_size}];
+    uint32_t iomem[{iomem_array_size}];
+    uint32_t ioport[{ioport_array_size}];
     uint32_t irq;
 }} devhint_t;
 
@@ -42,42 +38,38 @@ devhint_t hints[] = {{
 
 
 def generate_fdt(filename):
-    with open(filename) as f:
-        dtb = pyfdt.FdtBlobParse(f)
-    return dtb.to_fdt()
+    with open(filename, "r", encoding = "ISO-8859-1") as f:
+        data = f.read()
+        dtb = fdt.parse_dts(data)
+    return dtb
 
 
 def generate_hints(device, path):
-    props = [
-        node for node in device.subdata
-        if isinstance(node, pyfdt.FdtProperty)
-    ]
-    for prop in props:
+    for prop in device.props:
         yield ('.path', path)
 
         if prop.name == 'iomem':
-            yield ('.iomem', prop.words)
+            yield ('.iomem', prop.data)
 
         elif prop.name == 'ioport':
-            yield ('.ioport', prop.words)
+            yield ('.ioport', prop.data)
 
         elif prop.name == 'interrupts':
-            assert len(prop.words) == 1, "Only one irq per device supported!"
-            yield ('.irq', prop.words[0])
+            assert len(prop.data) == 1, "Only one irq per device supported!"
+            yield ('.irq', prop.data[0])
 
         else:
             raise UnsupportedHintError("The following device hint resource is "
                                        "not supported: {}".format(prop.name))
 
 
-def flatten_ftd(root, path):
+def flatten_fdt(root, path):
     child_hints = [
-        flatten_ftd(node, "{}/{}".format(path, node.name))
-        for node in root.subdata
-        if isinstance(node, pyfdt.FdtNode)
+        flatten_fdt(node, "{}/{}".format(path, node.name))
+        for node in root.nodes
     ]
 
-    hints = reduce(merge_dicts, child_hints, {})
+    hints = reduce(lambda a, b: {**a, **b}, child_hints, {})
     current_device_hints = dict(generate_hints(root, path))
     if current_device_hints:
         hints[path] = current_device_hints
@@ -93,14 +85,14 @@ def hint_as_c_entry(hint):
 
     fields_as_strs = [
         "\t{} = {}".format(resource, to_c_value(value))
-        for resource, value in hint.iteritems()
+        for resource, value in hint.items()
     ]
     entry = ',\n'.join(fields_as_strs)
     return "{{ {}\n}},\n".format(entry)
 
 
 def device_hints_as_c_array(hints):
-    return ''.join(map(hint_as_c_entry, hints.itervalues()))
+    return ''.join(map(hint_as_c_entry, hints.values()))
 
 
 def help():
@@ -117,7 +109,7 @@ def main(*args):
 
     filename = sys.argv[1]
     fdt = generate_fdt(filename)
-    flat_hints = flatten_ftd(fdt.get_rootnode(), '/rootdev')
+    flat_hints = flatten_fdt(fdt.root_node, '/rootdev')
     hints_as_c_array = device_hints_as_c_array(flat_hints)
     with open("device_hints.c", "w") as f:
         f.write(DEVICE_HINTS_TEMPLATE.format(

@@ -15,14 +15,14 @@ typedef struct {
 } devhint_t;
 
 devhint_t hints[] = {
-{ 	.iomem = {1016, 1023, 760, 767},
+{ 	.path = "/rootdev/pci@0/isab@0/isa@0/uart@0",
 	.irq = 0x4,
-	.path = "/rootdev/pci@0/isab@0/isa@0/uart@0"
+	.iomem = {1016, 1023, 760, 767}
 },
-{ 	.ioport = {96, 96, 100, 100},
-	.iomem = {760, 767},
+{ 	.path = "/rootdev/pci@0/isab@0/isa@0/uart@1",
 	.irq = 0x3,
-	.path = "/rootdev/pci@0/isab@0/isa@0/uart@1"
+	.iomem = {760, 767},
+	.ioport = {96, 96, 100, 100}
 },
 
 };
