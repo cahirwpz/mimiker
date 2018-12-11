@@ -59,7 +59,8 @@ SOURCES = \
 	vfs_vnode.c \
 	vm_map.c \
 	vm_object.c \
-	vm_pager.c
+	vm_pager.c \
+	devclass.c
 
 include $(TOPDIR)/build/build.kobj.mk
 

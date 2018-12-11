@@ -12,6 +12,7 @@
 #include <time.h>
 #include <vnode.h>
 #include <sysinit.h>
+#include <devclass.h>
 
 #define RTC_ADDR 0
 #define RTC_DATA 1
@@ -126,3 +127,4 @@ static void rtc_init(void) {
 }
 
 SYSINIT_ADD(rtc, rtc_init, DEPS("rootdev"));
+DEVCLASS_ADD_DRV(root, rtc_driver);

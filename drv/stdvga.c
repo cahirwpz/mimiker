@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <device.h>
 #include <bus.h>
+#include <devclass.h>
 
 #define VGA_PALETTE_SIZE (256 * 3)
 
@@ -219,3 +220,4 @@ static driver_t stdvga = {
 };
 
 DRIVER_ADD(stdvga);
+DEVCLASS_ADD_DRV(pci, stdvga);

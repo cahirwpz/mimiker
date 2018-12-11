@@ -46,6 +46,9 @@
 #define SET_FOREACH(pvar, set)                                                 \
   for (pvar = SET_BEGIN(set); pvar < SET_LIMIT(set); pvar++)
 
+#define SET_FOREACH_PTR(pvar, set_b, set_e) \
+	for (pvar= set_b; pvar < set_e; pvar++)
+
 /* Gets the ith item from the set. */
 #define SET_ITEM(set, i) ((SET_BEGIN(set))[i])
 

@@ -14,6 +14,7 @@
 #include <stdc.h>
 #include <klog.h>
 #include <bus.h>
+#include <devclass.h>
 
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
@@ -395,3 +396,6 @@ pci_bus_driver_t gt_pci_bus = {
   }
 };
 /* clang-format on */
+
+DEVCLASS_CREATE(pci);
+DEVCLASS_ADD_DRV(root, gt_pci_bus);

@@ -8,6 +8,7 @@
 #include <timer.h>
 #include <spinlock.h>
 #include <sysinit.h>
+#include <devclass.h>
 
 typedef struct pit_state {
   resource_t *regs;
@@ -150,3 +151,4 @@ static void pit_init(void) {
 }
 
 SYSINIT_ADD(pit, pit_init, DEPS("rootdev"));
+DEVCLASS_ADD_DRV(root, pit_driver);
