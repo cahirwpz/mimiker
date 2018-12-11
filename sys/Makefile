@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SOURCES_C  = \
+SOURCES = \
 	assert.c \
 	bus.c \
 	callout.c \
@@ -61,15 +61,6 @@ SOURCES_C  = \
 	vm_object.c \
 	vm_pager.c
 
-SOURCES_ASM =
+include $(TOPDIR)/build/build.kobj.mk
 
-all: $(DEPFILES) libsys.a
-
-include $(TOPDIR)/build/build.kern.mk
-
-libsys.a: $(OBJECTS)
-
-clean:
-	$(RM) .*.D *.ko *.o *.a *.lst *~
-	$(RM) tags *.taghl
-	$(RM) libsys.a
+build-here: libsys.ka

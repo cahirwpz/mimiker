@@ -1,19 +1,14 @@
 TOPDIR = $(realpath ../../)
 
-include $(TOPDIR)/build/toolchain.mk
-include $(TOPDIR)/build/tools.mk
-include $(TOPDIR)/build/common.mk
-
 SOURCEDIR = $(CURDIR)/newlib-3.0.0
 BUILDDIR = $(CURDIR)/newlib-build
 
-all: install
+all: download configure build install
 
+download: $(SOURCEDIR)/configure
 $(SOURCEDIR)/configure:
 	@echo "Updating Git submodule..."
 	git submodule update --init $(SOURCEDIR)
-
-download: $(SOURCEDIR)/configure
 
 # Output from these commands is redirected to log files for readibility.
 configure: configure-stamp
@@ -33,14 +28,14 @@ configure-stamp: $(SOURCEDIR)/configure
 			    --prefix="$(SYSROOT)/usr" 2>&1 >newlib-config.log
 	touch $@
 
-build: build-stamp
+build-here: build-stamp
 build-stamp: configure-stamp
 	@echo "Compiling newlib..."
 	@echo "(messages saved to 'newlib-build.log')"
 	cd $(BUILDDIR) && $(MAKE) 2>&1 >newlib-build.log
 	touch $@
 
-install: install-stamp
+install-here: install-stamp
 install-stamp: build-stamp
 	@echo "Installing newlib..."
 	@echo "(messages saved to 'newlib-install.log')"
@@ -52,12 +47,14 @@ install-stamp: build-stamp
 	cp -RL overrides/* $(SYSROOT)/usr/
 	touch $@
 
-clean:
+clean-here:
 	$(RM) install-stamp newlib-install.log
-	$(RM) *~
 
-distclean: clean
+distclean-here:
 	$(RM) -r $(BUILDDIR)
-	$(RM) *-stamp newlib-*.log
+	$(RM) newlib-build.log configure-stamp build-stamp
 
-.PHONY:	download unpack configure build install distclean download
+PHONY-TARGETS += download configure
+
+include $(TOPDIR)/build/tools.mk
+include $(TOPDIR)/build/common.mk

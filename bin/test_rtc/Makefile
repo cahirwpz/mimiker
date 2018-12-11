@@ -1,6 +1,5 @@
 TOPDIR = $(realpath ../..)
 
-SOURCES_C = ls_rec.c
-UELF_NAME = ls_rec
+PROGRAM = test_rtc
 
 include $(TOPDIR)/build/build.prog.mk
