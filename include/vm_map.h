@@ -6,6 +6,8 @@
 #include <vm.h>
 #include <mutex.h>
 
+void vm_map_init(void);
+
 void vm_map_activate(vm_map_t *map);
 
 vm_map_t *get_user_vm_map(void);
@@ -43,6 +45,11 @@ void vm_segment_range(vm_segment_t *seg, vaddr_t *start_p, vaddr_t *end_p);
  * \returns 0 on success, sets *start_p as well
  */
 int vm_map_findspace(vm_map_t *map, vaddr_t /*inout*/ *start_p, size_t length);
+
+/*! \brief Allocates segment and associate anonymous memory object with it. */
+int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
+                         vm_prot_t prot, vm_flags_t flags,
+                         vm_segment_t **seg_p);
 
 /* Tries to resize an segment, by moving its end if there
    are no other mappings in the way. On success, returns 0. */

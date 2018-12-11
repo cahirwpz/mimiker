@@ -30,6 +30,49 @@ int device_probe(device_t *dev) {
   return found;
 }
 
+int __attribute__((unused)) device_probe2(device_t *dev) {
+  device_t *parent = dev->parent;
+  devclass_t *dc = devclass_find(parent->driver->desc);
+  klog("devclass found %s\n", dc->name);
+  driver_t **drv;
+  // bledy > 0
+  // matching <=0. 0 = best driver
+  driver_t *best_drv = NULL;
+  int best = INT_MIN;
+
+  DEVCLASS_FOREACH(drv, dc) {
+    dev->driver = *drv;
+    d_probe_t probe = dev->driver->probe;
+    int found = probe ? probe(dev) : 1; // 1 means no probe method
+    if (found > 0) {
+      klog("no probe method!");
+    } else {
+      if (found > best) {
+        best = found;
+        best_drv = *drv;
+      }
+    }
+  }
+
+  if (best_drv) {
+    dev->driver = best_drv;
+    return 0;
+  }
+
+  return -1; // probe failed
+}
+
+int device_probe_and_attach(device_t *dev) {
+  int error = device_probe2(dev);
+  if (error == -1) {
+    klog("error");
+    return error;
+  }
+  // best driver przypisany
+  error = device_attach(dev);
+  return error;
+}
+
 int device_attach(device_t *dev) {
   assert(dev->driver != NULL);
   d_attach_t attach = dev->driver->attach;
@@ -45,6 +88,7 @@ int device_detach(device_t *dev) {
   return res;
 }
 
+// this function serves as an ugly hack.
 device_t *make_device(device_t *parent, driver_t *driver) {
   device_t *dev = device_add_child(parent);
   dev->driver = driver;

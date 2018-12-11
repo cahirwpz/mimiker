@@ -12,6 +12,7 @@
 #include <dev/atkbdcreg.h>
 #include <interrupt.h>
 #include <sysinit.h>
+#include <devclass.h>
 
 /* XXX: resource size must be a power of 2 ?! */
 #undef IO_KBDSIZE
@@ -191,3 +192,4 @@ static void atkbdc_init(void) {
 }
 
 SYSINIT_ADD(atkbdc, atkbdc_init, DEPS("rootdev"));
+DEVCLASS_ENTRY(pci, atkbdc_driver);
