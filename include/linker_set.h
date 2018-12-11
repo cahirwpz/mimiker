@@ -48,7 +48,7 @@
 
 /* Same as above, except one specifies "set_begin", and "set_end" pointers
  * instead of symbol name of this set. */
-#define SET_FOREACH_PTR(pvar, set_begin, set_end)                                    \
+#define SET_FOREACH_PTR(pvar, set_begin, set_end)                              \
   for (pvar = set_begin; pvar < set_end; pvar++)
 
 /* Gets the ith item from the set. */
