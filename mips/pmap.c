@@ -1,5 +1,6 @@
 #define KL_LOG KL_PMAP
 #include <klog.h>
+#include <stdc.h>
 #include <pool.h>
 #include <physmem.h>
 #include <mips/exc.h>
@@ -10,7 +11,6 @@
 #include <pmap.h>
 #include <vm_map.h>
 #include <thread.h>
-#include <ktest.h>
 #include <signal.h>
 #include <spinlock.h>
 #include <mutex.h>
@@ -309,8 +309,6 @@ fault:
 
     /* Send a segmentation fault signal to the user program. */
     sig_trap(frame, SIGSEGV);
-  } else if (ktest_test_running_flag) {
-    ktest_failure();
   } else {
     /* Panic when kernel-mode thread uses wrong pointer. */
     kernel_oops(frame);

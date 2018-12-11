@@ -2,6 +2,7 @@
 *.o
 *.ko
 *.a
+*.ka
 
 # Executables
 *.elf
@@ -22,6 +23,7 @@
 
 # Build dependency files
 .*.D
+*-stamp
 
 # Python cache
 *.pyc
