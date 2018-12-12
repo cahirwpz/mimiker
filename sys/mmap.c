@@ -16,33 +16,12 @@ int do_mmap(vaddr_t *addr_p, size_t length, vm_prot_t prot, vm_flags_t flags) {
 
   vaddr_t addr = *addr_p;
   *addr_p = (vaddr_t)MAP_FAILED;
-
   length = roundup(length, PAGESIZE);
 
-  if (!(flags & VM_ANON)) {
-    klog("Only anonymous memory mappings are supported!");
-    return -ENOTSUP;
-  }
-
-  if (!is_aligned(addr, PAGESIZE))
-    return -EINVAL;
-
-  if (length == 0)
-    return -EINVAL;
-
-  if (addr != 0 &&
-      (!vm_map_in_range(vmap, addr) || !vm_map_in_range(vmap, addr + length)))
-    return -EINVAL;
-
-  /* Create object with a pager that supplies cleared pages on page fault. */
-  vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *seg = vm_segment_alloc(obj, addr, addr + length, prot);
-
-  /* Given the hint try to insert the segment at given position or after it. */
-  if (vm_map_insert(vmap, seg, flags)) {
-    vm_segment_free(seg);
-    return -ENOMEM;
-  }
+  vm_segment_t *seg;
+  int error = vm_map_alloc_segment(vmap, addr, length, prot, flags, &seg);
+  if (error < 0)
+    return error;
 
   vaddr_t start, end;
   vm_segment_range(seg, &start, &end);
