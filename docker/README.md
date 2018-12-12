@@ -16,8 +16,8 @@ The above script will
 
 Other commands reference:
 
-`make build` - build the mimiker-dev image with tag latest
-`make push` - push the mimiker-dev image to the docker hub
+`make build` - build the mimiker image with tag latest
+`make push` - push the mimiker image to the docker hub
 `make up` - bring the containers up
 `make compile` - compile the mimiker kernel
 `make tmux` - enter the container's shell in a tmux session
