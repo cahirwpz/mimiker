@@ -41,4 +41,4 @@ $(SOURCES): assym.h
 	$(GENASSYM) $< $@
 
 clean-here:
-	$(RM) assym.h malta-devhint.c
+	$(RM) assym.h *-devhint.c
