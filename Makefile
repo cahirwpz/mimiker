@@ -51,10 +51,10 @@ format:
 test: mimiker.elf
 	./run_tests.py
 
-PHONY-TARGETS += format tags cscope test
-
-include $(TOPDIR)/build/build.kern.mk
-
 docker:
 	cd docker && make run
+
+PHONY-TARGETS += format tags cscope test docker
+
+include $(TOPDIR)/build/build.kern.mk
 
