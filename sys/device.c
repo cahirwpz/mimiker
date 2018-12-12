@@ -2,6 +2,7 @@
 #include <klog.h>
 #include <device.h>
 #include <rman.h>
+#include <devclass.h>
 
 MALLOC_DEFINE(M_DEV, "devices & drivers", 128, 1024);
 

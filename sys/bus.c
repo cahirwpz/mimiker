@@ -101,30 +101,30 @@ int bus_generic_probe(device_t *bus) {
 
 /*
 typedef struct {
-	char* path;
-	uint32_t iomem[32];
-	uint32_t ioport[32];
-	uint32_t irq;
+        char* path;
+        uint32_t iomem[32];
+        uint32_t ioport[32];
+        uint32_t irq;
 } devhint_t;
 
 devhint_t hints[] = {
-	.irq = 0x4,
-	.path = "/rootdev/pci@0/isab@0/isa@0/uart@0",
-	.iomem = {1016, 1023, 760, 767}
+        .irq = 0x4,
+        .path = "/rootdev/pci@0/isab@0/isa@0/uart@0",
+        .iomem = {1016, 1023, 760, 767}
 },
 {
-	.irq = 0x3,
-	.ioport = {96, 96, 100, 100},
-	.path = "/rootdev/pci@0/isab@0/isa@0/uart@1",
-	.iomem = {760, 767}
+        .irq = 0x3,
+        .ioport = {96, 96, 100, 100},
+        .path = "/rootdev/pci@0/isab@0/isa@0/uart@1",
+        .iomem = {760, 767}
 },
-	};
+        };
 */
 
 // identify hinted devices and resources.
 // add devices to parentbus
 // add hinted resources to devices ivars
-// 
+//
 /*
 int bus_enumerate_hinted_children(device_t *bus){
 
@@ -132,15 +132,14 @@ int bus_enumerate_hinted_children(device_t *bus){
 
 }*/
 
-
 /* EXAMPLE BUS_ATTACH
  *
  * (...)
  * bus_specific_identify_identifiable_children_and_resources(bus_dev);
  *
- * busdriver is responsible for storing child devivce's resources (identifiable and non-identifiable)
- * in device's resources.
- * Child device in order to interact with resource in any way must use interface provided by parentbus 
+ * busdriver is responsible for storing child devivce's resources (identifiable
+ * and non-identifiable) in device's resources. Child device in order to
+ * interact with resource in any way must use interface provided by parentbus
  *
  * bus_enumerate_hinted_children(bus_dev);
  * now all child devices are identified and created but with no drivers assigned

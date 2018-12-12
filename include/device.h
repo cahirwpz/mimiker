@@ -58,6 +58,9 @@ device_t *make_device(device_t *parent, driver_t *driver);
  * \note Mostly used in bus drivers. */
 void device_add_resource(device_t *dev, resource_t *r, int rid);
 
+// find best driver and attach
+int device_probe_and_attach(device_t *dev);
+
 /* A universal memory pool to be used by all drivers. */
 MALLOC_DECLARE(M_DEV);
 
