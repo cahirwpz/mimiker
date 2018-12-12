@@ -100,9 +100,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
             description='Converting DTS (Device Tree Source) into a C array.')
     parser.add_argument('input', metavar='DTS', type=str,
-            help='Device Tree Source file')
+                        help='Device Tree Source file')
     parser.add_argument('output', metavar='SRC', type=str,
-            help='C array of devhint_t structures')
+                        help='C array of devhint_t structures')
     args = parser.parse_args()
 
     fdt = generate_fdt(args.input)
