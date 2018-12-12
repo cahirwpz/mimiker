@@ -22,9 +22,9 @@ struct devclass {
 #define DEVCLASS_ADD(dc_name, driver_structure)                                \
   SET_ENTRY(dc_name, driver_structure)
 
-#define DEVCLASS_FOREACH(drv, dc)                                              \
-  SET_FOREACH_PTR(drv, (dc)->first_p, (dc)->end_p)
+#define DEVCLASS_FOREACH(drv_p, dc)                                            \
+  for (drv_p = (dc)->first_p; drv_p < (dc)->end_p; drv_p++)
 
-devclass_t *devclass_find(const char *classname);
+devclass_t *devclass_find(const char *name);
 
 #endif /* !_SYS_DEVCLASS_H_ */

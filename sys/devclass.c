@@ -4,12 +4,12 @@
 
 SET_DECLARE(devclasses, devclass_t);
 
-devclass_t *devclass_find(const char *classname) {
-  devclass_t **dc;
+devclass_t *devclass_find(const char *name) {
+  devclass_t **dc_p;
 
-  SET_FOREACH (dc, devclasses) {
-    if (strcmp((*dc)->name, classname) == 0)
-      return *dc;
+  SET_FOREACH (dc_p, devclasses) {
+    if (strcmp((*dc_p)->name, name) == 0)
+      return *dc_p;
   }
   return NULL;
 }
