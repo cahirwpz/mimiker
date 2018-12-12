@@ -220,4 +220,4 @@ static driver_t stdvga = {
 };
 
 DRIVER_ADD(stdvga);
-DEVCLASS_ADD_DRV(pci, stdvga);
+DEVCLASS_ADD(pci, stdvga);

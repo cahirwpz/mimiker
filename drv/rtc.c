@@ -127,4 +127,4 @@ static void rtc_init(void) {
 }
 
 SYSINIT_ADD(rtc, rtc_init, DEPS("rootdev"));
-DEVCLASS_ADD_DRV(root, rtc_driver);
+DEVCLASS_ADD(root, rtc_driver);

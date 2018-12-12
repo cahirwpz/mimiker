@@ -151,4 +151,4 @@ static void pit_init(void) {
 }
 
 SYSINIT_ADD(pit, pit_init, DEPS("rootdev"));
-DEVCLASS_ADD_DRV(root, pit_driver);
+DEVCLASS_ADD(root, pit_driver);
