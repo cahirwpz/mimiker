@@ -42,28 +42,28 @@ static inline callout_list_t *ci_list(int i) {
   return &ci.heads[i];
 }
 
-static callout_list_t shared;
+static callout_list_t delegated;
 
 static void callout_thread(void *arg) {
   while (true) {
     callout_t *elem;
 
     WITH_INTR_DISABLED {
-      while (TAILQ_EMPTY(&shared)) {
-        sleepq_wait(&shared, NULL);
+      while (TAILQ_EMPTY(&delegated)) {
+        sleepq_wait(&delegated, NULL);
       }
 
-      elem = TAILQ_FIRST(&shared);
-      TAILQ_REMOVE(&shared, elem, c_link);
+      elem = TAILQ_FIRST(&delegated);
+      TAILQ_REMOVE(&delegated, elem, c_link);
     }
 
     assert(callout_is_active(elem));
     assert(!callout_is_pending(elem));
 
+    /* Execute callout's function. */
     elem->c_func(elem->c_arg);
     callout_clear_active(elem);
-    /* Wake threads that wait for execution of this callout in function
-     * callout_drain. */
+    /* Wake threads that wait for execution of this callout in callout_drain. */
     sleepq_broadcast(elem);
   }
 }
@@ -76,7 +76,7 @@ static void callout_init(void) {
   for (int i = 0; i < CALLOUT_BUCKETS; i++)
     TAILQ_INIT(ci_list(i));
 
-  TAILQ_INIT(&shared);
+  TAILQ_INIT(&delegated);
 
   thread_t *td =
     thread_create("callout-thread", callout_thread, NULL, prio_kthread(0));
@@ -116,7 +116,7 @@ void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
   _callout_setup(handle, now + time, fn, arg);
 }
 
-void callout_stop(callout_t *handle) {
+bool callout_stop(callout_t *handle) {
   SCOPED_SPIN_LOCK(&ci.lock);
 
   klog("Remove callout {%p} at %ld.", handle, handle->c_time);
@@ -124,12 +124,15 @@ void callout_stop(callout_t *handle) {
   if (callout_is_pending(handle)) {
     callout_clear_pending(handle);
     TAILQ_REMOVE(ci_list(handle->c_index), handle, c_link);
+    return true;
   }
+
+  return false;
 }
 
 /*
- * Handle all timeouted callouts from queues between last position and current
- * position.
+ * Process all timeouted callouts from queues between last position and current
+ * position and delegate them to callout thread.
  */
 void callout_process(systime_t time) {
   unsigned int last_bucket;
@@ -150,13 +153,14 @@ void callout_process(systime_t time) {
     callout_list_t *head = ci_list(current_bucket);
     callout_t *elem, *next;
 
-    /* Detach triggered callouts from the queue. */
+    /* Detach triggered callouts from ci_list queue. */
     TAILQ_FOREACH_SAFE(elem, head, c_link, next) {
       if (elem->c_time <= time) {
         callout_set_active(elem);
         callout_clear_pending(elem);
         TAILQ_REMOVE(head, elem, c_link);
-        TAILQ_INSERT_TAIL(&shared, elem, c_link);
+        /* Attach elem to callout thread's queue. */
+        TAILQ_INSERT_TAIL(&delegated, elem, c_link);
       }
     }
 
@@ -168,8 +172,9 @@ void callout_process(systime_t time) {
 
   ci.last = time;
 
-  if (!TAILQ_EMPTY(&shared)) {
-    sleepq_signal(&shared);
+  /* Wake callout thread. */
+  if (!TAILQ_EMPTY(&delegated)) {
+    sleepq_signal(&delegated);
   }
 }
 

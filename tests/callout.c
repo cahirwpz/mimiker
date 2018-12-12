@@ -4,29 +4,6 @@
 #include <sched.h>
 #include <interrupt.h>
 
-static void periodic_callout(void *arg) {
-  callout_t *callout = arg;
-  callout_setup_relative(callout, 1, periodic_callout, arg);
-}
-
-static int test_callout_sync(void) {
-  const int K = 50;
-  const int N = 7;
-
-  callout_t callout[N];
-  bzero(callout, sizeof(callout_t) * N);
-
-  for (int j = 0; j < K; j++) {
-    for (int i = 0; i < N; i++)
-      callout_setup_relative(&callout[i], 1, periodic_callout, &callout[i]);
-
-    for (int i = 0; i < N; i++)
-      callout_stop(&callout[i]);
-  }
-
-  return KTEST_SUCCESS;
-}
-
 static int counter;
 
 /* This test verifies whether callouts work at all. */
@@ -62,6 +39,7 @@ static int current;
 static void callout_ordered(void *arg) {
   int ord = (int)arg;
   assert(current == ord);
+  /* There is no race condition here since callouts don't run concurrently. */
   current++;
 }
 
@@ -116,8 +94,7 @@ static int test_callout_drain(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(callout_sync, test_callout_sync, KTEST_FLAG_BROKEN);
 KTEST_ADD(callout_simple, test_callout_simple, 0);
 KTEST_ADD(callout_order, test_callout_order, 0);
-KTEST_ADD(callout_stop, test_callout_stop, KTEST_FLAG_BROKEN);
+KTEST_ADD(callout_stop, test_callout_stop, 0);
 KTEST_ADD(callout_drain, test_callout_drain, 0);
