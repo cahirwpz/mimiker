@@ -9,6 +9,7 @@ SOURCES = \
 	clock.c \
 	condvar.c \
 	console.c \
+	devclass.c \
 	device.c \
 	dev_cons.c \
 	dev_null.c \
@@ -59,8 +60,7 @@ SOURCES = \
 	vfs_vnode.c \
 	vm_map.c \
 	vm_object.c \
-	vm_pager.c \
-	devclass.c
+	vm_pager.c
 
 include $(TOPDIR)/build/build.kobj.mk
 
