@@ -99,6 +99,7 @@ proc_t *proc_find(pid_t pid) {
   return p;
 }
 
+// http://mimiker.ii.uni.wroc.pl/source/xref/FreeBSD/head/sys/kern/kern_proc.c#448
 /* Locate a process group by number. The caller must hold proctree_lock. */
 pgrp_t *pgfind(pgid_t pgid)
 {
@@ -124,6 +125,7 @@ static int proc_enterpgrp(proc_t *p, pgid_t pgid, pgrp_t *pgrp) {
 	assert(pgfind(pgid) == NULL);
 
 	mtx_init(&pgrp->pg_mtx, MTX_DEF | MTX_DUPOK); // ?
+	mutex_lock(&pgrp->pg_mtx);
 
 	pgrp->pg_id = pgid;
 	LIST_INIT(&pgrp->pg_members);
@@ -136,7 +138,9 @@ static int proc_enterpgrp(proc_t *p, pgid_t pgid, pgrp_t *pgrp) {
 	SLIST_INIT(&pgrp->pg_sigiolst); // ?
 	PGRP_UNLOCK(pgrp);
 
-	return doenterpgrp(p, pgrp);
+	doenterpgrp(p, pgrp);
+
+	return 0;
 }
 
 /* Release zombie process after parent processed its state. */
@@ -323,8 +327,6 @@ static int doenterpgrp(proc_t *p, pgrp_t *pgrp)
 	mutex_unlock(pgrp->pg_mtx);
 	if (LIST_EMPTY(&savepgrp->pg_members))
 		pgdelete(savepgrp);
-
-	return 0;
 }
 
 /* Remove process from process group. */

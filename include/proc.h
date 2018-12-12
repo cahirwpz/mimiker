@@ -20,8 +20,8 @@ struct pgrp {
 	LIST_ENTRY(pgrp) pg_hash;	/* (e) Hash chain. */
 	LIST_HEAD(, proc) pg_members;	/* (m + e) Pointer to pgrp members. */
 	struct sigiolst	pg_sigiolst;	/* (m) List of sigio sources. */
-	pid_t		pg_id;		/* (c) Process group id. */
-	struct mtx	pg_mtx;		/* Mutex to protect members */
+	pgid_t		pg_id;		/* (c) Process group id. */
+	mtx_t 		pg_mtx;		/* Mutex to protect members */
 };
 
 typedef struct thread thread_t;
