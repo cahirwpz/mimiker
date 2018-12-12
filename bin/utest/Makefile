@@ -1,8 +1,6 @@
 TOPDIR = $(realpath ../..)
 
-UELF_NAME = utest
-
-SOURCES_C = \
+SOURCES = \
 	access.c \
 	exceptions.c \
 	fd.c \
@@ -16,5 +14,7 @@ SOURCES_C = \
 	signal.c \
 	stat.c \
 	utest.c
+
+PROGRAM = utest
 
 include $(TOPDIR)/build/build.prog.mk
