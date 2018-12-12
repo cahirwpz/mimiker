@@ -48,7 +48,7 @@ static int sys_fork(thread_t *td, syscall_args_t *args) {
 
 static int sys_getpid(thread_t *td, syscall_args_t *args) {
   klog("getpid()");
-  return td->td_proc->p_pid;
+  return td->td_proc->p_pid; // ?
 }
 
 static int sys_getppid(thread_t *td, syscall_args_t *args) {
