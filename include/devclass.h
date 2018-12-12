@@ -16,7 +16,7 @@ struct devclass {
   SET_DECLARE(dc_name, driver_t);                                              \
   devclass_t dc_name##_devclass = {.name = (#dc_name),                         \
                                    .first_p = SET_LIMIT(dc_name),              \
-                                   .end_p = SET_BEGIN(dc_name)};              \
+                                   .end_p = SET_BEGIN(dc_name)};               \
   SET_ENTRY(devclasses, dc_name##_devclass)
 
 #define DEVCLASS_ADD(dc_name, driver_structure)                                \
