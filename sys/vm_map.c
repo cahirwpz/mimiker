@@ -219,6 +219,38 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
   return 0;
 }
 
+int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
+                         vm_prot_t prot, vm_flags_t flags,
+                         vm_segment_t **seg_p) {
+  if (!(flags & VM_ANON)) {
+    klog("Only anonymous memory mappings are supported!");
+    return -ENOTSUP;
+  }
+
+  if (!is_aligned(addr, PAGESIZE))
+    return -EINVAL;
+
+  if (length == 0)
+    return -EINVAL;
+
+  if (addr != 0 &&
+      (!vm_map_in_range(map, addr) || !vm_map_in_range(map, addr + length)))
+    return -EINVAL;
+
+  /* Create object with a pager that supplies cleared pages on page fault. */
+  vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
+  vm_segment_t *seg = vm_segment_alloc(obj, addr, addr + length, prot);
+
+  /* Given the hint try to insert the segment at given position or after it. */
+  if (vm_map_insert(map, seg, flags)) {
+    vm_segment_free(seg);
+    return -ENOMEM;
+  }
+
+  *seg_p = seg;
+  return 0;
+}
+
 int vm_map_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
   assert(is_aligned(new_end, PAGESIZE));
 
@@ -324,19 +356,4 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   pmap_enter(map->pmap, fault_page, frame, seg->prot);
 
   return 0;
-}
-
-vm_segment_t *vm_alloc_anyseg(vm_map_t *map, size_t pages) {
-  vaddr_t start, end;
-  vm_map_range(map, &start, &end);
-  end = start + pages * PAGESIZE;
-  vm_object_t *ann_obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *seg =
-    vm_segment_alloc(ann_obj, start, end, VM_PROT_READ | VM_PROT_WRITE);
-
-  if (vm_map_insert(map, seg, VM_FILE)) {
-    vm_segment_free(seg); // obj_free() is inside this call
-    return NULL;
-  }
-  return seg;
 }

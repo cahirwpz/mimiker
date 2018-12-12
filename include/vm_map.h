@@ -46,6 +46,11 @@ void vm_segment_range(vm_segment_t *seg, vaddr_t *start_p, vaddr_t *end_p);
  */
 int vm_map_findspace(vm_map_t *map, vaddr_t /*inout*/ *start_p, size_t length);
 
+/*! \brief Allocates segment and associate anonymous memory object with it. */
+int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
+                         vm_prot_t prot, vm_flags_t flags,
+                         vm_segment_t **seg_p);
+
 /* Tries to resize an segment, by moving its end if there
    are no other mappings in the way. On success, returns 0. */
 int vm_map_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end);
@@ -55,7 +60,5 @@ void vm_map_dump(vm_map_t *vm_map);
 vm_map_t *vm_map_clone(vm_map_t *map);
 
 int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type);
-
-vm_segment_t *vm_alloc_anyseg(vm_map_t *map, size_t pages);
 
 #endif /* !_SYS_VM_MAP_H_ */
