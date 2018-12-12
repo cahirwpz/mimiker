@@ -10,9 +10,6 @@ from functools import reduce
 import fdt
 
 
-IOPORT_ARRAY_SIZE = 32
-IOMEM_ARRAY_SIZE = 32
-
 DEVICE_HINTS_TEMPLATE = Template("""
 /* Device hints internal representation.
  *
@@ -23,9 +20,9 @@ DEVICE_HINTS_TEMPLATE = Template("""
 #include <stdint.h>
 
 typedef struct {
-    char* path;
-    uint32_t iomem[${iomem_array_size}];
-    uint32_t ioport[${ioport_array_size}];
+    const char *path;
+    uint32_t *iomem;
+    uint32_t *ioport;
     uint32_t irq;
 } devhint_t;
 
@@ -76,7 +73,7 @@ def hint_as_c_entry(hint):
     to_c_value = (lambda val: {
         str: lambda: '"{}"'.format(val),
         int: lambda: hex(val),
-        list: lambda: '{{{}}}'.format(", ".join(map(str, val))),
+        list: lambda: '(uint32_t[]){{{}, 0}}'.format(", ".join(map(str, val))),
     }[type(val)]())
 
     fields_as_strs = [
@@ -104,8 +101,4 @@ if __name__ == '__main__':
     flat_hints = flatten_fdt(fdt.root_node, '/rootdev')
     hints_as_c_array = device_hints_as_c_array(flat_hints)
     with open(args.output, 'w') as f:
-        c_src = DEVICE_HINTS_TEMPLATE.substitute(
-                iomem_array_size=IOMEM_ARRAY_SIZE,
-                ioport_array_size=IOPORT_ARRAY_SIZE,
-                hints=hints_as_c_array)
-        f.write(c_src)
+        f.write(DEVICE_HINTS_TEMPLATE.substitute(hints=hints_as_c_array))
