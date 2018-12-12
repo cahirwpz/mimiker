@@ -9,10 +9,6 @@ from functools import reduce
 import fdt
 
 
-class UnsupportedHintError(Exception):
-    pass
-
-
 IOPORT_ARRAY_SIZE = 32
 IOMEM_ARRAY_SIZE = 32
 
@@ -60,8 +56,8 @@ def generate_hints(device, path):
             yield ('.irq', prop.data[0])
 
         else:
-            raise UnsupportedHintError("The following device hint resource is "
-                                       "not supported: {}".format(prop.name))
+            raise ValueError("The following device hint resource is "
+                             "not supported: {}".format(prop.name))
 
 
 def flatten_fdt(root, path):
