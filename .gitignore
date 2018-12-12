@@ -57,7 +57,3 @@ sysroot
 
 # Visual Studio Code files
 .vscode
-
-# Device Tree Blob binaries
-*.dtb
-
