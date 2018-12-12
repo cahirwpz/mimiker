@@ -192,4 +192,4 @@ static void atkbdc_init(void) {
 }
 
 SYSINIT_ADD(atkbdc, atkbdc_init, DEPS("rootdev"));
-DEVCLASS_ADD(pci, atkbdc_driver);
+DEVCLASS_ENTRY(pci, atkbdc_driver);

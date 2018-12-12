@@ -19,8 +19,7 @@ struct devclass {
                                    .end_p = SET_LIMIT(dc_name)};               \
   SET_ENTRY(devclasses, dc_name##_devclass)
 
-#define DEVCLASS_ADD(dc_name, driver_structure)                                \
-  SET_ENTRY(dc_name, driver_structure)
+#define DEVCLASS_ENTRY(dc_name, driver) SET_ENTRY(dc_name, driver)
 
 #define DEVCLASS_FOREACH(drv_p, dc)                                            \
   for (drv_p = (dc)->first_p; drv_p < (dc)->end_p; drv_p++)
