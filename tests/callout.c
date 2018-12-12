@@ -1,7 +1,6 @@
 #include <stdc.h>
 #include <callout.h>
 #include <ktest.h>
-#include <sched.h>
 #include <interrupt.h>
 
 static int counter;
