@@ -13,6 +13,7 @@ RUN dpkg -i mipsel-mimiker-elf_1.2_amd64.deb
 RUN wget http://mimiker.ii.uni.wroc.pl/download/qemu-system-mimiker_2.12.0-1_amd64.deb
 RUN dpkg -i qemu-system-mimiker_2.12.0-1_amd64.deb
 RUN touch root/.gitconfig && \
-    echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+    echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
+    echo "add-auto-load-safe-path /root/mimiker/.gdbinit" >> /root/.gdbinit
 RUN locale-gen
 
