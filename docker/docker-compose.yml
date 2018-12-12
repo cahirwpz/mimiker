@@ -4,6 +4,7 @@ mimiker:
   hostname: mimiker
   volumes:
     - "../:/root/mimiker"
+    - "~/.gitconfig:/root/.gitconfig"
   restart: on-failure
   working_dir: /root/mimiker
   entrypoint:
