@@ -388,6 +388,7 @@ pci_bus_driver_t gt_pci_bus = {
     .alloc_resource = gt_pci_alloc_resource,
     .release_resource = gt_pci_release_resource,
     .activate_resource = gt_pci_activate_resource,
+    .hinted_child = generic_hinted_child,
   },
   .pci_bus = {
     .read_config = gt_pci_read_config,

@@ -217,6 +217,10 @@ static inline void bus_release_resource(device_t *dev, res_type_t type, int rid,
   BUS_DRIVER(dev)->bus.release_resource(dev->parent, dev, type, rid, r);
 }
 
+static inline void bus_hinted_child(device_t *bus, devhint_t *devhint) {
+  bus->driver->bus.hinted_child(bus, devhint);
+}
+
 int bus_generic_probe(device_t *bus);
 
 #endif
