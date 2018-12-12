@@ -17,7 +17,7 @@ Generating generate device hints from DTS file:
 
 1. Install requirements
 
-    `pip install -r requirements.txt`
+    `pip3 install -r requirements.txt`
 
 2. Generate C array
 
