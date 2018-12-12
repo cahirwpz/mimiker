@@ -6,6 +6,7 @@
 #include <exception.h>
 #include <pci.h>
 #include <sysinit.h>
+#include <devclass.h>
 
 typedef struct rootdev {
   void *data;
@@ -106,3 +107,4 @@ static void rootdev_init(void) {
 }
 
 SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs"));
+DEVCLASS_CREATE(root);

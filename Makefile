@@ -54,4 +54,3 @@ test: mimiker.elf
 PHONY-TARGETS += format tags cscope test
 
 include $(TOPDIR)/build/build.kern.mk
-
