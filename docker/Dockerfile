@@ -2,6 +2,8 @@ FROM debian:stretch-backports
 
 WORKDIR /root
 
+COPY requirements.txt .
+
 RUN apt-get -q update && apt-get upgrade -y
 RUN apt-get install -y --no-install-recommends git make wget cpio socat \
       ctags cscope python3-pip clang-format-6.0 rsync curl gcc libc6-dev \
