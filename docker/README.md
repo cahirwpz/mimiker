@@ -7,7 +7,9 @@ In order to quickly prepare local environment with all tools required to develop
 mimiker, you will need to have `docker` and `docker-compose` installed.
 To set up enviroment:
 
-    `make run`
+```
+make run
+```
 
 The above script will
 - attach volume with mimiker source code from your machine
@@ -15,10 +17,11 @@ The above script will
 - run docker container with tmux
 
 Other commands reference:
- - `make build` - build the mimiker image with tag latest
- - `make push` - push the mimiker image to the docker hub
- - `make up` - bring the containers up
- - `make compile` - compile the mimiker kernel
+ - `make build` - build mimiker image with 'latest' tag to docker hub
+ - `make push` - push mimiker image to docker hub
+ - `make up` - bring the container up
+ - `make down` - bring the container down
+ - `make compile` - compile mimiker kernel
  - `make tmux` - enter the container's shell in a tmux session
 
 If you would like to tag the built image with a specific version, please run:
