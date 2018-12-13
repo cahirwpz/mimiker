@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <sleepq.h>
 #include <sched.h>
+#include <malloc.h>
 
 static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
 
@@ -69,7 +70,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
 
   WITH_MTX_LOCK (all_proc_mtx) {
     p->p_pid = pid_alloc();
-    p->p_pgid = parent ? parent->p_pgid : p->p_pid;
+    // TODO p->p_pgid = parent ? parent->p_pgid : p->p_pid;
     TAILQ_INSERT_TAIL(&proc_list, p, p_all);
     if (parent)
       TAILQ_INSERT_TAIL(CHILDREN(parent), p, p_child);
@@ -101,46 +102,48 @@ proc_t *proc_find(pid_t pid) {
 
 // http://mimiker.ii.uni.wroc.pl/source/xref/FreeBSD/head/sys/kern/kern_proc.c#448
 /* Locate a process group by number. The caller must hold proctree_lock. */
-pgrp_t *pgfind(pgid_t pgid)
-{
-	pgrp_t *pgrp;
+pgrp_t *pgfind(pgid_t pgid) {
+#if 0
+  pgrp_t *pgrp;
 
-  	assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(all_proc_mtx));
 
-	LIST_FOREACH(pgrp, PGRPHASH(pgid), pg_hash) {
-		if (pgrp->pg_id == pgid) {
-			mutex_lock(pgrp->pg_mtx);
-			return pgrp;
-		}
-	}
-	return NULL;
+  LIST_FOREACH(pgrp, PGRPHASH(pgid), pg_hash) {
+    if (pgrp->pg_id == pgid) {
+      mutex_lock(pgrp->pg_mtx);
+      return pgrp;
+    }
+  }
+#endif
+  return NULL;
 }
 
 /* Create a new process group. pgid must be equal to the pid of p. */
-static int proc_enterpgrp(proc_t *p, pgid_t pgid, pgrp_t *pgrp) {
-  	assert(mtx_owned(all_proc_mtx));
+int proc_enterpgrp(proc_t *p, pgid_t pgid, pgrp_t *pgrp) {
+#if 0
+  assert(mtx_owned(all_proc_mtx));
 
-	assert(pgrp != NULL)
-	assert(p->p_pid == pgid);
-	assert(pgfind(pgid) == NULL);
+  assert(pgrp != NULL);
+  assert(p->p_pid == pgid);
+  assert(pgfind(pgid) == NULL);
 
-	mtx_init(&pgrp->pg_mtx, MTX_DEF | MTX_DUPOK); // ?
-	mutex_lock(&pgrp->pg_mtx);
+  mtx_init(&pgrp->pg_mtx, MTX_DEF | MTX_DUPOK); // ?
+  mutex_lock(&pgrp->pg_mtx);
 
-	pgrp->pg_id = pgid;
-	LIST_INIT(&pgrp->pg_members);
+  pgrp->pg_id = pgid;
+  LIST_INIT(&pgrp->pg_members);
 
-	/*
-	 * As we have an exclusive lock of proctree_lock,
-	 * this should not deadlock.
-	 */
-	LIST_INSERT_HEAD(PGRPHASH(pgid), pgrp, pg_hash); // ?
-	SLIST_INIT(&pgrp->pg_sigiolst); // ?
-	PGRP_UNLOCK(pgrp);
+  /*
+   * As we have an exclusive lock of proctree_lock,
+   * this should not deadlock.
+   */
+  LIST_INSERT_HEAD(PGRPHASH(pgid), pgrp, pg_hash);
+  SLIST_INIT(&pgrp->pg_sigiolst);
+  PGRP_UNLOCK(pgrp);
 
-	doenterpgrp(p, pgrp);
-
-	return 0;
+  doenterpgrp(p, pgrp);
+#endif
+  return 0;
 }
 
 /* Release zombie process after parent processed its state. */
@@ -257,9 +260,9 @@ int do_waitpid(pid_t pid, int *status, int options) {
       if (child == NULL) {
         /* Search within zombie childrens. */
         TAILQ_FOREACH (zombie, CHILDREN(p), p_child) {
-          if (pid < -1 && zombie->p_pgid != -pid)
+          if (pid < -1 /* && zombie->p_pgid != -pid */)
             continue;
-          if (pid == 0 && zombie->p_pgid != p->p_pgid)
+          if (pid == 0 /* && zombie->p_pgid != p->p_pgid */)
             continue;
           if (zombie->p_state == PS_ZOMBIE)
             break;
@@ -293,76 +296,75 @@ int do_waitpid(pid_t pid, int *status, int options) {
 
 /* Move p to an existing process group. */
 int enterthispgrp(proc_t *p, pgrp_t *pgrp) {
-  	assert(mtx_owned(all_proc_mtx));
-	assert(mtx_owned(p->p_lock) == false);
-	assert(mtx_owned(pgrp->pg_mtx) == false);
-	assert(mtx_owned(p->p_pgrp->pg_mtx) == false);
-	assert(pgrp != p->p_pgrp);
+#if 0
+  assert(mtx_owned(all_proc_mtx));
+  aassert(mtx_owned(p->p_lock) == false);
+  assert(mtx_owned(pgrp->pg_mtx) == false);
+  assert(mtx_owned(p->p_pgrp->pg_mtx) == false);
+  assert(pgrp != p->p_pgrp);
 
-	doenterpgrp(p, pgrp);
+  doenterpgrp(p, pgrp);
+#endif
 
-	return 0;
+  return 0;
 }
 
 /* Move p to a process group. */
-static int doenterpgrp(proc_t *p, pgrp_t *pgrp)
-{
-	pgrp_t *savepgrp;
+int doenterpgrp(proc_t *p, pgrp_t *pgrp) {
+#if 0
+  pgrp_t *savepgrp;
 
-	assert(mtx_owned(all_proc_mtx));
-	assert(mtx_owned(p->p_lock) == false);
-	assert(mtx_owned(pgrp->pg_mtx) == false);
-	assert(mtx_owned(p->p_pgrp->pg_mtx) == false);
+  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(p->p_lock) == false);
+  assert(mtx_owned(pgrp->pg_mtx) == false);
+  assert(mtx_owned(p->p_pgrp->pg_mtx) == false);
 
-	savepgrp = p->p_pgrp;
+  savepgrp = p->p_pgrp;
 
-	mutex_lock(pgrp->pg_mtx);
-	mutex_lock(savepgrp->pg_mtx);
-	proc_lock(p);
-	LIST_REMOVE(p, p_pglist);
-	p->p_pgrp = pgrp;
-	proc_unlock(p);
-	LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
-	mutex_unlock(savepgrp->pg_mtx);
-	mutex_unlock(pgrp->pg_mtx);
-	if (LIST_EMPTY(&savepgrp->pg_members))
-		pgdelete(savepgrp);
+  mutex_lock(pgrp->pg_mtx);
+  mutex_lock(savepgrp->pg_mtx);
+  proc_lock(p);
+  LIST_REMOVE(p, p_pglist);
+  p->p_pgrp = pgrp;
+  proc_unlock(p);
+  LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
+  mutex_unlock(savepgrp->pg_mtx);
+  mutex_unlock(pgrp->pg_mtx);
+  if (LIST_EMPTY(&savepgrp->pg_members))
+    pgdelete(savepgrp);
+#endif
+  return 0;
 }
 
 /* Remove process from process group. */
-int leavepgrp(proc_t *p)
-{
-	pgrp_t *savepgrp;
+int leavepgrp(proc_t *p) {
+#if 0
+  pgrp_t *savepgrp;
 
-	assert(mtx_owned(all_proc_mtx));
-	savepgrp = p->p_pgrp;
-	mutex_lock(savepgrp->pg_mtx);
-	proc_lock(p);
-	LIST_REMOVE(p, p_pglist);
-	p->p_pgrp = NULL;
-	proc_unlock(p);
-	mutex_unlock(savepgrp->pg_mtx);
-	if (LIST_EMPTY(&savepgrp->pg_members))
-		pgdelete(savepgrp);
-	return 0;
+  assert(mtx_owned(all_proc_mtx));
+  savepgrp = p->p_pgrp;
+  mutex_lock(savepgrp->pg_mtx);
+  proc_lock(p);
+  LIST_REMOVE(p, p_pglist);
+  p->p_pgrp = NULL;
+  proc_unlock(p);
+  mutex_unlock(savepgrp->pg_mtx);
+  if (LIST_EMPTY(&savepgrp->pg_members))
+    pgdelete(savepgrp);
+#endif
+  return 0;
 }
 
 /* Delete a process group. */
-static void pgdelete(pgrp_t *pgrp)
-{
-	assert(mtx_owned(all_proc_mtx));
-	assert(mtx_owned(pgrp->pg_mtx) == false);
+void pgdelete(pgrp_t *pgrp) {
+#if 0
+  assert(mtx_owned(all_proc_mtx));
+  assert(!mtx_owned(pgrp->pg_mtx));
 
-	/*
-	 * Reset any sigio structures pointing to us as a result of
-	 * F_SETOWN with our pgid.
-	 */
-	funsetownlst(&pgrp->pg_sigiolst); // ?
+  WITH_MTX_LOCK (&pgrp->pg_mtx)
+    LIST_REMOVE(pgrp, pg_hash);
 
-	mutex_lock(pgrp->pg_mtx);
-	LIST_REMOVE(pgrp, pg_hash);
-	mutex_unlock(pgrp->pg_mtx);
-
-	mtx_destroy(&pgrp->pg_mtx);
-	free(pgrp, M_PGRP); // ?
+  mtx_destroy(&pgrp->pg_mtx);
+  kfree(pgrp, M_PGRP);
+#endif
 }

@@ -43,21 +43,24 @@ static const char *sig_name[NSIG] = {
 /* clang-format on */
 
 int do_kill(pid_t pid, signo_t sig) {
-	if (pid > 0) {
-					proc_t *target = proc_find(pid);
-					if (target == NULL)
-						return -EINVAL;
-					sig_kill(target, sig);
-  				return 0;
-	}
-	if (pid < -1) {
-					return killpgl(sig, (pgid_t) -pid, 0);
-	}
-	if (pid == -1) {
-					return killpgl(sig, 0, 1);
-	}
-	assert(pid == 0);
-	return killpgl(sig, 0, 0);
+  if (pid > 0) {
+    proc_t *target = proc_find(pid);
+    if (target == NULL)
+      return -EINVAL;
+    sig_kill(target, sig);
+    return 0;
+  }
+  return -EINVAL;
+#if 0
+  if (pid < -1) {
+    return killpgl(sig, (pgid_t)-pid, 0);
+  }
+  if (pid == -1) {
+    return killpgl(sig, 0, 1);
+  }
+  assert(pid == 0);
+  return killpgl(sig, 0, 0);
+#endif
 }
 
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {

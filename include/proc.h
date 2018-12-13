@@ -17,11 +17,10 @@
  * (c)		const until freeing
  */
 struct pgrp {
-	LIST_ENTRY(pgrp) pg_hash;	/* (e) Hash chain. */
-	LIST_HEAD(, proc) pg_members;	/* (m + e) Pointer to pgrp members. */
-	struct sigiolst	pg_sigiolst;	/* (m) List of sigio sources. */
-	pgid_t		pg_id;		/* (c) Process group id. */
-	mtx_t 		pg_mtx;		/* Mutex to protect members */
+  LIST_ENTRY(pgrp) pg_hash;     /* (e) Hash chain. */
+  LIST_HEAD(, proc) pg_members; /* (m + e) Pointer to pgrp members. */
+  pgid_t pg_id;                 /* (c) Process group id. */
+  mtx_t pg_mtx;                 /* Mutex to protect members */
 };
 
 typedef struct thread thread_t;
@@ -47,13 +46,14 @@ struct proc {
   TAILQ_ENTRY(proc) p_child;  /* (a) link on parent's children list */
   thread_t *p_thread;         /* (p) the only thread running in this process */
   pid_t p_pid;                /* (@) Process ID */
-  LIST_ENTRY(proc) p_pglist;  /* (g+e) List of processes in pgrp
- 				   g - process group mtx
-			       	   e - locked by proctree_lock lock
-			      */
-  struct pgrp *p_pgrp;        /* (c + e) Pointer to process group.
-				    c - locked by proc mtx
-			      */
+  LIST_ENTRY(proc)
+  p_pglist;                       /* (g+e) List of processes in pgrp
+                                   *        g - process group mtx
+                                   *        e - locked by proctree_lock lock
+                                   */
+  pgrp_t *p_pgrp;                 /* (c + e) Pointer to process group.
+                                   * c - locked by proc mtx
+                                   */
   volatile proc_state_t p_state;  /* (p) process state */
   proc_t *p_parent;               /* (a) parent process */
   proc_list_t p_children;         /* (a) child processes, including zombies */

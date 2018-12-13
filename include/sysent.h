@@ -38,7 +38,6 @@
 #define SYS_CHDIR 35
 #define SYS_GETCWD 36
 #define SYS_LAST 37
-
 #ifndef __ASSEMBLER__
 
 #include <stdint.h>
