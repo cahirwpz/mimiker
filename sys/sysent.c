@@ -14,8 +14,8 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
-#include <exec.h>
 #include <time.h>
+#include <proc.h>
 #include <pipe.h>
 #include <malloc.h>
 #include <syslimits.h>
@@ -48,7 +48,7 @@ static int sys_fork(thread_t *td, syscall_args_t *args) {
 
 static int sys_getpid(thread_t *td, syscall_args_t *args) {
   klog("getpid()");
-  return td->td_proc->p_pid; // ?
+  return td->td_proc->p_pid;
 }
 
 static int sys_getppid(thread_t *td, syscall_args_t *args) {
@@ -60,14 +60,153 @@ static int sys_getppid(thread_t *td, syscall_args_t *args) {
 static int sys_setpgid(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
   pgid_t pgid = args->args[1];
-  klog("setpgid(%d, %d)", pid, pgid);
-  return -ENOTSUP;
+
+  klog("setpgid(%d, %d)");
+
+  proc_t *p = td->td_proc;
+
+  if (pgid < 0)
+    return -EINVAL;
+
+  if (pid == 0)
+    pid = p->p_pid;
+  if (pgid == 0)
+    pgid = p->p_pid;
+
+  if (pid != p->p_pid || pgid != p->p_pid)
+    return -ENOTSUP;
+
+  pgrp_t *pgrp = pgrp_find(pgid);
+
+  if (pgrp) {
+    assert(pgrp == p->p_pgrp);
+    return 0;
+  }
+
+  pgrp = pgrp_create(pgid);
+
+  int error = proc_enter_pgrp(p, pgrp);
+  if (error) {
+    pgrp_destroy(pgrp);
+    return error;
+  }
+
+  return 0;
+
+#if 0
+  pid_t pid = args->args[0];
+  pgid_t pgid = args->args[1];
+
+  proc_t *curp = td->td_proc;
+  proc_t *targp; /* target process */
+  pgrp_t *pgrp;  /* target pgrp */
+  int error;
+  pgrp_t *newpgrp;
+
+  if (pgid < 0)
+    return EINVAL;
+
+  error = 0;
+
+  newpgrp = malloc(sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
+
+  mutex_lock(all_proc_mtx);
+  if (pid != 0 && pid != curp->p_pid) {
+    if ((targp = proc_find(pid)) == NULL) {
+      error = ESRCH;
+      goto done;
+    }
+    if (!inferior(targp)) { // ?
+      proc_unlock(targp);
+      error = ESRCH;
+      goto done;
+    }
+    if ((error = p_cansee(td, targp))) { // ?
+      proc_unlock(targp);
+      goto done;
+    }
+    if (targp->p_pgrp == NULL) {
+      proc_unlock(targp);
+      error = EPERM;
+      goto done;
+    }
+    if (targp->p_flag & P_EXEC) {
+      proc_unlock(targp);
+      error = EACCES;
+      goto done;
+    }
+    proc_unlock(targp);
+  } else
+    targp = curp;
+  if (pgid == 0)
+    pgid = targp->p_pid;
+  if ((pgrp = pgfind(pgid)) == NULL) {
+    if (pgid == targp->p_pid) {
+      error = proc_enterpgrp(targp, pgid, newpgrp);
+      if (error == 0)
+        newpgrp = NULL;
+    } else
+      error = EPERM;
+  } else {
+    if (pgrp == targp->p_pgrp) {
+      mutex_unlock(pgrp->pg_mtx);
+      goto done;
+    }
+    mutex_unlock(pgrp->pg_mtx);
+    error = enterthispgrp(targp, pgrp);
+  }
+done:
+  mutex_unlock(all_proc_mtx);
+  assert((error == 0) || (newpgrp != NULL));
+  if (newpgrp != NULL)
+    free(newpgrp, M_PGRP);
+  return error;
+#endif
 }
 
 static int sys_getpgid(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
+
   klog("getpgid(%d)", pid);
-  return -ENOTSUP;
+
+  proc_t *p = td->td_proc;
+
+  if (pid < 0)
+    return -EINVAL;
+
+  if (pid == 0)
+    pid = p->p_pid;
+
+  p = proc_find(pid);
+  if (!p)
+    return -ESRCH;
+
+  assert(p->p_pgrp);
+
+  return p->p_pgrp->pg_id;
+
+#if 0
+  proc_t *p;
+  int error;
+  pid_t pid = args->args[0];
+
+  if (pid == 0) {
+    p = td->td_proc;
+    proc_lock(p);
+  } else {
+    p = proc_find(pid);
+    if (p == NULL)
+      return ESRCH;
+    error = p_cansee(td, p);
+    if (error) {
+      proc_unlock(p);
+      return error;
+    }
+  }
+  td->td_retval[0] = p->p_pgrp->pg_id; // ?
+  proc_unlock(p);
+  return 0;
+#endif
 }
 
 static int sys_kill(thread_t *td, syscall_args_t *args) {
@@ -75,13 +214,6 @@ static int sys_kill(thread_t *td, syscall_args_t *args) {
   signo_t sig = args->args[1];
   klog("kill(%lu, %d)", pid, sig);
   return do_kill(pid, sig);
-}
-
-static int sys_killpg(thread_t *td, syscall_args_t *args) {
-  pgid_t pgid = args->args[0];
-  signo_t sig = args->args[1];
-  klog("killpg(%lu, %d)", pgid, sig);
-  return -ENOTSUP;
 }
 
 static int sys_sigaction(thread_t *td, syscall_args_t *args) {
@@ -125,21 +257,6 @@ static int sys_mmap(thread_t *td, syscall_args_t *args) {
   if (error < 0)
     return error;
   return addr;
-}
-
-static int sys_munmap(thread_t *td, syscall_args_t *args) {
-  vaddr_t addr = args->args[0];
-  size_t length = args->args[1];
-  klog("munmap(%p, %u)", (void *)addr, length);
-  return -ENOTSUP;
-}
-
-static int sys_mprotect(thread_t *td, syscall_args_t *args) {
-  vaddr_t addr = args->args[0];
-  size_t length = args->args[1];
-  vm_prot_t prot = args->args[2];
-  klog("mprotect(%p, %u, %u)", (void *)addr, length, prot);
-  return -ENOTSUP;
 }
 
 static int sys_open(thread_t *td, syscall_args_t *args) {
@@ -257,31 +374,6 @@ static int sys_stat(thread_t *td, syscall_args_t *args) {
 end:
   kfree(M_TEMP, path);
   return result;
-}
-
-static int sys_chdir(thread_t *td, syscall_args_t *args) {
-  char *user_path = (char *)args->args[0];
-
-  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
-  size_t len = 0;
-  int result;
-
-  result = copyinstr(user_path, path, PATH_MAX, &len);
-  if (result < 0)
-    goto end;
-
-  klog("chdir(\"%s\")", path);
-  result = -ENOTSUP;
-
-end:
-  kfree(M_TEMP, path);
-  return result;
-}
-
-static int sys_getcwd(thread_t *td, syscall_args_t *args) {
-  __unused char *user_buf = (char *)args->args[0];
-  __unused size_t size = (size_t)args->args[1];
-  return -ENOTSUP;
 }
 
 static int sys_mount(thread_t *td, syscall_args_t *args) {
@@ -438,24 +530,6 @@ end:
   return result;
 }
 
-static int sys_execve(thread_t *td, syscall_args_t *args) {
-  char *user_path = (char *)args->args[0];
-  char **user_argv = (char **)args->args[1];
-  char **user_envp = (char **)args->args[2];
-  int result;
-
-  exec_args_t *exec_args = kmalloc(M_TEMP, EXEC_ARGS_SIZE, 0);
-
-  if ((result = exec_args_copyin(exec_args, user_path, user_argv, user_envp)))
-    goto error;
-
-  result = do_exec(exec_args);
-  klog("execve(\"%s\", ...) = %d", exec_args->prog_name, result);
-error:
-  kfree(M_TEMP, exec_args);
-  return result;
-}
-
 static int sys_access(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
   mode_t mode = args->args[1];
@@ -529,10 +603,4 @@ sysent_t sysent[] = {
   [SYS_PIPE] = {sys_pipe},
   [SYS_CLOCKGETTIME] = {sys_clock_gettime},
   [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep},
-  [SYS_EXECVE] = {sys_execve},
-  [SYS_KILLPG] = {sys_killpg},
-  [SYS_MUNMAP] = {sys_munmap},
-  [SYS_MPROTECT] = {sys_mprotect},
-  [SYS_CHDIR] = {sys_chdir},
-  [SYS_GETCWD] = {sys_getcwd},
 };

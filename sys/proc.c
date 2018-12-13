@@ -100,52 +100,6 @@ proc_t *proc_find(pid_t pid) {
   return p;
 }
 
-// http://mimiker.ii.uni.wroc.pl/source/xref/FreeBSD/head/sys/kern/kern_proc.c#448
-/* Locate a process group by number. The caller must hold proctree_lock. */
-pgrp_t *pgfind(pgid_t pgid) {
-#if 0
-  pgrp_t *pgrp;
-
-  assert(mtx_owned(all_proc_mtx));
-
-  LIST_FOREACH(pgrp, PGRPHASH(pgid), pg_hash) {
-    if (pgrp->pg_id == pgid) {
-      mutex_lock(pgrp->pg_mtx);
-      return pgrp;
-    }
-  }
-#endif
-  return NULL;
-}
-
-/* Create a new process group. pgid must be equal to the pid of p. */
-int proc_enterpgrp(proc_t *p, pgid_t pgid, pgrp_t *pgrp) {
-#if 0
-  assert(mtx_owned(all_proc_mtx));
-
-  assert(pgrp != NULL);
-  assert(p->p_pid == pgid);
-  assert(pgfind(pgid) == NULL);
-
-  mtx_init(&pgrp->pg_mtx, MTX_DEF | MTX_DUPOK); // ?
-  mutex_lock(&pgrp->pg_mtx);
-
-  pgrp->pg_id = pgid;
-  LIST_INIT(&pgrp->pg_members);
-
-  /*
-   * As we have an exclusive lock of proctree_lock,
-   * this should not deadlock.
-   */
-  LIST_INSERT_HEAD(PGRPHASH(pgid), pgrp, pg_hash);
-  SLIST_INIT(&pgrp->pg_sigiolst);
-  PGRP_UNLOCK(pgrp);
-
-  doenterpgrp(p, pgrp);
-#endif
-  return 0;
-}
-
 /* Release zombie process after parent processed its state. */
 static void proc_reap(proc_t *p) {
   assert(mtx_owned(all_proc_mtx));
@@ -237,6 +191,34 @@ noreturn void proc_exit(int exitstatus) {
   thread_exit();
 }
 
+/* Enter existing process group. */
+int proc_enter_pgrp(proc_t *p, pgrp_t *pgrp) {
+#if 0
+  assert(mtx_owned(all_proc_mtx));
+
+  assert(pgrp != NULL);
+  assert(p->p_pid == pgid);
+  assert(pgfind(pgid) == NULL);
+
+  mtx_init(&pgrp->pg_mtx, MTX_DEF | MTX_DUPOK); // ?
+  mutex_lock(&pgrp->pg_mtx);
+
+  pgrp->pg_id = pgid;
+  LIST_INIT(&pgrp->pg_members);
+
+  /*
+   * As we have an exclusive lock of proctree_lock,
+   * this should not deadlock.
+   */
+  LIST_INSERT_HEAD(PGRPHASH(pgid), pgrp, pg_hash);
+  SLIST_INIT(&pgrp->pg_sigiolst);
+  PGRP_UNLOCK(pgrp);
+
+  doenterpgrp(p, pgrp);
+#endif
+  return 0;
+}
+
 /* Wait for direct children. */
 int do_waitpid(pid_t pid, int *status, int options) {
   proc_t *p = proc_self();
@@ -292,79 +274,4 @@ int do_waitpid(pid_t pid, int *status, int options) {
   }
 
   __unreachable();
-}
-
-/* Move p to an existing process group. */
-int enterthispgrp(proc_t *p, pgrp_t *pgrp) {
-#if 0
-  assert(mtx_owned(all_proc_mtx));
-  aassert(mtx_owned(p->p_lock) == false);
-  assert(mtx_owned(pgrp->pg_mtx) == false);
-  assert(mtx_owned(p->p_pgrp->pg_mtx) == false);
-  assert(pgrp != p->p_pgrp);
-
-  doenterpgrp(p, pgrp);
-#endif
-
-  return 0;
-}
-
-/* Move p to a process group. */
-int doenterpgrp(proc_t *p, pgrp_t *pgrp) {
-#if 0
-  pgrp_t *savepgrp;
-
-  assert(mtx_owned(all_proc_mtx));
-  assert(mtx_owned(p->p_lock) == false);
-  assert(mtx_owned(pgrp->pg_mtx) == false);
-  assert(mtx_owned(p->p_pgrp->pg_mtx) == false);
-
-  savepgrp = p->p_pgrp;
-
-  mutex_lock(pgrp->pg_mtx);
-  mutex_lock(savepgrp->pg_mtx);
-  proc_lock(p);
-  LIST_REMOVE(p, p_pglist);
-  p->p_pgrp = pgrp;
-  proc_unlock(p);
-  LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
-  mutex_unlock(savepgrp->pg_mtx);
-  mutex_unlock(pgrp->pg_mtx);
-  if (LIST_EMPTY(&savepgrp->pg_members))
-    pgdelete(savepgrp);
-#endif
-  return 0;
-}
-
-/* Remove process from process group. */
-int leavepgrp(proc_t *p) {
-#if 0
-  pgrp_t *savepgrp;
-
-  assert(mtx_owned(all_proc_mtx));
-  savepgrp = p->p_pgrp;
-  mutex_lock(savepgrp->pg_mtx);
-  proc_lock(p);
-  LIST_REMOVE(p, p_pglist);
-  p->p_pgrp = NULL;
-  proc_unlock(p);
-  mutex_unlock(savepgrp->pg_mtx);
-  if (LIST_EMPTY(&savepgrp->pg_members))
-    pgdelete(savepgrp);
-#endif
-  return 0;
-}
-
-/* Delete a process group. */
-void pgdelete(pgrp_t *pgrp) {
-#if 0
-  assert(mtx_owned(all_proc_mtx));
-  assert(!mtx_owned(pgrp->pg_mtx));
-
-  WITH_MTX_LOCK (&pgrp->pg_mtx)
-    LIST_REMOVE(pgrp, pg_hash);
-
-  mtx_destroy(&pgrp->pg_mtx);
-  kfree(pgrp, M_PGRP);
-#endif
 }

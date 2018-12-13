@@ -8,6 +8,12 @@
 #include <signal.h>
 #include <vm_map.h>
 
+typedef struct thread thread_t;
+typedef struct proc proc_t;
+typedef struct pgrp pgrp_t;
+typedef struct fdtab fdtab_t;
+typedef TAILQ_HEAD(, proc) proc_list_t;
+
 /*
  * One structure allocated per process group.
  *
@@ -16,18 +22,12 @@
  * (e)		locked by proctree_lock sx
  * (c)		const until freeing
  */
-struct pgrp {
+typedef struct pgrp {
   LIST_ENTRY(pgrp) pg_hash;     /* (e) Hash chain. */
   LIST_HEAD(, proc) pg_members; /* (m + e) Pointer to pgrp members. */
   pgid_t pg_id;                 /* (c) Process group id. */
   mtx_t pg_mtx;                 /* Mutex to protect members */
-};
-
-typedef struct thread thread_t;
-typedef struct proc proc_t;
-typedef struct pgrp pgrp_t;
-typedef struct fdtab fdtab_t;
-typedef TAILQ_HEAD(, proc) proc_list_t;
+} pgrp_t;
 
 typedef enum { PS_NORMAL, PS_DYING, PS_ZOMBIE } proc_state_t;
 
@@ -93,5 +93,10 @@ proc_t *proc_find(pid_t pid);
 /*! \brief Called by a processes that wishes to terminate its life.
  * \note Exit status shoud be created using MAKE_STATUS macros from wait.h */
 noreturn void proc_exit(int exitstatus);
+
+pgrp_t *pgrp_find(pgid_t);
+pgrp_t *pgrp_create(pgid_t);
+void pgrp_destroy(pgrp_t *);
+int proc_enter_pgrp(proc_t *, pgrp_t *);
 
 #endif /* !_SYS_PROC_H_ */
