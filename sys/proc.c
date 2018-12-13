@@ -108,6 +108,8 @@ static void proc_reap(proc_t *p) {
 
   klog("Recycling process PID(%d) {%p}", p->p_pid, p);
 
+  proc_leave_pgrp(p, p->p_pgrp);
+
   if (p->p_parent)
     TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
   TAILQ_REMOVE(&zombie_list, p, p_zombie);
@@ -217,6 +219,10 @@ int proc_enter_pgrp(proc_t *p, pgrp_t *pgrp) {
   doenterpgrp(p, pgrp);
 #endif
   return 0;
+}
+
+void proc_leave_pgrp(proc_t *p, pgrp_t *pgrp) {
+  /* if last process in the group, then destory it! */
 }
 
 /* Wait for direct children. */

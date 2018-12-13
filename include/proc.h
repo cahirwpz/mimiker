@@ -98,5 +98,6 @@ pgrp_t *pgrp_find(pgid_t);
 pgrp_t *pgrp_create(pgid_t);
 void pgrp_destroy(pgrp_t *);
 int proc_enter_pgrp(proc_t *, pgrp_t *);
+void proc_leave_pgrp(proc_t *, pgrp_t *);
 
 #endif /* !_SYS_PROC_H_ */
