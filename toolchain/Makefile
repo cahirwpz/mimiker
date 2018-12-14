@@ -15,7 +15,6 @@ clean-mipsel:
 
 build-aarch64:
 	$(TOOLCHAIN) --target=aarch64 build
-	cd aarch64-mimiker-elf && fakeroot ./debian/rules binary
 
 clean-mipsel:
 	$(TOOLCHAIN) --target=aarch64 clean
