@@ -50,8 +50,8 @@ def build():
   require_header(['ncurses.h', 'ncurses/ncurses.h'],
                  lang='c', errmsg='libncurses5-dev package missing')
 
-  require_header(['python2.7/Python.h'],
-                 lang='c', errmsg='libpython2.7-dev package missing')
+  require_header(['python3.5/Python.h'],
+                 lang='c', errmsg='libpython3.5-dev package missing')
 
   environ['PATH'] = ":".join([path.join('{prefix}', 'bin'),
                               path.join('{host}', 'bin'),
@@ -169,7 +169,7 @@ def build():
             '--disable-nls',
             '--disable-sim',
             '--disable-werror',
-            '--with-python')
+            '--with-python=/usr/bin/python3')
   make('{gdb}')
   make('{gdb}', 'install', DESTDIR='{destdir}')
 
