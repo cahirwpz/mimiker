@@ -115,5 +115,5 @@ if __name__ == '__main__':
     with open(args.output, 'w') as f:
         f.write(OUTPUT_TEMPLATE.substitute(
             input=args.input,
-            platform=os.path.splitext(args.input)[0],
+            platform=os.path.splitext(args.input)[0].replace('/', '_'),
             hints=hints_array))
