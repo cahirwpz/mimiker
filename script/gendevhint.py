@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Convert DTS (Device Tree Source) into a C array.
-"""
+
 import os
 import sys
 import argparse
@@ -104,9 +102,9 @@ def hints_as_c_array(hints):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-            description='Converting DTS (Device Tree Source) into a C array.')
+            description='Convert DTS (Device Tree Structure) into a C array.')
     parser.add_argument('input', metavar='DTS', type=str,
-                        help='Device Tree Source file')
+                        help='Device Tree Structure file')
     parser.add_argument('output', metavar='SRC', type=str,
                         help='C array of devhint_t structures')
     args = parser.parse_args()
