@@ -16,7 +16,8 @@ typedef struct callout {
   unsigned c_index; /* index of bucket this callout is assigned to */
 } callout_t;
 
-#define CALLOUT_ACTIVE 0x0001  /* callout is currently being executed */
+/* callout has been delegated to callout thread and will be executed soon */
+#define CALLOUT_ACTIVE 0x0001
 #define CALLOUT_PENDING 0x0002 /* callout is waiting for timeout */
 
 /*
@@ -33,13 +34,16 @@ void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
                             void *arg);
 
 /*
- * Delete a callout from the queue without handling it.
+ * Cancel a callout if it is currently pending.
+ *
+ * \return True if the callout was pending and has been stopped, false if the
+ * callout has already been delegated to callout thread or executed.
  */
-void callout_stop(callout_t *handle);
+bool callout_stop(callout_t *handle);
 
 /*
- * Process all callouts that happened since last time.
- * A callout is removed from the queue when handled.
+ * Process all callouts that happened since last time and delegate them to
+ * callout thread.
  */
 void callout_process(systime_t now);
 
