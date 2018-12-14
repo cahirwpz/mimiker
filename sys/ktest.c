@@ -104,7 +104,7 @@ static int run_test(test_entry_t *t) {
 
   int result;
   if (t->flags & KTEST_FLAG_RANDINT) {
-    test_func_t f = (test_func_t)t->test_func;
+    test_func_t f = (void *)t->test_func;
     int randint = rand_r(&seed) % t->randint_max;
     /* NOTE: Numbers generated here will be the same on each run, since test are
        started in a deterministic order. This is not a bug! In fact, it allows
