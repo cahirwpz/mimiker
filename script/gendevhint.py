@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import argparse
 from string import Template
 
@@ -108,8 +107,8 @@ if __name__ == '__main__':
                         help='C array of devhint_t structures')
     args = parser.parse_args()
 
-    fdt = generate_fdt(args.input)
-    node_list = flatten_fdt(fdt.root_node, '/rootdev')
+    fdtree = generate_fdt(args.input)
+    node_list = flatten_fdt(fdtree.root_node, '/rootdev')
     flat_hints = convert_to_hints(node_list)
     hints_array = hints_as_c_array(flat_hints)
     with open(args.output, 'w') as f:
