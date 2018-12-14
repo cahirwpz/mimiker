@@ -37,9 +37,6 @@ etags
 # generated assembly files
 assym.h
 
-# toolchain build artifacts
-toolchain
-
 # Editor swap files
 *.swp
 

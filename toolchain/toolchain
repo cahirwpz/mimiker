@@ -1,22 +1,20 @@
 #!/usr/bin/python3 -B
 
-from fnmatch import fnmatch
 from os import environ
 import argparse
 import logging
 import platform
 import subprocess
-import sys
 
 URLS = \
-  ['ftp://ftp.gnu.org/gnu/gmp/gmp-6.1.2.tar.bz2',
-   'ftp://ftp.gnu.org/gnu/mpc/mpc-1.0.3.tar.gz',
-   'ftp://ftp.gnu.org/gnu/mpfr/mpfr-3.1.5.tar.bz2',
-   'http://isl.gforge.inria.fr/isl-0.18.tar.bz2',
-   'http://www.bastoul.net/cloog/pages/download/cloog-0.18.4.tar.gz',
-   'ftp://ftp.gnu.org/gnu/gdb/gdb-7.12.1.tar.gz',
-   'ftp://ftp.gnu.org/gnu/binutils/binutils-2.28.tar.bz2',
-   'ftp://ftp.gnu.org/gnu/gcc/gcc-6.3.0/gcc-6.3.0.tar.bz2']
+  ['ftp://ftp.gnu.org/gnu/gmp/{gmp}.tar.bz2',
+   'ftp://ftp.gnu.org/gnu/mpc/{mpc}.tar.gz',
+   'ftp://ftp.gnu.org/gnu/mpfr/{mpfr}.tar.bz2',
+   'http://isl.gforge.inria.fr/{isl}.tar.bz2',
+   'http://www.bastoul.net/cloog/pages/download/{cloog}.tar.gz',
+   'ftp://ftp.gnu.org/gnu/gdb/{gdb}.tar.gz',
+   'ftp://ftp.gnu.org/gnu/binutils/{binutils}.tar.bz2',
+   'ftp://ftp.gnu.org/gnu/gcc/{gcc}/{gcc}.tar.gz']
 
 
 from common import * # NOQA
@@ -50,8 +48,8 @@ def build():
   require_header(['ncurses.h', 'ncurses/ncurses.h'],
                  lang='c', errmsg='libncurses5-dev package missing')
 
-  require_header(['python2.7/Python.h'],
-                 lang='c', errmsg='libpython2.7-dev package missing')
+  require_header(['python3.5/Python.h'],
+                 lang='c', errmsg='libpython3.5-dev package missing')
 
   environ['PATH'] = ":".join([path.join('{prefix}', 'bin'),
                               path.join('{host}', 'bin'),
@@ -129,16 +127,26 @@ def build():
     STRIP_FOR_TARGET='{destdir}{prefix}/bin/{target}-strip',
     RANLIB_FOR_TARGET='{destdir}{prefix}/bin/{target}-ranlib')
 
+  gcc_extra_configure = []
+  if getvar('target') == 'mipsel':
+    gcc_extra_configure = [
+            '--with-arch=mips32r2',
+            '--with-abi=32',
+            '--with-float=hard']
+  if getvar('target') == 'aarch64':
+    gcc_extra_configure = [
+            '--with-arch=armv8-a',
+            '--with-cpu=cortex-a53']
+    # We don't need to specify FPU:
+    # https://stackoverflow.com/questions/29736921/enable-fpu-support-for-aarch64-armv8-a-on-gcc-version-5-0-1
+
   unpack('{gcc}')
   configure('{gcc}',
             '--target={target}',
             '--prefix={prefix}',
             '--datarootdir={prefix}/{target}/share',
             '--libexecdir={prefix}/{target}/libexec',
-            '--with-arch=mips32r2',
             '--with-sysroot={prefix}/{target}/sysroot',
-            '--with-abi=32',
-            '--with-float=hard',
             '--with-gmp={host}',
             '--with-mpfr={host}',
             '--with-isl={host}',
@@ -150,7 +158,8 @@ def build():
             '--disable-shared',
             '--disable-werror',
             '--with-newlib',
-            '--without-headers')
+            '--without-headers',
+            *gcc_extra_configure)
   make('{gcc}', 'all-gcc', **target_tools)
   make('{gcc}', 'all-target-libgcc', **target_tools)
   make('{gcc}', 'install-gcc', DESTDIR='{destdir}', **target_tools)
@@ -169,8 +178,9 @@ def build():
             '--disable-nls',
             '--disable-sim',
             '--disable-werror',
-            '--with-python')
-  make('{gdb}')
+            '--with-tui',
+            '--with-python=/usr/bin/python3')
+  make('{gdb}', LDFLAGS='-Wl,--as-needed')
   make('{gdb}', 'install', DESTDIR='{destdir}')
 
 
@@ -184,6 +194,8 @@ if __name__ == "__main__":
   logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
 
   parser = argparse.ArgumentParser(description='Build cross toolchain.')
+  parser.add_argument('--target', choices=['mipsel', 'aarch64'],
+                      default='mipsel', help='choose target architecture')
   parser.add_argument('action', choices=['build', 'clean'], default='build',
                       help='perform action')
   args = parser.parse_args()
@@ -197,16 +209,16 @@ if __name__ == "__main__":
 
   setvar(top=path.abspath('.'),
          nproc=str(nproc, encoding='utf-8'),
-         target='mipsel-mimiker-elf')
+         target='{}-mimiker-elf'.format(args.target))
 
   setvar(gmp='gmp-6.1.2',
-         mpc='mpc-1.0.3',
-         mpfr='mpfr-3.1.5',
+         mpc='mpc-1.1.0',
+         mpfr='mpfr-4.0.1',
          isl='isl-0.18',
          cloog='cloog-0.18.4',
-         binutils='binutils-2.28',
-         gcc='gcc-6.3.0',
-         gdb='gdb-7.12.1',
+         binutils='binutils-2.31',
+         gcc='gcc-8.2.0',
+         gdb='gdb-8.2',
          stamps=path.join('{top}', '{target}', 'stamps'),
          build=path.join('{top}', '{target}', 'build'),
          sources=path.join('{top}', '{target}', 'sources'),
