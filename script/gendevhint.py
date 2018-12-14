@@ -4,7 +4,6 @@ import os
 import sys
 import argparse
 from string import Template
-from functools import reduce
 
 import fdt
 
