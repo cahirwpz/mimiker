@@ -11,14 +11,14 @@ clean-mipsel:
 	$(TOOLCHAIN) --target=mipsel clean
 	$(RM) mipsel-*.deb
 	cd mipsel-mimiker-elf && \
-	  $(RM) -r sources usr debian/mipsel-mimiker-elf.*
+	  $(RM) -r sources usr && ./debian/rules clean
 
 build-aarch64:
 	$(TOOLCHAIN) --target=aarch64 build
 
-clean-mipsel:
+clean-aarch64:
 	$(TOOLCHAIN) --target=aarch64 clean
-	cd mipsel-mimiker-elf && \
+	cd aarch64-mimiker-elf && \
 	  $(RM) -r sources usr
 
 build: build-mipsel build-aarch64
