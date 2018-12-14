@@ -9,14 +9,14 @@ import subprocess
 import sys
 
 URLS = \
-  ['ftp://ftp.gnu.org/gnu/gmp/gmp-6.1.2.tar.bz2',
-   'ftp://ftp.gnu.org/gnu/mpc/mpc-1.0.3.tar.gz',
-   'ftp://ftp.gnu.org/gnu/mpfr/mpfr-3.1.5.tar.bz2',
-   'http://isl.gforge.inria.fr/isl-0.18.tar.bz2',
-   'http://www.bastoul.net/cloog/pages/download/cloog-0.18.4.tar.gz',
-   'ftp://ftp.gnu.org/gnu/gdb/gdb-8.2.tar.gz',
-   'ftp://ftp.gnu.org/gnu/binutils/binutils-2.31.tar.bz2',
-   'ftp://ftp.gnu.org/gnu/gcc/gcc-8.2.0/gcc-8.2.0.tar.gz']
+  ['ftp://ftp.gnu.org/gnu/gmp/{gmp}.tar.bz2',
+   'ftp://ftp.gnu.org/gnu/mpc/{mpc}.tar.gz',
+   'ftp://ftp.gnu.org/gnu/mpfr/{mpfr}.tar.bz2',
+   'http://isl.gforge.inria.fr/{isl}.tar.bz2',
+   'http://www.bastoul.net/cloog/pages/download/{cloog}.tar.gz',
+   'ftp://ftp.gnu.org/gnu/gdb/{gdb}.tar.gz',
+   'ftp://ftp.gnu.org/gnu/binutils/{binutils}.tar.bz2',
+   'ftp://ftp.gnu.org/gnu/gcc/{gcc}/{gcc}.tar.gz']
 
 
 from common import * # NOQA
@@ -200,8 +200,8 @@ if __name__ == "__main__":
          target='mipsel-mimiker-elf')
 
   setvar(gmp='gmp-6.1.2',
-         mpc='mpc-1.0.3',
-         mpfr='mpfr-3.1.5',
+         mpc='mpc-1.1.0',
+         mpfr='mpfr-4.0.1',
          isl='isl-0.18',
          cloog='cloog-0.18.4',
          binutils='binutils-2.31',
