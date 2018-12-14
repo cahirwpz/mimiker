@@ -15,5 +15,5 @@ For an example file please take a look at `mips/malta.dts`.
 
 To build devhints use `gendevhint.py` script as follows:
 ```
-./gendevhint.py mips/malta.dts mips/malta-devhint.c
+./gendevhint.py example.dts example-devhint.c
 ```
