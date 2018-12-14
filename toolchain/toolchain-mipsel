@@ -14,9 +14,9 @@ URLS = \
    'ftp://ftp.gnu.org/gnu/mpfr/mpfr-3.1.5.tar.bz2',
    'http://isl.gforge.inria.fr/isl-0.18.tar.bz2',
    'http://www.bastoul.net/cloog/pages/download/cloog-0.18.4.tar.gz',
-   'ftp://ftp.gnu.org/gnu/gdb/gdb-7.12.1.tar.gz',
-   'ftp://ftp.gnu.org/gnu/binutils/binutils-2.28.tar.bz2',
-   'ftp://ftp.gnu.org/gnu/gcc/gcc-6.3.0/gcc-6.3.0.tar.bz2']
+   'ftp://ftp.gnu.org/gnu/gdb/gdb-8.2.tar.gz',
+   'ftp://ftp.gnu.org/gnu/binutils/binutils-2.31.tar.bz2',
+   'ftp://ftp.gnu.org/gnu/gcc/gcc-8.2.0/gcc-8.2.0.tar.gz']
 
 
 from common import * # NOQA
@@ -204,9 +204,9 @@ if __name__ == "__main__":
          mpfr='mpfr-3.1.5',
          isl='isl-0.18',
          cloog='cloog-0.18.4',
-         binutils='binutils-2.28',
-         gcc='gcc-6.3.0',
-         gdb='gdb-7.12.1',
+         binutils='binutils-2.31',
+         gcc='gcc-8.2.0',
+         gdb='gdb-8.2',
          stamps=path.join('{top}', '{target}', 'stamps'),
          build=path.join('{top}', '{target}', 'build'),
          sources=path.join('{top}', '{target}', 'sources'),
