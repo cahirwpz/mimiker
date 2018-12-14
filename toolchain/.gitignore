@@ -1,3 +1,4 @@
 mipsel-mimiker-elf
 aarch64-mimiker-elf
 .download
+*.deb

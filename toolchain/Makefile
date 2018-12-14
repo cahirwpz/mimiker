@@ -1,31 +1,37 @@
 TOOLCHAIN = ./toolchain
 RM = rm -v -f
+CP = cp -v
 
-all: build
+TARGETS = mipsel aarch64
 
-build-mipsel:
-	$(TOOLCHAIN) --target=mipsel build
-	cd mipsel-mimiker-elf && fakeroot ./debian/rules binary
+all:
 
-clean-mipsel:
-	$(TOOLCHAIN) --target=mipsel clean
-	$(RM) mipsel-*.deb
-	cd mipsel-mimiker-elf && \
-	  $(RM) -r sources usr && ./debian/rules clean
+%-mimiker-elf:
+	$(CP) -a toolchain-mimiker-elf $@
+	sed -i -e 's#%{TARGET}#$(@:%-mimiker-elf=%)#g' \
+	       -e 's#%{DATE}#$(shell date -R)#g' \
+	       `find $@ -type f`
 
-build-aarch64:
-	$(TOOLCHAIN) --target=aarch64 build
+# Generate rules for given target
+define emit_target_rules
+build-$(1): $(1)-mimiker-elf
+	$(TOOLCHAIN) --target=$(1) build
+	cd $(1)-mimiker-elf && fakeroot ./debian/rules binary
 
-clean-aarch64:
-	$(TOOLCHAIN) --target=aarch64 clean
-	cd aarch64-mimiker-elf && \
-	  $(RM) -r sources usr
+clean-$(1):
+	$(RM) -r $(1)-mimiker-elf
+	$(RM) $(1)-*.deb
 
-build: build-mipsel build-aarch64
+PHONY-TARGETS += build-$(1) clean-$(1)
+endef
 
-clean: clean-mipsel clean-aarch64
+$(foreach dir,$(TARGETS),$(eval $(call emit_target_rules,$(dir))))
+
+build: $(TARGETS:%=build-%)
+
+clean: $(TARGETS:%=clean-%)
 	$(RM) *~
 
-.PHONY: all build build-mipsel build-aarch64 clean clean-mipsel clean-aarch64
+.PHONY: all build clean $(PHONY-TARGETS)
 
 # vim: ts=8 sw=8 noet
