@@ -180,7 +180,7 @@ def build():
             '--disable-werror',
             '--with-tui',
             '--with-python=/usr/bin/python3')
-  make('{gdb}')
+  make('{gdb}', LDFLAGS='-Wl,--as-needed')
   make('{gdb}', 'install', DESTDIR='{destdir}')
 
 
