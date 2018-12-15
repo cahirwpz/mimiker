@@ -1,0 +1,5 @@
+qemu-mimiker (2.12.0+mimiker1) unstable; urgency=medium
+
+  * Add system simulator for AArch64
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Sat, 15 Dec 2018 10:49:25 +0100
