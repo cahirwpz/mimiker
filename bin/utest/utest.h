@@ -31,6 +31,11 @@ int test_fork_wait(void);
 int test_fork_signal(void);
 int test_fork_sigchld_ignored(void);
 
+int test_pgid_args(void);
+int test_pgid_misbehave(void);
+int test_pgid_inheritance(void);
+int test_pgid_change_by_parent(void);
+
 int test_lseek_basic(void);
 int test_lseek_errors(void);
 
