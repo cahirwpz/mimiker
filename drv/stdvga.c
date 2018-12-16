@@ -219,5 +219,5 @@ static driver_t stdvga = {
   .attach = stdvga_attach,
 };
 
-DRIVER_ADD(stdvga);
+/* DRIVER_ADD(stdvga); */
 DEVCLASS_ENTRY(pci, stdvga);

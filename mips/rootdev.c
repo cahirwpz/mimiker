@@ -12,10 +12,6 @@ typedef struct rootdev {
   void *data;
 } rootdev_t;
 
-/* TODO: remove following lines when devclasses are implemented */
-extern pci_bus_driver_t gt_pci_bus;
-device_t *gt_pci;
-
 static rman_t rm_mem; /* stores all resources of root bus children */
 
 static inline rootdev_t *rootdev_of(device_t *dev) {
@@ -35,10 +31,9 @@ static int rootdev_attach(device_t *dev) {
   /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ... */
   rman_init(&rm_mem, "Malta I/O space", 0x10000000, 0x1fffffff, RT_MEMORY);
 
-  gt_pci = device_add_child(dev);
-  gt_pci->driver = &gt_pci_bus.driver;
-  if (device_probe(gt_pci))
-    device_attach(gt_pci);
+  // bus_hinted_child(dev);
+  device_add_child(dev); // without hints we need that
+  bus_generic_attach(dev);
   return 0;
 }
 
@@ -89,6 +84,7 @@ static bus_driver_t rootdev_driver = {
     {
       .size = sizeof(rootdev_t),
       .desc = "MIPS platform root bus driver",
+      .name = "root",
       .attach = rootdev_attach,
     },
   .bus = {.intr_setup = rootdev_intr_setup,
@@ -106,5 +102,7 @@ static void rootdev_init(void) {
   device_attach(&rootdev);
 }
 
+
+// this is the only driver added to sysinit
 SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs"));
 DEVCLASS_CREATE(root);

@@ -119,12 +119,12 @@ static driver_t rtc_driver = {
   .attach = rtc_attach,
 };
 
-extern device_t *gt_pci;
+/* extern device_t *gt_pci; */
 
 static void rtc_init(void) {
   vnodeops_init(&rtc_time_vnodeops);
   (void)make_device(gt_pci, &rtc_driver);
 }
 
-SYSINIT_ADD(rtc, rtc_init, DEPS("rootdev"));
+/* SYSINIT_ADD(rtc, rtc_init, DEPS("rootdev")); */
 DEVCLASS_ENTRY(root, rtc_driver);

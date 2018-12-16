@@ -19,14 +19,13 @@ typedef int (*d_detach_t)(device_t *dev);
 
 struct driver {
   const char *desc;      /* short driver description */
+  char *name;
   size_t size;           /* device->state object size */
   d_identify_t identify; /* add new device to bus */
   d_probe_t probe;       /* probe for specific device(s) */
   d_attach_t attach;     /* attach device to system */
   d_detach_t detach;     /* detach device from system */
 };
-
-#define DRIVER_ADD(name) SET_ENTRY(driver_table, name)
 
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
 

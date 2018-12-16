@@ -184,12 +184,12 @@ static driver_t atkbdc_driver = {
   .attach = atkbdc_attach,
 };
 
-extern device_t *gt_pci;
+//extern device_t *gt_pci;
 
 static void atkbdc_init(void) {
   vnodeops_init(&scancode_vnodeops);
   (void)make_device(gt_pci, &atkbdc_driver);
 }
 
-SYSINIT_ADD(atkbdc, atkbdc_init, DEPS("rootdev"));
+//SYSINIT_ADD(atkbdc, atkbdc_init, DEPS("rootdev"));
 DEVCLASS_ENTRY(pci, atkbdc_driver);

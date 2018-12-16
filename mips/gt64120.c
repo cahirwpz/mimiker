@@ -63,8 +63,7 @@ typedef struct gt_pci_state {
   uint16_t elcr;
 } gt_pci_state_t;
 
-extern bus_space_t *rootdev_bus_space;
-pci_bus_driver_t gt_pci_bus;
+//extern bus_space_t *rootdev_bus_space;
 
 /* Access configuration space through memory mapped GT-64120 registers. Take
  * care of the fact that MIPS processor cannot handle unaligned accesses. */
@@ -238,29 +237,35 @@ static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
 #define MALTA_PCI0_MEMORY_SIZE                                                 \
   (MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1)
 
+static int gt_pci_probe(device_t *pcib){
+gt_pci_state_t *gtpci = pcib->state;
+
+/* PCI I/O memory */
+gtpci->pci_mem = bus_get_resource(
+                                  pcib, RT_MEMORY, 0, MALTA_PCI0_MEMORY_SIZE);
+
+/* PCI I/O ports 0x1000-0xffff */
+gtpci->pci_io =
+  bus_get_resource(pcib, RT_IOPORTS, 0, 0xf000);
+
+/* GT64120 registers */
+gtpci->corectrl =
+  bus_get_resource(pcib, RT_IOPORTS, 0, MALTA_CORECTRL_SIZE);
+
+/* ISA I/O ports 0x0000-0x0fff */
+gtpci->isa_io = bus_alloc_resource(pcib, RT_IOPORTS, 0, 0x1000);
+
+if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
+    gtpci->pci_io == NULL || gtpci->isa_io == NULL) {
+  panic("gt64120 resource allocation fail");
+ }
+
+// assume to be attached
+ return BUS_PROBE_SPECIFIC;
+}
+
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
-
-  /* PCI I/O memory */
-  gtpci->pci_mem = bus_alloc_resource(
-    pcib, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END,
-    MALTA_PCI0_MEMORY_SIZE, RF_ACTIVE);
-  /* PCI I/O ports 0x1000-0xffff */
-  gtpci->pci_io =
-    bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_PCI0_IO_BASE + 0x1000,
-                       MALTA_PCI0_IO_BASE + 0xffff, 0xf000, RF_ACTIVE);
-  /* GT64120 registers */
-  gtpci->corectrl =
-    bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_CORECTRL_BASE,
-                       MALTA_CORECTRL_END, MALTA_CORECTRL_SIZE, RF_ACTIVE);
-  /* ISA I/O ports 0x0000-0x0fff */
-  gtpci->isa_io = bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_PCI0_IO_BASE,
-                                     MALTA_PCI0_IO_BASE + 0xfff, 0x1000, 0);
-
-  if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
-      gtpci->pci_io == NULL || gtpci->isa_io == NULL) {
-    panic("gt64120 resource allocation fail");
-  }
 
   rman_init(&gtpci->isa_io_rman, "GT64120 ISA I/O ports", 0x0000, 0x0fff,
             RT_IOPORTS);
@@ -301,13 +306,16 @@ static int gt_pci_attach(device_t *pcib) {
   gt_pci_intr_chain_init(gtpci, 14, "ide(0)"); /* IDE primary */
   gt_pci_intr_chain_init(gtpci, 15, "ide(1)"); /* IDE secondary */
 
+  // find pci devices
   pci_bus_enumerate(pcib);
 
   gtpci->intr_handler =
     INTR_HANDLER_INIT(gt_pci_intr, NULL, gtpci, "GT64120 interrupt", 0);
   bus_intr_setup(pcib, MIPS_HWINT0, &gtpci->intr_handler);
 
-  return bus_generic_probe(pcib);
+  //bus_hinted_child(pcib);
+
+  return bus_generic_attach(pcib);
 }
 
 static resource_t *gt_pci_alloc_resource(device_t *pcib, device_t *dev,
@@ -356,7 +364,10 @@ static resource_t *gt_pci_alloc_resource(device_t *pcib, device_t *dev,
     return NULL;
 
   r->r_bus_handle = bh + r->r_start;
+  // brzydki extern z rotdev_bus_space
+  // moze chcemy bus_get_bus_space(device) ??
   r->r_bus_tag = rootdev_bus_space;
+
   if (flags & RF_ACTIVE)
     bus_activate_resource(dev, type, rid, r);
   device_add_resource(dev, r, rid);
