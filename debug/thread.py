@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import gdb
 from tailq import TailQueue
 import utils
@@ -8,8 +6,7 @@ import traceback
 from ctx import Context
 
 
-class Thread(object):
-    __metaclass__ = utils.GdbStructMeta
+class Thread(metaclass=utils.GdbStructMeta):
     __ctype__ = 'struct thread'
     __cast__ = {'td_waitpt': utils.ProgramCounter,
                 'td_tid': int,

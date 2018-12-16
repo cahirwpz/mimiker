@@ -110,10 +110,13 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   switch (size) {
     case 1:
       data.byte[3 - reg] = value;
+      break;
     case 2:
       data.word[1 - (reg >> 1)] = value;
+      break;
     case 4:
       data.dword = value;
+      break;
     default:
       break;
   }

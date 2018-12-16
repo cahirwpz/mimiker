@@ -1,4 +1,4 @@
-Source: mipsel-mimiker-elf
+Source: qemu-mimiker
 Section: unknown
 Priority: optional
 Maintainer: Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>
@@ -6,9 +6,9 @@ Build-Depends: debhelper (>= 9)
 Standards-Version: 3.9.8
 Homepage: http://mimiker.ii.uni.wroc.pl
 
-Package: mipsel-mimiker-elf
+Package: qemu-mimiker
 Architecture: amd64
 Depends: ${shlibs:Depends} ${misc:Depends}
-Description: toolchain for mimiker kernel
- This is a cross toolchain targeted at Mimiker operating system running on MIPS
- little endian platform.
+Description: QEMU system simulator for Mimiker OS development
+ This package contains modified QEMU system simulator for mipsel and aarch64
+ architectures.
