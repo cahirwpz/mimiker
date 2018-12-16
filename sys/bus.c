@@ -150,12 +150,15 @@ int bus_enumerate_hinted_children(device_t *bus){
  *
  */
 
-int __attribute__((unused)) bus_generic_probe_and_attach2(device_t *dev) {
+int __attribute__((unused)) bus_generic_attach(device_t *dev) {
   device_t *child;
 
   TAILQ_FOREACH (child, &dev->children, link) {
-    device_probe_and_attach(child);
+    int error = device_probe_and_attach(child);
+    if(error > 0){
+      klog("pribe & attach failed for [device_name]!\n");
+    }
   }
 
-  return (0);
+  return 0;
 }

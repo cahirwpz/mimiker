@@ -19,19 +19,8 @@ device_t *device_add_child(device_t *dev) {
   return child;
 }
 
-/* TODO: this routine should go over all drivers within a suitable class and
- * choose the best driver. For now the user is responsible for setting the
- * driver before calling `device_probe`. */
+// similar to device_probe and device_probe_child from freebsd
 int device_probe(device_t *dev) {
-  assert(dev->driver != NULL);
-  d_probe_t probe = dev->driver->probe;
-  int found = probe ? probe(dev) : 1;
-  if (found)
-    dev->state = kmalloc(M_DEV, dev->driver->size, M_ZERO);
-  return found;
-}
-
-int __attribute__((unused)) device_probe2(device_t *dev) {
   device_t *parent = dev->parent;
   devclass_t *dc = devclass_find(parent->driver->desc);
   klog("devclass found %s\n", dc->name);
@@ -39,36 +28,38 @@ int __attribute__((unused)) device_probe2(device_t *dev) {
   // bledy > 0
   // matching <=0. 0 = best driver
   driver_t *best_drv = NULL;
-  int best = INT_MIN;
+  int best = BUS_PROBE_NOMATCH;
 
   DEVCLASS_FOREACH(drv, dc) {
     dev->driver = *drv;
     d_probe_t probe = dev->driver->probe;
-    int found = probe ? probe(dev) : 1; // 1 means no probe method
-    if (found > 0) {
-      klog("no probe method!");
-    } else {
-      if (found > best) {
-        best = found;
-        best_drv = *drv;
-      }
+    int found = probe ? probe(dev) : BUS_NO_METHOD;
+
+    if (found > 0)
+      continue;
+    if (found == 0)
+      return BUS_PROBE_SPECIFIC;
+    if (found > best) {
+      best = found;
+      best_drv = *drv;
     }
   }
 
-  if (best_drv) {
+  if (best_drv > BUS_PROBE_NOMATCH && best_drv <=0) {
     dev->driver = best_drv;
-    return 0;
+    return best;
   }
 
-  return -1; // probe failed
+  return 1; // probe failed
 }
 
 int device_probe_and_attach(device_t *dev) {
-  int error = device_probe2(dev);
-  if (error == -1) {
-    klog("error");
+  int error;
+  error = device_probe2(dev);
+
+  if (error > 0)
     return error;
-  }
+
   // best driver przypisany
   error = device_attach(dev);
   return error;
@@ -77,25 +68,19 @@ int device_probe_and_attach(device_t *dev) {
 int device_attach(device_t *dev) {
   assert(dev->driver != NULL);
   d_attach_t attach = dev->driver->attach;
-  return attach ? attach(dev) : 0;
+  return attach ? attach(dev) : BUS_NO_METHOD;
 }
+
 
 int device_detach(device_t *dev) {
   assert(dev->driver != NULL);
   d_detach_t detach = dev->driver->detach;
-  int res = detach ? detach(dev) : 0;
-  if (res == 0)
+  int res = detach ? detach(dev) : BUS_NO_METHOD;
+  // czy tylko wtedy chcemy wolac kfree?
+  // nie zawsze?
+  if (res == BUS_NO_METHOD)
     kfree(M_DEV, dev->state);
   return res;
-}
-
-// this function serves as an ugly hack.
-device_t *make_device(device_t *parent, driver_t *driver) {
-  device_t *dev = device_add_child(parent);
-  dev->driver = driver;
-  if (device_probe(dev))
-    device_attach(dev);
-  return dev;
 }
 
 void device_add_resource(device_t *dev, resource_t *r, int rid) {
