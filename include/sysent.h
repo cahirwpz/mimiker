@@ -28,7 +28,8 @@
 #define SYS_PIPE 25
 #define SYS_CLOCKGETTIME 26
 #define SYS_CLOCKNANOSLEEP 27
-#define SYS_LAST 28
+#define SYS_EXECVE 28
+#define SYS_LAST 29
 
 #ifndef __ASSEMBLER__
 
@@ -46,7 +47,9 @@ typedef struct syscall_args {
 
 typedef int syscall_t(thread_t *, syscall_args_t *);
 
-typedef struct { syscall_t *call; } sysent_t;
+typedef struct {
+  syscall_t *call;
+} sysent_t;
 
 extern sysent_t sysent[];
 

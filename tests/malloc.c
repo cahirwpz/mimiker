@@ -84,8 +84,8 @@ static void malloc_multithreaded(void (*threads_function)(void *)) {
   kmem_pool_t *mp = kmem_create("test", 1, 10);
   thread_t *threads[THREADS_NUMBER];
   for (int i = 0; i < THREADS_NUMBER; i++)
-    threads[i] =
-      thread_create("Malloc test thread", threads_function, (void *)mp);
+    threads[i] = thread_create("Malloc test thread", threads_function,
+                               (void *)mp, prio_kthread(0));
   for (int i = 0; i < THREADS_NUMBER; i++)
     sched_add(threads[i]);
   for (int i = 0; i < THREADS_NUMBER; i++)
@@ -133,11 +133,12 @@ static int malloc_threads_random_shared_blocks(void) {
   rsb_test_args_t args;
   memset(args.ptrs, 0, sizeof(args.ptrs));
   args.mem_pool = mp;
-  mtx_init(&args.lock, MTX_DEF);
+  mtx_init(&args.lock, 0);
   thread_t *threads[THREADS_NUMBER];
   for (int i = 0; i < THREADS_NUMBER; i++)
     threads[i] =
-      thread_create("Malloc test thread", malloc_random_shared_blocks, &args);
+      thread_create("Malloc test thread", malloc_random_shared_blocks, &args,
+                    prio_kthread(0));
   for (int i = 0; i < THREADS_NUMBER; i++)
     sched_add(threads[i]);
   for (int i = 0; i < THREADS_NUMBER; i++)
@@ -171,5 +172,5 @@ KTEST_ADD(malloc_threads_random_shared_blocks,
           malloc_threads_random_shared_blocks, KTEST_FLAG_BROKEN);
 /* Reserve some memory for mem_block_t. */
 #define RESERVED 1024
-KTEST_ADD_RANDINT(malloc_random_size, (int (*)(void))malloc_random_size, 0,
+KTEST_ADD_RANDINT(malloc_random_size, (void *)malloc_random_size, 0,
                   MALLOC_RANDINT_PAGES *PAGESIZE - RESERVED);

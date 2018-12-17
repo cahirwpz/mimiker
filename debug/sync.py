@@ -4,8 +4,7 @@ from thread import Thread
 import utils
 
 
-class SleepQueue(object):
-    __metaclass__ = utils.GdbStructMeta
+class SleepQueue(metaclass=utils.GdbStructMeta):
     __ctype__ = 'struct sleepq'
 
     def __init__(self, addr):
@@ -18,8 +17,7 @@ class SleepQueue(object):
         return '[]'
 
 
-class Mutex(object):
-    __metaclass__ = utils.GdbStructMeta
+class Mutex(metaclass=utils.GdbStructMeta):
     __ctype__ = 'struct mtx'
     __cast__ = {'m_count': int,
                 'm_lockpt': utils.ProgramCounter}
@@ -32,8 +30,7 @@ class Mutex(object):
         return 'mtx{owner = None}'
 
 
-class CondVar(object):
-    __metaclass__ = utils.GdbStructMeta
+class CondVar(metaclass=utils.GdbStructMeta):
     __ctype__ = 'struct condvar'
     __cast__ = {'waiters': int}
 

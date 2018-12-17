@@ -1,0 +1,14 @@
+Source: qemu-mimiker
+Section: unknown
+Priority: optional
+Maintainer: Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.8
+Homepage: http://mimiker.ii.uni.wroc.pl
+
+Package: qemu-mimiker
+Architecture: amd64
+Depends: ${shlibs:Depends} ${misc:Depends}
+Description: QEMU system simulator for Mimiker OS development
+ This package contains modified QEMU system simulator for mipsel and aarch64
+ architectures.

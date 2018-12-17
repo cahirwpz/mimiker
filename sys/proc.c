@@ -14,7 +14,7 @@
 
 static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
 
-static mtx_t *all_proc_mtx = &MTX_INITIALIZER(MTX_DEF);
+static mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 
 /* proc_list, zombie_list and last_pid must be protected by all_proc_mtx */
 static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
@@ -58,7 +58,7 @@ void proc_unlock(proc_t *p) {
 proc_t *proc_create(thread_t *td, proc_t *parent) {
   proc_t *p = pool_alloc(P_PROC, PF_ZERO);
 
-  mtx_init(&p->p_lock, MTX_DEF);
+  mtx_init(&p->p_lock, 0);
   p->p_state = PS_NORMAL;
   p->p_thread = td;
   p->p_parent = parent;

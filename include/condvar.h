@@ -2,13 +2,19 @@
 #define _SYS_CONDVAR_H_
 
 #include <common.h>
+#include <lock.h>
+
+/* Union type of locks that may be passed to `cv_wait` */
+typedef union cv_lock {
+  lock_type_t *type; /*!< `mtx_t` and `spin_t` must begin with `lock_type_t` */
+  mtx_t *mtx;        /*!< sleep mutex to use with `cv_wait` */
+  spin_t *spin;      /*!< spin lock to use with `cv_wait`*/
+} __transparent_union cv_lock_t;
 
 typedef struct condvar {
   const char *name;     /*!< name for debugging purpose */
   volatile int waiters; /*!< # of threads sleeping in associated sleep queue */
 } condvar_t;
-
-typedef struct mtx mtx_t;
 
 /*! \brief Initialize a conditional variable.
  *
@@ -25,14 +31,14 @@ void cv_init(condvar_t *cv, const char *name);
 #define cv_destroy(m)
 
 /*! \brief Wait on a conditional variable. */
-void cv_wait(condvar_t *cv, mtx_t *mtx);
+void cv_wait(condvar_t *cv, cv_lock_t m);
 
 /*! \brief Wait on a conditional variable with possiblity of being interrupted.
  *
  * \returns 0 if the thread was awoken normally (`cv_signal` or `cv_broadcast`)
  * \returns EINTR if the thread was interrupted during the sleep
  */
-#define cv_wait_intr(cv, mtx) cv_wait_timed((cv), (mtx), 0)
+#define cv_wait_intr(cv, m) cv_wait_timed((cv), (m), 0)
 
 /*! \brief Wait on a conditional variable with timeout.
  *
@@ -42,7 +48,7 @@ void cv_wait(condvar_t *cv, mtx_t *mtx);
  * \returns EINTR if the thread was interrupted during the sleep
  * \returns ETIMEDOUT if the sleep timed out
  */
-int cv_wait_timed(condvar_t *cv, mtx_t *mtx, systime_t timeout);
+int cv_wait_timed(condvar_t *cv, cv_lock_t m, systime_t timeout);
 
 /*! \brief Wake a single thread waiting on a conditional variable.
  *

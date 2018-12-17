@@ -22,9 +22,12 @@ static void test_thread(void *p) {
 
 /* This tests both thread_join as well as thread_exit. */
 static int test_thread_join(void) {
-  thread_t *t1 = thread_create("test-thread-1", test_thread, &exit_time[0]);
-  thread_t *t2 = thread_create("test-thread-2", test_thread, &exit_time[1]);
-  thread_t *t3 = thread_create("test-thread-3", test_thread, &exit_time[2]);
+  thread_t *t1 =
+    thread_create("test-thread-1", test_thread, &exit_time[0], prio_kthread(0));
+  thread_t *t2 =
+    thread_create("test-thread-2", test_thread, &exit_time[1], prio_kthread(0));
+  thread_t *t3 =
+    thread_create("test-thread-3", test_thread, &exit_time[2], prio_kthread(0));
 
   tid_t t1_id = t1->td_tid;
   tid_t t2_id = t2->td_tid;

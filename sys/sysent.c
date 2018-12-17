@@ -14,6 +14,7 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <exec.h>
 #include <time.h>
 #include <pipe.h>
 #include <malloc.h>
@@ -371,6 +372,22 @@ end:
   return result;
 }
 
+static int sys_execve(thread_t *td, syscall_args_t *args) {
+  vaddr_t user_path = (vaddr_t)args->args[0];
+  vaddr_t user_argv = (vaddr_t)args->args[1];
+  vaddr_t user_envp = (vaddr_t)args->args[2];
+  int result;
+
+  exec_args_t exec_args;
+  if ((result = exec_args_copyin(&exec_args, user_path, user_argv, user_envp)))
+    return result;
+
+  result = do_exec(&exec_args);
+  klog("execve(\"%s\", ...) = %d", exec_args.prog_name, result);
+  exec_args_destroy(&exec_args);
+  return result;
+}
+
 static int sys_access(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
   mode_t mode = args->args[1];
@@ -414,31 +431,32 @@ static int sys_clock_nanosleep(thread_t *td, syscall_args_t *args) {
 
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
-    [SYS_EXIT] = {sys_exit},
-    [SYS_OPEN] = {sys_open},
-    [SYS_CLOSE] = {sys_close},
-    [SYS_READ] = {sys_read},
-    [SYS_WRITE] = {sys_write},
-    [SYS_LSEEK] = {sys_lseek},
-    [SYS_UNLINK] = {sys_unlink},
-    [SYS_GETPID] = {sys_getpid},
-    [SYS_KILL] = {sys_kill},
-    [SYS_FSTAT] = {sys_fstat},
-    [SYS_STAT] = {sys_stat},
-    [SYS_SBRK] = {sys_sbrk},
-    [SYS_MMAP] = {sys_mmap},
-    [SYS_FORK] = {sys_fork},
-    [SYS_MOUNT] = {sys_mount},
-    [SYS_GETDENTS] = {sys_getdirentries},
-    [SYS_SIGACTION] = {sys_sigaction},
-    [SYS_SIGRETURN] = {sys_sigreturn},
-    [SYS_DUP] = {sys_dup},
-    [SYS_DUP2] = {sys_dup2},
-    [SYS_WAITPID] = {sys_waitpid},
-    [SYS_MKDIR] = {sys_mkdir},
-    [SYS_RMDIR] = {sys_rmdir},
-    [SYS_ACCESS] = {sys_access},
-    [SYS_PIPE] = {sys_pipe},
-    [SYS_CLOCKGETTIME] = {sys_clock_gettime},
-    [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep},
+  [SYS_EXIT] = {sys_exit},
+  [SYS_OPEN] = {sys_open},
+  [SYS_CLOSE] = {sys_close},
+  [SYS_READ] = {sys_read},
+  [SYS_WRITE] = {sys_write},
+  [SYS_LSEEK] = {sys_lseek},
+  [SYS_UNLINK] = {sys_unlink},
+  [SYS_GETPID] = {sys_getpid},
+  [SYS_KILL] = {sys_kill},
+  [SYS_FSTAT] = {sys_fstat},
+  [SYS_STAT] = {sys_stat},
+  [SYS_SBRK] = {sys_sbrk},
+  [SYS_MMAP] = {sys_mmap},
+  [SYS_FORK] = {sys_fork},
+  [SYS_MOUNT] = {sys_mount},
+  [SYS_GETDENTS] = {sys_getdirentries},
+  [SYS_SIGACTION] = {sys_sigaction},
+  [SYS_SIGRETURN] = {sys_sigreturn},
+  [SYS_DUP] = {sys_dup},
+  [SYS_DUP2] = {sys_dup2},
+  [SYS_WAITPID] = {sys_waitpid},
+  [SYS_MKDIR] = {sys_mkdir},
+  [SYS_RMDIR] = {sys_rmdir},
+  [SYS_ACCESS] = {sys_access},
+  [SYS_PIPE] = {sys_pipe},
+  [SYS_CLOCKGETTIME] = {sys_clock_gettime},
+  [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep},
+  [SYS_EXECVE] = {sys_execve},
 };

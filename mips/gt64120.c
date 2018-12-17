@@ -1,5 +1,6 @@
-/* Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file. */
-
+/* GT64120 PCI bus driver
+ *
+ * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file. */
 #define KL_LOG KL_DEV
 #include <mips/malta.h>
 #include <mips/intr.h>
@@ -13,6 +14,7 @@
 #include <stdc.h>
 #include <klog.h>
 #include <bus.h>
+#include <devclass.h>
 
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
@@ -50,8 +52,9 @@ typedef struct gt_pci_state {
   resource_t *pci_mem;
 
   /* Resource managers which manage resources used by child devices. */
-  rman_t rman_pci_iospace;
-  rman_t rman_pci_memspace;
+  rman_t pci_io_rman;
+  rman_t pci_mem_rman;
+  rman_t isa_io_rman;
 
   intr_handler_t intr_handler;
   intr_chain_t intr_chain[16];
@@ -60,7 +63,7 @@ typedef struct gt_pci_state {
   uint16_t elcr;
 } gt_pci_state_t;
 
-extern bus_space_t *mips_bus_space_generic;
+extern bus_space_t *rootdev_bus_space;
 pci_bus_driver_t gt_pci_bus;
 
 /* Access configuration space through memory mapped GT-64120 registers. Take
@@ -73,9 +76,9 @@ static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
   if (pcid->addr.bus > 0)
     return -1;
 
-  bus_space_write_4(pcicfg, GT_PCI0_CFG_ADDR,
-                    PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2));
-  pci_reg_t data = (pci_reg_t)bus_space_read_4(pcicfg, GT_PCI0_CFG_DATA);
+  bus_write_4(pcicfg, GT_PCI0_CFG_ADDR,
+              PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2));
+  pci_reg_t data = (pci_reg_t)bus_read_4(pcicfg, GT_PCI0_CFG_DATA);
 
   reg &= 3;
   switch (size) {
@@ -99,23 +102,26 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   if (pcid->addr.bus > 0)
     return;
 
-  bus_space_write_4(pcicfg, GT_PCI0_CFG_ADDR,
-                    PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2));
-  pci_reg_t data = (pci_reg_t)bus_space_read_4(pcicfg, GT_PCI0_CFG_DATA);
+  bus_write_4(pcicfg, GT_PCI0_CFG_ADDR,
+              PCI0_CFG_ENABLE | gt_pci_make_addr(pcid->addr, reg >> 2));
+  pci_reg_t data = (pci_reg_t)bus_read_4(pcicfg, GT_PCI0_CFG_DATA);
 
   reg &= 3;
   switch (size) {
     case 1:
       data.byte[3 - reg] = value;
+      break;
     case 2:
       data.word[1 - (reg >> 1)] = value;
+      break;
     case 4:
       data.dword = value;
+      break;
     default:
       break;
   }
 
-  bus_space_write_4(pcicfg, GT_PCI0_CFG_DATA, data.dword);
+  bus_write_4(pcicfg, GT_PCI0_CFG_DATA, data.dword);
 }
 
 static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
@@ -126,10 +132,10 @@ static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
     gtpci->imask |= (1U << 2);
 
   resource_t *io = gtpci->isa_io;
-  bus_space_write_1(io, ICU1_DATA, LO(gtpci->imask));
-  bus_space_write_1(io, ICU2_DATA, HI(gtpci->imask));
-  bus_space_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
-  bus_space_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
+  bus_write_1(io, ICU1_DATA, LO(gtpci->imask));
+  bus_write_1(io, ICU2_DATA, HI(gtpci->imask));
+  bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
+  bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 }
 
 static void gt_pci_mask_irq(gt_pci_state_t *gtpci, unsigned irq) {
@@ -150,7 +156,7 @@ static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
 
   gt_pci_state_t *gtpci = pcib->parent->state;
   intr_chain_t *chain = &gtpci->intr_chain[irq];
-  WITH_SPINLOCK(&chain->ic_lock) {
+  WITH_SPIN_LOCK (&chain->ic_lock) {
     intr_chain_add_handler(chain, handler);
     if (chain->ic_count == 1)
       gt_pci_unmask_irq(gtpci, irq);
@@ -162,7 +168,7 @@ static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
 
   gt_pci_state_t *gtpci = pcib->parent->state;
   intr_chain_t *chain = handler->ih_chain;
-  WITH_SPINLOCK(&chain->ic_lock) {
+  WITH_SPIN_LOCK (&chain->ic_lock) {
     if (chain->ic_count == 1)
       gt_pci_mask_irq(gtpci, chain->ic_irq);
     intr_chain_remove_handler(handler);
@@ -171,16 +177,16 @@ static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
 
 static void init_8259(resource_t *io, unsigned icu, unsigned imask) {
   /* reset, program device, 4 bytes */
-  bus_space_write_1(io, ICU_ADDR(icu), ICW1_RESET | ICW1_IC4);
-  bus_space_write_1(io, ICU_DATA(icu), 0);
-  bus_space_write_1(io, ICU_DATA(icu), 1 << 2); /* XXX magic value ??? */
-  bus_space_write_1(io, ICU_DATA(icu), ICW4_8086);
+  bus_write_1(io, ICU_ADDR(icu), ICW1_RESET | ICW1_IC4);
+  bus_write_1(io, ICU_DATA(icu), 0);
+  bus_write_1(io, ICU_DATA(icu), 1 << 2); /* XXX magic value ??? */
+  bus_write_1(io, ICU_DATA(icu), ICW4_8086);
   /* mask all interrupts */
-  bus_space_write_1(io, ICU_DATA(icu), imask);
+  bus_write_1(io, ICU_DATA(icu), imask);
   /* enable special mask mode */
-  bus_space_write_1(io, ICU_ADDR(icu), OCW3_SEL | OCW3_ESMM | OCW3_SMM);
+  bus_write_1(io, ICU_ADDR(icu), OCW3_SEL | OCW3_ESMM | OCW3_SMM);
   /* read IRR by default */
-  bus_space_write_1(io, ICU_ADDR(icu), OCW3_SEL | OCW3_RR);
+  bus_write_1(io, ICU_ADDR(icu), OCW3_SEL | OCW3_RR);
 }
 
 static intr_filter_t gt_pci_intr(void *data) {
@@ -192,15 +198,15 @@ static intr_filter_t gt_pci_intr(void *data) {
 
   for (;;) {
     /* Handle master PIC, irq 0..7 */
-    bus_space_write_1(io, ICU1_ADDR, OCW3_SEL | OCW3_POLL);
-    irq = bus_space_read_1(io, ICU1_DATA);
+    bus_write_1(io, ICU1_ADDR, OCW3_SEL | OCW3_POLL);
+    irq = bus_read_1(io, ICU1_DATA);
     if ((irq & OCW3_POLL_PENDING) == 0)
       return IF_FILTERED;
     irq = OCW3_POLL_IRQ(irq);
     /* Handle slave PIC, irq 8..15 */
     if (irq == 2) {
-      bus_space_write_1(io, ICU2_ADDR, OCW3_SEL | OCW3_POLL);
-      irq = bus_space_read_1(io, ICU2_DATA);
+      bus_write_1(io, ICU2_ADDR, OCW3_SEL | OCW3_POLL);
+      irq = bus_read_1(io, ICU2_DATA);
       irq = (irq & OCW3_POLL_PENDING) ? (OCW3_POLL_IRQ(irq) + 8) : 2;
     }
 
@@ -210,14 +216,13 @@ static intr_filter_t gt_pci_intr(void *data) {
 
     /* Send a specific EOI to slave PIC... */
     if (irq > 7) {
-      bus_space_write_1(io, ICU2_ADDR,
-                        OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq & 7));
+      bus_write_1(io, ICU2_ADDR,
+                  OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq & 7));
       irq = 2;
     }
 
     /* ... and finally to master PIC. */
-    bus_space_write_1(io, ICU1_ADDR,
-                      OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq));
+    bus_write_1(io, ICU1_ADDR, OCW2_SEL | OCW2_EOI | OCW2_SL | OCW2_ILS(irq));
   }
 
   return IF_FILTERED;
@@ -225,11 +230,7 @@ static intr_filter_t gt_pci_intr(void *data) {
 
 static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
                                           const char *name) {
-  gtpci->intr_chain[irq] = (intr_chain_t){
-    .ic_name = (name),
-    .ic_irq = (irq),
-    .ic_lock = SPINLOCK_INITIALIZER(),
-    .ic_handlers = TAILQ_HEAD_INITIALIZER(gtpci->intr_chain[irq].ic_handlers)};
+  intr_chain_init(&gtpci->intr_chain[irq], irq, name);
   intr_chain_register(&gtpci->intr_chain[irq]);
 }
 
@@ -241,19 +242,19 @@ static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
   /* PCI I/O memory */
-  gtpci->pci_mem =
-    bus_resource_alloc(pcib, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE,
-                       MALTA_PCI0_MEMORY_END, MALTA_PCI0_MEMORY_SIZE, 0);
+  gtpci->pci_mem = bus_alloc_resource(
+    pcib, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END,
+    MALTA_PCI0_MEMORY_SIZE, RF_ACTIVE);
   /* PCI I/O ports 0x1000-0xffff */
   gtpci->pci_io =
-    bus_resource_alloc(pcib, RT_MEMORY, 0, MALTA_PCI0_IO_BASE + 0x1000,
-                       MALTA_PCI0_IO_BASE + 0xffff, 0xf000, 0);
+    bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_PCI0_IO_BASE + 0x1000,
+                       MALTA_PCI0_IO_BASE + 0xffff, 0xf000, RF_ACTIVE);
   /* GT64120 registers */
   gtpci->corectrl =
-    bus_resource_alloc(pcib, RT_MEMORY, 0, MALTA_CORECTRL_BASE,
-                       MALTA_CORECTRL_END, MALTA_CORECTRL_SIZE, 0);
+    bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_CORECTRL_BASE,
+                       MALTA_CORECTRL_END, MALTA_CORECTRL_SIZE, RF_ACTIVE);
   /* ISA I/O ports 0x0000-0x0fff */
-  gtpci->isa_io = bus_resource_alloc(pcib, RT_MEMORY, 0, MALTA_PCI0_IO_BASE,
+  gtpci->isa_io = bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_PCI0_IO_BASE,
                                      MALTA_PCI0_IO_BASE + 0xfff, 0x1000, 0);
 
   if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
@@ -261,8 +262,12 @@ static int gt_pci_attach(device_t *pcib) {
     panic("gt64120 resource allocation fail");
   }
 
-  rman_create_from_resource(&gtpci->rman_pci_iospace, gtpci->pci_io);
-  rman_create_from_resource(&gtpci->rman_pci_memspace, gtpci->pci_mem);
+  rman_init(&gtpci->isa_io_rman, "GT64120 ISA I/O ports", 0x0000, 0x0fff,
+            RT_IOPORTS);
+  rman_init(&gtpci->pci_io_rman, "GT64120 PCI I/O ports", 0x1000, 0xffff,
+            RT_IOPORTS);
+  rman_init(&gtpci->pci_mem_rman, "GT64120 PCI memory", 0,
+            MALTA_PCI0_MEMORY_SIZE, RT_MEMORY);
 
   pcib->bus = DEV_BUS_PCI;
 
@@ -276,8 +281,8 @@ static int gt_pci_attach(device_t *pcib) {
   init_8259(io, IO_ICU2, HI(gtpci->imask));
 
   /* Default all interrupts to edge-triggered. */
-  bus_space_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
-  bus_space_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
+  bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
+  bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
   gt_pci_intr_chain_init(gtpci, 0, "timer");
   gt_pci_intr_chain_init(gtpci, 1, "kbd");       /* kbd controller (keyboard) */
@@ -305,65 +310,95 @@ static int gt_pci_attach(device_t *pcib) {
   return bus_generic_probe(pcib);
 }
 
-static resource_t *gt_pci_resource_alloc(device_t *pcib, device_t *dev,
-                                         resource_type_t type, int rid,
+static resource_t *gt_pci_alloc_resource(device_t *pcib, device_t *dev,
+                                         res_type_t type, int rid,
                                          rman_addr_t start, rman_addr_t end,
-                                         size_t size, unsigned flags) {
+                                         size_t size, res_flags_t flags) {
 
   gt_pci_state_t *gtpci = pcib->state;
-
-  /* Hack to directly return ISA resource. Need to implement PCI-ISA bridge. */
-  if (type == RT_ISA)
-    return gtpci->isa_io;
-
-  /* Now handle only PCI devices. */
-
-  /* Currently all devices are logicaly attached to PCI bus, because we don't
-     have PCI-ISA bridge implemented. ISA devices are required to specify
-     RT_ISA_F flag, and have their dev->bus set to DEV_BUS_NONE. */
-  assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
-
-  /* Find identified bar by rid. */
-  pci_device_t *pcid = pci_device_of(dev);
-  pci_bar_t *bar = &pcid->bar[rid];
-
-  if (bar->size == 0)
-    return NULL;
-
+  bus_space_handle_t bh;
   resource_t *r = NULL;
 
-  if (type == RT_MEMORY) {
-    r = rman_allocate_resource(&gtpci->rman_pci_memspace, start, end, bar->size,
-                               bar->size, flags);
-  } else if (type == RT_IOPORTS) {
-    r = rman_allocate_resource(&gtpci->rman_pci_iospace, start, end, bar->size,
-                               bar->size, flags);
+  /* Hack for ISA devices attached to PIIX4. TODO implement PCI-ISA bridge. */
+  if (type == RT_ISA) {
+    r = rman_alloc_resource(&gtpci->isa_io_rman, start, end, size, size, flags,
+                            dev);
+    bh = gtpci->isa_io->r_start;
   } else {
-    panic("Unknown PCI device type: %d", type);
+    /* Now handle only PCI devices. */
+
+    /* Currently all devices are logicaly attached to PCI bus, because we don't
+       have PCI-ISA bridge implemented. ISA devices are required to specify
+       RT_ISA_F flag, and have their dev->bus set to DEV_BUS_NONE. */
+    assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
+
+    /* Find identified bar by rid. */
+    pci_device_t *pcid = pci_device_of(dev);
+    pci_bar_t *bar = &pcid->bar[rid];
+
+    if (bar->size == 0)
+      return NULL;
+
+    if (type == RT_MEMORY) {
+      r = rman_alloc_resource(&gtpci->pci_mem_rman, start, end, bar->size,
+                              bar->size, flags, dev);
+      bh = gtpci->pci_mem->r_start;
+    } else if (type == RT_IOPORTS) {
+      r = rman_alloc_resource(&gtpci->pci_io_rman, start, end, bar->size,
+                              bar->size, flags, dev);
+      bh = gtpci->pci_io->r_start;
+    } else {
+      panic("Unknown PCI device type: %d", type);
+    }
   }
 
-  if (!r)
+  if (r == NULL)
     return NULL;
 
-  device_add_resource(dev, r, rid, mips_bus_space_generic);
-
-  /* Write BAR address to PCI device register. */
-  if (!(flags & RF_ACTIVATED)) {
-    pci_write_config(dev, PCIR_BAR(rid), 4, r->r_start);
-    r->r_flags |= RF_ACTIVATED;
-  }
-
+  r->r_bus_handle = bh + r->r_start;
+  r->r_bus_tag = rootdev_bus_space;
+  if (flags & RF_ACTIVE)
+    bus_activate_resource(dev, type, rid, r);
+  device_add_resource(dev, r, rid);
   return r;
 }
 
+static void gt_pci_release_resource(device_t *pcib, device_t *dev,
+                                    res_type_t type, int rid, resource_t *r) {
+  rman_release_resource(r);
+}
+
+static void gt_pci_activate_resource(device_t *pcib, device_t *dev,
+                                     res_type_t type, int rid, resource_t *r) {
+  if (type == RT_MEMORY || type == RT_IOPORTS) {
+    /* Write BAR address to PCI device register. */
+    pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
+    rman_activate_resource(r);
+  }
+  bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+                BUS_SPACE_MAP_LINEAR, &r->r_bus_handle);
+}
+
+/* clang-format off */
 pci_bus_driver_t gt_pci_bus = {
-  .driver = {.desc = "GT-64120 PCI bus driver",
-             .size = sizeof(gt_pci_state_t),
-             .attach = gt_pci_attach},
-  .bus = {.intr_setup = gt_pci_intr_setup,
-          .intr_teardown = gt_pci_intr_teardown,
-          .resource_alloc = gt_pci_resource_alloc},
-  .pci_bus =
-    {
-      .read_config = gt_pci_read_config, .write_config = gt_pci_write_config,
-    }};
+  .driver = {
+    .desc = "GT-64120 PCI bus driver",
+    .size = sizeof(gt_pci_state_t),
+    .attach = gt_pci_attach
+  },
+  .bus = {
+    .intr_setup = gt_pci_intr_setup,
+    .intr_teardown = gt_pci_intr_teardown,
+    .alloc_resource = gt_pci_alloc_resource,
+    .release_resource = gt_pci_release_resource,
+    .activate_resource = gt_pci_activate_resource,
+  },
+  .pci_bus = {
+    .read_config = gt_pci_read_config,
+    .write_config = gt_pci_write_config,
+  }
+};
+/* clang-format on */
+
+DEVCLASS_CREATE(pci);
+DEVCLASS_ENTRY(root, gt_pci_bus);
