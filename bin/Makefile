@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = ls_rec mandelbrot sandbox test_kbd test_rtc utest
+SUBDIR = ls_rec mandelbrot sandbox test_kbd test_rtc utest dump_args hash_args
 
 all: build
 
