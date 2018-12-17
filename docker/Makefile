@@ -33,4 +33,8 @@ push:
 	docker push cahirwpz/mimiker-circleci:latest
 	docker push cahirwpz/mimiker-circleci:$(VERSION)
 
-.PHONY: build push up down compile tmux tag push run
+clean:
+	docker image prune
+	docker container prune --filter "until=24h"
+
+.PHONY: build push up down compile tmux tag push run clean

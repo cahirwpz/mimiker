@@ -25,6 +25,7 @@ Other commands reference:
  - `make tmux` - enter the container's shell in a tmux session
  - `make tag` - tag latest image with the version specified in Makefile
  - `make push` - push image with the version specified in Makefile
+ - `make clean` - remove dangling docker images and stopped containers
 
 Possible issues:
 - It is assumed that docker can be managed by non-root user. Take a look at the
