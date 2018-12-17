@@ -385,9 +385,9 @@ noreturn void run_program(const exec_args_t *prog) {
 
   /* ... and initialize file descriptors required by the standard library. */
   int _stdin, _stdout, _stderr;
-  do_open(td, "/dev/uart", O_RDONLY, 0, &_stdin);
-  do_open(td, "/dev/uart", O_WRONLY, 0, &_stdout);
-  do_open(td, "/dev/uart", O_WRONLY, 0, &_stderr);
+  do_open(td, "/dev/cons", O_RDONLY, 0, &_stdin);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &_stdout);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &_stderr);
 
   assert(_stdin == 0);
   assert(_stdout == 1);
