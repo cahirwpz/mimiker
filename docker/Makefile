@@ -6,6 +6,7 @@ build:
 	docker build --no-cache . -t cahirwpz/mimiker-circleci:latest
 
 perms:
+	echo 1 > perms
 	# Set the directory permissions to hardcoded GID
 	sudo chown :1024 ../
 	sudo chmod 775 ../
@@ -32,4 +33,4 @@ push:
 	docker push cahirwpz/mimiker-circleci:latest
 	docker push cahirwpz/mimiker-circleci:$(VERSION)
 
-.PHONY: build push up down compile perms tmux tag push run
+.PHONY: build push up down compile tmux tag push run
