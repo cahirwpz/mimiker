@@ -17,6 +17,7 @@
 #include <exec.h>
 #include <time.h>
 #include <pipe.h>
+#include <malloc.h>
 #include <syslimits.h>
 #include <stack.h>
 
@@ -448,32 +449,32 @@ static int sys_clock_nanosleep(thread_t *td, syscall_args_t *args) {
 
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
-    [SYS_EXIT] = {sys_exit},
-    [SYS_OPEN] = {sys_open},
-    [SYS_CLOSE] = {sys_close},
-    [SYS_READ] = {sys_read},
-    [SYS_WRITE] = {sys_write},
-    [SYS_LSEEK] = {sys_lseek},
-    [SYS_UNLINK] = {sys_unlink},
-    [SYS_GETPID] = {sys_getpid},
-    [SYS_KILL] = {sys_kill},
-    [SYS_FSTAT] = {sys_fstat},
-    [SYS_STAT] = {sys_stat},
-    [SYS_SBRK] = {sys_sbrk},
-    [SYS_MMAP] = {sys_mmap},
-    [SYS_FORK] = {sys_fork},
-    [SYS_MOUNT] = {sys_mount},
-    [SYS_GETDENTS] = {sys_getdirentries},
-    [SYS_SIGACTION] = {sys_sigaction},
-    [SYS_SIGRETURN] = {sys_sigreturn},
-    [SYS_DUP] = {sys_dup},
-    [SYS_DUP2] = {sys_dup2},
-    [SYS_WAITPID] = {sys_waitpid},
-    [SYS_MKDIR] = {sys_mkdir},
-    [SYS_RMDIR] = {sys_rmdir},
-    [SYS_ACCESS] = {sys_access},
-    [SYS_PIPE] = {sys_pipe},
-    [SYS_CLOCKGETTIME] = {sys_clock_gettime},
-    [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep},
-    [SYS_EXECVE] = {sys_execve},
+  [SYS_EXIT] = {sys_exit},
+  [SYS_OPEN] = {sys_open},
+  [SYS_CLOSE] = {sys_close},
+  [SYS_READ] = {sys_read},
+  [SYS_WRITE] = {sys_write},
+  [SYS_LSEEK] = {sys_lseek},
+  [SYS_UNLINK] = {sys_unlink},
+  [SYS_GETPID] = {sys_getpid},
+  [SYS_KILL] = {sys_kill},
+  [SYS_FSTAT] = {sys_fstat},
+  [SYS_STAT] = {sys_stat},
+  [SYS_SBRK] = {sys_sbrk},
+  [SYS_MMAP] = {sys_mmap},
+  [SYS_FORK] = {sys_fork},
+  [SYS_MOUNT] = {sys_mount},
+  [SYS_GETDENTS] = {sys_getdirentries},
+  [SYS_SIGACTION] = {sys_sigaction},
+  [SYS_SIGRETURN] = {sys_sigreturn},
+  [SYS_DUP] = {sys_dup},
+  [SYS_DUP2] = {sys_dup2},
+  [SYS_WAITPID] = {sys_waitpid},
+  [SYS_MKDIR] = {sys_mkdir},
+  [SYS_RMDIR] = {sys_rmdir},
+  [SYS_ACCESS] = {sys_access},
+  [SYS_PIPE] = {sys_pipe},
+  [SYS_CLOCKGETTIME] = {sys_clock_gettime},
+  [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep},
+  [SYS_EXECVE] = {sys_execve},
 };

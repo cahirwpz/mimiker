@@ -47,7 +47,9 @@ typedef struct syscall_args {
 
 typedef int syscall_t(thread_t *, syscall_args_t *);
 
-typedef struct { syscall_t *call; } sysent_t;
+typedef struct {
+  syscall_t *call;
+} sysent_t;
 
 extern sysent_t sysent[];
 

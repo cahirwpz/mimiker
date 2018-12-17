@@ -19,7 +19,7 @@ typedef struct pm_seg {
 } pm_seg_t;
 
 static TAILQ_HEAD(, pm_seg) seglist;
-static mtx_t *seglist_lock = &MTX_INITIALIZER(MTX_DEF);
+static mtx_t *seglist_lock = &MTX_INITIALIZER(0);
 
 void pm_init(void) {
   TAILQ_INIT(&seglist);

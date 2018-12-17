@@ -12,7 +12,7 @@
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
 
-int main(void) {
+int kmain(void) {
   const char *init = kenv_get("init");
   const char *test = kenv_get("test");
 
@@ -20,7 +20,6 @@ int main(void) {
   (void)proc_create(thread_self(), NULL);
 
   if (init) {
-
     const char *argv[] = {init, NULL};
     const size_t max_stack_size = roundup(
       sizeof(size_t) + sizeof(char *) + roundup(strlen(init) + 1, 4), 8);
@@ -37,6 +36,11 @@ int main(void) {
 
     exec_args_t init_args = {
       .prog_name = init, .stack_image = stack, .stack_size = stack_size};
+#if 0
+    exec_args_t init_args = {.prog_name = init,
+                             .argv = (const char *[]){init, NULL},
+                             .envp = (const char *[]){NULL}};
+#endif
 
     run_program(&init_args);
 

@@ -2,6 +2,7 @@
 *.o
 *.ko
 *.a
+*.ka
 
 # Executables
 *.elf
@@ -22,6 +23,7 @@
 
 # Build dependency files
 .*.D
+*-stamp
 
 # Python cache
 *.pyc
@@ -34,9 +36,6 @@ etags
 
 # generated assembly files
 assym.h
-
-# toolchain build artifacts
-toolchain
 
 # Editor swap files
 *.swp
@@ -52,3 +51,6 @@ sysroot
 
 # Dynamically generated gdb config
 .gdbinit
+
+# Visual Studio Code files
+.vscode

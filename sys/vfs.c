@@ -3,6 +3,7 @@
 #include <mount.h>
 #include <stdc.h>
 #include <errno.h>
+#include <pool.h>
 #include <malloc.h>
 #include <file.h>
 #include <vnode.h>
@@ -12,16 +13,16 @@
 
 /* TODO: We probably need some fancier allocation, since eventually we should
  * start recycling vnodes */
-MALLOC_DEFINE(M_VFS, "vfs", 1, 4);
+static POOL_DEFINE(P_MOUNT, "vfs mount points", sizeof(mount_t));
 
 /* The list of all installed filesystem types */
 vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
-mtx_t vfsconf_list_mtx = MTX_INITIALIZER(MTX_DEF);
+mtx_t vfsconf_list_mtx = MTX_INITIALIZER(0);
 
 /* The list of all mounts mounted */
 typedef TAILQ_HEAD(, mount) mount_list_t;
 static mount_list_t mount_list = TAILQ_HEAD_INITIALIZER(mount_list);
-static mtx_t mount_list_mtx = MTX_INITIALIZER(MTX_DEF);
+static mtx_t mount_list_mtx = MTX_INITIALIZER(0);
 
 /* Default vfs operations */
 static vfs_root_t vfs_default_root;
@@ -106,7 +107,7 @@ static int vfs_default_init(vfsconf_t *vfc) {
 }
 
 mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
-  mount_t *m = kmalloc(M_VFS, sizeof(mount_t), M_ZERO);
+  mount_t *m = pool_alloc(P_MOUNT, PF_ZERO);
 
   m->mnt_vfc = vfc;
   m->mnt_vfsops = vfc->vfc_vfsops;
@@ -116,7 +117,7 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
   m->mnt_vnodecovered = v;
 
   m->mnt_refcnt = 0;
-  mtx_init(&m->mnt_mtx, MTX_DEF);
+  mtx_init(&m->mnt_mtx, 0);
 
   return m;
 }

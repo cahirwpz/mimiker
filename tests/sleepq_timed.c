@@ -3,6 +3,7 @@
 #include <time.h>
 #include <thread.h>
 #include <sched.h>
+#include <errno.h>
 #include <runq.h>
 
 /* `waiters[i]` wait with timeout on `&wchan`.
@@ -29,17 +30,17 @@ static thread_t *waker;
 
 static void waiter_routine(void *_arg) {
   systime_t before_sleep = getsystime();
-  sq_wakeup_t status = sleepq_wait_timed(&wchan, __caller(0), SLEEP_TICKS);
+  int status = sleepq_wait_timed(&wchan, __caller(0), SLEEP_TICKS);
   systime_t after_sleep = getsystime();
   systime_t diff = after_sleep - before_sleep;
 
-  if (status == SQ_TIMEOUT) {
+  if (status == -ETIMEDOUT) {
     timed_received++;
     assert(diff >= SLEEP_TICKS);
-  } else if (status == SQ_NORMAL) {
+  } else if (status == 0) {
     signaled_received++;
   } else {
-    panic("Got unexpected wakeup status");
+    panic("Got unexpected wakeup status: %d!", status);
   }
 }
 
@@ -57,17 +58,13 @@ static int test_sleepq_timed(void) {
   signaled_received = 0;
   signaled_sent = 0;
 
-  waker = thread_create("waker", waker_routine, NULL);
+  /* HACK: Priorities differ by RQ_PPQ so that threads occupy different runq. */
+  waker = thread_create("waker", waker_routine, NULL, prio_kthread(0));
   for (int i = 0; i < THREADS; i++) {
     char name[20];
     snprintf(name, sizeof(name), "waiter%d", i);
-    waiters[i] = thread_create(name, waiter_routine, NULL);
-  }
-
-  for (int i = 0; i < THREADS; i++) {
-    WITH_SPINLOCK(waiters[i]->td_spin) {
-      sched_set_prio(waiters[i], RQ_PPQ);
-    }
+    waiters[i] =
+      thread_create(name, waiter_routine, NULL, prio_kthread(0) + RQ_PPQ);
   }
 
   WITH_NO_PREEMPTION {

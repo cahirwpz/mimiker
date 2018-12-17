@@ -36,23 +36,10 @@ bool mips_intr_disabled(void) {
   return (mips32_getsr() & SR_IE) == 0;
 }
 
-#define MIPS_INTR_CHAIN(irq, name)                                             \
-  [irq] = (intr_chain_t) {                                                     \
-    .ic_name = (name), .ic_irq = (irq),                                        \
-    .ic_handlers = TAILQ_HEAD_INITIALIZER(mips_intr_chain[irq].ic_handlers)    \
-  }
+static intr_chain_t mips_intr_chain[8];
 
-static intr_chain_t mips_intr_chain[8] = {
-  /* Initialize software interrupts handler chains. */
-  MIPS_INTR_CHAIN(MIPS_SWINT0, "swint(0)"),
-  MIPS_INTR_CHAIN(MIPS_SWINT1, "swint(1)"),
-  /* Initialize hardware interrupts handler chains. */
-  MIPS_INTR_CHAIN(MIPS_HWINT0, "hwint(0)"),
-  MIPS_INTR_CHAIN(MIPS_HWINT1, "hwint(1)"),
-  MIPS_INTR_CHAIN(MIPS_HWINT2, "hwint(2)"),
-  MIPS_INTR_CHAIN(MIPS_HWINT3, "hwint(3)"),
-  MIPS_INTR_CHAIN(MIPS_HWINT4, "hwint(4)"),
-  MIPS_INTR_CHAIN(MIPS_HWINT5, "hwint(5)")};
+#define MIPS_INTR_CHAIN(irq, name)                                             \
+  intr_chain_init(&mips_intr_chain[irq], irq, name)
 
 void mips_intr_init(void) {
   /*
@@ -68,13 +55,24 @@ void mips_intr_init(void) {
   /* Set vector spacing to 0. */
   mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
 
+  /* Initialize software interrupts handler chains. */
+  MIPS_INTR_CHAIN(MIPS_SWINT0, "swint(0)");
+  MIPS_INTR_CHAIN(MIPS_SWINT1, "swint(1)");
+  /* Initialize hardware interrupts handler chains. */
+  MIPS_INTR_CHAIN(MIPS_HWINT0, "hwint(0)");
+  MIPS_INTR_CHAIN(MIPS_HWINT1, "hwint(1)");
+  MIPS_INTR_CHAIN(MIPS_HWINT2, "hwint(2)");
+  MIPS_INTR_CHAIN(MIPS_HWINT3, "hwint(3)");
+  MIPS_INTR_CHAIN(MIPS_HWINT4, "hwint(4)");
+  MIPS_INTR_CHAIN(MIPS_HWINT5, "hwint(5)");
+
   for (unsigned i = 0; i < 8; i++)
     intr_chain_register(&mips_intr_chain[i]);
 }
 
 void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
   intr_chain_t *chain = &mips_intr_chain[irq];
-  WITH_SPINLOCK(&chain->ic_lock) {
+  WITH_SPIN_LOCK (&chain->ic_lock) {
     intr_chain_add_handler(chain, handler);
     if (chain->ic_count == 1) {
       mips32_bs_c0(C0_STATUS, SR_IM0 << irq); /* enable interrupt */
@@ -85,7 +83,7 @@ void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
 
 void mips_intr_teardown(intr_handler_t *handler) {
   intr_chain_t *chain = handler->ih_chain;
-  WITH_SPINLOCK(&chain->ic_lock) {
+  WITH_SPIN_LOCK (&chain->ic_lock) {
     if (chain->ic_count == 1)
       mips32_bc_c0(C0_STATUS, SR_IM0 << chain->ic_irq);
     intr_chain_remove_handler(handler);
@@ -109,25 +107,25 @@ static void mips_intr_handler(exc_frame_t *frame) {
 }
 
 const char *const exceptions[32] = {
-    [EXC_INTR] = "Interrupt",
-    [EXC_MOD] = "TLB modification exception",
-    [EXC_TLBL] = "TLB exception (load or instruction fetch)",
-    [EXC_TLBS] = "TLB exception (store)",
-    [EXC_ADEL] = "Address error exception (load or instruction fetch)",
-    [EXC_ADES] = "Address error exception (store)",
-    [EXC_IBE] = "Bus error exception (instruction fetch)",
-    [EXC_DBE] = "Bus error exception (data reference: load or store)",
-    [EXC_SYS] = "System call",
-    [EXC_BP] = "Breakpoint exception",
-    [EXC_RI] = "Reserved instruction exception",
-    [EXC_CPU] = "Coprocessor Unusable exception",
-    [EXC_OVF] = "Arithmetic Overflow exception",
-    [EXC_TRAP] = "Trap exception",
-    [EXC_FPE] = "Floating point exception",
-    [EXC_TLBRI] = "TLB read inhibit",
-    [EXC_TLBXI] = "TLB execute inhibit",
-    [EXC_WATCH] = "Reference to watchpoint address",
-    [EXC_MCHECK] = "Machine checkcore",
+  [EXC_INTR] = "Interrupt",
+  [EXC_MOD] = "TLB modification exception",
+  [EXC_TLBL] = "TLB exception (load or instruction fetch)",
+  [EXC_TLBS] = "TLB exception (store)",
+  [EXC_ADEL] = "Address error exception (load or instruction fetch)",
+  [EXC_ADES] = "Address error exception (store)",
+  [EXC_IBE] = "Bus error exception (instruction fetch)",
+  [EXC_DBE] = "Bus error exception (data reference: load or store)",
+  [EXC_SYS] = "System call",
+  [EXC_BP] = "Breakpoint exception",
+  [EXC_RI] = "Reserved instruction exception",
+  [EXC_CPU] = "Coprocessor Unusable exception",
+  [EXC_OVF] = "Arithmetic Overflow exception",
+  [EXC_TRAP] = "Trap exception",
+  [EXC_FPE] = "Floating point exception",
+  [EXC_TLBRI] = "TLB read inhibit",
+  [EXC_TLBXI] = "TLB execute inhibit",
+  [EXC_WATCH] = "Reference to watchpoint address",
+  [EXC_MCHECK] = "Machine checkcore",
 };
 
 static void cpu_get_syscall_args(const exc_frame_t *frame,
@@ -162,14 +160,14 @@ finalize:
 
 static void fpe_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
-    panic("Floating point exception or integer overflow in kernel mode!");
+    kernel_oops(frame);
 
   sig_trap(frame, SIGFPE);
 }
 
 static void cpu_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
-    panic("Coprocessor unusable exception in kernel mode!");
+    kernel_oops(frame);
 
   int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
   if (cp_id != 1) {
@@ -182,7 +180,7 @@ static void cpu_handler(exc_frame_t *frame) {
 
 static void ri_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
-    panic("Reserved instruction exception in kernel mode!");
+    kernel_oops(frame);
 
   sig_trap(frame, SIGILL);
 }
@@ -195,7 +193,7 @@ static void ri_handler(exc_frame_t *frame) {
  */
 static void ade_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
-    panic("Address error exception in kernel mode!");
+    kernel_oops(frame);
 
   sig_trap(frame, SIGBUS);
 }
@@ -226,13 +224,37 @@ static exc_handler_t exception_switch_table[32] = {
 noreturn void kernel_oops(exc_frame_t *frame) {
   unsigned code = exc_code(frame);
 
-  klog("%s at $%08x!", exceptions[code], frame->pc);
-  if ((code == EXC_ADEL || code == EXC_ADES) ||
-      (code == EXC_IBE || code == EXC_DBE) ||
-      (code == EXC_TLBL || code == EXC_TLBS))
-    klog("Caused by reference to $%08x!", frame->badvaddr);
-
-  panic("Unhandled '%s' at $%08x!", exceptions[code], frame->pc);
+  kprintf("KERNEL PANIC!!! \n");
+  kprintf("%s at $%08x!\n", exceptions[code], frame->pc);
+  switch (code) {
+    case EXC_ADEL:
+    case EXC_ADES:
+    case EXC_IBE:
+    case EXC_DBE:
+    case EXC_TLBL:
+    case EXC_TLBS:
+      kprintf("Caused by reference to $%08x!\n", frame->badvaddr);
+      break;
+    case EXC_RI:
+      kprintf("Reserved instruction exception in kernel mode!\n");
+      break;
+    case EXC_CPU:
+      kprintf("Coprocessor unusable exception in kernel mode!\n");
+      break;
+    case EXC_FPE:
+    case EXC_MSAFPE:
+    case EXC_OVF:
+      kprintf("Floating point exception or integer overflow in kernel mode!\n");
+      break;
+    default:
+      break;
+  }
+  kprintf("HINT: Type 'info line *0x%08x' into gdb to find faulty code line.\n",
+          frame->pc);
+  if (ktest_test_running_flag)
+    ktest_failure();
+  else
+    panic();
 }
 
 void kstack_overflow_handler(exc_frame_t *frame) {
@@ -255,8 +277,11 @@ void mips_exc_handler(exc_frame_t *frame) {
   if (!handler)
     kernel_oops(frame);
 
-  /* Only hardware interrupt handling must work with interrupts disabled. */
-  if (code != EXC_INTR)
+  /* Enable interrupts only if you're about to handle an exception that came
+   * from a context that had hardware interrupts enabled.
+   * We don't want to enable interrupts if an exception was generated
+   * in a critical section running with interrupts disabled. */
+  if ((code != EXC_INTR) && (frame->sr & SR_IE))
     intr_enable();
 
   (*handler)(frame);

@@ -7,19 +7,19 @@
 
 RESOURCE_DECLARE(cbus_uart);
 
-static uint8_t in(unsigned offset) {
-  return bus_space_read_1(cbus_uart, offset);
+static uint8_t in(off_t offset) {
+  return bus_read_1(cbus_uart, offset);
 }
 
-static void out(unsigned offset, uint8_t value) {
-  bus_space_write_1(cbus_uart, offset, value);
+static void out(off_t offset, uint8_t value) {
+  bus_write_1(cbus_uart, offset, value);
 }
 
-static void set(unsigned offset, uint8_t mask) {
+static void set(off_t offset, uint8_t mask) {
   out(offset, in(offset) | mask);
 }
 
-static void clr(unsigned offset, uint8_t mask) {
+static void clr(off_t offset, uint8_t mask) {
   out(offset, in(offset) & ~mask);
 }
 

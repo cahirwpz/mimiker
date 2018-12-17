@@ -3,7 +3,7 @@
 #include <stdc.h>
 #include <mutex.h>
 #include <malloc.h>
-#include <physmem.h>
+#include <vm_map.h>
 #include <pool.h>
 #include <queue.h>
 
@@ -115,8 +115,14 @@ static void kmalloc_add_arena(kmem_pool_t *mp, vaddr_t start,
 }
 
 static void kmalloc_add_pages(kmem_pool_t *mp, unsigned pages) {
-  vm_page_t *pg = pm_alloc(pages);
-  kmalloc_add_arena(mp, (vaddr_t)PG_KSEG0_ADDR(pg), PG_SIZE(pg));
+  vm_segment_t *seg;
+  int error = vm_map_alloc_segment(get_kernel_vm_map(), 0, pages * PAGESIZE,
+                                   VM_PROT_READ | VM_PROT_WRITE, VM_ANON, &seg);
+  if (error)
+    panic("failed to alloc pages for '%s'", mp->mp_desc);
+  vaddr_t start, end;
+  vm_segment_range(seg, &start, &end);
+  kmalloc_add_arena(mp, start, end - start);
 }
 
 static mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {
@@ -215,7 +221,7 @@ void kmem_bootstrap(void) {
 static void kmem_init(kmem_pool_t *mp) {
   mp->mp_magic = MB_MAGIC;
   TAILQ_INIT(&mp->mp_arena);
-  mtx_init(&mp->mp_lock, MTX_RECURSE);
+  mtx_init(&mp->mp_lock, LK_RECURSE);
   kmalloc_add_pages(mp, mp->mp_pages_used);
   klog("initialized '%s' kmem at %p ", mp->mp_desc, mp);
 }
@@ -258,3 +264,4 @@ void kmem_destroy(kmem_pool_t *mp) {
 }
 
 MALLOC_DEFINE(M_TEMP, "temporaries pool", 2, 4);
+MALLOC_DEFINE(M_STR, "strings", 2, 4);

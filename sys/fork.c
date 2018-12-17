@@ -14,7 +14,7 @@ int do_fork(void) {
   /* Cannot fork non-user threads. */
   assert(td->td_proc);
 
-  thread_t *newtd = thread_create(td->td_name, NULL, NULL);
+  thread_t *newtd = thread_create(td->td_name, NULL, NULL, td->td_base_prio);
 
   /* Clone the thread. Since we don't use fork-oriented thread_t layout, we copy
      all necessary fields one-by one for clarity. The new thread is already on

@@ -35,11 +35,11 @@ struct pipe {
   pipe_end_t end[2]; /*!< both pipe ends */
 };
 
-static MALLOC_DEFINE(M_PIPE, "pipe", 4, 8);
-static POOL_DEFINE(P_PIPE, "pipes", sizeof(pipe_t));
+static MALLOC_DEFINE(M_PIPE, "pipe buffers", 4, 8);
+static POOL_DEFINE(P_PIPE, "pipe", sizeof(pipe_t));
 
 static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
-  mtx_init(&end->mtx, MTX_DEF);
+  mtx_init(&end->mtx, 0);
   cv_init(&end->nonempty, "pipe_end_empty");
   cv_init(&end->nonfull, "pipe_end_full");
   end->buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
@@ -49,7 +49,7 @@ static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
 
 static pipe_t *pipe_alloc(void) {
   pipe_t *pipe = pool_alloc(P_PIPE, PF_ZERO);
-  mtx_init(&pipe->mtx, MTX_DEF);
+  mtx_init(&pipe->mtx, 0);
   pipe_end_t *end0 = &pipe->end[0];
   pipe_end_t *end1 = &pipe->end[1];
   pipe_end_setup(end0, end1);

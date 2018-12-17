@@ -1,98 +1,148 @@
 #ifndef _SYS_BUS_H_
 #define _SYS_BUS_H_
 
-#include <rman.h>
+#include <machine/_bus.h>
 #include <device.h>
+#include <rman.h>
 
-typedef struct bus_space bus_space_t;
 typedef struct bus_methods bus_methods_t;
 typedef struct bus_driver bus_driver_t;
 typedef struct intr_handler intr_handler_t;
-
-/* `bus space` accessor routines */
-typedef uint8_t (*bus_space_read_1_t)(resource_t *handle, unsigned offset);
-typedef void (*bus_space_write_1_t)(resource_t *handle, unsigned offset,
-                                    uint8_t value);
-typedef uint16_t (*bus_space_read_2_t)(resource_t *handle, unsigned offset);
-typedef void (*bus_space_write_2_t)(resource_t *handle, unsigned offset,
-                                    uint16_t value);
-typedef uint32_t (*bus_space_read_4_t)(resource_t *handle, unsigned offset);
-typedef void (*bus_space_write_4_t)(resource_t *handle, unsigned offset,
-                                    uint32_t value);
-typedef void (*bus_space_read_region_1_t)(resource_t *handle, unsigned offset,
-                                          uint8_t *dst, size_t count);
-typedef void (*bus_space_write_region_1_t)(resource_t *handle, unsigned offset,
-                                           const uint8_t *src, size_t count);
 
 /* `bus space` describes a method to access hardware resources mapped at some
  * address. We make no distinction between different kinds of physical address
  * spaces. Same hardware resource can be accessed in many different ways
  * depending on which bus it was attached to (e.g. I/O ports vs. MMIO) */
 struct bus_space {
-  bus_space_read_1_t read_1;   /* how to read one byte? */
-  bus_space_write_1_t write_1; /* how to write one byte? */
-  bus_space_read_2_t read_2;   /* how to read word? */
-  bus_space_write_2_t write_2; /* how to write word? */
-  bus_space_read_4_t read_4;   /* how to read double word? */
-  bus_space_write_4_t write_4; /* how to write double word? */
-  bus_space_read_region_1_t read_region_1;
-  bus_space_write_region_1_t write_region_1;
+  /* mapping */
+  int (*bs_map)(bus_addr_t, bus_size_t, int, bus_space_handle_t *);
+
+  /* read (single) */
+  uint8_t (*bs_read_1)(bus_space_handle_t, bus_size_t);
+  uint16_t (*bs_read_2)(bus_space_handle_t, bus_size_t);
+  uint32_t (*bs_read_4)(bus_space_handle_t, bus_size_t);
+
+  /* write (single) */
+  void (*bs_write_1)(bus_space_handle_t, bus_size_t, uint8_t);
+  void (*bs_write_2)(bus_space_handle_t, bus_size_t, uint16_t);
+  void (*bs_write_4)(bus_space_handle_t, bus_size_t, uint32_t);
+
+  /* read region */
+  void (*bs_read_region_1)(bus_space_handle_t, bus_size_t, uint8_t *,
+                           bus_size_t);
+  void (*bs_read_region_2)(bus_space_handle_t, bus_size_t, uint16_t *,
+                           bus_size_t);
+  void (*bs_read_region_4)(bus_space_handle_t, bus_size_t, uint32_t *,
+                           bus_size_t);
+
+  /* write region */
+  void (*bs_write_region_1)(bus_space_handle_t, bus_size_t, const uint8_t *,
+                            bus_size_t);
+  void (*bs_write_region_2)(bus_space_handle_t, bus_size_t, const uint16_t *,
+                            bus_size_t);
+  void (*bs_write_region_4)(bus_space_handle_t, bus_size_t, const uint32_t *,
+                            bus_size_t);
 };
+
+int generic_bs_map(bus_addr_t addr, bus_size_t size, int flags,
+                   bus_space_handle_t *handle_p);
+
+uint8_t generic_bs_read_1(bus_space_handle_t handle, bus_size_t offset);
+uint16_t generic_bs_read_2(bus_space_handle_t handle, bus_size_t offset);
+uint32_t generic_bs_read_4(bus_space_handle_t handle, bus_size_t offset);
+
+void generic_bs_write_1(bus_space_handle_t handle, bus_size_t offset,
+                        uint8_t value);
+void generic_bs_write_2(bus_space_handle_t handle, bus_size_t offset,
+                        uint16_t value);
+void generic_bs_write_4(bus_space_handle_t handle, bus_size_t offset,
+                        uint32_t value);
+
+void generic_bs_read_region_1(bus_space_handle_t handle, bus_size_t offset,
+                              uint8_t *dst, bus_size_t count);
+void generic_bs_read_region_2(bus_space_handle_t handle, bus_size_t offset,
+                              uint16_t *dst, bus_size_t count);
+void generic_bs_read_region_4(bus_space_handle_t handle, bus_size_t offset,
+                              uint32_t *dst, bus_size_t count);
+
+void generic_bs_write_region_1(bus_space_handle_t handle, bus_size_t offset,
+                               const uint8_t *src, bus_size_t count);
+void generic_bs_write_region_2(bus_space_handle_t handle, bus_size_t offset,
+                               const uint16_t *src, bus_size_t count);
+void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
+                               const uint32_t *src, bus_size_t count);
 
 #define BUS_SPACE_DECLARE(name) extern bus_space_t name[1]
 
-#define RESOURCE_DECLARE(name) extern resource_t name[1]
+#define __bs_func(t, op, sz)                                                   \
+  (*(t)->__CONCAT(__CONCAT(__CONCAT(bs_, op), _), sz))
 
-static inline uint8_t bus_space_read_1(resource_t *handle, unsigned offset) {
-  return handle->r_bus_space->read_1(handle, offset);
-}
+#define __bs_read(t, h, o, sz) __bs_func((t), read, sz)((h), (o))
+#define bus_space_read_1(t, h, o) __bs_read(t, h, o, 1)
+#define bus_space_read_1(t, h, o) __bs_read(t, h, o, 1)
+#define bus_space_read_2(t, h, o) __bs_read(t, h, o, 2)
+#define bus_space_read_4(t, h, o) __bs_read(t, h, o, 4)
 
-static inline void bus_space_write_1(resource_t *handle, unsigned offset,
-                                     uint8_t value) {
-  handle->r_bus_space->write_1(handle, offset, value);
-}
+#define __bs_write(t, h, o, v, sz) __bs_func((t), write, sz)((h), (o), (v))
+#define bus_space_write_1(t, h, o, v) __bs_write(t, h, o, v, 1)
+#define bus_space_write_2(t, h, o, v) __bs_write(t, h, o, v, 2)
+#define bus_space_write_4(t, h, o, v) __bs_write(t, h, o, v, 4)
 
-static inline uint16_t bus_space_read_2(resource_t *handle, unsigned offset) {
-  return handle->r_bus_space->read_2(handle, offset);
-}
+#define __bs_read_region(t, h, o, dst, cnt, sz)                                \
+  __bs_func((t), read_region, sz)((h), (o), (dst), (cnt))
+#define bus_space_read_region_1(t, h, o, dst, cnt)                             \
+  __bs_read_region(t, h, o, dst, cnt, 1)
+#define bus_space_read_region_2(t, h, o, dst, cnt)                             \
+  __bs_read_region(t, h, o, dst, cnt, 2)
+#define bus_space_read_region_4(t, h, o, dst, cnt)                             \
+  __bs_read_region(t, h, o, dst, cnt, 4)
 
-static inline void bus_space_write_2(resource_t *handle, unsigned offset,
-                                     uint16_t value) {
-  handle->r_bus_space->write_2(handle, offset, value);
-}
+#define __bs_write_region(t, h, o, src, cnt, sz)                               \
+  __bs_func((t), write_region, sz)((h), (o), (src), (cnt))
+#define bus_space_write_region_1(t, h, o, src, cnt)                            \
+  __bs_write_region(t, h, o, src, cnt, 1)
+#define bus_space_write_region_2(t, h, o, src, cnt)                            \
+  __bs_write_region(t, h, o, src, cnt, 2)
+#define bus_space_write_region_4(t, h, o, src, cnt)                            \
+  __bs_write_region(t, h, o, src, cnt, 4)
 
-static inline uint32_t bus_space_read_4(resource_t *handle, unsigned offset) {
-  return handle->r_bus_space->read_4(handle, offset);
-}
+/* Simplified versions of the above, which take only a pointer to resource. */
+#define __bus_read(r, o, sz)                                                   \
+  __bs_read((r)->r_bus_tag, (r)->r_bus_handle, (o), sz)
+#define bus_read_1(r, o) __bus_read(r, o, 1)
+#define bus_read_2(r, o) __bus_read(r, o, 2)
+#define bus_read_4(r, o) __bus_read(r, o, 4)
 
-static inline void bus_space_write_4(resource_t *handle, unsigned offset,
-                                     uint32_t value) {
-  handle->r_bus_space->write_4(handle, offset, value);
-}
+#define __bus_write(r, o, v, sz)                                               \
+  __bs_write((r)->r_bus_tag, (r)->r_bus_handle, (o), (v), sz)
+#define bus_write_1(r, o, v) __bus_write(r, o, v, 1)
+#define bus_write_2(r, o, v) __bus_write(r, o, v, 2)
+#define bus_write_4(r, o, v) __bus_write(r, o, v, 4)
 
-static inline void bus_space_read_region_1(resource_t *handle, unsigned offset,
-                                           uint8_t *dst, size_t count) {
-  return handle->r_bus_space->read_region_1(handle, offset, dst, count);
-}
+#define __bus_read_region(r, o, dst, cnt, sz)                                  \
+  __bs_write((r)->r_bus_tag, (r)->r_bus_handle, (o), (dst), (cnt), sz)
+#define bus_read_region_1(r, o, dst, cnt) __bus_read_region(r, o, dst, cnt, 1)
+#define bus_read_region_2(r, o, dst, cnt) __bus_read_region(r, o, dst, cnt, 2)
+#define bus_read_region_4(r, o, dst, cnt) __bus_read_region(r, o, dst, cnt, 4)
 
-static inline void bus_space_write_region_1(resource_t *handle, unsigned offset,
-                                            const uint8_t *src, size_t count) {
-  handle->r_bus_space->write_region_1(handle, offset, src, count);
-}
+#define __bus_write_region(r, o, src, cnt, sz)                                 \
+  __bs_write_region((r)->r_bus_tag, (r)->r_bus_handle, (o), (src), (cnt), sz)
+#define bus_write_region_1(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 1)
+#define bus_write_region_2(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 2)
+#define bus_write_region_4(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 4)
 
-typedef void (*bus_intr_setup_t)(device_t *dev, unsigned num,
-                                 intr_handler_t *handler);
-typedef void (*bus_intr_teardown_t)(device_t *dev, intr_handler_t *handler);
-
-typedef resource_t *(*bus_resource_alloc_t)(device_t *bus, device_t *child,
-                                            resource_type_t type, int rid,
-                                            rman_addr_t start, rman_addr_t end,
-                                            size_t size, unsigned flags);
+#define bus_space_map(t, a, s, f, hp) (*(t)->bs_map)((a), (s), (f), (hp))
 
 struct bus_methods {
-  bus_intr_setup_t intr_setup;
-  bus_intr_teardown_t intr_teardown;
-  bus_resource_alloc_t resource_alloc;
+  void (*intr_setup)(device_t *dev, unsigned num, intr_handler_t *handler);
+  void (*intr_teardown)(device_t *dev, intr_handler_t *handler);
+  resource_t *(*alloc_resource)(device_t *bus, device_t *child, res_type_t type,
+                                int rid, rman_addr_t start, rman_addr_t end,
+                                size_t size, res_flags_t flags);
+  void (*release_resource)(device_t *bus, device_t *child, res_type_t type,
+                           int rid, resource_t *r);
+  void (*activate_resource)(device_t *bus, device_t *child, res_type_t type,
+                            int rid, resource_t *r);
 };
 
 struct bus_driver {
@@ -111,47 +161,60 @@ static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {
   BUS_DRIVER(dev)->bus.intr_teardown(dev, handler);
 }
 
-/*! \brief Allocates resource of size \a size between \a start and \a end.
+/*! \brief Allocates a resource of type \a type and size \a size between
+ * \a start and \a end for a device \a dev.
  *
  * Should be called inside device's \fn attach function.
  *
  * \param dev device which needs resource
  * \param type resource type RT_* defined in rman.h
  * \param rid resource identifier as in \a resource_t structure
+ * \param start/end - range of the addresses from which the resource will be
+ * allocated
+ * \param size the size of the resource
  * \param flags RF_* flags defined in rman.h
  */
-static inline resource_t *bus_resource_alloc(device_t *dev,
-                                             resource_type_t type, int rid,
-                                             rman_addr_t start, rman_addr_t end,
-                                             size_t size, unsigned flags) {
-  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, start,
+static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
+                                             int rid, rman_addr_t start,
+                                             rman_addr_t end, size_t size,
+                                             res_flags_t flags) {
+  return BUS_DRIVER(dev)->bus.alloc_resource(dev->parent, dev, type, rid, start,
                                              end, size, flags);
 }
 
 /*! \brief Allocates resource for a device.
  *
- * Basically the same as \sa bus_resource_alloc, but resource placement in
- * memory is chosen by the parent bus.
+ * \sa bus_resource_alloc with resource placement in memory
+ * chosen by the parent bus.
  */
-static inline resource_t *bus_resource_alloc_anywhere(device_t *dev,
-                                                      resource_type_t type,
-                                                      int rid, size_t size,
-                                                      unsigned flags) {
-  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0,
+static inline resource_t *bus_alloc_resource_anywhere(device_t *dev,
+                                                      res_type_t type, int rid,
+                                                      size_t size,
+                                                      res_flags_t flags) {
+  return BUS_DRIVER(dev)->bus.alloc_resource(dev->parent, dev, type, rid, 0,
                                              RMAN_ADDR_MAX, size, flags);
 }
 
 /*! \brief Allocates resource for a device.
  *
- * Basically the same as \sa bus_resource_alloc_anywhere, but resource
+ * Basically the same as \sa bus_alloc_resource_anywhere, but resource
  * has to be identifiable by parent bus driver by \param rid.
  */
-static inline resource_t *bus_resource_alloc_any(device_t *dev,
-                                                 resource_type_t type, int rid,
-                                                 unsigned flags) {
+static inline resource_t *bus_alloc_resource_any(device_t *dev, res_type_t type,
+                                                 int rid, res_flags_t flags) {
 
-  return BUS_DRIVER(dev)->bus.resource_alloc(dev->parent, dev, type, rid, 0,
+  return BUS_DRIVER(dev)->bus.alloc_resource(dev->parent, dev, type, rid, 0,
                                              RMAN_ADDR_MAX, 1, flags);
+}
+
+static inline void bus_activate_resource(device_t *dev, res_type_t type,
+                                         int rid, resource_t *r) {
+  BUS_DRIVER(dev)->bus.activate_resource(dev->parent, dev, type, rid, r);
+}
+
+static inline void bus_release_resource(device_t *dev, res_type_t type, int rid,
+                                        resource_t *r) {
+  BUS_DRIVER(dev)->bus.release_resource(dev->parent, dev, type, rid, r);
 }
 
 int bus_generic_probe(device_t *bus);

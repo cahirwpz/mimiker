@@ -1,6 +1,7 @@
 #include <sleepq.h>
 #include <runq.h>
 #include <ktest.h>
+#include <errno.h>
 #include <sched.h>
 
 #define T 6
@@ -33,11 +34,11 @@ static volatile int interrupted;
  * when waiters can't.
  * Therefore there should be only one waiter active at once */
 static void waiter_routine(void *_arg) {
-  int rsn = sleepq_wait_abortable(&some_val, __caller(0));
+  int rsn = sleepq_wait_intr(&some_val, __caller(0));
 
-  if (rsn == SQ_ABORT)
+  if (rsn == -EINTR)
     interrupted++;
-  else if (rsn == SQ_NORMAL)
+  else if (rsn == 0)
     wakened_gracefully++;
   else
     panic("unknown wakeup reason: %d", rsn);
@@ -80,17 +81,12 @@ static int test_sleepq_abort_mult(void) {
   wakened_gracefully = 0;
   interrupted = 0;
 
-  waker = thread_create("waker", waker_routine, NULL);
+  /* HACK: Priorities differ by RQ_PPQ so that threads occupy different runq. */
+  waker = thread_create("waker", waker_routine, NULL, prio_kthread(0) + RQ_PPQ);
   for (int i = 0; i < T; i++) {
     char name[20];
     snprintf(name, sizeof(name), "waiter%d", i);
-    waiters[i] = thread_create(name, waiter_routine, NULL);
-  }
-
-  for (int i = 0; i < T; i++) {
-    WITH_SPINLOCK(waiters[i]->td_spin) {
-      sched_set_prio(waiters[i], RQ_PPQ);
-    }
+    waiters[i] = thread_create(name, waiter_routine, NULL, prio_kthread(0));
   }
 
   for (int i = 0; i < T; i++)
@@ -112,12 +108,10 @@ static void simple_waker_routine(void *_arg) {
 
 /* waiter routine is shared with test_mult */
 static int test_sleepq_abort_simple(void) {
-  waiters[0] = thread_create("waiter", waiter_routine, NULL);
-  waker = thread_create("simp-waker", simple_waker_routine, NULL);
-
-  WITH_SPINLOCK(waiters[0]->td_spin) {
-    sched_set_prio(waiters[0], RQ_PPQ);
-  }
+  /* HACK: Priorities differ by RQ_PPQ so that threads occupy different runq. */
+  waiters[0] = thread_create("waiter", waiter_routine, NULL, prio_kthread(0));
+  waker = thread_create("simp-waker", simple_waker_routine, NULL,
+                        prio_kthread(0) + RQ_PPQ);
 
   sched_add(waiters[0]);
   sched_add(waker);

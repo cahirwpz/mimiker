@@ -97,7 +97,7 @@ fdtab_t *fdtab_alloc(void) {
   fdt->fdt_nfiles = NDFILE;
   fdt->fdt_files = kmalloc(M_FD, sizeof(file_t *) * NDFILE, M_ZERO);
   fdt->fdt_map = kmalloc(M_FD, bitstr_size(NDFILE), M_ZERO);
-  mtx_init(&fdt->fdt_mtx, MTX_DEF);
+  mtx_init(&fdt->fdt_mtx, 0);
   return fdt;
 }
 

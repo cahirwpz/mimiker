@@ -207,7 +207,8 @@ void pool_free(pool_t *pool, void *ptr) {
     unsigned index = slab_index_of(slab, pi);
     bitstr_t *bitmap = slab->ph_bitmap;
 
-    assert(bit_test(bitmap, index));
+    if (!bit_test(bitmap, index))
+      panic("Double free detected in '%s' pool at %p!", pool->pp_desc, ptr);
 
     bit_clear(bitmap, index);
     LIST_REMOVE(slab, ph_slablist);
@@ -225,7 +226,7 @@ static void pool_ctor(pool_t *pool) {
   LIST_INIT(&pool->pp_empty_slabs);
   LIST_INIT(&pool->pp_full_slabs);
   LIST_INIT(&pool->pp_part_slabs);
-  mtx_init(&pool->pp_mtx, MTX_DEF);
+  mtx_init(&pool->pp_mtx, 0);
   pool->pp_align = PI_ALIGNMENT;
   pool->pp_state = INITME;
 }

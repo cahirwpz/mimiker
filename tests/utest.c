@@ -33,6 +33,13 @@ static void utest_generic_thread(void *arg) {
 
   exec_args_t exec_args = {
     .prog_name = "/bin/utest", .stack_image = stack, .stack_size = stack_size};
+#if 0
+  exec_args_t exec_args = {.prog_name = "/bin/utest",
+                           .argv = (const char *[]){"utest", test_name, NULL},
+                           .envp = (const char *[]){NULL}
+
+  };
+#endif
 
   run_program(&exec_args);
 end:
@@ -46,7 +53,7 @@ static int utest_generic(const char *name, int status_success) {
   unsigned old_klog_mask = klog_setmask(KL_UTEST_MASK);
 
   thread_t *utest_thread =
-    thread_create(name, utest_generic_thread, (void *)name);
+    thread_create(name, utest_generic_thread, (void *)name, prio_kthread(0));
   proc_t *child = proc_create(utest_thread, proc_self());
   sched_add(utest_thread);
 

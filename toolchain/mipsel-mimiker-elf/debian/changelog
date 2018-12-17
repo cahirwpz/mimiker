@@ -1,5 +1,0 @@
-mipsel-mimiker-elf (1.2) unstable; urgency=medium
-
-  * GCC 6.3.0, GDB 7.12.1, binutils 2.28
-
- -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Sun, 02 Jul 2017 21:30:28 +0200
