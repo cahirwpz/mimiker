@@ -3,10 +3,10 @@ mimiker:
   image: cahirwpz/mimiker-circleci:latest
   hostname: mimiker
   volumes:
-    - "../:/root/mimiker"
-    - "~/.gitconfig:/root/.gitconfig"
+    - "../:/home/mimiker/mimiker"
+    - "~/.gitconfig:/home/mimiker/.gitconfig"
   restart: on-failure
-  working_dir: /root/mimiker
+  working_dir: /home/mimiker/mimiker
   entrypoint:
     - sleep
     - inf
