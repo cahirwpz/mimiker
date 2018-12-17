@@ -7,43 +7,12 @@
 #include <sched.h>
 #include <proc.h>
 #include <wait.h>
-#include <syslimits.h>
-#include <malloc.h>
-#include <stack.h>
 
-static void utest_generic_thread(void *arg) {
-
-  const char *test_name = arg;
-  const char *argv[] = {"utest", test_name};
-
-  size_t max_stack_size = roundup(
-    roundup(sizeof(size_t) + 2 * sizeof(char *), 8) +
-      roundup(strlen("utest") + 1, 4) + roundup(strlen(test_name) + 1, 4),
-    8);
-
-  int8_t *stack = kmalloc(M_TEMP, max_stack_size, 0);
-  size_t stack_size;
-
-  int result =
-    kspace_setup_exec_stack(argv, stack, max_stack_size, &stack_size);
-  if (result < 0)
-    goto end;
-
-  assert(stack_size == max_stack_size);
-
-  exec_args_t exec_args = {
-    .prog_name = "/bin/utest", .stack_image = stack, .stack_size = stack_size};
-#if 0
+static noreturn void utest_generic_thread(void *arg) {
   exec_args_t exec_args = {.prog_name = "/bin/utest",
-                           .argv = (const char *[]){"utest", test_name, NULL},
-                           .envp = (const char *[]){NULL}
-
-  };
-#endif
-
+                           .argv = (const char *[]){"utest", arg, NULL},
+                           .envp = (const char *[]){NULL}};
   run_program(&exec_args);
-end:
-  kfree(M_TEMP, stack);
 }
 
 /* This is the klog mask used with utests. */

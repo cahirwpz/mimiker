@@ -43,21 +43,16 @@ typedef struct copy_ops {
 int setup_exec_stack(const char **argv, int8_t *stack, size_t max_stack_size,
                      size_t *stack_size, copy_ops_t co);
 
-void patch_blob(void *blob, size_t addr) {
-
+static void patch_blob(void *blob, size_t addr) {
   size_t argc = ((size_t *)blob)[0];
   char **argv = (char **)(blob + sizeof(argc));
-
   size_t oldbase = (size_t)(blob);
 
-  for (size_t i = 0; i < argc; i++) {
-
+  for (size_t i = 0; i < argc; i++)
     argv[i] = argv[i] + (addr - oldbase);
-  }
 }
 
 void stack_user_entry_setup(const exec_args_t *args, vaddr_t *stack_bottom_p) {
-
   size_t total_arg_size = args->stack_size;
 
   assert((total_arg_size % 8) == 0);
@@ -67,27 +62,24 @@ void stack_user_entry_setup(const exec_args_t *args, vaddr_t *stack_bottom_p) {
   patch_blob(args->stack_image, (size_t)(*stack_bottom_p));
   memcpy((uint8_t *)*stack_bottom_p, args->stack_image, total_arg_size);
 
-  /* /\* TODO: Environment *\/ */
+  /* TODO: Environment */
 }
 
 int uspace_setup_exec_stack(const char **user_argv, int8_t *stack,
                             size_t max_stack_size, size_t *stack_size) {
-
   copy_ops_t from_uspace = {.cpybytes = copyin, .cpystr = copyinstr};
 
   return setup_exec_stack(user_argv, stack, max_stack_size, stack_size,
                           from_uspace);
 }
 
-int memcpy_wrapper(const void *src, void *dst, size_t dst_size) {
-
+static int memcpy_wrapper(const void *src, void *dst, size_t dst_size) {
   memcpy(dst, src, dst_size);
   return 0;
 }
 
-int strlcpy_wrapper(const void *src, void *dst, size_t dst_size,
-                    size_t *lencopied) {
-
+static int strlcpy_wrapper(const void *src, void *dst, size_t dst_size,
+                           size_t *lencopied) {
   size_t act_size = strlen(src) + 1;
   int result = 0;
 
@@ -112,8 +104,8 @@ int kspace_setup_exec_stack(const char **kern_argv, int8_t *stack,
                           from_kspace);
 }
 
-int copy_ptrs(const char **user_argv, char **blob, size_t blob_size,
-              size_t *argc_out, copy_ops_t co) {
+static int copy_ptrs(const char **user_argv, char **blob, size_t blob_size,
+                     size_t *argc_p, copy_ops_t co) {
 
   const char **kern_argv = (const char **)blob;
 
@@ -131,10 +123,10 @@ int copy_ptrs(const char **user_argv, char **blob, size_t blob_size,
 
     // We copied all arg ptrs :)
     if (argc == 0) // Is argument list empty?
-      return -EFAULT;
+      return -EINVAL;
 
     // Its not empty and we copied all arg ptrs - Success!
-    *argc_out = argc;
+    *argc_p = argc;
     return 0;
   }
 
@@ -167,30 +159,27 @@ int copy_strings(size_t argc, char **kern_argv, int8_t *dst, size_t dst_size,
 }
 
 int setup_exec_stack(const char **argv, int8_t *stack, size_t max_stack_size,
-                     size_t *stack_size, copy_ops_t co) {
-
+                     size_t *stack_size_p, copy_ops_t co) {
+  int error;
   size_t argc;
   char **kern_argv = (char **)(stack + sizeof(argc));
 
-  int result =
-    copy_ptrs(argv, kern_argv, max_stack_size - sizeof(argc), &argc, co);
-  if (result < 0)
-    return result;
-
-  assert(argc > 0);
+  error = copy_ptrs(argv, kern_argv, max_stack_size - sizeof(argc), &argc, co);
+  if (error)
+    return error;
 
   ((size_t *)stack)[0] = argc;
-  *stack_size = roundup(argc * sizeof(char *) + sizeof(argc), 8);
-
-  int8_t *arg_blob_start = stack + *stack_size;
+  size_t stack_size = roundup(argc * sizeof(char *) + sizeof(argc), 8);
+  int8_t *arg_blob_start = stack + stack_size;
   size_t arg_blob_size;
 
-  result = copy_strings(argc, kern_argv, arg_blob_start,
-                        max_stack_size - *stack_size, &arg_blob_size, co);
-  if (result < 0)
-    return result;
+  error = copy_strings(argc, kern_argv, arg_blob_start,
+                       max_stack_size - stack_size, &arg_blob_size, co);
+  if (error)
+    return error;
 
-  *stack_size = roundup(*stack_size + arg_blob_size, 8);
+  stack_size = roundup(stack_size + arg_blob_size, 8);
+  *stack_size_p = stack_size;
 
-  return result;
+  return 0;
 }

@@ -17,6 +17,14 @@
 #include <proc.h>
 #include <systm.h>
 
+int exec_args_copyin(exec_args_t *exec_args, vaddr_t user_path, 
+                     vaddr_t user_argv, vaddr_t user_envp) {
+  return -EFAULT;
+}
+
+void exec_args_destroy(exec_args_t *exec_args) {
+}
+
 /*! \brief Stores C-strings in ustack and makes stack-allocated pointers
  *  point on them.
  *

@@ -374,35 +374,18 @@ end:
 }
 
 static int sys_execve(thread_t *td, syscall_args_t *args) {
-  const char *user_path = (const char *)args->args[0];
-  const char **user_argv = (const char **)args->args[1];
+  vaddr_t user_path = (vaddr_t)args->args[0];
+  vaddr_t user_argv = (vaddr_t)args->args[1];
+  vaddr_t user_envp = (vaddr_t)args->args[2];
+  int result;
 
-  if ((user_path == NULL) || (user_argv == NULL))
-    return -EFAULT;
-
-  char *kern_path = kmalloc(M_TEMP, PATH_MAX, 0);
-  int8_t *stack = kmalloc(M_TEMP, ARG_MAX, 0);
-
-  int result = copyinstr(user_path, kern_path, PATH_MAX, 0);
-  if (result < 0)
-    goto end;
-
-  size_t stack_size;
-  result = uspace_setup_exec_stack(user_argv, stack, ARG_MAX, &stack_size);
-  if (result < 0)
-    goto end;
-
-  const exec_args_t exec_args = {
-    .prog_name = kern_path, .stack_image = stack, .stack_size = stack_size};
+  exec_args_t exec_args;
+  if ((result = exec_args_copyin(&exec_args, user_path, user_argv, user_envp)))
+    return result;
 
   result = do_exec(&exec_args);
-
-  klog("execve(\"%s\", ... )", kern_path);
-
-end:
-  kfree(M_TEMP, stack);
-  kfree(M_TEMP, kern_path);
-
+  klog("execve(\"%s\", ...) = %d", exec_args.prog_name, result);
+  exec_args_destroy(&exec_args);
   return result;
 }
 
