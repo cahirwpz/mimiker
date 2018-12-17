@@ -8,7 +8,9 @@ Quickstart
 
 To set up container-based local environment:
 
-    `cd docker && make run`
+```
+make -C docker run
+```
 
 For more details please refer to `docker` directory.
 

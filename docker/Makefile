@@ -1,5 +1,7 @@
+run: compile tmux
+
 build:
-	docker build . -t cahirwpz/mimiker-circleci:latest
+	docker build --no-cache . -t cahirwpz/mimiker-circleci:latest
 
 push:
 	docker push cahirwpz/mimiker-circleci:latest
@@ -7,11 +9,13 @@ push:
 up:
 	docker-compose up -d
 
-compile:
+down:
+	docker-compose down
+
+compile: up
 	docker-compose exec mimiker make
 
-tmux:
+tmux: up
 	docker-compose exec mimiker tmux
 
-run: up compile tmux
-
+.PHONY: build push up down compile tmux run
