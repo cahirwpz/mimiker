@@ -384,10 +384,14 @@ noreturn void run_program(const exec_args_t *prog) {
   p->p_fdtable = fdt;
 
   /* ... and initialize file descriptors required by the standard library. */
-  int ignore;
-  do_open(td, "/dev/cons", O_RDONLY, 0, &ignore);
-  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
-  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
+  int _stdin, _stdout, _stderr;
+  do_open(td, "/dev/cons", O_RDONLY, 0, &_stdin);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &_stdout);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &_stderr);
+
+  assert(_stdin == 0);
+  assert(_stdout == 1);
+  assert(_stderr == 2);
 
   if (do_exec(prog) != -EJUSTRETURN)
     panic("Failed to start %s program.", prog->argv[0]);
