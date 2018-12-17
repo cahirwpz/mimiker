@@ -12,9 +12,6 @@ perms:
 	# Ensure new files will inherit the rigth group ID
 	sudo chmod g+s ../
 
-push:
-	docker push cahirwpz/mimiker-circleci:latest
-
 up: perms
 	docker-compose up -d
 
@@ -32,6 +29,7 @@ tag:
 		         cahirwpz/mimiker-circleci:$(VERSION)
 
 push:
+	docker push cahirwpz/mimiker-circleci:latest
 	docker push cahirwpz/mimiker-circleci:$(VERSION)
 
 .PHONY: build push up down compile perms tmux tag push run
