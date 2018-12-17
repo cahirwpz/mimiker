@@ -113,8 +113,6 @@ UTEST_ADD_SIMPLE(lseek_errors);
 
 UTEST_ADD_SIMPLE(access_basic);
 
-UTEST_ADD_SIMPLE(execve_basic);
-UTEST_ADD_SIMPLE(execve_errors);
 UTEST_ADD_SIMPLE(stat);
 UTEST_ADD_SIMPLE(fstat);
 

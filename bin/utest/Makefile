@@ -3,7 +3,6 @@ TOPDIR = $(realpath ../..)
 SOURCES = \
 	access.c \
 	exceptions.c \
-	execve.c \
 	fd.c \
 	fork.c \
 	fpu_ctx.c \
