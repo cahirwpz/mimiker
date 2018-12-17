@@ -8,15 +8,10 @@
 #include <proc.h>
 #include <wait.h>
 
-static void utest_generic_thread(void *arg) {
-  const char *test_name = arg;
-
+static noreturn void utest_generic_thread(void *arg) {
   exec_args_t exec_args = {.prog_name = "/bin/utest",
-                           .argv = (const char *[]){"utest", test_name, NULL},
-                           .envp = (const char *[]){NULL}
-
-  };
-
+                           .argv = (const char *[]){"utest", arg, NULL},
+                           .envp = (const char *[]){NULL}};
   run_program(&exec_args);
 }
 
