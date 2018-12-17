@@ -19,7 +19,6 @@
 #include <pipe.h>
 #include <malloc.h>
 #include <syslimits.h>
-#include <stack.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 int sys_nosys(thread_t *td, syscall_args_t *args) {
