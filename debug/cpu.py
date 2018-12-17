@@ -7,7 +7,7 @@ from ptable import ptable, as_hex
 PAGESIZE = 0x1000
 
 
-class TLBHi(object):
+class TLBHi():
     def __init__(self, val):
         self.val = utils.cast(val, 'unsigned long')
 
@@ -20,7 +20,7 @@ class TLBHi(object):
         return self.val & 0x000000ff
 
 
-class TLBLo(object):
+class TLBLo():
     def __init__(self, val):
         self.val = utils.cast(val, 'unsigned long')
 
@@ -44,8 +44,7 @@ class TLBLo(object):
         return '%08x %c%c' % (self.ppn, '-D'[self.dirty], '-G'[self.globl])
 
 
-class TLBEntry(object):
-    __metaclass__ = utils.GdbStructMeta
+class TLBEntry(metaclass=utils.GdbStructMeta):
     __ctype__ = 'tlbentry_t'
     __cast__ = {'hi': TLBHi, 'lo0': TLBLo, 'lo1': TLBLo}
 
@@ -60,7 +59,7 @@ class TLBEntry(object):
         return ['%02x' % self.hi.asid, lo0, lo1]
 
 
-class TLB(object):
+class TLB():
     def invoke(self):
         rows = [["Index", "ASID", "PFN0", "PFN1"]]
         for idx in range(TLB.size()):

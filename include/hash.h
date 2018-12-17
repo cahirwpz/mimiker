@@ -27,8 +27,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __HASH_H__
-#define __HASH_H__
+#ifndef _SYS_HASH_H_
+#define _SYS_HASH_H_
 
 #include <common.h>
 
@@ -80,4 +80,4 @@ static inline uint32_t hash32_strn(const void *bf, size_t len, uint32_t hash) {
   return (hash + (hash >> 5));
 }
 
-#endif /* !__HASH_H__ */
+#endif /* !_SYS_HASH_H_ */
