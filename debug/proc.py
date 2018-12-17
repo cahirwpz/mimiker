@@ -18,7 +18,8 @@ class Process(object):
 
     @classmethod
     def current(cls):
-        return cls(gdb.parse_and_eval('_pcpu_data->curthread->td_proc').dereference())
+        return cls(gdb.parse_and_eval('_pcpu_data->curthread->td_proc')
+                   .dereference())
 
     @classmethod
     def from_pointer(cls, ptr):
