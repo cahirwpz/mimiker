@@ -20,7 +20,6 @@ ADD https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/instal
 COPY requirements.txt .
 
 RUN apt-get -q update && apt-get upgrade -y
-RUN apt-get install -y --no-install-recommends sudo
 RUN apt-get install -y --no-install-recommends \
        git make cpio socat curl ctags cscope less locales patch file sudo \
        zsh vim-nox tmux tig python3-pip clang-format-6.0 \
