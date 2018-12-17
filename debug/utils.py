@@ -41,7 +41,7 @@ class OneArgAutoCompleteMixin():
         return suggestions
 
 
-class GdbStructBase(object):
+class GdbStructBase():
     def __init__(self, obj):
         self._obj = obj
 

@@ -2,6 +2,7 @@
 #define _SYS_TURNSTILE_H_
 
 #include <common.h>
+#include <priority.h>
 
 typedef struct turnstile turnstile_t;
 

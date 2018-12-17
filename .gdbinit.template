@@ -18,7 +18,11 @@ break panic_fail
 #dprintf proc_lock,"proc_lock(0x%08x)\n",p
 #dprintf proc_unlock,"proc_unlock(0x%08x)\n",p
 
+# user space program debugging
+#add-symbol-file user/utest/utest.uelf 0x400000
+#break main
+
 # make extra commands available
 python import os, sys
-python sys.path.append(os.getcwd())
-python import debug
+python sys.path.append(os.path.join(os.getcwd(), 'debug'))
+python import __init__

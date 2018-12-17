@@ -1,5 +1,6 @@
-/* Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file. */
-
+/* GT64120 PCI bus driver
+ *
+ * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file. */
 #define KL_LOG KL_DEV
 #include <mips/malta.h>
 #include <mips/intr.h>
@@ -13,6 +14,7 @@
 #include <stdc.h>
 #include <klog.h>
 #include <bus.h>
+#include <devclass.h>
 
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
@@ -108,10 +110,13 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   switch (size) {
     case 1:
       data.byte[3 - reg] = value;
+      break;
     case 2:
       data.word[1 - (reg >> 1)] = value;
+      break;
     case 4:
       data.dword = value;
+      break;
     default:
       break;
   }
@@ -394,3 +399,6 @@ pci_bus_driver_t gt_pci_bus = {
   }
 };
 /* clang-format on */
+
+DEVCLASS_CREATE(pci);
+DEVCLASS_ENTRY(root, gt_pci_bus);
