@@ -15,8 +15,6 @@ typedef struct exec_args {
   size_t stack_size;
 } exec_args_t;
 
-typedef const char **argv_t;
-
 int do_exec(const exec_args_t *prog);
 noreturn void run_program(const exec_args_t *prog);
 
