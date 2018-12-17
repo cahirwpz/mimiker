@@ -23,20 +23,8 @@ Other commands reference:
  - `make down` - bring the container down
  - `make compile` - compile mimiker kernel
  - `make tmux` - enter the container's shell in a tmux session
-
-If you would like to tag the built image with a specific version, please run:
-
-```
-docker image tag cahirwpz/mimiker-circleci:latest \
-                  cahirwpz/mimiker-circleci:X.Y
-```
-
-where X, Y are version numbers, and then run the following command to push the
-tag to the docker hub:
-
-```
-docker push cahirwpz/mimiker-circleci:X.Y
-```
+ - `make tag` - tag latest image with the version specified in Makefile
+ - `make push` - push image with the version specified in Makefile
 
 Possible issues:
 - It is assumed that docker can be managed by non-root user. Take a look at the

@@ -1,3 +1,5 @@
+VERSION = 1.6
+
 run: compile tmux
 
 build:
@@ -25,4 +27,11 @@ compile: up
 tmux: up
 	docker-compose exec mimiker tmux
 
-.PHONY: build push up down compile perms tmux run
+tag:
+	docker image tag cahirwpz/mimiker-circleci:latest \
+		         cahirwpz/mimiker-circleci:$(VERSION)
+
+push:
+	docker push cahirwpz/mimiker-circleci:$(VERSION)
+
+.PHONY: build push up down compile perms tmux tag push run
