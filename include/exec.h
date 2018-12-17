@@ -6,12 +6,10 @@
 typedef struct exec_args {
   /* Path to the executable. */
   const char *prog_name;
-#if 0
   /* Program arguments and initial environment variables.
    * These will get copied to the stack of the starting process. */
   const char **argv;
   const char **envp;
-#endif
   /* Initial stack of the starting process. */
   int8_t *stack_image;
   size_t stack_size;

@@ -19,6 +19,7 @@ SOURCES = \
 	pmap.c \
 	rootdev.c \
 	signal.c \
+	stack.c \
 	switch.S \
 	test-md.S \
 	timer.c \
