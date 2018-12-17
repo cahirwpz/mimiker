@@ -17,7 +17,7 @@
 #include <proc.h>
 #include <systm.h>
 
-int exec_args_copyin(exec_args_t *exec_args, vaddr_t user_path, 
+int exec_args_copyin(exec_args_t *exec_args, vaddr_t user_path,
                      vaddr_t user_argv, vaddr_t user_envp) {
   return -EFAULT;
 }
