@@ -3,8 +3,8 @@ FROM debian:stretch-backports
 # XXX: Create a group in which we will operate with a hardcoded GID,
 # so that we are able to set proper directory permissions on host
 # for volume with source code.
-RUN addgroup --gid 1024 mimiker
-RUN adduser --disabled-password --gecos "" --force-badname \
+RUN addgroup --gid 1024 mimiker && \
+    adduser --disabled-password --gecos "" --force-badname \
     --ingroup mimiker --ingroup sudo mimiker
 
 WORKDIR /home/mimiker
@@ -15,8 +15,6 @@ ADD http://mimiker.ii.uni.wroc.pl/download/qemu-mimiker_2.12.0+mimiker1_amd64.de
     qemu-mimiker_2.12.0+mimiker1_amd64.deb
 ADD http://mimiker.ii.uni.wroc.pl/download/aarch64-mimiker-elf_1.3_amd64.deb \
     aarch64-mimiker-elf_1.3_amd64.deb
-ADD https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh \
-    zsh-install.sh
 COPY requirements.txt .
 
 RUN apt-get -q update && apt-get upgrade -y
@@ -39,5 +37,8 @@ RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
 RUN touch .gitconfig && \
      echo "add-auto-load-safe-path mimiker/.gdbinit" > .gdbinit && \
      echo "mimiker  ALL=(ALL)   NOPASSWD: ALL" >> /etc/sudoers
-RUN bash zsh-install.sh
+
 USER mimiker
+# ADD https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh \
+#     zsh-install.sh
+# RUN bash zsh-install.sh
