@@ -15,6 +15,15 @@
 #include <mount.h>
 #include <vnode.h>
 #include <proc.h>
+#include <systm.h>
+
+int exec_args_copyin(exec_args_t *exec_args, vaddr_t user_path,
+                     vaddr_t user_argv, vaddr_t user_envp) {
+  return -EFAULT;
+}
+
+void exec_args_destroy(exec_args_t *exec_args) {
+}
 
 /*! \brief Stores C-strings in ustack and makes stack-allocated pointers
  *  point on them.
@@ -373,7 +382,7 @@ noreturn void run_program(const exec_args_t *prog) {
 
   assert(p != NULL);
 
-  klog("Starting program \"%s\"", prog->argv[0]);
+  klog("Starting program \"%s\"", prog->prog_name);
 
   /* Let's assign an empty virtual address space, to be filled by `do_exec` */
   p->p_uspace = vm_map_new();
@@ -384,13 +393,17 @@ noreturn void run_program(const exec_args_t *prog) {
   p->p_fdtable = fdt;
 
   /* ... and initialize file descriptors required by the standard library. */
-  int ignore;
-  do_open(td, "/dev/cons", O_RDONLY, 0, &ignore);
-  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
-  do_open(td, "/dev/cons", O_WRONLY, 0, &ignore);
+  int _stdin, _stdout, _stderr;
+  do_open(td, "/dev/cons", O_RDONLY, 0, &_stdin);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &_stdout);
+  do_open(td, "/dev/cons", O_WRONLY, 0, &_stderr);
+
+  assert(_stdin == 0);
+  assert(_stdout == 1);
+  assert(_stderr == 2);
 
   if (do_exec(prog) != -EJUSTRETURN)
-    panic("Failed to start %s program.", prog->argv[0]);
+    panic("Failed to start %s program.", prog->prog_name);
 
   user_exc_leave();
 }

@@ -14,6 +14,7 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <exec.h>
 #include <time.h>
 #include <pipe.h>
 #include <malloc.h>
@@ -371,6 +372,22 @@ end:
   return result;
 }
 
+static int sys_execve(thread_t *td, syscall_args_t *args) {
+  vaddr_t user_path = (vaddr_t)args->args[0];
+  vaddr_t user_argv = (vaddr_t)args->args[1];
+  vaddr_t user_envp = (vaddr_t)args->args[2];
+  int result;
+
+  exec_args_t exec_args;
+  if ((result = exec_args_copyin(&exec_args, user_path, user_argv, user_envp)))
+    return result;
+
+  result = do_exec(&exec_args);
+  klog("execve(\"%s\", ...) = %d", exec_args.prog_name, result);
+  exec_args_destroy(&exec_args);
+  return result;
+}
+
 static int sys_access(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
   mode_t mode = args->args[1];
@@ -441,4 +458,5 @@ sysent_t sysent[] = {
   [SYS_PIPE] = {sys_pipe},
   [SYS_CLOCKGETTIME] = {sys_clock_gettime},
   [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep},
+  [SYS_EXECVE] = {sys_execve},
 };
