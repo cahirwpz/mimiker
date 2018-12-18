@@ -6,12 +6,12 @@ build:
 	docker build --no-cache . -t cahirwpz/mimiker-circleci:latest
 
 perms:
-	echo 1 > perms
 	# Set the directory permissions to hardcoded GID
 	sudo chown :1024 ../
 	sudo chmod 775 ../
 	# Ensure new files will inherit the rigth group ID
 	sudo chmod g+s ../
+	touch $@
 
 up: perms
 	docker-compose up -d
