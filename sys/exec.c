@@ -16,11 +16,142 @@
 #include <vnode.h>
 #include <proc.h>
 #include <systm.h>
+#include <malloc.h>
+
+
+blob_t blob_init(kmem_pool_t* pool, size_t capacity) {
+  blob_t result = {
+    .start = kmalloc(pool, capacity, 0),
+    .end = result.start,  /* is it kosher?*/
+    .capacity = capacity
+  };
+  
+  return result;
+}
+
+void blob_destroy(kmem_pool_t* pool, blob_t blob) {
+  kfree(pool, blob.start);
+}
+
+
+static inline size_t blob_freespace(blob_t *blob) {
+
+  return blob->capacity - (blob->end - blob->start);
+
+}
+
+
+int blob_rollin_ptr(blob_t *blob, vaddr_t user_ptr, /*out*/ const char **ptr) {
+
+  int error;
+  void *kptr;
+
+  if (blob_freespace(blob) < sizeof(void*))
+    return -ENOMEM;
+  
+  if ((error = copyin((void*)user_ptr, &kptr, sizeof(void*))))
+    return error;
+
+  *ptr = kptr;
+  blob->end += sizeof(void*);
+  
+  return 0;
+}
+
+
+static int fetch_ptr(vaddr_t uaddr, void** ptr) {
+  int error;
+  
+  if ((error = copyin((void*)uaddr, ptr, sizeof(void*))))
+    return error;
+
+  return 0;
+}
+
+int blob_rollin_str(blob_t *blob, const char* user_str, /*out*/ const char **str) {
+
+  int error;
+  const char *kstr = user_str;
+ 
+  if ((error = copyinstr(kstr, blob->end, blob_freespace(blob) , NULL)))
+   goto error;
+
+ *str = blob->end;
+ blob->end+= error + 1;
+
+  
+ return 0;
+ error:
+
+ return -ENOMEM;
+}
+
+
+int blob_rollin_strings(blob_t *blob, const char** start, const char** end) {
+  int error;
+
+  const char* ptr;
+
+  while (start < end) {
+
+    if (( error = blob_rollin_str(blob, *start, &ptr)))
+	return error;
+
+    *start = ptr;
+
+    start++;
+  }
+
+  
+  return 0;
+
+}
+
+int blob_rollin_ptrs(blob_t *blob, vaddr_t start) {
+  int error;
+  const char* ptr;
+  
+    do {
+    if (( error =  blob_rollin_ptr(blob, start, &ptr)))
+        return error;
+    start += sizeof(void*);
+  } while (ptr != NULL);
+
+
+  
+  return 0;
+}
+
+
+
 
 int exec_args_copyin(exec_args_t *exec_args, vaddr_t user_path,
-                     vaddr_t user_argv, vaddr_t user_envp) {
-  return -EFAULT;
+	     vaddr_t user_argv, vaddr_t user_envp) {
+
+  int error;
+  const char *ptr;
+  const char **argv_start, **argv_end;
+ 
+
+  if ((error = fetch_ptr(user_path, (void**)&ptr)))
+      return error;
+  
+  if ((error = blob_rollin_str(&exec_args->blob, ptr, &exec_args->prog_name)))
+    return error;
+
+  argv_start = exec_args->blob.end;
+
+    if (( error =  blob_rollin_ptrs(&exec_args->blob, user_argv)))
+      return error;
+  
+  argv_end = exec_args->blob.end;
+
+  if (( error = blob_rollin_strings(&exec_args->blob, argv_start, argv_end)))
+    return error;
+  
+  return 0;
 }
+
 
 void exec_args_destroy(exec_args_t *exec_args) {
 }

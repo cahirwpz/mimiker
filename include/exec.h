@@ -2,6 +2,17 @@
 #define _SYS_EXEC_H_
 
 #include <common.h>
+#include <malloc.h>
+
+typedef struct {
+  size_t capacity;
+  void *start;  
+  void *end;
+} blob_t;
+
+blob_t blob_init(kmem_pool_t* pool, size_t capacity);
+void blob_destroy(kmem_pool_t* pool, blob_t blob);
+
 
 typedef struct exec_args {
   /* Path to the executable. */
@@ -10,6 +21,7 @@ typedef struct exec_args {
    * These will get copied to the stack of the starting process. */
   const char **argv;
   const char **envp;
+  blob_t blob;
 } exec_args_t;
 
 int exec_args_copyin(exec_args_t *exec_args, vaddr_t user_path,

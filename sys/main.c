@@ -5,6 +5,7 @@
 #include <proc.h>
 #include <thread.h>
 #include <ktest.h>
+#include <syslimits.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
@@ -13,14 +14,18 @@ int kmain(void) {
   const char *init = kenv_get("init");
   const char *test = kenv_get("test");
 
+  blob_t blob = blob_init(M_TEMP, PATH_MAX + ARG_MAX);
+
   /* Main kernel thread becomes PID(0) - a god process! */
   (void)proc_create(thread_self(), NULL);
 
   if (init) {
     exec_args_t init_args = {.prog_name = init,
                              .argv = (const char *[]){init, NULL},
-                             .envp = (const char *[]){"PATH=/bin", NULL}};
+                             .envp = (const char *[]){"PATH=/bin", NULL},
+			     .blob = blob};
     run_program(&init_args);
+    blob_destroy(M_TEMP, blob);
   } else if (test) {
     ktest_main(test);
   } else {

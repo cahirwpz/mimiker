@@ -7,11 +7,15 @@
 #include <sched.h>
 #include <proc.h>
 #include <wait.h>
+#include <syslimits.h>
 
 static noreturn void utest_generic_thread(void *arg) {
+  blob_t blob = blob_init(M_TEMP, PATH_MAX + ARG_MAX);
+
   exec_args_t exec_args = {.prog_name = "/bin/utest",
                            .argv = (const char *[]){"utest", arg, NULL},
-                           .envp = (const char *[]){"PATH=/bin", NULL}};
+                           .envp = (const char *[]){"PATH=/bin", NULL},
+			   .blob = blob};
   run_program(&exec_args);
 }
 

@@ -379,12 +379,16 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   int result;
 
   exec_args_t exec_args;
+
+  exec_args.blob = blob_init(M_TEMP, PATH_MAX + ARG_MAX);
+  
   if ((result = exec_args_copyin(&exec_args, user_path, user_argv, user_envp)))
     return result;
 
   result = do_exec(&exec_args);
   klog("execve(\"%s\", ...) = %d", exec_args.prog_name, result);
-  exec_args_destroy(&exec_args);
+  /*exec_args_destroy(&exec_args);*/
+  blob_destroy(M_TEMP, exec_args.blob);
   return result;
 }
 
