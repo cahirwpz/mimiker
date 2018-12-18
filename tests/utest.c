@@ -10,12 +10,9 @@
 #include <syslimits.h>
 
 static noreturn void utest_generic_thread(void *arg) {
-  blob_t blob = blob_init(M_TEMP, PATH_MAX + ARG_MAX);
-
   exec_args_t exec_args = {.prog_name = "/bin/utest",
-                           .argv = (const char *[]){"utest", arg, NULL},
-                           .envp = (const char *[]){"PATH=/bin", NULL},
-			   .blob = blob};
+                           .argv = (void *)(const char *[]){"utest", arg, NULL},
+                           .envp = (void *)(const char *[]){"PATH=/bin", NULL}};
   run_program(&exec_args);
 }
 

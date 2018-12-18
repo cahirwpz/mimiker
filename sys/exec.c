@@ -18,149 +18,56 @@
 #include <systm.h>
 #include <malloc.h>
 
+#define advance(n) { data += (n); nleft -= (n); }
 
-blob_t blob_init(kmem_pool_t* pool, size_t capacity) {
-  blob_t result = {
-    .start = kmalloc(pool, capacity, 0),
-    .end = result.start,  /* is it kosher?*/
-    .capacity = capacity
-  };
-  
-  return result;
-}
+static int copyin_strv(void **data_p, char **user_strv, char ***strv_p, size_t *nleft_p) {
+  void *data = *data_p;
+  size_t nleft = *nleft_p;
+  size_t len;
 
-void blob_destroy(kmem_pool_t* pool, blob_t blob) {
-  kfree(pool, blob.start);
-}
-
-
-static inline size_t blob_freespace(blob_t *blob) {
-
-  return blob->capacity - (blob->end - blob->start);
-
-}
-
-
-int blob_rollin_ptr(blob_t *blob, vaddr_t user_ptr, /*out*/ const char **ptr) {
-
-  int error;
-  void *kptr;
-
-  if (blob_freespace(blob) < sizeof(void*))
-    return -ENOMEM;
-  
-  if ((error = copyin((void*)user_ptr, &kptr, sizeof(void*))))
-    return error;
-
-  *ptr = kptr;
-  blob->end += sizeof(void*);
-  
-  return 0;
-}
-
-
-static int fetch_ptr(vaddr_t uaddr, void** ptr) {
-  int error;
-  
-  if ((error = copyin((void*)uaddr, ptr, sizeof(void*))))
-    return error;
-
-  return 0;
-}
-
-int blob_rollin_str(blob_t *blob, const char* user_str, /*out*/ const char **str) {
-
-  int error;
-  const char *kstr = user_str;
- 
-  if ((error = copyinstr(kstr, blob->end, blob_freespace(blob) , NULL)))
-   goto error;
-
- *str = blob->end;
- blob->end+= error + 1;
-
-  
- return 0;
- error:
-
- return -ENOMEM;
-}
-
-
-int blob_rollin_strings(blob_t *blob, const char** start, const char** end) {
-  int error;
-
-  const char* ptr;
-
-  while (start < end) {
-
-    if (( error = blob_rollin_str(blob, *start, &ptr)))
-	return error;
-
-    *start = ptr;
-
-    start++;
+  char **strv = data;
+  for (int i = 0; nleft >= sizeof(void *); i++) {
+    copyin(user_strv + i, strv + i, sizeof(void *));
+    advance(sizeof(void *));
+    if (!strv[i])
+      break;
   }
 
-  
-  return 0;
+  *strv_p = strv;
 
-}
+  for (int i = 0; strv[i]; i++) {
+    copyinstr(strv[i], data, nleft, &len);
+    strv[i] = data;
+    advance(len);
+  }
 
-int blob_rollin_ptrs(blob_t *blob, vaddr_t start) {
-  int error;
-  const char* ptr;
-  
-    do {
-    if (( error =  blob_rollin_ptr(blob, start, &ptr)))
-        return error;
-    start += sizeof(void*);
-  } while (ptr != NULL);
+  *data_p = data;
+  *nleft_p = nleft;
 
-
-  
   return 0;
 }
 
+int exec_args_copyin(exec_args_t *exec_args, char *user_path,
+                     char **user_argv, char **user_envp) {
+  void *data = exec_args->data;
+  size_t nleft = PATH_MAX + ARG_MAX;
+  size_t len;
 
+  exec_args->prog_name = data;
+  copyinstr(user_path, data, PATH_MAX, &len);
+  advance(len);
 
+  copyin_strv(&data, user_argv, &exec_args->argv, &nleft);
+  copyin_strv(&data, user_envp, &exec_args->envp, &nleft);
 
-int exec_args_copyin(exec_args_t *exec_args, vaddr_t user_path,
-	     vaddr_t user_argv, vaddr_t user_envp) {
-
-  int error;
-  const char *ptr;
-  const char **argv_start, **argv_end;
- 
-
-  if ((error = fetch_ptr(user_path, (void**)&ptr)))
-      return error;
-  
-  if ((error = blob_rollin_str(&exec_args->blob, ptr, &exec_args->prog_name)))
-    return error;
-
-  argv_start = exec_args->blob.end;
-
-    if (( error =  blob_rollin_ptrs(&exec_args->blob, user_argv)))
-      return error;
-  
-  argv_end = exec_args->blob.end;
-
-  if (( error = blob_rollin_strings(&exec_args->blob, argv_start, argv_end)))
-    return error;
-  
   return 0;
-}
-
-
-void exec_args_destroy(exec_args_t *exec_args) {
 }
 
 /*! \brief Stores C-strings in ustack and makes stack-allocated pointers
  *  point on them.
  *
  * \return ENOMEM if there was not enough space on ustack */
-static int store_strings(ustack_t *us, const char **strv, char **stack_strv,
+static int store_strings(ustack_t *us, char **strv, char **stack_strv,
                          size_t howmany) {
   int error;
   /* Store arguments, creating the argument vector. */
