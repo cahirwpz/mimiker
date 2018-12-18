@@ -20,7 +20,7 @@ COPY requirements.txt .
 RUN apt-get -q update && apt-get upgrade -y
 RUN apt-get install -y --no-install-recommends \
         git make cpio curl exuberant-ctags cscope rsync socat \
-        gcc less locales patch file sudo zsh vim-nox tmux tig \
+        gcc less locales patch file sudo zsh vim-nox tmux tig ack \
         libc6-dev python3-pip clang-format-6.0 \
         libfdt1 libpython3.5 libsdl2-2.0-0 libglib2.0-0 libpixman-1-0
 
@@ -35,7 +35,7 @@ RUN pip3 install -r requirements.txt
 RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
     locale-gen && update-locale LANG="en_US.UTF-8"
 RUN touch .gitconfig && \
-     echo "add-auto-load-safe-path mimiker/.gdbinit" > .gdbinit && \
+     echo "add-auto-load-safe-path ~/mimiker/.gdbinit" > .gdbinit && \
      echo "mimiker  ALL=(ALL)   NOPASSWD: ALL" >> /etc/sudoers
 
 USER mimiker
