@@ -25,6 +25,10 @@ static int copyin_strv(void **data_p, char **user_strv, char ***strv_p, size_t *
   size_t nleft = *nleft_p;
   size_t len;
 
+  /* Align address of pointers array */
+  data = align(data, sizeof(void *));
+  nleft -= (intptr_t)data - (intptr_t)*data_p;
+
   char **strv = data;
   for (int i = 0; nleft >= sizeof(void *); i++) {
     copyin(user_strv + i, strv + i, sizeof(void *));
