@@ -14,8 +14,8 @@ typedef struct exec_args {
   char data[0];
 } exec_args_t;
 
-int exec_args_copyin(exec_args_t *exec_args, char *user_path,
-                     char **user_argv, char **user_envp);
+int exec_args_copyin(exec_args_t *exec_args, char *user_path, char **user_argv,
+                     char **user_envp);
 
 int do_exec(const exec_args_t *prog);
 noreturn void run_program(const exec_args_t *prog);

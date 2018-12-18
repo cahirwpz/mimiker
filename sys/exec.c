@@ -18,9 +18,14 @@
 #include <systm.h>
 #include <malloc.h>
 
-#define advance(n) { data += (n); nleft -= (n); }
+#define advance(n)                                                             \
+  {                                                                            \
+    data += (n);                                                               \
+    nleft -= (n);                                                              \
+  }
 
-static int copyin_strv(void **data_p, char **user_strv, char ***strv_p, size_t *nleft_p) {
+static int copyin_strv(void **data_p, char **user_strv, char ***strv_p,
+                       size_t *nleft_p) {
   void *data = *data_p;
   size_t nleft = *nleft_p;
   size_t len;
@@ -51,8 +56,8 @@ static int copyin_strv(void **data_p, char **user_strv, char ***strv_p, size_t *
   return 0;
 }
 
-int exec_args_copyin(exec_args_t *exec_args, char *user_path,
-                     char **user_argv, char **user_envp) {
+int exec_args_copyin(exec_args_t *exec_args, char *user_path, char **user_argv,
+                     char **user_envp) {
   void *data = exec_args->data;
   size_t nleft = PATH_MAX + ARG_MAX;
   size_t len;
