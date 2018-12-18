@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import gdb
 from tailq import TailQueue
 import utils
@@ -8,8 +6,7 @@ import traceback
 from ctx import Context
 
 
-class Process(object):
-    __metaclass__ = utils.GdbStructMeta
+class Process(metaclass=utils.GdbStructMeta):
     __ctype__ = 'struct proc'
 
     @staticmethod
