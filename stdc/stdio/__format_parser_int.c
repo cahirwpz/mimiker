@@ -366,6 +366,7 @@ size_t _format_parser_int(ReadWriteInfo *rw, const char *fmt, va_list *ap)
        p = MAX(p,2*(int)sizeof(void*));
        t = 'x';
        flags |= ALT_FORM;
+       __fallthrough;
       case 'x': case 'X':
        a = fmt_x(arg.i, z, t&32);
        if (arg.i && (flags & ALT_FORM)) { prefix+=(t>>4); pl=2; }

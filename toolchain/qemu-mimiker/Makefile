@@ -6,13 +6,12 @@ ARCHIVE := $(QEMU).tar.xz
 
 all: binary
 
-download: download-stamp
-download-stamp:
+download: $(ARCHIVE)
+$(ARCHIVE):
 	curl --progress-bar -O https://download.qemu.org/$(ARCHIVE)
-	touch $@
 
 unpack: unpack-stamp
-unpack-stamp: download-stamp
+unpack-stamp: $(ARCHIVE)
 	tar xvf $(ARCHIVE)
 	touch $@
 
@@ -34,23 +33,33 @@ configure-stamp: patch-stamp
 	cd qemu-build && \
 	    ../$(QEMU)/configure \
 	        --prefix=/usr \
-		--disable-fdt \
+		--enable-fdt \
+		--disable-docs \
+		--disable-tools \
+		--disable-kvm \
+		--disable-guest-agent \
 		--disable-vnc \
 		--disable-libusb \
 		--disable-curses \
 		--disable-bzip2 \
+		--disable-tpm \
 		--disable-linux-aio \
-	    	--target-list=mimiker-softmmu
+	    	--target-list=mipsel-softmmu,aarch64-softmmu
+	sed -i -e '/qemu_.*dir=/s,/qemu,/qemu-mimiker,' \
+		qemu-build/config-host.mak
 	touch $@
 
 build: build-stamp
 build-stamp: configure-stamp
-	cd qemu-build && make -j$(shell nproc --all)
+	cd qemu-build && make -j$(shell nproc --all) LDFLAGS="-Wl,--as-needed"
 	touch $@
 
 install: install-stamp
 install-stamp: build-stamp
 	cd qemu-build && make install DESTDIR=$(PWD)/debian/tmp
+	cd $(PWD)/debian/tmp && \
+		mv usr/bin/qemu-system-mipsel usr/bin/qemu-mimiker-mipsel && \
+		mv usr/bin/qemu-system-aarch64 usr/bin/qemu-mimiker-aarch64
 	touch $@
 
 binary: binary-stamp
@@ -61,7 +70,6 @@ binary-stamp: install-stamp
 clean: unpatch
 	dh_clean
 	rm -rf $(QEMU) qemu-build
-	rm -f $(ARCHIVE)
-	rm -f *-stamp *~
+	rm -f *~
 
 .PHONY: download unpack patch unpatch configure build install binary clean

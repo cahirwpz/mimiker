@@ -24,6 +24,10 @@ def setvar(**kwargs):
     VARS[key] = item.format(**VARS)
 
 
+def getvar(key):
+    return VARS.get(key, None)
+
+
 def fill_in(value):
   if type(value) == str:
     return value.format(**VARS)
@@ -445,7 +449,7 @@ def require_header(headers, lang='c', errmsg='', symbol=None, value=None):
   panic(errmsg)
 
 
-__all__ = ['setvar', 'panic', 'find_executable', 'chmod', 'execute',
+__all__ = ['setvar', 'getvar', 'panic', 'find_executable', 'chmod', 'execute',
            'rmtree', 'mkdir', 'copy', 'copytree', 'unarc', 'fetch', 'cwd',
            'symlink', 'remove', 'move', 'find', 'textfile', 'env', 'path',
            'add_site_dir', 'find_site_dir', 'python_setup', 'recipe',

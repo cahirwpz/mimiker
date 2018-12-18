@@ -1,18 +1,21 @@
-# docker build . -t cahirwpz/mimiker-circleci:latest
-# docker image tag cahirwpz/mimiker-circleci:latest \
-#                  cahirwpz/mimiker-circleci:1.xx
-# docker push cahirwpz/mimiker-circleci:1.xx
-
 FROM debian:stretch-backports
 
 WORKDIR /root
 
+COPY requirements.txt .
+
 RUN apt-get -q update && apt-get upgrade -y
-RUN apt-get install -y --no-install-recommends git make wget cpio socat \
-      ctags cscope python3-pip clang-format-6.0 rsync curl gcc libc6-dev \
-      libpython2.7 openssh-client libsdl2-2.0-0 libglib2.0-0 libpixman-1-0
+RUN apt-get install -y --no-install-recommends \
+      git make cpio curl exuberant-ctags cscope rsync socat \
+      gcc libc6-dev python3-pip clang-format-6.0 \
+      libfdt1 libpython3.5 libsdl2-2.0-0 libglib2.0-0 libpixman-1-0
+# rsync required by verify-format.sh
+# gcc & libc6-dev required by newlib-3.0.0
+# socat required by launch
 RUN pip3 install -r requirements.txt
-RUN wget http://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.2_amd64.deb
-RUN dpkg -i mipsel-mimiker-elf_1.2_amd64.deb
-RUN wget http://mimiker.ii.uni.wroc.pl/download/qemu-system-mimiker_2.12.0-1_amd64.deb
-RUN dpkg -i qemu-system-mimiker_2.12.0-1_amd64.deb
+RUN curl -O http://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.3_amd64.deb && \
+    dpkg -i mipsel-mimiker-elf_1.3_amd64.deb && rm -f mipsel-mimiker-elf_1.3_amd64.deb 
+RUN curl -O http://mimiker.ii.uni.wroc.pl/download/aarch64-mimiker-elf_1.3_amd64.deb && \
+    dpkg -i aarch64-mimiker-elf_1.3_amd64.deb && rm -f aarch64-mimiker-elf_1.3_amd64.deb 
+RUN curl -O http://mimiker.ii.uni.wroc.pl/download/qemu-mimiker_2.12.0+mimiker1_amd64.deb && \
+    dpkg -i qemu-mimiker_2.12.0+mimiker1_amd64.deb && rm -f qemu-mimiker_2.12.0+mimiker1_amd64.deb 

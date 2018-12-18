@@ -40,6 +40,10 @@ typedef int32_t blksize_t; /* fs optimal block size */
 #define __CONCAT(x, y) __CONCAT1(x, y)
 #define __UNIQUE(x) __CONCAT(x, __LINE__)
 
+/* Check if source code is compiled with giver GCC version. */
+#define __GNUC_PREREQ__(x, y)                                                  \
+  ((__GNUC__ == (x) && __GNUC_MINOR__ >= (y)) || (__GNUC__ > (x)))
+
 /* Wrapper for various GCC attributes */
 #define __nonnull(x) __attribute__((__nonnull__(x)))
 #define __section(s) __attribute__((__section__(s)))
@@ -55,6 +59,11 @@ typedef int32_t blksize_t; /* fs optimal block size */
 #define __unlikely(x) __builtin_expect((x), 0)
 #define __long_call __attribute__((long_call))
 #define __transparent_union __attribute__((__transparent_union__))
+#if __GNUC_PREREQ__(8, 2)
+#define __fallthrough __attribute__((fallthrough))
+#else
+#define __fallthrough
+#endif
 
 /* Attribute macros for boot/wired functions/data */
 #define __boot_text __long_call __section(".boot.text")
