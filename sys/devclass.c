@@ -4,6 +4,7 @@
 
 SET_DECLARE(devclasses, devclass_t);
 
+/* finds devclass by name */
 devclass_t *devclass_find(const char *name) {
   devclass_t **dc_p;
 

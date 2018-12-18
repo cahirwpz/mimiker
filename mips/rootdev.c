@@ -8,15 +8,11 @@
 #include <sysinit.h>
 #include <devclass.h>
 
-typedef struct rootdev {
-  void *data;
-} rootdev_t;
+/* typedef struct rootdev { */
+/*   void *data; */
+/* } rootdev_softc_t; */
 
 static rman_t rm_mem; /* stores all resources of root bus children */
-
-static inline rootdev_t *rootdev_of(device_t *dev) {
-  return dev->instance;
-}
 
 static void rootdev_intr_setup(device_t *dev, unsigned num,
                                intr_handler_t *handler) {
@@ -28,11 +24,12 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
 }
 
 static int rootdev_attach(device_t *dev) {
+
   /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ... */
   rman_init(&rm_mem, "Malta I/O space", 0x10000000, 0x1fffffff, RT_MEMORY);
 
   // bus_hinted_child(dev);
-  device_add_child(dev); // without hints we need that
+  device_add_nameunit_child(dev, "pci", 0); // this device should be added by bus_hinted_child(dev) !
   bus_generic_attach(dev);
   return 0;
 }
@@ -79,29 +76,41 @@ static resource_t *rootdev_alloc_resource(device_t *bus, device_t *child,
   return r;
 }
 
+/* clang-format off */
 static bus_driver_t rootdev_driver = {
   .driver =
     {
-      .size = sizeof(rootdev_t),
+      .size = NULL,
       .desc = "MIPS platform root bus driver",
-      .name = "root",
       .attach = rootdev_attach,
     },
-  .bus = {.intr_setup = rootdev_intr_setup,
-          .intr_teardown = rootdev_intr_teardown,
-          .alloc_resource = rootdev_alloc_resource}};
+  .bus = {
+    .intr_setup = rootdev_intr_setup,
+    .intr_teardown = rootdev_intr_teardown,
+    .alloc_resource = rootdev_alloc_resource
+  }
+};
+/* clang-format on */
 
+// should I move this to rootdev_init?
+// or maybe should this remain as static init?
 static device_t rootdev = (device_t){
+  .parent = NULL,
+  /* .all ?? */
+  /* .link ?? */
   .children = TAILQ_HEAD_INITIALIZER(rootdev.children),
+  /* .resources ?? */
+  .name = "root",
+  .unit = 0,
+  /* .bus ?? */
   .driver = (driver_t *)&rootdev_driver,
-  .instance = &(rootdev_t){},
-  .state = NULL,
+  .ivars = NULL,
+  .softc = NULL
 };
 
 static void rootdev_init(void) {
   device_attach(&rootdev);
 }
-
 
 // this is the only driver added to sysinit
 SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs"));

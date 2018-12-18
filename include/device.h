@@ -12,7 +12,6 @@ typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 typedef TAILQ_HEAD(, device) device_list_t;
 
-typedef void (*d_identify_t)(driver_t *driver, device_t *parent);
 typedef int (*d_probe_t)(device_t *dev);
 typedef int (*d_attach_t)(device_t *dev);
 typedef int (*d_detach_t)(device_t *dev);
@@ -21,7 +20,6 @@ struct driver {
   const char *desc;      /* short driver description */
   char *name;
   size_t size;           /* device->state object size */
-  d_identify_t identify; /* add new device to bus */
   d_probe_t probe;       /* probe for specific device(s) */
   d_attach_t attach;     /* attach device to system */
   d_detach_t detach;     /* detach device from system */
@@ -38,13 +36,16 @@ struct device {
   res_list_t resources;     /* head of resources belonging to this device */
 
   /* Device information and state. */
+  char* name;
+  int unit;
   device_bus_t bus;
   driver_t *driver;
-  void *instance; /* used by bus driver to store data in children */
-  void *state;    /* memory requested by driver for its state*/
+  void *ivars; /* used by bus driver to store data in children */
+  void *softc;    /* memory requested by driver for its state*/
 };
 
 device_t *device_add_child(device_t *dev);
+device_t *device_add_nameunit_child(device_t *dev, char *name, int unit);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);
 int device_detach(device_t *dev);
@@ -59,6 +60,10 @@ void device_add_resource(device_t *dev, resource_t *r, int rid);
 
 // find best driver and attach
 int device_probe_and_attach(device_t *dev);
+
+static inline void* device_get_softc(device_t *dev){
+  return dev->softc;
+}
 
 /* A universal memory pool to be used by all drivers. */
 MALLOC_DECLARE(M_DEV);

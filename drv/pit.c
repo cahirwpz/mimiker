@@ -66,7 +66,7 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   assert(!(flags & TMF_ONESHOT));
 
   device_t *dev = device_of(tm);
-  pit_state_t *pit = dev->state;
+  pit_state_t *pit = dev->softc;
 
   pit->time = getbintime();
   pit->period_frac = period.frac;
@@ -81,7 +81,7 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
 
 static int timer_pit_stop(timer_t *tm) {
   device_t *dev = device_of(tm);
-  pit_state_t *pit = dev->state;
+  pit_state_t *pit = dev->softc;
 
   bus_intr_teardown(dev, &pit->intr_handler);
   return 0;
@@ -89,7 +89,7 @@ static int timer_pit_stop(timer_t *tm) {
 
 static bintime_t timer_pit_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
-  pit_state_t *pit = dev->state;
+  pit_state_t *pit = dev->softc;
   uint16_t cntr = 0;
   bintime_t bt;
   WITH_SPIN_LOCK (&pit->lock) {
@@ -111,7 +111,7 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
 static int pit_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  pit_state_t *pit = dev->state;
+  pit_state_t *pit = dev->softc;
 
   pit->regs =
     bus_alloc_resource(dev, RT_ISA, 0, IO_TIMER1, IO_TIMER1 + IO_TMRSIZE - 1,
@@ -146,9 +146,9 @@ static driver_t pit_driver = {
 
 //extern device_t *gt_pci;
 
-static void pit_init(void) {
-  (void)make_device(gt_pci, &pit_driver);
-}
+/* static void pit_init(void) { */
+/*   (void)make_device(gt_pci, &pit_driver); */
+/* } */
 
 /* SYSINIT_ADD(pit, pit_init, DEPS("rootdev")); */
 DEVCLASS_ENTRY(root, pit_driver);

@@ -19,10 +19,19 @@ device_t *device_add_child(device_t *dev) {
   return child;
 }
 
+device_t *device_add_nameunit_child(device_t *parentbus, char *name, int unit){
+  device_t *child;
+  child = device_add_child(parentbus);
+  child->name = name;
+  child->unit = unit;
+  return child;
+}
+
 // similar to device_probe and device_probe_child from freebsd
 int device_probe(device_t *dev) {
   device_t *parent = dev->parent;
-  devclass_t *dc = devclass_find(parent->driver->desc);
+  // search devclass by driver or by device name?
+  devclass_t *dc = devclass_find(parent->name);
   klog("devclass found %s\n", dc->name);
   driver_t **drv;
   // bledy > 0

@@ -90,7 +90,9 @@ static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
 static int rtc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  rtc_state_t *rtc = dev->state;
+  // moved from artificial init procedure
+  vnodeops_init(&rtc_time_vnodeops);
+  rtc_state_t *rtc = dev->softc;
 
   rtc->regs = bus_alloc_resource(
     dev, RT_ISA, 0, IO_RTC, IO_RTC + IO_RTCSIZE - 1, IO_RTCSIZE, RF_ACTIVE);
@@ -121,10 +123,10 @@ static driver_t rtc_driver = {
 
 /* extern device_t *gt_pci; */
 
-static void rtc_init(void) {
-  vnodeops_init(&rtc_time_vnodeops);
-  (void)make_device(gt_pci, &rtc_driver);
-}
+/* static void rtc_init(void) { */
+/*   vnodeops_init(&rtc_time_vnodeops); */
+/*   (void)make_device(gt_pci, &rtc_driver); */
+/* } */
 
 /* SYSINIT_ADD(rtc, rtc_init, DEPS("rootdev")); */
 DEVCLASS_ENTRY(root, rtc_driver);

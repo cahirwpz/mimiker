@@ -171,7 +171,7 @@ static int stdvga_attach(device_t *dev) {
   command |= PCIM_CMD_PORTEN | PCIM_CMD_MEMEN;
   pci_write_config(dev, PCIR_COMMAND, 2, command);
 
-  stdvga_state_t *stdvga = dev->state;
+  stdvga_state_t *stdvga = dev->softc;
 
   stdvga->mem =
     bus_alloc_resource_any(dev, RT_MEMORY, 0, RF_ACTIVE | RF_PREFETCHABLE);

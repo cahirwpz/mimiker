@@ -131,13 +131,13 @@ int bus_enumerate_hinted_children(device_t *bus){
  *
  */
 
-int __attribute__((unused)) bus_generic_attach(device_t *dev) {
+int bus_generic_attach(device_t *dev) {
   device_t *child;
 
   TAILQ_FOREACH (child, &dev->children, link) {
     int error = device_probe_and_attach(child);
     if(error > 0){
-      klog("pribe & attach failed for [device_name]!\n");
+      klog("probe & attach failed for [device_name]!\n");
     }
   }
 
