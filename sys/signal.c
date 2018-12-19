@@ -51,16 +51,7 @@ int do_kill(pid_t pid, signo_t sig) {
     return 0;
   }
   return -EINVAL;
-#if 0
-  if (pid < -1) {
-    return killpgl(sig, (pgid_t)-pid, 0);
-  }
-  if (pid == -1) {
-    return killpgl(sig, 0, 1);
-  }
-  assert(pid == 0);
-  return killpgl(sig, 0, 0);
-#endif
+  // TODO: pid <= 0
 }
 
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {

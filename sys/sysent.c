@@ -61,7 +61,7 @@ static int sys_setpgid(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
   pgid_t pgid = args->args[1];
 
-  klog("setpgid(%d, %d)");
+  klog("setpgid(%d, %d)", pid, pgid);
 
   proc_t *p = td->td_proc;
 
@@ -92,76 +92,6 @@ static int sys_setpgid(thread_t *td, syscall_args_t *args) {
   }
 
   return 0;
-
-#if 0
-  pid_t pid = args->args[0];
-  pgid_t pgid = args->args[1];
-
-  proc_t *curp = td->td_proc;
-  proc_t *targp; /* target process */
-  pgrp_t *pgrp;  /* target pgrp */
-  int error;
-  pgrp_t *newpgrp;
-
-  if (pgid < 0)
-    return EINVAL;
-
-  error = 0;
-
-  newpgrp = malloc(sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
-
-  mutex_lock(all_proc_mtx);
-  if (pid != 0 && pid != curp->p_pid) {
-    if ((targp = proc_find(pid)) == NULL) {
-      error = ESRCH;
-      goto done;
-    }
-    if (!inferior(targp)) { // ?
-      proc_unlock(targp);
-      error = ESRCH;
-      goto done;
-    }
-    if ((error = p_cansee(td, targp))) { // ?
-      proc_unlock(targp);
-      goto done;
-    }
-    if (targp->p_pgrp == NULL) {
-      proc_unlock(targp);
-      error = EPERM;
-      goto done;
-    }
-    if (targp->p_flag & P_EXEC) {
-      proc_unlock(targp);
-      error = EACCES;
-      goto done;
-    }
-    proc_unlock(targp);
-  } else
-    targp = curp;
-  if (pgid == 0)
-    pgid = targp->p_pid;
-  if ((pgrp = pgfind(pgid)) == NULL) {
-    if (pgid == targp->p_pid) {
-      error = proc_enterpgrp(targp, pgid, newpgrp);
-      if (error == 0)
-        newpgrp = NULL;
-    } else
-      error = EPERM;
-  } else {
-    if (pgrp == targp->p_pgrp) {
-      mutex_unlock(pgrp->pg_mtx);
-      goto done;
-    }
-    mutex_unlock(pgrp->pg_mtx);
-    error = enterthispgrp(targp, pgrp);
-  }
-done:
-  mutex_unlock(all_proc_mtx);
-  assert((error == 0) || (newpgrp != NULL));
-  if (newpgrp != NULL)
-    free(newpgrp, M_PGRP);
-  return error;
-#endif
 }
 
 static int sys_getpgid(thread_t *td, syscall_args_t *args) {
@@ -184,29 +114,6 @@ static int sys_getpgid(thread_t *td, syscall_args_t *args) {
   assert(p->p_pgrp);
 
   return p->p_pgrp->pg_id;
-
-#if 0
-  proc_t *p;
-  int error;
-  pid_t pid = args->args[0];
-
-  if (pid == 0) {
-    p = td->td_proc;
-    proc_lock(p);
-  } else {
-    p = proc_find(pid);
-    if (p == NULL)
-      return ESRCH;
-    error = p_cansee(td, p);
-    if (error) {
-      proc_unlock(p);
-      return error;
-    }
-  }
-  td->td_retval[0] = p->p_pgrp->pg_id; // ?
-  proc_unlock(p);
-  return 0;
-#endif
 }
 
 static int sys_kill(thread_t *td, syscall_args_t *args) {

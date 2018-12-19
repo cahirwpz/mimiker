@@ -70,7 +70,6 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
 
   WITH_MTX_LOCK (all_proc_mtx) {
     p->p_pid = pid_alloc();
-    // TODO p->p_pgid = parent ? parent->p_pgid : p->p_pid;
     TAILQ_INSERT_TAIL(&proc_list, p, p_all);
     if (parent)
       TAILQ_INSERT_TAIL(CHILDREN(parent), p, p_child);
@@ -199,29 +198,7 @@ int proc_enter_pgrp(proc_t *p, pgrp_t *pgrp) {
 
   p->p_pgrp = pgrp;
   LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
-#if 0
-  assert(mtx_owned(all_proc_mtx));
 
-  assert(pgrp != NULL);
-  assert(p->p_pid == pgid);
-  assert(pgfind(pgid) == NULL);
-
-  mtx_init(&pgrp->pg_mtx, MTX_DEF | MTX_DUPOK); // ?
-  mutex_lock(&pgrp->pg_mtx);
-
-  pgrp->pg_id = pgid;
-  LIST_INIT(&pgrp->pg_members);
-
-  /*
-   * As we have an exclusive lock of proctree_lock,
-   * this should not deadlock.
-   */
-  LIST_INSERT_HEAD(PGRPHASH(pgid), pgrp, pg_hash);
-  SLIST_INIT(&pgrp->pg_sigiolst);
-  PGRP_UNLOCK(pgrp);
-
-  doenterpgrp(p, pgrp);
-#endif
   return 0;
 }
 
@@ -234,7 +211,7 @@ void proc_leave_pgrp(proc_t *p) {
   LIST_REMOVE(p, p_pglist);
   p->p_pgrp = NULL;
   
-  /* if last process in the group, then destory it! */
+  /* if last process in the group, then destroy it! */
   if (LIST_EMPTY(pgrp->pg_members))
     pgrp_destroy(pgrp);
 }
