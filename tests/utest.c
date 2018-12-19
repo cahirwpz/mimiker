@@ -7,12 +7,11 @@
 #include <sched.h>
 #include <proc.h>
 #include <wait.h>
-#include <syslimits.h>
 
 static noreturn void utest_generic_thread(void *arg) {
   exec_args_t exec_args = {.prog_name = "/bin/utest",
-                           .argv = (void *)(const char *[]){"utest", arg, NULL},
-                           .envp = (void *)(const char *[]){"PATH=/bin", NULL}};
+                           .argv = (char *[]){"utest", arg, NULL},
+                           .envp = (char *[]){NULL}};
   run_program(&exec_args);
 }
 

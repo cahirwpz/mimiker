@@ -5,7 +5,6 @@
 #include <proc.h>
 #include <thread.h>
 #include <ktest.h>
-#include <syslimits.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
@@ -20,7 +19,7 @@ int kmain(void) {
   if (init) {
     exec_args_t init_args = {.prog_name = init,
                              .argv = (char *[]){init, NULL},
-                             .envp = (char *[]){"PATH=/bin", NULL}};
+                             .envp = (char *[]){NULL}};
     run_program(&init_args);
   } else if (test) {
     ktest_main(test);
