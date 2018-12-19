@@ -16,7 +16,6 @@
 #include <vnode.h>
 #include <proc.h>
 #include <systm.h>
-#include <malloc.h>
 
 #define PTR_SIZE sizeof(void *)
 
@@ -36,15 +35,11 @@ static inline void buffer_align(buffer_t *buf, size_t align) {
   buf->nleft -= (intptr_t)buf->data - last_data;
 }
 
-#define buffer_advance_str(buf, len) buffer_advance((buf), (len))
-#define buffer_advance_ptr(buf) buffer_advance((buf), PTR_SIZE)
-#define buffer_align_ptr(buf) buffer_align((buf), PTR_SIZE)
-
 static int buffer_copyin_ptr(buffer_t *buf, char **user_ptr_p) {
   int error;
   if ((error = copyin(user_ptr_p, buf->data, PTR_SIZE)))
     return error;
-  buffer_advance_ptr(buf);
+  buffer_advance(buf, PTR_SIZE);
   return 0;
 }
 
@@ -54,14 +49,14 @@ static int buffer_copyin_str(buffer_t *buf, char *user_str, char **str_p) {
   if ((error = copyinstr(user_str, buf->data, buf->nleft, &len)))
     return error;
   *str_p = buf->data;
-  buffer_advance_str(buf, len);
+  buffer_advance(buf, len);
   return 0;
 }
 
 static int buffer_copyin_strv(buffer_t *buf, char **user_strv, char ***strv_p) {
   int error;
 
-  buffer_align_ptr(buf);
+  buffer_align(buf, PTR_SIZE);
   assert(is_aligned(buf->nleft, PTR_SIZE));
 
   /* Copy in vector of string pointers. */
