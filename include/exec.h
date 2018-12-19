@@ -11,10 +11,11 @@ typedef struct exec_args {
    * These will get copied to the stack of the starting process. */
   char **argv;
   char **envp;
+  /* Space for all of the above objects.*/
   char data[0];
 } exec_args_t;
 
-int exec_args_copyin(exec_args_t *exec_args, char *user_path,
+int exec_args_copyin(exec_args_t *exec_args, size_t nleft, char *user_path,
                      char **user_argv, char **user_envp);
 
 int do_exec(const exec_args_t *prog);

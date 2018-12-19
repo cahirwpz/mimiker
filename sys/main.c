@@ -20,7 +20,8 @@ int kmain(void) {
   if (init) {
     exec_args_t init_args = {.prog_name = init,
                              .argv = (void *)(const char *[]){init, NULL},
-                             .envp = (void *)(const char *[]){"PATH=/bin", NULL}};
+                             .envp =
+                               (void *)(const char *[]){"PATH=/bin", NULL}};
     run_program(&init_args);
   } else if (test) {
     ktest_main(test);

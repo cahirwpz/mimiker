@@ -381,11 +381,13 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   exec_args_t *exec_args =
     kmalloc(M_TEMP, sizeof(exec_args_t) + ARG_MAX + PATH_MAX, 0);
 
-  if ((result = exec_args_copyin(exec_args, user_path, user_argv, user_envp)))
-    return result;
+  if ((result = exec_args_copyin(exec_args, ARG_MAX + PATH_MAX, user_path,
+                                 user_argv, user_envp)))
+    goto error;
 
   result = do_exec(exec_args);
   klog("execve(\"%s\", ...) = %d", exec_args->prog_name, result);
+error:
   kfree(M_TEMP, exec_args);
   return result;
 }
