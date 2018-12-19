@@ -10,8 +10,8 @@
 
 static noreturn void utest_generic_thread(void *arg) {
   exec_args_t exec_args = {.prog_name = "/bin/utest",
-                           .argv = (const char *[]){"utest", arg, NULL},
-                           .envp = (const char *[]){NULL}};
+                           .argv = (char *[]){"utest", arg, NULL},
+                           .envp = (char *[]){NULL}};
   run_program(&exec_args);
 }
 

@@ -373,18 +373,20 @@ end:
 }
 
 static int sys_execve(thread_t *td, syscall_args_t *args) {
-  vaddr_t user_path = (vaddr_t)args->args[0];
-  vaddr_t user_argv = (vaddr_t)args->args[1];
-  vaddr_t user_envp = (vaddr_t)args->args[2];
+  char *user_path = (char *)args->args[0];
+  char **user_argv = (char **)args->args[1];
+  char **user_envp = (char **)args->args[2];
   int result;
 
-  exec_args_t exec_args;
-  if ((result = exec_args_copyin(&exec_args, user_path, user_argv, user_envp)))
-    return result;
+  exec_args_t *exec_args = kmalloc(M_TEMP, EXEC_ARGS_SIZE, 0);
 
-  result = do_exec(&exec_args);
-  klog("execve(\"%s\", ...) = %d", exec_args.prog_name, result);
-  exec_args_destroy(&exec_args);
+  if ((result = exec_args_copyin(exec_args, user_path, user_argv, user_envp)))
+    goto error;
+
+  result = do_exec(exec_args);
+  klog("execve(\"%s\", ...) = %d", exec_args->prog_name, result);
+error:
+  kfree(M_TEMP, exec_args);
   return result;
 }
 

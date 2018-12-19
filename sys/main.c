@@ -10,16 +10,16 @@
 char *kenv_get(const char *key);
 
 int kmain(void) {
-  const char *init = kenv_get("init");
-  const char *test = kenv_get("test");
+  char *init = kenv_get("init");
+  char *test = kenv_get("test");
 
   /* Main kernel thread becomes PID(0) - a god process! */
   (void)proc_create(thread_self(), NULL);
 
   if (init) {
     exec_args_t init_args = {.prog_name = init,
-                             .argv = (const char *[]){init, NULL},
-                             .envp = (const char *[]){NULL}};
+                             .argv = (char *[]){init, NULL},
+                             .envp = (char *[]){NULL}};
     run_program(&init_args);
   } else if (test) {
     ktest_main(test);

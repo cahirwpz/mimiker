@@ -17,19 +17,90 @@
 #include <proc.h>
 #include <systm.h>
 
-int exec_args_copyin(exec_args_t *exec_args, vaddr_t user_path,
-                     vaddr_t user_argv, vaddr_t user_envp) {
-  return -EFAULT;
+#define PTR_SIZE sizeof(void *)
+
+typedef struct {
+  void *data;
+  size_t nleft;
+} buffer_t;
+
+static inline void buffer_advance(buffer_t *buf, size_t len) {
+  buf->data += len;
+  buf->nleft -= len;
 }
 
-void exec_args_destroy(exec_args_t *exec_args) {
+static inline void buffer_align(buffer_t *buf, size_t align) {
+  intptr_t last_data = (intptr_t)buf->data;
+  buf->data = align(buf->data, align);
+  buf->nleft -= (intptr_t)buf->data - last_data;
+}
+
+static int buffer_copyin_ptr(buffer_t *buf, char **user_ptr_p) {
+  int error;
+  if ((error = copyin(user_ptr_p, buf->data, PTR_SIZE)))
+    return error;
+  buffer_advance(buf, PTR_SIZE);
+  return 0;
+}
+
+static int buffer_copyin_str(buffer_t *buf, char *user_str, char **str_p) {
+  size_t len;
+  int error;
+  if ((error = copyinstr(user_str, buf->data, buf->nleft, &len)))
+    return error;
+  *str_p = buf->data;
+  buffer_advance(buf, len);
+  return 0;
+}
+
+static int buffer_copyin_strv(buffer_t *buf, char **user_strv, char ***strv_p) {
+  int error;
+
+  buffer_align(buf, PTR_SIZE);
+  assert(is_aligned(buf->nleft, PTR_SIZE));
+
+  /* Copy in vector of string pointers. */
+  char **strv = buf->data;
+  for (int i = 0; buf->nleft > 0; i++) {
+    if ((error = buffer_copyin_ptr(buf, user_strv + i)))
+      return error;
+    if (!strv[i])
+      break;
+  }
+
+  *strv_p = strv;
+
+  /* Now we have all user-space pointers to strings so copy in the strings. */
+  for (int i = 0; strv[i]; i++) {
+    if ((error = buffer_copyin_str(buf, strv[i], strv + i)))
+      return (error == -ENAMETOOLONG) ? -E2BIG : error;
+  }
+
+  return 0;
+}
+
+int exec_args_copyin(exec_args_t *exec_args, char *user_path, char **user_argv,
+                     char **user_envp) {
+  int error;
+  buffer_t *buf = &(buffer_t){.data = exec_args->data};
+
+  buf->nleft = PATH_MAX;
+  if ((error = buffer_copyin_str(buf, user_path, &exec_args->prog_name)))
+    return error;
+
+  buf->nleft = ARG_MAX;
+  if ((error = buffer_copyin_strv(buf, user_argv, &exec_args->argv)))
+    return error;
+  if ((error = buffer_copyin_strv(buf, user_envp, &exec_args->envp)))
+    return error;
+  return 0;
 }
 
 /*! \brief Stores C-strings in ustack and makes stack-allocated pointers
  *  point on them.
  *
  * \return ENOMEM if there was not enough space on ustack */
-static int store_strings(ustack_t *us, const char **strv, char **stack_strv,
+static int store_strings(ustack_t *us, char **strv, char **stack_strv,
                          size_t howmany) {
   int error;
   /* Store arguments, creating the argument vector. */
