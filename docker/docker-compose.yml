@@ -1,6 +1,6 @@
 # vim: set ts=2 sw=2:
 mimiker:
-  image: cahirwpz/mimiker-circleci:latest
+  image: cahirwpz/mimiker-dev:latest
   hostname: mimiker
   volumes:
     - "../:/home/mimiker/mimiker"

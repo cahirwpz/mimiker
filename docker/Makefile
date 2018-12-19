@@ -1,9 +1,9 @@
-VERSION = 1.6
+VERSION = 1.0
 
 run: compile tmux
 
 build:
-	docker build --no-cache . -t cahirwpz/mimiker-circleci:latest
+	docker build --no-cache . -t cahirwpz/mimiker-dev:latest
 
 perms:
 	# Set the directory permissions to hardcoded GID
@@ -26,15 +26,15 @@ tmux: up
 	docker-compose exec mimiker tmux
 
 tag:
-	docker image tag cahirwpz/mimiker-circleci:latest \
-		         cahirwpz/mimiker-circleci:$(VERSION)
+	docker image tag cahirwpz/mimiker-dev:latest \
+		         cahirwpz/mimiker-dev:$(VERSION)
 
 push:
-	docker push cahirwpz/mimiker-circleci:latest
-	docker push cahirwpz/mimiker-circleci:$(VERSION)
+	docker push cahirwpz/mimiker-dev:latest
+	docker push cahirwpz/mimiker-dev:$(VERSION)
 
 clean:
-	docker image prune
 	docker container prune --filter "until=24h"
+	docker image prune
 
 .PHONY: build push up down compile tmux tag push run clean
