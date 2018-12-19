@@ -378,11 +378,9 @@ static int sys_execve(thread_t *td, syscall_args_t *args) {
   char **user_envp = (char **)args->args[2];
   int result;
 
-  exec_args_t *exec_args =
-    kmalloc(M_TEMP, sizeof(exec_args_t) + ARG_MAX + PATH_MAX, 0);
+  exec_args_t *exec_args = kmalloc(M_TEMP, EXEC_ARGS_SIZE, 0);
 
-  if ((result = exec_args_copyin(exec_args, ARG_MAX + PATH_MAX, user_path,
-                                 user_argv, user_envp)))
+  if ((result = exec_args_copyin(exec_args, user_path, user_argv, user_envp)))
     goto error;
 
   result = do_exec(exec_args);

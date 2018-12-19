@@ -18,62 +18,87 @@
 #include <systm.h>
 #include <malloc.h>
 
-#define PTR_SIZE (sizeof(void *))
+#define PTR_SIZE sizeof(void *)
 
 typedef struct {
   void *data;
   size_t nleft;
 } buffer_t;
 
-#define advance(buff, n)                                                       \
-  {                                                                            \
-    (buff)->data += (n);                                                       \
-    (buff)->nleft -= (n);                                                      \
-  }
+static inline void buffer_advance(buffer_t *buf, size_t len) {
+  buf->data += len;
+  buf->nleft -= len;
+}
 
-static int copyin_strv(buffer_t *buff, char **user_strv, char ***strv_p) {
+static inline void buffer_align(buffer_t *buf, size_t align) {
+  intptr_t last_data = (intptr_t)buf->data;
+  buf->data = align(buf->data, align);
+  buf->nleft -= (intptr_t)buf->data - last_data;
+}
+
+#define buffer_advance_str(buf, len) buffer_advance((buf), (len))
+#define buffer_advance_ptr(buf) buffer_advance((buf), PTR_SIZE)
+#define buffer_align_ptr(buf) buffer_align((buf), PTR_SIZE)
+
+static int buffer_copyin_ptr(buffer_t *buf, char **user_ptr_p) {
+  int error;
+  if ((error = copyin(user_ptr_p, buf->data, PTR_SIZE)))
+    return error;
+  buffer_advance_ptr(buf);
+  return 0;
+}
+
+static int buffer_copyin_str(buffer_t *buf, char *user_str, char **str_p) {
+  size_t len;
+  int error;
+  if ((error = copyinstr(user_str, buf->data, buf->nleft, &len)))
+    return error;
+  *str_p = buf->data;
+  buffer_advance_str(buf, len);
+  return 0;
+}
+
+static int buffer_copyin_strv(buffer_t *buf, char **user_strv, char ***strv_p) {
   int error;
 
-  /* Align address of pointers array */
-  void *old_data = buff->data;
-  buff->data = align(buff->data, PTR_SIZE);
-  buff->nleft -= (intptr_t)buff->data - (intptr_t)old_data;
+  buffer_align_ptr(buf);
+  assert(is_aligned(buf->nleft, PTR_SIZE));
 
-  char **strv = buff->data;
-  for (int i = 0; buff->nleft >= PTR_SIZE; i++) {
-    if ((error = copyin(user_strv + i, strv + i, PTR_SIZE)))
+  /* Copy in vector of string pointers. */
+  char **strv = buf->data;
+  for (int i = 0; buf->nleft > 0; i++) {
+    if ((error = buffer_copyin_ptr(buf, user_strv + i)))
       return error;
-    advance(buff, PTR_SIZE);
     if (!strv[i])
       break;
   }
 
   *strv_p = strv;
-  size_t len;
+
+  /* Now we have all user-space pointers to strings so copy in the strings. */
   for (int i = 0; strv[i]; i++) {
-    if ((error = copyinstr(strv[i], buff->data, buff->nleft, &len)))
-      return error;
-    strv[i] = buff->data;
-    advance(buff, len);
+    if ((error = buffer_copyin_str(buf, strv[i], strv + i)))
+      return (error == -ENAMETOOLONG) ? -E2BIG : error;
   }
 
   return 0;
 }
 
-int exec_args_copyin(exec_args_t *exec_args, size_t nleft, char *user_path,
-                     char **user_argv, char **user_envp) {
+int exec_args_copyin(exec_args_t *exec_args, char *user_path, char **user_argv,
+                     char **user_envp) {
   int error;
-  size_t len;
-  buffer_t buff = {.data = exec_args->data, .nleft = nleft};
+  buffer_t *buf = &(buffer_t){.data = exec_args->data};
 
-  exec_args->prog_name = buff.data;
-  if ((error = copyinstr(user_path, buff.data, PATH_MAX, &len)))
+  buf->nleft = PATH_MAX;
+  if ((error = buffer_copyin_str(buf, user_path, &exec_args->prog_name)))
     return error;
-  advance(&buff, len);
-  if ((error = copyin_strv(&buff, user_argv, &exec_args->argv)))
+
+  buf->nleft = ARG_MAX;
+  if ((error = buffer_copyin_strv(buf, user_argv, &exec_args->argv)))
     return error;
-  error = copyin_strv(&buff, user_envp, &exec_args->envp);
-  return error;
+  if ((error = buffer_copyin_strv(buf, user_envp, &exec_args->envp)))
+    return error;
+  return 0;
 }
 
 /*! \brief Stores C-strings in ustack and makes stack-allocated pointers
