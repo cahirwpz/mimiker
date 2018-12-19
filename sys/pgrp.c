@@ -4,10 +4,22 @@
 #include <proc.h>
 
 static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
+static LIST_HEAD(, pgrp) pgrphashtable[4];
+static unsigned long pgrphash = 0x3;
+
+#define PGRPHASH(pgid) pgrphashtable[(pgid) & pgrphash]
+
 
 pgrp_t *pgrp_create(pgid_t pgid) {
   pgrp_t *pgrp = pool_alloc(P_PGRP, PF_ZERO);
   /* do sth to pgrp */
+
+  LIST_INIT(pgrp->pg_members);
+  pgrp->pg_id = pgid;
+  // mtx_init(&pgrp->pg_mtx, ??);
+
+  LIST_INSERT_HEAD(PGRPHASH(pgid), *pgrp, pg_hash);
+
   return pgrp;
 }
 
@@ -15,6 +27,9 @@ pgrp_t *pgrp_create(pgid_t pgid) {
 void pgrp_destroy(pgrp_t *pgrp) {
   /* do sth to pgrp */
 
+  assert(LIST_EMPTY(pgrp->pg_members));
+  LIST_REMOVE(pgrp, PGRPHASH(pgrp->pg_id));
+  
   pool_free(P_PGRP, pgrp);
 
 #if 0
@@ -32,6 +47,14 @@ void pgrp_destroy(pgrp_t *pgrp) {
 // http://mimiker.ii.uni.wroc.pl/source/xref/FreeBSD/head/sys/kern/kern_proc.c#448
 /* Locate a process group by number. The caller must hold proctree_lock. */
 pgrp_t *pgrp_find(pgid_t pgid) {
+
+  pgrp_t *pgrp = NULL;
+  LIST_FOREACH(pgrp, PGRPHASH(pgid), pg_hash)
+    if(pgrp->pg_id == pgid)
+      break;
+
+  return pgrp;
+
 #if 0
   pgrp_t *pgrp;
 

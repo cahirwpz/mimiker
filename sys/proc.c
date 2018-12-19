@@ -195,6 +195,10 @@ noreturn void proc_exit(int exitstatus) {
 
 /* Enter existing process group. */
 int proc_enter_pgrp(proc_t *p, pgrp_t *pgrp) {
+  proc_leave_pgrp(p, p->p_pgrp);
+
+  p->p_pgrp = pgrp;
+  LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
 #if 0
   assert(mtx_owned(all_proc_mtx));
 
@@ -221,8 +225,18 @@ int proc_enter_pgrp(proc_t *p, pgrp_t *pgrp) {
   return 0;
 }
 
-void proc_leave_pgrp(proc_t *p, pgrp_t *pgrp) {
+void proc_leave_pgrp(proc_t *p) {
+  pgrp_t *pgrp = p->pgrp;
+
+  if (!pgrp)
+    return;
+
+  LIST_REMOVE(p, p_pglist);
+  p->p_pgrp = NULL;
+  
   /* if last process in the group, then destory it! */
+  if (LIST_EMPTY(pgrp->pg_members))
+    pgrp_destroy(pgrp);
 }
 
 /* Wait for direct children. */
@@ -248,9 +262,9 @@ int do_waitpid(pid_t pid, int *status, int options) {
       if (child == NULL) {
         /* Search within zombie childrens. */
         TAILQ_FOREACH (zombie, CHILDREN(p), p_child) {
-          if (pid < -1 /* && zombie->p_pgid != -pid */)
+          if (pid < -1 && zombie->p_pgrp->pg_id != -pid)
             continue;
-          if (pid == 0 /* && zombie->p_pgid != p->p_pgid */)
+          if (pid == 0 && zombie->p_pgrp->pg_id != p->p_pgrp->pg_id)
             continue;
           if (zombie->p_state == PS_ZOMBIE)
             break;

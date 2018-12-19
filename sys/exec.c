@@ -323,6 +323,10 @@ noreturn void run_program(const exec_args_t *prog) {
   thread_t *td = thread_self();
   proc_t *p = proc_self();
 
+  pgrp_t *pgrp = pgrp_create(1);
+  p->p_pgrp = NULL;
+  proc_enter_pgrp(p, pgrp);
+
   assert(p != NULL);
 
   klog("Starting program \"%s\"", prog->prog_name);
