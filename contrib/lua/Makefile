@@ -14,12 +14,15 @@ $(PKG).tar.gz:
 $(PKG): $(PKG).tar.gz
 	@echo "[TAR] $^ -> $@"
 	$(TAR) xzf $(PKG).tar.gz
+	cd $(PKG) && $(PATCH) -p1 < ../lunix.patch
+	cd $(PKG)/src && ln -s ../../lunix.c
+	touch $(PKG)
 
 build-here: download
 	@echo "[MAKE] $(PKG)"
 	$(MAKE) -C $(PKG) generic \
-	  CC="$(CC)" AR="$(AR) rcu" RANLIB="$(RANLIB)" \
-	  MYCFLAGS="$(CFLAGS)" MYLDFLAGS="$(LDFLAGS)"
+	  CC="$(CC)" AR="$(AR) rcu" LD="$(LD)" RANLIB="$(RANLIB)" \
+	  MYCFLAGS="$(CFLAGS)" MYLDFLAGS="$(LDFLAGS)" MYLIBS="$(LDLIBS)"
 
 install-here:
 	@echo "[INSTALL] /bin/lua"
