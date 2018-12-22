@@ -32,8 +32,9 @@ static inline void buffer_advance(buffer_t *buf, size_t len) {
 static inline void buffer_align(buffer_t *buf, size_t align) {
   intptr_t last_data = (intptr_t)buf->data;
   buf->data = align(buf->data, align);
-  assert((long long)buf->nleft >= (intptr_t)buf->data - last_data);
-  buf->nleft -= (intptr_t)buf->data - last_data;
+  size_t padding = (intptr_t)buf->data - last_data;
+  assert(buf->nleft >= padding);
+  buf->nleft -= padding;
 }
 
 static int buffer_copyin_ptr(buffer_t *buf, char **user_ptr_p) {
