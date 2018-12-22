@@ -32,6 +32,7 @@ static inline void buffer_advance(buffer_t *buf, size_t len) {
 static inline void buffer_align(buffer_t *buf, size_t align) {
   intptr_t last_data = (intptr_t)buf->data;
   buf->data = align(buf->data, align);
+  assert((long long)buf->nleft >= (intptr_t)buf->data - last_data);
   buf->nleft -= (intptr_t)buf->data - last_data;
 }
 
@@ -87,6 +88,8 @@ int exec_args_copyin(exec_args_t *exec_args, char *user_path, char **user_argv,
   buf->nleft = PATH_MAX;
   if ((error = buffer_copyin_str(buf, user_path, &exec_args->prog_name)))
     return error;
+
+  buffer_align(buf, PTR_SIZE);
 
   buf->nleft = ARG_MAX;
   if ((error = buffer_copyin_strv(buf, user_argv, &exec_args->argv)))
