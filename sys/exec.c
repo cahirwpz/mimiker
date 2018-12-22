@@ -84,18 +84,16 @@ static int buffer_copyin_strv(buffer_t *buf, char **user_strv, char ***strv_p) {
 int exec_args_copyin(exec_args_t *exec_args, char *user_path, char **user_argv,
                      char **user_envp) {
   int error;
-  buffer_t *buf = &(buffer_t){.data = exec_args->data};
+  buffer_t buf;
 
-  buf->nleft = PATH_MAX;
-  if ((error = buffer_copyin_str(buf, user_path, &exec_args->prog_name)))
+  buf = (buffer_t){.data = exec_args->data, .nleft = PATH_MAX};
+  if ((error = buffer_copyin_str(&buf, user_path, &exec_args->prog_name)))
     return error;
 
-  buffer_align(buf, PTR_SIZE);
-
-  buf->nleft = ARG_MAX;
-  if ((error = buffer_copyin_strv(buf, user_argv, &exec_args->argv)))
+  buf = (buffer_t){.data = exec_args->data + PATH_MAX, .nleft = ARG_MAX};
+  if ((error = buffer_copyin_strv(&buf, user_argv, &exec_args->argv)))
     return error;
-  if ((error = buffer_copyin_strv(buf, user_envp, &exec_args->envp)))
+  if ((error = buffer_copyin_strv(&buf, user_envp, &exec_args->envp)))
     return error;
   return 0;
 }
