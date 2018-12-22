@@ -32,7 +32,9 @@ static inline void buffer_advance(buffer_t *buf, size_t len) {
 static inline void buffer_align(buffer_t *buf, size_t align) {
   intptr_t last_data = (intptr_t)buf->data;
   buf->data = align(buf->data, align);
-  buf->nleft -= (intptr_t)buf->data - last_data;
+  size_t padding = (intptr_t)buf->data - last_data;
+  assert(buf->nleft >= padding);
+  buf->nleft -= padding;
 }
 
 static int buffer_copyin_ptr(buffer_t *buf, char **user_ptr_p) {
@@ -82,16 +84,16 @@ static int buffer_copyin_strv(buffer_t *buf, char **user_strv, char ***strv_p) {
 int exec_args_copyin(exec_args_t *exec_args, char *user_path, char **user_argv,
                      char **user_envp) {
   int error;
-  buffer_t *buf = &(buffer_t){.data = exec_args->data};
+  buffer_t buf;
 
-  buf->nleft = PATH_MAX;
-  if ((error = buffer_copyin_str(buf, user_path, &exec_args->prog_name)))
+  buf = (buffer_t){.data = exec_args->data, .nleft = PATH_MAX};
+  if ((error = buffer_copyin_str(&buf, user_path, &exec_args->prog_name)))
     return error;
 
-  buf->nleft = ARG_MAX;
-  if ((error = buffer_copyin_strv(buf, user_argv, &exec_args->argv)))
+  buf = (buffer_t){.data = exec_args->data + PATH_MAX, .nleft = ARG_MAX};
+  if ((error = buffer_copyin_strv(&buf, user_argv, &exec_args->argv)))
     return error;
-  if ((error = buffer_copyin_strv(buf, user_envp, &exec_args->envp)))
+  if ((error = buffer_copyin_strv(&buf, user_envp, &exec_args->envp)))
     return error;
   return 0;
 }
