@@ -201,15 +201,14 @@ fail:
   return error;
 }
 
-static int open_executable(const exec_args_t *args, vnode_t **vn_p,
-                           vattr_t *attr) {
+static int open_executable(const char *path, vnode_t **vn_p, vattr_t *attr) {
   vnode_t *vn = *vn_p;
   int error;
 
-  klog("Loading program: %s", args->prog_name);
+  klog("Loading program: %s", path);
 
   /* Translate program name to vnode. */
-  if ((error = vfs_lookup(args->prog_name, &vn)))
+  if ((error = vfs_lookup(path, &vn)))
     return error;
 
   if ((error = VOP_GETATTR(vn, attr)))
@@ -469,7 +468,7 @@ int do_exec(const exec_args_t *args) {
 
   assert(p != NULL);
 
-  if ((error = open_executable(args, &vn, &attr)))
+  if ((error = open_executable(args->prog_name, &vn, &attr)))
     return error;
 
   Elf32_Ehdr eh;
