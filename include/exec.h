@@ -2,7 +2,10 @@
 #define _SYS_EXEC_H_
 
 #include <common.h>
-#include <malloc.h>
+#include <elf/elf32.h>
+
+typedef struct vnode vnode_t;
+typedef struct proc proc_t;
 
 typedef struct exec_args {
   /* Path to the executable. */
@@ -19,6 +22,8 @@ typedef struct exec_args {
 
 int exec_args_copyin(exec_args_t *exec_args, char *user_path, char **user_argv,
                      char **user_envp);
+int exec_elf_inspect(vnode_t *vn, Elf32_Ehdr *eh);
+int exec_elf_load(proc_t *p, vnode_t *vn, Elf32_Ehdr *eh);
 
 int do_exec(const exec_args_t *prog);
 noreturn void run_program(const exec_args_t *prog);
