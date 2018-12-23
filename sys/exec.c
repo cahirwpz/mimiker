@@ -222,10 +222,6 @@ typedef struct exec_vmspace {
   vaddr_t sbrk_end;
 } exec_vmspace_t;
 
-/* stack size is 8 MiB */
-#define MIPS_STACK_TOP 0x7f800000
-#define MIPS_STACK_LIMIT 0x7f000000
-
 static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
                               vaddr_t *stack_top_p) {
   saved->uspace = p->p_uspace;
@@ -249,13 +245,14 @@ static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
    * a bit lower so that it is easier to spot invalid memory access
    * when the stack underflows.
    */
+  *stack_top_p = USTACK_TOP;
+
   vm_object_t *stack_obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *stack_seg = vm_segment_alloc(
-    stack_obj, MIPS_STACK_LIMIT, MIPS_STACK_TOP, VM_PROT_READ | VM_PROT_WRITE);
+  vm_segment_t *stack_seg =
+    vm_segment_alloc(stack_obj, USTACK_TOP - USTACK_SIZE, USTACK_TOP,
+                     VM_PROT_READ | VM_PROT_WRITE);
   int error = vm_map_insert(p->p_uspace, stack_seg, VM_FIXED);
   assert(error == 0);
-
-  *stack_top_p = MIPS_STACK_TOP;
 
   vm_map_activate(p->p_uspace);
 }
