@@ -226,7 +226,8 @@ typedef struct exec_vmspace {
 #define MIPS_STACK_TOP 0x7f800000
 #define MIPS_STACK_LIMIT 0x7f000000
 
-static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved) {
+static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
+                              vaddr_t *stack_top_p) {
   saved->uspace = p->p_uspace;
   saved->sbrk = p->p_sbrk;
   saved->sbrk_end = p->p_sbrk_end;
@@ -254,7 +255,7 @@ static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved) {
   int error = vm_map_insert(p->p_uspace, stack_seg, VM_FIXED);
   assert(error == 0);
 
-  klog("Stack real top at %p", (void *)MIPS_STACK_TOP);
+  *stack_top_p = MIPS_STACK_TOP;
 
   vm_map_activate(p->p_uspace);
 }
@@ -293,13 +294,13 @@ int do_exec(const exec_args_t *args) {
   /* We can not destroy the current vm_map, because exec can still fail.
    * Is such case we must be able to return to the original address space. */
   exec_vmspace_t saved;
-  enter_new_vmspace(p, &saved);
+  vaddr_t stack_top;
+  enter_new_vmspace(p, &saved, &stack_top);
 
   if ((error = exec_elf_load(p, vn, &eh)))
     goto fail;
 
   /* Prepare program stack, which includes storing program args. */
-  vaddr_t stack_top = MIPS_STACK_TOP;
   if ((error = exec_args_copyout(args, &stack_top)))
     goto fail;
 
