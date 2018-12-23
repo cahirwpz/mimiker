@@ -17,6 +17,7 @@ SOURCES = \
 	devfs.c \
 	exception.c \
 	exec.c \
+	exec_elf.c \
 	file.c \
 	filedesc.c \
 	fork.c \
