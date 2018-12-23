@@ -459,7 +459,7 @@ int do_exec(const exec_args_t *args) {
   if ((error = check_elf(vn, &eh)))
     return error;
 
-  /* We can not destroy the current vm map, because exec can still fail.
+  /* We can not destroy the current vm_map, because exec can still fail.
    * Is such case we must be able to return to the original address space. */
   exec_vmspace_t saved;
   enter_new_vmspace(p, &saved);
