@@ -9,6 +9,10 @@
  * Stack contents is constructed from top to bottom manner.
  */
 
+/* Stack starts at USTACK_TOP and grows down by at most USTACK_SIZE. */
+#define USTACK_TOP 0x7f800000
+#define USTACK_SIZE 0x800000
+
 typedef struct ustack {
   vaddr_t us_user_top; /* UVA of stack top */
   void *us_limit;      /* the highest KVA of stack bottom (constant) */
