@@ -249,31 +249,27 @@ static int check_elf(vnode_t *vn, Elf32_Ehdr *eh) {
   /* Check ELF class */
   if (eh->e_ident[EI_CLASS] != ELFCLASS32) {
     klog("Exec failed: Unsupported ELF class (!= ELF32)");
-    return -EINVAL;
+    return -ENOEXEC;
   }
   /* Check data format endianess */
   if (eh->e_ident[EI_DATA] != ELFDATA2LSB) {
     klog("Exec failed: ELF file is not low-endian");
-    return -EINVAL;
+    return -ENOEXEC;
   }
   /* Ignore version and os abi field */
   /* Check file type */
   if (eh->e_type != ET_EXEC) {
-    klog("Exec failed: ELF is not an executable");
-    return -EINVAL;
+    klog("Exec failed: ELF is not an executable file");
+    return -ENOEXEC;
   }
   /* Check machine architecture field */
   if (eh->e_machine != EM_MIPS) {
     klog("Exec failed: ELF target architecture is not MIPS");
-    return -EINVAL;
+    return -ENOEXEC;
   }
-
-  /* Take note of the entry point */
-  klog("Entry point will be at 0x%08x.", (unsigned int)eh->e_entry);
-
   /* Ensure minimal prog header size */
   if (eh->e_phentsize < sizeof(Elf32_Phdr)) {
-    klog("Exec failed: ELF uses too small program headers");
+    klog("Exec failed: ELF file program headers are too short");
     return -ENOEXEC;
   }
 
@@ -361,6 +357,7 @@ static int load_elf(proc_t *p, vnode_t *vn, Elf32_Ehdr *eh) {
   klog("ELF has %d program headers", eh->e_phnum);
   for (int i = 0; i < eh->e_phnum; i++) {
     Elf32_Phdr *ph = (Elf32_Phdr *)(phs + i * eh->e_phentsize);
+    error = -ENOEXEC; /* default fail reason */
     switch (ph->p_type) {
       case PT_LOAD:
         if ((error = load_elf_segment(p, vn, ph)))
@@ -369,12 +366,10 @@ static int load_elf(proc_t *p, vnode_t *vn, Elf32_Ehdr *eh) {
       case PT_DYNAMIC:
       case PT_INTERP:
         klog("Exec failed: ELF file requests dynamic linking"
-             "by providing a PT_DYNAMIC and/or PT_INTERP segment.");
-        error = -ENOEXEC;
+             "by providing a PT_DYNAMIC and/or PT_INTERP segment");
         goto fail;
       case PT_SHLIB:
         klog("Exec failed: ELF file contains a PT_SHLIB segment");
-        error = -ENOEXEC;
         goto fail;
       /* Ignore following sections. */
       case PT_NULL:
