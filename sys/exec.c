@@ -194,7 +194,7 @@ fail:
   return error;
 }
 
-static int open_executable(const char *path, vnode_t **vn_p, vattr_t *attr) {
+static int open_executable(const char *path, vnode_t **vn_p) {
   vnode_t *vn = *vn_p;
   int error;
 
@@ -204,14 +204,9 @@ static int open_executable(const char *path, vnode_t **vn_p, vattr_t *attr) {
   if ((error = vfs_lookup(path, &vn)))
     return error;
 
-  if ((error = VOP_GETATTR(vn, attr)))
-    return error;
-
   /* It must be a regular executable file with non-zero size. */
   if (vn->v_type != V_REG)
     return -EACCES;
-  if (attr->va_size == 0)
-    return -ENOEXEC;
   if ((error = VOP_ACCESS(vn, VEXEC)))
     return error;
 
@@ -223,17 +218,19 @@ static int open_executable(const char *path, vnode_t **vn_p, vattr_t *attr) {
   return 0;
 }
 
-static int check_elf(vnode_t *vn, vattr_t *attr, Elf32_Ehdr *eh) {
+static int check_elf(vnode_t *vn, Elf32_Ehdr *eh) {
   int error;
+  vattr_t attr;
 
-  size_t elf_size = attr->va_size;
-  klog("User ELF size: %u", elf_size);
+  if ((error = VOP_GETATTR(vn, &attr)))
+    return error;
 
-  if (elf_size < sizeof(Elf32_Ehdr)) {
+  if (attr.va_size < sizeof(Elf32_Ehdr)) {
     klog("Exec failed: ELF file is too small to contain a valid header");
     return -ENOEXEC;
   }
 
+  klog("User ELF size: %u", attr.va_size);
   uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, 0, eh, sizeof(Elf32_Ehdr));
   if ((error = VOP_READ(vn, &uio)) < 0) {
     klog("Exec failed: Reading ELF header failed.");
@@ -456,16 +453,15 @@ int do_exec(const exec_args_t *args) {
   thread_t *td = thread_self();
   proc_t *p = td->td_proc;
   vnode_t *vn;
-  vattr_t attr;
   int error;
 
   assert(p != NULL);
 
-  if ((error = open_executable(args->prog_name, &vn, &attr)))
+  if ((error = open_executable(args->prog_name, &vn)))
     return error;
 
   Elf32_Ehdr eh;
-  if ((error = check_elf(vn, &attr, &eh)))
+  if ((error = check_elf(vn, &eh)))
     return error;
 
   /* We can not destroy the current vm map, because exec can still fail.
