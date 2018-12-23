@@ -171,20 +171,13 @@ static int exec_args_copyout(const exec_args_t *args, vaddr_t *stack_top_p) {
 
   ustack_setup(&us, *stack_top_p, ARG_MAX);
 
-  if ((error = ustack_push_int(&us, argc)))
-    goto fail;
-  if ((error = ustack_alloc_ptr_n(&us, argc, (vaddr_t *)&argv)))
-    goto fail;
-  if ((error = ustack_push_long(&us, (long)NULL)))
-    goto fail;
-  if ((error = ustack_alloc_ptr_n(&us, envc, (vaddr_t *)&envp)))
-    goto fail;
-  if ((error = ustack_push_long(&us, (long)NULL)))
-    goto fail;
-
-  if ((error = store_strings(&us, args->argv, argv, argc)))
-    goto fail;
-  if ((error = store_strings(&us, args->envp, envp, envc)))
+  if ((error = ustack_push_int(&us, argc)) ||
+      (error = ustack_alloc_ptr_n(&us, argc, (vaddr_t *)&argv)) ||
+      (error = ustack_push_long(&us, (long)NULL)) ||
+      (error = ustack_alloc_ptr_n(&us, envc, (vaddr_t *)&envp)) ||
+      (error = ustack_push_long(&us, (long)NULL)) ||
+      (error = store_strings(&us, args->argv, argv, argc)) ||
+      (error = store_strings(&us, args->envp, envp, envc)))
     goto fail;
 
   ustack_finalize(&us);
