@@ -50,8 +50,26 @@ int do_kill(pid_t pid, signo_t sig) {
     sig_kill(target, sig);
     return 0;
   }
-  return -EINVAL;
-  // TODO: pid <= 0
+
+  if (pid == -1)
+    return -ENOTSUP;
+
+  pgrp_t *target_pgrp = NULL;
+
+  if (pid == 0)
+    target_pgrp = proc_self()->p_pgrp;
+
+  if (pid < -1)
+    target_pgrp = proc_find(-pid);
+
+  if (!target_pgrp)
+    return -EINVAL;
+
+  proc_t *target_proc = NULL;
+  LIST_FOREACH(target_proc, p_pglist, &pgrp->pg_members)
+    sig_kill(target_proc, sig);
+
+  return 0;
 }
 
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
