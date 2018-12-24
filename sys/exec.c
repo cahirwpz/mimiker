@@ -79,8 +79,8 @@ static int buffer_copyin_strv(buffer_t *buf, char **user_strv, char ***strv_p) {
   return 0;
 }
 
-int exec_args_copyin(exec_args_t *exec_args, char *user_path, char **user_argv,
-                     char **user_envp) {
+int exec_args_copyin(exec_args_t *exec_args, char *user_path, char *user_argv[],
+                     char *user_envp[]) {
   int error;
   buffer_t buf;
 
@@ -196,7 +196,7 @@ static int open_executable(const char *path, vnode_t **vn_p) {
   vnode_t *vn = *vn_p;
   int error;
 
-  klog("Loading program: %s", path);
+  klog("Loading program '%s'", path);
 
   /* Translate program name to vnode. */
   if ((error = vfs_lookup(path, &vn)))
@@ -319,13 +319,13 @@ fail:
   return error;
 }
 
-noreturn void run_program(const exec_args_t *prog) {
+noreturn void run_program(char *path, char *argv[], char *envp[]) {
   thread_t *td = thread_self();
   proc_t *p = proc_self();
 
   assert(p != NULL);
 
-  klog("Starting program \"%s\"", prog->prog_name);
+  klog("Starting program '%s'", path);
 
   /* Let's assign an empty virtual address space, to be filled by `do_exec` */
   p->p_uspace = vm_map_new();
@@ -345,8 +345,10 @@ noreturn void run_program(const exec_args_t *prog) {
   assert(_stdout == 1);
   assert(_stderr == 2);
 
-  if (do_exec(prog) != -EJUSTRETURN)
-    panic("Failed to start %s program.", prog->prog_name);
+  exec_args_t prog = {.prog_name = path, .argv = argv, .envp = envp};
+
+  if (do_exec(&prog) != -EJUSTRETURN)
+    panic("Failed to start %s program.", path);
 
   user_exc_leave();
 }
