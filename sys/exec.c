@@ -14,85 +14,130 @@
 #include <vnode.h>
 #include <proc.h>
 #include <systm.h>
+#include <malloc.h>
 
-#define PTR_SIZE sizeof(void *)
+typedef struct exec_args exec_args_t;
 
-typedef struct {
-  void *data;
-  size_t nleft;
-} buffer_t;
+typedef int (*copy_path_t)(exec_args_t *args, char *path);
+typedef int (*copy_ptr_t)(exec_args_t *args, char **ptr_p);
+typedef int (*copy_str_t)(exec_args_t *args, char *str, size_t *copied_p);
 
-static inline void buffer_advance(buffer_t *buf, size_t len) {
-  buf->data += len;
-  buf->nleft -= len;
+struct exec_args {
+  char *path; /* string of PATH_MAX length for executable path */
+
+  char **argv; /* beginning of argv in the buffer */
+  char **envv; /* beginning of envv in the buffer*/
+  size_t argc;
+  size_t envc;
+
+  copy_path_t copy_path;
+  copy_ptr_t copy_ptr;
+  copy_str_t copy_str;
+
+  char *data;  /* buffer of ARG_MAX length for argv and envv data */
+  char *end;   /* pointer to the end of data in the buffer */
+  size_t left; /* space left in the buffer */
+};
+
+static inline void advance(exec_args_t *args, size_t len) {
+  args->end += len;
+  args->left -= len;
 }
 
-static inline void buffer_align(buffer_t *buf, size_t align) {
-  intptr_t last_data = (intptr_t)buf->data;
-  buf->data = align(buf->data, align);
-  size_t padding = (intptr_t)buf->data - last_data;
-  assert(buf->nleft >= padding);
-  buf->nleft -= padding;
+static void exec_args_init(exec_args_t *args) {
+  args->path = kmalloc(M_TEMP, PATH_MAX, 0);
+  args->data = kmalloc(M_TEMP, ARG_MAX, 0);
+  args->end = args->data;
+  args->left = ARG_MAX;
 }
 
-static int buffer_copyin_ptr(buffer_t *buf, char **user_ptr_p) {
-  int error;
-  if ((error = copyin(user_ptr_p, buf->data, PTR_SIZE)))
-    return error;
-  buffer_advance(buf, PTR_SIZE);
+static void exec_args_destroy(exec_args_t *args) {
+  kfree(M_TEMP, args->path);
+  kfree(M_TEMP, args->data);
+}
+
+#define EXEC_ARGS_FROM_KERNEL                                                  \
+  (exec_args_t) {                                                              \
+    .copy_path = copy_path, .copy_ptr = copy_ptr, .copy_str = copy_str         \
+  }
+
+static int copy_path(exec_args_t *args, char *path) {
+  return (strlcpy(args->path, path, PATH_MAX) >= PATH_MAX) ? -ENAMETOOLONG : 0;
+}
+static int copy_ptr(exec_args_t *args, char **src_p) {
+  *(char **)args->end = *src_p;
   return 0;
 }
 
-static int buffer_copyin_str(buffer_t *buf, char *user_str, char **str_p) {
-  size_t len;
-  int error;
-  if ((error = copyinstr(user_str, buf->data, buf->nleft, &len)))
-    return error;
-  *str_p = buf->data;
-  buffer_advance(buf, len);
+static int copy_str(exec_args_t *args, char *str, size_t *copied_p) {
+  *copied_p = strlcpy(args->end, str, args->left);
   return 0;
 }
 
-static int buffer_copyin_strv(buffer_t *buf, char **user_strv, char ***strv_p) {
-  int error;
+#define EXEC_ARGS_FROM_USER                                                    \
+  (exec_args_t) {                                                              \
+    .copy_path = copyin_path, .copy_ptr = copyin_ptr, .copy_str = copyin_str   \
+  }
 
-  buffer_align(buf, PTR_SIZE);
-  assert(is_aligned(buf->nleft, PTR_SIZE));
+static int copyin_path(exec_args_t *args, char *path) {
+  return copyinstr(path, args->path, PATH_MAX, NULL);
+}
 
-  /* Copy in vector of string pointers. */
-  char **strv = buf->data;
-  for (int i = 0; buf->nleft > 0; i++) {
-    if ((error = buffer_copyin_ptr(buf, user_strv + i)))
+static int copyin_ptr(exec_args_t *args, char **user_src_p) {
+  return copyin(user_src_p, args->end, sizeof(char *));
+}
+
+static int copyin_str(exec_args_t *args, char *str, size_t *copied_p) {
+  int error = copyinstr(str, args->end, args->left, copied_p);
+  return (error == -ENAMETOOLONG) ? -E2BIG : error;
+}
+
+static int copy_ptrs(exec_args_t *args, char ***dstv_p, size_t *len_p,
+                     char **srcv) {
+  char **dstv = (char **)args->end;
+  int error, n = 0;
+
+  /* Copy pointers one by one. */
+  do {
+    if (args->left < sizeof(char *))
+      return -E2BIG;
+    if ((error = args->copy_ptr(args, srcv + n)))
       return error;
-    if (!strv[i])
-      break;
-  }
+    advance(args, sizeof(char *));
+  } while (dstv[n++]);
 
-  *strv_p = strv;
+  *dstv_p = dstv;
+  *len_p = n - 1;
+  return 0;
+}
 
-  /* Now we have all user-space pointers to strings so copy in the strings. */
+static int copy_strv(exec_args_t *args, char **strv) {
+  int error;
+
   for (int i = 0; strv[i]; i++) {
-    if ((error = buffer_copyin_str(buf, strv[i], strv + i)))
-      return (error == -ENAMETOOLONG) ? -E2BIG : error;
+    size_t copied;
+    if ((error = args->copy_str(args, strv[i], &copied)))
+      return error;
+    if (copied >= args->left)
+      return -E2BIG;
+    strv[i] = args->end;
+    advance(args, copied);
   }
 
   return 0;
 }
 
-int exec_args_copyin(exec_args_t *exec_args, char *user_path, char *user_argv[],
-                     char *user_envp[]) {
+static int exec_args_copy(exec_args_t *args, char *path, char *argv[],
+                          char *envv[]) {
   int error;
-  buffer_t buf;
 
-  buf = (buffer_t){.data = exec_args->data, .nleft = PATH_MAX};
-  if ((error = buffer_copyin_str(&buf, user_path, &exec_args->prog_name)))
+  if ((error = copy_path(args, path)) ||
+      (error = copy_ptrs(args, &args->argv, &args->argc, argv)) ||
+      (error = copy_ptrs(args, &args->envv, &args->envc, envv)) ||
+      (error = copy_strv(args, args->argv)) ||
+      (error = copy_strv(args, args->envv)))
     return error;
 
-  buf = (buffer_t){.data = exec_args->data + PATH_MAX, .nleft = ARG_MAX};
-  if ((error = buffer_copyin_strv(&buf, user_argv, &exec_args->argv)))
-    return error;
-  if ((error = buffer_copyin_strv(&buf, user_envp, &exec_args->envp)))
-    return error;
   return 0;
 }
 
@@ -156,26 +201,19 @@ static int store_strings(ustack_t *us, char **strv, char **stack_strv,
  */
 static int exec_args_copyout(const exec_args_t *args, vaddr_t *stack_top_p) {
   ustack_t us;
-  char **argv, **envp;
+  char **argv, **envv;
   int error;
-  size_t argc = 0, envc = 0;
-
-  while (args->argv[argc] != NULL)
-    argc++;
-  while (args->envp[envc] != NULL)
-    envc++;
-
-  assert(argc > 0);
+  size_t argc = args->argc, envc = args->envc;
 
   ustack_setup(&us, *stack_top_p, ARG_MAX);
 
   if ((error = ustack_push_int(&us, argc)) ||
       (error = ustack_alloc_ptr_n(&us, argc, (vaddr_t *)&argv)) ||
       (error = ustack_push_long(&us, (long)NULL)) ||
-      (error = ustack_alloc_ptr_n(&us, envc, (vaddr_t *)&envp)) ||
+      (error = ustack_alloc_ptr_n(&us, envc, (vaddr_t *)&envv)) ||
       (error = ustack_push_long(&us, (long)NULL)) ||
       (error = store_strings(&us, args->argv, argv, argc)) ||
-      (error = store_strings(&us, args->envp, envp, envc)))
+      (error = store_strings(&us, args->envv, envv, envc)))
     goto fail;
 
   ustack_finalize(&us);
@@ -183,7 +221,7 @@ static int exec_args_copyout(const exec_args_t *args, vaddr_t *stack_top_p) {
   for (size_t i = 0; i < argc; i++)
     ustack_relocate_ptr(&us, (vaddr_t *)&argv[i]);
   for (size_t i = 0; i < envc; i++)
-    ustack_relocate_ptr(&us, (vaddr_t *)&envp[i]);
+    ustack_relocate_ptr(&us, (vaddr_t *)&envv[i]);
 
   error = ustack_copy(&us, stack_top_p);
 
@@ -273,7 +311,7 @@ static void destroy_vmspace(exec_vmspace_t *saved) {
 /* XXX We assume process may only have a single thread. But if there were more
  * than one thread in the process that called exec, all other threads must be
  * forcefully terminated. */
-int do_exec(const exec_args_t *args) {
+static int _do_execve(const exec_args_t *args) {
   thread_t *td = thread_self();
   proc_t *p = td->td_proc;
   vnode_t *vn;
@@ -281,11 +319,13 @@ int do_exec(const exec_args_t *args) {
 
   assert(p != NULL);
 
-  if ((error = open_executable(args->prog_name, &vn)))
+  if ((error = open_executable(args->path, &vn)) < 0) {
+    klog("No file found: '%s'!", args->path);
     return error;
+  }
 
   Elf32_Ehdr eh;
-  if ((error = exec_elf_inspect(vn, &eh)))
+  if ((error = exec_elf_inspect(vn, &eh)) < 0)
     return error;
 
   /* We can not destroy the current vm_map, because exec can still fail.
@@ -294,11 +334,11 @@ int do_exec(const exec_args_t *args) {
   vaddr_t stack_top;
   enter_new_vmspace(p, &saved, &stack_top);
 
-  if ((error = exec_elf_load(p, vn, &eh)))
+  if ((error = exec_elf_load(p, vn, &eh)) < 0)
     goto fail;
 
   /* Prepare program stack, which includes storing program args. */
-  if ((error = exec_args_copyout(args, &stack_top)))
+  if ((error = exec_args_copyout(args, &stack_top)) < 0)
     goto fail;
 
   /* Set up user context. */
@@ -317,6 +357,18 @@ fail:
   restore_vmspace(p, &saved);
   destroy_vmspace(&saved);
   return error;
+}
+
+int do_execve(char *user_path, char *user_argv[], char *user_envp[]) {
+  int result;
+  exec_args_t args = EXEC_ARGS_FROM_USER;
+  exec_args_init(&args);
+  if ((result = exec_args_copy(&args, user_path, user_argv, user_envp)))
+    goto end;
+  result = _do_execve(&args);
+end:
+  exec_args_destroy(&args);
+  return result;
 }
 
 noreturn void run_program(char *path, char *argv[], char *envp[]) {
@@ -345,10 +397,13 @@ noreturn void run_program(char *path, char *argv[], char *envp[]) {
   assert(_stdout == 1);
   assert(_stderr == 2);
 
-  exec_args_t prog = {.prog_name = path, .argv = argv, .envp = envp};
+  exec_args_t args = EXEC_ARGS_FROM_KERNEL;
+  exec_args_init(&args);
 
-  if (do_exec(&prog) != -EJUSTRETURN)
-    panic("Failed to start %s program.", path);
+  if (exec_args_copy(&args, path, argv, envp) ||
+      _do_execve(&args) != -EJUSTRETURN)
+    panic("Failed to start '%s' program.", path);
 
+  exec_args_destroy(&args);
   user_exc_leave();
 }
