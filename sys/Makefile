@@ -18,6 +18,7 @@ SOURCES = \
 	exception.c \
 	exec.c \
 	exec_elf.c \
+	exec_shebang.c \
 	file.c \
 	filedesc.c \
 	fork.c \

@@ -24,6 +24,8 @@ int exec_args_copyin(exec_args_t *exec_args, char *user_path, char **user_argv,
                      char **user_envp);
 int exec_elf_inspect(vnode_t *vn, Elf32_Ehdr *eh);
 int exec_elf_load(proc_t *p, vnode_t *vn, Elf32_Ehdr *eh);
+int exec_shebang_inspect(vnode_t *vn);
+int exec_shebang_interp(vnode_t *vn, char **interp_p);
 
 int do_exec(const exec_args_t *prog);
 noreturn void run_program(const exec_args_t *prog);
