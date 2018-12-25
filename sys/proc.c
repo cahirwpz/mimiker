@@ -107,7 +107,7 @@ static void proc_reap(proc_t *p) {
 
   klog("Recycling process PID(%d) {%p}", p->p_pid, p);
 
-  proc_leave_pgrp(p);
+  proc_enter_pgrp(p, NULL);
 
   if (p->p_parent)
     TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
@@ -194,26 +194,25 @@ noreturn void proc_exit(int exitstatus) {
 
 /* Enter existing process group. */
 int proc_enter_pgrp(proc_t *p, pgrp_t *pgrp) {
-  proc_leave_pgrp(p);
+  pgrp_t *curr_pgrp = p->p_pgrp;
 
-  p->p_pgrp = pgrp;
-  LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
+  if (pgrp == curr_pgrp)
+    return 0;
+
+  if (curr_pgrp) {
+    LIST_REMOVE(p, p_pglist);
+
+    /* if last process in the group, then destroy it! */
+    if (LIST_EMPTY(&curr_pgrp->pg_members))
+      pgrp_destroy(curr_pgrp);
+  }
+
+  if (pgrp) {
+    p->p_pgrp = pgrp;
+    LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
+  }
 
   return 0;
-}
-
-void proc_leave_pgrp(proc_t *p) {
-  pgrp_t *pgrp = p->p_pgrp;
-
-  if (!pgrp)
-    return;
-
-  LIST_REMOVE(p, p_pglist);
-  p->p_pgrp = NULL;
-  
-  /* if last process in the group, then destroy it! */
-  if (LIST_EMPTY(&pgrp->pg_members))
-    pgrp_destroy(pgrp);
 }
 
 /* Wait for direct children. */

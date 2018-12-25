@@ -60,13 +60,13 @@ int do_kill(pid_t pid, signo_t sig) {
     target_pgrp = proc_self()->p_pgrp;
 
   if (pid < -1)
-    target_pgrp = proc_find(-pid);
+    target_pgrp = pgrp_find(-pid);
 
   if (!target_pgrp)
     return -EINVAL;
 
   proc_t *target_proc = NULL;
-  LIST_FOREACH(target_proc, p_pglist, &pgrp->pg_members)
+  LIST_FOREACH(target_proc, &target_pgrp->pg_members, p_pglist)
     sig_kill(target_proc, sig);
 
   return 0;
