@@ -10,6 +10,7 @@ SOURCES = \
 	main.c \
 	misbehave.c \
 	mmap.c \
+	process_groups.c \
 	sbrk.c \
 	signal.c \
 	stat.c \
