@@ -14,6 +14,7 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <exec.h>
 #include <time.h>
 #include <proc.h>
 #include <pipe.h>
@@ -123,6 +124,13 @@ static int sys_kill(thread_t *td, syscall_args_t *args) {
   return do_kill(pid, sig);
 }
 
+static int sys_killpg(thread_t *td, syscall_args_t *args) {
+  pgid_t pgid = args->args[0];
+  signo_t sig = args->args[1];
+  klog("killpg(%lu, %d)", pgid, sig);
+  return -ENOTSUP;
+}
+
 static int sys_sigaction(thread_t *td, syscall_args_t *args) {
   int signo = args->args[0];
   char *p_newact = (char *)args->args[1];
@@ -164,6 +172,21 @@ static int sys_mmap(thread_t *td, syscall_args_t *args) {
   if (error < 0)
     return error;
   return addr;
+}
+
+static int sys_munmap(thread_t *td, syscall_args_t *args) {
+  vaddr_t addr = args->args[0];
+  size_t length = args->args[1];
+  klog("munmap(%p, %u)", (void *)addr, length);
+  return -ENOTSUP;
+}
+
+static int sys_mprotect(thread_t *td, syscall_args_t *args) {
+  vaddr_t addr = args->args[0];
+  size_t length = args->args[1];
+  vm_prot_t prot = args->args[2];
+  klog("mprotect(%p, %u, %u)", (void *)addr, length, prot);
+  return -ENOTSUP;
 }
 
 static int sys_open(thread_t *td, syscall_args_t *args) {
@@ -281,6 +304,31 @@ static int sys_stat(thread_t *td, syscall_args_t *args) {
 end:
   kfree(M_TEMP, path);
   return result;
+}
+
+static int sys_chdir(thread_t *td, syscall_args_t *args) {
+  char *user_path = (char *)args->args[0];
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+  size_t len = 0;
+  int result;
+
+  result = copyinstr(user_path, path, PATH_MAX, &len);
+  if (result < 0)
+    goto end;
+
+  klog("chdir(\"%s\")", path);
+  result = -ENOTSUP;
+
+end:
+  kfree(M_TEMP, path);
+  return result;
+}
+
+static int sys_getcwd(thread_t *td, syscall_args_t *args) {
+  __unused char *user_buf = (char *)args->args[0];
+  __unused size_t size = (size_t)args->args[1];
+  return -ENOTSUP;
 }
 
 static int sys_mount(thread_t *td, syscall_args_t *args) {
@@ -437,6 +485,24 @@ end:
   return result;
 }
 
+static int sys_execve(thread_t *td, syscall_args_t *args) {
+  char *user_path = (char *)args->args[0];
+  char **user_argv = (char **)args->args[1];
+  char **user_envp = (char **)args->args[2];
+  int result;
+
+  exec_args_t *exec_args = kmalloc(M_TEMP, EXEC_ARGS_SIZE, 0);
+
+  if ((result = exec_args_copyin(exec_args, user_path, user_argv, user_envp)))
+    goto error;
+
+  result = do_exec(exec_args);
+  klog("execve(\"%s\", ...) = %d", exec_args->prog_name, result);
+error:
+  kfree(M_TEMP, exec_args);
+  return result;
+}
+
 static int sys_access(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
   mode_t mode = args->args[1];
@@ -510,4 +576,10 @@ sysent_t sysent[] = {
   [SYS_PIPE] = {sys_pipe},
   [SYS_CLOCKGETTIME] = {sys_clock_gettime},
   [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep},
+  [SYS_EXECVE] = {sys_execve},
+  [SYS_KILLPG] = {sys_killpg},
+  [SYS_MUNMAP] = {sys_munmap},
+  [SYS_MPROTECT] = {sys_mprotect},
+  [SYS_CHDIR] = {sys_chdir},
+  [SYS_GETCWD] = {sys_getcwd},
 };
