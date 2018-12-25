@@ -10,6 +10,8 @@ static unsigned long pgrphash = 0x3;
 #define PGRPHASH(pgid) pgrphashtable[(pgid) & pgrphash]
 
 pgrp_t *pgrp_create(pgid_t pgid) {
+  assert(!pgrp_find(pgid)); 
+
   pgrp_t *pgrp = pool_alloc(P_PGRP, PF_ZERO);
 
   LIST_INIT(&pgrp->pg_members);

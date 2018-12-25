@@ -43,6 +43,7 @@ int do_fork(void) {
   /* Now, prepare a new process. */
   assert(td->td_proc);
   proc_t *proc = proc_create(newtd, td->td_proc);
+  proc->p_pgrp = NULL;
   proc_enter_pgrp(proc, td->td_proc->p_pgrp);
 
   /* Clone the entire process memory space. */
