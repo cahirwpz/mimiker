@@ -1,5 +1,6 @@
 #define KL_LOG KL_PROC
 #include <klog.h>
+#define _EXEC_IMPL
 #include <exec.h>
 #include <stdc.h>
 #include <vm_map.h>
@@ -15,36 +16,6 @@
 #include <proc.h>
 #include <systm.h>
 #include <malloc.h>
-
-typedef struct exec_args exec_args_t;
-
-typedef int (*copy_path_t)(exec_args_t *args, char *path);
-typedef int (*copy_ptr_t)(exec_args_t *args, char **ptr_p);
-typedef int (*copy_str_t)(exec_args_t *args, char *str, size_t *copied_p);
-
-struct exec_args {
-  char *path; /* string of PATH_MAX length for executable path */
-
-  char **argv; /* beginning of argv in the buffer */
-  char **envv; /* beginning of envv in the buffer*/
-  size_t argc;
-  size_t envc;
-
-  copy_path_t copy_path;
-  copy_ptr_t copy_ptr;
-  copy_str_t copy_str;
-
-  char *data;  /* buffer of ARG_MAX length for argv and envv data */
-  char *end;   /* pointer to the end of data in the buffer */
-  size_t left; /* space left in the buffer */
-};
-
-/* Moves end pointer forward and updates available space. Does not check
- * if \a len does not move pointer beyond last byte in the buffer. */
-static inline void advance(exec_args_t *args, size_t len) {
-  args->end += len;
-  args->left -= len;
-}
 
 /* exec_args structure initiliazer when exec_args_copy arguments
  * are coming from kernel / user space respectively */
@@ -114,7 +85,8 @@ static int copy_ptrs(exec_args_t *args, char ***dstv_p, size_t *len_p,
       return -E2BIG;
     if ((error = args->copy_ptr(args, srcv + n)))
       return error;
-    advance(args, sizeof(char *));
+    args->end += sizeof(char *);
+    args->left -= sizeof(char *);
   } while (dstv[n++]);
 
   *dstv_p = dstv;
@@ -133,7 +105,8 @@ static int copy_strv(exec_args_t *args, char **strv) {
     if (copied >= args->left)
       return -E2BIG;
     strv[i] = args->end;
-    advance(args, copied);
+    args->end += copied;
+    args->left -= copied;
   }
 
   return 0;
@@ -212,7 +185,7 @@ static int store_strings(ustack_t *us, char **strv, char **stack_strv,
  * address where argc is stored, which is also the bottom of the now empty
  * program stack, so that it can naturally grow downwards.
  */
-static int exec_args_copyout(const exec_args_t *args, vaddr_t *stack_top_p) {
+static int exec_args_copyout(exec_args_t *args, vaddr_t *stack_top_p) {
   ustack_t us;
   char **argv, **envv;
   int error;
@@ -220,18 +193,26 @@ static int exec_args_copyout(const exec_args_t *args, vaddr_t *stack_top_p) {
 
   ustack_setup(&us, *stack_top_p, ARG_MAX);
 
-  if ((error = ustack_push_int(&us, argc)) ||
-      (error = ustack_alloc_ptr_n(&us, argc, (vaddr_t *)&argv)) ||
+  int has_interp = args->interp ? 1 : 0;
+
+  if ((error = ustack_push_int(&us, argc + has_interp)) ||
+      (error = ustack_alloc_ptr_n(&us, argc + has_interp, (vaddr_t *)&argv)) ||
       (error = ustack_push_long(&us, (long)NULL)) ||
       (error = ustack_alloc_ptr_n(&us, envc, (vaddr_t *)&envv)) ||
-      (error = ustack_push_long(&us, (long)NULL)) ||
-      (error = store_strings(&us, args->argv, argv, argc)) ||
+      (error = ustack_push_long(&us, (long)NULL)))
+    goto fail;
+
+  if (has_interp)
+    if ((error = store_strings(&us, &args->interp, argv, 1)))
+      goto fail;
+
+  if ((error = store_strings(&us, args->argv, argv + has_interp, argc)) ||
       (error = store_strings(&us, args->envv, envv, envc)))
     goto fail;
 
   ustack_finalize(&us);
 
-  for (size_t i = 0; i < argc; i++)
+  for (size_t i = 0; i < argc + has_interp; i++)
     ustack_relocate_ptr(&us, (vaddr_t *)&argv[i]);
   for (size_t i = 0; i < envc; i++)
     ustack_relocate_ptr(&us, (vaddr_t *)&envv[i]);
@@ -324,22 +305,44 @@ static void destroy_vmspace(exec_vmspace_t *saved) {
 /* XXX We assume process may only have a single thread. But if there were more
  * than one thread in the process that called exec, all other threads must be
  * forcefully terminated. */
-static int _do_execve(const exec_args_t *args) {
+static int _do_execve(exec_args_t *args) {
   thread_t *td = thread_self();
   proc_t *p = td->td_proc;
   vnode_t *vn;
-  int error;
+  int result;
 
   assert(p != NULL);
 
-  if ((error = open_executable(args->path, &vn)) < 0) {
-    klog("No file found: '%s'!", args->path);
-    return error;
-  }
+  bool use_interpreter = false;
+
+  do {
+    char *prog = args->interp ? args->interp : args->path;
+
+    if ((result = open_executable(prog, &vn)) < 0) {
+      klog("No file found: '%s'!", prog);
+      return result;
+    }
+
+    /* Interpreter file must not be interpreted!
+     * Otherwise a user could create an infinite chain of interpreted files. */
+    if (use_interpreter)
+      break;
+
+    /* If shebang signature is detected use interpreter to load the file. */
+    if ((result = exec_shebang_inspect(vn)) < 0)
+      return result;
+
+    if (result) {
+      if ((result = exec_shebang_interp(vn, args)) < 0)
+        return result;
+      klog("Interpreter for '%s' is '%s'", prog, args->interp);
+      use_interpreter = true;
+    }
+  } while (use_interpreter);
 
   Elf32_Ehdr eh;
-  if ((error = exec_elf_inspect(vn, &eh)) < 0)
-    return error;
+  if ((result = exec_elf_inspect(vn, &eh)) < 0)
+    return result;
 
   /* We can not destroy the current vm_map, because exec can still fail.
    * Is such case we must be able to return to the original address space. */
@@ -347,11 +350,11 @@ static int _do_execve(const exec_args_t *args) {
   vaddr_t stack_top;
   enter_new_vmspace(p, &saved, &stack_top);
 
-  if ((error = exec_elf_load(p, vn, &eh)) < 0)
+  if ((result = exec_elf_load(p, vn, &eh)) < 0)
     goto fail;
 
   /* Prepare program stack, which includes storing program args. */
-  if ((error = exec_args_copyout(args, &stack_top)) < 0)
+  if ((result = exec_args_copyout(args, &stack_top)) < 0)
     goto fail;
 
   /* Set up user context. */
@@ -369,7 +372,7 @@ static int _do_execve(const exec_args_t *args) {
 fail:
   restore_vmspace(p, &saved);
   destroy_vmspace(&saved);
-  return error;
+  return result;
 }
 
 int do_execve(char *user_path, char *user_argv[], char *user_envp[]) {

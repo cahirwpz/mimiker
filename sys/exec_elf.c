@@ -1,5 +1,6 @@
 #define KL_LOG KL_PROC
 #include <klog.h>
+#define _EXEC_IMPL
 #include <exec.h>
 #include <stdc.h>
 #include <vm_map.h>
