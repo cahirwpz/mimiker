@@ -240,6 +240,8 @@ static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
 static int gt_pci_probe(device_t *pcib){
   gt_pci_state_t *gtpci = pcib->softc;
 
+  // it should all be done via hints in parent device - rootdev
+
 /* PCI I/O memory */
 gtpci->pci_mem = bus_get_resource(
                                   pcib, RT_MEMORY, 0, MALTA_PCI0_MEMORY_SIZE);
@@ -307,6 +309,8 @@ static int gt_pci_attach(device_t *pcib) {
   gt_pci_intr_chain_init(gtpci, 15, "ide(1)"); /* IDE secondary */
 
   // find pci devices
+  // store all pci-related info in ivars
+  // pci_device_t structure
   pci_bus_enumerate(pcib);
 
   gtpci->intr_handler =

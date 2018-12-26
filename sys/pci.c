@@ -37,17 +37,23 @@ static bool pci_device_present(device_t *pcib, unsigned bus, unsigned dev,
   return (pci_read_config(&pcid, PCIR_DEVICEID, 4) != 0xffffffff);
 }
 
+// called by pci bus
 void pci_bus_enumerate(device_t *pcib) {
   for (int j = 0; j < 32; j++) {
     for (int k = 0; k < 8; k++) {
       if (!pci_device_present(pcib, 0, j, k))
         continue;
 
+      // should we add it as nameunit?
+      // how do we find what kindof device it it?
+      // we can check DID, VID and CLASSCODE
       device_t *dev = device_add_child(pcib);
       pci_device_t *pcid = kmalloc(M_DEV, sizeof(pci_device_t), M_ZERO);
 
+      // set that this device is a child of PCI bus
       dev->bus = DEV_BUS_PCI;
-      dev->instance = pcid;
+      // set bus_specific data for this device
+      dev->ivars = pcid;
 
       pcid->addr = (pci_addr_t){0, j, k};
       pcid->device_id = pci_read_config(dev, PCIR_DEVICEID, 2);
@@ -56,12 +62,14 @@ void pci_bus_enumerate(device_t *pcib) {
       pcid->pin = pci_read_config(dev, PCIR_IRQPIN, 1);
       pcid->irq = pci_read_config(dev, PCIR_IRQLINE, 1);
 
+      // identify all BARs of this device
       for (int i = 0; i < 6; i++) {
         uint32_t addr = pci_read_config(dev, PCIR_BAR(i), 4);
         uint32_t size = pci_adjust_config(dev, PCIR_BAR(i), 4, 0xffffffff);
 
         if (size == 0 || addr == size)
           continue;
+
 
         unsigned type, flags;
 
@@ -76,8 +84,19 @@ void pci_bus_enumerate(device_t *pcib) {
         }
 
         size = -size;
+        /* clang-format off */
         pcid->bar[i] = (pci_bar_t){
-          .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
+          .owner = dev,
+          .type = type,
+          .flags = flags,
+          .size = size,
+          .rid = i
+        };
+        // should we place it in rman?
+        // it is not alocated right now
+        // we can place it in rmsn bt with RF_NOTINITiALIZED flag
+        // it would require activation of that resource
+        /* clang-format on */
       }
     }
   }
