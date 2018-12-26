@@ -9,7 +9,21 @@ static unsigned long pgrphash = 0x3;
 
 #define PGRPHASH(pgid) pgrphashtable[(pgid) & pgrphash]
 
+static bool pgrphashtable_initialized = false;
+
+static inline void make_sure_pgrphashtable_is_initialized() {
+ if (pgrphastable_initialized)
+	 return;
+
+ for(int i=0; i<4; ++i)
+	 LIST_INIT(&pgrphashtable[i]);
+
+ pgrphashtable_initialized = true;
+}
+
 pgrp_t *pgrp_create(pgid_t pgid) {
+  make_sure_pgrphashtable_is_initialized();
+
   assert(!pgrp_find(pgid)); 
 
   pgrp_t *pgrp = pool_alloc(P_PGRP, PF_ZERO);
@@ -25,6 +39,8 @@ pgrp_t *pgrp_create(pgid_t pgid) {
 
 /* Delete a process group. */
 void pgrp_destroy(pgrp_t *pgrp) {
+  make_sure_pgrphashtable_is_initialized();
+
   assert(LIST_EMPTY(&pgrp->pg_members));
 
   LIST_REMOVE(pgrp, pg_hash);
@@ -34,6 +50,8 @@ void pgrp_destroy(pgrp_t *pgrp) {
 
 /* Locate a process group by number. */
 pgrp_t *pgrp_find(pgid_t pgid) {
+  make_sure_pgrphashtable_is_initialized();
+
   pgrp_t *pgrp = NULL;
   LIST_FOREACH(pgrp, &PGRPHASH(pgid), pg_hash)
     if(pgrp->pg_id == pgid)
