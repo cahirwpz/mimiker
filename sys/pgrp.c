@@ -11,8 +11,8 @@ static unsigned long pgrphash = 0x3;
 
 static bool pgrphashtable_initialized = false;
 
-static inline void make_sure_pgrphashtable_is_initialized() {
-  if (pgrphastable_initialized)
+static inline void make_sure_pgrphashtable_is_initialized(void) {
+  if (pgrphashtable_initialized)
     return;
 
   for (int i = 0; i < 4; ++i)
