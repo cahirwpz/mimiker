@@ -319,13 +319,17 @@ fail:
   return error;
 }
 
+static int runs_cnt = 0;
+
 noreturn void run_program(const exec_args_t *prog) {
   thread_t *td = thread_self();
   proc_t *p = proc_self();
 
+  assert(runs_cnt==0);
   pgrp_t *pgrp = pgrp_create(1);
   p->p_pgrp = NULL;
   proc_enter_pgrp(p, pgrp);
+  ++runs_cnt;
 
   assert(p != NULL);
 
