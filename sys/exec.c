@@ -39,11 +39,27 @@ struct exec_args {
   size_t left; /* space left in the buffer */
 };
 
+/* Moves end pointer forward and updates available space. Does not check
+ * if \a len does not move pointer beyond last byte in the buffer. */
 static inline void advance(exec_args_t *args, size_t len) {
   args->end += len;
   args->left -= len;
 }
 
+/* exec_args structure initiliazer when exec_args_copy arguments
+ * are coming from kernel / user space respectively */
+#define EXEC_ARGS_FROM_KERNEL                                                  \
+  (exec_args_t) {                                                              \
+    .copy_path = copy_path, .copy_ptr = copy_ptr, .copy_str = copy_str         \
+  }
+
+#define EXEC_ARGS_FROM_USER                                                    \
+  (exec_args_t) {                                                              \
+    .copy_path = copyin_path, .copy_ptr = copyin_ptr, .copy_str = copyin_str   \
+  }
+
+/* Adds working buffers to exec_args structure previously initialized
+ * with EXEC_ARGS_FROM_KERNEL / EXEC_ARGS_FROM_USER */
 static void exec_args_init(exec_args_t *args) {
   args->path = kmalloc(M_TEMP, PATH_MAX, 0);
   args->data = kmalloc(M_TEMP, ARG_MAX, 0);
@@ -51,19 +67,17 @@ static void exec_args_init(exec_args_t *args) {
   args->left = ARG_MAX;
 }
 
+/* Frees dynamically allocated memory from exec_args structure */
 static void exec_args_destroy(exec_args_t *args) {
   kfree(M_TEMP, args->path);
   kfree(M_TEMP, args->data);
 }
 
-#define EXEC_ARGS_FROM_KERNEL                                                  \
-  (exec_args_t) {                                                              \
-    .copy_path = copy_path, .copy_ptr = copy_ptr, .copy_str = copy_str         \
-  }
-
+/* Procedures for copying data coming from kernel space into exec_args buffer */
 static int copy_path(exec_args_t *args, char *path) {
   return (strlcpy(args->path, path, PATH_MAX) >= PATH_MAX) ? -ENAMETOOLONG : 0;
 }
+
 static int copy_ptr(exec_args_t *args, char **src_p) {
   *(char **)args->end = *src_p;
   return 0;
@@ -74,11 +88,7 @@ static int copy_str(exec_args_t *args, char *str, size_t *copied_p) {
   return 0;
 }
 
-#define EXEC_ARGS_FROM_USER                                                    \
-  (exec_args_t) {                                                              \
-    .copy_path = copyin_path, .copy_ptr = copyin_ptr, .copy_str = copyin_str   \
-  }
-
+/* Procedures for copying data coming from user space into exec_args buffer */
 static int copyin_path(exec_args_t *args, char *path) {
   return copyinstr(path, args->path, PATH_MAX, NULL);
 }
@@ -92,6 +102,7 @@ static int copyin_str(exec_args_t *args, char *str, size_t *copied_p) {
   return (error == -ENAMETOOLONG) ? -E2BIG : error;
 }
 
+/* Copy argv/envv pointers into exec_args buffer */
 static int copy_ptrs(exec_args_t *args, char ***dstv_p, size_t *len_p,
                      char **srcv) {
   char **dstv = (char **)args->end;
@@ -111,6 +122,7 @@ static int copy_ptrs(exec_args_t *args, char ***dstv_p, size_t *len_p,
   return 0;
 }
 
+/* Copy argv/envv strings into exec_args buffer */
 static int copy_strv(exec_args_t *args, char **strv) {
   int error;
 
@@ -127,6 +139,7 @@ static int copy_strv(exec_args_t *args, char **strv) {
   return 0;
 }
 
+/* Copy argv/envv pointers and strings into exec_args buffer */
 static int exec_args_copy(exec_args_t *args, char *path, char *argv[],
                           char *envv[]) {
   int error;
