@@ -67,7 +67,7 @@ int do_kill(pid_t pid, signo_t sig) {
 
   proc_t *target_proc = NULL;
   LIST_FOREACH(target_proc, &target_pgrp->pg_members, p_pglist)
-    sig_kill(target_proc, sig);
+  sig_kill(target_proc, sig);
 
   return 0;
 }

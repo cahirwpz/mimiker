@@ -7,24 +7,24 @@ static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
 static LIST_HEAD(, pgrp) pgrphashtable[4];
 static unsigned long pgrphash = 0x3;
 
-#define PGRPHASH(pgid) pgrphashtable[(pgid) & pgrphash]
+#define PGRPHASH(pgid) pgrphashtable[(pgid)&pgrphash]
 
 static bool pgrphashtable_initialized = false;
 
 static inline void make_sure_pgrphashtable_is_initialized() {
- if (pgrphastable_initialized)
-	 return;
+  if (pgrphastable_initialized)
+    return;
 
- for(int i=0; i<4; ++i)
-	 LIST_INIT(&pgrphashtable[i]);
+  for (int i = 0; i < 4; ++i)
+    LIST_INIT(&pgrphashtable[i]);
 
- pgrphashtable_initialized = true;
+  pgrphashtable_initialized = true;
 }
 
 pgrp_t *pgrp_create(pgid_t pgid) {
   make_sure_pgrphashtable_is_initialized();
 
-  assert(!pgrp_find(pgid)); 
+  assert(!pgrp_find(pgid));
 
   pgrp_t *pgrp = pool_alloc(P_PGRP, PF_ZERO);
 
@@ -44,7 +44,7 @@ void pgrp_destroy(pgrp_t *pgrp) {
   assert(LIST_EMPTY(&pgrp->pg_members));
 
   LIST_REMOVE(pgrp, pg_hash);
-  
+
   pool_free(P_PGRP, pgrp);
 }
 
@@ -54,8 +54,8 @@ pgrp_t *pgrp_find(pgid_t pgid) {
 
   pgrp_t *pgrp = NULL;
   LIST_FOREACH(pgrp, &PGRPHASH(pgid), pg_hash)
-    if(pgrp->pg_id == pgid)
-      break;
+  if (pgrp->pg_id == pgid)
+    break;
 
   return pgrp;
 }
