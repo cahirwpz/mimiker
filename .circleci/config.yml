@@ -3,7 +3,7 @@ version: 2
 defaults: &defaults
   working_directory: ~/mimiker
   docker:
-    - image: cahirwpz/mimiker-circleci:1.6
+    - image: cahirwpz/mimiker-circleci:1.6.1
 
 jobs:
   verify_formatting:
@@ -24,12 +24,13 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - v1-newlib-3.0.0
+            - downloads-20181227-1542
       - run: 'make download'
       - save_cache:
-          key: v1-newlib-3.0.0
+          key: downloads-20181227-1542
           paths:
-            - user/newlib/newlib-3.0.0
+            - lib/newlib/newlib-3.0.0
+            - bin/lua/lua-5.3.5
       - run: 'make'
       - store_artifacts:
           path: mimiker.elf
