@@ -10,7 +10,7 @@ typedef struct proc proc_t;
 typedef struct exec_args exec_args_t;
 
 struct exec_args {
-  char *path; /* string of PATH_MAX length for executable path */
+  char *path;   /* string of PATH_MAX length for executable path */
   char *interp; /* interpreter path (or NULL) */
 
   char **argv; /* beginning of argv in the buffer */

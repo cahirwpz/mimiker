@@ -40,6 +40,12 @@ static int set_interp(exec_args_t *args, char *str) {
   args->interp = args->end;
   args->end += copied;
   args->left -= copied;
+
+  /* HACK Let's use one entry before real argv (allocated in exec_args_init)
+   * to store interpreter path. */
+  args->argc++;
+  args->argv--;
+  args->argv[0] = args->interp;
   return 0;
 }
 

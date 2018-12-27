@@ -26,6 +26,13 @@ static void exec_args_init(exec_args_t *args) {
   args->data = kmalloc(M_TEMP, ARG_MAX, 0);
   args->end = args->data;
   args->left = ARG_MAX;
+  args->interp = NULL;
+
+  /* HACK Let's reserve one entry just before argv for interpreter path.
+   * There's an implicit assumption that argv goes into the buffer first. */
+  bzero(args->end, sizeof(char *));
+  args->end += sizeof(char *);
+  args->left -= sizeof(char *);
 }
 
 /* Frees dynamically allocated memory from exec_args structure */
@@ -104,8 +111,7 @@ static int copy_strv(exec_args_t *args, copy_str_t copy_str, char **strv) {
 
 /* Copy argv/envv pointers and strings into exec_args buffer */
 static int copy_args(exec_args_t *args, copy_ptr_t copy_ptr,
-                     copy_str_t copy_str, char *argv[], char *envv[])
-{
+                     copy_str_t copy_str, char *argv[], char *envv[]) {
   int error;
 
   if ((error = copy_ptrs(args, copy_ptr, &args->argv, &args->argc, argv)) ||
@@ -191,26 +197,18 @@ static int exec_args_copyout(exec_args_t *args, vaddr_t *stack_top_p) {
 
   ustack_setup(&us, *stack_top_p, ARG_MAX);
 
-  int has_interp = args->interp ? 1 : 0;
-
-  if ((error = ustack_push_int(&us, argc + has_interp)) ||
-      (error = ustack_alloc_ptr_n(&us, argc + has_interp, (vaddr_t *)&argv)) ||
+  if ((error = ustack_push_int(&us, argc)) ||
+      (error = ustack_alloc_ptr_n(&us, argc, (vaddr_t *)&argv)) ||
       (error = ustack_push_long(&us, (long)NULL)) ||
       (error = ustack_alloc_ptr_n(&us, envc, (vaddr_t *)&envv)) ||
-      (error = ustack_push_long(&us, (long)NULL)))
-    goto fail;
-
-  if (has_interp)
-    if ((error = store_strings(&us, &args->interp, argv, 1)))
-      goto fail;
-
-  if ((error = store_strings(&us, args->argv, argv + has_interp, argc)) ||
+      (error = ustack_push_long(&us, (long)NULL)) ||
+      (error = store_strings(&us, args->argv, argv, argc)) ||
       (error = store_strings(&us, args->envv, envv, envc)))
     goto fail;
 
   ustack_finalize(&us);
 
-  for (size_t i = 0; i < argc + has_interp; i++)
+  for (size_t i = 0; i < argc; i++)
     ustack_relocate_ptr(&us, (vaddr_t *)&argv[i]);
   for (size_t i = 0; i < envc; i++)
     ustack_relocate_ptr(&us, (vaddr_t *)&envv[i]);
@@ -415,8 +413,7 @@ noreturn void run_program(char *path, char *argv[], char *envv[]) {
   exec_args_t args;
   exec_args_init(&args);
 
-  if (kern_copy_path(&args, path) ||
-      kern_copy_args(&args, argv, envv) ||
+  if (kern_copy_path(&args, path) || kern_copy_args(&args, argv, envv) ||
       _do_execve(&args) != -EJUSTRETURN)
     panic("Failed to start '%s' program.", path);
 
