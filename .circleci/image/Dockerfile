@@ -11,7 +11,7 @@ RUN apt-get install -y --no-install-recommends \
       libfdt1 libpython3.5 libsdl2-2.0-0 libglib2.0-0 libpixman-1-0
 # rsync required by verify-format.sh
 # gcc & libc6-dev required by newlib-3.0.0
-# patch required by bin/mlua
+# patch required by bin/lua
 # socat required by launch
 RUN pip3 install -r requirements.txt
 RUN curl -O http://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.3_amd64.deb && \
