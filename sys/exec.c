@@ -17,20 +17,10 @@
 #include <systm.h>
 #include <malloc.h>
 
-/* exec_args structure initiliazer when exec_args_copy arguments
- * are coming from kernel / user space respectively */
-#define EXEC_ARGS_FROM_KERNEL                                                  \
-  (exec_args_t) {                                                              \
-    .copy_path = copy_path, .copy_ptr = copy_ptr, .copy_str = copy_str         \
-  }
+typedef int (*copy_ptr_t)(exec_args_t *args, char **user_src_p);
+typedef int (*copy_str_t)(exec_args_t *args, char *str, size_t *copied_p);
 
-#define EXEC_ARGS_FROM_USER                                                    \
-  (exec_args_t) {                                                              \
-    .copy_path = copyin_path, .copy_ptr = copyin_ptr, .copy_str = copyin_str   \
-  }
-
-/* Adds working buffers to exec_args structure previously initialized
- * with EXEC_ARGS_FROM_KERNEL / EXEC_ARGS_FROM_USER */
+/* Adds working buffers to exec_args structure. */
 static void exec_args_init(exec_args_t *args) {
   args->path = kmalloc(M_TEMP, PATH_MAX, 0);
   args->data = kmalloc(M_TEMP, ARG_MAX, 0);
@@ -45,37 +35,37 @@ static void exec_args_destroy(exec_args_t *args) {
 }
 
 /* Procedures for copying data coming from kernel space into exec_args buffer */
-static int copy_path(exec_args_t *args, char *path) {
+static int kern_copy_path(exec_args_t *args, char *path) {
   return (strlcpy(args->path, path, PATH_MAX) >= PATH_MAX) ? -ENAMETOOLONG : 0;
 }
 
-static int copy_ptr(exec_args_t *args, char **src_p) {
+static int kern_copy_ptr(exec_args_t *args, char **src_p) {
   *(char **)args->end = *src_p;
   return 0;
 }
 
-static int copy_str(exec_args_t *args, char *str, size_t *copied_p) {
+static int kern_copy_str(exec_args_t *args, char *str, size_t *copied_p) {
   *copied_p = strlcpy(args->end, str, args->left);
   return 0;
 }
 
 /* Procedures for copying data coming from user space into exec_args buffer */
-static int copyin_path(exec_args_t *args, char *path) {
+static int user_copy_path(exec_args_t *args, char *path) {
   return copyinstr(path, args->path, PATH_MAX, NULL);
 }
 
-static int copyin_ptr(exec_args_t *args, char **user_src_p) {
+static int user_copy_ptr(exec_args_t *args, char **user_src_p) {
   return copyin(user_src_p, args->end, sizeof(char *));
 }
 
-static int copyin_str(exec_args_t *args, char *str, size_t *copied_p) {
+static int user_copy_str(exec_args_t *args, char *str, size_t *copied_p) {
   int error = copyinstr(str, args->end, args->left, copied_p);
   return (error == -ENAMETOOLONG) ? -E2BIG : error;
 }
 
 /* Copy argv/envv pointers into exec_args buffer */
-static int copy_ptrs(exec_args_t *args, char ***dstv_p, size_t *len_p,
-                     char **srcv) {
+static int copy_ptrs(exec_args_t *args, copy_ptr_t copy_ptr, char ***dstv_p,
+                     size_t *len_p, char **srcv) {
   char **dstv = (char **)args->end;
   int error, n = 0;
 
@@ -83,7 +73,7 @@ static int copy_ptrs(exec_args_t *args, char ***dstv_p, size_t *len_p,
   do {
     if (args->left < sizeof(char *))
       return -E2BIG;
-    if ((error = args->copy_ptr(args, srcv + n)))
+    if ((error = copy_ptr(args, srcv + n)))
       return error;
     args->end += sizeof(char *);
     args->left -= sizeof(char *);
@@ -95,12 +85,12 @@ static int copy_ptrs(exec_args_t *args, char ***dstv_p, size_t *len_p,
 }
 
 /* Copy argv/envv strings into exec_args buffer */
-static int copy_strv(exec_args_t *args, char **strv) {
+static int copy_strv(exec_args_t *args, copy_str_t copy_str, char **strv) {
   int error;
 
   for (int i = 0; strv[i]; i++) {
     size_t copied;
-    if ((error = args->copy_str(args, strv[i], &copied)))
+    if ((error = copy_str(args, strv[i], &copied)))
       return error;
     if (copied >= args->left)
       return -E2BIG;
@@ -113,18 +103,26 @@ static int copy_strv(exec_args_t *args, char **strv) {
 }
 
 /* Copy argv/envv pointers and strings into exec_args buffer */
-static int exec_args_copy(exec_args_t *args, char *path, char *argv[],
-                          char *envv[]) {
+static int copy_args(exec_args_t *args, copy_ptr_t copy_ptr,
+                     copy_str_t copy_str, char *argv[], char *envv[])
+{
   int error;
 
-  if ((error = copy_path(args, path)) ||
-      (error = copy_ptrs(args, &args->argv, &args->argc, argv)) ||
-      (error = copy_ptrs(args, &args->envv, &args->envc, envv)) ||
-      (error = copy_strv(args, args->argv)) ||
-      (error = copy_strv(args, args->envv)))
+  if ((error = copy_ptrs(args, copy_ptr, &args->argv, &args->argc, argv)) ||
+      (error = copy_ptrs(args, copy_ptr, &args->envv, &args->envc, envv)) ||
+      (error = copy_strv(args, copy_str, args->argv)) ||
+      (error = copy_strv(args, copy_str, args->envv)))
     return error;
 
   return 0;
+}
+
+static int user_copy_args(exec_args_t *args, char *argv[], char *envv[]) {
+  return copy_args(args, user_copy_ptr, user_copy_str, argv, envv);
+}
+
+static int kern_copy_args(exec_args_t *args, char *argv[], char *envv[]) {
+  return copy_args(args, kern_copy_ptr, kern_copy_str, argv, envv);
 }
 
 /*! \brief Stores C-strings in ustack and makes stack-allocated pointers
@@ -377,9 +375,10 @@ fail:
 
 int do_execve(char *user_path, char *user_argv[], char *user_envp[]) {
   int result;
-  exec_args_t args = EXEC_ARGS_FROM_USER;
+  exec_args_t args;
   exec_args_init(&args);
-  if ((result = exec_args_copy(&args, user_path, user_argv, user_envp)))
+  if ((result = user_copy_path(&args, user_path)) ||
+      (result = user_copy_args(&args, user_argv, user_envp)))
     goto end;
   result = _do_execve(&args);
 end:
@@ -387,7 +386,7 @@ end:
   return result;
 }
 
-noreturn void run_program(char *path, char *argv[], char *envp[]) {
+noreturn void run_program(char *path, char *argv[], char *envv[]) {
   thread_t *td = thread_self();
   proc_t *p = proc_self();
 
@@ -413,10 +412,11 @@ noreturn void run_program(char *path, char *argv[], char *envp[]) {
   assert(_stdout == 1);
   assert(_stderr == 2);
 
-  exec_args_t args = EXEC_ARGS_FROM_KERNEL;
+  exec_args_t args;
   exec_args_init(&args);
 
-  if (exec_args_copy(&args, path, argv, envp) ||
+  if (kern_copy_path(&args, path) ||
+      kern_copy_args(&args, argv, envv) ||
       _do_execve(&args) != -EJUSTRETURN)
     panic("Failed to start '%s' program.", path);
 

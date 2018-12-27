@@ -9,23 +9,14 @@ typedef struct vnode vnode_t;
 typedef struct proc proc_t;
 typedef struct exec_args exec_args_t;
 
-typedef int (*copy_path_t)(exec_args_t *args, char *path);
-typedef int (*copy_ptr_t)(exec_args_t *args, char **ptr_p);
-typedef int (*copy_str_t)(exec_args_t *args, char *str, size_t *copied_p);
-
 struct exec_args {
   char *path; /* string of PATH_MAX length for executable path */
+  char *interp; /* interpreter path (or NULL) */
 
   char **argv; /* beginning of argv in the buffer */
   char **envv; /* beginning of envv in the buffer*/
   size_t argc;
   size_t envc;
-
-  char *interp; /* interpreter path (or NULL) */
-
-  copy_path_t copy_path;
-  copy_ptr_t copy_ptr;
-  copy_str_t copy_str;
 
   char *data;  /* buffer of ARG_MAX length for argv and envv data */
   char *end;   /* pointer to the end of data in the buffer */
