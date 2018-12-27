@@ -17,7 +17,7 @@
 #include <systm.h>
 #include <malloc.h>
 
-typedef int (*copy_ptr_t)(exec_args_t *args, char **user_src_p);
+typedef int (*copy_ptr_t)(exec_args_t *args, char **ptr_p);
 typedef int (*copy_str_t)(exec_args_t *args, char *str, size_t *copied_p);
 
 /* Adds working buffers to exec_args structure. */
