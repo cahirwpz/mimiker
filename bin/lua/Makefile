@@ -15,14 +15,27 @@ $(PKG).tar.gz:
 $(PKG): $(PKG).tar.gz
 	@echo "[TAR] $^ -> $@"
 	$(TAR) xzf $(PKG).tar.gz
+	touch $(PKG)
+
+patch: download patch-stamp
+patch-stamp:
 	cd $(PKG) && \
 	  for p in $(PATCHES); do \
 	    $(PATCH) -p1 < ../$${p}; \
 	  done
 	cd $(PKG)/src && ln -s ../../lunix.c
-	touch $(PKG)
+	touch $@
 
-build-here: download
+unpatch:
+	[ -f patch-stamp ] || exit 1
+	cd $(PKG) && \
+	  for p in $(PATCHES); do \
+	    $(PATCH) -R -p1 < ../$${p}; \
+	  done
+	cd $(PKG)/src && $(RM) lunix.c
+	rm patch-stamp
+
+build-here: patch
 	@echo "[MAKE] $(PKG)"
 	$(MAKE) -C $(PKG) generic \
 	  CC="$(CC)" AR="$(AR) rcu" LD="$(LD)" RANLIB="$(RANLIB)" \
@@ -36,11 +49,13 @@ install-here:
 	@echo "[INSTALL] /lib/lua/init.lua"
 	$(INSTALL) -D -m 644 init.lua $(SYSROOT)/lib/lua/init.lua
 
-clean-here:
+clean-here: unpatch
 	$(RM) -r $(PKG)
 
 distclean-here:
 	$(RM) $(PKG).tar.gz
+
+PHONY-TARGETS += patch unpatch
 
 include $(TOPDIR)/build/flags.user.mk
 include $(TOPDIR)/build/common.mk
