@@ -8,35 +8,41 @@ all: binary
 download:
 	git clone https://git.code.sf.net/p/openocd/code $(OPENOCD)
 
-configure:
+configure: configure-stamp
+configure-stamp:
 	rm -rf openocd-build
 	mkdir openocd-build
 	cd $(OPENOCD) && \
-	    ./bootstrap
+	    ./bootstrap && \
+	sed -i 's/'"'"'openocd'"'"'/'"'"'openocd-mimiker'"'"'/g' configure
 	cd openocd-build && \
 	    ../$(OPENOCD)/configure \
-	        --prefix=/usr \
-		--enable-jlink 
-	touch $@-stamp
+		--prefix=/usr \
+		--program-suffix='-mimiker' \
+		--enable-jlink
+	touch $@
 
-build: configure
+build: build-stamp
+build-stamp: configure-stamp
 	cd openocd-build && make -j$(shell nproc --all) LDFLAGS="-Wl,--as-needed"
-	touch $@-stamp
+	touch $@
 
-install: build
+install: install-stamp
+install-stamp: build-stamp
 	cd openocd-build && make install DESTDIR=$(PWD)/debian/tmp
-	cd $(PWD)/debian/tmp && \
-		mv usr/bin/openocd usr/bin/openocd-mimiker && \
-		mv usr/share/openocd/ usr/share/openocd-mimiker
-	touch $@-stamp
+	touch $@
 
-binary: install
+binary: binary-stamp
+binary-stamp: install-stamp
 	fakeroot ./debian/rules binary
-	touch $@-stamp
+	touch $@
 
-clean: 
+clean:
 	dh_clean
-	rm -rf $(OPENOCD) openocd-build
+	rm -rf openocd-build
 	rm -f *~
+
+distclean: clean
+	rm -rf $(OPENOCD)
 
 .PHONY: download install binary clean
