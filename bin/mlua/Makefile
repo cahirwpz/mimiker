@@ -25,10 +25,10 @@ build-here: download
 	  MYCFLAGS="$(CFLAGS)" MYLDFLAGS="$(LDFLAGS)" MYLIBS="$(LDLIBS)"
 
 install-here:
-	@echo "[INSTALL] /bin/lua"
-	$(INSTALL) -m 755 lua-5.3.5/src/lua $(SYSROOT)/bin/lua
-	@echo "[STRIP] /bin/lua"
-	$(STRIP) --strip-all $(SYSROOT)/bin/lua
+	@echo "[INSTALL] /bin/mlua"
+	$(INSTALL) -m 755 lua-5.3.5/src/lua $(SYSROOT)/bin/mlua
+	@echo "[STRIP] /bin/mlua"
+	$(STRIP) --strip-all $(SYSROOT)/bin/mlua
 
 clean-here:
 	$(RM) -r $(PKG)
