@@ -33,8 +33,8 @@ install-here:
 	$(INSTALL) -m 755 lua-5.3.5/src/lua $(SYSROOT)/bin/lua
 	@echo "[STRIP] /bin/lua"
 	$(STRIP) --strip-all $(SYSROOT)/bin/lua
-	@echo "[INSTALL] /lib/lua/5.3/init.lua"
-	$(INSTALL) -D -m 644 init.lua $(SYSROOT)/lib/lua/5.3/init.lua
+	@echo "[INSTALL] /lib/lua/init.lua"
+	$(INSTALL) -D -m 644 init.lua $(SYSROOT)/lib/lua/init.lua
 
 clean-here:
 	$(RM) -r $(PKG)
