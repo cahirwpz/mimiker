@@ -2,6 +2,7 @@ TOPDIR = $(realpath ../..)
 
 PKG = lua-5.3.5
 URL = https://www.lua.org/ftp/$(PKG).tar.gz
+PATCHES = lunix.patch luaconf.patch init.patch
 
 all: download build install
 
@@ -14,7 +15,10 @@ $(PKG).tar.gz:
 $(PKG): $(PKG).tar.gz
 	@echo "[TAR] $^ -> $@"
 	$(TAR) xzf $(PKG).tar.gz
-	cd $(PKG) && $(PATCH) -p1 < ../lunix.patch
+	cd $(PKG) && \
+	  for p in $(PATCHES); do \
+	    $(PATCH) -p1 < ../$${p}; \
+	  done
 	cd $(PKG)/src && ln -s ../../lunix.c
 	touch $(PKG)
 
@@ -25,10 +29,12 @@ build-here: download
 	  MYCFLAGS="$(CFLAGS)" MYLDFLAGS="$(LDFLAGS)" MYLIBS="$(LDLIBS)"
 
 install-here:
-	@echo "[INSTALL] /bin/mlua"
-	$(INSTALL) -m 755 lua-5.3.5/src/lua $(SYSROOT)/bin/mlua
-	@echo "[STRIP] /bin/mlua"
-	$(STRIP) --strip-all $(SYSROOT)/bin/mlua
+	@echo "[INSTALL] /bin/lua"
+	$(INSTALL) -m 755 lua-5.3.5/src/lua $(SYSROOT)/bin/lua
+	@echo "[STRIP] /bin/lua"
+	$(STRIP) --strip-all $(SYSROOT)/bin/lua
+	@echo "[INSTALL] /lib/lua/5.3/init.lua"
+	$(INSTALL) -D -m 644 init.lua $(SYSROOT)/lib/lua/5.3/init.lua
 
 clean-here:
 	$(RM) -r $(PKG)
