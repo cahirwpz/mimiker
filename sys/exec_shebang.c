@@ -43,7 +43,7 @@ static int set_interp(exec_args_t *args, char *str) {
   return 0;
 }
 
-int exec_shebang_interp(vnode_t *vn, exec_args_t *args) {
+int exec_shebang_load(vnode_t *vn, exec_args_t *args) {
   char *interp = kmalloc(M_TEMP, PATH_MAX, 0);
   int error;
 

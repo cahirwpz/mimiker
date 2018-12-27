@@ -35,7 +35,7 @@ struct exec_args {
 int exec_elf_inspect(vnode_t *vn, Elf32_Ehdr *eh);
 int exec_elf_load(proc_t *p, vnode_t *vn, Elf32_Ehdr *eh);
 int exec_shebang_inspect(vnode_t *vn);
-int exec_shebang_interp(vnode_t *vn, exec_args_t *args);
+int exec_shebang_load(vnode_t *vn, exec_args_t *args);
 
 #endif /* !_EXEC_IMPL */
 

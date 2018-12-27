@@ -333,7 +333,7 @@ static int _do_execve(exec_args_t *args) {
       return result;
 
     if (result) {
-      if ((result = exec_shebang_interp(vn, args)) < 0)
+      if ((result = exec_shebang_load(vn, args)))
         return result;
       klog("Interpreter for '%s' is '%s'", prog, args->interp);
       use_interpreter = true;
@@ -350,11 +350,11 @@ static int _do_execve(exec_args_t *args) {
   vaddr_t stack_top;
   enter_new_vmspace(p, &saved, &stack_top);
 
-  if ((result = exec_elf_load(p, vn, &eh)) < 0)
+  if ((result = exec_elf_load(p, vn, &eh)))
     goto fail;
 
   /* Prepare program stack, which includes storing program args. */
-  if ((result = exec_args_copyout(args, &stack_top)) < 0)
+  if ((result = exec_args_copyout(args, &stack_top)))
     goto fail;
 
   /* Set up user context. */
