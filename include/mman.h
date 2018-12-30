@@ -21,6 +21,8 @@
 
 /* Newlib does not provide mmap prototype, so we need to use our own. */
 void *mmap(void *addr, size_t length, int prot, int flags);
+int munmap(void *addr, size_t len);
+int mprotect(void *addr, size_t len, int prot);
 
 #else /* _KERNELSPACE */
 
