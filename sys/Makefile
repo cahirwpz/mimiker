@@ -35,6 +35,7 @@ SOURCES = \
 	pci.c \
 	pci_ids.c \
 	pcpu.c \
+	pgrp.c \
 	physmem.c \
 	pipe.c \
 	pool.c \

@@ -16,6 +16,7 @@
 #include <wait.h>
 #include <exec.h>
 #include <time.h>
+#include <proc.h>
 #include <pipe.h>
 #include <malloc.h>
 #include <syslimits.h>
@@ -60,14 +61,60 @@ static int sys_getppid(thread_t *td, syscall_args_t *args) {
 static int sys_setpgid(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
   pgid_t pgid = args->args[1];
+
   klog("setpgid(%d, %d)", pid, pgid);
-  return -ENOTSUP;
+
+  proc_t *p = td->td_proc;
+
+  if (pgid < 0)
+    return -EINVAL;
+
+  if (pid == 0)
+    pid = p->p_pid;
+  if (pgid == 0)
+    pgid = p->p_pid;
+
+  if (pid != p->p_pid || pgid != p->p_pid)
+    return -ENOTSUP;
+
+  pgrp_t *pgrp = pgrp_find(pgid);
+
+  if (pgrp) {
+    assert(pgrp == p->p_pgrp);
+    return 0;
+  }
+
+  pgrp = pgrp_create(pgid);
+
+  int error = proc_enter_pgrp(p, pgrp);
+  if (error) {
+    pgrp_destroy(pgrp);
+    return error;
+  }
+
+  return 0;
 }
 
 static int sys_getpgid(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
+
   klog("getpgid(%d)", pid);
-  return -ENOTSUP;
+
+  proc_t *p = td->td_proc;
+
+  if (pid < 0)
+    return -EINVAL;
+
+  if (pid == 0)
+    pid = p->p_pid;
+
+  p = proc_find(pid);
+  if (!p)
+    return -ESRCH;
+
+  assert(p->p_pgrp);
+
+  return p->p_pgrp->pg_id;
 }
 
 static int sys_kill(thread_t *td, syscall_args_t *args) {

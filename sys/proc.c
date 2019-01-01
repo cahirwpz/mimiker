@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <sleepq.h>
 #include <sched.h>
+#include <malloc.h>
 
 static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
 
@@ -106,6 +107,8 @@ static void proc_reap(proc_t *p) {
 
   klog("Recycling process PID(%d) {%p}", p->p_pid, p);
 
+  proc_enter_pgrp(p, NULL);
+
   if (p->p_parent)
     TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
   TAILQ_REMOVE(&zombie_list, p, p_zombie);
@@ -199,13 +202,32 @@ int proc_sendsig(pid_t pid, signo_t sig) {
   return 0;
 }
 
+/* Enter existing process group. */
+int proc_enter_pgrp(proc_t *p, pgrp_t *pgrp) {
+  pgrp_t *curr_pgrp = p->p_pgrp;
+
+  if (pgrp == curr_pgrp)
+    return 0;
+
+  if (curr_pgrp) {
+    LIST_REMOVE(p, p_pglist);
+
+    /* if last process in the group, then destroy it! */
+    if (LIST_EMPTY(&curr_pgrp->pg_members))
+      pgrp_destroy(curr_pgrp);
+  }
+
+  if (pgrp) {
+    p->p_pgrp = pgrp;
+    LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
+  }
+
+  return 0;
+}
+
 /* Wait for direct children. */
 int do_waitpid(pid_t pid, int *status, int options) {
   proc_t *p = proc_self();
-
-  /* We don't have a concept of process groups yet. */
-  if (pid < -1 || pid == 0)
-    return -ENOTSUP;
 
   WITH_MTX_LOCK (all_proc_mtx) {
     proc_t *child = NULL;
@@ -224,10 +246,15 @@ int do_waitpid(pid_t pid, int *status, int options) {
       proc_t *zombie = NULL;
 
       if (child == NULL) {
-        /* Search for any zombie children. */
-        TAILQ_FOREACH (zombie, CHILDREN(p), p_child)
+        /* Search within zombie childrens. */
+        TAILQ_FOREACH (zombie, CHILDREN(p), p_child) {
+          if (pid < -1 && zombie->p_pgrp->pg_id != -pid)
+            continue;
+          if (pid == 0 && zombie->p_pgrp->pg_id != p->p_pgrp->pg_id)
+            continue;
           if (zombie->p_state == PS_ZOMBIE)
             break;
+        }
       } else {
         /* Is the chosen one zombie? */
         if (child->p_state == PS_ZOMBIE)
