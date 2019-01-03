@@ -9,10 +9,7 @@
 #include <wait.h>
 
 static noreturn void utest_generic_thread(void *arg) {
-  exec_args_t exec_args = {.prog_name = "/bin/utest",
-                           .argv = (const char *[]){"utest", arg, NULL},
-                           .envp = (const char *[]){NULL}};
-  run_program(&exec_args);
+  run_program("/bin/utest", (char *[]){"utest", arg, NULL}, (char *[]){NULL});
 }
 
 /* This is the klog mask used with utests. */

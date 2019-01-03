@@ -32,7 +32,8 @@ typedef struct sigaction {
 
 int sigaction(int signum, const sigaction_t *act, sigaction_t *oldact);
 void sigreturn(void);
-int kill(int tid, int sig);
+int kill(int pid, int sig);
+int killpg(int pgrp, int sig);
 
 /* This is necessary to keep newlib happy. */
 typedef sighandler_t _sig_func_ptr;
