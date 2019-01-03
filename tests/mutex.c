@@ -28,7 +28,7 @@ static int test_mutex_counter(void) {
 
   for (int i = 0; i < COUNTER_T; i++) {
     char name[20];
-    snprintf(name, sizeof(name), "td%d", i);
+    snprintf(name, sizeof(name), "test-mutex-%d", i);
     counter_td[i] = thread_create(name, counter_routine, NULL, prio_kthread(0));
   }
 
@@ -68,7 +68,8 @@ static void simple_routine(void *arg) {
 }
 
 static int test_mutex_simple(void) {
-  simple_td0 = thread_create("td0", simple_routine, NULL, prio_kthread(0));
+  simple_td0 =
+    thread_create("test-mutex", simple_routine, NULL, prio_kthread(0));
   simple_status = ST_INITIAL;
 
   mtx_lock(&simple_mtx);
