@@ -68,18 +68,10 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize);
 #define MALTA_PCI0_IO_BASE 0x18000000
 #define MALTA_PCI0_IO_END 0x1bdfffff
 #define MALTA_CORECTRL_BASE 0x1be00000
+#define MALTA_CORECTRL_END 0x1dffffff
 #define MALTA_FPGA_BASE 0x1f000000
 
 #define MALTA_CBUS_UART (MALTA_FPGA_BASE + 0x900)
 #define MALTA_CBUS_UART_INTR 2
-
-#define MALTA_PCI0_ADDR(x) (MALTA_PCI0_IO_BASE + (x))
-
-/* FDC37M817: UART (NS16550) */
-#define MALTA_SMSC_UART0 MALTA_PCI0_ADDR(0x3f8)
-#define MALTA_SMSC_UART1 MALTA_PCI0_ADDR(0x2f8)
-/* FDC37M817: Keyboard and Mouse (i8042) */
-#define MALTA_SMSC_KYBD_DATA MALTA_PCI0_ADDR(0x60)
-#define MALTA_SMSC_KYBD_CTRL MALTA_PCI0_ADDR(0x64)
 
 #endif

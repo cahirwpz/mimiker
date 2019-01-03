@@ -14,6 +14,10 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <exec.h>
+#include <time.h>
+#include <pipe.h>
+#include <malloc.h>
 #include <syslimits.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
@@ -32,9 +36,7 @@ static int sys_sbrk(thread_t *td, syscall_args_t *args) {
 
 static int sys_exit(thread_t *td, syscall_args_t *args) {
   int status = args->args[0];
-
   klog("exit(%d)", status);
-
   proc_exit(MAKE_STATUS_EXIT(status));
   __unreachable();
 }
@@ -49,11 +51,37 @@ static int sys_getpid(thread_t *td, syscall_args_t *args) {
   return td->td_proc->p_pid;
 }
 
+static int sys_getppid(thread_t *td, syscall_args_t *args) {
+  klog("getppid()");
+  assert(td->td_proc->p_parent);
+  return td->td_proc->p_parent->p_pid;
+}
+
+static int sys_setpgid(thread_t *td, syscall_args_t *args) {
+  pid_t pid = args->args[0];
+  pgid_t pgid = args->args[1];
+  klog("setpgid(%d, %d)", pid, pgid);
+  return -ENOTSUP;
+}
+
+static int sys_getpgid(thread_t *td, syscall_args_t *args) {
+  pid_t pid = args->args[0];
+  klog("getpgid(%d)", pid);
+  return -ENOTSUP;
+}
+
 static int sys_kill(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
   signo_t sig = args->args[1];
   klog("kill(%lu, %d)", pid, sig);
   return do_kill(pid, sig);
+}
+
+static int sys_killpg(thread_t *td, syscall_args_t *args) {
+  pgid_t pgid = args->args[0];
+  signo_t sig = args->args[1];
+  klog("killpg(%lu, %d)", pgid, sig);
+  return -ENOTSUP;
 }
 
 static int sys_sigaction(thread_t *td, syscall_args_t *args) {
@@ -86,18 +114,32 @@ static int sys_sigreturn(thread_t *td, syscall_args_t *args) {
 }
 
 static int sys_mmap(thread_t *td, syscall_args_t *args) {
-  vm_addr_t addr = args->args[0];
+  vaddr_t addr = args->args[0];
   size_t length = args->args[1];
   vm_prot_t prot = args->args[2];
   int flags = args->args[3];
 
   klog("mmap(%p, %u, %d, %d)", (void *)addr, length, prot, flags);
 
-  int error = 0;
-  vm_addr_t result = do_mmap(addr, length, prot, flags, &error);
+  int error = do_mmap(&addr, length, prot, flags);
   if (error < 0)
-    return -error;
-  return result;
+    return error;
+  return addr;
+}
+
+static int sys_munmap(thread_t *td, syscall_args_t *args) {
+  vaddr_t addr = args->args[0];
+  size_t length = args->args[1];
+  klog("munmap(%p, %u)", (void *)addr, length);
+  return -ENOTSUP;
+}
+
+static int sys_mprotect(thread_t *td, syscall_args_t *args) {
+  vaddr_t addr = args->args[0];
+  size_t length = args->args[1];
+  vm_prot_t prot = args->args[2];
+  klog("mprotect(%p, %u, %u)", (void *)addr, length, prot);
+  return -ENOTSUP;
 }
 
 static int sys_open(thread_t *td, syscall_args_t *args) {
@@ -217,6 +259,31 @@ end:
   return result;
 }
 
+static int sys_chdir(thread_t *td, syscall_args_t *args) {
+  char *user_path = (char *)args->args[0];
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+  size_t len = 0;
+  int result;
+
+  result = copyinstr(user_path, path, PATH_MAX, &len);
+  if (result < 0)
+    goto end;
+
+  klog("chdir(\"%s\")", path);
+  result = -ENOTSUP;
+
+end:
+  kfree(M_TEMP, path);
+  return result;
+}
+
+static int sys_getcwd(thread_t *td, syscall_args_t *args) {
+  __unused char *user_buf = (char *)args->args[0];
+  __unused size_t size = (size_t)args->args[1];
+  return -ENOTSUP;
+}
+
 static int sys_mount(thread_t *td, syscall_args_t *args) {
   char *user_fsysname = (char *)args->args[0];
   char *user_pathname = (char *)args->args[1];
@@ -298,6 +365,18 @@ static int sys_waitpid(thread_t *td, syscall_args_t *args) {
   return res;
 }
 
+static int sys_pipe(thread_t *td, syscall_args_t *args) {
+  int *fds_p = (void *)args->args[0];
+  int fds[2];
+
+  klog("pipe(%x)", fds_p);
+
+  int error = do_pipe(td, fds);
+  if (error)
+    return error;
+  return copyout(fds, fds_p, 2 * sizeof(int));
+}
+
 static int sys_unlink(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
   char *pathname = kmalloc(M_TEMP, PATH_MAX, 0);
@@ -359,6 +438,15 @@ end:
   return result;
 }
 
+static int sys_execve(thread_t *td, syscall_args_t *args) {
+  char *user_path = (char *)args->args[0];
+  char **user_argv = (char **)args->args[1];
+  char **user_envp = (char **)args->args[2];
+
+  /* do_execve handles copying data from user-space */
+  return do_execve(user_path, user_argv, user_envp);
+}
+
 static int sys_access(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
   mode_t mode = args->args[1];
@@ -379,30 +467,63 @@ end:
   return result;
 }
 
+static int sys_clock_gettime(thread_t *td, syscall_args_t *args) {
+  clockid_t clk = (clockid_t)args->args[0];
+  timespec_t *uts = (timespec_t *)args->args[1];
+  timespec_t kts;
+  int result = do_clock_gettime(clk, &kts);
+  if (result != 0)
+    return result;
+  return copyout_s(kts, uts);
+}
+
+static int sys_clock_nanosleep(thread_t *td, syscall_args_t *args) {
+  clockid_t clk = (clockid_t)args->args[0];
+  int flags = (int)args->args[1];
+  timespec_t *urqtp = (timespec_t *)args->args[2];
+  timespec_t krqtp;
+  int result = copyin_s(urqtp, krqtp);
+  if (result != 0)
+    return result;
+  return do_clock_nanosleep(clk, flags, &krqtp, NULL);
+}
+
 /* clang-format hates long arrays. */
 sysent_t sysent[] = {
-    [SYS_EXIT] = {sys_exit},
-    [SYS_OPEN] = {sys_open},
-    [SYS_CLOSE] = {sys_close},
-    [SYS_READ] = {sys_read},
-    [SYS_WRITE] = {sys_write},
-    [SYS_LSEEK] = {sys_lseek},
-    [SYS_UNLINK] = {sys_unlink},
-    [SYS_GETPID] = {sys_getpid},
-    [SYS_KILL] = {sys_kill},
-    [SYS_FSTAT] = {sys_fstat},
-    [SYS_STAT] = {sys_stat},
-    [SYS_SBRK] = {sys_sbrk},
-    [SYS_MMAP] = {sys_mmap},
-    [SYS_FORK] = {sys_fork},
-    [SYS_MOUNT] = {sys_mount},
-    [SYS_GETDENTS] = {sys_getdirentries},
-    [SYS_SIGACTION] = {sys_sigaction},
-    [SYS_SIGRETURN] = {sys_sigreturn},
-    [SYS_DUP] = {sys_dup},
-    [SYS_DUP2] = {sys_dup2},
-    [SYS_WAITPID] = {sys_waitpid},
-    [SYS_MKDIR] = {sys_mkdir},
-    [SYS_RMDIR] = {sys_rmdir},
-    [SYS_ACCESS] = {sys_access},
+  [SYS_EXIT] = {sys_exit},
+  [SYS_OPEN] = {sys_open},
+  [SYS_CLOSE] = {sys_close},
+  [SYS_READ] = {sys_read},
+  [SYS_WRITE] = {sys_write},
+  [SYS_LSEEK] = {sys_lseek},
+  [SYS_UNLINK] = {sys_unlink},
+  [SYS_GETPID] = {sys_getpid},
+  [SYS_GETPPID] = {sys_getppid},
+  [SYS_SETPGID] = {sys_setpgid},
+  [SYS_GETPGID] = {sys_getpgid},
+  [SYS_KILL] = {sys_kill},
+  [SYS_FSTAT] = {sys_fstat},
+  [SYS_STAT] = {sys_stat},
+  [SYS_SBRK] = {sys_sbrk},
+  [SYS_MMAP] = {sys_mmap},
+  [SYS_FORK] = {sys_fork},
+  [SYS_MOUNT] = {sys_mount},
+  [SYS_GETDENTS] = {sys_getdirentries},
+  [SYS_SIGACTION] = {sys_sigaction},
+  [SYS_SIGRETURN] = {sys_sigreturn},
+  [SYS_DUP] = {sys_dup},
+  [SYS_DUP2] = {sys_dup2},
+  [SYS_WAITPID] = {sys_waitpid},
+  [SYS_MKDIR] = {sys_mkdir},
+  [SYS_RMDIR] = {sys_rmdir},
+  [SYS_ACCESS] = {sys_access},
+  [SYS_PIPE] = {sys_pipe},
+  [SYS_CLOCKGETTIME] = {sys_clock_gettime},
+  [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep},
+  [SYS_EXECVE] = {sys_execve},
+  [SYS_KILLPG] = {sys_killpg},
+  [SYS_MUNMAP] = {sys_munmap},
+  [SYS_MPROTECT] = {sys_mprotect},
+  [SYS_CHDIR] = {sys_chdir},
+  [SYS_GETCWD] = {sys_getcwd},
 };

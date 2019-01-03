@@ -2,30 +2,26 @@
 #include <klog.h>
 #include <errno.h>
 #include <file.h>
-#include <malloc.h>
+#include <pool.h>
 #include <mutex.h>
 #include <stdc.h>
 #include <stat.h>
 #include <vnode.h>
-#include <sysinit.h>
 
-static MALLOC_DEFINE(M_VNODE, "vnode", 2, 16);
+static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
 
 /* Actually, vnode management should be much more complex than this, because
    this stub does not recycle vnodes, does not store them on a free list,
    etc. So at some point we may need a more sophisticated memory management here
    - but this will do for now. */
 
-static void vnode_init(void) {
-}
-
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
-  vnode_t *v = kmalloc(M_VNODE, sizeof(vnode_t), M_ZERO);
+  vnode_t *v = pool_alloc(P_VNODE, PF_ZERO);
   v->v_type = type;
   v->v_data = data;
   v->v_ops = ops;
   v->v_usecnt = 1;
-  mtx_init(&v->v_mtx, MTX_DEF);
+  mtx_init(&v->v_mtx, 0);
 
   return v;
 }
@@ -38,19 +34,13 @@ void vnode_unlock(vnode_t *v) {
   mtx_unlock(&v->v_mtx);
 }
 
-void vnode_ref(vnode_t *v) {
-  vnode_lock(v);
-  v->v_usecnt++;
-  vnode_unlock(v);
+void vnode_hold(vnode_t *v) {
+  refcnt_acquire(&v->v_usecnt);
 }
 
-void vnode_unref(vnode_t *v) {
-  vnode_lock(v);
-  v->v_usecnt--;
-  if (v->v_usecnt == 0)
-    kfree(M_VNODE, v);
-  else
-    vnode_unlock(v);
+void vnode_drop(vnode_t *v) {
+  if (refcnt_release(&v->v_usecnt))
+    pool_free(P_VNODE, v);
 }
 
 static int vnode_lookup_nop(vnode_t *dv, const char *name, vnode_t **vp) {
@@ -153,7 +143,7 @@ static int default_vnwrite(file_t *f, thread_t *td, uio_t *uio) {
 
 static int default_vnclose(file_t *f, thread_t *td) {
   (void)VOP_CLOSE(f->f_vnode, f);
-  vnode_unref(f->f_vnode);
+  vnode_drop(f->f_vnode);
   return 0;
 }
 
@@ -214,7 +204,7 @@ static fileops_t default_vnode_fileops = {
 };
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
-  vnode_ref(v);
+  vnode_hold(v);
   fp->f_ops = &default_vnode_fileops;
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
@@ -257,5 +247,3 @@ int vnode_access_generic(vnode_t *v, accmode_t acc) {
 
   return ((va.va_mode & mode) == mode || acc == 0) ? 0 : -EACCES;
 }
-
-SYSINIT_ADD(vnode, vnode_init, DEPS("vm_map"));

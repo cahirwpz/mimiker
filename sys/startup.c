@@ -6,7 +6,7 @@
 #include <sysinit.h>
 #include <vfs.h>
 
-extern void main(void *);
+extern void kmain(void *);
 
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
@@ -15,7 +15,7 @@ static void mount_fs(void) {
   do_mount(thread_self(), "devfs", "/dev");
 }
 
-SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs", "filedesc"));
+SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"));
 
 int kernel_init(int argc, char **argv) {
   kprintf("Kernel arguments (%d): ", argc);
@@ -26,7 +26,7 @@ int kernel_init(int argc, char **argv) {
   sysinit();
   klog("Kernel initialized!");
 
-  thread_t *main_thread = thread_create("main", main, NULL);
+  thread_t *main_thread = thread_create("main", kmain, NULL, prio_kthread(0));
   sched_add(main_thread);
 
   sched_run();

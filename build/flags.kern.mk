@@ -11,3 +11,4 @@ GCC_SYSTEM_INC = -I$(GCC_INSTALL_PATH)include/ \
 
 CFLAGS   += -fno-builtin -nostdinc -nostdlib -ffreestanding
 CPPFLAGS += -I$(TOPDIR)/include $(GCC_SYSTEM_INC) -D_KERNELSPACE 
+LDFLAGS  += -nostdlib

@@ -50,11 +50,11 @@ typedef struct turnstile {
   ts_state_t ts_state; /* state of turnstile */
 } turnstile_t;
 
-typedef struct turnstile_chain { ts_list_t tc_turnstiles; } turnstile_chain_t;
+typedef struct turnstile_chain {
+  ts_list_t tc_turnstiles;
+} turnstile_chain_t;
 
 static turnstile_chain_t turnstile_chains[TC_TABLESIZE];
-
-static pool_t P_TURNSTILE;
 
 static void turnstile_ctor(turnstile_t *ts) {
   LIST_INIT(&ts->ts_free);
@@ -69,13 +69,14 @@ void turnstile_init(void) {
     turnstile_chain_t *tc = &turnstile_chains[i];
     LIST_INIT(&tc->tc_turnstiles);
   }
-
-  P_TURNSTILE = pool_create("turnstile", sizeof(turnstile_t),
-                            (pool_ctor_t)turnstile_ctor, NULL);
 }
 
+static POOL_DEFINE(P_TURNSTILE, "turnstile", sizeof(turnstile_t));
+
 turnstile_t *turnstile_alloc(void) {
-  return pool_alloc(P_TURNSTILE, 0);
+  turnstile_t *ts = pool_alloc(P_TURNSTILE, PF_ZERO);
+  turnstile_ctor(ts);
+  return ts;
 }
 
 void turnstile_destroy(turnstile_t *ts) {
@@ -87,7 +88,7 @@ static void adjust_thread_forward(turnstile_t *ts, thread_t *td) {
   thread_t *next = td;
 
   while (TAILQ_NEXT(next, td_blockedq) != NULL &&
-         TAILQ_NEXT(next, td_blockedq)->td_prio > td->td_prio)
+         prio_gt(TAILQ_NEXT(next, td_blockedq)->td_prio, td->td_prio))
     next = TAILQ_NEXT(next, td_blockedq);
 
   if (next != td) {
@@ -101,7 +102,7 @@ static void adjust_thread_backward(turnstile_t *ts, thread_t *td) {
   thread_t *prev = td;
 
   while (TAILQ_PREV(prev, td_queue, td_blockedq) != NULL &&
-         TAILQ_PREV(prev, td_queue, td_blockedq)->td_prio < td->td_prio)
+         prio_lt(TAILQ_PREV(prev, td_queue, td_blockedq)->td_prio, td->td_prio))
     prev = TAILQ_PREV(prev, td_queue, td_blockedq);
 
   if (prev != td) {
@@ -116,9 +117,9 @@ static void adjust_thread(turnstile_t *ts, thread_t *td, prio_t oldprio) {
   assert(ts->ts_state == USED_BLOCKED);
   assert(td_is_blocked(td));
 
-  if (td->td_prio > oldprio)
+  if (prio_gt(td->td_prio, oldprio))
     adjust_thread_backward(ts, td);
-  else if (td->td_prio < oldprio)
+  else if (prio_lt(td->td_prio, oldprio))
     adjust_thread_forward(ts, td);
 }
 
@@ -127,7 +128,7 @@ static thread_t *acquire_owner(turnstile_t *ts) {
   assert(ts->ts_state == USED_BLOCKED);
   thread_t *td = ts->ts_owner;
   assert(td != NULL); /* Turnstile must have an owner. */
-  spin_acquire(td->td_spin);
+  spin_lock(&td->td_spin);
   assert(!td_is_sleeping(td)); /* You must not sleep while holding a mutex. */
   return td;
 }
@@ -142,7 +143,7 @@ static void propagate_priority(thread_t *td) {
   td = acquire_owner(ts);
 
   /* Walk through blocked threads. */
-  while (td->td_prio < prio && !td_is_ready(td) && !td_is_running(td)) {
+  while (prio_lt(td->td_prio, prio) && !td_is_ready(td) && !td_is_running(td)) {
     assert(td != thread_self()); /* Deadlock. */
     assert(td_is_blocked(td));
 
@@ -155,22 +156,22 @@ static void propagate_priority(thread_t *td) {
 
     /* Resort td on the blocked list if needed. */
     adjust_thread(ts, td, oldprio);
-    spin_release(td->td_spin);
+    spin_unlock(&td->td_spin);
 
     td = acquire_owner(ts);
   }
 
   /* Possibly finish at a running/runnable thread. */
-  if (td->td_prio < prio && (td_is_ready(td) || td_is_running(td))) {
+  if (prio_lt(td->td_prio, prio) && (td_is_ready(td) || td_is_running(td))) {
     sched_lend_prio(td, prio);
     assert(td->td_blocked == NULL);
   }
 
-  spin_release(td->td_spin);
+  spin_unlock(&td->td_spin);
 }
 
 void turnstile_adjust(thread_t *td, prio_t oldprio) {
-  assert(spin_owned(td->td_spin));
+  assert(spin_owned(&td->td_spin));
   assert(td_is_blocked(td));
 
   turnstile_t *ts = td->td_blocked;
@@ -181,7 +182,7 @@ void turnstile_adjust(thread_t *td, prio_t oldprio) {
 
   /* If td got higher priority and it is at the head of ts_blocked,
    * propagate its priority. */
-  if (td == TAILQ_FIRST(&ts->ts_blocked) && td->td_prio > oldprio)
+  if (td == TAILQ_FIRST(&ts->ts_blocked) && prio_gt(td->td_prio, oldprio))
     propagate_priority(td);
 }
 
@@ -230,7 +231,7 @@ static void switch_away(turnstile_t *ts, const void *waitpt) {
   assert(ts->ts_state == USED_BLOCKED);
   thread_t *td = thread_self();
 
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin) {
     td->td_turnstile = NULL;
     td->td_blocked = ts;
     td->td_wchan = ts->ts_wchan;
@@ -285,7 +286,7 @@ static void unlend_self(turnstile_t *ts) {
   thread_t *td = thread_self();
   assert(ts->ts_owner == td);
 
-  prio_t prio = 0; /* lowest priority */
+  prio_t prio = prio_uthread(255);
 
   ts->ts_owner = NULL;
   LIST_REMOVE(ts, ts_contested_link);
@@ -294,13 +295,12 @@ static void unlend_self(turnstile_t *ts) {
   LIST_FOREACH(ts_owned, &td->td_contested, ts_contested_link) {
     assert(ts_owned->ts_owner == td);
     prio_t p = TAILQ_FIRST(&ts_owned->ts_blocked)->td_prio;
-    if (p > prio)
+    if (prio_gt(p, prio))
       prio = p;
   }
 
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin)
     sched_unlend_prio(td, prio);
-  }
 }
 
 static void wakeup_blocked(td_queue_t *blocked_threads) {
@@ -308,12 +308,12 @@ static void wakeup_blocked(td_queue_t *blocked_threads) {
     thread_t *td = TAILQ_FIRST(blocked_threads);
     TAILQ_REMOVE(blocked_threads, td, td_blockedq);
 
-    WITH_SPINLOCK(td->td_spin) {
+    WITH_SPIN_LOCK (&td->td_spin) {
       assert(td_is_blocked(td));
       td->td_blocked = NULL;
       td->td_wchan = NULL;
       td->td_waitpt = NULL;
-      sched_wakeup(td);
+      sched_wakeup(td, 0);
     }
   }
 }

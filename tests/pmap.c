@@ -1,36 +1,41 @@
-#include <stdc.h>
-#include <mips/tlb.h>
 #include <pmap.h>
 #include <physmem.h>
 #include <vm.h>
 #include <ktest.h>
 
+#define PAGES 16
+
 static int test_kernel_pmap(void) {
   pmap_t *pmap = get_kernel_pmap();
 
-  vm_page_t *pg = pm_alloc(16);
+  vm_page_t *pg = pm_alloc(PAGES);
   size_t size = pg->size * PAGESIZE;
-  vm_addr_t vaddr1 = pmap->start;
-  vm_addr_t vaddr2 = pmap->start + size / 2;
-  vm_addr_t vaddr3 = pmap->start + size;
 
-  pmap_map(pmap, vaddr1, vaddr3, pg->paddr, VM_PROT_READ | VM_PROT_WRITE);
+  vaddr_t vaddr = pmap->start;
+  vaddr_t end = pmap->start + size;
 
-  unsigned *x = (unsigned *)vaddr1;
+  pmap_enter(pmap, vaddr, pg, VM_PROT_READ | VM_PROT_WRITE);
+
+  unsigned *array = (void *)vaddr;
   for (unsigned i = 0; i < size / sizeof(int); i++)
-    *(x + i) = i;
-  for (unsigned i = 0; i < size / sizeof(int); i++)
-    assert(*(x + i) == i);
+    assert(try_store_word(&array[i], i));
 
-  assert(pmap_probe(pmap, vaddr1, vaddr3, VM_PROT_READ | VM_PROT_WRITE));
+  pmap_protect(pmap, vaddr, vaddr + size, VM_PROT_READ);
+  for (vaddr_t addr = vaddr; addr < end; addr += PAGESIZE)
+    assert(!try_store_word((void *)addr, 0));
 
-  pmap_unmap(pmap, vaddr1, vaddr2);
-  pmap_protect(pmap, vaddr2, vaddr3, VM_PROT_READ);
+  for (unsigned i = 0; i < size / sizeof(int); i++) {
+    unsigned val;
+    assert(try_load_word(&array[i], &val));
+    assert(val == i);
+  }
 
-  assert(pmap_probe(pmap, vaddr1, vaddr2, VM_PROT_NONE));
-  assert(pmap_probe(pmap, vaddr2, vaddr3, VM_PROT_READ));
+  for (vaddr_t addr = vaddr; addr < end; addr += PAGESIZE) {
+    pmap_remove(pmap, addr, addr + PAGESIZE);
+    unsigned val;
+    assert(!try_load_word((void *)addr, &val));
+  }
 
-  pmap_unmap(pmap, vaddr2, vaddr3);
   pm_free(pg);
 
   return KTEST_SUCCESS;
@@ -42,16 +47,15 @@ static int test_user_pmap(void) {
   pmap_t *pmap1 = pmap_new();
   pmap_t *pmap2 = pmap_new();
 
-  vm_addr_t start = 0x1001000;
-  vm_addr_t end = 0x1002000;
+  vaddr_t start = 0x1001000;
 
   vm_page_t *pg1 = pm_alloc(1);
   vm_page_t *pg2 = pm_alloc(1);
 
   pmap_activate(pmap1);
-  pmap_map(pmap1, start, end, pg1->paddr, VM_PROT_READ | VM_PROT_WRITE);
+  pmap_enter(pmap1, start, pg1, VM_PROT_READ | VM_PROT_WRITE);
   pmap_activate(pmap2);
-  pmap_map(pmap2, start, end, pg2->paddr, VM_PROT_READ | VM_PROT_WRITE);
+  pmap_enter(pmap2, start, pg2, VM_PROT_READ | VM_PROT_WRITE);
 
   volatile int *ptr = (int *)start;
   *ptr = 100;
@@ -71,5 +75,5 @@ static int test_user_pmap(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(pmap_kernel, test_kernel_pmap, 0);
+KTEST_ADD(pmap_kernel, test_kernel_pmap, KTEST_FLAG_BROKEN);
 KTEST_ADD(pmap_user, test_user_pmap, 0);

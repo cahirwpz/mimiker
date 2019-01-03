@@ -1,10 +1,5 @@
-#ifndef __MIPS_MIPS_H__
-#define __MIPS_MIPS_H__
-
-#ifndef __ASSEMBLER__
-typedef unsigned long paddr_t; /* a physical address */
-typedef unsigned long vaddr_t; /* a virtual address */
-#endif
+#ifndef _MIPS_MIPS_H_
+#define _MIPS_MIPS_H_
 
 #include <mips/m32c0.h>
 #include <mips/m32ins.h>
@@ -44,6 +39,6 @@ typedef float freg_t;
 
 const char *const exceptions[32];
 
-#endif
+#endif /* __ASSEMBLER__ */
 
-#endif
+#endif /* !_MIPS_MIPS_H */

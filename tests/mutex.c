@@ -4,7 +4,7 @@
 #include <thread.h>
 #include <ktest.h>
 
-static mtx_t counter_mtx = MTX_INITIALIZER(MTX_DEF);
+static mtx_t counter_mtx = MTX_INITIALIZER(0);
 static volatile int32_t counter_value;
 
 /* Good test to measure context switch time. */
@@ -29,7 +29,7 @@ static int test_mutex_counter(void) {
   for (int i = 0; i < COUNTER_T; i++) {
     char name[20];
     snprintf(name, sizeof(name), "td%d", i);
-    counter_td[i] = thread_create(name, counter_routine, NULL);
+    counter_td[i] = thread_create(name, counter_routine, NULL, prio_kthread(0));
   }
 
   for (int i = 0; i < COUNTER_T; i++)
@@ -49,7 +49,7 @@ typedef enum rtn_state {
   ST_DONE
 } rtn_state_t;
 
-static mtx_t simple_mtx = MTX_INITIALIZER(MTX_DEF);
+static mtx_t simple_mtx = MTX_INITIALIZER(0);
 static thread_t *simple_td0;
 /* `simple_status` equals ST_UNLOCKING for a moment but we don't check
  *  it during that time (or rather a check shouldn't happen during that time) */
@@ -68,7 +68,7 @@ static void simple_routine(void *arg) {
 }
 
 static int test_mutex_simple(void) {
-  simple_td0 = thread_create("td0", simple_routine, NULL);
+  simple_td0 = thread_create("td0", simple_routine, NULL, prio_kthread(0));
   simple_status = ST_INITIAL;
 
   mtx_lock(&simple_mtx);

@@ -4,8 +4,9 @@
 #include <common.h>
 #include <queue.h>
 #include <spinlock.h>
+#include <priority.h>
 
-/*! \brief Disables interrupts.
+/*! \brief Disables hardware interrupts.
  *
  * Calls to \fn intr_disable can nest, you must use the same number of calls to
  * \fn intr_enable to actually enable interrupts.
@@ -78,7 +79,7 @@ typedef TAILQ_HEAD(, intr_handler) intr_handler_list_t;
   }
 
 typedef struct intr_chain {
-  spinlock_t ic_lock;
+  spin_t ic_lock;
   TAILQ_ENTRY(intr_chain) ic_list;
   intr_handler_list_t ic_handlers; /* interrupt handlers */
   const char *ic_name;             /* individual chain name */
@@ -88,6 +89,7 @@ typedef struct intr_chain {
 
 typedef TAILQ_HEAD(, intr_chain) intr_chain_list_t;
 
+void intr_chain_init(intr_chain_t *ic, unsigned irq, const char *name);
 void intr_chain_register(intr_chain_t *ic);
 void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih);
 void intr_chain_remove_handler(intr_handler_t *ih);

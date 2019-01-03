@@ -27,6 +27,7 @@ typedef enum {
   KL_SYSCALL, /* syscall processing */
   KL_USER,    /* user program */
   KL_TEST,    /* mask for testing purpose */
+  KL_FILE,    /* filedesc & file operations */
   KL_FILESYS, /* filesystems */
 } klog_origin_t;
 

@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <common.h>
+#include <lock.h>
 
 typedef struct thread thread_t;
 
@@ -22,21 +23,22 @@ typedef struct thread thread_t;
  * \todo During transition from single-core to multi-core architecture spin lock
  *       will be used for interprocessor synchronization as well.
  */
-typedef struct spinlock {
-  volatile thread_t *s_owner; /*!< stores address of the owner */
+typedef struct spin {
+  lock_type_t s_type;         /*!< type of lock */
   volatile unsigned s_count;  /*!< counter for recursive spinlock */
+  volatile thread_t *s_owner; /*!< stores address of the owner */
   const void *s_lockpt;       /*!< place where the lock was acquired */
-} spinlock_t;
+} spin_t;
 
-#define SPINLOCK_INITIALIZER()                                                 \
-  (spinlock_t) {                                                               \
-    .s_owner = NULL, .s_lockpt = NULL                                          \
+#define SPIN_INITIALIZER(type)                                                 \
+  (spin_t) {                                                                   \
+    .s_type = (type) | LK_SPIN                                                 \
   }
 
 /*! \brief Initializes spin lock.
  *
  * \note Every spin lock has to be initialized before it is used. */
-void spin_init(spinlock_t *s);
+void spin_init(spin_t *s, lock_type_t type);
 
 /*! \brief Makes spin lock unusable for further locking.
  *
@@ -44,23 +46,23 @@ void spin_init(spinlock_t *s);
 #define spin_destroy(m)
 
 /*! \brief Check if calling thread is the owner of \a s. */
-bool spin_owned(spinlock_t *s);
+bool spin_owned(spin_t *s);
 
 /*! \brief Acquires the spin lock (with custom \a waitpt) */
-void _spin_acquire(spinlock_t *s, const void *waitpt);
+void _spin_lock(spin_t *s, const void *waitpt);
 
 /*! \brief Acquire the spin lock.
  *
  * \note On single core architecture it impossible to block on spinlock.
  */
-static inline void spin_acquire(spinlock_t *s) {
-  _spin_acquire(s, __caller(0));
+static inline void spin_lock(spin_t *s) {
+  _spin_lock(s, __caller(0));
 }
 
 /*! \brief Release the spin lock. */
-void spin_release(spinlock_t *s);
+void spin_unlock(spin_t *s);
 
-DEFINE_CLEANUP_FUNCTION(spinlock_t *, spin_release);
+DEFINE_CLEANUP_FUNCTION(spin_t *, spin_unlock);
 
 /*! \brief Acquire spin lock and release it when leaving current scope.
  *
@@ -68,8 +70,8 @@ DEFINE_CLEANUP_FUNCTION(spinlock_t *, spin_release);
  *
  * \warning Do not call `noreturn` functions before you leave the scope!
  */
-#define SCOPED_SPINLOCK(spin_p)                                                \
-  SCOPED_STMT(spinlock_t, spin_acquire, CLEANUP_FUNCTION(spin_release), spin_p)
+#define SCOPED_SPIN_LOCK(spin_p)                                               \
+  SCOPED_STMT(spin_t, spin_lock, CLEANUP_FUNCTION(spin_unlock), spin_p)
 
 /*! \brief Enter scope with spin lock acquired.
  *
@@ -77,7 +79,7 @@ DEFINE_CLEANUP_FUNCTION(spinlock_t *, spin_release);
  *
  * \sa SCOPED_SPINLOCK
  */
-#define WITH_SPINLOCK(spin_p)                                                  \
-  WITH_STMT(spinlock_t, spin_acquire, CLEANUP_FUNCTION(spin_release), spin_p)
+#define WITH_SPIN_LOCK(spin_p)                                                 \
+  WITH_STMT(spin_t, spin_lock, CLEANUP_FUNCTION(spin_unlock), spin_p)
 
 #endif /* !_SYS_SPINLOCK_H_ */

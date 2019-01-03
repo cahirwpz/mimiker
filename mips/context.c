@@ -13,6 +13,10 @@ void ctx_init(ctx_t *ctx, void *pc, void *sp) {
   ctx->sr = (reg_t)mips32_get_c0(C0_STATUS) | SR_IE;
 }
 
+void ctx_set_retval(ctx_t *ctx, long value) {
+  ctx->v0 = (reg_t)value;
+}
+
 void exc_frame_init(exc_frame_t *frame, void *pc, void *sp, unsigned flags) {
   register void *gp asm("$gp");
   bool usermode = flags & EF_USER;

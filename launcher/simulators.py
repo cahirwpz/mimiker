@@ -2,62 +2,13 @@ import os
 from .common import *
 
 
-class OVPsim(Launchable):
-
-    def __init__(self):
-        Launchable.__init__(self, 'ovpsim')
-
-    def probe(self):
-        try:
-            OVPSIM_VENDOR = 'mips.ovpworld.org'
-            OVPSIM_PLATFORM = 'MipsMalta/1.0'
-            IMPERAS_VLNV = os.environ['IMPERAS_VLNV']
-            IMPERAS_ARCH = os.environ['IMPERAS_ARCH']
-
-            self.cmd = os.path.join(
-                IMPERAS_VLNV, OVPSIM_VENDOR, 'platform', OVPSIM_PLATFORM,
-                'platform.%s.exe' % IMPERAS_ARCH)
-            return True
-        except KeyError:
-            return False
-
-    def configure(self, **kwargs):
-        try:
-            os.remove('uartCBUS.log')
-            os.remove('uartTTY0.log')
-            os.remove('uartTTY1.log')
-        except OSError:
-            pass
-
-        OVPSIM_OVERRIDES = {
-            'mipsle1/vectoredinterrupt': 1,
-            'mipsle1/srsctlHSS': 1,
-            'rtc/timefromhost': 1,
-            'uartCBUS/console': 0,
-            'uartCBUS/portnum': kwargs['uart_port'],
-            'command': '"' + kwargs['args'] + '"'
-        }
-
-        self.options = ['--wallclock',
-                        '--kernel', kwargs['kernel']]
-
-        if not kwargs['graphics']:
-            self.options += ['--nographics']
-
-        if kwargs['debug']:
-            self.options += ['--port', str(kwargs['gdb_port'])]
-
-        for item in OVPSIM_OVERRIDES.items():
-            self.options += ['--override', '%s=%s' % item]
-
-
 class QEMU(Launchable):
 
     def __init__(self):
         Launchable.__init__(self, 'qemu')
 
     def probe(self):
-        self.cmd = shutil.which('qemu-system-mipsel')
+        self.cmd = shutil.which('qemu-mimiker-mipsel')
         return self.cmd is not None
 
     def configure(self, **kwargs):
@@ -66,7 +17,7 @@ class QEMU(Launchable):
                         '-device', 'VGA',
                         '-machine', 'malta',
                         '-cpu', '24Kf',
-                        '-icount', 'shift=auto,sleep=on',
+                        '-icount', 'shift=3,sleep=on',
                         '-kernel', kwargs['kernel'],
                         '-append', kwargs['args'],
                         '-gdb', 'tcp::%d' % kwargs['gdb_port'],
@@ -80,7 +31,7 @@ class QEMU(Launchable):
         if not kwargs['graphics']:
             self.options += ['-display', 'none']
 
-SIMULATORS = [QEMU(), OVPsim()]
+SIMULATORS = [QEMU()]
 
 
 def find_available():

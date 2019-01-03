@@ -3,12 +3,10 @@
 
 #include <common.h>
 #include <queue.h>
-#include <context.h>
 #include <exception.h>
-#include <sleepq.h>
-#include <turnstile.h>
 #include <mutex.h>
 #include <condvar.h>
+#include <priority.h>
 #include <time.h>
 #include <signal.h>
 #include <stack.h>
@@ -17,6 +15,9 @@
 
 /*! \file thread.h */
 
+struct turnstile;
+typedef struct turnstile turnstile_t;
+typedef struct sleepq sleepq_t;
 typedef struct vm_page vm_page_t;
 typedef struct vm_map vm_map_t;
 typedef struct fdtab fdtab_t;
@@ -58,12 +59,16 @@ typedef enum {
 #define TDF_NEEDLOCK 0x00000008   /* acquire td_spin on context switch */
 #define TDF_BORROWING 0x00000010  /* priority propagation */
 #define TDF_SLEEPY 0x00000020     /* thread is about to go to sleep */
+/* TDF_SLP* flags are used internally by sleep queue */
+#define TDF_SLPINTR 0x00000040  /* sleep is interruptible */
+#define TDF_SLPTIMED 0x00000080 /* sleep with timeout */
 
 /*! \brief Thread structure
  *
  * Field markings and the corresponding locks:
  *  - a: threads_lock
  *  - t: thread_t::td_lock
+ *  - p: thread_t::td_proc::p_lock
  *  - @: read-only access
  *  - !: thread_t::td_spin
  *  - ~: always safe to access
@@ -74,9 +79,9 @@ typedef enum {
  */
 typedef struct thread {
   /* locks */
-  spinlock_t td_spin[1]; /*!< (~) synchronizes top & bottom halves */
-  mtx_t td_lock;         /*!< (~) protects most fields in this structure */
-  condvar_t td_waitcv;   /*!< (t) for thread_join */
+  spin_t td_spin;      /*!< (~) synchronizes top & bottom halves */
+  mtx_t td_lock;       /*!< (~) protects most fields in this structure */
+  condvar_t td_waitcv; /*!< (t) for thread_join */
   /* linked lists */
   TAILQ_ENTRY(thread) td_all;      /* a link on all threads list */
   TAILQ_ENTRY(thread) td_runq;     /* a link on run queue */
@@ -88,8 +93,8 @@ typedef struct thread {
   char *td_name;   /*!< (@) name of thread */
   tid_t td_tid;    /*!< (@) thread identifier */
   /* thread state */
-  thread_state_t td_state; /*!< (!) thread state */
-  uint32_t td_flags;       /*!< (!) TDF_* flags */
+  thread_state_t td_state;    /*!< (!) thread state */
+  volatile uint32_t td_flags; /*!< (!) TDF_* flags */
   /* thread context */
   volatile unsigned td_idnest; /*!< (?) interrupt disable nest level */
   volatile unsigned td_pdnest; /*!< (?) preemption disable nest level */
@@ -119,12 +124,13 @@ typedef struct thread {
   timeval_t td_last_slptime; /*!< time of last switch to sleep state */
   unsigned td_nctxsw;        /*!< total number of context switches */
   /* signal handling */
-  sigset_t td_sigpend; /* Pending signals for this thread. */
+  sigset_t td_sigpend; /*!< (p) Pending signals for this thread. */
   /* TODO: Signal mask, sigsuspend. */
 } thread_t;
 
 thread_t *thread_self(void);
-thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
+thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
+                        prio_t prio);
 void thread_delete(thread_t *td);
 
 /*! \brief Prepares thread to be launched.
@@ -185,6 +191,10 @@ static inline bool td_is_inactive(thread_t *td) {
 
 static inline bool td_is_sleeping(thread_t *td) {
   return td->td_state == TDS_SLEEPING;
+}
+
+static inline bool td_is_interruptible(thread_t *td) {
+  return (td->td_state == TDS_SLEEPING) && (td->td_flags & TDF_SLPINTR);
 }
 
 static inline bool td_is_borrowing(thread_t *td) {

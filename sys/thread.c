@@ -1,19 +1,23 @@
 #define KL_LOG KL_THREAD
 #include <klog.h>
+#include <pool.h>
 #include <malloc.h>
+#include <physmem.h>
 #include <thread.h>
 #include <context.h>
 #include <interrupt.h>
 #include <pcpu.h>
 #include <sched.h>
+#include <sleepq.h>
 #include <filedesc.h>
+#include <turnstile.h>
 #include <mips/exc.h>
 
-static MALLOC_DEFINE(M_THREAD, "thread", 1, 2);
+static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t));
 
 typedef TAILQ_HEAD(, thread) thread_list_t;
 
-static mtx_t *threads_lock = &MTX_INITIALIZER(MTX_DEF);
+static mtx_t *threads_lock = &MTX_INITIALIZER(0);
 static thread_list_t all_threads = TAILQ_HEAD_INITIALIZER(all_threads);
 static thread_list_t zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 
@@ -61,23 +65,27 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
   exc_frame_setup_call(kframe, thread_exit, (long)arg, 0);
 }
 
-thread_t *thread_create(const char *name, void (*fn)(void *), void *arg) {
+thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
+                        prio_t prio) {
   /* Firstly recycle some threads to free up memory. */
   thread_reap();
 
-  thread_t *td = kmalloc(M_THREAD, sizeof(thread_t), M_ZERO);
+  thread_t *td = pool_alloc(P_THREAD, PF_ZERO);
 
   td->td_sleepqueue = sleepq_alloc();
   td->td_turnstile = turnstile_alloc();
-  td->td_name = kstrndup(M_THREAD, name, TD_NAME_MAX);
+  td->td_name = kstrndup(M_STR, name, TD_NAME_MAX);
   td->td_tid = make_tid();
   td->td_kstack_obj = pm_alloc(1);
-  td->td_kstack.stk_base = (void *)PG_VADDR_START(td->td_kstack_obj);
+  td->td_kstack.stk_base = PG_KSEG0_ADDR(td->td_kstack_obj);
   td->td_kstack.stk_size = PAGESIZE;
   td->td_state = TDS_INACTIVE;
 
-  spin_init(td->td_spin);
-  mtx_init(&td->td_lock, MTX_RECURSE);
+  td->td_prio = prio;
+  td->td_base_prio = prio;
+
+  td->td_spin = SPIN_INITIALIZER(0);
+  td->td_lock = MTX_INITIALIZER(0);
   cv_init(&td->td_waitcv, "thread waiters");
   LIST_INIT(&td->td_contested);
 
@@ -106,8 +114,8 @@ void thread_delete(thread_t *td) {
 
   sleepq_destroy(td->td_sleepqueue);
   turnstile_destroy(td->td_turnstile);
-  kfree(M_THREAD, td->td_name);
-  kfree(M_THREAD, td);
+  kfree(M_STR, td->td_name);
+  pool_free(P_THREAD, td);
 }
 
 thread_t *thread_self(void) {
@@ -123,7 +131,7 @@ noreturn void thread_exit(void) {
   /* Thread must not exit while having interrupts disabled! However, we can't
    * use assert here, because assert also calls thread_exit. Thus, in case this
    * condition is not met, we'll log the problem and panic! */
-  if (td->td_idnest > 0)
+  if (intr_disabled())
     panic("ERROR: Thread must not exit when interrupts are disabled!");
 
   /*
@@ -143,7 +151,7 @@ noreturn void thread_exit(void) {
   cv_broadcast(&td->td_waitcv);
   mtx_unlock(&td->td_lock);
 
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin) {
     td->td_state = TDS_DEAD;
     sched_switch();
   }
@@ -165,7 +173,7 @@ void thread_join(thread_t *otd) {
 void thread_yield(void) {
   thread_t *td = thread_self();
 
-  WITH_SPINLOCK(td->td_spin) {
+  WITH_SPIN_LOCK (&td->td_spin) {
     td->td_state = TDS_READY;
     sched_switch();
   }

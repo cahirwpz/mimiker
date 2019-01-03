@@ -1,10 +1,8 @@
 #define KL_LOG KL_VM
 #include <klog.h>
 #include <stdc.h>
-#include <malloc.h>
+#include <pool.h>
 #include <pmap.h>
-#include <thread.h>
-#include <vm.h>
 #include <vm_pager.h>
 #include <vm_object.h>
 #include <vm_map.h>
@@ -12,11 +10,26 @@
 #include <proc.h>
 #include <sched.h>
 #include <pcpu.h>
-#include <sysinit.h>
 
-static MALLOC_DEFINE(M_VMMAP, "vm-map", 1, 2);
+struct vm_segment {
+  TAILQ_ENTRY(vm_segment) link;
+  vm_object_t *object;
+  vm_prot_t prot;
+  vaddr_t start;
+  vaddr_t end;
+};
 
-static vm_map_t kspace;
+struct vm_map {
+  TAILQ_HEAD(vm_map_list, vm_segment) entries;
+  size_t nentries;
+  pmap_t *pmap;
+  mtx_t mtx; /* Mutex guarding vm_map structure and all its entries. */
+};
+
+static POOL_DEFINE(P_VMMAP, "vm_map", sizeof(vm_map_t));
+static POOL_DEFINE(P_VMENTRY, "vm_segment", sizeof(vm_segment_t));
+
+static vm_map_t *kspace = &(vm_map_t){};
 
 void vm_map_activate(vm_map_t *map) {
   SCOPED_NO_PREEMPTION();
@@ -30,123 +43,113 @@ vm_map_t *get_user_vm_map(void) {
 }
 
 vm_map_t *get_kernel_vm_map(void) {
-  return &kspace;
+  return kspace;
 }
 
-static bool in_range(vm_map_t *map, vm_addr_t addr) {
-  /* No need to enter RWlock, the pmap field is const. */
-  return map && map->pmap->start <= addr && addr < map->pmap->end;
+void vm_segment_range(vm_segment_t *seg, vaddr_t *start_p, vaddr_t *end_p) {
+  *start_p = seg->start;
+  *end_p = seg->end;
 }
 
-vm_map_t *get_active_vm_map_by_addr(vm_addr_t addr) {
-  if (in_range(get_user_vm_map(), addr))
+void vm_map_range(vm_map_t *map, vaddr_t *start_p, vaddr_t *end_p) {
+  *start_p = map->pmap->start;
+  *end_p = map->pmap->end;
+}
+
+bool vm_map_in_range(vm_map_t *map, vaddr_t addr) {
+  return map && map->pmap && map->pmap->start <= addr && addr < map->pmap->end;
+}
+
+vm_map_t *get_active_vm_map_by_addr(vaddr_t addr) {
+  if (vm_map_in_range(get_user_vm_map(), addr))
     return get_user_vm_map();
-  if (in_range(get_kernel_vm_map(), addr))
+  if (vm_map_in_range(get_kernel_vm_map(), addr))
     return get_kernel_vm_map();
   return NULL;
 }
 
-static inline int vm_map_entry_cmp(vm_map_entry_t *a, vm_map_entry_t *b) {
-  if (a->start < b->start)
-    return -1;
-  return a->start - b->start;
-}
-
-SPLAY_PROTOTYPE(vm_map_tree, vm_map_entry, map_tree, vm_map_entry_cmp);
-SPLAY_GENERATE(vm_map_tree, vm_map_entry, map_tree, vm_map_entry_cmp);
-
 static void vm_map_setup(vm_map_t *map) {
-  TAILQ_INIT(&map->list);
-  SPLAY_INIT(&map->tree);
-  rw_init(&map->rwlock, "vm map rwlock", 1);
+  TAILQ_INIT(&map->entries);
+  mtx_init(&map->mtx, 0);
 }
 
-static void vm_map_init(void) {
-  vm_map_setup(&kspace);
-  *((pmap_t **)(&kspace.pmap)) = get_kernel_pmap();
+void vm_map_init(void) {
+  vm_map_setup(kspace);
+  kspace->pmap = get_kernel_pmap();
+  vm_map_activate(kspace);
 }
 
 vm_map_t *vm_map_new(void) {
-  vm_map_t *map = kmalloc(M_VMMAP, sizeof(vm_map_t), M_ZERO);
-
+  vm_map_t *map = pool_alloc(P_VMMAP, PF_ZERO);
   vm_map_setup(map);
-  *((pmap_t **)&map->pmap) = pmap_new();
+  map->pmap = pmap_new();
   return map;
 }
 
-static bool vm_map_insert_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
-  rw_assert(&vm_map->rwlock, RW_WLOCKED);
-  if (!SPLAY_INSERT(vm_map_tree, &vm_map->tree, entry)) {
-    vm_map_entry_t *next = SPLAY_NEXT(vm_map_tree, &vm_map->tree, entry);
-    if (next)
-      TAILQ_INSERT_BEFORE(next, entry, map_list);
-    else
-      TAILQ_INSERT_TAIL(&vm_map->list, entry, map_list);
-    vm_map->nentries++;
-    return true;
-  }
-  return false;
-}
-
-vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vm_addr_t vaddr) {
-  SCOPED_RW_ENTER(&vm_map->rwlock, RW_READER);
-
-  vm_map_entry_t *etr_it;
-  TAILQ_FOREACH (etr_it, &vm_map->list, map_list)
-    if (etr_it->start <= vaddr && vaddr < etr_it->end)
-      return etr_it;
-  return NULL;
-}
-
-static void vm_map_remove_entry(vm_map_t *vm_map, vm_map_entry_t *entry) {
-  rw_assert(&vm_map->rwlock, RW_WLOCKED);
-  vm_map->nentries--;
-  if (entry->object)
-    vm_object_free(entry->object);
-  TAILQ_REMOVE(&vm_map->list, entry, map_list);
-  kfree(M_VMMAP, entry);
-}
-
-void vm_map_delete(vm_map_t *map) {
-  WITH_RW_LOCK (&map->rwlock, RW_WRITER) {
-    while (map->nentries > 0)
-      vm_map_remove_entry(map, TAILQ_FIRST(&map->list));
-  }
-  pmap_delete(map->pmap);
-  kfree(M_VMMAP, map);
-}
-
-vm_map_entry_t *vm_map_add_entry(vm_map_t *map, vm_addr_t start, vm_addr_t end,
-                                 vm_prot_t prot) {
-  assert(start >= map->pmap->start);
-  assert(end <= map->pmap->end);
+vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
+                               vm_prot_t prot) {
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(end, PAGESIZE));
 
-#if 0
-  assert(vm_map_find_entry(map, start) == NULL);
-  assert(vm_map_find_entry(map, end) == NULL);
-#endif
+  vm_segment_t *seg = pool_alloc(P_VMENTRY, PF_ZERO);
+  seg->object = obj;
+  seg->start = start;
+  seg->end = end;
+  seg->prot = prot;
+  return seg;
+}
 
-  vm_map_entry_t *entry = kmalloc(M_VMMAP, sizeof(vm_map_entry_t), M_ZERO);
+void vm_segment_free(vm_segment_t *seg) {
+  if (seg->object)
+    vm_object_free(seg->object);
+  pool_free(P_VMENTRY, seg);
+}
 
-  entry->start = start;
-  entry->end = end;
-  entry->prot = prot;
+vm_segment_t *vm_map_find_segment(vm_map_t *map, vaddr_t vaddr) {
+  SCOPED_MTX_LOCK(&map->mtx);
+  vm_segment_t *it;
+  TAILQ_FOREACH (it, &map->entries, link)
+    if (it->start <= vaddr && vaddr < it->end)
+      return it;
+  return NULL;
+}
 
-  WITH_RW_LOCK (&map->rwlock, RW_WRITER)
-    vm_map_insert_entry(map, entry);
+static void vm_map_insert_after(vm_map_t *map, vm_segment_t *after,
+                                vm_segment_t *seg) {
+  assert(mtx_owned(&map->mtx));
+  if (after)
+    TAILQ_INSERT_AFTER(&map->entries, after, seg, link);
+  else
+    TAILQ_INSERT_HEAD(&map->entries, seg, link);
+  map->nentries++;
+}
 
-  return entry;
+static void vm_map_remove_segment(vm_map_t *map, vm_segment_t *seg) {
+  assert(mtx_owned(&map->mtx));
+  TAILQ_REMOVE(&map->entries, seg, link);
+  map->nentries--;
+}
+
+void vm_map_delete(vm_map_t *map) {
+  WITH_MTX_LOCK (&map->mtx) {
+    vm_segment_t *seg;
+    while ((seg = TAILQ_FIRST(&map->entries))) {
+      vm_map_remove_segment(map, seg);
+      vm_segment_free(seg);
+    }
+  }
+  pmap_delete(map->pmap);
+  pool_free(P_VMMAP, map);
 }
 
 /* TODO: not implemented */
-void vm_map_protect(vm_map_t *map, vm_addr_t start, vm_addr_t end,
-                    vm_prot_t prot) {
+void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
 }
 
-int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start, size_t length,
-                            vm_addr_t /*out*/ *addr) {
+static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
+                                   size_t length, vm_segment_t **after_p) {
+  vaddr_t start = *start_p;
+
   assert(is_aligned(start, PAGESIZE));
   assert(is_aligned(length, PAGESIZE));
 
@@ -156,80 +159,134 @@ int vm_map_findspace_nolock(vm_map_t *map, vm_addr_t start, size_t length,
   if (start + length > map->pmap->end)
     return -ENOMEM;
 
+  if (after_p)
+    *after_p = NULL;
+
   /* Entire space free? */
-  if (TAILQ_EMPTY(&map->list))
+  if (TAILQ_EMPTY(&map->entries))
     goto found;
 
   /* Is enought space before the first entry in the map? */
-  vm_map_entry_t *first = TAILQ_FIRST(&map->list);
+  vm_segment_t *first = TAILQ_FIRST(&map->entries);
   if (start + length <= first->start)
     goto found;
 
   /* Browse available gaps. */
-  vm_map_entry_t *it;
-  TAILQ_FOREACH (it, &map->list, map_list) {
-    vm_map_entry_t *next = TAILQ_NEXT(it, map_list);
-    vm_addr_t gap_start = it->end;
-    vm_addr_t gap_end = next ? next->start : map->pmap->end;
+  vm_segment_t *it;
+  TAILQ_FOREACH (it, &map->entries, link) {
+    vm_segment_t *next = TAILQ_NEXT(it, link);
+    vaddr_t gap_start = it->end;
+    vaddr_t gap_end = next ? next->start : map->pmap->end;
 
     /* Move start address forward if it points inside allocated space. */
     if (start < gap_start)
       start = gap_start;
 
     /* Will we fit inside this gap? */
-    if (start + length <= gap_end)
+    if (start + length <= gap_end) {
+      if (after_p)
+        *after_p = it;
       goto found;
+    }
   }
 
   /* Failed to find free space. */
   return -ENOMEM;
 
 found:
-  *addr = start;
+  *start_p = start;
   return 0;
 }
 
-int vm_map_findspace(vm_map_t *map, vm_addr_t start, size_t length,
-                     vm_addr_t /*out*/ *addr) {
-  SCOPED_RW_ENTER(&map->rwlock, RW_READER);
-  return vm_map_findspace_nolock(map, start, length, addr);
+int vm_map_findspace(vm_map_t *map, vaddr_t *start_p, size_t length) {
+  SCOPED_MTX_LOCK(&map->mtx);
+  return vm_map_findspace_nolock(map, start_p, length, NULL);
 }
 
-int vm_map_resize(vm_map_t *map, vm_map_entry_t *entry, vm_addr_t new_end) {
+int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
+  SCOPED_MTX_LOCK(&map->mtx);
+  vm_segment_t *after;
+  vaddr_t start = seg->start;
+  size_t length = seg->end - seg->start;
+  int error = vm_map_findspace_nolock(map, &start, length, &after);
+  if (error)
+    return error;
+  if ((flags & VM_FIXED) && (start != seg->start))
+    return -ENOMEM;
+  seg->start = start;
+  seg->end = start + length;
+  vm_map_insert_after(map, after, seg);
+  return 0;
+}
+
+int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
+                         vm_prot_t prot, vm_flags_t flags,
+                         vm_segment_t **seg_p) {
+  if (!(flags & VM_ANON)) {
+    klog("Only anonymous memory mappings are supported!");
+    return -ENOTSUP;
+  }
+
+  if (!is_aligned(addr, PAGESIZE))
+    return -EINVAL;
+
+  if (length == 0)
+    return -EINVAL;
+
+  if (addr != 0 &&
+      (!vm_map_in_range(map, addr) || !vm_map_in_range(map, addr + length)))
+    return -EINVAL;
+
+  /* Create object with a pager that supplies cleared pages on page fault. */
+  vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
+  vm_segment_t *seg = vm_segment_alloc(obj, addr, addr + length, prot);
+
+  /* Given the hint try to insert the segment at given position or after it. */
+  if (vm_map_insert(map, seg, flags)) {
+    vm_segment_free(seg);
+    return -ENOMEM;
+  }
+
+  *seg_p = seg;
+  return 0;
+}
+
+int vm_map_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
   assert(is_aligned(new_end, PAGESIZE));
-  rw_assert(&map->rwlock, RW_WLOCKED);
+
+  SCOPED_MTX_LOCK(&map->mtx);
 
   /* TODO: As for now, we are unable to decrease the size of an entry, because
      it would require unmapping physical pages, which in turn should clean
      TLB. This is not implemented yet, and therefore shrinking an entry
      immediately leads to very confusing behavior, as the vm_map and TLB entries
      do not match. */
-  assert(new_end >= entry->end);
+  assert(new_end >= seg->end);
 
-  if (new_end > entry->end) {
+  if (new_end > seg->end) {
     /* Expanding entry */
-    vm_map_entry_t *next = TAILQ_NEXT(entry, map_list);
-    vm_addr_t gap_end = next ? next->start : map->pmap->end;
+    vm_segment_t *next = TAILQ_NEXT(seg, link);
+    vaddr_t gap_end = next ? next->start : map->pmap->end;
     if (new_end > gap_end)
       return -ENOMEM;
   } else {
     /* Shrinking entry */
-    if (new_end < entry->start)
+    if (new_end < seg->start)
       return -ENOMEM;
     /* TODO: Invalidate tlb? */
   }
-  /* Note that neither tailq nor splay tree require updating. */
-  entry->end = new_end;
+  /* Note that tailq does not require updating. */
+  seg->end = new_end;
   return 0;
 }
 
 void vm_map_dump(vm_map_t *map) {
+  SCOPED_MTX_LOCK(&map->mtx);
+
   klog("Virtual memory map (%08lx - %08lx):", map->pmap->start, map->pmap->end);
 
-  SCOPED_RW_ENTER(&map->rwlock, RW_READER);
-
-  vm_map_entry_t *it;
-  TAILQ_FOREACH (it, &map->list, map_list) {
+  vm_segment_t *it;
+  TAILQ_FOREACH (it, &map->entries, link) {
     klog(" * %08lx - %08lx [%c%c%c]", it->start, it->end,
          (it->prot & VM_PROT_READ) ? 'r' : '-',
          (it->prot & VM_PROT_WRITE) ? 'w' : '-',
@@ -238,82 +295,65 @@ void vm_map_dump(vm_map_t *map) {
   }
 }
 
-/* This entire function is a nasty hack, but we'll live with it until proper COW
-   is implemented. */
 vm_map_t *vm_map_clone(vm_map_t *map) {
   thread_t *td = thread_self();
   assert(td->td_proc);
 
-  vm_map_t *orig_current_map = get_user_vm_map();
-  vm_map_t *newmap = vm_map_new();
+  vm_map_t *new_map = vm_map_new();
 
-  WITH_RW_LOCK (&map->rwlock, RW_READER) {
-    /* Temporarily switch to the new map, so that we may write contents. */
-    td->td_proc->p_uspace = newmap;
-    vm_map_activate(newmap);
-
-    vm_map_entry_t *it;
-    TAILQ_FOREACH (it, &map->list, map_list) {
-      vm_map_entry_t *entry =
-        vm_map_add_entry(newmap, it->start, it->end, it->prot);
-      entry->object = default_pager->pgr_alloc();
-      vm_page_t *page;
-      TAILQ_FOREACH (page, &it->object->list, obj.list) {
-        memcpy((char *)it->start + page->vm_offset,
-               (char *)MIPS_PHYS_TO_KSEG0(page->paddr), page->size * PAGESIZE);
-      }
+  WITH_MTX_LOCK (&map->mtx) {
+    vm_segment_t *it;
+    TAILQ_FOREACH (it, &map->entries, link) {
+      vm_object_t *obj = vm_object_clone(it->object);
+      vm_segment_t *seg = vm_segment_alloc(obj, it->start, it->end, it->prot);
+      TAILQ_INSERT_TAIL(&new_map->entries, seg, link);
+      new_map->nentries++;
     }
   }
 
-  /* Return to original vm map. */
-  td->td_proc->p_uspace = orig_current_map;
-  vm_map_activate(orig_current_map);
-
-  return newmap;
+  return new_map;
 }
 
-int vm_page_fault(vm_map_t *map, vm_addr_t fault_addr, vm_prot_t fault_type) {
-  vm_map_entry_t *entry = NULL;
+int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
+  vm_segment_t *seg = vm_map_find_segment(map, fault_addr);
 
-  WITH_RW_LOCK (&map->rwlock, RW_READER)
-    entry = vm_map_find_entry(map, fault_addr);
-
-  if (!entry) {
+  if (!seg) {
     klog("Tried to access unmapped memory region: 0x%08lx!", fault_addr);
     return -EFAULT;
   }
 
-  if (entry->prot == VM_PROT_NONE) {
+  if (seg->prot == VM_PROT_NONE) {
     klog("Cannot access to address: 0x%08lx", fault_addr);
     return -EACCES;
   }
 
-  if (!(entry->prot & VM_PROT_WRITE) && (fault_type == VM_PROT_WRITE)) {
+  if (!(seg->prot & VM_PROT_WRITE) && (fault_type == VM_PROT_WRITE)) {
     klog("Cannot write to address: 0x%08lx", fault_addr);
     return -EACCES;
   }
 
-  if (!(entry->prot & VM_PROT_READ) && (fault_type == VM_PROT_READ)) {
+  if (!(seg->prot & VM_PROT_READ) && (fault_type == VM_PROT_READ)) {
     klog("Cannot read from address: 0x%08lx", fault_addr);
     return -EACCES;
   }
 
-  assert(entry->start <= fault_addr && fault_addr < entry->end);
+  assert(seg->start <= fault_addr && fault_addr < seg->end);
 
-  vm_object_t *obj = entry->object;
+  vm_object_t *obj = seg->object;
 
   assert(obj != NULL);
 
-  vm_addr_t fault_page = fault_addr & -PAGESIZE;
-  vm_addr_t offset = fault_page - entry->start;
-  vm_page_t *frame = vm_object_find_page(entry->object, offset);
+  vaddr_t fault_page = fault_addr & -PAGESIZE;
+  vaddr_t offset = fault_page - seg->start;
+  vm_page_t *frame = vm_object_find_page(seg->object, offset);
 
-  if (!frame)
-    frame = obj->pgr->pgr_fault(obj, fault_page, offset, fault_type);
-  pmap_map(map->pmap, fault_page, fault_page + PAGESIZE, frame->paddr,
-           entry->prot);
+  if (frame == NULL)
+    frame = obj->pager->pgr_fault(obj, offset);
+
+  if (frame == NULL)
+    return -EFAULT;
+
+  pmap_enter(map->pmap, fault_page, frame, seg->prot);
 
   return 0;
 }
-
-SYSINIT_ADD(vm_map, vm_map_init, DEPS("vm_object"));

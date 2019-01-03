@@ -43,7 +43,6 @@ void mips_intr_enable(void);
 bool mips_intr_disabled(void);
 
 void mips_intr_init(void);
-void mips_intr_handler(exc_frame_t *frame);
 void mips_intr_setup(intr_handler_t *ih, mips_intr_t irq);
 void mips_intr_teardown(intr_handler_t *ih);
 
