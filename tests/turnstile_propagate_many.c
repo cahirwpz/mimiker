@@ -82,7 +82,8 @@ static int test_turnstile_propagate_many(void) {
                                   propagator_prio(i));
   }
 
-  starter = thread_create("test-turnstile-starter", starter_routine, NULL, propagator_prio(0));
+  starter = thread_create("test-turnstile-starter", starter_routine, NULL,
+                          propagator_prio(0));
   propagator[0] = starter;
   sched_add(starter);
 

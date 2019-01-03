@@ -29,7 +29,7 @@ static void unmapped_store(void *data) {
 }
 
 #define NEW_THREAD(fn, arg)                                                    \
-  thread_create("test-crash-"#fn, fn, arg, prio_kthread(0))
+  thread_create("test-crash-" #fn, fn, arg, prio_kthread(0))
 
 static int test_crash(void) {
   sched_add(NEW_THREAD(unaligned_load, NULL));
