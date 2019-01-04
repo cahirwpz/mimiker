@@ -6,8 +6,7 @@
 
 MALLOC_DEFINE(M_TEST, "test", 4, 8);
 
-static void ringbuf_trivial(void) {
-
+static int test_ringbuf_trivial(void) {
   ringbuf_t rbt = ringbuf_alloc(M_TEST, 1);
   uint8_t c = 'c';
 
@@ -23,6 +22,8 @@ static void ringbuf_trivial(void) {
   assert(ringbuf_empty(&rbt));
 
   ringbuf_destroy(M_TEST, rbt);
+
+  return KTEST_SUCCESS;
 }
 
 static void put_succeeds(ringbuf_t *rb, uint8_t byte) {
@@ -45,7 +46,7 @@ static void get_succeeds(ringbuf_t *rb, uint8_t byte) {
   assert(!ringbuf_full(rb));
 }
 
-static void ringbuf_nontrivial(void) {
+static int test_ringbuf_nontrivial(void) {
   ringbuf_t rbt = ringbuf_alloc(M_TEST, 5);
   uint8_t c = 'c', d = 'd', e = 'e', f = 'f', g = 'g';
 
@@ -85,10 +86,11 @@ static void ringbuf_nontrivial(void) {
   assert(ringbuf_empty(&rbt));
 
   ringbuf_destroy(M_TEST, rbt);
+
+  return KTEST_SUCCESS;
 }
 
-static void uio_ringbuf_trivial(void) {
-
+static int test_uio_ringbuf_trivial(void) {
   ringbuf_t rbt = ringbuf_alloc(M_TEST, 1);
 
   uint8_t src[] = "c";
@@ -105,10 +107,11 @@ static void uio_ringbuf_trivial(void) {
 
   assert(dst[0] == 'c');
   ringbuf_destroy(M_TEST, rbt);
+
+  return KTEST_SUCCESS;
 }
 
-static void uio_ringbuf_one_transfer(void) {
-
+static int test_uio_ringbuf_one_transfer(void) {
   ringbuf_t rbt = ringbuf_alloc(M_TEST, 5);
 
   uint8_t src[] = "cdefg";
@@ -130,10 +133,11 @@ static void uio_ringbuf_one_transfer(void) {
   assert(dst[4] == 'g');
 
   ringbuf_destroy(M_TEST, rbt);
+
+  return KTEST_SUCCESS;
 }
 
-static void uio_ringbuf_two_transfers(void) {
-
+static int test_uio_ringbuf_two_transfers(void) {
   ringbuf_t rbt = ringbuf_alloc(M_TEST, 5);
   uint8_t src[] = "cdefg";
   uint8_t dst[] = "     ";
@@ -155,10 +159,11 @@ static void uio_ringbuf_two_transfers(void) {
   assert(dst[4] == 'g');
 
   ringbuf_destroy(M_TEST, rbt);
+
+  return KTEST_SUCCESS;
 }
 
-static void uio_ringbuf_cyclic_transfers(void) {
-
+static int test_uio_ringbuf_cyclic_transfers(void) {
   ringbuf_t rbt = ringbuf_alloc(M_TEST, 5);
   uint8_t src[] = "cdef";
   uint8_t dst[] = "     ";
@@ -188,17 +193,13 @@ static void uio_ringbuf_cyclic_transfers(void) {
   assert(dst[4] == 'c');
 
   ringbuf_destroy(M_TEST, rbt);
-}
-
-static int test_ringbuf(void) {
-  ringbuf_trivial();
-  ringbuf_nontrivial();
-  uio_ringbuf_trivial();
-  uio_ringbuf_one_transfer();
-  uio_ringbuf_two_transfers();
-  uio_ringbuf_cyclic_transfers();
 
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(ringbuf, test_ringbuf, 0);
+KTEST_ADD(ringbuf_trivial, test_ringbuf_trivial, 0);
+KTEST_ADD(ringbuf_nontrivial, test_ringbuf_nontrivial, 0);
+KTEST_ADD(uio_ringbuf_trivial, test_uio_ringbuf_trivial, 0);
+KTEST_ADD(uio_ringbuf_one_transfer, test_uio_ringbuf_one_transfer, 0);
+KTEST_ADD(uio_ringbuf_two_transfers, test_uio_ringbuf_two_transfers, 0);
+KTEST_ADD(uio_ringbuf_cyclic_transfers, test_uio_ringbuf_cyclic_transfers, 0);
