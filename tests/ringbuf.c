@@ -57,11 +57,8 @@ static void ringbuf_nontrivial(void) {
   put_succeeds(&rbt, f);
   put_succeeds(&rbt, g);
   assert(ringbuf_full(&rbt));
-  assert(!ringbuf_empty(&rbt));
 
   put_fails(&rbt, d);
-  assert(!ringbuf_empty(&rbt));
-  assert(ringbuf_full(&rbt));
 
   get_succeeds(&rbt, c);
   put_succeeds(&rbt, g);
@@ -79,15 +76,12 @@ static void ringbuf_nontrivial(void) {
   put_succeeds(&rbt, c);
 
   put_fails(&rbt, d);
-  assert(!ringbuf_empty(&rbt));
-  assert(ringbuf_full(&rbt));
 
   get_succeeds(&rbt, g);
   get_succeeds(&rbt, f);
   get_succeeds(&rbt, e);
   get_succeeds(&rbt, d);
   get_succeeds(&rbt, c);
-  assert(!ringbuf_full(&rbt));
   assert(ringbuf_empty(&rbt));
 
   ringbuf_destroy(M_TEST, rbt);
