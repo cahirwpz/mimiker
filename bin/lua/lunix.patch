@@ -1,0 +1,33 @@
+--- lua-5.3.5.orig/src/linit.c
++++ lua-5.3.5/src/linit.c
+@@ -50,6 +50,7 @@
+   {LUA_MATHLIBNAME, luaopen_math},
+   {LUA_UTF8LIBNAME, luaopen_utf8},
+   {LUA_DBLIBNAME, luaopen_debug},
++  {LUA_UNIXNAME, luaopen_unix},
+ #if defined(LUA_COMPAT_BITLIB)
+   {LUA_BITLIBNAME, luaopen_bit32},
+ #endif
+--- lua-5.3.5.orig/src/lualib.h
++++ lua-5.3.5/src/lualib.h
+@@ -44,6 +44,9 @@
+ #define LUA_DBLIBNAME	"debug"
+ LUAMOD_API int (luaopen_debug) (lua_State *L);
+ 
++#define LUA_UNIXNAME "unix"
++LUAMOD_API int (luaopen_unix) (lua_State *L);
++
+ #define LUA_LOADLIBNAME	"package"
+ LUAMOD_API int (luaopen_package) (lua_State *L);
+ 
+--- lua-5.3.5.orig/src/Makefile
++++ lua-5.3.5/src/Makefile
+@@ -33,7 +33,7 @@
+ 	lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o \
+ 	ltm.o lundump.o lvm.o lzio.o
+ LIB_O=	lauxlib.o lbaselib.o lbitlib.o lcorolib.o ldblib.o liolib.o \
+-	lmathlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o loadlib.o linit.o
++	lmathlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o loadlib.o linit.o lunix.o
+ BASE_O= $(CORE_O) $(LIB_O) $(MYOBJS)
+ 
+ LUA_T=	lua
