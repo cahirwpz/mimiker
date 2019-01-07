@@ -143,6 +143,7 @@ struct bus_methods {
                            int rid, resource_t *r);
   void (*activate_resource)(device_t *bus, device_t *child, res_type_t type,
                             int rid, resource_t *r);
+  void (*hinted_child)(device_t *bus, const void *fdt, int nodeoffset);
 };
 
 struct bus_driver {
@@ -215,6 +216,11 @@ static inline void bus_activate_resource(device_t *dev, res_type_t type,
 static inline void bus_release_resource(device_t *dev, res_type_t type, int rid,
                                         resource_t *r) {
   BUS_DRIVER(dev)->bus.release_resource(dev->parent, dev, type, rid, r);
+}
+
+static inline void bus_hinted_child(device_t *bus, const void *fdt, int child_nodeoffset) {
+  // TODO: This should be a macro
+  ((bus_driver_t *)(bus->driver))->bus.hinted_child(bus, fdt, child_nodeoffset);
 }
 
 int bus_generic_probe(device_t *bus);

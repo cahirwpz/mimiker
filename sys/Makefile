@@ -10,6 +10,7 @@ SOURCES = \
 	condvar.c \
 	console.c \
 	devclass.c \
+	devhints.c \
 	device.c \
 	dev_cons.c \
 	dev_null.c \

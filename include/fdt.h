@@ -114,6 +114,7 @@ typedef struct fdt_property {
 #define FDT_TAGSIZE sizeof(fdt32_t)
 #define FDT_ALIGN(x, a) (((x) + (a)-1) & ~((a)-1))
 #define FDT_TAGALIGN(x) (FDT_ALIGN((x), FDT_TAGSIZE))
+#define PATHBUF_LEN 100
 
 #define FDT_CHECK_HEADER(fdt)                                                  \
   {                                                                            \
