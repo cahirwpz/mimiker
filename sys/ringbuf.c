@@ -25,17 +25,19 @@ void ringbuf_reset(ringbuf_t *buf) {
 
 static void produce(ringbuf_t *buf, unsigned bytes) {
   assert(buf->count + bytes <= buf->size);
+  assert(buf->head + bytes <= buf->size);
   buf->count += bytes;
   buf->head += bytes;
-  if (buf->head >= buf->size)
+  if (buf->head == buf->size)
     buf->head = 0;
 }
 
 static void consume(ringbuf_t *buf, unsigned bytes) {
   assert(buf->count >= bytes);
+  assert(buf->tail + bytes <= buf->size);
   buf->count -= bytes;
   buf->tail += bytes;
-  if (buf->tail >= buf->size)
+  if (buf->tail == buf->size)
     buf->tail = 0;
 }
 
