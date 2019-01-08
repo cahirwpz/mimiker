@@ -3,11 +3,6 @@ set output-radix 0x10
 set pagination off
 set confirm off
 set verbose off
-set prompt \033[35;1m(gdb) \033[0m
-
-# QEMU connection settings
-set tcp connect-timeout 30
-target remote localhost:${GDB_PORT}
 
 # favorite set of breakpoints
 break kernel_init
@@ -24,5 +19,5 @@ break panic_fail
 
 # make extra commands available
 python import os, sys
-python sys.path.append(os.path.join(os.getcwd(), 'debug'))
-python import __init__
+python sys.path.append(os.getcwd())
+python import debug

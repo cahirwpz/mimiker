@@ -3,7 +3,7 @@ version: 2
 defaults: &defaults
   working_directory: ~/mimiker
   docker:
-    - image: cahirwpz/mimiker-circleci:1.6.1
+    - image: cahirwpz/mimiker-circleci:1.6.2
 
 jobs:
   verify_formatting:
@@ -18,31 +18,29 @@ jobs:
       - checkout
       - run: './verify-pep8.sh'
 
-  compile:
+  build:
     <<: *defaults
     steps:
       - checkout
       - restore_cache:
           keys:
-            - downloads-20181227-1542
+            - downloads-20181227-1920
       - run: 'make download'
       - save_cache:
-          key: downloads-20181227-1542
+          key: downloads-20181227-1920
           paths:
-            - lib/newlib/newlib-3.0.0
-            - bin/lua/lua-5.3.5
+            - bin/lua/lua-5.3.5.tar.gz
+            - lib/newlib/newlib-3.0.0.tar.gz
       - run: 'make'
       - store_artifacts:
           path: mimiker.elf
           prefix: kernel_image
-      - store_artifacts:
-          path: initrd.cpio
-          prefix: ramdisk
       - save_cache:
           key: mimiker-{{ .Branch }}-{{ .Revision }}
           paths:
             - mimiker.elf
-            - initrd.cpio
+      - run: 'make clean'
+      - run: 'make distclean'
 
   kernel_tests:
     <<: *defaults
@@ -58,7 +56,7 @@ workflows:
     jobs:
       - verify_formatting
       - verify_pep8
-      - compile
+      - build
       - kernel_tests:
           requires:
-            - compile
+            - build

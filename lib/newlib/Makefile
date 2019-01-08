@@ -3,15 +3,24 @@ TOPDIR = $(realpath ../../)
 SOURCEDIR = $(CURDIR)/newlib-3.0.0
 BUILDDIR = $(CURDIR)/newlib-build
 
+PKG = newlib-3.0.0
+URL = ftp://sourceware.org/pub/newlib/$(PKG).tar.gz
+
 all: download configure build install
 
-download: $(SOURCEDIR)/configure
-$(SOURCEDIR)/configure:
-	@echo "Updating Git submodule..."
-	git submodule update --init $(SOURCEDIR)
+download-here: $(PKG)
+
+$(PKG).tar.gz:
+	@echo "[CURL] $(PKG)"
+	$(CURL) -# -O $(URL)
+
+$(PKG): $(PKG).tar.gz
+	@echo "[TAR] $^ -> $@"
+	$(TAR) xzf $(PKG).tar.gz
+	touch $(PKG)
 
 # Output from these commands is redirected to log files for readibility.
-configure: configure-stamp
+configure: download configure-stamp
 configure-stamp: $(SOURCEDIR)/configure
 	@echo "Configuring newlib..."
 	@echo "(messages saved to 'newlib-config.log')"
@@ -29,7 +38,7 @@ configure-stamp: $(SOURCEDIR)/configure
 	touch $@
 
 build-here: build-stamp
-build-stamp: configure-stamp
+build-stamp: configure
 	@echo "Compiling newlib..."
 	@echo "(messages saved to 'newlib-build.log')"
 	cd $(BUILDDIR) && $(MAKE) 2>&1 >newlib-build.log
@@ -51,7 +60,7 @@ clean-here:
 	$(RM) install-stamp newlib-install.log
 
 distclean-here:
-	$(RM) -r $(BUILDDIR)
+	$(RM) -r $(BUILDDIR) $(PKG) $(PKG).tar.gz
 	$(RM) newlib-build.log configure-stamp build-stamp
 
 PHONY-TARGETS += download configure

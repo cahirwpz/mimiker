@@ -1,10 +1,11 @@
 import gdb
-import physmem
-import utils
 import traceback
 
+from .physmem import KernelSegments, KernelFreePages
+from .utils import OneArgAutoCompleteMixin
 
-class Kdump(gdb.Command, utils.OneArgAutoCompleteMixin):
+
+class Kdump(gdb.Command, OneArgAutoCompleteMixin):
     """ examine current kernel state
 
     Currently supported commands:
@@ -16,8 +17,8 @@ class Kdump(gdb.Command, utils.OneArgAutoCompleteMixin):
         # classes instead of functions in case we decide to store
         # information about structures in the debugger itself later on
         self.structure = {
-            'segments': physmem.KernelSegments(),
-            'free_pages': physmem.KernelFreePages(),
+            'segments': KernelSegments(),
+            'free_pages': KernelFreePages(),
         }
 
     def invoke(self, args, from_tty):
