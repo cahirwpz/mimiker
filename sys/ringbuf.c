@@ -1,26 +1,12 @@
 #include <ringbuf.h>
 #include <uio.h>
-#include <malloc.h>
 
-ringbuf_t ringbuf_alloc(kmem_pool_t *pool, size_t size) {
-  ringbuf_t buf;
-
-  assert(size > 0);
-
-  buf.data = kmalloc(pool, size, M_ZERO);
-  buf.size = size;
-  ringbuf_reset(&buf);
-  return buf;
-}
-
-void ringbuf_destroy(kmem_pool_t *pool, ringbuf_t buf) {
-  kfree(pool, buf.data);
-}
-
-void ringbuf_reset(ringbuf_t *buf) {
-  buf->head = 0;
-  buf->tail = 0;
-  buf->count = 0;
+void ringbuf_init(ringbuf_t *rb, void *buf, size_t size) {
+  rb->head = 0;
+  rb->tail = 0;
+  rb->count = 0;
+  rb->size = size;
+  rb->data = buf;
 }
 
 static void produce(ringbuf_t *buf, unsigned bytes) {

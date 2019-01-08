@@ -1,13 +1,13 @@
 #include <ringbuf.h>
 #include <ktest.h>
-#include <malloc.h>
 #include <uio.h>
 #include <vm_map.h>
 
-MALLOC_DEFINE(M_TEST, "test", 4, 8);
-
 static int test_ringbuf_trivial(void) {
-  ringbuf_t rbt = ringbuf_alloc(M_TEST, 1);
+  ringbuf_t rbt;
+  char buf[1];
+  ringbuf_init(&rbt, buf, 1);
+
   uint8_t c = 'c';
 
   assert(ringbuf_empty(&rbt));
@@ -20,8 +20,6 @@ static int test_ringbuf_trivial(void) {
   assert(ringbuf_getb(&rbt, &result) == true);
   assert(result == c);
   assert(ringbuf_empty(&rbt));
-
-  ringbuf_destroy(M_TEST, rbt);
 
   return KTEST_SUCCESS;
 }
@@ -47,7 +45,10 @@ static void get_succeeds(ringbuf_t *rb, uint8_t byte) {
 }
 
 static int test_ringbuf_nontrivial(void) {
-  ringbuf_t rbt = ringbuf_alloc(M_TEST, 5);
+  ringbuf_t rbt;
+  char buf[5];
+  ringbuf_init(&rbt, buf, 5);
+
   uint8_t c = 'c', d = 'd', e = 'e', f = 'f', g = 'g';
 
   assert(ringbuf_empty(&rbt));
@@ -85,13 +86,13 @@ static int test_ringbuf_nontrivial(void) {
   get_succeeds(&rbt, c);
   assert(ringbuf_empty(&rbt));
 
-  ringbuf_destroy(M_TEST, rbt);
-
   return KTEST_SUCCESS;
 }
 
 static int test_uio_ringbuf_trivial(void) {
-  ringbuf_t rbt = ringbuf_alloc(M_TEST, 1);
+  ringbuf_t rbt;
+  char buf[5];
+  ringbuf_init(&rbt, buf, 1);
 
   uint8_t src[] = "c";
   uint8_t dst[] = " ";
@@ -106,13 +107,14 @@ static int test_uio_ringbuf_trivial(void) {
   assert(ringbuf_empty(&rbt));
 
   assert(dst[0] == 'c');
-  ringbuf_destroy(M_TEST, rbt);
 
   return KTEST_SUCCESS;
 }
 
 static int test_uio_ringbuf_one_transfer(void) {
-  ringbuf_t rbt = ringbuf_alloc(M_TEST, 5);
+  ringbuf_t rbt;
+  char buf[5];
+  ringbuf_init(&rbt, buf, 5);
 
   uint8_t src[] = "cdefg";
   uint8_t dst[] = "     ";
@@ -132,13 +134,14 @@ static int test_uio_ringbuf_one_transfer(void) {
   assert(dst[3] == 'f');
   assert(dst[4] == 'g');
 
-  ringbuf_destroy(M_TEST, rbt);
-
   return KTEST_SUCCESS;
 }
 
 static int test_uio_ringbuf_two_transfers(void) {
-  ringbuf_t rbt = ringbuf_alloc(M_TEST, 5);
+  ringbuf_t rbt;
+  char buf[5];
+  ringbuf_init(&rbt, buf, 5);
+
   uint8_t src[] = "cdefg";
   uint8_t dst[] = "     ";
 
@@ -158,13 +161,14 @@ static int test_uio_ringbuf_two_transfers(void) {
   assert(dst[3] == 'f');
   assert(dst[4] == 'g');
 
-  ringbuf_destroy(M_TEST, rbt);
-
   return KTEST_SUCCESS;
 }
 
 static int test_uio_ringbuf_cyclic_transfers(void) {
-  ringbuf_t rbt = ringbuf_alloc(M_TEST, 5);
+  ringbuf_t rbt;
+  char buf[5];
+  ringbuf_init(&rbt, buf, 5);
+
   uint8_t src[] = "cdef";
   uint8_t dst[] = "     ";
 
@@ -191,8 +195,6 @@ static int test_uio_ringbuf_cyclic_transfers(void) {
   assert(dst[2] == 'a');
   assert(dst[3] == 'b');
   assert(dst[4] == 'c');
-
-  ringbuf_destroy(M_TEST, rbt);
 
   return KTEST_SUCCESS;
 }
