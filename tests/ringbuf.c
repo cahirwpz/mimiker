@@ -11,13 +11,13 @@ static int test_ringbuf_trivial(void) {
   uint8_t c = 'c';
 
   assert(ringbuf_empty(&rbt));
-  assert(ringbuf_putb(&rbt, c) == true);
+  assert(ringbuf_putb(&rbt, c));
   assert(ringbuf_full(&rbt));
-  assert(ringbuf_putb(&rbt, c) == false);
+  assert(!ringbuf_putb(&rbt, c));
 
   uint8_t result;
 
-  assert(ringbuf_getb(&rbt, &result) == true);
+  assert(ringbuf_getb(&rbt, &result));
   assert(result == c);
   assert(ringbuf_empty(&rbt));
 
@@ -25,12 +25,12 @@ static int test_ringbuf_trivial(void) {
 }
 
 static void put_succeeds(ringbuf_t *rb, uint8_t byte) {
-  assert(ringbuf_putb(rb, byte) == true);
+  assert(ringbuf_putb(rb, byte));
   assert(!ringbuf_empty(rb));
 }
 
 static void put_fails(ringbuf_t *rb, uint8_t byte) {
-  assert(ringbuf_putb(rb, byte) == false);
+  assert(!ringbuf_putb(rb, byte));
   assert(!ringbuf_empty(rb));
   assert(ringbuf_full(rb));
 }
@@ -39,7 +39,7 @@ static void get_succeeds(ringbuf_t *rb, uint8_t byte) {
   uint8_t result;
 
   assert(!ringbuf_empty(rb));
-  assert(ringbuf_getb(rb, &result) == true);
+  assert(ringbuf_getb(rb, &result));
   assert(result == byte);
   assert(!ringbuf_full(rb));
 }
