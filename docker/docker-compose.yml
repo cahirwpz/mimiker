@@ -5,8 +5,13 @@ mimiker:
   volumes:
     - "../:/home/mimiker/mimiker"
     - "~/.gitconfig:/home/mimiker/.gitconfig"
+    - "/tmp/.X11-unix:/tmp/.X11-unix"
+    - "/tmp/.docker.xauth:/tmp/.docker.xauth"
   restart: on-failure
   working_dir: /home/mimiker/mimiker
+  environment:
+    - DISPLAY=$DISPLAY
+    - XAUTHORITY=/tmp/.docker.xauth
   entrypoint:
     - sleep
     - inf

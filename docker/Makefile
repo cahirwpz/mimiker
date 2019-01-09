@@ -11,6 +11,8 @@ build: gen
 	docker build --no-cache . -t mimiker-dev:latest
 
 up:
+	touch /tmp/.docker.xauth
+	xauth nlist :0 | sed -e 's/^..../ffff/' | xauth -f /tmp/.docker.xauth nmerge -
 	docker-compose up -d
 
 down:
