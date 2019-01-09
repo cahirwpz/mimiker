@@ -9,7 +9,7 @@
 
 #define MB_MAGIC 0xC0DECAFE
 #define MB_ALIGNMENT sizeof(uint64_t)
-#define N_PAGES(x) (x + PAGESIZE - 1) / PAGESIZE
+#define N_PAGES(x) ((x + PAGESIZE - 1) / PAGESIZE)
 
 typedef TAILQ_HEAD(, mem_arena) mem_arena_list_t;
 
