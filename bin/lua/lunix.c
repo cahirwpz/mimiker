@@ -19,18 +19,23 @@
 #include "lua.h"
 #include "lauxlib.h"
 
-#define error_if(cond)                                                         \
-  if (cond) {                                                                  \
-    lua_pushinteger(L, errno);                                                 \
-    lua_error(L);                                                              \
-  }
-
 #define table_push(type, L, s, f)                                              \
   lua_push##type(L, (s)->f);                                                   \
   lua_setfield(L, -2, #f)
 
 #define table_pushinteger(L, s, f) table_push(integer, L, s, f)
 #define table_pushstring(L, s, f) table_push(string, L, s, f)
+
+#define error_if(cond) if (cond) throw_errno(L)
+
+static void throw_errno(lua_State *L) {
+  lua_createtable(L, 0, 2);
+  lua_pushinteger(L, errno);
+  lua_setfield(L, -2, "errno");
+  lua_pushstring(L, strerror(errno));
+  lua_setfield(L, -2, "msg");
+  lua_error(L);
+}
 
 /* copied over from lauxlib.c */
 static int type_error(lua_State *L, int arg, int tag) {

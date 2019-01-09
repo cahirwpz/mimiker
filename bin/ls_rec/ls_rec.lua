@@ -9,9 +9,10 @@ filetype = {
 }
 
 function list_recursive(dir_path)
-  fd = unix.open(dir_path, 0)
-  dirents = unix.getdirentries(fd)
-  unix.close(fd)
+  success, maybe_fd = pcall(unix.open, dir_path, 0)
+  if not success then error(maybe_fd.msg .. ": " .. dir_path) end
+  dirents = unix.getdirentries(maybe_fd)
+  unix.close(maybe_fd)
   for _, dirent in ipairs(dirents) do
     d_fileno, d_type, d_name = dirent.d_fileno, dirent.d_type, dirent.d_name
     sep = dir_path:sub(-1) == "/" and "" or "/"
