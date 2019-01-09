@@ -1,11 +1,10 @@
+# vim: syntax=dockerfile:
 # TODO use :latest when it will be available on docker hub
 FROM cahirwpz/mimiker-circleci:1.6
 
-# XXX: Create a group in which we will operate with a hardcoded GID,
-# so that we are able to set proper directory permissions on host
-# for volume with source code.
-RUN addgroup --gid 1024 mimiker && \
-    adduser --disabled-password --gecos "" --force-badname \
+RUN addgroup --gid ${MIMIKER_GID} mimiker && \
+    adduser --uid ${MIMIKER_UID} --disabled-password \
+    --gecos "" --force-badname \
     --ingroup mimiker --ingroup sudo mimiker
 
 WORKDIR /home/mimiker
@@ -19,7 +18,9 @@ RUN touch .gitconfig && \
      echo "add-auto-load-safe-path ~/mimiker/.gdbinit" > .gdbinit && \
      echo "mimiker  ALL=(ALL)   NOPASSWD: ALL" >> /etc/sudoers
 
+ADD https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh \
+    zsh-install.sh
+RUN sed -ie "s/~\//\/home\/mimiker\//g" zsh-install.sh && \
+    bash zsh-install.sh && \
+    chsh -s $(which zsh) mimiker
 USER mimiker
-# ADD https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh \
-#     zsh-install.sh
-# RUN bash zsh-install.sh
