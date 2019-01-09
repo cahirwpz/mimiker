@@ -12,7 +12,7 @@ To set up container-based local environment:
 make -C docker run
 ```
 
-For more details please refer to `docker` directory.
+For more details, please refer to `docker` directory.
 
 Toolchain
 ---
