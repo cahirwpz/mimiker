@@ -29,7 +29,15 @@
 #define SYS_CLOCKGETTIME 26
 #define SYS_CLOCKNANOSLEEP 27
 #define SYS_EXECVE 28
-#define SYS_LAST 29
+#define SYS_GETPPID 29
+#define SYS_SETPGID 30
+#define SYS_GETPGID 31
+#define SYS_KILLPG 32
+#define SYS_MUNMAP 33
+#define SYS_MPROTECT 34
+#define SYS_CHDIR 35
+#define SYS_GETCWD 36
+#define SYS_LAST 37
 
 #ifndef __ASSEMBLER__
 
