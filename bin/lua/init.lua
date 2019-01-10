@@ -3,13 +3,14 @@ function printf(s, ...)
 end
 
 --[[
-opts, args = getopt(arg, "a:vpb:h")
-for k, v in pairs(opts) do print("opt['" .. k .. "'] -> " .. tostring(v)) end
-for i = 1,#args do print("arg[" .. i .. "] -> " .. args[i]) end
+getopt(arg, "a:vpb:h")
+for k, v in pairs(arg) do
+  print("arg[" .. tostring(k) .. "] -> " .. tostring(v))
+end
 --]]
 function getopt(arg, optstr)
   -- parse options
-  li, opts = 1, {}
+  li = 1
   while li <= #arg do
     if arg[li] == "--" then li = li + 1; break end
     if not arg[li]:match("^%-.") then break end
@@ -18,21 +19,21 @@ function getopt(arg, optstr)
       optdsc = optstr:match(opt .. ":?")
       if not optdsc then error("unknown option -- " .. opt, 0) end
       if #optdsc == 1 then
-        opts[opt] = true
+        arg[opt] = true
       else
         li = li + 1
         if li > #arg then error("option requires an argument -- " .. opt, 0) end
-        opts[opt] = arg[li]
+        arg[opt] = arg[li]
       end
     end
     li = li + 1
   end
 
-  -- copy trailing arguments
-  args = {}
+  -- move trailing arguments to the beginning of the table
+  j = 1
   for i = li, #arg do
-    args[#args + 1] = arg[i]
+    arg[j], arg[i] = arg[i], nil
+    j = j + 1
   end
-
-  return opts, args
+  for i = j, #arg do arg[i] = nil end
 end

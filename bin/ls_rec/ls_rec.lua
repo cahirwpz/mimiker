@@ -30,16 +30,15 @@ usage = [[
   -R  Recursively list directories.
 ]]
 
-ok, opts, args = pcall(getopt, arg, "Rp")
-if not ok then
+if not pcall(getopt, arg, "Rp") then
   print(arg[0] .. ": " .. opts)
   print("Usage: " .. arg[0] .. " [-Rp] [file1 file2 ...]\n")
   print(usage)
   os.exit(false)
 end
 
-if #args == 0 then args[1] = "/" end
+if #arg == 0 then arg[1] = "/" end
 
-for i = 1, #args do
-  list(opts, args[i])
+for i = 1, #arg do
+  list(arg, arg[i])
 end
