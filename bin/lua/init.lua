@@ -16,12 +16,12 @@ function getopt(arg, optstr)
     for oi = 2, #arg[li] do
       opt = arg[li]:sub(oi, oi)
       optdsc = optstr:match(opt .. ":?")
-      if not optdsc then error("unknown option -- " .. opt) end
+      if not optdsc then error("unknown option -- " .. opt, 0) end
       if #optdsc == 1 then
         opts[opt] = true
       else
         li = li + 1
-        if li > #arg then error("option requires an argument -- " .. opt) end
+        if li > #arg then error("option requires an argument -- " .. opt, 0) end
         opts[opt] = arg[li]
       end
     end
