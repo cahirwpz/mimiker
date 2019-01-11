@@ -1,6 +1,6 @@
 #!/bin/lua
 
--- List recursively files starting from directory passed as first argument.
+-- List files in directories passed in positional arguments.
 
 filetype = {
   [unix.DT_FIFO] = "fifo", [unix.DT_CHR] = "chr", [unix.DT_DIR] = "dir",
@@ -8,7 +8,7 @@ filetype = {
   [unix.DT_SOCK] = "sock"
 }
 
-function list(opts, dir_path)
+function list(dir_path)
   success, maybe_fd = pcall(unix.open, dir_path, 0)
   if not success then print(maybe_fd.msg .. ": " .. dir_path); return end
   dirents = unix.getdirentries(maybe_fd)
@@ -18,9 +18,9 @@ function list(opts, dir_path)
     sep = dir_path:sub(-1) == "/" and "" or "/"
     path = dir_path .. sep .. d_name
     printf("[%4s, ino=%d] %s%s\n", filetype[d_type] or "???", d_fileno, path,
-           (opts.p and d_type == unix.DT_DIR) and "/" or "")
+           (arg.p and d_type == unix.DT_DIR) and "/" or "")
     if d_type == unix.DT_DIR and d_name ~= "." and d_name ~= ".." then
-      if opts.R then list(opts, path) end
+      if arg.R then list(path) end
     end
   end
 end
@@ -30,8 +30,9 @@ usage = [[
   -R  Recursively list directories.
 ]]
 
-if not pcall(getopt, arg, "Rp") then
-  print(arg[0] .. ": " .. opts)
+ok, err = pcall(getopt, arg, "Rp")
+if not ok then
+  print(arg[0] .. ": " .. err)
   print("Usage: " .. arg[0] .. " [-Rp] [file1 file2 ...]\n")
   print(usage)
   os.exit(false)
@@ -40,5 +41,8 @@ end
 if #arg == 0 then arg[1] = "/" end
 
 for i = 1, #arg do
-  list(arg, arg[i])
+  ok, err = pcall(list, arg[i])
+  if not ok then
+    print(arg[i] .. ": " .. err.msg)
+  end
 end
