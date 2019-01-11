@@ -170,6 +170,8 @@ static void initrd_build_tree(void) {
   cpio_node_t *parent, *child;
 
   TAILQ_FOREACH (parent, &initrd_head, c_list) {
+    if (CMTOFT(parent->c_mode) != C_DIR)
+      continue;
     TAILQ_FOREACH (child, &initrd_head, c_list) {
       if (parent == child)
         continue;
