@@ -18,7 +18,7 @@ jobs:
       - checkout
       - run: './verify-pep8.sh'
 
-  compile:
+  build:
     <<: *defaults
     steps:
       - checkout
@@ -35,14 +35,12 @@ jobs:
       - store_artifacts:
           path: mimiker.elf
           prefix: kernel_image
-      - store_artifacts:
-          path: initrd.cpio
-          prefix: ramdisk
       - save_cache:
           key: mimiker-{{ .Branch }}-{{ .Revision }}
           paths:
             - mimiker.elf
-            - initrd.cpio
+      - run: 'make clean'
+      - run: 'make distclean'
 
   kernel_tests:
     <<: *defaults
@@ -58,7 +56,7 @@ workflows:
     jobs:
       - verify_formatting
       - verify_pep8
-      - compile
+      - build
       - kernel_tests:
           requires:
-            - compile
+            - build
