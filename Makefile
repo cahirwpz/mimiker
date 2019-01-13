@@ -5,7 +5,7 @@ TOPDIR = $(CURDIR)
 # Directories which contain kernel parts
 KERNDIR = drv mips stdc sys tests
 # Directories which require calling make recursively
-SUBDIR = $(KERNDIR) lib bin 
+SUBDIR = $(KERNDIR) lib bin usr.bin
 
 all: build install
 

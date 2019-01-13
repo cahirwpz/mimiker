@@ -37,3 +37,25 @@ function getopt(arg, optstr)
   end
   for i = j, #arg do arg[i] = nil end
 end
+
+-- wrapper table for environment variables
+-- get: environ["PATH"] = "/usr/bin:/bin"
+-- set: environ["PATH"]
+-- delete: environ["PATH"] = nil
+-- list: for k, v in pairs(environ) do print(k, v)
+environ = {}
+setmetatable(environ, {
+    __index = function (table, key)
+      return os.getenv(key)
+    end,
+    __newindex = function (table, key, value)
+      if value == nil then
+        os.unsetenv(key)
+      else
+        os.setenv(key, value, 1)
+      end
+    end,
+    __pairs = function (table)
+      return next, os.environ()
+    end
+  })
