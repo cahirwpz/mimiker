@@ -12,6 +12,8 @@ all: build install
 build-here: cscope.out tags build-kernel
 bin-before: lib-install
 
+install-here: install-kernel
+
 clean-here:
 	$(RM) tags etags cscope.out *.taghl
 

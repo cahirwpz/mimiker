@@ -3,7 +3,8 @@
 include $(TOPDIR)/build/flags.kern.mk
 include $(TOPDIR)/build/common.mk
 
-build-kernel: mimiker.elf
+build-kernel: $(KRT)
+install-kernel: mimiker.elf
 
 # Files required to link kernel image
 KRT = $(foreach dir,$(KERNDIR),$(TOPDIR)/$(dir)/lib$(dir).ka)
