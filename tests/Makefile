@@ -1,6 +1,6 @@
 TOPDIR = $(realpath ..)
 
-SOURCES_C = \
+SOURCES = \
 	broken.c \
 	callout.c \
 	crash.c \
@@ -13,6 +13,7 @@ SOURCES_C = \
 	pool.c \
 	producer_consumer.c \
 	resizable_fdt.c \
+	ringbuf.c \
 	rwlock.c \
 	sched.c \
 	sleepq.c \
@@ -30,13 +31,6 @@ SOURCES_C = \
 	vm_map.c \
 	vfs.c
 
-SOURCES_ASM =
+include $(TOPDIR)/build/build.kobj.mk
 
-all: $(DEPFILES) libtests.a
-
-include $(TOPDIR)/build/build.kern.mk
-
-libtests.a: $(OBJECTS)
-
-clean:
-	$(RM) .*.D *.o *.elf *.a *.map *~
+build-here: libtests.ka

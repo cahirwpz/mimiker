@@ -6,6 +6,7 @@
 #include <exception.h>
 #include <mutex.h>
 #include <condvar.h>
+#include <priority.h>
 #include <time.h>
 #include <signal.h>
 #include <stack.h>
@@ -128,7 +129,22 @@ typedef struct thread {
 } thread_t;
 
 thread_t *thread_self(void);
-thread_t *thread_create(const char *name, void (*fn)(void *), void *arg);
+
+/*! \brief Create a thread.
+ *
+ * Create a thread with given @name and priority @prio. The thread will execute
+ * function @fn with an argument @arg.
+ *
+ * Try to follow this naming convention:
+ * - use neither the `thread` word nor any synonyms like `td`,
+ * - prefix kernel test thread's name with `test`,
+ * - prefix user test thread's name with `utest`,
+ * - use format [prefix-]module[-name[-number]].
+ * Some good examples: `callout`, `test-malloc`, `test-sleepq-waiter-2`.
+ */
+thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
+                        prio_t prio);
+
 void thread_delete(thread_t *td);
 
 /*! \brief Prepares thread to be launched.

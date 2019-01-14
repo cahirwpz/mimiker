@@ -10,7 +10,6 @@
 #include <proc.h>
 #include <sched.h>
 #include <pcpu.h>
-#include <sysinit.h>
 
 struct vm_segment {
   TAILQ_ENTRY(vm_segment) link;
@@ -74,9 +73,10 @@ static void vm_map_setup(vm_map_t *map) {
   mtx_init(&map->mtx, 0);
 }
 
-static void vm_map_init(void) {
+void vm_map_init(void) {
   vm_map_setup(kspace);
   kspace->pmap = get_kernel_pmap();
+  vm_map_activate(kspace);
 }
 
 vm_map_t *vm_map_new(void) {
@@ -219,6 +219,38 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
   return 0;
 }
 
+int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
+                         vm_prot_t prot, vm_flags_t flags,
+                         vm_segment_t **seg_p) {
+  if (!(flags & VM_ANON)) {
+    klog("Only anonymous memory mappings are supported!");
+    return -ENOTSUP;
+  }
+
+  if (!is_aligned(addr, PAGESIZE))
+    return -EINVAL;
+
+  if (length == 0)
+    return -EINVAL;
+
+  if (addr != 0 &&
+      (!vm_map_in_range(map, addr) || !vm_map_in_range(map, addr + length)))
+    return -EINVAL;
+
+  /* Create object with a pager that supplies cleared pages on page fault. */
+  vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
+  vm_segment_t *seg = vm_segment_alloc(obj, addr, addr + length, prot);
+
+  /* Given the hint try to insert the segment at given position or after it. */
+  if (vm_map_insert(map, seg, flags)) {
+    vm_segment_free(seg);
+    return -ENOMEM;
+  }
+
+  *seg_p = seg;
+  return 0;
+}
+
 int vm_map_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
   assert(is_aligned(new_end, PAGESIZE));
 
@@ -325,5 +357,3 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   return 0;
 }
-
-SYSINIT_ADD(vm_map, vm_map_init, NODEPS);

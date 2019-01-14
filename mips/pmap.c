@@ -1,5 +1,6 @@
 #define KL_LOG KL_PMAP
 #include <klog.h>
+#include <stdc.h>
 #include <pool.h>
 #include <physmem.h>
 #include <mips/exc.h>
@@ -10,7 +11,6 @@
 #include <pmap.h>
 #include <vm_map.h>
 #include <thread.h>
-#include <ktest.h>
 #include <signal.h>
 #include <spinlock.h>
 #include <mutex.h>
@@ -177,14 +177,14 @@ static pte_t vm_prot_map[] = {
 };
 #else
 static pte_t vm_prot_map[] = {
-    [VM_PROT_NONE] = 0,
-    [VM_PROT_READ] = PTE_VALID,
-    [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY,
-    [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY,
-    [VM_PROT_EXEC] = PTE_VALID,
-    [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID,
-    [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
-    [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
+  [VM_PROT_NONE] = 0,
+  [VM_PROT_READ] = PTE_VALID,
+  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY,
+  [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY,
+  [VM_PROT_EXEC] = PTE_VALID,
+  [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID,
+  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
+  [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
 };
 #endif
 
@@ -199,8 +199,9 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (; va < va_end; va += PAGESIZE, pa += PAGESIZE)
-      pmap_pte_write(pmap, va, PTE_PFN(pa) | vm_prot_map[prot] |
-                                 (in_kernel_space(va) ? PTE_GLOBAL : 0));
+      pmap_pte_write(pmap, va,
+                     PTE_PFN(pa) | vm_prot_map[prot] |
+                       (in_kernel_space(va) ? PTE_GLOBAL : 0));
   }
 }
 
@@ -308,8 +309,6 @@ fault:
 
     /* Send a segmentation fault signal to the user program. */
     sig_trap(frame, SIGSEGV);
-  } else if (ktest_test_running_flag) {
-    ktest_failure();
   } else {
     /* Panic when kernel-mode thread uses wrong pointer. */
     kernel_oops(frame);

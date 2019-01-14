@@ -79,10 +79,10 @@ static int test_producer_consumer(void) {
 
   for (int i = 0; i < THREADS; i++) {
     char name[20];
-    snprintf(name, sizeof(name), "producer-%d", i);
-    sched_add(thread_create(name, producer, (void *)i));
-    snprintf(name, sizeof(name), "consumer-%d", i);
-    sched_add(thread_create(name, consumer, (void *)i));
+    snprintf(name, sizeof(name), "test-producer-%d", i);
+    sched_add(thread_create(name, producer, (void *)i, prio_kthread(0)));
+    snprintf(name, sizeof(name), "test-consumer-%d", i);
+    sched_add(thread_create(name, consumer, (void *)i, prio_kthread(0)));
   }
 
   sched_run();
