@@ -2,6 +2,19 @@ function printf(s, ...)
   return io.write(s:format(...))
 end
 
+function fail(msg)
+  print(msg)
+  os.exit(false)
+end
+
+function WEXITSTATUS(status)
+  return (status & 0xff00) >> 8
+end
+
+function WTERMSIG(status)
+  return status & 255
+end
+
 --[[
 getopt(arg, "a:vpb:h")
 for k, v in pairs(arg) do
@@ -59,3 +72,14 @@ setmetatable(environ, {
       return next, os.environ()
     end
   })
+
+-- lookup program in directories specified by PATH variable
+function which(prog)
+  if prog:match('^[./]') then return prog end
+
+  for dir in environ['PATH']:gmatch('([^:]*)') do
+    path = dir .. '/' .. prog
+    ok, _ = pcall(unix.access, path, unix.X_OK)
+    if ok then return path end
+  end
+end

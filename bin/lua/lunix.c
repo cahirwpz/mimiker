@@ -56,10 +56,11 @@ static int type_error(lua_State *L, int arg, int tag) {
   return luaL_argerror(L, arg, msg);
 }
 
-/* fork() -> (pid: integer) */
+/* fork() -> (pid: integer) or nil */
 static int unix_fork(lua_State *L) {
   pid_t pid = fork();
   error_if(pid == -1);
+  if (pid == 0) return 0;
   lua_pushinteger(L, pid);
   return 1;
 }

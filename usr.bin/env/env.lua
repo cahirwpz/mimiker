@@ -4,24 +4,10 @@
 -- Example use:
 --   /usr/bin/env HOME=/root PATH=/bin:/usr/bin env
 
-function fail(msg)
-  print(msg)
-  os.exit(false)
-end
-
 -- print environment variables
 function printenv()
   for k, v in pairs(environ) do
     print(k .. "=" ..  v)
-  end
-end
-
--- lookup specified program in directories specified by PATH variable
-function lookup(prog)
-  for dir in environ['PATH']:gmatch('([^:]*)') do
-    path = dir .. '/' .. prog
-    ok, _ = pcall(unix.access, path, unix.X_OK)
-    if ok then return path end
   end
 end
 
@@ -42,11 +28,9 @@ argv = {}
 table.move(arg, i, #arg, 1, argv)
 
 -- find program to launch
-if not argv[1]:match('^[./]') then
-  prog = lookup(argv[1])
-  if not prog then fail(argv[1] .. ": No such file") end
-  argv[1] = prog
-end
+prog = which(argv[1])
+if not prog then fail(argv[1] .. ": No such file") end
+argv[1] = prog
 
 -- ... and finally launch it
 err = unix.execve(argv[1], argv)
