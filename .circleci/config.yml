@@ -24,13 +24,13 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - downloads-20181227-1542
+            - downloads-20181227-1920
       - run: 'make download'
       - save_cache:
-          key: downloads-20181227-1542
+          key: downloads-20181227-1920
           paths:
-            - lib/newlib/newlib-3.0.0
-            - bin/lua/lua-5.3.5
+            - bin/lua/lua-5.3.5.tar.gz
+            - lib/newlib/newlib-3.0.0.tar.gz
       - run: 'make'
       - store_artifacts:
           path: mimiker.elf
