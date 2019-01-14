@@ -9,7 +9,6 @@
 
 #define MB_MAGIC 0xC0DECAFE
 #define MB_ALIGNMENT sizeof(uint64_t)
-#define N_PAGES(x) ((x + PAGESIZE - 1) / PAGESIZE)
 
 typedef TAILQ_HEAD(, mem_arena) mem_arena_list_t;
 
@@ -182,7 +181,7 @@ void *kmalloc(kmem_pool_t *mp, size_t size, unsigned flags) {
   if (flags & M_NOWAIT)
     return NULL;
 
-  size_t pages = N_PAGES(size_aligned);
+  size_t pages = roundup(size_aligned, PAGESIZE) / PAGESIZE;
 
   if (mp->mp_pages_used + pages <= mp->mp_pages_max) {
     kmalloc_add_pages(mp, pages);
