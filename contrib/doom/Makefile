@@ -4,7 +4,8 @@ PKG = doom
 URL = https://github.com/jwhitham/DOOM.git
 SRCDIR = $(PKG)/headless_doom
 DATADIR = /usr/share/doom
-PKG-CFLAGS = -Wno-extra -Wno-strict-prototypes -Wno-unknown-pragmas
+PKG-CFLAGS = -Wno-extra -Wno-strict-prototypes -Wno-unknown-pragmas \
+	     -Wno-format-overflow
 PATCHES = 01-vga-output.patch
 
 all: download build install

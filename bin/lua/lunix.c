@@ -19,18 +19,27 @@
 #include "lua.h"
 #include "lauxlib.h"
 
-#define error_if(cond)                                                         \
-  if (cond) {                                                                  \
-    lua_pushinteger(L, errno);                                                 \
-    lua_error(L);                                                              \
-  }
-
 #define table_push(type, L, s, f)                                              \
   lua_push##type(L, (s)->f);                                                   \
   lua_setfield(L, -2, #f)
 
 #define table_pushinteger(L, s, f) table_push(integer, L, s, f)
 #define table_pushstring(L, s, f) table_push(string, L, s, f)
+
+static void lua_pusherrno(lua_State *L) {
+  lua_createtable(L, 0, 2);
+  lua_pushinteger(L, errno);
+  lua_setfield(L, -2, "errno");
+  lua_pushstring(L, strerror(errno));
+  lua_setfield(L, -2, "msg");
+}
+
+#define error_if(cond) if (cond) throw_errno(L)
+
+static void throw_errno(lua_State *L) {
+  lua_pusherrno(L);
+  lua_error(L);
+}
 
 /* copied over from lauxlib.c */
 static int type_error(lua_State *L, int arg, int tag) {
@@ -47,10 +56,11 @@ static int type_error(lua_State *L, int arg, int tag) {
   return luaL_argerror(L, arg, msg);
 }
 
-/* fork() -> (pid: integer) */
+/* fork() -> (pid: integer) or nil */
 static int unix_fork(lua_State *L) {
   pid_t pid = fork();
   error_if(pid == -1);
+  if (pid == 0) return 0;
   lua_pushinteger(L, pid);
   return 1;
 }
@@ -74,7 +84,6 @@ static char **make_string_vector(lua_State *L, int index) {
     /* It's safe to call lua_tolstring as we know the value is string. */
     size_t len;
     const char *str = lua_tolstring(L, -1, &len);
-    puts(str);
     strv[i] = malloc(len + 1);
     strcpy(strv[i], str);
   }
@@ -91,7 +100,7 @@ static void free_string_vector(char **strv) {
 }
 
 /* execve(path:string, argv: table(string), envp: table(string) or nil)
- * -> nil or noreturn */
+ * -> error or noreturn */
 static int unix_execve(lua_State *L) {
   /* Before any memory allocation is made, make sure all arguments are
    * convertible to C values. */
@@ -114,8 +123,8 @@ static int unix_execve(lua_State *L) {
     free_string_vector(envp);
   free_string_vector(argv);
 
-  error_if(1);
-  return 0;
+  lua_pusherrno(L);
+  return 1;
 }
 
 /* waitpid(pid: integer, options: integer)

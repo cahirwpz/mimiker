@@ -17,10 +17,7 @@ int kmain(void) {
   (void)proc_create(thread_self(), NULL);
 
   if (init) {
-    exec_args_t init_args = {.prog_name = init,
-                             .argv = (char *[]){init, NULL},
-                             .envp = (char *[]){NULL}};
-    run_program(&init_args);
+    run_program(init, (char *[]){init, NULL}, (char *[]){NULL});
   } else if (test) {
     ktest_main(test);
   } else {

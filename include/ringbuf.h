@@ -21,7 +21,7 @@ static inline bool ringbuf_full(ringbuf_t *buf) {
   return buf->count == buf->size;
 }
 
-void ringbuf_reset(ringbuf_t *buf);
+void ringbuf_init(ringbuf_t *rb, void *buf, size_t size);
 bool ringbuf_putb(ringbuf_t *buf, uint8_t byte);
 bool ringbuf_getb(ringbuf_t *buf, uint8_t *byte_p);
 int ringbuf_read(ringbuf_t *buf, uio_t *uio);

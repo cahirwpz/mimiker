@@ -32,14 +32,14 @@ endif
 # Generate recursive rules for subdirectories
 define emit_subdir_rule
 $(1)-$(2):
-	@echo "[MAKE] $(2) $(1)"
+	@echo "[MAKE] $(2) $(DIR)$(1)"
 	$(MAKE) -C $(1) $(2)
 PHONY-TARGETS += $(1)-$(2)
 endef
 
 define emit_subdir_build
 $(1)-build: $(1)-before
-	@echo "[MAKE] build $(1)"
+	@echo "[MAKE] build $(DIR)$(1)"
 	$(MAKE) -C $(1) build
 PHONY-TARGETS += $(1)-build $(1)-before
 endef
