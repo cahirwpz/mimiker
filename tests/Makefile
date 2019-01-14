@@ -13,6 +13,7 @@ SOURCES = \
 	pool.c \
 	producer_consumer.c \
 	resizable_fdt.c \
+	ringbuf.c \
 	rwlock.c \
 	sched.c \
 	sleepq.c \
