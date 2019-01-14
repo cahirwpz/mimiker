@@ -165,7 +165,8 @@ noreturn void proc_exit(int exitstatus) {
 
     /* When the process is dead we can finally signal the parent. */
     proc_t *parent = p->p_parent;
-    assert(parent != NULL);
+    if (!parent)
+      panic("'init' process died!");
 
     klog("Wakeup PID(%d) because child PID(%d) died", parent->p_pid, p->p_pid);
 

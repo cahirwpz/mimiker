@@ -79,7 +79,7 @@ static void callout_init(void) {
   TAILQ_INIT(&delegated);
 
   thread_t *td =
-    thread_create("callout-thread", callout_thread, NULL, prio_kthread(0));
+    thread_create("callout", callout_thread, NULL, prio_kthread(0));
   sched_add(td);
 }
 
