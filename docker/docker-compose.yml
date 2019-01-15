@@ -8,6 +8,7 @@ mimiker:
     - "~/.ssh:/home/mimiker/.ssh"
     - "/tmp/.X11-unix:/tmp/.X11-unix"
     - "/tmp/.docker.xauth:/tmp/.docker.xauth"
+    - "~/.tmux.conf:/home/mimiker/.tmux.conf"
   restart: on-failure
   working_dir: /home/mimiker/mimiker
   environment:
