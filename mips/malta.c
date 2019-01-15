@@ -178,6 +178,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   kmem_bootstrap();
   sleepq_init();
   turnstile_init();
+  // race condition if interrupt thread is needed before this place
   thread_bootstrap();
 
   klog("Switching to 'kernel-main' thread...");
