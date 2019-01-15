@@ -76,7 +76,7 @@ void intr_chain_remove_handler(intr_handler_t *ih) {
 }
 
 typedef TAILQ_HEAD(, intr_handler) ih_list_t;
-static ih_list_t delegated;
+static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
 
 void intr_thread(void *arg) {
   while (true) {
