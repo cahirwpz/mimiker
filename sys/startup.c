@@ -5,6 +5,7 @@
 #include <thread.h>
 #include <sysinit.h>
 #include <vfs.h>
+#include <interrupt.h>
 
 extern void kmain(void *);
 
@@ -28,6 +29,10 @@ int kernel_init(int argc, char **argv) {
 
   thread_t *main_thread = thread_create("main", kmain, NULL, prio_kthread(0));
   sched_add(main_thread);
+
+  thread_t *interrupt_thread =
+    thread_create("interrupt", intr_thread, NULL, prio_ithread(0));
+  sched_add(interrupt_thread);
 
   sched_run();
 }

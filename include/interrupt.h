@@ -90,6 +90,7 @@ typedef struct intr_chain {
 
 typedef TAILQ_HEAD(, intr_chain) intr_chain_list_t;
 
+void intr_thread(void *arg);
 void intr_chain_init(intr_chain_t *ic, unsigned irq, const char *name);
 void intr_chain_register(intr_chain_t *ic);
 void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih);
