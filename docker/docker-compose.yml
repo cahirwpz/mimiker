@@ -5,6 +5,7 @@ mimiker:
   volumes:
     - "../:/home/mimiker/mimiker"
     - "~/.gitconfig:/home/mimiker/.gitconfig"
+    - "~/.ssh:/home/mimiker/.ssh"
     - "/tmp/.X11-unix:/tmp/.X11-unix"
     - "/tmp/.docker.xauth:/tmp/.docker.xauth"
   restart: on-failure

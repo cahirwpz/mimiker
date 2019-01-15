@@ -12,7 +12,7 @@ WORKDIR /home/mimiker
 RUN apt-get update -q || apt-get update -q
 RUN apt-get upgrade -y
 RUN apt-get install -y --no-install-recommends \
-    unzip xterm less locales patch file sudo zsh vim-nox tmux tig ack
+    ssh unzip xterm less locales patch file sudo zsh vim-nox tmux tig ack
 RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
     locale-gen && update-locale LANG="en_US.UTF-8"
 RUN touch .gitconfig && \
