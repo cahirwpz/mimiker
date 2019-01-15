@@ -5,6 +5,8 @@
 #include <thread.h>
 #include <mips/intr.h>
 #include <interrupt.h>
+#include <sched.h>
+#include <sleepq.h>
 
 static mtx_t all_ichains_mtx = MTX_INITIALIZER(0);
 static intr_chain_list_t all_ichains_list =
@@ -40,10 +42,8 @@ void intr_chain_register(intr_chain_t *ic) {
     TAILQ_INSERT_TAIL(&all_ichains_list, ic, ic_list);
 }
 
-void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
-  SCOPED_SPIN_LOCK(&ic->ic_lock);
-
-  /* Add new handler according to it's priority */
+// TODO come up with better name
+static void intr_chain_tailq_insert(intr_chain_t *ic, intr_handler_t *ih) {
   intr_handler_t *it;
   TAILQ_FOREACH (it, &ic->ic_handlers, ih_list)
     if (ih->ih_prio > it->ih_prio)
@@ -53,6 +53,13 @@ void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
     TAILQ_INSERT_BEFORE(it, ih, ih_list);
   else
     TAILQ_INSERT_TAIL(&ic->ic_handlers, ih, ih_list);
+}
+
+void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
+  SCOPED_SPIN_LOCK(&ic->ic_lock);
+
+  /* Add new handler according to it's priority */
+  intr_chain_tailq_insert(ic, ih);
 
   ih->ih_chain = ic;
   ic->ic_count++;
@@ -68,24 +75,50 @@ void intr_chain_remove_handler(intr_handler_t *ih) {
   ic->ic_count--;
 }
 
-/*
- * TODO when we have threads implement deferring work to thread.
- * With current implementation all filters have to either handle filter or
- * report that it is stray interrupt.
- */
+typedef TAILQ_HEAD(, intr_handler) ih_list_t;
+static ih_list_t delegated;
+
+void intr_thread(void *arg) {
+  while (true) {
+    intr_handler_t *elem;
+
+    WITH_INTR_DISABLED {
+      while (TAILQ_EMPTY(&delegated)) {
+        sleepq_wait(&delegated, NULL);
+      }
+      elem = TAILQ_FIRST(&delegated);
+      TAILQ_REMOVE(&delegated, elem, ih_list);
+    }
+
+    elem->ih_handler(elem->ih_argument);
+
+    WITH_INTR_DISABLED {
+      intr_chain_tailq_insert(elem->ih_chain, elem);
+      if (elem->ih_eoi != NULL) {
+        elem->ih_eoi(elem->ih_argument);
+      }
+    }
+  }
+}
+
 void intr_chain_run_handlers(intr_chain_t *ic) {
-  intr_handler_t *ih;
+  intr_handler_t *ih, *next;
   intr_filter_t status = IF_STRAY;
 
-  TAILQ_FOREACH (ih, &ic->ic_handlers, ih_list) {
+  TAILQ_FOREACH_SAFE(ih, &ic->ic_handlers, ih_list, next) {
     assert(ih->ih_filter != NULL);
     status = ih->ih_filter(ih->ih_argument);
-    if (status == IF_FILTERED)
+    if (status == IF_FILTERED) {
+      if (ih->ih_eoi != NULL) {
+        ih->ih_eoi(ih->ih_argument);
+      }
       return;
-    if (status == IF_DELEGATE) {
+    } else if (status == IF_DELEGATE) {
       assert(ih->ih_handler != NULL);
-      /* TODO: delegate the handler to be run in interrupt thread context */
-      ih->ih_handler(ih->ih_argument);
+
+      TAILQ_REMOVE(&ic->ic_handlers, ih, ih_list);
+      TAILQ_INSERT_TAIL(&delegated, ih, ih_list);
+      sleepq_signal(&delegated);
       return;
     }
   }
