@@ -64,6 +64,7 @@ struct intr_handler {
   TAILQ_ENTRY(intr_handler) ih_list;
   driver_filter_t *ih_filter; /* driver interrupt filter function */
   driver_intr_t *ih_handler;  /* driver interrupt handler function */
+  driver_intr_t *ih_eoi;      /* driver EOI function */
   intr_chain_t *ih_chain;     /* chain we are connected to */
   void *ih_argument;          /* argument to pass to the handler */
   char *ih_name;              /* name of the handler */
@@ -72,10 +73,10 @@ struct intr_handler {
 
 typedef TAILQ_HEAD(, intr_handler) intr_handler_list_t;
 
-#define INTR_HANDLER_INIT(filter, handler, argument, desc, prio)               \
+#define INTR_HANDLER_INIT(filter, handler, eoi, argument, desc, prio)          \
   (intr_handler_t) {                                                           \
-    .ih_filter = (filter), .ih_handler = (handler), .ih_argument = (argument), \
-    .ih_name = (desc), .ih_prio = (prio)                                       \
+    .ih_filter = (filter), .ih_handler = (handler), .ih_eoi = (eoi),           \
+    .ih_argument = (argument), .ih_name = (desc), .ih_prio = (prio)            \
   }
 
 typedef struct intr_chain {

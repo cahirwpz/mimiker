@@ -119,7 +119,7 @@ static int pit_attach(device_t *dev) {
   assert(pit->regs != NULL);
 
   pit->lock = SPIN_INITIALIZER(0);
-  pit->intr_handler = INTR_HANDLER_INIT(pit_intr, NULL, pit, "i8254 timer", 0);
+  pit->intr_handler = INTR_HANDLER_INIT(pit_intr, NULL, NULL, pit, "i8254 timer", 0);
 
   pit->timer = (timer_t){
     .tm_name = "i8254",

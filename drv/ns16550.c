@@ -145,7 +145,7 @@ static int ns16550_attach(device_t *dev) {
     dev, RT_ISA, 0, IO_COM1, IO_COM1 + IO_COMSIZE - 1, IO_COMSIZE, RF_ACTIVE);
   assert(ns16550->regs != NULL);
   ns16550->intr_handler =
-    INTR_HANDLER_INIT(ns16550_intr, NULL, ns16550, "NS16550 UART", 0);
+    INTR_HANDLER_INIT(ns16550_intr, NULL, NULL, ns16550, "NS16550 UART", 0);
   /* TODO Do not use magic number "4" here! */
   bus_intr_setup(dev, 4, &ns16550->intr_handler);
 

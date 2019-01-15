@@ -164,7 +164,7 @@ static int atkbdc_attach(device_t *dev) {
   assert(atkbdc->regs != NULL);
 
   atkbdc->intr_handler =
-    INTR_HANDLER_INIT(atkbdc_intr, NULL, atkbdc, "AT keyboard controller", 0);
+    INTR_HANDLER_INIT(atkbdc_intr, NULL, NULL, atkbdc, "AT keyboard controller", 0);
   bus_intr_setup(dev, 1, &atkbdc->intr_handler);
 
   /* Enable interrupt */
