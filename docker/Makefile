@@ -1,7 +1,8 @@
 run: compile tmux
 
 M_UID=$(shell id -u)
-M_GID=$(shell id -u)
+M_GID=$(shell id -g)
+
 
 gen:
 	export MIMIKER_UID=$(M_UID) MIMIKER_GID=$(M_GID) && \
