@@ -9,7 +9,8 @@ RUN addgroup --gid ${MIMIKER_GID} mimiker && \
 
 WORKDIR /home/mimiker
 
-RUN apt-get -q update && apt-get upgrade -y
+RUN apt-get update -q || apt-get update -q
+RUN apt-get upgrade -y
 RUN apt-get install -y --no-install-recommends \
     less locales patch file sudo zsh vim-nox tmux tig ack
 RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
