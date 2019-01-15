@@ -9,12 +9,10 @@ RUN addgroup --gid ${MIMIKER_GID} mimiker && \
 
 WORKDIR /home/mimiker
 
-# I know how it looks like.
-# This is some workaround, because apt-get update -q alone
-# sometimes doesn't work, but works every time when it is called twice
-# in this manner.
+# XXX: Ugly workaround for apt-get update -q crashing with the following error:
+# `Could not open file /var/lib/apt/lists/deb.debian.org_debian_dists_stretch-backports_main_binary-amd64_Packages.diff_Index`
+# running the command twice resolves the issue
 RUN apt-get update -q || apt-get update -q
-
 RUN apt-get upgrade -y
 RUN apt-get install -y --no-install-recommends \
     ssh unzip xterm less locales patch file sudo zsh vim-nox tmux tig ack
