@@ -5,11 +5,12 @@ OPENOCD := openocd-$(VER)
 
 all: binary
 
-download:
+download: $(OPENOCD)
+$(OPENOCD) :
 	git clone https://git.code.sf.net/p/openocd/code $(OPENOCD)
 
 configure: configure-stamp
-configure-stamp:
+configure-stamp: $(OPENOCD)
 	rm -rf openocd-build
 	mkdir openocd-build
 	cd $(OPENOCD) && \
