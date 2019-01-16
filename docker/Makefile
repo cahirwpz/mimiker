@@ -13,6 +13,8 @@ build: gen
 
 up:
 	touch /tmp/.docker.xauth
+	touch ~/.tmux.conf
+	touch ~/.gitconfig
 	xauth nlist :0 | sed -e 's/^..../ffff/' | xauth -f /tmp/.docker.xauth nmerge -
 	docker-compose up -d
 
