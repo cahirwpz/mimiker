@@ -52,8 +52,9 @@ static int kern_copy_ptr(exec_args_t *args, char **src_p) {
 }
 
 static int kern_copy_str(exec_args_t *args, char *str, size_t *copied_p) {
-  *copied_p = strlcpy(args->end, str, args->left);
-  return 0;
+  size_t copied = strlcpy(args->end, str, args->left);
+  *copied_p = copied + 1;
+  return (copied == args->left) ? -E2BIG : 0; /* no space for NUL ? */
 }
 
 /* Procedures for copying data coming from user space into exec_args buffer */

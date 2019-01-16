@@ -39,12 +39,12 @@ static int malloc_multiple_allocations(void) {
 }
 
 static int malloc_dynamic_pages_addition(void) {
-  kmem_pool_t *mp = kmem_create("test", 1, 3);
+  kmem_pool_t *mp = kmem_create("test", 1, 16);
   void *ptr1 = kmalloc(mp, 4000, 0);
   assert(ptr1 != NULL);
-  void *ptr2 = kmalloc(mp, 4000, 0);
+  void *ptr2 = kmalloc(mp, 8000, 0);
   assert(ptr2 != NULL);
-  void *ptr3 = kmalloc(mp, 4000, 0);
+  void *ptr3 = kmalloc(mp, 12000, 0);
   assert(ptr3 != NULL);
   kfree(mp, ptr1);
   kfree(mp, ptr2);
@@ -84,8 +84,8 @@ static void malloc_multithreaded(void (*threads_function)(void *)) {
   kmem_pool_t *mp = kmem_create("test", 1, 10);
   thread_t *threads[THREADS_NUMBER];
   for (int i = 0; i < THREADS_NUMBER; i++)
-    threads[i] = thread_create("Malloc test thread", threads_function,
-                               (void *)mp, prio_kthread(0));
+    threads[i] = thread_create("test-malloc", threads_function, (void *)mp,
+                               prio_kthread(0));
   for (int i = 0; i < THREADS_NUMBER; i++)
     sched_add(threads[i]);
   for (int i = 0; i < THREADS_NUMBER; i++)
@@ -136,9 +136,8 @@ static int malloc_threads_random_shared_blocks(void) {
   mtx_init(&args.lock, 0);
   thread_t *threads[THREADS_NUMBER];
   for (int i = 0; i < THREADS_NUMBER; i++)
-    threads[i] =
-      thread_create("Malloc test thread", malloc_random_shared_blocks, &args,
-                    prio_kthread(0));
+    threads[i] = thread_create("test-malloc", malloc_random_shared_blocks,
+                               &args, prio_kthread(0));
   for (int i = 0; i < THREADS_NUMBER; i++)
     sched_add(threads[i]);
   for (int i = 0; i < THREADS_NUMBER; i++)

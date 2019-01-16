@@ -82,10 +82,11 @@ static int test_sleepq_abort_mult(void) {
   interrupted = 0;
 
   /* HACK: Priorities differ by RQ_PPQ so that threads occupy different runq. */
-  waker = thread_create("waker", waker_routine, NULL, prio_kthread(0) + RQ_PPQ);
+  waker = thread_create("test-sleepq-waker", waker_routine, NULL,
+                        prio_kthread(0) + RQ_PPQ);
   for (int i = 0; i < T; i++) {
     char name[20];
-    snprintf(name, sizeof(name), "waiter%d", i);
+    snprintf(name, sizeof(name), "test-sleepq-waiter-%d", i);
     waiters[i] = thread_create(name, waiter_routine, NULL, prio_kthread(0));
   }
 

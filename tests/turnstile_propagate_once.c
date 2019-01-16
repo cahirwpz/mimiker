@@ -74,9 +74,9 @@ static int test_turnstile_propagate_once(void) {
   MED = HIGH + RQ_PPQ;
   LOW = MED + RQ_PPQ;
 
-  td[0] = thread_create("td0", low_prio_task, NULL, LOW);
-  td[1] = thread_create("td1", med_prio_task, NULL, MED);
-  td[2] = thread_create("td2", high_prio_task, NULL, HIGH);
+  td[0] = thread_create("test-turnstile-low", low_prio_task, NULL, LOW);
+  td[1] = thread_create("test-turnstile-med", med_prio_task, NULL, MED);
+  td[2] = thread_create("test-turnstile-high", high_prio_task, NULL, HIGH);
 
   /* We want to ensure that td0 will run as the first one and lock mtx. */
   sched_add(td[0]);

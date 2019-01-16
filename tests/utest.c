@@ -8,8 +8,10 @@
 #include <proc.h>
 #include <wait.h>
 
+#define UTEST_PATH "/bin/utest"
+
 static noreturn void utest_generic_thread(void *arg) {
-  run_program("/bin/utest", (char *[]){"utest", arg, NULL}, (char *[]){NULL});
+  run_program(UTEST_PATH, (char *[]){UTEST_PATH, arg, NULL}, (char *[]){NULL});
 }
 
 /* This is the klog mask used with utests. */
@@ -18,8 +20,12 @@ static noreturn void utest_generic_thread(void *arg) {
 static int utest_generic(const char *name, int status_success) {
   unsigned old_klog_mask = klog_setmask(KL_UTEST_MASK);
 
-  thread_t *utest_thread =
-    thread_create(name, utest_generic_thread, (void *)name, prio_kthread(0));
+  /* Prefix test thread's name with `utest-`. */
+  char prefixed_name[TD_NAME_MAX];
+  snprintf(prefixed_name, TD_NAME_MAX, "utest-%s", name);
+
+  thread_t *utest_thread = thread_create(prefixed_name, utest_generic_thread,
+                                         (void *)name, prio_kthread(0));
   proc_t *child = proc_create(utest_thread, proc_self());
   sched_add(utest_thread);
 
