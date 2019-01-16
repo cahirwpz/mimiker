@@ -7,7 +7,7 @@ static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
 static LIST_HEAD(, pgrp) pgrphashtable[4];
 static unsigned long pgrphash = 0x3;
 
-#define PGRPHASH(pgid) pgrphashtable[(pgid)&pgrphash]
+#define PGRPHASHLIST(pgid) pgrphashtable[(pgid) & pgrphash]
 
 void pgrp_init() {
   for (int i = 0; i < 4; ++i)
@@ -20,7 +20,7 @@ pgrp_t *pgrp_create(pgid_t pgid) {
   LIST_INIT(&pgrp->pg_members);
   pgrp->pg_id = pgid;
   // mtx_init(&pgrp->pg_mtx, ??);
-  LIST_INSERT_HEAD(&PGRPHASH(pgid), pgrp, pg_hash);
+  LIST_INSERT_HEAD(&PGRPHASHLIST(pgid), pgrp, pg_hash);
 
   return pgrp;
 }
@@ -35,7 +35,7 @@ void pgrp_destroy(pgrp_t *pgrp) {
 /* Locate a process group by number. */
 pgrp_t *pgrp_find(pgid_t pgid) {
   pgrp_t *pgrp = NULL;
-  LIST_FOREACH(pgrp, &PGRPHASH(pgid), pg_hash)
+  LIST_FOREACH(pgrp, &PGRPHASHLIST(pgid), pg_hash)
   if (pgrp->pg_id == pgid)
     break;
 

@@ -97,9 +97,6 @@ static int sys_setpgid(thread_t *td, syscall_args_t *args) {
 
 static int sys_getpgid(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
-
-  klog("getpgid(%d)", pid);
-
   proc_t *p = td->td_proc;
 
   if (pid < 0)
