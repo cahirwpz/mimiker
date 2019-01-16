@@ -3,12 +3,21 @@ TOPDIR = $(realpath ../../)
 SOURCEDIR = $(CURDIR)/newlib-3.0.0
 BUILDDIR = $(CURDIR)/newlib-build
 
+PKG = newlib-3.0.0
+URL = ftp://sourceware.org/pub/newlib/$(PKG).tar.gz
+
 all: download configure build install
 
-download: $(SOURCEDIR)/configure
-$(SOURCEDIR)/configure:
-	@echo "Updating Git submodule..."
-	git submodule update --init $(SOURCEDIR)
+download-here: $(PKG)
+
+$(PKG).tar.gz:
+	@echo "[CURL] $(PKG)"
+	$(CURL) -# -O $(URL)
+
+$(PKG): $(PKG).tar.gz
+	@echo "[TAR] $^ -> $@"
+	$(TAR) xzf $(PKG).tar.gz
+	touch $(PKG)
 
 # Output from these commands is redirected to log files for readibility.
 configure: configure-stamp

@@ -8,8 +8,10 @@
 #include <proc.h>
 #include <wait.h>
 
+#define UTEST_PATH "/bin/utest"
+
 static noreturn void utest_generic_thread(void *arg) {
-  run_program("/bin/utest", (char *[]){"utest", arg, NULL}, (char *[]){NULL});
+  run_program(UTEST_PATH, (char *[]){UTEST_PATH, arg, NULL}, (char *[]){NULL});
 }
 
 /* This is the klog mask used with utests. */

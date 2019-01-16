@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = ls lua mandelbrot mish sandbox test_kbd test_rtc utest
+SUBDIR = env
 
 all: build
 
