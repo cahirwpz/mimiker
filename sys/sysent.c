@@ -58,6 +58,12 @@ static int sys_getppid(thread_t *td, syscall_args_t *args) {
   return td->td_proc->p_parent->p_pid;
 }
 
+/*
+ * sys_setpgid() sets the PGID of the process specified by pid to pgid.
+ * If pid/pgid is zero, then the pid/pgid of calling process is used.
+ * Currently it is allowed to set PGID of process with pid PID only to PID.
+ * Only calling process or its parent is allowed to do it.
+ */
 static int sys_setpgid(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
   pgid_t pgid = args->args[1];
