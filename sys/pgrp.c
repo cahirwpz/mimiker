@@ -7,7 +7,7 @@ static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
 static LIST_HEAD(, pgrp) pgrphashtable[4];
 static unsigned long pgrphash = 0x3;
 
-#define PGRPHASHLIST(pgid) pgrphashtable[(pgid) & pgrphash]
+#define PGRPHASHLIST(pgid) pgrphashtable[(pgid)&pgrphash]
 
 void pgrp_init() {
   for (int i = 0; i < 4; ++i)
