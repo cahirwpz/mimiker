@@ -30,6 +30,6 @@ tmux: up
 clean:
 	docker container prune --filter "until=24h"
 	docker image prune
-	rm Dockerfile
+	rm -f Dockerfile
 
 .PHONY: build up down compile tmux run clean gen
