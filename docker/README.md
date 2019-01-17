@@ -5,7 +5,7 @@ Docker image with environment prepared for mimiker compilation and testing.
 
 In order to quickly prepare local environment with all tools required to develop
 mimiker, you will need to have `docker` and `docker-compose` installed.
-To set up enviroment:
+To set up environment:
 
 ```
 make run
