@@ -42,7 +42,6 @@ def gdb_inspect(interactive):
                     '-ex=python import debug',
                     '-ex=set pagination off',
                     '--nh', '--nx', '--silent', 'mimiker.elf']
-    print(gdb_cmd, gdb_opts)
     gdb = pexpect.spawn(gdb_cmd, gdb_opts, timeout=3)
     if interactive:
         send_command(gdb, 'backtrace')

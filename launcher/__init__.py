@@ -106,7 +106,7 @@ class GDB(Launchable):
 
     def __init__(self, name=None, cmd=None):
         super().__init__(name or 'gdb', cmd or GDB.COMMAND)
-        # gdbtui & cgdb output is garbled if there no delay
+        # gdbtui & cgdb output is garbled if there is no delay
         self.cmd = 'sleep 0.25 && ' + self.cmd
 
     def configure(self, kernel=''):
@@ -140,8 +140,7 @@ class SOCAT(Launchable):
     def configure(self, uart_num):
         port = uart_port(uart_num)
         # The simulator will only open the server after some time has
-        # passed. OVPsim needs as much as 1 second. To minimize the delay, keep
-        # reconnecting until success.
+        # passed.  To minimize the delay, keep reconnecting until success.
         self.options = [
             'STDIO', 'tcp:localhost:{},retry,forever'.format(port)]
 
