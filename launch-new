@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import os.path
+import string
+import shutil
+import subprocess
+from libtmux import Server, Session
+
+
+TMUX_CONF = './.tmux.conf'
+TARGET = 'mipsel'
+UART_PORT_BASE = 8000
+GDB_PORT_BASE = 9100
+
+
+class Launchable():
+    def __init__(self, name, cmd):
+        self.name = name
+        self.cmd = cmd
+        self.window = None
+        self.options = []
+
+    def configure(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def start(self, session):
+        cmd = ' '.join([self.cmd] + self.options)
+        print(cmd)
+        self.window = session.new_window(
+            attach=False, window_name=self.name, window_shell=cmd)
+
+
+class QEMU(Launchable):
+    def __init__(self):
+        super().__init__('qemu', shutil.which('qemu-mimiker-' + TARGET))
+
+    def configure(self, debug=False, graphics=False, kernel='', args='',
+                  gdb_port='', uart0_port='', uart1_port='', uart2_port=''):
+        self.options = [
+            '-nodefaults',
+            '-device', 'VGA',
+            '-machine', 'malta',
+            '-cpu', '24Kf',
+            '-icount', 'shift=3,sleep=on',
+            '-kernel', kernel,
+            '-append', ' '.join(args),
+            '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port),
+            '-serial', 'none',
+            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart0_port),
+            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart1_port),
+            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart2_port)]
+
+        if debug:
+            self.options += ['-S']
+        if not graphics:
+            self.options += ['-display', 'none']
+
+
+class GDB(Launchable):
+    def __init__(self):
+        super().__init__('gdb', TARGET + '-mimiker-elf-gdb')
+
+    def configure(self, kernel=''):
+        self.options = ['-ex=continue', '--silent', kernel]
+
+
+class SOCAT(Launchable):
+    def __init__(self, name):
+        super().__init__(name, 'socat')
+
+    def configure(self, uart_port=''):
+        # The simulator will only open the server after some time has
+        # passed. OVPsim needs as much as 1 second. To minimize the delay, keep
+        # reconnecting until success.
+        self.options = [
+            'STDIO', 'tcp:localhost:{},retry,forever'.format(uart_port)]
+
+
+def prepare_gdbinit(gdb_port):
+    with open('.gdbinit.template', 'r') as f:
+        gdbinit = string.Template(f.read())
+
+    subs = {'GDB_PORT': gdb_port}
+
+    with open('.gdbinit', 'w') as f:
+        f.write(gdbinit.substitute(subs))
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Launch kernel in Malta board simulator.')
+    parser.add_argument('-k', '--kernel', metavar='KERNEL', type=str,
+                        default='mimiker.elf',
+                        help='Kernel image file in ELF format.')
+    parser.add_argument('args', metavar='ARGS', type=str, nargs='*',
+                        help='Kernel arguments.')
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='Shorthand for --debugger gdb.')
+    parser.add_argument('-g', '--graphics', action='store_true',
+                        help='Enable VGA output.')
+    args = parser.parse_args()
+
+    uart_port = UART_PORT_BASE + os.getuid()
+    gdb_port = GDB_PORT_BASE + os.getuid()
+
+    prepare_gdbinit(gdb_port)
+
+    sim = QEMU()
+    sim.configure(args.debug, args.graphics, args.kernel, args.args, gdb_port,
+                  uart_port, uart_port + 1, uart_port + 2)
+
+    uart0 = SOCAT('/dev/tty1')
+    uart0.configure(uart_port=uart_port + 0)
+
+    uart1 = SOCAT('/dev/tty2')
+    uart1.configure(uart_port=uart_port + 1)
+
+    uart2 = SOCAT('/dev/cons')
+    uart2.configure(uart_port=uart_port + 2)
+
+    dbg = GDB()
+    dbg.configure(kernel=args.kernel)
+
+    subprocess.run(['tmux', '-f', TMUX_CONF, 'start-server'])
+
+    server = Server(config_file=TMUX_CONF)
+
+    if server.has_session('mimiker'):
+        server.kill_session('mimiker')
+
+    session = server.new_session(session_name='mimiker', attach=False,
+                                 window_name=':0', window_command='sleep 1000')
+
+    try:
+        sim.start(session)
+        uart0.start(session)
+        uart1.start(session)
+        uart2.start(session)
+        if args.debug:
+            dbg.start(session)
+
+        session.kill_window(':0')
+        session.select_window('gdb' if args.debug else '/dev/cons')
+        session.attach_session()
+        session.kill_session()
+    except Exception as ex:
+        session.kill_session()
+        raise ex
