@@ -27,9 +27,9 @@ def TestRun(sim, uarts):
 
 
 def DevelRun(sim, dbg, uarts):
-    subprocess.run(['tmux', '-f', TMUX_CONF, 'start-server'])
+    subprocess.run(['tmux', '-f', TMUX_CONF, '-L', 'mimiker', 'start-server'])
 
-    server = Server(config_file=TMUX_CONF)
+    server = Server(config_file=TMUX_CONF, socket_name='mimiker')
 
     if server.has_session('mimiker'):
         server.kill_session('mimiker')
@@ -47,10 +47,9 @@ def DevelRun(sim, dbg, uarts):
         session.kill_window(':0')
         session.select_window(dbg.name if dbg else '/dev/cons')
         session.attach_session()
+    finally:
         session.kill_session()
-    except Exception as ex:
-        session.kill_session()
-        raise ex
+        server.kill_server()
 
 
 if __name__ == '__main__':
