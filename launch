@@ -5,7 +5,9 @@ import os
 import os.path
 import string
 import shutil
+import signal
 import subprocess
+import itertools
 from libtmux import Server, Session
 
 
@@ -29,6 +31,47 @@ class Launchable():
         cmd = ' '.join([self.cmd] + self.options)
         self.window = session.new_window(
             attach=False, window_name=self.name, window_shell=cmd)
+
+    def run(self):
+        self.process = subprocess.Popen([self.cmd] + self.options,
+                                        start_new_session=False)
+
+    # Returns true iff the process terminated
+    def wait(self, timeout=None):
+        if self.process is None:
+            return False
+        # Throws exception on timeout
+        self.process.wait(timeout)
+        self.process = None
+        return True
+
+    def stop(self):
+        if self.process is None:
+            return
+        try:
+            # Give it a chance to exit gracefuly.
+            self.process.send_signal(signal.SIGTERM)
+            try:
+                self.process.wait(0.2)
+            except subprocess.TimeoutExpired:
+                self.process.send_signal(signal.SIGKILL)
+        except ProcessLookupError:
+            # Process already quit.
+            pass
+        self.process = None
+
+    def interrupt(self):
+        if self.process is not None:
+            self.process.send_signal(signal.SIGINT)
+
+
+def wait_any(launchables):
+    for l in itertools.cycle(launchables):
+        try:
+            if l.wait(0.2):
+                break
+        except subprocess.TimeoutExpired:
+            continue
 
 
 class QEMU(Launchable):
@@ -118,8 +161,8 @@ if __name__ == '__main__':
                               (', '.join(sorted(debuggers.keys())), 'gdb')))
     parser.add_argument('-d', '--debug', action='store_true',
                         help='Start debugging session with selected debugger.')
-    parser.add_argument('-t', action='store_true',
-                        help='Testing mode. Simulator output goes to stdout.')
+    parser.add_argument('-t', '--test-run', action='store_true',
+                        help='Test-run mode: simulator output goes to stdout.')
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
     args = parser.parse_args()
@@ -147,6 +190,23 @@ if __name__ == '__main__':
     if args.debug:
         dbg = debuggers[args.debugger]()
         dbg.configure(kernel=args.kernel, gdb_port=gdb_port)
+
+    if args.test_run:
+        sim.run()
+        uart0.run()
+        uart1.run()
+        uart2.run()
+
+        print('Waiting...')
+        try:
+            wait_any([sim, uart0, uart1, uart2])
+        except KeyboardInterrupt:
+            pass
+
+        uart2.stop()
+        sim.stop()
+
+        raise SystemExit
 
     subprocess.run(['tmux', '-f', TMUX_CONF, 'start-server'])
 
