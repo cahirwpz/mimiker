@@ -4,7 +4,7 @@ import argparse
 import os
 import os.path
 import subprocess
-from libtmux import Server, Session
+
 from launcher import *
 
 
@@ -27,6 +27,8 @@ def TestRun(sim, uarts):
 
 
 def DevelRun(sim, dbg, uarts):
+    from libtmux import Server, Session
+
     subprocess.run(['tmux', '-f', TMUX_CONF, '-L', 'mimiker', 'start-server'])
 
     server = Server(config_file=TMUX_CONF, socket_name='mimiker')
