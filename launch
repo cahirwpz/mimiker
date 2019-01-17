@@ -27,7 +27,6 @@ class Launchable():
 
     def start(self, session):
         cmd = ' '.join([self.cmd] + self.options)
-        print(cmd)
         self.window = session.new_window(
             attach=False, window_name=self.name, window_shell=cmd)
 
@@ -59,17 +58,35 @@ class QEMU(Launchable):
 
 
 class GDB(Launchable):
-    def __init__(self):
-        super().__init__('gdb', TARGET + '-mimiker-elf-gdb')
+    COMMAND = TARGET + '-mimiker-elf-gdb'
+
+    def __init__(self, name=None, cmd=None):
+        super().__init__(name or 'gdb', cmd or GDB.COMMAND)
+        # gdbtui & cgdb output is garbled if there no delay
+        self.cmd = 'sleep 0.25 && ' + self.cmd
 
     def configure(self, kernel='', gdb_port=''):
-        self.options = [
-                '-iex="set auto-load safe-path {}/"'.format(os.getcwd()),
-                '-ex="set tcp connect-timeout 30"',
-                '-ex="target remote localhost:{}"'.format(gdb_port),
-                '-ex="continue"',
-                '--silent',
-                kernel]
+        if self.name == 'gdb':
+            self.options += ['-ex="set prompt \033[35;1m(gdb) \033[0m"']
+        self.options += [
+            '-iex="set auto-load safe-path {}/"'.format(os.getcwd()),
+            '-ex="set tcp connect-timeout 30"',
+            '-ex="target remote localhost:{}"'.format(gdb_port),
+            '-ex="continue"',
+            '--silent',
+            kernel]
+
+
+class GDBTUI(GDB):
+    def __init__(self):
+        super().__init__('gdbtui')
+        self.options = ['-tui']
+
+
+class CGDB(GDB):
+    def __init__(self):
+        super().__init__('cgdb', 'cgdb')
+        self.options = ['-d', GDB.COMMAND]
 
 
 class SOCAT(Launchable):
@@ -85,6 +102,8 @@ class SOCAT(Launchable):
 
 
 if __name__ == '__main__':
+    debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
+
     parser = argparse.ArgumentParser(
         description='Launch kernel in Malta board simulator.')
     parser.add_argument('-k', '--kernel', metavar='KERNEL', type=str,
@@ -92,8 +111,15 @@ if __name__ == '__main__':
                         help='Kernel image file in ELF format.')
     parser.add_argument('args', metavar='ARGS', type=str, nargs='*',
                         help='Kernel arguments.')
+    parser.add_argument('-D', '--debugger', metavar='DEBUGGER', type=str,
+                        choices=debuggers.keys(), default='gdb',
+                        help=('Run debugging sesion with selected debugger. '
+                              'Available options: %s. Default: %s.' %
+                              (', '.join(sorted(debuggers.keys())), 'gdb')))
     parser.add_argument('-d', '--debug', action='store_true',
-                        help='Shorthand for --debugger gdb.')
+                        help='Start debugging session with selected debugger.')
+    parser.add_argument('-t', action='store_true',
+                        help='Testing mode. Simulator output goes to stdout.')
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
     args = parser.parse_args()
@@ -118,8 +144,9 @@ if __name__ == '__main__':
     uart2 = SOCAT('/dev/cons')
     uart2.configure(uart_port=uart_port + 2)
 
-    dbg = GDB()
-    dbg.configure(kernel=args.kernel, gdb_port=gdb_port)
+    if args.debug:
+        dbg = debuggers[args.debugger]()
+        dbg.configure(kernel=args.kernel, gdb_port=gdb_port)
 
     subprocess.run(['tmux', '-f', TMUX_CONF, 'start-server'])
 
@@ -140,7 +167,7 @@ if __name__ == '__main__':
             dbg.start(session)
 
         session.kill_window(':0')
-        session.select_window('gdb' if args.debug else '/dev/cons')
+        session.select_window(args.debugger if args.debug else '/dev/cons')
         session.attach_session()
         session.kill_session()
     except Exception as ex:

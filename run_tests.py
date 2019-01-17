@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import argparse
 import pexpect
@@ -6,7 +6,6 @@ import sys
 import random
 import os
 
-import launcher
 
 N_SIMPLE = 5
 N_THOROUGH = 100

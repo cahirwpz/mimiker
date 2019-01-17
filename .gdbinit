@@ -3,7 +3,6 @@ set output-radix 0x10
 set pagination off
 set confirm off
 set verbose off
-set prompt \033[35;1m(gdb) \033[0m
 
 # favorite set of breakpoints
 break kernel_init
