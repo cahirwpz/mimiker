@@ -42,8 +42,7 @@ void intr_chain_register(intr_chain_t *ic) {
     TAILQ_INSERT_TAIL(&all_ichains_list, ic, ic_list);
 }
 
-// TODO come up with better name
-static void intr_chain_tailq_insert(intr_chain_t *ic, intr_handler_t *ih) {
+static void intr_chain_tailq_handler_insert(intr_chain_t *ic, intr_handler_t *ih) {
   intr_handler_t *it;
   TAILQ_FOREACH (it, &ic->ic_handlers, ih_list)
     if (ih->ih_prio > it->ih_prio)
@@ -59,7 +58,7 @@ void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih) {
   SCOPED_SPIN_LOCK(&ic->ic_lock);
 
   /* Add new handler according to it's priority */
-  intr_chain_tailq_insert(ic, ih);
+  intr_chain_tailq_handler_insert(ic, ih);
 
   ih->ih_chain = ic;
   ic->ic_count++;
@@ -78,6 +77,21 @@ void intr_chain_remove_handler(intr_handler_t *ih) {
 typedef TAILQ_HEAD(, intr_handler) ih_list_t;
 static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
 
+static void run_eoi(intr_handler_t *ih) {
+  if (ih->ih_eoi != NULL) {
+    ih->ih_eoi(ih->ih_argument);
+  }
+}
+
+static intr_filter_t run_filter(intr_handler_t *ih) {
+  assert(ih->ih_filter != NULL);
+  intr_filter_t status = ih->ih_filter(ih->ih_argument);
+  if (status == IF_FILTERED) {
+    run_eoi(ih);
+  }
+  return status;
+}
+
 void intr_thread(void *arg) {
   while (true) {
     intr_handler_t *elem;
@@ -93,10 +107,8 @@ void intr_thread(void *arg) {
     elem->ih_handler(elem->ih_argument);
 
     WITH_INTR_DISABLED {
-      intr_chain_tailq_insert(elem->ih_chain, elem);
-      if (elem->ih_eoi != NULL) {
-        elem->ih_eoi(elem->ih_argument);
-      }
+      intr_chain_tailq_handler_insert(elem->ih_chain, elem);
+      run_eoi(elem);
     }
   }
 }
@@ -106,12 +118,8 @@ void intr_chain_run_handlers(intr_chain_t *ic) {
   intr_filter_t status = IF_STRAY;
 
   TAILQ_FOREACH_SAFE(ih, &ic->ic_handlers, ih_list, next) {
-    assert(ih->ih_filter != NULL);
-    status = ih->ih_filter(ih->ih_argument);
+    status = run_filter(ih);
     if (status == IF_FILTERED) {
-      if (ih->ih_eoi != NULL) {
-        ih->ih_eoi(ih->ih_argument);
-      }
       return;
     } else if (status == IF_DELEGATE) {
       assert(ih->ih_handler != NULL);
