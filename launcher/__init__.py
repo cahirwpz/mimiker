@@ -6,10 +6,17 @@ import subprocess
 
 
 TARGET = 'mipsel'
+FIRST_UID = 1000
+
 
 # Reserve 10 ports for each user starting from 24000
-FIRST_UID = 1000
-PORT_BASE = 24000 + (os.getuid() - FIRST_UID) * 10
+def gdb_port():
+    return 24000 + (os.getuid() - FIRST_UID) * 10
+
+
+def uart_port(num):
+    assert num >= 0 and num < 9
+    return gdb_port() + 1 + num
 
 
 class Launchable():
@@ -74,11 +81,6 @@ class QEMU(Launchable):
         super().__init__('qemu', shutil.which('qemu-mimiker-' + TARGET))
 
     def configure(self, debug=False, graphics=False, kernel='', args=''):
-        gdb_port = PORT_BASE
-        uart0_port = PORT_BASE + 1
-        uart1_port = PORT_BASE + 2
-        uart2_port = PORT_BASE + 3
-
         self.options = [
             '-nodefaults',
             '-device', 'VGA',
@@ -87,11 +89,11 @@ class QEMU(Launchable):
             '-icount', 'shift=3,sleep=on',
             '-kernel', kernel,
             '-append', ' '.join(args),
-            '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port),
+            '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
             '-serial', 'none',
-            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart0_port),
-            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart1_port),
-            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart2_port)]
+            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(0)),
+            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(1)),
+            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(2))]
 
         if debug:
             self.options += ['-S']
@@ -108,13 +110,12 @@ class GDB(Launchable):
         self.cmd = 'sleep 0.25 && ' + self.cmd
 
     def configure(self, kernel=''):
-        gdb_port = PORT_BASE
         if self.name == 'gdb':
             self.options += ['-ex="set prompt \033[35;1m(gdb) \033[0m"']
         self.options += [
             '-iex="set auto-load safe-path {}/"'.format(os.getcwd()),
             '-ex="set tcp connect-timeout 30"',
-            '-ex="target remote localhost:{}"'.format(gdb_port),
+            '-ex="target remote localhost:{}"'.format(gdb_port()),
             '-ex="continue"',
             '--silent',
             kernel]
@@ -136,15 +137,16 @@ class SOCAT(Launchable):
     def __init__(self, name):
         super().__init__(name, 'socat')
 
-    def configure(self, uart_port):
-        uart_port += PORT_BASE
+    def configure(self, uart_num):
+        port = uart_port(uart_num)
         # The simulator will only open the server after some time has
         # passed. OVPsim needs as much as 1 second. To minimize the delay, keep
         # reconnecting until success.
         self.options = [
-            'STDIO', 'tcp:localhost:{},retry,forever'.format(uart_port)]
+            'STDIO', 'tcp:localhost:{},retry,forever'.format(port)]
 
 
 Debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
 
-__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT', 'Debuggers']
+__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT', 'Debuggers',
+           'gdb_port', 'uart_port']

@@ -89,13 +89,13 @@ if __name__ == '__main__':
         dbg = None
 
     uart0 = SOCAT('/dev/tty1')
-    uart0.configure(uart_port=1)
+    uart0.configure(uart_num=0)
 
     uart1 = SOCAT('/dev/tty2')
-    uart1.configure(uart_port=2)
+    uart1.configure(uart_num=1)
 
     uart2 = SOCAT('/dev/cons')
-    uart2.configure(uart_port=3)
+    uart2.configure(uart_num=2)
 
     uarts = [uart0, uart1, uart2]
 
