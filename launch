@@ -98,6 +98,10 @@ if __name__ == '__main__':
                         help='Enable VGA output.')
     args = parser.parse_args()
 
+    # Check if the kernel file is available
+    if not os.path.isfile(args.kernel):
+        raise SystemExit('%s: file does not exist!' % args.kernel)
+
     uart_port = UART_PORT_BASE + os.getuid()
     gdb_port = GDB_PORT_BASE + os.getuid()
 
