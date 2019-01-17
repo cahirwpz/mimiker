@@ -21,10 +21,10 @@ up:
 down:
 	docker-compose down
 
-compile: up
+compile: gen up
 	docker-compose exec mimiker make
 
-tmux: up
+tmux: gen up
 	docker-compose exec mimiker tmux
 
 clean:
