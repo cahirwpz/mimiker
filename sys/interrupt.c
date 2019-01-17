@@ -94,21 +94,21 @@ static intr_filter_t run_filter(intr_handler_t *ih) {
 
 void intr_thread(void *arg) {
   while (true) {
-    intr_handler_t *elem;
+    intr_handler_t *ih;
 
     WITH_INTR_DISABLED {
       while (TAILQ_EMPTY(&delegated)) {
         sleepq_wait(&delegated, NULL);
       }
-      elem = TAILQ_FIRST(&delegated);
-      TAILQ_REMOVE(&delegated, elem, ih_list);
+      ih = TAILQ_FIRST(&delegated);
+      TAILQ_REMOVE(&delegated, ih, ih_list);
     }
 
-    elem->ih_handler(elem->ih_argument);
+    ih->ih_handler(ih->ih_argument);
 
     WITH_INTR_DISABLED {
-      intr_chain_tailq_handler_insert(elem->ih_chain, elem);
-      run_eoi(elem);
+      intr_chain_tailq_handler_insert(ih->ih_chain, ih);
+      run_eoi(ih);
     }
   }
 }
