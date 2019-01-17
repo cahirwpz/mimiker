@@ -19,5 +19,5 @@ break panic_fail
 
 # make extra commands available
 python import os, sys
-python sys.path.append(os.path.join(os.getcwd(), 'debug'))
-python import __init__
+python sys.path.append(os.getcwd())
+python import debug

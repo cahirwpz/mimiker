@@ -1,6 +1,7 @@
 import gdb
-from tailq import TailQueue
-from ptable import ptable, as_hex
+
+from .tailq import TailQueue
+from .ptable import ptable, as_hex
 
 
 class KernelSegments():

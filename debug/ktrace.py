@@ -1,17 +1,18 @@
 import gdb
-import thread
-import utils
+
+from .thread import CreateThreadTracer, CtxSwitchTracer
+from .utils import OneArgAutoCompleteMixin
 
 
-class Ktrace(gdb.Command, utils.OneArgAutoCompleteMixin):
+class Ktrace(gdb.Command, OneArgAutoCompleteMixin):
     """TODO: documentation"""
 
     def __init__(self):
         super(Ktrace, self).__init__('ktrace', gdb.COMMAND_USER)
 
         self.tracepoint = {
-            'thread-create': thread.CreateThreadTracer(),
-            'ctx-switch': thread.CtxSwitchTracer()
+            'thread-create': CreateThreadTracer(),
+            'ctx-switch': CtxSwitchTracer()
         }
 
     def invoke(self, args, from_tty):
