@@ -148,5 +148,5 @@ class SOCAT(Launchable):
 
 Debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
 
-__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT', 'Debuggers',
-           'gdb_port', 'uart_port']
+__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT', 'TARGET',
+           'Debuggers', 'gdb_port', 'uart_port']
