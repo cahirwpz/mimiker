@@ -62,8 +62,14 @@ class GDB(Launchable):
     def __init__(self):
         super().__init__('gdb', TARGET + '-mimiker-elf-gdb')
 
-    def configure(self, kernel=''):
-        self.options = ['-ex=continue', '--silent', kernel]
+    def configure(self, kernel='', gdb_port=''):
+        self.options = [
+                '-iex="set auto-load safe-path {}/"'.format(os.getcwd()),
+                '-ex="set tcp connect-timeout 30"',
+                '-ex="target remote localhost:{}"'.format(gdb_port),
+                '-ex="continue"',
+                '--silent',
+                kernel]
 
 
 class SOCAT(Launchable):
@@ -76,16 +82,6 @@ class SOCAT(Launchable):
         # reconnecting until success.
         self.options = [
             'STDIO', 'tcp:localhost:{},retry,forever'.format(uart_port)]
-
-
-def prepare_gdbinit(gdb_port):
-    with open('.gdbinit.template', 'r') as f:
-        gdbinit = string.Template(f.read())
-
-    subs = {'GDB_PORT': gdb_port}
-
-    with open('.gdbinit', 'w') as f:
-        f.write(gdbinit.substitute(subs))
 
 
 if __name__ == '__main__':
@@ -105,8 +101,6 @@ if __name__ == '__main__':
     uart_port = UART_PORT_BASE + os.getuid()
     gdb_port = GDB_PORT_BASE + os.getuid()
 
-    prepare_gdbinit(gdb_port)
-
     sim = QEMU()
     sim.configure(args.debug, args.graphics, args.kernel, args.args, gdb_port,
                   uart_port, uart_port + 1, uart_port + 2)
@@ -121,7 +115,7 @@ if __name__ == '__main__':
     uart2.configure(uart_port=uart_port + 2)
 
     dbg = GDB()
-    dbg.configure(kernel=args.kernel)
+    dbg.configure(kernel=args.kernel, gdb_port=gdb_port)
 
     subprocess.run(['tmux', '-f', TMUX_CONF, 'start-server'])
 

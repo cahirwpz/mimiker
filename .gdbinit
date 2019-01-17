@@ -5,10 +5,6 @@ set confirm off
 set verbose off
 set prompt \033[35;1m(gdb) \033[0m
 
-# QEMU connection settings
-set tcp connect-timeout 30
-target remote localhost:${GDB_PORT}
-
 # favorite set of breakpoints
 break kernel_init
 break assert_fail
