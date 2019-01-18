@@ -134,7 +134,9 @@ static void setup_kenv(int argc, char **argv, char **envp) {
     *tokens++ = make_pair(pair[0], pair[1]);
 }
 
-static void setup_user_argv(char *quoted_args) {
+static void
+setup_user_argv(char *quoted_args) { // containing init_program name/path
+  _kenv.user_argv = NULL;
   if (!quoted_args)
     return;
 
@@ -223,7 +225,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   sleepq_init();
   turnstile_init();
   thread_bootstrap();
-  setup_user_argv(kenv_get("init_args"));
+  setup_user_argv(kenv_get("init"));
 
   klog("Switching to 'kernel-main' thread...");
 }

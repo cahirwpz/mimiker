@@ -11,14 +11,14 @@ char *kenv_get(const char *key);
 char **kenv_get_user_argv(void);
 
 int kmain(void) {
-  char *init = kenv_get("init");
+  char **init = kenv_get_user_argv();
   char *test = kenv_get("test");
 
   /* Main kernel thread becomes PID(0) - a god process! */
   (void)proc_create(thread_self(), NULL);
 
   if (init) {
-    run_program(init, kenv_get_user_argv(), (char *[]){NULL});
+    run_program(init[0], init + 1, (char *[]){NULL});
   } else if (test) {
     ktest_main(test);
   } else {
