@@ -1,20 +1,18 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import argparse
 import pexpect
 import sys
 import random
 import os
+from launcher import gdb_port, TARGET
 
-import launcher
 
 N_SIMPLE = 5
 N_THOROUGH = 100
 TIMEOUT = 20
 RETRIES_MAX = 5
 REPEAT = 5
-
-GDB_PORT_BASE = 9100
 
 
 # Tries to decode binary output as ASCII, as hard as it can.
@@ -31,21 +29,20 @@ def send_command(gdb, cmd):
 
 # Tries to start gdb in order to investigate kernel state on deadlock or crash.
 def gdb_inspect(interactive):
-    gdb_port = GDB_PORT_BASE + os.getuid()
-    gdb_command = 'mipsel-mimiker-elf-gdb'
+    gdb_cmd = TARGET + '-mimiker-elf-gdb'
     if interactive:
-        launcher.prepare_gdbinit(gdb_port)
-        gdb_opts = ['-ex=set pagination off',
+        gdb_opts = ['-iex=set auto-load safe-path {}/'.format(os.getcwd()),
+                    '-ex=target remote localhost:%d' % gdb_port(),
                     '--silent', 'mimiker.elf']
     else:
         # Note: These options are different than .gdbinit.
-        gdb_opts = ['-ex=target remote localhost:%d' % gdb_port,
+        gdb_opts = ['-ex=target remote localhost:%d' % gdb_port(),
                     '-ex=python import os, sys',
                     '-ex=python sys.path.append(os.getcwd())',
                     '-ex=python import debug',
                     '-ex=set pagination off',
                     '--nh', '--nx', '--silent', 'mimiker.elf']
-    gdb = pexpect.spawn(gdb_command, gdb_opts, timeout=3)
+    gdb = pexpect.spawn(gdb_cmd, gdb_opts, timeout=3)
     if interactive:
         send_command(gdb, 'backtrace')
         send_command(gdb, 'kthread')

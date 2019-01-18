@@ -1,6 +1,7 @@
 import gdb
-import ptable
 from collections import OrderedDict
+
+from .ptable import ptable
 
 
 class Context():
@@ -36,4 +37,4 @@ class Context():
 
     def dump(self):
         rows = [[name, str(val)] for name, val in self.regs.items()]
-        ptable.ptable(rows, fmt='lr')
+        ptable(rows, fmt='lr')
