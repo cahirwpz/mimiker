@@ -1,23 +1,24 @@
 import gdb
-import ktrace
-import kdump
-import klog
-import cpu
-import thread
-import sync
+
+from .ktrace import Ktrace
+from .kdump import Kdump
+from .klog import Klog, TimeVal
+from .cpu import Cpu
+from .thread import Kthread, Thread
+from .sync import CondVar, Mutex
 
 
 def addPrettyPrinters():
     pp = gdb.printing.RegexpCollectionPrettyPrinter('mimiker')
-    pp.add_printer('mtx', 'mtx', sync.Mutex)
-    pp.add_printer('condvar', 'condvar', sync.CondVar)
-    pp.add_printer('thread', 'thread', thread.Thread)
-    pp.add_printer('timeval', 'timeval', klog.TimeVal)
+    pp.add_printer('mtx', 'mtx', Mutex)
+    pp.add_printer('condvar', 'condvar', CondVar)
+    pp.add_printer('thread', 'thread', Thread)
+    pp.add_printer('timeval', 'timeval', TimeVal)
     gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
 
 addPrettyPrinters()
-ktrace.Ktrace()
-thread.Kthread()
-cpu.Cpu()
-kdump.Kdump()
-klog.Klog()
+Ktrace()
+Kthread()
+Cpu()
+Kdump()
+Klog()
