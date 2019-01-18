@@ -88,7 +88,7 @@ class QEMU(Launchable):
             '-cpu', '24Kf',
             '-icount', 'shift=3,sleep=on',
             '-kernel', kernel,
-            '-append', ' '.join(args),
+            '-append', '"' + ' '.join(args) + '"',
             '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
             '-serial', 'none',
             '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(0)),
