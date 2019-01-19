@@ -27,6 +27,7 @@ static struct {
   int argc;
   char **argv;
   char **user_argv;
+  char **user_envv;
 } _kenv;
 
 static const char *whitespace = " \t";
@@ -134,11 +135,9 @@ static void setup_kenv(int argc, char **argv, char **envp) {
     *tokens++ = make_pair(pair[0], pair[1]);
 }
 
-static void
-setup_user_argv(char *quoted_args) { // containing init_program name/path
-  _kenv.user_argv = NULL;
+static char **setup_user_strs(char *quoted_args) {
   if (!quoted_args)
-    return;
+    return NULL;
 
   const size_t args_size = strlen(quoted_args) - 1;
   char *args = kbss_grow(args_size);
@@ -149,7 +148,7 @@ setup_user_argv(char *quoted_args) { // containing init_program name/path
   extract_tokens(args, user_argv);
   user_argv[ntokens] = NULL;
 
-  _kenv.user_argv = user_argv;
+  return user_argv;
 }
 
 char *kenv_get(const char *key) {
@@ -166,6 +165,18 @@ char *kenv_get(const char *key) {
 
 char **kenv_get_user_argv(void) {
   return _kenv.user_argv;
+}
+
+char **kenv_get_user_envv(void) {
+  return _kenv.user_envv;
+}
+
+static void setup_user_argv(void) {
+
+  _kenv.user_argv = setup_user_strs(kenv_get("init"));
+  _kenv.user_envv = setup_user_strs(kenv_get("envv"));
+  if (!_kenv.user_envv)
+    _kenv.user_envv = (char *[]){NULL};
 }
 
 extern uint8_t __kernel_start[];
@@ -225,7 +236,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   sleepq_init();
   turnstile_init();
   thread_bootstrap();
-  setup_user_argv(kenv_get("init"));
+  setup_user_argv();
 
   klog("Switching to 'kernel-main' thread...");
 }
