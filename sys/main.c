@@ -9,6 +9,7 @@
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
 char **kenv_get_user_argv(void);
+char **kenv_get_user_envv(void);
 
 int kmain(void) {
   char **init = kenv_get_user_argv();
@@ -18,7 +19,7 @@ int kmain(void) {
   (void)proc_create(thread_self(), NULL);
 
   if (init) {
-    run_program(init[0], init + 1, (char *[]){NULL});
+    run_program(*init, init, kenv_get_user_envv());
   } else if (test) {
     ktest_main(test);
   } else {
@@ -26,8 +27,8 @@ int kmain(void) {
      * log. */
     kprintf("============\n");
     kprintf("No init specified!\n");
-    kprintf("Use init=PROGRAM to start a user-space init program or test=TEST "
-            "to run a kernel test.\n");
+    kprintf("Use init=\\\"PROGRAM arguments\\\" to start a user-space init "
+            "program or test=TEST to run a kernel test.\n");
     kprintf("============\n");
     return 1;
   }
