@@ -1,8 +1,7 @@
 import gdb
+import utils
 import traceback
-
-from .utils import OneArgAutoCompleteMixin, GdbStructMeta, cast
-from .ptable import ptable, as_hex
+from ptable import ptable, as_hex
 
 
 PAGESIZE = 0x1000
@@ -10,7 +9,7 @@ PAGESIZE = 0x1000
 
 class TLBHi():
     def __init__(self, val):
-        self.val = cast(val, 'unsigned long')
+        self.val = utils.cast(val, 'unsigned long')
 
     @property
     def vpn(self):
@@ -23,7 +22,7 @@ class TLBHi():
 
 class TLBLo():
     def __init__(self, val):
-        self.val = cast(val, 'unsigned long')
+        self.val = utils.cast(val, 'unsigned long')
 
     @property
     def globl(self):
@@ -45,7 +44,7 @@ class TLBLo():
         return '%08x %c%c' % (self.ppn, '-D'[self.dirty], '-G'[self.globl])
 
 
-class TLBEntry(metaclass=GdbStructMeta):
+class TLBEntry(metaclass=utils.GdbStructMeta):
     __ctype__ = 'tlbentry_t'
     __cast__ = {'hi': TLBHi, 'lo0': TLBLo, 'lo1': TLBLo}
 
@@ -80,7 +79,7 @@ class TLB():
         return int(gdb.parse_and_eval('_gdb_tlb_size()'))
 
 
-class Cpu(gdb.Command, OneArgAutoCompleteMixin):
+class Cpu(gdb.Command, utils.OneArgAutoCompleteMixin):
     """ examine processor priviliged resources
 
     Currently supported resources:

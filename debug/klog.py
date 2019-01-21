@@ -1,11 +1,10 @@
 import gdb
+from ptable import ptable, as_hex
+import utils
 import os.path
 
-from .ptable import ptable, as_hex
-from .utils import GdbStructMeta
 
-
-class TimeVal(metaclass=GdbStructMeta):
+class TimeVal(metaclass=utils.GdbStructMeta):
     __ctype__ = 'struct timeval'
     __cast__ = {'tv_sec': int, 'tv_usec': int}
 

@@ -1,17 +1,16 @@
 import gdb
+from tailq import TailQueue
+import utils
+import ptable
 import traceback
-
-from .ptable import ptable
-from .tailq import TailQueue
-from .utils import GdbStructMeta, OneArgAutoCompleteMixin, ProgramCounter, enum
-from .ctx import Context
+from ctx import Context
 
 
-class Thread(metaclass=GdbStructMeta):
+class Thread(metaclass=utils.GdbStructMeta):
     __ctype__ = 'struct thread'
-    __cast__ = {'td_waitpt': ProgramCounter,
+    __cast__ = {'td_waitpt': utils.ProgramCounter,
                 'td_tid': int,
-                'td_state': enum,
+                'td_state': utils.enum,
                 'td_prio': int,
                 'td_name': lambda x: x.string()}
 
@@ -35,7 +34,7 @@ class Thread(metaclass=GdbStructMeta):
                      td.td_name, str(td.td_state), str(td.td_prio),
                      str(td.td_waitpt)]
                     for td in threads)
-        ptable(rows, fmt='rllrl', header=True)
+        ptable.ptable(rows, fmt='rllrl', header=True)
 
     @classmethod
     def list_all(cls):
@@ -107,7 +106,7 @@ class CreateThreadTracer():
             self.createThreadbp = CreateThreadTracerBP()
 
 
-class Kthread(gdb.Command, OneArgAutoCompleteMixin):
+class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
     """dump info about threads
 
     Thread can be either specified by its identifier (td_tid) or by its name
