@@ -87,7 +87,7 @@ class Cpu(gdb.Command, OneArgAutoCompleteMixin):
      * tlb - list Translation Lookaside Buffer
     """
     def __init__(self):
-        super(Cpu, self).__init__('cpu', gdb.COMMAND_USER)
+        super().__init__('cpu', gdb.COMMAND_USER)
         self._options = {'tlb': TLB()}
 
     def invoke(self, args, from_tty):

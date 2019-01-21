@@ -13,7 +13,7 @@ class Kdump(gdb.Command, OneArgAutoCompleteMixin):
      * free_pages - free pages per segment
     """
     def __init__(self):
-        super(Kdump, self).__init__("kdump", gdb.COMMAND_USER)
+        super().__init__('kdump', gdb.COMMAND_USER)
         # classes instead of functions in case we decide to store
         # information about structures in the debugger itself later on
         self.structure = {

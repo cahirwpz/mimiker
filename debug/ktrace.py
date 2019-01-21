@@ -8,7 +8,7 @@ class Ktrace(gdb.Command, OneArgAutoCompleteMixin):
     """TODO: documentation"""
 
     def __init__(self):
-        super(Ktrace, self).__init__('ktrace', gdb.COMMAND_USER)
+        super().__init__('ktrace', gdb.COMMAND_USER)
 
         self.tracepoint = {
             'thread-create': CreateThreadTracer(),

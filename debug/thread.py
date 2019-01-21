@@ -49,7 +49,7 @@ class Thread(metaclass=GdbStructMeta):
 class CtxSwitchTracerBP(gdb.Breakpoint):
 
     def __init__(self):
-        super(CtxSwitchTracerBP, self).__init__('ctx_switch')
+        super().__init__('ctx_switch')
         self.stop_on = False
 
     def stop(self):
@@ -80,7 +80,7 @@ class CtxSwitchTracer():
 class CreateThreadTracerBP(gdb.Breakpoint):
 
     def __init__(self):
-        super(CreateThreadTracerBP, self).__init__('thread_create')
+        super().__init__('thread_create')
         self.stop_on = True
 
     def stop(self):
@@ -130,7 +130,7 @@ class Kthread(gdb.Command, OneArgAutoCompleteMixin):
     """
 
     def __init__(self):
-        super(Kthread, self).__init__('kthread', gdb.COMMAND_USER)
+        super().__init__('kthread', gdb.COMMAND_USER)
 
     def find_by_name(self, name):
         found = filter(lambda td: td.td_name == name, Thread.list_all())
