@@ -47,7 +47,6 @@ class Thread(metaclass=GdbStructMeta):
         return 'thread{%s/%d}' % (self.td_name, self.td_tid)
 
 
-
 class ThreadSwitchBP(gdb.Breakpoint):
     def __init__(self):
         super().__init__('ctx_switch')
