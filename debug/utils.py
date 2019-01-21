@@ -1,4 +1,5 @@
 import gdb
+import os
 import re
 
 
@@ -19,8 +20,12 @@ class ProgramCounter():
             return 'null'
         line = gdb.execute('info line *0x%x' % self.pc, to_string=True)
         m = re.match(r'Line (\d+) of "(.*)"', line)
-        m = m.groups()
-        return '%s:%s' % (m[1], m[0])
+        lnum, path = m.groups()
+        cwd = os.getcwd()
+        if path.startswith(cwd):
+            n = len(cwd) + 1
+            path = path[n:]
+        return '%s:%s' % (path, lnum)
 
 
 class OneArgAutoCompleteMixin():
