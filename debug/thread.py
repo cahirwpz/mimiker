@@ -3,7 +3,8 @@ import traceback
 
 from .ptable import ptable
 from .tailq import TailQueue
-from .utils import GdbStructMeta, OneArgAutoCompleteMixin, ProgramCounter, enum
+from .utils import (GdbStructMeta, OneArgAutoCompleteMixin, ProgramCounter,
+                    enum, func_ret_addr, local_var)
 from .ctx import Context
 
 
@@ -42,69 +43,27 @@ class Thread(metaclass=GdbStructMeta):
         threads = TailQueue(gdb.parse_and_eval('all_threads'), 'td_all')
         return map(Thread, threads)
 
-    def __str__(self):
-        return 'thread{tid=%d, name="%s"}' % (self.td_tid, self.td_name)
+    def __repr__(self):
+        return 'thread{%s/%d}' % (self.td_name, self.td_tid)
 
 
-class CtxSwitchTracerBP(gdb.Breakpoint):
 
+class ThreadSwitchBP(gdb.Breakpoint):
     def __init__(self):
         super().__init__('ctx_switch')
-        self.stop_on = False
 
     def stop(self):
         td_from = Thread.from_pointer('$a0')
         td_to = Thread.from_pointer('$a1')
         print('context switch from {} to {}'.format(td_from, td_to))
-        return self.stop_on
-
-    def set_stop_on(self, arg):
-        self.stop_on = arg
 
 
-class CtxSwitchTracer():
-
+class ThreadCreateBP(gdb.Breakpoint):
     def __init__(self):
-        self.ctxswitchbp = None
-
-    def toggle(self):
-        if self.ctxswitchbp:
-            print('context switch tracing off')
-            self.ctxswitchbp.delete()
-            self.ctxswitchbp = None
-        else:
-            print('context switch tracing on')
-            self.ctxswitchbp = CtxSwitchTracerBP()
-
-
-class CreateThreadTracerBP(gdb.Breakpoint):
-
-    def __init__(self):
-        super().__init__('thread_create')
-        self.stop_on = True
+        super().__init__('*0x%x' % func_ret_addr('thread_create'))
 
     def stop(self):
-        td_name = gdb.newest_frame().read_var('name').string()
-        print('New thread in system: ', td_name)
-        return self.stop_on
-
-    def stop_on_switch(self, arg):
-        self.stop_on = arg
-
-
-class CreateThreadTracer():
-
-    def __init__(self):
-        self.createThreadbp = None
-
-    def toggle(self):
-        if self.createThreadbp:
-            print('create-thread trace off')
-            self.createThreadbp.delete()
-            self.createThreadbp = None
-        else:
-            print('create-thread trace on')
-            self.createThreadbp = CreateThreadTracerBP()
+        print('New', local_var('td').dereference(), 'in the system!')
 
 
 class Kthread(gdb.Command, OneArgAutoCompleteMixin):

@@ -11,6 +11,19 @@ def enum(v):
     return v.type.target().fields()[int(v)].name
 
 
+def local_var(name):
+    return gdb.newest_frame().read_var(name)
+
+
+# calculates address of ret instruction within function body (MIPS specific)
+def func_ret_addr(name):
+    s = gdb.execute('disass thread_create', to_string=True)
+    for line in s.split('\n'):
+        m = re.match(r'\s+(0x[0-9a-f]{8})\s+<\+\d+>:\tjr\tra', line)
+        if m:
+            return int(m.groups()[0], 16)
+
+
 class ProgramCounter():
     def __init__(self, pc):
         self.pc = cast(pc, 'unsigned long')
