@@ -39,7 +39,7 @@ static intr_filter_t mips_timer_intr(void *data) {
 }
 
 static intr_handler_t mips_timer_intr_handler =
-  INTR_HANDLER_INIT(mips_timer_intr, NULL, NULL, NULL, "MIPS CPU timer", 0);
+  INTR_HANDLER_INIT(mips_timer_intr, NULL, NULL, "MIPS CPU timer", 0);
 
 static bintime_t mips_timer_gettime(timer_t *tm) {
   uint64_t count = read_count();

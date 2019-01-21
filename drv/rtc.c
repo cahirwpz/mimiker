@@ -97,7 +97,7 @@ static int rtc_attach(device_t *dev) {
   assert(rtc->regs != NULL);
 
   rtc->intr_handler =
-    INTR_HANDLER_INIT(rtc_intr, NULL, NULL, rtc, "RTC periodic timer", 0);
+    INTR_HANDLER_INIT(rtc_intr, NULL, rtc, "RTC periodic timer", 0);
   bus_intr_setup(dev, 8, &rtc->intr_handler);
 
   /* Configure how the time is presented through registers. */

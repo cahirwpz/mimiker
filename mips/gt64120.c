@@ -304,7 +304,7 @@ static int gt_pci_attach(device_t *pcib) {
   pci_bus_enumerate(pcib);
 
   gtpci->intr_handler =
-    INTR_HANDLER_INIT(gt_pci_intr, NULL, NULL, gtpci, "GT64120 interrupt", 0);
+    INTR_HANDLER_INIT(gt_pci_intr, NULL, gtpci, "GT64120 interrupt", 0);
   bus_intr_setup(pcib, MIPS_HWINT0, &gtpci->intr_handler);
 
   return bus_generic_probe(pcib);
