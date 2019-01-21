@@ -27,8 +27,8 @@ class Ktrace(gdb.Command, OneArgAutoCompleteMixin):
         super().__init__('ktrace', gdb.COMMAND_USER)
 
         self.tracepoint = {
-            'thread-create': Tracer(ThreadCreateBP, "thread create"),
-            'thread-switch': Tracer(ThreadSwitchBP, "thread switch")
+            'thread_create': Tracer(ThreadCreateBP, "thread create"),
+            'thread_switch': Tracer(ThreadSwitchBP, "thread switch")
         }
 
     def invoke(self, args, from_tty):

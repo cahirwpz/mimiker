@@ -45,18 +45,16 @@ class OneArgAutoCompleteMixin():
     def options(self):
         raise NotImplementedError
 
+    # XXX: Completion does not play well when there are hypens in keywords.
     def complete(self, text, word):
-        args = text.split()
-        options = self.options()
+        args = text.split(' ')
+        options = list(self.options())
         if len(args) == 0:
             return options
         if len(args) >= 2:
             return []
-        suggestions = []
-        for o in options:
-            if o.startswith(args[0], 0, len(o) - 1):
-                suggestions.append(o)
-        return suggestions
+        return [option for option in options
+                if option.startswith(args[0]) and args[0] != option]
 
 
 class GdbStructBase():
