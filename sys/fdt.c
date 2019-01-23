@@ -126,7 +126,8 @@ static int nextprop_(const void *fdt, int offset) {
   return -FDT_ERR_NOTFOUND;
 }
 
-static const void *fdt_offset_ptr(const void *fdt, int offset, unsigned int len) {
+static const void *fdt_offset_ptr(const void *fdt, int offset,
+                                  unsigned int len) {
   unsigned absoffset = offset + fdt_off_dt_struct(fdt);
 
   if (((int)absoffset < offset) || ((absoffset + len) < absoffset) ||
