@@ -3,7 +3,7 @@
  * Copyright (C) 2006 David Gibson, IBM Corporation.
  *
  * libfdt is dual licensed: you can use it either under the terms of
- * the GPL, or the BSD license, at your option.
+
  *
  *  a) This library is free software; you can redistribute it and/or
  *     modify it under the terms of the GNU General Public License as
@@ -89,100 +89,6 @@ int fdt_check_header(const void *fdt) {
   }
 
   return 0;
-}
-
-void fdt_print_header_info(const void *fdt) {
-  klog("dtb_base_address: 0x%lx", fdt);
-  klog("fdt_magic: 0x%lx", fdt_magic(fdt));
-  klog("fdt_totalsize: %ld", fdt_totalsize(fdt));
-  klog("fdt_version: %ld", fdt_version(fdt));
-  klog("fdt_off_dt_struct: 0x%lx", fdt_off_dt_struct(fdt));
-  klog("fdt_size_dt_struct: %ld", fdt_size_dt_struct(fdt));
-  klog("fdt_off_dt_strings: 0x%lx", fdt_off_dt_strings(fdt));
-  klog("fdt_size_dt_strings: %ld", fdt_size_dt_strings(fdt));
-  klog("fdt_off_mem_rsvmap: 0x%lx", fdt_off_mem_rsvmap(fdt));
-}
-
-void fdt_print_all_tags(const void *fdt) {
-
-  char *name;
-
-  int nextoffset;
-  int offset = 0;
-  while (true) {
-    uint32_t tag = fdt_next_tag(fdt, offset, &nextoffset);
-    klog("tag = %ld at offset 0x%lx", tag, offset);
-    klog("nextoffset = %lx", nextoffset);
-    switch (tag) {
-      case FDT_BEGIN_NODE:
-        klog("got tag FDT_BEGIN_NODE");
-        name = (char *)fdt_get_name(fdt, offset, NULL);
-        klog("name = %s", name);
-        break;
-      case FDT_PROP:
-        klog("got tag FDT_PROP");
-        int len;
-        fdt_property_t *prop =
-          (fdt_property_t *)fdt_get_property_by_offset(fdt, offset, &len);
-        klog("prop tag = %lx", prop->tag);
-        klog("prop len = %lx", prop->len);
-        klog("prop data as str = %s", prop->data);
-        break;
-      case FDT_END_NODE:
-        klog("got tag FDT_END_NODE");
-        break;
-      case FDT_NOP:
-        klog("got tag FDT_NOP");
-        break;
-      case FDT_END:
-        klog("got tag FDT_END");
-        break;
-    }
-    klog("-----");
-    offset = nextoffset;
-    if (tag == FDT_END)
-      break;
-  }
-}
-
-static void print_node_recursive(const void *fdt, int nodeoffset) {
-  int propertyoffset;
-  int namelen;
-  klog("BEGIN NODE");
-  klog("node name: %s, len: %d", fdt_get_name(fdt, nodeoffset, &namelen),
-       namelen);
-
-#define PATHBUF_LEN 100
-  char path[PATHBUF_LEN];
-  fdt_get_path(fdt, nodeoffset, path, PATHBUF_LEN);
-  klog("full path: %s", path);
-
-  klog("BEGIN NODE PROPS");
-
-  const fdt_property_t *prop_ptr;
-  int proplen;
-  const char *prop_name;
-  const char *prop_value_ptr;
-
-  FDT_FOR_EACH_PROPERTY_OFFSET(propertyoffset, fdt, nodeoffset) {
-    prop_ptr = fdt_get_property_by_offset(fdt, propertyoffset, &proplen);
-    prop_value_ptr = prop_ptr->data;
-    prop_name = fdt_string(fdt, fdt32_to_cpu(prop_ptr->nameoff));
-
-    klog("prop name: %s, prop_value as str = %s", prop_name, prop_value_ptr);
-  }
-
-  int child_nodeoffset;
-  FDT_FOR_EACH_SUBNODE(child_nodeoffset, fdt, nodeoffset) {
-    print_node_recursive(fdt, child_nodeoffset);
-  }
-
-  klog("END NODE PROPS");
-  klog("END NODE");
-}
-
-inline void print_whole_fdt(const void *fdt) {
-  print_node_recursive(fdt, 0);
 }
 
 static inline const void *fdt_offset_ptr_(const void *fdt, int offset) {
