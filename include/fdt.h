@@ -614,4 +614,4 @@ int fdt_path_offset_namelen(const void *fdt, const char *path, int namelen);
  */
 int fdt_path_offset(const void *fdt, const char *path);
 
-#endif
+#endif /* !_SYS_FDT_H_ */
