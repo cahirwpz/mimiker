@@ -16,9 +16,9 @@ LDLIBS	= -Wl,--start-group \
           -Wl,--end-group
 
 # Process subdirectories before using KRT files.
-mimiker.elf: $(KRT) initrd.o dtb.o | $(KERNDIR)
+mimiker.elf: $(KRT) initrd.o | $(KERNDIR)
 	@echo "[LD] Linking kernel image: $@"
-	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) initrd.o dtb.o -o $@
+	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) initrd.o -o $@
 
 # Detecting whether initrd.cpio requires rebuilding is tricky, because even if
 # this target was to depend on $(shell find sysroot -type f), then make compares
@@ -36,16 +36,5 @@ initrd.o: initrd.cpio
 	  --rename-section .data=.initrd,alloc,load,readonly,data,contents \
 	  $^ $@
 
-# When multiple platforms are available, parametrize following rules.
-malta.dtb:
-	dtc -O dtb -o malta.dtb mips/malta.dts
-
-dtb.o: malta.dtb
-	@echo "[DTB] Building dtb.o from malta.dtb"
-	$(OBJCOPY) -I binary -O elf32-littlemips -B mips \
-	  --rename-section .data=.dtb,alloc,load,readonly,data,contents \
-	  malta.dtb dtb.o
-
-
-CLEAN-FILES += mimiker.elf mimiker.elf.map initrd.cpio initrd.o dtb.o malta.dtb
+CLEAN-FILES += mimiker.elf mimiker.elf.map initrd.cpio initrd.o
 PHONY-TARGETS += initrd.cpio

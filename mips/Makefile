@@ -26,15 +26,13 @@ SOURCES = \
 	uart_cbus.c \
 	ustack.c
 
+OBJECTS += malta_dtb.o
+
 include $(TOPDIR)/build/build.kobj.mk
 
 build-here: libmips.ka
 
 $(SOURCES): assym.h
-
-%-devhint.c: %.dts
-	@echo "[DEVHINT] $(DIR)$< -> $(DIR)$@"
-	$(GENDEVHINT) $< $@
 
 %.h: gen%.o
 	@echo "[ASSYM] $(DIR)$@"
@@ -42,3 +40,4 @@ $(SOURCES): assym.h
 
 clean-here:
 	$(RM) assym.h *-devhint.c
+	$(RM) malta-dtb.o malta.dtb

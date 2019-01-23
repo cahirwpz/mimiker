@@ -160,7 +160,7 @@ static void thread_bootstrap(void) {
   PCPU_SET(curthread, td);
 }
 
-extern uint8_t __dtb_start[];
+extern const uint8_t __malta_dtb_start[];
 
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   kbss_init();
@@ -181,8 +181,6 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   sleepq_init();
   turnstile_init();
   thread_bootstrap();
-
-  const void* __attribute__((unused)) fdt = (const void *)__dtb_start;
 
   klog("Switching to 'kernel-main' thread...");
 }

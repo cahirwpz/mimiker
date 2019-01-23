@@ -12,7 +12,6 @@ PHDRS
   text   PT_LOAD FLAGS(5);      /* read-only, executable */
   rodata PT_LOAD FLAGS(4);      /* read-only */
   data   PT_LOAD FLAGS(6);      /* read-write */
-  dtb    PT_LOAD FLAGS(4);      /* read-only dtb segment */
 }
 PROVIDE(__tlb_stride_length = 1);
 SECTIONS
@@ -79,14 +78,6 @@ SECTIONS
     . = ALIGN(4096);
     __rd_end = ABSOLUTE(.);
   } : rodata /* The ramdisk is read-only, so place it in read-only segment. */
-
-  .dtb : ALIGN(4)
-  {
-    __dtb_start = ABSOLUTE(.);
-    *(.dtb)
-    . = ALIGN(4);
-    __dtb_end = ABSOLUTE(.);
-  } : rodata
 
   /* In order to be addressable using a 16-bit signed offset from _gp,
    * this section must be placed close to the .data section, as
