@@ -38,7 +38,7 @@ etags
 assym.h
 
 # Editor swap files
-*.swp
+*.sw[a-p]
 
 # Temporary test data
 tests/*_test_files
