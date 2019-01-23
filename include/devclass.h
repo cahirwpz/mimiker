@@ -13,8 +13,7 @@ struct devclass {
 };
 
 /* Create a new devclass with name \dc_name which will store a linker set
- * of drivers associated with the new devclass.
- */
+ * of drivers associated with the new devclass. */
 #define DEVCLASS_CREATE(dc_name)                                               \
   SET_DECLARE(dc_name, driver_t);                                              \
   devclass_t dc_name##_devclass = {.name = (#dc_name),                         \
@@ -22,8 +21,7 @@ struct devclass {
                                    .end_p = SET_LIMIT(dc_name)};               \
   SET_ENTRY(devclasses, dc_name##_devclass)
 
-/* Add new driver to the devclass named \dc_name
- */
+/* Add new driver to the devclass named \dc_name */
 #define DEVCLASS_ENTRY(dc_name, driver) SET_ENTRY(dc_name, driver)
 
 /* Iterate over devclass's drivers
