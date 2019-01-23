@@ -13,8 +13,9 @@ RUN apt-get install -y --no-install-recommends \
 # gcc & libc6-dev required by newlib-3.0.0
 # patch required by bin/lua
 # socat required by launch
-RUN pip3 install -r pre_requirements.txt && \
-    pip3 install -r requirements.txt
+
+RUN pip3 install wheel==0.32.3 setuptools==40.60.3
+RUN pip3 install -r requirements.txt
 RUN curl -O http://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.3_amd64.deb && \
     dpkg -i mipsel-mimiker-elf_1.3_amd64.deb && rm -f mipsel-mimiker-elf_1.3_amd64.deb
 RUN curl -O http://mimiker.ii.uni.wroc.pl/download/aarch64-mimiker-elf_1.3_amd64.deb && \
