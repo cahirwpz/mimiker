@@ -260,13 +260,6 @@ static inline fdt32_t cpu_to_fdt32(uint32_t x) {
 /* Fdt functions */
 int fdt_check_header(const void *fdt);
 
-/* maybe not needed */
-void fdt_print_header_info(const void *fdt);
-
-/* prints whole tree */
-void print_whole_fdt(const void *fdt);
-void fdt_print_all_tags(const void *fdt);
-
 /**********************************************************************/
 /* Low-level functions (you probably don't need these)                */
 /**********************************************************************/
