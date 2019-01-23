@@ -40,4 +40,3 @@ $(SOURCES): assym.h
 
 clean-here:
 	$(RM) assym.h *-devhint.c
-	$(RM) malta-dtb.o malta.dtb

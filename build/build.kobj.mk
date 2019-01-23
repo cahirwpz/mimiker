@@ -22,4 +22,4 @@ include $(TOPDIR)/build/common.mk
 	  --redefine-sym _binary_$(@:%.o=%)_size=__$(@:%.o=%)_size \
 	  $< $@
 
-CLEAN-FILES += *.ka
+CLEAN-FILES += *_dtb.o *.dtb *.ka
