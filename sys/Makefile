@@ -19,6 +19,7 @@ SOURCES = \
 	exec.c \
 	exec_elf.c \
 	exec_shebang.c \
+	fdt.c \
 	file.c \
 	filedesc.c \
 	fork.c \
@@ -62,8 +63,7 @@ SOURCES = \
 	vfs_vnode.c \
 	vm_map.c \
 	vm_object.c \
-	vm_pager.c \
-	fdt.c
+	vm_pager.c
 
 include $(TOPDIR)/build/build.kobj.mk
 
