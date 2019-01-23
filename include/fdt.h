@@ -1,5 +1,5 @@
-#ifndef _FDT_H_
-#define _FDT_H_
+#ifndef _SYS_FDT_H_
+#define _SYS_FDT_H_
 
 /*
  * libfdt - Flat Device Tree manipulation
