@@ -1,5 +1,6 @@
 from .tailq import TailQueue
-from .utils import UserCommand, TextTable, global_var
+from .cmd import UserCommand
+from .utils import TextTable, global_var
 
 
 class KernelSegments(UserCommand):

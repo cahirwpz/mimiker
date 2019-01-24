@@ -1,7 +1,7 @@
 import gdb
 
-from .utils import (UserCommand, CommandDispatcher, GdbStructMeta, cast,
-                    TextTable)
+from .utils import TextTable, GdbStructMeta, cast
+from .cmd import UserCommand, CommandDispatcher
 
 
 PAGESIZE = 0x1000

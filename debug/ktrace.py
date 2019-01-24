@@ -1,5 +1,5 @@
 from .thread import ThreadCreateBP, ThreadSwitchBP
-from .utils import CommandDispatcher, TraceCommand
+from .cmd import CommandDispatcher, TraceCommand
 
 
 class ThreadCreateTrace(TraceCommand):

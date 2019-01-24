@@ -1,8 +1,8 @@
 import gdb
 import os.path
 
-from .utils import GdbStructMeta, TextTable
-from .utils import print_exception, global_var, enum, cstr, relpath
+from .cmd import print_exception
+from .utils import GdbStructMeta, TextTable, global_var, enum, cstr, relpath
 
 
 class TimeVal(metaclass=GdbStructMeta):

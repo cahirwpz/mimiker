@@ -1,9 +1,9 @@
 import gdb
 
 from .tailq import TailQueue
-from .utils import GdbStructMeta, OneArgAutoCompleteMixin, ProgramCounter
-from .utils import enum, cstr, func_ret_addr, local_var, print_exception
-from .utils import TextTable
+from .cmd import OneArgAutoCompleteMixin, print_exception
+from .utils import enum, cstr, func_ret_addr, local_var
+from .utils import TextTable, GdbStructMeta, ProgramCounter
 from .ctx import Context
 
 
