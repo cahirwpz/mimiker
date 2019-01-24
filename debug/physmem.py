@@ -2,37 +2,40 @@ import gdb
 
 from .tailq import TailQueue
 from .ptable import ptable, as_hex
+from .utils import UserCommand
 
 
-class KernelSegments():
+class KernelSegments(UserCommand):
+    """List physical memory segments"""
 
-    def invoke(self):
-        self.dump_segments()
+    def __init__(self):
+        super().__init__('segments')
 
     def get_all_segments(self):
         return TailQueue(gdb.parse_and_eval('seglist'), 'segq')
 
-    def dump_segments(self):
+    def __call__(self, args):
         segments = self.get_all_segments()
-        rows = [['Segment', 'Start', 'End', 'Pages no']]
+        rows = [['segment', 'start', 'end', 'pages']]
         for idx, seg in enumerate(segments):
             rows.append([str(idx), as_hex(seg['start']), as_hex(seg['end']),
-                         str(seg['npages'])])
+                         str(int(seg['npages']))])
         ptable(rows, header=True)
 
 
-class KernelFreePages():
+class KernelFreePages(UserCommand):
+    """List free pages within physical memory segments"""
 
-    def invoke(self):
-        self.dump_free_pages()
+    def __init__(self):
+        super().__init__('free_pages')
 
     def get_all_segments(self):
         return TailQueue(gdb.parse_and_eval('seglist'), 'segq')
 
     def dump_segment_freeq(self, idx, freeq, size):
         pages = TailQueue(freeq, 'freeq')
-        return [[str(idx), str(size), as_hex(page['paddr']),
-                 as_hex(page['vaddr'])] for page in pages]
+        return [[str(idx), str(size), as_hex(page['paddr'])]
+                for page in pages]
 
     def dump_segment_free_pages(self, idx, segment):
         helper = []
@@ -41,9 +44,9 @@ class KernelFreePages():
                 idx, segment['freeq'][q], 4 << q))
         return helper
 
-    def dump_free_pages(self):
+    def __call__(self, args):
         segments = self.get_all_segments()
-        rows = [['Segment', 'Page size', 'Physical', 'Virtual']]
+        rows = [['segment', 'page size', 'physical']]
         for idx, seg in enumerate(segments):
             rows.extend(self.dump_segment_free_pages(idx, seg))
         ptable(rows, header=True)

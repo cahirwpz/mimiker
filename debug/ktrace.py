@@ -1,27 +1,21 @@
-import gdb
-
-from .thread import CreateThreadTracer, CtxSwitchTracer
-from .utils import OneArgAutoCompleteMixin
+from .thread import ThreadCreateBP, ThreadSwitchBP
+from .utils import CommandDispatcher, TraceCommand
 
 
-class Ktrace(gdb.Command, OneArgAutoCompleteMixin):
-    """TODO: documentation"""
+class ThreadCreateTrace(TraceCommand):
+    """Trace thread create events"""
+    def __init__(self):
+        super().__init__('thread_create', ThreadCreateBP)
+
+
+class ThreadSwitchTrace(TraceCommand):
+    """Trace thread switch events"""
+    def __init__(self):
+        super().__init__('thread_switch', ThreadSwitchBP)
+
+
+class Ktrace(CommandDispatcher):
+    """Trace important kernel events."""
 
     def __init__(self):
-        super(Ktrace, self).__init__('ktrace', gdb.COMMAND_USER)
-
-        self.tracepoint = {
-            'thread-create': CreateThreadTracer(),
-            'ctx-switch': CtxSwitchTracer()
-        }
-
-    def invoke(self, args, from_tty):
-        if len(args) < 1:
-            raise gdb.GdbError('Usage: ktrace [tracepoint]. Tracepoints: {}.'
-                               .format(self.tracepoint.keys()))
-        if args not in self.tracepoint:
-            raise gdb.GdbError("No such tracepoint - {}.".format(args))
-        self.tracepoint[args].toggle()
-
-    def options(self):
-        return self.tracepoint.keys()
+        super().__init__('ktrace', [ThreadCreateTrace(), ThreadSwitchTrace()])
