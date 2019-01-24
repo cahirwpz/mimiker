@@ -1,7 +1,5 @@
-import gdb
-
 from .tailq import TailQueue
-from .utils import UserCommand, TextTable
+from .utils import UserCommand, TextTable, global_var
 
 
 class KernelSegments(UserCommand):
@@ -10,13 +8,10 @@ class KernelSegments(UserCommand):
     def __init__(self):
         super().__init__('segments')
 
-    def get_all_segments(self):
-        return TailQueue(gdb.parse_and_eval('seglist'), 'segq')
-
     def __call__(self, args):
-        segments = self.get_all_segments()
         table = TextTable(types='itti', align='rrrr')
         table.header(['segment', 'start', 'end', 'pages'])
+        segments = TailQueue(global_var('seglist'), 'segq')
         for idx, seg in enumerate(segments):
             table.add_row([idx, seg['start'], seg['end'], int(seg['npages'])])
         print(table)
@@ -28,24 +23,13 @@ class KernelFreePages(UserCommand):
     def __init__(self):
         super().__init__('free_pages')
 
-    def get_all_segments(self):
-        return TailQueue(gdb.parse_and_eval('seglist'), 'segq')
-
-    def dump_segment_freeq(self, idx, freeq, size):
-        pages = TailQueue(freeq, 'freeq')
-        return [[idx, size, hex(page['paddr'])] for page in pages]
-
-    def dump_segment_free_pages(self, idx, segment):
-        helper = []
-        for q in range(16):
-            helper.extend(self.dump_segment_freeq(
-                idx, segment['freeq'][q], 4 << q))
-        return helper
-
     def __call__(self, args):
-        segments = self.get_all_segments()
         table = TextTable(align='rrr')
-        for idx, seg in enumerate(segments):
-            table.add_rows(self.dump_segment_free_pages(idx, seg))
+        segments = TailQueue(global_var('seglist'), 'segq')
+        for idx, segment in enumerate(segments):
+            for q in range(16):
+                size = 4 << q
+                for page in TailQueue(segment['freeq'][q], 'freeq'):
+                    table.add_row([idx, size, hex(page['paddr'])])
         table.header(['segment', '#pages', 'phys addr'])
         print(table)

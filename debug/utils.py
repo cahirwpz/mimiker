@@ -42,6 +42,10 @@ def local_var(name):
     return gdb.newest_frame().read_var(name)
 
 
+def global_var(name):
+    return gdb.parse_and_eval(name)
+
+
 # calculates address of ret instruction within function body (MIPS specific)
 def func_ret_addr(name):
     s = gdb.execute('disass thread_create', to_string=True)
