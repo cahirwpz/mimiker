@@ -16,6 +16,15 @@ def local_var(name):
     return gdb.newest_frame().read_var(name)
 
 
+def print_exception(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except:
+            traceback.print_exc()
+    return wrapper
+
+
 # calculates address of ret instruction within function body (MIPS specific)
 def func_ret_addr(name):
     s = gdb.execute('disass thread_create', to_string=True)
@@ -130,6 +139,7 @@ class CommandDispatcher(gdb.Command, OneArgAutoCompleteMixin):
         return '\n'.join('{} {} -- {}'.format(self.name, name, cmd.__doc__)
                          for name, cmd in sorted(self.commands.items()))
 
+    @print_exception
     def invoke(self, args, from_tty):
         try:
             cmd, args = args.split(' ', 1)

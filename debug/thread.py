@@ -1,10 +1,9 @@
 import gdb
-import traceback
 
 from .ptable import ptable
 from .tailq import TailQueue
 from .utils import (GdbStructMeta, OneArgAutoCompleteMixin, ProgramCounter,
-                    enum, func_ret_addr, local_var)
+                    enum, func_ret_addr, local_var, print_exception)
 from .ctx import Context
 
 
@@ -110,18 +109,17 @@ class Kthread(gdb.Command, OneArgAutoCompleteMixin):
         print('(*) current thread marker')
         Thread.dump_list(Thread.list_all())
 
+    @print_exception
     def dump_one(self, found):
-        try:
-            print(found.dump())
-            print('\n>>> backtrace for %s' % found)
-            ctx = Context()
-            ctx.save()
-            Context.load(found.td_kctx)
-            gdb.execute('backtrace')
-            ctx.restore()
-        except:
-            traceback.print_exc()
+        print(found.dump())
+        print('\n>>> backtrace for %s' % found)
+        ctx = Context()
+        ctx.save()
+        Context.load(found.td_kctx)
+        gdb.execute('backtrace')
+        ctx.restore()
 
+    @print_exception
     def invoke(self, args, from_tty):
         if len(args) < 1:
             # give simplified view of all threads in the system

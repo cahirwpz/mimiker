@@ -2,7 +2,7 @@ import gdb
 import os.path
 
 from .ptable import ptable, as_hex
-from .utils import GdbStructMeta
+from .utils import GdbStructMeta, print_exception
 
 
 class TimeVal(metaclass=GdbStructMeta):
@@ -69,6 +69,7 @@ class Klog(gdb.Command):
     def __init__(self):
         super().__init__('klog', gdb.COMMAND_USER)
 
+    @print_exception
     def invoke(self, args, from_tty):
         klog = LogBuffer()
         self.dump_info(klog)
