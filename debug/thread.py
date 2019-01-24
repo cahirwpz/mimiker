@@ -1,8 +1,9 @@
 import gdb
 
 from .tailq import TailQueue
-from .utils import (GdbStructMeta, OneArgAutoCompleteMixin, ProgramCounter,
-                    enum, func_ret_addr, local_var, print_exception, TextTable)
+from .utils import GdbStructMeta, OneArgAutoCompleteMixin, ProgramCounter
+from .utils import enum, cstr, func_ret_addr, local_var, print_exception
+from .utils import TextTable
 from .ctx import Context
 
 
@@ -12,7 +13,7 @@ class Thread(metaclass=GdbStructMeta):
                 'td_tid': int,
                 'td_state': enum,
                 'td_prio': int,
-                'td_name': lambda x: x.string()}
+                'td_name': cstr}
 
     @staticmethod
     def pointer_type():

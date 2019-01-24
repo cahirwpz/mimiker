@@ -1,7 +1,8 @@
 import gdb
 import os.path
 
-from .utils import GdbStructMeta, TextTable, print_exception
+from .utils import GdbStructMeta, TextTable
+from .utils import print_exception, global_var, enum, cstr, relpath
 
 
 class TimeVal(metaclass=GdbStructMeta):
@@ -15,22 +16,21 @@ class TimeVal(metaclass=GdbStructMeta):
         return 'timeval{%.6f}' % self.as_float()
 
 
-class LogEntry():
-    def __init__(self, entry):
-        self.msg = entry['kl_format'].string()
-        # If there is % escaped it is not parameter.
-        nparams = self.msg.count('%') - 2 * self.msg.count('%%')
-        self.params = [entry['kl_params'][i] for i in range(nparams)]
-        self.timestamp = TimeVal(entry['kl_timestamp'])
-        self.tid = int(entry['kl_tid'])
-        self.source = os.path.basename(entry['kl_file'].string())
-        self.line = int(entry['kl_line'])
-        self.origin = str(entry['kl_origin'])
+class LogEntry(metaclass=GdbStructMeta):
+    __ctype__ = 'struct klog_entry'
+    __cast__ = {'kl_tid': int, 'kl_timestamp': TimeVal, 'kl_file': cstr,
+                'kl_format': cstr, 'kl_line': int, 'kl_origin': enum}
+
+    @property
+    def source(self):
+        return '{}:{}'.format(relpath(self.kl_file), self.kl_line)
 
     def format_msg(self):
-        msg = self.msg.replace('"', '\\"')
-        params = ', '.join([str(s) for s in self.params])
-        printf = 'printf "%s", %s' % (msg, params)
+        msg = self.kl_format.replace('"', '\\"')
+        # If there is % escaped it is not parameter.
+        nparams = msg.count('%') - 2 * msg.count('%%')
+        params = [str(self.kl_params[i]) for i in range(nparams)]
+        printf = 'printf "%s", %s' % (msg, ', '.join(params))
         try:
             # Using gdb printf so we don't need to dereference addresses.
             return gdb.execute(printf, to_string=True)
@@ -39,15 +39,13 @@ class LogEntry():
             return printf
 
 
-class LogBuffer():
-    def __init__(self):
-        klog = gdb.parse_and_eval('klog')
-        self.first = int(klog['first'])
-        self.last = int(klog['last'])
-        self.array = klog['array']
-        self.size = int(self.array.type.range()[1]) + 1
-        self.mask = int(klog['mask'])
-        self.verbose = bool(klog['verbose'])
+class LogBuffer(metaclass=GdbStructMeta):
+    __ctype__ = 'struct klog'
+    __cast__ = {'verbose': bool}
+
+    @property
+    def size(self):
+        return int(self.array.type.range()[1]) + 1
 
     def __iter__(self):
         first, last = self.first, self.last
@@ -70,21 +68,21 @@ class Klog(gdb.Command):
 
     @print_exception
     def invoke(self, args, from_tty):
-        klog = LogBuffer()
+        klog = LogBuffer(global_var('klog'))
         self.dump_info(klog)
         self.dump_messages(klog)
 
     def dump_info(self, klog):
-        table = TextTable(align='rrr')
+        table = TextTable(types='tti', align='rrr')
         table.header(['Mask', 'Verbose', 'Messages'])
         table.add_row([hex(klog.mask), klog.verbose, len(klog)])
         print(table)
 
     def dump_messages(self, klog):
-        table = TextTable(align='rrrrl')
+        table = TextTable(types='', align='rrlll')
         table.header(['Time', 'Id', 'Source', 'System', 'Message'])
+        table.set_precision(6)
         for entry in klog:
-            table.add_row(["%.6f" % entry.timestamp.as_float(), entry.tid,
-                           '{}:{}'.format(entry.source, entry.line),
-                           entry.origin, entry.format_msg()])
+            table.add_row([entry.kl_timestamp.as_float(), entry.kl_tid,
+                           entry.source, entry.kl_origin, entry.format_msg()])
         print(table)

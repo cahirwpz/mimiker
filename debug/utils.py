@@ -15,6 +15,43 @@ def print_exception(func):
     return wrapper
 
 
+def cast(value, typename):
+    return value.cast(gdb.lookup_type(typename))
+
+
+def cstr(val):
+    return val.string()
+
+
+def enum(v):
+    return v.type.target().fields()[int(v)].name
+
+
+def local_var(name):
+    return gdb.newest_frame().read_var(name)
+
+
+def global_var(name):
+    return gdb.parse_and_eval(name)
+
+
+def relpath(path):
+    cwd = os.getcwd()
+    if path.startswith(cwd):
+        n = len(cwd) + 1
+        path = path[n:]
+    return path
+
+
+# calculates address of ret instruction within function body (MIPS specific)
+def func_ret_addr(name):
+    s = gdb.execute('disass thread_create', to_string=True)
+    for line in s.split('\n'):
+        m = re.match(r'\s+(0x[0-9a-f]{8})\s+<\+\d+>:\tjr\tra', line)
+        if m:
+            return int(m.groups()[0], 16)
+
+
 class TextTable(texttable.Texttable):
     termsize = shutil.get_terminal_size(fallback=(80, 25))
 
@@ -30,31 +67,6 @@ class TextTable(texttable.Texttable):
         return self.draw()
 
 
-def cast(value, typename):
-    return value.cast(gdb.lookup_type(typename))
-
-
-def enum(v):
-    return v.type.target().fields()[int(v)].name
-
-
-def local_var(name):
-    return gdb.newest_frame().read_var(name)
-
-
-def global_var(name):
-    return gdb.parse_and_eval(name)
-
-
-# calculates address of ret instruction within function body (MIPS specific)
-def func_ret_addr(name):
-    s = gdb.execute('disass thread_create', to_string=True)
-    for line in s.split('\n'):
-        m = re.match(r'\s+(0x[0-9a-f]{8})\s+<\+\d+>:\tjr\tra', line)
-        if m:
-            return int(m.groups()[0], 16)
-
-
 class ProgramCounter():
     def __init__(self, pc):
         self.pc = cast(pc, 'unsigned long')
@@ -65,11 +77,7 @@ class ProgramCounter():
         line = gdb.execute('info line *0x%x' % self.pc, to_string=True)
         m = re.match(r'Line (\d+) of "(.*)"', line)
         lnum, path = m.groups()
-        cwd = os.getcwd()
-        if path.startswith(cwd):
-            n = len(cwd) + 1
-            path = path[n:]
-        return '%s:%s' % (path, lnum)
+        return '%s:%s' % (relpath(path), lnum)
 
 
 class OneArgAutoCompleteMixin():
