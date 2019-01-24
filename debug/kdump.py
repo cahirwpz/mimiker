@@ -1,5 +1,5 @@
 from .physmem import KernelSegments, KernelFreePages
-from .utils import CommandDispatcher
+from .cmd import CommandDispatcher
 
 
 class Kdump(CommandDispatcher):

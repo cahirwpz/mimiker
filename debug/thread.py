@@ -1,10 +1,8 @@
 import gdb
-import traceback
 
-from .ptable import ptable
-from .tailq import TailQueue
-from .utils import (GdbStructMeta, OneArgAutoCompleteMixin, ProgramCounter,
-                    enum, func_ret_addr, local_var)
+from .cmd import OneArgAutoCompleteMixin, print_exception
+from .struct import enum, cstr, GdbStructMeta, ProgramCounter, TailQueue
+from .utils import func_ret_addr, local_var, TextTable
 from .ctx import Context
 
 
@@ -14,7 +12,7 @@ class Thread(metaclass=GdbStructMeta):
                 'td_tid': int,
                 'td_state': enum,
                 'td_prio': int,
-                'td_name': lambda x: x.string()}
+                'td_name': cstr}
 
     @staticmethod
     def pointer_type():
@@ -30,13 +28,14 @@ class Thread(metaclass=GdbStructMeta):
 
     @staticmethod
     def dump_list(threads):
-        rows = [['Id', 'Name', 'State', 'Priority', 'Waiting Point']]
         curr_tid = Thread.current().td_tid
-        rows.extend([['', '(*) '][curr_tid == td.td_tid] + str(td.td_tid),
-                     td.td_name, str(td.td_state), str(td.td_prio),
-                     str(td.td_waitpt)]
-                    for td in threads)
-        ptable(rows, fmt='rllrl', header=True)
+        table = TextTable(types='ittit', align='rrrrl')
+        table.header(['Id', 'Name', 'State', 'Priority', 'Waiting Point'])
+        for td in threads:
+            marker = '(*) ' if curr_tid == td.td_tid else ''
+            table.add_row(['{}{}'.format(marker, td.td_tid), td.td_name,
+                           td.td_state, td.td_prio, td.td_waitpt])
+        print(table)
 
     @classmethod
     def list_all(cls):
@@ -111,17 +110,15 @@ class Kthread(gdb.Command, OneArgAutoCompleteMixin):
         Thread.dump_list(Thread.list_all())
 
     def dump_one(self, found):
-        try:
-            print(found.dump())
-            print('\n>>> backtrace for %s' % found)
-            ctx = Context()
-            ctx.save()
-            Context.load(found.td_kctx)
-            gdb.execute('backtrace')
-            ctx.restore()
-        except:
-            traceback.print_exc()
+        print(found.dump())
+        print('\n>>> backtrace for %s' % found)
+        ctx = Context()
+        ctx.save()
+        Context.load(found.td_kctx)
+        gdb.execute('backtrace')
+        ctx.restore()
 
+    @print_exception
     def invoke(self, args, from_tty):
         if len(args) < 1:
             # give simplified view of all threads in the system
@@ -137,3 +134,13 @@ class Kthread(gdb.Command, OneArgAutoCompleteMixin):
         threads = Thread.list_all()
         return sum([map(lambda td: td.td_name, threads),
                     map(lambda td: td.td_tid, threads)], [])
+
+
+class CurrentThread(gdb.Function):
+    """Return address of currently running thread."""
+
+    def __init__(self):
+        super().__init__('thread')
+
+    def invoke(self):
+        return gdb.parse_and_eval('_pcpu_data->curthread')
