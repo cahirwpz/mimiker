@@ -2,6 +2,9 @@ import gdb
 import re
 
 
+from .utils import cast, relpath
+
+
 def cstr(val):
     return val.string()
 
