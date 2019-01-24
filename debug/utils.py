@@ -102,8 +102,26 @@ class UserCommand():
         raise NotImplementedError
 
 
+class TraceCommand(UserCommand):
+    def __init__(self, name, breakpoint):
+        super().__init__(name)
+        self.__instance = None
+        self.breakpoint = breakpoint
+
+    def __call__(self, args):
+        if self.__instance:
+            print('{} deactivated!'.format(self.__doc__))
+            self.__instance.delete()
+            self.__instance = None
+        else:
+            print('{} activated!'.format(self.__doc__))
+            self.__instance = self.breakpoint()
+
+
 class CommandDispatcher(gdb.Command, OneArgAutoCompleteMixin):
     def __init__(self, name, commands):
+        assert all(isinstance(cmd, UserCommand) for cmd in commands)
+
         self.name = name
         self.commands = {cmd.name: cmd for cmd in commands}
         super().__init__(name, gdb.COMMAND_USER)
