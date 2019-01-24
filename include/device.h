@@ -68,7 +68,7 @@ void device_add_resource(device_t *dev, resource_t *r, int rid);
 int device_get_fullname(device_t *dev, char *buff, int size);
 
 /* Construct device's full path to the root store it in \buff */
-void device_construct_fullpath(device_t *dev, char* buff, size_t size);
+void device_construct_fullpath(device_t *dev, char *buff, size_t size);
 
 /* A universal memory pool to be used by all drivers. */
 MALLOC_DECLARE(M_DEV);
