@@ -1,6 +1,7 @@
 import gdb
 import os
 import re
+import traceback
 
 
 def cast(value, typename):
@@ -45,16 +46,18 @@ class OneArgAutoCompleteMixin():
     def options(self):
         raise NotImplementedError
 
+    def complete_rest(self, first, text, word):
+        return []
+
     # XXX: Completion does not play well when there are hypens in keywords.
     def complete(self, text, word):
-        args = text.split(' ')
         options = list(self.options())
-        if len(args) == 0:
-            return options
-        if len(args) >= 2:
-            return []
-        return [option for option in options
-                if option.startswith(args[0]) and args[0] != option]
+        try:
+            first, rest = text.split(' ', 1)
+        except ValueError:
+            return [option for option in options
+                    if option.startswith(text) and text != option]
+        return self.complete_rest(first, rest, word)
 
 
 class GdbStructBase():
@@ -89,3 +92,43 @@ class GdbStructMeta(type):
             dct[f.name] = property(mkgetter(f.name, caster))
         # classes created with GdbStructMeta will inherit from GdbStructBase
         return super().__new__(cls, name, (GdbStructBase,) + bases, dct)
+
+
+class UserCommand():
+    def __init__(self, name):
+        self.name = name
+
+    def __call__(self, args):
+        raise NotImplementedError
+
+
+class CommandDispatcher(gdb.Command, OneArgAutoCompleteMixin):
+    def __init__(self, name, commands):
+        self.name = name
+        self.commands = {cmd.name: cmd for cmd in commands}
+        super().__init__(name, gdb.COMMAND_USER)
+
+    def list_commands(self):
+        return '\n'.join('{} {} -- {}'.format(self.name, name, cmd.__doc__)
+                         for name, cmd in sorted(self.commands.items()))
+
+    def invoke(self, args, from_tty):
+        try:
+            cmd, args = args.split(' ', 1)
+        except ValueError:
+            cmd, args = args, ''
+
+        if not cmd:
+            raise gdb.GdbError('{}\n\nList of commands:\n\n{}'.format(
+                               self.__doc__, self.list_commands()))
+
+        if cmd not in self.commands:
+            raise gdb.GdbError('No such subcommand "{}"'.format(cmd))
+
+        try:
+            self.commands[cmd](args)
+        except:
+            traceback.print_exc()
+
+    def options(self):
+        return list(self.commands.keys())
