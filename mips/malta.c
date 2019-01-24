@@ -20,6 +20,7 @@
 #include <thread.h>
 #include <turnstile.h>
 #include <vm_map.h>
+#include <syslimits.h>
 
 extern int kernel_init(int argc, char **argv);
 
@@ -35,120 +36,42 @@ static const char *token_separator = " \t\"";
 static const char *quot_str = "\"";
 static const char quot_char = '\"';
 /*
-<token>        ::= <token_prefix>[<token_suffix>]
-<token_prefix> ::= any sequence of characters distinct
+  <token>        ::= <token_prefix>[<token_suffix>]
+  <token_prefix> ::= any sequence of characters distinct
                    than whitespace or quot_char
-<token_suffix> ::= <quot_char>any sequence of characters distinct
+  <token_suffix> ::= <quot_char>any sequence of characters distinct
                    than quot_char<quot_char>
-*/
-static size_t next_token_size(const char *input) {
-  size_t prefix_size = strcspn(input, token_separator);
-  size_t suffix_size = 0;
-
-  if (input[prefix_size] == quot_char)
-    suffix_size = strcspn(input + prefix_size + 1, quot_str) + 2;
-
-  return prefix_size + suffix_size;
-}
-
-/*
   <token_sequence> ::=
   <whitespace>*[<token><whitespace>*(<whitespace><token>(<whitespace>)*)*]
 */
-static size_t count_tokens(const char *token_sequence) {
-  size_t ntokens = 0;
 
-  do {
-    token_sequence += strspn(token_sequence, whitespace);
-    if (*token_sequence == '\0')
-      return ntokens;
-    token_sequence += next_token_size(token_sequence);
-    ntokens++;
-  } while (true);
+static size_t token_size(const char *input) {
+  size_t len = strcspn(input, token_separator);
+  if (input[len] == quot_char)
+    len += strcspn(input + len + 1, quot_str) + 2;
+  return len;
 }
 
-static char **extract_tokens(const char *token_sequence, char **tokens_p) {
-  do {
-    token_sequence += strspn(token_sequence, whitespace);
-    if (*token_sequence == '\0')
-      return tokens_p;
-    size_t token_size = next_token_size(token_sequence);
-    /* copy the token to memory managed by the kernel */
-    char *token = kbss_grow(token_size + 1);
-    strlcpy(token, token_sequence, token_size + 1);
-    *tokens_p++ = token;
-    token_sequence += token_size;
-  } while (true);
-}
-
-static char *make_pair(char *key, char *value) {
-  int arglen = strlen(key) + strlen(value) + 2;
-  char *arg = kbss_grow(arglen * sizeof(char));
-  strlcpy(arg, key, arglen);
-  strlcat(arg, "=", arglen);
-  strlcat(arg, value, arglen);
-  return arg;
-}
-
-/*
- * For some reason arguments passed to kernel are not correctly splitted
- * in argv array - in our case all arguments are stored in one string argv[1],
- * but we want to keep every argument in separate argv entry. This function
- * tokenize all argv strings and store every single token into individual entry
- * of new array.
- *
- * For our needs we also convert passed environment variables and put them
- * into new argv array.
- *
- * Example:
- *
- *   For arguments:
- *     argc=3;
- *     argv={"test.elf", "arg1 arg2=val   arg3=foobar  ", "  init=/bin/sh "};
- *     envp={"memsize", "128MiB", "uart.speed", "115200"};
- *
- *   instruction:
- *     setup_kenv(argc, argv, envp);
- *
- *   will set global variable _kenv as follows:
- *     _kenv.argc=5;
- *     _kenv.argv={"test.elf", "arg1", "arg2=val", "arg3=foobar",
- *                 "init=/bin/sh", "memsize=128MiB", "uart.speed=115200"};
- */
-static void setup_kenv(int argc, char **argv, char **envp) {
+static char **extract_tokens(char *seq) {
   unsigned ntokens = 0;
-
-  for (int i = 0; i < argc; ++i)
-    ntokens += count_tokens(argv[i]);
-  for (char **pair = envp; *pair; pair += 2)
+  for (char *p = seq; *(p += strspn(p, whitespace)); p += token_size(p))
     ntokens++;
-
-  _kenv.argc = ntokens;
-
-  char **tokens = kbss_grow(ntokens * sizeof(char *));
-
-  _kenv.argv = tokens;
-
-  for (int i = 0; i < argc; ++i)
-    tokens = extract_tokens(argv[i], tokens);
-  for (char **pair = envp; *pair; pair += 2)
-    *tokens++ = make_pair(pair[0], pair[1]);
+  char **tokens = kbss_grow((ntokens + 1) * sizeof(char *)), **ret = tokens;
+  size_t len1;
+  for (char *p = seq; *(p += strspn(p, whitespace)); p += len1 - 1) {
+    len1 = token_size(p) + 1;
+    *tokens = kbss_grow(len1 * sizeof(char));
+    strlcpy(*tokens++, p, len1);
+  }
+  return ret;
 }
 
-static char **setup_user_strs(char *quoted_args) {
-  if (!quoted_args)
-    return NULL;
-
-  const size_t args_size = strlen(quoted_args) - 1;
-  char *args = kbss_grow(args_size);
-  strlcpy(args, quoted_args + 1, args_size);
-
-  unsigned ntokens = count_tokens(args);
-  char **user_argv = kbss_grow((ntokens + 1) * sizeof(char *));
-  extract_tokens(args, user_argv);
-  user_argv[ntokens] = NULL;
-
-  return user_argv;
+static char **extract_qtd_tokens(char *qseq) {
+  size_t len = strcspn(++qseq, quot_str);
+  qseq[len] = '\0';
+  char **ret = extract_tokens(qseq);
+  qseq[len] = quot_char;
+  return ret;
 }
 
 char *kenv_get(const char *key) {
@@ -159,8 +82,26 @@ char *kenv_get(const char *key) {
     if ((strncmp(arg, key, n) == 0) && (arg[n] == '='))
       return arg + n + 1;
   }
-
   return NULL;
+}
+
+static void setup_kenv(int argc, char **argv) {
+  size_t args_len = 1;
+  for (int i = 0; i < argc; i++)
+    args_len += strlen(argv[i]) + 1;
+
+  char *args_seq = kbss_grow(args_len * sizeof(char)), *p = args_seq;
+  for (int i = 0; i < argc; i++)
+    p = p + strlcpy(p, argv[i], ARG_MAX), *p++ = *whitespace;
+
+  _kenv.argv = extract_tokens(args_seq);
+  while (*(_kenv.argv + _kenv.argc))
+    _kenv.argc++;
+
+  if ((p = kenv_get("init")))
+    _kenv.user_argv = extract_qtd_tokens(p);
+  _kenv.user_envv =
+    (p = kenv_get("envv")) ? extract_qtd_tokens(p) : (char *[]){NULL};
 }
 
 char **kenv_get_user_argv(void) {
@@ -169,14 +110,6 @@ char **kenv_get_user_argv(void) {
 
 char **kenv_get_user_envv(void) {
   return _kenv.user_envv;
-}
-
-static void setup_user_argv(void) {
-
-  _kenv.user_argv = setup_user_strs(kenv_get("init"));
-  _kenv.user_envv = setup_user_strs(kenv_get("envv"));
-  if (!_kenv.user_envv)
-    _kenv.user_envv = (char *[]){NULL};
 }
 
 extern uint8_t __kernel_start[];
@@ -220,7 +153,7 @@ static void thread_bootstrap(void) {
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   kbss_init();
 
-  setup_kenv(argc, argv, envp);
+  setup_kenv(argc, argv);
   cn_init();
   klog_init();
   pcpu_init();
@@ -236,7 +169,6 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   sleepq_init();
   turnstile_init();
   thread_bootstrap();
-  setup_user_argv();
 
   klog("Switching to 'kernel-main' thread...");
 }
