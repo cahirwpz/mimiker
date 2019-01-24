@@ -1,6 +1,7 @@
 import gdb
 
-from .utils import TextTable, GdbStructMeta, cast
+from .struct import GdbStructMeta
+from .utils import TextTable, cast
 from .cmd import UserCommand, CommandDispatcher
 
 

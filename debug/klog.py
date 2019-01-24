@@ -2,18 +2,8 @@ import gdb
 import os.path
 
 from .cmd import print_exception
-from .utils import GdbStructMeta, TextTable, global_var, enum, cstr, relpath
-
-
-class TimeVal(metaclass=GdbStructMeta):
-    __ctype__ = 'struct timeval'
-    __cast__ = {'tv_sec': int, 'tv_usec': int}
-
-    def as_float(self):
-        return float(self.tv_sec) + float(self.tv_usec) * 1e-6
-
-    def __str__(self):
-        return 'timeval{%.6f}' % self.as_float()
+from .struct import GdbStructMeta, enum, cstr, TimeVal
+from .utils import TextTable, global_var, relpath
 
 
 class LogEntry(metaclass=GdbStructMeta):

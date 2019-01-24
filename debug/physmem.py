@@ -1,4 +1,4 @@
-from .tailq import TailQueue
+from .struct import TailQueue
 from .cmd import UserCommand
 from .utils import TextTable, global_var
 
