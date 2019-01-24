@@ -123,7 +123,7 @@ extern device_t *gt_pci;
 
 static void rtc_init(void) {
   vnodeops_init(&rtc_time_vnodeops);
-  (void)make_device(gt_pci, &rtc_driver);
+  (void)make_device(gt_pci, &rtc_driver, "rtc", 0x70);
 }
 
 SYSINIT_ADD(rtc, rtc_init, DEPS("rootdev"));

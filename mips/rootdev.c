@@ -37,6 +37,9 @@ static int rootdev_attach(device_t *dev) {
 
   gt_pci = device_add_child(dev);
   gt_pci->driver = &gt_pci_bus.driver;
+  // TODO: Is it the right place to provide name and unit?
+  gt_pci->name = "pci";
+  gt_pci->unit = 0;
   if (device_probe(gt_pci))
     device_attach(gt_pci);
   return 0;
@@ -100,6 +103,9 @@ static device_t rootdev = (device_t){
   .driver = (driver_t *)&rootdev_driver,
   .instance = &(rootdev_t){},
   .state = NULL,
+  .parent = NULL,
+  .name = "root",
+  .unit = 0,
 };
 
 static void rootdev_init(void) {

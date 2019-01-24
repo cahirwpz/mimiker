@@ -17,6 +17,9 @@ typedef int (*d_probe_t)(device_t *dev);
 typedef int (*d_attach_t)(device_t *dev);
 typedef int (*d_detach_t)(device_t *dev);
 
+#define MAX_DEV_NAME_LEN 32
+#define PATHBUF_LEN 100
+
 struct driver {
   const char *desc;      /* short driver description */
   size_t size;           /* device->state object size */
@@ -39,6 +42,8 @@ struct device {
   res_list_t resources;     /* head of resources belonging to this device */
 
   /* Device information and state. */
+  int unit;
+  char *name;
   device_bus_t bus;
   driver_t *driver;
   void *instance; /* used by bus driver to store data in children */
@@ -50,13 +55,20 @@ int device_probe(device_t *dev);
 int device_attach(device_t *dev);
 int device_detach(device_t *dev);
 
-/* Manually create a device with given driver and parent device. */
-device_t *make_device(device_t *parent, driver_t *driver);
+/* Create a device with given \parent device, \driver
+ * and set device's \name and \unit  */
+device_t *make_device(device_t *parent, driver_t *driver, char *name, int unit);
 
 /*! \brief Prepares and adds a resource to a device.
  *
  * \note Mostly used in bus drivers. */
 void device_add_resource(device_t *dev, resource_t *r, int rid);
+
+/* Construct device's full name and store it in \buff */
+int device_get_fullname(device_t *dev, char *buff, int size);
+
+/* Construct device's full path to the root store it in \buff */
+void device_construct_fullpath(device_t *dev, char* buff, size_t size);
 
 /* A universal memory pool to be used by all drivers. */
 MALLOC_DECLARE(M_DEV);

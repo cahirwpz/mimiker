@@ -168,7 +168,7 @@ static driver_t ns16550_driver = {
 extern device_t *gt_pci;
 
 static void ns16550_init(void) {
-  (void)make_device(gt_pci, &ns16550_driver);
+  (void)make_device(gt_pci, &ns16550_driver, "serial", 0x3f8);
 }
 
 SYSINIT_ADD(ns16550, ns16550_init, DEPS("rootdev"));
