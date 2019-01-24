@@ -133,3 +133,13 @@ class Kthread(gdb.Command, OneArgAutoCompleteMixin):
         threads = Thread.list_all()
         return sum([map(lambda td: td.td_name, threads),
                     map(lambda td: td.td_tid, threads)], [])
+
+
+class CurrentThread(gdb.Function):
+    """Return address of currently running thread."""
+
+    def __init__(self):
+        super().__init__('thread')
+
+    def invoke(self):
+        return gdb.parse_and_eval('_pcpu_data->curthread')
