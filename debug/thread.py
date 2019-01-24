@@ -1,9 +1,8 @@
 import gdb
 
-from .ptable import ptable
 from .tailq import TailQueue
 from .utils import (GdbStructMeta, OneArgAutoCompleteMixin, ProgramCounter,
-                    enum, func_ret_addr, local_var, print_exception)
+                    enum, func_ret_addr, local_var, print_exception, TextTable)
 from .ctx import Context
 
 
@@ -29,13 +28,13 @@ class Thread(metaclass=GdbStructMeta):
 
     @staticmethod
     def dump_list(threads):
-        rows = [['Id', 'Name', 'State', 'Priority', 'Waiting Point']]
         curr_tid = Thread.current().td_tid
-        rows.extend([['', '(*) '][curr_tid == td.td_tid] + str(td.td_tid),
-                     td.td_name, str(td.td_state), str(td.td_prio),
-                     str(td.td_waitpt)]
-                    for td in threads)
-        ptable(rows, fmt='rllrl', header=True)
+        table = TextTable(types='ittit', align='rrrrl')
+        table.header(['Id', 'Name', 'State', 'Priority', 'Waiting Point'])
+        for td in threads:
+            table.add_row([['', '(*) '][curr_tid == td.td_tid] + str(td.td_tid),
+                           td.td_name, td.td_state, td.td_prio, td.td_waitpt])
+        print(table)
 
     @classmethod
     def list_all(cls):
@@ -109,7 +108,6 @@ class Kthread(gdb.Command, OneArgAutoCompleteMixin):
         print('(*) current thread marker')
         Thread.dump_list(Thread.list_all())
 
-    @print_exception
     def dump_one(self, found):
         print(found.dump())
         print('\n>>> backtrace for %s' % found)

@@ -1,7 +1,33 @@
 import gdb
 import os
 import re
+import shutil
 import traceback
+import texttable
+
+
+def print_exception(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except:
+            traceback.print_exc()
+    return wrapper
+
+
+class TextTable(texttable.Texttable):
+    termsize = shutil.get_terminal_size(fallback=(80, 25))
+
+    def __init__(self, types=None, align=None):
+        super().__init__(self.termsize[0])
+        self.set_deco(self.HEADER|self.VLINES|self.BORDER)
+        if types:
+            self.set_cols_dtype(types)
+        if align:
+            self.set_cols_align(align)
+
+    def __str__(self):
+        return self.draw()
 
 
 def cast(value, typename):
@@ -14,15 +40,6 @@ def enum(v):
 
 def local_var(name):
     return gdb.newest_frame().read_var(name)
-
-
-def print_exception(func):
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except:
-            traceback.print_exc()
-    return wrapper
 
 
 # calculates address of ret instruction within function body (MIPS specific)

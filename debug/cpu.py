@@ -1,7 +1,7 @@
 import gdb
 
-from .utils import UserCommand, CommandDispatcher, GdbStructMeta, cast
-from .ptable import ptable, as_hex
+from .utils import (UserCommand, CommandDispatcher, GdbStructMeta, cast,
+                    TextTable)
 
 
 PAGESIZE = 0x1000
@@ -66,13 +66,14 @@ class TLB(UserCommand):
         super().__init__('tlb')
 
     def __call__(self, args):
-        rows = [["Index", "ASID", "PFN0", "PFN1"]]
+        table = TextTable(align='rrll')
+        table.header(["Index", "ASID", "PFN0", "PFN1"])
         for idx in range(TLB.size()):
             row = TLB.read(idx).dump()
             if row is None:
                 continue
-            rows.append([str(idx)] + row)
-        ptable(rows, fmt="rrll", header=True)
+            table.add_row([str(idx)] + row)
+        print(table)
 
     @staticmethod
     def read(idx):

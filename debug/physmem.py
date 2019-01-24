@@ -1,8 +1,7 @@
 import gdb
 
 from .tailq import TailQueue
-from .ptable import ptable, as_hex
-from .utils import UserCommand
+from .utils import UserCommand, TextTable
 
 
 class KernelSegments(UserCommand):
@@ -16,11 +15,11 @@ class KernelSegments(UserCommand):
 
     def __call__(self, args):
         segments = self.get_all_segments()
-        rows = [['segment', 'start', 'end', 'pages']]
+        table = TextTable(types='itti', align='rrrr')
+        table.header(['segment', 'start', 'end', 'pages'])
         for idx, seg in enumerate(segments):
-            rows.append([str(idx), as_hex(seg['start']), as_hex(seg['end']),
-                         str(int(seg['npages']))])
-        ptable(rows, header=True)
+            table.add_row([idx, seg['start'], seg['end'], int(seg['npages'])])
+        print(table)
 
 
 class KernelFreePages(UserCommand):
@@ -34,8 +33,7 @@ class KernelFreePages(UserCommand):
 
     def dump_segment_freeq(self, idx, freeq, size):
         pages = TailQueue(freeq, 'freeq')
-        return [[str(idx), str(size), as_hex(page['paddr'])]
-                for page in pages]
+        return [[idx, size, hex(page['paddr'])] for page in pages]
 
     def dump_segment_free_pages(self, idx, segment):
         helper = []
@@ -46,7 +44,8 @@ class KernelFreePages(UserCommand):
 
     def __call__(self, args):
         segments = self.get_all_segments()
-        rows = [['segment', 'page size', 'physical']]
+        table = TextTable(align='rrr')
         for idx, seg in enumerate(segments):
-            rows.extend(self.dump_segment_free_pages(idx, seg))
-        ptable(rows, header=True)
+            table.add_rows(self.dump_segment_free_pages(idx, seg))
+        table.header(['segment', '#pages', 'phys addr'])
+        print(table)

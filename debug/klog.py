@@ -1,8 +1,7 @@
 import gdb
 import os.path
 
-from .ptable import ptable, as_hex
-from .utils import GdbStructMeta, print_exception
+from .utils import GdbStructMeta, TextTable, print_exception
 
 
 class TimeVal(metaclass=GdbStructMeta):
@@ -76,15 +75,16 @@ class Klog(gdb.Command):
         self.dump_messages(klog)
 
     def dump_info(self, klog):
-        rows = [['Mask', as_hex(klog.mask)],
-                ['Verbose', str(klog.verbose)],
-                ['Messages', str(len(klog))]]
-        ptable(rows, header=False, fmt='rl')
+        table = TextTable(align='rrr')
+        table.header(['Mask', 'Verbose', 'Messages'])
+        table.add_row([hex(klog.mask), klog.verbose, len(klog)])
+        print(table)
 
     def dump_messages(self, klog):
-        rows = [['Time', 'Id', 'Source', 'System', 'Message']]
+        table = TextTable(align='rrrrl')
+        table.header(['Time', 'Id', 'Source', 'System', 'Message'])
         for entry in klog:
-            rows.append(["%.6f" % entry.timestamp.as_float(), str(entry.tid),
-                         "%s:%d" % (entry.source, entry.line),
-                         entry.origin, entry.format_msg()])
-        ptable(rows, header=True, fmt='rrrrl')
+            table.add_row(["%.6f" % entry.timestamp.as_float(), entry.tid,
+                           '{}:{}'.format(entry.source, entry.line),
+                           entry.origin, entry.format_msg()])
+        print(table)
