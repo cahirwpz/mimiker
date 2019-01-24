@@ -32,8 +32,9 @@ class Thread(metaclass=GdbStructMeta):
         table = TextTable(types='ittit', align='rrrrl')
         table.header(['Id', 'Name', 'State', 'Priority', 'Waiting Point'])
         for td in threads:
-            table.add_row([['', '(*) '][curr_tid == td.td_tid] + str(td.td_tid),
-                           td.td_name, td.td_state, td.td_prio, td.td_waitpt])
+            marker = '(*) ' if curr_tid == td.td_tid else ''
+            table.add_row(['{}{}'.format(marker, td.td_tid), td.td_name,
+                           td.td_state, td.td_prio, td.td_waitpt])
         print(table)
 
     @classmethod

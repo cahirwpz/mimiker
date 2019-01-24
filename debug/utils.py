@@ -20,7 +20,7 @@ class TextTable(texttable.Texttable):
 
     def __init__(self, types=None, align=None):
         super().__init__(self.termsize[0])
-        self.set_deco(self.HEADER|self.VLINES|self.BORDER)
+        self.set_deco(self.HEADER | self.VLINES | self.BORDER)
         if types:
             self.set_cols_dtype(types)
         if align:
