@@ -1,11 +1,13 @@
 import gdb
 
-from .ktrace import Ktrace
-from .kdump import Kdump
-from .klog import Klog, TimeVal
 from .cpu import Cpu
-from .thread import Kthread, Thread, CurrentThread
+from .kdump import Kdump
+from .klog import Klog
+from .ktrace import Ktrace
+from .proc import Kprocess
+from .struct import TimeVal
 from .sync import CondVar, Mutex
+from .thread import Kthread, Thread, CurrentThread
 
 
 def addPrettyPrinters():
@@ -19,11 +21,12 @@ def addPrettyPrinters():
 addPrettyPrinters()
 
 # Commands
-Ktrace()
-Kthread()
 Cpu()
 Kdump()
 Klog()
+Kprocess()
+Kthread()
+Ktrace()
 
 # Functions
 CurrentThread()

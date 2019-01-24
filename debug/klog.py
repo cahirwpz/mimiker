@@ -54,7 +54,7 @@ class Klog(SimpleCommand):
     """Display kernel log buffer."""
 
     def __init__(self):
-        super().__init__('klog', gdb.COMMAND_USER)
+        super().__init__('klog')
 
     def __call__(self, args):
         klog = LogBuffer(global_var('klog'))
