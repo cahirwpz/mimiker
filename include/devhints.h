@@ -7,10 +7,6 @@
 #include <fdt.h>
 #include <klog.h>
 
-/*
-void construct_device_path(device_t *dev, char* buff, size_t buff_size) {
-*/
-
 void bus_enumerate_hinted_children(device_t *bus);
 
 void generic_hinted_child(device_t *bus, const void *fdt, int nodeoffset);
