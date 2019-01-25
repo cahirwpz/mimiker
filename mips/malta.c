@@ -54,14 +54,18 @@ static size_t token_size(const char *input) {
 
 static char **extract_tokens(char *seq) {
   unsigned ntokens = 0;
-  for (char *p = seq; *(p += strspn(p, whitespace)); p += token_size(p))
+  seq += strspn(seq, whitespace);
+  for (char *p = seq; *p; p += strspn(p, whitespace)) {
+    p += token_size(p);
     ntokens++;
+  }
   char **tokens = kbss_grow((ntokens + 1) * sizeof(char *)), **ret = tokens;
-  size_t len1;
-  for (char *p = seq; *(p += strspn(p, whitespace)); p += len1 - 1) {
-    len1 = token_size(p) + 1;
-    *tokens = kbss_grow(len1 * sizeof(char));
-    strlcpy(*tokens++, p, len1);
+
+  for (char *p = seq; *p; p += strspn(p, whitespace)) {
+    size_t len = token_size(p);
+    *tokens = kbss_grow((len + 1) * sizeof(char));
+    strlcpy(*tokens++, p, len + 1);
+    p += len;
   }
   return ret;
 }
@@ -85,15 +89,16 @@ char *kenv_get(const char *key) {
   return NULL;
 }
 
-static void setup_kenv(int argc, char **argv) {
+static void setup_kenv(int pfm_argc, char **pfm_argv) {
   size_t args_len = 1;
-  for (int i = 0; i < argc; i++)
-    args_len += strlen(argv[i]) + 1;
+  for (int i = 0; i < pfm_argc; i++)
+    args_len += strlen(pfm_argv[i]) + 1;
 
   char *args_seq = kbss_grow(args_len * sizeof(char)), *p = args_seq;
-  for (int i = 0; i < argc; i++)
-    p = p + strlcpy(p, argv[i], ARG_MAX), *p++ = *whitespace;
-
+  for (int i = 0; i < pfm_argc; i++) {
+    p += strlcpy(p, pfm_argv[i], ARG_MAX);
+    *p++ = *whitespace;
+  }
   _kenv.argv = extract_tokens(args_seq);
   while (*(_kenv.argv + _kenv.argc))
     _kenv.argc++;

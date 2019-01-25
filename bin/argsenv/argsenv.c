@@ -48,7 +48,7 @@ int test(char** a, char** b)
 int main(int argc, char **argv, char **envv) {
   printf("This is argsenv program. You can use it for testing and "
          "experiments in userspace. Don't commit any useful kernel tests here, "
-         "please place them in utest program. ;%s;\n", testar[0][2]);
+         "please place them in utest program.\n");
 
   printf("argc is: %d\n", argc);
   for (int i = 0; i < argc; i++)
