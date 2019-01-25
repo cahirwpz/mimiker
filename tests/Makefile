@@ -33,6 +33,8 @@ SOURCES = \
 	devclass.c \
 	vfs.c
 
+OBJECTS += test_dtb.o
+
 include $(TOPDIR)/build/build.kobj.mk
 
 build-here: libtests.ka

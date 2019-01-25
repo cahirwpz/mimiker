@@ -1,0 +1,33 @@
+/dts-v1/;
+
+/ {
+    pci@0 {
+
+        isa@0 {
+            compatible = "isa";
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            rtc@0 {
+                compatible = "rtc";
+                reg = <0x70 0x10>;
+                interrupts = <8>;
+            };
+
+            uart@0 {
+                compatible = "ns16550";
+                reg = <0x3f8 0x40>;
+                interrupts = <3>;
+                status = "disabled";
+            };
+
+            uart@1 {
+                compatible = "ns16550";
+                reg = <0x2f8 0x40>;
+                interrupts = <4>;
+                status = "disabled";
+            };
+
+        };
+    };
+};
