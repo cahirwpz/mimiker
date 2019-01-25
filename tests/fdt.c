@@ -10,7 +10,7 @@ const void *fdt = (const void *)__malta_dtb_start;
 
 static int test_fdt_path_offset(void) {
   // TODO: This test depends on actual dts file, which may change in future
-  // and is platform-depentend
+  // and is platform-dependent
   assert(fdt_path_offset(fdt, "/pci@0/isa@1000") != -1);
   assert(fdt_path_offset(fdt, "/pci/isa") != -1);
   assert(fdt_path_offset(fdt, "/non/existing/path") == -1);
@@ -19,7 +19,7 @@ static int test_fdt_path_offset(void) {
 
 static int test_fdt_get_path(void) {
   // TODO: This test depends on actual dts file, which may change in future
-  // and is platform-depentend
+  // and is platform-dependent
   const char *expected_path = "/pci@0/isa@1000";
   char actual_path[PATHBUF_LEN];
 
