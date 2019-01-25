@@ -2,8 +2,8 @@
 #include <ktest.h>
 #include <klog.h>
 #include <fdt.h>
-#include <devhints.h>
-#include <devclass.h>
+
+#define PATHBUF_LEN 100
 
 extern uint8_t __malta_dtb_start[];
 const void *fdt = (const void *)__malta_dtb_start;
