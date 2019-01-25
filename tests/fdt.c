@@ -26,7 +26,7 @@ static int test_fdt_get_path(void) {
   int offset = fdt_path_offset(fdt, expected_path);
   fdt_get_path(fdt, offset, actual_path, PATHBUF_LEN);
 
-  assert(strcmp(actual_path, expected_path) == 0);
+  assert(!strcmp(actual_path, expected_path));
   return KTEST_SUCCESS;
 }
 
@@ -38,7 +38,7 @@ static int test_fdt_getprop(void) {
 
   nodeoffset = fdt_path_offset(fdt, node_path);
   prop_ptr = fdt_getprop(fdt, nodeoffset, "compatible", &proplen);
-  assert(strcmp(prop_ptr->data, "atkbdc"));
+  assert(!strcmp(prop_ptr->data, "atkbdc"));
 
   nodeoffset = fdt_path_offset(fdt, node_path);
   prop_ptr = fdt_getprop(fdt, nodeoffset, "non_existing_prop", &proplen);
