@@ -30,10 +30,15 @@ void intr_enable(void) {
     mips_intr_enable();
 }
 
-void intr_event_init(intr_event_t *ie, unsigned irq, const char *name) {
+void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
+                     void (*mask_irq)(void *), void (*unmask_irq)(void *),
+                     void *source) {
   ie->ie_irq = irq;
   ie->ie_name = name;
   ie->ie_lock = SPIN_INITIALIZER(LK_RECURSE);
+  ie->ie_mask_irq = mask_irq;
+  ie->ie_unmask_irq = unmask_irq;
+  ie->ie_source = source;
   TAILQ_INIT(&ie->ie_handlers);
 }
 
@@ -77,19 +82,18 @@ void intr_event_remove_handler(intr_handler_t *ih) {
 typedef TAILQ_HEAD(, intr_handler) ih_list_t;
 static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
 
-static void run_eoi(intr_handler_t *ih) {
-  if (ih->ih_eoi != NULL) {
-    ih->ih_eoi(ih->ih_argument);
+static void run_mask_irq(intr_handler_t *ih) {
+  intr_event_t *ie = ih->ih_event;
+  if (ie->ie_mask_irq != NULL) {
+    ie->ie_mask_irq(ie->ie_source);
   }
 }
 
-static intr_filter_t run_filter(intr_handler_t *ih) {
-  assert(ih->ih_filter != NULL);
-  intr_filter_t status = ih->ih_filter(ih->ih_argument);
-  if (status == IF_FILTERED) {
-    run_eoi(ih);
+static void run_unmask_irq(intr_handler_t *ih) {
+  intr_event_t *ie = ih->ih_event;
+  if (ie->ie_unmask_irq != NULL) {
+    ie->ie_unmask_irq(ie->ie_source);
   }
-  return status;
 }
 
 void intr_thread(void *arg) {
@@ -108,7 +112,7 @@ void intr_thread(void *arg) {
 
     WITH_INTR_DISABLED {
       intr_event_tailq_handler_insert(ih->ih_event, ih);
-      run_eoi(ih);
+      run_unmask_irq(ih);
     }
   }
 }
@@ -118,11 +122,13 @@ void intr_event_run_handlers(intr_event_t *ie) {
   intr_filter_t status = IF_STRAY;
 
   TAILQ_FOREACH_SAFE(ih, &ie->ie_handlers, ih_list, next) {
-    status = run_filter(ih);
+    status = ih->ih_filter(ih->ih_argument);
     if (status == IF_FILTERED) {
       return;
     } else if (status == IF_DELEGATE) {
       assert(ih->ih_handler != NULL);
+
+      run_mask_irq(ih);
 
       TAILQ_REMOVE(&ie->ie_handlers, ih, ih_list);
       TAILQ_INSERT_TAIL(&delegated, ih, ih_list);

@@ -16,6 +16,8 @@
 #include <bus.h>
 #include <devclass.h>
 
+#define ICU_LEN 16 /* number of ISA IRQs */
+
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
 #define PCI0_CFG_DEV_SHIFT 11
@@ -43,6 +45,13 @@ typedef union {
 #define ICU2_ADDR ICU_ADDR(IO_ICU2)
 #define ICU2_DATA ICU_DATA(IO_ICU2)
 
+typedef struct gt_pci_state gt_pci_state_t;
+
+typedef struct gt_pci_intr_cookie {
+  int irq;
+  gt_pci_state_t *gtpci;
+} gt_pci_intr_cookie_t;
+
 typedef struct gt_pci_state {
 
   /* Resources belonging to this driver. */
@@ -57,7 +66,8 @@ typedef struct gt_pci_state {
   rman_t isa_io_rman;
 
   intr_handler_t intr_handler;
-  intr_event_t intr_event[16];
+  intr_event_t intr_event[ICU_LEN];
+  gt_pci_intr_cookie_t intr_cookies[ICU_LEN];
 
   uint16_t imask;
   uint16_t elcr;
@@ -150,6 +160,22 @@ static void gt_pci_unmask_irq(gt_pci_state_t *gtpci, unsigned irq) {
   gt_pci_set_icus(gtpci);
 }
 
+static void gt_pci_mask_irq_cookie(void *source) {
+  gt_pci_intr_cookie_t *cookie = source;
+  gt_pci_state_t *gtpci = cookie->gtpci;
+  int irq = cookie->irq;
+
+  gt_pci_mask_irq(gtpci, irq);
+}
+
+static void gt_pci_unmask_irq_cookie(void *source) {
+  gt_pci_intr_cookie_t *cookie = source;
+  gt_pci_state_t *gtpci = cookie->gtpci;
+  int irq = cookie->irq;
+
+  gt_pci_mask_irq(gtpci, irq);
+}
+
 static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
                               intr_handler_t *handler) {
   assert(pcib->parent->driver == &gt_pci_bus.driver);
@@ -230,7 +256,12 @@ static intr_filter_t gt_pci_intr(void *data) {
 
 static inline void gt_pci_intr_event_init(gt_pci_state_t *gtpci, unsigned irq,
                                           const char *name) {
-  intr_event_init(&gtpci->intr_event[irq], irq, name);
+  intr_event_init(&gtpci->intr_event[irq], irq, name, gt_pci_mask_irq_cookie,
+                  gt_pci_unmask_irq_cookie, &gtpci->intr_cookies[irq]);
+
+  gtpci->intr_cookies[irq].irq = irq;
+  gtpci->intr_cookies[irq].gtpci = gtpci;
+
   intr_event_register(&gtpci->intr_event[irq]);
 }
 

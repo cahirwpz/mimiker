@@ -39,7 +39,18 @@ bool mips_intr_disabled(void) {
 static intr_event_t mips_intr_event[8];
 
 #define MIPS_INTR_EVENT(irq, name)                                             \
-  intr_event_init(&mips_intr_event[irq], irq, name)
+  intr_event_init(&mips_intr_event[irq], irq, name, mips_mask_irq, \
+                  mips_unmask_irq, (void *)irq)
+
+static void mips_mask_irq(void *source) {
+  int irq = (int)source;
+  mips32_set_c0(C0_STATUS, mips32_get_c0(C0_STATUS) & ~((1 << irq) << 8));
+}
+
+static void mips_unmask_irq(void *source) {
+  int irq = (int)source;
+  mips32_set_c0(C0_STATUS, mips32_get_c0(C0_STATUS) | ((1 << irq) << 8));
+}
 
 void mips_intr_init(void) {
   /*
