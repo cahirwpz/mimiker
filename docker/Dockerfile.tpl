@@ -5,7 +5,8 @@ FROM cahirwpz/mimiker-circleci:1.6
 RUN addgroup --gid ${MIMIKER_GID} mimiker && \
     adduser --uid ${MIMIKER_UID} --disabled-password \
     --gecos "" --force-badname \
-    --ingroup mimiker --ingroup sudo mimiker
+    --ingroup mimiker mimiker && \
+    adduser mimiker sudo
 
 WORKDIR /home/mimiker
 
