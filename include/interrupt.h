@@ -72,10 +72,10 @@ struct intr_handler {
 
 typedef TAILQ_HEAD(, intr_handler) intr_handler_list_t;
 
-#define INTR_HANDLER_INIT(filter, handler, argument, desc, prio)          \
+#define INTR_HANDLER_INIT(filter, handler, argument, desc, prio)               \
   (intr_handler_t) {                                                           \
     .ih_filter = (filter), .ih_handler = (handler), .ih_argument = (argument), \
-    .ih_name = (desc), .ih_prio = (prio)     \
+    .ih_name = (desc), .ih_prio = (prio)                                       \
   }
 
 typedef struct intr_event {
@@ -85,16 +85,16 @@ typedef struct intr_event {
   driver_intr_t *ie_mask_irq;
   driver_intr_t *ie_unmask_irq;
   void *ie_source;
-  const char *ie_name;             /* individual chain name */
-  unsigned ie_irq;                 /* physical interrupt request line number */
-  unsigned ie_count;               /* number of handlers attached */
+  const char *ie_name; /* individual chain name */
+  unsigned ie_irq;     /* physical interrupt request line number */
+  unsigned ie_count;   /* number of handlers attached */
 } intr_event_t;
 
 typedef TAILQ_HEAD(, intr_event) intr_event_list_t;
 
 void intr_thread(void *arg);
 void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
-                     void (mask_irq)(void *), void (unmask_irq)(void *),
+                     void(mask_irq)(void *), void(unmask_irq)(void *),
                      void *source);
 void intr_event_register(intr_event_t *ie);
 void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih);

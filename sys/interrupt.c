@@ -47,7 +47,8 @@ void intr_event_register(intr_event_t *ie) {
     TAILQ_INSERT_TAIL(&all_ievents_list, ie, ie_list);
 }
 
-static void intr_event_tailq_handler_insert(intr_event_t *ie, intr_handler_t *ih) {
+static void intr_event_tailq_handler_insert(intr_event_t *ie,
+                                            intr_handler_t *ih) {
   intr_handler_t *it;
   TAILQ_FOREACH (it, &ie->ie_handlers, ih_list)
     if (ih->ih_prio > it->ih_prio)
