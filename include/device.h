@@ -51,9 +51,14 @@ struct devprop_attr {
     char *value;
 };
 
+typedef union {
+    char *value;
+    // pci_bar_t *bar; // TODO: PCI BAR ?
+} devprop_res_val_t;
+
 struct devprop_res {
     devprop_res_key_t key;
-    char *value;
+    devprop_res_val_t *value;
 };
 
 struct devprops {
