@@ -58,7 +58,7 @@ typedef union {
 
 struct devprop_res {
     devprop_res_key_t key;
-    devprop_res_val_t *value;
+    devprop_res_val_t value;
 };
 
 struct devprops {
