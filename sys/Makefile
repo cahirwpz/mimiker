@@ -19,6 +19,7 @@ SOURCES = \
 	exec.c \
 	exec_elf.c \
 	exec_shebang.c \
+	fdt.c \
 	file.c \
 	filedesc.c \
 	fork.c \

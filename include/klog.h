@@ -49,7 +49,7 @@ typedef enum {
 
 #define KL_SIZE 1024
 
-typedef struct {
+typedef struct klog_entry {
   timeval_t kl_timestamp;
   tid_t kl_tid;
   unsigned kl_line;
@@ -59,7 +59,7 @@ typedef struct {
   uintptr_t kl_params[6];
 } klog_entry_t;
 
-typedef struct {
+typedef struct klog {
   klog_entry_t array[KL_SIZE];
   unsigned mask;
   bool verbose;

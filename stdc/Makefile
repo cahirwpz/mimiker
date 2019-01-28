@@ -20,6 +20,7 @@ SOURCES += stdlib/qsort.c
 SOURCES += stdlib/rand.c
 SOURCES += string/bzero.c
 SOURCES += string/memchr.c
+SOURCES += string/memcmp.c
 SOURCES += string/memcpy.c
 SOURCES += string/memset.c
 SOURCES += string/strchr.c

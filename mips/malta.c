@@ -62,6 +62,8 @@ static void thread_bootstrap(void) {
   PCPU_SET(curthread, td);
 }
 
+extern const uint8_t __malta_dtb_start[];
+
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   kbss_init();
 

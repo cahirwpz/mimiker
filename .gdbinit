@@ -4,6 +4,11 @@ set pagination off
 set confirm off
 set verbose off
 
+# make extra commands available
+python import os, sys
+python sys.path.append(os.getcwd())
+python import debug
+
 # favorite set of breakpoints
 break kernel_init
 break assert_fail
@@ -16,8 +21,3 @@ break panic_fail
 # user space program debugging
 #add-symbol-file user/utest/utest.uelf 0x400000
 #break main
-
-# make extra commands available
-python import os, sys
-python sys.path.append(os.getcwd())
-python import debug

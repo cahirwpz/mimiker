@@ -1,5 +1,6 @@
 import itertools
 import os
+import shlex
 import shutil
 import signal
 import subprocess
@@ -30,7 +31,7 @@ class Launchable():
         raise NotImplementedError
 
     def start(self, session):
-        cmd = ' '.join([self.cmd] + self.options)
+        cmd = ' '.join([self.cmd] + list(map(shlex.quote, self.options)))
         self.window = session.new_window(
             attach=False, window_name=self.name, window_shell=cmd)
 
@@ -88,12 +89,14 @@ class QEMU(Launchable):
             '-cpu', '24Kf',
             '-icount', 'shift=3,sleep=on',
             '-kernel', kernel,
-            '-append', ' '.join(args),
             '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
             '-serial', 'none',
             '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(0)),
             '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(1)),
             '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(2))]
+
+        if args:
+            self.options += ['-append', ' '.join(args)]
 
         if debug:
             self.options += ['-S']
@@ -111,12 +114,12 @@ class GDB(Launchable):
 
     def configure(self, kernel=''):
         if self.name == 'gdb':
-            self.options += ['-ex="set prompt \033[35;1m(gdb) \033[0m"']
+            self.options += ['-ex=set prompt \033[35;1m(gdb) \033[0m']
         self.options += [
-            '-iex="set auto-load safe-path {}/"'.format(os.getcwd()),
-            '-ex="set tcp connect-timeout 30"',
-            '-ex="target remote localhost:{}"'.format(gdb_port()),
-            '-ex="continue"',
+            '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
+            '-ex=set tcp connect-timeout 30',
+            '-ex=target remote localhost:{}'.format(gdb_port()),
+            '-ex=continue',
             '--silent',
             kernel]
 
