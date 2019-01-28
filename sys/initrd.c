@@ -11,6 +11,7 @@
 #include <vfs.h>
 #include <linker_set.h>
 #include <dirent.h>
+#include <kenv.h>
 
 typedef uint32_t cpio_dev_t;
 typedef uint32_t cpio_ino_t;
@@ -51,8 +52,6 @@ static vnodeops_t initrd_vops;
 
 extern int8_t __rd_start[];
 extern int8_t __rd_end[];
-
-extern char *kenv_get(const char *key);
 
 static cpio_node_t *cpio_node_alloc(void) {
   cpio_node_t *node = pool_alloc(P_INITRD, PF_ZERO);

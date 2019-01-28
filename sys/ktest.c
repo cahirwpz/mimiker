@@ -1,9 +1,7 @@
 #include <ktest.h>
 #include <stdc.h>
 #include <time.h>
-
-/* Borrowed from mips/malta.c */
-char *kenv_get(const char *key);
+#include <kenv.h>
 
 #define KTEST_MAX_NO 1024
 #define KTEST_FAIL(args...)                                                    \

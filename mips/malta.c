@@ -21,101 +21,9 @@
 #include <turnstile.h>
 #include <vm_map.h>
 #include <syslimits.h>
+#include <kenv.h>
 
 extern int kernel_init(int argc, char **argv);
-
-static struct {
-  int argc;
-  char **argv;
-  char **user_argv;
-  char **user_envv;
-} _kenv;
-
-static const char *whitespace = " \t";
-static const char *token_separator = " \t\"";
-static const char *quot_str = "\"";
-static const char quot_char = '\"';
-/*
-  <token>        ::= <token_prefix>[<token_suffix>]
-  <token_prefix> ::= any sequence of characters distinct
-                   than whitespace or quot_char
-  <token_suffix> ::= <quot_char>any sequence of characters distinct
-                   than quot_char<quot_char>
-  <token_sequence> ::=
-  <whitespace>*[<token><whitespace>*(<whitespace><token>(<whitespace>)*)*]
-*/
-
-static size_t token_size(const char *input) {
-  size_t len = strcspn(input, token_separator);
-  if (input[len] == quot_char)
-    len += strcspn(input + len + 1, quot_str) + 2;
-  return len;
-}
-
-static char **extract_tokens(char *seq) {
-  unsigned ntokens = 0;
-  seq += strspn(seq, whitespace);
-  for (char *p = seq; *p; p += strspn(p, whitespace)) {
-    p += token_size(p);
-    ntokens++;
-  }
-  char **tokens = kbss_grow((ntokens + 1) * sizeof(char *)), **ret = tokens;
-
-  for (char *p = seq; *p; p += strspn(p, whitespace)) {
-    size_t len = token_size(p);
-    *tokens = kbss_grow((len + 1) * sizeof(char));
-    strlcpy(*tokens++, p, len + 1);
-    p += len;
-  }
-  return ret;
-}
-
-static char **extract_qtd_tokens(char *qseq) {
-  size_t len = strcspn(++qseq, quot_str);
-  qseq[len] = '\0';
-  char **ret = extract_tokens(qseq);
-  qseq[len] = quot_char;
-  return ret;
-}
-
-char *kenv_get(const char *key) {
-  unsigned n = strlen(key);
-
-  for (int i = 1; i < _kenv.argc; i++) {
-    char *arg = _kenv.argv[i];
-    if ((strncmp(arg, key, n) == 0) && (arg[n] == '='))
-      return arg + n + 1;
-  }
-  return NULL;
-}
-
-static void setup_kenv(int pfm_argc, char **pfm_argv) {
-  size_t args_len = 1;
-  for (int i = 0; i < pfm_argc; i++)
-    args_len += strlen(pfm_argv[i]) + 1;
-
-  char *args_seq = kbss_grow(args_len * sizeof(char)), *p = args_seq;
-  for (int i = 0; i < pfm_argc; i++) {
-    p += strlcpy(p, pfm_argv[i], ARG_MAX);
-    *p++ = *whitespace;
-  }
-  _kenv.argv = extract_tokens(args_seq);
-  while (*(_kenv.argv + _kenv.argc))
-    _kenv.argc++;
-
-  if ((p = kenv_get("init")))
-    _kenv.user_argv = extract_qtd_tokens(p);
-  _kenv.user_envv =
-    (p = kenv_get("envv")) ? extract_qtd_tokens(p) : (char *[]){NULL};
-}
-
-char **kenv_get_user_argv(void) {
-  return _kenv.user_argv;
-}
-
-char **kenv_get_user_envv(void) {
-  return _kenv.user_envv;
-}
 
 extern uint8_t __kernel_start[];
 
@@ -148,8 +56,8 @@ static void thread_bootstrap(void) {
     thread_create("kernel-main", (void *)kernel_init, NULL, prio_uthread(255));
 
   exc_frame_t *kframe = td->td_kframe;
-  kframe->a0 = (reg_t)_kenv.argc;
-  kframe->a1 = (reg_t)_kenv.argv;
+  kframe->a0 = (reg_t)kenv_get_argc();
+  kframe->a1 = (reg_t)kenv_get_argv();
   kframe->sr |= SR_IE; /* the thread will run with interrupts enabled */
   td->td_state = TDS_RUNNING;
   PCPU_SET(curthread, td);

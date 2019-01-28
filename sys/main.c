@@ -5,13 +5,9 @@
 #include <proc.h>
 #include <thread.h>
 #include <ktest.h>
+#include <kenv.h>
 
-/* Borrowed from mips/malta.c */
-char *kenv_get(const char *key);
-char **kenv_get_user_argv(void);
-char **kenv_get_user_envv(void);
-
-int kmain(void) {
+int kmain(int argc, char **argv) {
   char **init = kenv_get_user_argv();
   char *test = kenv_get("test");
 

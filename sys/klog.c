@@ -3,6 +3,7 @@
 #include <stdc.h>
 #include <thread.h>
 #include <interrupt.h>
+#include <kenv.h>
 #define _KLOG_PRIVATE
 #include <klog.h>
 
@@ -19,9 +20,6 @@ static const char *subsystems[] = {
   [KL_PROC] = "proc",   [KL_SYSCALL] = "syscall", [KL_USER] = "user",
   [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_FILESYS] = "filesys",
   [KL_TIME] = "time",   [KL_FILE] = "file",       [KL_UNDEF] = "???"};
-
-/* Borrowed from mips/malta.c */
-char *kenv_get(char *key);
 
 void klog_init(void) {
   const char *mask = kenv_get("klog-mask");
