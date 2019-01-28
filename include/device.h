@@ -7,6 +7,9 @@
 #include <rman.h>
 
 typedef struct device device_t;
+typedef struct devprops devprops_t;
+typedef struct devprop_attr devprop_attr_t;
+typedef struct devprop_res devprop_res_t;
 typedef struct driver driver_t;
 typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
@@ -30,6 +33,34 @@ struct driver {
 
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
 
+// TODO: There should be more key types
+typedef enum {
+    COMPATIBLE,
+    FDT_PATH,
+    VENDOR
+} devprop_attr_key_t;
+
+// TODO: There should be more key types
+typedef enum {
+    IOPORT, // TODO: How to handle IOPORT1 and IOPORT2 ?
+    IRQ
+} devprop_res_key_t;
+
+struct devprop_attr {
+    devprop_attr_key_t key;
+    char *value;
+};
+
+struct devprop_res {
+    devprop_res_key_t key;
+    char *value;
+};
+
+struct devprops {
+    devprop_attr_t *attrs;
+    devprop_res_t *resources;
+};
+
 struct device {
   /* Device hierarchy. */
   device_t *parent;        /* parent node (bus?) or null (root or pseudo-dev) */
@@ -41,14 +72,22 @@ struct device {
   /* Device information and state. */
   device_bus_t bus;
   driver_t *driver;
+  // TODO: most likeley we want to get rid of `instance` field
   void *instance; /* used by bus driver to store data in children */
   void *state;    /* memory requested by driver for its state*/
+  devprops_t *props;  // equivalent of FreeBSD's `ivars`
 };
 
 device_t *device_add_child(device_t *dev);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);
 int device_detach(device_t *dev);
+
+devprop_attr_t *get_device_prop_attr(device_t *dev, devprop_attr_key_t key);
+devprop_res_t *get_device_prop_res(device_t *dev, devprop_res_key_t key);
+
+void set_device_prop_res(device_t *dev, devprop_res_key_t key, char *value);
+void set_device_prop_attr(device_t *dev, devprop_attr_key_t key, char *value);
 
 /* Manually create a device with given driver and parent device. */
 device_t *make_device(device_t *parent, driver_t *driver);
