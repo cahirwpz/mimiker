@@ -24,7 +24,6 @@
 #include <kenv.h>
 
 extern int kernel_init(int argc, char **argv);
-
 extern uint8_t __kernel_start[];
 
 static void pm_bootstrap(unsigned memsize) {
