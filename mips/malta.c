@@ -59,7 +59,8 @@ static char **extract_tokens(char *seq) {
     p += token_size(p);
     ntokens++;
   }
-  char **tokens = kbss_grow((ntokens + 1) * sizeof(char *)), **ret = tokens;
+  char **tokens = kbss_grow((ntokens + 1) * sizeof(char *));
+  char **ret = tokens;
 
   for (char *p = seq; *p; p += strspn(p, whitespace)) {
     size_t len = token_size(p);
@@ -94,13 +95,14 @@ static void setup_kenv(int pfm_argc, char **pfm_argv) {
   for (int i = 0; i < pfm_argc; i++)
     args_len += strlen(pfm_argv[i]) + 1;
 
-  char *args_seq = kbss_grow(args_len * sizeof(char)), *p = args_seq;
+  char *args_seq = kbss_grow(args_len * sizeof(char));
+  char *p = args_seq;
   for (int i = 0; i < pfm_argc; i++) {
     p += strlcpy(p, pfm_argv[i], ARG_MAX);
     *p++ = *whitespace;
   }
   _kenv.argv = extract_tokens(args_seq);
-  while (*(_kenv.argv + _kenv.argc))
+  while (_kenv.argv[_kenv.argc])
     _kenv.argc++;
 
   if ((p = kenv_get("init")))
