@@ -35,35 +35,47 @@ typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
 
 // TODO: There should be more key types
 typedef enum {
-    COMPATIBLE,
-    FDT_PATH,
-    VENDOR
+  CLASSCODE,
+  COMPATIBLE,
+  DEVICEID,
+  FDT_PATH,
+  VENDORID,
 } devprop_attr_key_t;
 
 // TODO: There should be more key types
 typedef enum {
-    IOPORT, // TODO: How to handle IOPORT1 and IOPORT2 ?
-    IRQ
+  BAR,
+  IOPORT, // TODO: How to handle IOPORT1 and IOPORT2 ?
+  IRQPIN,
+  IRQLINE,
 } devprop_res_key_t;
 
-struct devprop_attr {
-    devprop_attr_key_t key;
-    char *value;
-};
+typedef union {
+  char *str_value;
+  uint8_t uint8_value;
+  uint16_t uint16_value; // TODO: naming?
+} devprop_attr_val_t;
 
 typedef union {
-    char *value;
-    // pci_bar_t *bar; // TODO: PCI BAR ?
+  char *str_value;
+  uint8_t uint8_value;
+  uint16_t uint16_value;
+  // pci_bar_t *bar; // TODO: PCI BAR ?
 } devprop_res_val_t;
 
+struct devprop_attr {
+  devprop_attr_key_t key;
+  devprop_attr_val_t value;
+};
+
 struct devprop_res {
-    devprop_res_key_t key;
-    devprop_res_val_t value;
+  devprop_res_key_t key;
+  devprop_res_val_t value;
 };
 
 struct devprops {
-    devprop_attr_t *attrs;
-    devprop_res_t *resources;
+  devprop_attr_t *attrs;
+  devprop_res_t *resources;
 };
 
 struct device {
@@ -78,9 +90,9 @@ struct device {
   device_bus_t bus;
   driver_t *driver;
   // TODO: most likeley we want to get rid of `instance` field
-  void *instance; /* used by bus driver to store data in children */
-  void *state;    /* memory requested by driver for its state*/
-  devprops_t *props;  // equivalent of FreeBSD's `ivars`
+  void *instance;    /* used by bus driver to store data in children */
+  void *state;       /* memory requested by driver for its state*/
+  devprops_t *props; // equivalent of FreeBSD's `ivars`
 };
 
 device_t *device_add_child(device_t *dev);

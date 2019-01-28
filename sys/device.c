@@ -60,26 +60,25 @@ void device_add_resource(device_t *dev, resource_t *r, int rid) {
 }
 
 devprop_attr_t *get_device_prop_attr(device_t *dev, devprop_attr_key_t key) {
-    // TODO: iterate over dev->properties->attrs
-    // untill key is found; return attr or NULL
-    return NULL;
+  // TODO: iterate over dev->properties->attrs
+  // untill key is found; return attr or NULL
+  return NULL;
 }
 
 devprop_res_t *get_device_prop_res(device_t *dev, devprop_res_key_t key) {
-    // TODO: iterate over dev->properties->resources;
-    // untill key is found; return attr or NULL
-    return NULL;
+  // TODO: iterate over dev->properties->resources;
+  // untill key is found; return attr or NULL
+  return NULL;
 }
 
 void set_device_prop_attr(device_t *dev, devprop_attr_key_t key, char *value) {
-    // TODO: iterate over dev->properties->attrs
-    // if key is found override attr else create new
-    return;
+  // TODO: iterate over dev->properties->attrs
+  // if key is found override attr else create new
+  return;
 }
 
 void set_device_prop_res(device_t *dev, devprop_res_key_t key, char *value) {
-    // TODO: iterate over dev->properties->resources;
-    // if key is found override resource else create new
-    return;
+  // TODO: iterate over dev->properties->resources;
+  // if key is found override resource else create new
+  return;
 }
-
