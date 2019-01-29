@@ -2,7 +2,7 @@ TOPDIR = $(realpath ../..)
 
 PKG = lua-5.3.5
 URL = https://www.lua.org/ftp/$(PKG).tar.gz
-PATCHES = lunix.patch luaconf.patch init.patch
+PATCHES = loslib.patch lunix.patch luaconf.patch init.patch
 
 all: download build install
 
@@ -23,17 +23,18 @@ patch-stamp:
 	  for p in $(PATCHES); do \
 	    $(PATCH) -p1 < ../$${p}; \
 	  done
-	cd $(PKG)/src && ln -s ../../lunix.c
+	ln -s -t $(PKG)/src ../../lunix.c
 	touch $@
 
 unpatch:
-	[ -f patch-stamp ] || exit 1
-	cd $(PKG) && \
-	  for p in $(PATCHES); do \
-	    $(PATCH) -R -p1 < ../$${p}; \
-	  done
-	cd $(PKG)/src && $(RM) lunix.c
-	rm patch-stamp
+	if [ -f patch-stamp ]; then \
+	  cd $(PKG) && \
+	    for p in $(PATCHES); do \
+	      $(PATCH) -R -p1 < ../$$p; \
+	    done; \
+	fi
+	$(RM) $(PKG)/src/lunix.c
+	$(RM) patch-stamp
 
 build-here: patch
 	@echo "[MAKE] $(PKG)"

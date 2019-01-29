@@ -1,3 +1,0 @@
-[submodule "lib/newlib/newlib-3.0.0"]
-	path = lib/newlib/newlib-3.0.0
-	url = git://sourceware.org/git/newlib-cygwin.git
