@@ -7,7 +7,7 @@
 #include <ktest.h>
 #include <kenv.h>
 
-int kmain(int argc, char **argv) {
+int kmain(void) {
   char **init = kenv_get_user_argv();
   char *test = kenv_get("test");
 
