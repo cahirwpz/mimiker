@@ -242,12 +242,11 @@ static void run_specified_tests(const char *test) {
 
 void ktest_main(const char *test) {
   /* Start by gathering command-line arguments. */
-  const char *seed_str = kenv_get("seed");
-  const char *repeat_str = kenv_get("repeat");
-  if (seed_str)
-    ktest_seed = strtoul(seed_str, NULL, 10);
-  if (repeat_str)
-    ktest_repeat = strtoul(repeat_str, NULL, 10);
+  int val;
+  if (kenv_get_int("seed", &val))
+    ktest_seed = val;
+  if (kenv_get_int("repeat", &val))
+    ktest_repeat = val;
   if (strncmp(test, "all", 3) == 0) {
     run_all_tests();
   } else {

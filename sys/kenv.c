@@ -2,17 +2,13 @@
 #include <stdc.h>
 #include <syslimits.h>
 
-static struct {
-  int argc;
-  char **argv;
-  char **user_argv;
-  char **user_envv;
-} _kenv;
+static int argc;
+static char **argv;
 
 static const char *whitespace = " \t";
 static const char *token_separator = " \t\"";
 static const char *quot_str = "\"";
-static const char quot_char = '\"';
+static const char quot_char = '"';
 /*
   <token>        ::= <token_prefix>[<token_suffix>]
   <token_prefix> ::= any sequence of characters distinct
@@ -58,6 +54,7 @@ static char **extract_tokens(char *seq, int * /*out*/ pntokens) {
   return ret;
 }
 
+#if 0
 static char **extract_qtd_tokens(char *qseq) {
   size_t len = strcspn(++qseq, quot_str);
   qseq[len] = '\0';
@@ -65,48 +62,56 @@ static char **extract_qtd_tokens(char *qseq) {
   qseq[len] = quot_char;
   return ret;
 }
+#endif
+
+static char *flatten_argv(int _argc, char **_argv) {
+  size_t len = 1;
+  for (int i = 0; i < _argc; i++)
+    len += strlen(_argv[i]) + 1;
+
+  char *args = kbss_grow(len * sizeof(char));
+  char *p = args;
+  for (int i = 0; i < _argc; i++) {
+    p += strlcpy(p, _argv[i], ARG_MAX);
+    *p++ = *whitespace;
+  }
+
+  return args;
+}
+
+void setup_kenv(int _argc, char **_argv, char **_envv) {
+  char *args = flatten_argv(_argc, _argv);
+  argv = extract_tokens(args, &argc);
+}
+
+void print_kenv(void) {
+  kprintf("Kernel arguments (%d): ", argc);
+  for (int i = 0; i < argc; i++)
+    kprintf("%s ", argv[i]);
+  kprintf("\n");
+}
 
 char *kenv_get(const char *key) {
   unsigned n = strlen(key);
 
-  for (int i = 1; i < _kenv.argc; i++) {
-    char *arg = _kenv.argv[i];
+  for (int i = 1; i < argc; i++) {
+    char *arg = argv[i];
     if ((strncmp(arg, key, n) == 0) && (arg[n] == '='))
       return arg + n + 1;
   }
   return NULL;
 }
 
-static char *flatten_argv(int pfm_argc, char **pfm_argv) {
-  size_t args_len = 1;
-  for (int i = 0; i < pfm_argc; i++)
-    args_len += strlen(pfm_argv[i]) + 1;
-
-  char *args_seq = kbss_grow(args_len * sizeof(char));
-  char *p = args_seq;
-  for (int i = 0; i < pfm_argc; i++) {
-    p += strlcpy(p, pfm_argv[i], ARG_MAX);
-    *p++ = *whitespace;
-  }
-
-  return args_seq;
+bool kenv_get_int(const char *key, int *val_p) {
+  const char *val_str = kenv_get(key);
+  if (!val_str)
+    return false;
+  /* TODO handle hexadecimal numbers if val string begins with 0x */
+  /* TODO check if conversion was successful */
+  *val_p = strtoul(val_str, NULL, 10);
+  return true;
 }
 
-void setup_kenv(int pfm_argc, char **pfm_argv) {
-  char *args_seq = flatten_argv(pfm_argc, pfm_argv);
-  _kenv.argv = extract_tokens(args_seq, &(_kenv.argc));
-
-  char *p;
-  if ((p = kenv_get("init")))
-    _kenv.user_argv = extract_qtd_tokens(p);
-  _kenv.user_envv =
-    (p = kenv_get("envv")) ? extract_qtd_tokens(p) : (char *[]){NULL};
-}
-
-char **kenv_get_user_argv(void) {
-  return _kenv.user_argv;
-}
-
-char **kenv_get_user_envv(void) {
-  return _kenv.user_envv;
+int kenv_get_strv(const char *key, char **strv, size_t len) {
+  return 0; /* Not implemented! */
 }

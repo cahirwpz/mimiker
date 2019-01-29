@@ -65,7 +65,7 @@ extern const uint8_t __malta_dtb_start[];
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   kbss_init();
 
-  setup_kenv(argc, argv);
+  setup_kenv(argc, argv, envp);
   cn_init();
   klog_init();
   pcpu_init();
@@ -81,6 +81,8 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   sleepq_init();
   turnstile_init();
   thread_bootstrap();
+
+  print_kenv();
 
   klog("Switching to 'kernel-main' thread...");
 }

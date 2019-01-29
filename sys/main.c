@@ -7,15 +7,21 @@
 #include <ktest.h>
 #include <kenv.h>
 
+#define SIZE 10
+
 int kmain(void) {
-  char **init = kenv_get_user_argv();
+  char *argv[SIZE];
+  char *envv[SIZE];
   char *test = kenv_get("test");
+
+  int argc = kenv_get_strv("init", argv, SIZE);
+  (void)kenv_get_strv("env", envv, SIZE);
 
   /* Main kernel thread becomes PID(0) - a god process! */
   (void)proc_create(thread_self(), NULL);
 
-  if (init) {
-    run_program(*init, init, kenv_get_user_envv());
+  if (argc) {
+    run_program(argv[0], argv, envv);
   } else if (test) {
     ktest_main(test);
   } else {
