@@ -103,14 +103,6 @@ void setup_kenv(int pfm_argc, char **pfm_argv) {
     (p = kenv_get("envv")) ? extract_qtd_tokens(p) : (char *[]){NULL};
 }
 
-int kenv_get_argc(void) {
-  return _kenv.argc;
-}
-
-char **kenv_get_argv(void) {
-  return _kenv.argv;
-}
-
 char **kenv_get_user_argv(void) {
   return _kenv.user_argv;
 }

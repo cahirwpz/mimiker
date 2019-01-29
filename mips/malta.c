@@ -55,8 +55,6 @@ static void thread_bootstrap(void) {
     thread_create("kernel-main", (void *)kernel_init, NULL, prio_uthread(255));
 
   exc_frame_t *kframe = td->td_kframe;
-  kframe->a0 = (reg_t)kenv_get_argc();
-  kframe->a1 = (reg_t)kenv_get_argv();
   kframe->sr |= SR_IE; /* the thread will run with interrupts enabled */
   td->td_state = TDS_RUNNING;
   PCPU_SET(curthread, td);
