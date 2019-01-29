@@ -44,7 +44,7 @@ typedef enum {
 
 // TODO: There should be more key types
 typedef enum {
-  BAR,
+  PCIBAR,
   IOPORT, // TODO: How to handle IOPORT1 and IOPORT2 ?
   IRQPIN,
   IRQLINE,
@@ -60,7 +60,8 @@ typedef union {
   char *str_value;
   uint8_t uint8_value;
   uint16_t uint16_value;
-  // pci_bar_t *bar; // TODO: PCI BAR ?
+  void *bar;
+  // pci_bar_t *bar; // TODO: do we want PCI BAR ? circular import right now
 } devprop_res_val_t;
 
 struct devprop_attr {
