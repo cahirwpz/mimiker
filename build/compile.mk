@@ -4,7 +4,7 @@ endif
 
 SOURCES_C = $(filter %.c,$(SOURCES))
 SOURCES_ASM = $(filter %.S,$(SOURCES))
-OBJECTS = $(SOURCES_C:%.c=%.o) $(SOURCES_ASM:%.S=%.o)
+OBJECTS += $(SOURCES_C:%.c=%.o) $(SOURCES_ASM:%.S=%.o)
 DEPFILES = $(foreach f,$(SOURCES_C) $(SOURCES_ASM), \
 	    $(dir $(f))$(patsubst %.c,.%.D,$(patsubst %.S,.%.D,$(notdir $(f)))))
 

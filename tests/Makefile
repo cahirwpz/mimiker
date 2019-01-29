@@ -13,6 +13,7 @@ SOURCES = \
 	pool.c \
 	producer_consumer.c \
 	resizable_fdt.c \
+	ringbuf.c \
 	rwlock.c \
 	sched.c \
 	sleepq.c \
@@ -28,6 +29,7 @@ SOURCES = \
 	uiomove.c \
 	utest.c \
 	vm_map.c \
+	devclass.c \
 	vfs.c
 
 include $(TOPDIR)/build/build.kobj.mk

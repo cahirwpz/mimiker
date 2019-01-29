@@ -1,18 +1,18 @@
 import gdb
-from tailq import TailQueue
-import utils
-import ptable
-import traceback
-from ctx import Context
+
+from .cmd import OneArgAutoCompleteMixin, print_exception
+from .struct import enum, cstr, GdbStructMeta, ProgramCounter, TailQueue
+from .utils import func_ret_addr, local_var, TextTable
+from .ctx import Context
 
 
-class Thread(metaclass=utils.GdbStructMeta):
+class Thread(metaclass=GdbStructMeta):
     __ctype__ = 'struct thread'
-    __cast__ = {'td_waitpt': utils.ProgramCounter,
+    __cast__ = {'td_waitpt': ProgramCounter,
                 'td_tid': int,
-                'td_state': utils.enum,
+                'td_state': enum,
                 'td_prio': int,
-                'td_name': lambda x: x.string()}
+                'td_name': cstr}
 
     @staticmethod
     def pointer_type():
@@ -28,85 +28,43 @@ class Thread(metaclass=utils.GdbStructMeta):
 
     @staticmethod
     def dump_list(threads):
-        rows = [['Id', 'Name', 'State', 'Priority', 'Waiting Point']]
         curr_tid = Thread.current().td_tid
-        rows.extend([['', '(*) '][curr_tid == td.td_tid] + str(td.td_tid),
-                     td.td_name, str(td.td_state), str(td.td_prio),
-                     str(td.td_waitpt)]
-                    for td in threads)
-        ptable.ptable(rows, fmt='rllrl', header=True)
+        table = TextTable(types='ittit', align='rrrrl')
+        table.header(['Id', 'Name', 'State', 'Priority', 'Waiting Point'])
+        for td in threads:
+            marker = '(*) ' if curr_tid == td.td_tid else ''
+            table.add_row(['{}{}'.format(marker, td.td_tid), td.td_name,
+                           td.td_state, td.td_prio, td.td_waitpt])
+        print(table)
 
     @classmethod
     def list_all(cls):
         threads = TailQueue(gdb.parse_and_eval('all_threads'), 'td_all')
         return map(Thread, threads)
 
-    def __str__(self):
-        return 'thread{tid=%d, name="%s"}' % (self.td_tid, self.td_name)
+    def __repr__(self):
+        return 'thread{%s/%d}' % (self.td_name, self.td_tid)
 
 
-class CtxSwitchTracerBP(gdb.Breakpoint):
-
+class ThreadSwitchBP(gdb.Breakpoint):
     def __init__(self):
-        super(CtxSwitchTracerBP, self).__init__('ctx_switch')
-        self.stop_on = False
+        super().__init__('ctx_switch')
 
     def stop(self):
         td_from = Thread.from_pointer('$a0')
         td_to = Thread.from_pointer('$a1')
         print('context switch from {} to {}'.format(td_from, td_to))
-        return self.stop_on
-
-    def set_stop_on(self, arg):
-        self.stop_on = arg
 
 
-class CtxSwitchTracer():
-
+class ThreadCreateBP(gdb.Breakpoint):
     def __init__(self):
-        self.ctxswitchbp = None
-
-    def toggle(self):
-        if self.ctxswitchbp:
-            print('context switch tracing off')
-            self.ctxswitchbp.delete()
-            self.ctxswitchbp = None
-        else:
-            print('context switch tracing on')
-            self.ctxswitchbp = CtxSwitchTracerBP()
-
-
-class CreateThreadTracerBP(gdb.Breakpoint):
-
-    def __init__(self):
-        super(CreateThreadTracerBP, self).__init__('thread_create')
-        self.stop_on = True
+        super().__init__('*0x%x' % func_ret_addr('thread_create'))
 
     def stop(self):
-        td_name = gdb.newest_frame().read_var('name').string()
-        print('New thread in system: ', td_name)
-        return self.stop_on
-
-    def stop_on_switch(self, arg):
-        self.stop_on = arg
+        print('New', local_var('td').dereference(), 'in the system!')
 
 
-class CreateThreadTracer():
-
-    def __init__(self):
-        self.createThreadbp = None
-
-    def toggle(self):
-        if self.createThreadbp:
-            print('create-thread trace off')
-            self.createThreadbp.delete()
-            self.createThreadbp = None
-        else:
-            print('create-thread trace on')
-            self.createThreadbp = CreateThreadTracerBP()
-
-
-class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
+class Kthread(gdb.Command, OneArgAutoCompleteMixin):
     """dump info about threads
 
     Thread can be either specified by its identifier (td_tid) or by its name
@@ -129,7 +87,7 @@ class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
     """
 
     def __init__(self):
-        super(Kthread, self).__init__('kthread', gdb.COMMAND_USER)
+        super().__init__('kthread', gdb.COMMAND_USER)
 
     def find_by_name(self, name):
         found = filter(lambda td: td.td_name == name, Thread.list_all())
@@ -152,17 +110,15 @@ class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
         Thread.dump_list(Thread.list_all())
 
     def dump_one(self, found):
-        try:
-            print(found.dump())
-            print('\n>>> backtrace for %s' % found)
-            ctx = Context()
-            ctx.save()
-            Context.load(found.td_kctx)
-            gdb.execute('backtrace')
-            ctx.restore()
-        except:
-            traceback.print_exc()
+        print(found.dump())
+        print('\n>>> backtrace for %s' % found)
+        ctx = Context()
+        ctx.save()
+        Context.load(found.td_kctx)
+        gdb.execute('backtrace')
+        ctx.restore()
 
+    @print_exception
     def invoke(self, args, from_tty):
         if len(args) < 1:
             # give simplified view of all threads in the system
@@ -178,3 +134,13 @@ class Kthread(gdb.Command, utils.OneArgAutoCompleteMixin):
         threads = Thread.list_all()
         return sum([map(lambda td: td.td_name, threads),
                     map(lambda td: td.td_tid, threads)], [])
+
+
+class CurrentThread(gdb.Function):
+    """Return address of currently running thread."""
+
+    def __init__(self):
+        super().__init__('thread')
+
+    def invoke(self):
+        return gdb.parse_and_eval('_pcpu_data->curthread')

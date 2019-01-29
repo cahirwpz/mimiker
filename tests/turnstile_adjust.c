@@ -77,7 +77,7 @@ static int test_turnstile_adjust(void) {
 
   for (int i = 0; i < T; i++) {
     char name[20];
-    snprintf(name, sizeof(name), "td%d", i);
+    snprintf(name, sizeof(name), "test-turnstile-adjust-%d", i);
     threads[i] = thread_create(name, routine, NULL, starting_priority);
   }
 
