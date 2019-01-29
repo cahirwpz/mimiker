@@ -1,15 +1,30 @@
 #include <ktest.h>
+#include <malloc.h>
 #include <device.h>
+
+#include <stdc.h>
+#include <vnode.h>
+#include <devfs.h>
+#include <klog.h>
+#include <condvar.h>
+#include <ringbuf.h>
+#include <pci.h>
+#include <dev/isareg.h>
+#include <dev/ns16550reg.h>
+#include <interrupt.h>
+#include <sysinit.h>
 
 extern device_t *gt_pci;
 
 static int test_operate_on_devprops_attrs(void) {
   devprop_attr_t *attr;
   devprop_res_key_t key = FDT_PATH;
-  set_device_prop_attr(gt_pci, key, "attribute_value");
+  devprop_attr_val_t value;
+  value.str_value = "attribute_value";
+  set_device_prop_attr(gt_pci, key, &value);
   attr = get_device_prop_attr(gt_pci, key);
 
-  assert(!strcmp(attr->value.str_value, "attribute_value"));
+  assert(!strcmp(attr->value->str_value, "attribute_value"));
   return KTEST_SUCCESS;
 }
 
@@ -25,11 +40,15 @@ static int test_get_non_existing_deprop_attr_res_null(void) {
 static int test_override_exisiting_devprop_attr(void) {
   devprop_attr_t *attr;
   devprop_res_key_t key = FDT_PATH;
-  set_device_prop_attr(gt_pci, key, "attribute_value");
-  set_device_prop_attr(gt_pci, key, "overridden_value");
+  devprop_attr_val_t value;
+
+  value.str_value = "attribute_value";
+  set_device_prop_attr(gt_pci, key, &value);
+  value.str_value = "overridden_value";
+  set_device_prop_attr(gt_pci, key, &value);
   attr = get_device_prop_attr(gt_pci, key);
 
-  assert(!strcmp(attr->value.str_value, "overridden_value"));
+  assert(!strcmp(attr->value->str_value, "overridden_value"));
   return KTEST_SUCCESS;
 }
 

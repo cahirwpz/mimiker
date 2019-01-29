@@ -65,12 +65,12 @@ typedef union {
 
 struct devprop_attr {
   devprop_attr_key_t key;
-  devprop_attr_val_t value;
+  devprop_attr_val_t *value;
 };
 
 struct devprop_res {
   devprop_res_key_t key;
-  devprop_res_val_t value;
+  devprop_res_val_t *value;
 };
 
 struct devprops {
@@ -103,8 +103,10 @@ int device_detach(device_t *dev);
 devprop_attr_t *get_device_prop_attr(device_t *dev, devprop_attr_key_t key);
 devprop_res_t *get_device_prop_res(device_t *dev, devprop_res_key_t key);
 
-void set_device_prop_res(device_t *dev, devprop_res_key_t key, char *value);
-void set_device_prop_attr(device_t *dev, devprop_attr_key_t key, char *value);
+void set_device_prop_attr(device_t *dev, devprop_attr_key_t key,
+                          devprop_attr_val_t *value);
+void set_device_prop_res(device_t *dev, devprop_res_key_t key,
+                         devprop_res_val_t *value);
 
 /* Manually create a device with given driver and parent device. */
 device_t *make_device(device_t *parent, driver_t *driver);
