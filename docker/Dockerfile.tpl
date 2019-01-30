@@ -1,6 +1,6 @@
 # vim: syntax=dockerfile:
 # TODO use :latest when it will be available on docker hub
-FROM cahirwpz/mimiker-circleci:1.6
+FROM cahirwpz/mimiker-circleci:1.6.4
 
 RUN addgroup --gid ${MIMIKER_GID} mimiker && \
     adduser --uid ${MIMIKER_UID} --disabled-password \
