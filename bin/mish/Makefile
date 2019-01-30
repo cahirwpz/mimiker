@@ -1,5 +1,7 @@
 TOPDIR = $(realpath ../..)
 
-PROGRAM = mish
+include $(TOPDIR)/build/common.mk
 
-include $(TOPDIR)/build/build.prog.mk
+install-here:
+	echo "[INSTALL] /bin/mish"
+	$(INSTALL) -m 755 mish.lua $(SYSROOT)/bin/mish

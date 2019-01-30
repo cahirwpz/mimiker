@@ -3,7 +3,8 @@
 include $(TOPDIR)/build/flags.kern.mk
 include $(TOPDIR)/build/common.mk
 
-build-kernel: mimiker.elf
+build-kernel: $(KRT)
+install-kernel: mimiker.elf
 
 # Files required to link kernel image
 KRT = $(foreach dir,$(KERNDIR),$(TOPDIR)/$(dir)/lib$(dir).ka)
@@ -27,7 +28,8 @@ mimiker.elf: $(KRT) initrd.o | $(KERNDIR)
 # forcing make to always rebuild the archive.
 initrd.cpio: bin-install
 	@echo "[INITRD] Building $@..."
-	cd sysroot && find -depth -print | $(CPIO) -o -F ../$@ 2> /dev/null
+	cd sysroot && \
+	  find -depth -print | sort | $(CPIO) -o -F ../$@ 2> /dev/null
 
 initrd.o: initrd.cpio
 	$(OBJCOPY) -I binary -O elf32-littlemips -B mips \
