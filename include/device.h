@@ -40,8 +40,8 @@ struct device {
   int unit;
   device_bus_t bus;
   driver_t *driver;
-  void *ivars; /* used by bus driver to store data in children */
-  void *softc;    /* memory requested by driver for its state*/
+  void *instance; /* used by bus driver to store data in children */
+  void *state;    /* memory requested by driver for its state*/
 };
 
 device_t *device_add_child(device_t *dev);
@@ -61,8 +61,8 @@ void device_add_resource(device_t *dev, resource_t *r, int rid);
 // find best driver and attach
 int device_probe_and_attach(device_t *dev);
 
-static inline void* device_get_softc(device_t *dev){
-  return dev->softc;
+static inline void* device_get_state(device_t *dev){
+  return dev->state;
 }
 
 /* A universal memory pool to be used by all drivers. */

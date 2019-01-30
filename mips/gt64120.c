@@ -69,7 +69,7 @@ typedef struct gt_pci_state {
  * care of the fact that MIPS processor cannot handle unaligned accesses. */
 static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
   pci_device_t *pcid = pci_device_of(dev);
-  gt_pci_state_t *gtpci = dev->parent->softc;
+  gt_pci_state_t *gtpci = dev->parent->state;
   resource_t *pcicfg = gtpci->corectrl;
 
   if (pcid->addr.bus > 0)
@@ -95,7 +95,7 @@ static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
 static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
                                 uint32_t value) {
   pci_device_t *pcid = pci_device_of(dev);
-  gt_pci_state_t *gtpci = dev->parent->softc;
+  gt_pci_state_t *gtpci = dev->parent->state;
   resource_t *pcicfg = gtpci->corectrl;
 
   if (pcid->addr.bus > 0)
@@ -153,7 +153,7 @@ static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
                               intr_handler_t *handler) {
   //assert(pcib->parent->driver == &gt_pci_bus.driver);
 
-  gt_pci_state_t *gtpci = pcib->parent->softc;
+  gt_pci_state_t *gtpci = pcib->parent->state;
   intr_chain_t *chain = &gtpci->intr_chain[irq];
   WITH_SPIN_LOCK (&chain->ic_lock) {
     intr_chain_add_handler(chain, handler);
@@ -165,7 +165,7 @@ static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
 static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
   /* assert(pcib->parent->driver == &gt_pci_bus.driver); */
 
-  gt_pci_state_t *gtpci = pcib->parent->softc;
+  gt_pci_state_t *gtpci = pcib->parent->state;
   intr_chain_t *chain = handler->ih_chain;
   WITH_SPIN_LOCK (&chain->ic_lock) {
     if (chain->ic_count == 1)
@@ -238,7 +238,7 @@ static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
   (MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1)
 
 static int gt_pci_probe(device_t *pcib){
-  gt_pci_state_t *gtpci = pcib->softc;
+  gt_pci_state_t *gtpci = pcib->state;
 
   // it should all be done via hints in parent device - rootdev
 
@@ -267,7 +267,7 @@ if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
 }
 
 static int gt_pci_attach(device_t *pcib) {
-  gt_pci_state_t *gtpci = pcib->softc;
+  gt_pci_state_t *gtpci = pcib->state;
 
   rman_init(&gtpci->isa_io_rman, "GT64120 ISA I/O ports", 0x0000, 0x0fff,
             RT_IOPORTS);
@@ -327,7 +327,7 @@ static resource_t *gt_pci_alloc_resource(device_t *pcib, device_t *dev,
                                          rman_addr_t start, rman_addr_t end,
                                          size_t size, res_flags_t flags) {
 
-  gt_pci_state_t *gtpci = pcib->softc;
+  gt_pci_state_t *gtpci = pcib->state;
   bus_space_handle_t bh;
   resource_t *r = NULL;
 

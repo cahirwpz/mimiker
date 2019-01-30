@@ -12,8 +12,6 @@ typedef struct {
   const char *name;
 } pci_device_id;
 
-
-// store this in ivars of a device
 typedef struct {
   uint16_t id;
   const char *name;
@@ -113,7 +111,7 @@ void pci_bus_assign_space(device_t *pcib);
 void pci_bus_dump(device_t *pcib);
 
 static inline pci_device_t *pci_device_of(device_t *device) {
-  return (device->bus == DEV_BUS_PCI) ? device->ivars: NULL;
+  return (device->bus == DEV_BUS_PCI) ? device->instance: NULL;
 }
 
 #endif /* _SYS_PCI_H_ */

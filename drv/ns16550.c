@@ -129,7 +129,7 @@ static intr_filter_t ns16550_intr(void *data) {
 static int ns16550_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  ns16550_state_t *ns16550 = dev->softc;
+  ns16550_state_t *ns16550 = dev->state;
 
   ns16550->rx_buf.data = kmalloc(M_DEV, UART_BUFSIZE, M_ZERO);
   ns16550->rx_buf.size = UART_BUFSIZE;
