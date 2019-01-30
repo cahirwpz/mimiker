@@ -40,7 +40,7 @@ typedef enum {
   DEVICEID,
   FDT_PATH,
   VENDORID,
-} devprop_attr_key_t;
+} devprop_attr_type_t;
 
 // TODO: There should be more key types
 typedef enum {
@@ -48,7 +48,7 @@ typedef enum {
   IOPORT, // TODO: How to handle IOPORT1 and IOPORT2 ?
   IRQPIN,
   IRQLINE,
-} devprop_res_key_t;
+} devprop_res_type_t;
 
 typedef union {
   char *str_value;
@@ -64,6 +64,11 @@ typedef union {
   // pci_bar_t *bar; // TODO: do we want PCI BAR ? circular import right now
 } devprop_res_val_t;
 
+typedef struct {
+  uint32_t rid;
+  devpropt_res_val_t val;
+} devprop_res_val_rid_t;
+
 struct devprop_attr {
   devprop_attr_key_t key;
   devprop_attr_val_t *value;
@@ -71,7 +76,7 @@ struct devprop_attr {
 
 struct devprop_res {
   devprop_res_key_t key;
-  devprop_res_val_t *value;
+  devprop_res_val_rid_t *value;
 };
 
 struct devprops {
