@@ -80,9 +80,6 @@ void intr_event_remove_handler(intr_handler_t *ih) {
   ie->ie_count--;
 }
 
-typedef TAILQ_HEAD(, intr_handler) ih_list_t;
-static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
-
 static void run_mask_irq(intr_handler_t *ih) {
   intr_event_t *ie = ih->ih_event;
   if (ie->ie_mask_irq != NULL) {
@@ -96,6 +93,10 @@ static void run_unmask_irq(intr_handler_t *ih) {
     ie->ie_unmask_irq(ie->ie_source);
   }
 }
+
+typedef TAILQ_HEAD(, intr_handler) ih_list_t;
+/* interrupt handlers delegated to be called in the interrupt thread */
+static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
 
 void intr_thread(void *arg) {
   while (true) {

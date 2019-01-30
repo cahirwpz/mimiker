@@ -47,6 +47,8 @@ typedef union {
 
 typedef struct gt_pci_state gt_pci_state_t;
 
+/* The following structure is used as `source` parameter in intr_event in order
+   to gain access to gtpci and irq number inside mask and unmask functions. */
 typedef struct gt_pci_intr_cookie {
   int irq;
   gt_pci_state_t *gtpci;
@@ -173,7 +175,7 @@ static void gt_pci_unmask_irq_cookie(void *source) {
   gt_pci_state_t *gtpci = cookie->gtpci;
   int irq = cookie->irq;
 
-  gt_pci_mask_irq(gtpci, irq);
+  gt_pci_unmask_irq(gtpci, irq);
 }
 
 static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
@@ -256,12 +258,11 @@ static intr_filter_t gt_pci_intr(void *data) {
 
 static inline void gt_pci_intr_event_init(gt_pci_state_t *gtpci, unsigned irq,
                                           const char *name) {
-  intr_event_init(&gtpci->intr_event[irq], irq, name, gt_pci_mask_irq_cookie,
-                  gt_pci_unmask_irq_cookie, &gtpci->intr_cookies[irq]);
-
   gtpci->intr_cookies[irq].irq = irq;
   gtpci->intr_cookies[irq].gtpci = gtpci;
 
+  intr_event_init(&gtpci->intr_event[irq], irq, name, gt_pci_mask_irq_cookie,
+                  gt_pci_unmask_irq_cookie, &gtpci->intr_cookies[irq]);
   intr_event_register(&gtpci->intr_event[irq]);
 }
 

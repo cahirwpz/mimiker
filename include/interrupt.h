@@ -64,7 +64,7 @@ struct intr_handler {
   TAILQ_ENTRY(intr_handler) ih_list;
   driver_filter_t *ih_filter; /* driver interrupt filter function */
   driver_intr_t *ih_handler;  /* driver interrupt handler function */
-  intr_event_t *ih_event;     /* chain we are connected to */
+  intr_event_t *ih_event;     /* event we are connected to */
   void *ih_argument;          /* argument to pass to the handler */
   char *ih_name;              /* name of the handler */
   prio_t ih_prio;             /* priority of the handler */
@@ -82,12 +82,12 @@ typedef struct intr_event {
   spin_t ie_lock;
   TAILQ_ENTRY(intr_event) ie_list;
   intr_handler_list_t ie_handlers; /* interrupt handlers */
-  driver_intr_t *ie_mask_irq;
-  driver_intr_t *ie_unmask_irq;
-  void *ie_source;
-  const char *ie_name; /* individual chain name */
-  unsigned ie_irq;     /* physical interrupt request line number */
-  unsigned ie_count;   /* number of handlers attached */
+  driver_intr_t *ie_mask_irq;      /* called before ithread delegation */
+  driver_intr_t *ie_unmask_irq;    /* called after ithread delagation */
+  void *ie_source;                 /* argument for mask and unmask functions */
+  const char *ie_name;             /* individual event name */
+  unsigned ie_irq;                 /* physical interrupt request line number */
+  unsigned ie_count;               /* number of handlers attached */
 } intr_event_t;
 
 typedef TAILQ_HEAD(, intr_event) intr_event_list_t;
