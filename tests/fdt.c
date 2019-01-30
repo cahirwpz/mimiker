@@ -18,7 +18,7 @@ static int test_fdt_path_offset(void) {
 }
 
 static int test_fdt_get_path(void) {
-  const char *expected_path = "/pci@0/isa@/rtc@0";
+  const char *expected_path = "/pci@0/isa@0/rtc@0";
   char actual_path[PATHBUF_LEN];
 
   int offset = fdt_path_offset(fdt, expected_path);
