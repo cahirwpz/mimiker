@@ -83,22 +83,7 @@ static int sys_setpgid(thread_t *td, syscall_args_t *args) {
   if (pid != p->p_pid || pgid != p->p_pid)
     return -ENOTSUP;
 
-  pgrp_t *pgrp = pgrp_find(pgid);
-
-  if (pgrp) {
-    assert(pgrp == p->p_pgrp);
-    return 0;
-  }
-
-  pgrp = pgrp_create(pgid);
-
-  int error = proc_enter_pgrp(p, pgrp);
-  if (error) {
-    pgrp_destroy(pgrp);
-    return error;
-  }
-
-  return 0;
+  return pgrp_enter(p, pgid);
 }
 
 static int sys_getpgid(thread_t *td, syscall_args_t *args) {

@@ -14,19 +14,18 @@ typedef struct pgrp pgrp_t;
 typedef struct fdtab fdtab_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
 
-/*
- * One structure allocated per process group.
+/*! \brief Structure allocated per process group.
  *
- * List of locks
- * (m)		locked by pg_mtx mtx
- * (e)		locked by proctree_lock sx
- * (c)		const until freeing
+ * Field markings and the corresponding locks:
+ *  (g) all_pgrp_mtx
+ *  (@) pgrp::pg_lock
+ *  (!) read-only access, do not modify!
  */
 typedef struct pgrp {
-  LIST_ENTRY(pgrp) pg_hash;     /* (e) Hash chain. */
-  LIST_HEAD(, proc) pg_members; /* (m + e) Pointer to pgrp members. */
-  pgid_t pg_id;                 /* (c) Process group id. */
-  mtx_t pg_mtx;                 /* Mutex to protect members */
+  mtx_t pg_lock;                /* Process group mutex */
+  LIST_ENTRY(pgrp) pg_link;     /* (g) link on chain of process groups */
+  LIST_HEAD(, proc) pg_members; /* (@) members of process group */
+  pgid_t pg_id;                 /* (!) process group id */
 } pgrp_t;
 
 typedef enum { PS_NORMAL, PS_DYING, PS_ZOMBIE } proc_state_t;
@@ -46,15 +45,9 @@ struct proc {
   TAILQ_ENTRY(proc) p_child;  /* (a) link on parent's children list */
   thread_t *p_thread;         /* (@) the only thread running in this process */
   pid_t p_pid;                /* (!) Process ID */
+  LIST_ENTRY(proc) p_pglist;  /* (?) link on p_pgrp->pg_members list */
+  pgrp_t *p_pgrp;             /* (a) process group */
   volatile proc_state_t p_state;  /* (@) process state */
-  LIST_ENTRY(proc)
-  p_pglist;                       /* (g+e) List of processes in pgrp
-                                   *        g - process group mtx
-                                   *        e - locked by proctree_lock lock
-                                   */
-  pgrp_t *p_pgrp;                 /* (c + e) Pointer to process group.
-                                   * c - locked by proc mtx
-                                   */
   proc_t *p_parent;               /* (a) parent process */
   proc_list_t p_children;         /* (a) child processes, including zombies */
   vm_map_t *p_uspace;             /* (@) process' user space map */
@@ -97,10 +90,9 @@ int proc_sendsig(pid_t pid, signo_t sig);
  * \note Exit status shoud be created using MAKE_STATUS macros from wait.h */
 noreturn void proc_exit(int exitstatus);
 
-void pgrp_init(void);
-pgrp_t *pgrp_find(pgid_t);
-pgrp_t *pgrp_create(pgid_t);
-void pgrp_destroy(pgrp_t *);
-int proc_enter_pgrp(proc_t *, pgrp_t *);
+/*! \brief TODO */
+pgrp_t *pgrp_lookup(pgid_t);
+/*! \brief TODO */
+int pgrp_enter(proc_t *, pgid_t);
 
 #endif /* !_SYS_PROC_H_ */

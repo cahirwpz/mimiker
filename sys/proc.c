@@ -14,7 +14,14 @@
 #include <malloc.h>
 
 static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
+static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
 
+#define PGRP_NCHAINS 4
+static LIST_HEAD(, pgrp) pgrp_table[PGRP_NCHAINS];
+
+#define PGRPHASHLIST(pgid) pgrp_table[(pgid) & (PGRP_NCHAINS - 1)]
+
+static mtx_t *all_pgrp_mtx = &MTX_INITIALIZER(0);
 static mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 
 /* proc_list, zombie_list and last_pid must be protected by all_proc_mtx */
@@ -47,6 +54,74 @@ static void pid_free(pid_t pid) {
 
   bit_clear(pid_used, (unsigned)pid);
 }
+
+/* Process group functions */
+
+static void pgrp_init(void) {
+  for (int i = 0; i < PGRP_NCHAINS; ++i)
+    LIST_INIT(&pgrp_table[i]);
+}
+
+pgrp_t *pgrp_lookup(pgid_t pgid) {
+  assert(mtx_owned(all_pgrp_mtx));
+
+  pgrp_t *pgrp;
+  LIST_FOREACH (pgrp, &PGRPHASHLIST(pgid), pg_link)
+    if (pgrp->pg_id == pgid)
+      return pgrp;
+  return NULL;
+}
+
+static void pgrp_leave(proc_t *p) {
+  /* We don't want for any process to see that our p_pgrp is NULL. */
+  assert(mtx_owned(all_proc_mtx));
+  /* Because we can remove process group. */
+  assert(mtx_owned(all_pgrp_mtx));
+
+  pgrp_t *pgrp = p->p_pgrp;
+
+  WITH_MTX_LOCK (&pgrp->pg_lock) {
+    LIST_REMOVE(p, p_pglist);
+    p->p_pgrp = NULL;
+  }
+
+  if (LIST_EMPTY(&pgrp->pg_members)) {
+    LIST_REMOVE(pgrp, pg_link);
+    pool_free(P_PGRP, pgrp);
+  }
+}
+
+int pgrp_enter(proc_t *p, pgid_t pgid) {
+  SCOPED_MTX_LOCK(all_proc_mtx);
+  SCOPED_MTX_LOCK(all_pgrp_mtx);
+
+  pgrp_t *target = pgrp_lookup(pgid);
+  if (!target) {
+    target = pool_alloc(P_PGRP, PF_ZERO);
+    LIST_INIT(&target->pg_members);
+    target->pg_lock = MTX_INITIALIZER(0);
+    target->pg_id = pgid;
+
+    LIST_INSERT_HEAD(&PGRPHASHLIST(pgid), target, pg_link);
+  }
+
+  pgrp_t *pgrp = p->p_pgrp;
+
+  if (pgrp == target)
+    return 0;
+
+  if (pgrp)
+    pgrp_leave(p);
+
+  WITH_MTX_LOCK (&target->pg_lock) {
+    LIST_INSERT_HEAD(&target->pg_members, p, p_pglist);
+    p->p_pgrp = target;
+  }
+
+  return 0;
+}
+
+/* Process functions */
 
 void proc_lock(proc_t *p) {
   mtx_lock(&p->p_lock);
@@ -107,7 +182,8 @@ static void proc_reap(proc_t *p) {
 
   klog("Recycling process PID(%d) {%p}", p->p_pid, p);
 
-  proc_enter_pgrp(p, NULL);
+  WITH_MTX_LOCK (all_pgrp_mtx)
+    pgrp_leave(p);
 
   if (p->p_parent)
     TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
@@ -202,29 +278,6 @@ int proc_sendsig(pid_t pid, signo_t sig) {
   return 0;
 }
 
-/* Enter existing process group. */
-int proc_enter_pgrp(proc_t *p, pgrp_t *pgrp) {
-  pgrp_t *curr_pgrp = p->p_pgrp;
-
-  if (pgrp == curr_pgrp)
-    return 0;
-
-  if (curr_pgrp) {
-    LIST_REMOVE(p, p_pglist);
-
-    /* if last process in the group, then destroy it! */
-    if (LIST_EMPTY(&curr_pgrp->pg_members))
-      pgrp_destroy(curr_pgrp);
-  }
-
-  if (pgrp) {
-    p->p_pgrp = pgrp;
-    LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
-  }
-
-  return 0;
-}
-
 /* Wait for direct children. */
 int do_waitpid(pid_t pid, int *status, int options) {
   proc_t *p = proc_self();
@@ -281,3 +334,5 @@ int do_waitpid(pid_t pid, int *status, int options) {
 
   __unreachable();
 }
+
+SYSINIT_ADD(pgrp, pgrp_init, NODEPS);

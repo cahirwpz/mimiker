@@ -389,10 +389,7 @@ noreturn void run_program(char *path, char *argv[], char *envv[]) {
   thread_t *td = thread_self();
   proc_t *p = proc_self();
 
-  pgrp_init();
-  pgrp_t *pgrp = pgrp_create(1);
-  p->p_pgrp = NULL;
-  proc_enter_pgrp(p, pgrp);
+  pgrp_enter(p, 1);
 
   assert(p != NULL);
 
