@@ -3,7 +3,6 @@
 #include <proc.h>
 #include <pool.h>
 #include <thread.h>
-#include <sysinit.h>
 #include <klog.h>
 #include <errno.h>
 #include <filedesc.h>
@@ -16,17 +15,13 @@
 static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
 static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
 
-#define PGRP_NCHAINS 4
-static LIST_HEAD(, pgrp) pgrp_table[PGRP_NCHAINS];
-
-#define PGRPHASHLIST(pgid) pgrp_table[(pgid) & (PGRP_NCHAINS - 1)]
-
-static mtx_t *all_pgrp_mtx = &MTX_INITIALIZER(0);
 static mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 
 /* proc_list, zombie_list and last_pid must be protected by all_proc_mtx */
 static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
 static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
+
+static pgrp_list_t pgrp_list = LIST_HEAD_INITIALIZER(pgrp_list);
 
 #define CHILDREN(p) (&(p)->p_children)
 
@@ -57,16 +52,11 @@ static void pid_free(pid_t pid) {
 
 /* Process group functions */
 
-static void pgrp_init(void) {
-  for (int i = 0; i < PGRP_NCHAINS; ++i)
-    LIST_INIT(&pgrp_table[i]);
-}
-
 pgrp_t *pgrp_lookup(pgid_t pgid) {
-  assert(mtx_owned(all_pgrp_mtx));
+  assert(mtx_owned(all_proc_mtx));
 
   pgrp_t *pgrp;
-  LIST_FOREACH (pgrp, &PGRPHASHLIST(pgid), pg_link)
+  LIST_FOREACH (pgrp, &pgrp_list, pg_link)
     if (pgrp->pg_id == pgid)
       return pgrp;
   return NULL;
@@ -75,8 +65,6 @@ pgrp_t *pgrp_lookup(pgid_t pgid) {
 static void pgrp_leave(proc_t *p) {
   /* We don't want for any process to see that our p_pgrp is NULL. */
   assert(mtx_owned(all_proc_mtx));
-  /* Because we can remove process group. */
-  assert(mtx_owned(all_pgrp_mtx));
 
   pgrp_t *pgrp = p->p_pgrp;
 
@@ -93,7 +81,6 @@ static void pgrp_leave(proc_t *p) {
 
 int pgrp_enter(proc_t *p, pgid_t pgid) {
   SCOPED_MTX_LOCK(all_proc_mtx);
-  SCOPED_MTX_LOCK(all_pgrp_mtx);
 
   pgrp_t *target = pgrp_lookup(pgid);
   if (!target) {
@@ -102,7 +89,7 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
     target->pg_lock = MTX_INITIALIZER(0);
     target->pg_id = pgid;
 
-    LIST_INSERT_HEAD(&PGRPHASHLIST(pgid), target, pg_link);
+    LIST_INSERT_HEAD(&pgrp_list, target, pg_link);
   }
 
   pgrp_t *pgrp = p->p_pgrp;
@@ -182,8 +169,7 @@ static void proc_reap(proc_t *p) {
 
   klog("Recycling process PID(%d) {%p}", p->p_pid, p);
 
-  WITH_MTX_LOCK (all_pgrp_mtx)
-    pgrp_leave(p);
+  pgrp_leave(p);
 
   if (p->p_parent)
     TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
@@ -334,5 +320,3 @@ int do_waitpid(pid_t pid, int *status, int options) {
 
   __unreachable();
 }
-
-SYSINIT_ADD(pgrp, pgrp_init, NODEPS);
