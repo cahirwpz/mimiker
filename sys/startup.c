@@ -5,7 +5,6 @@
 #include <thread.h>
 #include <sysinit.h>
 #include <vfs.h>
-#include <interrupt.h>
 
 extern void kmain(void *);
 
