@@ -102,7 +102,7 @@ proc_t *proc_find(pid_t pid) {
 static void proc_reap(proc_t *p) {
   assert(mtx_owned(all_proc_mtx));
 
-  WITH_PROC_LOCK(p){
+  WITH_PROC_LOCK(p) {
     assert(p->p_state == PS_ZOMBIE);
 
     klog("Recycling process PID(%d) {%p}", p->p_pid, p);
