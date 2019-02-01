@@ -1,8 +1,7 @@
 import gdb
 
-from .tailq import TailQueue
+from .struct import TailQueue, GdbStructMeta, ProgramCounter
 from .thread import Thread
-from .utils import GdbStructMeta, ProgramCounter
 
 
 class SleepQueue(metaclass=GdbStructMeta):

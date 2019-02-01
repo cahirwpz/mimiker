@@ -1,7 +1,7 @@
 import gdb
 from collections import OrderedDict
 
-from .ptable import ptable
+from .utils import TextTable
 
 
 class Context():
@@ -36,5 +36,6 @@ class Context():
             gdb.execute('set $%s = %d' % (name, val))
 
     def dump(self):
-        rows = [[name, str(val)] for name, val in self.regs.items()]
-        ptable(rows, fmt='lr')
+        table = TextTable(align='rl')
+        table.add_rows([[name, str(val)] for name, val in self.regs.items()])
+        print(table)

@@ -1,11 +1,11 @@
 # vim: syntax=dockerfile:
-# TODO use :latest when it will be available on docker hub
-FROM cahirwpz/mimiker-circleci:1.6
+FROM cahirwpz/mimiker-circleci:latest
 
 RUN addgroup --gid ${MIMIKER_GID} mimiker && \
     adduser --uid ${MIMIKER_UID} --disabled-password \
     --gecos "" --force-badname \
-    --ingroup mimiker --ingroup sudo mimiker
+    --ingroup mimiker mimiker && \
+    adduser mimiker sudo
 
 WORKDIR /home/mimiker
 

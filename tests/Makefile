@@ -29,6 +29,7 @@ SOURCES = \
 	uiomove.c \
 	utest.c \
 	vm_map.c \
+	devclass.c \
 	vfs.c
 
 include $(TOPDIR)/build/build.kobj.mk
