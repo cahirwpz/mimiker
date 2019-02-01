@@ -1,8 +1,8 @@
 import gdb
-import traceback
 
-from .utils import OneArgAutoCompleteMixin, GdbStructMeta, cast
-from .ptable import ptable, as_hex
+from .struct import GdbStructMeta
+from .utils import TextTable, cast
+from .cmd import UserCommand, CommandDispatcher
 
 
 PAGESIZE = 0x1000
@@ -60,15 +60,21 @@ class TLBEntry(metaclass=GdbStructMeta):
         return ['%02x' % self.hi.asid, lo0, lo1]
 
 
-class TLB():
-    def invoke(self):
-        rows = [["Index", "ASID", "PFN0", "PFN1"]]
+class TLB(UserCommand):
+    """List Translation Lookaside Buffer entries"""
+
+    def __init__(self):
+        super().__init__('tlb')
+
+    def __call__(self, args):
+        table = TextTable(align='rrll')
+        table.header(["Index", "ASID", "PFN0", "PFN1"])
         for idx in range(TLB.size()):
             row = TLB.read(idx).dump()
             if row is None:
                 continue
-            rows.append([str(idx)] + row)
-        ptable(rows, fmt="rrll", header=True)
+            table.add_row([str(idx)] + row)
+        print(table)
 
     @staticmethod
     def read(idx):
@@ -80,25 +86,8 @@ class TLB():
         return int(gdb.parse_and_eval('_gdb_tlb_size()'))
 
 
-class Cpu(gdb.Command, OneArgAutoCompleteMixin):
-    """ examine processor priviliged resources
+class Cpu(CommandDispatcher):
+    """Examine processor priviliged resources."""
 
-    Currently supported resources:
-     * tlb - list Translation Lookaside Buffer
-    """
     def __init__(self):
-        super(Cpu, self).__init__('cpu', gdb.COMMAND_USER)
-        self._options = {'tlb': TLB()}
-
-    def invoke(self, args, from_tty):
-        if len(args) < 1:
-            raise gdb.GdbError('Usage: cpu [resource]')
-        if args not in self.options():
-            raise gdb.GdbError('No such resource "%s"' % args)
-        try:
-            self._options[args].invoke()
-        except:
-            traceback.print_exc()
-
-    def options(self):
-        return self._options.keys()
+        super().__init__('cpu', [TLB()])

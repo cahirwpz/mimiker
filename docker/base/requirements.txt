@@ -2,3 +2,4 @@ pep8==1.7.1
 pexpect==4.6.0
 fdt==0.1.1
 libtmux==0.8.0
+texttable==1.6.0

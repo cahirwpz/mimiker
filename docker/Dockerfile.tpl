@@ -1,5 +1,4 @@
 # vim: syntax=dockerfile:
-# TODO use :latest when it will be available on docker hub
 FROM cahirwpz/mimiker-circleci:latest
 
 RUN addgroup --gid ${MIMIKER_GID} mimiker && \
