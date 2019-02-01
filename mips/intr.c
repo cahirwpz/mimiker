@@ -36,10 +36,10 @@ bool mips_intr_disabled(void) {
   return (mips32_getsr() & SR_IE) == 0;
 }
 
-static intr_chain_t mips_intr_chain[8];
+static intr_event_t mips_intr_event[8];
 
-#define MIPS_INTR_CHAIN(irq, name)                                             \
-  intr_chain_init(&mips_intr_chain[irq], irq, name)
+#define MIPS_INTR_EVENT(irq, name)                                             \
+  intr_event_init(&mips_intr_event[irq], irq, name)
 
 void mips_intr_init(void) {
   /*
@@ -55,26 +55,26 @@ void mips_intr_init(void) {
   /* Set vector spacing to 0. */
   mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
 
-  /* Initialize software interrupts handler chains. */
-  MIPS_INTR_CHAIN(MIPS_SWINT0, "swint(0)");
-  MIPS_INTR_CHAIN(MIPS_SWINT1, "swint(1)");
-  /* Initialize hardware interrupts handler chains. */
-  MIPS_INTR_CHAIN(MIPS_HWINT0, "hwint(0)");
-  MIPS_INTR_CHAIN(MIPS_HWINT1, "hwint(1)");
-  MIPS_INTR_CHAIN(MIPS_HWINT2, "hwint(2)");
-  MIPS_INTR_CHAIN(MIPS_HWINT3, "hwint(3)");
-  MIPS_INTR_CHAIN(MIPS_HWINT4, "hwint(4)");
-  MIPS_INTR_CHAIN(MIPS_HWINT5, "hwint(5)");
+  /* Initialize software interrupts handler events. */
+  MIPS_INTR_EVENT(MIPS_SWINT0, "swint(0)");
+  MIPS_INTR_EVENT(MIPS_SWINT1, "swint(1)");
+  /* Initialize hardware interrupts handler events. */
+  MIPS_INTR_EVENT(MIPS_HWINT0, "hwint(0)");
+  MIPS_INTR_EVENT(MIPS_HWINT1, "hwint(1)");
+  MIPS_INTR_EVENT(MIPS_HWINT2, "hwint(2)");
+  MIPS_INTR_EVENT(MIPS_HWINT3, "hwint(3)");
+  MIPS_INTR_EVENT(MIPS_HWINT4, "hwint(4)");
+  MIPS_INTR_EVENT(MIPS_HWINT5, "hwint(5)");
 
   for (unsigned i = 0; i < 8; i++)
-    intr_chain_register(&mips_intr_chain[i]);
+    intr_event_register(&mips_intr_event[i]);
 }
 
 void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
-  intr_chain_t *chain = &mips_intr_chain[irq];
-  WITH_SPIN_LOCK (&chain->ic_lock) {
-    intr_chain_add_handler(chain, handler);
-    if (chain->ic_count == 1) {
+  intr_event_t *event = &mips_intr_event[irq];
+  WITH_SPIN_LOCK (&event->ie_lock) {
+    intr_event_add_handler(event, handler);
+    if (event->ie_count == 1) {
       mips32_bs_c0(C0_STATUS, SR_IM0 << irq); /* enable interrupt */
       mips32_bc_c0(C0_CAUSE, CR_IP0 << irq);  /* clear pending flag */
     }
@@ -82,11 +82,11 @@ void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
 }
 
 void mips_intr_teardown(intr_handler_t *handler) {
-  intr_chain_t *chain = handler->ih_chain;
-  WITH_SPIN_LOCK (&chain->ic_lock) {
-    if (chain->ic_count == 1)
-      mips32_bc_c0(C0_STATUS, SR_IM0 << chain->ic_irq);
-    intr_chain_remove_handler(handler);
+  intr_event_t *event = handler->ih_event;
+  WITH_SPIN_LOCK (&event->ie_lock) {
+    if (event->ie_count == 1)
+      mips32_bc_c0(C0_STATUS, SR_IM0 << event->ie_irq);
+    intr_event_remove_handler(handler);
   }
 }
 
@@ -98,7 +98,7 @@ static void mips_intr_handler(exc_frame_t *frame) {
     unsigned irq = CR_IP0 << i;
 
     if (pending & irq) {
-      intr_chain_run_handlers(&mips_intr_chain[i]);
+      intr_event_run_handlers(&mips_intr_event[i]);
       pending &= ~irq;
     }
   }
