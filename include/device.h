@@ -7,9 +7,6 @@
 #include <rman.h>
 
 typedef struct device device_t;
-typedef struct devprops devprops_t;
-typedef struct devprop_attr devprop_attr_t;
-typedef struct devprop_res devprop_res_t;
 typedef struct driver driver_t;
 typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
@@ -33,56 +30,38 @@ struct driver {
 
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
 
-// TODO: There should be more key types
+#define DEV_ATTR_MAX 16 /* maximum number of device attributes */
+
 typedef enum {
-  CLASSCODE,
-  COMPATIBLE,
-  DEVICEID,
-  FDT_PATH,
-  VENDORID,
-} devprop_attr_type_t;
+  DA_NULL = 0,
+  /* FDT attributes */
+  DA_FDT_COMPATIBLE,
+  DA_FDT_PATH,
+  /* resource types */
+  DA_IOPORT,
+  DA_MEMORY,
+  DA_IRQ,
+  /* PCI bus identifiers */
+  DA_PCI_CLASSCODE,
+  DA_PCI_DEVICEID,
+  DA_PCI_VENDORID,
+} __packed da_tag_t;
 
-// TODO: There should be more key types
-typedef enum {
-  PCIBAR,
-  IOPORT, // TODO: How to handle IOPORT1 and IOPORT2 ?
-  IRQPIN,
-  IRQLINE,
-} devprop_res_type_t;
+typedef short da_id_t;
 
-typedef union {
-  char *str_value;
-  uint8_t uint8_value;
-  uint16_t uint16_value; // TODO: naming?
-} devprop_attr_val_t;
+#define DA_ID_FIRST -1
 
-typedef union {
-  char *str_value;
-  uint8_t uint8_value;
-  uint16_t uint16_value;
-  void *bar;
-  // pci_bar_t *bar; // TODO: do we want PCI BAR ? circular import right now
-} devprop_res_val_t;
-
-typedef struct {
-  uint32_t rid;
-  devpropt_res_val_t val;
-} devprop_res_val_rid_t;
-
-struct devprop_attr {
-  devprop_attr_key_t key;
-  devprop_attr_val_t *value;
-};
-
-struct devprop_res {
-  devprop_res_key_t key;
-  devprop_res_val_rid_t *value;
-};
-
-struct devprops {
-  devprop_attr_t *attrs;
-  devprop_res_t *resources;
-};
+typedef struct device_attr {
+  da_tag_t tag;
+  da_id_t id;
+  union {
+    char *string;
+    unsigned number;
+    struct {
+      intptr_t start, end;
+    } range;
+  };
+} device_attr_t;
 
 struct device {
   /* Device hierarchy. */
@@ -96,9 +75,9 @@ struct device {
   device_bus_t bus;
   driver_t *driver;
   // TODO: most likeley we want to get rid of `instance` field
-  void *instance;    /* used by bus driver to store data in children */
-  void *state;       /* memory requested by driver for its state*/
-  devprops_t *props; // equivalent of FreeBSD's `ivars`
+  void *instance; /* used by bus driver to store data in children */
+  void *state;    /* memory requested by driver for its state*/
+  device_attr_t attributes[DEV_ATTR_MAX]; /* equivalent of FreeBSD's `ivars` */
 };
 
 device_t *device_add_child(device_t *dev);
@@ -106,13 +85,8 @@ int device_probe(device_t *dev);
 int device_attach(device_t *dev);
 int device_detach(device_t *dev);
 
-devprop_attr_t *get_device_prop_attr(device_t *dev, devprop_attr_key_t key);
-devprop_res_t *get_device_prop_res(device_t *dev, devprop_res_key_t key);
-
-void set_device_prop_attr(device_t *dev, devprop_attr_key_t key,
-                          devprop_attr_val_t *value);
-void set_device_prop_res(device_t *dev, devprop_res_key_t key,
-                         devprop_res_val_t *value);
+/*! \brief TODO */
+device_attr_t *device_get_attr(device_t *dev, da_tag_t tag, da_id_t id);
 
 /* Manually create a device with given driver and parent device. */
 device_t *make_device(device_t *parent, driver_t *driver);

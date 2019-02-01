@@ -14,6 +14,7 @@
 #include <interrupt.h>
 #include <sysinit.h>
 
+#if 0
 extern device_t *gt_pci;
 
 static int test_operate_on_devprops_attrs(void) {
@@ -57,3 +58,4 @@ KTEST_ADD(get_non_existing_deprop_attr_res_null,
           test_get_non_existing_deprop_attr_res_null, 0);
 KTEST_ADD(override_exisiting_devprop_attr, test_override_exisiting_devprop_attr,
           0);
+#endif

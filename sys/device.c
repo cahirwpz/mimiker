@@ -59,28 +59,7 @@ void device_add_resource(device_t *dev, resource_t *r, int rid) {
   TAILQ_INSERT_HEAD(&dev->resources, r, r_device);
 }
 
-devprop_attr_t *get_device_prop_attr(device_t *dev, devprop_attr_key_t key) {
-  // TODO: iterate over dev->properties->attrs
-  // untill key is found; return attr or NULL
+/* TODO !!! */
+device_attr_t *device_get_attr(device_t *dev, da_tag_t tag, da_id_t id) {
   return NULL;
-}
-
-devprop_res_t *get_device_prop_res(device_t *dev, devprop_res_key_t key) {
-  // TODO: iterate over dev->properties->resources;
-  // untill key is found; return attr or NULL
-  return NULL;
-}
-
-void set_device_prop_attr(device_t *dev, devprop_attr_key_t key,
-                          devprop_attr_val_t *value) {
-  // TODO: iterate over dev->properties->attrs
-  // if key is found override attr else create new
-  return;
-}
-
-void set_device_prop_res(device_t *dev, devprop_res_key_t key,
-                         devprop_res_val_t *value) {
-  // TODO: iterate over dev->properties->resources;
-  // if key is found override resource else create new
-  return;
 }
