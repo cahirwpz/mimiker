@@ -5,7 +5,6 @@
 #include <thread.h>
 #include <mips/intr.h>
 #include <interrupt.h>
-#include <sched.h>
 #include <sleepq.h>
 
 static mtx_t all_ievents_mtx = MTX_INITIALIZER(0);
