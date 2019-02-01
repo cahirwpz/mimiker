@@ -6,6 +6,8 @@
 #include <mips/intr.h>
 #include <interrupt.h>
 #include <sleepq.h>
+#include <sysinit.h>
+#include <sched.h>
 
 static mtx_t all_ievents_mtx = MTX_INITIALIZER(0);
 static intr_event_list_t all_ievents_list =
@@ -27,6 +29,12 @@ void intr_enable(void) {
   td->td_idnest--;
   if (td->td_idnest == 0)
     mips_intr_enable();
+}
+
+static void intr_init(void) {
+  thread_t *interrupt_thread =
+    thread_create("interrupt", intr_thread, NULL, prio_ithread(0));
+  sched_add(interrupt_thread);
 }
 
 void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
@@ -139,3 +147,5 @@ void intr_event_run_handlers(intr_event_t *ie) {
 
   klog("Spurious %s interrupt!", ie->ie_name);
 }
+
+SYSINIT_ADD(ithread, intr_init, DEPS("sched"));
