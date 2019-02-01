@@ -30,7 +30,7 @@ void intr_enable(void) {
 }
 
 void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
-                     void (*mask_irq)(void *), void (*unmask_irq)(void *),
+                     driver_mask_t *mask_irq, driver_mask_t *unmask_irq,
                      void *source) {
   ie->ie_irq = irq;
   ie->ie_name = name;
@@ -46,8 +46,7 @@ void intr_event_register(intr_event_t *ie) {
     TAILQ_INSERT_TAIL(&all_ievents_list, ie, ie_list);
 }
 
-static void intr_event_tailq_handler_insert(intr_event_t *ie,
-                                            intr_handler_t *ih) {
+static void tailq_handler_insert(intr_event_t *ie, intr_handler_t *ih) {
   intr_handler_t *it;
   TAILQ_FOREACH (it, &ie->ie_handlers, ih_list)
     if (ih->ih_prio > it->ih_prio)
@@ -63,7 +62,7 @@ void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih) {
   SCOPED_SPIN_LOCK(&ie->ie_lock);
 
   /* Add new handler according to it's priority */
-  intr_event_tailq_handler_insert(ie, ih);
+  tailq_handler_insert(ie, ih);
 
   ih->ih_event = ie;
   ie->ie_count++;
@@ -82,14 +81,14 @@ void intr_event_remove_handler(intr_handler_t *ih) {
 static void run_mask_irq(intr_handler_t *ih) {
   intr_event_t *ie = ih->ih_event;
   if (ie->ie_mask_irq != NULL) {
-    ie->ie_mask_irq(ie->ie_source);
+    ie->ie_mask_irq(ie);
   }
 }
 
 static void run_unmask_irq(intr_handler_t *ih) {
   intr_event_t *ie = ih->ih_event;
   if (ie->ie_unmask_irq != NULL) {
-    ie->ie_unmask_irq(ie->ie_source);
+    ie->ie_unmask_irq(ie);
   }
 }
 
@@ -111,8 +110,8 @@ void intr_thread(void *arg) {
 
     ih->ih_handler(ih->ih_argument);
 
-    WITH_INTR_DISABLED {
-      intr_event_tailq_handler_insert(ih->ih_event, ih);
+    WITH_SPIN_LOCK (&ih->ih_event->ie_lock) {
+      tailq_handler_insert(ih->ih_event, ih);
       run_unmask_irq(ih);
     }
   }

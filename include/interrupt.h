@@ -42,6 +42,9 @@ static inline void __intr_enable(void *data) {
 
 #define WITH_INTR_DISABLED WITH_STMT(void, __intr_disable, __intr_enable, NULL)
 
+typedef struct intr_event intr_event_t;
+typedef struct intr_handler intr_handler_t;
+
 typedef enum {
   IF_STRAY = 0,    /* this device did not trigger the interrupt */
   IF_FILTERED = 1, /* the interrupt has been handled and can be EOId */
@@ -56,9 +59,7 @@ typedef enum {
  */
 typedef intr_filter_t driver_filter_t(void *);
 typedef void driver_intr_t(void *);
-
-typedef struct intr_event intr_event_t;
-typedef struct intr_handler intr_handler_t;
+typedef void driver_mask_t(intr_event_t *);
 
 struct intr_handler {
   TAILQ_ENTRY(intr_handler) ih_list;
@@ -82,9 +83,9 @@ typedef struct intr_event {
   spin_t ie_lock;
   TAILQ_ENTRY(intr_event) ie_list;
   intr_handler_list_t ie_handlers; /* interrupt handlers */
-  driver_intr_t *ie_mask_irq;      /* called before ithread delegation */
-  driver_intr_t *ie_unmask_irq;    /* called after ithread delagation */
-  void *ie_source;                 /* argument for mask and unmask functions */
+  driver_mask_t *ie_mask_irq;      /* called before ithread delegation */
+  driver_mask_t *ie_unmask_irq;    /* called after ithread delagation */
+  void *ie_source;                 /* additional argument for mask and unmask */
   const char *ie_name;             /* individual event name */
   unsigned ie_irq;                 /* physical interrupt request line number */
   unsigned ie_count;               /* number of handlers attached */
@@ -94,7 +95,7 @@ typedef TAILQ_HEAD(, intr_event) intr_event_list_t;
 
 void intr_thread(void *arg);
 void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
-                     void(mask_irq)(void *), void(unmask_irq)(void *),
+                     driver_mask_t *mask_irq, driver_mask_t *unmask_irq,
                      void *source);
 void intr_event_register(intr_event_t *ie);
 void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih);

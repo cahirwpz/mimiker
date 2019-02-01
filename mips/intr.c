@@ -40,15 +40,15 @@ static intr_event_t mips_intr_event[8];
 
 #define MIPS_INTR_EVENT(irq, name)                                             \
   intr_event_init(&mips_intr_event[irq], irq, name, mips_mask_irq,             \
-                  mips_unmask_irq, (void *)irq)
+                  mips_unmask_irq, NULL)
 
-static void mips_mask_irq(void *source) {
-  int irq = (int)source;
+static void mips_mask_irq(intr_event_t *ie) {
+  int irq = ie->ie_irq;
   mips32_set_c0(C0_STATUS, mips32_get_c0(C0_STATUS) & ~((1 << irq) << 8));
 }
 
-static void mips_unmask_irq(void *source) {
-  int irq = (int)source;
+static void mips_unmask_irq(intr_event_t *ie) {
+  int irq = ie->ie_irq;
   mips32_set_c0(C0_STATUS, mips32_get_c0(C0_STATUS) | ((1 << irq) << 8));
 }
 
