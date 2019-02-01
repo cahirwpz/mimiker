@@ -45,8 +45,6 @@ typedef union {
 #define ICU2_ADDR ICU_ADDR(IO_ICU2)
 #define ICU2_DATA ICU_DATA(IO_ICU2)
 
-typedef struct gt_pci_state gt_pci_state_t;
-
 typedef struct gt_pci_state {
 
   /* Resources belonging to this driver. */
