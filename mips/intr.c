@@ -66,10 +66,10 @@ void mips_intr_init(void) {
   /* Set vector spacing to 0. */
   mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
 
-  /* Initialize software interrupts handler chains. */
+  /* Initialize software interrupts handler events. */
   MIPS_INTR_EVENT(MIPS_SWINT0, "swint(0)");
   MIPS_INTR_EVENT(MIPS_SWINT1, "swint(1)");
-  /* Initialize hardware interrupts handler chains. */
+  /* Initialize hardware interrupts handler events. */
   MIPS_INTR_EVENT(MIPS_HWINT0, "hwint(0)");
   MIPS_INTR_EVENT(MIPS_HWINT1, "hwint(1)");
   MIPS_INTR_EVENT(MIPS_HWINT2, "hwint(2)");

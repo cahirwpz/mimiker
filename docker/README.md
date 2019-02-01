@@ -11,7 +11,7 @@ To set up environment:
 make run
 ```
 
-The above script will
+The above script will:
 - generate Dockerfile based on user's uid and gid
 - attach volume with mimiker source code from your machine
 - compile mimiker

@@ -238,7 +238,7 @@ static intr_filter_t gt_pci_intr(void *data) {
       irq = (irq & OCW3_POLL_PENDING) ? (OCW3_POLL_IRQ(irq) + 8) : 2;
     }
 
-    /* Irq 2 is used for PIC chaining, ignore it. */
+    /* Irq 2 is used for PIC eventing, ignore it. */
     if (irq != 2)
       intr_event_run_handlers(&gtpci->intr_event[irq]);
 
