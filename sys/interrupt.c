@@ -10,8 +10,7 @@
 #include <sched.h>
 
 static mtx_t all_ievents_mtx = MTX_INITIALIZER(0);
-static intr_event_list_t all_ievents_list =
-  TAILQ_HEAD_INITIALIZER(all_ievents_list);
+static ie_list_t all_ievents_list = TAILQ_HEAD_INITIALIZER(all_ievents_list);
 
 bool intr_disabled(void) {
   thread_t *td = thread_self();
@@ -38,13 +37,12 @@ static void intr_init(void) {
 }
 
 void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
-                     driver_mask_t *mask_irq, driver_mask_t *unmask_irq,
-                     void *source) {
+                     ie_action_t *disable, ie_action_t *enable, void *source) {
   ie->ie_irq = irq;
   ie->ie_name = name;
   ie->ie_lock = SPIN_INITIALIZER(LK_RECURSE);
-  ie->ie_mask_irq = mask_irq;
-  ie->ie_unmask_irq = unmask_irq;
+  ie->ie_enable = enable;
+  ie->ie_disable = disable;
   ie->ie_source = source;
   TAILQ_INIT(&ie->ie_handlers);
 }
@@ -54,53 +52,51 @@ void intr_event_register(intr_event_t *ie) {
     TAILQ_INSERT_TAIL(&all_ievents_list, ie, ie_list);
 }
 
-static void tailq_handler_insert(intr_event_t *ie, intr_handler_t *ih) {
+/* Add new handler according to it's priority */
+static void insert_handler(intr_event_t *ie, intr_handler_t *ih) {
   intr_handler_t *it;
-  TAILQ_FOREACH (it, &ie->ie_handlers, ih_list)
+  TAILQ_FOREACH (it, &ie->ie_handlers, ih_link)
     if (ih->ih_prio > it->ih_prio)
       break;
 
   if (it)
-    TAILQ_INSERT_BEFORE(it, ih, ih_list);
+    TAILQ_INSERT_BEFORE(it, ih, ih_link);
   else
-    TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_list);
-}
-
-void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih) {
-  SCOPED_SPIN_LOCK(&ie->ie_lock);
-
-  /* Add new handler according to it's priority */
-  tailq_handler_insert(ie, ih);
+    TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_link);
 
   ih->ih_event = ie;
   ie->ie_count++;
 }
 
-void intr_event_remove_handler(intr_handler_t *ih) {
-  intr_event_t *ie = ih->ih_event;
-
-  SCOPED_SPIN_LOCK(&ie->ie_lock);
-
-  TAILQ_REMOVE(&ie->ie_handlers, ih, ih_list);
+static void remove_handler(intr_event_t *ie, intr_handler_t *ih) {
+  TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
   ih->ih_event = NULL;
   ie->ie_count--;
 }
 
-static void run_mask_irq(intr_handler_t *ih) {
-  intr_event_t *ie = ih->ih_event;
-  if (ie->ie_mask_irq != NULL) {
-    ie->ie_mask_irq(ie);
-  }
+void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih) {
+  WITH_SPIN_LOCK(&ie->ie_lock)
+    insert_handler(ie, ih);
 }
 
-static void run_unmask_irq(intr_handler_t *ih) {
+void intr_event_remove_handler(intr_handler_t *ih) {
   intr_event_t *ie = ih->ih_event;
-  if (ie->ie_unmask_irq != NULL) {
-    ie->ie_unmask_irq(ie);
-  }
+  WITH_SPIN_LOCK(&ie->ie_lock)
+    remove_handler(ie, ih);
 }
 
-typedef TAILQ_HEAD(, intr_handler) ih_list_t;
+static void enable_event(intr_handler_t *ih) {
+  intr_event_t *ie = ih->ih_event;
+  if (ie->ie_enable)
+    ie->ie_enable(ie);
+}
+
+static void disable_event(intr_handler_t *ih) {
+  intr_event_t *ie = ih->ih_event;
+  if (ie->ie_disable)
+    ie->ie_disable(ie);
+}
+
 /* interrupt handlers delegated to be called in the interrupt thread */
 static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
 
@@ -109,18 +105,19 @@ void intr_thread(void *arg) {
     intr_handler_t *ih;
 
     WITH_INTR_DISABLED {
-      while (TAILQ_EMPTY(&delegated)) {
+      while (TAILQ_EMPTY(&delegated))
         sleepq_wait(&delegated, NULL);
-      }
       ih = TAILQ_FIRST(&delegated);
-      TAILQ_REMOVE(&delegated, ih, ih_list);
+      TAILQ_REMOVE(&delegated, ih, ih_link);
     }
 
     ih->ih_handler(ih->ih_argument);
 
-    WITH_SPIN_LOCK (&ih->ih_event->ie_lock) {
-      tailq_handler_insert(ih->ih_event, ih);
-      run_unmask_irq(ih);
+    intr_event_t *ie = ih->ih_event;
+
+    WITH_SPIN_LOCK (&ie->ie_lock) {
+      insert_handler(ie, ih);
+      enable_event(ih);
     }
   }
 }
@@ -129,17 +126,17 @@ void intr_event_run_handlers(intr_event_t *ie) {
   intr_handler_t *ih, *next;
   intr_filter_t status = IF_STRAY;
 
-  TAILQ_FOREACH_SAFE(ih, &ie->ie_handlers, ih_list, next) {
+  TAILQ_FOREACH_SAFE(ih, &ie->ie_handlers, ih_link, next) {
     status = ih->ih_filter(ih->ih_argument);
     if (status == IF_FILTERED) {
       return;
     } else if (status == IF_DELEGATE) {
-      assert(ih->ih_handler != NULL);
+      assert(ih->ih_handler);
 
-      run_mask_irq(ih);
+      disable_event(ih);
 
-      TAILQ_REMOVE(&ie->ie_handlers, ih, ih_list);
-      TAILQ_INSERT_TAIL(&delegated, ih, ih_list);
+      TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
+      TAILQ_INSERT_TAIL(&delegated, ih, ih_link);
       sleepq_signal(&delegated);
       return;
     }

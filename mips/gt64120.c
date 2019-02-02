@@ -140,30 +140,22 @@ static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
   bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 }
 
-static void gt_pci_mask_irq(gt_pci_state_t *gtpci, unsigned irq) {
+static void gt_pci_mask_irq(intr_event_t *ie) {
+  gt_pci_state_t *gtpci = ie->ie_source;
+  unsigned irq = ie->ie_irq;
+
   gtpci->imask |= (1 << irq);
   gtpci->elcr |= (1 << irq);
   gt_pci_set_icus(gtpci);
 }
 
-static void gt_pci_unmask_irq(gt_pci_state_t *gtpci, unsigned irq) {
+static void gt_pci_unmask_irq(intr_event_t *ie) {
+  gt_pci_state_t *gtpci = ie->ie_source;
+  unsigned irq = ie->ie_irq;
+
   gtpci->imask &= ~(1 << irq);
   gtpci->elcr &= ~(1 << irq);
   gt_pci_set_icus(gtpci);
-}
-
-static void gt_pci_mask_event_irq(intr_event_t *ie) {
-  gt_pci_state_t *gtpci = ie->ie_source;
-  int irq = ie->ie_irq;
-
-  gt_pci_mask_irq(gtpci, irq);
-}
-
-static void gt_pci_unmask_event_irq(intr_event_t *ie) {
-  gt_pci_state_t *gtpci = ie->ie_source;
-  int irq = ie->ie_irq;
-
-  gt_pci_unmask_irq(gtpci, irq);
 }
 
 static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
@@ -175,18 +167,17 @@ static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
   WITH_SPIN_LOCK (&event->ie_lock) {
     intr_event_add_handler(event, handler);
     if (event->ie_count == 1)
-      gt_pci_unmask_irq(gtpci, irq);
+      gt_pci_unmask_irq(event);
   }
 }
 
 static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
   assert(pcib->parent->driver == &gt_pci_bus.driver);
 
-  gt_pci_state_t *gtpci = pcib->parent->state;
   intr_event_t *event = handler->ih_event;
   WITH_SPIN_LOCK (&event->ie_lock) {
     if (event->ie_count == 1)
-      gt_pci_mask_irq(gtpci, event->ie_irq);
+      gt_pci_mask_irq(event);
     intr_event_remove_handler(handler);
   }
 }
@@ -246,8 +237,8 @@ static intr_filter_t gt_pci_intr(void *data) {
 
 static inline void gt_pci_intr_event_init(gt_pci_state_t *gtpci, unsigned irq,
                                           const char *name) {
-  intr_event_init(&gtpci->intr_event[irq], irq, name, gt_pci_mask_event_irq,
-                  gt_pci_unmask_event_irq, gtpci);
+  intr_event_init(&gtpci->intr_event[irq], irq, name, gt_pci_mask_irq,
+                  gt_pci_unmask_irq, gtpci);
   intr_event_register(&gtpci->intr_event[irq]);
 }
 

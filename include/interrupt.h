@@ -57,21 +57,21 @@ typedef enum {
  * handle the interrupt or it may perform some of the work and
  * defer more expensive work to the regular interrupt handler.
  */
-typedef intr_filter_t driver_filter_t(void *);
-typedef void driver_intr_t(void *);
-typedef void driver_mask_t(intr_event_t *);
+typedef intr_filter_t ih_filter_t(void *);
+typedef void ih_handler_t(void *);
+typedef void ie_action_t(intr_event_t *);
 
 struct intr_handler {
-  TAILQ_ENTRY(intr_handler) ih_list;
-  driver_filter_t *ih_filter; /* driver interrupt filter function */
-  driver_intr_t *ih_handler;  /* driver interrupt handler function */
-  intr_event_t *ih_event;     /* event we are connected to */
-  void *ih_argument;          /* argument to pass to the handler */
-  char *ih_name;              /* name of the handler */
-  prio_t ih_prio;             /* priority of the handler */
+  TAILQ_ENTRY(intr_handler) ih_link;
+  ih_filter_t *ih_filter;   /* intrrupt filter routine (run in irq ctx) */
+  ih_handler_t *ih_handler; /* interrupt handler routine (run in thread ctx) */
+  intr_event_t *ih_event;   /* event we are connected to */
+  void *ih_argument;        /* argument to pass to the handler */
+  char *ih_name;            /* name of the handler */
+  prio_t ih_prio;           /* handler's priority (sort key for ie_handlers) */
 };
 
-typedef TAILQ_HEAD(, intr_handler) intr_handler_list_t;
+typedef TAILQ_HEAD(, intr_handler) ih_list_t;
 
 #define INTR_HANDLER_INIT(filter, handler, argument, desc, prio)               \
   (intr_handler_t) {                                                           \
@@ -79,24 +79,24 @@ typedef TAILQ_HEAD(, intr_handler) intr_handler_list_t;
     .ih_name = (desc), .ih_prio = (prio)                                       \
   }
 
+/* Software representation of interrupt line. */
 typedef struct intr_event {
   spin_t ie_lock;
   TAILQ_ENTRY(intr_event) ie_list;
-  intr_handler_list_t ie_handlers; /* interrupt handlers */
-  driver_mask_t *ie_mask_irq;      /* called before ithread delegation */
-  driver_mask_t *ie_unmask_irq;    /* called after ithread delagation */
-  void *ie_source;                 /* additional argument for mask and unmask */
-  const char *ie_name;             /* individual event name */
-  unsigned ie_irq;                 /* physical interrupt request line number */
-  unsigned ie_count;               /* number of handlers attached */
+  ih_list_t ie_handlers;   /* interrupt handlers sorted by descending ih_prio */
+  ie_action_t *ie_disable; /* called before ithread delegation (mask irq) */
+  ie_action_t *ie_enable;  /* called after ithread delagation (unmask irq) */
+  void *ie_source;         /* additional argument for actions */
+  const char *ie_name;     /* individual event name */
+  unsigned ie_irq;         /* physical interrupt request line number */
+  unsigned ie_count;       /* number of handlers attached */
 } intr_event_t;
 
-typedef TAILQ_HEAD(, intr_event) intr_event_list_t;
+typedef TAILQ_HEAD(, intr_event) ie_list_t;
 
 void intr_thread(void *arg);
 void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
-                     driver_mask_t *mask_irq, driver_mask_t *unmask_irq,
-                     void *source);
+                     ie_action_t *disable, ie_action_t *enable, void *source);
 void intr_event_register(intr_event_t *ie);
 void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih);
 void intr_event_remove_handler(intr_handler_t *ih);
