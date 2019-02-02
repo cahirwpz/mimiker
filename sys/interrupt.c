@@ -75,13 +75,13 @@ static void remove_handler(intr_event_t *ie, intr_handler_t *ih) {
 }
 
 void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih) {
-  WITH_SPIN_LOCK(&ie->ie_lock)
+  WITH_SPIN_LOCK (&ie->ie_lock)
     insert_handler(ie, ih);
 }
 
 void intr_event_remove_handler(intr_handler_t *ih) {
   intr_event_t *ie = ih->ih_event;
-  WITH_SPIN_LOCK(&ie->ie_lock)
+  WITH_SPIN_LOCK (&ie->ie_lock)
     remove_handler(ie, ih);
 }
 
