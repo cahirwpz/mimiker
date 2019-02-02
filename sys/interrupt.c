@@ -6,6 +6,7 @@
 #include <mips/intr.h>
 #include <interrupt.h>
 #include <sleepq.h>
+#include <spinlock.h>
 #include <sysinit.h>
 #include <sched.h>
 
@@ -49,7 +50,7 @@ void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
 
 void intr_event_register(intr_event_t *ie) {
   WITH_MTX_LOCK (&all_ievents_mtx)
-    TAILQ_INSERT_TAIL(&all_ievents_list, ie, ie_list);
+    TAILQ_INSERT_TAIL(&all_ievents_list, ie, ie_link);
 }
 
 /* Add new handler according to it's priority */
@@ -99,12 +100,13 @@ static void disable_event(intr_handler_t *ih) {
 
 /* interrupt handlers delegated to be called in the interrupt thread */
 static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
+static spin_t *delegated_lock = &SPIN_INITIALIZER(0);
 
 void intr_thread(void *arg) {
   while (true) {
     intr_handler_t *ih;
 
-    WITH_INTR_DISABLED {
+    WITH_SPIN_LOCK (delegated_lock) {
       while (TAILQ_EMPTY(&delegated))
         sleepq_wait(&delegated, NULL);
       ih = TAILQ_FIRST(&delegated);
@@ -134,10 +136,12 @@ void intr_event_run_handlers(intr_event_t *ie) {
       assert(ih->ih_handler);
 
       disable_event(ih);
-
       TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
-      TAILQ_INSERT_TAIL(&delegated, ih, ih_link);
-      sleepq_signal(&delegated);
+
+      WITH_SPIN_LOCK (delegated_lock) {
+        TAILQ_INSERT_TAIL(&delegated, ih, ih_link);
+        sleepq_signal(&delegated);
+      }
       return;
     }
   }
