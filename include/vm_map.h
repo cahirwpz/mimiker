@@ -53,7 +53,7 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
 
 /* Tries to resize an segment, by moving its end if there
    are no other mappings in the way. On success, returns 0. */
-int vm_map_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end);
+int vm_resize_segment(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end);
 
 void vm_map_dump(vm_map_t *vm_map);
 

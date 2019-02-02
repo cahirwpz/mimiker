@@ -251,30 +251,21 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
   return 0;
 }
 
-int vm_map_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
-  assert(is_aligned(new_end, PAGESIZE));
-
+int vm_resize_segment(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
+  assert(is_page_aligned(new_end) && new_end >= seg->start);
   SCOPED_MTX_LOCK(&map->mtx);
 
-  /* TODO: As for now, we are unable to decrease the size of an entry, because
-     it would require unmapping physical pages, which in turn should clean
-     TLB. This is not implemented yet, and therefore shrinking an entry
-     immediately leads to very confusing behavior, as the vm_map and TLB entries
-     do not match. */
-  assert(new_end >= seg->end);
-
-  if (new_end > seg->end) {
+  if (new_end >= seg->end) {
     /* Expanding entry */
     vm_segment_t *next = TAILQ_NEXT(seg, link);
     vaddr_t gap_end = next ? next->start : map->pmap->end;
     if (new_end > gap_end)
       return -ENOMEM;
-  } else {
-    /* Shrinking entry */
-    if (new_end < seg->start)
-      return -ENOMEM;
-    /* TODO: Invalidate tlb? */
-  }
+  } else /* Shrinking entry */
+    vm_object_remove_range(seg->object, 0, seg->end - new_end, new_end,
+                           map->pmap);
+  /* vm_segment has no 'offset' attr yet, so we assume offset = 0. */
+
   /* Note that tailq does not require updating. */
   seg->end = new_end;
   return 0;

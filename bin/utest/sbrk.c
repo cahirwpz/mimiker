@@ -32,12 +32,13 @@ static void sbrk_bad(void) {
   /* Attempt to move sbrk before original start. */
   sbrk(sbrk_orig - sbrk_now - 0x10000);
   assert(errno == EINVAL);
-#if 0
+#if 1
   /* Now, try shrinking data. */
   sbrk(-1 * (0x5000 + 50 + 40 + 10));
+  assert(errno == EINVAL);
   /* Get new brk end */
   char *a5 = sbrk(0);
-  assert(a1 == a5);
+  assert(sbrk_orig == a5);
 #else
   /* Note: sbrk shrinking not yet implemented! */
   sbrk(4096);
