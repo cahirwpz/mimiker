@@ -9,6 +9,7 @@ SOURCES = \
 	clock.c \
 	condvar.c \
 	console.c \
+	devclass.c \
 	device.c \
 	dev_cons.c \
 	dev_null.c \
@@ -16,6 +17,9 @@ SOURCES = \
 	devfs.c \
 	exception.c \
 	exec.c \
+	exec_elf.c \
+	exec_shebang.c \
+	fdt.c \
 	file.c \
 	filedesc.c \
 	fork.c \

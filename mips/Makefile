@@ -3,6 +3,7 @@
 TOPDIR = $(realpath ..)
 
 GENASSYM = $(TOPDIR)/script/genassym.py $(NM)
+GENDEVHINT = $(TOPDIR)/script/gendevhint.py
 
 SOURCES = \
 	boot.S \
@@ -25,6 +26,8 @@ SOURCES = \
 	uart_cbus.c \
 	ustack.c
 
+OBJECTS += malta_dtb.o
+
 include $(TOPDIR)/build/build.kobj.mk
 
 build-here: libmips.ka
@@ -36,4 +39,4 @@ $(SOURCES): assym.h
 	$(GENASSYM) $< $@
 
 clean-here:
-	$(RM) assym.h
+	$(RM) assym.h *-devhint.c

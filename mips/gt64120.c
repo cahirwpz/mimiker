@@ -14,6 +14,7 @@
 #include <stdc.h>
 #include <klog.h>
 #include <bus.h>
+#include <devclass.h>
 
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
@@ -56,7 +57,7 @@ typedef struct gt_pci_state {
   rman_t isa_io_rman;
 
   intr_handler_t intr_handler;
-  intr_chain_t intr_chain[16];
+  intr_event_t intr_event[16];
 
   uint16_t imask;
   uint16_t elcr;
@@ -109,10 +110,13 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   switch (size) {
     case 1:
       data.byte[3 - reg] = value;
+      break;
     case 2:
       data.word[1 - (reg >> 1)] = value;
+      break;
     case 4:
       data.dword = value;
+      break;
     default:
       break;
   }
@@ -151,10 +155,10 @@ static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
   assert(pcib->parent->driver == &gt_pci_bus.driver);
 
   gt_pci_state_t *gtpci = pcib->parent->state;
-  intr_chain_t *chain = &gtpci->intr_chain[irq];
-  WITH_SPIN_LOCK (&chain->ic_lock) {
-    intr_chain_add_handler(chain, handler);
-    if (chain->ic_count == 1)
+  intr_event_t *event = &gtpci->intr_event[irq];
+  WITH_SPIN_LOCK (&event->ie_lock) {
+    intr_event_add_handler(event, handler);
+    if (event->ie_count == 1)
       gt_pci_unmask_irq(gtpci, irq);
   }
 }
@@ -163,11 +167,11 @@ static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
   assert(pcib->parent->driver == &gt_pci_bus.driver);
 
   gt_pci_state_t *gtpci = pcib->parent->state;
-  intr_chain_t *chain = handler->ih_chain;
-  WITH_SPIN_LOCK (&chain->ic_lock) {
-    if (chain->ic_count == 1)
-      gt_pci_mask_irq(gtpci, chain->ic_irq);
-    intr_chain_remove_handler(handler);
+  intr_event_t *event = handler->ih_event;
+  WITH_SPIN_LOCK (&event->ie_lock) {
+    if (event->ie_count == 1)
+      gt_pci_mask_irq(gtpci, event->ie_irq);
+    intr_event_remove_handler(handler);
   }
 }
 
@@ -206,9 +210,9 @@ static intr_filter_t gt_pci_intr(void *data) {
       irq = (irq & OCW3_POLL_PENDING) ? (OCW3_POLL_IRQ(irq) + 8) : 2;
     }
 
-    /* Irq 2 is used for PIC chaining, ignore it. */
+    /* Irq 2 is used for PIC eventing, ignore it. */
     if (irq != 2)
-      intr_chain_run_handlers(&gtpci->intr_chain[irq]);
+      intr_event_run_handlers(&gtpci->intr_event[irq]);
 
     /* Send a specific EOI to slave PIC... */
     if (irq > 7) {
@@ -224,10 +228,10 @@ static intr_filter_t gt_pci_intr(void *data) {
   return IF_FILTERED;
 }
 
-static inline void gt_pci_intr_chain_init(gt_pci_state_t *gtpci, unsigned irq,
+static inline void gt_pci_intr_event_init(gt_pci_state_t *gtpci, unsigned irq,
                                           const char *name) {
-  intr_chain_init(&gtpci->intr_chain[irq], irq, name);
-  intr_chain_register(&gtpci->intr_chain[irq]);
+  intr_event_init(&gtpci->intr_event[irq], irq, name);
+  intr_event_register(&gtpci->intr_event[irq]);
 }
 
 #define MALTA_CORECTRL_SIZE (MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1)
@@ -280,22 +284,22 @@ static int gt_pci_attach(device_t *pcib) {
   bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
   bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
-  gt_pci_intr_chain_init(gtpci, 0, "timer");
-  gt_pci_intr_chain_init(gtpci, 1, "kbd");       /* kbd controller (keyboard) */
-  gt_pci_intr_chain_init(gtpci, 2, "pic-slave"); /* PIC cascade */
-  gt_pci_intr_chain_init(gtpci, 3, "uart(1)");   /* COM 2 */
-  gt_pci_intr_chain_init(gtpci, 4, "uart(0)");   /* COM 1 */
-  gt_pci_intr_chain_init(gtpci, 5, "unused(0)");
-  gt_pci_intr_chain_init(gtpci, 6, "floppy");   /* floppy */
-  gt_pci_intr_chain_init(gtpci, 7, "parallel"); /* centronics */
-  gt_pci_intr_chain_init(gtpci, 8, "rtc");      /* RTC */
-  gt_pci_intr_chain_init(gtpci, 9, "i2c");      /* I2C */
-  gt_pci_intr_chain_init(gtpci, 10, "unused(1)");
-  gt_pci_intr_chain_init(gtpci, 11, "unused(2)");
-  gt_pci_intr_chain_init(gtpci, 12, "mouse"); /* kbd controller (mouse) */
-  gt_pci_intr_chain_init(gtpci, 13, "unused(3)");
-  gt_pci_intr_chain_init(gtpci, 14, "ide(0)"); /* IDE primary */
-  gt_pci_intr_chain_init(gtpci, 15, "ide(1)"); /* IDE secondary */
+  gt_pci_intr_event_init(gtpci, 0, "timer");
+  gt_pci_intr_event_init(gtpci, 1, "kbd");       /* kbd controller (keyboard) */
+  gt_pci_intr_event_init(gtpci, 2, "pic-slave"); /* PIC cascade */
+  gt_pci_intr_event_init(gtpci, 3, "uart(1)");   /* COM 2 */
+  gt_pci_intr_event_init(gtpci, 4, "uart(0)");   /* COM 1 */
+  gt_pci_intr_event_init(gtpci, 5, "unused(0)");
+  gt_pci_intr_event_init(gtpci, 6, "floppy");   /* floppy */
+  gt_pci_intr_event_init(gtpci, 7, "parallel"); /* centronics */
+  gt_pci_intr_event_init(gtpci, 8, "rtc");      /* RTC */
+  gt_pci_intr_event_init(gtpci, 9, "i2c");      /* I2C */
+  gt_pci_intr_event_init(gtpci, 10, "unused(1)");
+  gt_pci_intr_event_init(gtpci, 11, "unused(2)");
+  gt_pci_intr_event_init(gtpci, 12, "mouse"); /* kbd controller (mouse) */
+  gt_pci_intr_event_init(gtpci, 13, "unused(3)");
+  gt_pci_intr_event_init(gtpci, 14, "ide(0)"); /* IDE primary */
+  gt_pci_intr_event_init(gtpci, 15, "ide(1)"); /* IDE secondary */
 
   pci_bus_enumerate(pcib);
 
@@ -395,3 +399,6 @@ pci_bus_driver_t gt_pci_bus = {
   }
 };
 /* clang-format on */
+
+DEVCLASS_CREATE(pci);
+DEVCLASS_ENTRY(root, gt_pci_bus);

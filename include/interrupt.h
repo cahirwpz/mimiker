@@ -57,14 +57,14 @@ typedef enum {
 typedef intr_filter_t driver_filter_t(void *);
 typedef void driver_intr_t(void *);
 
-typedef struct intr_chain intr_chain_t;
+typedef struct intr_event intr_event_t;
 typedef struct intr_handler intr_handler_t;
 
 struct intr_handler {
   TAILQ_ENTRY(intr_handler) ih_list;
   driver_filter_t *ih_filter; /* driver interrupt filter function */
   driver_intr_t *ih_handler;  /* driver interrupt handler function */
-  intr_chain_t *ih_chain;     /* chain we are connected to */
+  intr_event_t *ih_event;     /* event we are connected to */
   void *ih_argument;          /* argument to pass to the handler */
   char *ih_name;              /* name of the handler */
   prio_t ih_prio;             /* priority of the handler */
@@ -78,21 +78,21 @@ typedef TAILQ_HEAD(, intr_handler) intr_handler_list_t;
     .ih_name = (desc), .ih_prio = (prio)                                       \
   }
 
-typedef struct intr_chain {
-  spin_t ic_lock;
-  TAILQ_ENTRY(intr_chain) ic_list;
-  intr_handler_list_t ic_handlers; /* interrupt handlers */
-  const char *ic_name;             /* individual chain name */
-  unsigned ic_irq;                 /* physical interrupt request line number */
-  unsigned ic_count;               /* number of handlers attached */
-} intr_chain_t;
+typedef struct intr_event {
+  spin_t ie_lock;
+  TAILQ_ENTRY(intr_event) ie_list;
+  intr_handler_list_t ie_handlers; /* interrupt handlers */
+  const char *ie_name;             /* individual event name */
+  unsigned ie_irq;                 /* physical interrupt request line number */
+  unsigned ie_count;               /* number of handlers attached */
+} intr_event_t;
 
-typedef TAILQ_HEAD(, intr_chain) intr_chain_list_t;
+typedef TAILQ_HEAD(, intr_event) intr_event_list_t;
 
-void intr_chain_init(intr_chain_t *ic, unsigned irq, const char *name);
-void intr_chain_register(intr_chain_t *ic);
-void intr_chain_add_handler(intr_chain_t *ic, intr_handler_t *ih);
-void intr_chain_remove_handler(intr_handler_t *ih);
-void intr_chain_run_handlers(intr_chain_t *ic);
+void intr_event_init(intr_event_t *ie, unsigned irq, const char *name);
+void intr_event_register(intr_event_t *ie);
+void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih);
+void intr_event_remove_handler(intr_handler_t *ih);
+void intr_event_run_handlers(intr_event_t *ie);
 
 #endif /* _SYS_INTERRUPT_H_ */

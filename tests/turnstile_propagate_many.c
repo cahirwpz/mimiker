@@ -77,12 +77,13 @@ static int test_turnstile_propagate_many(void) {
 
   for (int i = 1; i <= T; i++) {
     char name[20];
-    snprintf(name, sizeof(name), "prop%d", i);
-    propagator[i] = thread_create(name, (void (*)(void *))propagator_routine,
-                                  (void *)i, propagator_prio(i));
+    snprintf(name, sizeof(name), "test-turnstile-prop-%d", i);
+    propagator[i] = thread_create(name, (void *)propagator_routine, (void *)i,
+                                  propagator_prio(i));
   }
 
-  starter = thread_create("starter", starter_routine, NULL, propagator_prio(0));
+  starter = thread_create("test-turnstile-starter", starter_routine, NULL,
+                          propagator_prio(0));
   propagator[0] = starter;
   sched_add(starter);
 

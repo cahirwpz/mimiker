@@ -3,6 +3,17 @@
 An experiment with implementation of very simple operating system
 for [Malta](https://www.linux-mips.org/wiki/MIPS_Malta) board.
 
+Quickstart
+---
+
+To set up container-based local environment:
+
+```
+make -C docker run
+```
+
+For more details, please refer to `docker` directory.
+
 Toolchain
 ---
 
@@ -41,33 +52,35 @@ kernel image.
 Running
 ---
 
-As you presumably do not own a MIPS Malta board, you will need a simulator to
-test the kernel. We currently support *OVPsim* (incl. Imperas proprietary
-variant) and QEMU. If you're using OVPsim, make sure your `$IMPERAS_HOME` is set
-correctly.
+We provide a Python script that simplifies running Mimiker OS. The kernel image
+is run with QEMU simulator. Several serial consoles are available for
+interaction. Optionally you can attach to simulator with `gdb` debugger.
+All of that is achieved by running all interactive sessions within
+[tmux](https://github.com/tmux/tmux/wiki) terminal multiplexer with default key
+bindings.
 
-We provide a python script which simplifies loading the kernel image to
-simulator. In project root dir, run:
+In project main directory, run command below that will start the kernel in
+test-run mode. To finish simulation simply detach from `tmux` session by
+pressing `Ctrl+b` and `d` (as in _detach_) keys. To switch between emulated
+serial consoles and debugger press `Ctrl+b` and corresponding terminal number.
 
 ```
-./launch
+./launch test=all
 ```
-
-This will start the kernel using OVPsim if available, or QEMU otherwise.
 
 Some useful flags to the `launch` script:
 
 * `-h` - Prints usage.
 * `-d` - Starts simulation under a debugger.
 * `-D DEBUGGER` - Selects debugger to use.
-* `-S SIMULATOR` - Manually selects the simulator to use.
 * `-t` - Bind simulator UART to current stdio.
 
 Any other argument is passed to the kernel as a kernel command-line
 argument. Some useful kernel arguments:
 
-* `init=PROGRAM` - Specifies the userspace program for PID 1. Browse `./user`
-  for currently available programs.
+* `init=PROGRAM` - Specifies the userspace program for PID 1.
+  Browse `bin` and `usr.bin` directories for currently available programs.
+* `klog-quiet=1` - Turns off printing kernel diagnostic messages.
 
 If you want to run tests please read [this document](tests/README.md).
 

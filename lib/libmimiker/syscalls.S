@@ -5,7 +5,7 @@
 
         .set noreorder
 
-AENT(execve)
+
 AENT(link)
 AENT(symlink)
 AENT(readlink)
@@ -70,8 +70,17 @@ SYSCALL(pipe, SYS_PIPE)
 SYSCALL(mkdir, SYS_MKDIR)
 SYSCALL(rmdir, SYS_RMDIR)
 SYSCALL(access, SYS_ACCESS)
+SYSCALL(execve, SYS_EXECVE)
 SYSCALL(stat, SYS_STAT)
 SYSCALL(clock_gettime, SYS_CLOCKGETTIME)
 SYSCALL(clock_nanosleep, SYS_CLOCKNANOSLEEP)
+SYSCALL(getppid, SYS_GETPPID)
+SYSCALL(getpgid, SYS_GETPGID)
+SYSCALL(setpgid, SYS_SETPGID)
+SYSCALL(killpg, SYS_KILLPG)
+SYSCALL(munmap, SYS_MUNMAP)
+SYSCALL(mprotect, SYS_MPROTECT)
+SYSCALL(chdir, SYS_CHDIR)
+SYSCALL(getcwd, SYS_GETCWD)
 
 # vim: sw=8 ts=8 et
