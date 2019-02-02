@@ -130,9 +130,9 @@ void intr_event_run_handlers(intr_event_t *ie) {
 
   TAILQ_FOREACH_SAFE(ih, &ie->ie_handlers, ih_link, next) {
     status = ih->ih_filter(ih->ih_argument);
-    if (status == IF_FILTERED) {
+    if (status == IF_FILTERED)
       return;
-    } else if (status == IF_DELEGATE) {
+    if (status == IF_DELEGATE) {
       assert(ih->ih_handler);
 
       disable_event(ih);
