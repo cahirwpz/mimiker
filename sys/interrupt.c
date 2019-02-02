@@ -75,18 +75,6 @@ static void remove_handler(intr_event_t *ie, intr_handler_t *ih) {
   ie->ie_count--;
 }
 
-static void enable_event(intr_handler_t *ih) {
-  intr_event_t *ie = ih->ih_event;
-  if (ie->ie_enable)
-    ie->ie_enable(ie);
-}
-
-static void disable_event(intr_handler_t *ih) {
-  intr_event_t *ie = ih->ih_event;
-  if (ie->ie_disable)
-    ie->ie_disable(ie);
-}
-
 void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih) {
   WITH_SPIN_LOCK (&ie->ie_lock) {
     insert_handler(ie, ih);
@@ -125,7 +113,8 @@ void intr_thread(void *arg) {
 
     WITH_SPIN_LOCK (&ie->ie_lock) {
       insert_handler(ie, ih);
-      enable_event(ih);
+      if (ie->ie_enable)
+        ie->ie_enable(ie);
     }
   }
 }
@@ -141,7 +130,9 @@ void intr_event_run_handlers(intr_event_t *ie) {
     if (status == IF_DELEGATE) {
       assert(ih->ih_handler);
 
-      disable_event(ih);
+      if (ie->ie_disable)
+        ie->ie_disable(ie);
+
       TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
 
       WITH_SPIN_LOCK (delegated_lock) {
