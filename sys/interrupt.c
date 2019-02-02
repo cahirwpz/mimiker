@@ -31,12 +31,6 @@ void intr_enable(void) {
     mips_intr_enable();
 }
 
-static void intr_init(void) {
-  thread_t *interrupt_thread =
-    thread_create("interrupt", intr_thread, NULL, prio_ithread(0));
-  sched_add(interrupt_thread);
-}
-
 void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
                      ie_action_t *disable, ie_action_t *enable, void *source) {
   ie->ie_irq = irq;
@@ -96,29 +90,6 @@ void intr_event_remove_handler(intr_handler_t *ih) {
 static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
 static spin_t *delegated_lock = &SPIN_INITIALIZER(0);
 
-void intr_thread(void *arg) {
-  while (true) {
-    intr_handler_t *ih;
-
-    WITH_SPIN_LOCK (delegated_lock) {
-      while (TAILQ_EMPTY(&delegated))
-        sleepq_wait(&delegated, NULL);
-      ih = TAILQ_FIRST(&delegated);
-      TAILQ_REMOVE(&delegated, ih, ih_link);
-    }
-
-    ih->ih_service(ih->ih_argument);
-
-    intr_event_t *ie = ih->ih_event;
-
-    WITH_SPIN_LOCK (&ie->ie_lock) {
-      insert_handler(ie, ih);
-      if (ie->ie_enable)
-        ie->ie_enable(ie);
-    }
-  }
-}
-
 void intr_event_run_handlers(intr_event_t *ie) {
   intr_handler_t *ih, *next;
   intr_filter_t status = IF_STRAY;
@@ -144,6 +115,35 @@ void intr_event_run_handlers(intr_event_t *ie) {
   }
 
   klog("Spurious %s interrupt!", ie->ie_name);
+}
+
+static void intr_thread(void *arg) {
+  while (true) {
+    intr_handler_t *ih;
+
+    WITH_SPIN_LOCK (delegated_lock) {
+      while (TAILQ_EMPTY(&delegated))
+        sleepq_wait(&delegated, NULL);
+      ih = TAILQ_FIRST(&delegated);
+      TAILQ_REMOVE(&delegated, ih, ih_link);
+    }
+
+    ih->ih_service(ih->ih_argument);
+
+    intr_event_t *ie = ih->ih_event;
+
+    WITH_SPIN_LOCK (&ie->ie_lock) {
+      insert_handler(ie, ih);
+      if (ie->ie_enable)
+        ie->ie_enable(ie);
+    }
+  }
+}
+
+static void intr_init(void) {
+  thread_t *interrupt_thread =
+    thread_create("interrupt", intr_thread, NULL, prio_ithread(0));
+  sched_add(interrupt_thread);
 }
 
 SYSINIT_ADD(ithread, intr_init, DEPS("sched"));

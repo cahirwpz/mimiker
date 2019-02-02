@@ -94,7 +94,6 @@ typedef struct intr_event {
 
 typedef TAILQ_HEAD(, intr_event) ie_list_t;
 
-void intr_thread(void *arg);
 void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
                      ie_action_t *disable, ie_action_t *enable, void *source);
 void intr_event_register(intr_event_t *ie);
