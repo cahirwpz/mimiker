@@ -58,13 +58,13 @@ typedef enum {
  * defer more expensive work to the regular interrupt handler.
  */
 typedef intr_filter_t ih_filter_t(void *);
-typedef void ih_handler_t(void *);
+typedef void ih_service_t(void *);
 typedef void ie_action_t(intr_event_t *);
 
 struct intr_handler {
   TAILQ_ENTRY(intr_handler) ih_link;
   ih_filter_t *ih_filter;   /* interrupt filter routine (run in irq ctx) */
-  ih_handler_t *ih_handler; /* interrupt handler routine (run in thread ctx) */
+  ih_service_t *ih_service; /* interrupt service routine (run in thread ctx) */
   intr_event_t *ih_event;   /* event we are connected to */
   void *ih_argument;        /* argument to pass to the handler */
   char *ih_name;            /* name of the handler */
@@ -73,9 +73,9 @@ struct intr_handler {
 
 typedef TAILQ_HEAD(, intr_handler) ih_list_t;
 
-#define INTR_HANDLER_INIT(filter, handler, argument, desc, prio)               \
+#define INTR_HANDLER_INIT(filter, service, argument, desc, prio)               \
   (intr_handler_t) {                                                           \
-    .ih_filter = (filter), .ih_handler = (handler), .ih_argument = (argument), \
+    .ih_filter = (filter), .ih_service = (service), .ih_argument = (argument), \
     .ih_name = (desc), .ih_prio = (prio)                                       \
   }
 

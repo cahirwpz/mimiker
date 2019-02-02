@@ -107,7 +107,7 @@ void intr_thread(void *arg) {
       TAILQ_REMOVE(&delegated, ih, ih_link);
     }
 
-    ih->ih_handler(ih->ih_argument);
+    ih->ih_service(ih->ih_argument);
 
     intr_event_t *ie = ih->ih_event;
 
@@ -128,7 +128,7 @@ void intr_event_run_handlers(intr_event_t *ie) {
     if (status == IF_FILTERED)
       return;
     if (status == IF_DELEGATE) {
-      assert(ih->ih_handler);
+      assert(ih->ih_service);
 
       if (ie->ie_disable)
         ie->ie_disable(ie);
