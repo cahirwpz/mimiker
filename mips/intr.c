@@ -44,12 +44,12 @@ static intr_event_t mips_intr_event[8];
 
 static void mips_mask_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
-  mips32_set_c0(C0_STATUS, mips32_get_c0(C0_STATUS) & ~((1 << irq) << 8));
+  mips32_bc_c0(C0_STATUS, SR_IM0 << irq);
 }
 
 static void mips_unmask_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
-  mips32_set_c0(C0_STATUS, mips32_get_c0(C0_STATUS) | ((1 << irq) << 8));
+  mips32_bs_c0(C0_STATUS, SR_IM0 << irq);
 }
 
 void mips_intr_init(void) {
@@ -85,10 +85,8 @@ void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
   intr_event_t *event = &mips_intr_event[irq];
   WITH_SPIN_LOCK (&event->ie_lock) {
     intr_event_add_handler(event, handler);
-    if (event->ie_count == 1) {
-      mips32_bs_c0(C0_STATUS, SR_IM0 << irq); /* enable interrupt */
-      mips32_bc_c0(C0_CAUSE, CR_IP0 << irq);  /* clear pending flag */
-    }
+    if (event->ie_count == 1)
+      mips_unmask_irq(event);
   }
 }
 
@@ -96,7 +94,7 @@ void mips_intr_teardown(intr_handler_t *handler) {
   intr_event_t *event = handler->ih_event;
   WITH_SPIN_LOCK (&event->ie_lock) {
     if (event->ie_count == 1)
-      mips32_bc_c0(C0_STATUS, SR_IM0 << event->ie_irq);
+      mips_mask_irq(event);
     intr_event_remove_handler(handler);
   }
 }
