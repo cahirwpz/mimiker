@@ -66,7 +66,7 @@ struct intr_handler {
   ih_filter_t *ih_filter;   /* interrupt filter routine (run in irq ctx) */
   ih_service_t *ih_service; /* interrupt service routine (run in thread ctx) */
   intr_event_t *ih_event;   /* event we are connected to */
-  void *ih_argument;        /* argument to pass to the handler */
+  void *ih_argument;        /* argument to pass to filter/service routines */
   char *ih_name;            /* name of the handler */
   prio_t ih_prio;           /* handler's priority (sort key for ie_handlers) */
 };
