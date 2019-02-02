@@ -75,17 +75,6 @@ static void remove_handler(intr_event_t *ie, intr_handler_t *ih) {
   ie->ie_count--;
 }
 
-void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih) {
-  WITH_SPIN_LOCK (&ie->ie_lock)
-    insert_handler(ie, ih);
-}
-
-void intr_event_remove_handler(intr_handler_t *ih) {
-  intr_event_t *ie = ih->ih_event;
-  WITH_SPIN_LOCK (&ie->ie_lock)
-    remove_handler(ie, ih);
-}
-
 static void enable_event(intr_handler_t *ih) {
   intr_event_t *ie = ih->ih_event;
   if (ie->ie_enable)
@@ -96,6 +85,23 @@ static void disable_event(intr_handler_t *ih) {
   intr_event_t *ie = ih->ih_event;
   if (ie->ie_disable)
     ie->ie_disable(ie);
+}
+
+void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih) {
+  WITH_SPIN_LOCK (&ie->ie_lock) {
+    insert_handler(ie, ih);
+    if (ie->ie_count == 1 && ie->ie_enable)
+      ie->ie_enable(ie);
+  }
+}
+
+void intr_event_remove_handler(intr_handler_t *ih) {
+  intr_event_t *ie = ih->ih_event;
+  WITH_SPIN_LOCK (&ie->ie_lock) {
+    if (ie->ie_count == 1 && ie->ie_disable)
+      ie->ie_disable(ie);
+    remove_handler(ie, ih);
+  }
 }
 
 /* interrupt handlers delegated to be called in the interrupt thread */

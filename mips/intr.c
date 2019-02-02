@@ -83,20 +83,11 @@ void mips_intr_init(void) {
 
 void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
   intr_event_t *event = &mips_intr_event[irq];
-  WITH_SPIN_LOCK (&event->ie_lock) {
-    intr_event_add_handler(event, handler);
-    if (event->ie_count == 1)
-      mips_unmask_irq(event);
-  }
+  intr_event_add_handler(event, handler);
 }
 
 void mips_intr_teardown(intr_handler_t *handler) {
-  intr_event_t *event = handler->ih_event;
-  WITH_SPIN_LOCK (&event->ie_lock) {
-    if (event->ie_count == 1)
-      mips_mask_irq(event);
-    intr_event_remove_handler(handler);
-  }
+  intr_event_remove_handler(handler);
 }
 
 /* Hardware interrupt handler is called with interrupts disabled. */

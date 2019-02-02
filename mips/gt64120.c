@@ -164,22 +164,13 @@ static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
 
   gt_pci_state_t *gtpci = pcib->parent->state;
   intr_event_t *event = &gtpci->intr_event[irq];
-  WITH_SPIN_LOCK (&event->ie_lock) {
-    intr_event_add_handler(event, handler);
-    if (event->ie_count == 1)
-      gt_pci_unmask_irq(event);
-  }
+  intr_event_add_handler(event, handler);
 }
 
 static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
   assert(pcib->parent->driver == &gt_pci_bus.driver);
 
-  intr_event_t *event = handler->ih_event;
-  WITH_SPIN_LOCK (&event->ie_lock) {
-    if (event->ie_count == 1)
-      gt_pci_mask_irq(event);
-    intr_event_remove_handler(handler);
-  }
+  intr_event_remove_handler(handler);
 }
 
 static void init_8259(resource_t *io, unsigned icu, unsigned imask) {
