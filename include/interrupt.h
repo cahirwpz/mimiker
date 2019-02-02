@@ -63,7 +63,7 @@ typedef void ie_action_t(intr_event_t *);
 
 struct intr_handler {
   TAILQ_ENTRY(intr_handler) ih_link;
-  ih_filter_t *ih_filter;   /* intrrupt filter routine (run in irq ctx) */
+  ih_filter_t *ih_filter;   /* interrupt filter routine (run in irq ctx) */
   ih_handler_t *ih_handler; /* interrupt handler routine (run in thread ctx) */
   intr_event_t *ih_event;   /* event we are connected to */
   void *ih_argument;        /* argument to pass to the handler */
@@ -82,7 +82,7 @@ typedef TAILQ_HEAD(, intr_handler) ih_list_t;
 /* Software representation of interrupt line. */
 typedef struct intr_event {
   spin_t ie_lock;
-  TAILQ_ENTRY(intr_event) ie_list;
+  TAILQ_ENTRY(intr_event) ie_link; /* link on list of all interrupt events */
   ih_list_t ie_handlers;   /* interrupt handlers sorted by descending ih_prio */
   ie_action_t *ie_disable; /* called before ithread delegation (mask irq) */
   ie_action_t *ie_enable;  /* called after ithread delagation (unmask irq) */
