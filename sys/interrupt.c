@@ -63,12 +63,6 @@ static void insert_handler(intr_event_t *ie, intr_handler_t *ih) {
   ie->ie_count++;
 }
 
-static void remove_handler(intr_event_t *ie, intr_handler_t *ih) {
-  TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
-  ih->ih_event = NULL;
-  ie->ie_count--;
-}
-
 void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih) {
   WITH_SPIN_LOCK (&ie->ie_lock) {
     insert_handler(ie, ih);
@@ -82,7 +76,10 @@ void intr_event_remove_handler(intr_handler_t *ih) {
   WITH_SPIN_LOCK (&ie->ie_lock) {
     if (ie->ie_count == 1 && ie->ie_disable)
       ie->ie_disable(ie);
-    remove_handler(ie, ih);
+
+    TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
+    ih->ih_event = NULL;
+    ie->ie_count--;
   }
 }
 
