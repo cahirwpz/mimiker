@@ -39,7 +39,18 @@ bool mips_intr_disabled(void) {
 static intr_event_t mips_intr_event[8];
 
 #define MIPS_INTR_EVENT(irq, name)                                             \
-  intr_event_init(&mips_intr_event[irq], irq, name)
+  intr_event_init(&mips_intr_event[irq], irq, name, mips_mask_irq,             \
+                  mips_unmask_irq, NULL)
+
+static void mips_mask_irq(intr_event_t *ie) {
+  int irq = ie->ie_irq;
+  mips32_bc_c0(C0_STATUS, SR_IM0 << irq);
+}
+
+static void mips_unmask_irq(intr_event_t *ie) {
+  int irq = ie->ie_irq;
+  mips32_bs_c0(C0_STATUS, SR_IM0 << irq);
+}
 
 void mips_intr_init(void) {
   /*
@@ -72,22 +83,11 @@ void mips_intr_init(void) {
 
 void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
   intr_event_t *event = &mips_intr_event[irq];
-  WITH_SPIN_LOCK (&event->ie_lock) {
-    intr_event_add_handler(event, handler);
-    if (event->ie_count == 1) {
-      mips32_bs_c0(C0_STATUS, SR_IM0 << irq); /* enable interrupt */
-      mips32_bc_c0(C0_CAUSE, CR_IP0 << irq);  /* clear pending flag */
-    }
-  }
+  intr_event_add_handler(event, handler);
 }
 
 void mips_intr_teardown(intr_handler_t *handler) {
-  intr_event_t *event = handler->ih_event;
-  WITH_SPIN_LOCK (&event->ie_lock) {
-    if (event->ie_count == 1)
-      mips32_bc_c0(C0_STATUS, SR_IM0 << event->ie_irq);
-    intr_event_remove_handler(handler);
-  }
+  intr_event_remove_handler(handler);
 }
 
 /* Hardware interrupt handler is called with interrupts disabled. */
@@ -102,8 +102,6 @@ static void mips_intr_handler(exc_frame_t *frame) {
       pending &= ~irq;
     }
   }
-
-  mips32_set_c0(C0_CAUSE, frame->cause & ~CR_IP_MASK);
 }
 
 const char *const exceptions[32] = {
