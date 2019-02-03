@@ -16,6 +16,8 @@
 #include <bus.h>
 #include <devclass.h>
 
+#define ICU_LEN 16 /* number of ISA IRQs */
+
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
 #define PCI0_CFG_DEV_SHIFT 11
@@ -57,7 +59,7 @@ typedef struct gt_pci_state {
   rman_t isa_io_rman;
 
   intr_handler_t intr_handler;
-  intr_event_t intr_event[16];
+  intr_event_t intr_event[ICU_LEN];
 
   uint16_t imask;
   uint16_t elcr;
@@ -138,13 +140,19 @@ static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
   bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 }
 
-static void gt_pci_mask_irq(gt_pci_state_t *gtpci, unsigned irq) {
+static void gt_pci_mask_irq(intr_event_t *ie) {
+  gt_pci_state_t *gtpci = ie->ie_source;
+  unsigned irq = ie->ie_irq;
+
   gtpci->imask |= (1 << irq);
   gtpci->elcr |= (1 << irq);
   gt_pci_set_icus(gtpci);
 }
 
-static void gt_pci_unmask_irq(gt_pci_state_t *gtpci, unsigned irq) {
+static void gt_pci_unmask_irq(intr_event_t *ie) {
+  gt_pci_state_t *gtpci = ie->ie_source;
+  unsigned irq = ie->ie_irq;
+
   gtpci->imask &= ~(1 << irq);
   gtpci->elcr &= ~(1 << irq);
   gt_pci_set_icus(gtpci);
@@ -156,23 +164,13 @@ static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
 
   gt_pci_state_t *gtpci = pcib->parent->state;
   intr_event_t *event = &gtpci->intr_event[irq];
-  WITH_SPIN_LOCK (&event->ie_lock) {
-    intr_event_add_handler(event, handler);
-    if (event->ie_count == 1)
-      gt_pci_unmask_irq(gtpci, irq);
-  }
+  intr_event_add_handler(event, handler);
 }
 
 static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
   assert(pcib->parent->driver == &gt_pci_bus.driver);
 
-  gt_pci_state_t *gtpci = pcib->parent->state;
-  intr_event_t *event = handler->ih_event;
-  WITH_SPIN_LOCK (&event->ie_lock) {
-    if (event->ie_count == 1)
-      gt_pci_mask_irq(gtpci, event->ie_irq);
-    intr_event_remove_handler(handler);
-  }
+  intr_event_remove_handler(handler);
 }
 
 static void init_8259(resource_t *io, unsigned icu, unsigned imask) {
@@ -210,7 +208,7 @@ static intr_filter_t gt_pci_intr(void *data) {
       irq = (irq & OCW3_POLL_PENDING) ? (OCW3_POLL_IRQ(irq) + 8) : 2;
     }
 
-    /* Irq 2 is used for PIC eventing, ignore it. */
+    /* Irq 2 is used for PIC chaining, ignore it. */
     if (irq != 2)
       intr_event_run_handlers(&gtpci->intr_event[irq]);
 
@@ -230,7 +228,8 @@ static intr_filter_t gt_pci_intr(void *data) {
 
 static inline void gt_pci_intr_event_init(gt_pci_state_t *gtpci, unsigned irq,
                                           const char *name) {
-  intr_event_init(&gtpci->intr_event[irq], irq, name);
+  intr_event_init(&gtpci->intr_event[irq], irq, name, gt_pci_mask_irq,
+                  gt_pci_unmask_irq, gtpci);
   intr_event_register(&gtpci->intr_event[irq]);
 }
 
