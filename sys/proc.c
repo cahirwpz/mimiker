@@ -52,7 +52,8 @@ static void pid_free(pid_t pid) {
 
 /* Process group functions */
 
-pgrp_t *pgrp_lookup(pgid_t pgid) {
+/* Finds process group with the ID specified by pgid or returns NULL. */
+static pgrp_t *pgrp_lookup(pgid_t pgid) {
   assert(mtx_owned(all_proc_mtx));
 
   pgrp_t *pgrp;
@@ -62,6 +63,7 @@ pgrp_t *pgrp_lookup(pgid_t pgid) {
   return NULL;
 }
 
+/* Make process leaves its process group. */
 static void pgrp_leave(proc_t *p) {
   /* We don't want for any process to see that our p_pgrp is NULL. */
   assert(mtx_owned(all_proc_mtx));
@@ -161,6 +163,17 @@ proc_t *proc_find(pid_t pid) {
   return p;
 }
 
+pgid_t proc_getpgid(pid_t pid) {
+  SCOPED_MTX_LOCK(all_proc_mtx);
+
+  proc_t *p = proc_find(pid);
+  if (!p)
+    return -ESRCH;
+
+  assert(p->p_pgrp);
+  return p->p_pgrp->pg_id;
+}
+
 /* Release zombie process after parent processed its state. */
 static void proc_reap(proc_t *p) {
   assert(mtx_owned(all_proc_mtx));
@@ -257,10 +270,35 @@ noreturn void proc_exit(int exitstatus) {
 int proc_sendsig(pid_t pid, signo_t sig) {
   SCOPED_MTX_LOCK(all_proc_mtx);
 
-  proc_t *target = proc_find(pid);
-  if (target == NULL)
-    return -EINVAL;
-  sig_kill(target, sig);
+  proc_t *target;
+
+  if (pid > 0) {
+    target = proc_find(pid);
+    if (target == NULL)
+      return -EINVAL;
+    sig_kill(target, sig);
+    return 0;
+  }
+
+  if (pid == -1)
+    return -ENOTSUP;
+
+  pgrp_t *pgrp = NULL;
+
+  if (pid == 0)
+    pgrp = proc_self()->p_pgrp;
+
+  if (pid < -1) {
+    pgrp = pgrp_lookup(-pid);
+    if (!pgrp)
+      return -EINVAL;
+  }
+
+  WITH_MTX_LOCK (&pgrp->pg_lock) {
+    LIST_FOREACH (target, &pgrp->pg_members, p_pglist)
+      sig_kill(target, sig);
+  }
+
   return 0;
 }
 

@@ -84,16 +84,22 @@ proc_t *proc_create(thread_t *td, proc_t *parent);
  * \returns locked process or NULL if not found */
 proc_t *proc_find(pid_t pid);
 
-/*! \brief Sends signal sig to the process with the ID specified by pid. */
+/*! \brief Sends signal to process group or process.
+ * (pid > 0) sends signal to the process with the ID specified by pid.
+ * (pid = 0) sends signal to processes in process group of the calling process.
+ * (pid <-1) sends signal to processes in process group with ID equal (-pid). */
 int proc_sendsig(pid_t pid, signo_t sig);
+
+/*! \brief Gets process group ID of the process specified by pid.
+ * If pid equals zero then use process group ID of the calling process. */
+pgid_t proc_getpgid(pid_t pid);
 
 /*! \brief Called by a processes that wishes to terminate its life.
  * \note Exit status shoud be created using MAKE_STATUS macros from wait.h */
 noreturn void proc_exit(int exitstatus);
 
-/*! \brief TODO */
-pgrp_t *pgrp_lookup(pgid_t);
-/*! \brief TODO */
-int pgrp_enter(proc_t *, pgid_t);
+/*! \brief Moves process p to the process group with ID specified by pgid.
+ * If such process group does not exist then it creates one. */
+int pgrp_enter(proc_t *p, pgid_t pgid);
 
 #endif /* !_SYS_PROC_H_ */
