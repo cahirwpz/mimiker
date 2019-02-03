@@ -48,9 +48,29 @@ static void mmap_bad(void) {
   assert(errno == EINVAL);
 }
 
+static void munmap_test(void) {
+  size_t pagesize = 0x1000;
+  void *addr = (void *)0x12456000;
+  /* mmaping & munmaping one page */
+  mmap(addr, pagesize, PROT_READ | PROT_WRITE, MAP_ANON);
+  assert(munmap(addr, pagesize) == 0);
+
+  /* munmapping again fails */
+  munmap(addr, pagesize);
+  assert(errno == EINVAL);
+  /* more pages */
+  mmap(addr, pagesize * 5, PROT_READ | PROT_WRITE, MAP_ANON);
+  /* munmapping pieces of segments is unsupported */
+  munmap(addr, pagesize * 2);
+  assert(errno == ENOTSUP);
+
+  assert(munmap(addr, pagesize * 5) == 0);
+}
+
 int test_mmap() {
   mmap_no_hint();
   mmap_with_hint();
   mmap_bad();
+  munmap_test();
   return 0;
 }

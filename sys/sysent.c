@@ -131,21 +131,7 @@ static int sys_munmap(thread_t *td, syscall_args_t *args) {
   vaddr_t addr = args->args[0];
   size_t length = args->args[1];
   klog("munmap(%p, %u)", (void *)addr, length);
-
-  assert(td && td->td_proc && td->td_proc->p_uspace);
-  vm_map_t *uspace = td->td_proc->p_uspace;
-  vm_segment_t *seg = vm_map_find_segment(uspace, addr);
-  if (!seg)
-    return -EINVAL;
-  vaddr_t seg_start, seg_end;
-  vm_segment_range(seg, &seg_start, &seg_end);
-
-  /* we support unmaping single entire segemntes only */
-  if (addr != seg_start || addr + length != seg_end)
-    return -ENOTSUP;
-  if (vm_resize_segment(uspace, seg, seg_start) != 0)
-    return -ENOMEM;
-  return 0;
+  return do_munmap(addr, length);
 }
 
 static int sys_mprotect(thread_t *td, syscall_args_t *args) {

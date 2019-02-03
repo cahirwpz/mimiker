@@ -31,3 +31,22 @@ int do_mmap(vaddr_t *addr_p, size_t length, vm_prot_t prot, vm_flags_t flags) {
   *addr_p = start;
   return 0;
 }
+
+int do_munmap(vaddr_t addr, size_t length) {
+  thread_t *td = thread_self();
+  assert(td && td->td_proc && td->td_proc->p_uspace);
+
+  vm_map_t *uspace = td->td_proc->p_uspace;
+  vm_segment_t *seg = vm_map_find_segment(uspace, addr);
+  if (!seg)
+    return -EINVAL;
+  vaddr_t seg_start, seg_end;
+  vm_segment_range(seg, &seg_start, &seg_end);
+
+  /* we support munmaping single entire segemntes only */
+  if (addr != seg_start || addr + length != seg_end)
+    return -ENOTSUP;
+  if (vm_resize_segment(uspace, seg, seg_start) != 0)
+    return -ENOMEM;
+  return 0;
+}
