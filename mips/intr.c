@@ -102,8 +102,6 @@ static void mips_intr_handler(exc_frame_t *frame) {
       pending &= ~irq;
     }
   }
-
-  mips32_set_c0(C0_CAUSE, frame->cause & ~CR_IP_MASK);
 }
 
 const char *const exceptions[32] = {
