@@ -76,10 +76,10 @@ void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length,
   vm_page_t *pg, *next;
 
   TAILQ_FOREACH_SAFE(pg, &object->list, obj.list, next) {
+    if (pg->offset >= (off_t)(offset + length))
+      break;
     if (pg->offset >= offset)
       vm_object_remove_page(object, pg);
-    if (pg->offset >= offset + (off_t)length)
-      break;
   }
   pmap_remove(pmap, start, end);
 }

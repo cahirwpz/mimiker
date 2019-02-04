@@ -100,6 +100,7 @@ vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
 }
 
 void vm_segment_free(vm_segment_t *seg) {
+  /* we assume no other segment points to this object */
   if (seg->object)
     vm_object_free(seg->object);
   pool_free(P_VMENTRY, seg);
@@ -261,13 +262,22 @@ int vm_resize_segment(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
     vaddr_t gap_end = next ? next->start : map->pmap->end;
     if (new_end > gap_end)
       return -ENOMEM;
-  } else /* Shrinking entry */
-    vm_object_remove_range(seg->object, 0, seg->end - new_end, new_end,
-                           map->pmap);
-  /* vm_segment has no 'offset' attr yet, so we assume offset = 0. */
+  }
+
+  else { /* Shrinking entry */
+    /* offset of seg within object + offset within segment */
+    off_t offset = 0 + (new_end - seg->start);
+    size_t length = seg->end - new_end;
+    vm_object_remove_range(seg->object, offset, length, new_end, map->pmap);
+  }
 
   /* Note that tailq does not require updating. */
   seg->end = new_end;
+
+  if (seg->start == seg->end) {
+    vm_map_remove_segment(map, seg);
+    vm_segment_free(seg);
+  }
   return 0;
 }
 

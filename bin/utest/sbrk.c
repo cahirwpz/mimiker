@@ -7,6 +7,8 @@
 
 static void *sbrk_orig = NULL;
 
+/* Note that sbrk returns old brk value */
+
 static void sbrk_good(void) {
   /* Initial sbrk */
   char *a1 = sbrk(10);
@@ -18,33 +20,43 @@ static void sbrk_good(void) {
   /* And again. */
   char *a3 = sbrk(50);
   assert(a3 == a2 + 40);
+
+  /* Shrink to a2 */
+  char *a4 = sbrk(-90);
+  assert((char *)sbrk(0) == a2);
+  /* And back to a4 */
+  sbrk(90);
+  assert((char *)sbrk(0) == a4);
+  
   /* Now expand it a lot, much more than page size. */
-  char *a4 = sbrk(0x5000);
-  assert(a4 == a3 + 50);
+  char *a5 = sbrk(0x5000);
+  assert(a5 == a3 + 50);
   /* Test write access. */
-  memset(a4, -1, 0x5000);
+  memset(a5, -1, 0x5000);
   /* See that previous data is unmodified. */
   assert(*(a1 + 5) == 1);
+
+  /* Free all you got */
+  sbrk(-1 * (10 + 40 + 50 + 0x5000));
+  char *a6 = sbrk(0);
+  assert(a1 == a6);
+  
+  /* TODO: test unaccessability of freed pages */
 }
 
 static void sbrk_bad(void) {
-  void *sbrk_now = sbrk(0);
+  void *b0 = sbrk(0);
   /* Attempt to move sbrk before original start. */
-  sbrk(sbrk_orig - sbrk_now - 0x10000);
+  sbrk((sbrk_orig - b0) -0x10000);
   assert(errno == EINVAL);
-#if 1
-  /* Now, try shrinking data. */
-  sbrk(-1 * (0x5000 + 50 + 40 + 10));
-  assert(errno == EINVAL);
-  /* Get new brk end */
-  char *a5 = sbrk(0);
-  assert(sbrk_orig == a5);
-#else
-  /* Note: sbrk shrinking not yet implemented! */
-  sbrk(4096);
-  sbrk(-4096);
-  assert(errno == ENOTSUP);
-#endif
+  char *b1 = sbrk(0);
+  assert(b1 == (char *)b0);
+
+  /* Attemp to move sbrk to far */
+  sbrk(0x80000000);
+  assert(errno == ENOMEM);
+  char *b2 = sbrk(0);
+  assert(b2 == b1);
 }
 
 int test_sbrk() {
@@ -53,5 +65,6 @@ int test_sbrk() {
 
   sbrk_bad();
   sbrk_good();
+  sbrk_bad();
   return 0;
 }

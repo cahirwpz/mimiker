@@ -51,6 +51,7 @@ static void mmap_bad(void) {
 static void munmap_test(void) {
   size_t pagesize = 0x1000;
   void *addr = (void *)0x12456000;
+  
   /* mmaping & munmaping one page */
   mmap(addr, pagesize, PROT_READ | PROT_WRITE, MAP_ANON);
   assert(munmap(addr, pagesize) == 0);
@@ -58,13 +59,17 @@ static void munmap_test(void) {
   /* munmapping again fails */
   munmap(addr, pagesize);
   assert(errno == EINVAL);
+
   /* more pages */
   mmap(addr, pagesize * 5, PROT_READ | PROT_WRITE, MAP_ANON);
+
   /* munmapping pieces of segments is unsupported */
   munmap(addr, pagesize * 2);
   assert(errno == ENOTSUP);
 
   assert(munmap(addr, pagesize * 5) == 0);
+
+  /* TODO: test unaccessability of freed pages */
 }
 
 int test_mmap() {

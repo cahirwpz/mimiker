@@ -44,7 +44,7 @@ vaddr_t sbrk_resize(proc_t *p, intptr_t increment) {
   vaddr_t new_end_aligned =
     max(align(new_end, PAGESIZE), sbrk_start + PAGESIZE);
 
-  /* Expand/shrink segment break */
+  /* Expand/shrink sbrk_segment */
   if (vm_resize_segment(p->p_uspace, p->p_sbrk, new_end_aligned) != 0)
     return -ENOMEM;
 
