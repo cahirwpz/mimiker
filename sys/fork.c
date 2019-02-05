@@ -58,6 +58,8 @@ int do_fork(void) {
   memcpy(proc->p_sigactions, td->td_proc->p_sigactions,
          sizeof(proc->p_sigactions));
 
+  proc_add(proc);
+
   sched_add(newtd);
 
   return proc->p_pid;

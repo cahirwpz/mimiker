@@ -62,6 +62,9 @@ DEFINE_CLEANUP_FUNCTION(proc_t *, proc_unlock);
  * If parent is not NULL then newly created process becomes its child. */
 proc_t *proc_create(thread_t *td, proc_t *parent);
 
+// TODO
+void proc_add(proc_t *p);
+
 /*! \brief Searches for a process with the given PID and PS_NORMAL state.
  * \returns locked process or NULL if not found */
 proc_t *proc_find(pid_t pid);

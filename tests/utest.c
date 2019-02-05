@@ -27,6 +27,7 @@ static int utest_generic(const char *name, int status_success) {
   thread_t *utest_thread = thread_create(prefixed_name, utest_generic_thread,
                                          (void *)name, prio_kthread(0));
   proc_t *child = proc_create(utest_thread, proc_self());
+  proc_add(child);
   sched_add(utest_thread);
 
   int status;
