@@ -48,9 +48,10 @@ static void mmap_bad(void) {
   assert(errno == EINVAL);
 }
 
-static void munmap_test(void) {
+#define UNMADDR (void *)0x12456000
+static void munmap_bad(void) {
   size_t pagesize = 0x1000;
-  void *addr = (void *)0x12456000;
+  void *addr = UNMADDR;
   
   /* mmaping & munmaping one page */
   mmap(addr, pagesize, PROT_READ | PROT_WRITE, MAP_ANON);
@@ -68,14 +69,24 @@ static void munmap_test(void) {
   assert(errno == ENOTSUP);
 
   assert(munmap(addr, pagesize * 5) == 0);
-
-  /* TODO: test unaccessability of freed pages */
 }
+
+/* Don't call this function in this module */
+int test_munmap_sigsegv(void) {
+  /* Mmap & munmap 5 pages above UNMADDR */
+  munmap_bad();
+
+  /* Try to access freed memory. It should raise SIGSEGV */
+  int data = *((int *)(UNMADDR + 0x2000));
+  assert(data != 0);
+  return 0;
+}
+#undef UNMADDR
 
 int test_mmap() {
   mmap_no_hint();
   mmap_with_hint();
   mmap_bad();
-  munmap_test();
+  munmap_bad();
   return 0;
 }

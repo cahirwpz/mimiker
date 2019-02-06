@@ -40,8 +40,6 @@ static void sbrk_good(void) {
   sbrk(-1 * (10 + 40 + 50 + 0x5000));
   char *a6 = sbrk(0);
   assert(a1 == a6);
-  
-  /* TODO: test unaccessability of freed pages */
 }
 
 static void sbrk_bad(void) {
@@ -52,11 +50,22 @@ static void sbrk_bad(void) {
   char *b1 = sbrk(0);
   assert(b1 == (char *)b0);
 
-  /* Attemp to move sbrk to far */
+  /* Attempt to move sbrk to far */
   sbrk(0x80000000);
   assert(errno == ENOMEM);
   char *b2 = sbrk(0);
   assert(b2 == b1);
+}
+
+/* Causes SIGSEGV, don't call it here */
+int test_sbrk_sigsegv(void) {
+  /* Make sure memory just above sbrk has just been used and freed */
+  sbrk_good();
+
+  /* Try to access freed memory. It should raise SIGSEGV */
+  int data = *((int *)sbrk(0));
+  assert(data != 0);
+  return 0;
 }
 
 int test_sbrk() {
