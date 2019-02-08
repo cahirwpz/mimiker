@@ -295,7 +295,9 @@ void mips_exc_handler(exc_frame_t *frame) {
   if (user_mode)
     on_user_exc_leave();
 
-  intr_disable();
+  /* Disable interrupts only if they were enabled earlier in this function. */
+  if (code == EXC_INTR || ((code != EXC_INTR) && (frame->sr & SR_IE)))
+    intr_disable();
 
   assert(intr_disabled());
 }
