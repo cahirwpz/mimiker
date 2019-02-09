@@ -263,7 +263,31 @@ void kstack_overflow_handler(exc_frame_t *frame) {
     panic();
 }
 
-/* General exception handler is called with interrupts disabled. */
+/* Let's consider possible contexts that caused exception/interrupt:
+ *
+ * 1. We came from user-space:
+ *    interrupts and preemption must have been enabled
+ * 2. We came from kernel-space:
+ *    a. interrupts and preemption are enabled:
+ *       kernel was running in regular thread context
+ *    b. preemption is disabled, interrupts are enabled:
+ *       kernel was running in thread context and acquired sleep lock (mutex)
+ *    c. interrupts are disabled, preemption is implicitly disabled:
+ *       kernel was running in interrupt context or acquired spin lock
+ *
+ * For each context we have a set of actions to be performed:
+ *
+ * 1. Handle interrupt with interrupts disabled or handle exception with
+ *    interrupts and preemption enabled. Then check if user thread should be
+ *    preempted. Finally prepare for return to user-space, for instance
+ *    deliver signal to the process.
+ * 2a. Same story as for (1) except we do not return to user-space.
+ * 2b. Same as (2a) but do not check if the thread should be preempted.
+ * 2c. Same as (2b) but do not enable interrupts for exception handling period.
+ *
+ * IMPORTANT! We should never call ctx_switch while interrupt is being handled
+ *            or preemption is disabled.
+ */
 void mips_exc_handler(exc_frame_t *frame) {
   unsigned code = exc_code(frame);
   bool user_mode = user_mode_p(frame);
@@ -274,19 +298,6 @@ void mips_exc_handler(exc_frame_t *frame) {
 
   if (!handler)
     kernel_oops(frame);
-
-  /* Let's consider possible contexts that caused exception/interrupt:
-   * 1. we came from user-space:
-   *    interrupts and preemption must have been enabled
-   * 2. we came from kernel-space:
-   *    a. interrupts and preemption are enabled:
-   *       kernel was running in regular thread context
-   *    b. preemption is disabled, interrupts are enabled:
-   *       kernel was running in thread context,
-   *       but acquired sleep lock (e.g. mutex)
-   *    c. interrupts are disabled, preemption is implicitly disabled:
-   *       kernel was running in interrupt context or acquired spin lock
-   */
 
   /* Enable interrupts only if you're about to handle an exception that came
    * from a context that had hardware interrupts enabled.
