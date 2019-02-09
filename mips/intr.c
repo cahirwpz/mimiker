@@ -275,6 +275,19 @@ void mips_exc_handler(exc_frame_t *frame) {
   if (!handler)
     kernel_oops(frame);
 
+  /* Let's consider possible contexts that caused exception/interrupt:
+   * 1. we came from user-space:
+   *    interrupts and preemption must have been enabled
+   * 2. we came from kernel-space:
+   *    a. interrupts and preemption are enabled:
+   *       kernel was running in regular thread context
+   *    b. preemption is disabled, interrupts are enabled:
+   *       kernel was running in thread context,
+   *       but acquired sleep lock (e.g. mutex)
+   *    c. interrupts are disabled, preemption is implicitly disabled:
+   *       kernel was running in interrupt context or acquired spin lock
+   */
+
   /* Enable interrupts only if you're about to handle an exception that came
    * from a context that had hardware interrupts enabled.
    * We don't want to enable interrupts if an exception was generated
