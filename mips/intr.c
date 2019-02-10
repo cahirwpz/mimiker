@@ -6,6 +6,7 @@
 #include <mips/exc.h>
 #include <mips/intr.h>
 #include <mips/mips.h>
+#include <pcpu.h>
 #include <pmap.h>
 #include <spinlock.h>
 #include <queue.h>
@@ -301,26 +302,31 @@ void mips_exc_handler(exc_frame_t *frame) {
     kernel_oops(frame);
 
   if (!user_mode && (!(frame->sr & SR_IE) || preempt_disabled())) {
-    /* Case 2b & 2c: we came from kernel-space,
-     * interrupts or preemption were disabled! */
+    /* Case 2b & 2c: we came from kernel-space, interrupts or preemption were
+     * disabled, so switching out is forbidden! */
+    PCPU_SET(no_switch, true);
     (*handler)(frame);
+    PCPU_SET(no_switch, false);
   } else {
     /* Case 1 & 2: we came from user-space or kernel-space,
      * interrupts and preemption were enabled! */
     assert(frame->sr & SR_IE);
     assert(!preempt_disabled());
 
-    /* Enable interrupts if we're about to handle an exception. */
-    if (code != EXC_INTR)
+    if (code != EXC_INTR) {
+      /* We assume it is safe to handle an exception with interrupts enabled. */
       intr_enable();
-
-    (*handler)(frame);
-
-    /* We serviced interrupts, so no need to keep them disabled them anymore. */
-    if (code == EXC_INTR)
+      (*handler)(frame);
+    } else {
+      /* Switching out while handling interrupt is forbidden! */
+      PCPU_SET(no_switch, true);
+      (*handler)(frame);
+      PCPU_SET(no_switch, false);
+      /* We did the job, so we don't need interrupts to be disabled anymore. */
       intr_enable();
+    }
 
-    /* This is right moment to check if we must switch to another thread. */
+    /* This is right moment to check if out time slice expired. */
     on_exc_leave();
 
     /* If we're about to return to user mode then check pending signals, etc. */
