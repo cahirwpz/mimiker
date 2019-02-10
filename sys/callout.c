@@ -154,7 +154,7 @@ void callout_process(systime_t time) {
     callout_t *elem, *next;
 
     /* Detach triggered callouts from ci_list queue. */
-    TAILQ_FOREACH_SAFE(elem, head, c_link, next) {
+    TAILQ_FOREACH_SAFE (elem, head, c_link, next) {
       if (elem->c_time <= time) {
         callout_set_active(elem);
         callout_clear_pending(elem);
