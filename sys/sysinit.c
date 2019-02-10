@@ -29,7 +29,7 @@ static void build_queue(sysinit_tailq_t *head) {
   push_last(head);
 
   sysinit_entry_t *p;
-  TAILQ_FOREACH_REVERSE(p, head, tailhead, entries) {
+  TAILQ_FOREACH_REVERSE (p, head, tailhead, entries) {
     char **deps = p->deps;
     while (*deps) {
       sysinit_entry_t *dependency = find(*deps);
