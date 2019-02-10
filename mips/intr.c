@@ -10,6 +10,7 @@
 #include <spinlock.h>
 #include <queue.h>
 #include <sysent.h>
+#include <sched.h>
 #include <thread.h>
 #include <ktest.h>
 
@@ -299,29 +300,36 @@ void mips_exc_handler(exc_frame_t *frame) {
   if (!handler)
     kernel_oops(frame);
 
-  /* Enable interrupts only if you're about to handle an exception that came
-   * from a context that had hardware interrupts enabled.
-   * We don't want to enable interrupts if an exception was generated
-   * in a critical section running with interrupts disabled. */
-  if ((code != EXC_INTR) && (frame->sr & SR_IE))
-    intr_enable();
+  if (!user_mode && (!(frame->sr & SR_IE) || preempt_disabled())) {
+    /* Case 2b & 2c: we came from kernel-space,
+     * interrupts or preemption were disabled! */
+    (*handler)(frame);
+  } else {
+    /* Case 1 & 2: we came from user-space or kernel-space,
+     * interrupts and preemption were enabled! */
+    assert(frame->sr & SR_IE);
+    assert(!preempt_disabled());
 
-  (*handler)(frame);
+    /* Enable interrupts if we're about to handle an exception. */
+    if (code != EXC_INTR)
+      intr_enable();
 
-  /* From now on till the end of this procedure interrupts are enabled. */
-  if (code == EXC_INTR)
-    intr_enable();
+    (*handler)(frame);
 
-  /* This is right moment to check if we must switch to another thread. */
-  on_exc_leave();
+    /* We serviced interrupts, so no need to keep them disabled them anymore. */
+    if (code == EXC_INTR)
+      intr_enable();
 
-  /* If we're about to return to user mode then check pending signals, etc. */
-  if (user_mode)
-    on_user_exc_leave();
+    /* This is right moment to check if we must switch to another thread. */
+    on_exc_leave();
 
-  /* Disable interrupts only if they were enabled earlier in this function. */
-  if (code == EXC_INTR || ((code != EXC_INTR) && (frame->sr & SR_IE)))
+    /* If we're about to return to user mode then check pending signals, etc. */
+    if (user_mode)
+      on_user_exc_leave();
+
+    /* Disable interrupts for the time interrupted context is being restored. */
     intr_disable();
+  }
 
   assert(intr_disabled());
 }
