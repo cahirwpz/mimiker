@@ -308,7 +308,7 @@ void mips_exc_handler(exc_frame_t *frame) {
     (*handler)(frame);
     PCPU_SET(no_switch, false);
   } else {
-    /* Case 1 & 2: we came from user-space or kernel-space,
+    /* Case 1 & 2a: we came from user-space or kernel-space,
      * interrupts and preemption were enabled! */
     assert(frame->sr & SR_IE);
     assert(!preempt_disabled());
