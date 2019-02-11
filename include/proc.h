@@ -13,7 +13,7 @@ typedef struct proc proc_t;
 typedef struct pgrp pgrp_t;
 typedef struct fdtab fdtab_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
-typedef LIST_HEAD(, pgrp) pgrp_list_t;
+typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
 
 /*! \brief Structure allocated per process group.
  *
@@ -24,8 +24,8 @@ typedef LIST_HEAD(, pgrp) pgrp_list_t;
  */
 typedef struct pgrp {
   mtx_t pg_lock;                /* Process group mutex */
-  LIST_ENTRY(pgrp) pg_link;     /* (a) link on chain of process groups */
-  LIST_HEAD(, proc) pg_members; /* (@) members of process group */
+  TAILQ_ENTRY(pgrp) pg_link;     /* (a) link on chain of process groups */
+  TAILQ_HEAD(, proc) pg_members; /* (@) members of process group */
   pgid_t pg_id;                 /* (!) process group id */
 } pgrp_t;
 
@@ -46,7 +46,7 @@ struct proc {
   TAILQ_ENTRY(proc) p_child;  /* (a) link on parent's children list */
   thread_t *p_thread;         /* (@) the only thread running in this process */
   pid_t p_pid;                /* (!) Process ID */
-  LIST_ENTRY(proc) p_pglist;  /* (?) link on p_pgrp->pg_members list */
+  TAILQ_ENTRY(proc) p_pglist;  /* (pgrp::@) link on p_pgrp->pg_members list */
   pgrp_t *p_pgrp;             /* (a) process group */
   volatile proc_state_t p_state;  /* (@) process state */
   proc_t *p_parent;               /* (a) parent process */

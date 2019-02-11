@@ -21,7 +21,7 @@ static mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
 static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 
-static pgrp_list_t pgrp_list = LIST_HEAD_INITIALIZER(pgrp_list);
+static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
 #define CHILDREN(p) (&(p)->p_children)
 
@@ -57,7 +57,7 @@ static pgrp_t *pgrp_lookup(pgid_t pgid) {
   assert(mtx_owned(all_proc_mtx));
 
   pgrp_t *pgrp;
-  LIST_FOREACH (pgrp, &pgrp_list, pg_link)
+  TAILQ_FOREACH (pgrp, &pgrp_list, pg_link)
     if (pgrp->pg_id == pgid)
       return pgrp;
   return NULL;
@@ -71,12 +71,12 @@ static void pgrp_leave(proc_t *p) {
   pgrp_t *pgrp = p->p_pgrp;
 
   WITH_MTX_LOCK (&pgrp->pg_lock) {
-    LIST_REMOVE(p, p_pglist);
+    TAILQ_REMOVE(&p->p_pgrp->pg_members, p, p_pglist);
     p->p_pgrp = NULL;
   }
 
-  if (LIST_EMPTY(&pgrp->pg_members)) {
-    LIST_REMOVE(pgrp, pg_link);
+  if (TAILQ_EMPTY(&pgrp->pg_members)) {
+    TAILQ_REMOVE(&pgrp_list, pgrp, pg_link);
     pool_free(P_PGRP, pgrp);
   }
 }
@@ -87,11 +87,11 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
   pgrp_t *target = pgrp_lookup(pgid);
   if (!target) {
     target = pool_alloc(P_PGRP, PF_ZERO);
-    LIST_INIT(&target->pg_members);
+    TAILQ_INIT(&target->pg_members);
     target->pg_lock = MTX_INITIALIZER(0);
     target->pg_id = pgid;
 
-    LIST_INSERT_HEAD(&pgrp_list, target, pg_link);
+    TAILQ_INSERT_HEAD(&pgrp_list, target, pg_link);
   }
 
   pgrp_t *pgrp = p->p_pgrp;
@@ -103,7 +103,7 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
     pgrp_leave(p);
 
   WITH_MTX_LOCK (&target->pg_lock) {
-    LIST_INSERT_HEAD(&target->pg_members, p, p_pglist);
+    TAILQ_INSERT_HEAD(&target->pg_members, p, p_pglist);
     p->p_pgrp = target;
   }
 
@@ -295,7 +295,7 @@ int proc_sendsig(pid_t pid, signo_t sig) {
   }
 
   WITH_MTX_LOCK (&pgrp->pg_lock) {
-    LIST_FOREACH (target, &pgrp->pg_members, p_pglist)
+    TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist)
       sig_kill(target, sig);
   }
 
