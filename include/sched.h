@@ -6,8 +6,10 @@
 
 /*! \brief Disables preemption.
  *
- * Prevents scheduler from switching out current thread. Does not disable
- * interrupts.
+ * Prevents current thread from switching out on return from interrupt,
+ * exception or trap handler. It does not disable interrupts!
+ *
+ * \sa on_exc_leave
  *
  * Calls to \fn preempt_disable can nest, you must use the same number of calls
  * to \fn preempt_enable to actually enable preemption.
@@ -43,9 +45,10 @@ void sched_add(thread_t *td);
 
 /*! \brief Wake up sleeping thread.
  *
+ * \param reason is a value that will be returned by sched_switch.
  * \note Must be called with \a td_spin acquired!
  */
-void sched_wakeup(thread_t *td);
+void sched_wakeup(thread_t *td, long reason);
 
 /*! \brief Lend a priority to a thread.
  *
@@ -87,9 +90,20 @@ void sched_clock(void);
  * must be different from TDS_RUNNING. \a sched_switch will modify thread's
  * field to reflect the change in state.
  *
+ * \returns a value that was passed to sched_wakeup
  * \note Must be called with \a td_spin acquired!
  */
-void sched_switch(void);
+long sched_switch(void);
+
+/*! \brief Switch out to another thread if you shouldn't be running anymore.
+ *
+ * This function will switch if your time slice expired or a thread with higher
+ * priority has been added. It doesn't actually perform that check, it only
+ * looks at TDF_NEEDSWITCH flag.
+ *
+ * \note Returns immediately if interrupts or preemption are disabled.
+ */
+void sched_maybe_preempt(void);
 
 /*! \brief Turns calling thread into idle thread. */
 noreturn void sched_run(void);

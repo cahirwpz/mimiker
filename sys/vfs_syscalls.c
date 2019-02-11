@@ -51,7 +51,7 @@ int do_read(thread_t *td, int fd, uio_t *uio) {
   uio->uio_offset = f->f_offset;
   res = FOP_READ(f, td, uio);
   f->f_offset = uio->uio_offset;
-  file_unref(f);
+  file_drop(f);
   return res;
 }
 
@@ -64,7 +64,7 @@ int do_write(thread_t *td, int fd, uio_t *uio) {
   uio->uio_offset = f->f_offset;
   res = FOP_WRITE(f, td, uio);
   f->f_offset = uio->uio_offset;
-  file_unref(f);
+  file_drop(f);
   return res;
 }
 
@@ -76,7 +76,7 @@ int do_lseek(thread_t *td, int fd, off_t offset, int whence) {
   if (res)
     return res;
   res = FOP_SEEK(f, td, offset, whence);
-  file_unref(f);
+  file_drop(f);
   return res;
 }
 
@@ -87,7 +87,7 @@ int do_fstat(thread_t *td, int fd, stat_t *sb) {
   if (res)
     return res;
   res = FOP_STAT(f, td, sb);
-  file_unref(f);
+  file_drop(f);
   return res;
 }
 
@@ -104,7 +104,7 @@ int do_stat(thread_t *td, char *path, stat_t *sb) {
   va_convert(&va, sb);
 
 fail:
-  vnode_unref(v);
+  vnode_drop(v);
   return error;
 }
 
@@ -116,7 +116,7 @@ int do_dup(thread_t *td, int old) {
     return res;
   int new;
   res = fdtab_install_file(td->td_proc->p_fdtable, f, &new);
-  file_unref(f);
+  file_drop(f);
   return res ? res : new;
 }
 
@@ -129,7 +129,7 @@ int do_dup2(thread_t *td, int old, int new) {
   if (res)
     return res;
   res = fdtab_install_file_at(td->td_proc->p_fdtable, f, new);
-  file_unref(f);
+  file_drop(f);
   return res ? res : new;
 }
 
@@ -154,7 +154,7 @@ int do_getdirentries(thread_t *td, int fd, uio_t *uio, off_t *basep) {
   res = VOP_READDIR(vn, uio, f->f_data);
   f->f_offset = uio->uio_offset;
   *basep = f->f_offset;
-  file_unref(f);
+  file_drop(f);
   return res;
 }
 
@@ -181,6 +181,6 @@ int do_access(thread_t *td, char *path, int amode) {
   if ((error = vfs_lookup(path, &v)))
     return error;
   error = VOP_ACCESS(v, amode);
-  vnode_unref(v);
+  vnode_drop(v);
   return error;
 }

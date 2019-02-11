@@ -1,0 +1,23 @@
+# vim: set ts=2 sw=2:
+version: '3'
+services:
+  mimiker:
+    build: .
+    image: mimiker-dev:latest
+    hostname: mimiker
+    volumes:
+      - "../:/home/mimiker/mimiker"
+      - "~/.gitconfig:/home/mimiker/.gitconfig"
+      - "~/.ssh:/home/mimiker/.ssh"
+      - "/tmp/.X11-unix:/tmp/.X11-unix"
+      - "/tmp/.docker.xauth:/tmp/.docker.xauth"
+      - "~/.tmux.conf:/home/mimiker/.tmux.conf"
+    restart: on-failure
+    working_dir: /home/mimiker/mimiker
+    environment:
+      - DISPLAY=$DISPLAY
+      - XAUTHORITY=/tmp/.docker.xauth
+    entrypoint:
+      - sleep
+      - inf
+

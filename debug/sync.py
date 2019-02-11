@@ -1,11 +1,10 @@
 import gdb
-from tailq import TailQueue
-from thread import Thread
-import utils
+
+from .struct import TailQueue, GdbStructMeta, ProgramCounter
+from .thread import Thread
 
 
-class SleepQueue(object):
-    __metaclass__ = utils.GdbStructMeta
+class SleepQueue(metaclass=GdbStructMeta):
     __ctype__ = 'struct sleepq'
 
     def __init__(self, addr):
@@ -18,11 +17,10 @@ class SleepQueue(object):
         return '[]'
 
 
-class Mutex(object):
-    __metaclass__ = utils.GdbStructMeta
+class Mutex(metaclass=GdbStructMeta):
     __ctype__ = 'struct mtx'
     __cast__ = {'m_count': int,
-                'm_lockpt': utils.ProgramCounter}
+                'm_lockpt': ProgramCounter}
 
     def __str__(self):
         if self.m_owner:
@@ -32,8 +30,7 @@ class Mutex(object):
         return 'mtx{owner = None}'
 
 
-class CondVar(object):
-    __metaclass__ = utils.GdbStructMeta
+class CondVar(metaclass=GdbStructMeta):
     __ctype__ = 'struct condvar'
     __cast__ = {'waiters': int}
 

@@ -1,5 +1,6 @@
 #define KLOG KL_INIT
 #include <interrupt.h>
+#include <physmem.h>
 #include <malloc.h>
 #include <mips/cpuinfo.h>
 #include <mips/malta.h>
@@ -14,7 +15,11 @@
 #include <pmap.h>
 #include <pool.h>
 #include <stdc.h>
+#include <sleepq.h>
+#include <rman.h>
 #include <thread.h>
+#include <turnstile.h>
+#include <vm_map.h>
 
 extern int kernel_init(int argc, char **argv);
 
@@ -144,7 +149,8 @@ static void pm_bootstrap(unsigned memsize) {
 
 static void thread_bootstrap(void) {
   /* Create main kernel thread */
-  thread_t *td = thread_create("kernel-main", (void *)kernel_init, NULL);
+  thread_t *td =
+    thread_create("kernel-main", (void *)kernel_init, NULL, prio_uthread(255));
 
   exc_frame_t *kframe = td->td_kframe;
   kframe->a0 = (reg_t)_kenv.argc;
@@ -153,6 +159,8 @@ static void thread_bootstrap(void) {
   td->td_state = TDS_RUNNING;
   PCPU_SET(curthread, td);
 }
+
+extern const uint8_t __malta_dtb_start[];
 
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   kbss_init();
@@ -163,13 +171,15 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   pcpu_init();
   cpu_init();
   tlb_init();
-  mips_timer_init();
   mips_intr_init();
+  mips_timer_init();
   pm_bootstrap(memsize);
   pmap_init();
   pool_bootstrap();
+  vm_map_init();
   kmem_bootstrap();
   sleepq_init();
+  turnstile_init();
   thread_bootstrap();
 
   klog("Switching to 'kernel-main' thread...");

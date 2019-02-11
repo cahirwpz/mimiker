@@ -32,6 +32,7 @@ ASSYM(CTX_S4, offsetof(ctx_t, s4));
 ASSYM(CTX_S5, offsetof(ctx_t, s5));
 ASSYM(CTX_S6, offsetof(ctx_t, s6));
 ASSYM(CTX_S7, offsetof(ctx_t, s7));
+ASSYM(CTX_V0, offsetof(ctx_t, v0));
 ASSYM(CTX_GP, offsetof(ctx_t, gp));
 ASSYM(CTX_SP, offsetof(ctx_t, sp));
 ASSYM(CTX_FP, offsetof(ctx_t, fp));

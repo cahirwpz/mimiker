@@ -8,14 +8,10 @@
 #include <proc.h>
 #include <wait.h>
 
-static void utest_generic_thread(void *arg) {
-  const char *test_name = arg;
+#define UTEST_PATH "/bin/utest"
 
-  exec_args_t exec_args = {.prog_name = "/bin/utest",
-                           .argc = 2,
-                           .argv = (const char *[]){"utest", test_name}};
-
-  run_program(&exec_args);
+static noreturn void utest_generic_thread(void *arg) {
+  run_program(UTEST_PATH, (char *[]){UTEST_PATH, arg, NULL}, (char *[]){NULL});
 }
 
 /* This is the klog mask used with utests. */
@@ -24,23 +20,17 @@ static void utest_generic_thread(void *arg) {
 static int utest_generic(const char *name, int status_success) {
   unsigned old_klog_mask = klog_setmask(KL_UTEST_MASK);
 
-  thread_t *utest_thread =
-    thread_create(name, utest_generic_thread, (void *)name);
+  /* Prefix test thread's name with `utest-`. */
+  char prefixed_name[TD_NAME_MAX];
+  snprintf(prefixed_name, TD_NAME_MAX, "utest-%s", name);
+
+  thread_t *utest_thread = thread_create(prefixed_name, utest_generic_thread,
+                                         (void *)name, prio_kthread(0));
+  proc_t *child = proc_create(utest_thread, proc_self());
   sched_add(utest_thread);
 
-  /* NOTE: It looks like waitpid should be used here... but keep in mind, that
-     only the parent process may wait for children, and that this thread does
-     not belong to any thread at all. */
-  /* XXX: This only works because, for now, a process may only have one
-     thread. Normally we would need to wait for this process... but we don't
-     know it's PID (and it doesn't have to be 1!) nor a pointer, and we don't
-     know when exactly it will become ready. */
-  thread_join(utest_thread);
-  /* XXX: Normally the operating system has only one "first process", but when
-     running tests we create multiple such. They don't have a parent, yet they
-     exit or get killed, and we need to clean up afterwards. */
   int status;
-  proc_reap(utest_thread->td_proc, &status);
+  do_waitpid(child->p_pid, &status, 0);
 
   /* Restore previous klog mask */
   /* XXX: If we'll use klog_setmask heavily, maybe we should consider
@@ -78,17 +68,17 @@ UTEST_ADD_SIMPLE(fd_copy);
 UTEST_ADD_SIMPLE(fd_bad_desc);
 UTEST_ADD_SIMPLE(fd_open_path);
 UTEST_ADD_SIMPLE(fd_dup);
+UTEST_ADD_SIMPLE(fd_pipe);
 UTEST_ADD_SIMPLE(fd_all);
 
-/* XXX UTEST_ADD_SIMPLE(signal_basic); */
-/* XXX UTEST_ADD_SIMPLE(signal_send); */
-/* XXX UTEST_ADD_SIGNAL(signal_abort, SIGABRT); */
-/* XXX UTEST_ADD_SIGNAL(signal_segfault, SIGSEGV); */
+UTEST_ADD_SIMPLE(signal_basic);
+UTEST_ADD_SIMPLE(signal_send);
+UTEST_ADD_SIGNAL(signal_abort, SIGABRT);
+UTEST_ADD_SIGNAL(signal_segfault, SIGSEGV);
 
-/* XXX UTEST_ADD_SIMPLE(fork_wait); */
-/* TODO Why this test takes so long to execute? */
-/* UTEST_ADD_SIMPLE(fork_signal); */
-/* XXX UTEST_ADD_SIMPLE(fork_sigchld_ignored); */
+UTEST_ADD_SIMPLE(fork_wait);
+UTEST_ADD_SIMPLE(fork_signal);
+UTEST_ADD_SIMPLE(fork_sigchld_ignored);
 
 UTEST_ADD_SIMPLE(lseek_basic);
 UTEST_ADD_SIMPLE(lseek_errors);
@@ -99,8 +89,16 @@ UTEST_ADD_SIMPLE(stat);
 UTEST_ADD_SIMPLE(fstat);
 
 #if 0
-/* TODO Kernel does not handle such cases yet. */
-UTEST_ADD_SIMPLE(exc_cop_unusable);
-UTEST_ADD_SIMPLE(exc_reserved_instruction);
-UTEST_ADD_SIMPLE(syscall_in_bds);
+UTEST_ADD_SIMPLE(fpu_fcsr);
+UTEST_ADD_SIMPLE(fpu_gpr_preservation);
+UTEST_ADD_SIMPLE(fpu_cpy_ctx_on_fork);
+UTEST_ADD_SIMPLE(fpu_ctx_signals);
 #endif
+
+UTEST_ADD_SIGNAL(exc_cop_unusable, SIGILL);
+UTEST_ADD_SIGNAL(exc_reserved_instruction, SIGILL);
+UTEST_ADD_SIGNAL(exc_unaligned_access, SIGBUS);
+UTEST_ADD_SIGNAL(exc_integer_overflow, SIGFPE);
+
+UTEST_ADD_SIMPLE(exc_sigsys);
+/* XXX UTEST_ADD_SIMPLE(syscall_in_bds); */

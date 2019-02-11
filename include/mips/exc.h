@@ -189,15 +189,27 @@
     reg_t fsr;                                                                 \
   }
 
-typedef struct cpu_exc_frame { CPU_FRAME; } cpu_exc_frame_t;
-typedef struct fpu_exc_frame { FPU_FRAME; } fpu_exc_frame_t;
+typedef struct cpu_exc_frame {
+  CPU_FRAME;
+} cpu_exc_frame_t;
+typedef struct fpu_exc_frame {
+  FPU_FRAME;
+} fpu_exc_frame_t;
 typedef struct exc_frame {
   CPU_FRAME;
   FPU_FRAME;
 } exc_frame_t;
 
-static inline bool in_kernel_mode(exc_frame_t *frame) {
+static inline bool kern_mode_p(exc_frame_t *frame) {
   return (frame->sr & SR_KSU_MASK) == SR_KSU_KERN;
+}
+
+static inline bool user_mode_p(exc_frame_t *frame) {
+  return (frame->sr & SR_KSU_MASK) == SR_KSU_USER;
+}
+
+static inline unsigned exc_code(exc_frame_t *frame) {
+  return (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
 }
 
 #endif

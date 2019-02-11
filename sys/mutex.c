@@ -1,28 +1,34 @@
 #include <mutex.h>
+#include <turnstile.h>
 #include <interrupt.h>
 #include <sched.h>
 #include <thread.h>
+
+#define mtx_recurse_p(m) ((m)->m_type & LK_RECURSE)
 
 bool mtx_owned(mtx_t *m) {
   return (m->m_owner == thread_self());
 }
 
-void mtx_init(mtx_t *m, unsigned type) {
+void mtx_init(mtx_t *m, lock_type_t type) {
   m->m_owner = NULL;
   m->m_count = 0;
+  m->m_lockpt = NULL;
   m->m_type = type;
 }
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {
   if (mtx_owned(m)) {
-    assert(m->m_type == MTX_RECURSE);
+    if (!mtx_recurse_p(m))
+      panic("Sleeping mutex %p is not recursive!", m);
     m->m_count++;
     return;
   }
 
   WITH_NO_PREEMPTION {
     while (m->m_owner != NULL)
-      sleepq_wait(&m->m_owner, waitpt);
+      turnstile_wait(m, (thread_t *)m->m_owner, waitpt);
+
     m->m_owner = thread_self();
     m->m_lockpt = waitpt;
   }
@@ -32,7 +38,7 @@ void mtx_unlock(mtx_t *m) {
   assert(mtx_owned(m));
 
   if (m->m_count > 0) {
-    assert(m->m_type == MTX_RECURSE);
+    assert(mtx_recurse_p(m));
     m->m_count--;
     return;
   }
@@ -40,6 +46,14 @@ void mtx_unlock(mtx_t *m) {
   WITH_NO_PREEMPTION {
     m->m_owner = NULL;
     m->m_lockpt = NULL;
-    sleepq_signal(&m->m_owner);
+
+    /* Using broadcast instead of signal is faster according to
+     * "The Design and Implementation of the FreeBSD Operating System",
+     * 2nd edition, 4.3 Context Switching, page 138.
+     *
+     * The reasoning is that the awakened threads will often be scheduled
+     * sequentially and only act on empty mutex on which operations are
+     * cheaper. */
+    turnstile_broadcast(m);
   }
 }

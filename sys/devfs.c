@@ -1,3 +1,5 @@
+#define KL_LOG KL_FILESYS
+#include <klog.h>
 #include <devfs.h>
 #include <mount.h>
 #include <vnode.h>
@@ -5,6 +7,7 @@
 #include <stdc.h>
 #include <mutex.h>
 #include <malloc.h>
+#include <pool.h>
 #include <linker_set.h>
 #include <dirent.h>
 
@@ -20,6 +23,8 @@ struct devfs_node {
   devfs_node_list_t dn_children;
 };
 
+static POOL_DEFINE(P_DEVFS, "devfs nodes", sizeof(devfs_node_t));
+
 /* device filesystem state structure */
 typedef struct devfs_mount {
   mtx_t lock;
@@ -28,7 +33,7 @@ typedef struct devfs_mount {
 } devfs_mount_t;
 
 static devfs_mount_t devfs = {
-  .lock = MTX_INITIALIZER(MTX_RECURSE), .next_ino = 2, .root = {}};
+  .lock = MTX_INITIALIZER(LK_RECURSE), .next_ino = 2, .root = {}};
 static vnode_lookup_t devfs_vop_lookup;
 static vnode_readdir_t devfs_vop_readdir;
 static vnodeops_t devfs_vnodeops = {.v_lookup = devfs_vop_lookup,
@@ -56,8 +61,8 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
   if (parent->dn_vnode->v_type != V_DIR)
     return -ENOTDIR;
 
-  devfs_node_t *dn = kmalloc(M_VFS, sizeof(devfs_node_t), M_ZERO);
-  dn->dn_name = kstrndup(M_VFS, name, DEVFS_NAME_MAX);
+  devfs_node_t *dn = pool_alloc(P_DEVFS, PF_ZERO);
+  dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
   dn->dn_vnode = vnode_new(V_DEV, vops, data);
 
   WITH_MTX_LOCK (&devfs.lock) {
@@ -66,6 +71,8 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
       return -EEXIST;
     TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
   }
+
+  klog("devfs: registered '%s' device", name);
 
   return 0;
 }
@@ -78,8 +85,8 @@ int devfs_makedir(devfs_node_t *parent, const char *name,
   if (parent->dn_vnode->v_type != V_DIR)
     return -ENOTDIR;
 
-  devfs_node_t *dn = kmalloc(M_VFS, sizeof(devfs_node_t), M_ZERO);
-  dn->dn_name = kstrndup(M_VFS, name, DEVFS_NAME_MAX);
+  devfs_node_t *dn = pool_alloc(P_DEVFS, PF_ZERO);
+  dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
   dn->dn_vnode = vnode_new(V_DIR, &devfs_vnodeops, dn);
   dn->dn_parent = parent;
   TAILQ_INIT(&dn->dn_children);
@@ -113,7 +120,7 @@ static int devfs_vop_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
   if (!(dn = devfs_find_child(dv->v_data, name)))
     return -ENOENT;
   *vp = dn->dn_vnode;
-  vnode_ref(*vp);
+  vnode_hold(*vp);
   return 0;
 }
 
@@ -170,7 +177,7 @@ static int devfs_vop_readdir(vnode_t *v, uio_t *uio, void *state) {
 
 static int devfs_root(mount_t *m, vnode_t **vp) {
   *vp = devfs.root.dn_vnode;
-  vnode_ref(*vp);
+  vnode_hold(*vp);
   return 0;
 }
 
@@ -188,9 +195,8 @@ static int devfs_init(vfsconf_t *vfc) {
   typedef void devfs_init_func_t(void);
   SET_DECLARE(devfs_init, devfs_init_func_t);
   devfs_init_func_t **ptr;
-  SET_FOREACH(ptr, devfs_init) {
+  SET_FOREACH (ptr, devfs_init)
     (**ptr)();
-  }
   return 0;
 }
 

@@ -3,8 +3,6 @@
 
 #include <common.h>
 
-typedef struct exec_args exec_args_t;
-
 /*! \brief Thread stack structure. */
 typedef struct stack {
   void *stk_base;  /*!< stack base */
@@ -23,9 +21,6 @@ static inline void *stack_bottom(stack_t *stk) {
 static inline void *stack_alloc(void *sp, unsigned n) {
   return sp - n;
 }
-
-/*! \brief Initialize user stack for entry from kernel space. */
-void stack_user_entry_setup(const exec_args_t *args, vm_addr_t *sp_p);
 
 #define stack_alloc_s(sp, type) stack_alloc(sp, sizeof(type))
 

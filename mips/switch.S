@@ -18,6 +18,7 @@
 NESTED(ctx_switch, CTX_FRAME_SIZE, ra)
         # disable interrupts saving SR to t0
         di      t0
+        ehb
 
         # don't save context of @from thread if user did not provide one
         bnez    a0, ctx_save
@@ -39,7 +40,7 @@ ctx_save:
         move    s1, a1                  # (delay) save @to thread pointer
 
         # release @from thread spin lock
-        jal     spin_release
+        jal     spin_unlock
         addu    a0, s0, TD_SPIN         # (delay) 1st arg - @from spin lock
 
 ctx_resume:
@@ -53,9 +54,9 @@ ctx_resume:
         beqz    t0, 1f
         nop
 
-        # acquire @to thread spin lock
+        # acquire @to thread spin lock 
         la      a1, ctx_resume          # 2nd arg - waiting point
-        jal     _spin_acquire
+        jal     _spin_lock
         addu    a0, s1, TD_SPIN         # (delay) 1st arg - @to spin lock
 
         # Enable interrupts finishing safe interlock on td_spin.

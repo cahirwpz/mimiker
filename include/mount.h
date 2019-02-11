@@ -4,6 +4,7 @@
 #include <common.h>
 #include <queue.h>
 #include <mutex.h>
+#include <refcnt.h>
 #include <syslimits.h>
 
 /* Maximum length of a filesystem type name */
@@ -54,7 +55,7 @@ typedef struct mount {
   vfsconf_t *mnt_vfc;        /* Link to filesystem info */
   vnode_t *mnt_vnodecovered; /* The vnode covered by this mount */
 
-  int mnt_refcnt; /* Reference count */
+  refcnt_t mnt_refcnt; /* Reference count */
   mtx_t mnt_mtx;
 
   void *mnt_data; /* Filesystem-specific arbitrary data */

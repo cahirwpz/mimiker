@@ -3,20 +3,25 @@
 #include <sched.h>
 #include <thread.h>
 
-bool spin_owned(spinlock_t *s) {
+#define spin_recurse_p(s) ((s)->s_type & LK_RECURSE)
+
+bool spin_owned(spin_t *s) {
   return (s->s_owner == thread_self());
 }
 
-void spin_init(spinlock_t *s) {
+void spin_init(spin_t *s, lock_type_t type) {
   s->s_owner = NULL;
   s->s_count = 0;
   s->s_lockpt = NULL;
+  s->s_type = type;
 }
 
-void _spin_acquire(spinlock_t *s, const void *waitpt) {
+void _spin_lock(spin_t *s, const void *waitpt) {
   intr_disable();
 
   if (spin_owned(s)) {
+    if (!spin_recurse_p(s))
+      panic("Spin lock %p is not recursive!", s);
     s->s_count++;
     return;
   }
@@ -26,10 +31,11 @@ void _spin_acquire(spinlock_t *s, const void *waitpt) {
   s->s_lockpt = waitpt;
 }
 
-void spin_release(spinlock_t *s) {
+void spin_unlock(spin_t *s) {
   assert(spin_owned(s));
 
   if (s->s_count > 0) {
+    assert(spin_recurse_p(s));
     s->s_count--;
   } else {
     s->s_owner = NULL;

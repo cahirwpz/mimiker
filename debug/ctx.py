@@ -1,9 +1,10 @@
 import gdb
-import ptable
 from collections import OrderedDict
 
+from .utils import TextTable
 
-class Context(object):
+
+class Context():
     names = ['at', 'v0', 'v1', 'a0', 'a1', 'a2', 'a3',
              't0', 't1', 't2', 't3', 't4', 't5', 't6', 't7',
              's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7',
@@ -35,5 +36,6 @@ class Context(object):
             gdb.execute('set $%s = %d' % (name, val))
 
     def dump(self):
-        rows = [[name, str(val)] for name, val in self.regs.items()]
-        ptable.ptable(rows, fmt='lr')
+        table = TextTable(align='rl')
+        table.add_rows([[name, str(val)] for name, val in self.regs.items()])
+        print(table)

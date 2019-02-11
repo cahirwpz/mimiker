@@ -3,6 +3,7 @@
 #include <mount.h>
 #include <stdc.h>
 #include <errno.h>
+#include <pool.h>
 #include <malloc.h>
 #include <file.h>
 #include <vnode.h>
@@ -12,16 +13,16 @@
 
 /* TODO: We probably need some fancier allocation, since eventually we should
  * start recycling vnodes */
-MALLOC_DEFINE(M_VFS, "vfs", 1, 4);
+static POOL_DEFINE(P_MOUNT, "vfs mount points", sizeof(mount_t));
 
 /* The list of all installed filesystem types */
 vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
-mtx_t vfsconf_list_mtx = MTX_INITIALIZER(MTX_DEF);
+mtx_t vfsconf_list_mtx = MTX_INITIALIZER(0);
 
 /* The list of all mounts mounted */
 typedef TAILQ_HEAD(, mount) mount_list_t;
 static mount_list_t mount_list = TAILQ_HEAD_INITIALIZER(mount_list);
-static mtx_t mount_list_mtx = MTX_INITIALIZER(MTX_DEF);
+static mtx_t mount_list_mtx = MTX_INITIALIZER(0);
 
 /* Default vfs operations */
 static vfs_root_t vfs_default_root;
@@ -44,9 +45,8 @@ static void vfs_init(void) {
   /* Initialize available filesystem types. */
   SET_DECLARE(vfsconf, vfsconf_t);
   vfsconf_t **ptr;
-  SET_FOREACH(ptr, vfsconf) {
+  SET_FOREACH (ptr, vfsconf)
     vfs_register(*ptr);
-  }
 }
 
 vfsconf_t *vfs_get_by_name(const char *name) {
@@ -107,7 +107,7 @@ static int vfs_default_init(vfsconf_t *vfc) {
 }
 
 mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
-  mount_t *m = kmalloc(M_VFS, sizeof(mount_t), M_ZERO);
+  mount_t *m = pool_alloc(P_MOUNT, PF_ZERO);
 
   m->mnt_vfc = vfc;
   m->mnt_vfsops = vfc->vfc_vfsops;
@@ -117,7 +117,7 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
   m->mnt_vnodecovered = v;
 
   m->mnt_refcnt = 0;
-  mtx_init(&m->mnt_mtx, MTX_DEF);
+  mtx_init(&m->mnt_mtx, 0);
 
   return m;
 }
@@ -162,7 +162,7 @@ static int vfs_maybe_descend(vnode_t **vp) {
   while (is_mountpoint(v)) {
     int error = VFS_ROOT(v->v_mountedhere, &v_mntpt);
     vnode_unlock(v);
-    vnode_unref(v);
+    vnode_drop(v);
     if (error)
       return error;
     v = v_mntpt;
@@ -199,7 +199,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   char *pathbuf = pathcopy;
   const char *component;
 
-  vnode_ref(v);
+  vnode_hold(v);
   vnode_lock(v);
 
   if ((error = vfs_maybe_descend(&v)))
@@ -214,7 +214,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     error = VOP_LOOKUP(v, component, &v_child);
     /* TODO: Check access to child, to verify we can continue with lookup. */
     vnode_unlock(v);
-    vnode_unref(v);
+    vnode_drop(v);
     if (error)
       goto end;
     v = v_child;
@@ -244,8 +244,8 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   int res = VOP_OPEN(v, flags, f);
   /* Drop our reference to v. We received it from vfs_lookup, but we no longer
      need it - file f keeps its own reference to v after open. */
-  vnode_unref(v);
+  vnode_drop(v);
   return res;
 }
 
-SYSINIT_ADD(vfs, vfs_init, DEPS("vnode"));
+SYSINIT_ADD(vfs, vfs_init, NODEPS);

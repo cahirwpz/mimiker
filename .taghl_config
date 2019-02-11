@@ -1,0 +1,4 @@
+DoNotGenerateTags: True
+IncludeLocals: False
+Languages:
+  c

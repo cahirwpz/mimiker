@@ -4,61 +4,30 @@
 #include <thread.h>
 #include <errno.h>
 #include <vm_map.h>
-#include <vm_pager.h>
-#include <rwlock.h>
+#include <vm_object.h>
+#include <mutex.h>
 #include <proc.h>
 
-vm_addr_t do_mmap(vm_addr_t addr, size_t length, vm_prot_t prot, int flags,
-                  int *error) {
+int do_mmap(vaddr_t *addr_p, size_t length, vm_prot_t prot, vm_flags_t flags) {
   thread_t *td = thread_self();
-  assert(td->td_proc);
+  assert(td->td_proc != NULL);
   vm_map_t *vmap = td->td_proc->p_uspace;
+  assert(vmap != NULL);
 
-  assert(vmap);
-
-  if (addr >= vmap->pmap->end) {
-    /* mmap cannot callocate memory in kernel space! */
-    *error = EINVAL;
-    return MMAP_FAILED;
-  }
-
-  if (!flags & MMAP_ANON) {
-    klog("Non-anonymous memory mappings are not yet implemented.");
-    *error = EINVAL;
-    return MMAP_FAILED;
-  }
-
+  vaddr_t addr = *addr_p;
+  *addr_p = (vaddr_t)MAP_FAILED;
   length = roundup(length, PAGESIZE);
 
-  /* Regardless of whether addr is 0 or an address hint, we correct it a
-     bit. */
-  if (addr < MMAP_LOW_ADDR)
-    addr = MMAP_LOW_ADDR;
-  addr = roundup(addr, PAGESIZE);
+  vm_segment_t *seg;
+  int error = vm_map_alloc_segment(vmap, addr, length, prot, flags, &seg);
+  if (error < 0)
+    return error;
 
-  vm_map_entry_t *entry;
+  vaddr_t start, end;
+  vm_segment_range(seg, &start, &end);
 
-  WITH_RW_LOCK (&vmap->rwlock, RW_WRITER) {
-    if (vm_map_findspace_nolock(vmap, addr, length, &addr) != 0) {
-      /* No memory was found following the hint. Search again entire address
-         space. */
-      if (vm_map_findspace_nolock(vmap, MMAP_LOW_ADDR, length, &addr) != 0) {
-        /* Still no memory found. */
-        *error = ENOMEM;
-        return MMAP_FAILED;
-      }
-    }
+  klog("Created segment at %p, length: %u", (void *)start, length);
 
-    /* Create new vm map entry for this allocation. */
-    entry = vm_map_add_entry(vmap, addr, addr + length, prot);
-  }
-
-  if (flags & MMAP_ANON) {
-    /* Assign a pager which creates cleared pages . */
-    entry->object = default_pager->pgr_alloc();
-  }
-
-  klog("Created entry at %p, length: %u", (void *)addr, length);
-
-  return addr;
+  *addr_p = start;
+  return 0;
 }

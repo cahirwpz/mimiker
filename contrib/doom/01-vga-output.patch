@@ -1,0 +1,73 @@
+diff --git a/headless_doom/d_main.c b/headless_doom/d_main.c
+index 6a5b46b..82b3edf 100644
+--- a/headless_doom/d_main.c
++++ b/headless_doom/d_main.c
+@@ -573,13 +573,15 @@ void IdentifyVersion (void)
+     sprintf(basedefault, "doomrc");
+ #endif
+ 
++#define DATADIR "/usr/share/doom/"
++
+ #if 1
+     gamemode = retail;
+-    D_AddFile ("doom.wad");
+-    D_AddFile ("DDQ-EP1.LMP");
+-    D_AddFile ("DDQ-EP2.LMP");
+-    D_AddFile ("DDQ-EP3.LMP");
+-    D_AddFile ("DDQ-EP4.LMP");
++    D_AddFile (DATADIR "doom.wad");
++    D_AddFile (DATADIR "DDQ-EP1.LMP");
++    D_AddFile (DATADIR "DDQ-EP2.LMP");
++    D_AddFile (DATADIR "DDQ-EP3.LMP");
++    D_AddFile (DATADIR "DDQ-EP4.LMP");
+ #else
+     if (M_CheckParm ("-shdev"))
+     {
+diff --git a/headless_doom/i_video_benchmark.c b/headless_doom/i_video_benchmark.c
+index d55b2fe..5ec4d8f 100644
+--- a/headless_doom/i_video_benchmark.c
++++ b/headless_doom/i_video_benchmark.c
+@@ -24,13 +24,13 @@
+ 
+ #include <stdlib.h>
+ #include <unistd.h>
++#include <fcntl.h>
+ #if 0
+ #include <sys/ipc.h>
+ #include <sys/shm.h>
+ 
+ #include <sys/types.h>
+ #include <sys/stat.h>
+-#include <fcntl.h>
+ 
+ 
+ #include <stdarg.h>
+@@ -97,6 +97,9 @@ void I_UpdateNoBlit (void)
+ //
+ void I_FinishUpdate (void)
+ {
++    int fd = open("/dev/vga/fb", O_WRONLY, 0);
++    write(fd, screens[0], SCREENWIDTH*SCREENHEIGHT);
++    close(fd);
+     headless_count ++ ;
+ }
+ 
+@@ -119,6 +122,9 @@ void I_ReadScreen (byte* scr)
+ //
+ void I_SetPalette (byte* palette)
+ {
++    int fd = open("/dev/vga/palette", O_WRONLY, 0);
++    write(fd, palette, 3 * 256);
++    close(fd);
+ }
+ 
+ 
+@@ -132,5 +138,8 @@ void I_InitGraphics(void)
+ 
+ 	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
+     printf ("Headless Doom running in Benchmark mode\n");
++    FILE *f = fopen("/dev/vga/videomode", "r+b");
++    fprintf(f, "%d %d 8", SCREENWIDTH, SCREENHEIGHT);
++    fclose(f);
+ }
+ 

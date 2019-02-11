@@ -1,31 +1,23 @@
 #include <stdc.h>
-#include <malloc.h>
+#include <physmem.h>
+#include <pmap.h>
 #include <vm_object.h>
 #include <vm_pager.h>
 
-static vm_object_t *default_pager_alloc(void) {
-  vm_object_t *obj = vm_object_alloc();
-  obj->pgr = (pager_t *)default_pager;
-  return obj;
+static vm_page_t *dummy_pager_fault(vm_object_t *obj, off_t offset) {
+  return NULL;
 }
 
-static void default_pager_free(vm_object_t *obj) {
-  vm_object_free(obj);
-}
-
-static vm_page_t *default_pager_fault(vm_object_t *obj, vm_addr_t fault_addr,
-                                      vm_addr_t vm_offset, vm_prot_t vm_prot) {
+static vm_page_t *anon_pager_fault(vm_object_t *obj, off_t offset) {
   assert(obj != NULL);
 
   vm_page_t *new_pg = pm_alloc(1);
-  new_pg->vm_offset = vm_offset;
-  memset((char *)new_pg->vaddr, 0, PAGESIZE);
-  vm_object_add_page(obj, new_pg);
+  pmap_zero_page(new_pg);
+  vm_object_add_page(obj, offset, new_pg);
   return new_pg;
 }
 
-pager_t default_pager[1] = {{
-  .pgr_alloc = default_pager_alloc,
-  .pgr_free = default_pager_free,
-  .pgr_fault = default_pager_fault,
-}};
+vm_pager_t pagers[] = {
+  [VM_DUMMY] = {.pgr_fault = dummy_pager_fault},
+  [VM_ANONYMOUS] = {.pgr_fault = anon_pager_fault},
+};

@@ -4,6 +4,10 @@
 #include <callout.h>
 #include <spinlock.h>
 #include <sysinit.h>
+#include <sleepq.h>
+#include <thread.h>
+#include <sched.h>
+#include <interrupt.h>
 
 /* Note: If the difference in time between ticks is greater than the number of
    buckets, some callouts may be called out-of-order! */
@@ -31,26 +35,59 @@ static struct {
      called with. All callouts up to this timestamp have already been
      processed. */
   systime_t last;
-  spinlock_t lock;
+  spin_t lock;
 } ci;
 
 static inline callout_list_t *ci_list(int i) {
   return &ci.heads[i];
 }
 
+static callout_list_t delegated;
+
+static void callout_thread(void *arg) {
+  while (true) {
+    callout_t *elem;
+
+    WITH_INTR_DISABLED {
+      while (TAILQ_EMPTY(&delegated)) {
+        sleepq_wait(&delegated, NULL);
+      }
+
+      elem = TAILQ_FIRST(&delegated);
+      TAILQ_REMOVE(&delegated, elem, c_link);
+    }
+
+    assert(callout_is_active(elem));
+    assert(!callout_is_pending(elem));
+
+    /* Execute callout's function. */
+    elem->c_func(elem->c_arg);
+    callout_clear_active(elem);
+    /* Wake threads that wait for execution of this callout in callout_drain. */
+    sleepq_broadcast(elem);
+  }
+}
+
 static void callout_init(void) {
   bzero(&ci, sizeof(ci));
 
-  ci.lock = SPINLOCK_INITIALIZER();
+  ci.lock = SPIN_INITIALIZER(0);
 
   for (int i = 0; i < CALLOUT_BUCKETS; i++)
     TAILQ_INIT(ci_list(i));
+
+  TAILQ_INIT(&delegated);
+
+  thread_t *td =
+    thread_create("callout", callout_thread, NULL, prio_kthread(0));
+  sched_add(td);
 }
 
 static void _callout_setup(callout_t *handle, systime_t time, timeout_t fn,
                            void *arg) {
   assert(spin_owned(&ci.lock));
   assert(!callout_is_pending(handle));
+  assert(!callout_is_active(handle));
 
   int index = time % CALLOUT_BUCKETS;
 
@@ -66,34 +103,37 @@ static void _callout_setup(callout_t *handle, systime_t time, timeout_t fn,
 }
 
 void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg) {
-  SCOPED_SPINLOCK(&ci.lock);
+  SCOPED_SPIN_LOCK(&ci.lock);
 
   _callout_setup(handle, time, fn, arg);
 }
 
 void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
                             void *arg) {
-  SCOPED_SPINLOCK(&ci.lock);
+  SCOPED_SPIN_LOCK(&ci.lock);
 
-  systime_t now = tv2st(get_uptime());
+  systime_t now = getsystime();
   _callout_setup(handle, now + time, fn, arg);
 }
 
-void callout_stop(callout_t *handle) {
-  SCOPED_SPINLOCK(&ci.lock);
+bool callout_stop(callout_t *handle) {
+  SCOPED_SPIN_LOCK(&ci.lock);
 
   klog("Remove callout {%p} at %ld.", handle, handle->c_time);
 
   if (callout_is_pending(handle)) {
     callout_clear_pending(handle);
     TAILQ_REMOVE(ci_list(handle->c_index), handle, c_link);
+    return true;
   }
+
+  return false;
 }
 
 /*
- * Handle all timeouted callouts from queues between last position and current
- * position.
-*/
+ * Process all timeouted callouts from queues between last position and current
+ * position and delegate them to callout thread.
+ */
 void callout_process(systime_t time) {
   unsigned int last_bucket;
   unsigned int current_bucket = ci.last % CALLOUT_BUCKETS;
@@ -106,31 +146,22 @@ void callout_process(systime_t time) {
     last_bucket = time % CALLOUT_BUCKETS;
   }
 
-  callout_list_t detached;
-
-  SCOPED_SPINLOCK(&ci.lock);
+  /* We are in kernel's bottom half. */
+  assert(intr_disabled());
 
   while (true) {
     callout_list_t *head = ci_list(current_bucket);
     callout_t *elem, *next;
 
-    TAILQ_INIT(&detached);
-
-    /* Detach triggered callouts from the queue. */
-    TAILQ_FOREACH_SAFE(elem, head, c_link, next) {
+    /* Detach triggered callouts from ci_list queue. */
+    TAILQ_FOREACH_SAFE (elem, head, c_link, next) {
       if (elem->c_time <= time) {
         callout_set_active(elem);
         callout_clear_pending(elem);
         TAILQ_REMOVE(head, elem, c_link);
-        TAILQ_INSERT_TAIL(&detached, elem, c_link);
+        /* Attach elem to callout thread's queue. */
+        TAILQ_INSERT_TAIL(&delegated, elem, c_link);
       }
-    }
-
-    /* Now safely call them one by one. */
-    TAILQ_FOREACH_SAFE(elem, &detached, c_link, next) {
-      TAILQ_REMOVE(&detached, elem, c_link);
-      elem->c_func(elem->c_arg);
-      callout_clear_active(elem);
     }
 
     if (current_bucket == last_bucket)
@@ -140,6 +171,22 @@ void callout_process(systime_t time) {
   }
 
   ci.last = time;
+
+  /* Wake callout thread. */
+  if (!TAILQ_EMPTY(&delegated)) {
+    sleepq_signal(&delegated);
+  }
 }
 
-SYSINIT_ADD(callout, callout_init, NODEPS);
+bool callout_drain(callout_t *handle) {
+  WITH_INTR_DISABLED {
+    if (callout_is_pending(handle) || callout_is_active(handle)) {
+      sleepq_wait(handle, NULL);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+SYSINIT_ADD(callout, callout_init, DEPS("sched"));

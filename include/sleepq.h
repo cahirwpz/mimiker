@@ -27,7 +27,20 @@ void sleepq_destroy(sleepq_t *sq);
  */
 void sleepq_wait(void *wchan, const void *waitpt);
 
-/*! \brief Take first thread sleeping on \a wchan and resume it.
+/*! \brief Same as \a sleepq_wait but allows the sleep to be interrupted. */
+#define sleepq_wait_intr(wchan, waitpt) sleepq_wait_timed((wchan), (waitpt), 0)
+
+/*! \brief Performs interruptible sleep with timeout.
+ *
+ * Timed sleep is also interruptible. The only guarantee about timeout is that
+ * the thread's sleep will not timeout before the given time passes. It may
+ * happen any time after that point.
+ *
+ * \param timeout in system ticks, if 0 waits indefinitely
+ * \returns how the thread was actually woken up */
+int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout);
+
+/*! \brief Wakes up highest priority thread waiting on \a wchan.
  *
  * \param wchan unique sleep queue identifier
  */
@@ -38,5 +51,12 @@ bool sleepq_signal(void *wchan);
  * \param wchan unique sleep queue identifier
  */
 bool sleepq_broadcast(void *wchan);
+
+/*! \brief Break thread's sleep.
+ *
+ * \returns true on success
+ * \returns false if the thread has not been asleep
+ */
+bool sleepq_abort(thread_t *td);
 
 #endif /* !_SYS_SLEEPQ_H_ */
