@@ -273,7 +273,8 @@ void kstack_overflow_handler(exc_frame_t *frame) {
  *    a. interrupts and preemption are enabled:
  *       kernel was running in regular thread context
  *    b. preemption is disabled, interrupts are enabled:
- *       kernel was running in thread context and acquired sleep lock (mutex)
+ *       kernel was running in thread context and preemption was disabled
+ *       (this can happen during acquring or releasing sleep lock aka mutex)
  *    c. interrupts are disabled, preemption is implicitly disabled:
  *       kernel was running in interrupt context or acquired spin lock
  *
