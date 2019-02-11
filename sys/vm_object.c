@@ -75,7 +75,7 @@ void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length,
   assert(is_page_aligned(start) && is_page_aligned(end));
   vm_page_t *pg, *next;
 
-  TAILQ_FOREACH_SAFE(pg, &object->list, obj.list, next) {
+  TAILQ_FOREACH_SAFE (pg, &object->list, obj.list, next) {
     if (pg->offset >= (off_t)(offset + length))
       break;
     if (pg->offset >= offset)
