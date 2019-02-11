@@ -1,6 +1,7 @@
 #ifndef _SYS_VNODE_H_
 #define _SYS_VNODE_H_
 
+#include <errno.h>
 #include <mutex.h>
 #include <uio.h>
 #include <refcnt.h>
@@ -92,60 +93,65 @@ typedef struct vattr {
 
 void va_convert(vattr_t *va, stat_t *sb);
 
+#define VOP_CALL(op, v, ...)                                                   \
+  ((v)->v_ops->v_##op) ? ((v)->v_ops->v_##op(v, __VA_ARGS__)) : -ENOTSUP
+
 static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
-  return dv->v_ops->v_lookup(dv, name, vp);
+  return VOP_CALL(lookup, dv, name, vp);
 }
 
 static inline int VOP_READDIR(vnode_t *dv, uio_t *uio, void *data) {
-  return dv->v_ops->v_readdir(dv, uio, data);
+  return VOP_CALL(readdir, dv, uio, data);
 }
 
 static inline int VOP_OPEN(vnode_t *v, int mode, file_t *fp) {
-  return v->v_ops->v_open(v, mode, fp);
+  return VOP_CALL(open, v, mode, fp);
 }
 
 static inline int VOP_CLOSE(vnode_t *v, file_t *fp) {
-  return v->v_ops->v_close(v, fp);
+  return VOP_CALL(close, v, fp);
 }
 
 static inline int VOP_READ(vnode_t *v, uio_t *uio) {
-  return v->v_ops->v_read(v, uio);
+  return VOP_CALL(read, v, uio);
 }
 
 static inline int VOP_WRITE(vnode_t *v, uio_t *uio) {
-  return v->v_ops->v_write(v, uio);
+  return VOP_CALL(write, v, uio);
 }
 
 static inline int VOP_SEEK(vnode_t *v, off_t oldoff, off_t newoff,
                            void *state) {
-  return v->v_ops->v_seek(v, oldoff, newoff, state);
+  return VOP_CALL(seek, v, oldoff, newoff, state);
 }
 
 static inline int VOP_GETATTR(vnode_t *v, vattr_t *va) {
-  return v->v_ops->v_getattr(v, va);
+  return VOP_CALL(getattr, v, va);
 }
 
 static inline int VOP_CREATE(vnode_t *dv, const char *name, vattr_t *va,
                              vnode_t **vp) {
-  return dv->v_ops->v_create(dv, name, va, vp);
+  return VOP_CALL(create, dv, name, va, vp);
 }
 
 static inline int VOP_REMOVE(vnode_t *dv, const char *name) {
-  return dv->v_ops->v_remove(dv, name);
+  return VOP_CALL(remove, dv, name);
 }
 
 static inline int VOP_MKDIR(vnode_t *dv, const char *name, vattr_t *va,
                             vnode_t **vp) {
-  return dv->v_ops->v_mkdir(dv, name, va, vp);
+  return VOP_CALL(mkdir, dv, name, va, vp);
 }
 
 static inline int VOP_RMDIR(vnode_t *dv, const char *name) {
-  return dv->v_ops->v_rmdir(dv, name);
+  return VOP_CALL(rmdir, dv, name);
 }
 
 static inline int VOP_ACCESS(vnode_t *v, mode_t mode) {
-  return v->v_ops->v_access(v, mode);
+  return VOP_CALL(access, v, mode);
 }
+
+#undef VOP_CALL
 
 /* Allocates and initializes a new vnode */
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data);
