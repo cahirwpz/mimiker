@@ -122,7 +122,7 @@ static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
   assert(mtx_owned(all_proc_mtx));
 
   proc_t *child, *next;
-  TAILQ_FOREACH_SAFE(child, CHILDREN(old_parent), p_child, next) {
+  TAILQ_FOREACH_SAFE (child, CHILDREN(old_parent), p_child, next) {
     child->p_parent = new_parent;
     TAILQ_REMOVE(CHILDREN(old_parent), child, p_child);
     if (new_parent)
