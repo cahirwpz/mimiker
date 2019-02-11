@@ -91,7 +91,7 @@ void intr_event_run_handlers(intr_event_t *ie) {
   intr_handler_t *ih, *next;
   intr_filter_t status = IF_STRAY;
 
-  TAILQ_FOREACH_SAFE(ih, &ie->ie_handlers, ih_link, next) {
+  TAILQ_FOREACH_SAFE (ih, &ie->ie_handlers, ih_link, next) {
     status = ih->ih_filter(ih->ih_argument);
     if (status == IF_FILTERED)
       return;
