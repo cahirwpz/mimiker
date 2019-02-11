@@ -303,8 +303,19 @@ void mips_exc_handler(exc_frame_t *frame) {
     kernel_oops(frame);
 
   if (!user_mode && (!(frame->sr & SR_IE) || preempt_disabled())) {
-    /* Case 2b & 2c: we came from kernel-space, interrupts or preemption were
-     * disabled, so switching out is forbidden! */
+    /* We came here from kernel-space because of:
+     * Case 2c: an exception, interrupts were disabled;
+     * Case 2b: either interrupt or exception, preemption was disabled.
+     * To prevent breaking critical section switching out is forbidden!
+     *
+     * In theory we can enable interrupts for the time of handling exception
+     * in case 2b. In most cases handling exceptions in critical sections
+     * will end up in kernel panic, since such scenario is usually caused
+     * by programmer's error.
+     *
+     * XXX Being a very peculiar scenario we leave it as is for later
+     *     consideration. Disabled interrupt will ease debugging.
+     */
     PCPU_SET(no_switch, true);
     (*handler)(frame);
     PCPU_SET(no_switch, false);
