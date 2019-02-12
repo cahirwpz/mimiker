@@ -32,7 +32,7 @@ LEAF(_start)
         and     t0, t1
         mtc0    t0, C0_STATUS
 
-        # Clear pending software and hardware interrupts
+        # Clear pending software interrupts
         mfc0    t0, C0_CAUSE
         li      t1, ~CR_IP_MASK
         and     t0, t1
@@ -44,10 +44,9 @@ LEAF(_start)
 
         # Switch to kernel main thread
         LOAD_PCPU(t0)
-        move    a0, zero
         PTR_L   a1, PCPU_CURTHREAD(t0)
-        j       ctx_switch
-        nop
+        jal     ctx_switch
+        move    a0, zero                # (delay) 1st arg
 END(_start)
 
 # vim: sw=8 ts=8 et

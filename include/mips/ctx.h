@@ -11,10 +11,11 @@
 
 #define LOAD_REG(reg, offset, base) lw reg, (CTX_##offset)(base)
 
-#define SAVE_CTX(reg)                                                          \
+#define SAVE_CTX(_sr, _sp, reg)                                                \
+  SAVE_REG(_sr, SR, reg);                                                      \
   SAVE_REG(ra, PC, reg);                                                       \
   SAVE_REG(fp, FP, reg);                                                       \
-  SAVE_REG(sp, SP, reg);                                                       \
+  SAVE_REG(_sp, SP, reg);                                                      \
   SAVE_REG(gp, GP, reg);                                                       \
   SAVE_REG(zero, V0, reg);                                                     \
   SAVE_REG(s0, S0, reg);                                                       \
@@ -26,7 +27,8 @@
   SAVE_REG(s6, S6, reg);                                                       \
   SAVE_REG(s7, S7, reg)
 
-#define LOAD_CTX(reg)                                                          \
+#define LOAD_CTX(_sr, reg)                                                     \
+  LOAD_REG(_sr, SR, reg);                                                      \
   LOAD_REG(ra, PC, reg);                                                       \
   LOAD_REG(fp, FP, reg);                                                       \
   LOAD_REG(sp, SP, reg);                                                       \

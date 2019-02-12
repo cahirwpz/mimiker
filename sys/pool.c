@@ -151,7 +151,7 @@ static void *slab_alloc(pool_slab_t *slab) {
 static void destroy_slab_list(pool_t *pool, pool_slabs_t *slabs) {
   pool_slab_t *it, *next;
 
-  LIST_FOREACH_SAFE(it, slabs, ph_slablist, next) {
+  LIST_FOREACH_SAFE (it, slabs, ph_slablist, next) {
     LIST_REMOVE(it, ph_slablist);
     destroy_slab(pool, it);
   }

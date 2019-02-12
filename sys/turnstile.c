@@ -292,7 +292,7 @@ static void unlend_self(turnstile_t *ts) {
   LIST_REMOVE(ts, ts_contested_link);
 
   turnstile_t *ts_owned;
-  LIST_FOREACH(ts_owned, &td->td_contested, ts_contested_link) {
+  LIST_FOREACH (ts_owned, &td->td_contested, ts_contested_link) {
     assert(ts_owned->ts_owner == td);
     prio_t p = TAILQ_FIRST(&ts_owned->ts_blocked)->td_prio;
     if (prio_gt(p, prio))
@@ -322,7 +322,7 @@ static void wakeup_blocked(td_queue_t *blocked_threads) {
  * it or NULL if no turnstile is found in chains. */
 static turnstile_t *turnstile_lookup(void *wchan, turnstile_chain_t *tc) {
   turnstile_t *ts;
-  LIST_FOREACH(ts, &tc->tc_turnstiles, ts_chain_link) {
+  LIST_FOREACH (ts, &tc->tc_turnstiles, ts_chain_link) {
     assert(ts->ts_state == USED_BLOCKED);
     if (ts->ts_wchan == wchan)
       return ts;

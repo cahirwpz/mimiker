@@ -65,6 +65,9 @@ typedef enum {
 
 /*! \brief Thread structure
  *
+ * UP = uniprocessor
+ * MP = multiprocessor
+ *
  * Field markings and the corresponding locks:
  *  - a: threads_lock
  *  - t: thread_t::td_lock
@@ -72,7 +75,9 @@ typedef enum {
  *  - @: read-only access
  *  - !: thread_t::td_spin
  *  - ~: always safe to access
- *  - #: UP & no preemption
+ *  - #: UP & no preemption, only use from same thread
+ *  - $: UP & no interrupts
+ *  - *: only use from same thread, may read from any if thread is asleep
  *
  * Locking order:
  *  threads_lock >> thread_t::td_lock
@@ -83,11 +88,11 @@ typedef struct thread {
   mtx_t td_lock;       /*!< (~) protects most fields in this structure */
   condvar_t td_waitcv; /*!< (t) for thread_join */
   /* linked lists */
-  TAILQ_ENTRY(thread) td_all;      /* a link on all threads list */
-  TAILQ_ENTRY(thread) td_runq;     /* a link on run queue */
-  TAILQ_ENTRY(thread) td_sleepq;   /* a link on sleep queue */
-  TAILQ_ENTRY(thread) td_blockedq; /* (#) a link on turnstile blocked queue */
-  TAILQ_ENTRY(thread) td_zombieq;  /* a link on zombie queue */
+  TAILQ_ENTRY(thread) td_all;      /* (a) link on all threads list */
+  TAILQ_ENTRY(thread) td_runq;     /* ($) link on run queue */
+  TAILQ_ENTRY(thread) td_sleepq;   /* ($) link on sleep queue */
+  TAILQ_ENTRY(thread) td_blockedq; /* (#) link on turnstile blocked queue */
+  TAILQ_ENTRY(thread) td_zombieq;  /* (a) link on zombie queue */
   /* Properties */
   proc_t *td_proc; /*!< (t) parent process (NULL for kernel threads) */
   char *td_name;   /*!< (@) name of thread */
@@ -96,33 +101,31 @@ typedef struct thread {
   thread_state_t td_state;    /*!< (!) thread state */
   volatile uint32_t td_flags; /*!< (!) TDF_* flags */
   /* thread context */
-  volatile unsigned td_idnest; /*!< (?) interrupt disable nest level */
-  volatile unsigned td_pdnest; /*!< (?) preemption disable nest level */
-  exc_frame_t *td_uframe;      /* user context (full exception frame) */
-  exc_frame_t *td_kframe;      /* kernel context (last cpu exception frame) */
-  ctx_t td_kctx;               /* kernel context (switch) */
-  intptr_t td_onfault;         /* program counter for copyin/copyout faults */
-  vm_page_t *td_kstack_obj;
-  stack_t td_kstack;
+  volatile unsigned td_idnest; /*!< (*) interrupt disable nest level */
+  volatile unsigned td_pdnest; /*!< (*) preemption disable nest level */
+  exc_frame_t *td_uframe;      /*!< (*) user context (full exc. frame) */
+  exc_frame_t *td_kframe;      /*!< (*) kernel context (last cpu exc. frame) */
+  ctx_t *td_kctx;              /*!< (*) kernel context (switch) */
+  intptr_t td_onfault;         /*!< (*) PC for copyin/copyout faults */
+  vm_page_t *td_kstack_obj;    /*!< (*) page that hold our kernel stack */
+  stack_t td_kstack;           /*!< (*) kernel stack structure */
   /* waiting channel */
-  void *td_wchan;
-  const void *td_waitpt; /*!< a point where program waits */
-  /* waiting channel - sleepqueue */
-  sleepq_t *td_sleepqueue; /* thread's sleepqueue */
-  /* waiting channel - turnstile */
-  turnstile_t *td_blocked;   /* (#) turnstile on which thread is blocked */
-  turnstile_t *td_turnstile; /* (#) thread's turnstile */
+  void *td_wchan;            /*!< (*) memory object on which thread awaits */
+  const void *td_waitpt;     /*!< (*) PC where program waits */
+  sleepq_t *td_sleepqueue;   /*!< ($) thread's sleepqueue */
+  turnstile_t *td_blocked;   /*!< (#) turnstile on which thread is blocked */
+  turnstile_t *td_turnstile; /*!< (#) thread's turnstile */
   LIST_HEAD(, turnstile) td_contested; /* (#) turnstiles of locks that we own */
   /* scheduler part */
-  prio_t td_base_prio; /*!< base priority */
-  prio_t td_prio;      /*!< active priority */
-  int td_slice;
+  prio_t td_base_prio; /*!< ($) base priority */
+  prio_t td_prio;      /*!< ($) active priority */
+  int td_slice;        /*!< ($) time slice length in system ticks */
   /* thread statistics */
-  timeval_t td_rtime;        /*!< time spent running */
-  timeval_t td_last_rtime;   /*!< time of last switch to running state */
-  timeval_t td_slptime;      /*!< time spent sleeping */
-  timeval_t td_last_slptime; /*!< time of last switch to sleep state */
-  unsigned td_nctxsw;        /*!< total number of context switches */
+  timeval_t td_rtime;        /*!< (*) time spent running */
+  timeval_t td_last_rtime;   /*!< (*) time of last switch to running state */
+  timeval_t td_slptime;      /*!< (*) time spent sleeping */
+  timeval_t td_last_slptime; /*!< (*) time of last switch to sleep state */
+  unsigned td_nctxsw;        /*!< (*) total number of context switches */
   /* signal handling */
   sigset_t td_sigpend; /*!< (p) Pending signals for this thread. */
   /* TODO: Signal mask, sigsuspend. */
