@@ -74,7 +74,7 @@ static int sys_kill(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
   signo_t sig = args->args[1];
   klog("kill(%lu, %d)", pid, sig);
-  return do_kill(pid, sig);
+  return proc_sendsig(pid, sig);
 }
 
 static int sys_killpg(thread_t *td, syscall_args_t *args) {

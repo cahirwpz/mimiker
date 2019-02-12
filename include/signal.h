@@ -100,7 +100,6 @@ int sig_send(signo_t sig, sigaction_t *sa);
 int sig_return(void);
 
 /* System calls implementation. */
-int do_kill(pid_t pid, signo_t sig);
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigreturn(void);
 
