@@ -71,6 +71,9 @@ void proc_add(proc_t *p);
  * \returns locked process or NULL if not found */
 proc_t *proc_find(pid_t pid);
 
+/*! \brief Sends signal sig to the process with the ID specified by pid. */
+int proc_sendsig(pid_t pid, signo_t sig);
+
 /*! \brief Called by a processes that wishes to terminate its life.
  * \note Exit status shoud be created using MAKE_STATUS macros from wait.h */
 noreturn void proc_exit(int exitstatus);

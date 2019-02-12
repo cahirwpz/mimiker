@@ -15,21 +15,23 @@
 #
 # void ctx_switch(thread_t *from, thread_t *to)
 #
-LEAF(ctx_switch)
+NESTED(ctx_switch, CTX_FRAME_SIZE, ra)
         # disable interrupts saving SR to t0
         di      t0
         ehb
 
         # don't save context of @from thread if user did not provide one
         bnez    a0, ctx_save
-        addu    t1, a0, TD_KCTX         # (delay) load context pointer
+        nop
         j       ctx_resume
         move    s1, a1                  # (delay) save @to thread pointer
 
 ctx_save:
         # save context of @from thread
-        SAVE_REG(t0, SR, t1)
-        SAVE_CTX(t1)
+        move    t1, sp
+        subu    sp, CTX_FRAME_SIZE
+        SAVE_CTX(t0, t1, sp)
+        sw      sp, TD_KCTX(a0)
 
         move    s0, a0                  # save @from pointer
 
@@ -70,11 +72,10 @@ ctx_resume:
         nop
 
         # restore @to thread context
-        addu    t1, s1, TD_KCTX
-        LOAD_CTX(t1)
+        lw      t1, TD_KCTX(s1)
+        LOAD_CTX(t0, t1)
 
         # restore status register with updated interrupt mask
-        LOAD_REG(t0, SR, t1)
         mfc0    t1, C0_SR
         ext     t1, SR_IMASK_SHIFT, SR_IMASK_BITS
         ins     t0, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
