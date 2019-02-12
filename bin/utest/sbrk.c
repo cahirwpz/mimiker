@@ -60,10 +60,15 @@ static void sbrk_bad(void) {
 /* Causes SIGSEGV, don't call it here */
 int test_sbrk_sigsegv(void) {
   /* Make sure memory just above sbrk has just been used and freed */
-  sbrk_good();
+  void *unaligned = sbrk(0);
+  /* Align to page size */
+  sbrk(((intptr_t)unaligned + 0xfff) & -0x1000);
+
+  void *ptr = sbrk(0x2000);
+  sbrk(-0x2000);
 
   /* Try to access freed memory. It should raise SIGSEGV */
-  int data = *((int *)sbrk(0));
+  int data = *((int *)(ptr + 0x1000));
   assert(data != 0);
   return 0;
 }

@@ -70,18 +70,18 @@ static void munmap_bad(void) {
 
   assert(munmap(addr, pagesize * 5) == 0);
 }
+#undef UNMADDR
 
 /* Don't call this function in this module */
 int test_munmap_sigsegv(void) {
-  /* Mmap & munmap 5 pages above UNMADDR */
-  munmap_bad();
+  void *addr = mmap(NULL, 0x4000, PROT_READ | PROT_WRITE, MAP_ANON);
+  munmap(addr, 0x4000);
 
   /* Try to access freed memory. It should raise SIGSEGV */
-  int data = *((int *)(UNMADDR + 0x2000));
+  int data = *((int *)(addr + 0x2000));
   assert(data != 0);
   return 0;
 }
-#undef UNMADDR
 
 int test_mmap() {
   mmap_no_hint();
