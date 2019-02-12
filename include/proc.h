@@ -23,10 +23,10 @@ typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
  *  (!) read-only access, do not modify!
  */
 typedef struct pgrp {
-  mtx_t pg_lock;                /* Process group mutex */
+  mtx_t pg_lock;                 /* Process group mutex */
   TAILQ_ENTRY(pgrp) pg_link;     /* (a) link on chain of process groups */
   TAILQ_HEAD(, proc) pg_members; /* (@) members of process group */
-  pgid_t pg_id;                 /* (!) process group id */
+  pgid_t pg_id;                  /* (!) process group id */
 } pgrp_t;
 
 typedef enum { PS_NORMAL, PS_DYING, PS_ZOMBIE } proc_state_t;
@@ -46,7 +46,7 @@ struct proc {
   TAILQ_ENTRY(proc) p_child;  /* (a) link on parent's children list */
   thread_t *p_thread;         /* (@) the only thread running in this process */
   pid_t p_pid;                /* (!) Process ID */
-  TAILQ_ENTRY(proc) p_pglist;  /* (pgrp::@) link on p_pgrp->pg_members list */
+  TAILQ_ENTRY(proc) p_pglist; /* (pgrp::@) link on p_pgrp->pg_members list */
   pgrp_t *p_pgrp;             /* (a) process group */
   volatile proc_state_t p_state;  /* (@) process state */
   proc_t *p_parent;               /* (a) parent process */
