@@ -106,5 +106,5 @@ static void rootdev_init(void) {
   device_attach(&rootdev);
 }
 
-SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs"));
+SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs", "ithread"));
 DEVCLASS_CREATE(root);
