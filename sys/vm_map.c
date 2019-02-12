@@ -115,7 +115,8 @@ static void vm_segment_free(vm_segment_t *seg) {
 }
 
 vm_segment_t *vm_map_find_segment(vm_map_t *map, vaddr_t vaddr) {
-  SCOPED_MTX_LOCK(&map->mtx);
+  assert(mtx_owned(&map->mtx));
+
   vm_segment_t *it;
   TAILQ_FOREACH (it, &map->entries, link)
     if (it->start <= vaddr && vaddr < it->end)
@@ -133,19 +134,19 @@ static void vm_map_insert_after(vm_map_t *map, vm_segment_t *after,
   map->nentries++;
 }
 
-static void vm_map_remove_segment(vm_map_t *map, vm_segment_t *seg) {
+void vm_segment_destroy(vm_map_t *map, vm_segment_t *seg) {
   assert(mtx_owned(&map->mtx));
+
   TAILQ_REMOVE(&map->entries, seg, link);
   map->nentries--;
+  vm_segment_free(seg);
 }
 
 void vm_map_delete(vm_map_t *map) {
   WITH_MTX_LOCK (&map->mtx) {
-    vm_segment_t *seg;
-    while ((seg = TAILQ_FIRST(&map->entries))) {
-      vm_map_remove_segment(map, seg);
-      vm_segment_free(seg);
-    }
+    vm_segment_t *seg, *next;
+    TAILQ_FOREACH_SAFE (seg, &map->entries, link, next)
+      vm_segment_destroy(map, seg);
   }
   pmap_delete(map->pmap);
   pool_free(P_VMMAP, map);
@@ -263,7 +264,6 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
 int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
   assert(is_page_aligned(new_end));
   assert(new_end >= seg->start);
-
   SCOPED_MTX_LOCK(&map->mtx);
 
   if (new_end >= seg->end) {
@@ -274,7 +274,6 @@ int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
       return -ENOMEM;
   } else {
     /* Shrinking entry */
-    /* offset of seg within object + offset within segment */
     off_t offset = new_end - seg->start;
     size_t length = seg->end - new_end;
     vm_object_remove_range(seg->object, offset, length);
@@ -282,13 +281,11 @@ int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
     pmap_remove(map->pmap, new_end, seg->end);
   }
 
-  /* Note that tailq does not require updating. */
   seg->end = new_end;
 
-  if (seg->start == seg->end) {
-    vm_map_remove_segment(map, seg);
-    vm_segment_free(seg);
-  }
+  if (seg->start == seg->end)
+    vm_segment_destroy(map, seg);
+
   return 0;
 }
 
@@ -327,6 +324,8 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
 }
 
 int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
+  SCOPED_VM_MAP_LOCK(map);
+
   vm_segment_t *seg = vm_map_find_segment(map, fault_addr);
 
   if (!seg) {

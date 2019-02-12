@@ -17,6 +17,9 @@ DEFINE_CLEANUP_FUNCTION(vm_map_t *, vm_map_unlock);
 #define WITH_VM_MAP_LOCK(map)                                                  \
   WITH_STMT(vm_map_t, vm_map_lock, CLEANUP_FUNCTION(vm_map_unlock), map)
 
+#define SCOPED_VM_MAP_LOCK(map)                                                \
+  SCOPED_STMT(vm_map_t, vm_map_lock, CLEANUP_FUNCTION(vm_map_unlock), map)
+
 void vm_map_init(void);
 
 void vm_map_activate(vm_map_t *map);
@@ -30,6 +33,7 @@ void vm_map_delete(vm_map_t *vm_map);
 
 vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
                                vm_prot_t prot);
+void vm_segment_destroy(vm_map_t *map, vm_segment_t *seg);
 
 vm_segment_t *vm_map_find_segment(vm_map_t *vm_map, vaddr_t vaddr);
 

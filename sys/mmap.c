@@ -37,16 +37,19 @@ int do_munmap(vaddr_t addr, size_t length) {
   assert(td && td->td_proc && td->td_proc->p_uspace);
 
   vm_map_t *uspace = proc_self()->p_uspace;
-  vm_segment_t *seg = vm_map_find_segment(uspace, addr);
-  if (!seg)
-    return -EINVAL;
-  vaddr_t seg_start, seg_end;
-  vm_segment_range(seg, &seg_start, &seg_end);
 
-  /* we support unmaping single entire segmentes only */
-  if (addr != seg_start || addr + length != seg_end)
-    return -ENOTSUP;
-  if (vm_segment_resize(uspace, seg, seg_start) != 0)
-    return -ENOMEM;
+  WITH_VM_MAP_LOCK (uspace) {
+    vm_segment_t *seg = vm_map_find_segment(uspace, addr);
+    if (!seg)
+      return -EINVAL;
+
+    /* TODO We support unmaping entire segments only! */
+    vaddr_t start, end;
+    vm_segment_range(seg, &start, &end);
+    if ((addr != start) || (addr + length != end))
+      return -ENOTSUP;
+
+    vm_segment_destroy(uspace, seg);
+  }
   return 0;
 }
