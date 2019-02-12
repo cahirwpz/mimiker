@@ -32,7 +32,7 @@ LEAF(_start)
         and     t0, t1
         mtc0    t0, C0_STATUS
 
-        # Clear pending software and hardware interrupts
+        # Clear pending software interrupts
         mfc0    t0, C0_CAUSE
         li      t1, ~CR_IP_MASK
         and     t0, t1

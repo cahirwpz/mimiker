@@ -1,48 +1,36 @@
-import gdb
-from tailq import TailQueue
-from ptable import ptable, as_hex
+from .struct import TailQueue
+from .cmd import UserCommand
+from .utils import TextTable, global_var
 
 
-class KernelSegments():
+class KernelSegments(UserCommand):
+    """List physical memory segments"""
 
-    def invoke(self):
-        self.dump_segments()
+    def __init__(self):
+        super().__init__('segments')
 
-    def get_all_segments(self):
-        return TailQueue(gdb.parse_and_eval('seglist'), 'segq')
-
-    def dump_segments(self):
-        segments = self.get_all_segments()
-        rows = [['Segment', 'Start', 'End', 'Pages no']]
+    def __call__(self, args):
+        table = TextTable(types='itti', align='rrrr')
+        table.header(['segment', 'start', 'end', 'pages'])
+        segments = TailQueue(global_var('seglist'), 'segq')
         for idx, seg in enumerate(segments):
-            rows.append([str(idx), as_hex(seg['start']), as_hex(seg['end']),
-                         str(seg['npages'])])
-        ptable(rows, header=True)
+            table.add_row([idx, seg['start'], seg['end'], int(seg['npages'])])
+        print(table)
 
 
-class KernelFreePages():
+class KernelFreePages(UserCommand):
+    """List free pages within physical memory segments"""
 
-    def invoke(self):
-        self.dump_free_pages()
+    def __init__(self):
+        super().__init__('free_pages')
 
-    def get_all_segments(self):
-        return TailQueue(gdb.parse_and_eval('seglist'), 'segq')
-
-    def dump_segment_freeq(self, idx, freeq, size):
-        pages = TailQueue(freeq, 'freeq')
-        return [[str(idx), str(size), as_hex(page['paddr']),
-                 as_hex(page['vaddr'])] for page in pages]
-
-    def dump_segment_free_pages(self, idx, segment):
-        helper = []
-        for q in range(16):
-            helper.extend(self.dump_segment_freeq(
-                idx, segment['freeq'][q], 4 << q))
-        return helper
-
-    def dump_free_pages(self):
-        segments = self.get_all_segments()
-        rows = [['Segment', 'Page size', 'Physical', 'Virtual']]
-        for idx, seg in enumerate(segments):
-            rows.extend(self.dump_segment_free_pages(idx, seg))
-        ptable(rows, header=True)
+    def __call__(self, args):
+        table = TextTable(align='rrr')
+        segments = TailQueue(global_var('seglist'), 'segq')
+        for idx, segment in enumerate(segments):
+            for q in range(16):
+                size = 4 << q
+                for page in TailQueue(segment['freeq'][q], 'freeq'):
+                    table.add_row([idx, size, hex(page['paddr'])])
+        table.header(['segment', '#pages', 'phys addr'])
+        print(table)

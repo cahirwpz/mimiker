@@ -74,11 +74,11 @@ static int ns16550_write(vnode_t *v, uio_t *uio) {
       /* For simplicity, copy from the user space one byte at a time. */
       if ((error = uiomove(&byte, 1, uio)))
         return error;
-      while (!ringbuf_putb(&ns16550->rx_buf, byte))
+      while (!ringbuf_putb(&ns16550->tx_buf, byte))
         cv_wait(&ns16550->tx_nonfull, &ns16550->lock);
     }
     if (in(uart, LSR) & LSR_THRE)
-      if (ringbuf_getb(&ns16550->rx_buf, &byte))
+      if (ringbuf_getb(&ns16550->tx_buf, &byte))
         out(uart, THR, byte);
   }
 

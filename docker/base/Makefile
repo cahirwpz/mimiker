@@ -1,4 +1,4 @@
-VERSION = 1.6.1
+VERSION = 1.6.4
 
 all:
 
@@ -10,6 +10,7 @@ tag:
 		         cahirwpz/mimiker-circleci:$(VERSION)
 
 push:
+	docker push cahirwpz/mimiker-circleci:latest
 	docker push cahirwpz/mimiker-circleci:$(VERSION)
 
 clean:
