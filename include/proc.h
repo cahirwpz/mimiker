@@ -37,7 +37,7 @@ struct proc {
   vm_map_t *p_uspace;             /* ($) process' user space map */
   fdtab_t *p_fdtable;             /* ($) file descriptors table */
   sigaction_t p_sigactions[NSIG]; /* (@) description of signal actions */
-  condvar_t p_waitcv;             /* (?) processes waiting for this one */
+  condvar_t p_waitcv;             /* (a) processes waiting for this one */
   int p_exitstatus;               /* (@) exit code to be returned to parent */
   /* program segments */
   vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
