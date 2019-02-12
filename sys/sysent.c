@@ -131,7 +131,7 @@ static int sys_munmap(thread_t *td, syscall_args_t *args) {
   vaddr_t addr = args->args[0];
   size_t length = args->args[1];
   klog("munmap(%p, %u)", (void *)addr, length);
-  return -ENOTSUP;
+  return do_munmap(addr, length);
 }
 
 static int sys_mprotect(thread_t *td, syscall_args_t *args) {
