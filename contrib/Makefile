@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = doom lua
+SUBDIR = doom
 
 all: build
 

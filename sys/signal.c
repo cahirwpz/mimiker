@@ -42,14 +42,6 @@ static const char *sig_name[NSIG] = {
 };
 /* clang-format on */
 
-int do_kill(pid_t pid, signo_t sig) {
-  proc_t *target = proc_find(pid);
-  if (target == NULL)
-    return -EINVAL;
-  sig_kill(target, sig);
-  return 0;
-}
-
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   proc_t *p = proc_self();
 

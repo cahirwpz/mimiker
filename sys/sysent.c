@@ -14,6 +14,7 @@
 #include <stat.h>
 #include <systm.h>
 #include <wait.h>
+#include <exec.h>
 #include <time.h>
 #include <pipe.h>
 #include <malloc.h>
@@ -50,11 +51,37 @@ static int sys_getpid(thread_t *td, syscall_args_t *args) {
   return td->td_proc->p_pid;
 }
 
+static int sys_getppid(thread_t *td, syscall_args_t *args) {
+  klog("getppid()");
+  assert(td->td_proc->p_parent);
+  return td->td_proc->p_parent->p_pid;
+}
+
+static int sys_setpgid(thread_t *td, syscall_args_t *args) {
+  pid_t pid = args->args[0];
+  pgid_t pgid = args->args[1];
+  klog("setpgid(%d, %d)", pid, pgid);
+  return -ENOTSUP;
+}
+
+static int sys_getpgid(thread_t *td, syscall_args_t *args) {
+  pid_t pid = args->args[0];
+  klog("getpgid(%d)", pid);
+  return -ENOTSUP;
+}
+
 static int sys_kill(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
   signo_t sig = args->args[1];
   klog("kill(%lu, %d)", pid, sig);
-  return do_kill(pid, sig);
+  return proc_sendsig(pid, sig);
+}
+
+static int sys_killpg(thread_t *td, syscall_args_t *args) {
+  pgid_t pgid = args->args[0];
+  signo_t sig = args->args[1];
+  klog("killpg(%lu, %d)", pgid, sig);
+  return -ENOTSUP;
 }
 
 static int sys_sigaction(thread_t *td, syscall_args_t *args) {
@@ -98,6 +125,21 @@ static int sys_mmap(thread_t *td, syscall_args_t *args) {
   if (error < 0)
     return error;
   return addr;
+}
+
+static int sys_munmap(thread_t *td, syscall_args_t *args) {
+  vaddr_t addr = args->args[0];
+  size_t length = args->args[1];
+  klog("munmap(%p, %u)", (void *)addr, length);
+  return -ENOTSUP;
+}
+
+static int sys_mprotect(thread_t *td, syscall_args_t *args) {
+  vaddr_t addr = args->args[0];
+  size_t length = args->args[1];
+  vm_prot_t prot = args->args[2];
+  klog("mprotect(%p, %u, %u)", (void *)addr, length, prot);
+  return -ENOTSUP;
 }
 
 static int sys_open(thread_t *td, syscall_args_t *args) {
@@ -215,6 +257,31 @@ static int sys_stat(thread_t *td, syscall_args_t *args) {
 end:
   kfree(M_TEMP, path);
   return result;
+}
+
+static int sys_chdir(thread_t *td, syscall_args_t *args) {
+  char *user_path = (char *)args->args[0];
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+  size_t len = 0;
+  int result;
+
+  result = copyinstr(user_path, path, PATH_MAX, &len);
+  if (result < 0)
+    goto end;
+
+  klog("chdir(\"%s\")", path);
+  result = -ENOTSUP;
+
+end:
+  kfree(M_TEMP, path);
+  return result;
+}
+
+static int sys_getcwd(thread_t *td, syscall_args_t *args) {
+  __unused char *user_buf = (char *)args->args[0];
+  __unused size_t size = (size_t)args->args[1];
+  return -ENOTSUP;
 }
 
 static int sys_mount(thread_t *td, syscall_args_t *args) {
@@ -371,6 +438,15 @@ end:
   return result;
 }
 
+static int sys_execve(thread_t *td, syscall_args_t *args) {
+  char *user_path = (char *)args->args[0];
+  char **user_argv = (char **)args->args[1];
+  char **user_envp = (char **)args->args[2];
+
+  /* do_execve handles copying data from user-space */
+  return do_execve(user_path, user_argv, user_envp);
+}
+
 static int sys_access(thread_t *td, syscall_args_t *args) {
   char *user_pathname = (char *)args->args[0];
   mode_t mode = args->args[1];
@@ -422,6 +498,9 @@ sysent_t sysent[] = {
   [SYS_LSEEK] = {sys_lseek},
   [SYS_UNLINK] = {sys_unlink},
   [SYS_GETPID] = {sys_getpid},
+  [SYS_GETPPID] = {sys_getppid},
+  [SYS_SETPGID] = {sys_setpgid},
+  [SYS_GETPGID] = {sys_getpgid},
   [SYS_KILL] = {sys_kill},
   [SYS_FSTAT] = {sys_fstat},
   [SYS_STAT] = {sys_stat},
@@ -441,4 +520,10 @@ sysent_t sysent[] = {
   [SYS_PIPE] = {sys_pipe},
   [SYS_CLOCKGETTIME] = {sys_clock_gettime},
   [SYS_CLOCKNANOSLEEP] = {sys_clock_nanosleep},
+  [SYS_EXECVE] = {sys_execve},
+  [SYS_KILLPG] = {sys_killpg},
+  [SYS_MUNMAP] = {sys_munmap},
+  [SYS_MPROTECT] = {sys_mprotect},
+  [SYS_CHDIR] = {sys_chdir},
+  [SYS_GETCWD] = {sys_getcwd},
 };
