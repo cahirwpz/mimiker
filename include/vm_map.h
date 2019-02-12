@@ -19,7 +19,6 @@ void vm_map_delete(vm_map_t *vm_map);
 
 vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
                                vm_prot_t prot);
-void vm_segment_free(vm_segment_t *seg);
 
 vm_segment_t *vm_map_find_segment(vm_map_t *vm_map, vaddr_t vaddr);
 

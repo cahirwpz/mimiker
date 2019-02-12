@@ -99,7 +99,7 @@ vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
   return seg;
 }
 
-void vm_segment_free(vm_segment_t *seg) {
+static void vm_segment_free(vm_segment_t *seg) {
   /* we assume no other segment points to this object */
   if (seg->object)
     vm_object_free(seg->object);
