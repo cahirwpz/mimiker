@@ -80,7 +80,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
 }
 
 proc_t *proc_find(pid_t pid) {
-  SCOPED_MTX_LOCK(all_proc_mtx);
+  assert(mtx_owned(all_proc_mtx));
 
   proc_t *p = NULL;
   TAILQ_FOREACH (p, &proc_list, p_all) {
@@ -187,6 +187,16 @@ noreturn void proc_exit(int exitstatus) {
   /* Can't call [noreturn] thread_exit() from within a WITH scope. */
   /* This thread is the last one in the process to exit. */
   thread_exit();
+}
+
+int proc_sendsig(pid_t pid, signo_t sig) {
+  SCOPED_MTX_LOCK(all_proc_mtx);
+
+  proc_t *target = proc_find(pid);
+  if (target == NULL)
+    return -EINVAL;
+  sig_kill(target, sig);
+  return 0;
 }
 
 /* Wait for direct children. */
