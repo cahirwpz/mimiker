@@ -38,6 +38,14 @@ void vm_map_activate(vm_map_t *map) {
   pmap_activate(map ? map->pmap : NULL);
 }
 
+void vm_map_lock(vm_map_t *map) {
+  mtx_lock(&map->mtx);
+}
+
+void vm_map_unlock(vm_map_t *map) {
+  mtx_unlock(&map->mtx);
+}
+
 vm_map_t *get_user_vm_map(void) {
   return PCPU_GET(uspace);
 }

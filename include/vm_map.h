@@ -6,6 +6,17 @@
 #include <vm.h>
 #include <mutex.h>
 
+/*! \brief Acquire vm_map non-recursive mutex. */
+void vm_map_lock(vm_map_t *map);
+
+/*! \brief Release vm_map non-recursive mutex. */
+void vm_map_unlock(vm_map_t *map);
+
+DEFINE_CLEANUP_FUNCTION(vm_map_t *, vm_map_unlock);
+
+#define WITH_VM_MAP_LOCK(map)                                                  \
+  WITH_STMT(vm_map_t, vm_map_lock, CLEANUP_FUNCTION(vm_map_unlock), map)
+
 void vm_map_init(void);
 
 void vm_map_activate(vm_map_t *map);
