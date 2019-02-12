@@ -63,8 +63,8 @@ static void thread_bootstrap(void) {
 extern const uint8_t __malta_dtb_start[];
 
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
-  kbss_init();
 
+  kbss_init();
   setup_kenv(argc, argv, envp);
   cn_init();
   klog_init();
