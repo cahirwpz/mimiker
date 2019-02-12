@@ -49,7 +49,8 @@ int do_fork(void) {
   child->p_uspace = vm_map_clone(parent->p_uspace);
 
   /* Find copied brk segment. */
-  child->p_sbrk = vm_map_find_segment(child->p_uspace, SBRK_START);
+  WITH_VM_MAP_LOCK (child->p_uspace)
+    child->p_sbrk = vm_map_find_segment(child->p_uspace, SBRK_START);
 
   /* Copy the parent descriptor table. */
   /* TODO: Optionally share the descriptor table between processes. */

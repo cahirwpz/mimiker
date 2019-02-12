@@ -38,6 +38,14 @@ void vm_map_activate(vm_map_t *map) {
   pmap_activate(map ? map->pmap : NULL);
 }
 
+void vm_map_lock(vm_map_t *map) {
+  mtx_lock(&map->mtx);
+}
+
+void vm_map_unlock(vm_map_t *map) {
+  mtx_unlock(&map->mtx);
+}
+
 vm_map_t *get_user_vm_map(void) {
   return PCPU_GET(uspace);
 }
@@ -99,14 +107,16 @@ vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
   return seg;
 }
 
-void vm_segment_free(vm_segment_t *seg) {
+static void vm_segment_free(vm_segment_t *seg) {
+  /* we assume no other segment points to this object */
   if (seg->object)
     vm_object_free(seg->object);
   pool_free(P_VMENTRY, seg);
 }
 
 vm_segment_t *vm_map_find_segment(vm_map_t *map, vaddr_t vaddr) {
-  SCOPED_MTX_LOCK(&map->mtx);
+  assert(mtx_owned(&map->mtx));
+
   vm_segment_t *it;
   TAILQ_FOREACH (it, &map->entries, link)
     if (it->start <= vaddr && vaddr < it->end)
@@ -124,19 +134,19 @@ static void vm_map_insert_after(vm_map_t *map, vm_segment_t *after,
   map->nentries++;
 }
 
-static void vm_map_remove_segment(vm_map_t *map, vm_segment_t *seg) {
+void vm_segment_destroy(vm_map_t *map, vm_segment_t *seg) {
   assert(mtx_owned(&map->mtx));
+
   TAILQ_REMOVE(&map->entries, seg, link);
   map->nentries--;
+  vm_segment_free(seg);
 }
 
 void vm_map_delete(vm_map_t *map) {
   WITH_MTX_LOCK (&map->mtx) {
-    vm_segment_t *seg;
-    while ((seg = TAILQ_FIRST(&map->entries))) {
-      vm_map_remove_segment(map, seg);
-      vm_segment_free(seg);
-    }
+    vm_segment_t *seg, *next;
+    TAILQ_FOREACH_SAFE (seg, &map->entries, link, next)
+      vm_segment_destroy(map, seg);
   }
   pmap_delete(map->pmap);
   pool_free(P_VMMAP, map);
@@ -251,19 +261,12 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
   return 0;
 }
 
-int vm_map_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
-  assert(is_aligned(new_end, PAGESIZE));
-
+int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
+  assert(is_page_aligned(new_end));
+  assert(new_end >= seg->start);
   SCOPED_MTX_LOCK(&map->mtx);
 
-  /* TODO: As for now, we are unable to decrease the size of an entry, because
-     it would require unmapping physical pages, which in turn should clean
-     TLB. This is not implemented yet, and therefore shrinking an entry
-     immediately leads to very confusing behavior, as the vm_map and TLB entries
-     do not match. */
-  assert(new_end >= seg->end);
-
-  if (new_end > seg->end) {
+  if (new_end >= seg->end) {
     /* Expanding entry */
     vm_segment_t *next = TAILQ_NEXT(seg, link);
     vaddr_t gap_end = next ? next->start : map->pmap->end;
@@ -271,12 +274,18 @@ int vm_map_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
       return -ENOMEM;
   } else {
     /* Shrinking entry */
-    if (new_end < seg->start)
-      return -ENOMEM;
-    /* TODO: Invalidate tlb? */
+    off_t offset = new_end - seg->start;
+    size_t length = seg->end - new_end;
+    vm_object_remove_range(seg->object, offset, length);
+    /* TODO there's no reference to pmap in page, so we have to do it here */
+    pmap_remove(map->pmap, new_end, seg->end);
   }
-  /* Note that tailq does not require updating. */
+
   seg->end = new_end;
+
+  if (seg->start == seg->end)
+    vm_segment_destroy(map, seg);
+
   return 0;
 }
 
@@ -315,6 +324,8 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
 }
 
 int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
+  SCOPED_VM_MAP_LOCK(map);
+
   vm_segment_t *seg = vm_map_find_segment(map, fault_addr);
 
   if (!seg) {

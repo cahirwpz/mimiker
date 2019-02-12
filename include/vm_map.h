@@ -6,6 +6,20 @@
 #include <vm.h>
 #include <mutex.h>
 
+/*! \brief Acquire vm_map non-recursive mutex. */
+void vm_map_lock(vm_map_t *map);
+
+/*! \brief Release vm_map non-recursive mutex. */
+void vm_map_unlock(vm_map_t *map);
+
+DEFINE_CLEANUP_FUNCTION(vm_map_t *, vm_map_unlock);
+
+#define WITH_VM_MAP_LOCK(map)                                                  \
+  WITH_STMT(vm_map_t, vm_map_lock, CLEANUP_FUNCTION(vm_map_unlock), map)
+
+#define SCOPED_VM_MAP_LOCK(map)                                                \
+  SCOPED_STMT(vm_map_t, vm_map_lock, CLEANUP_FUNCTION(vm_map_unlock), map)
+
 void vm_map_init(void);
 
 void vm_map_activate(vm_map_t *map);
@@ -19,7 +33,7 @@ void vm_map_delete(vm_map_t *vm_map);
 
 vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
                                vm_prot_t prot);
-void vm_segment_free(vm_segment_t *seg);
+void vm_segment_destroy(vm_map_t *map, vm_segment_t *seg);
 
 vm_segment_t *vm_map_find_segment(vm_map_t *vm_map, vaddr_t vaddr);
 
@@ -53,7 +67,7 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
 
 /* Tries to resize an segment, by moving its end if there
    are no other mappings in the way. On success, returns 0. */
-int vm_map_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end);
+int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end);
 
 void vm_map_dump(vm_map_t *vm_map);
 
