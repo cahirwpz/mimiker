@@ -69,6 +69,17 @@ void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
   obj->npages--;
 }
 
+void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
+  vm_page_t *pg, *next;
+
+  TAILQ_FOREACH_SAFE (pg, &object->list, obj.list, next) {
+    if (pg->offset >= (off_t)(offset + length))
+      break;
+    if (pg->offset >= offset)
+      vm_object_remove_page(object, pg);
+  }
+}
+
 vm_object_t *vm_object_clone(vm_object_t *obj) {
   vm_object_t *new_obj = vm_object_alloc(VM_DUMMY);
   new_obj->pager = obj->pager;
