@@ -69,10 +69,7 @@ void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
   obj->npages--;
 }
 
-void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length,
-                            vaddr_t start, pmap_t *pmap) {
-  vaddr_t end = start + length;
-  assert(is_page_aligned(start) && is_page_aligned(end));
+void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
   vm_page_t *pg, *next;
 
   TAILQ_FOREACH_SAFE (pg, &object->list, obj.list, next) {
@@ -81,7 +78,6 @@ void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length,
     if (pg->offset >= offset)
       vm_object_remove_page(object, pg);
   }
-  pmap_remove(pmap, start, end);
 }
 
 vm_object_t *vm_object_clone(vm_object_t *obj) {

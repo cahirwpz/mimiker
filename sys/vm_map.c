@@ -252,8 +252,10 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
   return 0;
 }
 
-int vm_resize_segment(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
-  assert(is_page_aligned(new_end) && new_end >= seg->start);
+int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
+  assert(is_page_aligned(new_end));
+  assert(new_end >= seg->start);
+
   SCOPED_MTX_LOCK(&map->mtx);
 
   if (new_end >= seg->end) {
@@ -262,13 +264,14 @@ int vm_resize_segment(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
     vaddr_t gap_end = next ? next->start : map->pmap->end;
     if (new_end > gap_end)
       return -ENOMEM;
-  }
-
-  else { /* Shrinking entry */
+  } else {
+    /* Shrinking entry */
     /* offset of seg within object + offset within segment */
-    off_t offset = 0 + (new_end - seg->start);
+    off_t offset = new_end - seg->start;
     size_t length = seg->end - new_end;
-    vm_object_remove_range(seg->object, offset, length, new_end, map->pmap);
+    vm_object_remove_range(seg->object, offset, length);
+    /* TODO there's no reference to pmap in page, so we have to do it here */
+    pmap_remove(map->pmap, new_end, seg->end);
   }
 
   /* Note that tailq does not require updating. */

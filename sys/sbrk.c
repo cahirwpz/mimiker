@@ -40,12 +40,11 @@ vaddr_t sbrk_resize(proc_t *p, intptr_t increment) {
   if (new_end < sbrk_start)
     return -EINVAL;
 
-  /* We demand sbrk_segment to contain at least one page */
+  /* require sbrk_segment to contain at least one page */
   vaddr_t new_end_aligned =
     max(align(new_end, PAGESIZE), sbrk_start + PAGESIZE);
 
-  /* Expand/shrink sbrk_segment */
-  if (vm_resize_segment(p->p_uspace, p->p_sbrk, new_end_aligned) != 0)
+  if (vm_segment_resize(p->p_uspace, p->p_sbrk, new_end_aligned) != 0)
     return -ENOMEM;
 
   p->p_sbrk_end = new_end;
