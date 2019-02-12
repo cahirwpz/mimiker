@@ -12,7 +12,7 @@ RUN apt-get install -y --no-install-recommends \
 # patch required by bin/lua
 # socat required by launch
 COPY requirements.txt .
-RUN pip3 install setuptools==40.6.3 wheel==0.32.3 && pip3 install -r requirements.txt
+RUN pip3 install setuptools wheel && pip3 install -r requirements.txt
 RUN curl -O http://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.3_amd64.deb && \
     dpkg -i mipsel-mimiker-elf_1.3_amd64.deb && rm -f mipsel-mimiker-elf_1.3_amd64.deb
 RUN curl -O http://mimiker.ii.uni.wroc.pl/download/aarch64-mimiker-elf_1.3_amd64.deb && \
