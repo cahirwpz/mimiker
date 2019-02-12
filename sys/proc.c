@@ -104,16 +104,14 @@ proc_t *proc_find(pid_t pid) {
 static void proc_reap(proc_t *p) {
   assert(mtx_owned(all_proc_mtx));
 
-  WITH_PROC_LOCK(p) {
-    assert(p->p_state == PS_ZOMBIE);
+  assert(p->p_state == PS_ZOMBIE);
 
-    klog("Recycling process PID(%d) {%p}", p->p_pid, p);
+  klog("Recycling process PID(%d) {%p}", p->p_pid, p);
 
-    if (p->p_parent)
-      TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
-    TAILQ_REMOVE(&zombie_list, p, p_zombie);
-  }
-
+  if (p->p_parent)
+    TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
+  TAILQ_REMOVE(&zombie_list, p, p_zombie);
+  
   pid_free(p->p_pid);
   pool_free(P_PROC, p);
 }
@@ -213,7 +211,7 @@ int do_waitpid(pid_t pid, int *status, int options) {
       if (child == NULL)
         return -ECHILD;
     }
-//TODO
+
     for (;;) {
       proc_t *zombie = NULL;
 
