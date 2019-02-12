@@ -78,9 +78,9 @@ int test_munmap_sigsegv(void) {
   munmap(addr, 0x4000);
 
   /* Try to access freed memory. It should raise SIGSEGV */
-  int data = *((int *)(addr + 0x2000));
-  assert(data != 0);
-  return 0;
+  int data = *((volatile int *)(addr + 0x2000));
+  (void)data;
+  return 1;
 }
 
 int test_mmap() {

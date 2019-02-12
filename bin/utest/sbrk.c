@@ -68,9 +68,9 @@ int test_sbrk_sigsegv(void) {
   sbrk(-0x2000);
 
   /* Try to access freed memory. It should raise SIGSEGV */
-  int data = *((int *)(ptr + 0x1000));
-  assert(data != 0);
-  return 0;
+  int data = *((volatile int *)(ptr + 0x1000));
+  (void)data;
+  return 1;
 }
 
 int test_sbrk() {
