@@ -48,29 +48,29 @@ static void mmap_bad(void) {
   assert(errno == EINVAL);
 }
 
-#define UNMADDR (void *)0x12456000
 static void munmap_bad(void) {
-  size_t pagesize = 0x1000;
-  void *addr = UNMADDR;
-  
-  /* mmaping & munmaping one page */
-  mmap(addr, pagesize, PROT_READ | PROT_WRITE, MAP_ANON);
-  assert(munmap(addr, pagesize) == 0);
+  void *addr;
+  int result;
+
+  /* mmap & munmap one page */
+  addr = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_ANON);
+  result = munmap(addr, 0x1000);
+  assert(result == 0);
 
   /* munmapping again fails */
-  munmap(addr, pagesize);
+  munmap(addr, 0x1000);
   assert(errno == EINVAL);
 
   /* more pages */
-  mmap(addr, pagesize * 5, PROT_READ | PROT_WRITE, MAP_ANON);
+  addr = mmap(NULL, 0x5000, PROT_READ | PROT_WRITE, MAP_ANON);
 
-  /* munmapping pieces of segments is unsupported */
-  munmap(addr, pagesize * 2);
+  /* munmap pieces of segments is unsupported */
+  munmap(addr, 0x2000);
   assert(errno == ENOTSUP);
 
-  assert(munmap(addr, pagesize * 5) == 0);
+  result = munmap(addr, 0x5000);
+  assert(result == 0);
 }
-#undef UNMADDR
 
 /* Don't call this function in this module */
 int test_munmap_sigsegv(void) {
