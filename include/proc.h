@@ -60,10 +60,11 @@ DEFINE_CLEANUP_FUNCTION(proc_t *, proc_unlock);
   WITH_STMT(proc_t, proc_lock, CLEANUP_FUNCTION(proc_unlock), proc)
 
 /*! \brief Creates a process and populates it with thread \a td.
- * If parent is not NULL then newly created process becomes its child. */
+ * If parent is not NULL then newly created process becomes its child.
+ * Created process should be added using proc_add */
 proc_t *proc_create(thread_t *td, proc_t *parent);
 
-// TODO
+/*! \brief Adds created process to global data structures. */
 void proc_add(proc_t *p);
 
 /*! \brief Searches for a process with the given PID and PS_NORMAL state.

@@ -111,7 +111,7 @@ static void proc_reap(proc_t *p) {
   if (p->p_parent)
     TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
   TAILQ_REMOVE(&zombie_list, p, p_zombie);
-  
+
   pid_free(p->p_pid);
   pool_free(P_PROC, p);
 }
