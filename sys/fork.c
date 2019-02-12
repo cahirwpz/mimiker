@@ -58,7 +58,7 @@ int do_fork(void) {
   memcpy(child->p_sigactions, parent->p_sigactions,
          sizeof(child->p_sigactions));
 
-  proc_add(proc);
+  proc_add(child);
 
   sched_add(newtd);
 

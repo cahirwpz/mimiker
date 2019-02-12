@@ -22,6 +22,7 @@ typedef enum { PS_NORMAL, PS_DYING, PS_ZOMBIE } proc_state_t;
  *  (@) proc_t::p_lock
  *  (!) read-only access, do not modify!
  *  (~) always safe to access
+ *  ($) use only from the same process/thread
  */
 struct proc {
   mtx_t p_lock;               /* Process lock */
@@ -33,14 +34,14 @@ struct proc {
   volatile proc_state_t p_state;  /* (@) process state */
   proc_t *p_parent;               /* (a) parent process */
   proc_list_t p_children;         /* (a) child processes, including zombies */
-  vm_map_t *p_uspace;             /* (@) process' user space map */
-  fdtab_t *p_fdtable;             /* (@) file descriptors table */
+  vm_map_t *p_uspace;             /* ($) process' user space map */
+  fdtab_t *p_fdtable;             /* ($) file descriptors table */
   sigaction_t p_sigactions[NSIG]; /* (@) description of signal actions */
-  condvar_t p_waitcv;             /* (@) processes waiting for this one */
+  condvar_t p_waitcv;             /* (?) processes waiting for this one */
   int p_exitstatus;               /* (@) exit code to be returned to parent */
   /* program segments */
-  vm_segment_t *p_sbrk; /* (@) The entry where brk segment resides in. */
-  vaddr_t p_sbrk_end;   /* (@) Current end of brk segment. */
+  vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
+  vaddr_t p_sbrk_end;   /* ($) Current end of brk segment. */
   /* XXX: process resource usage stats */
 };
 
