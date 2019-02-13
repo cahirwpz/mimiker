@@ -11,13 +11,12 @@ class Process(metaclass=GdbStructMeta):
     __cast__ = {'p_pid': int, 'p_thread': Thread, 'p_state': enum}
 
     @staticmethod
-    def pointer_type():
-        return gdb.lookup_type('struct proc')
+    def process():
+        return gdb.parse_and_eval('_pcpu_data->curthread->td_proc')
 
     @classmethod
-    def current(cls):
-        return cls(gdb.parse_and_eval('_pcpu_data->curthread->td_proc')
-                   .dereference())
+    def from_current(cls):
+        return cls(Process.current().dereference())
 
     @classmethod
     def from_pointer(cls, ptr):
@@ -27,27 +26,31 @@ class Process(metaclass=GdbStructMeta):
     def list_all(cls):
         alive = TailQueue(global_var('proc_list'), 'p_all')
         dead = TailQueue(global_var('zombie_list'), 'p_all')
-        return map(Process, list(alive) + list(dead))
+        return map(cls, list(alive) + list(dead))
 
-    def __str__(self):
+    def __repr__(self):
         return 'proc{pid=%d}' % self.p_pid
 
 
-class Kprocess(SimpleCommand, AutoCompleteMixin):
+class Kprocess(SimpleCommand):
     """List all processes."""
 
     def __init__(self):
         super().__init__('kproc')
 
-    def dump_all(self):
+    def __call__(self, args):
         table = TextTable(align='rll')
         table.header(['Pid', 'Tid', 'State'])
         for p in Process.list_all():
             table.add_row([p.p_pid, p.p_thread, p.p_state])
         print(table)
 
-    def __call__(self, args):
-        self.dump_all()
 
-    def options(self):
-        return None
+class CurrentProcess(gdb.Function):
+    """Return address of currently running process."""
+
+    def __init__(self):
+        super().__init__('process')
+
+    def invoke(self):
+        return Process.current()

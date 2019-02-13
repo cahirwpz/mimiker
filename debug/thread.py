@@ -15,12 +15,12 @@ class Thread(metaclass=GdbStructMeta):
                 'td_name': cstr}
 
     @staticmethod
-    def pointer_type():
-        return gdb.lookup_type('struct thread')
+    def current():
+        return gdb.parse_and_eval('_pcpu_data->curthread')
 
     @classmethod
-    def current(cls):
-        return cls(gdb.parse_and_eval('_pcpu_data->curthread').dereference())
+    def from_current(cls):
+        return cls(Thread.current().dereference())
 
     @classmethod
     def from_pointer(cls, ptr):
@@ -28,12 +28,11 @@ class Thread(metaclass=GdbStructMeta):
 
     @classmethod
     def list_all(cls):
-        threads = TailQueue(gdb.parse_and_eval('all_threads'), 'td_all')
-        return map(Thread, threads)
+        return map(cls, TailQueue(gdb.parse_and_eval('all_threads'), 'td_all'))
 
     @classmethod
     def find_by_name(cls, name):
-        return filter(lambda td: td.td_name == name, cls.list_all())
+        return [td for td in cls.list_all() if td.td_name == name]
 
     @classmethod
     def find_by_tid(cls, tid):
@@ -97,7 +96,7 @@ class Kthread(SimpleCommand, AutoCompleteMixin):
         if len(found) == 0:
             print("Can't find thread with name='%s'!" % name)
 
-    def find_by_id(self, tid):
+    def find_by_tid(self, tid):
         found = Thread.find_by_tid(tid)
         if not found:
             print("Can't find thread with tid=%d!" % tid)
@@ -106,18 +105,18 @@ class Kthread(SimpleCommand, AutoCompleteMixin):
     def dump_all(self):
         print('(*) current thread marker')
         threads = Thread.list_all()
-        curr_tid = Thread.current().td_tid
+        cur_td = Thread.current()
         table = TextTable(types='ittit', align='rrrrl')
         table.header(['Id', 'Name', 'State', 'Priority', 'Waiting Point'])
         for td in threads:
-            marker = '(*) ' if curr_tid == td.td_tid else ''
+            marker = '(*) ' if cur_td.td_tid == td.td_tid else ''
             table.add_row(['{}{}'.format(marker, td.td_tid), td.td_name,
                            td.td_state, td.td_prio, td.td_waitpt])
         print(table)
 
     def dump_one(self, found):
         try:
-            thread = self.find_by_id(int(found))
+            thread = self.find_by_tid(int(found))
         except ValueError:
             thread = self.find_by_name(found)
         if not thread:
@@ -150,4 +149,4 @@ class CurrentThread(gdb.Function):
         super().__init__('thread')
 
     def invoke(self):
-        return gdb.parse_and_eval('_pcpu_data->curthread')
+        return Thread.current()
