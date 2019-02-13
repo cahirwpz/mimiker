@@ -1,7 +1,7 @@
 import gdb
 import os.path
 
-from .cmd import print_exception
+from .cmd import SimpleCommand
 from .struct import GdbStructMeta, enum, cstr, TimeVal
 from .utils import TextTable, global_var, relpath
 
@@ -50,14 +50,13 @@ class LogBuffer(metaclass=GdbStructMeta):
         return n
 
 
-class Klog(gdb.Command):
-    """TODO: documentation"""
+class Klog(SimpleCommand):
+    """Display kernel log buffer."""
 
     def __init__(self):
-        super().__init__('klog', gdb.COMMAND_USER)
+        super().__init__('klog')
 
-    @print_exception
-    def invoke(self, args, from_tty):
+    def __call__(self, args):
         klog = LogBuffer(global_var('klog'))
         self.dump_info(klog)
         self.dump_messages(klog)
