@@ -38,6 +38,7 @@ typedef enum { PS_NORMAL, PS_DYING, PS_ZOMBIE } proc_state_t;
  *  (@) proc_t::p_lock
  *  (!) read-only access, do not modify!
  *  (~) always safe to access
+ *  (*) safe to dereference from owner process
  */
 struct proc {
   mtx_t p_lock;               /* Process lock */
@@ -46,8 +47,8 @@ struct proc {
   TAILQ_ENTRY(proc) p_child;  /* (a) link on parent's children list */
   thread_t *p_thread;         /* (@) the only thread running in this process */
   pid_t p_pid;                /* (!) Process ID */
-  TAILQ_ENTRY(proc) p_pglist; /* (pgrp::@) link on p_pgrp->pg_members list */
-  pgrp_t *p_pgrp;             /* (a) process group */
+  TAILQ_ENTRY(proc) p_pglist; /* (pgrp::pg_lock) link on pg_members list */
+  pgrp_t *p_pgrp;             /* (a,*) process group */
   volatile proc_state_t p_state;  /* (@) process state */
   proc_t *p_parent;               /* (a) parent process */
   proc_list_t p_children;         /* (a) child processes, including zombies */
