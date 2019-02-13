@@ -108,11 +108,18 @@ static int sys_kill(thread_t *td, syscall_args_t *args) {
   return proc_sendsig(pid, sig);
 }
 
+/* Sends signal sig to process group with ID equal to pgid. */
 static int sys_killpg(thread_t *td, syscall_args_t *args) {
   pgid_t pgid = args->args[0];
   signo_t sig = args->args[1];
   klog("killpg(%lu, %d)", pgid, sig);
-  return -ENOTSUP;
+
+  if (pgid == 1 || pgid < 0)
+    return -EINVAL;
+
+  /* pgid == 0 => sends signal to our process group
+   * pgid  > 1 => sends signal to the process group with ID equal pgid */
+  return proc_sendsig(-pgid, sig);
 }
 
 static int sys_sigaction(thread_t *td, syscall_args_t *args) {
