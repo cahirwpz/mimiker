@@ -77,6 +77,7 @@ static int sys_setpgid(thread_t *td, syscall_args_t *args) {
   if (pgid == 0)
     pgid = p->p_pid;
 
+  /* TODO ... */
   if (pid != p->p_pid || pgid != p->p_pid)
     return -ENOTSUP;
 

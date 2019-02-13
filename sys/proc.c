@@ -12,27 +12,21 @@
 #include <sched.h>
 #include <malloc.h>
 
+#define NPROC 64 /* maximum number of processes */
+#define CHILDREN(p) (&(p)->p_children)
+
 static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
 static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
 
 static mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 
-/* proc_list, zombie_list and last_pid must be protected by all_proc_mtx */
+/* all_proc_mtx protects following data: */
 static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
 static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
-
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
-
-#define CHILDREN(p) (&(p)->p_children)
-
-proc_t *proc_self(void) {
-  return thread_self()->td_proc;
-}
-
-#define NPROC 64 /* maximum number of processes */
-
 static bitstr_t pid_used[bitstr_size(NPROC)] = {0};
 
+/* Process ID management functions */
 static pid_t pid_alloc(void) {
   assert(mtx_owned(all_proc_mtx));
 
@@ -85,8 +79,20 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
   SCOPED_MTX_LOCK(all_proc_mtx);
 
   pgrp_t *target = pgrp_lookup(pgid);
+
+  /* Only init process will skip that step. */
+  if (p->p_pgrp) {
+    /* We're done if already belong to the group. */
+    if (target == p->p_pgrp)
+      return 0;
+    /* Leave current group. */
+    pgrp_leave(p);
+  }
+
+  /* Create new group if one does not exist. */
   if (!target) {
     target = pool_alloc(P_PGRP, PF_ZERO);
+
     TAILQ_INIT(&target->pg_members);
     target->pg_lock = MTX_INITIALIZER(0);
     target->pg_id = pgid;
@@ -94,14 +100,7 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
     TAILQ_INSERT_HEAD(&pgrp_list, target, pg_link);
   }
 
-  pgrp_t *pgrp = p->p_pgrp;
-
-  if (pgrp == target)
-    return 0;
-
-  if (pgrp)
-    pgrp_leave(p);
-
+  /* Subscribe to new or already existing group. */
   WITH_MTX_LOCK (&target->pg_lock) {
     TAILQ_INSERT_HEAD(&target->pg_members, p, p_pglist);
     p->p_pgrp = target;
@@ -111,6 +110,9 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
 }
 
 /* Process functions */
+proc_t *proc_self(void) {
+  return thread_self()->td_proc;
+}
 
 void proc_lock(proc_t *p) {
   mtx_lock(&p->p_lock);
@@ -170,7 +172,6 @@ pgid_t proc_getpgid(pid_t pid) {
   if (!p)
     return -ESRCH;
 
-  assert(p->p_pgrp);
   return p->p_pgrp->pg_id;
 }
 
@@ -280,6 +281,8 @@ int proc_sendsig(pid_t pid, signo_t sig) {
     return 0;
   }
 
+  /* TODO send sig to every process for which the calling process has permission
+   * to send signals, except init process */
   if (pid == -1)
     return -ENOTSUP;
 
@@ -302,47 +305,47 @@ int proc_sendsig(pid_t pid, signo_t sig) {
   return 0;
 }
 
+static bool is_zombie(proc_t *p) {
+  return p->p_state == PS_ZOMBIE;
+}
+
 /* Wait for direct children. */
 int do_waitpid(pid_t pid, int *status, int options) {
   proc_t *p = proc_self();
 
   WITH_MTX_LOCK (all_proc_mtx) {
-    proc_t *child = NULL;
-
-    if (pid > 0) {
-      /* Wait for a particular child. */
-      TAILQ_FOREACH (child, CHILDREN(p), p_child)
-        if (child->p_pid == pid)
-          break;
-      /* No such process, or the process is not a child. */
-      if (child == NULL)
-        return -ECHILD;
-    }
-
+    /* Start with zombies, if no zombies wait for a child to become one. */
     for (;;) {
-      proc_t *zombie = NULL;
+      proc_t *child = NULL;
 
-      if (child == NULL) {
-        /* Search within zombie childrens. */
-        TAILQ_FOREACH (zombie, CHILDREN(p), p_child) {
-          if (pid < -1 && zombie->p_pgrp->pg_id != -pid)
-            continue;
-          if (pid == 0 && zombie->p_pgrp->pg_id != p->p_pgrp->pg_id)
-            continue;
-          if (zombie->p_state == PS_ZOMBIE)
+      /* Check children meeting criteria implied by pid. */
+      TAILQ_FOREACH (child, CHILDREN(p), p_child) {
+        /* pid > 0 => child with PID same as pid */
+        if (pid == child->p_pid)
+          break;
+        /* Lookup zombie children */
+        if (is_zombie(child)) {
+          /* pid == -1 => any child  */
+          if (pid == -1)
+            break;
+          /* pid == 0 => child with PGID same as ours */
+          if ((pid == 0) && (child->p_pgrp == p->p_pgrp))
+            break;
+          /* pid < -1 => child with PGID equal to -pid */
+          if (pid < -1 && (child->p_pgrp->pg_id != -pid))
             break;
         }
-      } else {
-        /* Is the chosen one zombie? */
-        if (child->p_state == PS_ZOMBIE)
-          zombie = child;
       }
 
-      if (zombie) {
+      /* No child with such pid. */
+      if (!child && pid > 0)
+        return -ECHILD;
+
+      if (child && is_zombie(child)) {
         if (status)
-          *status = zombie->p_exitstatus;
-        pid_t pid = zombie->p_pid;
-        proc_reap(zombie);
+          *status = child->p_exitstatus;
+        pid_t pid = child->p_pid;
+        proc_reap(child);
         return pid;
       }
 
@@ -351,7 +354,7 @@ int do_waitpid(pid_t pid, int *status, int options) {
         return 0;
 
       /* Wait until one of children changes a state. */
-      klog("PID(%d) waits for children", p->p_pid);
+      klog("PID(%d) waits for children (pid = %d)", p->p_pid, pid);
       cv_wait(&p->p_waitcv, all_proc_mtx);
     }
   }
