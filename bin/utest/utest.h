@@ -8,7 +8,9 @@ void utest_child_exited(int exitcode);
 
 /* List of available tests. */
 int test_mmap(void);
+int test_munmap_sigsegv(void);
 int test_sbrk(void);
+int test_sbrk_sigsegv(void);
 int test_misbehave(void);
 
 int test_fd_read(void);

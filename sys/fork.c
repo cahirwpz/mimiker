@@ -10,9 +10,10 @@
 
 int do_fork(void) {
   thread_t *td = thread_self();
+  proc_t *parent = td->td_proc;
 
   /* Cannot fork non-user threads. */
-  assert(td->td_proc);
+  assert(parent);
 
   thread_t *newtd = thread_create(td->td_name, NULL, NULL, td->td_base_prio);
 
@@ -41,24 +42,24 @@ int do_fork(void) {
   newtd->td_prio = td->td_prio;
 
   /* Now, prepare a new process. */
-  assert(td->td_proc);
-  proc_t *proc = proc_create(newtd, td->td_proc);
+  proc_t *child = proc_create(newtd, parent);
 
   /* Clone the entire process memory space. */
-  proc->p_uspace = vm_map_clone(td->td_proc->p_uspace);
+  child->p_uspace = vm_map_clone(parent->p_uspace);
 
   /* Find copied brk segment. */
-  proc->p_sbrk = vm_map_find_segment(proc->p_uspace, SBRK_START);
+  WITH_VM_MAP_LOCK (child->p_uspace)
+    child->p_sbrk = vm_map_find_segment(child->p_uspace, SBRK_START);
 
   /* Copy the parent descriptor table. */
   /* TODO: Optionally share the descriptor table between processes. */
-  proc->p_fdtable = fdtab_copy(td->td_proc->p_fdtable);
+  child->p_fdtable = fdtab_copy(parent->p_fdtable);
 
   /* Copy signal handler dispatch rules. */
-  memcpy(proc->p_sigactions, td->td_proc->p_sigactions,
-         sizeof(proc->p_sigactions));
+  memcpy(child->p_sigactions, parent->p_sigactions,
+         sizeof(child->p_sigactions));
 
   sched_add(newtd);
 
-  return proc->p_pid;
+  return child->p_pid;
 }

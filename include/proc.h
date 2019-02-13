@@ -18,29 +18,29 @@ typedef enum { PS_NORMAL, PS_DYING, PS_ZOMBIE } proc_state_t;
 /*! \brief Process structure
  *
  * Field markings and the corresponding locks:
- *  - a: all_proc_mtx
- *  - p: proc_t::p_lock
- *  - @: read-only access
- *  - ~: always safe to access
+ *  (a) all_proc_mtx
+ *  (@) proc_t::p_lock
+ *  (!) read-only access, do not modify!
+ *  (~) always safe to access
  */
 struct proc {
   mtx_t p_lock;               /* Process lock */
   TAILQ_ENTRY(proc) p_all;    /* (a) link on all processes list */
   TAILQ_ENTRY(proc) p_zombie; /* (a) link on zombie process list */
   TAILQ_ENTRY(proc) p_child;  /* (a) link on parent's children list */
-  thread_t *p_thread;         /* (p) the only thread running in this process */
-  pid_t p_pid;                /* (@) Process ID */
-  volatile proc_state_t p_state;  /* (p) process state */
+  thread_t *p_thread;         /* (@) the only thread running in this process */
+  pid_t p_pid;                /* (!) Process ID */
+  volatile proc_state_t p_state;  /* (@) process state */
   proc_t *p_parent;               /* (a) parent process */
   proc_list_t p_children;         /* (a) child processes, including zombies */
-  vm_map_t *p_uspace;             /* (p) process' user space map */
-  fdtab_t *p_fdtable;             /* (p) file descriptors table */
-  sigaction_t p_sigactions[NSIG]; /* (p) description of signal actions */
-  condvar_t p_waitcv;             /* (p) processes waiting for this one */
-  int p_exitstatus;               /* (p) exit code to be returned to parent */
+  vm_map_t *p_uspace;             /* (@) process' user space map */
+  fdtab_t *p_fdtable;             /* (@) file descriptors table */
+  sigaction_t p_sigactions[NSIG]; /* (@) description of signal actions */
+  condvar_t p_waitcv;             /* (@) processes waiting for this one */
+  int p_exitstatus;               /* (@) exit code to be returned to parent */
   /* program segments */
-  vm_segment_t *p_sbrk; /* (p) The entry where brk segment resides in. */
-  vaddr_t p_sbrk_end;   /* (p) Current end of brk segment. */
+  vm_segment_t *p_sbrk; /* (@) The entry where brk segment resides in. */
+  vaddr_t p_sbrk_end;   /* (@) Current end of brk segment. */
   /* XXX: process resource usage stats */
 };
 
@@ -65,6 +65,9 @@ proc_t *proc_create(thread_t *td, proc_t *parent);
 /*! \brief Searches for a process with the given PID and PS_NORMAL state.
  * \returns locked process or NULL if not found */
 proc_t *proc_find(pid_t pid);
+
+/*! \brief Sends signal sig to the process with the ID specified by pid. */
+int proc_sendsig(pid_t pid, signo_t sig);
 
 /*! \brief Called by a processes that wishes to terminate its life.
  * \note Exit status shoud be created using MAKE_STATUS macros from wait.h */

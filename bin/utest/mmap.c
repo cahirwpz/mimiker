@@ -48,9 +48,45 @@ static void mmap_bad(void) {
   assert(errno == EINVAL);
 }
 
+static void munmap_bad(void) {
+  void *addr;
+  int result;
+
+  /* mmap & munmap one page */
+  addr = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_ANON);
+  result = munmap(addr, 0x1000);
+  assert(result == 0);
+
+  /* munmapping again fails */
+  munmap(addr, 0x1000);
+  assert(errno == EINVAL);
+
+  /* more pages */
+  addr = mmap(NULL, 0x5000, PROT_READ | PROT_WRITE, MAP_ANON);
+
+  /* munmap pieces of segments is unsupported */
+  munmap(addr, 0x2000);
+  assert(errno == ENOTSUP);
+
+  result = munmap(addr, 0x5000);
+  assert(result == 0);
+}
+
+/* Don't call this function in this module */
+int test_munmap_sigsegv(void) {
+  void *addr = mmap(NULL, 0x4000, PROT_READ | PROT_WRITE, MAP_ANON);
+  munmap(addr, 0x4000);
+
+  /* Try to access freed memory. It should raise SIGSEGV */
+  int data = *((volatile int *)(addr + 0x2000));
+  (void)data;
+  return 1;
+}
+
 int test_mmap() {
   mmap_no_hint();
   mmap_with_hint();
   mmap_bad();
+  munmap_bad();
   return 0;
 }

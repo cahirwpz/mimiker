@@ -41,7 +41,7 @@ void sched_wakeup(thread_t *td, long reason) {
   td->td_state = TDS_READY;
   td->td_slice = SLICE;
 
-  ctx_set_retval(&td->td_kctx, reason);
+  ctx_set_retval(td->td_kctx, reason);
 
   runq_add(&runq, td);
 
@@ -158,6 +158,9 @@ long sched_switch(void) {
 
   /* make sure we reacquire td_spin lock on return to current context */
   td->td_flags |= TDF_NEEDLOCK;
+
+  if (PCPU_GET(no_switch))
+    panic("Switching context while interrupts are disabled is forbidden!");
 
   return ctx_switch(td, newtd);
 }

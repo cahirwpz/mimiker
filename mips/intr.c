@@ -6,10 +6,12 @@
 #include <mips/exc.h>
 #include <mips/intr.h>
 #include <mips/mips.h>
+#include <pcpu.h>
 #include <pmap.h>
 #include <spinlock.h>
 #include <queue.h>
 #include <sysent.h>
+#include <sched.h>
 #include <thread.h>
 #include <ktest.h>
 
@@ -36,10 +38,21 @@ bool mips_intr_disabled(void) {
   return (mips32_getsr() & SR_IE) == 0;
 }
 
-static intr_chain_t mips_intr_chain[8];
+static intr_event_t mips_intr_event[8];
 
-#define MIPS_INTR_CHAIN(irq, name)                                             \
-  intr_chain_init(&mips_intr_chain[irq], irq, name)
+#define MIPS_INTR_EVENT(irq, name)                                             \
+  intr_event_init(&mips_intr_event[irq], irq, name, mips_mask_irq,             \
+                  mips_unmask_irq, NULL)
+
+static void mips_mask_irq(intr_event_t *ie) {
+  int irq = ie->ie_irq;
+  mips32_bc_c0(C0_STATUS, SR_IM0 << irq);
+}
+
+static void mips_unmask_irq(intr_event_t *ie) {
+  int irq = ie->ie_irq;
+  mips32_bs_c0(C0_STATUS, SR_IM0 << irq);
+}
 
 void mips_intr_init(void) {
   /*
@@ -55,39 +68,28 @@ void mips_intr_init(void) {
   /* Set vector spacing to 0. */
   mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
 
-  /* Initialize software interrupts handler chains. */
-  MIPS_INTR_CHAIN(MIPS_SWINT0, "swint(0)");
-  MIPS_INTR_CHAIN(MIPS_SWINT1, "swint(1)");
-  /* Initialize hardware interrupts handler chains. */
-  MIPS_INTR_CHAIN(MIPS_HWINT0, "hwint(0)");
-  MIPS_INTR_CHAIN(MIPS_HWINT1, "hwint(1)");
-  MIPS_INTR_CHAIN(MIPS_HWINT2, "hwint(2)");
-  MIPS_INTR_CHAIN(MIPS_HWINT3, "hwint(3)");
-  MIPS_INTR_CHAIN(MIPS_HWINT4, "hwint(4)");
-  MIPS_INTR_CHAIN(MIPS_HWINT5, "hwint(5)");
+  /* Initialize software interrupts handler events. */
+  MIPS_INTR_EVENT(MIPS_SWINT0, "swint(0)");
+  MIPS_INTR_EVENT(MIPS_SWINT1, "swint(1)");
+  /* Initialize hardware interrupts handler events. */
+  MIPS_INTR_EVENT(MIPS_HWINT0, "hwint(0)");
+  MIPS_INTR_EVENT(MIPS_HWINT1, "hwint(1)");
+  MIPS_INTR_EVENT(MIPS_HWINT2, "hwint(2)");
+  MIPS_INTR_EVENT(MIPS_HWINT3, "hwint(3)");
+  MIPS_INTR_EVENT(MIPS_HWINT4, "hwint(4)");
+  MIPS_INTR_EVENT(MIPS_HWINT5, "hwint(5)");
 
   for (unsigned i = 0; i < 8; i++)
-    intr_chain_register(&mips_intr_chain[i]);
+    intr_event_register(&mips_intr_event[i]);
 }
 
 void mips_intr_setup(intr_handler_t *handler, unsigned irq) {
-  intr_chain_t *chain = &mips_intr_chain[irq];
-  WITH_SPIN_LOCK (&chain->ic_lock) {
-    intr_chain_add_handler(chain, handler);
-    if (chain->ic_count == 1) {
-      mips32_bs_c0(C0_STATUS, SR_IM0 << irq); /* enable interrupt */
-      mips32_bc_c0(C0_CAUSE, CR_IP0 << irq);  /* clear pending flag */
-    }
-  }
+  intr_event_t *event = &mips_intr_event[irq];
+  intr_event_add_handler(event, handler);
 }
 
 void mips_intr_teardown(intr_handler_t *handler) {
-  intr_chain_t *chain = handler->ih_chain;
-  WITH_SPIN_LOCK (&chain->ic_lock) {
-    if (chain->ic_count == 1)
-      mips32_bc_c0(C0_STATUS, SR_IM0 << chain->ic_irq);
-    intr_chain_remove_handler(handler);
-  }
+  intr_event_remove_handler(handler);
 }
 
 /* Hardware interrupt handler is called with interrupts disabled. */
@@ -98,12 +100,10 @@ static void mips_intr_handler(exc_frame_t *frame) {
     unsigned irq = CR_IP0 << i;
 
     if (pending & irq) {
-      intr_chain_run_handlers(&mips_intr_chain[i]);
+      intr_event_run_handlers(&mips_intr_event[i]);
       pending &= ~irq;
     }
   }
-
-  mips32_set_c0(C0_CAUSE, frame->cause & ~CR_IP_MASK);
 }
 
 const char *const exceptions[32] = {
@@ -265,7 +265,32 @@ void kstack_overflow_handler(exc_frame_t *frame) {
     panic();
 }
 
-/* General exception handler is called with interrupts disabled. */
+/* Let's consider possible contexts that caused exception/interrupt:
+ *
+ * 1. We came from user-space:
+ *    interrupts and preemption must have been enabled
+ * 2. We came from kernel-space:
+ *    a. interrupts and preemption are enabled:
+ *       kernel was running in regular thread context
+ *    b. preemption is disabled, interrupts are enabled:
+ *       kernel was running in thread context and preemption was disabled
+ *       (this can happen during acquring or releasing sleep lock aka mutex)
+ *    c. interrupts are disabled, preemption is implicitly disabled:
+ *       kernel was running in interrupt context or acquired spin lock
+ *
+ * For each context we have a set of actions to be performed:
+ *
+ * 1. Handle interrupt with interrupts disabled or handle exception with
+ *    interrupts and preemption enabled. Then check if user thread should be
+ *    preempted. Finally prepare for return to user-space, for instance
+ *    deliver signal to the process.
+ * 2a. Same story as for (1) except we do not return to user-space.
+ * 2b. Same as (2a) but do not check if the thread should be preempted.
+ * 2c. Same as (2b) but do not enable interrupts for exception handling period.
+ *
+ * IMPORTANT! We should never call ctx_switch while interrupt is being handled
+ *            or preemption is disabled.
+ */
 void mips_exc_handler(exc_frame_t *frame) {
   unsigned code = exc_code(frame);
   bool user_mode = user_mode_p(frame);
@@ -277,27 +302,52 @@ void mips_exc_handler(exc_frame_t *frame) {
   if (!handler)
     kernel_oops(frame);
 
-  /* Enable interrupts only if you're about to handle an exception that came
-   * from a context that had hardware interrupts enabled.
-   * We don't want to enable interrupts if an exception was generated
-   * in a critical section running with interrupts disabled. */
-  if ((code != EXC_INTR) && (frame->sr & SR_IE))
-    intr_enable();
+  if (!user_mode && (!(frame->sr & SR_IE) || preempt_disabled())) {
+    /* We came here from kernel-space because of:
+     * Case 2c: an exception, interrupts were disabled;
+     * Case 2b: either interrupt or exception, preemption was disabled.
+     * To prevent breaking critical section switching out is forbidden!
+     *
+     * In theory we can enable interrupts for the time of handling exception
+     * in case 2b. In most cases handling exceptions in critical sections
+     * will end up in kernel panic, since such scenario is usually caused
+     * by programmer's error.
+     *
+     * XXX Being a very peculiar scenario we leave it as is for later
+     *     consideration. Disabled interrupt will ease debugging.
+     */
+    PCPU_SET(no_switch, true);
+    (*handler)(frame);
+    PCPU_SET(no_switch, false);
+  } else {
+    /* Case 1 & 2a: we came from user-space or kernel-space,
+     * interrupts and preemption were enabled! */
+    assert(frame->sr & SR_IE);
+    assert(!preempt_disabled());
 
-  (*handler)(frame);
+    if (code != EXC_INTR) {
+      /* We assume it is safe to handle an exception with interrupts enabled. */
+      intr_enable();
+      (*handler)(frame);
+    } else {
+      /* Switching out while handling interrupt is forbidden! */
+      PCPU_SET(no_switch, true);
+      (*handler)(frame);
+      PCPU_SET(no_switch, false);
+      /* We did the job, so we don't need interrupts to be disabled anymore. */
+      intr_enable();
+    }
 
-  /* From now on till the end of this procedure interrupts are enabled. */
-  if (code == EXC_INTR)
-    intr_enable();
+    /* This is right moment to check if out time slice expired. */
+    on_exc_leave();
 
-  /* This is right moment to check if we must switch to another thread. */
-  on_exc_leave();
+    /* If we're about to return to user mode then check pending signals, etc. */
+    if (user_mode)
+      on_user_exc_leave();
 
-  /* If we're about to return to user mode then check pending signals, etc. */
-  if (user_mode)
-    on_user_exc_leave();
-
-  intr_disable();
+    /* Disable interrupts for the time interrupted context is being restored. */
+    intr_disable();
+  }
 
   assert(intr_disabled());
 }
