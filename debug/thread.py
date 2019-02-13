@@ -1,6 +1,6 @@
 import gdb
 
-from .cmd import OneArgAutoCompleteMixin, print_exception
+from .cmd import SimpleCommand, AutoCompleteMixin
 from .struct import enum, cstr, GdbStructMeta, ProgramCounter, TailQueue
 from .utils import func_ret_addr, local_var, TextTable
 from .ctx import Context
@@ -15,32 +15,30 @@ class Thread(metaclass=GdbStructMeta):
                 'td_name': cstr}
 
     @staticmethod
-    def pointer_type():
-        return gdb.lookup_type('struct thread')
+    def current():
+        return gdb.parse_and_eval('_pcpu_data->curthread')
 
     @classmethod
-    def current(cls):
-        return cls(gdb.parse_and_eval('_pcpu_data->curthread').dereference())
+    def from_current(cls):
+        return cls(Thread.current().dereference())
 
     @classmethod
     def from_pointer(cls, ptr):
         return cls(gdb.parse_and_eval('(struct thread *)' + ptr).dereference())
 
-    @staticmethod
-    def dump_list(threads):
-        curr_tid = Thread.current().td_tid
-        table = TextTable(types='ittit', align='rrrrl')
-        table.header(['Id', 'Name', 'State', 'Priority', 'Waiting Point'])
-        for td in threads:
-            marker = '(*) ' if curr_tid == td.td_tid else ''
-            table.add_row(['{}{}'.format(marker, td.td_tid), td.td_name,
-                           td.td_state, td.td_prio, td.td_waitpt])
-        print(table)
-
     @classmethod
     def list_all(cls):
-        threads = TailQueue(gdb.parse_and_eval('all_threads'), 'td_all')
-        return map(Thread, threads)
+        return map(cls, TailQueue(gdb.parse_and_eval('all_threads'), 'td_all'))
+
+    @classmethod
+    def find_by_name(cls, name):
+        return [td for td in cls.list_all() if td.td_name == name]
+
+    @classmethod
+    def find_by_tid(cls, tid):
+        for td in cls.list_all():
+            if td.td_tid == tid:
+                return td
 
     def __repr__(self):
         return 'thread{%s/%d}' % (self.td_name, self.td_tid)
@@ -64,7 +62,7 @@ class ThreadCreateBP(gdb.Breakpoint):
         print('New', local_var('td').dereference(), 'in the system!')
 
 
-class Kthread(gdb.Command, OneArgAutoCompleteMixin):
+class Kthread(SimpleCommand, AutoCompleteMixin):
     """dump info about threads
 
     Thread can be either specified by its identifier (td_tid) or by its name
@@ -87,48 +85,56 @@ class Kthread(gdb.Command, OneArgAutoCompleteMixin):
     """
 
     def __init__(self):
-        super().__init__('kthread', gdb.COMMAND_USER)
+        super().__init__('kthread')
 
     def find_by_name(self, name):
-        found = filter(lambda td: td.td_name == name, Thread.list_all())
-
-        if len(found) > 1:
-            print('Warning! There is more than 1 thread with name ', name)
-        elif len(found) > 0:
+        found = Thread.find_by_name(name)
+        if len(found) == 1:
             return found[0]
-        else:
-            print('Can\'t find thread with name="%s"!' % name)
+        if len(found) > 1:
+            print('More than one thread with name %s"' % name)
+        if len(found) == 0:
+            print("Can't find thread with name='%s'!" % name)
 
-    def find_by_id(self, tid):
-        for td in Thread.list_all():
-            if td.td_tid == tid:
-                return td
-        print('Can\'t find thread with tid=%d!' % tid)
+    def find_by_tid(self, tid):
+        found = Thread.find_by_tid(tid)
+        if not found:
+            print("Can't find thread with tid=%d!" % tid)
+        return found
 
     def dump_all(self):
         print('(*) current thread marker')
-        Thread.dump_list(Thread.list_all())
+        threads = Thread.list_all()
+        cur_td = Thread.current()
+        table = TextTable(types='ittit', align='rrrrl')
+        table.header(['Id', 'Name', 'State', 'Priority', 'Waiting Point'])
+        for td in threads:
+            marker = '(*) ' if cur_td.td_tid == td.td_tid else ''
+            table.add_row(['{}{}'.format(marker, td.td_tid), td.td_name,
+                           td.td_state, td.td_prio, td.td_waitpt])
+        print(table)
 
     def dump_one(self, found):
-        print(found.dump())
-        print('\n>>> backtrace for %s' % found)
+        try:
+            thread = self.find_by_tid(int(found))
+        except ValueError:
+            thread = self.find_by_name(found)
+        if not thread:
+            return
+        print(thread.dump())
+        print('\n>>> backtrace for %s' % thread)
         ctx = Context()
         ctx.save()
-        Context.load(found.td_kctx)
+        Context.load(thread.td_kctx)
         gdb.execute('backtrace')
         ctx.restore()
 
-    @print_exception
-    def invoke(self, args, from_tty):
-        if len(args) < 1:
+    def __call__(self, arg):
+        if arg:
+            self.dump_one(arg)
+        else:
             # give simplified view of all threads in the system
             self.dump_all()
-        else:
-            try:
-                found = self.find_by_id(int(args))
-            except ValueError:
-                found = self.find_by_name(args)
-            self.dump_one(found)
 
     def options(self):
         threads = Thread.list_all()
@@ -143,4 +149,4 @@ class CurrentThread(gdb.Function):
         super().__init__('thread')
 
     def invoke(self):
-        return gdb.parse_and_eval('_pcpu_data->curthread')
+        return Thread.current()
