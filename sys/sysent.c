@@ -16,6 +16,7 @@
 #include <wait.h>
 #include <exec.h>
 #include <time.h>
+#include <proc.h>
 #include <pipe.h>
 #include <malloc.h>
 #include <syslimits.h>
@@ -57,17 +58,47 @@ static int sys_getppid(thread_t *td, syscall_args_t *args) {
   return td->td_proc->p_parent->p_pid;
 }
 
+/* Moves the process to the process group with ID specified by pgid.
+ * If pid is zero, then the PID of the calling process is used.
+ * If pgid is zero, then the process is moved to process group
+ * with ID equal to the PID of the process. */
 static int sys_setpgid(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
   pgid_t pgid = args->args[1];
+
   klog("setpgid(%d, %d)", pid, pgid);
-  return -ENOTSUP;
+
+  proc_t *p = td->td_proc;
+
+  if (pgid < 0)
+    return -EINVAL;
+
+  if (pid == 0)
+    pid = p->p_pid;
+  if (pgid == 0)
+    pgid = pid;
+
+  /* TODO Allow process to call setpgid on its children.
+   * TODO Make setpgid accepts pgid equal to ID of any existing process group */
+  if (pid != p->p_pid || pgid != p->p_pid)
+    return -ENOTSUP;
+
+  return pgrp_enter(p, pgid);
 }
 
+/* Gets process group ID of the process with ID specified by pid.
+ * If pid equals zero then process ID of the calling process is used. */
 static int sys_getpgid(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
-  klog("getpgid(%d)", pid);
-  return -ENOTSUP;
+  proc_t *p = td->td_proc;
+
+  if (pid < 0)
+    return -EINVAL;
+
+  if (pid == 0)
+    pid = p->p_pid;
+
+  return proc_getpgid(pid);
 }
 
 static int sys_kill(thread_t *td, syscall_args_t *args) {

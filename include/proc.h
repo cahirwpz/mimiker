@@ -10,8 +10,24 @@
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
+typedef struct pgrp pgrp_t;
 typedef struct fdtab fdtab_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
+typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
+
+/*! \brief Structure allocated per process group.
+ *
+ * Field markings and the corresponding locks:
+ *  (a) all_proc_mtx
+ *  (@) pgrp::pg_lock
+ *  (!) read-only access, do not modify!
+ */
+typedef struct pgrp {
+  mtx_t pg_lock;                 /* Process group mutex */
+  TAILQ_ENTRY(pgrp) pg_link;     /* (a) link on chain of process groups */
+  TAILQ_HEAD(, proc) pg_members; /* (@) members of process group */
+  pgid_t pg_id;                  /* (!) process group id */
+} pgrp_t;
 
 typedef enum { PS_NORMAL, PS_DYING, PS_ZOMBIE } proc_state_t;
 
@@ -22,6 +38,7 @@ typedef enum { PS_NORMAL, PS_DYING, PS_ZOMBIE } proc_state_t;
  *  (@) proc_t::p_lock
  *  (!) read-only access, do not modify!
  *  (~) always safe to access
+ *  (*) safe to dereference from owner process
  */
 struct proc {
   mtx_t p_lock;               /* Process lock */
@@ -30,6 +47,8 @@ struct proc {
   TAILQ_ENTRY(proc) p_child;  /* (a) link on parent's children list */
   thread_t *p_thread;         /* (@) the only thread running in this process */
   pid_t p_pid;                /* (!) Process ID */
+  TAILQ_ENTRY(proc) p_pglist; /* (pgrp::pg_lock) link on pg_members list */
+  pgrp_t *p_pgrp;             /* (a,*) process group */
   volatile proc_state_t p_state;  /* (@) process state */
   proc_t *p_parent;               /* (a) parent process */
   proc_list_t p_children;         /* (a) child processes, including zombies */
@@ -66,11 +85,22 @@ proc_t *proc_create(thread_t *td, proc_t *parent);
  * \returns locked process or NULL if not found */
 proc_t *proc_find(pid_t pid);
 
-/*! \brief Sends signal sig to the process with the ID specified by pid. */
+/*! \brief Sends signal to process group or process.
+ * (pid > 0) sends signal to the process with the ID specified by pid.
+ * (pid = 0) sends signal to processes in process group of the calling process.
+ * (pid <-1) sends signal to processes in process group with ID equal (-pid). */
 int proc_sendsig(pid_t pid, signo_t sig);
+
+/*! \brief Gets process group ID of the process specified by pid.
+ * If pid equals zero then use process group ID of the calling process. */
+pgid_t proc_getpgid(pid_t pid);
 
 /*! \brief Called by a processes that wishes to terminate its life.
  * \note Exit status shoud be created using MAKE_STATUS macros from wait.h */
 noreturn void proc_exit(int exitstatus);
+
+/*! \brief Moves process p to the process group with ID specified by pgid.
+ * If such process group does not exist then it creates one. */
+int pgrp_enter(proc_t *p, pgid_t pgid);
 
 #endif /* !_SYS_PROC_H_ */

@@ -43,6 +43,7 @@ int do_fork(void) {
 
   /* Now, prepare a new process. */
   proc_t *child = proc_create(newtd, parent);
+  pgrp_enter(child, parent->p_pgrp->pg_id);
 
   /* Clone the entire process memory space. */
   child->p_uspace = vm_map_clone(parent->p_uspace);
