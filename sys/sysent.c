@@ -59,8 +59,9 @@ static int sys_getppid(thread_t *td, syscall_args_t *args) {
 }
 
 /* Moves the process to the process group with ID specified by pgid.
- * If pid/pgid is zero, then the pid/pgid of calling process is used.
- * Only calling process or its parent is allowed to call the function. */
+ * If pid is zero, then the PID of the calling process is used.
+ * If pgid is zero, then the process is moved to process group
+ * with ID equal to the PID of the process. */
 static int sys_setpgid(thread_t *td, syscall_args_t *args) {
   pid_t pid = args->args[0];
   pgid_t pgid = args->args[1];
@@ -75,9 +76,10 @@ static int sys_setpgid(thread_t *td, syscall_args_t *args) {
   if (pid == 0)
     pid = p->p_pid;
   if (pgid == 0)
-    pgid = p->p_pid;
+    pgid = pid;
 
-  /* TODO ... */
+  /* TODO Allow process to call setpgid on its children.
+   * TODO Make setpgid accepts pgid equal to ID of any existing process group */
   if (pid != p->p_pid || pgid != p->p_pid)
     return -ENOTSUP;
 
