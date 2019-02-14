@@ -37,7 +37,6 @@ static size_t token_no(const char *input) {
   return ntokens;
 }
 
-
 static char *flatten_argv(int _argc, char **_argv) {
   size_t len = 1;
   for (int i = 0; i < _argc; i++)
@@ -55,7 +54,7 @@ static char *flatten_argv(int _argc, char **_argv) {
 
 static char **extract_tokens(char *seq, int * /*out*/ pntokens) {
   skip_spaces(seq);
-  
+
   int ntokens = token_no(seq);
   char **tokens = kbss_grow((ntokens + 1) * sizeof(char *));
   char **ret = tokens;
@@ -65,7 +64,7 @@ static char **extract_tokens(char *seq, int * /*out*/ pntokens) {
     *tokens = p;
     tokens++;
     p[len] = '\0';
-    p += len + 1; 
+    p += len + 1;
   }
 
   if (pntokens)
@@ -103,11 +102,11 @@ int kenv_get_strv(const char *key, char **strv, size_t len) {
   size_t arglen;
 
   if ((!val) || (len == 0))
-    return 0;
+    goto end;
   if (*val == QUOT_CHAR)
     val++;
 
-  while ((i < len - 1) && (val != NULL) && (*val != QUOT_CHAR)) {
+  while ((i < len - 1) && (*val != '\0') && (*val != QUOT_CHAR)) {
     skip_spaces(val);
     arglen = identifier_size(val);
     arg = kbss_grow((arglen + 1) * sizeof(char));
@@ -116,6 +115,7 @@ int kenv_get_strv(const char *key, char **strv, size_t len) {
     val += arglen;
   }
 
+end:
   strv[i] = NULL;
   return i;
 }
