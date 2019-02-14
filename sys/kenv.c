@@ -13,13 +13,16 @@ static const char QUOT_CHAR = '"';
 /* <token>               ::= <key>=<value>
    <value>               ::= <identifier> | "<identifier><identifier_sequence>"
    <key>                 ::= <identifier>
-   <identifier_sequence> ::= (<whitespace><identifier>)*
+   <identifier_sequence> ::= (<whitespaces><identifier>)*
    <identifier>          ::= any sequence of printable non-whitespace
                              non-" characters
 */
 
+#define skip_spaces(val) val += strspn(val, WHITESPACES)
+#define identifier_size(val) strcspn(val, TOKEN_SEPARATORS)
+
 static size_t token_size(const char *input) {
-  size_t len = strcspn(input, TOKEN_SEPARATORS);
+  size_t len = identifier_size(input);
   if (input[len] == QUOT_CHAR)
     len += strcspn(input + len + 1, QUOT_STR) + 2;
   return len;
@@ -27,13 +30,13 @@ static size_t token_size(const char *input) {
 
 static size_t token_no(const char *input) {
   int ntokens = 0;
-  for (; *input; input += strspn(input, WHITESPACES)) {
+  for (; *input; skip_spaces(input)) {
     input += token_size(input);
     ntokens++;
   }
   return ntokens;
 }
-static char **extract_tokens(char *seq, int * /*out*/ pntokens);
+
 
 static char *flatten_argv(int _argc, char **_argv) {
   size_t len = 1;
@@ -50,25 +53,24 @@ static char *flatten_argv(int _argc, char **_argv) {
   return args;
 }
 
-void setup_kenv(int _argc, char **_argv, char **_envv) {
-  char *args = flatten_argv(_argc, _argv);
-  argv = extract_tokens(args, &argc);
-}
+static char **extract_tokens(char *seq, int * /*out*/ pntokens) {
+  skip_spaces(seq);
+  
+  int ntokens = token_no(seq);
+  char **tokens = kbss_grow((ntokens + 1) * sizeof(char *));
+  char **ret = tokens;
 
-int kenv_get_strv(const char *key, char **strv, size_t len);
-bool kenv_get_int(const char *key, int *val_p);
-void print_kenv(void) {
-  kprintf("Kernel arguments (%d): ", argc);
-  for (int i = 0; i < argc; i++)
-    kprintf("%s ", argv[i]);
-  kprintf("\n");
+  for (char *p = seq; *p; skip_spaces(p)) {
+    size_t len = token_size(p);
+    *tokens = p;
+    tokens++;
+    p[len] = '\0';
+    p += len + 1; 
+  }
 
-  char *argvv[50];
-
-  kprintf("kenv_get_strv(init)=%d\n", kenv_get_strv("init", argvv, 50));
-  int v;
-  kenv_get_int("dd", &v);
-  kprintf("kenv_get_int(dd)=%d\n", v);
+  if (pntokens)
+    *pntokens = ntokens;
+  return ret;
 }
 
 char *kenv_get(const char *key) {
@@ -81,9 +83,6 @@ char *kenv_get(const char *key) {
   }
   return NULL;
 }
-
-#define skip_spaces(val) val += strspn(val, WHITESPACES)
-#define identifier_size(val) strcspn(val, TOKEN_SEPARATORS)
 
 bool kenv_get_int(const char *key, int *val_p) {
   const char *val_str = kenv_get(key);
@@ -98,7 +97,6 @@ bool kenv_get_int(const char *key, int *val_p) {
 }
 
 int kenv_get_strv(const char *key, char **strv, size_t len) {
-
   char *val = kenv_get(key);
   size_t i = 0;
   char *arg;
@@ -106,13 +104,12 @@ int kenv_get_strv(const char *key, char **strv, size_t len) {
 
   if ((!val) || (len == 0))
     return 0;
-
   if (*val == QUOT_CHAR)
     val++;
 
   while ((i < len - 1) && (val != NULL) && (*val != QUOT_CHAR)) {
     skip_spaces(val);
-    arglen = strcspn(val, TOKEN_SEPARATORS);
+    arglen = identifier_size(val);
     arg = kbss_grow((arglen + 1) * sizeof(char));
     strlcpy(arg, val, arglen + 1);
     strv[i++] = arg;
@@ -123,23 +120,15 @@ int kenv_get_strv(const char *key, char **strv, size_t len) {
   return i;
 }
 
-static char **extract_tokens(char *seq, int * /*out*/ pntokens) {
-  seq += strspn(seq, WHITESPACES);
+void setup_kenv(int _argc, char **_argv, char **_envv) {
+  char *args = flatten_argv(_argc, _argv);
+  argv = extract_tokens(args, &argc);
+  /*TODO: implement environment handling.*/
+}
 
-  int ntokens = token_no(seq);
-  char **tokens = kbss_grow((ntokens + 1) * sizeof(char *));
-  char **ret = tokens;
-
-  for (char *p = seq; *p; p += strspn(p, WHITESPACES)) {
-    size_t len = token_size(p);
-    *tokens = p;
-    tokens++;
-    p[len] = '\0';
-
-    p += len + 1; //!!
-  }
-
-  if (pntokens)
-    *pntokens = ntokens;
-  return ret;
+void print_kenv(void) {
+  kprintf("Kernel arguments (%d): ", argc);
+  for (int i = 0; i < argc; i++)
+    kprintf("%s ", argv[i]);
+  kprintf("\n");
 }
