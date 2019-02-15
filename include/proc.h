@@ -38,6 +38,7 @@ typedef enum { PS_NORMAL, PS_DYING, PS_ZOMBIE } proc_state_t;
  *  (@) proc_t::p_lock
  *  (!) read-only access, do not modify!
  *  (~) always safe to access
+ *  ($) use only from the same process/thread
  *  (*) safe to dereference from owner process
  */
 struct proc {
@@ -52,14 +53,14 @@ struct proc {
   volatile proc_state_t p_state;  /* (@) process state */
   proc_t *p_parent;               /* (a) parent process */
   proc_list_t p_children;         /* (a) child processes, including zombies */
-  vm_map_t *p_uspace;             /* (@) process' user space map */
-  fdtab_t *p_fdtable;             /* (@) file descriptors table */
+  vm_map_t *p_uspace;             /* ($) process' user space map */
+  fdtab_t *p_fdtable;             /* ($) file descriptors table */
   sigaction_t p_sigactions[NSIG]; /* (@) description of signal actions */
-  condvar_t p_waitcv;             /* (@) processes waiting for this one */
+  condvar_t p_waitcv;             /* (a) processes waiting for this one */
   int p_exitstatus;               /* (@) exit code to be returned to parent */
   /* program segments */
-  vm_segment_t *p_sbrk; /* (@) The entry where brk segment resides in. */
-  vaddr_t p_sbrk_end;   /* (@) Current end of brk segment. */
+  vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
+  vaddr_t p_sbrk_end;   /* ($) Current end of brk segment. */
   /* XXX: process resource usage stats */
 };
 
@@ -78,8 +79,12 @@ DEFINE_CLEANUP_FUNCTION(proc_t *, proc_unlock);
   WITH_STMT(proc_t, proc_lock, CLEANUP_FUNCTION(proc_unlock), proc)
 
 /*! \brief Creates a process and populates it with thread \a td.
- * If parent is not NULL then newly created process becomes its child. */
+ * If parent is not NULL then newly created process becomes its child.
+ * Created process should be added using proc_add */
 proc_t *proc_create(thread_t *td, proc_t *parent);
+
+/*! \brief Adds created process to global data structures. */
+void proc_add(proc_t *p);
 
 /*! \brief Searches for a process with the given PID and PS_NORMAL state.
  * \returns locked process or NULL if not found */

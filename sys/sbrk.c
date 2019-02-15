@@ -13,6 +13,7 @@
 /* TODO: make sbrk expand .bss segment. */
 
 void sbrk_attach(proc_t *p) {
+  assert(proc_self() == p);
   assert(p->p_uspace && (p->p_sbrk == NULL));
 
   vm_map_t *map = p->p_uspace;
@@ -30,6 +31,7 @@ void sbrk_attach(proc_t *p) {
 }
 
 vaddr_t sbrk_resize(proc_t *p, intptr_t increment) {
+  assert(proc_self() == p);
   assert(p->p_uspace && p->p_sbrk);
 
   vaddr_t last_end = p->p_sbrk_end;

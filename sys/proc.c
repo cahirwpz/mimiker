@@ -134,16 +134,18 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
   WITH_MTX_LOCK (&td->td_lock)
     td->td_proc = p;
 
+  return p;
+}
+
+void proc_add(proc_t *p) {
   WITH_MTX_LOCK (all_proc_mtx) {
     p->p_pid = pid_alloc();
     TAILQ_INSERT_TAIL(&proc_list, p, p_all);
-    if (parent)
-      TAILQ_INSERT_TAIL(CHILDREN(parent), p, p_child);
+    if (p->p_parent)
+      TAILQ_INSERT_TAIL(CHILDREN(p->p_parent), p, p_child);
   }
 
   klog("Process PID(%d) {%p} has been created", p->p_pid, p);
-
-  return p;
 }
 
 proc_t *proc_find(pid_t pid) {

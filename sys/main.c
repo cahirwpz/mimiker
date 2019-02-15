@@ -14,7 +14,7 @@ int kmain(void) {
   char *test = kenv_get("test");
 
   /* Main kernel thread becomes PID(0) - a god process! */
-  (void)proc_create(thread_self(), NULL);
+  proc_add(proc_create(thread_self(), NULL));
 
   if (init) {
     run_program(init, (char *[]){init, NULL}, (char *[]){NULL});
