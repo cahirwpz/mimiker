@@ -389,6 +389,8 @@ noreturn void run_program(char *path, char *argv[], char *envv[]) {
   thread_t *td = thread_self();
   proc_t *p = proc_self();
 
+  pgrp_enter(p, 1);
+
   assert(p != NULL);
 
   klog("Starting program '%s'", path);
