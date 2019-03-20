@@ -13,6 +13,7 @@
 /* TODO: make sbrk expand .bss segment. */
 
 void sbrk_attach(proc_t *p) {
+  assert(proc_self() == p);
   assert(p->p_uspace && (p->p_sbrk == NULL));
 
   vm_map_t *map = p->p_uspace;
@@ -30,28 +31,23 @@ void sbrk_attach(proc_t *p) {
 }
 
 vaddr_t sbrk_resize(proc_t *p, intptr_t increment) {
+  assert(proc_self() == p);
   assert(p->p_uspace && p->p_sbrk);
-
-  if (increment == 0)
-    return p->p_sbrk_end;
 
   vaddr_t last_end = p->p_sbrk_end;
   vaddr_t new_end = p->p_sbrk_end + increment;
-
   vaddr_t sbrk_start, sbrk_end;
   vm_segment_range(p->p_sbrk, &sbrk_start, &sbrk_end);
 
   if (new_end < sbrk_start)
     return -EINVAL;
 
-  /* TODO: Shrinking sbrk is impossible, because it requires unmapping pages,
-   * which is not yet implemented! */
-  if (new_end < last_end)
-    return -ENOTSUP;
+  /* require sbrk_segment to contain at least one page */
+  vaddr_t new_end_aligned =
+    max(align(new_end, PAGESIZE), sbrk_start + PAGESIZE);
 
-  /* Expand segment break! */
-  if (vm_map_resize(p->p_uspace, p->p_sbrk, roundup(new_end, PAGESIZE)) != 0)
-    return -ENOMEM; /* Segment expansion failed. */
+  if (vm_segment_resize(p->p_uspace, p->p_sbrk, new_end_aligned) != 0)
+    return -ENOMEM;
 
   p->p_sbrk_end = new_end;
   return last_end;

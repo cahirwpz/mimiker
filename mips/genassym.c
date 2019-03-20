@@ -125,6 +125,7 @@ ASSYM(EXC_FPU_FSR, offsetof(exc_frame_t, fsr));
 
 ASSYM(KERN_EXC_FRAME_SIZE, sizeof(cpu_exc_frame_t));
 ASSYM(USER_EXC_FRAME_SIZE, sizeof(exc_frame_t));
+ASSYM(CTX_FRAME_SIZE, sizeof(ctx_t));
 
 ASSYM(P_USPACE, offsetof(proc_t, p_uspace));
 

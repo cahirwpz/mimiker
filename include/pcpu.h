@@ -7,6 +7,7 @@ typedef struct vm_map vm_map_t;
 
 /*! \brief Private per-cpu structure. */
 typedef struct pcpu {
+  bool no_switch;        /*!< executing code that must not switch out */
   thread_t *curthread;   /*!< thread running on this CPU */
   thread_t *idle_thread; /*!< idle thread executed on this CPU */
   pmap_t *curpmap;       /*!< current page table */
