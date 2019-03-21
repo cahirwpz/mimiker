@@ -105,7 +105,7 @@ class Kthread(SimpleCommand, AutoCompleteMixin):
     def dump_all(self):
         print('(*) current thread marker')
         threads = Thread.list_all()
-        cur_td = Thread.current()
+        cur_td = Thread.from_current()
         table = TextTable(types='ittit', align='rrrrl')
         table.header(['Id', 'Name', 'State', 'Priority', 'Waiting Point'])
         for td in threads:
