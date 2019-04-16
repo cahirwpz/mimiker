@@ -1,12 +1,8 @@
 #define KL_LOG KL_INTR
 #include <klog.h>
-#include <stdc.h>
-#include <mutex.h>
-#include <thread.h>
 #include <mips/intr.h>
 #include <interrupt.h>
 #include <sleepq.h>
-#include <spinlock.h>
 #include <sysinit.h>
 #include <sched.h>
 
