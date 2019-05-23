@@ -1,12 +1,8 @@
 #define KL_LOG KL_INTR
 #include <klog.h>
-#include <stdc.h>
-#include <mutex.h>
-#include <thread.h>
 #include <mips/intr.h>
 #include <interrupt.h>
 #include <sleepq.h>
-#include <spinlock.h>
 #include <sysinit.h>
 #include <sched.h>
 
@@ -85,7 +81,6 @@ void intr_event_remove_handler(intr_handler_t *ih) {
 
 /* interrupt handlers delegated to be called in the interrupt thread */
 static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
-static spin_t *delegated_lock = &SPIN_INITIALIZER(0);
 
 void intr_event_run_handlers(intr_event_t *ie) {
   intr_handler_t *ih, *next;
@@ -102,11 +97,8 @@ void intr_event_run_handlers(intr_event_t *ie) {
         ie->ie_disable(ie);
 
       TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
-
-      WITH_SPIN_LOCK (delegated_lock) {
-        TAILQ_INSERT_TAIL(&delegated, ih, ih_link);
-        sleepq_signal(&delegated);
-      }
+      TAILQ_INSERT_TAIL(&delegated, ih, ih_link);
+      sleepq_signal(&delegated);
       return;
     }
   }
@@ -118,7 +110,7 @@ static void intr_thread(void *arg) {
   while (true) {
     intr_handler_t *ih;
 
-    WITH_SPIN_LOCK (delegated_lock) {
+    WITH_INTR_DISABLED {
       while (TAILQ_EMPTY(&delegated))
         sleepq_wait(&delegated, NULL);
       ih = TAILQ_FIRST(&delegated);
