@@ -122,6 +122,41 @@ char *kenv_get(const char *key) {
   return NULL;
 }
 
+static intptr_t __rd_start;
+static size_t __rd_size;
+
+intptr_t ramdisk_get_start(void) {
+  return __rd_start;
+}
+
+size_t ramdisk_get_size(void) {
+  return __rd_size;
+}
+
+static void ramdisk_init(void) {
+  char *s;
+  size_t n;
+
+  /* parse 'rd_start' */
+  s = kenv_get("rd_start");
+
+  /* rd_start: skip '0x' under qemu */
+  if (s[0] == '0' && s[1] == 'x')
+    s += 2;
+
+  /* rd_start: skip 'ffffffff' under qemu */
+  n = strlen(s);
+  if (n > 8)
+    s += n - 8;
+
+  __rd_start = strtoul(s, NULL, 16);
+
+  /* parse 'rd_size' */
+  s = kenv_get("rd_size");
+
+  __rd_size = align(strtoul(s, NULL, 10), PAGESIZE);
+}
+
 extern uint8_t __kernel_start[];
 
 static void pm_bootstrap(unsigned memsize) {
@@ -171,6 +206,7 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   pcpu_init();
   cpu_init();
   tlb_init();
+  ramdisk_init();
   mips_intr_init();
   mips_timer_init();
   pm_bootstrap(memsize);

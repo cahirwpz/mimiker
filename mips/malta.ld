@@ -69,16 +69,6 @@ SECTIONS
     __etext = ABSOLUTE(.);
   } : text
 
-  /* The kernel expects the ramdisk start & end addresses
-   * to be page-aligned. */
-  .initrd : ALIGN(4096)
-  {
-    __rd_start = ABSOLUTE(.);
-    *(.initrd)
-    . = ALIGN(4096);
-    __rd_end = ABSOLUTE(.);
-  } : rodata /* The ramdisk is read-only, so place it in read-only segment. */
-
   /* In order to be addressable using a 16-bit signed offset from _gp,
    * this section must be placed close to the .data section, as
    * _gp is defined here as the start of the .data section.  */

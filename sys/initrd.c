@@ -49,11 +49,6 @@ static cpio_list_t initrd_head = TAILQ_HEAD_INITIALIZER(initrd_head);
 static cpio_node_t *root_node;
 static vnodeops_t initrd_vops;
 
-extern int8_t __rd_start[];
-extern int8_t __rd_end[];
-
-extern char *kenv_get(const char *key);
-
 static cpio_node_t *cpio_node_alloc(void) {
   cpio_node_t *node = pool_alloc(P_INITRD, PF_ZERO);
   TAILQ_INIT(&node->c_children);
@@ -335,14 +330,6 @@ static int initrd_init(vfsconf_t *vfc) {
   initrd_build_tree();
   initrd_enum_inodes(root_node, 2);
   return 0;
-}
-
-intptr_t ramdisk_get_start(void) {
-  return (intptr_t)__rd_start;
-}
-
-unsigned ramdisk_get_size(void) {
-  return (unsigned)__rd_end - (unsigned)__rd_start;
 }
 
 void ramdisk_dump(void) {

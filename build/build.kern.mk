@@ -4,7 +4,7 @@ include $(TOPDIR)/build/flags.kern.mk
 include $(TOPDIR)/build/common.mk
 
 build-kernel: $(KRT)
-install-kernel: mimiker.elf
+install-kernel: mimiker.elf initrd.cpio
 
 # Files required to link kernel image
 KRT = $(foreach dir,$(KERNDIR),$(TOPDIR)/$(dir)/lib$(dir).ka)
@@ -16,9 +16,9 @@ LDLIBS	= -Wl,--start-group \
           -Wl,--end-group
 
 # Process subdirectories before using KRT files.
-mimiker.elf: $(KRT) initrd.o | $(KERNDIR)
+mimiker.elf: $(KRT) | $(KERNDIR)
 	@echo "[LD] Linking kernel image: $@"
-	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) initrd.o -o $@
+	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
 
 # Detecting whether initrd.cpio requires rebuilding is tricky, because even if
 # this target was to depend on $(shell find sysroot -type f), then make compares
@@ -31,10 +31,4 @@ initrd.cpio: bin-install
 	cd sysroot && \
 	  find -depth -print | sort | $(CPIO) -o -F ../$@ 2> /dev/null
 
-initrd.o: initrd.cpio
-	$(OBJCOPY) -I binary -O elf32-littlemips -B mips \
-	  --rename-section .data=.initrd,alloc,load,readonly,data,contents \
-	  $^ $@
-
-CLEAN-FILES += mimiker.elf mimiker.elf.map initrd.cpio initrd.o
-PHONY-TARGETS += initrd.cpio
+CLEAN-FILES += mimiker.elf mimiker.elf.map initrd.cpio

@@ -81,7 +81,8 @@ class QEMU(Launchable):
     def __init__(self):
         super().__init__('qemu', shutil.which('qemu-mimiker-' + TARGET))
 
-    def configure(self, debug=False, graphics=False, kernel='', args=''):
+    def configure(self, debug=False, graphics=False, kernel='', initrd='',
+                  args=''):
         self.options = [
             '-nodefaults',
             '-device', 'VGA',
@@ -89,6 +90,7 @@ class QEMU(Launchable):
             '-cpu', '24Kf',
             '-icount', 'shift=3,sleep=on',
             '-kernel', kernel,
+            '-initrd', initrd,
             '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
             '-serial', 'none',
             '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(0)),

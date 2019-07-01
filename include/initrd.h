@@ -3,8 +3,9 @@
 
 #include <common.h>
 
+/* Following getters are defined by platform bootstrap code. */
 intptr_t ramdisk_get_start(void);
-unsigned ramdisk_get_size(void);
+size_t ramdisk_get_size(void);
 
 void ramdisk_dump(void);
 

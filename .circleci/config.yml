@@ -35,10 +35,14 @@ jobs:
       - store_artifacts:
           path: mimiker.elf
           prefix: kernel_image
+      - store_artifacts:
+          path: initrd.cpio
+          prefix: initial_ramdisk
       - save_cache:
           key: mimiker-{{ .Branch }}-{{ .Revision }}
           paths:
             - mimiker.elf
+            - initrd.cpio
       - run: 'make clean'
       - run: 'make distclean'
 

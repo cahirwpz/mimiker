@@ -60,6 +60,9 @@ if __name__ == '__main__':
     parser.add_argument('-k', '--kernel', metavar='KERNEL', type=str,
                         default='mimiker.elf',
                         help='Kernel image file in ELF format.')
+    parser.add_argument('--initrd', metavar='INITRD', type=str,
+                        default='initrd.cpio',
+                        help='Initial RAM disk in CPIO format.')
     parser.add_argument('args', metavar='ARGS', type=str, nargs='*',
                         help='Kernel arguments.')
     parser.add_argument('-D', '--debugger', metavar='DEBUGGER', type=str,
@@ -81,7 +84,7 @@ if __name__ == '__main__':
 
     sim = QEMU()
     sim.configure(debug=args.debug, graphics=args.graphics, kernel=args.kernel,
-                  args=args.args)
+                  initrd=args.initrd, args=args.args)
 
     if args.debug:
         dbg = Debuggers[args.debugger]()
