@@ -33,7 +33,7 @@ jobs:
             - lib/newlib/newlib-3.0.0.tar.gz
       - run: 'make'
       - store_artifacts:
-          path: mimiker.elf
+          path: sys/mimiker.elf
           prefix: kernel_image
       - store_artifacts:
           path: initrd.cpio
@@ -41,7 +41,7 @@ jobs:
       - save_cache:
           key: mimiker-{{ .Branch }}-{{ .Revision }}
           paths:
-            - mimiker.elf
+            - sys/mimiker.elf
             - initrd.cpio
       - run: 'make clean'
       - run: 'make distclean'

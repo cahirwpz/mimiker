@@ -58,7 +58,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Launch kernel in Malta board simulator.')
     parser.add_argument('-k', '--kernel', metavar='KERNEL', type=str,
-                        default='mimiker.elf',
+                        default='sys/mimiker.elf',
                         help='Kernel image file in ELF format.')
     parser.add_argument('--initrd', metavar='INITRD', type=str,
                         default='initrd.cpio',

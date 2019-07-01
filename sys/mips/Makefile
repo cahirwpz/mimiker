@@ -1,9 +1,9 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-TOPDIR = $(realpath ..)
+TOPDIR = $(realpath ../..)
 
-GENASSYM = $(TOPDIR)/script/genassym.py $(NM)
-GENDEVHINT = $(TOPDIR)/script/gendevhint.py
+GENASSYM = $(TOPDIR)/sys/script/genassym.py $(NM)
+GENDEVHINT = $(TOPDIR)/sys/script/gendevhint.py
 
 SOURCES = \
 	boot.S \

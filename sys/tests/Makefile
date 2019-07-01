@@ -1,4 +1,4 @@
-TOPDIR = $(realpath ..)
+TOPDIR = $(realpath ../..)
 
 SOURCES = \
 	broken.c \

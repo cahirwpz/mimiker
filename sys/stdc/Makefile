@@ -1,6 +1,6 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 
-TOPDIR = $(realpath ..)
+TOPDIR = $(realpath ../..)
 
 # Flags for the library.  __PREFER_SIZE_OVER_SPEED__ disables some
 # optimized function implementations. -Werror is not enabled since

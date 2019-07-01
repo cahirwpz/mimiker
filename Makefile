@@ -2,17 +2,15 @@
 
 TOPDIR = $(CURDIR)
 
-# Directories which contain kernel parts
-KERNDIR = drv mips stdc sys tests
 # Directories which require calling make recursively
-SUBDIR = $(KERNDIR) lib bin usr.bin
+SUBDIR = sys lib bin usr.bin
 
 all: build install
 
-build-here: cscope.out tags build-kernel
+build-here: cscope.out tags
 bin-before: lib-install
 
-install-here: install-kernel
+install-here: initrd.cpio
 
 clean-here:
 	$(RM) tags etags cscope.out *.taghl
@@ -20,8 +18,21 @@ clean-here:
 distclean-here:
 	$(RM) -r sysroot
 
+# Detecting whether initrd.cpio requires rebuilding is tricky, because even if
+# this target was to depend on $(shell find sysroot -type f), then make compares
+# sysroot files timestamps BEFORE recursively entering bin and installing user
+# programs into sysroot. This sounds silly, but apparently make assumes no files
+# appear "without their explicit target". Thus, the only thing we can do is
+# forcing make to always rebuild the archive.
+initrd.cpio: bin-install
+	@echo "[INITRD] Building $@..."
+	cd sysroot && \
+	  find -depth -print | sort | $(CPIO) -o -F ../$@ 2> /dev/null
+
+CLEAN-FILES += initrd.cpio
+
 # Lists of all files that we consider operating system sources.
-SRCDIRS = include $(KERNDIR) lib/libmimiker 
+SRCDIRS = include sys lib/libmimiker 
 SRCFILES_C = $(shell find $(SRCDIRS) -iname '*.[ch]')
 SRCFILES_ASM = $(shell find $(SRCDIRS) -iname '*.S')
 SRCFILES = $(SRCFILES_C) $(SRCFILES_ASM)
@@ -43,7 +54,7 @@ FORMATTABLE_EXCLUDE = \
 	include/elf/% \
 	include/mips/asm.h \
 	include/mips/m32c0.h \
-	stdc/%
+	sys/stdc/%
 FORMATTABLE = $(filter-out $(FORMATTABLE_EXCLUDE),$(SRCFILES_C))
 
 format:
@@ -55,4 +66,4 @@ test: mimiker.elf
 
 PHONY-TARGETS += format tags cscope test
 
-include $(TOPDIR)/build/build.kern.mk
+include $(TOPDIR)/build/common.mk

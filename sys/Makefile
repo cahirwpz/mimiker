@@ -2,69 +2,28 @@
 
 TOPDIR = $(realpath ..)
 
-SOURCES = \
-	assert.c \
-	bus.c \
-	callout.c \
-	clock.c \
-	condvar.c \
-	console.c \
-	devclass.c \
-	device.c \
-	dev_cons.c \
-	dev_null.c \
-	dev_vga.c \
-	devfs.c \
-	exception.c \
-	exec.c \
-	exec_elf.c \
-	exec_shebang.c \
-	fdt.c \
-	file.c \
-	filedesc.c \
-	fork.c \
-	initrd.c \
-	interrupt.c \
-	kbss.c \
-	klog.c \
-	ktest.c \
-	main.c \
-	malloc.c \
-	mutex.c \
-	mmap.c \
-	pci.c \
-	pci_ids.c \
-	pcpu.c \
-	physmem.c \
-	pipe.c \
-	pool.c \
-	proc.c \
-	ringbuf.c \
-	rman.c \
-	runq.c \
-	rwlock.c \
-	sbrk.c \
-	sched.c \
-	signal.c \
-	sleepq.c \
-	spinlock.c \
-	startup.c \
-	sysent.c \
-	sysinit.c \
-	taskqueue.c \
-	turnstile.c \
-	thread.c \
-	time.c \
-	timer.c \
-	uio.c \
-	vfs.c \
-	vfs_readdir.c \
-	vfs_syscalls.c \
-	vfs_vnode.c \
-	vm_map.c \
-	vm_object.c \
-	vm_pager.c
+# Directories which require calling make recursively
+SUBDIR = drv kern mips stdc tests
 
-include $(TOPDIR)/build/build.kobj.mk
+all: build
 
-build-here: libsys.ka
+build-here: mimiker.elf
+
+include $(TOPDIR)/build/flags.kern.mk
+include $(TOPDIR)/build/common.mk
+
+# Files required to link kernel image
+KRT = $(foreach dir,$(SUBDIR),$(TOPDIR)/sys/$(dir)/lib$(dir).ka)
+
+LDFLAGS = -T $(TOPDIR)/sys/mips/malta.ld
+LDLIBS	= -Wl,--start-group \
+	    -Wl,--whole-archive $(KRT) -Wl,--no-whole-archive \
+            -lgcc \
+          -Wl,--end-group
+
+# Process subdirectories before using KRT files.
+mimiker.elf: $(KRT) | $(KERNDIR)
+	@echo "[LD] Linking kernel image: $@"
+	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
+
+CLEAN-FILES += mimiker.elf mimiker.elf.map

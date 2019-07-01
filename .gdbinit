@@ -6,7 +6,7 @@ set verbose off
 
 # make extra commands available
 python import os, sys
-python sys.path.append(os.getcwd())
+python sys.path.append(os.path.join(os.getcwd(), 'sys'))
 python import debug
 
 # favorite set of breakpoints
