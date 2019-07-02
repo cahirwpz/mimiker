@@ -22,8 +22,8 @@ static test_entry_t *autorun_tests[KTEST_MAX_NO] = {NULL};
 int ktest_test_running_flag = 0;
 
 /* The initial seed, as set from command-line. */
-static uint32_t ktest_seed = 0;
-static uint32_t ktest_repeat = 1; /* Number of repetitions of each test. */
+static unsigned ktest_seed = 0;
+static unsigned ktest_repeat = 1; /* Number of repetitions of each test. */
 static unsigned seed = 0;         /* Current seed */
 
 /* If we get preempted while printing out the [TEST_PASSED] string, the monitor
@@ -57,8 +57,8 @@ noreturn void ktest_failure(void) {
         kprintf("\n");
       }
     }
-    kprintf("The seed used for this test order was: %ld. Start kernel with "
-            "`test=all seed=%ld repeat=%ld` to reproduce this test case.\n",
+    kprintf("The seed used for this test order was: %u. Start kernel with "
+            "`test=all seed=%u repeat=%u` to reproduce this test case.\n",
             ktest_seed, ktest_seed, ktest_repeat);
   } else {
     kprintf("Failure while running single test.\n");
@@ -123,8 +123,7 @@ static int run_test(test_entry_t *t) {
     ktest_failure();
 
   timeval_t end = get_uptime();
-  kprintf("# Test \"%s\" took %ldms.\n", t->test_name,
-          tv2st(timeval_sub(&end, &start)));
+  tv2st(timeval_sub(&end, &start));
 
   return result;
 }

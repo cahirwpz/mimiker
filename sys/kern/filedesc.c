@@ -184,7 +184,7 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
   if (!fdt)
     return -EBADF;
 
-  file_t *f;
+  file_t *f = NULL;
 
   WITH_MTX_LOCK (&fdt->fdt_mtx) {
     if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))

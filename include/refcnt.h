@@ -3,7 +3,7 @@
 
 #include <common.h>
 
-typedef volatile unsigned refcnt_t;
+typedef atomic_uint refcnt_t;
 
 /*! \brief Atomically increase reference counter. */
 static inline void refcnt_acquire(refcnt_t *refcnt_p) {

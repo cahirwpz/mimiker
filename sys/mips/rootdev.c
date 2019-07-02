@@ -18,10 +18,6 @@ device_t *gt_pci;
 
 static rman_t rm_mem; /* stores all resources of root bus children */
 
-static inline rootdev_t *rootdev_of(device_t *dev) {
-  return dev->instance;
-}
-
 static void rootdev_intr_setup(device_t *dev, unsigned num,
                                intr_handler_t *handler) {
   mips_intr_setup(handler, num);

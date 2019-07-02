@@ -39,20 +39,6 @@ ASSYM(CTX_FP, offsetof(ctx_t, fp));
 ASSYM(CTX_SR, offsetof(ctx_t, sr));
 ASSYM(CTX_PC, offsetof(ctx_t, pc));
 
-ASSYM(CTX_S0, offsetof(ctx_t, s0));
-ASSYM(CTX_S1, offsetof(ctx_t, s1));
-ASSYM(CTX_S2, offsetof(ctx_t, s2));
-ASSYM(CTX_S3, offsetof(ctx_t, s3));
-ASSYM(CTX_S4, offsetof(ctx_t, s4));
-ASSYM(CTX_S5, offsetof(ctx_t, s5));
-ASSYM(CTX_S6, offsetof(ctx_t, s6));
-ASSYM(CTX_S7, offsetof(ctx_t, s7));
-ASSYM(CTX_GP, offsetof(ctx_t, gp));
-ASSYM(CTX_SP, offsetof(ctx_t, sp));
-ASSYM(CTX_FP, offsetof(ctx_t, fp));
-ASSYM(CTX_SR, offsetof(ctx_t, sr));
-ASSYM(CTX_PC, offsetof(ctx_t, pc));
-
 ASSYM(EXC_AT, offsetof(exc_frame_t, at));
 ASSYM(EXC_V0, offsetof(exc_frame_t, v0));
 ASSYM(EXC_V1, offsetof(exc_frame_t, v1));

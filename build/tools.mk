@@ -7,7 +7,8 @@ endif
 
 CC       = $(TARGET)-gcc -mips32r2 -EL -g
 AR       = $(TARGET)-ar
-AS       = $(TARGET)-as -mips32r2 -EL -g
+AS       = $(TARGET)-gcc -mips32r2 -EL -g
+LD       = $(TARGET)-gcc -mips32r2 -EL -g
 NM       = $(TARGET)-nm
 GDB      = $(TARGET)-gdb
 RANLIB	 = $(TARGET)-ranlib

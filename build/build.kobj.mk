@@ -6,6 +6,11 @@ include $(TOPDIR)/build/flags.kern.mk
 include $(TOPDIR)/build/compile.mk
 include $(TOPDIR)/build/common.mk
 
+# Pass "CLANG=1" at command line to switch kernel compiler to Clang.
+ifeq ($(CLANG), 1)
+CC = clang -target mipsel-elf -march=mips32r2 -mno-abicalls -g
+endif
+
 %.ka: $(OBJECTS)
 	@echo "[AR] $(addprefix $(DIR),$^) -> $(DIR)$@"
 	$(AR) rs $@ $^ 2> /dev/null

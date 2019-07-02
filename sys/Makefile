@@ -24,6 +24,6 @@ LDLIBS	= -Wl,--start-group \
 # Process subdirectories before using KRT files.
 mimiker.elf: $(KRT) | $(KERNDIR)
 	@echo "[LD] Linking kernel image: $@"
-	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
+	$(LD) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
 
 CLEAN-FILES += mimiker.elf mimiker.elf.map

@@ -1,14 +1,14 @@
 #ifndef _SYS_COMMON_H_
 #define _SYS_COMMON_H_
 
-#include <limits.h>            /* UINT_MAX, LONG_MIN, ... */
-#include <stdint.h>            /* uint*_t, int*_t */
-#include <stddef.h>            /* offsetof, NULL, ptrdiff_t, size_t, etc. */
-#include <stdbool.h>           /* bool, true, false */
-#include <stdalign.h>          /* alignof, alignas */
-#include <stdatomic.h>         /* atomic_{load,store,fetch_*,...} */
-#include <stdnoreturn.h>       /* noreturn */
-#include <machine/int_fmtio.h> /* PRIdN, PRIxPTR, ... */
+#include <limits.h>      /* UINT_MAX, LONG_MIN, ... */
+#include <stdint.h>      /* uint*_t, int*_t */
+#include <stddef.h>      /* offsetof, NULL, ptrdiff_t, size_t, etc. */
+#include <stdbool.h>     /* bool, true, false */
+#include <stdalign.h>    /* alignof, alignas */
+#include <stdatomic.h>   /* atomic_{load,store,fetch_*,...} */
+#include <stdnoreturn.h> /* noreturn */
+#include <int_fmtio.h>   /* PRIdN, PRIxPTR, ... */
 
 typedef unsigned char u_char;
 typedef unsigned short u_short;
@@ -141,7 +141,7 @@ typedef int32_t blksize_t; /* fs optimal block size */
   struct __force_semicolon__
 
 #define SCOPED_STMT(TYP, ACQUIRE, RELEASE, VAL, ...)                           \
-  TYP *__UNIQUE(__scoped) __cleanup(RELEASE) = ({                              \
+  __unused TYP *__UNIQUE(__scoped) __cleanup(RELEASE) = ({                     \
     ACQUIRE(VAL, ##__VA_ARGS__);                                               \
     VAL;                                                                       \
   })

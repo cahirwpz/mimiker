@@ -61,9 +61,14 @@
 #define PTR_S sw          /* store pointer */
 #define PTR_L lw          /* load pointer */
 #define PTR_SUBU subu     /* decrement pointer */
+#define PTR_ADDI addi     /* increment pointer by constant */
 #define PTR_ADDU addu     /* increment pointer */
 #define PTR_MFC0 mfc0     /* access CP0 pointer width register */
 #define PTR_MTC0 mtc0     /* access CP0 pointer width register */
+#define REG_LHI lwr
+#define REG_LLO lwl
+#define REG_SHI swr
+#define REG_SLO swl
 #define LA la             /* load an address */
 #define PTR .word         /* pointer type pseudo */
 #define CALLFRAME_SIZ (SZREG * 6)

@@ -17,13 +17,14 @@ void ctx_set_retval(ctx_t *ctx, long value) {
   ctx->v0 = (reg_t)value;
 }
 
+extern uint8_t _gp[]; /* Symbol provided by the linker. */
+
 void exc_frame_init(exc_frame_t *frame, void *pc, void *sp, unsigned flags) {
-  register void *gp asm("$gp");
   bool usermode = flags & EF_USER;
 
   bzero(frame, usermode ? sizeof(exc_frame_t) : sizeof(cpu_exc_frame_t));
 
-  frame->gp = usermode ? 0 : (reg_t)gp;
+  frame->gp = usermode ? 0 : (reg_t)_gp;
   frame->pc = (reg_t)pc;
   frame->sp = (reg_t)sp;
 

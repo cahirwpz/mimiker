@@ -158,7 +158,7 @@ noreturn void thread_exit(void) {
     sched_switch();
   }
 
-  panic("Thread %ld tried to ressurect", td->td_tid);
+  panic("Thread %u tried to ressurect", td->td_tid);
 }
 
 void thread_join(thread_t *otd) {
