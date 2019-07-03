@@ -1,5 +1,5 @@
 #define KL_LOG KL_INIT
-#include <klog.h>
+#include <sys/klog.h>
 #include <mips/mips.h>
 #include <mips/cpuinfo.h>
 

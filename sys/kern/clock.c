@@ -1,9 +1,9 @@
 #define KL_LOG KL_TIME
-#include <callout.h>
-#include <sched.h>
-#include <klog.h>
-#include <timer.h>
-#include <sysinit.h>
+#include <sys/callout.h>
+#include <sys/sched.h>
+#include <sys/klog.h>
+#include <sys/timer.h>
+#include <sys/sysinit.h>
 
 #define SYSTIME_FREQ 1000 /* 1[tick] = 1[ms] */
 

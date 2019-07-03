@@ -1,6 +1,6 @@
-#include <stdc.h>
-#include <physmem.h>
-#include <ktest.h>
+#include <sys/stdc.h>
+#include <sys/physmem.h>
+#include <sys/ktest.h>
 
 unsigned long pm_hash(void);
 

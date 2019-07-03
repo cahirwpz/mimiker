@@ -1,8 +1,8 @@
-#include <mutex.h>
-#include <turnstile.h>
-#include <interrupt.h>
-#include <sched.h>
-#include <thread.h>
+#include <sys/mutex.h>
+#include <sys/turnstile.h>
+#include <sys/interrupt.h>
+#include <sys/sched.h>
+#include <sys/thread.h>
 
 #define mtx_recurse_p(m) ((m)->m_type & LK_RECURSE)
 

@@ -1,12 +1,12 @@
 #define KL_LOG KL_TEST
-#include <klog.h>
-#include <common.h>
-#include <exec.h>
-#include <ktest.h>
-#include <thread.h>
-#include <sched.h>
-#include <proc.h>
-#include <wait.h>
+#include <sys/klog.h>
+#include <sys/cdefs.h>
+#include <sys/exec.h>
+#include <sys/ktest.h>
+#include <sys/thread.h>
+#include <sys/sched.h>
+#include <sys/proc.h>
+#include <sys/wait.h>
 
 #define UTEST_PATH "/bin/utest"
 

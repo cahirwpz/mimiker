@@ -1,16 +1,16 @@
 #define KL_LOG KL_THREAD
-#include <klog.h>
-#include <pool.h>
-#include <malloc.h>
-#include <physmem.h>
-#include <thread.h>
-#include <context.h>
-#include <interrupt.h>
-#include <pcpu.h>
-#include <sched.h>
-#include <sleepq.h>
-#include <filedesc.h>
-#include <turnstile.h>
+#include <sys/klog.h>
+#include <sys/pool.h>
+#include <sys/malloc.h>
+#include <sys/physmem.h>
+#include <sys/thread.h>
+#include <sys/context.h>
+#include <sys/interrupt.h>
+#include <sys/pcpu.h>
+#include <sys/sched.h>
+#include <sys/sleepq.h>
+#include <sys/filedesc.h>
+#include <sys/turnstile.h>
 #include <mips/exc.h>
 
 static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t));

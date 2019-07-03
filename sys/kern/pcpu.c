@@ -1,5 +1,5 @@
-#include <thread.h>
-#include <pcpu.h>
+#include <sys/thread.h>
+#include <sys/pcpu.h>
 
 __wired_data pcpu_t _pcpu_data[1] = {{}};
 

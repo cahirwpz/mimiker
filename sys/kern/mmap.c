@@ -1,12 +1,12 @@
 #define KL_LOG KL_VM
-#include <klog.h>
-#include <mman.h>
-#include <thread.h>
-#include <errno.h>
-#include <vm_map.h>
-#include <vm_object.h>
-#include <mutex.h>
-#include <proc.h>
+#include <sys/klog.h>
+#include <sys/mman.h>
+#include <sys/thread.h>
+#include <sys/errno.h>
+#include <sys/vm_map.h>
+#include <sys/vm_object.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 
 int do_mmap(vaddr_t *addr_p, size_t length, vm_prot_t prot, vm_flags_t flags) {
   thread_t *td = thread_self();

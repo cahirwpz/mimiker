@@ -1,6 +1,6 @@
-#include <stdc.h>
-#include <context.h>
-#include <exception.h>
+#include <sys/stdc.h>
+#include <sys/context.h>
+#include <sys/exception.h>
 #include <mips/ctx.h>
 #include <mips/exc.h>
 

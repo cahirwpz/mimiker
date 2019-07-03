@@ -1,7 +1,7 @@
-#include <stdc.h>
-#include <ktest.h>
-#include <malloc.h>
-#include <taskqueue.h>
+#include <sys/stdc.h>
+#include <sys/ktest.h>
+#include <sys/malloc.h>
+#include <sys/taskqueue.h>
 
 static unsigned counter;
 

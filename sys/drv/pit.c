@@ -1,14 +1,14 @@
 /* Programable Interval Timer (PIT) driver for Intel 8253 */
-#include <common.h>
+#include <sys/cdefs.h>
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>
-#include <pci.h>
-#include <interrupt.h>
-#include <klog.h>
-#include <timer.h>
-#include <spinlock.h>
-#include <sysinit.h>
-#include <devclass.h>
+#include <sys/pci.h>
+#include <sys/interrupt.h>
+#include <sys/klog.h>
+#include <sys/timer.h>
+#include <sys/spinlock.h>
+#include <sys/sysinit.h>
+#include <sys/devclass.h>
 
 typedef struct pit_state {
   resource_t *regs;

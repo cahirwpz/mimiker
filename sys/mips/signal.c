@@ -1,11 +1,11 @@
 #define KL_LOG KL_SIGNAL
-#include <signal.h>
-#include <thread.h>
-#include <systm.h>
-#include <klog.h>
+#include <sys/signal.h>
+#include <sys/thread.h>
+#include <sys/systm.h>
+#include <sys/klog.h>
 #include <mips/exc.h>
-#include <errno.h>
-#include <proc.h>
+#include <sys/errno.h>
+#include <sys/proc.h>
 
 #define SIG_CTX_MAGIC 0xDACBAEE3
 

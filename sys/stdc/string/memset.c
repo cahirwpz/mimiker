@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  */
 
-#include <stdc.h>
+#include <sys/stdc.h>
 
 #undef bzero
 #undef memcpy

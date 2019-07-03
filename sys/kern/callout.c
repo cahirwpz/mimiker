@@ -1,13 +1,13 @@
 #define KL_LOG KL_CALLOUT
-#include <klog.h>
-#include <stdc.h>
-#include <callout.h>
-#include <spinlock.h>
-#include <sysinit.h>
-#include <sleepq.h>
-#include <thread.h>
-#include <sched.h>
-#include <interrupt.h>
+#include <sys/klog.h>
+#include <sys/stdc.h>
+#include <sys/callout.h>
+#include <sys/spinlock.h>
+#include <sys/sysinit.h>
+#include <sys/sleepq.h>
+#include <sys/thread.h>
+#include <sys/sched.h>
+#include <sys/interrupt.h>
 
 /* Note: If the difference in time between ticks is greater than the number of
    buckets, some callouts may be called out-of-order! */

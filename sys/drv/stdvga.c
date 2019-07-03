@@ -1,12 +1,12 @@
 /* Standard VGA driver */
-#include <pci.h>
-#include <vga.h>
-#include <stdc.h>
-#include <malloc.h>
-#include <errno.h>
-#include <device.h>
-#include <bus.h>
-#include <devclass.h>
+#include <sys/pci.h>
+#include <sys/vga.h>
+#include <sys/stdc.h>
+#include <sys/malloc.h>
+#include <sys/errno.h>
+#include <sys/device.h>
+#include <sys/bus.h>
+#include <sys/devclass.h>
 
 #define VGA_PALETTE_SIZE (256 * 3)
 

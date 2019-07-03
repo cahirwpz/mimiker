@@ -1,8 +1,8 @@
-#include <stdc.h>
-#include <sched.h>
-#include <thread.h>
-#include <rwlock.h>
-#include <ktest.h>
+#include <sys/stdc.h>
+#include <sys/sched.h>
+#include <sys/thread.h>
+#include <sys/rwlock.h>
+#include <sys/ktest.h>
 
 const char *const test_rwlock_name = "TEST_RWLOCK_NAME";
 

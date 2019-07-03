@@ -1,9 +1,9 @@
-#include <stdc.h>
-#include <malloc.h>
-#include <ktest.h>
-#include <thread.h>
-#include <sched.h>
-#include <vm.h>
+#include <sys/stdc.h>
+#include <sys/malloc.h>
+#include <sys/ktest.h>
+#include <sys/thread.h>
+#include <sys/sched.h>
+#include <sys/vm.h>
 
 static int malloc_one_allocation(void) {
   kmem_pool_t *mp = kmem_create("test", 1, 1);

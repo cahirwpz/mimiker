@@ -1,15 +1,15 @@
 #define KL_LOG KL_VM
-#include <klog.h>
-#include <stdc.h>
-#include <pool.h>
-#include <pmap.h>
-#include <vm_pager.h>
-#include <vm_object.h>
-#include <vm_map.h>
-#include <errno.h>
-#include <proc.h>
-#include <sched.h>
-#include <pcpu.h>
+#include <sys/klog.h>
+#include <sys/stdc.h>
+#include <sys/pool.h>
+#include <sys/pmap.h>
+#include <sys/vm_pager.h>
+#include <sys/vm_object.h>
+#include <sys/vm_map.h>
+#include <sys/errno.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
+#include <sys/pcpu.h>
 
 struct vm_segment {
   TAILQ_ENTRY(vm_segment) link;

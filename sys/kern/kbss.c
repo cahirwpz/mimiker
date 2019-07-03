@@ -1,6 +1,6 @@
-#include <kbss.h>
-#include <stdc.h>
-#include <vm.h>
+#include <sys/kbss.h>
+#include <sys/stdc.h>
+#include <sys/vm.h>
 
 /* The end of the kernel's .bss section. Provided by the linker. */
 extern uint8_t __ebss[];

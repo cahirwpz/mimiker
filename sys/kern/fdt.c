@@ -49,9 +49,9 @@
  *     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <fdt.h>
-#include <stdc.h>
-#include <klog.h>
+#include <sys/fdt.h>
+#include <sys/stdc.h>
+#include <sys/klog.h>
 
 static int fdt_nodename_eq_(const void *fdt, int offset, const char *s,
                             int len) {

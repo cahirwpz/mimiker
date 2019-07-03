@@ -1,13 +1,13 @@
 #define KL_LOG KL_PROC
-#include <klog.h>
+#include <sys/klog.h>
 #define _EXEC_IMPL
-#include <exec.h>
-#include <errno.h>
-#include <stdc.h>
-#include <syslimits.h>
-#include <malloc.h>
-#include <vm_map.h>
-#include <vnode.h>
+#include <sys/exec.h>
+#include <sys/errno.h>
+#include <sys/stdc.h>
+#include <sys/syslimits.h>
+#include <sys/malloc.h>
+#include <sys/vm_map.h>
+#include <sys/vnode.h>
 
 #define SHEBANG "#!"
 

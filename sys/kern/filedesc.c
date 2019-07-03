@@ -1,9 +1,9 @@
-#include <file.h>
-#include <filedesc.h>
-#include <malloc.h>
-#include <stdc.h>
-#include <errno.h>
-#include <mutex.h>
+#include <sys/file.h>
+#include <sys/filedesc.h>
+#include <sys/malloc.h>
+#include <sys/stdc.h>
+#include <sys/errno.h>
+#include <sys/mutex.h>
 
 static MALLOC_DEFINE(M_FD, "filedesc", 1, 2);
 

@@ -1,8 +1,8 @@
-#include <assym.h>
-#include <context.h>
-#include <thread.h>
-#include <pcpu.h>
-#include <proc.h>
+#include <sys/assym.h>
+#include <sys/context.h>
+#include <sys/thread.h>
+#include <sys/pcpu.h>
+#include <sys/proc.h>
 #include <mips/asm.h>
 #include <mips/ctx.h>
 #include <mips/exc.h>

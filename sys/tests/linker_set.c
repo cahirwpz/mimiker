@@ -1,6 +1,6 @@
-#include <stdc.h>
-#include <linker_set.h>
-#include <ktest.h>
+#include <sys/stdc.h>
+#include <sys/linker_set.h>
+#include <sys/ktest.h>
 
 static int some_int_1 = 1;
 static int some_int_2 = 2;

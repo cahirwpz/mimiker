@@ -1,7 +1,7 @@
-#include <ringbuf.h>
-#include <ktest.h>
-#include <uio.h>
-#include <vm_map.h>
+#include <sys/ringbuf.h>
+#include <sys/ktest.h>
+#include <sys/uio.h>
+#include <sys/vm_map.h>
 
 static int test_ringbuf_trivial(void) {
   ringbuf_t rbt;

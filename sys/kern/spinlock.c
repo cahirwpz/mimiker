@@ -1,7 +1,7 @@
-#include <spinlock.h>
-#include <interrupt.h>
-#include <sched.h>
-#include <thread.h>
+#include <sys/spinlock.h>
+#include <sys/interrupt.h>
+#include <sys/sched.h>
+#include <sys/thread.h>
 
 #define spin_recurse_p(s) ((s)->s_type & LK_RECURSE)
 

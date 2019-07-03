@@ -1,9 +1,9 @@
-#include <vnode.h>
-#include <mount.h>
-#include <devfs.h>
-#include <physmem.h>
-#include <vnode.h>
-#include <linker_set.h>
+#include <sys/vnode.h>
+#include <sys/mount.h>
+#include <sys/devfs.h>
+#include <sys/physmem.h>
+#include <sys/vnode.h>
+#include <sys/linker_set.h>
 
 static vm_page_t *zero_page, *junk_page;
 

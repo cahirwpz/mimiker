@@ -1,8 +1,8 @@
-#include <pool.h>
-#include <spinlock.h>
-#include <sched.h>
-#include <turnstile.h>
-#include <queue.h>
+#include <sys/pool.h>
+#include <sys/spinlock.h>
+#include <sys/sched.h>
+#include <sys/turnstile.h>
+#include <sys/queue.h>
 
 #define TC_TABLESIZE 256 /* Must be power of 2. */
 #define TC_MASK (TC_TABLESIZE - 1)

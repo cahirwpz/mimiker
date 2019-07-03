@@ -1,9 +1,9 @@
 #define KL_LOG KL_PROC
-#include <klog.h>
-#include <sbrk.h>
-#include <errno.h>
-#include <proc.h>
-#include <vm_object.h>
+#include <sys/klog.h>
+#include <sys/sbrk.h>
+#include <sys/errno.h>
+#include <sys/proc.h>
+#include <sys/vm_object.h>
 
 /* Note that this sbrk implementation does not actually extend .data section,
  * because we have no guarantee that there is any free space after .data in the

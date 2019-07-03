@@ -1,10 +1,10 @@
-#include <sleepq.h>
-#include <ktest.h>
-#include <time.h>
-#include <thread.h>
-#include <sched.h>
-#include <errno.h>
-#include <runq.h>
+#include <sys/sleepq.h>
+#include <sys/ktest.h>
+#include <sys/time.h>
+#include <sys/thread.h>
+#include <sys/sched.h>
+#include <sys/errno.h>
+#include <sys/runq.h>
 
 /* `waiters[i]` wait with timeout on `&wchan`.
  * `waker` wakes up half of them with `sleepq_signal(&wchan)`.

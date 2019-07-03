@@ -1,7 +1,7 @@
 #define KL_LOG KL_DEV
-#include <klog.h>
-#include <device.h>
-#include <rman.h>
+#include <sys/klog.h>
+#include <sys/device.h>
+#include <sys/rman.h>
 
 MALLOC_DEFINE(M_DEV, "devices & drivers", 128, 1024);
 

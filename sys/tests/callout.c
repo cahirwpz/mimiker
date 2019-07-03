@@ -1,7 +1,7 @@
-#include <stdc.h>
-#include <callout.h>
-#include <ktest.h>
-#include <interrupt.h>
+#include <sys/stdc.h>
+#include <sys/callout.h>
+#include <sys/ktest.h>
+#include <sys/interrupt.h>
 
 static int counter;
 

@@ -1,9 +1,9 @@
 #define KL_LOG KL_VM
-#include <klog.h>
-#include <pool.h>
-#include <pmap.h>
-#include <physmem.h>
-#include <vm_object.h>
+#include <sys/klog.h>
+#include <sys/pool.h>
+#include <sys/pmap.h>
+#include <sys/physmem.h>
+#include <sys/vm_object.h>
 
 static POOL_DEFINE(P_VMOBJ, "vm_object", sizeof(vm_object_t));
 

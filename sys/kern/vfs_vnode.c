@@ -1,12 +1,12 @@
 #define KL_LOG KL_VFS
-#include <klog.h>
-#include <errno.h>
-#include <file.h>
-#include <pool.h>
-#include <mutex.h>
-#include <stdc.h>
-#include <stat.h>
-#include <vnode.h>
+#include <sys/klog.h>
+#include <sys/errno.h>
+#include <sys/file.h>
+#include <sys/pool.h>
+#include <sys/mutex.h>
+#include <sys/stdc.h>
+#include <sys/stat.h>
+#include <sys/vnode.h>
 
 static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
 

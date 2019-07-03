@@ -1,6 +1,6 @@
 /* Mostly copied from FreeBSD mips/support.S */
 
-#include <errno.h>
+#include <sys/errno.h>
 #include <mips/asm.h>
 #include <mips/regdef.h>
 #include <mips/pcpu.h>

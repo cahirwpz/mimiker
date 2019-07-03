@@ -1,7 +1,7 @@
-#include <common.h>
+#include <sys/cdefs.h>
 #include <limits.h>
-#include <console.h>
-#include <linker_set.h>
+#include <sys/console.h>
+#include <sys/linker_set.h>
 
 static console_t *cn;
 

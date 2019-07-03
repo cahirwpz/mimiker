@@ -1,5 +1,5 @@
-#include <ringbuf.h>
-#include <uio.h>
+#include <sys/ringbuf.h>
+#include <sys/uio.h>
 
 void ringbuf_init(ringbuf_t *rb, void *buf, size_t size) {
   rb->head = 0;

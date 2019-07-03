@@ -1,9 +1,9 @@
-#include <common.h>
-#include <console.h>
-#include <linker_set.h>
+#include <sys/cdefs.h>
+#include <sys/console.h>
+#include <sys/linker_set.h>
 #include <dev/ns16550reg.h>
 #include <mips/malta.h>
-#include <bus.h>
+#include <sys/bus.h>
 
 RESOURCE_DECLARE(cbus_uart);
 

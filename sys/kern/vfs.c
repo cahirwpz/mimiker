@@ -1,15 +1,15 @@
 #define KL_LOG KL_VFS
-#include <klog.h>
-#include <mount.h>
-#include <stdc.h>
-#include <errno.h>
-#include <pool.h>
-#include <malloc.h>
-#include <file.h>
-#include <vnode.h>
-#include <linker_set.h>
-#include <sysinit.h>
-#include <common.h>
+#include <sys/klog.h>
+#include <sys/mount.h>
+#include <sys/stdc.h>
+#include <sys/errno.h>
+#include <sys/pool.h>
+#include <sys/malloc.h>
+#include <sys/file.h>
+#include <sys/vnode.h>
+#include <sys/linker_set.h>
+#include <sys/sysinit.h>
+#include <sys/cdefs.h>
 
 /* TODO: We probably need some fancier allocation, since eventually we should
  * start recycling vnodes */

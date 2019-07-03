@@ -1,16 +1,16 @@
 #define KL_LOG KL_FILESYS
-#include <klog.h>
-#include <errno.h>
-#include <pool.h>
-#include <stdc.h>
+#include <sys/klog.h>
+#include <sys/errno.h>
+#include <sys/pool.h>
+#include <sys/stdc.h>
 #include <cpio.h>
-#include <initrd.h>
-#include <vnode.h>
-#include <mount.h>
-#include <file.h>
-#include <vfs.h>
-#include <linker_set.h>
-#include <dirent.h>
+#include <sys/initrd.h>
+#include <sys/vnode.h>
+#include <sys/mount.h>
+#include <sys/file.h>
+#include <sys/vfs.h>
+#include <sys/linker_set.h>
+#include <sys/dirent.h>
 
 typedef uint32_t cpio_dev_t;
 typedef uint32_t cpio_ino_t;

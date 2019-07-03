@@ -1,10 +1,10 @@
 #define KL_LOG KL_INIT
-#include <klog.h>
-#include <stdc.h>
-#include <sched.h>
-#include <thread.h>
-#include <sysinit.h>
-#include <vfs.h>
+#include <sys/klog.h>
+#include <sys/stdc.h>
+#include <sys/sched.h>
+#include <sys/thread.h>
+#include <sys/sysinit.h>
+#include <sys/vfs.h>
 
 extern void kmain(void *);
 

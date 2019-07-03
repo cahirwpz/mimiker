@@ -1,15 +1,15 @@
 #define KL_LOG KL_PROC
-#include <klog.h>
+#include <sys/klog.h>
 #define _EXEC_IMPL
-#include <exec.h>
-#include <stdc.h>
-#include <vm_map.h>
-#include <vm_object.h>
-#include <malloc.h>
-#include <errno.h>
+#include <sys/exec.h>
+#include <sys/stdc.h>
+#include <sys/vm_map.h>
+#include <sys/vm_object.h>
+#include <sys/malloc.h>
+#include <sys/errno.h>
 #include <machine/ustack.h>
-#include <vnode.h>
-#include <proc.h>
+#include <sys/vnode.h>
+#include <sys/proc.h>
 
 int exec_elf_inspect(vnode_t *vn, Elf32_Ehdr *eh) {
   int error;

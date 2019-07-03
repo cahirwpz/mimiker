@@ -1,10 +1,10 @@
-#include <vnode.h>
-#include <mount.h>
-#include <devfs.h>
-#include <errno.h>
-#include <uio.h>
-#include <stdc.h>
-#include <vga.h>
+#include <sys/vnode.h>
+#include <sys/mount.h>
+#include <sys/devfs.h>
+#include <sys/errno.h>
+#include <sys/uio.h>
+#include <sys/stdc.h>
+#include <sys/vga.h>
 
 static int framebuffer_write(vnode_t *v, uio_t *uio) {
   return vga_fb_write((vga_device_t *)v->v_data, uio);

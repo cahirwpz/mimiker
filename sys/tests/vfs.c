@@ -1,10 +1,10 @@
-#include <mount.h>
-#include <stdc.h>
-#include <vfs.h>
-#include <vnode.h>
-#include <errno.h>
-#include <vm_map.h>
-#include <ktest.h>
+#include <sys/mount.h>
+#include <sys/stdc.h>
+#include <sys/vfs.h>
+#include <sys/vnode.h>
+#include <sys/errno.h>
+#include <sys/vm_map.h>
+#include <sys/ktest.h>
 
 static bool fsname_of(vnode_t *v, const char *fsname) {
   return strncmp(v->v_mount->mnt_vfc->vfc_name, fsname, strlen(fsname)) == 0;

@@ -1,15 +1,15 @@
 #define KL_LOG KL_POOL
-#include <stdc.h>
-#include <vm.h>
-#include <physmem.h>
-#include <queue.h>
-#include <bitstring.h>
-#include <common.h>
-#include <klog.h>
-#include <mutex.h>
-#include <linker_set.h>
-#include <sched.h>
-#include <pool.h>
+#include <sys/stdc.h>
+#include <sys/vm.h>
+#include <sys/physmem.h>
+#include <sys/queue.h>
+#include <sys/bitstring.h>
+#include <sys/cdefs.h>
+#include <sys/klog.h>
+#include <sys/mutex.h>
+#include <sys/linker_set.h>
+#include <sys/sched.h>
+#include <sys/pool.h>
 
 #define INITME 0xC0DECAFE
 #define ALIVE 0xFACEFEED

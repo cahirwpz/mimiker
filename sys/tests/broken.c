@@ -1,4 +1,4 @@
-#include <ktest.h>
+#include <sys/ktest.h>
 
 static int test_broken(void) {
 

@@ -1,8 +1,8 @@
-#include <stdc.h>
-#include <time.h>
-#include <thread.h>
-#include <sched.h>
-#include <ktest.h>
+#include <sys/stdc.h>
+#include <sys/time.h>
+#include <sys/thread.h>
+#include <sys/sched.h>
+#include <sys/ktest.h>
 
 static timeval_t exit_time[] = {TIMEVAL(0.100), TIMEVAL(0.200), TIMEVAL(0.150)};
 static timeval_t start;

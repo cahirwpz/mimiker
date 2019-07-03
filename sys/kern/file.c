@@ -1,11 +1,11 @@
-#include <file.h>
-#include <pool.h>
-#include <stdc.h>
-#include <errno.h>
-#include <mutex.h>
-#include <thread.h>
-#include <vnode.h>
-#include <vfs.h>
+#include <sys/file.h>
+#include <sys/pool.h>
+#include <sys/stdc.h>
+#include <sys/errno.h>
+#include <sys/mutex.h>
+#include <sys/thread.h>
+#include <sys/vnode.h>
+#include <sys/vfs.h>
 
 static POOL_DEFINE(P_FILE, "file", sizeof(file_t));
 

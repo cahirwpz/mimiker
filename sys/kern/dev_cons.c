@@ -1,10 +1,10 @@
-#include <vnode.h>
-#include <mount.h>
-#include <devfs.h>
-#include <errno.h>
-#include <uio.h>
-#include <console.h>
-#include <linker_set.h>
+#include <sys/vnode.h>
+#include <sys/mount.h>
+#include <sys/devfs.h>
+#include <sys/errno.h>
+#include <sys/uio.h>
+#include <sys/console.h>
+#include <sys/linker_set.h>
 
 #define UART_BUF_MAX 100
 

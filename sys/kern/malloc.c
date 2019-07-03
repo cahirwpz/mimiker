@@ -1,11 +1,11 @@
 #define KL_LOG KL_KMEM
-#include <klog.h>
-#include <stdc.h>
-#include <mutex.h>
-#include <malloc.h>
-#include <vm_map.h>
-#include <pool.h>
-#include <queue.h>
+#include <sys/klog.h>
+#include <sys/stdc.h>
+#include <sys/mutex.h>
+#include <sys/malloc.h>
+#include <sys/vm_map.h>
+#include <sys/pool.h>
+#include <sys/queue.h>
 
 #define MB_MAGIC 0xC0DECAFE
 #define MB_ALIGNMENT sizeof(uint64_t)

@@ -1,22 +1,22 @@
 #define KL_LOG KL_PMAP
-#include <klog.h>
-#include <stdc.h>
-#include <pool.h>
-#include <physmem.h>
+#include <sys/klog.h>
+#include <sys/stdc.h>
+#include <sys/pool.h>
+#include <sys/physmem.h>
 #include <mips/exc.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
 #include <mips/pmap.h>
-#include <pcpu.h>
-#include <pmap.h>
-#include <vm_map.h>
-#include <thread.h>
-#include <signal.h>
-#include <spinlock.h>
-#include <mutex.h>
-#include <sched.h>
-#include <interrupt.h>
-#include <sysinit.h>
+#include <sys/pcpu.h>
+#include <sys/pmap.h>
+#include <sys/vm_map.h>
+#include <sys/thread.h>
+#include <sys/signal.h>
+#include <sys/spinlock.h>
+#include <sys/mutex.h>
+#include <sys/sched.h>
+#include <sys/interrupt.h>
+#include <sys/sysinit.h>
 
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 

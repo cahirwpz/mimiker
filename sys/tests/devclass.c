@@ -1,5 +1,5 @@
-#include <ktest.h>
-#include <devclass.h>
+#include <sys/ktest.h>
+#include <sys/devclass.h>
 
 static int test_devclass_find(void) {
   devclass_t *dc;

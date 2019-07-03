@@ -1,11 +1,11 @@
 #define KL_LOG KL_TEST
 
-#include <stdc.h>
-#include <ktest.h>
+#include <sys/stdc.h>
+#include <sys/ktest.h>
 #define _KLOG_PRIVATE
-#include <klog.h>
-#include <thread.h>
-#include <sched.h>
+#include <sys/klog.h>
+#include <sys/thread.h>
+#include <sys/sched.h>
 
 #define MAX_THREAD_NUM 8
 #define NUM_OF_LOG_PER_THREAD 200

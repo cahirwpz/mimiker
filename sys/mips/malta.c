@@ -1,25 +1,25 @@
 #define KLOG KL_INIT
-#include <interrupt.h>
-#include <physmem.h>
-#include <malloc.h>
+#include <sys/interrupt.h>
+#include <sys/physmem.h>
+#include <sys/malloc.h>
 #include <mips/cpuinfo.h>
 #include <mips/malta.h>
 #include <mips/exc.h>
 #include <mips/intr.h>
 #include <mips/timer.h>
 #include <mips/tlb.h>
-#include <klog.h>
-#include <kbss.h>
-#include <console.h>
-#include <pcpu.h>
-#include <pmap.h>
-#include <pool.h>
-#include <stdc.h>
-#include <sleepq.h>
-#include <rman.h>
-#include <thread.h>
-#include <turnstile.h>
-#include <vm_map.h>
+#include <sys/klog.h>
+#include <sys/kbss.h>
+#include <sys/console.h>
+#include <sys/pcpu.h>
+#include <sys/pmap.h>
+#include <sys/pool.h>
+#include <sys/stdc.h>
+#include <sys/sleepq.h>
+#include <sys/rman.h>
+#include <sys/thread.h>
+#include <sys/turnstile.h>
+#include <sys/vm_map.h>
 
 extern int kernel_init(int argc, char **argv);
 

@@ -1,7 +1,7 @@
 #include <mips/asm.h>
 #include <mips/regdef.h>
-#include <errno.h>
-#include <sysent.h>
+#include <sys/errno.h>
+#include <sys/sysent.h>
 
         .set noreorder
 

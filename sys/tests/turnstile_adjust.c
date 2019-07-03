@@ -1,9 +1,9 @@
-#include <ktest.h>
-#include <mutex.h>
-#include <runq.h>
-#include <sched.h>
-#include <thread.h>
-#include <condvar.h>
+#include <sys/ktest.h>
+#include <sys/mutex.h>
+#include <sys/runq.h>
+#include <sys/sched.h>
+#include <sys/thread.h>
+#include <sys/condvar.h>
 
 #define T 5
 

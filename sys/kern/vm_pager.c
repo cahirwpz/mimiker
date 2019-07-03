@@ -1,8 +1,8 @@
-#include <stdc.h>
-#include <physmem.h>
-#include <pmap.h>
-#include <vm_object.h>
-#include <vm_pager.h>
+#include <sys/stdc.h>
+#include <sys/physmem.h>
+#include <sys/pmap.h>
+#include <sys/vm_object.h>
+#include <sys/vm_pager.h>
 
 static vm_page_t *dummy_pager_fault(vm_object_t *obj, off_t offset) {
   return NULL;

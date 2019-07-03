@@ -1,8 +1,8 @@
-#include <sleepq.h>
-#include <runq.h>
-#include <ktest.h>
-#include <errno.h>
-#include <sched.h>
+#include <sys/sleepq.h>
+#include <sys/runq.h>
+#include <sys/ktest.h>
+#include <sys/errno.h>
+#include <sys/sched.h>
 
 #define T 6
 

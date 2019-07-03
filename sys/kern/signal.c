@@ -1,13 +1,13 @@
 #define KL_LOG KL_SIGNAL
-#include <klog.h>
-#include <signal.h>
-#include <thread.h>
-#include <stdc.h>
-#include <errno.h>
-#include <sysent.h>
-#include <sleepq.h>
-#include <proc.h>
-#include <wait.h>
+#include <sys/klog.h>
+#include <sys/signal.h>
+#include <sys/thread.h>
+#include <sys/stdc.h>
+#include <sys/errno.h>
+#include <sys/sysent.h>
+#include <sys/sleepq.h>
+#include <sys/proc.h>
+#include <sys/wait.h>
 
 #define SA_IGNORE 0x01
 #define SA_KILL 0x02

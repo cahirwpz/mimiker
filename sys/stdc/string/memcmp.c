@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include <stdc.h>
+#include <sys/stdc.h>
 
 /*
  * Compare memory regions.

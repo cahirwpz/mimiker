@@ -1,16 +1,16 @@
 #define KL_LOG KL_SCHED
-#include <klog.h>
-#include <stdc.h>
-#include <sched.h>
-#include <runq.h>
-#include <context.h>
-#include <time.h>
-#include <thread.h>
-#include <interrupt.h>
-#include <mutex.h>
-#include <pcpu.h>
-#include <sysinit.h>
-#include <turnstile.h>
+#include <sys/klog.h>
+#include <sys/stdc.h>
+#include <sys/sched.h>
+#include <sys/runq.h>
+#include <sys/context.h>
+#include <sys/time.h>
+#include <sys/thread.h>
+#include <sys/interrupt.h>
+#include <sys/mutex.h>
+#include <sys/pcpu.h>
+#include <sys/sysinit.h>
+#include <sys/turnstile.h>
 
 static runq_t runq;
 static bool sched_active = false;

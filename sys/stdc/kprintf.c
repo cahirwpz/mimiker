@@ -1,7 +1,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <low/_stdio.h>
-#include <console.h>
+#include <sys/console.h>
 
 int __low_kprintf(ReadWriteInfo *rw __attribute__((unused)), const void *src,
                   size_t len) {

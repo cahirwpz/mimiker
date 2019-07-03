@@ -1,15 +1,15 @@
 #define KL_LOG KL_DEV
-#include <stdc.h>
-#include <vnode.h>
-#include <devfs.h>
-#include <klog.h>
-#include <condvar.h>
-#include <ringbuf.h>
-#include <pci.h>
+#include <sys/stdc.h>
+#include <sys/vnode.h>
+#include <sys/devfs.h>
+#include <sys/klog.h>
+#include <sys/condvar.h>
+#include <sys/ringbuf.h>
+#include <sys/pci.h>
 #include <dev/isareg.h>
 #include <dev/ns16550reg.h>
-#include <interrupt.h>
-#include <sysinit.h>
+#include <sys/interrupt.h>
+#include <sys/sysinit.h>
 
 #define UART_BUFSIZE 128
 

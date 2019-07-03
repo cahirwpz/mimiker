@@ -1,7 +1,7 @@
 #ifndef _SYS_MIPS_USTACK_H_
 #define _SYS_MIPS_USTACK_H_
 
-#include <common.h>
+#include <sys/cdefs.h>
 
 /*! \file machine/ustack.h
  * \brief Machine dependent user-space stack frames construction.

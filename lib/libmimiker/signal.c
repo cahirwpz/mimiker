@@ -1,5 +1,5 @@
-#include <errno.h>
-#include <signal.h>
+#include <sys/errno.h>
+#include <sys/signal.h>
 
 sighandler_t signal(int sig, sighandler_t handler) {
   sigaction_t act, oldact;

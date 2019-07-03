@@ -1,5 +1,5 @@
-#include <rman.h>
-#include <pool.h>
+#include <sys/rman.h>
+#include <sys/pool.h>
 
 static POOL_DEFINE(P_RES, "resources", sizeof(resource_t));
 

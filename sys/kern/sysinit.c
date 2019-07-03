@@ -1,7 +1,7 @@
-#include <sysinit.h>
-#include <stdc.h>
+#include <sys/sysinit.h>
+#include <sys/stdc.h>
 #define KL_LOG KL_INIT
-#include <klog.h>
+#include <sys/klog.h>
 
 typedef TAILQ_HEAD(tailhead, sysinit_entry) sysinit_tailq_t;
 

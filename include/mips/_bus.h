@@ -1,7 +1,7 @@
 #ifndef _SYS_MIPS_BUS_H_
 #define _SYS_MIPS_BUS_H_
 
-#include <common.h>
+#include <sys/cdefs.h>
 
 typedef struct bus_space bus_space_t;
 

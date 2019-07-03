@@ -1,5 +1,5 @@
-#include <errno.h>
-#include <time.h>
+#include <sys/errno.h>
+#include <sys/time.h>
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp) {
   return -ENOTSUP;

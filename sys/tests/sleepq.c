@@ -1,9 +1,9 @@
-#include <stdc.h>
-#include <callout.h>
-#include <ktest.h>
-#include <sleepq.h>
-#include <thread.h>
-#include <sched.h>
+#include <sys/stdc.h>
+#include <sys/callout.h>
+#include <sys/ktest.h>
+#include <sys/sleepq.h>
+#include <sys/thread.h>
+#include <sys/sched.h>
 
 static volatile int wakeups;
 

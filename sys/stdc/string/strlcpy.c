@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdc.h>
+#include <sys/stdc.h>
 
 /*
  * Copy string src to buffer dst of size dsize.  At most dsize-1

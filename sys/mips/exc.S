@@ -2,7 +2,7 @@
 #include <mips/exc.h>
 #include <mips/pcpu.h>
 #include <mips/regdef.h>
-#include <vm.h>
+#include <sys/vm.h>
 
 #define STACKSIZE PAGESIZE
 

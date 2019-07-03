@@ -1,10 +1,10 @@
 #define KL_LOG KL_INTR
-#include <klog.h>
+#include <sys/klog.h>
 #include <mips/intr.h>
-#include <interrupt.h>
-#include <sleepq.h>
-#include <sysinit.h>
-#include <sched.h>
+#include <sys/interrupt.h>
+#include <sys/sleepq.h>
+#include <sys/sysinit.h>
+#include <sys/sched.h>
 
 static mtx_t all_ievents_mtx = MTX_INITIALIZER(0);
 static ie_list_t all_ievents_list = TAILQ_HEAD_INITIALIZER(all_ievents_list);

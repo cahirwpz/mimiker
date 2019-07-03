@@ -1,7 +1,7 @@
-#include <stdc.h>
-#include <common.h>
-#include <thread.h>
-#include <runq.h>
+#include <sys/stdc.h>
+#include <sys/cdefs.h>
+#include <sys/thread.h>
+#include <sys/runq.h>
 
 void runq_init(runq_t *rq) {
   memset(rq, 0, sizeof(*rq));

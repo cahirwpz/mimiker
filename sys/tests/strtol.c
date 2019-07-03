@@ -1,7 +1,7 @@
 #define KL_LOG KL_TEST
-#include <klog.h>
-#include <stdc.h>
-#include "../include/ktest.h"
+#include <sys/klog.h>
+#include <sys/stdc.h>
+#include <sys/ktest.h>
 
 typedef struct strtol_test {
   const char *str;

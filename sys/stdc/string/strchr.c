@@ -30,7 +30,7 @@
  *
  */
 
-#include <stdc.h>
+#include <sys/stdc.h>
 
 char *strchr(const char *s, int c) {
 	while (*s) {

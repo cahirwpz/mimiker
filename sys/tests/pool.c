@@ -1,7 +1,7 @@
-#include <stdc.h>
-#include <malloc.h>
-#include <pool.h>
-#include <ktest.h>
+#include <sys/stdc.h>
+#include <sys/malloc.h>
+#include <sys/pool.h>
+#include <sys/ktest.h>
 
 typedef enum {
   PALLOC_TEST_REGULAR,    /* regular test */

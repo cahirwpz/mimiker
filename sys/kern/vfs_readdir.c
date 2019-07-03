@@ -1,8 +1,8 @@
-#include <common.h>
-#include <dirent.h>
-#include <malloc.h>
-#include <uio.h>
-#include <vnode.h>
+#include <sys/cdefs.h>
+#include <sys/dirent.h>
+#include <sys/malloc.h>
+#include <sys/uio.h>
+#include <sys/vnode.h>
 
 int readdir_generic(vnode_t *v, uio_t *uio, readdir_ops_t *ops) {
   dirent_t *dir;

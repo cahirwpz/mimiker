@@ -1,6 +1,6 @@
-#include <malloc.h>
-#include <queue.h>
-#include <taskqueue.h>
+#include <sys/malloc.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 
 void taskqueue_init(taskqueue_t *tq) {
   STAILQ_INIT(&tq->tq_list);

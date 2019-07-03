@@ -1,8 +1,8 @@
-#include <stdc.h>
-#include <malloc.h>
-#include <errno.h>
-#include <uio.h>
-#include <vm_map.h>
+#include <sys/stdc.h>
+#include <sys/malloc.h>
+#include <sys/errno.h>
+#include <sys/uio.h>
+#include <sys/vm_map.h>
 #include <mips/ustack.h>
 
 #define STACK_ALIGNMENT 8 /* According to MIPS SystemV ABI */

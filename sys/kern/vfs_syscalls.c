@@ -1,21 +1,21 @@
 #define KL_LOG KL_VFS
-#include <klog.h>
-#include <filedesc.h>
-#include <file.h>
-#include <mount.h>
-#include <stdc.h>
-#include <sysent.h>
-#include <systm.h>
-#include <thread.h>
-#include <vfs.h>
-#include <vnode.h>
-#include <proc.h>
-#include <vm_map.h>
-#include <queue.h>
-#include <errno.h>
-#include <malloc.h>
-#include <unistd.h>
-#include <stat.h>
+#include <sys/klog.h>
+#include <sys/filedesc.h>
+#include <sys/file.h>
+#include <sys/mount.h>
+#include <sys/stdc.h>
+#include <sys/sysent.h>
+#include <sys/systm.h>
+#include <sys/thread.h>
+#include <sys/vfs.h>
+#include <sys/vnode.h>
+#include <sys/proc.h>
+#include <sys/vm_map.h>
+#include <sys/queue.h>
+#include <sys/errno.h>
+#include <sys/malloc.h>
+#include <sys/unistd.h>
+#include <sys/stat.h>
 
 int do_open(thread_t *td, char *pathname, int flags, mode_t mode, int *fd) {
   /* Allocate a file structure, but do not install descriptor yet. */

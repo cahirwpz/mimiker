@@ -1,20 +1,20 @@
 #define KL_LOG KL_FILE
-#include <klog.h>
-#include <mutex.h>
-#include <condvar.h>
-#include <malloc.h>
-#include <pool.h>
-#include <errno.h>
-#include <pipe.h>
-#include <stdc.h>
-#include <stat.h>
-#include <file.h>
-#include <filedesc.h>
-#include <thread.h>
-#include <proc.h>
-#include <ringbuf.h>
-#include <uio.h>
-#include <sysinit.h>
+#include <sys/klog.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/malloc.h>
+#include <sys/pool.h>
+#include <sys/errno.h>
+#include <sys/pipe.h>
+#include <sys/stdc.h>
+#include <sys/stat.h>
+#include <sys/file.h>
+#include <sys/filedesc.h>
+#include <sys/thread.h>
+#include <sys/proc.h>
+#include <sys/ringbuf.h>
+#include <sys/uio.h>
+#include <sys/sysinit.h>
 
 typedef struct pipe_end pipe_end_t;
 typedef struct pipe pipe_t;

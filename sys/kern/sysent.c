@@ -1,25 +1,23 @@
 #define KL_LOG KL_SYSCALL
-#include <klog.h>
-#include <sysent.h>
-#include <systm.h>
-#include <errno.h>
-#include <thread.h>
-#include <mman.h>
-#include <vfs.h>
-#include <vnode.h>
-#include <fork.h>
-#include <sbrk.h>
-#include <signal.h>
-#include <proc.h>
-#include <stat.h>
-#include <systm.h>
-#include <wait.h>
-#include <exec.h>
-#include <time.h>
-#include <proc.h>
-#include <pipe.h>
-#include <malloc.h>
-#include <syslimits.h>
+#include <sys/klog.h>
+#include <sys/sysent.h>
+#include <sys/systm.h>
+#include <sys/errno.h>
+#include <sys/thread.h>
+#include <sys/mman.h>
+#include <sys/vfs.h>
+#include <sys/vnode.h>
+#include <sys/sbrk.h>
+#include <sys/signal.h>
+#include <sys/proc.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <sys/exec.h>
+#include <sys/time.h>
+#include <sys/proc.h>
+#include <sys/pipe.h>
+#include <sys/malloc.h>
+#include <sys/syslimits.h>
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 int sys_nosys(thread_t *td, syscall_args_t *args) {

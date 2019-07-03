@@ -1,12 +1,11 @@
-#include <fork.h>
-#include <thread.h>
-#include <filedesc.h>
-#include <sched.h>
-#include <exception.h>
-#include <stdc.h>
-#include <vm_map.h>
-#include <proc.h>
-#include <sbrk.h>
+#include <sys/thread.h>
+#include <sys/filedesc.h>
+#include <sys/sched.h>
+#include <sys/exception.h>
+#include <sys/stdc.h>
+#include <sys/vm_map.h>
+#include <sys/proc.h>
+#include <sys/sbrk.h>
 
 int do_fork(void) {
   thread_t *td = thread_self();

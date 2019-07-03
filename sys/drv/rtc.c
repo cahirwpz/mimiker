@@ -1,18 +1,18 @@
 /* MC146818 Real-time clock driver */
-#include <common.h>
+#include <sys/cdefs.h>
 #include <dev/mc146818reg.h>
 #include <dev/isareg.h>
-#include <pci.h>
-#include <interrupt.h>
-#include <klog.h>
-#include <errno.h>
-#include <stdc.h>
-#include <devfs.h>
-#include <sleepq.h>
-#include <time.h>
-#include <vnode.h>
-#include <sysinit.h>
-#include <devclass.h>
+#include <sys/pci.h>
+#include <sys/interrupt.h>
+#include <sys/klog.h>
+#include <sys/errno.h>
+#include <sys/stdc.h>
+#include <sys/devfs.h>
+#include <sys/sleepq.h>
+#include <sys/time.h>
+#include <sys/vnode.h>
+#include <sys/sysinit.h>
+#include <sys/devclass.h>
 
 #define RTC_ADDR 0
 #define RTC_DATA 1

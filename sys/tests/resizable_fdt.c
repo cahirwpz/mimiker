@@ -1,6 +1,6 @@
-#include <file.h>
-#include <filedesc.h>
-#include <ktest.h>
+#include <sys/file.h>
+#include <sys/filedesc.h>
+#include <sys/ktest.h>
 
 static int test_resizable_fdt(void) {
   fdtab_t *fdt_test = fdtab_alloc();

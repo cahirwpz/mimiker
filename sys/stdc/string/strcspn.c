@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-#include <stdc.h>
+#include <sys/stdc.h>
 
 /*
  * Span the complement of string s2.

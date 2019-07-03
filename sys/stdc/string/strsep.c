@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  */
 
-#include <stdc.h>
+#include <sys/stdc.h>
 
 /*
  * Get next token from string *stringp, where tokens are possibly-empty

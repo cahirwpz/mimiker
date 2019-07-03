@@ -1,1 +1,1 @@
-../../../../../include/stat.h
+../../../../../include/sys/stat.h

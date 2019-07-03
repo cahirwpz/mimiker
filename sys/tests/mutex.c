@@ -1,8 +1,8 @@
-#include <stdc.h>
-#include <sched.h>
-#include <mutex.h>
-#include <thread.h>
-#include <ktest.h>
+#include <sys/stdc.h>
+#include <sys/sched.h>
+#include <sys/mutex.h>
+#include <sys/thread.h>
+#include <sys/ktest.h>
 
 static mtx_t counter_mtx = MTX_INITIALIZER(0);
 static volatile int32_t counter_value;

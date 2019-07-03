@@ -1,10 +1,10 @@
-#include <mutex.h>
-#include <time.h>
-#include <stdc.h>
-#include <thread.h>
-#include <interrupt.h>
+#include <sys/mutex.h>
+#include <sys/time.h>
+#include <sys/stdc.h>
+#include <sys/thread.h>
+#include <sys/interrupt.h>
 #define _KLOG_PRIVATE
-#include <klog.h>
+#include <sys/klog.h>
 
 klog_t klog;
 

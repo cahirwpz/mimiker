@@ -1,9 +1,9 @@
-#include <exception.h>
-#include <interrupt.h>
-#include <thread.h>
-#include <sched.h>
-#include <proc.h>
-#include <signal.h>
+#include <sys/exception.h>
+#include <sys/interrupt.h>
+#include <sys/thread.h>
+#include <sys/sched.h>
+#include <sys/proc.h>
+#include <sys/signal.h>
 
 void on_exc_leave(void) {
   /* If thread requested not to be preempted, then do not switch out! */

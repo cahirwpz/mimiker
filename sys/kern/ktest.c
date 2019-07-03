@@ -1,6 +1,6 @@
-#include <ktest.h>
-#include <stdc.h>
-#include <time.h>
+#include <sys/ktest.h>
+#include <sys/stdc.h>
+#include <sys/time.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);

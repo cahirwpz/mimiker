@@ -1,16 +1,16 @@
 #define KL_LOG KL_SLEEPQ
-#include <klog.h>
-#include <common.h>
-#include <queue.h>
-#include <stdc.h>
-#include <sleepq.h>
-#include <pool.h>
-#include <sched.h>
-#include <spinlock.h>
-#include <thread.h>
-#include <interrupt.h>
-#include <errno.h>
-#include <callout.h>
+#include <sys/klog.h>
+#include <sys/cdefs.h>
+#include <sys/queue.h>
+#include <sys/stdc.h>
+#include <sys/sleepq.h>
+#include <sys/pool.h>
+#include <sys/sched.h>
+#include <sys/spinlock.h>
+#include <sys/thread.h>
+#include <sys/interrupt.h>
+#include <sys/errno.h>
+#include <sys/callout.h>
 
 #define SC_TABLESIZE 256 /* Must be power of 2. */
 #define SC_MASK (SC_TABLESIZE - 1)

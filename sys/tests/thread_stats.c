@@ -1,9 +1,9 @@
-#include <thread.h>
-#include <ktest.h>
-#include <klog.h>
-#include <sched.h>
-#include <sleepq.h>
-#include <runq.h>
+#include <sys/thread.h>
+#include <sys/ktest.h>
+#include <sys/klog.h>
+#include <sys/sched.h>
+#include <sys/sleepq.h>
+#include <sys/runq.h>
 
 #define THREADS_NUMBER 10
 

@@ -1,21 +1,21 @@
 #define KL_LOG KL_PROC
-#include <klog.h>
+#include <sys/klog.h>
 #define _EXEC_IMPL
-#include <exec.h>
-#include <stdc.h>
-#include <vm_map.h>
-#include <vm_object.h>
-#include <thread.h>
-#include <errno.h>
-#include <filedesc.h>
-#include <sbrk.h>
-#include <vfs.h>
+#include <sys/exec.h>
+#include <sys/stdc.h>
+#include <sys/vm_map.h>
+#include <sys/vm_object.h>
+#include <sys/thread.h>
+#include <sys/errno.h>
+#include <sys/filedesc.h>
+#include <sys/sbrk.h>
+#include <sys/vfs.h>
 #include <machine/ustack.h>
-#include <mount.h>
-#include <vnode.h>
-#include <proc.h>
-#include <systm.h>
-#include <malloc.h>
+#include <sys/mount.h>
+#include <sys/vnode.h>
+#include <sys/proc.h>
+#include <sys/systm.h>
+#include <sys/malloc.h>
 
 typedef int (*copy_ptr_t)(exec_args_t *args, char **ptr_p);
 typedef int (*copy_str_t)(exec_args_t *args, char *str, size_t *copied_p);

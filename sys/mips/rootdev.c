@@ -1,12 +1,12 @@
 #define KL_LOG KL_DEV
-#include <klog.h>
+#include <sys/klog.h>
 #include <mips/malta.h>
 #include <mips/intr.h>
-#include <bus.h>
-#include <exception.h>
-#include <pci.h>
-#include <sysinit.h>
-#include <devclass.h>
+#include <sys/bus.h>
+#include <sys/exception.h>
+#include <sys/pci.h>
+#include <sys/sysinit.h>
+#include <sys/devclass.h>
 
 typedef struct rootdev {
   void *data;

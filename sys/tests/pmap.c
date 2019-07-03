@@ -1,7 +1,7 @@
-#include <pmap.h>
-#include <physmem.h>
-#include <vm.h>
-#include <ktest.h>
+#include <sys/pmap.h>
+#include <sys/physmem.h>
+#include <sys/vm.h>
+#include <sys/ktest.h>
 
 #define PAGES 16
 

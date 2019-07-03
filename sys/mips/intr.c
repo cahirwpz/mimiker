@@ -1,19 +1,19 @@
 #define KL_LOG KL_INTR
-#include <klog.h>
-#include <errno.h>
-#include <exception.h>
-#include <interrupt.h>
+#include <sys/klog.h>
+#include <sys/errno.h>
+#include <sys/exception.h>
+#include <sys/interrupt.h>
 #include <mips/exc.h>
 #include <mips/intr.h>
 #include <mips/mips.h>
-#include <pcpu.h>
-#include <pmap.h>
-#include <spinlock.h>
-#include <queue.h>
-#include <sysent.h>
-#include <sched.h>
-#include <thread.h>
-#include <ktest.h>
+#include <sys/pcpu.h>
+#include <sys/pmap.h>
+#include <sys/spinlock.h>
+#include <sys/queue.h>
+#include <sys/sysent.h>
+#include <sys/sched.h>
+#include <sys/thread.h>
+#include <sys/ktest.h>
 
 typedef void (*exc_handler_t)(exc_frame_t *);
 

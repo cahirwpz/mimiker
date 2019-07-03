@@ -1,7 +1,7 @@
-#include <stdc.h>
-#include <malloc.h>
-#include <device.h>
-#include <pci.h>
+#include <sys/stdc.h>
+#include <sys/malloc.h>
+#include <sys/device.h>
+#include <sys/pci.h>
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 

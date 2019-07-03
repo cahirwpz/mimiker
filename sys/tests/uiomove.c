@@ -1,8 +1,8 @@
-#include <uio.h>
-#include <systm.h>
-#include <stdc.h>
-#include <vm_map.h>
-#include <ktest.h>
+#include <sys/uio.h>
+#include <sys/systm.h>
+#include <sys/stdc.h>
+#include <sys/vm_map.h>
+#include <sys/ktest.h>
 
 static int test_uiomove(void) {
   int res = 0;

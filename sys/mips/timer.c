@@ -1,9 +1,9 @@
 #include <mips/m32c0.h>
 #include <mips/config.h>
 #include <mips/intr.h>
-#include <interrupt.h>
-#include <time.h>
-#include <timer.h>
+#include <sys/interrupt.h>
+#include <sys/time.h>
+#include <sys/timer.h>
 
 /* For now, sole purpose of MIPS CPU timer is to provide accurate timestamps
  * for various parts of the system.

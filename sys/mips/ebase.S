@@ -2,7 +2,7 @@
 #include <mips/m32c0.h>
 #include <mips/regdef.h>
 #include <mips/pmap.h>
-#include <vm.h>
+#include <sys/vm.h>
 
 #include "assym.h"
 

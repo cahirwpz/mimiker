@@ -1,1 +1,1 @@
-../../../../../include/wait.h
+../../../../../include/sys/wait.h

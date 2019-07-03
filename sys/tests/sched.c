@@ -1,10 +1,10 @@
-#include <stdc.h>
-#include <time.h>
-#include <thread.h>
-#include <sched.h>
-#include <vm_map.h>
-#include <vm_pager.h>
-#include <ktest.h>
+#include <sys/stdc.h>
+#include <sys/time.h>
+#include <sys/thread.h>
+#include <sys/sched.h>
+#include <sys/vm_map.h>
+#include <sys/vm_pager.h>
+#include <sys/ktest.h>
 
 #if 0
 static void demo_thread_1(void) {

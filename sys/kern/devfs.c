@@ -1,15 +1,15 @@
 #define KL_LOG KL_FILESYS
-#include <klog.h>
-#include <devfs.h>
-#include <mount.h>
-#include <vnode.h>
-#include <errno.h>
-#include <stdc.h>
-#include <mutex.h>
-#include <malloc.h>
-#include <pool.h>
-#include <linker_set.h>
-#include <dirent.h>
+#include <sys/klog.h>
+#include <sys/devfs.h>
+#include <sys/mount.h>
+#include <sys/vnode.h>
+#include <sys/errno.h>
+#include <sys/stdc.h>
+#include <sys/mutex.h>
+#include <sys/malloc.h>
+#include <sys/pool.h>
+#include <sys/linker_set.h>
+#include <sys/dirent.h>
 
 typedef struct devfs_node devfs_node_t;
 typedef TAILQ_HEAD(, devfs_node) devfs_node_list_t;

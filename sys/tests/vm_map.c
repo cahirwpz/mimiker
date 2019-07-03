@@ -1,12 +1,12 @@
 #define KL_LOG KL_TEST
-#include <klog.h>
-#include <stdc.h>
-#include <vm_pager.h>
-#include <vm_object.h>
-#include <vm_map.h>
-#include <errno.h>
-#include <thread.h>
-#include <ktest.h>
+#include <sys/klog.h>
+#include <sys/stdc.h>
+#include <sys/vm_pager.h>
+#include <sys/vm_object.h>
+#include <sys/vm_map.h>
+#include <sys/errno.h>
+#include <sys/thread.h>
+#include <sys/ktest.h>
 
 static int paging_on_demand_and_memory_protection_demo(void) {
   vm_map_t *orig = get_user_vm_map();

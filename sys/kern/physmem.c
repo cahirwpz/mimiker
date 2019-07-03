@@ -1,8 +1,8 @@
 #define KL_LOG KL_VM
-#include <klog.h>
-#include <stdc.h>
-#include <mutex.h>
-#include <physmem.h>
+#include <sys/klog.h>
+#include <sys/stdc.h>
+#include <sys/mutex.h>
+#include <sys/physmem.h>
 
 #define PM_QUEUE_OF(seg, page) ((seg)->freeq + log2((page)->size))
 #define PM_FREEQ(seg, i) ((seg)->freeq + (i))

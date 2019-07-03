@@ -1,4 +1,4 @@
-#include <time.h>
+#include <sys/time.h>
 
 int gettimeofday(timeval_t *tp, void *tzp) {
   if (tp) {

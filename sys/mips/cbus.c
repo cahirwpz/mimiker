@@ -1,5 +1,5 @@
 #include <mips/malta.h>
-#include <bus.h>
+#include <sys/bus.h>
 
 static uint8_t cbus_read_1(bus_space_handle_t handle, bus_size_t offset) {
   return *(volatile uint8_t *)(handle + offset * sizeof(uint64_t));

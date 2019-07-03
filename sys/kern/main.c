@@ -1,10 +1,10 @@
 #define KL_LOG KL_USER
-#include <klog.h>
-#include <stdc.h>
-#include <exec.h>
-#include <proc.h>
-#include <thread.h>
-#include <ktest.h>
+#include <sys/klog.h>
+#include <sys/stdc.h>
+#include <sys/exec.h>
+#include <sys/proc.h>
+#include <sys/thread.h>
+#include <sys/ktest.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);

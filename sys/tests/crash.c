@@ -1,8 +1,8 @@
-#include <stdc.h>
-#include <thread.h>
-#include <sched.h>
+#include <sys/stdc.h>
+#include <sys/thread.h>
+#include <sys/sched.h>
 #include <mips/mips.h>
-#include <ktest.h>
+#include <sys/ktest.h>
 
 __attribute__((noinline)) static int load(intptr_t ptr) {
   return *(volatile int *)ptr;

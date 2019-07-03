@@ -1,8 +1,8 @@
-#include <ktest.h>
-#include <mutex.h>
-#include <runq.h>
-#include <sched.h>
-#include <thread.h>
+#include <sys/ktest.h>
+#include <sys/mutex.h>
+#include <sys/runq.h>
+#include <sys/sched.h>
+#include <sys/thread.h>
 
 #define T 3
 

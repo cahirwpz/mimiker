@@ -1,11 +1,11 @@
 #define KL_LOG KL_TEST
-#include <klog.h>
-#include <condvar.h>
-#include <mutex.h>
-#include <sched.h>
-#include <stdc.h>
-#include <thread.h>
-#include <ktest.h>
+#include <sys/klog.h>
+#include <sys/condvar.h>
+#include <sys/mutex.h>
+#include <sys/sched.h>
+#include <sys/stdc.h>
+#include <sys/thread.h>
+#include <sys/ktest.h>
 
 #define BUF_MAX 16384
 #define THREADS 3

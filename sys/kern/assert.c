@@ -1,7 +1,7 @@
-#include <common.h>
-#include <stdc.h>
-#include <ktest.h>
-#include <interrupt.h>
+#include <sys/cdefs.h>
+#include <sys/stdc.h>
+#include <sys/ktest.h>
+#include <sys/interrupt.h>
 
 noreturn void panic_fail(void) {
   /* We used to terminate the current thread, but that is not a great way of

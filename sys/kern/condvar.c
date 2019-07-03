@@ -1,7 +1,7 @@
-#include <condvar.h>
-#include <sleepq.h>
-#include <sched.h>
-#include <mutex.h>
+#include <sys/condvar.h>
+#include <sys/sleepq.h>
+#include <sys/sched.h>
+#include <sys/mutex.h>
 
 #define spin_lock_p(m) (*(m).type & LK_SPIN)
 

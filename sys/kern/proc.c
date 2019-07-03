@@ -1,16 +1,16 @@
 #define KL_LOG KL_PROC
-#include <klog.h>
-#include <proc.h>
-#include <pool.h>
-#include <thread.h>
-#include <klog.h>
-#include <errno.h>
-#include <filedesc.h>
-#include <wait.h>
-#include <signal.h>
-#include <sleepq.h>
-#include <sched.h>
-#include <malloc.h>
+#include <sys/klog.h>
+#include <sys/proc.h>
+#include <sys/pool.h>
+#include <sys/thread.h>
+#include <sys/klog.h>
+#include <sys/errno.h>
+#include <sys/filedesc.h>
+#include <sys/wait.h>
+#include <sys/signal.h>
+#include <sys/sleepq.h>
+#include <sys/sched.h>
+#include <sys/malloc.h>
 
 #define NPROC 64 /* maximum number of processes */
 #define CHILDREN(p) (&(p)->p_children)

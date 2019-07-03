@@ -8,13 +8,13 @@
 #include <dev/piixreg.h>
 #include <dev/isareg.h>
 #include <dev/gt64120reg.h>
-#include <interrupt.h>
-#include <pci.h>
-#include <spinlock.h>
-#include <stdc.h>
-#include <klog.h>
-#include <bus.h>
-#include <devclass.h>
+#include <sys/interrupt.h>
+#include <sys/pci.h>
+#include <sys/spinlock.h>
+#include <sys/stdc.h>
+#include <sys/klog.h>
+#include <sys/bus.h>
+#include <sys/devclass.h>
 
 #define ICU_LEN 16 /* number of ISA IRQs */
 

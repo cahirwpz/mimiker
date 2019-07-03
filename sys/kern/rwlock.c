@@ -1,8 +1,8 @@
-#include <rwlock.h>
-#include <thread.h>
-#include <stdc.h>
-#include <sleepq.h>
-#include <sched.h>
+#include <sys/rwlock.h>
+#include <sys/thread.h>
+#include <sys/stdc.h>
+#include <sys/sleepq.h>
+#include <sys/sched.h>
 
 void rw_init(rwlock_t *rw, const char *name, bool recursive) {
   rw->readers = 0;
