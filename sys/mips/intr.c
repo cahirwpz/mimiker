@@ -145,7 +145,7 @@ static void syscall_handler(exc_frame_t *frame) {
 
   int retval = 0;
 
-  if (args.code > SYS_LAST) {
+  if (args.code > SYS_MAXSYSCALL) {
     retval = -ENOSYS;
     goto finalize;
   }
