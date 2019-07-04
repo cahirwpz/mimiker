@@ -163,7 +163,7 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg);
  *
  * Thread becomes zombie which resources will eventually be recycled.
  */
-noreturn void thread_exit(void);
+__noreturn void thread_exit(void);
 
 /*! \brief Switch voluntarily to another thread. */
 void thread_yield(void);

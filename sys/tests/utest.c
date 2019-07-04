@@ -10,7 +10,7 @@
 
 #define UTEST_PATH "/bin/utest"
 
-static noreturn void utest_generic_thread(void *arg) {
+static __noreturn void utest_generic_thread(void *arg) {
   run_program(UTEST_PATH, (char *[]){UTEST_PATH, arg, NULL}, (char *[]){NULL});
 }
 

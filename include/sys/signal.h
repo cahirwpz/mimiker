@@ -16,6 +16,9 @@ typedef enum {
   NSIG = 32
 } signo_t;
 
+/* Machine-dependent signal definitions */
+typedef int sig_atomic_t;
+
 typedef void (*sighandler_t)(int);
 
 #define SIG_ERR ((sighandler_t)-1)
@@ -82,7 +85,7 @@ int sig_check(thread_t *td);
 void sig_post(signo_t sig);
 
 /*! \brief Terminate the process as the result of posting a signal. */
-noreturn void sig_exit(thread_t *td, signo_t sig);
+__noreturn void sig_exit(thread_t *td, signo_t sig);
 
 /*! \brief Delivers a hardware trap related signal to current thread.
  *

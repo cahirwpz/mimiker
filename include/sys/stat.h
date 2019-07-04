@@ -41,13 +41,8 @@
 #ifndef _SYS_STAT_H_
 #define _SYS_STAT_H_
 
-#ifndef _KERNELSPACE
-#include <sys/types.h>
-#include <sys/time.h>
-#else
 #include <stdint.h>
 #include <sys/time.h>
-#endif
 
 typedef struct stat {
   dev_t st_dev;                 /* inode's device */

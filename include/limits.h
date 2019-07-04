@@ -1,6 +1,8 @@
 #ifndef _LIMITS_H_
 #define _LIMITS_H_
 
+#include <sys/syslimits.h>
+
 #define CHAR_BIT __CHAR_BIT__
 
 #define SHRT_MIN (-SHRT_MAX - 1)

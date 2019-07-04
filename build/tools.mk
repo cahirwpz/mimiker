@@ -17,6 +17,7 @@ OBJCOPY  = $(TARGET)-objcopy
 OBJDUMP  = $(TARGET)-objdump
 STRIP    = $(TARGET)-strip
 
+CP      = cp
 CPIO    = cpio --format=crc
 CSCOPE  = cscope -b
 CTAGS   = ctags

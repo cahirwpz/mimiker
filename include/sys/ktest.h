@@ -50,7 +50,7 @@ void ktest_main(const char *test);
 
 /* This function is called both by run_test, as well as ktest_assert. It
  * displays some troubleshooting info about the failing test. */
-noreturn void ktest_failure(void);
+__noreturn void ktest_failure(void);
 
 /* This flag is set to 1 when a kernel test is in progress, and 0 otherwise. */
 extern int ktest_test_running_flag;

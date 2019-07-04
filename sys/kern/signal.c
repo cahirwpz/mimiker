@@ -160,7 +160,7 @@ void sig_post(signo_t sig) {
   sig_send(sig, sa);
 }
 
-noreturn void sig_exit(thread_t *td, signo_t sig) {
+__noreturn void sig_exit(thread_t *td, signo_t sig) {
   klog("PID(%d) terminated due to signal %s ", td->td_proc->p_pid,
        sig_name[sig]);
   proc_exit(MAKE_STATUS_SIG_TERM(sig));

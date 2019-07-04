@@ -178,7 +178,7 @@ void sched_clock(void) {
   }
 }
 
-noreturn void sched_run(void) {
+__noreturn void sched_run(void) {
   thread_t *td = thread_self();
 
   /* Make sure sched_run is launched once per every CPU */

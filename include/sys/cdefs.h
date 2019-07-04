@@ -1,14 +1,13 @@
 #ifndef _SYS_COMMON_H_
 #define _SYS_COMMON_H_
 
-#include <limits.h>      /* UINT_MAX, LONG_MIN, ... */
-#include <stdint.h>      /* uint*_t, int*_t */
-#include <stddef.h>      /* offsetof, NULL, ptrdiff_t, size_t, etc. */
-#include <stdbool.h>     /* bool, true, false */
-#include <stdalign.h>    /* alignof, alignas */
-#include <stdatomic.h>   /* atomic_{load,store,fetch_*,...} */
-#include <stdnoreturn.h> /* noreturn */
-#include <inttypes.h>    /* PRIdN, PRIxPTR, ... */
+#include <limits.h>    /* UINT_MAX, LONG_MIN, ... */
+#include <stdint.h>    /* uint*_t, int*_t */
+#include <stddef.h>    /* offsetof, NULL, ptrdiff_t, size_t, etc. */
+#include <stdbool.h>   /* bool, true, false */
+#include <stdalign.h>  /* alignof, alignas */
+#include <stdatomic.h> /* atomic_{load,store,fetch_*,...} */
+#include <inttypes.h>  /* PRIdN, PRIxPTR, ... */
 
 typedef unsigned char u_char;
 typedef unsigned short u_short;
@@ -18,7 +17,7 @@ typedef unsigned long u_long;
 typedef unsigned long vaddr_t; /* virtual address */
 typedef unsigned long paddr_t; /* physical address */
 
-typedef long off_t;
+typedef int64_t off_t;
 typedef long ssize_t;
 typedef int32_t pid_t;
 typedef int32_t pgid_t;
@@ -35,6 +34,18 @@ typedef uint32_t tid_t;
 typedef int32_t blkcnt_t;  /* fs block count */
 typedef int32_t blksize_t; /* fs optimal block size */
 
+typedef __builtin_va_list __va_list;
+
+#ifndef __BEGIN_DECLS
+#ifdef __cplusplus
+#define __BEGIN_DECLS extern "C" {
+#define __END_DECLS }
+#else
+#define __BEGIN_DECLS
+#define __END_DECLS
+#endif
+#endif
+
 /* Generic preprocessor macros */
 #define __STRING(x) #x
 #define __CONCAT1(x, y) x##y
@@ -48,16 +59,22 @@ typedef int32_t blksize_t; /* fs optimal block size */
 /* Wrapper for various GCC attributes */
 #define __nonnull(x) __attribute__((__nonnull__(x)))
 #define __section(s) __attribute__((__section__(s)))
-#define __unused __attribute__((unused))
-#define __used __attribute__((used))
+#ifndef __unused
+#define __unused __attribute__((__unused__))
+#endif
+#define __used __attribute__((__used__))
+#define __returns_twice __attribute__((__returns_twice__))
+#define __noreturn __attribute__((__noreturn__))
 #define __aligned(x) __attribute__((__aligned__(x)))
 #define __warn_unused __attribute__((warn_unused_result));
 #define __unreachable() __builtin_unreachable()
+#define __pure __attribute__((__pure__))
 #define __alias(x) __attribute__((alias(#x)))
 #define __cleanup(func) __attribute__((__cleanup__(func)))
 #define __caller(x) (__builtin_return_address(x) - 8)
 #define __likely(x) __builtin_expect((x), 1)
 #define __unlikely(x) __builtin_expect((x), 0)
+#define __restrict restrict
 #define __long_call __attribute__((long_call))
 #define __transparent_union __attribute__((__transparent_union__))
 #if __GNUC_PREREQ__(8, 2)
@@ -65,6 +82,33 @@ typedef int32_t blksize_t; /* fs optimal block size */
 #else
 #define __fallthrough
 #endif
+#define __printflike(fmtarg, firstvararg)                                      \
+  __attribute__((__format__(__printf__, fmtarg, firstvararg)))
+
+#define __strong_alias(aliassym, sym)                                          \
+  extern __typeof(sym) aliassym __attribute__((__alias__(#sym)))
+#define __weak_alias(aliassym, sym)                                            \
+  __strong_alias(aliassym, sym) __attribute__((__weak__))
+
+/*
+ * The following macro is used to remove const cast-away warnings
+ * from gcc -Wcast-qual; it should be used with caution because it
+ * can hide valid errors; in particular most valid uses are in
+ * situations where the API requires it, not to cast away string
+ * constants. We don't use *intptr_t on purpose here and we are
+ * explicit about unsigned long so that we don't have additional
+ * dependencies.
+ */
+#define __UNCONST(a) ((void *)(unsigned long)(const void *)(a))
+
+/*
+ * The following macro is used to remove the volatile cast-away warnings
+ * from gcc -Wcast-qual; as above it should be used with caution
+ * because it can hide valid errors or warnings.  Valid uses include
+ * making it possible to pass a volatile pointer to memset().
+ * For the same reasons as above, we use unsigned long and not intptr_t.
+ */
+#define __UNVOLATILE(a) ((void *)(unsigned long)(volatile void *)(a))
 
 /* Attribute macros for boot/wired functions/data */
 #define __boot_text __long_call __section(".boot.text")
@@ -151,13 +195,13 @@ typedef int32_t blksize_t; /* fs optimal block size */
        *__UNIQUE(__loop) = (TYP *)1;                                           \
        __UNIQUE(__loop); __UNIQUE(__loop) = NULL)
 
-#ifndef _USERSPACE
+#ifdef _KERNELSPACE
 
 /* Write a formatted string to default console. */
 int kprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
 /* Terminate thread. */
-noreturn void panic_fail(void);
+__noreturn void panic_fail(void);
 
 #define panic(FMT, ...)                                                        \
   __extension__({                                                              \
@@ -176,9 +220,6 @@ void assert_fail(const char *expr, const char *file, unsigned int line);
 #else
 #define assert(expr)
 #endif
-
-#else
-#include <assert.h>
-#endif /* !_USERSPACE */
+#endif /* !_KERNELSPACE */
 
 #endif /* !_SYS_COMMON_H_ */

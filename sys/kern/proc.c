@@ -207,7 +207,7 @@ static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
   }
 }
 
-noreturn void proc_exit(int exitstatus) {
+__noreturn void proc_exit(int exitstatus) {
   proc_t *p = proc_self();
 
   /* Mark this process as dying, so others don't attempt to disturb it. */
