@@ -42,6 +42,15 @@ struct lconv {
 __BEGIN_DECLS
 struct lconv *localeconv(void);
 char *setlocale(int, const char *);
+
+#define LC_ALL_MASK ((int)~0)
+#define LC_COLLATE_MASK ((int)(1 << LC_COLLATE))
+#define LC_CTYPE_MASK ((int)(1 << LC_CTYPE))
+#define LC_MONETARY_MASK ((int)(1 << LC_MONETARY))
+#define LC_NUMERIC_MASK ((int)(1 << LC_NUMERIC))
+#define LC_TIME_MASK ((int)(1 << LC_TIME))
+#define LC_MESSAGES_MASK ((int)(1 << LC_MESSAGES))
+
 __END_DECLS
 
 #endif /* !_LOCALE_H_ */

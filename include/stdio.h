@@ -1,4 +1,4 @@
-/*	$NetBSD: stdio.h,v 1.70 2007/08/02 21:49:09 kristerw Exp $	*/
+/*	$NetBSD: stdio.h,v 1.97 2016/03/17 00:42:49 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -93,9 +93,9 @@ typedef struct __sFILE {
   /* operations */
   void *_cookie; /* cookie passed to io functions */
   int (*_close)(void *);
-  int (*_read)(void *, char *, int);
-  fpos_t (*_seek)(void *, fpos_t, int);
-  int (*_write)(void *, const char *, int);
+  ssize_t (*_read)(void *, void *, size_t);
+  off_t (*_seek)(void *, off_t, int);
+  ssize_t (*_write)(void *, const void *, size_t);
 
   /* file extension */
   struct __sbuf _ext;
@@ -108,16 +108,17 @@ typedef struct __sFILE {
   unsigned char _ubuf[3]; /* guarantee an ungetc() buffer */
   unsigned char _nbuf[1]; /* guarantee a getc() buffer */
 
-  /* separate buffer for fgetln() when line crosses buffer boundary */
-  struct __sbuf _lb; /* buffer for fgetln() */
+  int (*_flush)(void *);
+  /* Formerly used by fgetln/fgetwln; kept for binary compatibility */
+  char _lb_unused[sizeof(struct __sbuf) - sizeof(int (*)(void *))];
 
   /* Unix stdio files get aligned to block boundaries on fseek() */
-  int _blksize;   /* stat.st_blksize (may be != _bf._size) */
-  fpos_t _offset; /* current lseek offset */
+  int _blksize;  /* stat.st_blksize (may be != _bf._size) */
+  off_t _offset; /* current lseek offset */
 } FILE;
 
 __BEGIN_DECLS
-extern FILE __sF[];
+extern FILE __sF[3];
 __END_DECLS
 
 #define __SLBF 0x0001 /* line buffered */
@@ -163,9 +164,7 @@ __END_DECLS
 #define FILENAME_MAX 1024 /* must be <= PATH_MAX <sys/syslimits.h> */
 
 /* System V/ANSI C; this is the wrong way to do this, do *not* use these. */
-#if defined(_XOPEN_SOURCE) || defined(_NETBSD_SOURCE)
 #define P_tmpdir "/var/tmp/"
-#endif
 #define L_tmpnam 1024 /* XXX must be == PATH_MAX */
 /* Always ensure that this is consistent with <limits.h> */
 #ifndef TMP_MAX
@@ -188,8 +187,8 @@ __END_DECLS
 #define stderr (&__sF[2])
 
 /*
- *  * Functions defined in ANSI C standard.
- *   */
+ * Functions defined in ANSI C standard.
+ */
 __BEGIN_DECLS
 void clearerr(FILE *);
 int fclose(FILE *);
@@ -197,36 +196,36 @@ int feof(FILE *);
 int ferror(FILE *);
 int fflush(FILE *);
 int fgetc(FILE *);
-int fgetpos(FILE *__restrict, fpos_t *__restrict);
 char *fgets(char *__restrict, int, FILE *__restrict);
 FILE *fopen(const char *__restrict, const char *__restrict);
-int fprintf(FILE *__restrict, const char *__restrict, ...);
+int fprintf(FILE *__restrict, const char *__restrict, ...) __printflike(2, 3);
 int fputc(int, FILE *);
 int fputs(const char *__restrict, FILE *__restrict);
 size_t fread(void *__restrict, size_t, size_t, FILE *__restrict);
 FILE *freopen(const char *__restrict, const char *__restrict, FILE *__restrict);
-int fscanf(FILE *__restrict, const char *__restrict, ...);
+int fscanf(FILE *__restrict, const char *__restrict, ...) __scanflike(2, 3);
 int fseek(FILE *, long, int);
-int fsetpos(FILE *, const fpos_t *);
 long ftell(FILE *);
 size_t fwrite(const void *__restrict, size_t, size_t, FILE *__restrict);
 int getc(FILE *);
 int getchar(void);
 void perror(const char *);
-int printf(const char *__restrict, ...);
+int printf(const char *__restrict, ...) __printflike(1, 2);
 int putc(int, FILE *);
 int putchar(int);
 int puts(const char *);
 int remove(const char *);
 void rewind(FILE *);
-int scanf(const char *__restrict, ...);
+int scanf(const char *__restrict, ...) __scanflike(1, 2);
 void setbuf(FILE *__restrict, char *__restrict);
 int setvbuf(FILE *__restrict, char *__restrict, int, size_t);
-int sscanf(const char *__restrict, const char *__restrict, ...);
+int sscanf(const char *__restrict, const char *__restrict, ...)
+  __scanflike(2, 3);
 FILE *tmpfile(void);
 int ungetc(int, FILE *);
-int vfprintf(FILE *__restrict, const char *__restrict, __va_list);
-int vprintf(const char *__restrict, __va_list);
+int vfprintf(FILE *__restrict, const char *__restrict, __va_list)
+  __printflike(2, 0);
+int vprintf(const char *__restrict, __va_list) __printflike(1, 0);
 
 char *gets(char *);
 int sprintf(char *__restrict, const char *__restrict, ...) __printflike(2, 3);
@@ -237,12 +236,42 @@ int vsprintf(char *__restrict, const char *__restrict, __va_list)
 int rename(const char *, const char *);
 __END_DECLS
 
-/* Functions defined in ISO XPG4.2, ISO C99, POSIX 1003.1-2001 or later. */
+/*
+ * IEEE Std 1003.1-90
+ */
+__BEGIN_DECLS
+FILE *fdopen(int, const char *);
+int fileno(FILE *);
+__END_DECLS
+
+/*
+ * Functions defined in ISO XPG4.2, ISO C99, POSIX 1003.1-2001 or later.
+ */
 __BEGIN_DECLS
 int snprintf(char *__restrict, size_t, const char *__restrict, ...)
   __printflike(3, 4);
 int vsnprintf(char *__restrict, size_t, const char *__restrict, __va_list)
   __printflike(3, 0);
+__END_DECLS
+
+/*
+ * X/Open CAE Specification Issue 5 Version 2
+ */
+
+__BEGIN_DECLS
+int fseeko(FILE *, off_t, int);
+off_t ftello(FILE *);
+__END_DECLS
+
+/*
+ * Functions defined in ISO C99.
+ */
+__BEGIN_DECLS
+int vscanf(const char *__restrict, __va_list) __scanflike(1, 0);
+int vfscanf(FILE *__restrict, const char *__restrict, __va_list)
+  __scanflike(2, 0);
+int vsscanf(const char *__restrict, const char *__restrict, __va_list)
+  __scanflike(2, 0);
 __END_DECLS
 
 #endif /* !_STDIO_H_ */

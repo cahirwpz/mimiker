@@ -3,13 +3,13 @@
 #include <sys/vm.h>
 #include <sys/physmem.h>
 #include <sys/queue.h>
-#include <sys/bitstring.h>
 #include <sys/cdefs.h>
 #include <sys/klog.h>
 #include <sys/mutex.h>
 #include <sys/linker_set.h>
 #include <sys/sched.h>
 #include <sys/pool.h>
+#include <bitstring.h>
 
 #define INITME 0xC0DECAFE
 #define ALIVE 0xFACEFEED

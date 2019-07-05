@@ -11,10 +11,19 @@
        : __assert(__FILE__, __LINE__, __assert_function__, #e))
 #endif /* NDEBUG */
 
+#ifndef _DIAGNOSTIC
+#define _DIAGASSERT(e)
+#else
+#define _DIAGASSERT(e)                                                         \
+  ((e) ? __static_cast(void, 0)                                                \
+       : __diagassert(__FILE__, __LINE__, __assert_function__, #e))
+#endif /* _DIAGNOSTIC */
+
 #ifndef __ASSERT_DECLARED
 #define __ASSERT_DECLARED
 __BEGIN_DECLS
 __noreturn void __assert(const char *, int, const char *, const char *);
+void __diagassert(const char *, int, const char *, const char *);
 __END_DECLS
 #endif /* __ASSERT_DECLARED */
 

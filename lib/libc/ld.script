@@ -16,6 +16,7 @@ SECTIONS
 {
     .text 0x00400000 :
     {
+        crt0.o
         *(.text .text.*)
         . = ALIGN(4096);
     } : text

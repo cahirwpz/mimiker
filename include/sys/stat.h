@@ -103,9 +103,13 @@ typedef struct stat {
 
 #define S_BLKSIZE 512 /* block size used in the stat struct */
 
+#define DEFFILEMODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
+
 #ifndef _KERNELSPACE
 int fstat(int fd, stat_t *sb);
 int stat(const char *pathname, stat_t *sb);
+int mkdir(const char *, mode_t);
+int lstat(const char *, struct stat *);
 #endif
 
 #endif /* !_SYS_STAT_H_ */

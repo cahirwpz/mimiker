@@ -41,4 +41,10 @@ double scalbln(double, long);
 double expm1(double);
 __END_DECLS
 
+/* 7.12.3.3 int isinf(real-floating x) */
+#define isinf(__x) __builtin_isinf(__x)
+
+/* 7.12.3.4 int isnan(real-floating x) */
+#define isnan(__x) __builtin_isnan(__x)
+
 #endif /* !_MATH_H_ */

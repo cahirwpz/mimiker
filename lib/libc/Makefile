@@ -3,15 +3,25 @@
 TOPDIR = $(realpath ../..)
 
 CFLAGS   = -ffreestanding
-CPPFLAGS = -I$(TOPDIR)/include
+CPPFLAGS = -I$(TOPDIR)/include \
+	   -I$(CURDIR)/include \
+	   -I$(CURDIR)/citrus \
+	   -I$(CURDIR)/locale \
+	   -I$(CURDIR)/gen \
+	   -D_LIBC
 
 SOURCES = \
 	gettimeofday.c \
 	nanosleep.c \
 	signal.c \
 	syscalls.S \
+	$(wildcard dummy/*.c) \
 	$(wildcard gen/*.c) \
-	$(wildcard string/*.c)
+	$(wildcard locale/*.c) \
+	$(wildcard stdio/*.c) \
+	$(wildcard stdlib/*.c) \
+	$(wildcard string/*.c) \
+	$(wildcard time/*.c)
 
 
 HEADERFILES = $(shell find $(TOPDIR)/include/ \! -iname '*~' \! -type d)

@@ -3,7 +3,21 @@
 
 #include <sys/syslimits.h>
 
+/*
+ * X/Open CAE Specifications,
+ * adopted in IEEE Std 1003.1-2001 XSI.
+ */
+#define NL_TEXTMAX 2048
+
+#define MB_LEN_MAX 32 /* Allow ISO/IEC 2022 */
+
 #define CHAR_BIT __CHAR_BIT__
+
+#define CHAR_MIN (-SCHAR_MAX - 1)
+#define CHAR_MAX __SCHAR_MAX__
+#define SCHAR_MIN (-SCHAR_MAX - 1)
+#define SCHAR_MAX __SCHAR_MAX__
+#define UCHAR_MAX (CHAR_MAX * 2U + 1U)
 
 #define SHRT_MIN (-SHRT_MAX - 1)
 #define SHRT_MAX __SHRT_MAX__

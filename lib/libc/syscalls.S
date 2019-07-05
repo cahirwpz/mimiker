@@ -11,6 +11,10 @@ AENT(symlink)
 AENT(readlink)
 AENT(isatty)
 AENT(times)
+AENT(lstat)
+AENT(fcntl)
+AENT(getrusage)
+AENT(rename)
 
 SLEAF(no_syscall)
         b       set_errno

@@ -14,6 +14,9 @@ int *__errno(void);
 #ifndef errno
 #define errno (*__errno())
 #endif
+
+extern const int sys_nerr;
+extern const char *const *sys_errlist;
 __END_DECLS
 
 #endif /* !_ERRNO_H_ */

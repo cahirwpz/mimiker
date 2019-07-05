@@ -17,6 +17,7 @@
 #include <sys/sched.h>
 #include <sys/interrupt.h>
 #include <sys/sysinit.h>
+#include <bitstring.h>
 
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 

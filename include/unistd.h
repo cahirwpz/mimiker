@@ -125,6 +125,11 @@ int usleep(useconds_t);
 ssize_t pread(int, void *, size_t, off_t);
 ssize_t pwrite(int, const void *, size_t, off_t);
 
+/*
+ * Implementation-defined extensions
+ */
+int issetugid(void);
+
 __END_DECLS
 
 #endif /* !_UNISTD_H_ */
