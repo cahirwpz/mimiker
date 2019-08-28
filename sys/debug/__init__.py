@@ -19,6 +19,7 @@ def addPrettyPrinters():
     pp.add_printer('timeval', 'timeval', TimeVal)
     gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
 
+
 addPrettyPrinters()
 
 # Commands

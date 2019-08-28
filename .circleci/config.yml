@@ -3,7 +3,7 @@ version: 2
 defaults: &defaults
   working_directory: ~/mimiker
   docker:
-    - image: cahirwpz/mimiker-circleci:1.6.4
+    - image: cahirwpz/mimiker-circleci:1.7.0
 
 jobs:
   verify_formatting:
@@ -12,11 +12,11 @@ jobs:
       - checkout
       - run: './verify-format.sh'
 
-  verify_pep8:
+  verify_pycodestyle:
     <<: *defaults
     steps:
       - checkout
-      - run: './verify-pep8.sh'
+      - run: './verify-pycodestyle.sh'
 
   build:
     <<: *defaults
@@ -59,7 +59,7 @@ workflows:
   build_and_test:
     jobs:
       - verify_formatting
-      - verify_pep8
+      - verify_pycodestyle
       - build
       - kernel_tests:
           requires:
