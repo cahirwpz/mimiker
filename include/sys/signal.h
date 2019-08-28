@@ -1,18 +1,29 @@
 #ifndef _SYS_SIGNAL_H_
 #define _SYS_SIGNAL_H_
 
+#include <sys/sigtypes.h>
+#include <sys/siginfo.h>
+
 typedef enum {
-  SIGINT = 1,
-  SIGILL,
-  SIGABRT,
-  SIGFPE,
-  SIGSEGV,
-  SIGKILL,
-  SIGTERM,
-  SIGCHLD,
-  SIGUSR1,
-  SIGUSR2,
-  SIGBUS,
+  SIGHUP = 1,
+  SIGINT = 2,
+  SIGQUIT = 3,
+  SIGILL = 4,
+  SIGTRAP = 5,
+  SIGABRT = 6,
+  SIGFPE = 8,
+  SIGKILL = 9,
+  SIGBUS = 10,
+  SIGSEGV = 11,
+  SIGSYS = 12,
+  SIGPIPE = 13,
+  SIGALRM = 14,
+  SIGTERM = 15,
+  SIGSTOP = 17,
+  SIGCONT = 19,
+  SIGCHLD = 20,
+  SIGUSR1 = 30,
+  SIGUSR2 = 31,
   NSIG = 32
 } signo_t;
 
@@ -26,9 +37,20 @@ typedef void (*sighandler_t)(int);
 #define SIG_IGN ((sighandler_t)1)
 
 typedef struct sigaction {
-  sighandler_t sa_handler;
+  union {
+    sighandler_t sa_handler;
+    void (*sa_sigaction)(int, siginfo_t *, void *);
+  };
+  sigset_t sa_mask;
+  int sa_flags;
+
   void *sa_restorer;
 } sigaction_t;
+
+/* Flags for sigprocmask(): */
+#define SIG_BLOCK 1   /* block specified signal set */
+#define SIG_UNBLOCK 2 /* unblock specified signal set */
+#define SIG_SETMASK 3 /* set specified signal set */
 
 #ifndef _KERNELSPACE
 #include <sys/unistd.h>

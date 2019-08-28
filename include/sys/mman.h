@@ -2,6 +2,8 @@
 #define _SYS_MMAN_H_
 
 #include <stdint.h>
+#include <stddef.h>
+#include <sys/cdefs.h>
 
 #define MAP_FAILED ((void *)-1)
 
@@ -20,7 +22,8 @@
 #define PROT_EXEC 4
 
 /* Newlib does not provide mmap prototype, so we need to use our own. */
-void *mmap(void *addr, size_t length, int prot, int flags);
+void *mmap(void *addr, size_t length, int prot, int flags, int fd,
+           off_t offset);
 int munmap(void *addr, size_t len);
 int mprotect(void *addr, size_t len, int prot);
 
