@@ -1,11 +1,8 @@
-/*	$NetBSD: vsnprintf.c,v 1.29 2017/01/12 18:16:52 christos Exp $	*/
+/*	$NetBSD: strndup.c,v 1.4 2007/07/03 12:11:09 nakayama Exp $	*/
 
-/*-
- * Copyright (c) 1990, 1993
+/*
+ * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Chris Torek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,63 +32,21 @@
 #include <sys/cdefs.h>
 #include <assert.h>
 #include <errno.h>
-#include <locale.h>
-#include <stdio.h>
-#include "reentrant.h"
-#include "setlocale_local.h"
-#include "local.h"
+#include <stdlib.h>
+#include <string.h>
 
-int vsnprintf_l(char *str, size_t n, locale_t loc, const char *fmt,
-                va_list ap) {
-  int ret;
-  FILE f;
-  struct __sfileext fext;
-  unsigned char dummy[1];
+char *strndup(const char *str, size_t n) {
+  size_t len;
+  char *copy;
 
-  _DIAGASSERT(n == 0 || str != NULL);
-  _DIAGASSERT(fmt != NULL);
+  _DIAGASSERT(str != NULL);
 
-  if (n > INT_MAX) {
-    errno = EOVERFLOW;
-    return -1;
-  }
+  for (len = 0; len < n && str[len]; len++)
+    continue;
 
-  _FILEEXT_SETUP(&f, &fext);
-  f._file = -1;
-  f._flags = __SWR | __SSTR;
-  if (n == 0) {
-    f._bf._base = f._p = dummy;
-    f._bf._size = f._w = 0;
-  } else {
-    f._bf._base = f._p = (unsigned char *)str;
-    _DIAGASSERT(__type_fit(int, n - 1));
-    f._bf._size = f._w = (int)(n - 1);
-  }
-  ret = __vfprintf_unlocked_l(&f, loc, fmt, ap);
-  *f._p = 0;
-  return ret;
-}
-
-int vsnprintf(char *str, size_t n, const char *fmt, va_list ap) {
-  return vsnprintf_l(str, n, _current_locale(), fmt, ap);
-}
-
-int snprintf(char *str, size_t n, const char *fmt, ...) {
-  va_list ap;
-  int ret;
-
-  va_start(ap, fmt);
-  ret = vsnprintf(str, n, fmt, ap);
-  va_end(ap);
-  return ret;
-}
-
-int snprintf_l(char *str, size_t n, locale_t loc, const char *fmt, ...) {
-  va_list ap;
-  int ret;
-
-  va_start(ap, fmt);
-  ret = vsnprintf_l(str, n, loc, fmt, ap);
-  va_end(ap);
-  return ret;
+  if (!(copy = malloc(len + 1)))
+    return (NULL);
+  memcpy(copy, str, len);
+  copy[len] = '\0';
+  return (copy);
 }

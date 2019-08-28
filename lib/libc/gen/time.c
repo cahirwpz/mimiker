@@ -1,11 +1,8 @@
-/*	$NetBSD: vsnprintf.c,v 1.29 2017/01/12 18:16:52 christos Exp $	*/
+/*	$NetBSD: time.c,v 1.12 2012/03/13 21:13:37 christos Exp $	*/
 
-/*-
- * Copyright (c) 1990, 1993
+/*
+ * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Chris Torek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,65 +30,16 @@
  */
 
 #include <sys/cdefs.h>
-#include <assert.h>
-#include <errno.h>
-#include <locale.h>
-#include <stdio.h>
-#include "reentrant.h"
-#include "setlocale_local.h"
-#include "local.h"
+#include <sys/types.h>
+#include <sys/time.h>
+#include <time.h>
 
-int vsnprintf_l(char *str, size_t n, locale_t loc, const char *fmt,
-                va_list ap) {
-  int ret;
-  FILE f;
-  struct __sfileext fext;
-  unsigned char dummy[1];
+time_t time(time_t *t) {
+  struct timeval tt;
 
-  _DIAGASSERT(n == 0 || str != NULL);
-  _DIAGASSERT(fmt != NULL);
-
-  if (n > INT_MAX) {
-    errno = EOVERFLOW;
-    return -1;
-  }
-
-  _FILEEXT_SETUP(&f, &fext);
-  f._file = -1;
-  f._flags = __SWR | __SSTR;
-  if (n == 0) {
-    f._bf._base = f._p = dummy;
-    f._bf._size = f._w = 0;
-  } else {
-    f._bf._base = f._p = (unsigned char *)str;
-    _DIAGASSERT(__type_fit(int, n - 1));
-    f._bf._size = f._w = (int)(n - 1);
-  }
-  ret = __vfprintf_unlocked_l(&f, loc, fmt, ap);
-  *f._p = 0;
-  return ret;
-}
-
-int vsnprintf(char *str, size_t n, const char *fmt, va_list ap) {
-  return vsnprintf_l(str, n, _current_locale(), fmt, ap);
-}
-
-int snprintf(char *str, size_t n, const char *fmt, ...) {
-  va_list ap;
-  int ret;
-
-  va_start(ap, fmt);
-  ret = vsnprintf(str, n, fmt, ap);
-  va_end(ap);
-  return ret;
-}
-
-int snprintf_l(char *str, size_t n, locale_t loc, const char *fmt, ...) {
-  va_list ap;
-  int ret;
-
-  va_start(ap, fmt);
-  ret = vsnprintf_l(str, n, loc, fmt, ap);
-  va_end(ap);
-  return ret;
+  if (gettimeofday(&tt, NULL) == -1)
+    return (time_t)-1;
+  if (t != NULL)
+    *t = (time_t)tt.tv_sec;
+  return (time_t)tt.tv_sec;
 }

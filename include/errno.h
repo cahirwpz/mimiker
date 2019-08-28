@@ -16,7 +16,7 @@ int *__errno(void);
 #endif
 
 extern const int sys_nerr;
-extern const char *const *sys_errlist;
+extern const char *const sys_errlist[];
 __END_DECLS
 
 #endif /* !_ERRNO_H_ */

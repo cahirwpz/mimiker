@@ -132,24 +132,24 @@ struct _locale _lc_global_locale = {
   .part_name =
     {
       [(size_t)LC_ALL] = _lc_C_locale_name,
-      [(size_t)LC_COLLATE] = _lc_C_locale_name,
-      [(size_t)LC_CTYPE] = _lc_C_locale_name,
-      [(size_t)LC_MONETARY] = _lc_C_locale_name,
-      [(size_t)LC_NUMERIC] = _lc_C_locale_name,
-      [(size_t)LC_TIME] = _lc_C_locale_name,
-      [(size_t)LC_MESSAGES] = _lc_C_locale_name,
+      [(size_t) LC_COLLATE] = _lc_C_locale_name,
+      [(size_t) LC_CTYPE] = _lc_C_locale_name,
+      [(size_t) LC_MONETARY] = _lc_C_locale_name,
+      [(size_t) LC_NUMERIC] = _lc_C_locale_name,
+      [(size_t) LC_TIME] = _lc_C_locale_name,
+      [(size_t) LC_MESSAGES] = _lc_C_locale_name,
     },
   .part_impl =
     {
       [(size_t)LC_ALL] = (_locale_part_t)NULL,
-      [(size_t)LC_COLLATE] = (_locale_part_t)NULL,
-      [(size_t)LC_CTYPE] = (_locale_part_t)__UNCONST(&_DefaultRuneLocale),
-      [(size_t)LC_MONETARY] =
+      [(size_t) LC_COLLATE] = (_locale_part_t)NULL,
+      [(size_t) LC_CTYPE] = (_locale_part_t)__UNCONST(&_DefaultRuneLocale),
+      [(size_t) LC_MONETARY] =
         (_locale_part_t)__UNCONST(&_DefaultMonetaryLocale),
-      [(size_t)LC_NUMERIC] = (_locale_part_t)__UNCONST(&_DefaultNumericLocale),
-      [(size_t)LC_MESSAGES] =
+      [(size_t) LC_NUMERIC] = (_locale_part_t)__UNCONST(&_DefaultNumericLocale),
+      [(size_t) LC_MESSAGES] =
         (_locale_part_t)__UNCONST(&_DefaultMessagesLocale),
-      [(size_t)LC_TIME] = (_locale_part_t)__UNCONST(&_DefaultTimeLocale),
+      [(size_t) LC_TIME] = (_locale_part_t)__UNCONST(&_DefaultTimeLocale),
     },
 };
 
@@ -159,23 +159,23 @@ const struct _locale _lc_C_locale = {
   .part_name =
     {
       [(size_t)LC_ALL] = _lc_C_locale_name,
-      [(size_t)LC_COLLATE] = _lc_C_locale_name,
-      [(size_t)LC_CTYPE] = _lc_C_locale_name,
-      [(size_t)LC_MONETARY] = _lc_C_locale_name,
-      [(size_t)LC_NUMERIC] = _lc_C_locale_name,
-      [(size_t)LC_TIME] = _lc_C_locale_name,
-      [(size_t)LC_MESSAGES] = _lc_C_locale_name,
+      [(size_t) LC_COLLATE] = _lc_C_locale_name,
+      [(size_t) LC_CTYPE] = _lc_C_locale_name,
+      [(size_t) LC_MONETARY] = _lc_C_locale_name,
+      [(size_t) LC_NUMERIC] = _lc_C_locale_name,
+      [(size_t) LC_TIME] = _lc_C_locale_name,
+      [(size_t) LC_MESSAGES] = _lc_C_locale_name,
     },
   .part_impl =
     {
       [(size_t)LC_ALL] = (_locale_part_t)NULL,
-      [(size_t)LC_COLLATE] = (_locale_part_t)NULL,
-      [(size_t)LC_CTYPE] = (_locale_part_t)__UNCONST(&_DefaultRuneLocale),
-      [(size_t)LC_MONETARY] =
+      [(size_t) LC_COLLATE] = (_locale_part_t)NULL,
+      [(size_t) LC_CTYPE] = (_locale_part_t)__UNCONST(&_DefaultRuneLocale),
+      [(size_t) LC_MONETARY] =
         (_locale_part_t)__UNCONST(&_DefaultMonetaryLocale),
-      [(size_t)LC_NUMERIC] = (_locale_part_t)__UNCONST(&_DefaultNumericLocale),
-      [(size_t)LC_MESSAGES] =
+      [(size_t) LC_NUMERIC] = (_locale_part_t)__UNCONST(&_DefaultNumericLocale),
+      [(size_t) LC_MESSAGES] =
         (_locale_part_t)__UNCONST(&_DefaultMessagesLocale),
-      [(size_t)LC_TIME] = (_locale_part_t)__UNCONST(&_DefaultTimeLocale),
+      [(size_t) LC_TIME] = (_locale_part_t)__UNCONST(&_DefaultTimeLocale),
     },
 };
