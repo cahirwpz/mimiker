@@ -67,6 +67,20 @@ char *stpcpy(char *restrict, const char *restrict);
 char *stpncpy(char *restrict, const char *restrict, size_t);
 char *strndup(const char *, size_t);
 size_t strnlen(const char *, size_t);
+
+size_t strlcat(char *, const char *, size_t);
+size_t strlcpy(char *, const char *, size_t);
+__END_DECLS
+
+#ifndef __LOCALE_T_DECLARED
+typedef struct _locale *locale_t;
+#define __LOCALE_T_DECLARED
+#endif
+
+__BEGIN_DECLS
+int strcoll_l(const char *, const char *, locale_t);
+size_t strxfrm_l(char *__restrict, const char *__restrict, size_t, locale_t);
+const char *strerror_l(int, locale_t);
 __END_DECLS
 
 #endif /* !_STRING_H_ */

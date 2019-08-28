@@ -51,6 +51,13 @@ char *setlocale(int, const char *);
 #define LC_TIME_MASK ((int)(1 << LC_TIME))
 #define LC_MESSAGES_MASK ((int)(1 << LC_MESSAGES))
 
+struct lconv *localeconv_l(locale_t);
+
+extern struct _locale _lc_global_locale;
+#define LC_GLOBAL_LOCALE (&_lc_global_locale)
+extern const struct _locale _lc_C_locale;
+#define LC_C_LOCALE ((locale_t)__UNCONST(&_lc_C_locale))
+
 __END_DECLS
 
 #endif /* !_LOCALE_H_ */

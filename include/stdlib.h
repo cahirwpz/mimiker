@@ -43,6 +43,16 @@ char *mkdtemp(char *);
 int mkstemp(char *);
 char *mktemp(char *);
 
+size_t _mb_cur_max_l(locale_t);
+#define MB_CUR_MAX_L(loc) _mb_cur_max_l(loc)
+int mblen_l(const char *, size_t, locale_t);
+size_t mbstowcs_l(wchar_t *__restrict, const char *__restrict, size_t,
+                  locale_t);
+int wctomb_l(char *, wchar_t, locale_t);
+int mbtowc_l(wchar_t *__restrict, const char *__restrict, size_t, locale_t);
+size_t wcstombs_l(char *__restrict, const wchar_t *__restrict, size_t,
+                  locale_t);
+
 __END_DECLS
 
 #endif /* !_STDLIB_H_ */

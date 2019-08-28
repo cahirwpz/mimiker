@@ -8,6 +8,13 @@ typedef struct _locale *locale_t;
 #define __LOCALE_T_DECLARED
 #endif
 
+extern size_t __mb_cur_max;
+#define MB_CUR_MAX __mb_cur_max
+
+#ifndef WEOF
+#define WEOF ((wint_t)-1)
+#endif
+
 /*
  * mbstate_t is an opaque object to keep conversion state, during multibyte
  * stream conversions.  The content must not be referenced by user programs.

@@ -6,16 +6,20 @@ CFLAGS   = -ffreestanding
 CPPFLAGS = -I$(TOPDIR)/include \
 	   -I$(CURDIR)/include \
 	   -I$(CURDIR)/citrus \
-	   -I$(CURDIR)/locale \
+	   -I$(CURDIR)/gdtoa \
 	   -I$(CURDIR)/gen \
-	   -D_LIBC
+	   -I$(CURDIR)/locale \
+	   -I$(CURDIR)/stdlib \
+	   -D_LIBC -DNO_FENV_H
 
 SOURCES = \
 	gettimeofday.c \
 	nanosleep.c \
 	signal.c \
 	syscalls.S \
+	$(wildcard citrus/*.c) \
 	$(wildcard dummy/*.c) \
+	$(wildcard gdtoa/*.c) \
 	$(wildcard gen/*.c) \
 	$(wildcard locale/*.c) \
 	$(wildcard stdio/*.c) \
@@ -70,4 +74,4 @@ $(SYSROOT)/%: extra/%
 	$(INSTALL) -m 644 $< $@
 
 clean-here:
-	$(RM) *.o *.a
+	$(RM) *.o *.a *~
