@@ -48,8 +48,8 @@ def build():
   require_header(['ncurses.h', 'ncurses/ncurses.h'],
                  lang='c', errmsg='libncurses5-dev package missing')
 
-  require_header(['python3.5/Python.h'],
-                 lang='c', errmsg='libpython3.5-dev package missing')
+  require_header(['python3.7/Python.h'],
+                 lang='c', errmsg='libpython3.7-dev package missing')
 
   environ['PATH'] = ":".join([path.join('{prefix}', 'bin'),
                               path.join('{host}', 'bin'),
@@ -116,7 +116,7 @@ def build():
             '--disable-shared',
             '--disable-werror',
             '--with-isl={host}')
-  make('{binutils}')
+  make('{binutils}', LDFLAGS='-Wl,--as-needed')
   make('{binutils}', 'install', DESTDIR='{destdir}')
 
   target_tools = dict(
@@ -216,9 +216,9 @@ if __name__ == "__main__":
          mpfr='mpfr-4.0.1',
          isl='isl-0.18',
          cloog='cloog-0.18.4',
-         binutils='binutils-2.31',
-         gcc='gcc-8.2.0',
-         gdb='gdb-8.2',
+         binutils='binutils-2.32',
+         gcc='gcc-9.2.0',
+         gdb='gdb-8.3',
          stamps=path.join('{top}', '{target}', 'stamps'),
          build=path.join('{top}', '{target}', 'build'),
          sources=path.join('{top}', '{target}', 'sources'),

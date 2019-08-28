@@ -3,7 +3,7 @@ RM = rm -v -f
 CP = cp -v
 
 TARGETS = mipsel aarch64
-VERSION = 1.3
+VERSION = 1.4
 
 all:
 

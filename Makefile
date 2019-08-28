@@ -60,7 +60,7 @@ format:
 	@echo "Formatting files: $(FORMATTABLE:./%=%)"
 	$(FORMAT) -i $(FORMATTABLE)
 
-test: mimiker.elf
+test: sys/mimiker.elf initrd.cpio
 	./run_tests.py
 
 PHONY-TARGETS += format tags cscope test

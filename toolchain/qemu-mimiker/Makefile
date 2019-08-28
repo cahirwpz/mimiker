@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-VER := 2.12.0
+VER := 4.1.0
 QEMU := qemu-$(VER)
 ARCHIVE := $(QEMU).tar.xz
 
