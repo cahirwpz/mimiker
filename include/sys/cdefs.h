@@ -19,7 +19,7 @@ typedef unsigned long u_long;
 typedef unsigned long vaddr_t; /* virtual address */
 typedef unsigned long paddr_t; /* physical address */
 
-typedef int64_t off_t;
+typedef int32_t off_t; /* should it be int64_t? */
 typedef intptr_t ssize_t;
 typedef int32_t pid_t;
 typedef int32_t pgid_t;
