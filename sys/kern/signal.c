@@ -90,7 +90,7 @@ void sig_kill(proc_t *proc, signo_t sig) {
     return;
   }
 
-  bit_set(td->td_sigpend, sig);
+  __sigaddset(&td->td_sigpend, sig);
 
   proc_unlock(proc);
 
@@ -111,14 +111,14 @@ int sig_check(thread_t *td) {
 
   signo_t sig = NSIG;
   while (true) {
-    bit_ffs(td->td_sigpend, NSIG, &sig);
+    sig = __sigfindset(&td->td_sigpend);
     if (sig >= NSIG) {
       /* No pending signals, signal checking done. */
       WITH_SPIN_LOCK (&td->td_spin)
         td->td_flags &= ~TDF_NEEDSIGCHK;
       return 0;
     }
-    bit_clear(td->td_sigpend, sig);
+    __sigdelset(&td->td_sigpend, sig);
 
     sighandler_t handler = p->p_sigactions[sig].sa_handler;
 
