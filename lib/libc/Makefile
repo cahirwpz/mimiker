@@ -12,20 +12,16 @@ CPPFLAGS = -I$(TOPDIR)/include \
 	   -I$(CURDIR)/stdlib \
 	   -D_LIBC -DNO_FENV_H
 
-SUBDIRS = citrus gdtoa gen locale stdio stdlib string sys time
+SUBDIRS = citrus gdtoa gen locale misc stdio stdlib string sys time
 
 SOURCES = \
-	gettimeofday.c \
-	nanosleep.c \
-	signal.c \
-	syscalls.S \
 	$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.c)) \
 	$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.S)) \
 
 HEADERFILES = $(shell find $(TOPDIR)/include/ \! -iname '*~' \! -type d)
 HEADERS = $(HEADERFILES:$(TOPDIR)/include/%=%)
 
-LIBFILES = libc.a crt0.o ld.script
+LIBFILES = libc.a crt0.o crt0-common.o ld.script
 
 build: $(LIBFILES)
 

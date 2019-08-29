@@ -1,7 +1,7 @@
 OUTPUT_ARCH(mips)
 ENTRY(_start)
 
-INPUT(-lc -lgcc -lm)
+INPUT(crt0.o crt0-common.o -lc -lgcc -lm)
 
 PHDRS
 {
@@ -16,7 +16,6 @@ SECTIONS
 {
     .text 0x00400000 :
     {
-        crt0.o
         *(.text .text.*)
         . = ALIGN(4096);
     } : text
