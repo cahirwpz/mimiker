@@ -39,4 +39,4 @@ $(SOURCES): assym.h
 	$(GENASSYM) $< $@
 
 clean-here:
-	$(RM) assym.h *-devhint.c
+	$(RM) assym.h genassym.o *-devhint.c
