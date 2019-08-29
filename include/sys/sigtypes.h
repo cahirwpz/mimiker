@@ -23,9 +23,12 @@ typedef struct {
 #define __sigemptyset(s) ((s)->__bits = 0x00000000)
 #define __sigsetequal(s1, s2) ((s1)->__bits == (s2)->__bits)
 #define __sigfillset(s) ((s)->__bits = 0xffffffff)
-#define __sigplusset(s, t) { (t)->__bits |= (s)->__bits; }
-#define __sigminusset(s, t) { (t)->__bits &= ~(s)->__bits; }
-#define __sigandset(s, t) { (t)->__bits &= (s)->__bits; }
+#define __sigplusset(s, t)                                                     \
+  { (t)->__bits |= (s)->__bits; }
+#define __sigminusset(s, t)                                                    \
+  { (t)->__bits &= ~(s)->__bits; }
+#define __sigandset(s, t)                                                      \
+  { (t)->__bits &= (s)->__bits; }
 #define __sigfindset(s) ((s)->__bits != 0 ? __builtin_ffs((s)->__bits) : -1)
 
 #endif /* !_SYS_SIGTYPES_H_ */
