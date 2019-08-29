@@ -6,7 +6,7 @@ PYFILES=$(find . \( -name 'newlib' -prune \)\
               -o \( -name '*.py' -printf '%P\n' \))
 PYEXTRA="launch"
 
-pep8 ${PYEXTRA} ${PYFILES}
+pycodestyle ${PYEXTRA} ${PYFILES}
 RES=$?
 
 if ! [ $RES -eq 0 ]

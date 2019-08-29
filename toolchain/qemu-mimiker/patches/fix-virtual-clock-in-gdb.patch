@@ -1,7 +1,9 @@
 Stop virtual clock as soon as debug exception is triggered.
---- a/qemu-2.12.0/gdbstub.c
-+++ b/qemu-2.12.0/gdbstub.c
-@@ -322,6 +322,7 @@
+Index: qemu-mimiker/qemu-4.1.0/gdbstub.c
+===================================================================
+--- qemu-mimiker.orig/qemu-4.1.0/gdbstub.c
++++ qemu-mimiker/qemu-4.1.0/gdbstub.c
+@@ -356,6 +356,7 @@ typedef struct GDBState {
      int fd;
      int running_state;
  #else
@@ -9,7 +11,7 @@ Stop virtual clock as soon as debug exception is triggered.
      CharBackend chr;
      Chardev *mon_chr;
  #endif
-@@ -429,8 +430,6 @@
+@@ -466,8 +467,6 @@ static int gdb_continue_partial(GDBState
      }
      s->running_state = 1;
  #else
@@ -18,7 +20,7 @@ Stop virtual clock as soon as debug exception is triggered.
      if (!runstate_needs_reset()) {
          if (vm_prepare_start()) {
              return 0;
-@@ -445,12 +444,12 @@
+@@ -482,12 +481,12 @@ static int gdb_continue_partial(GDBState
                  trace_gdbstub_op_stepping(cpu->cpu_index);
                  cpu_single_step(cpu, sstep_flags);
                  cpu_resume(cpu);
@@ -33,7 +35,7 @@ Stop virtual clock as soon as debug exception is triggered.
                  break;
              default:
                  res = -1;
-@@ -458,9 +457,6 @@
+@@ -495,9 +494,6 @@ static int gdb_continue_partial(GDBState
              }
          }
      }
@@ -43,7 +45,7 @@ Stop virtual clock as soon as debug exception is triggered.
  #endif
      return res;
  }
-@@ -1909,6 +1905,9 @@
+@@ -3162,6 +3158,9 @@ static void gdb_chr_receive(void *opaque
      for (i = 0; i < size; i++) {
          gdb_read_byte(gdbserver_state, buf[i]);
      }
@@ -53,9 +55,11 @@ Stop virtual clock as soon as debug exception is triggered.
  }
  
  static void gdb_chr_event(void *opaque, int event)
---- a/qemu-2.12.0/target/mips/op_helper.c
-+++ b/qemu-2.12.0/target/mips/op_helper.c
-@@ -42,6 +42,7 @@
+Index: qemu-mimiker/qemu-4.1.0/target/mips/op_helper.c
+===================================================================
+--- qemu-mimiker.orig/qemu-4.1.0/target/mips/op_helper.c
++++ qemu-mimiker/qemu-4.1.0/target/mips/op_helper.c
+@@ -42,6 +42,7 @@ void helper_raise_exception(CPUMIPSState
  
  void helper_raise_exception_debug(CPUMIPSState *env)
  {

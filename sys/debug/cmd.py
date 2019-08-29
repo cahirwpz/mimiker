@@ -6,7 +6,7 @@ def print_exception(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except:
+        except Exception:
             traceback.print_exc()
     return wrapper
 
@@ -89,7 +89,7 @@ class CommandDispatcher(SimpleCommand, AutoCompleteMixin):
 
         try:
             self.commands[cmd](args)
-        except:
+        except Exception:
             traceback.print_exc()
 
     def options(self):

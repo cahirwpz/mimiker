@@ -1,3 +1,9 @@
+qemu-mimiker (4.1.0+mimiker1) unstable; urgency=medium
+
+  * Updated to the most recent version.
+ 
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Wed, 28 Aug 2019 12:54:28 +0200
+
 qemu-mimiker (2.12.0+mimiker2) unstable; urgency=medium
 
   * Allow gdb to reach memory that cannot be translated using active TLB

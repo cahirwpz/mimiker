@@ -23,7 +23,7 @@ class Context():
             alias = cls.aliases.get(name, name)
             try:
                 gdb.execute('set $%s = %d' % (name, frame[alias]))
-            except:
+            except Exception:
                 pass
 
     def save(self):
