@@ -7,9 +7,7 @@ void __libc_env_init(void);
 
 static bool libc_initialised;
 
-void __section(".text.startup")
-_libc_init(void) {
-
+void __section(".text.startup") _libc_init(void) {
   if (libc_initialised)
     return;
 
