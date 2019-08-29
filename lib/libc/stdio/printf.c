@@ -1,8 +1,11 @@
-/*	$NetBSD: exit.c,v 1.17 2017/07/14 19:24:52 joerg Exp $	*/
+/*	$NetBSD: printf.c,v 1.13 2013/04/19 15:22:25 joerg Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Chris Torek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,16 +33,27 @@
  */
 
 #include <sys/cdefs.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <assert.h>
+#include <errno.h>
+#include <stdarg.h>
+#include <stdio.h>
 
-void (*__cleanup)(void);
+int printf(char const *fmt, ...) {
+  int ret;
+  va_list ap;
 
-/*
- * Exit, flushing stdio buffers if necessary.
- */
-void exit(int status) {
-  if (__cleanup)
-    (*__cleanup)();
-  _exit(status);
+  va_start(ap, fmt);
+  ret = vfprintf(stdout, fmt, ap);
+  va_end(ap);
+  return ret;
+}
+
+int printf_l(locale_t loc, char const *fmt, ...) {
+  int ret;
+  va_list ap;
+
+  va_start(ap, fmt);
+  ret = vfprintf_l(stdout, loc, fmt, ap);
+  va_end(ap);
+  return ret;
 }

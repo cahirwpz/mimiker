@@ -23,6 +23,15 @@ size_t strftime(char *__restrict, size_t, const char *__restrict,
                 const struct tm *__restrict)
   __attribute__((__format__(__strftime__, 3, 0)));
 char *asctime_r(const struct tm *__restrict, char *__restrict);
+
+time_t mktime_z(timezone_t __restrict, struct tm *__restrict);
+time_t timelocal_z(timezone_t __restrict, struct tm *);
+size_t strftime_lz(timezone_t __restrict, char *__restrict, size_t,
+                   const char *__restrict, const struct tm *__restrict,
+                   locale_t) __attribute__((__format__(__strftime__, 4, 0)));
+size_t strftime_z(timezone_t __restrict, char *__restrict, size_t,
+                  const char *__restrict, const struct tm *__restrict)
+  __attribute__((__format__(__strftime__, 4, 0)));
 __END_DECLS
 
 #endif /* !_TIME_H_ */

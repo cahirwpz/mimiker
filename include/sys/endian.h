@@ -1,16 +1,23 @@
 #ifndef _SYS_ENDIAN_H_
 #define _SYS_ENDIAN_H_
 
-#include <sys/types.h>
-
 #ifndef __BYTE_ORDER__
 #error __BYTE_ORDER__ has not been defined by the compiler!
 #endif
 
-#define BIG_ENDIAN __ORDER_BIG_ENDIAN__
-#define LITTLE_ENDIAN __ORDER_LITTLE_ENDIAN__
-#define PDP_ENDIAN __ORDER_PDP_ENDIAN__
-#define BYTE_ORDER __BYTE_ORDER__
+#define _BIG_ENDIAN __ORDER_BIG_ENDIAN__
+#define _LITTLE_ENDIAN __ORDER_LITTLE_ENDIAN__
+#define _PDP_ENDIAN __ORDER_PDP_ENDIAN__
+#define _BYTE_ORDER __BYTE_ORDER__
+
+#define BIG_ENDIAN _BIG_ENDIAN
+#define LITTLE_ENDIAN _LITTLE_ENDIAN
+#define PDP_ENDIAN _PDP_ENDIAN
+#define BYTE_ORDER _BYTE_ORDER
+
+#ifndef __ASSEMBLER__
+
+#include <sys/types.h>
 
 /*
  * Macros to convert to a specific endianness.
@@ -63,5 +70,7 @@
 #define LE16TOH(x) HTOLE16(x)
 #define LE32TOH(x) HTOLE32(x)
 #define LE64TOH(x) HTOLE64(x)
+
+#endif /* __ASSEMBLER__ */
 
 #endif /* !_SYS_ENDIAN_H_ */

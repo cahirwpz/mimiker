@@ -1,4 +1,4 @@
-/* $NetBSD: _strtol.h,v 1.11 2017/07/06 21:08:44 joerg Exp $ */
+/* $NetBSD: _strtoul.h,v 1.11 2017/07/06 21:08:44 joerg Exp $ */
 
 /*-
  * Copyright (c) 1990, 1993
@@ -29,21 +29,20 @@
  * SUCH DAMAGE.
  *
  * Original version ID:
- * NetBSD: src/lib/libc/locale/_wcstol.h,v 1.2 2003/08/07 16:43:03 agc Exp
+ * NetBSD: src/lib/libc/locale/_wcstoul.h,v 1.2 2003/08/07 16:43:03 agc Exp
  */
 
 /*
- * function template for strtol, strtoll and strtoimax.
+ * function template for strtoul, strtoull and strtoumax.
  *
  * parameters:
- *	_FUNCNAME : function name
- *      __INT     : return type
- *      __INT_MIN : lower limit of the return type
- *      __INT_MAX : upper limit of the return type
+ *	_FUNCNAME  : function name
+ *      __UINT     : return type
+ *      __UINT_MAX : upper limit of the return type
  */
 #if defined(_KERNEL) || defined(_STANDALONE) ||                                \
   defined(HAVE_NBTOOL_CONFIG_H) || defined(BCS_ONLY)
-__INT
+__UINT
 _FUNCNAME(const char *nptr, char **endptr, int base)
 #else
 #include <locale.h>
@@ -51,12 +50,13 @@ _FUNCNAME(const char *nptr, char **endptr, int base)
 #define INT_FUNCNAME_(pre, name, post) pre##name##post
 #define INT_FUNCNAME(pre, name, post) INT_FUNCNAME_(pre, name, post)
 
-static __INT INT_FUNCNAME(_int_, _FUNCNAME, _l)(const char *nptr, char **endptr,
-                                                int base, locale_t loc)
+static __UINT INT_FUNCNAME(_int_, _FUNCNAME, _l)(const char *nptr,
+                                                 char **endptr, int base,
+                                                 locale_t loc)
 #endif
 {
   const char *s;
-  __INT acc, cutoff;
+  __UINT acc, cutoff;
   unsigned char c;
   int i, neg, any, cutlim;
 
@@ -118,32 +118,10 @@ static __INT INT_FUNCNAME(_int_, _FUNCNAME, _l)(const char *nptr, char **endptr,
     base = (c == '0' ? 8 : 10);
 
   /*
-   * Compute the cutoff value between legal numbers and illegal
-   * numbers.  That is the largest legal value, divided by the
-   * base.  An input number that is greater than this value, if
-   * followed by a legal input character, is too big.  One that
-   * is equal to this value may be valid or not; the limit
-   * between valid and invalid numbers is then based on the last
-   * digit.  For instance, if the range for longs is
-   * [-2147483648..2147483647] and the input base is 10,
-   * cutoff will be set to 214748364 and cutlim to either
-   * 7 (neg==0) or 8 (neg==1), meaning that if we have accumulated
-   * a value > 214748364, or equal but the next digit is > 7 (or 8),
-   * the number is too big, and we will return a range error.
-   *
-   * Set any if any `digits' consumed; make it negative to indicate
-   * overflow.
+   * See strtol for comments as to the logic used.
    */
-  cutoff = (__INT)(neg ? __INT_MIN : __INT_MAX);
-  cutlim = (int)(cutoff % base);
-  cutoff /= base;
-  if (neg) {
-    if (cutlim > 0) {
-      cutlim -= base;
-      cutoff += 1;
-    }
-    cutlim = -cutlim;
-  }
+  cutoff = ((__UINT)__UINT_MAX / (__UINT)base);
+  cutlim = (int)((__UINT)__UINT_MAX % (__UINT)base);
   for (acc = 0, any = 0;; c = *s++) {
     if (c >= '0' && c <= '9')
       i = c - '0';
@@ -157,38 +135,23 @@ static __INT INT_FUNCNAME(_int_, _FUNCNAME, _l)(const char *nptr, char **endptr,
       break;
     if (any < 0)
       continue;
-    if (neg) {
-      if (acc < cutoff || (acc == cutoff && i > cutlim)) {
-        acc = __INT_MIN;
+    if (acc > cutoff || (acc == cutoff && i > cutlim)) {
+      acc = __UINT_MAX;
 #if !defined(_KERNEL) && !defined(_STANDALONE)
-        any = -1;
-        errno = ERANGE;
+      any = -1;
+      errno = ERANGE;
 #else
-        any = 0;
-        break;
+      any = 0;
+      break;
 #endif
-      } else {
-        any = 1;
-        acc *= base;
-        acc -= i;
-      }
     } else {
-      if (acc > cutoff || (acc == cutoff && i > cutlim)) {
-        acc = __INT_MAX;
-#if !defined(_KERNEL) && !defined(_STANDALONE)
-        any = -1;
-        errno = ERANGE;
-#else
-        any = 0;
-        break;
-#endif
-      } else {
-        any = 1;
-        acc *= base;
-        acc += i;
-      }
+      any = 1;
+      acc *= (__UINT)base;
+      acc += i;
     }
   }
+  if (neg && any > 0)
+    acc = -acc;
   if (endptr != NULL)
     /* LINTED interface specification */
     *endptr = __UNCONST(any ? s - 1 : nptr);
@@ -197,13 +160,13 @@ static __INT INT_FUNCNAME(_int_, _FUNCNAME, _l)(const char *nptr, char **endptr,
 
 #if !defined(_KERNEL) && !defined(_STANDALONE) &&                              \
   !defined(HAVE_NBTOOL_CONFIG_H) && !defined(BCS_ONLY)
-__INT
+__UINT
 _FUNCNAME(const char *nptr, char **endptr, int base) {
   return INT_FUNCNAME(_int_, _FUNCNAME, _l)(nptr, endptr, base,
                                             _current_locale());
 }
 
-__INT
+__UINT
 INT_FUNCNAME(, _FUNCNAME, _l)
 (const char *nptr, char **endptr, int base, locale_t loc) {
   return INT_FUNCNAME(_int_, _FUNCNAME, _l)(nptr, endptr, base, loc);

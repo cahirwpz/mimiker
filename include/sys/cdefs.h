@@ -54,9 +54,11 @@ typedef __builtin_va_list __va_list;
 #ifdef __cplusplus
 #define __BEGIN_DECLS extern "C" {
 #define __END_DECLS }
+#define __static_cast(x, y) static_cast<x>(y)
 #else
 #define __BEGIN_DECLS
 #define __END_DECLS
+#define __static_cast(x, y) (x) y
 #endif
 #endif
 
@@ -114,10 +116,10 @@ typedef __builtin_va_list __va_list;
   __attribute__((__format__(__scanf__, fmtarg, firstvararg)))
 #define __format_arg(fmtarg) __attribute__((__format_arg__(fmtarg)))
 
-#define __strong_alias(aliassym, sym)                                          \
-  extern __typeof(sym) aliassym __attribute__((__alias__(#sym)))
-#define __weak_alias(aliassym, sym)                                            \
-  __strong_alias(aliassym, sym) __attribute__((__weak__))
+#define __strong_alias(alias, sym)                                             \
+  extern __typeof(alias) alias __attribute__((__alias__(#sym)))
+#define __weak_alias(alias, sym)                                               \
+  __strong_alias(alias, sym) __attribute__((__weak__))
 
 /*
  * The following macro is used to remove const cast-away warnings

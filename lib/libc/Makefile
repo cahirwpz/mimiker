@@ -12,21 +12,15 @@ CPPFLAGS = -I$(TOPDIR)/include \
 	   -I$(CURDIR)/stdlib \
 	   -D_LIBC -DNO_FENV_H
 
+SUBDIRS = citrus gdtoa gen locale stdio stdlib string sys time
+
 SOURCES = \
 	gettimeofday.c \
 	nanosleep.c \
 	signal.c \
 	syscalls.S \
-	$(wildcard citrus/*.c) \
-	$(wildcard dummy/*.c) \
-	$(wildcard gdtoa/*.c) \
-	$(wildcard gen/*.c) \
-	$(wildcard locale/*.c) \
-	$(wildcard stdio/*.c) \
-	$(wildcard stdlib/*.c) \
-	$(wildcard string/*.c) \
-	$(wildcard time/*.c)
-
+	$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.c)) \
+	$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.S)) \
 
 HEADERFILES = $(shell find $(TOPDIR)/include/ \! -iname '*~' \! -type d)
 HEADERS = $(HEADERFILES:$(TOPDIR)/include/%=%)
@@ -74,4 +68,6 @@ $(SYSROOT)/%: extra/%
 	$(INSTALL) -m 644 $< $@
 
 clean-here:
-	$(RM) *.o *.a *~
+	$(RM) $(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.o))
+	$(RM) $(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*~))
+	$(RM) *.a

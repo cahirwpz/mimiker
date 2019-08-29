@@ -66,13 +66,10 @@ typedef sighandler_t _sig_func_ptr;
 #else /* _KERNELSPACE */
 
 #include <sys/cdefs.h>
-#include <sys/bitstring.h>
 
 typedef struct proc proc_t;
 typedef struct thread thread_t;
 typedef struct exc_frame exc_frame_t;
-
-typedef bitstr_t sigset_t[bitstr_size(NSIG)];
 
 /*! \brief Signal a process.
  *

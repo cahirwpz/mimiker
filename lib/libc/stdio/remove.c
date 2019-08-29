@@ -1,8 +1,11 @@
-/*	$NetBSD: exit.c,v 1.17 2017/07/14 19:24:52 joerg Exp $	*/
+/*	$NetBSD: remove.c,v 1.14 2012/03/15 18:22:30 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Chris Torek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,16 +33,28 @@
  */
 
 #include <sys/cdefs.h>
-#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#include <assert.h>
+#include <errno.h>
+#include <stdio.h>
 #include <unistd.h>
 
-void (*__cleanup)(void);
+int remove(const char *file) {
+  struct stat sb;
 
-/*
- * Exit, flushing stdio buffers if necessary.
- */
-void exit(int status) {
-  if (__cleanup)
-    (*__cleanup)();
-  _exit(status);
+  _DIAGASSERT(file != NULL);
+
+  if (lstat(file, &sb) < 0)
+    return -1;
+
+  /*
+   * The file system may prohibit using unlink(2) on directories,
+   * so always use rmdir(2) in that case.
+   */
+  if (S_ISDIR(sb.st_mode))
+    return rmdir(file);
+  else
+    return unlink(file);
 }

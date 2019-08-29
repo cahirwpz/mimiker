@@ -1072,6 +1072,10 @@ double strtod(CONST char *s, char **sp) {
   return _int_strtod_l(s, sp, _current_locale());
 }
 
+__strong_alias(strtold, strtod);
+
 double strtod_l(CONST char *s, char **sp, locale_t loc) {
   return _int_strtod_l(s, sp, loc);
 }
+
+__strong_alias(strtold_l, strtod_l);

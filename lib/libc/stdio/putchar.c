@@ -1,8 +1,11 @@
-/*	$NetBSD: exit.c,v 1.17 2017/07/14 19:24:52 joerg Exp $	*/
+/*	$NetBSD: putchar.c,v 1.10 2012/03/15 18:22:30 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Chris Torek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,16 +33,26 @@
  */
 
 #include <sys/cdefs.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <stdio.h>
+#include "reentrant.h"
+#include "local.h"
 
-void (*__cleanup)(void);
+#undef putchar
+#undef putchar_unlocked
 
 /*
- * Exit, flushing stdio buffers if necessary.
+ * A subroutine version of the macro putchar
  */
-void exit(int status) {
-  if (__cleanup)
-    (*__cleanup)();
-  _exit(status);
+int putchar(int c) {
+  FILE *fp = stdout;
+  int r;
+
+  FLOCKFILE(fp);
+  r = __sputc(c, fp);
+  FUNLOCKFILE(fp);
+  return r;
+}
+
+int putchar_unlocked(int c) {
+  return __sputc(c, stdout);
 }

@@ -1,8 +1,11 @@
-/*	$NetBSD: exit.c,v 1.17 2017/07/14 19:24:52 joerg Exp $	*/
+/*	$NetBSD: vsprintf.c,v 1.19 2013/05/17 12:55:57 joerg Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Chris Torek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,16 +33,56 @@
  */
 
 #include <sys/cdefs.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <assert.h>
+#include <errno.h>
+#include <limits.h>
+#include <locale.h>
+#include <stdio.h>
 
-void (*__cleanup)(void);
+#include "reentrant.h"
+#include "setlocale_local.h"
+#include "local.h"
 
-/*
- * Exit, flushing stdio buffers if necessary.
- */
-void exit(int status) {
-  if (__cleanup)
-    (*__cleanup)();
-  _exit(status);
+int vsprintf_l(char *str, locale_t loc, const char *fmt, va_list ap) {
+  int ret;
+  FILE f;
+  struct __sfileext fext;
+
+  _DIAGASSERT(str != NULL);
+  _DIAGASSERT(fmt != NULL);
+
+  _FILEEXT_SETUP(&f, &fext);
+  f._file = -1;
+  f._flags = __SWR | __SSTR;
+  f._bf._base = f._p = (unsigned char *)str;
+  f._bf._size = f._w = INT_MAX;
+  ret = __vfprintf_unlocked_l(&f, loc, fmt, ap);
+  *f._p = 0;
+  return ret;
+}
+
+int vsprintf(char *str, const char *fmt, va_list ap) {
+  return vsprintf_l(str, _current_locale(), fmt, ap);
+}
+
+int sprintf_l(char *str, locale_t loc, char const *fmt, ...) {
+  int ret;
+  va_list ap;
+
+  va_start(ap, fmt);
+  ret = vsprintf_l(str, loc, fmt, ap);
+  va_end(ap);
+
+  return ret;
+}
+
+int sprintf(char *str, char const *fmt, ...) {
+  int ret;
+  va_list ap;
+
+  va_start(ap, fmt);
+  ret = vsprintf(str, fmt, ap);
+  va_end(ap);
+
+  return ret;
 }

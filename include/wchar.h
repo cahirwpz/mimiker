@@ -73,4 +73,10 @@ size_t wcsrtombs_l(char *s, const wchar_t **ppwcs, size_t n, mbstate_t *ps,
                    locale_t loc);
 __END_DECLS
 
+__BEGIN_DECLS
+size_t mbrtowc_l(wchar_t *__restrict, const char *__restrict, size_t,
+                 mbstate_t *__restrict, locale_t);
+int wctob_l(wint_t, locale_t);
+__END_DECLS
+
 #endif /* !_WCHAR_H_ */

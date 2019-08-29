@@ -3,12 +3,13 @@
 
 #include <sys/cdefs.h>
 
+#undef assert
+
 #ifdef NDEBUG
 #define assert(e)
 #else
 #define assert(e)                                                              \
-  ((e) ? __static_cast(void, 0)                                                \
-       : __assert(__FILE__, __LINE__, __assert_function__, #e))
+  ((e) ? __static_cast(void, 0) : __assert(__FILE__, __LINE__, __func__, #e))
 #endif /* NDEBUG */
 
 #ifndef _DIAGNOSTIC
@@ -16,7 +17,7 @@
 #else
 #define _DIAGASSERT(e)                                                         \
   ((e) ? __static_cast(void, 0)                                                \
-       : __diagassert(__FILE__, __LINE__, __assert_function__, #e))
+       : __diagassert(__FILE__, __LINE__, __func__, #e))
 #endif /* _DIAGNOSTIC */
 
 #ifndef __ASSERT_DECLARED

@@ -3,7 +3,16 @@
 
 #include <sys/cdefs.h>
 
+/* 7.12#3 HUGE_VAL, HUGELF, HUGE_VALL */
+#define HUGE_VALF __builtin_huge_valf()
+#define HUGE_VALL __builtin_huge_vall()
 #define HUGE_VAL __builtin_huge_val()
+
+/* 7.12#4 INFINITY */
+#define INFINITY __builtin_inff()
+
+/* 7.12#5 NAN: a quiet NaN, if supported */
+#define NAN __builtin_nanf("")
 
 __BEGIN_DECLS
 double acos(double);

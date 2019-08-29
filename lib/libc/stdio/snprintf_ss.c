@@ -1,8 +1,11 @@
-/*	$NetBSD: exit.c,v 1.17 2017/07/14 19:24:52 joerg Exp $	*/
+/*	$NetBSD: snprintf_ss.c,v 1.4 2007/02/02 23:00:28 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Chris Torek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,16 +33,21 @@
  */
 
 #include <sys/cdefs.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <assert.h>
+#include <errno.h>
+#include <stdarg.h>
+#include <stdio.h>
 
-void (*__cleanup)(void);
+#include "reentrant.h"
+#include "extern.h"
+#include "local.h"
 
-/*
- * Exit, flushing stdio buffers if necessary.
- */
-void exit(int status) {
-  if (__cleanup)
-    (*__cleanup)();
-  _exit(status);
+int snprintf_ss(char *str, size_t n, char const *fmt, ...) {
+  va_list ap;
+  int ret;
+
+  va_start(ap, fmt);
+  ret = vsnprintf_ss(str, n, fmt, ap);
+  va_end(ap);
+  return ret;
 }

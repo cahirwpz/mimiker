@@ -61,4 +61,26 @@
 #define toascii(c) ((c)&0177)
 #define isblank(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_BL))
 
+__BEGIN_DECLS
+#ifndef __LOCALE_T_DECLARED
+typedef struct _locale *locale_t;
+#define __LOCALE_T_DECLARED
+#endif
+
+int isalnum_l(int, locale_t);
+int isalpha_l(int, locale_t);
+int isblank_l(int, locale_t);
+int iscntrl_l(int, locale_t);
+int isdigit_l(int, locale_t);
+int isgraph_l(int, locale_t);
+int islower_l(int, locale_t);
+int isprint_l(int, locale_t);
+int ispunct_l(int, locale_t);
+int isspace_l(int, locale_t);
+int isupper_l(int, locale_t);
+int isxdigit_l(int, locale_t);
+int tolower_l(int, locale_t);
+int toupper_l(int, locale_t);
+__END_DECLS
+
 #endif /* !_CTYPE_H_ */

@@ -15,8 +15,9 @@ AENT(lstat)
 AENT(fcntl)
 AENT(getrusage)
 AENT(rename)
+AENT(sigprocmask)
 
-SLEAF(no_syscall)
+LEAF(no_syscall)
         b       set_errno
         li      v0, -ENOSYS
 END(no_syscall)
@@ -35,7 +36,7 @@ SNESTED(set_errno, CALLFRAME_SIZ, ra)
         lw      ra, CALLFRAME_RA(sp)
         jr      ra
         PTR_ADDU sp, sp, CALLFRAME_SIZ
-SEND(set_errno)
+END(set_errno)
 
 /* This implementation uses newlib-specific errno processing. */
 #define DO_SYSCALL(num)         \

@@ -1,7 +1,7 @@
-/*	$NetBSD: exit.c,v 1.17 2017/07/14 19:24:52 joerg Exp $	*/
+/*	$NetBSD: setjmperr.c,v 1.8 2012/06/24 15:26:03 christos Exp $	*/
 
-/*-
- * Copyright (c) 1990, 1993
+/*
+ * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,16 +30,18 @@
  */
 
 #include <sys/cdefs.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-void (*__cleanup)(void);
 
 /*
- * Exit, flushing stdio buffers if necessary.
+ * This routine is called from longjmp() when an error occurs.
+ * Programs that wish to exit gracefully from this error may
+ * write their own versions.
+ * If this routine returns, the program is aborted.
  */
-void exit(int status) {
-  if (__cleanup)
-    (*__cleanup)();
-  _exit(status);
+
+#include <setjmp.h>
+#include <unistd.h>
+
+void longjmperror(void) {
+#define ERRMSG "longjmp botch.\n"
+  (void)write(STDERR_FILENO, ERRMSG, sizeof(ERRMSG) - 1);
 }

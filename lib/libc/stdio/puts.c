@@ -1,8 +1,11 @@
-/*	$NetBSD: exit.c,v 1.17 2017/07/14 19:24:52 joerg Exp $	*/
+/*	$NetBSD: puts.c,v 1.17 2018/02/04 01:13:45 mrg Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Chris Torek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,16 +33,39 @@
  */
 
 #include <sys/cdefs.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-void (*__cleanup)(void);
+#include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include "fvwrite.h"
+#include "reentrant.h"
+#include "local.h"
 
 /*
- * Exit, flushing stdio buffers if necessary.
+ * Write the given string to stdout, appending a newline.
  */
-void exit(int status) {
-  if (__cleanup)
-    (*__cleanup)();
-  _exit(status);
+int puts(char const *s) {
+  size_t c;
+  struct __suio uio;
+  struct __siov iov[2];
+  const void *vs = s;
+  int r;
+
+  /* This avoids -Werror=nonnull-compare. */
+  if (vs == NULL)
+    s = "(null)";
+
+  c = strlen(s);
+
+  iov[0].iov_base = __UNCONST(s);
+  iov[0].iov_len = c;
+  iov[1].iov_base = __UNCONST("\n");
+  iov[1].iov_len = 1;
+  uio.uio_resid = c + 1;
+  uio.uio_iov = &iov[0];
+  uio.uio_iovcnt = 2;
+  FLOCKFILE(stdout);
+  r = __sfvwrite(stdout, &uio);
+  FUNLOCKFILE(stdout);
+  return r ? EOF : '\n';
 }

@@ -1,8 +1,11 @@
-/*	$NetBSD: exit.c,v 1.17 2017/07/14 19:24:52 joerg Exp $	*/
+/*	$NetBSD: vsscanf.c,v 1.21 2013/05/17 12:55:57 joerg Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Donn Seeley at UUNET Technologies, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,16 +33,39 @@
  */
 
 #include <sys/cdefs.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <assert.h>
+#include <errno.h>
+#include <locale.h>
+#include <stdio.h>
+#include <string.h>
+#include "reentrant.h"
+#include "setlocale_local.h"
+#include "local.h"
 
-void (*__cleanup)(void);
+/* ARGSUSED */
+static ssize_t eofread(void *cookie, void *buf, size_t len) {
+  return 0;
+}
 
-/*
- * Exit, flushing stdio buffers if necessary.
- */
-void exit(int status) {
-  if (__cleanup)
-    (*__cleanup)();
-  _exit(status);
+int vsscanf_l(const char *str, locale_t loc, const char *fmt, va_list ap) {
+  FILE f;
+  struct __sfileext fext;
+  size_t len;
+
+  _DIAGASSERT(str != NULL);
+  _DIAGASSERT(fmt != NULL);
+
+  _FILEEXT_SETUP(&f, &fext);
+  f._flags = __SRD;
+  f._bf._base = f._p = __UNCONST(str);
+  len = strlen(str);
+  _DIAGASSERT(__type_fit(int, len));
+  f._bf._size = f._r = (int)len;
+  f._read = eofread;
+  _UB(&f)._base = NULL;
+  return __svfscanf_unlocked_l(&f, loc, fmt, ap);
+}
+
+int vsscanf(const char *str, const char *fmt, va_list ap) {
+  return vsscanf_l(str, _current_locale(), fmt, ap);
 }

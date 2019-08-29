@@ -287,6 +287,14 @@ int vfprintf_l(FILE *__restrict, locale_t, const char *__restrict, __va_list)
 int printf_l(locale_t, const char *__restrict, ...) __printflike(2, 3);
 int snprintf_l(char *__restrict, size_t, locale_t, const char *__restrict, ...)
   __printflike(4, 5);
+
+int vsscanf_l(const char *__restrict, locale_t, const char *__restrict,
+              __va_list) __scanflike(3, 0);
+
+int snprintf_ss(char *restrict, size_t, const char *__restrict, ...)
+  __printflike(3, 4);
+int vsnprintf_ss(char *restrict, size_t, const char *__restrict, __va_list)
+  __printflike(3, 0);
 __END_DECLS
 
 /*
