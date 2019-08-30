@@ -83,4 +83,6 @@ size_t strxfrm_l(char *__restrict, const char *__restrict, size_t, locale_t);
 const char *strerror_l(int, locale_t);
 __END_DECLS
 
+#include <strings.h>
+
 #endif /* !_STRING_H_ */

@@ -70,4 +70,6 @@ size_t wcstombs_l(char *__restrict, const wchar_t *__restrict, size_t,
 
 __END_DECLS
 
+void *alloca(size_t); /* built-in for gcc */
+
 #endif /* !_STDLIB_H_ */

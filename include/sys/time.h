@@ -2,7 +2,6 @@
 #define _SYS_TIME_H_
 
 #include <sys/types.h>
-#include <stdbool.h>
 
 typedef struct tm {
   int tm_sec;          /* seconds after the minute [0-61] */
@@ -72,7 +71,7 @@ static inline void timeval_clear(timeval_t *tvp) {
   *tvp = (timeval_t){.tv_sec = 0, .tv_usec = 0};
 }
 
-static inline bool timeval_isset(timeval_t *tvp) {
+static inline int timeval_isset(timeval_t *tvp) {
   return tvp->tv_sec || tvp->tv_usec;
 }
 
