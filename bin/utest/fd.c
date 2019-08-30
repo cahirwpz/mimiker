@@ -144,10 +144,7 @@ int test_fd_open_path() {
   memset(too_long, 'c', sizeof(too_long));
   too_long[sizeof(too_long) - 1] = 0;
   too_long[0] = '/';
-  /* This is very unfortunate! In our errno.h: ENAMETOOLONG is 63, but errno.h
-     provided by newlib (since we DID NOT port newlib to our system, which would
-     include providing our custom sys/errno.h) uses ENAMETOOLONG 91. */
-  assert_open_fail(too_long, 0, O_RDONLY, 63);
+  assert_open_fail(too_long, 0, O_RDONLY, ENAMETOOLONG);
   return 0;
 }
 

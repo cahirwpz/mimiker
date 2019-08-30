@@ -34,6 +34,7 @@
  */
 
 #include <sys/libkern.h>
+#include <limits.h>
 
 #undef bzero
 #undef memcpy

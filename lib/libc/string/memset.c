@@ -1,5 +1,4 @@
-/*	$OpenBSD: memset.c,v 1.8 2017/01/24 08:09:05 kettenis Exp $	*/
-/*	$NetBSD: memset.c,v 1.6 1998/03/27 05:35:47 cgd Exp $	*/
+/*	$NetBSD: memset.c,v 1.12 2019/03/30 10:18:03 jmcneill Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -33,13 +32,16 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/libkern.h>
-
-#undef bzero
-#undef memcpy
+#include <sys/cdefs.h>
+#include <sys/types.h>
+#include <assert.h>
+#include <limits.h>
+#include <string.h>
 
 #define wsize sizeof(u_int)
 #define wmask (wsize - 1)
+
+#undef memset
 
 #ifdef BZERO
 #define RETURN return
@@ -95,7 +97,7 @@ void *memset(void *dst0, int c0, size_t length)
   }
 #endif
   /* Align destination by filling in bytes. */
-  if ((t = (u_long)dst & wmask) != 0) {
+  if ((t = (size_t)((u_long)dst & wmask)) != 0) {
     t = wsize - t;
     length -= t;
     do {
@@ -106,7 +108,7 @@ void *memset(void *dst0, int c0, size_t length)
   /* Fill words.  Length was >= 2*words so we know t >= 1 here. */
   t = length / wsize;
   do {
-    *(u_int *)dst = WIDEVAL;
+    *(u_int *)(void *)dst = WIDEVAL;
     dst += wsize;
   } while (--t != 0);
 
