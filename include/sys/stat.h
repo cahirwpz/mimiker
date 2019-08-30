@@ -105,11 +105,11 @@ typedef struct stat {
 
 #define DEFFILEMODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
-#ifndef _KERNELSPACE
+#ifndef _KERNEL
 int fstat(int fd, stat_t *sb);
 int stat(const char *pathname, stat_t *sb);
 int mkdir(const char *, mode_t);
 int lstat(const char *, struct stat *);
-#endif
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_STAT_H_ */

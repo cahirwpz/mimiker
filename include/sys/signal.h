@@ -52,7 +52,7 @@ typedef struct sigaction {
 #define SIG_UNBLOCK 2 /* unblock specified signal set */
 #define SIG_SETMASK 3 /* set specified signal set */
 
-#ifndef _KERNELSPACE
+#ifndef _KERNEL
 #include <sys/unistd.h>
 
 int sigaction(int signum, const sigaction_t *act, sigaction_t *oldact);
@@ -63,7 +63,7 @@ int killpg(int pgrp, int sig);
 /* This is necessary to keep newlib happy. */
 typedef sighandler_t _sig_func_ptr;
 
-#else /* _KERNELSPACE */
+#else /* _KERNEL */
 
 #include <sys/cdefs.h>
 
@@ -125,6 +125,6 @@ int sig_return(void);
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigreturn(void);
 
-#endif /* !_KERNELSPACE */
+#endif /* !_KERNEL */
 
-#endif /* _SYS_SIGNAL_H_ */
+#endif /* !_SYS_SIGNAL_H_ */

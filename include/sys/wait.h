@@ -29,12 +29,12 @@
 #define WIFSTOPPED(status) (((status)&0xff) == 0x7f)
 #define WIFSIGNALED(status) (((status)&0x7f) > 0 && ((status)&0x7f) < 0x7f)
 
-#ifndef _KERNELSPACE
+#ifndef _KERNEL
 
 int waitpid(int pid, int *status, int options);
 #define wait(statusptr) waitpid(-1, statusptr, 0)
 
-#else /* _KERNELSPACE */
+#else /* _KERNEL */
 
 int do_waitpid(pid_t pid, int *status, int options);
 
@@ -43,6 +43,6 @@ int do_waitpid(pid_t pid, int *status, int options);
 #define MAKE_STATUS_SIG_TERM(signo) ((signo)&0xff)
 #define MAKE_STATUS_SIG_STOP(signo) ((((signo)&0xff) << 8) | 0x7f)
 
-#endif
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_WAIT_H_ */

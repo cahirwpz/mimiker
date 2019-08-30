@@ -7,7 +7,7 @@
 
 #define MAP_FAILED ((void *)-1)
 
-#ifndef _KERNELSPACE
+#ifndef _KERNEL
 
 #define MAP_FILE 0
 #define MAP_ANON 1
@@ -27,13 +27,13 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd,
 int munmap(void *addr, size_t len);
 int mprotect(void *addr, size_t len, int prot);
 
-#else /* _KERNELSPACE */
+#else /* _KERNEL */
 
 #include <sys/vm.h>
 
 int do_mmap(vaddr_t *addr_p, size_t length, vm_prot_t prot, vm_flags_t flags);
 int do_munmap(vaddr_t addr, size_t length);
 
-#endif /* !_KERNELSPACE */
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_MMAN_H_ */

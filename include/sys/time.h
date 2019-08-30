@@ -119,7 +119,7 @@ static inline bintime_t bintime_mul(const bintime_t bt, uint32_t x) {
 
 typedef enum clockid { CLOCK_MONOTONIC = 1, CLOCK_REALTIME = 2 } clockid_t;
 
-#ifdef _KERNELSPACE
+#ifdef _KERNEL
 
 /* XXX: Do not use this function, it'll get removed. */
 timeval_t get_uptime(void);
@@ -140,7 +140,7 @@ int do_clock_gettime(clockid_t clk, timespec_t *tp);
 int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                        timespec_t *rmtp);
 
-#else /* _KERNELSPACE */
+#else /* _KERNEL */
 
 int nanosleep(timespec_t *rqtp, timespec_t *rmtp);
 
@@ -151,6 +151,6 @@ int clock_gettime(clockid_t clk, timespec_t *tp);
 int clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                     timespec_t *rmtp);
 
-#endif /* !_KERNELSPACE */
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_TIME_H_ */

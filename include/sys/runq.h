@@ -1,7 +1,7 @@
 #ifndef _SYS_RUNQ_H_
 #define _SYS_RUNQ_H_
 
-#ifdef _KERNELSPACE
+#ifdef _KERNEL
 
 #include <sys/cdefs.h>
 #include <sys/queue.h>
@@ -30,6 +30,6 @@ thread_t *runq_choose(runq_t *);
 /* Remove the thread from the queue specified by its priority. */
 void runq_remove(runq_t *, thread_t *);
 
-#endif /* !_KERNELSPACE */
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_RUNQ_H_ */

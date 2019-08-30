@@ -74,12 +74,13 @@ struct rusage {
 #define ru_last ru_nivcsw
 };
 
-#ifndef _KERNELSPACE
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
 int getrusage(int, struct rusage *);
 __END_DECLS
-#endif
+
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_RESOURCE_H_ */

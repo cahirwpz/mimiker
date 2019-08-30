@@ -257,7 +257,7 @@ typedef __builtin_va_list __va_list;
        *__UNIQUE(__loop) = (TYP *)1;                                           \
        __UNIQUE(__loop); __UNIQUE(__loop) = NULL)
 
-#ifdef _KERNELSPACE
+#ifdef _KERNEL
 
 /* Write a formatted string to default console. */
 int kprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
@@ -282,6 +282,6 @@ void assert_fail(const char *expr, const char *file, unsigned int line);
 #else
 #define assert(expr)
 #endif
-#endif /* !_KERNELSPACE */
+#endif /* !_KERNEL */
 
-#endif /* !_SYS_COMMON_H_ */
+#endif /* !_SYS_CDEFS_H */

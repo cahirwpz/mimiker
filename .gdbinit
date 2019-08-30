@@ -19,5 +19,5 @@ break panic_fail
 #dprintf proc_unlock,"proc_unlock(0x%08x)\n",p
 
 # user space program debugging
-#add-symbol-file user/utest/utest.uelf 0x400000
+#add-symbol-file bin/utest/utest.uelf 0x400000
 #break main

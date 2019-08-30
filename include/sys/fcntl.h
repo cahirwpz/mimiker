@@ -57,7 +57,7 @@
 /* file descriptor flags (F_GETFD, F_SETFD) */
 #define FD_CLOEXEC 1 /* close-on-exec flag */
 
-#ifndef _KERNELSPACE
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
@@ -66,6 +66,6 @@ int creat(const char *, mode_t);
 int fcntl(int, int, ...);
 __END_DECLS
 
-#endif /* !_KERNELSPACE */
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_FCNTL_H_ */
