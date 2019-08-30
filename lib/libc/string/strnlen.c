@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 
 size_t strnlen(const char *str, size_t maxlen) {
   const char *cp;

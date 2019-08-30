@@ -1,5 +1,6 @@
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
+#include <sys/mimiker.h>
 #include <sys/device.h>
 #include <sys/rman.h>
 

@@ -1,8 +1,9 @@
 #define KL_LOG KL_SIGNAL
 #include <sys/klog.h>
+#include <sys/mimiker.h>
+#include <sys/libkern.h>
 #include <sys/signal.h>
 #include <sys/thread.h>
-#include <sys/stdc.h>
 #include <sys/errno.h>
 #include <sys/sysent.h>
 #include <sys/sleepq.h>

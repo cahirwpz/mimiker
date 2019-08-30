@@ -4,7 +4,7 @@
 #include <sys/file.h>
 #include <sys/pool.h>
 #include <sys/mutex.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
 

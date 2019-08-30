@@ -1,4 +1,5 @@
-#include <sys/stdc.h>
+#include <sys/mimiker.h>
+#include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
 #include <sys/uio.h>

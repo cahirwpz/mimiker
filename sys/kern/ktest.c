@@ -1,5 +1,6 @@
+#include <sys/mimiker.h>
 #include <sys/ktest.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/time.h>
 
 /* Borrowed from mips/malta.c */

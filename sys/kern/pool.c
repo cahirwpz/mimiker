@@ -1,9 +1,9 @@
 #define KL_LOG KL_POOL
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/vm.h>
 #include <sys/physmem.h>
 #include <sys/queue.h>
-#include <sys/cdefs.h>
+#include <sys/mimiker.h>
 #include <sys/klog.h>
 #include <sys/mutex.h>
 #include <sys/linker_set.h>

@@ -1,7 +1,7 @@
 #define KL_LOG KL_VFS
 #include <sys/klog.h>
 #include <sys/mount.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/errno.h>
 #include <sys/pool.h>
 #include <sys/malloc.h>
@@ -9,7 +9,7 @@
 #include <sys/vnode.h>
 #include <sys/linker_set.h>
 #include <sys/sysinit.h>
-#include <sys/cdefs.h>
+#include <sys/mimiker.h>
 
 /* TODO: We probably need some fancier allocation, since eventually we should
  * start recycling vnodes */

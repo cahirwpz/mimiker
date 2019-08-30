@@ -1,6 +1,7 @@
 #define KL_LOG KL_TIME
 #include <sys/callout.h>
 #include <sys/sched.h>
+#include <sys/mimiker.h>
 #include <sys/klog.h>
 #include <sys/timer.h>
 #include <sys/sysinit.h>

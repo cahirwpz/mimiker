@@ -1,6 +1,7 @@
+#include <sys/mimiker.h>
+#include <sys/libkern.h>
 #include <sys/rwlock.h>
 #include <sys/thread.h>
-#include <sys/stdc.h>
 #include <sys/sleepq.h>
 #include <sys/sched.h>
 

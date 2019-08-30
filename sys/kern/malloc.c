@@ -1,6 +1,7 @@
 #define KL_LOG KL_KMEM
 #include <sys/klog.h>
-#include <sys/stdc.h>
+#include <sys/mimiker.h>
+#include <sys/libkern.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/vm_map.h>

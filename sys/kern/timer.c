@@ -1,9 +1,10 @@
 #define KL_LOG KL_TIME
+#include <sys/klog.h>
+#include <sys/mimiker.h>
+#include <sys/libkern.h>
 #include <sys/timer.h>
 #include <sys/mutex.h>
 #include <sys/errno.h>
-#include <sys/stdc.h>
-#include <sys/klog.h>
 #include <sys/interrupt.h>
 
 static mtx_t timers_mtx = MTX_INITIALIZER(0);

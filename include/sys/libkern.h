@@ -1,5 +1,5 @@
-#ifndef _SYS_STDC_H_
-#define _SYS_STDC_H_
+#ifndef _SYS_LIBKERN_H_
+#define _SYS_LIBKERN_H_
 
 #include <sys/cdefs.h>
 
@@ -75,4 +75,4 @@ int kputs(const char *s);
 /* Write a character to default console. */
 int kputchar(int c);
 
-#endif /* !_SYS_STDC_H_ */
+#endif /* !_SYS_LIBKERN_H_ */

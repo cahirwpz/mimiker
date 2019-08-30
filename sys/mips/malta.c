@@ -14,7 +14,7 @@
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
 #include <sys/pool.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/sleepq.h>
 #include <sys/rman.h>
 #include <sys/thread.h>

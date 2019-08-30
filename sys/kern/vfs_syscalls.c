@@ -1,11 +1,11 @@
 #define KL_LOG KL_VFS
 #include <sys/klog.h>
+#include <sys/mimiker.h>
 #include <sys/filedesc.h>
 #include <sys/file.h>
 #include <sys/mount.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/sysent.h>
-#include <sys/systm.h>
 #include <sys/thread.h>
 #include <sys/vfs.h>
 #include <sys/vnode.h>

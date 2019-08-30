@@ -1,6 +1,6 @@
+#include <sys/mimiker.h>
 #include <sys/uio.h>
-#include <sys/systm.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/vm_map.h>
 
 static int copyin_vmspace(vm_map_t *vm, const void *restrict udaddr,

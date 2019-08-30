@@ -1,6 +1,6 @@
+#include <sys/mimiker.h>
 #include <sys/uio.h>
-#include <sys/systm.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/vm_map.h>
 #include <sys/ktest.h>
 

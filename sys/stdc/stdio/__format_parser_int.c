@@ -37,7 +37,7 @@
 *      current version : $
 ******************************************************************************/
 
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include "low/_stdio.h"
 
 typedef long long INT64;

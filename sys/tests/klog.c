@@ -1,6 +1,7 @@
 #define KL_LOG KL_TEST
 
-#include <sys/stdc.h>
+#include <sys/mimiker.h>
+#include <sys/libkern.h>
 #include <sys/ktest.h>
 #define _KLOG_PRIVATE
 #include <sys/klog.h>

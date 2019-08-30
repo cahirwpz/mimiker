@@ -1,5 +1,4 @@
-#include <sys/cdefs.h>
-#include <limits.h>
+#include <sys/mimiker.h>
 #include <sys/console.h>
 #include <sys/linker_set.h>
 

@@ -6,7 +6,7 @@
 #endif
 
 #include <sys/linker_set.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 
 #define KTEST_NAME_MAX 40
 

@@ -1,6 +1,6 @@
 #define KL_LOG KL_TEST
 #include <sys/klog.h>
-#include <sys/cdefs.h>
+#include <sys/mimiker.h>
 #include <sys/exec.h>
 #include <sys/ktest.h>
 #include <sys/thread.h>

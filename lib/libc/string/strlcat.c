@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 
 /*
  * Appends src to string dst of size dsize (unlike strncat, dsize is the

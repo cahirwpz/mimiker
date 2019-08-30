@@ -1,6 +1,6 @@
 #define KL_LOG KL_INIT
 #include <sys/klog.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/sched.h>
 #include <sys/thread.h>
 #include <sys/sysinit.h>

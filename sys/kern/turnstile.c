@@ -1,3 +1,4 @@
+#include <sys/mimiker.h>
 #include <sys/pool.h>
 #include <sys/spinlock.h>
 #include <sys/sched.h>

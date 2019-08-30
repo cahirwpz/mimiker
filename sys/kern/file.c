@@ -1,6 +1,6 @@
 #include <sys/file.h>
 #include <sys/pool.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/errno.h>
 #include <sys/mutex.h>
 #include <sys/thread.h>

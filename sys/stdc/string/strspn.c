@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 
 /*
  * Span the string s2 (skip characters that are in s2).

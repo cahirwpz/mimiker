@@ -50,7 +50,7 @@
  */
 
 #include <sys/fdt.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/klog.h>
 
 static int fdt_nodename_eq_(const void *fdt, int offset, const char *s,

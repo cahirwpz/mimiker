@@ -2,7 +2,7 @@
 #include <sys/klog.h>
 #define _EXEC_IMPL
 #include <sys/exec.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/vm_map.h>
 #include <sys/vm_object.h>
 #include <sys/malloc.h>

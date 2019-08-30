@@ -1,5 +1,5 @@
-#include <sys/cdefs.h>
-#include <sys/stdc.h>
+#include <sys/mimiker.h>
+#include <sys/libkern.h>
 #include <sys/ktest.h>
 #include <sys/interrupt.h>
 

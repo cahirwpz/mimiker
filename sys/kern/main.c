@@ -1,6 +1,6 @@
 #define KL_LOG KL_USER
 #include <sys/klog.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/exec.h>
 #include <sys/proc.h>
 #include <sys/thread.h>

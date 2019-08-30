@@ -1,5 +1,5 @@
 #define KL_LOG KL_DEV
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/vnode.h>
 #include <sys/devfs.h>
 #include <sys/klog.h>

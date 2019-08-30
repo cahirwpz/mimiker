@@ -2,7 +2,7 @@
 #define _SYS_MUTEX_H_
 
 #include <stdbool.h>
-#include <sys/cdefs.h>
+#include <sys/mimiker.h>
 #include <sys/lock.h>
 
 typedef struct thread thread_t;

@@ -1,6 +1,7 @@
 #define KL_LOG KL_SCHED
 #include <sys/klog.h>
-#include <sys/stdc.h>
+#include <sys/mimiker.h>
+#include <sys/libkern.h>
 #include <sys/sched.h>
 #include <sys/runq.h>
 #include <sys/context.h>

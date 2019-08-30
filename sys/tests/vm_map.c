@@ -1,6 +1,7 @@
 #define KL_LOG KL_TEST
 #include <sys/klog.h>
-#include <sys/stdc.h>
+#include <sys/mimiker.h>
+#include <sys/libkern.h>
 #include <sys/vm_pager.h>
 #include <sys/vm_object.h>
 #include <sys/vm_map.h>

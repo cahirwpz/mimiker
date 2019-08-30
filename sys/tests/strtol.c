@@ -1,6 +1,6 @@
 #define KL_LOG KL_TEST
 #include <sys/klog.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/ktest.h>
 
 typedef struct strtol_test {

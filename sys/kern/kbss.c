@@ -1,5 +1,6 @@
+#include <sys/mimiker.h>
 #include <sys/kbss.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/vm.h>
 
 /* The end of the kernel's .bss section. Provided by the linker. */

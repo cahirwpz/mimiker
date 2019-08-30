@@ -1,5 +1,5 @@
-#ifndef _SYS_COMMON_H_
-#define _SYS_COMMON_H_
+#ifndef _SYS_CDEFS_H_
+#define _SYS_CDEFS_H_
 
 #include <limits.h>    /* UINT_MAX, LONG_MIN, ... */
 #include <stdint.h>    /* uint*_t, int*_t */
@@ -172,12 +172,6 @@ typedef __builtin_va_list __va_list;
 #define __predict_true(exp) __builtin_expect((exp) != 0, 1)
 #define __predict_false(exp) __builtin_expect((exp) != 0, 0)
 
-/* Attribute macros for boot/wired functions/data */
-#define __boot_text __long_call __section(".boot.text")
-#define __boot_data __section(".boot.data")
-#define __wired_text __section(".wired.text")
-#define __wired_data __section(".wired.data")
-
 /* Macros for counting and rounding. */
 #ifndef howmany
 #define howmany(x, y) (((x) + ((y)-1)) / (y))
@@ -237,51 +231,5 @@ typedef __builtin_va_list __va_list;
 
 #define container_of(p, type, field)                                           \
   ((type *)((char *)(p)-offsetof(type, field)))
-
-#define CLEANUP_FUNCTION(func) __CONCAT(__cleanup_, func)
-#define DEFINE_CLEANUP_FUNCTION(type, func)                                    \
-  static inline void __cleanup_##func(type *ptr) {                             \
-    if (*ptr)                                                                  \
-      func(*ptr);                                                              \
-  }                                                                            \
-  struct __force_semicolon__
-
-#define SCOPED_STMT(TYP, ACQUIRE, RELEASE, VAL, ...)                           \
-  __unused TYP *__UNIQUE(__scoped) __cleanup(RELEASE) = ({                     \
-    ACQUIRE(VAL, ##__VA_ARGS__);                                               \
-    VAL;                                                                       \
-  })
-
-#define WITH_STMT(TYP, ACQUIRE, RELEASE, VAL, ...)                             \
-  for (SCOPED_STMT(TYP, ACQUIRE, RELEASE, VAL, ##__VA_ARGS__),                 \
-       *__UNIQUE(__loop) = (TYP *)1;                                           \
-       __UNIQUE(__loop); __UNIQUE(__loop) = NULL)
-
-#ifdef _KERNEL
-
-/* Write a formatted string to default console. */
-int kprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
-
-/* Terminate thread. */
-__noreturn void panic_fail(void);
-
-#define panic(FMT, ...)                                                        \
-  __extension__({                                                              \
-    kprintf("[%s:%d] PANIC: " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);    \
-    panic_fail();                                                              \
-  })
-
-#ifdef DEBUG
-void assert_fail(const char *expr, const char *file, unsigned int line);
-
-#define assert(EXPR)                                                           \
-  __extension__({                                                              \
-    if (!(EXPR))                                                               \
-      assert_fail(__STRING(EXPR), __FILE__, __LINE__);                         \
-  })
-#else
-#define assert(expr)
-#endif
-#endif /* !_KERNEL */
 
 #endif /* !_SYS_CDEFS_H */
