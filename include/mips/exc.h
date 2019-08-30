@@ -165,7 +165,9 @@
   LOAD_FPU_REG($f31, F31, reg);                                                \
   LOAD_FPU_REG($31, FSR, reg)
 
-#else // !__ASSEMBLER__
+#else /* !__ASSEMBLER__ */
+
+#include <stdbool.h>
 
 #define CPU_FRAME                                                              \
   struct {                                                                     \

@@ -1,7 +1,7 @@
 #ifndef _INTTYPES_H
 #define _INTTYPES_H_
 
-#include <sys/cdefs.h>
+#include <stdint.h>
 
 #ifndef __clang__
 #include <machine/inttypes.h>

@@ -37,7 +37,7 @@
 #ifndef _STDIO_H_
 #define _STDIO_H_
 
-#include <sys/cdefs.h>
+#include <sys/types.h>
 
 typedef off_t fpos_t;
 

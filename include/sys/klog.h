@@ -1,7 +1,7 @@
 #ifndef _SYS_KLOG_H_
 #define _SYS_KLOG_H_
 
-#include <sys/cdefs.h>
+#include <sys/types.h>
 
 /* Kernel log message origin. */
 typedef enum {

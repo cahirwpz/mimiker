@@ -1,40 +1,7 @@
 #ifndef _SYS_CDEFS_H_
 #define _SYS_CDEFS_H_
 
-#include <limits.h>    /* UINT_MAX, LONG_MIN, ... */
-#include <stdint.h>    /* uint*_t, int*_t */
-#include <stddef.h>    /* offsetof, NULL, ptrdiff_t, size_t, etc. */
-#include <stdbool.h>   /* bool, true, false */
-#include <stdalign.h>  /* alignof, alignas */
-#include <stdatomic.h> /* atomic_{load,store,fetch_*,...} */
-#include <inttypes.h>  /* PRIdN, PRIxPTR, ... */
-#include <sys/types.h>
 #include <machine/cdefs.h>
-
-typedef unsigned char u_char;
-typedef unsigned short u_short;
-typedef unsigned int u_int;
-typedef unsigned long u_long;
-
-typedef unsigned long vaddr_t; /* virtual address */
-typedef unsigned long paddr_t; /* physical address */
-
-typedef int32_t off_t; /* should it be int64_t? */
-typedef intptr_t ssize_t;
-typedef int32_t pid_t;
-typedef int32_t pgid_t;
-typedef uint16_t dev_t;
-typedef uint32_t systime_t; /* kept in system clock ticks */
-typedef uint16_t uid_t;
-typedef uint16_t gid_t;
-typedef uint32_t mode_t;
-typedef uint16_t nlink_t;
-typedef uint16_t ino_t;
-typedef uint32_t tid_t;
-typedef int32_t blkcnt_t;  /* fs block count */
-typedef int32_t blksize_t; /* fs optimal block size */
-
-typedef __builtin_va_list __va_list;
 
 /*
  * To be used when an empty body is required like:

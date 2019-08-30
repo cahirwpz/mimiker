@@ -58,7 +58,7 @@
 #define FD_CLOEXEC 1 /* close-on-exec flag */
 
 #ifndef _KERNEL
-#include <sys/cdefs.h>
+#include <sys/types.h>
 
 __BEGIN_DECLS
 int open(const char *, int, ...);

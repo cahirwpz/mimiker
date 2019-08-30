@@ -5,7 +5,7 @@
 
 #ifndef __ASSEMBLER__
 
-#include <sys/cdefs.h>
+#include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/tree.h>
 #include <mips/mips.h>

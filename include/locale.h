@@ -39,6 +39,11 @@ struct lconv {
 
 #include <sys/cdefs.h>
 
+#ifndef __LOCALE_T_DECLARED
+typedef struct _locale *locale_t;
+#define __LOCALE_T_DECLARED
+#endif
+
 __BEGIN_DECLS
 struct lconv *localeconv(void);
 char *setlocale(int, const char *);

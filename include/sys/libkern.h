@@ -1,7 +1,7 @@
 #ifndef _SYS_LIBKERN_H_
 #define _SYS_LIBKERN_H_
 
-#include <sys/cdefs.h>
+#include <sys/types.h>
 
 /*
  * This file contains declarations for subset of C standard library functions.

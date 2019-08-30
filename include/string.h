@@ -34,7 +34,7 @@
 #ifndef _STRING_H_
 #define _STRING_H_
 
-#include <sys/cdefs.h>
+#include <sys/types.h>
 
 __BEGIN_DECLS
 void *memchr(const void *, int, size_t);

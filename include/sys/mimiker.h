@@ -7,7 +7,12 @@
 #error "<sys/mimiker.h> may be used only inside kernel source tree!"
 #endif
 
-#include <sys/cdefs.h>
+#include <limits.h>    /* UINT_MAX, LONG_MIN, ... */
+#include <stdbool.h>   /* bool, true, false */
+#include <stdalign.h>  /* alignof, alignas */
+#include <stdatomic.h> /* atomic_{load,store,fetch_*,...} */
+#include <inttypes.h>  /* PRIdN, PRIxPTR, ... */
+#include <sys/types.h>
 
 /* Attribute macros for boot/wired functions/data */
 #define __boot_text __long_call __section(".boot.text")

@@ -7,6 +7,7 @@
 
 #include <sys/linker_set.h>
 #include <sys/libkern.h>
+#include <stdbool.h>
 
 #define KTEST_NAME_MAX 40
 

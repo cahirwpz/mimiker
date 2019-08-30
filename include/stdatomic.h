@@ -30,7 +30,7 @@
 #ifndef _SYS_STDATOMIC_H_
 #define _SYS_STDATOMIC_H_
 
-#include <stdint.h>
+#include <sys/types.h>
 
 #ifndef __unused
 #define __unused __attribute__((unused))

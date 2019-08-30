@@ -1,7 +1,7 @@
 #ifndef _SYS_CONDVAR_H_
 #define _SYS_CONDVAR_H_
 
-#include <sys/cdefs.h>
+#include <sys/types.h>
 #include <sys/lock.h>
 
 /* Union type of locks that may be passed to `cv_wait` */

@@ -1,7 +1,8 @@
 #ifndef _SYS_TIME_H_
 #define _SYS_TIME_H_
 
-#include <sys/cdefs.h>
+#include <sys/types.h>
+#include <stdbool.h>
 
 typedef struct tm {
   int tm_sec;          /* seconds after the minute [0-61] */
