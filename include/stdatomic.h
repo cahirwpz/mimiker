@@ -30,7 +30,7 @@
 #ifndef _SYS_STDATOMIC_H_
 #define _SYS_STDATOMIC_H_
 
-#include <stdint.h>
+#include <sys/types.h>
 
 #ifndef __unused
 #define __unused __attribute__((unused))
@@ -161,7 +161,7 @@ static __inline void atomic_signal_fence(memory_order __order __unused) {
  * 7.17.5 Lock-free property.
  */
 
-#if defined(_KERNELSPACE)
+#ifdef _KERNEL
 /* Atomics in kernelspace are always lock-free. */
 #define atomic_is_lock_free(obj) ((void)(obj), (_Bool)1)
 #elif defined(__CLANG_ATOMICS) || defined(__GNUC_ATOMICS)
@@ -169,7 +169,7 @@ static __inline void atomic_signal_fence(memory_order __order __unused) {
 #else
 #define atomic_is_lock_free(obj)                                               \
   ((void)(obj), sizeof((obj)->__val) <= sizeof(void *))
-#endif
+#endif /* !_KERNEL */
 
 /*
  * 7.17.6 Atomic integer types.

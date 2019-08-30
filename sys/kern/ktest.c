@@ -1,5 +1,6 @@
+#include <sys/mimiker.h>
 #include <sys/ktest.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/time.h>
 
 /* Borrowed from mips/malta.c */
@@ -40,7 +41,7 @@ static void ktest_atomically_print_failure(void) {
   /* critical_leave(); */
 }
 
-noreturn void ktest_failure(void) {
+__noreturn void ktest_failure(void) {
   if (current_test == NULL)
     panic("current_test == NULL in ktest_failure! This is most likely a bug in "
           "the test framework!\n");

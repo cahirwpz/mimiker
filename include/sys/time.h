@@ -1,20 +1,20 @@
 #ifndef _SYS_TIME_H_
 #define _SYS_TIME_H_
 
-#include <sys/cdefs.h>
+#include <sys/types.h>
 
 typedef struct tm {
-  int tm_sec;     /* seconds after the minute [0-60] */
-  int tm_min;     /* minutes after the hour [0-59] */
-  int tm_hour;    /* hours since midnight [0-23] */
-  int tm_mday;    /* day of the month [1-31] */
-  int tm_mon;     /* months since January [0-11] */
-  int tm_year;    /* years since 1900 */
-  int tm_wday;    /* days since Sunday [0-6] */
-  int tm_yday;    /* days since January 1 [0-365] */
-  int tm_isdst;   /* Daylight Savings Time flag */
-  long tm_gmtoff; /* offset from UTC in seconds */
-  char *tm_zone;  /* timezone abbreviation */
+  int tm_sec;          /* seconds after the minute [0-61] */
+  int tm_min;          /* minutes after the hour [0-59] */
+  int tm_hour;         /* hours since midnight [0-23] */
+  int tm_mday;         /* day of the month [1-31] */
+  int tm_mon;          /* months since January [0-11] */
+  int tm_year;         /* years since 1900 */
+  int tm_wday;         /* days since Sunday [0-6] */
+  int tm_yday;         /* days since January 1 [0-365] */
+  int tm_isdst;        /* Daylight Savings Time flag */
+  long tm_gmtoff;      /* offset from UTC in seconds */
+  const char *tm_zone; /* timezone abbreviation */
 } tm_t;
 
 typedef struct timeval {
@@ -71,7 +71,7 @@ static inline void timeval_clear(timeval_t *tvp) {
   *tvp = (timeval_t){.tv_sec = 0, .tv_usec = 0};
 }
 
-static inline bool timeval_isset(timeval_t *tvp) {
+static inline int timeval_isset(timeval_t *tvp) {
   return tvp->tv_sec || tvp->tv_usec;
 }
 
@@ -119,7 +119,7 @@ static inline bintime_t bintime_mul(const bintime_t bt, uint32_t x) {
 
 typedef enum clockid { CLOCK_MONOTONIC = 1, CLOCK_REALTIME = 2 } clockid_t;
 
-#ifdef _KERNELSPACE
+#ifdef _KERNEL
 
 /* XXX: Do not use this function, it'll get removed. */
 timeval_t get_uptime(void);
@@ -140,7 +140,7 @@ int do_clock_gettime(clockid_t clk, timespec_t *tp);
 int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                        timespec_t *rmtp);
 
-#else /* _KERNELSPACE */
+#else /* _KERNEL */
 
 int nanosleep(timespec_t *rqtp, timespec_t *rmtp);
 
@@ -151,6 +151,6 @@ int clock_gettime(clockid_t clk, timespec_t *tp);
 int clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                     timespec_t *rmtp);
 
-#endif /* !_KERNELSPACE */
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_TIME_H_ */

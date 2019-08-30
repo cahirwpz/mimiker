@@ -6,7 +6,7 @@
 #include <sys/pool.h>
 #include <sys/errno.h>
 #include <sys/pipe.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>

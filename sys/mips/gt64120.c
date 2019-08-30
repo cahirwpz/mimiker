@@ -2,6 +2,8 @@
  *
  * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file. */
 #define KL_LOG KL_DEV
+#include <sys/klog.h>
+#include <sys/mimiker.h>
 #include <mips/malta.h>
 #include <mips/intr.h>
 #include <dev/i8259.h>
@@ -11,8 +13,7 @@
 #include <sys/interrupt.h>
 #include <sys/pci.h>
 #include <sys/spinlock.h>
-#include <sys/stdc.h>
-#include <sys/klog.h>
+#include <sys/libkern.h>
 #include <sys/bus.h>
 #include <sys/devclass.h>
 

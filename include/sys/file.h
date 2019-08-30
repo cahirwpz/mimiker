@@ -3,6 +3,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/mutex.h>
+#include <sys/fcntl.h>
 #include <sys/refcnt.h>
 
 typedef struct thread thread_t;
@@ -34,16 +35,6 @@ typedef enum {
 #define FF_READ 0x0001
 #define FF_WRITE 0x0002
 #define FF_APPEND 0x0004
-
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
-
-/* File open flags as passed to sys_open. These need match what newlib provides
-   to user programs. */
-#define O_RDONLY 0
-#define O_WRONLY 1
-#define O_RDWR 2
 
 typedef struct file {
   void *f_data; /* File specific data */

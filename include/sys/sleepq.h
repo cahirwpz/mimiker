@@ -1,7 +1,8 @@
 #ifndef _SYS_SLEEPQ_H_
 #define _SYS_SLEEPQ_H_
 
-#include <sys/cdefs.h>
+#include <stdbool.h>
+#include <sys/types.h>
 #include <sys/queue.h>
 
 typedef struct thread thread_t;

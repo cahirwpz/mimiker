@@ -1,8 +1,8 @@
 #define KL_LOG KL_SLEEPQ
 #include <sys/klog.h>
-#include <sys/cdefs.h>
+#include <sys/mimiker.h>
 #include <sys/queue.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/sleepq.h>
 #include <sys/pool.h>
 #include <sys/sched.h>

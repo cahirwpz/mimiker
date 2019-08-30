@@ -1,6 +1,8 @@
 #ifndef _INTTYPES_H
 #define _INTTYPES_H_
 
+#include <stdint.h>
+
 #ifndef __clang__
 #include <machine/inttypes.h>
 #else
@@ -194,5 +196,21 @@
 #define SCNXPTR __UINTPTR_FMTX__
 
 #endif /* !__clang__ */
+
+intmax_t strtoimax(const char *__restrict, char **__restrict, int);
+uintmax_t strtoumax(const char *__restrict, char **__restrict, int);
+
+intmax_t strtoi(const char *__restrict, char **__restrict, int, intmax_t,
+                intmax_t, int *);
+uintmax_t strtou(const char *__restrict, char **__restrict, int, uintmax_t,
+                 uintmax_t, int *);
+
+#ifndef __LOCALE_T_DECLARED
+typedef struct _locale *locale_t;
+#define __LOCALE_T_DECLARED
+#endif
+
+intmax_t strtoimax_l(const char *__restrict, char **__restrict, int, locale_t);
+uintmax_t strtoumax_l(const char *__restrict, char **__restrict, int, locale_t);
 
 #endif /* !_INTTYPES_H_ */

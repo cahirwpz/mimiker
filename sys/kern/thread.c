@@ -1,17 +1,17 @@
 #define KL_LOG KL_THREAD
 #include <sys/klog.h>
+#include <sys/mimiker.h>
 #include <sys/pool.h>
 #include <sys/malloc.h>
 #include <sys/physmem.h>
 #include <sys/thread.h>
 #include <sys/context.h>
-#include <sys/interrupt.h>
 #include <sys/pcpu.h>
 #include <sys/sched.h>
 #include <sys/sleepq.h>
 #include <sys/filedesc.h>
 #include <sys/turnstile.h>
-#include <mips/exc.h>
+#include <machine/exc.h>
 
 static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t));
 
@@ -41,8 +41,8 @@ void thread_reap(void) {
     thread_delete(td);
 }
 
-extern noreturn void thread_exit(void);
-extern noreturn void kern_exc_leave(void);
+extern __noreturn void thread_exit(void);
+extern __noreturn void kern_exc_leave(void);
 
 void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
   stack_t *stk = &td->td_kstack;
@@ -125,7 +125,7 @@ thread_t *thread_self(void) {
 }
 
 /* For now this is only a stub */
-noreturn void thread_exit(void) {
+__noreturn void thread_exit(void) {
   thread_t *td = thread_self();
 
   klog("Thread %ld {%p} has finished", td->td_tid, td);

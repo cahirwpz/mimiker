@@ -1,12 +1,12 @@
 #define KL_LOG KL_SCHED
 #include <sys/klog.h>
-#include <sys/stdc.h>
+#include <sys/mimiker.h>
+#include <sys/libkern.h>
 #include <sys/sched.h>
 #include <sys/runq.h>
 #include <sys/context.h>
 #include <sys/time.h>
 #include <sys/thread.h>
-#include <sys/interrupt.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/sysinit.h>
@@ -178,7 +178,7 @@ void sched_clock(void) {
   }
 }
 
-noreturn void sched_run(void) {
+__noreturn void sched_run(void) {
   thread_t *td = thread_self();
 
   /* Make sure sched_run is launched once per every CPU */

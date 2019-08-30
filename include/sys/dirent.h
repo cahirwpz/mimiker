@@ -107,8 +107,12 @@ typedef struct dirent {
 #define IFTODT(mode) (((mode)&0170000) >> 12)
 #define DTTOIF(dirtype) ((dirtype) << 12)
 
-#ifndef _KERNELSPACE
+#ifndef _KERNEL
+
+__BEGIN_DECLS
 int getdirentries(int fd, char *buf, size_t nbytes, off_t *basep);
-#endif /* !_KERNELSPACE */
+__END_DECLS
+
+#endif /* _KERNEL */
 
 #endif /* !_SYS_DIRENT_H_ */

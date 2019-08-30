@@ -1,5 +1,6 @@
 #include <sys/sysinit.h>
-#include <sys/stdc.h>
+#include <sys/mimiker.h>
+#include <sys/libkern.h>
 #define KL_LOG KL_INIT
 #include <sys/klog.h>
 

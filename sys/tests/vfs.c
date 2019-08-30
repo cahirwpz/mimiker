@@ -1,5 +1,5 @@
 #include <sys/mount.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/errno.h>

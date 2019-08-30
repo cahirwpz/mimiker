@@ -1,4 +1,4 @@
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/callout.h>
 #include <sys/ktest.h>
 #include <sys/sleepq.h>

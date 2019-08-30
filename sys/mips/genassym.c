@@ -3,7 +3,6 @@
 #include <sys/thread.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
-#include <mips/asm.h>
 #include <mips/ctx.h>
 #include <mips/exc.h>
 

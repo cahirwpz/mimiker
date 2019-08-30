@@ -1,3 +1,4 @@
+#include <sys/mimiker.h>
 #include <sys/ktest.h>
 #include <sys/mutex.h>
 #include <sys/runq.h>

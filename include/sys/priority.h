@@ -6,7 +6,7 @@
 /* Priority range spans from 0 (the highest) to 255 (the lowest) */
 typedef uint8_t prio_t;
 
-#ifdef _KERNELSPACE
+#ifdef _KERNEL
 
 #define PRIO_QTY 256
 
@@ -58,6 +58,6 @@ static inline bool prio_eq(prio_t p1, prio_t p2) {
   return p1 == p2;
 }
 
-#endif /* !_KERNELSPACE */
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_PRIORITY_H_ */

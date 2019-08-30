@@ -102,7 +102,7 @@ pgid_t proc_getpgid(pid_t pid);
 
 /*! \brief Called by a processes that wishes to terminate its life.
  * \note Exit status shoud be created using MAKE_STATUS macros from wait.h */
-noreturn void proc_exit(int exitstatus);
+__noreturn void proc_exit(int exitstatus);
 
 /*! \brief Moves process p to the process group with ID specified by pgid.
  * If such process group does not exist then it creates one. */

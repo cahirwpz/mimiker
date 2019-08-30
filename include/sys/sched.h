@@ -106,6 +106,6 @@ long sched_switch(void);
 void sched_maybe_preempt(void);
 
 /*! \brief Turns calling thread into idle thread. */
-noreturn void sched_run(void);
+__noreturn void sched_run(void);
 
 #endif /* !_SYS_SCHED_H_ */

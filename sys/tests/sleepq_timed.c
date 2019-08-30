@@ -1,3 +1,4 @@
+#include <sys/mimiker.h>
 #include <sys/sleepq.h>
 #include <sys/ktest.h>
 #include <sys/time.h>

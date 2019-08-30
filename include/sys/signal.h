@@ -1,20 +1,34 @@
 #ifndef _SYS_SIGNAL_H_
 #define _SYS_SIGNAL_H_
 
+#include <sys/sigtypes.h>
+#include <sys/siginfo.h>
+
 typedef enum {
-  SIGINT = 1,
-  SIGILL,
-  SIGABRT,
-  SIGFPE,
-  SIGSEGV,
-  SIGKILL,
-  SIGTERM,
-  SIGCHLD,
-  SIGUSR1,
-  SIGUSR2,
-  SIGBUS,
+  SIGHUP = 1,
+  SIGINT = 2,
+  SIGQUIT = 3,
+  SIGILL = 4,
+  SIGTRAP = 5,
+  SIGABRT = 6,
+  SIGFPE = 8,
+  SIGKILL = 9,
+  SIGBUS = 10,
+  SIGSEGV = 11,
+  SIGSYS = 12,
+  SIGPIPE = 13,
+  SIGALRM = 14,
+  SIGTERM = 15,
+  SIGSTOP = 17,
+  SIGCONT = 19,
+  SIGCHLD = 20,
+  SIGUSR1 = 30,
+  SIGUSR2 = 31,
   NSIG = 32
 } signo_t;
+
+/* Machine-dependent signal definitions */
+typedef int sig_atomic_t;
 
 typedef void (*sighandler_t)(int);
 
@@ -23,11 +37,22 @@ typedef void (*sighandler_t)(int);
 #define SIG_IGN ((sighandler_t)1)
 
 typedef struct sigaction {
-  sighandler_t sa_handler;
+  union {
+    sighandler_t sa_handler;
+    void (*sa_sigaction)(int, siginfo_t *, void *);
+  };
+  sigset_t sa_mask;
+  int sa_flags;
+
   void *sa_restorer;
 } sigaction_t;
 
-#ifndef _KERNELSPACE
+/* Flags for sigprocmask(): */
+#define SIG_BLOCK 1   /* block specified signal set */
+#define SIG_UNBLOCK 2 /* unblock specified signal set */
+#define SIG_SETMASK 3 /* set specified signal set */
+
+#ifndef _KERNEL
 #include <sys/unistd.h>
 
 int sigaction(int signum, const sigaction_t *act, sigaction_t *oldact);
@@ -38,16 +63,13 @@ int killpg(int pgrp, int sig);
 /* This is necessary to keep newlib happy. */
 typedef sighandler_t _sig_func_ptr;
 
-#else /* _KERNELSPACE */
+#else /* _KERNEL */
 
 #include <sys/cdefs.h>
-#include <sys/bitstring.h>
 
 typedef struct proc proc_t;
 typedef struct thread thread_t;
 typedef struct exc_frame exc_frame_t;
-
-typedef bitstr_t sigset_t[bitstr_size(NSIG)];
 
 /*! \brief Signal a process.
  *
@@ -82,7 +104,7 @@ int sig_check(thread_t *td);
 void sig_post(signo_t sig);
 
 /*! \brief Terminate the process as the result of posting a signal. */
-noreturn void sig_exit(thread_t *td, signo_t sig);
+__noreturn void sig_exit(thread_t *td, signo_t sig);
 
 /*! \brief Delivers a hardware trap related signal to current thread.
  *
@@ -103,6 +125,6 @@ int sig_return(void);
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigreturn(void);
 
-#endif /* !_KERNELSPACE */
+#endif /* !_KERNEL */
 
-#endif /* _SYS_SIGNAL_H_ */
+#endif /* !_SYS_SIGNAL_H_ */

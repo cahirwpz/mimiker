@@ -1,5 +1,6 @@
 #define KL_LOG KL_INTR
 #include <sys/klog.h>
+#include <sys/mimiker.h>
 #include <sys/errno.h>
 #include <sys/exception.h>
 #include <sys/interrupt.h>
@@ -221,7 +222,7 @@ static exc_handler_t exception_switch_table[32] = {
 };
 /* clang-format on */
 
-noreturn void kernel_oops(exc_frame_t *frame) {
+__noreturn void kernel_oops(exc_frame_t *frame) {
   unsigned code = exc_code(frame);
 
   kprintf("KERNEL PANIC!!! \n");

@@ -32,7 +32,7 @@ initrd.cpio: bin-install
 CLEAN-FILES += initrd.cpio
 
 # Lists of all files that we consider operating system sources.
-SRCDIRS = include sys lib/libmimiker 
+SRCDIRS = include sys lib/libc lib/libm
 SRCFILES_C = $(shell find $(SRCDIRS) -iname '*.[ch]')
 SRCFILES_ASM = $(shell find $(SRCDIRS) -iname '*.S')
 SRCFILES = $(SRCFILES_C) $(SRCFILES_ASM)

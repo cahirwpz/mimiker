@@ -1,7 +1,7 @@
 #ifndef _SYS_MALLOC_H_
 #define _SYS_MALLOC_H_
 
-#include <sys/cdefs.h>
+#include <sys/types.h>
 #include <sys/linker_set.h>
 
 /*

@@ -1,4 +1,4 @@
-#include <sys/cdefs.h>
+#include <sys/mimiker.h>
 #include <sys/dirent.h>
 #include <sys/malloc.h>
 #include <sys/uio.h>

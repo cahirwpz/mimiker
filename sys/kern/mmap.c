@@ -1,5 +1,6 @@
 #define KL_LOG KL_VM
 #include <sys/klog.h>
+#include <sys/mimiker.h>
 #include <sys/mman.h>
 #include <sys/thread.h>
 #include <sys/errno.h>

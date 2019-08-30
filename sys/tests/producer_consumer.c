@@ -3,7 +3,7 @@
 #include <sys/condvar.h>
 #include <sys/mutex.h>
 #include <sys/sched.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/thread.h>
 #include <sys/ktest.h>
 

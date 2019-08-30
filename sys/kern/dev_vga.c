@@ -3,7 +3,7 @@
 #include <sys/devfs.h>
 #include <sys/errno.h>
 #include <sys/uio.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/vga.h>
 
 static int framebuffer_write(vnode_t *v, uio_t *uio) {

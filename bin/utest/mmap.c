@@ -6,8 +6,11 @@
 #include <assert.h>
 #include <sys/mman.h>
 
+#define _mmap(addr, length, prot, flags) \
+  mmap(addr, length, prot, flags, -1, 0)
+
 static void mmap_no_hint(void) {
-  void *addr = mmap(NULL, 12345, PROT_READ | PROT_WRITE, MAP_ANON);
+  void *addr = _mmap(NULL, 12345, PROT_READ | PROT_WRITE, MAP_ANON);
   assert(addr != MAP_FAILED);
   printf("mmap returned pointer: %p\n", addr);
   /* Ensure mapped area is cleared. */
@@ -20,7 +23,7 @@ static void mmap_no_hint(void) {
 #define TESTADDR (void *)0x12345000
 static void mmap_with_hint(void) {
   /* Provide a hint address that is page aligned. */
-  void *addr = mmap(TESTADDR, 99, PROT_READ | PROT_WRITE, MAP_ANON);
+  void *addr = _mmap(TESTADDR, 99, PROT_READ | PROT_WRITE, MAP_ANON);
   assert(addr != MAP_FAILED);
   assert(addr >= TESTADDR);
   printf("mmap returned pointer: %p\n", addr);
@@ -35,15 +38,15 @@ static void mmap_with_hint(void) {
 static void mmap_bad(void) {
   void *addr;
   /* Address range spans user and kernel space. */
-  addr = mmap((void *)0x7fff0000, 0x20000, PROT_READ | PROT_WRITE, MAP_ANON);
+  addr = _mmap((void *)0x7fff0000, 0x20000, PROT_READ | PROT_WRITE, MAP_ANON);
   assert(addr == MAP_FAILED);
   assert(errno == EINVAL);
   /* Address lies in low memory, that cannot be mapped. */
-  addr = mmap((void *)0x3ff000, 0x1000, PROT_READ | PROT_WRITE, MAP_ANON);
+  addr = _mmap((void *)0x3ff000, 0x1000, PROT_READ | PROT_WRITE, MAP_ANON);
   assert(addr == MAP_FAILED);
   assert(errno == EINVAL);
   /* Hint address is not page aligned. */
-  addr = mmap((void *)0x12345678, 0x1000, PROT_READ | PROT_WRITE, MAP_ANON);
+  addr = _mmap((void *)0x12345678, 0x1000, PROT_READ | PROT_WRITE, MAP_ANON);
   assert(addr == MAP_FAILED);
   assert(errno == EINVAL);
 }
@@ -53,7 +56,7 @@ static void munmap_bad(void) {
   int result;
 
   /* mmap & munmap one page */
-  addr = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_ANON);
+  addr = _mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_ANON);
   result = munmap(addr, 0x1000);
   assert(result == 0);
 
@@ -62,7 +65,7 @@ static void munmap_bad(void) {
   assert(errno == EINVAL);
 
   /* more pages */
-  addr = mmap(NULL, 0x5000, PROT_READ | PROT_WRITE, MAP_ANON);
+  addr = _mmap(NULL, 0x5000, PROT_READ | PROT_WRITE, MAP_ANON);
 
   /* munmap pieces of segments is unsupported */
   munmap(addr, 0x2000);
@@ -74,7 +77,7 @@ static void munmap_bad(void) {
 
 /* Don't call this function in this module */
 int test_munmap_sigsegv(void) {
-  void *addr = mmap(NULL, 0x4000, PROT_READ | PROT_WRITE, MAP_ANON);
+  void *addr = _mmap(NULL, 0x4000, PROT_READ | PROT_WRITE, MAP_ANON);
   munmap(addr, 0x4000);
 
   /* Try to access freed memory. It should raise SIGSEGV */

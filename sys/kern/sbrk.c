@@ -1,5 +1,6 @@
 #define KL_LOG KL_PROC
 #include <sys/klog.h>
+#include <sys/mimiker.h>
 #include <sys/sbrk.h>
 #include <sys/errno.h>
 #include <sys/proc.h>

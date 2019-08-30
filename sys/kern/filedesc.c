@@ -1,7 +1,7 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/malloc.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/errno.h>
 #include <sys/mutex.h>
 

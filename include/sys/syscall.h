@@ -37,7 +37,8 @@
 #define SYS_mprotect 34
 #define SYS_chdir 35
 #define SYS_getcwd 36
+#define SYS_sigprocmask 37
 
-#define SYS_MAXSYSCALL 37
+#define SYS_MAXSYSCALL 38
 
 #endif /* !_SYS_SYSCALL_H_ */

@@ -2,9 +2,9 @@
 #define _SYS_FILEDESC_H_
 
 #include <sys/file.h>
-#include <sys/bitstring.h>
 #include <sys/refcnt.h>
 #include <sys/mutex.h>
+#include <bitstring.h>
 
 /* The initial size of space allocated for file descriptors. According
    to FreeBSD, this is more than enough for most applications. Each

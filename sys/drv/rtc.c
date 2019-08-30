@@ -1,12 +1,12 @@
 /* MC146818 Real-time clock driver */
-#include <sys/cdefs.h>
+#include <sys/mimiker.h>
 #include <dev/mc146818reg.h>
 #include <dev/isareg.h>
 #include <sys/pci.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/errno.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/devfs.h>
 #include <sys/sleepq.h>
 #include <sys/time.h>

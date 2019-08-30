@@ -1,4 +1,4 @@
-#include <sys/cdefs.h>
+#include <sys/mimiker.h>
 #include <sys/console.h>
 #include <sys/linker_set.h>
 #include <dev/ns16550reg.h>

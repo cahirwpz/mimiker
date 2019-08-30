@@ -30,7 +30,7 @@
  *
  */
 
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 
 char *strrchr(const char *s, int c) {
 	char *t = NULL;

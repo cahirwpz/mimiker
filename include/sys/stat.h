@@ -41,13 +41,8 @@
 #ifndef _SYS_STAT_H_
 #define _SYS_STAT_H_
 
-#ifndef _KERNELSPACE
-#include <sys/types.h>
-#include <sys/time.h>
-#else
 #include <stdint.h>
 #include <sys/time.h>
-#endif
 
 typedef struct stat {
   dev_t st_dev;                 /* inode's device */
@@ -108,9 +103,13 @@ typedef struct stat {
 
 #define S_BLKSIZE 512 /* block size used in the stat struct */
 
-#ifndef _KERNELSPACE
+#define DEFFILEMODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
+
+#ifndef _KERNEL
 int fstat(int fd, stat_t *sb);
 int stat(const char *pathname, stat_t *sb);
-#endif
+int mkdir(const char *, mode_t);
+int lstat(const char *, struct stat *);
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_STAT_H_ */

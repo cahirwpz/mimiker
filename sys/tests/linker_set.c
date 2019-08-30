@@ -1,4 +1,4 @@
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/linker_set.h>
 #include <sys/ktest.h>
 

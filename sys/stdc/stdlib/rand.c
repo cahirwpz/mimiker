@@ -29,7 +29,7 @@
  *	@(#)random.c	8.1 (Berkeley) 6/10/93
  */
 
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 
 int rand_r(unsigned *seedp) {
 	register int x, hi, lo, t;

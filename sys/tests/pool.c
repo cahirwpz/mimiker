@@ -1,4 +1,4 @@
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/pool.h>
 #include <sys/ktest.h>

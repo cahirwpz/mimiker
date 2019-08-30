@@ -1,4 +1,4 @@
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/time.h>
 #include <sys/thread.h>
 #include <sys/sched.h>

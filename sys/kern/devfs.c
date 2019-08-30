@@ -4,7 +4,7 @@
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/errno.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/pool.h>

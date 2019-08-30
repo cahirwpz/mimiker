@@ -1,4 +1,5 @@
-#include <sys/stdc.h>
+#include <sys/mimiker.h>
+#include <sys/libkern.h>
 #include <sys/physmem.h>
 #include <sys/ktest.h>
 

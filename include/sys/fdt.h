@@ -53,7 +53,7 @@
  */
 
 #include <sys/cdefs.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 
 typedef uint16_t fdt16_t;
 typedef uint32_t fdt32_t;

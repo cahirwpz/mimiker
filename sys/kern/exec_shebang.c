@@ -3,7 +3,7 @@
 #define _EXEC_IMPL
 #include <sys/exec.h>
 #include <sys/errno.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <sys/syslimits.h>
 #include <sys/malloc.h>
 #include <sys/vm_map.h>

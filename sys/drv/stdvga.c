@@ -1,7 +1,8 @@
 /* Standard VGA driver */
 #include <sys/pci.h>
 #include <sys/vga.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
+#include <sys/mimiker.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
 #include <sys/device.h>

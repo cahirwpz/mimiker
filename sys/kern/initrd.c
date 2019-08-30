@@ -2,7 +2,7 @@
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/pool.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <cpio.h>
 #include <sys/initrd.h>
 #include <sys/vnode.h>

@@ -176,14 +176,14 @@
 
 #define ELAST 96 /* Must equal largest errno */
 
-#if defined(_KERNEL) || defined(_KMEMUSER) || defined(_KERNELSPACE)
+#ifdef _KERNEL
 /* pseudo-errors returned inside kernel to modify return to process */
 #define EJUSTRETURN 256 /* don't modify regs, just return to userspace with */
                         /* current uctx (used by sigreturn and execve) */
 #define ERESTART 257    /* restart syscall */
 #endif
 
-#if !defined(_KERNELSPACE) && !defined(__ASSEMBLER__)
+#if !defined(_KERNEL) && !defined(__ASSEMBLER__)
 #define errno (*__errno())
 extern int *__errno(void);
 #endif

@@ -37,7 +37,7 @@
 *      current version : $
 ******************************************************************************/
 
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 #include <limits.h>
 #include "low/_stdio.h"
 

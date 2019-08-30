@@ -99,6 +99,8 @@ static void free_string_vector(char **strv) {
   free(strv);
 }
 
+extern char **environ;
+
 /* execve(path:string, argv: table(string), envp: table(string) or nil)
  * -> error or noreturn */
 static int unix_execve(lua_State *L) {

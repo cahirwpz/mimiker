@@ -1,367 +1,457 @@
+/*	$NetBSD: asm.h,v 1.29 2000/12/14 21:29:51 jeffs Exp $	*/
+
 /*
- * Copyright 2014-2015, Imagination Technologies Limited and/or its
- *                      affiliated group companies.
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Copyright (c) 1992, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Ralph Campbell.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- * 3. Neither the name of the copyright holder nor the names of its
- * contributors may be used to endorse or promote products derived from this
- * software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
-*/
-
-#ifndef _MIPS_ASM_H_
-#define _MIPS_ASM_H_
-
-/*
- * asm.h: various macros to help assembly language writers
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	@(#)machAsmDefs.h	8.1 (Berkeley) 6/10/93
+ *	JNPR: asm.h,v 1.10 2007/08/09 11:23:32 katta
+ * $FreeBSD$
  */
 
 /*
- * standard callframe {
- *   register_t cf_pad[N];   o32/64 (N=0), n32 (N=1) n64 (N=1)
- *   register_t cf_args[4];  arg0 - arg3 (only on o32 and o64)
- *   register_t cf_gp;       global pointer (only on n32 and n64)
- *   register_t cf_sp;       frame pointer
- *   register_t cf_ra;       return address
- * };
+ * machAsmDefs.h --
+ *
+ *	Macros used when writing assembler programs.
+ *
+ *	Copyright (C) 1989 Digital Equipment Corporation.
+ *	Permission to use, copy, modify, and distribute this software and
+ *	its documentation for any purpose and without fee is hereby granted,
+ *	provided that the above copyright notice appears in all copies.
+ *	Digital Equipment Corporation makes no representations about the
+ *	suitability of this software for any purpose.  It is provided "as is"
+ *	without express or implied warranty.
+ *
+ * from: Header: /sprite/src/kernel/mach/ds3100.md/RCS/machAsmDefs.h,
+ *	v 1.2 89/08/15 18:28:24 rab Exp  SPRITE (DECWRL)
  */
 
-/* ABI specific stack frame layout and manipulation. */
-#if _MIPS_SIM == _ABIO32
-/* Standard O32 */
-#define SZREG 4           /* saved register size */
-#define REG_S sw          /* store saved register */
-#define REG_L lw          /* load saved register */
-#define SZARG 4           /* argument register size */
-#define NARGSAVE 4        /* arg register space on caller stack */
-#define ALSZ 7            /* stack alignment - 1 */
-#define ALMASK (~7)       /* stack alignment mask */
-#define LOG2_STACK_ALGN 3 /* log2(8) */
-#define SZPTR 4           /* pointer size */
-#define LOG2_SZPTR 2      /* log2(4) */
-#define PTR_S sw          /* store pointer */
-#define PTR_L lw          /* load pointer */
-#define PTR_SUBU subu     /* decrement pointer */
-#define PTR_ADDI addi     /* increment pointer by constant */
-#define PTR_ADDU addu     /* increment pointer */
-#define PTR_MFC0 mfc0     /* access CP0 pointer width register */
-#define PTR_MTC0 mtc0     /* access CP0 pointer width register */
-#define REG_LHI lwr
-#define REG_LLO lwl
-#define REG_SHI swr
-#define REG_SLO swl
-#define LA la             /* load an address */
-#define PTR .word         /* pointer type pseudo */
-#define CALLFRAME_SIZ (SZREG * 6)
-#define CALLFRAME_SP (CALLFRAME_SIZ - 2 * SZREG)
-#define CALLFRAME_RA (CALLFRAME_SIZ - 1 * SZREG)
-#elif _MIPS_SIM == _ABIO64
-/* Cygnus O64 */
-#define SZREG 8           /* saved register size */
-#define REG_S sd          /* store saved register */
-#define REG_L ld          /* load saved register */
-#define SZARG 8           /* argument register size */
-#define NARGSAVE 4        /* arg register space on caller stack */
-#define ALSZ 7            /* stack alignment - 1 */
-#define ALMASK (~7)       /* stack alignment mask */
-#define LOG2_STACK_ALGN 3 /* log2(8) */
-#define SZPTR 4           /* pointer size */
-#define LOG2_SZPTR 2      /* log2(4) */
-#define PTR_S sw          /* store pointer */
-#define PTR_L lw          /* load pointer */
-#define PTR_SUBU subu     /* decrement pointer */
-#define PTR_ADDU addu     /* increment pointer */
-#define PTR_MFC0 dmfc0    /* access CP0 pointer width register */
-#define PTR_MTC0 mtc0     /* access CP0 pointer width register */
-#define LA la             /* load an address */
-#define PTR .word         /* pointer type pseudo */
-#elif _MIPS_SIM == _ABIN32
-/* Standard N32 */
-#define SZREG 8           /* saved register size */
-#define REG_S sd          /* store saved register */
-#define REG_L ld          /* load saved register */
-#define SZARG 8           /* argument register size */
-#define NARGSAVE 0        /* arg register space on caller stack */
-#define ALSZ 15           /* stack alignment - 1 */
-#define ALMASK (~15)      /* stack alignment mask */
-#define LOG2_STACK_ALGN 4 /* log2(16) */
-#define SZPTR 4           /* pointer size */
-#define LOG2_SZPTR 2      /* log2(4) */
-#define PTR_S sw          /* store pointer */
-#define PTR_L lw          /* load pointer */
-#define PTR_SUBU subu     /* decrement pointer (SGI uses sub) */
-#define PTR_ADDU addu     /* increment pointer (SGI uses add) */
-#define PTR_MFC0 mfc0     /* access CP0 pointer width register */
-#define PTR_MTC0 mtc0     /* access CP0 pointer width register */
-#define LA la             /* load an address */
-#define PTR .word         /* pointer type pseudo */
-#elif _MIPS_SIM == _ABI64
-/* Standard N64 */
-#define SZREG 8           /* saved register size */
-#define REG_S sd          /* store saved register */
-#define REG_L ld          /* load saved register */
-#define SZARG 8           /* argument register size */
-#define NARGSAVE 0        /* arg register space on caller stack */
-#define ALSZ 15           /* stack alignment - 1 */
-#define ALMASK (~15)      /* stack alignment mask */
-#define LOG2_STACK_ALGN 4 /* log2(16) */
-#define SZPTR 8           /* pointer size */
-#define LOG2_SZPTR 3      /* log2(8) */
-#define PTR_S sd          /* store pointer */
-#define PTR_L ld          /* load pointer */
-#define PTR_SUBU dsubu    /* decrement pointer */
-#define PTR_ADDU daddu    /* increment pointer */
-#define PTR_MFC0 dmfc0    /* access CP0 pointer width register */
-#define PTR_MTC0 dmtc0    /* access CP0 pointer width register */
-#define LA dla            /* load an address */
-#define PTR .dword        /* pointer type pseudo */
-#else
-#error Unknown ABI
+#ifndef _MACHINE_ASM_H_
+#define	_MACHINE_ASM_H_
+
+#include <machine/abi.h>
+#include <machine/regdef.h>
+#include <sys/endian.h>
+#include <machine/cdefs.h>
+
+#define	_C_LABEL(x)	x
+
+#define	AENT(x)		\
+	.globl	_C_LABEL(x);	\
+	.aent	_C_LABEL(x); \
+_C_LABEL(x):
+
+/*
+ * WARN_REFERENCES: create a warning if the specified symbol is referenced
+ */
+#define	WARN_REFERENCES(_sym,_msg)				\
+	.section .gnu.warning. ## _sym ; .ascii _msg ; .text
+
+/*
+ * WEAK_ALIAS: create a weak alias.
+ */
+#define	WEAK_ALIAS(alias,sym)						\
+	.weak alias;							\
+	alias = sym
+
+/*
+ * STRONG_ALIAS: create a strong alias.
+ */
+#define STRONG_ALIAS(alias,sym)						\
+	.globl alias;							\
+	alias = sym
+
+#define	GLOBAL(sym)						\
+	.globl sym; sym:
+
+#define	ENTRY(sym)						\
+	.text; .globl sym; .ent sym; sym:
+
+#define	ASM_ENTRY(sym)						\
+	.text; .globl sym; .type sym,@function; sym:
+
+/*
+ * LEAF
+ *	A leaf routine does
+ *	- call no other function,
+ *	- never use any register that callee-saved (S0-S8), and
+ *	- not use any local stack storage.
+ */
+#define	LEAF(x)			\
+	.globl	_C_LABEL(x);	\
+	.ent	_C_LABEL(x), 0;	\
+_C_LABEL(x): ;			\
+	.frame sp, 0, ra;
+
+/* Static/local leaf function. */
+#define SLEAF(x)                                                            \
+	.ent	_C_LABEL(x), 0;	\
+_C_LABEL(x): ;			\
+	.frame sp, 0, ra;
+
+/*
+ * LEAF_NOPROFILE
+ *	No profilable leaf routine.
+ */
+#define	LEAF_NOPROFILE(x)	\
+	.globl	_C_LABEL(x);	\
+	.ent	_C_LABEL(x), 0;	\
+_C_LABEL(x): ;			\
+	.frame	sp, 0, ra
+
+/*
+ * XLEAF
+ *	declare alternate entry to leaf routine
+ */
+#define	XLEAF(x)		\
+	.globl	_C_LABEL(x);	\
+	AENT (_C_LABEL(x));	\
+_C_LABEL(x):
+
+/*
+ * NESTED
+ *	A function calls other functions and needs
+ *	therefore stack space to save/restore registers.
+ */
+#define	NESTED(x, fsize, retpc)		\
+	.globl	_C_LABEL(x);		\
+	.ent	_C_LABEL(x), 0;		\
+_C_LABEL(x): ;				\
+	.frame	sp, fsize, retpc;
+
+#define	SNESTED(x, fsize, retpc)		\
+	.ent	_C_LABEL(x), 0;		\
+_C_LABEL(x): ;				\
+	.frame	sp, fsize, retpc;
+
+/*
+ * NESTED_NOPROFILE(x)
+ *	No profilable nested routine.
+ */
+#define	NESTED_NOPROFILE(x, fsize, retpc)	\
+	.globl	_C_LABEL(x);			\
+	.ent	_C_LABEL(x), 0;			\
+_C_LABEL(x): ;					\
+	.frame	sp, fsize, retpc
+
+/*
+ * XNESTED
+ *	declare alternate entry point to nested routine.
+ */
+#define	XNESTED(x)		\
+	.globl	_C_LABEL(x);	\
+	AENT (_C_LABEL(x));	\
+_C_LABEL(x):
+
+/*
+ * END
+ *	Mark end of a procedure.
+ */
+#define	END(x)			\
+  .size _C_LABEL(x), .- _C_LABEL(x);                                                         \
+	.end _C_LABEL(x)
+
+/*
+ * IMPORT -- import external symbol
+ */
+#define	IMPORT(sym, size)	\
+	.extern _C_LABEL(sym),size
+
+/*
+ * EXPORT -- export definition of symbol
+ */
+#define	EXPORT(x)		\
+	.globl	_C_LABEL(x);	\
+_C_LABEL(x):
+
+/*
+ * VECTOR
+ *	exception vector entrypoint
+ *	XXX: regmask should be used to generate .mask
+ */
+#define	VECTOR(x, regmask)	\
+	.ent	_C_LABEL(x),0;	\
+	EXPORT(x);		\
+
+#define	VECTOR_END(x)		\
+	EXPORT(x ## End);	\
+	END(x)
+
+/*
+ * Macros to panic and printf from assembly language.
+ */
+#define	PANIC(msg)			\
+	PTR_LA	a0, 9f;			\
+	jal	_C_LABEL(panic);	\
+	nop;				\
+	MSG(msg)
+
+#define	PANIC_KSEG0(msg, reg)	PANIC(msg)
+
+#define	PRINTF(msg)			\
+	PTR_LA	a0, 9f;			\
+	jal	_C_LABEL(printf);	\
+	nop;				\
+	MSG(msg)
+
+#define	MSG(msg)			\
+	.rdata;				\
+9:	.asciiz	msg;			\
+	.text
+
+#define	ASMSTR(str)			\
+	.asciiz str;			\
+	.align	3
+
+#define	ALSK	7		/* stack alignment */
+#define	ALMASK	-7		/* stack alignment */
+#define	SZFPREG	4
+#define	FP_L	lwc1
+#define	FP_S	swc1
+
+/*
+ *   Endian-independent assembly-code aliases for unaligned memory accesses.
+ */
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+# define LWHI lwr
+# define LWLO lwl
+# define SWHI swr
+# define SWLO swl
+# define REG_LHI   lwr
+# define REG_LLO   lwl
+# define REG_SHI   swr
+# define REG_SLO   swl
 #endif
 
-#ifdef __ASSEMBLER__
-
-/* Concatenate two names. */
-#ifdef __STDC__
-#define _ASMCONCAT(A, B) A##B
-#else
-#define _ASMCONCAT(A, B) A /**/ B
-#endif
-
-/* Name of wired code section. */
-#ifndef _WIRED_SECTION
-#define _WIRED_SECTION .section .wired.text, "ax", @progbits
-#endif
-
-#ifndef _WIRED_SECTION_NAMED
-/* No function section support for now, since binutils fails to cope with
-   external branches. */
-#define _WIRED_SECTION_NAMED(name) .pushsection .wired.text, "ax", @progbits
-#endif
-
-/* Name of boot code section. */
-#ifndef _BOOT_SECTION
-#define _BOOT_SECTION .section .boot.text, "ax", @progbits
-#endif
-
-#ifndef _BOOT_SECTION_NAMED
-/* No function section support for now, since binutils fails to cope with
-   external branches. */
-#define _BOOT_SECTION_NAMED(name) .pushsection .boot.text, "ax", @progbits
-#endif
-
-/* Name of standard code section. */
-#ifndef _NORMAL_SECTION_UNNAMED
-#define _NORMAL_SECTION_UNNAMED .section .text, "ax", @progbits
-#endif
-
-#ifndef _NORMAL_SECTION_NAMED
-#define _NORMAL_SECTION_NAMED(name) .pushsection .text, "ax", @progbits
-#endif
-
-/* Default code section. */
-#ifndef _TEXT_SECTION_NAMED
-#if defined(_WIREDCODE)
-#define _TEXT_SECTION_NAMED _WIRED_SECTION_NAMED
-#elif defined(_BOOTCODE)
-#define _TEXT_SECTION_NAMED _BOOT_SECTION_NAMED
-#else
-#define _TEXT_SECTION_NAMED _NORMAL_SECTION_NAMED
-#endif
-#endif
-
-#ifndef _TEXT_SECTION
-#if defined(_WIREDCODE)
-#define _TEXT_SECTION _WIRED_SECTION
-#elif defined(_BOOTCODE)
-#define _TEXT_SECTION _BOOT_SECTION
-#else
-#define _TEXT_SECTION _NORMAL_SECTION_UNNAMED
-#endif
-_TEXT_SECTION
+#if _BYTE_ORDER == _BIG_ENDIAN
+# define LWHI lwl
+# define LWLO lwr
+# define SWHI swl
+# define SWLO swr
+# define REG_LHI   lwl
+# define REG_LLO   lwr
+# define REG_SHI   swl
+# define REG_SLO   swr
 #endif
 
 /*
- * Leaf functions declarations.
+ * While it would be nice to be compatible with the SGI
+ * REG_L and REG_S macros, because they do not take parameters, it
+ * is impossible to use them with the _MIPS_SIM_ABIX32 model.
+ *
+ * These macros hide the use of mips3 instructions from the
+ * assembler to prevent the assembler from generating 64-bit style
+ * ABI calls.
  */
+#define	PTR_ADD		add
+#define	PTR_ADDI	addi
+#define	PTR_ADDU	addu
+#define	PTR_ADDIU	addiu
+#define	PTR_SUB		add
+#define	PTR_SUBI	subi
+#define	PTR_SUBU	subu
+#define	PTR_SUBIU	subu
+#define	PTR_L		lw
+#define	PTR_LA		la
+#define	PTR_LI		li
+#define	PTR_S		sw
+#define	PTR_SLL		sll
+#define	PTR_SLLV	sllv
+#define	PTR_SRL		srl
+#define	PTR_SRLV	srlv
+#define	PTR_SRA		sra
+#define	PTR_SRAV	srav
+#define	PTR_LL		ll
+#define	PTR_SC		sc
+#define	PTR_WORD	.word
+#define	PTR_SCALESHIFT	2
 
-/* Global leaf function. */
-#define LEAF(name)                                                             \
-  _TEXT_SECTION_NAMED(name);                                                   \
-  .balign 4;                                                                   \
-  .globl name;                                                                 \
-  .ent name;                                                                   \
-  name:
+#define	INT_ADD		add
+#define	INT_ADDI	addi
+#define	INT_ADDU	addu
+#define	INT_ADDIU	addiu
+#define	INT_SUB		add
+#define	INT_SUBI	subi
+#define	INT_SUBU	subu
+#define	INT_SUBIU	subu
+#define	INT_L		lw
+#define	INT_LA		la
+#define	INT_S		sw
+#define	INT_SLL		sll
+#define	INT_SLLV	sllv
+#define	INT_SRL		srl
+#define	INT_SRLV	srlv
+#define	INT_SRA		sra
+#define	INT_SRAV	srav
+#define	INT_LL		ll
+#define	INT_SC		sc
+#define	INT_WORD	.word
+#define	INT_SCALESHIFT	2
 
-/* Static/Local leaf function. */
-#define SLEAF(name)                                                            \
-  _TEXT_SECTION_NAMED(name);                                                   \
-  .balign 4;                                                                   \
-  .ent name;                                                                   \
-  name:
+#define	LONG_ADD	add
+#define	LONG_ADDI	addi
+#define	LONG_ADDU	addu
+#define	LONG_ADDIU	addiu
+#define	LONG_SUB	add
+#define	LONG_SUBI	subi
+#define	LONG_SUBU	subu
+#define	LONG_SUBIU	subu
+#define	LONG_L		lw
+#define	LONG_LA		la
+#define	LONG_S		sw
+#define	LONG_SLL	sll
+#define	LONG_SLLV	sllv
+#define	LONG_SRL	srl
+#define	LONG_SRLV	srlv
+#define	LONG_SRA	sra
+#define	LONG_SRAV	srav
+#define	LONG_LL		ll
+#define	LONG_SC		sc
+#define	LONG_WORD	.word
+#define	LONG_SCALESHIFT	2
 
-/* Weak leaf function. */
-#define WLEAF(name)                                                            \
-  _TEXT_SECTION_NAMED(name);                                                   \
-  .balign 4;                                                                   \
-  .weak name;                                                                  \
-  .ent name;                                                                   \
-  name:
+#define	REG_L		lw
+#define	REG_S		sw
+#define	REG_LI		li
+#define	REG_ADDU	addu
+#define	REG_SLL		sll
+#define	REG_SLLV	sllv
+#define	REG_SRL		srl
+#define	REG_SRLV	srlv
+#define	REG_SRA		sra
+#define	REG_SRAV	srav
+#define	REG_LL		ll
+#define	REG_SC		sc
+#define	REG_SCALESHIFT	2
 
-/* Weak alias leaf function. */
-#define ALEAF(name, alias)                                                     \
-  _TEXT_SECTION_NAMED(name);                                                   \
-  .balign 4;                                                                   \
-  .weak alias;                                                                 \
-  .ent name;                                                                   \
-  alias = name;                                                                \
-  name:
+#define	MFC0		mfc0
+#define	MTC0		mtc0
+
+#define	CPRESTORE(r)	.cprestore r
+#define	CPLOAD(r)	.cpload r
+
+#define	SETUP_GP	\
+			.set push;				\
+			.set noreorder;				\
+			.cpload	t9;				\
+			.set pop
+#define	SETUP_GPX(r)	\
+			.set push;				\
+			.set noreorder;				\
+			move	r,ra;	/* save old ra */	\
+			bal	7f;				\
+			nop;					\
+		7:	.cpload	ra;				\
+			move	ra,r;				\
+			.set pop
+#define	SETUP_GPX_L(r,lbl)	\
+			.set push;				\
+			.set noreorder;				\
+			move	r,ra;	/* save old ra */	\
+			bal	lbl;				\
+			nop;					\
+		lbl:	.cpload	ra;				\
+			move	ra,r;				\
+			.set pop
+#define	SAVE_GP(x)	.cprestore x
+
+#define	REG_PROLOGUE	.set push
+#define	REG_EPILOGUE	.set pop
+
+#define	GET_CPU_PCPU(reg)		\
+	PTR_L	reg, _C_LABEL(pcpup);
 
 /*
- * Alternative function entrypoints.
+ * Description of the setjmp buffer
+ *
+ * word  0	magic number	(dependant on creator)
+ *       1	RA
+ *       2	S0
+ *       3	S1
+ *       4	S2
+ *       5	S3
+ *       6	S4
+ *       7	S5
+ *       8	S6
+ *       9	S7
+ *       10	SP
+ *       11	S8
+ *       12	GP		(dependent on ABI)
+ *       13	signal mask	(dependant on magic)
+ *       14	(con't)
+ *       15	(con't)
+ *       16	(con't)
+ *
+ * The magic number number identifies the jmp_buf and
+ * how the buffer was created as well as providing
+ * a sanity check
+ *
  */
 
-/* Global alternative entrypoint. */
-#define AENT(name)                                                             \
-  .globl name;                                                                 \
-  .aent name;                                                                  \
-  name:
-#define XLEAF(name) AENT(name)
+#define _JB_MAGIC__SETJMP	0xBADFACED
+#define _JB_MAGIC_SETJMP	0xFACEDBAD
 
-/* Local/static alternative entrypoint. */
-#define SAENT(name)                                                            \
-  .aent name;                                                                  \
-  name:
-#define SXLEAF(name) SAENT(name)
+/* Valid for all jmp_buf's */
 
-/*
- * Leaf functions declarations.
- */
+#define _JB_MAGIC		0
+#define _JB_REG_RA		1
+#define _JB_REG_S0		2
+#define _JB_REG_S1		3
+#define _JB_REG_S2		4
+#define _JB_REG_S3		5
+#define _JB_REG_S4		6
+#define _JB_REG_S5		7
+#define _JB_REG_S6		8
+#define _JB_REG_S7		9
+#define _JB_REG_SP		10
+#define _JB_REG_S8		11
 
-/* Global nested function. */
-#define NESTED(name, framesz, rareg)                                           \
-  _TEXT_SECTION_NAMED(name);                                                   \
-  .balign 4;                                                                   \
-  .globl name;                                                                 \
-  .ent name;                                                                   \
-  .frame sp, framesz, rareg;                                                  \
-  name:
+/* Only valid with the _JB_MAGIC_SETJMP magic */
 
-/* Static/Local nested function. */
-#define SNESTED(name, framesz, rareg)                                          \
-  _TEXT_SECTION_NAMED(name);                                                   \
-  .balign 4;                                                                   \
-  .ent name;                                                                   \
-  .frame sp, framesz, rareg;                                                  \
-  name:
+#define _JB_SIGMASK		13
+#define	__JB_SIGMASK_REMAINDER	14	/* sigmask_t is 128-bits */
 
-/* Weak nested function. */
-#define WNESTED(name, framesz, rareg)                                          \
-  _TEXT_SECTION_NAMED(name);                                                   \
-  .balign 4;                                                                   \
-  .weak name;                                                                  \
-  .ent name;                                                                   \
-  .frame sp, framesz, rareg;                                                  \
-  name:
+#define _JB_FPREG_F20		15
+#define _JB_FPREG_F21		16
+#define _JB_FPREG_F22		17
+#define _JB_FPREG_F23		18
+#define _JB_FPREG_F24		19
+#define _JB_FPREG_F25		20
+#define _JB_FPREG_F26		21
+#define _JB_FPREG_F27		22
+#define _JB_FPREG_F28		23
+#define _JB_FPREG_F29		24
+#define _JB_FPREG_F30		25
+#define _JB_FPREG_F31		26
+#define _JB_FPREG_FCSR		27
 
-/* Weak alias nested function. */
-#define ANESTED(name, alias, framesz, rareg)                                   \
-  _TEXT_SECTION_NAMED(name);                                                   \
-  .balign 4;                                                                   \
-  .weak alias;                                                                 \
-  .ent name;                                                                   \
-  alias = name;                                                                \
-  .frame sp, framesz, rareg;                                                  \
-  name:
-
-/*
- * Function termination
- */
-#define END(name)                                                              \
-  .size name, .- name;                                                         \
-  .end name;                                                                   \
-  .popsection
-
-#define SEND(name) END(name)
-#define WEND(name) END(name)
-#define AEND(name, alias) END(name)
-
-/*
- * Global data declaration.
- */
-#define EXPORT(name)                                                           \
-  .globl name;                                                                 \
-  .type name, @object;                                                         \
-  name:
-
-/*
- * Global data declaration with size.
- */
-#define EXPORTS(name, sz)                                                      \
-  .globl name;                                                                 \
-  .type name, @object;                                                         \
-  .size name, sz;                                                              \
-  name:
-
-/*
- * Weak data declaration with size.
- */
-#define WEXPORT(name, sz)                                                      \
-  .weak name;                                                                  \
-  .type name, @object;                                                         \
-  .size name, sz;                                                              \
-  name:
-
-/*
- * Global data reference with size.
- */
-#define IMPORT(name, size) .extern name, size
-
-/*
- * Global zeroed data.
- */
-#define BSS(name, size)                                                        \
-  .type name, @object;                                                         \
-  .comm name, size
-
-/*
- * Local zeroed data.
- */
-#define LBSS(name, size) .lcomm name, size
-
-/*
- * Insert call to _mcount if profiling.
- */
-#ifdef __PROFILING__
-#define _MCOUNT                                                                \
-  .set push;                                                                   \
-  .set noat;                                                                   \
-  move $1, $31;                                                                \
-  jal _mcount;                                                                 \
-  .set pop
-#else
-#define _MCOUNT
-#endif
-
-#endif /* __ASSEMBLER__ */
-
-#endif /* !_MIPS_ASM_H_ */
+#endif /* !_MACHINE_ASM_H_ */

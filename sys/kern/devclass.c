@@ -1,6 +1,6 @@
 #include <sys/device.h>
 #include <sys/devclass.h>
-#include <sys/stdc.h>
+#include <sys/libkern.h>
 
 SET_DECLARE(devclasses, devclass_t);
 
