@@ -758,8 +758,12 @@ static void *imalloc(size_t size) {
 
   if ((size + malloc_pagesize) < size) /* Check for overflow */
     result = NULL;
+#if 0
+  /* XXX: mimiker workaround
+   * page_dir is at low address and prevents large chunk allocations. */
   else if ((size + malloc_pagesize) >= (uintptr_t)page_dir)
     result = NULL;
+#endif
   else if (size <= malloc_maxsize)
     result = malloc_bytes(size);
   else
