@@ -49,14 +49,14 @@ static int ns16550_read(vnode_t *v, uio_t *uio) {
 
   uio->uio_offset = 0; /* This device does not support offsets. */
 
+  uint8_t byte;
   WITH_SPIN_LOCK (&ns16550->lock) {
-    uint8_t byte;
     /* For simplicity, copy to the user space one byte at a time. */
     while (!ringbuf_getb(&ns16550->rx_buf, &byte))
       cv_wait(&ns16550->rx_nonempty, &ns16550->lock);
-    if ((error = uiomove_frombuf(&byte, 1, uio)))
-      return error;
   }
+  if ((error = uiomove_frombuf(&byte, 1, uio)))
+    return error;
 
   return 0;
 }
@@ -68,18 +68,19 @@ static int ns16550_write(vnode_t *v, uio_t *uio) {
 
   uio->uio_offset = 0; /* This device does not support offsets. */
 
-  WITH_SPIN_LOCK (&ns16550->lock) {
+  while (uio->uio_resid > 0) {
     uint8_t byte;
-    while (uio->uio_resid > 0) {
-      /* For simplicity, copy from the user space one byte at a time. */
-      if ((error = uiomove(&byte, 1, uio)))
-        return error;
-      while (!ringbuf_putb(&ns16550->tx_buf, byte))
-        cv_wait(&ns16550->tx_nonfull, &ns16550->lock);
-    }
-    if (in(uart, LSR) & LSR_THRE)
-      if (ringbuf_getb(&ns16550->tx_buf, &byte))
+    /* For simplicity, copy from the user space one byte at a time. */
+    if ((error = uiomove(&byte, 1, uio)))
+      return error;
+    WITH_SPIN_LOCK (&ns16550->lock) {
+      if (in(uart, LSR) & LSR_THRE) {
         out(uart, THR, byte);
+      } else {
+        while (!ringbuf_putb(&ns16550->tx_buf, byte))
+          cv_wait(&ns16550->tx_nonfull, &ns16550->lock);
+      }
+    }
   }
 
   return 0;
