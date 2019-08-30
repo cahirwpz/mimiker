@@ -14,6 +14,10 @@
 #include <inttypes.h>  /* PRIdN, PRIxPTR, ... */
 #include <sys/types.h>
 
+/* Checks often used in assert statements. */
+bool preempt_disabled(void);
+bool intr_disabled(void);
+
 /* Attribute macros for boot/wired functions/data */
 #define __boot_text __long_call __section(".boot.text")
 #define __boot_data __section(".boot.data")

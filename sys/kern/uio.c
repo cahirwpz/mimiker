@@ -34,6 +34,10 @@ static int copyout_vmspace(vm_map_t *vm, const void *restrict kaddr,
 /* Heavily inspired by NetBSD's uiomove */
 /* This function modifies uio to reflect on the progress. */
 int uiomove(void *buf, size_t n, uio_t *uio) {
+  /* Calling uiomove from critical section (no interrupts or no preemption)
+   * is not allowed since it may be copying from pageable memory. */
+  assert(!intr_disabled() && !preempt_disabled());
+
   char *cbuf = buf;
   int error = 0;
 

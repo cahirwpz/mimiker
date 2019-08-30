@@ -1,7 +1,6 @@
 #include <sys/mimiker.h>
 #include <sys/mutex.h>
 #include <sys/turnstile.h>
-#include <sys/interrupt.h>
 #include <sys/sched.h>
 #include <sys/thread.h>
 

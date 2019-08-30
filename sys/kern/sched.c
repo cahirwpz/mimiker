@@ -7,7 +7,6 @@
 #include <sys/context.h>
 #include <sys/time.h>
 #include <sys/thread.h>
-#include <sys/interrupt.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/sysinit.h>

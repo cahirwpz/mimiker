@@ -16,7 +16,6 @@
 #include <sys/spinlock.h>
 #include <sys/mutex.h>
 #include <sys/sched.h>
-#include <sys/interrupt.h>
 #include <sys/sysinit.h>
 #include <bitstring.h>
 

@@ -1,5 +1,4 @@
 #include <sys/exception.h>
-#include <sys/interrupt.h>
 #include <sys/thread.h>
 #include <sys/sched.h>
 #include <sys/proc.h>

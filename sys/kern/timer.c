@@ -5,7 +5,6 @@
 #include <sys/timer.h>
 #include <sys/mutex.h>
 #include <sys/errno.h>
-#include <sys/interrupt.h>
 
 static mtx_t timers_mtx = MTX_INITIALIZER(0);
 static timer_list_t timers = TAILQ_HEAD_INITIALIZER(timers);

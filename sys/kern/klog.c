@@ -1,8 +1,8 @@
+#include <sys/mimiker.h>
 #include <sys/mutex.h>
 #include <sys/time.h>
 #include <sys/libkern.h>
 #include <sys/thread.h>
-#include <sys/interrupt.h>
 #define _KLOG_PRIVATE
 #include <sys/klog.h>
 
