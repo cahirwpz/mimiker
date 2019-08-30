@@ -11,6 +11,7 @@
 __BEGIN_DECLS
 __noreturn void _Exit(int);
 __noreturn void abort(void);
+__constfunc int abs(int);
 int atexit(void (*)(void));
 double atof(const char *);
 int atoi(const char *);

@@ -32,6 +32,7 @@ double exp2(double);
 double frexp(double, int *);
 double ldexp(double, int);
 double log(double);
+double log2(double);
 double log10(double);
 double modf(double, double *);
 

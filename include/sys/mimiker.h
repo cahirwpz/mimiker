@@ -14,6 +14,66 @@
 #include <inttypes.h>  /* PRIdN, PRIxPTR, ... */
 #include <sys/types.h>
 
+/* Macros for counting and rounding. */
+#ifndef howmany
+#define howmany(x, y) (((x) + ((y)-1)) / (y))
+#endif
+#define nitems(x) (sizeof((x)) / sizeof((x)[0]))
+#define rounddown(x, y) (((x) / (y)) * (y))
+#define roundup(x, y) ((((x) + ((y)-1)) / (y)) * (y))
+#define powerof2(x) ((((x)-1) & (x)) == 0)
+#define log2(x) (__builtin_ffs(x) - 1)
+#define ffs(x) (size_t)(__builtin_ffs(x))
+#define clz(x) (size_t)(__builtin_clz(x))
+#define ctz(x) (size_t)(__builtin_ctz(x))
+
+#define abs(x)                                                                 \
+  ({                                                                           \
+    typeof(x) _x = (x);                                                        \
+    (_x < 0) ? -_x : _x;                                                       \
+  })
+
+#define min(a, b)                                                              \
+  ({                                                                           \
+    typeof(a) _a = (a);                                                        \
+    typeof(b) _b = (b);                                                        \
+    _a < _b ? _a : _b;                                                         \
+  })
+
+#define max(a, b)                                                              \
+  ({                                                                           \
+    typeof(a) _a = (a);                                                        \
+    typeof(b) _b = (b);                                                        \
+    _a > _b ? _a : _b;                                                         \
+  })
+
+#define swap(a, b)                                                             \
+  ({                                                                           \
+    typeof(a) _a = (a);                                                        \
+    typeof(a) _b = (b);                                                        \
+    (a) = _b;                                                                  \
+    (b) = _a;                                                                  \
+  })
+
+/* Aligns the address to given size (must be power of 2) */
+#define align(addr, size)                                                      \
+  ({                                                                           \
+    intptr_t _addr = (intptr_t)(addr);                                         \
+    intptr_t _size = (intptr_t)(size);                                         \
+    _addr = (_addr + (_size - 1)) & -_size;                                    \
+    (typeof(addr)) _addr;                                                      \
+  })
+
+#define is_aligned(addr, size)                                                 \
+  ({                                                                           \
+    intptr_t _addr = (intptr_t)(addr);                                         \
+    intptr_t _size = (intptr_t)(size);                                         \
+    !(_addr & (_size - 1));                                                    \
+  })
+
+#define container_of(p, type, field)                                           \
+  ((type *)((char *)(p)-offsetof(type, field)))
+
 /* Checks often used in assert statements. */
 bool preempt_disabled(void);
 bool intr_disabled(void);

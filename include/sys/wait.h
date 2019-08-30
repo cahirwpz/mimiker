@@ -1,7 +1,7 @@
 #ifndef _SYS_WAIT_H_
 #define _SYS_WAIT_H_
 
-/* XXX: We need a sys/types.h for pid_t. */
+#include <sys/types.h>
 
 #define WNOHANG 1
 
@@ -31,7 +31,7 @@
 
 #ifndef _KERNEL
 
-int waitpid(int pid, int *status, int options);
+int waitpid(pid_t pid, int *status, int options);
 #define wait(statusptr) waitpid(-1, statusptr, 0)
 
 #else /* _KERNEL */
