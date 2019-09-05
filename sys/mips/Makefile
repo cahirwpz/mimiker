@@ -2,7 +2,6 @@
 
 TOPDIR = $(realpath ../..)
 
-GENASSYM = $(TOPDIR)/sys/script/genassym.py $(NM)
 GENDEVHINT = $(TOPDIR)/sys/script/gendevhint.py
 
 SOURCES = \
@@ -34,9 +33,5 @@ build-here: libmips.ka
 
 $(SOURCES): assym.h
 
-%.h: gen%.o
-	@echo "[ASSYM] $(DIR)$@"
-	$(GENASSYM) $< $@
-
 clean-here:
-	$(RM) assym.h genassym.o *-devhint.c
+	$(RM) assym.h *-devhint.c

@@ -28,3 +28,4 @@ TAR	= tar
 CURL	= curl -J -L
 GIT     = git
 PATCH   = patch
+GENASSYM = $(TOPDIR)/sys/script/genassym.sh

@@ -29,6 +29,10 @@ endif
 	@echo "[AR] $(addprefix $(DIR),$^) -> $(DIR)$@"
 	$(AR) rs $@ $^ 2> /dev/null
 
+assym.h: genassym.cf
+	@echo "[ASSYM] $(DIR)$@"
+	$(GENASSYM) $(CC) $(CFLAGS) $(CPPFLAGS) < $^ > $@
+
 # Generate recursive rules for subdirectories
 define emit_subdir_rule
 $(1)-$(2):
