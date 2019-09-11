@@ -12,16 +12,9 @@
 #include <stdalign.h>  /* alignof, alignas */
 #include <stdatomic.h> /* atomic_{load,store,fetch_*,...} */
 #include <inttypes.h>  /* PRIdN, PRIxPTR, ... */
+#include <sys/param.h>
 #include <sys/types.h>
 
-/* Macros for counting and rounding. */
-#ifndef howmany
-#define howmany(x, y) (((x) + ((y)-1)) / (y))
-#endif
-#define nitems(x) (sizeof((x)) / sizeof((x)[0]))
-#define rounddown(x, y) (((x) / (y)) * (y))
-#define roundup(x, y) ((((x) + ((y)-1)) / (y)) * (y))
-#define powerof2(x) ((((x)-1) & (x)) == 0)
 #define log2(x) (__builtin_ffs(x) - 1)
 #define ffs(x) (size_t)(__builtin_ffs(x))
 #define clz(x) (size_t)(__builtin_clz(x))

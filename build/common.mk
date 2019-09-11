@@ -25,6 +25,10 @@ endif
 	@echo "[AS] $(DIR)$< -> $(DIR)$@"
 	$(AS) $(ASFLAGS) $(CPPFLAGS) -c -o $@ $(realpath $<)
 
+%.c: %.y
+	@echo "[YACC] $(DIR)$< -> $(DIR)$@"
+	$(YACC) -o $@ $(realpath $<)
+
 %.a:
 	@echo "[AR] $(addprefix $(DIR),$^) -> $(DIR)$@"
 	$(AR) rs $@ $^ 2> /dev/null

@@ -1,7 +1,7 @@
 #include <sys/errno.h>
-#include <sys/signal.h>
+#include <signal.h>
 
-sighandler_t signal(int sig, sighandler_t handler) {
+sig_t signal(int sig, sig_t handler) {
   sigaction_t act, oldact;
 
   if (handler == SIG_ERR || sig < 1 || sig >= NSIG) {

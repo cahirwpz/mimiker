@@ -153,6 +153,9 @@ _C_LABEL(x): ;				\
 _C_LABEL(x): ;				\
 	.frame	sp, fsize, retpc;
 
+#define NON_LEAF(x, fsize, retpc)	\
+  NESTED(x, fsize, retpc)
+
 /*
  * NESTED_NOPROFILE(x)
  *	No profilable nested routine.
@@ -387,71 +390,9 @@ _C_LABEL(x):
 #define	REG_PROLOGUE	.set push
 #define	REG_EPILOGUE	.set pop
 
+#ifdef _KERNEL
 #define	GET_CPU_PCPU(reg)		\
 	PTR_L	reg, _C_LABEL(pcpup);
-
-/*
- * Description of the setjmp buffer
- *
- * word  0	magic number	(dependant on creator)
- *       1	RA
- *       2	S0
- *       3	S1
- *       4	S2
- *       5	S3
- *       6	S4
- *       7	S5
- *       8	S6
- *       9	S7
- *       10	SP
- *       11	S8
- *       12	GP		(dependent on ABI)
- *       13	signal mask	(dependant on magic)
- *       14	(con't)
- *       15	(con't)
- *       16	(con't)
- *
- * The magic number number identifies the jmp_buf and
- * how the buffer was created as well as providing
- * a sanity check
- *
- */
-
-#define _JB_MAGIC__SETJMP	0xBADFACED
-#define _JB_MAGIC_SETJMP	0xFACEDBAD
-
-/* Valid for all jmp_buf's */
-
-#define _JB_MAGIC		0
-#define _JB_REG_RA		1
-#define _JB_REG_S0		2
-#define _JB_REG_S1		3
-#define _JB_REG_S2		4
-#define _JB_REG_S3		5
-#define _JB_REG_S4		6
-#define _JB_REG_S5		7
-#define _JB_REG_S6		8
-#define _JB_REG_S7		9
-#define _JB_REG_SP		10
-#define _JB_REG_S8		11
-
-/* Only valid with the _JB_MAGIC_SETJMP magic */
-
-#define _JB_SIGMASK		13
-#define	__JB_SIGMASK_REMAINDER	14	/* sigmask_t is 128-bits */
-
-#define _JB_FPREG_F20		15
-#define _JB_FPREG_F21		16
-#define _JB_FPREG_F22		17
-#define _JB_FPREG_F23		18
-#define _JB_FPREG_F24		19
-#define _JB_FPREG_F25		20
-#define _JB_FPREG_F26		21
-#define _JB_FPREG_F27		22
-#define _JB_FPREG_F28		23
-#define _JB_FPREG_F29		24
-#define _JB_FPREG_F30		25
-#define _JB_FPREG_F31		26
-#define _JB_FPREG_FCSR		27
+#endif /* !_KERNEL */
 
 #endif /* !_MACHINE_ASM_H_ */

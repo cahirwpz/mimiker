@@ -3,8 +3,7 @@
 
 typedef __PTRDIFF_TYPE__ ptrdiff_t;
 typedef __SIZE_TYPE__ size_t;
-typedef __WCHAR_TYPE__ wchar_t;
-typedef int /* XXX: __WINT_TYPE__ */ wint_t;
+typedef int /* XXX: __WCHAR_TYPE__ */ wchar_t;
 
 /* A null pointer constant. */
 #define NULL (void *)0

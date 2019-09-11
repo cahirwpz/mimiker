@@ -38,6 +38,7 @@
 #define _STDIO_H_
 
 #include <sys/types.h>
+#include <_locale.h>
 
 typedef off_t fpos_t;
 
@@ -245,6 +246,23 @@ int fileno(FILE *);
 __END_DECLS
 
 /*
+ * IEEE Std 1003.1c-95, also adopted by X/Open CAE Spec Issue 5 Version 2
+ */
+__BEGIN_DECLS
+void flockfile(FILE *);
+void funlockfile(FILE *);
+int getc_unlocked(FILE *);
+__END_DECLS
+
+/*
+ * Functions defined in POSIX 1003.2 and XPG2 or later.
+ */
+__BEGIN_DECLS
+int pclose(FILE *);
+FILE *popen(const char *, const char *);
+__END_DECLS
+
+/*
  * Functions defined in ISO XPG4.2, ISO C99, POSIX 1003.1-2001 or later.
  */
 __BEGIN_DECLS
@@ -274,10 +292,11 @@ int vsscanf(const char *__restrict, const char *__restrict, __va_list)
   __scanflike(2, 0);
 __END_DECLS
 
-#ifndef __LOCALE_T_DECLARED
-typedef struct _locale *locale_t;
-#define __LOCALE_T_DECLARED
-#endif
+__BEGIN_DECLS
+char *fgetln(FILE *__restrict, size_t *__restrict);
+ssize_t getdelim(char **__restrict, size_t *__restrict, int, FILE *__restrict);
+ssize_t getline(char **__restrict, size_t *__restrict, FILE *__restrict);
+__END_DECLS
 
 __BEGIN_DECLS
 int fprintf_l(FILE *__restrict, locale_t, const char *__restrict, ...)
@@ -287,7 +306,6 @@ int vfprintf_l(FILE *__restrict, locale_t, const char *__restrict, __va_list)
 int printf_l(locale_t, const char *__restrict, ...) __printflike(2, 3);
 int snprintf_l(char *__restrict, size_t, locale_t, const char *__restrict, ...)
   __printflike(4, 5);
-
 int vsscanf_l(const char *__restrict, locale_t, const char *__restrict,
               __va_list) __scanflike(3, 0);
 
@@ -295,28 +313,13 @@ int snprintf_ss(char *restrict, size_t, const char *__restrict, ...)
   __printflike(3, 4);
 int vsnprintf_ss(char *restrict, size_t, const char *__restrict, __va_list)
   __printflike(3, 0);
+
+int asprintf(char **__restrict, const char *__restrict, ...) __printflike(2, 3);
+int asprintf_l(char **__restrict, locale_t, const char *__restrict, ...)
+  __printflike(3, 4);
+int vasprintf(char **__restrict, const char *__restrict, __va_list)
+  __printflike(2, 0);
+int vasprintf_l(char **__restrict, locale_t, const char *__restrict, __va_list);
 __END_DECLS
-
-/*
- * Functions internal to the implementation.
- */
-__BEGIN_DECLS
-int __srget(FILE *);
-int __swbuf(int, FILE *);
-__END_DECLS
-
-#define __sgetc(p) (--(p)->_r < 0 ? __srget(p) : (int)(*(p)->_p++))
-#define __sputc(c, p)                                                          \
-  (--(p)->_w < 0 ? (p)->_w >= (p)->_lbfsize                                    \
-   ? (*(p)->_p = (c)),                                                         \
-   *(p)->_p != '\n' ? (int)*(p)->_p++ : __swbuf('\n', p)                       \
-   : __swbuf((int)(c), p)                                                      \
-   : (*(p)->_p = (c), (int)*(p)->_p++))
-
-#define __sfeof(p) (((p)->_flags & __SEOF) != 0)
-#define __sferror(p) (((p)->_flags & __SERR) != 0)
-#define __sclearerr(p)                                                         \
-  ((void)((p)->_flags &= (unsigned short)~(__SERR | __SEOF)))
-#define __sfileno(p) ((p)->_file == -1 ? -1 : (int)(unsigned short)(p)->_file)
 
 #endif /* !_STDIO_H_ */

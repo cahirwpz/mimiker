@@ -3,7 +3,11 @@
 
 #include <sys/types.h>
 
-#define WNOHANG 1
+#define WNOHANG 0x00000001    /* don't hang in wait */
+#define WSTOPPED 0x00000002   /* include stopped/untraceed children */
+#define WUNTRACED WSTOPPED    /* the original name for WSTOPPED */
+#define WCONTINUED 0x00000010 /* include continued processes */
+#define WEXITED 0x00000020    /* Wait for exited processes. */
 
 /*
   A process exit status consists of two bytes:

@@ -25,7 +25,9 @@ FORMAT  = clang-format-7 -style=file
 INSTALL = install -D
 RM      = rm -v -f
 TAR	= tar
+SED	= sed
 CURL	= curl -J -L
 GIT     = git
 PATCH   = patch
 GENASSYM = $(TOPDIR)/sys/script/genassym.sh
+YACC	= byacc

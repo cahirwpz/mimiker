@@ -1,7 +1,8 @@
-/*	$OpenBSD: memchr.c,v 1.8 2015/08/31 02:53:57 guenther Exp $ */
+/*	$NetBSD: memchr.c,v 1.4 2018/02/04 20:22:17 mrg Exp $	*/
+
 /*-
- * Copyright (c) 1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1990, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Chris Torek.
@@ -31,16 +32,18 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/libkern.h>
+#include <assert.h>
+#include <string.h>
 
 void *memchr(const void *s, int c, size_t n) {
   if (n != 0) {
     const unsigned char *p = s;
+    const unsigned char cmp = c;
 
     do {
-      if (*p++ == (unsigned char)c)
-        return ((void *)(p - 1));
+      if (*p++ == cmp)
+        return __UNCONST(p - 1);
     } while (--n != 0);
   }
-  return (NULL);
+  return NULL;
 }

@@ -38,6 +38,8 @@
 #define __CONCAT(x, y) __CONCAT1(x, y)
 #define __UNIQUE(x) __CONCAT(x, __LINE__)
 
+#define __USE(a) ((void)(a))
+
 /* Check if source code is compiled with giver GCC version. */
 #define __GNUC_PREREQ__(x, y)                                                  \
   ((__GNUC__ == (x) && __GNUC_MINOR__ >= (y)) || (__GNUC__ > (x)))
@@ -65,11 +67,7 @@
 #define __restrict restrict
 #define __long_call __attribute__((long_call))
 #define __transparent_union __attribute__((__transparent_union__))
-#if __GNUC_PREREQ__(8, 2)
 #define __fallthrough __attribute__((fallthrough))
-#else
-#define __fallthrough
-#endif
 
 /*
  * Compiler-dependent macros to declare that functions take printf-like
@@ -138,5 +136,15 @@
  */
 #define __predict_true(exp) __builtin_expect((exp) != 0, 1)
 #define __predict_false(exp) __builtin_expect((exp) != 0, 0)
+
+/*
+ * Return the natural alignment in bytes for the given type
+ */
+#define __alignof(__t) __alignof__(__t)
+
+/*
+ * Return the number of elements in a statically-allocated array __x.
+ */
+#define __arraycount(__x) (sizeof(__x) / sizeof(__x[0]))
 
 #endif /* !_SYS_CDEFS_H */

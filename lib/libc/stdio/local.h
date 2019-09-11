@@ -126,3 +126,23 @@ extern char *__gets(char *);
 static __inline bool __long_overflow(off_t pos) {
   return (pos < LONG_MIN) || (pos > LONG_MAX);
 }
+
+/*
+ * Functions internal to the implementation.
+ */
+int __srget(FILE *);
+int __swbuf(int, FILE *);
+
+#define __sgetc(p) (--(p)->_r < 0 ? __srget(p) : (int)(*(p)->_p++))
+#define __sputc(c, p)                                                          \
+  (--(p)->_w < 0 ? (p)->_w >= (p)->_lbfsize                                    \
+   ? (*(p)->_p = (c)),                                                         \
+   *(p)->_p != '\n' ? (int)*(p)->_p++ : __swbuf('\n', p)                       \
+   : __swbuf((int)(c), p)                                                      \
+   : (*(p)->_p = (c), (int)*(p)->_p++))
+
+#define __sfeof(p) (((p)->_flags & __SEOF) != 0)
+#define __sferror(p) (((p)->_flags & __SERR) != 0)
+#define __sclearerr(p)                                                         \
+  ((void)((p)->_flags &= (unsigned short)~(__SERR | __SEOF)))
+#define __sfileno(p) ((p)->_file == -1 ? -1 : (int)(unsigned short)(p)->_file)

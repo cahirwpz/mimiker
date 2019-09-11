@@ -1,4 +1,4 @@
-/*	$NetBSD: setjmp.S,v 1.17 2005/09/17 11:49:39 tsutsui Exp $	*/
+/*	$NetBSD: setjmp.S,v 1.19 2010/09/03 17:22:51 matt Exp $	*/
 
 /*-
  * Copyright (c) 1991, 1993
@@ -32,151 +32,83 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
+#include <sys/syscall.h>
+#include <mips/asm.h>
 
-#include "SYS.h"
+#include "assym.h"
 
 /*
  * C library -- setjmp, longjmp
  *
- *	longjmp(a,v)
- * will generate a "return(v)" from
- * the last call to
- *	setjmp(a)
- * by restoring registers from the stack,
- * and a struct sigcontext, see <signal.h>
+ * longjmp(a,v) will generate a "return(v)" from the last call to setjmp(a) by
+ * restoring registers from the stack, and a struct sigcontext, see <signal.h>
  */
 
-#define SETJMP_FRAME_SIZE	(CALLFRAME_SIZ + (SZREG * 2))
+#define SETJMP_FRAME_SIZE	(CALLFRAME_SIZ + STACK_T_SIZE)
 
-NESTED(setjmp, SETJMP_FRAME_SIZE, ra)
-	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+NON_LEAF(setjmp, SETJMP_FRAME_SIZE, ra)
+	.mask	0x80010000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	SETUP_GP
-	PTR_SUBU sp, sp, SETJMP_FRAME_SIZE	# allocate stack frame
+	PTR_SUBU	sp, sp, SETJMP_FRAME_SIZE	# allocate stack frame
 	SAVE_GP(CALLFRAME_GP)
 
-	REG_S	ra, CALLFRAME_RA(sp)		# save RA
-	REG_S	a0, CALLFRAME_SIZ(sp)		# store env
+	REG_S		ra, CALLFRAME_RA(sp)		# save RA
+	REG_S		s0, CALLFRAME_S0(sp)		# save S0
+	move		s0, a0				# save sigcontext
 
 	/* Get the signal mask. */
-	PTR_ADDU a2, a0, _JB_SIGMASK * SZREG	# &oenv
-	li	a0, 1				# SIG_SETBLOCK
-	move	a1, zero			# &env == 0
-	PTR_LA	t9, _C_LABEL(sigprocmask)	# get current signal mask
-	jalr	t9
+	PTR_ADDU	a2, a0, _OFFSETOF_SC_MASK	# &sc.sc_mask
+	move		a1, zero
+	jal		_C_LABEL(sigprocmask)	# get current signal mask
 
-	REG_L	a0, CALLFRAME_SIZ(sp)		# restore env pointer
-	REG_L	ra, CALLFRAME_RA(sp)		# restore RA
-	PTR_ADDU sp, sp, SETJMP_FRAME_SIZE	# pop stack frame
+	/* Get the signal stack. */
+	move		a0, zero
+	PTR_ADDU	a1, sp, CALLFRAME_SIZ		# pointer to stack_t
+	jal		_C_LABEL(sigaltstack)
 
-	REG_LI	v0, _JB_MAGIC_SETJMP
-	REG_S	v0, (_JB_MAGIC  * SZREG)(a0)
-	REG_S	ra, (_JB_REG_RA * SZREG)(a0)
+	move		a0, s0				# restore jmpbuf
+	INT_L		v1, CALLFRAME_SIZ+_OFFSETOF_STACK_T_FLAGS(sp)
+							# get old ss_onstack
+	and		v1, v1, SS_ONSTACK		# extract onstack flag
+	INT_S		v1, _OFFSETOF_SC_ONSTACK(a0)	# save it in sc_onstack
+
+	REG_L		s0, CALLFRAME_S0(sp)		# restore S0
+	REG_L		ra, CALLFRAME_RA(sp)		# restore RA
+	blt		v0, zero, botch		# check for sigaltstack() error
+	nop
 	/*
-	 * From "MIPSpro N32 ABI Handbook", Table 2-1:
-	 * Registers s0..s7 are callee-saved.
-	 * The sp register is callee-saved.
-	 * The fp (or s8) register is callee-saved.
-	 * The gp register is callee-saved (for n32/n64).
+	 * We know we won't need this routine's GP anymore.
 	 */
-	REG_S	s0, (_JB_REG_S0 * SZREG)(a0)
-	REG_S	s1, (_JB_REG_S1 * SZREG)(a0)
-	REG_S	s2, (_JB_REG_S2 * SZREG)(a0)
-	REG_S	s3, (_JB_REG_S3 * SZREG)(a0)
-	REG_S	s4, (_JB_REG_S4 * SZREG)(a0)
-	REG_S	s5, (_JB_REG_S5 * SZREG)(a0)
-	REG_S	s6, (_JB_REG_S6 * SZREG)(a0)
-	REG_S	s7, (_JB_REG_S7 * SZREG)(a0)
-	REG_S	sp, (_JB_REG_SP * SZREG)(a0)
-	REG_S	s8, (_JB_REG_S8 * SZREG)(a0)
-	/*
-	 * From "MIPSpro N32 ABI Handbook", Table 2-1:
-	 * In N32, FP registers F20, F22, F24, F26, F28, F30 are callee-saved.
-	 * In N64, FP registers F24 .. F31 are callee-saved.
-	 * In O32, FP registers F20 .. F23 are callee-saved.
-	 */
+	PTR_ADDU	sp, sp, SETJMP_FRAME_SIZE	# pop stack frame
+
+
+	REG_PROLOGUE
+	REG_S	ra, _OFFSETOF_SC_PC(a0)		# sc_pc = return address
+	REG_LI	v0, 0xACEDBADE			# sigcontext magic number
+	REG_S	v0, _OFFSETOF_SC_REGS(a0)	#   saved in sc_regs[0]
+	REG_S	s0, _OFFSETOF_SC_REGS_S0(a0)
+	REG_S	s1, _OFFSETOF_SC_REGS_S1(a0)
+	REG_S	s2, _OFFSETOF_SC_REGS_S2(a0)
+	REG_S	s3, _OFFSETOF_SC_REGS_S3(a0)
+	REG_S	s4, _OFFSETOF_SC_REGS_S4(a0)
+	REG_S	s5, _OFFSETOF_SC_REGS_S5(a0)
+	REG_S	s6, _OFFSETOF_SC_REGS_S6(a0)
+	REG_S	s7, _OFFSETOF_SC_REGS_S7(a0)
+	REG_S	gp, _OFFSETOF_SC_REGS_GP(a0)
+	REG_S	sp, _OFFSETOF_SC_REGS_SP(a0)
+	REG_S	s8, _OFFSETOF_SC_REGS_S8(a0)
+	li	v0, 1				# be nice if we could tell
+	INT_S	v0, _OFFSETOF_SC_FPUSED(a0)	# sc_fpused = 1
 	cfc1	v0, $31
-	INT_S	v0, (_JB_FPREG_FCSR * SZREG)(a0)
-	FP_S	$f20, (_JB_FPREG_F20 * SZREG)(a0)
-	FP_S	$f22, (_JB_FPREG_F22 * SZREG)(a0)
-	FP_S	$f21, (_JB_FPREG_F21 * SZREG)(a0)
-	FP_S	$f23, (_JB_FPREG_F23 * SZREG)(a0)
-
+	INT_S	v0, _OFFSETOF_SC_FPREGS_FCSR(a0)
+	FP_S	$f20, _OFFSETOF_SC_FPREGS_F20(a0)
+	FP_S	$f22, _OFFSETOF_SC_FPREGS_F22(a0)
+	FP_S	$f21, _OFFSETOF_SC_FPREGS_F21(a0)
+	FP_S	$f23, _OFFSETOF_SC_FPREGS_F23(a0)
+	REG_EPILOGUE
 	move	v0, zero
-	jr	ra
-END(setjmp)
-
-#define LONGJMP_FRAME_SIZE	(CALLFRAME_SIZ + (SZREG * 2))
-
-NESTED(longjmp, LONGJMP_FRAME_SIZE, ra)
-	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
-	PIC_PROLOGUE(longjmp)
-	PTR_SUBU sp, sp, LONGJMP_FRAME_SIZE	# allocate stack frame
-	SAVE_GP(CALLFRAME_GP)
-
-	REG_S	ra, CALLFRAME_RA(sp)		# save RA
-	REG_L	v0, (_JB_MAGIC  * SZREG)(a0)
-	REG_LI	t0, _JB_MAGIC_SETJMP
-	bne	v0, t0, botch		# jump if error
-	nop
-
-	REG_S	a0, CALLFRAME_SIZ(sp)		# save env
-	REG_S	a1, (CALLFRAME_SIZ + SZREG)(sp)	# save return value
-
-	# set sigmask
-	PTR_ADDU a1, a0, _JB_SIGMASK * SZREG	# &set
-	move	a2, zero			# &oset == NULL
-	li	a0, 3				# SIG_SETMASK
-	PTR_LA	t9,_C_LABEL(sigprocmask)	# set current signal mask
-	jal	t9
-	nop
-
-	REG_L	a0, CALLFRAME_SIZ(sp)		# restore env
-	REG_L	a1, (CALLFRAME_SIZ + SZREG)(sp)	# restore return value
-
-	REG_L	ra, (_JB_REG_RA * SZREG)(a0)
-	/*
-	 * From "MIPSpro N32 ABI Handbook", Table 2-1:
-	 * Registers s0..s7 are callee-saved.
-	 * The sp register is callee-saved.
-	 * The fp (or s8) register is callee-saved.
-	 * The gp register is callee-saved (for n32/n64).
-	 */
-	REG_L	s0, (_JB_REG_S0 * SZREG)(a0)
-	REG_L	s1, (_JB_REG_S1 * SZREG)(a0)
-	REG_L	s2, (_JB_REG_S2 * SZREG)(a0)
-	REG_L	s3, (_JB_REG_S3 * SZREG)(a0)
-	REG_L	s4, (_JB_REG_S4 * SZREG)(a0)
-	REG_L	s5, (_JB_REG_S5 * SZREG)(a0)
-	REG_L	s6, (_JB_REG_S6 * SZREG)(a0)
-	REG_L	s7, (_JB_REG_S7 * SZREG)(a0)
-	REG_L	sp, (_JB_REG_SP * SZREG)(a0)
-	REG_L	s8, (_JB_REG_S8 * SZREG)(a0)
-	/*
-	 * From "MIPSpro N32 ABI Handbook", Table 2-1:
-	 * In N32, FP registers F20, F22, F24, F26, F28, F30 are callee-saved.
-	 * In N64, FP registers F23 .. F31 are callee-saved.
-	 * In O32, FP registers F20 .. F23 are callee-saved.
-	 */
-        INT_L           v0, (_JB_FPREG_FCSR * SZREG)(a0)
-        ctc1            v0, $31
-	FP_L	$f22, (_JB_FPREG_F22 * SZREG)(a0)
-	FP_L	$f20, (_JB_FPREG_F20 * SZREG)(a0)
-	FP_L	$f21, (_JB_FPREG_F21 * SZREG)(a0)
-	FP_L	$f23, (_JB_FPREG_F23 * SZREG)(a0)
-
-	move	v0, a1
 	j	ra
-	nop
 
 botch:
-	/*
-	 * We know we aren't returning so we don't care about restoring
-	 * our caller's GP.
-	 */
-	PTR_LA	t9, _C_LABEL(longjmperror)
-	jalr	t9
-	nop
-
-	PIC_TAILCALL(abort)
-END(longjmp)
+	jal	_C_LABEL(abort)
+END(setjmp)

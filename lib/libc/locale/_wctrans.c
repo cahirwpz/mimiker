@@ -59,10 +59,6 @@
  */
 
 #include <sys/cdefs.h>
-#if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: _wctrans.c,v 1.17 2010/06/13 04:14:57 tnozaki Exp $");
-#endif /* LIBC_SCCS and not lint */
-
 #include <sys/types.h>
 #include <assert.h>
 #include <wctype.h>

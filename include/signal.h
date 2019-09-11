@@ -38,9 +38,20 @@
 #include <sys/signal.h>
 
 __BEGIN_DECLS
-void (*signal(int, void (*)(int)))(int);
+extern const char *const *sys_signame;
+extern const char *const *sys_siglist;
+extern const int sys_nsig;
+
 int raise(int);
 
+const char *signalname(int);
+int signalnext(int);
+int signalnumber(const char *);
+
+void (*signal(int, void (*)(int)))(int);
+
+int kill(pid_t, int);
+int sigaction(int, const sigaction_t *__restrict, sigaction_t *__restrict);
 int sigaddset(sigset_t *, int);
 int sigdelset(sigset_t *, int);
 int sigemptyset(sigset_t *);
@@ -49,6 +60,19 @@ int sigismember(const sigset_t *, int);
 int sigpending(sigset_t *);
 int sigprocmask(int, const sigset_t *__restrict, sigset_t *__restrict);
 int sigsuspend(const sigset_t *);
+
+/*
+ * X/Open CAE Specification Issue 4 Version 2
+ */
+
+int killpg(int pgrp, int sig);
+
+/*
+ * Mimiker specific stuff.
+ */
+#ifdef _LIBC
+void sigreturn(void);
+#endif
 
 __END_DECLS
 

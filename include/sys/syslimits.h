@@ -66,4 +66,9 @@
 #define LINE_MAX 2048      /* max bytes in an input line */
 #define RE_DUP_MAX 255     /* max RE's in interval notation */
 
+/*
+ * IEEE Std 1003.1c-95, adopted in X/Open CAE Specification Issue 5 Version 2
+ */
+#define LOGIN_NAME_MAX 17 /* max login name length incl. NUL */
+
 #endif /* !_SYS_SYSLIMITS_H_ */

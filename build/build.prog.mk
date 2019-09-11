@@ -27,7 +27,7 @@ include $(TOPDIR)/build/common.mk
 # Linking the program according to the provided script
 $(PROGRAM).uelf: $(OBJECTS)
 	@echo "[LD] $(DIR)$< -> $(DIR)$@"
-	$(LD) $(LDFLAGS) -o $@ $(OBJECTS)
+	$(LD) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS)
 
 $(SYSROOT)/bin/$(PROGRAM): $(PROGRAM).uelf
 	@echo "[INSTALL] $(DIR)$< -> /bin/$(PROGRAM)"

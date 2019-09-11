@@ -1,7 +1,13 @@
 #ifndef _SYS_PARAM_H_
-#define _SYS_PARAM_H
+#define _SYS_PARAM_H_
 
 #include <sys/syslimits.h>
+
+/* Macros for min/max. */
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
+#define MAXPHYS (64 * 1024) /* max raw I/O transfer size */
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value for all
@@ -23,6 +29,18 @@
 #endif
 
 /*
+ * File system parameters and macros.
+ *
+ * The file system is made out of blocks of at most MAXBSIZE units, with
+ * smaller units (fragments) only in the last direct block.  MAXBSIZE
+ * primarily determines the size of buffers in the buffer pool.  It may be
+ * made larger without any effect on existing file systems; however making
+ * it smaller may make some file systems unmountable.
+ */
+#define MAXBSIZE MAXPHYS
+#define MAXFRAG 8
+
+/*
  * MAXPATHLEN defines the longest permissible path length after expanding
  * symbolic links. It is used to allocate a temporary buffer from the buffer
  * pool in which to do the name expansion, hence should be a power of two,
@@ -35,5 +53,38 @@
  */
 #define MAXPATHLEN PATH_MAX
 #define MAXSYMLINKS 32
+
+/* Bit map related macros. */
+#define setbit(a, i) ((a)[(i) / NBBY] |= 1 << ((i) % NBBY))
+#define clrbit(a, i) ((a)[(i) / NBBY] &= ~(1 << ((i) % NBBY)))
+#define isset(a, i) ((a)[(i) / NBBY] & (1 << ((i) % NBBY)))
+#define isclr(a, i) (((a)[(i) / NBBY] & (1 << ((i) % NBBY))) == 0)
+
+/* Macros for counting and rounding. */
+#ifndef howmany
+#define howmany(x, y) (((x) + ((y)-1)) / (y))
+#endif
+#define roundup(x, y) ((((x) + ((y)-1)) / (y)) * (y))
+#define rounddown(x, y) (((x) / (y)) * (y))
+
+/*
+ * Rounding to powers of two.  The naive definitions of roundup2 and
+ * rounddown2,
+ *
+ *	#define	roundup2(x,m)	(((x) + ((m) - 1)) & ~((m) - 1))
+ *	#define	rounddown2(x,m)	((x) & ~((m) - 1)),
+ *
+ * exhibit a quirk of integer arithmetic in C because the complement
+ * happens in the type of m, not in the type of x.  So if unsigned int
+ * is 32-bit, and m is an unsigned int while x is a uint64_t, then
+ * roundup2 and rounddown2 would have the unintended effect of clearing
+ * the upper 32 bits of the result(!).  These definitions avoid the
+ * pitfalls of C arithmetic depending on the types of x and m, and
+ * additionally avoid multiply evaluating their arguments.
+ */
+#define roundup2(x, m) ((((x)-1) | ((m)-1)) + 1)
+#define rounddown2(x, m) ((x) & ~((__typeof__(x))((m)-1)))
+
+#define powerof2(x) ((((x)-1) & (x)) == 0)
 
 #endif /* !_SYS_PARAM_H_ */

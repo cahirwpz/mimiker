@@ -33,16 +33,14 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <_locale.h>
+#include <_wint.h>
 
 struct __tag_wctrans_t;
 typedef struct __tag_wctrans_t *wctrans_t;
 
 struct __tag_wctype_t;
 typedef struct __tag_wctype_t *wctype_t;
-
-#ifndef WEOF
-#define WEOF ((wint_t)-1)
-#endif
 
 __BEGIN_DECLS
 int iswalnum(wint_t);
@@ -63,11 +61,6 @@ wint_t towlower(wint_t);
 wint_t towupper(wint_t);
 wctrans_t wctrans(const char *);
 wctype_t wctype(const char *);
-
-#ifndef __LOCALE_T_DECLARED
-typedef struct _locale *locale_t;
-#define __LOCALE_T_DECLARED
-#endif
 
 int iswalnum_l(wint_t, locale_t);
 int iswalpha_l(wint_t, locale_t);

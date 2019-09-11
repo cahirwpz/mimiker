@@ -2,43 +2,42 @@
 #define _SYS_SIGNAL_H_
 
 #include <sys/sigtypes.h>
-#include <sys/siginfo.h>
+#include <machine/signal.h>
 
-typedef enum {
-  SIGHUP = 1,
-  SIGINT = 2,
-  SIGQUIT = 3,
-  SIGILL = 4,
-  SIGTRAP = 5,
-  SIGABRT = 6,
-  SIGFPE = 8,
-  SIGKILL = 9,
-  SIGBUS = 10,
-  SIGSEGV = 11,
-  SIGSYS = 12,
-  SIGPIPE = 13,
-  SIGALRM = 14,
-  SIGTERM = 15,
-  SIGSTOP = 17,
-  SIGCONT = 19,
-  SIGCHLD = 20,
-  SIGUSR1 = 30,
-  SIGUSR2 = 31,
-  NSIG = 32
-} signo_t;
+#define SIGHUP 1   /* hangup */
+#define SIGINT 2   /* interrupt */
+#define SIGQUIT 3  /* quit */
+#define SIGILL 4   /* illegal instruction (not reset when caught) */
+#define SIGTRAP 5  /* trace trap (not reset when caught) */
+#define SIGABRT 6  /* abort() */
+#define SIGFPE 8   /* floating point exception */
+#define SIGKILL 9  /* kill (cannot be caught or ignored) */
+#define SIGBUS 10  /* bus error */
+#define SIGSEGV 11 /* segmentation violation */
+#define SIGSYS 12  /* bad argument to system call */
+#define SIGPIPE 13 /* write on a pipe with no one to read it */
+#define SIGALRM 14 /* alarm clock */
+#define SIGTERM 15 /* software termination signal from kill */
+#define SIGSTOP 17 /* sendable stop signal not from tty */
+#define SIGTSTP 18 /* stop signal from tty */
+#define SIGCONT 19 /* continue a stopped process */
+#define SIGCHLD 20 /* to parent on child stop or exit */
+#define SIGTTIN 21 /* to readers pgrp upon background tty read */
+#define SIGTTOU 22 /* like TTIN for output if (tp->t_local&LTOSTOP) */
+#define SIGINFO 29 /* information request */
+#define SIGUSR1 30 /* user defined signal 1 */
+#define SIGUSR2 31 /* user defined signal 2 */
+#define NSIG 32
 
-/* Machine-dependent signal definitions */
-typedef int sig_atomic_t;
+typedef void (*sig_t)(int); /* type of signal function */
 
-typedef void (*sighandler_t)(int);
-
-#define SIG_ERR ((sighandler_t)-1)
-#define SIG_DFL ((sighandler_t)0)
-#define SIG_IGN ((sighandler_t)1)
+#define SIG_ERR ((sig_t)-1)
+#define SIG_DFL ((sig_t)0)
+#define SIG_IGN ((sig_t)1)
 
 typedef struct sigaction {
   union {
-    sighandler_t sa_handler;
+    sig_t sa_handler;
     void (*sa_sigaction)(int, siginfo_t *, void *);
   };
   sigset_t sa_mask;
@@ -47,23 +46,27 @@ typedef struct sigaction {
   void *sa_restorer;
 } sigaction_t;
 
+#define SA_ONSTACK 0x0001   /* take signal on signal stack */
+#define SA_RESTART 0x0002   /* restart system call on signal return */
+#define SA_RESETHAND 0x0004 /* reset to SIG_DFL when taking signal */
+#define SA_NODEFER 0x0010   /* don't mask the signal we're delivering */
+/* Only valid for SIGCHLD. */
+#define SA_NOCLDSTOP 0x0008 /* do not generate SIGCHLD on child stop */
+#define SA_NOCLDWAIT 0x0020 /* do not generate zombies on unwaited child */
+#define SA_SIGINFO 0x0040   /* take sa_sigaction handler */
+
 /* Flags for sigprocmask(): */
 #define SIG_BLOCK 1   /* block specified signal set */
 #define SIG_UNBLOCK 2 /* unblock specified signal set */
 #define SIG_SETMASK 3 /* set specified signal set */
 
-#ifndef _KERNEL
-#include <sys/unistd.h>
+/*
+ * Flags used with stack_t/struct sigaltstack.
+ */
+#define SS_ONSTACK 0x0001 /* take signals on alternate stack */
+#define SS_DISABLE 0x0002 /* disable taking signals on alternate stack */
 
-int sigaction(int signum, const sigaction_t *act, sigaction_t *oldact);
-void sigreturn(void);
-int kill(int pid, int sig);
-int killpg(int pgrp, int sig);
-
-/* This is necessary to keep newlib happy. */
-typedef sighandler_t _sig_func_ptr;
-
-#else /* _KERNEL */
+#ifdef _KERNEL
 
 #include <sys/cdefs.h>
 

@@ -91,7 +91,9 @@
  * is.
  */
 
+#ifdef _REENTRANT
 #include <pthread.h>
+#endif
 #include <signal.h>
 
 #define mutex_t pthread_mutex_t
@@ -306,6 +308,7 @@ __END_DECLS
 #define mutexattr_settype(ma, t) __nothing
 #define mutexattr_destroy(ma) __nothing
 
+#ifdef _REENTRANT
 static inline int thr_once(once_t *once_control, void (*routine)(void)) {
   if (__predict_false(once_control->pto_done == 0)) {
     (*routine)();
@@ -313,6 +316,7 @@ static inline int thr_once(once_t *once_control, void (*routine)(void)) {
   }
   return 0;
 }
+#endif
 
 #define thr_sigsetmask(f, n, o) __nothing
 #define thr_self() __nothing

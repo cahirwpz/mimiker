@@ -1,4 +1,4 @@
-/*	$OpenBSD: strlen.c,v 1.9 2015/08/31 02:53:57 guenther Exp $	*/
+/*	$NetBSD: strlen.c,v 1.3 2018/02/06 09:28:48 mrg Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -29,12 +29,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/libkern.h>
+#include <string.h>
 
 size_t strlen(const char *str) {
   const char *s;
 
   for (s = str; *s; ++s)
-    ;
+    continue;
   return (s - str);
 }

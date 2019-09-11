@@ -74,11 +74,40 @@ struct rusage {
 #define ru_last ru_nivcsw
 };
 
+/*
+ * Resource limits
+ */
+#define RLIMIT_CPU 0          /* cpu time in milliseconds */
+#define RLIMIT_FSIZE 1        /* maximum file size */
+#define RLIMIT_DATA 2         /* data size */
+#define RLIMIT_STACK 3        /* stack size */
+#define RLIMIT_CORE 4         /* core file size */
+#define RLIMIT_RSS 5          /* resident set size */
+#define RLIMIT_MEMLOCK 6      /* locked-in-memory address space */
+#define RLIMIT_NPROC 7        /* number of processes */
+#define RLIMIT_NOFILE 8       /* number of open files */
+#define RLIMIT_SBSIZE 9       /* maximum size of all socket buffers */
+#define RLIMIT_AS 10          /* virtual process size (inclusive of mmap) */
+#define RLIMIT_VMEM RLIMIT_AS /* common alias */
+#define RLIMIT_NTHR 11        /* number of threads */
+
+#define RLIM_NLIMITS 12                      /* number of resource limits */
+#define RLIM_INFINITY (~((u_quad_t)1 << 63)) /* no limit */
+
+struct rlimit {
+  rlim_t rlim_cur; /* current (soft) limit */
+  rlim_t rlim_max; /* maximum value for rlim_cur */
+};
+
 #ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
+int getpriority(int, id_t);
+int getrlimit(int, struct rlimit *);
 int getrusage(int, struct rusage *);
+int setpriority(int, id_t, int);
+int setrlimit(int, const struct rlimit *);
 __END_DECLS
 
 #endif /* !_KERNEL */

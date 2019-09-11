@@ -83,6 +83,11 @@ int truncate(const char *, off_t);
 int ftruncate(int, off_t);
 
 /*
+ * X/Open Portability Guide, all issues
+ */
+int nice(int);
+
+/*
  * X/Open Portability Guide >= Issue 4
  */
 const char *crypt(const char *, const char *);
@@ -118,6 +123,7 @@ int symlink(const char *, const char *);
 void sync(void);
 useconds_t ualarm(useconds_t, useconds_t);
 int usleep(useconds_t);
+pid_t vfork(void) __returns_twice;
 
 /*
  * X/Open CAE Specification Issue 5 Version 2
@@ -129,6 +135,10 @@ ssize_t pwrite(int, const void *, size_t, off_t);
  * Implementation-defined extensions
  */
 int issetugid(void);
+int pipe2(int *, int);
+void *setmode(const char *mode_str);
+mode_t getmode(const void *set, mode_t mode);
+void strmode(mode_t, char *);
 
 __END_DECLS
 

@@ -1,6 +1,9 @@
 #ifndef _LOCALE_H_
 #define _LOCALE_H_
 
+#include <sys/cdefs.h>
+#include <_locale.h>
+
 struct lconv {
   char *decimal_point;
   char *thousands_sep;
@@ -36,13 +39,6 @@ struct lconv {
 #define LC_TIME 5
 #define LC_MESSAGES 6
 #define _LC_LAST 7 /* marks end */
-
-#include <sys/cdefs.h>
-
-#ifndef __LOCALE_T_DECLARED
-typedef struct _locale *locale_t;
-#define __LOCALE_T_DECLARED
-#endif
 
 __BEGIN_DECLS
 struct lconv *localeconv(void);

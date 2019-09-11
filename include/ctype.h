@@ -1,4 +1,4 @@
-/* $NetBSD: ctype_inline.h,v 1.4 2015/02/24 13:17:27 joerg Exp $ */
+/*	$NetBSD: ctype.h,v 1.34 2013/04/28 19:39:56 joerg Exp $	*/
 
 /*
  * Copyright (c) 1989 The Regents of the University of California.
@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)ctype.h	5.3 (Berkeley) 4/3/91
- *	NetBSD: ctype.h,v 1.30 2010/05/22 06:38:15 tnozaki Exp
  */
 
 #ifndef _CTYPE_H_
@@ -42,30 +41,22 @@
 
 #include <sys/cdefs.h>
 #include <sys/ctype_bits.h>
-
-#define isalnum(c) ((int)((_ctype_tab_ + 1)[(c)] & (_CTYPE_A | _CTYPE_D)))
-#define isalpha(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_A))
-#define iscntrl(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_C))
-#define isdigit(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_D))
-#define isgraph(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_G))
-#define islower(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_L))
-#define isprint(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_R))
-#define ispunct(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_P))
-#define isspace(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_S))
-#define isupper(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_U))
-#define isxdigit(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_X))
-#define tolower(c) ((int)((_tolower_tab_ + 1)[(c)]))
-#define toupper(c) ((int)((_toupper_tab_ + 1)[(c)]))
-
-#define isascii(c) ((unsigned)(c) <= 0177)
-#define toascii(c) ((c)&0177)
-#define isblank(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_BL))
+#include <_locale.h>
 
 __BEGIN_DECLS
-#ifndef __LOCALE_T_DECLARED
-typedef struct _locale *locale_t;
-#define __LOCALE_T_DECLARED
-#endif
+int isalnum(int);
+int isalpha(int);
+int iscntrl(int);
+int isdigit(int);
+int isgraph(int);
+int islower(int);
+int isprint(int);
+int ispunct(int);
+int isspace(int);
+int isupper(int);
+int isxdigit(int);
+int tolower(int);
+int toupper(int);
 
 int isalnum_l(int, locale_t);
 int isalpha_l(int, locale_t);
@@ -81,6 +72,16 @@ int isupper_l(int, locale_t);
 int isxdigit_l(int, locale_t);
 int tolower_l(int, locale_t);
 int toupper_l(int, locale_t);
+
+int isascii(int);
+int toascii(int);
+int isblank(int);
 __END_DECLS
+
+#if !defined(_CTYPE_NOINLINE) && !defined(__cplusplus)
+#include <sys/ctype_inline.h>
+#else
+#include <sys/ctype_bits.h>
+#endif
 
 #endif /* !_CTYPE_H_ */

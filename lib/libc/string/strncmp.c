@@ -1,8 +1,8 @@
-/*	$OpenBSD: strncmp.c,v 1.9 2015/08/31 02:53:57 guenther Exp $	*/
+/*	$NetBSD: strncmp.c,v 1.3 2018/02/04 20:22:17 mrg Exp $	*/
 
 /*
- * Copyright (c) 1989 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/libkern.h>
+#include <string.h>
 
 int strncmp(const char *s1, const char *s2, size_t n) {
 
@@ -37,7 +37,7 @@ int strncmp(const char *s1, const char *s2, size_t n) {
     return (0);
   do {
     if (*s1 != *s2++)
-      return (*(unsigned char *)s1 - *(unsigned char *)--s2);
+      return (*(const unsigned char *)s1 - *(const unsigned char *)--s2);
     if (*s1++ == 0)
       break;
   } while (--n != 0);

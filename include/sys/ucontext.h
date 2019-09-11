@@ -35,8 +35,6 @@
 #include <sys/sigtypes.h>
 #include <machine/mcontext.h>
 
-typedef struct stack {
-} stack_t; /* TODO netbsd-libc */
 typedef struct __ucontext ucontext_t;
 
 struct __ucontext {
@@ -45,14 +43,7 @@ struct __ucontext {
   sigset_t uc_sigmask;    /* signals blocked in this context */
   stack_t uc_stack;       /* the stack used by this context */
   mcontext_t uc_mcontext; /* machine state */
-#if defined(_UC_MACHINE_PAD)
-  long __uc_pad[_UC_MACHINE_PAD];
-#endif
 };
-
-#ifndef _UC_UCONTEXT_ALIGN
-#define _UC_UCONTEXT_ALIGN (~0)
-#endif
 
 /* uc_flags */
 #define _UC_SIGMASK 0x01 /* valid uc_sigmask */

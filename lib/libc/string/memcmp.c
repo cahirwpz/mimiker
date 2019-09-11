@@ -1,8 +1,8 @@
-/*	$OpenBSD: memcmp.c,v 1.8 2016/11/27 13:57:32 reyk Exp $	*/
+/*	$NetBSD: memcmp.c,v 1.5 2018/02/04 20:22:17 mrg Exp $	*/
 
 /*-
- * Copyright (c) 1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1990, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Chris Torek.
@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/libkern.h>
+#include <string.h>
 
 /*
  * Compare memory regions.

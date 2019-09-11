@@ -6,8 +6,12 @@
 extern int main(int, char **, char **);
 extern void _libc_init(void);
 
+char *__progname = "";
+
 void ___start(int argc, char **argv, char **envp) {
   environ = envp;
+
+  __progname = argv[0];
 
   _libc_init();
 

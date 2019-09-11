@@ -1373,7 +1373,6 @@ __extension__ ({ \
 #endif
 
 /* Define MIPS32 user-level intrinsics */
-#include <mips/m32ins.h>
 
 #ifdef __cplusplus
 extern "C" {

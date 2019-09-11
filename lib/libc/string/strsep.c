@@ -1,4 +1,4 @@
-/*	$OpenBSD: strsep.c,v 1.8 2015/08/31 02:53:57 guenther Exp $	*/
+/*	$NetBSD: strsep.c,v 1.3 2007/06/04 18:19:28 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -29,7 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/libkern.h>
+#include <assert.h>
+#include <string.h>
 
 /*
  * Get next token from string *stringp, where tokens are possibly-empty
@@ -47,6 +48,9 @@ char *strsep(char **stringp, const char *delim) {
   const char *spanp;
   int c, sc;
   char *tok;
+
+  _DIAGASSERT(stringp != NULL);
+  _DIAGASSERT(delim != NULL);
 
   if ((s = *stringp) == NULL)
     return (NULL);

@@ -38,8 +38,7 @@ __BEGIN_DECLS
 int bcmp(const void *, const void *, size_t);
 void bcopy(const void *, void *, size_t);
 void bzero(void *, size_t);
-/* TODO: conflict with <sys/cdefs.h> */
-/* int ffs(int); */
+int ffs(int);
 char *index(const char *, int);
 unsigned int popcount(unsigned int) __constfunc;
 char *rindex(const char *, int);

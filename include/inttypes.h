@@ -197,6 +197,9 @@
 
 #endif /* !__clang__ */
 
+#include <_locale.h>
+
+__BEGIN_DECLS
 intmax_t strtoimax(const char *__restrict, char **__restrict, int);
 uintmax_t strtoumax(const char *__restrict, char **__restrict, int);
 
@@ -205,12 +208,8 @@ intmax_t strtoi(const char *__restrict, char **__restrict, int, intmax_t,
 uintmax_t strtou(const char *__restrict, char **__restrict, int, uintmax_t,
                  uintmax_t, int *);
 
-#ifndef __LOCALE_T_DECLARED
-typedef struct _locale *locale_t;
-#define __LOCALE_T_DECLARED
-#endif
-
 intmax_t strtoimax_l(const char *__restrict, char **__restrict, int, locale_t);
 uintmax_t strtoumax_l(const char *__restrict, char **__restrict, int, locale_t);
+__END_DECLS
 
 #endif /* !_INTTYPES_H_ */

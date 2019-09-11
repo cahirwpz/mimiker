@@ -3,6 +3,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/time.h>
+#include <_locale.h>
 
 typedef unsigned int clock_t;
 
@@ -16,21 +17,16 @@ clock_t clock(void);
 char *ctime(const time_t *);
 double difftime(time_t, time_t);
 struct tm *gmtime(const time_t *);
+struct tm *gmtime_r(const time_t *__restrict, struct tm *__restrict);
 struct tm *localtime(const time_t *);
+struct tm *localtime_r(const time_t *__restrict, struct tm *__restrict);
 time_t time(time_t *);
 time_t mktime(struct tm *);
 size_t strftime(char *__restrict, size_t, const char *__restrict,
                 const struct tm *__restrict)
   __attribute__((__format__(__strftime__, 3, 0)));
 char *asctime_r(const struct tm *__restrict, char *__restrict);
-__END_DECLS
 
-#ifndef __LOCALE_T_DECLARED
-typedef struct _locale *locale_t;
-#define __LOCALE_T_DECLARED
-#endif
-
-__BEGIN_DECLS
 time_t mktime_z(timezone_t __restrict, struct tm *__restrict);
 time_t timelocal_z(timezone_t __restrict, struct tm *);
 size_t strftime_lz(timezone_t __restrict, char *__restrict, size_t,

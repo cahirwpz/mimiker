@@ -84,7 +84,7 @@ void sig_kill(proc_t *proc, signo_t sig) {
   thread_t *td = proc->p_thread;
 
   /* If the signal is ignored, don't even bother posting it. */
-  sighandler_t handler = proc->p_sigactions[sig].sa_handler;
+  sig_t handler = proc->p_sigactions[sig].sa_handler;
   if (handler == SIG_IGN ||
       (sig_default(sig) == SA_IGNORE && handler == SIG_DFL)) {
     proc_unlock(proc);
@@ -121,7 +121,7 @@ int sig_check(thread_t *td) {
     }
     __sigdelset(&td->td_sigpend, sig);
 
-    sighandler_t handler = p->p_sigactions[sig].sa_handler;
+    sig_t handler = p->p_sigactions[sig].sa_handler;
 
     if (handler == SIG_IGN)
       continue;

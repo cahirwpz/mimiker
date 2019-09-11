@@ -67,6 +67,30 @@ static inline timeval_t bt2tv(bintime_t bt) {
 }
 
 /* Operations on timevals. */
+#define timerclear(tvp) (tvp)->tv_sec = (tvp)->tv_usec = 0L
+#define timerisset(tvp) ((tvp)->tv_sec || (tvp)->tv_usec)
+#define timercmp(tvp, uvp, cmp)                                                \
+  (((tvp)->tv_sec == (uvp)->tv_sec) ? ((tvp)->tv_usec cmp(uvp)->tv_usec)       \
+                                    : ((tvp)->tv_sec cmp(uvp)->tv_sec))
+#define timeradd(tvp, uvp, vvp)                                                \
+  {                                                                            \
+    (vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;                             \
+    (vvp)->tv_usec = (tvp)->tv_usec + (uvp)->tv_usec;                          \
+    if ((vvp)->tv_usec >= 1000000) {                                           \
+      (vvp)->tv_sec++;                                                         \
+      (vvp)->tv_usec -= 1000000;                                               \
+    }                                                                          \
+  }
+#define timersub(tvp, uvp, vvp)                                                \
+  {                                                                            \
+    (vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;                             \
+    (vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;                          \
+    if ((vvp)->tv_usec < 0) {                                                  \
+      (vvp)->tv_sec--;                                                         \
+      (vvp)->tv_usec += 1000000;                                               \
+    }                                                                          \
+  }
+
 static inline void timeval_clear(timeval_t *tvp) {
   *tvp = (timeval_t){.tv_sec = 0, .tv_usec = 0};
 }
@@ -119,6 +143,45 @@ static inline bintime_t bintime_mul(const bintime_t bt, uint32_t x) {
 
 typedef enum clockid { CLOCK_MONOTONIC = 1, CLOCK_REALTIME = 2 } clockid_t;
 
+/* Operations on timespecs. */
+#define timespecclear(tsp) (tsp)->tv_sec = (time_t)((tsp)->tv_nsec = 0L)
+#define timespecisset(tsp) ((tsp)->tv_sec || (tsp)->tv_nsec)
+#define timespeccmp(tsp, usp, cmp)                                             \
+  (((tsp)->tv_sec == (usp)->tv_sec) ? ((tsp)->tv_nsec cmp(usp)->tv_nsec)       \
+                                    : ((tsp)->tv_sec cmp(usp)->tv_sec))
+#define timespecadd(tsp, usp, vsp)                                             \
+  {                                                                            \
+    (vsp)->tv_sec = (tsp)->tv_sec + (usp)->tv_sec;                             \
+    (vsp)->tv_nsec = (tsp)->tv_nsec + (usp)->tv_nsec;                          \
+    if ((vsp)->tv_nsec >= 1000000000L) {                                       \
+      (vsp)->tv_sec++;                                                         \
+      (vsp)->tv_nsec -= 1000000000L;                                           \
+    }                                                                          \
+  }
+#define timespecsub(tsp, usp, vsp)                                             \
+  {                                                                            \
+    (vsp)->tv_sec = (tsp)->tv_sec - (usp)->tv_sec;                             \
+    (vsp)->tv_nsec = (tsp)->tv_nsec - (usp)->tv_nsec;                          \
+    if ((vsp)->tv_nsec < 0) {                                                  \
+      (vsp)->tv_sec--;                                                         \
+      (vsp)->tv_nsec += 1000000000L;                                           \
+    }                                                                          \
+  }
+#define timespec2ns(x) (((uint64_t)(x)->tv_sec) * 1000000000L + (x)->tv_nsec)
+
+/*
+ * Names of the interval timers, and structure defining a timer setting.
+ */
+#define ITIMER_REAL 0
+#define ITIMER_VIRTUAL 1
+#define ITIMER_PROF 2
+#define ITIMER_MONOTONIC 3
+
+struct itimerval {
+  struct timeval it_interval; /* timer interval */
+  struct timeval it_value;    /* current value */
+};
+
 #ifdef _KERNEL
 
 /* XXX: Do not use this function, it'll get removed. */
@@ -150,6 +213,9 @@ int clock_gettime(clockid_t clk, timespec_t *tp);
 
 int clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                     timespec_t *rmtp);
+
+int setitimer(int, const struct itimerval *__restrict,
+              struct itimerval *__restrict);
 
 #endif /* !_KERNEL */
 

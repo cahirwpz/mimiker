@@ -3,6 +3,17 @@
 
 #include <sys/syslimits.h>
 
+#define _POSIX2_BC_BASE_MAX 99
+#define _POSIX2_BC_DIM_MAX 2048
+#define _POSIX2_BC_SCALE_MAX 99
+#define _POSIX2_BC_STRING_MAX 1000
+#define _POSIX2_CHARCLASS_NAME_MAX 14
+#define _POSIX2_COLL_WEIGHTS_MAX 2
+#define _POSIX2_EQUIV_CLASS_MAX 2
+#define _POSIX2_EXPR_NEST_MAX 32
+#define _POSIX2_LINE_MAX 2048
+#define _POSIX2_RE_DUP_MAX 255
+
 /*
  * X/Open CAE Specifications,
  * adopted in IEEE Std 1003.1-2001 XSI.
@@ -17,11 +28,11 @@
 #define CHAR_MAX __SCHAR_MAX__
 #define SCHAR_MIN (-SCHAR_MAX - 1)
 #define SCHAR_MAX __SCHAR_MAX__
-#define UCHAR_MAX (CHAR_MAX * 2U + 1U)
+#define UCHAR_MAX (CHAR_MAX * 2 + 1)
 
 #define SHRT_MIN (-SHRT_MAX - 1)
 #define SHRT_MAX __SHRT_MAX__
-#define USHRT_MAX (SHRT_MAX * 2U + 1U)
+#define USHRT_MAX (SHRT_MAX * 2 + 1)
 
 #define INT_MIN (-INT_MAX - 1)
 #define INT_MAX __INT_MAX__
@@ -30,6 +41,10 @@
 #define LONG_MIN (-LONG_MAX - 1L)
 #define LONG_MAX __LONG_MAX__
 #define ULONG_MAX (LONG_MAX * 2UL + 1UL)
+
+#define LLONG_MIN (-__LONG_LONG_MAX__ - 1LL)
+#define LLONG_MAX __LONG_LONG_MAX__
+#define ULLONG_MAX (2ULL * LLONG_MAX + 1ULL)
 
 /*
  * 7.18.2 Limits of specified-width integer types
@@ -106,6 +121,10 @@
 #define INTMAX_MAX __INTMAX_MAX__
 #define UINTMAX_MAX __UINTMAX_MAX__
 
+#define UQUAD_MAX ULLONG_MAX /* max unsigned quad */
+#define QUAD_MAX LLONG_MAX   /* max signed quad */
+#define QUAD_MIN LLONG_MIN   /* min signed quad */
+
 /*
  * 7.18.3 Limits of other integer types
  */
@@ -116,5 +135,6 @@
 
 /* limit of size_t */
 #define SIZE_MAX __SIZE_MAX__
+#define SSIZE_MAX ((ssize_t)(__SIZE_MAX__ / 2))
 
 #endif /* !_LIMITS_H_ */

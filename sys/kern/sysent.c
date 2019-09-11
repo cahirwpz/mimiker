@@ -51,9 +51,9 @@ static int sys_getpid(thread_t *td, syscall_args_t *args) {
 }
 
 static int sys_getppid(thread_t *td, syscall_args_t *args) {
+  proc_t *p = td->td_proc;
   klog("getppid()");
-  assert(td->td_proc->p_parent);
-  return td->td_proc->p_parent->p_pid;
+  return p->p_parent ? p->p_parent->p_pid : 0;
 }
 
 /* Moves the process to the process group with ID specified by pgid.

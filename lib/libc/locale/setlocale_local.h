@@ -92,6 +92,9 @@ static __inline struct _locale *_current_locale(void) {
 }
 #endif
 
+size_t _mb_cur_max_l(locale_t);
+#define MB_CUR_MAX_L(loc) _mb_cur_max_l(loc)
+
 extern size_t __mb_len_max_runtime;
 
 #endif /*_SETLOCALE_LOCAL_H_*/

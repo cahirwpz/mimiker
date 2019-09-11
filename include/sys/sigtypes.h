@@ -9,6 +9,10 @@
 
 #include <sys/types.h>
 
+typedef struct siginfo {
+} siginfo_t;
+typedef int signo_t;
+
 typedef struct {
   uint32_t __bits;
 } sigset_t;
@@ -29,6 +33,12 @@ typedef struct {
   { (t)->__bits &= ~(s)->__bits; }
 #define __sigandset(s, t)                                                      \
   { (t)->__bits &= (s)->__bits; }
-#define __sigfindset(s) ((s)->__bits != 0 ? __builtin_ffs((s)->__bits) : -1)
+#define __sigfindset(s) (__builtin_ffs((s)->__bits))
+
+typedef struct sigaltstack {
+  void *ss_sp;    /* signal stack base */
+  size_t ss_size; /* signal stack length */
+  int ss_flags;   /* SS_DISABLE and/or SS_ONSTACK */
+} stack_t;
 
 #endif /* !_SYS_SIGTYPES_H_ */

@@ -80,33 +80,20 @@
 #ifndef __ASSEMBLER__
 
 /* Make sure this is signed; we need pointers to be sign-extended. */
-#if defined(__mips_n32)
-typedef long long __greg_t;
-#else
 typedef long __greg_t;
-#endif /* __mips_n32 */
 
 typedef __greg_t __gregset_t[_NGREG];
 
 /*
- * For the O32/O64 ABI, there are 16 doubles, one at each even FP reg
+ * For the O32 ABI, there are 16 doubles, one at each even FP reg
  * number.  The FP registers themselves are 32-bits.
- *
- * For 64-bit ABIs (include N32), each FP register is a 64-bit double.
  */
 typedef __greg_t __freg_t;
 
 /*
  * Floating point register state
  */
-struct __fpregset_nabi {
-  union {
-    double __fp64_dregs[32];
-    __freg_t __fp_regs[32];
-  } __fp_r;
-  __greg_t __fp_csr;
-};
-struct __fpregset_oabi {
+struct __fpregset {
   union {
     double __fp_dregs[16];
     float __fp_fregs[32];
@@ -116,24 +103,20 @@ struct __fpregset_oabi {
   unsigned int __fp_pad;
 };
 
-#if __mips_n32 || __mips_n64
-typedef struct __fpregset_nabi __fpregset_t;
-#else
-typedef struct __fpregset_oabi __fpregset_t;
-#endif
+typedef struct __fpregset __fpregset_t;
 
 typedef struct {
   __gregset_t __gregs;
   __fpregset_t __fpregs;
   __greg_t _mc_tlsbase;
-#if !__mips_n32
   __greg_t __mc_unused;
-#endif
 } mcontext_t;
 
 #endif /* !__ASSEMBLER__ */
 
-#define _UC_MACHINE_PAD 14 /* Padding appended to ucontext_t */
+#define _UC_SETSTACK 0x00010000
+#define _UC_CLRSTACK 0x00020000
+#define _UC_TLSBASE 0x00040000
 
 #define _UC_MACHINE_SP(uc) ((uc)->uc_mcontext.__gregs[_REG_SP])
 #define _UC_MACHINE_FP(uc) ((uc)->uc_mcontext.__gregs[_REG_S8])
@@ -141,27 +124,5 @@ typedef struct {
 #define _UC_MACHINE_INTRV(uc) ((uc)->uc_mcontext.__gregs[_REG_V0])
 
 #define _UC_MACHINE_SET_PC(uc, pc) _UC_MACHINE_PC(uc) = (pc)
-
-#define _UC_MACHINE32_SP(uc) _UC_MACHINE_SP(uc)
-#define _UC_MACHINE32_PC(uc) _UC_MACHINE_PC(uc)
-#define _UC_MACHINE32_INTRV(uc) _UC_MACHINE_INTRV(uc)
-#define _UC_MACHINE32_PAD 14 /* Padding appended to ucontext32_t */
-
-#define _UC_MACHINE32_SET_PC(uc, pc) _UC_MACHINE_PC((uc), (pc))
-
-#define __UCONTEXT_SIZE_O32 (40 + 296 + 56)  /* 392 */
-#define __UCONTEXT_SIZE_N32 (40 + 568 + 56)  /* 664 */
-#define __UCONTEXT_SIZE_N64 (56 + 576 + 112) /* 774 */
-
-#ifdef _ABIO32
-#define __UCONTEXT_SIZE __UCONTEXT_SIZE_O32
-#elif _ABIN32
-#define __UCONTEXT_SIZE __UCONTEXT_SIZE_N32
-#elif _ABIN64
-#define __UCONTEXT_SIZE __UCONTEXT_SIZE_N64
-#define __UCONTEXT32_SIZE __UCONTEXT_SIZE_N32
-#else
-#error O64 is not supported
-#endif
 
 #endif /* _MIPS_MCONTEXT_H_ */

@@ -9,7 +9,7 @@
 #include <sys/priority.h>
 #include <sys/time.h>
 #include <sys/signal.h>
-#include <sys/stack.h>
+#include <sys/kstack.h>
 #include <sys/spinlock.h>
 #include <mips/ctx.h> /* TODO leaks ctx_t structure because of td_kctx */
 
@@ -108,7 +108,7 @@ typedef struct thread {
   ctx_t *td_kctx;              /*!< (*) kernel context (switch) */
   intptr_t td_onfault;         /*!< (*) PC for copyin/copyout faults */
   vm_page_t *td_kstack_obj;    /*!< (*) page that hold our kernel stack */
-  stack_t td_kstack;           /*!< (*) kernel stack structure */
+  kstack_t td_kstack;          /*!< (*) kernel stack structure */
   /* waiting channel */
   void *td_wchan;            /*!< (*) memory object on which thread awaits */
   const void *td_waitpt;     /*!< (*) PC where program waits */

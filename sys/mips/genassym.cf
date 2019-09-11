@@ -19,8 +19,8 @@ define TD_ONFAULT offsetof(thread_t, td_onfault)
 define TD_IDNEST offsetof(thread_t, td_idnest)
 define TD_SPIN offsetof(thread_t, td_spin)
 
-define STK_BASE offsetof(stack_t, stk_base)
-define STK_SIZE offsetof(stack_t, stk_size)
+define STK_BASE offsetof(kstack_t, stk_base)
+define STK_SIZE offsetof(kstack_t, stk_size)
 
 define CTX_S0 offsetof(ctx_t, s0)
 define CTX_S1 offsetof(ctx_t, s1)

@@ -29,14 +29,12 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/ctype_bits.h>
+#define _CTYPE_NOINLINE
 #include <ctype.h>
 #include <langinfo.h>
 #define __SETLOCALE_SOURCE__
 #include <locale.h>
 #include <stdio.h>
-#if EOF != -1
-#error "EOF != -1"
-#endif
 
 #include "runetype_local.h"
 #include "setlocale_local.h"
@@ -44,6 +42,9 @@
 #define _RUNE_LOCALE(loc) ((_RuneLocale *)((loc)->part_impl[(size_t)LC_CTYPE]))
 
 #define _ISCTYPE_FUNC(name, bit)                                               \
+  int is##name(int c) {                                                        \
+    return (int)_ctype_tab_[c + 1] & (bit);                                    \
+  }                                                                            \
   int is##name##_l(int c, locale_t loc) {                                      \
     return (int)((_RUNE_LOCALE(loc)->rl_ctype_tab[c + 1]) & (bit));            \
   }
@@ -61,8 +62,16 @@ _ISCTYPE_FUNC(space, _CTYPE_S)
 _ISCTYPE_FUNC(upper, _CTYPE_U)
 _ISCTYPE_FUNC(xdigit, _CTYPE_X)
 
+int toupper(int c) {
+  return (int)_toupper_tab_[c + 1];
+}
+
 int toupper_l(int c, locale_t loc) {
   return (int)(_RUNE_LOCALE(loc)->rl_toupper_tab[c + 1]);
+}
+
+int tolower(int c) {
+  return (int)_tolower_tab_[c + 1];
 }
 
 int tolower_l(int c, locale_t loc) {

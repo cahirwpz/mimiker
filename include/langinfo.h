@@ -11,16 +11,12 @@
 #include <sys/cdefs.h>
 #include <nl_types.h>
 
-#define D_T_FMT                                                                \
-  ((nl_item)0)             /* String for formatting date and                   \
-                              time */
-#define D_FMT ((nl_item)1) /* Date format string */
-#define T_FMT ((nl_item)2) /* Time format string */
-#define T_FMT_AMPM                                                             \
-  ((nl_item)3)              /* Time format string with 12 hour                 \
-                               clock */
-#define AM_STR ((nl_item)4) /* Ante Meridiem afix */
-#define PM_STR ((nl_item)5) /* Post Meridiem afix */
+#define D_T_FMT ((nl_item)0)    /* String for formatting date and time */
+#define D_FMT ((nl_item)1)      /* Date format string */
+#define T_FMT ((nl_item)2)      /* Time format string */
+#define T_FMT_AMPM ((nl_item)3) /* Time format string with 12 hour clock */
+#define AM_STR ((nl_item)4)     /* Ante Meridiem afix */
+#define PM_STR ((nl_item)5)     /* Post Meridiem afix */
 
 #define DAY_1 ((nl_item)6) /* Name of the first day of the week */
 #define DAY_2 ((nl_item)7)
@@ -30,9 +26,7 @@
 #define DAY_6 ((nl_item)11)
 #define DAY_7 ((nl_item)12)
 
-#define ABDAY_1                                                                \
-  ((nl_item)13) /* Abbrev. name of the first day of                            \
-                   the week */
+#define ABDAY_1 ((nl_item)13) /* Abbrev. name of the first day of the week */
 #define ABDAY_2 ((nl_item)14)
 #define ABDAY_3 ((nl_item)15)
 #define ABDAY_4 ((nl_item)16)
@@ -68,19 +62,11 @@
 
 #define RADIXCHAR ((nl_item)44) /* Radix character */
 #define THOUSEP ((nl_item)45)   /* Separator for thousands */
-#define YESSTR                                                                 \
-  ((nl_item)46) /* Affirmitive response for yes/no                             \
-                   queries */
-#define YESEXPR                                                                \
-  ((nl_item)47) /* Affirmitive response for yes/no                             \
-                   queries */
-#define NOSTR                                                                  \
-  ((nl_item)48) /* Negative response for yes/no                                \
-                   queries */
-#define NOEXPR                                                                 \
-  ((nl_item)49)                /* Negative response for yes/no                 \
-                                  queries */
-#define CRNCYSTR ((nl_item)50) /* Currency symbol */
+#define YESSTR ((nl_item)46)    /* Affirmitive response for yes/no queries */
+#define YESEXPR ((nl_item)47)   /* Affirmitive response for yes/no queries */
+#define NOSTR ((nl_item)48)     /* Negative response for yes/no queries */
+#define NOEXPR ((nl_item)49)    /* Negative response for yes/no queries */
+#define CRNCYSTR ((nl_item)50)  /* Currency symbol */
 
 #define CODESET ((nl_item)51) /* codeset name */
 

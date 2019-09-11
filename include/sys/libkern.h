@@ -2,6 +2,7 @@
 #define _SYS_LIBKERN_H_
 
 #include <sys/types.h>
+#include <stdarg.h>
 
 /*
  * This file contains declarations for subset of C standard library functions.
@@ -33,10 +34,12 @@ int toascii(int);
 
 /* The snprintf has a custom implementation which cannot format
    floating-point numbers, see snprintf.c */
-int snprintf(char *str, size_t size, const char *fmt, ...)
+int snprintf(char *buf, size_t size, const char *fmt, ...)
   __attribute__((format(printf, 3, 4)));
+int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap);
 int sscanf(const char *str, const char *fmt, ...)
   __attribute__((format(scanf, 2, 3)));
+int vsscanf(const char *str, char const *fmt, va_list ap);
 
 /* stdlib.h function prototypes */
 long strtol(const char *nptr, char **endptr, int base);
@@ -49,6 +52,7 @@ int rand_r(unsigned *seedp);
 
 /* strings.h function prototypes */
 
+void bcopy(const void *src, void *dest, size_t n);
 void bzero(void *b, size_t length);
 void *memchr(const void *s, int c, size_t n);
 int memcmp(const void *s1, const void *s2, size_t n);

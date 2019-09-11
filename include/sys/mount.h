@@ -2,10 +2,14 @@
 #define _SYS_MOUNT_H_
 
 #include <sys/cdefs.h>
+#include <sys/syslimits.h>
+#include <sys/statvfs.h>
+
+#ifdef _KERNEL
+
 #include <sys/queue.h>
 #include <sys/mutex.h>
 #include <sys/refcnt.h>
-#include <sys/syslimits.h>
 
 /* Maximum length of a filesystem type name */
 #define VFSCONF_NAME_MAX 32
@@ -91,5 +95,15 @@ mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc);
 /* Mount a new instance of the filesystem vfc at the vnode v. Does not support
  * remounting. TODO: Additional filesystem-specific arguments. */
 int vfs_domount(vfsconf_t *vfc, vnode_t *v);
+
+#else /* !_KERNEL */
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+int unmount(const char *, int);
+int mount(const char *, const char *, int, void *, size_t);
+__END_DECLS
+
+#endif /* _KERNEL */
 
 #endif /* !_SYS_MOUNT_H_ */

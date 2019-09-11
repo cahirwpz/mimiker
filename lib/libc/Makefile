@@ -4,6 +4,7 @@ TOPDIR = $(realpath ../..)
 
 CFLAGS   = -ffreestanding
 CPPFLAGS = -I$(TOPDIR)/include \
+	   -I$(CURDIR) \
 	   -I$(CURDIR)/include \
 	   -I$(CURDIR)/citrus \
 	   -I$(CURDIR)/gdtoa \
@@ -12,7 +13,7 @@ CPPFLAGS = -I$(TOPDIR)/include \
 	   -I$(CURDIR)/stdlib \
 	   -D_LIBC -DNO_FENV_H
 
-SUBDIRS = citrus gdtoa gen locale misc stdio stdlib string sys time
+SUBDIRS = citrus gdtoa gen locale misc regex stdio stdlib string sys termios time
 
 SOURCES = \
 	$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.c)) \
@@ -24,6 +25,8 @@ HEADERS = $(HEADERFILES:$(TOPDIR)/include/%=%)
 LIBFILES = libc.a crt0.o crt0-common.o ld.script
 
 build: $(LIBFILES)
+
+$(SOURCES): assym.h
 
 include $(TOPDIR)/build/flags.mk
 include $(TOPDIR)/build/compile.mk
@@ -67,3 +70,4 @@ clean-here:
 	$(RM) $(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.o))
 	$(RM) $(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*~))
 	$(RM) *.a
+	$(RM) assym.h
