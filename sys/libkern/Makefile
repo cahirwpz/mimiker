@@ -2,11 +2,6 @@
 
 TOPDIR = $(realpath ../..)
 
-SOURCES = \
-	atkbdc.c \
-	ns16550.c \
-	rtc.c \
-	pit.c \
-	stdvga.c
+SUBDIR = ctype stdio stdlib string
 
 include $(TOPDIR)/build/build.klib.mk

@@ -2,8 +2,6 @@
 
 TOPDIR = $(realpath ../..)
 
-GENDEVHINT = $(TOPDIR)/sys/script/gendevhint.py
-
 SOURCES = \
 	boot.S \
 	cbus.c \
@@ -27,11 +25,8 @@ SOURCES = \
 
 OBJECTS += malta_dtb.o
 
-include $(TOPDIR)/build/build.kobj.mk
+CLEAN-FILES += assym.h *-devhint.c
 
-build-here: libmips.ka
+include $(TOPDIR)/build/build.klib.mk
 
 $(SOURCES): assym.h
-
-clean-here:
-	$(RM) assym.h *-devhint.c

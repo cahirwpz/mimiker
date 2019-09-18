@@ -65,6 +65,4 @@ SOURCES = \
 	vm_object.c \
 	vm_pager.c
 
-include $(TOPDIR)/build/build.kobj.mk
-
-build-here: libkern.ka
+include $(TOPDIR)/build/build.klib.mk

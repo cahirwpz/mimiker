@@ -1,7 +1,3 @@
-ifndef SOURCES
-$(error SOURCES is not set)
-endif
-
 SOURCES_C = $(filter %.c,$(SOURCES))
 SOURCES_ASM = $(filter %.S,$(SOURCES))
 OBJECTS += $(SOURCES_C:%.c=%.o) $(SOURCES_ASM:%.S=%.o)

@@ -53,7 +53,7 @@ tags:
 FORMATTABLE_EXCLUDE = \
 	include/mips/asm.h \
 	include/mips/m32c0.h \
-	sys/stdc/%
+	sys/libkern/%
 FORMATTABLE = $(filter-out $(FORMATTABLE_EXCLUDE),$(SRCFILES_C))
 
 format:

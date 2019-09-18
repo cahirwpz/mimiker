@@ -2,18 +2,13 @@
 
 TOPDIR = $(realpath ..)
 
-# Directories which require calling make recursively
-SUBDIR = drv kern mips stdc tests
-
 all: build
 
-build-here: mimiker.elf
-
-include $(TOPDIR)/build/flags.kern.mk
-include $(TOPDIR)/build/common.mk
+# Directories which require calling make recursively
+SUBDIR = drv kern mips libkern tests
 
 # Files required to link kernel image
-KRT = $(foreach dir,$(SUBDIR),$(TOPDIR)/sys/$(dir)/lib$(dir).ka)
+KRT = $(foreach dir,$(SUBDIR),$(dir)/$(dir).ka)
 
 LDFLAGS = -T $(TOPDIR)/sys/mips/malta.ld
 LDLIBS	= -Wl,--start-group \
@@ -21,9 +16,13 @@ LDLIBS	= -Wl,--start-group \
             -lgcc \
           -Wl,--end-group
 
-# Process subdirectories before using KRT files.
-mimiker.elf: $(KRT) | $(KERNDIR)
+mimiker.elf: $(KRT)
 	@echo "[LD] Linking kernel image: $@"
 	$(LD) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
 
+BUILD-FILES += mimiker.elf
 CLEAN-FILES += mimiker.elf mimiker.elf.map
+
+KLIB = no
+
+include $(TOPDIR)/build/build.klib.mk
