@@ -6,4 +6,4 @@ CPPFLAGS += -I../include
 
 SOURCES = printf.c scanf.c
 
-include $(TOPDIR)/build/build.klib.mk
+include $(TOPDIR)/build/build.kern.mk

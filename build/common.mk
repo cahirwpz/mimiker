@@ -37,51 +37,70 @@ assym.h: genassym.cf
 	@echo "[ASSYM] $(DIR)$@"
 	$(GENASSYM) $(CC) $(CFLAGS) $(CPPFLAGS) < $^ > $@
 
-# Generate recursive rules for subdirectories
-define emit_subdir_rule
-$(1)-$(2):
-	@echo "[MAKE] $(2) $(DIR)$(1)"
-	$$(MAKE) -C $(1) $(2)
-PHONY-TARGETS += $(1)-$(2)
-endef
+include $(TOPDIR)/config.mk
+include $(TOPDIR)/build/arch.$(ARCH).mk
+include $(TOPDIR)/build/tools.mk
 
-define emit_subdir_build
-$(1)-build: $(1)-before
-	@echo "[MAKE] build $(DIR)$(1)"
-	$$(MAKE) -C $(1) build
-PHONY-TARGETS += $(1)-build $(1)-before
-endef
+# Recursive rules for subdirectories
+%-format:
+	@echo "[MAKE] format $(DIR)$*"
+	$(MAKE) -C $* format
 
-$(foreach dir,$(SUBDIR),$(eval $(call emit_subdir_build,$(dir))))
-$(foreach dir,$(SUBDIR),$(eval $(call emit_subdir_rule,$(dir),install)))
-$(foreach dir,$(SUBDIR),$(eval $(call emit_subdir_rule,$(dir),clean)))
-$(foreach dir,$(SUBDIR),$(eval $(call emit_subdir_rule,$(dir),distclean)))
-$(foreach dir,$(SUBDIR),$(eval $(call emit_subdir_rule,$(dir),download)))
+%-download:
+	@echo "[MAKE] download $(DIR)$*"
+	$(MAKE) -C $* download 
 
+%-build: %-download %-before
+	@echo "[MAKE] build $(DIR)$*"
+	$(MAKE) -C $* build
+
+%-install: %-build
+	@echo "[MAKE] install $(DIR)$*"
+	$(MAKE) -C $* install
+
+%-clean:
+	@echo "[MAKE] clean $(DIR)$*"
+	$(MAKE) -C $* clean
+
+%-distclean: %-clean
+	@echo "[MAKE] distclean $(DIR)$*"
+	$(MAKE) -C $* distclean
+
+PHONY-TARGETS += $(SUBDIR:%=%-before)
+
+download-recursive: $(SUBDIR:%=%-download)
 build-recursive: $(SUBDIR:%=%-build)
 install-recursive: $(SUBDIR:%=%-install)
 clean-recursive: $(SUBDIR:%=%-clean)
 distclean-recursive: $(SUBDIR:%=%-distclean)
-download-recursive: $(SUBDIR:%=%-download)
+format-recursive: $(SUBDIR:%=%-format)
 
 # Define main rules of the build system
 download: download-recursive download-here
-build: build-dependencies build-recursive $(BUILD-FILES) build-here
+build: $(DEPENDENCY-FILES) build-recursive $(BUILD-FILES) build-here
 install: install-recursive $(INSTALL-FILES) install-here
 clean: clean-recursive clean-here
-	$(RM) $(CLEAN-FILES)
-	$(RM) $(BUILD-FILES)
-	$(RM) *~
-distclean: clean distclean-recursive distclean-here
+	$(RM) -v $(CLEAN-FILES)
+	$(RM) -v $(BUILD-FILES)
+	$(RM) -v *~
+distclean: distclean-recursive distclean-here
 
-PHONY-TARGETS += all
+FORMAT-FILES = $(filter-out $(FORMAT-EXCLUDE),$(SOURCES_C) $(SOURCES_H))
+FORMAT-RECURSE ?= format-recursive
+
+format: $(FORMAT-RECURSE) format-here
+ifneq ($(FORMAT-FILES),)
+	@echo "[FORMAT] $(FORMAT-FILES)"
+	$(FORMAT) -i $(FORMAT-FILES)
+endif
+
+PHONY-TARGETS += all no
 PHONY-TARGETS += build build-dependencies build-recursive build-here
 PHONY-TARGETS += clean clean-recursive clean-here
 PHONY-TARGETS += install install-recursive install-here
 PHONY-TARGETS += distclean distclean-recursive distclean-here
 PHONY-TARGETS += download download-recursive download-here
+PHONY-TARGETS += format format-recursive format-here
 
 .PHONY: $(PHONY-TARGETS)
 .PRECIOUS: $(BUILD-FILES)
-
-include $(TOPDIR)/build/tools.mk

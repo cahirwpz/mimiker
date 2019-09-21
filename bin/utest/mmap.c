@@ -6,8 +6,7 @@
 #include <assert.h>
 #include <sys/mman.h>
 
-#define _mmap(addr, length, prot, flags) \
-  mmap(addr, length, prot, flags, -1, 0)
+#define _mmap(addr, length, prot, flags) mmap(addr, length, prot, flags, -1, 0)
 
 static void mmap_no_hint(void) {
   void *addr = _mmap(NULL, 12345, PROT_READ | PROT_WRITE, MAP_ANON);

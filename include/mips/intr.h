@@ -27,10 +27,10 @@ typedef struct exc_frame exc_frame_t;
  * \see intr_enable
  * \see intr_disable
  */
-void mips_intr_disable(void);
+void cpu_intr_disable(void);
 
 /*! \brief Enables interrupts by setting SR.IE to 1. */
-void mips_intr_enable(void);
+void cpu_intr_enable(void);
 
 /*! \brief Check if interrupts are disabled.
  *
@@ -40,7 +40,7 @@ void mips_intr_enable(void);
  * The kernel leaves Exception (EXL) or Error Level (ERL) as soon as possible,
  * hence we consider exceptions to be disabled if and only if SR.IE = 0.
  */
-bool mips_intr_disabled(void);
+bool cpu_intr_disabled(void);
 
 void mips_intr_init(void);
 void mips_intr_setup(intr_handler_t *ih, mips_intr_t irq);

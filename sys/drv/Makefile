@@ -9,4 +9,4 @@ SOURCES = \
 	pit.c \
 	stdvga.c
 
-include $(TOPDIR)/build/build.klib.mk
+include $(TOPDIR)/build/build.kern.mk

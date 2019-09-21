@@ -12,23 +12,16 @@ include $(TOPDIR)/build/flags.kern.mk
 include $(TOPDIR)/build/compile.mk
 include $(TOPDIR)/build/common.mk
 
-define emit_klib_build
-$(1)/$(1).ka: $(1)-build
-	@echo "[MAKE] build $(DIR)$(1)"
-	$$(MAKE) -C $(1) build
-PHONY-TARGETS += $(1)-build
-endef
+KLIBLIST = $(foreach dir, $(SUBDIR), $(dir)/$(dir).ka)
+KLIBDEPS = $(foreach dir, $(SUBDIR), $(dir)-build)
 
-$(foreach dir,$(SUBDIR),$(eval $(call emit_klib_build,$(dir))))
-
-# Pass "CLANG=1" at command line to switch kernel compiler to Clang.
-ifeq ($(CLANG), 1)
-CC = clang -target mipsel-elf -march=mips32r2 -mno-abicalls -g
-endif
-
-$(KLIB): $(OBJECTS) $(foreach dir, $(SUBDIR), $(dir)/$(dir).ka)
-	@echo "[AR] $(addprefix $(DIR),$^) -> $(DIR)$@"
-	$(AR) rcT $@ $^ 2> /dev/null
+$(KLIB): $(OBJECTS) $(KLIBDEPS)
+	@echo "[AR] $(addprefix $(DIR),$(OBJECTS) $(KLIBLIST)) -> $(DIR)$@"
+	(echo "create $@"; \
+	 for f in $(KLIBLIST); do echo "addlib $$f"; done; \
+	 for f in $(OBJECTS); do echo "addmod $$f"; done; \
+	 echo "save"; \
+	 echo "end") | $(AR) -M
 
 %.dtb: %.dts
 	@echo "[DTB] $(DIR)$< -> $(DIR)$@"
@@ -36,7 +29,7 @@ $(KLIB): $(OBJECTS) $(foreach dir, $(SUBDIR), $(dir)/$(dir).ka)
 
 %_dtb.o: %.dtb
 	@echo "[OBJCOPY] $(DIR)$< -> $(DIR)$@"
-	$(OBJCOPY) -I binary -O elf32-littlemips -B mips \
+	$(OBJCOPY) -I binary -O $(ELFTYPE) -B $(ARCH) \
 	  --redefine-sym _binary_$(@:%.o=%)_start=__$(@:%.o=%)_start \
 	  --redefine-sym _binary_$(@:%.o=%)_end=__$(@:%.o=%)_end \
 	  --redefine-sym _binary_$(@:%.o=%)_size=__$(@:%.o=%)_size \

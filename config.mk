@@ -1,0 +1,2 @@
+ARCH := mips
+PLATFORM := malta

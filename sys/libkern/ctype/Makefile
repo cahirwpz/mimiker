@@ -8,4 +8,4 @@ SOURCES = ctype_.c \
 	  tolower_.c \
 	  toupper_.c
 
-include $(TOPDIR)/build/build.klib.mk
+include $(TOPDIR)/build/build.kern.mk

@@ -2,9 +2,7 @@
 
 TOPDIR = $(realpath ../..)
 
-CFLAGS   = -ffreestanding
-CPPFLAGS = -I$(TOPDIR)/include \
-	   -I$(CURDIR) \
+CPPFLAGS = -I$(CURDIR) \
 	   -I$(CURDIR)/include \
 	   -I$(CURDIR)/citrus \
 	   -I$(CURDIR)/gdtoa \
@@ -13,61 +11,13 @@ CPPFLAGS = -I$(TOPDIR)/include \
 	   -I$(CURDIR)/stdlib \
 	   -D_LIBC -DNO_FENV_H
 
-SUBDIRS = citrus gdtoa gen locale misc regex stdio stdlib string sys termios time
+SUBLIBS = citrus gdtoa gen locale misc regex stdio stdlib string sys termios time
 
-SOURCES = \
-	$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.c)) \
-	$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.S)) \
+SOURCES = $(foreach dir, $(SUBLIBS), \
+            $(wildcard $(dir)/*.c) $(wildcard $(dir)/$(ARCH)/*.S))
 
-HEADERFILES = $(shell find $(TOPDIR)/include/ \! -iname '*~' \! -type d)
-HEADERS = $(HEADERFILES:$(TOPDIR)/include/%=%)
-
-LIBFILES = libc.a crt0.o crt0-common.o ld.script
-
-build: $(LIBFILES)
+include $(TOPDIR)/build/build.lib.mk
 
 $(SOURCES): assym.h
 
-include $(TOPDIR)/build/flags.mk
-include $(TOPDIR)/build/compile.mk
-include $(TOPDIR)/build/common.mk
-
-$(LIBFILES): $(OBJECTS)
-
-EXTRAFILES = $(shell find extra -type f)
-
-# Installation targets
-LIBFILES_INST = $(LIBFILES:%=$(SYSROOT)/lib/%)
-EXTRAFILES_INST = $(EXTRAFILES:extra/%=$(SYSROOT)/%)
-HEADERS_INST = $(HEADERS:%=$(SYSROOT)/usr/include/%)
-
-install-here: $(LIBFILES_INST) $(EXTRAFILES_INST) $(HEADERS_INST)
-
-$(LIBFILES_INST): $(LIBFILES)
-	for LIBFILE in $(LIBFILES); do \
-	  echo "[INSTALL] $(DIR)$$LIBFILE -> /lib/$$LIBFILE"; \
-	  $(INSTALL) -m 644 $$LIBFILE $(SYSROOT)/lib/$$LIBFILE; \
-	done
-
-$(HEADERS_INST): $(HEADERFILES)
-	mkdir -p $(SYSROOT)/usr/include
-	for HEADER in $(HEADERS); do \
-	  echo "[INSTALL] $(DIR)$$HEADER -> /usr/include/$$HEADER"; \
-	  src=$(TOPDIR)/include/$$HEADER; \
-	  dst=$(SYSROOT)/usr/include/$$HEADER; \
-	  if [ -f $$src ]; then \
-	    $(INSTALL) -m 644 $$src $$dst; \
-	  else \
-	    $(CP) -a $$src $$dst; \
-	  fi; \
-	done
-
-$(SYSROOT)/%: extra/%
-	@echo "[INSTALL] $(DIR)$< -> $*"
-	$(INSTALL) -m 644 $< $@
-
-clean-here:
-	$(RM) $(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.o))
-	$(RM) $(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*~))
-	$(RM) *.a
-	$(RM) assym.h
+CLEAN-FILES += assym.h

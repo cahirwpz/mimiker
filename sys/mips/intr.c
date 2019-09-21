@@ -27,15 +27,15 @@ extern const char _ebase[];
  * hazard is cleared by the EHB, JALR.HB, JR.HB, or ERET instructions. Software
  * must not assume that a fixed latency will clear the execution hazard. */
 
-void mips_intr_disable(void) {
+void cpu_intr_disable(void) {
   asm volatile("di; ehb");
 }
 
-void mips_intr_enable(void) {
+void cpu_intr_enable(void) {
   asm volatile("ei; ehb");
 }
 
-bool mips_intr_disabled(void) {
+bool cpu_intr_disabled(void) {
   return (mips32_getsr() & SR_IE) == 0;
 }
 

@@ -1,14 +1,16 @@
-TARGET = mipsel-mimiker-elf
+ifndef ARCH
+  $(error ARCH variable not defined. Have you included config.mk?)
+endif
 
 TOOLCHAIN_FOUND = $(shell which $(TARGET)-gcc > /dev/null; echo $$?)
 ifneq ($(TOOLCHAIN_FOUND), 0)
   $(error $(TARGET) toolchain not found. Please refer to README.md)
 endif
 
-CC       = $(TARGET)-gcc -mips32r2 -EL -g
+CC       = $(TARGET)-gcc $(ABIFLAGS) -g
 AR       = $(TARGET)-ar
-AS       = $(TARGET)-gcc -mips32r2 -EL -g
-LD       = $(TARGET)-gcc -mips32r2 -EL -g
+AS       = $(TARGET)-gcc $(ABIFLAGS) -g
+LD       = $(TARGET)-gcc $(ABIFLAGS) -g
 NM       = $(TARGET)-nm
 GDB      = $(TARGET)-gdb
 RANLIB	 = $(TARGET)-ranlib
@@ -23,7 +25,8 @@ CSCOPE  = cscope -b
 CTAGS   = ctags
 FORMAT  = clang-format-7 -style=file 
 INSTALL = install -D
-RM      = rm -v -f
+LN	= ln
+RM      = rm -f
 TAR	= tar
 SED	= sed
 CURL	= curl -J -L

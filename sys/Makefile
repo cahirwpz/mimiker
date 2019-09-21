@@ -2,27 +2,40 @@
 
 TOPDIR = $(realpath ..)
 
-all: build
+SUBDIR = $(ARCH) drv kern libkern tests
+KLIB = no
 
-# Directories which require calling make recursively
-SUBDIR = drv kern mips libkern tests
+BUILD-FILES += mimiker.elf cscope.out etags tags
+CLEAN-FILES += mimiker.elf.map
 
-# Files required to link kernel image
-KRT = $(foreach dir,$(SUBDIR),$(dir)/$(dir).ka)
+include $(TOPDIR)/build/build.kern.mk
 
-LDFLAGS = -T $(TOPDIR)/sys/mips/malta.ld
+LDFLAGS = -T $(TOPDIR)/sys/$(ARCH)/$(PLATFORM).ld
 LDLIBS	= -Wl,--start-group \
-	    -Wl,--whole-archive $(KRT) -Wl,--no-whole-archive \
+	    -Wl,--whole-archive $(KLIBLIST) -Wl,--no-whole-archive \
             -lgcc \
           -Wl,--end-group
 
-mimiker.elf: $(KRT)
+mimiker.elf: $(KLIBDEPS)
 	@echo "[LD] Linking kernel image: $@"
 	$(LD) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
 
-BUILD-FILES += mimiker.elf
-CLEAN-FILES += mimiker.elf mimiker.elf.map
+# Lists of all files that we consider operating system kernel sources.
+SRCDIRS = $(TOPDIR)/include $(TOPDIR)/sys
+SRCFILES_C = $(shell find $(SRCDIRS) -iname '*.[chS]')
+SRCFILES_ASM = $(shell find $(SRCDIRS) -iname '*.S')
+SRCFILES = $(SRCFILES_C) $(SRCFILES_ASM)
 
-KLIB = no
+cscope.out: $(SRCFILES)
+	@echo "[CSCOPE] Rebuilding cscope database..."
+	$(CSCOPE) $(SRCFILES)
 
-include $(TOPDIR)/build/build.klib.mk
+etags tags:
+	@echo "[CTAGS] Rebuilding tags database..."
+	$(CTAGS) --language-force=c $(SRCFILES_C)
+	$(CTAGS) --language-force=c -e -f etags $(SRCFILES_C)
+	$(CTAGS) --language-force=asm -a $(SRCFILES_ASM)
+	$(CTAGS) --language-force=asm -aef etags $(SRCFILES_ASM)
+
+BUILD-FILES += cscope.out etags tags
+CLEAN-FILES += *.taghl

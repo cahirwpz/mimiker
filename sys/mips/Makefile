@@ -12,7 +12,7 @@ SOURCES = \
 	exc.S \
 	gt64120.c \
 	intr.c \
-	malta.c \
+	$(PLATFORM).c \
 	pmap.c \
 	rootdev.c \
 	signal.c \
@@ -23,10 +23,10 @@ SOURCES = \
 	uart_cbus.c \
 	ustack.c
 
-OBJECTS += malta_dtb.o
+OBJECTS += $(PLATFORM)_dtb.o
 
 CLEAN-FILES += assym.h *-devhint.c
 
-include $(TOPDIR)/build/build.klib.mk
+include $(TOPDIR)/build/build.kern.mk
 
 $(SOURCES): assym.h

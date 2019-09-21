@@ -12,11 +12,11 @@ static ie_list_t all_ievents_list = TAILQ_HEAD_INITIALIZER(all_ievents_list);
 
 bool intr_disabled(void) {
   thread_t *td = thread_self();
-  return (td->td_idnest > 0) && mips_intr_disabled();
+  return (td->td_idnest > 0) && cpu_intr_disabled();
 }
 
 void intr_disable(void) {
-  mips_intr_disable();
+  cpu_intr_disable();
   thread_self()->td_idnest++;
 }
 
@@ -25,7 +25,7 @@ void intr_enable(void) {
   thread_t *td = thread_self();
   td->td_idnest--;
   if (td->td_idnest == 0)
-    mips_intr_enable();
+    cpu_intr_enable();
 }
 
 void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,

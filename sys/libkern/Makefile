@@ -3,5 +3,6 @@
 TOPDIR = $(realpath ../..)
 
 SUBDIR = ctype stdio stdlib string
+FORMAT-RECURSE = no
 
-include $(TOPDIR)/build/build.klib.mk
+include $(TOPDIR)/build/build.kern.mk

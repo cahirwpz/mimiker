@@ -4,11 +4,11 @@ TOPDIR = $(realpath ../../..)
 
 CPPFLAGS += -I../include
 
-SOURCES = bcopy.S \
+SOURCES = $(ARCH)/bcopy.S \
+	  $(ARCH)/memcpy.S \
 	  bzero.c \
 	  memchr.c \
 	  memcmp.c \
-	  memcpy.S \
 	  memset.c \
 	  strchr.c \
 	  strcmp.c \
@@ -22,4 +22,4 @@ SOURCES = bcopy.S \
 	  strsep.c \
 	  strspn.c
 
-include $(TOPDIR)/build/build.klib.mk
+include $(TOPDIR)/build/build.kern.mk

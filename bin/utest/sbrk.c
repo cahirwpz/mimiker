@@ -27,7 +27,7 @@ static void sbrk_good(void) {
   /* And back to a4 */
   sbrk(90);
   assert((char *)sbrk(0) == a4);
-  
+
   /* Now expand it a lot, much more than page size. */
   char *a5 = sbrk(0x5000);
   assert(a5 == a3 + 50);
@@ -45,7 +45,7 @@ static void sbrk_good(void) {
 static void sbrk_bad(void) {
   void *b0 = sbrk(0);
   /* Attempt to move sbrk before original start. */
-  sbrk((sbrk_orig - b0) -0x10000);
+  sbrk((sbrk_orig - b0) - 0x10000);
   assert(errno == EINVAL);
   char *b1 = sbrk(0);
   assert(b1 == (char *)b0);

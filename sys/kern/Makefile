@@ -65,4 +65,4 @@ SOURCES = \
 	vm_object.c \
 	vm_pager.c
 
-include $(TOPDIR)/build/build.klib.mk
+include $(TOPDIR)/build/build.kern.mk
