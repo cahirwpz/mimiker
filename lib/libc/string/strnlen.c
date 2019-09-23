@@ -26,7 +26,11 @@
  * SUCH DAMAGE.
  */
 
+#ifdef _KERNEL
+#include <sys/libkern.h>
+#else
 #include <string.h>
+#endif
 
 size_t strnlen(const char *s, size_t maxlen) {
   size_t len;

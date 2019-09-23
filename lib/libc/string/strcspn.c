@@ -25,10 +25,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef _KERNEL
+#include <sys/libkern.h>
+#include <limits.h>
+#else
 #include <assert.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <string.h>
+#endif
 
 /* 64bit version is in strspn.c */
 #if ULONG_MAX != 0xffffffffffffffffull

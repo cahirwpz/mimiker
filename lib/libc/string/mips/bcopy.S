@@ -36,7 +36,6 @@
 
 
 #include <mips/asm.h>
-#include <mips/regdef.h>
 
 /*
  *	bcopy(caddr_t src, caddr_t dst, unsigned int len)

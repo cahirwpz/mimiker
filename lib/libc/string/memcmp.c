@@ -32,7 +32,11 @@
  * SUCH DAMAGE.
  */
 
+#ifdef _KERNEL
+#include <sys/libkern.h>
+#else
 #include <string.h>
+#endif
 
 /*
  * Compare memory regions.

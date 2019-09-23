@@ -12,6 +12,9 @@
  * There're extra utilities here as well.
  */
 
+/* Silence diagnostic asserts in common files with libc. */
+#define _DIAGASSERT(e) (__static_cast(void, 0))
+
 /* ctype.h function prototypes */
 int isalnum(int);
 int isalpha(int);

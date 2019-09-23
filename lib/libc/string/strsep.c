@@ -29,8 +29,12 @@
  * SUCH DAMAGE.
  */
 
+#ifdef _KERNEL
+#include <sys/libkern.h>
+#else
 #include <assert.h>
 #include <string.h>
+#endif
 
 /*
  * Get next token from string *stringp, where tokens are possibly-empty

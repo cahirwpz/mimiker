@@ -17,8 +17,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#ifdef _KERNEL
+#include <sys/libkern.h>
+#else
 #include <assert.h>
 #include <string.h>
+#endif
 
 /*
  * Copy src to string dst of size siz.  At most siz-1 characters

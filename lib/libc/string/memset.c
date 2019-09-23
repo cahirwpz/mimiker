@@ -32,11 +32,16 @@
  * SUCH DAMAGE.
  */
 
+#ifdef _KERNEL
+#include <sys/libkern.h>
+#include <limits.h>
+#else
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <assert.h>
 #include <limits.h>
 #include <string.h>
+#endif
 
 #define wsize sizeof(u_int)
 #define wmask (wsize - 1)

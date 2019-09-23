@@ -12,34 +12,42 @@ endif
 # Disable all built-in recipes
 .SUFFIXES:
 
+SRCPATH = $(subst $(TOPDIR)/,,$(realpath $<))
+DSTPATH = $(DIR)$@
+
 # Define our own recipes
 %.S: %.c
-	@echo "[CC] $(DIR)$< -> $(DIR)$@"
+	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -S -o $@ $(realpath $<)
 
 %.o: %.c
-	@echo "[CC] $(DIR)$< -> $(DIR)$@"
+	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $(realpath $<)
 
 %.o: %.S
-	@echo "[AS] $(DIR)$< -> $(DIR)$@"
+	@echo "[AS] $(SRCPATH) -> $(DSTPATH)"
 	$(AS) $(ASFLAGS) $(CPPFLAGS) -c -o $@ $(realpath $<)
 
 %.c: %.y
-	@echo "[YACC] $(DIR)$< -> $(DIR)$@"
+	@echo "[YACC] $(SCRPATH) -> $(DSTPATH)"
 	$(YACC) -o $@ $(realpath $<)
 
 %.a:
-	@echo "[AR] $(addprefix $(DIR),$^) -> $(DIR)$@"
+	@echo "[AR] $(addprefix $(DIR),$^) -> $(DSTPATH)"
 	$(AR) rs $@ $^ 2> /dev/null
 
 assym.h: genassym.cf
-	@echo "[ASSYM] $(DIR)$@"
+	@echo "[ASSYM] $(DSTPATH)"
 	$(GENASSYM) $(CC) $(CFLAGS) $(CPPFLAGS) < $^ > $@
 
 include $(TOPDIR)/config.mk
 include $(TOPDIR)/build/arch.$(ARCH).mk
 include $(TOPDIR)/build/tools.mk
+
+SRCDIR ?= .
+
+vpath %.c $(SRCDIR)
+vpath %.S $(SRCDIR)/$(ARCH)
 
 # Recursive rules for subdirectories
 %-format:

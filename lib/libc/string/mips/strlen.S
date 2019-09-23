@@ -1,8 +1,11 @@
-/*	$OpenBSD: strsep.c,v 1.8 2015/08/31 02:53:57 guenther Exp $	*/
+/*	$NetBSD: strlen.S,v 1.2 2009/12/14 00:39:00 matt Exp $	*/
 
 /*-
- * Copyright (c) 1990, 1993
+ * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Ralph Campbell.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,42 +32,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/libkern.h>
+#include <mips/asm.h>
 
-/*
- * Get next token from string *stringp, where tokens are possibly-empty
- * strings separated by characters from delim.  
- *
- * Writes NULs into the string at *stringp to end tokens.
- * delim need not remain constant from call to call.
- * On return, *stringp points past the last NUL written (if there might
- * be further tokens), or is NULL (if there are definitely no more tokens).
- *
- * If *stringp is NULL, strsep returns NULL.
- */
-char *
-strsep(char **stringp, const char *delim)
-{
-	char *s;
-	const char *spanp;
-	int c, sc;
-	char *tok;
-
-	if ((s = *stringp) == NULL)
-		return (NULL);
-	for (tok = s;;) {
-		c = *s++;
-		spanp = delim;
-		do {
-			if ((sc = *spanp++) == c) {
-				if (c == 0)
-					s = NULL;
-				else
-					s[-1] = 0;
-				*stringp = s;
-				return (tok);
-			}
-		} while (sc != 0);
-	}
-	/* NOTREACHED */
-}
+LEAF(strlen)
+	PTR_ADDU	v1, a0, 1
+1:
+	lb		v0, 0(a0)	# get byte from string
+	PTR_ADDU	a0, a0, 1	# increment pointer
+	bne		v0, zero, 1b	# continue if not end
+	PTR_SUBU 	v0, a0, v1	# compute length - 1 for '\0' char
+	j		ra
+END(strlen)

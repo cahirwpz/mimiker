@@ -32,8 +32,11 @@
  * SUCH DAMAGE.
  */
 
-#include <assert.h>
+#ifdef _KERNEL
+#include <sys/libkern.h>
+#else
 #include <string.h>
+#endif
 
 void *memchr(const void *s, int c, size_t n) {
   if (n != 0) {

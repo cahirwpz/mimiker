@@ -2,10 +2,13 @@
 
 TOPDIR = $(realpath ../../..)
 
-CPPFLAGS += -I../include
+CPPFLAGS += -I$(TOPDIR)/lib/libc/string
 
-SOURCES = $(ARCH)/bcopy.S \
-	  $(ARCH)/memcpy.S \
+SRCDIR = $(TOPDIR)/lib/libc/string
+
+SOURCES = bcopy.S \
+	  memcpy.S \
+	  strlen.S \
 	  bzero.c \
 	  memchr.c \
 	  memcmp.c \
@@ -15,7 +18,6 @@ SOURCES = $(ARCH)/bcopy.S \
 	  strcspn.c \
 	  strlcat.c \
 	  strlcpy.c \
-	  strlen.c \
 	  strncmp.c \
 	  strnlen.c \
 	  strrchr.c \

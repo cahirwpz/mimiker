@@ -17,8 +17,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <string.h>
+#ifdef _KERNEL
+#include <sys/libkern.h>
+#else
 #include <assert.h>
+#include <string.h>
+#endif
 
 /*
  * Appends src to string dst of size siz (unlike strncat, siz is the

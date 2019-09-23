@@ -29,9 +29,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#ifdef _KERNEL
+#include <sys/libkern.h>
+#else
 #include <assert.h>
 #include <string.h>
+#endif
 
 char *strchr(const char *p, int ch) {
   const char cmp = ch;
