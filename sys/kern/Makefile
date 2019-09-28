@@ -49,7 +49,7 @@ SOURCES = \
 	sleepq.c \
 	spinlock.c \
 	startup.c \
-	sysent.c \
+	syscalls.c \
 	sysinit.c \
 	taskqueue.c \
 	turnstile.c \
@@ -65,4 +65,13 @@ SOURCES = \
 	vm_object.c \
 	vm_pager.c
 
+FORMAT-EXCLUDE = sysent.h
+
 include $(TOPDIR)/build/build.kern.mk
+
+SYSCALL_H = $(TOPDIR)/include/sys/syscall.h
+SYSCALLARGS_H = $(TOPDIR)/include/sys/syscallargs.h
+
+sysent.h $(SYSCALL_H) $(SYSCALLARGS_H): syscalls.conf syscalls.master
+	@echo "[MAKESYSCALLS] $(lastword $^) -> $@"
+	$(TOPDIR)/sys/script/makesyscalls.sh $^

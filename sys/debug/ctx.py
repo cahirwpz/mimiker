@@ -29,7 +29,7 @@ class Context():
     def save(self):
         for name in self.names:
             val = gdb.parse_and_eval('$' + name)
-            self.regs[name] = int(val.cast(gdb.lookup_type('reg_t')))
+            self.regs[name] = int(val.cast(gdb.lookup_type('register_t')))
 
     def restore(self):
         for name, val in self.regs.items():

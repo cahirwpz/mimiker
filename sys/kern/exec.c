@@ -17,8 +17,8 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 
-typedef int (*copy_ptr_t)(exec_args_t *args, char **ptr_p);
-typedef int (*copy_str_t)(exec_args_t *args, char *str, size_t *copied_p);
+typedef int (*copy_ptr_t)(exec_args_t *args, char *const *ptr_p);
+typedef int (*copy_str_t)(exec_args_t *args, const char *str, size_t *copied_p);
 
 /* Adds working buffers to exec_args structure. */
 static void exec_args_init(exec_args_t *args) {
@@ -42,38 +42,38 @@ static void exec_args_destroy(exec_args_t *args) {
 }
 
 /* Procedures for copying data coming from kernel space into exec_args buffer */
-static int kern_copy_path(exec_args_t *args, char *path) {
+static int kern_copy_path(exec_args_t *args, const char *path) {
   return (strlcpy(args->path, path, PATH_MAX) >= PATH_MAX) ? -ENAMETOOLONG : 0;
 }
 
-static int kern_copy_ptr(exec_args_t *args, char **src_p) {
+static int kern_copy_ptr(exec_args_t *args, char *const *src_p) {
   *(char **)args->end = *src_p;
   return 0;
 }
 
-static int kern_copy_str(exec_args_t *args, char *str, size_t *copied_p) {
+static int kern_copy_str(exec_args_t *args, const char *str, size_t *copied_p) {
   size_t copied = strlcpy(args->end, str, args->left);
   *copied_p = copied + 1;
   return (copied == args->left) ? -E2BIG : 0; /* no space for NUL ? */
 }
 
 /* Procedures for copying data coming from user space into exec_args buffer */
-static int user_copy_path(exec_args_t *args, char *path) {
+static int user_copy_path(exec_args_t *args, const char *path) {
   return copyinstr(path, args->path, PATH_MAX, NULL);
 }
 
-static int user_copy_ptr(exec_args_t *args, char **user_src_p) {
+static int user_copy_ptr(exec_args_t *args, char *const *user_src_p) {
   return copyin(user_src_p, args->end, sizeof(char *));
 }
 
-static int user_copy_str(exec_args_t *args, char *str, size_t *copied_p) {
+static int user_copy_str(exec_args_t *args, const char *str, size_t *copied_p) {
   int error = copyinstr(str, args->end, args->left, copied_p);
   return (error == -ENAMETOOLONG) ? -E2BIG : error;
 }
 
 /* Copy argv/envv pointers into exec_args buffer */
 static int copy_ptrs(exec_args_t *args, copy_ptr_t copy_ptr, char ***dstv_p,
-                     size_t *len_p, char **srcv) {
+                     size_t *len_p, char *const *srcv) {
   char **dstv = (char **)args->end;
   int error, n = 0;
 
@@ -112,7 +112,8 @@ static int copy_strv(exec_args_t *args, copy_str_t copy_str, char **strv) {
 
 /* Copy argv/envv pointers and strings into exec_args buffer */
 static int copy_args(exec_args_t *args, copy_ptr_t copy_ptr,
-                     copy_str_t copy_str, char *argv[], char *envv[]) {
+                     copy_str_t copy_str, char *const *argv,
+                     char *const *envv) {
   int error;
 
   if ((error = copy_ptrs(args, copy_ptr, &args->argv, &args->argc, argv)) ||
@@ -124,11 +125,13 @@ static int copy_args(exec_args_t *args, copy_ptr_t copy_ptr,
   return 0;
 }
 
-static int user_copy_args(exec_args_t *args, char *argv[], char *envv[]) {
+static int user_copy_args(exec_args_t *args, char *const *argv,
+                          char *const *envv) {
   return copy_args(args, user_copy_ptr, user_copy_str, argv, envv);
 }
 
-static int kern_copy_args(exec_args_t *args, char *argv[], char *envv[]) {
+static int kern_copy_args(exec_args_t *args, char *const *argv,
+                          char *const *envv) {
   return copy_args(args, kern_copy_ptr, kern_copy_str, argv, envv);
 }
 
@@ -372,12 +375,12 @@ fail:
   return result;
 }
 
-int do_execve(char *user_path, char *user_argv[], char *user_envp[]) {
+int do_execve(const char *u_path, char *const *u_argp, char *const *u_envp) {
   int result;
   exec_args_t args;
   exec_args_init(&args);
-  if ((result = user_copy_path(&args, user_path)) ||
-      (result = user_copy_args(&args, user_argv, user_envp)))
+  if ((result = user_copy_path(&args, u_path)) ||
+      (result = user_copy_args(&args, u_argp, u_envp)))
     goto end;
   result = _do_execve(&args);
 end:
@@ -385,7 +388,8 @@ end:
   return result;
 }
 
-__noreturn void run_program(char *path, char *argv[], char *envv[]) {
+__noreturn void run_program(const char *path, char *const *argv,
+                            char *const *envv) {
   thread_t *td = thread_self();
   proc_t *p = proc_self();
 

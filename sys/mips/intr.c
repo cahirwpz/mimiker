@@ -129,32 +129,22 @@ const char *const exceptions[32] = {
   [EXC_MCHECK] = "Machine checkcore",
 };
 
-static void cpu_get_syscall_args(const exc_frame_t *frame,
-                                 syscall_args_t *args) {
-  args->code = frame->v0;
-  args->args[0] = frame->a0;
-  args->args[1] = frame->a1;
-  args->args[2] = frame->a2;
-  args->args[3] = frame->a3;
-}
-
 static void syscall_handler(exc_frame_t *frame) {
-  /* Eventually we will want a platform-independent syscall entry, so
-     argument retrieval is done separately */
-  syscall_args_t args;
-  cpu_get_syscall_args(frame, &args);
+  /* TODO Eventually we should have a platform-independent syscall handler. */
+  register_t code = frame->v0;
+  /* FIXME Since O32 ABI uses only 4 registers for parameter passing
+   * later arguments are passed on stack. That's not handled here!
+   * Until it's fixed system calls like mmap won't fully work. */
+  register_t *args = &frame->a0;
 
-  int retval = 0;
-
-  if (args.code > SYS_MAXSYSCALL) {
-    retval = -ENOSYS;
-    goto finalize;
+  if (code > SYS_MAXSYSCALL) {
+    args[0] = code;
+    code = 0;
   }
 
   /* Call the handler. */
-  retval = sysent[args.code].call(thread_self(), &args);
+  int retval = sysent[code].call(thread_self(), (void *)args);
 
-finalize:
   if (retval != -EJUSTRETURN)
     exc_frame_set_retval(frame, retval);
 }

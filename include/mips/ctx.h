@@ -46,9 +46,9 @@
 #else /* !__ASSEMBLER__ */
 
 typedef struct ctx {
-  reg_t s0, s1, s2, s3, s4, s5, s6, s7;
-  reg_t v0, gp, sp, fp, ra;
-  reg_t pc, sr;
+  register_t s0, s1, s2, s3, s4, s5, s6, s7;
+  register_t v0, gp, sp, fp, ra;
+  register_t pc, sr;
 } ctx_t;
 
 #endif

@@ -1,0 +1,50 @@
+; Mimiker system call name/number "master" file.
+; (See syscalls.conf to see what it is processed into.)
+
+#include <sys/time.h>
+#include <sys/sigtypes.h>
+
+0   { int sys_syscall(int number); }
+1   { void sys_exit(int rval); }
+2   { int sys_fork(void); }
+3   { ssize_t sys_read(int fd, void *buf, size_t nbyte); }
+4   { ssize_t sys_write(int fd, const void *buf, size_t nbyte); }
+5   { int sys_open(const char *path, int flags, ... mode_t mode); }
+6   { int sys_close(int fd); }
+7   { off_t sys_lseek(int fd, off_t offset, int whence); }
+8   { int sys_unlink(const char *path); }
+9   { pid_t sys_getpid(void); }
+10  { int sys_kill(int pid, int signum); }
+11  { int sys_fstat(int fd, struct stat *sb); }
+12  { void *sys_sbrk(intptr_t increment); }
+13  { void *sys_mmap(void *addr, size_t len, int prot, int flags, \
+                     int fd, off_t pos); }
+14  { int sys_mount(const char *type, const char *path); }
+15  { ssize_t sys_getdirentries(int fd, void *buf, size_t len, off_t *basep); }
+16  { int sys_dup(int fd); }
+17  { int sys_dup2(int from, int to); }
+18  { int sys_sigaction(int signum, const struct sigaction *nsa, \
+                        struct sigaction *osa); }
+19  { int sys_sigreturn(struct sigcontext *sigctx_p); }
+20  { pid_t sys_waitpid(pid_t pid, int *wstatus, int options); }
+21  { int sys_mkdir(const char *path, mode_t mode); }
+22  { int sys_rmdir(const char *path); }
+23  { int sys_access(const char *path, int amode); }
+24  { int sys_stat(const char *path, struct stat *sb); }
+25  { int sys_pipe(int *fdp); }
+26  { int sys_clock_gettime(clockid_t clock_id, struct timespec *tsp); }
+27  { int sys_clock_nanosleep(clockid_t clock_id, int flags, \
+                              const struct timespec *rqtp, \
+                              struct timespec *rmtp); }
+28  { int sys_execve(const char *path, char * const *argp, \
+                     char * const *envp); }
+29  { pid_t sys_getppid(void); }
+30  { int sys_setpgid(pid_t pid, pid_t pgid); }
+31  { int sys_getpgid(pid_t pid); }
+32  { int sys_killpg(int pgid, int signum); }
+33  { int sys_munmap(void *addr, size_t len); }
+34  { int sys_mprotect(void *addr, size_t len, int prot); }
+35  { int sys_chdir(const char *path); }
+36  { int sys_getcwd(char *buf, size_t len); }
+
+; vim: ts=4 sw=4 sts=4 et

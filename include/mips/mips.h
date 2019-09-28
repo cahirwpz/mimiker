@@ -6,7 +6,7 @@
 /* MIPS32r2 extract bits */
 #define _mips32r2_ext(x, pos, sz)                                              \
   __extension__({                                                              \
-    unsigned int __x = (x), __v;                                               \
+    register_t __x = (x), __v;                                                 \
     __asm__("ext %0,%z1,%2,%3" : "=d"(__v) : "dJ"(__x), "I"(pos), "I"(sz));    \
     __v;                                                                       \
   })
@@ -26,14 +26,6 @@
 #define MIPS_PHYS_MASK 0x1fffffff
 
 #ifndef __ASSEMBLER__
-
-/*
- * Standard types
- */
-typedef unsigned int reg_t;
-typedef unsigned int reg32_t;
-typedef signed int sreg_t;
-typedef float freg_t;
 
 #define MIPS_KSEG0_TO_PHYS(x) ((uintptr_t)(x)&MIPS_PHYS_MASK)
 #define MIPS_PHYS_TO_KSEG0(x) ((uintptr_t)(x) | (intptr_t)MIPS_KSEG0_START)

@@ -6,7 +6,8 @@ HEADERS = $(wildcard *.h) $(foreach dir, machine sys, $(wildcard $(dir)/*.h))
 INSTALL-FILES = $(addprefix $(SYSROOT)/usr/include/, $(HEADERS))
 
 SOURCES_H = $(foreach dir, . dev mips sys, $(wildcard $(dir)/*.h))
-FORMAT-EXCLUDE = mips/asm.h mips/m32c0.h
+FORMAT-EXCLUDE = mips/asm.h mips/m32c0.h \
+                 sys/syscall.h sys/syscallargs.h
 
 all: build
 

@@ -23,9 +23,9 @@ typedef struct uio {
 
 #define UIO_SINGLE(op, vm_map, offset, buf, buflen)                            \
   (uio_t) {                                                                    \
-    .uio_iov = (iovec_t[1]){(iovec_t){(buf), (buflen)}}, .uio_iovcnt = 1,      \
-    .uio_offset = (offset), .uio_resid = (buflen), .uio_op = (op),             \
-    .uio_vmspace = (vm_map)                                                    \
+    .uio_iov = (iovec_t[1]){(iovec_t){__UNCONST(buf), (buflen)}},              \
+    .uio_iovcnt = 1, .uio_offset = (offset), .uio_resid = (buflen),            \
+    .uio_op = (op), .uio_vmspace = (vm_map)                                    \
   }
 
 #define UIO_SINGLE_KERNEL(op, offset, buf, buflen)                             \

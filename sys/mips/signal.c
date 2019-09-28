@@ -48,14 +48,14 @@ int sig_send(signo_t sig, sigaction_t *sa) {
    * user space, mapped memory, executable). If it is not, an exception will be
    * raised and the user process will get the punishment it deserves (SIGILL,
    * SIGSEGV). */
-  uframe->pc = (reg_t)sa->sa_handler;
+  uframe->pc = (register_t)sa->sa_handler;
   uframe->a0 = sig;
   /* The calling convention is such that the callee may write to the address
    * pointed by sp before extending the stack - so we need to set it 1 word
    * before the stored context! */
-  uframe->sp = (reg_t)((intptr_t *)scp - 1);
+  uframe->sp = (register_t)((intptr_t *)scp - 1);
   /* Also, make sure the restorer runs when the handler exits. */
-  uframe->ra = (reg_t)sa->sa_restorer;
+  uframe->ra = (register_t)sa->sa_restorer;
 
   return 0;
 }
