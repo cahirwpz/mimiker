@@ -63,7 +63,7 @@ vfsconf_t *vfs_get_by_name(const char *name) {
 static int vfs_register(vfsconf_t *vfc) {
   /* Check if this file system type was already registered */
   if (vfs_get_by_name(vfc->vfc_name))
-    return -EEXIST;
+    return EEXIST;
 
   WITH_MTX_LOCK (&vfsconf_list_mtx)
     TAILQ_INSERT_TAIL(&vfsconf_list, vfc, vfc_list);
@@ -91,15 +91,15 @@ static int vfs_register(vfsconf_t *vfc) {
 }
 
 static int vfs_default_root(mount_t *m, vnode_t **v) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vfs_default_statfs(mount_t *m, statfs_t *sb) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vfs_default_vget(mount_t *m, ino_t ino, vnode_t **v) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vfs_default_init(vfsconf_t *vfc) {
@@ -127,9 +127,9 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
 
   /* Start by checking whether this vnode can be used for mounting */
   if (v->v_type != V_DIR)
-    return -ENOTDIR;
+    return ENOTDIR;
   if (is_mountpoint(v))
-    return -EBUSY;
+    return EBUSY;
 
   /* TODO: Mark the vnode is in-progress of mounting? See VI_MOUNT in FreeBSD */
 
@@ -179,11 +179,11 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   int error;
 
   if (path[0] == '\0')
-    return -ENOENT;
+    return ENOENT;
 
   if (strncmp(path, "/", 1) != 0) {
     klog("Relative paths are not supported!");
-    return -ENOENT;
+    return ENOENT;
   }
 
   vnode_t *v = vfs_root_vnode;
@@ -193,7 +193,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   /* Copy path into a local buffer, so that we may process it. */
   size_t n = strlen(path);
   if (n >= PATH_MAX)
-    return -ENAMETOOLONG;
+    return ENAMETOOLONG;
   char *pathcopy = kmalloc(M_TEMP, PATH_MAX, 0);
   strlcpy(pathcopy, path, PATH_MAX);
   char *pathbuf = pathcopy;

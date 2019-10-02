@@ -5,9 +5,9 @@
 #include <sys/syscall.h>
 #include <sys/syscallargs.h>
 
-typedef struct thread thread_t;
+typedef struct proc proc_t;
 
-typedef int syscall_t(thread_t *, void *);
+typedef int syscall_t(proc_t *, void *, register_t *);
 
 struct sysent {
   syscall_t *call;

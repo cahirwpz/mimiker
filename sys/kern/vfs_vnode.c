@@ -44,31 +44,31 @@ void vnode_drop(vnode_t *v) {
 }
 
 static int vnode_lookup_nop(vnode_t *dv, const char *name, vnode_t **vp) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vnode_readdir_nop(vnode_t *dv, uio_t *uio, void *state) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vnode_open_nop(vnode_t *v, int mode, file_t *fp) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vnode_close_nop(vnode_t *v, file_t *fp) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vnode_read_nop(vnode_t *v, uio_t *uio) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vnode_write_nop(vnode_t *v, uio_t *uio) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vnode_seek_nop(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
@@ -81,24 +81,24 @@ static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
 }
 
 int vnode_create_nop(vnode_t *dv, const char *name, vattr_t *va, vnode_t **vp) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vnode_remove_nop(vnode_t *dv, const char *name) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vnode_mkdir_nop(vnode_t *v, const char *name, vattr_t *va,
                            vnode_t **vp) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vnode_rmdir_nop(vnode_t *v, const char *name) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 static int vnode_access_nop(vnode_t *v, accmode_t mode) {
-  return -ENOTSUP;
+  return ENOTSUP;
 }
 
 #define NOP_IF_NULL(vops, name)                                                \
@@ -151,8 +151,7 @@ static int default_vnstat(file_t *f, thread_t *td, stat_t *sb) {
   vnode_t *v = f->f_vnode;
   vattr_t va;
   int error;
-  error = VOP_GETATTR(v, &va);
-  if (error < 0)
+  if ((error = VOP_GETATTR(v, &va)))
     return error;
   va_convert(&va, sb);
   return 0;
@@ -164,12 +163,12 @@ static int default_vnseek(file_t *f, thread_t *td, off_t offset, int whence) {
 
   vattr_t va;
   if ((error = VOP_GETATTR(v, &va)))
-    return -EINVAL;
+    return EINVAL;
 
   off_t size = va.va_size;
 
   if (size == VNOVAL)
-    return -ESPIPE;
+    return ESPIPE;
 
   if (whence == SEEK_CUR) {
     /* TODO: offset overflow */
@@ -178,21 +177,21 @@ static int default_vnseek(file_t *f, thread_t *td, off_t offset, int whence) {
     /* TODO: offset overflow */
     offset += size;
   } else if (whence != SEEK_SET) {
-    return -EINVAL;
+    return EINVAL;
   }
 
   if (offset < 0)
-    return -EINVAL;
+    return EINVAL;
 
   /* TODO offset can go past the end of file when it's open for writing */
   if (offset > size)
-    return -EINVAL;
+    return EINVAL;
 
   if ((error = VOP_SEEK(v, f->f_offset, offset, f->f_data)))
     return error;
 
   f->f_offset = offset;
-  return offset;
+  return 0;
 }
 
 static fileops_t default_vnode_fileops = {
@@ -219,7 +218,7 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
       fp->f_flags = FF_READ | FF_WRITE;
       break;
     default:
-      return -EINVAL;
+      return EINVAL;
   }
   return 0;
 }
@@ -245,5 +244,5 @@ int vnode_access_generic(vnode_t *v, accmode_t acc) {
   if (acc & VREAD)
     mode |= S_IRUSR;
 
-  return ((va.va_mode & mode) == mode || acc == 0) ? 0 : -EACCES;
+  return ((va.va_mode & mode) == mode || acc == 0) ? 0 : EACCES;
 }

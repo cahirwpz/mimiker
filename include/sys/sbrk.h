@@ -8,6 +8,6 @@ typedef struct proc proc_t;
 #define SBRK_START 0x08000000U
 
 void sbrk_attach(proc_t *p);
-vaddr_t sbrk_resize(proc_t *p, intptr_t increment);
+int sbrk_resize(proc_t *p, intptr_t increment, vaddr_t *newbrkp);
 
 #endif /* !_SYS_SBRK_H_ */

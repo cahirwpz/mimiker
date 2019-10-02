@@ -7,7 +7,7 @@
 #include <sys/proc.h>
 #include <sys/sbrk.h>
 
-int do_fork(void) {
+int do_fork(pid_t *cldpidp) {
   thread_t *td = thread_self();
   proc_t *parent = td->td_proc;
 
@@ -23,7 +23,7 @@ int do_fork(void) {
 
   /* Copy user context.. */
   exc_frame_copy(newtd->td_uframe, td->td_uframe);
-  exc_frame_set_retval(newtd->td_uframe, 0);
+  exc_frame_set_retval(newtd->td_uframe, 0, 0);
 
   /* New thread does not need the exception frame just yet. */
   newtd->td_kframe = NULL;
@@ -63,5 +63,6 @@ int do_fork(void) {
 
   sched_add(newtd);
 
-  return child->p_pid;
+  *cldpidp = child->p_pid;
+  return 0;
 }

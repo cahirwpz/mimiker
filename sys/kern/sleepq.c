@@ -358,5 +358,5 @@ int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
   }
   if (timeout > 0)
     callout_stop(&co);
-  return -status; /* FIXME errno number in kernel are still negative */
+  return status;
 }

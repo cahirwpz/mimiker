@@ -110,10 +110,10 @@ static int stdvga_set_videomode(vga_device_t *vga, unsigned xres, unsigned yres,
      fb_buffer, the limit is related to the size of memory pool used by the
      graphics driver. */
   if (xres > 640 || yres > 480)
-    return -EINVAL;
+    return EINVAL;
 
   if (bpp != 8 && bpp != 16 && bpp != 24)
-    return -EINVAL;
+    return EINVAL;
 
   stdvga->width = xres;
   stdvga->height = yres;

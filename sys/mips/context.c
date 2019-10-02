@@ -39,13 +39,16 @@ void exc_frame_copy(exc_frame_t *to, exc_frame_t *from) {
   memcpy(to, from, sizeof(exc_frame_t));
 }
 
-void exc_frame_setup_call(exc_frame_t *frame, void *ra, long arg0, long arg1) {
-  frame->ra = (register_t)ra;
-  frame->a0 = (register_t)arg0;
-  frame->a1 = (register_t)arg1;
+void exc_frame_setup_call(exc_frame_t *frame, register_t retaddr,
+                          register_t arg0, register_t arg1) {
+  frame->ra = retaddr;
+  frame->a0 = arg0;
+  frame->a1 = arg1;
 }
 
-void exc_frame_set_retval(exc_frame_t *frame, long value) {
+void exc_frame_set_retval(exc_frame_t *frame, register_t value,
+                          register_t error) {
   frame->v0 = (register_t)value;
+  frame->v1 = (register_t)error;
   frame->pc += 4;
 }

@@ -18,7 +18,7 @@
  *
  * Copy a NIL-terminated string, at most maxlen characters long.  Return the
  * number of characters copied (including the NIL) in *lencopied.  If the
- * string is too long, return -ENAMETOOLONG; else return 0.
+ * string is too long, return ENAMETOOLONG; else return 0.
  */
 LEAF(copystr)
 	move		t0, a2
@@ -32,13 +32,13 @@ LEAF(copystr)
 	bne		a2, zero, 1b	        # less than maxlen
 	PTR_ADDU	a1, a1, 1
 4:
-	li		v0, -ENAMETOOLONG       # run out of space
+	li		v0, ENAMETOOLONG        # run out of space
 2:
 	beq		a3, zero, 3f	        # return num. of copied bytes
 	PTR_SUBU	a2, t0, a2	        # if the 4th arg was non-NULL
 	PTR_S		a2, 0(a3)
 3:
-	j		ra		        # v0 is 0 or -ENAMETOOLONG
+	j		ra		        # v0 is 0 or ENAMETOOLONG
 	nop
 END(copystr)
 
@@ -124,7 +124,7 @@ LEAF(copyerr)
 	REG_L	ra, CALLFRAME_RA(sp)
 	PTR_ADDU sp, sp, CALLFRAME_SIZ
 	j	ra
-	li	v0, -EFAULT		# return error
+	li	v0, EFAULT		# return error
 END(copyerr)
 
 # vim: sw=8 ts=8 et

@@ -98,7 +98,7 @@ int proc_sendsig(pid_t pid, signo_t sig);
 
 /*! \brief Gets process group ID of the process specified by pid.
  * If pid equals zero then use process group ID of the calling process. */
-pgid_t proc_getpgid(pid_t pid);
+int proc_getpgid(pid_t pid, pgid_t *pgidp);
 
 /*! \brief Called by a processes that wishes to terminate its life.
  * \note Exit status shoud be created using MAKE_STATUS macros from wait.h */
@@ -108,6 +108,6 @@ __noreturn void proc_exit(int exitstatus);
  * If such process group does not exist then it creates one. */
 int pgrp_enter(proc_t *p, pgid_t pgid);
 
-int do_fork(void);
+int do_fork(pid_t *cldpidp);
 
 #endif /* !_SYS_PROC_H_ */

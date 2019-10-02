@@ -35,7 +35,7 @@ static void waiter_routine(void *_arg) {
   systime_t after_sleep = getsystime();
   systime_t diff = after_sleep - before_sleep;
 
-  if (status == -ETIMEDOUT) {
+  if (status == ETIMEDOUT) {
     timed_received++;
     assert(diff >= SLEEP_TICKS);
   } else if (status == 0) {

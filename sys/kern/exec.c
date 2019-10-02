@@ -43,7 +43,7 @@ static void exec_args_destroy(exec_args_t *args) {
 
 /* Procedures for copying data coming from kernel space into exec_args buffer */
 static int kern_copy_path(exec_args_t *args, const char *path) {
-  return (strlcpy(args->path, path, PATH_MAX) >= PATH_MAX) ? -ENAMETOOLONG : 0;
+  return (strlcpy(args->path, path, PATH_MAX) >= PATH_MAX) ? ENAMETOOLONG : 0;
 }
 
 static int kern_copy_ptr(exec_args_t *args, char *const *src_p) {
@@ -54,7 +54,7 @@ static int kern_copy_ptr(exec_args_t *args, char *const *src_p) {
 static int kern_copy_str(exec_args_t *args, const char *str, size_t *copied_p) {
   size_t copied = strlcpy(args->end, str, args->left);
   *copied_p = copied + 1;
-  return (copied == args->left) ? -E2BIG : 0; /* no space for NUL ? */
+  return (copied == args->left) ? E2BIG : 0; /* no space for NUL ? */
 }
 
 /* Procedures for copying data coming from user space into exec_args buffer */
@@ -68,7 +68,7 @@ static int user_copy_ptr(exec_args_t *args, char *const *user_src_p) {
 
 static int user_copy_str(exec_args_t *args, const char *str, size_t *copied_p) {
   int error = copyinstr(str, args->end, args->left, copied_p);
-  return (error == -ENAMETOOLONG) ? -E2BIG : error;
+  return (error == ENAMETOOLONG) ? E2BIG : error;
 }
 
 /* Copy argv/envv pointers into exec_args buffer */
@@ -80,7 +80,7 @@ static int copy_ptrs(exec_args_t *args, copy_ptr_t copy_ptr, char ***dstv_p,
   /* Copy pointers one by one. */
   do {
     if (args->left < sizeof(char *))
-      return -E2BIG;
+      return E2BIG;
     if ((error = copy_ptr(args, srcv + n)))
       return error;
     args->end += sizeof(char *);
@@ -101,7 +101,7 @@ static int copy_strv(exec_args_t *args, copy_str_t copy_str, char **strv) {
     if ((error = copy_str(args, strv[i], &copied)))
       return error;
     if (copied >= args->left)
-      return -E2BIG;
+      return E2BIG;
     strv[i] = args->end;
     args->end += copied;
     args->left -= copied;
@@ -236,7 +236,7 @@ static int open_executable(const char *path, vnode_t **vn_p) {
 
   /* It must be a regular executable file with non-zero size. */
   if (vn->v_type != V_REG)
-    return -EACCES;
+    return EACCES;
   if ((error = VOP_ACCESS(vn, VEXEC)))
     return error;
 
@@ -318,7 +318,7 @@ static int _do_execve(exec_args_t *args) {
   do {
     char *prog = args->interp ? args->interp : args->path;
 
-    if ((result = open_executable(prog, &vn)) < 0) {
+    if ((result = open_executable(prog, &vn))) {
       klog("No file found: '%s'!", prog);
       return result;
     }
@@ -329,7 +329,7 @@ static int _do_execve(exec_args_t *args) {
       break;
 
     /* If shebang signature is detected use interpreter to load the file. */
-    if ((result = exec_shebang_inspect(vn)) < 0)
+    if ((result = exec_shebang_inspect(vn)))
       return result;
 
     if (result) {
@@ -341,7 +341,7 @@ static int _do_execve(exec_args_t *args) {
   } while (use_interpreter);
 
   Elf32_Ehdr eh;
-  if ((result = exec_elf_inspect(vn, &eh)) < 0)
+  if ((result = exec_elf_inspect(vn, &eh)))
     return result;
 
   /* We can not destroy the current vm_map, because exec can still fail.
@@ -367,7 +367,7 @@ static int _do_execve(exec_args_t *args) {
   vm_map_dump(p->p_uspace);
 
   klog("Enter userspace with: pc=%p, sp=%p", eh.e_entry, stack_top);
-  return -EJUSTRETURN;
+  return EJUSTRETURN;
 
 fail:
   restore_vmspace(p, &saved);
@@ -390,7 +390,6 @@ end:
 
 __noreturn void run_program(const char *path, char *const *argv,
                             char *const *envv) {
-  thread_t *td = thread_self();
   proc_t *p = proc_self();
 
   pgrp_enter(p, 1);
@@ -409,9 +408,9 @@ __noreturn void run_program(const char *path, char *const *argv,
 
   /* ... and initialize file descriptors required by the standard library. */
   int _stdin, _stdout, _stderr;
-  do_open(td, "/dev/uart", O_RDONLY, 0, &_stdin);
-  do_open(td, "/dev/uart", O_WRONLY, 0, &_stdout);
-  do_open(td, "/dev/uart", O_WRONLY, 0, &_stderr);
+  do_open(p, "/dev/uart", O_RDONLY, 0, &_stdin);
+  do_open(p, "/dev/uart", O_WRONLY, 0, &_stdout);
+  do_open(p, "/dev/uart", O_WRONLY, 0, &_stderr);
 
   assert(_stdin == 0);
   assert(_stdout == 1);
@@ -421,7 +420,7 @@ __noreturn void run_program(const char *path, char *const *argv,
   exec_args_init(&args);
 
   if (kern_copy_path(&args, path) || kern_copy_args(&args, argv, envv) ||
-      _do_execve(&args) != -EJUSTRETURN)
+      _do_execve(&args) != EJUSTRETURN)
     panic("Failed to start '%s' program.", path);
 
   exec_args_destroy(&args);

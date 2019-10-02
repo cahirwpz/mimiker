@@ -40,18 +40,18 @@ AENT(setcontext)
 
 LEAF(no_syscall)
         b       set_errno
-        li      v0, -ENOSYS
+        li      v0, -1
+        li      v1, ENOSYS
 END(no_syscall)
 
 SNESTED(set_errno, CALLFRAME_SIZ, ra)
         PTR_SUBU sp, sp, CALLFRAME_SIZ
         .mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
         sw      ra, CALLFRAME_RA(sp)
-        sw      v0, 16(sp)
+        sw      v1, 16(sp)
         jal     __errno
         nop
         lw      v1, 16(sp)
-        negu    v1, v1
         sw      v1, 0(v0)
         li      v0, -1
         lw      ra, CALLFRAME_RA(sp)
@@ -63,7 +63,7 @@ END(set_errno)
 #define DO_SYSCALL(num)         \
         li      v0, num;        \
         syscall;                \
-        bltz    v0, set_errno;  \
+        bnez    v1, set_errno;  \
         nop;                    \
         jr      ra;             \
         nop;

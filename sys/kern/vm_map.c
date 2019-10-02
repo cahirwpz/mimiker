@@ -168,7 +168,7 @@ static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
   if (start < map->pmap->start)
     start = map->pmap->start;
   if (start + length > map->pmap->end)
-    return -ENOMEM;
+    return ENOMEM;
 
   if (after_p)
     *after_p = NULL;
@@ -202,7 +202,7 @@ static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
   }
 
   /* Failed to find free space. */
-  return -ENOMEM;
+  return ENOMEM;
 
 found:
   *start_p = start;
@@ -223,7 +223,7 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
   if (error)
     return error;
   if ((flags & VM_FIXED) && (start != seg->start))
-    return -ENOMEM;
+    return ENOMEM;
   seg->start = start;
   seg->end = start + length;
   vm_map_insert_after(map, after, seg);
@@ -235,18 +235,18 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
                          vm_segment_t **seg_p) {
   if (!(flags & VM_ANON)) {
     klog("Only anonymous memory mappings are supported!");
-    return -ENOTSUP;
+    return ENOTSUP;
   }
 
   if (!is_aligned(addr, PAGESIZE))
-    return -EINVAL;
+    return EINVAL;
 
   if (length == 0)
-    return -EINVAL;
+    return EINVAL;
 
   if (addr != 0 &&
       (!vm_map_in_range(map, addr) || !vm_map_in_range(map, addr + length)))
-    return -EINVAL;
+    return EINVAL;
 
   /* Create object with a pager that supplies cleared pages on page fault. */
   vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
@@ -255,7 +255,7 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
   /* Given the hint try to insert the segment at given position or after it. */
   if (vm_map_insert(map, seg, flags)) {
     vm_segment_free(seg);
-    return -ENOMEM;
+    return ENOMEM;
   }
 
   *seg_p = seg;
@@ -272,7 +272,7 @@ int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
     vm_segment_t *next = TAILQ_NEXT(seg, link);
     vaddr_t gap_end = next ? next->start : map->pmap->end;
     if (new_end > gap_end)
-      return -ENOMEM;
+      return ENOMEM;
   } else {
     /* Shrinking entry */
     off_t offset = new_end - seg->start;
@@ -331,22 +331,22 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   if (!seg) {
     klog("Tried to access unmapped memory region: 0x%08lx!", fault_addr);
-    return -EFAULT;
+    return EFAULT;
   }
 
   if (seg->prot == VM_PROT_NONE) {
     klog("Cannot access to address: 0x%08lx", fault_addr);
-    return -EACCES;
+    return EACCES;
   }
 
   if (!(seg->prot & VM_PROT_WRITE) && (fault_type == VM_PROT_WRITE)) {
     klog("Cannot write to address: 0x%08lx", fault_addr);
-    return -EACCES;
+    return EACCES;
   }
 
   if (!(seg->prot & VM_PROT_READ) && (fault_type == VM_PROT_READ)) {
     klog("Cannot read from address: 0x%08lx", fault_addr);
-    return -EACCES;
+    return EACCES;
   }
 
   assert(seg->start <= fault_addr && fault_addr < seg->end);
@@ -363,7 +363,7 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
     frame = obj->pager->pgr_fault(obj, offset);
 
   if (frame == NULL)
-    return -EFAULT;
+    return EFAULT;
 
   pmap_enter(map->pmap, fault_page, frame, seg->prot);
 

@@ -40,23 +40,23 @@ void file_drop(file_t *f) {
 
 /* Operations on invalid file descriptors */
 static int badfo_read(file_t *f, struct thread *td, uio_t *uio) {
-  return -EBADF;
+  return EBADF;
 }
 
 static int badfo_write(file_t *f, struct thread *td, uio_t *uio) {
-  return -EBADF;
+  return EBADF;
 }
 
 static int badfo_close(file_t *f, struct thread *td) {
-  return -EBADF;
+  return EBADF;
 }
 
 static int badfo_stat(file_t *f, struct thread *td, stat_t *sb) {
-  return -EBADF;
+  return EBADF;
 }
 
 static int badfo_seek(file_t *f, struct thread *td, off_t offset, int whence) {
-  return -EBADF;
+  return EBADF;
 }
 
 fileops_t badfileops = {.fo_read = badfo_read,

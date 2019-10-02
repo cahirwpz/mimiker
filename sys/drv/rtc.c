@@ -80,7 +80,7 @@ static int rtc_time_read(vnode_t *v, uio_t *uio) {
     snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d", t.tm_year,
              t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
   if (count >= RTC_ASCTIME_SIZE)
-    return -EINVAL;
+    return EINVAL;
   return uiomove_frombuf(rtc->asctime, count, uio);
 }
 

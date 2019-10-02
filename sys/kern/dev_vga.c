@@ -36,29 +36,21 @@ static int videomode_write(vnode_t *v, uio_t *uio) {
   /* Not specifying BPP leaves it at current value. */
   int matches = sscanf(buffer, "%d %d %d", &xres, &yres, &bpp);
   if (matches < 2)
-    return -EINVAL;
-  error = vga_set_videomode(vga, xres, yres, bpp);
-  if (error)
-    return error;
-  return 0;
+    return EINVAL;
+  return vga_set_videomode(vga, xres, yres, bpp);
 }
 
 static int videomode_read(vnode_t *v, uio_t *uio) {
   vga_device_t *vga = (vga_device_t *)v->v_data;
   unsigned xres, yres, bpp;
-  int error = vga_get_videomode(vga, &xres, &yres, &bpp);
-  if (error)
+  int error;
+  if ((error = vga_get_videomode(vga, &xres, &yres, &bpp)))
     return error;
   char buffer[RES_CTRL_BUFFER_SIZE];
-  error = snprintf(buffer, RES_CTRL_BUFFER_SIZE, "%d %d %d", xres, yres, bpp);
-  if (error < 0)
-    return error;
+  (void)snprintf(buffer, RES_CTRL_BUFFER_SIZE, "%d %d %d", xres, yres, bpp);
   if (error >= RES_CTRL_BUFFER_SIZE)
-    return -EINVAL;
-  error = uiomove_frombuf(buffer, RES_CTRL_BUFFER_SIZE, uio);
-  if (error)
-    return error;
-  return 0;
+    return EINVAL;
+  return uiomove_frombuf(buffer, RES_CTRL_BUFFER_SIZE, uio);
 }
 
 static vnodeops_t videomode_vnodeops = {.v_open = vnode_open_generic,

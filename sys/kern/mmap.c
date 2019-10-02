@@ -19,9 +19,9 @@ int do_mmap(vaddr_t *addr_p, size_t length, vm_prot_t prot, vm_flags_t flags) {
   *addr_p = (vaddr_t)MAP_FAILED;
   length = roundup(length, PAGESIZE);
 
+  int error;
   vm_segment_t *seg;
-  int error = vm_map_alloc_segment(vmap, addr, length, prot, flags, &seg);
-  if (error < 0)
+  if ((error = vm_map_alloc_segment(vmap, addr, length, prot, flags, &seg)))
     return error;
 
   vaddr_t start, end;
@@ -42,13 +42,13 @@ int do_munmap(vaddr_t addr, size_t length) {
   WITH_VM_MAP_LOCK (uspace) {
     vm_segment_t *seg = vm_map_find_segment(uspace, addr);
     if (!seg)
-      return -EINVAL;
+      return EINVAL;
 
     /* TODO We support unmaping entire segments only! */
     vaddr_t start, end;
     vm_segment_range(seg, &start, &end);
     if ((addr != start) || (addr + length != end))
-      return -ENOTSUP;
+      return ENOTSUP;
 
     vm_segment_destroy(uspace, seg);
   }

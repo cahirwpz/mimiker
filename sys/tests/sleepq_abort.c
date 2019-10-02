@@ -37,7 +37,7 @@ static volatile int interrupted;
 static void waiter_routine(void *_arg) {
   int rsn = sleepq_wait_intr(&some_val, __caller(0));
 
-  if (rsn == -EINTR)
+  if (rsn == EINTR)
     interrupted++;
   else if (rsn == 0)
     wakened_gracefully++;

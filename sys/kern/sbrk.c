@@ -31,7 +31,7 @@ void sbrk_attach(proc_t *p) {
   p->p_sbrk_end = addr;
 }
 
-vaddr_t sbrk_resize(proc_t *p, intptr_t increment) {
+int sbrk_resize(proc_t *p, intptr_t increment, vaddr_t *newbrkp) {
   assert(proc_self() == p);
   assert(p->p_uspace && p->p_sbrk);
 
@@ -41,15 +41,17 @@ vaddr_t sbrk_resize(proc_t *p, intptr_t increment) {
   vm_segment_range(p->p_sbrk, &sbrk_start, &sbrk_end);
 
   if (new_end < sbrk_start)
-    return -EINVAL;
+    return EINVAL;
 
   /* require sbrk_segment to contain at least one page */
   vaddr_t new_end_aligned =
     max(align(new_end, PAGESIZE), sbrk_start + PAGESIZE);
 
-  if (vm_segment_resize(p->p_uspace, p->p_sbrk, new_end_aligned) != 0)
-    return -ENOMEM;
+  if (vm_segment_resize(p->p_uspace, p->p_sbrk, new_end_aligned))
+    return ENOMEM;
 
   p->p_sbrk_end = new_end;
-  return last_end;
+
+  *newbrkp = last_end;
+  return 0;
 }

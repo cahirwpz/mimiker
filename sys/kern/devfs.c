@@ -59,7 +59,7 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
     parent = &devfs.root;
 
   if (parent->dn_vnode->v_type != V_DIR)
-    return -ENOTDIR;
+    return ENOTDIR;
 
   devfs_node_t *dn = pool_alloc(P_DEVFS, PF_ZERO);
   dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
@@ -68,7 +68,7 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
   WITH_MTX_LOCK (&devfs.lock) {
     dn->dn_ino = ++devfs.next_ino;
     if (devfs_find_child(parent, name))
-      return -EEXIST;
+      return EEXIST;
     TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
   }
 
@@ -83,7 +83,7 @@ int devfs_makedir(devfs_node_t *parent, const char *name,
     parent = &devfs.root;
 
   if (parent->dn_vnode->v_type != V_DIR)
-    return -ENOTDIR;
+    return ENOTDIR;
 
   devfs_node_t *dn = pool_alloc(P_DEVFS, PF_ZERO);
   dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
@@ -94,7 +94,7 @@ int devfs_makedir(devfs_node_t *parent, const char *name,
   WITH_MTX_LOCK (&devfs.lock) {
     dn->dn_ino = ++devfs.next_ino;
     if (devfs_find_child(parent, name))
-      return -EEXIST;
+      return EEXIST;
     TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
   }
 
@@ -116,9 +116,9 @@ static int devfs_vop_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
   devfs_node_t *dn;
 
   if (dv->v_type != V_DIR)
-    return -ENOTDIR;
+    return ENOTDIR;
   if (!(dn = devfs_find_child(dv->v_data, name)))
-    return -ENOENT;
+    return ENOENT;
   *vp = dn->dn_vnode;
   vnode_hold(*vp);
   return 0;

@@ -15,7 +15,7 @@ static int test_vfs(void) {
   int error;
 
   error = vfs_lookup("/dev/SPAM", &v);
-  assert(error == -ENOENT);
+  assert(error == ENOENT);
   error = vfs_lookup("/", &v);
   assert(error == 0);
   assert(fsname_of(v, "initrd"));

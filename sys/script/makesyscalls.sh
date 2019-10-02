@@ -120,7 +120,7 @@ BEGIN {
 	sysent = \"$sysent\"
 	infile = \"$2\"
 
-  syscall = 0
+	syscall = 0
 
 	"'
 
@@ -288,18 +288,27 @@ function parseline() {
 		varargc = argc;
 }
 function putent() {
+	# output syscall declaration for switch table
+	if (argc != 0)
+		printf("static int %s(proc_t *, %s_args_t *, register_t *);\n",
+		       funcname, funcalias) > sysdcl
+	else
+		printf("static int %s(proc_t *, void *, register_t *);\n",
+		       funcname) > sysdcl
+
 	# output syscall switch table entry
-	printf("  [SYS_%s] = { %s },\n", funcalias, funcname) > sysent
+	printf("  [SYS_%s] = { (syscall_t *)%s },\n",
+	       funcalias, funcname) > sysent
 
 	# output syscall number of header
 	printf("#define SYS_%s %d\n", funcalias, syscall) > sysnumhdr
 
 	# output syscall argument structure, if it has arguments
 	if (argc != 0) {
-		printf("\ntypedef struct %s_args {\n", funcname) > sysarghdr
+		printf("\ntypedef struct {\n") > sysarghdr
 		for (i = 1; i <= argc; i++)
 			printf("  %s %s;\n", argtype[i], argname[i]) > sysarghdr
-		printf("} %s_args_t;\n", funcname) > sysarghdr
+		printf("} %s_args_t;\n", funcalias) > sysarghdr
 	}
 }
 {
@@ -310,6 +319,7 @@ function putent() {
 }
 END {
 	printf("};\n\n") > sysent
+	printf("\n") > sysdcl
 	printf("#define SYS_%s %d\n", "MAXSYSCALL", syscall) > sysnumhdr
 } '
 

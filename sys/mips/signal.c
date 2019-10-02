@@ -82,13 +82,13 @@ int sig_return(void) {
   if (ksc.magic != SIG_CTX_MAGIC) {
     klog("User context at %p corrupted!", scp);
     sig_trap(uframe, SIGILL);
-    return -EINVAL;
+    return EINVAL;
   }
 
   /* Restore user context. */
   exc_frame_copy(uframe, &ksc.frame);
 
-  return -EJUSTRETURN;
+  return EJUSTRETURN;
 }
 
 void sig_trap(exc_frame_t *frame, signo_t sig) {

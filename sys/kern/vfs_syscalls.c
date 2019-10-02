@@ -17,19 +17,17 @@
 #include <sys/unistd.h>
 #include <sys/stat.h>
 
-int do_open(thread_t *td, char *pathname, int flags, mode_t mode, int *fd) {
+int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
+  int error;
+
   /* Allocate a file structure, but do not install descriptor yet. */
   file_t *f = file_alloc();
   /* Try opening file. Fill the file structure. */
-  int error = vfs_open(f, pathname, flags, mode);
-  if (error)
+  if ((error = vfs_open(f, pathname, flags, mode)))
     goto fail;
   /* Now install the file in descriptor table. */
-  assert(td->td_proc);
-  error = fdtab_install_file(td->td_proc->p_fdtable, f, fd);
-  if (error)
+  if ((error = fdtab_install_file(p->p_fdtable, f, fd)))
     goto fail;
-
   return 0;
 
 fail:
@@ -37,61 +35,61 @@ fail:
   return error;
 }
 
-int do_close(thread_t *td, int fd) {
-  assert(td->td_proc);
-  return fdtab_close_fd(td->td_proc->p_fdtable, fd);
+int do_close(proc_t *p, int fd) {
+  return fdtab_close_fd(p->p_fdtable, fd);
 }
 
-int do_read(thread_t *td, int fd, uio_t *uio) {
+int do_read(proc_t *p, int fd, uio_t *uio) {
   file_t *f;
-  assert(td->td_proc);
-  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_READ, &f);
-  if (res)
-    return res;
+  int error;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+    return error;
   uio->uio_offset = f->f_offset;
-  res = FOP_READ(f, td, uio);
+  error = FOP_READ(f, thread_self(), uio);
   f->f_offset = uio->uio_offset;
   file_drop(f);
-  return res;
+  return error;
 }
 
-int do_write(thread_t *td, int fd, uio_t *uio) {
+int do_write(proc_t *p, int fd, uio_t *uio) {
   file_t *f;
-  assert(td->td_proc);
-  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_WRITE, &f);
-  if (res)
-    return res;
+  int error;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
+    return error;
   uio->uio_offset = f->f_offset;
-  res = FOP_WRITE(f, td, uio);
+  error = FOP_WRITE(f, thread_self(), uio);
   f->f_offset = uio->uio_offset;
   file_drop(f);
-  return res;
+  return error;
 }
 
-int do_lseek(thread_t *td, int fd, off_t offset, int whence) {
-  assert(td->td_proc);
+int do_lseek(proc_t *p, int fd, off_t offset, int whence, off_t *newoffp) {
   /* TODO: RW file flag! For now we just file_get_read */
   file_t *f;
-  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, 0, &f);
-  if (res)
-    return res;
-  res = FOP_SEEK(f, td, offset, whence);
+  int error;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
+    return error;
+  error = FOP_SEEK(f, thread_self(), offset, whence);
+  *newoffp = f->f_offset;
   file_drop(f);
-  return res;
+  return error;
 }
 
-int do_fstat(thread_t *td, int fd, stat_t *sb) {
+int do_fstat(proc_t *p, int fd, stat_t *sb) {
   file_t *f;
-  assert(td->td_proc);
-  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_READ, &f);
-  if (res)
-    return res;
-  res = FOP_STAT(f, td, sb);
+  int error;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+    return error;
+  error = FOP_STAT(f, thread_self(), sb);
   file_drop(f);
-  return res;
+  return error;
 }
 
-int do_stat(thread_t *td, char *path, stat_t *sb) {
+int do_stat(proc_t *p, char *path, stat_t *sb) {
   vnode_t *v;
   vattr_t va;
   int error;
@@ -108,74 +106,78 @@ fail:
   return error;
 }
 
-int do_dup(thread_t *td, int old) {
+int do_dup(proc_t *p, int oldfd, int *newfdp) {
   file_t *f;
-  assert(td->td_proc);
-  int res = fdtab_get_file(td->td_proc->p_fdtable, old, 0, &f);
-  if (res)
-    return res;
-  int new;
-  res = fdtab_install_file(td->td_proc->p_fdtable, f, &new);
-  file_drop(f);
-  return res ? res : new;
-}
+  int error;
 
-int do_dup2(thread_t *td, int old, int new) {
-  file_t *f;
-  assert(td->td_proc);
-  if (old == new)
-    return 0;
-  int res = fdtab_get_file(td->td_proc->p_fdtable, old, 0, &f);
-  if (res)
-    return res;
-  res = fdtab_install_file_at(td->td_proc->p_fdtable, f, new);
-  file_drop(f);
-  return res ? res : new;
-}
-
-int do_mount(thread_t *td, const char *fs, const char *path) {
-  vfsconf_t *vfs = vfs_get_by_name(fs);
-  if (vfs == NULL)
-    return -EINVAL;
-  vnode_t *v;
-  int error = vfs_lookup(path, &v);
-  if (error)
+  if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
     return error;
+  if ((error = fdtab_install_file(p->p_fdtable, f, newfdp)))
+    return error;
+  file_drop(f);
+  return error;
+}
+
+int do_dup2(proc_t *p, int oldfd, int newfd) {
+  file_t *f;
+  int error;
+
+  if (oldfd == newfd)
+    return 0;
+
+  if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
+    return error;
+  error = fdtab_install_file_at(p->p_fdtable, f, newfd);
+  file_drop(f);
+  return 0;
+}
+
+int do_mount(const char *fs, const char *path) {
+  vfsconf_t *vfs;
+  vnode_t *v;
+  int error;
+
+  if (!(vfs = vfs_get_by_name(fs)))
+    return EINVAL;
+  if ((error = vfs_lookup(path, &v)))
+    return error;
+
   return vfs_domount(vfs, v);
 }
 
-int do_getdirentries(thread_t *td, int fd, uio_t *uio, off_t *basep) {
+int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
   file_t *f;
-  int res = fdtab_get_file(td->td_proc->p_fdtable, fd, FF_READ, &f);
-  if (res)
-    return res;
-  vnode_t *vn = f->f_vnode;
+  int error;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+    return error;
+
   uio->uio_offset = f->f_offset;
-  res = VOP_READDIR(vn, uio, f->f_data);
+  error = VOP_READDIR(f->f_vnode, uio, f->f_data);
   f->f_offset = uio->uio_offset;
   *basep = f->f_offset;
   file_drop(f);
-  return res;
+  return error;
 }
 
-int do_unlink(thread_t *td, char *path) {
-  return -ENOTSUP;
+int do_unlink(proc_t *p, char *path) {
+  return ENOTSUP;
 }
 
-int do_mkdir(thread_t *td, char *path, mode_t mode) {
-  return -ENOTSUP;
+int do_mkdir(proc_t *p, char *path, mode_t mode) {
+  return ENOTSUP;
 }
 
-int do_rmdir(thread_t *td, char *path) {
-  return -ENOTSUP;
+int do_rmdir(proc_t *p, char *path) {
+  return ENOTSUP;
 }
 
-int do_access(thread_t *td, char *path, int amode) {
+int do_access(proc_t *p, char *path, int amode) {
   int error;
 
   /* Check if access mode argument is valid. */
   if (amode & ~(R_OK | W_OK | X_OK))
-    return -EINVAL;
+    return EINVAL;
 
   vnode_t *v;
   if ((error = vfs_lookup(path, &v)))

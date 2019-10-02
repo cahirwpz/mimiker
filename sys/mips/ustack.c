@@ -33,7 +33,7 @@ void ustack_teardown(ustack_t *us) {
 static int ustack_align(ustack_t *us, size_t howmuch) {
   void *new_bottom = align(us->us_bottom, howmuch);
   if (new_bottom > us->us_limit)
-    return -ENOMEM;
+    return ENOMEM;
   us->us_bottom = new_bottom;
   return 0;
 }
@@ -46,7 +46,7 @@ static int ustack_alloc_aligned(ustack_t *us, void **ptr, size_t len,
   if ((error = ustack_align(us, alignment)))
     return error;
   if (!enough_free_space_p(us, len))
-    return -ENOMEM;
+    return ENOMEM;
   *ptr = us->us_bottom;
   us->us_bottom += len;
   return 0;

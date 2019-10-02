@@ -31,7 +31,8 @@ static int utest_generic(const char *name, int status_success) {
   sched_add(utest_thread);
 
   int status;
-  do_waitpid(child->p_pid, &status, 0);
+  pid_t cpid;
+  do_waitpid(child->p_pid, &status, 0, &cpid);
 
   /* Restore previous klog mask */
   /* XXX: If we'll use klog_setmask heavily, maybe we should consider

@@ -40,7 +40,7 @@ int waitpid(pid_t pid, int *status, int options);
 
 #else /* _KERNEL */
 
-int do_waitpid(pid_t pid, int *status, int options);
+int do_waitpid(pid_t pid, int *status, int options, pid_t *childp);
 
 /* Macros for building status values. */
 #define MAKE_STATUS_EXIT(exitcode) (((exitcode)&0xff) << 8)

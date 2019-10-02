@@ -47,10 +47,10 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   proc_t *p = proc_self();
 
   if (sig >= NSIG)
-    return -EINVAL;
+    return EINVAL;
 
   if (sig == SIGKILL)
-    return -EINVAL;
+    return EINVAL;
 
   WITH_PROC_LOCK(p) {
     if (oldact != NULL)

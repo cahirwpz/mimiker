@@ -20,12 +20,12 @@ int exec_elf_inspect(vnode_t *vn, Elf32_Ehdr *eh) {
 
   if (attr.va_size < sizeof(Elf32_Ehdr)) {
     klog("Exec failed: ELF file is too small to contain a valid header");
-    return -ENOEXEC;
+    return ENOEXEC;
   }
 
   klog("User ELF size: %u", attr.va_size);
   uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, 0, eh, sizeof(Elf32_Ehdr));
-  if ((error = VOP_READ(vn, &uio)) < 0) {
+  if ((error = VOP_READ(vn, &uio))) {
     klog("Exec failed: Reading ELF header failed.");
     return error;
   }
@@ -37,33 +37,33 @@ int exec_elf_inspect(vnode_t *vn, Elf32_Ehdr *eh) {
   if (eh->e_ident[EI_MAG0] != ELFMAG0 || eh->e_ident[EI_MAG1] != ELFMAG1 ||
       eh->e_ident[EI_MAG2] != ELFMAG2 || eh->e_ident[EI_MAG3] != ELFMAG3) {
     klog("Exec failed: Incorrect ELF magic number");
-    return -ENOEXEC;
+    return ENOEXEC;
   }
   /* Check ELF class */
   if (eh->e_ident[EI_CLASS] != ELFCLASS32) {
     klog("Exec failed: Unsupported ELF class (!= ELF32)");
-    return -ENOEXEC;
+    return ENOEXEC;
   }
   /* Check data format endianess */
   if (eh->e_ident[EI_DATA] != ELFDATA2LSB) {
     klog("Exec failed: ELF file is not low-endian");
-    return -ENOEXEC;
+    return ENOEXEC;
   }
   /* Ignore version and os abi field */
   /* Check file type */
   if (eh->e_type != ET_EXEC) {
     klog("Exec failed: ELF is not an executable file");
-    return -ENOEXEC;
+    return ENOEXEC;
   }
   /* Check machine architecture field */
   if (eh->e_machine != EM_MIPS) {
     klog("Exec failed: ELF target architecture is not MIPS");
-    return -ENOEXEC;
+    return ENOEXEC;
   }
   /* Ensure minimal prog header size */
   if (eh->e_phentsize < sizeof(Elf32_Phdr)) {
     klog("Exec failed: ELF file program headers are too short");
-    return -ENOEXEC;
+    return ENOEXEC;
   }
 
   return 0;
@@ -83,7 +83,7 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf32_Phdr *ph) {
 
   if (!is_aligned(ph->p_vaddr, PAGESIZE)) {
     klog("Exec failed: Segment virtual address is not page aligned!");
-    return -ENOEXEC;
+    return ENOEXEC;
   }
 
   vaddr_t start = ph->p_vaddr;
@@ -106,7 +106,7 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf32_Phdr *ph) {
      */
     uio_t uio =
       UIO_SINGLE_KERNEL(UIO_READ, ph->p_offset, (char *)start, ph->p_filesz);
-    if ((error = VOP_READ(vn, &uio)) < 0) {
+    if ((error = VOP_READ(vn, &uio))) {
       klog("Exec failed: Reading ELF segment failed.");
       return error;
     }
@@ -140,7 +140,7 @@ int exec_elf_load(proc_t *p, vnode_t *vn, Elf32_Ehdr *eh) {
   size_t phs_size = eh->e_phoff * eh->e_phentsize;
   char *phs = kmalloc(M_TEMP, phs_size, 0);
   uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, eh->e_phoff, phs, phs_size);
-  if ((error = VOP_READ(vn, &uio)) < 0) {
+  if ((error = VOP_READ(vn, &uio))) {
     klog("Exec failed: Reading program headers failed.");
     goto fail;
   }
@@ -150,7 +150,7 @@ int exec_elf_load(proc_t *p, vnode_t *vn, Elf32_Ehdr *eh) {
   klog("ELF has %d program headers", eh->e_phnum);
   for (int i = 0; i < eh->e_phnum; i++) {
     Elf32_Phdr *ph = (Elf32_Phdr *)(phs + i * eh->e_phentsize);
-    error = -ENOEXEC; /* default fail reason */
+    error = ENOEXEC; /* default fail reason */
     switch (ph->p_type) {
       case PT_LOAD:
         if ((error = load_elf_segment(p, vn, ph)))

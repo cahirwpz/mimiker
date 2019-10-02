@@ -8,177 +8,177 @@
 #include <sys/time.h>
 #include <sys/sigtypes.h>
 
-typedef struct sys_syscall_args {
+typedef struct {
   int number;
-} sys_syscall_args_t;
+} syscall_args_t;
 
-typedef struct sys_exit_args {
+typedef struct {
   int rval;
-} sys_exit_args_t;
+} exit_args_t;
 
-typedef struct sys_read_args {
+typedef struct {
   int fd;
   void * buf;
   size_t nbyte;
-} sys_read_args_t;
+} read_args_t;
 
-typedef struct sys_write_args {
+typedef struct {
   int fd;
   const void * buf;
   size_t nbyte;
-} sys_write_args_t;
+} write_args_t;
 
-typedef struct sys_open_args {
+typedef struct {
   const char * path;
   int flags;
   mode_t mode;
-} sys_open_args_t;
+} open_args_t;
 
-typedef struct sys_close_args {
+typedef struct {
   int fd;
-} sys_close_args_t;
+} close_args_t;
 
-typedef struct sys_lseek_args {
+typedef struct {
   int fd;
   off_t offset;
   int whence;
-} sys_lseek_args_t;
+} lseek_args_t;
 
-typedef struct sys_unlink_args {
+typedef struct {
   const char * path;
-} sys_unlink_args_t;
+} unlink_args_t;
 
-typedef struct sys_kill_args {
-  int pid;
-  int signum;
-} sys_kill_args_t;
+typedef struct {
+  pid_t pid;
+  int sig;
+} kill_args_t;
 
-typedef struct sys_fstat_args {
+typedef struct {
   int fd;
   struct stat * sb;
-} sys_fstat_args_t;
+} fstat_args_t;
 
-typedef struct sys_sbrk_args {
+typedef struct {
   intptr_t increment;
-} sys_sbrk_args_t;
+} sbrk_args_t;
 
-typedef struct sys_mmap_args {
+typedef struct {
   void * addr;
   size_t len;
   int prot;
   int flags;
   int fd;
   off_t pos;
-} sys_mmap_args_t;
+} mmap_args_t;
 
-typedef struct sys_mount_args {
+typedef struct {
   const char * type;
   const char * path;
-} sys_mount_args_t;
+} mount_args_t;
 
-typedef struct sys_getdirentries_args {
+typedef struct {
   int fd;
   void * buf;
   size_t len;
   off_t * basep;
-} sys_getdirentries_args_t;
+} getdirentries_args_t;
 
-typedef struct sys_dup_args {
+typedef struct {
   int fd;
-} sys_dup_args_t;
+} dup_args_t;
 
-typedef struct sys_dup2_args {
+typedef struct {
   int from;
   int to;
-} sys_dup2_args_t;
+} dup2_args_t;
 
-typedef struct sys_sigaction_args {
+typedef struct {
   int signum;
   const struct sigaction * nsa;
   struct sigaction * osa;
-} sys_sigaction_args_t;
+} sigaction_args_t;
 
-typedef struct sys_sigreturn_args {
+typedef struct {
   struct sigcontext * sigctx_p;
-} sys_sigreturn_args_t;
+} sigreturn_args_t;
 
-typedef struct sys_waitpid_args {
+typedef struct {
   pid_t pid;
   int * wstatus;
   int options;
-} sys_waitpid_args_t;
+} waitpid_args_t;
 
-typedef struct sys_mkdir_args {
+typedef struct {
   const char * path;
   mode_t mode;
-} sys_mkdir_args_t;
+} mkdir_args_t;
 
-typedef struct sys_rmdir_args {
+typedef struct {
   const char * path;
-} sys_rmdir_args_t;
+} rmdir_args_t;
 
-typedef struct sys_access_args {
+typedef struct {
   const char * path;
   int amode;
-} sys_access_args_t;
+} access_args_t;
 
-typedef struct sys_stat_args {
+typedef struct {
   const char * path;
   struct stat * sb;
-} sys_stat_args_t;
+} stat_args_t;
 
-typedef struct sys_pipe_args {
+typedef struct {
   int * fdp;
-} sys_pipe_args_t;
+} pipe_args_t;
 
-typedef struct sys_clock_gettime_args {
+typedef struct {
   clockid_t clock_id;
   struct timespec * tsp;
-} sys_clock_gettime_args_t;
+} clock_gettime_args_t;
 
-typedef struct sys_clock_nanosleep_args {
+typedef struct {
   clockid_t clock_id;
   int flags;
   const struct timespec * rqtp;
   struct timespec * rmtp;
-} sys_clock_nanosleep_args_t;
+} clock_nanosleep_args_t;
 
-typedef struct sys_execve_args {
+typedef struct {
   const char * path;
   char *const * argp;
   char *const * envp;
-} sys_execve_args_t;
+} execve_args_t;
 
-typedef struct sys_setpgid_args {
+typedef struct {
   pid_t pid;
   pid_t pgid;
-} sys_setpgid_args_t;
+} setpgid_args_t;
 
-typedef struct sys_getpgid_args {
+typedef struct {
   pid_t pid;
-} sys_getpgid_args_t;
+} getpgid_args_t;
 
-typedef struct sys_killpg_args {
-  int pgid;
-  int signum;
-} sys_killpg_args_t;
+typedef struct {
+  pid_t pgrp;
+  int sig;
+} killpg_args_t;
 
-typedef struct sys_munmap_args {
+typedef struct {
   void * addr;
   size_t len;
-} sys_munmap_args_t;
+} munmap_args_t;
 
-typedef struct sys_mprotect_args {
+typedef struct {
   void * addr;
   size_t len;
   int prot;
-} sys_mprotect_args_t;
+} mprotect_args_t;
 
-typedef struct sys_chdir_args {
+typedef struct {
   const char * path;
-} sys_chdir_args_t;
+} chdir_args_t;
 
-typedef struct sys_getcwd_args {
+typedef struct {
   char * buf;
   size_t len;
-} sys_getcwd_args_t;
+} getcwd_args_t;

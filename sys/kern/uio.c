@@ -86,5 +86,5 @@ int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio) {
   assert(offset <= buflen);
   assert(uio->uio_offset >= 0);
 
-  return (uiomove((char *)buf + offset, buflen - offset, uio));
+  return uiomove((char *)buf + offset, buflen - offset, uio);
 }

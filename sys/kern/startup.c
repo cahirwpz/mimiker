@@ -11,8 +11,8 @@ extern void kmain(void *);
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
 static void mount_fs(void) {
-  do_mount(thread_self(), "initrd", "/");
-  do_mount(thread_self(), "devfs", "/dev");
+  do_mount("initrd", "/");
+  do_mount("devfs", "/dev");
 }
 
 SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"));

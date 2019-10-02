@@ -167,14 +167,15 @@ proc_t *proc_find(pid_t pid) {
   return p;
 }
 
-pgid_t proc_getpgid(pid_t pid) {
+int proc_getpgid(pid_t pid, pgid_t *pgidp) {
   SCOPED_MTX_LOCK(all_proc_mtx);
 
   proc_t *p = proc_find(pid);
   if (!p)
-    return -ESRCH;
+    return ESRCH;
 
-  return p->p_pgrp->pg_id;
+  *pgidp = p->p_pgrp->pg_id;
+  return 0;
 }
 
 /* Release zombie process after parent processed its state. */
@@ -278,7 +279,7 @@ int proc_sendsig(pid_t pid, signo_t sig) {
   if (pid > 0) {
     target = proc_find(pid);
     if (target == NULL)
-      return -EINVAL;
+      return EINVAL;
     sig_kill(target, sig);
     return 0;
   }
@@ -286,7 +287,7 @@ int proc_sendsig(pid_t pid, signo_t sig) {
   /* TODO send sig to every process for which the calling process has permission
    * to send signals, except init process */
   if (pid == -1)
-    return -ENOTSUP;
+    return ENOTSUP;
 
   pgrp_t *pgrp = NULL;
 
@@ -296,7 +297,7 @@ int proc_sendsig(pid_t pid, signo_t sig) {
   if (pid < -1) {
     pgrp = pgrp_lookup(-pid);
     if (!pgrp)
-      return -EINVAL;
+      return EINVAL;
   }
 
   WITH_MTX_LOCK (&pgrp->pg_lock) {
@@ -312,7 +313,7 @@ static bool is_zombie(proc_t *p) {
 }
 
 /* Wait for direct children. */
-int do_waitpid(pid_t pid, int *status, int options) {
+int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   proc_t *p = proc_self();
 
   WITH_MTX_LOCK (all_proc_mtx) {
@@ -341,19 +342,22 @@ int do_waitpid(pid_t pid, int *status, int options) {
 
       /* No child with such pid. */
       if (!child && pid > 0)
-        return -ECHILD;
+        return ECHILD;
 
       if (child && is_zombie(child)) {
         if (status)
           *status = child->p_exitstatus;
         pid_t pid = child->p_pid;
         proc_reap(child);
-        return pid;
+        *cldpidp = pid;
+        return 0;
       }
 
       /* No zombie child was found. */
-      if (options & WNOHANG)
+      if (options & WNOHANG) {
+        *cldpidp = 0;
         return 0;
+      }
 
       /* Wait until one of children changes a state. */
       klog("PID(%d) waits for children (pid = %d)", p->p_pid, pid);

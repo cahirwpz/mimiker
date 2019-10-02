@@ -28,10 +28,7 @@ static int dev_cons_read(vnode_t *t, uio_t *uio) {
       break;
   }
   uio->uio_offset = 0; /* This device does not support offsets. */
-  int res = uiomove_frombuf(buffer, curr, uio);
-  if (res)
-    return res;
-  return 0;
+  return uiomove_frombuf(buffer, curr, uio);
 }
 
 static vnodeops_t dev_cons_vnodeops = {.v_open = vnode_open_generic,

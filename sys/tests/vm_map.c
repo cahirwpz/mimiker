@@ -134,7 +134,7 @@ static int findspace_demo(void) {
 
   t = 0;
   n = vm_map_findspace(umap, &t, 0x40000000);
-  assert(n == -ENOMEM);
+  assert(n == ENOMEM);
 
   /* Restore original vm_map */
   vm_map_activate(orig);

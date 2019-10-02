@@ -70,7 +70,7 @@ static int fd_alloc(fdtab_t *fdt, int *fdp) {
     /* No more space to allocate a descriptor... grow describtor table! */
     if (fdt->fdt_nfiles == MAXFILES) {
       /* Reached limit of opened files. */
-      return -EMFILE;
+      return EMFILE;
     }
     size_t new_size = min(fdt->fdt_nfiles * 2, MAXFILES);
     first_free = fdt->fdt_nfiles;
@@ -149,9 +149,9 @@ int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fd) {
 
   SCOPED_MTX_LOCK(&fdt->fdt_mtx);
 
-  int res = fd_alloc(fdt, fd);
-  if (res < 0)
-    return res;
+  int error;
+  if ((error = fd_alloc(fdt, fd)))
+    return error;
   fdt->fdt_files[*fd] = f;
   file_hold(f);
   return 0;
@@ -163,7 +163,7 @@ int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
 
   WITH_MTX_LOCK (&fdt->fdt_mtx) {
     if (is_bad_fd(fdt, fd))
-      return -EBADF;
+      return EBADF;
 
     if (fd_is_used(fdt, fd)) {
       if (fdt->fdt_files[fd] == f)
@@ -182,13 +182,13 @@ int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
  * If flags are non-zero, returns EBADF if the file does not match flags. */
 int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
   if (!fdt)
-    return -EBADF;
+    return EBADF;
 
   file_t *f = NULL;
 
   WITH_MTX_LOCK (&fdt->fdt_mtx) {
     if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))
-      return -EBADF;
+      return EBADF;
 
     f = fdt->fdt_files[fd];
     file_hold(f);
@@ -203,7 +203,7 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
   }
 
   file_drop(f);
-  return -EBADF;
+  return EBADF;
 }
 
 /* Closes a file descriptor. If it was the last reference to a file, the file is
@@ -212,7 +212,7 @@ int fdtab_close_fd(fdtab_t *fdt, int fd) {
   SCOPED_MTX_LOCK(&fdt->fdt_mtx);
 
   if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))
-    return -EBADF;
+    return EBADF;
   fd_free(fdt, fd);
   return 0;
 }

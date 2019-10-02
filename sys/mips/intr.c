@@ -143,10 +143,15 @@ static void syscall_handler(exc_frame_t *frame) {
   }
 
   /* Call the handler. */
-  int retval = sysent[code].call(thread_self(), (void *)args);
+  thread_t *td = thread_self();
+  register_t retval = 0;
 
-  if (retval != -EJUSTRETURN)
-    exc_frame_set_retval(frame, retval);
+  assert(td->td_proc != NULL);
+
+  int error = sysent[code].call(td->td_proc, (void *)args, &retval);
+
+  if (error != EJUSTRETURN)
+    exc_frame_set_retval(frame, error ? -1 : retval, error);
 }
 
 static void fpe_handler(exc_frame_t *frame) {
