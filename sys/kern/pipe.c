@@ -10,11 +10,9 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/thread.h>
 #include <sys/proc.h>
 #include <sys/ringbuf.h>
 #include <sys/uio.h>
-#include <sys/sysinit.h>
 
 typedef struct pipe_end pipe_end_t;
 typedef struct pipe pipe_t;
@@ -73,7 +71,7 @@ static void pipe_free(pipe_t *pipe) {
   }
 }
 
-static int pipe_read(file_t *f, thread_t *td, uio_t *uio) {
+static int pipe_read(file_t *f, uio_t *uio) {
   pipe_end_t *consumer = f->f_data;
   pipe_end_t *producer = consumer->other;
 
@@ -98,7 +96,7 @@ static int pipe_read(file_t *f, thread_t *td, uio_t *uio) {
   return 0;
 }
 
-static int pipe_write(file_t *f, thread_t *td, uio_t *uio) {
+static int pipe_write(file_t *f, uio_t *uio) {
   pipe_end_t *producer = f->f_data;
   pipe_end_t *consumer = producer->other;
 
@@ -127,7 +125,7 @@ static int pipe_write(file_t *f, thread_t *td, uio_t *uio) {
   return 0;
 }
 
-static int pipe_close(file_t *f, thread_t *td) {
+static int pipe_close(file_t *f) {
   pipe_end_t *end = f->f_data;
 
   WITH_MTX_LOCK (&end->mtx) {
@@ -140,11 +138,11 @@ static int pipe_close(file_t *f, thread_t *td) {
   return 0;
 }
 
-static int pipe_stat(file_t *f, thread_t *td, stat_t *sb) {
+static int pipe_stat(file_t *f, stat_t *sb) {
   return ENOTSUP;
 }
 
-static int pipe_seek(file_t *f, thread_t *td, off_t offset, int whence) {
+static int pipe_seek(file_t *f, off_t offset, int whence) {
   return ESPIPE;
 }
 
@@ -175,13 +173,13 @@ int do_pipe(proc_t *p, int fds[2]) {
 
   error = fdtab_install_file(p->p_fdtable, file0, &fds[0]);
   if (error) {
-    pipe_close(file0, thread_self());
+    pipe_close(file0);
     return error;
   }
   error = fdtab_install_file(p->p_fdtable, file1, &fds[1]);
   if (error) {
     fdtab_close_fd(p->p_fdtable, fds[0]);
-    pipe_close(file1, thread_self());
+    pipe_close(file1);
     return error;
   }
   return 0;

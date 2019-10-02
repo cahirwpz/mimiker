@@ -1,19 +1,12 @@
 #define KL_LOG KL_VFS
 #include <sys/klog.h>
-#include <sys/mimiker.h>
 #include <sys/filedesc.h>
 #include <sys/file.h>
 #include <sys/mount.h>
-#include <sys/libkern.h>
-#include <sys/sysent.h>
-#include <sys/thread.h>
 #include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/proc.h>
-#include <sys/vm_map.h>
-#include <sys/queue.h>
 #include <sys/errno.h>
-#include <sys/malloc.h>
 #include <sys/unistd.h>
 #include <sys/stat.h>
 
@@ -46,7 +39,7 @@ int do_read(proc_t *p, int fd, uio_t *uio) {
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
     return error;
   uio->uio_offset = f->f_offset;
-  error = FOP_READ(f, thread_self(), uio);
+  error = FOP_READ(f, uio);
   f->f_offset = uio->uio_offset;
   file_drop(f);
   return error;
@@ -59,7 +52,7 @@ int do_write(proc_t *p, int fd, uio_t *uio) {
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
     return error;
   uio->uio_offset = f->f_offset;
-  error = FOP_WRITE(f, thread_self(), uio);
+  error = FOP_WRITE(f, uio);
   f->f_offset = uio->uio_offset;
   file_drop(f);
   return error;
@@ -72,7 +65,7 @@ int do_lseek(proc_t *p, int fd, off_t offset, int whence, off_t *newoffp) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-  error = FOP_SEEK(f, thread_self(), offset, whence);
+  error = FOP_SEEK(f, offset, whence);
   *newoffp = f->f_offset;
   file_drop(f);
   return error;
@@ -84,7 +77,7 @@ int do_fstat(proc_t *p, int fd, stat_t *sb) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
     return error;
-  error = FOP_STAT(f, thread_self(), sb);
+  error = FOP_STAT(f, sb);
   file_drop(f);
   return error;
 }

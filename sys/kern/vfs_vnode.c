@@ -133,21 +133,21 @@ void va_convert(vattr_t *va, stat_t *sb) {
 }
 
 /* Default file operations using v-nodes. */
-static int default_vnread(file_t *f, thread_t *td, uio_t *uio) {
+static int default_vnread(file_t *f, uio_t *uio) {
   return VOP_READ(f->f_vnode, uio);
 }
 
-static int default_vnwrite(file_t *f, thread_t *td, uio_t *uio) {
+static int default_vnwrite(file_t *f, uio_t *uio) {
   return VOP_WRITE(f->f_vnode, uio);
 }
 
-static int default_vnclose(file_t *f, thread_t *td) {
+static int default_vnclose(file_t *f) {
   (void)VOP_CLOSE(f->f_vnode, f);
   vnode_drop(f->f_vnode);
   return 0;
 }
 
-static int default_vnstat(file_t *f, thread_t *td, stat_t *sb) {
+static int default_vnstat(file_t *f, stat_t *sb) {
   vnode_t *v = f->f_vnode;
   vattr_t va;
   int error;
@@ -157,7 +157,7 @@ static int default_vnstat(file_t *f, thread_t *td, stat_t *sb) {
   return 0;
 }
 
-static int default_vnseek(file_t *f, thread_t *td, off_t offset, int whence) {
+static int default_vnseek(file_t *f, off_t offset, int whence) {
   vnode_t *v = f->f_vnode;
   int error;
 

@@ -3,7 +3,6 @@
 #include <sys/libkern.h>
 #include <sys/errno.h>
 #include <sys/mutex.h>
-#include <sys/thread.h>
 #include <sys/vnode.h>
 #include <sys/vfs.h>
 
@@ -24,7 +23,7 @@ void file_destroy(file_t *f) {
      fileops are set to badfileops. */
   /* TODO: What if an error happens during close? */
   if (f->f_ops != &badfileops)
-    FOP_CLOSE(f, thread_self());
+    FOP_CLOSE(f);
 
   pool_free(P_FILE, f);
 }
@@ -39,23 +38,23 @@ void file_drop(file_t *f) {
 }
 
 /* Operations on invalid file descriptors */
-static int badfo_read(file_t *f, struct thread *td, uio_t *uio) {
+static int badfo_read(file_t *f, uio_t *uio) {
   return EBADF;
 }
 
-static int badfo_write(file_t *f, struct thread *td, uio_t *uio) {
+static int badfo_write(file_t *f, uio_t *uio) {
   return EBADF;
 }
 
-static int badfo_close(file_t *f, struct thread *td) {
+static int badfo_close(file_t *f) {
   return EBADF;
 }
 
-static int badfo_stat(file_t *f, struct thread *td, stat_t *sb) {
+static int badfo_stat(file_t *f, stat_t *sb) {
   return EBADF;
 }
 
-static int badfo_seek(file_t *f, struct thread *td, off_t offset, int whence) {
+static int badfo_seek(file_t *f, off_t offset, int whence) {
   return EBADF;
 }
 
