@@ -14,7 +14,7 @@ CPPFLAGS = -I$(CURDIR) \
 SUBLIBS = citrus gdtoa gen locale misc regex stdio stdlib string sys termios time
 
 SOURCES = $(foreach dir, $(SUBLIBS), \
-            $(wildcard $(dir)/*.c) $(wildcard $(dir)/$(ARCH)/*.S))
+            $(wildcard $(dir)/*.[cS]) $(wildcard $(dir)/$(ARCH)/*.S))
 
 include $(TOPDIR)/build/build.lib.mk
 
