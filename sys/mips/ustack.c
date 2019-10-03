@@ -4,7 +4,7 @@
 #include <sys/errno.h>
 #include <sys/uio.h>
 #include <sys/vm_map.h>
-#include <mips/ustack.h>
+#include <sys/ustack.h>
 
 #define STACK_ALIGNMENT 8 /* According to MIPS SystemV ABI */
 

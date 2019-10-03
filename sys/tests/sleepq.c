@@ -8,7 +8,7 @@
 static volatile int wakeups;
 
 static void test_thread(void *expected) {
-  while (wakeups < (int)expected) {
+  while (wakeups < (intptr_t)expected) {
     WITH_NO_PREEMPTION {
       wakeups++;
     }
@@ -34,8 +34,8 @@ static int test_sleepq_sync(void) {
     callout_setup_relative(&callout[i], i + 1, wake_threads_up, NULL);
 
   for (int i = 0; i < K; i++) {
-    td[i] =
-      thread_create("test-sleepq", test_thread, (void *)N, prio_kthread(0));
+    td[i] = thread_create("test-sleepq", test_thread, (void *)(intptr_t)N,
+                          prio_kthread(0));
     sched_add(td[i]);
   }
 

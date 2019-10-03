@@ -215,7 +215,7 @@ static void run_all_tests(void) {
 static void run_specified_tests(const char *test) {
   const char *cur = test;
   while (1) {
-    size_t len = strcspn(cur, ","); /* Find first comma or end of string. */
+    int len = strcspn(cur, ","); /* Find first comma or end of string. */
     test_entry_t *t = find_test_by_name_with_len(cur, len);
     int is_last = cur[len] == '\0';
     if (t) {

@@ -11,7 +11,7 @@
 #include <sys/filedesc.h>
 #include <sys/sbrk.h>
 #include <sys/vfs.h>
-#include <machine/ustack.h>
+#include <sys/ustack.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/proc.h>
@@ -340,7 +340,7 @@ static int _do_execve(exec_args_t *args) {
     }
   } while (use_interpreter);
 
-  Elf32_Ehdr eh;
+  Elf_Ehdr eh;
   if ((result = exec_elf_inspect(vn, &eh)))
     return result;
 
