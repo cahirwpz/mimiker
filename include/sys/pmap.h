@@ -32,6 +32,13 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end);
 void pmap_zero_page(vm_page_t *pg);
 void pmap_copy_page(vm_page_t *src, vm_page_t *dst);
 
+bool pmap_clear_modified(vm_page_t *pg);
+bool pmap_clear_referenced(vm_page_t *pg);
+bool pmap_is_modified(vm_page_t *pg);
+bool pmap_is_referenced(vm_page_t *pg);
+void pmap_set_referenced(paddr_t pa);
+void pmap_set_modified(paddr_t pa);
+
 void pmap_activate(pmap_t *pmap);
 pmap_t *get_kernel_pmap(void);
 pmap_t *get_user_pmap(void);

@@ -29,8 +29,8 @@ typedef struct {
 #define PTE_PFN_SHIFT 6
 #define PTE_CACHE_MASK 0x00000038
 #define PTE_CACHE_SHIFT 3
-#define PTE_DIRTY 0x00000004
-#define PTE_VALID 0x00000002
+#define PTE_DIRTY 0x00000004 /* page is writable when set */
+#define PTE_VALID 0x00000002 /* page can be accessed when set */
 #define PTE_GLOBAL 0x00000001
 #define PTE_PROT_MASK (PTE_NO_READ | PTE_NO_EXEC | PTE_DIRTY | PTE_VALID)
 

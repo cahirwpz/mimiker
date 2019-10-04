@@ -17,12 +17,13 @@
 
 #define is_page_aligned(addr) is_aligned((addr), PAGESIZE)
 
-#define PM_RESERVED 1  /* non releasable page */
-#define PM_ALLOCATED 2 /* page has been allocated */
-#define PM_MANAGED 4   /* a page is on a freeq */
-
-#define VM_ACCESSED 1 /* page has been accessed since last check */
-#define VM_MODIFIED 2 /* page has been modified since last check */
+typedef enum {
+  PG_RESERVED = 0x01,   /* non releasable page */
+  PG_ALLOCATED = 0x02,  /* page has been allocated */
+  PG_MANAGED = 0x04,    /* a page is on a freeq */
+  PG_REFERENCED = 0x08, /* page has been accessed since last check */
+  PG_MODIFIED = 0x10,   /* page has been modified since last check */
+} __packed pg_flags_t;
 
 typedef enum {
   VM_PROT_NONE = 0,
@@ -63,8 +64,7 @@ struct vm_page {
   vm_object_t *object; /* object owning that page */
   off_t offset;        /* offset to page in vm_object */
   paddr_t paddr;       /* physical address of page */
-  uint8_t vm_flags;    /* flags used by virtual memory system */
-  uint8_t pm_flags;    /* flags used by physical memory system */
+  pg_flags_t flags;    /* page flags (used by physmem as well) */
   uint32_t size;       /* size of page in PAGESIZE units */
 };
 

@@ -76,5 +76,45 @@ static int test_user_pmap(void) {
   return KTEST_SUCCESS;
 }
 
+static int test_rmbits(void) {
+  pmap_t *orig = get_user_pmap();
+
+  pmap_t *pmap = pmap_new();
+
+  volatile int *ptr = (int *)0x1001000;
+
+  vm_page_t *pg = pm_alloc(1);
+
+  pmap_activate(pmap);
+  pmap_enter(pmap, (vaddr_t)ptr, pg, VM_PROT_READ | VM_PROT_WRITE);
+
+  assert(!pmap_is_referenced(pg) && !pmap_is_modified(pg));
+
+  /* pm_alloc does not return zeroed pages, so we cannot assume any value */
+  __unused int value = *ptr;
+
+  assert(pmap_is_referenced(pg) && !pmap_is_modified(pg));
+
+  pmap_clear_referenced(pg);
+
+  *ptr = 100;
+
+  assert(pmap_is_referenced(pg) && pmap_is_modified(pg));
+
+  pmap_clear_modified(pg);
+
+  assert(*ptr == 100);
+
+  assert(pmap_is_referenced(pg) && !pmap_is_modified(pg));
+
+  pmap_delete(pmap);
+
+  /* Restore original user pmap */
+  pmap_activate(orig);
+
+  return KTEST_SUCCESS;
+}
+
 KTEST_ADD(pmap_kernel, test_kernel_pmap, KTEST_FLAG_BROKEN);
 KTEST_ADD(pmap_user, test_user_pmap, 0);
+KTEST_ADD(pmap_rmbits, test_rmbits, 0);
