@@ -42,4 +42,7 @@
 #define SYS_mprotect 34
 #define SYS_chdir 35
 #define SYS_getcwd 36
-#define SYS_MAXSYSCALL 37
+#define SYS_sigaltstack 37
+#define SYS_sigprocmask 38
+#define SYS_setcontext 39
+#define SYS_MAXSYSCALL 40
