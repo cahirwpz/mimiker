@@ -14,6 +14,15 @@ break kernel_init
 break assert_fail
 break panic_fail
 
+define nextuser
+  tbreak user_return
+  commands
+  silent
+  si
+  end
+  continue
+end
+
 # favorite set of debugging printf's
 #dprintf proc_lock,"proc_lock(0x%08x)\n",p
 #dprintf proc_unlock,"proc_unlock(0x%08x)\n",p
