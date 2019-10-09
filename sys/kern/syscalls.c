@@ -19,8 +19,7 @@
 #include <sys/malloc.h>
 #include <sys/libkern.h>
 #include <sys/syslimits.h>
-#include <mips/exc.h>
-#include <mips/mcontext.h>
+#include <sys/context.h>
 
 #include "sysent.h"
 
@@ -598,20 +597,5 @@ static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
   ucontext_t uc;
   copyin_s(ucp, uc);
 
-  mcontext_t *from = &uc.uc_mcontext;
-  exc_frame_t *to = p->p_thread->td_uframe;
-
-  /* registers AT-T9 */
-  memcpy(&to->at, &from->__gregs[_REG_AT], sizeof(__greg_t) * 25);
-  /* registers GP-HI */
-  memcpy(&to->gp, &from->__gregs[_REG_GP], sizeof(__greg_t) * 6);
-
-  to->cause = from->__gregs[_REG_CAUSE];
-  to->pc = from->__gregs[_REG_EPC];
-
-  /* FP registers + FP CSR */
-  memcpy(&to->f0, &from->__fpregs.__fp_r,
-         sizeof(from->__fpregs.__fp_r) + sizeof(from->__fpregs.__fp_csr));
-
-  return EJUSTRETURN;
+  return do_setcontext(p->p_thread, &uc);
 }

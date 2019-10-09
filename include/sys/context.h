@@ -1,6 +1,8 @@
 #ifndef _SYS_CONTEXT_H_
 #define _SYS_CONTEXT_H_
 
+#include <sys/ucontext.h>
+
 typedef struct ctx ctx_t;
 typedef struct thread thread_t;
 
@@ -20,5 +22,8 @@ void ctx_set_retval(ctx_t *ctx, long value);
  * \returns a value set by \a ctx_set_retval or 0 otherwise.
  */
 long ctx_switch(thread_t *from, thread_t *to);
+
+/* Implementation of setcontext syscall. */
+int do_setcontext(thread_t *td, ucontext_t *uc);
 
 #endif /* !_SYS_CONTEXT_H_ */
