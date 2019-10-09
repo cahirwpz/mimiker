@@ -54,6 +54,7 @@ NESTED(copyinstr, CALLFRAME_SIZ, ra)
 	REG_S	ra, CALLFRAME_RA(sp)
 	LA	v0, copyerr
 	blt	a0, zero, copyerr       # make sure address is in user space
+        nop
 	LOAD_PCPU(v1)
         PTR_L   v1, PCPU_CURTHREAD(v1)
 	jal	copystr
@@ -77,6 +78,7 @@ NESTED(copyin, CALLFRAME_SIZ, ra)
 	REG_S	ra, CALLFRAME_RA(sp)
 	LA	v0, copyerr
 	blt	a0, zero, copyerr       # make sure address is in user space
+        nop
 	LOAD_PCPU(v1)
         PTR_L   v1, PCPU_CURTHREAD(v1)
 	jal	bcopy                   # bcopy uses a0-a2, v0-v1, t0-t3
@@ -101,6 +103,7 @@ NESTED(copyout, CALLFRAME_SIZ, ra)
 	REG_S	ra, CALLFRAME_RA(sp)
 	LA	v0, copyerr
 	blt	a1, zero, copyerr       # make sure address is in user space
+        nop
 	LOAD_PCPU(v1)
         PTR_L   v1, PCPU_CURTHREAD(v1)
 	jal	bcopy                   # bcopy uses a0-a2, v0-v1, t0-t3
