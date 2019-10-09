@@ -17,10 +17,10 @@
 #include <sys/proc.h>
 #include <sys/pipe.h>
 #include <sys/malloc.h>
-#include <mips/exc.h>
-#include <mips/mcontext.h>
 #include <sys/libkern.h>
 #include <sys/syslimits.h>
+#include <mips/exc.h>
+#include <mips/mcontext.h>
 
 #include "sysent.h"
 
@@ -549,9 +549,13 @@ static int sys_sigaltstack(proc_t *p, sigaltstack_args_t *args,
   int error;
 
   klog("sigaltstack(%p, %p)", ss, old_ss);
-  assert(ss == NULL); // not implemented yet
+
+  /* TODO: Setting alternate signal stack is not implemented yet. */
+  assert(ss == NULL);
 
   if (old_ss != NULL) {
+    /* TODO: Currently we don't support alternate signal stack in the kernel,
+       so this syscall always returns SS_DISABLE. */
     stack_t result = {.ss_sp = 0, .ss_size = 0, .ss_flags = SS_DISABLE};
     error = copyout_s(result, old_ss);
     if (error)
@@ -571,10 +575,13 @@ static int sys_sigprocmask(proc_t *p, sigprocmask_args_t *args,
   klog("sigprocmask(%d, %p, %p)", how, set, oset);
 
   if (set != NULL) {
-    // modifying signal mask is not implemented yet
+    /* TODO: Modifying signal mask is not implemented yet. */
+    klog("sigprocmask() had no effect");
   }
 
   if (oset != NULL) {
+    /* TODO: Currently we don't support signal masks in the kernel, so this
+       syscall always returns empty signal mask. */
     sigset_t result = {.__bits = 0};
     error = copyout_s(result, oset);
     if (error)
@@ -591,16 +598,20 @@ static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
   ucontext_t uc;
   copyin_s(ucp, uc);
 
-  memcpy(&p->p_thread->td_uframe->at, &uc.uc_mcontext.__gregs[_REG_AT],
-         sizeof(__greg_t) * 25); // do t9
-  memcpy(&p->p_thread->td_uframe->gp, &uc.uc_mcontext.__gregs[_REG_GP],
-         sizeof(__greg_t) * 6); // do hi
+  mcontext_t *from = &uc.uc_mcontext;
+  exc_frame_t *to = p->p_thread->td_uframe;
 
-  p->p_thread->td_uframe->cause = uc.uc_mcontext.__gregs[_REG_CAUSE];
-  p->p_thread->td_uframe->pc = uc.uc_mcontext.__gregs[_REG_EPC];
+  /* registers AT-T9 */
+  memcpy(&to->at, &from->__gregs[_REG_AT], sizeof(__greg_t) * 25);
+  /* registers GP-HI */
+  memcpy(&to->gp, &from->__gregs[_REG_GP], sizeof(__greg_t) * 6);
 
-  memcpy(&p->p_thread->td_uframe->f0, &uc.uc_mcontext.__fpregs.__fp_r,
-         sizeof(float) * 33);
+  to->cause = from->__gregs[_REG_CAUSE];
+  to->pc = from->__gregs[_REG_EPC];
+
+  /* FP registers + FP CSR */
+  memcpy(&to->f0, &from->__fpregs.__fp_r,
+         sizeof(from->__fpregs.__fp_r) + sizeof(from->__fpregs.__fp_csr));
 
   return EJUSTRETURN;
 }

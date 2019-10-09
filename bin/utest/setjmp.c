@@ -1,19 +1,28 @@
 #include <assert.h>
 #include <setjmp.h>
-#include <stdio.h>
+#include <stdnoreturn.h>
+
+/* TODO: Check that setjmp & longjmp restore the signal mask.
+   Currently we don't support signal masks in the kernel. */
+
+#define LOCAL_VALUE 0xDEAD10CC
+
+static jmp_buf jump_buffer;
+
+noreturn void do_longjmp(int count) {
+  longjmp(jump_buffer, count);
+}
 
 int test_setjmp(void) {
-  jmp_buf jump_buffer;
-  setjmp(jump_buffer);
+  unsigned int local_var = LOCAL_VALUE;
+  volatile int count = 0;
 
-  volatile int ret = setjmp(jump_buffer);
-  printf("ret = %d\n", ret);
-  fflush(NULL);
-
-  if (ret != 10) {
-    ret++;
-    longjmp(jump_buffer, ret);
+  if (setjmp(jump_buffer) != 10) {
+    do_longjmp(++count);
   }
+
+  assert(count == 10);
+  assert(local_var == LOCAL_VALUE);
 
   return 0;
 }
