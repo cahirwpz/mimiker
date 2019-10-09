@@ -1,10 +1,9 @@
 #ifndef _SYS_CONTEXT_H_
 #define _SYS_CONTEXT_H_
 
-#include <sys/ucontext.h>
-
 typedef struct ctx ctx_t;
 typedef struct thread thread_t;
+typedef struct __ucontext ucontext_t;
 
 /*! \brief Initializes context to enter code with given stack. */
 void ctx_init(ctx_t *ctx, void *pc, void *sp);

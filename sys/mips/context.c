@@ -3,6 +3,7 @@
 #include <sys/exception.h>
 #include <sys/thread.h>
 #include <sys/errno.h>
+#include <sys/ucontext.h>
 #include <mips/ctx.h>
 #include <mips/exc.h>
 
