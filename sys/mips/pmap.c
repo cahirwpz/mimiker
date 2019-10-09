@@ -155,6 +155,8 @@ static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
   pte_t pde = PTE_PFN((paddr_t)pte) | PTE_KERNEL;
 
   PDE_OF(pmap, vaddr) = pde;
+
+  /* Must initialize to PTE_GLOBAL, look at comment in update_wired_pde! */
   for (int i = 0; i < PT_ENTRIES; i++)
     pte[i] = PTE_GLOBAL;
 
@@ -181,8 +183,9 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
 
   assert(is_page_aligned(va));
   assert(pmap->start <= va && va_end <= pmap->end);
+  assert(pa != 0);
 
-  klog("Enter virtual mapping %p-%p for frame %p", va, va_end, PG_START(pg));
+  klog("Enter virtual mapping %p-%p for frame %p", va, va_end, pa);
 
   /* Mark user pages as non-referenced & non-modified. */
   pte_t mask = (pmap == &kernel_pmap) ? 0 : PTE_VALID | PTE_DIRTY;
