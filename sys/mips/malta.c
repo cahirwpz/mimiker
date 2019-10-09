@@ -175,6 +175,10 @@ static void pm_bootstrap(unsigned memsize) {
   pm_seg_init(seg, MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + memsize,
               MIPS_KSEG0_START);
 
+  /* XXX: workaround - pmap_enter fails to physical page with address 0 */
+  pm_seg_reserve(seg, MALTA_PHYS_SDRAM_BASE,
+                 MALTA_PHYS_SDRAM_BASE + PAGESIZE);
+
   /* reserve kernel image and physical memory description space */
   pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS(__kernel_start),
                  MIPS_KSEG0_TO_PHYS(__kernel_end));

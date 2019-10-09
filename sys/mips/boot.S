@@ -21,6 +21,9 @@
 # C0_STATUS is same as YAMON™ context, but interrupts are disabled.
 
 LEAF(_start)
+        # Use stack pointer provided by linker script
+        LA      sp, _sp
+
         # Load global pointer to make data section addressing possible
         LA      gp, _gp
 

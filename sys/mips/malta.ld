@@ -13,16 +13,15 @@ PHDRS
   rodata PT_LOAD FLAGS(4);      /* read-only */
   data   PT_LOAD FLAGS(6);      /* read-write */
 }
-PROVIDE(__tlb_stride_length = 1);
 SECTIONS
 {
   /* RAM is mapped in kseg0 (cacheable) and kseg1 (non-cacheable) */
   _ram = 0x80000000;
 
-  . = _ram;
-  . += 1M;              /* Reserved for Kernel Page Table.  */
-  __ebase_phys_start = . - _ram;
-  .ebase 0x80100000: AT(__ebase_phys_start) ALIGN(4096)
+  /* At the very bottom of physical address space allocate one page for stack */
+  _sp = _ram + 4096;
+
+  .ebase 0x80100000: AT(0x100000) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
     /* Exception entry points. */
