@@ -89,7 +89,6 @@ cache_error:
         .local  general_exception
 
 general_exception:
-        la      k1, mips_exc_handler
         j       exc_enter
         mfc0    k0, C0_STATUS           # (delay slot) load status register
 
@@ -97,7 +96,6 @@ general_exception:
         .local  irq
 
 irq:
-        la      k1, mips_exc_handler
         j       exc_enter
         mfc0    k0, C0_STATUS           # (delay slot) load status register
 

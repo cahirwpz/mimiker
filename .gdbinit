@@ -21,3 +21,6 @@ break panic_fail
 # user space program debugging
 #add-symbol-file bin/utest/utest.uelf 0x400000
 #break main
+
+add-symbol-file bin/lua/lua-5.3.5/src/lua 0x400000
+break sys_read
