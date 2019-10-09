@@ -36,6 +36,7 @@ static int sys_sbrk(proc_t *p, sbrk_args_t *args, register_t *res) {
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/exit.html */
 static int sys_exit(proc_t *p, exit_args_t *args, register_t *res) {
   klog("exit(%d)", args->rval);
+  proc_lock(p);
   proc_exit(MAKE_STATUS_EXIT(args->rval));
   __unreachable();
 }

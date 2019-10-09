@@ -211,27 +211,29 @@ static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
 __noreturn void proc_exit(int exitstatus) {
   proc_t *p = proc_self();
 
+  assert(mtx_owned(&p->p_lock));
+
   /* Mark this process as dying, so others don't attempt to disturb it. */
-  WITH_PROC_LOCK(p) {
-    p->p_state = PS_DYING;
+  p->p_state = PS_DYING;
 
-    /* Clean up process resources. */
-    klog("Freeing process PID(%d) {%p} resources", p->p_pid, p);
+  /* Clean up process resources. */
+  klog("Freeing process PID(%d) {%p} resources", p->p_pid, p);
 
-    /* Detach main thread from the process. */
-    p->p_thread = NULL;
+  /* Detach main thread from the process. */
+  p->p_thread = NULL;
 
-    /* Make sure address space won't get activated by context switch while it's
-     * being deleted. */
-    vm_map_t *uspace = p->p_uspace;
-    p->p_uspace = NULL;
-    vm_map_delete(uspace);
+  /* Make sure address space won't get activated by context switch while it's
+   * being deleted. */
+  vm_map_t *uspace = p->p_uspace;
+  p->p_uspace = NULL;
+  vm_map_delete(uspace);
 
-    fdtab_drop(p->p_fdtable);
+  fdtab_drop(p->p_fdtable);
 
-    /* Record process statistics that will stay maintained in zombie state. */
-    p->p_exitstatus = exitstatus;
-  }
+  /* Record process statistics that will stay maintained in zombie state. */
+  p->p_exitstatus = exitstatus;
+
+  proc_unlock(p);
 
   WITH_MTX_LOCK (all_proc_mtx) {
     /* Process orphans, but firstly find init process. */
@@ -301,8 +303,10 @@ int proc_sendsig(pid_t pid, signo_t sig) {
   }
 
   WITH_MTX_LOCK (&pgrp->pg_lock) {
-    TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist)
+    TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist) {
+      proc_lock(target);
       sig_kill(target, sig);
+    }
   }
 
   return 0;
