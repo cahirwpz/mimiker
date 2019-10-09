@@ -105,7 +105,7 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
      * the file contents on demand. But we don't have a vnode_pager yet.
      */
     uio_t uio =
-      UIO_SINGLE_KERNEL(UIO_READ, ph->p_offset, (char *)start, ph->p_filesz);
+      UIO_SINGLE_USER(UIO_READ, ph->p_offset, (char *)start, ph->p_filesz);
     if ((error = VOP_READ(vn, &uio))) {
       klog("Exec failed: Reading ELF segment failed.");
       return error;

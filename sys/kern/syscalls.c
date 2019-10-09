@@ -17,7 +17,9 @@
 #include <sys/proc.h>
 #include <sys/pipe.h>
 #include <sys/malloc.h>
+#include <sys/libkern.h>
 #include <sys/syslimits.h>
+#include <sys/context.h>
 
 #include "sysent.h"
 
@@ -36,6 +38,7 @@ static int sys_sbrk(proc_t *p, sbrk_args_t *args, register_t *res) {
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/exit.html */
 static int sys_exit(proc_t *p, exit_args_t *args, register_t *res) {
   klog("exit(%d)", args->rval);
+  proc_lock(p);
   proc_exit(MAKE_STATUS_EXIT(args->rval));
   __unreachable();
 }
@@ -537,4 +540,63 @@ static int sys_clock_nanosleep(proc_t *p, clock_nanosleep_args_t *args,
     return error;
 
   return do_clock_nanosleep(clock_id, flags, &rqtp, NULL);
+}
+
+static int sys_sigaltstack(proc_t *p, sigaltstack_args_t *args,
+                           register_t *res) {
+  const stack_t *ss = args->ss;
+  stack_t *old_ss = args->old_ss;
+  int error;
+
+  klog("sigaltstack(%p, %p)", ss, old_ss);
+
+  /* TODO: Setting alternate signal stack is not implemented yet. */
+  assert(ss == NULL);
+
+  if (old_ss != NULL) {
+    /* TODO: Currently we don't support alternate signal stack in the kernel,
+       so this syscall always returns SS_DISABLE. */
+    stack_t result = {.ss_sp = 0, .ss_size = 0, .ss_flags = SS_DISABLE};
+    error = copyout_s(result, old_ss);
+    if (error)
+      return error;
+  }
+
+  return 0;
+}
+
+static int sys_sigprocmask(proc_t *p, sigprocmask_args_t *args,
+                           register_t *res) {
+  int how = args->how;
+  const sigset_t *set = args->set;
+  sigset_t *oset = args->oset;
+  int error;
+
+  klog("sigprocmask(%d, %p, %p)", how, set, oset);
+
+  if (set != NULL) {
+    /* TODO: Modifying signal mask is not implemented yet. */
+    klog("sigprocmask() had no effect");
+  }
+
+  if (oset != NULL) {
+    /* TODO: Currently we don't support signal masks in the kernel, so this
+       syscall always returns empty signal mask. */
+    sigset_t result = {.__bits = 0};
+    error = copyout_s(result, oset);
+    if (error)
+      return error;
+  }
+
+  return 0;
+}
+
+static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
+  const ucontext_t *ucp = args->ucp;
+  klog("setcontext(%p)", ucp);
+
+  ucontext_t uc;
+  copyin_s(ucp, uc);
+
+  return do_setcontext(p->p_thread, &uc);
 }

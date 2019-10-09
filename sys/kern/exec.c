@@ -309,18 +309,18 @@ static int _do_execve(exec_args_t *args) {
   thread_t *td = thread_self();
   proc_t *p = td->td_proc;
   vnode_t *vn;
-  int result;
+  int error;
 
   assert(p != NULL);
 
   bool use_interpreter = false;
 
-  do {
+  for (;;) {
     char *prog = args->interp ? args->interp : args->path;
 
-    if ((result = open_executable(prog, &vn))) {
+    if ((error = open_executable(prog, &vn))) {
       klog("No file found: '%s'!", prog);
-      return result;
+      return error;
     }
 
     /* Interpreter file must not be interpreted!
@@ -329,20 +329,19 @@ static int _do_execve(exec_args_t *args) {
       break;
 
     /* If shebang signature is detected use interpreter to load the file. */
-    if ((result = exec_shebang_inspect(vn)))
-      return result;
+    if ((error = exec_shebang_inspect(vn)))
+      break;
 
-    if (result) {
-      if ((result = exec_shebang_load(vn, args)))
-        return result;
-      klog("Interpreter for '%s' is '%s'", prog, args->interp);
-      use_interpreter = true;
-    }
-  } while (use_interpreter);
+    if ((error = exec_shebang_load(vn, args)))
+      return error;
+
+    klog("Interpreter for '%s' is '%s'", prog, args->interp);
+    use_interpreter = true;
+  }
 
   Elf_Ehdr eh;
-  if ((result = exec_elf_inspect(vn, &eh)))
-    return result;
+  if ((error = exec_elf_inspect(vn, &eh)))
+    return error;
 
   /* We can not destroy the current vm_map, because exec can still fail.
    * Is such case we must be able to return to the original address space. */
@@ -350,11 +349,11 @@ static int _do_execve(exec_args_t *args) {
   vaddr_t stack_top;
   enter_new_vmspace(p, &saved, &stack_top);
 
-  if ((result = exec_elf_load(p, vn, &eh)))
+  if ((error = exec_elf_load(p, vn, &eh)))
     goto fail;
 
   /* Prepare program stack, which includes storing program args. */
-  if ((result = exec_args_copyout(args, &stack_top)))
+  if ((error = exec_args_copyout(args, &stack_top)))
     goto fail;
 
   /* Set up user context. */
@@ -372,7 +371,7 @@ static int _do_execve(exec_args_t *args) {
 fail:
   restore_vmspace(p, &saved);
   destroy_vmspace(&saved);
-  return result;
+  return error;
 }
 
 int do_execve(const char *u_path, char *const *u_argp, char *const *u_envp) {

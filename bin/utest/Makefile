@@ -13,6 +13,7 @@ SOURCES = \
 	sbrk.c \
 	signal.c \
 	stat.c \
+	setjmp.c \
 	utest.c
 
 PROGRAM = utest
