@@ -18,6 +18,7 @@ SOURCES = \
 	signal.c \
 	switch.S \
 	test-md.S \
+	thread.c \
 	timer.c \
 	tlb.c \
 	uart_cbus.c \

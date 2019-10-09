@@ -20,7 +20,7 @@ int exec_shebang_inspect(vnode_t *vn) {
     return error;
 
   if (attr.va_size < 2)
-    return 0;
+    return ENOEXEC;
 
   uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, 0, sig, 2);
   if ((error = VOP_READ(vn, &uio))) {
@@ -30,7 +30,10 @@ int exec_shebang_inspect(vnode_t *vn) {
   assert(uio.uio_resid == 0);
 
   /* Check for the magic header. */
-  return (sig[0] == SHEBANG[0]) && (sig[1] == SHEBANG[1]);
+  if ((sig[0] != SHEBANG[0]) || (sig[1] != SHEBANG[1]))
+    return ENOEXEC;
+
+  return 0;
 }
 
 static int set_interp(exec_args_t *args, char *str) {

@@ -77,6 +77,9 @@ void longjmp(jmp_buf env, int val) {
   uc.uc_mcontext.__gregs[_REG_S6] = sc->sc_regs[_R_S6];
   uc.uc_mcontext.__gregs[_REG_S7] = sc->sc_regs[_R_S7];
   uc.uc_mcontext.__gregs[_REG_S8] = sc->sc_regs[_R_S8];
+#if !defined(__mips_abicalls)
+  uc.uc_mcontext.__gregs[_REG_GP] = sc->sc_regs[_R_GP];
+#endif
   uc.uc_mcontext.__gregs[_REG_SP] = sc->sc_regs[_R_SP];
   uc.uc_mcontext.__gregs[_REG_RA] = sc->sc_regs[_R_RA];
   uc.uc_mcontext.__gregs[_REG_EPC] = sc->sc_pc;

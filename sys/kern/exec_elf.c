@@ -11,20 +11,20 @@
 #include <sys/vnode.h>
 #include <sys/proc.h>
 
-int exec_elf_inspect(vnode_t *vn, Elf32_Ehdr *eh) {
+int exec_elf_inspect(vnode_t *vn, Elf_Ehdr *eh) {
   int error;
   vattr_t attr;
 
   if ((error = VOP_GETATTR(vn, &attr)))
     return error;
 
-  if (attr.va_size < sizeof(Elf32_Ehdr)) {
+  if (attr.va_size < sizeof(Elf_Ehdr)) {
     klog("Exec failed: ELF file is too small to contain a valid header");
     return ENOEXEC;
   }
 
   klog("User ELF size: %u", attr.va_size);
-  uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, 0, eh, sizeof(Elf32_Ehdr));
+  uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, 0, eh, sizeof(Elf_Ehdr));
   if ((error = VOP_READ(vn, &uio))) {
     klog("Exec failed: Reading ELF header failed.");
     return error;
@@ -61,7 +61,7 @@ int exec_elf_inspect(vnode_t *vn, Elf32_Ehdr *eh) {
     return ENOEXEC;
   }
   /* Ensure minimal prog header size */
-  if (eh->e_phentsize < sizeof(Elf32_Phdr)) {
+  if (eh->e_phentsize < sizeof(Elf_Phdr)) {
     klog("Exec failed: ELF file program headers are too short");
     return ENOEXEC;
   }
@@ -69,7 +69,7 @@ int exec_elf_inspect(vnode_t *vn, Elf32_Ehdr *eh) {
   return 0;
 }
 
-static int load_elf_segment(proc_t *p, vnode_t *vn, Elf32_Phdr *ph) {
+static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
   int error;
 
   /* Avoid creating empty vm_map entries for segments that occupy no space in
@@ -105,7 +105,7 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf32_Phdr *ph) {
      * the file contents on demand. But we don't have a vnode_pager yet.
      */
     uio_t uio =
-      UIO_SINGLE_KERNEL(UIO_READ, ph->p_offset, (char *)start, ph->p_filesz);
+      UIO_SINGLE_USER(UIO_READ, ph->p_offset, (char *)start, ph->p_filesz);
     if ((error = VOP_READ(vn, &uio))) {
       klog("Exec failed: Reading ELF segment failed.");
       return error;
@@ -130,7 +130,7 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf32_Phdr *ph) {
   return 0;
 }
 
-int exec_elf_load(proc_t *p, vnode_t *vn, Elf32_Ehdr *eh) {
+int exec_elf_load(proc_t *p, vnode_t *vn, Elf_Ehdr *eh) {
   int error;
 
   assert(eh->e_phoff < 64);
@@ -149,7 +149,7 @@ int exec_elf_load(proc_t *p, vnode_t *vn, Elf32_Ehdr *eh) {
   /* Iterate over program headers */
   klog("ELF has %d program headers", eh->e_phnum);
   for (int i = 0; i < eh->e_phnum; i++) {
-    Elf32_Phdr *ph = (Elf32_Phdr *)(phs + i * eh->e_phentsize);
+    Elf_Phdr *ph = (Elf_Phdr *)(phs + i * eh->e_phentsize);
     error = ENOEXEC; /* default fail reason */
     switch (ph->p_type) {
       case PT_LOAD:

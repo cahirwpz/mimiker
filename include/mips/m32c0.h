@@ -250,6 +250,7 @@
  * MIPS32r2 SRSCtl Register  (CP0 Register 12, Select 2)
  */
 #define SRSCTL_HSS	0x3c000000	/* highest shadow set */
+#define SRSCTL_HSS_BITS 	4
 #define SRSCTL_HSS_SHIFT	26
 #define SRSCTL_EICSS	0x003c0000	/* EIC shadow set */
 #define SRSCTL_EICSS_SHIFT	18

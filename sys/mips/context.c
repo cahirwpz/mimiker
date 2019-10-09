@@ -1,6 +1,9 @@
 #include <sys/libkern.h>
 #include <sys/context.h>
 #include <sys/exception.h>
+#include <sys/thread.h>
+#include <sys/errno.h>
+#include <sys/ucontext.h>
 #include <mips/ctx.h>
 #include <mips/exc.h>
 
@@ -51,4 +54,23 @@ void exc_frame_set_retval(exc_frame_t *frame, register_t value,
   frame->v0 = (register_t)value;
   frame->v1 = (register_t)error;
   frame->pc += 4;
+}
+
+int do_setcontext(thread_t *td, ucontext_t *uc) {
+  mcontext_t *from = &uc->uc_mcontext;
+  exc_frame_t *to = td->td_uframe;
+
+  /* registers AT-T9 */
+  memcpy(&to->at, &from->__gregs[_REG_AT], sizeof(__greg_t) * 25);
+  /* registers GP-HI */
+  memcpy(&to->gp, &from->__gregs[_REG_GP], sizeof(__greg_t) * 6);
+
+  to->cause = from->__gregs[_REG_CAUSE];
+  to->pc = from->__gregs[_REG_EPC];
+
+  /* FP registers + FP CSR */
+  memcpy(&to->f0, &from->__fpregs.__fp_r,
+         sizeof(from->__fpregs.__fp_r) + sizeof(from->__fpregs.__fp_csr));
+
+  return EJUSTRETURN;
 }

@@ -6,14 +6,24 @@
 
 cpuinfo_t cpuinfo;
 
+#define bitfield(value, field)                                                 \
+  (((value) >> field##_SHIFT) & ((1L << field##_BITS) - 1))
+#define bit(value, field) (((value) >> field##_SHIFT) & 1)
+
+static inline const char *boolean(int b) {
+  return b ? "yes" : "no";
+}
+
 /*
  * Read configuration register values, interpret and save them into the cpuinfo
  * structure for later use.
  */
-static bool cpu_read_config(void) {
+static void cpu_read_config(void) {
   uint32_t config0 = mips32_getconfig0();
   uint32_t cfg0_mt = config0 & CFG0_MT_MASK;
   char *cfg0_mt_str;
+
+  klog("MIPS32 Architecture Release %d", bitfield(config0, CFG0_AR) + 1);
 
   if (cfg0_mt == CFG0_MT_TLB)
     cfg0_mt_str = "Standard TLB";
@@ -30,26 +40,28 @@ static bool cpu_read_config(void) {
 
   /* CFG1 implemented? */
   if ((config0 & CFG0_M) == 0)
-    return false;
+    return;
 
-  uint32_t config1 = mips32_getconfig1();
+  uint32_t cfg1 = mips32_getconfig1();
+
+  klog("FPU implemented: %s", boolean(cfg1 & CFG1_FP));
+  klog("Watch registers implemented: %s", boolean(cfg1 & CFG1_WR));
+  klog("Performance Counters registers implemented: %s",
+       boolean(cfg1 & CFG1_PC));
 
   /* FTLB or/and VTLB sizes */
-  cpuinfo.tlb_entries =
-    _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS) + 1;
+  cpuinfo.tlb_entries = bitfield(cfg1, CFG1_MMUS) + 1;
 
   /* Instruction cache size and organization. */
-  cpuinfo.ic_linesize = (config1 & CFG1_IL_MASK) ? 32 : 0;
-  cpuinfo.ic_nways = _mips32r2_ext(config1, CFG1_IA_SHIFT, CFG1_IA_BITS) + 1;
-  cpuinfo.ic_nsets =
-    1 << (_mips32r2_ext(config1, CFG1_IS_SHIFT, CFG1_IS_BITS) + 6);
+  cpuinfo.ic_linesize = (cfg1 & CFG1_IL_MASK) ? 32 : 0;
+  cpuinfo.ic_nways = bitfield(cfg1, CFG1_IA) + 1;
+  cpuinfo.ic_nsets = 1 << (bitfield(cfg1, CFG1_IS) + 6);
   cpuinfo.ic_size = cpuinfo.ic_nways * cpuinfo.ic_linesize * cpuinfo.ic_nsets;
 
   /* Data cache size and organization. */
-  cpuinfo.dc_linesize = (config1 & CFG1_DL_MASK) ? 32 : 0;
-  cpuinfo.dc_nways = _mips32r2_ext(config1, CFG1_DA_SHIFT, CFG1_DA_BITS) + 1;
-  cpuinfo.dc_nsets =
-    1 << (_mips32r2_ext(config1, CFG1_DS_SHIFT, CFG1_DS_BITS) + 6);
+  cpuinfo.dc_linesize = (cfg1 & CFG1_DL_MASK) ? 32 : 0;
+  cpuinfo.dc_nways = bitfield(cfg1, CFG1_DA) + 1;
+  cpuinfo.dc_nsets = 1 << (bitfield(cfg1, CFG1_DS) + 6);
   cpuinfo.dc_size = cpuinfo.dc_nways * cpuinfo.dc_linesize * cpuinfo.dc_nsets;
 
   klog("TLB Entries: %d", cpuinfo.tlb_entries);
@@ -60,38 +72,52 @@ static bool cpu_read_config(void) {
        cpuinfo.dc_size / 1024, cpuinfo.dc_nways, cpuinfo.dc_linesize);
 
   /* Config2 implemented? */
-  if ((config1 & CFG1_M) == 0)
-    return false;
+  if ((cfg1 & CFG1_M) == 0)
+    return;
 
-  uint32_t config2 = mips32_getconfig1();
+  uint32_t cfg2 = mips32_getconfig2();
 
   /* Config3 implemented? */
-  if ((config2 & CFG2_M) == 0)
-    return false;
+  if ((cfg2 & CFG2_M) == 0)
+    return;
 
-  uint32_t config3 = mips32_getconfig3();
+  uint32_t cfg3 = mips32_getconfig3();
 
-  klog("Vectored interrupts implemented : %s",
-       (config3 & CFG3_VI) ? "yes" : "no");
-  klog("EIC interrupt mode implemented  : %s",
-       (config3 & CFG3_VEIC) ? "yes" : "no");
-  klog("UserLocal register implemented  : %s",
-       (config3 & CFG3_ULRI) ? "yes" : "no");
+  klog("BadInstrP register implemented: %s", boolean(cfg3 & CFG3_BP));
+  klog("BadInstr register implemented: %s", boolean(cfg3 & CFG3_BI));
+  klog("Segment Control implemented: %s", boolean(cfg3 & CFG3_SC));
+  klog("UserLocal register implemented: %s", boolean(cfg3 & CFG3_ULRI));
+  klog("Read / Execute Inhibit bits implemented: %s", boolean(cfg3 & CFG3_RXI));
+  klog("EIC interrupt mode implemented: %s", boolean(cfg3 & CFG3_VEIC));
+  klog("Vectored interrupts implemented: %s", boolean(cfg3 & CFG3_VI));
 
-  return true;
+  /* Config4 implemented? */
+  if ((cfg3 & CFG3_M) == 0)
+    return;
+
+  uint32_t cfg4 = mips32_getconfig4();
+
+  klog("TLBINV / TLBINVF supported: %s", boolean(bitfield(cfg4, CFG4_IE)));
+
+  /* Config5 implemented? */
+  if ((cfg4 & CFG4_M) == 0)
+    return;
+
+  uint32_t cfg5 = mips32_getconfig5();
+
+  klog("Exhanced Virtual Address extension: %s", boolean(cfg5 & CFG5_EVA));
 }
 
 void cpu_sr_dump(void) {
   unsigned sr = mips32_get_c0(C0_STATUS);
   static char *mode[] = {"kernel", "supervisor", "user"};
-  static char *boolean[] = {"no", "yes"};
 
   klog("Status register :");
-  klog(" - FPU enabled        : %s", boolean[(sr & SR_CU1) >> SR_CU1_SHIFT]);
-  klog(" - Interrupt mask     : %02x", (sr & SR_IMASK) >> SR_IMASK_SHIFT);
-  klog(" - Operating mode     : %s", mode[(sr & SR_KSU_MASK) >> SR_KSU_SHIFT]);
-  klog(" - Exception level    : %s", boolean[(sr & SR_EXL) >> SR_EXL_SHIFT]);
-  klog(" - Interrupts enabled : %s", boolean[(sr & SR_IE) >> SR_IE_SHIFT]);
+  klog(" - FPU enabled        : %s", boolean(sr & SR_CU1));
+  klog(" - Interrupt mask     : %02x", bitfield(sr, SR_IMASK));
+  klog(" - Operating mode     : %s", mode[bitfield(sr, SR_KSU)]);
+  klog(" - Exception level    : %s", boolean(sr & SR_EXL));
+  klog(" - Interrupts enabled : %s", boolean(sr & SR_IE));
 }
 
 /* Print state of control registers. */
@@ -100,15 +126,12 @@ static void cpu_dump(void) {
   unsigned intctl = mips32_get_c0(C0_INTCTL);
   unsigned srsctl = mips32_get_c0(C0_SRSCTL);
 
-  klog("Cause    : TI:%d IV:%d IP:%d ExcCode:%d", (cr & CR_TI) >> CR_TI_SHIFT,
-       (cr & CR_IV) >> CR_IV_SHIFT, (cr & CR_IP_MASK) >> CR_IP_SHIFT,
-       (cr & CR_X_MASK) >> CR_X_SHIFT);
+  klog("Cause    : TI:%d IV:%d IP:%d ExcCode:%d", bit(cr, CR_TI),
+       bit(cr, CR_IV), bitfield(cr, CR_IP), bitfield(cr, CR_X));
   cpu_sr_dump();
-  klog("IntCtl   : IPTI:%d IPPCI:%d VS:%d",
-       (intctl & INTCTL_IPTI) >> INTCTL_IPTI_SHIFT,
-       (intctl & INTCTL_IPPCI) >> INTCTL_IPPCI_SHIFT,
-       (intctl & INTCTL_VS) >> INTCTL_VS_SHIFT);
-  klog("SrsCtl   : HSS:%d", (srsctl & SRSCTL_HSS) >> SRSCTL_HSS_SHIFT);
+  klog("IntCtl   : IPTI:%d IPPCI:%d VS:%d", bitfield(intctl, INTCTL_IPTI),
+       bitfield(intctl, INTCTL_IPPCI), bitfield(intctl, INTCTL_VS));
+  klog("SrsCtl   : HSS:%d", bitfield(srsctl, SRSCTL_HSS));
   klog("EPC      : $%08x", (unsigned)mips32_get_c0(C0_EPC));
   klog("ErrPC    : $%08x", (unsigned)mips32_get_c0(C0_ERRPC));
   klog("EBase    : $%08x", (unsigned)mips32_get_c0(C0_EBASE));

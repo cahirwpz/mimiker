@@ -77,14 +77,14 @@ static inline void _tlb_invalidate(unsigned i) {
 static unsigned _tlb_size = 0;
 
 static void read_tlb_size(void) {
-  uint32_t config0 = mips32_getconfig0();
-  if ((config0 & CFG0_MT_MASK) != CFG0_MT_TLB)
+  uint32_t cfg0 = mips32_getconfig0();
+  if ((cfg0 & CFG0_MT_MASK) != CFG0_MT_TLB)
     return;
-  if (!(config0 & CFG0_M))
+  if (!(cfg0 & CFG0_M))
     return;
 
-  uint32_t config1 = mips32_getconfig1();
-  _tlb_size = _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS) + 1;
+  uint32_t cfg1 = mips32_getconfig1();
+  _tlb_size = ((cfg1 & CFG1_MMUS_MASK) >> CFG1_MMUS_SHIFT) + 1;
 }
 
 void tlb_init(void) {
@@ -204,8 +204,7 @@ void tlb_print(void) {
 static __boot_data volatile tlbentry_t _gdb_tlb_entry;
 
 __boot_text unsigned _gdb_tlb_size(void) {
-  uint32_t config1 = mips32_getconfig1();
-  return _mips32r2_ext(config1, CFG1_MMUS_SHIFT, CFG1_MMUS_BITS) + 1;
+  return ((mips32_getconfig1() & CFG1_MMUS_MASK) >> CFG1_MMUS_SHIFT) + 1;
 }
 
 /* Fills _gdb_tlb_entry structure with TLB entry. */

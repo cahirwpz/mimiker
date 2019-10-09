@@ -164,30 +164,16 @@ static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
 /* TODO: implement */
 void pmap_remove_pde(pmap_t *pmap, vaddr_t vaddr);
 
-#if 0
-/* Used if CPU implements RI and XI bits in ENTRYLO. */
 static pte_t vm_prot_map[] = {
   [VM_PROT_NONE] = 0,
-  [VM_PROT_READ] = PTE_VALID|PTE_NO_EXEC,
-  [VM_PROT_WRITE] = PTE_VALID|PTE_DIRTY|PTE_NO_READ|PTE_NO_EXEC,
-  [VM_PROT_READ|VM_PROT_WRITE] = PTE_VALID|PTE_DIRTY|PTE_NO_EXEC,
-  [VM_PROT_EXEC] = PTE_VALID|PTE_NO_READ,
-  [VM_PROT_READ|VM_PROT_EXEC] = PTE_VALID,
-  [VM_PROT_WRITE|VM_PROT_EXEC] = PTE_VALID|PTE_DIRTY|PTE_NO_READ,
-  [VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXEC] = PTE_VALID|PTE_DIRTY,
-};
-#else
-static pte_t vm_prot_map[] = {
-  [VM_PROT_NONE] = 0,
-  [VM_PROT_READ] = PTE_VALID,
-  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY,
-  [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY,
-  [VM_PROT_EXEC] = PTE_VALID,
+  [VM_PROT_READ] = PTE_VALID | PTE_NO_EXEC,
+  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_NO_READ | PTE_NO_EXEC,
+  [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_NO_EXEC,
+  [VM_PROT_EXEC] = PTE_VALID | PTE_NO_READ,
   [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID,
-  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
+  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY | PTE_NO_READ,
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
 };
-#endif
 
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
   vaddr_t va_end = va + PG_SIZE(pg);
@@ -198,10 +184,13 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
 
   klog("Enter virtual mapping %p-%p for frame %p", va, va_end, PG_START(pg));
 
+  /* Mark user pages as non-referenced & non-modified. */
+  pte_t mask = (pmap == &kernel_pmap) ? 0 : PTE_VALID | PTE_DIRTY;
+
   WITH_MTX_LOCK (&pmap->mtx) {
     for (; va < va_end; va += PAGESIZE, pa += PAGESIZE)
       pmap_pte_write(pmap, va,
-                     PTE_PFN(pa) | vm_prot_map[prot] |
+                     PTE_PFN(pa) | (vm_prot_map[prot] & ~mask) |
                        (in_kernel_space(va) ? PTE_GLOBAL : 0));
   }
 }
@@ -288,13 +277,36 @@ void tlb_exception_handler(exc_frame_t *frame) {
   klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
        frame->pc, vaddr);
 
-  vm_map_t *map = get_active_vm_map_by_addr(vaddr);
-  if (!map) {
+  pmap_t *pmap = get_active_pmap_by_addr(vaddr);
+  if (!pmap) {
+    klog("No physical map defined for %08lx address!", vaddr);
+    goto fault;
+  }
+
+  pte_t pte = pmap_pte_read(pmap, vaddr);
+  paddr_t pa = PTE_FRAME_ADDR(pte);
+
+  if (pa) {
+    if ((pte & PTE_VALID) == 0 && code == EXC_TLBL) {
+      pmap_set_referenced(pa);
+      pmap_pte_write(pmap, vaddr, pte | PTE_VALID);
+      return;
+    }
+    if ((pte & PTE_DIRTY) == 0 && (code == EXC_TLBS || code == EXC_MOD)) {
+      pmap_set_referenced(pa);
+      pmap_set_modified(pa);
+      pmap_pte_write(pmap, vaddr, pte | PTE_DIRTY | PTE_VALID);
+      return;
+    }
+  }
+
+  vm_map_t *vmap = get_active_vm_map_by_addr(vaddr);
+  if (!vmap) {
     klog("No virtual address space defined for %08lx!", vaddr);
     goto fault;
   }
   vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
-  int ret = vm_page_fault(map, vaddr, access);
+  int ret = vm_page_fault(vmap, vaddr, access);
   if (ret == 0)
     return;
 

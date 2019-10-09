@@ -37,6 +37,7 @@ SOURCES = \
 	pcpu.c \
 	physmem.c \
 	pipe.c \
+	pmap.c \
 	pool.c \
 	proc.c \
 	ringbuf.c \

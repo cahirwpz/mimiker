@@ -4,7 +4,7 @@
 #include <sys/cdefs.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
-#include <machine/_bus.h>
+#include <machine/bus_defs.h>
 
 /* TODO: remove RT_ISA after ISA-bridge driver is implemented */
 typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_ISA } res_type_t;

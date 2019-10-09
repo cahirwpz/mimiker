@@ -53,4 +53,6 @@ int test_exc_sigsys(void);
 int test_exc_unaligned_access(void);
 int test_syscall_in_bds(void);
 
+int test_setjmp(void);
+
 #endif /* __UTEST_H__ */

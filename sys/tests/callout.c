@@ -37,7 +37,7 @@ static int order[ORDER_N] = {2, 5, 4, 6, 9, 0, 8, 1, 3, 7};
 static int current;
 
 static void callout_ordered(void *arg) {
-  int ord = (int)arg;
+  int ord = (intptr_t)arg;
   assert(current == ord);
   /* There is no race condition here since callouts don't run concurrently. */
   current++;
@@ -51,7 +51,7 @@ static int test_callout_order(void) {
   systime_t now = getsystime();
   for (int i = 0; i < ORDER_N; i++)
     callout_setup(&callouts[i], now + 5 + order[i] * 5, callout_ordered,
-                  (void *)order[i]);
+                  (void *)(intptr_t)order[i]);
 
   /* Wait for all callouts. */
   for (int i = 0; i < ORDER_N; i++)

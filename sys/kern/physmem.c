@@ -80,7 +80,7 @@ void pm_seg_init(pm_seg_t *seg, paddr_t start, paddr_t end, off_t offset) {
     while (to_add >= size) {
       vm_page_t *page = &seg->pages[curr_page];
       TAILQ_INSERT_HEAD(PM_FREEQ(seg, i), page, freeq);
-      page->pm_flags |= PM_MANAGED;
+      page->flags |= PG_MANAGED;
       to_add -= size;
       curr_page += size;
     }
@@ -124,7 +124,7 @@ static vm_page_t *pm_find_buddy(pm_seg_t *seg, vm_page_t *pg) {
   if (buddy->size != pg->size)
     return NULL;
 
-  if (!(buddy->pm_flags & PM_MANAGED))
+  if (!(buddy->flags & PG_MANAGED))
     return NULL;
 
   return buddy;
@@ -138,7 +138,7 @@ static void pm_split_page(pm_seg_t *seg, vm_page_t *page) {
   unsigned size = page->size / 2;
   vm_page_t *buddy = page + size;
 
-  assert(!(buddy->pm_flags & PM_ALLOCATED));
+  assert(!(buddy->flags & PG_ALLOCATED));
 
   TAILQ_REMOVE(PM_QUEUE_OF(seg, page), page, freeq);
 
@@ -147,7 +147,7 @@ static void pm_split_page(pm_seg_t *seg, vm_page_t *page) {
 
   TAILQ_INSERT_HEAD(PM_QUEUE_OF(seg, page), page, freeq);
   TAILQ_INSERT_HEAD(PM_QUEUE_OF(seg, buddy), buddy, freeq);
-  buddy->pm_flags |= PM_MANAGED;
+  buddy->flags |= PG_MANAGED;
 }
 
 /* TODO this can be sped up by removing elements from list on-line. */
@@ -169,10 +169,10 @@ void pm_seg_reserve(pm_seg_t *seg, paddr_t start, paddr_t end) {
         /* if segment is contained within (start, end) remove it from free
          * queue */
         TAILQ_REMOVE(queue, pg, freeq);
-        pg->pm_flags &= ~PM_MANAGED;
+        pg->flags &= ~PG_MANAGED;
         int n = pg->size;
         do {
-          pg->pm_flags = PM_RESERVED;
+          pg->flags = PG_RESERVED;
           pg++;
         } while (--n);
         /* List has been changed so start over! */
@@ -208,11 +208,12 @@ static vm_page_t *pm_alloc_from_seg(pm_seg_t *seg, size_t npages) {
 
     if (i == j) {
       TAILQ_REMOVE(PM_FREEQ(seg, i), page, freeq);
-      page->pm_flags &= ~PM_MANAGED;
+      page->flags &= ~PG_MANAGED;
       vm_page_t *pg = page;
       unsigned n = page->size;
       do {
-        pg->pm_flags |= PM_ALLOCATED;
+        pg->flags |= PG_ALLOCATED;
+        pg->flags &= ~(PG_REFERENCED | PG_MODIFIED);
         pg++;
       } while (--n);
       return page;
@@ -241,10 +242,10 @@ vm_page_t *pm_alloc(size_t npages) {
 }
 
 static void pm_free_from_seg(pm_seg_t *seg, vm_page_t *page) {
-  if (page->pm_flags & PM_RESERVED)
+  if (page->flags & PG_RESERVED)
     panic("trying to free reserved page: %p", (void *)page->paddr);
 
-  if (!(page->pm_flags & PM_ALLOCATED))
+  if (!(page->flags & PG_ALLOCATED))
     panic("page is already free: %p", (void *)page->paddr);
 
   while (true) {
@@ -252,18 +253,18 @@ static void pm_free_from_seg(pm_seg_t *seg, vm_page_t *page) {
 
     if (buddy == NULL) {
       TAILQ_INSERT_HEAD(PM_QUEUE_OF(seg, page), page, freeq);
-      page->pm_flags |= PM_MANAGED;
+      page->flags |= PG_MANAGED;
       vm_page_t *pg = page;
       unsigned n = page->size;
       do {
-        pg->pm_flags &= ~PM_ALLOCATED;
+        pg->flags &= ~PG_ALLOCATED;
         pg++;
       } while (--n);
       break;
     }
 
     TAILQ_REMOVE(PM_QUEUE_OF(seg, buddy), buddy, freeq);
-    buddy->pm_flags &= ~PM_MANAGED;
+    buddy->flags &= ~PG_MANAGED;
     page = pm_merge_buddies(page, buddy);
   }
 }
@@ -290,7 +291,7 @@ vm_page_t *pm_split_alloc_page(vm_page_t *pg) {
   klog("pm_split {paddr:%lx size:%ld}\n", pg->paddr, pg->size);
 
   assert(pg->size > 1);
-  assert(pg->pm_flags & PM_ALLOCATED);
+  assert(pg->flags & PG_ALLOCATED);
 
   unsigned size = pg->size / 2;
   vm_page_t *buddy = pg + size;
@@ -298,6 +299,20 @@ vm_page_t *pm_split_alloc_page(vm_page_t *pg) {
   pg->size = size;
   buddy->size = size;
   return buddy;
+}
+
+vm_page_t *pm_find_page(paddr_t pa) {
+  SCOPED_MTX_LOCK(seglist_lock);
+
+  pm_seg_t *seg_it;
+  TAILQ_FOREACH (seg_it, &seglist, segq) {
+    if (seg_it->start <= pa && pa < seg_it->end) {
+      intptr_t index = (pa - seg_it->start) / PAGESIZE;
+      return &seg_it->pages[index];
+    }
+  }
+
+  return NULL;
 }
 
 /* This function hashes state of allocator. Only used to compare states

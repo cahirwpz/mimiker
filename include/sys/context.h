@@ -3,6 +3,7 @@
 
 typedef struct ctx ctx_t;
 typedef struct thread thread_t;
+typedef struct __ucontext ucontext_t;
 
 /*! \brief Initializes context to enter code with given stack. */
 void ctx_init(ctx_t *ctx, void *pc, void *sp);
@@ -20,5 +21,8 @@ void ctx_set_retval(ctx_t *ctx, long value);
  * \returns a value set by \a ctx_set_retval or 0 otherwise.
  */
 long ctx_switch(thread_t *from, thread_t *to);
+
+/* Implementation of setcontext syscall. */
+int do_setcontext(thread_t *td, ucontext_t *uc);
 
 #endif /* !_SYS_CONTEXT_H_ */

@@ -3,7 +3,7 @@
 
 #ifdef _EXEC_IMPL
 #include <sys/cdefs.h>
-#include <sys/elf32.h>
+#include <sys/exec_elf.h>
 
 typedef struct vnode vnode_t;
 typedef struct proc proc_t;
@@ -23,8 +23,8 @@ struct exec_args {
   size_t left; /* space left in the buffer */
 };
 
-int exec_elf_inspect(vnode_t *vn, Elf32_Ehdr *eh);
-int exec_elf_load(proc_t *p, vnode_t *vn, Elf32_Ehdr *eh);
+int exec_elf_inspect(vnode_t *vn, Elf_Ehdr *eh);
+int exec_elf_load(proc_t *p, vnode_t *vn, Elf_Ehdr *eh);
 int exec_shebang_inspect(vnode_t *vn);
 int exec_shebang_load(vnode_t *vn, exec_args_t *args);
 

@@ -1,7 +1,7 @@
 #ifndef _SYS_BUS_H_
 #define _SYS_BUS_H_
 
-#include <machine/_bus.h>
+#include <machine/bus_defs.h>
 #include <sys/device.h>
 #include <sys/rman.h>
 

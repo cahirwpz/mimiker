@@ -49,6 +49,10 @@ typedef uint64_t rlim_t;     /* resource limit */
 
 typedef __builtin_va_list __va_list;
 
+/* address types */
+typedef uintptr_t vaddr_t; /* virtual address */
+typedef uintptr_t paddr_t; /* physical address */
+
 /* quads */
 typedef uint64_t u_quad_t;
 typedef int64_t quad_t;
