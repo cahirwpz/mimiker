@@ -148,7 +148,6 @@ void sig_post(signo_t sig) {
 
   /* Terminate this thread as result of a signal. */
   if (sa->sa_handler == SIG_DFL && sig_default(sig) == SA_KILL) {
-    proc_unlock(p);
     sig_exit(td, sig);
   }
 
