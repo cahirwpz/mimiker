@@ -6,6 +6,7 @@
  */
 
 #include <sys/time.h>
+#include <sys/ucontext.h>
 #include <sys/sigtypes.h>
 
 typedef struct {
@@ -182,3 +183,18 @@ typedef struct {
   char * buf;
   size_t len;
 } getcwd_args_t;
+
+typedef struct {
+  const stack_t * ss;
+  stack_t * old_ss;
+} sigaltstack_args_t;
+
+typedef struct {
+  int how;
+  const sigset_t * set;
+  sigset_t * oset;
+} sigprocmask_args_t;
+
+typedef struct {
+  const ucontext_t * ucp;
+} setcontext_args_t;

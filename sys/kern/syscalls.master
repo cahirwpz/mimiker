@@ -2,6 +2,7 @@
 ; (See syscalls.conf to see what it is processed into.)
 
 #include <sys/time.h>
+#include <sys/ucontext.h>
 #include <sys/sigtypes.h>
 
 0   { int sys_syscall(int number); }
@@ -46,5 +47,8 @@
 34  { int sys_mprotect(void *addr, size_t len, int prot); }
 35  { int sys_chdir(const char *path); }
 36  { int sys_getcwd(char *buf, size_t len); }
+37  { int sys_sigaltstack(const stack_t *ss, stack_t *old_ss); }
+38  { int sys_sigprocmask(int how, const sigset_t * set, sigset_t * oset); }
+39  { int sys_setcontext(const ucontext_t *ucp); }
 
 ; vim: ts=4 sw=4 sts=4 et

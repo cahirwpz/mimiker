@@ -42,6 +42,9 @@ static int sys_munmap(proc_t *, munmap_args_t *, register_t *);
 static int sys_mprotect(proc_t *, mprotect_args_t *, register_t *);
 static int sys_chdir(proc_t *, chdir_args_t *, register_t *);
 static int sys_getcwd(proc_t *, getcwd_args_t *, register_t *);
+static int sys_sigaltstack(proc_t *, sigaltstack_args_t *, register_t *);
+static int sys_sigprocmask(proc_t *, sigprocmask_args_t *, register_t *);
+static int sys_setcontext(proc_t *, setcontext_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { (syscall_t *)sys_syscall },
@@ -81,5 +84,8 @@ struct sysent sysent[] = {
   [SYS_mprotect] = { (syscall_t *)sys_mprotect },
   [SYS_chdir] = { (syscall_t *)sys_chdir },
   [SYS_getcwd] = { (syscall_t *)sys_getcwd },
+  [SYS_sigaltstack] = { (syscall_t *)sys_sigaltstack },
+  [SYS_sigprocmask] = { (syscall_t *)sys_sigprocmask },
+  [SYS_setcontext] = { (syscall_t *)sys_setcontext },
 };
 
