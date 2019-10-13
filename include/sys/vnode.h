@@ -94,7 +94,7 @@ typedef struct vattr {
 void va_convert(vattr_t *va, stat_t *sb);
 
 #define VOP_CALL(op, v, ...)                                                   \
-  ((v)->v_ops->v_##op) ? ((v)->v_ops->v_##op(v, __VA_ARGS__)) : -ENOTSUP
+  ((v)->v_ops->v_##op) ? ((v)->v_ops->v_##op(v, __VA_ARGS__)) : ENOTSUP
 
 static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
   return VOP_CALL(lookup, dv, name, vp);
