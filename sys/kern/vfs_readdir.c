@@ -37,5 +37,5 @@ int readdir_generic(vnode_t *v, uio_t *uio, readdir_ops_t *ops) {
       return -error;
   }
 
-  return uio->uio_offset - offset;
+  return 0;
 }
