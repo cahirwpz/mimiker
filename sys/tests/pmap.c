@@ -7,13 +7,13 @@
 #define PAGES 16
 
 static int test_kernel_pmap(void) {
-  pmap_t *pmap = get_kernel_pmap();
+  pmap_t *pmap = pmap_kernel();
 
   vm_page_t *pg = pm_alloc(PAGES);
   size_t size = pg->size * PAGESIZE;
 
-  vaddr_t vaddr = pmap->start;
-  vaddr_t end = pmap->start + size;
+  vaddr_t vaddr = pmap_start(pmap);
+  vaddr_t end = vaddr + size;
 
   pmap_enter(pmap, vaddr, pg, VM_PROT_READ | VM_PROT_WRITE);
 
@@ -43,7 +43,7 @@ static int test_kernel_pmap(void) {
 }
 
 static int test_user_pmap(void) {
-  pmap_t *orig = get_user_pmap();
+  pmap_t *orig = pmap_user();
 
   pmap_t *pmap1 = pmap_new();
   pmap_t *pmap2 = pmap_new();
@@ -77,7 +77,7 @@ static int test_user_pmap(void) {
 }
 
 static int test_rmbits(void) {
-  pmap_t *orig = get_user_pmap();
+  pmap_t *orig = pmap_user();
 
   pmap_t *pmap = pmap_new();
 

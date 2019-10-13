@@ -16,6 +16,7 @@ typedef int fo_write_t(file_t *f, uio_t *uio);
 typedef int fo_close_t(file_t *f);
 typedef int fo_seek_t(file_t *f, off_t offset, int whence);
 typedef int fo_stat_t(file_t *f, stat_t *sb);
+typedef int fo_ioctl_t(file_t *f, u_long cmd, void *data);
 
 typedef struct {
   fo_read_t *fo_read;
@@ -23,6 +24,7 @@ typedef struct {
   fo_close_t *fo_close;
   fo_seek_t *fo_seek;
   fo_stat_t *fo_stat;
+  fo_ioctl_t *fo_ioctl;
 } fileops_t;
 
 typedef enum {
@@ -72,6 +74,10 @@ static inline int FOP_SEEK(file_t *f, off_t offset, int whence) {
 
 static inline int FOP_STAT(file_t *f, stat_t *sb) {
   return f->f_ops->fo_stat(f, sb);
+}
+
+static inline int FOP_IOCTL(file_t *f, u_long cmd, void *data) {
+  return f->f_ops->fo_ioctl(f, cmd, data);
 }
 
 extern fileops_t badfileops;

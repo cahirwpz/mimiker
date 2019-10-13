@@ -7,7 +7,18 @@
 
 #include <mips/asm.h>
 
-#define SAVE_REG(reg, offset, base) sw reg, (EXC_##offset)(base)
+#define _ADD_CFI_NO_CFI(reg, offset)
+
+#define _ADD_CFI_(reg, offset) .cfi_rel_offset reg, offset
+
+/* Resolves to _ADD_CFI_(reg, offset) when no variadic arguments given.
+ * Resolves to _ADD_CFI_NO_CFI when NO_CFI given as one, and only one
+ * variadic argument.
+ * Passing multiple variadic arguments to this macro is consiered an error.
+ */
+#define SAVE_REG(reg, offset, base, ...)                                       \
+  sw reg, (EXC_##offset)(base);                                                \
+  _ADD_CFI_##__VA_ARGS__(reg, (EXC_##offset))
 
 #define LOAD_REG(reg, offset, base) lw reg, (EXC_##offset)(base)
 
@@ -42,9 +53,14 @@
   SAVE_REG(t8, T8, reg);                                                       \
   SAVE_REG(t9, T9, reg);                                                       \
   SAVE_REG(gp, GP, reg);                                                       \
-  SAVE_REG(_sp, SP, reg);                                                      \
+  SAVE_REG(_sp, SP, reg, NO_CFI);                                              \
+  .cfi_rel_offset sp, EXC_SP;                                                  \
   SAVE_REG(fp, FP, reg);                                                       \
-  SAVE_REG(ra, RA, reg);                                                       \
+  /* Saving value of user-space ra register just before syscall instruction.   \
+   */                                                                          \
+  SAVE_REG(ra, RA, reg, NO_CFI);                                               \
+  .cfi_rel_offset ra, EXC_RA;                                                  \
+  mfc0 ra, C0_EPC;                                                             \
   mflo t0;                                                                     \
   mfhi t1;                                                                     \
   SAVE_REG(t0, LO, reg);                                                       \
@@ -56,7 +72,10 @@
   SAVE_REG(t0, SR, reg);                                                       \
   SAVE_REG(t1, CAUSE, reg);                                                    \
   SAVE_REG(t2, BADVADDR, reg);                                                 \
-  SAVE_REG(t3, PC, reg)
+  /* Saving value of user-space PC just before syscall. */                     \
+  SAVE_REG(t3, PC, reg, NO_CFI);                                               \
+  .cfi_return_column t3;                                                       \
+  .cfi_rel_offset t3, EXC_PC
 
 #define LOAD_CPU_CTX(reg)                                                      \
   LOAD_REG(t0, PC, reg);                                                       \

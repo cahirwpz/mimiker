@@ -1,11 +1,8 @@
-/*	$NetBSD: signal.h,v 1.30 2016/01/24 16:00:29 christos Exp $	*/
+/*	$NetBSD: times.c,v 1.15 2009/01/11 02:46:27 christos Exp $	*/
 
-/*
- * Copyright (c) 1992, 1993
+/*-
+ * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Ralph Campbell.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,51 +27,47 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)signal.h	8.1 (Berkeley) 6/10/93
  */
 
-#ifndef _MIPS_SIGNAL_H_
-#define _MIPS_SIGNAL_H_
+#include <sys/param.h>
+#include <sys/time.h>
+#include <sys/times.h>
+#include <sys/resource.h>
 
-#include <machine/cdefs.h> /* for API selection */
-
-#ifndef __ASSEMBLER__
+#include <assert.h>
+#include <errno.h>
+#include <time.h>
 
 /*
- * Machine-dependent signal definitions
+ * Convert usec to clock ticks; could do (usec * CLK_TCK) / 1000000,
+ * but this would overflow if we switch to nanosec.
  */
+#define CONVTCK(r)                                                             \
+  (clock_t)(r.tv_sec * clk_tck + r.tv_usec / (1000000 / (u_int)clk_tck))
 
-typedef int sig_atomic_t;
+clock_t times(struct tms *tp) {
+  struct rusage ru;
+  struct timeval t;
+  static clock_t clk_tck;
 
-/*
- * Information pushed on stack when a signal is delivered.
- * This is used by the kernel to restore state following
- * execution of the signal handler.  It is also made available
- * to the handler to allow it to restore state properly if
- * a non-standard exit is performed.
- */
-#if defined(_LIBC) || defined(_KERNEL)
-struct sigcontext {
-  int sc_onstack;   /* sigstack state to restore */
-  sigset_t sc_mask; /* signal mask to restore */
-  int sc_pc;        /* pc at time of signal */
-  int sc_regs[32];  /* processor regs 0 to 31 */
-  int sc_mullo;
-  int sc_mulhi;      /* mullo and mulhi registers... */
-  int sc_fpused;     /* fp has been used */
-  int sc_fpregs[33]; /* fp regs 0 to 31 and csr */
-  int sc_fpc_eir;    /* floating point exception instruction reg */
-};
-#endif /* _LIBC || _KERNEL */
+  _DIAGASSERT(tp != NULL);
 
-#if defined(_KERNEL)
-/* Start and end address of signal trampoline that gets copied onto
- * the user's stack. */
-extern char sigcode[];
-extern char esigcode[];
-#endif /* !_KERNEL */
+  /*
+   * we use a local copy of CLK_TCK because it expands to a
+   * moderately expensive function call.
+   */
+  if (clk_tck == 0)
+    clk_tck = (clock_t)CLK_TCK;
 
-#endif /* !_ASSEMBLY_ */
-
-#endif /* !_MIPS_SIGNAL_H_ */
+  if (getrusage(RUSAGE_SELF, &ru) < 0)
+    return ((clock_t)-1);
+  tp->tms_utime = CONVTCK(ru.ru_utime);
+  tp->tms_stime = CONVTCK(ru.ru_stime);
+  if (getrusage(RUSAGE_CHILDREN, &ru) < 0)
+    return ((clock_t)-1);
+  tp->tms_cutime = CONVTCK(ru.ru_utime);
+  tp->tms_cstime = CONVTCK(ru.ru_stime);
+  if (gettimeofday(&t, (struct timezone *)0))
+    return ((clock_t)-1);
+  return ((clock_t)(CONVTCK(t)));
+}

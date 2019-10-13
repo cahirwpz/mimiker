@@ -10,24 +10,22 @@
 #include <sys/ktest.h>
 
 static int paging_on_demand_and_memory_protection_demo(void) {
-  vm_map_t *orig = get_user_vm_map();
+  vm_map_t *orig = vm_map_user();
   vm_map_activate(vm_map_new());
 
-  vm_map_t *kmap = get_kernel_vm_map();
-  vm_map_t *umap = get_user_vm_map();
+  vm_map_t *kmap = vm_map_kernel();
+  vm_map_t *umap = vm_map_user();
 
-  vaddr_t pre_start, start, end, post_end;
+  klog("Kernel physical map : %08lx-%08lx", vm_map_start(kmap),
+       vm_map_end(kmap));
+  klog("User physical map   : %08lx-%08lx", vm_map_start(umap),
+       vm_map_end(umap));
+
+  vaddr_t pre_start = 0x1000000;
+  vaddr_t start = 0x1001000;
+  vaddr_t end = 0x1003000;
+  vaddr_t post_end = 0x1004000;
   int n;
-
-  vm_map_range(kmap, &start, &end);
-  klog("Kernel physical map : %08lx-%08lx", start, end);
-  vm_map_range(umap, &start, &end);
-  klog("User physical map   : %08lx-%08lx", start, end);
-
-  pre_start = 0x1000000;
-  start = 0x1001000;
-  end = 0x1003000;
-  post_end = 0x1004000;
 
   /* preceding redzone segment */
   {
@@ -76,7 +74,7 @@ static int paging_on_demand_and_memory_protection_demo(void) {
 }
 
 static int findspace_demo(void) {
-  vm_map_t *orig = get_user_vm_map();
+  vm_map_t *orig = vm_map_user();
 
   vm_map_t *umap = vm_map_new();
   vm_map_activate(umap);

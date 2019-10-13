@@ -40,7 +40,7 @@ vm_page_t *vm_object_find_page(vm_object_t *obj, off_t offset) {
 }
 
 bool vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *page) {
-  assert(is_aligned(page->offset, PAGESIZE));
+  assert(page_aligned_p(page->offset));
   /* For simplicity of implementation let's insert pages of size 1 only */
   assert(page->size == 1);
 

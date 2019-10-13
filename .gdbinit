@@ -14,6 +14,19 @@ break kernel_init
 break assert_fail
 break panic_fail
 
+define nextuser
+  tbreak user_return
+  commands
+  silent
+  si
+  end
+  continue
+end
+
+document nextuser
+Continue until first user-space instruction after exiting kernel-space.
+end
+
 # favorite set of debugging printf's
 #dprintf proc_lock,"proc_lock(0x%08x)\n",p
 #dprintf proc_unlock,"proc_unlock(0x%08x)\n",p
@@ -21,6 +34,3 @@ break panic_fail
 # user space program debugging
 #add-symbol-file bin/utest/utest.uelf 0x400000
 #break main
-
-add-symbol-file bin/lua/lua-5.3.5/src/lua 0x400000
-break sys_read

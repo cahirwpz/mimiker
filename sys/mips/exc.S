@@ -21,23 +21,43 @@
         .local skip_fpu_save
         .local skip_fpu_restore
 
+        .cfi_sections .debug_frame, .eh_frame
+
 # [$k0] must be set to value of C0_STATUS
-exc_enter:
+NESTED(exc_enter, 0, sp)
+//exc_enter:
         andi    k0, SR_KSU_MASK         # Did exception occur in kernel mode?
         beqz    k0, kern_exc_enter
         nop
+        j user_exc_enter
+        nop
+
+END(exc_enter)
+
 
 # IMPORTANT: While exception level is active the code may only access kernel
 # stack and local pcpu structure! These are guaranteed to be wired in TLB.
 # It is UNSAFE to use k0/k1 registers when TLB miss handler may be triggered!
 
 NESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
+
+        .cfi_signal_frame
+
         # Move user sp to temporary register and replace it with kernel sp.
         move    k1, sp
+        .cfi_register sp, k1
 
         # Exception frame will be saved on kernel stack. 
         LOAD_PCPU(k0)
+
+        # sp contains kernel stack pointer
         lw      sp, PCPU_KSP(k0)
+
+        .cfi_def_cfa sp, 0
+
+        // save user sp
+        sw k1, 104(sp) 
+        .cfi_rel_offset sp, 104
 
         SAVE_CPU_CTX(k1, sp)
 
@@ -118,8 +138,8 @@ skip_fpu_restore:
         LOAD_CPU_CTX(k0)
 
         # This label is useful for debugging.
-user_return:
         sync
+user_return:
         eret
 END(user_exc_enter)
 

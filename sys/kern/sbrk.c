@@ -37,8 +37,7 @@ int sbrk_resize(proc_t *p, intptr_t increment, vaddr_t *newbrkp) {
 
   vaddr_t last_end = p->p_sbrk_end;
   vaddr_t new_end = p->p_sbrk_end + increment;
-  vaddr_t sbrk_start, sbrk_end;
-  vm_segment_range(p->p_sbrk, &sbrk_start, &sbrk_end);
+  vaddr_t sbrk_start = vm_segment_start(p->p_sbrk);
 
   if (new_end < sbrk_start)
     return EINVAL;

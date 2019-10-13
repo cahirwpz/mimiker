@@ -39,27 +39,32 @@ void file_drop(file_t *f) {
 
 /* Operations on invalid file descriptors */
 static int badfo_read(file_t *f, uio_t *uio) {
-  return EBADF;
+  return EOPNOTSUPP;
 }
 
 static int badfo_write(file_t *f, uio_t *uio) {
-  return EBADF;
+  return EOPNOTSUPP;
 }
 
 static int badfo_close(file_t *f) {
-  return EBADF;
+  return EOPNOTSUPP;
 }
 
 static int badfo_stat(file_t *f, stat_t *sb) {
-  return EBADF;
+  return EOPNOTSUPP;
 }
 
 static int badfo_seek(file_t *f, off_t offset, int whence) {
-  return EBADF;
+  return EOPNOTSUPP;
+}
+
+static int badfo_ioctl(file_t *f, u_long cmd, void *data) {
+  return EOPNOTSUPP;
 }
 
 fileops_t badfileops = {.fo_read = badfo_read,
                         .fo_write = badfo_write,
                         .fo_close = badfo_close,
                         .fo_stat = badfo_stat,
-                        .fo_seek = badfo_seek};
+                        .fo_seek = badfo_seek,
+                        .fo_ioctl = badfo_ioctl};

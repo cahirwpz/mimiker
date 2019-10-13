@@ -3,9 +3,6 @@
 
 #include <sys/cdefs.h>
 
-/* Clears kernel bss section. */
-void kbss_init(void);
-
 /*
  * This function provides simple dynamic memory allocation that may be used
  * before any memory management has been initialised. This is useful, because

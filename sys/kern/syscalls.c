@@ -14,6 +14,7 @@
 #include <sys/wait.h>
 #include <sys/exec.h>
 #include <sys/time.h>
+#include <sys/ioccom.h>
 #include <sys/proc.h>
 #include <sys/pipe.h>
 #include <sys/malloc.h>
@@ -121,20 +122,14 @@ static int sys_kill(proc_t *p, kill_args_t *args, register_t *res) {
   return proc_sendsig(args->pid, args->sig);
 }
 
-/* Sends signal sig to process group with ID equal to pgid.
+/* Set and get the file mode creation mask.
  *
- * https://pubs.opengroup.org/onlinepubs/9699919799/functions/killpg.html */
-static int sys_killpg(proc_t *p, killpg_args_t *args, register_t *res) {
-  pgid_t pgid = args->pgrp;
-  int sig = args->sig;
-  klog("killpg(%lu, %d)", pgid, sig);
+ * https://pubs.opengroup.org/onlinepubs/9699919799/functions/umask.html */
+static int sys_umask(proc_t *p, umask_args_t *args, register_t *res) {
+  klog("umask(%x)", args->newmask);
 
-  if (pgid == 1 || pgid < 0)
-    return EINVAL;
-
-  /* pgid == 0 => sends signal to our process group
-   * pgid  > 1 => sends signal to the process group with ID equal pgid */
-  return proc_sendsig(-pgid, sig);
+  /* TODO: not implemented */
+  return ENOTSUP;
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html */
@@ -380,6 +375,7 @@ static int sys_getdirentries(proc_t *p, getdirentries_args_t *args,
     if ((error = copyout_s(base, u_basep)))
       return error;
 
+  *res = len - uio.uio_resid;
   return 0;
 }
 
@@ -396,31 +392,39 @@ static int sys_dup2(proc_t *p, dup2_args_t *args, register_t *res) {
   return do_dup2(p, args->from, args->to);
 }
 
-static int sys_waitpid(proc_t *p, waitpid_args_t *args, register_t *res) {
+static int sys_wait4(proc_t *p, wait4_args_t *args, register_t *res) {
   pid_t pid = args->pid;
-  int *u_wstatus = args->wstatus;
+  int *u_status = args->status;
   int options = args->options;
+  struct rusage *u_rusage = args->rusage;
   int status = 0;
   int error;
 
-  klog("waitpid(%d, %x, %d)", pid, u_wstatus, options);
+  klog("wait4(%d, %x, %d, %p)", pid, u_status, options, u_rusage);
+
+  if (u_rusage)
+    klog("sys_wait4: acquiring rusage not implemented!");
 
   if ((error = do_waitpid(pid, &status, options, res)))
     return error;
 
-  if (u_wstatus != NULL)
-    if ((error = copyout_s(status, u_wstatus)))
+  if (u_status != NULL)
+    if ((error = copyout_s(status, u_status)))
       return error;
 
   return 0;
 }
 
-static int sys_pipe(proc_t *p, pipe_args_t *args, register_t *res) {
+static int sys_pipe2(proc_t *p, pipe2_args_t *args, register_t *res) {
   int *u_fdp = args->fdp;
+  int flags = args->flags;
   int fds[2];
   int error;
 
-  klog("pipe(%x)", u_fdp);
+  klog("pipe2(%x, %d)", u_fdp, flags);
+
+  if (flags)
+    klog("sys_pipe2: non-zero flags not handled!");
 
   if ((error = do_pipe(p, fds)))
     return error;
@@ -599,4 +603,72 @@ static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
   copyin_s(ucp, uc);
 
   return do_setcontext(p->p_thread, &uc);
+}
+
+static int sys_ioctl(proc_t *p, ioctl_args_t *args, register_t *res) {
+  int fd = args->fd;
+  u_long cmd = args->cmd;
+  void *u_data = args->data;
+  int error;
+
+  klog("ioctl(%d, %lx, %p)", fd, cmd, u_data);
+
+  /* For cmd format look at <sys/ioccom.h> header file. */
+  unsigned len = IOCPARM_LEN(cmd);
+  unsigned dir = cmd & IOC_DIRMASK;
+  void *data = NULL;
+
+  /* Allocate a kernel buffer if ioctl needs/returns information. */
+  if (dir)
+    data = kmalloc(M_TEMP, len, 0);
+
+  if ((dir & IOC_IN) && (error = copyin(u_data, data, len)))
+    goto fail;
+
+  if ((error = do_ioctl(p, fd, cmd, data)))
+    goto fail;
+
+  if ((dir & IOC_OUT) && (error = copyout(data, u_data, len)))
+    goto fail;
+
+fail:
+  if (dir)
+    kfree(M_TEMP, data);
+
+  return error;
+}
+
+/* TODO: not implemented */
+static int sys_getuid(proc_t *p, void *args, register_t *res) {
+  klog("getuid()");
+  *res = 0;
+  return 0;
+}
+
+/* TODO: not implemented */
+static int sys_geteuid(proc_t *p, void *args, register_t *res) {
+  klog("geteuid()");
+  *res = 0;
+  return 0;
+}
+
+/* TODO: not implemented */
+static int sys_getgid(proc_t *p, void *args, register_t *res) {
+  klog("getgid()");
+  *res = 0;
+  return 0;
+}
+
+/* TODO: not implemented */
+static int sys_getegid(proc_t *p, void *args, register_t *res) {
+  klog("getegid()");
+  *res = 0;
+  return 0;
+}
+
+/* TODO: not implemented */
+static int sys_issetugid(proc_t *p, void *args, register_t *res) {
+  klog("issetugid()");
+  *res = 0;
+  return 0;
 }

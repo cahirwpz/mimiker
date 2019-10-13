@@ -6,6 +6,7 @@
 #include "assym.h"
 
         .set noreorder
+        .section .boot, "ax"
 
 # Boot environment is described in MIPS® YAMON™ User's Manual, Chapter 5
 # ... and MIPS® YAMON™ Reference Manual, Chapter 8.3
@@ -27,21 +28,21 @@ LEAF(_start)
         # Load global pointer to make data section addressing possible
         LA      gp, _gp
 
-        # Mask out software and hardware interrupts,
-        # ensure we're in kernel mode, disable FPU,
-        # leave error level & exception level and disable interrupts.
-        mfc0    t0, C0_STATUS
-        li      t1, ~(SR_IPL_MASK|SR_KSU_MASK|SR_CU1|SR_ERL|SR_EXL|SR_IE)
-        and     t0, t1
-        mtc0    t0, C0_STATUS
+        # Save registers and initialize the processor
+        move    s0, a0
+        move    s1, a1
+        move    s2, a2
+        move    s3, a3
 
-        # Clear pending software interrupts
-        mfc0    t0, C0_CAUSE
-        li      t1, ~CR_IP_MASK
-        and     t0, t1
-        mtc0    t0, C0_CAUSE
+        jal     mips_init
+        nop
 
-        # Initialize the platform
+        # Restore kernel arguments and initialize the platform
+        move    a0, s0
+        move    a1, s1
+        move    a2, s2
+        move    a3, s3
+
         jal     platform_init
         nop
 

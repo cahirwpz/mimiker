@@ -157,7 +157,8 @@ static void ramdisk_init(void) {
   __rd_size = align(strtoul(s, NULL, 10), PAGESIZE);
 }
 
-extern uint8_t __kernel_start[];
+extern char __kernel_start[];
+char *__kernel_end;
 
 static void pm_bootstrap(unsigned memsize) {
   pm_init();
@@ -169,15 +170,14 @@ static void pm_bootstrap(unsigned memsize) {
    * allocator not to manage memory used by the kernel image along with all
    * memory allocated using \a kbss_grow.
    */
-  void *__kernel_end = kbss_fix();
+  __kernel_end = kbss_fix();
 
   /* create Malta physical memory segment */
   pm_seg_init(seg, MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + memsize,
               MIPS_KSEG0_START);
 
   /* XXX: workaround - pmap_enter fails to physical page with address 0 */
-  pm_seg_reserve(seg, MALTA_PHYS_SDRAM_BASE,
-                 MALTA_PHYS_SDRAM_BASE + PAGESIZE);
+  pm_seg_reserve(seg, MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + PAGESIZE);
 
   /* reserve kernel image and physical memory description space */
   pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS(__kernel_start),
@@ -202,8 +202,6 @@ static void thread_bootstrap(void) {
 extern const uint8_t __malta_dtb_start[];
 
 void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
-  kbss_init();
-
   setup_kenv(argc, argv, envp);
   cn_init();
   klog_init();

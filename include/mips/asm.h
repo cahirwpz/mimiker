@@ -74,7 +74,7 @@
   .text;                                                                       \
   .globl sym;                                                                  \
   .ent sym;                                                                    \
-  sym:
+  _C_LABEL(sym) :.cfi_startproc
 
 /*
  * LEAF
@@ -86,16 +86,36 @@
 #define LEAF(x)                                                                \
   .globl _C_LABEL(x);                                                          \
   .ent _C_LABEL(x), 0;                                                         \
-  .cfi_startproc;                                                              \
   _C_LABEL(x) :;                                                               \
-  .frame sp, 0, ra;
+  .frame sp, 0, ra;                                                            \
+  .cfi_startproc
+
+/*
+ *  * LEAF_NOPROFILE
+ *   *  No profilable leaf routine.
+ *    */
+#define LEAF_NOPROFILE(x)                                                      \
+  .globl _C_LABEL(x);                                                          \
+  .ent _C_LABEL(x), 0;                                                         \
+  _C_LABEL(x) :;                                                               \
+  .frame sp, 0, ra;                                                            \
+  .cfi_startproc
+
+/*
+ *  * XLEAF
+ *   *  declare alternate entry to leaf routine
+ *    */
+#define XLEAF(x)                                                               \
+  .globl _C_LABEL(x);                                                          \
+  AENT(_C_LABEL(x));                                                           \
+  _C_LABEL(x) :
 
 /* Static/local leaf function. */
 #define SLEAF(x)                                                               \
   .ent _C_LABEL(x), 0;                                                         \
-  .cfi_startproc;                                                              \
   _C_LABEL(x) :;                                                               \
-  .frame sp, 0, ra;
+  .frame sp, 0, ra;                                                            \
+  .cfi_startproc
 
 /*
  * NESTED
@@ -105,15 +125,15 @@
 #define NESTED(x, fsize, retpc)                                                \
   .globl _C_LABEL(x);                                                          \
   .ent _C_LABEL(x), 0;                                                         \
-  .cfi_startproc;                                                              \
   _C_LABEL(x) :;                                                               \
-  .frame sp, fsize, retpc;
+  .frame sp, fsize, retpc;                                                     \
+  .cfi_startproc
 
 #define SNESTED(x, fsize, retpc)                                               \
   .ent _C_LABEL(x), 0;                                                         \
-  .cfi_startproc;                                                              \
   _C_LABEL(x) :;                                                               \
-  .frame sp, fsize, retpc;
+  .frame sp, fsize, retpc;                                                     \
+  .cfi_startproc
 
 #define NON_LEAF(x, fsize, retpc) NESTED(x, fsize, retpc)
 
@@ -124,18 +144,18 @@
 #define NESTED_NOPROFILE(x, fsize, retpc)                                      \
   .globl _C_LABEL(x);                                                          \
   .ent _C_LABEL(x), 0;                                                         \
-  .cfi_startproc;                                                              \
   _C_LABEL(x) :;                                                               \
-  .frame sp, fsize, retpc
+  .frame sp, fsize, retpc;                                                     \
+  .cfi_startproc
 
 /*
  * END
  *	Mark end of a procedure.
  */
 #define END(x)                                                                 \
+  .cfi_endproc;                                                                \
   .size _C_LABEL(x), .- _C_LABEL(x);                                           \
-  .end _C_LABEL(x);                                                            \
-  .cfi_endproc
+  .end _C_LABEL(x)
 
 #define ALSK 7    /* stack alignment */
 #define ALMASK -7 /* stack alignment */

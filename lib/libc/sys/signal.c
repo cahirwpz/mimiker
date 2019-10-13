@@ -1,4 +1,4 @@
-#include <sys/errno.h>
+#include <errno.h>
 #include <signal.h>
 
 sig_t signal(int sig, sig_t handler) {
@@ -10,7 +10,6 @@ sig_t signal(int sig, sig_t handler) {
   }
 
   act.sa_handler = handler;
-  act.sa_restorer = sigreturn;
   if (sigaction(sig, &act, &oldact) != 0)
     return SIG_ERR;
 

@@ -3,9 +3,8 @@
 
 #include <sys/cdefs.h>
 #include <sys/time.h>
+#include <sys/_clock.h>
 #include <_locale.h>
-
-typedef unsigned int clock_t;
 
 typedef struct __state *timezone_t;
 

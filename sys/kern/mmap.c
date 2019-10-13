@@ -24,8 +24,7 @@ int do_mmap(vaddr_t *addr_p, size_t length, vm_prot_t prot, vm_flags_t flags) {
   if ((error = vm_map_alloc_segment(vmap, addr, length, prot, flags, &seg)))
     return error;
 
-  vaddr_t start, end;
-  vm_segment_range(seg, &start, &end);
+  vaddr_t start = vm_segment_start(seg);
 
   klog("Created segment at %p, length: %u", (void *)start, length);
 
@@ -45,8 +44,8 @@ int do_munmap(vaddr_t addr, size_t length) {
       return EINVAL;
 
     /* TODO We support unmaping entire segments only! */
-    vaddr_t start, end;
-    vm_segment_range(seg, &start, &end);
+    vaddr_t start = vm_segment_start(seg);
+    vaddr_t end = vm_segment_end(seg);
     if ((addr != start) || (addr + length != end))
       return ENOTSUP;
 
