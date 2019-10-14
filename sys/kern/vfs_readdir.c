@@ -33,8 +33,8 @@ int readdir_generic(vnode_t *v, uio_t *uio, readdir_ops_t *ops) {
     ops->convert(v, it, dir);
     error = uiomove(dir, reclen, uio);
     kfree(M_TEMP, dir);
-    if (error < 0)
-      return -error;
+    if (error)
+      return error;
   }
 
   return 0;
