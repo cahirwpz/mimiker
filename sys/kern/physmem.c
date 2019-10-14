@@ -157,8 +157,8 @@ void pm_seg_reserve(pm_seg_t *seg, paddr_t start, paddr_t end) {
   assert(is_aligned(end, PAGESIZE));
   assert(seg->start <= start && end <= seg->end);
 
-  klog("pm_seg_reserve: %08lx - %08lx from [%08lx, %08lx]",
-       start, end, seg->start, seg->end);
+  klog("pm_seg_reserve: %08lx - %08lx from [%08lx, %08lx]", start, end,
+       seg->start, seg->end);
 
   for (int i = PM_NQUEUES - 1; i >= 0; i--) {
     pg_list_t *queue = PM_FREEQ(seg, i);
