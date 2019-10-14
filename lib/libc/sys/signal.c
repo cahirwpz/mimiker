@@ -1,4 +1,4 @@
-#include <sys/errno.h>
+#include <errno.h>
 #include <signal.h>
 
 sig_t signal(int sig, sig_t handler) {
