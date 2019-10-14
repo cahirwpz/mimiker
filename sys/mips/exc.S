@@ -122,8 +122,8 @@ skip_fpu_restore:
         LOAD_CPU_CTX(k0)
 
         # This label is useful for debugging.
-user_return:
         sync
+user_return:
         eret
 END(user_exc_enter)
 
