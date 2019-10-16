@@ -46,4 +46,9 @@
 #define SYS_sigprocmask 38
 #define SYS_setcontext 39
 #define SYS_ioctl 40
-#define SYS_MAXSYSCALL 41
+#define SYS_getuid 41
+#define SYS_geteuid 42
+#define SYS_getgid 43
+#define SYS_getegid 44
+#define SYS_issetugid 45
+#define SYS_MAXSYSCALL 46

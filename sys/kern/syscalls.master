@@ -48,8 +48,13 @@
 35  { int sys_chdir(const char *path); }
 36  { int sys_getcwd(char *buf, size_t len); }
 37  { int sys_sigaltstack(const stack_t *ss, stack_t *old_ss); }
-38  { int sys_sigprocmask(int how, const sigset_t * set, sigset_t * oset); }
+38  { int sys_sigprocmask(int how, const sigset_t *set, sigset_t *oset); }
 39  { int sys_setcontext(const ucontext_t *ucp); }
 40  { int sys_ioctl(int fd, u_long request, ... void *data); }
+41  { uid_t sys_getuid(void); }
+42  { uid_t sys_geteuid(void); }
+43  { gid_t sys_getgid(void); }
+44  { gid_t sys_getegid(void); }
+45  { int sys_issetugid(void); }
 
 ; vim: ts=4 sw=4 sts=4 et

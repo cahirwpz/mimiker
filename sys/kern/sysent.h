@@ -46,6 +46,11 @@ static int sys_sigaltstack(proc_t *, sigaltstack_args_t *, register_t *);
 static int sys_sigprocmask(proc_t *, sigprocmask_args_t *, register_t *);
 static int sys_setcontext(proc_t *, setcontext_args_t *, register_t *);
 static int sys_ioctl(proc_t *, ioctl_args_t *, register_t *);
+static int sys_getuid(proc_t *, void *, register_t *);
+static int sys_geteuid(proc_t *, void *, register_t *);
+static int sys_getgid(proc_t *, void *, register_t *);
+static int sys_getegid(proc_t *, void *, register_t *);
+static int sys_issetugid(proc_t *, void *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { (syscall_t *)sys_syscall },
@@ -89,5 +94,10 @@ struct sysent sysent[] = {
   [SYS_sigprocmask] = { (syscall_t *)sys_sigprocmask },
   [SYS_setcontext] = { (syscall_t *)sys_setcontext },
   [SYS_ioctl] = { (syscall_t *)sys_ioctl },
+  [SYS_getuid] = { (syscall_t *)sys_getuid },
+  [SYS_geteuid] = { (syscall_t *)sys_geteuid },
+  [SYS_getgid] = { (syscall_t *)sys_getgid },
+  [SYS_getegid] = { (syscall_t *)sys_getegid },
+  [SYS_issetugid] = { (syscall_t *)sys_issetugid },
 };
 

@@ -617,3 +617,38 @@ static int sys_ioctl(proc_t *p, ioctl_args_t *args, register_t *res) {
   /* HACK: make ksh think it's running in interactive mode! */
   return fd < 3 ? 0 : EINVAL;
 }
+
+/* TODO: not implemented */
+static int sys_getuid(proc_t *p, void *args, register_t *res) {
+  klog("getuid()");
+  *res = 0;
+  return 0;
+}
+
+/* TODO: not implemented */
+static int sys_geteuid(proc_t *p, void *args, register_t *res) {
+  klog("geteuid()");
+  *res = 0;
+  return 0;
+}
+
+/* TODO: not implemented */
+static int sys_getgid(proc_t *p, void *args, register_t *res) {
+  klog("getgid()");
+  *res = 0;
+  return 0;
+}
+
+/* TODO: not implemented */
+static int sys_getegid(proc_t *p, void *args, register_t *res) {
+  klog("getegid()");
+  *res = 0;
+  return 0;
+}
+
+/* TODO: not implemented */
+static int sys_issetugid(proc_t *p, void *args, register_t *res) {
+  klog("issetugid()");
+  *res = 0;
+  return 0;
+}
