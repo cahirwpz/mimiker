@@ -1,13 +1,8 @@
-/*	$NetBSD: times.h,v 1.13 2005/12/11 12:25:21 christos Exp $	*/
+/*	$NetBSD: times.c,v 1.15 2009/01/11 02:46:27 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
- * (c) UNIX System Laboratories, Inc.
- * All or some portions of this file are derived from material licensed
- * to the University of California by American Telephone and Telegraph
- * Co. or Unix System Laboratories, Inc. and are reproduced herein with
- * the permission of UNIX System Laboratories, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,28 +27,47 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)times.h	8.4 (Berkeley) 1/21/94
  */
 
-#ifndef _SYS_TIMES_H_
-#define _SYS_TIMES_H_
+#include <sys/param.h>
+#include <sys/time.h>
+#include <sys/times.h>
+#include <sys/resource.h>
 
-#include <sys/_clock.h>
+#include <assert.h>
+#include <errno.h>
+#include <time.h>
 
-struct tms {
-  clock_t tms_utime;  /* User CPU time */
-  clock_t tms_stime;  /* System CPU time */
-  clock_t tms_cutime; /* User CPU time of terminated child procs */
-  clock_t tms_cstime; /* System CPU time of terminated child procs */
-};
+/*
+ * Convert usec to clock ticks; could do (usec * CLK_TCK) / 1000000,
+ * but this would overflow if we switch to nanosec.
+ */
+#define CONVTCK(r)                                                             \
+  (clock_t)(r.tv_sec * clk_tck + r.tv_usec / (1000000 / (u_int)clk_tck))
 
-#ifndef _KERNEL
-#include <sys/cdefs.h>
+clock_t times(struct tms *tp) {
+  struct rusage ru;
+  struct timeval t;
+  static clock_t clk_tck;
 
-__BEGIN_DECLS
-clock_t times(struct tms *);
-__END_DECLS
-#endif /* _KERNEL */
+  _DIAGASSERT(tp != NULL);
 
-#endif /* !_SYS_TIMES_H_ */
+  /*
+   * we use a local copy of CLK_TCK because it expands to a
+   * moderately expensive function call.
+   */
+  if (clk_tck == 0)
+    clk_tck = (clock_t)CLK_TCK;
+
+  if (getrusage(RUSAGE_SELF, &ru) < 0)
+    return ((clock_t)-1);
+  tp->tms_utime = CONVTCK(ru.ru_utime);
+  tp->tms_stime = CONVTCK(ru.ru_stime);
+  if (getrusage(RUSAGE_CHILDREN, &ru) < 0)
+    return ((clock_t)-1);
+  tp->tms_cutime = CONVTCK(ru.ru_utime);
+  tp->tms_cstime = CONVTCK(ru.ru_stime);
+  if (gettimeofday(&t, (struct timezone *)0))
+    return ((clock_t)-1);
+  return ((clock_t)(CONVTCK(t)));
+}
