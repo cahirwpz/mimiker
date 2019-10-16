@@ -39,6 +39,8 @@
 #ifndef _SYS_TIMES_H_
 #define _SYS_TIMES_H_
 
+#include <sys/_clock.h>
+
 struct tms {
   clock_t tms_utime;  /* User CPU time */
   clock_t tms_stime;  /* System CPU time */

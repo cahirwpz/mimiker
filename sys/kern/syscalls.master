@@ -27,12 +27,12 @@
 18  { int sys_sigaction(int signum, const struct sigaction *nsa, \
                         struct sigaction *osa); }
 19  { int sys_sigreturn(struct sigcontext *sigctx_p); }
-20  { pid_t sys_waitpid(pid_t pid, int *wstatus, int options); }
+20  { int sys_wait4(pid_t pid, int *status, int options, struct rusage *rusage); }
 21  { int sys_mkdir(const char *path, mode_t mode); }
 22  { int sys_rmdir(const char *path); }
 23  { int sys_access(const char *path, int amode); }
 24  { int sys_stat(const char *path, struct stat *sb); }
-25  { int sys_pipe(int *fdp); }
+25  { int sys_pipe2(int *fdp, int flags); }
 26  { int sys_clock_gettime(clockid_t clock_id, struct timespec *tsp); }
 27  { int sys_clock_nanosleep(clockid_t clock_id, int flags, \
                               const struct timespec *rqtp, \
@@ -42,13 +42,19 @@
 29  { pid_t sys_getppid(void); }
 30  { int sys_setpgid(pid_t pid, pid_t pgid); }
 31  { int sys_getpgid(pid_t pid); }
-32  { int sys_killpg(pid_t pgrp, int sig); }
+32  { mode_t sys_umask(mode_t newmask); }
 33  { int sys_munmap(void *addr, size_t len); }
 34  { int sys_mprotect(void *addr, size_t len, int prot); }
 35  { int sys_chdir(const char *path); }
 36  { int sys_getcwd(char *buf, size_t len); }
 37  { int sys_sigaltstack(const stack_t *ss, stack_t *old_ss); }
-38  { int sys_sigprocmask(int how, const sigset_t * set, sigset_t * oset); }
+38  { int sys_sigprocmask(int how, const sigset_t *set, sigset_t *oset); }
 39  { int sys_setcontext(const ucontext_t *ucp); }
+40  { int sys_ioctl(int fd, u_long request, ... void *data); }
+41  { uid_t sys_getuid(void); }
+42  { uid_t sys_geteuid(void); }
+43  { gid_t sys_getgid(void); }
+44  { gid_t sys_getegid(void); }
+45  { int sys_issetugid(void); }
 
 ; vim: ts=4 sw=4 sts=4 et
