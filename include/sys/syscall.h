@@ -37,7 +37,7 @@
 #define SYS_getppid 29
 #define SYS_setpgid 30
 #define SYS_getpgid 31
-#define SYS_killpg 32
+#define SYS_umask 32
 #define SYS_munmap 33
 #define SYS_mprotect 34
 #define SYS_chdir 35

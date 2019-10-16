@@ -162,9 +162,8 @@ typedef struct {
 } getpgid_args_t;
 
 typedef struct {
-  pid_t pgrp;
-  int sig;
-} killpg_args_t;
+  mode_t newmask;
+} umask_args_t;
 
 typedef struct {
   void * addr;

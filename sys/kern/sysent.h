@@ -37,7 +37,7 @@ static int sys_execve(proc_t *, execve_args_t *, register_t *);
 static int sys_getppid(proc_t *, void *, register_t *);
 static int sys_setpgid(proc_t *, setpgid_args_t *, register_t *);
 static int sys_getpgid(proc_t *, getpgid_args_t *, register_t *);
-static int sys_killpg(proc_t *, killpg_args_t *, register_t *);
+static int sys_umask(proc_t *, umask_args_t *, register_t *);
 static int sys_munmap(proc_t *, munmap_args_t *, register_t *);
 static int sys_mprotect(proc_t *, mprotect_args_t *, register_t *);
 static int sys_chdir(proc_t *, chdir_args_t *, register_t *);
@@ -85,7 +85,7 @@ struct sysent sysent[] = {
   [SYS_getppid] = { (syscall_t *)sys_getppid },
   [SYS_setpgid] = { (syscall_t *)sys_setpgid },
   [SYS_getpgid] = { (syscall_t *)sys_getpgid },
-  [SYS_killpg] = { (syscall_t *)sys_killpg },
+  [SYS_umask] = { (syscall_t *)sys_umask },
   [SYS_munmap] = { (syscall_t *)sys_munmap },
   [SYS_mprotect] = { (syscall_t *)sys_mprotect },
   [SYS_chdir] = { (syscall_t *)sys_chdir },

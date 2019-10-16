@@ -121,20 +121,14 @@ static int sys_kill(proc_t *p, kill_args_t *args, register_t *res) {
   return proc_sendsig(args->pid, args->sig);
 }
 
-/* Sends signal sig to process group with ID equal to pgid.
+/* Set and get the file mode creation mask.
  *
- * https://pubs.opengroup.org/onlinepubs/9699919799/functions/killpg.html */
-static int sys_killpg(proc_t *p, killpg_args_t *args, register_t *res) {
-  pgid_t pgid = args->pgrp;
-  int sig = args->sig;
-  klog("killpg(%lu, %d)", pgid, sig);
+ * https://pubs.opengroup.org/onlinepubs/9699919799/functions/umask.html */
+static int sys_umask(proc_t *p, umask_args_t *args, register_t *res) {
+  klog("umask(%x)", args->newmask);
 
-  if (pgid == 1 || pgid < 0)
-    return EINVAL;
-
-  /* pgid == 0 => sends signal to our process group
-   * pgid  > 1 => sends signal to the process group with ID equal pgid */
-  return proc_sendsig(-pgid, sig);
+  /* TODO: not implemented */
+  return ENOTSUP;
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html */
