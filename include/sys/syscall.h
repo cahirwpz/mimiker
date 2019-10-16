@@ -25,7 +25,7 @@
 #define SYS_dup2 17
 #define SYS_sigaction 18
 #define SYS_sigreturn 19
-#define SYS_waitpid 20
+#define SYS_wait4 20
 #define SYS_mkdir 21
 #define SYS_rmdir 22
 #define SYS_access 23

@@ -105,9 +105,10 @@ typedef struct {
 
 typedef struct {
   pid_t pid;
-  int * wstatus;
+  int * status;
   int options;
-} waitpid_args_t;
+  struct rusage * rusage;
+} wait4_args_t;
 
 typedef struct {
   const char * path;

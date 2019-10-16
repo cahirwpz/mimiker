@@ -397,20 +397,24 @@ static int sys_dup2(proc_t *p, dup2_args_t *args, register_t *res) {
   return do_dup2(p, args->from, args->to);
 }
 
-static int sys_waitpid(proc_t *p, waitpid_args_t *args, register_t *res) {
+static int sys_wait4(proc_t *p, wait4_args_t *args, register_t *res) {
   pid_t pid = args->pid;
-  int *u_wstatus = args->wstatus;
+  int *u_status = args->status;
   int options = args->options;
+  struct rusage *u_rusage = args->rusage;
   int status = 0;
   int error;
 
-  klog("waitpid(%d, %x, %d)", pid, u_wstatus, options);
+  klog("wait4(%d, %x, %d, %p)", pid, u_status, options, u_rusage);
+
+  if (u_rusage)
+    klog("sys_wait4: acquiring rusage not implemented!");
 
   if ((error = do_waitpid(pid, &status, options, res)))
     return error;
 
-  if (u_wstatus != NULL)
-    if ((error = copyout_s(status, u_wstatus)))
+  if (u_status != NULL)
+    if ((error = copyout_s(status, u_status)))
       return error;
 
   return 0;
