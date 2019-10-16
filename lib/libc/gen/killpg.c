@@ -1,4 +1,3 @@
-#include <sys/types.h>
 #include <signal.h>
 #include <errno.h>
 
