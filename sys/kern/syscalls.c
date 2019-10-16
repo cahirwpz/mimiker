@@ -121,20 +121,14 @@ static int sys_kill(proc_t *p, kill_args_t *args, register_t *res) {
   return proc_sendsig(args->pid, args->sig);
 }
 
-/* Sends signal sig to process group with ID equal to pgid.
+/* Set and get the file mode creation mask.
  *
- * https://pubs.opengroup.org/onlinepubs/9699919799/functions/killpg.html */
-static int sys_killpg(proc_t *p, killpg_args_t *args, register_t *res) {
-  pgid_t pgid = args->pgrp;
-  int sig = args->sig;
-  klog("killpg(%lu, %d)", pgid, sig);
+ * https://pubs.opengroup.org/onlinepubs/9699919799/functions/umask.html */
+static int sys_umask(proc_t *p, umask_args_t *args, register_t *res) {
+  klog("umask(%x)", args->newmask);
 
-  if (pgid == 1 || pgid < 0)
-    return EINVAL;
-
-  /* pgid == 0 => sends signal to our process group
-   * pgid  > 1 => sends signal to the process group with ID equal pgid */
-  return proc_sendsig(-pgid, sig);
+  /* TODO: not implemented */
+  return ENOTSUP;
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html */
@@ -397,31 +391,39 @@ static int sys_dup2(proc_t *p, dup2_args_t *args, register_t *res) {
   return do_dup2(p, args->from, args->to);
 }
 
-static int sys_waitpid(proc_t *p, waitpid_args_t *args, register_t *res) {
+static int sys_wait4(proc_t *p, wait4_args_t *args, register_t *res) {
   pid_t pid = args->pid;
-  int *u_wstatus = args->wstatus;
+  int *u_status = args->status;
   int options = args->options;
+  struct rusage *u_rusage = args->rusage;
   int status = 0;
   int error;
 
-  klog("waitpid(%d, %x, %d)", pid, u_wstatus, options);
+  klog("wait4(%d, %x, %d, %p)", pid, u_status, options, u_rusage);
+
+  if (u_rusage)
+    klog("sys_wait4: acquiring rusage not implemented!");
 
   if ((error = do_waitpid(pid, &status, options, res)))
     return error;
 
-  if (u_wstatus != NULL)
-    if ((error = copyout_s(status, u_wstatus)))
+  if (u_status != NULL)
+    if ((error = copyout_s(status, u_status)))
       return error;
 
   return 0;
 }
 
-static int sys_pipe(proc_t *p, pipe_args_t *args, register_t *res) {
+static int sys_pipe2(proc_t *p, pipe2_args_t *args, register_t *res) {
   int *u_fdp = args->fdp;
+  int flags = args->flags;
   int fds[2];
   int error;
 
-  klog("pipe(%x)", u_fdp);
+  klog("pipe2(%x, %d)", u_fdp, flags);
+
+  if (flags)
+    klog("sys_pipe2: non-zero flags not handled!");
 
   if ((error = do_pipe(p, fds)))
     return error;
@@ -600,4 +602,51 @@ static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
   copyin_s(ucp, uc);
 
   return do_setcontext(p->p_thread, &uc);
+}
+
+/* TODO: not implemented */
+static int sys_ioctl(proc_t *p, ioctl_args_t *args, register_t *res) {
+  int fd = args->fd;
+  u_long request = args->request;
+  void *data = args->data;
+
+  klog("ioctl(%d, %ld, %p)", fd, request, data);
+
+  /* HACK: make ksh think it's running in interactive mode! */
+  return fd < 3 ? 0 : EINVAL;
+}
+
+/* TODO: not implemented */
+static int sys_getuid(proc_t *p, void *args, register_t *res) {
+  klog("getuid()");
+  *res = 0;
+  return 0;
+}
+
+/* TODO: not implemented */
+static int sys_geteuid(proc_t *p, void *args, register_t *res) {
+  klog("geteuid()");
+  *res = 0;
+  return 0;
+}
+
+/* TODO: not implemented */
+static int sys_getgid(proc_t *p, void *args, register_t *res) {
+  klog("getgid()");
+  *res = 0;
+  return 0;
+}
+
+/* TODO: not implemented */
+static int sys_getegid(proc_t *p, void *args, register_t *res) {
+  klog("getegid()");
+  *res = 0;
+  return 0;
+}
+
+/* TODO: not implemented */
+static int sys_issetugid(proc_t *p, void *args, register_t *res) {
+  klog("issetugid()");
+  *res = 0;
+  return 0;
 }
