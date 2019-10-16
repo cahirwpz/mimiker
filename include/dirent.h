@@ -56,6 +56,7 @@ int readdir_r(DIR *__restrict, struct dirent *__restrict,
               struct dirent **__restrict);
 long telldir(DIR *);
 int getdents(int, char *, size_t);
+ssize_t getdirentries(int, char *, size_t, off_t *);
 int alphasort(const struct dirent **, const struct dirent **);
 __END_DECLS
 
