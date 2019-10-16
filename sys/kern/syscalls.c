@@ -380,6 +380,7 @@ static int sys_getdirentries(proc_t *p, getdirentries_args_t *args,
     if ((error = copyout_s(base, u_basep)))
       return error;
 
+  *res = len - uio.uio_resid;
   return 0;
 }
 

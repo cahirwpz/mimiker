@@ -148,11 +148,7 @@
 
 /* From IEEE Std 1003.1-2001 */
 /* Base, Realtime, Threads or Thread Priority Scheduling option errors */
-#if 0
 #define ENOTSUP 86 /* Not supported */
-#else
-#define ENOTSUP 134 /* XXX: matches newlib declaration! */
-#endif
 
 /* Realtime option errors */
 #define ECANCELED 87 /* Operation canceled */
@@ -181,11 +177,6 @@
 #define EJUSTRETURN 256 /* don't modify regs, just return to userspace with */
                         /* current uctx (used by sigreturn and execve) */
 #define ERESTART 257    /* restart syscall */
-#endif
-
-#if !defined(_KERNEL) && !defined(__ASSEMBLER__)
-#define errno (*__errno())
-extern int *__errno(void);
 #endif
 
 #endif /* !_SYS_ERRNO_H_ */
