@@ -416,12 +416,16 @@ static int sys_waitpid(proc_t *p, waitpid_args_t *args, register_t *res) {
   return 0;
 }
 
-static int sys_pipe(proc_t *p, pipe_args_t *args, register_t *res) {
+static int sys_pipe2(proc_t *p, pipe2_args_t *args, register_t *res) {
   int *u_fdp = args->fdp;
+  int flags = args->flags;
   int fds[2];
   int error;
 
-  klog("pipe(%x)", u_fdp);
+  klog("pipe2(%x, %d)", u_fdp, flags);
+
+  if (flags)
+    klog("sys_pipe2: non-zero flags not handled!");
 
   if ((error = do_pipe(p, fds)))
     return error;

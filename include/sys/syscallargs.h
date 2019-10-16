@@ -130,7 +130,8 @@ typedef struct {
 
 typedef struct {
   int * fdp;
-} pipe_args_t;
+  int flags;
+} pipe2_args_t;
 
 typedef struct {
   clockid_t clock_id;

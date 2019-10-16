@@ -30,7 +30,7 @@ static int sys_mkdir(proc_t *, mkdir_args_t *, register_t *);
 static int sys_rmdir(proc_t *, rmdir_args_t *, register_t *);
 static int sys_access(proc_t *, access_args_t *, register_t *);
 static int sys_stat(proc_t *, stat_args_t *, register_t *);
-static int sys_pipe(proc_t *, pipe_args_t *, register_t *);
+static int sys_pipe2(proc_t *, pipe2_args_t *, register_t *);
 static int sys_clock_gettime(proc_t *, clock_gettime_args_t *, register_t *);
 static int sys_clock_nanosleep(proc_t *, clock_nanosleep_args_t *, register_t *);
 static int sys_execve(proc_t *, execve_args_t *, register_t *);
@@ -73,7 +73,7 @@ struct sysent sysent[] = {
   [SYS_rmdir] = { (syscall_t *)sys_rmdir },
   [SYS_access] = { (syscall_t *)sys_access },
   [SYS_stat] = { (syscall_t *)sys_stat },
-  [SYS_pipe] = { (syscall_t *)sys_pipe },
+  [SYS_pipe2] = { (syscall_t *)sys_pipe2 },
   [SYS_clock_gettime] = { (syscall_t *)sys_clock_gettime },
   [SYS_clock_nanosleep] = { (syscall_t *)sys_clock_nanosleep },
   [SYS_execve] = { (syscall_t *)sys_execve },
