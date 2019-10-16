@@ -198,3 +198,9 @@ typedef struct {
 typedef struct {
   const ucontext_t * ucp;
 } setcontext_args_t;
+
+typedef struct {
+  int fd;
+  u_long request;
+  void * data;
+} ioctl_args_t;

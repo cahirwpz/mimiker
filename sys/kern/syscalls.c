@@ -601,3 +601,15 @@ static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
 
   return do_setcontext(p->p_thread, &uc);
 }
+
+/* TODO: not implemented */
+static int sys_ioctl(proc_t *p, ioctl_args_t *args, register_t *res) {
+  int fd = args->fd;
+  u_long request = args->request;
+  void *data = args->data;
+
+  klog("ioctl(%d, %ld, %p)", fd, request, data);
+
+  /* HACK: make ksh think it's running in interactive mode! */
+  return fd < 3 ? 0 : EINVAL;
+}

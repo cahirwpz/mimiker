@@ -45,4 +45,5 @@
 #define SYS_sigaltstack 37
 #define SYS_sigprocmask 38
 #define SYS_setcontext 39
-#define SYS_MAXSYSCALL 40
+#define SYS_ioctl 40
+#define SYS_MAXSYSCALL 41
