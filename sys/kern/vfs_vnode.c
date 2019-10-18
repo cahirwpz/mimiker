@@ -43,33 +43,23 @@ void vnode_drop(vnode_t *v) {
     pool_free(P_VNODE, v);
 }
 
-static int vnode_lookup_nop(vnode_t *dv, const char *name, vnode_t **vp) {
-  return ENOTSUP;
+static int vnode_nop(vnode_t *v, ...) {
+  return EOPNOTSUPP;
 }
 
-static int vnode_readdir_nop(vnode_t *dv, uio_t *uio, void *state) {
-  return ENOTSUP;
-}
-
-static int vnode_open_nop(vnode_t *v, int mode, file_t *fp) {
-  return ENOTSUP;
-}
-
-static int vnode_close_nop(vnode_t *v, file_t *fp) {
-  return ENOTSUP;
-}
-
-static int vnode_read_nop(vnode_t *v, uio_t *uio) {
-  return ENOTSUP;
-}
-
-static int vnode_write_nop(vnode_t *v, uio_t *uio) {
-  return ENOTSUP;
-}
-
-static int vnode_seek_nop(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
-  return ENOTSUP;
-}
+#define vnode_lookup_nop vnode_nop
+#define vnode_readdir_nop vnode_nop
+#define vnode_open_nop vnode_nop
+#define vnode_close_nop vnode_nop
+#define vnode_read_nop vnode_nop
+#define vnode_write_nop vnode_nop
+#define vnode_seek_nop vnode_nop
+#define vnode_create_nop vnode_nop
+#define vnode_remove_nop vnode_nop
+#define vnode_mkdir_nop vnode_nop
+#define vnode_rmdir_nop vnode_nop
+#define vnode_access_nop vnode_nop
+#define vnode_ioctl_nop vnode_nop
 
 static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
   *va = (vattr_t){.va_mode = VNOVAL,
@@ -80,31 +70,10 @@ static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
   return 0;
 }
 
-int vnode_create_nop(vnode_t *dv, const char *name, vattr_t *va, vnode_t **vp) {
-  return ENOTSUP;
-}
-
-static int vnode_remove_nop(vnode_t *dv, const char *name) {
-  return ENOTSUP;
-}
-
-static int vnode_mkdir_nop(vnode_t *v, const char *name, vattr_t *va,
-                           vnode_t **vp) {
-  return ENOTSUP;
-}
-
-static int vnode_rmdir_nop(vnode_t *v, const char *name) {
-  return ENOTSUP;
-}
-
-static int vnode_access_nop(vnode_t *v, accmode_t mode) {
-  return ENOTSUP;
-}
-
 #define NOP_IF_NULL(vops, name)                                                \
   do {                                                                         \
     if (vops->v_##name == NULL)                                                \
-      vops->v_##name = vnode_##name##_nop;                                     \
+      vops->v_##name = (vnode_##name##_t *)vnode_##name##_nop;                 \
   } while (0)
 
 void vnodeops_init(vnodeops_t *vops) {
@@ -121,6 +90,7 @@ void vnodeops_init(vnodeops_t *vops) {
   NOP_IF_NULL(vops, mkdir);
   NOP_IF_NULL(vops, rmdir);
   NOP_IF_NULL(vops, access);
+  NOP_IF_NULL(vops, ioctl);
 }
 
 void va_convert(vattr_t *va, stat_t *sb) {
@@ -194,12 +164,31 @@ static int default_vnseek(file_t *f, off_t offset, int whence) {
   return 0;
 }
 
+static int default_ioctl(file_t *f, u_long cmd, void *data) {
+  vnode_t *v = f->f_vnode;
+  int error = EPASSTHROUGH;
+
+  switch (v->v_type) {
+    case V_NONE:
+      panic("vnode without a type!");
+    case V_REG:
+    case V_DIR:
+      break;
+    case V_DEV:
+      error = VOP_IOCTL(v, cmd, data);
+      break;
+  }
+
+  return error;
+}
+
 static fileops_t default_vnode_fileops = {
   .fo_read = default_vnread,
   .fo_write = default_vnwrite,
   .fo_close = default_vnclose,
   .fo_seek = default_vnseek,
   .fo_stat = default_vnstat,
+  .fo_ioctl = default_ioctl,
 };
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {

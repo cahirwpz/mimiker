@@ -3,17 +3,6 @@
 An experiment with implementation of very simple operating system
 for [Malta](https://www.linux-mips.org/wiki/MIPS_Malta) board.
 
-Quickstart
----
-
-To set up container-based local environment:
-
-```
-make -C docker run
-```
-
-For more details, please refer to `docker` directory.
-
 Toolchain
 ---
 

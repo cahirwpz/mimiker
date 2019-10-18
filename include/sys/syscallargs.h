@@ -202,6 +202,6 @@ typedef struct {
 
 typedef struct {
   int fd;
-  u_long request;
+  u_long cmd;
   void * data;
 } ioctl_args_t;

@@ -14,6 +14,7 @@
 #include <sys/wait.h>
 #include <sys/exec.h>
 #include <sys/time.h>
+#include <sys/ioccom.h>
 #include <sys/proc.h>
 #include <sys/pipe.h>
 #include <sys/malloc.h>
@@ -604,16 +605,37 @@ static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
   return do_setcontext(p->p_thread, &uc);
 }
 
-/* TODO: not implemented */
 static int sys_ioctl(proc_t *p, ioctl_args_t *args, register_t *res) {
   int fd = args->fd;
-  u_long request = args->request;
-  void *data = args->data;
+  u_long cmd = args->cmd;
+  void *u_data = args->data;
+  int error;
 
-  klog("ioctl(%d, %ld, %p)", fd, request, data);
+  klog("ioctl(%d, %lx, %p)", fd, cmd, u_data);
 
-  /* HACK: make ksh think it's running in interactive mode! */
-  return fd < 3 ? 0 : EINVAL;
+  /* For cmd format look at <sys/ioccom.h> header file. */
+  unsigned len = IOCPARM_LEN(cmd);
+  unsigned dir = cmd & IOC_DIRMASK;
+  void *data = NULL;
+
+  /* Allocate a kernel buffer if ioctl needs/returns information. */
+  if (dir)
+    data = kmalloc(M_TEMP, len, 0);
+
+  if ((dir & IOC_IN) && (error = copyin(u_data, data, len)))
+    goto fail;
+
+  if ((error = do_ioctl(p, fd, cmd, data)))
+    goto fail;
+
+  if ((dir & IOC_OUT) && (error = copyin(data, u_data, len)))
+    goto fail;
+
+fail:
+  if (dir)
+    kfree(M_TEMP, data);
+
+  return error;
 }
 
 /* TODO: not implemented */
