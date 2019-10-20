@@ -34,7 +34,7 @@ static void sigusr1_handler(int signo) {
 
 int test_sigaction_handler_returns(void) {
   struct sigaction sa;
-  
+
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = sigusr1_handler;
   assert(sigaction(SIGUSR1, &sa, NULL) == 0);
