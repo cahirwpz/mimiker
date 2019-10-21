@@ -105,9 +105,10 @@ typedef struct {
 
 typedef struct {
   pid_t pid;
-  int * wstatus;
+  int * status;
   int options;
-} waitpid_args_t;
+  struct rusage * rusage;
+} wait4_args_t;
 
 typedef struct {
   const char * path;
@@ -130,7 +131,8 @@ typedef struct {
 
 typedef struct {
   int * fdp;
-} pipe_args_t;
+  int flags;
+} pipe2_args_t;
 
 typedef struct {
   clockid_t clock_id;
@@ -160,9 +162,8 @@ typedef struct {
 } getpgid_args_t;
 
 typedef struct {
-  pid_t pgrp;
-  int sig;
-} killpg_args_t;
+  mode_t newmask;
+} umask_args_t;
 
 typedef struct {
   void * addr;
@@ -198,3 +199,9 @@ typedef struct {
 typedef struct {
   const ucontext_t * ucp;
 } setcontext_args_t;
+
+typedef struct {
+  int fd;
+  u_long cmd;
+  void * data;
+} ioctl_args_t;

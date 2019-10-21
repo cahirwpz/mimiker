@@ -6,6 +6,8 @@
 #include <sys/condvar.h>
 #include <sys/ringbuf.h>
 #include <sys/pci.h>
+#include <sys/termios.h>
+#include <sys/ttycom.h>
 #include <dev/isareg.h>
 #include <dev/ns16550reg.h>
 #include <sys/interrupt.h>
@@ -91,11 +93,22 @@ static int ns16550_close(vnode_t *v, file_t *fp) {
   return 0;
 }
 
+/* XXX: This should be implemented by tty driver, not here. */
+static int ns16550_ioctl(vnode_t *v, u_long cmd, void *data) {
+  if (cmd) {
+    memset(data, 0, sizeof(struct termios));
+    return 0;
+  }
+
+  return EPASSTHROUGH;
+}
+
 static vnodeops_t dev_uart_ops = {
   .v_open = vnode_open_generic,
   .v_write = ns16550_write,
   .v_read = ns16550_read,
   .v_close = ns16550_close,
+  .v_ioctl = ns16550_ioctl,
 };
 
 static intr_filter_t ns16550_intr(void *data) {

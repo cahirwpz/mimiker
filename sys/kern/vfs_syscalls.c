@@ -179,3 +179,16 @@ int do_access(proc_t *p, char *path, int amode) {
   vnode_drop(v);
   return error;
 }
+
+int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
+  file_t *f;
+  int error;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
+    return error;
+  error = FOP_IOCTL(f, cmd, data);
+  file_drop(f);
+  if (error == EPASSTHROUGH)
+    error = ENOTTY;
+  return error;
+}

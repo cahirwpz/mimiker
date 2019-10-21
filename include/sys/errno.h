@@ -174,9 +174,10 @@
 
 #ifdef _KERNEL
 /* pseudo-errors returned inside kernel to modify return to process */
-#define EJUSTRETURN 256 /* don't modify regs, just return to userspace with */
-                        /* current uctx (used by sigreturn and execve) */
-#define ERESTART 257    /* restart syscall */
+#define EJUSTRETURN 256  /* don't modify regs, just return to userspace with */
+                         /* current uctx (used by sigreturn and execve) */
+#define ERESTART 257     /* restart syscall */
+#define EPASSTHROUGH 258 /* ioctl not handled by this layer */
 #endif
 
 #endif /* !_SYS_ERRNO_H_ */
