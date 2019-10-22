@@ -55,7 +55,6 @@ int sig_send(signo_t sig, sigaction_t *sa) {
    * before the stored context! */
   uframe->sp = (register_t)((intptr_t *)scp - 1);
   /* Also, make sure the restorer runs when the handler exits. */
-  assert(sa->sa_restorer != NULL);
   uframe->ra = (register_t)sa->sa_restorer;
 
   return 0;
