@@ -6,6 +6,7 @@
 #include <mips/exc.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
+#include <sys/context.h>
 
 #define SIG_CTX_MAGIC 0xDACBAEE3
 
@@ -16,9 +17,6 @@ typedef struct sig_ctx {
   /* TODO: Store previous stack data, if the sigaction requested a different
    * stack. */
 } sig_ctx_t;
-
-void sigcode(void);
-extern int sigcode_size;
 
 int sig_send(signo_t sig, sigaction_t *sa) {
   thread_t *td = thread_self();

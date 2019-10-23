@@ -90,9 +90,9 @@ ctx_resume:
 END(ctx_switch)
 
 LEAF_NOPROFILE(sigcode)
-        move a0, sp
         li v0, SYS_sigreturn
         syscall
+        j 0 # just in case sigreturn fails
 END(sigcode)
 sigcode_end:
         .data
