@@ -4,10 +4,10 @@
 #include <setjmp.h>
 #include <stdnoreturn.h>
 
-static jmp_buf jump_buffer;
+static sigjmp_buf jump_buffer;
 
 noreturn static void sigint_handler(int signo) {
-  longjmp(jump_buffer, 1);
+  siglongjmp(jump_buffer, 42);
   assert(0); /* Shouldn't reach here. */
 }
 
@@ -18,7 +18,7 @@ int test_sigaction_with_setjmp(void) {
   sa.sa_handler = sigint_handler;
   assert(sigaction(SIGINT, &sa, NULL) == 0);
 
-  if (setjmp(jump_buffer) != 1) {
+  if (sigsetjmp(jump_buffer, 1) != 42) {
     raise(SIGINT);
     assert(0); /* Shouldn't reach here. */
   }
