@@ -45,13 +45,13 @@ int sig_send(signo_t sig, sigaction_t *sa) {
   void *sigcode_stack_addr = sp;
   int error = copyout(sigcode, sigcode_stack_addr, sigcode_size);
   if (error)
-    sig_copyout_error(td, uframe->sp);
+    sig_copyout_error(td, (void *)uframe->sp);
 
   /* Copyout signal context to user stack. */
   sp -= sizeof(sig_ctx_t);
   error = copyout(&ksc, sp, sizeof(sig_ctx_t));
   if (error)
-    sig_copyout_error(td, uframe->sp);
+    sig_copyout_error(td, (void *)uframe->sp);
 
   /* Prepare user context so that on return to usermode the handler gets
    * executed. No need to check whether the handler address is valid (aligned,
