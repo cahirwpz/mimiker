@@ -17,6 +17,9 @@ typedef struct sig_ctx {
    * stack. */
 } sig_ctx_t;
 
+void sigcode(void);
+extern int sigcode_size;
+
 int sig_send(signo_t sig, sigaction_t *sa) {
   thread_t *td = thread_self();
 
@@ -28,11 +31,25 @@ int sig_send(signo_t sig, sigaction_t *sa) {
   sig_ctx_t ksc = {.magic = SIG_CTX_MAGIC};
   exc_frame_copy(&ksc.frame, uframe);
 
-  /* Copyout signal context to user stack. */
-  sig_ctx_t *scp = (sig_ctx_t *)uframe->sp;
-  scp--;
+  void *sp = (void *)uframe->sp;
 
-  int error = copyout(&ksc, scp, sizeof(sig_ctx_t));
+  /* Copyout sigcode to user stack. */
+  sp -= sigcode_size;
+  void *sigcode_stack_addr = sp;
+  int error = copyout(sigcode, sigcode_stack_addr, sigcode_size);
+  if (error) {
+    /* This thread has a corrupted stack, it can no longer react on a signal
+       with a custom handler. Kill the process. */
+    klog("User stack (%p) is corrupted, killing thread %lu!", uframe->sp,
+         td->td_tid);
+    mtx_unlock(&td->td_lock);
+    sig_exit(td, SIGILL);
+    __unreachable();
+  }
+
+  /* Copyout signal context to user stack. */
+  sp -= sizeof(sig_ctx_t);
+  error = copyout(&ksc, sp, sizeof(sig_ctx_t));
   if (error) {
     /* This thread has a corrupted stack, it can no longer react on a signal
        with a custom handler. Kill the process. */
@@ -53,9 +70,9 @@ int sig_send(signo_t sig, sigaction_t *sa) {
   /* The calling convention is such that the callee may write to the address
    * pointed by sp before extending the stack - so we need to set it 1 word
    * before the stored context! */
-  uframe->sp = (register_t)((intptr_t *)scp - 1);
-  /* Also, make sure the restorer runs when the handler exits. */
-  uframe->ra = (register_t)sa->sa_restorer;
+  uframe->sp = (register_t)((intptr_t *)sp - 1);
+  /* Also, make sure that sigcode runs when the handler exits. */
+  uframe->ra = (register_t)sigcode_stack_addr;
 
   return 0;
 }
