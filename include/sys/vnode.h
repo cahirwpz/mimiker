@@ -42,6 +42,7 @@ typedef int vnode_mkdir_t(vnode_t *dv, const char *name, vattr_t *va,
 typedef int vnode_rmdir_t(vnode_t *dv, const char *name);
 typedef int vnode_access_t(vnode_t *v, accmode_t mode);
 typedef int vnode_ioctl_t(vnode_t *v, u_long cmd, void *data);
+typedef int vnode_reclaim_t(vnode_t *v);
 
 typedef struct vnodeops {
   vnode_lookup_t *v_lookup;
@@ -58,6 +59,7 @@ typedef struct vnodeops {
   vnode_rmdir_t *v_rmdir;
   vnode_access_t *v_access;
   vnode_ioctl_t *v_ioctl;
+  vnode_reclaim_t *v_reclaim;
 } vnodeops_t;
 
 /* Fill missing entries with default vnode operation. */
@@ -96,7 +98,7 @@ typedef struct vattr {
 void va_convert(vattr_t *va, stat_t *sb);
 
 #define VOP_CALL(op, v, ...)                                                   \
-  ((v)->v_ops->v_##op) ? ((v)->v_ops->v_##op(v, __VA_ARGS__)) : ENOTSUP
+  ((v)->v_ops->v_##op) ? ((v)->v_ops->v_##op(v, ##__VA_ARGS__)) : ENOTSUP
 
 static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
   return VOP_CALL(lookup, dv, name, vp);
@@ -157,10 +159,16 @@ static inline int VOP_IOCTL(vnode_t *v, u_long cmd, void *data) {
   return VOP_CALL(ioctl, v, cmd, data);
 }
 
+static inline int VOP_RECLAIM(vnode_t *v) {
+  return VOP_CALL(reclaim, v);
+}
+
 #undef VOP_CALL
 
 /* Allocates and initializes a new vnode */
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data);
+/* Allocates a new, empty vnode */
+vnode_t *vnode_new_empty(void);
 
 /* Lock and unlock vnode's mutex.
  * Call vnode_lock whenever you're about to use vnode's contents. */

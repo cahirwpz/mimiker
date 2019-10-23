@@ -26,6 +26,14 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
   return v;
 }
 
+vnode_t *vnode_new_empty() {
+  vnode_t *v = pool_alloc(P_VNODE, PF_ZERO);
+  v->v_type = V_NONE;
+  v->v_usecnt = 1;
+  mtx_init(&v->v_mtx, 0);
+  return v;
+}
+
 void vnode_lock(vnode_t *v) {
   mtx_lock(&v->v_mtx);
 }
@@ -39,8 +47,10 @@ void vnode_hold(vnode_t *v) {
 }
 
 void vnode_drop(vnode_t *v) {
-  if (refcnt_release(&v->v_usecnt))
+  if (refcnt_release(&v->v_usecnt)) {
+    VOP_RECLAIM(v);
     pool_free(P_VNODE, v);
+  }
 }
 
 static int vnode_nop(vnode_t *v, ...) {
@@ -60,6 +70,7 @@ static int vnode_nop(vnode_t *v, ...) {
 #define vnode_rmdir_nop vnode_nop
 #define vnode_access_nop vnode_nop
 #define vnode_ioctl_nop vnode_nop
+#define vnode_reclaim_nop vnode_nop
 
 static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
   *va = (vattr_t){.va_mode = VNOVAL,
@@ -91,6 +102,7 @@ void vnodeops_init(vnodeops_t *vops) {
   NOP_IF_NULL(vops, rmdir);
   NOP_IF_NULL(vops, access);
   NOP_IF_NULL(vops, ioctl);
+  NOP_IF_NULL(vops, reclaim);
 }
 
 void va_convert(vattr_t *va, stat_t *sb) {
