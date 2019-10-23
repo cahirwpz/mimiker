@@ -18,6 +18,15 @@ typedef struct sig_ctx {
    * stack. */
 } sig_ctx_t;
 
+static void sig_copyout_error(thread_t *td, void *sp) {
+  /* This thread has a corrupted stack, it can no longer react on a signal
+      with a custom handler. Kill the process. */
+  klog("User stack (%p) is corrupted, killing thread %lu!", sp, td->td_tid);
+  mtx_unlock(&td->td_lock);
+  sig_exit(td, SIGILL);
+  __unreachable();
+}
+
 int sig_send(signo_t sig, sigaction_t *sa) {
   thread_t *td = thread_self();
 
@@ -35,28 +44,14 @@ int sig_send(signo_t sig, sigaction_t *sa) {
   sp -= sigcode_size;
   void *sigcode_stack_addr = sp;
   int error = copyout(sigcode, sigcode_stack_addr, sigcode_size);
-  if (error) {
-    /* This thread has a corrupted stack, it can no longer react on a signal
-       with a custom handler. Kill the process. */
-    klog("User stack (%p) is corrupted, killing thread %lu!", uframe->sp,
-         td->td_tid);
-    mtx_unlock(&td->td_lock);
-    sig_exit(td, SIGILL);
-    __unreachable();
-  }
+  if (error)
+    sig_copyout_error(td, uframe->sp);
 
   /* Copyout signal context to user stack. */
   sp -= sizeof(sig_ctx_t);
   error = copyout(&ksc, sp, sizeof(sig_ctx_t));
-  if (error) {
-    /* This thread has a corrupted stack, it can no longer react on a signal
-       with a custom handler. Kill the process. */
-    klog("User stack (%p) is corrupted, killing thread %lu!", uframe->sp,
-         td->td_tid);
-    mtx_unlock(&td->td_lock);
-    sig_exit(td, SIGILL);
-    __unreachable();
-  }
+  if (error)
+    sig_copyout_error(td, uframe->sp);
 
   /* Prepare user context so that on return to usermode the handler gets
    * executed. No need to check whether the handler address is valid (aligned,
