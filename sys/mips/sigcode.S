@@ -7,7 +7,8 @@
 LEAF_NOPROFILE(sigcode)
         li v0, SYS_sigreturn
         syscall
-        j 0                     # just in case sigreturn fails
+        # just in case sigreturn fails
+        j 0     # TODO: replace with "break 0" when SIGTRAP is implemented
 XLEAF(esigcode)
 END(sigcode)
 
