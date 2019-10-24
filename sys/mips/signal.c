@@ -17,10 +17,10 @@ typedef struct sig_ctx {
    * stack. */
 } sig_ctx_t;
 
-static void sig_copyout_error(thread_t *td, void *sp) {
-  /* This thread has a corrupted stack, it can no longer react on a signal
-      with a custom handler. Kill the process. */
-  klog("User stack (%p) is corrupted, killing thread %lu!", sp, td->td_tid);
+static void stack_unusable(thread_t *td, register_t sp) {
+  /* This thread has a corrupted stack, it can no longer react on a signal with
+   * a custom handler. Kill the process. */
+  klog("User stack (%p) is corrupted, terminating with SIGILL!", sp);
   mtx_unlock(&td->td_lock);
   sig_exit(td, SIGILL);
   __unreachable();
@@ -37,22 +37,18 @@ int sig_send(signo_t sig, sigaction_t *sa) {
   sig_ctx_t ksc = {.magic = SIG_CTX_MAGIC};
   exc_frame_copy(&ksc.frame, uframe);
 
-  void *sp = (void *)uframe->sp;
-
   /* Copyout sigcode to user stack. */
   unsigned sigcode_size = esigcode - sigcode;
-  sp -= sigcode_size;
+  void *sp = (void *)uframe->sp - sigcode_size;
   void *sigcode_stack_addr = sp;
 
-  int error = copyout(sigcode, sigcode_stack_addr, sigcode_size);
-  if (error)
-    sig_copyout_error(td, (void *)uframe->sp);
+  if (copyout(sigcode, sigcode_stack_addr, sigcode_size))
+    stack_unusable(td, uframe->sp);
 
   /* Copyout signal context to user stack. */
   sp -= sizeof(sig_ctx_t);
-  error = copyout(&ksc, sp, sizeof(sig_ctx_t));
-  if (error)
-    sig_copyout_error(td, (void *)uframe->sp);
+  if (copyout(&ksc, sp, sizeof(sig_ctx_t)))
+    stack_unusable(td, uframe->sp);
 
   /* Prepare user context so that on return to usermode the handler gets
    * executed. No need to check whether the handler address is valid (aligned,
