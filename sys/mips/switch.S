@@ -8,7 +8,6 @@
 
         .set noreorder
 
-        .globl ctx_switch
         .local ctx_resume
         .local ctx_save
 
