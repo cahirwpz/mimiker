@@ -25,10 +25,4 @@ long ctx_switch(thread_t *from, thread_t *to);
 /* Implementation of setcontext syscall. */
 int do_setcontext(thread_t *td, ucontext_t *uc);
 
-/* Signal trampoline that is copied onto the user's stack. */
-void sigcode(void);
-
-/* Size of the signal trampoline. */
-extern int sigcode_size;
-
 #endif /* !_SYS_CONTEXT_H_ */

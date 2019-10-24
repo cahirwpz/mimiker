@@ -6,7 +6,6 @@
 #include <mips/exc.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
-#include <sys/context.h>
 
 #define SIG_CTX_MAGIC 0xDACBAEE3
 
@@ -41,8 +40,10 @@ int sig_send(signo_t sig, sigaction_t *sa) {
   void *sp = (void *)uframe->sp;
 
   /* Copyout sigcode to user stack. */
+  unsigned sigcode_size = esigcode - sigcode;
   sp -= sigcode_size;
   void *sigcode_stack_addr = sp;
+
   int error = copyout(sigcode, sigcode_stack_addr, sigcode_size);
   if (error)
     sig_copyout_error(td, (void *)uframe->sp);

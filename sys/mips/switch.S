@@ -3,16 +3,12 @@
 #include <mips/ctx.h>
 #include <mips/pcpu.h>
 #include <mips/regdef.h>
-#include <sys/syscall.h>
 
 #include "assym.h"
 
         .set noreorder
 
         .globl ctx_switch
-        .globl sigcode
-        .globl sigcode_size
-        .local sigcode_end
         .local ctx_resume
         .local ctx_save
 
@@ -88,16 +84,5 @@ ctx_resume:
         jr.hb   ra
         nop
 END(ctx_switch)
-
-LEAF_NOPROFILE(sigcode)
-        li v0, SYS_sigreturn
-        syscall
-        j 0 # just in case sigreturn fails
-END(sigcode)
-sigcode_end:
-        .data
-sigcode_size:
-        .long sigcode_end-sigcode
-        .text
 
 # vim: sw=8 ts=8 et
