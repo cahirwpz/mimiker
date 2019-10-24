@@ -42,8 +42,6 @@ typedef struct sigaction {
   };
   sigset_t sa_mask;
   int sa_flags;
-
-  void *sa_restorer;
 } sigaction_t;
 
 #define SA_ONSTACK 0x0001   /* take signal on signal stack */
