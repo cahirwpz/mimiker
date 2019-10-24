@@ -68,6 +68,13 @@ struct sigcontext {
 };
 #endif /* _LIBC || _KERNEL */
 
+#if defined(_KERNEL)
+/* Start and end address of signal trampoline that gets copied onto
+ * the user's stack. */
+extern char sigcode[];
+extern char esigcode[];
+#endif /* !_KERNEL */
+
 #endif /* !_ASSEMBLY_ */
 
 #endif /* !_MIPS_SIGNAL_H_ */

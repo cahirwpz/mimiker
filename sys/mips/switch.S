@@ -8,9 +8,8 @@
 
         .set noreorder
 
-        .global ctx_switch
-        .local  ctx_resume
-        .local  ctx_save
+        .local ctx_resume
+        .local ctx_save
 
 #
 # void ctx_switch(thread_t *from, thread_t *to)
