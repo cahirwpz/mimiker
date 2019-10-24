@@ -15,6 +15,7 @@ SOURCES = \
 	$(PLATFORM).c \
 	pmap.c \
 	rootdev.c \
+	sigcode.S \
 	signal.c \
 	switch.S \
 	test-md.S \

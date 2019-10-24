@@ -628,7 +628,7 @@ static int sys_ioctl(proc_t *p, ioctl_args_t *args, register_t *res) {
   if ((error = do_ioctl(p, fd, cmd, data)))
     goto fail;
 
-  if ((dir & IOC_OUT) && (error = copyin(data, u_data, len)))
+  if ((dir & IOC_OUT) && (error = copyout(data, u_data, len)))
     goto fail;
 
 fail:
