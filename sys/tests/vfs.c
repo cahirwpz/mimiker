@@ -80,6 +80,29 @@ static int test_vfs(void) {
   res = VOP_WRITE(dev_cons, &uio);
   assert(res == 0);
 
+  error = vfs_lookup("/tmp", &v);
+  assert(fsname_of(v, "tmpfs"));
+  assert(v->v_usecnt == 1);
+
+  /* Build a tmpfs file tree*/
+  vattr_t attr;
+  vnode_t *p;
+  error = VOP_MKDIR(v, "foo", &attr, &p);
+  assert(error == 0);
+  error = VOP_MKDIR(p, "bar1", &attr, &v);
+  assert(error == 0);
+  error = VOP_MKDIR(p, "bar2", &attr, &v);
+  assert(error == 0);
+  error = VOP_MKDIR(p, "bar3", &attr, &v);
+  assert(error == 0);
+  error = VOP_MKDIR(v, "baz", &attr, &v);
+  assert(error == 0);
+  error = vfs_lookup("/tmp/foo/bar3/baz", &v);
+  assert(error == 0);
+  assert(v->v_usecnt == 2);
+  error = vfs_lookup("/tmp/foo/bar2/baz", &v);
+  assert(error == ENOENT);
+
   return KTEST_SUCCESS;
 }
 

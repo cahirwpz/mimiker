@@ -167,6 +167,8 @@ static inline int VOP_RECLAIM(vnode_t *v) {
 
 /* Allocates and initializes a new vnode */
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data);
+/* Allocates a new vnode without specific data. */
+vnode_t *vnode_new_raw(void);
 
 /* Lock and unlock vnode's mutex.
  * Call vnode_lock whenever you're about to use vnode's contents. */
