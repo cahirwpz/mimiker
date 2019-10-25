@@ -13,11 +13,6 @@ static struct {
   void *end;
 } kbss = {__ebss, NULL};
 
-void kbss_init(void) {
-  extern uint8_t __bss[];
-  bzero(__bss, __ebss - __bss);
-}
-
 void *kbss_grow(size_t size) {
   void *ptr = kbss.ptr;
   size = roundup(size, sizeof(uint64_t));

@@ -19,10 +19,12 @@
 
 #ifndef __ASSEMBLER__
 
-#define MIPS_KSEG0_TO_PHYS(x) ((uintptr_t)(x)&MIPS_PHYS_MASK)
-#define MIPS_PHYS_TO_KSEG0(x) ((uintptr_t)(x) | (intptr_t)MIPS_KSEG0_START)
-#define MIPS_KSEG1_TO_PHYS(x) ((uintptr_t)(x)&MIPS_PHYS_MASK)
-#define MIPS_PHYS_TO_KSEG1(x) ((uintptr_t)(x) | (intptr_t)MIPS_KSEG1_START)
+#define MIPS_KSEG0_TO_PHYS(x) (paddr_t)((uintptr_t)(x)&MIPS_PHYS_MASK)
+#define MIPS_PHYS_TO_KSEG0(x) (vaddr_t)((uintptr_t)(x) | MIPS_KSEG0_START)
+#define MIPS_KSEG1_TO_PHYS(x) (paddr_t)((uintptr_t)(x)&MIPS_PHYS_MASK)
+#define MIPS_PHYS_TO_KSEG1(x) (vaddr_t)((uintptr_t)(x) | MIPS_KSEG1_START)
+#define MIPS_KSEG2_TO_PHYS(x) (paddr_t)((uintptr_t)(x)&MIPS_PHYS_MASK)
+#define MIPS_PHYS_TO_KSEG2(x) (vaddr_t)((uintptr_t)(x) | MIPS_KSEG2_START)
 
 #define MIPS_KSEG0_P(x) (((intptr_t)(x) & ~MIPS_PHYS_MASK) == MIPS_KSEG0_START)
 #define MIPS_KSEG1_P(x) (((intptr_t)(x) & ~MIPS_PHYS_MASK) == MIPS_KSEG1_START)

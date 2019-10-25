@@ -32,6 +32,7 @@ typedef struct {
 #define PTE_DIRTY 0x00000004 /* page is writable when set */
 #define PTE_VALID 0x00000002 /* page can be accessed when set */
 #define PTE_GLOBAL 0x00000001
+#define PTE_KERNEL (PTE_VALID | PTE_DIRTY | PTE_GLOBAL)
 #define PTE_PROT_MASK (PTE_NO_READ | PTE_NO_EXEC | PTE_DIRTY | PTE_VALID)
 
 #define PTE_PFN(addr) (((addr) >> PTE_PFN_SHIFT) & PTE_PFN_MASK)

@@ -45,16 +45,14 @@ void pm_dump(void) {
 }
 
 size_t pm_seg_space_needed(size_t size) {
-  assert(is_aligned(size, PAGESIZE));
+  assert(page_aligned_p(size));
 
   return sizeof(pm_seg_t) + size / PAGESIZE * sizeof(vm_page_t);
 }
 
 void pm_seg_init(pm_seg_t *seg, paddr_t start, paddr_t end, off_t offset) {
-  assert(start < end);
-  assert(is_aligned(start, PAGESIZE));
-  assert(is_aligned(end, PAGESIZE));
-  assert(is_aligned(offset, PAGESIZE));
+  assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
+  assert(page_aligned_p(offset));
 
   seg->start = start;
   seg->end = end;
@@ -152,9 +150,7 @@ static void pm_split_page(pm_seg_t *seg, vm_page_t *page) {
 
 /* TODO this can be sped up by removing elements from list on-line. */
 void pm_seg_reserve(pm_seg_t *seg, paddr_t start, paddr_t end) {
-  assert(start < end);
-  assert(is_aligned(start, PAGESIZE));
-  assert(is_aligned(end, PAGESIZE));
+  assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
   assert(seg->start <= start && end <= seg->end);
 
   klog("pm_seg_reserve: %08lx - %08lx from [%08lx, %08lx]", start, end,

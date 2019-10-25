@@ -7,12 +7,6 @@
 #define mips32_getasid() (mips32_getentryhi() & PTE_ASID_MASK)
 #define mips32_setasid(v) mips32_setentryhi((v)&PTE_ASID_MASK)
 
-/* TLB handling instructions */
-#define mips32_tlbr() asm volatile("tlbr; ehb" ::: "memory")
-#define mips32_tlbwi() asm volatile("tlbwi; ehb" ::: "memory")
-#define mips32_tlbwr() asm volatile("tlbwr; ehb" ::: "memory")
-#define mips32_tlbp() asm volatile("tlbp; ehb" ::: "memory")
-
 /* Prevents compiler from reordering load & store instructions. */
 #define barrier() asm volatile("" ::: "memory")
 
@@ -89,10 +83,6 @@ static void read_tlb_size(void) {
 
 void tlb_init(void) {
   read_tlb_size();
-  if (tlb_size() == 0)
-    panic("No TLB detected!");
-
-  tlb_invalidate_all();
   /* We're not going to use C0_CONTEXT so set it to zero. */
   mips32_setcontext(0);
   /* First wired TLB entry is shared between kernel-PDE and user-PDE. */
@@ -195,25 +185,3 @@ void tlb_print(void) {
   mips32_setasid(saved);
 }
 #endif
-
-/* Following code is used by gdb scripts. */
-
-/* Compiler does not know that debugger (external agent) will read
- * the structure and will remove it and optimize out all references to it.
- * Hence it has to be marked with `volatile`. */
-static __boot_data volatile tlbentry_t _gdb_tlb_entry;
-
-__boot_text unsigned _gdb_tlb_size(void) {
-  return ((mips32_getconfig1() & CFG1_MMUS_MASK) >> CFG1_MMUS_SHIFT) + 1;
-}
-
-/* Fills _gdb_tlb_entry structure with TLB entry. */
-__boot_text void _gdb_tlb_read_index(unsigned i) {
-  tlbhi_t saved = mips32_getentryhi();
-  mips32_setindex(i);
-  mips32_tlbr();
-  _gdb_tlb_entry = (tlbentry_t){.hi = mips32_getentryhi(),
-                                .lo0 = mips32_getentrylo0(),
-                                .lo1 = mips32_getentrylo1()};
-  mips32_setentryhi(saved);
-}

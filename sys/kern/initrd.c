@@ -313,9 +313,9 @@ static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
 
 static int initrd_init(vfsconf_t *vfc) {
   /* Ramdisk start & end addresses are expected to be page aligned. */
-  assert(is_aligned(ramdisk_get_start(), PAGESIZE));
+  assert(page_aligned_p(ramdisk_get_start()));
   /* If the size is page aligned, the end address is as well. */
-  assert(is_aligned(ramdisk_get_size(), PAGESIZE));
+  assert(page_aligned_p(ramdisk_get_size()));
 
   vnodeops_init(&initrd_vops);
 
