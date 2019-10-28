@@ -1297,6 +1297,12 @@ __extension__ ({ \
 #define mips32_getpagemask() mips32_get_c0(C0_PAGEMASK)
 #define mips32_setpagemask(x) mips32_set_c0(C0_PAGEMASK, (x))
 
+/* TLB handling instructions */
+#define mips32_tlbr() asm volatile("tlbr; ehb" ::: "memory")
+#define mips32_tlbwi() asm volatile("tlbwi; ehb" ::: "memory")
+#define mips32_tlbwr() asm volatile("tlbwr; ehb" ::: "memory")
+#define mips32_tlbp() asm volatile("tlbp; ehb" ::: "memory")
+
 /*
  * Define macros for accessing the MIPS32 coprocessor 0 registers.  Most
  * apart from "set" return the original register value.  These particular

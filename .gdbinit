@@ -14,6 +14,10 @@ break kernel_init
 break assert_fail
 break panic_fail
 
+# skip by default some non-interesting stuff
+skip -function tlb_refill -file ebase.S
+
+# extra commands defined by means of gdb scripts
 define nextuser
   tbreak user_return
   commands

@@ -74,8 +74,6 @@ bool intr_disabled(void);
 /* Attribute macros for boot/wired functions/data */
 #define __boot_text __long_call __section(".boot.text")
 #define __boot_data __section(".boot.data")
-#define __wired_text __section(".wired.text")
-#define __wired_data __section(".wired.data")
 
 #define CLEANUP_FUNCTION(func) __CONCAT(__cleanup_, func)
 #define DEFINE_CLEANUP_FUNCTION(type, func)                                    \

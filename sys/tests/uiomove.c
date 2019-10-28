@@ -20,7 +20,7 @@ static int test_uiomove(void) {
 
   /* Perform WRITE to buffer1, using text as data. */
   uio.uio_op = UIO_WRITE;
-  uio.uio_vmspace = get_kernel_vm_map();
+  uio.uio_vmspace = vm_map_kernel();
   iov[0].iov_base = (char *)text;
   iov[0].iov_len = 8;
   iov[1].iov_base = (char *)text + 20;
@@ -39,7 +39,7 @@ static int test_uiomove(void) {
 
   /* Now, perform a READ from text, using buffer2 as data. */
   uio.uio_op = UIO_READ;
-  uio.uio_vmspace = get_kernel_vm_map();
+  uio.uio_vmspace = vm_map_kernel();
   iov[0].iov_base = buffer2;
   iov[0].iov_len = 8;
   iov[1].iov_base = buffer2 + 12;

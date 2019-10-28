@@ -55,4 +55,7 @@ int test_syscall_in_bds(void);
 
 int test_setjmp(void);
 
+int test_sigaction_with_setjmp(void);
+int test_sigaction_handler_returns(void);
+
 #endif /* __UTEST_H__ */

@@ -3,7 +3,7 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES = \
-	boot.S \
+	boot.c \
 	cbus.c \
 	context.c \
 	copy.S \
@@ -17,6 +17,7 @@ SOURCES = \
 	rootdev.c \
 	sigcode.S \
 	signal.c \
+	start.S \
 	switch.S \
 	test-md.S \
 	thread.c \

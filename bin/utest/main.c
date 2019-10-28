@@ -51,6 +51,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(exc_sigsys);
   CHECKRUN_TEST(syscall_in_bds);
   CHECKRUN_TEST(setjmp);
+  CHECKRUN_TEST(sigaction_with_setjmp);
+  CHECKRUN_TEST(sigaction_handler_returns);
 
   CHECKRUN_TEST(fpu_fcsr);
   CHECKRUN_TEST(fpu_gpr_preservation);
