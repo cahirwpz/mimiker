@@ -57,7 +57,10 @@ class TLBEntry(metaclass=GdbStructMeta):
             lo0 = '%08x %s' % (self.hi.vpn, self.lo0)
         if self.lo1.valid:
             lo1 = '%08x %s' % (self.hi.vpn + PAGESIZE, self.lo1)
-        return ['%02x' % self.hi.asid, lo0, lo1]
+        asid = '%02x' % self.hi.asid
+        if self.lo0.globl and self.lo1.globl:
+            asid = '-'
+        return [asid, lo0, lo1]
 
 
 class TLB(UserCommand):

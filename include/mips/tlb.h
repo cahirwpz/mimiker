@@ -70,7 +70,7 @@ void tlb_invalidate(tlbhi_t hi);
 void tlb_invalidate_all(void);
 
 /* Invalidate all TLB entries with given ASID (save wired). */
-void tlb_invalidate_asid(tlbhi_t hi);
+void tlb_invalidate_asid(tlbhi_t asid);
 
 /* Reads the TLB entry specified by @i. */
 void tlb_read(unsigned i, tlbentry_t *e);

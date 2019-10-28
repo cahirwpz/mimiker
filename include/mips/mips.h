@@ -26,11 +26,7 @@
 #define MIPS_KSEG2_TO_PHYS(x) (paddr_t)((uintptr_t)(x)&MIPS_PHYS_MASK)
 #define MIPS_PHYS_TO_KSEG2(x) (vaddr_t)((uintptr_t)(x) | MIPS_KSEG2_START)
 
-#define MIPS_KSEG0_P(x) (((intptr_t)(x) & ~MIPS_PHYS_MASK) == MIPS_KSEG0_START)
-#define MIPS_KSEG1_P(x) (((intptr_t)(x) & ~MIPS_PHYS_MASK) == MIPS_KSEG1_START)
-#define MIPS_KSEG2_P(x) ((uintptr_t)MIPS_KSEG2_START <= (uintptr_t)(x))
-
-const char *const exceptions[32];
+#define MIPS_KSEG2_TO_KSEG0(x) MIPS_PHYS_TO_KSEG0(MIPS_KSEG2_TO_PHYS(x))
 
 #endif /* __ASSEMBLER__ */
 

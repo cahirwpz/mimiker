@@ -24,6 +24,9 @@ SECTIONS
   .boot 0x80100000: AT(0x100000) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
+    /* Exception entry points. */
+    *(.ebase)
+    . = ALIGN(0x800);
     /*
      * The .boot.* sections also contain code and data used by GDB commands.
      * The debugger must always be able to jump to code in this section and to
@@ -31,20 +34,6 @@ SECTIONS
      */
     *(.boot .boot.*)
   } : boot
-
-  /*
-   * The .wired.* sections contain code and data that must always be safe
-   * to access (i.e. accessing them can't generate exceptions).
-   * For now they're placed in kseg0, but when the kernel is moved to
-   * kseg2, they should be moved there with it, which will require wiring
-   * the mappings for pages containing these sections.
-   */
-  .wired.text : ALIGN(4096)
-  {
-    /* Exception entry points. */
-    *(.ebase)
-    *(.wired.text)
-  } : text 
 
   .text : ALIGN(4096)
   {
@@ -60,11 +49,6 @@ SECTIONS
   {
     *(.rodata .rodata.*)
   } : rodata
-
-  .wired.data : ALIGN(4096)
-  {
-    *(.wired.data)
-  } : data
 
   .data : ALIGN(4096)
   {
