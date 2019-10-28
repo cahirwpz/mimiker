@@ -53,6 +53,7 @@ bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   return pmap_start(pmap) <= start && end <= pmap_end(pmap);
 }
 
+extern pde_t _kernel_pmap_pde[PD_ENTRIES];
 static pmap_t kernel_pmap;
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
@@ -83,26 +84,19 @@ static void update_wired_pde(pmap_t *umap) {
    * to skip ASID check. */
   tlbentry_t e = {.hi = PTE_VPN2(UPD_BASE),
                   .lo0 = PTE_GLOBAL,
-                  .lo1 = PTE_PFN(kmap->pde_page->paddr) | PTE_KERNEL};
+                  .lo1 = PTE_PFN(MIPS_KSEG0_TO_PHYS(kmap->pde)) | PTE_KERNEL};
 
   if (umap)
-    e.lo0 = PTE_PFN(umap->pde_page->paddr) | PTE_KERNEL;
+    e.lo0 = PTE_PFN(MIPS_KSEG0_TO_PHYS(umap->pde)) | PTE_KERNEL;
 
   tlb_write(0, &e);
 }
 
 /* Page Table is accessible only through physical addresses. */
 static void pmap_setup(pmap_t *pmap) {
-  vm_page_t *pde_page = pm_alloc(1);
-  pmap->pde_page = pde_page;
-  pmap->pde = PG_KSEG0_ADDR(pde_page);
   pmap->asid = alloc_asid();
   mtx_init(&pmap->mtx, 0);
-  klog("Page directory table allocated at %p", (vaddr_t)pmap->pde);
   TAILQ_INIT(&pmap->pte_pages);
-
-  for (int i = 0; i < PD_ENTRIES; i++)
-    pmap->pde[i] = kern_addr_p(i * PT_ENTRIES * PAGESIZE) ? PTE_GLOBAL : 0;
 }
 
 /* TODO: remove all mappings from TLB, evict related cache lines */
@@ -118,11 +112,20 @@ void pmap_reset(pmap_t *pmap) {
 
 void pmap_init(void) {
   pmap_setup(&kernel_pmap);
+  kernel_pmap.pde = (pde_t *)MIPS_KSEG2_TO_KSEG0(_kernel_pmap_pde);
 }
 
 pmap_t *pmap_new(void) {
   pmap_t *pmap = pool_alloc(P_PMAP, PF_ZERO);
   pmap_setup(pmap);
+
+  pmap->pde_page = pm_alloc(1);
+  pmap->pde = PG_KSEG0_ADDR(pmap->pde_page);
+  klog("Page directory table allocated at %p", (vaddr_t)pmap->pde);
+
+  for (int i = 0; i < PD_ENTRIES; i++)
+    pmap->pde[i] = 0;
+
   return pmap;
 }
 

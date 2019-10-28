@@ -28,6 +28,10 @@
 
 #define MIPS_KSEG2_TO_KSEG0(x) MIPS_PHYS_TO_KSEG0(MIPS_KSEG2_TO_PHYS(x))
 
-#endif /* __ASSEMBLER__ */
+#else /* __ASSEMBLER__ */
+
+#define MIPS_KSEG2_TO_KSEG0(x) ((x) - (MIPS_KSEG2_START - MIPS_KSEG0_START))
+
+#endif
 
 #endif /* !_MIPS_MIPS_H */

@@ -35,7 +35,7 @@ SECTIONS
     *(.boot .boot.*)
   } : boot
 
-  .text : ALIGN(4096)
+  .text 0xc0102000 : AT(0x102000) ALIGN(4096)
   {
     __text = ABSOLUTE(.);
     *(.text .text.*)

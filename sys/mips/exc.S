@@ -29,12 +29,12 @@ exc_enter:
         nop
 
 # IMPORTANT: While exception level is active the code may only access kernel
-# stack and local pcpu structure! These are guaranteed to be wired in TLB.
+# stack and local pcpu structure! FTTB These are accessed through kseg0.
 # It is UNSAFE to use k0/k1 registers when TLB miss handler may be triggered!
 
 NESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         # Fetch exception frame pointer where context will be saved.
-        LOAD_PCPU(k0)
+        LOAD_PCPU_KSEG0(k0)
         lw      k0, PCPU_KSP(k0)
 
         SAVE_CPU_CTX(sp, k0)

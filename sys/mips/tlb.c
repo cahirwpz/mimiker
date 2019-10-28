@@ -81,12 +81,12 @@ static void read_tlb_size(void) {
   _tlb_size = ((cfg1 & CFG1_MMUS_MASK) >> CFG1_MMUS_SHIFT) + 1;
 }
 
+/* TLB has been almost completely initialized by "mips_init",
+ * so not much is happening here. */
 void tlb_init(void) {
   read_tlb_size();
   /* We're not going to use C0_CONTEXT so set it to zero. */
   mips32_setcontext(0);
-  /* First wired TLB entry is shared between kernel-PDE and user-PDE. */
-  mips32_setwired(1);
 }
 
 void tlb_invalidate(tlbhi_t hi) {
