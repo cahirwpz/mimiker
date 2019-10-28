@@ -5,6 +5,7 @@
 #include <sys/errno.h>
 #include <sys/vm_map.h>
 #include <sys/ktest.h>
+#include <sys/klog.h>
 
 static bool fsname_of(vnode_t *v, const char *fsname) {
   return strncmp(v->v_mount->mnt_vfc->vfc_name, fsname, strlen(fsname)) == 0;
@@ -79,29 +80,6 @@ static int test_vfs(void) {
   uio = UIO_SINGLE_KERNEL(UIO_WRITE, 0, str, strlen(str));
   res = VOP_WRITE(dev_cons, &uio);
   assert(res == 0);
-
-  error = vfs_lookup("/tmp", &v);
-  assert(fsname_of(v, "tmpfs"));
-  assert(v->v_usecnt == 1);
-
-  /* Build a tmpfs file tree*/
-  vattr_t attr;
-  vnode_t *p;
-  error = VOP_MKDIR(v, "foo", &attr, &p);
-  assert(error == 0);
-  error = VOP_MKDIR(p, "bar1", &attr, &v);
-  assert(error == 0);
-  error = VOP_MKDIR(p, "bar2", &attr, &v);
-  assert(error == 0);
-  error = VOP_MKDIR(p, "bar3", &attr, &v);
-  assert(error == 0);
-  error = VOP_MKDIR(v, "baz", &attr, &v);
-  assert(error == 0);
-  error = vfs_lookup("/tmp/foo/bar3/baz", &v);
-  assert(error == 0);
-  assert(v->v_usecnt == 2);
-  error = vfs_lookup("/tmp/foo/bar2/baz", &v);
-  assert(error == ENOENT);
 
   return KTEST_SUCCESS;
 }
