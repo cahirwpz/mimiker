@@ -1,7 +1,7 @@
 #define KL_LOG KL_FILESYS
 #include <sys/klog.h>
-#include <sys/tmpfs.h>
 #include <sys/mount.h>
+#include <sys/dirent.h>
 #include <sys/vnode.h>
 #include <sys/errno.h>
 #include <sys/libkern.h>
@@ -9,45 +9,63 @@
 #include <sys/malloc.h>
 #include <sys/pool.h>
 #include <sys/linker_set.h>
-#include <sys/dirent.h>
+#include <sys/queue.h>
+
+#define TMPFS_NAME_MAX 64
+
+typedef struct tmpfs_dirent {
+  TAILQ_ENTRY(tmpfs_dirent) td_entries;
+  /* Pointer to the inode this entry refers to. */
+  struct tmpfs_node *td_node;
+
+  /* Name and its length. */
+  size_t td_namelen;
+  char td_name[TMPFS_NAME_MAX];
+} tmpfs_dirent_t;
+
+typedef TAILQ_HEAD(, tmpfs_dirent) tmpfs_dirent_list_t;
+
+typedef struct tmpfs_node {
+  TAILQ_ENTRY(tmpfs_node) tn_entries;
+
+  /* Pointer to the corrensponding vnode. */
+  vnode_t *tn_vnode;
+  /* Vnode type. */
+  vnodetype_t tn_type;
+
+  /* Number of file hard links. */
+  nlink_t tn_links;
+
+  /* Data that is only applicable to a particular type. */
+  union {
+    /* V_DIR */
+    struct {
+      /* List of directory entries. */
+      tmpfs_dirent_list_t tn_dir;
+    } tn_dir;
+
+    /* V_REG */
+    struct {
+    } tn_reg;
+  };
+} tmpfs_node_t;
 
 static POOL_DEFINE(P_TMPFS_NODE, "tmpfs node", sizeof(tmpfs_node_t));
 static POOL_DEFINE(P_TMPFS_DIRENT, "tmpfs dirent", sizeof(tmpfs_dirent_t));
 
+typedef struct tmpfs_mount {
+  tmpfs_node_t *tm_root;
+  mtx_t tm_lock;
+} tmpfs_mount_t;
+
 /* Functions to convert VFS structures to tmpfs internal ones. */
-static __inline tmpfs_mount_t *VFS_TO_TMPFS(mount_t *mp) {
+static inline tmpfs_mount_t *VFS_TO_TMPFS(mount_t *mp) {
   return (tmpfs_mount_t *)mp->mnt_data;
 }
 
-static __inline tmpfs_node_t *VFS_TO_TMPFS_NODE(vnode_t *vp) {
+static inline tmpfs_node_t *VFS_TO_TMPFS_NODE(vnode_t *vp) {
   return (tmpfs_node_t *)vp->v_data;
 }
-
-static vnode_lookup_t tmpfs_vop_lookup;
-static vnode_readdir_t tmpfs_vop_readdir;
-static vnode_close_t tmpfs_vop_close;
-static vnode_read_t tmpfs_vop_read;
-static vnode_write_t tmpfs_vop_write;
-static vnode_seek_t tmpfs_vop_seek;
-static vnode_getattr_t tmpfs_vop_getattr;
-static vnode_create_t tmpfs_vop_create;
-static vnode_remove_t tmpfs_vop_remove;
-static vnode_mkdir_t tmpfs_vop_mkdir;
-static vnode_rmdir_t tmpfs_vop_rmdir;
-
-static vnodeops_t tmpfs_vnodeops = {.v_lookup = tmpfs_vop_lookup,
-                                    .v_readdir = tmpfs_vop_readdir,
-                                    .v_open = vnode_open_generic,
-                                    .v_close = tmpfs_vop_close,
-                                    .v_read = tmpfs_vop_read,
-                                    .v_write = tmpfs_vop_write,
-                                    .v_seek = tmpfs_vop_seek,
-                                    .v_getattr = tmpfs_vop_getattr,
-                                    .v_create = tmpfs_vop_create,
-                                    .v_remove = tmpfs_vop_remove,
-                                    .v_mkdir = tmpfs_vop_mkdir,
-                                    .v_rmdir = tmpfs_vop_rmdir,
-                                    .v_access = vnode_access_generic};
 
 /* tmpfs vnode operations */
 
@@ -97,13 +115,26 @@ static int tmpfs_vop_rmdir(vnode_t *dv, const char *name) {
   return EOPNOTSUPP;
 }
 
+static vnodeops_t tmpfs_vnodeops = {.v_lookup = tmpfs_vop_lookup,
+                                    .v_readdir = tmpfs_vop_readdir,
+                                    .v_open = vnode_open_generic,
+                                    .v_close = tmpfs_vop_close,
+                                    .v_read = tmpfs_vop_read,
+                                    .v_write = tmpfs_vop_write,
+                                    .v_seek = tmpfs_vop_seek,
+                                    .v_getattr = tmpfs_vop_getattr,
+                                    .v_create = tmpfs_vop_create,
+                                    .v_remove = tmpfs_vop_remove,
+                                    .v_mkdir = tmpfs_vop_mkdir,
+                                    .v_rmdir = tmpfs_vop_rmdir,
+                                    .v_access = vnode_access_generic};
+
 /* tmpfs internal routines */
 
 /* tmpfs vfs operations */
 
 static int tmpfs_mount(mount_t *mp) {
-  // Temporary solution to mute unused warning.
-  // Will be deleted in next commit.
+  /* XXX: Temporary solution to mute unused warning. */
   tmpfs_vnodeops.v_lookup = NULL;
   return 0;
 }
