@@ -21,47 +21,21 @@ SECTIONS
   /* At the very bottom of physical address space allocate one page for stack */
   _sp = _ram + 4096;
 
-  .ebase 0x80100000: AT(0x100000) ALIGN(4096)
+  .boot 0x80100000: AT(0x100000) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
     /* Exception entry points. */
     *(.ebase)
+    . = ALIGN(0x800);
+    /*
+     * The .boot.* sections also contain code and data used by GDB commands.
+     * The debugger must always be able to jump to code in this section and to
+     * read/write data in this section, so it should be placed in kseg0.
+     */
+    *(.boot .boot.*)
   } : boot
 
-  /*
-   * The .boot.* sections contain code and data used by GDB commands.
-   * The debugger must always be able to jump to code in this section
-   * and to read/write data in this section, so it should be placed
-   * in kseg0.
-   */
-  .boot.text : ALIGN(4096)
-  {
-    *(.boot.text)
-  } : boot
-
-  .boot.data : ALIGN(4096)
-  {
-    *(.boot.data)
-  } : boot 
-
-  /*
-   * The .wired.* sections contain code and data that must always be safe
-   * to access (i.e. accessing them can't generate exceptions).
-   * For now they're placed in kseg0, but when the kernel is moved to
-   * kseg2, they should be moved there with it, which will require wiring
-   * the mappings for pages containing these sections.
-   */
-  .wired.text : ALIGN(4096)
-  {
-    *(.wired.text)
-  } : boot
-
-  .wired.data : ALIGN(4096)
-  {
-    *(.wired.data)
-  } : boot
-
-  .text : ALIGN(4096)
+  .text 0xc0102000 : AT(0x102000) ALIGN(4096)
   {
     __text = ABSOLUTE(.);
     *(.text .text.*)
@@ -73,7 +47,7 @@ SECTIONS
    * _gp is defined here as the start of the .data section.  */
   .rodata : ALIGN(4)
   {
-     *(.rodata .rodata.*)
+    *(.rodata .rodata.*)
   } : rodata
 
   .data : ALIGN(4096)
@@ -82,7 +56,6 @@ SECTIONS
     _gp = .;
     *(.data .data.*)
     *(.sdata .sdata.*)
-    *(.eh_frame .eh_frame.*)
     . = ALIGN (4);
     __edata = ABSOLUTE(.);
   } : data

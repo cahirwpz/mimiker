@@ -5,19 +5,20 @@
 #include <sys/queue.h>
 #include <sys/exception.h>
 #include <sys/mutex.h>
-
-typedef uint8_t asid_t;
-typedef uint32_t pte_t;
-typedef uint32_t pde_t;
+#include <machine/pmap.h>
 
 typedef struct pmap {
   pte_t *pde;          /* directory page table */
   vm_page_t *pde_page; /* pointer to a page with directory page table */
   pg_list_t pte_pages; /* pages we allocate in page table */
-  vaddr_t start, end;
   asid_t asid;
   mtx_t mtx;
 } pmap_t;
+
+bool pmap_address_p(pmap_t *pmap, vaddr_t va);
+bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end);
+vaddr_t pmap_start(pmap_t *pmap);
+vaddr_t pmap_end(pmap_t *pmap);
 
 void pmap_init(void);
 
@@ -40,8 +41,10 @@ void pmap_set_referenced(paddr_t pa);
 void pmap_set_modified(paddr_t pa);
 
 void pmap_activate(pmap_t *pmap);
-pmap_t *get_kernel_pmap(void);
-pmap_t *get_user_pmap(void);
+
+pmap_t *pmap_lookup(vaddr_t va);
+pmap_t *pmap_kernel(void);
+pmap_t *pmap_user(void);
 
 void tlb_exception_handler(exc_frame_t *frame);
 

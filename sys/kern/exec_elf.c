@@ -81,7 +81,7 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
        (void *)ph->p_vaddr, (unsigned)ph->p_offset, (unsigned)ph->p_filesz,
        (unsigned)ph->p_memsz, (unsigned)ph->p_flags);
 
-  if (!is_aligned(ph->p_vaddr, PAGESIZE)) {
+  if (!page_aligned_p(ph->p_vaddr)) {
     klog("Exec failed: Segment virtual address is not page aligned!");
     return ENOEXEC;
   }

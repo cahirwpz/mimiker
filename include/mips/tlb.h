@@ -32,6 +32,8 @@ typedef struct {
 #define PTE_DIRTY 0x00000004 /* page is writable when set */
 #define PTE_VALID 0x00000002 /* page can be accessed when set */
 #define PTE_GLOBAL 0x00000001
+#define PTE_KERNEL_READONLY (PTE_VALID | PTE_GLOBAL)
+#define PTE_KERNEL (PTE_VALID | PTE_DIRTY | PTE_GLOBAL)
 #define PTE_PROT_MASK (PTE_NO_READ | PTE_NO_EXEC | PTE_DIRTY | PTE_VALID)
 
 #define PTE_PFN(addr) (((addr) >> PTE_PFN_SHIFT) & PTE_PFN_MASK)
@@ -69,7 +71,7 @@ void tlb_invalidate(tlbhi_t hi);
 void tlb_invalidate_all(void);
 
 /* Invalidate all TLB entries with given ASID (save wired). */
-void tlb_invalidate_asid(tlbhi_t hi);
+void tlb_invalidate_asid(tlbhi_t asid);
 
 /* Reads the TLB entry specified by @i. */
 void tlb_read(unsigned i, tlbentry_t *e);

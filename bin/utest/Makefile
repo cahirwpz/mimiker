@@ -14,6 +14,7 @@ SOURCES = \
 	signal.c \
 	stat.c \
 	setjmp.c \
+	sigaction.c \
 	utest.c
 
 PROGRAM = utest
