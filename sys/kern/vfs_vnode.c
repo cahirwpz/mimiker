@@ -26,14 +26,6 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
   return v;
 }
 
-vnode_t *vnode_new_empty() {
-  vnode_t *v = pool_alloc(P_VNODE, PF_ZERO);
-  v->v_type = V_NONE;
-  v->v_usecnt = 1;
-  mtx_init(&v->v_mtx, 0);
-  return v;
-}
-
 void vnode_lock(vnode_t *v) {
   mtx_lock(&v->v_mtx);
 }
