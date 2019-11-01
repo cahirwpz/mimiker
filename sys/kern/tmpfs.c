@@ -6,47 +6,30 @@
 #include <sys/errno.h>
 #include <sys/libkern.h>
 #include <sys/mutex.h>
-#include <sys/malloc.h>
 #include <sys/pool.h>
-#include <sys/linker_set.h>
-#include <sys/queue.h>
 
 #define TMPFS_NAME_MAX 64
 
 typedef struct tmpfs_dirent {
-  TAILQ_ENTRY(tmpfs_dirent) td_entries;
-  /* Pointer to the inode this entry refers to. */
-  struct tmpfs_node *td_node;
-
-  /* Name and its length. */
-  size_t td_namelen;
-  char td_name[TMPFS_NAME_MAX];
+  TAILQ_ENTRY(tmpfs_dirent) tfd_entries; /* node on dirent list */
+  struct tmpfs_node *tfd_node;           /* pointer to the file's node */
+  size_t tfd_namelen;            /* number of bytes occupied in array below */
+  char tfd_name[TMPFS_NAME_MAX]; /* name of file */
 } tmpfs_dirent_t;
 
 typedef TAILQ_HEAD(, tmpfs_dirent) tmpfs_dirent_list_t;
 
 typedef struct tmpfs_node {
-  TAILQ_ENTRY(tmpfs_node) tn_entries;
-
-  /* Pointer to the corrensponding vnode. */
-  vnode_t *tn_vnode;
-  /* Vnode type. */
-  vnodetype_t tn_type;
-
-  /* Number of file hard links. */
-  nlink_t tn_links;
+  vnode_t *tfn_vnode; /* corresponding v-node */
 
   /* Data that is only applicable to a particular type. */
   union {
-    /* V_DIR */
     struct {
       /* List of directory entries. */
-      tmpfs_dirent_list_t tn_dir;
-    } tn_dir;
-
-    /* V_REG */
+      tmpfs_dirent_list_t dirents;
+    } tfn_dir;
     struct {
-    } tn_reg;
+    } tfn_reg;
   };
 } tmpfs_node_t;
 
@@ -54,8 +37,8 @@ static POOL_DEFINE(P_TMPFS_NODE, "tmpfs node", sizeof(tmpfs_node_t));
 static POOL_DEFINE(P_TMPFS_DIRENT, "tmpfs dirent", sizeof(tmpfs_dirent_t));
 
 typedef struct tmpfs_mount {
-  tmpfs_node_t *tm_root;
-  mtx_t tm_lock;
+  tmpfs_node_t *tfm_root;
+  mtx_t tfm_lock;
 } tmpfs_mount_t;
 
 /* Functions to convert VFS structures to tmpfs internal ones. */
