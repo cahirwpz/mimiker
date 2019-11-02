@@ -14,7 +14,7 @@
 /* Resolves to _ADD_CFI_(reg, offset) when no variadic arguments given.
  * Resolves to _ADD_CFI_NO_CFI when NO_CFI given as one, and only one
  * variadic argument.
- * Passing multiple variadic arguments to this macro is consiered an error.
+ * Passing multiple variadic arguments to this macro is considered an error.
  */
 #define SAVE_REG(reg, offset, base, ...)                                       \
   sw reg, (EXC_##offset)(base);                                                \

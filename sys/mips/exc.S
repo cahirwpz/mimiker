@@ -24,16 +24,11 @@
         .cfi_sections .debug_frame, .eh_frame
 
 # [$k0] must be set to value of C0_STATUS
-//NESTED(exc_enter, 0, sp)
 exc_enter:
         mfc0    k0, C0_STATUS           
         andi    k0, SR_KSU_MASK         # Did exception occur in kernel mode?
         beqz    k0, kern_exc_enter
         nop
-        j user_exc_enter
-        nop
-
-//END(exc_enter)
 
 
 # IMPORTANT: While exception level is active the code may only access kernel
@@ -56,10 +51,6 @@ NESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         lw      sp, PCPU_KSP(k0)
 
         .cfi_def_cfa sp, 0
-
-        // save user sp
-        sw k1, 104(sp) 
-        .cfi_rel_offset sp, 104
 
         SAVE_CPU_CTX(k1, sp)
 
