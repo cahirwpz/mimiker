@@ -50,11 +50,6 @@ SECTIONS
     *(.rodata .rodata.*)
   } : rodata
 
-  .wired.data : ALIGN(4096)
-  {
-    *(.wired.data)
-  } : data
-
   .data : ALIGN(4096)
   {
     __data = ABSOLUTE(.);
@@ -63,14 +58,6 @@ SECTIONS
     *(.sdata .sdata.*)
     . = ALIGN (4);
     __edata = ABSOLUTE(.);
-  } : data
-
-  .eh_frame : ALIGN(4)
-  {
-    __eh_frame = ABSOLUTE(.);
-    *(.eh_frame .eh_frame.*)
-    . = ALIGN(4);
-    __eeh_frame = ABSOLUTE(.);
   } : data
 
   .bss : ALIGN(4)
