@@ -24,31 +24,33 @@
         .cfi_sections .debug_frame, .eh_frame
 
 # [$k0] must be set to value of C0_STATUS
-NESTED(exc_enter, 0, sp)
-//exc_enter:
+//NESTED(exc_enter, 0, sp)
+exc_enter:
+        mfc0    k0, C0_STATUS           
         andi    k0, SR_KSU_MASK         # Did exception occur in kernel mode?
         beqz    k0, kern_exc_enter
         nop
         j user_exc_enter
         nop
 
-END(exc_enter)
+//END(exc_enter)
 
 
 # IMPORTANT: While exception level is active the code may only access kernel
-# stack and local pcpu structure! These are guaranteed to be wired in TLB.
+# stack and local pcpu structure! FTTB These are accessed through kseg0.
 # It is UNSAFE to use k0/k1 registers when TLB miss handler may be triggered!
 
 NESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
-
         .cfi_signal_frame
+
 
         # Move user sp to temporary register and replace it with kernel sp.
         move    k1, sp
         .cfi_register sp, k1
 
         # Exception frame will be saved on kernel stack. 
-        LOAD_PCPU(k0)
+        # Fetch exception frame pointer where context will be saved.
+        LOAD_PCPU_KSEG0(k0)
 
         # sp contains kernel stack pointer
         lw      sp, PCPU_KSP(k0)
@@ -149,17 +151,17 @@ NESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         subu    sp, KERN_EXC_FRAME_SIZE # required by gdb to recognize frame
         SAVE_CPU_CTX(k0, sp)
 
-        # Normally an exception handler will be executed, unless... 
+        # In normal conditions we're going to enter regular exception handler.
         la      s1, mips_exc_handler
 
-        # ... there's not enough space on the stack to store another exception
-        # frame. We consider such situation to be critical and trigger panic.
+        # If there's not enough space on the stack to store another exception
+        # frame we consider situation to be critical and panic.
         andi    t0, sp, STACKSIZE - 1
         subu    t0, KERN_EXC_FRAME_SIZE
         bgez    t0, 1f
         nop
-        # Hopefully KERN_EXC_FRAME_SIZE bytes of unallocated stack space
-        # will be enough to enter kernel stack overflow handler.
+        # Hopefully KERN_EXC_FRAME_SIZE bytes of unallocated stack space will be
+        # enough to enter kernel stack overflow handler.
         la      s1, kstack_overflow_handler
 
         # Load kernel global pointer.

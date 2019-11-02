@@ -81,12 +81,12 @@ static void read_tlb_size(void) {
   _tlb_size = ((cfg1 & CFG1_MMUS_MASK) >> CFG1_MMUS_SHIFT) + 1;
 }
 
+/* TLB has been almost completely initialized by "mips_init",
+ * so not much is happening here. */
 void tlb_init(void) {
   read_tlb_size();
   /* We're not going to use C0_CONTEXT so set it to zero. */
   mips32_setcontext(0);
-  /* First wired TLB entry is shared between kernel-PDE and user-PDE. */
-  mips32_setwired(1);
 }
 
 void tlb_invalidate(tlbhi_t hi) {
@@ -101,19 +101,24 @@ void tlb_invalidate(tlbhi_t hi) {
 void tlb_invalidate_all(void) {
   SCOPED_INTR_DISABLED();
   tlbhi_t saved = mips32_getasid();
-  for (unsigned i = mips32_getwired(); i < tlb_size(); i++)
+  for (unsigned i = mips32_getwired(); i < _tlb_size; i++)
     _tlb_invalidate(i);
   mips32_setasid(saved);
 }
 
-void tlb_invalidate_asid(tlbhi_t invalid) {
+void tlb_invalidate_asid(tlbhi_t asid) {
   SCOPED_INTR_DISABLED();
   tlbhi_t saved = mips32_getasid();
-  for (unsigned i = mips32_getwired(); i < tlb_size(); i++) {
+  for (unsigned i = mips32_getwired(); i < _tlb_size; i++) {
     tlbentry_t e;
     _tlb_read(i, &e);
-    if ((e.hi & PTE_ASID_MASK) == invalid)
-      _tlb_invalidate(i);
+    /* Ignore global mappings! */
+    if ((e.lo0 & PTE_GLOBAL) && (e.lo1 & PTE_GLOBAL))
+      continue;
+    /* Ignore mappings with different ASID */
+    if ((e.hi & PTE_ASID_MASK) != asid)
+      continue;
+    _tlb_invalidate(i);
   }
   mips32_setasid(saved);
 }

@@ -14,7 +14,7 @@ static struct {
 } kbss = {__ebss, NULL};
 
 void *kbss_grow(size_t size) {
-  void *ptr = kbss.ptr;
+  void *ptr = (void *)MIPS_KSEG2_TO_KSEG0(kbss.ptr);
   size = roundup(size, sizeof(uint64_t));
   if (kbss.end != NULL)
     assert(ptr + size <= kbss.end);

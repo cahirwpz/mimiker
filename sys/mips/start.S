@@ -43,13 +43,15 @@ LEAF(_start)
         move    a2, s2
         move    a3, s3
 
-        jal     platform_init
+        la      t0, platform_init
+        jalr    t0
         nop
 
         # Switch to kernel main thread
         LOAD_PCPU(t0)
         PTR_L   a1, PCPU_CURTHREAD(t0)
-        jal     ctx_switch
+        la      t0, ctx_switch
+        jalr    t0
         move    a0, zero                # (delay) 1st arg
 END(_start)
 

@@ -57,6 +57,7 @@ SOURCES = \
 	thread.c \
 	time.c \
 	timer.c \
+	tmpfs.c \
 	uio.c \
 	vfs.c \
 	vfs_readdir.c \

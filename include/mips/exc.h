@@ -233,6 +233,8 @@ static inline unsigned exc_code(exc_frame_t *frame) {
   return (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
 }
 
+const char *const exceptions[32];
+
 #endif
 
 #endif

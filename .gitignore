@@ -49,8 +49,8 @@ cache
 # Dynamically created sysroot
 sysroot
 
-# Dynamically generated gdb config
-.gdbinit
+# gdb history
+.gdb_history
 
 # Visual Studio Code files
 .vscode
