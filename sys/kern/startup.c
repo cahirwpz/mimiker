@@ -13,6 +13,7 @@ extern void kmain(void *);
 static void mount_fs(void) {
   do_mount("initrd", "/");
   do_mount("devfs", "/dev");
+  do_mount("tmpfs", "/tmp");
 }
 
 SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"));
