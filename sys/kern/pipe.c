@@ -75,10 +75,20 @@ static int pipe_read(file_t *f, uio_t *uio) {
   pipe_end_t *consumer = f->f_data;
   pipe_end_t *producer = consumer->other;
 
-  assert(!consumer->closed);
+  /* user requested read of 0 bytes */
+  if (uio->uio_resid == 0)
+    return 0;
 
   /* no read atomicity for now! */
   WITH_MTX_LOCK (&producer->mtx) {
+    /* pipe empty, no producers, return end-of-file */
+    if (ringbuf_empty(&producer->buf) && producer->closed)
+      return 0;
+
+    /* pipe empty, wait for data */
+    while (ringbuf_empty(&producer->buf))
+      cv_wait(&producer->nonempty, &producer->mtx);
+
     int res = ringbuf_read(&producer->buf, uio);
     if (res)
       return res;

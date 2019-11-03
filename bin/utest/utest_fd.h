@@ -27,15 +27,6 @@
     assert(n >= 0);                                                            \
   }
 
-#undef assert_read_equal_blocking
-#define assert_read_equal_blocking(fd, buf, str)                               \
-  {                                                                            \
-    int len = strlen(str);                                                     \
-    do { n = read(fd + FD_OFFSET, buf, len); } while (n == 0);                 \
-    assert(strncmp(str, buf, len) == 0);                                       \
-    assert(n > 0);                                                             \
-  }
-
 #undef assert_read_fail
 #define assert_read_fail(fd, buf, len, err)                                    \
   n = read(fd + FD_OFFSET, buf, len);                                          \
