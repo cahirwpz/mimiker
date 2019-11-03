@@ -105,8 +105,7 @@ int do_dup(proc_t *p, int oldfd, int *newfdp) {
 
   if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
     return error;
-  if ((error = fdtab_install_file(p->p_fdtable, f, 0, newfdp)))
-    return error;
+  error = fdtab_install_file(p->p_fdtable, f, 0, newfdp);
   file_drop(f);
   return error;
 }
