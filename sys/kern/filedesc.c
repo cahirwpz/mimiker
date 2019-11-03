@@ -37,7 +37,7 @@ void fdtab_drop(fdtab_t *fdt) {
 
 /* Grows given file descriptor table to contain new_size file descriptors
  * (up to MAXFILES) */
-static void fd_growtable(fdtab_t *fdt, size_t new_size) {
+static void fd_growtable(fdtab_t *fdt, int new_size) {
   assert(fdt->fdt_nfiles < new_size && new_size <= MAXFILES);
   assert(mtx_owned(&fdt->fdt_mtx));
 
@@ -61,7 +61,7 @@ static void fd_growtable(fdtab_t *fdt, size_t new_size) {
  * The new file descriptor will be at least equal to minfd.
  * Returns 0 on success and sets *result to new descriptor number.
  * Must be called with fd->fd_mtx already locked. */
-static int fd_alloc(fdtab_t *fdt, unsigned minfd, int *fdp) {
+static int fd_alloc(fdtab_t *fdt, int minfd, int *fdp) {
   assert(mtx_owned(&fdt->fdt_mtx));
 
   if (minfd >= MAXFILES)
@@ -76,7 +76,7 @@ static int fd_alloc(fdtab_t *fdt, unsigned minfd, int *fdp) {
       /* Reached limit of opened files. */
       return EMFILE;
     }
-    size_t new_size = min(max(minfd + 1, fdt->fdt_nfiles * 2), MAXFILES);
+    int new_size = min(max(minfd + 1, fdt->fdt_nfiles * 2), MAXFILES);
     first_free = max(minfd, fdt->fdt_nfiles);
     fd_growtable(fdt, new_size);
   }
@@ -118,7 +118,7 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
     fd_growtable(newfdt, fdt->fdt_nfiles);
   }
 
-  for (unsigned i = 0; i < fdt->fdt_nfiles; i++) {
+  for (int i = 0; i < fdt->fdt_nfiles; i++) {
     if (fd_is_used(fdt, i)) {
       file_t *f = fdt->fdt_files[i];
       newfdt->fdt_files[i] = f;
@@ -138,7 +138,7 @@ void fdtab_destroy(fdtab_t *fdt) {
   /* No need to lock mutex, we have the only reference left. */
 
   /* Clean up used descriptors. This possibly closes underlying files. */
-  for (unsigned i = 0; i < fdt->fdt_nfiles; i++)
+  for (int i = 0; i < fdt->fdt_nfiles; i++)
     if (fd_is_used(fdt, i))
       fd_free(fdt, i);
 
@@ -147,7 +147,7 @@ void fdtab_destroy(fdtab_t *fdt) {
   kfree(M_FD, fdt);
 }
 
-int fdtab_install_file_at_min(fdtab_t *fdt, file_t *f, int minfd, int *fd) {
+int fdtab_install_file(fdtab_t *fdt, file_t *f, int minfd, int *fd) {
   assert(f != NULL);
   assert(fd != NULL);
 
@@ -159,10 +159,6 @@ int fdtab_install_file_at_min(fdtab_t *fdt, file_t *f, int minfd, int *fd) {
   fdt->fdt_files[*fd] = f;
   file_hold(f);
   return 0;
-}
-
-int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fd) {
-  return fdtab_install_file_at_min(fdt, f, 0, fd);
 }
 
 int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {

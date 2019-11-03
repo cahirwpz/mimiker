@@ -19,7 +19,7 @@ int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
   if ((error = vfs_open(f, pathname, flags, mode)))
     goto fail;
   /* Now install the file in descriptor table. */
-  if ((error = fdtab_install_file(p->p_fdtable, f, fd)))
+  if ((error = fdtab_install_file(p->p_fdtable, f, 0, fd)))
     goto fail;
   return 0;
 
@@ -105,7 +105,7 @@ int do_dup(proc_t *p, int oldfd, int *newfdp) {
 
   if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
     return error;
-  if ((error = fdtab_install_file(p->p_fdtable, f, newfdp)))
+  if ((error = fdtab_install_file(p->p_fdtable, f, 0, newfdp)))
     return error;
   file_drop(f);
   return error;
@@ -125,18 +125,24 @@ int do_dup2(proc_t *p, int oldfd, int newfd) {
   return 0;
 }
 
-int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *newfdp) {
-  /* TODO: Currently only F_DUPFD command is implemented. */
-  if (cmd != F_DUPFD)
-    return ENOSYS;
-
+int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
   file_t *f;
   int error;
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-  if ((error = fdtab_install_file_at_min(p->p_fdtable, f, arg, newfdp)))
-    return error;
+
+  /* TODO: Currently only F_DUPFD command is implemented. */
+  switch (cmd) {
+    case F_DUPFD:
+      error = fdtab_install_file(p->p_fdtable, f, arg, resp);
+      break;
+
+    default:
+      error = EINVAL;
+      break;
+  }
+
   file_drop(f);
   return error;
 }
