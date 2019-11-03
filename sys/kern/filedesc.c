@@ -57,14 +57,18 @@ static void fd_growtable(fdtab_t *fdt, size_t new_size) {
   fdt->fdt_nfiles = new_size;
 }
 
-/* Allocates a new file descriptor in a file descriptor table. Returns 0 on
- * success and sets *result to new descriptor number. Must be called with
- * fd->fd_mtx already locked. */
-static int fd_alloc(fdtab_t *fdt, int *fdp) {
+/* Allocates a new file descriptor in a file descriptor table.
+ * The new file descriptor will be at least equal to minfd.
+ * Returns 0 on success and sets *result to new descriptor number.
+ * Must be called with fd->fd_mtx already locked. */
+static int fd_alloc(fdtab_t *fdt, unsigned minfd, int *fdp) {
   assert(mtx_owned(&fdt->fdt_mtx));
 
+  if (minfd >= MAXFILES)
+    return EMFILE;
+
   int first_free;
-  bit_ffc(fdt->fdt_map, fdt->fdt_nfiles, &first_free);
+  bit_ffc_from(fdt->fdt_map, fdt->fdt_nfiles, minfd, &first_free);
 
   if (first_free < 0) {
     /* No more space to allocate a descriptor... grow describtor table! */
@@ -72,8 +76,8 @@ static int fd_alloc(fdtab_t *fdt, int *fdp) {
       /* Reached limit of opened files. */
       return EMFILE;
     }
-    size_t new_size = min(fdt->fdt_nfiles * 2, MAXFILES);
-    first_free = fdt->fdt_nfiles;
+    size_t new_size = min(max(minfd + 1, fdt->fdt_nfiles * 2), MAXFILES);
+    first_free = max(minfd, fdt->fdt_nfiles);
     fd_growtable(fdt, new_size);
   }
   fd_mark_used(fdt, first_free);
@@ -143,18 +147,22 @@ void fdtab_destroy(fdtab_t *fdt) {
   kfree(M_FD, fdt);
 }
 
-int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fd) {
+int fdtab_install_file_at_min(fdtab_t *fdt, file_t *f, int minfd, int *fd) {
   assert(f != NULL);
   assert(fd != NULL);
 
   SCOPED_MTX_LOCK(&fdt->fdt_mtx);
 
   int error;
-  if ((error = fd_alloc(fdt, fd)))
+  if ((error = fd_alloc(fdt, minfd, fd)))
     return error;
   fdt->fdt_files[*fd] = f;
   file_hold(f);
   return 0;
+}
+
+int fdtab_install_file(fdtab_t *fdt, file_t *f, int *fd) {
+  return fdtab_install_file_at_min(fdt, f, 0, fd);
 }
 
 int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {

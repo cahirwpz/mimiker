@@ -125,6 +125,22 @@ int do_dup2(proc_t *p, int oldfd, int newfd) {
   return 0;
 }
 
+int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *newfdp) {
+  /* TODO: Currently only F_DUPFD command is implemented. */
+  if (cmd != F_DUPFD)
+    return ENOSYS;
+
+  file_t *f;
+  int error;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
+    return error;
+  if ((error = fdtab_install_file_at_min(p->p_fdtable, f, arg, newfdp)))
+    return error;
+  file_drop(f);
+  return error;
+}
+
 int do_mount(const char *fs, const char *path) {
   vfsconf_t *vfs;
   vnode_t *v;
