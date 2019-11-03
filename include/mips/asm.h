@@ -91,9 +91,9 @@
   .cfi_startproc
 
 /*
- *  * LEAF_NOPROFILE
- *   *  No profilable leaf routine.
- *    */
+ * LEAF_NOPROFILE
+ *  No profilable leaf routine.
+ */
 #define LEAF_NOPROFILE(x)                                                      \
   .globl _C_LABEL(x);                                                          \
   .ent _C_LABEL(x), 0;                                                         \
@@ -102,9 +102,9 @@
   .cfi_startproc
 
 /*
- *  * XLEAF
- *   *  declare alternate entry to leaf routine
- *    */
+ * XLEAF
+ *  declare alternate entry to leaf routine
+ */
 #define XLEAF(x)                                                               \
   .globl _C_LABEL(x);                                                          \
   AENT(_C_LABEL(x));                                                           \
