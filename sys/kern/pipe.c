@@ -79,18 +79,11 @@ static int pipe_read(file_t *f, uio_t *uio) {
 
   /* no read atomicity for now! */
   WITH_MTX_LOCK (&producer->mtx) {
-    do {
-      int res = ringbuf_read(&producer->buf, uio);
-      if (res)
-        return res;
-      /* notify producer that free space is available */
-      cv_broadcast(&producer->nonfull);
-      /* nothing left to read? */
-      if (uio->uio_resid == 0)
-        break;
-      /* the buffer is empty so wait for some data to be produced */
-      cv_wait(&producer->nonempty, &producer->mtx);
-    } while (!producer->closed);
+    int res = ringbuf_read(&producer->buf, uio);
+    if (res)
+      return res;
+    /* notify producer that free space is available */
+    cv_broadcast(&producer->nonfull);
   }
 
   return 0;
