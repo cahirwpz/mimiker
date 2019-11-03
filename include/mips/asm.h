@@ -119,14 +119,14 @@
   .globl _C_LABEL(x);                                                          \
   .ent _C_LABEL(x), 0;                                                         \
   _C_LABEL(x) :;                                                               \
-  .frame sp, 0, ra;\
+  .frame sp, 0, ra;                                                            \
   .cfi_startproc
 
 /* Static/local leaf function. */
 #define SLEAF(x)                                                               \
   .ent _C_LABEL(x), 0;                                                         \
   _C_LABEL(x) :;                                                               \
-  .frame sp, 0, ra;\
+  .frame sp, 0, ra;                                                            \
   .cfi_startproc
 
 /*
@@ -137,9 +137,8 @@
   .globl _C_LABEL(x);                                                          \
   .ent _C_LABEL(x), 0;                                                         \
   _C_LABEL(x) :;                                                               \
-  .frame sp, 0, ra;\
+  .frame sp, 0, ra;                                                            \
   .cfi_startproc
-
 
 /*
  * XLEAF
@@ -159,7 +158,7 @@
   .globl _C_LABEL(x);                                                          \
   .ent _C_LABEL(x), 0;                                                         \
   _C_LABEL(x) :;                                                               \
-  .frame sp, fsize, retpc; \
+  .frame sp, fsize, retpc;                                                     \
   .cfi_startproc
 
 #define SNESTED(x, fsize, retpc)                                               \
@@ -177,7 +176,7 @@
   .globl _C_LABEL(x);                                                          \
   .ent _C_LABEL(x), 0;                                                         \
   _C_LABEL(x) :;                                                               \
-  .frame sp, fsize, retpc;\
+  .frame sp, fsize, retpc;                                                     \
   .cfi_startpric
 
 /*
@@ -195,7 +194,7 @@
  */
 #define END(x)                                                                 \
   .size _C_LABEL(x), .- _C_LABEL(x);                                           \
-  .end _C_LABEL(x); \
+  .end _C_LABEL(x);                                                            \
   .cfi_endproc
 
 /*
