@@ -25,8 +25,8 @@ typedef struct tmpfs_node {
   vnodetype_t tfn_type; /* node type */
 
   /* Node attributes (as in vattr) */
-  mode_t tfn_mode;      /* node protection mode */
-  nlink_t tfn_links;    /* number of file hard links */
+  mode_t tfn_mode;   /* node protection mode */
+  nlink_t tfn_links; /* number of file hard links */
 
   /* Data that is only applicable to a particular type. */
   union {
@@ -64,8 +64,8 @@ static inline tmpfs_node_t *VFS_TO_TMPFS_NODE(vnode_t *vp) {
 static int tmpfs_init_vnode(vnode_t *v, tmpfs_node_t *tfn);
 static int tmpfs_new_node(mount_t *mp, tmpfs_node_t **tfnp, vnodetype_t ntype);
 static int tmpfs_free_node(tmpfs_mount_t *tfm, tmpfs_node_t *tfn);
-static int tmpfs_create_file(vnode_t *dv, vnode_t **vp,
-                                    vnodetype_t ntype, const char *name);
+static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vnodetype_t ntype,
+                             const char *name);
 static int tmpfs_get_node(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp);
 static int tmpfs_alloc_dirent(const char *name, tmpfs_dirent_t **dep);
 static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn, const char *name);
