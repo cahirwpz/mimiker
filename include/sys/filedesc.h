@@ -35,9 +35,9 @@ fdtab_t *fdtab_copy(fdtab_t *fdt);
 /* Frees the table and possibly closes underlying files. */
 void fdtab_destroy(fdtab_t *fdt);
 /* Assign a file structure to a new descriptor with number >= minfd. */
-int fdtab_install_file(fdtab_t *fdt, file_t *f, int minfd, int *fd);
+int fdtab_install_file(fdtab_t *fdt, file_t *f, int minfd, int *fdp);
 /* Assign a file structure to a certain descriptor number. */
-int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fdp);
+int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd);
 /* Extracts a reference to file from descriptor table for given number. */
 int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp);
 /* Closes a file descriptor.
