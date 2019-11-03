@@ -51,4 +51,5 @@
 #define SYS_getgid 43
 #define SYS_getegid 44
 #define SYS_issetugid 45
-#define SYS_MAXSYSCALL 46
+#define SYS_fcntl 46
+#define SYS_MAXSYSCALL 47

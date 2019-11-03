@@ -205,3 +205,9 @@ typedef struct {
   u_long cmd;
   void * data;
 } ioctl_args_t;
+
+typedef struct {
+  int fd;
+  int cmd;
+  void * arg;
+} fcntl_args_t;

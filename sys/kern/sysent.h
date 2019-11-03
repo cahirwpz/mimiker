@@ -51,6 +51,7 @@ static int sys_geteuid(proc_t *, void *, register_t *);
 static int sys_getgid(proc_t *, void *, register_t *);
 static int sys_getegid(proc_t *, void *, register_t *);
 static int sys_issetugid(proc_t *, void *, register_t *);
+static int sys_fcntl(proc_t *, fcntl_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { (syscall_t *)sys_syscall },
@@ -99,5 +100,6 @@ struct sysent sysent[] = {
   [SYS_getgid] = { (syscall_t *)sys_getgid },
   [SYS_getegid] = { (syscall_t *)sys_getegid },
   [SYS_issetugid] = { (syscall_t *)sys_issetugid },
+  [SYS_fcntl] = { (syscall_t *)sys_fcntl },
 };
 

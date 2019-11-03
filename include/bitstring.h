@@ -108,12 +108,15 @@ typedef unsigned char bitstr_t;
   } while (/*CONSTCOND*/ 0)
 
 /* find first bit clear in name */
-#define bit_ffc(name, nbits, value)                                            \
+#define bit_ffc(name, nbits, value) bit_ffc_from(name, nbits, 0, value)
+
+/* find first bit clear in name, starting from start */
+#define bit_ffc_from(name, nbits, start, value)                                \
   do {                                                                         \
     const bitstr_t *_name = name;                                              \
     size_t _bit, _nbits = nbits;                                               \
     int _value = -1;                                                           \
-    for (_bit = 0; _bit < _nbits; ++_bit)                                      \
+    for (_bit = start; _bit < _nbits; ++_bit)                                  \
       if (!bit_test(_name, _bit)) {                                            \
         _value = _bit;                                                         \
         break;                                                                 \

@@ -55,49 +55,58 @@
  *	v 1.2 89/08/15 18:28:24 rab Exp  SPRITE (DECWRL)
  */
 
-#ifndef _MACHINE_ASM_H_
-#define	_MACHINE_ASM_H_
+#ifndef _MIPS_ASM_H_
+#define _MIPS_ASM_H_
 
 #include <machine/abi.h>
 #include <machine/regdef.h>
 #include <sys/endian.h>
 #include <machine/cdefs.h>
 
-#define	_C_LABEL(x)	x
+#define _C_LABEL(x) x
 
-#define	AENT(x)		\
-	.globl	_C_LABEL(x);	\
-	.aent	_C_LABEL(x); \
-_C_LABEL(x):
+#define AENT(x)                                                                \
+  .globl _C_LABEL(x);                                                          \
+  .aent _C_LABEL(x);                                                           \
+  _C_LABEL(x) :
 
 /*
  * WARN_REFERENCES: create a warning if the specified symbol is referenced
  */
-#define	WARN_REFERENCES(_sym,_msg)				\
-	.section .gnu.warning. ## _sym ; .ascii _msg ; .text
+#define WARN_REFERENCES(_sym, _msg)                                            \
+  .section.gnu.warning.##_sym;                                                 \
+  .ascii _msg;                                                                 \
+  .text
 
 /*
  * WEAK_ALIAS: create a weak alias.
  */
-#define	WEAK_ALIAS(alias,sym)						\
-	.weak alias;							\
-	alias = sym
+#define WEAK_ALIAS(alias, sym)                                                 \
+  .weak alias;                                                                 \
+  alias = sym
 
 /*
  * STRONG_ALIAS: create a strong alias.
  */
-#define STRONG_ALIAS(alias,sym)						\
-	.globl alias;							\
-	alias = sym
+#define STRONG_ALIAS(alias, sym)                                               \
+  .globl alias;                                                                \
+  alias = sym
 
-#define	GLOBAL(sym)						\
-	.globl sym; sym:
+#define GLOBAL(sym)                                                            \
+  .globl sym;                                                                  \
+  sym:
 
-#define	ENTRY(sym)						\
-	.text; .globl sym; .ent sym; sym:
+#define ENTRY(sym)                                                             \
+  .text;                                                                       \
+  .globl sym;                                                                  \
+  .ent sym;                                                                    \
+  sym:
 
-#define	ASM_ENTRY(sym)						\
-	.text; .globl sym; .type sym,@function; sym:
+#define ASM_ENTRY(sym)                                                         \
+  .text;                                                                       \
+  .globl sym;                                                                  \
+  .type sym, @function;                                                        \
+  sym:
 
 /*
  * LEAF
@@ -106,164 +115,162 @@ _C_LABEL(x):
  *	- never use any register that callee-saved (S0-S8), and
  *	- not use any local stack storage.
  */
-#define	LEAF(x)			\
-	.globl	_C_LABEL(x);	\
-	.ent	_C_LABEL(x), 0;	\
-_C_LABEL(x): ;			\
-	.frame sp, 0, ra;
+#define LEAF(x)                                                                \
+  .globl _C_LABEL(x);                                                          \
+  .ent _C_LABEL(x), 0;                                                         \
+  _C_LABEL(x) :;                                                               \
+  .frame sp, 0, ra;
 
 /* Static/local leaf function. */
-#define SLEAF(x)                                                            \
-	.ent	_C_LABEL(x), 0;	\
-_C_LABEL(x): ;			\
-	.frame sp, 0, ra;
+#define SLEAF(x)                                                               \
+  .ent _C_LABEL(x), 0;                                                         \
+  _C_LABEL(x) :;                                                               \
+  .frame sp, 0, ra;
 
 /*
  * LEAF_NOPROFILE
  *	No profilable leaf routine.
  */
-#define	LEAF_NOPROFILE(x)	\
-	.globl	_C_LABEL(x);	\
-	.ent	_C_LABEL(x), 0;	\
-_C_LABEL(x): ;			\
-	.frame	sp, 0, ra
+#define LEAF_NOPROFILE(x)                                                      \
+  .globl _C_LABEL(x);                                                          \
+  .ent _C_LABEL(x), 0;                                                         \
+  _C_LABEL(x) :;                                                               \
+  .frame sp, 0, ra
 
 /*
  * XLEAF
  *	declare alternate entry to leaf routine
  */
-#define	XLEAF(x)		\
-	.globl	_C_LABEL(x);	\
-	AENT (_C_LABEL(x));	\
-_C_LABEL(x):
+#define XLEAF(x)                                                               \
+  .globl _C_LABEL(x);                                                          \
+  AENT(_C_LABEL(x));                                                           \
+  _C_LABEL(x) :
 
 /*
  * NESTED
  *	A function calls other functions and needs
  *	therefore stack space to save/restore registers.
  */
-#define	NESTED(x, fsize, retpc)		\
-	.globl	_C_LABEL(x);		\
-	.ent	_C_LABEL(x), 0;		\
-_C_LABEL(x): ;				\
-	.frame	sp, fsize, retpc;
+#define NESTED(x, fsize, retpc)                                                \
+  .globl _C_LABEL(x);                                                          \
+  .ent _C_LABEL(x), 0;                                                         \
+  _C_LABEL(x) :;                                                               \
+  .frame sp, fsize, retpc;
 
-#define	SNESTED(x, fsize, retpc)		\
-	.ent	_C_LABEL(x), 0;		\
-_C_LABEL(x): ;				\
-	.frame	sp, fsize, retpc;
+#define SNESTED(x, fsize, retpc)                                               \
+  .ent _C_LABEL(x), 0;                                                         \
+  _C_LABEL(x) :;                                                               \
+  .frame sp, fsize, retpc;
 
-#define NON_LEAF(x, fsize, retpc)	\
-  NESTED(x, fsize, retpc)
+#define NON_LEAF(x, fsize, retpc) NESTED(x, fsize, retpc)
 
 /*
  * NESTED_NOPROFILE(x)
  *	No profilable nested routine.
  */
-#define	NESTED_NOPROFILE(x, fsize, retpc)	\
-	.globl	_C_LABEL(x);			\
-	.ent	_C_LABEL(x), 0;			\
-_C_LABEL(x): ;					\
-	.frame	sp, fsize, retpc
+#define NESTED_NOPROFILE(x, fsize, retpc)                                      \
+  .globl _C_LABEL(x);                                                          \
+  .ent _C_LABEL(x), 0;                                                         \
+  _C_LABEL(x) :;                                                               \
+  .frame sp, fsize, retpc
 
 /*
  * XNESTED
  *	declare alternate entry point to nested routine.
  */
-#define	XNESTED(x)		\
-	.globl	_C_LABEL(x);	\
-	AENT (_C_LABEL(x));	\
-_C_LABEL(x):
+#define XNESTED(x)                                                             \
+  .globl _C_LABEL(x);                                                          \
+  AENT(_C_LABEL(x));                                                           \
+  _C_LABEL(x) :
 
 /*
  * END
  *	Mark end of a procedure.
  */
-#define	END(x)			\
-  .size _C_LABEL(x), .- _C_LABEL(x);                                                         \
-	.end _C_LABEL(x)
+#define END(x)                                                                 \
+  .size _C_LABEL(x), .- _C_LABEL(x);                                           \
+  .end _C_LABEL(x)
 
 /*
  * IMPORT -- import external symbol
  */
-#define	IMPORT(sym, size)	\
-	.extern _C_LABEL(sym),size
+#define IMPORT(sym, size) .extern _C_LABEL(sym), size
 
 /*
  * EXPORT -- export definition of symbol
  */
-#define	EXPORT(x)		\
-	.globl	_C_LABEL(x);	\
-_C_LABEL(x):
+#define EXPORT(x)                                                              \
+  .globl _C_LABEL(x);                                                          \
+  _C_LABEL(x) :
 
 /*
  * VECTOR
  *	exception vector entrypoint
  *	XXX: regmask should be used to generate .mask
  */
-#define	VECTOR(x, regmask)	\
-	.ent	_C_LABEL(x),0;	\
-	EXPORT(x);		\
+#define VECTOR(x, regmask)                                                     \
+  .ent _C_LABEL(x), 0;                                                         \
+  EXPORT(x);
 
-#define	VECTOR_END(x)		\
-	EXPORT(x ## End);	\
-	END(x)
+#define VECTOR_END(x)                                                          \
+  EXPORT(x##End);                                                              \
+  END(x)
 
 /*
  * Macros to panic and printf from assembly language.
  */
-#define	PANIC(msg)			\
-	PTR_LA	a0, 9f;			\
-	jal	_C_LABEL(panic);	\
-	nop;				\
-	MSG(msg)
+#define PANIC(msg)                                                             \
+  PTR_LA a0, 9f;                                                               \
+  jal _C_LABEL(panic);                                                         \
+  nop;                                                                         \
+  MSG(msg)
 
-#define	PANIC_KSEG0(msg, reg)	PANIC(msg)
+#define PANIC_KSEG0(msg, reg) PANIC(msg)
 
-#define	PRINTF(msg)			\
-	PTR_LA	a0, 9f;			\
-	jal	_C_LABEL(printf);	\
-	nop;				\
-	MSG(msg)
+#define PRINTF(msg)                                                            \
+  PTR_LA a0, 9f;                                                               \
+  jal _C_LABEL(printf);                                                        \
+  nop;                                                                         \
+  MSG(msg)
 
-#define	MSG(msg)			\
-	.rdata;				\
-9:	.asciiz	msg;			\
-	.text
+#define MSG(msg)                                                               \
+  .rdata;                                                                      \
+  9 :.asciiz msg;                                                              \
+  .text
 
-#define	ASMSTR(str)			\
-	.asciiz str;			\
-	.align	3
+#define ASMSTR(str)                                                            \
+  .asciiz str;                                                                 \
+  .align 3
 
-#define	ALSK	7		/* stack alignment */
-#define	ALMASK	-7		/* stack alignment */
-#define	SZFPREG	4
-#define	FP_L	lwc1
-#define	FP_S	swc1
+#define ALSK 7    /* stack alignment */
+#define ALMASK -7 /* stack alignment */
+#define SZFPREG 4
+#define FP_L lwc1
+#define FP_S swc1
 
 /*
  *   Endian-independent assembly-code aliases for unaligned memory accesses.
  */
 #if _BYTE_ORDER == _LITTLE_ENDIAN
-# define LWHI lwr
-# define LWLO lwl
-# define SWHI swr
-# define SWLO swl
-# define REG_LHI   lwr
-# define REG_LLO   lwl
-# define REG_SHI   swr
-# define REG_SLO   swl
+#define LWHI lwr
+#define LWLO lwl
+#define SWHI swr
+#define SWLO swl
+#define REG_LHI lwr
+#define REG_LLO lwl
+#define REG_SHI swr
+#define REG_SLO swl
 #endif
 
 #if _BYTE_ORDER == _BIG_ENDIAN
-# define LWHI lwl
-# define LWLO lwr
-# define SWHI swl
-# define SWLO swr
-# define REG_LHI   lwl
-# define REG_LLO   lwr
-# define REG_SHI   swl
-# define REG_SLO   swr
+#define LWHI lwl
+#define LWLO lwr
+#define SWHI swl
+#define SWLO swr
+#define REG_LHI lwl
+#define REG_LLO lwr
+#define REG_SHI swl
+#define REG_SLO swr
 #endif
 
 /*
@@ -275,124 +282,124 @@ _C_LABEL(x):
  * assembler to prevent the assembler from generating 64-bit style
  * ABI calls.
  */
-#define	PTR_ADD		add
-#define	PTR_ADDI	addi
-#define	PTR_ADDU	addu
-#define	PTR_ADDIU	addiu
-#define	PTR_SUB		add
-#define	PTR_SUBI	subi
-#define	PTR_SUBU	subu
-#define	PTR_SUBIU	subu
-#define	PTR_L		lw
-#define	PTR_LA		la
-#define	PTR_LI		li
-#define	PTR_S		sw
-#define	PTR_SLL		sll
-#define	PTR_SLLV	sllv
-#define	PTR_SRL		srl
-#define	PTR_SRLV	srlv
-#define	PTR_SRA		sra
-#define	PTR_SRAV	srav
-#define	PTR_LL		ll
-#define	PTR_SC		sc
-#define	PTR_WORD	.word
-#define	PTR_SCALESHIFT	2
+#define PTR_ADD add
+#define PTR_ADDI addi
+#define PTR_ADDU addu
+#define PTR_ADDIU addiu
+#define PTR_SUB add
+#define PTR_SUBI subi
+#define PTR_SUBU subu
+#define PTR_SUBIU subu
+#define PTR_L lw
+#define PTR_LA la
+#define PTR_LI li
+#define PTR_S sw
+#define PTR_SLL sll
+#define PTR_SLLV sllv
+#define PTR_SRL srl
+#define PTR_SRLV srlv
+#define PTR_SRA sra
+#define PTR_SRAV srav
+#define PTR_LL ll
+#define PTR_SC sc
+#define PTR_WORD .word
+#define PTR_SCALESHIFT 2
 
-#define	INT_ADD		add
-#define	INT_ADDI	addi
-#define	INT_ADDU	addu
-#define	INT_ADDIU	addiu
-#define	INT_SUB		add
-#define	INT_SUBI	subi
-#define	INT_SUBU	subu
-#define	INT_SUBIU	subu
-#define	INT_L		lw
-#define	INT_LA		la
-#define	INT_S		sw
-#define	INT_SLL		sll
-#define	INT_SLLV	sllv
-#define	INT_SRL		srl
-#define	INT_SRLV	srlv
-#define	INT_SRA		sra
-#define	INT_SRAV	srav
-#define	INT_LL		ll
-#define	INT_SC		sc
-#define	INT_WORD	.word
-#define	INT_SCALESHIFT	2
+#define INT_ADD add
+#define INT_ADDI addi
+#define INT_ADDU addu
+#define INT_ADDIU addiu
+#define INT_SUB add
+#define INT_SUBI subi
+#define INT_SUBU subu
+#define INT_SUBIU subu
+#define INT_L lw
+#define INT_LA la
+#define INT_S sw
+#define INT_SLL sll
+#define INT_SLLV sllv
+#define INT_SRL srl
+#define INT_SRLV srlv
+#define INT_SRA sra
+#define INT_SRAV srav
+#define INT_LL ll
+#define INT_SC sc
+#define INT_WORD .word
+#define INT_SCALESHIFT 2
 
-#define	LONG_ADD	add
-#define	LONG_ADDI	addi
-#define	LONG_ADDU	addu
-#define	LONG_ADDIU	addiu
-#define	LONG_SUB	add
-#define	LONG_SUBI	subi
-#define	LONG_SUBU	subu
-#define	LONG_SUBIU	subu
-#define	LONG_L		lw
-#define	LONG_LA		la
-#define	LONG_S		sw
-#define	LONG_SLL	sll
-#define	LONG_SLLV	sllv
-#define	LONG_SRL	srl
-#define	LONG_SRLV	srlv
-#define	LONG_SRA	sra
-#define	LONG_SRAV	srav
-#define	LONG_LL		ll
-#define	LONG_SC		sc
-#define	LONG_WORD	.word
-#define	LONG_SCALESHIFT	2
+#define LONG_ADD add
+#define LONG_ADDI addi
+#define LONG_ADDU addu
+#define LONG_ADDIU addiu
+#define LONG_SUB add
+#define LONG_SUBI subi
+#define LONG_SUBU subu
+#define LONG_SUBIU subu
+#define LONG_L lw
+#define LONG_LA la
+#define LONG_S sw
+#define LONG_SLL sll
+#define LONG_SLLV sllv
+#define LONG_SRL srl
+#define LONG_SRLV srlv
+#define LONG_SRA sra
+#define LONG_SRAV srav
+#define LONG_LL ll
+#define LONG_SC sc
+#define LONG_WORD .word
+#define LONG_SCALESHIFT 2
 
-#define	REG_L		lw
-#define	REG_S		sw
-#define	REG_LI		li
-#define	REG_ADDU	addu
-#define	REG_SLL		sll
-#define	REG_SLLV	sllv
-#define	REG_SRL		srl
-#define	REG_SRLV	srlv
-#define	REG_SRA		sra
-#define	REG_SRAV	srav
-#define	REG_LL		ll
-#define	REG_SC		sc
-#define	REG_SCALESHIFT	2
+#define REG_L lw
+#define REG_S sw
+#define REG_LI li
+#define REG_ADDU addu
+#define REG_SLL sll
+#define REG_SLLV sllv
+#define REG_SRL srl
+#define REG_SRLV srlv
+#define REG_SRA sra
+#define REG_SRAV srav
+#define REG_LL ll
+#define REG_SC sc
+#define REG_SCALESHIFT 2
 
-#define	MFC0		mfc0
-#define	MTC0		mtc0
+#define MFC0 mfc0
+#define MTC0 mtc0
 
-#define	CPRESTORE(r)	.cprestore r
-#define	CPLOAD(r)	.cpload r
+#define CPRESTORE(r) .cprestore r
+#define CPLOAD(r) .cpload r
 
-#define	SETUP_GP	\
-			.set push;				\
-			.set noreorder;				\
-			.cpload	t9;				\
-			.set pop
-#define	SETUP_GPX(r)	\
-			.set push;				\
-			.set noreorder;				\
-			move	r,ra;	/* save old ra */	\
-			bal	7f;				\
-			nop;					\
-		7:	.cpload	ra;				\
-			move	ra,r;				\
-			.set pop
-#define	SETUP_GPX_L(r,lbl)	\
-			.set push;				\
-			.set noreorder;				\
-			move	r,ra;	/* save old ra */	\
-			bal	lbl;				\
-			nop;					\
-		lbl:	.cpload	ra;				\
-			move	ra,r;				\
-			.set pop
-#define	SAVE_GP(x)	.cprestore x
+#define SETUP_GP                                                               \
+  .set push;                                                                   \
+  .set noreorder;                                                              \
+  .cpload t9;                                                                  \
+  .set pop
+#define SETUP_GPX(r)                                                           \
+  .set push;                                                                   \
+  .set noreorder;                                                              \
+  move r, ra; /* save old ra */                                                \
+  bal 7f;                                                                      \
+  nop;                                                                         \
+  7 :.cpload ra;                                                               \
+  move ra, r;                                                                  \
+  .set pop
+#define SETUP_GPX_L(r, lbl)                                                    \
+  .set push;                                                                   \
+  .set noreorder;                                                              \
+  move r, ra; /* save old ra */                                                \
+  bal lbl;                                                                     \
+  nop;                                                                         \
+  lbl:                                                                         \
+  .cpload ra;                                                                  \
+  move ra, r;                                                                  \
+  .set pop
+#define SAVE_GP(x) .cprestore x
 
-#define	REG_PROLOGUE	.set push
-#define	REG_EPILOGUE	.set pop
+#define REG_PROLOGUE .set push
+#define REG_EPILOGUE .set pop
 
 #ifdef _KERNEL
-#define	GET_CPU_PCPU(reg)		\
-	PTR_L	reg, _C_LABEL(pcpup);
+#define GET_CPU_PCPU(reg) PTR_L reg, _C_LABEL(pcpup);
 #endif /* !_KERNEL */
 
-#endif /* !_MACHINE_ASM_H_ */
+#endif /* !_MIPS_ASM_H_ */
