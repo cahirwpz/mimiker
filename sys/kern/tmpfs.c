@@ -60,8 +60,8 @@ static inline tmpfs_node_t *VFS_TO_TMPFS_NODE(vnode_t *vp) {
 /* Prototypes for internal routines. */
 static int tmpfs_init_vnode(vnode_t *v, tmpfs_node_t *tfn);
 static int tmpfs_new_node(mount_t *mp, tmpfs_node_t **tfnp, vnodetype_t ntype);
-static int tmpfs_free_inode(tmpfs_mount_t *tfm, tmpfs_node_t *tfn);
-static int tmpfs_construct_new_node(vnode_t *dv, vnode_t **vp,
+static int tmpfs_free_node(tmpfs_mount_t *tfm, tmpfs_node_t *tfn);
+static int tmpfs_create_file(vnode_t *dv, vnode_t **vp,
                                     vnodetype_t ntype, const char *name);
 static int tmpfs_get_node(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp);
 static int tmpfs_alloc_dirent(const char *name, tmpfs_dirent_t **dep);
@@ -108,7 +108,7 @@ static int tmpfs_vop_getattr(vnode_t *v, vattr_t *va) {
 static int tmpfs_vop_create(vnode_t *dv, const char *name, vattr_t *va,
                             vnode_t **vp) {
   assert(S_ISREG(va->va_mode));
-  return tmpfs_construct_new_node(dv, vp, V_REG, name);
+  return tmpfs_create_file(dv, vp, V_REG, name);
 }
 
 static int tmpfs_vop_remove(vnode_t *dv, const char *name) {
@@ -118,7 +118,7 @@ static int tmpfs_vop_remove(vnode_t *dv, const char *name) {
 static int tmpfs_vop_mkdir(vnode_t *dv, const char *name, vattr_t *va,
                            vnode_t **vp) {
   assert(S_ISDIR(va->va_mode));
-  return tmpfs_construct_new_node(dv, vp, V_DIR, name);
+  return tmpfs_create_file(dv, vp, V_DIR, name);
 }
 
 static int tmpfs_vop_rmdir(vnode_t *dv, const char *name) {
@@ -133,7 +133,7 @@ static int tmpfs_vop_reclaim(vnode_t *v) {
   node->tfn_vnode = NULL;
 
   if (node->tfn_links == 0)
-    tmpfs_free_inode(tfm, node);
+    tmpfs_free_node(tfm, node);
 
   return 0;
 }
@@ -156,7 +156,7 @@ static vnodeops_t tmpfs_vnodeops = {.v_lookup = tmpfs_vop_lookup,
 /* tmpfs internal routines */
 
 /*
- *  tmpfs_init_vnode: init v-node and associate with existing inode.
+ * tmpfs_init_vnode: init v-node and associate with existing inode.
  */
 static int tmpfs_init_vnode(vnode_t *v, tmpfs_node_t *tfn) {
   tfn->tfn_vnode = v;
@@ -169,8 +169,7 @@ static int tmpfs_init_vnode(vnode_t *v, tmpfs_node_t *tfn) {
 }
 
 /*
- *  tmpfs_new_node: create new inode of a specified type and
- *  attach the vnode.
+ * tmpfs_new_node: create new inode of a specified type and attach the vnode.
  */
 static int tmpfs_new_node(mount_t *mp, tmpfs_node_t **tfnp, vnodetype_t ntype) {
   tmpfs_node_t *node = pool_alloc(P_TMPFS_NODE, PF_ZERO);
@@ -200,22 +199,22 @@ static int tmpfs_new_node(mount_t *mp, tmpfs_node_t **tfnp, vnodetype_t ntype) {
  * tmpfs_free_node: remove the inode from a list in the mount point and
  * destroy the inode structures.
  */
-static int tmpfs_free_inode(tmpfs_mount_t *tfm, tmpfs_node_t *tfn) {
+static int tmpfs_free_node(tmpfs_mount_t *tfm, tmpfs_node_t *tfn) {
   pool_free(P_TMPFS_NODE, tfn);
   return 0;
 }
 
 /*
- * tmpfs_construct_new_node: create a new file of specified type and adds it
+ * tmpfs_create_file: create a new file of specified type and adds it
  * into the parent directory.
  */
-static int tmpfs_construct_new_node(vnode_t *dv, vnode_t **vp,
-                                    vnodetype_t ntype, const char *name) {
+static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vnodetype_t ntype,
+                             const char *name) {
   tmpfs_node_t *dnode = VFS_TO_TMPFS_NODE(dv);
   tmpfs_dirent_t *de;
   int error = 0;
 
-  // Allocate a new directory entry for the new file.
+  /* Allocate a new directory entry for the new file. */
   error = tmpfs_alloc_dirent(name, &de);
   if (error)
     return error;
@@ -223,7 +222,7 @@ static int tmpfs_construct_new_node(vnode_t *dv, vnode_t **vp,
   tmpfs_node_t *node;
   tmpfs_new_node(dv->v_mount, &node, ntype);
 
-  // Attach directory entry
+  /* Attach directory entry */
   node->tfn_links++;
   de->tfd_node = node;
   TAILQ_INSERT_TAIL(&dnode->tfn_dir.dirents, de, tfd_entries);
@@ -238,7 +237,6 @@ static int tmpfs_construct_new_node(vnode_t *dv, vnode_t **vp,
 static int tmpfs_get_node(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp) {
   vnode_t *vnode = tfn->tfn_vnode;
   if (vnode == NULL) {
-    // Allocate new v-node
     vnode = vnode_new(tfn->tfn_type, &tmpfs_vnodeops, tfn);
     tmpfs_init_vnode(vnode, tfn);
     vnode->v_mount = mp;
@@ -251,7 +249,7 @@ static int tmpfs_get_node(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp) {
 }
 
 /*
- *  tmpfs_alloc_dirent: allocate a new directory entry.
+ * tmpfs_alloc_dirent: allocate a new directory entry.
  */
 static int tmpfs_alloc_dirent(const char *name, tmpfs_dirent_t **dep) {
   size_t namelen = strlen(name);
