@@ -23,6 +23,9 @@ typedef TAILQ_HEAD(, tmpfs_dirent) tmpfs_dirent_list_t;
 typedef struct tmpfs_node {
   vnode_t *tfn_vnode;   /* corresponding v-node */
   vnodetype_t tfn_type; /* node type */
+
+  /* Node attributes (as in vattr) */
+  mode_t tfn_mode;      /* node protection mode */
   nlink_t tfn_links;    /* number of file hard links */
 
   /* Data that is only applicable to a particular type. */
@@ -102,6 +105,11 @@ static int tmpfs_vop_seek(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
 }
 
 static int tmpfs_vop_getattr(vnode_t *v, vattr_t *va) {
+  tmpfs_node_t *node = VFS_TO_TMPFS_NODE(v);
+
+  memset(va, 0, sizeof(vattr_t));
+  va->va_mode = node->tfn_mode;
+  va->va_nlink = node->tfn_links;
   return 0;
 }
 
