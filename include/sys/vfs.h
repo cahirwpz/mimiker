@@ -21,6 +21,7 @@ int do_lseek(proc_t *p, int fd, off_t offset, int whence, off_t *newoffp);
 int do_fstat(proc_t *p, int fd, stat_t *sb);
 int do_dup(proc_t *p, int oldfd, int *newfdp);
 int do_dup2(proc_t *p, int oldfd, int newfd);
+int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *newfdp);
 int do_unlink(proc_t *p, char *path);
 int do_mkdir(proc_t *p, char *path, mode_t mode);
 int do_rmdir(proc_t *p, char *path);
