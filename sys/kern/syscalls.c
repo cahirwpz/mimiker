@@ -393,7 +393,7 @@ static int sys_dup2(proc_t *p, dup2_args_t *args, register_t *res) {
 }
 
 static int sys_fcntl(proc_t *p, fcntl_args_t *args, register_t *res) {
-  klog("fcntl(%d, %d, %d)", args->fd, args->cmd, (int)args->arg);  
+  klog("fcntl(%d, %d, %d)", args->fd, args->cmd, (int)args->arg);
   return do_fcntl(p, args->fd, args->cmd, (int)args->arg, res);
 }
 
