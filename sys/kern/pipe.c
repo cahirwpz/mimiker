@@ -75,6 +75,8 @@ static int pipe_read(file_t *f, uio_t *uio) {
   pipe_end_t *consumer = f->f_data;
   pipe_end_t *producer = consumer->other;
 
+  assert(!consumer->closed);
+
   /* user requested read of 0 bytes */
   if (uio->uio_resid == 0)
     return 0;
