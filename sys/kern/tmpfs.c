@@ -61,7 +61,7 @@ static inline tmpfs_node_t *VFS_TO_TMPFS_NODE(vnode_t *vp) {
 }
 
 /* Prototypes for internal routines. */
-static int tmpfs_init_vnode(vnode_t *v, tmpfs_node_t *tfn);
+static void tmpfs_attach_vnode(mount_t *mp, tmpfs_node_t *tfn);
 static int tmpfs_new_node(mount_t *mp, tmpfs_node_t **tfnp, vnodetype_t ntype);
 static int tmpfs_free_node(tmpfs_mount_t *tfm, tmpfs_node_t *tfn);
 static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vnodetype_t ntype,
@@ -164,16 +164,17 @@ static vnodeops_t tmpfs_vnodeops = {.v_lookup = tmpfs_vop_lookup,
 /* tmpfs internal routines */
 
 /*
- * tmpfs_init_vnode: init v-node and associate with existing inode.
+ * tmpfs_attach_vnode: init v-node and associate with existing inode.
  */
-static int tmpfs_init_vnode(vnode_t *v, tmpfs_node_t *tfn) {
-  tfn->tfn_vnode = v;
+static void tmpfs_attach_vnode(mount_t *mp, tmpfs_node_t *tfn) {
+  vnode_t *vn = vnode_new(tfn->tfn_type, &tmpfs_vnodeops, tfn);
 
-  v->v_data = tfn;
-  v->v_type = tfn->tfn_type;
-  v->v_ops = &tmpfs_vnodeops;
+  vn->v_mount = mp;
+  vn->v_data = tfn;
+  vn->v_type = tfn->tfn_type;
+  vn->v_ops = &tmpfs_vnodeops;
 
-  return 0;
+  tfn->tfn_vnode = vn;
 }
 
 /*
@@ -195,9 +196,7 @@ static int tmpfs_new_node(mount_t *mp, tmpfs_node_t **tfnp, vnodetype_t ntype) {
       panic("bad node type %d", node->tfn_type);
   }
 
-  vnode_t *vnode = vnode_new(ntype, &tmpfs_vnodeops, node);
-  tmpfs_init_vnode(vnode, node);
-  vnode->v_mount = mp;
+  tmpfs_attach_vnode(mp, node);
 
   *tfnp = node;
   return 0;
@@ -245,9 +244,7 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vnodetype_t ntype,
 static int tmpfs_get_node(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp) {
   vnode_t *vnode = tfn->tfn_vnode;
   if (vnode == NULL) {
-    vnode = vnode_new(tfn->tfn_type, &tmpfs_vnodeops, tfn);
-    tmpfs_init_vnode(vnode, tfn);
-    vnode->v_mount = mp;
+    tmpfs_attach_vnode(mp, tfn);
   } else {
     vnode->v_usecnt++;
   }
