@@ -401,7 +401,7 @@ __noreturn void run_program(const char *path, char *const *argv,
   p->p_uspace = vm_map_new();
 
   /* Prepare file descriptor table... */
-  fdtab_t *fdt = fdtab_alloc();
+  fdtab_t *fdt = fdtab_create();
   fdtab_hold(fdt);
   p->p_fdtable = fdt;
 

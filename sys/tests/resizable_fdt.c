@@ -3,7 +3,7 @@
 #include <sys/ktest.h>
 
 static int test_resizable_fdt(void) {
-  fdtab_t *fdt_test = fdtab_alloc();
+  fdtab_t *fdt_test = fdtab_create();
 
   for (int i = 0; i < 100; i++) {
     file_t *tmp_file = file_alloc();

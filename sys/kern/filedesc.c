@@ -93,10 +93,8 @@ static void fd_free(fdtab_t *fdt, int fd) {
   fd_mark_unused(fdt, fd);
 }
 
-/* In FreeBSD this function takes a filedesc* argument, so that
-   current dir may be copied. Since we don't use these fields, this
-   argument does not make sense yet. */
-fdtab_t *fdtab_alloc(void) {
+/* Create empty file descriptor table. */
+fdtab_t *fdtab_create(void) {
   fdtab_t *fdt = kmalloc(M_FD, sizeof(fdtab_t), M_ZERO);
   fdt->fdt_nfiles = NDFILE;
   fdt->fdt_files = kmalloc(M_FD, sizeof(file_t *) * NDFILE, M_ZERO);
@@ -106,7 +104,7 @@ fdtab_t *fdtab_alloc(void) {
 }
 
 fdtab_t *fdtab_copy(fdtab_t *fdt) {
-  fdtab_t *newfdt = fdtab_alloc();
+  fdtab_t *newfdt = fdtab_create();
 
   if (fdt == NULL)
     return newfdt;
