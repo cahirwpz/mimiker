@@ -55,8 +55,8 @@
  *	v 1.2 89/08/15 18:28:24 rab Exp  SPRITE (DECWRL)
  */
 
-#ifndef _MACHINE_ASM_H_
-#define _MACHINE_ASM_H_
+#ifndef _MIPS_ASM_H_
+#define _MIPS_ASM_H_
 
 #include <machine/abi.h>
 #include <machine/regdef.h>
@@ -70,11 +70,43 @@
   .aent _C_LABEL(x);                                                           \
   _C_LABEL(x) :
 
+/*
+ * WARN_REFERENCES: create a warning if the specified symbol is referenced
+ */
+#define WARN_REFERENCES(_sym, _msg)                                            \
+  .section.gnu.warning.##_sym;                                                 \
+  .ascii _msg;                                                                 \
+  .text
+
+/*
+ * WEAK_ALIAS: create a weak alias.
+ */
+#define WEAK_ALIAS(alias, sym)                                                 \
+  .weak alias;                                                                 \
+  alias = sym
+
+/*
+ * STRONG_ALIAS: create a strong alias.
+ */
+#define STRONG_ALIAS(alias, sym)                                               \
+  .globl alias;                                                                \
+  alias = sym
+
+#define GLOBAL(sym)                                                            \
+  .globl sym;                                                                  \
+  sym:
+
 #define ENTRY(sym)                                                             \
   .text;                                                                       \
   .globl sym;                                                                  \
   .ent sym;                                                                    \
-  _C_LABEL(sym) :.cfi_startproc
+  sym:
+
+#define ASM_ENTRY(sym)                                                         \
+  .text;                                                                       \
+  .globl sym;                                                                  \
+  .type sym, @function;                                                        \
+  sym:
 
 /*
  * LEAF
@@ -87,35 +119,36 @@
   .globl _C_LABEL(x);                                                          \
   .ent _C_LABEL(x), 0;                                                         \
   _C_LABEL(x) :;                                                               \
-  .frame sp, 0, ra;                                                            \
+  .frame sp, 0, ra;\
   .cfi_startproc
-
-/*
- * LEAF_NOPROFILE
- *  No profilable leaf routine.
- */
-#define LEAF_NOPROFILE(x)                                                      \
-  .globl _C_LABEL(x);                                                          \
-  .ent _C_LABEL(x), 0;                                                         \
-  _C_LABEL(x) :;                                                               \
-  .frame sp, 0, ra;                                                            \
-  .cfi_startproc
-
-/*
- * XLEAF
- *  declare alternate entry to leaf routine
- */
-#define XLEAF(x)                                                               \
-  .globl _C_LABEL(x);                                                          \
-  AENT(_C_LABEL(x));                                                           \
-  _C_LABEL(x) :
 
 /* Static/local leaf function. */
 #define SLEAF(x)                                                               \
   .ent _C_LABEL(x), 0;                                                         \
   _C_LABEL(x) :;                                                               \
-  .frame sp, 0, ra;                                                            \
+  .frame sp, 0, ra;\
   .cfi_startproc
+
+/*
+ * LEAF_NOPROFILE
+ *	No profilable leaf routine.
+ */
+#define LEAF_NOPROFILE(x)                                                      \
+  .globl _C_LABEL(x);                                                          \
+  .ent _C_LABEL(x), 0;                                                         \
+  _C_LABEL(x) :;                                                               \
+  .frame sp, 0, ra;\
+  .cfi_startproc
+
+
+/*
+ * XLEAF
+ *	declare alternate entry to leaf routine
+ */
+#define XLEAF(x)                                                               \
+  .globl _C_LABEL(x);                                                          \
+  AENT(_C_LABEL(x));                                                           \
+  _C_LABEL(x) :
 
 /*
  * NESTED
@@ -126,14 +159,13 @@
   .globl _C_LABEL(x);                                                          \
   .ent _C_LABEL(x), 0;                                                         \
   _C_LABEL(x) :;                                                               \
-  .frame sp, fsize, retpc;                                                     \
+  .frame sp, fsize, retpc; \
   .cfi_startproc
 
 #define SNESTED(x, fsize, retpc)                                               \
   .ent _C_LABEL(x), 0;                                                         \
   _C_LABEL(x) :;                                                               \
-  .frame sp, fsize, retpc;                                                     \
-  .cfi_startproc
+  .frame sp, fsize, retpc;
 
 #define NON_LEAF(x, fsize, retpc) NESTED(x, fsize, retpc)
 
@@ -145,17 +177,77 @@
   .globl _C_LABEL(x);                                                          \
   .ent _C_LABEL(x), 0;                                                         \
   _C_LABEL(x) :;                                                               \
-  .frame sp, fsize, retpc;                                                     \
-  .cfi_startproc
+  .frame sp, fsize, retpc;\
+  .cfi_startpric
+
+/*
+ * XNESTED
+ *	declare alternate entry point to nested routine.
+ */
+#define XNESTED(x)                                                             \
+  .globl _C_LABEL(x);                                                          \
+  AENT(_C_LABEL(x));                                                           \
+  _C_LABEL(x) :
 
 /*
  * END
  *	Mark end of a procedure.
  */
 #define END(x)                                                                 \
-  .cfi_endproc;                                                                \
   .size _C_LABEL(x), .- _C_LABEL(x);                                           \
-  .end _C_LABEL(x)
+  .end _C_LABEL(x); \
+  .cfi_endproc
+
+/*
+ * IMPORT -- import external symbol
+ */
+#define IMPORT(sym, size) .extern _C_LABEL(sym), size
+
+/*
+ * EXPORT -- export definition of symbol
+ */
+#define EXPORT(x)                                                              \
+  .globl _C_LABEL(x);                                                          \
+  _C_LABEL(x) :
+
+/*
+ * VECTOR
+ *	exception vector entrypoint
+ *	XXX: regmask should be used to generate .mask
+ */
+#define VECTOR(x, regmask)                                                     \
+  .ent _C_LABEL(x), 0;                                                         \
+  EXPORT(x);
+
+#define VECTOR_END(x)                                                          \
+  EXPORT(x##End);                                                              \
+  END(x)
+
+/*
+ * Macros to panic and printf from assembly language.
+ */
+#define PANIC(msg)                                                             \
+  PTR_LA a0, 9f;                                                               \
+  jal _C_LABEL(panic);                                                         \
+  nop;                                                                         \
+  MSG(msg)
+
+#define PANIC_KSEG0(msg, reg) PANIC(msg)
+
+#define PRINTF(msg)                                                            \
+  PTR_LA a0, 9f;                                                               \
+  jal _C_LABEL(printf);                                                        \
+  nop;                                                                         \
+  MSG(msg)
+
+#define MSG(msg)                                                               \
+  .rdata;                                                                      \
+  9 :.asciiz msg;                                                              \
+  .text
+
+#define ASMSTR(str)                                                            \
+  .asciiz str;                                                                 \
+  .align 3
 
 #define ALSK 7    /* stack alignment */
 #define ALMASK -7 /* stack alignment */
@@ -164,12 +256,9 @@
 #define FP_S swc1
 
 /*
- * Endian-independent assembly-code aliases for unaligned memory accesses.
+ *   Endian-independent assembly-code aliases for unaligned memory accesses.
  */
-#if _BYTE_ORDER == _BIG_ENDIAN
-#error "Big endian MIPS architecture not supported!"
-#endif
-
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 #define LWHI lwr
 #define LWLO lwl
 #define SWHI swr
@@ -178,6 +267,18 @@
 #define REG_LLO lwl
 #define REG_SHI swr
 #define REG_SLO swl
+#endif
+
+#if _BYTE_ORDER == _BIG_ENDIAN
+#define LWHI lwl
+#define LWLO lwr
+#define SWHI swl
+#define SWLO swr
+#define REG_LHI lwl
+#define REG_LLO lwr
+#define REG_SHI swl
+#define REG_SLO swr
+#endif
 
 /*
  * While it would be nice to be compatible with the SGI
@@ -308,4 +409,4 @@
 #define GET_CPU_PCPU(reg) PTR_L reg, _C_LABEL(pcpup);
 #endif /* !_KERNEL */
 
-#endif /* !_MACHINE_ASM_H_ */
+#endif /* !_MIPS_ASM_H_ */
