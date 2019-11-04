@@ -15,8 +15,6 @@
 
         .section .ebase, "ax"
 
-        .cfi_sections .debug_frame, .eh_frame
-
 _ebase:
 
         .org    0x0

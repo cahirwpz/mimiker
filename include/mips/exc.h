@@ -7,18 +7,11 @@
 
 #include <mips/asm.h>
 
-#define _ADD_CFI_NO_CFI(reg, offset)
-
-#define _ADD_CFI_(reg, offset) .cfi_rel_offset reg, offset
-
-/* Resolves to _ADD_CFI_(reg, offset) when no variadic arguments given.
- * Resolves to _ADD_CFI_NO_CFI when NO_CFI given as one, and only one
- * variadic argument.
- * Passing multiple variadic arguments to this macro is considered an error.
- */
-#define SAVE_REG(reg, offset, base, ...)                                       \
+#define SAVE_REG_CFI(reg, offset, base)                                        \
   sw reg, (EXC_##offset)(base);                                                \
-  _ADD_CFI_##__VA_ARGS__(reg, (EXC_##offset))
+  .cfi_rel_offset reg, (EXC_##offset)
+
+#define SAVE_REG(reg, offset, base) sw reg, (EXC_##offset)(base)
 
 #define LOAD_REG(reg, offset, base) lw reg, (EXC_##offset)(base)
 
@@ -27,38 +20,38 @@
 #define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (EXC_FPU_##offset)(base)
 
 #define SAVE_CPU_CTX(_sp, reg)                                                 \
-  SAVE_REG(AT, AT, reg);                                                       \
-  SAVE_REG(v0, V0, reg);                                                       \
-  SAVE_REG(v1, V1, reg);                                                       \
-  SAVE_REG(a0, A0, reg);                                                       \
-  SAVE_REG(a1, A1, reg);                                                       \
-  SAVE_REG(a2, A2, reg);                                                       \
-  SAVE_REG(a3, A3, reg);                                                       \
-  SAVE_REG(t0, T0, reg);                                                       \
-  SAVE_REG(t1, T1, reg);                                                       \
-  SAVE_REG(t2, T2, reg);                                                       \
-  SAVE_REG(t3, T3, reg);                                                       \
-  SAVE_REG(t4, T4, reg);                                                       \
-  SAVE_REG(t5, T5, reg);                                                       \
-  SAVE_REG(t6, T6, reg);                                                       \
-  SAVE_REG(t7, T7, reg);                                                       \
-  SAVE_REG(s0, S0, reg);                                                       \
-  SAVE_REG(s1, S1, reg);                                                       \
-  SAVE_REG(s2, S2, reg);                                                       \
-  SAVE_REG(s3, S3, reg);                                                       \
-  SAVE_REG(s4, S4, reg);                                                       \
-  SAVE_REG(s5, S5, reg);                                                       \
-  SAVE_REG(s6, S6, reg);                                                       \
-  SAVE_REG(s7, S7, reg);                                                       \
-  SAVE_REG(t8, T8, reg);                                                       \
-  SAVE_REG(t9, T9, reg);                                                       \
-  SAVE_REG(gp, GP, reg);                                                       \
-  SAVE_REG(_sp, SP, reg, NO_CFI);                                              \
+  SAVE_REG_CFI(AT, AT, reg);                                                   \
+  SAVE_REG_CFI(v0, V0, reg);                                                   \
+  SAVE_REG_CFI(v1, V1, reg);                                                   \
+  SAVE_REG_CFI(a0, A0, reg);                                                   \
+  SAVE_REG_CFI(a1, A1, reg);                                                   \
+  SAVE_REG_CFI(a2, A2, reg);                                                   \
+  SAVE_REG_CFI(a3, A3, reg);                                                   \
+  SAVE_REG_CFI(t0, T0, reg);                                                   \
+  SAVE_REG_CFI(t1, T1, reg);                                                   \
+  SAVE_REG_CFI(t2, T2, reg);                                                   \
+  SAVE_REG_CFI(t3, T3, reg);                                                   \
+  SAVE_REG_CFI(t4, T4, reg);                                                   \
+  SAVE_REG_CFI(t5, T5, reg);                                                   \
+  SAVE_REG_CFI(t6, T6, reg);                                                   \
+  SAVE_REG_CFI(t7, T7, reg);                                                   \
+  SAVE_REG_CFI(s0, S0, reg);                                                   \
+  SAVE_REG_CFI(s1, S1, reg);                                                   \
+  SAVE_REG_CFI(s2, S2, reg);                                                   \
+  SAVE_REG_CFI(s3, S3, reg);                                                   \
+  SAVE_REG_CFI(s4, S4, reg);                                                   \
+  SAVE_REG_CFI(s5, S5, reg);                                                   \
+  SAVE_REG_CFI(s6, S6, reg);                                                   \
+  SAVE_REG_CFI(s7, S7, reg);                                                   \
+  SAVE_REG_CFI(t8, T8, reg);                                                   \
+  SAVE_REG_CFI(t9, T9, reg);                                                   \
+  SAVE_REG_CFI(gp, GP, reg);                                                   \
+  SAVE_REG(_sp, SP, reg);                                                      \
   .cfi_rel_offset sp, EXC_SP;                                                  \
-  SAVE_REG(fp, FP, reg);                                                       \
+  SAVE_REG_CFI(fp, FP, reg);                                                   \
   /* Saving value of user-space ra register just before syscall instruction.   \
    */                                                                          \
-  SAVE_REG(ra, RA, reg, NO_CFI);                                               \
+  SAVE_REG(ra, RA, reg);                                                       \
   .cfi_rel_offset ra, EXC_RA;                                                  \
   mfc0 ra, C0_EPC;                                                             \
   mflo t0;                                                                     \
@@ -73,7 +66,7 @@
   SAVE_REG(t1, CAUSE, reg);                                                    \
   SAVE_REG(t2, BADVADDR, reg);                                                 \
   /* Saving value of user-space PC just before syscall. */                     \
-  SAVE_REG(t3, PC, reg, NO_CFI);                                               \
+  SAVE_REG(t3, PC, reg);                                                       \
   .cfi_return_column t3;                                                       \
   .cfi_rel_offset t3, EXC_PC
 

@@ -177,7 +177,7 @@
   .ent _C_LABEL(x), 0;                                                         \
   _C_LABEL(x) :;                                                               \
   .frame sp, fsize, retpc;                                                     \
-  .cfi_startpoic
+  .cfi_startproc
 
 /*
  * XNESTED

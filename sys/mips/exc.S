@@ -21,15 +21,12 @@
         .local skip_fpu_save
         .local skip_fpu_restore
 
-        .cfi_sections .debug_frame, .eh_frame
-
 # [$k0] must be set to value of C0_STATUS
 exc_enter:
         mfc0    k0, C0_STATUS           
         andi    k0, SR_KSU_MASK         # Did exception occur in kernel mode?
         beqz    k0, kern_exc_enter
         nop
-
 
 # IMPORTANT: While exception level is active the code may only access kernel
 # stack and local pcpu structure! FTTB These are accessed through kseg0.
@@ -38,20 +35,20 @@ exc_enter:
 NESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         .cfi_signal_frame
 
-
         # Move user sp to temporary register and replace it with kernel sp.
         move    k1, sp
+        # Previous value of sp is saved in register k1.
         .cfi_register sp, k1
 
         # Exception frame will be saved on kernel stack. 
         # Fetch exception frame pointer where context will be saved.
         LOAD_PCPU_KSEG0(k0)
 
-        # sp contains kernel stack pointer
+        # sp contains kernel stack pointer.
         lw      sp, PCPU_KSP(k0)
 
+        # Define a rule for computing CFA as: *sp + 0.
         .cfi_def_cfa sp, 0
-
         SAVE_CPU_CTX(k1, sp)
 
         # If FPU is enabled save FPU registers.

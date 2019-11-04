@@ -1,7 +1,5 @@
 #include <machine/syscall.h>
 
-.cfi_sections .debug_frame, .eh_frame
-
 SYSCALL(_exit, SYS_exit)
 SYSCALL(open, SYS_open)
 SYSCALL(close, SYS_close)
