@@ -56,5 +56,6 @@
 43  { gid_t sys_getgid(void); }
 44  { gid_t sys_getegid(void); }
 45  { int sys_issetugid(void); }
+46  { int sys_fcntl(int fd, int cmd, ... void *arg); }
 
 ; vim: ts=4 sw=4 sts=4 et
