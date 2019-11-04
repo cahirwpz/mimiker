@@ -171,12 +171,12 @@ int test_fd_pipe() {
   assert(pid >= 0);
 
   if (pid > 0) {
-    /* child */
+    /* parent */
     assert_close_ok(fd[0]);
     assert_write_ok(fd[1], str, strlen(str));
     assert_close_ok(fd[1]);
   } else {
-    /* parent */
+    /* child */
     assert_close_ok(fd[1]);
     assert_read_equal(fd[0], buf, str);
     assert_close_ok(fd[0]);
