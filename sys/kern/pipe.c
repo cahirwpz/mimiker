@@ -77,20 +77,25 @@ static int pipe_read(file_t *f, uio_t *uio) {
 
   assert(!consumer->closed);
 
+  /* user requested read of 0 bytes */
+  if (uio->uio_resid == 0)
+    return 0;
+
   /* no read atomicity for now! */
   WITH_MTX_LOCK (&producer->mtx) {
-    do {
-      int res = ringbuf_read(&producer->buf, uio);
-      if (res)
-        return res;
-      /* notify producer that free space is available */
-      cv_broadcast(&producer->nonfull);
-      /* nothing left to read? */
-      if (uio->uio_resid == 0)
-        break;
-      /* the buffer is empty so wait for some data to be produced */
+    /* pipe empty, no producers, return end-of-file */
+    if (ringbuf_empty(&producer->buf) && producer->closed)
+      return 0;
+
+    /* pipe empty, producer exists, wait for data */
+    while (ringbuf_empty(&producer->buf) && !producer->closed)
       cv_wait(&producer->nonempty, &producer->mtx);
-    } while (!producer->closed);
+
+    int res = ringbuf_read(&producer->buf, uio);
+    if (res)
+      return res;
+    /* notify producer that free space is available */
+    cv_broadcast(&producer->nonfull);
   }
 
   return 0;
