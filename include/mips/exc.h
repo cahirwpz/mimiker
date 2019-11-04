@@ -49,8 +49,7 @@
   SAVE_REG(_sp, SP, reg);                                                      \
   .cfi_rel_offset sp, EXC_SP;                                                  \
   SAVE_REG_CFI(fp, FP, reg);                                                   \
-  /* Saving value of user-space ra register just before syscall instruction.   \
-   */                                                                          \
+  /* Save value of user-space RA just before syscall. */                       \
   SAVE_REG(ra, RA, reg);                                                       \
   .cfi_rel_offset ra, EXC_RA;                                                  \
   mfc0 ra, C0_EPC;                                                             \
@@ -65,7 +64,7 @@
   SAVE_REG(t0, SR, reg);                                                       \
   SAVE_REG(t1, CAUSE, reg);                                                    \
   SAVE_REG(t2, BADVADDR, reg);                                                 \
-  /* Saving value of user-space PC just before syscall. */                     \
+  /* Save value of user-space PC just before syscall. */                       \
   SAVE_REG(t3, PC, reg);                                                       \
   .cfi_return_column t3;                                                       \
   .cfi_rel_offset t3, EXC_PC
