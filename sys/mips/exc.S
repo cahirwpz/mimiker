@@ -33,11 +33,23 @@ exc_enter:
 # It is UNSAFE to use k0/k1 registers when TLB miss handler may be triggered!
 
 NESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
+        .cfi_signal_frame
+
+        # Move user sp to temporary register and replace it with kernel sp.
+        move    k1, sp
+        # Previous value of sp is saved in register k1.
+        .cfi_register sp, k1
+
+        # Exception frame will be saved on kernel stack. 
         # Fetch exception frame pointer where context will be saved.
         LOAD_PCPU_KSEG0(k0)
-        lw      k0, PCPU_KSP(k0)
 
-        SAVE_CPU_CTX(sp, k0)
+        # sp contains kernel stack pointer.
+        lw      sp, PCPU_KSP(k0)
+
+        # Define a rule for computing CFA as: *sp + 0.
+        .cfi_def_cfa sp, 0
+        SAVE_CPU_CTX(k1, sp)
 
         # If FPU is enabled save FPU registers.
         mfc0    t0, C0_STATUS
@@ -45,12 +57,9 @@ NESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         beqz    t1, skip_fpu_save
         nop
 
-        SAVE_FPU_CTX(k0)
+        SAVE_FPU_CTX(sp)
 
 skip_fpu_save:
-        # Set kernel stack pointer just after saved user context.
-        move    sp, k0
-
         # Load kernel global pointer.
         la      gp, _gp
 

@@ -51,9 +51,10 @@ END(copystr)
 NESTED(copyinstr, CALLFRAME_SIZ, ra)
 	PTR_SUBU sp, sp, CALLFRAME_SIZ
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	REG_S	ra, CALLFRAME_RA(sp)
 	LA	v0, copyerr
 	blt	a0, zero, copyerr       # make sure address is in user space
-	REG_S	ra, CALLFRAME_RA(sp)
+        nop
 	LOAD_PCPU(v1)
         PTR_L   v1, PCPU_CURTHREAD(v1)
 	jal	copystr
@@ -74,15 +75,13 @@ END(copyinstr)
 NESTED(copyin, CALLFRAME_SIZ, ra)
 	PTR_SUBU sp, sp, CALLFRAME_SIZ
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	REG_S	ra, CALLFRAME_RA(sp)
 	LA	v0, copyerr
 	blt	a0, zero, copyerr       # make sure address is in user space
-	REG_S	ra, CALLFRAME_RA(sp)
+        nop
 	LOAD_PCPU(v1)
         PTR_L   v1, PCPU_CURTHREAD(v1)
-	move    t0, a0                  # swap $a0 and $a1 for call to memcpy
-	move    a0, a1
-	move    a1, t0
-	jal	memcpy
+	jal	bcopy                   # bcopy uses a0-a2, v0-v1, t0-t3
 	PTR_S	v0, TD_ONFAULT(v1)
 	REG_L	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
@@ -101,15 +100,13 @@ END(copyin)
 NESTED(copyout, CALLFRAME_SIZ, ra)
 	PTR_SUBU sp, sp, CALLFRAME_SIZ
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	REG_S	ra, CALLFRAME_RA(sp)
 	LA	v0, copyerr
 	blt	a1, zero, copyerr       # make sure address is in user space
-	REG_S	ra, CALLFRAME_RA(sp)
+        nop
 	LOAD_PCPU(v1)
         PTR_L   v1, PCPU_CURTHREAD(v1)
-	move    t0, a0                  # swap $a0 and $a1 for call to memcpy
-	move    a0, a1
-	move    a1, t0
-	jal	memcpy
+	jal	bcopy                   # bcopy uses a0-a2, v0-v1, t0-t3
 	PTR_S	v0, TD_ONFAULT(v1)
 	REG_L	ra, CALLFRAME_RA(sp)
 	LOAD_PCPU(v1)
