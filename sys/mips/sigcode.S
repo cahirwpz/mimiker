@@ -9,6 +9,8 @@ LEAF_NOPROFILE(sigcode)
         syscall
         # just in case sigreturn fails
         j 0     # TODO: replace with "break 0" when SIGTRAP is implemented
+
+# Not an alternative entry. Used just to compute size of this code.
 XLEAF(esigcode)
 END(sigcode)
 
