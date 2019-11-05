@@ -57,7 +57,3 @@ sysroot
 
 # DTB
 *.dtb
-
-# ksh automatically generated files
-bin/ksh/emacs.out
-bin/ksh/siglist.out
