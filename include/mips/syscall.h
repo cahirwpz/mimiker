@@ -27,12 +27,9 @@
   LEAF(name);                                                                  \
   li v0, num;                                                                  \
   syscall;                                                                     \
-  bnez v1, ___sc_error##name;                                                  \
-  nop;                                                                         \
+  bnez v1, 1f;                                                                 \
   j ra;                                                                        \
-  nop;                                                                         \
-  ___sc_error##name : j _C_LABEL(__sc_error);                                  \
-  nop;                                                                         \
+  1 : j _C_LABEL(__sc_error);                                                  \
   END(name)
 
 #endif /* !__ASSEMBLER__ */
