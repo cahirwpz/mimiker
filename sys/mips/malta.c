@@ -104,10 +104,13 @@ static void setup_kenv(int argc, char **argv, char **envp) {
 
   _kenv.argv = tokens;
 
-  for (int i = 0; i < argc; ++i)
-    tokens = extract_tokens(argv[i], tokens);
+  if (argc) {
+    tokens = extract_tokens(argv[0], tokens);
+  }
   for (char **pair = envp; *pair; pair += 2)
     *tokens++ = make_pair(pair[0], pair[1]);
+  for (int i = 1; i < argc; ++i)
+    tokens = extract_tokens(argv[i], tokens);
 }
 
 char *kenv_get(const char *key) {
@@ -119,6 +122,19 @@ char *kenv_get(const char *key) {
       return arg + n + 1;
   }
 
+  return NULL;
+}
+
+char **kenv_get_init_args(int *n) {
+  for (int i = 1; i < _kenv.argc; i++) {
+    char *arg = _kenv.argv[i];
+    if ((strncmp("--", arg, 2) == 0)) {
+      if (n) {
+        *n = _kenv.argc - i - 1;
+      }
+      return _kenv.argv + i + 1;
+    }
+  }
   return NULL;
 }
 
