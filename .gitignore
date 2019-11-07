@@ -37,6 +37,9 @@ etags
 # generated assembly files
 assym.h
 
+# generated debugging files
+elf_files
+
 # Editor swap files
 *.sw[a-p]
 

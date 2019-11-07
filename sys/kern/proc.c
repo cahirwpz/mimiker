@@ -1,4 +1,5 @@
 #define KL_LOG KL_PROC
+#include <sys/libkern.h>
 #include <sys/klog.h>
 #include <sys/proc.h>
 #include <sys/pool.h>
@@ -129,6 +130,12 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
   p->p_state = PS_NORMAL;
   p->p_thread = td;
   p->p_parent = parent;
+    
+  if(parent){
+    // what if error or p_elfpath > 128 ?
+    strlcpy(p->p_elfpath, parent->p_elfpath, 128);
+  }
+
   TAILQ_INIT(CHILDREN(p));
 
   WITH_MTX_LOCK (&td->td_lock)

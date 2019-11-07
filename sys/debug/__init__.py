@@ -9,6 +9,8 @@ from .struct import TimeVal
 from .sync import CondVar, Mutex
 from .thread import Kthread, Thread, CurrentThread
 
+from .event_handlers import stop_handler
+
 
 def addPrettyPrinters():
     pp = gdb.printing.RegexpCollectionPrettyPrinter('mimiker')
@@ -33,3 +35,6 @@ Ktrace()
 # Functions
 CurrentThread()
 CurrentProcess()
+
+# Events
+gdb.events.stop.connect(stop_handler)

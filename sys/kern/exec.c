@@ -314,9 +314,9 @@ static int _do_execve(exec_args_t *args) {
   assert(p != NULL);
 
   bool use_interpreter = false;
-
+  char *prog;
   for (;;) {
-    char *prog = args->interp ? args->interp : args->path;
+    prog = args->interp ? args->interp : args->path;
 
     if ((error = open_executable(prog, &vn))) {
       klog("No file found: '%s'!", prog);
@@ -338,6 +338,10 @@ static int _do_execve(exec_args_t *args) {
     klog("Interpreter for '%s' is '%s'", prog, args->interp);
     use_interpreter = true;
   }
+
+  // chcemy miec w p_elfpath interpreter czy sciezke
+  // na czym bedzie wolany interpreter?
+  // chyba chcemy interpreter
 
   Elf_Ehdr eh;
   if ((error = exec_elf_inspect(vn, &eh)))
@@ -364,6 +368,10 @@ static int _do_execve(exec_args_t *args) {
   destroy_vmspace(&saved);
 
   vm_map_dump(p->p_uspace);
+  //chyba ze strlcpy kompuje razem z \0
+  bzero(p->p_elfpath, 128);
+  strlcpy(p->p_elfpath, prog, 128);
+  // what to do when err or p_elfpath > 128?
 
   klog("Enter userspace with: pc=%p, sp=%p", eh.e_entry, stack_top);
   return EJUSTRETURN;

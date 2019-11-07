@@ -11,7 +11,7 @@ class Process(metaclass=GdbStructMeta):
     __cast__ = {'p_pid': int, 'p_thread': Thread, 'p_state': enum}
 
     @staticmethod
-    def process():
+    def current():
         return gdb.parse_and_eval('_pcpu_data->curthread->td_proc')
 
     @classmethod
