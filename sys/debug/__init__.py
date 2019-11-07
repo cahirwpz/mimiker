@@ -9,7 +9,8 @@ from .struct import TimeVal
 from .sync import CondVar, Mutex
 from .thread import Kthread, Thread, CurrentThread
 
-from .event_handlers import stop_handler
+#from .event_handlers import stop_handler, UserReturnBP
+from .event_handlers import get_stop_handler, UserReturnBP
 
 
 def addPrettyPrinters():
@@ -36,5 +37,14 @@ Ktrace()
 CurrentThread()
 CurrentProcess()
 
+# Breakpoints
+bp = UserReturnBP()
+
+elf_dict = {}
+with open('elf_files', 'r') as f:
+    for line in f:
+        mimiker, host = line.strip().split(':', 1)
+        elf_dict[mimiker] = host
+
 # Events
-gdb.events.stop.connect(stop_handler)
+gdb.events.stop.connect(get_stop_handler(elf_dict))
