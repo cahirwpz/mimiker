@@ -32,5 +32,6 @@ $(PROGRAM).uelf: $(OBJECTS)
 $(SYSROOT)/bin/$(PROGRAM): $(PROGRAM).uelf
 	@echo "[INSTALL] $(DIR)$< -> /bin/$(PROGRAM)"
 	$(INSTALL) -D $(PROGRAM).uelf $(SYSROOT)/bin/$(PROGRAM)
+	echo "/bin/$(PROGRAM):$(TOPDIR)/$(DIR)$(PROGRAM).uelf" >> $(TOPDIR)/elf_files
 	@echo "[STRIP] /bin/$(PROGRAM)"
 	$(STRIP) --strip-all $(SYSROOT)/bin/$(PROGRAM)
