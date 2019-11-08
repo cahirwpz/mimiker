@@ -11,17 +11,13 @@
 #include <sys/klog.h>
 #include <sys/kbss.h>
 #include <sys/console.h>
+#include <sys/context.h>
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
 #include <sys/pool.h>
 #include <sys/libkern.h>
-#include <sys/sleepq.h>
-#include <sys/rman.h>
 #include <sys/thread.h>
-#include <sys/turnstile.h>
 #include <sys/vm_map.h>
-
-extern int kernel_init(int argc, char **argv);
 
 static struct {
   int argc;
@@ -186,22 +182,10 @@ static void pm_bootstrap(unsigned memsize) {
   pm_add_segment(seg);
 }
 
-static void thread_bootstrap(void) {
-  /* Create main kernel thread */
-  thread_t *td =
-    thread_create("kernel-main", (void *)kernel_init, NULL, prio_uthread(255));
-
-  exc_frame_t *kframe = td->td_kframe;
-  kframe->a0 = (register_t)_kenv.argc;
-  kframe->a1 = (register_t)_kenv.argv;
-  kframe->sr |= SR_IE; /* the thread will run with interrupts enabled */
-  td->td_state = TDS_RUNNING;
-  PCPU_SET(curthread, td);
-}
-
 extern const uint8_t __malta_dtb_start[];
 
-void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
+__noreturn void platform_init(int argc, char **argv, char **envp,
+                              unsigned memsize) {
   setup_kenv(argc, argv, envp);
   cn_init();
   klog_init();
@@ -212,13 +196,20 @@ void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
   mips_intr_init();
   mips_timer_init();
   pm_bootstrap(memsize);
-  pmap_init();
+  pmap_bootstrap();
   pool_bootstrap();
-  vm_map_init();
+  vm_map_bootstrap();
   kmem_bootstrap();
-  sleepq_init();
-  turnstile_init();
   thread_bootstrap();
 
+  /* Set up main kernel thread. */
+  thread_t *td = thread_self();
+  exc_frame_t *kframe = td->td_kframe;
+  kframe->a0 = (register_t)_kenv.argc;
+  kframe->a1 = (register_t)_kenv.argv;
+  kframe->sr |= SR_IE; /* the thread will run with interrupts enabled */
+
   klog("Switching to 'kernel-main' thread...");
+  ctx_switch(NULL, td);
+  __unreachable();
 }

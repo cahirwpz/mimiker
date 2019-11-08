@@ -132,6 +132,7 @@ static int kmalloc_add_pages(kmem_pool_t *mp, size_t size) {
   vaddr_t start = vm_segment_start(seg);
   vaddr_t end = vm_segment_end(seg);
   kmalloc_add_arena(mp, start, end - start);
+  klog("add arena %08x - %08x to '%s' kmem pool", start, end - 1, mp->mp_desc);
   mp->mp_used += size;
   return 0;
 }
@@ -222,11 +223,13 @@ char *kstrndup(kmem_pool_t *mp, const char *s, size_t maxlen) {
   return copy;
 }
 
+static POOL_DEFINE(P_KMEM, "kmem", sizeof(kmem_pool_t));
+static alignas(PAGESIZE) uint8_t P_KMEM_BOOTPAGE[PAGESIZE];
+
 void kmem_bootstrap(void) {
+  pool_add_page(P_KMEM, P_KMEM_BOOTPAGE);
   INVOKE_CTORS(kmem_ctor_table);
 }
-
-static POOL_DEFINE(P_KMEM, "kmem", sizeof(kmem_pool_t));
 
 kmem_pool_t *kmem_create(const char *desc, size_t maxsize) {
   assert(is_aligned(maxsize, PAGESIZE));

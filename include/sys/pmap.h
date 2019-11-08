@@ -20,7 +20,7 @@ bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end);
 vaddr_t pmap_start(pmap_t *pmap);
 vaddr_t pmap_end(pmap_t *pmap);
 
-void pmap_init(void);
+void pmap_bootstrap(void);
 
 pmap_t *pmap_new(void);
 void pmap_reset(pmap_t *pmap);
