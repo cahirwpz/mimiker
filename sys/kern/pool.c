@@ -172,7 +172,7 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
     slab = LIST_FIRST(slabs);
   } else {
     slab = add_slab(pool);
-    klog("pool_alloc: growing pool at %p", pool);
+    klog("pool_alloc: growing pool '%s'", pool->pp_desc);
   }
 
   LIST_REMOVE(slab, ph_slablist);
@@ -255,8 +255,6 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
   pool->pp_itemsize = align(size, PI_ALIGNMENT);
   pool->pp_ctor = ctor;
   pool->pp_dtor = dtor;
-  (void)add_slab(pool);
-
   pool->pp_state = ALIVE;
 
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,

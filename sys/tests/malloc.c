@@ -7,7 +7,8 @@
 #include <sys/vm.h>
 
 static int malloc_one_allocation(void) {
-  kmem_pool_t *mp = kmem_create("test", 1, 1);
+  kmem_pool_t *mp = kmem_create("test", PAGESIZE);
+  kmem_reserve(mp, PAGESIZE);
   void *ptr = kmalloc(mp, 1234, M_NOWAIT);
   assert(ptr != NULL);
   kfree(mp, ptr);
@@ -16,7 +17,8 @@ static int malloc_one_allocation(void) {
 }
 
 static int malloc_invalid_values(void) {
-  kmem_pool_t *mp = kmem_create("test", 1, 1);
+  kmem_pool_t *mp = kmem_create("test", PAGESIZE);
+  kmem_reserve(mp, PAGESIZE);
   void *ptr = kmalloc(mp, PAGESIZE, M_NOWAIT);
   assert(ptr == NULL);
   ptr = kmalloc(mp, 0, M_NOWAIT);
@@ -26,12 +28,13 @@ static int malloc_invalid_values(void) {
 }
 
 static int malloc_multiple_allocations(void) {
-  kmem_pool_t *mp = kmem_create("test", 1, 1);
+  kmem_pool_t *mp = kmem_create("test", PAGESIZE);
+  kmem_reserve(mp, PAGESIZE);
   const int n = 50;
   void *ptrs[n];
   for (int i = 0; i < n; i++) {
     ptrs[i] = kmalloc(mp, i + 1, M_NOWAIT);
-    assert(NULL != ptrs[i]);
+    assert(ptrs[i] != 0);
   }
   for (int i = 0; i < n; i++)
     kfree(mp, ptrs[i]);
@@ -40,7 +43,7 @@ static int malloc_multiple_allocations(void) {
 }
 
 static int malloc_dynamic_pages_addition(void) {
-  kmem_pool_t *mp = kmem_create("test", 1, 16);
+  kmem_pool_t *mp = kmem_create("test", PAGESIZE * 16);
   void *ptr1 = kmalloc(mp, 4000, 0);
   assert(ptr1 != NULL);
   void *ptr2 = kmalloc(mp, 8000, 0);
@@ -82,7 +85,7 @@ static void malloc_many_blocks_at_a_time(void *arg) {
 }
 
 static void malloc_multithreaded(void (*threads_function)(void *)) {
-  kmem_pool_t *mp = kmem_create("test", 1, 10);
+  kmem_pool_t *mp = kmem_create("test", PAGESIZE * 10);
   thread_t *threads[THREADS_NUMBER];
   for (int i = 0; i < THREADS_NUMBER; i++)
     threads[i] = thread_create("test-malloc", threads_function, (void *)mp,
@@ -130,7 +133,7 @@ static void malloc_random_shared_blocks(void *arg) {
 }
 
 static int malloc_threads_random_shared_blocks(void) {
-  kmem_pool_t *mp = kmem_create("test", 1, 10);
+  kmem_pool_t *mp = kmem_create("test", PAGESIZE * 10);
   rsb_test_args_t args;
   memset(args.ptrs, 0, sizeof(args.ptrs));
   args.mem_pool = mp;
@@ -146,13 +149,13 @@ static int malloc_threads_random_shared_blocks(void) {
   return KTEST_SUCCESS;
 }
 
-#define MALLOC_RANDINT_PAGES 64
+#define MALLOC_RANDINT_SIZE (PAGESIZE * 64)
 static int malloc_random_size(unsigned int randint) {
   if (randint == 0)
     randint = 64;
 
-  kmem_pool_t *mp =
-    kmem_create("test", MALLOC_RANDINT_PAGES, MALLOC_RANDINT_PAGES);
+  kmem_pool_t *mp = kmem_create("test", MALLOC_RANDINT_SIZE);
+  kmem_reserve(mp, MALLOC_RANDINT_SIZE);
   void *ptr = kmalloc(mp, randint, M_NOWAIT);
   assert(ptr != NULL);
   kfree(mp, ptr);
@@ -173,4 +176,4 @@ KTEST_ADD(malloc_threads_random_shared_blocks,
 /* Reserve some memory for mem_block_t. */
 #define RESERVED 1024
 KTEST_ADD_RANDINT(malloc_random_size, (void *)malloc_random_size, 0,
-                  MALLOC_RANDINT_PAGES *PAGESIZE - RESERVED);
+                  MALLOC_RANDINT_SIZE - RESERVED);

@@ -12,8 +12,9 @@ typedef enum {
   KL_SIGNAL,  /* signal processing */
   KL_INIT,    /* system initialization */
   KL_PMAP,    /* physical map management */
+  KL_PHYSMEM, /* physical memory management */
   KL_VM,      /* virtual memory */
-  KL_KMEM,    /* generick kernel memory allocator */
+  KL_KMEM,    /* generic kernel memory allocator */
   KL_POOL,    /* pooled allocator */
   KL_LOCK,    /* lock operations tracing */
   KL_SCHED,   /* scheduler tracing */
@@ -35,7 +36,7 @@ typedef enum {
 #define KL_MASK(l) (1 << (l))
 #define KL_ALL 0xffffffff /* log everything */
 
-#define KL_DEFAULT_MASK (KL_ALL & (~KL_MASK(KL_PMAP)))
+#define KL_DEFAULT_MASK (KL_ALL & (~(KL_MASK(KL_PMAP) | KL_MASK(KL_PHYSMEM))))
 
 /* Mask for subsystem using klog. If not specified using default subsystem. */
 #ifndef KL_LOG

@@ -1,13 +1,12 @@
 #ifndef _SYS_VM_H_
 #define _SYS_VM_H_
 
-#define PAGESIZE 4096
-
-#ifndef __ASSEMBLER__
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/tree.h>
+#include <machine/vm_param.h>
+
+/* TODO: machine dependent header */
 #include <mips/mips.h>
 
 #define PG_SIZE(pg) ((pg)->size * PAGESIZE)
@@ -68,7 +67,5 @@ struct vm_page {
   pg_flags_t flags;    /* page flags (used by physmem as well) */
   uint32_t size;       /* size of page in PAGESIZE units */
 };
-
-#endif /* !__ASSEMBLER__ */
 
 #endif /* !_SYS_VM_H_ */
