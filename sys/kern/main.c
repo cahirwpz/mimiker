@@ -21,18 +21,14 @@ int kmain(void) {
   if (init) {
     int ninit_args;
     char **init_args = kenv_get_init_args(&ninit_args);
-
-    if (init_args) {
-      char **args = kmalloc(M_TEMP, sizeof(char *) * (ninit_args + 2), 0);
-      args[0] = init;
-      for (int i = 0; i < ninit_args; ++i) {
-        args[i + 1] = init_args[i];
-      }
-      args[ninit_args + 1] = NULL;
-      run_program(init, args, (char *[]){NULL});
-    } else {
-      run_program(init, (char *[]){init, NULL}, (char *[]){NULL});
+    char **args = kmalloc(M_TEMP, sizeof(char *) * (ninit_args + 2), 0);
+    args[0] = init;
+    for (int i = 0; i < ninit_args; ++i) {
+      args[i + 1] = init_args[i];
     }
+    args[ninit_args + 1] = NULL;
+    run_program(init, args, (char *[]){NULL});
+    kfree(M_TEMP, args);
   } else if (test) {
     ktest_main(test);
   } else {

@@ -135,6 +135,9 @@ char **kenv_get_init_args(int *n) {
       return _kenv.argv + i + 1;
     }
   }
+  if (n) {
+    *n = 0;
+  }
   return NULL;
 }
 
