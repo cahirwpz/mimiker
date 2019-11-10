@@ -1,15 +1,24 @@
 #include <sys/types.h>
 
-#define	VM_SLEEP	0x00000001
-#define	VM_NOSLEEP	0x00000002
-#define	VM_INSTANTFIT	0x00001000
+#define VMEM_SLEEP 0x00000001
+#define VMEM_NOSLEEP 0x00000002
+#define VMEM_INSTANTFIT 0x00001000
+#define VMEM_BESTFIT 0x00002000
 
-typedef	uintptr_t vmem_addr_t;
+typedef uintptr_t vmem_addr_t;
 typedef size_t vmem_size_t;
 typedef unsigned int vm_flag_t;
 
-#define	VMEM_ADDR_MIN	0
-#define	VMEM_ADDR_MAX	(~(vmem_addr_t)0)
-
 typedef struct vmem vmem_t;
-typedef struct vmem_btag vmem_btag_t;
+
+vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
+                    vm_flag_t flags);
+
+int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, vm_flag_t flags);
+
+int vmem_alloc(vmem_t *vm, vmem_size_t size, vm_flag_t flags,
+               vmem_addr_t *addrp);
+
+void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size);
+
+void vmem_destroy(vmem_t *vm);
