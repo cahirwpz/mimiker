@@ -1,9 +1,11 @@
 #ifndef __MALTA_H__
 #define __MALTA_H__
 
+#include <sys/cdefs.h>
 #include <mips/mips.h>
 
-void platform_init(int argc, char **argv, char **envp, unsigned memsize);
+__noreturn void platform_init(int argc, char **argv, char **envp,
+                              unsigned memsize);
 
 /*
  * Malta Memory Map:

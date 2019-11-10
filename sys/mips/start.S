@@ -5,7 +5,6 @@
 
 #include "assym.h"
 
-        .set noreorder
         .section .boot, "ax"
 
 # Boot environment is described in MIPS® YAMON™ User's Manual, Chapter 5
@@ -35,7 +34,6 @@ LEAF(_start)
         move    s3, a3
 
         jal     mips_init
-        nop
 
         # Restore kernel arguments and initialize the platform
         move    a0, s0
@@ -43,16 +41,8 @@ LEAF(_start)
         move    a2, s2
         move    a3, s3
 
-        la      t0, platform_init
-        jalr    t0
-        nop
-
-        # Switch to kernel main thread
-        LOAD_PCPU(t0)
-        PTR_L   a1, PCPU_CURTHREAD(t0)
-        la      t0, ctx_switch
-        jalr    t0
-        move    a0, zero                # (delay) 1st arg
+        LA      t0, platform_init
+        jr      t0
 END(_start)
 
 # vim: sw=8 ts=8 et

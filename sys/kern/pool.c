@@ -72,13 +72,12 @@ static unsigned slab_index_of(pool_slab_t *slab, pool_item_t *item) {
   return ((intptr_t)item - (intptr_t)slab->ph_items) / slab->ph_itemsize;
 }
 
-static pool_slab_t *add_slab(pool_t *pool) {
-  debug("create_slab: pool = %p, pp_itemsize = %d", pool, pool->pp_itemsize);
+static void add_slab(pool_t *pool, pool_slab_t *slab) {
+  assert(mtx_owned(&pool->pp_mtx));
 
-  vm_page_t *page = pm_alloc(1);
-  pool_slab_t *slab = PG_KSEG0_ADDR(page);
+  klog("add slab at %p to '%s' pool", slab, pool->pp_desc);
+
   slab->ph_state = ALIVE;
-  slab->ph_page = page;
   slab->ph_nused = 0;
   slab->ph_itemsize = pool->pp_itemsize + sizeof(pool_item_t);
 
@@ -96,11 +95,11 @@ static pool_slab_t *add_slab(pool_t *pool) {
    * (3) ntotal * (8 * itemsize + 1) <= usable * 8 + 7
    * (4) ntotal <= (usable * 8 + 7) / (8 * itemisize + 1)
    */
-  unsigned usable = PAGESIZE - sizeof(pool_slab_t);
+  size_t usable = PAGESIZE - sizeof(pool_slab_t);
   slab->ph_ntotal = (usable * 8 + 7) / (8 * slab->ph_itemsize + 1);
   slab->ph_nused = 0;
 
-  unsigned header = sizeof(pool_slab_t) + bitstr_size(slab->ph_ntotal);
+  size_t header = sizeof(pool_slab_t) + bitstr_size(slab->ph_ntotal);
   slab->ph_items = (void *)slab + align(header, PI_ALIGNMENT);
   memset(slab->ph_bitmap, 0, bitstr_size(slab->ph_ntotal));
 
@@ -115,7 +114,12 @@ static pool_slab_t *add_slab(pool_t *pool) {
   LIST_INSERT_HEAD(&pool->pp_empty_slabs, slab, ph_slablist);
   pool->pp_nitems += slab->ph_ntotal;
   pool->pp_nslabs++;
+}
 
+static pool_slab_t *alloc_slab(void) {
+  vm_page_t *page = pm_alloc(1);
+  pool_slab_t *slab = PG_KSEG0_ADDR(page);
+  slab->ph_page = page;
   return slab;
 }
 
@@ -132,7 +136,7 @@ static void destroy_slab(pool_t *pool, pool_slab_t *slab) {
   pm_free(slab->ph_page);
 }
 
-static void *slab_alloc(pool_slab_t *slab) {
+static void *alloc_item(pool_slab_t *slab) {
   assert(slab->ph_state == ALIVE);
   assert(slab->ph_nused < slab->ph_ntotal);
 
@@ -171,13 +175,13 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
                             : &pool->pp_part_slabs;
     slab = LIST_FIRST(slabs);
   } else {
-    slab = add_slab(pool);
-    klog("pool_alloc: growing pool at %p", pool);
+    slab = alloc_slab();
+    add_slab(pool, slab);
   }
 
   LIST_REMOVE(slab, ph_slablist);
 
-  void *p = slab_alloc(slab);
+  void *p = alloc_item(slab);
   pool->pp_nitems--;
   pool_slabs_t *slabs = (slab->ph_nused < slab->ph_ntotal)
                           ? &pool->pp_part_slabs
@@ -255,8 +259,6 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
   pool->pp_itemsize = align(size, PI_ALIGNMENT);
   pool->pp_ctor = ctor;
   pool->pp_dtor = dtor;
-  (void)add_slab(pool);
-
   pool->pp_state = ALIVE;
 
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
@@ -265,10 +267,17 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
 
 /* Pool of pool_t objects. */
 static struct pool P_POOL[1];
+static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[PAGESIZE];
 
 void pool_bootstrap(void) {
   pool_init(P_POOL, "master pool", sizeof(struct pool), NULL, NULL);
+  pool_add_page(P_POOL, P_POOL_BOOTPAGE);
   INVOKE_CTORS(pool_ctor_table);
+}
+
+void pool_add_page(pool_t *pool, void *page) {
+  SCOPED_MTX_LOCK(&pool->pp_mtx);
+  add_slab(pool, page);
 }
 
 pool_t *pool_create(const char *desc, size_t size) {

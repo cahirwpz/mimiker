@@ -23,6 +23,12 @@ void pool_bootstrap(void);
 /*! \brief Creates a pool of objects of given size. */
 pool_t *pool_create(const char *desc, size_t size);
 
+/*! \brief Adds a slab of one page to the pool.
+ *
+ * \note Use only during memory system bootstrap!
+ */
+void pool_add_page(pool_t *pool, void *page);
+
 /*! \brief Frees all memory associated with the pool
  *
  * \warning Do not call this function on pool with live objects! */

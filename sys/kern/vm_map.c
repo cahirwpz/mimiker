@@ -29,7 +29,7 @@ struct vm_map {
 };
 
 static POOL_DEFINE(P_VMMAP, "vm_map", sizeof(vm_map_t));
-static POOL_DEFINE(P_VMENTRY, "vm_segment", sizeof(vm_segment_t));
+static POOL_DEFINE(P_VMSEG, "vm_segment", sizeof(vm_segment_t));
 
 static vm_map_t *kspace = &(vm_map_t){};
 
@@ -93,7 +93,7 @@ static void vm_map_setup(vm_map_t *map) {
   mtx_init(&map->mtx, 0);
 }
 
-void vm_map_init(void) {
+void vm_map_bootstrap(void) {
   vm_map_setup(kspace);
   kspace->pmap = pmap_kernel();
   vm_map_activate(kspace);
@@ -110,7 +110,7 @@ vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
                                vm_prot_t prot) {
   assert(page_aligned_p(start) && page_aligned_p(end));
 
-  vm_segment_t *seg = pool_alloc(P_VMENTRY, PF_ZERO);
+  vm_segment_t *seg = pool_alloc(P_VMSEG, PF_ZERO);
   seg->object = obj;
   seg->start = start;
   seg->end = end;
@@ -122,7 +122,7 @@ static void vm_segment_free(vm_segment_t *seg) {
   /* we assume no other segment points to this object */
   if (seg->object)
     vm_object_free(seg->object);
-  pool_free(P_VMENTRY, seg);
+  pool_free(P_VMSEG, seg);
 }
 
 vm_segment_t *vm_map_find_segment(vm_map_t *map, vaddr_t vaddr) {
