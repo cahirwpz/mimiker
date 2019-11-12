@@ -110,7 +110,7 @@ void pmap_reset(pmap_t *pmap) {
   free_asid(pmap->asid);
 }
 
-void pmap_init(void) {
+void pmap_bootstrap(void) {
   pmap_setup(&kernel_pmap);
   kernel_pmap.pde = (pde_t *)MIPS_KSEG2_TO_KSEG0(_kernel_pmap_pde);
 }

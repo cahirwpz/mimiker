@@ -3,6 +3,7 @@
 
 #include <sys/types.h>
 #include <sys/linker_set.h>
+#include <machine/vm_param.h>
 
 /*
  * General purpose kernel memory allocator.
@@ -26,7 +27,8 @@ typedef struct kmem_pool kmem_pool_t;
 #define M_ZERO 0x0002   /* clear allocated block */
 
 void kmem_bootstrap(void);
-kmem_pool_t *kmem_create(const char *desc, size_t pages_used, size_t pages_max);
+kmem_pool_t *kmem_create(const char *desc, size_t maxsize);
+int kmem_reserve(kmem_pool_t *mp, size_t size);
 void kmem_dump(kmem_pool_t *mp);
 void kmem_destroy(kmem_pool_t *mp);
 

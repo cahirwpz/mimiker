@@ -39,20 +39,8 @@ void thread_reap(void) {
     thread_delete(td);
 }
 
-thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
-                        prio_t prio) {
-  /* Firstly recycle some threads to free up memory. */
-  thread_reap();
-
-  thread_t *td = pool_alloc(P_THREAD, PF_ZERO);
-
-  td->td_sleepqueue = sleepq_alloc();
-  td->td_turnstile = turnstile_alloc();
-  td->td_name = kstrndup(M_STR, name, TD_NAME_MAX);
+static void thread_init(thread_t *td, prio_t prio) {
   td->td_tid = make_tid();
-  td->td_kstack_obj = pm_alloc(1);
-  td->td_kstack.stk_base = PG_KSEG0_ADDR(td->td_kstack_obj);
-  td->td_kstack.stk_size = PAGESIZE;
   td->td_state = TDS_INACTIVE;
 
   td->td_prio = prio;
@@ -63,11 +51,51 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   cv_init(&td->td_waitcv, "thread waiters");
   LIST_INIT(&td->td_contested);
 
-  thread_entry_setup(td, fn, arg);
-
   /* From now on, you must use locks on new thread structure. */
   WITH_MTX_LOCK (threads_lock)
     TAILQ_INSERT_TAIL(&all_threads, td, td_all);
+}
+
+extern int kernel_init(int argc, char **argv);
+
+static thread_t _thread0[1];
+static alignas(PAGESIZE) uint8_t _thread0_stack[PAGESIZE];
+
+/* Creates Thread Zero - first thread in the system. */
+void thread_bootstrap(void) {
+  thread_t *td = _thread0;
+  td->td_name = "kernel-main";
+  td->td_kstack.stk_base = _thread0_stack;
+  td->td_kstack.stk_size = PAGESIZE;
+
+  /* Note that initially Thread Zero has no turnstile or sleepqueue attached.
+   * Corresponding subsystems are started before scheduler. We can add missing
+   * pieces to first thread in turnstile & sleepqueue init procedures. */
+
+  thread_init(td, prio_uthread(255));
+  thread_entry_setup(td, (void *)kernel_init, NULL);
+
+  td->td_state = TDS_RUNNING;
+  PCPU_SET(curthread, td);
+}
+
+thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
+                        prio_t prio) {
+  /* Firstly recycle some threads to free up memory. */
+  thread_reap();
+
+  thread_t *td = pool_alloc(P_THREAD, PF_ZERO);
+  thread_init(td, prio);
+
+  td->td_name = kstrndup(M_STR, name, TD_NAME_MAX);
+  td->td_kstack_obj = pm_alloc(1);
+  td->td_kstack.stk_base = PG_KSEG0_ADDR(td->td_kstack_obj);
+  td->td_kstack.stk_size = PAGESIZE;
+
+  td->td_sleepqueue = sleepq_alloc();
+  td->td_turnstile = turnstile_alloc();
+
+  thread_entry_setup(td, fn, arg);
 
   klog("Thread %ld {%p} has been created", td->td_tid, td);
 
