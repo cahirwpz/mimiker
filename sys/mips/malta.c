@@ -84,10 +84,10 @@ static char *make_pair(char *key, char *value) {
  *   instruction:
  *     setup_kenv(argc, argv, envp);
  *
- *   will set global variable _kenv as follows:
- *     _kargv={"mimiker.elf", "memsize=128MiB", "uart.speed=115200",
+ *   will set global variables as follows:
+ *     _kenvp={"mimiker.elf", "memsize=128MiB", "uart.speed=115200",
  *             "arg1", "arg2=foo", "init=/bin/sh", "arg3=foobar"};
- *     _kinit={"--", "baz"};
+ *     _kinit={NULL, "baz"};
  */
 static void setup_kenv(int argc, char **argv, char **envp) {
   int ntokens = 0;
@@ -99,6 +99,8 @@ static void setup_kenv(int argc, char **argv, char **envp) {
   for (char **pair = envp; *pair; pair += 2)
     ntokens++;
 
+  /* Both _kenvp and _kinit are going to point to the same array.
+   * Their contents will be separated by NULL. */
   _kenvp = kbss_grow((ntokens + 2) * sizeof(char *));
 
   char **tokens = _kenvp;
@@ -108,7 +110,8 @@ static void setup_kenv(int argc, char **argv, char **envp) {
   tokens = extract_tokens(argv[1], tokens);
   *tokens = NULL;
 
-  /* Now seek "--" to prepare _kinit */
+  /* Let's find "--".
+   * After we set it to NULL it's going to become first element of _kinit */
   for (char **argp = _kenvp; *argp; argp++) {
     if (strcmp("--", *argp) == 0) {
       *argp++ = NULL;
@@ -223,11 +226,6 @@ __noreturn void platform_init(int argc, char **argv, char **envp,
   thread_t *td = thread_self();
   /* The thread will run with interrupts enabled */
   td->td_kframe->sr |= SR_IE;
-
-  kprintf("Kernel arguments:");
-  for (char **argp = _kenvp; *argp; argp++)
-    kprintf(" %s", *argp);
-  kprintf("\n");
 
   klog("Switching to 'kernel-main' thread...");
   ctx_switch(NULL, td);
