@@ -83,19 +83,19 @@ int do_fstat(proc_t *p, int fd, stat_t *sb) {
 }
 
 int do_stat(proc_t *p, char *path, stat_t *sb) {
-  vnode_t *v;
+  nameidata_t nd;
   vattr_t va;
   int error;
 
-  if ((error = vfs_lookup(path, &v)))
+  if ((error = vfs_lookup(path, NAMEI_LOOKUP, &nd)))
     return error;
-  if ((error = VOP_GETATTR(v, &va)))
+  if ((error = VOP_GETATTR(nd.nd_vp, &va)))
     goto fail;
 
   va_convert(&va, sb);
 
 fail:
-  vnode_drop(v);
+  vnode_drop(nd.nd_vp);
   return error;
 }
 
@@ -148,15 +148,15 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
 
 int do_mount(const char *fs, const char *path) {
   vfsconf_t *vfs;
-  vnode_t *v;
+  nameidata_t nd;
   int error;
 
   if (!(vfs = vfs_get_by_name(fs)))
     return EINVAL;
-  if ((error = vfs_lookup(path, &v)))
+  if ((error = vfs_lookup(path, NAMEI_LOOKUP, &nd)))
     return error;
 
-  return vfs_domount(vfs, v);
+  return vfs_domount(vfs, nd.nd_vp);
 }
 
 int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
@@ -193,11 +193,11 @@ int do_access(proc_t *p, char *path, int amode) {
   if (amode & ~(R_OK | W_OK | X_OK))
     return EINVAL;
 
-  vnode_t *v;
-  if ((error = vfs_lookup(path, &v)))
+  nameidata_t nd;
+  if ((error = vfs_lookup(path, NAMEI_LOOKUP, &nd)))
     return error;
-  error = VOP_ACCESS(v, amode);
-  vnode_drop(v);
+  error = VOP_ACCESS(nd.nd_vp, amode);
+  vnode_drop(nd.nd_vp);
   return error;
 }
 

@@ -12,6 +12,31 @@ typedef struct statfs statfs_t;
 typedef struct timeval timeval_t;
 typedef struct file file_t;
 
+typedef enum {
+  NAMEI_LOOKUP = 0,
+  NAMEI_CREATE = 1,
+  NAMEI_DELETE = 2,
+  NAMEI_RENAME = 3,
+} nameiop_t;
+
+/* Path name component flags */
+#define NAMEI_ISLASTPC 0x00000001 /* this is last component of pathname */
+
+/*
+ * Encapsulation of lookup parameters.
+ */
+typedef struct {
+  nameiop_t pc_nameiop;
+  uint32_t pc_flags;
+  const char *pc_nameptr;
+} pathcomponent_t;
+
+/* Results returned from lookup. */
+typedef struct {
+  vnode_t *nd_vp;  /* vnode of result */
+  vnode_t *nd_dvp; /* vnode of parent directory */
+} nameidata_t;
+
 /* Kernel interface */
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd);
 int do_close(proc_t *p, int fd);
@@ -46,7 +71,7 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep);
 
 /* Finds the vnode corresponding to the given path.
  * Increases use count on returned vnode. */
-int vfs_lookup(const char *pathname, vnode_t **vp);
+int vfs_lookup(const char *pathname, nameiop_t op, nameidata_t *nd);
 
 /* Looks up the vnode corresponding to the pathname and opens it into f. */
 int vfs_open(file_t *f, char *pathname, int flags, int mode);

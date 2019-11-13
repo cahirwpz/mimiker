@@ -6,6 +6,7 @@
 #include <sys/pool.h>
 #include <sys/malloc.h>
 #include <sys/file.h>
+#include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/linker_set.h>
 #include <sys/sysinit.h>
@@ -173,10 +174,40 @@ static int vfs_maybe_descend(vnode_t **vp) {
   return 0;
 }
 
-int vfs_lookup(const char *path, vnode_t **vp) {
+/* Call VOP_LOOKUP for a single lookup. */
+static int vfs_lookup_once(pathcomponent_t *component, vnode_t *searchdir,
+                           vnode_t **foundobj_ret) {
+  vnode_t *foundobj;
+  int error;
+  error = VOP_LOOKUP(searchdir, component->pc_nameptr, &foundobj);
+  if (error) {
+    /*
+     * The entry was not found in the directory. This is valid
+     * if we are creating an entry and are working
+     * on the last component of the path name.
+     */
+    if (error == ENOENT && component->pc_nameiop == NAMEI_CREATE &&
+        component->pc_flags & NAMEI_ISLASTPC) {
+      foundobj = NULL;
+      error = 0;
+    }
+
+    goto done;
+  }
+  /* No need to ref this vnode, VFS_LOOKUP already did it for us. */
+  vnode_lock(foundobj);
+  vfs_maybe_descend(&foundobj);
+
+done:
+  *foundobj_ret = foundobj;
+  return error;
+}
+
+int vfs_lookup(const char *path, nameiop_t op, nameidata_t *nd) {
   /* TODO: This is a simplified implementation, and it does not support many
      required features! These include: relative paths, symlinks, parent dirs */
   int error;
+  vnode_t *searchdir, *foundobj;
 
   if (path[0] == '\0')
     return ENOENT;
@@ -186,7 +217,6 @@ int vfs_lookup(const char *path, vnode_t **vp) {
     return ENOENT;
   }
 
-  vnode_t *v = vfs_root_vnode;
   /* Skip leading '/' */
   path = path + 1;
 
@@ -197,37 +227,79 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   char *pathcopy = kmalloc(M_TEMP, PATH_MAX, 0);
   strlcpy(pathcopy, path, PATH_MAX);
   char *pathbuf = pathcopy;
-  const char *component;
+  pathcomponent_t pcmp;
+  pcmp.pc_nameiop = op;
+  pcmp.pc_flags = 0;
 
-  vnode_hold(v);
-  vnode_lock(v);
+  /* Establish the starting directory for lookup, and lock it. */
+  searchdir = vfs_root_vnode;
+  if (searchdir->v_type != V_DIR)
+    return ENOTDIR;
 
-  if ((error = vfs_maybe_descend(&v)))
+  vnode_hold(searchdir);
+  vnode_lock(searchdir);
+
+  if ((error = vfs_maybe_descend(&searchdir)))
     goto end;
 
-  while ((component = strsep(&pathbuf, "/")) != NULL) {
-    if (component[0] == '\0')
-      continue;
-
-    /* Look up the child vnode */
-    vnode_t *v_child;
-    error = VOP_LOOKUP(v, component, &v_child);
-    /* TODO: Check access to child, to verify we can continue with lookup. */
-    vnode_unlock(v);
-    vnode_drop(v);
-    if (error)
-      goto end;
-    v = v_child;
-    /* No need to ref this vnode, VFS_LOOKUP already did it for us. */
-    vnode_lock(v);
-
-    if ((error = vfs_maybe_descend(&v)))
-      goto end;
+  /* Path was just "/". */
+  if (pathbuf[0] == '\0') {
+    foundobj = searchdir;
+    searchdir = NULL;
+    goto endloop;
   }
 
-  vnode_unlock(v);
-  *vp = v;
+  while (1) {
+    assert(*pathbuf != '/');
+    assert(*pathbuf != '\0');
 
+    /* Prepare the next path name component. */
+    pcmp.pc_nameptr = strsep(&pathbuf, "/");
+
+    while (pathbuf != NULL && *pathbuf == '/')
+      pathbuf++;
+
+    if (pathbuf == NULL || *pathbuf == '\0')
+      pcmp.pc_flags |= NAMEI_ISLASTPC;
+
+    /* Look up the child vnode */
+    foundobj = NULL;
+    error = vfs_lookup_once(&pcmp, searchdir, &foundobj);
+    if (error) {
+      vnode_unlock(searchdir);
+      vnode_drop(searchdir);
+      goto end;
+    }
+    /* Success with no object returned means we're creating something. */
+    if (foundobj == NULL)
+      break;
+
+    if (pcmp.pc_flags & NAMEI_ISLASTPC)
+      break;
+
+    /* TODO: Check access to child, to verify we can continue with lookup. */
+    vnode_unlock(searchdir);
+    vnode_drop(searchdir);
+    searchdir = foundobj;
+  }
+
+endloop:
+
+  if (foundobj != NULL) {
+    vnode_unlock(foundobj);
+  }
+
+  // Release the parent directory if is not needed.
+  if (op != NAMEI_CREATE && searchdir != NULL) {
+    if (searchdir != foundobj) {
+      vnode_unlock(searchdir);
+    }
+    vnode_drop(searchdir);
+    searchdir = NULL;
+  }
+
+  nd->nd_vp = foundobj;
+  nd->nd_dvp = searchdir;
   error = 0;
 
 end:
@@ -236,15 +308,15 @@ end:
 }
 
 int vfs_open(file_t *f, char *pathname, int flags, int mode) {
-  vnode_t *v;
+  nameidata_t nd;
   int error = 0;
-  error = vfs_lookup(pathname, &v);
+  error = vfs_lookup(pathname, NAMEI_LOOKUP, &nd);
   if (error)
     return error;
-  int res = VOP_OPEN(v, flags, f);
+  int res = VOP_OPEN(nd.nd_vp, flags, f);
   /* Drop our reference to v. We received it from vfs_lookup, but we no longer
      need it - file f keeps its own reference to v after open. */
-  vnode_drop(v);
+  vnode_drop(nd.nd_vp);
   return res;
 }
 

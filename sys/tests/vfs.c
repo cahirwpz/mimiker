@@ -10,40 +10,47 @@ static bool fsname_of(vnode_t *v, const char *fsname) {
   return strncmp(v->v_mount->mnt_vfc->vfc_name, fsname, strlen(fsname)) == 0;
 }
 
+static int simply_lookup(const char *path, vnode_t **vp) {
+  nameidata_t nd;
+  int error = vfs_lookup(path, NAMEI_LOOKUP, &nd);
+  *vp = nd.nd_vp;
+  return error;
+}
+
 static int test_vfs(void) {
   vnode_t *v;
   int error;
 
-  error = vfs_lookup("/dev/SPAM", &v);
+  error = simply_lookup("/dev/SPAM", &v);
   assert(error == ENOENT);
-  error = vfs_lookup("/", &v);
+  error = simply_lookup("/", &v);
   assert(error == 0);
   assert(fsname_of(v, "initrd"));
   vnode_drop(v);
-  error = vfs_lookup("/dev////", &v);
+  error = simply_lookup("/dev////", &v);
   assert(error == 0);
   assert(fsname_of(v, "devfs"));
   vnode_drop(v);
 
-  error = vfs_lookup("/dev", &v);
+  error = simply_lookup("/dev", &v);
   assert(error == 0 && !is_mountpoint(v));
   vnode_drop(v);
 
   vnode_t *dev_null, *dev_zero;
-  error = vfs_lookup("/dev/null", &dev_null);
+  error = simply_lookup("/dev/null", &dev_null);
   assert(error == 0);
   vnode_drop(dev_null);
-  error = vfs_lookup("/dev/zero", &dev_zero);
+  error = simply_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
   vnode_drop(dev_zero);
 
   assert(dev_zero->v_usecnt == 1);
   /* Ask for the same vnode multiple times and check for correct v_usecnt. */
-  error = vfs_lookup("/dev/zero", &dev_zero);
+  error = simply_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
-  error = vfs_lookup("/dev/zero", &dev_zero);
+  error = simply_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
-  error = vfs_lookup("/dev/zero", &dev_zero);
+  error = simply_lookup("/dev/zero", &dev_zero);
   assert(error == 0);
   assert(dev_zero->v_usecnt == 4);
   vnode_drop(dev_zero);
@@ -72,7 +79,7 @@ static int test_vfs(void) {
 
   /* Test writing to UART */
   vnode_t *dev_cons;
-  error = vfs_lookup("/dev/cons", &dev_cons);
+  error = simply_lookup("/dev/cons", &dev_cons);
   assert(error == 0);
   char *str = "Some string for testing UART write\n";
 
