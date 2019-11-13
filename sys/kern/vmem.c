@@ -3,6 +3,7 @@
 #include <sys/pool.h>
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
+#include <sys/klog.h>
 
 #define VMEM_MAXORDER ((int)(sizeof(vmem_size_t) * CHAR_BIT))
 #define VMEM_MAXHASH 512
@@ -11,6 +12,7 @@
 #define VMEM_ADDR_MIN 0
 #define VMEM_ADDR_MAX (~(vmem_addr_t)0)
 
+#define ORDER2SIZE(order) ((vmem_size_t)1 << (order))
 #define SIZE2ORDER(size) ((int)log2(size))
 
 typedef TAILQ_HEAD(vmem_seglist, bt) vmem_seglist_t;
@@ -20,9 +22,11 @@ typedef LIST_HEAD(vmem_hashlist, bt) vmem_hashlist_t;
 static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
 
 typedef struct vmem {
-  vm_flag_t vm_flags;
+  vmem_flag_t vm_flags;
   size_t vm_size;
   size_t vm_inuse;
+  size_t vm_quantum_mask;
+  int vm_quantum_shift;
   char vm_name[VMEM_NAME_MAX];
   vmem_seglist_t vm_seglist;
   vmem_freelist_t vm_freelist[VMEM_MAXORDER];
@@ -49,13 +53,18 @@ static POOL_DEFINE(P_VMEM, "vmem", sizeof(vmem_t));
 static POOL_DEFINE(P_BT, "vmem boundary tag", sizeof(bt_t));
 
 vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
-                    vmem_size_t quantum, vm_flag_t flags) {
+                    vmem_size_t quantum, vmem_flag_t flags) {
   /* only NOSLEEP is currently supported */
   assert(flags == VMEM_NOSLEEP);
   assert(quantum > 0);
 
   vmem_t *vm = pool_alloc(P_VMEM, PF_ZERO);
   vm->vm_flags = flags;
+
+  vm->vm_quantum_mask = quantum - 1;
+  vm->vm_quantum_shift = SIZE2ORDER(quantum);
+  assert(ORDER2SIZE(vm->vm_quantum_shift) == quantum);
+
   strlcpy(vm->vm_name, name, sizeof(vm->vm_name));
 
   TAILQ_INIT(&vm->vm_seglist);
@@ -70,9 +79,10 @@ vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
 }
 
 static vmem_freelist_t *bt_freehead_tofree(vmem_t *vm, vmem_size_t size) {
-  const int idx = SIZE2ORDER(size);
+  const vmem_size_t qsize = size >> vm->vm_quantum_shift;
+  const int idx = SIZE2ORDER(qsize);
 
-  assert(size != 0);
+  assert(size != 0 && qsize != 0);
   assert(idx >= 0);
   assert(idx < VMEM_MAXORDER);
 
@@ -92,12 +102,49 @@ static void bt_insseg(vmem_t *vm, bt_t *bt, bt_t *prev) {
   TAILQ_INSERT_AFTER(&vm->vm_seglist, prev, bt, bt_seglist);
 }
 
-int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, vm_flag_t flags) {
+static vmem_size_t vmem_roundup_size(vmem_t *vm, vmem_size_t size) {
+  return (size + vm->vm_quantum_mask) & ~vm->vm_quantum_mask;
+}
+
+// static bool vmem_check_sanity(vmem_t *vm) {
+//   const bt_t *bt, *bt2;
+
+//   KASSERT(vm != NULL);
+
+//   TAILQ_FOREACH (bt, &vm->vm_seglist, bt_seglist) {
+//     if (bt->bt_start > BT_END(bt)) {
+//       printf("corrupted tag\n");
+//       bt_dump(bt, vmem_printf);
+//       return false;
+//     }
+//   }
+//   TAILQ_FOREACH (bt, &vm->vm_seglist, bt_seglist) {
+//     TAILQ_FOREACH (bt2, &vm->vm_seglist, bt_seglist) {
+//       if (bt == bt2) {
+//         continue;
+//       }
+//       if (BT_ISSPAN_P(bt) != BT_ISSPAN_P(bt2)) {
+//         continue;
+//       }
+//       if (bt->bt_start <= BT_END(bt2) && bt2->bt_start <= BT_END(bt)) {
+//         printf("overwrapped tags\n");
+//         bt_dump(bt, vmem_printf);
+//         bt_dump(bt2, vmem_printf);
+//         return false;
+//       }
+//     }
+//   }
+
+//   return true;
+// }
+
+int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
+             vmem_flag_t flags) {
   /* only NOSLEEP is currently supported */
   assert(flags == VMEM_NOSLEEP);
 
-  bt_t *btspan = pool_alloc(P_BT, 0);
-  bt_t *btfree = pool_alloc(P_BT, 0);
+  bt_t *btspan = pool_alloc(P_BT, PF_ZERO);
+  bt_t *btfree = pool_alloc(P_BT, PF_ZERO);
   /* TODO should I check btspan or btfree for NULL? */
 
   btspan->bt_type = BT_TYPE_SPAN;
@@ -117,24 +164,36 @@ int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, vm_flag_t flags) {
   return 0;
 }
 
-int vmem_alloc(vmem_t *vm, vmem_size_t size, vm_flag_t flags,
+int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_flag_t flags,
                vmem_addr_t *addrp) {
-  /* only VMEM_INSTANTFIT is currently supported */
-  assert(flags == VMEM_INSTANTFIT);
+  const vmem_flag_t strat = flags & (VMEM_BESTFIT | VMEM_INSTANTFIT);
+  assert(strat == VMEM_BESTFIT || strat == VMEM_INSTANTFIT);
+  assert(size > 0);
+
+  size = vmem_roundup_size(vm, size);
+  assert(size > 0);
+
+  const vmem_size_t align = vm->vm_quantum_mask + 1;
+
+  bt_t *btnew = pool_alloc(P_BT, PF_ZERO);
+  bt_t *btnew2 = pool_alloc(P_BT, PF_ZERO);
 
   return 0;
 }
 
 void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
+  klog("vmem_free(vm=%p, addr=%ld, size=%ld) had no effect", vm, addr, size);
 }
 
 void vmem_destroy(vmem_t *vm) {
-  LIST_REMOVE(vm, vm_alllist);
+  klog("vmem_destroy(vm=%p) had no effect", vm);
 
-  /* in NetBSD they only free vm_hashlist, asserting that all entries
+  // LIST_REMOVE(vm, vm_alllist);
+
+  /* in NetBSD they only free vm_hashlist entries, asserting that all of them
      are of type BT_TYPE_SPAN */
 
   /* TODO */
 
-  pool_free(P_VMEM, vm);
+  // pool_free(P_VMEM, vm);
 }
