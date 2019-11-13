@@ -19,10 +19,10 @@
 #include <sys/thread.h>
 #include <sys/vm_map.h>
 
-static struct {
-  int argc;
-  char **argv;
-} _kenv;
+extern int kernel_init(void);
+
+static char **_kenvp;
+static char **_kinit = (char * [2]){NULL, NULL};
 
 static const char *whitespaces = " \t";
 
@@ -48,6 +48,9 @@ static char **extract_tokens(const char *str, char **tokens_p) {
     char *token = kbss_grow(toklen + 1);
     strlcpy(token, str, toklen + 1);
     *tokens_p++ = token;
+    /* append extra empty token when you see "--" */
+    if (toklen == 2 && strncmp("--", str, 2) == 0)
+      *tokens_p++ = NULL;
     str += toklen;
   } while (true);
 }
@@ -74,48 +77,65 @@ static char *make_pair(char *key, char *value) {
  * Example:
  *
  *   For arguments:
- *     argc=3;
- *     argv={"test.elf", "arg1 arg2=val   arg3=foobar  ", "  init=/bin/sh "};
+ *     argc=2;
+ *     argv={"mimiker.elf", "arg1 arg2=foo init=/bin/sh arg3=bar -- baz"};
  *     envp={"memsize", "128MiB", "uart.speed", "115200"};
  *
  *   instruction:
  *     setup_kenv(argc, argv, envp);
  *
- *   will set global variable _kenv as follows:
- *     _kenv.argc=5;
- *     _kenv.argv={"test.elf", "arg1", "arg2=val", "arg3=foobar",
- *                 "init=/bin/sh", "memsize=128MiB", "uart.speed=115200"};
+ *   will set global variables as follows:
+ *     _kenvp={"mimiker.elf", "memsize=128MiB", "uart.speed=115200",
+ *             "arg1", "arg2=foo", "init=/bin/sh", "arg3=foobar"};
+ *     _kinit={NULL, "baz"};
  */
 static void setup_kenv(int argc, char **argv, char **envp) {
-  unsigned ntokens = 0;
+  int ntokens = 0;
+
+  assert(argc == 2);
 
   for (int i = 0; i < argc; ++i)
     ntokens += count_tokens(argv[i]);
   for (char **pair = envp; *pair; pair += 2)
     ntokens++;
 
-  _kenv.argc = ntokens;
+  /* Both _kenvp and _kinit are going to point to the same array.
+   * Their contents will be separated by NULL. */
+  _kenvp = kbss_grow((ntokens + 2) * sizeof(char *));
 
-  char **tokens = kbss_grow(ntokens * sizeof(char *));
-
-  _kenv.argv = tokens;
-
-  for (int i = 0; i < argc; ++i)
-    tokens = extract_tokens(argv[i], tokens);
+  char **tokens = _kenvp;
+  tokens = extract_tokens(argv[0], tokens);
   for (char **pair = envp; *pair; pair += 2)
     *tokens++ = make_pair(pair[0], pair[1]);
+  tokens = extract_tokens(argv[1], tokens);
+  *tokens = NULL;
+
+  /* Let's find "--".
+   * After we set it to NULL it's going to become first element of _kinit */
+  for (char **argp = _kenvp; *argp; argp++) {
+    if (strcmp("--", *argp) == 0) {
+      *argp++ = NULL;
+      _kinit = argp;
+      break;
+    }
+  }
 }
 
 char *kenv_get(const char *key) {
   unsigned n = strlen(key);
 
-  for (int i = 1; i < _kenv.argc; i++) {
-    char *arg = _kenv.argv[i];
+  for (char **argp = _kenvp; *argp; argp++) {
+    char *arg = *argp;
     if ((strncmp(arg, key, n) == 0) && (arg[n] == '='))
       return arg + n + 1;
   }
 
   return NULL;
+}
+
+char **kenv_get_init(void) {
+  _kinit[0] = kenv_get("init");
+  return _kinit;
 }
 
 static intptr_t __rd_start;
@@ -204,10 +224,8 @@ __noreturn void platform_init(int argc, char **argv, char **envp,
 
   /* Set up main kernel thread. */
   thread_t *td = thread_self();
-  exc_frame_t *kframe = td->td_kframe;
-  kframe->a0 = (register_t)_kenv.argc;
-  kframe->a1 = (register_t)_kenv.argv;
-  kframe->sr |= SR_IE; /* the thread will run with interrupts enabled */
+  /* The thread will run with interrupts enabled */
+  td->td_kframe->sr |= SR_IE;
 
   klog("Switching to 'kernel-main' thread...");
   ctx_switch(NULL, td);
