@@ -15,7 +15,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 
-#define log2(x) (63 - __builtin_clzl(x))
+#define log2(x) (31 - __builtin_clz(x))
 #define ffs(x) (size_t)(__builtin_ffs(x))
 #define clz(x) (size_t)(__builtin_clz(x))
 #define ctz(x) (size_t)(__builtin_ctz(x))
