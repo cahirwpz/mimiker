@@ -22,6 +22,23 @@
 extern int kernel_init(char **argv);
 
 static char **_kargv;
+static char **_kinit;
+
+char *kenv_get(const char *key) {
+  unsigned n = strlen(key);
+
+  for (char **argp = _kargv; *argp; argp++) {
+    char *arg = *argp;
+    if ((strncmp(arg, key, n) == 0) && (arg[n] == '='))
+      return arg + n + 1;
+  }
+
+  return NULL;
+}
+
+char **kenv_get_init(void) {
+  return _kinit;
+}
 
 static const char *whitespaces = " \t";
 
@@ -47,6 +64,9 @@ static char **extract_tokens(const char *str, char **tokens_p) {
     char *token = kbss_grow(toklen + 1);
     strlcpy(token, str, toklen + 1);
     *tokens_p++ = token;
+    /* append extra empty token when you see "--" */
+    if (toklen == 2 && strncmp("--", str, 2) == 0)
+      *tokens_p++ = NULL;
     str += toklen;
   } while (true);
 }
@@ -73,66 +93,46 @@ static char *make_pair(char *key, char *value) {
  * Example:
  *
  *   For arguments:
- *     argc=3;
- *     argv={"mimiker.elf", "arg1 arg2=val  arg3=foobar  ", "  init=/bin/sh "};
+ *     argc=2;
+ *     argv={"mimiker.elf", "arg1 arg2=foo init=/bin/sh arg3=bar -- baz"};
  *     envp={"memsize", "128MiB", "uart.speed", "115200"};
  *
  *   instruction:
  *     setup_kenv(argc, argv, envp);
  *
  *   will set global variable _kenv as follows:
- *     _kenv.argc=5;
- *     _kenv.argv={"mimiker.elf", "arg1", "arg2=val", "arg3=foobar",
- *                 "init=/bin/sh", "memsize=128MiB", "uart.speed=115200"};
+ *     _kargv={"mimiker.elf", "memsize=128MiB", "uart.speed=115200",
+ *             "arg1", "arg2=foo", "init=/bin/sh", "arg3=foobar"};
+ *     _kinit={"--", "baz"};
  */
 static void setup_kenv(int argc, char **argv, char **envp) {
   int ntokens = 0;
 
-  assert(argc > 1);
+  assert(argc == 2);
 
   for (int i = 0; i < argc; ++i)
     ntokens += count_tokens(argv[i]);
   for (char **pair = envp; *pair; pair += 2)
     ntokens++;
 
-  _kargv = kbss_grow((ntokens + 1) * sizeof(char *));
+  _kargv = kbss_grow((ntokens + 2) * sizeof(char *));
 
   char **tokens = _kargv;
   tokens = extract_tokens(argv[0], tokens);
   for (char **pair = envp; *pair; pair += 2)
     *tokens++ = make_pair(pair[0], pair[1]);
-  for (int i = 1; i < argc; ++i)
-    tokens = extract_tokens(argv[i], tokens);
+  tokens = extract_tokens(argv[1], tokens);
   *tokens = NULL;
-}
 
-char *kenv_get(const char *key) {
-  unsigned n = strlen(key);
-
+  /* Now seek "--" to prepare _kinit */
   for (char **argp = _kargv; *argp; argp++) {
-    char *arg = *argp;
-    if ((strncmp(arg, key, n) == 0) && (arg[n] == '='))
-      return arg + n + 1;
-  }
-
-  return NULL;
-}
-
-char **kenv_get_init_args(int *n) {
-  assert(n != NULL);
-
-  for (char **argp = _kargv; *argp; argp++) {
-    char *arg = *argp++;
-    if (strncmp("--", arg, 2) == 0) {
-      char **start = argp;
-      while (*argp)
-        argp++;
-      *n = start - argp;
-      return start;
+    if (strcmp("--", *argp) == 0) {
+      *argp++ = NULL;
+      _kinit = argp;
+      *argp = kenv_get("init");
+      break;
     }
   }
-  *n = 0;
-  return NULL;
 }
 
 static intptr_t __rd_start;

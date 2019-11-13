@@ -9,7 +9,7 @@
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
-char **kenv_get_init_args(int *n);
+char **kenv_get_init(void);
 
 int kmain(void) {
   char *init = kenv_get("init");
@@ -19,16 +19,7 @@ int kmain(void) {
   proc_add(proc_create(thread_self(), NULL));
 
   if (init) {
-    int ninit_args;
-    char **init_args = kenv_get_init_args(&ninit_args);
-    char **args = kmalloc(M_TEMP, sizeof(char *) * (ninit_args + 2), 0);
-    args[0] = init;
-    for (int i = 0; i < ninit_args; ++i) {
-      args[i + 1] = init_args[i];
-    }
-    args[ninit_args + 1] = NULL;
-    run_program(init, args, (char *[]){NULL});
-    kfree(M_TEMP, args);
+    run_program(init, kenv_get_init(), (char *[]){NULL});
   } else if (test) {
     ktest_main(test);
   } else {
