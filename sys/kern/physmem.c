@@ -22,7 +22,7 @@ typedef struct pm_seg {
 static TAILQ_HEAD(, pm_seg) seglist;
 static mtx_t *seglist_lock = &MTX_INITIALIZER(0);
 
-void pm_init(void) {
+void pm_bootstrap(void) {
   TAILQ_INIT(&seglist);
 }
 

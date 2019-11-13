@@ -5,8 +5,7 @@
 #include <sys/uio.h>
 #include <sys/vm_map.h>
 #include <sys/ustack.h>
-
-#define STACK_ALIGNMENT 8 /* According to MIPS SystemV ABI */
+#include <mips/abi.h>
 
 static inline bool finalized_p(ustack_t *us) {
   return us->us_finalized;
@@ -17,7 +16,7 @@ static inline bool enough_free_space_p(ustack_t *us, size_t len) {
 }
 
 void ustack_setup(ustack_t *us, vaddr_t user_top, size_t capacity) {
-  capacity = align(capacity, STACK_ALIGNMENT);
+  capacity = align(capacity, STACK_ALIGN);
 
   us->us_user_top = user_top;
   us->us_top = kmalloc(M_TEMP, capacity, 0);
@@ -85,8 +84,8 @@ void ustack_relocate_ptr(ustack_t *us, vaddr_t *ptr_p) {
 
 void ustack_finalize(ustack_t *us) {
   assert(!finalized_p(us));
-  /* Cannot fail because initially stack is aligned to STACK_ALIGNMENT. */
-  ustack_align(us, STACK_ALIGNMENT);
+  /* Cannot fail because initially stack is aligned to STACK_ALIGN. */
+  ustack_align(us, STACK_ALIGN);
   us->us_finalized = true;
 }
 

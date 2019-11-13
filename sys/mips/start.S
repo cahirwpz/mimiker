@@ -20,10 +20,8 @@
 #
 # C0_STATUS is same as YAMON™ context, but interrupts are disabled.
 
+# We're running on stack provided by the boot loader.
 LEAF(_start)
-        # Use stack pointer provided by linker script
-        LA      sp, _sp
-
         # Load global pointer to make data section addressing possible
         LA      gp, _gp
 
@@ -35,11 +33,15 @@ LEAF(_start)
 
         jal     mips_init
 
-        # Restore kernel arguments and initialize the platform
+        # From this point kernel sections are accessible through kseg2!
         move    a0, s0
         move    a1, s1
         move    a2, s2
         move    a3, s3
+
+        LA      t0, platform_stack
+        jalr    t0
+        move    sp, v0                  # Set thread0 stack 
 
         LA      t0, platform_init
         jr      t0
