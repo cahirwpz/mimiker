@@ -56,25 +56,22 @@ static void thread_init(thread_t *td, prio_t prio) {
     TAILQ_INSERT_TAIL(&all_threads, td, td_all);
 }
 
-extern int kernel_init(int argc, char **argv);
-
 static thread_t _thread0[1];
-static alignas(PAGESIZE) uint8_t _thread0_stack[PAGESIZE];
 
 /* Creates Thread Zero - first thread in the system. */
-void thread_bootstrap(void) {
+void thread_bootstrap(kstack_t *stack0) {
   thread_t *td = _thread0;
   td->td_name = "kernel-main";
-  td->td_kstack.stk_base = _thread0_stack;
-  td->td_kstack.stk_size = PAGESIZE;
+  td->td_kstack = *stack0;
 
   /* Note that initially Thread Zero has no turnstile or sleepqueue attached.
    * Corresponding subsystems are started before scheduler. We can add missing
    * pieces to first thread in turnstile & sleepqueue init procedures. */
 
   thread_init(td, prio_uthread(255));
-  thread_entry_setup(td, (void *)kernel_init, NULL);
 
+  /* Thread Zero is initially running with interrupts disabled! */
+  td->td_idnest = 1;
   td->td_state = TDS_RUNNING;
   PCPU_SET(curthread, td);
 }
@@ -89,8 +86,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
 
   td->td_name = kstrndup(M_STR, name, TD_NAME_MAX);
   td->td_kstack_obj = pm_alloc(1);
-  td->td_kstack.stk_base = PG_KSEG0_ADDR(td->td_kstack_obj);
-  td->td_kstack.stk_size = PAGESIZE;
+  kstack_init(&td->td_kstack, PG_KSEG0_ADDR(td->td_kstack_obj), PAGESIZE);
 
   td->td_sleepqueue = sleepq_alloc();
   td->td_turnstile = turnstile_alloc();
