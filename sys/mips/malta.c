@@ -22,23 +22,7 @@
 extern int kernel_init(char **argv);
 
 static char **_kargv;
-static char **_kinit;
-
-char *kenv_get(const char *key) {
-  unsigned n = strlen(key);
-
-  for (char **argp = _kargv; *argp; argp++) {
-    char *arg = *argp;
-    if ((strncmp(arg, key, n) == 0) && (arg[n] == '='))
-      return arg + n + 1;
-  }
-
-  return NULL;
-}
-
-char **kenv_get_init(void) {
-  return _kinit;
-}
+static char **_kinit = (char *[2]){ NULL, NULL };
 
 static const char *whitespaces = " \t";
 
@@ -129,10 +113,26 @@ static void setup_kenv(int argc, char **argv, char **envp) {
     if (strcmp("--", *argp) == 0) {
       *argp++ = NULL;
       _kinit = argp;
-      *argp = kenv_get("init");
       break;
     }
   }
+}
+
+char *kenv_get(const char *key) {
+  unsigned n = strlen(key);
+
+  for (char **argp = _kargv; *argp; argp++) {
+    char *arg = *argp;
+    if ((strncmp(arg, key, n) == 0) && (arg[n] == '='))
+      return arg + n + 1;
+  }
+
+  return NULL;
+}
+
+char **kenv_get_init(void) {
+  _kinit[0] = kenv_get("init");
+  return _kinit;
 }
 
 static intptr_t __rd_start;
