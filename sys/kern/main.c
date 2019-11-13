@@ -5,7 +5,6 @@
 #include <sys/proc.h>
 #include <sys/thread.h>
 #include <sys/ktest.h>
-#include <sys/malloc.h>
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
