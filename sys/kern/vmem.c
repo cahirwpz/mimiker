@@ -11,7 +11,7 @@
 #define VMEM_ADDR_MIN 0
 #define VMEM_ADDR_MAX (~(vmem_addr_t)0)
 
-#define	SIZE2ORDER(size) ((int)log2(size))
+#define SIZE2ORDER(size) ((int)log2(size))
 
 typedef TAILQ_HEAD(vmem_seglist, bt) vmem_seglist_t;
 typedef LIST_HEAD(vmem_freelist, bt) vmem_freelist_t;
@@ -38,8 +38,8 @@ typedef struct bt {
     LIST_ENTRY(bt) u_freelist;
     LIST_ENTRY(bt) u_hashlist;
   } bt_u;
-#define	bt_hashlist	bt_u.u_hashlist
-#define	bt_freelist	bt_u.u_freelist
+#define bt_hashlist bt_u.u_hashlist
+#define bt_freelist bt_u.u_freelist
   vmem_addr_t bt_start;
   vmem_size_t bt_size;
   bt_type_t bt_type;
@@ -126,8 +126,6 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vm_flag_t flags,
 }
 
 void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
-
-
 }
 
 void vmem_destroy(vmem_t *vm) {
