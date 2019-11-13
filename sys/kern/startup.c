@@ -18,12 +18,7 @@ static void mount_fs(void) {
 
 SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"));
 
-int kernel_init(char **argv) {
-  kprintf("Kernel arguments:");
-  for (char **argp = argv; *argp; argp++)
-    kprintf(" %s", *argp);
-  kprintf("\n");
-
+int kernel_init(void) {
   sysinit();
   klog("Kernel initialized!");
 

@@ -19,9 +19,9 @@
 #include <sys/thread.h>
 #include <sys/vm_map.h>
 
-extern int kernel_init(char **argv);
+extern int kernel_init(void);
 
-static char **_kargv;
+static char **_kenvp;
 static char **_kinit = (char *[2]){ NULL, NULL };
 
 static const char *whitespaces = " \t";
@@ -99,9 +99,9 @@ static void setup_kenv(int argc, char **argv, char **envp) {
   for (char **pair = envp; *pair; pair += 2)
     ntokens++;
 
-  _kargv = kbss_grow((ntokens + 2) * sizeof(char *));
+  _kenvp = kbss_grow((ntokens + 2) * sizeof(char *));
 
-  char **tokens = _kargv;
+  char **tokens = _kenvp;
   tokens = extract_tokens(argv[0], tokens);
   for (char **pair = envp; *pair; pair += 2)
     *tokens++ = make_pair(pair[0], pair[1]);
@@ -109,7 +109,7 @@ static void setup_kenv(int argc, char **argv, char **envp) {
   *tokens = NULL;
 
   /* Now seek "--" to prepare _kinit */
-  for (char **argp = _kargv; *argp; argp++) {
+  for (char **argp = _kenvp; *argp; argp++) {
     if (strcmp("--", *argp) == 0) {
       *argp++ = NULL;
       _kinit = argp;
@@ -121,7 +121,7 @@ static void setup_kenv(int argc, char **argv, char **envp) {
 char *kenv_get(const char *key) {
   unsigned n = strlen(key);
 
-  for (char **argp = _kargv; *argp; argp++) {
+  for (char **argp = _kenvp; *argp; argp++) {
     char *arg = *argp;
     if ((strncmp(arg, key, n) == 0) && (arg[n] == '='))
       return arg + n + 1;
@@ -221,9 +221,13 @@ __noreturn void platform_init(int argc, char **argv, char **envp,
 
   /* Set up main kernel thread. */
   thread_t *td = thread_self();
-  exc_frame_t *kframe = td->td_kframe;
-  kframe->a0 = (register_t)_kargv;
-  kframe->sr |= SR_IE; /* the thread will run with interrupts enabled */
+  /* The thread will run with interrupts enabled */
+  td->td_kframe->sr |= SR_IE;
+
+  kprintf("Kernel arguments:");
+  for (char **argp = _kenvp; *argp; argp++)
+    kprintf(" %s", *argp);
+  kprintf("\n");
 
   klog("Switching to 'kernel-main' thread...");
   ctx_switch(NULL, td);
