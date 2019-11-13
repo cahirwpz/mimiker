@@ -12,7 +12,7 @@ typedef unsigned int vm_flag_t;
 typedef struct vmem vmem_t;
 
 vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
-                    vm_flag_t flags);
+                    vmem_size_t quantum, vm_flag_t flags);
 
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, vm_flag_t flags);
 
