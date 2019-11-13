@@ -19,10 +19,9 @@
 #include <sys/thread.h>
 #include <sys/vm_map.h>
 
-static struct {
-  int argc;
-  char **argv;
-} _kenv;
+extern int kernel_init(char **argv);
+
+static char **_kargv;
 
 static const char *whitespaces = " \t";
 
@@ -75,7 +74,7 @@ static char *make_pair(char *key, char *value) {
  *
  *   For arguments:
  *     argc=3;
- *     argv={"test.elf", "arg1 arg2=val   arg3=foobar  ", "  init=/bin/sh "};
+ *     argv={"mimiker.elf", "arg1 arg2=val  arg3=foobar  ", "  init=/bin/sh "};
  *     envp={"memsize", "128MiB", "uart.speed", "115200"};
  *
  *   instruction:
@@ -83,37 +82,35 @@ static char *make_pair(char *key, char *value) {
  *
  *   will set global variable _kenv as follows:
  *     _kenv.argc=5;
- *     _kenv.argv={"test.elf", "arg1", "arg2=val", "arg3=foobar",
+ *     _kenv.argv={"mimiker.elf", "arg1", "arg2=val", "arg3=foobar",
  *                 "init=/bin/sh", "memsize=128MiB", "uart.speed=115200"};
  */
 static void setup_kenv(int argc, char **argv, char **envp) {
-  unsigned ntokens = 0;
+  int ntokens = 0;
+
+  assert(argc > 1);
 
   for (int i = 0; i < argc; ++i)
     ntokens += count_tokens(argv[i]);
   for (char **pair = envp; *pair; pair += 2)
     ntokens++;
 
-  _kenv.argc = ntokens;
+  _kargv = kbss_grow((ntokens + 1) * sizeof(char *));
 
-  char **tokens = kbss_grow(ntokens * sizeof(char *));
-
-  _kenv.argv = tokens;
-
-  if (argc) {
-    tokens = extract_tokens(argv[0], tokens);
-  }
+  char **tokens = _kargv;
+  tokens = extract_tokens(argv[0], tokens);
   for (char **pair = envp; *pair; pair += 2)
     *tokens++ = make_pair(pair[0], pair[1]);
   for (int i = 1; i < argc; ++i)
     tokens = extract_tokens(argv[i], tokens);
+  *tokens = NULL;
 }
 
 char *kenv_get(const char *key) {
   unsigned n = strlen(key);
 
-  for (int i = 1; i < _kenv.argc; i++) {
-    char *arg = _kenv.argv[i];
+  for (char **argp = _kargv; *argp; argp++) {
+    char *arg = *argp;
     if ((strncmp(arg, key, n) == 0) && (arg[n] == '='))
       return arg + n + 1;
   }
@@ -122,18 +119,19 @@ char *kenv_get(const char *key) {
 }
 
 char **kenv_get_init_args(int *n) {
-  for (int i = 1; i < _kenv.argc; i++) {
-    char *arg = _kenv.argv[i];
-    if ((strncmp("--", arg, 2) == 0)) {
-      if (n) {
-        *n = _kenv.argc - i - 1;
-      }
-      return _kenv.argv + i + 1;
+  assert(n != NULL);
+
+  for (char **argp = _kargv; *argp; argp++) {
+    char *arg = *argp++;
+    if (strncmp("--", arg, 2) == 0) {
+      char **start = argp;
+      while (*argp)
+        argp++;
+      *n = start - argp;
+      return start;
     }
   }
-  if (n) {
-    *n = 0;
-  }
+  *n = 0;
   return NULL;
 }
 
@@ -224,8 +222,7 @@ __noreturn void platform_init(int argc, char **argv, char **envp,
   /* Set up main kernel thread. */
   thread_t *td = thread_self();
   exc_frame_t *kframe = td->td_kframe;
-  kframe->a0 = (register_t)_kenv.argc;
-  kframe->a1 = (register_t)_kenv.argv;
+  kframe->a0 = (register_t)_kargv;
   kframe->sr |= SR_IE; /* the thread will run with interrupts enabled */
 
   klog("Switching to 'kernel-main' thread...");

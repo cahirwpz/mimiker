@@ -18,10 +18,10 @@ static void mount_fs(void) {
 
 SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"));
 
-int kernel_init(int argc, char **argv) {
-  kprintf("Kernel arguments (%d): ", argc);
-  for (int i = 0; i < argc; i++)
-    kprintf("%s ", argv[i]);
+int kernel_init(char **argv) {
+  kprintf("Kernel arguments:");
+  for (char **argp = argv; *argp; argp++)
+    kprintf(" %s", *argp);
   kprintf("\n");
 
   sysinit();
