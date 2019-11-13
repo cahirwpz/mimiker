@@ -22,7 +22,7 @@
 extern int kernel_init(void);
 
 static char **_kenvp;
-static char **_kinit = (char *[2]){ NULL, NULL };
+static char **_kinit = (char * [2]){NULL, NULL};
 
 static const char *whitespaces = " \t";
 
