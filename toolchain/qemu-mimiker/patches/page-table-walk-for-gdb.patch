@@ -3,7 +3,7 @@ Index: qemu-mimiker/qemu-4.1.0/target/mips/helper.c
 ===================================================================
 --- qemu-mimiker.orig/qemu-4.1.0/target/mips/helper.c
 +++ qemu-mimiker/qemu-4.1.0/target/mips/helper.c
-@@ -523,16 +523,41 @@ static void raise_mmu_exception(CPUMIPSS
+@@ -523,16 +523,43 @@ static void raise_mmu_exception(CPUMIPSS
      env->error_code = error_code;
  }
  
@@ -21,7 +21,9 @@ Index: qemu-mimiker/qemu-4.1.0/target/mips/helper.c
      MIPSCPU *cpu = MIPS_CPU(cs);
      CPUMIPSState *env = &cpu->env;
      hwaddr phys_addr;
-+    int mem_idx = cpu_mmu_index(env, false);
++    /* Setting EXL==3 just to allow GDB reading kernel memory while
++     * on breakpoint in user-space. */
++    int mem_idx = 3;
      int prot;
  
      if (get_physical_address(env, &phys_addr, &prot, addr, 0, ACCESS_INT,
