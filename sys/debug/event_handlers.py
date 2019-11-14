@@ -5,27 +5,14 @@ mimiker_current_p_elfpath = ''
 def get_p_elfpath():
         pcpu_data = gdb.newest_frame().read_var('_pcpu_data')
         curthread_ptr = pcpu_data.dereference()['curthread']
+        print(f'curthread_ptr= {curthread_ptr}')
         proc_ptr = curthread_ptr.dereference()['td_proc']
+        print(f'proc_ptr = {proc_ptr}')
+        if proc_ptr == 0:
+            return None
         p_elfpath = proc_ptr.dereference()['p_elfpath']
         return p_elfpath
 
-
-class UserReturnBP(gdb.Breakpoint):
-    def __init__(self):
-        #super().__init__(label='user_return', internal=True)
-        super().__init__('user_return', internal=True)
-        self.p_elfpath = ''
-        self.fired = 0
-
-    def stop(self):
-        self.fired += 1
-        p_elfpath = get_p_elfpath()
-        self.p_elfpath = p_elfpath
-
-        global mimiker_current_p_elfpath
-        mimiker_current_p_elfpath = str(p_elfpath).split(',', 1)[0][1:-1]
-
-        return False
 
 def get_stop_handler(elves):
 
@@ -36,7 +23,20 @@ def get_stop_handler(elves):
         pc = gdb.parse_and_eval('$pc')
         pc = int(pc) &  0xffffffff
     
-        if pc > kernel_base:
+        in_kernel_mode = pc >= kernel_base
+
+        mimiker_path = get_p_elfpath()
+
+        if mimiker_path == None:
+            return
+    
+        print(f'mimiker_path = {mimiker_path}')
+        mimiker_path = str(mimiker_path).split(',', 1)[0][1:-1] 
+
+        try:
+            host_path = elves[mimiker_path]
+        except:
+            print(f'no {mimiker_path} in elves dict')
             return
 
         try:
@@ -45,9 +45,10 @@ def get_stop_handler(elves):
         except:
             print(f"no symbol file loaded at {hex(user_elf_base_addr)}")
         
-        mimiker_path = mimiker_current_p_elfpath
-        host_path = elves[mimiker_path]
-    
-        gdb.execute(
-            f'add-symbol-file  {host_path}')
+
+        try: 
+            gdb.execute(f'add-symbol-file  {host_path}')
+        except:
+            print(f'no symbol file {host_path}')
+
     return stop_handler

@@ -10,7 +10,7 @@ from .sync import CondVar, Mutex
 from .thread import Kthread, Thread, CurrentThread
 
 #from .event_handlers import stop_handler, UserReturnBP
-from .event_handlers import get_stop_handler, UserReturnBP
+from .event_handlers import get_stop_handler
 
 
 def addPrettyPrinters():
@@ -36,9 +36,6 @@ Ktrace()
 # Functions
 CurrentThread()
 CurrentProcess()
-
-# Breakpoints
-bp = UserReturnBP()
 
 elf_dict = {}
 with open('elf_files', 'r') as f:
