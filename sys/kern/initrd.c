@@ -191,8 +191,7 @@ static ino_t initrd_enum_inodes(cpio_node_t *parent, ino_t ino) {
   return ino;
 }
 
-static vnode_t* vnode_of_cpio_node(cpio_node_t *cpio_node)
-{
+static vnode_t *vnode_of_cpio_node(cpio_node_t *cpio_node) {
   if (!cpio_node->c_vnode) {
     vnodetype_t type = V_REG;
     if (CMTOFT(cpio_node->c_mode) == C_DIR)
