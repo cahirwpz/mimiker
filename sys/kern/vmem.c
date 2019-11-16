@@ -1,18 +1,17 @@
+#define KL_LOG KL_VMEM
+#include <sys/klog.h>
 #include <sys/vmem.h>
 #include <sys/queue.h>
 #include <sys/pool.h>
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
-#include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/hash.h>
+#include <sys/mutex.h>
 
 #define VMEM_MAXORDER ((int)(sizeof(vmem_size_t) * CHAR_BIT))
 #define VMEM_MAXHASH 512
 #define VMEM_NAME_MAX 16
-
-#define VMEM_ADDR_MIN 0
-#define VMEM_ADDR_MAX (~(vmem_addr_t)0)
 
 #define ORDER2SIZE(order) ((vmem_size_t)1 << (order))
 #define SIZE2ORDER(size) ((int)log2(size))
@@ -21,9 +20,11 @@ typedef TAILQ_HEAD(vmem_seglist, bt) vmem_seglist_t;
 typedef LIST_HEAD(vmem_freelist, bt) vmem_freelist_t;
 typedef LIST_HEAD(vmem_hashlist, bt) vmem_hashlist_t;
 
-static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
+static mtx_t vmem_alllist_lock = MTX_INITIALIZER(0);
+static LIST_HEAD(, vmem) vmem_alllist = LIST_HEAD_INITIALIZER(vmem_alllist);
 
 typedef struct vmem {
+  mtx_t vm_lock;
   vmem_flag_t vm_flags;
   size_t vm_size;
   size_t vm_inuse;
@@ -33,16 +34,16 @@ typedef struct vmem {
   vmem_seglist_t vm_seglist;
   vmem_freelist_t vm_freelist[VMEM_MAXORDER];
   vmem_hashlist_t vm_hashlist[VMEM_MAXHASH];
-  LIST_ENTRY(vmem) vm_alllist;
+  LIST_ENTRY(vmem) vm_alllist_link;
 } vmem_t;
 
 typedef enum { BT_TYPE_FREE, BT_TYPE_BUSY, BT_TYPE_SPAN } bt_type_t;
 
 typedef struct bt {
-  TAILQ_ENTRY(bt) bt_seglist;
+  TAILQ_ENTRY(bt) bt_seglink;
   union {
-    LIST_ENTRY(bt) bt_freelist;
-    LIST_ENTRY(bt) bt_hashlist;
+    LIST_ENTRY(bt) bt_freelink;
+    LIST_ENTRY(bt) bt_hashlink;
   };
   vmem_addr_t bt_start;
   vmem_size_t bt_size;
@@ -53,27 +54,39 @@ static POOL_DEFINE(P_VMEM, "vmem", sizeof(vmem_t));
 static POOL_DEFINE(P_BT, "vmem boundary tag", sizeof(bt_t));
 
 static vmem_freelist_t *bt_freehead_tofree(vmem_t *vm, vmem_size_t size) {
-  const vmem_size_t qsize = size >> vm->vm_quantum_shift;
-  const int idx = SIZE2ORDER(qsize);
-
+  vmem_size_t qsize = size >> vm->vm_quantum_shift;
   assert(size != 0 && qsize != 0);
-  assert(idx >= 0);
-  assert(idx < VMEM_MAXORDER);
-
+  int idx = SIZE2ORDER(qsize);
+  assert(idx >= 0 && idx < VMEM_MAXORDER);
   return &vm->vm_freelist[idx];
 }
 
+/* Returns the freelist for the given size and allocation strategy.
+ *
+ * For VMEM_INSTANTFIT, returns the list in which any blocks are large enough.
+ * For VMEM_BESTFIT, returns the list which can have blocks large enough. */
 static vmem_freelist_t *bt_freehead_toalloc(vmem_t *vm, vmem_size_t size,
                                             vmem_flag_t strat) {
   assert((size & vm->vm_quantum_mask) == 0);
-  const vmem_size_t qsize = size >> vm->vm_quantum_shift;
-  int idx = SIZE2ORDER(qsize);
+  vmem_size_t qsize = size >> vm->vm_quantum_shift;
   assert(size != 0 && qsize != 0);
+  int idx = SIZE2ORDER(qsize);
   if (strat == VMEM_INSTANTFIT && ORDER2SIZE(idx) != qsize)
     idx++;
-  assert(idx >= 0);
-  assert(idx < VMEM_MAXORDER);
+  assert(idx >= 0 && idx < VMEM_MAXORDER);
   return &vm->vm_freelist[idx];
+}
+
+static void vmem_lock(vmem_t *vm) {
+  mtx_lock(&vm->vm_lock);
+}
+
+static void vmem_unlock(vmem_t *vm) {
+  mtx_unlock(&vm->vm_lock);
+}
+
+static void vmem_assert_locked(vmem_t *vm) {
+  assert(mtx_owned(&vm->vm_lock));
 }
 
 static bool bt_isspan(const bt_t *bt) {
@@ -90,28 +103,28 @@ static vmem_hashlist_t *bt_hashhead(vmem_t *vm, vmem_addr_t addr) {
 }
 
 static void bt_insfree(vmem_t *vm, bt_t *bt) {
+  assert(bt->bt_type == BT_TYPE_FREE);
   vmem_freelist_t *list = bt_freehead_tofree(vm, bt->bt_size);
-  LIST_INSERT_HEAD(list, bt, bt_freelist);
+  LIST_INSERT_HEAD(list, bt, bt_freelink);
 }
 
 static void bt_remfree(vmem_t *vm, bt_t *bt) {
-  assert(bt->bt_type == BT_TYPE_SPAN);
-  LIST_REMOVE(bt, bt_freelist);
+  assert(bt->bt_type == BT_TYPE_FREE);
+  LIST_REMOVE(bt, bt_freelink);
 }
 
 static void bt_insseg_tail(vmem_t *vm, bt_t *bt) {
-  TAILQ_INSERT_TAIL(&vm->vm_seglist, bt, bt_seglist);
+  TAILQ_INSERT_TAIL(&vm->vm_seglist, bt, bt_seglink);
 }
 
-static void bt_insseg(vmem_t *vm, bt_t *bt, bt_t *prev) {
-  TAILQ_INSERT_AFTER(&vm->vm_seglist, prev, bt, bt_seglist);
+static void bt_insseg_after(vmem_t *vm, bt_t *bt, bt_t *prev) {
+  TAILQ_INSERT_AFTER(&vm->vm_seglist, prev, bt, bt_seglink);
 }
 
 static void bt_insbusy(vmem_t *vm, bt_t *bt) {
   assert(bt->bt_type == BT_TYPE_BUSY);
-
   vmem_hashlist_t *list = bt_hashhead(vm, bt->bt_start);
-  LIST_INSERT_HEAD(list, bt, bt_hashlist);
+  LIST_INSERT_HEAD(list, bt, bt_hashlink);
   vm->vm_inuse += bt->bt_size;
 }
 
@@ -124,15 +137,15 @@ static vmem_addr_t vmem_alignup_addr(vmem_addr_t addr, vmem_size_t align) {
 }
 
 static void vmem_check_sanity(vmem_t *vm) {
-  const bt_t *bt1, *bt2;
+  vmem_assert_locked(vm);
 
-  assert(vm != NULL);
-
-  TAILQ_FOREACH (bt1, &vm->vm_seglist, bt_seglist)
+  const bt_t *bt1;
+  TAILQ_FOREACH (bt1, &vm->vm_seglist, bt_seglink)
     assert(bt1->bt_start <= bt_end(bt1));
 
-  TAILQ_FOREACH (bt1, &vm->vm_seglist, bt_seglist) {
-    TAILQ_FOREACH (bt2, &vm->vm_seglist, bt_seglist) {
+  const bt_t *bt2;
+  TAILQ_FOREACH (bt1, &vm->vm_seglist, bt_seglink) {
+    TAILQ_FOREACH (bt2, &vm->vm_seglist, bt_seglink) {
       if (bt1 == bt2)
         continue;
       if (bt_isspan(bt1) != bt_isspan(bt2))
@@ -140,6 +153,68 @@ static void vmem_check_sanity(vmem_t *vm) {
       assert(bt1->bt_start > bt_end(bt2) || bt2->bt_start > bt_end(bt1));
     }
   }
+}
+
+vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
+                    vmem_size_t quantum, vmem_flag_t flags) {
+  /* only NOSLEEP is currently supported */
+  assert(flags == VMEM_NOSLEEP);
+  assert(quantum > 0);
+
+  vmem_t *vm = pool_alloc(P_VMEM, PF_ZERO);
+
+  vm->vm_flags = flags;
+  vm->vm_quantum_mask = quantum - 1;
+  vm->vm_quantum_shift = SIZE2ORDER(quantum);
+  assert(ORDER2SIZE(vm->vm_quantum_shift) == quantum);
+  mtx_init(&vm->vm_lock, 0);
+  strlcpy(vm->vm_name, name, sizeof(vm->vm_name));
+
+  TAILQ_INIT(&vm->vm_seglist);
+  for (int i = 0; i < VMEM_MAXORDER; i++)
+    LIST_INIT(&vm->vm_freelist[i]);
+  for (int i = 0; i < VMEM_MAXHASH; i++)
+    LIST_INIT(&vm->vm_hashlist[i]);
+
+  if (size != 0 && vmem_add(vm, base, size, flags) != 0) {
+    klog("failed to create vmem '%s'", name);
+    vmem_destroy(vm);
+    return NULL;
+  }
+
+  WITH_MTX_LOCK (&vmem_alllist_lock)
+    LIST_INSERT_HEAD(&vmem_alllist, vm, vm_alllist_link);
+
+  klog("new vmem '%s' created", name);
+  return vm;
+}
+
+int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
+             vmem_flag_t flags) {
+  /* only NOSLEEP is currently supported */
+  assert(flags == VMEM_NOSLEEP);
+
+  bt_t *btspan = pool_alloc(P_BT, PF_ZERO);
+  bt_t *btfree = pool_alloc(P_BT, PF_ZERO);
+
+  btspan->bt_type = BT_TYPE_SPAN;
+  btspan->bt_start = addr;
+  btspan->bt_size = size;
+
+  btfree->bt_type = BT_TYPE_FREE;
+  btfree->bt_start = addr;
+  btfree->bt_size = size;
+
+  WITH_MTX_LOCK (&vm->vm_lock) {
+    bt_insseg_tail(vm, btspan);
+    bt_insseg_after(vm, btfree, btspan);
+    bt_insfree(vm, btfree);
+    vm->vm_size += size;
+  }
+
+  klog("span [%lu, %lu] added", addr, addr + size - 1);
+
+  return 0;
 }
 
 static int vmem_fit(const bt_t *bt, vmem_size_t size, vmem_size_t align,
@@ -156,7 +231,6 @@ static int vmem_fit(const bt_t *bt, vmem_size_t size, vmem_size_t align,
 
   if (start <= end && end >= start + size - 1) {
     assert((start & (align - 1)) == 0);
-    assert(start + size - 1 <= VMEM_ADDR_MAX);
     assert(bt->bt_start <= start);
     assert(bt_end(bt) >= start + size - 1);
     *addrp = start;
@@ -166,68 +240,9 @@ static int vmem_fit(const bt_t *bt, vmem_size_t size, vmem_size_t align,
   return ENOMEM;
 }
 
-vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
-                    vmem_size_t quantum, vmem_flag_t flags) {
-  klog("vmem_create(name=%s, base=%p, size=%lu, quantum=%lu, flags=%u)", name,
-       base, size, quantum, flags);
-  /* only NOSLEEP is currently supported */
-  assert(flags == VMEM_NOSLEEP);
-  assert(quantum > 0);
-
-  vmem_t *vm = pool_alloc(P_VMEM, PF_ZERO);
-  vm->vm_flags = flags;
-
-  vm->vm_quantum_mask = quantum - 1;
-  vm->vm_quantum_shift = SIZE2ORDER(quantum);
-  assert(ORDER2SIZE(vm->vm_quantum_shift) == quantum);
-
-  strlcpy(vm->vm_name, name, sizeof(vm->vm_name));
-
-  TAILQ_INIT(&vm->vm_seglist);
-  for (int i = 0; i < VMEM_MAXORDER; i++)
-    LIST_INIT(&vm->vm_freelist[i]);
-  for (int i = 0; i < VMEM_MAXHASH; i++)
-    LIST_INIT(&vm->vm_hashlist[i]);
-
-  LIST_INSERT_HEAD(&vmem_list, vm, vm_alllist);
-
-  /* TODO call vmem_add etc. */
-
-  return vm;
-}
-
-int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
-             vmem_flag_t flags) {
-  klog("vmem_add(vm=%p, addr=%lu, size=%lu, flags=%u)", vm, addr, size, flags);
-  /* only NOSLEEP is currently supported */
-  assert(flags == VMEM_NOSLEEP);
-
-  bt_t *btspan = pool_alloc(P_BT, PF_ZERO);
-  bt_t *btfree = pool_alloc(P_BT, PF_ZERO);
-  /* TODO should I check btspan or btfree for NULL? */
-
-  btspan->bt_type = BT_TYPE_SPAN;
-  btspan->bt_start = addr;
-  btspan->bt_size = size;
-
-  btfree->bt_type = BT_TYPE_FREE;
-  btfree->bt_start = addr;
-  btspan->bt_size = size;
-
-  bt_insseg_tail(vm, btspan);
-  bt_insseg(vm, btfree, btspan);
-  bt_insfree(vm, btfree);
-
-  vm->vm_size += size;
-
-  return 0;
-}
-
 int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_flag_t flags,
                vmem_addr_t *addrp) {
-  klog("vmem_alloc(vm=%p, size=%lu, flags=%u, addrp=%p)", vm, size, flags,
-       addrp);
-  const vmem_flag_t strat = flags & (VMEM_BESTFIT | VMEM_INSTANTFIT);
+  vmem_flag_t strat = flags & (VMEM_BESTFIT | VMEM_INSTANTFIT);
   /* only VMEM_INSTANTFIT is currently supported */
   assert(strat == VMEM_INSTANTFIT);
   assert(size > 0);
@@ -235,7 +250,7 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_flag_t flags,
   size = vmem_roundup_size(vm, size);
   assert(size > 0);
 
-  const vmem_size_t align = vm->vm_quantum_mask + 1;
+  vmem_size_t align = vm->vm_quantum_mask + 1;
 
   bt_t *btnew = pool_alloc(P_BT, PF_ZERO);
   bt_t *btnew2 = pool_alloc(P_BT, PF_ZERO);
@@ -244,8 +259,8 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_flag_t flags,
   vmem_freelist_t *end = &vm->vm_freelist[VMEM_MAXORDER];
   vmem_addr_t start;
 
+  vmem_lock(vm);
   vmem_check_sanity(vm);
-
   bt_t *bt = NULL;
   for (vmem_freelist_t *list = first; list < end; list++) {
     bt = LIST_FIRST(list);
@@ -255,15 +270,18 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_flag_t flags,
         goto gotit;
     }
   }
+  vmem_unlock(vm);
 
   pool_free(P_BT, btnew);
   pool_free(P_BT, btnew2);
+  klog("alloc of size %lu for vmem '%s' failed (ENOMEM)", size, vm->vm_name);
+  return ENOMEM;
 
 gotit:
   assert(bt->bt_size >= size);
-  vmem_check_sanity(vm);
-
   bt_remfree(vm, bt);
+
+  vmem_check_sanity(vm);
 
   if (bt->bt_start != start) {
     btnew2->bt_type = BT_TYPE_FREE;
@@ -272,7 +290,7 @@ gotit:
     bt->bt_start = start;
     bt->bt_size -= btnew2->bt_size;
     bt_insfree(vm, btnew2);
-    bt_insseg(vm, btnew2, TAILQ_PREV(bt, vmem_seglist, bt_seglist));
+    bt_insseg_after(vm, btnew2, TAILQ_PREV(bt, vmem_seglist, bt_seglink));
     btnew2 = NULL;
     vmem_check_sanity(vm);
   }
@@ -285,13 +303,15 @@ gotit:
     bt->bt_start = bt->bt_start + size;
     bt->bt_size -= size;
     bt_insfree(vm, bt);
-    bt_insseg(vm, btnew, TAILQ_PREV(bt, vmem_seglist, bt_seglist));
+    bt_insseg_after(vm, btnew, TAILQ_PREV(bt, vmem_seglist, bt_seglink));
     bt_insbusy(vm, btnew);
     vmem_check_sanity(vm);
+    vmem_unlock(vm);
   } else {
     bt->bt_type = BT_TYPE_BUSY;
     bt_insbusy(vm, bt);
     vmem_check_sanity(vm);
+    vmem_unlock(vm);
     pool_free(P_BT, btnew);
     btnew = bt;
   }
@@ -305,28 +325,14 @@ gotit:
   if (addrp != NULL)
     *addrp = btnew->bt_start;
 
+  klog("alloc of size %lu for vmem '%s' succeeded", size, vm->vm_name);
   return 0;
 }
 
 void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
-  klog("vmem_free(vm=%p, addr=%ld, size=%ld) had no effect", vm, addr, size);
+  klog("vmem_free(%p, %ld, %ld) had no effect", vm, addr, size);
 }
 
 void vmem_destroy(vmem_t *vm) {
-  klog("vmem_destroy(vm=%p)", vm);
-
-  LIST_REMOVE(vm, vm_alllist);
-
-  /* in NetBSD they only free vm_hashlist entries, asserting that all of them
-     are of span type */
-
-  for (int i = 0; i < VMEM_MAXHASH; i++) {
-    bt_t *bt;
-    while ((bt = LIST_FIRST(&vm->vm_hashlist[i])) != NULL) {
-      assert(bt->bt_type == BT_TYPE_SPAN);
-      pool_free(P_BT, bt);
-    }
-  }
-
-  pool_free(P_VMEM, vm);
+  klog("vmem_destroy(%p) had no effect", vm);
 }
