@@ -13,12 +13,8 @@ typedef struct vmem vmem_t;
 
 vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
                     vmem_size_t quantum, vmem_flag_t flags);
-
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, vmem_flag_t flags);
-
 int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_flag_t flags,
                vmem_addr_t *addrp);
-
 void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size);
-
 void vmem_destroy(vmem_t *vm);
