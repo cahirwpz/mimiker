@@ -85,10 +85,15 @@ if __name__ == '__main__':
     sim = QEMU()
     sim.configure(debug=args.debug, graphics=args.graphics, kernel=args.kernel,
                   initrd=args.initrd, args=args.args)
-
+    
     if args.debug:
         dbg = Debuggers[args.debugger]()
-        dbg.configure(kernel=args.kernel)
+        print(args.args) # extract init/test
+        # translate path
+        # check if file exists
+        load_symbol_cmd = f'add-symbol-file {host_os_path} 0x400000'
+        ex_cmds = [load_symbol_cmd]
+        dbg.configure(kernel=args.kernel, ex_commands=ex_cmds)
     else:
         dbg = None
 

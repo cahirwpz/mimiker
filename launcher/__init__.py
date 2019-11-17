@@ -114,7 +114,7 @@ class GDB(Launchable):
         # gdbtui & cgdb output is garbled if there is no delay
         self.cmd = 'sleep 0.25 && ' + self.cmd
 
-    def configure(self, kernel=''):
+    def configure(self, kernel='', ex_commands=[]):
         if self.name == 'gdb':
             self.options += ['-ex=set prompt \033[35;1m(gdb) \033[0m']
         self.options += [
@@ -124,6 +124,8 @@ class GDB(Launchable):
             '-ex=continue',
             '--silent',
             kernel]
+        for cmd in ex_commands:
+            self.options.append(f'-ex={cmd}')
 
 
 class GDBTUI(GDB):
