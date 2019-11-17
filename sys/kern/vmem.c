@@ -202,11 +202,8 @@ vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
   for (int i = 0; i < VMEM_MAXHASH; i++)
     LIST_INIT(&vm->vm_hashlist[i]);
 
-  if (size != 0 && vmem_add(vm, base, size, flags) != 0) {
-    klog("failed to create vmem '%s'", name);
-    vmem_destroy(vm);
-    return NULL;
-  }
+  if (size != 0)
+    vmem_add(vm, base, size, flags);
 
   WITH_MTX_LOCK (&vmem_alllist_lock)
     LIST_INSERT_HEAD(&vmem_alllist, vm, vm_alllist_link);
