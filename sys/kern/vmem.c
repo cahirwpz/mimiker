@@ -233,6 +233,7 @@ int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
     bt_insseg_after(vm, btfree, btspan);
     bt_insfree(vm, btfree);
     vm->vm_size += size;
+    vmem_check_sanity(vm);
   }
 
   klog("span [%lu, %lu] added", addr, addr + size - 1);
