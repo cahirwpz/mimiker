@@ -11,6 +11,11 @@ typedef unsigned int vmem_flag_t;
 
 typedef struct vmem vmem_t;
 
+/* The following interface is a simplified version of NetBSD's vmem interface.
+ * For documentation, please refer to VMEM(9), e.g. here:
+ * https://netbsd.gw.com/cgi-bin/man-cgi?vmem+9+NetBSD-current
+ */
+
 vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
                     vmem_size_t quantum, vmem_flag_t flags);
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, vmem_flag_t flags);
