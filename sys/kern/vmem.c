@@ -103,25 +103,30 @@ static vmem_hashlist_t *bt_hashhead(vmem_t *vm, vmem_addr_t addr) {
 }
 
 static void bt_insfree(vmem_t *vm, bt_t *bt) {
+  vmem_assert_locked(vm);
   assert(bt->bt_type == BT_TYPE_FREE);
   vmem_freelist_t *list = bt_freehead_tofree(vm, bt->bt_size);
   LIST_INSERT_HEAD(list, bt, bt_freelink);
 }
 
 static void bt_remfree(vmem_t *vm, bt_t *bt) {
+  vmem_assert_locked(vm);
   assert(bt->bt_type == BT_TYPE_FREE);
   LIST_REMOVE(bt, bt_freelink);
 }
 
 static void bt_insseg_tail(vmem_t *vm, bt_t *bt) {
+  vmem_assert_locked(vm);
   TAILQ_INSERT_TAIL(&vm->vm_seglist, bt, bt_seglink);
 }
 
 static void bt_insseg_after(vmem_t *vm, bt_t *bt, bt_t *prev) {
+  vmem_assert_locked(vm);
   TAILQ_INSERT_AFTER(&vm->vm_seglist, prev, bt, bt_seglink);
 }
 
 static void bt_insbusy(vmem_t *vm, bt_t *bt) {
+  vmem_assert_locked(vm);
   assert(bt->bt_type == BT_TYPE_BUSY);
   vmem_hashlist_t *list = bt_hashhead(vm, bt->bt_start);
   LIST_INSERT_HEAD(list, bt, bt_hashlink);
@@ -155,9 +160,30 @@ static void vmem_check_sanity(vmem_t *vm) {
   }
 }
 
+static int vmem_align_and_fit(const bt_t *bt, vmem_size_t size,
+                              vmem_size_t align, vmem_addr_t *addrp) {
+  assert(size > 0);
+  assert(bt->bt_type == BT_TYPE_FREE);
+  assert(bt->bt_size >= size); /* caller's responsibility */
+
+  vmem_addr_t start = bt->bt_start;
+  vmem_addr_t end = bt_end(bt);
+
+  vmem_addr_t start_aligned = vmem_alignup_addr(start, align);
+  assert(start_aligned >= start);
+  assert((start_aligned & (align - 1)) == 0);
+
+  if (start_aligned <= end && end - start_aligned >= size - 1) {
+    *addrp = start_aligned;
+    return 0;
+  }
+
+  return ENOMEM;
+}
+
 vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
                     vmem_size_t quantum, vmem_flag_t flags) {
-  /* only NOSLEEP is currently supported */
+  /* Only NOSLEEP is currently supported */
   assert(flags == VMEM_NOSLEEP);
   assert(quantum > 0);
 
@@ -191,7 +217,7 @@ vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
 
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
              vmem_flag_t flags) {
-  /* only NOSLEEP is currently supported */
+  /* Only NOSLEEP is currently supported */
   assert(flags == VMEM_NOSLEEP);
 
   bt_t *btspan = pool_alloc(P_BT, PF_ZERO);
@@ -217,33 +243,10 @@ int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
   return 0;
 }
 
-static int vmem_fit(const bt_t *bt, vmem_size_t size, vmem_size_t align,
-                    vmem_addr_t *addrp) {
-  assert(size > 0);
-  assert(bt->bt_size >= size); /* caller's responsibility */
-
-  vmem_addr_t start = bt->bt_start;
-  vmem_addr_t end = bt_end(bt);
-
-  start = vmem_alignup_addr(start, align);
-  if (start < bt->bt_start)
-    start += align;
-
-  if (start <= end && end >= start + size - 1) {
-    assert((start & (align - 1)) == 0);
-    assert(bt->bt_start <= start);
-    assert(bt_end(bt) >= start + size - 1);
-    *addrp = start;
-    return 0;
-  }
-
-  return ENOMEM;
-}
-
 int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_flag_t flags,
                vmem_addr_t *addrp) {
   vmem_flag_t strat = flags & (VMEM_BESTFIT | VMEM_INSTANTFIT);
-  /* only VMEM_INSTANTFIT is currently supported */
+  /* Only VMEM_INSTANTFIT is currently supported */
   assert(strat == VMEM_INSTANTFIT);
   assert(size > 0);
 
@@ -252,78 +255,85 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_flag_t flags,
 
   vmem_size_t align = vm->vm_quantum_mask + 1;
 
-  bt_t *btnew = pool_alloc(P_BT, PF_ZERO);
-  bt_t *btnew2 = pool_alloc(P_BT, PF_ZERO);
+  /* Allocate boundary tags before acquiring the vmem lock */
+  bt_t *btnew_prev = pool_alloc(P_BT, PF_ZERO);
+  bt_t *btnew_next = pool_alloc(P_BT, PF_ZERO);
 
   vmem_freelist_t *first = bt_freehead_toalloc(vm, size, strat);
   vmem_freelist_t *end = &vm->vm_freelist[VMEM_MAXORDER];
-  vmem_addr_t start;
 
   vmem_lock(vm);
   vmem_check_sanity(vm);
-  bt_t *bt = NULL;
+
+  bt_t *bt;
+  vmem_addr_t start;
+  bool found = false;
   for (vmem_freelist_t *list = first; list < end; list++) {
     bt = LIST_FIRST(list);
-    if (bt != NULL) {
-      int rc = vmem_fit(bt, size, align, &start);
-      if (rc == 0)
-        goto gotit;
+    if (bt != NULL && vmem_align_and_fit(bt, size, align, &start) == 0) {
+      found = true;
+      break;
     }
   }
-  vmem_unlock(vm);
 
-  pool_free(P_BT, btnew);
-  pool_free(P_BT, btnew2);
-  klog("alloc of size %lu for vmem '%s' failed (ENOMEM)", size, vm->vm_name);
-  return ENOMEM;
+  if (!found) {
+    vmem_unlock(vm);
+    pool_free(P_BT, btnew_prev);
+    pool_free(P_BT, btnew_next);
+    klog("alloc of size %lu for vmem '%s' failed (ENOMEM)", size, vm->vm_name);
+    return ENOMEM;
+  }
 
-gotit:
-  assert(bt->bt_size >= size);
   bt_remfree(vm, bt);
-
   vmem_check_sanity(vm);
 
   if (bt->bt_start != start) {
-    btnew2->bt_type = BT_TYPE_FREE;
-    btnew2->bt_start = bt->bt_start;
-    btnew2->bt_size = start - bt->bt_start;
+    /* Split [bt] into [btnew_prev | bt] */
+    btnew_prev->bt_type = BT_TYPE_FREE;
+    btnew_prev->bt_start = bt->bt_start;
+    btnew_prev->bt_size = start - bt->bt_start;
     bt->bt_start = start;
-    bt->bt_size -= btnew2->bt_size;
-    bt_insfree(vm, btnew2);
-    bt_insseg_after(vm, btnew2, TAILQ_PREV(bt, vmem_seglist, bt_seglink));
-    btnew2 = NULL;
+    bt->bt_size -= btnew_prev->bt_size;
+    bt_insfree(vm, btnew_prev);
+    bt_insseg_after(vm, btnew_prev, TAILQ_PREV(bt, vmem_seglist, bt_seglink));
+    /* Set btnew_prev to NULL so that it won't be deallocated after exiting
+     * from the vmem lock */
+    btnew_prev = NULL;
     vmem_check_sanity(vm);
   }
+
   assert(bt->bt_start == start);
   if (bt->bt_size != size && bt->bt_size - size > vm->vm_quantum_mask) {
-    /* split */
-    btnew->bt_type = BT_TYPE_BUSY;
-    btnew->bt_start = bt->bt_start;
-    btnew->bt_size = size;
-    bt->bt_start = bt->bt_start + size;
-    bt->bt_size -= size;
-    bt_insfree(vm, bt);
-    bt_insseg_after(vm, btnew, TAILQ_PREV(bt, vmem_seglist, bt_seglink));
-    bt_insbusy(vm, btnew);
-    vmem_check_sanity(vm);
-    vmem_unlock(vm);
+    /* Split [bt] into [bt | btnew_next] */
+    btnew_next->bt_type = BT_TYPE_FREE;
+    btnew_next->bt_start = bt->bt_start + size;
+    btnew_next->bt_size = bt->bt_size - size;
+    bt->bt_type = BT_TYPE_BUSY;
+    bt->bt_size = size;
+    bt_insfree(vm, btnew_next);
+    bt_insseg_after(vm, btnew_next, bt);
+    bt_insbusy(vm, bt);
+    /* Set btnew_next to NULL so that it won't be deallocated after exiting
+     * from the vmem lock */
+    btnew_next = NULL;
   } else {
     bt->bt_type = BT_TYPE_BUSY;
     bt_insbusy(vm, bt);
-    vmem_check_sanity(vm);
-    vmem_unlock(vm);
-    pool_free(P_BT, btnew);
-    btnew = bt;
-  }
-  if (btnew2 != NULL) {
-    pool_free(P_BT, btnew2);
   }
 
-  assert(btnew->bt_size >= size);
-  btnew->bt_type = BT_TYPE_BUSY;
+  vmem_check_sanity(vm);
+  vmem_unlock(vm);
+
+  if (btnew_prev != NULL)
+    pool_free(P_BT, btnew_prev);
+  if (btnew_next != NULL)
+    pool_free(P_BT, btnew_next);
+
+  assert(bt->bt_size >= size);
+  assert(bt->bt_type == BT_TYPE_BUSY);
 
   if (addrp != NULL)
-    *addrp = btnew->bt_start;
+    *addrp = bt->bt_start;
 
   klog("alloc of size %lu for vmem '%s' succeeded", size, vm->vm_name);
   return 0;
