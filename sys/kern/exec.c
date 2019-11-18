@@ -225,27 +225,26 @@ fail:
 }
 
 static int open_executable(const char *path, vnode_t **vn_p) {
-  nameidata_t nd;
-  nd.nd_vp = *vn_p;
+  vnode_t *vn = *vn_p;
   int error;
 
   klog("Loading program '%s'", path);
 
   /* Translate program name to vnode. */
-  if ((error = vfs_lookup(path, NAMEI_LOOKUP, &nd)))
+  if ((error = vfs_lookup(path, &vn)))
     return error;
 
   /* It must be a regular executable file with non-zero size. */
-  if (nd.nd_vp->v_type != V_REG)
+  if (vn->v_type != V_REG)
     return EACCES;
-  if ((error = VOP_ACCESS(nd.nd_vp, VEXEC)))
+  if ((error = VOP_ACCESS(vn, VEXEC)))
     return error;
 
   /* TODO Some checks are missing:
    * 1) Check if NOEXEC bit is set on the filesystem this file resides on.
    * 2) If file is opened for write then return ETXTBSY */
 
-  *vn_p = nd.nd_vp;
+  *vn_p = vn;
   return 0;
 }
 
