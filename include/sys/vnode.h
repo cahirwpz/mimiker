@@ -90,6 +90,7 @@ static inline bool is_mountpoint(vnode_t *v) {
 typedef struct vattr {
   mode_t va_mode;   /* files access mode and type */
   nlink_t va_nlink; /* number of references to file */
+  ino_t va_ino;     /* file id */
   uid_t va_uid;     /* owner user id */
   gid_t va_gid;     /* owner group id */
   size_t va_size;   /* file size in bytes */
