@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import shlex
 import os
 import os.path
 import subprocess
@@ -24,6 +25,9 @@ def TestRun(sim, uarts):
     for uart in reversed(uarts):
         uart.stop()
     sim.stop()
+
+def kernel_args_to_dict(args):
+    return dict(token.split('=', 1) for token in shlex.split(args))
 
 
 def DevelRun(sim, dbg, uarts):
@@ -85,14 +89,21 @@ if __name__ == '__main__':
     sim = QEMU()
     sim.configure(debug=args.debug, graphics=args.graphics, kernel=args.kernel,
                   initrd=args.initrd, args=args.args)
-    
+ 
     if args.debug:
         dbg = Debuggers[args.debugger]()
-        print(args.args) # extract init/test
-        # translate path
-        # check if file exists
-        load_symbol_cmd = f'add-symbol-file {host_os_path} 0x400000'
-        ex_cmds = [load_symbol_cmd]
+        kernel_args_dict = kernel_args_to_dict(' '.join(args.args))
+        if 'test' in kernel_args_dict:
+            host_path = 'bin/utest/utest.uelf'
+        elif 'init' in kernel_args_dict:
+            host_path = f"sysroot{kernel_args_dict['init']}.dbg"
+        else:
+            host_path = None
+
+        ex_cmds = []
+        if host_path is not None:
+            load_symbol_cmd = f'add-symbol-file {host_path} 0x400000'
+            ex_cmds.append(load_symbol_cmd)
         dbg.configure(kernel=args.kernel, ex_commands=ex_cmds)
     else:
         dbg = None
