@@ -32,16 +32,9 @@ typedef enum {
  * Encapsulation of lookup parameters.
  */
 typedef struct {
-  vnrop_t pc_nameiop;
-  uint32_t pc_flags;
-  const char *pc_nameptr;
-} pathcomponent_t;
-
-/* Results returned from lookup. */
-typedef struct {
-  vnode_t *vr_vp;  /* vnode of result */
-  vnode_t *vr_dvp; /* vnode of parent directory */
-} vnrresult_t;
+  uint32_t cn_flags;
+  const char *cn_nameptr;
+} componentname_t;
 
 /* Kernel interface */
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd);
@@ -77,8 +70,6 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep);
 
 /* Finds the vnode corresponding to the given path.
  * Increases use count on returned vnode. */
-int vfs_nameresolve(const char *pathname, vnrop_t op, vnrresult_t *vr);
-/* Wrapper of vfs_nameresolve. Performs simple file lookup. */
 int vfs_lookup(const char *path, vnode_t **vp);
 
 /* Looks up the vnode corresponding to the pathname and opens it into f. */
