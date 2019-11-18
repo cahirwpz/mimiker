@@ -18,7 +18,7 @@ static void mount_fs(void) {
 
 SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"));
 
-int kernel_init(void) {
+__noreturn void kernel_init(void) {
   sysinit();
   klog("Kernel initialized!");
 

@@ -1,7 +1,5 @@
 import gdb
 
-mimiker_current_p_elfpath = ''
-
 def get_p_elfpath():
         pcpu_data = gdb.newest_frame().read_var('_pcpu_data')
         curthread_ptr = pcpu_data.dereference()['curthread']
@@ -13,8 +11,11 @@ def get_p_elfpath():
         p_elfpath = proc_ptr.dereference()['p_elfpath']
         return p_elfpath
 
+def mimiker_path_to_host_path(p_elfpath):
+    return f'sysroot{p_elfpath}.dbg'
 
-def get_stop_handler(elves):
+
+def get_stop_handler():
 
     def stop_handler(event):
         user_elf_base_addr = 0x00400000
@@ -26,18 +27,15 @@ def get_stop_handler(elves):
         in_kernel_mode = pc >= kernel_base
 
         mimiker_path = get_p_elfpath()
+        print(mimiker_path)
 
         if mimiker_path == None:
             return
     
-        print(f'mimiker_path = {mimiker_path}')
         mimiker_path = str(mimiker_path).split(',', 1)[0][1:-1] 
-
-        try:
-            host_path = elves[mimiker_path]
-        except:
-            print(f'no {mimiker_path} in elves dict')
-            return
+        print(f'mimiker_path = {mimiker_path}')
+        host_path = mimiker_path_to_host_path(mimiker_path)
+        print(f'host_path = {host_path}')
 
         try:
             gdb.execute(

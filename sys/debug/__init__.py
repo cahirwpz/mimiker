@@ -8,8 +8,6 @@ from .proc import Kprocess, Process, CurrentProcess
 from .struct import TimeVal
 from .sync import CondVar, Mutex
 from .thread import Kthread, Thread, CurrentThread
-
-#from .event_handlers import stop_handler, UserReturnBP
 from .event_handlers import get_stop_handler
 
 
@@ -37,11 +35,5 @@ Ktrace()
 CurrentThread()
 CurrentProcess()
 
-elf_dict = {}
-with open('elf_files', 'r') as f:
-    for line in f:
-        mimiker, host = line.strip().split(':', 1)
-        elf_dict[mimiker] = host
-
 # Events
-gdb.events.stop.connect(get_stop_handler(elf_dict))
+gdb.events.stop.connect(get_stop_handler())

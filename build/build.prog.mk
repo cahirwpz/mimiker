@@ -32,8 +32,9 @@ $(PROGRAM).uelf: $(OBJECTS)
 $(SYSROOT)/bin/$(PROGRAM): $(PROGRAM).uelf
 	@echo "[INSTALL] $(DIR)$< -> /bin/$(PROGRAM)"
 	$(INSTALL) -D $(PROGRAM).uelf $(SYSROOT)/bin/$(PROGRAM)
-	# how to not append to this on every build?
-	# check if it exists?
-	echo "/bin/$(PROGRAM):$(TOPDIR)/$(DIR)$(PROGRAM).uelf" >> $(TOPDIR)/elf_files
+	@echo "[OBJCOPY] $(SYSROOT)/bin/$(PROGRAM) -> \
+		$(SYSROOT)/bin/$(PROGRAM).dbg"
+	$(OBJCOPY) --only-keep-debug $(SYSROOT)/bin/$(PROGRAM) \
+		$(SYSROOT)/bin/$(PROGRAM).dbg
 	@echo "[STRIP] /bin/$(PROGRAM)"
 	$(STRIP) --strip-all $(SYSROOT)/bin/$(PROGRAM)

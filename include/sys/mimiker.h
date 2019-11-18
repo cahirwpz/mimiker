@@ -1,7 +1,7 @@
 #ifndef _SYS_MIMIKER_H_
 #define _SYS_MIMIKER_H_
 
-/* Common definitions that may be used only in kerne source tree. */
+/* Common definitions that may be used only in kernel source tree. */
 
 #ifndef _KERNEL
 #error "<sys/mimiker.h> may be used only inside kernel source tree!"
@@ -15,7 +15,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 
-#define log2(x) (__builtin_ffs(x) - 1)
+#define log2(x) (CHAR_BIT * sizeof(unsigned long) - __builtin_clzl(x) - 1)
 #define ffs(x) (size_t)(__builtin_ffs(x))
 #define clz(x) (size_t)(__builtin_clz(x))
 #define ctz(x) (size_t)(__builtin_ctz(x))
@@ -129,5 +129,8 @@ void assert_fail(const char *expr, const char *file, unsigned int line);
 #else
 #define assert(expr)
 #endif
+
+/* Global definitions used throught kernel. */
+__noreturn void kernel_init(void);
 
 #endif /* !_SYS_MIMIKER_H_ */

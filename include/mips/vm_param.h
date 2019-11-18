@@ -4,6 +4,7 @@
 #include <mips/mips.h>
 
 #ifndef __ASSEMBLER__
+extern char __kernel_start[];
 extern char *__kernel_end;
 #endif /* __ASSEMBLER__ */
 

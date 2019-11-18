@@ -18,9 +18,6 @@ SECTIONS
   /* RAM is mapped in kseg0 (cacheable) and kseg1 (non-cacheable) */
   _ram = 0x80000000;
 
-  /* At the very bottom of physical address space allocate one page for stack */
-  _sp = _ram + 4096;
-
   .boot 0x80100000: AT(0x100000) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
