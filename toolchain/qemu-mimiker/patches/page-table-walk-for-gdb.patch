@@ -25,7 +25,7 @@ Index: qemu-mimiker/qemu-4.1.0/target/mips/helper.c
          }
          adetlb_mask <<= 8;
          /* fall through */
-@@ -523,18 +527,54 @@ static void raise_mmu_exception(CPUMIPSS
+@@ -523,18 +527,53 @@ static void raise_mmu_exception(CPUMIPSS
      env->error_code = error_code;
  }
  
@@ -46,7 +46,6 @@ Index: qemu-mimiker/qemu-4.1.0/target/mips/helper.c
 +    /* Setting EXL==3 just to allow GDB reading kernel memory while
 +     * on breakpoint in user-space. */
 +    int mem_idx = cpu_mmu_index(env, false);
-+    //int mem_idx = 3;
      int prot;
 +    debug_mode = 1;
  
