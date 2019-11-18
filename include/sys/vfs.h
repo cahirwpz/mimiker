@@ -12,6 +12,30 @@ typedef struct statfs statfs_t;
 typedef struct timeval timeval_t;
 typedef struct file file_t;
 
+/*
+ * vnr (vfs name resolver) is used to convert pathnames to file system vnodes
+ * and is loosely based on NetBSD's namei interface. You can find details in
+ * NAMEI(9).
+ */
+
+typedef enum {
+  VNR_LOOKUP = 0,
+  VNR_CREATE = 1,
+  VNR_DELETE = 2,
+  VNR_RENAME = 3,
+} vnrop_t;
+
+/* Path name component flags */
+#define VNR_ISLASTPC 0x00000001 /* this is last component of pathname */
+
+/*
+ * Encapsulation of lookup parameters.
+ */
+typedef struct {
+  uint32_t cn_flags;
+  const char *cn_nameptr;
+} componentname_t;
+
 /* Kernel interface */
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd);
 int do_close(proc_t *p, int fd);
@@ -46,7 +70,7 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep);
 
 /* Finds the vnode corresponding to the given path.
  * Increases use count on returned vnode. */
-int vfs_lookup(const char *pathname, vnode_t **vp);
+int vfs_lookup(const char *path, vnode_t **vp);
 
 /* Looks up the vnode corresponding to the pathname and opens it into f. */
 int vfs_open(file_t *f, char *pathname, int flags, int mode);

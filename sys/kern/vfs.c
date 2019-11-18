@@ -6,10 +6,24 @@
 #include <sys/pool.h>
 #include <sys/malloc.h>
 #include <sys/file.h>
+#include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/linker_set.h>
 #include <sys/sysinit.h>
 #include <sys/mimiker.h>
+
+/* Internal state for a vnr operation. */
+typedef struct {
+  /* Arguments to vnr. */
+  vnrop_t vs_op; /* vnr operation type */
+  const char *vs_path;
+
+  /* Results returned from lookup. */
+  vnode_t *vs_vp;  /* vnode of result */
+  vnode_t *vs_dvp; /* vnode of parent directory */
+
+  componentname_t vs_cn;
+} vnrstate_t;
 
 /* TODO: We probably need some fancier allocation, since eventually we should
  * start recycling vnodes */
@@ -173,65 +187,141 @@ static int vfs_maybe_descend(vnode_t **vp) {
   return 0;
 }
 
-int vfs_lookup(const char *path, vnode_t **vp) {
+/* Call VOP_LOOKUP for a single lookup. */
+static int vnr_lookup_once(vnrstate_t *state, vnode_t *searchdir,
+                           vnode_t **foundvn_p) {
+  vnode_t *foundvn;
+  componentname_t *cn = &state->vs_cn;
+  int error = VOP_LOOKUP(searchdir, cn->cn_nameptr, &foundvn);
+  if (error) {
+    /*
+     * The entry was not found in the directory. This is valid
+     * if we are creating an entry and are working
+     * on the last component of the path name.
+     */
+    if (error == ENOENT && state->vs_op == VNR_CREATE &&
+        cn->cn_flags & VNR_ISLASTPC) {
+      foundvn = NULL;
+      error = 0;
+    }
+  } else {
+    /* No need to ref this vnode, VOP_LOOKUP already did it for us. */
+    vnode_lock(foundvn);
+    vfs_maybe_descend(&foundvn);
+  }
+
+  *foundvn_p = foundvn;
+  return error;
+}
+
+static int vfs_nameresolve(vnrstate_t *state) {
   /* TODO: This is a simplified implementation, and it does not support many
      required features! These include: relative paths, symlinks, parent dirs */
   int error;
+  vnode_t *searchdir, *foundvn;
+  componentname_t *cn = &state->vs_cn;
 
-  if (path[0] == '\0')
+  if (state->vs_path[0] == '\0')
     return ENOENT;
 
-  if (strncmp(path, "/", 1) != 0) {
+  if (strncmp(state->vs_path, "/", 1) != 0) {
     klog("Relative paths are not supported!");
     return ENOENT;
   }
 
-  vnode_t *v = vfs_root_vnode;
   /* Skip leading '/' */
-  path = path + 1;
+  state->vs_path++;
 
   /* Copy path into a local buffer, so that we may process it. */
-  size_t n = strlen(path);
+  size_t n = strlen(state->vs_path);
   if (n >= PATH_MAX)
     return ENAMETOOLONG;
   char *pathcopy = kmalloc(M_TEMP, PATH_MAX, 0);
-  strlcpy(pathcopy, path, PATH_MAX);
+  strlcpy(pathcopy, state->vs_path, PATH_MAX);
   char *pathbuf = pathcopy;
-  const char *component;
 
-  vnode_hold(v);
-  vnode_lock(v);
+  /* Establish the starting directory for lookup, and lock it. */
+  searchdir = vfs_root_vnode;
+  if (searchdir->v_type != V_DIR)
+    return ENOTDIR;
 
-  if ((error = vfs_maybe_descend(&v)))
+  vnode_hold(searchdir);
+  vnode_lock(searchdir);
+
+  if ((error = vfs_maybe_descend(&searchdir)))
     goto end;
 
-  while ((component = strsep(&pathbuf, "/")) != NULL) {
-    if (component[0] == '\0')
-      continue;
-
-    /* Look up the child vnode */
-    vnode_t *v_child;
-    error = VOP_LOOKUP(v, component, &v_child);
-    /* TODO: Check access to child, to verify we can continue with lookup. */
-    vnode_unlock(v);
-    vnode_drop(v);
-    if (error)
-      goto end;
-    v = v_child;
-    /* No need to ref this vnode, VFS_LOOKUP already did it for us. */
-    vnode_lock(v);
-
-    if ((error = vfs_maybe_descend(&v)))
-      goto end;
+  /* Path was just "/". */
+  if (pathbuf[0] == '\0') {
+    foundvn = searchdir;
+    searchdir = NULL;
   }
 
-  vnode_unlock(v);
-  *vp = v;
+  while (searchdir) {
+    assert(*pathbuf != '/');
+    assert(*pathbuf != '\0');
 
+    /* Prepare the next path name component. */
+    cn->cn_nameptr = strsep(&pathbuf, "/");
+
+    while (pathbuf != NULL && *pathbuf == '/')
+      pathbuf++;
+
+    if (pathbuf == NULL || *pathbuf == '\0')
+      cn->cn_flags |= VNR_ISLASTPC;
+
+    /* Look up the child vnode */
+    foundvn = NULL;
+    error = vnr_lookup_once(state, searchdir, &foundvn);
+    if (error) {
+      vnode_unlock(searchdir);
+      vnode_drop(searchdir);
+      goto end;
+    }
+    /* Success with no object returned means we're creating something. */
+    if (foundvn == NULL)
+      break;
+
+    if (cn->cn_flags & VNR_ISLASTPC)
+      break;
+
+    /* TODO: Check access to child, to verify we can continue with lookup. */
+    vnode_unlock(searchdir);
+    vnode_drop(searchdir);
+    searchdir = foundvn;
+  }
+
+  if (foundvn != NULL)
+    vnode_unlock(foundvn);
+
+  /* Release the parent directory if is not needed. */
+  if (state->vs_op != VNR_CREATE && searchdir != NULL) {
+    if (searchdir != foundvn)
+      vnode_unlock(searchdir);
+    vnode_drop(searchdir);
+    searchdir = NULL;
+  }
+
+  state->vs_vp = foundvn;
+  state->vs_dvp = searchdir;
   error = 0;
 
 end:
   kfree(M_TEMP, pathcopy);
+  return error;
+}
+
+static void vnrstate_init(vnrstate_t *vs, vnrop_t op, const char *path) {
+  vs->vs_op = op;
+  vs->vs_path = path;
+  vs->vs_cn.cn_flags = 0;
+}
+
+int vfs_lookup(const char *path, vnode_t **vp) {
+  vnrstate_t vs;
+  vnrstate_init(&vs, VNR_LOOKUP, path);
+  int error = vfs_nameresolve(&vs);
+  *vp = vs.vs_vp;
   return error;
 }
 
