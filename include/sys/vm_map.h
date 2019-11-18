@@ -6,6 +6,8 @@
 #include <sys/vm.h>
 #include <sys/mutex.h>
 
+void vm_map_bootstrap(void);
+
 /*! \brief Acquire vm_map non-recursive mutex. */
 void vm_map_lock(vm_map_t *map);
 
@@ -19,8 +21,6 @@ DEFINE_CLEANUP_FUNCTION(vm_map_t *, vm_map_unlock);
 
 #define SCOPED_VM_MAP_LOCK(map)                                                \
   SCOPED_STMT(vm_map_t, vm_map_lock, CLEANUP_FUNCTION(vm_map_unlock), map)
-
-void vm_map_init(void);
 
 void vm_map_activate(vm_map_t *map);
 

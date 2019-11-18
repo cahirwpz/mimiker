@@ -5,7 +5,6 @@
 
 #include "assym.h"
 
-        .set noreorder
         .section .boot, "ax"
 
 # Boot environment is described in MIPS® YAMON™ User's Manual, Chapter 5
@@ -21,10 +20,8 @@
 #
 # C0_STATUS is same as YAMON™ context, but interrupts are disabled.
 
+# We're running on stack provided by the boot loader.
 LEAF(_start)
-        # Use stack pointer provided by linker script
-        LA      sp, _sp
-
         # Load global pointer to make data section addressing possible
         LA      gp, _gp
 
@@ -35,24 +32,19 @@ LEAF(_start)
         move    s3, a3
 
         jal     mips_init
-        nop
 
-        # Restore kernel arguments and initialize the platform
+        # From this point kernel sections are accessible through kseg2!
         move    a0, s0
         move    a1, s1
         move    a2, s2
         move    a3, s3
 
-        la      t0, platform_init
+        LA      t0, platform_stack
         jalr    t0
-        nop
+        move    sp, v0                  # Set thread0 stack 
 
-        # Switch to kernel main thread
-        LOAD_PCPU(t0)
-        PTR_L   a1, PCPU_CURTHREAD(t0)
-        la      t0, ctx_switch
-        jalr    t0
-        move    a0, zero                # (delay) 1st arg
+        LA      t0, platform_init
+        jr      t0
 END(_start)
 
 # vim: sw=8 ts=8 et

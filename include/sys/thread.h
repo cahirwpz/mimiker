@@ -133,6 +133,9 @@ typedef struct thread {
 
 thread_t *thread_self(void);
 
+/*! \brief Initialize first thread in the system. */
+void thread_bootstrap(kstack_t *stack0);
+
 /*! \brief Create a thread.
  *
  * Create a thread with given @name and priority @prio. The thread will execute
