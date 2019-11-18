@@ -191,31 +191,36 @@ static ino_t initrd_enum_inodes(cpio_node_t *parent, ino_t ino) {
   return ino;
 }
 
+static vnode_t *vnode_of_cpio_node(cpio_node_t *cn) {
+  if (!cn->c_vnode) {
+    vnodetype_t type = V_REG;
+    if (CMTOFT(cn->c_mode) == C_DIR)
+      type = V_DIR;
+
+    cn->c_vnode = vnode_new(type, &initrd_vops, cn);
+  }
+
+  vnode_hold(cn->c_vnode);
+  return cn->c_vnode;
+}
+
 static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
   cpio_node_t *it;
   cpio_node_t *cn_dir = (cpio_node_t *)vdir->v_data;
 
   TAILQ_FOREACH (it, &cn_dir->c_children, c_siblings) {
     if (strcmp(name, it->c_name) == 0) {
-      if (it->c_vnode) {
-        *res = it->c_vnode;
-      } else {
-        /* Create new vnode */
-        vnodetype_t type = V_REG;
-        if (CMTOFT(it->c_mode) == C_DIR)
-          type = V_DIR;
-        *res = vnode_new(type, &initrd_vops, it);
-
-        /* TODO: Only store a token (weak pointer) that allows looking up the
-           vnode, otherwise the vnode will never get freed. */
-        it->c_vnode = *res;
-        vnode_hold(*res);
-      }
-      /* Reference for the caller */
-      vnode_hold(*res);
+      *res = vnode_of_cpio_node(it);
       return 0;
     }
   }
+
+  if (strcmp(name, "..") == 0 && cn_dir->c_parent) {
+    it = cn_dir->c_parent;
+    *res = vnode_of_cpio_node(it);
+    return 0;
+  }
+
   return ENOENT;
 }
 
@@ -228,6 +233,7 @@ static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
   cpio_node_t *cn = (cpio_node_t *)v->v_data;
   va->va_mode = cn->c_mode;
   va->va_nlink = cn->c_nlink;
+  va->va_ino = cn->c_ino;
   va->va_uid = cn->c_uid;
   va->va_gid = cn->c_gid;
   va->va_size = cn->c_size;
@@ -299,6 +305,7 @@ static int initrd_root(mount_t *m, vnode_t **v) {
 static int initrd_mount(mount_t *m) {
   vnode_t *root = vnode_new(V_DIR, &initrd_vops, root_node);
   root->v_mount = m;
+  root_node->c_vnode = root;
   m->mnt_data = root;
   return 0;
 }
