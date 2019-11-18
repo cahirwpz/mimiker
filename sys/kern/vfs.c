@@ -208,7 +208,7 @@ int vfs_nameresolve(const char *path, vnrop_t op, vnrresult_t *vr) {
      required features! These include: relative paths, symlinks, parent dirs */
   int error;
   vnode_t *searchdir, *foundobj;
-  
+
   if (path[0] == '\0')
     return ENOENT;
 

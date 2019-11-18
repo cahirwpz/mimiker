@@ -13,8 +13,9 @@ typedef struct timeval timeval_t;
 typedef struct file file_t;
 
 /*
- * vnr (vfs name resolver) is used to convert pathnames to file system vnodes and 
- * is loosely based on NetBSD's namei interface. You can find details in NAMEI(9).
+ * vnr (vfs name resolver) is used to convert pathnames to file system vnodes
+ * and is loosely based on NetBSD's namei interface. You can find details in
+ * NAMEI(9).
  */
 
 typedef enum {
