@@ -11,14 +11,15 @@ klog_t klog;
 static spin_t klog_lock = SPIN_INITIALIZER(LK_RECURSE);
 
 static const char *subsystems[] = {
-  [KL_RUNQ] = "runq",   [KL_SLEEPQ] = "sleepq",   [KL_CALLOUT] = "callout",
-  [KL_INIT] = "init",   [KL_PMAP] = "pmap",       [KL_VM] = "vm",
-  [KL_KMEM] = "kmem",   [KL_POOL] = "pool",       [KL_LOCK] = "lock",
-  [KL_SCHED] = "sched", [KL_THREAD] = "thread",   [KL_INTR] = "intr",
-  [KL_DEV] = "dev",     [KL_VFS] = "vfs",         [KL_VNODE] = "vnode",
-  [KL_PROC] = "proc",   [KL_SYSCALL] = "syscall", [KL_USER] = "user",
-  [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_FILESYS] = "filesys",
-  [KL_TIME] = "time",   [KL_FILE] = "file",       [KL_UNDEF] = "???"};
+  [KL_RUNQ] = "runq",       [KL_SLEEPQ] = "sleepq", [KL_CALLOUT] = "callout",
+  [KL_INIT] = "init",       [KL_PMAP] = "pmap",     [KL_VM] = "vm",
+  [KL_KMEM] = "kmem",       [KL_VMEM] = "vmem",     [KL_POOL] = "pool",
+  [KL_LOCK] = "lock",       [KL_SCHED] = "sched",   [KL_THREAD] = "thread",
+  [KL_INTR] = "intr",       [KL_DEV] = "dev",       [KL_VFS] = "vfs",
+  [KL_VNODE] = "vnode",     [KL_PROC] = "proc",     [KL_SYSCALL] = "syscall",
+  [KL_USER] = "user",       [KL_TEST] = "test",     [KL_SIGNAL] = "signal",
+  [KL_FILESYS] = "filesys", [KL_TIME] = "time",     [KL_FILE] = "file",
+  [KL_UNDEF] = "???"};
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(char *key);
