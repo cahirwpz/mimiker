@@ -16,6 +16,8 @@
 #define ORDER2SIZE(order) ((vmem_size_t)1 << (order))
 #define SIZE2ORDER(size) ((int)log2(size))
 
+#define VMEM_ASSERT_LOCKED(vm) assert(mtx_owned(&(vm)->vm_lock))
+
 typedef TAILQ_HEAD(vmem_seglist, bt) vmem_seglist_t;
 typedef LIST_HEAD(vmem_freelist, bt) vmem_freelist_t;
 typedef LIST_HEAD(vmem_hashlist, bt) vmem_hashlist_t;
@@ -83,10 +85,6 @@ static void vmem_unlock(vmem_t *vm) {
   mtx_unlock(&vm->vm_lock);
 }
 
-static void vmem_assert_locked(vmem_t *vm) {
-  assert(mtx_owned(&vm->vm_lock));
-}
-
 static bool bt_isspan(const bt_t *bt) {
   return bt->bt_type == BT_TYPE_SPAN;
 }
@@ -101,30 +99,30 @@ static vmem_hashlist_t *bt_hashhead(vmem_t *vm, vmem_addr_t addr) {
 }
 
 static void bt_insfree(vmem_t *vm, bt_t *bt) {
-  vmem_assert_locked(vm);
+  VMEM_ASSERT_LOCKED(vm);
   assert(bt->bt_type == BT_TYPE_FREE);
   vmem_freelist_t *list = bt_freehead_tofree(vm, bt->bt_size);
   LIST_INSERT_HEAD(list, bt, bt_freelink);
 }
 
 static void bt_remfree(vmem_t *vm, bt_t *bt) {
-  vmem_assert_locked(vm);
+  VMEM_ASSERT_LOCKED(vm);
   assert(bt->bt_type == BT_TYPE_FREE);
   LIST_REMOVE(bt, bt_freelink);
 }
 
 static void bt_insseg_tail(vmem_t *vm, bt_t *bt) {
-  vmem_assert_locked(vm);
+  VMEM_ASSERT_LOCKED(vm);
   TAILQ_INSERT_TAIL(&vm->vm_seglist, bt, bt_seglink);
 }
 
 static void bt_insseg_after(vmem_t *vm, bt_t *bt, bt_t *prev) {
-  vmem_assert_locked(vm);
+  VMEM_ASSERT_LOCKED(vm);
   TAILQ_INSERT_AFTER(&vm->vm_seglist, prev, bt, bt_seglink);
 }
 
 static void bt_insbusy(vmem_t *vm, bt_t *bt) {
-  vmem_assert_locked(vm);
+  VMEM_ASSERT_LOCKED(vm);
   assert(bt->bt_type == BT_TYPE_BUSY);
   vmem_hashlist_t *list = bt_hashhead(vm, bt->bt_start);
   LIST_INSERT_HEAD(list, bt, bt_hashlink);
@@ -140,7 +138,7 @@ static vmem_addr_t vmem_alignup_addr(vmem_addr_t addr, vmem_size_t align) {
 }
 
 static void vmem_check_sanity(vmem_t *vm) {
-  vmem_assert_locked(vm);
+  VMEM_ASSERT_LOCKED(vm);
 
   const bt_t *bt1;
   TAILQ_FOREACH (bt1, &vm->vm_seglist, bt_seglink)
