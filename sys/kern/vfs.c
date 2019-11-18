@@ -192,8 +192,7 @@ static int vnr_lookup_once(vnrstate_t *state, vnode_t *searchdir,
                            vnode_t **foundvn_p) {
   vnode_t *foundvn;
   componentname_t *cn = &state->vs_cn;
-  int error;
-  error = VOP_LOOKUP(searchdir, cn->cn_nameptr, &foundvn);
+  int error = VOP_LOOKUP(searchdir, cn->cn_nameptr, &foundvn);
   if (error) {
     /*
      * The entry was not found in the directory. This is valid
@@ -205,14 +204,12 @@ static int vnr_lookup_once(vnrstate_t *state, vnode_t *searchdir,
       foundvn = NULL;
       error = 0;
     }
-
-    goto done;
+  } else {
+    /* No need to ref this vnode, VOP_LOOKUP already did it for us. */
+    vnode_lock(foundvn);
+    vfs_maybe_descend(&foundvn);
   }
-  /* No need to ref this vnode, VFS_LOOKUP already did it for us. */
-  vnode_lock(foundvn);
-  vfs_maybe_descend(&foundvn);
 
-done:
   *foundvn_p = foundvn;
   return error;
 }
@@ -233,7 +230,7 @@ static int vfs_nameresolve(vnrstate_t *state) {
   }
 
   /* Skip leading '/' */
-  state->vs_path = state->vs_path + 1;
+  state->vs_path++;
 
   /* Copy path into a local buffer, so that we may process it. */
   size_t n = strlen(state->vs_path);
@@ -258,10 +255,9 @@ static int vfs_nameresolve(vnrstate_t *state) {
   if (pathbuf[0] == '\0') {
     foundvn = searchdir;
     searchdir = NULL;
-    goto endloop;
   }
 
-  while (1) {
+  while (searchdir) {
     assert(*pathbuf != '/');
     assert(*pathbuf != '\0');
 
@@ -295,17 +291,13 @@ static int vfs_nameresolve(vnrstate_t *state) {
     searchdir = foundvn;
   }
 
-endloop:
-
-  if (foundvn != NULL) {
+  if (foundvn != NULL)
     vnode_unlock(foundvn);
-  }
 
-  // Release the parent directory if is not needed.
+  /* Release the parent directory if is not needed. */
   if (state->vs_op != VNR_CREATE && searchdir != NULL) {
-    if (searchdir != foundvn) {
+    if (searchdir != foundvn)
       vnode_unlock(searchdir);
-    }
     vnode_drop(searchdir);
     searchdir = NULL;
   }
