@@ -118,14 +118,18 @@ class GDB(Launchable):
         if self.name == 'gdb':
             self.options += ['-ex=set prompt \033[35;1m(gdb) \033[0m']
         self.options += [
+            '-n',
+            '-ex=set confirm no',
             '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
             '-ex=set tcp connect-timeout 30',
             '-ex=target remote localhost:{}'.format(gdb_port()),
-            '-ex=continue',
             '--silent',
-            kernel]
-        for cmd in ex_commands:
-            self.options.append(f'-ex={cmd}')
+            *map(lambda x: f'-ex={x}', ex_commands),
+            '-ex=set confirm yes',
+            '-ex=source .gdbinit',
+            '-ex=continue',
+            kernel,
+        ]
 
 
 class GDBTUI(GDB):
