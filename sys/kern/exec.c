@@ -339,10 +339,6 @@ static int _do_execve(exec_args_t *args) {
     use_interpreter = true;
   }
 
-  // chcemy miec w p_elfpath interpreter czy sciezke
-  // na czym bedzie wolany interpreter?
-  // chyba chcemy interpreter
-
   Elf_Ehdr eh;
   if ((error = exec_elf_inspect(vn, &eh)))
     return error;
@@ -368,10 +364,8 @@ static int _do_execve(exec_args_t *args) {
   destroy_vmspace(&saved);
 
   vm_map_dump(p->p_uspace);
-  //chyba ze strlcpy kompuje razem z \0
-  bzero(p->p_elfpath, 128);
   strlcpy(p->p_elfpath, prog, 128);
-  // what to do when err or p_elfpath > 128?
+  // TODO what to do when err or p_elfpath > 128?
 
   klog("Enter userspace with: pc=%p, sp=%p", eh.e_entry, stack_top);
   return EJUSTRETURN;
