@@ -3,7 +3,7 @@ Index: qemu-mimiker/qemu-4.1.0/target/mips/helper.c
 ===================================================================
 --- qemu-mimiker.orig/qemu-4.1.0/target/mips/helper.c
 +++ qemu-mimiker/qemu-4.1.0/target/mips/helper.c
-@@ -523,16 +523,41 @@ static void raise_mmu_exception(CPUMIPSS
+@@ -523,16 +523,47 @@ static void raise_mmu_exception(CPUMIPSS
      env->error_code = error_code;
  }
  
@@ -21,7 +21,9 @@ Index: qemu-mimiker/qemu-4.1.0/target/mips/helper.c
      MIPSCPU *cpu = MIPS_CPU(cs);
      CPUMIPSState *env = &cpu->env;
      hwaddr phys_addr;
-+    int mem_idx = cpu_mmu_index(env, false);
++    /* Configure MMU as if we were in kernel mode.
++     * This way debugger can access kernel memory while being in user-space. */
++    int mem_idx = MIPS_HFLAG_KM;
      int prot;
  
      if (get_physical_address(env, &phys_addr, &prot, addr, 0, ACCESS_INT,
@@ -35,14 +37,18 @@ Index: qemu-mimiker/qemu-4.1.0/target/mips/helper.c
 +            uint32_t pde, pte;
 +            cpu_physical_memory_read(pde_addr, (void *)&pde, sizeof(pde));
 +            if (!VALID(pde))
-+              return -1;
++              goto invalid;
 +            hwaddr pte_addr = PHYSADDR(pde) + PT_INDEX(addr);
 +            cpu_physical_memory_read(pte_addr, (void *)&pte, sizeof(pte));
 +            if (!VALID(pte))
-+              return -1;
++              goto invalid;
 +            return PHYSADDR(pte) + PG_OFFSET(addr);
 +        }
 +
++invalid:
++        qemu_log_mask(CPU_LOG_MMU,
++                      "%s: could not translate address %" VADDR_PRIx "\n",
++                      __func__, addr);
          return -1;
      }
      return phys_addr;

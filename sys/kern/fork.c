@@ -14,7 +14,13 @@ int do_fork(pid_t *cldpidp) {
   /* Cannot fork non-user threads. */
   assert(parent);
 
-  thread_t *newtd = thread_create(td->td_name, NULL, NULL, td->td_base_prio);
+  /* The new thread will get a new kernel stack. There is no need to copy
+   * it from the old one as its contents will get discarded anyway.
+   * We just prepare the thread's kernel context to a fresh one so that it will
+   * continue execution starting from user_exc_leave (which serves as
+   * fork_trampoline). */
+  thread_t *newtd = thread_create(td->td_name, (entry_fn_t)user_exc_leave, NULL,
+                                  td->td_base_prio);
 
   /* Clone the thread. Since we don't use fork-oriented thread_t layout, we copy
      all necessary fields one-by one for clarity. The new thread is already on
@@ -28,12 +34,6 @@ int do_fork(pid_t *cldpidp) {
   /* New thread does not need the exception frame just yet. */
   newtd->td_kframe = NULL;
   newtd->td_onfault = 0;
-
-  /* The new thread already has a new kernel stack allocated. There is no need
-     to copy its contents, it will be discarded anyway. We just prepare the
-     thread's kernel context to a fresh one so that it will continue execution
-     starting from user_exc_leave (which serves as fork_trampoline). */
-  thread_entry_setup(newtd, (entry_fn_t)user_exc_leave, NULL);
 
   newtd->td_wchan = NULL;
   newtd->td_waitpt = NULL;

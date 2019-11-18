@@ -8,6 +8,7 @@
 
 /* Borrowed from mips/malta.c */
 char *kenv_get(const char *key);
+char **kenv_get_init(void);
 
 int kmain(void) {
   char *init = kenv_get("init");
@@ -17,7 +18,7 @@ int kmain(void) {
   proc_add(proc_create(thread_self(), NULL));
 
   if (init) {
-    run_program(init, (char *[]){init, NULL}, (char *[]){NULL});
+    run_program(init, kenv_get_init(), (char *[]){NULL});
   } else if (test) {
     ktest_main(test);
   } else {
