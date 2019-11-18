@@ -95,7 +95,7 @@ user_exc_leave:
         # Disable interrupts and extract interrupt mask into t1.
         di      t1
         ehb
-        ext     t1, SR_IMASK_SHIFT, SR_IMASK_BITS
+        ext     t1, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
 
         # Set current stack pointer to user exception frame.
         # This is crucial on first entry to user-space for this thread.
@@ -186,7 +186,7 @@ kern_exc_leave:
         # Disable interrupts and extract interrupt mask into t1.
         di      t1
         ehb
-        ext     t1, SR_IMASK_SHIFT, SR_IMASK_BITS
+        ext     t1, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
 
         # Load status register from exception frame and update it with current
         # interrupt mask.
