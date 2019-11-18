@@ -76,7 +76,7 @@ ctx_resume:
 
         # restore status register with updated interrupt mask
         mfc0    t1, C0_SR
-        ext     t1, SR_IMASK_SHIFT, SR_IMASK_BITS
+        ext     t1, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
         ins     t0, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
         mtc0    t0, C0_SR
 

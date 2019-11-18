@@ -67,7 +67,13 @@
 #define __restrict restrict
 #define __long_call __attribute__((long_call))
 #define __transparent_union __attribute__((__transparent_union__))
+
+/* Clang introduces support for the fallthrough attribute in C2x. */
+#ifdef __clang__
+#define __fallthrough
+#else
 #define __fallthrough __attribute__((fallthrough))
+#endif
 
 /*
  * Compiler-dependent macros to declare that functions take printf-like

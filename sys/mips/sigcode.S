@@ -10,8 +10,8 @@ LEAF_NOPROFILE(sigcode)
         # just in case sigreturn fails
         j 0     # TODO: replace with "break 0" when SIGTRAP is implemented
 
-# Not an alternative entry. Used just to compute size of this code.
-XLEAF(esigcode)
+# esigcode is used just to compute size of this code.
+EXPORT(esigcode)
 END(sigcode)
 
 # vim: sw=8 ts=8 et
