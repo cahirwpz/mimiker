@@ -24,7 +24,8 @@ usr.bin-before: lib-install
 initrd.cpio: bin-install
 	@echo "[INITRD] Building $@..."
 	cd sysroot && \
-	  find -depth -print | sort | $(CPIO) -o -F ../$@ 2> /dev/null
+	  find -depth \( ! -name "*.dbg" -and -print \) | sort | \
+	    $(CPIO) -o -F ../$@ 2> /dev/null
 
 INSTALL-FILES += initrd.cpio
 CLEAN-FILES += initrd.cpio
