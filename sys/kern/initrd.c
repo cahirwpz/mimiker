@@ -191,17 +191,17 @@ static ino_t initrd_enum_inodes(cpio_node_t *parent, ino_t ino) {
   return ino;
 }
 
-static vnode_t *vnode_of_cpio_node(cpio_node_t *cpio_node) {
-  if (!cpio_node->c_vnode) {
+static vnode_t *vnode_of_cpio_node(cpio_node_t *cn) {
+  if (!cn->c_vnode) {
     vnodetype_t type = V_REG;
-    if (CMTOFT(cpio_node->c_mode) == C_DIR)
+    if (CMTOFT(cn->c_mode) == C_DIR)
       type = V_DIR;
 
-    cpio_node->c_vnode = vnode_new(type, &initrd_vops, cpio_node);
+    cn->c_vnode = vnode_new(type, &initrd_vops, cn);
   }
 
-  vnode_hold(cpio_node->c_vnode);
-  return cpio_node->c_vnode;
+  vnode_hold(cn->c_vnode);
+  return cn->c_vnode;
 }
 
 static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
