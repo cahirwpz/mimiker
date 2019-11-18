@@ -46,6 +46,10 @@ build-here: patch
 install-here:
 	@echo "[INSTALL] /bin/lua"
 	$(INSTALL) -m 755 lua-5.3.5/src/lua $(SYSROOT)/bin/lua
+	@echo "[OBJCOPY] $(SYSROOT)/bin/lua -> \
+		$(SYSROOT)/bin/lua.dbg"
+	$(OBJCOPY) --only-keep-debug $(SYSROOT)/bin/lua \
+		$(SYSROOT)/bin/lua.dbg
 	@echo "[STRIP] /bin/lua"
 	$(STRIP) --strip-all $(SYSROOT)/bin/lua
 	@echo "[INSTALL] /lib/lua/init.lua"
