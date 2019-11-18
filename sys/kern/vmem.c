@@ -25,7 +25,6 @@ static LIST_HEAD(, vmem) vmem_alllist = LIST_HEAD_INITIALIZER(vmem_alllist);
 
 typedef struct vmem {
   mtx_t vm_lock;
-  vmem_flag_t vm_flags;
   size_t vm_size;
   size_t vm_inuse;
   size_t vm_quantum_mask;
@@ -65,13 +64,12 @@ static vmem_freelist_t *bt_freehead_tofree(vmem_t *vm, vmem_size_t size) {
  *
  * For VMEM_INSTANTFIT, returns the list in which any blocks are large enough.
  * For VMEM_BESTFIT, returns the list which can have blocks large enough. */
-static vmem_freelist_t *bt_freehead_toalloc(vmem_t *vm, vmem_size_t size,
-                                            vmem_flag_t strat) {
+static vmem_freelist_t *bt_freehead_toalloc(vmem_t *vm, vmem_size_t size) {
   assert((size & vm->vm_quantum_mask) == 0);
   vmem_size_t qsize = size >> vm->vm_quantum_shift;
   assert(size != 0 && qsize != 0);
   int idx = SIZE2ORDER(qsize);
-  if (strat == VMEM_INSTANTFIT && ORDER2SIZE(idx) != qsize)
+  if (ORDER2SIZE(idx) != qsize)
     idx++;
   assert(idx >= 0 && idx < VMEM_MAXORDER);
   return &vm->vm_freelist[idx];
@@ -182,14 +180,11 @@ static int vmem_align_and_fit(const bt_t *bt, vmem_size_t size,
 }
 
 vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
-                    vmem_size_t quantum, vmem_flag_t flags) {
-  /* Only NOSLEEP is currently supported */
-  assert(flags == VMEM_NOSLEEP);
+                    vmem_size_t quantum) {
   assert(quantum > 0);
 
   vmem_t *vm = pool_alloc(P_VMEM, PF_ZERO);
 
-  vm->vm_flags = flags;
   vm->vm_quantum_mask = quantum - 1;
   vm->vm_quantum_shift = SIZE2ORDER(quantum);
   assert(ORDER2SIZE(vm->vm_quantum_shift) == quantum);
@@ -203,7 +198,7 @@ vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
     LIST_INIT(&vm->vm_hashlist[i]);
 
   if (size != 0)
-    vmem_add(vm, base, size, flags);
+    vmem_add(vm, base, size);
 
   WITH_MTX_LOCK (&vmem_alllist_lock)
     LIST_INSERT_HEAD(&vmem_alllist, vm, vm_alllist_link);
@@ -212,11 +207,7 @@ vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
   return vm;
 }
 
-int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
-             vmem_flag_t flags) {
-  /* Only NOSLEEP is currently supported */
-  assert(flags == VMEM_NOSLEEP);
-
+int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
   bt_t *btspan = pool_alloc(P_BT, PF_ZERO);
   bt_t *btfree = pool_alloc(P_BT, PF_ZERO);
 
@@ -241,11 +232,7 @@ int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
   return 0;
 }
 
-int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_flag_t flags,
-               vmem_addr_t *addrp) {
-  vmem_flag_t strat = flags & (VMEM_BESTFIT | VMEM_INSTANTFIT);
-  /* Only VMEM_INSTANTFIT is currently supported */
-  assert(strat == VMEM_INSTANTFIT);
+int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp) {
   assert(size > 0);
 
   size = vmem_roundup_size(vm, size);
@@ -257,7 +244,7 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_flag_t flags,
   bt_t *btnew_prev = pool_alloc(P_BT, PF_ZERO);
   bt_t *btnew_next = pool_alloc(P_BT, PF_ZERO);
 
-  vmem_freelist_t *first = bt_freehead_toalloc(vm, size, strat);
+  vmem_freelist_t *first = bt_freehead_toalloc(vm, size);
   vmem_freelist_t *end = &vm->vm_freelist[VMEM_MAXORDER];
 
   vmem_lock(vm);
