@@ -114,7 +114,7 @@ class GDB(Launchable):
         # gdbtui & cgdb output is garbled if there is no delay
         self.cmd = 'sleep 0.25 && ' + self.cmd
 
-    def configure(self, kernel='', ex_commands=[]):
+    def configure(self, kernel='', extra_ex_cmds=[]):
         if self.name == 'gdb':
             self.options += ['-ex=set prompt \033[35;1m(gdb) \033[0m']
         self.options += [
@@ -124,7 +124,10 @@ class GDB(Launchable):
             '-ex=set tcp connect-timeout 30',
             '-ex=target remote localhost:{}'.format(gdb_port()),
             '--silent',
-            *map(lambda x: f'-ex={x}', ex_commands),
+        ]
+        for cmd in extra_ex_cmds:
+            self.options.append(f'-ex={cmd}')
+        self.options += [
             '-ex=set confirm yes',
             '-ex=source .gdbinit',
             '-ex=continue',
