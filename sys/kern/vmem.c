@@ -81,10 +81,7 @@ static vmem_freelist_t *bt_freehead_tofree(vmem_t *vm, vmem_size_t size) {
   return &vm->vm_freelist[idx];
 }
 
-/* Returns the freelist for the given size and allocation strategy.
- *
- * For VMEM_INSTANTFIT, returns the list in which any blocks are large enough.
- * For VMEM_BESTFIT, returns the list which can have blocks large enough. */
+/* Returns the freelist in which any block is large enough for allocation */
 static vmem_freelist_t *bt_freehead_toalloc(vmem_t *vm, vmem_size_t size) {
   assert(is_aligned(size, vm->vm_quantum));
   vmem_size_t qsize = size >> vm->vm_quantum_shift;
