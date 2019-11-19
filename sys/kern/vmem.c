@@ -239,7 +239,7 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp) {
   for (vmem_freelist_t *list = first; list < end; list++) {
     bt = LIST_FIRST(list);
     if (bt != NULL) {
-      /* This is INSTANTFIT strategy, we know that any segment found on these
+      /* This is instant-fit strategy, we know that any segment found on these
        * lists is large enough. */
       assert(bt->bt_size >= size);
       found = true;
