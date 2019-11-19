@@ -22,33 +22,54 @@ typedef TAILQ_HEAD(vmem_seglist, bt) vmem_seglist_t;
 typedef LIST_HEAD(vmem_freelist, bt) vmem_freelist_t;
 typedef LIST_HEAD(vmem_hashlist, bt) vmem_hashlist_t;
 
+/* List of all vmem instances and a guarding mutex */
 static mtx_t vmem_alllist_lock = MTX_INITIALIZER(0);
 static LIST_HEAD(, vmem) vmem_alllist = LIST_HEAD_INITIALIZER(vmem_alllist);
 
+/*! \brief vmem structure
+ *
+ * Field markings and the corresponding locks:
+ *  (a) vm_lock
+ *  (@) vmem_alllist_lock
+ *  (!) read-only access, do not modify!
+ */
 typedef struct vmem {
-  mtx_t vm_lock;
-  size_t vm_size;
-  size_t vm_inuse;
-  size_t vm_quantum;
-  int vm_quantum_shift;
-  char vm_name[VMEM_NAME_MAX];
-  vmem_seglist_t vm_seglist;
+  mtx_t vm_lock;        /* vmem lock */
+  size_t vm_size;       /* (a) total size of all added spans */
+  size_t vm_inuse;      /* (a) total size of all allocated segments */
+  size_t vm_quantum;    /* (!) alignment & the smallest unit of allocation */
+  int vm_quantum_shift; /* (!) log2 of vm_quantum */
+  char vm_name[VMEM_NAME_MAX]; /* (!) name of vmem instance */
+  vmem_seglist_t vm_seglist;   /* (a) list of all segments */
+  /* (a) table of lists of free segments */
   vmem_freelist_t vm_freelist[VMEM_MAXORDER];
+  /* (a) hashtable of lists of allocated segments */
   vmem_hashlist_t vm_hashlist[VMEM_MAXHASH];
-  LIST_ENTRY(vmem) vm_alllist_link;
+  LIST_ENTRY(vmem) vm_alllist_link; /* (@) link for vmem_alllist */
 } vmem_t;
 
-typedef enum { BT_TYPE_FREE, BT_TYPE_BUSY, BT_TYPE_SPAN } bt_type_t;
+typedef enum {
+  BT_TYPE_FREE, /* free segment */
+  BT_TYPE_BUSY, /* allocated segment */
+  BT_TYPE_SPAN  /* segment representing a whole span added by vmem_add() */
+} bt_type_t;
 
+/*! \brief boundary tag structure
+ *
+ * Field markings and the corresponding locks:
+ *  (a) vm_lock
+ */
 typedef struct bt {
-  TAILQ_ENTRY(bt) bt_seglink;
+  TAILQ_ENTRY(bt) bt_seglink; /* (a) link for vm_seglist */
   union {
+    /* (a) link for vm_freelist[] (array index based on bt_size) */
     LIST_ENTRY(bt) bt_freelink;
+    /* (a) link for vm_hashlist[] (array index based on bt_start) */
     LIST_ENTRY(bt) bt_hashlink;
   };
-  vmem_addr_t bt_start;
-  vmem_size_t bt_size;
-  bt_type_t bt_type;
+  vmem_addr_t bt_start; /* (a) start address of segment represented by bt */
+  vmem_size_t bt_size;  /* (a) size of segment represented by bt */
+  bt_type_t bt_type;    /* (a) type of segment represented by bt */
 } bt_t;
 
 static POOL_DEFINE(P_VMEM, "vmem", sizeof(vmem_t));
