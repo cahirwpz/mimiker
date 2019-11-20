@@ -16,4 +16,6 @@ extern char *__kernel_end;
 
 #define PAGESIZE 4096
 
+#define VM_PHYSSEG_NMAX 16
+
 #endif /* !_MIPS_VM_PARAM_H_ */

@@ -1,7 +1,5 @@
 #define KLOG KL_INIT
 #include <sys/interrupt.h>
-#include <sys/physmem.h>
-#include <sys/malloc.h>
 #include <mips/cpuinfo.h>
 #include <mips/malta.h>
 #include <mips/exc.h>
@@ -9,16 +7,13 @@
 #include <mips/timer.h>
 #include <mips/tlb.h>
 #include <sys/klog.h>
-#include <sys/kbss.h>
 #include <sys/console.h>
 #include <sys/context.h>
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
-#include <sys/physmem.h>
-#include <sys/pool.h>
 #include <sys/libkern.h>
 #include <sys/thread.h>
-#include <sys/vm_map.h>
+#include <sys/vm_physmem.h>
 
 static alignas(PAGESIZE) uint8_t _stack0_memory[PAGESIZE];
 static kstack_t _stack0[1];
@@ -174,32 +169,27 @@ static void ramdisk_init(void) {
   __rd_size = align(kenv_get_ulong("rd_size"), PAGESIZE);
 }
 
-char *__kernel_end;
+static void physmem_bootstrap(void) {
+  paddr_t ram_start = MALTA_PHYS_SDRAM_BASE;
+  paddr_t ram_end = MALTA_PHYS_SDRAM_BASE + kenv_get_ulong("memsize");
+  paddr_t rd_start = MIPS_KSEG0_TO_PHYS(__rd_start);
+  paddr_t rd_end = MIPS_KSEG0_TO_PHYS(__rd_start + __rd_size);
 
-static void malta_pm_bootstrap(void) {
-  size_t memsize = kenv_get_ulong("memsize");
+  /* Create Malta physical memory segment */
+  vm_physseg_t *seg = vm_physseg_alloc(ram_start, ram_end);
 
-  pm_seg_t *seg = kbss_grow(pm_seg_space_needed(memsize));
-
-  /*
-   * Let's fix size of kernel bss section. We need to tell physical memory
-   * allocator not to manage memory used by the kernel image along with all
-   * memory allocated using \a kbss_grow.
-   */
-  __kernel_end = kbss_fix();
-
-  /* create Malta physical memory segment */
-  pm_seg_init(seg, MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + memsize,
-              MIPS_KSEG0_START);
+  /* Allocate vm_page structures describing all available space. */
+  vm_page_init();
 
   /* XXX: workaround - pmap_enter fails to physical page with address 0 */
-  pm_seg_reserve(seg, MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + PAGESIZE);
+  vm_physseg_reserve(seg, ram_start, ram_start + PAGESIZE);
 
   /* reserve kernel image and physical memory description space */
-  pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS(__kernel_start),
-                 MIPS_KSEG0_TO_PHYS(__kernel_end));
+  vm_physseg_reserve(seg, MIPS_KSEG0_TO_PHYS(__kernel_start),
+                     MIPS_KSEG0_TO_PHYS(__kernel_end));
 
-  pm_add_segment(seg);
+  if (__rd_size > 0)
+    vm_physseg_reserve(seg, rd_start, rd_end);
 }
 
 void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
@@ -218,12 +208,8 @@ __noreturn void platform_init(void) {
   ramdisk_init();
   mips_intr_init();
   mips_timer_init();
-  pm_bootstrap();
-  malta_pm_bootstrap();
   pmap_bootstrap();
-  pool_bootstrap();
-  vm_map_bootstrap();
-  kmem_bootstrap();
+  physmem_bootstrap();
   thread_bootstrap(_stack0);
   intr_enable();
   kernel_init();

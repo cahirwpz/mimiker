@@ -1,7 +1,6 @@
-#include <sys/vnode.h>
-#include <sys/mount.h>
 #include <sys/devfs.h>
-#include <sys/physmem.h>
+#include <sys/pmap.h>
+#include <sys/vm_physmem.h>
 #include <sys/vnode.h>
 #include <sys/linker_set.h>
 
@@ -49,8 +48,9 @@ static vnodeops_t dev_zero_vnodeops = {.v_open = vnode_open_generic,
                                        .v_write = dev_zero_write};
 
 static void init_dev_null(void) {
-  zero_page = pm_alloc(1);
-  junk_page = pm_alloc(1);
+  zero_page = vm_page_alloc(1);
+  pmap_zero_page(zero_page);
+  junk_page = vm_page_alloc(1);
 
   vnodeops_init(&dev_null_vnodeops);
   devfs_makedev(NULL, "null", &dev_null_vnodeops, NULL);

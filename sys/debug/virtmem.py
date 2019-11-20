@@ -5,8 +5,39 @@ from .cmd import UserCommand
 from .utils import TextTable, global_var
 
 
-class VMMapSegments(UserCommand):
-    """List segments of given vm_map structure"""
+class VmPhysSeg(UserCommand):
+    """List physical memory segments managed by vm subsystem"""
+
+    def __init__(self):
+        super().__init__('vm_physseg')
+
+    def __call__(self, args):
+        table = TextTable(types='itti', align='rrrr')
+        table.header(['segment', 'start', 'end', 'pages'])
+        segments = TailQueue(global_var('seglist'), 'seglink')
+        for idx, seg in enumerate(segments):
+            table.add_row([idx, seg['start'], seg['end'], int(seg['npages'])])
+        print(table)
+
+
+class VmFreePages(UserCommand):
+    """List free pages known to vm subsystem"""
+
+    def __init__(self):
+        super().__init__('vm_freepages')
+
+    def __call__(self, args):
+        table = TextTable(align='rr')
+        for q in range(16):
+            size = 4 << q
+            for page in TailQueue(global_var('freelist')[q], 'freeq'):
+                table.add_row([size, hex(page['paddr'])])
+        table.header(['#pages', 'phys addr'])
+        print(table)
+
+
+class VmMapSeg(UserCommand):
+    """List segments describing virtual address space"""
 
     def __init__(self):
         super().__init__('vm_map')

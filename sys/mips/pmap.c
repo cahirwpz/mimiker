@@ -3,7 +3,6 @@
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/pool.h>
-#include <sys/physmem.h>
 #include <mips/exc.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
@@ -17,6 +16,7 @@
 #include <sys/mutex.h>
 #include <sys/sched.h>
 #include <sys/sysinit.h>
+#include <sys/vm_physmem.h>
 #include <bitstring.h>
 
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
@@ -104,9 +104,9 @@ void pmap_reset(pmap_t *pmap) {
   while (!TAILQ_EMPTY(&pmap->pte_pages)) {
     vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
     TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
-    pm_free(pg);
+    vm_page_free(pg);
   }
-  pm_free(pmap->pde_page);
+  vm_page_free(pmap->pde_page);
   free_asid(pmap->asid);
 }
 
@@ -119,7 +119,7 @@ pmap_t *pmap_new(void) {
   pmap_t *pmap = pool_alloc(P_PMAP, PF_ZERO);
   pmap_setup(pmap);
 
-  pmap->pde_page = pm_alloc(1);
+  pmap->pde_page = vm_page_alloc(1);
   pmap->pde = PG_KSEG0_ADDR(pmap->pde_page);
   klog("Page directory table allocated at %p", (vaddr_t)pmap->pde);
 
@@ -158,7 +158,7 @@ static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte) {
 static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
   assert(!is_valid(PDE_OF(pmap, vaddr)));
 
-  vm_page_t *pg = pm_alloc(1);
+  vm_page_t *pg = vm_page_alloc(1);
   pte_t *pte = PG_KSEG0_ADDR(pg);
 
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
