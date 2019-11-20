@@ -10,6 +10,7 @@
 #include <sys/pool.h>
 #include <sys/linker_set.h>
 #include <sys/dirent.h>
+#include <sys/vfs.h>
 
 typedef struct devfs_node devfs_node_t;
 typedef TAILQ_HEAD(, devfs_node) devfs_node_list_t;
@@ -40,16 +41,20 @@ static vnodeops_t devfs_vnodeops = {.v_lookup = devfs_vop_lookup,
                                     .v_readdir = devfs_vop_readdir,
                                     .v_open = vnode_open_generic};
 
-static devfs_node_t *devfs_find_child(devfs_node_t *parent, const char *name) {
+static devfs_node_t *devfs_find_child(devfs_node_t *parent, const char *name,
+                                      size_t namelen) {
   SCOPED_MTX_LOCK(&devfs.lock);
 
   if (parent == NULL)
     parent = &devfs.root;
 
   devfs_node_t *dn;
-  TAILQ_FOREACH (dn, &parent->dn_children, dn_link)
-    if (!strcmp(name, dn->dn_name))
+  TAILQ_FOREACH (dn, &parent->dn_children, dn_link) {
+    if (strlen(dn->dn_name) != namelen)
+      continue;
+    if (!strncmp(dn->dn_name, name, namelen))
       return dn;
+  }
   return NULL;
 }
 
@@ -67,7 +72,7 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
 
   WITH_MTX_LOCK (&devfs.lock) {
     dn->dn_ino = ++devfs.next_ino;
-    if (devfs_find_child(parent, name))
+    if (devfs_find_child(parent, name, strlen(name)))
       return EEXIST;
     TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
   }
@@ -93,7 +98,7 @@ int devfs_makedir(devfs_node_t *parent, const char *name,
 
   WITH_MTX_LOCK (&devfs.lock) {
     dn->dn_ino = ++devfs.next_ino;
-    if (devfs_find_child(parent, name))
+    if (devfs_find_child(parent, name, strlen(name)))
       return EEXIST;
     TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
   }
@@ -112,12 +117,12 @@ static int devfs_mount(mount_t *m) {
   return 0;
 }
 
-static int devfs_vop_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
+static int devfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
   devfs_node_t *dn;
 
   if (dv->v_type != V_DIR)
     return ENOTDIR;
-  if (!(dn = devfs_find_child(dv->v_data, name)))
+  if (!(dn = devfs_find_child(dv->v_data, cn->cn_nameptr, cn->cn_namelen)))
     return ENOENT;
   *vp = dn->dn_vnode;
   vnode_hold(*vp);
