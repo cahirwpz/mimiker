@@ -130,12 +130,9 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
   p->p_state = PS_NORMAL;
   p->p_thread = td;
   p->p_parent = parent;
-
-  // what if error or p_elfpath > 128 ?
-  p->p_elfpath = kmalloc(M_STR, 128, M_ZERO);
-  if (parent && parent->p_elfpath) {
-    strlcpy(p->p_elfpath, parent->p_elfpath, 128);
-  }
+  
+  if (parent)
+    p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, 128);
 
   TAILQ_INIT(CHILDREN(p));
 

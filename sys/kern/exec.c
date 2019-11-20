@@ -364,8 +364,9 @@ static int _do_execve(exec_args_t *args) {
   destroy_vmspace(&saved);
 
   vm_map_dump(p->p_uspace);
-  strlcpy(p->p_elfpath, prog, 128);
-  // TODO what to do when err or p_elfpath > 128?
+
+  kfree(M_STR, p->p_elfpath); 
+  p->p_elfpath = kstrndup(M_STR, prog, 128);
 
   klog("Enter userspace with: pc=%p, sp=%p", eh.e_entry, stack_top);
   return EJUSTRETURN;
