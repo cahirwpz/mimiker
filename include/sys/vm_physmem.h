@@ -9,12 +9,7 @@ typedef struct vm_physseg vm_physseg_t;
 void vm_page_init(void);
 
 /* \brief Allocate physical memory segment without vm_page structures. */
-vm_physseg_t *vm_physseg_alloc(paddr_t start, paddr_t end);
-
-/* \brief After using this function pages in range (start, end) are never going
- * to be allocated. Should be used at start to avoid allocating from text, data,
- * ebss, or any possibly unwanted places. */
-void vm_physseg_reserve(vm_physseg_t *seg, paddr_t start, paddr_t end);
+void vm_physseg_plug(paddr_t start, paddr_t end);
 
 /* Allocates contiguous big page that consists of n machine pages. */
 vm_page_t *vm_page_alloc(size_t n);

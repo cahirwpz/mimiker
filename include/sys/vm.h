@@ -17,6 +17,8 @@
 
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
 
+extern void *vm_kernel_end;
+
 typedef enum {
   PG_RESERVED = 0x01,   /* non releasable page */
   PG_ALLOCATED = 0x02,  /* page has been allocated */

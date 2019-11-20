@@ -1,9 +1,9 @@
 #define KL_LOG KL_PHYSMEM
 #include <sys/klog.h>
 #include <sys/mimiker.h>
-#include <sys/kbss.h>
 #include <sys/libkern.h>
 #include <sys/mutex.h>
+#include <sys/pmap.h>
 #include <sys/vm_physmem.h>
 
 #define PG_FREELIST(page) (&freelist[log2((page)->size)])
@@ -22,7 +22,7 @@ static TAILQ_HEAD(, vm_physseg) seglist = TAILQ_HEAD_INITIALIZER(seglist);
 static vm_pagelist_t freelist[PM_NQUEUES];
 static mtx_t *physmem_lock = &MTX_INITIALIZER(0);
 
-vm_physseg_t *vm_physseg_alloc(paddr_t start, paddr_t end) {
+void vm_physseg_plug(paddr_t start, paddr_t end) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
 
   static vm_physseg_t freeseg[VM_PHYSSEG_NMAX];
@@ -39,11 +39,39 @@ vm_physseg_t *vm_physseg_alloc(paddr_t start, paddr_t end) {
   seg->npages = (end - start) / PAGESIZE;
 
   TAILQ_INSERT_TAIL(&seglist, seg, seglink);
-
-  return seg;
 }
 
-char *__kernel_end;
+static bool vm_boot_done = false;
+void *vm_kernel_end = __kernel_end;
+
+static void *vm_boot_alloc(size_t n) {
+  assert(!vm_boot_done);
+
+  void *begin = align(vm_kernel_end, sizeof(long));
+  void *end = align(begin + n, PAGESIZE);
+
+  vm_physseg_t *seg = TAILQ_FIRST(&seglist);
+
+  for (void *va = align(begin, PAGESIZE); va < end; va += PAGESIZE) {
+    paddr_t pa = seg->start;
+    seg->start += PAGESIZE;
+    if (--seg->npages == 0) {
+      TAILQ_REMOVE(&seglist, seg, seglink);
+      seg = TAILQ_FIRST(&seglist);
+    }
+
+    pmap_kenter((vaddr_t)va, pa, VM_PROT_READ | VM_PROT_WRITE);
+  }
+
+  vm_kernel_end += n;
+
+  return begin;
+}
+
+static void vm_boot_finish(void) {
+  vm_kernel_end = align(vm_kernel_end, PAGESIZE);
+  vm_boot_done = true;
+}
 
 void vm_page_init(void) {
   vm_physseg_t *seg;
@@ -56,41 +84,34 @@ void vm_page_init(void) {
   TAILQ_FOREACH (seg, &seglist, seglink)
     npages += seg->npages;
 
-  vm_page_t *pages = kbss_grow(npages * sizeof(vm_page_t));
+  vm_page_t *pages = vm_boot_alloc(npages * sizeof(vm_page_t));
   bzero(pages, npages * sizeof(vm_page_t));
 
-  /*
-   * Let's fix size of kernel bss section. We need to tell physical memory
-   * allocator not to manage memory used by the kernel image along with all
-   * memory allocated using \a kbss_grow.
-   */
-  __kernel_end = kbss_fix();
-
   TAILQ_FOREACH (seg, &seglist, seglink) {
-    size_t max_size = min(PM_NQUEUES, ffs(seg->npages)) - 1;
-
+    /* Configure all pages in the segment. */
     for (unsigned i = 0; i < seg->npages; i++) {
-      pages[i].paddr = seg->start + PAGESIZE * i;
-      pages[i].size = 1 << min(max_size, ctz(i));
+      vm_page_t *page = &pages[i];
+      paddr_t pa = seg->start + i * PAGESIZE;
+      unsigned size = 1 << min(PM_NQUEUES, ctz(pa / PAGESIZE));
+      if (pa + size * PAGESIZE > seg->end)
+        size = 1 << min(PM_NQUEUES, log2((seg->end ^ pa) / PAGESIZE));
+      page->paddr = pa;
+      page->size = size;
     }
 
-    int curr_page = 0;
-    unsigned to_add = seg->npages;
-
-    for (int i = PM_NQUEUES - 1; i >= 0; i--) {
-      unsigned size = 1 << i;
-      while (to_add >= size) {
-        vm_page_t *page = &pages[curr_page];
-        TAILQ_INSERT_HEAD(&freelist[i], page, freeq);
-        page->flags |= PG_MANAGED;
-        to_add -= size;
-        curr_page += size;
-      }
+    /* Insert pages into free lists of corresponding size. */
+    for (unsigned i = 0; i < seg->npages;) {
+      vm_page_t *page = &pages[i];
+      TAILQ_INSERT_TAIL(PG_FREELIST(page), page, freeq);
+      page->flags |= PG_MANAGED;
+      i += page->size;
     }
 
     seg->pages = pages;
     pages += seg->npages;
   }
+
+  vm_boot_finish();
 }
 
 /* Takes two pages which are buddies, and merges them */
@@ -150,45 +171,6 @@ static void pm_split_page(vm_physseg_t *seg, vm_page_t *page) {
   TAILQ_INSERT_HEAD(PG_FREELIST(page), page, freeq);
   TAILQ_INSERT_HEAD(PG_FREELIST(buddy), buddy, freeq);
   buddy->flags |= PG_MANAGED;
-}
-
-/* TODO this can be sped up by removing elements from list on-line. */
-void vm_physseg_reserve(vm_physseg_t *seg, paddr_t start, paddr_t end) {
-  assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
-  assert(seg->start <= start && end <= seg->end);
-
-  klog("pm_seg_reserve: %08lx - %08lx from [%08lx, %08lx]", start, end,
-       seg->start, seg->end);
-
-  for (int i = PM_NQUEUES - 1; i >= 0; i--) {
-    vm_pagelist_t *queue = &freelist[i];
-    vm_page_t *pg = TAILQ_FIRST(queue);
-
-    while (pg) {
-      if (PG_START(pg) >= start && PG_END(pg) <= end) {
-        /* if segment is contained within (start, end) remove it from free
-         * queue */
-        TAILQ_REMOVE(queue, pg, freeq);
-        pg->flags &= ~PG_MANAGED;
-        int n = pg->size;
-        do {
-          pg->flags = PG_RESERVED;
-          pg++;
-        } while (--n);
-        /* List has been changed so start over! */
-        pg = TAILQ_FIRST(queue);
-      } else if ((PG_START(pg) < start && PG_END(pg) > start) ||
-                 (PG_START(pg) < end && PG_END(pg) > end)) {
-        /* if segments intersects with (start, end) split it in half */
-        pm_split_page(seg, pg);
-        /* List has been changed so start over! */
-        pg = TAILQ_FIRST(queue);
-      } else {
-        pg = TAILQ_NEXT(pg, freeq);
-        /* if neither of two above cases is satisfied, leave in free queue */
-      }
-    }
-  }
 }
 
 static vm_page_t *pm_alloc_from_seg(vm_physseg_t *seg, size_t npages) {

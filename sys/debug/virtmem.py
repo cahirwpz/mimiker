@@ -28,12 +28,15 @@ class VmFreePages(UserCommand):
 
     def __call__(self, args):
         table = TextTable(align='rr')
+        npages = 0
         for q in range(16):
-            size = 4 << q
             for page in TailQueue(global_var('freelist')[q], 'freeq'):
+                size = int(page['size'])
                 table.add_row([size, hex(page['paddr'])])
+                npages += size
         table.header(['#pages', 'phys addr'])
         print(table)
+        print('Free pages count: {}'.format(npages))
 
 
 class VmMapSeg(UserCommand):
