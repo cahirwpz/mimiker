@@ -9,17 +9,11 @@
 #include <sys/klog.h>
 #include <sys/console.h>
 #include <sys/context.h>
-#include <sys/pcpu.h>
+#include <sys/kenv.h>
 #include <sys/pmap.h>
 #include <sys/libkern.h>
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
-
-static alignas(PAGESIZE) uint8_t _stack0_memory[PAGESIZE];
-static kstack_t _stack0[1];
-
-static char **_kenvp;
-static char **_kinit = (char * [2]){NULL, NULL};
 
 static const char *whitespaces = " \t";
 
@@ -35,14 +29,14 @@ static size_t count_tokens(const char *str) {
   } while (true);
 }
 
-static char **extract_tokens(const char *str, char **tokens_p) {
+static char **extract_tokens(kstack_t *stk, const char *str, char **tokens_p) {
   do {
     str += strspn(str, whitespaces);
     if (*str == '\0')
       return tokens_p;
     size_t toklen = strcspn(str, whitespaces);
     /* copy the token to memory managed by the kernel */
-    char *token = kstack_alloc(_stack0, toklen + 1);
+    char *token = kstack_alloc(stk, toklen + 1);
     strlcpy(token, str, toklen + 1);
     *tokens_p++ = token;
     /* append extra empty token when you see "--" */
@@ -52,9 +46,9 @@ static char **extract_tokens(const char *str, char **tokens_p) {
   } while (true);
 }
 
-static char *make_pair(char *key, char *value) {
+static char *make_pair(kstack_t *stk, char *key, char *value) {
   int arglen = strlen(key) + strlen(value) + 2;
-  char *arg = kstack_alloc(_stack0, arglen * sizeof(char));
+  char *arg = kstack_alloc(stk, arglen * sizeof(char));
   strlcpy(arg, key, arglen);
   strlcat(arg, "=", arglen);
   strlcat(arg, value, arglen);
@@ -82,15 +76,16 @@ static char *make_pair(char *key, char *value) {
  *     setup_kenv(argc, argv, envp);
  *
  *   will set global variables as follows:
- *     _kenvp={"mimiker.elf", "memsize=128MiB", "uart.speed=115200",
- *             "arg1", "arg2=foo", "init=/bin/sh", "arg3=foobar"};
- *     _kinit={NULL, "baz"};
+ *     kenvp={"mimiker.elf", "memsize=128MiB", "uart.speed=115200",
+ *            "arg1", "arg2=foo", "init=/bin/sh", "arg3=foobar"};
+ *     kinit={NULL, "baz"};
  */
-static void setup_kenv(int argc, char **argv, char **envp) {
-  int ntokens = 0;
-
+static void *malta_kenv(int argc, char **argv, char **envp) {
   assert(argc == 2);
 
+  kstack_t *stk = &thread_self()->td_kstack;
+
+  int ntokens = 0;
   for (int i = 0; i < argc; ++i)
     ntokens += count_tokens(argv[i]);
   for (char **pair = envp; *pair; pair += 2)
@@ -98,82 +93,46 @@ static void setup_kenv(int argc, char **argv, char **envp) {
 
   /* Both _kenvp and _kinit are going to point to the same array.
    * Their contents will be separated by NULL. */
-  _kenvp = kstack_alloc(_stack0, (ntokens + 2) * sizeof(char *));
+  char **kenvp = kstack_alloc(stk, (ntokens + 2) * sizeof(char *));
+  char **kinit = NULL;
 
-  char **tokens = _kenvp;
-  tokens = extract_tokens(argv[0], tokens);
+  char **tokens = kenvp;
+  tokens = extract_tokens(stk, argv[0], tokens);
   for (char **pair = envp; *pair; pair += 2)
-    *tokens++ = make_pair(pair[0], pair[1]);
-  tokens = extract_tokens(argv[1], tokens);
+    *tokens++ = make_pair(stk, pair[0], pair[1]);
+  tokens = extract_tokens(stk, argv[1], tokens);
   *tokens = NULL;
+
+  kstack_fix_bottom(stk);
 
   /* Let's find "--".
    * After we set it to NULL it's going to become first element of _kinit */
-  for (char **argp = _kenvp; *argp; argp++) {
+  for (char **argp = kenvp; *argp; argp++) {
     if (strcmp("--", *argp) == 0) {
       *argp++ = NULL;
-      _kinit = argp;
+      kinit = argp;
       break;
     }
   }
+
+  kenv_bootstrap(kenvp, kinit);
+
+  return stk->stk_ptr;
 }
-
-char *kenv_get(const char *key) {
-  unsigned n = strlen(key);
-
-  for (char **argp = _kenvp; *argp; argp++) {
-    char *arg = *argp;
-    if ((strncmp(arg, key, n) == 0) && (arg[n] == '='))
-      return arg + n + 1;
-  }
-
-  return NULL;
-}
-
-u_long kenv_get_ulong(const char *key) {
-  const char *s = kenv_get(key);
-  int base = 10;
-
-  /* skip '0x' and note it's hexadecimal */
-  if (s[0] == '0' && s[1] == 'x') {
-    s += 2;
-    base = 16;
-
-    /* truncate long long to long */
-    int n = strlen(s);
-    if (n > 8)
-      s += n - 8;
-  }
-
-  return strtoul(s, NULL, base);
-}
-
-char **kenv_get_init(void) {
-  _kinit[0] = kenv_get("init");
-  return _kinit;
-}
-
-static intptr_t __rd_start;
-static size_t __rd_size;
 
 intptr_t ramdisk_get_start(void) {
-  return __rd_start;
+  return MIPS_KSEG0_TO_PHYS(kenv_get_ulong("rd_start"));
 }
 
 size_t ramdisk_get_size(void) {
-  return __rd_size;
+  return align(kenv_get_ulong("rd_size"), PAGESIZE);
 }
 
-static void ramdisk_init(void) {
-  __rd_start = kenv_get_ulong("rd_start");
-  __rd_size = align(kenv_get_ulong("rd_size"), PAGESIZE);
-}
-
-static void physmem_bootstrap(void) {
+static void malta_physmem(void) {
   paddr_t ram_start = MALTA_PHYS_SDRAM_BASE;
   paddr_t ram_end = MALTA_PHYS_SDRAM_BASE + kenv_get_ulong("memsize");
-  paddr_t rd_start = MIPS_KSEG0_TO_PHYS(__rd_start);
-  paddr_t rd_end = MIPS_KSEG0_TO_PHYS(__rd_start + __rd_size);
+  paddr_t rd_start = ramdisk_get_start();
+  paddr_t rd_end = rd_start + ramdisk_get_size();
 
   /* Create Malta physical memory segment */
   vm_physseg_t *seg = vm_physseg_alloc(ram_start, ram_end);
@@ -188,29 +147,24 @@ static void physmem_bootstrap(void) {
   vm_physseg_reserve(seg, MIPS_KSEG0_TO_PHYS(__kernel_start),
                      MIPS_KSEG0_TO_PHYS(__kernel_end));
 
-  if (__rd_size > 0)
+  if (rd_start != rd_end)
     vm_physseg_reserve(seg, rd_start, rd_end);
 }
 
 void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
-  kstack_init(_stack0, _stack0_memory, sizeof(_stack0_memory));
-  setup_kenv(argc, argv, envp);
-  kstack_fix_bottom(_stack0);
-  return _stack0->stk_ptr;
+  thread_bootstrap();
+  return malta_kenv(argc, argv, envp);
 }
 
 __noreturn void platform_init(void) {
   cn_init();
   klog_init();
-  pcpu_init();
   cpu_init();
   tlb_init();
-  ramdisk_init();
   mips_intr_init();
   mips_timer_init();
   pmap_bootstrap();
-  physmem_bootstrap();
-  thread_bootstrap(_stack0);
+  malta_physmem();
   intr_enable();
   kernel_init();
 }

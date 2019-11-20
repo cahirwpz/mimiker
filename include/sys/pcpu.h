@@ -1,6 +1,8 @@
 #ifndef _SYS_PCPU_H_
 #define _SYS_PCPU_H_
 
+#include <stdbool.h>
+
 typedef struct thread thread_t;
 typedef struct pmap pmap_t;
 typedef struct vm_map vm_map_t;
@@ -21,7 +23,5 @@ extern pcpu_t _pcpu_data[1];
 #define PCPU_GET(member) (_pcpu_data->member)
 #define PCPU_PTR(member) (&_pcpu_data->member)
 #define PCPU_SET(member, value) (_pcpu_data->member = (value))
-
-void pcpu_init(void);
 
 #endif /* !_SYS_PCPU_H_ */

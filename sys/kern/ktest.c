@@ -1,10 +1,8 @@
 #include <sys/mimiker.h>
+#include <sys/kenv.h>
 #include <sys/ktest.h>
 #include <sys/libkern.h>
 #include <sys/time.h>
-
-/* Borrowed from mips/malta.c */
-char *kenv_get(const char *key);
 
 #define KTEST_MAX_NO 1024
 #define KTEST_FAIL(args...)                                                    \

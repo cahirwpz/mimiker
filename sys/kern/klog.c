@@ -1,5 +1,6 @@
 #include <sys/mimiker.h>
 #include <sys/mutex.h>
+#include <sys/kenv.h>
 #include <sys/time.h>
 #include <sys/libkern.h>
 #include <sys/thread.h>
@@ -20,9 +21,6 @@ static const char *subsystems[] = {
   [KL_USER] = "user",       [KL_TEST] = "test",     [KL_SIGNAL] = "signal",
   [KL_FILESYS] = "filesys", [KL_TIME] = "time",     [KL_FILE] = "file",
   [KL_UNDEF] = "???"};
-
-/* Borrowed from mips/malta.c */
-char *kenv_get(char *key);
 
 void klog_init(void) {
   const char *mask = kenv_get("klog-mask");

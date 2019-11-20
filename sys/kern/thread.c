@@ -56,24 +56,24 @@ static void thread_init(thread_t *td, prio_t prio) {
     TAILQ_INSERT_TAIL(&all_threads, td, td_all);
 }
 
+static alignas(PAGESIZE) uint8_t _stack0[PAGESIZE];
 static thread_t _thread0[1];
 
 /* Creates Thread Zero - first thread in the system. */
-void thread_bootstrap(kstack_t *stack0) {
+void thread_bootstrap(void) {
   thread_t *td = _thread0;
   td->td_name = "kernel-main";
-  td->td_kstack = *stack0;
-
-  /* Note that initially Thread Zero has no turnstile or sleepqueue attached.
-   * Corresponding subsystems are started before scheduler. We can add missing
-   * pieces to first thread in turnstile & sleepqueue init procedures. */
-
-  thread_init(td, prio_uthread(255));
+  kstack_init(&td->td_kstack, _stack0, sizeof(_stack0));
 
   /* Thread Zero is initially running with interrupts disabled! */
   td->td_idnest = 1;
   td->td_state = TDS_RUNNING;
   PCPU_SET(curthread, td);
+
+  /* Note that initially Thread Zero has no turnstile or sleepqueue attached.
+   * Corresponding subsystems are started before scheduler. We can add missing
+   * pieces to first thread in turnstile & sleepqueue init procedures. */
+  thread_init(td, prio_uthread(255));
 }
 
 thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
