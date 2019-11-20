@@ -365,7 +365,7 @@ static int _do_execve(exec_args_t *args) {
 
   vm_map_dump(p->p_uspace);
 
-  kfree(M_STR, p->p_elfpath); 
+  kfree(M_STR, p->p_elfpath);
   p->p_elfpath = kstrndup(M_STR, prog, 128);
 
   klog("Enter userspace with: pc=%p, sp=%p", eh.e_entry, stack_top);

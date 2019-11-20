@@ -130,7 +130,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
   p->p_state = PS_NORMAL;
   p->p_thread = td;
   p->p_parent = parent;
-  
+
   if (parent)
     p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, 128);
 

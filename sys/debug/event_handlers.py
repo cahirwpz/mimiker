@@ -18,16 +18,16 @@ def mimiker_path_to_host_path(p_elfpath):
 def get_stop_handler():
 
     def stop_handler(event):
-        user_elf_base_addr = 0x00400000
-        kernel_base = 0x80000000
+        #user_elf_base_addr = 0x00400000
+        #kernel_base = 0x80000000
 
-        pc = gdb.parse_and_eval('$pc')
-        pc = int(pc) & 0xffffffff
+        #pc = gdb.parse_and_eval('$pc')
+        #pc = int(pc) & 0xffffffff
 
-        in_kernel_mode = pc >= kernel_base
+        #in_kernel_mode = pc >= kernel_base
 
-        mimiker_path = get_p_elfpath()
-        print(mimiker_path)
+        #mimiker_path = get_p_elfpath()
+        #print(mimiker_path)
 
         if mimiker_path is None:
             return
