@@ -30,6 +30,8 @@ void pmap_enter(pmap_t *pmap, vaddr_t start, vm_page_t *page, vm_prot_t prot);
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot);
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end);
 
+void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot);
+
 void pmap_zero_page(vm_page_t *pg);
 void pmap_copy_page(vm_page_t *src, vm_page_t *dst);
 

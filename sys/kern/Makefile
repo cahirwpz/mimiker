@@ -25,7 +25,6 @@ SOURCES = \
 	fork.c \
 	initrd.c \
 	interrupt.c \
-	kbss.c \
 	kenv.c \
 	klog.c \
 	ktest.c \

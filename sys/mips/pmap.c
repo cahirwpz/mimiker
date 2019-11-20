@@ -189,6 +189,18 @@ static pte_t vm_prot_map[] = {
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
 };
 
+void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot) {
+  pmap_t *pmap = &kernel_pmap;
+
+  assert(pmap_address_p(pmap, va));
+  assert(pa != 0);
+
+  klog("Enter unmanaged mapping from %p to %p", va, pa);
+
+  WITH_MTX_LOCK (&pmap->mtx)
+    pmap_pte_write(pmap, va, PTE_PFN(pa) | vm_prot_map[prot] | PTE_GLOBAL);
+}
+
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
   vaddr_t va_end = va + PG_SIZE(pg);
   paddr_t pa = PG_START(pg);

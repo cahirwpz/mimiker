@@ -67,6 +67,8 @@ SECTIONS
     __ebss = ABSOLUTE(.);
   }
 
+  __kernel_end = ABSOLUTE(.);
+
   /* Sections to be discarded */
   /DISCARD/ :
   {

@@ -129,26 +129,22 @@ size_t ramdisk_get_size(void) {
 }
 
 static void malta_physmem(void) {
-  paddr_t ram_start = MALTA_PHYS_SDRAM_BASE;
+  /* XXX: workaround - pmap_enter fails to physical page with address 0 */
+  paddr_t ram_start = MALTA_PHYS_SDRAM_BASE + PAGESIZE;
   paddr_t ram_end = MALTA_PHYS_SDRAM_BASE + kenv_get_ulong("memsize");
+  paddr_t kern_start = MIPS_KSEG0_TO_PHYS(__kernel_start);
+  paddr_t kern_end = align(MIPS_KSEG2_TO_PHYS(__kernel_end), PAGESIZE);
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
 
-  /* Create Malta physical memory segment */
-  vm_physseg_t *seg = vm_physseg_alloc(ram_start, ram_end);
+  vm_physseg_plug(ram_start, kern_start);
 
-  /* Allocate vm_page structures describing all available space. */
-  vm_page_init();
-
-  /* XXX: workaround - pmap_enter fails to physical page with address 0 */
-  vm_physseg_reserve(seg, ram_start, ram_start + PAGESIZE);
-
-  /* reserve kernel image and physical memory description space */
-  vm_physseg_reserve(seg, MIPS_KSEG0_TO_PHYS(__kernel_start),
-                     MIPS_KSEG0_TO_PHYS(__kernel_end));
-
-  if (rd_start != rd_end)
-    vm_physseg_reserve(seg, rd_start, rd_end);
+  if (rd_start != rd_end) {
+    vm_physseg_plug(kern_end, rd_start);
+    vm_physseg_plug(rd_end, ram_end);
+  } else {
+    vm_physseg_plug(kern_end, ram_end);
+  }
 }
 
 void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {

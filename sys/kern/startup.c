@@ -8,6 +8,7 @@
 #include <sys/thread.h>
 #include <sys/vfs.h>
 #include <sys/vm_map.h>
+#include <sys/vm_physmem.h>
 
 extern void kmain(void *);
 
@@ -22,6 +23,7 @@ static void mount_fs(void) {
 SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"));
 
 __noreturn void kernel_init(void) {
+  vm_page_init();
   pool_bootstrap();
   vm_map_bootstrap();
   kmem_bootstrap();
