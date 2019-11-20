@@ -200,6 +200,8 @@ void *kmalloc(kmem_pool_t *mp, size_t size, unsigned flags) {
 }
 
 void kfree(kmem_pool_t *mp, void *addr) {
+  if (!addr)
+    return;
   mem_block_t *mb = (mem_block_t *)(((char *)addr) - sizeof(mem_block_t));
 
   if (mb->mb_magic != MB_MAGIC || mp->mp_magic != MB_MAGIC || mb->mb_size >= 0)
