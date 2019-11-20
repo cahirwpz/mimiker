@@ -122,7 +122,7 @@ static const char *basename(const char *path) {
 }
 
 static void read_cpio_archive(void) {
-  void *tape = (void *)ramdisk_get_start();
+  void *tape = (void *)MIPS_PHYS_TO_KSEG0(ramdisk_get_start());
 
   while (true) {
     cpio_node_t *node = cpio_node_alloc();

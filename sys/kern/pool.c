@@ -1,7 +1,5 @@
 #define KL_LOG KL_POOL
 #include <sys/libkern.h>
-#include <sys/vm.h>
-#include <sys/physmem.h>
 #include <sys/queue.h>
 #include <sys/mimiker.h>
 #include <sys/klog.h>
@@ -9,6 +7,8 @@
 #include <sys/linker_set.h>
 #include <sys/sched.h>
 #include <sys/pool.h>
+#include <sys/vm.h>
+#include <sys/vm_physmem.h>
 #include <bitstring.h>
 
 #define INITME 0xC0DECAFE
@@ -117,7 +117,7 @@ static void add_slab(pool_t *pool, pool_slab_t *slab) {
 }
 
 static pool_slab_t *alloc_slab(void) {
-  vm_page_t *page = pm_alloc(1);
+  vm_page_t *page = vm_page_alloc(1);
   pool_slab_t *slab = PG_KSEG0_ADDR(page);
   slab->ph_page = page;
   return slab;
@@ -133,7 +133,7 @@ static void destroy_slab(pool_t *pool, pool_slab_t *slab) {
   }
 
   slab->ph_state = DEAD;
-  pm_free(slab->ph_page);
+  vm_page_free(slab->ph_page);
 }
 
 static void *alloc_item(pool_slab_t *slab) {

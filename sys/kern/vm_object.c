@@ -3,8 +3,8 @@
 #include <sys/mimiker.h>
 #include <sys/pool.h>
 #include <sys/pmap.h>
-#include <sys/physmem.h>
 #include <sys/vm_object.h>
+#include <sys/vm_physmem.h>
 
 static POOL_DEFINE(P_VMOBJ, "vm_object", sizeof(vm_object_t));
 
@@ -14,8 +14,8 @@ static inline int vm_page_cmp(vm_page_t *a, vm_page_t *b) {
   return a->offset - b->offset;
 }
 
-RB_PROTOTYPE_STATIC(pg_tree, vm_page, obj.tree, vm_page_cmp);
-RB_GENERATE(pg_tree, vm_page, obj.tree, vm_page_cmp);
+RB_PROTOTYPE_STATIC(vm_pagetree, vm_page, obj.tree, vm_page_cmp);
+RB_GENERATE(vm_pagetree, vm_page, obj.tree, vm_page_cmp);
 
 vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   vm_object_t *obj = pool_alloc(P_VMOBJ, PF_ZERO);
@@ -29,14 +29,14 @@ void vm_object_free(vm_object_t *obj) {
   while (!TAILQ_EMPTY(&obj->list)) {
     vm_page_t *pg = TAILQ_FIRST(&obj->list);
     TAILQ_REMOVE(&obj->list, pg, obj.list);
-    pm_free(pg);
+    vm_page_free(pg);
   }
   pool_free(P_VMOBJ, obj);
 }
 
 vm_page_t *vm_object_find_page(vm_object_t *obj, off_t offset) {
   vm_page_t find = {.offset = offset};
-  return RB_FIND(pg_tree, &obj->tree, &find);
+  return RB_FIND(vm_pagetree, &obj->tree, &find);
 }
 
 bool vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *page) {
@@ -47,9 +47,9 @@ bool vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *page) {
   page->object = obj;
   page->offset = offset;
 
-  if (!RB_INSERT(pg_tree, &obj->tree, page)) {
+  if (!RB_INSERT(vm_pagetree, &obj->tree, page)) {
     obj->npages++;
-    vm_page_t *next = RB_NEXT(pg_tree, &obj->tree, page);
+    vm_page_t *next = RB_NEXT(vm_pagetree, &obj->tree, page);
     if (next)
       TAILQ_INSERT_BEFORE(next, page, obj.list);
     else
@@ -65,8 +65,8 @@ void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
   page->object = NULL;
 
   TAILQ_REMOVE(&obj->list, page, obj.list);
-  RB_REMOVE(pg_tree, &obj->tree, page);
-  pm_free(page);
+  RB_REMOVE(vm_pagetree, &obj->tree, page);
+  vm_page_free(page);
   obj->npages--;
 }
 
@@ -87,7 +87,7 @@ vm_object_t *vm_object_clone(vm_object_t *obj) {
 
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) {
-    vm_page_t *new_pg = pm_alloc(1);
+    vm_page_t *new_pg = vm_page_alloc(1);
     pmap_copy_page(pg, new_pg);
     vm_object_add_page(new_obj, pg->offset, new_pg);
   }
@@ -97,6 +97,6 @@ vm_object_t *vm_object_clone(vm_object_t *obj) {
 
 void vm_map_object_dump(vm_object_t *obj) {
   vm_page_t *it;
-  RB_FOREACH (it, pg_tree, &obj->tree)
+  RB_FOREACH (it, vm_pagetree, &obj->tree)
     klog("(vm-obj) offset: 0x%08lx, size: %ld", it->offset, it->size);
 }
