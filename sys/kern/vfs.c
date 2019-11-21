@@ -216,19 +216,19 @@ static int vnr_lookup_once(vnrstate_t *state, vnode_t *searchdir,
 
 static void vnr_parse_component(vnrstate_t *state) {
   componentname_t *cn = &state->vs_cn;
+  const char *name = state->vs_nextcn;
 
-  cn->cn_nameptr = state->vs_nextcn;
+  /* Look for end of string or component separator. */
+  cn->cn_nameptr = name;
+  while (*name != '\0' && *name != '/')
+    name++;
+  cn->cn_namelen = name - cn->cn_nameptr;
 
-  size_t len = 0;
-  while (cn->cn_nameptr[len] != '\0' && cn->cn_nameptr[len] != '/')
-    len++;
-
-  cn->cn_namelen = len;
-  const char *name = cn->cn_nameptr + len;
-
+  /* Skip component separators. */
   while (*name == '/')
     name++;
 
+  /* Last component? */
   if (*name == '\0')
     cn->cn_flags |= VNR_ISLASTPC;
 
