@@ -187,6 +187,12 @@ static int vfs_maybe_descend(vnode_t **vp) {
   return 0;
 }
 
+bool componentname_equal(const componentname_t *cn, const char *name) {
+  if (strlen(name) != cn->cn_namelen)
+    return false;
+  return strncmp(name, cn->cn_nameptr, cn->cn_namelen) == 0;
+}
+
 /* Call VOP_LOOKUP for a single lookup. */
 static int vnr_lookup_once(vnrstate_t *state, vnode_t *searchdir,
                            vnode_t **foundvn_p) {

@@ -210,16 +210,13 @@ static int initrd_vnode_lookup(vnode_t *vdir, componentname_t *cn,
   cpio_node_t *cn_dir = (cpio_node_t *)vdir->v_data;
 
   TAILQ_FOREACH (it, &cn_dir->c_children, c_siblings) {
-    if (strlen(it->c_name) != cn->cn_namelen)
-      continue;
-
-    if (strncmp(it->c_name, cn->cn_nameptr, cn->cn_namelen) == 0) {
+    if (componentname_equal(cn, it->c_name)) {
       *res = vnode_of_cpio_node(it);
       return 0;
     }
   }
 
-  if (strncmp("..", cn->cn_nameptr, cn->cn_namelen) == 0 && cn_dir->c_parent) {
+  if (componentname_equal(cn, "..") && cn_dir->c_parent) {
     it = cn_dir->c_parent;
     *res = vnode_of_cpio_node(it);
     return 0;

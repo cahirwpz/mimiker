@@ -42,6 +42,8 @@ typedef struct componentname {
     .cn_flags = 0, .cn_nameptr = str, .cn_namelen = strlen(str)                \
   }
 
+bool componentname_equal(const componentname_t *cn, const char *name);
+
 /* Kernel interface */
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd);
 int do_close(proc_t *p, int fd);

@@ -42,19 +42,16 @@ static vnodeops_t devfs_vnodeops = {.v_lookup = devfs_vop_lookup,
                                     .v_open = vnode_open_generic};
 
 static devfs_node_t *devfs_find_child(devfs_node_t *parent,
-                                      componentname_t *cn) {
+                                      const componentname_t *cn) {
   assert(mtx_owned(&devfs.lock));
 
   if (parent == NULL)
     parent = &devfs.root;
 
   devfs_node_t *dn;
-  TAILQ_FOREACH (dn, &parent->dn_children, dn_link) {
-    if (strlen(dn->dn_name) != cn->cn_namelen)
-      continue;
-    if (!strncmp(dn->dn_name, cn->cn_nameptr, cn->cn_namelen))
+  TAILQ_FOREACH (dn, &parent->dn_children, dn_link)
+    if (componentname_equal(cn, dn->dn_name))
       return dn;
-  }
   return NULL;
 }
 
