@@ -37,6 +37,11 @@ typedef struct componentname {
   size_t cn_namelen;
 } componentname_t;
 
+#define COMPONENTNAME(str)                                                     \
+  (componentname_t) {                                                          \
+    .cn_flags = 0, .cn_nameptr = str, .cn_namelen = strlen(str)                \
+  }
+
 /* Kernel interface */
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd);
 int do_close(proc_t *p, int fd);
