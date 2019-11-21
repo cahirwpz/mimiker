@@ -8,6 +8,7 @@
 #include <sys/mutex.h>
 #include <sys/pool.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
 
 #define TMPFS_NAME_MAX 64
 
@@ -68,15 +69,16 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vnodetype_t ntype,
                              const char *name);
 static int tmpfs_get_vnode(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp);
 static int tmpfs_alloc_dirent(const char *name, tmpfs_dirent_t **dep);
-static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn, const char *name);
+static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
+                                        const componentname_t *cn);
 
 /* tmpfs vnode operations */
 
-static int tmpfs_vop_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
+static int tmpfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
   mount_t *mp = dv->v_mount;
   tmpfs_node_t *dnode = TMPFS_NODE_OF(dv);
 
-  tmpfs_dirent_t *de = tmpfs_dir_lookup(dnode, name);
+  tmpfs_dirent_t *de = tmpfs_dir_lookup(dnode, cn);
   if (de == NULL)
     return ENOENT;
 
@@ -262,11 +264,15 @@ static int tmpfs_alloc_dirent(const char *name, tmpfs_dirent_t **dep) {
   return 0;
 }
 
-static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn, const char *name) {
+static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
+                                        const componentname_t *cn) {
   tmpfs_dirent_t *de;
-  TAILQ_FOREACH (de, &tfn->tfn_dir.dirents, tfd_entries)
-    if (!strcmp(name, de->tfd_name))
+  TAILQ_FOREACH (de, &tfn->tfn_dir.dirents, tfd_entries) {
+    if (de->tfd_namelen != cn->cn_namelen)
+      continue;
+    if (!strncmp(de->tfd_name, cn->cn_nameptr, cn->cn_namelen))
       return de;
+  }
   return NULL;
 }
 
