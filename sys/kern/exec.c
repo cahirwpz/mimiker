@@ -10,6 +10,7 @@
 #include <sys/errno.h>
 #include <sys/filedesc.h>
 #include <sys/sbrk.h>
+#include <sys/syslimits.h>
 #include <sys/vfs.h>
 #include <sys/ustack.h>
 #include <sys/mount.h>
@@ -366,7 +367,7 @@ static int _do_execve(exec_args_t *args) {
   vm_map_dump(p->p_uspace);
 
   kfree(M_STR, p->p_elfpath);
-  p->p_elfpath = kstrndup(M_STR, prog, 128);
+  p->p_elfpath = kstrndup(M_STR, prog, PATH_MAX);
 
   klog("Enter userspace with: pc=%p, sp=%p", eh.e_entry, stack_top);
   return EJUSTRETURN;
