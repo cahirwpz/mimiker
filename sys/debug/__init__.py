@@ -8,7 +8,7 @@ from .proc import Kprocess, Process, CurrentProcess
 from .struct import TimeVal
 from .sync import CondVar, Mutex
 from .thread import Kthread, Thread, CurrentThread
-from .event_handlers import stop_handler
+from .events import stop_handler
 
 
 def addPrettyPrinters():
