@@ -69,9 +69,7 @@ int test_signal_abort() {
 /* This test shall be considered success if the process gets terminated with
    SIGABRT */
 int test_signal_segfault() {
-  struct {
-    int x;
-  } *ptr = 0x0;
+  volatile struct { int x; } *ptr = 0x0;
   ptr->x = 42;
   return 0;
 }

@@ -15,11 +15,11 @@ $(DEPENDENCY-FILES): $(SOURCES_GEN)
 
 .%.D: %.c
 	@echo "[DEP] $(DIR)$@"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -MT $*.o -MM -MG $^ -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -MT $*.o -MM -MG $^ -MF $@
 
 .%.D: %.S
 	@echo "[DEP] $(DIR)$@"
-	$(AS) $(ASFLAGS) $(CPPFLAGS) -MT $*.o -MM -MG $^ -o $@
+	$(AS) $(ASFLAGS) $(CPPFLAGS) -MT $*.o -MM -MG $^ -MF $@
 
 ifeq ($(words $(findstring $(MAKECMDGOALS), download clean distclean)), 0)
   -include $(DEPENDENCY-FILES)

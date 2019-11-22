@@ -1958,7 +1958,7 @@ x_debug_info(c)
 	shellf("\txbp == 0x%lx,\txbuf == 0x%lx\n", (long) xbp, (long) xbuf);
 	shellf("\txlp == 0x%lx\n", (long) xlp);
 	shellf("\txlp == 0x%lx\n", (long) x_lastcp());
-	shellf(newline);
+	shellf("%s", newline);
 	x_redraw(-1);
 	return 0;
 }
