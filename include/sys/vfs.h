@@ -31,10 +31,18 @@ typedef enum {
 /*
  * Encapsulation of lookup parameters.
  */
-typedef struct {
+typedef struct componentname {
   uint32_t cn_flags;
-  const char *cn_nameptr;
+  const char *cn_nameptr; /* not NULL-terminated */
+  size_t cn_namelen;
 } componentname_t;
+
+#define COMPONENTNAME(str)                                                     \
+  (componentname_t) {                                                          \
+    .cn_flags = 0, .cn_nameptr = str, .cn_namelen = strlen(str)                \
+  }
+
+bool componentname_equal(const componentname_t *cn, const char *name);
 
 /* Kernel interface */
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd);

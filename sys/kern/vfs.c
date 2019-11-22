@@ -16,13 +16,13 @@
 typedef struct {
   /* Arguments to vnr. */
   vnrop_t vs_op; /* vnr operation type */
-  const char *vs_path;
 
   /* Results returned from lookup. */
   vnode_t *vs_vp;  /* vnode of result */
   vnode_t *vs_dvp; /* vnode of parent directory */
 
   componentname_t vs_cn;
+  const char *vs_nextcn;
 } vnrstate_t;
 
 /* TODO: We probably need some fancier allocation, since eventually we should
@@ -187,12 +187,18 @@ static int vfs_maybe_descend(vnode_t **vp) {
   return 0;
 }
 
+bool componentname_equal(const componentname_t *cn, const char *name) {
+  if (strlen(name) != cn->cn_namelen)
+    return false;
+  return strncmp(name, cn->cn_nameptr, cn->cn_namelen) == 0;
+}
+
 /* Call VOP_LOOKUP for a single lookup. */
 static int vnr_lookup_once(vnrstate_t *state, vnode_t *searchdir,
                            vnode_t **foundvn_p) {
   vnode_t *foundvn;
   componentname_t *cn = &state->vs_cn;
-  int error = VOP_LOOKUP(searchdir, cn->cn_nameptr, &foundvn);
+  int error = VOP_LOOKUP(searchdir, cn, &foundvn);
   if (error) {
     /*
      * The entry was not found in the directory. This is valid
@@ -214,6 +220,27 @@ static int vnr_lookup_once(vnrstate_t *state, vnode_t *searchdir,
   return error;
 }
 
+static void vnr_parse_component(vnrstate_t *state) {
+  componentname_t *cn = &state->vs_cn;
+  const char *name = state->vs_nextcn;
+
+  /* Look for end of string or component separator. */
+  cn->cn_nameptr = name;
+  while (*name != '\0' && *name != '/')
+    name++;
+  cn->cn_namelen = name - cn->cn_nameptr;
+
+  /* Skip component separators. */
+  while (*name == '/')
+    name++;
+
+  /* Last component? */
+  if (*name == '\0')
+    cn->cn_flags |= VNR_ISLASTPC;
+
+  state->vs_nextcn = name;
+}
+
 static int vfs_nameresolve(vnrstate_t *state) {
   /* TODO: This is a simplified implementation, and it does not support many
      required features! These include: relative paths, symlinks, parent dirs */
@@ -221,24 +248,20 @@ static int vfs_nameresolve(vnrstate_t *state) {
   vnode_t *searchdir, *foundvn;
   componentname_t *cn = &state->vs_cn;
 
-  if (state->vs_path[0] == '\0')
+  if (state->vs_nextcn[0] == '\0')
     return ENOENT;
 
-  if (strncmp(state->vs_path, "/", 1) != 0) {
+  if (strncmp(state->vs_nextcn, "/", 1) != 0) {
     klog("Relative paths are not supported!");
     return ENOENT;
   }
 
-  /* Skip leading '/' */
-  state->vs_path++;
+  /* Drop leading slashes. */
+  while (state->vs_nextcn[0] == '/')
+    state->vs_nextcn++;
 
-  /* Copy path into a local buffer, so that we may process it. */
-  size_t n = strlen(state->vs_path);
-  if (n >= PATH_MAX)
+  if (strlen(state->vs_nextcn) >= PATH_MAX)
     return ENAMETOOLONG;
-  char *pathcopy = kmalloc(M_TEMP, PATH_MAX, 0);
-  strlcpy(pathcopy, state->vs_path, PATH_MAX);
-  char *pathbuf = pathcopy;
 
   /* Establish the starting directory for lookup, and lock it. */
   searchdir = vfs_root_vnode;
@@ -252,23 +275,17 @@ static int vfs_nameresolve(vnrstate_t *state) {
     goto end;
 
   /* Path was just "/". */
-  if (pathbuf[0] == '\0') {
+  if (state->vs_nextcn[0] == '\0') {
     foundvn = searchdir;
     searchdir = NULL;
   }
 
   while (searchdir) {
-    assert(*pathbuf != '/');
-    assert(*pathbuf != '\0');
+    assert(state->vs_nextcn[0] != '/');
+    assert(state->vs_nextcn[0] != '\0');
 
     /* Prepare the next path name component. */
-    cn->cn_nameptr = strsep(&pathbuf, "/");
-
-    while (pathbuf != NULL && *pathbuf == '/')
-      pathbuf++;
-
-    if (pathbuf == NULL || *pathbuf == '\0')
-      cn->cn_flags |= VNR_ISLASTPC;
+    vnr_parse_component(state);
 
     /* Look up the child vnode */
     foundvn = NULL;
@@ -307,14 +324,13 @@ static int vfs_nameresolve(vnrstate_t *state) {
   error = 0;
 
 end:
-  kfree(M_TEMP, pathcopy);
   return error;
 }
 
 static void vnrstate_init(vnrstate_t *vs, vnrop_t op, const char *path) {
   vs->vs_op = op;
-  vs->vs_path = path;
   vs->vs_cn.cn_flags = 0;
+  vs->vs_nextcn = path;
 }
 
 int vfs_lookup(const char *path, vnode_t **vp) {

@@ -204,18 +204,19 @@ static vnode_t *vnode_of_cpio_node(cpio_node_t *cn) {
   return cn->c_vnode;
 }
 
-static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
+static int initrd_vnode_lookup(vnode_t *vdir, componentname_t *cn,
+                               vnode_t **res) {
   cpio_node_t *it;
   cpio_node_t *cn_dir = (cpio_node_t *)vdir->v_data;
 
   TAILQ_FOREACH (it, &cn_dir->c_children, c_siblings) {
-    if (strcmp(name, it->c_name) == 0) {
+    if (componentname_equal(cn, it->c_name)) {
       *res = vnode_of_cpio_node(it);
       return 0;
     }
   }
 
-  if (strcmp(name, "..") == 0 && cn_dir->c_parent) {
+  if (componentname_equal(cn, "..") && cn_dir->c_parent) {
     it = cn_dir->c_parent;
     *res = vnode_of_cpio_node(it);
     return 0;

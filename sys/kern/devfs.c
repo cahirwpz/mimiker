@@ -10,6 +10,7 @@
 #include <sys/pool.h>
 #include <sys/linker_set.h>
 #include <sys/dirent.h>
+#include <sys/vfs.h>
 
 typedef struct devfs_node devfs_node_t;
 typedef TAILQ_HEAD(, devfs_node) devfs_node_list_t;
@@ -33,73 +34,72 @@ typedef struct devfs_mount {
 } devfs_mount_t;
 
 static devfs_mount_t devfs = {
-  .lock = MTX_INITIALIZER(LK_RECURSE), .next_ino = 2, .root = {}};
+  .lock = MTX_INITIALIZER(0), .next_ino = 2, .root = {}};
 static vnode_lookup_t devfs_vop_lookup;
 static vnode_readdir_t devfs_vop_readdir;
 static vnodeops_t devfs_vnodeops = {.v_lookup = devfs_vop_lookup,
                                     .v_readdir = devfs_vop_readdir,
                                     .v_open = vnode_open_generic};
 
-static devfs_node_t *devfs_find_child(devfs_node_t *parent, const char *name) {
-  SCOPED_MTX_LOCK(&devfs.lock);
+static devfs_node_t *devfs_find_child(devfs_node_t *parent,
+                                      const componentname_t *cn) {
+  assert(mtx_owned(&devfs.lock));
 
   if (parent == NULL)
     parent = &devfs.root;
 
   devfs_node_t *dn;
   TAILQ_FOREACH (dn, &parent->dn_children, dn_link)
-    if (!strcmp(name, dn->dn_name))
+    if (componentname_equal(cn, dn->dn_name))
       return dn;
   return NULL;
 }
 
-int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
-                  void *data) {
+static int devfs_add_entry(devfs_node_t *parent, const char *name,
+                           devfs_node_t **dnp) {
+  assert(mtx_owned(&devfs.lock));
+
   if (parent == NULL)
     parent = &devfs.root;
-
   if (parent->dn_vnode->v_type != V_DIR)
     return ENOTDIR;
 
+  if (devfs_find_child(parent, &COMPONENTNAME(name)))
+    return EEXIST;
+
   devfs_node_t *dn = pool_alloc(P_DEVFS, PF_ZERO);
+  dn->dn_ino = ++devfs.next_ino;
   dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
-  dn->dn_vnode = vnode_new(V_DEV, vops, data);
-
-  WITH_MTX_LOCK (&devfs.lock) {
-    dn->dn_ino = ++devfs.next_ino;
-    if (devfs_find_child(parent, name))
-      return EEXIST;
-    TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
-  }
-
-  klog("devfs: registered '%s' device", name);
-
+  TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
+  *dnp = dn;
   return 0;
+}
+
+int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
+                  void *data) {
+  SCOPED_MTX_LOCK(&devfs.lock);
+
+  devfs_node_t *dn;
+  int error = devfs_add_entry(parent, name, &dn);
+  if (!error) {
+    dn->dn_vnode = vnode_new(V_DEV, vops, data);
+    klog("devfs: registered '%s' device", name);
+  }
+  return error;
 }
 
 int devfs_makedir(devfs_node_t *parent, const char *name,
                   devfs_node_t **dir_p) {
-  if (parent == NULL)
-    parent = &devfs.root;
+  SCOPED_MTX_LOCK(&devfs.lock);
 
-  if (parent->dn_vnode->v_type != V_DIR)
-    return ENOTDIR;
-
-  devfs_node_t *dn = pool_alloc(P_DEVFS, PF_ZERO);
-  dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
-  dn->dn_vnode = vnode_new(V_DIR, &devfs_vnodeops, dn);
-  dn->dn_parent = parent;
-  TAILQ_INIT(&dn->dn_children);
-
-  WITH_MTX_LOCK (&devfs.lock) {
-    dn->dn_ino = ++devfs.next_ino;
-    if (devfs_find_child(parent, name))
-      return EEXIST;
-    TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
+  devfs_node_t *dn;
+  int error = devfs_add_entry(parent, name, &dn);
+  if (!error) {
+    dn->dn_vnode = vnode_new(V_DIR, &devfs_vnodeops, dn);
+    dn->dn_parent = parent;
+    TAILQ_INIT(&dn->dn_children);
+    *dir_p = dn;
   }
-
-  *dir_p = dn;
-
   return 0;
 }
 
@@ -108,16 +108,17 @@ int devfs_makedir(devfs_node_t *parent, const char *name,
 static int devfs_mount(mount_t *m) {
   devfs.root.dn_vnode->v_mount = m;
   m->mnt_data = &devfs;
-
   return 0;
 }
 
-static int devfs_vop_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
-  devfs_node_t *dn;
+static int devfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
+  SCOPED_MTX_LOCK(&devfs.lock);
 
   if (dv->v_type != V_DIR)
     return ENOTDIR;
-  if (!(dn = devfs_find_child(dv->v_data, name)))
+
+  devfs_node_t *dn = devfs_find_child(dv->v_data, cn);
+  if (!dn)
     return ENOENT;
   *vp = dn->dn_vnode;
   vnode_hold(*vp);

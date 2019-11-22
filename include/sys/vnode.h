@@ -13,6 +13,7 @@ typedef struct mount mount_t;
 typedef struct file file_t;
 typedef struct dirent dirent_t;
 typedef struct stat stat_t;
+typedef struct componentname componentname_t;
 
 #define VNOVAL (-1)
 
@@ -26,7 +27,7 @@ typedef enum {
   V_DEV,
 } vnodetype_t;
 
-typedef int vnode_lookup_t(vnode_t *dv, const char *name, vnode_t **vp);
+typedef int vnode_lookup_t(vnode_t *dv, componentname_t *cn, vnode_t **vp);
 typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio, void *state);
 typedef int vnode_open_t(vnode_t *v, int mode, file_t *fp);
 typedef int vnode_close_t(vnode_t *v, file_t *fp);
@@ -101,8 +102,8 @@ void va_convert(vattr_t *va, stat_t *sb);
 #define VOP_CALL(op, v, ...)                                                   \
   ((v)->v_ops->v_##op) ? ((v)->v_ops->v_##op(v, ##__VA_ARGS__)) : ENOTSUP
 
-static inline int VOP_LOOKUP(vnode_t *dv, const char *name, vnode_t **vp) {
-  return VOP_CALL(lookup, dv, name, vp);
+static inline int VOP_LOOKUP(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
+  return VOP_CALL(lookup, dv, cn, vp);
 }
 
 static inline int VOP_READDIR(vnode_t *dv, uio_t *uio, void *data) {
