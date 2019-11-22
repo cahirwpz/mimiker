@@ -5,7 +5,7 @@ WORKDIR /root
 RUN apt-get -q update && apt-get upgrade -y
 RUN apt-get install -y --no-install-recommends \
       git make cpio curl exuberant-ctags cscope rsync socat patch \
-      bmake byacc python3-pip clang-format device-tree-compiler \
+      bmake byacc python3-pip clang clang-format device-tree-compiler \
       libfdt1 libpython3.7 libsdl2-2.0-0 libglib2.0-0 libpixman-1-0
 # rsync required by verify-format.sh
 # patch required by bin/lua
