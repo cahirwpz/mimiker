@@ -80,6 +80,10 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep);
  * Increases use count on returned vnode. */
 int vfs_lookup(const char *path, vnode_t **vp);
 
+/* Both vnode and its parent is held and locked. */
+int vnr_delete(const char *path, vnode_t **dvp, vnode_t **vp,
+               componentname_t *cn);
+
 /* Looks up the vnode corresponding to the pathname and opens it into f. */
 int vfs_open(file_t *f, char *pathname, int flags, int mode);
 
