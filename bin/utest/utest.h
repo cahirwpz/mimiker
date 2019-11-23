@@ -58,4 +58,6 @@ int test_setjmp(void);
 int test_sigaction_with_setjmp(void);
 int test_sigaction_handler_returns(void);
 
+int test_vfs(void);
+
 #endif /* __UTEST_H__ */
