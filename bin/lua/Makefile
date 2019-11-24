@@ -2,7 +2,8 @@ TOPDIR = $(realpath ../..)
 
 PKG = lua-5.3.5
 URL = https://www.lua.org/ftp/$(PKG).tar.gz
-PATCHES = loslib.patch lunix.patch luaconf.patch init.patch
+PATCHES = loslib.patch lunix.patch luaconf.patch init.patch \
+	  clang-warning.patch Makefile.patch
 
 all: download build install
 

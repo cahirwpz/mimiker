@@ -34,27 +34,14 @@ With toolchain in place, you are ready to compile Mimiker. Run
 ```
 make
 ```
+or
+```
+make CLANG=1
+```
 
-in project root. This will result with a `mimiker.elf` file containing the
-kernel image.
-
-Building the kernel with Clang
----
-
-You can also choose to build the kernel with the Clang compiler.
-To do so, first make sure you have Clang installed.
-Then, go to project root and run:
-```
-make setup
-make sys-build CLANG=1
-```
-Now you should have the kernel image inside the `sys/` directory.
-To build the rest of the system, simply run:
-```
-make
-```
-in project root. This command won't work if you try to use Clang, but this isn't
-hard to fix.
+in project root. The latter will use the Clang compiler instead of GCC
+(make sure you have it installed!). Running either command will result
+with a `mimiker.elf` file containing the kernel image.
 
 Running
 ---
