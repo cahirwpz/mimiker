@@ -1,17 +1,13 @@
 import gdb
 from pathlib import Path
+from debug.proc import Process
 
 
 def get_current_mimiker_path():
-    pcpu_data = gdb.newest_frame().read_var('_pcpu_data')
-    curthread_ptr = pcpu_data.dereference()['curthread']
-    proc_ptr = curthread_ptr.dereference()['td_proc']
-    if proc_ptr == 0:
+    try:
+        return Process.from_current().p_elfpath.string()
+    except:  # noqa: E722
         return None
-    p_elfpath = proc_ptr.dereference()['p_elfpath']
-    if p_elfpath == 0:
-        return None
-    return p_elfpath.string()
 
 
 def get_loaded_host_path():
