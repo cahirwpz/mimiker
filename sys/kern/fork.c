@@ -62,6 +62,7 @@ int do_fork(pid_t *cldpidp) {
   proc_add(child);
 
   sched_add(newtd);
+  child->cwd = parent->cwd;
 
   *cldpidp = child->p_pid;
   return 0;

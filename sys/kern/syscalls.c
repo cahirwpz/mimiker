@@ -1,6 +1,7 @@
 #define KL_LOG KL_SYSCALL
 #include <sys/klog.h>
 #include <sys/sysent.h>
+#include <sys/dirent.h>
 #include <sys/mimiker.h>
 #include <sys/errno.h>
 #include <sys/thread.h>
@@ -10,6 +11,7 @@
 #include <sys/sbrk.h>
 #include <sys/signal.h>
 #include <sys/proc.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/exec.h>
@@ -21,6 +23,7 @@
 #include <sys/libkern.h>
 #include <sys/syslimits.h>
 #include <sys/context.h>
+#include <sys/getcwd.h>
 
 #include "sysent.h"
 
@@ -315,19 +318,77 @@ static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
   if ((error = copyinstr(u_path, path, PATH_MAX, &len)))
     goto end;
 
-  klog("chdir(\"%s\")", path);
-  error = ENOTSUP;
+  vnode_t *cwd;
+  error = vfs_lookup(path, &cwd);
+  if (error)
+    goto end;
 
+  proc_self()->cwd = cwd;
+  return 0;
 end:
   kfree(M_TEMP, path);
   return error;
 }
 
 static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
-  __unused char *u_buf = args->buf;
-  __unused size_t len = args->len;
+  char *u_buf = args->buf;
+  size_t len = args->len;
 
-  return ENOTSUP;
+  if (len <= 1) {
+    // Shortest path is string of two bytes "/"
+    return ERANGE;
+  }
+
+  if (p->cwd == root_vnode()) {
+    copyout("/", u_buf, 2);
+    return 0;
+  }
+
+  int error = 0;
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+  char *path_start = path + PATH_MAX;
+  vnode_t *uvp = p->cwd;
+  vnode_t *lvp = NULL;
+  path_start -= 1;
+  *path_start = '\0';
+
+  for (int i = 0; i < PATH_MAX; i++) {
+    while (uvp->v_mount) {
+      uvp = uvp->v_mount->mnt_vnodecovered;
+    }
+
+    if (uvp == root_vnode()) {
+      break;
+    }
+
+    componentname_t cn = COMPONENTNAME("..");
+    error = VOP_LOOKUP(uvp, &cn, &lvp);
+
+    if (error) {
+      goto end;
+    }
+
+    if (lvp == NULL || uvp == lvp) {
+      error = ENOENT;
+    }
+
+    error = getcwd_scandir(lvp, uvp, &path_start, path);
+    if (error) {
+      goto end;
+    }
+    uvp = lvp;
+    lvp = NULL;
+  }
+
+  unsigned path_len = PATH_MAX - (path_start - path);
+  if (path_len > len) {
+    return ERANGE;
+  }
+
+  copyout(path_start, u_buf, path_len);
+end:
+  kfree(M_TEMP, path);
+  return error;
 }
 
 static int sys_mount(proc_t *p, mount_args_t *args, register_t *res) {

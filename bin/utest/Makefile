@@ -1,6 +1,7 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES = \
+	getcwd.c \
 	access.c \
 	exceptions.c \
 	fd.c \

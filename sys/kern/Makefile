@@ -23,6 +23,7 @@ SOURCES = \
 	file.c \
 	filedesc.c \
 	fork.c \
+	getcwd.c \
 	initrd.c \
 	interrupt.c \
 	kenv.c \

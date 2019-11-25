@@ -11,6 +11,7 @@
 #include <sys/linker_set.h>
 #include <sys/sysinit.h>
 #include <sys/mimiker.h>
+#include <sys/proc.h>
 
 /* Internal state for a vnr operation. */
 typedef struct {
@@ -46,6 +47,10 @@ static vfs_init_t vfs_default_init;
 
 /* Global root vnodes */
 vnode_t *vfs_root_vnode;
+
+vnode_t *root_vnode(void) {
+  return vfs_root_vnode;
+}
 
 static vnodeops_t vfs_root_ops = {};
 

@@ -7,6 +7,7 @@
 #include <sys/condvar.h>
 #include <sys/signal.h>
 #include <sys/vm_map.h>
+#include <sys/vnode.h>
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
@@ -58,6 +59,7 @@ struct proc {
   sigaction_t p_sigactions[NSIG]; /* (@) description of signal actions */
   condvar_t p_waitcv;             /* (a) processes waiting for this one */
   int p_exitstatus;               /* (@) exit code to be returned to parent */
+  vnode_t *cwd;                   /* Current working directory */
   /* program segments */
   vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
   vaddr_t p_sbrk_end;   /* ($) Current end of brk segment. */
