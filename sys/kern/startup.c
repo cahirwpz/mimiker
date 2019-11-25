@@ -1,6 +1,7 @@
 #define KL_LOG KL_INIT
 #include <sys/klog.h>
 #include <sys/libkern.h>
+#include <sys/kmem.h>
 #include <sys/pool.h>
 #include <sys/malloc.h>
 #include <sys/sched.h>
@@ -25,8 +26,9 @@ SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"));
 __noreturn void kernel_init(void) {
   vm_page_init();
   pool_bootstrap();
-  vm_map_bootstrap();
   kmem_bootstrap();
+  kmalloc_bootstrap();
+  vm_map_bootstrap();
 
   sysinit();
   klog("Kernel initialized!");

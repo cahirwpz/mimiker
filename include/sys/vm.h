@@ -17,6 +17,7 @@
 
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
 
+/* Real kernel end in kernel virtual address space. */
 extern void *vm_kernel_end;
 
 typedef enum {

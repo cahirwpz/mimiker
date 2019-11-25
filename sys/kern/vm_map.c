@@ -57,11 +57,11 @@ vm_map_t *vm_map_kernel(void) {
 }
 
 vaddr_t vm_map_start(vm_map_t *map) {
-  return map->pmap == pmap_kernel() ? VM_MAP_KERNEL_BEGIN : VM_MAP_USER_BEGIN;
+  return map->pmap == pmap_kernel() ? KERNEL_SPACE_BEGIN : USER_SPACE_BEGIN;
 }
 
 vaddr_t vm_map_end(vm_map_t *map) {
-  return map->pmap == pmap_kernel() ? VM_MAP_KERNEL_END : VM_MAP_USER_END;
+  return map->pmap == pmap_kernel() ? KERNEL_SPACE_END : USER_SPACE_END;
 }
 
 vaddr_t vm_segment_start(vm_segment_t *seg) {

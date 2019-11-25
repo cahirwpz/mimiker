@@ -221,7 +221,8 @@ int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
     vmem_check_sanity(vm);
   }
 
-  klog("span [%lu, %lu] added", addr, addr + size - 1);
+  klog("%s: added [%p-%p] span to '%s'", __func__, addr, addr + size - 1,
+       vm->vm_name);
 
   return 0;
 }
@@ -241,7 +242,8 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp) {
   if (bt == NULL) {
     vmem_unlock(vm);
     pool_free(P_BT, btnew);
-    klog("alloc of size %lu for vmem '%s' failed (ENOMEM)", size, vm->vm_name);
+    klog("%s: block of %lu bytes not found in '%s'", __func__, size,
+         vm->vm_name);
     return ENOMEM;
   }
 
@@ -278,7 +280,7 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp) {
   if (addrp != NULL)
     *addrp = bt->bt_start;
 
-  klog("alloc of size %lu for vmem '%s' succeeded", size, vm->vm_name);
+  klog("%s: found block of %lu bytes in '%s'", __func__, size, vm->vm_name);
   return 0;
 }
 

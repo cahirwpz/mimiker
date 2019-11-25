@@ -133,4 +133,8 @@ void assert_fail(const char *expr, const char *file, unsigned int line);
 /* Global definitions used throught kernel. */
 __noreturn void kernel_init(void);
 
+/* Initial range of virtual addresses used by kernel image. */
+extern char __kernel_start[];
+extern char __kernel_end[];
+
 #endif /* !_SYS_MIMIKER_H_ */
