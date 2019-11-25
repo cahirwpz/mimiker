@@ -6,7 +6,6 @@
 
 int test_getcwd(void) {
   char buffer[256];
-  buffer[0] = '\0';
   getcwd(buffer, 256);
   assert(strcmp("/", buffer) == 0);
 

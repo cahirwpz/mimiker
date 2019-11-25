@@ -43,6 +43,7 @@ int getcwd_scandir(vnode_t *lvp, vnode_t *uvp, char **bpp, char *bufp) {
     uio = UIO_SINGLE_KERNEL(UIO_READ, offset, buf, 1024);
     VOP_READDIR(lvp, &uio, NULL);
   }
+  panic("Failed to find child node in parent directory");
 end:
   kfree(M_TEMP, buf);
   return error;

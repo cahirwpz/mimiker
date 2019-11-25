@@ -335,7 +335,6 @@ static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
   size_t len = args->len;
 
   if (len <= 1) {
-    // Shortest path is string of two bytes "/"
     return ERANGE;
   }
 
