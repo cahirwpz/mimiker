@@ -137,12 +137,36 @@ static void bt_insseg_after(vmem_t *vm, bt_t *bt, bt_t *prev) {
   TAILQ_INSERT_AFTER(&vm->vm_seglist, prev, bt, bt_seglink);
 }
 
+static void bt_remseg(vmem_t *vm, bt_t *bt) {
+  assert(mtx_owned(&vm->vm_lock));
+  TAILQ_REMOVE(&vm->vm_seglist, bt, bt_seglink);
+}
+
 static void bt_insbusy(vmem_t *vm, bt_t *bt) {
   assert(mtx_owned(&vm->vm_lock));
   assert(bt->bt_type == BT_TYPE_BUSY);
   vmem_hashlist_t *list = bt_hashhead(vm, bt->bt_start);
   LIST_INSERT_HEAD(list, bt, bt_hashlink);
   vm->vm_inuse += bt->bt_size;
+}
+
+static void bt_rembusy(vmem_t *vm, bt_t *bt) {
+  assert(mtx_owned(&vm->vm_lock));
+  assert(bt->bt_type == BT_TYPE_BUSY);
+  vm->vm_inuse -= bt->bt_size;
+  LIST_REMOVE(bt, bt_hashlink);
+}
+
+static bt_t *bt_lookupbusy(vmem_t *vm, vmem_addr_t addr) {
+  assert(mtx_owned(&vm->vm_lock));
+  vmem_hashlist_t *list = bt_hashhead(vm, addr);
+  bt_t *bt;
+  LIST_FOREACH (bt, list, bt_hashlink) {
+    assert(bt->bt_type == BT_TYPE_BUSY);
+    if (bt->bt_start == addr)
+      return bt;
+  }
+  return NULL;
 }
 
 static void vmem_check_sanity(vmem_t *vm) {
@@ -288,7 +312,52 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp) {
 }
 
 void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
-  klog("vmem_free(%p, %ld, %ld) had no effect", vm, addr, size);
+  vmem_lock(vm);
+  vmem_check_sanity(vm);
+
+  bt_t *bt = bt_lookupbusy(vm, addr);
+  assert(bt != NULL);
+  assert(bt->bt_size == align(size, vm->vm_quantum));
+
+  bt_rembusy(vm, bt);
+  bt->bt_type = BT_TYPE_FREE;
+
+  /* coalesce previous segment */
+  bt_t *prev = TAILQ_PREV(bt, vmem_seglist, bt_seglink);
+  if (prev != NULL && prev->bt_type == BT_TYPE_FREE) {
+    assert(bt_end(prev) < bt->bt_start);
+    bt_remfree(vm, prev);
+    bt_remseg(vm, prev);
+    bt->bt_size += prev->bt_size;
+    bt->bt_start = prev->bt_start;
+  } else {
+    /* Set prev to NULL so that it won't be deallocated after exiting
+     * from the vmem lock */
+    prev = NULL;
+  }
+
+  /* coalesce next segment */
+  bt_t *next = TAILQ_NEXT(bt, bt_seglink);
+  if (next != NULL && next->bt_type == BT_TYPE_FREE) {
+    assert(bt_end(bt) < next->bt_start);
+    bt_remfree(vm, next);
+    bt_remseg(vm, next);
+    bt->bt_size += next->bt_size;
+  } else {
+    /* Set next to NULL so that it won't be deallocated after exiting
+     * from the vmem lock */
+    next = NULL;
+  }
+
+  bt_insfree(vm, bt);
+
+  vmem_check_sanity(vm);
+  vmem_unlock(vm);
+
+  if (prev != NULL)
+    pool_free(P_BT, prev);
+  if (next != NULL)
+    pool_free(P_BT, next);
 }
 
 void vmem_destroy(vmem_t *vm) {
