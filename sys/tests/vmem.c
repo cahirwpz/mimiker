@@ -19,7 +19,6 @@ static int test_vmem(void) {
   assert(vm != NULL);
 
   int rc;
-  vmem_addr_t addr;
   vmem_size_t size;
 
   /* add span #1 */
@@ -34,26 +33,46 @@ static int test_vmem(void) {
 
   /* alloc 16 quantums, should return addr from span #2 */
   size = 16 * quantum;
-  rc = vmem_alloc(vm, size, &addr);
+  vmem_addr_t addr16;
+  rc = vmem_alloc(vm, size, &addr16);
   assert(rc == 0);
-  assert_addr_is_in_span(addr, size, &span2);
+  assert_addr_is_in_span(addr16, size, &span2);
 
   /* alloc 8 quantums, should return addr from span #1 */
   size = 8 * quantum;
-  rc = vmem_alloc(vm, size, &addr);
+  vmem_addr_t addr8;
+  rc = vmem_alloc(vm, size, &addr8);
   assert(rc == 0);
-  assert_addr_is_in_span(addr, size, &span1);
+  assert_addr_is_in_span(addr8, size, &span1);
 
   /* alloc 1 quantum, should return addr from span #2 */
   size = 1 * quantum;
-  rc = vmem_alloc(vm, size, &addr);
+  vmem_addr_t addr1;
+  rc = vmem_alloc(vm, size, &addr1);
   assert(rc == 0);
-  assert_addr_is_in_span(addr, size, &span2);
+  assert_addr_is_in_span(addr1, size, &span2);
 
   /* alloc 10 quantums, should fail */
   size = 10 * quantum;
-  rc = vmem_alloc(vm, size, &addr);
+  vmem_addr_t addr10;
+  rc = vmem_alloc(vm, size, &addr10);
   assert(rc == ENOMEM);
+
+  /* free 16 quantums */
+  vmem_free(vm, addr16, 16 * quantum);
+
+  /* alloc 10 quantums, should return addr from span #2 */
+  size = 10 * quantum;
+  rc = vmem_alloc(vm, size, &addr10);
+  assert(rc == 0);
+  assert_addr_is_in_span(addr10, size, &span2);
+
+  /* free all segments */
+  vmem_free(vm, addr1, 1 * quantum);
+  vmem_free(vm, addr8, 8 * quantum);
+  vmem_free(vm, addr10, 10 * quantum);
+
+  vmem_destroy(vm);
 
   return KTEST_SUCCESS;
 }
