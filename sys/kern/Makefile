@@ -27,6 +27,7 @@ SOURCES = \
 	interrupt.c \
 	kenv.c \
 	klog.c \
+	kmem.c \
 	ktest.c \
 	main.c \
 	malloc.c \

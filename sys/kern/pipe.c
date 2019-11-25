@@ -33,7 +33,7 @@ struct pipe {
   pipe_end_t end[2]; /*!< both pipe ends */
 };
 
-static MALLOC_DEFINE(M_PIPE, "pipe buffers", PAGESIZE * 8);
+static KMALLOC_DEFINE(M_PIPE, "pipe buffers", PAGESIZE * 8);
 static POOL_DEFINE(P_PIPE, "pipe", sizeof(pipe_t));
 
 static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
