@@ -1,4 +1,4 @@
-#define KL_LOG KL_POOL
+#define KL_LOG KL_KMEM
 #include <sys/libkern.h>
 #include <sys/queue.h>
 #include <sys/mimiker.h>
