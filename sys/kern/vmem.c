@@ -167,8 +167,7 @@ static void vmem_check_sanity(vmem_t *vm) {
   }
 }
 
-vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
-                    vmem_size_t quantum) {
+vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
   vmem_t *vm = pool_alloc(P_VMEM, PF_ZERO);
 
   vm->vm_quantum = quantum;
@@ -185,9 +184,6 @@ vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
     LIST_INIT(&vm->vm_freelist[i]);
   for (int i = 0; i < VMEM_MAXHASH; i++)
     LIST_INIT(&vm->vm_hashlist[i]);
-
-  if (size != 0)
-    vmem_add(vm, base, size);
 
   WITH_MTX_LOCK (&vmem_alllist_lock)
     LIST_INSERT_HEAD(&vmem_alllist, vm, vm_alllist_link);
