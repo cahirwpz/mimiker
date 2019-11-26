@@ -1,4 +1,6 @@
 #define KL_LOG KL_PROC
+#include <sys/libkern.h>
+#include <sys/syslimits.h>
 #include <sys/klog.h>
 #include <sys/proc.h>
 #include <sys/pool.h>
@@ -129,6 +131,10 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
   p->p_state = PS_NORMAL;
   p->p_thread = td;
   p->p_parent = parent;
+
+  if (parent && parent->p_elfpath)
+    p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, PATH_MAX);
+
   TAILQ_INIT(CHILDREN(p));
 
   WITH_MTX_LOCK (&td->td_lock)
@@ -191,7 +197,7 @@ static void proc_reap(proc_t *p) {
   if (p->p_parent)
     TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
   TAILQ_REMOVE(&zombie_list, p, p_zombie);
-
+  kfree(M_STR, p->p_elfpath);
   pid_free(p->p_pid);
   pool_free(P_PROC, p);
 }
