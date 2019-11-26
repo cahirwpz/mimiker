@@ -32,8 +32,8 @@ static int test_vmem(void) {
   rc = vmem_add(vm, span2.addr, span2.size);
   assert(rc == 0);
 
-  /* alloc 16 quantums, should return addr from span #2 */
-  size = 16 * quantum;
+  /* alloc 17 quantums, should return addr from span #2 */
+  size = 17 * quantum;
   rc = vmem_alloc(vm, size, &addr);
   assert(rc == 0);
   assert_addr_is_in_span(addr, size, &span2);
