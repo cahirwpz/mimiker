@@ -131,26 +131,23 @@ static int tmpfs_vop_mkdir(vnode_t *dv, const char *name, vattr_t *va,
 }
 
 static int tmpfs_vop_rmdir(vnode_t *dv, const char *name) {
-  tmpfs_node_t *node, *dnode = TMPFS_NODE_OF(dv);
+  tmpfs_node_t *dnode = TMPFS_NODE_OF(dv);
+  tmpfs_dirent_t *de = tmpfs_dir_lookup(dnode, &COMPONENTNAME(name));
+  assert(de != NULL);
+
+  tmpfs_node_t *node = de->tfd_node;
   int error = 0;
 
-  tmpfs_dirent_t *de = tmpfs_dir_lookup(dnode, &COMPONENTNAME(name));
-  assert(de);
-  node = de->tfd_node;
-
-  if (!TAILQ_EMPTY(&node->tfn_dir.dirents)) {
+  if (TAILQ_EMPTY(&node->tfn_dir.dirents)) {
+    /* Deassociate the node and direntry. */
+    node->tfn_links--;
+    de->tfd_node = NULL;
+    TAILQ_REMOVE(&dnode->tfn_dir.dirents, de, tfd_entries);
+    pool_free(P_TMPFS_DIRENT, de);
+  } else {
     error = ENOTEMPTY;
-    goto end;
   }
 
-  /* Deassociate the node and direntry. */
-  node->tfn_links--;
-  de->tfd_node = NULL;
-  TAILQ_REMOVE(&dnode->tfn_dir.dirents, de, tfd_entries);
-
-  pool_free(P_TMPFS_DIRENT, de);
-
-end:
   vnode_put(node->tfn_vnode);
 
   return error;
