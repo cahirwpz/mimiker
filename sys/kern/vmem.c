@@ -350,8 +350,60 @@ void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
     pool_free(P_BT, prev);
   if (next != NULL)
     pool_free(P_BT, next);
+
+  klog("%s: block of %lu bytes deallocated from '%s'", __func__, size,
+       vm->vm_name);
 }
 
 void vmem_destroy(vmem_t *vm) {
-  klog("vmem_destroy(%p) had no effect", vm);
+  WITH_MTX_LOCK (&vmem_alllist_lock)
+    LIST_REMOVE(vm, vm_alllist_link);
+
+  /* perform last sanity checks */
+
+  /* check #1
+   * - segment list is not empty
+   */
+  assert(!TAILQ_EMPTY(&vm->vm_seglist));
+
+  /* check #2
+   * - each segment is either free, or is a span,
+   * - total size of all spans is equal to vm_size
+   */
+  bt_t *bt;
+  vmem_size_t span_size_sum = 0;
+  TAILQ_FOREACH (bt, &vm->vm_seglist, bt_seglink) {
+    assert(bt->bt_type == BT_TYPE_SPAN || bt->bt_type == BT_TYPE_FREE);
+    if (bt->bt_type == BT_TYPE_SPAN)
+      span_size_sum += bt->bt_size;
+  }
+  assert(vm->vm_size == span_size_sum);
+
+  /* check #3
+   * - first segment is a span,
+   * - each free segment is preceded by a corresponding span segment,
+   *   with equal start address and size,
+   * - each span segment is preceded by a free segment
+   */
+  TAILQ_FOREACH (bt, &vm->vm_seglist, bt_seglink) {
+    bt_t *prev = TAILQ_PREV(bt, vmem_seglist, bt_seglink);
+    if (prev == NULL) {
+      assert(bt->bt_type == BT_TYPE_SPAN);
+      continue;
+    }
+    if (bt->bt_type == BT_TYPE_FREE) {
+      assert(prev->bt_type == BT_TYPE_SPAN);
+      assert(prev->bt_size == bt->bt_size);
+      assert(prev->bt_start == bt->bt_start);
+    } else if (bt->bt_type == BT_TYPE_SPAN)
+      assert(prev->bt_type == BT_TYPE_FREE);
+  }
+
+  klog("vmem '%s' destroyed", vm->vm_name);
+
+  /* free the memory */
+  bt_t *next;
+  TAILQ_FOREACH_SAFE (bt, &vm->vm_seglist, bt_seglink, next)
+    pool_free(P_BT, bt);
+  pool_free(P_VMEM, vm);
 }
