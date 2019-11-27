@@ -252,7 +252,7 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp) {
   bt_t *btnew = pool_alloc(P_BT, PF_ZERO);
   bt_t *bt;
 
-  WITH_MTX_LOCK(&vm->vm_lock) {
+  WITH_MTX_LOCK (&vm->vm_lock) {
     vmem_check_sanity(vm);
 
     bt = bt_find_freeseg(vm, size);
@@ -305,7 +305,7 @@ void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
   bt_t *prev = NULL;
   bt_t *next = NULL;
 
-  WITH_MTX_LOCK(&vm->vm_lock) {
+  WITH_MTX_LOCK (&vm->vm_lock) {
     vmem_check_sanity(vm);
 
     bt_t *bt = bt_lookupbusy(vm, addr);
