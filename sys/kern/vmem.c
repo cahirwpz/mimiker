@@ -21,20 +21,21 @@ typedef LIST_HEAD(vmem_freelist, bt) vmem_freelist_t;
 typedef LIST_HEAD(vmem_hashlist, bt) vmem_hashlist_t;
 
 /* List of all vmem instances and a guarding mutex */
-static mtx_t vmem_alllist_lock = MTX_INITIALIZER(0);
-static LIST_HEAD(, vmem) vmem_alllist = LIST_HEAD_INITIALIZER(vmem_alllist);
+static mtx_t vmem_list_lock = MTX_INITIALIZER(0);
+static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
 
 /*! \brief vmem structure
  *
  * Field markings and the corresponding locks:
  *  (a) vm_lock
- *  (@) vmem_alllist_lock
+ *  (@) vmem_list_lock
  *  (!) read-only access, do not modify!
  */
 typedef struct vmem {
-  mtx_t vm_lock;        /* vmem lock */
-  size_t vm_size;       /* (a) total size of all added spans */
-  size_t vm_inuse;      /* (a) total size of all allocated segments */
+  LIST_ENTRY(vmem) vm_link; /* (@) link for vmem_list */
+  mtx_t vm_lock;            /* vmem lock */
+  size_t vm_size;           /* (a) total size of all added spans */
+  size_t vm_inuse;          /* (a) total size of all allocated segments */
   size_t vm_quantum;    /* (!) alignment & the smallest unit of allocation */
   int vm_quantum_shift; /* (!) log2 of vm_quantum */
   char vm_name[VMEM_NAME_MAX]; /* (!) name of vmem instance */
@@ -43,7 +44,6 @@ typedef struct vmem {
   vmem_freelist_t vm_freelist[VMEM_MAXORDER];
   /* (a) hashtable of lists of allocated segments */
   vmem_hashlist_t vm_hashlist[VMEM_MAXHASH];
-  LIST_ENTRY(vmem) vm_alllist_link; /* (@) link for vmem_alllist */
 } vmem_t;
 
 typedef enum {
@@ -213,8 +213,8 @@ vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
   for (int i = 0; i < VMEM_MAXHASH; i++)
     LIST_INIT(&vm->vm_hashlist[i]);
 
-  WITH_MTX_LOCK (&vmem_alllist_lock)
-    LIST_INSERT_HEAD(&vmem_alllist, vm, vm_alllist_link);
+  WITH_MTX_LOCK (&vmem_list_lock)
+    LIST_INSERT_HEAD(&vmem_list, vm, vm_link);
 
   klog("new vmem '%s' created", name);
   return vm;
@@ -356,8 +356,8 @@ void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
 }
 
 void vmem_destroy(vmem_t *vm) {
-  WITH_MTX_LOCK (&vmem_alllist_lock)
-    LIST_REMOVE(vm, vm_alllist_link);
+  WITH_MTX_LOCK (&vmem_list_lock)
+    LIST_REMOVE(vm, vm_link);
 
   /* perform last sanity checks */
 
