@@ -9,6 +9,8 @@
 #include <sys/hash.h>
 #include <sys/mutex.h>
 
+#define VMEM_DEBUG 0
+
 #define VMEM_MAXORDER ((int)(sizeof(vmem_size_t) * CHAR_BIT))
 #define VMEM_MAXHASH 512
 #define VMEM_NAME_MAX 16
@@ -79,10 +81,6 @@ static vmem_freelist_t *bt_freehead(vmem_t *vm, vmem_size_t size) {
   int idx = SIZE2ORDER(qsize);
   assert(idx >= 0 && idx < VMEM_MAXORDER);
   return &vm->vm_freelist[idx];
-}
-
-static bool bt_isspan(const bt_t *bt) {
-  return bt->bt_type == BT_TYPE_SPAN;
 }
 
 static vmem_addr_t bt_end(const bt_t *bt) {
@@ -165,6 +163,11 @@ static bt_t *bt_find_freeseg(vmem_t *vm, vmem_size_t size) {
   return NULL;
 }
 
+#if VMEM_DEBUG
+static bool bt_isspan(const bt_t *bt) {
+  return bt->bt_type == BT_TYPE_SPAN;
+}
+
 static void vmem_check_sanity(vmem_t *vm) {
   assert(mtx_owned(&vm->vm_lock));
 
@@ -186,6 +189,9 @@ static void vmem_check_sanity(vmem_t *vm) {
     }
   }
 }
+#else
+#define vmem_check_sanity(vm) (void)vm
+#endif
 
 vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
   vmem_t *vm = pool_alloc(P_VMEM, PF_ZERO);
