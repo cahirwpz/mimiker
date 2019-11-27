@@ -333,7 +333,7 @@ static void vnrstate_init(vnrstate_t *vs, vnrop_t op, const char *path) {
   vs->vs_nextcn = path;
 }
 
-int vfs_lookup(const char *path, vnode_t **vp) {
+int vfs_namelookup(const char *path, vnode_t **vp) {
   vnrstate_t vs;
   vnrstate_init(&vs, VNR_LOOKUP, path);
   int error = vfs_nameresolve(&vs);
@@ -344,12 +344,12 @@ int vfs_lookup(const char *path, vnode_t **vp) {
 int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   vnode_t *v;
   int error = 0;
-  error = vfs_lookup(pathname, &v);
+  error = vfs_namelookup(pathname, &v);
   if (error)
     return error;
   int res = VOP_OPEN(v, flags, f);
-  /* Drop our reference to v. We received it from vfs_lookup, but we no longer
-     need it - file f keeps its own reference to v after open. */
+  /* Drop our reference to v. We received it from vfs_namelookup, but we no
+     longer need it - file f keeps its own reference to v after open. */
   vnode_drop(v);
   return res;
 }
