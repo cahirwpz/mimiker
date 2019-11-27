@@ -166,9 +166,8 @@ static bt_t *bt_find_freeseg(vmem_t *vm, vmem_size_t size) {
   for (vmem_freelist_t *list = first; list < end; list++) {
     bt_t *bt;
     LIST_FOREACH (bt, list, bt_freelink) {
-      if (bt->bt_size >= size) {
+      if (bt->bt_size >= size)
         return bt;
-      }
     }
   }
   return NULL;
