@@ -45,6 +45,11 @@ void vnode_drop(vnode_t *v) {
   }
 }
 
+void vnode_put(vnode_t *v) {
+  vnode_unlock(v);
+  vnode_drop(v);
+}
+
 static int vnode_nop(vnode_t *v, ...) {
   return EOPNOTSUPP;
 }

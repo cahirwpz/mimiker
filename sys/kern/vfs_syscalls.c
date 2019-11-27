@@ -9,6 +9,8 @@
 #include <sys/errno.h>
 #include <sys/unistd.h>
 #include <sys/stat.h>
+#include <sys/libkern.h>
+#include <sys/malloc.h>
 
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
   int error;
@@ -179,7 +181,29 @@ int do_unlink(proc_t *p, char *path) {
 }
 
 int do_mkdir(proc_t *p, char *path, mode_t mode) {
-  return ENOTSUP;
+  int error;
+  vattr_t va;
+  vnode_t *vn, *dvn;
+  componentname_t cn;
+
+  if ((error = vfs_namecreate(path, &dvn, &cn)))
+    return error;
+
+  char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
+  memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
+  namecopy[cn.cn_namelen] = 0;
+
+  memset(&va, 0, sizeof(vattr_t));
+  va.va_mode = S_IFDIR | (mode & ALLPERMS);
+
+  error = VOP_MKDIR(dvn, namecopy, &va, &vn);
+  if (!error)
+    vnode_drop(vn);
+
+  kfree(M_TEMP, namecopy);
+
+  vnode_put(dvn);
+  return error;
 }
 
 int do_rmdir(proc_t *p, char *path) {

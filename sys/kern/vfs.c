@@ -341,6 +341,34 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   return error;
 }
 
+int vfs_namecreate(const char *path, vnode_t **dvp, componentname_t *cn) {
+  vnrstate_t vs;
+  vnrstate_init(&vs, VNR_CREATE, path);
+  int error = vfs_nameresolve(&vs);
+  if (error)
+    return error;
+
+  if (vs.vs_vp != NULL) {
+    if (vs.vs_vp != vs.vs_dvp)
+      vnode_put(vs.vs_dvp);
+    else
+      vnode_drop(vs.vs_dvp);
+
+    vnode_drop(vs.vs_vp);
+    return EEXIST;
+  }
+
+  if (vs.vs_cn.cn_namelen > NAME_MAX) {
+    vnode_put(vs.vs_dvp);
+    return ENAMETOOLONG;
+  }
+
+  *dvp = vs.vs_dvp;
+  memcpy(cn, &vs.vs_cn, sizeof(componentname_t));
+
+  return 0;
+}
+
 int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   vnode_t *v;
   int error = 0;
