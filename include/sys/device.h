@@ -59,6 +59,6 @@ device_t *make_device(device_t *parent, driver_t *driver);
 void device_add_resource(device_t *dev, resource_t *r, int rid);
 
 /* A universal memory pool to be used by all drivers. */
-MALLOC_DECLARE(M_DEV);
+KMALLOC_DECLARE(M_DEV);
 
 #endif /* !_SYS_DEVICE_H_ */

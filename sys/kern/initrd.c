@@ -50,7 +50,7 @@ static cpio_node_t *root_node;
 static vnodeops_t initrd_vops;
 
 static cpio_node_t *cpio_node_alloc(void) {
-  cpio_node_t *node = pool_alloc(P_INITRD, PF_ZERO);
+  cpio_node_t *node = pool_alloc(P_INITRD, M_ZERO);
   TAILQ_INIT(&node->c_children);
   return node;
 }

@@ -121,7 +121,7 @@ static int vfs_default_init(vfsconf_t *vfc) {
 }
 
 mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
-  mount_t *m = pool_alloc(P_MOUNT, PF_ZERO);
+  mount_t *m = pool_alloc(P_MOUNT, M_ZERO);
 
   m->mnt_vfc = vfc;
   m->mnt_vfsops = vfc->vfc_vfsops;
@@ -333,7 +333,7 @@ static void vnrstate_init(vnrstate_t *vs, vnrop_t op, const char *path) {
   vs->vs_nextcn = path;
 }
 
-int vfs_lookup(const char *path, vnode_t **vp) {
+int vfs_namelookup(const char *path, vnode_t **vp) {
   vnrstate_t vs;
   vnrstate_init(&vs, VNR_LOOKUP, path);
   int error = vfs_nameresolve(&vs);
@@ -341,15 +341,43 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   return error;
 }
 
+int vfs_namecreate(const char *path, vnode_t **dvp, componentname_t *cn) {
+  vnrstate_t vs;
+  vnrstate_init(&vs, VNR_CREATE, path);
+  int error = vfs_nameresolve(&vs);
+  if (error)
+    return error;
+
+  if (vs.vs_vp != NULL) {
+    if (vs.vs_vp != vs.vs_dvp)
+      vnode_put(vs.vs_dvp);
+    else
+      vnode_drop(vs.vs_dvp);
+
+    vnode_drop(vs.vs_vp);
+    return EEXIST;
+  }
+
+  if (vs.vs_cn.cn_namelen > NAME_MAX) {
+    vnode_put(vs.vs_dvp);
+    return ENAMETOOLONG;
+  }
+
+  *dvp = vs.vs_dvp;
+  memcpy(cn, &vs.vs_cn, sizeof(componentname_t));
+
+  return 0;
+}
+
 int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   vnode_t *v;
   int error = 0;
-  error = vfs_lookup(pathname, &v);
+  error = vfs_namelookup(pathname, &v);
   if (error)
     return error;
   int res = VOP_OPEN(v, flags, f);
-  /* Drop our reference to v. We received it from vfs_lookup, but we no longer
-     need it - file f keeps its own reference to v after open. */
+  /* Drop our reference to v. We received it from vfs_namelookup, but we no
+     longer need it - file f keeps its own reference to v after open. */
   vnode_drop(v);
   return res;
 }
