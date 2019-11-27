@@ -46,7 +46,7 @@ static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
 }
 
 static pipe_t *pipe_alloc(void) {
-  pipe_t *pipe = pool_alloc(P_PIPE, PF_ZERO);
+  pipe_t *pipe = pool_alloc(P_PIPE, M_ZERO);
   mtx_init(&pipe->mtx, 0);
   pipe_end_t *end0 = &pipe->end[0];
   pipe_end_t *end1 = &pipe->end[1];

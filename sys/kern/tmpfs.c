@@ -180,7 +180,7 @@ static void tmpfs_attach_vnode(tmpfs_node_t *tfn, mount_t *mp) {
  * tmpfs_new_node: create new inode of a specified type and attach the vnode.
  */
 static tmpfs_node_t *tmpfs_new_node(vnodetype_t ntype) {
-  tmpfs_node_t *node = pool_alloc(P_TMPFS_NODE, PF_ZERO);
+  tmpfs_node_t *node = pool_alloc(P_TMPFS_NODE, M_ZERO);
   node->tfn_vnode = NULL;
   node->tfn_type = ntype;
   node->tfn_links = 0;
@@ -255,7 +255,7 @@ static int tmpfs_alloc_dirent(const char *name, tmpfs_dirent_t **dep) {
   if (namelen + 1 > TMPFS_NAME_MAX)
     return ENAMETOOLONG;
 
-  tmpfs_dirent_t *dirent = pool_alloc(P_TMPFS_DIRENT, PF_ZERO);
+  tmpfs_dirent_t *dirent = pool_alloc(P_TMPFS_DIRENT, M_ZERO);
   dirent->tfd_node = NULL;
   dirent->tfd_namelen = namelen;
   memcpy(dirent->tfd_name, name, namelen + 1);

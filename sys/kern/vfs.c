@@ -121,7 +121,7 @@ static int vfs_default_init(vfsconf_t *vfc) {
 }
 
 mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
-  mount_t *m = pool_alloc(P_MOUNT, PF_ZERO);
+  mount_t *m = pool_alloc(P_MOUNT, M_ZERO);
 
   m->mnt_vfc = vfc;
   m->mnt_vfsops = vfc->vfc_vfsops;

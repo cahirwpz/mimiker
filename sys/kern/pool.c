@@ -7,8 +7,8 @@
 #include <sys/linker_set.h>
 #include <sys/sched.h>
 #include <sys/pool.h>
-#include <sys/vm.h>
-#include <sys/vm_physmem.h>
+#include <sys/kmem.h>
+#include <machine/vm_param.h>
 #include <bitstring.h>
 
 #define INITME 0xC0DECAFE
@@ -49,7 +49,6 @@ struct pool {
 typedef struct pool_slab {
   uint32_t ph_state;                 /* set to ALIVE or DEAD */
   LIST_ENTRY(pool_slab) ph_slablist; /* pool slab list */
-  vm_page_t *ph_page;                /* page containing this slab */
   uint16_t ph_nused;                 /* # of items in use */
   uint16_t ph_ntotal;                /* total number of chunks */
   size_t ph_itemsize;                /* total size of item (with header) */
@@ -116,13 +115,6 @@ static void add_slab(pool_t *pool, pool_slab_t *slab) {
   pool->pp_nslabs++;
 }
 
-static pool_slab_t *alloc_slab(void) {
-  vm_page_t *page = vm_page_alloc(1);
-  pool_slab_t *slab = PG_KSEG0_ADDR(page);
-  slab->ph_page = page;
-  return slab;
-}
-
 static void destroy_slab(pool_t *pool, pool_slab_t *slab) {
   klog("destroy_slab: pool = %p, slab = %p", pool, slab);
 
@@ -133,7 +125,7 @@ static void destroy_slab(pool_t *pool, pool_slab_t *slab) {
   }
 
   slab->ph_state = DEAD;
-  vm_page_free(slab->ph_page);
+  kmem_free(slab);
 }
 
 static void *alloc_item(pool_slab_t *slab) {
@@ -175,7 +167,8 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
                             : &pool->pp_part_slabs;
     slab = LIST_FIRST(slabs);
   } else {
-    slab = alloc_slab();
+    slab = kmem_alloc(PAGESIZE, flags);
+    assert(slab != NULL);
     add_slab(pool, slab);
   }
 
@@ -189,7 +182,7 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
   LIST_INSERT_HEAD(slabs, slab, ph_slablist);
 
   /* XXX: Modify code below when pp_ctor & pp_dtor are reenabled */
-  if (flags & PF_ZERO)
+  if (flags & M_ZERO)
     bzero(p, pool->pp_itemsize);
 
   return p;
@@ -281,7 +274,7 @@ void pool_add_page(pool_t *pool, void *page) {
 }
 
 pool_t *pool_create(const char *desc, size_t size) {
-  pool_t *pool = pool_alloc(P_POOL, PF_ZERO);
+  pool_t *pool = pool_alloc(P_POOL, M_ZERO);
   pool_init(pool, desc, size, NULL, NULL);
   return pool;
 }

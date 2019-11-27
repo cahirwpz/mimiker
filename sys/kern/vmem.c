@@ -8,6 +8,7 @@
 #include <sys/errno.h>
 #include <sys/hash.h>
 #include <sys/mutex.h>
+#include <machine/vm_param.h>
 
 #define VMEM_DEBUG 0
 
@@ -74,6 +75,13 @@ typedef struct bt {
 
 static POOL_DEFINE(P_VMEM, "vmem", sizeof(vmem_t));
 static POOL_DEFINE(P_BT, "vmem boundary tag", sizeof(bt_t));
+static alignas(PAGESIZE) uint8_t P_VMEM_BOOTPAGE[PAGESIZE];
+static alignas(PAGESIZE) uint8_t P_BT_BOOTPAGE[PAGESIZE];
+
+void vmem_bootstrap(void) {
+  pool_add_page(P_VMEM, P_VMEM_BOOTPAGE);
+  pool_add_page(P_BT, P_BT_BOOTPAGE);
+}
 
 static vmem_freelist_t *bt_freehead(vmem_t *vm, vmem_size_t size) {
   vmem_size_t qsize = size >> vm->vm_quantum_shift;
@@ -194,7 +202,7 @@ static void vmem_check_sanity(vmem_t *vm) {
 #endif
 
 vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
-  vmem_t *vm = pool_alloc(P_VMEM, PF_ZERO);
+  vmem_t *vm = pool_alloc(P_VMEM, M_ZERO);
 
   vm->vm_quantum = quantum;
   assert(quantum > 0);
@@ -219,8 +227,8 @@ vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
 }
 
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
-  bt_t *btspan = pool_alloc(P_BT, PF_ZERO);
-  bt_t *btfree = pool_alloc(P_BT, PF_ZERO);
+  bt_t *btspan = pool_alloc(P_BT, M_ZERO);
+  bt_t *btfree = pool_alloc(P_BT, M_ZERO);
 
   btspan->bt_type = BT_TYPE_SPAN;
   btspan->bt_start = addr;
@@ -244,13 +252,16 @@ int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
   return 0;
 }
 
-int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp) {
+int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp,
+               kmem_flags_t flags) {
   size = align(size, vm->vm_quantum);
   assert(size > 0);
 
   /* Allocate new boundary tag before acquiring the vmem lock */
-  bt_t *btnew = pool_alloc(P_BT, PF_ZERO);
-  bt_t *bt;
+  bt_t *bt, *btnew;
+
+  if (!(btnew = pool_alloc(P_BT, flags | M_ZERO)))
+    return ENOMEM;
 
   WITH_MTX_LOCK (&vm->vm_lock) {
     vmem_check_sanity(vm);

@@ -28,7 +28,8 @@ int kmalloc_reserve(kmalloc_pool_t *mp, size_t size);
 void kmalloc_dump(kmalloc_pool_t *mp);
 void kmalloc_destroy(kmalloc_pool_t *mp);
 
-void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) __warn_unused;
+void *kmalloc(kmalloc_pool_t *mp, size_t size,
+              kmem_flags_t flags) __warn_unused;
 void kfree(kmalloc_pool_t *mp, void *addr);
 char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen);
 

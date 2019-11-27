@@ -34,28 +34,28 @@ static int test_vmem(void) {
   /* alloc 17 quantums, should return addr from span #2 */
   size = 17 * quantum;
   vmem_addr_t addr17;
-  rc = vmem_alloc(vm, size, &addr17);
+  rc = vmem_alloc(vm, size, &addr17, 0);
   assert(rc == 0);
   assert_addr_is_in_span(addr17, size, &span2);
 
   /* alloc 8 quantums, should return addr from span #1 */
   size = 8 * quantum;
   vmem_addr_t addr8;
-  rc = vmem_alloc(vm, size, &addr8);
+  rc = vmem_alloc(vm, size, &addr8, 0);
   assert(rc == 0);
   assert_addr_is_in_span(addr8, size, &span1);
 
   /* alloc 1 quantum, should return addr from span #2 */
   size = 1 * quantum;
   vmem_addr_t addr1;
-  rc = vmem_alloc(vm, size, &addr1);
+  rc = vmem_alloc(vm, size, &addr1, 0);
   assert(rc == 0);
   assert_addr_is_in_span(addr1, size, &span2);
 
   /* alloc 10 quantums, should fail */
   size = 10 * quantum;
   vmem_addr_t addr10;
-  rc = vmem_alloc(vm, size, &addr10);
+  rc = vmem_alloc(vm, size, &addr10, 0);
   assert(rc == ENOMEM);
 
   /* free 17 quantums */
@@ -63,7 +63,7 @@ static int test_vmem(void) {
 
   /* alloc 10 quantums, should return addr from span #2 */
   size = 10 * quantum;
-  rc = vmem_alloc(vm, size, &addr10);
+  rc = vmem_alloc(vm, size, &addr10, 0);
   assert(rc == 0);
   assert_addr_is_in_span(addr10, size, &span2);
 

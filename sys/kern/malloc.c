@@ -222,17 +222,15 @@ char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen) {
 }
 
 static POOL_DEFINE(P_KMEM, "kmem", sizeof(kmalloc_pool_t));
-static alignas(PAGESIZE) uint8_t P_KMEM_BOOTPAGE[PAGESIZE];
 
 void kmalloc_bootstrap(void) {
-  pool_add_page(P_KMEM, P_KMEM_BOOTPAGE);
   INVOKE_CTORS(kmalloc_ctor_table);
 }
 
 kmalloc_pool_t *kmalloc_create(const char *desc, size_t maxsize) {
   assert(is_aligned(maxsize, PAGESIZE));
 
-  kmalloc_pool_t *mp = pool_alloc(P_KMEM, PF_ZERO);
+  kmalloc_pool_t *mp = pool_alloc(P_KMEM, M_ZERO);
   mp->mp_desc = desc;
   mp->mp_used = 0;
   mp->mp_maxsize = maxsize;
