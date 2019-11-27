@@ -10,7 +10,7 @@
 static vmem_t *kvspace; /* Kernel virtual address space allocator. */
 
 void kmem_bootstrap(void) {
-  kvspace = vmem_create("kvspace", 0, 0, PAGESIZE);
+  kvspace = vmem_create("kvspace", PAGESIZE);
   if (KERNEL_SPACE_BEGIN < (vaddr_t)__kernel_start)
     vmem_add(kvspace, KERNEL_SPACE_BEGIN,
              (vaddr_t)__kernel_start - KERNEL_SPACE_BEGIN);

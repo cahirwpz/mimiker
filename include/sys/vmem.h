@@ -15,10 +15,8 @@ typedef struct vmem vmem_t;
  */
 
 /*! \brief Create a new vmem arena.
- * Pass non-zero base and size if you need an initial span.
  * You need to specify quantum, the smallest unit of allocation. */
-vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
-                    vmem_size_t quantum);
+vmem_t *vmem_create(const char *name, vmem_size_t quantum);
 
 /*! \brief Add a new address span to the arena. */
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size);
