@@ -369,6 +369,7 @@ void vmem_destroy(vmem_t *vm) {
   /* check #2
    * - each segment is either free, or is a span,
    * - total size of all spans is equal to vm_size
+   * - vm_inuse is equal to 0
    */
   bt_t *bt;
   vmem_size_t span_size_sum = 0;
@@ -378,6 +379,7 @@ void vmem_destroy(vmem_t *vm) {
       span_size_sum += bt->bt_size;
   }
   assert(vm->vm_size == span_size_sum);
+  assert(vm->vm_inuse == 0);
 
   /* check #3
    * - first segment is a span,
