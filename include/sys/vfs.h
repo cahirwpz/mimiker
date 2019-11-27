@@ -78,7 +78,7 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep);
 
 /* Finds the vnode corresponding to the given path.
  * Increases use count on returned vnode. */
-int vfs_lookup(const char *path, vnode_t **vp);
+int vfs_namelookup(const char *path, vnode_t **vp);
 
 /* Finds the parent of vnode corresponding to the given path.
  * Returned vnode is locked and held. */
