@@ -73,22 +73,10 @@ typedef struct bt {
 static POOL_DEFINE(P_VMEM, "vmem", sizeof(vmem_t));
 static POOL_DEFINE(P_BT, "vmem boundary tag", sizeof(bt_t));
 
-static vmem_freelist_t *bt_freehead_tofree(vmem_t *vm, vmem_size_t size) {
+static vmem_freelist_t *bt_freehead(vmem_t *vm, vmem_size_t size) {
   vmem_size_t qsize = size >> vm->vm_quantum_shift;
   assert(size != 0 && qsize != 0);
   int idx = SIZE2ORDER(qsize);
-  assert(idx >= 0 && idx < VMEM_MAXORDER);
-  return &vm->vm_freelist[idx];
-}
-
-/* Returns the freelist in which any block is large enough for allocation */
-static vmem_freelist_t *bt_freehead_toalloc(vmem_t *vm, vmem_size_t size) {
-  assert(is_aligned(size, vm->vm_quantum));
-  vmem_size_t qsize = size >> vm->vm_quantum_shift;
-  assert(size != 0 && qsize != 0);
-  int idx = SIZE2ORDER(qsize);
-  if (ORDER2SIZE(idx) != qsize)
-    idx++;
   assert(idx >= 0 && idx < VMEM_MAXORDER);
   return &vm->vm_freelist[idx];
 }
@@ -117,7 +105,7 @@ static vmem_hashlist_t *bt_hashhead(vmem_t *vm, vmem_addr_t addr) {
 static void bt_insfree(vmem_t *vm, bt_t *bt) {
   assert(mtx_owned(&vm->vm_lock));
   assert(bt->bt_type == BT_TYPE_FREE);
-  vmem_freelist_t *list = bt_freehead_tofree(vm, bt->bt_size);
+  vmem_freelist_t *list = bt_freehead(vm, bt->bt_size);
   LIST_INSERT_HEAD(list, bt, bt_freelink);
 }
 
@@ -165,6 +153,23 @@ static bt_t *bt_lookupbusy(vmem_t *vm, vmem_addr_t addr) {
     assert(bt->bt_type == BT_TYPE_BUSY);
     if (bt->bt_start == addr)
       return bt;
+  }
+  return NULL;
+}
+
+static bt_t *bt_find_freeseg(vmem_t *vm, vmem_size_t size) {
+  assert(mtx_owned(&vm->vm_lock));
+
+  vmem_freelist_t *first = bt_freehead(vm, size);
+  vmem_freelist_t *end = &vm->vm_freelist[VMEM_MAXORDER];
+
+  for (vmem_freelist_t *list = first; list < end; list++) {
+    bt_t *bt;
+    LIST_FOREACH (bt, list, bt_freelink) {
+      if (bt->bt_size >= size) {
+        return bt;
+      }
+    }
   }
   return NULL;
 }
@@ -236,7 +241,8 @@ int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
     vmem_check_sanity(vm);
   }
 
-  klog("span [%lu, %lu] added", addr, addr + size - 1);
+  klog("%s: added [%p-%p] span to '%s'", __func__, addr, addr + size - 1,
+       vm->vm_name);
 
   return 0;
 }
@@ -248,29 +254,16 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp) {
   /* Allocate new boundary tag before acquiring the vmem lock */
   bt_t *btnew = pool_alloc(P_BT, PF_ZERO);
 
-  vmem_freelist_t *first = bt_freehead_toalloc(vm, size);
-  vmem_freelist_t *end = &vm->vm_freelist[VMEM_MAXORDER];
-
   vmem_lock(vm);
   vmem_check_sanity(vm);
 
-  bt_t *bt;
-  bool found = false;
-  for (vmem_freelist_t *list = first; list < end; list++) {
-    bt = LIST_FIRST(list);
-    if (bt != NULL) {
-      /* This is instant-fit strategy, we know that any segment found on these
-       * lists is large enough. */
-      assert(bt->bt_size >= size);
-      found = true;
-      break;
-    }
-  }
+  bt_t *bt = bt_find_freeseg(vm, size);
 
-  if (!found) {
+  if (bt == NULL) {
     vmem_unlock(vm);
     pool_free(P_BT, btnew);
-    klog("alloc of size %lu for vmem '%s' failed (ENOMEM)", size, vm->vm_name);
+    klog("%s: block of %lu bytes not found in '%s'", __func__, size,
+         vm->vm_name);
     return ENOMEM;
   }
 
@@ -307,7 +300,7 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp) {
   if (addrp != NULL)
     *addrp = bt->bt_start;
 
-  klog("alloc of size %lu for vmem '%s' succeeded", size, vm->vm_name);
+  klog("%s: found block of %lu bytes in '%s'", __func__, size, vm->vm_name);
   return 0;
 }
 

@@ -1,18 +1,11 @@
 #ifndef _MIPS_VM_PARAM_H_
 #define _MIPS_VM_PARAM_H_
 
-#include <mips/mips.h>
+#define KERNEL_SPACE_BEGIN 0xc0000000
+#define KERNEL_SPACE_END 0xffffe000
 
-#ifndef __ASSEMBLER__
-extern char __kernel_start[];
-extern char __kernel_end[];
-#endif /* __ASSEMBLER__ */
-
-#define VM_MAP_KERNEL_BEGIN ((vaddr_t)vm_kernel_end)
-#define VM_MAP_KERNEL_END 0xffffe000
-
-#define VM_MAP_USER_BEGIN 0x00400000
-#define VM_MAP_USER_END 0x80000000
+#define USER_SPACE_BEGIN 0x00400000
+#define USER_SPACE_END 0x80000000
 
 #define PAGESIZE 4096
 

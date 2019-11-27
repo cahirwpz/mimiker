@@ -31,12 +31,12 @@ static int test_vmem(void) {
   rc = vmem_add(vm, span2.addr, span2.size);
   assert(rc == 0);
 
-  /* alloc 16 quantums, should return addr from span #2 */
-  size = 16 * quantum;
-  vmem_addr_t addr16;
-  rc = vmem_alloc(vm, size, &addr16);
+  /* alloc 17 quantums, should return addr from span #2 */
+  size = 17 * quantum;
+  vmem_addr_t addr17;
+  rc = vmem_alloc(vm, size, &addr17);
   assert(rc == 0);
-  assert_addr_is_in_span(addr16, size, &span2);
+  assert_addr_is_in_span(addr17, size, &span2);
 
   /* alloc 8 quantums, should return addr from span #1 */
   size = 8 * quantum;
@@ -58,8 +58,8 @@ static int test_vmem(void) {
   rc = vmem_alloc(vm, size, &addr10);
   assert(rc == ENOMEM);
 
-  /* free 16 quantums */
-  vmem_free(vm, addr16, 16 * quantum);
+  /* free 17 quantums */
+  vmem_free(vm, addr17, 17 * quantum);
 
   /* alloc 10 quantums, should return addr from span #2 */
   size = 10 * quantum;

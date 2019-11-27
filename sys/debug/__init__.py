@@ -8,6 +8,7 @@ from .proc import Kprocess, Process, CurrentProcess
 from .struct import TimeVal
 from .sync import CondVar, Mutex
 from .thread import Kthread, Thread, CurrentThread
+from .events import stop_handler
 
 
 def addPrettyPrinters():
@@ -33,3 +34,6 @@ Ktrace()
 # Functions
 CurrentThread()
 CurrentProcess()
+
+# Events
+gdb.events.stop.connect(stop_handler)
