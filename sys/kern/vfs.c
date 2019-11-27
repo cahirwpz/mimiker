@@ -341,7 +341,7 @@ int vfs_lookup(const char *path, vnode_t **vp) {
   return error;
 }
 
-int vnr_create(const char *path, vnode_t **dvp, componentname_t *cn) {
+int vfs_namecreate(const char *path, vnode_t **dvp, componentname_t *cn) {
   vnrstate_t vs;
   vnrstate_init(&vs, VNR_CREATE, path);
   int error = vfs_nameresolve(&vs);
@@ -356,6 +356,11 @@ int vnr_create(const char *path, vnode_t **dvp, componentname_t *cn) {
 
     vnode_drop(vs.vs_vp);
     return EEXIST;
+  }
+
+  if (vs.vs_cn.cn_namelen > NAME_MAX) {
+    vnode_put(vs.vs_dvp);
+    return ENAMETOOLONG;
   }
 
   *dvp = vs.vs_dvp;

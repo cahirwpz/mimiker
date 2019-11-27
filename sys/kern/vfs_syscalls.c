@@ -186,13 +186,8 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
   vnode_t *vn, *dvn;
   componentname_t cn;
 
-  if ((error = vnr_create(path, &dvn, &cn)))
+  if ((error = vfs_namecreate(path, &dvn, &cn)))
     return error;
-
-  if (cn.cn_namelen > NAME_MAX) {
-    error = ENAMETOOLONG;
-    goto end;
-  }
 
   char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
   memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
@@ -206,10 +201,8 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
     vnode_drop(vn);
 
   kfree(M_TEMP, namecopy);
-end:
-  vnode_unlock(dvn);
-  vnode_drop(dvn);
 
+  vnode_put(dvn);
   return error;
 }
 
