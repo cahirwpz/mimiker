@@ -81,14 +81,6 @@ static vmem_freelist_t *bt_freehead(vmem_t *vm, vmem_size_t size) {
   return &vm->vm_freelist[idx];
 }
 
-static void vmem_lock(vmem_t *vm) {
-  mtx_lock(&vm->vm_lock);
-}
-
-static void vmem_unlock(vmem_t *vm) {
-  mtx_unlock(&vm->vm_lock);
-}
-
 static bool bt_isspan(const bt_t *bt) {
   return bt->bt_type == BT_TYPE_SPAN;
 }
@@ -252,43 +244,43 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp) {
 
   /* Allocate new boundary tag before acquiring the vmem lock */
   bt_t *btnew = pool_alloc(P_BT, PF_ZERO);
+  bt_t *bt;
 
-  vmem_lock(vm);
-  vmem_check_sanity(vm);
+  WITH_MTX_LOCK(&vm->vm_lock) {
+    vmem_check_sanity(vm);
 
-  bt_t *bt = bt_find_freeseg(vm, size);
+    bt = bt_find_freeseg(vm, size);
 
-  if (bt == NULL) {
-    vmem_unlock(vm);
-    pool_free(P_BT, btnew);
-    klog("%s: block of %lu bytes not found in '%s'", __func__, size,
-         vm->vm_name);
-    return ENOMEM;
+    if (bt == NULL) {
+      pool_free(P_BT, btnew);
+      klog("%s: block of %lu bytes not found in '%s'", __func__, size,
+           vm->vm_name);
+      return ENOMEM;
+    }
+
+    bt_remfree(vm, bt);
+    vmem_check_sanity(vm);
+
+    if (bt->bt_size > size && bt->bt_size - size >= vm->vm_quantum) {
+      /* Split [bt] into [bt | btnew] */
+      btnew->bt_type = BT_TYPE_FREE;
+      btnew->bt_start = bt->bt_start + size;
+      btnew->bt_size = bt->bt_size - size;
+      bt->bt_type = BT_TYPE_BUSY;
+      bt->bt_size = size;
+      bt_insfree(vm, btnew);
+      bt_insseg_after(vm, btnew, bt);
+      bt_insbusy(vm, bt);
+      /* Set btnew to NULL so that it won't be deallocated after exiting
+       * from the vmem lock */
+      btnew = NULL;
+    } else {
+      bt->bt_type = BT_TYPE_BUSY;
+      bt_insbusy(vm, bt);
+    }
+
+    vmem_check_sanity(vm);
   }
-
-  bt_remfree(vm, bt);
-  vmem_check_sanity(vm);
-
-  if (bt->bt_size > size && bt->bt_size - size >= vm->vm_quantum) {
-    /* Split [bt] into [bt | btnew] */
-    btnew->bt_type = BT_TYPE_FREE;
-    btnew->bt_start = bt->bt_start + size;
-    btnew->bt_size = bt->bt_size - size;
-    bt->bt_type = BT_TYPE_BUSY;
-    bt->bt_size = size;
-    bt_insfree(vm, btnew);
-    bt_insseg_after(vm, btnew, bt);
-    bt_insbusy(vm, bt);
-    /* Set btnew to NULL so that it won't be deallocated after exiting
-     * from the vmem lock */
-    btnew = NULL;
-  } else {
-    bt->bt_type = BT_TYPE_BUSY;
-    bt_insbusy(vm, bt);
-  }
-
-  vmem_check_sanity(vm);
-  vmem_unlock(vm);
 
   if (btnew != NULL)
     pool_free(P_BT, btnew);
@@ -304,47 +296,50 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp) {
 }
 
 void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
-  vmem_lock(vm);
-  vmem_check_sanity(vm);
+  bt_t *prev = NULL;
+  bt_t *next = NULL;
 
-  bt_t *bt = bt_lookupbusy(vm, addr);
-  assert(bt != NULL);
-  assert(bt->bt_size == align(size, vm->vm_quantum));
+  WITH_MTX_LOCK(&vm->vm_lock) {
+    vmem_check_sanity(vm);
 
-  bt_rembusy(vm, bt);
-  bt->bt_type = BT_TYPE_FREE;
+    bt_t *bt = bt_lookupbusy(vm, addr);
+    assert(bt != NULL);
+    assert(bt->bt_size == align(size, vm->vm_quantum));
 
-  /* coalesce previous segment */
-  bt_t *prev = TAILQ_PREV(bt, vmem_seglist, bt_seglink);
-  if (prev != NULL && prev->bt_type == BT_TYPE_FREE) {
-    assert(bt_end(prev) < bt->bt_start);
-    bt_remfree(vm, prev);
-    bt_remseg(vm, prev);
-    bt->bt_size += prev->bt_size;
-    bt->bt_start = prev->bt_start;
-  } else {
-    /* Set prev to NULL so that it won't be deallocated after exiting
-     * from the vmem lock */
-    prev = NULL;
+    bt_rembusy(vm, bt);
+    bt->bt_type = BT_TYPE_FREE;
+
+    /* coalesce previous segment */
+    prev = TAILQ_PREV(bt, vmem_seglist, bt_seglink);
+    if (prev != NULL && prev->bt_type == BT_TYPE_FREE) {
+      assert(bt_end(prev) < bt->bt_start);
+      bt_remfree(vm, prev);
+      bt_remseg(vm, prev);
+      bt->bt_size += prev->bt_size;
+      bt->bt_start = prev->bt_start;
+    } else {
+      /* Set prev to NULL so that it won't be deallocated after exiting
+       * from the vmem lock */
+      prev = NULL;
+    }
+
+    /* coalesce next segment */
+    next = TAILQ_NEXT(bt, bt_seglink);
+    if (next != NULL && next->bt_type == BT_TYPE_FREE) {
+      assert(bt_end(bt) < next->bt_start);
+      bt_remfree(vm, next);
+      bt_remseg(vm, next);
+      bt->bt_size += next->bt_size;
+    } else {
+      /* Set next to NULL so that it won't be deallocated after exiting
+       * from the vmem lock */
+      next = NULL;
+    }
+
+    bt_insfree(vm, bt);
+
+    vmem_check_sanity(vm);
   }
-
-  /* coalesce next segment */
-  bt_t *next = TAILQ_NEXT(bt, bt_seglink);
-  if (next != NULL && next->bt_type == BT_TYPE_FREE) {
-    assert(bt_end(bt) < next->bt_start);
-    bt_remfree(vm, next);
-    bt_remseg(vm, next);
-    bt->bt_size += next->bt_size;
-  } else {
-    /* Set next to NULL so that it won't be deallocated after exiting
-     * from the vmem lock */
-    next = NULL;
-  }
-
-  bt_insfree(vm, bt);
-
-  vmem_check_sanity(vm);
-  vmem_unlock(vm);
 
   if (prev != NULL)
     pool_free(P_BT, prev);
