@@ -29,13 +29,12 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - downloads-20181227-1920
+            - downloads-20191128-1600
       - run: 'make download'
       - save_cache:
-          key: downloads-20181227-1920
+          key: downloads-20191128-1600
           paths:
             - bin/lua/lua-5.3.5.tar.gz
-            - lib/newlib/newlib-3.0.0.tar.gz
       - run: 'make CLANG=<< parameters.use_clang >>'
       - store_artifacts:
           path: sys/mimiker.elf
