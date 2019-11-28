@@ -1,4 +1,6 @@
 #define KL_LOG KL_PROC
+#include <sys/libkern.h>
+#include <sys/syslimits.h>
 #include <sys/klog.h>
 #include <sys/proc.h>
 #include <sys/pool.h>
@@ -92,7 +94,7 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
 
   /* Create new group if one does not exist. */
   if (!target) {
-    target = pool_alloc(P_PGRP, PF_ZERO);
+    target = pool_alloc(P_PGRP, M_ZERO);
 
     TAILQ_INIT(&target->pg_members);
     target->pg_lock = MTX_INITIALIZER(0);
@@ -124,12 +126,16 @@ void proc_unlock(proc_t *p) {
 }
 
 proc_t *proc_create(thread_t *td, proc_t *parent) {
-  proc_t *p = pool_alloc(P_PROC, PF_ZERO);
+  proc_t *p = pool_alloc(P_PROC, M_ZERO);
 
   mtx_init(&p->p_lock, 0);
   p->p_state = PS_NORMAL;
   p->p_thread = td;
   p->p_parent = parent;
+
+  if (parent && parent->p_elfpath)
+    p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, PATH_MAX);
+
   TAILQ_INIT(CHILDREN(p));
 
   WITH_MTX_LOCK (&td->td_lock)
@@ -192,7 +198,7 @@ static void proc_reap(proc_t *p) {
   if (p->p_parent)
     TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
   TAILQ_REMOVE(&zombie_list, p, p_zombie);
-
+  kfree(M_STR, p->p_elfpath);
   pid_free(p->p_pid);
   pool_free(P_PROC, p);
 }

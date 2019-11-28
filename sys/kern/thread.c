@@ -81,7 +81,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   /* Firstly recycle some threads to free up memory. */
   thread_reap();
 
-  thread_t *td = pool_alloc(P_THREAD, PF_ZERO);
+  thread_t *td = pool_alloc(P_THREAD, M_ZERO);
   thread_init(td, prio);
 
   td->td_name = kstrndup(M_STR, name, TD_NAME_MAX);

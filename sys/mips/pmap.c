@@ -116,7 +116,7 @@ void pmap_bootstrap(void) {
 }
 
 pmap_t *pmap_new(void) {
-  pmap_t *pmap = pool_alloc(P_PMAP, PF_ZERO);
+  pmap_t *pmap = pool_alloc(P_PMAP, M_ZERO);
   pmap_setup(pmap);
 
   pmap->pde_page = vm_page_alloc(1);

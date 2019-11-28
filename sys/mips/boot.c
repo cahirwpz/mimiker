@@ -4,12 +4,6 @@
 #include <sys/mimiker.h>
 #include <sys/vm.h>
 
-extern const char _ebase[];
-extern uint8_t __text[];
-extern uint8_t __data[];
-extern uint8_t __bss[];
-extern uint8_t __ebss[];
-
 alignas(PAGESIZE) pde_t _kernel_pmap_pde[PD_ENTRIES];
 static alignas(PAGESIZE) pte_t _kernel_pmap_pte[PT_ENTRIES];
 

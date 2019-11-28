@@ -10,6 +10,7 @@
 #include <sys/errno.h>
 #include <sys/filedesc.h>
 #include <sys/sbrk.h>
+#include <sys/syslimits.h>
 #include <sys/vfs.h>
 #include <sys/ustack.h>
 #include <sys/mount.h>
@@ -231,7 +232,7 @@ static int open_executable(const char *path, vnode_t **vn_p) {
   klog("Loading program '%s'", path);
 
   /* Translate program name to vnode. */
-  if ((error = vfs_lookup(path, &vn)))
+  if ((error = vfs_namelookup(path, &vn)))
     return error;
 
   /* It must be a regular executable file with non-zero size. */
@@ -314,9 +315,9 @@ static int _do_execve(exec_args_t *args) {
   assert(p != NULL);
 
   bool use_interpreter = false;
-
+  char *prog;
   for (;;) {
-    char *prog = args->interp ? args->interp : args->path;
+    prog = args->interp ? args->interp : args->path;
 
     if ((error = open_executable(prog, &vn))) {
       klog("No file found: '%s'!", prog);
@@ -364,6 +365,9 @@ static int _do_execve(exec_args_t *args) {
   destroy_vmspace(&saved);
 
   vm_map_dump(p->p_uspace);
+
+  kfree(M_STR, p->p_elfpath);
+  p->p_elfpath = kstrndup(M_STR, prog, PATH_MAX);
 
   klog("Enter userspace with: pc=%p, sp=%p", eh.e_entry, stack_top);
   return EJUSTRETURN;

@@ -12,7 +12,7 @@ typedef enum {
 static int test_pool_alloc(palloc_test_t flag) {
   const int N = 50;
 
-  kmem_pool_t *mp = kmem_create("test", PAGESIZE * 2);
+  kmalloc_pool_t *mp = kmalloc_create("test", PAGESIZE * 2);
 
   int size = 64;
   pool_t *test = pool_create("test", size);
@@ -20,7 +20,7 @@ static int test_pool_alloc(palloc_test_t flag) {
   for (int n = 1; n < N; n++) {
     void **item = kmalloc(mp, sizeof(void *) * n, 0);
     for (int i = 0; i < n; i++)
-      item[i] = pool_alloc(test, PF_ZERO);
+      item[i] = pool_alloc(test, M_ZERO);
     if (flag == PALLOC_TEST_CORRUPTION) {
       /* WARNING! Following line of code causes memory corruption! */
       memset(item[0], 0, 100);
@@ -39,7 +39,7 @@ static int test_pool_alloc(palloc_test_t flag) {
    * uncomment at your own risk! */
   pool_destroy(&test);
 #endif
-  kmem_destroy(mp);
+  kmalloc_destroy(mp);
   return KTEST_SUCCESS;
 }
 

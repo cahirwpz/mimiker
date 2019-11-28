@@ -61,7 +61,7 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
   assert(first <= last);
   assert(powerof2(bound) && (bound > 0));
 
-  resource_t *r = pool_alloc(P_RES, PF_ZERO);
+  resource_t *r = pool_alloc(P_RES, M_ZERO);
   r->r_rman = rm;
   r->r_type = rm->rm_type;
   r->r_flags = flags;
