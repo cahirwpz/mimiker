@@ -43,8 +43,6 @@ static timer_t mips_timer = {
   .tm_name = "mips-cpu-timer",
   .tm_flags = TMF_PERIODIC,
   .tm_frequency = CPU_FREQ,
-  .tm_min_period = BINTIME(1 / (double)CPU_FREQ),
-  .tm_max_period = BINTIME(((1LL << 32) - 1) / (double)CPU_FREQ),
   .tm_start = mips_timer_start,
   .tm_stop = mips_timer_stop,
   .tm_gettime = mips_timer_gettime,
@@ -129,6 +127,8 @@ timeval_t getcputime(void) {
 }
 
 void mips_timer_init(void) {
+  mips_timer.tm_min_period = BINTIME(1 / (double)CPU_FREQ),
+  mips_timer.tm_max_period = BINTIME(((1LL << 32) - 1) / (double)CPU_FREQ),
   tm_register(&mips_timer);
   tm_select(&mips_timer);
 }
