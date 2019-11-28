@@ -20,7 +20,7 @@ SECTIONS
 
   .boot 0x80100000: AT(0x100000) ALIGN(4096)
   {
-    __kernel_start = ABSOLUTE(.);
+    __boot = ABSOLUTE(.);
     /* Exception entry points. */
     *(.ebase)
     . = ALIGN(0x800);
@@ -30,10 +30,12 @@ SECTIONS
      * read/write data in this section, so it should be placed in kseg0.
      */
     *(.boot .boot.*)
+    __eboot = ABSOLUTE(.);
   } : boot
 
   .text 0xc0102000 : AT(0x102000) ALIGN(4096)
   {
+    __kernel_start = ABSOLUTE(.);
     __text = ABSOLUTE(.);
     *(.text .text.*)
     __etext = ABSOLUTE(.);
@@ -65,6 +67,7 @@ SECTIONS
     *(COMMON)
     . = ALIGN (4);
     __ebss = ABSOLUTE(.);
+    __kernel_end = ABSOLUTE(.);
   }
 
   /* Sections to be discarded */

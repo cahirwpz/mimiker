@@ -25,8 +25,9 @@ SOURCES = \
 	fork.c \
 	initrd.c \
 	interrupt.c \
-	kbss.c \
+	kenv.c \
 	klog.c \
+	kmem.c \
 	ktest.c \
 	main.c \
 	malloc.c \
@@ -35,7 +36,6 @@ SOURCES = \
 	pci.c \
 	pci_ids.c \
 	pcpu.c \
-	physmem.c \
 	pipe.c \
 	pmap.c \
 	pool.c \
@@ -65,7 +65,9 @@ SOURCES = \
 	vfs_vnode.c \
 	vm_map.c \
 	vm_object.c \
-	vm_pager.c
+	vm_pager.c \
+	vm_physmem.c \
+	vmem.c
 
 FORMAT-EXCLUDE = sysent.h
 

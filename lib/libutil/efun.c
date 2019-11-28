@@ -39,12 +39,22 @@
 #include <stdarg.h>
 #include <util.h>
 
-static void (*efunc)(int, const char *, ...) = err;
+typedef void (*efunc_t)(int, const char *, ...);
 
-void (*esetfunc(void (*ef)(int, const char *, ...)))(int, const char *, ...)
+static efunc_t efunc = err;
+
+/*
+ * GCC doesn't let us cast `exit` to type `efunc_t`
+ * (even though Clang does), so we create a wrapper here.
+ */
+static void efunc_exit(int n, const char *f, ...) {
+    exit(n);
+}
+
+efunc_t esetfunc(efunc_t ef)
 {
-	void (*of)(int, const char *, ...) = efunc;
-	efunc = ef == NULL ? (void *)exit : ef;
+	efunc_t of = efunc;
+	efunc = ef == NULL ? efunc_exit : ef;
 	return of;
 }
 

@@ -1,0 +1,11 @@
+--- lua-5.3.5.orig/src/lundump.c	2019-11-21 15:32:39.378546878 +0100
++++ lua-5.3.5/src/lundump.c	2019-11-21 15:33:39.693716414 +0100
+@@ -234,7 +234,7 @@
+ #define checksize(S,t)	fchecksize(S,sizeof(t),#t)
+ 
+ static void checkHeader (LoadState *S) {
+-  checkliteral(S, LUA_SIGNATURE + 1, "not a");  /* 1st char already checked */
++  checkliteral(S, &LUA_SIGNATURE[1], "not a");  /* 1st char already checked */
+   if (LoadByte(S) != LUAC_VERSION)
+     error(S, "version mismatch in");
+   if (LoadByte(S) != LUAC_FORMAT)

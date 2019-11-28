@@ -28,6 +28,13 @@
 
 #define MIPS_KSEG2_TO_KSEG0(x) MIPS_PHYS_TO_KSEG0(MIPS_KSEG2_TO_PHYS(x))
 
+extern char _ebase[];
+extern char __boot[];
+extern char __text[];
+extern char __data[];
+extern char __bss[];
+extern char __ebss[];
+
 #else /* __ASSEMBLER__ */
 
 #define MIPS_KSEG2_TO_KSEG0(x) ((x) - (MIPS_KSEG2_START - MIPS_KSEG0_START))

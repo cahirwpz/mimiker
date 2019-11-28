@@ -17,6 +17,9 @@
 
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
 
+/* Real kernel end in kernel virtual address space. */
+extern void *vm_kernel_end;
+
 typedef enum {
   PG_RESERVED = 0x01,   /* non releasable page */
   PG_ALLOCATED = 0x02,  /* page has been allocated */
@@ -42,10 +45,8 @@ typedef enum {
 } vm_flags_t;
 
 typedef struct vm_page vm_page_t;
-TAILQ_HEAD(pg_list, vm_page);
-typedef struct pg_list pg_list_t;
-RB_HEAD(pg_tree, vm_page);
-typedef struct pg_tree pg_tree_t;
+typedef TAILQ_HEAD(vm_pagelist, vm_page) vm_pagelist_t;
+typedef RB_HEAD(vm_pagetree, vm_page) vm_pagetree_t;
 
 typedef struct vm_map vm_map_t;
 typedef struct vm_segment vm_segment_t;

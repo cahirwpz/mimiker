@@ -16,7 +16,7 @@ static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
    - but this will do for now. */
 
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
-  vnode_t *v = pool_alloc(P_VNODE, PF_ZERO);
+  vnode_t *v = pool_alloc(P_VNODE, M_ZERO);
   v->v_type = type;
   v->v_data = data;
   v->v_ops = ops;
@@ -43,6 +43,11 @@ void vnode_drop(vnode_t *v) {
     VOP_RECLAIM(v);
     pool_free(P_VNODE, v);
   }
+}
+
+void vnode_put(vnode_t *v) {
+  vnode_unlock(v);
+  vnode_drop(v);
 }
 
 static int vnode_nop(vnode_t *v, ...) {

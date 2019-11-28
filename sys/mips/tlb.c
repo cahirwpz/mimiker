@@ -164,29 +164,3 @@ int tlb_probe(tlbentry_t *e) {
 unsigned tlb_size(void) {
   return _tlb_size;
 }
-
-/* Use gdb 'cpu tlb' command instead. */
-#if 0
-void tlb_print(void) {
-  tlbhi_t saved = mips32_getasid();
-  kprintf("[tlb] TLB state [ASID=%ld]:\n", saved);
-  for (unsigned i = 0; i < tlb_size(); i++) {
-    tlbentry_t e;
-    _tlb_read(i, &e);
-    if ((e.lo0 & PTE_VALID) || (e.lo1 & PTE_VALID)) {
-      kprintf("[tlb] %d => ASID: %02lx", i, e.hi & PTE_ASID_MASK);
-      if (e.lo0 & PTE_VALID)
-        kprintf(" PFN0: {%08lx => %08lx %c%c}", e.hi & PTE_VPN2_MASK,
-                PTE_PFN_OF(e.lo0) * PAGESIZE, (e.lo0 & PTE_DIRTY) ? 'D' : '-',
-                (e.lo0 & PTE_GLOBAL) ? 'G' : '-');
-      if (e.lo1 & PTE_VALID)
-        kprintf(" PFN1: {%08lx => %08lx %c%c}",
-                (e.hi & PTE_VPN2_MASK) + PAGESIZE, PTE_PFN_OF(e.lo1) * PAGESIZE,
-                (e.lo1 & PTE_DIRTY) ? 'D' : '-',
-                (e.lo1 & PTE_GLOBAL) ? 'G' : '-');
-      kprintf("\n");
-    }
-  }
-  mips32_setasid(saved);
-}
-#endif

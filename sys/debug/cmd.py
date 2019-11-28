@@ -81,8 +81,9 @@ class CommandDispatcher(SimpleCommand, AutoCompleteMixin):
             cmd, args = args, ''
 
         if not cmd:
-            raise gdb.GdbError('{}\n\nList of commands:\n\n{}'.format(
-                               self.__doc__, self.list_commands()))
+            print('{}\n\nList of commands:\n\n{}'.format(
+                self.__doc__, self.list_commands()))
+            return
 
         if cmd not in self.commands:
             raise gdb.GdbError('No such subcommand "{}"'.format(cmd))

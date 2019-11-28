@@ -8,6 +8,7 @@
 #include <sys/mutex.h>
 #include <sys/pool.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
 
 #define TMPFS_NAME_MAX 64
 
@@ -68,15 +69,16 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vnodetype_t ntype,
                              const char *name);
 static int tmpfs_get_vnode(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp);
 static int tmpfs_alloc_dirent(const char *name, tmpfs_dirent_t **dep);
-static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn, const char *name);
+static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
+                                        const componentname_t *cn);
 
 /* tmpfs vnode operations */
 
-static int tmpfs_vop_lookup(vnode_t *dv, const char *name, vnode_t **vp) {
+static int tmpfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
   mount_t *mp = dv->v_mount;
   tmpfs_node_t *dnode = TMPFS_NODE_OF(dv);
 
-  tmpfs_dirent_t *de = tmpfs_dir_lookup(dnode, name);
+  tmpfs_dirent_t *de = tmpfs_dir_lookup(dnode, cn);
   if (de == NULL)
     return ENOENT;
 
@@ -129,7 +131,26 @@ static int tmpfs_vop_mkdir(vnode_t *dv, const char *name, vattr_t *va,
 }
 
 static int tmpfs_vop_rmdir(vnode_t *dv, const char *name) {
-  return EOPNOTSUPP;
+  tmpfs_node_t *dnode = TMPFS_NODE_OF(dv);
+  tmpfs_dirent_t *de = tmpfs_dir_lookup(dnode, &COMPONENTNAME(name));
+  assert(de != NULL);
+
+  tmpfs_node_t *node = de->tfd_node;
+  int error = 0;
+
+  if (TAILQ_EMPTY(&node->tfn_dir.dirents)) {
+    /* Deassociate the node and direntry. */
+    node->tfn_links--;
+    de->tfd_node = NULL;
+    TAILQ_REMOVE(&dnode->tfn_dir.dirents, de, tfd_entries);
+    pool_free(P_TMPFS_DIRENT, de);
+  } else {
+    error = ENOTEMPTY;
+  }
+
+  vnode_put(node->tfn_vnode);
+
+  return error;
 }
 
 static int tmpfs_vop_reclaim(vnode_t *v) {
@@ -178,7 +199,7 @@ static void tmpfs_attach_vnode(tmpfs_node_t *tfn, mount_t *mp) {
  * tmpfs_new_node: create new inode of a specified type and attach the vnode.
  */
 static tmpfs_node_t *tmpfs_new_node(vnodetype_t ntype) {
-  tmpfs_node_t *node = pool_alloc(P_TMPFS_NODE, PF_ZERO);
+  tmpfs_node_t *node = pool_alloc(P_TMPFS_NODE, M_ZERO);
   node->tfn_vnode = NULL;
   node->tfn_type = ntype;
   node->tfn_links = 0;
@@ -253,7 +274,7 @@ static int tmpfs_alloc_dirent(const char *name, tmpfs_dirent_t **dep) {
   if (namelen + 1 > TMPFS_NAME_MAX)
     return ENAMETOOLONG;
 
-  tmpfs_dirent_t *dirent = pool_alloc(P_TMPFS_DIRENT, PF_ZERO);
+  tmpfs_dirent_t *dirent = pool_alloc(P_TMPFS_DIRENT, M_ZERO);
   dirent->tfd_node = NULL;
   dirent->tfd_namelen = namelen;
   memcpy(dirent->tfd_name, name, namelen + 1);
@@ -262,11 +283,13 @@ static int tmpfs_alloc_dirent(const char *name, tmpfs_dirent_t **dep) {
   return 0;
 }
 
-static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn, const char *name) {
+static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
+                                        const componentname_t *cn) {
   tmpfs_dirent_t *de;
-  TAILQ_FOREACH (de, &tfn->tfn_dir.dirents, tfd_entries)
-    if (!strcmp(name, de->tfd_name))
+  TAILQ_FOREACH (de, &tfn->tfn_dir.dirents, tfd_entries) {
+    if (componentname_equal(cn, de->tfd_name))
       return de;
+  }
   return NULL;
 }
 

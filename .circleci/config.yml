@@ -1,9 +1,9 @@
-version: 2
+version: 2.1
 
 defaults: &defaults
   working_directory: ~/mimiker
   docker:
-    - image: cahirwpz/mimiker-circleci:1.7.1
+    - image: cahirwpz/mimiker-circleci:1.7.2
 
 jobs:
   verify_formatting:
@@ -20,26 +20,30 @@ jobs:
 
   build:
     <<: *defaults
+    parameters:
+      use_clang:
+        description: 'Whether to use Clang as the compiler (1 = yes, 0 = no)'
+        default: '0'
+        type: string
     steps:
       - checkout
       - restore_cache:
           keys:
-            - downloads-20181227-1920
+            - downloads-20191128-1600
       - run: 'make download'
       - save_cache:
-          key: downloads-20181227-1920
+          key: downloads-20191128-1600
           paths:
             - bin/lua/lua-5.3.5.tar.gz
-            - lib/newlib/newlib-3.0.0.tar.gz
-      - run: 'make'
+      - run: 'make CLANG=<< parameters.use_clang >>'
       - store_artifacts:
           path: sys/mimiker.elf
           prefix: kernel_image
       - store_artifacts:
           path: initrd.cpio
           prefix: initial_ramdisk
-      - save_cache:
-          key: mimiker-{{ .Branch }}-{{ .Revision }}
+      - persist_to_workspace:
+          root: ./
           paths:
             - sys/mimiker.elf
             - initrd.cpio
@@ -50,17 +54,27 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - restore_cache:
-          key: mimiker-{{ .Branch }}-{{ .Revision }}
+      - attach_workspace:
+          at: ./
       - run: './run_tests.py --thorough --non-interactive'
 
 workflows:
-  version: 2
+  version: 2.1
   build_and_test:
     jobs:
       - verify_formatting
       - verify_pycodestyle
-      - build
+      - build:
+          name: build_gcc
+          use_clang: '0'
+      - build:
+          name: build_clang
+          use_clang: '1'
       - kernel_tests:
+          name: kernel_tests_gcc
           requires:
-            - build
+            - build_gcc
+      - kernel_tests:
+          name: kernel_tests_clang
+          requires:
+            - build_clang

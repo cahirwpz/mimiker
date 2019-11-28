@@ -14,8 +14,8 @@ typedef enum {
   KL_PMAP,    /* physical map management */
   KL_PHYSMEM, /* physical memory management */
   KL_VM,      /* virtual memory */
-  KL_KMEM,    /* generic kernel memory allocator */
-  KL_POOL,    /* pooled allocator */
+  KL_KMEM,    /* kernel memory allocators (kmem, pool, kmalloc) */
+  KL_VMEM,    /* address space allocator */
   KL_LOCK,    /* lock operations tracing */
   KL_SCHED,   /* scheduler tracing */
   KL_TIME,    /* system clock & timers */

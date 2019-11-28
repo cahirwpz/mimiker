@@ -1092,7 +1092,7 @@ print_value_quoted(s)
 	}
 	for (p = s; *p; p++) {
 		if (*p == '\'') {
-			shprintf("%s", "'\\'" + 1 - inquote);
+			shprintf("%s", &"'\\'"[1 - inquote]);
 			inquote = 0;
 		} else {
 			if (!inquote) {

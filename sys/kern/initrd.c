@@ -50,7 +50,7 @@ static cpio_node_t *root_node;
 static vnodeops_t initrd_vops;
 
 static cpio_node_t *cpio_node_alloc(void) {
-  cpio_node_t *node = pool_alloc(P_INITRD, PF_ZERO);
+  cpio_node_t *node = pool_alloc(P_INITRD, M_ZERO);
   TAILQ_INIT(&node->c_children);
   return node;
 }
@@ -122,7 +122,7 @@ static const char *basename(const char *path) {
 }
 
 static void read_cpio_archive(void) {
-  void *tape = (void *)ramdisk_get_start();
+  void *tape = (void *)MIPS_PHYS_TO_KSEG0(ramdisk_get_start());
 
   while (true) {
     cpio_node_t *node = cpio_node_alloc();
@@ -204,18 +204,19 @@ static vnode_t *vnode_of_cpio_node(cpio_node_t *cn) {
   return cn->c_vnode;
 }
 
-static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
+static int initrd_vnode_lookup(vnode_t *vdir, componentname_t *cn,
+                               vnode_t **res) {
   cpio_node_t *it;
   cpio_node_t *cn_dir = (cpio_node_t *)vdir->v_data;
 
   TAILQ_FOREACH (it, &cn_dir->c_children, c_siblings) {
-    if (strcmp(name, it->c_name) == 0) {
+    if (componentname_equal(cn, it->c_name)) {
       *res = vnode_of_cpio_node(it);
       return 0;
     }
   }
 
-  if (strcmp(name, "..") == 0 && cn_dir->c_parent) {
+  if (componentname_equal(cn, "..") && cn_dir->c_parent) {
     it = cn_dir->c_parent;
     *res = vnode_of_cpio_node(it);
     return 0;
