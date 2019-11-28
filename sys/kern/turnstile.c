@@ -79,7 +79,7 @@ static void turnstile_init(void) {
 static POOL_DEFINE(P_TURNSTILE, "turnstile", sizeof(turnstile_t));
 
 turnstile_t *turnstile_alloc(void) {
-  turnstile_t *ts = pool_alloc(P_TURNSTILE, PF_ZERO);
+  turnstile_t *ts = pool_alloc(P_TURNSTILE, M_ZERO);
   turnstile_ctor(ts);
   return ts;
 }

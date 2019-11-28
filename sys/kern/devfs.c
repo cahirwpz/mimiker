@@ -67,7 +67,7 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name,
   if (devfs_find_child(parent, &COMPONENTNAME(name)))
     return EEXIST;
 
-  devfs_node_t *dn = pool_alloc(P_DEVFS, PF_ZERO);
+  devfs_node_t *dn = pool_alloc(P_DEVFS, M_ZERO);
   dn->dn_ino = ++devfs.next_ino;
   dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
   TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);

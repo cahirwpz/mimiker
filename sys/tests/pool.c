@@ -20,7 +20,7 @@ static int test_pool_alloc(palloc_test_t flag) {
   for (int n = 1; n < N; n++) {
     void **item = kmalloc(mp, sizeof(void *) * n, 0);
     for (int i = 0; i < n; i++)
-      item[i] = pool_alloc(test, PF_ZERO);
+      item[i] = pool_alloc(test, M_ZERO);
     if (flag == PALLOC_TEST_CORRUPTION) {
       /* WARNING! Following line of code causes memory corruption! */
       memset(item[0], 0, 100);

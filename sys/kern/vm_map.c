@@ -100,7 +100,7 @@ void vm_map_bootstrap(void) {
 }
 
 vm_map_t *vm_map_new(void) {
-  vm_map_t *map = pool_alloc(P_VMMAP, PF_ZERO);
+  vm_map_t *map = pool_alloc(P_VMMAP, M_ZERO);
   vm_map_setup(map);
   map->pmap = pmap_new();
   return map;
@@ -110,7 +110,7 @@ vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
                                vm_prot_t prot) {
   assert(page_aligned_p(start) && page_aligned_p(end));
 
-  vm_segment_t *seg = pool_alloc(P_VMSEG, PF_ZERO);
+  vm_segment_t *seg = pool_alloc(P_VMSEG, M_ZERO);
   seg->object = obj;
   seg->start = start;
   seg->end = end;

@@ -131,7 +131,26 @@ static int tmpfs_vop_mkdir(vnode_t *dv, const char *name, vattr_t *va,
 }
 
 static int tmpfs_vop_rmdir(vnode_t *dv, const char *name) {
-  return EOPNOTSUPP;
+  tmpfs_node_t *dnode = TMPFS_NODE_OF(dv);
+  tmpfs_dirent_t *de = tmpfs_dir_lookup(dnode, &COMPONENTNAME(name));
+  assert(de != NULL);
+
+  tmpfs_node_t *node = de->tfd_node;
+  int error = 0;
+
+  if (TAILQ_EMPTY(&node->tfn_dir.dirents)) {
+    /* Deassociate the node and direntry. */
+    node->tfn_links--;
+    de->tfd_node = NULL;
+    TAILQ_REMOVE(&dnode->tfn_dir.dirents, de, tfd_entries);
+    pool_free(P_TMPFS_DIRENT, de);
+  } else {
+    error = ENOTEMPTY;
+  }
+
+  vnode_put(node->tfn_vnode);
+
+  return error;
 }
 
 static int tmpfs_vop_reclaim(vnode_t *v) {
@@ -180,7 +199,7 @@ static void tmpfs_attach_vnode(tmpfs_node_t *tfn, mount_t *mp) {
  * tmpfs_new_node: create new inode of a specified type and attach the vnode.
  */
 static tmpfs_node_t *tmpfs_new_node(vnodetype_t ntype) {
-  tmpfs_node_t *node = pool_alloc(P_TMPFS_NODE, PF_ZERO);
+  tmpfs_node_t *node = pool_alloc(P_TMPFS_NODE, M_ZERO);
   node->tfn_vnode = NULL;
   node->tfn_type = ntype;
   node->tfn_links = 0;
@@ -255,7 +274,7 @@ static int tmpfs_alloc_dirent(const char *name, tmpfs_dirent_t **dep) {
   if (namelen + 1 > TMPFS_NAME_MAX)
     return ENAMETOOLONG;
 
-  tmpfs_dirent_t *dirent = pool_alloc(P_TMPFS_DIRENT, PF_ZERO);
+  tmpfs_dirent_t *dirent = pool_alloc(P_TMPFS_DIRENT, M_ZERO);
   dirent->tfd_node = NULL;
   dirent->tfd_namelen = namelen;
   memcpy(dirent->tfd_name, name, namelen + 1);
@@ -268,9 +287,7 @@ static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
                                         const componentname_t *cn) {
   tmpfs_dirent_t *de;
   TAILQ_FOREACH (de, &tfn->tfn_dir.dirents, tfd_entries) {
-    if (de->tfd_namelen != cn->cn_namelen)
-      continue;
-    if (!strncmp(de->tfd_name, cn->cn_nameptr, cn->cn_namelen))
+    if (componentname_equal(cn, de->tfd_name))
       return de;
   }
   return NULL;

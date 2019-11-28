@@ -10,7 +10,9 @@
 static vmem_t *kvspace; /* Kernel virtual address space allocator. */
 
 void kmem_bootstrap(void) {
-  kvspace = vmem_create("kvspace", 0, 0, PAGESIZE);
+  vmem_bootstrap();
+
+  kvspace = vmem_create("kvspace", PAGESIZE);
   if (KERNEL_SPACE_BEGIN < (vaddr_t)__kernel_start)
     vmem_add(kvspace, KERNEL_SPACE_BEGIN,
              (vaddr_t)__kernel_start - KERNEL_SPACE_BEGIN);
@@ -18,11 +20,12 @@ void kmem_bootstrap(void) {
            KERNEL_SPACE_END - (vaddr_t)vm_kernel_end);
 }
 
-void *kmem_alloc(size_t size, unsigned flags) {
+void *kmem_alloc(size_t size, kmem_flags_t flags) {
   assert(page_aligned_p(size));
+  assert(!(flags & M_NOGROW));
 
   vmem_addr_t start;
-  if (vmem_alloc(kvspace, size, &start))
+  if (vmem_alloc(kvspace, size, &start, M_NOGROW))
     goto noswap;
 
   size_t npages = size / PAGESIZE;
