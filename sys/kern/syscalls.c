@@ -392,6 +392,11 @@ static int sys_dup2(proc_t *p, dup2_args_t *args, register_t *res) {
   return do_dup2(p, args->from, args->to);
 }
 
+static int sys_fcntl(proc_t *p, fcntl_args_t *args, register_t *res) {
+  klog("fcntl(%d, %d, %d)", args->fd, args->cmd, (int)args->arg);
+  return do_fcntl(p, args->fd, args->cmd, (int)args->arg, res);
+}
+
 static int sys_wait4(proc_t *p, wait4_args_t *args, register_t *res) {
   pid_t pid = args->pid;
   int *u_status = args->status;
@@ -628,7 +633,7 @@ static int sys_ioctl(proc_t *p, ioctl_args_t *args, register_t *res) {
   if ((error = do_ioctl(p, fd, cmd, data)))
     goto fail;
 
-  if ((dir & IOC_OUT) && (error = copyin(data, u_data, len)))
+  if ((dir & IOC_OUT) && (error = copyout(data, u_data, len)))
     goto fail;
 
 fail:

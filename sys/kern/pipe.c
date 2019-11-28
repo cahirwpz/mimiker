@@ -33,7 +33,7 @@ struct pipe {
   pipe_end_t end[2]; /*!< both pipe ends */
 };
 
-static MALLOC_DEFINE(M_PIPE, "pipe buffers", 4, 8);
+static KMALLOC_DEFINE(M_PIPE, "pipe buffers", PAGESIZE * 8);
 static POOL_DEFINE(P_PIPE, "pipe", sizeof(pipe_t));
 
 static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
@@ -46,7 +46,7 @@ static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
 }
 
 static pipe_t *pipe_alloc(void) {
-  pipe_t *pipe = pool_alloc(P_PIPE, PF_ZERO);
+  pipe_t *pipe = pool_alloc(P_PIPE, M_ZERO);
   mtx_init(&pipe->mtx, 0);
   pipe_end_t *end0 = &pipe->end[0];
   pipe_end_t *end1 = &pipe->end[1];
@@ -77,20 +77,25 @@ static int pipe_read(file_t *f, uio_t *uio) {
 
   assert(!consumer->closed);
 
+  /* user requested read of 0 bytes */
+  if (uio->uio_resid == 0)
+    return 0;
+
   /* no read atomicity for now! */
   WITH_MTX_LOCK (&producer->mtx) {
-    do {
-      int res = ringbuf_read(&producer->buf, uio);
-      if (res)
-        return res;
-      /* notify producer that free space is available */
-      cv_broadcast(&producer->nonfull);
-      /* nothing left to read? */
-      if (uio->uio_resid == 0)
-        break;
-      /* the buffer is empty so wait for some data to be produced */
+    /* pipe empty, no producers, return end-of-file */
+    if (ringbuf_empty(&producer->buf) && producer->closed)
+      return 0;
+
+    /* pipe empty, producer exists, wait for data */
+    while (ringbuf_empty(&producer->buf) && !producer->closed)
       cv_wait(&producer->nonempty, &producer->mtx);
-    } while (!producer->closed);
+
+    int res = ringbuf_read(&producer->buf, uio);
+    if (res)
+      return res;
+    /* notify producer that free space is available */
+    cv_broadcast(&producer->nonfull);
   }
 
   return 0;
@@ -176,12 +181,12 @@ int do_pipe(proc_t *p, int fds[2]) {
 
   int error;
 
-  error = fdtab_install_file(p->p_fdtable, file0, &fds[0]);
+  error = fdtab_install_file(p->p_fdtable, file0, 0, &fds[0]);
   if (error) {
     pipe_close(file0);
     return error;
   }
-  error = fdtab_install_file(p->p_fdtable, file1, &fds[1]);
+  error = fdtab_install_file(p->p_fdtable, file1, 0, &fds[1]);
   if (error) {
     fdtab_close_fd(p->p_fdtable, fds[0]);
     pipe_close(file1);

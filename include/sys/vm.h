@@ -1,21 +1,24 @@
 #ifndef _SYS_VM_H_
 #define _SYS_VM_H_
 
-#define PAGESIZE 4096
-
-#ifndef __ASSEMBLER__
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/tree.h>
+#include <machine/vm_param.h>
+
+/* TODO: machine dependent header */
 #include <mips/mips.h>
 
 #define PG_SIZE(pg) ((pg)->size * PAGESIZE)
 #define PG_START(pg) ((pg)->paddr)
 #define PG_END(pg) ((pg)->paddr + PG_SIZE(pg))
+/* TODO: move to machine dependent code */
 #define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
 
-#define is_page_aligned(addr) is_aligned((addr), PAGESIZE)
+#define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
+
+/* Real kernel end in kernel virtual address space. */
+extern void *vm_kernel_end;
 
 typedef enum {
   PG_RESERVED = 0x01,   /* non releasable page */
@@ -42,10 +45,8 @@ typedef enum {
 } vm_flags_t;
 
 typedef struct vm_page vm_page_t;
-TAILQ_HEAD(pg_list, vm_page);
-typedef struct pg_list pg_list_t;
-RB_HEAD(pg_tree, vm_page);
-typedef struct pg_tree pg_tree_t;
+typedef TAILQ_HEAD(vm_pagelist, vm_page) vm_pagelist_t;
+typedef RB_HEAD(vm_pagetree, vm_page) vm_pagetree_t;
 
 typedef struct vm_map vm_map_t;
 typedef struct vm_segment vm_segment_t;
@@ -67,7 +68,5 @@ struct vm_page {
   pg_flags_t flags;    /* page flags (used by physmem as well) */
   uint32_t size;       /* size of page in PAGESIZE units */
 };
-
-#endif /* !__ASSEMBLER__ */
 
 #endif /* !_SYS_VM_H_ */

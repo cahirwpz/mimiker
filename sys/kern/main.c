@@ -1,13 +1,11 @@
 #define KL_LOG KL_USER
 #include <sys/klog.h>
 #include <sys/libkern.h>
+#include <sys/kenv.h>
 #include <sys/exec.h>
 #include <sys/proc.h>
 #include <sys/thread.h>
 #include <sys/ktest.h>
-
-/* Borrowed from mips/malta.c */
-char *kenv_get(const char *key);
 
 int kmain(void) {
   char *init = kenv_get("init");
@@ -17,7 +15,7 @@ int kmain(void) {
   proc_add(proc_create(thread_self(), NULL));
 
   if (init) {
-    run_program(init, (char *[]){init, NULL}, (char *[]){NULL});
+    run_program(init, kenv_get_init(), (char *[]){NULL});
   } else if (test) {
     ktest_main(test);
   } else {

@@ -7,12 +7,6 @@
 #define mips32_getasid() (mips32_getentryhi() & PTE_ASID_MASK)
 #define mips32_setasid(v) mips32_setentryhi((v)&PTE_ASID_MASK)
 
-/* TLB handling instructions */
-#define mips32_tlbr() asm volatile("tlbr; ehb" ::: "memory")
-#define mips32_tlbwi() asm volatile("tlbwi; ehb" ::: "memory")
-#define mips32_tlbwr() asm volatile("tlbwr; ehb" ::: "memory")
-#define mips32_tlbp() asm volatile("tlbp; ehb" ::: "memory")
-
 /* Prevents compiler from reordering load & store instructions. */
 #define barrier() asm volatile("" ::: "memory")
 
@@ -87,16 +81,12 @@ static void read_tlb_size(void) {
   _tlb_size = ((cfg1 & CFG1_MMUS_MASK) >> CFG1_MMUS_SHIFT) + 1;
 }
 
+/* TLB has been almost completely initialized by "mips_init",
+ * so not much is happening here. */
 void tlb_init(void) {
   read_tlb_size();
-  if (tlb_size() == 0)
-    panic("No TLB detected!");
-
-  tlb_invalidate_all();
   /* We're not going to use C0_CONTEXT so set it to zero. */
   mips32_setcontext(0);
-  /* First wired TLB entry is shared between kernel-PDE and user-PDE. */
-  mips32_setwired(1);
 }
 
 void tlb_invalidate(tlbhi_t hi) {
@@ -111,19 +101,24 @@ void tlb_invalidate(tlbhi_t hi) {
 void tlb_invalidate_all(void) {
   SCOPED_INTR_DISABLED();
   tlbhi_t saved = mips32_getasid();
-  for (unsigned i = mips32_getwired(); i < tlb_size(); i++)
+  for (unsigned i = mips32_getwired(); i < _tlb_size; i++)
     _tlb_invalidate(i);
   mips32_setasid(saved);
 }
 
-void tlb_invalidate_asid(tlbhi_t invalid) {
+void tlb_invalidate_asid(tlbhi_t asid) {
   SCOPED_INTR_DISABLED();
   tlbhi_t saved = mips32_getasid();
-  for (unsigned i = mips32_getwired(); i < tlb_size(); i++) {
+  for (unsigned i = mips32_getwired(); i < _tlb_size; i++) {
     tlbentry_t e;
     _tlb_read(i, &e);
-    if ((e.hi & PTE_ASID_MASK) == invalid)
-      _tlb_invalidate(i);
+    /* Ignore global mappings! */
+    if ((e.lo0 & PTE_GLOBAL) && (e.lo1 & PTE_GLOBAL))
+      continue;
+    /* Ignore mappings with different ASID */
+    if ((e.hi & PTE_ASID_MASK) != asid)
+      continue;
+    _tlb_invalidate(i);
   }
   mips32_setasid(saved);
 }
@@ -168,52 +163,4 @@ int tlb_probe(tlbentry_t *e) {
 
 unsigned tlb_size(void) {
   return _tlb_size;
-}
-
-/* Use gdb 'cpu tlb' command instead. */
-#if 0
-void tlb_print(void) {
-  tlbhi_t saved = mips32_getasid();
-  kprintf("[tlb] TLB state [ASID=%ld]:\n", saved);
-  for (unsigned i = 0; i < tlb_size(); i++) {
-    tlbentry_t e;
-    _tlb_read(i, &e);
-    if ((e.lo0 & PTE_VALID) || (e.lo1 & PTE_VALID)) {
-      kprintf("[tlb] %d => ASID: %02lx", i, e.hi & PTE_ASID_MASK);
-      if (e.lo0 & PTE_VALID)
-        kprintf(" PFN0: {%08lx => %08lx %c%c}", e.hi & PTE_VPN2_MASK,
-                PTE_PFN_OF(e.lo0) * PAGESIZE, (e.lo0 & PTE_DIRTY) ? 'D' : '-',
-                (e.lo0 & PTE_GLOBAL) ? 'G' : '-');
-      if (e.lo1 & PTE_VALID)
-        kprintf(" PFN1: {%08lx => %08lx %c%c}",
-                (e.hi & PTE_VPN2_MASK) + PAGESIZE, PTE_PFN_OF(e.lo1) * PAGESIZE,
-                (e.lo1 & PTE_DIRTY) ? 'D' : '-',
-                (e.lo1 & PTE_GLOBAL) ? 'G' : '-');
-      kprintf("\n");
-    }
-  }
-  mips32_setasid(saved);
-}
-#endif
-
-/* Following code is used by gdb scripts. */
-
-/* Compiler does not know that debugger (external agent) will read
- * the structure and will remove it and optimize out all references to it.
- * Hence it has to be marked with `volatile`. */
-static __boot_data volatile tlbentry_t _gdb_tlb_entry;
-
-__boot_text unsigned _gdb_tlb_size(void) {
-  return ((mips32_getconfig1() & CFG1_MMUS_MASK) >> CFG1_MMUS_SHIFT) + 1;
-}
-
-/* Fills _gdb_tlb_entry structure with TLB entry. */
-__boot_text void _gdb_tlb_read_index(unsigned i) {
-  tlbhi_t saved = mips32_getentryhi();
-  mips32_setindex(i);
-  mips32_tlbr();
-  _gdb_tlb_entry = (tlbentry_t){.hi = mips32_getentryhi(),
-                                .lo0 = mips32_getentrylo0(),
-                                .lo1 = mips32_getentrylo1()};
-  mips32_setentryhi(saved);
 }

@@ -5,28 +5,26 @@
 
 static int copyin_vmspace(vm_map_t *vm, const void *restrict udaddr,
                           void *restrict kaddr, size_t len) {
-  if (vm == get_kernel_vm_map()) {
+  if (vm == vm_map_kernel()) {
     memcpy(kaddr, udaddr, len);
     return 0;
   }
 
-  if (vm == get_user_vm_map()) {
+  if (vm == vm_map_user())
     return copyin(udaddr, kaddr, len);
-  }
 
   panic("copyin on non-active vm maps is not supported");
 }
 
 static int copyout_vmspace(vm_map_t *vm, const void *restrict kaddr,
                            void *restrict udaddr, size_t len) {
-  if (vm == get_kernel_vm_map()) {
+  if (vm == vm_map_kernel()) {
     memcpy(udaddr, kaddr, len);
     return 0;
   }
 
-  if (vm == get_user_vm_map()) {
+  if (vm == vm_map_user())
     return copyout(kaddr, udaddr, len);
-  }
 
   panic("copyout on non-active vm maps is not supported");
 }

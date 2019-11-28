@@ -2,7 +2,8 @@ TOPDIR = $(realpath ../..)
 
 PKG = lua-5.3.5
 URL = https://www.lua.org/ftp/$(PKG).tar.gz
-PATCHES = loslib.patch lunix.patch luaconf.patch init.patch
+PATCHES = loslib.patch lunix.patch luaconf.patch init.patch \
+	  clang-warning.patch Makefile.patch
 
 all: download build install
 
@@ -46,6 +47,10 @@ build-here: patch
 install-here:
 	@echo "[INSTALL] /bin/lua"
 	$(INSTALL) -m 755 lua-5.3.5/src/lua $(SYSROOT)/bin/lua
+	@echo "[OBJCOPY] $(SYSROOT)/bin/lua -> \
+		$(SYSROOT)/bin/lua.dbg"
+	$(OBJCOPY) --only-keep-debug $(SYSROOT)/bin/lua \
+		$(SYSROOT)/bin/lua.dbg
 	@echo "[STRIP] /bin/lua"
 	$(STRIP) --strip-all $(SYSROOT)/bin/lua
 	@echo "[INSTALL] /lib/lua/init.lua"

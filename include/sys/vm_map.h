@@ -6,6 +6,8 @@
 #include <sys/vm.h>
 #include <sys/mutex.h>
 
+void vm_map_bootstrap(void);
+
 /*! \brief Acquire vm_map non-recursive mutex. */
 void vm_map_lock(vm_map_t *map);
 
@@ -20,13 +22,11 @@ DEFINE_CLEANUP_FUNCTION(vm_map_t *, vm_map_unlock);
 #define SCOPED_VM_MAP_LOCK(map)                                                \
   SCOPED_STMT(vm_map_t, vm_map_lock, CLEANUP_FUNCTION(vm_map_unlock), map)
 
-void vm_map_init(void);
-
 void vm_map_activate(vm_map_t *map);
 
-vm_map_t *get_user_vm_map(void);
-vm_map_t *get_kernel_vm_map(void);
-vm_map_t *get_active_vm_map_by_addr(vaddr_t addr);
+vm_map_t *vm_map_user(void);
+vm_map_t *vm_map_kernel(void);
+vm_map_t *vm_map_lookup(vaddr_t addr);
 
 vm_map_t *vm_map_new(void);
 void vm_map_delete(vm_map_t *vm_map);
@@ -43,13 +43,16 @@ void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot);
 int vm_map_insert(vm_map_t *map, vm_segment_t *segment, vm_flags_t flags);
 
 /*! \brief Can address \a addr be mapped by this \a map? */
-bool vm_map_in_range(vm_map_t *map, vaddr_t addr);
+bool vm_map_address_p(vm_map_t *map, vaddr_t addr);
+bool vm_map_contains_p(vm_map_t *map, vaddr_t start, vaddr_t end);
 
-/*! \brief Reports range of addresses that are handled by the map. */
-void vm_map_range(vm_map_t *map, vaddr_t *start_p, vaddr_t *end_p);
+/*! \brief Reports start & end addresses that are handled by the map. */
+vaddr_t vm_map_start(vm_map_t *map);
+vaddr_t vm_map_end(vm_map_t *map);
 
-/*! \brief Reports range of addresses that are handled by the segment. */
-void vm_segment_range(vm_segment_t *seg, vaddr_t *start_p, vaddr_t *end_p);
+/*! \brief Reports start & end addresses that are handled by the segment. */
+vaddr_t vm_segment_start(vm_segment_t *seg);
+vaddr_t vm_segment_end(vm_segment_t *seg);
 
 /*! \brief Looks up a gap of \a length size in \a map.
  *

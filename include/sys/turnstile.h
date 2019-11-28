@@ -6,11 +6,6 @@
 
 typedef struct turnstile turnstile_t;
 
-/*! \brief Initializes turnstiles.
- *
- * \warning To be called only from early kernel initialization! */
-void turnstile_init(void);
-
 /*! \brief Allocates turnstile entry. */
 turnstile_t *turnstile_alloc(void);
 

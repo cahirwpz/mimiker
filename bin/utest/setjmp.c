@@ -9,8 +9,9 @@
 
 static jmp_buf jump_buffer;
 
-noreturn void do_longjmp(int count) {
+noreturn static void do_longjmp(int count) {
   longjmp(jump_buffer, count);
+  assert(0); /* Shouldn't reach here. */
 }
 
 int test_setjmp(void) {

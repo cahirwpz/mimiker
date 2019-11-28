@@ -11,6 +11,7 @@
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/pcpu.h>
+#include <machine/vm_param.h>
 
 struct vm_segment {
   TAILQ_ENTRY(vm_segment) link;
@@ -28,7 +29,7 @@ struct vm_map {
 };
 
 static POOL_DEFINE(P_VMMAP, "vm_map", sizeof(vm_map_t));
-static POOL_DEFINE(P_VMENTRY, "vm_segment", sizeof(vm_segment_t));
+static POOL_DEFINE(P_VMSEG, "vm_segment", sizeof(vm_segment_t));
 
 static vm_map_t *kspace = &(vm_map_t){};
 
@@ -47,33 +48,43 @@ void vm_map_unlock(vm_map_t *map) {
   mtx_unlock(&map->mtx);
 }
 
-vm_map_t *get_user_vm_map(void) {
+vm_map_t *vm_map_user(void) {
   return PCPU_GET(uspace);
 }
 
-vm_map_t *get_kernel_vm_map(void) {
+vm_map_t *vm_map_kernel(void) {
   return kspace;
 }
 
-void vm_segment_range(vm_segment_t *seg, vaddr_t *start_p, vaddr_t *end_p) {
-  *start_p = seg->start;
-  *end_p = seg->end;
+vaddr_t vm_map_start(vm_map_t *map) {
+  return map->pmap == pmap_kernel() ? KERNEL_SPACE_BEGIN : USER_SPACE_BEGIN;
 }
 
-void vm_map_range(vm_map_t *map, vaddr_t *start_p, vaddr_t *end_p) {
-  *start_p = map->pmap->start;
-  *end_p = map->pmap->end;
+vaddr_t vm_map_end(vm_map_t *map) {
+  return map->pmap == pmap_kernel() ? KERNEL_SPACE_END : USER_SPACE_END;
 }
 
-bool vm_map_in_range(vm_map_t *map, vaddr_t addr) {
-  return map && map->pmap && map->pmap->start <= addr && addr < map->pmap->end;
+vaddr_t vm_segment_start(vm_segment_t *seg) {
+  return seg->start;
 }
 
-vm_map_t *get_active_vm_map_by_addr(vaddr_t addr) {
-  if (vm_map_in_range(get_user_vm_map(), addr))
-    return get_user_vm_map();
-  if (vm_map_in_range(get_kernel_vm_map(), addr))
-    return get_kernel_vm_map();
+vaddr_t vm_segment_end(vm_segment_t *seg) {
+  return seg->end;
+}
+
+bool vm_map_address_p(vm_map_t *map, vaddr_t addr) {
+  return map && vm_map_start(map) <= addr && addr < vm_map_end(map);
+}
+
+bool vm_map_contains_p(vm_map_t *map, vaddr_t start, vaddr_t end) {
+  return map && vm_map_start(map) <= start && end <= vm_map_end(map);
+}
+
+vm_map_t *vm_map_lookup(vaddr_t addr) {
+  if (vm_map_address_p(vm_map_user(), addr))
+    return vm_map_user();
+  if (vm_map_address_p(vm_map_kernel(), addr))
+    return vm_map_kernel();
   return NULL;
 }
 
@@ -82,14 +93,14 @@ static void vm_map_setup(vm_map_t *map) {
   mtx_init(&map->mtx, 0);
 }
 
-void vm_map_init(void) {
+void vm_map_bootstrap(void) {
   vm_map_setup(kspace);
-  kspace->pmap = get_kernel_pmap();
+  kspace->pmap = pmap_kernel();
   vm_map_activate(kspace);
 }
 
 vm_map_t *vm_map_new(void) {
-  vm_map_t *map = pool_alloc(P_VMMAP, PF_ZERO);
+  vm_map_t *map = pool_alloc(P_VMMAP, M_ZERO);
   vm_map_setup(map);
   map->pmap = pmap_new();
   return map;
@@ -97,10 +108,9 @@ vm_map_t *vm_map_new(void) {
 
 vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
                                vm_prot_t prot) {
-  assert(is_aligned(start, PAGESIZE));
-  assert(is_aligned(end, PAGESIZE));
+  assert(page_aligned_p(start) && page_aligned_p(end));
 
-  vm_segment_t *seg = pool_alloc(P_VMENTRY, PF_ZERO);
+  vm_segment_t *seg = pool_alloc(P_VMSEG, M_ZERO);
   seg->object = obj;
   seg->start = start;
   seg->end = end;
@@ -112,7 +122,7 @@ static void vm_segment_free(vm_segment_t *seg) {
   /* we assume no other segment points to this object */
   if (seg->object)
     vm_object_free(seg->object);
-  pool_free(P_VMENTRY, seg);
+  pool_free(P_VMSEG, seg);
 }
 
 vm_segment_t *vm_map_find_segment(vm_map_t *map, vaddr_t vaddr) {
@@ -161,13 +171,11 @@ static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
                                    size_t length, vm_segment_t **after_p) {
   vaddr_t start = *start_p;
 
-  assert(is_aligned(start, PAGESIZE));
-  assert(is_aligned(length, PAGESIZE));
+  assert(page_aligned_p(start) && page_aligned_p(length));
 
   /* Bounds check */
-  if (start < map->pmap->start)
-    start = map->pmap->start;
-  if (start + length > map->pmap->end)
+  start = max(start, vm_map_start(map));
+  if (start + length > vm_map_end(map))
     return ENOMEM;
 
   if (after_p)
@@ -187,7 +195,7 @@ static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
   TAILQ_FOREACH (it, &map->entries, link) {
     vm_segment_t *next = TAILQ_NEXT(it, link);
     vaddr_t gap_start = it->end;
-    vaddr_t gap_end = next ? next->start : map->pmap->end;
+    vaddr_t gap_end = next ? next->start : vm_map_end(map);
 
     /* Move start address forward if it points inside allocated space. */
     if (start < gap_start)
@@ -238,14 +246,13 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
     return ENOTSUP;
   }
 
-  if (!is_aligned(addr, PAGESIZE))
+  if (!page_aligned_p(addr))
     return EINVAL;
 
   if (length == 0)
     return EINVAL;
 
-  if (addr != 0 &&
-      (!vm_map_in_range(map, addr) || !vm_map_in_range(map, addr + length)))
+  if (addr != 0 && !vm_map_contains_p(map, addr, addr + length))
     return EINVAL;
 
   /* Create object with a pager that supplies cleared pages on page fault. */
@@ -263,14 +270,14 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
 }
 
 int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
-  assert(is_page_aligned(new_end));
+  assert(page_aligned_p(new_end));
   assert(new_end >= seg->start);
   SCOPED_MTX_LOCK(&map->mtx);
 
   if (new_end >= seg->end) {
     /* Expanding entry */
     vm_segment_t *next = TAILQ_NEXT(seg, link);
-    vaddr_t gap_end = next ? next->start : map->pmap->end;
+    vaddr_t gap_end = next ? next->start : vm_map_end(map);
     if (new_end > gap_end)
       return ENOMEM;
   } else {
@@ -293,7 +300,8 @@ int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
 void vm_map_dump(vm_map_t *map) {
   SCOPED_MTX_LOCK(&map->mtx);
 
-  klog("Virtual memory map (%08lx - %08lx):", map->pmap->start, map->pmap->end);
+  klog("Virtual memory map (%08lx - %08lx):", vm_map_start(map),
+       vm_map_end(map));
 
   vm_segment_t *it;
   TAILQ_FOREACH (it, &map->entries, link) {

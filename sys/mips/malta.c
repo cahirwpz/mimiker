@@ -1,7 +1,5 @@
 #define KLOG KL_INIT
 #include <sys/interrupt.h>
-#include <sys/physmem.h>
-#include <sys/malloc.h>
 #include <mips/cpuinfo.h>
 #include <mips/malta.h>
 #include <mips/exc.h>
@@ -9,24 +7,13 @@
 #include <mips/timer.h>
 #include <mips/tlb.h>
 #include <sys/klog.h>
-#include <sys/kbss.h>
 #include <sys/console.h>
-#include <sys/pcpu.h>
+#include <sys/context.h>
+#include <sys/kenv.h>
 #include <sys/pmap.h>
-#include <sys/pool.h>
 #include <sys/libkern.h>
-#include <sys/sleepq.h>
-#include <sys/rman.h>
 #include <sys/thread.h>
-#include <sys/turnstile.h>
-#include <sys/vm_map.h>
-
-extern int kernel_init(int argc, char **argv);
-
-static struct {
-  int argc;
-  char **argv;
-} _kenv;
+#include <sys/vm_physmem.h>
 
 static const char *whitespaces = " \t";
 
@@ -42,23 +29,26 @@ static size_t count_tokens(const char *str) {
   } while (true);
 }
 
-static char **extract_tokens(const char *str, char **tokens_p) {
+static char **extract_tokens(kstack_t *stk, const char *str, char **tokens_p) {
   do {
     str += strspn(str, whitespaces);
     if (*str == '\0')
       return tokens_p;
     size_t toklen = strcspn(str, whitespaces);
     /* copy the token to memory managed by the kernel */
-    char *token = kbss_grow(toklen + 1);
+    char *token = kstack_alloc(stk, toklen + 1);
     strlcpy(token, str, toklen + 1);
     *tokens_p++ = token;
+    /* append extra empty token when you see "--" */
+    if (toklen == 2 && strncmp("--", str, 2) == 0)
+      *tokens_p++ = NULL;
     str += toklen;
   } while (true);
 }
 
-static char *make_pair(char *key, char *value) {
+static char *make_pair(kstack_t *stk, char *key, char *value) {
   int arglen = strlen(key) + strlen(value) + 2;
-  char *arg = kbss_grow(arglen * sizeof(char));
+  char *arg = kstack_alloc(stk, arglen * sizeof(char));
   strlcpy(arg, key, arglen);
   strlcat(arg, "=", arglen);
   strlcat(arg, value, arglen);
@@ -78,148 +68,99 @@ static char *make_pair(char *key, char *value) {
  * Example:
  *
  *   For arguments:
- *     argc=3;
- *     argv={"test.elf", "arg1 arg2=val   arg3=foobar  ", "  init=/bin/sh "};
+ *     argc=2;
+ *     argv={"mimiker.elf", "arg1 arg2=foo init=/bin/sh arg3=bar -- baz"};
  *     envp={"memsize", "128MiB", "uart.speed", "115200"};
  *
  *   instruction:
  *     setup_kenv(argc, argv, envp);
  *
- *   will set global variable _kenv as follows:
- *     _kenv.argc=5;
- *     _kenv.argv={"test.elf", "arg1", "arg2=val", "arg3=foobar",
- *                 "init=/bin/sh", "memsize=128MiB", "uart.speed=115200"};
+ *   will set global variables as follows:
+ *     kenvp={"mimiker.elf", "memsize=128MiB", "uart.speed=115200",
+ *            "arg1", "arg2=foo", "init=/bin/sh", "arg3=foobar"};
+ *     kinit={NULL, "baz"};
  */
-static void setup_kenv(int argc, char **argv, char **envp) {
-  unsigned ntokens = 0;
+static void *malta_kenv(int argc, char **argv, char **envp) {
+  assert(argc == 2);
 
+  kstack_t *stk = &thread_self()->td_kstack;
+
+  int ntokens = 0;
   for (int i = 0; i < argc; ++i)
     ntokens += count_tokens(argv[i]);
   for (char **pair = envp; *pair; pair += 2)
     ntokens++;
 
-  _kenv.argc = ntokens;
+  /* Both _kenvp and _kinit are going to point to the same array.
+   * Their contents will be separated by NULL. */
+  char **kenvp = kstack_alloc(stk, (ntokens + 2) * sizeof(char *));
+  char **kinit = NULL;
 
-  char **tokens = kbss_grow(ntokens * sizeof(char *));
-
-  _kenv.argv = tokens;
-
-  for (int i = 0; i < argc; ++i)
-    tokens = extract_tokens(argv[i], tokens);
+  char **tokens = kenvp;
+  tokens = extract_tokens(stk, argv[0], tokens);
   for (char **pair = envp; *pair; pair += 2)
-    *tokens++ = make_pair(pair[0], pair[1]);
-}
+    *tokens++ = make_pair(stk, pair[0], pair[1]);
+  tokens = extract_tokens(stk, argv[1], tokens);
+  *tokens = NULL;
 
-char *kenv_get(const char *key) {
-  unsigned n = strlen(key);
+  kstack_fix_bottom(stk);
 
-  for (int i = 1; i < _kenv.argc; i++) {
-    char *arg = _kenv.argv[i];
-    if ((strncmp(arg, key, n) == 0) && (arg[n] == '='))
-      return arg + n + 1;
+  /* Let's find "--".
+   * After we set it to NULL it's going to become first element of _kinit */
+  for (char **argp = kenvp; *argp; argp++) {
+    if (strcmp("--", *argp) == 0) {
+      *argp++ = NULL;
+      kinit = argp;
+      break;
+    }
   }
 
-  return NULL;
+  kenv_bootstrap(kenvp, kinit);
+
+  return stk->stk_ptr;
 }
 
-static intptr_t __rd_start;
-static size_t __rd_size;
-
 intptr_t ramdisk_get_start(void) {
-  return __rd_start;
+  return MIPS_KSEG0_TO_PHYS(kenv_get_ulong("rd_start"));
 }
 
 size_t ramdisk_get_size(void) {
-  return __rd_size;
+  return align(kenv_get_ulong("rd_size"), PAGESIZE);
 }
 
-static void ramdisk_init(void) {
-  char *s;
-  size_t n;
-
-  /* parse 'rd_start' */
-  s = kenv_get("rd_start");
-
-  /* rd_start: skip '0x' under qemu */
-  if (s[0] == '0' && s[1] == 'x')
-    s += 2;
-
-  /* rd_start: skip 'ffffffff' under qemu */
-  n = strlen(s);
-  if (n > 8)
-    s += n - 8;
-
-  __rd_start = strtoul(s, NULL, 16);
-
-  /* parse 'rd_size' */
-  s = kenv_get("rd_size");
-
-  __rd_size = align(strtoul(s, NULL, 10), PAGESIZE);
-}
-
-extern uint8_t __kernel_start[];
-
-static void pm_bootstrap(unsigned memsize) {
-  pm_init();
-
-  pm_seg_t *seg = kbss_grow(pm_seg_space_needed(memsize));
-
-  /*
-   * Let's fix size of kernel bss section. We need to tell physical memory
-   * allocator not to manage memory used by the kernel image along with all
-   * memory allocated using \a kbss_grow.
-   */
-  void *__kernel_end = kbss_fix();
-
-  /* create Malta physical memory segment */
-  pm_seg_init(seg, MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + memsize,
-              MIPS_KSEG0_START);
-
+static void malta_physmem(void) {
   /* XXX: workaround - pmap_enter fails to physical page with address 0 */
-  pm_seg_reserve(seg, MALTA_PHYS_SDRAM_BASE, MALTA_PHYS_SDRAM_BASE + PAGESIZE);
+  paddr_t ram_start = MALTA_PHYS_SDRAM_BASE + PAGESIZE;
+  paddr_t ram_end = MALTA_PHYS_SDRAM_BASE + kenv_get_ulong("memsize");
+  paddr_t kern_start = MIPS_KSEG0_TO_PHYS(__boot);
+  paddr_t kern_end = align(MIPS_KSEG2_TO_PHYS(__ebss), PAGESIZE);
+  paddr_t rd_start = ramdisk_get_start();
+  paddr_t rd_end = rd_start + ramdisk_get_size();
 
-  /* reserve kernel image and physical memory description space */
-  pm_seg_reserve(seg, MIPS_KSEG0_TO_PHYS(__kernel_start),
-                 MIPS_KSEG0_TO_PHYS(__kernel_end));
+  vm_physseg_plug(ram_start, kern_start);
 
-  pm_add_segment(seg);
+  if (rd_start != rd_end) {
+    vm_physseg_plug(kern_end, rd_start);
+    vm_physseg_plug(rd_end, ram_end);
+  } else {
+    vm_physseg_plug(kern_end, ram_end);
+  }
 }
 
-static void thread_bootstrap(void) {
-  /* Create main kernel thread */
-  thread_t *td =
-    thread_create("kernel-main", (void *)kernel_init, NULL, prio_uthread(255));
-
-  exc_frame_t *kframe = td->td_kframe;
-  kframe->a0 = (register_t)_kenv.argc;
-  kframe->a1 = (register_t)_kenv.argv;
-  kframe->sr |= SR_IE; /* the thread will run with interrupts enabled */
-  td->td_state = TDS_RUNNING;
-  PCPU_SET(curthread, td);
+void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
+  thread_bootstrap();
+  return malta_kenv(argc, argv, envp);
 }
 
-extern const uint8_t __malta_dtb_start[];
-
-void platform_init(int argc, char **argv, char **envp, unsigned memsize) {
-  kbss_init();
-
-  setup_kenv(argc, argv, envp);
+__noreturn void platform_init(void) {
   cn_init();
   klog_init();
-  pcpu_init();
   cpu_init();
   tlb_init();
-  ramdisk_init();
   mips_intr_init();
   mips_timer_init();
-  pm_bootstrap(memsize);
-  pmap_init();
-  pool_bootstrap();
-  vm_map_init();
-  kmem_bootstrap();
-  sleepq_init();
-  turnstile_init();
-  thread_bootstrap();
-
-  klog("Switching to 'kernel-main' thread...");
+  pmap_bootstrap();
+  malta_physmem();
+  intr_enable();
+  kernel_init();
 }

@@ -18,8 +18,6 @@
 
 typedef void (*exc_handler_t)(exc_frame_t *);
 
-extern const char _ebase[];
-
 /* Extra information regarding DI / EI usage (from MIPS® ISA documentation):
  *
  * The instruction creates an execution hazard between the change to SR register
@@ -56,19 +54,6 @@ static void mips_unmask_irq(intr_event_t *ie) {
 }
 
 void mips_intr_init(void) {
-  /*
-   * Enable Vectored Interrupt Mode as described in „MIPS32® 24KETM Processor
-   * Core Family Software User’s Manual”, chapter 6.3.1.2.
-   */
-
-  /* The location of exception vectors is set to EBase. */
-  mips32_set_c0(C0_EBASE, _ebase);
-  mips32_bc_c0(C0_STATUS, SR_BEV);
-  /* Use the special interrupt vector at EBase + 0x200. */
-  mips32_bs_c0(C0_CAUSE, CR_IV);
-  /* Set vector spacing to 0. */
-  mips32_set_c0(C0_INTCTL, INTCTL_VS_0);
-
   /* Initialize software interrupts handler events. */
   MIPS_INTR_EVENT(MIPS_SWINT0, "swint(0)");
   MIPS_INTR_EVENT(MIPS_SWINT1, "swint(1)");

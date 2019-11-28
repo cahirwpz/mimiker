@@ -11,7 +11,7 @@ class Process(metaclass=GdbStructMeta):
     __cast__ = {'p_pid': int, 'p_thread': Thread, 'p_state': enum}
 
     @staticmethod
-    def process():
+    def current():
         return gdb.parse_and_eval('_pcpu_data->curthread->td_proc')
 
     @classmethod
@@ -42,7 +42,8 @@ class Kprocess(SimpleCommand):
         table = TextTable(align='rll')
         table.header(['Pid', 'Tid', 'State'])
         for p in Process.list_all():
-            table.add_row([p.p_pid, p.p_thread, p.p_state])
+            thread = None if p.p_state == 'PS_ZOMBIE' else p.p_thread
+            table.add_row([p.p_pid, thread, p.p_state])
         print(table)
 
 

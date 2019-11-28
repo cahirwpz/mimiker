@@ -3,8 +3,10 @@
 
 #ifdef _KERNEL
 
+#include <machine/vm_param.h>
+
 /* size of pipe buffer */
-#define PIPE_SIZE 4096
+#define PIPE_SIZE PAGESIZE
 
 typedef struct proc proc_t;
 

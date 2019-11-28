@@ -2,7 +2,7 @@
 #include <mips/m32c0.h>
 #include <mips/regdef.h>
 #include <mips/pmap.h>
-#include <sys/vm.h>
+#include <mips/vm_param.h>
 
 #include "assym.h"
 
@@ -12,14 +12,12 @@
         .set	noat
 
         .global _ebase
-        .type   tlb_refill,@function
 
         .section .ebase, "ax"
 
 _ebase:
 
         .org    0x0
-        .local  tlb_refill
         .local  pde_valid
         .local  pde_invalid
 
@@ -32,7 +30,7 @@ _ebase:
 # EHB has to be put between a producer and a consumer - preferably just before
 # the consumer, not just after the producer.
 
-tlb_refill:
+SLEAF(tlb_refill)
         # Read PDE associated with bad virtual address.
         # Highest bit of the address switches between UPD_BASE & KPD_BASE,
         # so it's copied into 12th position with arithmetic shift.
@@ -77,28 +75,32 @@ pde_valid:
         ehb
         tlbwr
         eret
+END(tlb_refill)
 
         .org    0x100
         .local  cache_error
 
-cache_error:
+SLEAF(cache_error)
 1:      j       1b
         nop
+END(cache_error)
 
         .org    0x180
         .local  general_exception
 
-general_exception:
-        la      k1, mips_exc_handler
-        j       exc_enter
-        mfc0    k0, C0_STATUS           # (delay slot) load status register
+SLEAF(general_exception)
+        la      k0, exc_enter
+        jr      k0
+        nop
+END(general_exception)
 
         .org    0x200
         .local  irq
 
-irq:
-        la      k1, mips_exc_handler
-        j       exc_enter
-        mfc0    k0, C0_STATUS           # (delay slot) load status register
+SLEAF(irq)
+        la      k0, exc_enter
+        jr      k0
+        nop
+END(irq)
 
 # vim: sw=8 ts=8 et

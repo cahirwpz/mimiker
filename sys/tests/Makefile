@@ -32,6 +32,7 @@ SOURCES = \
 	utest.c \
 	vm_map.c \
 	devclass.c \
-	vfs.c
+	vfs.c \
+	vmem.c
 
 include $(TOPDIR)/build/build.kern.mk

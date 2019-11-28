@@ -3,6 +3,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/linker_set.h>
+#include <sys/kmem_flags.h>
 
 /*! \file pool.h
  *
@@ -17,11 +18,14 @@ typedef struct pool pool_t;
 
 void pool_bootstrap(void);
 
-/* Flags that can be passed to `pool_alloc`. */
-#define PF_ZERO 1 /* clear allocated block */
-
 /*! \brief Creates a pool of objects of given size. */
 pool_t *pool_create(const char *desc, size_t size);
+
+/*! \brief Adds a slab of one page to the pool.
+ *
+ * \note Use only during memory system bootstrap!
+ */
+void pool_add_page(pool_t *pool, void *page);
 
 /*! \brief Frees all memory associated with the pool
  *
@@ -31,7 +35,7 @@ void pool_destroy(pool_t *pool);
 /*! \brief Allocate an object from the pool.
  *
  * \note The pool may grow in page size units. */
-void *pool_alloc(pool_t *pool, unsigned flags);
+void *pool_alloc(pool_t *pool, kmem_flags_t flags) __warn_unused;
 
 /*! \brief Release an object that belongs to the pool. */
 void pool_free(pool_t *pool, void *ptr);

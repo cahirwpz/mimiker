@@ -43,7 +43,7 @@ typedef struct bintime {
 #define BINTIME(fp)                                                            \
   (bintime_t) {                                                                \
     .sec = (time_t)__builtin_floor(fp),                                        \
-    .frac = (uint64_t)((fp - __builtin_floor(fp)) * (1ULL << 64))              \
+    .frac = (uint64_t)((fp - __builtin_floor(fp)) * (1ULL << 63) * 2)          \
   }
 
 #define HZ2BT(hz)                                                              \

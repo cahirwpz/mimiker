@@ -2,7 +2,7 @@
 #include <mips/exc.h>
 #include <mips/pcpu.h>
 #include <mips/regdef.h>
-#include <sys/vm.h>
+#include <mips/vm_param.h>
 
 #define STACKSIZE PAGESIZE
 
@@ -22,22 +22,34 @@
         .local skip_fpu_restore
 
 # [$k0] must be set to value of C0_STATUS
-# [$k1] exception handler routine address
 exc_enter:
+        mfc0    k0, C0_STATUS           
         andi    k0, SR_KSU_MASK         # Did exception occur in kernel mode?
         beqz    k0, kern_exc_enter
         nop
 
 # IMPORTANT: While exception level is active the code may only access kernel
-# stack and local pcpu structure! These are guaranteed to be wired in TLB.
+# stack and local pcpu structure! FTTB These are accessed through kseg0.
 # It is UNSAFE to use k0/k1 registers when TLB miss handler may be triggered!
 
 NESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
-        # Fetch exception frame pointer where context will be saved.
-        LOAD_PCPU(k0)
-        lw      k0, PCPU_KSP(k0)
+        .cfi_signal_frame
 
-        SAVE_CPU_CTX(sp, k0)
+        # Move user sp to temporary register and replace it with kernel sp.
+        move    k1, sp
+        # Previous value of sp is saved in register k1.
+        .cfi_register sp, k1
+
+        # Exception frame will be saved on kernel stack. 
+        # Fetch exception frame pointer where context will be saved.
+        LOAD_PCPU_KSEG0(k0)
+
+        # sp contains kernel stack pointer.
+        lw      sp, PCPU_KSP(k0)
+
+        # Define a rule for computing CFA as: *sp + 0.
+        .cfi_def_cfa sp, 0
+        SAVE_CPU_CTX(k1, sp)
 
         # If FPU is enabled save FPU registers.
         mfc0    t0, C0_STATUS
@@ -45,15 +57,9 @@ NESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         beqz    t1, skip_fpu_save
         nop
 
-        SAVE_FPU_CTX(k0)
+        SAVE_FPU_CTX(sp)
 
 skip_fpu_save:
-        # Set kernel stack pointer just after saved user context.
-        move    sp, k0
-
-        # Register k1 is going to become unsafe soon - move it to s1.
-        move    s1, k1
-
         # Load kernel global pointer.
         la      gp, _gp
 
@@ -77,7 +83,7 @@ skip_fpu_save:
         sw      t0, TD_IDNEST(s0)
 
         # Call C interrupt handler routine.
-        jalr    s1
+        jal     mips_exc_handler
         move    a0, sp                  # (delay) 1st arg
 
         # Decrement interrupt nest level.
@@ -89,7 +95,7 @@ user_exc_leave:
         # Disable interrupts and extract interrupt mask into t1.
         di      t1
         ehb
-        ext     t1, SR_IMASK_SHIFT, SR_IMASK_BITS
+        ext     t1, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
 
         # Set current stack pointer to user exception frame.
         # This is crucial on first entry to user-space for this thread.
@@ -133,6 +139,9 @@ NESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         subu    sp, KERN_EXC_FRAME_SIZE # required by gdb to recognize frame
         SAVE_CPU_CTX(k0, sp)
 
+        # In normal conditions we're going to enter regular exception handler.
+        la      s1, mips_exc_handler
+
         # If there's not enough space on the stack to store another exception
         # frame we consider situation to be critical and panic.
         andi    t0, sp, STACKSIZE - 1
@@ -141,13 +150,10 @@ NESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         nop
         # Hopefully KERN_EXC_FRAME_SIZE bytes of unallocated stack space will be
         # enough to enter kernel stack overflow handler.
-        la      k1, kstack_overflow_handler
-1:
-        # Register k1 is going to become unsafe soon - move it to s1.
-        move    s1, k1
+        la      s1, kstack_overflow_handler
 
         # Load kernel global pointer.
-        la      gp, _gp
+1:      la      gp, _gp
 
         # Drop exception level and disable interrupts.
         mfc0    t0, C0_STATUS
@@ -180,7 +186,7 @@ kern_exc_leave:
         # Disable interrupts and extract interrupt mask into t1.
         di      t1
         ehb
-        ext     t1, SR_IMASK_SHIFT, SR_IMASK_BITS
+        ext     t1, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
 
         # Load status register from exception frame and update it with current
         # interrupt mask.

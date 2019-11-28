@@ -875,37 +875,6 @@
 #define C0_KSCRATCH5	$31,6
 #define C0_KSCRATCH6	$31,7
 
-$index		=	$0
-$random		=	$1
-$entrylo0	=	$2
-$entrylo1	=	$3
-$context	=	$4
-$pagemask	=	$5
-$wired		=	$6
-$hwrena		=	$7
-$vaddr 		=	$8
-$badvaddr	=	$8
-$count 		=	$9
-$entryhi	=	$10
-$compare	=	$11
-$sr		=	$12
-$cr		=	$13
-$epc 		=	$14
-$prid		=	$15
-$config		=	$16
-$lladdr		=	$17
-$watchlo	=	$18
-$watchhi	=	$19
-$debug		= 	$23
-$depc		= 	$24
-$perfcnt	= 	$25
-$errctl		=	$26
-$cacheerr	=	$27
-$taglo		=	$28
-$taghi		=	$29
-$errpc		=	$30
-$desave		=	$31
-
 
 #else /* !__ASSEMBLER__ */
 
@@ -1296,6 +1265,12 @@ __extension__ ({ \
 /* CP0 PageMask register */
 #define mips32_getpagemask() mips32_get_c0(C0_PAGEMASK)
 #define mips32_setpagemask(x) mips32_set_c0(C0_PAGEMASK, (x))
+
+/* TLB handling instructions */
+#define mips32_tlbr() asm volatile("tlbr; ehb" ::: "memory")
+#define mips32_tlbwi() asm volatile("tlbwi; ehb" ::: "memory")
+#define mips32_tlbwr() asm volatile("tlbwr; ehb" ::: "memory")
+#define mips32_tlbp() asm volatile("tlbp; ehb" ::: "memory")
 
 /*
  * Define macros for accessing the MIPS32 coprocessor 0 registers.  Most

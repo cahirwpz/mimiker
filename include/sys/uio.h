@@ -29,10 +29,10 @@ typedef struct uio {
   }
 
 #define UIO_SINGLE_KERNEL(op, offset, buf, buflen)                             \
-  UIO_SINGLE(op, get_kernel_vm_map(), offset, buf, buflen)
+  UIO_SINGLE(op, vm_map_kernel(), offset, buf, buflen)
 
 #define UIO_SINGLE_USER(op, offset, buf, buflen)                               \
-  UIO_SINGLE(op, get_user_vm_map(), offset, buf, buflen)
+  UIO_SINGLE(op, vm_map_user(), offset, buf, buflen)
 
 int uiomove(void *buf, size_t n, uio_t *uio);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);
