@@ -1,5 +1,5 @@
 #define KL_LOG KL_TIME
-#include <klog.h>
+#include <sys/klog.h>
 #include <mips/m32c0.h>
 #include <mips/config.h>
 #include <mips/intr.h>
