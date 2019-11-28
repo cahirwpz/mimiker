@@ -1,17 +1,30 @@
-SOURCES = $(SOURCES_C) $(SOURCES_ASM)
-OBJECTS = $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o)
-DEPFILES = $(SOURCES_C:%.c=.%.D) $(SOURCES_ASM:%.S=.%.D)
+SOURCES_YACC = $(filter %.y,$(SOURCES))
+SOURCES_GEN += $(SOURCES_YACC:%.y=%.c)
 
-define emit_dep_rule
-CFILE = $(1)
-DFILE = .$(patsubst %.S,%.D,$(patsubst %.c,%.D,$(1)))
-$$(DFILE): $$(CFILE)
-	@echo "[DEP] $$(DIR)$$@"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -MM -MG $$^ -o $$@
-endef
+SOURCES_C = $(filter %.c,$(SOURCES)) $(SOURCES_GEN)
+SOURCES_ASM = $(filter %.S,$(SOURCES))
 
-$(foreach file,$(SOURCES) null,$(eval $(call emit_dep_rule,$(file))))
+OBJECTS += $(SOURCES_C:%.c=%.o) $(SOURCES_ASM:%.S=%.o)
 
-ifeq ($(words $(findstring $(MAKECMDGOALS), clean)), 0)
-  -include $(DEPFILES)
+DEPENDENCY-FILES += $(foreach f, $(SOURCES_C),\
+		      $(dir $(f))$(patsubst %.c,.%.D,$(notdir $(f))))
+DEPENDENCY-FILES += $(foreach f, $(SOURCES_ASM),\
+	  	      $(dir $(f))$(patsubst %.S,.%.D,$(notdir $(f))))
+
+$(DEPENDENCY-FILES): $(SOURCES_GEN)
+
+.%.D: %.c
+	@echo "[DEP] $(DIR)$@"
+	$(CC) $(CFLAGS) $(CPPFLAGS) -MT $*.o -MM -MG $^ -MF $@
+
+.%.D: %.S
+	@echo "[DEP] $(DIR)$@"
+	$(AS) $(ASFLAGS) $(CPPFLAGS) -MT $*.o -MM -MG $^ -MF $@
+
+ifeq ($(words $(findstring $(MAKECMDGOALS), download clean distclean)), 0)
+  -include $(DEPENDENCY-FILES)
 endif
+
+BUILD-FILES += $(OBJECTS)
+CLEAN-FILES += $(DEPENDENCY-FILES) $(OBJECTS) $(SOURCES_GEN)
+PRECIOUS-FILES += $(OBJECTS)

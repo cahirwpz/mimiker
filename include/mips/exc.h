@@ -7,6 +7,10 @@
 
 #include <mips/asm.h>
 
+#define SAVE_REG_CFI(reg, offset, base)                                        \
+  sw reg, (EXC_##offset)(base);                                                \
+  .cfi_rel_offset reg, (EXC_##offset)
+
 #define SAVE_REG(reg, offset, base) sw reg, (EXC_##offset)(base)
 
 #define LOAD_REG(reg, offset, base) lw reg, (EXC_##offset)(base)
@@ -16,35 +20,39 @@
 #define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (EXC_FPU_##offset)(base)
 
 #define SAVE_CPU_CTX(_sp, reg)                                                 \
-  SAVE_REG(AT, AT, reg);                                                       \
-  SAVE_REG(v0, V0, reg);                                                       \
-  SAVE_REG(v1, V1, reg);                                                       \
-  SAVE_REG(a0, A0, reg);                                                       \
-  SAVE_REG(a1, A1, reg);                                                       \
-  SAVE_REG(a2, A2, reg);                                                       \
-  SAVE_REG(a3, A3, reg);                                                       \
-  SAVE_REG(t0, T0, reg);                                                       \
-  SAVE_REG(t1, T1, reg);                                                       \
-  SAVE_REG(t2, T2, reg);                                                       \
-  SAVE_REG(t3, T3, reg);                                                       \
-  SAVE_REG(t4, T4, reg);                                                       \
-  SAVE_REG(t5, T5, reg);                                                       \
-  SAVE_REG(t6, T6, reg);                                                       \
-  SAVE_REG(t7, T7, reg);                                                       \
-  SAVE_REG(s0, S0, reg);                                                       \
-  SAVE_REG(s1, S1, reg);                                                       \
-  SAVE_REG(s2, S2, reg);                                                       \
-  SAVE_REG(s3, S3, reg);                                                       \
-  SAVE_REG(s4, S4, reg);                                                       \
-  SAVE_REG(s5, S5, reg);                                                       \
-  SAVE_REG(s6, S6, reg);                                                       \
-  SAVE_REG(s7, S7, reg);                                                       \
-  SAVE_REG(t8, T8, reg);                                                       \
-  SAVE_REG(t9, T9, reg);                                                       \
-  SAVE_REG(gp, GP, reg);                                                       \
+  SAVE_REG_CFI(AT, AT, reg);                                                   \
+  SAVE_REG_CFI(v0, V0, reg);                                                   \
+  SAVE_REG_CFI(v1, V1, reg);                                                   \
+  SAVE_REG_CFI(a0, A0, reg);                                                   \
+  SAVE_REG_CFI(a1, A1, reg);                                                   \
+  SAVE_REG_CFI(a2, A2, reg);                                                   \
+  SAVE_REG_CFI(a3, A3, reg);                                                   \
+  SAVE_REG_CFI(t0, T0, reg);                                                   \
+  SAVE_REG_CFI(t1, T1, reg);                                                   \
+  SAVE_REG_CFI(t2, T2, reg);                                                   \
+  SAVE_REG_CFI(t3, T3, reg);                                                   \
+  SAVE_REG_CFI(t4, T4, reg);                                                   \
+  SAVE_REG_CFI(t5, T5, reg);                                                   \
+  SAVE_REG_CFI(t6, T6, reg);                                                   \
+  SAVE_REG_CFI(t7, T7, reg);                                                   \
+  SAVE_REG_CFI(s0, S0, reg);                                                   \
+  SAVE_REG_CFI(s1, S1, reg);                                                   \
+  SAVE_REG_CFI(s2, S2, reg);                                                   \
+  SAVE_REG_CFI(s3, S3, reg);                                                   \
+  SAVE_REG_CFI(s4, S4, reg);                                                   \
+  SAVE_REG_CFI(s5, S5, reg);                                                   \
+  SAVE_REG_CFI(s6, S6, reg);                                                   \
+  SAVE_REG_CFI(s7, S7, reg);                                                   \
+  SAVE_REG_CFI(t8, T8, reg);                                                   \
+  SAVE_REG_CFI(t9, T9, reg);                                                   \
+  SAVE_REG_CFI(gp, GP, reg);                                                   \
   SAVE_REG(_sp, SP, reg);                                                      \
-  SAVE_REG(fp, FP, reg);                                                       \
+  .cfi_rel_offset sp, EXC_SP;                                                  \
+  SAVE_REG_CFI(fp, FP, reg);                                                   \
+  /* Save value of user-space RA just before syscall. */                       \
   SAVE_REG(ra, RA, reg);                                                       \
+  .cfi_rel_offset ra, EXC_RA;                                                  \
+  mfc0 ra, C0_EPC;                                                             \
   mflo t0;                                                                     \
   mfhi t1;                                                                     \
   SAVE_REG(t0, LO, reg);                                                       \
@@ -56,7 +64,10 @@
   SAVE_REG(t0, SR, reg);                                                       \
   SAVE_REG(t1, CAUSE, reg);                                                    \
   SAVE_REG(t2, BADVADDR, reg);                                                 \
-  SAVE_REG(t3, PC, reg)
+  /* Save value of user-space PC just before syscall. */                       \
+  SAVE_REG(t3, PC, reg);                                                       \
+  .cfi_return_column t3;                                                       \
+  .cfi_rel_offset t3, EXC_PC
 
 #define LOAD_CPU_CTX(reg)                                                      \
   LOAD_REG(t0, PC, reg);                                                       \
@@ -165,40 +176,56 @@
   LOAD_FPU_REG($f31, F31, reg);                                                \
   LOAD_FPU_REG($31, FSR, reg)
 
-#else // !__ASSEMBLER__
+#else /* !__ASSEMBLER__ */
+
+#include <stdbool.h>
 
 #define CPU_FRAME                                                              \
   struct {                                                                     \
-    reg_t at;                                                                  \
-    reg_t v0, v1;                                                              \
-    reg_t a0, a1, a2, a3;                                                      \
-    reg_t t0, t1, t2, t3, t4, t5, t6, t7;                                      \
-    reg_t s0, s1, s2, s3, s4, s5, s6, s7;                                      \
-    reg_t t8, t9;                                                              \
-    reg_t gp, sp, fp, ra;                                                      \
-    reg_t lo, hi;                                                              \
-    reg_t pc, sr, badvaddr, cause;                                             \
+    register_t at;                                                             \
+    register_t v0, v1;                                                         \
+    register_t a0, a1, a2, a3;                                                 \
+    register_t t0, t1, t2, t3, t4, t5, t6, t7;                                 \
+    register_t s0, s1, s2, s3, s4, s5, s6, s7;                                 \
+    register_t t8, t9;                                                         \
+    register_t gp, sp, fp, ra;                                                 \
+    register_t lo, hi;                                                         \
+    register_t pc, sr, badvaddr, cause;                                        \
   }
 
 #define FPU_FRAME                                                              \
   struct {                                                                     \
-    freg_t f0, f1, f2, f3, f4, f5, f6, f7;                                     \
-    freg_t f8, f9, f10, f11, f12, f13, f14, f15;                               \
-    freg_t f16, f17, f18, f19, f20, f21, f22, f23;                             \
-    freg_t f24, f25, f26, f27, f28, f29, f30, f31;                             \
-    reg_t fsr;                                                                 \
+    fpregister_t f0, f1, f2, f3, f4, f5, f6, f7;                               \
+    fpregister_t f8, f9, f10, f11, f12, f13, f14, f15;                         \
+    fpregister_t f16, f17, f18, f19, f20, f21, f22, f23;                       \
+    fpregister_t f24, f25, f26, f27, f28, f29, f30, f31;                       \
+    register_t fsr;                                                            \
   }
 
-typedef struct cpu_exc_frame { CPU_FRAME; } cpu_exc_frame_t;
-typedef struct fpu_exc_frame { FPU_FRAME; } fpu_exc_frame_t;
+typedef struct cpu_exc_frame {
+  CPU_FRAME;
+} cpu_exc_frame_t;
+typedef struct fpu_exc_frame {
+  FPU_FRAME;
+} fpu_exc_frame_t;
 typedef struct exc_frame {
   CPU_FRAME;
   FPU_FRAME;
 } exc_frame_t;
 
-static inline bool in_kernel_mode(exc_frame_t *frame) {
+static inline bool kern_mode_p(exc_frame_t *frame) {
   return (frame->sr & SR_KSU_MASK) == SR_KSU_KERN;
 }
+
+static inline bool user_mode_p(exc_frame_t *frame) {
+  return (frame->sr & SR_KSU_MASK) == SR_KSU_USER;
+}
+
+static inline unsigned exc_code(exc_frame_t *frame) {
+  return (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
+}
+
+const char *const exceptions[32];
 
 #endif
 

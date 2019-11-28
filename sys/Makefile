@@ -2,73 +2,40 @@
 
 TOPDIR = $(realpath ..)
 
-SOURCES_C  = \
-	assert.c \
-	callout.c \
-	clock.c \
-	condvar.c \
-	console.c \
-	device.c \
-	dev_cons.c \
-	dev_null.c \
-	dev_vga.c \
-	devfs.c \
-	drv_atkbdc.c \
-	drv_pit.c \
-	drv_rtc.c \
-	drv_stdvga.c \
-	exception.c \
-	exec.c \
-	file.c \
-	filedesc.c \
-	fork.c \
-	initrd.c \
-	interrupt.c \
-	kbss.c \
-	klog.c \
-	ktest.c \
-	main.c \
-	malloc.c \
-	mutex.c \
-	mmap.c \
-	pci.c \
-	pci_ids.c \
-	pcpu.c \
-	physmem.c \
-	pool.c \
-	proc.c \
-	ringbuf.c \
-	runq.c \
-	rwlock.c \
-	sbrk.c \
-	sched.c \
-	signal.c \
-	sleepq.c \
-	spinlock.c \
-	startup.c \
-	sysent.c \
-	sysinit.c \
-	taskqueue.c \
-	turnstile.c \
-	thread.c \
-	timer.c \
-	uio.c \
-	vfs.c \
-	vfs_readdir.c \
-	vfs_syscalls.c \
-	vfs_vnode.c \
-	vm_map.c \
-	vm_object.c \
-	vm_pager.c
+SUBDIR = $(ARCH) drv kern libkern tests
+KLIB = no
 
-SOURCES_ASM =
-
-all: $(DEPFILES) libsys.a
+BUILD-FILES += mimiker.elf cscope.out etags tags
+CLEAN-FILES += mimiker.elf.map
 
 include $(TOPDIR)/build/build.kern.mk
 
-libsys.a: $(OBJECTS)
+LDFLAGS += -T $(TOPDIR)/sys/$(ARCH)/$(PLATFORM).ld
+LDLIBS	= -Wl,--start-group \
+	    -Wl,--whole-archive $(KLIBLIST) -Wl,--no-whole-archive \
+            -lgcc \
+          -Wl,--end-group
 
-clean:
-	$(RM) .*.D *.ko *.o *.a *.lst *~
-	$(RM) tags *.taghl
+mimiker.elf: $(KLIBDEPS)
+	@echo "[LD] Linking kernel image: $@"
+	$(LD) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
+
+# Lists of all files that we consider operating system kernel sources.
+SRCDIRS = $(TOPDIR)/include $(TOPDIR)/sys
+SRCFILES_C = $(shell find $(SRCDIRS) -iname '*.[chS]')
+SRCFILES_ASM = $(shell find $(SRCDIRS) -iname '*.S')
+SRCFILES = $(SRCFILES_C) $(SRCFILES_ASM)
+
+cscope.out: $(SRCFILES)
+	@echo "[CSCOPE] Rebuilding cscope database..."
+	$(CSCOPE) $(SRCFILES)
+
+etags tags:
+	@echo "[CTAGS] Rebuilding tags database..."
+	$(CTAGS) --language-force=c $(SRCFILES_C)
+	$(CTAGS) --language-force=c -e -f etags $(SRCFILES_C)
+	$(CTAGS) --language-force=asm -a $(SRCFILES_ASM)
+	$(CTAGS) --language-force=asm -aef etags $(SRCFILES_ASM)
+
+BUILD-FILES += cscope.out etags tags
+CLEAN-FILES += *.taghl

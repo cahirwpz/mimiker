@@ -1,0 +1,10 @@
+mipsel-mimiker-elf
+aarch64-mimiker-elf
+openocd-mimiker/debian/openocd-mimiker
+tmp
+files
+openocd-build
+*.substvars
+.debhelper
+.download
+*.deb

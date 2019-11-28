@@ -1,82 +1,79 @@
-#ifndef _SYS_SIGNAL_H_
-#define _SYS_SIGNAL_H_
+/*	$NetBSD: signal.h,v 1.57 2019/01/08 17:35:42 joerg Exp $	*/
 
-typedef enum {
-  SIGINT = 1,
-  SIGILL,
-  SIGABRT,
-  SIGFPE,
-  SIGSEGV,
-  SIGKILL,
-  SIGTERM,
-  SIGCHLD,
-  SIGUSR1,
-  SIGUSR2,
-  SIGBUS,
-  NSIG = 32
-} signo_t;
+/*-
+ * Copyright (c) 1991, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	@(#)signal.h	8.3 (Berkeley) 3/30/94
+ */
 
-typedef void sighandler_t(int);
+#ifndef _SIGNAL_H_
+#define _SIGNAL_H_
 
-#define SIG_DFL (sighandler_t *)0x00
-#define SIG_IGN (sighandler_t *)0x01
+#include <sys/cdefs.h>
+#include <sys/signal.h>
 
-typedef struct sigaction {
-  sighandler_t *sa_handler;
-  void *sa_restorer;
-} sigaction_t;
+__BEGIN_DECLS
+extern const char *const *sys_signame;
+extern const char *const *sys_siglist;
+extern const int sys_nsig;
 
-#ifndef _KERNELSPACE
-#include <unistd.h>
+int raise(int);
 
-int sigaction(int signum, const sigaction_t *act, sigaction_t *oldact);
+const char *signalname(int);
+int signalnext(int);
+int signalnumber(const char *);
+
+void (*signal(int, void (*)(int)))(int);
+
+int kill(pid_t, int);
+int sigaction(int, const sigaction_t *__restrict, sigaction_t *__restrict);
+int sigaddset(sigset_t *, int);
+int sigdelset(sigset_t *, int);
+int sigemptyset(sigset_t *);
+int sigfillset(sigset_t *);
+int sigismember(const sigset_t *, int);
+int sigpending(sigset_t *);
+int sigprocmask(int, const sigset_t *__restrict, sigset_t *__restrict);
+int sigsuspend(const sigset_t *);
+
+/*
+ * X/Open CAE Specification Issue 4 Version 2
+ */
+
+int killpg(int pgrp, int sig);
+
+/*
+ * Mimiker specific stuff.
+ */
+#ifdef _LIBC
 void sigreturn(void);
-int kill(int tid, int sig);
+#endif
 
-static inline int raise(int sig) {
-  return kill(getpid(), sig);
-}
+__END_DECLS
 
-static inline int signal(int sig, sighandler_t handler) {
-  sigaction_t sa = {.sa_handler = handler, .sa_restorer = sigreturn};
-  return sigaction(sig, &sa, NULL);
-}
-
-/* This is necessary to keep newlib happy. */
-typedef sighandler_t _sig_func_ptr;
-
-#else /* _KERNELSPACE */
-
-#include <common.h>
-#include <bitstring.h>
-#include <queue.h>
-#include <mutex.h>
-
-typedef struct proc proc_t;
-
-typedef bitstr_t sigset_t[bitstr_size(NSIG)];
-
-/* Sends a signal to a process. */
-int sig_send(proc_t *td, signo_t sig);
-
-/* Process signals pending for the thread. If the thread has received a signal
-   that should be caught by the user, return the signal number. */
-int sig_check(thread_t *td);
-
-/* Process user action triggered by a signal. */
-void sig_deliver(signo_t sig);
-
-/* Arrange for signal delivery when the thread returns from exception context.
- * This must be called whenever new signals are posted to a thread. */
-void sig_notify(thread_t *td);
-
-int do_kill(pid_t pid, signo_t sig);
-int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
-int do_sigreturn(void);
-
-int platform_sig_deliver(signo_t sig, sigaction_t *sa);
-int platform_sig_return(void);
-
-#endif /* !_KERNELSPACE */
-
-#endif /* _SYS_SIGNAL_H_ */
+#endif /* !_SIGNAL_H_ */

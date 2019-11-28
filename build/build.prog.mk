@@ -4,29 +4,37 @@
 # makefile, but for our own purposes this template is very convenient.
 
 # This template assumes following make variables are set:
-#  SOURCES_C: The C files to compile.
-#  UELF_NAME: The name for the resulting uelf file. Generally, this will be the
-#    program name. The user program will be compiled into UELF_NAME.uelf file.
+#  PROGRAM: The name for the resulting userspace ELF file. Generally, this will
+#  be the program name installed into /bin directory.
+#  SOURCES: C or assembly files to compile. Can be omitted if there's only one
+#  file to compile named $(PROGRAM).c
 
-SOURCES_O = $(SOURCES_C:%.c=%.o)
+ifndef PROGRAM 
+$(error PROGRAM is not set)
+endif
 
-all: $(UELF_NAME).uelf
+SOURCES ?= $(PROGRAM).c
 
-include $(TOPDIR)/build/build.mk
+BUILD-FILES += $(PROGRAM).uelf
+INSTALL-FILES += $(SYSROOT)/bin/$(PROGRAM)
+
+all: build
+
 include $(TOPDIR)/build/flags.user.mk
-
-clean:
-	rm -rf $(UELF_NAME).uelf $(SOURCES_C:%.c=.%.D) $(SOURCES_O)
+include $(TOPDIR)/build/compile.mk
+include $(TOPDIR)/build/common.mk
 
 # Linking the program according to the provided script
-%.uelf: $(SOURCES_O)
+$(PROGRAM).uelf: $(OBJECTS)
 	@echo "[LD] $(DIR)$< -> $(DIR)$@"
-	$(CC) $(LDFLAGS) -o $@ $(SOURCES_O)
+	$(LD) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS)
 
-install: $(SYSROOT)/bin/$(UELF_NAME)
-
-$(SYSROOT)/bin/$(UELF_NAME): $(UELF_NAME).uelf
-	@echo "[INSTALL] $(DIR)$< -> /bin/$(UELF_NAME)"
-	install -D $(UELF_NAME).uelf $(SYSROOT)/bin/$(UELF_NAME)
-
-.PRECIOUS: %.uelf
+$(SYSROOT)/bin/$(PROGRAM): $(PROGRAM).uelf
+	@echo "[INSTALL] $(DIR)$< -> /bin/$(PROGRAM)"
+	$(INSTALL) -D $(PROGRAM).uelf $(SYSROOT)/bin/$(PROGRAM)
+	@echo "[OBJCOPY] $(SYSROOT)/bin/$(PROGRAM) -> \
+		$(SYSROOT)/bin/$(PROGRAM).dbg"
+	$(OBJCOPY) --only-keep-debug $(SYSROOT)/bin/$(PROGRAM) \
+		$(SYSROOT)/bin/$(PROGRAM).dbg
+	@echo "[STRIP] /bin/$(PROGRAM)"
+	$(STRIP) --strip-all $(SYSROOT)/bin/$(PROGRAM)

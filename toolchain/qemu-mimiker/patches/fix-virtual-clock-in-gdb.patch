@@ -1,0 +1,69 @@
+Stop virtual clock as soon as debug exception is triggered.
+Index: qemu-mimiker/qemu-4.1.0/gdbstub.c
+===================================================================
+--- qemu-mimiker.orig/qemu-4.1.0/gdbstub.c
++++ qemu-mimiker/qemu-4.1.0/gdbstub.c
+@@ -356,6 +356,7 @@ typedef struct GDBState {
+     int fd;
+     int running_state;
+ #else
++    bool resume_clock;
+     CharBackend chr;
+     Chardev *mon_chr;
+ #endif
+@@ -466,8 +467,6 @@ static int gdb_continue_partial(GDBState
+     }
+     s->running_state = 1;
+ #else
+-    int flag = 0;
+-
+     if (!runstate_needs_reset()) {
+         if (vm_prepare_start()) {
+             return 0;
+@@ -482,12 +481,12 @@ static int gdb_continue_partial(GDBState
+                 trace_gdbstub_op_stepping(cpu->cpu_index);
+                 cpu_single_step(cpu, sstep_flags);
+                 cpu_resume(cpu);
+-                flag = 1;
++                s->resume_clock = true;
+                 break;
+             case 'c':
+                 trace_gdbstub_op_continue_cpu(cpu->cpu_index);
+                 cpu_resume(cpu);
+-                flag = 1;
++                s->resume_clock = true;
+                 break;
+             default:
+                 res = -1;
+@@ -495,9 +494,6 @@ static int gdb_continue_partial(GDBState
+             }
+         }
+     }
+-    if (flag) {
+-        qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
+-    }
+ #endif
+     return res;
+ }
+@@ -3162,6 +3158,9 @@ static void gdb_chr_receive(void *opaque
+     for (i = 0; i < size; i++) {
+         gdb_read_byte(gdbserver_state, buf[i]);
+     }
++
++    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, gdbserver_state->resume_clock);
++    gdbserver_state->resume_clock = false;
+ }
+ 
+ static void gdb_chr_event(void *opaque, int event)
+Index: qemu-mimiker/qemu-4.1.0/target/mips/op_helper.c
+===================================================================
+--- qemu-mimiker.orig/qemu-4.1.0/target/mips/op_helper.c
++++ qemu-mimiker/qemu-4.1.0/target/mips/op_helper.c
+@@ -42,6 +42,7 @@ void helper_raise_exception(CPUMIPSState
+ 
+ void helper_raise_exception_debug(CPUMIPSState *env)
+ {
++    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, false);
+     do_raise_exception(env, EXCP_DEBUG, 0);
+ }
+ 
