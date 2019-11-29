@@ -11,7 +11,7 @@ int kmain(void) {
   char *init = kenv_get("init");
   char *test = kenv_get("test");
 
-  /* Main kernel thread becomes PID(0) - a god process! */
+  /* Main kernel thread becomes PID(1) - a god process! */
   proc_add(proc_create(thread_self(), NULL));
 
   if (init) {
