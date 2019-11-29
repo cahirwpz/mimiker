@@ -370,7 +370,7 @@ int vfs_namecreate(const char *path, vnode_t **dvp, componentname_t *cn) {
 }
 
 int vfs_namedelete(const char *path, vnode_t **dvp, vnode_t **vp,
-               componentname_t *cn) {
+                   componentname_t *cn) {
   vnrstate_t vs;
   vnrstate_init(&vs, VNR_DELETE, path);
   int error = vfs_nameresolve(&vs);
