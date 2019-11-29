@@ -245,7 +245,7 @@ __noreturn void proc_exit(int exitstatus) {
     /* Process orphans, but firstly find init process. */
     proc_t *init;
     TAILQ_FOREACH (init, &proc_list, p_all) {
-      if (init->p_pid == 0)
+      if (init->p_pid == 1)
         break;
     }
     proc_reparent(p, init);
