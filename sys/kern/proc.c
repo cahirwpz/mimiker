@@ -26,6 +26,9 @@ static mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
 static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
+
+/* Pid 0 is never available, because of its special treatment by some
+ * syscalls e.g. kill. */
 static bitstr_t pid_used[bitstr_size(NPROC)] = {[0] = 1, 0};
 
 /* Process ID management functions */
