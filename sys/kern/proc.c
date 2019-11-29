@@ -26,7 +26,10 @@ static mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
 static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
-static bitstr_t pid_used[bitstr_size(NPROC)] = {0};
+
+/* Pid 0 is never available, because of its special treatment by some
+ * syscalls e.g. kill. */
+static bitstr_t pid_used[bitstr_size(NPROC)] = {[0] = 1, 0};
 
 /* Process ID management functions */
 static pid_t pid_alloc(void) {
@@ -245,7 +248,7 @@ __noreturn void proc_exit(int exitstatus) {
     /* Process orphans, but firstly find init process. */
     proc_t *init;
     TAILQ_FOREACH (init, &proc_list, p_all) {
-      if (init->p_pid == 0)
+      if (init->p_pid == 1)
         break;
     }
     proc_reparent(p, init);
