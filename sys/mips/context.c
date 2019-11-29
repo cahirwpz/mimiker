@@ -60,15 +60,11 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
   mcontext_t *from = &uc->uc_mcontext;
   exc_frame_t *to = td->td_uframe;
 
-  /* registers AT-T9 */
-  memcpy(&to->at, &from->__gregs[_REG_AT], sizeof(__greg_t) * 25);
-  /* registers GP-HI */
-  memcpy(&to->gp, &from->__gregs[_REG_GP], sizeof(__greg_t) * 6);
+  /* registers AT-PC */
+  memcpy(&to->at, &from->__gregs[_REG_AT],
+         sizeof(__greg_t) * (_REG_EPC - _REG_AT + 1));
 
-  to->cause = from->__gregs[_REG_CAUSE];
-  to->pc = from->__gregs[_REG_EPC];
-
-  /* FP registers + FP CSR */
+  /* 32 FP registers + FP CSR */
   memcpy(&to->f0, &from->__fpregs.__fp_r,
          sizeof(from->__fpregs.__fp_r) + sizeof(from->__fpregs.__fp_csr));
 
