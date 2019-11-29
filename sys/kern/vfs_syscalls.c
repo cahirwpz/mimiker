@@ -211,7 +211,7 @@ int do_rmdir(proc_t *p, char *path) {
   vnode_t *vn, *dvn;
   componentname_t cn;
 
-  if ((error = vnr_delete(path, &dvn, &vn, &cn)))
+  if ((error = vfs_namedelete(path, &dvn, &vn, &cn)))
     return error;
 
   if (vn == dvn)

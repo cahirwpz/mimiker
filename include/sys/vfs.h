@@ -85,7 +85,7 @@ int vfs_namelookup(const char *path, vnode_t **vp);
 int vfs_namecreate(const char *path, vnode_t **dvp, componentname_t *cn);
 
 /* Both vnode and its parent is held and locked. */
-int vnr_delete(const char *path, vnode_t **dvp, vnode_t **vp,
+int vfs_namedelete(const char *path, vnode_t **dvp, vnode_t **vp,
                componentname_t *cn);
 
 /* Looks up the vnode corresponding to the pathname and opens it into f. */
