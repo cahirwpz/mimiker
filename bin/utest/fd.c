@@ -5,7 +5,9 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
+#include <sys/wait.h>
 
 static const char *str = "Hello world from a user program!\n";
 static char buf[100];
@@ -175,11 +177,15 @@ int test_fd_pipe() {
     assert_close_ok(fd[0]);
     assert_write_ok(fd[1], str, strlen(str));
     assert_close_ok(fd[1]);
+
+    int status;
+    waitpid(-1, &status, 0);
   } else {
     /* child */
     assert_close_ok(fd[1]);
     assert_read_equal(fd[0], buf, str);
     assert_close_ok(fd[0]);
+    exit(EXIT_SUCCESS);
   }
 
   return 0;
