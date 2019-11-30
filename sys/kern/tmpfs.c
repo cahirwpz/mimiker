@@ -28,6 +28,7 @@ typedef struct tmpfs_node {
   /* Node attributes (as in vattr) */
   mode_t tfn_mode;   /* node protection mode */
   nlink_t tfn_links; /* number of file hard links */
+  ino_t tfn_ino;     /* node identifier */
 
   /* Data that is only applicable to a particular type. */
   union {
@@ -43,6 +44,7 @@ typedef struct tmpfs_node {
 typedef struct tmpfs_mount {
   tmpfs_node_t *tfm_root;
   mtx_t tfm_lock;
+  ino_t tfm_next_ino;
 } tmpfs_mount_t;
 
 static POOL_DEFINE(P_TMPFS_NODE, "tmpfs node", sizeof(tmpfs_node_t));
@@ -63,7 +65,7 @@ static inline tmpfs_node_t *TMPFS_NODE_OF(vnode_t *vp) {
 
 /* Prototypes for internal routines. */
 static void tmpfs_attach_vnode(tmpfs_node_t *tfn, mount_t *mp);
-static tmpfs_node_t *tmpfs_new_node(vnodetype_t ntype);
+static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vnodetype_t ntype);
 static void tmpfs_free_node(tmpfs_node_t *tfn);
 static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vnodetype_t ntype,
                              const char *name);
@@ -111,6 +113,7 @@ static int tmpfs_vop_getattr(vnode_t *v, vattr_t *va) {
   memset(va, 0, sizeof(vattr_t));
   va->va_mode = node->tfn_mode;
   va->va_nlink = node->tfn_links;
+  va->va_ino = node->tfn_ino;
   return 0;
 }
 
@@ -198,11 +201,15 @@ static void tmpfs_attach_vnode(tmpfs_node_t *tfn, mount_t *mp) {
 /*
  * tmpfs_new_node: create new inode of a specified type and attach the vnode.
  */
-static tmpfs_node_t *tmpfs_new_node(vnodetype_t ntype) {
+static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vnodetype_t ntype) {
   tmpfs_node_t *node = pool_alloc(P_TMPFS_NODE, M_ZERO);
   node->tfn_vnode = NULL;
   node->tfn_type = ntype;
   node->tfn_links = 0;
+
+  mtx_lock(&tfm->tfm_lock);
+  node->tfn_ino = tfm->tfm_next_ino++;
+  mtx_unlock(&tfm->tfm_lock);
 
   switch (node->tfn_type) {
     case V_DIR:
@@ -240,7 +247,7 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vnodetype_t ntype,
   if (error)
     return error;
 
-  tmpfs_node_t *node = tmpfs_new_node(ntype);
+  tmpfs_node_t *node = tmpfs_new_node(TMPFS_ROOT_OF(dv->v_mount), ntype);
   tmpfs_attach_vnode(node, dv->v_mount);
 
   /* Attach directory entry */
@@ -300,10 +307,11 @@ static int tmpfs_mount(mount_t *mp) {
   tmpfs_mount_t *tfm = &tmpfs;
 
   tfm->tfm_lock = MTX_INITIALIZER(LK_RECURSE);
+  tfm->tfm_next_ino = 2;
   mp->mnt_data = tfm;
 
   /* Allocate the root node. */
-  tmpfs_node_t *root = tmpfs_new_node(V_DIR);
+  tmpfs_node_t *root = tmpfs_new_node(tfm, V_DIR);
   tmpfs_attach_vnode(root, mp);
   root->tfn_links++;
 
