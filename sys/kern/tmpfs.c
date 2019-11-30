@@ -33,8 +33,8 @@ typedef struct tmpfs_node {
   /* Data that is only applicable to a particular type. */
   union {
     struct {
-      /* List of directory entries. */
-      tmpfs_dirent_list_t dirents;
+      struct tmpfs_node *parent;   /* Parent directory. */
+      tmpfs_dirent_list_t dirents; /* List of directory entries. */
     } tfn_dir;
     struct {
     } tfn_reg;
@@ -142,8 +142,14 @@ static int tmpfs_vop_rmdir(vnode_t *dv, const char *name) {
   int error = 0;
 
   if (TAILQ_EMPTY(&node->tfn_dir.dirents)) {
+    /* Decrement link count for the '.' entry. */
+    node->tfn_links--;
+
     /* Deassociate the node and direntry. */
     node->tfn_links--;
+    dnode->tfn_links--; /* Decrease the link count of parent. */
+    node->tfn_dir.parent = NULL;
+
     de->tfd_node = NULL;
     TAILQ_REMOVE(&dnode->tfn_dir.dirents, de, tfd_entries);
     pool_free(P_TMPFS_DIRENT, de);
@@ -214,6 +220,9 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vnodetype_t ntype) {
   switch (node->tfn_type) {
     case V_DIR:
       TAILQ_INIT(&node->tfn_dir.dirents);
+
+      /* Extra link count for the '.' entry. */
+      node->tfn_links++;
       break;
     case V_REG:
       break;
@@ -254,6 +263,12 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vnodetype_t ntype,
   node->tfn_links++;
   de->tfd_node = node;
   TAILQ_INSERT_TAIL(&dnode->tfn_dir.dirents, de, tfd_entries);
+
+  /* If directory set parent and increase the link count of parent. */
+  if (node->tfn_type == V_DIR) {
+    node->tfn_dir.parent = dnode;
+    dnode->tfn_links++;
+  }
 
   *vp = node->tfn_vnode;
   return error;
@@ -313,7 +328,8 @@ static int tmpfs_mount(mount_t *mp) {
   /* Allocate the root node. */
   tmpfs_node_t *root = tmpfs_new_node(tfm, V_DIR);
   tmpfs_attach_vnode(root, mp);
-  root->tfn_links++;
+  root->tfn_dir.parent = root; /* Parent of the root node is itself. */
+  root->tfn_links++; /* Extra link, because root has no directory entry. */
 
   tfm->tfm_root = root;
   vnode_drop(root->tfn_vnode);
