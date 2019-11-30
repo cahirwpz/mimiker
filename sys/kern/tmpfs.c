@@ -74,6 +74,51 @@ static int tmpfs_alloc_dirent(const char *name, tmpfs_dirent_t **dep);
 static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
                                         const componentname_t *cn);
 
+/* tmpfs readdir operations */
+
+static void *tmpfs_dirent_next(vnode_t *v, void *it) {
+  assert(it != NULL);
+  if (it == DIRENT_DOT)
+    return DIRENT_DOTDOT;
+  if (it == DIRENT_DOTDOT)
+    return TAILQ_FIRST(&TMPFS_NODE_OF(v)->tfn_dir.dirents);
+  return TAILQ_NEXT((tmpfs_dirent_t *)it, tfd_entries);
+}
+
+static size_t tmpfs_dirent_namlen(vnode_t *v, void *it) {
+  assert(it != NULL);
+  if (it == DIRENT_DOT)
+    return 1;
+  if (it == DIRENT_DOTDOT)
+    return 2;
+  return ((tmpfs_dirent_t *)it)->tfd_namelen;
+}
+
+static void tmpfs_to_dirent(vnode_t *v, void *it, dirent_t *dir) {
+  assert(it != NULL);
+  tmpfs_node_t *node;
+  const char *name;
+  if (it == DIRENT_DOT) {
+    node = TMPFS_NODE_OF(v);
+    name = ".";
+  } else if (it == DIRENT_DOTDOT) {
+    node = TMPFS_NODE_OF(v)->tfn_dir.parent;
+    name = "..";
+  } else {
+    node = ((tmpfs_dirent_t *)it)->tfd_node;
+    name = ((tmpfs_dirent_t *)it)->tfd_name;
+  }
+  dir->d_fileno = node->tfn_ino;
+  dir->d_type = vtype2dt(node->tfn_type);
+  memcpy(dir->d_name, name, dir->d_namlen + 1);
+}
+
+static readdir_ops_t tmpfs_readdir_ops = {
+  .next = tmpfs_dirent_next,
+  .namlen_of = tmpfs_dirent_namlen,
+  .convert = tmpfs_to_dirent,
+};
+
 /* tmpfs vnode operations */
 
 static int tmpfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
@@ -88,7 +133,7 @@ static int tmpfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
 }
 
 static int tmpfs_vop_readdir(vnode_t *dv, uio_t *uio, void *state) {
-  return EOPNOTSUPP;
+  return readdir_generic(dv, uio, &tmpfs_readdir_ops);
 }
 
 static int tmpfs_vop_close(vnode_t *v, file_t *fp) {
