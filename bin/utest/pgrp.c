@@ -11,10 +11,14 @@ int test_setpgid(void) {
   pid_t parent_pid = getpid();
   assert(!setpgid(parent_pid, 0));
 
+  /* setpgid(pid, 0) translates to setpgid(pid, pid). */
+  pgid_t parent_pgid = getpgid(0);
+  assert(parent_pgid == parent_pid);
+
   pid_t children_pid = fork();
   if (children_pid == 0) {
     /* Process inherits group of its parent. */
-    assert(getpgid(0) == parent_pid);
+    assert(getpgid(0) == parent_pgid);
     /* Process can make its own group. */
     assert(!setpgid(0, 0));
     /* New group has ID equal to the ID of the moved process. */
