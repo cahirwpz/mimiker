@@ -313,11 +313,11 @@ static int vfs_nameresolve(vnrstate_t *state) {
     searchdir = foundvn;
   }
 
-  if (foundvn != NULL)
+  if (foundvn != NULL && state->vs_op != VNR_DELETE)
     vnode_unlock(foundvn);
 
   /* Release the parent directory if is not needed. */
-  if (state->vs_op != VNR_CREATE && searchdir != NULL) {
+  if (state->vs_op == VNR_LOOKUP && searchdir != NULL) {
     if (searchdir != foundvn)
       vnode_unlock(searchdir);
     vnode_drop(searchdir);
@@ -369,6 +369,21 @@ int vfs_namecreate(const char *path, vnode_t **dvp, componentname_t *cn) {
   }
 
   *dvp = vs.vs_dvp;
+  memcpy(cn, &vs.vs_cn, sizeof(componentname_t));
+
+  return 0;
+}
+
+int vfs_namedelete(const char *path, vnode_t **dvp, vnode_t **vp,
+                   componentname_t *cn) {
+  vnrstate_t vs;
+  vnrstate_init(&vs, VNR_DELETE, path);
+  int error = vfs_nameresolve(&vs);
+  if (error)
+    return error;
+
+  *dvp = vs.vs_dvp;
+  *vp = vs.vs_vp;
   memcpy(cn, &vs.vs_cn, sizeof(componentname_t));
 
   return 0;
