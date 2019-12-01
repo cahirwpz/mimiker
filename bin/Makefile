@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = cat echo kill ksh ls lua mandelbrot mish sandbox \
+SUBDIR = cat echo kill ksh ls lua mandelbrot mish mkdir pwd rmdir sandbox \
 	 test test_kbd test_rtc utest
 
 all: build

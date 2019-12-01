@@ -1057,7 +1057,7 @@ f_fstype(PLAN *plan, FTSENT *entry)
 #if 0 /* XXX: mimiker workaround */
 	static char fstype[sizeof(sb.f_fstypename)];
 #else
-  static char *fstype = "not implemented";
+  static char fstype[] = "not implemented";
 #endif
 	char *p, save[2];
 
