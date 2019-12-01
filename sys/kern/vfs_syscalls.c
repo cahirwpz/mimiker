@@ -207,7 +207,40 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
 }
 
 int do_rmdir(proc_t *p, char *path) {
-  return ENOTSUP;
+  int error;
+  vnode_t *vn, *dvn;
+  componentname_t cn;
+
+  if ((error = vfs_namedelete(path, &dvn, &vn, &cn)))
+    return error;
+
+  if (vn == dvn)
+    error = EINVAL;
+  else if (vn->v_type != V_DIR)
+    error = ENOTDIR;
+  else if (vn->v_mountedhere != NULL)
+    error = EBUSY;
+  else if (cn.cn_namelen > NAME_MAX)
+    error = ENAMETOOLONG;
+
+  if (error) {
+    if (dvn == vn)
+      vnode_drop(dvn);
+    else
+      vnode_put(dvn);
+    vnode_put(vn);
+    return error;
+  }
+
+  char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
+  memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
+  namecopy[cn.cn_namelen] = 0;
+
+  error = VOP_RMDIR(dvn, namecopy);
+  vnode_put(dvn);
+  kfree(M_TEMP, namecopy);
+
+  return error;
 }
 
 int do_access(proc_t *p, char *path, int amode) {

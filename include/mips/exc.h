@@ -188,9 +188,10 @@
     register_t t0, t1, t2, t3, t4, t5, t6, t7;                                 \
     register_t s0, s1, s2, s3, s4, s5, s6, s7;                                 \
     register_t t8, t9;                                                         \
+    register_t k0, k1;                                                         \
     register_t gp, sp, fp, ra;                                                 \
     register_t lo, hi;                                                         \
-    register_t pc, sr, badvaddr, cause;                                        \
+    register_t cause, pc, sr, badvaddr;                                        \
   }
 
 #define FPU_FRAME                                                              \
