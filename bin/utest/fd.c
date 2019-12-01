@@ -185,7 +185,7 @@ int test_fd_pipe() {
     assert_close_ok(fd[1]);
     assert_read_equal(fd[0], buf, str);
     assert_close_ok(fd[0]);
-    exit(EXIT_SUCCESS);
+    exit(0);
   }
 
   return 0;
