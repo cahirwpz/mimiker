@@ -7,13 +7,14 @@
 #include "utest.h"
 
 int test_setpgid(void) {
-  /* Init process can create and enter new process group. */
-  assert(!setpgid(1, 0));
+  /* Process can create and enter new process group. */
+  pid_t parent_pid = getpid();
+  assert(!setpgid(parent_pid, 0));
 
-  pid_t pid = fork();
-  if (pid == 0) {
+  pid_t children_pid = fork();
+  if (children_pid == 0) {
     /* Process inherits group of its parent. */
-    assert(getpgid(0) == 1);
+    assert(getpgid(0) == parent_pid);
     /* Process can make its own group. */
     assert(!setpgid(0, 0));
     /* New group has ID equal to the ID of the moved process. */
@@ -24,9 +25,9 @@ int test_setpgid(void) {
   wait(NULL);
 
   /* It is forbidden to move the process to non-existing group. */
-  assert(setpgid(0, pid));
+  assert(setpgid(0, children_pid));
   /* It is forbidden to change the group of non-existing process. */
-  assert(setpgid(pid, pid));
+  assert(setpgid(children_pid, children_pid));
 
   return 0;
 }
@@ -49,13 +50,15 @@ static void kill_tests_setup(void) {
   sigaction(SIGUSR1, &newact, &oldact);
 }
 
-/* In this test parent process sends signal to its child. */
+/* In this test child process sends signal to its parent. */
 int test_kill(void) {
   kill_tests_setup();
+  pgid_t parent_pid = getpid();
 
   pid_t pid = fork();
   if (pid == 0) {
-    kill(1, SIGUSR1);
+    kill(parent_pid, SIGUSR1);
+
     /* Signal is not delivered to all processes in the group. */
     assert(!sig_delivered);
     exit(0);
