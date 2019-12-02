@@ -109,7 +109,7 @@ static void tmpfs_to_dirent(vnode_t *v, void *it, dirent_t *dir) {
     name = ((tmpfs_dirent_t *)it)->tfd_name;
   }
   dir->d_fileno = node->tfn_ino;
-  dir->d_type = vtype2dt(node->tfn_type);
+  dir->d_type = vnode_to_dt(node->tfn_vnode);
   memcpy(dir->d_name, name, dir->d_namlen + 1);
 }
 

@@ -188,7 +188,7 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state);
 int vnode_access_generic(vnode_t *v, accmode_t mode);
 
-uint8_t vtype2dt(vnodetype_t vt);
+uint8_t vnode_to_dt(vnode_t *v);
 
 #define DIRENT_DOT ((void *)-2)
 #define DIRENT_DOTDOT ((void *)-1)

@@ -12,8 +12,8 @@ static const uint8_t vttodt_tab[] = {
                    // may require changes in future.
 };
 
-uint8_t vtype2dt(vnodetype_t vt) {
-  return vttodt_tab[vt];
+uint8_t vnode_to_dt(vnode_t *v) {
+  return vttodt_tab[v->v_type];
 }
 
 int readdir_generic(vnode_t *v, uio_t *uio, readdir_ops_t *ops) {
