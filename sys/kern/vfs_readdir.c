@@ -4,6 +4,18 @@
 #include <sys/uio.h>
 #include <sys/vnode.h>
 
+static const uint8_t vttodt_tab[] = {
+  [V_NONE] = DT_UNKNOWN,
+  [V_REG] = DT_REG,
+  [V_DIR] = DT_DIR,
+  [V_DEV] = DT_BLK // XXX: VDEV isn't valid file type as defined by POSIX, so it
+                   // may require changes in future.
+};
+
+uint8_t vnode_to_dt(vnode_t *v) {
+  return vttodt_tab[v->v_type];
+}
+
 int readdir_generic(vnode_t *v, uio_t *uio, readdir_ops_t *ops) {
   dirent_t *dir;
   void *it = DIRENT_DOT;
