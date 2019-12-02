@@ -36,7 +36,7 @@ int test_setpgid(void) {
   return 0;
 }
 
-static int sig_delivered = 0;
+static sig_atomic_t sig_delivered = 0;
 
 static void sa_handler(int signo) {
   assert(signo == SIGUSR1);
