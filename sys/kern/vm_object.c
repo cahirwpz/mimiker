@@ -18,7 +18,7 @@ RB_PROTOTYPE_STATIC(vm_pagetree, vm_page, obj.tree, vm_page_cmp);
 RB_GENERATE(vm_pagetree, vm_page, obj.tree, vm_page_cmp);
 
 vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
-  vm_object_t *obj = pool_alloc(P_VMOBJ, PF_ZERO);
+  vm_object_t *obj = pool_alloc(P_VMOBJ, M_ZERO);
   TAILQ_INIT(&obj->list);
   RB_INIT(&obj->tree);
   obj->pager = &pagers[type];

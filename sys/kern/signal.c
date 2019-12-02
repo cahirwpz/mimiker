@@ -81,6 +81,10 @@ void sig_kill(proc_t *proc, signo_t sig) {
   assert(mtx_owned(&proc->p_lock));
   assert(sig < NSIG);
 
+  /* Zombie processes shouldn't accept any signals. */
+  if (proc->p_state == PS_ZOMBIE)
+    return;
+
   thread_t *td = proc->p_thread;
 
   /* If the signal is ignored, don't even bother posting it. */

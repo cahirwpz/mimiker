@@ -2,7 +2,7 @@
 #include <sys/klog.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
-#include <sys/malloc.h>
+#include <sys/kmem.h>
 #include <sys/pool.h>
 #include <sys/errno.h>
 #include <sys/pipe.h>
@@ -33,20 +33,19 @@ struct pipe {
   pipe_end_t end[2]; /*!< both pipe ends */
 };
 
-static MALLOC_DEFINE(M_PIPE, "pipe buffers", PAGESIZE * 8);
 static POOL_DEFINE(P_PIPE, "pipe", sizeof(pipe_t));
 
 static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
   mtx_init(&end->mtx, 0);
   cv_init(&end->nonempty, "pipe_end_empty");
   cv_init(&end->nonfull, "pipe_end_full");
-  end->buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
+  end->buf.data = kmem_alloc(PIPE_SIZE, M_ZERO);
   end->buf.size = PIPE_SIZE;
   end->other = other;
 }
 
 static pipe_t *pipe_alloc(void) {
-  pipe_t *pipe = pool_alloc(P_PIPE, PF_ZERO);
+  pipe_t *pipe = pool_alloc(P_PIPE, M_ZERO);
   mtx_init(&pipe->mtx, 0);
   pipe_end_t *end0 = &pipe->end[0];
   pipe_end_t *end1 = &pipe->end[1];
@@ -65,8 +64,8 @@ static void pipe_free(pipe_t *pipe) {
     refcnt = --pipe->refcnt;
 
   if (refcnt == 0) {
-    kfree(M_PIPE, pipe->end[0].buf.data);
-    kfree(M_PIPE, pipe->end[1].buf.data);
+    kmem_free(pipe->end[0].buf.data, PIPE_SIZE);
+    kmem_free(pipe->end[1].buf.data, PIPE_SIZE);
     pool_free(P_PIPE, pipe);
   }
 }

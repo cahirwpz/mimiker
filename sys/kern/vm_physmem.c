@@ -215,7 +215,7 @@ vm_page_t *vm_page_alloc(size_t npages) {
   TAILQ_FOREACH (seg_it, &seglist, seglink) {
     vm_page_t *page;
     if ((page = pm_alloc_from_seg(seg_it, npages))) {
-      klog("pm_alloc {paddr:%lx size:%ld}", page->paddr, page->size);
+      klog("%s: allocated %lx of size %ld", __func__, page->paddr, page->size);
       return page;
     }
   }
@@ -254,9 +254,9 @@ static void pm_free_from_seg(vm_physseg_t *seg, vm_page_t *page) {
 void vm_page_free(vm_page_t *page) {
   vm_physseg_t *seg_it = NULL;
 
-  klog("pm_free {paddr:%lx size:%ld}", page->paddr, page->size);
-
   SCOPED_MTX_LOCK(physmem_lock);
+
+  klog("%s: free %lx of size %ld", __func__, page->paddr, page->size);
 
   TAILQ_FOREACH (seg_it, &seglist, seglink) {
     if (PG_START(page) >= seg_it->start && PG_END(page) <= seg_it->end) {

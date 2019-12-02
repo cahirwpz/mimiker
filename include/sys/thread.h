@@ -11,7 +11,7 @@
 #include <sys/signal.h>
 #include <sys/kstack.h>
 #include <sys/spinlock.h>
-#include <mips/ctx.h> /* TODO leaks ctx_t structure because of td_kctx */
+#include <machine/ctx.h> /* TODO leaks ctx_t structure because of td_kctx */
 
 /*! \file thread.h */
 
@@ -107,7 +107,6 @@ typedef struct thread {
   exc_frame_t *td_kframe;      /*!< (*) kernel context (last cpu exc. frame) */
   ctx_t *td_kctx;              /*!< (*) kernel context (switch) */
   intptr_t td_onfault;         /*!< (*) PC for copyin/copyout faults */
-  vm_page_t *td_kstack_obj;    /*!< (*) page that hold our kernel stack */
   kstack_t td_kstack;          /*!< (*) kernel stack structure */
   /* waiting channel */
   void *td_wchan;            /*!< (*) memory object on which thread awaits */

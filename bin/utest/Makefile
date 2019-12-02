@@ -11,6 +11,7 @@ SOURCES = \
 	main.c \
 	misbehave.c \
 	mmap.c \
+	pgrp.c \
 	sbrk.c \
 	signal.c \
 	stat.c \

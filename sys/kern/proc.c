@@ -1,4 +1,6 @@
 #define KL_LOG KL_PROC
+#include <sys/libkern.h>
+#include <sys/syslimits.h>
 #include <sys/klog.h>
 #include <sys/proc.h>
 #include <sys/pool.h>
@@ -25,7 +27,10 @@ static mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
 static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
-static bitstr_t pid_used[bitstr_size(NPROC)] = {0};
+
+/* Pid 0 is never available, because of its special treatment by some
+ * syscalls e.g. kill. */
+static bitstr_t pid_used[bitstr_size(NPROC)] = {[0] = 1, 0};
 
 /* Process ID management functions */
 static pid_t pid_alloc(void) {
@@ -92,7 +97,7 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
 
   /* Create new group if one does not exist. */
   if (!target) {
-    target = pool_alloc(P_PGRP, PF_ZERO);
+    target = pool_alloc(P_PGRP, M_ZERO);
 
     TAILQ_INIT(&target->pg_members);
     target->pg_lock = MTX_INITIALIZER(0);
@@ -124,12 +129,16 @@ void proc_unlock(proc_t *p) {
 }
 
 proc_t *proc_create(thread_t *td, proc_t *parent) {
-  proc_t *p = pool_alloc(P_PROC, PF_ZERO);
+  proc_t *p = pool_alloc(P_PROC, M_ZERO);
 
   mtx_init(&p->p_lock, 0);
   p->p_state = PS_NORMAL;
   p->p_thread = td;
   p->p_parent = parent;
+
+  if (parent && parent->p_elfpath)
+    p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, PATH_MAX);
+
   TAILQ_INIT(CHILDREN(p));
 
   WITH_MTX_LOCK (&td->td_lock)
@@ -176,6 +185,7 @@ int proc_getpgid(pid_t pid, pgid_t *pgidp) {
     return ESRCH;
 
   *pgidp = p->p_pgrp->pg_id;
+  proc_unlock(p);
   return 0;
 }
 
@@ -192,7 +202,7 @@ static void proc_reap(proc_t *p) {
   if (p->p_parent)
     TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
   TAILQ_REMOVE(&zombie_list, p, p_zombie);
-
+  kfree(M_STR, p->p_elfpath);
   pid_free(p->p_pid);
   pool_free(P_PROC, p);
 }
@@ -240,7 +250,7 @@ __noreturn void proc_exit(int exitstatus) {
     /* Process orphans, but firstly find init process. */
     proc_t *init;
     TAILQ_FOREACH (init, &proc_list, p_all) {
-      if (init->p_pid == 0)
+      if (init->p_pid == 1)
         break;
     }
     proc_reparent(p, init);

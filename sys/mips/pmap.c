@@ -25,6 +25,8 @@ static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 #define PTE_OF(pde, vaddr) ((pte_t *)PTE_FRAME_ADDR(pde))[PTE_INDEX(vaddr)]
 #define PTE_FRAME_ADDR(pte) (PTE_PFN_OF(pte) * PAGESIZE)
 
+#define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
+
 static bool is_valid(pte_t pte) {
   return pte & PTE_VALID;
 }
@@ -57,6 +59,10 @@ extern pde_t _kernel_pmap_pde[PD_ENTRIES];
 static pmap_t kernel_pmap;
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
+
+static inline pte_t empty_pte(pmap_t *pmap) {
+  return (pmap == &kernel_pmap) ? PTE_GLOBAL : 0;
+}
 
 static asid_t alloc_asid(void) {
   int free;
@@ -116,7 +122,7 @@ void pmap_bootstrap(void) {
 }
 
 pmap_t *pmap_new(void) {
-  pmap_t *pmap = pool_alloc(P_PMAP, PF_ZERO);
+  pmap_t *pmap = pool_alloc(P_PMAP, M_ZERO);
   pmap_setup(pmap);
 
   pmap->pde_page = vm_page_alloc(1);
@@ -222,6 +228,21 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
   }
 }
 
+void pmap_kremove(vaddr_t start, vaddr_t end) {
+  pmap_t *pmap = &kernel_pmap;
+
+  assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
+  assert(pmap_contains_p(pmap, start, end));
+
+  klog("%s: remove unmanaged mapping for %p - %p range", __func__, start,
+       end - 1);
+
+  WITH_MTX_LOCK (&kernel_pmap.mtx) {
+    for (vaddr_t va = start; va < end; va += PAGESIZE)
+      pmap_pte_write(pmap, va, PTE_GLOBAL);
+  }
+}
+
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
   assert(pmap_contains_p(pmap, start, end));
@@ -230,7 +251,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE)
-      pmap_pte_write(pmap, va, 0);
+      pmap_pte_write(pmap, va, empty_pte(pmap));
 
     /* TODO: Deallocate empty page table fragment by calling pmap_remove_pde. */
   }
@@ -251,6 +272,18 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
       pmap_pte_write(pmap, va, (pte & ~PTE_PROT_MASK) | vm_prot_map[prot]);
     }
   }
+}
+
+bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
+  if (!pmap_address_p(pmap, va))
+    return false;
+
+  pte_t pte = pmap_pte_read(pmap, va);
+  if (pte == empty_pte(pmap))
+    return false;
+
+  *pap = PTE_FRAME_ADDR(pte);
+  return true;
 }
 
 void pmap_zero_page(vm_page_t *pg) {
@@ -314,14 +347,16 @@ void tlb_exception_handler(exc_frame_t *frame) {
   paddr_t pa = PTE_FRAME_ADDR(pte);
 
   if (pa) {
+    vm_page_t *pg = vm_page_find(pa);
+
     if ((pte & PTE_VALID) == 0 && code == EXC_TLBL) {
-      pmap_set_referenced(pa);
+      pmap_set_referenced(pg);
       pmap_pte_write(pmap, vaddr, pte | PTE_VALID);
       return;
     }
     if ((pte & PTE_DIRTY) == 0 && (code == EXC_TLBS || code == EXC_MOD)) {
-      pmap_set_referenced(pa);
-      pmap_set_modified(pa);
+      pmap_set_referenced(pg);
+      pmap_set_modified(pg);
       pmap_pte_write(pmap, vaddr, pte | PTE_DIRTY | PTE_VALID);
       return;
     }
