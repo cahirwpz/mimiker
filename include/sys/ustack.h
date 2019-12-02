@@ -2,7 +2,6 @@
 #define _SYS_USTACK_H_
 
 #include <sys/cdefs.h>
-#include <machine/ustack.h>
 
 /*! \file machine/ustack.h
  * \brief Machine dependent user-space stack frames construction.

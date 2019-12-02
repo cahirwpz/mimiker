@@ -6,14 +6,9 @@
 #include <sys/tree.h>
 #include <machine/vm_param.h>
 
-/* TODO: machine dependent header */
-#include <mips/mips.h>
-
 #define PG_SIZE(pg) ((pg)->size * PAGESIZE)
 #define PG_START(pg) ((pg)->paddr)
 #define PG_END(pg) ((pg)->paddr + PG_SIZE(pg))
-/* TODO: move to machine dependent code */
-#define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
 
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
 

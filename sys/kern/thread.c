@@ -9,7 +9,7 @@
 #include <sys/sleepq.h>
 #include <sys/filedesc.h>
 #include <sys/turnstile.h>
-#include <sys/vm_physmem.h>
+#include <sys/kmem.h>
 
 static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t));
 
@@ -85,8 +85,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   thread_init(td, prio);
 
   td->td_name = kstrndup(M_STR, name, TD_NAME_MAX);
-  td->td_kstack_obj = vm_page_alloc(1);
-  kstack_init(&td->td_kstack, PG_KSEG0_ADDR(td->td_kstack_obj), PAGESIZE);
+  kstack_init(&td->td_kstack, kmem_alloc(PAGESIZE, M_ZERO), PAGESIZE);
 
   td->td_sleepqueue = sleepq_alloc();
   td->td_turnstile = turnstile_alloc();
@@ -108,7 +107,7 @@ void thread_delete(thread_t *td) {
   WITH_MTX_LOCK (threads_lock)
     TAILQ_REMOVE(&all_threads, td, td_all);
 
-  vm_page_free(td->td_kstack_obj);
+  kmem_free(td->td_kstack.stk_base, PAGESIZE);
 
   sleepq_destroy(td->td_sleepqueue);
   turnstile_destroy(td->td_turnstile);

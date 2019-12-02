@@ -5,6 +5,7 @@
 #include <sys/uio.h>
 #include <sys/vm_map.h>
 #include <sys/ustack.h>
+#include <mips/vm_param.h>
 #include <mips/abi.h>
 
 static inline bool finalized_p(ustack_t *us) {
