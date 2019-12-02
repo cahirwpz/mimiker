@@ -12,6 +12,9 @@
 #include <sys/linker_set.h>
 #include <sys/dirent.h>
 
+/* TODO: machine dependent header */
+#include <mips/mips.h>
+
 typedef uint32_t cpio_dev_t;
 typedef uint32_t cpio_ino_t;
 typedef uint16_t cpio_mode_t;

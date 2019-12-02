@@ -90,7 +90,7 @@ static int test_rmbits(void) {
 
   assert(!pmap_is_referenced(pg) && !pmap_is_modified(pg));
 
-  /* pm_alloc does not return zeroed pages, so we cannot assume any value */
+  /* vm_page_alloc doesn't return zeroed pages, so we cannot assume any value */
   __unused int value = *ptr;
 
   assert(pmap_is_referenced(pg) && !pmap_is_modified(pg));
