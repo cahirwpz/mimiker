@@ -184,6 +184,7 @@ int proc_getpgid(pid_t pid, pgid_t *pgidp) {
     return ESRCH;
 
   *pgidp = p->p_pgrp->pg_id;
+  proc_unlock(p);
   return 0;
 }
 
