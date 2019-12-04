@@ -21,13 +21,17 @@ void kmem_bootstrap(void) {
            KERNEL_SPACE_END - (vaddr_t)vm_kernel_end);
 }
 
+static void kick_swapper(void) {
+  panic("Cannot allocate more kernel memory: swapper not implemented!");
+}
+
 void *kmem_alloc(size_t size, kmem_flags_t flags) {
   assert(page_aligned_p(size));
   assert(!(flags & M_NOGROW));
 
   vmem_addr_t start;
   if (vmem_alloc(kvspace, size, &start, M_NOGROW))
-    goto noswap;
+    kick_swapper();
 
   size_t npages = size / PAGESIZE;
   vaddr_t va = start;
@@ -36,7 +40,7 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
     size_t pagecnt = 1L << log2(npages);
     vm_page_t *pg = vm_page_alloc(pagecnt);
     if (pg == NULL)
-      goto noswap;
+      kick_swapper();
     paddr_t pa = pg->paddr;
     for (size_t i = 0; i < pagecnt; i++)
       pmap_kenter(va + PAGESIZE * i, pa + PAGESIZE * i,
@@ -49,13 +53,11 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
     bzero((void *)start, size);
 
   return (void *)start;
-
-noswap:
-  panic("Cannot allocate more kernel memory: swapper not implemented!");
 }
 
 void kmem_free(void *ptr, size_t size) {
   klog("%s: free %p of size %ld", __func__, ptr, size);
+
   assert(page_aligned_p(ptr) && page_aligned_p(size));
   vmem_free(kvspace, (vmem_addr_t)ptr, size);
 
@@ -71,4 +73,19 @@ void kmem_free(void *ptr, size_t size) {
   }
 
   pmap_kremove((vaddr_t)ptr, end);
+}
+
+void *kmem_map(paddr_t pa, size_t size) {
+  assert(page_aligned_p(pa) && page_aligned_p(size));
+
+  vmem_addr_t start;
+  if (vmem_alloc(kvspace, size, &start, M_NOGROW))
+    kick_swapper();
+
+  klog("%s: map %p of size %ld at %p", __func__, pa, size, start);
+
+  for (size_t offset = 0; offset < size; offset += PAGESIZE)
+    pmap_kenter(start + offset, pa + offset, VM_PROT_READ | VM_PROT_WRITE);
+
+  return (void *)start;
 }
