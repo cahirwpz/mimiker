@@ -220,8 +220,6 @@ int do_rmdir(proc_t *p, char *path) {
     error = ENOTDIR;
   else if (vn->v_mountedhere != NULL)
     error = EBUSY;
-  else if (cn.cn_namelen > NAME_MAX)
-    error = ENAMETOOLONG;
 
   if (error) {
     if (dvn == vn)
@@ -238,6 +236,7 @@ int do_rmdir(proc_t *p, char *path) {
 
   error = VOP_RMDIR(dvn, namecopy);
   vnode_put(dvn);
+  vnode_put(vn);
   kfree(M_TEMP, namecopy);
 
   return error;
