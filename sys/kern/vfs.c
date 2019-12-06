@@ -48,10 +48,6 @@ static vfs_init_t vfs_default_init;
 /* Global root vnodes */
 vnode_t *vfs_root_vnode;
 
-vnode_t *root_vnode(void) {
-  return vfs_root_vnode;
-}
-
 static vnodeops_t vfs_root_ops = {};
 
 static int vfs_register(vfsconf_t *vfc);

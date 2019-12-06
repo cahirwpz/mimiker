@@ -1,4 +1,3 @@
-
 #include <sys/klog.h>
 #include <sys/dirent.h>
 #include <sys/vnode.h>

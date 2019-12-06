@@ -319,11 +319,11 @@ static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
     goto end;
 
   vnode_t *cwd;
-  error = vfs_lookup(path, &cwd);
+  error = vfs_namelookup(path, &cwd);
   if (error)
     goto end;
 
-  proc_self()->cwd = cwd;
+  proc_self()->p_cwd = cwd;
   return 0;
 end:
   kfree(M_TEMP, path);
@@ -338,7 +338,7 @@ static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
     return ERANGE;
   }
 
-  if (p->cwd == root_vnode()) {
+  if (p->p_cwd == vfs_root_vnode) {
     copyout("/", u_buf, 2);
     return 0;
   }
@@ -346,7 +346,7 @@ static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
   int error = 0;
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   char *path_start = path + PATH_MAX;
-  vnode_t *uvp = p->cwd;
+  vnode_t *uvp = p->p_cwd;
   vnode_t *lvp = NULL;
   path_start -= 1;
   *path_start = '\0';
@@ -356,7 +356,7 @@ static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
       uvp = uvp->v_mount->mnt_vnodecovered;
     }
 
-    if (uvp == root_vnode()) {
+    if (uvp == vfs_root_vnode) {
       break;
     }
 

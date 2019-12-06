@@ -1,12 +1,12 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES = \
-	getcwd.c \
 	access.c \
 	exceptions.c \
 	fd.c \
 	fork.c \
 	fpu_ctx.c \
+	getcwd.c \
 	lseek.c \
 	main.c \
 	misbehave.c \

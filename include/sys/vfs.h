@@ -84,8 +84,6 @@ int vfs_namelookup(const char *path, vnode_t **vp);
  * Returned vnode is locked and held. */
 int vfs_namecreate(const char *path, vnode_t **dvp, componentname_t *cn);
 
-vnode_t *root_vnode(void);
-
 /* Both vnode and its parent is held and locked. */
 int vfs_namedelete(const char *path, vnode_t **dvp, vnode_t **vp,
                    componentname_t *cn);

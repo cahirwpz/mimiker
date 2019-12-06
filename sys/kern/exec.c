@@ -408,7 +408,9 @@ __noreturn void run_program(const char *path, char *const *argv,
   fdtab_t *fdt = fdtab_create();
   fdtab_hold(fdt);
   p->p_fdtable = fdt;
-  p->cwd = root_vnode();
+
+  /* Set current working directory to root directory */
+  p->p_cwd = vfs_root_vnode;
 
   /* ... and initialize file descriptors required by the standard library. */
   int _stdin, _stdout, _stderr;
