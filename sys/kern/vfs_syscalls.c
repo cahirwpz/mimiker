@@ -177,7 +177,32 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
 }
 
 int do_unlink(proc_t *p, char *path) {
-  return ENOTSUP;
+  int error;
+  vnode_t *vn, *dvn;
+  componentname_t cn;
+
+  if ((error = vfs_namedelete(path, &dvn, &vn, &cn)))
+    return error;
+
+  if (vn->v_type == V_DIR) {
+    if (dvn == vn)
+      vnode_drop(dvn);
+    else
+      vnode_put(dvn);
+    vnode_put(vn);
+    return EPERM;
+  }
+
+  char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
+  memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
+  namecopy[cn.cn_namelen] = 0;
+
+  error = VOP_REMOVE(dvn, namecopy);
+  vnode_put(dvn);
+  vnode_put(vn);
+  kfree(M_TEMP, namecopy);
+
+  return error;
 }
 
 int do_mkdir(proc_t *p, char *path, mode_t mode) {
