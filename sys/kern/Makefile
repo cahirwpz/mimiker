@@ -23,7 +23,6 @@ SOURCES = \
 	file.c \
 	filedesc.c \
 	fork.c \
-	getcwd.c \
 	initrd.c \
 	interrupt.c \
 	kenv.c \
@@ -63,6 +62,7 @@ SOURCES = \
 	vfs.c \
 	vfs_readdir.c \
 	vfs_syscalls.c \
+	vfs_name_in_dir.c \
 	vfs_vnode.c \
 	vm_map.c \
 	vm_object.c \

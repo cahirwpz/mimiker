@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
   int error;
@@ -269,4 +270,52 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
   if (error == EPASSTHROUGH)
     error = ENOTTY;
   return error;
+}
+
+int do_getcwd(proc_t *p, char* bufp, char** bpp)
+{
+  int error;
+  vnode_t *uvp = p->p_cwd;
+  vnode_t *lvp = NULL;
+  *bpp -= 1;
+  **bpp = '\0';
+
+  if (p->p_cwd == vfs_root_vnode) {
+    if (*bpp - 1 < bufp)
+      return ENAMETOOLONG;
+    *bpp -= 1;
+    **bpp = '/';
+    return 0;
+  }
+
+  for (int i = 0; i < PATH_MAX; i++) {
+    while (uvp->v_mount) {
+      uvp = uvp->v_mount->mnt_vnodecovered;
+    }
+
+    if (uvp == vfs_root_vnode)
+      break;
+
+    componentname_t cn = COMPONENTNAME("..");
+    error = VOP_LOOKUP(uvp, &cn, &lvp);
+    if (error)
+      return error;
+
+    if (lvp == NULL || uvp == lvp)
+      return ENOENT;
+
+    error = vfs_name_in_dir(lvp, uvp, bufp, bpp);
+    if (error)
+      return error;
+
+    if (*bpp - 1 < bufp)
+      return ENAMETOOLONG;
+    *bpp -= 1;
+    **bpp = '/';
+
+    uvp = lvp;
+    lvp = NULL;
+  }
+
+  return 0;
 }
