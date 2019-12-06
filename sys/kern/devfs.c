@@ -162,7 +162,7 @@ static void devfs_to_dirent(vnode_t *v, void *it, dirent_t *dir) {
     name = node->dn_name;
   }
   dir->d_fileno = node->dn_ino;
-  dir->d_type = (node->dn_vnode->v_type == V_DIR) ? DT_DIR : DT_BLK;
+  dir->d_type = vnode_to_dt(node->dn_vnode);
   memcpy(dir->d_name, name, dir->d_namlen + 1);
 }
 

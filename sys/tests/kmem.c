@@ -8,6 +8,7 @@
 static int test_kmem(void) {
   /* Write - read test */
   volatile unsigned *arr = kmem_alloc(MEMSZ, 0);
+  assert(arr != NULL);
   int size = MEMSZ / sizeof(int);
   for (int i = 0; i < size; i++)
     arr[i] = 0xDEADC0DE; /* Write non-zero value */
