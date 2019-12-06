@@ -5,16 +5,17 @@ from .utils import TextTable, cast
 from .cmd import UserCommand, CommandDispatcher
 
 
-PAGESIZE = 0x1000
-
-
 class TLBHi():
     def __init__(self, val):
         self.val = cast(val, 'unsigned long')
 
     @property
-    def vpn(self):
+    def vpn0(self):
         return self.val & 0xffffe000
+
+    @property
+    def vpn1(self):
+        return self.vpn0 + 0x1000
 
     @property
     def asid(self):
@@ -54,9 +55,9 @@ class TLBEntry(metaclass=GdbStructMeta):
             return None
         lo0, lo1 = '-', '-'
         if self.lo0.valid:
-            lo0 = '%08x %s' % (self.hi.vpn, self.lo0)
+            lo0 = '%08x %s' % (self.hi.vpn0, self.lo0)
         if self.lo1.valid:
-            lo1 = '%08x %s' % (self.hi.vpn + PAGESIZE, self.lo1)
+            lo1 = '%08x %s' % (self.hi.vpn1, self.lo1)
         asid = '%02x' % self.hi.asid
         if self.lo0.globl and self.lo1.globl:
             asid = '-'
