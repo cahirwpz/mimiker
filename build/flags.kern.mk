@@ -1,6 +1,9 @@
 include $(TOPDIR)/build/flags.mk
 
-CFLAGS   += -fno-builtin -nostdinc -nostdlib -ffreestanding -fsanitize=kernel-address
-boot.o : CFLAGS += -fno-sanitize=kernel-address
+CFLAGS   += -fno-builtin -nostdinc -nostdlib -ffreestanding
 CPPFLAGS += -I$(TOPDIR)/include -D_KERNEL
 LDFLAGS  += -nostdlib
+
+# KASAN
+CFLAGS += -fsanitize=kernel-address
+boot.o : CFLAGS += -fno-sanitize=kernel-address
