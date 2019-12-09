@@ -359,18 +359,17 @@ static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
   return NULL;
 }
 
-
 /*
- * tmpfs_dir_detach: disassociate directory entry and its node and and detach the entry from the directory.
+ * tmpfs_dir_detach: disassociate directory entry and its node and and detach
+ * the entry from the directory.
  */
-static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de)
-{
+static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de) {
   tmpfs_node_t *v = de->tfd_node;
   assert(v->tfn_links > 0);
   v->tfn_links--;
 
   /* If directory - decrease the link count of parent. */
-  if(node->tfn_type == V_DIR) {
+  if (node->tfn_type == V_DIR) {
     v->tn_spec.tn_dir.tn_parent = NULL;
     dv->tfn_links--;
   }
