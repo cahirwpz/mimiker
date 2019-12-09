@@ -25,6 +25,7 @@ SOURCES = \
 	fork.c \
 	initrd.c \
 	interrupt.c \
+	kasan.c \
 	kenv.c \
 	klog.c \
 	kmem.c \

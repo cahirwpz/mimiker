@@ -10,6 +10,7 @@
 #include <sys/vfs.h>
 #include <sys/vm_map.h>
 #include <sys/vm_physmem.h>
+#include <sys/kasan.h>
 
 extern void kmain(void *);
 
@@ -32,6 +33,8 @@ __noreturn void kernel_init(void) {
 
   sysinit();
   klog("Kernel initialized!");
+
+  set_kasan_ready();
 
   thread_t *main_thread = thread_create("main", kmain, NULL, prio_kthread(0));
   sched_add(main_thread);
