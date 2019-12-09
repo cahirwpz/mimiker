@@ -73,6 +73,7 @@ static int tmpfs_get_vnode(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp);
 static int tmpfs_alloc_dirent(const char *name, tmpfs_dirent_t **dep);
 static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
                                         const componentname_t *cn);
+static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de);
 
 /* tmpfs readdir operations */
 
@@ -369,8 +370,8 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de) {
   v->tfn_links--;
 
   /* If directory - decrease the link count of parent. */
-  if (node->tfn_type == V_DIR) {
-    v->tn_spec.tn_dir.tn_parent = NULL;
+  if (v->tfn_type == V_DIR) {
+    v->tfn_dir.parent = NULL;
     dv->tfn_links--;
   }
   de->tfd_node = NULL;
