@@ -272,8 +272,7 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
   return error;
 }
 
-int do_getcwd(proc_t *p, char* bufp, char** bpp)
-{
+int do_getcwd(proc_t *p, char *bufp, char **bpp) {
   int error;
   vnode_t *uvp = p->p_cwd;
   vnode_t *lvp = NULL;

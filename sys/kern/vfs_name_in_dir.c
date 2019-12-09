@@ -6,7 +6,7 @@
 #include <sys/libkern.h>
 #include <sys/vfs.h>
 
-int vfs_name_in_dir(vnode_t *dir, vnode_t *node, char *bufp, char** bpp) {
+int vfs_name_in_dir(vnode_t *dir, vnode_t *node, char *bufp, char **bpp) {
   int error = 0;
   char *buf = kmalloc(M_TEMP, 1024, 0);
 

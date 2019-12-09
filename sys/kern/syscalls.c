@@ -312,7 +312,7 @@ static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
   const char *u_path = args->path;
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t len = 0;
-  int error;
+  int error = 0;
 
   if ((error = copyinstr(u_path, path, PATH_MAX, &len)))
     goto end;
@@ -323,7 +323,6 @@ static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
     goto end;
 
   proc_self()->p_cwd = cwd;
-  return 0;
 end:
   kfree(M_TEMP, path);
   return error;
