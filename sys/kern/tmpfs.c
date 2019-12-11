@@ -73,6 +73,7 @@ static int tmpfs_get_vnode(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp);
 static int tmpfs_alloc_dirent(const char *name, tmpfs_dirent_t **dep);
 static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
                                         const componentname_t *cn);
+static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de);
 
 /* tmpfs readdir operations */
 
@@ -169,7 +170,13 @@ static int tmpfs_vop_create(vnode_t *dv, const char *name, vattr_t *va,
 }
 
 static int tmpfs_vop_remove(vnode_t *dv, const char *name) {
-  return EOPNOTSUPP;
+  tmpfs_node_t *dnode = TMPFS_NODE_OF(dv);
+  tmpfs_dirent_t *de = tmpfs_dir_lookup(dnode, &COMPONENTNAME(name));
+  assert(de != NULL);
+
+  tmpfs_dir_detach(dnode, de);
+
+  return 0;
 }
 
 static int tmpfs_vop_mkdir(vnode_t *dv, const char *name, vattr_t *va,
@@ -190,14 +197,7 @@ static int tmpfs_vop_rmdir(vnode_t *dv, const char *name) {
     /* Decrement link count for the '.' entry. */
     node->tfn_links--;
 
-    /* Deassociate the node and direntry. */
-    node->tfn_links--;
-    dnode->tfn_links--; /* Decrease the link count of parent. */
-    node->tfn_dir.parent = NULL;
-
-    de->tfd_node = NULL;
-    TAILQ_REMOVE(&dnode->tfn_dir.dirents, de, tfd_entries);
-    pool_free(P_TMPFS_DIRENT, de);
+    tmpfs_dir_detach(dnode, de);
   } else {
     error = ENOTEMPTY;
   }
@@ -356,6 +356,25 @@ static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
       return de;
   }
   return NULL;
+}
+
+/*
+ * tmpfs_dir_detach: disassociate directory entry and its node and and detach
+ * the entry from the directory.
+ */
+static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de) {
+  tmpfs_node_t *v = de->tfd_node;
+  assert(v->tfn_links > 0);
+  v->tfn_links--;
+
+  /* If directory - decrease the link count of parent. */
+  if (v->tfn_type == V_DIR) {
+    v->tfn_dir.parent = NULL;
+    dv->tfn_links--;
+  }
+  de->tfd_node = NULL;
+  TAILQ_REMOVE(&dv->tfn_dir.dirents, de, tfd_entries);
+  pool_free(P_TMPFS_DIRENT, de);
 }
 
 /* tmpfs vfs operations */

@@ -6,12 +6,13 @@
 #include <sys/ucontext.h>
 #include <mips/ctx.h>
 #include <mips/exc.h>
+#include <mips/pmap.h>
 
 void ctx_init(ctx_t *ctx, void *pc, void *sp) {
   bzero(ctx, sizeof(ctx_t));
 
   ctx->pc = (register_t)pc;
-  ctx->sp = (register_t)sp;
+  ctx->sp = (register_t)pmap_kseg2_to_kseg0(sp);
   /* Take SR from caller's context and enable interrupts. */
   ctx->sr = (register_t)mips32_get_c0(C0_STATUS) | SR_IE;
 }
@@ -29,7 +30,7 @@ void exc_frame_init(exc_frame_t *frame, void *pc, void *sp, unsigned flags) {
 
   frame->gp = usermode ? 0 : (register_t)_gp;
   frame->pc = (register_t)pc;
-  frame->sp = (register_t)sp;
+  frame->sp = (register_t)pmap_kseg2_to_kseg0(sp);
 
   /* For user-mode exception frame we must make sure that:
    * - user mode is active,
