@@ -12,7 +12,7 @@
         .local ctx_save
 
 #
-# void ctx_switch(thread_t *from, thread_t *to)
+# long ctx_switch(thread_t *from, thread_t *to)
 #
 NESTED(ctx_switch, CTX_FRAME_SIZE, ra)
         # disable interrupts saving SR to t0

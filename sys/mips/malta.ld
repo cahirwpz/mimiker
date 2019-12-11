@@ -23,7 +23,7 @@ SECTIONS
     __boot = ABSOLUTE(.);
     /* Exception entry points. */
     *(.ebase)
-    . = ALIGN(0x800);
+    . = ALIGN(0x1000);
     /*
      * The .boot.* sections also contain code and data used by GDB commands.
      * The debugger must always be able to jump to code in this section and to

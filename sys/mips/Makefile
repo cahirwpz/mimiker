@@ -9,7 +9,6 @@ SOURCES = \
 	copy.S \
 	cpu.c \
 	ebase.S \
-	exc.S \
 	gt64120.c \
 	intr.c \
 	$(PLATFORM).c \
@@ -23,8 +22,7 @@ SOURCES = \
 	thread.c \
 	timer.c \
 	tlb.c \
-	uart_cbus.c \
-	ustack.c
+	uart_cbus.c
 
 OBJECTS += $(PLATFORM)_dtb.o
 

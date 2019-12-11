@@ -44,10 +44,9 @@ void exc_frame_copy(exc_frame_t *to, exc_frame_t *from) {
 }
 
 void exc_frame_setup_call(exc_frame_t *frame, register_t retaddr,
-                          register_t arg0, register_t arg1) {
+                          register_t arg) {
   frame->ra = retaddr;
-  frame->a0 = arg0;
-  frame->a1 = arg1;
+  frame->a0 = arg;
 }
 
 void exc_frame_set_retval(exc_frame_t *frame, register_t value,
