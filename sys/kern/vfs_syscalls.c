@@ -197,7 +197,7 @@ int do_unlink(proc_t *p, char *path) {
   memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
   namecopy[cn.cn_namelen] = 0;
 
-  error = VOP_REMOVE(dvn, namecopy);
+  error = VOP_REMOVE(dvn, vn, namecopy);
   vnode_put(dvn);
   vnode_put(vn);
   kfree(M_TEMP, namecopy);
