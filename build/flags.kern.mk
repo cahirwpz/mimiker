@@ -7,3 +7,4 @@ LDFLAGS  += -nostdlib
 # KASAN
 CFLAGS += -fsanitize=kernel-address
 boot.o : CFLAGS += -fno-sanitize=kernel-address
+kasan.o : CFLAGS += -fno-sanitize=kernel-address
