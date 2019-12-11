@@ -51,7 +51,6 @@ def gdb_inspect(interactive):
         send_command(gdb, 'info registers')
         send_command(gdb, 'cpu tlb')
         send_command(gdb, 'backtrace full')
-        send_command(gdb, 'kdump pmap')
         # following commands may fail
         send_command(gdb, 'kthread')
         send_command(gdb, 'klog')

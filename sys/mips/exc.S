@@ -8,6 +8,8 @@
 
 #include "assym.h"
 
+        .section .boot, "ax"
+
         # Don't allow the assembler to reorder instructions.
         .set	noreorder
         # Forbid the assembler from using $at register.
@@ -83,7 +85,8 @@ skip_fpu_save:
         sw      t0, TD_IDNEST(s0)
 
         # Call C interrupt handler routine.
-        jal     mips_exc_handler
+        la      t0, mips_exc_handler
+        jalr    t0
         move    a0, sp                  # (delay) 1st arg
 
         # Decrement interrupt nest level.

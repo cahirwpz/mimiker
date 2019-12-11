@@ -53,7 +53,6 @@ typedef struct {
 #define PTE_ASID(asid) ((asid)&PTE_ASID_MASK)
 
 void tlb_init(void);
-void tlb_print(void);
 
 /*
  * Note that MIPS implements variable page size by specifying PageMask register,
@@ -61,31 +60,13 @@ void tlb_print(void);
  * implementation we aren't going to use other page size than 4KiB.
  */
 
-/* Returns the number of entries in the TLB. */
-unsigned tlb_size(void);
-
 /* Probes the TLB for an entry matching hi, and if present invalidates it. */
 void tlb_invalidate(tlbhi_t hi);
-
-/* Invalidate all TLB entries (save wired). */
-void tlb_invalidate_all(void);
 
 /* Invalidate all TLB entries with given ASID (save wired). */
 void tlb_invalidate_asid(tlbhi_t asid);
 
-/* Reads the TLB entry specified by @i. */
-void tlb_read(unsigned i, tlbentry_t *e);
-
-/* Writes the TLB entry specified by @i. */
+/* Writes the TLB entry specified by @i or random entry if TLBI_RANDOM. */
 void tlb_write(unsigned i, tlbentry_t *e);
-
-/* Probes the TLB for an entry matching hi and if present rewrites that
- * entry, otherwise updates a random entry. A safe way to update the TLB. */
-void tlb_overwrite_random(tlbentry_t *e);
-
-/* Probes the TLB for an entry matching @e->hi. If found then @e will be filled
- * with EntryHi, EntryLo0, EntryLo1 values and index will be returned.
- * Otherwise tlb_probe will return with negative value. */
-int tlb_probe(tlbentry_t *e);
 
 #endif /* !_MIPS_TLB_H_ */
