@@ -202,6 +202,8 @@ static int tmpfs_vop_rmdir(vnode_t *dv, const char *name) {
     error = ENOTEMPTY;
   }
 
+  vnode_put(node->tfn_vnode);
+
   return error;
 }
 
