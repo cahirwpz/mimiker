@@ -7,7 +7,7 @@
 typedef uint8_t asid_t;
 typedef uint32_t pte_t;
 typedef uint32_t pde_t;
-#endif
+#endif /* __ASSEMBLER__ */
 
 /* MIPS pmap implements standard two-level hierarchical page table
  * stored in physical addresses. Indices are 10-bits wide. */
@@ -34,5 +34,9 @@ typedef uint32_t pde_t;
  * UPD_BASE must begin at 8KiB boundary. */
 #define UPD_BASE (PMAP_KERNEL_END + PD_SIZE * 0)
 #define KPD_BASE (PMAP_KERNEL_END + PD_SIZE * 1)
+
+#ifndef __ASSEMBLER__
+void *pmap_kseg2_to_kseg0(void *va);
+#endif /* __ASSEMBLER__ */
 
 #endif /* !_MIPS_PMAP_H_ */
