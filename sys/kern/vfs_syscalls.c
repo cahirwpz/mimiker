@@ -259,8 +259,9 @@ int do_rmdir(proc_t *p, char *path) {
   memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
   namecopy[cn.cn_namelen] = 0;
 
-  error = VOP_RMDIR(dvn, namecopy);
+  error = VOP_RMDIR(dvn, vn, namecopy);
   vnode_put(dvn);
+  vnode_put(vn);
   kfree(M_TEMP, namecopy);
 
   return error;

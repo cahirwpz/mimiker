@@ -169,7 +169,7 @@ static int tmpfs_vop_create(vnode_t *dv, const char *name, vattr_t *va,
   return tmpfs_create_file(dv, vp, V_REG, name);
 }
 
-static int tmpfs_vop_remove(vnode_t *dv, const char *name) {
+static int tmpfs_vop_remove(vnode_t *dv, vnode_t *v, const char *name) {
   tmpfs_node_t *dnode = TMPFS_NODE_OF(dv);
   tmpfs_dirent_t *de = tmpfs_dir_lookup(dnode, &COMPONENTNAME(name));
   assert(de != NULL);
@@ -185,7 +185,7 @@ static int tmpfs_vop_mkdir(vnode_t *dv, const char *name, vattr_t *va,
   return tmpfs_create_file(dv, vp, V_DIR, name);
 }
 
-static int tmpfs_vop_rmdir(vnode_t *dv, const char *name) {
+static int tmpfs_vop_rmdir(vnode_t *dv, vnode_t *v, const char *name) {
   tmpfs_node_t *dnode = TMPFS_NODE_OF(dv);
   tmpfs_dirent_t *de = tmpfs_dir_lookup(dnode, &COMPONENTNAME(name));
   assert(de != NULL);
@@ -201,8 +201,6 @@ static int tmpfs_vop_rmdir(vnode_t *dv, const char *name) {
   } else {
     error = ENOTEMPTY;
   }
-
-  vnode_put(node->tfn_vnode);
 
   return error;
 }
