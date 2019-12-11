@@ -37,10 +37,10 @@ typedef int vnode_seek_t(vnode_t *v, off_t oldoff, off_t newoff, void *state);
 typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
 typedef int vnode_create_t(vnode_t *dv, const char *name, vattr_t *va,
                            vnode_t **vp);
-typedef int vnode_remove_t(vnode_t *dv, const char *name);
+typedef int vnode_remove_t(vnode_t *dv, vnode_t *v, const char *name);
 typedef int vnode_mkdir_t(vnode_t *dv, const char *name, vattr_t *va,
                           vnode_t **vp);
-typedef int vnode_rmdir_t(vnode_t *dv, const char *name);
+typedef int vnode_rmdir_t(vnode_t *dv, vnode_t *v, const char *name);
 typedef int vnode_access_t(vnode_t *v, accmode_t mode);
 typedef int vnode_ioctl_t(vnode_t *v, u_long cmd, void *data);
 typedef int vnode_reclaim_t(vnode_t *v);
@@ -140,8 +140,8 @@ static inline int VOP_CREATE(vnode_t *dv, const char *name, vattr_t *va,
   return VOP_CALL(create, dv, name, va, vp);
 }
 
-static inline int VOP_REMOVE(vnode_t *dv, const char *name) {
-  return VOP_CALL(remove, dv, name);
+static inline int VOP_REMOVE(vnode_t *dv, vnode_t *v, const char *name) {
+  return VOP_CALL(remove, dv, v, name);
 }
 
 static inline int VOP_MKDIR(vnode_t *dv, const char *name, vattr_t *va,
@@ -149,8 +149,8 @@ static inline int VOP_MKDIR(vnode_t *dv, const char *name, vattr_t *va,
   return VOP_CALL(mkdir, dv, name, va, vp);
 }
 
-static inline int VOP_RMDIR(vnode_t *dv, const char *name) {
-  return VOP_CALL(rmdir, dv, name);
+static inline int VOP_RMDIR(vnode_t *dv,vnode_t *v, const char *name) {
+  return VOP_CALL(rmdir, dv, v, name);
 }
 
 static inline int VOP_ACCESS(vnode_t *v, mode_t mode) {
