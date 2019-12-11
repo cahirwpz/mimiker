@@ -6,7 +6,7 @@
 
 typedef struct exc_frame exc_frame_t;
 
-__noreturn void user_exc_leave(void);
+__noreturn __long_call void user_exc_leave(void);
 __noreturn void kernel_oops(exc_frame_t *frame);
 
 /* Flags for \a exc_frame_init */
