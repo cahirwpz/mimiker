@@ -117,7 +117,7 @@ static void *malta_kenv(int argc, char **argv, char **envp) {
 
   kenv_bootstrap(kenvp, kinit);
 
-  return stk->stk_ptr;
+  return (void *)MIPS_KSEG2_TO_KSEG0(stk->stk_ptr);
 }
 
 intptr_t ramdisk_get_start(void) {
@@ -141,6 +141,7 @@ static void malta_physmem(void) {
 
   if (rd_start != rd_end) {
     vm_physseg_plug(kern_end, rd_start);
+    vm_physseg_plug_used(rd_start, rd_end);
     vm_physseg_plug(rd_end, ram_end);
   } else {
     vm_physseg_plug(kern_end, ram_end);

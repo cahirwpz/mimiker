@@ -3,6 +3,7 @@
 #include <sys/ktest.h>
 #include <sys/libkern.h>
 #include <sys/time.h>
+#include <sys/sched.h>
 
 #define KTEST_MAX_NO 1024
 #define KTEST_FAIL(args...)                                                    \
@@ -28,15 +29,13 @@ static unsigned seed = 0;         /* Current seed */
 /* If we get preempted while printing out the [TEST_PASSED] string, the monitor
    process might not find the pattern it's looking for. */
 static void ktest_atomically_print_success(void) {
-  /* critical_enter(); */
+  SCOPED_NO_PREEMPTION();
   kprintf(TEST_PASSED_STRING);
-  /* critical_leave(); */
 }
 
 static void ktest_atomically_print_failure(void) {
-  /* critical_enter(); */
+  SCOPED_NO_PREEMPTION();
   kprintf(TEST_FAILED_STRING);
-  /* critical_leave(); */
 }
 
 __noreturn void ktest_failure(void) {

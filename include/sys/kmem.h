@@ -5,6 +5,7 @@
 
 void kmem_bootstrap(void);
 void *kmem_alloc(size_t size, kmem_flags_t flags) __warn_unused;
+void *kmem_map(paddr_t pa, size_t size) __warn_unused;
 void kmem_free(void *ptr, size_t size);
 
 #endif /* !_SYS_KMEM_H_ */
