@@ -117,11 +117,43 @@ NESTED(copyout, CALLFRAME_SIZ, ra)
 	move	v0, zero
 END(copyout)
 
-LEAF(copyerr)
+SLEAF(copyerr)
 	REG_L	ra, CALLFRAME_RA(sp)
 	PTR_ADDU sp, sp, CALLFRAME_SIZ
 	j	ra
 	li	v0, EFAULT		# return error
 END(copyerr)
+
+/* bool try_load_word(unsigned *ptr, unsigned *val_p) */
+LEAF(try_load_word)
+        LOAD_PCPU(v1)
+        PTR_L   v1, PCPU_CURTHREAD(v1)
+        LA      v0, fault
+        PTR_S   v0, TD_ONFAULT(v1)
+        lw      v0, 0(a0)
+        PTR_S   zero, TD_ONFAULT(v1)
+        sw      v0, 0(a1)
+        j       ra
+        li      v0, 1
+END(try_load_word)
+
+/* bool try_store_word(unsigned *ptr, unsigned val) */
+LEAF(try_store_word)
+        LA      v0, fault
+        LOAD_PCPU(v1)
+        PTR_L   v1, PCPU_CURTHREAD(v1)
+        PTR_S   v0, TD_ONFAULT(v1)
+        sw      a1, 0(a0)
+        PTR_S   zero, TD_ONFAULT(v1)
+        j       ra
+        li      v0, 1
+END(try_store_word)
+
+SLEAF(fault)
+        j       ra
+        move    v0, zero
+END(fault)
+
+# vim: sw=8 ts=8 et
 
 # vim: sw=8 ts=8 et

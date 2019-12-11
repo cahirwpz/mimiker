@@ -1,6 +1,6 @@
 #include <sys/thread.h>
-#include <sys/context.h>
-#include <mips/exc.h>
+#include <mips/context.h>
+#include <mips/exception.h>
 #include <mips/pmap.h>
 
 extern __noreturn void thread_exit(void);

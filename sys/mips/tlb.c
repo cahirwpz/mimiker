@@ -1,7 +1,5 @@
-#include <mips/mips.h>
-#include <mips/pmap.h>
+#include <mips/m32c0.h>
 #include <mips/tlb.h>
-#include <sys/mimiker.h>
 #include <sys/interrupt.h>
 
 #define mips32_getasid() (mips32_getentryhi() & PTE_ASID_MASK)

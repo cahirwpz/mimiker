@@ -1,7 +1,6 @@
 #include <sys/libkern.h>
 #include <sys/thread.h>
 #include <sys/sched.h>
-#include <mips/mips.h>
 #include <sys/ktest.h>
 
 __attribute__((noinline)) static int load(intptr_t ptr) {

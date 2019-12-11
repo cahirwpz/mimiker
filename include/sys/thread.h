@@ -3,6 +3,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/queue.h>
+#include <sys/context.h>
 #include <sys/exception.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
@@ -11,7 +12,6 @@
 #include <sys/signal.h>
 #include <sys/kstack.h>
 #include <sys/spinlock.h>
-#include <machine/ctx.h> /* TODO leaks ctx_t structure because of td_kctx */
 
 /*! \file thread.h */
 
