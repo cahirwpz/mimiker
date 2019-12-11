@@ -98,7 +98,7 @@ UTEST_ADD_SIMPLE(setjmp);
 UTEST_ADD_SIMPLE(sigaction_with_setjmp);
 UTEST_ADD_SIMPLE(sigaction_handler_returns);
 
-UTEST_ADD_SIMPLE(vfs);
+UTEST_ADD_SIMPLE(vfs_dir);
 
 #if 0
 UTEST_ADD_SIMPLE(fpu_fcsr);

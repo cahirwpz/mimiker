@@ -12,7 +12,7 @@
 #define assert_ok(expr) assert(expr == 0)
 #define assert_fail(expr, err) assert(expr == -1 && errno == err)
 
-static void test_dir(void) {
+int test_vfs_dir(void) {
   assert_ok(mkdir(TESTDIR "/test", 0));
   assert_fail(mkdir(TESTDIR "/test", 0), EEXIST);
   assert_fail(mkdir(TESTDIR "//test///", 0), EEXIST);
@@ -42,9 +42,5 @@ static void test_dir(void) {
   assert_fail(rmdir(TESTDIR "/test4/subdir4"), ENOENT);
 
   assert_fail(mkdir(TESTDIR "/test3/subdir1", 0), ENOENT);
-}
-
-int test_vfs(void) {
-  test_dir();
   return 0;
 }
