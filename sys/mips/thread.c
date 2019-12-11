@@ -1,6 +1,7 @@
 #include <sys/thread.h>
 #include <sys/context.h>
-#include <machine/exc.h>
+#include <mips/exc.h>
+#include <mips/pmap.h>
 
 extern __noreturn void thread_exit(void);
 extern __noreturn void kern_exc_leave(void);
@@ -18,7 +19,7 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
   exc_frame_t *kframe = kstack_alloc_s(stk, cpu_exc_frame_t);
   ctx_t *kctx = kstack_alloc_s(stk, ctx_t);
 
-  td->td_uframe = uframe;
+  td->td_uframe = pmap_kseg2_to_kseg0(uframe);
   td->td_kframe = kframe;
   td->td_kctx = kctx;
 

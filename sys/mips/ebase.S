@@ -41,23 +41,11 @@ SLEAF(tlb_refill)
         addu    k0, k1
         lw      k1, (k0)                # [k1] PDE of bad virtual address
 
-        # Is PDE valid?
+        # If PDE isn't valid behave as if TLBL/TLBS exception was triggered.
         andi    k0, k1, ENTRYLO0_V_MASK
-        bnez    k0, pde_valid
-        nop
+        beqz    k0, exc_enter
+        nop     
 
-pde_invalid:
-        # PDE is invalid, so PTEs do not exists - simulate that by writing
-        # invalid entries into the TLB. Retrying the instruction that missed
-        # in the TLB is going to generate a TLB Invalid exception (but not
-        # another TLB Refill exception).
-        mtc0    zero, C0_ENTRYLO0
-        mtc0    zero, C0_ENTRYLO1
-        ehb
-        tlbwr
-        eret
-
-pde_valid:
         # Calculate page table address from PDE
         srl     k1, 6
         sll     k1, 12
@@ -89,8 +77,7 @@ END(cache_error)
         .local  general_exception
 
 SLEAF(general_exception)
-        la      k0, exc_enter
-        jr      k0
+        j       exc_enter
         nop
 END(general_exception)
 
@@ -98,8 +85,7 @@ END(general_exception)
         .local  irq
 
 SLEAF(irq)
-        la      k0, exc_enter
-        jr      k0
+        j       exc_enter
         nop
 END(irq)
 
