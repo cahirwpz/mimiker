@@ -149,7 +149,7 @@ static inline int VOP_MKDIR(vnode_t *dv, const char *name, vattr_t *va,
   return VOP_CALL(mkdir, dv, name, va, vp);
 }
 
-static inline int VOP_RMDIR(vnode_t *dv,vnode_t *v, const char *name) {
+static inline int VOP_RMDIR(vnode_t *dv, vnode_t *v, const char *name) {
   return VOP_CALL(rmdir, dv, v, name);
 }
 
