@@ -1,6 +1,10 @@
 #ifndef _MIPS_TLB_H_
 #define _MIPS_TLB_H_
 
+#ifndef _MACHDEP
+#error "Do not use this header file outside kernel machine dependent code!"
+#endif
+
 #include <stdint.h>
 
 typedef uint32_t tlbhi_t;

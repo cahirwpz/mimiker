@@ -176,8 +176,7 @@ static int vfs_maybe_descend(vnode_t **vp) {
   vnode_t *v = *vp;
   while (is_mountpoint(v)) {
     int error = VFS_ROOT(v->v_mountedhere, &v_mntpt);
-    vnode_unlock(v);
-    vnode_drop(v);
+    vnode_put(v);
     if (error)
       return error;
     v = v_mntpt;
@@ -287,13 +286,17 @@ static int vfs_nameresolve(vnrstate_t *state) {
 
     /* Prepare the next path name component. */
     vnr_parse_component(state);
+    if (state->vs_cn.cn_namelen > NAME_MAX) {
+      error = ENAMETOOLONG;
+      vnode_put(searchdir);
+      goto end;
+    }
 
     /* Look up the child vnode */
     foundvn = NULL;
     error = vnr_lookup_once(state, searchdir, &foundvn);
     if (error) {
-      vnode_unlock(searchdir);
-      vnode_drop(searchdir);
+      vnode_put(searchdir);
       goto end;
     }
     /* Success with no object returned means we're creating something. */
@@ -304,8 +307,7 @@ static int vfs_nameresolve(vnrstate_t *state) {
       break;
 
     /* TODO: Check access to child, to verify we can continue with lookup. */
-    vnode_unlock(searchdir);
-    vnode_drop(searchdir);
+    vnode_put(searchdir);
     searchdir = foundvn;
   }
 
@@ -357,11 +359,6 @@ int vfs_namecreate(const char *path, vnode_t **dvp, componentname_t *cn) {
 
     vnode_drop(vs.vs_vp);
     return EEXIST;
-  }
-
-  if (vs.vs_cn.cn_namelen > NAME_MAX) {
-    vnode_put(vs.vs_dvp);
-    return ENAMETOOLONG;
   }
 
   *dvp = vs.vs_dvp;

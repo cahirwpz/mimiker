@@ -1,8 +1,11 @@
-#ifndef __MALTA_H__
-#define __MALTA_H__
+#ifndef _MIPS_MALTA_H_
+#define _MIPS_MALTA_H_
+
+#ifndef _MACHDEP
+#error "Do not use this header file outside kernel machine dependent code!"
+#endif
 
 #include <sys/cdefs.h>
-#include <mips/mips.h>
 
 /*! \brief Prepares thread0 stack that is placed in kseg2. */
 void *platform_stack(int argc, char **argv, char **envp, unsigned memsize);

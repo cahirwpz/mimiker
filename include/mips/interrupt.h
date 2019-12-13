@@ -1,23 +1,9 @@
-#ifndef _MIPS_INTR_H_
-#define _MIPS_INTR_H_
+#ifndef _MIPS_INTERRUPT_H_
+#define _MIPS_INTERRUPT_H_
+
+/*! \file mips/interrupt.h */
 
 #include <stdbool.h>
-
-/*! \file mips/intr.h */
-
-typedef enum {
-  MIPS_SWINT0,
-  MIPS_SWINT1,
-  MIPS_HWINT0,
-  MIPS_HWINT1,
-  MIPS_HWINT2,
-  MIPS_HWINT3,
-  MIPS_HWINT4,
-  MIPS_HWINT5,
-} mips_intr_t;
-
-typedef struct intr_handler intr_handler_t;
-typedef struct exc_frame exc_frame_t;
 
 /*! \brief Disables interrupts by setting SR.IE to 0.
  *
@@ -42,8 +28,27 @@ void cpu_intr_enable(void);
  */
 bool cpu_intr_disabled(void);
 
+#ifdef _MACHDEP
+
+typedef enum {
+  MIPS_SWINT0,
+  MIPS_SWINT1,
+  MIPS_HWINT0,
+  MIPS_HWINT1,
+  MIPS_HWINT2,
+  MIPS_HWINT3,
+  MIPS_HWINT4,
+  MIPS_HWINT5,
+} mips_intr_t;
+
+typedef struct intr_handler intr_handler_t;
+typedef struct exc_frame exc_frame_t;
+
 void mips_intr_init(void);
 void mips_intr_setup(intr_handler_t *ih, mips_intr_t irq);
 void mips_intr_teardown(intr_handler_t *ih);
+void mips_intr_handler(exc_frame_t *frame);
 
-#endif
+#endif /* !_MACHDEP */
+
+#endif /* !_MIPS_INTERRUPT_H_ */

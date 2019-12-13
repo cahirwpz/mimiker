@@ -1,6 +1,6 @@
 #include <sys/thread.h>
-#include <sys/context.h>
-#include <mips/exc.h>
+#include <mips/context.h>
+#include <mips/exception.h>
 #include <mips/pmap.h>
 
 extern __noreturn void thread_exit(void);
@@ -28,5 +28,5 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
 
   /* This is the context that kern_exc_leave will restore. */
   exc_frame_init(kframe, target, uframe, EF_KERNEL);
-  exc_frame_setup_call(kframe, (register_t)thread_exit, (register_t)arg, 0);
+  exc_frame_setup_call(kframe, (register_t)thread_exit, (register_t)arg);
 }
