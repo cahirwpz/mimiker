@@ -80,9 +80,10 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep);
  * Increases use count on returned vnode. */
 int vfs_namelookup(const char *path, vnode_t **vp);
 
-/* Finds the parent of vnode corresponding to the given path.
- * Returned vnode is locked and held. */
-int vfs_namecreate(const char *path, vnode_t **dvp, componentname_t *cn);
+/* Yield the vnode for an existing entry; or, if there is none, yield NULL.
+ * Parent vnode is locked and held; vnode, if exists, is only held.*/
+int vfs_namecreate(const char *path, vnode_t **dvp, vnode_t **vp,
+                   componentname_t *cn);
 
 /* Both vnode and its parent is held and locked. */
 int vfs_namedelete(const char *path, vnode_t **dvp, vnode_t **vp,
