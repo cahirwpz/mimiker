@@ -29,6 +29,7 @@ typedef struct tmpfs_node {
   mode_t tfn_mode;   /* node protection mode */
   nlink_t tfn_links; /* number of file hard links */
   ino_t tfn_ino;     /* node identifier */
+  size_t tfn_size;   /* file size in bytes */
 
   /* Data that is only applicable to a particular type. */
   union {
@@ -160,6 +161,7 @@ static int tmpfs_vop_getattr(vnode_t *v, vattr_t *va) {
   va->va_mode = node->tfn_mode;
   va->va_nlink = node->tfn_links;
   va->va_ino = node->tfn_ino;
+  va->va_size = node->tfn_size;
   return 0;
 }
 
@@ -260,6 +262,7 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vnodetype_t ntype) {
   node->tfn_vnode = NULL;
   node->tfn_type = ntype;
   node->tfn_links = 0;
+  node->tfn_size = 0;
 
   mtx_lock(&tfm->tfm_lock);
   node->tfn_ino = tfm->tfm_next_ino++;
@@ -311,6 +314,7 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vnodetype_t ntype,
   node->tfn_links++;
   de->tfd_node = node;
   TAILQ_INSERT_TAIL(&dnode->tfn_dir.dirents, de, tfd_entries);
+  dnode->tfn_size += sizeof(tmpfs_dirent_t);
 
   /* If directory set parent and increase the link count of parent. */
   if (node->tfn_type == V_DIR) {
@@ -379,6 +383,7 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de) {
   }
   de->tfd_node = NULL;
   TAILQ_REMOVE(&dv->tfn_dir.dirents, de, tfd_entries);
+  dv->tfn_size -= sizeof(tmpfs_dirent_t);
   pool_free(P_TMPFS_DIRENT, de);
 }
 
