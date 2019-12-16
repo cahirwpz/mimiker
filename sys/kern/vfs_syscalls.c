@@ -211,8 +211,18 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
   vnode_t *vn, *dvn;
   componentname_t cn;
 
-  if ((error = vfs_namecreate(path, &dvn, &cn)))
+  if ((error = vfs_namecreate(path, &dvn, &vn, &cn)))
     return error;
+
+  if (vn != NULL) {
+    if (vn != dvn)
+      vnode_put(dvn);
+    else
+      vnode_drop(dvn);
+
+    vnode_drop(vn);
+    return EEXIST;
+  }
 
   char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
   memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
