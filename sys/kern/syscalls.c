@@ -322,7 +322,8 @@ static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
   if (error)
     goto end;
 
-  proc_self()->p_cwd = cwd;
+  vnode_drop(p->p_cwd);
+  p->p_cwd = cwd;
 end:
   kfree(M_TEMP, path);
   return error;
@@ -333,19 +334,19 @@ static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
   size_t len = args->len;
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
-  char *path_start = path + PATH_MAX;
+  size_t path_len = PATH_MAX;
 
-  int error = do_getcwd(p, path, &path_start);
+  int error = do_getcwd(p, path, &path_len);
   if (error)
     goto end;
 
-  unsigned path_len = PATH_MAX - (path_start - path);
-  if (path_len > len) {
+  size_t path_len_used = PATH_MAX - path_len;
+  if (path_len_used > len) {
     error = ERANGE;
     goto end;
   }
 
-  copyout(path_start, u_buf, path_len);
+  copyout(path + path_len, u_buf, path_len_used);
 end:
   kfree(M_TEMP, path);
   return error;

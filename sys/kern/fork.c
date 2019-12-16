@@ -55,6 +55,9 @@ int do_fork(pid_t *cldpidp) {
   /* TODO: Optionally share the descriptor table between processes. */
   child->p_fdtable = fdtab_copy(parent->p_fdtable);
 
+  vnode_hold(parent->p_cwd);
+  child->p_cwd = parent->p_cwd;
+
   /* Copy signal handler dispatch rules. */
   memcpy(child->p_sigactions, parent->p_sigactions,
          sizeof(child->p_sigactions));
@@ -62,7 +65,6 @@ int do_fork(pid_t *cldpidp) {
   proc_add(child);
 
   sched_add(newtd);
-  child->p_cwd = parent->p_cwd;
 
   *cldpidp = child->p_pid;
   return 0;

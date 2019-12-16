@@ -272,18 +272,22 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
   return error;
 }
 
-int do_getcwd(proc_t *p, char *bufp, char **bpp) {
+int do_getcwd(proc_t *p, char *bufp, size_t *buflen) {
   int error;
   vnode_t *uvp = p->p_cwd;
   vnode_t *lvp = NULL;
-  *bpp -= 1;
-  **bpp = '\0';
+
+  if (*buflen < 1)
+    return ENAMETOOLONG;
+  *buflen -= 1;
+  bufp[*buflen] = '\0';
 
   if (p->p_cwd == vfs_root_vnode) {
-    if (*bpp - 1 < bufp)
+    if (*buflen < 1)
       return ENAMETOOLONG;
-    *bpp -= 1;
-    **bpp = '/';
+    *buflen -= 1;
+    bufp[*buflen] = '/';
+    kprintf("XDDDD\n");
     return 0;
   }
 
@@ -303,14 +307,14 @@ int do_getcwd(proc_t *p, char *bufp, char **bpp) {
     if (lvp == NULL || uvp == lvp)
       return ENOENT;
 
-    error = vfs_name_in_dir(lvp, uvp, bufp, bpp);
+    error = vfs_name_in_dir(lvp, uvp, bufp, buflen);
     if (error)
       return error;
 
-    if (*bpp - 1 < bufp)
+    if (*buflen < 1)
       return ENAMETOOLONG;
-    *bpp -= 1;
-    **bpp = '/';
+    *buflen -= 1;
+    bufp[*buflen] = '/';
 
     uvp = lvp;
     lvp = NULL;

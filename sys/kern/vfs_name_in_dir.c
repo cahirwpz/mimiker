@@ -6,15 +6,15 @@
 #include <sys/libkern.h>
 #include <sys/vfs.h>
 
-int vfs_name_in_dir(vnode_t *dir, vnode_t *node, char *bufp, char **bpp) {
+int vfs_name_in_dir(vnode_t *dir, vnode_t *node, char *bufp, size_t *buflen) {
   int error = 0;
-  char *buf = kmalloc(M_TEMP, 1024, 0);
+  char *buf = kmalloc(M_TEMP, PATH_MAX, 0);
 
   vattr_t va;
   VOP_GETATTR(node, &va);
 
   int offset = 0;
-  uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, offset, buf, 1024);
+  uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, offset, buf, PATH_MAX);
   VOP_READDIR(dir, &uio, NULL);
 
   while (uio.uio_offset != offset) {
@@ -22,12 +22,12 @@ int vfs_name_in_dir(vnode_t *dir, vnode_t *node, char *bufp, char **bpp) {
     for (dirent_t *dir = (dirent_t *)buf; (char *)dir < buf + nread;
          dir = (dirent_t *)((char *)dir + dir->d_reclen)) {
       if (dir->d_fileno == va.va_ino) {
-        int len = strlen(dir->d_name);
-        if (*bpp - len < bufp) {
+        size_t len = strlen(dir->d_name);
+        if (*buflen < len) {
           error = ENAMETOOLONG;
         } else {
-          *bpp -= len;
-          memcpy(*bpp, dir->d_name, len);
+          *buflen -= len;
+          memcpy(bufp + *buflen, dir->d_name, len);
         }
         goto end;
       }
@@ -38,7 +38,7 @@ int vfs_name_in_dir(vnode_t *dir, vnode_t *node, char *bufp, char **bpp) {
     }
 
     offset = uio.uio_offset;
-    uio = UIO_SINGLE_KERNEL(UIO_READ, offset, buf, 1024);
+    uio = UIO_SINGLE_KERNEL(UIO_READ, offset, buf, PATH_MAX);
     VOP_READDIR(dir, &uio, NULL);
   }
   panic("Failed to find child node in parent directory");
