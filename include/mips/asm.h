@@ -164,7 +164,8 @@
 #define SNESTED(x, fsize, retpc)                                               \
   .ent _C_LABEL(x), 0;                                                         \
   _C_LABEL(x) :;                                                               \
-  .frame sp, fsize, retpc;
+  .frame sp, fsize, retpc;                                                     \
+  .cfi_startproc
 
 #define NON_LEAF(x, fsize, retpc) NESTED(x, fsize, retpc)
 

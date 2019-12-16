@@ -3,7 +3,7 @@
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/pool.h>
-#include <mips/exc.h>
+#include <mips/exception.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
 #include <mips/pmap.h>
@@ -24,6 +24,7 @@ static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 #define PDE_OF(pmap, vaddr) ((pmap)->pde[PDE_INDEX(vaddr)])
 #define PTE_OF(pde, vaddr) ((pte_t *)PTE_FRAME_ADDR(pde))[PTE_INDEX(vaddr)]
 #define PTE_FRAME_ADDR(pte) (PTE_PFN_OF(pte) * PAGESIZE)
+#define PAGE_OFFSET(x) ((x) & (PAGESIZE - 1))
 
 #define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
 
@@ -282,7 +283,7 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
   if (pte == empty_pte(pmap))
     return false;
 
-  *pap = PTE_FRAME_ADDR(pte);
+  *pap = PTE_FRAME_ADDR(pte) | PAGE_OFFSET(va);
   return true;
 }
 
@@ -292,6 +293,14 @@ void pmap_zero_page(vm_page_t *pg) {
 
 void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
   memcpy(PG_KSEG0_ADDR(dst), PG_KSEG0_ADDR(src), PAGESIZE);
+}
+
+void *pmap_kseg2_to_kseg0(void *va) {
+  if (!MIPS_IN_KSEG2_P(va))
+    return va;
+  paddr_t pa;
+  assert(pmap_extract(pmap_kernel(), (vaddr_t)va, &pa));
+  return (void *)MIPS_PHYS_TO_KSEG0(pa);
 }
 
 /* TODO: at any given moment there're two page tables in use:

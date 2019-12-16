@@ -1,6 +1,6 @@
 #include <mips/asm.h>
 #include <mips/m32c0.h>
-#include <mips/ctx.h>
+#include <mips/context.h>
 #include <mips/pcpu.h>
 #include <mips/regdef.h>
 
@@ -12,7 +12,7 @@
         .local ctx_save
 
 #
-# void ctx_switch(thread_t *from, thread_t *to)
+# long ctx_switch(thread_t *from, thread_t *to)
 #
 NESTED(ctx_switch, CTX_FRAME_SIZE, ra)
         # disable interrupts saving SR to t0
