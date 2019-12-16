@@ -34,7 +34,7 @@ __noreturn void kernel_init(void) {
   sysinit();
   klog("Kernel initialized!");
 
-  set_kasan_ready();
+  kasan_init();
 
   thread_t *main_thread = thread_create("main", kmain, NULL, prio_kthread(0));
   sched_add(main_thread);
