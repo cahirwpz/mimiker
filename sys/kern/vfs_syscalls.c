@@ -311,7 +311,6 @@ int do_getcwd(proc_t *p, char *bufp, size_t *buflen) {
       return ENAMETOOLONG;
     *buflen -= 1;
     bufp[*buflen] = '/';
-    kprintf("XDDDD\n");
     return 0;
   }
 
