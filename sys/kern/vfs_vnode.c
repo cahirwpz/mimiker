@@ -205,7 +205,7 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   fp->f_ops = &default_vnode_fileops;
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
-  switch (mode) {
+  switch (mode & O_ACCMODE) {
     case O_RDONLY:
       fp->f_flags = FF_READ;
       break;
@@ -215,9 +215,11 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
     case O_RDWR:
       fp->f_flags = FF_READ | FF_WRITE;
       break;
-    default:
-      return EINVAL;
   }
+
+  if (mode & O_APPEND)
+    fp->f_flags |= FF_APPEND;
+
   return 0;
 }
 

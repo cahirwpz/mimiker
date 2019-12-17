@@ -12,6 +12,7 @@
 #include <sys/sysinit.h>
 #include <sys/mimiker.h>
 #include <sys/proc.h>
+#include <sys/stat.h>
 
 /* Internal state for a vnr operation. */
 typedef struct {
@@ -344,24 +345,16 @@ int vfs_namelookup(const char *path, vnode_t **vp) {
   return error;
 }
 
-int vfs_namecreate(const char *path, vnode_t **dvp, componentname_t *cn) {
+int vfs_namecreate(const char *path, vnode_t **dvp, vnode_t **vp,
+                   componentname_t *cn) {
   vnrstate_t vs;
   vnrstate_init(&vs, VNR_CREATE, path);
   int error = vfs_nameresolve(&vs);
   if (error)
     return error;
 
-  if (vs.vs_vp != NULL) {
-    if (vs.vs_vp != vs.vs_dvp)
-      vnode_put(vs.vs_dvp);
-    else
-      vnode_drop(vs.vs_dvp);
-
-    vnode_drop(vs.vs_vp);
-    return EEXIST;
-  }
-
   *dvp = vs.vs_dvp;
+  *vp = vs.vs_vp;
   memcpy(cn, &vs.vs_cn, sizeof(componentname_t));
 
   return 0;
@@ -385,14 +378,47 @@ int vfs_namedelete(const char *path, vnode_t **dvp, vnode_t **vp,
 int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   vnode_t *v;
   int error = 0;
-  error = vfs_namelookup(pathname, &v);
-  if (error)
-    return error;
-  int res = VOP_OPEN(v, flags, f);
+  if (flags & O_CREAT) {
+    vnode_t *dvp;
+    componentname_t cn;
+    if ((error = vfs_namecreate(pathname, &dvp, &v, &cn)))
+      return error;
+
+    if (v == NULL) {
+      char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
+      memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
+      namecopy[cn.cn_namelen] = 0;
+
+      vattr_t va;
+      memset(&va, 0, sizeof(vattr_t));
+      va.va_mode = S_IFREG | (mode & ALLPERMS);
+      error = VOP_CREATE(dvp, namecopy, &va, &v);
+      vnode_put(dvp);
+      kfree(M_TEMP, namecopy);
+      if (error)
+        return error;
+    } else {
+      if (v == dvp)
+        vnode_drop(dvp);
+      else
+        vnode_put(dvp);
+
+      if (mode & O_EXCL)
+        error = EEXIST;
+      mode &= ~O_CREAT;
+    }
+  } else {
+    if ((error = vfs_namelookup(pathname, &v)))
+      return error;
+  }
+
+  if (!error)
+    error = VOP_OPEN(v, flags, f);
+
   /* Drop our reference to v. We received it from vfs_namelookup, but we no
      longer need it - file f keeps its own reference to v after open. */
   vnode_drop(v);
-  return res;
+  return error;
 }
 
 SYSINIT_ADD(vfs, vfs_init, NODEPS);
