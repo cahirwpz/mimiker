@@ -85,6 +85,41 @@ void kasan_shadow_map(void *addr, size_t size) {
     kasan_md_shadow_map_page(sva + i * PAGESIZE);
 }
 
+/*
+ * In an area of size 'sz_with_redz', mark the 'size' first bytes as valid,
+ * and the rest as invalid. There are generally two use cases:
+ *  - kasan_mark(addr, origsize, size, code), with origsize < size. This marks
+ *    the redzone at the end of the buffer as invalid.
+ *  - kasan_mark(addr, size, size, 0). This marks the entire buffer as valid.
+ */
+void kasan_mark(const void *addr, size_t size, size_t sz_with_redz,
+                uint8_t code) {
+  size_t i, n, redz;
+  int8_t *shad;
+
+  assert((vaddr_t)addr % KASAN_SHADOW_SCALE_SIZE == 0);
+  redz = sz_with_redz - roundup(size, KASAN_SHADOW_SCALE_SIZE);
+  assert(redz % KASAN_SHADOW_SCALE_SIZE == 0);
+  shad = kasan_md_addr_to_shad(addr);
+
+  /* Chunks of 8 bytes, valid. */
+  n = size / KASAN_SHADOW_SCALE_SIZE;
+  for (i = 0; i < n; i++) {
+    *shad++ = 0;
+  }
+
+  /* Possibly one chunk, mid. */
+  if ((size & KASAN_SHADOW_MASK) != 0) {
+    *shad++ = (size & KASAN_SHADOW_MASK);
+  }
+
+  /* Chunks of 8 bytes, invalid. */
+  n = redz / KASAN_SHADOW_SCALE_SIZE;
+  for (i = 0; i < n; i++) {
+    *shad++ = code;
+  }
+}
+
 void kasan_init(void) {
   kasan_shadow_map(__kernel_start,
                    (vaddr_t)vm_kernel_end - (vaddr_t)__kernel_start);
