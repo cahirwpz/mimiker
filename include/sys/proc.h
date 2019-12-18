@@ -7,12 +7,12 @@
 #include <sys/condvar.h>
 #include <sys/signal.h>
 #include <sys/vm_map.h>
-#include <sys/vnode.h>
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
 typedef struct pgrp pgrp_t;
 typedef struct fdtab fdtab_t;
+typedef struct vnode vnode_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
 typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
 

@@ -5,6 +5,7 @@
 #include <sys/libkern.h>
 #include <sys/vm_map.h>
 #include <sys/proc.h>
+#include <sys/vnode.h>
 #include <sys/sbrk.h>
 
 int do_fork(pid_t *cldpidp) {

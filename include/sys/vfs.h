@@ -67,7 +67,7 @@ int do_symlink(proc_t *p, char *path, char *link);
 ssize_t do_readlink(proc_t *p, char *path, char *buf, size_t count);
 int do_rename(proc_t *p, char *from, char *to);
 int do_chdir(proc_t *p, char *path);
-int do_getcwd(proc_t *p, char *bufp, size_t *len);
+int do_getcwd(proc_t *p, char *bufp, size_t *lenp);
 int do_umask(proc_t *p, int newmask, int *oldmaskp);
 int do_ioctl(proc_t *p, int fd, u_long cmd, void *data);
 
@@ -92,8 +92,8 @@ int vfs_namedelete(const char *path, vnode_t **dvp, vnode_t **vp,
 /* Looks up the vnode corresponding to the pathname and opens it into f. */
 int vfs_open(file_t *f, char *pathname, int flags, int mode);
 
-/* Finds name of node in directory. */
-int vfs_name_in_dir(vnode_t *dir, vnode_t *node, char *bufp, size_t *len);
+/* Finds name of v-node in given directory. */
+int vfs_name_in_dir(vnode_t *dv, vnode_t *v, char *bufp, size_t *lenp);
 
 #endif /* !_KERNEL */
 
