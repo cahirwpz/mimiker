@@ -26,6 +26,7 @@ SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"));
 
 __noreturn void kernel_init(void) {
   vm_page_init();
+  kasan_init();
   pool_bootstrap();
   kmem_bootstrap();
   kmalloc_bootstrap();
@@ -33,8 +34,6 @@ __noreturn void kernel_init(void) {
 
   sysinit();
   klog("Kernel initialized!");
-
-  kasan_init();
 
   thread_t *main_thread = thread_create("main", kmain, NULL, prio_kthread(0));
   sched_add(main_thread);
