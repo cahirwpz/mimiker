@@ -8,16 +8,14 @@ int test_getcwd(void) {
   getcwd(buffer, 256);
   assert(strcmp("/", buffer) == 0);
 
-  if (chdir("/bin") == -1) {
+  if (chdir("/bin") < 0)
     return 1;
-  }
 
   getcwd(buffer, 256);
   assert(strcmp("/bin", buffer) == 0);
 
-  if (chdir("/dev/") == -1) {
+  if (chdir("/dev/") < 0)
     return 1;
-  }
 
   getcwd(buffer, 256);
   assert(strcmp("/dev", buffer) == 0);

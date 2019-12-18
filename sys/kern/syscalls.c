@@ -336,19 +336,23 @@ static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
   size_t len = args->len;
   int error;
 
-  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
-  size_t path_len = PATH_MAX;
+  if (len == 0)
+    return EINVAL;
 
-  if ((error = do_getcwd(p, path, &path_len)))
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+  size_t last = PATH_MAX;
+
+  /* We're going to construct the path backwards! */
+  if ((error = do_getcwd(p, path, &last)))
     goto end;
 
-  size_t path_len_used = PATH_MAX - path_len;
-  if (path_len_used > len) {
+  size_t used = PATH_MAX - last;
+  if (used > len) {
     error = ERANGE;
     goto end;
   }
 
-  error = copyout(path + path_len, u_buf, path_len_used);
+  error = copyout(&path[last], u_buf, used);
 
 end:
   kfree(M_TEMP, path);

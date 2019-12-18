@@ -306,52 +306,52 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
   return error;
 }
 
-int do_getcwd(proc_t *p, char *buf, size_t *lenp) {
-  int error;
+int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
+  assert(*lastp == PATH_MAX);
+
   vnode_t *uvp = p->p_cwd;
   vnode_t *lvp = NULL;
+  int error;
 
-  if (*lenp < 1)
-    return ENAMETOOLONG;
-  *lenp -= 1;
-  buf[*lenp] = '\0';
+  /* Last writable position in provided buffer. */
+  size_t last = *lastp;
 
+  /* Let's start with terminating NUL. */
+  buf[--last] = '\0';
+
+  /* Handle special case for root directory. */
   if (p->p_cwd == vfs_root_vnode) {
-    if (*lenp < 1)
-      return ENAMETOOLONG;
-    *lenp -= 1;
-    buf[*lenp] = '/';
-    return 0;
+    buf[--last] = '/';
+    goto end;
   }
 
-  for (int i = 0; i < PATH_MAX; i++) {
-    while (uvp->v_mount) {
+  for (;;) {
+    while (uvp->v_mount)
       uvp = uvp->v_mount->mnt_vnodecovered;
-    }
 
     if (uvp == vfs_root_vnode)
       break;
 
     componentname_t cn = COMPONENTNAME("..");
-    error = VOP_LOOKUP(uvp, &cn, &lvp);
-    if (error)
+    if ((error = VOP_LOOKUP(uvp, &cn, &lvp)))
       return error;
 
     if (lvp == NULL || uvp == lvp)
       return ENOENT;
 
-    error = vfs_name_in_dir(lvp, uvp, buf, lenp);
-    if (error)
+    if ((error = vfs_name_in_dir(lvp, uvp, buf, &last)))
       return error;
 
-    if (*lenp < 1)
+    if (last == 0)
       return ENAMETOOLONG;
-    *lenp -= 1;
-    buf[*lenp] = '/';
+
+    buf[--last] = '/'; /* Prepend component separator. */
 
     uvp = lvp;
     lvp = NULL;
   }
 
+end:
+  *lastp = last;
   return 0;
 }
