@@ -310,7 +310,6 @@ end:
   return error;
 }
 
-/* TODO: not implemented */
 static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
   const char *u_path = args->path;
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
@@ -321,12 +320,12 @@ static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
     goto end;
 
   vnode_t *cwd;
-  error = vfs_namelookup(path, &cwd);
-  if (error)
+  if ((error = vfs_namelookup(path, &cwd)))
     goto end;
 
   vnode_drop(p->p_cwd);
   p->p_cwd = cwd;
+
 end:
   kfree(M_TEMP, path);
   return error;
@@ -335,12 +334,12 @@ end:
 static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
   char *u_buf = args->buf;
   size_t len = args->len;
+  int error;
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t path_len = PATH_MAX;
 
-  int error = do_getcwd(p, path, &path_len);
-  if (error)
+  if ((error = do_getcwd(p, path, &path_len)))
     goto end;
 
   size_t path_len_used = PATH_MAX - path_len;
@@ -349,7 +348,8 @@ static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
     goto end;
   }
 
-  copyout(path + path_len, u_buf, path_len_used);
+  error = copyout(path + path_len, u_buf, path_len_used);
+
 end:
   kfree(M_TEMP, path);
   return error;
