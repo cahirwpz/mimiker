@@ -31,6 +31,10 @@
 #ifndef _MIPS_M32C0_H_
 #define _MIPS_M32C0_H_
 
+#ifndef _MACHDEP
+#error "Do not use this header file outside kernel machine dependent code!"
+#endif
+
 /*
  * MIPS32 Exception Codes
  */

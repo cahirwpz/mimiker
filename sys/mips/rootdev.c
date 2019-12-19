@@ -1,7 +1,8 @@
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
 #include <mips/malta.h>
-#include <mips/intr.h>
+#include <mips/mips.h>
+#include <mips/interrupt.h>
 #include <sys/bus.h>
 #include <sys/exception.h>
 #include <sys/pci.h>

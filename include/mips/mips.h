@@ -1,7 +1,9 @@
 #ifndef _MIPS_MIPS_H_
 #define _MIPS_MIPS_H_
 
-#include <mips/m32c0.h>
+#ifndef _MACHDEP
+#error "Do not use this header file outside kernel machine dependent code!"
+#endif
 
 /*
  * Initial virtual address space is partitioned into four segments:

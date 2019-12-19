@@ -2,8 +2,8 @@ include <sys/context.h>
 include <sys/thread.h>
 include <sys/pcpu.h>
 include <sys/proc.h>
-include <mips/ctx.h>
-include <mips/exc.h>
+include <mips/context.h>
+include <mips/exception.h>
 
 define TDF_NEEDSWITCH TDF_NEEDSWITCH
 define TDF_NEEDSIGCHK TDF_NEEDSIGCHK
