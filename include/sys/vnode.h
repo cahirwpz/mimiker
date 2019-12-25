@@ -35,6 +35,7 @@ typedef int vnode_read_t(vnode_t *v, uio_t *uio);
 typedef int vnode_write_t(vnode_t *v, uio_t *uio);
 typedef int vnode_seek_t(vnode_t *v, off_t oldoff, off_t newoff, void *state);
 typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
+typedef int vnode_setattr_t(vnode_t *v, vattr_t *va);
 typedef int vnode_create_t(vnode_t *dv, const char *name, vattr_t *va,
                            vnode_t **vp);
 typedef int vnode_remove_t(vnode_t *dv, vnode_t *v, const char *name);
@@ -54,6 +55,7 @@ typedef struct vnodeops {
   vnode_write_t *v_write;
   vnode_seek_t *v_seek;
   vnode_getattr_t *v_getattr;
+  vnode_setattr_t *v_setattr;
   vnode_create_t *v_create;
   vnode_remove_t *v_remove;
   vnode_mkdir_t *v_mkdir;
@@ -98,6 +100,7 @@ typedef struct vattr {
 } vattr_t;
 
 void va_convert(vattr_t *va, stat_t *sb);
+void va_null(vattr_t *va);
 
 #define VOP_CALL(op, v, ...)                                                   \
   ((v)->v_ops->v_##op) ? ((v)->v_ops->v_##op(v, ##__VA_ARGS__)) : ENOTSUP
@@ -133,6 +136,10 @@ static inline int VOP_SEEK(vnode_t *v, off_t oldoff, off_t newoff,
 
 static inline int VOP_GETATTR(vnode_t *v, vattr_t *va) {
   return VOP_CALL(getattr, v, va);
+}
+
+static inline int VOP_SETATTR(vnode_t *v, vattr_t *va) {
+  return VOP_CALL(setattr, v, va);
 }
 
 static inline int VOP_CREATE(vnode_t *dv, const char *name, vattr_t *va,

@@ -70,11 +70,7 @@ static int vnode_nop(vnode_t *v, ...) {
 #define vnode_reclaim_nop vnode_nop
 
 static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
-  *va = (vattr_t){.va_mode = VNOVAL,
-                  .va_nlink = VNOVAL,
-                  .va_uid = VNOVAL,
-                  .va_gid = VNOVAL,
-                  .va_size = VNOVAL};
+  va_null(va);
   return 0;
 }
 
@@ -109,6 +105,16 @@ void va_convert(vattr_t *va, stat_t *sb) {
   sb->st_uid = va->va_uid;
   sb->st_gid = va->va_gid;
   sb->st_size = va->va_size;
+}
+
+void va_null(vattr_t *va) {
+  va->va_mode = V_NONE;
+
+  va->va_nlink = VNOVAL;
+  va->va_ino = VNOVAL;
+  va->va_uid = VNOVAL;
+  va->va_gid = VNOVAL;
+  va->va_size = VNOVAL;
 }
 
 /* Default file operations using v-nodes. */

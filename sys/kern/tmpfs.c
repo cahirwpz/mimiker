@@ -163,6 +163,10 @@ static int tmpfs_vop_getattr(vnode_t *v, vattr_t *va) {
   return 0;
 }
 
+static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va) {
+  return ENOTSUP;
+}
+
 static int tmpfs_vop_create(vnode_t *dv, const char *name, vattr_t *va,
                             vnode_t **vp) {
   assert(S_ISREG(va->va_mode));
@@ -225,6 +229,7 @@ static vnodeops_t tmpfs_vnodeops = {.v_lookup = tmpfs_vop_lookup,
                                     .v_write = tmpfs_vop_write,
                                     .v_seek = tmpfs_vop_seek,
                                     .v_getattr = tmpfs_vop_getattr,
+                                    .v_setattr = tmpfs_vop_setattr,
                                     .v_create = tmpfs_vop_create,
                                     .v_remove = tmpfs_vop_remove,
                                     .v_mkdir = tmpfs_vop_mkdir,

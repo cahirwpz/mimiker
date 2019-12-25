@@ -389,7 +389,7 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
       namecopy[cn.cn_namelen] = 0;
 
       vattr_t va;
-      memset(&va, 0, sizeof(vattr_t));
+      va_null(&va);
       va.va_mode = S_IFREG | (mode & ALLPERMS);
       error = VOP_CREATE(dvp, namecopy, &va, &v);
       vnode_put(dvp);
