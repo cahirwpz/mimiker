@@ -396,6 +396,7 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
       kfree(M_TEMP, namecopy);
       if (error)
         return error;
+      flags &= ~O_TRUNC;
     } else {
       if (v == dvp)
         vnode_drop(dvp);
@@ -409,6 +410,13 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   } else {
     if ((error = vfs_namelookup(pathname, &v)))
       return error;
+  }
+
+  if (!error && flags & O_TRUNC) {
+    vattr_t va;
+    va_null(&va);
+    va.va_size = 0;
+    error = VOP_SETATTR(v, &va);
   }
 
   if (!error)
