@@ -1,8 +1,8 @@
 #define KL_LOG KL_PMAP
 #include <sys/klog.h>
-#include <sys/physmem.h>
 #include <sys/pmap.h>
 #include <sys/vm.h>
+#include <sys/vm_physmem.h>
 
 bool pmap_clear_referenced(vm_page_t *pg) {
   bool prev = pmap_is_referenced(pg);
@@ -24,12 +24,10 @@ bool pmap_is_modified(vm_page_t *pg) {
   return pg->flags & PG_MODIFIED;
 }
 
-void pmap_set_referenced(paddr_t pa) {
-  vm_page_t *pg = pm_find_page(pa);
+void pmap_set_referenced(vm_page_t *pg) {
   pg->flags |= PG_REFERENCED;
 }
 
-void pmap_set_modified(paddr_t pa) {
-  vm_page_t *pg = pm_find_page(pa);
+void pmap_set_modified(vm_page_t *pg) {
   pg->flags |= PG_MODIFIED;
 }

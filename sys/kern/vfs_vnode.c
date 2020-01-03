@@ -16,7 +16,7 @@ static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
    - but this will do for now. */
 
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
-  vnode_t *v = pool_alloc(P_VNODE, PF_ZERO);
+  vnode_t *v = pool_alloc(P_VNODE, M_ZERO);
   v->v_type = type;
   v->v_data = data;
   v->v_ops = ops;
@@ -43,6 +43,11 @@ void vnode_drop(vnode_t *v) {
     VOP_RECLAIM(v);
     pool_free(P_VNODE, v);
   }
+}
+
+void vnode_put(vnode_t *v) {
+  vnode_unlock(v);
+  vnode_drop(v);
 }
 
 static int vnode_nop(vnode_t *v, ...) {
@@ -200,7 +205,7 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   fp->f_ops = &default_vnode_fileops;
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
-  switch (mode) {
+  switch (mode & O_ACCMODE) {
     case O_RDONLY:
       fp->f_flags = FF_READ;
       break;
@@ -210,9 +215,11 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
     case O_RDWR:
       fp->f_flags = FF_READ | FF_WRITE;
       break;
-    default:
-      return EINVAL;
   }
+
+  if (mode & O_APPEND)
+    fp->f_flags |= FF_APPEND;
+
   return 0;
 }
 

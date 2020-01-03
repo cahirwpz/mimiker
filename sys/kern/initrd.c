@@ -2,6 +2,7 @@
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/pool.h>
+#include <sys/kmem.h>
 #include <sys/libkern.h>
 #include <cpio.h>
 #include <sys/initrd.h>
@@ -50,7 +51,7 @@ static cpio_node_t *root_node;
 static vnodeops_t initrd_vops;
 
 static cpio_node_t *cpio_node_alloc(void) {
-  cpio_node_t *node = pool_alloc(P_INITRD, PF_ZERO);
+  cpio_node_t *node = pool_alloc(P_INITRD, M_ZERO);
   TAILQ_INIT(&node->c_children);
   return node;
 }
@@ -122,7 +123,7 @@ static const char *basename(const char *path) {
 }
 
 static void read_cpio_archive(void) {
-  void *tape = (void *)ramdisk_get_start();
+  void *tape = kmem_map(ramdisk_get_start(), ramdisk_get_size());
 
   while (true) {
     cpio_node_t *node = cpio_node_alloc();
@@ -191,32 +192,32 @@ static ino_t initrd_enum_inodes(cpio_node_t *parent, ino_t ino) {
   return ino;
 }
 
-static vnode_t* vnode_of_cpio_node(cpio_node_t *cpio_node)
-{
-  if (!cpio_node->c_vnode) {
+static vnode_t *vnode_of_cpio_node(cpio_node_t *cn) {
+  if (!cn->c_vnode) {
     vnodetype_t type = V_REG;
-    if (CMTOFT(cpio_node->c_mode) == C_DIR)
+    if (CMTOFT(cn->c_mode) == C_DIR)
       type = V_DIR;
 
-    cpio_node->c_vnode = vnode_new(type, &initrd_vops, cpio_node);
+    cn->c_vnode = vnode_new(type, &initrd_vops, cn);
   }
 
-  vnode_hold(cpio_node->c_vnode);
-  return cpio_node->c_vnode;
+  vnode_hold(cn->c_vnode);
+  return cn->c_vnode;
 }
 
-static int initrd_vnode_lookup(vnode_t *vdir, const char *name, vnode_t **res) {
+static int initrd_vnode_lookup(vnode_t *vdir, componentname_t *cn,
+                               vnode_t **res) {
   cpio_node_t *it;
   cpio_node_t *cn_dir = (cpio_node_t *)vdir->v_data;
 
   TAILQ_FOREACH (it, &cn_dir->c_children, c_siblings) {
-    if (strcmp(name, it->c_name) == 0) {
+    if (componentname_equal(cn, it->c_name)) {
       *res = vnode_of_cpio_node(it);
       return 0;
     }
   }
 
-  if (strcmp(name, "..") == 0 && cn_dir->c_parent) {
+  if (componentname_equal(cn, "..") && cn_dir->c_parent) {
     it = cn_dir->c_parent;
     *res = vnode_of_cpio_node(it);
     return 0;
@@ -320,11 +321,6 @@ static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_access = vnode_access_generic};
 
 static int initrd_init(vfsconf_t *vfc) {
-  /* Ramdisk start & end addresses are expected to be page aligned. */
-  assert(page_aligned_p(ramdisk_get_start()));
-  /* If the size is page aligned, the end address is as well. */
-  assert(page_aligned_p(ramdisk_get_size()));
-
   vnodeops_init(&initrd_vops);
 
   klog("parsing cpio archive of %u bytes", ramdisk_get_size());

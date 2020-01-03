@@ -53,6 +53,12 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(setjmp);
   CHECKRUN_TEST(sigaction_with_setjmp);
   CHECKRUN_TEST(sigaction_handler_returns);
+  CHECKRUN_TEST(vfs_dir);
+
+  CHECKRUN_TEST(setpgid);
+  CHECKRUN_TEST(kill);
+  CHECKRUN_TEST(killpg_same_group);
+  CHECKRUN_TEST(killpg_other_group);
 
   CHECKRUN_TEST(fpu_fcsr);
   CHECKRUN_TEST(fpu_gpr_preservation);

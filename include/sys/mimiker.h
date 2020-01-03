@@ -15,7 +15,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 
-#define log2(x) (__builtin_ffs(x) - 1)
+#define log2(x) (CHAR_BIT * sizeof(unsigned long) - __builtin_clzl(x) - 1)
 #define ffs(x) (size_t)(__builtin_ffs(x))
 #define clz(x) (size_t)(__builtin_clz(x))
 #define ctz(x) (size_t)(__builtin_ctz(x))
@@ -132,5 +132,9 @@ void assert_fail(const char *expr, const char *file, unsigned int line);
 
 /* Global definitions used throught kernel. */
 __noreturn void kernel_init(void);
+
+/* Initial range of virtual addresses used by kernel image. */
+extern char __kernel_start[];
+extern char __kernel_end[];
 
 #endif /* !_SYS_MIMIKER_H_ */

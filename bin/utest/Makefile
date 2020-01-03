@@ -10,12 +10,14 @@ SOURCES = \
 	main.c \
 	misbehave.c \
 	mmap.c \
+	pgrp.c \
 	sbrk.c \
 	signal.c \
 	stat.c \
 	setjmp.c \
 	sigaction.c \
-	utest.c
+	utest.c \
+	vfs.c
 
 PROGRAM = utest
 

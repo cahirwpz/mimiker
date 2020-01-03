@@ -98,6 +98,8 @@ UTEST_ADD_SIMPLE(setjmp);
 UTEST_ADD_SIMPLE(sigaction_with_setjmp);
 UTEST_ADD_SIMPLE(sigaction_handler_returns);
 
+UTEST_ADD_SIMPLE(vfs_dir);
+
 #if 0
 UTEST_ADD_SIMPLE(fpu_fcsr);
 UTEST_ADD_SIMPLE(fpu_gpr_preservation);
@@ -112,3 +114,8 @@ UTEST_ADD_SIGNAL(exc_integer_overflow, SIGFPE);
 
 UTEST_ADD_SIMPLE(exc_sigsys);
 /* XXX UTEST_ADD_SIMPLE(syscall_in_bds); */
+
+UTEST_ADD_SIMPLE(setpgid);
+UTEST_ADD_SIMPLE(kill);
+UTEST_ADD_SIMPLE(killpg_same_group);
+UTEST_ADD_SIMPLE(killpg_other_group);

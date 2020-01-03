@@ -5,7 +5,7 @@
 #include <sys/errno.h>
 #include <sys/mutex.h>
 
-static MALLOC_DEFINE(M_FD, "filedesc", PAGESIZE * 2);
+static KMALLOC_DEFINE(M_FD, "filedesc", PAGESIZE * 2);
 
 /* Test whether a file descriptor is in use. */
 static int fd_is_used(fdtab_t *fdt, int fd) {

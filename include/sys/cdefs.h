@@ -65,9 +65,19 @@
 #define __likely(x) __builtin_expect((x), 1)
 #define __unlikely(x) __builtin_expect((x), 0)
 #define __restrict restrict
+#ifdef __mips__
 #define __long_call __attribute__((long_call))
+#else
+#define __long_call
+#endif
 #define __transparent_union __attribute__((__transparent_union__))
+
+/* Clang introduces support for the fallthrough attribute in C2x. */
+#ifdef __clang__
+#define __fallthrough
+#else
 #define __fallthrough __attribute__((fallthrough))
+#endif
 
 /*
  * Compiler-dependent macros to declare that functions take printf-like

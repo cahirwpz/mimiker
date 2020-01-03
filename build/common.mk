@@ -38,7 +38,7 @@ DSTPATH = $(DIR)$@
 
 assym.h: genassym.cf
 	@echo "[ASSYM] $(DSTPATH)"
-	$(GENASSYM) $(CC) $(CFLAGS) $(CPPFLAGS) < $^ > $@
+	$(GENASSYM) $(CC) $(ASSYM_CFLAGS) $(CFLAGS) $(CPPFLAGS) < $^ > $@
 
 include $(TOPDIR)/config.mk
 include $(TOPDIR)/build/arch.$(ARCH).mk

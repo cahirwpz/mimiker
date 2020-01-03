@@ -3,8 +3,7 @@
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/pool.h>
-#include <sys/physmem.h>
-#include <mips/exc.h>
+#include <mips/exception.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
 #include <mips/pmap.h>
@@ -17,6 +16,7 @@
 #include <sys/mutex.h>
 #include <sys/sched.h>
 #include <sys/sysinit.h>
+#include <sys/vm_physmem.h>
 #include <bitstring.h>
 
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
@@ -24,6 +24,9 @@ static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 #define PDE_OF(pmap, vaddr) ((pmap)->pde[PDE_INDEX(vaddr)])
 #define PTE_OF(pde, vaddr) ((pte_t *)PTE_FRAME_ADDR(pde))[PTE_INDEX(vaddr)]
 #define PTE_FRAME_ADDR(pte) (PTE_PFN_OF(pte) * PAGESIZE)
+#define PAGE_OFFSET(x) ((x) & (PAGESIZE - 1))
+
+#define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
 
 static bool is_valid(pte_t pte) {
   return pte & PTE_VALID;
@@ -57,6 +60,10 @@ extern pde_t _kernel_pmap_pde[PD_ENTRIES];
 static pmap_t kernel_pmap;
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
+
+static inline pte_t empty_pte(pmap_t *pmap) {
+  return (pmap == &kernel_pmap) ? PTE_GLOBAL : 0;
+}
 
 static asid_t alloc_asid(void) {
   int free;
@@ -104,9 +111,9 @@ void pmap_reset(pmap_t *pmap) {
   while (!TAILQ_EMPTY(&pmap->pte_pages)) {
     vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
     TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
-    pm_free(pg);
+    vm_page_free(pg);
   }
-  pm_free(pmap->pde_page);
+  vm_page_free(pmap->pde_page);
   free_asid(pmap->asid);
 }
 
@@ -116,10 +123,10 @@ void pmap_bootstrap(void) {
 }
 
 pmap_t *pmap_new(void) {
-  pmap_t *pmap = pool_alloc(P_PMAP, PF_ZERO);
+  pmap_t *pmap = pool_alloc(P_PMAP, M_ZERO);
   pmap_setup(pmap);
 
-  pmap->pde_page = pm_alloc(1);
+  pmap->pde_page = vm_page_alloc(1);
   pmap->pde = PG_KSEG0_ADDR(pmap->pde_page);
   klog("Page directory table allocated at %p", (vaddr_t)pmap->pde);
 
@@ -158,7 +165,7 @@ static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte) {
 static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
   assert(!is_valid(PDE_OF(pmap, vaddr)));
 
-  vm_page_t *pg = pm_alloc(1);
+  vm_page_t *pg = vm_page_alloc(1);
   pte_t *pte = PG_KSEG0_ADDR(pg);
 
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
@@ -189,6 +196,18 @@ static pte_t vm_prot_map[] = {
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
 };
 
+void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot) {
+  pmap_t *pmap = &kernel_pmap;
+
+  assert(pmap_address_p(pmap, va));
+  assert(pa != 0);
+
+  klog("Enter unmanaged mapping from %p to %p", va, pa);
+
+  WITH_MTX_LOCK (&pmap->mtx)
+    pmap_pte_write(pmap, va, PTE_PFN(pa) | vm_prot_map[prot] | PTE_GLOBAL);
+}
+
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
   vaddr_t va_end = va + PG_SIZE(pg);
   paddr_t pa = PG_START(pg);
@@ -210,6 +229,21 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
   }
 }
 
+void pmap_kremove(vaddr_t start, vaddr_t end) {
+  pmap_t *pmap = &kernel_pmap;
+
+  assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
+  assert(pmap_contains_p(pmap, start, end));
+
+  klog("%s: remove unmanaged mapping for %p - %p range", __func__, start,
+       end - 1);
+
+  WITH_MTX_LOCK (&kernel_pmap.mtx) {
+    for (vaddr_t va = start; va < end; va += PAGESIZE)
+      pmap_pte_write(pmap, va, PTE_GLOBAL);
+  }
+}
+
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
   assert(pmap_contains_p(pmap, start, end));
@@ -218,7 +252,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE)
-      pmap_pte_write(pmap, va, 0);
+      pmap_pte_write(pmap, va, empty_pte(pmap));
 
     /* TODO: Deallocate empty page table fragment by calling pmap_remove_pde. */
   }
@@ -241,12 +275,32 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   }
 }
 
+bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
+  if (!pmap_address_p(pmap, va))
+    return false;
+
+  pte_t pte = pmap_pte_read(pmap, va);
+  if (pte == empty_pte(pmap))
+    return false;
+
+  *pap = PTE_FRAME_ADDR(pte) | PAGE_OFFSET(va);
+  return true;
+}
+
 void pmap_zero_page(vm_page_t *pg) {
   bzero(PG_KSEG0_ADDR(pg), PAGESIZE);
 }
 
 void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
   memcpy(PG_KSEG0_ADDR(dst), PG_KSEG0_ADDR(src), PAGESIZE);
+}
+
+void *pmap_kseg2_to_kseg0(void *va) {
+  if (!MIPS_IN_KSEG2_P(va))
+    return va;
+  paddr_t pa;
+  assert(pmap_extract(pmap_kernel(), (vaddr_t)va, &pa));
+  return (void *)MIPS_PHYS_TO_KSEG0(pa);
 }
 
 /* TODO: at any given moment there're two page tables in use:
@@ -302,14 +356,16 @@ void tlb_exception_handler(exc_frame_t *frame) {
   paddr_t pa = PTE_FRAME_ADDR(pte);
 
   if (pa) {
+    vm_page_t *pg = vm_page_find(pa);
+
     if ((pte & PTE_VALID) == 0 && code == EXC_TLBL) {
-      pmap_set_referenced(pa);
+      pmap_set_referenced(pg);
       pmap_pte_write(pmap, vaddr, pte | PTE_VALID);
       return;
     }
     if ((pte & PTE_DIRTY) == 0 && (code == EXC_TLBS || code == EXC_MOD)) {
-      pmap_set_referenced(pa);
-      pmap_set_modified(pa);
+      pmap_set_referenced(pg);
+      pmap_set_modified(pg);
       pmap_pte_write(pmap, vaddr, pte | PTE_DIRTY | PTE_VALID);
       return;
     }

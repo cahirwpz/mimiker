@@ -10,6 +10,7 @@
 #include <sys/errno.h>
 #include <sys/filedesc.h>
 #include <sys/sbrk.h>
+#include <sys/syslimits.h>
 #include <sys/vfs.h>
 #include <sys/ustack.h>
 #include <sys/mount.h>
@@ -231,7 +232,7 @@ static int open_executable(const char *path, vnode_t **vn_p) {
   klog("Loading program '%s'", path);
 
   /* Translate program name to vnode. */
-  if ((error = vfs_lookup(path, &vn)))
+  if ((error = vfs_namelookup(path, &vn)))
     return error;
 
   /* It must be a regular executable file with non-zero size. */
@@ -277,12 +278,12 @@ static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
    * a bit lower so that it is easier to spot invalid memory access
    * when the stack underflows.
    */
-  *stack_top_p = USTACK_TOP;
+  *stack_top_p = USER_STACK_TOP;
 
   vm_object_t *stack_obj = vm_object_alloc(VM_ANONYMOUS);
   vm_segment_t *stack_seg =
-    vm_segment_alloc(stack_obj, USTACK_TOP - USTACK_SIZE, USTACK_TOP,
-                     VM_PROT_READ | VM_PROT_WRITE);
+    vm_segment_alloc(stack_obj, USER_STACK_TOP - USER_STACK_SIZE,
+                     USER_STACK_TOP, VM_PROT_READ | VM_PROT_WRITE);
   int error = vm_map_insert(p->p_uspace, stack_seg, VM_FIXED);
   assert(error == 0);
 
@@ -314,9 +315,9 @@ static int _do_execve(exec_args_t *args) {
   assert(p != NULL);
 
   bool use_interpreter = false;
-
+  char *prog;
   for (;;) {
-    char *prog = args->interp ? args->interp : args->path;
+    prog = args->interp ? args->interp : args->path;
 
     if ((error = open_executable(prog, &vn))) {
       klog("No file found: '%s'!", prog);
@@ -364,6 +365,9 @@ static int _do_execve(exec_args_t *args) {
   destroy_vmspace(&saved);
 
   vm_map_dump(p->p_uspace);
+
+  kfree(M_STR, p->p_elfpath);
+  p->p_elfpath = kstrndup(M_STR, prog, PATH_MAX);
 
   klog("Enter userspace with: pc=%p, sp=%p", eh.e_entry, stack_top);
   return EJUSTRETURN;

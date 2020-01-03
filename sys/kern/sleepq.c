@@ -96,7 +96,7 @@ static void sleepq_init(void) {
 static POOL_DEFINE(P_SLEEPQ, "sleepq", sizeof(sleepq_t));
 
 sleepq_t *sleepq_alloc(void) {
-  sleepq_t *sq = pool_alloc(P_SLEEPQ, PF_ZERO);
+  sleepq_t *sq = pool_alloc(P_SLEEPQ, M_ZERO);
   sq_ctor(sq);
   return sq;
 }
