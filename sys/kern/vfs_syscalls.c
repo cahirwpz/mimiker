@@ -309,6 +309,7 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
 int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   assert(*lastp == PATH_MAX);
 
+  vnode_hold(p->p_cwd);
   vnode_t *uvp = p->p_cwd;
   vnode_t *lvp = NULL;
   int error;
@@ -327,7 +328,13 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
 
   for (;;) {
     while (uvp->v_mount)
-      uvp = uvp->v_mount->mnt_vnodecovered;
+    {
+      lvp = uvp->v_mount->mnt_vnodecovered;
+      vnode_hold(lvp);
+      vnode_drop(uvp);
+      uvp = lvp;
+      lvp = NULL;
+    }
 
     if (uvp == vfs_root_vnode)
       break;
@@ -336,7 +343,7 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
     if ((error = VOP_LOOKUP(uvp, &cn, &lvp)))
       return error;
 
-    if (lvp == NULL || uvp == lvp)
+    if (uvp == lvp)
       return ENOENT;
 
     if ((error = vfs_name_in_dir(lvp, uvp, buf, &last)))
@@ -347,11 +354,15 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
 
     buf[--last] = '/'; /* Prepend component separator. */
 
+    vnode_drop(uvp);
     uvp = lvp;
     lvp = NULL;
   }
 
 end:
+  vnode_drop(uvp);
+  if (lvp)
+    vnode_drop(lvp);
   *lastp = last;
   return 0;
 }
