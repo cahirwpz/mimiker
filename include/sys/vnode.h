@@ -99,8 +99,8 @@ typedef struct vattr {
   size_t va_size;   /* file size in bytes */
 } vattr_t;
 
-void va_convert(vattr_t *va, stat_t *sb);
-void va_null(vattr_t *va);
+void vattr_init(vattr_t *va);
+void vattr_convert(vattr_t *va, stat_t *sb);
 
 #define VOP_CALL(op, v, ...)                                                   \
   ((v)->v_ops->v_##op) ? ((v)->v_ops->v_##op(v, ##__VA_ARGS__)) : ENOTSUP

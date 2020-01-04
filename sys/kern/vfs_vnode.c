@@ -70,7 +70,7 @@ static int vnode_nop(vnode_t *v, ...) {
 #define vnode_reclaim_nop vnode_nop
 
 static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
-  va_null(va);
+  vattr_init(va);
   return 0;
 }
 
@@ -98,7 +98,7 @@ void vnodeops_init(vnodeops_t *vops) {
   NOP_IF_NULL(vops, reclaim);
 }
 
-void va_convert(vattr_t *va, stat_t *sb) {
+void vattr_convert(vattr_t *va, stat_t *sb) {
   memset(sb, 0, sizeof(stat_t));
   sb->st_mode = va->va_mode;
   sb->st_nlink = va->va_nlink;
@@ -107,7 +107,7 @@ void va_convert(vattr_t *va, stat_t *sb) {
   sb->st_size = va->va_size;
 }
 
-void va_null(vattr_t *va) {
+void vattr_init(vattr_t *va) {
   va->va_mode = V_NONE;
 
   va->va_nlink = VNOVAL;
@@ -138,7 +138,7 @@ static int default_vnstat(file_t *f, stat_t *sb) {
   int error;
   if ((error = VOP_GETATTR(v, &va)))
     return error;
-  va_convert(&va, sb);
+  vattr_convert(&va, sb);
   return 0;
 }
 
