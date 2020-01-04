@@ -99,7 +99,7 @@ typedef struct vattr {
   size_t va_size;   /* file size in bytes */
 } vattr_t;
 
-void vattr_init(vattr_t *va);
+void vattr_null(vattr_t *va);
 void vattr_convert(vattr_t *va, stat_t *sb);
 
 #define VOP_CALL(op, v, ...)                                                   \

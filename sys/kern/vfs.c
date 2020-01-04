@@ -389,7 +389,7 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
       namecopy[cn.cn_namelen] = 0;
 
       vattr_t va;
-      vattr_init(&va);
+      vattr_null(&va);
       va.va_mode = S_IFREG | (mode & ALLPERMS);
       error = VOP_CREATE(dvp, namecopy, &va, &v);
       vnode_put(dvp);
@@ -414,7 +414,7 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
 
   if (!error && flags & O_TRUNC) {
     vattr_t va;
-    vattr_init(&va);
+    vattr_null(&va);
     va.va_size = 0;
     error = VOP_SETATTR(v, &va);
   }

@@ -70,7 +70,7 @@ static int vnode_nop(vnode_t *v, ...) {
 #define vnode_reclaim_nop vnode_nop
 
 static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
-  vattr_init(va);
+  vattr_null(va);
   return 0;
 }
 
@@ -107,7 +107,7 @@ void vattr_convert(vattr_t *va, stat_t *sb) {
   sb->st_size = va->va_size;
 }
 
-void vattr_init(vattr_t *va) {
+void vattr_null(vattr_t *va) {
   va->va_mode = V_NONE;
 
   va->va_nlink = VNOVAL;
