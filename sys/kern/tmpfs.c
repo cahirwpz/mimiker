@@ -225,7 +225,14 @@ static int tmpfs_vop_getattr(vnode_t *v, vattr_t *va) {
 }
 
 static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va) {
-  return ENOTSUP;
+  tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
+  tmpfs_node_t *node = TMPFS_NODE_OF(v);
+
+  if (va->va_size != (size_t)VNOVAL) {
+    tmpfs_reg_resize(tfm, node, va->va_size);
+  }
+
+  return 0;
 }
 
 static int tmpfs_vop_create(vnode_t *dv, const char *name, vattr_t *va,
