@@ -22,7 +22,6 @@ int vfs_name_in_dir(vnode_t *dv, vnode_t *v, char *buf, size_t *lastp) {
 
   for (;;) {
     uio = UIO_SINGLE_KERNEL(UIO_READ, offset, dirents, PATH_MAX);
-    klog("XDDDDD \n");
     if ((error = VOP_READDIR(dv, &uio, NULL)))
       goto end;
 

@@ -321,14 +321,21 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   buf[--last] = '\0';
 
   /* Handle special case for root directory. */
-  if (p->p_cwd == vfs_root_vnode) {
+  while (uvp->v_mount) {
+    lvp = uvp->v_mount->mnt_vnodecovered;
+    vnode_hold(lvp);
+    vnode_drop(uvp);
+    uvp = lvp;
+    lvp = NULL;
+  }
+
+  if (uvp == vfs_root_vnode) {
     buf[--last] = '/';
     goto end;
   }
 
   for (;;) {
-    while (uvp->v_mount)
-    {
+    while (uvp->v_mount) {
       lvp = uvp->v_mount->mnt_vnodecovered;
       vnode_hold(lvp);
       vnode_drop(uvp);
