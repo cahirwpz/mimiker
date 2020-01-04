@@ -15,6 +15,8 @@ typedef struct dirent dirent_t;
 typedef struct stat stat_t;
 typedef struct componentname componentname_t;
 
+/* Indicates that given field of vattr structure does not hold a value.
+ * vnodeops should not modify attributes set to VNOVAL. */
 #define VNOVAL (-1)
 
 /* vnode access modes */
