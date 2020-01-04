@@ -95,7 +95,7 @@ int do_stat(proc_t *p, char *path, stat_t *sb) {
   if ((error = VOP_GETATTR(v, &va)))
     goto fail;
 
-  va_convert(&va, sb);
+  vattr_convert(&va, sb);
 
 fail:
   vnode_drop(v);
