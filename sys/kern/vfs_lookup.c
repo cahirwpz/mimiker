@@ -5,6 +5,7 @@
 #include <sys/malloc.h>
 #include <sys/libkern.h>
 #include <sys/vfs.h>
+#include <sys/mount.h>
 
 int vfs_name_in_dir(vnode_t *dv, vnode_t *v, char *buf, size_t *lastp) {
   int error = 0;
@@ -50,4 +51,20 @@ end:
   *lastp = last;
   kfree(M_TEMP, dirents);
   return error;
+}
+
+void vfs_uncover_node(vnode_t** node)
+{
+  vnode_t *uvp = *node;
+  vnode_t *lvp = NULL;
+
+  while (uvp->v_mount) {
+    lvp = uvp->v_mount->mnt_vnodecovered;
+    vnode_hold(lvp);
+    vnode_drop(uvp);
+    uvp = lvp;
+    lvp = NULL;
+  }
+
+  *node = uvp;
 }

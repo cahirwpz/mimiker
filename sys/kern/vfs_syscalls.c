@@ -321,30 +321,14 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   buf[--last] = '\0';
 
   /* Handle special case for root directory. */
-  while (uvp->v_mount) {
-    lvp = uvp->v_mount->mnt_vnodecovered;
-    vnode_hold(lvp);
-    vnode_drop(uvp);
-    uvp = lvp;
-    lvp = NULL;
-  }
+  vfs_uncover_node(&uvp);
 
   if (uvp == vfs_root_vnode) {
     buf[--last] = '/';
     goto end;
   }
 
-  for (;;) {
-    while (uvp->v_mount) {
-      lvp = uvp->v_mount->mnt_vnodecovered;
-      vnode_hold(lvp);
-      vnode_drop(uvp);
-      uvp = lvp;
-      lvp = NULL;
-    }
-
-    if (uvp == vfs_root_vnode)
-      break;
+  do {
 
     componentname_t cn = COMPONENTNAME("..");
     if ((error = VOP_LOOKUP(uvp, &cn, &lvp)))
@@ -364,7 +348,10 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
     vnode_drop(uvp);
     uvp = lvp;
     lvp = NULL;
-  }
+
+    vfs_uncover_node(&uvp);
+
+  } while (uvp != vfs_root_vnode);
 
 end:
   vnode_drop(uvp);
