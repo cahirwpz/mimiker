@@ -312,7 +312,7 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   vnode_hold(p->p_cwd);
   vnode_t *uvp = p->p_cwd;
   vnode_t *lvp = NULL;
-  int error;
+  int error = 0;
 
   /* Last writable position in provided buffer. */
   size_t last = *lastp;
@@ -331,16 +331,20 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   do {
     componentname_t cn = COMPONENTNAME("..");
     if ((error = VOP_LOOKUP(uvp, &cn, &lvp)))
-      return error;
+      break;
 
-    if (uvp == lvp)
-      return ENOENT;
+    if (uvp == lvp) {
+      error = ENOENT;
+      break;
+    }
 
     if ((error = vfs_name_in_dir(lvp, uvp, buf, &last)))
-      return error;
+      break;
 
-    if (last == 0)
-      return ENAMETOOLONG;
+    if (last == 0) {
+      error = ENAMETOOLONG;
+      break;
+    }
 
     buf[--last] = '/'; /* Prepend component separator. */
 
@@ -355,5 +359,5 @@ end:
   if (lvp)
     vnode_drop(lvp);
   *lastp = last;
-  return 0;
+  return error;
 }
