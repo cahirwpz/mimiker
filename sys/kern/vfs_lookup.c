@@ -53,8 +53,7 @@ end:
   return error;
 }
 
-void vfs_uncover_node(vnode_t** node)
-{
+void vfs_uncover_node(vnode_t **node) {
   vnode_t *uvp = *node;
   vnode_t *lvp = NULL;
 

@@ -95,8 +95,9 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode);
 /* Finds name of v-node in given directory. */
 int vfs_name_in_dir(vnode_t *dv, vnode_t *v, char *buf, size_t *lastp);
 
-/* Uncovers a node under the mounted node until it reaches the node that isn't mounted */
-void vfs_uncover_node(vnode_t** node);
+/* Uncovers a node under the mounted node until it reaches the node that isn't
+ * mounted */
+void vfs_uncover_node(vnode_t **node);
 
 #endif /* !_KERNEL */
 
