@@ -294,7 +294,7 @@ static readdir_ops_t cpio_readdir_ops = {
   .convert = cpio_to_dirent,
 };
 
-static int initrd_vnode_readdir(vnode_t *v, uio_t *uio, void *state) {
+static int initrd_vnode_readdir(vnode_t *v, uio_t *uio) {
   return readdir_generic(v, uio, &cpio_readdir_ops);
 }
 

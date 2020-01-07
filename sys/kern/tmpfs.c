@@ -133,7 +133,7 @@ static int tmpfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
   return tmpfs_get_vnode(mp, de->tfd_node, vp);
 }
 
-static int tmpfs_vop_readdir(vnode_t *dv, uio_t *uio, void *state) {
+static int tmpfs_vop_readdir(vnode_t *dv, uio_t *uio) {
   return readdir_generic(dv, uio, &tmpfs_readdir_ops);
 }
 
@@ -149,7 +149,7 @@ static int tmpfs_vop_write(vnode_t *v, uio_t *uio) {
   return EOPNOTSUPP;
 }
 
-static int tmpfs_vop_seek(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
+static int tmpfs_vop_seek(vnode_t *v, off_t oldoff, off_t newoff) {
   return EOPNOTSUPP;
 }
 
