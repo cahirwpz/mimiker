@@ -52,14 +52,11 @@ void vnode_put(vnode_t *v) {
 }
 
 vnode_t *vnode_uncover(vnode_t *uvp) {
-  vnode_t *lvp = NULL;
-
   while (uvp->v_mount) {
-    lvp = uvp->v_mount->mnt_vnodecovered;
+    vnode_t *lvp = uvp->v_mount->mnt_vnodecovered;
     vnode_hold(lvp);
     vnode_drop(uvp);
     uvp = lvp;
-    lvp = NULL;
   }
 
   return uvp;
