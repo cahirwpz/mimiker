@@ -23,6 +23,8 @@
 #define DIRECT_BLK_NO 6              /* Number of direct block addresses. */
 #define INDIRECT_BLK_NO INDIR_LEVELS /* Number of indirect block addresses. */
 
+typedef void *blkptr_t;
+
 typedef struct tmpfs_dirent {
   TAILQ_ENTRY(tmpfs_dirent) tfd_entries; /* node on dirent list */
   struct tmpfs_node *tfd_node;           /* pointer to the file's node */
@@ -49,8 +51,8 @@ typedef struct tmpfs_node {
       tmpfs_dirent_list_t dirents; /* List of directory entries. */
     } tfn_dir;
     struct {
-      void *direct_blocks[DIRECT_BLK_NO];
-      void *indirect_blocks[INDIRECT_BLK_NO];
+      blkptr_t direct[DIRECT_BLK_NO];
+      blkptr_t indirect[INDIRECT_BLK_NO];
       size_t nblocks; /* Number of blocks used by this file. */
     } tfn_reg;
   };
@@ -98,7 +100,7 @@ static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
                                         const componentname_t *cn);
 static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de);
 
-static void *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t bn);
+static void *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t blkno);
 static int tmpfs_reg_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v,
                             size_t newsize);
 
@@ -458,44 +460,43 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de) {
 }
 
 /*
- * tmpfs_dir_detach: get sequence of block pointers and offsets pointing to the
- * data block with number bn.
+ * tmpfs_reg_get_blk_indir: get sequence of block pointers and offsets pointing
+ * to the data block with number blkno.
  */
-static int tmpfs_reg_get_blk_indir(tmpfs_node_t *v, size_t bn, void **blkptr,
-                                   size_t *blkoff) {
-  if (bn < DIRECT_BLK_NO) {
-    blkptr[0] = v->tfn_reg.direct_blocks;
-    blkoff[0] = bn;
+static int tmpfs_reg_get_blk_indir(tmpfs_node_t *v, size_t blkno,
+                                   blkptr_t *blkptr, size_t *blkoff) {
+  if (blkno < DIRECT_BLK_NO) {
+    blkptr[0] = v->tfn_reg.direct;
+    blkoff[0] = blkno;
     return 1;
   }
 
-  int levels = 0;
-  bn -= DIRECT_BLK_NO;
+  blkno -= DIRECT_BLK_NO;
 
-  int log_blockcnt = 0;
-  int i = INDIR_LEVELS;
-  while (i > 0) {
-    log_blockcnt += INDIR_IN_BLK_LOG;
-    size_t blockcnt = 1 << log_blockcnt;
-    if (bn < blockcnt)
+  int log_blkcnt = 0;
+  int i;
+
+  for (i = INDIR_LEVELS; i > 0; i--) {
+    log_blkcnt += INDIR_IN_BLK_LOG;
+    size_t blkcnt = 1 << log_blkcnt;
+    if (blkno < blkcnt)
       break;
-    bn -= blockcnt;
-    i--;
+    blkno -= blkcnt;
   }
 
   /* File too big */
   assert(i != 0);
 
-  blkoff[levels] = INDIR_LEVELS - i;
-  levels++;
+  blkoff[0] = INDIR_LEVELS - i;
 
+  int levels = 1;
   for (; i <= INDIR_LEVELS; i++) {
-    log_blockcnt -= INDIR_IN_BLK_LOG;
-    blkoff[levels] = (bn >> log_blockcnt) & BLOCK_MASK;
+    log_blkcnt -= INDIR_IN_BLK_LOG;
+    blkoff[levels] = (blkno >> log_blkcnt) & BLOCK_MASK;
     levels++;
   }
 
-  void **bp = v->tfn_reg.indirect_blocks;
+  blkptr_t *bp = v->tfn_reg.indirect;
   for (i = 0; i < levels; i++) {
     blkptr[i] = bp;
 
@@ -507,14 +508,14 @@ static int tmpfs_reg_get_blk_indir(tmpfs_node_t *v, size_t bn, void **blkptr,
   return levels;
 }
 
-static int tmpfs_reg_alloc_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t bn,
-                               size_t *blkcnt) {
-  void *ptrs[INDIR_LEVELS + 1];
+static int tmpfs_reg_alloc_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v,
+                               size_t blkno, size_t *blkcnt) {
+  blkptr_t ptrs[INDIR_LEVELS + 1];
   size_t indirs[INDIR_LEVELS + 1];
-  int levels = tmpfs_reg_get_blk_indir(v, bn, ptrs, indirs);
+  int levels = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
 
   for (int i = 0; i < levels; i++) {
-    void *bp = ((void **)ptrs[i])[indirs[i]];
+    blkptr_t bp = ((blkptr_t *)ptrs[i])[indirs[i]];
 
     /* Last block should not be allocated */
     if (i == levels - 1)
@@ -525,7 +526,7 @@ static int tmpfs_reg_alloc_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t bn,
       if (!bp)
         return ENOMEM;
       (*blkcnt)++;
-      ((void **)ptrs[i])[indirs[i]] = bp;
+      ((blkptr_t *)ptrs[i])[indirs[i]] = bp;
       if (i != levels - 1)
         ptrs[i + 1] = bp;
     }
@@ -533,18 +534,18 @@ static int tmpfs_reg_alloc_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t bn,
   return 0;
 }
 
-static void tmpfs_reg_free_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t bn,
-                               size_t *blkcnt) {
-  void *ptrs[INDIR_LEVELS + 1];
+static void tmpfs_reg_free_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v,
+                               size_t blkno, size_t *blkcnt) {
+  blkptr_t ptrs[INDIR_LEVELS + 1];
   size_t indirs[INDIR_LEVELS + 1];
-  int levels = tmpfs_reg_get_blk_indir(v, bn, ptrs, indirs);
+  int levels = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
 
-  free_block(tfm, ((void **)ptrs[levels - 1])[indirs[levels - 1]]);
+  free_block(tfm, ((blkptr_t *)ptrs[levels - 1])[indirs[levels - 1]]);
   (*blkcnt)++;
   bool last_freed = true;
   for (int i = levels - 1; i >= 0; i--) {
     if (last_freed)
-      ((void **)ptrs[i])[indirs[i]] = NULL;
+      ((blkptr_t *)ptrs[i])[indirs[i]] = NULL;
     if (i > 0 && last_freed && indirs[i] == 0) {
       free_block(tfm, ptrs[i]);
       (*blkcnt)++;
@@ -554,12 +555,12 @@ static void tmpfs_reg_free_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t bn,
   }
 }
 
-static void *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t bn) {
-  void *ptrs[INDIR_LEVELS + 1];
+static void *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t blkno) {
+  blkptr_t ptrs[INDIR_LEVELS + 1];
   size_t indirs[INDIR_LEVELS + 1];
-  int levels = tmpfs_reg_get_blk_indir(v, bn, ptrs, indirs);
+  int levels = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
 
-  return ((void **)ptrs[levels - 1])[indirs[levels - 1]];
+  return (void *)((blkptr_t *)ptrs[levels - 1])[indirs[levels - 1]];
 }
 
 /*
