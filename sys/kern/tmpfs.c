@@ -15,6 +15,8 @@
 
 #define BLOCK_SIZE PAGESIZE
 #define BLOCK_MASK (BLOCK_SIZE - 1)
+#define BLKNO(x) ((x) / BLOCK_SIZE)
+#define BLKOFF(x) ((x) % BLOCK_SIZE)
 #define NBLOCKS(x) (((x) + BLOCK_SIZE - 1) / BLOCK_SIZE)
 
 #define INDIR_LEVELS 2
@@ -64,12 +66,16 @@ typedef struct tmpfs_mount {
   ino_t tfm_next_ino;
 } tmpfs_mount_t;
 
-static void *alloc_block(tmpfs_mount_t *tfm) {
-  return kmem_alloc(PAGESIZE, M_ZERO);
+static blkptr_t alloc_block(tmpfs_mount_t *tfm, tmpfs_node_t *v) {
+  blkptr_t ptr = kmem_alloc(PAGESIZE, M_ZERO);
+  if (ptr)
+    v->tfn_reg.nblocks++;
+  return ptr;
 }
 
-static void free_block(tmpfs_mount_t *tfm, void *ptr) {
+static void free_block(tmpfs_mount_t *tfm, tmpfs_node_t *v, blkptr_t ptr) {
   kmem_free(ptr, PAGESIZE);
+  v->tfn_reg.nblocks--;
 }
 
 static POOL_DEFINE(P_TMPFS_NODE, "tmpfs node", sizeof(tmpfs_node_t));
@@ -176,9 +182,9 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio) {
   int error = 0;
 
   while ((remaining = MIN(node->tfn_size - uio->uio_offset, uio->uio_resid))) {
-    size_t blkoff = uio->uio_offset % BLOCK_SIZE;
+    size_t blkoff = BLKOFF(uio->uio_offset);
     size_t len = MIN(BLOCK_SIZE - blkoff, remaining);
-    size_t blkno = uio->uio_offset / BLOCK_SIZE;
+    size_t blkno = BLKNO(uio->uio_offset);
     void *blk = tmpfs_reg_get_blk(node, blkno);
     if ((error = uiomove(blk + blkoff, len, uio)))
       break;
@@ -197,9 +203,9 @@ static int tmpfs_vop_write(vnode_t *v, uio_t *uio) {
       return error;
 
   while (uio->uio_resid > 0) {
-    size_t blkoff = uio->uio_offset % BLOCK_SIZE;
+    size_t blkoff = BLKOFF(uio->uio_offset);
     size_t len = MIN(BLOCK_SIZE - blkoff, uio->uio_resid);
-    size_t blkno = uio->uio_offset / BLOCK_SIZE;
+    size_t blkno = BLKNO(uio->uio_offset);
     void *blk = tmpfs_reg_get_blk(node, blkno);
     if ((error = uiomove(blk + blkoff, len, uio)))
       break;
@@ -508,49 +514,55 @@ static int tmpfs_reg_get_blk_indir(tmpfs_node_t *v, size_t blkno,
   return levels;
 }
 
-static int tmpfs_reg_alloc_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v,
-                               size_t blkno, size_t *blkcnt) {
-  blkptr_t ptrs[INDIR_LEVELS + 1];
-  size_t indirs[INDIR_LEVELS + 1];
-  int levels = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
+static int tmpfs_reg_expand(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t oldblks,
+                            size_t newblks) {
+  assert(oldblks < newblks);
 
-  for (int i = 0; i < levels; i++) {
-    blkptr_t bp = ((blkptr_t *)ptrs[i])[indirs[i]];
+  for (size_t blkno = oldblks; blkno < newblks; blkno++) {
+    blkptr_t ptrs[INDIR_LEVELS + 1];
+    size_t indirs[INDIR_LEVELS + 1];
+    int levels = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
 
-    /* Last block should not be allocated */
-    if (i == levels - 1)
-      assert(bp == 0);
+    for (int i = 0; i < levels; i++) {
+      blkptr_t bp = ((blkptr_t *)ptrs[i])[indirs[i]];
 
-    if (bp == 0) {
-      bp = alloc_block(tfm);
-      if (!bp)
-        return ENOMEM;
-      (*blkcnt)++;
-      ((blkptr_t *)ptrs[i])[indirs[i]] = bp;
-      if (i != levels - 1)
-        ptrs[i + 1] = bp;
+      /* Last block should not be allocated */
+      if (i == levels - 1)
+        assert(bp == 0);
+
+      if (bp == 0) {
+        bp = alloc_block(tfm, v);
+        if (!bp)
+          return ENOMEM;
+        ((blkptr_t *)ptrs[i])[indirs[i]] = bp;
+        if (i != levels - 1)
+          ptrs[i + 1] = bp;
+      }
     }
   }
+
   return 0;
 }
 
-static void tmpfs_reg_free_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v,
-                               size_t blkno, size_t *blkcnt) {
-  blkptr_t ptrs[INDIR_LEVELS + 1];
-  size_t indirs[INDIR_LEVELS + 1];
-  int levels = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
+static void tmpfs_reg_shrink(tmpfs_mount_t *tfm, tmpfs_node_t *v,
+                             size_t oldblks, size_t newblks) {
+  assert(oldblks > newblks);
 
-  free_block(tfm, ((blkptr_t *)ptrs[levels - 1])[indirs[levels - 1]]);
-  (*blkcnt)++;
-  bool last_freed = true;
-  for (int i = levels - 1; i >= 0; i--) {
-    if (last_freed)
-      ((blkptr_t *)ptrs[i])[indirs[i]] = NULL;
-    if (i > 0 && last_freed && indirs[i] == 0) {
-      free_block(tfm, ptrs[i]);
-      (*blkcnt)++;
-    } else {
-      last_freed = false;
+  for (size_t blkno = oldblks - 1; blkno + 1 > newblks; blkno--) {
+    blkptr_t ptrs[INDIR_LEVELS + 1];
+    size_t indirs[INDIR_LEVELS + 1];
+    int levels = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
+    free_block(tfm, v, ((blkptr_t *)ptrs[levels - 1])[indirs[levels - 1]]);
+
+    bool last_freed = true;
+    for (int i = levels - 1; i >= 0; i--) {
+      if (last_freed)
+        ((blkptr_t *)ptrs[i])[indirs[i]] = NULL;
+      if (i > 0 && last_freed && indirs[i] == 0) {
+        free_block(tfm, v, ptrs[i]);
+      } else {
+        last_freed = false;
+      }
     }
   }
 }
@@ -576,22 +588,17 @@ static int tmpfs_reg_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v,
   int error;
 
   if (newblks > oldblks) {
-    size_t blkcnt = 0;
-    for (size_t blkno = oldblks; blkno < newblks; blkno++)
-      if ((error = tmpfs_reg_alloc_blk(tfm, v, blkno, &blkcnt)))
-        return error;
-    v->tfn_reg.nblocks += blkcnt;
+    if ((error = tmpfs_reg_expand(tfm, v, oldblks, newblks)))
+      return error;
   } else if (newsize < oldsize) {
-    size_t blkcnt = 0;
-    size_t blkno;
-    for (blkno = oldblks - 1; blkno + 1 > newblks; blkno--)
-      tmpfs_reg_free_blk(tfm, v, blkno, &blkcnt);
-    v->tfn_reg.nblocks -= blkcnt;
+    if (newblks < oldblks)
+      tmpfs_reg_shrink(tfm, v, oldblks, newblks);
     /* If the file is not being truncated to a block boundry, the contents of
      * the partial block following the end of the file must be zero'ed */
-    size_t blkoff = newsize % BLOCK_SIZE;
+    size_t blkno = BLKNO(newsize);
+    size_t blkoff = BLKOFF(newsize);
     if (blkoff) {
-      void *blk = tmpfs_reg_get_blk(v, blkno);
+      blkptr_t blk = tmpfs_reg_get_blk(v, blkno);
       memset(blk + blkoff, 0, BLOCK_SIZE - blkoff);
     }
   }
