@@ -56,11 +56,11 @@ int test_vfs_rw(void) {
   assert(!memcmp(buff1, buff2, 1500 * sizeof(uint32_t)));
   assert_lseek_ok(0, 0, SEEK_SET);
 
-  /* Write 64KB to test indirect blocks */
-  for (int i = 0; i < 4; i++)
+  /* Write 32KB to test indirect blocks */
+  for (int i = 0; i < 2; i++)
     assert_write_ok(0, buff1, 4096 * sizeof(uint32_t));
   assert_lseek_ok(0, 0, SEEK_SET);
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 2; i++) {
     assert(read(3, buff2, 4096 * sizeof(uint32_t)) == 4096 * sizeof(uint32_t));
     assert(!memcmp(buff1, buff2, 4096 * sizeof(uint32_t)));
   }
