@@ -193,6 +193,10 @@ void vnode_drop(vnode_t *v);
 /* Unlock and release the reference. */
 void vnode_put(vnode_t *v);
 
+/* Uncovers a node under the mounted node until it reaches the node that isn't
+ * mounted */
+vnode_t *vnode_uncover(vnode_t *v);
+
 /* Convenience function with default vnode operation implementation. */
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state);

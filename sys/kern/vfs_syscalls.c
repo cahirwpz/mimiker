@@ -321,7 +321,7 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   buf[--last] = '\0';
 
   /* Handle special case for root directory. */
-  vfs_uncover_node(&uvp);
+  uvp = vnode_uncover(uvp);
 
   if (uvp == vfs_root_vnode) {
     buf[--last] = '/';
@@ -329,7 +329,6 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   }
 
   do {
-
     componentname_t cn = COMPONENTNAME("..");
     if ((error = VOP_LOOKUP(uvp, &cn, &lvp)))
       return error;
@@ -346,11 +345,9 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
     buf[--last] = '/'; /* Prepend component separator. */
 
     vnode_drop(uvp);
-    uvp = lvp;
+
+    uvp = vnode_uncover(lvp);
     lvp = NULL;
-
-    vfs_uncover_node(&uvp);
-
   } while (uvp != vfs_root_vnode);
 
 end:
