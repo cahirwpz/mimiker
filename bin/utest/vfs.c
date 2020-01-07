@@ -9,7 +9,6 @@
 #include <unistd.h>
 #include <string.h>
 
-static int n;
 #define FD_OFFSET 3
 #include "utest_fd.h"
 
@@ -19,9 +18,9 @@ static int n;
 #define assert_fail(expr, err) assert(expr == -1 && errno == err)
 
 /* Generate pseudo random data */
-static void gen_test_data(size_t n, uint32_t *data) {
+static void fill_random(uint32_t *data, size_t n) {
   uint32_t a = 1;
-  for (size_t i = 0; i < n; i++) {
+  for (size_t i = 0; i < n / sizeof(uint32_t); i++) {
     a ^= a << 13;
     a ^= a >> 17;
     a ^= a << 5;
@@ -30,43 +29,44 @@ static void gen_test_data(size_t n, uint32_t *data) {
 }
 
 int test_vfs_rw(void) {
-  uint32_t *buff1 = malloc(4096 * sizeof(uint32_t));
-  uint32_t *buff2 = malloc(4096 * sizeof(uint32_t));
+  int n;
 
-  gen_test_data(4096, buff1);
+  void *wrbuf = malloc(16384);
+  void *rdbuf = malloc(16384);
+
+  fill_random(wrbuf, 16384);
 
   assert_open_ok(0, TESTDIR "/file", 0, O_RDWR | O_CREAT);
 
   /* Write and read aligned amount of bytes */
-  assert_write_ok(0, buff1, 1024 * sizeof(uint32_t));
+  assert_write_ok(0, wrbuf, 4096);
   assert_lseek_ok(0, 0, SEEK_SET);
-  assert(read(3, buff2, 5000) == 4096);
-  assert(!memcmp(buff1, buff2, 1024 * sizeof(uint32_t)));
-  assert(read(3, buff2, 5000) == 0);
-  assert_lseek_ok(0, 0, SEEK_SET);
-
-  /* Write 3000 bytes in two batches and then partially read */
-  assert_write_ok(0, buff1, 2000 * sizeof(uint32_t));
-  assert_write_ok(0, buff1 + 2000, 1000 * sizeof(uint32_t));
-  assert_lseek_ok(0, 0, SEEK_SET);
-  assert(read(3, buff2, 1500 * sizeof(uint32_t)) == 1500 * sizeof(uint32_t));
-  assert(!memcmp(buff1, buff2, 1500 * sizeof(uint32_t)));
-  assert(read(3, buff2 + 1500, 3000 * sizeof(uint32_t)) ==
-         1500 * sizeof(uint32_t));
-  assert(!memcmp(buff1, buff2, 1500 * sizeof(uint32_t)));
+  assert(read(3, rdbuf, 5000) == 4096);
+  assert(!memcmp(wrbuf, rdbuf, 4096));
+  assert(read(3, rdbuf, 5000) == 0);
   assert_lseek_ok(0, 0, SEEK_SET);
 
-  /* Write 32KB to test indirect blocks */
+  /* Write 12000 bytes in two batches and then partially read */
+  assert_write_ok(0, wrbuf, 8000);
+  assert_write_ok(0, wrbuf + 8000, 4000);
+  assert_lseek_ok(0, 0, SEEK_SET);
+  assert(read(3, rdbuf, 6000) == 6000);
+  assert(!memcmp(wrbuf, rdbuf, 6000));
+  assert(read(3, rdbuf + 6000, 12000) == 6000);
+  assert(!memcmp(wrbuf, rdbuf, 6000));
+  assert_lseek_ok(0, 0, SEEK_SET);
+
+  /* Write 32KiB to test indirect blocks */
   for (int i = 0; i < 2; i++)
-    assert_write_ok(0, buff1, 4096 * sizeof(uint32_t));
+    assert_write_ok(0, wrbuf, 16384);
   assert_lseek_ok(0, 0, SEEK_SET);
   for (int i = 0; i < 2; i++) {
-    assert(read(3, buff2, 4096 * sizeof(uint32_t)) == 4096 * sizeof(uint32_t));
-    assert(!memcmp(buff1, buff2, 4096 * sizeof(uint32_t)));
+    assert(read(3, rdbuf, 16384) == 16384);
+    assert(!memcmp(wrbuf, rdbuf, 16384));
   }
 
-  free(buff1);
-  free(buff2);
+  free(wrbuf);
+  free(rdbuf);
 
   close(3);
   unlink(TESTDIR "/file");
