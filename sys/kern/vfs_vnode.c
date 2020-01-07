@@ -7,6 +7,7 @@
 #include <sys/libkern.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
+#include <sys/mount.h>
 
 static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
 
@@ -48,6 +49,17 @@ void vnode_drop(vnode_t *v) {
 void vnode_put(vnode_t *v) {
   vnode_unlock(v);
   vnode_drop(v);
+}
+
+vnode_t *vnode_uncover(vnode_t *uvp) {
+  while (uvp->v_mount) {
+    vnode_t *lvp = uvp->v_mount->mnt_vnodecovered;
+    vnode_hold(lvp);
+    vnode_drop(uvp);
+    uvp = lvp;
+  }
+
+  return uvp;
 }
 
 static int vnode_nop(vnode_t *v, ...) {
@@ -172,7 +184,7 @@ static int default_vnseek(file_t *f, off_t offset, int whence) {
   if (offset > size)
     return EINVAL;
 
-  if ((error = VOP_SEEK(v, f->f_offset, offset, f->f_data)))
+  if ((error = VOP_SEEK(v, f->f_offset, offset)))
     return error;
 
   f->f_offset = offset;
@@ -229,7 +241,7 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   return 0;
 }
 
-int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
+int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff) {
   /* Operation went ok, assuming the file is seekable. */
   return 0;
 }

@@ -409,6 +409,10 @@ __noreturn void run_program(const char *path, char *const *argv,
   fdtab_hold(fdt);
   p->p_fdtable = fdt;
 
+  /* Set current working directory to root directory */
+  vnode_hold(vfs_root_vnode);
+  p->p_cwd = vfs_root_vnode;
+
   /* ... and initialize file descriptors required by the standard library. */
   int _stdin, _stdout, _stderr;
   do_open(p, "/dev/uart", O_RDONLY, 0, &_stdin);

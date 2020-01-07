@@ -114,6 +114,7 @@ UTEST_ADD_SIGNAL(exc_unaligned_access, SIGBUS);
 UTEST_ADD_SIGNAL(exc_integer_overflow, SIGFPE);
 
 UTEST_ADD_SIMPLE(exc_sigsys);
+UTEST_ADD_SIMPLE(getcwd);
 /* XXX UTEST_ADD_SIMPLE(syscall_in_bds); */
 
 UTEST_ADD_SIMPLE(setpgid);

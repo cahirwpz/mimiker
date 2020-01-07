@@ -11,6 +11,7 @@
 #include <sys/linker_set.h>
 #include <sys/sysinit.h>
 #include <sys/mimiker.h>
+#include <sys/proc.h>
 #include <sys/stat.h>
 
 /* Internal state for a vnr operation. */

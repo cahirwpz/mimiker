@@ -54,6 +54,7 @@ int test_exc_unaligned_access(void);
 int test_syscall_in_bds(void);
 
 int test_setjmp(void);
+int test_getcwd(void);
 
 int test_sigaction_with_setjmp(void);
 int test_sigaction_handler_returns(void);
