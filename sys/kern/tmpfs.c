@@ -15,8 +15,7 @@
 
 #define BLOCK_SIZE PAGESIZE
 #define BLOCK_MASK (BLOCK_SIZE - 1)
-#define ROUND_BLOCK(x)                                                         \
-  (((x) + BLOCK_MASK) & ~BLOCK_MASK) /* Round up to block. */
+#define NBLOCKS(x) (((x) + BLOCK_SIZE - 1) / BLOCK_SIZE)
 
 #define INDIR_LEVELS 2
 #define INDIR_IN_BLK_LOG 10 /* Logarithm of number of indirects in a block. */
@@ -171,22 +170,18 @@ static int tmpfs_vop_close(vnode_t *v, file_t *fp) {
 
 static int tmpfs_vop_read(vnode_t *v, uio_t *uio) {
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
+  size_t remaining;
   int error = 0;
 
-  while (uio->uio_resid > 0) {
-    size_t remaining = MIN(node->tfn_size - uio->uio_offset, uio->uio_resid);
-    if (remaining == 0)
-      break;
-
-    size_t blkoffset = uio->uio_offset % BLOCK_SIZE;
-    size_t len = MIN(BLOCK_SIZE - blkoffset, remaining);
-
-    size_t bn = uio->uio_offset / BLOCK_SIZE;
-    void *blk = tmpfs_reg_get_blk(node, bn);
-
-    if ((error = uiomove((char *)blk + blkoffset, len, uio)))
+  while ((remaining = MIN(node->tfn_size - uio->uio_offset, uio->uio_resid))) {
+    size_t blkoff = uio->uio_offset % BLOCK_SIZE;
+    size_t len = MIN(BLOCK_SIZE - blkoff, remaining);
+    size_t blkno = uio->uio_offset / BLOCK_SIZE;
+    void *blk = tmpfs_reg_get_blk(node, blkno);
+    if ((error = uiomove(blk + blkoff, len, uio)))
       break;
   }
+
   return error;
 }
 
@@ -195,21 +190,19 @@ static int tmpfs_vop_write(vnode_t *v, uio_t *uio) {
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
   int error = 0;
 
-  if (uio->uio_offset + uio->uio_resid > node->tfn_size) {
+  if (uio->uio_offset + uio->uio_resid > node->tfn_size)
     if ((error = tmpfs_reg_resize(tfm, node, uio->uio_offset + uio->uio_resid)))
       return error;
-  }
 
   while (uio->uio_resid > 0) {
-    size_t blkoffset = uio->uio_offset % BLOCK_SIZE;
-    size_t len = MIN(BLOCK_SIZE - blkoffset, uio->uio_resid);
-
-    size_t bn = uio->uio_offset / BLOCK_SIZE;
-    void *blk = tmpfs_reg_get_blk(node, bn);
-
-    if ((error = uiomove((char *)blk + blkoffset, len, uio)))
+    size_t blkoff = uio->uio_offset % BLOCK_SIZE;
+    size_t len = MIN(BLOCK_SIZE - blkoff, uio->uio_resid);
+    size_t blkno = uio->uio_offset / BLOCK_SIZE;
+    void *blk = tmpfs_reg_get_blk(node, blkno);
+    if ((error = uiomove(blk + blkoff, len, uio)))
       break;
   }
+
   return error;
 }
 
@@ -228,9 +221,8 @@ static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
 
-  if (va->va_size != (size_t)VNOVAL) {
+  if (va->va_size != (size_t)VNOVAL)
     tmpfs_reg_resize(tfm, node, va->va_size);
-  }
 
   return 0;
 }
@@ -338,13 +330,14 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vnodetype_t ntype) {
   switch (node->tfn_type) {
     case V_DIR:
       TAILQ_INIT(&node->tfn_dir.dirents);
-
       /* Extra link count for the '.' entry. */
       node->tfn_links++;
       break;
+
     case V_REG:
       node->tfn_reg.nblocks = 0;
       break;
+
     default:
       panic("bad node type %d", node->tfn_type);
   }
@@ -361,9 +354,11 @@ static void tmpfs_free_node(tmpfs_mount_t *tfm, tmpfs_node_t *tfn) {
     case V_REG:
       tmpfs_reg_resize(tfm, tfn, 0);
       break;
+
     default:
       break;
   }
+
   pool_free(P_TMPFS_NODE, tfn);
 }
 
@@ -513,7 +508,7 @@ static int tmpfs_reg_get_blk_indir(tmpfs_node_t *v, size_t bn, void **blkptr,
 }
 
 static int tmpfs_reg_alloc_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t bn,
-                               size_t *alloc_no) {
+                               size_t *blkcnt) {
   void *ptrs[INDIR_LEVELS + 1];
   size_t indirs[INDIR_LEVELS + 1];
   int levels = tmpfs_reg_get_blk_indir(v, bn, ptrs, indirs);
@@ -529,7 +524,7 @@ static int tmpfs_reg_alloc_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t bn,
       bp = alloc_block(tfm);
       if (!bp)
         return ENOMEM;
-      (*alloc_no)++;
+      (*blkcnt)++;
       ((void **)ptrs[i])[indirs[i]] = bp;
       if (i != levels - 1)
         ptrs[i + 1] = bp;
@@ -539,20 +534,20 @@ static int tmpfs_reg_alloc_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t bn,
 }
 
 static void tmpfs_reg_free_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t bn,
-                               size_t *disalloc_no) {
+                               size_t *blkcnt) {
   void *ptrs[INDIR_LEVELS + 1];
   size_t indirs[INDIR_LEVELS + 1];
   int levels = tmpfs_reg_get_blk_indir(v, bn, ptrs, indirs);
 
   free_block(tfm, ((void **)ptrs[levels - 1])[indirs[levels - 1]]);
-  (*disalloc_no)++;
+  (*blkcnt)++;
   bool last_freed = true;
   for (int i = levels - 1; i >= 0; i--) {
     if (last_freed)
       ((void **)ptrs[i])[indirs[i]] = NULL;
     if (i > 0 && last_freed && indirs[i] == 0) {
       free_block(tfm, ptrs[i]);
-      (*disalloc_no)++;
+      (*blkcnt)++;
     } else {
       last_freed = false;
     }
@@ -574,34 +569,29 @@ static int tmpfs_reg_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v,
                             size_t newsize) {
   assert(v->tfn_type == V_REG);
 
-  int error;
   size_t oldsize = v->tfn_size;
-  size_t old_data_blocks = ROUND_BLOCK(oldsize) / BLOCK_SIZE;
-  size_t new_data_blocks = ROUND_BLOCK(newsize) / BLOCK_SIZE;
+  size_t oldblks = NBLOCKS(oldsize);
+  size_t newblks = NBLOCKS(newsize);
+  int error;
 
-  if (new_data_blocks > old_data_blocks) {
-    size_t bn = old_data_blocks;
-    size_t alloc_no = 0;
-    while (bn < new_data_blocks) {
-      if ((error = tmpfs_reg_alloc_blk(tfm, v, bn, &alloc_no)))
+  if (newblks > oldblks) {
+    size_t blkcnt = 0;
+    for (size_t blkno = oldblks; blkno < newblks; blkno++)
+      if ((error = tmpfs_reg_alloc_blk(tfm, v, blkno, &blkcnt)))
         return error;
-      bn++;
-    }
-    v->tfn_reg.nblocks += alloc_no;
+    v->tfn_reg.nblocks += blkcnt;
   } else if (newsize < oldsize) {
-    size_t bn = old_data_blocks - 1;
-    size_t disalloc_no = 0;
-    while (bn + 1 > new_data_blocks) {
-      tmpfs_reg_free_blk(tfm, v, bn, &disalloc_no);
-      bn--;
-    }
-    v->tfn_reg.nblocks -= disalloc_no;
+    size_t blkcnt = 0;
+    size_t blkno;
+    for (blkno = oldblks - 1; blkno + 1 > newblks; blkno--)
+      tmpfs_reg_free_blk(tfm, v, blkno, &blkcnt);
+    v->tfn_reg.nblocks -= blkcnt;
     /* If the file is not being truncated to a block boundry, the contents of
      * the partial block following the end of the file must be zero'ed */
-    size_t blkoffset = newsize % BLOCK_SIZE;
-    if (blkoffset != 0) {
-      void *bp = tmpfs_reg_get_blk(v, bn);
-      memset(bp + blkoffset, 0, BLOCK_SIZE - blkoffset);
+    size_t blkoff = newsize % BLOCK_SIZE;
+    if (blkoff) {
+      void *blk = tmpfs_reg_get_blk(v, blkno);
+      memset(blk + blkoff, 0, BLOCK_SIZE - blkoff);
     }
   }
 
