@@ -172,7 +172,7 @@ static int default_vnseek(file_t *f, off_t offset, int whence) {
   if (offset > size)
     return EINVAL;
 
-  if ((error = VOP_SEEK(v, f->f_offset, offset, f->f_data)))
+  if ((error = VOP_SEEK(v, f->f_offset, offset)))
     return error;
 
   f->f_offset = offset;
@@ -229,7 +229,7 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   return 0;
 }
 
-int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
+int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff) {
   /* Operation went ok, assuming the file is seekable. */
   return 0;
 }

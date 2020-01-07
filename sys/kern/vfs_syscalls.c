@@ -169,7 +169,7 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
     return error;
 
   uio->uio_offset = f->f_offset;
-  error = VOP_READDIR(f->f_vnode, uio, f->f_data);
+  error = VOP_READDIR(f->f_vnode, uio);
   f->f_offset = uio->uio_offset;
   *basep = f->f_offset;
   file_drop(f);

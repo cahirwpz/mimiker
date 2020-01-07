@@ -30,12 +30,12 @@ typedef enum {
 } vnodetype_t;
 
 typedef int vnode_lookup_t(vnode_t *dv, componentname_t *cn, vnode_t **vp);
-typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio, void *state);
+typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio);
 typedef int vnode_open_t(vnode_t *v, int mode, file_t *fp);
 typedef int vnode_close_t(vnode_t *v, file_t *fp);
 typedef int vnode_read_t(vnode_t *v, uio_t *uio);
 typedef int vnode_write_t(vnode_t *v, uio_t *uio);
-typedef int vnode_seek_t(vnode_t *v, off_t oldoff, off_t newoff, void *state);
+typedef int vnode_seek_t(vnode_t *v, off_t oldoff, off_t newoff);
 typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
 typedef int vnode_setattr_t(vnode_t *v, vattr_t *va);
 typedef int vnode_create_t(vnode_t *dv, const char *name, vattr_t *va,
@@ -111,8 +111,8 @@ static inline int VOP_LOOKUP(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
   return VOP_CALL(lookup, dv, cn, vp);
 }
 
-static inline int VOP_READDIR(vnode_t *dv, uio_t *uio, void *data) {
-  return VOP_CALL(readdir, dv, uio, data);
+static inline int VOP_READDIR(vnode_t *dv, uio_t *uio) {
+  return VOP_CALL(readdir, dv, uio);
 }
 
 static inline int VOP_OPEN(vnode_t *v, int mode, file_t *fp) {
@@ -131,9 +131,8 @@ static inline int VOP_WRITE(vnode_t *v, uio_t *uio) {
   return VOP_CALL(write, v, uio);
 }
 
-static inline int VOP_SEEK(vnode_t *v, off_t oldoff, off_t newoff,
-                           void *state) {
-  return VOP_CALL(seek, v, oldoff, newoff, state);
+static inline int VOP_SEEK(vnode_t *v, off_t oldoff, off_t newoff) {
+  return VOP_CALL(seek, v, oldoff, newoff);
 }
 
 static inline int VOP_GETATTR(vnode_t *v, vattr_t *va) {
@@ -194,7 +193,7 @@ void vnode_put(vnode_t *v);
 
 /* Convenience function with default vnode operation implementation. */
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
-int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state);
+int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff);
 int vnode_access_generic(vnode_t *v, accmode_t mode);
 
 uint8_t vnode_to_dt(vnode_t *v);
