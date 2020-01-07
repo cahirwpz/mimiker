@@ -107,6 +107,7 @@ void vattr_convert(vattr_t *va, stat_t *sb);
 #define VOP_CALL(op, v, ...)                                                   \
   ((v)->v_ops->v_##op) ? ((v)->v_ops->v_##op(v, ##__VA_ARGS__)) : ENOTSUP
 
+/* If a v-node is found, it's returned with usecnt incremented. */
 static inline int VOP_LOOKUP(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
   return VOP_CALL(lookup, dv, cn, vp);
 }
@@ -190,6 +191,10 @@ void vnode_drop(vnode_t *v);
 
 /* Unlock and release the reference. */
 void vnode_put(vnode_t *v);
+
+/* Uncovers a node under the mounted node until it reaches the node that isn't
+ * mounted */
+vnode_t *vnode_uncover(vnode_t *v);
 
 /* Convenience function with default vnode operation implementation. */
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);

@@ -7,6 +7,7 @@
 #include <sys/libkern.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
+#include <sys/mount.h>
 
 static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
 
@@ -48,6 +49,17 @@ void vnode_drop(vnode_t *v) {
 void vnode_put(vnode_t *v) {
   vnode_unlock(v);
   vnode_drop(v);
+}
+
+vnode_t *vnode_uncover(vnode_t *uvp) {
+  while (uvp->v_mount) {
+    vnode_t *lvp = uvp->v_mount->mnt_vnodecovered;
+    vnode_hold(lvp);
+    vnode_drop(uvp);
+    uvp = lvp;
+  }
+
+  return uvp;
 }
 
 static int vnode_nop(vnode_t *v, ...) {

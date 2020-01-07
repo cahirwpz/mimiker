@@ -12,6 +12,7 @@ typedef struct thread thread_t;
 typedef struct proc proc_t;
 typedef struct pgrp pgrp_t;
 typedef struct fdtab fdtab_t;
+typedef struct vnode vnode_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
 typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
 
@@ -59,6 +60,7 @@ struct proc {
   sigaction_t p_sigactions[NSIG]; /* (@) description of signal actions */
   condvar_t p_waitcv;             /* (a) processes waiting for this one */
   int p_exitstatus;               /* (@) exit code to be returned to parent */
+  vnode_t *p_cwd;                 /* ($) current working directory */
   /* program segments */
   vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
   vaddr_t p_sbrk_end;   /* ($) Current end of brk segment. */
