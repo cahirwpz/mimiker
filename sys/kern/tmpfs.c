@@ -529,21 +529,23 @@ static int tmpfs_reg_expand(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t oldblks,
   for (size_t blkno = oldblks; blkno < newblks; blkno++) {
     blkptr_t ptrs[INDIR_LEVELS + 1];
     size_t indirs[INDIR_LEVELS + 1];
-    int levels = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
+    int pathlen = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
 
-    for (int i = 0; i < levels; i++) {
+    /* Traverse the path of indirect blocks. */
+    for (int i = 0; i < pathlen; i++) {
       blkptr_t bp = ((blkptr_t *)ptrs[i])[indirs[i]];
 
-      /* Last block should not be allocated */
-      if (i == levels - 1)
+      /* Last block on the path (data block) should not be allocated. */
+      if (i == pathlen - 1)
         assert(!bp);
 
+      /* Allocate block if missing and fix a part of the path. */
       if (!bp) {
         bp = alloc_block(tfm, v);
         if (!bp)
           return ENOMEM;
         ((blkptr_t *)ptrs[i])[indirs[i]] = bp;
-        if (i != levels - 1)
+        if (i != pathlen - 1)
           ptrs[i + 1] = bp;
       }
     }
@@ -559,13 +561,21 @@ static void tmpfs_reg_shrink(tmpfs_mount_t *tfm, tmpfs_node_t *v,
   for (size_t blkno = oldblks - 1; blkno + 1 > newblks; blkno--) {
     blkptr_t ptrs[INDIR_LEVELS + 1];
     size_t indirs[INDIR_LEVELS + 1];
-    int levels = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
-    free_block(tfm, v, ((blkptr_t *)ptrs[levels - 1])[indirs[levels - 1]]);
+    int pathlen = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
 
+    /* Free the data block. */
+    free_block(tfm, v, ((blkptr_t *)ptrs[pathlen - 1])[indirs[pathlen - 1]]);
+
+    /* Traverse the path of indirect blocks in reverse order freeing a block
+     * only if all stored pointers in this particular block are released. */
     bool last_freed = true;
-    for (int i = levels - 1; i >= 0; i--) {
+    for (int i = pathlen - 1; i >= 0; i--) {
       if (last_freed)
         ((blkptr_t *)ptrs[i])[indirs[i]] = NULL;
+
+      /* If previous block was released and its offset was 0, it means it was
+       * the last one on the pointer list, so we can free current block too.
+       */
       if (i > 0 && last_freed && indirs[i] == 0) {
         free_block(tfm, v, ptrs[i]);
       } else {
@@ -578,9 +588,10 @@ static void tmpfs_reg_shrink(tmpfs_mount_t *tfm, tmpfs_node_t *v,
 static void *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t blkno) {
   blkptr_t ptrs[INDIR_LEVELS + 1];
   size_t indirs[INDIR_LEVELS + 1];
-  int levels = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
+  int pathlen = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
 
-  return (void *)((blkptr_t *)ptrs[levels - 1])[indirs[levels - 1]];
+  /* The last element on the path is pointing to the data block. */
+  return (void *)((blkptr_t *)ptrs[pathlen - 1])[indirs[pathlen - 1]];
 }
 
 /*
