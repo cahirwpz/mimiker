@@ -466,8 +466,10 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de) {
 }
 
 /*
- * tmpfs_reg_get_blk_indir: get sequence of block pointers and offsets pointing
- * to the data block with number blkno.
+ * tmpfs_reg_get_blk_indir: create an array of block pointer/offset pairs which
+ * represent the path of indirect blocks required to access a data block. If a
+ * block on the path is not allocated then pointer to the corresponding block is
+ * NULL.
  */
 static int tmpfs_reg_get_blk_indir(tmpfs_node_t *v, size_t blkno,
                                    blkptr_t *blkptr, size_t *blkoff) {
@@ -482,6 +484,11 @@ static int tmpfs_reg_get_blk_indir(tmpfs_node_t *v, size_t blkno,
   int log_blkcnt = 0;
   int i;
 
+  /*
+   * Determine the number of levels of indirection.  After this loop
+   * is done INDIR_LEVELS - i is the number of levels of indirection
+   * needed to locate the requested block.
+   */
   for (i = INDIR_LEVELS; i > 0; i--) {
     log_blkcnt += INDIR_IN_BLK_LOG;
     size_t blkcnt = 1 << log_blkcnt;
@@ -495,15 +502,16 @@ static int tmpfs_reg_get_blk_indir(tmpfs_node_t *v, size_t blkno,
 
   blkoff[0] = INDIR_LEVELS - i;
 
-  int levels = 1;
+  int pathlen = 1;
   for (; i <= INDIR_LEVELS; i++) {
     log_blkcnt -= INDIR_IN_BLK_LOG;
-    blkoff[levels] = (blkno >> log_blkcnt) & BLOCK_MASK;
-    levels++;
+    blkoff[pathlen] = (blkno >> log_blkcnt) & BLOCK_MASK;
+    pathlen++;
   }
 
+  /* Traverse the path using block offsets to find pointers. */
   blkptr_t *bp = v->tfn_reg.indirect;
-  for (i = 0; i < levels; i++) {
+  for (i = 0; i < pathlen; i++) {
     blkptr[i] = bp;
 
     /* If block doesn't exists, return NULL */
@@ -511,7 +519,7 @@ static int tmpfs_reg_get_blk_indir(tmpfs_node_t *v, size_t blkno,
       bp = bp[blkoff[i]];
   }
 
-  return levels;
+  return pathlen;
 }
 
 static int tmpfs_reg_expand(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t oldblks,
@@ -528,9 +536,9 @@ static int tmpfs_reg_expand(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t oldblks,
 
       /* Last block should not be allocated */
       if (i == levels - 1)
-        assert(bp == 0);
+        assert(!bp);
 
-      if (bp == 0) {
+      if (!bp) {
         bp = alloc_block(tfm, v);
         if (!bp)
           return ENOMEM;
@@ -576,7 +584,7 @@ static void *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t blkno) {
 }
 
 /*
- * tmpfs_dir_detach: resize regular file and possibly allocate new blocks.
+ * tmpfs_reg_resize: resize regular file and possibly allocate new blocks.
  */
 static int tmpfs_reg_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v,
                             size_t newsize) {
