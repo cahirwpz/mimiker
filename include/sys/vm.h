@@ -6,14 +6,9 @@
 #include <sys/tree.h>
 #include <machine/vm_param.h>
 
-/* TODO: machine dependent header */
-#include <mips/mips.h>
-
 #define PG_SIZE(pg) ((pg)->size * PAGESIZE)
 #define PG_START(pg) ((pg)->paddr)
 #define PG_END(pg) ((pg)->paddr + PG_SIZE(pg))
-/* TODO: move to machine dependent code */
-#define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
 
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
 
@@ -21,11 +16,10 @@
 extern void *vm_kernel_end;
 
 typedef enum {
-  PG_RESERVED = 0x01,   /* non releasable page */
-  PG_ALLOCATED = 0x02,  /* page has been allocated */
-  PG_MANAGED = 0x04,    /* a page is on a freeq */
-  PG_REFERENCED = 0x08, /* page has been accessed since last check */
-  PG_MODIFIED = 0x10,   /* page has been modified since last check */
+  PG_ALLOCATED = 0x01,  /* page has been allocated */
+  PG_MANAGED = 0x02,    /* a page is on a freeq */
+  PG_REFERENCED = 0x04, /* page has been accessed since last check */
+  PG_MODIFIED = 0x08,   /* page has been modified since last check */
 } __packed pg_flags_t;
 
 typedef enum {

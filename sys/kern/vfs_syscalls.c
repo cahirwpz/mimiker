@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
   int error;
@@ -94,7 +95,7 @@ int do_stat(proc_t *p, char *path, stat_t *sb) {
   if ((error = VOP_GETATTR(v, &va)))
     goto fail;
 
-  va_convert(&va, sb);
+  vattr_convert(&va, sb);
 
 fail:
   vnode_drop(v);
@@ -169,7 +170,7 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
     return error;
 
   uio->uio_offset = f->f_offset;
-  error = VOP_READDIR(f->f_vnode, uio, f->f_data);
+  error = VOP_READDIR(f->f_vnode, uio);
   f->f_offset = uio->uio_offset;
   *basep = f->f_offset;
   file_drop(f);
@@ -177,7 +178,27 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
 }
 
 int do_unlink(proc_t *p, char *path) {
-  return ENOTSUP;
+  int error;
+  vnode_t *vn, *dvn;
+  componentname_t cn;
+
+  if ((error = vfs_namedelete(path, &dvn, &vn, &cn)))
+    return error;
+
+  if (vn->v_type == V_DIR) {
+    if (dvn == vn)
+      vnode_drop(dvn);
+    else
+      vnode_put(dvn);
+    vnode_put(vn);
+    return EPERM;
+  }
+
+  error = VOP_REMOVE(dvn, vn, &cn);
+  vnode_put(dvn);
+  vnode_put(vn);
+
+  return error;
 }
 
 int do_mkdir(proc_t *p, char *path, mode_t mode) {
@@ -186,28 +207,59 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
   vnode_t *vn, *dvn;
   componentname_t cn;
 
-  if ((error = vfs_namecreate(path, &dvn, &cn)))
+  if ((error = vfs_namecreate(path, &dvn, &vn, &cn)))
     return error;
 
-  char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
-  memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
-  namecopy[cn.cn_namelen] = 0;
+  if (vn != NULL) {
+    if (vn != dvn)
+      vnode_put(dvn);
+    else
+      vnode_drop(dvn);
+
+    vnode_drop(vn);
+    return EEXIST;
+  }
 
   memset(&va, 0, sizeof(vattr_t));
   va.va_mode = S_IFDIR | (mode & ALLPERMS);
 
-  error = VOP_MKDIR(dvn, namecopy, &va, &vn);
+  error = VOP_MKDIR(dvn, &cn, &va, &vn);
   if (!error)
     vnode_drop(vn);
-
-  kfree(M_TEMP, namecopy);
 
   vnode_put(dvn);
   return error;
 }
 
 int do_rmdir(proc_t *p, char *path) {
-  return ENOTSUP;
+  int error;
+  vnode_t *vn, *dvn;
+  componentname_t cn;
+
+  if ((error = vfs_namedelete(path, &dvn, &vn, &cn)))
+    return error;
+
+  if (vn == dvn)
+    error = EINVAL;
+  else if (vn->v_type != V_DIR)
+    error = ENOTDIR;
+  else if (vn->v_mountedhere != NULL)
+    error = EBUSY;
+
+  if (error) {
+    if (dvn == vn)
+      vnode_drop(dvn);
+    else
+      vnode_put(dvn);
+    vnode_put(vn);
+    return error;
+  }
+
+  error = VOP_RMDIR(dvn, vn, &cn);
+  vnode_put(dvn);
+  vnode_put(vn);
+
+  return error;
 }
 
 int do_access(proc_t *p, char *path, int amode) {
@@ -235,5 +287,61 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
   file_drop(f);
   if (error == EPASSTHROUGH)
     error = ENOTTY;
+  return error;
+}
+
+int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
+  assert(*lastp == PATH_MAX);
+
+  vnode_hold(p->p_cwd);
+  vnode_t *uvp = p->p_cwd;
+  vnode_t *lvp = NULL;
+  int error = 0;
+
+  /* Last writable position in provided buffer. */
+  size_t last = *lastp;
+
+  /* Let's start with terminating NUL. */
+  buf[--last] = '\0';
+
+  /* Handle special case for root directory. */
+  uvp = vnode_uncover(uvp);
+
+  if (uvp == vfs_root_vnode) {
+    buf[--last] = '/';
+    goto end;
+  }
+
+  do {
+    componentname_t cn = COMPONENTNAME("..");
+    if ((error = VOP_LOOKUP(uvp, &cn, &lvp)))
+      break;
+
+    if (uvp == lvp) {
+      error = ENOENT;
+      break;
+    }
+
+    if ((error = vfs_name_in_dir(lvp, uvp, buf, &last)))
+      break;
+
+    if (last == 0) {
+      error = ENAMETOOLONG;
+      break;
+    }
+
+    buf[--last] = '/'; /* Prepend component separator. */
+
+    vnode_drop(uvp);
+
+    uvp = vnode_uncover(lvp);
+    lvp = NULL;
+  } while (uvp != vfs_root_vnode);
+
+end:
+  vnode_drop(uvp);
+  if (lvp)
+    vnode_drop(lvp);
+  *lastp = last;
   return error;
 }

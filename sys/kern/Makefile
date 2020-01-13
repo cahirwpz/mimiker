@@ -59,7 +59,9 @@ SOURCES = \
 	timer.c \
 	tmpfs.c \
 	uio.c \
+	ustack.c \
 	vfs.c \
+	vfs_lookup.c \
 	vfs_readdir.c \
 	vfs_syscalls.c \
 	vfs_vnode.c \

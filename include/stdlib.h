@@ -129,6 +129,11 @@ size_t wcstombs_l(char *__restrict, const wchar_t *__restrict, size_t,
                   locale_t);
 
 /*
+ * Extensions made by POSIX relative to C.
+ */
+char *realpath(const char *__restrict, char *__restrict);
+
+/*
  * Implementation-defined extensions
  */
 #define alloca(size) __builtin_alloca(size)

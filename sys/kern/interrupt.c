@@ -1,7 +1,7 @@
 #define KL_LOG KL_INTR
 #include <sys/klog.h>
 #include <sys/mimiker.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <sys/interrupt.h>
 #include <sys/sleepq.h>
 #include <sys/sysinit.h>

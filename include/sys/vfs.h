@@ -67,7 +67,7 @@ int do_symlink(proc_t *p, char *path, char *link);
 ssize_t do_readlink(proc_t *p, char *path, char *buf, size_t count);
 int do_rename(proc_t *p, char *from, char *to);
 int do_chdir(proc_t *p, char *path);
-char *do_getcwd(proc_t *p, char *buf, size_t size);
+int do_getcwd(proc_t *p, char *buf, size_t *lastp);
 int do_umask(proc_t *p, int newmask, int *oldmaskp);
 int do_ioctl(proc_t *p, int fd, u_long cmd, void *data);
 
@@ -80,12 +80,20 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep);
  * Increases use count on returned vnode. */
 int vfs_namelookup(const char *path, vnode_t **vp);
 
-/* Finds the parent of vnode corresponding to the given path.
- * Returned vnode is locked and held. */
-int vfs_namecreate(const char *path, vnode_t **dvp, componentname_t *cn);
+/* Yield the vnode for an existing entry; or, if there is none, yield NULL.
+ * Parent vnode is locked and held; vnode, if exists, is only held.*/
+int vfs_namecreate(const char *path, vnode_t **dvp, vnode_t **vp,
+                   componentname_t *cn);
+
+/* Both vnode and its parent is held and locked. */
+int vfs_namedelete(const char *path, vnode_t **dvp, vnode_t **vp,
+                   componentname_t *cn);
 
 /* Looks up the vnode corresponding to the pathname and opens it into f. */
 int vfs_open(file_t *f, char *pathname, int flags, int mode);
+
+/* Finds name of v-node in given directory. */
+int vfs_name_in_dir(vnode_t *dv, vnode_t *v, char *buf, size_t *lastp);
 
 #endif /* !_KERNEL */
 

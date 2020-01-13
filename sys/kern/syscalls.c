@@ -1,6 +1,7 @@
 #define KL_LOG KL_SYSCALL
 #include <sys/klog.h>
 #include <sys/sysent.h>
+#include <sys/dirent.h>
 #include <sys/mimiker.h>
 #include <sys/errno.h>
 #include <sys/thread.h>
@@ -10,6 +11,7 @@
 #include <sys/sbrk.h>
 #include <sys/signal.h>
 #include <sys/proc.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/exec.h>
@@ -106,6 +108,7 @@ static int sys_setpgid(proc_t *p, setpgid_args_t *args, register_t *res) {
  * https://pubs.opengroup.org/onlinepubs/9699919799/functions/getpgid.html */
 static int sys_getpgid(proc_t *p, getpgid_args_t *args, register_t *res) {
   pid_t pid = args->pid;
+  pgid_t pgid;
 
   if (pid < 0)
     return EINVAL;
@@ -113,7 +116,9 @@ static int sys_getpgid(proc_t *p, getpgid_args_t *args, register_t *res) {
   if (pid == 0)
     pid = p->p_pid;
 
-  return proc_getpgid(pid, res);
+  int error = proc_getpgid(pid, &pgid);
+  *res = pgid;
+  return error;
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/kill.html */
@@ -305,18 +310,21 @@ end:
   return error;
 }
 
-/* TODO: not implemented */
 static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
   const char *u_path = args->path;
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t len = 0;
-  int error;
+  int error = 0;
 
   if ((error = copyinstr(u_path, path, PATH_MAX, &len)))
     goto end;
 
-  klog("chdir(\"%s\")", path);
-  error = ENOTSUP;
+  vnode_t *cwd;
+  if ((error = vfs_namelookup(path, &cwd)))
+    goto end;
+
+  vnode_drop(p->p_cwd);
+  p->p_cwd = cwd;
 
 end:
   kfree(M_TEMP, path);
@@ -324,10 +332,31 @@ end:
 }
 
 static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
-  __unused char *u_buf = args->buf;
-  __unused size_t len = args->len;
+  char *u_buf = args->buf;
+  size_t len = args->len;
+  int error;
 
-  return ENOTSUP;
+  if (len == 0)
+    return EINVAL;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+  size_t last = PATH_MAX;
+
+  /* We're going to construct the path backwards! */
+  if ((error = do_getcwd(p, path, &last)))
+    goto end;
+
+  size_t used = PATH_MAX - last;
+  if (used > len) {
+    error = ERANGE;
+    goto end;
+  }
+
+  error = copyout(&path[last], u_buf, used);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
 }
 
 static int sys_mount(proc_t *p, mount_args_t *args, register_t *res) {
@@ -380,8 +409,11 @@ static int sys_getdirentries(proc_t *p, getdirentries_args_t *args,
 }
 
 static int sys_dup(proc_t *p, dup_args_t *args, register_t *res) {
+  int error, fd;
   klog("dup(%d)", args->fd);
-  return do_dup(p, args->fd, res);
+  error = do_dup(p, args->fd, &fd);
+  *res = fd;
+  return error;
 }
 
 static int sys_dup2(proc_t *p, dup2_args_t *args, register_t *res) {
@@ -393,8 +425,11 @@ static int sys_dup2(proc_t *p, dup2_args_t *args, register_t *res) {
 }
 
 static int sys_fcntl(proc_t *p, fcntl_args_t *args, register_t *res) {
-  klog("fcntl(%d, %d, %d)", args->fd, args->cmd, (int)args->arg);
-  return do_fcntl(p, args->fd, args->cmd, (int)args->arg, res);
+  int error, value;
+  klog("fcntl(%d, %d, %ld)", args->fd, args->cmd, (long)args->arg);
+  error = do_fcntl(p, args->fd, args->cmd, (long)args->arg, &value);
+  *res = value;
+  return error;
 }
 
 static int sys_wait4(proc_t *p, wait4_args_t *args, register_t *res) {
@@ -410,13 +445,15 @@ static int sys_wait4(proc_t *p, wait4_args_t *args, register_t *res) {
   if (u_rusage)
     klog("sys_wait4: acquiring rusage not implemented!");
 
-  if ((error = do_waitpid(pid, &status, options, res)))
+  pid_t cld;
+  if ((error = do_waitpid(pid, &status, options, &cld)))
     return error;
 
   if (u_status != NULL)
     if ((error = copyout_s(status, u_status)))
       return error;
 
+  *res = cld;
   return 0;
 }
 

@@ -1,7 +1,5 @@
-#include <mips/mips.h>
-#include <mips/pmap.h>
+#include <mips/m32c0.h>
 #include <mips/tlb.h>
-#include <sys/mimiker.h>
 #include <sys/interrupt.h>
 
 #define mips32_getasid() (mips32_getentryhi() & PTE_ASID_MASK)
@@ -9,6 +7,8 @@
 
 /* Prevents compiler from reordering load & store instructions. */
 #define barrier() asm volatile("" ::: "memory")
+
+static unsigned _tlb_size = 0;
 
 /*
  * NOTE: functions that set coprocessor 0 registers like TLBHi/Lo, Index,
@@ -46,17 +46,6 @@ static inline void _load_tlb_entry(tlbentry_t *e) {
   mips32_setentrylo1(lo1);
 }
 
-static inline void _tlb_write(unsigned i, tlbentry_t *e) {
-  _load_tlb_entry(e);
-  mips32_setindex(i);
-  mips32_tlbwi();
-}
-
-static inline void _tlb_write_random(tlbentry_t *e) {
-  _load_tlb_entry(e);
-  mips32_tlbwr();
-}
-
 static inline int _tlb_probe(tlbhi_t hi) {
   mips32_setentryhi(hi);
   mips32_tlbp();
@@ -64,11 +53,12 @@ static inline int _tlb_probe(tlbhi_t hi) {
 }
 
 static inline void _tlb_invalidate(unsigned i) {
-  static tlbentry_t invalid = {.hi = 0, .lo0 = 0, .lo1 = 0};
-  _tlb_write(i, &invalid);
+  mips32_setindex(i);
+  mips32_setentryhi(0);
+  mips32_setentrylo0(0);
+  mips32_setentrylo1(0);
+  mips32_tlbwi();
 }
-
-static unsigned _tlb_size = 0;
 
 static void read_tlb_size(void) {
   uint32_t cfg0 = mips32_getconfig0();
@@ -98,14 +88,6 @@ void tlb_invalidate(tlbhi_t hi) {
   mips32_setasid(saved);
 }
 
-void tlb_invalidate_all(void) {
-  SCOPED_INTR_DISABLED();
-  tlbhi_t saved = mips32_getasid();
-  for (unsigned i = mips32_getwired(); i < _tlb_size; i++)
-    _tlb_invalidate(i);
-  mips32_setasid(saved);
-}
-
 void tlb_invalidate_asid(tlbhi_t asid) {
   SCOPED_INTR_DISABLED();
   tlbhi_t saved = mips32_getasid();
@@ -123,44 +105,15 @@ void tlb_invalidate_asid(tlbhi_t asid) {
   mips32_setasid(saved);
 }
 
-void tlb_read(unsigned i, tlbentry_t *e) {
-  SCOPED_INTR_DISABLED();
-  tlbhi_t saved = mips32_getasid();
-  _tlb_read(i, e);
-  mips32_setasid(saved);
-}
-
 void tlb_write(unsigned i, tlbentry_t *e) {
   SCOPED_INTR_DISABLED();
   tlbhi_t saved = mips32_getasid();
-  if (i == TLBI_RANDOM)
-    _tlb_write_random(e);
-  else
-    _tlb_write(i, e);
+  _load_tlb_entry(e);
+  if (i == TLBI_RANDOM) {
+    mips32_tlbwr();
+  } else {
+    mips32_setindex(i);
+    mips32_tlbwi();
+  }
   mips32_setasid(saved);
-}
-
-void tlb_overwrite_random(tlbentry_t *e) {
-  SCOPED_INTR_DISABLED();
-  tlbhi_t saved = mips32_getasid();
-  int i = _tlb_probe(e->hi);
-  if (i >= 0)
-    _tlb_write(i, e);
-  else
-    _tlb_write_random(e);
-  mips32_setasid(saved);
-}
-
-int tlb_probe(tlbentry_t *e) {
-  SCOPED_INTR_DISABLED();
-  tlbhi_t saved = mips32_getasid();
-  int i = _tlb_probe(e->hi);
-  if (i >= 0)
-    _tlb_read(i, e);
-  mips32_setasid(saved);
-  return i;
-}
-
-unsigned tlb_size(void) {
-  return _tlb_size;
 }

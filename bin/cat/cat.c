@@ -292,7 +292,7 @@ raw_cat(int rfd)
 		if (bsize > sizeof(fb_buf)) {
 			buf = malloc(bsize);
 			if (buf == NULL)
-				warnx("malloc, using %zu buffer", bsize);
+				warnx("malloc, using %lu buffer", bsize);
 		}
 		if (buf == NULL) {
 			bsize = sizeof(fb_buf);

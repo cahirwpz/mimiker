@@ -7,7 +7,6 @@
 #include <sys/vm_object.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
-#include <machine/ustack.h>
 #include <sys/vnode.h>
 #include <sys/proc.h>
 

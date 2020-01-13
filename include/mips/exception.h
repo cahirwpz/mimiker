@@ -1,7 +1,9 @@
-#ifndef __MIPS_EXC_H__
-#define __MIPS_EXC_H__
+#ifndef _MIPS_EXCEPTION_H_
+#define _MIPS_EXCEPTION_H_
 
-#include <mips/mips.h>
+#ifndef _MACHDEP
+#error "Do not use this header file outside kernel machine dependent code!"
+#endif
 
 #ifdef __ASSEMBLER__
 
@@ -178,6 +180,8 @@
 
 #else /* !__ASSEMBLER__ */
 
+#include <mips/m32c0.h>
+#include <sys/types.h>
 #include <stdbool.h>
 
 #define CPU_FRAME                                                              \
@@ -188,9 +192,10 @@
     register_t t0, t1, t2, t3, t4, t5, t6, t7;                                 \
     register_t s0, s1, s2, s3, s4, s5, s6, s7;                                 \
     register_t t8, t9;                                                         \
+    register_t k0, k1;                                                         \
     register_t gp, sp, fp, ra;                                                 \
     register_t lo, hi;                                                         \
-    register_t pc, sr, badvaddr, cause;                                        \
+    register_t cause, pc, sr, badvaddr;                                        \
   }
 
 #define FPU_FRAME                                                              \
@@ -205,9 +210,7 @@
 typedef struct cpu_exc_frame {
   CPU_FRAME;
 } cpu_exc_frame_t;
-typedef struct fpu_exc_frame {
-  FPU_FRAME;
-} fpu_exc_frame_t;
+
 typedef struct exc_frame {
   CPU_FRAME;
   FPU_FRAME;
@@ -227,6 +230,6 @@ static inline unsigned exc_code(exc_frame_t *frame) {
 
 const char *const exceptions[32];
 
-#endif
+#endif /* __ASSEMBLER__ */
 
-#endif
+#endif /* !_MIPS_EXCEPTION_ */

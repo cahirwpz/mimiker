@@ -6,7 +6,8 @@
 #include <sys/pmap.h>
 #include <sys/vm_physmem.h>
 
-#define PG_FREELIST(page) (&freelist[log2((page)->size)])
+#define FREELIST(page) (&freelist[log2((page)->size)])
+#define PAGECOUNT(page) (pagecount[log2((page)->size)])
 
 #define PM_NQUEUES 16U
 
@@ -14,15 +15,17 @@ typedef struct vm_physseg {
   TAILQ_ENTRY(vm_physseg) seglink;
   paddr_t start;
   paddr_t end;
-  unsigned npages;
+  size_t npages;
+  bool used; /* all memory in this segment must be marked as used */
   vm_page_t *pages;
 } vm_physseg_t;
 
 static TAILQ_HEAD(, vm_physseg) seglist = TAILQ_HEAD_INITIALIZER(seglist);
 static vm_pagelist_t freelist[PM_NQUEUES];
+static size_t pagecount[PM_NQUEUES];
 static mtx_t *physmem_lock = &MTX_INITIALIZER(0);
 
-void vm_physseg_plug(paddr_t start, paddr_t end) {
+void _vm_physseg_plug(paddr_t start, paddr_t end, bool used) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
 
   static vm_physseg_t freeseg[VM_PHYSSEG_NMAX];
@@ -37,6 +40,7 @@ void vm_physseg_plug(paddr_t start, paddr_t end) {
   seg->start = start;
   seg->end = end;
   seg->npages = (end - start) / PAGESIZE;
+  seg->used = used;
 
   TAILQ_INSERT_TAIL(&seglist, seg, seglink);
 }
@@ -51,6 +55,11 @@ static void *vm_boot_alloc(size_t n) {
   void *end = align(begin + n, PAGESIZE);
 
   vm_physseg_t *seg = TAILQ_FIRST(&seglist);
+
+  while (seg && seg->used)
+    seg = TAILQ_NEXT(seg, seglink);
+
+  assert(seg != NULL);
 
   for (void *va = align(begin, PAGESIZE); va < end; va += PAGESIZE) {
     paddr_t pa = seg->start;
@@ -97,14 +106,18 @@ void vm_page_init(void) {
         size = 1 << min(PM_NQUEUES, log2((seg->end ^ pa) / PAGESIZE));
       page->paddr = pa;
       page->size = size;
+      page->flags = seg->used ? PG_ALLOCATED : 0;
     }
 
     /* Insert pages into free lists of corresponding size. */
-    for (unsigned i = 0; i < seg->npages;) {
-      vm_page_t *page = &pages[i];
-      TAILQ_INSERT_TAIL(PG_FREELIST(page), page, freeq);
-      page->flags |= PG_MANAGED;
-      i += page->size;
+    if (!seg->used) {
+      for (unsigned i = 0; i < seg->npages;) {
+        vm_page_t *page = &pages[i];
+        TAILQ_INSERT_TAIL(FREELIST(page), page, freeq);
+        PAGECOUNT(page)++;
+        page->flags |= PG_MANAGED;
+        i += page->size;
+      }
     }
 
     seg->pages = pages;
@@ -153,9 +166,9 @@ static vm_page_t *pm_find_buddy(vm_physseg_t *seg, vm_page_t *pg) {
   return buddy;
 }
 
-static void pm_split_page(vm_physseg_t *seg, vm_page_t *page) {
+static void pm_split_page(vm_page_t *page) {
   assert(page->size > 1);
-  assert(!TAILQ_EMPTY(PG_FREELIST(page)));
+  assert(!TAILQ_EMPTY(FREELIST(page)));
 
   /* It works, because every page is a member of pages! */
   unsigned size = page->size / 2;
@@ -163,47 +176,17 @@ static void pm_split_page(vm_physseg_t *seg, vm_page_t *page) {
 
   assert(!(buddy->flags & PG_ALLOCATED));
 
-  TAILQ_REMOVE(PG_FREELIST(page), page, freeq);
+  TAILQ_REMOVE(FREELIST(page), page, freeq);
+  PAGECOUNT(page)--;
 
   page->size = size;
   buddy->size = size;
 
-  TAILQ_INSERT_HEAD(PG_FREELIST(page), page, freeq);
-  TAILQ_INSERT_HEAD(PG_FREELIST(buddy), buddy, freeq);
+  TAILQ_INSERT_HEAD(FREELIST(page), page, freeq);
+  PAGECOUNT(page)++;
+  TAILQ_INSERT_HEAD(FREELIST(buddy), buddy, freeq);
+  PAGECOUNT(buddy)++;
   buddy->flags |= PG_MANAGED;
-}
-
-static vm_page_t *pm_alloc_from_seg(vm_physseg_t *seg, size_t npages) {
-  size_t i, j;
-
-  i = j = log2(npages);
-
-  /* Lowest non-empty queue of size higher or equal to log2(npages). */
-  while (TAILQ_EMPTY(&freelist[i]) && (i < PM_NQUEUES))
-    i++;
-
-  if (i == PM_NQUEUES)
-    return NULL;
-
-  while (true) {
-    vm_page_t *page = TAILQ_FIRST(&freelist[i]);
-
-    if (i == j) {
-      TAILQ_REMOVE(&freelist[i], page, freeq);
-      page->flags &= ~PG_MANAGED;
-      vm_page_t *pg = page;
-      unsigned n = page->size;
-      do {
-        pg->flags |= PG_ALLOCATED;
-        pg->flags &= ~(PG_REFERENCED | PG_MODIFIED);
-        pg++;
-      } while (--n);
-      return page;
-    }
-
-    pm_split_page(seg, page);
-    i--;
-  }
 }
 
 vm_page_t *vm_page_alloc(size_t npages) {
@@ -211,52 +194,57 @@ vm_page_t *vm_page_alloc(size_t npages) {
 
   SCOPED_MTX_LOCK(physmem_lock);
 
-  vm_physseg_t *seg_it;
-  TAILQ_FOREACH (seg_it, &seglist, seglink) {
-    vm_page_t *page;
-    if ((page = pm_alloc_from_seg(seg_it, npages))) {
-      klog("pm_alloc {paddr:%lx size:%ld}", page->paddr, page->size);
-      return page;
-    }
+  size_t n = log2(npages);
+  size_t i = n;
+
+  /* Lowest non-empty queue of size higher or equal to log2(npages). */
+  while (TAILQ_EMPTY(&freelist[i]) && i < PM_NQUEUES)
+    i++;
+
+  if (i == PM_NQUEUES)
+    return NULL;
+
+  for (; i > n; i--)
+    pm_split_page(TAILQ_FIRST(&freelist[i]));
+
+  vm_page_t *page = TAILQ_FIRST(&freelist[i]);
+  klog("%s: allocated %lx of size %ld", __func__, page->paddr, page->size);
+  TAILQ_REMOVE(&freelist[i], page, freeq);
+  pagecount[i]--;
+  page->flags &= ~PG_MANAGED;
+  for (unsigned j = 0; j < page->size; j++) {
+    page[j].flags |= PG_ALLOCATED;
+    page[j].flags &= ~(PG_REFERENCED | PG_MODIFIED);
   }
 
-  return NULL;
+  return page;
 }
 
 static void pm_free_from_seg(vm_physseg_t *seg, vm_page_t *page) {
-  if (page->flags & PG_RESERVED)
-    panic("trying to free reserved page: %p", (void *)page->paddr);
-
   if (!(page->flags & PG_ALLOCATED))
     panic("page is already free: %p", (void *)page->paddr);
 
-  while (true) {
-    vm_page_t *buddy = pm_find_buddy(seg, page);
-
-    if (buddy == NULL) {
-      TAILQ_INSERT_HEAD(PG_FREELIST(page), page, freeq);
-      page->flags |= PG_MANAGED;
-      vm_page_t *pg = page;
-      unsigned n = page->size;
-      do {
-        pg->flags &= ~PG_ALLOCATED;
-        pg++;
-      } while (--n);
-      break;
-    }
-
-    TAILQ_REMOVE(PG_FREELIST(buddy), buddy, freeq);
+  vm_page_t *buddy;
+  while ((buddy = pm_find_buddy(seg, page))) {
+    TAILQ_REMOVE(FREELIST(buddy), buddy, freeq);
+    PAGECOUNT(buddy)--;
     buddy->flags &= ~PG_MANAGED;
     page = pm_merge_buddies(page, buddy);
   }
+
+  TAILQ_INSERT_HEAD(FREELIST(page), page, freeq);
+  PAGECOUNT(page)++;
+  page->flags |= PG_MANAGED;
+  for (unsigned i = 0; i < page->size; i++)
+    page[i].flags &= ~PG_ALLOCATED;
 }
 
 void vm_page_free(vm_page_t *page) {
   vm_physseg_t *seg_it = NULL;
 
-  klog("pm_free {paddr:%lx size:%ld}", page->paddr, page->size);
-
   SCOPED_MTX_LOCK(physmem_lock);
+
+  klog("%s: free %lx of size %ld", __func__, page->paddr, page->size);
 
   TAILQ_FOREACH (seg_it, &seglist, seglink) {
     if (PG_START(page) >= seg_it->start && PG_END(page) <= seg_it->end) {
