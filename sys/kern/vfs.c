@@ -385,16 +385,11 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
       return error;
 
     if (v == NULL) {
-      char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
-      memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
-      namecopy[cn.cn_namelen] = 0;
-
       vattr_t va;
       vattr_null(&va);
       va.va_mode = S_IFREG | (mode & ALLPERMS);
-      error = VOP_CREATE(dvp, namecopy, &va, &v);
+      error = VOP_CREATE(dvp, &cn, &va, &v);
       vnode_put(dvp);
-      kfree(M_TEMP, namecopy);
       if (error)
         return error;
       flags &= ~O_TRUNC;
