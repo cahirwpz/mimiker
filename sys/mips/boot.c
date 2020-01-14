@@ -95,7 +95,8 @@ __boot_text void mips_init(void) {
   size_t kasan_size = 1 << 22;
   paddr_t shadow_end = shadow_start + kasan_size;
 
-  for (paddr_t pa = shadow_start; pa < shadow_end; va += PAGESIZE, pa += PAGESIZE)
+  for (paddr_t pa = shadow_start; pa < shadow_end;
+       va += PAGESIZE, pa += PAGESIZE)
     pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
 
   /* 1st wired TLB entry is always occupied by kernel-PDE and user-PDE. */

@@ -43,7 +43,8 @@ static bool kasan_shadow_Nbyte_isvalid(unsigned long addr, size_t size) {
 }
 
 static bool kasan_md_supported(vaddr_t addr) {
-  return addr >= __MD_CANONICAL_BASE && addr < __MD_CANONICAL_BASE + (1 << __MD_VIRTUAL_SHIFT);
+  return addr >= __MD_CANONICAL_BASE &&
+         addr < __MD_CANONICAL_BASE + (1 << __MD_VIRTUAL_SHIFT);
 }
 
 static void kasan_shadow_check(unsigned long addr, size_t size) {

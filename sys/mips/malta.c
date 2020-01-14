@@ -137,8 +137,7 @@ static void malta_physmem(void) {
   paddr_t kern_end = align(MIPS_KSEG2_TO_PHYS(__ebss), PAGESIZE);
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
-// (gdb) p kern_end + kasan_size
-// $1 = 0x56f000
+
   vm_physseg_plug(ram_start, kern_start);
 
   size_t kasan_size = 1 << 22;
