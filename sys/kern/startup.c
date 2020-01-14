@@ -10,7 +10,6 @@
 #include <sys/vfs.h>
 #include <sys/vm_map.h>
 #include <sys/vm_physmem.h>
-#include <sys/kasan.h>
 
 extern void kmain(void *);
 
@@ -26,7 +25,6 @@ SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"));
 
 __noreturn void kernel_init(void) {
   vm_page_init();
-  kasan_init();
   pool_bootstrap();
   kmem_bootstrap();
   kmalloc_bootstrap();

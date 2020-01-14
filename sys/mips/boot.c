@@ -6,6 +6,7 @@
 
 alignas(PAGESIZE) pde_t _kernel_pmap_pde[PD_ENTRIES];
 static alignas(PAGESIZE) pte_t _kernel_pmap_pte[PT_ENTRIES];
+static alignas(PAGESIZE) pte_t _kernel_kasan_pte[PT_ENTRIES];
 
 __boot_text static void halt(void) {
   for (;;)
@@ -80,6 +81,21 @@ __boot_text void mips_init(void) {
 
   /* read-write segment - sections: .data, .bss, etc. */
   for (paddr_t pa = data; pa < ebss; va += PAGESIZE, pa += PAGESIZE)
+    pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
+
+  /* Prepare KASAN mapping (4MiB) */
+  pte = (pte_t *)MIPS_KSEG2_TO_KSEG0(_kernel_kasan_pte);
+  for (int i = 0; i < PT_ENTRIES; i++)
+    pte[i] = PTE_GLOBAL;
+
+  va = 0xF0000000;
+  pde[PDE_INDEX(va)] = PTE_PFN((intptr_t)pte) | PTE_KERNEL;
+
+  paddr_t shadow_start = ebss;
+  size_t kasan_size = 1 << 22;
+  paddr_t shadow_end = shadow_start + kasan_size;
+
+  for (paddr_t pa = shadow_start; pa < shadow_end; va += PAGESIZE, pa += PAGESIZE)
     pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
 
   /* 1st wired TLB entry is always occupied by kernel-PDE and user-PDE. */

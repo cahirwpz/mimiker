@@ -13,7 +13,7 @@
 #define KASAN_SHADOW_SCALE_SIZE (1UL << KASAN_SHADOW_SCALE_SHIFT)
 #define KASAN_SHADOW_MASK (KASAN_SHADOW_SCALE_SIZE - 1)
 
-#define __MD_VIRTUAL_SHIFT 30
+#define __MD_VIRTUAL_SHIFT 25
 #define __MD_SHADOW_SIZE                                                       \
   (1ULL << (__MD_VIRTUAL_SHIFT - KASAN_SHADOW_SCALE_SHIFT))
 #define __MD_CANONICAL_BASE 0xC0000000
@@ -22,7 +22,6 @@
 #define KASAN_MD_SHADOW_END (KASAN_MD_SHADOW_START + __MD_SHADOW_SIZE)
 
 static int kasan_ready;
-static int kasan_working;
 
 static int8_t *kasan_md_addr_to_shad(const void *addr) {
   vaddr_t va = (vaddr_t)addr;
@@ -44,45 +43,15 @@ static bool kasan_shadow_Nbyte_isvalid(unsigned long addr, size_t size) {
 }
 
 static bool kasan_md_supported(vaddr_t addr) {
-  return addr >= 0xC0000000 && addr <= 0xFFFFFFFF;
+  return addr >= __MD_CANONICAL_BASE && addr < __MD_CANONICAL_BASE + (1 << __MD_VIRTUAL_SHIFT);
 }
 
 static void kasan_shadow_check(unsigned long addr, size_t size) {
-  if (!kasan_ready || kasan_working || !kasan_md_supported(addr))
+  if (!kasan_ready || !kasan_md_supported(addr))
     return;
 
   if (!kasan_shadow_Nbyte_isvalid(addr, size))
     panic_fail();
-
-  kasan_working = 1;
-  // klog("kasan_shadow_check(addr=%p, size=%d)", addr, size);
-  kasan_working = 0;
-}
-
-static void kasan_md_shadow_map_page(vaddr_t va) {
-  vm_page_t *pg = vm_page_alloc(1);
-  if (pg == NULL)
-    panic_fail();
-  paddr_t pa = pg->paddr;
-  pmap_kenter(va, pa, VM_PROT_READ | VM_PROT_WRITE);
-}
-
-void kasan_shadow_map(void *addr, size_t size) {
-  assert((vaddr_t)addr % KASAN_SHADOW_SCALE_SIZE == 0);
-  size = roundup(size, KASAN_SHADOW_SCALE_SIZE) / KASAN_SHADOW_SCALE_SIZE;
-
-  vaddr_t sva = (vaddr_t)kasan_md_addr_to_shad(addr);
-  vaddr_t eva = (vaddr_t)kasan_md_addr_to_shad(addr) + size;
-
-  sva = rounddown(sva, PAGESIZE);
-  eva = roundup(eva, PAGESIZE);
-
-  int npages = (eva - sva) / PAGESIZE;
-
-  assert(sva >= KASAN_MD_SHADOW_START && eva < KASAN_MD_SHADOW_END);
-
-  for (int i = 0; i < npages; i++)
-    kasan_md_shadow_map_page(sva + i * PAGESIZE);
 }
 
 /*
@@ -121,8 +90,11 @@ void kasan_mark(const void *addr, size_t size, size_t sz_with_redz,
 }
 
 void kasan_init(void) {
-  kasan_shadow_map(__kernel_start,
-                   (vaddr_t)vm_kernel_end - (vaddr_t)__kernel_start);
+  uint32_t *ptr = (uint32_t *)KASAN_MD_SHADOW_START;
+  uint32_t *end = (uint32_t *)KASAN_MD_SHADOW_END;
+  while (ptr < end)
+    *ptr++ = 0;
+
   kasan_ready = 1;
 }
 
