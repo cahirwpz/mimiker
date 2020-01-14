@@ -177,7 +177,32 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
 }
 
 int do_unlink(proc_t *p, char *path) {
-  return ENOTSUP;
+  int error;
+  vnode_t *vn, *dvn;
+  componentname_t cn;
+
+  if ((error = vfs_namedelete(path, &dvn, &vn, &cn)))
+    return error;
+
+  if (vn->v_type == V_DIR) {
+    if (dvn == vn)
+      vnode_drop(dvn);
+    else
+      vnode_put(dvn);
+    vnode_put(vn);
+    return EPERM;
+  }
+
+  char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
+  memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
+  namecopy[cn.cn_namelen] = 0;
+
+  error = VOP_REMOVE(dvn, vn, namecopy);
+  vnode_put(dvn);
+  vnode_put(vn);
+  kfree(M_TEMP, namecopy);
+
+  return error;
 }
 
 int do_mkdir(proc_t *p, char *path, mode_t mode) {
@@ -186,8 +211,18 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
   vnode_t *vn, *dvn;
   componentname_t cn;
 
-  if ((error = vfs_namecreate(path, &dvn, &cn)))
+  if ((error = vfs_namecreate(path, &dvn, &vn, &cn)))
     return error;
+
+  if (vn != NULL) {
+    if (vn != dvn)
+      vnode_put(dvn);
+    else
+      vnode_drop(dvn);
+
+    vnode_drop(vn);
+    return EEXIST;
+  }
 
   char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
   memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
@@ -220,8 +255,6 @@ int do_rmdir(proc_t *p, char *path) {
     error = ENOTDIR;
   else if (vn->v_mountedhere != NULL)
     error = EBUSY;
-  else if (cn.cn_namelen > NAME_MAX)
-    error = ENAMETOOLONG;
 
   if (error) {
     if (dvn == vn)
@@ -236,8 +269,9 @@ int do_rmdir(proc_t *p, char *path) {
   memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
   namecopy[cn.cn_namelen] = 0;
 
-  error = VOP_RMDIR(dvn, namecopy);
+  error = VOP_RMDIR(dvn, vn, namecopy);
   vnode_put(dvn);
+  vnode_put(vn);
   kfree(M_TEMP, namecopy);
 
   return error;

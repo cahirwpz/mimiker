@@ -3,7 +3,7 @@
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/pool.h>
-#include <mips/exc.h>
+#include <mips/exception.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
 #include <mips/pmap.h>

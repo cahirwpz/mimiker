@@ -9,8 +9,9 @@ SOURCES = \
 	copy.S \
 	cpu.c \
 	ebase.S \
+	exception.c \
 	gt64120.c \
-	intr.c \
+	interrupt.c \
 	$(PLATFORM).c \
 	pmap.c \
 	rootdev.c \
@@ -18,15 +19,18 @@ SOURCES = \
 	signal.c \
 	start.S \
 	switch.S \
-	test-md.S \
 	thread.c \
 	timer.c \
 	tlb.c \
-	uart_cbus.c
+	trap.c \
+	uart_cbus.c \
+	ucontext.c
 
 OBJECTS += $(PLATFORM)_dtb.o
 
 CLEAN-FILES += assym.h *-devhint.c
+
+CPPFLAGS += -D_MACHDEP
 
 include $(TOPDIR)/build/build.kern.mk
 

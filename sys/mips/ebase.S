@@ -1,4 +1,4 @@
-#include <mips/exc.h>
+#include <mips/exception.h>
 #include <mips/m32c0.h>
 #include <mips/pcpu.h>
 #include <mips/regdef.h>
@@ -21,8 +21,6 @@
 _ebase:
 
         .org    0x0
-        .local  pde_valid
-        .local  pde_invalid
 
 # TLB miss handler must avoid generating TLB miss during PT search.
 # 
@@ -93,13 +91,8 @@ SLEAF(irq)
 END(irq)
 
         .org    0x500
-        .globl exc_enter
-        .globl kern_exc_leave
-        .globl user_exc_leave
-        .local user_exc_enter
-        .local kern_exc_enter
-        .local skip_fpu_save
-        .local skip_fpu_restore
+        .global user_exc_leave
+        .global kern_exc_leave
 
 # [$k0] must be set to value of C0_STATUS
 exc_enter:
@@ -112,7 +105,7 @@ exc_enter:
 # stack and local pcpu structure! FTTB These are accessed through kseg0.
 # It is UNSAFE to use k0/k1 registers when TLB miss handler may be triggered!
 
-NESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
+SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         .cfi_signal_frame
 
         # Move user sp to temporary register and replace it with kernel sp.
@@ -214,7 +207,7 @@ user_return:
         eret
 END(user_exc_enter)
 
-NESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
+SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         # Allocate stack frame (of KERN_EXC_FRAME_SIZE bytes) and save context.
         move    k0, sp                  # save original sp value
         subu    sp, KERN_EXC_FRAME_SIZE # required by gdb to recognize frame

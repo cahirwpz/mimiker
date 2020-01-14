@@ -2,7 +2,7 @@
 #include <sys/klog.h>
 #include <mips/m32c0.h>
 #include <mips/config.h>
-#include <mips/intr.h>
+#include <mips/interrupt.h>
 #include <sys/interrupt.h>
 #include <sys/time.h>
 #include <sys/timer.h>
