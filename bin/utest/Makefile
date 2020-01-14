@@ -6,6 +6,7 @@ SOURCES = \
 	fd.c \
 	fork.c \
 	fpu_ctx.c \
+	getcwd.c \
 	lseek.c \
 	main.c \
 	misbehave.c \

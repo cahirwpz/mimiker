@@ -7,6 +7,7 @@
 #include <sys/libkern.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
+#include <sys/mount.h>
 
 static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
 
@@ -50,6 +51,17 @@ void vnode_put(vnode_t *v) {
   vnode_drop(v);
 }
 
+vnode_t *vnode_uncover(vnode_t *uvp) {
+  while (uvp->v_mount) {
+    vnode_t *lvp = uvp->v_mount->mnt_vnodecovered;
+    vnode_hold(lvp);
+    vnode_drop(uvp);
+    uvp = lvp;
+  }
+
+  return uvp;
+}
+
 static int vnode_nop(vnode_t *v, ...) {
   return EOPNOTSUPP;
 }
@@ -70,11 +82,7 @@ static int vnode_nop(vnode_t *v, ...) {
 #define vnode_reclaim_nop vnode_nop
 
 static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
-  *va = (vattr_t){.va_mode = VNOVAL,
-                  .va_nlink = VNOVAL,
-                  .va_uid = VNOVAL,
-                  .va_gid = VNOVAL,
-                  .va_size = VNOVAL};
+  vattr_null(va);
   return 0;
 }
 
@@ -102,13 +110,23 @@ void vnodeops_init(vnodeops_t *vops) {
   NOP_IF_NULL(vops, reclaim);
 }
 
-void va_convert(vattr_t *va, stat_t *sb) {
+void vattr_convert(vattr_t *va, stat_t *sb) {
   memset(sb, 0, sizeof(stat_t));
   sb->st_mode = va->va_mode;
   sb->st_nlink = va->va_nlink;
   sb->st_uid = va->va_uid;
   sb->st_gid = va->va_gid;
   sb->st_size = va->va_size;
+}
+
+void vattr_null(vattr_t *va) {
+  va->va_mode = V_NONE;
+
+  va->va_nlink = VNOVAL;
+  va->va_ino = VNOVAL;
+  va->va_uid = VNOVAL;
+  va->va_gid = VNOVAL;
+  va->va_size = VNOVAL;
 }
 
 /* Default file operations using v-nodes. */
@@ -132,7 +150,7 @@ static int default_vnstat(file_t *f, stat_t *sb) {
   int error;
   if ((error = VOP_GETATTR(v, &va)))
     return error;
-  va_convert(&va, sb);
+  vattr_convert(&va, sb);
   return 0;
 }
 
@@ -166,7 +184,7 @@ static int default_vnseek(file_t *f, off_t offset, int whence) {
   if (offset > size)
     return EINVAL;
 
-  if ((error = VOP_SEEK(v, f->f_offset, offset, f->f_data)))
+  if ((error = VOP_SEEK(v, f->f_offset, offset)))
     return error;
 
   f->f_offset = offset;
@@ -223,7 +241,7 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   return 0;
 }
 
-int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state) {
+int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff) {
   /* Operation went ok, assuming the file is seekable. */
   return 0;
 }

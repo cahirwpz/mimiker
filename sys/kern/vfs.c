@@ -11,6 +11,7 @@
 #include <sys/linker_set.h>
 #include <sys/sysinit.h>
 #include <sys/mimiker.h>
+#include <sys/proc.h>
 #include <sys/stat.h>
 
 /* Internal state for a vnr operation. */
@@ -384,18 +385,14 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
       return error;
 
     if (v == NULL) {
-      char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
-      memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
-      namecopy[cn.cn_namelen] = 0;
-
       vattr_t va;
-      memset(&va, 0, sizeof(vattr_t));
+      vattr_null(&va);
       va.va_mode = S_IFREG | (mode & ALLPERMS);
-      error = VOP_CREATE(dvp, namecopy, &va, &v);
+      error = VOP_CREATE(dvp, &cn, &va, &v);
       vnode_put(dvp);
-      kfree(M_TEMP, namecopy);
       if (error)
         return error;
+      flags &= ~O_TRUNC;
     } else {
       if (v == dvp)
         vnode_drop(dvp);
@@ -409,6 +406,13 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   } else {
     if ((error = vfs_namelookup(pathname, &v)))
       return error;
+  }
+
+  if (!error && flags & O_TRUNC) {
+    vattr_t va;
+    vattr_null(&va);
+    va.va_size = 0;
+    error = VOP_SETATTR(v, &va);
   }
 
   if (!error)
