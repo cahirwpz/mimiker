@@ -13,6 +13,7 @@
 #include <sys/sleepq.h>
 #include <sys/sched.h>
 #include <sys/malloc.h>
+#include <sys/vfs.h>
 
 #define NPROC 64 /* maximum number of processes */
 #define CHILDREN(p) (&(p)->p_children)

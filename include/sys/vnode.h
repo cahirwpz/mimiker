@@ -30,20 +30,20 @@ typedef enum {
 } vnodetype_t;
 
 typedef int vnode_lookup_t(vnode_t *dv, componentname_t *cn, vnode_t **vp);
-typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio, void *state);
+typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio);
 typedef int vnode_open_t(vnode_t *v, int mode, file_t *fp);
 typedef int vnode_close_t(vnode_t *v, file_t *fp);
 typedef int vnode_read_t(vnode_t *v, uio_t *uio);
 typedef int vnode_write_t(vnode_t *v, uio_t *uio);
-typedef int vnode_seek_t(vnode_t *v, off_t oldoff, off_t newoff, void *state);
+typedef int vnode_seek_t(vnode_t *v, off_t oldoff, off_t newoff);
 typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
 typedef int vnode_setattr_t(vnode_t *v, vattr_t *va);
-typedef int vnode_create_t(vnode_t *dv, const char *name, vattr_t *va,
+typedef int vnode_create_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
                            vnode_t **vp);
-typedef int vnode_remove_t(vnode_t *dv, vnode_t *v, const char *name);
-typedef int vnode_mkdir_t(vnode_t *dv, const char *name, vattr_t *va,
+typedef int vnode_remove_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
+typedef int vnode_mkdir_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
                           vnode_t **vp);
-typedef int vnode_rmdir_t(vnode_t *dv, vnode_t *v, const char *name);
+typedef int vnode_rmdir_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
 typedef int vnode_access_t(vnode_t *v, accmode_t mode);
 typedef int vnode_ioctl_t(vnode_t *v, u_long cmd, void *data);
 typedef int vnode_reclaim_t(vnode_t *v);
@@ -107,12 +107,13 @@ void vattr_convert(vattr_t *va, stat_t *sb);
 #define VOP_CALL(op, v, ...)                                                   \
   ((v)->v_ops->v_##op) ? ((v)->v_ops->v_##op(v, ##__VA_ARGS__)) : ENOTSUP
 
+/* If a v-node is found, it's returned with usecnt incremented. */
 static inline int VOP_LOOKUP(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
   return VOP_CALL(lookup, dv, cn, vp);
 }
 
-static inline int VOP_READDIR(vnode_t *dv, uio_t *uio, void *data) {
-  return VOP_CALL(readdir, dv, uio, data);
+static inline int VOP_READDIR(vnode_t *dv, uio_t *uio) {
+  return VOP_CALL(readdir, dv, uio);
 }
 
 static inline int VOP_OPEN(vnode_t *v, int mode, file_t *fp) {
@@ -131,9 +132,8 @@ static inline int VOP_WRITE(vnode_t *v, uio_t *uio) {
   return VOP_CALL(write, v, uio);
 }
 
-static inline int VOP_SEEK(vnode_t *v, off_t oldoff, off_t newoff,
-                           void *state) {
-  return VOP_CALL(seek, v, oldoff, newoff, state);
+static inline int VOP_SEEK(vnode_t *v, off_t oldoff, off_t newoff) {
+  return VOP_CALL(seek, v, oldoff, newoff);
 }
 
 static inline int VOP_GETATTR(vnode_t *v, vattr_t *va) {
@@ -144,22 +144,22 @@ static inline int VOP_SETATTR(vnode_t *v, vattr_t *va) {
   return VOP_CALL(setattr, v, va);
 }
 
-static inline int VOP_CREATE(vnode_t *dv, const char *name, vattr_t *va,
+static inline int VOP_CREATE(vnode_t *dv, componentname_t *cn, vattr_t *va,
                              vnode_t **vp) {
-  return VOP_CALL(create, dv, name, va, vp);
+  return VOP_CALL(create, dv, cn, va, vp);
 }
 
-static inline int VOP_REMOVE(vnode_t *dv, vnode_t *v, const char *name) {
-  return VOP_CALL(remove, dv, v, name);
+static inline int VOP_REMOVE(vnode_t *dv, vnode_t *v, componentname_t *cn) {
+  return VOP_CALL(remove, dv, v, cn);
 }
 
-static inline int VOP_MKDIR(vnode_t *dv, const char *name, vattr_t *va,
+static inline int VOP_MKDIR(vnode_t *dv, componentname_t *cn, vattr_t *va,
                             vnode_t **vp) {
-  return VOP_CALL(mkdir, dv, name, va, vp);
+  return VOP_CALL(mkdir, dv, cn, va, vp);
 }
 
-static inline int VOP_RMDIR(vnode_t *dv, vnode_t *v, const char *name) {
-  return VOP_CALL(rmdir, dv, v, name);
+static inline int VOP_RMDIR(vnode_t *dv, vnode_t *v, componentname_t *cn) {
+  return VOP_CALL(rmdir, dv, v, cn);
 }
 
 static inline int VOP_ACCESS(vnode_t *v, mode_t mode) {
@@ -192,9 +192,13 @@ void vnode_drop(vnode_t *v);
 /* Unlock and release the reference. */
 void vnode_put(vnode_t *v);
 
+/* Uncovers a node under the mounted node until it reaches the node that isn't
+ * mounted */
+vnode_t *vnode_uncover(vnode_t *v);
+
 /* Convenience function with default vnode operation implementation. */
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
-int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff, void *state);
+int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff);
 int vnode_access_generic(vnode_t *v, accmode_t mode);
 
 uint8_t vnode_to_dt(vnode_t *v);

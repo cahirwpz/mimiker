@@ -172,7 +172,7 @@ static readdir_ops_t devfs_readdir_ops = {
   .convert = devfs_to_dirent,
 };
 
-static int devfs_vop_readdir(vnode_t *v, uio_t *uio, void *state) {
+static int devfs_vop_readdir(vnode_t *v, uio_t *uio) {
   return readdir_generic(v, uio, &devfs_readdir_ops);
 }
 
