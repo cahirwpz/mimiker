@@ -41,13 +41,14 @@ static void fd_growtable(fdtab_t *fdt, int new_size) {
   assert(fdt->fdt_nfiles < new_size && new_size <= MAXFILES);
   assert(mtx_owned(&fdt->fdt_mtx));
 
-  file_t **old_fdt_files = fdt->fdt_files;
+  fdfile_t *old_fdt_files = fdt->fdt_files;
   bitstr_t *old_fdt_map = fdt->fdt_map;
 
-  file_t **new_fdt_files = kmalloc(M_FD, sizeof(file_t *) * new_size, M_ZERO);
+  fdfile_t *new_fdt_files = kmalloc(M_FD, sizeof(fdfile_t) * new_size, 
+                                    M_ZERO);
   bitstr_t *new_fdt_map = kmalloc(M_FD, bitstr_size(new_size), M_ZERO);
 
-  memcpy(new_fdt_files, old_fdt_files, sizeof(file_t *) * fdt->fdt_nfiles);
+  memcpy(new_fdt_files, old_fdt_files, sizeof(fdfile_t) * fdt->fdt_nfiles);
   memcpy(new_fdt_map, old_fdt_map, bitstr_size(fdt->fdt_nfiles));
   kfree(M_FD, old_fdt_files);
   kfree(M_FD, old_fdt_map);
@@ -86,10 +87,11 @@ static int fd_alloc(fdtab_t *fdt, int minfd, int *fdp) {
 }
 
 static void fd_free(fdtab_t *fdt, int fd) {
-  file_t *f = fdt->fdt_files[fd];
-  assert(f != NULL);
-  file_drop(f);
-  fdt->fdt_files[fd] = NULL;
+  fdfile_t f = fdt->fdt_files[fd];
+  assert(f.fdt_file != NULL);
+  file_drop(f.fdt_file);
+  fdt->fdt_files[fd].fdt_file = NULL;
+  fdt->fdt_files[fd].execlose = false;
   fd_mark_unused(fdt, fd);
 }
 
@@ -97,7 +99,7 @@ static void fd_free(fdtab_t *fdt, int fd) {
 fdtab_t *fdtab_create(void) {
   fdtab_t *fdt = kmalloc(M_FD, sizeof(fdtab_t), M_ZERO);
   fdt->fdt_nfiles = NDFILE;
-  fdt->fdt_files = kmalloc(M_FD, sizeof(file_t *) * NDFILE, M_ZERO);
+  fdt->fdt_files = kmalloc(M_FD, sizeof(fdfile_t) * NDFILE, M_ZERO);
   fdt->fdt_map = kmalloc(M_FD, bitstr_size(NDFILE), M_ZERO);
   mtx_init(&fdt->fdt_mtx, 0);
   return fdt;
@@ -118,9 +120,9 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
 
   for (int i = 0; i < fdt->fdt_nfiles; i++) {
     if (fd_is_used(fdt, i)) {
-      file_t *f = fdt->fdt_files[i];
+      fdfile_t f = fdt->fdt_files[i];
       newfdt->fdt_files[i] = f;
-      file_hold(f);
+      file_hold(f.fdt_file);
     }
   }
 
@@ -145,8 +147,8 @@ void fdtab_destroy(fdtab_t *fdt) {
   kfree(M_FD, fdt);
 }
 
-int fdtab_install_file(fdtab_t *fdt, file_t *f, int minfd, int *fd) {
-  assert(f != NULL);
+int fdtab_install_file(fdtab_t *fdt, fdfile_t f, int minfd, int *fd) {
+  assert(f.fdt_file != NULL);
   assert(fd != NULL);
 
   SCOPED_MTX_LOCK(&fdt->fdt_mtx);
@@ -155,20 +157,21 @@ int fdtab_install_file(fdtab_t *fdt, file_t *f, int minfd, int *fd) {
   if ((error = fd_alloc(fdt, minfd, fd)))
     return error;
   fdt->fdt_files[*fd] = f;
-  file_hold(f);
+  file_hold(f.fdt_file);
   return 0;
 }
 
-int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
-  assert(f);
-  assert(fdt);
+int fdtab_install_file_at(fdtab_t *fdt, fdfile_t f, int fd) {
+  assert(f.fdt_file != NULL);
+  assert(fdt != NULL);
 
   WITH_MTX_LOCK (&fdt->fdt_mtx) {
     if (is_bad_fd(fdt, fd))
       return EBADF;
 
     if (fd_is_used(fdt, fd)) {
-      if (fdt->fdt_files[fd] == f)
+      if (fdt->fdt_files[fd].fdt_file == f.fdt_file 
+          && fdt->fdt_files[fd].execlose == f.execlose)
         break;
       fd_free(fdt, fd);
     }
@@ -176,35 +179,35 @@ int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
     fd_mark_used(fdt, fd);
   }
 
-  file_hold(f);
+  file_hold(f.fdt_file);
   return 0;
 }
 
 /* Extracts file pointer from descriptor number in given table.
  * If flags are non-zero, returns EBADF if the file does not match flags. */
-int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
+int fdtab_get_file(fdtab_t *fdt, int fd, int flags, fdfile_t *fp) {
   if (!fdt)
     return EBADF;
 
-  file_t *f = NULL;
+  fdfile_t *f = NULL;
 
   WITH_MTX_LOCK (&fdt->fdt_mtx) {
     if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))
       return EBADF;
 
-    f = fdt->fdt_files[fd];
-    file_hold(f);
+    f = &fdt->fdt_files[fd];
+    file_hold(f->fdt_file);
 
-    if ((flags & FF_READ) && !(f->f_flags & FF_READ))
+    if ((flags & FF_READ) && !(f->fdt_file->f_flags & FF_READ))
       break;
-    if ((flags & FF_WRITE) && !(f->f_flags & FF_WRITE))
+    if ((flags & FF_WRITE) && !(f->fdt_file->f_flags & FF_WRITE))
       break;
 
-    *fp = f;
+    *fp = *f;
     return 0;
   }
 
-  file_drop(f);
+  file_drop(f->fdt_file);
   return EBADF;
 }
 
