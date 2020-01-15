@@ -14,14 +14,14 @@
 /* Separate macro defining a hard limit on open files. */
 #define MAXFILES 1024
 
-typedef struct fdfile {
-  file_t *fdt_file;
-  bool execlose;
-} fdfile_t;
+typedef struct fdent {
+  file_t *fde_file;
+  bool fde_cloexec;
+} fdent_t;
 
 typedef struct fdtab {
-  fdfile_t *fdt_files; /* Open files array */
-  bitstr_t *fdt_map;  /* Bitmap of used fds */
+  fdent_t *fdt_entries; /* Open files array */
+  bitstr_t *fdt_map;    /* Bitmap of used fds */
   unsigned fdt_flags;
   int fdt_nfiles;     /* Number of files allocated */
   refcnt_t fdt_count; /* Reference count */
@@ -40,11 +40,11 @@ fdtab_t *fdtab_copy(fdtab_t *fdt);
 /* Frees the table and possibly closes underlying files. */
 void fdtab_destroy(fdtab_t *fdt);
 /* Assign a file structure to a new descriptor with number >= minfd. */
-int fdtab_install_file(fdtab_t *fdt, fdfile_t f, int minfd, int *fdp);
+int fdtab_install_file(fdtab_t *fdt, fdent_t f, int minfd, int *fdp);
 /* Assign a file structure to a certain descriptor number. */
-int fdtab_install_file_at(fdtab_t *fdt, fdfile_t f, int fd);
+int fdtab_install_file_at(fdtab_t *fdt, fdent_t f, int fd);
 /* Extracts a reference to file from descriptor table for given number. */
-int fdtab_get_file(fdtab_t *fdt, int fd, int flags, fdfile_t *fp);
+int fdtab_get_file(fdtab_t *fdt, int fd, int flags, fdent_t *fp);
 /* Closes a file descriptor.
  * If it was the last reference to a file, the file is closed as well. */
 int fdtab_close_fd(fdtab_t *fdt, int fd);

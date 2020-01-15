@@ -7,7 +7,7 @@ static int test_resizable_fdt(void) {
 
   for (int i = 0; i < 100; i++) {
     file_t *tmp_file = file_alloc();
-    fdfile_t fdtmp_file = { .fdt_file = tmp_file, .execlose = false };
+    fdent_t fdtmp_file = {.fde_file = tmp_file, .fde_cloexec = false};
     int new_fd;
     fdtab_install_file(fdt_test, fdtmp_file, 0, &new_fd);
   }

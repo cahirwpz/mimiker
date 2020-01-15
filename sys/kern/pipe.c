@@ -178,8 +178,8 @@ int do_pipe(proc_t *p, int fds[2]) {
   file_t *file0 = make_pipe_file(consumer);
   file_t *file1 = make_pipe_file(producer);
 
-  fdfile_t fdfile0 = { .fdt_file = file0, .execlose = false };
-  fdfile_t fdfile1 = { .fdt_file = file1, .execlose = false };
+  fdent_t fdfile0 = {.fde_file = file0, .fde_cloexec = false};
+  fdent_t fdfile1 = {.fde_file = file1, .fde_cloexec = false};
 
   int error;
 
