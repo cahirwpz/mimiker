@@ -23,35 +23,93 @@
 
 static int kasan_ready;
 
-static int8_t *kasan_md_addr_to_shad(const void *addr) {
+__attribute__((always_inline)) static inline int8_t *
+kasan_md_addr_to_shad(const void *addr) {
   vaddr_t va = (vaddr_t)addr;
   return (int8_t *)(KASAN_MD_SHADOW_START +
                     ((va - __MD_CANONICAL_BASE) >> KASAN_SHADOW_SCALE_SHIFT));
 }
 
-static bool kasan_shadow_1byte_isvalid(unsigned long addr) {
+#define ADDR_CROSSES_SCALE_BOUNDARY(addr, size)                                \
+  (addr >> KASAN_SHADOW_SCALE_SHIFT) !=                                        \
+    ((addr + size - 1) >> KASAN_SHADOW_SCALE_SHIFT)
+
+__attribute__((always_inline)) static inline bool
+kasan_shadow_1byte_isvalid(unsigned long addr) {
   int8_t *byte = kasan_md_addr_to_shad((void *)addr);
   int8_t last = (addr & KASAN_SHADOW_MASK) + 1;
-  return *byte == 0 || last <= *byte;
+  if (__predict_true(*byte == 0 || last <= *byte))
+    return true;
+  return false;
 }
 
-static bool kasan_shadow_Nbyte_isvalid(unsigned long addr, size_t size) {
+__attribute__((always_inline)) static inline bool
+kasan_shadow_2byte_isvalid(unsigned long addr) {
+  if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 2))
+    return (kasan_shadow_1byte_isvalid(addr) &&
+            kasan_shadow_1byte_isvalid(addr + 1));
+
+  int8_t *byte = kasan_md_addr_to_shad((void *)addr);
+  int8_t last = ((addr + 1) & KASAN_SHADOW_MASK) + 1;
+
+  if (__predict_true(*byte == 0 || last <= *byte))
+    return true;
+  return false;
+}
+
+__attribute__((always_inline)) static inline bool
+kasan_shadow_4byte_isvalid(unsigned long addr) {
+  if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 4))
+    return (kasan_shadow_2byte_isvalid(addr) &&
+            kasan_shadow_2byte_isvalid(addr + 2));
+
+  int8_t *byte = kasan_md_addr_to_shad((void *)addr);
+  int8_t last = ((addr + 3) & KASAN_SHADOW_MASK) + 1;
+
+  if (__predict_true(*byte == 0 || last <= *byte))
+    return true;
+  return false;
+}
+
+__attribute__((always_inline)) static inline bool
+kasan_shadow_Nbyte_isvalid(unsigned long addr, size_t size) {
   for (size_t i = 0; i < size; i++)
     if (!kasan_shadow_1byte_isvalid(addr + i))
       return false;
   return true;
 }
 
-static bool kasan_md_supported(vaddr_t addr) {
+__attribute__((always_inline)) static inline bool
+kasan_md_supported(vaddr_t addr) {
   return addr >= __MD_CANONICAL_BASE &&
          addr < __MD_CANONICAL_BASE + (1 << __MD_VIRTUAL_SHIFT);
 }
 
-static void kasan_shadow_check(unsigned long addr, size_t size) {
-  if (!kasan_ready || !kasan_md_supported(addr))
+__attribute__((always_inline)) static inline void
+kasan_shadow_check(unsigned long addr, size_t size) {
+  if (__predict_false(!kasan_ready))
+    return;
+  if (!kasan_md_supported(addr))
     return;
 
-  if (!kasan_shadow_Nbyte_isvalid(addr, size))
+  bool valid = true; // will be overwritten
+  if (__builtin_constant_p(size)) {
+    switch (size) {
+      case 1:
+        valid = kasan_shadow_1byte_isvalid(addr);
+        break;
+      case 2:
+        valid = kasan_shadow_2byte_isvalid(addr);
+        break;
+      case 4:
+        valid = kasan_shadow_4byte_isvalid(addr);
+        break;
+    }
+  } else {
+    valid = kasan_shadow_Nbyte_isvalid(addr, size);
+  }
+
+  if (__predict_false(!valid))
     panic_fail();
 }
 
@@ -100,13 +158,7 @@ void kasan_init(void) {
 }
 
 #define DEFINE_ASAN_LOAD_STORE(size)                                           \
-  void __asan_load##size(unsigned long addr) {                                 \
-    kasan_shadow_check(addr, size);                                            \
-  }                                                                            \
   void __asan_load##size##_noabort(unsigned long addr) {                       \
-    kasan_shadow_check(addr, size);                                            \
-  }                                                                            \
-  void __asan_store##size(unsigned long addr) {                                \
     kasan_shadow_check(addr, size);                                            \
   }                                                                            \
   void __asan_store##size##_noabort(unsigned long addr) {                      \
@@ -119,15 +171,7 @@ DEFINE_ASAN_LOAD_STORE(4);
 DEFINE_ASAN_LOAD_STORE(8);
 DEFINE_ASAN_LOAD_STORE(16);
 
-void __asan_loadN(unsigned long addr, size_t size) {
-  kasan_shadow_check(addr, size);
-}
-
 void __asan_loadN_noabort(unsigned long addr, size_t size) {
-  kasan_shadow_check(addr, size);
-}
-
-void __asan_storeN(unsigned long addr, size_t size) {
   kasan_shadow_check(addr, size);
 }
 
