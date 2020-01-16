@@ -39,6 +39,9 @@ SECTIONS
     __text = ABSOLUTE(.);
     *(.text .text.*)
     __etext = ABSOLUTE(.);
+    __CTOR_LIST__ = ABSOLUTE(.);
+    *(.ctors)
+    __CTOR_END__ = ABSOLUTE(.);
   } : text
 
   /* In order to be addressable using a 16-bit signed offset from _gp,

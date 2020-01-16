@@ -164,6 +164,25 @@ void kasan_mark(const void *addr, size_t size, size_t sz_with_redz,
   }
 }
 
+static void kasan_ctors(void) {
+  extern uint32_t __CTOR_LIST__, __CTOR_END__;
+  size_t nentries, i;
+  uint32_t *ptr;
+
+  nentries =
+    ((size_t)&__CTOR_END__ - (size_t)&__CTOR_LIST__) / sizeof(uintptr_t);
+
+  ptr = &__CTOR_LIST__;
+  for (i = 0; i < nentries; i++) {
+    void (*func)(void);
+
+    func = (void *)(*ptr);
+    (*func)();
+
+    ptr++;
+  }
+}
+
 void kasan_init(void) {
   uint32_t *ptr = (uint32_t *)KASAN_MD_SHADOW_START;
   uint32_t *end = (uint32_t *)KASAN_MD_SHADOW_END;
@@ -171,6 +190,7 @@ void kasan_init(void) {
     *ptr++ = 0;
 
   kasan_ready = 1;
+  kasan_ctors();
 }
 
 #define DEFINE_ASAN_LOAD_STORE(size)                                           \
@@ -195,4 +215,30 @@ void __asan_storeN_noabort(unsigned long addr, size_t size) {
 }
 
 void __asan_handle_no_return(void) {
+}
+
+struct __asan_global_source_location {
+  const char *filename;
+  int line_no;
+  int column_no;
+};
+
+struct __asan_global {
+  const void *beg;          /* address of the global variable */
+  size_t size;              /* size of the global variable */
+  size_t size_with_redzone; /* size with the redzone */
+  const void *name;         /* name of the variable */
+  const void *module_name;  /* name of the module where the var is declared */
+  unsigned long has_dynamic_init; /* the var has dyn initializer (c++) */
+  struct __asan_global_source_location *location;
+  uintptr_t odr_indicator; /* the address of the ODR indicator symbol */
+};
+
+void __asan_register_globals(struct __asan_global *globals, size_t n) {
+  for (size_t i = 0; i < n; i++)
+    kasan_mark(globals[i].beg, globals[i].size, globals[i].size_with_redzone,
+               0xFF);
+}
+
+void __asan_unregister_globals(struct __asan_global *globals, size_t n) {
 }
