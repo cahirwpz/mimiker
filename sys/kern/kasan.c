@@ -38,6 +38,7 @@ __attribute__((always_inline)) static inline bool
 kasan_shadow_1byte_isvalid(unsigned long addr) {
   int8_t *byte = kasan_md_addr_to_shad((void *)addr);
   int8_t last = (addr & KASAN_SHADOW_MASK) + 1;
+
   if (__predict_true(*byte == 0 || last <= *byte))
     return true;
   return false;
@@ -65,6 +66,20 @@ kasan_shadow_4byte_isvalid(unsigned long addr) {
 
   int8_t *byte = kasan_md_addr_to_shad((void *)addr);
   int8_t last = ((addr + 3) & KASAN_SHADOW_MASK) + 1;
+
+  if (__predict_true(*byte == 0 || last <= *byte))
+    return true;
+  return false;
+}
+
+__attribute__((always_inline)) static inline bool
+kasan_shadow_8byte_isvalid(unsigned long addr) {
+  if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 8))
+    return (kasan_shadow_4byte_isvalid(addr) &&
+            kasan_shadow_4byte_isvalid(addr + 4));
+
+  int8_t *byte = kasan_md_addr_to_shad((void *)addr);
+  int8_t last = ((addr + 7) & KASAN_SHADOW_MASK) + 1;
 
   if (__predict_true(*byte == 0 || last <= *byte))
     return true;
@@ -103,6 +118,9 @@ kasan_shadow_check(unsigned long addr, size_t size) {
         break;
       case 4:
         valid = kasan_shadow_4byte_isvalid(addr);
+        break;
+      case 8:
+        valid = kasan_shadow_8byte_isvalid(addr);
         break;
     }
   } else {
