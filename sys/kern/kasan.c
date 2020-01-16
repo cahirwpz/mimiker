@@ -169,7 +169,6 @@ DEFINE_ASAN_LOAD_STORE(1);
 DEFINE_ASAN_LOAD_STORE(2);
 DEFINE_ASAN_LOAD_STORE(4);
 DEFINE_ASAN_LOAD_STORE(8);
-DEFINE_ASAN_LOAD_STORE(16);
 
 void __asan_loadN_noabort(unsigned long addr, size_t size) {
   kasan_shadow_check(addr, size);
