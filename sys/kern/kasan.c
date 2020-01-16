@@ -23,8 +23,7 @@
 
 static int kasan_ready;
 
-__attribute__((always_inline)) static inline int8_t *
-kasan_md_addr_to_shad(const void *addr) {
+__always_inline static inline int8_t *kasan_md_addr_to_shad(const void *addr) {
   vaddr_t va = (vaddr_t)addr;
   return (int8_t *)(KASAN_MD_SHADOW_START +
                     ((va - __MD_CANONICAL_BASE) >> KASAN_SHADOW_SCALE_SHIFT));
@@ -34,7 +33,7 @@ kasan_md_addr_to_shad(const void *addr) {
   (addr >> KASAN_SHADOW_SCALE_SHIFT) !=                                        \
     ((addr + size - 1) >> KASAN_SHADOW_SCALE_SHIFT)
 
-__attribute__((always_inline)) static inline bool
+__always_inline static inline bool
 kasan_shadow_1byte_isvalid(unsigned long addr) {
   int8_t *byte = kasan_md_addr_to_shad((void *)addr);
   int8_t last = (addr & KASAN_SHADOW_MASK) + 1;
@@ -44,7 +43,7 @@ kasan_shadow_1byte_isvalid(unsigned long addr) {
   return false;
 }
 
-__attribute__((always_inline)) static inline bool
+__always_inline static inline bool
 kasan_shadow_2byte_isvalid(unsigned long addr) {
   if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 2))
     return (kasan_shadow_1byte_isvalid(addr) &&
@@ -58,7 +57,7 @@ kasan_shadow_2byte_isvalid(unsigned long addr) {
   return false;
 }
 
-__attribute__((always_inline)) static inline bool
+__always_inline static inline bool
 kasan_shadow_4byte_isvalid(unsigned long addr) {
   if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 4))
     return (kasan_shadow_2byte_isvalid(addr) &&
@@ -72,7 +71,7 @@ kasan_shadow_4byte_isvalid(unsigned long addr) {
   return false;
 }
 
-__attribute__((always_inline)) static inline bool
+__always_inline static inline bool
 kasan_shadow_8byte_isvalid(unsigned long addr) {
   if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 8))
     return (kasan_shadow_4byte_isvalid(addr) &&
@@ -86,7 +85,7 @@ kasan_shadow_8byte_isvalid(unsigned long addr) {
   return false;
 }
 
-__attribute__((always_inline)) static inline bool
+__always_inline static inline bool
 kasan_shadow_Nbyte_isvalid(unsigned long addr, size_t size) {
   for (size_t i = 0; i < size; i++)
     if (!kasan_shadow_1byte_isvalid(addr + i))
@@ -94,14 +93,13 @@ kasan_shadow_Nbyte_isvalid(unsigned long addr, size_t size) {
   return true;
 }
 
-__attribute__((always_inline)) static inline bool
-kasan_md_supported(vaddr_t addr) {
+__always_inline static inline bool kasan_md_supported(vaddr_t addr) {
   return addr >= __MD_CANONICAL_BASE &&
          addr < __MD_CANONICAL_BASE + (1 << __MD_VIRTUAL_SHIFT);
 }
 
-__attribute__((always_inline)) static inline void
-kasan_shadow_check(unsigned long addr, size_t size) {
+__always_inline static inline void kasan_shadow_check(unsigned long addr,
+                                                      size_t size) {
   if (__predict_false(!kasan_ready))
     return;
   if (!kasan_md_supported(addr))
