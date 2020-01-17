@@ -34,61 +34,65 @@ __always_inline static inline int8_t *kasan_md_addr_to_shad(const void *addr) {
     ((addr + size - 1) >> KASAN_SHADOW_SCALE_SHIFT)
 
 __always_inline static inline bool
-kasan_shadow_1byte_isvalid(unsigned long addr) {
+kasan_shadow_1byte_isvalid(unsigned long addr, uint8_t *code) {
   int8_t *byte = kasan_md_addr_to_shad((void *)addr);
   int8_t last = (addr & KASAN_SHADOW_MASK) + 1;
 
   if (__predict_true(*byte == 0 || last <= *byte))
     return true;
+  *code = *byte;
   return false;
 }
 
 __always_inline static inline bool
-kasan_shadow_2byte_isvalid(unsigned long addr) {
+kasan_shadow_2byte_isvalid(unsigned long addr, uint8_t *code) {
   if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 2))
-    return (kasan_shadow_1byte_isvalid(addr) &&
-            kasan_shadow_1byte_isvalid(addr + 1));
+    return (kasan_shadow_1byte_isvalid(addr, code) &&
+            kasan_shadow_1byte_isvalid(addr + 1, code));
 
   int8_t *byte = kasan_md_addr_to_shad((void *)addr);
   int8_t last = ((addr + 1) & KASAN_SHADOW_MASK) + 1;
 
   if (__predict_true(*byte == 0 || last <= *byte))
     return true;
+  *code = *byte;
   return false;
 }
 
 __always_inline static inline bool
-kasan_shadow_4byte_isvalid(unsigned long addr) {
+kasan_shadow_4byte_isvalid(unsigned long addr, uint8_t *code) {
   if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 4))
-    return (kasan_shadow_2byte_isvalid(addr) &&
-            kasan_shadow_2byte_isvalid(addr + 2));
+    return (kasan_shadow_2byte_isvalid(addr, code) &&
+            kasan_shadow_2byte_isvalid(addr + 2, code));
 
   int8_t *byte = kasan_md_addr_to_shad((void *)addr);
   int8_t last = ((addr + 3) & KASAN_SHADOW_MASK) + 1;
 
   if (__predict_true(*byte == 0 || last <= *byte))
     return true;
+  *code = *byte;
   return false;
 }
 
 __always_inline static inline bool
-kasan_shadow_8byte_isvalid(unsigned long addr) {
+kasan_shadow_8byte_isvalid(unsigned long addr, uint8_t *code) {
   if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 8))
-    return (kasan_shadow_4byte_isvalid(addr) &&
-            kasan_shadow_4byte_isvalid(addr + 4));
+    return (kasan_shadow_4byte_isvalid(addr, code) &&
+            kasan_shadow_4byte_isvalid(addr + 4, code));
 
   int8_t *byte = kasan_md_addr_to_shad((void *)addr);
   int8_t last = ((addr + 7) & KASAN_SHADOW_MASK) + 1;
 
   if (__predict_true(*byte == 0 || last <= *byte))
     return true;
+  *code = *byte;
   return false;
 }
 
 __always_inline static inline bool
-kasan_shadow_Nbyte_isvalid(unsigned long addr, size_t size) {
+kasan_shadow_Nbyte_isvalid(unsigned long addr, size_t size, uint8_t *code) {
   for (size_t i = 0; i < size; i++)
-    if (!kasan_shadow_1byte_isvalid(addr + i))
+    if (!kasan_shadow_1byte_isvalid(addr + i, code))
       return false;
   return true;
 }
@@ -99,34 +103,36 @@ __always_inline static inline bool kasan_md_supported(vaddr_t addr) {
 }
 
 __always_inline static inline void kasan_shadow_check(unsigned long addr,
-                                                      size_t size) {
+                                                      size_t size, bool read) {
   if (__predict_false(!kasan_ready))
     return;
   if (!kasan_md_supported(addr))
     return;
 
+  uint8_t code = 0;
   bool valid = true; // will be overwritten
   if (__builtin_constant_p(size)) {
     switch (size) {
       case 1:
-        valid = kasan_shadow_1byte_isvalid(addr);
+        valid = kasan_shadow_1byte_isvalid(addr, &code);
         break;
       case 2:
-        valid = kasan_shadow_2byte_isvalid(addr);
+        valid = kasan_shadow_2byte_isvalid(addr, &code);
         break;
       case 4:
-        valid = kasan_shadow_4byte_isvalid(addr);
+        valid = kasan_shadow_4byte_isvalid(addr, &code);
         break;
       case 8:
-        valid = kasan_shadow_8byte_isvalid(addr);
+        valid = kasan_shadow_8byte_isvalid(addr, &code);
         break;
     }
   } else {
-    valid = kasan_shadow_Nbyte_isvalid(addr, size);
+    valid = kasan_shadow_Nbyte_isvalid(addr, size, &code);
   }
 
   if (__predict_false(!valid))
-    panic_fail();
+    panic("KASAN: invalid access to addr %p (%s, %lu bytes, code %d)",
+          (void *)addr, (read ? "read" : "write"), size, code);
 }
 
 /*
@@ -195,10 +201,10 @@ void kasan_init(void) {
 
 #define DEFINE_ASAN_LOAD_STORE(size)                                           \
   void __asan_load##size##_noabort(unsigned long addr) {                       \
-    kasan_shadow_check(addr, size);                                            \
+    kasan_shadow_check(addr, size, true);                                      \
   }                                                                            \
   void __asan_store##size##_noabort(unsigned long addr) {                      \
-    kasan_shadow_check(addr, size);                                            \
+    kasan_shadow_check(addr, size, false);                                     \
   }
 
 DEFINE_ASAN_LOAD_STORE(1);
@@ -207,11 +213,11 @@ DEFINE_ASAN_LOAD_STORE(4);
 DEFINE_ASAN_LOAD_STORE(8);
 
 void __asan_loadN_noabort(unsigned long addr, size_t size) {
-  kasan_shadow_check(addr, size);
+  kasan_shadow_check(addr, size, true);
 }
 
 void __asan_storeN_noabort(unsigned long addr, size_t size) {
-  kasan_shadow_check(addr, size);
+  kasan_shadow_check(addr, size, false);
 }
 
 void __asan_handle_no_return(void) {
