@@ -59,4 +59,4 @@ sysroot
 *.dtb
 
 # Tmux user override config
-.tmux.config.local
+.tmux.conf.local
