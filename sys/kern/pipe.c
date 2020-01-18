@@ -178,21 +178,36 @@ int do_pipe(proc_t *p, int fds[2]) {
   file_t *file0 = make_pipe_file(consumer);
   file_t *file1 = make_pipe_file(producer);
 
-  fdent_t fdfile0 = {.fde_file = file0, .fde_cloexec = false};
-  fdent_t fdfile1 = {.fde_file = file1, .fde_cloexec = false};
-
   int error;
 
-  error = fdtab_install_file(p->p_fdtable, fdfile0, 0, &fds[0]);
+  error = fdtab_install_file(p->p_fdtable, file0, 0, &fds[0]);
   if (error) {
     pipe_close(file0);
     return error;
   }
-  error = fdtab_install_file(p->p_fdtable, fdfile1, 0, &fds[1]);
+
+  error = fd_set_cloexec(p->p_fdtable, fds[0], false);
+  if (error) {
+    fdtab_close_fd(p->p_fdtable, fds[0]);
+    pipe_close(file0);
+    return error;
+  }
+
+  error = fdtab_install_file(p->p_fdtable, file1, 0, &fds[1]);
   if (error) {
     fdtab_close_fd(p->p_fdtable, fds[0]);
     pipe_close(file1);
     return error;
   }
+
+  error = fd_set_cloexec(p->p_fdtable, fds[1], false);
+  if (error) {
+    fdtab_close_fd(p->p_fdtable, fds[0]);
+    pipe_close(file0);
+    fdtab_close_fd(p->p_fdtable, fds[1]);
+    pipe_close(file1);
+    return error;
+  }
+
   return 0;
 }

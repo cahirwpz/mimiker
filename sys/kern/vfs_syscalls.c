@@ -18,14 +18,17 @@ int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
 
   /* Allocate a file structure, but do not install descriptor yet. */
   file_t *f = file_alloc();
-  fdent_t fdf = {.fde_file = f,
-                 .fde_cloexec = (flags | O_CLOEXEC) ? true : false};
   /* Try opening file. Fill the file structure. */
   if ((error = vfs_open(f, pathname, flags, mode)))
     goto fail;
   /* Now install the file in descriptor table. */
-  if ((error = fdtab_install_file(p->p_fdtable, fdf, 0, fd)))
+  if ((error = fdtab_install_file(p->p_fdtable, f, 0, fd)))
     goto fail;
+  /* Set cloexec flag */
+  if ((error = fd_set_cloexec(p->p_fdtable, *fd, 
+                              (flags & O_CLOEXEC) ? true : false)))
+    goto fail;
+
   return 0;
 
 fail:
@@ -38,52 +41,52 @@ int do_close(proc_t *p, int fd) {
 }
 
 int do_read(proc_t *p, int fd, uio_t *uio) {
-  fdent_t f;
+  file_t *f;
   int error;
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
     return error;
-  uio->uio_offset = f.fde_file->f_offset;
-  error = FOP_READ(f.fde_file, uio);
-  f.fde_file->f_offset = uio->uio_offset;
-  file_drop(f.fde_file);
+  uio->uio_offset = f->f_offset;
+  error = FOP_READ(f, uio);
+  f->f_offset = uio->uio_offset;
+  file_drop(f);
   return error;
 }
 
 int do_write(proc_t *p, int fd, uio_t *uio) {
-  fdent_t f;
+  file_t *f;
   int error;
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
     return error;
-  uio->uio_offset = f.fde_file->f_offset;
-  error = FOP_WRITE(f.fde_file, uio);
-  f.fde_file->f_offset = uio->uio_offset;
-  file_drop(f.fde_file);
+  uio->uio_offset = f->f_offset;
+  error = FOP_WRITE(f, uio);
+  f->f_offset = uio->uio_offset;
+  file_drop(f);
   return error;
 }
 
 int do_lseek(proc_t *p, int fd, off_t offset, int whence, off_t *newoffp) {
   /* TODO: RW file flag! For now we just file_get_read */
-  fdent_t f;
+  file_t *f;
   int error;
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-  error = FOP_SEEK(f.fde_file, offset, whence);
-  *newoffp = f.fde_file->f_offset;
-  file_drop(f.fde_file);
+  error = FOP_SEEK(f, offset, whence);
+  *newoffp = f->f_offset;
+  file_drop(f);
   return error;
 }
 
 int do_fstat(proc_t *p, int fd, stat_t *sb) {
-  fdent_t f;
+  file_t *f;
   int error;
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
     return error;
-  error = FOP_STAT(f.fde_file, sb);
-  file_drop(f.fde_file);
+  error = FOP_STAT(f, sb);
+  file_drop(f);
   return error;
 }
 
@@ -105,20 +108,24 @@ fail:
 }
 
 int do_dup(proc_t *p, int oldfd, int *newfdp) {
-  fdent_t f;
+  file_t *f;
   int error;
 
   if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
     return error;
 
-  f.fde_cloexec = false;
   error = fdtab_install_file(p->p_fdtable, f, 0, newfdp);
-  file_drop(f.fde_file);
+  file_drop(f);
+  if (error)
+    return error;
+
+  /* The close-on-exec flag (FD_CLOEXEC) for the duplicate descriptor is off. */
+  error = fd_set_cloexec(p->p_fdtable, *newfdp, false);
   return error;
 }
 
 int do_dup2(proc_t *p, int oldfd, int newfd) {
-  fdent_t f;
+  file_t *f;
   int error;
 
   if (oldfd == newfd)
@@ -127,14 +134,15 @@ int do_dup2(proc_t *p, int oldfd, int newfd) {
   if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
     return error;
 
-  f.fde_cloexec = false;
   error = fdtab_install_file_at(p->p_fdtable, f, newfd);
-  file_drop(f.fde_file);
+  file_drop(f);
+  /* The close-on-exec flag (FD_CLOEXEC) for the duplicate descriptor is off. */
+  error = fd_set_cloexec(p->p_fdtable, newfd, false);
   return 0;
 }
 
 int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
-  fdent_t f;
+  file_t *f;
   int error;
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
@@ -151,7 +159,7 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
       break;
   }
 
-  file_drop(f.fde_file);
+  file_drop(f);
   return error;
 }
 
@@ -169,17 +177,17 @@ int do_mount(const char *fs, const char *path) {
 }
 
 int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
-  fdent_t f;
+  file_t *f;
   int error;
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
     return error;
 
-  uio->uio_offset = f.fde_file->f_offset;
-  error = VOP_READDIR(f.fde_file->f_vnode, uio);
-  f.fde_file->f_offset = uio->uio_offset;
-  *basep = f.fde_file->f_offset;
-  file_drop(f.fde_file);
+  uio->uio_offset = f->f_offset;
+  error = VOP_READDIR(f->f_vnode, uio);
+  f->f_offset = uio->uio_offset;
+  *basep = f->f_offset;
+  file_drop(f);
   return error;
 }
 
@@ -284,13 +292,13 @@ int do_access(proc_t *p, char *path, int amode) {
 }
 
 int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
-  fdent_t f;
+  file_t *f;
   int error;
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-  error = FOP_IOCTL(f.fde_file, cmd, data);
-  file_drop(f.fde_file);
+  error = FOP_IOCTL(f, cmd, data);
+  file_drop(f);
   if (error == EPASSTHROUGH)
     error = ENOTTY;
   return error;

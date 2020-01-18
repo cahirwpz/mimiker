@@ -146,8 +146,8 @@ void fdtab_destroy(fdtab_t *fdt) {
   kfree(M_FD, fdt);
 }
 
-int fdtab_install_file(fdtab_t *fdt, fdent_t f, int minfd, int *fd) {
-  assert(f.fde_file != NULL);
+int fdtab_install_file(fdtab_t *fdt, file_t *f, int minfd, int *fd) {
+  assert(f != NULL);
   assert(fd != NULL);
 
   SCOPED_MTX_LOCK(&fdt->fdt_mtx);
@@ -155,13 +155,13 @@ int fdtab_install_file(fdtab_t *fdt, fdent_t f, int minfd, int *fd) {
   int error;
   if ((error = fd_alloc(fdt, minfd, fd)))
     return error;
-  fdt->fdt_entries[*fd] = f;
-  file_hold(f.fde_file);
+  fdt->fdt_entries[*fd].fde_file = f;
+  file_hold(f);
   return 0;
 }
 
-int fdtab_install_file_at(fdtab_t *fdt, fdent_t f, int fd) {
-  assert(f.fde_file != NULL);
+int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
+  assert(f != NULL);
   assert(fdt != NULL);
 
   WITH_MTX_LOCK (&fdt->fdt_mtx) {
@@ -169,44 +169,43 @@ int fdtab_install_file_at(fdtab_t *fdt, fdent_t f, int fd) {
       return EBADF;
 
     if (fd_is_used(fdt, fd)) {
-      if (fdt->fdt_entries[fd].fde_file == f.fde_file &&
-          fdt->fdt_entries[fd].fde_cloexec == f.fde_cloexec)
+      if (fdt->fdt_entries[fd].fde_file == f)
         break;
       fd_free(fdt, fd);
     }
-    fdt->fdt_entries[fd] = f;
+    fdt->fdt_entries[fd].fde_file = f;
     fd_mark_used(fdt, fd);
   }
 
-  file_hold(f.fde_file);
+  file_hold(f);
   return 0;
 }
 
 /* Extracts file pointer from descriptor number in given table.
  * If flags are non-zero, returns EBADF if the file does not match flags. */
-int fdtab_get_file(fdtab_t *fdt, int fd, int flags, fdent_t *fp) {
+int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
   if (!fdt)
     return EBADF;
 
-  fdent_t *f = NULL;
+  file_t *f = NULL;
 
   WITH_MTX_LOCK (&fdt->fdt_mtx) {
     if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))
       return EBADF;
 
-    f = &fdt->fdt_entries[fd];
-    file_hold(f->fde_file);
+    f = fdt->fdt_entries[fd].fde_file;
+    file_hold(f);
 
-    if ((flags & FF_READ) && !(f->fde_file->f_flags & FF_READ))
+    if ((flags & FF_READ) && !(f->f_flags & FF_READ))
       break;
-    if ((flags & FF_WRITE) && !(f->fde_file->f_flags & FF_WRITE))
+    if ((flags & FF_WRITE) && !(f->f_flags & FF_WRITE))
       break;
 
-    *fp = *f;
+    *fp = f;
     return 0;
   }
 
-  file_drop(f->fde_file);
+  file_drop(f);
   return EBADF;
 }
 
@@ -220,3 +219,12 @@ int fdtab_close_fd(fdtab_t *fdt, int fd) {
   fd_free(fdt, fd);
   return 0;
 }
+
+int fd_set_cloexec(fdtab_t *fdt, int fd, bool cloexec) {
+  if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))
+    return EBADF;
+
+  fdt->fdt_entries[fd].fde_cloexec = cloexec;
+  return 0;
+}
+
