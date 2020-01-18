@@ -227,3 +227,14 @@ int fd_set_cloexec(fdtab_t *fdt, int fd, bool cloexec) {
   fdt->fdt_entries[fd].fde_cloexec = cloexec;
   return 0;
 }
+
+int fd_closeexec(fdtab_t *fdt) {
+  int error;
+  for (int fd = 0; fd < fdt->fdt_nfiles; ++fd) {
+    if (fd_is_used(fdt, fd) && fdt->fdt_entries[fd].fde_cloexec) {
+      if ((error = fdtab_close_fd(fdt, fd)))
+        return error;
+    }
+  }
+  return 0;
+}
