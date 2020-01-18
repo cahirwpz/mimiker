@@ -227,4 +227,3 @@ int fd_set_cloexec(fdtab_t *fdt, int fd, bool cloexec) {
   fdt->fdt_entries[fd].fde_cloexec = cloexec;
   return 0;
 }
-

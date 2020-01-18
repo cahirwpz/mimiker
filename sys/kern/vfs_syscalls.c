@@ -25,8 +25,8 @@ int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
   if ((error = fdtab_install_file(p->p_fdtable, f, 0, fd)))
     goto fail;
   /* Set cloexec flag */
-  if ((error = fd_set_cloexec(p->p_fdtable, *fd, 
-                              (flags & O_CLOEXEC) ? true : false)))
+  if ((error =
+         fd_set_cloexec(p->p_fdtable, *fd, (flags & O_CLOEXEC) ? true : false)))
     goto fail;
 
   return 0;
@@ -149,9 +149,18 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
     return error;
 
   /* TODO: Currently only F_DUPFD command is implemented. */
+  bool cloexec = false;
   switch (cmd) {
+    case F_DUPFD_CLOEXEC:
+      cloexec = true;
+      /* FALLTHROUGH */
     case F_DUPFD:
       error = fdtab_install_file(p->p_fdtable, f, arg, resp);
+      if (error) {
+        file_drop(f);
+        return error;
+      }
+      error = fd_set_cloexec(p->p_fdtable, *resp, cloexec);
       break;
 
     default:
