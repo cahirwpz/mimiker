@@ -53,8 +53,6 @@ int test_vfs_relative_dir(void) {
   assert_ok(chdir("test"));
 
   assert_ok(mkdir("test2///", 0));
-  // assert_ok(chdir("test2"));
-  // assert_ok(chdir("../"));
   assert_ok(rmdir("test2"));
 
   assert_ok(mkdir("test3", 0));
