@@ -19,11 +19,13 @@
 #define BLKOFF(x) ((x) % BLOCK_SIZE)
 #define NBLOCKS(x) (((x) + BLOCK_SIZE - 1) / BLOCK_SIZE)
 
-#define INDIR_LEVELS 2
-#define INDIR_IN_BLK_LOG 10 /* Logarithm of number of indirects in a block. */
+#define PTR_IN_BLK (BLOCK_SIZE / sizeof(blkptr_t))
 
-#define DIRECT_BLK_NO 6              /* Number of direct block addresses. */
-#define INDIRECT_BLK_NO INDIR_LEVELS /* Number of indirect block addresses. */
+#define DIRECT_BLK_NO 6   /* Number of direct block addresses. */
+#define INDIRECT_BLK_NO 2 /* Number of indirect block addresses. */
+
+#define L1_BLK_NO PTR_IN_BLK
+#define L2_BLK_NO (PTR_IN_BLK * PTR_IN_BLK)
 
 typedef void *blkptr_t;
 
@@ -106,7 +108,7 @@ static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
                                         const componentname_t *cn);
 static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de);
 
-static void *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t blkno);
+static blkptr_t *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t blkno);
 static int tmpfs_reg_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v,
                             size_t newsize);
 
@@ -185,7 +187,7 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio) {
     size_t blkoff = BLKOFF(uio->uio_offset);
     size_t len = MIN(BLOCK_SIZE - blkoff, remaining);
     size_t blkno = BLKNO(uio->uio_offset);
-    void *blk = tmpfs_reg_get_blk(node, blkno);
+    void *blk = *tmpfs_reg_get_blk(node, blkno);
     if ((error = uiomove(blk + blkoff, len, uio)))
       break;
   }
@@ -206,7 +208,7 @@ static int tmpfs_vop_write(vnode_t *v, uio_t *uio) {
     size_t blkoff = BLKOFF(uio->uio_offset);
     size_t len = MIN(BLOCK_SIZE - blkoff, uio->uio_resid);
     size_t blkno = BLKNO(uio->uio_offset);
-    void *blk = tmpfs_reg_get_blk(node, blkno);
+    void *blk = *tmpfs_reg_get_blk(node, blkno);
     if ((error = uiomove(blk + blkoff, len, uio)))
       break;
   }
@@ -466,132 +468,109 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de) {
 }
 
 /*
- * tmpfs_reg_get_blk_indir: create an array of block pointer/offset pairs which
- * represent the path of indirect blocks required to access a data block. If a
- * block on the path is not allocated then pointer to the corresponding block is
- * NULL.
+ * tmpfs_reg_expand_meta: expand indirect blocks metadata to store up to blkcnt
+ * data blocks.
  */
-static int tmpfs_reg_get_blk_indir(tmpfs_node_t *v, size_t blkno,
-                                   blkptr_t *blkptr, size_t *blkoff) {
-  if (blkno < DIRECT_BLK_NO) {
-    blkptr[0] = v->tfn_reg.direct;
-    blkoff[0] = blkno;
-    return 1;
+static int tmpfs_reg_expand_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
+                                 size_t blkcnt) {
+  blkptr_t *indirs = v->tfn_reg.indirect;
+  /* L1 */
+  if (blkcnt > DIRECT_BLK_NO && !indirs[0]) {
+    if (!(indirs[0] = alloc_block(tfm, v)))
+      return ENOMEM;
   }
 
-  blkno -= DIRECT_BLK_NO;
+  /* L2 */
+  if (blkcnt > DIRECT_BLK_NO + L1_BLK_NO) {
+    if (!indirs[1])
+      if (!(indirs[1] = alloc_block(tfm, v)))
+        return ENOMEM;
 
-  int log_blkcnt = 0;
-  int i;
-
-  /*
-   * Determine the number of levels of indirection.  After this loop
-   * is done INDIR_LEVELS - i is the number of levels of indirection
-   * needed to locate the requested block.
-   */
-  for (i = INDIR_LEVELS; i > 0; i--) {
-    log_blkcnt += INDIR_IN_BLK_LOG;
-    size_t blkcnt = 1 << log_blkcnt;
-    if (blkno < blkcnt)
-      break;
-    blkno -= blkcnt;
-  }
-
-  /* File too big */
-  assert(i != 0);
-
-  blkoff[0] = INDIR_LEVELS - i;
-
-  int pathlen = 1;
-  for (; i <= INDIR_LEVELS; i++) {
-    log_blkcnt -= INDIR_IN_BLK_LOG;
-    blkoff[pathlen] = (blkno >> log_blkcnt) & BLOCK_MASK;
-    pathlen++;
-  }
-
-  /* Traverse the path using block offsets to find pointers. */
-  blkptr_t *bp = v->tfn_reg.indirect;
-  for (i = 0; i < pathlen; i++) {
-    blkptr[i] = bp;
-
-    /* If block doesn't exists, return NULL */
-    if (bp)
-      bp = bp[blkoff[i]];
-  }
-
-  return pathlen;
-}
-
-static int tmpfs_reg_expand(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t oldblks,
-                            size_t newblks) {
-  assert(oldblks < newblks);
-
-  for (size_t blkno = oldblks; blkno < newblks; blkno++) {
-    blkptr_t ptrs[INDIR_LEVELS + 1];
-    size_t indirs[INDIR_LEVELS + 1];
-    int pathlen = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
-
-    /* Traverse the path of indirect blocks. */
-    for (int i = 0; i < pathlen; i++) {
-      blkptr_t bp = ((blkptr_t *)ptrs[i])[indirs[i]];
-
-      /* Last block on the path (data block) should not be allocated. */
-      if (i == pathlen - 1)
-        assert(!bp);
-
-      /* Allocate block if missing and fix a part of the path. */
-      if (!bp) {
-        bp = alloc_block(tfm, v);
-        if (!bp)
+    blkptr_t *blkarr = indirs[1];
+    size_t l2blkcnt =
+      (blkcnt - (DIRECT_BLK_NO + L1_BLK_NO) + PTR_IN_BLK - 1) / PTR_IN_BLK;
+    for (size_t i = 0; i < l2blkcnt; i++) {
+      if (!blkarr[i])
+        if (!(blkarr[i] = alloc_block(tfm, v)))
           return ENOMEM;
-        ((blkptr_t *)ptrs[i])[indirs[i]] = bp;
-        if (i != pathlen - 1)
-          ptrs[i + 1] = bp;
-      }
     }
   }
 
   return 0;
 }
 
-static void tmpfs_reg_shrink(tmpfs_mount_t *tfm, tmpfs_node_t *v,
-                             size_t oldblks, size_t newblks) {
-  assert(oldblks > newblks);
+/*
+ * tmpfs_reg_shrink_meta: shrink indirect blocks metadata to store only blkcnt
+ * data blocks.
+ */
+static void tmpfs_reg_shrink_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
+                                  size_t blkcnt) {
+  blkptr_t *indirs = v->tfn_reg.indirect;
+  /* L1 */
+  if (blkcnt <= DIRECT_BLK_NO && indirs[0]) {
+    free_block(tfm, v, indirs[0]);
+    indirs[0] = NULL;
+  }
 
-  for (size_t blkno = oldblks - 1; blkno + 1 > newblks; blkno--) {
-    blkptr_t ptrs[INDIR_LEVELS + 1];
-    size_t indirs[INDIR_LEVELS + 1];
-    int pathlen = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
+  /* L2 */
+  blkptr_t *blkarr = indirs[1];
+  if (!blkarr)
+    return;
+  /* Number of pointers in L2 block that wil be still used. */
+  size_t l2ptrcnt = 0;
+  if (blkcnt > L1_BLK_NO + DIRECT_BLK_NO)
+    l2ptrcnt =
+      (blkcnt - (DIRECT_BLK_NO + L1_BLK_NO) + PTR_IN_BLK - 1) / PTR_IN_BLK;
 
-    /* Free the data block. */
-    free_block(tfm, v, ((blkptr_t *)ptrs[pathlen - 1])[indirs[pathlen - 1]]);
-
-    /* Traverse the path of indirect blocks in reverse order freeing a block
-     * only if all stored pointers in this particular block are released. */
-    bool last_freed = true;
-    for (int i = pathlen - 1; i >= 0; i--) {
-      if (last_freed)
-        ((blkptr_t *)ptrs[i])[indirs[i]] = NULL;
-
-      /* If previous block was released and its offset was 0, it means it was
-       * the last one on the pointer list, so we can free current block too.
-       */
-      if (i > 0 && last_freed && indirs[i] == 0) {
-        free_block(tfm, v, ptrs[i]);
-      } else {
-        last_freed = false;
-      }
-    }
+  for (size_t i = l2ptrcnt; i < PTR_IN_BLK && blkarr[i]; i++) {
+    free_block(tfm, v, blkarr[i]);
+    blkarr[i] = NULL;
+  }
+  if (l2ptrcnt == 0) {
+    free_block(tfm, v, indirs[1]);
+    indirs[1] = NULL;
   }
 }
 
-static void *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t blkno) {
-  blkptr_t ptrs[INDIR_LEVELS + 1];
-  size_t indirs[INDIR_LEVELS + 1];
-  int pathlen = tmpfs_reg_get_blk_indir(v, blkno, ptrs, indirs);
+/*
+ * tmpfs_reg_get_blk: returns pointer to pointer of data block with number
+ * blkno.
+ */
+static blkptr_t *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t blkno) {
+  if (blkno < DIRECT_BLK_NO)
+    return &v->tfn_reg.direct[blkno];
 
-  /* The last element on the path is pointing to the data block. */
-  return (void *)((blkptr_t *)ptrs[pathlen - 1])[indirs[pathlen - 1]];
+  blkno -= DIRECT_BLK_NO;
+  if (blkno < L1_BLK_NO) {
+    blkptr_t *blkarr = v->tfn_reg.indirect[0];
+    return &blkarr[blkno];
+  }
+
+  blkno -= L1_BLK_NO;
+  blkptr_t *blkarr = v->tfn_reg.indirect[1];
+  blkarr = blkarr[blkno / PTR_IN_BLK];
+  return &blkarr[blkno % PTR_IN_BLK];
+}
+
+static int tmpfs_reg_alloc_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t from,
+                               size_t to) {
+  for (size_t blkno = from; blkno < to; blkno++) {
+    blkptr_t *blk = tmpfs_reg_get_blk(v, blkno);
+    assert(!(*blk));
+    if (!(*blk = alloc_block(tfm, v)))
+      return ENOMEM;
+  }
+  return 0;
+}
+
+static void tmpfs_reg_free_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t from,
+                               size_t to) {
+  for (size_t blkno = from; blkno < to; blkno++) {
+    blkptr_t *blk = tmpfs_reg_get_blk(v, blkno);
+    assert(*blk);
+    free_block(tfm, v, *blk);
+    *blk = NULL;
+  }
 }
 
 /*
@@ -607,11 +586,21 @@ static int tmpfs_reg_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v,
   int error;
 
   if (newblks > oldblks) {
-    if ((error = tmpfs_reg_expand(tfm, v, oldblks, newblks)))
+    if ((error = tmpfs_reg_expand_meta(tfm, v, newblks))) {
+      tmpfs_reg_shrink_meta(tfm, v, oldblks);
       return error;
+    }
+    if ((error = tmpfs_reg_alloc_blk(tfm, v, oldblks, newblks))) {
+      tmpfs_reg_free_blk(tfm, v, oldblks, newblks);
+      tmpfs_reg_shrink_meta(tfm, v, oldblks);
+      return error;
+    }
+
   } else if (newsize < oldsize) {
-    if (newblks < oldblks)
-      tmpfs_reg_shrink(tfm, v, oldblks, newblks);
+    if (newblks < oldblks) {
+      tmpfs_reg_free_blk(tfm, v, newblks, oldblks);
+      tmpfs_reg_shrink_meta(tfm, v, newblks);
+    }
     /* If the file is not being truncated to a block boundry, the contents of
      * the partial block following the end of the file must be zero'ed */
     size_t blkno = BLKNO(newsize);
