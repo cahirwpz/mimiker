@@ -160,7 +160,13 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
         file_drop(f);
         return error;
       }
-      error = fd_set_cloexec(p->p_fdtable, *resp, cloexec);
+      error = fd_set_cloexec(p->p_fdtable, fd, cloexec);
+      break;
+
+    case F_SETFD:
+      if (arg == FD_CLOEXEC)
+        cloexec = true;
+      error = fd_set_cloexec(p->p_fdtable, fd, cloexec);
       break;
 
     default:
