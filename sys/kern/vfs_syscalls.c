@@ -194,14 +194,9 @@ int do_unlink(proc_t *p, char *path) {
     return EPERM;
   }
 
-  char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
-  memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
-  namecopy[cn.cn_namelen] = 0;
-
-  error = VOP_REMOVE(dvn, vn, namecopy);
+  error = VOP_REMOVE(dvn, vn, &cn);
   vnode_put(dvn);
   vnode_put(vn);
-  kfree(M_TEMP, namecopy);
 
   return error;
 }
@@ -225,18 +220,12 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
     return EEXIST;
   }
 
-  char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
-  memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
-  namecopy[cn.cn_namelen] = 0;
-
   memset(&va, 0, sizeof(vattr_t));
   va.va_mode = S_IFDIR | (mode & ALLPERMS);
 
-  error = VOP_MKDIR(dvn, namecopy, &va, &vn);
+  error = VOP_MKDIR(dvn, &cn, &va, &vn);
   if (!error)
     vnode_drop(vn);
-
-  kfree(M_TEMP, namecopy);
 
   vnode_put(dvn);
   return error;
@@ -266,14 +255,9 @@ int do_rmdir(proc_t *p, char *path) {
     return error;
   }
 
-  char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
-  memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
-  namecopy[cn.cn_namelen] = 0;
-
-  error = VOP_RMDIR(dvn, vn, namecopy);
+  error = VOP_RMDIR(dvn, vn, &cn);
   vnode_put(dvn);
   vnode_put(vn);
-  kfree(M_TEMP, namecopy);
 
   return error;
 }
