@@ -14,6 +14,7 @@
 #include <sys/sched.h>
 #include <sys/malloc.h>
 #include <sys/vfs.h>
+#include <bitstring.h>
 
 #define NPROC 64 /* maximum number of processes */
 #define CHILDREN(p) (&(p)->p_children)
