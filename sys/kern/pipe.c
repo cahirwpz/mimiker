@@ -182,9 +182,8 @@ int do_pipe(proc_t *p, int fds[2]) {
 
   if (!(error = fdtab_install_file(p->p_fdtable, file0, 0, &fds[0]))) {
     if (!(error = fdtab_install_file(p->p_fdtable, file1, 0, &fds[1]))) {
-      if (!(error = fd_set_cloexec(p->p_fdtable, fds[0], false))) {
+      if (!(error = fd_set_cloexec(p->p_fdtable, fds[0], false)))
         return fd_set_cloexec(p->p_fdtable, fds[1], false);
-      }
       fdtab_close_fd(p->p_fdtable, fds[1]);
     }
     fdtab_close_fd(p->p_fdtable, fds[0]);

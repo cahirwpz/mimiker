@@ -110,11 +110,11 @@ static int fd_alloc(fdtab_t *fdt, int minfd, int *fdp) {
 }
 
 static void fd_free(fdtab_t *fdt, int fd) {
-  fdent_t f = fdt->fdt_entries[fd];
-  assert(f.fde_file != NULL);
-  file_drop(f.fde_file);
-  fdt->fdt_entries[fd].fde_file = NULL;
-  fdt->fdt_entries[fd].fde_cloexec = false;
+  fdent_t *fde = &fdt->fdt_entries[fd];
+  assert(fde->fde_file != NULL);
+  file_drop(fde->fde_file);
+  fde->fde_file = NULL;
+  fde->fde_cloexec = false;
   fd_mark_unused(fdt, fd);
 }
 
@@ -193,13 +193,15 @@ int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
     if (is_bad_fd(fdt, fd))
       return EBADF;
 
+    fdent_t *fde = &fdt->fdt_entries[fd];
+
     if (fd_is_used(fdt, fd)) {
-      if (fdt->fdt_entries[fd].fde_file == f)
+      if (fde->fde_file == f)
         break;
       fd_free(fdt, fd);
     }
-    fdt->fdt_entries[fd].fde_file = f;
-    fdt->fdt_entries[fd].fde_cloexec = false;
+    fde->fde_file = f;
+    fde->fde_cloexec = false;
     fd_mark_used(fdt, fd);
   }
 
@@ -259,10 +261,9 @@ int fd_set_cloexec(fdtab_t *fdt, int fd, bool cloexec) {
 int fdtab_onexec(fdtab_t *fdt) {
   int error;
   for (int fd = 0; fd < fdt->fdt_nfiles; ++fd) {
-    if (fd_is_used(fdt, fd) && fdt->fdt_entries[fd].fde_cloexec) {
+    if (fd_is_used(fdt, fd) && fdt->fdt_entries[fd].fde_cloexec)
       if ((error = fdtab_close_fd(fdt, fd)))
         return error;
-    }
   }
   return 0;
 }
