@@ -4,8 +4,32 @@
 #include <sys/libkern.h>
 #include <sys/errno.h>
 #include <sys/mutex.h>
+#include <sys/refcnt.h>
+#include <bitstring.h>
 
 static KMALLOC_DEFINE(M_FD, "filedesc", PAGESIZE * 2);
+
+/* The initial size of space allocated for file descriptors. According
+   to FreeBSD, this is more than enough for most applications. Each
+   process starts with this many descriptors, and more are allocated
+   on demand. */
+#define NDFILE 20
+/* Separate macro defining a hard limit on open files. */
+#define MAXFILES 1024
+
+typedef struct fdent {
+  file_t *fde_file;
+  bool fde_cloexec;
+} fdent_t;
+
+struct fdtab {
+  fdent_t *fdt_entries; /* Open files array */
+  bitstr_t *fdt_map;    /* Bitmap of used fds */
+  unsigned fdt_flags;
+  int fdt_nfiles;     /* Number of files allocated */
+  refcnt_t fdt_count; /* Reference count */
+  mtx_t fdt_mtx;
+};
 
 /* Test whether a file descriptor is in use. */
 static int fd_is_used(fdtab_t *fdt, int fd) {

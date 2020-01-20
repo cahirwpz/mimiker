@@ -9,6 +9,7 @@
 #include <sys/thread.h>
 #include <sys/errno.h>
 #include <sys/filedesc.h>
+#include <sys/fcntl.h>
 #include <sys/sbrk.h>
 #include <sys/syslimits.h>
 #include <sys/vfs.h>

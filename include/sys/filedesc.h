@@ -1,32 +1,10 @@
 #ifndef _SYS_FILEDESC_H_
 #define _SYS_FILEDESC_H_
 
-#include <sys/file.h>
-#include <sys/refcnt.h>
-#include <sys/mutex.h>
-#include <bitstring.h>
+#include <stdbool.h>
 
-/* The initial size of space allocated for file descriptors. According
-   to FreeBSD, this is more than enough for most applications. Each
-   process starts with this many descriptors, and more are allocated
-   on demand. */
-#define NDFILE 20
-/* Separate macro defining a hard limit on open files. */
-#define MAXFILES 1024
-
-typedef struct fdent {
-  file_t *fde_file;
-  bool fde_cloexec;
-} fdent_t;
-
-typedef struct fdtab {
-  fdent_t *fdt_entries; /* Open files array */
-  bitstr_t *fdt_map;    /* Bitmap of used fds */
-  unsigned fdt_flags;
-  int fdt_nfiles;     /* Number of files allocated */
-  refcnt_t fdt_count; /* Reference count */
-  mtx_t fdt_mtx;
-} fdtab_t;
+typedef struct file file_t;
+typedef struct fdtab fdtab_t;
 
 /*! \brief Increments reference counter. */
 void fdtab_hold(fdtab_t *fdt);
