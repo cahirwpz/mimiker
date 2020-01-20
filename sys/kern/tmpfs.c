@@ -69,15 +69,26 @@ typedef struct tmpfs_mount {
   ino_t tfm_next_ino;
 } tmpfs_mount_t;
 
-static blkptr_t alloc_block(tmpfs_mount_t *tfm, tmpfs_node_t *v) {
-  blkptr_t ptr = kmem_alloc(PAGESIZE, M_ZERO);
-  if (ptr)
+static int alloc_block(tmpfs_mount_t *tfm, tmpfs_node_t *v, blkptr_t *blkptrp) {
+  assert(blkptrp != NULL);
+
+  if (!(*blkptrp)) {
+    blkptr_t blkptr = kmem_alloc(PAGESIZE, M_ZERO);
+    if (!blkptr)
+      return ENOMEM;
     v->tfn_reg.nblocks++;
-  return ptr;
+    *blkptrp = blkptr;
+  }
+
+  return 0;
 }
 
-static void free_block(tmpfs_mount_t *tfm, tmpfs_node_t *v, blkptr_t ptr) {
-  kmem_free(ptr, PAGESIZE);
+static void free_block(tmpfs_mount_t *tfm, tmpfs_node_t *v, blkptr_t *blkptrp) {
+  assert(blkptrp != NULL);
+  assert(*blkptrp != NULL);
+
+  kmem_free(*blkptrp, PAGESIZE);
+  *blkptrp = NULL;
   v->tfn_reg.nblocks--;
 }
 
@@ -476,26 +487,27 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de) {
  */
 static int tmpfs_reg_expand_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
                                  size_t blkcnt) {
+  int error;
+
   /* L1 */
-  if (blkcnt > DIRECT_BLK_NO && !v->tfn_reg.l1indirect) {
-    if (!(v->tfn_reg.l1indirect = (blkptr_t *)alloc_block(tfm, v)))
-      return ENOMEM;
-  }
+  if (blkcnt <= DIRECT_BLK_NO)
+    return 0;
+
+  if ((error = alloc_block(tfm, v, (blkptr_t *)&v->tfn_reg.l1indirect)))
+    return error;
 
   /* L2 */
-  if (blkcnt > DIRECT_BLK_NO + L1_BLK_NO) {
-    if (!v->tfn_reg.l2indirect)
-      if (!(v->tfn_reg.l2indirect = (blkptr_t **)alloc_block(tfm, v)))
-        return ENOMEM;
+  if (blkcnt <= DIRECT_BLK_NO + L1_BLK_NO)
+    return 0;
 
-    blkptr_t **l2arr = v->tfn_reg.l2indirect;
-    size_t l2blkcnt =
-      (blkcnt - (DIRECT_BLK_NO + L1_BLK_NO) + PTR_IN_BLK - 1) / PTR_IN_BLK;
-    for (size_t i = 0; i < l2blkcnt; i++) {
-      if (!l2arr[i])
-        if (!(l2arr[i] = (blkptr_t *)alloc_block(tfm, v)))
-          return ENOMEM;
-    }
+  if ((error = alloc_block(tfm, v, (blkptr_t *)&v->tfn_reg.l2indirect)))
+    return error;
+
+  size_t l2blkcnt =
+    (blkcnt - (DIRECT_BLK_NO + L1_BLK_NO) + PTR_IN_BLK - 1) / PTR_IN_BLK;
+  for (size_t i = 0; i < l2blkcnt; i++) {
+    if ((error = alloc_block(tfm, v, (blkptr_t *)&v->tfn_reg.l2indirect[i])))
+      return error;
   }
 
   return 0;
@@ -508,31 +520,25 @@ static int tmpfs_reg_expand_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
 static void tmpfs_reg_shrink_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
                                   size_t blkcnt) {
   /* L1 */
-  if (blkcnt <= DIRECT_BLK_NO && v->tfn_reg.l1indirect) {
-    free_block(tfm, v, (blkptr_t)v->tfn_reg.l1indirect);
-    v->tfn_reg.l1indirect = NULL;
-  }
+  if (blkcnt <= DIRECT_BLK_NO && v->tfn_reg.l1indirect)
+    free_block(tfm, v, (blkptr_t *)&v->tfn_reg.l1indirect);
 
   /* L2 */
   if (!v->tfn_reg.l2indirect)
     return;
 
-  /* Number of pointers in L2 block that wil be still used. */
+  /* Number of pointers in L2 block that will be still used. */
   size_t l2ptrcnt = 0;
 
   if (blkcnt > L1_BLK_NO + DIRECT_BLK_NO)
     l2ptrcnt =
       (blkcnt - (DIRECT_BLK_NO + L1_BLK_NO) + PTR_IN_BLK - 1) / PTR_IN_BLK;
 
-  for (size_t i = l2ptrcnt; i < PTR_IN_BLK && v->tfn_reg.l2indirect[i]; i++) {
-    free_block(tfm, v, (blkptr_t)v->tfn_reg.l2indirect[i]);
-    v->tfn_reg.l2indirect[i] = NULL;
-  }
+  for (size_t i = l2ptrcnt; i < PTR_IN_BLK && v->tfn_reg.l2indirect[i]; i++)
+    free_block(tfm, v, (blkptr_t *)&v->tfn_reg.l2indirect[i]);
 
-  if (l2ptrcnt == 0) {
-    free_block(tfm, v, (blkptr_t)v->tfn_reg.l2indirect);
-    v->tfn_reg.l2indirect = NULL;
-  }
+  if (l2ptrcnt == 0)
+    free_block(tfm, v, (blkptr_t *)&v->tfn_reg.l2indirect);
 }
 
 /*
@@ -554,23 +560,22 @@ static blkptr_t *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t blkno) {
 
 static int tmpfs_reg_alloc_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t from,
                                size_t to) {
+  int error;
+
   for (size_t blkno = from; blkno < to; blkno++) {
     blkptr_t *blk = tmpfs_reg_get_blk(v, blkno);
     assert(!(*blk));
-    if (!(*blk = alloc_block(tfm, v)))
-      return ENOMEM;
+    if ((error = alloc_block(tfm, v, blk)))
+      return error;
   }
+
   return 0;
 }
 
 static void tmpfs_reg_free_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t from,
                                size_t to) {
-  for (size_t blkno = from; blkno < to; blkno++) {
-    blkptr_t *blk = tmpfs_reg_get_blk(v, blkno);
-    assert(*blk);
-    free_block(tfm, v, *blk);
-    *blk = NULL;
-  }
+  for (size_t blkno = from; blkno < to; blkno++)
+    free_block(tfm, v, tmpfs_reg_get_blk(v, blkno));
 }
 
 /*
