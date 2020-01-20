@@ -129,7 +129,7 @@ int do_dup2(proc_t *p, int oldfd, int newfd) {
 
   error = fdtab_install_file_at(p->p_fdtable, f, newfd);
   file_drop(f);
-  return 0;
+  return error;
 }
 
 int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
