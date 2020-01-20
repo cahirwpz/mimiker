@@ -124,6 +124,7 @@ int sig_return(void);
 
 /* System calls implementation. */
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
+int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset);
 int do_sigreturn(void);
 
 #endif /* !_KERNEL */

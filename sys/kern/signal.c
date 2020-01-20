@@ -67,6 +67,32 @@ static int sig_default(signo_t sig) {
   return def_sigact[sig];
 }
 
+int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
+  assert(mtx_owned(&proc_self()->p_lock));
+  sigset_t *const mask = &proc_self()->p_thread->td_sigmask;
+
+  if (oset != NULL)
+    *oset = *mask;
+
+  if (set != NULL) {
+    switch (how) {
+      case SIG_BLOCK:
+        __sigplusset(set, mask);
+        break;
+      case SIG_UNBLOCK:
+        __sigminusset(set, mask);
+        break;
+      case SIG_SETMASK:
+        *mask = *set;
+        break;
+      default:
+        return EINVAL;
+    }
+  }
+
+  return 0;
+}
+
 /*
  * NOTE: This is a very simple implementation! Unimplemented features:
  * - Thread tracing and debugging

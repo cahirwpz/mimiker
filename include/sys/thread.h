@@ -10,6 +10,7 @@
 #include <sys/priority.h>
 #include <sys/time.h>
 #include <sys/signal.h>
+#include <sys/sigtypes.h>
 #include <sys/kstack.h>
 #include <sys/spinlock.h>
 
@@ -127,6 +128,7 @@ typedef struct thread {
   unsigned td_nctxsw;        /*!< (*) total number of context switches */
   /* signal handling */
   sigset_t td_sigpend; /*!< (p) Pending signals for this thread. */
+  sigset_t td_sigmask; /*!< (p) Signal mask */
   /* TODO: Signal mask, sigsuspend. */
 } thread_t;
 
