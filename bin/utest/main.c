@@ -54,6 +54,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(sigaction_with_setjmp);
   CHECKRUN_TEST(sigaction_handler_returns);
   CHECKRUN_TEST(vfs_dir);
+  CHECKRUN_TEST(vfs_rw);
   CHECKRUN_TEST(vfs_relative_dir);
 
   CHECKRUN_TEST(setpgid);
