@@ -25,8 +25,7 @@ int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
   if ((error = fdtab_install_file(p->p_fdtable, f, 0, fd)))
     goto fail;
   /* Set cloexec flag */
-  if ((error =
-         fd_set_cloexec(p->p_fdtable, *fd, (flags & O_CLOEXEC) ? true : false)))
+  if ((error = fd_set_cloexec(p->p_fdtable, *fd, !!(flags & O_CLOEXEC))))
     goto fail;
 
   return 0;
@@ -116,11 +115,6 @@ int do_dup(proc_t *p, int oldfd, int *newfdp) {
 
   error = fdtab_install_file(p->p_fdtable, f, 0, newfdp);
   file_drop(f);
-  if (error)
-    return error;
-
-  /* The close-on-exec flag (FD_CLOEXEC) for the duplicate descriptor is off. */
-  error = fd_set_cloexec(p->p_fdtable, *newfdp, false);
   return error;
 }
 
@@ -136,8 +130,6 @@ int do_dup2(proc_t *p, int oldfd, int newfd) {
 
   error = fdtab_install_file_at(p->p_fdtable, f, newfd);
   file_drop(f);
-  /* The close-on-exec flag (FD_CLOEXEC) for the duplicate descriptor is off. */
-  error = fd_set_cloexec(p->p_fdtable, newfd, false);
   return 0;
 }
 

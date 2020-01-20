@@ -119,9 +119,9 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
 
   for (int i = 0; i < fdt->fdt_nfiles; i++) {
     if (fd_is_used(fdt, i)) {
-      fdent_t f = fdt->fdt_entries[i];
-      newfdt->fdt_entries[i] = f;
-      file_hold(f.fde_file);
+      fdent_t *f = &fdt->fdt_entries[i];
+      newfdt->fdt_entries[i] = *f;
+      file_hold(f->fde_file);
     }
   }
 
@@ -156,6 +156,7 @@ int fdtab_install_file(fdtab_t *fdt, file_t *f, int minfd, int *fd) {
   if ((error = fd_alloc(fdt, minfd, fd)))
     return error;
   fdt->fdt_entries[*fd].fde_file = f;
+  fdt->fdt_entries[*fd].fde_cloexec = false;
   file_hold(f);
   return 0;
 }
@@ -174,6 +175,7 @@ int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
       fd_free(fdt, fd);
     }
     fdt->fdt_entries[fd].fde_file = f;
+    fdt->fdt_entries[fd].fde_cloexec = false;
     fd_mark_used(fdt, fd);
   }
 
@@ -221,6 +223,8 @@ int fdtab_close_fd(fdtab_t *fdt, int fd) {
 }
 
 int fd_set_cloexec(fdtab_t *fdt, int fd, bool cloexec) {
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
+
   if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))
     return EBADF;
 
