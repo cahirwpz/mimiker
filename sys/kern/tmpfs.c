@@ -85,11 +85,12 @@ static int alloc_block(tmpfs_mount_t *tfm, tmpfs_node_t *v, blkptr_t *blkptrp) {
 
 static void free_block(tmpfs_mount_t *tfm, tmpfs_node_t *v, blkptr_t *blkptrp) {
   assert(blkptrp != NULL);
-  assert(*blkptrp != NULL);
 
-  kmem_free(*blkptrp, PAGESIZE);
-  *blkptrp = NULL;
-  v->tfn_reg.nblocks--;
+  if (*blkptrp) {
+    kmem_free(*blkptrp, PAGESIZE);
+    *blkptrp = NULL;
+    v->tfn_reg.nblocks--;
+  }
 }
 
 static POOL_DEFINE(P_TMPFS_NODE, "tmpfs node", sizeof(tmpfs_node_t));
