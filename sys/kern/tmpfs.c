@@ -177,6 +177,15 @@ static int tmpfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
   mount_t *mp = dv->v_mount;
   tmpfs_node_t *dnode = TMPFS_NODE_OF(dv);
 
+  if (componentname_equal(cn, "..")) {
+    tmpfs_node_t *pnode = dnode->tfn_dir.parent;
+    return tmpfs_get_vnode(mp, pnode, vp);
+  } else if (componentname_equal(cn, ".")) {
+    vnode_hold(dv);
+    *vp = dv;
+    return 0;
+  }
+
   tmpfs_dirent_t *de = tmpfs_dir_lookup(dnode, cn);
   if (de == NULL)
     return ENOENT;
