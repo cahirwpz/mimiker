@@ -357,7 +357,7 @@ static int _do_execve(exec_args_t *args) {
   if ((error = exec_args_copyout(args, &stack_top)))
     goto fail;
 
-  fd_closeexec(p->p_fdtable);
+  fdtab_onexec(p->p_fdtable);
 
   /* Set up user context. */
   exc_frame_init(td->td_uframe, (void *)eh.e_entry, (void *)stack_top, EF_USER);

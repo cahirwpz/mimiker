@@ -51,6 +51,6 @@ int fdtab_close_fd(fdtab_t *fdt, int fd);
 /* Set cloexec flag. */
 int fd_set_cloexec(fdtab_t *fdt, int fd, bool exclose);
 /* Close file descriptors with cloexec flag. */
-int fd_closeexec(fdtab_t *fdt);
+int fdtab_onexec(fdtab_t *fdt);
 
 #endif /* !_SYS_FILEDESC_H_ */
