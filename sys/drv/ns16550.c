@@ -63,7 +63,7 @@ static int ns16550_read(vnode_t *v, uio_t *uio) {
   return 0;
 }
 
-static int ns16550_write(vnode_t *v, uio_t *uio) {
+static int ns16550_write(vnode_t *v, uio_t *uio, int ioflags) {
   ns16550_state_t *ns16550 = v->v_data;
   resource_t *uart = ns16550->regs;
   int error;

@@ -135,7 +135,10 @@ static int default_vnread(file_t *f, uio_t *uio) {
 }
 
 static int default_vnwrite(file_t *f, uio_t *uio) {
-  return VOP_WRITE(f->f_vnode, uio);
+  int ioflag = 0;
+  if (f->f_flags & FF_APPEND)
+    ioflag |= IO_APPEND;
+  return VOP_WRITE(f->f_vnode, uio, ioflag);
 }
 
 static int default_vnclose(file_t *f) {

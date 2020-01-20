@@ -8,7 +8,7 @@
 
 #define UART_BUF_MAX 100
 
-static int dev_cons_write(vnode_t *t, uio_t *uio) {
+static int dev_cons_write(vnode_t *t, uio_t *uio, int ioflag) {
   char buffer[UART_BUF_MAX];
   size_t n = uio->uio_resid;
   int res = uiomove(buffer, UART_BUF_MAX - 1, uio);
