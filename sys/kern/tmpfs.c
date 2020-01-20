@@ -27,7 +27,7 @@
 #define L1_BLK_NO PTR_IN_BLK
 #define L2_BLK_NO (PTR_IN_BLK * PTR_IN_BLK)
 
-typedef void *blkptr_t;
+typedef struct _blk *blkptr_t;
 
 typedef struct tmpfs_dirent {
   TAILQ_ENTRY(tmpfs_dirent) tfd_entries; /* node on dirent list */
@@ -56,7 +56,8 @@ typedef struct tmpfs_node {
     } tfn_dir;
     struct {
       blkptr_t direct[DIRECT_BLK_NO];
-      blkptr_t indirect[INDIRECT_BLK_NO];
+      blkptr_t *l1indirect;
+      blkptr_t **l2indirect;
       size_t nblocks; /* Number of blocks used by this file. */
     } tfn_reg;
   };
@@ -475,25 +476,24 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de) {
  */
 static int tmpfs_reg_expand_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
                                  size_t blkcnt) {
-  blkptr_t *indirs = v->tfn_reg.indirect;
   /* L1 */
-  if (blkcnt > DIRECT_BLK_NO && !indirs[0]) {
-    if (!(indirs[0] = alloc_block(tfm, v)))
+  if (blkcnt > DIRECT_BLK_NO && !v->tfn_reg.l1indirect) {
+    if (!(v->tfn_reg.l1indirect = (blkptr_t *)alloc_block(tfm, v)))
       return ENOMEM;
   }
 
   /* L2 */
   if (blkcnt > DIRECT_BLK_NO + L1_BLK_NO) {
-    if (!indirs[1])
-      if (!(indirs[1] = alloc_block(tfm, v)))
+    if (!v->tfn_reg.l2indirect)
+      if (!(v->tfn_reg.l2indirect = (blkptr_t **)alloc_block(tfm, v)))
         return ENOMEM;
 
-    blkptr_t *blkarr = indirs[1];
+    blkptr_t **l2arr = v->tfn_reg.l2indirect;
     size_t l2blkcnt =
       (blkcnt - (DIRECT_BLK_NO + L1_BLK_NO) + PTR_IN_BLK - 1) / PTR_IN_BLK;
     for (size_t i = 0; i < l2blkcnt; i++) {
-      if (!blkarr[i])
-        if (!(blkarr[i] = alloc_block(tfm, v)))
+      if (!l2arr[i])
+        if (!(l2arr[i] = (blkptr_t *)alloc_block(tfm, v)))
           return ENOMEM;
     }
   }
@@ -507,30 +507,31 @@ static int tmpfs_reg_expand_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
  */
 static void tmpfs_reg_shrink_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
                                   size_t blkcnt) {
-  blkptr_t *indirs = v->tfn_reg.indirect;
   /* L1 */
-  if (blkcnt <= DIRECT_BLK_NO && indirs[0]) {
-    free_block(tfm, v, indirs[0]);
-    indirs[0] = NULL;
+  if (blkcnt <= DIRECT_BLK_NO && v->tfn_reg.l1indirect) {
+    free_block(tfm, v, (blkptr_t)v->tfn_reg.l1indirect);
+    v->tfn_reg.l1indirect = NULL;
   }
 
   /* L2 */
-  blkptr_t *blkarr = indirs[1];
-  if (!blkarr)
+  if (!v->tfn_reg.l2indirect)
     return;
+
   /* Number of pointers in L2 block that wil be still used. */
   size_t l2ptrcnt = 0;
+
   if (blkcnt > L1_BLK_NO + DIRECT_BLK_NO)
     l2ptrcnt =
       (blkcnt - (DIRECT_BLK_NO + L1_BLK_NO) + PTR_IN_BLK - 1) / PTR_IN_BLK;
 
-  for (size_t i = l2ptrcnt; i < PTR_IN_BLK && blkarr[i]; i++) {
-    free_block(tfm, v, blkarr[i]);
-    blkarr[i] = NULL;
+  for (size_t i = l2ptrcnt; i < PTR_IN_BLK && v->tfn_reg.l2indirect[i]; i++) {
+    free_block(tfm, v, (blkptr_t)v->tfn_reg.l2indirect[i]);
+    v->tfn_reg.l2indirect[i] = NULL;
   }
+
   if (l2ptrcnt == 0) {
-    free_block(tfm, v, indirs[1]);
-    indirs[1] = NULL;
+    free_block(tfm, v, (blkptr_t)v->tfn_reg.l2indirect);
+    v->tfn_reg.l2indirect = NULL;
   }
 }
 
@@ -543,15 +544,12 @@ static blkptr_t *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t blkno) {
     return &v->tfn_reg.direct[blkno];
 
   blkno -= DIRECT_BLK_NO;
-  if (blkno < L1_BLK_NO) {
-    blkptr_t *blkarr = v->tfn_reg.indirect[0];
-    return &blkarr[blkno];
-  }
+  if (blkno < L1_BLK_NO)
+    return &v->tfn_reg.l1indirect[blkno];
 
   blkno -= L1_BLK_NO;
-  blkptr_t *blkarr = v->tfn_reg.indirect[1];
-  blkarr = blkarr[blkno / PTR_IN_BLK];
-  return &blkarr[blkno % PTR_IN_BLK];
+  blkptr_t *l1arr = v->tfn_reg.l2indirect[blkno / PTR_IN_BLK];
+  return &l1arr[blkno % PTR_IN_BLK];
 }
 
 static int tmpfs_reg_alloc_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t from,
@@ -603,13 +601,14 @@ static int tmpfs_reg_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v,
       tmpfs_reg_free_blk(tfm, v, newblks, oldblks);
       tmpfs_reg_shrink_meta(tfm, v, newblks);
     }
+
     /* If the file is not being truncated to a block boundry, the contents of
      * the partial block following the end of the file must be zero'ed */
     size_t blkno = BLKNO(newsize);
     size_t blkoff = BLKOFF(newsize);
     if (blkoff) {
-      blkptr_t blk = tmpfs_reg_get_blk(v, blkno);
-      memset(blk + blkoff, 0, BLOCK_SIZE - blkoff);
+      blkptr_t *blk = tmpfs_reg_get_blk(v, blkno);
+      memset((void *)*blk + blkoff, 0, BLOCK_SIZE - blkoff);
     }
   }
 
