@@ -345,3 +345,40 @@ end:
   *lastp = last;
   return error;
 }
+
+static int __truncate(vnode_t *vn, off_t length) {
+  int error = 0;
+  vnode_lock(vn);
+  if (vn->v_type == V_DIR)
+    error = EISDIR;
+  else if ((error = VOP_ACCESS(vn, VWRITE))) {
+    vattr_t va;
+    vattr_null(&va);
+    va.va_size = length;
+    error = VOP_SETATTR(vn, &va);
+  }
+  vnode_unlock(vn);
+  return error;
+}
+
+int do_truncate(proc_t *p, char *path, off_t length) {
+  int error;
+  vnode_t *vn;
+
+  if ((error = vfs_namelookup(path, &vn)))
+    return error;
+  error = __truncate(vn, length);
+  vnode_drop(vn);
+  return error;
+}
+
+int do_ftruncate(proc_t *p, int fd, off_t length) {
+  int error;
+  file_t *f;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
+    return error;
+  error = __truncate(f->f_vnode, length);
+  file_drop(f);
+  return error;
+}

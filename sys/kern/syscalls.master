@@ -57,5 +57,7 @@
 44  { gid_t sys_getegid(void); }
 45  { int sys_issetugid(void); }
 46  { int sys_fcntl(int fd, int cmd, ... void *arg); }
+47  { int sys_truncate(const char *path, off_t length); }
+48  { int sys_ftruncate(int fd, off_t length); }
 
 ; vim: ts=4 sw=4 sts=4 et

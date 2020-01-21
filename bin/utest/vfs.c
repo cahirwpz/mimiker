@@ -65,6 +65,27 @@ int test_vfs_rw(void) {
     assert(!memcmp(wrbuf, rdbuf, 16384));
   }
 
+  ftruncate(3, 2048);
+
+  /* The file offset is bigger than size, so read should return 0 bytes. */
+  assert(read(3, rdbuf, 6000) == 0);
+
+  assert_lseek_ok(0, 0, SEEK_SET);
+  assert(read(3, rdbuf, 6000) == 2048);
+  assert(!memcmp(wrbuf, rdbuf, 2048));
+
+  ftruncate(3, 7777);
+  assert_lseek_ok(0, 0, SEEK_SET);
+  assert(read(3, rdbuf, 10000) == 7777);
+  assert(!memcmp(wrbuf, rdbuf, 2048));
+  /* Rest of the file should be zeroed. */
+  for (int i = 2048; i < 7777; i++)
+    assert(((uint8_t *)rdbuf)[i] == 0);
+
+  truncate(TESTDIR "/file", 0);
+  assert_lseek_ok(0, 0, SEEK_SET);
+  assert(read(3, rdbuf, 2048) == 0);
+
   free(wrbuf);
   free(rdbuf);
 

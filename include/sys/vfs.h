@@ -70,6 +70,8 @@ int do_chdir(proc_t *p, char *path);
 int do_getcwd(proc_t *p, char *buf, size_t *lastp);
 int do_umask(proc_t *p, int newmask, int *oldmaskp);
 int do_ioctl(proc_t *p, int fd, u_long cmd, void *data);
+int do_truncate(proc_t *p, char *path, off_t length);
+int do_ftruncate(proc_t *p, int fd, off_t length);
 
 /* Mount a new instance of the filesystem named fs at the requested path. */
 int do_mount(const char *fs, const char *path);

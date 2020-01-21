@@ -714,3 +714,29 @@ static int sys_issetugid(proc_t *p, void *args, register_t *res) {
   *res = 0;
   return 0;
 }
+
+static int sys_truncate(proc_t *p, truncate_args_t *args, register_t *res) {
+  const char *u_path = args->path;
+  off_t length = args->length;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+  int error;
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("truncate(\"%s\", %d)", path, length);
+
+  error = do_truncate(p, path, length);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
+static int sys_ftruncate(proc_t *p, ftruncate_args_t *args, register_t *res) {
+  int fd = args->fd;
+  off_t length = args->length;
+  klog("ftruncate(%d, %d)", fd, length);
+  return do_ftruncate(p, fd, length);
+}
