@@ -9,6 +9,7 @@
 #include <sys/thread.h>
 #include <sys/errno.h>
 #include <sys/filedesc.h>
+#include <sys/fcntl.h>
 #include <sys/sbrk.h>
 #include <sys/syslimits.h>
 #include <sys/vfs.h>
@@ -356,6 +357,8 @@ static int _do_execve(exec_args_t *args) {
   /* Prepare program stack, which includes storing program args. */
   if ((error = exec_args_copyout(args, &stack_top)))
     goto fail;
+
+  fdtab_onexec(p->p_fdtable);
 
   /* Set up user context. */
   exc_frame_init(td->td_uframe, (void *)eh.e_entry, (void *)stack_top, EF_USER);
