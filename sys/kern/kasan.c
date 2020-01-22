@@ -92,7 +92,7 @@ kasan_shadow_8byte_isvalid(unsigned long addr, uint8_t *code) {
 __always_inline static inline bool
 kasan_shadow_Nbyte_isvalid(unsigned long addr, size_t size, uint8_t *code) {
   for (size_t i = 0; i < size; i++)
-    if (!kasan_shadow_1byte_isvalid(addr + i, code))
+    if (__predict_false(!kasan_shadow_1byte_isvalid(addr + i, code)))
       return false;
   return true;
 }
