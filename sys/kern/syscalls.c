@@ -714,3 +714,19 @@ static int sys_issetugid(proc_t *p, void *args, register_t *res) {
   *res = 0;
   return 0;
 }
+
+static int sys_getdents(proc_t *p, getdents_args_t *args, register_t *res) {
+  int fd = args->fd;
+  void *u_buf = args->buf;
+  size_t len = args->len;
+  int error;
+
+  klog("getdirentries(%d, %p, %u)", fd, u_buf, len);
+
+  uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, u_buf, len);
+  if ((error = do_getdirentries(p, fd, &uio, NULL)))
+    return error;
+
+  *res = len - uio.uio_resid;
+  return 0;
+}

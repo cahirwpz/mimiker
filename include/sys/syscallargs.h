@@ -211,3 +211,9 @@ typedef struct {
   int cmd;
   void * arg;
 } fcntl_args_t;
+
+typedef struct {
+  int fd;
+  void * buf;
+  size_t len;
+} getdents_args_t;
