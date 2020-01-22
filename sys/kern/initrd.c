@@ -2,6 +2,7 @@
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/pool.h>
+#include <sys/kmem.h>
 #include <sys/libkern.h>
 #include <cpio.h>
 #include <sys/initrd.h>
@@ -122,7 +123,7 @@ static const char *basename(const char *path) {
 }
 
 static void read_cpio_archive(void) {
-  void *tape = (void *)MIPS_PHYS_TO_KSEG0(ramdisk_get_start());
+  void *tape = kmem_map(ramdisk_get_start(), ramdisk_get_size());
 
   while (true) {
     cpio_node_t *node = cpio_node_alloc();
@@ -293,7 +294,7 @@ static readdir_ops_t cpio_readdir_ops = {
   .convert = cpio_to_dirent,
 };
 
-static int initrd_vnode_readdir(vnode_t *v, uio_t *uio, void *state) {
+static int initrd_vnode_readdir(vnode_t *v, uio_t *uio) {
   return readdir_generic(v, uio, &cpio_readdir_ops);
 }
 
@@ -320,11 +321,6 @@ static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_access = vnode_access_generic};
 
 static int initrd_init(vfsconf_t *vfc) {
-  /* Ramdisk start & end addresses are expected to be page aligned. */
-  assert(page_aligned_p(ramdisk_get_start()));
-  /* If the size is page aligned, the end address is as well. */
-  assert(page_aligned_p(ramdisk_get_size()));
-
   vnodeops_init(&initrd_vops);
 
   klog("parsing cpio archive of %u bytes", ramdisk_get_size());

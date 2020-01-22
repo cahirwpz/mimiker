@@ -5,6 +5,7 @@
 #include <sys/libkern.h>
 #include <sys/vm_map.h>
 #include <sys/proc.h>
+#include <sys/vnode.h>
 #include <sys/sbrk.h>
 
 int do_fork(pid_t *cldpidp) {
@@ -54,6 +55,9 @@ int do_fork(pid_t *cldpidp) {
   /* Copy the parent descriptor table. */
   /* TODO: Optionally share the descriptor table between processes. */
   child->p_fdtable = fdtab_copy(parent->p_fdtable);
+
+  vnode_hold(parent->p_cwd);
+  child->p_cwd = parent->p_cwd;
 
   /* Copy signal handler dispatch rules. */
   memcpy(child->p_sigactions, parent->p_sigactions,

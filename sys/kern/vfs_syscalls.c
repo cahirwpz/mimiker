@@ -11,8 +11,9 @@
 #include <sys/stat.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 
-int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
+int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fdp) {
   int error;
 
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -21,8 +22,11 @@ int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
   if ((error = vfs_open(f, pathname, flags, mode)))
     goto fail;
   /* Now install the file in descriptor table. */
-  if ((error = fdtab_install_file(p->p_fdtable, f, 0, fd)))
+  if ((error = fdtab_install_file(p->p_fdtable, f, 0, fdp)))
     goto fail;
+  /* Set cloexec flag. */
+  if (flags & O_CLOEXEC)
+    return fd_set_cloexec(p->p_fdtable, *fdp, true);
   return 0;
 
 fail:
@@ -94,7 +98,7 @@ int do_stat(proc_t *p, char *path, stat_t *sb) {
   if ((error = VOP_GETATTR(v, &va)))
     goto fail;
 
-  va_convert(&va, sb);
+  vattr_convert(&va, sb);
 
 fail:
   vnode_drop(v);
@@ -107,6 +111,7 @@ int do_dup(proc_t *p, int oldfd, int *newfdp) {
 
   if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
     return error;
+
   error = fdtab_install_file(p->p_fdtable, f, 0, newfdp);
   file_drop(f);
   return error;
@@ -121,9 +126,10 @@ int do_dup2(proc_t *p, int oldfd, int newfd) {
 
   if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
     return error;
+
   error = fdtab_install_file_at(p->p_fdtable, f, newfd);
   file_drop(f);
-  return 0;
+  return error;
 }
 
 int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
@@ -134,9 +140,21 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
     return error;
 
   /* TODO: Currently only F_DUPFD command is implemented. */
+  bool cloexec = false;
   switch (cmd) {
+    case F_DUPFD_CLOEXEC:
+      cloexec = true;
+      /* FALLTHROUGH */
     case F_DUPFD:
-      error = fdtab_install_file(p->p_fdtable, f, arg, resp);
+      if ((error = fdtab_install_file(p->p_fdtable, f, arg, resp)))
+        break;
+      error = fd_set_cloexec(p->p_fdtable, fd, cloexec);
+      break;
+
+    case F_SETFD:
+      if (arg == FD_CLOEXEC)
+        cloexec = true;
+      error = fd_set_cloexec(p->p_fdtable, fd, cloexec);
       break;
 
     default:
@@ -169,7 +187,7 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
     return error;
 
   uio->uio_offset = f->f_offset;
-  error = VOP_READDIR(f->f_vnode, uio, f->f_data);
+  error = VOP_READDIR(f->f_vnode, uio);
   f->f_offset = uio->uio_offset;
   *basep = f->f_offset;
   file_drop(f);
@@ -177,7 +195,27 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
 }
 
 int do_unlink(proc_t *p, char *path) {
-  return ENOTSUP;
+  int error;
+  vnode_t *vn, *dvn;
+  componentname_t cn;
+
+  if ((error = vfs_namedelete(path, &dvn, &vn, &cn)))
+    return error;
+
+  if (vn->v_type == V_DIR) {
+    if (dvn == vn)
+      vnode_drop(dvn);
+    else
+      vnode_put(dvn);
+    vnode_put(vn);
+    return EPERM;
+  }
+
+  error = VOP_REMOVE(dvn, vn, &cn);
+  vnode_put(dvn);
+  vnode_put(vn);
+
+  return error;
 }
 
 int do_mkdir(proc_t *p, char *path, mode_t mode) {
@@ -186,21 +224,25 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
   vnode_t *vn, *dvn;
   componentname_t cn;
 
-  if ((error = vfs_namecreate(path, &dvn, &cn)))
+  if ((error = vfs_namecreate(path, &dvn, &vn, &cn)))
     return error;
 
-  char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
-  memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
-  namecopy[cn.cn_namelen] = 0;
+  if (vn != NULL) {
+    if (vn != dvn)
+      vnode_put(dvn);
+    else
+      vnode_drop(dvn);
+
+    vnode_drop(vn);
+    return EEXIST;
+  }
 
   memset(&va, 0, sizeof(vattr_t));
   va.va_mode = S_IFDIR | (mode & ALLPERMS);
 
-  error = VOP_MKDIR(dvn, namecopy, &va, &vn);
+  error = VOP_MKDIR(dvn, &cn, &va, &vn);
   if (!error)
     vnode_drop(vn);
-
-  kfree(M_TEMP, namecopy);
 
   vnode_put(dvn);
   return error;
@@ -220,8 +262,6 @@ int do_rmdir(proc_t *p, char *path) {
     error = ENOTDIR;
   else if (vn->v_mountedhere != NULL)
     error = EBUSY;
-  else if (cn.cn_namelen > NAME_MAX)
-    error = ENAMETOOLONG;
 
   if (error) {
     if (dvn == vn)
@@ -232,13 +272,9 @@ int do_rmdir(proc_t *p, char *path) {
     return error;
   }
 
-  char *namecopy = kmalloc(M_TEMP, NAME_MAX + 1, 0);
-  memcpy(namecopy, cn.cn_nameptr, cn.cn_namelen);
-  namecopy[cn.cn_namelen] = 0;
-
-  error = VOP_RMDIR(dvn, namecopy);
+  error = VOP_RMDIR(dvn, vn, &cn);
   vnode_put(dvn);
-  kfree(M_TEMP, namecopy);
+  vnode_put(vn);
 
   return error;
 }
@@ -268,5 +304,61 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
   file_drop(f);
   if (error == EPASSTHROUGH)
     error = ENOTTY;
+  return error;
+}
+
+int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
+  assert(*lastp == PATH_MAX);
+
+  vnode_hold(p->p_cwd);
+  vnode_t *uvp = p->p_cwd;
+  vnode_t *lvp = NULL;
+  int error = 0;
+
+  /* Last writable position in provided buffer. */
+  size_t last = *lastp;
+
+  /* Let's start with terminating NUL. */
+  buf[--last] = '\0';
+
+  /* Handle special case for root directory. */
+  uvp = vnode_uncover(uvp);
+
+  if (uvp == vfs_root_vnode) {
+    buf[--last] = '/';
+    goto end;
+  }
+
+  do {
+    componentname_t cn = COMPONENTNAME("..");
+    if ((error = VOP_LOOKUP(uvp, &cn, &lvp)))
+      break;
+
+    if (uvp == lvp) {
+      error = ENOENT;
+      break;
+    }
+
+    if ((error = vfs_name_in_dir(lvp, uvp, buf, &last)))
+      break;
+
+    if (last == 0) {
+      error = ENAMETOOLONG;
+      break;
+    }
+
+    buf[--last] = '/'; /* Prepend component separator. */
+
+    vnode_drop(uvp);
+
+    uvp = vnode_uncover(lvp);
+    lvp = NULL;
+  } while (uvp != vfs_root_vnode);
+
+end:
+  vnode_drop(uvp);
+  if (lvp)
+    vnode_drop(lvp);
+  *lastp = last;
   return error;
 }

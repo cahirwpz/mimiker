@@ -2,7 +2,7 @@
 #include <sys/klog.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
-#include <sys/malloc.h>
+#include <sys/kmem.h>
 #include <sys/pool.h>
 #include <sys/errno.h>
 #include <sys/pipe.h>
@@ -33,14 +33,13 @@ struct pipe {
   pipe_end_t end[2]; /*!< both pipe ends */
 };
 
-static KMALLOC_DEFINE(M_PIPE, "pipe buffers", PAGESIZE * 8);
 static POOL_DEFINE(P_PIPE, "pipe", sizeof(pipe_t));
 
 static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
   mtx_init(&end->mtx, 0);
   cv_init(&end->nonempty, "pipe_end_empty");
   cv_init(&end->nonfull, "pipe_end_full");
-  end->buf.data = kmalloc(M_PIPE, PIPE_SIZE, M_ZERO);
+  end->buf.data = kmem_alloc(PIPE_SIZE, M_ZERO);
   end->buf.size = PIPE_SIZE;
   end->other = other;
 }
@@ -65,8 +64,8 @@ static void pipe_free(pipe_t *pipe) {
     refcnt = --pipe->refcnt;
 
   if (refcnt == 0) {
-    kfree(M_PIPE, pipe->end[0].buf.data);
-    kfree(M_PIPE, pipe->end[1].buf.data);
+    kmem_free(pipe->end[0].buf.data, PIPE_SIZE);
+    kmem_free(pipe->end[1].buf.data, PIPE_SIZE);
     pool_free(P_PIPE, pipe);
   }
 }
@@ -181,16 +180,15 @@ int do_pipe(proc_t *p, int fds[2]) {
 
   int error;
 
-  error = fdtab_install_file(p->p_fdtable, file0, 0, &fds[0]);
-  if (error) {
-    pipe_close(file0);
-    return error;
-  }
-  error = fdtab_install_file(p->p_fdtable, file1, 0, &fds[1]);
-  if (error) {
+  if (!(error = fdtab_install_file(p->p_fdtable, file0, 0, &fds[0]))) {
+    if (!(error = fdtab_install_file(p->p_fdtable, file1, 0, &fds[1]))) {
+      if (!(error = fd_set_cloexec(p->p_fdtable, fds[0], false)))
+        return fd_set_cloexec(p->p_fdtable, fds[1], false);
+      fdtab_close_fd(p->p_fdtable, fds[1]);
+    }
     fdtab_close_fd(p->p_fdtable, fds[0]);
-    pipe_close(file1);
-    return error;
   }
-  return 0;
+  pipe_close(file0);
+  pipe_close(file1);
+  return error;
 }

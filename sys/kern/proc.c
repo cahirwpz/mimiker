@@ -13,6 +13,8 @@
 #include <sys/sleepq.h>
 #include <sys/sched.h>
 #include <sys/malloc.h>
+#include <sys/vfs.h>
+#include <bitstring.h>
 
 #define NPROC 64 /* maximum number of processes */
 #define CHILDREN(p) (&(p)->p_children)
@@ -29,7 +31,7 @@ static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
 /* Pid 0 is never available, because of its special treatment by some
  * syscalls e.g. kill. */
-static bitstr_t pid_used[bitstr_size(NPROC)] = {[0] = 1, 0};
+static bitstr_t pid_used[bitstr_size(NPROC)] = {1};
 
 /* Process ID management functions */
 static pid_t pid_alloc(void) {
@@ -184,6 +186,7 @@ int proc_getpgid(pid_t pid, pgid_t *pgidp) {
     return ESRCH;
 
   *pgidp = p->p_pgrp->pg_id;
+  proc_unlock(p);
   return 0;
 }
 

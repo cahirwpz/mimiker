@@ -6,7 +6,7 @@
 
 typedef struct exc_frame exc_frame_t;
 
-__noreturn void user_exc_leave(void);
+__noreturn __long_call void user_exc_leave(void);
 __noreturn void kernel_oops(exc_frame_t *frame);
 
 /* Flags for \a exc_frame_init */
@@ -24,7 +24,7 @@ void exc_frame_set_retval(exc_frame_t *frame, register_t value,
 
 /*! \brief Set args and return address for context that calls a procedure. */
 void exc_frame_setup_call(exc_frame_t *frame, register_t retaddr,
-                          register_t arg0, register_t arg1);
+                          register_t arg);
 
 /*! \brief Copy exception frame. */
 void exc_frame_copy(exc_frame_t *to, exc_frame_t *from);

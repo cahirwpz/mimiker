@@ -24,12 +24,10 @@ bool pmap_is_modified(vm_page_t *pg) {
   return pg->flags & PG_MODIFIED;
 }
 
-void pmap_set_referenced(paddr_t pa) {
-  vm_page_t *pg = vm_page_find(pa);
+void pmap_set_referenced(vm_page_t *pg) {
   pg->flags |= PG_REFERENCED;
 }
 
-void pmap_set_modified(paddr_t pa) {
-  vm_page_t *pg = vm_page_find(pa);
+void pmap_set_modified(vm_page_t *pg) {
   pg->flags |= PG_MODIFIED;
 }

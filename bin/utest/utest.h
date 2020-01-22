@@ -54,8 +54,18 @@ int test_exc_unaligned_access(void);
 int test_syscall_in_bds(void);
 
 int test_setjmp(void);
+int test_getcwd(void);
 
 int test_sigaction_with_setjmp(void);
 int test_sigaction_handler_returns(void);
+
+int test_vfs_dir(void);
+int test_vfs_relative_dir(void);
+int test_vfs_rw(void);
+
+int test_setpgid(void);
+int test_kill(void);
+int test_killpg_same_group(void);
+int test_killpg_other_group(void);
 
 #endif /* __UTEST_H__ */

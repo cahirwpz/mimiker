@@ -125,7 +125,7 @@ static void destroy_slab(pool_t *pool, pool_slab_t *slab) {
   }
 
   slab->ph_state = DEAD;
-  kmem_free(slab);
+  kmem_free(slab, PAGESIZE);
 }
 
 static void *alloc_item(pool_slab_t *slab) {

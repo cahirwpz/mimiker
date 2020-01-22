@@ -7,6 +7,7 @@ SOURCES = \
 	callout.c \
 	crash.c \
 	klog.c \
+	kmem.c \
 	linker_set.c \
 	malloc.c \
 	mutex.c \

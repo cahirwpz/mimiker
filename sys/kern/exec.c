@@ -9,6 +9,7 @@
 #include <sys/thread.h>
 #include <sys/errno.h>
 #include <sys/filedesc.h>
+#include <sys/fcntl.h>
 #include <sys/sbrk.h>
 #include <sys/syslimits.h>
 #include <sys/vfs.h>
@@ -278,12 +279,12 @@ static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
    * a bit lower so that it is easier to spot invalid memory access
    * when the stack underflows.
    */
-  *stack_top_p = USTACK_TOP;
+  *stack_top_p = USER_STACK_TOP;
 
   vm_object_t *stack_obj = vm_object_alloc(VM_ANONYMOUS);
   vm_segment_t *stack_seg =
-    vm_segment_alloc(stack_obj, USTACK_TOP - USTACK_SIZE, USTACK_TOP,
-                     VM_PROT_READ | VM_PROT_WRITE);
+    vm_segment_alloc(stack_obj, USER_STACK_TOP - USER_STACK_SIZE,
+                     USER_STACK_TOP, VM_PROT_READ | VM_PROT_WRITE);
   int error = vm_map_insert(p->p_uspace, stack_seg, VM_FIXED);
   assert(error == 0);
 
@@ -357,6 +358,8 @@ static int _do_execve(exec_args_t *args) {
   if ((error = exec_args_copyout(args, &stack_top)))
     goto fail;
 
+  fdtab_onexec(p->p_fdtable);
+
   /* Set up user context. */
   exc_frame_init(td->td_uframe, (void *)eh.e_entry, (void *)stack_top, EF_USER);
 
@@ -408,6 +411,10 @@ __noreturn void run_program(const char *path, char *const *argv,
   fdtab_t *fdt = fdtab_create();
   fdtab_hold(fdt);
   p->p_fdtable = fdt;
+
+  /* Set current working directory to root directory */
+  vnode_hold(vfs_root_vnode);
+  p->p_cwd = vfs_root_vnode;
 
   /* ... and initialize file descriptors required by the standard library. */
   int _stdin, _stdout, _stderr;

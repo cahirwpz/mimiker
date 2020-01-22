@@ -6,16 +6,19 @@ SOURCES = \
 	fd.c \
 	fork.c \
 	fpu_ctx.c \
+	getcwd.c \
 	lseek.c \
 	main.c \
 	misbehave.c \
 	mmap.c \
+	pgrp.c \
 	sbrk.c \
 	signal.c \
 	stat.c \
 	setjmp.c \
 	sigaction.c \
-	utest.c
+	utest.c \
+	vfs.c
 
 PROGRAM = utest
 

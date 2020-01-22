@@ -11,6 +11,8 @@
 #include <sys/linker_set.h>
 #include <sys/sysinit.h>
 #include <sys/mimiker.h>
+#include <sys/proc.h>
+#include <sys/stat.h>
 
 /* Internal state for a vnr operation. */
 typedef struct {
@@ -175,8 +177,7 @@ static int vfs_maybe_descend(vnode_t **vp) {
   vnode_t *v = *vp;
   while (is_mountpoint(v)) {
     int error = VFS_ROOT(v->v_mountedhere, &v_mntpt);
-    vnode_unlock(v);
-    vnode_drop(v);
+    vnode_put(v);
     if (error)
       return error;
     v = v_mntpt;
@@ -251,20 +252,19 @@ static int vfs_nameresolve(vnrstate_t *state) {
   if (state->vs_nextcn[0] == '\0')
     return ENOENT;
 
-  if (strncmp(state->vs_nextcn, "/", 1) != 0) {
-    klog("Relative paths are not supported!");
-    return ENOENT;
+  if (strncmp(state->vs_nextcn, "/", 1) == 0) {
+    searchdir = vfs_root_vnode;
+    /* Drop leading slashes. */
+    while (state->vs_nextcn[0] == '/')
+      state->vs_nextcn++;
+  } else {
+    searchdir = proc_self()->p_cwd;
   }
-
-  /* Drop leading slashes. */
-  while (state->vs_nextcn[0] == '/')
-    state->vs_nextcn++;
 
   if (strlen(state->vs_nextcn) >= PATH_MAX)
     return ENAMETOOLONG;
 
   /* Establish the starting directory for lookup, and lock it. */
-  searchdir = vfs_root_vnode;
   if (searchdir->v_type != V_DIR)
     return ENOTDIR;
 
@@ -286,13 +286,17 @@ static int vfs_nameresolve(vnrstate_t *state) {
 
     /* Prepare the next path name component. */
     vnr_parse_component(state);
+    if (state->vs_cn.cn_namelen > NAME_MAX) {
+      error = ENAMETOOLONG;
+      vnode_put(searchdir);
+      goto end;
+    }
 
     /* Look up the child vnode */
     foundvn = NULL;
     error = vnr_lookup_once(state, searchdir, &foundvn);
     if (error) {
-      vnode_unlock(searchdir);
-      vnode_drop(searchdir);
+      vnode_put(searchdir);
       goto end;
     }
     /* Success with no object returned means we're creating something. */
@@ -303,8 +307,7 @@ static int vfs_nameresolve(vnrstate_t *state) {
       break;
 
     /* TODO: Check access to child, to verify we can continue with lookup. */
-    vnode_unlock(searchdir);
-    vnode_drop(searchdir);
+    vnode_put(searchdir);
     searchdir = foundvn;
   }
 
@@ -341,29 +344,16 @@ int vfs_namelookup(const char *path, vnode_t **vp) {
   return error;
 }
 
-int vfs_namecreate(const char *path, vnode_t **dvp, componentname_t *cn) {
+int vfs_namecreate(const char *path, vnode_t **dvp, vnode_t **vp,
+                   componentname_t *cn) {
   vnrstate_t vs;
   vnrstate_init(&vs, VNR_CREATE, path);
   int error = vfs_nameresolve(&vs);
   if (error)
     return error;
 
-  if (vs.vs_vp != NULL) {
-    if (vs.vs_vp != vs.vs_dvp)
-      vnode_put(vs.vs_dvp);
-    else
-      vnode_drop(vs.vs_dvp);
-
-    vnode_drop(vs.vs_vp);
-    return EEXIST;
-  }
-
-  if (vs.vs_cn.cn_namelen > NAME_MAX) {
-    vnode_put(vs.vs_dvp);
-    return ENAMETOOLONG;
-  }
-
   *dvp = vs.vs_dvp;
+  *vp = vs.vs_vp;
   memcpy(cn, &vs.vs_cn, sizeof(componentname_t));
 
   return 0;
@@ -387,14 +377,50 @@ int vfs_namedelete(const char *path, vnode_t **dvp, vnode_t **vp,
 int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   vnode_t *v;
   int error = 0;
-  error = vfs_namelookup(pathname, &v);
-  if (error)
-    return error;
-  int res = VOP_OPEN(v, flags, f);
+  if (flags & O_CREAT) {
+    vnode_t *dvp;
+    componentname_t cn;
+    if ((error = vfs_namecreate(pathname, &dvp, &v, &cn)))
+      return error;
+
+    if (v == NULL) {
+      vattr_t va;
+      vattr_null(&va);
+      va.va_mode = S_IFREG | (mode & ALLPERMS);
+      error = VOP_CREATE(dvp, &cn, &va, &v);
+      vnode_put(dvp);
+      if (error)
+        return error;
+      flags &= ~O_TRUNC;
+    } else {
+      if (v == dvp)
+        vnode_drop(dvp);
+      else
+        vnode_put(dvp);
+
+      if (mode & O_EXCL)
+        error = EEXIST;
+      mode &= ~O_CREAT;
+    }
+  } else {
+    if ((error = vfs_namelookup(pathname, &v)))
+      return error;
+  }
+
+  if (!error && flags & O_TRUNC) {
+    vattr_t va;
+    vattr_null(&va);
+    va.va_size = 0;
+    error = VOP_SETATTR(v, &va);
+  }
+
+  if (!error)
+    error = VOP_OPEN(v, flags, f);
+
   /* Drop our reference to v. We received it from vfs_namelookup, but we no
      longer need it - file f keeps its own reference to v after open. */
   vnode_drop(v);
-  return res;
+  return error;
 }
 
 SYSINIT_ADD(vfs, vfs_init, NODEPS);

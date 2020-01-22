@@ -162,7 +162,7 @@ static void devfs_to_dirent(vnode_t *v, void *it, dirent_t *dir) {
     name = node->dn_name;
   }
   dir->d_fileno = node->dn_ino;
-  dir->d_type = (node->dn_vnode->v_type == V_DIR) ? DT_DIR : DT_BLK;
+  dir->d_type = vnode_to_dt(node->dn_vnode);
   memcpy(dir->d_name, name, dir->d_namlen + 1);
 }
 
@@ -172,7 +172,7 @@ static readdir_ops_t devfs_readdir_ops = {
   .convert = devfs_to_dirent,
 };
 
-static int devfs_vop_readdir(vnode_t *v, uio_t *uio, void *state) {
+static int devfs_vop_readdir(vnode_t *v, uio_t *uio) {
   return readdir_generic(v, uio, &devfs_readdir_ops);
 }
 

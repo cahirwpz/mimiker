@@ -1,3 +1,5 @@
+#include <mips/m32c0.h>
+#include <mips/malta.h>
 #include <mips/mips.h>
 #include <mips/pmap.h>
 #include <mips/tlb.h>
@@ -111,8 +113,8 @@ __boot_text void _gdb_tlb_read_index(unsigned i) {
   tlbhi_t saved = mips32_getentryhi();
   mips32_setindex(i);
   mips32_tlbr();
-  _gdb_tlb_entry = (tlbentry_t){.hi = mips32_getentryhi(),
-                                .lo0 = mips32_getentrylo0(),
-                                .lo1 = mips32_getentrylo1()};
+  _gdb_tlb_entry.hi = mips32_getentryhi();
+  _gdb_tlb_entry.lo0 = mips32_getentrylo0();
+  _gdb_tlb_entry.lo1 = mips32_getentrylo1();
   mips32_setentryhi(saved);
 }
