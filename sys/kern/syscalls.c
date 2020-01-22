@@ -385,29 +385,6 @@ end:
   return error;
 }
 
-static int sys_getdirentries(proc_t *p, getdirentries_args_t *args,
-                             register_t *res) {
-  int fd = args->fd;
-  void *u_buf = args->buf;
-  size_t len = args->len;
-  off_t *u_basep = (off_t *)args->basep;
-  off_t base;
-  int error;
-
-  klog("getdirentries(%d, %p, %u, %p)", fd, u_buf, len, u_basep);
-
-  uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, u_buf, len);
-  if ((error = do_getdirentries(p, fd, &uio, &base)))
-    return error;
-
-  if (u_basep != NULL)
-    if ((error = copyout_s(base, u_basep)))
-      return error;
-
-  *res = len - uio.uio_resid;
-  return 0;
-}
-
 static int sys_dup(proc_t *p, dup_args_t *args, register_t *res) {
   int error, fd;
   klog("dup(%d)", args->fd);
@@ -721,10 +698,10 @@ static int sys_getdents(proc_t *p, getdents_args_t *args, register_t *res) {
   size_t len = args->len;
   int error;
 
-  klog("getdirentries(%d, %p, %u)", fd, u_buf, len);
+  klog("getdents(%d, %p, %u)", fd, u_buf, len);
 
   uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, u_buf, len);
-  if ((error = do_getdirentries(p, fd, &uio, NULL)))
+  if ((error = do_getdents(p, fd, &uio)))
     return error;
 
   *res = len - uio.uio_resid;

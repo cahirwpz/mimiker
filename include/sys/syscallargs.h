@@ -81,8 +81,7 @@ typedef struct {
   int fd;
   void * buf;
   size_t len;
-  off_t * basep;
-} getdirentries_args_t;
+} getdents_args_t;
 
 typedef struct {
   int fd;
@@ -211,9 +210,3 @@ typedef struct {
   int cmd;
   void * arg;
 } fcntl_args_t;
-
-typedef struct {
-  int fd;
-  void * buf;
-  size_t len;
-} getdents_args_t;
