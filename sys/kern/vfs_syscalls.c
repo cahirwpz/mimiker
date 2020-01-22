@@ -13,7 +13,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 
-int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
+int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fdp) {
   int error;
 
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -22,8 +22,11 @@ int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
   if ((error = vfs_open(f, pathname, flags, mode)))
     goto fail;
   /* Now install the file in descriptor table. */
-  if ((error = fdtab_install_file(p->p_fdtable, f, 0, fd)))
+  if ((error = fdtab_install_file(p->p_fdtable, f, 0, fdp)))
     goto fail;
+  /* Set cloexec flag. */
+  if (flags & O_CLOEXEC)
+    return fd_set_cloexec(p->p_fdtable, *fdp, true);
   return 0;
 
 fail:
@@ -108,6 +111,7 @@ int do_dup(proc_t *p, int oldfd, int *newfdp) {
 
   if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
     return error;
+
   error = fdtab_install_file(p->p_fdtable, f, 0, newfdp);
   file_drop(f);
   return error;
@@ -122,9 +126,10 @@ int do_dup2(proc_t *p, int oldfd, int newfd) {
 
   if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
     return error;
+
   error = fdtab_install_file_at(p->p_fdtable, f, newfd);
   file_drop(f);
-  return 0;
+  return error;
 }
 
 int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
@@ -135,9 +140,21 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
     return error;
 
   /* TODO: Currently only F_DUPFD command is implemented. */
+  bool cloexec = false;
   switch (cmd) {
+    case F_DUPFD_CLOEXEC:
+      cloexec = true;
+      /* FALLTHROUGH */
     case F_DUPFD:
-      error = fdtab_install_file(p->p_fdtable, f, arg, resp);
+      if ((error = fdtab_install_file(p->p_fdtable, f, arg, resp)))
+        break;
+      error = fd_set_cloexec(p->p_fdtable, fd, cloexec);
+      break;
+
+    case F_SETFD:
+      if (arg == FD_CLOEXEC)
+        cloexec = true;
+      error = fd_set_cloexec(p->p_fdtable, fd, cloexec);
       break;
 
     default:
