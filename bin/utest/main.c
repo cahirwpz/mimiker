@@ -56,6 +56,9 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(vfs_dir);
   CHECKRUN_TEST(vfs_rw);
   CHECKRUN_TEST(vfs_relative_dir);
+  CHECKRUN_TEST(vfs_dot_dot_dir);
+  CHECKRUN_TEST(vfs_dot_dir);
+  CHECKRUN_TEST(vfs_dot_dot_across_fs);
 
   CHECKRUN_TEST(setpgid);
   CHECKRUN_TEST(kill);
