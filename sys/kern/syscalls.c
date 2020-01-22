@@ -385,6 +385,22 @@ end:
   return error;
 }
 
+static int sys_getdents(proc_t *p, getdents_args_t *args, register_t *res) {
+  int fd = args->fd;
+  void *u_buf = args->buf;
+  size_t len = args->len;
+  int error;
+
+  klog("getdents(%d, %p, %u)", fd, u_buf, len);
+
+  uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, u_buf, len);
+  if ((error = do_getdents(p, fd, &uio)))
+    return error;
+
+  *res = len - uio.uio_resid;
+  return 0;
+}
+
 static int sys_dup(proc_t *p, dup_args_t *args, register_t *res) {
   int error, fd;
   klog("dup(%d)", args->fd);
@@ -689,21 +705,5 @@ static int sys_getegid(proc_t *p, void *args, register_t *res) {
 static int sys_issetugid(proc_t *p, void *args, register_t *res) {
   klog("issetugid()");
   *res = 0;
-  return 0;
-}
-
-static int sys_getdents(proc_t *p, getdents_args_t *args, register_t *res) {
-  int fd = args->fd;
-  void *u_buf = args->buf;
-  size_t len = args->len;
-  int error;
-
-  klog("getdents(%d, %p, %u)", fd, u_buf, len);
-
-  uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, u_buf, len);
-  if ((error = do_getdents(p, fd, &uio)))
-    return error;
-
-  *res = len - uio.uio_resid;
   return 0;
 }
