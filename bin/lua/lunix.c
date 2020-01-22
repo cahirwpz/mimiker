@@ -293,7 +293,7 @@ typedef struct dirent dirent_t;
 
 /* getdirentries(fd: integer)
  * -> table({d_type: integer, d_fileno: integer, d_name: string}) */
-static int unix_getdirents(lua_State *L) {
+static int unix_getdents(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
   char *buf = malloc(DIRENT_BUFLEN);
   size_t nread = 0;
@@ -406,7 +406,7 @@ static const luaL_Reg tab_funcs[] = {
   {"close", unix_close},
   {"dup2", unix_dup2},
   {"exit", unix_exit},
-  {"getdirents", unix_getdirents},
+  {"getdents", unix_getdents},
   {"open", unix_open},
   {"read", unix_read},
   {"write", unix_write},
