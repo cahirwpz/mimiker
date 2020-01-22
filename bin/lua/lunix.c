@@ -291,7 +291,7 @@ static int unix_chdir(lua_State *L) {
 #define DIRENT_BUFLEN 4096
 typedef struct dirent dirent_t;
 
-/* getdirentries(fd: integer)
+/* getdents(fd: integer)
  * -> table({d_type: integer, d_fileno: integer, d_name: string}) */
 static int unix_getdents(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
