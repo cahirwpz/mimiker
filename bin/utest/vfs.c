@@ -106,3 +106,31 @@ int test_vfs_dir(void) {
   assert_fail(mkdir(TESTDIR "/test3/subdir1", 0), ENOENT);
   return 0;
 }
+
+int test_vfs_relative_dir(void) {
+  assert_ok(chdir(TESTDIR));
+  assert_ok(mkdir("test", 0));
+  assert_fail(mkdir("test", 0), EEXIST);
+  assert_fail(mkdir("test///", 0), EEXIST);
+  assert_ok(chdir("test"));
+
+  assert_ok(mkdir("test2///", 0));
+  assert_ok(rmdir("test2"));
+
+  assert_ok(mkdir("test3", 0));
+  assert_ok(mkdir("test3/subdir1", 0));
+  assert_ok(mkdir("test3/subdir2", 0));
+  assert_ok(mkdir("test3/subdir3", 0));
+  assert_fail(mkdir("test3/subdir1", 0), EEXIST);
+  assert_ok(access("test3/subdir2", 0));
+
+  assert_ok(rmdir(TESTDIR "/test/test3/subdir1"));
+  assert_ok(rmdir(TESTDIR "/test/test3/subdir2"));
+  assert_ok(rmdir(TESTDIR "/test/test3/subdir3"));
+  assert_ok(rmdir("test3"));
+
+  assert_ok(chdir(TESTDIR));
+  assert_ok(rmdir("test"));
+  assert_ok(chdir("/"));
+  return 0;
+}

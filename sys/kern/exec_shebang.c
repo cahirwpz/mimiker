@@ -49,6 +49,7 @@ static int set_interp(exec_args_t *args, char *str) {
   args->argc++;
   args->argv--;
   args->argv[0] = args->interp;
+  args->argv[1] = args->path; /* pass full path to the interpreter */
   return 0;
 }
 

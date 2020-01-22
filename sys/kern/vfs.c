@@ -252,20 +252,19 @@ static int vfs_nameresolve(vnrstate_t *state) {
   if (state->vs_nextcn[0] == '\0')
     return ENOENT;
 
-  if (strncmp(state->vs_nextcn, "/", 1) != 0) {
-    klog("Relative paths are not supported!");
-    return ENOENT;
+  if (strncmp(state->vs_nextcn, "/", 1) == 0) {
+    searchdir = vfs_root_vnode;
+    /* Drop leading slashes. */
+    while (state->vs_nextcn[0] == '/')
+      state->vs_nextcn++;
+  } else {
+    searchdir = proc_self()->p_cwd;
   }
-
-  /* Drop leading slashes. */
-  while (state->vs_nextcn[0] == '/')
-    state->vs_nextcn++;
 
   if (strlen(state->vs_nextcn) >= PATH_MAX)
     return ENAMETOOLONG;
 
   /* Establish the starting directory for lookup, and lock it. */
-  searchdir = vfs_root_vnode;
   if (searchdir->v_type != V_DIR)
     return ENOTDIR;
 
