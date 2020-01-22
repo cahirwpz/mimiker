@@ -157,6 +157,10 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
       error = fd_set_cloexec(p->p_fdtable, fd, cloexec);
       break;
 
+    case F_GETFD:
+      error = fd_get_cloexec(p->p_fdtable, fd, resp);
+      break;
+
     default:
       error = EINVAL;
       break;
