@@ -92,6 +92,10 @@ static inline bool is_mountpoint(vnode_t *v) {
   return v->v_mountedhere != NULL;
 }
 
+static inline bool is_mounted(vnode_t* v) {
+  return v->v_mount != NULL;
+}
+
 typedef struct vattr {
   mode_t va_mode;   /* files access mode and type */
   nlink_t va_nlink; /* number of references to file */
@@ -191,10 +195,6 @@ void vnode_drop(vnode_t *v);
 
 /* Unlock and release the reference. */
 void vnode_put(vnode_t *v);
-
-/* Uncovers a node under the mounted node until it reaches the node that isn't
- * mounted */
-vnode_t *vnode_uncover(vnode_t *v);
 
 /* Convenience function with default vnode operation implementation. */
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);

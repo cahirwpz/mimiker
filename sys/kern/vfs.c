@@ -171,6 +171,21 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   return 0;
 }
 
+int vfs_maybe_ascend(vnode_t **vp)
+{
+  vnode_t* v_covered;
+  vnode_t* v = *vp;
+  while (is_mounted(v)) {
+    v_covered = v->v_mount->mnt_vnodecovered;
+    vnode_hold(v_covered);
+    vnode_drop(v);
+    v = v_covered;
+  }
+
+  *vp = v;
+  return 0;
+}
+
 /* If `*vp` is a mountpoint, then descend into the root of mounted filesys. */
 static int vfs_maybe_descend(vnode_t **vp) {
   vnode_t *v_mntpt;
@@ -214,7 +229,10 @@ static int vnr_lookup_once(vnrstate_t *state, vnode_t *searchdir,
   } else {
     /* No need to ref this vnode, VOP_LOOKUP already did it for us. */
     vnode_lock(foundvn);
-    vfs_maybe_descend(&foundvn);
+    if (componentname_equal(cn, ".."))
+      vfs_maybe_ascend(&foundvn);
+    else
+      vfs_maybe_descend(&foundvn);
   }
 
   *foundvn_p = foundvn;
@@ -292,6 +310,8 @@ static int vfs_nameresolve(vnrstate_t *state) {
       goto end;
     }
 
+    if (componentname_equal(cn, "."))
+      continue;
     /* Look up the child vnode */
     foundvn = NULL;
     error = vnr_lookup_once(state, searchdir, &foundvn);

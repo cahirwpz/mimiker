@@ -305,7 +305,7 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   buf[--last] = '\0';
 
   /* Handle special case for root directory. */
-  uvp = vnode_uncover(uvp);
+  vfs_maybe_ascend(&uvp);
 
   if (uvp == vfs_root_vnode) {
     buf[--last] = '/';
@@ -333,8 +333,8 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
     buf[--last] = '/'; /* Prepend component separator. */
 
     vnode_drop(uvp);
-
-    uvp = vnode_uncover(lvp);
+    vfs_maybe_ascend(&lvp);
+    uvp = lvp;
     lvp = NULL;
   } while (uvp != vfs_root_vnode);
 
