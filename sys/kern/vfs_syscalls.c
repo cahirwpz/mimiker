@@ -157,6 +157,10 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
       error = fd_set_cloexec(p->p_fdtable, fd, cloexec);
       break;
 
+    case F_GETFD:
+      error = fd_get_cloexec(p->p_fdtable, fd, resp);
+      break;
+
     default:
       error = EINVAL;
       break;
@@ -179,7 +183,7 @@ int do_mount(const char *fs, const char *path) {
   return vfs_domount(vfs, v);
 }
 
-int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
+int do_getdents(proc_t *p, int fd, uio_t *uio) {
   file_t *f;
   int error;
 
@@ -189,7 +193,6 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
   uio->uio_offset = f->f_offset;
   error = VOP_READDIR(f->f_vnode, uio);
   f->f_offset = uio->uio_offset;
-  *basep = f->f_offset;
   file_drop(f);
   return error;
 }
