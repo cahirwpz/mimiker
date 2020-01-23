@@ -65,6 +65,24 @@ int test_vfs_rw(void) {
     assert(!memcmp(wrbuf, rdbuf, 16384));
   }
 
+  free(wrbuf);
+  free(rdbuf);
+
+  close(3);
+  unlink(TESTDIR "/file");
+
+  return 0;
+}
+
+int test_vfs_trunc(void) {
+  int n;
+  void *wrbuf = malloc(4096);
+  void *rdbuf = malloc(8196);
+  fill_random(wrbuf, 4096);
+
+  assert_open_ok(0, TESTDIR "/file", 0, O_RDWR | O_CREAT);
+
+  assert_write_ok(0, wrbuf, 4096);
   ftruncate(3, 2048);
 
   /* The file offset is bigger than size, so read should return 0 bytes. */
@@ -88,10 +106,9 @@ int test_vfs_rw(void) {
 
   free(wrbuf);
   free(rdbuf);
-
-  close(3);
   unlink(TESTDIR "/file");
 
+  assert_fail(truncate(TESTDIR, 1023), EISDIR);
   return 0;
 }
 
