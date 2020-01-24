@@ -201,7 +201,7 @@ static int tmpfs_vop_close(vnode_t *v, file_t *fp) {
   return 0;
 }
 
-static int tmpfs_vop_read(vnode_t *v, uio_t *uio) {
+static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
   size_t remaining;
   int error = 0;
@@ -221,10 +221,13 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio) {
   return error;
 }
 
-static int tmpfs_vop_write(vnode_t *v, uio_t *uio) {
+static int tmpfs_vop_write(vnode_t *v, uio_t *uio, int ioflag) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
   int error = 0;
+
+  if (ioflag & IO_APPEND)
+    uio->uio_offset = node->tfn_size;
 
   if (uio->uio_offset + uio->uio_resid > node->tfn_size)
     if ((error = tmpfs_reg_resize(tfm, node, uio->uio_offset + uio->uio_resid)))
