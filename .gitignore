@@ -57,3 +57,6 @@ sysroot
 
 # DTB
 *.dtb
+
+# Tmux user override config
+.tmux.conf.local
