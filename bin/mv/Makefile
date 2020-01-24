@@ -1,9 +1,6 @@
 TOPDIR = $(realpath ../..)
 
-PROGRAM = ls
-SOURCES = ls.c cmp.c main.c print.c util.c
+PROGRAM = mv
 FORMAT-EXCLUDE = $(SOURCES)
-
-LDLIBS = -lutil
 
 include $(TOPDIR)/build/build.prog.mk

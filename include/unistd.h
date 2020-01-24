@@ -126,6 +126,12 @@ int usleep(useconds_t);
 pid_t vfork(void) __returns_twice;
 
 /*
+ * IEEE Std 1003.1b-93, adopted in X/Open CAE Specification Issue 5 Version 2
+ */
+int fdatasync(int);
+int fsync(int);
+
+/*
  * X/Open CAE Specification Issue 5 Version 2
  */
 ssize_t pread(int, void *, size_t, off_t);

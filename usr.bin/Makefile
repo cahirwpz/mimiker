@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = cmp col cut env find grep head join sed tail tr uniq wc
+SUBDIR = cmp col cut env find grep head join tail tr uniq wc
 
 all: build
 

@@ -32,18 +32,16 @@
 #include <assert.h>
 #include <wchar.h>
 
-wchar_t *
-wcschr(const wchar_t *p, wchar_t c)
-{
-	_DIAGASSERT(p != NULL);
+wchar_t *wcschr(const wchar_t *p, wchar_t c) {
+  _DIAGASSERT(p != NULL);
 
-	for (;; ++p) {
-		if (*p == c) {
-			/* LINTED interface specification */
-			return __UNCONST(p);
-		}
-		if (!*p)
-			return NULL;
-	}
-	/*NOTREACHED*/
+  for (;; ++p) {
+    if (*p == c) {
+      /* LINTED interface specification */
+      return __UNCONST(p);
+    }
+    if (!*p)
+      return NULL;
+  }
+  /*NOTREACHED*/
 }
