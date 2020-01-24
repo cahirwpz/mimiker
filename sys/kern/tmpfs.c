@@ -206,6 +206,9 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio) {
   size_t remaining;
   int error = 0;
 
+  if (node->tfn_size <= (size_t)uio->uio_offset)
+    return 0;
+
   while ((remaining = MIN(node->tfn_size - uio->uio_offset, uio->uio_resid))) {
     size_t blkoff = BLKOFF(uio->uio_offset);
     size_t len = MIN(BLOCK_SIZE - blkoff, remaining);

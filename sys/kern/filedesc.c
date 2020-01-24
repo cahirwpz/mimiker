@@ -258,6 +258,16 @@ int fd_set_cloexec(fdtab_t *fdt, int fd, bool cloexec) {
   return 0;
 }
 
+int fd_get_cloexec(fdtab_t *fdt, int fd, int *resp) {
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
+
+  if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))
+    return EBADF;
+
+  *resp = fdt->fdt_entries[fd].fde_cloexec;
+  return 0;
+}
+
 int fdtab_onexec(fdtab_t *fdt) {
   int error;
   for (int fd = 0; fd < fdt->fdt_nfiles; ++fd) {

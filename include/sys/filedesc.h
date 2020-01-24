@@ -28,6 +28,8 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp);
 int fdtab_close_fd(fdtab_t *fdt, int fd);
 /* Set cloexec flag. */
 int fd_set_cloexec(fdtab_t *fdt, int fd, bool exclose);
+/* Get cloexec flag. */
+int fd_get_cloexec(fdtab_t *fdt, int fd, int *resp);
 /* Close file descriptors with cloexec flag. */
 int fdtab_onexec(fdtab_t *fdt);
 
