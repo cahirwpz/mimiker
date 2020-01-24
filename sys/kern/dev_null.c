@@ -11,7 +11,7 @@ static int dev_null_write(vnode_t *v, uio_t *uio, int ioflag) {
   return 0;
 }
 
-static int dev_null_read(vnode_t *v, uio_t *uio) {
+static int dev_null_read(vnode_t *v, uio_t *uio, int ioflag) {
   return 0;
 }
 
@@ -28,7 +28,7 @@ static int dev_zero_write(vnode_t *v, uio_t *uio, int ioflag) {
   return error;
 }
 
-static int dev_zero_read(vnode_t *v, uio_t *uio) {
+static int dev_zero_read(vnode_t *v, uio_t *uio, int ioflag) {
   int error = 0;
   while (uio->uio_resid && !error) {
     size_t len = uio->uio_resid;

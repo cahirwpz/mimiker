@@ -131,7 +131,7 @@ void vattr_null(vattr_t *va) {
 
 /* Default file operations using v-nodes. */
 static int default_vnread(file_t *f, uio_t *uio) {
-  return VOP_READ(f->f_vnode, uio);
+  return VOP_READ(f->f_vnode, uio, 0);
 }
 
 static int default_vnwrite(file_t *f, uio_t *uio) {

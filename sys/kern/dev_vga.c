@@ -40,7 +40,7 @@ static int videomode_write(vnode_t *v, uio_t *uio, int ioflag) {
   return vga_set_videomode(vga, xres, yres, bpp);
 }
 
-static int videomode_read(vnode_t *v, uio_t *uio) {
+static int videomode_read(vnode_t *v, uio_t *uio, int ioflag) {
   vga_device_t *vga = (vga_device_t *)v->v_data;
   unsigned xres, yres, bpp;
   int error;

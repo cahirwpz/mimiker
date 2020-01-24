@@ -19,7 +19,7 @@ static int dev_cons_write(vnode_t *t, uio_t *uio, int ioflag) {
   return 0;
 }
 
-static int dev_cons_read(vnode_t *t, uio_t *uio) {
+static int dev_cons_read(vnode_t *t, uio_t *uio, int ioflag) {
   char buffer[UART_BUF_MAX];
   unsigned curr = 0;
   while (curr < UART_BUF_MAX && curr < uio->uio_resid) {

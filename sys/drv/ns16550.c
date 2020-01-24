@@ -45,7 +45,7 @@ static void setup(resource_t *regs) {
   out(regs, LCR, LCR_8BITS); /* 8-bit data, no parity */
 }
 
-static int ns16550_read(vnode_t *v, uio_t *uio) {
+static int ns16550_read(vnode_t *v, uio_t *uio, int ioflags) {
   ns16550_state_t *ns16550 = v->v_data;
   int error;
 

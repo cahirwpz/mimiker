@@ -33,7 +33,7 @@ typedef int vnode_lookup_t(vnode_t *dv, componentname_t *cn, vnode_t **vp);
 typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio);
 typedef int vnode_open_t(vnode_t *v, int mode, file_t *fp);
 typedef int vnode_close_t(vnode_t *v, file_t *fp);
-typedef int vnode_read_t(vnode_t *v, uio_t *uio);
+typedef int vnode_read_t(vnode_t *v, uio_t *uio, int ioflag);
 typedef int vnode_write_t(vnode_t *v, uio_t *uio, int ioflag);
 typedef int vnode_seek_t(vnode_t *v, off_t oldoff, off_t newoff);
 typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
@@ -129,8 +129,8 @@ static inline int VOP_CLOSE(vnode_t *v, file_t *fp) {
   return VOP_CALL(close, v, fp);
 }
 
-static inline int VOP_READ(vnode_t *v, uio_t *uio) {
-  return VOP_CALL(read, v, uio);
+static inline int VOP_READ(vnode_t *v, uio_t *uio, int ioflag) {
+  return VOP_CALL(read, v, uio, ioflag);
 }
 
 static inline int VOP_WRITE(vnode_t *v, uio_t *uio, int ioflag) {

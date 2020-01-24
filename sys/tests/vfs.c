@@ -58,7 +58,7 @@ static int test_vfs(void) {
 
   /* Perform a READ test on /dev/zero, cleaning buffer. */
   uio = UIO_SINGLE_KERNEL(UIO_READ, 0, buffer, sizeof(buffer));
-  res = VOP_READ(dev_zero, &uio);
+  res = VOP_READ(dev_zero, &uio, 0);
   assert(res == 0);
   assert(buffer[1] == 0 && buffer[10] == 0);
   assert(uio.uio_resid == 0);

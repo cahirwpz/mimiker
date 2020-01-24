@@ -201,7 +201,7 @@ static int tmpfs_vop_close(vnode_t *v, file_t *fp) {
   return 0;
 }
 
-static int tmpfs_vop_read(vnode_t *v, uio_t *uio) {
+static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
   size_t remaining;
   int error = 0;
