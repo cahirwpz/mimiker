@@ -210,3 +210,13 @@ typedef struct {
   int cmd;
   void * arg;
 } fcntl_args_t;
+
+typedef struct {
+  const char * path;
+  off_t length;
+} truncate_args_t;
+
+typedef struct {
+  int fd;
+  off_t length;
+} ftruncate_args_t;
