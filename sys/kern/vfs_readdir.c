@@ -12,7 +12,7 @@ static const uint8_t vttodt_tab[] = {
                    // may require changes in future.
 };
 
-uint8_t vnode_to_dt(vnodetype_t v_type) {
+uint8_t vt2dt(vnodetype_t v_type) {
   return vttodt_tab[v_type];
 }
 
