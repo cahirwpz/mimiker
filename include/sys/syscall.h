@@ -20,7 +20,7 @@
 #define SYS_sbrk 12
 #define SYS_mmap 13
 #define SYS_mount 14
-#define SYS_getdirentries 15
+#define SYS_getdents 15
 #define SYS_dup 16
 #define SYS_dup2 17
 #define SYS_sigaction 18
@@ -52,4 +52,6 @@
 #define SYS_getegid 44
 #define SYS_issetugid 45
 #define SYS_fcntl 46
-#define SYS_MAXSYSCALL 47
+#define SYS_truncate 47
+#define SYS_ftruncate 48
+#define SYS_MAXSYSCALL 49

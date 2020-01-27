@@ -65,6 +65,7 @@ int test_vfs_dot_dot_dir(void);
 int test_vfs_dot_dir(void);
 int test_vfs_dot_dot_across_fs(void);
 int test_vfs_rw(void);
+int test_vfs_trunc(void);
 
 int test_setpgid(void);
 int test_kill(void);

@@ -60,7 +60,7 @@ static void write_data(resource_t *regs, uint8_t byte) {
   bus_write_1(regs, KBD_DATA_PORT, byte);
 }
 
-static int scancode_read(vnode_t *v, uio_t *uio) {
+static int scancode_read(vnode_t *v, uio_t *uio, int ioflag) {
   atkbdc_state_t *atkbdc = v->v_data;
   int error;
 

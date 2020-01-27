@@ -104,6 +104,7 @@ UTEST_ADD_SIMPLE(vfs_rw);
 UTEST_ADD_SIMPLE(vfs_dot_dot_dir);
 UTEST_ADD_SIMPLE(vfs_dot_dir);
 UTEST_ADD_SIMPLE(vfs_dot_dot_across_fs);
+UTEST_ADD_SIMPLE(vfs_trunc);
 
 #if 0
 UTEST_ADD_SIMPLE(fpu_fcsr);
