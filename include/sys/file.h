@@ -14,7 +14,7 @@ typedef struct uio uio_t;
 typedef int fo_read_t(file_t *f, uio_t *uio);
 typedef int fo_write_t(file_t *f, uio_t *uio);
 typedef int fo_close_t(file_t *f);
-typedef int fo_seek_t(file_t *f, off_t offset, int whence);
+typedef int fo_seek_t(file_t *f, off_t offset, int whence, off_t *newoffp);
 typedef int fo_stat_t(file_t *f, stat_t *sb);
 typedef int fo_ioctl_t(file_t *f, u_long cmd, void *data);
 
@@ -68,8 +68,9 @@ static inline int FOP_CLOSE(file_t *f) {
   return f->f_ops->fo_close(f);
 }
 
-static inline int FOP_SEEK(file_t *f, off_t offset, int whence) {
-  return f->f_ops->fo_seek(f, offset, whence);
+static inline int FOP_SEEK(file_t *f, off_t offset, int whence,
+                           off_t *newoffp) {
+  return f->f_ops->fo_seek(f, offset, whence, newoffp);
 }
 
 static inline int FOP_STAT(file_t *f, stat_t *sb) {

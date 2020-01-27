@@ -54,7 +54,7 @@ static int badfo_stat(file_t *f, stat_t *sb) {
   return EOPNOTSUPP;
 }
 
-static int badfo_seek(file_t *f, off_t offset, int whence) {
+static int badfo_seek(file_t *f, off_t offset, int whence, off_t *newoffp) {
   return EOPNOTSUPP;
 }
 
