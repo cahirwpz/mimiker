@@ -32,7 +32,6 @@ bool is_mounted(vnode_t *v) {
   vnode_t *foundvn;
   componentname_t cn = COMPONENTNAME("..");
   VOP_LOOKUP(v, &cn, &foundvn);
-  kprintf("%p %p", foundvn, v);
   return foundvn == v && v->v_mount != NULL;
 }
 
