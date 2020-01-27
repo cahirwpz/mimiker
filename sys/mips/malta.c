@@ -118,7 +118,7 @@ static void *malta_kenv(int argc, char **argv, char **envp) {
 
   kenv_bootstrap(kenvp, kinit);
 
-  return (void *)MIPS_KSEG2_TO_KSEG0(stk->stk_ptr);
+  return stk->stk_ptr;
 }
 
 intptr_t ramdisk_get_start(void) {

@@ -34,7 +34,7 @@ void exc_frame_init(exc_frame_t *frame, void *pc, void *sp, unsigned flags) {
 
   frame->gp = usermode ? 0 : (register_t)_gp;
   frame->pc = (register_t)pc;
-  frame->sp = (register_t)pmap_kseg2_to_kseg0(sp);
+  frame->sp = (register_t)sp;
 
   /* For user-mode exception frame we must make sure that:
    * - user mode is active,
