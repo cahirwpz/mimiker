@@ -19,7 +19,7 @@ SOURCES = bcopy.S \
 	  strlcat.c \
 	  strlcpy.c \
 	  strncmp.c \
-		strncpy.c \
+	  strncpy.c \
 	  strnlen.c \
 	  strrchr.c \
 	  strsep.c \

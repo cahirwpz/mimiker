@@ -100,6 +100,6 @@ unsigned long strtoul(const char *nptr, char **endptr, int base) {
 unsigned long strntoul(const char *nptr, size_t len, char **endptr, int base) {
   char copy[len + 1];
   strncpy(copy, nptr, len);
-	copy[len] = 0;
+  copy[len] = 0;
   return strtoul(copy, endptr, base);
 }
