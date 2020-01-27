@@ -13,7 +13,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 
-int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
+int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fdp) {
   int error;
 
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -22,8 +22,11 @@ int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd) {
   if ((error = vfs_open(f, pathname, flags, mode)))
     goto fail;
   /* Now install the file in descriptor table. */
-  if ((error = fdtab_install_file(p->p_fdtable, f, 0, fd)))
+  if ((error = fdtab_install_file(p->p_fdtable, f, 0, fdp)))
     goto fail;
+  /* Set cloexec flag. */
+  if (flags & O_CLOEXEC)
+    return fd_set_cloexec(p->p_fdtable, *fdp, true);
   return 0;
 
 fail:
@@ -41,9 +44,7 @@ int do_read(proc_t *p, int fd, uio_t *uio) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
     return error;
-  uio->uio_offset = f->f_offset;
   error = FOP_READ(f, uio);
-  f->f_offset = uio->uio_offset;
   file_drop(f);
   return error;
 }
@@ -54,9 +55,7 @@ int do_write(proc_t *p, int fd, uio_t *uio) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
     return error;
-  uio->uio_offset = f->f_offset;
   error = FOP_WRITE(f, uio);
-  f->f_offset = uio->uio_offset;
   file_drop(f);
   return error;
 }
@@ -68,8 +67,7 @@ int do_lseek(proc_t *p, int fd, off_t offset, int whence, off_t *newoffp) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-  error = FOP_SEEK(f, offset, whence);
-  *newoffp = f->f_offset;
+  error = FOP_SEEK(f, offset, whence, newoffp);
   file_drop(f);
   return error;
 }
@@ -108,6 +106,7 @@ int do_dup(proc_t *p, int oldfd, int *newfdp) {
 
   if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
     return error;
+
   error = fdtab_install_file(p->p_fdtable, f, 0, newfdp);
   file_drop(f);
   return error;
@@ -122,9 +121,10 @@ int do_dup2(proc_t *p, int oldfd, int newfd) {
 
   if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
     return error;
+
   error = fdtab_install_file_at(p->p_fdtable, f, newfd);
   file_drop(f);
-  return 0;
+  return error;
 }
 
 int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
@@ -135,9 +135,25 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
     return error;
 
   /* TODO: Currently only F_DUPFD command is implemented. */
+  bool cloexec = false;
   switch (cmd) {
+    case F_DUPFD_CLOEXEC:
+      cloexec = true;
+      /* FALLTHROUGH */
     case F_DUPFD:
-      error = fdtab_install_file(p->p_fdtable, f, arg, resp);
+      if ((error = fdtab_install_file(p->p_fdtable, f, arg, resp)))
+        break;
+      error = fd_set_cloexec(p->p_fdtable, fd, cloexec);
+      break;
+
+    case F_SETFD:
+      if (arg == FD_CLOEXEC)
+        cloexec = true;
+      error = fd_set_cloexec(p->p_fdtable, fd, cloexec);
+      break;
+
+    case F_GETFD:
+      error = fd_get_cloexec(p->p_fdtable, fd, resp);
       break;
 
     default:
@@ -162,7 +178,7 @@ int do_mount(const char *fs, const char *path) {
   return vfs_domount(vfs, v);
 }
 
-int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
+int do_getdents(proc_t *p, int fd, uio_t *uio) {
   file_t *f;
   int error;
 
@@ -172,7 +188,6 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
   uio->uio_offset = f->f_offset;
   error = VOP_READDIR(f->f_vnode, uio);
   f->f_offset = uio->uio_offset;
-  *basep = f->f_offset;
   file_drop(f);
   return error;
 }
@@ -343,5 +358,46 @@ end:
   if (lvp)
     vnode_drop(lvp);
   *lastp = last;
+  return error;
+}
+
+int do_truncate(proc_t *p, char *path, off_t length) {
+  int error;
+  vnode_t *vn;
+
+  if ((error = vfs_namelookup(path, &vn)))
+    return error;
+  vnode_lock(vn);
+  if (vn->v_type == V_DIR)
+    error = EISDIR;
+  else if ((error = VOP_ACCESS(vn, VWRITE))) {
+    vattr_t va;
+    vattr_null(&va);
+    va.va_size = length;
+    error = VOP_SETATTR(vn, &va);
+  }
+  vnode_put(vn);
+  return error;
+}
+
+int do_ftruncate(proc_t *p, int fd, off_t length) {
+  int error;
+  file_t *f;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
+    return error;
+
+  vnode_t *vn = f->f_vnode;
+  vnode_lock(vn);
+  if (vn->v_type == V_DIR)
+    error = EINVAL;
+  else {
+    vattr_t va;
+    vattr_null(&va);
+    va.va_size = length;
+    error = VOP_SETATTR(vn, &va);
+  }
+  vnode_unlock(vn);
+  file_drop(f);
   return error;
 }

@@ -4,8 +4,32 @@
 #include <sys/libkern.h>
 #include <sys/errno.h>
 #include <sys/mutex.h>
+#include <sys/refcnt.h>
+#include <bitstring.h>
 
 static KMALLOC_DEFINE(M_FD, "filedesc", PAGESIZE * 2);
+
+/* The initial size of space allocated for file descriptors. According
+   to FreeBSD, this is more than enough for most applications. Each
+   process starts with this many descriptors, and more are allocated
+   on demand. */
+#define NDFILE 20
+/* Separate macro defining a hard limit on open files. */
+#define MAXFILES 1024
+
+typedef struct fdent {
+  file_t *fde_file;
+  bool fde_cloexec;
+} fdent_t;
+
+struct fdtab {
+  fdent_t *fdt_entries; /* Open files array */
+  bitstr_t *fdt_map;    /* Bitmap of used fds */
+  unsigned fdt_flags;
+  int fdt_nfiles;     /* Number of files allocated */
+  refcnt_t fdt_count; /* Reference count */
+  mtx_t fdt_mtx;
+};
 
 /* Test whether a file descriptor is in use. */
 static int fd_is_used(fdtab_t *fdt, int fd) {
@@ -41,18 +65,18 @@ static void fd_growtable(fdtab_t *fdt, int new_size) {
   assert(fdt->fdt_nfiles < new_size && new_size <= MAXFILES);
   assert(mtx_owned(&fdt->fdt_mtx));
 
-  file_t **old_fdt_files = fdt->fdt_files;
+  fdent_t *old_fdt_entries = fdt->fdt_entries;
   bitstr_t *old_fdt_map = fdt->fdt_map;
 
-  file_t **new_fdt_files = kmalloc(M_FD, sizeof(file_t *) * new_size, M_ZERO);
+  fdent_t *new_fdt_entries = kmalloc(M_FD, sizeof(fdent_t) * new_size, M_ZERO);
   bitstr_t *new_fdt_map = kmalloc(M_FD, bitstr_size(new_size), M_ZERO);
 
-  memcpy(new_fdt_files, old_fdt_files, sizeof(file_t *) * fdt->fdt_nfiles);
+  memcpy(new_fdt_entries, old_fdt_entries, sizeof(fdent_t) * fdt->fdt_nfiles);
   memcpy(new_fdt_map, old_fdt_map, bitstr_size(fdt->fdt_nfiles));
-  kfree(M_FD, old_fdt_files);
+  kfree(M_FD, old_fdt_entries);
   kfree(M_FD, old_fdt_map);
 
-  fdt->fdt_files = new_fdt_files;
+  fdt->fdt_entries = new_fdt_entries;
   fdt->fdt_map = new_fdt_map;
   fdt->fdt_nfiles = new_size;
 }
@@ -86,10 +110,11 @@ static int fd_alloc(fdtab_t *fdt, int minfd, int *fdp) {
 }
 
 static void fd_free(fdtab_t *fdt, int fd) {
-  file_t *f = fdt->fdt_files[fd];
-  assert(f != NULL);
-  file_drop(f);
-  fdt->fdt_files[fd] = NULL;
+  fdent_t *fde = &fdt->fdt_entries[fd];
+  assert(fde->fde_file != NULL);
+  file_drop(fde->fde_file);
+  fde->fde_file = NULL;
+  fde->fde_cloexec = false;
   fd_mark_unused(fdt, fd);
 }
 
@@ -97,7 +122,7 @@ static void fd_free(fdtab_t *fdt, int fd) {
 fdtab_t *fdtab_create(void) {
   fdtab_t *fdt = kmalloc(M_FD, sizeof(fdtab_t), M_ZERO);
   fdt->fdt_nfiles = NDFILE;
-  fdt->fdt_files = kmalloc(M_FD, sizeof(file_t *) * NDFILE, M_ZERO);
+  fdt->fdt_entries = kmalloc(M_FD, sizeof(fdent_t) * NDFILE, M_ZERO);
   fdt->fdt_map = kmalloc(M_FD, bitstr_size(NDFILE), M_ZERO);
   mtx_init(&fdt->fdt_mtx, 0);
   return fdt;
@@ -118,9 +143,9 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
 
   for (int i = 0; i < fdt->fdt_nfiles; i++) {
     if (fd_is_used(fdt, i)) {
-      file_t *f = fdt->fdt_files[i];
-      newfdt->fdt_files[i] = f;
-      file_hold(f);
+      fdent_t *f = &fdt->fdt_entries[i];
+      newfdt->fdt_entries[i] = *f;
+      file_hold(f->fde_file);
     }
   }
 
@@ -140,7 +165,7 @@ void fdtab_destroy(fdtab_t *fdt) {
     if (fd_is_used(fdt, i))
       fd_free(fdt, i);
 
-  kfree(M_FD, fdt->fdt_files);
+  kfree(M_FD, fdt->fdt_entries);
   kfree(M_FD, fdt->fdt_map);
   kfree(M_FD, fdt);
 }
@@ -154,25 +179,29 @@ int fdtab_install_file(fdtab_t *fdt, file_t *f, int minfd, int *fd) {
   int error;
   if ((error = fd_alloc(fdt, minfd, fd)))
     return error;
-  fdt->fdt_files[*fd] = f;
+  fdt->fdt_entries[*fd].fde_file = f;
+  fdt->fdt_entries[*fd].fde_cloexec = false;
   file_hold(f);
   return 0;
 }
 
 int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd) {
-  assert(f);
-  assert(fdt);
+  assert(f != NULL);
+  assert(fdt != NULL);
 
   WITH_MTX_LOCK (&fdt->fdt_mtx) {
     if (is_bad_fd(fdt, fd))
       return EBADF;
 
+    fdent_t *fde = &fdt->fdt_entries[fd];
+
     if (fd_is_used(fdt, fd)) {
-      if (fdt->fdt_files[fd] == f)
+      if (fde->fde_file == f)
         break;
       fd_free(fdt, fd);
     }
-    fdt->fdt_files[fd] = f;
+    fde->fde_file = f;
+    fde->fde_cloexec = false;
     fd_mark_used(fdt, fd);
   }
 
@@ -192,7 +221,7 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp) {
     if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))
       return EBADF;
 
-    f = fdt->fdt_files[fd];
+    f = fdt->fdt_entries[fd].fde_file;
     file_hold(f);
 
     if ((flags & FF_READ) && !(f->f_flags & FF_READ))
@@ -216,5 +245,35 @@ int fdtab_close_fd(fdtab_t *fdt, int fd) {
   if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))
     return EBADF;
   fd_free(fdt, fd);
+  return 0;
+}
+
+int fd_set_cloexec(fdtab_t *fdt, int fd, bool cloexec) {
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
+
+  if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))
+    return EBADF;
+
+  fdt->fdt_entries[fd].fde_cloexec = cloexec;
+  return 0;
+}
+
+int fd_get_cloexec(fdtab_t *fdt, int fd, int *resp) {
+  SCOPED_MTX_LOCK(&fdt->fdt_mtx);
+
+  if (is_bad_fd(fdt, fd) || !fd_is_used(fdt, fd))
+    return EBADF;
+
+  *resp = fdt->fdt_entries[fd].fde_cloexec;
+  return 0;
+}
+
+int fdtab_onexec(fdtab_t *fdt) {
+  int error;
+  for (int fd = 0; fd < fdt->fdt_nfiles; ++fd) {
+    if (fd_is_used(fdt, fd) && fdt->fdt_entries[fd].fde_cloexec)
+      if ((error = fdtab_close_fd(fdt, fd)))
+        return error;
+  }
   return 0;
 }

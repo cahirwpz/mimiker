@@ -226,7 +226,7 @@ static int initrd_vnode_lookup(vnode_t *vdir, componentname_t *cn,
   return ENOENT;
 }
 
-static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
+static int initrd_vnode_read(vnode_t *v, uio_t *uio, int ioflag) {
   cpio_node_t *cn = (cpio_node_t *)v->v_data;
   return uiomove_frombuf(cn->c_data, cn->c_size, uio);
 }

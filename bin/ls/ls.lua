@@ -11,7 +11,7 @@ filetype = {
 function list(dir_path)
   success, maybe_fd = pcall(unix.open, dir_path, 0)
   if not success then print(maybe_fd.msg .. ": " .. dir_path); return end
-  dirents = unix.getdirentries(maybe_fd)
+  dirents = unix.getdents(maybe_fd)
   unix.close(maybe_fd)
   for _, dirent in ipairs(dirents) do
     d_fileno, d_type, d_name = dirent.d_fileno, dirent.d_type, dirent.d_name

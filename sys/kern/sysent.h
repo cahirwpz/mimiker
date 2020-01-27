@@ -20,7 +20,7 @@ static int sys_fstat(proc_t *, fstat_args_t *, register_t *);
 static int sys_sbrk(proc_t *, sbrk_args_t *, register_t *);
 static int sys_mmap(proc_t *, mmap_args_t *, register_t *);
 static int sys_mount(proc_t *, mount_args_t *, register_t *);
-static int sys_getdirentries(proc_t *, getdirentries_args_t *, register_t *);
+static int sys_getdents(proc_t *, getdents_args_t *, register_t *);
 static int sys_dup(proc_t *, dup_args_t *, register_t *);
 static int sys_dup2(proc_t *, dup2_args_t *, register_t *);
 static int sys_sigaction(proc_t *, sigaction_args_t *, register_t *);
@@ -52,6 +52,8 @@ static int sys_getgid(proc_t *, void *, register_t *);
 static int sys_getegid(proc_t *, void *, register_t *);
 static int sys_issetugid(proc_t *, void *, register_t *);
 static int sys_fcntl(proc_t *, fcntl_args_t *, register_t *);
+static int sys_truncate(proc_t *, truncate_args_t *, register_t *);
+static int sys_ftruncate(proc_t *, ftruncate_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { (syscall_t *)sys_syscall },
@@ -69,7 +71,7 @@ struct sysent sysent[] = {
   [SYS_sbrk] = { (syscall_t *)sys_sbrk },
   [SYS_mmap] = { (syscall_t *)sys_mmap },
   [SYS_mount] = { (syscall_t *)sys_mount },
-  [SYS_getdirentries] = { (syscall_t *)sys_getdirentries },
+  [SYS_getdents] = { (syscall_t *)sys_getdents },
   [SYS_dup] = { (syscall_t *)sys_dup },
   [SYS_dup2] = { (syscall_t *)sys_dup2 },
   [SYS_sigaction] = { (syscall_t *)sys_sigaction },
@@ -101,5 +103,7 @@ struct sysent sysent[] = {
   [SYS_getegid] = { (syscall_t *)sys_getegid },
   [SYS_issetugid] = { (syscall_t *)sys_issetugid },
   [SYS_fcntl] = { (syscall_t *)sys_fcntl },
+  [SYS_truncate] = { (syscall_t *)sys_truncate },
+  [SYS_ftruncate] = { (syscall_t *)sys_ftruncate },
 };
 
