@@ -224,6 +224,10 @@ static int initrd_vnode_lookup(vnode_t *vdir, componentname_t *cn,
     it = cn_dir->c_parent;
     *res = vnode_of_cpio_node(it);
     return 0;
+  } else if (componentname_equal(cn, ".")) {
+    vnode_hold(vdir);
+    *res = vdir;
+    return 0;
   }
 
   return ENOENT;

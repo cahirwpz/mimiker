@@ -55,6 +55,8 @@ static devfs_node_t *devfs_find_child(devfs_node_t *parent,
 
   if (componentname_equal(cn, ".."))
     return (parent->dn_parent != NULL ? parent->dn_parent : parent);
+  else if (componentname_equal(cn, "."))
+    return parent;
 
   return NULL;
 }

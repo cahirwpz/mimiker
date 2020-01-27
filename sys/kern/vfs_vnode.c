@@ -6,6 +6,7 @@
 #include <sys/mutex.h>
 #include <sys/libkern.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 
@@ -25,6 +26,14 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
   mtx_init(&v->v_mtx, 0);
 
   return v;
+}
+
+bool is_mounted(vnode_t* v) {
+  vnode_t* foundvn;
+  componentname_t cn = COMPONENTNAME("..");
+  VOP_LOOKUP(v, &cn, &foundvn);
+  kprintf("%p %p", foundvn, v);
+  return foundvn == v && v->v_mount != NULL;
 }
 
 void vnode_lock(vnode_t *v) {

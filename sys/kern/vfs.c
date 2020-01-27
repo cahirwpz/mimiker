@@ -49,7 +49,20 @@ static vfs_init_t vfs_default_init;
 /* Global root vnodes */
 vnode_t *vfs_root_vnode;
 
-static vnodeops_t vfs_root_ops = {};
+static int vfs_root_vnode_lookup(vnode_t *vdir, componentname_t *cn,
+                               vnode_t **res)
+{
+  if (componentname_equal(cn, "..") || componentname_equal(cn, "."))
+  {
+    vnode_hold(vfs_root_vnode);
+    *res = vfs_root_vnode;
+    return 0;
+  }
+
+  return ENOENT;
+}
+
+static vnodeops_t vfs_root_ops = { .v_lookup = vfs_root_vnode_lookup };
 
 static int vfs_register(vfsconf_t *vfc);
 
@@ -178,7 +191,8 @@ int vfs_maybe_ascend(vnode_t **vp)
   while (is_mounted(v)) {
     v_covered = v->v_mount->mnt_vnodecovered;
     vnode_hold(v_covered);
-    vnode_drop(v);
+    vnode_lock(v_covered);
+    vnode_put(v);
     v = v_covered;
   }
 
@@ -215,6 +229,9 @@ static int vnr_lookup_once(vnrstate_t *state, vnode_t *searchdir,
   vnode_t *foundvn;
   componentname_t *cn = &state->vs_cn;
 
+  if (componentname_equal(cn, ".."))
+    vfs_maybe_ascend(&searchdir);
+
   int error = VOP_LOOKUP(searchdir, cn, &foundvn);
   if (error) {
     /*
@@ -232,10 +249,7 @@ static int vnr_lookup_once(vnrstate_t *state, vnode_t *searchdir,
     /* No need to ref this vnode, VOP_LOOKUP already did it for us. */
     vnode_unlock(searchdir);
     vnode_lock(foundvn);
-    if (componentname_equal(cn, ".."))
-      vfs_maybe_ascend(&foundvn);
-    else
-      vfs_maybe_descend(&foundvn);
+    vfs_maybe_descend(&foundvn);
   }
 
   *foundvn_p = foundvn;
@@ -262,13 +276,6 @@ static void vnr_parse_component(vnrstate_t *state) {
 
   state->vs_nextcn = name;
 }
-
-#define ASSERT_UNLOCKED \
-  if (parentdir != searchdir) \
-  { \
-    vnode_lock(parentdir); \
-    vnode_unlock(parentdir); \
-  }
 
 static int vfs_nameresolve(vnrstate_t *state) {
   /* TODO: This is a simplified implementation, and it does not support many
@@ -306,12 +313,9 @@ static int vfs_nameresolve(vnrstate_t *state) {
   parentdir = searchdir;
   vnode_hold(parentdir);
 
-  ASSERT_UNLOCKED
-
   if (state->vs_nextcn[0] == '\0')
   {
     vnode_unlock(searchdir);
-    ASSERT_UNLOCKED
     state->vs_dvp = parentdir;
     state->vs_vp = searchdir;
     error = 0;
@@ -330,30 +334,21 @@ static int vfs_nameresolve(vnrstate_t *state) {
       goto end;
     }
 
-    ASSERT_UNLOCKED
+    vnode_drop(parentdir);
+    parentdir = searchdir;
+    searchdir = NULL;
 
-    if (!componentname_equal(cn, "."))
+    error = vnr_lookup_once(state, parentdir, &searchdir);
+    if (error)
     {
-      ASSERT_UNLOCKED
-
-      vnode_drop(parentdir);
-      parentdir = searchdir;
-      searchdir = NULL;
-
-      error = vnr_lookup_once(state, parentdir, &searchdir);
-      if (error)
-      {
-        vnode_put(parentdir);
-        goto end;
-      }
-
-      ASSERT_UNLOCKED
-      /* Success with no object returned means we're creating something. */
-      if (searchdir == NULL)
-        break;
+      vnode_put(parentdir);
+      goto end;
     }
 
-    ASSERT_UNLOCKED
+    /* Success with no object returned means we're creating something. */
+    if (searchdir == NULL)
+      break;
+
     if (cn->cn_flags & VNR_ISLASTPC)
       break;
   }
@@ -367,6 +362,7 @@ static int vfs_nameresolve(vnrstate_t *state) {
     parentdir = NULL;
   }
 
+  /* Users of this function assume that parentdir locked */
   if (parentdir != NULL && parentdir != searchdir)
     vnode_lock(parentdir);
 

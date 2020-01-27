@@ -311,6 +311,7 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   assert(*lastp == PATH_MAX);
 
   vnode_hold(p->p_cwd);
+  vnode_lock(p->p_cwd);
   vnode_t *uvp = p->p_cwd;
   vnode_t *lvp = NULL;
   int error = 0;
@@ -349,14 +350,15 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
 
     buf[--last] = '/'; /* Prepend component separator. */
 
-    vnode_drop(uvp);
+    vnode_put(uvp);
+    vnode_lock(lvp);
     vfs_maybe_ascend(&lvp);
     uvp = lvp;
     lvp = NULL;
   } while (uvp != vfs_root_vnode);
 
 end:
-  vnode_drop(uvp);
+  vnode_put(uvp);
   if (lvp)
     vnode_drop(lvp);
   *lastp = last;

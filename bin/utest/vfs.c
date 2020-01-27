@@ -137,7 +137,7 @@ int test_vfs_relative_dir(void) {
 }
 
 int test_vfs_dot_dot_dir(void) {
-  assert(chdir(TESTDIR));
+  assert_ok(chdir(TESTDIR));
 
   assert_ok(mkdir("test", 0));
   assert_ok(chdir("test"));
@@ -145,9 +145,9 @@ int test_vfs_dot_dot_dir(void) {
   assert_ok(chdir("test2"));
 
   assert_ok(chdir(".."));
-  assert_ok(access("test2", 0));
+  assert_ok(chdir("test2"));
 
-  assert_ok(chdir("../../test2"));
+  assert_ok(chdir("../test2"));
   assert_ok(chdir("../../"));
   assert_fail(mkdir("test", 0), EEXIST);
 
@@ -170,9 +170,13 @@ int test_vfs_dot_dir(void) {
 
 int test_vfs_dot_dot_across_fs(void) {
   assert_ok(chdir("/../../../../"));
-  assert_ok(chdir("dev/../dev/../dev/../dev"));
+  assert_fail(mkdir("dev", 0), EEXIST);
+
+  assert_ok(chdir("dev/../dev/../../../dev/../../dev"));
+  assert_fail(mkdir("../dev", 0), EEXIST);
+
   assert_ok(chdir("../"));
-  assert_ok(access("dev", 0));
+  assert_fail(mkdir("dev", 0), EEXIST);
 
   return 0;
 }
