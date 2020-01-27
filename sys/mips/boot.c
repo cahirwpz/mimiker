@@ -68,9 +68,9 @@ __boot_text void mips_init(void) {
   for (int i = 0; i < PT_ENTRIES; i++)
     pte[i] = PTE_GLOBAL;
 
-  paddr_t text = MIPS_KSEG0_TO_PHYS(__text);
-  paddr_t data = MIPS_KSEG0_TO_PHYS(__data);
-  paddr_t ebss = MIPS_KSEG0_TO_PHYS(roundup((vaddr_t)__ebss, PAGESIZE));
+  paddr_t text = MIPS_KSEG2_TO_PHYS(__text);
+  paddr_t data = MIPS_KSEG2_TO_PHYS(__data);
+  paddr_t ebss = MIPS_KSEG2_TO_PHYS(roundup((vaddr_t)__ebss, PAGESIZE));
   vaddr_t va = MIPS_PHYS_TO_KSEG2(text);
 
   /* assume that kernel image will be covered by single PDE (4MiB) */
@@ -91,7 +91,7 @@ __boot_text void mips_init(void) {
   /* User root PDE is NULL */
   mips32_setentrylo0(PTE_GLOBAL);
   /* Kernel root PDE is set to _kernel_pmap_pde */
-  mips32_setentrylo1(PTE_PFN(MIPS_KSEG0_TO_PHYS(_kernel_pmap_pde)) |
+  mips32_setentrylo1(PTE_PFN(MIPS_KSEG2_TO_PHYS(_kernel_pmap_pde)) |
                      PTE_KERNEL);
   mips32_setindex(0);
   mips32_tlbwi();

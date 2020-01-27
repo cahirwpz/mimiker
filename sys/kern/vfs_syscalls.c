@@ -152,6 +152,10 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
       error = fd_set_cloexec(p->p_fdtable, fd, cloexec);
       break;
 
+    case F_GETFD:
+      error = fd_get_cloexec(p->p_fdtable, fd, resp);
+      break;
+
     default:
       error = EINVAL;
       break;
@@ -174,7 +178,7 @@ int do_mount(const char *fs, const char *path) {
   return vfs_domount(vfs, v);
 }
 
-int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
+int do_getdents(proc_t *p, int fd, uio_t *uio) {
   file_t *f;
   int error;
 
@@ -184,7 +188,6 @@ int do_getdirentries(proc_t *p, int fd, uio_t *uio, off_t *basep) {
   uio->uio_offset = f->f_offset;
   error = VOP_READDIR(f->f_vnode, uio);
   f->f_offset = uio->uio_offset;
-  *basep = f->f_offset;
   file_drop(f);
   return error;
 }
@@ -355,5 +358,46 @@ end:
   if (lvp)
     vnode_drop(lvp);
   *lastp = last;
+  return error;
+}
+
+int do_truncate(proc_t *p, char *path, off_t length) {
+  int error;
+  vnode_t *vn;
+
+  if ((error = vfs_namelookup(path, &vn)))
+    return error;
+  vnode_lock(vn);
+  if (vn->v_type == V_DIR)
+    error = EISDIR;
+  else if ((error = VOP_ACCESS(vn, VWRITE))) {
+    vattr_t va;
+    vattr_null(&va);
+    va.va_size = length;
+    error = VOP_SETATTR(vn, &va);
+  }
+  vnode_put(vn);
+  return error;
+}
+
+int do_ftruncate(proc_t *p, int fd, off_t length) {
+  int error;
+  file_t *f;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
+    return error;
+
+  vnode_t *vn = f->f_vnode;
+  vnode_lock(vn);
+  if (vn->v_type == V_DIR)
+    error = EINVAL;
+  else {
+    vattr_t va;
+    vattr_null(&va);
+    va.va_size = length;
+    error = VOP_SETATTR(vn, &va);
+  }
+  vnode_unlock(vn);
+  file_drop(f);
   return error;
 }

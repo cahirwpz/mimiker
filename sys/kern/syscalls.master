@@ -21,7 +21,7 @@
 13  { void *sys_mmap(void *addr, size_t len, int prot, int flags, \
                      int fd, off_t pos); }
 14  { int sys_mount(const char *type, const char *path); }
-15  { ssize_t sys_getdirentries(int fd, void *buf, size_t len, off_t *basep); }
+15  { int sys_getdents(int fd, void *buf, size_t len); }
 16  { int sys_dup(int fd); }
 17  { int sys_dup2(int from, int to); }
 18  { int sys_sigaction(int signum, const struct sigaction *nsa, \
@@ -57,5 +57,7 @@
 44  { gid_t sys_getegid(void); }
 45  { int sys_issetugid(void); }
 46  { int sys_fcntl(int fd, int cmd, ... void *arg); }
+47  { int sys_truncate(const char *path, off_t length); }
+48  { int sys_ftruncate(int fd, off_t length); }
 
 ; vim: ts=4 sw=4 sts=4 et

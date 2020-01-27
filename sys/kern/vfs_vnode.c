@@ -135,7 +135,7 @@ static int default_vnread(file_t *f, uio_t *uio) {
   int error = 0;
   vnode_lock(v);
   uio->uio_offset = f->f_offset;
-  error = VOP_READ(f->f_vnode, uio);
+  error = VOP_READ(f->f_vnode, uio, 0);
   f->f_offset = uio->uio_offset;
   vnode_unlock(v);
   return error;
@@ -143,10 +143,12 @@ static int default_vnread(file_t *f, uio_t *uio) {
 
 static int default_vnwrite(file_t *f, uio_t *uio) {
   vnode_t *v = f->f_vnode;
-  int error = 0;
+  int error = 0, ioflag = 0;
+  if (f->f_flags & FF_APPEND)
+    ioflag |= IO_APPEND;
   vnode_lock(v);
   uio->uio_offset = f->f_offset;
-  error = VOP_WRITE(f->f_vnode, uio);
+  error = VOP_WRITE(f->f_vnode, uio, ioflag);
   f->f_offset = uio->uio_offset;
   vnode_unlock(v);
   return error;
