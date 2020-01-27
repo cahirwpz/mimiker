@@ -1,13 +1,21 @@
 #include <sys/types.h>
 #include <sys/mimiker.h>
 #include <sys/kasan.h>
-#include <sys/klog.h>
 #include <sys/vm.h>
 #include <sys/types.h>
 #include <sys/vm_physmem.h>
 #include <sys/pmap.h>
 #include <machine/vm_param.h>
 #include <sys/param.h>
+
+#define kasan_panic(FMT, ...)                                                  \
+  __extension__({                                                              \
+    kprintf("======================================\n");                       \
+    kprintf("ERROR: KernelAddressSanitizer:\n");                               \
+    kprintf(FMT "\n", ##__VA_ARGS__);                                          \
+    kprintf("======================================\n");                       \
+    panic_fail();                                                              \
+  })
 
 #define KASAN_SHADOW_SCALE_SHIFT 3
 #define KASAN_SHADOW_SCALE_SIZE (1UL << KASAN_SHADOW_SCALE_SHIFT)
@@ -131,8 +139,10 @@ __always_inline static inline void kasan_shadow_check(unsigned long addr,
   }
 
   if (__predict_false(!valid))
-    panic("KASAN: invalid access to addr %p (%s, %lu bytes, code %d)",
-          (void *)addr, (read ? "read" : "write"), size, code);
+    kasan_panic("invalid access to addr %p\n"
+                "%s of size %lu\n"
+                "code %d",
+                (void *)addr, (read ? "READ" : "WRITE"), size, code);
 }
 
 /*
