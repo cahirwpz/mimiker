@@ -50,10 +50,8 @@ static vfs_init_t vfs_default_init;
 vnode_t *vfs_root_vnode;
 
 static int vfs_root_vnode_lookup(vnode_t *vdir, componentname_t *cn,
-                               vnode_t **res)
-{
-  if (componentname_equal(cn, "..") || componentname_equal(cn, "."))
-  {
+                                 vnode_t **res) {
+  if (componentname_equal(cn, "..") || componentname_equal(cn, ".")) {
     vnode_hold(vfs_root_vnode);
     *res = vfs_root_vnode;
     return 0;
@@ -62,7 +60,7 @@ static int vfs_root_vnode_lookup(vnode_t *vdir, componentname_t *cn,
   return ENOENT;
 }
 
-static vnodeops_t vfs_root_ops = { .v_lookup = vfs_root_vnode_lookup };
+static vnodeops_t vfs_root_ops = {.v_lookup = vfs_root_vnode_lookup};
 
 static int vfs_register(vfsconf_t *vfc);
 
@@ -184,10 +182,9 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   return 0;
 }
 
-int vfs_maybe_ascend(vnode_t **vp)
-{
-  vnode_t* v_covered;
-  vnode_t* v = *vp;
+int vfs_maybe_ascend(vnode_t **vp) {
+  vnode_t *v_covered;
+  vnode_t *v = *vp;
   while (is_mounted(v)) {
     v_covered = v->v_mount->mnt_vnodecovered;
     vnode_hold(v_covered);
@@ -313,8 +310,7 @@ static int vfs_nameresolve(vnrstate_t *state) {
   parentdir = searchdir;
   vnode_hold(parentdir);
 
-  if (state->vs_nextcn[0] == '\0')
-  {
+  if (state->vs_nextcn[0] == '\0') {
     vnode_unlock(searchdir);
     state->vs_dvp = parentdir;
     state->vs_vp = searchdir;
@@ -322,7 +318,7 @@ static int vfs_nameresolve(vnrstate_t *state) {
     goto end;
   }
 
-  for(;;) {
+  for (;;) {
     assert(state->vs_nextcn[0] != '/');
     assert(state->vs_nextcn[0] != '\0');
 
@@ -339,8 +335,7 @@ static int vfs_nameresolve(vnrstate_t *state) {
     searchdir = NULL;
 
     error = vnr_lookup_once(state, parentdir, &searchdir);
-    if (error)
-    {
+    if (error) {
       vnode_put(parentdir);
       goto end;
     }

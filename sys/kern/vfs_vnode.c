@@ -28,8 +28,8 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
   return v;
 }
 
-bool is_mounted(vnode_t* v) {
-  vnode_t* foundvn;
+bool is_mounted(vnode_t *v) {
+  vnode_t *foundvn;
   componentname_t cn = COMPONENTNAME("..");
   VOP_LOOKUP(v, &cn, &foundvn);
   kprintf("%p %p", foundvn, v);

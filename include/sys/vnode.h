@@ -92,7 +92,7 @@ static inline bool is_mountpoint(vnode_t *v) {
   return v->v_mountedhere != NULL;
 }
 
-bool is_mounted(vnode_t* v);
+bool is_mounted(vnode_t *v);
 
 typedef struct vattr {
   mode_t va_mode;   /* files access mode and type */
