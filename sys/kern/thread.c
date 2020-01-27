@@ -56,6 +56,7 @@ static void thread_init(thread_t *td, prio_t prio) {
     TAILQ_INSERT_TAIL(&all_threads, td, td_all);
 }
 
+alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 static alignas(PAGESIZE) uint8_t _stack0[PAGESIZE];
 static thread_t _thread0[1];
 
