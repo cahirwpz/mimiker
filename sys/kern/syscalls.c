@@ -733,3 +733,28 @@ static int sys_ftruncate(proc_t *p, ftruncate_args_t *args, register_t *res) {
   klog("ftruncate(%d, %d)", fd, length);
   return do_ftruncate(p, fd, length);
 }
+
+static int sys_fstatat(proc_t *p, fstatat_args_t *args, register_t *res) {
+  int fd = args->fd;
+  const char *u_path = args->path;
+  stat_t *u_sb = args->sb;
+  int flag = args->flag;
+  stat_t sb;
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("fstatat(%d, \"%s\", %p, %d)", fd, path, u_sb, flag);
+
+  if ((error = do_fstatat(p, fd, path, &sb, flag)))
+    goto end;
+  if ((error = copyout_s(sb, u_sb)))
+    goto end;
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}

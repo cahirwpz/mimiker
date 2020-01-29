@@ -17,7 +17,8 @@
 /* Internal state for a vnr operation. */
 typedef struct {
   /* Arguments to vnr. */
-  vnrop_t vs_op; /* vnr operation type */
+  vnrop_t vs_op;          /* vnr operation type */
+  struct vnode *vs_atdir; /* startup dir, cwd if null */
 
   /* Results returned from lookup. */
   vnode_t *vs_vp;  /* vnode of result */
@@ -274,7 +275,7 @@ static void vnr_parse_component(vnrstate_t *state) {
 
 static int vfs_nameresolve(vnrstate_t *state) {
   /* TODO: This is a simplified implementation, and it does not support many
-     required features! These include: relative paths, symlinks, parent dirs */
+     required features! These include: symlinks */
   int error;
   vnode_t *searchdir, *parentdir = NULL;
   componentname_t *cn = &state->vs_cn;
@@ -285,21 +286,24 @@ static int vfs_nameresolve(vnrstate_t *state) {
   if (strlen(state->vs_nextcn) >= PATH_MAX)
     return ENAMETOOLONG;
 
-  if (strncmp(state->vs_nextcn, "/", 1) == 0) {
-    searchdir = vfs_root_vnode;
-    /* Drop leading slashes. */
-    while (state->vs_nextcn[0] == '/')
-      state->vs_nextcn++;
+  /* Establish the starting directory for lookup and lock it.*/
+  if (strncmp(state->vs_nextcn, "/", 1) != 0) {
+    if (state->vs_atdir != NULL)
+      searchdir = state->vs_atdir;
+    else
+      searchdir = proc_self()->p_cwd;
   } else {
-    searchdir = proc_self()->p_cwd;
+    searchdir = vfs_root_vnode;
   }
 
-  /* Establish the starting directory for lookup, and lock it. */
   if (searchdir->v_type != V_DIR)
     return ENOTDIR;
 
-  /* Path was just "/". */
   vnode_get(searchdir);
+
+  /* Drop leading slashes. */
+  while (state->vs_nextcn[0] == '/')
+    state->vs_nextcn++;
 
   if ((error = vfs_maybe_descend(&searchdir)))
     goto end;
@@ -307,6 +311,7 @@ static int vfs_nameresolve(vnrstate_t *state) {
   parentdir = searchdir;
   vnode_hold(parentdir);
 
+  /* Path was just "/". */
   if (state->vs_nextcn[0] == '\0') {
     vnode_unlock(searchdir);
     state->vs_dvp = parentdir;
@@ -366,24 +371,26 @@ end:
   return error;
 }
 
-static void vnrstate_init(vnrstate_t *vs, vnrop_t op, const char *path) {
+static void vnrstate_init(vnrstate_t *vs, vnode_t *atdir, vnrop_t op,
+                          const char *path) {
   vs->vs_op = op;
+  vs->vs_atdir = atdir;
   vs->vs_cn.cn_flags = 0;
   vs->vs_nextcn = path;
 }
 
-int vfs_namelookup(const char *path, vnode_t **vp) {
+int vfs_namelookupat(const char *path, vnode_t *atdir, vnode_t **vp) {
   vnrstate_t vs;
-  vnrstate_init(&vs, VNR_LOOKUP, path);
+  vnrstate_init(&vs, atdir, VNR_LOOKUP, path);
   int error = vfs_nameresolve(&vs);
   *vp = vs.vs_vp;
   return error;
 }
 
-int vfs_namecreate(const char *path, vnode_t **dvp, vnode_t **vp,
-                   componentname_t *cn) {
+int vfs_namecreateat(const char *path, vnode_t *atdir, vnode_t **dvp,
+                     vnode_t **vp, componentname_t *cn) {
   vnrstate_t vs;
-  vnrstate_init(&vs, VNR_CREATE, path);
+  vnrstate_init(&vs, atdir, VNR_CREATE, path);
   int error = vfs_nameresolve(&vs);
   if (error)
     return error;
@@ -395,10 +402,10 @@ int vfs_namecreate(const char *path, vnode_t **dvp, vnode_t **vp,
   return 0;
 }
 
-int vfs_namedelete(const char *path, vnode_t **dvp, vnode_t **vp,
-                   componentname_t *cn) {
+int vfs_namedeleteat(const char *path, vnode_t *atdir, vnode_t **dvp,
+                     vnode_t **vp, componentname_t *cn) {
   vnrstate_t vs;
-  vnrstate_init(&vs, VNR_DELETE, path);
+  vnrstate_init(&vs, atdir, VNR_DELETE, path);
   int error = vfs_nameresolve(&vs);
   if (error)
     return error;

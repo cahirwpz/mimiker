@@ -100,6 +100,29 @@ fail:
   return error;
 }
 
+int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag) {
+  file_t *f;
+  vnode_t *v, *atdir = NULL;
+  vattr_t va;
+  int error;
+
+  if (fd != AT_FDCWD) {
+    if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+      return error;
+    atdir = f->f_vnode;
+  }
+  error = vfs_namelookupat(path, atdir, &v);
+  if (fd != AT_FDCWD)
+    file_drop(f);
+  if (error)
+    return error;
+  if (!(error = VOP_GETATTR(v, &va)))
+    vattr_convert(&va, sb);
+
+  vnode_drop(v);
+  return error;
+}
+
 int do_dup(proc_t *p, int oldfd, int *newfdp) {
   file_t *f;
   int error;
