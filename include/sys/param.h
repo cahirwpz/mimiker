@@ -2,6 +2,7 @@
 #define _SYS_PARAM_H_
 
 #include <sys/syslimits.h>
+#include <sys/inttypes.h>
 
 /* Macros for min/max. */
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -86,5 +87,10 @@
 #define rounddown2(x, m) ((x) & ~((__typeof__(x))((m)-1)))
 
 #define powerof2(x) ((((x)-1) & (x)) == 0)
+
+/* Signals. */
+#ifndef _KERNEL
+#include <sys/signal.h>
+#endif
 
 #endif /* !_SYS_PARAM_H_ */

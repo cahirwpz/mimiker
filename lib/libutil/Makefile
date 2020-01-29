@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ../..)
 
-SOURCES = efun.c parsedate.y
+SOURCES = efun.c parsedate.y strpct.c
 FORMAT-EXCLUDE = %.c
 
 include $(TOPDIR)/build/build.lib.mk

@@ -1,8 +1,8 @@
-/*  $NetBSD: grp.h,v 1.24 2007/10/19 15:58:52 christos Exp $    */
+/*	$NetBSD: ttydefaults.h,v 1.16 2008/05/24 14:06:39 yamt Exp $	*/
 
 /*-
- * Copyright (c) 1989, 1993
- *  The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1982, 1986, 1993
+ *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
  * All or some portions of this file are derived from material licensed
  * to the University of California by American Telephone and Telegraph
@@ -33,39 +33,49 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  @(#)grp.h   8.2 (Berkeley) 1/21/94
+ *	@(#)ttydefaults.h	8.4 (Berkeley) 1/21/94
  */
 
-#ifndef _GRP_H_
-#define _GRP_H_
+/*
+ * System wide defaults for terminal state.
+ */
+#ifndef _SYS_TTYDEFAULTS_H_
+#define _SYS_TTYDEFAULTS_H_
 
-#include <sys/cdefs.h>
-#include <sys/types.h>
+/*
+ * Defaults on "first" open.
+ */
+#define TTYDEF_IFLAG (BRKINT | ICRNL | IMAXBEL | IXON | IXANY)
+#define TTYDEF_OFLAG (OPOST | ONLCR | OXTABS)
+#define TTYDEF_LFLAG (ECHO | ICANON | ISIG | IEXTEN | ECHOE | ECHOKE | ECHOCTL)
+#define TTYDEF_CFLAG (CREAD | CS8 | HUPCL)
+#define TTYDEF_SPEED (B9600)
 
-#define _PATH_GROUP "/etc/group"
+/*
+ * Control Character Defaults
+ */
+#define CTRL(x) (x & 037)
+#define CEOF CTRL('d')
+#define CEOL ((unsigned char)'\377') /* XXX avoid _POSIX_VDISABLE */
+#define CERASE 0177
+#define CINTR CTRL('c')
+#define CSTATUS CTRL('t')
+#define CKILL CTRL('u')
+#define CMIN 1
+#define CQUIT 034 /* FS, ^\ */
+#define CSUSP CTRL('z')
+#define CTIME 0
+#define CDSUSP CTRL('y')
+#define CSTART CTRL('q')
+#define CSTOP CTRL('s')
+#define CLNEXT CTRL('v')
+#define CDISCARD CTRL('o')
+#define CWERASE CTRL('w')
+#define CREPRINT CTRL('r')
+#define CEOT CEOF
+/* compat */
+#define CBRK CEOL
+#define CRPRNT CREPRINT
+#define CFLUSH CDISCARD
 
-struct group {
-  const char *gr_name;       /* group name */
-  const char *gr_passwd;     /* group password */
-  gid_t gr_gid;              /* group id */
-  const char *const *gr_mem; /* group members */
-};
-
-__BEGIN_DECLS
-int getgrouplist(const char *, gid_t, gid_t *, int *);
-
-struct group *getgrgid(gid_t);
-struct group *getgrnam(const char *);
-int getgrgid_r(gid_t, struct group *, char *, size_t, struct group **);
-int getgrnam_r(const char *, struct group *, char *, size_t, struct group **);
-struct group *getgrent(void);
-void setgrent(void);
-void endgrent(void);
-
-void setgrfile(const char *);
-int setgroupent(int);
-int getgrent_r(struct group *, char *, size_t, struct group **);
-const char *group_from_gid(gid_t, int);
-__END_DECLS
-
-#endif /* !_GRP_H_ */
+#endif /* !_SYS_TTYDEFAULTS_H_ */

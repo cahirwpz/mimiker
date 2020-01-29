@@ -34,6 +34,9 @@
 #ifndef _SYS_TERMIOS_H_
 #define _SYS_TERMIOS_H_
 
+#include <sys/ttydefaults.h>
+#include <sys/ttycom.h>
+
 /*
  * Special Control Characters
  *
@@ -41,38 +44,54 @@
  *
  *	Name	     Subscript	Enabled by
  */
-#define VEOF 0    /* ICANON */
-#define VEOL 1    /* ICANON */
-#define VERASE 3  /* ICANON */
-#define VKILL 5   /* ICANON */
-#define VINTR 8   /* ISIG */
-#define VQUIT 9   /* ISIG */
-#define VSUSP 10  /* ISIG */
-#define VSTART 12 /* IXON, IXOFF */
-#define VSTOP 13  /* IXON, IXOFF */
-#define VMIN 16   /* !ICANON */
-#define VTIME 17  /* !ICANON */
+#define VEOF 0      /* ICANON */
+#define VEOL 1      /* ICANON */
+#define VEOL2 2     /* ICANON */
+#define VERASE 3    /* ICANON */
+#define VWERASE 4   /* ICANON */
+#define VKILL 5     /* ICANON */
+#define VREPRINT 6  /* ICANON */
+#define VINTR 8     /* ISIG */
+#define VQUIT 9     /* ISIG */
+#define VSUSP 10    /* ISIG */
+#define VDSUSP 11   /* ISIG */
+#define VSTART 12   /* IXON, IXOFF */
+#define VSTOP 13    /* IXON, IXOFF */
+#define VLNEXT 14   /* IEXTEN */
+#define VDISCARD 15 /* IEXTEN */
+#define VMIN 16     /* !ICANON */
+#define VTIME 17    /* !ICANON */
+#define VSTATUS 18  /* ICANON */
 #define NCCS 20
+
+#define _POSIX_VDISABLE 0xff
 
 /*
  * Input flags - software input processing
  */
-#define IGNBRK 0x00000001U /* ignore BREAK condition */
-#define BRKINT 0x00000002U /* map BREAK to SIGINT */
-#define IGNPAR 0x00000004U /* ignore (discard) parity errors */
-#define PARMRK 0x00000008U /* mark parity and framing errors */
-#define INPCK 0x00000010U  /* enable checking of parity errors */
-#define ISTRIP 0x00000020U /* strip 8th bit off chars */
-#define INLCR 0x00000040U  /* map NL into CR */
-#define IGNCR 0x00000080U  /* ignore CR */
-#define ICRNL 0x00000100U  /* map CR to NL (ala CRMOD) */
-#define IXON 0x00000200U   /* enable output flow control */
-#define IXOFF 0x00000400U  /* enable input flow control */
+#define IGNBRK 0x00000001U  /* ignore BREAK condition */
+#define BRKINT 0x00000002U  /* map BREAK to SIGINT */
+#define IGNPAR 0x00000004U  /* ignore (discard) parity errors */
+#define PARMRK 0x00000008U  /* mark parity and framing errors */
+#define INPCK 0x00000010U   /* enable checking of parity errors */
+#define ISTRIP 0x00000020U  /* strip 8th bit off chars */
+#define INLCR 0x00000040U   /* map NL into CR */
+#define IGNCR 0x00000080U   /* ignore CR */
+#define ICRNL 0x00000100U   /* map CR to NL (ala CRMOD) */
+#define IXON 0x00000200U    /* enable output flow control */
+#define IXOFF 0x00000400U   /* enable input flow control */
+#define IXANY 0x00000800U   /* any char will restart after stop */
+#define IMAXBEL 0x00002000U /* ring bell on input queue full */
 
 /*
  * Output flags - software output processing
  */
-#define OPOST 0x00000001U /* enable following output processing */
+#define OPOST 0x00000001U  /* enable following output processing */
+#define ONLCR 0x00000002U  /* map NL to CR-NL (ala CRMOD) */
+#define OXTABS 0x00000004U /* expand tabs to spaces */
+#define OCRNL 0x00000010U  /* map CR to NL */
+#define ONOCR 0x00000020U  /* discard CR's when on column 0 */
+#define ONLRET 0x00000040U /* move to column 0 on CR */
 
 /*
  * Control flags - hardware control of terminal
@@ -89,6 +108,9 @@
 #define PARODD 0x00002000U  /* odd parity, else even */
 #define HUPCL 0x00004000U   /* hang up on last close */
 #define CLOCAL 0x00008000U  /* ignore modem status lines */
+#define CRTSCTS 0x00010000U /* RTS/CTS full-duplex flow control */
+#define CDTRCTS 0x00020000U /* DTR/CTS full-duplex flow control */
+#define MDMBUF 0x00100000U  /* DTR/DCD hardware flow control */
 
 /*
  * "Local" flags - dumping ground for other state
@@ -98,15 +120,23 @@
  * input flag.
  */
 
-#define ECHOE 0x00000002U  /* visually erase chars */
-#define ECHOK 0x00000004U  /* echo NL after line kill */
-#define ECHO 0x00000008U   /* enable echoing */
-#define ECHONL 0x00000010U /* echo NL even if ECHO is off */
-#define ISIG 0x00000080U   /* enable signals INT, QUIT, [D]SUSP */
-#define ICANON 0x00000100U /* canonicalize input lines */
-#define IEXTEN 0x00000400U /* enable DISCARD and LNEXT */
-#define TOSTOP 0x00400000U /* stop background jobs on output */
-#define NOFLSH 0x80000000U /* don't flush output on signal */
+#define ECHOKE 0x00000001U     /* visual erase for line kill */
+#define ECHOE 0x00000002U      /* visually erase chars */
+#define ECHOK 0x00000004U      /* echo NL after line kill */
+#define ECHO 0x00000008U       /* enable echoing */
+#define ECHONL 0x00000010U     /* echo NL even if ECHO is off */
+#define ECHOPRT 0x00000020U    /* visual erase mode for hardcopy */
+#define ECHOCTL 0x00000040U    /* echo control chars as ^(Char) */
+#define ISIG 0x00000080U       /* enable signals INT, QUIT, [D]SUSP */
+#define ICANON 0x00000100U     /* canonicalize input lines */
+#define ALTWERASE 0x00000200U  /* use alternate WERASE algorithm */
+#define IEXTEN 0x00000400U     /* enable DISCARD and LNEXT */
+#define EXTPROC 0x00000800U    /* external processing */
+#define TOSTOP 0x00400000U     /* stop background jobs on output */
+#define FLUSHO 0x00800000U     /* output being flushed (state) */
+#define NOKERNINFO 0x02000000U /* no kernel output from VSTATUS */
+#define PENDIN 0x20000000U     /* re-echo input buffer at next read */
+#define NOFLSH 0x80000000U     /* don't flush output on signal */
 
 typedef unsigned int tcflag_t;
 typedef unsigned char cc_t;
@@ -163,8 +193,14 @@ struct termios {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
+speed_t cfgetispeed(const struct termios *);
+speed_t cfgetospeed(const struct termios *);
+int cfsetispeed(struct termios *, speed_t);
+int cfsetospeed(struct termios *, speed_t);
 int tcgetattr(int, struct termios *);
 int tcsetattr(int, int, const struct termios *);
+
+void cfmakeraw(struct termios *);
 __END_DECLS
 
 #endif /* !_KERNEL */

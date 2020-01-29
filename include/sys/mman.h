@@ -19,11 +19,17 @@
 #define PROT_WRITE 2
 #define PROT_EXEC 4
 
+/* Original advice values, equivalent to POSIX definitions. */
+#define MADV_NORMAL 0     /* No further special treatment */
+#define MADV_RANDOM 1     /* Expect random page references */
+#define MADV_SEQUENTIAL 2 /* Expect sequential page references */
+
 /* Newlib does not provide mmap prototype, so we need to use our own. */
 void *mmap(void *addr, size_t length, int prot, int flags, int fd,
            off_t offset);
 int munmap(void *addr, size_t len);
 int mprotect(void *addr, size_t len, int prot);
+int madvise(void *addr, size_t len, int advice);
 
 #else /* _KERNEL */
 

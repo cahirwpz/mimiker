@@ -11,7 +11,6 @@ static POOL_DEFINE(P_FILE, "file", sizeof(file_t));
 file_t *file_alloc(void) {
   file_t *f = pool_alloc(P_FILE, M_ZERO);
   f->f_ops = &badfileops;
-  mtx_init(&f->f_mtx, 0);
   return f;
 }
 
