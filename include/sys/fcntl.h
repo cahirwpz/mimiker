@@ -60,6 +60,12 @@
 /* file descriptor flags (F_GETFD, F_SETFD) */
 #define FD_CLOEXEC 1 /* close-on-exec flag */
 
+/*
+ * Constants for X/Open Extended API set 2 (a.k.a. C063)
+ */
+#define AT_FDCWD -100            /* Use cwd for relative link target */
+#define AT_SYMLINK_FOLLOW 0x0400 /* Follow symbolic link */
+
 #ifndef _KERNEL
 #include <sys/types.h>
 

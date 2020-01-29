@@ -138,6 +138,11 @@ ssize_t pread(int, void *, size_t, off_t);
 ssize_t pwrite(int, const void *, size_t, off_t);
 
 /*
+ * X/Open Extended API set 2 (a.k.a. C063)
+ */
+int linkat(int, const char *, int, const char *, int);
+
+/*
  * Implementation-defined extensions
  */
 int issetugid(void);

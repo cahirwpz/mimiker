@@ -1,6 +1,7 @@
 #include <machine/syscall.h>
 
 SYSCALL_MISSING(link)
+SYSCALL_MISSING(linkat)
 SYSCALL_MISSING(symlink)
 SYSCALL_MISSING(readlink)
 SYSCALL_MISSING(lstat)
