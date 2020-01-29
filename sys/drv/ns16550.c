@@ -96,7 +96,8 @@ static int ns16550_close(vnode_t *v, file_t *fp) {
 /* XXX: This should be implemented by tty driver, not here. */
 static int ns16550_ioctl(vnode_t *v, u_long cmd, void *data) {
   if (cmd) {
-    memset(data, 0, sizeof(struct termios));
+    unsigned len = IOCPARM_LEN(cmd);
+    memset(data, 0, len);
     return 0;
   }
 
