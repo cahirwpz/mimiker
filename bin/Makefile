@@ -3,7 +3,7 @@
 TOPDIR = $(realpath ..)
 
 SUBDIR = cat chmod cp echo kill ksh ln ls lua mandelbrot mish mkdir mls mv \
-	 pwd rm rmdir sandbox sleep test test_kbd test_rtc utest
+	 pwd rm rmdir sandbox sleep stty test test_kbd test_rtc utest
 
 all: build
 

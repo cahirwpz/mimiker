@@ -1,7 +1,7 @@
-/*	$NetBSD: ttycom.h,v 1.21 2017/10/25 06:32:59 kre Exp $	*/
+/*	$NetBSD: ttydefaults.h,v 1.16 2008/05/24 14:06:39 yamt Exp $	*/
 
 /*-
- * Copyright (c) 1982, 1986, 1990, 1993, 1994
+ * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
  * All or some portions of this file are derived from material licensed
@@ -33,48 +33,49 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ttycom.h	8.1 (Berkeley) 3/28/94
- */
-
-#ifndef _SYS_TTYCOM_H_
-#define _SYS_TTYCOM_H_
-
-#include <sys/syslimits.h>
-#include <sys/ioccom.h>
-
-/*
- * Tty ioctl's except for those supported only for backwards compatibility
- * with the old tty driver.
+ *	@(#)ttydefaults.h	8.4 (Berkeley) 1/21/94
  */
 
 /*
- * Window/terminal size structure.  This information is stored by the kernel
- * in order to provide a consistent interface, but is not used by the kernel.
+ * System wide defaults for terminal state.
  */
-struct winsize {
-  unsigned short ws_row;    /* rows, in characters */
-  unsigned short ws_col;    /* columns, in characters */
-  unsigned short ws_xpixel; /* horizontal size, pixels */
-  unsigned short ws_ypixel; /* vertical size, pixels */
-};
+#ifndef _SYS_TTYDEFAULTS_H_
+#define _SYS_TTYDEFAULTS_H_
 
 /*
- * This is the maximum length of a line discipline's name.
+ * Defaults on "first" open.
  */
-#define TTLINEDNAMELEN 32
-typedef char linedn_t[TTLINEDNAMELEN];
+#define TTYDEF_IFLAG (BRKINT | ICRNL | IMAXBEL | IXON | IXANY)
+#define TTYDEF_OFLAG (OPOST | ONLCR | OXTABS)
+#define TTYDEF_LFLAG (ECHO | ICANON | ISIG | IEXTEN | ECHOE | ECHOKE | ECHOCTL)
+#define TTYDEF_CFLAG (CREAD | CS8 | HUPCL)
+#define TTYDEF_SPEED (B9600)
 
-#define TIOCGLINED _IOR('t', 66, linedn_t)      /* get line discipline (new) */
-#define TIOCGETA _IOR('t', 19, struct termios)  /* get termios struct */
-#define TIOCSETA _IOW('t', 20, struct termios)  /* set termios struct */
-#define TIOCSETAW _IOW('t', 21, struct termios) /* drain output, set */
-#define TIOCSETAF _IOW('t', 22, struct termios) /* drn out, fls in, set */
-#define TIOCGWINSZ _IOR('t', 104, struct winsize) /* get window size */
-#define TIOCSWINSZ _IOW('t', 103, struct winsize) /* set window size */
-#define TIOCSTART _IO('t', 110)                   /* start output, like ^Q */
-#define TIOCSTOP _IO('t', 111)                    /* stop output, like ^S */
-#define TIOCGPGRP _IOR('t', 119, int)             /* get pgrp of tty */
-#define TIOCSPGRP _IOW('t', 118, int)             /* set pgrp of tty */
-#define TIOCGQSIZE _IOR('t', 129, int)            /* get queue size */
+/*
+ * Control Character Defaults
+ */
+#define CTRL(x) (x & 037)
+#define CEOF CTRL('d')
+#define CEOL ((unsigned char)'\377') /* XXX avoid _POSIX_VDISABLE */
+#define CERASE 0177
+#define CINTR CTRL('c')
+#define CSTATUS CTRL('t')
+#define CKILL CTRL('u')
+#define CMIN 1
+#define CQUIT 034 /* FS, ^\ */
+#define CSUSP CTRL('z')
+#define CTIME 0
+#define CDSUSP CTRL('y')
+#define CSTART CTRL('q')
+#define CSTOP CTRL('s')
+#define CLNEXT CTRL('v')
+#define CDISCARD CTRL('o')
+#define CWERASE CTRL('w')
+#define CREPRINT CTRL('r')
+#define CEOT CEOF
+/* compat */
+#define CBRK CEOL
+#define CRPRNT CREPRINT
+#define CFLUSH CDISCARD
 
-#endif /* !_SYS_TTYCOM_H_ */
+#endif /* !_SYS_TTYDEFAULTS_H_ */
