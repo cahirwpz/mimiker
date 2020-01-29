@@ -52,6 +52,8 @@ struct group {
 };
 
 __BEGIN_DECLS
+int getgrouplist(const char *, gid_t, gid_t *, int *);
+
 struct group *getgrgid(gid_t);
 struct group *getgrnam(const char *);
 int getgrgid_r(gid_t, struct group *, char *, size_t, struct group **);

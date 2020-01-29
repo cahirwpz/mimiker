@@ -33,7 +33,7 @@ gid_t getegid(void);
 uid_t geteuid(void);
 gid_t getgid(void);
 int getgroups(int, gid_t[]);
-const char *getlogin(void);
+char *getlogin(void);
 int getlogin_r(char *, size_t);
 pid_t getpgrp(void);
 pid_t getpid(void);
