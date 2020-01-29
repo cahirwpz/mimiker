@@ -8,8 +8,13 @@
 #include <sys/errno.h>
 #include <sys/thread.h>
 #include <sys/ktest.h>
+#include <sys/sched.h>
 
 static int paging_on_demand_and_memory_protection_demo(void) {
+  /* This test cannot be preempted since vm_map_activate is not called while
+   * switching back to kernel threads. */
+  SCOPED_NO_PREEMPTION();
+
   vm_map_t *orig = vm_map_user();
   vm_map_activate(vm_map_new());
 
