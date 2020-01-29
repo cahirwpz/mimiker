@@ -11,7 +11,6 @@ static POOL_DEFINE(P_FILE, "file", sizeof(file_t));
 file_t *file_alloc(void) {
   file_t *f = pool_alloc(P_FILE, M_ZERO);
   f->f_ops = &badfileops;
-  mtx_init(&f->f_mtx, 0);
   return f;
 }
 
@@ -54,7 +53,7 @@ static int badfo_stat(file_t *f, stat_t *sb) {
   return EOPNOTSUPP;
 }
 
-static int badfo_seek(file_t *f, off_t offset, int whence) {
+static int badfo_seek(file_t *f, off_t offset, int whence, off_t *newoffp) {
   return EOPNOTSUPP;
 }
 
