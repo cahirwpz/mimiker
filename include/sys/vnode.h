@@ -194,12 +194,14 @@ void vnode_unlock(vnode_t *v);
 void vnode_hold(vnode_t *v);
 void vnode_drop(vnode_t *v);
 
-/* Unlock and release the reference. */
+/* Increment reference counter and lock the vnode. */
+void vnode_get(vnode_t *v);
+
+/* Unlock and decrement reference counter for the vnode. */
 void vnode_put(vnode_t *v);
 
-/* Uncovers a node under the mounted node until it reaches the node that isn't
- * mounted */
-vnode_t *vnode_uncover(vnode_t *v);
+/* Is the vnode root of file system and mounted somewhere? */
+bool vnode_is_mounted(vnode_t *v);
 
 /* Convenience function with default vnode operation implementation. */
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
