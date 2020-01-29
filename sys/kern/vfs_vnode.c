@@ -28,13 +28,6 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
   return v;
 }
 
-bool is_mounted(vnode_t *v) {
-  vnode_t *foundvn;
-  componentname_t cn = COMPONENTNAME("..");
-  VOP_LOOKUP(v, &cn, &foundvn);
-  return foundvn == v && v->v_mount != NULL;
-}
-
 void vnode_lock(vnode_t *v) {
   mtx_lock(&v->v_mtx);
 }
@@ -54,9 +47,21 @@ void vnode_drop(vnode_t *v) {
   }
 }
 
+void vnode_get(vnode_t *v) {
+  vnode_hold(v);
+  vnode_lock(v);
+}
+
 void vnode_put(vnode_t *v) {
   vnode_unlock(v);
   vnode_drop(v);
+}
+
+bool vnode_is_mounted(vnode_t *v) {
+  vnode_t *foundvn;
+  componentname_t cn = COMPONENTNAME("..");
+  VOP_LOOKUP(v, &cn, &foundvn);
+  return foundvn == v && v->v_mount != NULL;
 }
 
 vnode_t *vnode_uncover(vnode_t *uvp) {

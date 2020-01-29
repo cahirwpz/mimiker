@@ -185,10 +185,9 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
 int vfs_maybe_ascend(vnode_t **vp) {
   vnode_t *v_covered;
   vnode_t *v = *vp;
-  while (is_mounted(v)) {
+  while (vnode_is_mounted(v)) {
     v_covered = v->v_mount->mnt_vnodecovered;
-    vnode_hold(v_covered);
-    vnode_lock(v_covered);
+    vnode_get(v_covered);
     vnode_put(v);
     v = v_covered;
   }
@@ -301,8 +300,7 @@ static int vfs_nameresolve(vnrstate_t *state) {
     return ENOTDIR;
 
   /* Path was just "/". */
-  vnode_hold(searchdir);
-  vnode_lock(searchdir);
+  vnode_get(searchdir);
 
   if ((error = vfs_maybe_descend(&searchdir)))
     goto end;

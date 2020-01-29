@@ -308,8 +308,7 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
 int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   assert(*lastp == PATH_MAX);
 
-  vnode_hold(p->p_cwd);
-  vnode_lock(p->p_cwd);
+  vnode_get(p->p_cwd);
   vnode_t *uvp = p->p_cwd;
   vnode_t *lvp = NULL;
   int error = 0;
