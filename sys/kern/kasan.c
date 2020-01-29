@@ -199,11 +199,15 @@ static void kasan_ctors(void) {
   }
 }
 
+static void kasan_fillN(uint32_t *start, uint32_t *end) {
+  while (start < end)
+    *start++ = 0;
+}
+
 void kasan_init(void) {
   uint32_t *ptr = (uint32_t *)KASAN_MD_SHADOW_START;
   uint32_t *end = (uint32_t *)KASAN_MD_SHADOW_END;
-  while (ptr < end)
-    *ptr++ = 0;
+  kasan_fillN(ptr, end);
 
   kasan_ready = 1;
   kasan_ctors();
@@ -231,6 +235,12 @@ void __asan_storeN_noabort(unsigned long addr, size_t size) {
 }
 
 void __asan_handle_no_return(void) {
+  uintptr_t sp;
+  asm volatile ("move %0, $sp" : "=r" (sp));
+  sp &= 0xFFFFF000;
+  uintptr_t shadow_sp = (sp >> KASAN_SHADOW_SCALE_SHIFT) + 0xD8000000;
+  uintptr_t end = shadow_sp + (PAGESIZE >> KASAN_SHADOW_SCALE_SHIFT);
+  kasan_fillN((uint32_t *)shadow_sp, (uint32_t *)end);
 }
 
 struct __asan_global_source_location {
