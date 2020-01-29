@@ -76,7 +76,7 @@ argument. Some useful kernel arguments:
   Browse `bin` and `usr.bin` directories for currently available programs.
 * `klog-quiet=1` - Turns off printing kernel diagnostic messages.
 
-If you want to run tests please read [this document](tests/README.md).
+If you want to run tests please read [this document](sys/tests/README.md).
 
 Documentation
 ---
