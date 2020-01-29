@@ -38,7 +38,7 @@ if not ok then
   os.exit(false)
 end
 
-if #arg == 0 then arg[1] = "/" end
+if #arg == 0 then arg[1] = unix.getcwd() end
 
 for i = 1, #arg do
   ok, err = pcall(list, arg[i])
