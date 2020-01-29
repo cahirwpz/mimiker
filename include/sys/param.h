@@ -2,6 +2,7 @@
 #define _SYS_PARAM_H_
 
 #include <sys/syslimits.h>
+#include <sys/inttypes.h>
 
 /* Macros for min/max. */
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
