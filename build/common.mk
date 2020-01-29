@@ -22,7 +22,7 @@ DSTPATH = $(DIR)$@
 
 %.o: %.c
 	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $(realpath $<)
+	$(CC) $(CFLAGS) $(CFLAGS_KASAN) $(CPPFLAGS) -c -o $@ $(realpath $<)
 
 %.o: %.S
 	@echo "[AS] $(SRCPATH) -> $(DSTPATH)"

@@ -82,3 +82,5 @@ SYSCALLARGS_H = $(TOPDIR)/include/sys/syscallargs.h
 sysent.h $(SYSCALL_H) $(SYSCALLARGS_H): syscalls.conf syscalls.master
 	@echo "[MAKESYSCALLS] $(lastword $^) -> $@"
 	$(TOPDIR)/sys/script/makesyscalls.sh $^
+
+kasan.o : CFLAGS_KASAN =
