@@ -44,6 +44,8 @@
 #define O_CLOEXEC 0x00002000   /* set close on exec */
 #define O_REGULAR 0x00004000   /* fail if not a regular file */
 #define O_DIRECT 0x00008000    /* direct I/O hint */
+#define O_DSYNC 0x00010000     /* write: I/O data completion */
+#define O_RSYNC 0x00020000     /* read: I/O completion as for write */
 
 /* Constants used for fcntl(2) */
 
@@ -57,6 +59,12 @@
 
 /* file descriptor flags (F_GETFD, F_SETFD) */
 #define FD_CLOEXEC 1 /* close-on-exec flag */
+
+/*
+ * Constants for X/Open Extended API set 2 (a.k.a. C063)
+ */
+#define AT_FDCWD -100            /* Use cwd for relative link target */
+#define AT_SYMLINK_FOLLOW 0x0400 /* Follow symbolic link */
 
 #ifndef _KERNEL
 #include <sys/types.h>

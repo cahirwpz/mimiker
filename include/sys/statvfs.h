@@ -35,6 +35,8 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
+#define MNAMELEN 1024
+
 struct statvfs {
   unsigned long f_bsize;  /* file system block size */
   unsigned long f_frsize; /* fundamental file system block size */
@@ -51,12 +53,19 @@ struct statvfs {
   unsigned long f_fsid;    /* Posix compatible fsid */
   unsigned long f_flag;    /* bit mask of f_flag values */
   unsigned long f_namemax; /* maximum filename length */
+
+  char f_fstypename[MFSNAMELEN]; /* fs type name */
+  char f_mntonname[MNAMELEN];    /* directory on which mounted */
+  char f_mntfromname[MNAMELEN];  /* mounted file system */
 };
 
 #ifndef _KERNEL
 __BEGIN_DECLS
+int getmntinfo(struct statvfs **, int);
+
 int statvfs(const char *__restrict, struct statvfs *__restrict);
 int fstatvfs(int, struct statvfs *);
+int getvfsstat(struct statvfs *, size_t, int);
 __END_DECLS
 #endif
 

@@ -1,13 +1,11 @@
-/*  $NetBSD: grp.h,v 1.24 2007/10/19 15:58:52 christos Exp $    */
+/*	$NetBSD: rewind.c,v 1.14 2012/03/15 18:22:30 christos Exp $	*/
 
 /*-
- * Copyright (c) 1989, 1993
- *  The Regents of the University of California.  All rights reserved.
- * (c) UNIX System Laboratories, Inc.
- * All or some portions of this file are derived from material licensed
- * to the University of California by American Telephone and Telegraph
- * Co. or Unix System Laboratories, Inc. and are reproduced herein with
- * the permission of UNIX System Laboratories, Inc.
+ * Copyright (c) 1990, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Chris Torek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,40 +30,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *  @(#)grp.h   8.2 (Berkeley) 1/21/94
  */
 
-#ifndef _GRP_H_
-#define _GRP_H_
-
 #include <sys/cdefs.h>
-#include <sys/types.h>
+#include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include "local.h"
+#include "reentrant.h"
 
-#define _PATH_GROUP "/etc/group"
+void rewind(FILE *fp) {
 
-struct group {
-  const char *gr_name;       /* group name */
-  const char *gr_passwd;     /* group password */
-  gid_t gr_gid;              /* group id */
-  const char *const *gr_mem; /* group members */
-};
+  _DIAGASSERT(fp != NULL);
 
-__BEGIN_DECLS
-int getgrouplist(const char *, gid_t, gid_t *, int *);
-
-struct group *getgrgid(gid_t);
-struct group *getgrnam(const char *);
-int getgrgid_r(gid_t, struct group *, char *, size_t, struct group **);
-int getgrnam_r(const char *, struct group *, char *, size_t, struct group **);
-struct group *getgrent(void);
-void setgrent(void);
-void endgrent(void);
-
-void setgrfile(const char *);
-int setgroupent(int);
-int getgrent_r(struct group *, char *, size_t, struct group **);
-const char *group_from_gid(gid_t, int);
-__END_DECLS
-
-#endif /* !_GRP_H_ */
+  FLOCKFILE(fp);
+  (void)fseek(fp, 0L, SEEK_SET);
+  __sclearerr(fp);
+  FUNLOCKFILE(fp);
+}

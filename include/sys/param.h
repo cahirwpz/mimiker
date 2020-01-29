@@ -88,4 +88,9 @@
 
 #define powerof2(x) ((((x)-1) & (x)) == 0)
 
+/* Signals. */
+#ifndef _KERNEL
+#include <sys/signal.h>
+#endif
+
 #endif /* !_SYS_PARAM_H_ */
