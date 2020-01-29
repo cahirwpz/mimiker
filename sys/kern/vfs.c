@@ -182,7 +182,7 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   return 0;
 }
 
-int vfs_maybe_ascend(vnode_t **vp) {
+void vfs_maybe_ascend(vnode_t **vp) {
   vnode_t *v_covered;
   vnode_t *v = *vp;
   while (vnode_is_mounted(v)) {
@@ -193,7 +193,6 @@ int vfs_maybe_ascend(vnode_t **vp) {
   }
 
   *vp = v;
-  return 0;
 }
 
 /* If `*vp` is a mountpoint, then descend into the root of mounted filesys. */

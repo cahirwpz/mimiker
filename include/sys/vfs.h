@@ -92,7 +92,7 @@ int vfs_namedelete(const char *path, vnode_t **dvp, vnode_t **vp,
                    componentname_t *cn);
 
 /* Uncovers mountpoint if node is mounted */
-int vfs_maybe_ascend(vnode_t **vp);
+void vfs_maybe_ascend(vnode_t **vp);
 
 /* Looks up the vnode corresponding to the pathname and opens it into f. */
 int vfs_open(file_t *f, char *pathname, int flags, int mode);
