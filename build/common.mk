@@ -18,11 +18,11 @@ DSTPATH = $(DIR)$@
 # Define our own recipes
 %.S: %.c
 	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -S -o $@ $(realpath $<)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(WFLAGS) -S -o $@ $(realpath $<)
 
 %.o: %.c
 	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $(realpath $<)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(WFLAGS) -c -o $@ $(realpath $<)
 
 %.o: %.S
 	@echo "[AS] $(SRCPATH) -> $(DSTPATH)"
