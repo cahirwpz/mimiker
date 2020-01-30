@@ -7,6 +7,7 @@
 #include <sys/vmem.h>
 #include <sys/vm.h>
 #include <sys/vm_physmem.h>
+#include <sys/kasan.h>
 
 static vmem_t *kvspace; /* Kernel virtual address space allocator. */
 
@@ -32,6 +33,9 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
   vmem_addr_t start;
   if (vmem_alloc(kvspace, size, &start, M_NOGROW))
     kick_swapper();
+  
+  /* Mark entire block as valid */
+  kasan_mark((void *)start, size, size, 0);
 
   size_t npages = size / PAGESIZE;
   vaddr_t va = start;
@@ -61,6 +65,9 @@ void kmem_free(void *ptr, size_t size) {
   assert(page_aligned_p(ptr) && page_aligned_p(size));
   vmem_free(kvspace, (vmem_addr_t)ptr, size);
 
+  /* Mark entire block as invalid (to prevent use-after-free) */
+  kasan_mark((void *)ptr, 0, size, 0xFB);
+
   vaddr_t va = (vaddr_t)ptr;
   vaddr_t end = va + size;
   while (va < end) {
@@ -81,6 +88,9 @@ void *kmem_map(paddr_t pa, size_t size) {
   vmem_addr_t start;
   if (vmem_alloc(kvspace, size, &start, M_NOGROW))
     kick_swapper();
+  
+  /* Mark entire block as valid */
+  kasan_mark((void *)start, size, size, 0);
 
   klog("%s: map %p of size %ld at %p", __func__, pa, size, start);
 
