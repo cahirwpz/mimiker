@@ -8,8 +8,13 @@
 #include <sys/errno.h>
 #include <sys/thread.h>
 #include <sys/ktest.h>
+#include <sys/sched.h>
 
 static int paging_on_demand_and_memory_protection_demo(void) {
+  /* This test cannot be preempted since PCPU's user-space vm_map will not be
+   * restored while switching back. */
+  SCOPED_NO_PREEMPTION();
+
   vm_map_t *orig = vm_map_user();
   vm_map_activate(vm_map_new());
 
