@@ -410,5 +410,26 @@ int do_ftruncate(proc_t *p, int fd, off_t length) {
 }
 
 ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio) {
-  return 0;
+  file_t *f;
+  vnode_t *v, *atdir = NULL;
+  int error;
+
+  if (fd != AT_FDCWD) {
+    if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+      return error;
+    atdir = f->f_vnode;
+  }
+  error = vfs_namelookupat(path, atdir, &v);
+  if (fd != AT_FDCWD)
+    file_drop(f);
+  if (error)
+    return error;
+
+  if (v->v_type != V_LNK)
+    error = EINVAL;
+  else if (!(error = VOP_ACCESS(v, VREAD)))
+    error = VOP_READLINK(v, uio);
+
+  vnode_drop(v);
+  return error;
 }
