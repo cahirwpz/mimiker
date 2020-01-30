@@ -308,7 +308,7 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
 int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   assert(*lastp == PATH_MAX);
 
-  vnode_hold(p->p_cwd);
+  vnode_get(p->p_cwd);
   vnode_t *uvp = p->p_cwd;
   vnode_t *lvp = NULL;
   int error = 0;
@@ -320,7 +320,7 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   buf[--last] = '\0';
 
   /* Handle special case for root directory. */
-  uvp = vnode_uncover(uvp);
+  vfs_maybe_ascend(&uvp);
 
   if (uvp == vfs_root_vnode) {
     buf[--last] = '/';
@@ -347,14 +347,15 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
 
     buf[--last] = '/'; /* Prepend component separator. */
 
-    vnode_drop(uvp);
-
-    uvp = vnode_uncover(lvp);
+    vnode_put(uvp);
+    vnode_lock(lvp);
+    vfs_maybe_ascend(&lvp);
+    uvp = lvp;
     lvp = NULL;
   } while (uvp != vfs_root_vnode);
 
 end:
-  vnode_drop(uvp);
+  vnode_put(uvp);
   if (lvp)
     vnode_drop(lvp);
   *lastp = last;

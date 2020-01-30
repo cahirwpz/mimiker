@@ -1,13 +1,8 @@
-/*  $NetBSD: grp.h,v 1.24 2007/10/19 15:58:52 christos Exp $    */
+/*	$NetBSD: cfmakeraw.c,v 1.10 2012/06/25 22:32:46 abs Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
- *  The Regents of the University of California.  All rights reserved.
- * (c) UNIX System Laboratories, Inc.
- * All or some portions of this file are derived from material licensed
- * to the University of California by American Telephone and Telegraph
- * Co. or Unix System Laboratories, Inc. and are reproduced herein with
- * the permission of UNIX System Laboratories, Inc.
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,40 +27,25 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *  @(#)grp.h   8.2 (Berkeley) 1/21/94
  */
 
-#ifndef _GRP_H_
-#define _GRP_H_
-
 #include <sys/cdefs.h>
-#include <sys/types.h>
+#include <assert.h>
+#include <stdio.h>
+#include <termios.h>
 
-#define _PATH_GROUP "/etc/group"
+/*
+ * Make a pre-existing termios structure into "raw" mode: character-at-a-time
+ * mode with no characters interpreted, 8-bit data path.
+ */
+void cfmakeraw(struct termios *t) {
+  _DIAGASSERT(t != NULL);
 
-struct group {
-  const char *gr_name;       /* group name */
-  const char *gr_passwd;     /* group password */
-  gid_t gr_gid;              /* group id */
-  const char *const *gr_mem; /* group members */
-};
-
-__BEGIN_DECLS
-int getgrouplist(const char *, gid_t, gid_t *, int *);
-
-struct group *getgrgid(gid_t);
-struct group *getgrnam(const char *);
-int getgrgid_r(gid_t, struct group *, char *, size_t, struct group **);
-int getgrnam_r(const char *, struct group *, char *, size_t, struct group **);
-struct group *getgrent(void);
-void setgrent(void);
-void endgrent(void);
-
-void setgrfile(const char *);
-int setgroupent(int);
-int getgrent_r(struct group *, char *, size_t, struct group **);
-const char *group_from_gid(gid_t, int);
-__END_DECLS
-
-#endif /* !_GRP_H_ */
+  t->c_iflag &= ~(IMAXBEL | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR |
+                  ICRNL | IXON);
+  t->c_oflag &= ~OPOST;
+  t->c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+  t->c_cflag &= ~(CSIZE | PARENB);
+  t->c_cflag |= CS8;
+  /* XXX set MIN/TIME */
+}

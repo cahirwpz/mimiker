@@ -207,6 +207,9 @@ static vnode_t *vnode_of_cpio_node(cpio_node_t *cn) {
 
 static int initrd_vnode_lookup(vnode_t *vdir, componentname_t *cn,
                                vnode_t **res) {
+  if (vdir->v_type != V_DIR)
+    return ENOTDIR;
+
   cpio_node_t *it;
   cpio_node_t *cn_dir = (cpio_node_t *)vdir->v_data;
 
@@ -220,6 +223,10 @@ static int initrd_vnode_lookup(vnode_t *vdir, componentname_t *cn,
   if (componentname_equal(cn, "..") && cn_dir->c_parent) {
     it = cn_dir->c_parent;
     *res = vnode_of_cpio_node(it);
+    return 0;
+  } else if (componentname_equal(cn, ".")) {
+    vnode_hold(vdir);
+    *res = vdir;
     return 0;
   }
 

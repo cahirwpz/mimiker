@@ -3,7 +3,21 @@
 
 #include <sys/cdefs.h>
 #include <sys/syslimits.h>
-#include <sys/statvfs.h>
+
+/*
+ * Flags for various system call interfaces.
+ */
+#define MNT_WAIT 1   /* synchronously wait for I/O to complete */
+#define MNT_NOWAIT 2 /* start all I/O, but do not wait for it */
+
+/*
+ * Mount flags.
+ */
+#define MNT_RDONLY 0x00000001 /* read only filesystem */
+#define MNT_IGNORE 0x00100000 /* don't show entry in df */
+
+/* Maximum length of a filesystem type name */
+#define MFSNAMELEN 32
 
 #ifdef _KERNEL
 
@@ -11,8 +25,7 @@
 #include <sys/mutex.h>
 #include <sys/refcnt.h>
 
-/* Maximum length of a filesystem type name */
-#define VFSCONF_NAME_MAX 32
+#define VFSCONF_NAME_MAX MFSNAMELEN
 
 /* Forward declarations */
 typedef struct mount mount_t;
@@ -98,6 +111,7 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v);
 
 #else /* !_KERNEL */
 #include <sys/cdefs.h>
+#include <sys/statvfs.h>
 
 __BEGIN_DECLS
 int unmount(const char *, int);
