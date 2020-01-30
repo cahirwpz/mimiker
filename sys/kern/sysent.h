@@ -54,6 +54,7 @@ static int sys_issetugid(proc_t *, void *, register_t *);
 static int sys_fcntl(proc_t *, fcntl_args_t *, register_t *);
 static int sys_truncate(proc_t *, truncate_args_t *, register_t *);
 static int sys_ftruncate(proc_t *, ftruncate_args_t *, register_t *);
+static int sys_readlinkat(proc_t *, readlinkat_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { (syscall_t *)sys_syscall },
@@ -105,5 +106,6 @@ struct sysent sysent[] = {
   [SYS_fcntl] = { (syscall_t *)sys_fcntl },
   [SYS_truncate] = { (syscall_t *)sys_truncate },
   [SYS_ftruncate] = { (syscall_t *)sys_ftruncate },
+  [SYS_readlinkat] = { (syscall_t *)sys_readlinkat },
 };
 

@@ -408,3 +408,7 @@ int do_ftruncate(proc_t *p, int fd, off_t length) {
   file_drop(f);
   return error;
 }
+
+ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio) {
+  return 0;
+}

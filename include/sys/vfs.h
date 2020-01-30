@@ -63,7 +63,6 @@ int do_chmod(proc_t *p, char *path, mode_t mode);
 int do_chown(proc_t *p, char *path, int uid, int gid);
 int do_utimes(proc_t *p, char *path, timeval_t *tptr);
 int do_symlink(proc_t *p, char *path, char *link);
-ssize_t do_readlink(proc_t *p, char *path, char *buf, size_t count);
 int do_rename(proc_t *p, char *from, char *to);
 int do_chdir(proc_t *p, char *path);
 int do_getcwd(proc_t *p, char *buf, size_t *lastp);
@@ -72,6 +71,7 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data);
 int do_truncate(proc_t *p, char *path, off_t length);
 int do_ftruncate(proc_t *p, int fd, off_t length);
 int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag);
+ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio);
 
 /* Mount a new instance of the filesystem named fs at the requested path. */
 int do_mount(const char *fs, const char *path);
