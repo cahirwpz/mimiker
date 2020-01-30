@@ -220,3 +220,10 @@ typedef struct {
   int fd;
   off_t length;
 } ftruncate_args_t;
+
+typedef struct {
+  int fd;
+  const char * path;
+  struct stat * sb;
+  int flag;
+} fstatat_args_t;

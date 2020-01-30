@@ -54,4 +54,5 @@
 #define SYS_fcntl 46
 #define SYS_truncate 47
 #define SYS_ftruncate 48
-#define SYS_MAXSYSCALL 49
+#define SYS_fstatat 49
+#define SYS_MAXSYSCALL 50
