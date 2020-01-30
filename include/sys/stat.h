@@ -136,6 +136,7 @@ int lchmod(const char *, mode_t);
  * X/Open Extended API set 2 (a.k.a. C063)
  */
 
+int fstatat(int, const char *, struct stat *, int);
 int utimens(const char *, const struct timespec *);
 int lutimens(const char *, const struct timespec *);
 int futimens(int, const struct timespec *);

@@ -283,28 +283,6 @@ static int sys_fstat(proc_t *p, fstat_args_t *args, register_t *res) {
   return copyout_s(sb, u_sb);
 }
 
-static int sys_stat(proc_t *p, stat_args_t *args, register_t *res) {
-  const char *u_path = args->path;
-  stat_t *u_sb = args->sb;
-
-  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
-  size_t path_len = 0;
-  stat_t sb;
-  int error;
-
-  if ((error = copyinstr(u_path, path, PATH_MAX, &path_len)))
-    goto end;
-
-  klog("stat(\"%s\", %p)", path, u_sb);
-
-  if (!(error = do_stat(p, path, &sb)))
-    error = copyout_s(sb, u_sb);
-
-end:
-  kfree(M_TEMP, path);
-  return error;
-}
-
 static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
   const char *u_path = args->path;
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);

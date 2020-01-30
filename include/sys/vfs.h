@@ -62,7 +62,6 @@ int do_access(proc_t *p, char *path, int amode);
 int do_chmod(proc_t *p, char *path, mode_t mode);
 int do_chown(proc_t *p, char *path, int uid, int gid);
 int do_utimes(proc_t *p, char *path, timeval_t *tptr);
-int do_stat(proc_t *p, char *path, stat_t *sb);
 int do_symlink(proc_t *p, char *path, char *link);
 ssize_t do_readlink(proc_t *p, char *path, char *buf, size_t count);
 int do_rename(proc_t *p, char *from, char *to);
