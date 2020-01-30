@@ -280,10 +280,7 @@ static int sys_fstat(proc_t *p, fstat_args_t *args, register_t *res) {
 
   if ((error = do_fstat(p, fd, &sb)))
     return error;
-  if ((error = copyout_s(sb, u_sb)))
-    return error;
-
-  return 0;
+  return copyout_s(sb, u_sb);
 }
 
 static int sys_stat(proc_t *p, stat_args_t *args, register_t *res) {
@@ -300,10 +297,8 @@ static int sys_stat(proc_t *p, stat_args_t *args, register_t *res) {
 
   klog("stat(\"%s\", %p)", path, u_sb);
 
-  if ((error = do_stat(p, path, &sb)))
-    goto end;
-  if ((error = copyout_s(sb, u_sb)))
-    goto end;
+  if (!(error = do_stat(p, path, &sb)))
+    error = copyout_s(sb, u_sb);
 
 end:
   kfree(M_TEMP, path);
@@ -749,10 +744,8 @@ static int sys_fstatat(proc_t *p, fstatat_args_t *args, register_t *res) {
 
   klog("fstatat(%d, \"%s\", %p, %d)", fd, path, u_sb, flag);
 
-  if ((error = do_fstatat(p, fd, path, &sb, flag)))
-    goto end;
-  if ((error = copyout_s(sb, u_sb)))
-    goto end;
+  if (!(error = do_fstatat(p, fd, path, &sb, flag)))
+    error = copyout_s(sb, u_sb);
 
 end:
   kfree(M_TEMP, path);
