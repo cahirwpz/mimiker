@@ -124,9 +124,11 @@ typedef struct {
 } access_args_t;
 
 typedef struct {
+  int fd;
   const char * path;
   struct stat * sb;
-} stat_args_t;
+  int flag;
+} fstatat_args_t;
 
 typedef struct {
   int * fdp;

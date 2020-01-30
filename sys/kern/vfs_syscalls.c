@@ -83,19 +83,25 @@ int do_fstat(proc_t *p, int fd, stat_t *sb) {
   return error;
 }
 
-int do_stat(proc_t *p, char *path, stat_t *sb) {
-  vnode_t *v;
+int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag) {
+  file_t *f;
+  vnode_t *v, *atdir = NULL;
   vattr_t va;
   int error;
 
-  if ((error = vfs_namelookup(path, &v)))
+  if (fd != AT_FDCWD) {
+    if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+      return error;
+    atdir = f->f_vnode;
+  }
+  error = vfs_namelookupat(path, atdir, &v);
+  if (fd != AT_FDCWD)
+    file_drop(f);
+  if (error)
     return error;
-  if ((error = VOP_GETATTR(v, &va)))
-    goto fail;
+  if (!(error = VOP_GETATTR(v, &va)))
+    vattr_convert(&va, sb);
 
-  vattr_convert(&va, sb);
-
-fail:
   vnode_drop(v);
   return error;
 }

@@ -31,7 +31,7 @@
 21  { int sys_mkdir(const char *path, mode_t mode); }
 22  { int sys_rmdir(const char *path); }
 23  { int sys_access(const char *path, int amode); }
-24  { int sys_stat(const char *path, struct stat *sb); }
+24  { int sys_fstatat(int fd, const char *path, struct stat *sb, int flag); }
 25  { int sys_pipe2(int *fdp, int flags); }
 26  { int sys_clock_gettime(clockid_t clock_id, struct timespec *tsp); }
 27  { int sys_clock_nanosleep(clockid_t clock_id, int flags, \
