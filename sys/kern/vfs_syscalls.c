@@ -83,23 +83,6 @@ int do_fstat(proc_t *p, int fd, stat_t *sb) {
   return error;
 }
 
-int do_stat(proc_t *p, char *path, stat_t *sb) {
-  vnode_t *v;
-  vattr_t va;
-  int error;
-
-  if ((error = vfs_namelookup(path, &v)))
-    return error;
-  if ((error = VOP_GETATTR(v, &va)))
-    goto fail;
-
-  vattr_convert(&va, sb);
-
-fail:
-  vnode_drop(v);
-  return error;
-}
-
 int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag) {
   file_t *f;
   vnode_t *v, *atdir = NULL;
