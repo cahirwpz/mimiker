@@ -29,7 +29,7 @@
 #define SYS_mkdir 21
 #define SYS_rmdir 22
 #define SYS_access 23
-#define SYS_stat 24
+#define SYS_fstatat 24
 #define SYS_pipe2 25
 #define SYS_clock_gettime 26
 #define SYS_clock_nanosleep 27
