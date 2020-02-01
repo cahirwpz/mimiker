@@ -8,9 +8,9 @@ static const uint8_t vttodt_tab[] = {
   [V_NONE] = DT_UNKNOWN,
   [V_REG] = DT_REG,
   [V_DIR] = DT_DIR,
-  [V_DEV] = DT_BLK // XXX: VDEV isn't valid file type as defined by POSIX, so it
-                   // may require changes in future.
-};
+  [V_DEV] = DT_BLK, // XXX: VDEV isn't valid file type as defined by POSIX, so
+                    // it may require changes in future.
+  [V_LNK] = DT_LNK};
 
 uint8_t vt2dt(vnodetype_t v_type) {
   return vttodt_tab[v_type];
