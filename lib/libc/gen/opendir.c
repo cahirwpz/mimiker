@@ -97,7 +97,6 @@ DIR *_fdopendir(int fd) {
 static DIR *__opendir_common(int fd, const char *name, int flags) {
   DIR *dirp;
   int serrno;
-  struct statvfs sfb;
   int error;
 
   if ((dirp = malloc(sizeof(*dirp))) == NULL)
@@ -116,9 +115,11 @@ static DIR *__opendir_common(int fd, const char *name, int flags) {
    * Tweak flags for the underlying filesystem.
    */
 
+#if 0 /* XXX: mimiker workaround */
+  struct statvfs sfb;
+
   if (fstatvfs(fd, &sfb) < 0)
     goto error;
-#if 0 /* XXX: mimiker workaround */
   if ((flags & DTF_NODUP) != 0) {
     if (!strncmp(sfb.f_fstypename, MOUNT_UNION, sizeof(sfb.f_fstypename)) ||
         (sfb.f_flag & MNT_UNION) != 0) {

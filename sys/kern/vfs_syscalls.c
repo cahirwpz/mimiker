@@ -433,3 +433,22 @@ ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio) {
   vnode_drop(v);
   return error;
 }
+
+int do_fchdir(proc_t *p, int fd) {
+  file_t *f;
+  int error;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+    return error;
+
+  vnode_t *v = f->f_vnode;
+  if (v->v_type == V_DIR) {
+    p->p_cwd = v;
+    vnode_drop(p->p_cwd);
+  } else {
+    vnode_drop(v);
+    error = ENOTDIR;
+  }
+
+  return error;
+}
