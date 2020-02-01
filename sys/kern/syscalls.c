@@ -304,6 +304,11 @@ end:
   return error;
 }
 
+static int sys_fchdir(proc_t *p, fchdir_args_t *args, register_t *res) {
+  klog("fchdir(%d)", args->fd);
+  return do_fchdir(p, args->fd);
+}
+
 static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
   char *u_buf = args->buf;
   size_t len = args->len;

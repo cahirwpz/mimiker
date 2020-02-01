@@ -66,6 +66,7 @@ int do_symlink(proc_t *p, char *path, char *link);
 ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio);
 int do_rename(proc_t *p, char *from, char *to);
 int do_chdir(proc_t *p, char *path);
+int do_fchdir(proc_t *p, int fd);
 int do_getcwd(proc_t *p, char *buf, size_t *lastp);
 int do_umask(proc_t *p, int newmask, int *oldmaskp);
 int do_ioctl(proc_t *p, int fd, u_long cmd, void *data);
