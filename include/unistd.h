@@ -69,6 +69,7 @@ extern int optopt;
 
 /* The Open Group Base Specifications, Issue 5; IEEE Std 1003.1-2001 (POSIX) */
 ssize_t readlink(const char *__restrict, char *__restrict, size_t);
+ssize_t readlinkat(int, const char *__restrict, char *__restrict, size_t);
 
 /* The Open Group Base Specifications, Issue 6; IEEE Std 1003.1-2001 (POSIX) */
 int setegid(gid_t);

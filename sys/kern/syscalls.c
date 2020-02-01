@@ -729,3 +729,26 @@ end:
   kfree(M_TEMP, path);
   return error;
 }
+
+static int sys_readlinkat(proc_t *p, readlinkat_args_t *args, register_t *res) {
+  int fd = args->fd;
+  const char *u_path = args->path;
+  char *u_buf = args->buf;
+  size_t bufsiz = args->bufsiz;
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("readlinkat(%d, \"%s\", %p, %u)", fd, path, u_buf, bufsiz);
+
+  uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, u_buf, bufsiz);
+  if (!(error = do_readlinkat(p, fd, path, &uio)))
+    *res = bufsiz - uio.uio_resid;
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
