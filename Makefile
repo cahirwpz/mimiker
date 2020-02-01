@@ -3,7 +3,7 @@
 TOPDIR = $(CURDIR)
 
 # Directories which require calling make recursively
-SUBDIR = sys lib bin usr.bin include
+SUBDIR = sys lib bin usr.bin etc include
 
 all: install
 
