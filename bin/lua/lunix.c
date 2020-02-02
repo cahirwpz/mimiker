@@ -177,6 +177,7 @@ static int unix_read(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
   int size = luaL_checkinteger(L, 2);
   char *buf = malloc(size);
+  error_if(buf == NULL);
   int result = read(fd, buf, size);
   error_if(result == -1);
   if (result == 0)
@@ -274,6 +275,7 @@ static int unix_exit(lua_State *L) {
 /* getcwd() -> (path: string) */
 static int unix_getcwd(lua_State *L) {
   char *buf = malloc(PATH_MAX);
+  error_if(buf == NULL);
   getcwd(buf, PATH_MAX);
   lua_pushstring(L, buf);
   free(buf);
@@ -296,6 +298,7 @@ typedef struct dirent dirent_t;
 static int unix_getdents(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
   char *buf = malloc(DIRENT_BUFLEN);
+  error_if(buf == NULL);
   size_t nread = 0;
   lua_createtable(L, 0, 0);
   int i = 1;
