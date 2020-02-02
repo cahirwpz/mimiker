@@ -396,15 +396,60 @@ int do_ftruncate(proc_t *p, int fd, off_t length) {
 
   vnode_t *vn = f->f_vnode;
   vnode_lock(vn);
-  if (vn->v_type == V_DIR)
+  if (vn->v_type == V_DIR) {
     error = EINVAL;
-  else {
+  } else {
     vattr_t va;
     vattr_null(&va);
     va.va_size = length;
     error = VOP_SETATTR(vn, &va);
   }
   vnode_unlock(vn);
+  file_drop(f);
+  return error;
+}
+
+ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio) {
+  file_t *f;
+  vnode_t *v, *atdir = NULL;
+  int error;
+
+  if (fd != AT_FDCWD) {
+    if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+      return error;
+    atdir = f->f_vnode;
+  }
+  error = vfs_namelookupat(path, atdir, &v);
+  if (fd != AT_FDCWD)
+    file_drop(f);
+  if (error)
+    return error;
+
+  if (v->v_type != V_LNK)
+    error = EINVAL;
+  else if (!(error = VOP_ACCESS(v, VREAD)))
+    error = VOP_READLINK(v, uio);
+
+  vnode_drop(v);
+  return error;
+}
+
+int do_fchdir(proc_t *p, int fd) {
+  file_t *f;
+  int error;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+    return error;
+
+  vnode_t *v = f->f_vnode;
+  if (v->v_type == V_DIR) {
+    vnode_hold(v);
+    p->p_cwd = v;
+    vnode_drop(p->p_cwd);
+  } else {
+    error = ENOTDIR;
+  }
+
   file_drop(f);
   return error;
 }

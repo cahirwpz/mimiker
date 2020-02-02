@@ -1,7 +1,6 @@
 TOPDIR = $(realpath ../..)
 
-include $(TOPDIR)/build/common.mk
+PROGRAM = env
+FORMAT-EXCLUDE = $(SOURCES)
 
-install-here:
-	echo "[INSTALL] /usr/bin/env"
-	$(INSTALL) -m 755 env.lua $(SYSROOT)/usr/bin/env
+include $(TOPDIR)/build/build.prog.mk

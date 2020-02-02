@@ -222,3 +222,14 @@ typedef struct {
   int fd;
   off_t length;
 } ftruncate_args_t;
+
+typedef struct {
+  int fd;
+  const char * path;
+  char * buf;
+  size_t bufsiz;
+} readlinkat_args_t;
+
+typedef struct {
+  int fd;
+} fchdir_args_t;

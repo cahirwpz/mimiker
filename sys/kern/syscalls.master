@@ -59,5 +59,7 @@
 46  { int sys_fcntl(int fd, int cmd, ... void *arg); }
 47  { int sys_truncate(const char *path, off_t length); }
 48  { int sys_ftruncate(int fd, off_t length); }
+49  { ssize_t sys_readlinkat(int fd, const char *path, char *buf, size_t bufsiz); }
+50  { int sys_fchdir(int fd); }
 
 ; vim: ts=4 sw=4 sts=4 et
