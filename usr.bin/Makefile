@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = stat wc
+SUBDIR = env stat wc
 
 all: build
 

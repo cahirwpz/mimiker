@@ -396,9 +396,9 @@ int do_ftruncate(proc_t *p, int fd, off_t length) {
 
   vnode_t *vn = f->f_vnode;
   vnode_lock(vn);
-  if (vn->v_type == V_DIR)
+  if (vn->v_type == V_DIR) {
     error = EINVAL;
-  else {
+  } else {
     vattr_t va;
     vattr_null(&va);
     va.va_size = length;
@@ -443,12 +443,13 @@ int do_fchdir(proc_t *p, int fd) {
 
   vnode_t *v = f->f_vnode;
   if (v->v_type == V_DIR) {
+    vnode_hold(v);
     p->p_cwd = v;
     vnode_drop(p->p_cwd);
   } else {
-    vnode_drop(v);
     error = ENOTDIR;
   }
 
+  file_drop(f);
   return error;
 }
