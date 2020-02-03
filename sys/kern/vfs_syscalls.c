@@ -177,12 +177,6 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
       break;
 
     case F_SETFL:
-      if (arg & O_RDWR)
-        flags |= FF_READ | FF_WRITE;
-      if (arg & O_RDONLY)
-        flags |= FF_READ;
-      if (arg & O_WRONLY)
-        flags |= FF_WRITE;
       if (arg & O_APPEND)
         flags |= FF_APPEND;
       f->f_flags = flags;
