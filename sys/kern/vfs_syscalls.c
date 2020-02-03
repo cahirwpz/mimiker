@@ -142,6 +142,7 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
 
   /* TODO: Currently only F_DUPFD command is implemented. */
   bool cloexec = false;
+  int flags = 0;
   switch (cmd) {
     case F_DUPFD_CLOEXEC:
       cloexec = true;
@@ -160,6 +161,26 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
 
     case F_GETFD:
       error = fd_get_cloexec(p->p_fdtable, fd, resp);
+      break;
+
+    case F_GETFL:
+      if (f->f_flags & FF_READ && f->f_flags & FF_WRITE) {
+        flags |= O_RDWR;
+      } else {
+        if (f->f_flags & FF_READ)
+          flags |= O_RDONLY;
+        if (f->f_flags & FF_WRITE)
+          flags |= O_WRONLY;
+      }
+      if (f->f_flags & FF_APPEND)
+        flags |= O_APPEND;
+      *resp = flags;
+      break;
+
+    case F_SETFL:
+      if (arg & O_APPEND)
+        flags |= FF_APPEND;
+      f->f_flags = flags;
       break;
 
     default:
