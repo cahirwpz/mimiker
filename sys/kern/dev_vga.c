@@ -6,14 +6,14 @@
 #include <sys/libkern.h>
 #include <sys/vga.h>
 
-static int framebuffer_write(vnode_t *v, uio_t *uio) {
+static int framebuffer_write(vnode_t *v, uio_t *uio, int ioflag) {
   return vga_fb_write((vga_device_t *)v->v_data, uio);
 }
 
 static vnodeops_t framebuffer_vnodeops = {.v_open = vnode_open_generic,
                                           .v_write = framebuffer_write};
 
-static int palette_write(vnode_t *v, uio_t *uio) {
+static int palette_write(vnode_t *v, uio_t *uio, int ioflag) {
   return vga_palette_write((vga_device_t *)v->v_data, uio);
 }
 
@@ -22,14 +22,17 @@ static vnodeops_t palette_vnodeops = {.v_open = vnode_open_generic,
 
 #define RES_CTRL_BUFFER_SIZE 16
 
-static int videomode_write(vnode_t *v, uio_t *uio) {
+static int videomode_write(vnode_t *v, uio_t *uio, int ioflag) {
   vga_device_t *vga = (vga_device_t *)v->v_data;
   uio->uio_offset = 0; /* This file does not support offsets. */
   unsigned xres, yres, bpp;
   int error = vga_get_videomode(vga, &xres, &yres, &bpp);
   if (error)
     return error;
-  char buffer[RES_CTRL_BUFFER_SIZE];
+  /* Allocate one more byte since sscanf expects the buffer to be
+   * NULL-terminated */
+  char buffer[RES_CTRL_BUFFER_SIZE + 1];
+  buffer[RES_CTRL_BUFFER_SIZE] = 0;
   error = uiomove_frombuf(buffer, RES_CTRL_BUFFER_SIZE, uio);
   if (error)
     return error;
@@ -40,7 +43,7 @@ static int videomode_write(vnode_t *v, uio_t *uio) {
   return vga_set_videomode(vga, xres, yres, bpp);
 }
 
-static int videomode_read(vnode_t *v, uio_t *uio) {
+static int videomode_read(vnode_t *v, uio_t *uio, int ioflag) {
   vga_device_t *vga = (vga_device_t *)v->v_data;
   unsigned xres, yres, bpp;
   int error;

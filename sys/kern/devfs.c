@@ -52,6 +52,12 @@ static devfs_node_t *devfs_find_child(devfs_node_t *parent,
   TAILQ_FOREACH (dn, &parent->dn_children, dn_link)
     if (componentname_equal(cn, dn->dn_name))
       return dn;
+
+  if (componentname_equal(cn, ".."))
+    return (parent->dn_parent != NULL ? parent->dn_parent : parent);
+  else if (componentname_equal(cn, "."))
+    return parent;
+
   return NULL;
 }
 
@@ -162,7 +168,7 @@ static void devfs_to_dirent(vnode_t *v, void *it, dirent_t *dir) {
     name = node->dn_name;
   }
   dir->d_fileno = node->dn_ino;
-  dir->d_type = vnode_to_dt(node->dn_vnode);
+  dir->d_type = vt2dt(node->dn_vnode->v_type);
   memcpy(dir->d_name, name, dir->d_namlen + 1);
 }
 

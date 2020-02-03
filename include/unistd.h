@@ -33,7 +33,7 @@ gid_t getegid(void);
 uid_t geteuid(void);
 gid_t getgid(void);
 int getgroups(int, gid_t[]);
-const char *getlogin(void);
+char *getlogin(void);
 int getlogin_r(char *, size_t);
 pid_t getpgrp(void);
 pid_t getpid(void);
@@ -69,6 +69,7 @@ extern int optopt;
 
 /* The Open Group Base Specifications, Issue 5; IEEE Std 1003.1-2001 (POSIX) */
 ssize_t readlink(const char *__restrict, char *__restrict, size_t);
+ssize_t readlinkat(int, const char *__restrict, char *__restrict, size_t);
 
 /* The Open Group Base Specifications, Issue 6; IEEE Std 1003.1-2001 (POSIX) */
 int setegid(gid_t);
@@ -126,10 +127,21 @@ int usleep(useconds_t);
 pid_t vfork(void) __returns_twice;
 
 /*
+ * IEEE Std 1003.1b-93, adopted in X/Open CAE Specification Issue 5 Version 2
+ */
+int fdatasync(int);
+int fsync(int);
+
+/*
  * X/Open CAE Specification Issue 5 Version 2
  */
 ssize_t pread(int, void *, size_t, off_t);
 ssize_t pwrite(int, const void *, size_t, off_t);
+
+/*
+ * X/Open Extended API set 2 (a.k.a. C063)
+ */
+int linkat(int, const char *, int, const char *, int);
 
 /*
  * Implementation-defined extensions

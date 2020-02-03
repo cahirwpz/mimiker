@@ -6,6 +6,7 @@
 #include <sys/mutex.h>
 #include <sys/libkern.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 
@@ -46,9 +47,21 @@ void vnode_drop(vnode_t *v) {
   }
 }
 
+void vnode_get(vnode_t *v) {
+  vnode_hold(v);
+  vnode_lock(v);
+}
+
 void vnode_put(vnode_t *v) {
   vnode_unlock(v);
   vnode_drop(v);
+}
+
+bool vnode_is_mounted(vnode_t *v) {
+  vnode_t *foundvn;
+  componentname_t cn = COMPONENTNAME("..");
+  VOP_LOOKUP(v, &cn, &foundvn);
+  return foundvn == v && v->v_mount != NULL;
 }
 
 vnode_t *vnode_uncover(vnode_t *uvp) {
@@ -80,6 +93,7 @@ static int vnode_nop(vnode_t *v, ...) {
 #define vnode_access_nop vnode_nop
 #define vnode_ioctl_nop vnode_nop
 #define vnode_reclaim_nop vnode_nop
+#define vnode_readlink_nop vnode_nop
 
 static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
   vattr_null(va);
@@ -108,6 +122,7 @@ void vnodeops_init(vnodeops_t *vops) {
   NOP_IF_NULL(vops, access);
   NOP_IF_NULL(vops, ioctl);
   NOP_IF_NULL(vops, reclaim);
+  NOP_IF_NULL(vops, readlink);
 }
 
 void vattr_convert(vattr_t *va, stat_t *sb) {
@@ -131,11 +146,27 @@ void vattr_null(vattr_t *va) {
 
 /* Default file operations using v-nodes. */
 static int default_vnread(file_t *f, uio_t *uio) {
-  return VOP_READ(f->f_vnode, uio);
+  vnode_t *v = f->f_vnode;
+  int error = 0;
+  vnode_lock(v);
+  uio->uio_offset = f->f_offset;
+  error = VOP_READ(f->f_vnode, uio, 0);
+  f->f_offset = uio->uio_offset;
+  vnode_unlock(v);
+  return error;
 }
 
 static int default_vnwrite(file_t *f, uio_t *uio) {
-  return VOP_WRITE(f->f_vnode, uio);
+  vnode_t *v = f->f_vnode;
+  int error = 0, ioflag = 0;
+  if (f->f_flags & FF_APPEND)
+    ioflag |= IO_APPEND;
+  vnode_lock(v);
+  uio->uio_offset = f->f_offset;
+  error = VOP_WRITE(f->f_vnode, uio, ioflag);
+  f->f_offset = uio->uio_offset;
+  vnode_unlock(v);
+  return error;
 }
 
 static int default_vnclose(file_t *f) {
@@ -154,41 +185,51 @@ static int default_vnstat(file_t *f, stat_t *sb) {
   return 0;
 }
 
-static int default_vnseek(file_t *f, off_t offset, int whence) {
+static int default_vnseek(file_t *f, off_t offset, int whence, off_t *newoffp) {
   vnode_t *v = f->f_vnode;
   int error;
-
   vattr_t va;
-  if ((error = VOP_GETATTR(v, &va)))
-    return EINVAL;
 
-  off_t size = va.va_size;
-
-  if (size == VNOVAL)
-    return ESPIPE;
-
-  if (whence == SEEK_CUR) {
-    /* TODO: offset overflow */
-    offset += f->f_offset;
-  } else if (whence == SEEK_END) {
-    /* TODO: offset overflow */
-    offset += size;
-  } else if (whence != SEEK_SET) {
-    return EINVAL;
+  vnode_lock(v);
+  if ((error = VOP_GETATTR(v, &va))) {
+    error = EINVAL;
+    goto out;
   }
 
-  if (offset < 0)
-    return EINVAL;
+  off_t size = va.va_size;
+  if (size == VNOVAL) {
+    error = ESPIPE;
+    goto out;
+  }
+
+  switch (whence) {
+    case SEEK_CUR:
+      /* TODO: offset overflow */
+      offset += f->f_offset;
+      break;
+    case SEEK_END:
+      /* TODO: offset overflow */
+      offset += size;
+      break;
+    case SEEK_SET:
+      break;
+    default:
+      error = EINVAL;
+      goto out;
+  }
 
   /* TODO offset can go past the end of file when it's open for writing */
-  if (offset > size)
-    return EINVAL;
+  if (offset < 0 || offset > size) {
+    error = EINVAL;
+    goto out;
+  }
 
-  if ((error = VOP_SEEK(v, f->f_offset, offset)))
-    return error;
+  if ((error = VOP_SEEK(v, f->f_offset, offset)) == 0)
+    *newoffp = f->f_offset = offset;
 
-  f->f_offset = offset;
-  return 0;
+out:
+  vnode_unlock(v);
+  return error;
 }
 
 static int default_ioctl(file_t *f, u_long cmd, void *data) {
@@ -200,6 +241,7 @@ static int default_ioctl(file_t *f, u_long cmd, void *data) {
       panic("vnode without a type!");
     case V_REG:
     case V_DIR:
+    case V_LNK:
       break;
     case V_DEV:
       error = VOP_IOCTL(v, cmd, data);

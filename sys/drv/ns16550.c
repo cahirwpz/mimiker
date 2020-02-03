@@ -45,7 +45,7 @@ static void setup(resource_t *regs) {
   out(regs, LCR, LCR_8BITS); /* 8-bit data, no parity */
 }
 
-static int ns16550_read(vnode_t *v, uio_t *uio) {
+static int ns16550_read(vnode_t *v, uio_t *uio, int ioflags) {
   ns16550_state_t *ns16550 = v->v_data;
   int error;
 
@@ -63,7 +63,7 @@ static int ns16550_read(vnode_t *v, uio_t *uio) {
   return 0;
 }
 
-static int ns16550_write(vnode_t *v, uio_t *uio) {
+static int ns16550_write(vnode_t *v, uio_t *uio, int ioflags) {
   ns16550_state_t *ns16550 = v->v_data;
   resource_t *uart = ns16550->regs;
   int error;
@@ -96,7 +96,8 @@ static int ns16550_close(vnode_t *v, file_t *fp) {
 /* XXX: This should be implemented by tty driver, not here. */
 static int ns16550_ioctl(vnode_t *v, u_long cmd, void *data) {
   if (cmd) {
-    memset(data, 0, sizeof(struct termios));
+    unsigned len = IOCPARM_LEN(cmd);
+    memset(data, 0, len);
     return 0;
   }
 

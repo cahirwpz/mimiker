@@ -146,7 +146,7 @@ static int pipe_stat(file_t *f, stat_t *sb) {
   return EOPNOTSUPP;
 }
 
-static int pipe_seek(file_t *f, off_t offset, int whence) {
+static int pipe_seek(file_t *f, off_t offset, int whence, off_t *newoffp) {
   return ESPIPE;
 }
 

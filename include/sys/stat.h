@@ -123,12 +123,23 @@ typedef struct stat {
 int chmod(const char *, mode_t);
 int mkdir(const char *, mode_t);
 int mkfifo(const char *, mode_t);
+int mknod(const char *, mode_t, dev_t);
 int stat(const char *pathname, stat_t *sb);
 int fstat(int fd, stat_t *sb);
 mode_t umask(mode_t);
 int lstat(const char *, struct stat *);
 int mkdir(const char *, mode_t);
 int fchmod(int, mode_t);
+int lchmod(const char *, mode_t);
+
+/*
+ * X/Open Extended API set 2 (a.k.a. C063)
+ */
+
+int fstatat(int, const char *, struct stat *, int);
+int utimens(const char *, const struct timespec *);
+int lutimens(const char *, const struct timespec *);
+int futimens(int, const struct timespec *);
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_STAT_H_ */

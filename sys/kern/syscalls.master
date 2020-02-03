@@ -31,7 +31,7 @@
 21  { int sys_mkdir(const char *path, mode_t mode); }
 22  { int sys_rmdir(const char *path); }
 23  { int sys_access(const char *path, int amode); }
-24  { int sys_stat(const char *path, struct stat *sb); }
+24  { int sys_fstatat(int fd, const char *path, struct stat *sb, int flag); }
 25  { int sys_pipe2(int *fdp, int flags); }
 26  { int sys_clock_gettime(clockid_t clock_id, struct timespec *tsp); }
 27  { int sys_clock_nanosleep(clockid_t clock_id, int flags, \
@@ -57,5 +57,9 @@
 44  { gid_t sys_getegid(void); }
 45  { int sys_issetugid(void); }
 46  { int sys_fcntl(int fd, int cmd, ... void *arg); }
+47  { int sys_truncate(const char *path, off_t length); }
+48  { int sys_ftruncate(int fd, off_t length); }
+49  { ssize_t sys_readlinkat(int fd, const char *path, char *buf, size_t bufsiz); }
+50  { int sys_fchdir(int fd); }
 
 ; vim: ts=4 sw=4 sts=4 et

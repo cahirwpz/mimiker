@@ -74,7 +74,46 @@ int test_vfs_rw(void) {
   return 0;
 }
 
+int test_vfs_trunc(void) {
+  int n;
+  void *wrbuf = malloc(4096);
+  void *rdbuf = malloc(8196);
+  fill_random(wrbuf, 4096);
+
+  assert_open_ok(0, TESTDIR "/file", 0, O_RDWR | O_CREAT);
+
+  assert_write_ok(0, wrbuf, 4096);
+  ftruncate(3, 2048);
+
+  /* The file offset is bigger than size, so read should return 0 bytes. */
+  assert(read(3, rdbuf, 6000) == 0);
+
+  assert_lseek_ok(0, 0, SEEK_SET);
+  assert(read(3, rdbuf, 6000) == 2048);
+  assert(!memcmp(wrbuf, rdbuf, 2048));
+
+  ftruncate(3, 7777);
+  assert_lseek_ok(0, 0, SEEK_SET);
+  assert(read(3, rdbuf, 10000) == 7777);
+  assert(!memcmp(wrbuf, rdbuf, 2048));
+  /* Rest of the file should be zeroed. */
+  for (int i = 2048; i < 7777; i++)
+    assert(((uint8_t *)rdbuf)[i] == 0);
+
+  truncate(TESTDIR "/file", 0);
+  assert_lseek_ok(0, 0, SEEK_SET);
+  assert(read(3, rdbuf, 2048) == 0);
+
+  free(wrbuf);
+  free(rdbuf);
+  unlink(TESTDIR "/file");
+
+  assert_fail(truncate(TESTDIR, 1023), EISDIR);
+  return 0;
+}
+
 int test_vfs_dir(void) {
+  assert_fail(mkdir("/", 0), EEXIST);
   assert_ok(mkdir(TESTDIR "/test", 0));
   assert_fail(mkdir(TESTDIR "/test", 0), EEXIST);
   assert_fail(mkdir(TESTDIR "//test///", 0), EEXIST);
@@ -132,5 +171,50 @@ int test_vfs_relative_dir(void) {
   assert_ok(chdir(TESTDIR));
   assert_ok(rmdir("test"));
   assert_ok(chdir("/"));
+  return 0;
+}
+
+int test_vfs_dot_dot_dir(void) {
+  assert_ok(chdir(TESTDIR));
+
+  assert_ok(mkdir("test", 0));
+  assert_ok(chdir("test"));
+  assert_ok(mkdir("test2///", 0));
+  assert_ok(chdir("test2"));
+
+  assert_ok(chdir(".."));
+  assert_ok(chdir("test2"));
+
+  assert_ok(chdir("../test2"));
+  assert_ok(chdir("../../"));
+  assert_fail(mkdir("test", 0), EEXIST);
+
+  assert_ok(chdir("test"));
+  assert_ok(rmdir("../test/test2"));
+
+  assert_ok(chdir("./.."));
+  assert_ok(rmdir("test"));
+
+  return 0;
+}
+
+int test_vfs_dot_dir(void) {
+  assert_fail(mkdir(TESTDIR "/test/.", 0), ENOENT);
+  assert_fail(mkdir("/.", 0), EEXIST);
+  assert_fail(mkdir(TESTDIR "/.", 0), EEXIST);
+
+  return 0;
+}
+
+int test_vfs_dot_dot_across_fs(void) {
+  assert_ok(chdir("/../../../../"));
+  assert_fail(mkdir("dev", 0), EEXIST);
+
+  assert_ok(chdir("dev/../dev/../../../dev/../../dev"));
+  assert_fail(mkdir("../dev", 0), EEXIST);
+
+  assert_ok(chdir("../"));
+  assert_fail(mkdir("dev", 0), EEXIST);
+
   return 0;
 }

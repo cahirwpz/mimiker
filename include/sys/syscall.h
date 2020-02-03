@@ -29,7 +29,7 @@
 #define SYS_mkdir 21
 #define SYS_rmdir 22
 #define SYS_access 23
-#define SYS_stat 24
+#define SYS_fstatat 24
 #define SYS_pipe2 25
 #define SYS_clock_gettime 26
 #define SYS_clock_nanosleep 27
@@ -52,4 +52,8 @@
 #define SYS_getegid 44
 #define SYS_issetugid 45
 #define SYS_fcntl 46
-#define SYS_MAXSYSCALL 47
+#define SYS_truncate 47
+#define SYS_ftruncate 48
+#define SYS_readlinkat 49
+#define SYS_fchdir 50
+#define SYS_MAXSYSCALL 51

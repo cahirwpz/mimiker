@@ -44,9 +44,7 @@ int do_read(proc_t *p, int fd, uio_t *uio) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
     return error;
-  uio->uio_offset = f->f_offset;
   error = FOP_READ(f, uio);
-  f->f_offset = uio->uio_offset;
   file_drop(f);
   return error;
 }
@@ -57,9 +55,7 @@ int do_write(proc_t *p, int fd, uio_t *uio) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
     return error;
-  uio->uio_offset = f->f_offset;
   error = FOP_WRITE(f, uio);
-  f->f_offset = uio->uio_offset;
   file_drop(f);
   return error;
 }
@@ -71,8 +67,7 @@ int do_lseek(proc_t *p, int fd, off_t offset, int whence, off_t *newoffp) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-  error = FOP_SEEK(f, offset, whence);
-  *newoffp = f->f_offset;
+  error = FOP_SEEK(f, offset, whence, newoffp);
   file_drop(f);
   return error;
 }
@@ -88,19 +83,25 @@ int do_fstat(proc_t *p, int fd, stat_t *sb) {
   return error;
 }
 
-int do_stat(proc_t *p, char *path, stat_t *sb) {
-  vnode_t *v;
+int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag) {
+  file_t *f;
+  vnode_t *v, *atdir = NULL;
   vattr_t va;
   int error;
 
-  if ((error = vfs_namelookup(path, &v)))
+  if (fd != AT_FDCWD) {
+    if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+      return error;
+    atdir = f->f_vnode;
+  }
+  error = vfs_namelookupat(path, atdir, &v);
+  if (fd != AT_FDCWD)
+    file_drop(f);
+  if (error)
     return error;
-  if ((error = VOP_GETATTR(v, &va)))
-    goto fail;
+  if (!(error = VOP_GETATTR(v, &va)))
+    vattr_convert(&va, sb);
 
-  vattr_convert(&va, sb);
-
-fail:
   vnode_drop(v);
   return error;
 }
@@ -334,7 +335,7 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
 int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   assert(*lastp == PATH_MAX);
 
-  vnode_hold(p->p_cwd);
+  vnode_get(p->p_cwd);
   vnode_t *uvp = p->p_cwd;
   vnode_t *lvp = NULL;
   int error = 0;
@@ -346,7 +347,7 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   buf[--last] = '\0';
 
   /* Handle special case for root directory. */
-  uvp = vnode_uncover(uvp);
+  vfs_maybe_ascend(&uvp);
 
   if (uvp == vfs_root_vnode) {
     buf[--last] = '/';
@@ -373,16 +374,103 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
 
     buf[--last] = '/'; /* Prepend component separator. */
 
-    vnode_drop(uvp);
-
-    uvp = vnode_uncover(lvp);
+    vnode_put(uvp);
+    vnode_lock(lvp);
+    vfs_maybe_ascend(&lvp);
+    uvp = lvp;
     lvp = NULL;
   } while (uvp != vfs_root_vnode);
 
 end:
-  vnode_drop(uvp);
+  vnode_put(uvp);
   if (lvp)
     vnode_drop(lvp);
   *lastp = last;
+  return error;
+}
+
+int do_truncate(proc_t *p, char *path, off_t length) {
+  int error;
+  vnode_t *vn;
+
+  if ((error = vfs_namelookup(path, &vn)))
+    return error;
+  vnode_lock(vn);
+  if (vn->v_type == V_DIR)
+    error = EISDIR;
+  else if ((error = VOP_ACCESS(vn, VWRITE))) {
+    vattr_t va;
+    vattr_null(&va);
+    va.va_size = length;
+    error = VOP_SETATTR(vn, &va);
+  }
+  vnode_put(vn);
+  return error;
+}
+
+int do_ftruncate(proc_t *p, int fd, off_t length) {
+  int error;
+  file_t *f;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
+    return error;
+
+  vnode_t *vn = f->f_vnode;
+  vnode_lock(vn);
+  if (vn->v_type == V_DIR) {
+    error = EINVAL;
+  } else {
+    vattr_t va;
+    vattr_null(&va);
+    va.va_size = length;
+    error = VOP_SETATTR(vn, &va);
+  }
+  vnode_unlock(vn);
+  file_drop(f);
+  return error;
+}
+
+ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio) {
+  file_t *f;
+  vnode_t *v, *atdir = NULL;
+  int error;
+
+  if (fd != AT_FDCWD) {
+    if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+      return error;
+    atdir = f->f_vnode;
+  }
+  error = vfs_namelookupat(path, atdir, &v);
+  if (fd != AT_FDCWD)
+    file_drop(f);
+  if (error)
+    return error;
+
+  if (v->v_type != V_LNK)
+    error = EINVAL;
+  else if (!(error = VOP_ACCESS(v, VREAD)))
+    error = VOP_READLINK(v, uio);
+
+  vnode_drop(v);
+  return error;
+}
+
+int do_fchdir(proc_t *p, int fd) {
+  file_t *f;
+  int error;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+    return error;
+
+  vnode_t *v = f->f_vnode;
+  if (v->v_type == V_DIR) {
+    vnode_hold(v);
+    p->p_cwd = v;
+    vnode_drop(p->p_cwd);
+  } else {
+    error = ENOTDIR;
+  }
+
+  file_drop(f);
   return error;
 }

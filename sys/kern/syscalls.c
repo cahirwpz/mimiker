@@ -280,34 +280,7 @@ static int sys_fstat(proc_t *p, fstat_args_t *args, register_t *res) {
 
   if ((error = do_fstat(p, fd, &sb)))
     return error;
-  if ((error = copyout_s(sb, u_sb)))
-    return error;
-
-  return 0;
-}
-
-static int sys_stat(proc_t *p, stat_args_t *args, register_t *res) {
-  const char *u_path = args->path;
-  stat_t *u_sb = args->sb;
-
-  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
-  size_t path_len = 0;
-  stat_t sb;
-  int error;
-
-  if ((error = copyinstr(u_path, path, PATH_MAX, &path_len)))
-    goto end;
-
-  klog("stat(\"%s\", %p)", path, u_sb);
-
-  if ((error = do_stat(p, path, &sb)))
-    goto end;
-  if ((error = copyout_s(sb, u_sb)))
-    goto end;
-
-end:
-  kfree(M_TEMP, path);
-  return error;
+  return copyout_s(sb, u_sb);
 }
 
 static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
@@ -329,6 +302,11 @@ static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
 end:
   kfree(M_TEMP, path);
   return error;
+}
+
+static int sys_fchdir(proc_t *p, fchdir_args_t *args, register_t *res) {
+  klog("fchdir(%d)", args->fd);
+  return do_fchdir(p, args->fd);
 }
 
 static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
@@ -706,4 +684,76 @@ static int sys_issetugid(proc_t *p, void *args, register_t *res) {
   klog("issetugid()");
   *res = 0;
   return 0;
+}
+
+static int sys_truncate(proc_t *p, truncate_args_t *args, register_t *res) {
+  const char *u_path = args->path;
+  off_t length = args->length;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+  int error;
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("truncate(\"%s\", %d)", path, length);
+
+  error = do_truncate(p, path, length);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
+static int sys_ftruncate(proc_t *p, ftruncate_args_t *args, register_t *res) {
+  int fd = args->fd;
+  off_t length = args->length;
+  klog("ftruncate(%d, %d)", fd, length);
+  return do_ftruncate(p, fd, length);
+}
+
+static int sys_fstatat(proc_t *p, fstatat_args_t *args, register_t *res) {
+  int fd = args->fd;
+  const char *u_path = args->path;
+  stat_t *u_sb = args->sb;
+  int flag = args->flag;
+  stat_t sb;
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("fstatat(%d, \"%s\", %p, %d)", fd, path, u_sb, flag);
+
+  if (!(error = do_fstatat(p, fd, path, &sb, flag)))
+    error = copyout_s(sb, u_sb);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
+static int sys_readlinkat(proc_t *p, readlinkat_args_t *args, register_t *res) {
+  int fd = args->fd;
+  const char *u_path = args->path;
+  char *u_buf = args->buf;
+  size_t bufsiz = args->bufsiz;
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("readlinkat(%d, \"%s\", %p, %u)", fd, path, u_buf, bufsiz);
+
+  uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, u_buf, bufsiz);
+  if (!(error = do_readlinkat(p, fd, path, &uio)))
+    *res = bufsiz - uio.uio_resid;
+
+end:
+  kfree(M_TEMP, path);
+  return error;
 }
