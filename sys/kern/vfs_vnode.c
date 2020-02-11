@@ -94,6 +94,7 @@ static int vnode_nop(vnode_t *v, ...) {
 #define vnode_ioctl_nop vnode_nop
 #define vnode_reclaim_nop vnode_nop
 #define vnode_readlink_nop vnode_nop
+#define vnode_symlink_nop vnode_nop
 
 static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
   vattr_null(va);
@@ -123,6 +124,7 @@ void vnodeops_init(vnodeops_t *vops) {
   NOP_IF_NULL(vops, ioctl);
   NOP_IF_NULL(vops, reclaim);
   NOP_IF_NULL(vops, readlink);
+  NOP_IF_NULL(vops, symlink);
 }
 
 void vattr_convert(vattr_t *va, stat_t *sb) {
