@@ -218,3 +218,22 @@ int test_vfs_dot_dot_across_fs(void) {
 
   return 0;
 }
+
+int test_vfs_symlink(void) {
+  char *buff = malloc(1024);
+  assert_ok(symlink("Hello, world!", TESTDIR "/testlink"));
+
+  assert(readlink(TESTDIR "/testlink", buff, 1024) == 13);
+  assert(!strcmp("Hello, world!", buff));
+
+  memset(buff, 0, 13);
+  assert(readlink(TESTDIR "/testlink", buff, 5) == 5);
+  assert(!strcmp("Hello", buff));
+
+  assert_fail(symlink("Hello, world!", TESTDIR "/testlink"), EEXIST);
+
+  assert_ok(unlink(TESTDIR "/testlink"));
+
+  free(buff);
+  return 0;
+}
