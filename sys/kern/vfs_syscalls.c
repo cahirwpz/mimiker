@@ -474,3 +474,41 @@ int do_fchdir(proc_t *p, int fd) {
   file_drop(f);
   return error;
 }
+
+int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath) {
+  file_t *f;
+  vnode_t *vn, *dvn, *atdir = NULL;
+  componentname_t cn;
+  vattr_t va;
+  int error;
+
+  if (newdirfd != AT_FDCWD) {
+    if ((error = fdtab_get_file(p->p_fdtable, newdirfd, FF_READ, &f)))
+      return error;
+    atdir = f->f_vnode;
+  }
+  error = vfs_namecreateat(linkpath, atdir, &dvn, &vn, &cn);
+  if (newdirfd != AT_FDCWD)
+    file_drop(f);
+  if (error)
+    return error;
+
+  if (vn != NULL) {
+    if (vn != dvn)
+      vnode_put(dvn);
+    else
+      vnode_drop(dvn);
+
+    vnode_drop(vn);
+    return EEXIST;
+  }
+
+  memset(&va, 0, sizeof(vattr_t));
+  va.va_mode = S_IFLNK | ALLPERMS;
+
+  error = VOP_SYMLINK(dvn, &cn, &va, target, &vn);
+  if (!error)
+    vnode_drop(vn);
+  vnode_put(dvn);
+  return error;
+}

@@ -61,5 +61,6 @@
 48  { int sys_ftruncate(int fd, off_t length); }
 49  { ssize_t sys_readlinkat(int fd, const char *path, char *buf, size_t bufsiz); }
 50  { int sys_fchdir(int fd); }
+51  { int sys_symlinkat(const char *target, int newdirfd, const char *linkpath); }
 
 ; vim: ts=4 sw=4 sts=4 et

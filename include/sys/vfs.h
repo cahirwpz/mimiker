@@ -64,6 +64,7 @@ int do_chown(proc_t *p, char *path, int uid, int gid);
 int do_utimes(proc_t *p, char *path, timeval_t *tptr);
 int do_symlink(proc_t *p, char *path, char *link);
 ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio);
+int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath);
 int do_rename(proc_t *p, char *from, char *to);
 int do_chdir(proc_t *p, char *path);
 int do_fchdir(proc_t *p, int fd);
