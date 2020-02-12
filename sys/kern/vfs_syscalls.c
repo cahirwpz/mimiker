@@ -512,3 +512,9 @@ int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath) {
   vnode_put(dvn);
   return error;
 }
+
+int do_umask(proc_t *p, int newmask, int *oldmaskp) {
+  *oldmaskp = p->p_cmask;
+  p->p_cmask = newmask & ALLPERMS;
+  return 0;
+}
