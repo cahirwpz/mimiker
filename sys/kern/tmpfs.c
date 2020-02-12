@@ -703,7 +703,7 @@ static int tmpfs_mount(mount_t *mp) {
   /* Allocate the root node. */
   vattr_t va;
   vattr_null(&va);
-  va.va_mode = ALLPERMS;
+  va.va_mode = S_IFDIR | (S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
   tmpfs_node_t *root = tmpfs_new_node(tfm, &va, V_DIR);
   tmpfs_attach_vnode(root, mp);
   root->tfn_dir.parent = root; /* Parent of the root node is itself. */
