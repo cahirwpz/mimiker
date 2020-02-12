@@ -134,6 +134,7 @@ void vattr_convert(vattr_t *va, stat_t *sb) {
   sb->st_uid = va->va_uid;
   sb->st_gid = va->va_gid;
   sb->st_size = va->va_size;
+  sb->st_ino = va->va_ino;
 }
 
 void vattr_null(vattr_t *va) {
