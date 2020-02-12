@@ -18,6 +18,12 @@ int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fdp) {
 
   /* Allocate a file structure, but do not install descriptor yet. */
   file_t *f = file_alloc();
+
+  /* According to POSIX, the effect when other than permission bits are set in
+   * mode is unspecified. Our implementation honors these.
+   * https://pubs.opengroup.org/onlinepubs/9699919799/functions/open.html */
+  mode = (mode & ~p->p_cmask) & ALLPERMS;
+
   /* Try opening file. Fill the file structure. */
   if ((error = vfs_open(f, pathname, flags, mode)))
     goto fail;
@@ -263,7 +269,10 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
   }
 
   memset(&va, 0, sizeof(vattr_t));
-  va.va_mode = S_IFDIR | (mode & ALLPERMS);
+  /* We discard all bits but permission bits, since it is
+   * implementation-defined.
+   * https://pubs.opengroup.org/onlinepubs/9699919799/functions/mkdir.html */
+  va.va_mode = S_IFDIR | ((mode & ACCESSPERMS) & ~p->p_cmask);
 
   error = VOP_MKDIR(dvn, &cn, &va, &vn);
   if (!error)
@@ -473,4 +482,10 @@ int do_fchdir(proc_t *p, int fd) {
 
   file_drop(f);
   return error;
+}
+
+int do_umask(proc_t *p, int newmask, int *oldmaskp) {
+  *oldmaskp = p->p_cmask;
+  p->p_cmask = newmask & ALLPERMS;
+  return 0;
 }

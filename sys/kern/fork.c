@@ -60,6 +60,7 @@ int do_fork(pid_t *cldpidp) {
 
   vnode_hold(parent->p_cwd);
   child->p_cwd = parent->p_cwd;
+  child->p_cmask = parent->p_cmask;
 
   /* Copy signal handler dispatch rules. */
   memcpy(child->p_sigactions, parent->p_sigactions,
