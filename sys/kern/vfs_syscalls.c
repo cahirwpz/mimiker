@@ -504,7 +504,7 @@ int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath) {
   }
 
   memset(&va, 0, sizeof(vattr_t));
-  va.va_mode = S_IFLNK | ALLPERMS;
+  va.va_mode = S_IFLNK | (ACCESSPERMS & ~p->p_cmask);
 
   error = VOP_SYMLINK(dvn, &cn, &va, target, &vn);
   if (!error)
