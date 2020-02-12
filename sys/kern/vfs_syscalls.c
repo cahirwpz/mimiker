@@ -18,6 +18,9 @@ int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fdp) {
 
   /* Allocate a file structure, but do not install descriptor yet. */
   file_t *f = file_alloc();
+
+  mode = (mode & ~p->p_cmask) & ALLPERMS;
+
   /* Try opening file. Fill the file structure. */
   if ((error = vfs_open(f, pathname, flags, mode)))
     goto fail;
@@ -263,7 +266,7 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
   }
 
   memset(&va, 0, sizeof(vattr_t));
-  va.va_mode = S_IFDIR | (mode & ALLPERMS);
+  va.va_mode = S_IFDIR | ((mode & ACCESSPERMS) & ~p->p_cmask);
 
   error = VOP_MKDIR(dvn, &cn, &va, &vn);
   if (!error)
