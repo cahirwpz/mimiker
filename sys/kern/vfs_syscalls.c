@@ -474,3 +474,9 @@ int do_fchdir(proc_t *p, int fd) {
   file_drop(f);
   return error;
 }
+
+int do_umask(proc_t *p, int newmask, int *oldmaskp) {
+  *oldmaskp = p->p_cmask;
+  p->p_cmask = newmask & ALLPERMS;
+  return 0;
+}
