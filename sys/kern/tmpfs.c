@@ -220,6 +220,11 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
   size_t remaining;
   int error = 0;
 
+  if (node->tfn_type == V_DIR)
+    return EISDIR;
+  if (node->tfn_type != V_REG)
+    return EINVAL;
+
   if (node->tfn_size <= (size_t)uio->uio_offset)
     return 0;
 
@@ -239,6 +244,11 @@ static int tmpfs_vop_write(vnode_t *v, uio_t *uio, int ioflag) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
   int error = 0;
+
+  if (node->tfn_type == V_DIR)
+    return EISDIR;
+  if (node->tfn_type != V_REG)
+    return EINVAL;
 
   if (ioflag & IO_APPEND)
     uio->uio_offset = node->tfn_size;
