@@ -142,6 +142,7 @@ ssize_t pwrite(int, const void *, size_t, off_t);
  * X/Open Extended API set 2 (a.k.a. C063)
  */
 int linkat(int, const char *, int, const char *, int);
+int symlinkat(const char *, int, const char *);
 
 /*
  * Implementation-defined extensions
