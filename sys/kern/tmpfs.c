@@ -223,7 +223,7 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
   if (node->tfn_type == V_DIR)
     return EISDIR;
   if (node->tfn_type != V_REG)
-    return EINVAL;
+    return EOPNOTSUPP;
 
   if (node->tfn_size <= (size_t)uio->uio_offset)
     return 0;
@@ -248,7 +248,7 @@ static int tmpfs_vop_write(vnode_t *v, uio_t *uio, int ioflag) {
   if (node->tfn_type == V_DIR)
     return EISDIR;
   if (node->tfn_type != V_REG)
-    return EINVAL;
+    return EOPNOTSUPP;
 
   if (ioflag & IO_APPEND)
     uio->uio_offset = node->tfn_size;
