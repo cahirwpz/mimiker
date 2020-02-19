@@ -94,13 +94,17 @@ int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag) {
   vnode_t *v, *atdir = NULL;
   vattr_t va;
   int error;
+  uint32_t vnrflags = 0;
+
+  if (!(flag & AT_SYMLINK_NOFOLLOW))
+    vnrflags |= VNR_FOLLOW;
 
   if (fd != AT_FDCWD) {
     if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
       return error;
     atdir = f->f_vnode;
   }
-  error = vfs_namelookupat(path, atdir, &v);
+  error = vfs_namelookupat(path, atdir, vnrflags, &v);
   if (fd != AT_FDCWD)
     file_drop(f);
   if (error)
@@ -230,7 +234,7 @@ int do_unlink(proc_t *p, char *path) {
   vnode_t *vn, *dvn;
   componentname_t cn;
 
-  if ((error = vfs_namedelete(path, &dvn, &vn, &cn)))
+  if ((error = vfs_namedeleteat(path, NULL, 0, &dvn, &vn, &cn)))
     return error;
 
   if (vn->v_type == V_DIR) {
@@ -449,7 +453,7 @@ ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio) {
       return error;
     atdir = f->f_vnode;
   }
-  error = vfs_namelookupat(path, atdir, &v);
+  error = vfs_namelookupat(path, atdir, 0, &v);
   if (fd != AT_FDCWD)
     file_drop(f);
   if (error)
@@ -496,7 +500,7 @@ int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath) {
       return error;
     atdir = f->f_vnode;
   }
-  error = vfs_namecreateat(linkpath, atdir, &dvn, &vn, &cn);
+  error = vfs_namecreateat(linkpath, atdir, 0, &dvn, &vn, &cn);
   if (newdirfd != AT_FDCWD)
     file_drop(f);
   if (error)
