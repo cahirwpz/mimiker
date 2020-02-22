@@ -224,7 +224,10 @@ bool componentname_equal(const componentname_t *cn, const char *name) {
 }
 
 /*
- * vnr_symlink_follow: follow a symlink.
+ * vnr_symlink_follow: follow a symlink. We prepend content of the symlink to
+ * the remaining path. Note that we store pointer to the next path component, so
+ * we need back up over any slashes preceding that component that we skipped. If
+ * new path starts with '/', we must retry lookup from the root vnode.
  */
 static int vnr_symlink_follow(vnrstate_t *state, vnode_t *searchdir,
                               vnode_t *foundvn, vnode_t **new_searchdirp) {
