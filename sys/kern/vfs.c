@@ -252,20 +252,20 @@ static int vnr_symlink_follow(vnrstate_t *state, vnode_t *searchdir,
   if (linklen == 0) {
     error = ENOENT;
     goto end;
-  } else if (linklen + state->vs_pathlen > MAXPATHLEN) {
+  }
+  if (linklen + state->vs_pathlen > MAXPATHLEN) {
     error = ENAMETOOLONG;
     goto end;
   }
 
   /* null-terminator is already included. */
-  memcpy(pathbuf + linklen, state->vs_nextcn, state->vs_pathlen);
   state->vs_pathlen += linklen;
-  memcpy(state->vs_pathbuf, pathbuf, state->vs_pathlen);
+  memcpy(state->vs_pathbuf + MAXPATHLEN - state->vs_pathlen, pathbuf, linklen);
 
-  state->vs_nextcn = state->vs_pathbuf;
+  state->vs_nextcn = state->vs_pathbuf + MAXPATHLEN - state->vs_pathlen;
 
   /* Check if root directory should replace current directory. */
-  if (state->vs_pathbuf[0] == '/') {
+  if (state->vs_nextcn[0] == '/') {
     vnode_put(searchdir);
     searchdir = vfs_root_vnode;
     vnode_get(searchdir);
@@ -484,16 +484,16 @@ static int vnrstate_init(vnrstate_t *vs, vnode_t *atdir, vnrop_t op,
   vs->vs_pathbuf = kmalloc(M_TEMP, MAXPATHLEN, 0);
   if (!vs->vs_pathbuf)
     return ENOMEM;
-  memcpy(vs->vs_pathbuf, path, vs->vs_pathlen + 1);
+  memcpy(vs->vs_pathbuf + MAXPATHLEN - vs->vs_pathlen, path, vs->vs_pathlen);
 
   vs->vs_cn.cn_flags = 0;
-  vs->vs_nextcn = vs->vs_pathbuf;
+  vs->vs_nextcn = vs->vs_pathbuf + MAXPATHLEN - vs->vs_pathlen;
   vs->vs_loopcnt = 0;
 
   return 0;
 }
 
-static void vnrstate_destory(vnrstate_t *vs) {
+static void vnrstate_destroy(vnrstate_t *vs) {
   kfree(M_TEMP, vs->vs_pathbuf);
 }
 
@@ -506,7 +506,7 @@ int vfs_namelookupat(const char *path, vnode_t *atdir, uint32_t flags,
   error = vfs_nameresolve(&vs);
   *vp = vs.vs_vp;
 
-  vnrstate_destory(&vs);
+  vnrstate_destroy(&vs);
   return error;
 }
 
@@ -521,7 +521,7 @@ int vfs_namecreateat(const char *path, vnode_t *atdir, uint32_t flags,
   *vp = vs.vs_vp;
   memcpy(cn, &vs.vs_cn, sizeof(componentname_t));
 
-  vnrstate_destory(&vs);
+  vnrstate_destroy(&vs);
   return error;
 }
 
@@ -536,7 +536,7 @@ int vfs_namedeleteat(const char *path, vnode_t *atdir, uint32_t flags,
   *vp = vs.vs_vp;
   memcpy(cn, &vs.vs_cn, sizeof(componentname_t));
 
-  vnrstate_destory(&vs);
+  vnrstate_destroy(&vs);
   return error;
 }
 
