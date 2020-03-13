@@ -181,21 +181,10 @@ void kasan_mark(const void *addr, size_t size, size_t sz_with_redz,
 }
 
 static void kasan_ctors(void) {
-  extern uint32_t __CTOR_LIST__, __CTOR_END__;
-  size_t nentries, i;
-  uint32_t *ptr;
-
-  nentries =
-    ((size_t)&__CTOR_END__ - (size_t)&__CTOR_LIST__) / sizeof(uintptr_t);
-
-  ptr = &__CTOR_LIST__;
-  for (i = 0; i < nentries; i++) {
-    void (*func)(void);
-
-    func = (void *)(*ptr);
+  extern uintptr_t __CTOR_LIST__, __CTOR_END__;
+  for (uintptr_t *ptr = &__CTOR_LIST__; ptr != &__CTOR_END__; ptr++) {
+    void (*func)(void) = (void *)(*ptr);
     (*func)();
-
-    ptr++;
   }
 }
 
