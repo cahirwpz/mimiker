@@ -14,6 +14,10 @@
 #include <sys/proc.h>
 #include <sys/stat.h>
 
+/* Path name component flags. Used to represent internal state. */
+#define VNR_ISLASTPC 0x00000001   /* this is last component of pathname */
+#define VNR_REQUIREDIR 0x00000002 /* must be a directory */
+
 /* Internal state for a vnr operation. */
 typedef struct {
   /* Arguments to vnr. */
@@ -233,11 +237,11 @@ static int vnr_symlink_follow(vnrstate_t *state, vnode_t *searchdir,
                               vnode_t *foundvn, vnode_t **new_searchdirp) {
   componentname_t *cn = &state->vs_cn;
   int error;
-  size_t linklen;
 
   /* Back up over any slashes that we skipped, as we will need them again. */
-  state->vs_pathlen += (state->vs_nextcn - (cn->cn_nameptr + cn->cn_namelen));
-  state->vs_nextcn = cn->cn_nameptr + cn->cn_namelen;
+  const char *nextcn = cn->cn_nameptr + cn->cn_namelen;
+  state->vs_pathlen += state->vs_nextcn - nextcn;
+  state->vs_nextcn = nextcn;
 
   if (state->vs_loopcnt++ >= MAXSYMLINKS)
     return ELOOP;
@@ -248,7 +252,7 @@ static int vnr_symlink_follow(vnrstate_t *state, vnode_t *searchdir,
   if ((error = VOP_READLINK(foundvn, &uio)))
     goto end;
 
-  linklen = MAXPATHLEN - uio.uio_resid;
+  size_t linklen = MAXPATHLEN - uio.uio_resid;
   if (linklen == 0) {
     error = ENOENT;
     goto end;
@@ -260,9 +264,10 @@ static int vnr_symlink_follow(vnrstate_t *state, vnode_t *searchdir,
 
   /* null-terminator is already included. */
   state->vs_pathlen += linklen;
-  memcpy(state->vs_pathbuf + MAXPATHLEN - state->vs_pathlen, pathbuf, linklen);
 
-  state->vs_nextcn = state->vs_pathbuf + MAXPATHLEN - state->vs_pathlen;
+  char *nextbuf = state->vs_pathbuf + MAXPATHLEN - state->vs_pathlen;
+  memcpy(nextbuf, pathbuf, linklen);
+  state->vs_nextcn = nextbuf;
 
   /* Check if root directory should replace current directory. */
   if (state->vs_nextcn[0] == '/') {

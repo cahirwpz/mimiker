@@ -25,10 +25,6 @@ typedef enum {
   VNR_RENAME = 3,
 } vnrop_t;
 
-/* Path name component flags. Used to represent internal state. */
-#define VNR_ISLASTPC 0x00000001   /* this is last component of pathname */
-#define VNR_REQUIREDIR 0x00000002 /* must be a directory */
-
 /* VNR lookup flags.  */
 #define VNR_FOLLOW 0x00000001 /* follow symbolic links */
 
