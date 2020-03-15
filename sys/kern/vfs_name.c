@@ -325,7 +325,6 @@ static void vnrstate_destroy(vnrstate_t *vs) {
   kfree(M_TEMP, vs->vs_pathbuf);
 }
 
-
 int vfs_name_in_dir(vnode_t *dv, vnode_t *v, char *buf, size_t *lastp) {
   int error = 0;
 
