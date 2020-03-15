@@ -25,8 +25,8 @@ typedef enum {
   VNR_RENAME = 3,
 } vnrop_t;
 
-/* Path name component flags */
-#define VNR_ISLASTPC 0x00000001 /* this is last component of pathname */
+/* VNR lookup flags.  */
+#define VNR_FOLLOW 0x00000001 /* follow symbolic links */
 
 /*
  * Encapsulation of lookup parameters.
@@ -82,21 +82,22 @@ int do_getdents(proc_t *p, int fd, uio_t *uio);
 
 /* Finds the vnode corresponding to the given path.
  * Increases use count on returned vnode. */
-int vfs_namelookupat(const char *path, vnode_t *atdir, vnode_t **vp);
-#define vfs_namelookup(path, vp) vfs_namelookupat(path, NULL, vp)
+int vfs_namelookupat(const char *path, vnode_t *atdir, uint32_t flags,
+                     vnode_t **vp);
+#define vfs_namelookup(path, vp) vfs_namelookupat(path, NULL, VNR_FOLLOW, vp)
 
 /* Yield the vnode for an existing entry; or, if there is none, yield NULL.
  * Parent vnode is locked and held; vnode, if exists, is only held.*/
-int vfs_namecreateat(const char *path, vnode_t *atdir, vnode_t **dvp,
-                     vnode_t **vp, componentname_t *cn);
+int vfs_namecreateat(const char *path, vnode_t *atdir, uint32_t flags,
+                     vnode_t **dvp, vnode_t **vp, componentname_t *cn);
 #define vfs_namecreate(path, dvp, vp, cn)                                      \
-  vfs_namecreateat(path, NULL, dvp, vp, cn)
+  vfs_namecreateat(path, NULL, VNR_FOLLOW, dvp, vp, cn)
 
 /* Both vnode and its parent is held and locked. */
-int vfs_namedeleteat(const char *path, vnode_t *atdir, vnode_t **dvp,
-                     vnode_t **vp, componentname_t *cn);
+int vfs_namedeleteat(const char *path, vnode_t *atdir, uint32_t flags,
+                     vnode_t **dvp, vnode_t **vp, componentname_t *cn);
 #define vfs_namedelete(path, dvp, vp, cn)                                      \
-  vfs_namedeleteat(path, NULL, dvp, vp, cn)
+  vfs_namedeleteat(path, NULL, VNR_FOLLOW, dvp, vp, cn)
 
 /* Uncovers mountpoint if node is mounted */
 void vfs_maybe_ascend(vnode_t **vp);

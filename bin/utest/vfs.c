@@ -219,7 +219,7 @@ int test_vfs_dot_dot_across_fs(void) {
   return 0;
 }
 
-int test_vfs_symlink(void) {
+static void test_vfs_symlink_basic(void) {
   char *buff = malloc(1024);
   assert_ok(symlink("Hello, world!", TESTDIR "/testlink"));
 
@@ -233,7 +233,66 @@ int test_vfs_symlink(void) {
   assert_fail(symlink("Hello, world!", TESTDIR "/testlink"), EEXIST);
 
   assert_ok(unlink(TESTDIR "/testlink"));
-
   free(buff);
+}
+
+static void test_vfs_symlink_vnr(void) {
+  int n;
+  struct stat sb;
+  ino_t fileino;
+
+  assert_open_ok(0, TESTDIR "/file", 0, O_RDWR | O_CREAT);
+  assert_ok(stat(TESTDIR "/file", &sb));
+  fileino = sb.st_ino;
+
+  /* Absolute symlink */
+  assert_ok(symlink(TESTDIR "/file", TESTDIR "/alink"));
+  assert_ok(stat(TESTDIR "/alink", &sb));
+  assert(fileino == sb.st_ino);
+
+  assert_ok(symlink(TESTDIR "/alink", TESTDIR "/alink2"));
+  assert_ok(stat(TESTDIR "/alink2", &sb));
+  assert(fileino == sb.st_ino);
+
+  /* Relative symlink */
+  assert_ok(symlink("file", TESTDIR "/rlink"));
+  assert_ok(stat(TESTDIR "/rlink", &sb));
+  assert(fileino == sb.st_ino);
+
+  assert_ok(symlink("alink2", TESTDIR "/rlink2"));
+  assert_ok(stat(TESTDIR "/rlink2", &sb));
+  assert(fileino == sb.st_ino);
+
+  /* Do not follow symlink */
+  assert_ok(lstat(TESTDIR "/alink2", &sb));
+  assert(fileino != sb.st_ino);
+
+  unlink(TESTDIR "/alink");
+  unlink(TESTDIR "/alink2");
+  unlink(TESTDIR "/rlink");
+  unlink(TESTDIR "/rlink2");
+
+  /* Symlink to directory */
+  assert_ok(symlink("/tmp", TESTDIR "/dlink"));
+  assert_ok(stat(TESTDIR "/dlink/file", &sb));
+  assert(fileino == sb.st_ino);
+  unlink(TESTDIR "/dlink");
+
+  /* Looped symlink */
+  assert_ok(symlink(TESTDIR "/slink", TESTDIR "/slink"));
+  assert_fail(stat(TESTDIR "/slink", &sb), ELOOP);
+  unlink(TESTDIR "/slink");
+
+  /* Bad symlink */
+  assert_ok(symlink(TESTDIR "/nofile", TESTDIR "/blink"));
+  assert_fail(stat(TESTDIR "/blink", &sb), ENOENT);
+  unlink(TESTDIR "/blink");
+
+  unlink(TESTDIR "/file");
+}
+
+int test_vfs_symlink(void) {
+  test_vfs_symlink_basic();
+  test_vfs_symlink_vnr();
   return 0;
 }
