@@ -15,9 +15,9 @@
 #include <sys/stat.h>
 
 /* Path name component flags.
- * Used by VFS name resolver to represent internal state. */
-#define VNR_ISLASTPC 0x00000001   /* this is last component of pathname */
-#define VNR_REQUIREDIR 0x00000002 /* must be a directory */
+ * Used by VFS name resolver to represent its' internal state. */
+#define CN_ISLAST 0x00000001     /* this is last component of pathname */
+#define CN_REQUIREDIR 0x00000002 /* must be a directory */
 
 /* Internal state for a vnr operation. */
 typedef struct {
@@ -325,7 +325,7 @@ static int vnr_lookup_once(vnrstate_t *vs, vnode_t *searchdir,
      * on the last component of the path name.
      */
     if (error == ENOENT && vs->vs_op == VNR_CREATE &&
-        cn->cn_flags & VNR_ISLASTPC) {
+        cn->cn_flags & CN_ISLAST) {
       vnode_unlock(searchdir);
       foundvn = NULL;
       error = 0;
@@ -355,16 +355,16 @@ static void vnr_parse_component(vnrstate_t *vs) {
   if (*name == '/') {
     while (*name == '/')
       name++;
-    cn->cn_flags |= VNR_REQUIREDIR;
+    cn->cn_flags |= CN_REQUIREDIR;
   } else {
-    cn->cn_flags &= ~VNR_REQUIREDIR;
+    cn->cn_flags &= ~CN_REQUIREDIR;
   }
 
   /* Last component? */
   if (*name == '\0')
-    cn->cn_flags |= VNR_ISLASTPC;
+    cn->cn_flags |= CN_ISLAST;
   else
-    cn->cn_flags &= ~VNR_ISLASTPC;
+    cn->cn_flags &= ~CN_ISLAST;
 
   vs->vs_pathlen -= name - vs->vs_nextcn;
   vs->vs_nextcn = name;
@@ -439,7 +439,7 @@ static int vfs_nameresolve(vnrstate_t *vs) {
       break;
 
     if (searchdir->v_type == V_LNK &&
-        ((vs->vs_flags & VNR_FOLLOW) || (cn->cn_flags & VNR_REQUIREDIR))) {
+        ((vs->vs_flags & VNR_FOLLOW) || (cn->cn_flags & CN_REQUIREDIR))) {
       vnode_lock(parentdir);
       error = vnr_symlink_follow(vs, parentdir, searchdir, &parentdir);
       vnode_unlock(parentdir);
@@ -466,7 +466,7 @@ static int vfs_nameresolve(vnrstate_t *vs) {
       continue;
     }
 
-    if (cn->cn_flags & VNR_ISLASTPC)
+    if (cn->cn_flags & CN_ISLAST)
       break;
   }
 
