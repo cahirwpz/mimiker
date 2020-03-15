@@ -99,8 +99,11 @@ int vfs_namedeleteat(const char *path, vnode_t *atdir, uint32_t flags,
 #define vfs_namedelete(path, dvp, vp, cn)                                      \
   vfs_namedeleteat(path, NULL, VNR_FOLLOW, dvp, vp, cn)
 
-/* Uncovers mountpoint if node is mounted */
+/* Uncovers mountpoint if node is mounted. */
 void vfs_maybe_ascend(vnode_t **vp);
+
+/* Get the root of filesystem if node is a mountpoint. */
+int vfs_maybe_descend(vnode_t **vp);
 
 /* Looks up the vnode corresponding to the pathname and opens it into f. */
 int vfs_open(file_t *f, char *pathname, int flags, int mode);
