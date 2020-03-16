@@ -256,4 +256,23 @@ void __asan_register_globals(struct __asan_global *globals, size_t n) {
 }
 
 void __asan_unregister_globals(struct __asan_global *globals, size_t n) {
+
+/* KASAN-replacements of various memory-touching functions */
+
+void *kasan_memcpy(void *dst, const void *src, size_t len) {
+  kasan_shadow_check((unsigned long)src, len, true);
+  kasan_shadow_check((unsigned long)dst, len, false);
+  return __builtin_memcpy(dst, src, len);
+}
+
+size_t kasan_strlen(const char *str) {
+  const char *s = str;
+  while (1) {
+    kasan_shadow_check((unsigned long)s, 1, true);
+    if (*s == '\0')
+      break;
+    s++;
+  }
+
+  return (s - str);
 }
