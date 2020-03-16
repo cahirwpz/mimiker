@@ -240,13 +240,20 @@ void __asan_storeN_noabort(unsigned long addr, size_t size) {
   kasan_shadow_check(addr, size, false);
 }
 
+/* Called at the end of every function marked as "noreturn".
+ * Performs cleanup of the current stack's shadow memory to prevent false
+ * positives. */
 void __asan_handle_no_return(void) {
+  /* HACK: Get the current $sp value */
   uintptr_t sp;
-  asm volatile ("move %0, $sp" : "=r" (sp));
+  asm volatile("move %0, $sp" : "=r"(sp));
+  /* Calculate the beginning of the stack (all stacks are one-page long) */
   sp &= 0xFFFFF000;
-  uintptr_t shadow_sp = (sp >> KASAN_SHADOW_SCALE_SHIFT) + 0xD8000000;
-  uintptr_t end = shadow_sp + (PAGESIZE >> KASAN_SHADOW_SCALE_SHIFT);
-  kasan_fillN((uint32_t *)shadow_sp, (uint32_t *)end);
+
+  /* Set the correspoding shadow memory to zero. */
+  uintptr_t shadow_start = (uintptr_t) kasan_md_addr_to_shad((void *)sp);
+  uintptr_t shadow_end = shadow_start + (PAGESIZE >> KASAN_SHADOW_SCALE_SHIFT);
+  kasan_fillN((uint32_t *)shadow_start, (uint32_t *)shadow_end);
 }
 
 struct __asan_global_source_location {
