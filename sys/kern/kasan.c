@@ -8,6 +8,13 @@
 #include <machine/vm_param.h>
 #include <sys/param.h>
 
+#ifndef KASAN
+/* The following functions are defined as no-op inside sys/kasan.h. This would
+ * cause a compilation error in this file */
+#undef kasan_init
+#undef kasan_mark
+#endif /* KASAN */
+
 #define kasan_panic(FMT, ...)                                                  \
   do {                                                                         \
     kprintf("========KernelAddressSanitizer========\n");                       \
