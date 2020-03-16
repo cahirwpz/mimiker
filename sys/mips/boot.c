@@ -8,7 +8,14 @@
 
 alignas(PAGESIZE) pde_t _kernel_pmap_pde[PD_ENTRIES];
 static alignas(PAGESIZE) pte_t _kernel_pmap_pte[PT_ENTRIES];
-static alignas(PAGESIZE) pte_t _kernel_kasan_pte[PT_ENTRIES];
+
+#ifdef KASAN
+/* Number of PTEs used to describe KASAN's shadow memory. Each PTE
+   describes 4 MB of shadow memory, which corresponds to 32 MB of sanitized
+   KSEG2 memory. */
+#define KASAN_PTE_NUM 2
+static alignas(PAGESIZE) pte_t _kernel_kasan_pte[KASAN_PTE_NUM][PT_ENTRIES];
+#endif /* KASAN */
 
 __boot_text static void halt(void) {
   for (;;)
@@ -85,21 +92,20 @@ __boot_text void mips_init(void) {
   for (paddr_t pa = data; pa < ebss; va += PAGESIZE, pa += PAGESIZE)
     pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
 
-  /* Prepare KASAN mapping (4MiB) */
-  pte = (pte_t *)MIPS_KSEG2_TO_KSEG0(_kernel_kasan_pte);
-  for (int i = 0; i < PT_ENTRIES; i++)
-    pte[i] = PTE_GLOBAL;
-
-  va = 0xF0000000;
-  pde[PDE_INDEX(va)] = PTE_PFN((intptr_t)pte) | PTE_KERNEL;
-
-  paddr_t shadow_start = ebss;
-  size_t kasan_size = 1 << 22;
-  paddr_t shadow_end = shadow_start + kasan_size;
-
-  for (paddr_t pa = shadow_start; pa < shadow_end;
-       va += PAGESIZE, pa += PAGESIZE)
-    pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
+#ifdef KASAN
+  /* Prepare KASAN shadow mappings */
+  va = 0xF0000000;   /* beginning of the virtual shadow memory */
+  paddr_t pa = ebss; /* physical memory just after the kernel */
+  for (int i = 0; i < KASAN_PTE_NUM; i++) {
+    pte = (pte_t *)MIPS_KSEG2_TO_KSEG0(_kernel_kasan_pte[i]);
+    pde[PDE_INDEX(va)] = PTE_PFN((intptr_t)pte) | PTE_KERNEL;
+    for (int j = 0; j < PT_ENTRIES; j++) {
+      pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
+      va += PAGESIZE;
+      pa += PAGESIZE;
+    }
+  }
+#endif /* KASAN */
 
   /* 1st wired TLB entry is always occupied by kernel-PDE and user-PDE. */
   mips32_setwired(1);
