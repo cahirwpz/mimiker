@@ -33,7 +33,7 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
   vmem_addr_t start;
   if (vmem_alloc(kvspace, size, &start, M_NOGROW))
     kick_swapper();
-  
+
   /* Mark entire block as valid */
   kasan_mark((void *)start, size, size, 0);
 
@@ -88,7 +88,7 @@ void *kmem_map(paddr_t pa, size_t size) {
   vmem_addr_t start;
   if (vmem_alloc(kvspace, size, &start, M_NOGROW))
     kick_swapper();
-  
+
   /* Mark entire block as valid */
   kasan_mark((void *)start, size, size, 0);
 

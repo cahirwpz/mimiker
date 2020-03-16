@@ -10,6 +10,7 @@
 #include <sys/kmem.h>
 #include <machine/vm_param.h>
 #include <bitstring.h>
+#include <sys/kasan.h>
 
 #define INITME 0xC0DECAFE
 #define ALIVE 0xFACEFEED
@@ -108,6 +109,7 @@ static void add_slab(pool_t *pool, pool_slab_t *slab) {
     pi->pi_canary = PI_MAGIC;
     if (pool->pp_ctor)
       pool->pp_ctor(pi->pi_data);
+    kasan_mark((void *)pi->pi_data, 0, pool->pp_itemsize, 0xFC);
   }
 
   LIST_INSERT_HEAD(&pool->pp_empty_slabs, slab, ph_slablist);
@@ -181,6 +183,8 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
                           : &pool->pp_full_slabs;
   LIST_INSERT_HEAD(slabs, slab, ph_slablist);
 
+  kasan_mark(p, pool->pp_itemsize, pool->pp_itemsize, 0);
+
   /* XXX: Modify code below when pp_ctor & pp_dtor are reenabled */
   if (flags & M_ZERO)
     bzero(p, pool->pp_itemsize);
@@ -196,6 +200,8 @@ void pool_free(pool_t *pool, void *ptr) {
   assert(pool->pp_state == ALIVE);
 
   WITH_MTX_LOCK (&pool->pp_mtx) {
+    kasan_mark(ptr, 0, pool->pp_itemsize, 0xFC);
+
     pool_item_t *pi = ptr - sizeof(pool_item_t);
     assert(pi->pi_canary == PI_MAGIC);
     pool_slab_t *slab = pi->pi_slab;
