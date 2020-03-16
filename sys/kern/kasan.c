@@ -1,12 +1,12 @@
-#include <sys/types.h>
-#include <sys/mimiker.h>
-#include <sys/kasan.h>
 #include <sys/vm.h>
-#include <sys/types.h>
-#include <sys/vm_physmem.h>
 #include <sys/pmap.h>
-#include <machine/vm_param.h>
+#include <sys/types.h>
+#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/kasan.h>
+#include <sys/mimiker.h>
+#include <sys/vm_physmem.h>
+#include <machine/vm_param.h>
 
 #ifndef KASAN
 /* The following functions are defined as no-op inside sys/kasan.h. This would
@@ -28,15 +28,37 @@
 #define KASAN_SHADOW_SCALE_SIZE (1UL << KASAN_SHADOW_SCALE_SHIFT)
 #define KASAN_SHADOW_MASK (KASAN_SHADOW_SCALE_SIZE - 1)
 
-#define __MD_VIRTUAL_SHIFT 25
+#define __MD_VIRTUAL_SHIFT 26
 #define __MD_SHADOW_SIZE                                                       \
   (1ULL << (__MD_VIRTUAL_SHIFT - KASAN_SHADOW_SCALE_SHIFT))
 #define __MD_CANONICAL_BASE 0xC0000000
 
+#define KASAN_OFFSET 0xD8000000
 #define KASAN_MD_SHADOW_START 0xF0000000
 #define KASAN_MD_SHADOW_END (KASAN_MD_SHADOW_START + __MD_SHADOW_SIZE)
 
 static int kasan_ready;
+
+/* The following two structures are part of internal compiler interface:
+ * https://github.com/gcc-mirror/gcc/blob/master/libsanitizer/include/sanitizer/asan_interface.h
+ */
+
+struct __asan_global_source_location {
+  const char *filename;
+  int line_no;
+  int column_no;
+};
+
+struct __asan_global {
+  const void *beg;                /* The address of the global */
+  size_t size;                    /* The original size of the global */
+  size_t size_with_redzone;       /* The size with the redzone */
+  const char *name;               /* Name as a C string */
+  const char *module_name;        /* Module name as a C string */
+  unsigned long has_dynamic_init; /* Does the global have dynamic initializer */
+  struct __asan_global_source_location *location; /* Location of a global */
+  const void *odr_indicator; /* The address of the ODR indicator symbol */
+};
 
 static const char *kasan_code_name(uint8_t code) {
   switch (code) {
@@ -49,8 +71,7 @@ static const char *kasan_code_name(uint8_t code) {
 
 __always_inline static inline int8_t *kasan_md_addr_to_shad(const void *addr) {
   vaddr_t va = (vaddr_t)addr;
-  return (int8_t *)(KASAN_MD_SHADOW_START +
-                    ((va - __MD_CANONICAL_BASE) >> KASAN_SHADOW_SCALE_SHIFT));
+  return (int8_t *)(KASAN_OFFSET + (va >> KASAN_SHADOW_SCALE_SHIFT));
 }
 
 #define ADDR_CROSSES_SCALE_BOUNDARY(addr, size)                                \
@@ -128,13 +149,14 @@ __always_inline static inline bool kasan_md_supported(vaddr_t addr) {
 
 __always_inline static inline void kasan_shadow_check(unsigned long addr,
                                                       size_t size, bool read) {
+  assert(addr <= __MD_CANONICAL_BASE + (1 << __MD_VIRTUAL_SHIFT));
   if (__predict_false(!kasan_ready))
     return;
   if (!kasan_md_supported(addr))
     return;
 
   uint8_t code = 0;
-  bool valid = true; // will be overwritten
+  bool valid = true;
   if (__builtin_constant_p(size)) {
     switch (size) {
       case 1:
@@ -211,11 +233,16 @@ static void kasan_fillN(uint32_t *start, uint32_t *end) {
 }
 
 void kasan_init(void) {
+  /* Set the whole shadow memory to zero. */
   uint32_t *ptr = (uint32_t *)KASAN_MD_SHADOW_START;
   uint32_t *end = (uint32_t *)KASAN_MD_SHADOW_END;
   kasan_fillN(ptr, end);
 
+  /* KASAN is ready to begin errror-checking. */
   kasan_ready = 1;
+
+  /* Call constructors that will register globals (i.e. setup redzones located
+   * after each global variable). */
   kasan_ctors();
 }
 
@@ -256,23 +283,6 @@ void __asan_handle_no_return(void) {
   kasan_fillN((uint32_t *)shadow_start, (uint32_t *)shadow_end);
 }
 
-struct __asan_global_source_location {
-  const char *filename;
-  int line_no;
-  int column_no;
-};
-
-struct __asan_global {
-  const void *beg;          /* address of the global variable */
-  size_t size;              /* size of the global variable */
-  size_t size_with_redzone; /* size with the redzone */
-  const void *name;         /* name of the variable */
-  const void *module_name;  /* name of the module where the var is declared */
-  unsigned long has_dynamic_init; /* the var has dyn initializer (c++) */
-  struct __asan_global_source_location *location;
-  uintptr_t odr_indicator; /* the address of the ODR indicator symbol */
-};
-
 void __asan_register_globals(struct __asan_global *globals, size_t n) {
   for (size_t i = 0; i < n; i++)
     kasan_mark(globals[i].beg, globals[i].size, globals[i].size_with_redzone,
@@ -280,6 +290,8 @@ void __asan_register_globals(struct __asan_global *globals, size_t n) {
 }
 
 void __asan_unregister_globals(struct __asan_global *globals, size_t n) {
+  /* never called */
+}
 
 /* KASAN-replacements of various memory-touching functions */
 
