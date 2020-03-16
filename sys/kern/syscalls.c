@@ -131,10 +131,9 @@ static int sys_kill(proc_t *p, kill_args_t *args, register_t *res) {
  *
  * https://pubs.opengroup.org/onlinepubs/9699919799/functions/umask.html */
 static int sys_umask(proc_t *p, umask_args_t *args, register_t *res) {
+  mode_t newmask = args->newmask;
   klog("umask(%x)", args->newmask);
-
-  /* TODO: not implemented */
-  return ENOTSUP;
+  return do_umask(p, newmask, res);
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html */
@@ -755,5 +754,29 @@ static int sys_readlinkat(proc_t *p, readlinkat_args_t *args, register_t *res) {
 
 end:
   kfree(M_TEMP, path);
+  return error;
+}
+
+static int sys_symlinkat(proc_t *p, symlinkat_args_t *args, register_t *res) {
+  const char *u_target = args->target;
+  int newdirfd = args->newdirfd;
+  const char *u_linkpath = args->linkpath;
+  int error;
+
+  char *target = kmalloc(M_TEMP, PATH_MAX, 0);
+  char *linkpath = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_target, target, PATH_MAX, NULL)))
+    goto end;
+  if ((error = copyinstr(u_linkpath, linkpath, PATH_MAX, NULL)))
+    goto end;
+
+  klog("symlinkat(\"%s\", %d, \"%s\")", target, newdirfd, linkpath);
+
+  error = do_symlinkat(p, target, newdirfd, linkpath);
+
+end:
+  kfree(M_TEMP, target);
+  kfree(M_TEMP, linkpath);
   return error;
 }

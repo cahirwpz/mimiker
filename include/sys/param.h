@@ -30,6 +30,11 @@
 #endif
 
 /*
+ * Miscellaneous.
+ */
+#define CMASK 022 /* default file mask: S_IWGRP|S_IWOTH */
+
+/*
  * File system parameters and macros.
  *
  * The file system is made out of blocks of at most MAXBSIZE units, with
