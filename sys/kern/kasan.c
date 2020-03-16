@@ -9,13 +9,13 @@
 #include <sys/param.h>
 
 #define kasan_panic(FMT, ...)                                                  \
-  __extension__({                                                              \
-    kprintf("======================================\n");                       \
-    kprintf("ERROR: KernelAddressSanitizer:\n");                               \
+  do {                                                                         \
+    kprintf("========KernelAddressSanitizer========\n");                       \
+    kprintf("ERROR:\n");                                                       \
     kprintf(FMT "\n", ##__VA_ARGS__);                                          \
     kprintf("======================================\n");                       \
     panic_fail();                                                              \
-  })
+  } while (0)
 
 #define KASAN_SHADOW_SCALE_SHIFT 3
 #define KASAN_SHADOW_SCALE_SIZE (1UL << KASAN_SHADOW_SCALE_SHIFT)
@@ -30,6 +30,15 @@
 #define KASAN_MD_SHADOW_END (KASAN_MD_SHADOW_START + __MD_SHADOW_SIZE)
 
 static int kasan_ready;
+
+static const char *kasan_code_name(uint8_t code) {
+  switch (code) {
+    case KASAN_CODE_GLOBALS:
+      return "global";
+    default:
+      return "unknown";
+  }
+}
 
 __always_inline static inline int8_t *kasan_md_addr_to_shad(const void *addr) {
   vaddr_t va = (vaddr_t)addr;
@@ -139,10 +148,11 @@ __always_inline static inline void kasan_shadow_check(unsigned long addr,
   }
 
   if (__predict_false(!valid))
-    kasan_panic("invalid access to addr %p\n"
-                "%s of size %lu\n"
-                "code %d",
-                (void *)addr, (read ? "READ" : "WRITE"), size, code);
+    kasan_panic("* invalid access to address %p\n"
+                "* %s of size %lu\n"
+                "* redzone code 0x%x (%s)",
+                (void *)addr, (read ? "read" : "write"), size, code,
+                kasan_code_name(code));
 }
 
 /*
