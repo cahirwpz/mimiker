@@ -18,6 +18,12 @@ int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fdp) {
 
   /* Allocate a file structure, but do not install descriptor yet. */
   file_t *f = file_alloc();
+
+  /* According to POSIX, the effect when other than permission bits are set in
+   * mode is unspecified. Our implementation honors these.
+   * https://pubs.opengroup.org/onlinepubs/9699919799/functions/open.html */
+  mode = (mode & ~p->p_cmask) & ALLPERMS;
+
   /* Try opening file. Fill the file structure. */
   if ((error = vfs_open(f, pathname, flags, mode)))
     goto fail;
@@ -83,19 +89,29 @@ int do_fstat(proc_t *p, int fd, stat_t *sb) {
   return error;
 }
 
-int do_stat(proc_t *p, char *path, stat_t *sb) {
-  vnode_t *v;
+int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag) {
+  file_t *f;
+  vnode_t *v, *atdir = NULL;
   vattr_t va;
   int error;
+  uint32_t vnrflags = 0;
 
-  if ((error = vfs_namelookup(path, &v)))
+  if (!(flag & AT_SYMLINK_NOFOLLOW))
+    vnrflags |= VNR_FOLLOW;
+
+  if (fd != AT_FDCWD) {
+    if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+      return error;
+    atdir = f->f_vnode;
+  }
+  error = vfs_namelookupat(path, atdir, vnrflags, &v);
+  if (fd != AT_FDCWD)
+    file_drop(f);
+  if (error)
     return error;
-  if ((error = VOP_GETATTR(v, &va)))
-    goto fail;
+  if (!(error = VOP_GETATTR(v, &va)))
+    vattr_convert(&va, sb);
 
-  vattr_convert(&va, sb);
-
-fail:
   vnode_drop(v);
   return error;
 }
@@ -136,6 +152,7 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
 
   /* TODO: Currently only F_DUPFD command is implemented. */
   bool cloexec = false;
+  int flags = 0;
   switch (cmd) {
     case F_DUPFD_CLOEXEC:
       cloexec = true;
@@ -154,6 +171,26 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
 
     case F_GETFD:
       error = fd_get_cloexec(p->p_fdtable, fd, resp);
+      break;
+
+    case F_GETFL:
+      if (f->f_flags & FF_READ && f->f_flags & FF_WRITE) {
+        flags |= O_RDWR;
+      } else {
+        if (f->f_flags & FF_READ)
+          flags |= O_RDONLY;
+        if (f->f_flags & FF_WRITE)
+          flags |= O_WRONLY;
+      }
+      if (f->f_flags & FF_APPEND)
+        flags |= O_APPEND;
+      *resp = flags;
+      break;
+
+    case F_SETFL:
+      if (arg & O_APPEND)
+        flags |= FF_APPEND;
+      f->f_flags = flags;
       break;
 
     default:
@@ -197,7 +234,7 @@ int do_unlink(proc_t *p, char *path) {
   vnode_t *vn, *dvn;
   componentname_t cn;
 
-  if ((error = vfs_namedelete(path, &dvn, &vn, &cn)))
+  if ((error = vfs_namedeleteat(path, NULL, 0, &dvn, &vn, &cn)))
     return error;
 
   if (vn->v_type == V_DIR) {
@@ -236,7 +273,10 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
   }
 
   memset(&va, 0, sizeof(vattr_t));
-  va.va_mode = S_IFDIR | (mode & ALLPERMS);
+  /* We discard all bits but permission bits, since it is
+   * implementation-defined.
+   * https://pubs.opengroup.org/onlinepubs/9699919799/functions/mkdir.html */
+  va.va_mode = S_IFDIR | ((mode & ACCESSPERMS) & ~p->p_cmask);
 
   error = VOP_MKDIR(dvn, &cn, &va, &vn);
   if (!error)
@@ -308,7 +348,7 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
 int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   assert(*lastp == PATH_MAX);
 
-  vnode_hold(p->p_cwd);
+  vnode_get(p->p_cwd);
   vnode_t *uvp = p->p_cwd;
   vnode_t *lvp = NULL;
   int error = 0;
@@ -320,7 +360,7 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   buf[--last] = '\0';
 
   /* Handle special case for root directory. */
-  uvp = vnode_uncover(uvp);
+  vfs_maybe_ascend(&uvp);
 
   if (uvp == vfs_root_vnode) {
     buf[--last] = '/';
@@ -347,14 +387,15 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
 
     buf[--last] = '/'; /* Prepend component separator. */
 
-    vnode_drop(uvp);
-
-    uvp = vnode_uncover(lvp);
+    vnode_put(uvp);
+    vnode_lock(lvp);
+    vfs_maybe_ascend(&lvp);
+    uvp = lvp;
     lvp = NULL;
   } while (uvp != vfs_root_vnode);
 
 end:
-  vnode_drop(uvp);
+  vnode_put(uvp);
   if (lvp)
     vnode_drop(lvp);
   *lastp = last;
@@ -389,9 +430,9 @@ int do_ftruncate(proc_t *p, int fd, off_t length) {
 
   vnode_t *vn = f->f_vnode;
   vnode_lock(vn);
-  if (vn->v_type == V_DIR)
+  if (vn->v_type == V_DIR) {
     error = EINVAL;
-  else {
+  } else {
     vattr_t va;
     vattr_null(&va);
     va.va_size = length;
@@ -400,4 +441,93 @@ int do_ftruncate(proc_t *p, int fd, off_t length) {
   vnode_unlock(vn);
   file_drop(f);
   return error;
+}
+
+ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio) {
+  file_t *f;
+  vnode_t *v, *atdir = NULL;
+  int error;
+
+  if (fd != AT_FDCWD) {
+    if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+      return error;
+    atdir = f->f_vnode;
+  }
+  error = vfs_namelookupat(path, atdir, 0, &v);
+  if (fd != AT_FDCWD)
+    file_drop(f);
+  if (error)
+    return error;
+
+  if (v->v_type != V_LNK)
+    error = EINVAL;
+  else if (!(error = VOP_ACCESS(v, VREAD)))
+    error = VOP_READLINK(v, uio);
+
+  vnode_drop(v);
+  return error;
+}
+
+int do_fchdir(proc_t *p, int fd) {
+  file_t *f;
+  int error;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+    return error;
+
+  vnode_t *v = f->f_vnode;
+  if (v->v_type == V_DIR) {
+    vnode_hold(v);
+    p->p_cwd = v;
+    vnode_drop(p->p_cwd);
+  } else {
+    error = ENOTDIR;
+  }
+
+  file_drop(f);
+  return error;
+}
+
+int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath) {
+  file_t *f;
+  vnode_t *vn, *dvn, *atdir = NULL;
+  componentname_t cn;
+  vattr_t va;
+  int error;
+
+  if (newdirfd != AT_FDCWD) {
+    if ((error = fdtab_get_file(p->p_fdtable, newdirfd, FF_READ, &f)))
+      return error;
+    atdir = f->f_vnode;
+  }
+  error = vfs_namecreateat(linkpath, atdir, 0, &dvn, &vn, &cn);
+  if (newdirfd != AT_FDCWD)
+    file_drop(f);
+  if (error)
+    return error;
+
+  if (vn != NULL) {
+    if (vn != dvn)
+      vnode_put(dvn);
+    else
+      vnode_drop(dvn);
+
+    vnode_drop(vn);
+    return EEXIST;
+  }
+
+  memset(&va, 0, sizeof(vattr_t));
+  va.va_mode = S_IFLNK | (ACCESSPERMS & ~p->p_cmask);
+
+  error = VOP_SYMLINK(dvn, &cn, &va, target, &vn);
+  if (!error)
+    vnode_drop(vn);
+  vnode_put(dvn);
+  return error;
+}
+
+int do_umask(proc_t *p, int newmask, int *oldmaskp) {
+  *oldmaskp = p->p_cmask;
+  p->p_cmask = newmask & ALLPERMS;
+  return 0;
 }

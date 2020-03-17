@@ -50,6 +50,8 @@
 #define MAX_INPUT 255  /* max bytes in terminal input */
 #define NAME_MAX 255   /* max bytes in a file name */
 #define NGROUPS_MAX 16 /* max supplemental group id's */
+#define UID_MAX 65536U /* max value for a uid_t */
+#define GID_MAX 65536U /* max value for a gid_t */
 #ifndef OPEN_MAX
 #define OPEN_MAX 64 /* max open files per process */
 #endif

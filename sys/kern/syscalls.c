@@ -131,10 +131,9 @@ static int sys_kill(proc_t *p, kill_args_t *args, register_t *res) {
  *
  * https://pubs.opengroup.org/onlinepubs/9699919799/functions/umask.html */
 static int sys_umask(proc_t *p, umask_args_t *args, register_t *res) {
+  mode_t newmask = args->newmask;
   klog("umask(%x)", args->newmask);
-
-  /* TODO: not implemented */
-  return ENOTSUP;
+  return do_umask(p, newmask, res);
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html */
@@ -280,34 +279,7 @@ static int sys_fstat(proc_t *p, fstat_args_t *args, register_t *res) {
 
   if ((error = do_fstat(p, fd, &sb)))
     return error;
-  if ((error = copyout_s(sb, u_sb)))
-    return error;
-
-  return 0;
-}
-
-static int sys_stat(proc_t *p, stat_args_t *args, register_t *res) {
-  const char *u_path = args->path;
-  stat_t *u_sb = args->sb;
-
-  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
-  size_t path_len = 0;
-  stat_t sb;
-  int error;
-
-  if ((error = copyinstr(u_path, path, PATH_MAX, &path_len)))
-    goto end;
-
-  klog("stat(\"%s\", %p)", path, u_sb);
-
-  if ((error = do_stat(p, path, &sb)))
-    goto end;
-  if ((error = copyout_s(sb, u_sb)))
-    goto end;
-
-end:
-  kfree(M_TEMP, path);
-  return error;
+  return copyout_s(sb, u_sb);
 }
 
 static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
@@ -329,6 +301,11 @@ static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
 end:
   kfree(M_TEMP, path);
   return error;
+}
+
+static int sys_fchdir(proc_t *p, fchdir_args_t *args, register_t *res) {
+  klog("fchdir(%d)", args->fd);
+  return do_fchdir(p, args->fd);
 }
 
 static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
@@ -732,4 +709,74 @@ static int sys_ftruncate(proc_t *p, ftruncate_args_t *args, register_t *res) {
   off_t length = args->length;
   klog("ftruncate(%d, %d)", fd, length);
   return do_ftruncate(p, fd, length);
+}
+
+static int sys_fstatat(proc_t *p, fstatat_args_t *args, register_t *res) {
+  int fd = args->fd;
+  const char *u_path = args->path;
+  stat_t *u_sb = args->sb;
+  int flag = args->flag;
+  stat_t sb;
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("fstatat(%d, \"%s\", %p, %d)", fd, path, u_sb, flag);
+
+  if (!(error = do_fstatat(p, fd, path, &sb, flag)))
+    error = copyout_s(sb, u_sb);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
+static int sys_readlinkat(proc_t *p, readlinkat_args_t *args, register_t *res) {
+  int fd = args->fd;
+  const char *u_path = args->path;
+  char *u_buf = args->buf;
+  size_t bufsiz = args->bufsiz;
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("readlinkat(%d, \"%s\", %p, %u)", fd, path, u_buf, bufsiz);
+
+  uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, u_buf, bufsiz);
+  if (!(error = do_readlinkat(p, fd, path, &uio)))
+    *res = bufsiz - uio.uio_resid;
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
+static int sys_symlinkat(proc_t *p, symlinkat_args_t *args, register_t *res) {
+  const char *u_target = args->target;
+  int newdirfd = args->newdirfd;
+  const char *u_linkpath = args->linkpath;
+  int error;
+
+  char *target = kmalloc(M_TEMP, PATH_MAX, 0);
+  char *linkpath = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_target, target, PATH_MAX, NULL)))
+    goto end;
+  if ((error = copyinstr(u_linkpath, linkpath, PATH_MAX, NULL)))
+    goto end;
+
+  klog("symlinkat(\"%s\", %d, \"%s\")", target, newdirfd, linkpath);
+
+  error = do_symlinkat(p, target, newdirfd, linkpath);
+
+end:
+  kfree(M_TEMP, target);
+  kfree(M_TEMP, linkpath);
+  return error;
 }

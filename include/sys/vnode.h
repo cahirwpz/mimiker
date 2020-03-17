@@ -22,12 +22,7 @@ typedef struct componentname componentname_t;
 /* vnode access modes */
 typedef enum { VEXEC = 1, VWRITE = 2, VREAD = 4 } accmode_t;
 
-typedef enum {
-  V_NONE,
-  V_REG,
-  V_DIR,
-  V_DEV,
-} vnodetype_t;
+typedef enum { V_NONE, V_REG, V_DIR, V_DEV, V_LNK } vnodetype_t;
 
 typedef int vnode_lookup_t(vnode_t *dv, componentname_t *cn, vnode_t **vp);
 typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio);
@@ -47,6 +42,9 @@ typedef int vnode_rmdir_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
 typedef int vnode_access_t(vnode_t *v, accmode_t mode);
 typedef int vnode_ioctl_t(vnode_t *v, u_long cmd, void *data);
 typedef int vnode_reclaim_t(vnode_t *v);
+typedef int vnode_readlink_t(vnode_t *v, uio_t *uio);
+typedef int vnode_symlink_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
+                            char *target, vnode_t **vp);
 
 typedef struct vnodeops {
   vnode_lookup_t *v_lookup;
@@ -65,6 +63,8 @@ typedef struct vnodeops {
   vnode_access_t *v_access;
   vnode_ioctl_t *v_ioctl;
   vnode_reclaim_t *v_reclaim;
+  vnode_readlink_t *v_readlink;
+  vnode_symlink_t *v_symlink;
 } vnodeops_t;
 
 /* Fill missing entries with default vnode operation. */
@@ -179,6 +179,15 @@ static inline int VOP_RECLAIM(vnode_t *v) {
   return VOP_CALL(reclaim, v);
 }
 
+static inline int VOP_READLINK(vnode_t *v, uio_t *uio) {
+  return VOP_CALL(readlink, v, uio);
+}
+
+static inline int VOP_SYMLINK(vnode_t *dv, componentname_t *cn, vattr_t *va,
+                              char *target, vnode_t **vp) {
+  return VOP_CALL(symlink, dv, cn, va, target, vp);
+}
+
 #undef VOP_CALL
 
 /* Allocates and initializes a new vnode */
@@ -194,12 +203,14 @@ void vnode_unlock(vnode_t *v);
 void vnode_hold(vnode_t *v);
 void vnode_drop(vnode_t *v);
 
-/* Unlock and release the reference. */
+/* Increment reference counter and lock the vnode. */
+void vnode_get(vnode_t *v);
+
+/* Unlock and decrement reference counter for the vnode. */
 void vnode_put(vnode_t *v);
 
-/* Uncovers a node under the mounted node until it reaches the node that isn't
- * mounted */
-vnode_t *vnode_uncover(vnode_t *v);
+/* Is the vnode root of file system and mounted somewhere? */
+bool vnode_is_mounted(vnode_t *v);
 
 /* Convenience function with default vnode operation implementation. */
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);

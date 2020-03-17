@@ -52,6 +52,12 @@ static devfs_node_t *devfs_find_child(devfs_node_t *parent,
   TAILQ_FOREACH (dn, &parent->dn_children, dn_link)
     if (componentname_equal(cn, dn->dn_name))
       return dn;
+
+  if (componentname_equal(cn, ".."))
+    return (parent->dn_parent != NULL ? parent->dn_parent : parent);
+  else if (componentname_equal(cn, "."))
+    return parent;
+
   return NULL;
 }
 

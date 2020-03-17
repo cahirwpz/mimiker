@@ -44,7 +44,6 @@ typedef struct file {
   off_t f_offset;
   refcnt_t f_count; /* Reference counter */
   unsigned f_flags; /* File flags FF_* */
-  mtx_t f_mtx;
 } file_t;
 
 file_t *file_alloc(void);

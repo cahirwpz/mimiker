@@ -29,7 +29,7 @@ static int sys_wait4(proc_t *, wait4_args_t *, register_t *);
 static int sys_mkdir(proc_t *, mkdir_args_t *, register_t *);
 static int sys_rmdir(proc_t *, rmdir_args_t *, register_t *);
 static int sys_access(proc_t *, access_args_t *, register_t *);
-static int sys_stat(proc_t *, stat_args_t *, register_t *);
+static int sys_fstatat(proc_t *, fstatat_args_t *, register_t *);
 static int sys_pipe2(proc_t *, pipe2_args_t *, register_t *);
 static int sys_clock_gettime(proc_t *, clock_gettime_args_t *, register_t *);
 static int sys_clock_nanosleep(proc_t *, clock_nanosleep_args_t *, register_t *);
@@ -54,6 +54,9 @@ static int sys_issetugid(proc_t *, void *, register_t *);
 static int sys_fcntl(proc_t *, fcntl_args_t *, register_t *);
 static int sys_truncate(proc_t *, truncate_args_t *, register_t *);
 static int sys_ftruncate(proc_t *, ftruncate_args_t *, register_t *);
+static int sys_readlinkat(proc_t *, readlinkat_args_t *, register_t *);
+static int sys_fchdir(proc_t *, fchdir_args_t *, register_t *);
+static int sys_symlinkat(proc_t *, symlinkat_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { (syscall_t *)sys_syscall },
@@ -80,7 +83,7 @@ struct sysent sysent[] = {
   [SYS_mkdir] = { (syscall_t *)sys_mkdir },
   [SYS_rmdir] = { (syscall_t *)sys_rmdir },
   [SYS_access] = { (syscall_t *)sys_access },
-  [SYS_stat] = { (syscall_t *)sys_stat },
+  [SYS_fstatat] = { (syscall_t *)sys_fstatat },
   [SYS_pipe2] = { (syscall_t *)sys_pipe2 },
   [SYS_clock_gettime] = { (syscall_t *)sys_clock_gettime },
   [SYS_clock_nanosleep] = { (syscall_t *)sys_clock_nanosleep },
@@ -105,5 +108,8 @@ struct sysent sysent[] = {
   [SYS_fcntl] = { (syscall_t *)sys_fcntl },
   [SYS_truncate] = { (syscall_t *)sys_truncate },
   [SYS_ftruncate] = { (syscall_t *)sys_ftruncate },
+  [SYS_readlinkat] = { (syscall_t *)sys_readlinkat },
+  [SYS_fchdir] = { (syscall_t *)sys_fchdir },
+  [SYS_symlinkat] = { (syscall_t *)sys_symlinkat },
 };
 
