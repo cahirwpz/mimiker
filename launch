@@ -29,7 +29,11 @@ def TestRun(sim, uarts):
 def DevelRun(sim, dbg, uarts):
     from libtmux import Server, Session
 
-    subprocess.run(['tmux', '-f', TMUX_CONF, '-L', 'mimiker', 'start-server'])
+    # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
+    tmux_env = os.environ.copy()
+    tmux_env["MIMIKER_REPO"] = os.getcwd()
+    subprocess.run(['tmux', '-f', TMUX_CONF, '-L', 'mimiker', 'start-server'],
+                   env=tmux_env)
 
     server = Server(config_file=TMUX_CONF, socket_name='mimiker')
 
