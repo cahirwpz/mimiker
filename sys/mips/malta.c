@@ -134,7 +134,15 @@ static void malta_physmem(void) {
   paddr_t ram_start = MALTA_PHYS_SDRAM_BASE + PAGESIZE;
   paddr_t ram_end = MALTA_PHYS_SDRAM_BASE + kenv_get_ulong("memsize");
   paddr_t kern_start = MIPS_KSEG0_TO_PHYS(__boot);
-  paddr_t kern_end = align(MIPS_KSEG2_TO_PHYS(__ebss), PAGESIZE);
+
+  /* we need additional space for page directory and page table entries */
+  paddr_t kern_end = MIPS_KSEG2_TO_PHYS(__ebss) + sizeof(pde_t) * PD_ENTRIES;
+  kern_end +=
+    sizeof(pte_t) * PT_ENTRIES *
+    ((kern_end + PAGESIZE * PT_ENTRIES - sizeof(pte_t) * PT_ENTRIES - 1UL) /
+     (PAGESIZE * PT_ENTRIES - sizeof(pte_t) * PT_ENTRIES));
+  kern_end = align(kern_end, PAGESIZE);
+
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
 
