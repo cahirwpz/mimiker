@@ -201,30 +201,39 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   vnode_t *v;
   int error = 0;
   if (flags & O_CREAT) {
-    vnode_t *dvp;
-    componentname_t cn;
-    if ((error = vfs_namecreate(pathname, &dvp, &v, &cn)))
+    vnrinfo_t vi;
+
+    if ((error = vnrinfo_init(&vi, VNR_CREATE, VNR_FOLLOW, pathname)))
       return error;
 
-    if (v == NULL) {
+    if ((error = vfs_nameresolve(&vi))) {
+      vnrinfo_destroy(&vi);
+      return error;
+    }
+
+    if (vi.vi_vp == NULL) {
       vattr_t va;
       vattr_null(&va);
       va.va_mode = S_IFREG | (mode & ALLPERMS);
-      error = VOP_CREATE(dvp, &cn, &va, &v);
-      vnode_put(dvp);
-      if (error)
+      error = VOP_CREATE(vi.vi_dvp, &vi.vi_lastcn, &va, &vi.vi_vp);
+      vnode_put(vi.vi_dvp);
+      if (error) {
+        vnrinfo_destroy(&vi);
         return error;
+      }
       flags &= ~O_TRUNC;
     } else {
-      if (v == dvp)
-        vnode_drop(dvp);
+      if (vi.vi_vp == vi.vi_dvp)
+        vnode_drop(vi.vi_dvp);
       else
-        vnode_put(dvp);
+        vnode_put(vi.vi_dvp);
 
       if (mode & O_EXCL)
         error = EEXIST;
       mode &= ~O_CREAT;
     }
+    v = vi.vi_vp;
+    vnrinfo_destroy(&vi);
   } else {
     if ((error = vfs_namelookup(pathname, &v)))
       return error;

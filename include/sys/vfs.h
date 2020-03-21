@@ -37,6 +37,21 @@ typedef struct componentname {
   size_t cn_namelen;
 } componentname_t;
 
+typedef struct {
+  /* Arguments to vnr. */
+  vnode_t *vi_atdir; /* startup dir, cwd if null */
+  vnrop_t vi_op;     /* vnr operation type */
+  uint32_t vi_flags; /* flags to vfs name resolver */
+  const char *vi_path;
+
+  /* Results returned from lookup. */
+  vnode_t *vi_vp;            /* vnode of result */
+  vnode_t *vi_dvp;           /* vnode of parent directory */
+  componentname_t vi_lastcn; /* last component's name */
+
+  char *vi_pathbuf; /* pathname buffer */
+} vnrinfo_t;
+
 #define COMPONENTNAME(str)                                                     \
   (componentname_t) {                                                          \
     .cn_flags = 0, .cn_nameptr = str, .cn_namelen = strlen(str)                \
@@ -80,24 +95,14 @@ int do_mount(const char *fs, const char *path);
 int do_statfs(proc_t *p, char *path, statfs_t *buf);
 int do_getdents(proc_t *p, int fd, uio_t *uio);
 
+int vnrinfo_init(vnrinfo_t *vi, vnrop_t op, uint32_t flags, const char *path);
+void vnrinfo_destroy(vnrinfo_t *vi);
+
+int vfs_nameresolve(vnrinfo_t *vi);
+
 /* Finds the vnode corresponding to the given path.
  * Increases use count on returned vnode. */
-int vfs_namelookupat(const char *path, vnode_t *atdir, uint32_t flags,
-                     vnode_t **vp);
-#define vfs_namelookup(path, vp) vfs_namelookupat(path, NULL, VNR_FOLLOW, vp)
-
-/* Yield the vnode for an existing entry; or, if there is none, yield NULL.
- * Parent vnode is locked and held; vnode, if exists, is only held.*/
-int vfs_namecreateat(const char *path, vnode_t *atdir, uint32_t flags,
-                     vnode_t **dvp, vnode_t **vp, componentname_t *cn);
-#define vfs_namecreate(path, dvp, vp, cn)                                      \
-  vfs_namecreateat(path, NULL, VNR_FOLLOW, dvp, vp, cn)
-
-/* Both vnode and its parent is held and locked. */
-int vfs_namedeleteat(const char *path, vnode_t *atdir, uint32_t flags,
-                     vnode_t **dvp, vnode_t **vp, componentname_t *cn);
-#define vfs_namedelete(path, dvp, vp, cn)                                      \
-  vfs_namedeleteat(path, NULL, VNR_FOLLOW, dvp, vp, cn)
+int vfs_namelookup(const char *path, vnode_t **vp);
 
 /* Uncovers mountpoint if node is mounted. */
 void vfs_maybe_ascend(vnode_t **vp);

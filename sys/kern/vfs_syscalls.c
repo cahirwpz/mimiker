@@ -13,6 +13,37 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 
+static int vfs_nameresolveat(proc_t *p, int fdat, vnrinfo_t *vi) {
+  file_t *f;
+  int error;
+
+  if (fdat != AT_FDCWD) {
+    if ((error = fdtab_get_file(p->p_fdtable, fdat, FF_READ, &f)))
+      return error;
+    vi->vi_atdir = f->f_vnode;
+  }
+  error = vfs_nameresolve(vi);
+  if (fdat != AT_FDCWD)
+    file_drop(f);
+
+  return error;
+}
+
+static int vfs_namelookupat(proc_t *p, int fdat, uint32_t flags,
+                            const char *path, vnode_t **vp) {
+  int error;
+  vnrinfo_t vi;
+
+  if ((error = vnrinfo_init(&vi, VNR_LOOKUP, flags, path)))
+    return error;
+
+  error = vfs_nameresolve(&vi);
+  *vp = vi.vi_vp;
+
+  vnrinfo_destroy(&vi);
+  return error;
+}
+
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fdp) {
   int error;
 
@@ -90,8 +121,7 @@ int do_fstat(proc_t *p, int fd, stat_t *sb) {
 }
 
 int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag) {
-  file_t *f;
-  vnode_t *v, *atdir = NULL;
+  vnode_t *v;
   vattr_t va;
   int error;
   uint32_t vnrflags = 0;
@@ -99,16 +129,9 @@ int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag) {
   if (!(flag & AT_SYMLINK_NOFOLLOW))
     vnrflags |= VNR_FOLLOW;
 
-  if (fd != AT_FDCWD) {
-    if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
-      return error;
-    atdir = f->f_vnode;
-  }
-  error = vfs_namelookupat(path, atdir, vnrflags, &v);
-  if (fd != AT_FDCWD)
-    file_drop(f);
-  if (error)
+  if ((error = vfs_namelookupat(p, fd, vnrflags, path, &v)))
     return error;
+
   if (!(error = VOP_GETATTR(v, &va)))
     vattr_convert(&va, sb);
 
@@ -231,44 +254,52 @@ int do_getdents(proc_t *p, int fd, uio_t *uio) {
 
 int do_unlink(proc_t *p, char *path) {
   int error;
-  vnode_t *vn, *dvn;
-  componentname_t cn;
+  vnrinfo_t vi;
 
-  if ((error = vfs_namedeleteat(path, NULL, 0, &dvn, &vn, &cn)))
+  if ((error = vnrinfo_init(&vi, VNR_DELETE, 0, path)))
     return error;
 
-  if (vn->v_type == V_DIR) {
-    if (dvn == vn)
-      vnode_drop(dvn);
-    else
-      vnode_put(dvn);
-    vnode_put(vn);
-    return EPERM;
+  if ((error = vfs_nameresolve(&vi))) {
+    vnrinfo_destroy(&vi);
+    return error;
   }
 
-  error = VOP_REMOVE(dvn, vn, &cn);
-  vnode_put(dvn);
-  vnode_put(vn);
+  if (vi.vi_vp->v_type == V_DIR)
+    error = EPERM;
+  else
+    error = VOP_REMOVE(vi.vi_dvp, vi.vi_vp, &vi.vi_lastcn);
 
+  if (vi.vi_dvp == vi.vi_vp)
+    vnode_drop(vi.vi_dvp);
+  else
+    vnode_put(vi.vi_dvp);
+  vnode_put(vi.vi_vp);
+
+  vnrinfo_destroy(&vi);
   return error;
 }
 
 int do_mkdir(proc_t *p, char *path, mode_t mode) {
   int error;
   vattr_t va;
-  vnode_t *vn, *dvn;
-  componentname_t cn;
+  vnrinfo_t vi;
 
-  if ((error = vfs_namecreate(path, &dvn, &vn, &cn)))
+  if ((error = vnrinfo_init(&vi, VNR_CREATE, VNR_FOLLOW, path)))
     return error;
 
-  if (vn != NULL) {
-    if (vn != dvn)
-      vnode_put(dvn);
-    else
-      vnode_drop(dvn);
+  if ((error = vfs_nameresolve(&vi))) {
+    vnrinfo_destroy(&vi);
+    return error;
+  }
 
-    vnode_drop(vn);
+  if (vi.vi_vp != NULL) {
+    if (vi.vi_vp != vi.vi_dvp)
+      vnode_put(vi.vi_dvp);
+    else
+      vnode_drop(vi.vi_dvp);
+
+    vnode_drop(vi.vi_vp);
+    vnrinfo_destroy(&vi);
     return EEXIST;
   }
 
@@ -278,42 +309,45 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
    * https://pubs.opengroup.org/onlinepubs/9699919799/functions/mkdir.html */
   va.va_mode = S_IFDIR | ((mode & ACCESSPERMS) & ~p->p_cmask);
 
-  error = VOP_MKDIR(dvn, &cn, &va, &vn);
+  error = VOP_MKDIR(vi.vi_dvp, &vi.vi_lastcn, &va, &vi.vi_vp);
   if (!error)
-    vnode_drop(vn);
+    vnode_drop(vi.vi_vp);
 
-  vnode_put(dvn);
+  vnode_put(vi.vi_dvp);
+
+  vnrinfo_destroy(&vi);
   return error;
 }
 
 int do_rmdir(proc_t *p, char *path) {
   int error;
-  vnode_t *vn, *dvn;
-  componentname_t cn;
+  vnrinfo_t vi;
 
-  if ((error = vfs_namedelete(path, &dvn, &vn, &cn)))
+  if ((error = vnrinfo_init(&vi, VNR_DELETE, VNR_FOLLOW, path)))
     return error;
 
-  if (vn == dvn)
-    error = EINVAL;
-  else if (vn->v_type != V_DIR)
-    error = ENOTDIR;
-  else if (vn->v_mountedhere != NULL)
-    error = EBUSY;
-
-  if (error) {
-    if (dvn == vn)
-      vnode_drop(dvn);
-    else
-      vnode_put(dvn);
-    vnode_put(vn);
+  if ((error = vfs_nameresolve(&vi))) {
+    vnrinfo_destroy(&vi);
     return error;
   }
 
-  error = VOP_RMDIR(dvn, vn, &cn);
-  vnode_put(dvn);
-  vnode_put(vn);
+  if (vi.vi_vp == vi.vi_dvp)
+    error = EINVAL;
+  else if (vi.vi_vp->v_type != V_DIR)
+    error = ENOTDIR;
+  else if (vi.vi_vp->v_mountedhere != NULL)
+    error = EBUSY;
 
+  if (!error)
+    error = VOP_RMDIR(vi.vi_dvp, vi.vi_vp, &vi.vi_lastcn);
+
+  if (vi.vi_dvp == vi.vi_vp)
+    vnode_drop(vi.vi_dvp);
+  else
+    vnode_put(vi.vi_dvp);
+  vnode_put(vi.vi_vp);
+
+  vnrinfo_destroy(&vi);
   return error;
 }
 
@@ -444,19 +478,10 @@ int do_ftruncate(proc_t *p, int fd, off_t length) {
 }
 
 ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio) {
-  file_t *f;
-  vnode_t *v, *atdir = NULL;
+  vnode_t *v;
   int error;
 
-  if (fd != AT_FDCWD) {
-    if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
-      return error;
-    atdir = f->f_vnode;
-  }
-  error = vfs_namelookupat(path, atdir, 0, &v);
-  if (fd != AT_FDCWD)
-    file_drop(f);
-  if (error)
+  if ((error = vfs_namelookupat(p, fd, 0, path, &v)))
     return error;
 
   if (v->v_type != V_LNK)
@@ -489,40 +514,39 @@ int do_fchdir(proc_t *p, int fd) {
 }
 
 int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath) {
-  file_t *f;
-  vnode_t *vn, *dvn, *atdir = NULL;
-  componentname_t cn;
   vattr_t va;
   int error;
+  vnrinfo_t vi;
 
-  if (newdirfd != AT_FDCWD) {
-    if ((error = fdtab_get_file(p->p_fdtable, newdirfd, FF_READ, &f)))
-      return error;
-    atdir = f->f_vnode;
-  }
-  error = vfs_namecreateat(linkpath, atdir, 0, &dvn, &vn, &cn);
-  if (newdirfd != AT_FDCWD)
-    file_drop(f);
-  if (error)
+  if ((error = vnrinfo_init(&vi, VNR_CREATE, 0, linkpath)))
     return error;
 
-  if (vn != NULL) {
-    if (vn != dvn)
-      vnode_put(dvn);
-    else
-      vnode_drop(dvn);
+  if ((error = vfs_nameresolveat(p, newdirfd, &vi))) {
+    vnrinfo_destroy(&vi);
+    return error;
+  }
 
-    vnode_drop(vn);
+  if (vi.vi_vp != NULL) {
+    if (vi.vi_vp != vi.vi_dvp)
+      vnode_put(vi.vi_dvp);
+    else
+      vnode_drop(vi.vi_dvp);
+
+    vnode_drop(vi.vi_vp);
+
+    vnrinfo_destroy(&vi);
     return EEXIST;
   }
 
   memset(&va, 0, sizeof(vattr_t));
   va.va_mode = S_IFLNK | (ACCESSPERMS & ~p->p_cmask);
 
-  error = VOP_SYMLINK(dvn, &cn, &va, target, &vn);
+  error = VOP_SYMLINK(vi.vi_dvp, &vi.vi_lastcn, &va, target, &vi.vi_vp);
   if (!error)
-    vnode_drop(vn);
-  vnode_put(dvn);
+    vnode_drop(vi.vi_vp);
+  vnode_put(vi.vi_dvp);
+
+  vnrinfo_destroy(&vi);
   return error;
 }
 
