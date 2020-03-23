@@ -4,6 +4,7 @@ import argparse
 import os
 import os.path
 import subprocess
+import sys
 
 from launcher import *
 
@@ -29,11 +30,7 @@ def TestRun(sim, uarts):
 def DevelRun(sim, dbg, uarts):
     from libtmux import Server, Session
 
-    # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
-    tmux_env = os.environ.copy()
-    tmux_env["MIMIKER_REPO"] = os.getcwd()
-    subprocess.run(['tmux', '-f', TMUX_CONF, '-L', 'mimiker', 'start-server'],
-                   env=tmux_env)
+    subprocess.run(['tmux', '-f', TMUX_CONF, '-L', 'mimiker', 'start-server'])
 
     server = Server(config_file=TMUX_CONF, socket_name='mimiker')
 
@@ -85,6 +82,9 @@ if __name__ == '__main__':
     # Check if the kernel file is available
     if not os.path.isfile(args.kernel):
         raise SystemExit('%s: file does not exist!' % args.kernel)
+
+    # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
+    os.environ['MIMIKER_REPO'] = os.path.dirname(os.path.realpath(sys.argv[0]))
 
     sim = QEMU()
     sim.configure(debug=args.debug, graphics=args.graphics, kernel=args.kernel,
