@@ -21,6 +21,7 @@ SOURCES = \
 	exec_shebang.c \
 	fdt.c \
 	file.c \
+	file_syscalls.c \
 	filedesc.c \
 	fork.c \
 	initrd.c \

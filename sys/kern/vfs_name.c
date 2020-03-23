@@ -13,24 +13,6 @@
 #define CN_ISLAST 0x00000001     /* this is last component of pathname */
 #define CN_REQUIREDIR 0x00000002 /* must be a directory */
 
-/* Internal state for a vnr operation. */
-typedef struct {
-  /* Arguments to vnr. */
-  vnrop_t vs_op;     /* vnr operation type */
-  uint32_t vs_flags; /* flags to vfs name resolver */
-  vnode_t *vs_atdir; /* startup dir, cwd if null */
-
-  /* Results returned from lookup. */
-  vnode_t *vs_vp;  /* vnode of result */
-  vnode_t *vs_dvp; /* vnode of parent directory */
-
-  char *vs_pathbuf;  /* pathname buffer */
-  size_t vs_pathlen; /* remaining chars in path */
-  componentname_t vs_cn;
-  const char *vs_nextcn;
-  int vs_loopcnt; /* count of symlinks encountered */
-} vnrstate_t;
-
 bool componentname_equal(const componentname_t *cn, const char *name) {
   if (strlen(name) != cn->cn_namelen)
     return false;
@@ -179,12 +161,10 @@ static void vnr_parse_component(vnrstate_t *vs) {
   vs->vs_nextcn = name;
 }
 
-static int vfs_nameresolve(vnrstate_t *vs) {
-  /* TODO: This is a simplified implementation, and it does not support many
-     required features! These include: symlinks */
-  int error;
+static int do_nameresolve(vnrstate_t *vs) {
   vnode_t *searchdir, *parentdir = NULL;
   componentname_t *cn = &vs->vs_cn;
+  int error;
 
   if (vs->vs_nextcn[0] == '\0')
     return ENOENT;
@@ -207,7 +187,7 @@ static int vfs_nameresolve(vnrstate_t *vs) {
   vs_dropslashes(vs);
 
   if ((error = vfs_maybe_descend(&searchdir)))
-    goto end;
+    return error;
 
   parentdir = searchdir;
   vnode_hold(parentdir);
@@ -217,8 +197,7 @@ static int vfs_nameresolve(vnrstate_t *vs) {
     vnode_unlock(searchdir);
     vs->vs_dvp = parentdir;
     vs->vs_vp = searchdir;
-    error = 0;
-    goto end;
+    return 0;
   }
 
   for (;;) {
@@ -228,9 +207,8 @@ static int vfs_nameresolve(vnrstate_t *vs) {
     /* Prepare the next path name component. */
     vnr_parse_component(vs);
     if (vs->vs_cn.cn_namelen > NAME_MAX) {
-      error = ENAMETOOLONG;
       vnode_put(searchdir);
-      goto end;
+      return ENAMETOOLONG;
     }
 
     vnode_drop(parentdir);
@@ -240,7 +218,7 @@ static int vfs_nameresolve(vnrstate_t *vs) {
     error = vnr_lookup_once(vs, parentdir, &searchdir);
     if (error) {
       vnode_put(parentdir);
-      goto end;
+      return error;
     }
 
     /* Success with no object returned means we're creating something. */
@@ -294,35 +272,52 @@ static int vfs_nameresolve(vnrstate_t *vs) {
 
   vs->vs_vp = searchdir;
   vs->vs_dvp = parentdir;
-  error = 0;
-
-end:
-  return error;
+  memcpy(&vs->vs_lastcn, &vs->vs_cn, sizeof(componentname_t));
+  return 0;
 }
 
-static int vnrstate_init(vnrstate_t *vs, vnode_t *atdir, vnrop_t op,
-                         uint32_t flags, const char *path) {
+int vnrstate_init(vnrstate_t *vs, vnrop_t op, uint32_t flags,
+                  const char *path) {
+  vs->vs_atdir = NULL;
   vs->vs_op = op;
   vs->vs_flags = flags;
-  vs->vs_atdir = atdir;
-  /* length includes null terminator */
-  vs->vs_pathlen = strlen(path) + 1;
-  if (vs->vs_pathlen > MAXPATHLEN)
+  vs->vs_path = path;
+  vs->vs_pathbuf = NULL;
+  if (strlen(path) >= MAXPATHLEN)
     return ENAMETOOLONG;
   vs->vs_pathbuf = kmalloc(M_TEMP, MAXPATHLEN, 0);
   if (!vs->vs_pathbuf)
     return ENOMEM;
-  memcpy(vs_bufstart(vs), path, vs->vs_pathlen);
+  return 0;
+}
 
+void vnrstate_destroy(vnrstate_t *vs) {
+  kfree(M_TEMP, vs->vs_pathbuf);
+}
+
+int vfs_nameresolve(vnrstate_t *vs) {
+  vs->vs_pathlen = strlen(vs->vs_path) + 1;
   vs->vs_cn.cn_flags = 0;
   vs->vs_nextcn = vs_bufstart(vs);
   vs->vs_loopcnt = 0;
 
-  return 0;
+  memcpy(vs_bufstart(vs), vs->vs_path, vs->vs_pathlen);
+
+  return do_nameresolve(vs);
 }
 
-static void vnrstate_destroy(vnrstate_t *vs) {
-  kfree(M_TEMP, vs->vs_pathbuf);
+int vfs_namelookup(const char *path, vnode_t **vp) {
+  vnrstate_t vs;
+  int error;
+
+  if ((error = vnrstate_init(&vs, VNR_LOOKUP, VNR_FOLLOW, path)))
+    return error;
+
+  error = vfs_nameresolve(&vs);
+  *vp = vs.vs_vp;
+
+  vnrstate_destroy(&vs);
+  return error;
 }
 
 int vfs_name_in_dir(vnode_t *dv, vnode_t *v, char *buf, size_t *lastp) {
@@ -368,48 +363,5 @@ int vfs_name_in_dir(vnode_t *dv, vnode_t *v, char *buf, size_t *lastp) {
 end:
   *lastp = last;
   kfree(M_TEMP, dirents);
-  return error;
-}
-
-int vfs_namelookupat(const char *path, vnode_t *atdir, uint32_t flags,
-                     vnode_t **vp) {
-  vnrstate_t vs;
-  int error;
-  if ((error = vnrstate_init(&vs, atdir, VNR_LOOKUP, flags, path)))
-    return error;
-  error = vfs_nameresolve(&vs);
-  *vp = vs.vs_vp;
-
-  vnrstate_destroy(&vs);
-  return error;
-}
-
-int vfs_namecreateat(const char *path, vnode_t *atdir, uint32_t flags,
-                     vnode_t **dvp, vnode_t **vp, componentname_t *cn) {
-  vnrstate_t vs;
-  int error;
-  if ((error = vnrstate_init(&vs, atdir, VNR_CREATE, flags, path)))
-    return error;
-  error = vfs_nameresolve(&vs);
-  *dvp = vs.vs_dvp;
-  *vp = vs.vs_vp;
-  memcpy(cn, &vs.vs_cn, sizeof(componentname_t));
-
-  vnrstate_destroy(&vs);
-  return error;
-}
-
-int vfs_namedeleteat(const char *path, vnode_t *atdir, uint32_t flags,
-                     vnode_t **dvp, vnode_t **vp, componentname_t *cn) {
-  vnrstate_t vs;
-  int error;
-  if ((error = vnrstate_init(&vs, atdir, VNR_DELETE, flags, path)))
-    return error;
-  error = vfs_nameresolve(&vs);
-  *dvp = vs.vs_dvp;
-  *vp = vs.vs_vp;
-  memcpy(cn, &vs.vs_cn, sizeof(componentname_t));
-
-  vnrstate_destroy(&vs);
   return error;
 }
