@@ -16,6 +16,7 @@
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
 #include <sys/kasan.h>
+#include <mips/kasan.h>
 
 static const char *whitespaces = " \t";
 
@@ -134,20 +135,22 @@ static void malta_physmem(void) {
   /* XXX: workaround - pmap_enter fails to physical page with address 0 */
   paddr_t ram_start = MALTA_PHYS_SDRAM_BASE + PAGESIZE;
   paddr_t ram_end = MALTA_PHYS_SDRAM_BASE + kenv_get_ulong("memsize");
-  paddr_t kern_start = MIPS_KSEG2_TO_PHYS(__boot);
+  paddr_t kern_start = MIPS_KSEG0_TO_PHYS(__boot);
   paddr_t kern_end = align(MIPS_KSEG2_TO_PHYS(__ebss), PAGESIZE);
+#ifdef KASAN
+  kern_end += KASAN_MD_SHADOW_SIZE;
+#endif /* !KASAN */
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
 
   vm_physseg_plug(ram_start, kern_start);
 
-  size_t kasan_size = 1 << 22;
   if (rd_start != rd_end) {
-    vm_physseg_plug(kern_end + kasan_size, rd_start);
+    vm_physseg_plug(kern_end, rd_start);
     vm_physseg_plug_used(rd_start, rd_end);
     vm_physseg_plug(rd_end, ram_end);
   } else {
-    vm_physseg_plug(kern_end + kasan_size, ram_end);
+    vm_physseg_plug(kern_end, ram_end);
   }
 }
 
