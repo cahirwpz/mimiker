@@ -44,6 +44,70 @@ static int vfs_namelookupat(proc_t *p, int fdat, uint32_t flags,
   return error;
 }
 
+static int vfs_create(char *pathname, int *flagsp, int mode, vnode_t **vp) {
+  vnrstate_t vs;
+  int error;
+
+  if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, pathname)))
+    return error;
+
+  if ((error = vfs_nameresolve(&vs)))
+    goto fail;
+
+  if (vs.vs_vp == NULL) {
+    vattr_t va;
+    vattr_null(&va);
+    va.va_mode = S_IFREG | (mode & ALLPERMS);
+    error = VOP_CREATE(vs.vs_dvp, &vs.vs_lastcn, &va, &vs.vs_vp);
+    vnode_put(vs.vs_dvp);
+    if (error)
+      goto fail;
+    *flagsp &= ~O_TRUNC;
+  } else {
+    if (vs.vs_vp == vs.vs_dvp)
+      vnode_drop(vs.vs_dvp);
+    else
+      vnode_put(vs.vs_dvp);
+
+    if (*flagsp & O_EXCL)
+      error = EEXIST;
+    *flagsp &= ~O_CREAT;
+  }
+  *vp = vs.vs_vp;
+
+fail:
+  vnrstate_destroy(&vs);
+  return error;
+}
+
+static int vfs_open(file_t *f, char *pathname, int flags, int mode) {
+  vnode_t *v;
+  int error = 0;
+
+  if (flags & O_CREAT) {
+    if ((error = vfs_create(pathname, &flags, mode, &v)))
+      return error;
+  } else {
+    if ((error = vfs_namelookup(pathname, &v)))
+      return error;
+  }
+
+  if (!error && flags & O_TRUNC) {
+    vattr_t va;
+    vattr_null(&va);
+    va.va_size = 0;
+    error = VOP_SETATTR(v, &va);
+  }
+
+  if (!error)
+    error = VOP_OPEN(v, flags, f);
+
+  /* Drop our reference to v. We received it from vfs_namelookup, but we no
+     longer need it - file f keeps its own reference to v after open. */
+  vnode_drop(v);
+  return error;
+}
+
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fdp) {
   int error;
 
