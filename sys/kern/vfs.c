@@ -199,41 +199,37 @@ int vfs_maybe_descend(vnode_t **vp) {
 
 int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   vnode_t *v;
+  vnrstate_t vs;
   int error = 0;
+
   if (flags & O_CREAT) {
-    vnrinfo_t vi;
-
-    if ((error = vnrinfo_init(&vi, VNR_CREATE, VNR_FOLLOW, pathname)))
+    if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, pathname)))
       return error;
 
-    if ((error = vfs_nameresolve(&vi))) {
-      vnrinfo_destroy(&vi);
-      return error;
-    }
+    if ((error = vfs_nameresolve(&vs)))
+      goto fail;
 
-    if (vi.vi_vp == NULL) {
+    if (vs.vs_vp == NULL) {
       vattr_t va;
       vattr_null(&va);
       va.va_mode = S_IFREG | (mode & ALLPERMS);
-      error = VOP_CREATE(vi.vi_dvp, &vi.vi_lastcn, &va, &vi.vi_vp);
-      vnode_put(vi.vi_dvp);
-      if (error) {
-        vnrinfo_destroy(&vi);
-        return error;
-      }
+      error = VOP_CREATE(vs.vs_dvp, &vs.vs_lastcn, &va, &vs.vs_vp);
+      vnode_put(vs.vs_dvp);
+      if (error)
+        goto fail;
       flags &= ~O_TRUNC;
     } else {
-      if (vi.vi_vp == vi.vi_dvp)
-        vnode_drop(vi.vi_dvp);
+      if (vs.vs_vp == vs.vs_dvp)
+        vnode_drop(vs.vs_dvp);
       else
-        vnode_put(vi.vi_dvp);
+        vnode_put(vs.vs_dvp);
 
       if (mode & O_EXCL)
         error = EEXIST;
       mode &= ~O_CREAT;
     }
-    v = vi.vi_vp;
-    vnrinfo_destroy(&vi);
+    v = vs.vs_vp;
+    vnrstate_destroy(&vs);
   } else {
     if ((error = vfs_namelookup(pathname, &v)))
       return error;
@@ -252,6 +248,10 @@ int vfs_open(file_t *f, char *pathname, int flags, int mode) {
   /* Drop our reference to v. We received it from vfs_namelookup, but we no
      longer need it - file f keeps its own reference to v after open. */
   vnode_drop(v);
+  return error;
+
+fail:
+  vnrstate_destroy(&vs);
   return error;
 }
 

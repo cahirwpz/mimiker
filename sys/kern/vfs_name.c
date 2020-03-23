@@ -13,16 +13,6 @@
 #define CN_ISLAST 0x00000001     /* this is last component of pathname */
 #define CN_REQUIREDIR 0x00000002 /* must be a directory */
 
-/* Internal state for a vnr operation. */
-typedef struct {
-  vnrinfo_t *vs_info; /* general vnr info */
-
-  size_t vs_pathlen; /* remaining chars in path */
-  componentname_t vs_cn;
-  const char *vs_nextcn;
-  int vs_loopcnt; /* count of symlinks encountered */
-} vnrstate_t;
-
 bool componentname_equal(const componentname_t *cn, const char *name) {
   if (strlen(name) != cn->cn_namelen)
     return false;
@@ -42,7 +32,7 @@ static const char *cn_namenext(componentname_t *cn) {
 }
 
 static char *vs_bufstart(vnrstate_t *vs) {
-  return vs->vs_info->vi_pathbuf + MAXPATHLEN - vs->vs_pathlen;
+  return vs->vs_pathbuf + MAXPATHLEN - vs->vs_pathlen;
 }
 
 /* Drop leading slashes. */
@@ -125,7 +115,7 @@ static int vnr_lookup_once(vnrstate_t *vs, vnode_t *searchdir,
      * if we are creating an entry and are working
      * on the last component of the path name.
      */
-    if (error == ENOENT && vs->vs_info->vi_op == VNR_CREATE &&
+    if (error == ENOENT && vs->vs_op == VNR_CREATE &&
         cn->cn_flags & CN_ISLAST) {
       vnode_unlock(searchdir);
       foundvn = NULL;
@@ -172,18 +162,17 @@ static void vnr_parse_component(vnrstate_t *vs) {
 }
 
 static int do_nameresolve(vnrstate_t *vs) {
-  int error;
   vnode_t *searchdir, *parentdir = NULL;
   componentname_t *cn = &vs->vs_cn;
-  vnrinfo_t *vi = vs->vs_info;
+  int error;
 
   if (vs->vs_nextcn[0] == '\0')
     return ENOENT;
 
   /* Establish the starting directory for lookup and lock it.*/
   if (strncmp(vs->vs_nextcn, "/", 1) != 0) {
-    if (vi->vi_atdir != NULL)
-      searchdir = vi->vi_atdir;
+    if (vs->vs_atdir != NULL)
+      searchdir = vs->vs_atdir;
     else
       searchdir = proc_self()->p_cwd;
   } else {
@@ -198,7 +187,7 @@ static int do_nameresolve(vnrstate_t *vs) {
   vs_dropslashes(vs);
 
   if ((error = vfs_maybe_descend(&searchdir)))
-    goto end;
+    return error;
 
   parentdir = searchdir;
   vnode_hold(parentdir);
@@ -206,10 +195,9 @@ static int do_nameresolve(vnrstate_t *vs) {
   /* Path was just "/". */
   if (vs->vs_nextcn[0] == '\0') {
     vnode_unlock(searchdir);
-    vi->vi_dvp = parentdir;
-    vi->vi_vp = searchdir;
-    error = 0;
-    goto end;
+    vs->vs_dvp = parentdir;
+    vs->vs_vp = searchdir;
+    return 0;
   }
 
   for (;;) {
@@ -219,9 +207,8 @@ static int do_nameresolve(vnrstate_t *vs) {
     /* Prepare the next path name component. */
     vnr_parse_component(vs);
     if (vs->vs_cn.cn_namelen > NAME_MAX) {
-      error = ENAMETOOLONG;
       vnode_put(searchdir);
-      goto end;
+      return ENAMETOOLONG;
     }
 
     vnode_drop(parentdir);
@@ -231,7 +218,7 @@ static int do_nameresolve(vnrstate_t *vs) {
     error = vnr_lookup_once(vs, parentdir, &searchdir);
     if (error) {
       vnode_put(parentdir);
-      goto end;
+      return error;
     }
 
     /* Success with no object returned means we're creating something. */
@@ -239,7 +226,7 @@ static int do_nameresolve(vnrstate_t *vs) {
       break;
 
     if (searchdir->v_type == V_LNK &&
-        ((vi->vi_flags & VNR_FOLLOW) || (cn->cn_flags & CN_REQUIREDIR))) {
+        ((vs->vs_flags & VNR_FOLLOW) || (cn->cn_flags & CN_REQUIREDIR))) {
       vnode_lock(parentdir);
       error = vnr_symlink_follow(vs, parentdir, searchdir, &parentdir);
       vnode_unlock(parentdir);
@@ -270,11 +257,11 @@ static int do_nameresolve(vnrstate_t *vs) {
       break;
   }
 
-  if (searchdir != NULL && vi->vi_op != VNR_DELETE)
+  if (searchdir != NULL && vs->vs_op != VNR_DELETE)
     vnode_unlock(searchdir);
 
   /* Release the parent directory if is not needed. */
-  if (vi->vi_op == VNR_LOOKUP && parentdir != NULL) {
+  if (vs->vs_op == VNR_LOOKUP && parentdir != NULL) {
     vnode_drop(parentdir);
     parentdir = NULL;
   }
@@ -283,58 +270,53 @@ static int do_nameresolve(vnrstate_t *vs) {
   if (parentdir != NULL && parentdir != searchdir)
     vnode_lock(parentdir);
 
-  vi->vi_vp = searchdir;
-  vi->vi_dvp = parentdir;
-  memcpy(&vi->vi_lastcn, &vs->vs_cn, sizeof(componentname_t));
-  error = 0;
-
-end:
-  return error;
+  vs->vs_vp = searchdir;
+  vs->vs_dvp = parentdir;
+  memcpy(&vs->vs_lastcn, &vs->vs_cn, sizeof(componentname_t));
+  return 0;
 }
 
-int vnrinfo_init(vnrinfo_t *vi, vnrop_t op, uint32_t flags, const char *path) {
-  vi->vi_atdir = NULL;
-  vi->vi_op = op;
-  vi->vi_flags = flags;
-  vi->vi_path = path;
-  vi->vi_pathbuf = NULL;
+int vnrstate_init(vnrstate_t *vs, vnrop_t op, uint32_t flags,
+                  const char *path) {
+  vs->vs_atdir = NULL;
+  vs->vs_op = op;
+  vs->vs_flags = flags;
+  vs->vs_path = path;
+  vs->vs_pathbuf = NULL;
   if (strlen(path) >= MAXPATHLEN)
     return ENAMETOOLONG;
-  vi->vi_pathbuf = kmalloc(M_TEMP, MAXPATHLEN, 0);
-  if (!vi->vi_pathbuf)
+  vs->vs_pathbuf = kmalloc(M_TEMP, MAXPATHLEN, 0);
+  if (!vs->vs_pathbuf)
     return ENOMEM;
   return 0;
 }
 
-void vnrinfo_destroy(vnrinfo_t *vi) {
-  kfree(M_TEMP, vi->vi_pathbuf);
+void vnrstate_destroy(vnrstate_t *vs) {
+  kfree(M_TEMP, vs->vs_pathbuf);
 }
 
-int vfs_nameresolve(vnrinfo_t *vi) {
-  vnrstate_t vs;
+int vfs_nameresolve(vnrstate_t *vs) {
+  vs->vs_pathlen = strlen(vs->vs_path) + 1;
+  vs->vs_cn.cn_flags = 0;
+  vs->vs_nextcn = vs_bufstart(vs);
+  vs->vs_loopcnt = 0;
 
-  vs.vs_pathlen = strlen(vi->vi_path) + 1;
-  vs.vs_info = vi;
-  vs.vs_cn.cn_flags = 0;
-  vs.vs_nextcn = vs_bufstart(&vs);
-  vs.vs_loopcnt = 0;
+  memcpy(vs_bufstart(vs), vs->vs_path, vs->vs_pathlen);
 
-  memcpy(vs_bufstart(&vs), vi->vi_path, vs.vs_pathlen);
-
-  return do_nameresolve(&vs);
+  return do_nameresolve(vs);
 }
 
 int vfs_namelookup(const char *path, vnode_t **vp) {
-  vnrinfo_t vi;
+  vnrstate_t vs;
   int error;
 
-  if ((error = vnrinfo_init(&vi, VNR_LOOKUP, VNR_FOLLOW, path)))
+  if ((error = vnrstate_init(&vs, VNR_LOOKUP, VNR_FOLLOW, path)))
     return error;
 
-  error = vfs_nameresolve(&vi);
-  *vp = vi.vi_vp;
+  error = vfs_nameresolve(&vs);
+  *vp = vs.vs_vp;
 
-  vnrinfo_destroy(&vi);
+  vnrstate_destroy(&vs);
   return error;
 }
 

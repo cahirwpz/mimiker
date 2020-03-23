@@ -38,19 +38,30 @@ typedef struct componentname {
 } componentname_t;
 
 typedef struct {
-  /* Arguments to vnr. */
-  vnode_t *vi_atdir; /* startup dir, cwd if null */
-  vnrop_t vi_op;     /* vnr operation type */
-  uint32_t vi_flags; /* flags to vfs name resolver */
-  const char *vi_path;
+  /*
+   * Arguments fed into name resolver.
+   */
+  vnode_t *vs_atdir; /* startup dir, cwd if null */
+  vnrop_t vs_op;     /* vnr operation type */
+  uint32_t vs_flags; /* flags to vfs name resolver */
+  const char *vs_path;
 
-  /* Results returned from lookup. */
-  vnode_t *vi_vp;            /* vnode of result */
-  vnode_t *vi_dvp;           /* vnode of parent directory */
-  componentname_t vi_lastcn; /* last component's name */
+  /*
+   * Results returned from name resolver.
+   */
+  vnode_t *vs_vp;            /* vnode of result */
+  vnode_t *vs_dvp;           /* vnode of parent directory */
+  componentname_t vs_lastcn; /* last component's name */
 
-  char *vi_pathbuf; /* pathname buffer */
-} vnrinfo_t;
+  /*
+   * Name resolver internal state. DO NOT TOUCH!
+   */
+  char *vs_pathbuf;  /* pathname buffer */
+  size_t vs_pathlen; /* remaining chars in path */
+  componentname_t vs_cn;
+  const char *vs_nextcn;
+  int vs_loopcnt; /* count of symlinks encountered */
+} vnrstate_t;
 
 #define COMPONENTNAME(str)                                                     \
   (componentname_t) {                                                          \
@@ -95,10 +106,12 @@ int do_mount(const char *fs, const char *path);
 int do_statfs(proc_t *p, char *path, statfs_t *buf);
 int do_getdents(proc_t *p, int fd, uio_t *uio);
 
-int vnrinfo_init(vnrinfo_t *vi, vnrop_t op, uint32_t flags, const char *path);
-void vnrinfo_destroy(vnrinfo_t *vi);
+/* Initialize & destroy structures required to perform name resolution. */
+int vnrstate_init(vnrstate_t *vs, vnrop_t op, uint32_t flags, const char *path);
+void vnrstate_destroy(vnrstate_t *vs);
 
-int vfs_nameresolve(vnrinfo_t *vi);
+/* Perform name resolution with specified operation. */
+int vfs_nameresolve(vnrstate_t *vs);
 
 /* Finds the vnode corresponding to the given path.
  * Increases use count on returned vnode. */
