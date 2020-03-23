@@ -129,19 +129,11 @@ size_t ramdisk_get_size(void) {
   return align(kenv_get_ulong("rd_size"), PAGESIZE);
 }
 
-static void malta_physmem(void) {
+static void malta_physmem(paddr_t kern_end) {
   /* XXX: workaround - pmap_enter fails to physical page with address 0 */
   paddr_t ram_start = MALTA_PHYS_SDRAM_BASE + PAGESIZE;
   paddr_t ram_end = MALTA_PHYS_SDRAM_BASE + kenv_get_ulong("memsize");
   paddr_t kern_start = MIPS_KSEG0_TO_PHYS(__boot);
-
-  /* we need additional space for page directory and page table entries */
-  paddr_t kern_end = MIPS_KSEG2_TO_PHYS(__ebss) + sizeof(pde_t) * PD_ENTRIES;
-  kern_end +=
-    sizeof(pte_t) * PT_ENTRIES *
-    ((kern_end + PAGESIZE * PT_ENTRIES - sizeof(pte_t) * PT_ENTRIES - 1UL) /
-     (PAGESIZE * PT_ENTRIES - sizeof(pte_t) * PT_ENTRIES));
-  kern_end = align(kern_end, PAGESIZE);
 
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
@@ -162,7 +154,7 @@ void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
   return malta_kenv(argc, argv, envp);
 }
 
-__noreturn void platform_init(void) {
+__noreturn void platform_init(paddr_t kern_end) {
   cn_init();
   klog_init();
   cpu_init();
@@ -170,7 +162,7 @@ __noreturn void platform_init(void) {
   mips_intr_init();
   mips_timer_init();
   pmap_bootstrap();
-  malta_physmem();
+  malta_physmem(kern_end);
   intr_enable();
   kernel_init();
 }

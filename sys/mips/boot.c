@@ -14,7 +14,8 @@ __boot_text static void halt(void) {
     continue;
 }
 
-__boot_text void mips_init(void) {
+/* Return kernel end address */
+__boot_text paddr_t mips_init(void) {
   /*
    * Ensure we're in kernel mode, disable FPU,
    * leave error level & exception level and disable interrupts.
@@ -95,6 +96,14 @@ __boot_text void mips_init(void) {
                      PTE_KERNEL);
   mips32_setindex(0);
   mips32_tlbwi();
+
+  paddr_t kern_end = MIPS_KSEG2_TO_PHYS(__ebss) + sizeof(pde_t) * PD_ENTRIES;
+  kern_end +=
+    sizeof(pte_t) * PT_ENTRIES *
+    ((kern_end + PAGESIZE * PT_ENTRIES - sizeof(pte_t) * PT_ENTRIES - 1UL) /
+     (PAGESIZE * PT_ENTRIES - sizeof(pte_t) * PT_ENTRIES));
+  kern_end = align(kern_end, PAGESIZE);
+  return kern_end;
 }
 
 /* Following code is used by gdb scripts. */
