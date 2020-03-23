@@ -10,8 +10,6 @@
 #include <sys/unistd.h>
 #include <sys/stat.h>
 #include <sys/libkern.h>
-#include <sys/malloc.h>
-#include <sys/mount.h>
 
 static int vfs_nameresolveat(proc_t *p, int fdat, vnrstate_t *vs) {
   file_t *f;
@@ -135,55 +133,6 @@ fail:
   return error;
 }
 
-int do_close(proc_t *p, int fd) {
-  return fdtab_close_fd(p->p_fdtable, fd);
-}
-
-int do_read(proc_t *p, int fd, uio_t *uio) {
-  file_t *f;
-  int error;
-
-  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
-    return error;
-  error = FOP_READ(f, uio);
-  file_drop(f);
-  return error;
-}
-
-int do_write(proc_t *p, int fd, uio_t *uio) {
-  file_t *f;
-  int error;
-
-  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
-    return error;
-  error = FOP_WRITE(f, uio);
-  file_drop(f);
-  return error;
-}
-
-int do_lseek(proc_t *p, int fd, off_t offset, int whence, off_t *newoffp) {
-  /* TODO: RW file flag! For now we just file_get_read */
-  file_t *f;
-  int error;
-
-  if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
-    return error;
-  error = FOP_SEEK(f, offset, whence, newoffp);
-  file_drop(f);
-  return error;
-}
-
-int do_fstat(proc_t *p, int fd, stat_t *sb) {
-  file_t *f;
-  int error;
-
-  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
-    return error;
-  error = FOP_STAT(f, sb);
-  file_drop(f);
-  return error;
-}
-
 int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag) {
   vnode_t *v;
   vattr_t va;
@@ -200,92 +149,6 @@ int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag) {
     vattr_convert(&va, sb);
 
   vnode_drop(v);
-  return error;
-}
-
-int do_dup(proc_t *p, int oldfd, int *newfdp) {
-  file_t *f;
-  int error;
-
-  if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
-    return error;
-
-  error = fdtab_install_file(p->p_fdtable, f, 0, newfdp);
-  file_drop(f);
-  return error;
-}
-
-int do_dup2(proc_t *p, int oldfd, int newfd) {
-  file_t *f;
-  int error;
-
-  if (oldfd == newfd)
-    return 0;
-
-  if ((error = fdtab_get_file(p->p_fdtable, oldfd, 0, &f)))
-    return error;
-
-  error = fdtab_install_file_at(p->p_fdtable, f, newfd);
-  file_drop(f);
-  return error;
-}
-
-int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
-  file_t *f;
-  int error;
-
-  if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
-    return error;
-
-  /* TODO: Currently only F_DUPFD command is implemented. */
-  bool cloexec = false;
-  int flags = 0;
-  switch (cmd) {
-    case F_DUPFD_CLOEXEC:
-      cloexec = true;
-      /* FALLTHROUGH */
-    case F_DUPFD:
-      if ((error = fdtab_install_file(p->p_fdtable, f, arg, resp)))
-        break;
-      error = fd_set_cloexec(p->p_fdtable, fd, cloexec);
-      break;
-
-    case F_SETFD:
-      if (arg == FD_CLOEXEC)
-        cloexec = true;
-      error = fd_set_cloexec(p->p_fdtable, fd, cloexec);
-      break;
-
-    case F_GETFD:
-      error = fd_get_cloexec(p->p_fdtable, fd, resp);
-      break;
-
-    case F_GETFL:
-      if (f->f_flags & FF_READ && f->f_flags & FF_WRITE) {
-        flags |= O_RDWR;
-      } else {
-        if (f->f_flags & FF_READ)
-          flags |= O_RDONLY;
-        if (f->f_flags & FF_WRITE)
-          flags |= O_WRONLY;
-      }
-      if (f->f_flags & FF_APPEND)
-        flags |= O_APPEND;
-      *resp = flags;
-      break;
-
-    case F_SETFL:
-      if (arg & O_APPEND)
-        flags |= FF_APPEND;
-      f->f_flags = flags;
-      break;
-
-    default:
-      error = EINVAL;
-      break;
-  }
-
-  file_drop(f);
   return error;
 }
 
@@ -427,19 +290,6 @@ int do_access(proc_t *p, char *path, int amode) {
   return error;
 }
 
-int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
-  file_t *f;
-  int error;
-
-  if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
-    return error;
-  error = FOP_IOCTL(f, cmd, data);
-  file_drop(f);
-  if (error == EPASSTHROUGH)
-    error = ENOTTY;
-  return error;
-}
-
 int do_getcwd(proc_t *p, char *buf, size_t *lastp) {
   assert(*lastp == PATH_MAX);
 
@@ -554,6 +404,18 @@ ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio) {
   return error;
 }
 
+int do_chdir(proc_t *p, const char *path) {
+  vnode_t *cwd;
+  int error;
+
+  if ((error = vfs_namelookup(path, &cwd)))
+    return error;
+
+  vnode_drop(p->p_cwd);
+  p->p_cwd = cwd;
+  return 0;
+}
+
 int do_fchdir(proc_t *p, int fd) {
   file_t *f;
   int error;
@@ -608,10 +470,4 @@ int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath) {
 fail:
   vnrstate_destroy(&vs);
   return error;
-}
-
-int do_umask(proc_t *p, int newmask, int *oldmaskp) {
-  *oldmaskp = p->p_cmask;
-  p->p_cmask = newmask & ALLPERMS;
-  return 0;
 }

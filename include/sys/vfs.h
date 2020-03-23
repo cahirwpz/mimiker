@@ -70,16 +70,8 @@ typedef struct {
 
 bool componentname_equal(const componentname_t *cn, const char *name);
 
-/* Kernel interface */
+/* Procedures called by system calls implementation. */
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd);
-int do_close(proc_t *p, int fd);
-int do_read(proc_t *p, int fd, uio_t *uio);
-int do_write(proc_t *p, int fd, uio_t *uio);
-int do_lseek(proc_t *p, int fd, off_t offset, int whence, off_t *newoffp);
-int do_fstat(proc_t *p, int fd, stat_t *sb);
-int do_dup(proc_t *p, int oldfd, int *newfdp);
-int do_dup2(proc_t *p, int oldfd, int newfd);
-int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp);
 int do_unlink(proc_t *p, char *path);
 int do_mkdir(proc_t *p, char *path, mode_t mode);
 int do_rmdir(proc_t *p, char *path);
@@ -92,11 +84,9 @@ int do_symlink(proc_t *p, char *path, char *link);
 ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio);
 int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath);
 int do_rename(proc_t *p, char *from, char *to);
-int do_chdir(proc_t *p, char *path);
+int do_chdir(proc_t *p, const char *path);
 int do_fchdir(proc_t *p, int fd);
 int do_getcwd(proc_t *p, char *buf, size_t *lastp);
-int do_umask(proc_t *p, int newmask, int *oldmaskp);
-int do_ioctl(proc_t *p, int fd, u_long cmd, void *data);
 int do_truncate(proc_t *p, char *path, off_t length);
 int do_ftruncate(proc_t *p, int fd, off_t length);
 int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag);
