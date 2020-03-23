@@ -10,6 +10,7 @@ typedef struct file file_t;
 typedef struct vnode vnode_t;
 typedef struct stat stat_t;
 typedef struct uio uio_t;
+typedef struct proc proc_t;
 
 typedef int fo_read_t(file_t *f, uio_t *uio);
 typedef int fo_write_t(file_t *f, uio_t *uio);
@@ -81,5 +82,17 @@ static inline int FOP_IOCTL(file_t *f, u_long cmd, void *data) {
 }
 
 extern fileops_t badfileops;
+
+/* Procedures called by system calls implementation. */
+int do_close(proc_t *p, int fd);
+int do_read(proc_t *p, int fd, uio_t *uio);
+int do_write(proc_t *p, int fd, uio_t *uio);
+int do_lseek(proc_t *p, int fd, off_t offset, int whence, off_t *newoffp);
+int do_fstat(proc_t *p, int fd, stat_t *sb);
+int do_dup(proc_t *p, int oldfd, int *newfdp);
+int do_dup2(proc_t *p, int oldfd, int newfd);
+int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp);
+int do_ioctl(proc_t *p, int fd, u_long cmd, void *data);
+int do_umask(proc_t *p, int newmask, int *oldmaskp);
 
 #endif /* !_SYS_FILE_H_ */
