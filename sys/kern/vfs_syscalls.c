@@ -108,7 +108,7 @@ static int vfs_open(file_t *f, char *pathname, int flags, int mode) {
 }
 
 /* Unlocks and decrements reference counter for both vnode and its parent */
-static void vnode_put2(vnode_t *v, vnode_t *dv) {
+static void vnode_put_both(vnode_t *v, vnode_t *dv) {
   if (dv == v)
     vnode_drop(dv);
   else
@@ -116,7 +116,7 @@ static void vnode_put2(vnode_t *v, vnode_t *dv) {
   vnode_put(v);
 }
 
-static void vnode_drop2(vnode_t *v, vnode_t *dv) {
+static void vnode_drop_both(vnode_t *v, vnode_t *dv) {
   if (dv != v)
     vnode_put(dv);
   else
@@ -212,7 +212,7 @@ int do_unlink(proc_t *p, char *path) {
   else
     error = VOP_REMOVE(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
 
-  vnode_put2(vs.vs_vp, vs.vs_dvp);
+  vnode_put_both(vs.vs_vp, vs.vs_dvp);
 
 fail:
   vnrstate_destroy(&vs);
@@ -231,7 +231,7 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
     goto fail;
 
   if (vs.vs_vp != NULL) {
-    vnode_drop2(vs.vs_vp, vs.vs_dvp);
+    vnode_drop_both(vs.vs_vp, vs.vs_dvp);
     error = EEXIST;
     goto fail;
   }
@@ -273,7 +273,7 @@ int do_rmdir(proc_t *p, char *path) {
   if (!error)
     error = VOP_RMDIR(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
 
-  vnode_put2(vs.vs_vp, vs.vs_dvp);
+  vnode_put_both(vs.vs_vp, vs.vs_dvp);
 
 fail:
   vnrstate_destroy(&vs);
@@ -447,7 +447,7 @@ int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath) {
     goto fail;
 
   if (vs.vs_vp != NULL) {
-    vnode_drop2(vs.vs_vp, vs.vs_dvp);
+    vnode_drop_both(vs.vs_vp, vs.vs_dvp);
 
     error = EEXIST;
     goto fail;
