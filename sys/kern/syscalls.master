@@ -28,7 +28,7 @@
                         struct sigaction *osa); }
 19  { int sys_sigreturn(struct sigcontext *sigctx_p); }
 20  { int sys_wait4(pid_t pid, int *status, int options, struct rusage *rusage); }
-21  { int sys_mkdir(const char *path, mode_t mode); }
+21  { int sys_mkdirat(int fd, const char *path, mode_t mode); }
 22  { int sys_rmdir(const char *path); }
 23  { int sys_access(const char *path, int amode); }
 24  { int sys_fstatat(int fd, const char *path, struct stat *sb, int flag); }

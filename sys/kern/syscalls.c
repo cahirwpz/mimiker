@@ -456,7 +456,8 @@ end:
   return error;
 }
 
-static int sys_mkdir(proc_t *p, mkdir_args_t *args, register_t *res) {
+static int sys_mkdirat(proc_t *p, mkdirat_args_t *args, register_t *res) {
+  int fd = args->fd;
   const char *u_path = args->path;
   mode_t mode = args->mode;
 
@@ -467,9 +468,9 @@ static int sys_mkdir(proc_t *p, mkdir_args_t *args, register_t *res) {
   if ((error = copyinstr(u_path, path, PATH_MAX, &n)))
     goto end;
 
-  klog("mkdir(%s, %d)", u_path, mode);
+  klog("mkdirat(%d, %s, %d)", fd, u_path, mode);
 
-  error = do_mkdir(p, path, mode);
+  error = do_mkdirat(p, fd, path, mode);
 
 end:
   kfree(M_TEMP, path);

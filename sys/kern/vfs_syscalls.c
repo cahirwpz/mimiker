@@ -219,7 +219,7 @@ fail:
   return error;
 }
 
-int do_mkdir(proc_t *p, char *path, mode_t mode) {
+int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode) {
   vnrstate_t vs;
   vattr_t va;
   int error;
@@ -227,7 +227,7 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
   if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, path)))
     return error;
 
-  if ((error = vfs_nameresolve(&vs)))
+  if ((error = vfs_nameresolveat(p, fd, &vs)))
     goto fail;
 
   if (vs.vs_vp != NULL) {

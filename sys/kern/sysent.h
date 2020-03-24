@@ -26,7 +26,7 @@ static int sys_dup2(proc_t *, dup2_args_t *, register_t *);
 static int sys_sigaction(proc_t *, sigaction_args_t *, register_t *);
 static int sys_sigreturn(proc_t *, sigreturn_args_t *, register_t *);
 static int sys_wait4(proc_t *, wait4_args_t *, register_t *);
-static int sys_mkdir(proc_t *, mkdir_args_t *, register_t *);
+static int sys_mkdirat(proc_t *, mkdirat_args_t *, register_t *);
 static int sys_rmdir(proc_t *, rmdir_args_t *, register_t *);
 static int sys_access(proc_t *, access_args_t *, register_t *);
 static int sys_fstatat(proc_t *, fstatat_args_t *, register_t *);
@@ -80,7 +80,7 @@ struct sysent sysent[] = {
   [SYS_sigaction] = { (syscall_t *)sys_sigaction },
   [SYS_sigreturn] = { (syscall_t *)sys_sigreturn },
   [SYS_wait4] = { (syscall_t *)sys_wait4 },
-  [SYS_mkdir] = { (syscall_t *)sys_mkdir },
+  [SYS_mkdirat] = { (syscall_t *)sys_mkdirat },
   [SYS_rmdir] = { (syscall_t *)sys_rmdir },
   [SYS_access] = { (syscall_t *)sys_access },
   [SYS_fstatat] = { (syscall_t *)sys_fstatat },

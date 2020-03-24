@@ -73,7 +73,7 @@ bool componentname_equal(const componentname_t *cn, const char *name);
 /* Procedures called by system calls implementation. */
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd);
 int do_unlink(proc_t *p, char *path);
-int do_mkdir(proc_t *p, char *path, mode_t mode);
+int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode);
 int do_rmdir(proc_t *p, char *path);
 int do_access(proc_t *p, char *path, int amode);
 int do_chmod(proc_t *p, char *path, mode_t mode);

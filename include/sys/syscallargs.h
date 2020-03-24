@@ -110,9 +110,10 @@ typedef struct {
 } wait4_args_t;
 
 typedef struct {
+  int fd;
   const char * path;
   mode_t mode;
-} mkdir_args_t;
+} mkdirat_args_t;
 
 typedef struct {
   const char * path;
