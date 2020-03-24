@@ -97,11 +97,13 @@ __boot_text paddr_t mips_init(void) {
   mips32_setindex(0);
   mips32_tlbwi();
 
-  paddr_t kern_end = MIPS_KSEG2_TO_PHYS(__ebss) + sizeof(pde_t) * PD_ENTRIES;
+  paddr_t kern_end = align(MIPS_KSEG2_TO_PHYS(__ebss), PAGESIZE) +
+                     align(sizeof(pde_t) * PD_ENTRIES, PAGESIZE);
   kern_end +=
-    sizeof(pte_t) * PT_ENTRIES *
-    ((kern_end + PAGESIZE * PT_ENTRIES - sizeof(pte_t) * PT_ENTRIES - 1UL) /
-     (PAGESIZE * PT_ENTRIES - sizeof(pte_t) * PT_ENTRIES));
+    align(sizeof(pte_t) * PT_ENTRIES, PAGESIZE) *
+    ((kern_end + PAGESIZE * PT_ENTRIES -
+      align(sizeof(pte_t) * PT_ENTRIES, PAGESIZE) - 1UL) /
+     (PAGESIZE * PT_ENTRIES - align(sizeof(pte_t) * PT_ENTRIES, PAGESIZE)));
   kern_end = align(kern_end, PAGESIZE);
   return kern_end;
 }
