@@ -30,10 +30,11 @@ typedef struct {
 } write_args_t;
 
 typedef struct {
+  int fd;
   const char * path;
   int flags;
   mode_t mode;
-} open_args_t;
+} openat_args_t;
 
 typedef struct {
   int fd;

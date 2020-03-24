@@ -49,14 +49,15 @@ static int vfs_truncate(vnode_t *v, size_t len) {
   return VOP_SETATTR(v, &va);
 }
 
-static int vfs_create(char *pathname, int flags, int mode, vnode_t **vp) {
+static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
+                      vnode_t **vp) {
   vnrstate_t vs;
   int error;
 
   if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, pathname)))
     return error;
 
-  if ((error = vfs_nameresolve(&vs)))
+  if ((error = vfs_nameresolveat(p, fdat, &vs)))
     goto fail;
 
   if (vs.vs_vp == NULL) {
@@ -83,15 +84,16 @@ fail:
   return error;
 }
 
-static int vfs_open(file_t *f, char *pathname, int flags, int mode) {
+static int vfs_open(proc_t *p, file_t *f, int fdat, char *pathname, int flags,
+                    int mode) {
   vnode_t *v;
   int error;
 
   if (flags & O_CREAT) {
-    if ((error = vfs_create(pathname, flags, mode, &v)))
+    if ((error = vfs_create(p, fdat, pathname, flags, mode, &v)))
       return error;
   } else {
-    if ((error = vfs_namelookup(pathname, &v)))
+    if ((error = vfs_namelookupat(p, fdat, VNR_FOLLOW, pathname, &v)))
       return error;
   }
 
@@ -125,6 +127,11 @@ static void vnode_drop_both(vnode_t *v, vnode_t *dv) {
 }
 
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fdp) {
+  return do_openat(p, AT_FDCWD, pathname, flags, mode, fdp);
+}
+
+int do_openat(proc_t *p, int fdat, char *pathname, int flags, mode_t mode,
+              int *fdp) {
   int error;
 
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -136,7 +143,7 @@ int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fdp) {
   mode = (mode & ~p->p_cmask) & ALLPERMS;
 
   /* Try opening file. Fill the file structure. */
-  if ((error = vfs_open(f, pathname, flags, mode)))
+  if ((error = vfs_open(p, f, fdat, pathname, flags, mode)))
     goto fail;
   /* Now install the file in descriptor table. */
   if ((error = fdtab_install_file(p->p_fdtable, f, 0, fdp)))

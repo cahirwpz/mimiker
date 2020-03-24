@@ -78,6 +78,7 @@
 
 __BEGIN_DECLS
 int open(const char *, int, ...);
+int openat(int, const char *, int, ...);
 int creat(const char *, mode_t);
 int fcntl(int, int, ...);
 __END_DECLS

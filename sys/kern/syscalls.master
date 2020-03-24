@@ -10,7 +10,7 @@
 2   { int sys_fork(void); }
 3   { ssize_t sys_read(int fd, void *buf, size_t nbyte); }
 4   { ssize_t sys_write(int fd, const void *buf, size_t nbyte); }
-5   { int sys_open(const char *path, int flags, ... mode_t mode); }
+5   { int sys_openat(int fd, const char *path, int flags, ... mode_t mode); }
 6   { int sys_close(int fd); }
 7   { off_t sys_lseek(int fd, off_t offset, int whence); }
 8   { int sys_unlinkat(int fd, const char *path, int flag); }

@@ -191,7 +191,8 @@ static int sys_mprotect(proc_t *p, mprotect_args_t *args, register_t *res) {
   return ENOTSUP;
 }
 
-static int sys_open(proc_t *p, open_args_t *args, register_t *res) {
+static int sys_openat(proc_t *p, openat_args_t *args, register_t *res) {
+  int fdat = args->fd;
   const char *u_path = args->path;
   int flags = args->flags;
   mode_t mode = args->mode;
@@ -204,9 +205,9 @@ static int sys_open(proc_t *p, open_args_t *args, register_t *res) {
   if ((error = copyinstr(u_path, path, PATH_MAX, &n)))
     goto end;
 
-  klog("open(\"%s\", %d, %d)", path, flags, mode);
+  klog("openat(%d, \"%s\", %d, %d)", fdat, path, flags, mode);
 
-  if ((error = do_open(p, path, flags, mode, &fd)))
+  if ((error = do_openat(p, fdat, path, flags, mode, &fd)))
     goto end;
 
   *res = fd;

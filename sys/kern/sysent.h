@@ -10,7 +10,7 @@ static int sys_exit(proc_t *, exit_args_t *, register_t *);
 static int sys_fork(proc_t *, void *, register_t *);
 static int sys_read(proc_t *, read_args_t *, register_t *);
 static int sys_write(proc_t *, write_args_t *, register_t *);
-static int sys_open(proc_t *, open_args_t *, register_t *);
+static int sys_openat(proc_t *, openat_args_t *, register_t *);
 static int sys_close(proc_t *, close_args_t *, register_t *);
 static int sys_lseek(proc_t *, lseek_args_t *, register_t *);
 static int sys_unlinkat(proc_t *, unlinkat_args_t *, register_t *);
@@ -64,7 +64,7 @@ struct sysent sysent[] = {
   [SYS_fork] = { (syscall_t *)sys_fork },
   [SYS_read] = { (syscall_t *)sys_read },
   [SYS_write] = { (syscall_t *)sys_write },
-  [SYS_open] = { (syscall_t *)sys_open },
+  [SYS_openat] = { (syscall_t *)sys_openat },
   [SYS_close] = { (syscall_t *)sys_close },
   [SYS_lseek] = { (syscall_t *)sys_lseek },
   [SYS_unlinkat] = { (syscall_t *)sys_unlinkat },
