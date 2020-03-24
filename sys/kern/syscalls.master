@@ -13,7 +13,7 @@
 5   { int sys_open(const char *path, int flags, ... mode_t mode); }
 6   { int sys_close(int fd); }
 7   { off_t sys_lseek(int fd, off_t offset, int whence); }
-8   { int sys_unlink(const char *path); }
+8   { int sys_unlinkat(int fd, const char *path, int flag); }
 9   { pid_t sys_getpid(void); }
 10  { int sys_kill(pid_t pid, int sig); }
 11  { int sys_fstat(int fd, struct stat *sb); }

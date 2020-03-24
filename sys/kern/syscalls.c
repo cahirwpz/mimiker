@@ -436,8 +436,10 @@ static int sys_pipe2(proc_t *p, pipe2_args_t *args, register_t *res) {
   return copyout(fds, u_fdp, 2 * sizeof(int));
 }
 
-static int sys_unlink(proc_t *p, unlink_args_t *args, register_t *res) {
+static int sys_unlinkat(proc_t *p, unlinkat_args_t *args, register_t *res) {
+  int fd = args->fd;
   const char *u_path = args->path;
+  int flag = args->flag;
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t n = 0;
@@ -447,9 +449,9 @@ static int sys_unlink(proc_t *p, unlink_args_t *args, register_t *res) {
   if ((error = copyinstr(u_path, path, PATH_MAX, &n)))
     goto end;
 
-  klog("unlink(%s)", path);
+  klog("unlinkat(%d, \"%s\", %d)", fd, path, flag);
 
-  error = do_unlink(p, path);
+  error = do_unlinkat(p, fd, path, flag);
 
 end:
   kfree(M_TEMP, path);

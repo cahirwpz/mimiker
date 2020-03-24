@@ -13,7 +13,7 @@
 #define SYS_open 5
 #define SYS_close 6
 #define SYS_lseek 7
-#define SYS_unlink 8
+#define SYS_unlinkat 8
 #define SYS_getpid 9
 #define SYS_kill 10
 #define SYS_fstat 11

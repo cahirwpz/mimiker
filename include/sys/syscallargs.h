@@ -46,8 +46,10 @@ typedef struct {
 } lseek_args_t;
 
 typedef struct {
+  int fd;
   const char * path;
-} unlink_args_t;
+  int flag;
+} unlinkat_args_t;
 
 typedef struct {
   pid_t pid;

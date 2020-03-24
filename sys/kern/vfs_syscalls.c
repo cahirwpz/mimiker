@@ -197,20 +197,31 @@ int do_getdents(proc_t *p, int fd, uio_t *uio) {
   return error;
 }
 
-int do_unlink(proc_t *p, char *path) {
+int do_unlinkat(proc_t *p, int fd, char *path, int flag) {
   vnrstate_t vs;
   int error;
 
   if ((error = vnrstate_init(&vs, VNR_DELETE, 0, path)))
     return error;
 
-  if ((error = vfs_nameresolve(&vs)))
+  if ((error = vfs_nameresolveat(p, fd, &vs)))
     goto fail;
 
-  if (vs.vs_vp->v_type == V_DIR)
-    error = EPERM;
-  else
-    error = VOP_REMOVE(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
+  if (vs.vs_vp->v_mountedhere != NULL)
+    error = EBUSY;
+  else if (vs.vs_vp == vs.vs_dvp) /* No rmdir "." please */
+    error = EINVAL;
+  else if (vs.vs_vp->v_type == V_DIR) {
+    if (!(flag & AT_REMOVEDIR))
+      error = EPERM;
+    else
+      error = VOP_RMDIR(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
+  } else {
+    if (flag & AT_REMOVEDIR)
+      error = ENOTDIR;
+    else
+      error = VOP_REMOVE(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
+  }
 
   vnode_put_both(vs.vs_vp, vs.vs_dvp);
 

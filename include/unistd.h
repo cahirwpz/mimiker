@@ -143,6 +143,7 @@ ssize_t pwrite(int, const void *, size_t, off_t);
  */
 int linkat(int, const char *, int, const char *, int);
 int symlinkat(const char *, int, const char *);
+int unlinkat(int, const char *, int);
 
 /*
  * Implementation-defined extensions

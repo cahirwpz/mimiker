@@ -13,7 +13,7 @@ static int sys_write(proc_t *, write_args_t *, register_t *);
 static int sys_open(proc_t *, open_args_t *, register_t *);
 static int sys_close(proc_t *, close_args_t *, register_t *);
 static int sys_lseek(proc_t *, lseek_args_t *, register_t *);
-static int sys_unlink(proc_t *, unlink_args_t *, register_t *);
+static int sys_unlinkat(proc_t *, unlinkat_args_t *, register_t *);
 static int sys_getpid(proc_t *, void *, register_t *);
 static int sys_kill(proc_t *, kill_args_t *, register_t *);
 static int sys_fstat(proc_t *, fstat_args_t *, register_t *);
@@ -67,7 +67,7 @@ struct sysent sysent[] = {
   [SYS_open] = { (syscall_t *)sys_open },
   [SYS_close] = { (syscall_t *)sys_close },
   [SYS_lseek] = { (syscall_t *)sys_lseek },
-  [SYS_unlink] = { (syscall_t *)sys_unlink },
+  [SYS_unlinkat] = { (syscall_t *)sys_unlinkat },
   [SYS_getpid] = { (syscall_t *)sys_getpid },
   [SYS_kill] = { (syscall_t *)sys_kill },
   [SYS_fstat] = { (syscall_t *)sys_fstat },
