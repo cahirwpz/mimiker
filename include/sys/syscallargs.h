@@ -122,9 +122,11 @@ typedef struct {
 } rmdir_args_t;
 
 typedef struct {
+  int fd;
   const char * path;
-  int amode;
-} access_args_t;
+  int mode;
+  int flags;
+} faccessat_args_t;
 
 typedef struct {
   int fd;

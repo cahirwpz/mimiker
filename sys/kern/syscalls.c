@@ -507,9 +507,11 @@ static int sys_execve(proc_t *p, execve_args_t *args, register_t *res) {
   return do_execve(u_path, u_argp, u_envp);
 }
 
-static int sys_access(proc_t *p, access_args_t *args, register_t *res) {
+static int sys_faccessat(proc_t *p, faccessat_args_t *args, register_t *res) {
+  int fd = args->fd;
   const char *u_path = args->path;
-  mode_t mode = args->amode;
+  mode_t mode = args->mode;
+  int flags = args->flags;
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   int error;
@@ -517,9 +519,9 @@ static int sys_access(proc_t *p, access_args_t *args, register_t *res) {
   if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
     goto end;
 
-  klog("access(\"%s\", %d)", path, mode);
+  klog("faccessat(%d, \"%s\", %d, %d)", fd, path, mode, flags);
 
-  error = do_access(p, path, mode);
+  error = do_faccessat(p, fd, path, mode, flags);
 
 end:
   kfree(M_TEMP, path);

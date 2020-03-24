@@ -291,17 +291,24 @@ fail:
   return error;
 }
 
-int do_access(proc_t *p, char *path, int amode) {
+int do_faccessat(proc_t *p, int fd, char *path, int mode, int flags) {
   int error;
+  uint32_t vnrflags = 0;
+
+  if (!(flags & AT_SYMLINK_NOFOLLOW))
+    vnrflags |= VNR_FOLLOW;
 
   /* Check if access mode argument is valid. */
-  if (amode & ~(R_OK | W_OK | X_OK))
+  if (mode & ~(R_OK | W_OK | X_OK))
     return EINVAL;
 
   vnode_t *v;
-  if ((error = vfs_namelookup(path, &v)))
+  if ((error = vfs_namelookupat(p, fd, vnrflags, path, &v)))
     return error;
-  error = VOP_ACCESS(v, amode);
+
+  /* TODO handle AT_EACCESS: Use the effective user and group IDs instead of
+     the real user and group IDs for checking permission.*/
+  error = VOP_ACCESS(v, mode);
   vnode_drop(v);
   return error;
 }

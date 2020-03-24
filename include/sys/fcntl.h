@@ -69,6 +69,9 @@
 #define AT_REMOVEDIR                                                           \
   0x800 /* Remove directory instead of                                         \
            unlinking file.  */
+#define AT_EACCESS                                                             \
+  0x1000 /* Test access permitted for                                          \
+           effective IDs, not real IDs.  */
 
 #ifndef _KERNEL
 #include <sys/types.h>

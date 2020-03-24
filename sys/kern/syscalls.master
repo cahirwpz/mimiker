@@ -30,7 +30,7 @@
 20  { int sys_wait4(pid_t pid, int *status, int options, struct rusage *rusage); }
 21  { int sys_mkdirat(int fd, const char *path, mode_t mode); }
 22  { int sys_rmdir(const char *path); }
-23  { int sys_access(const char *path, int amode); }
+23  { int sys_faccessat(int fd, const char *path, int mode, int flags); }
 24  { int sys_fstatat(int fd, const char *path, struct stat *sb, int flag); }
 25  { int sys_pipe2(int *fdp, int flags); }
 26  { int sys_clock_gettime(clockid_t clock_id, struct timespec *tsp); }

@@ -28,7 +28,7 @@
 #define SYS_wait4 20
 #define SYS_mkdirat 21
 #define SYS_rmdir 22
-#define SYS_access 23
+#define SYS_faccessat 23
 #define SYS_fstatat 24
 #define SYS_pipe2 25
 #define SYS_clock_gettime 26
