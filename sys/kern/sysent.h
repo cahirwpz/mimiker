@@ -27,7 +27,7 @@ static int sys_sigaction(proc_t *, sigaction_args_t *, register_t *);
 static int sys_sigreturn(proc_t *, sigreturn_args_t *, register_t *);
 static int sys_wait4(proc_t *, wait4_args_t *, register_t *);
 static int sys_mkdirat(proc_t *, mkdirat_args_t *, register_t *);
-static int sys_rmdir(proc_t *, rmdir_args_t *, register_t *);
+static int sys_symlinkat(proc_t *, symlinkat_args_t *, register_t *);
 static int sys_faccessat(proc_t *, faccessat_args_t *, register_t *);
 static int sys_fstatat(proc_t *, fstatat_args_t *, register_t *);
 static int sys_pipe2(proc_t *, pipe2_args_t *, register_t *);
@@ -56,7 +56,6 @@ static int sys_truncate(proc_t *, truncate_args_t *, register_t *);
 static int sys_ftruncate(proc_t *, ftruncate_args_t *, register_t *);
 static int sys_readlinkat(proc_t *, readlinkat_args_t *, register_t *);
 static int sys_fchdir(proc_t *, fchdir_args_t *, register_t *);
-static int sys_symlinkat(proc_t *, symlinkat_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { (syscall_t *)sys_syscall },
@@ -81,7 +80,7 @@ struct sysent sysent[] = {
   [SYS_sigreturn] = { (syscall_t *)sys_sigreturn },
   [SYS_wait4] = { (syscall_t *)sys_wait4 },
   [SYS_mkdirat] = { (syscall_t *)sys_mkdirat },
-  [SYS_rmdir] = { (syscall_t *)sys_rmdir },
+  [SYS_symlinkat] = { (syscall_t *)sys_symlinkat },
   [SYS_faccessat] = { (syscall_t *)sys_faccessat },
   [SYS_fstatat] = { (syscall_t *)sys_fstatat },
   [SYS_pipe2] = { (syscall_t *)sys_pipe2 },
@@ -110,6 +109,5 @@ struct sysent sysent[] = {
   [SYS_ftruncate] = { (syscall_t *)sys_ftruncate },
   [SYS_readlinkat] = { (syscall_t *)sys_readlinkat },
   [SYS_fchdir] = { (syscall_t *)sys_fchdir },
-  [SYS_symlinkat] = { (syscall_t *)sys_symlinkat },
 };
 

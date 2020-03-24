@@ -27,7 +27,7 @@
 #define SYS_sigreturn 19
 #define SYS_wait4 20
 #define SYS_mkdirat 21
-#define SYS_rmdir 22
+#define SYS_symlinkat 22
 #define SYS_faccessat 23
 #define SYS_fstatat 24
 #define SYS_pipe2 25
@@ -56,5 +56,4 @@
 #define SYS_ftruncate 48
 #define SYS_readlinkat 49
 #define SYS_fchdir 50
-#define SYS_symlinkat 51
-#define SYS_MAXSYSCALL 52
+#define SYS_MAXSYSCALL 51

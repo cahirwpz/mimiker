@@ -480,25 +480,6 @@ end:
   return error;
 }
 
-static int sys_rmdir(proc_t *p, rmdir_args_t *args, register_t *res) {
-  const char *u_path = args->path;
-
-  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
-  size_t n = 0;
-  int error;
-
-  if ((error = copyinstr(u_path, path, PATH_MAX, &n)))
-    goto end;
-
-  klog("rmdir(%s)", path);
-
-  error = do_rmdir(p, path);
-
-end:
-  kfree(M_TEMP, path);
-  return error;
-}
-
 static int sys_execve(proc_t *p, execve_args_t *args, register_t *res) {
   const char *u_path = args->path;
   char *const *u_argp = args->argp;

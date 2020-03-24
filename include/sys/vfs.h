@@ -76,7 +76,6 @@ int do_openat(proc_t *p, int fdat, char *pathname, int flags, mode_t mode,
               int *fdp);
 int do_unlinkat(proc_t *p, int fd, char *path, int flag);
 int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode);
-int do_rmdir(proc_t *p, char *path);
 int do_ftruncate(proc_t *p, int fd, off_t length);
 int do_faccessat(proc_t *p, int fd, char *path, int mode, int flags);
 int do_chmod(proc_t *p, char *path, mode_t mode);

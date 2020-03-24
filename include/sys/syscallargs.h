@@ -119,8 +119,10 @@ typedef struct {
 } mkdirat_args_t;
 
 typedef struct {
-  const char * path;
-} rmdir_args_t;
+  const char * target;
+  int newdirfd;
+  const char * linkpath;
+} symlinkat_args_t;
 
 typedef struct {
   int fd;
@@ -239,9 +241,3 @@ typedef struct {
 typedef struct {
   int fd;
 } fchdir_args_t;
-
-typedef struct {
-  const char * target;
-  int newdirfd;
-  const char * linkpath;
-} symlinkat_args_t;

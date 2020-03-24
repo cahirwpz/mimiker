@@ -29,7 +29,7 @@
 19  { int sys_sigreturn(struct sigcontext *sigctx_p); }
 20  { int sys_wait4(pid_t pid, int *status, int options, struct rusage *rusage); }
 21  { int sys_mkdirat(int fd, const char *path, mode_t mode); }
-22  { int sys_rmdir(const char *path); }
+22  { int sys_symlinkat(const char *target, int newdirfd, const char *linkpath); }
 23  { int sys_faccessat(int fd, const char *path, int mode, int flags); }
 24  { int sys_fstatat(int fd, const char *path, struct stat *sb, int flag); }
 25  { int sys_pipe2(int *fdp, int flags); }
@@ -61,6 +61,5 @@
 48  { int sys_ftruncate(int fd, off_t length); }
 49  { ssize_t sys_readlinkat(int fd, const char *path, char *buf, size_t bufsiz); }
 50  { int sys_fchdir(int fd); }
-51  { int sys_symlinkat(const char *target, int newdirfd, const char *linkpath); }
 
 ; vim: ts=4 sw=4 sts=4 et

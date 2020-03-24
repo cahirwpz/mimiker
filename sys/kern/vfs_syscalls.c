@@ -271,33 +271,6 @@ fail:
   return error;
 }
 
-int do_rmdir(proc_t *p, char *path) {
-  vnrstate_t vs;
-  int error;
-
-  if ((error = vnrstate_init(&vs, VNR_DELETE, VNR_FOLLOW, path)))
-    return error;
-
-  if ((error = vfs_nameresolve(&vs)))
-    goto fail;
-
-  if (vs.vs_vp == vs.vs_dvp)
-    error = EINVAL;
-  else if (vs.vs_vp->v_type != V_DIR)
-    error = ENOTDIR;
-  else if (vs.vs_vp->v_mountedhere != NULL)
-    error = EBUSY;
-
-  if (!error)
-    error = VOP_RMDIR(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
-
-  vnode_put_both(vs.vs_vp, vs.vs_dvp);
-
-fail:
-  vnrstate_destroy(&vs);
-  return error;
-}
-
 int do_faccessat(proc_t *p, int fd, char *path, int mode, int flags) {
   int error;
   uint32_t vnrflags = 0;
