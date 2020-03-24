@@ -2,6 +2,7 @@
 #define _SYS_PARAM_H_
 
 #include <sys/syslimits.h>
+#include <sys/inttypes.h>
 
 /* Macros for min/max. */
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -27,6 +28,11 @@
 #ifndef ALIGNED_POINTER
 #define ALIGNED_POINTER(p, t) ((((uintptr_t)(p)) & (sizeof(t) - 1)) == 0)
 #endif
+
+/*
+ * Miscellaneous.
+ */
+#define CMASK 022 /* default file mask: S_IWGRP|S_IWOTH */
 
 /*
  * File system parameters and macros.
@@ -86,5 +92,10 @@
 #define rounddown2(x, m) ((x) & ~((__typeof__(x))((m)-1)))
 
 #define powerof2(x) ((((x)-1) & (x)) == 0)
+
+/* Signals. */
+#ifndef _KERNEL
+#include <sys/signal.h>
+#endif
 
 #endif /* !_SYS_PARAM_H_ */

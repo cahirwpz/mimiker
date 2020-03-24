@@ -14,9 +14,10 @@ $(error PROGRAM is not set)
 endif
 
 SOURCES ?= $(PROGRAM).c
+BINDIR = $(shell echo $(DIR) | cut -f 1 -d / | tr . /)
 
 BUILD-FILES += $(PROGRAM).uelf
-INSTALL-FILES += $(SYSROOT)/bin/$(PROGRAM)
+INSTALL-FILES += $(SYSROOT)/$(BINDIR)/$(PROGRAM)
 
 all: build
 
@@ -29,12 +30,12 @@ $(PROGRAM).uelf: $(OBJECTS)
 	@echo "[LD] $(DIR)$< -> $(DIR)$@"
 	$(LD) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS)
 
-$(SYSROOT)/bin/$(PROGRAM): $(PROGRAM).uelf
-	@echo "[INSTALL] $(DIR)$< -> /bin/$(PROGRAM)"
-	$(INSTALL) -D $(PROGRAM).uelf $(SYSROOT)/bin/$(PROGRAM)
-	@echo "[OBJCOPY] $(SYSROOT)/bin/$(PROGRAM) -> \
-		$(SYSROOT)/bin/$(PROGRAM).dbg"
-	$(OBJCOPY) --only-keep-debug $(SYSROOT)/bin/$(PROGRAM) \
-		$(SYSROOT)/bin/$(PROGRAM).dbg
-	@echo "[STRIP] /bin/$(PROGRAM)"
-	$(STRIP) --strip-all $(SYSROOT)/bin/$(PROGRAM)
+$(SYSROOT)/$(BINDIR)/$(PROGRAM): $(PROGRAM).uelf
+	@echo "[INSTALL] $(DIR)$< -> /$(BINDIR)/$(PROGRAM)"
+	$(INSTALL) -D $(PROGRAM).uelf $(SYSROOT)/$(BINDIR)/$(PROGRAM)
+	@echo "[OBJCOPY] $(SYSROOT)/$(BINDIR)/$(PROGRAM) -> " \
+		"$(SYSROOT)/$(BINDIR)/$(PROGRAM).dbg"
+	$(OBJCOPY) --only-keep-debug $(SYSROOT)/$(BINDIR)/$(PROGRAM) \
+		$(SYSROOT)/$(BINDIR)/$(PROGRAM).dbg
+	@echo "[STRIP] /$(BINDIR)/$(PROGRAM)"
+	$(STRIP) --strip-all $(SYSROOT)/$(BINDIR)/$(PROGRAM)

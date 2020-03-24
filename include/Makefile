@@ -24,4 +24,4 @@ distclean-here:
 
 $(SYSROOT)/usr/include/%: %
 	echo "[INSTALL] $(DIR)$* -> /usr/include/$*"
-	$(INSTALL) -D $< $@
+	$(INSTALL) -m 644 -D $< $@

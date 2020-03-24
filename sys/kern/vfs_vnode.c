@@ -6,6 +6,7 @@
 #include <sys/mutex.h>
 #include <sys/libkern.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 
@@ -46,9 +47,21 @@ void vnode_drop(vnode_t *v) {
   }
 }
 
+void vnode_get(vnode_t *v) {
+  vnode_hold(v);
+  vnode_lock(v);
+}
+
 void vnode_put(vnode_t *v) {
   vnode_unlock(v);
   vnode_drop(v);
+}
+
+bool vnode_is_mounted(vnode_t *v) {
+  vnode_t *foundvn;
+  componentname_t cn = COMPONENTNAME("..");
+  VOP_LOOKUP(v, &cn, &foundvn);
+  return foundvn == v && v->v_mount != NULL;
 }
 
 vnode_t *vnode_uncover(vnode_t *uvp) {
@@ -80,6 +93,8 @@ static int vnode_nop(vnode_t *v, ...) {
 #define vnode_access_nop vnode_nop
 #define vnode_ioctl_nop vnode_nop
 #define vnode_reclaim_nop vnode_nop
+#define vnode_readlink_nop vnode_nop
+#define vnode_symlink_nop vnode_nop
 
 static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
   vattr_null(va);
@@ -108,6 +123,8 @@ void vnodeops_init(vnodeops_t *vops) {
   NOP_IF_NULL(vops, access);
   NOP_IF_NULL(vops, ioctl);
   NOP_IF_NULL(vops, reclaim);
+  NOP_IF_NULL(vops, readlink);
+  NOP_IF_NULL(vops, symlink);
 }
 
 void vattr_convert(vattr_t *va, stat_t *sb) {
@@ -117,6 +134,7 @@ void vattr_convert(vattr_t *va, stat_t *sb) {
   sb->st_uid = va->va_uid;
   sb->st_gid = va->va_gid;
   sb->st_size = va->va_size;
+  sb->st_ino = va->va_ino;
 }
 
 void vattr_null(vattr_t *va) {
@@ -226,6 +244,7 @@ static int default_ioctl(file_t *f, u_long cmd, void *data) {
       panic("vnode without a type!");
     case V_REG:
     case V_DIR:
+    case V_LNK:
       break;
     case V_DEV:
       error = VOP_IOCTL(v, cmd, data);

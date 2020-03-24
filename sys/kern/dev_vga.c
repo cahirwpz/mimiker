@@ -29,7 +29,10 @@ static int videomode_write(vnode_t *v, uio_t *uio, int ioflag) {
   int error = vga_get_videomode(vga, &xres, &yres, &bpp);
   if (error)
     return error;
-  char buffer[RES_CTRL_BUFFER_SIZE];
+  /* Allocate one more byte since sscanf expects the buffer to be
+   * NULL-terminated */
+  char buffer[RES_CTRL_BUFFER_SIZE + 1];
+  buffer[RES_CTRL_BUFFER_SIZE] = 0;
   error = uiomove_frombuf(buffer, RES_CTRL_BUFFER_SIZE, uio);
   if (error)
     return error;

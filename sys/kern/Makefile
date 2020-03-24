@@ -21,6 +21,7 @@ SOURCES = \
 	exec_shebang.c \
 	fdt.c \
 	file.c \
+	file_syscalls.c \
 	filedesc.c \
 	fork.c \
 	initrd.c \
@@ -61,7 +62,7 @@ SOURCES = \
 	uio.c \
 	ustack.c \
 	vfs.c \
-	vfs_lookup.c \
+	vfs_name.c \
 	vfs_readdir.c \
 	vfs_syscalls.c \
 	vfs_vnode.c \

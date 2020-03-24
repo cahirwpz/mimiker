@@ -12,6 +12,7 @@
 #include <dev/ns16550reg.h>
 #include <sys/interrupt.h>
 #include <sys/sysinit.h>
+#include <sys/stat.h>
 
 #define UART_BUFSIZE 128
 
@@ -96,20 +97,29 @@ static int ns16550_close(vnode_t *v, file_t *fp) {
 /* XXX: This should be implemented by tty driver, not here. */
 static int ns16550_ioctl(vnode_t *v, u_long cmd, void *data) {
   if (cmd) {
-    memset(data, 0, sizeof(struct termios));
+    unsigned len = IOCPARM_LEN(cmd);
+    memset(data, 0, len);
     return 0;
   }
 
   return EPASSTHROUGH;
 }
 
-static vnodeops_t dev_uart_ops = {
-  .v_open = vnode_open_generic,
-  .v_write = ns16550_write,
-  .v_read = ns16550_read,
-  .v_close = ns16550_close,
-  .v_ioctl = ns16550_ioctl,
-};
+static int ns16550_getattr(vnode_t *v, vattr_t *va) {
+  memset(va, 0, sizeof(vattr_t));
+  va->va_mode = S_IFCHR;
+  va->va_nlink = 1;
+  va->va_ino = 0;
+  va->va_size = 0;
+  return 0;
+}
+
+static vnodeops_t dev_uart_ops = {.v_open = vnode_open_generic,
+                                  .v_write = ns16550_write,
+                                  .v_read = ns16550_read,
+                                  .v_close = ns16550_close,
+                                  .v_ioctl = ns16550_ioctl,
+                                  .v_getattr = ns16550_getattr};
 
 static intr_filter_t ns16550_intr(void *data) {
   ns16550_state_t *ns16550 = data;

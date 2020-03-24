@@ -61,6 +61,7 @@ struct proc {
   condvar_t p_waitcv;             /* (a) processes waiting for this one */
   int p_exitstatus;               /* (@) exit code to be returned to parent */
   vnode_t *p_cwd;                 /* ($) current working directory */
+  mode_t p_cmask;                 /* ($) mask for file creation */
   /* program segments */
   vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
   vaddr_t p_sbrk_end;   /* ($) Current end of brk segment. */

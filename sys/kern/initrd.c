@@ -50,6 +50,12 @@ static cpio_list_t initrd_head = TAILQ_HEAD_INITIALIZER(initrd_head);
 static cpio_node_t *root_node;
 static vnodeops_t initrd_vops;
 
+static const unsigned ft2vt[16] = {[C_CHR] = V_DEV,
+                                   [C_BLK] = V_DEV,
+                                   [C_DIR] = V_DIR,
+                                   [C_REG] = V_REG,
+                                   [C_LNK] = V_LNK};
+
 static cpio_node_t *cpio_node_alloc(void) {
   cpio_node_t *node = pool_alloc(P_INITRD, M_ZERO);
   TAILQ_INIT(&node->c_children);
@@ -194,10 +200,7 @@ static ino_t initrd_enum_inodes(cpio_node_t *parent, ino_t ino) {
 
 static vnode_t *vnode_of_cpio_node(cpio_node_t *cn) {
   if (!cn->c_vnode) {
-    vnodetype_t type = V_REG;
-    if (CMTOFT(cn->c_mode) == C_DIR)
-      type = V_DIR;
-
+    vnodetype_t type = ft2vt[CMTOFT(cn->c_mode)];
     cn->c_vnode = vnode_new(type, &initrd_vops, cn);
   }
 
@@ -207,6 +210,9 @@ static vnode_t *vnode_of_cpio_node(cpio_node_t *cn) {
 
 static int initrd_vnode_lookup(vnode_t *vdir, componentname_t *cn,
                                vnode_t **res) {
+  if (vdir->v_type != V_DIR)
+    return ENOTDIR;
+
   cpio_node_t *it;
   cpio_node_t *cn_dir = (cpio_node_t *)vdir->v_data;
 
@@ -220,6 +226,10 @@ static int initrd_vnode_lookup(vnode_t *vdir, componentname_t *cn,
   if (componentname_equal(cn, "..") && cn_dir->c_parent) {
     it = cn_dir->c_parent;
     *res = vnode_of_cpio_node(it);
+    return 0;
+  } else if (componentname_equal(cn, ".")) {
+    vnode_hold(vdir);
+    *res = vdir;
     return 0;
   }
 
@@ -240,6 +250,12 @@ static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
   va->va_gid = cn->c_gid;
   va->va_size = cn->c_size;
   return 0;
+}
+
+static int initrd_vnode_readlink(vnode_t *v, uio_t *uio) {
+  cpio_node_t *cn = (cpio_node_t *)v->v_data;
+  return uiomove_frombuf(cn->c_data, MIN((size_t)cn->c_size, uio->uio_resid),
+                         uio);
 }
 
 static inline cpio_node_t *vn2cn(vnode_t *v) {
@@ -318,7 +334,8 @@ static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_read = initrd_vnode_read,
                                  .v_seek = vnode_seek_generic,
                                  .v_getattr = initrd_vnode_getattr,
-                                 .v_access = vnode_access_generic};
+                                 .v_access = vnode_access_generic,
+                                 .v_readlink = initrd_vnode_readlink};
 
 static int initrd_init(vfsconf_t *vfc) {
   vnodeops_init(&initrd_vops);

@@ -58,12 +58,23 @@ struct winsize {
   unsigned short ws_ypixel; /* vertical size, pixels */
 };
 
-#define TIOCGETA _IOR('t', 19, struct termios)    /* get termios struct */
-#define TIOCSETA _IOW('t', 20, struct termios)    /* set termios struct */
-#define TIOCSETAW _IOW('t', 21, struct termios)   /* drain output, set */
-#define TIOCSETAF _IOW('t', 22, struct termios)   /* drn out, fls in, set */
+/*
+ * This is the maximum length of a line discipline's name.
+ */
+#define TTLINEDNAMELEN 32
+typedef char linedn_t[TTLINEDNAMELEN];
+
+#define TIOCGLINED _IOR('t', 66, linedn_t)      /* get line discipline (new) */
+#define TIOCGETA _IOR('t', 19, struct termios)  /* get termios struct */
+#define TIOCSETA _IOW('t', 20, struct termios)  /* set termios struct */
+#define TIOCSETAW _IOW('t', 21, struct termios) /* drain output, set */
+#define TIOCSETAF _IOW('t', 22, struct termios) /* drn out, fls in, set */
 #define TIOCGWINSZ _IOR('t', 104, struct winsize) /* get window size */
+#define TIOCSWINSZ _IOW('t', 103, struct winsize) /* set window size */
+#define TIOCSTART _IO('t', 110)                   /* start output, like ^Q */
+#define TIOCSTOP _IO('t', 111)                    /* stop output, like ^S */
 #define TIOCGPGRP _IOR('t', 119, int)             /* get pgrp of tty */
 #define TIOCSPGRP _IOW('t', 118, int)             /* set pgrp of tty */
+#define TIOCGQSIZE _IOR('t', 129, int)            /* get queue size */
 
 #endif /* !_SYS_TTYCOM_H_ */
