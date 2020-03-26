@@ -9,13 +9,24 @@
 alignas(PAGESIZE) pde_t _kernel_pmap_pde[PD_ENTRIES];
 static alignas(PAGESIZE) pte_t _kernel_pmap_pte[PT_ENTRIES];
 
+static paddr_t __mips_kern_end;
+
+__boot_text paddr_t mips_alloc_pages(int pages) {
+  paddr_t ret = __mips_kern_end;
+  __mips_kern_end += pages * PAGESIZE;
+  return ret;
+}
+
+__boot_text paddr_t mips_kern_end(void) {
+  return __mips_kern_end;
+}
+
 __boot_text static void halt(void) {
   for (;;)
     continue;
 }
 
-/* Return kernel end address */
-__boot_text paddr_t mips_init(void) {
+__boot_text void mips_init(void) {
   /*
    * Ensure we're in kernel mode, disable FPU,
    * leave error level & exception level and disable interrupts.
@@ -97,15 +108,17 @@ __boot_text paddr_t mips_init(void) {
   mips32_setindex(0);
   mips32_tlbwi();
 
-  paddr_t kern_end = align(MIPS_KSEG2_TO_PHYS(__ebss), PAGESIZE) +
-                     align(sizeof(pde_t) * PD_ENTRIES, PAGESIZE);
-  kern_end +=
-    align(sizeof(pte_t) * PT_ENTRIES, PAGESIZE) *
-    ((kern_end + PAGESIZE * PT_ENTRIES -
-      align(sizeof(pte_t) * PT_ENTRIES, PAGESIZE) - 1UL) /
-     (PAGESIZE * PT_ENTRIES - align(sizeof(pte_t) * PT_ENTRIES, PAGESIZE)));
-  kern_end = align(kern_end, PAGESIZE);
-  return kern_end;
+  /* Set end of kernel */
+  __mips_kern_end = align(MIPS_KSEG2_TO_PHYS(__ebss), PAGESIZE);
+  /* Alloc page for page table directory */
+  mips_alloc_pages((sizeof(pde_t) * PD_ENTRIES + PAGESIZE - 1) / PAGESIZE);
+  paddr_t kern_size = mips_kern_end() - MIPS_KSEG0_TO_PHYS(__boot);
+
+  /* Alloc pages for page table entries */
+  int pte_pages =
+    (kern_size + PAGESIZE * PT_ENTRIES - sizeof(pte_t) * PT_ENTRIES - 1UL) /
+    (PAGESIZE * PT_ENTRIES - sizeof(pte_t) * PT_ENTRIES);
+  mips_alloc_pages(pte_pages);
 }
 
 /* Following code is used by gdb scripts. */

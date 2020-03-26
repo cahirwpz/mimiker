@@ -6,13 +6,12 @@
 #endif
 
 #include <sys/cdefs.h>
-#include <sys/types.h>
 
 /*! \brief Prepares thread0 stack that is placed in kseg2. */
 void *platform_stack(int argc, char **argv, char **envp, unsigned memsize);
 
 /*! \brief Executes platform initialization code placed in kseg2. */
-__noreturn void platform_init(paddr_t kern_end);
+__noreturn void platform_init(void);
 
 /*
  * Malta Memory Map:

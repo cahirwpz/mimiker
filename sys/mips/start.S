@@ -39,15 +39,10 @@ LEAF(_start)
         move    a2, s2
         move    a3, s3
 
-        # Store end of kernel memory
-        move    s0, v0
-
         LA      t0, platform_stack
         jalr    t0
         move    sp, v0                  # Set thread0 stack 
 
-        # Pass end of kernel
-        move    a0, s0
         LA      t0, platform_init
         jr      t0
 END(_start)
