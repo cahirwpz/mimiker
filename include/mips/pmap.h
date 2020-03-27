@@ -24,10 +24,6 @@
 #define UPD_BASE (PMAP_KERNEL_END + PD_SIZE * 0)
 #define KPD_BASE (PMAP_KERNEL_END + PD_SIZE * 1)
 
-#ifndef __ASSEMBLER__
-void *pmap_kseg2_to_kseg0(void *va);
-#endif /* __ASSEMBLER__ */
-
 #endif /* !_MACHDEP */
 
 #ifndef __ASSEMBLER__
