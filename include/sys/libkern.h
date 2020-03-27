@@ -79,7 +79,7 @@ void *kasan_memcpy(void *dst, const void *src, size_t len);
 size_t kasan_strlen(const char *str);
 #define memcpy(d, s, l) kasan_memcpy(d, s, l)
 #define strlen(str) kasan_strlen(str)
-#endif /* KASAN */
+#endif /* !KASAN */
 
 /* Write a formatted string to default console. */
 int kprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));

@@ -24,12 +24,12 @@
 
 #define KASAN_MD_OFFSET 0xD8000000
 
-__always_inline static inline int8_t *kasan_md_addr_to_shad(const void *addr) {
-  vaddr_t va = (vaddr_t)addr;
-  return (int8_t *)(KASAN_MD_OFFSET + (va >> KASAN_SHADOW_SCALE_SHIFT));
+__always_inline static inline int8_t *
+kasan_md_addr_to_shad(unsigned long addr) {
+  return (int8_t *)(KASAN_MD_OFFSET + (addr >> KASAN_SHADOW_SCALE_SHIFT));
 }
 
-__always_inline static inline bool kasan_md_addr_supported(vaddr_t addr) {
+__always_inline static inline bool kasan_md_addr_supported(unsigned long addr) {
   return addr >= KASAN_MD_SANITIZED_START && addr < KASAN_MD_SANITIZED_END;
 }
 
