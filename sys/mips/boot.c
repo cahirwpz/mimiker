@@ -6,14 +6,13 @@
 #include <sys/mimiker.h>
 #include <sys/vm.h>
 
-alignas(PAGESIZE) pde_t _kernel_pmap_pde[PD_ENTRIES];
-
 /* Last physical address used by kernel for bootmem allocation. */
-__boot_data void *_kern_end_kseg0;
+__boot_data void *_kernel_end_kseg0;
+__boot_data pde_t *_kernel_pmap_pde;
 
 static __boot_text void *bootmem_alloc(size_t pages) {
-  void *addr = _kern_end_kseg0;
-  _kern_end_kseg0 += align(pages, PAGESIZE);
+  void *addr = _kernel_end_kseg0;
+  _kernel_end_kseg0 += align(pages, PAGESIZE);
   return addr;
 }
 
@@ -53,7 +52,7 @@ __boot_text void mips_init(void) {
     *ptr++ = 0;
 
   /* Set end address of kernel for boot allocation purposes. */
-  _kern_end_kseg0 = (void *)align(MIPS_KSEG2_TO_KSEG0(__ebss), PAGESIZE);
+  _kernel_end_kseg0 = (void *)align(MIPS_KSEG2_TO_KSEG0(__ebss), PAGESIZE);
 
   /* Clear all entries in TLB. */
   if ((mips32_getconfig0() & CFG0_MT_MASK) != CFG0_MT_TLB)
@@ -71,9 +70,10 @@ __boot_text void mips_init(void) {
   }
 
   /* Prepare 1:1 mapping between kseg2 and physical memory for kernel image. */
-  pde_t *pde = (pde_t *)MIPS_KSEG2_TO_KSEG0(_kernel_pmap_pde);
+  pde_t *pde = (pde_t *)bootmem_alloc(PAGESIZE);
   for (int i = 0; i < PD_ENTRIES; i++)
     pde[i] = PTE_GLOBAL;
+  _kernel_pmap_pde = pde;
 
   pte_t *pte = (pte_t *)bootmem_alloc(PAGESIZE);
   for (int i = 0; i < PT_ENTRIES; i++)
@@ -101,9 +101,8 @@ __boot_text void mips_init(void) {
   mips32_setentryhi(UPD_BASE);
   /* User root PDE is NULL */
   mips32_setentrylo0(PTE_GLOBAL);
-  /* Kernel root PDE is set to _kernel_pmap_pde */
-  mips32_setentrylo1(PTE_PFN(MIPS_KSEG2_TO_PHYS(_kernel_pmap_pde)) |
-                     PTE_KERNEL);
+  /* Kernel root PDE is set to pde */
+  mips32_setentrylo1(PTE_PFN(MIPS_KSEG0_TO_PHYS(pde)) | PTE_KERNEL);
   mips32_setindex(0);
   mips32_tlbwi();
 }
