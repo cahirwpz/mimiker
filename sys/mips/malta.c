@@ -16,9 +16,6 @@
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
 
-extern __boot_text paddr_t mips_alloc_pages(int pages);
-extern __boot_text paddr_t mips_kern_end(void);
-
 static const char *whitespaces = " \t";
 
 static size_t count_tokens(const char *str) {
@@ -132,12 +129,14 @@ size_t ramdisk_get_size(void) {
   return align(kenv_get_ulong("rd_size"), PAGESIZE);
 }
 
+extern __boot_data void *_kern_end_kseg0;
+
 static void malta_physmem(void) {
   /* XXX: workaround - pmap_enter fails to physical page with address 0 */
   paddr_t ram_start = MALTA_PHYS_SDRAM_BASE + PAGESIZE;
   paddr_t ram_end = MALTA_PHYS_SDRAM_BASE + kenv_get_ulong("memsize");
   paddr_t kern_start = MIPS_KSEG0_TO_PHYS(__boot);
-  paddr_t kern_end = mips_kern_end();
+  paddr_t kern_end = MIPS_KSEG0_TO_PHYS(_kern_end_kseg0);
 
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();

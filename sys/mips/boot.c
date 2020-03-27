@@ -7,18 +7,14 @@
 #include <sys/vm.h>
 
 alignas(PAGESIZE) pde_t _kernel_pmap_pde[PD_ENTRIES];
-static alignas(PAGESIZE) pte_t _kernel_pmap_pte[PT_ENTRIES];
 
-static paddr_t __mips_kern_end;
+/* Last physical address used by kernel for bootmem allocation. */
+__boot_data void *_kern_end_kseg0;
 
-__boot_text paddr_t mips_alloc_pages(int pages) {
-  paddr_t ret = __mips_kern_end;
-  __mips_kern_end += pages * PAGESIZE;
-  return ret;
-}
-
-__boot_text paddr_t mips_kern_end(void) {
-  return __mips_kern_end;
+static __boot_text void *bootmem_alloc(size_t pages) {
+  void *addr = _kern_end_kseg0;
+  _kern_end_kseg0 += align(pages, PAGESIZE);
+  return addr;
 }
 
 __boot_text static void halt(void) {
@@ -56,6 +52,9 @@ __boot_text void mips_init(void) {
   while (ptr < end)
     *ptr++ = 0;
 
+  /* Set end address of kernel for boot allocation purposes. */
+  _kern_end_kseg0 = (void *)align(MIPS_KSEG2_TO_KSEG0(__ebss), PAGESIZE);
+
   /* Clear all entries in TLB. */
   if ((mips32_getconfig0() & CFG0_MT_MASK) != CFG0_MT_TLB)
     halt();
@@ -76,7 +75,7 @@ __boot_text void mips_init(void) {
   for (int i = 0; i < PD_ENTRIES; i++)
     pde[i] = PTE_GLOBAL;
 
-  pte_t *pte = (pte_t *)MIPS_KSEG2_TO_KSEG0(_kernel_pmap_pte);
+  pte_t *pte = (pte_t *)bootmem_alloc(PAGESIZE);
   for (int i = 0; i < PT_ENTRIES; i++)
     pte[i] = PTE_GLOBAL;
 
@@ -107,18 +106,6 @@ __boot_text void mips_init(void) {
                      PTE_KERNEL);
   mips32_setindex(0);
   mips32_tlbwi();
-
-  /* Set end of kernel */
-  __mips_kern_end = align(MIPS_KSEG2_TO_PHYS(__ebss), PAGESIZE);
-  /* Alloc page for page table directory */
-  mips_alloc_pages((sizeof(pde_t) * PD_ENTRIES + PAGESIZE - 1) / PAGESIZE);
-  paddr_t kern_size = mips_kern_end() - MIPS_KSEG0_TO_PHYS(__boot);
-
-  /* Alloc pages for page table entries */
-  int pte_pages =
-    (kern_size + PAGESIZE * PT_ENTRIES - sizeof(pte_t) * PT_ENTRIES - 1UL) /
-    (PAGESIZE * PT_ENTRIES - sizeof(pte_t) * PT_ENTRIES);
-  mips_alloc_pages(pte_pages);
 }
 
 /* Following code is used by gdb scripts. */
