@@ -137,7 +137,6 @@ static void malta_physmem(void) {
   paddr_t ram_end = MALTA_PHYS_SDRAM_BASE + kenv_get_ulong("memsize");
   paddr_t kern_start = MIPS_KSEG0_TO_PHYS(__boot);
   paddr_t kern_end = MIPS_KSEG0_TO_PHYS(_kernel_end_kseg0);
-
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
 

@@ -6,13 +6,15 @@
 #include <sys/mimiker.h>
 #include <sys/vm.h>
 
-/* Last physical address used by kernel for bootmem allocation. */
+/* Last address in kseg0 used by kernel for boot allocation (PTE & PDE). */
 __boot_data void *_kernel_end_kseg0;
+/* Kernel page directory entries allocated in kseg0. */
 __boot_data pde_t *_kernel_pmap_pde;
 
-static __boot_text void *bootmem_alloc(size_t pages) {
+/* Allocates pages in kseg0. The argument must be multiple of PAGESIZE. */
+static __boot_text void *bootmem_alloc(size_t bytes) {
   void *addr = _kernel_end_kseg0;
-  _kernel_end_kseg0 += align(pages, PAGESIZE);
+  _kernel_end_kseg0 += align(bytes, PAGESIZE);
   return addr;
 }
 
