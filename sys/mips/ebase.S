@@ -241,10 +241,10 @@
 
 # Remove given bits from the status register.
 #define UNSET_IN_STATUS(mask) \
-        mfc0 k0, C0_STATUS;                                                    \
-        li k1, ~(mask);                                                        \
-        and k0, k1;                                                            \
-        mtc0 k0, C0_STATUS
+        mfc0    k0, C0_STATUS;                                                 \
+        li      k1, ~(mask);                                                   \
+        and     k0, k1;                                                        \
+        mtc0    k0, C0_STATUS
 
         .global _ebase
 
@@ -346,15 +346,15 @@ SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         LOAD_PCPU_KSEG0(k0)
 
         # Store sp, status, cause, epc, badvaddr registers in PCPU
-        sw sp, PCPU_SP(k0)
-        mfc0 k1, C0_STATUS
-        sw k1, PCPU_STATUS(k0)
-        mfc0 k1, C0_CAUSE
-        sw k1, PCPU_CAUSE(k0)
-        mfc0 k1, C0_EPC
-        sw k1, PCPU_EPC(k0)
-        mfc0 k1, C0_BADVADDR
-        sw k1, PCPU_BADVADDR(k0)
+        sw      sp, PCPU_SP(k0)
+        mfc0    k1, C0_STATUS
+        sw      k1, PCPU_STATUS(k0)
+        mfc0    k1, C0_CAUSE
+        sw      k1, PCPU_CAUSE(k0)
+        mfc0    k1, C0_EPC
+        sw      k1, PCPU_EPC(k0)
+        mfc0    k1, C0_BADVADDR
+        sw      k1, PCPU_BADVADDR(k0)
 
         # We cannot access stack (KSEG2) when exception level is enabled
         # Let's enter kernel mode, drop exception level, disable interrupts
@@ -374,15 +374,15 @@ SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         # Copy sp, status, cause, epc, badvaddr registers from PCPU
         # to stack frame
         LOAD_PCPU_KSEG0(t0)
-        lw t1, PCPU_SP(t0)
+        lw      t1, PCPU_SP(t0)
         SAVE_REG(t1, SP, sp)
-        lw t2, PCPU_STATUS(t0)
+        lw      t2, PCPU_STATUS(t0)
         SAVE_REG(t2, SR, sp)
-        lw t3, PCPU_CAUSE(t0)
+        lw      t3, PCPU_CAUSE(t0)
         SAVE_REG(t3, CAUSE, sp)
-        lw t4, PCPU_EPC(t0)
+        lw      t4, PCPU_EPC(t0)
         SAVE_REG(t4, PC, sp)
-        lw t5, PCPU_BADVADDR(t0)
+        lw      t5, PCPU_BADVADDR(t0)
         SAVE_REG(t5, BADVADDR, sp)
 
         # If FPU is enabled save FPU registers.
