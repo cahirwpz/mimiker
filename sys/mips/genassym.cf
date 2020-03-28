@@ -115,3 +115,8 @@ define P_USPACE offsetof(proc_t, p_uspace)
 
 define PCPU_CURTHREAD offsetof(pcpu_t, curthread)
 define PCPU_KSP offsetof(pcpu_t, ksp)
+define PCPU_SP offsetof(pcpu_t, sp)
+define PCPU_STATUS offsetof(pcpu_t, status)
+define PCPU_BADVADDR offsetof(pcpu_t, badvaddr)
+define PCPU_EPC offsetof(pcpu_t, epc)
+define PCPU_CAUSE offsetof(pcpu_t, cause)

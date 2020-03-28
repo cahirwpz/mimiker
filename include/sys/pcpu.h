@@ -1,6 +1,7 @@
 #ifndef _SYS_PCPU_H_
 #define _SYS_PCPU_H_
 
+#include <machine/types.h>
 #include <stdbool.h>
 
 typedef struct thread thread_t;
@@ -15,6 +16,7 @@ typedef struct pcpu {
   pmap_t *curpmap;       /*!< current page table */
   vm_map_t *uspace;      /*!< user space virtual memory map */
   void *ksp;             /*!< (MIPS) sp restored on user->kernel transition */
+  register_t status, sp, cause, epc, badvaddr; /*!< (MIPS) TODO: comment */
 } pcpu_t;
 
 extern pcpu_t _pcpu_data[1];
