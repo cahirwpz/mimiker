@@ -291,8 +291,8 @@ exc_enter:
         nop
 
 # IMPORTANT:
-# - While exception level is on the code may only access local pcpu structure!
-#   FTTB It's accessed through kseg0.
+# - While exception level is active, the code may only access local pcpu
+#   structure! FTTB It's accessed through kseg0.
 # - It is UNSAFE to use k0/k1 registers when TLB miss handler may be triggered!
 # - Status, cause, epc & badvaddr registers cannot be saved directly to kernel
 #   stack (kseg2) as it may trigger TLB handler which would overwrite them!

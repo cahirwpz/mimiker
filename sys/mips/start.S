@@ -40,7 +40,7 @@ LEAF(_start)
         move    a2, s2
         move    a3, s3
 
-        # Set $sp to the end of _boot_stack (as the stack grows downwards)
+        # Set sp to the end of _boot_stack (as the stack grows downwards)
         # This is done in order to fully move the kernel stack to kseg2
         LA sp, _boot_stack
         addi sp, sp, PAGESIZE
