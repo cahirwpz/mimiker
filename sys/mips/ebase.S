@@ -26,8 +26,7 @@
 
 #define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (EXC_FPU_##offset)(base)
 
-# TODO: to be deleted after kern_exc_enter is also changed
-#define SAVE_CPU_CTX_USR(reg)                                                 \
+#define SAVE_CPU_CTX(reg)                                                      \
         SAVE_REG_CFI(AT, AT, reg);                                             \
         SAVE_REG_CFI(v0, V0, reg);                                             \
         SAVE_REG_CFI(v1, V1, reg);                                             \
@@ -63,56 +62,6 @@
         mfhi t1;                                                               \
         SAVE_REG(t0, LO, reg);                                                 \
         SAVE_REG(t1, HI, reg);
-
-#define SAVE_CPU_CTX(_sp, reg)                                                 \
-        SAVE_REG_CFI(AT, AT, reg);                                             \
-        SAVE_REG_CFI(v0, V0, reg);                                             \
-        SAVE_REG_CFI(v1, V1, reg);                                             \
-        SAVE_REG_CFI(a0, A0, reg);                                             \
-        SAVE_REG_CFI(a1, A1, reg);                                             \
-        SAVE_REG_CFI(a2, A2, reg);                                             \
-        SAVE_REG_CFI(a3, A3, reg);                                             \
-        SAVE_REG_CFI(t0, T0, reg);                                             \
-        SAVE_REG_CFI(t1, T1, reg);                                             \
-        SAVE_REG_CFI(t2, T2, reg);                                             \
-        SAVE_REG_CFI(t3, T3, reg);                                             \
-        SAVE_REG_CFI(t4, T4, reg);                                             \
-        SAVE_REG_CFI(t5, T5, reg);                                             \
-        SAVE_REG_CFI(t6, T6, reg);                                             \
-        SAVE_REG_CFI(t7, T7, reg);                                             \
-        SAVE_REG_CFI(s0, S0, reg);                                             \
-        SAVE_REG_CFI(s1, S1, reg);                                             \
-        SAVE_REG_CFI(s2, S2, reg);                                             \
-        SAVE_REG_CFI(s3, S3, reg);                                             \
-        SAVE_REG_CFI(s4, S4, reg);                                             \
-        SAVE_REG_CFI(s5, S5, reg);                                             \
-        SAVE_REG_CFI(s6, S6, reg);                                             \
-        SAVE_REG_CFI(s7, S7, reg);                                             \
-        SAVE_REG_CFI(t8, T8, reg);                                             \
-        SAVE_REG_CFI(t9, T9, reg);                                             \
-        SAVE_REG_CFI(gp, GP, reg);                                             \
-        SAVE_REG(_sp, SP, reg);                                                \
-        .cfi_rel_offset sp, EXC_SP;                                            \
-        SAVE_REG_CFI(fp, FP, reg);                                             \
-        /* Save value of user-space RA just before syscall. */                 \
-        SAVE_REG(ra, RA, reg);                                                 \
-        .cfi_rel_offset ra, EXC_RA;                                            \
-        mfc0 ra, C0_EPC;                                                       \
-        mflo t0;                                                               \
-        mfhi t1;                                                               \
-        SAVE_REG(t0, LO, reg);                                                 \
-        SAVE_REG(t1, HI, reg);                                                 \
-        mfc0 t0, C0_STATUS;                                                    \
-        mfc0 t1, C0_CAUSE;                                                     \
-        mfc0 t2, C0_BADVADDR;                                                  \
-        mfc0 t3, C0_EPC;                                                       \
-        SAVE_REG(t0, SR, reg);                                                 \
-        SAVE_REG(t1, CAUSE, reg);                                              \
-        SAVE_REG(t2, BADVADDR, reg);                                           \
-        /* Save value of user-space PC just before syscall. */                 \
-        SAVE_REG(t3, PC, reg);                                                 \
-        .cfi_return_column t3;                                                 \
-        .cfi_rel_offset t3, EXC_PC
 
 #define LOAD_CPU_CTX()                                                         \
         LOAD_REG(t0, PC, sp);                                                  \
@@ -246,6 +195,14 @@
         and     k0, k1;                                                        \
         mtc0    k0, C0_STATUS
 
+#define COPY_TO_PCPU(reg)                                                      \
+        mfc0    k1, C0_##reg;                                                  \
+        sw      k1, PCPU_##reg(k0)
+
+#define COPY_FROM_PCPU_TO_FRAME(reg)                                           \
+        lw      t1, PCPU_##reg(t0);                                            \
+        SAVE_REG(t1, reg, sp)
+
         .global _ebase
 
         .section .ebase, "ax"
@@ -337,53 +294,42 @@ exc_enter:
 # - While exception level is on the code may only access local pcpu structure!
 #   FTTB It's accessed through kseg0.
 # - It is UNSAFE to use k0/k1 registers when TLB miss handler may be triggered!
+# - Status, cause, epc & badvaddr registers cannot be saved directly to kernel
+#   stack (kseg2) as it may trigger TLB handler which would overwrite them!
 
 SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         .cfi_signal_frame
 
-        # Exception frame will be saved on kernel stack. 
-        # Fetch exception frame pointer where context will be saved.
+        # Fetch PCPU address
         LOAD_PCPU_KSEG0(k0)
 
         # Store sp, status, cause, epc, badvaddr registers in PCPU
         sw      sp, PCPU_SP(k0)
-        mfc0    k1, C0_STATUS
-        sw      k1, PCPU_STATUS(k0)
-        mfc0    k1, C0_CAUSE
-        sw      k1, PCPU_CAUSE(k0)
-        mfc0    k1, C0_EPC
-        sw      k1, PCPU_EPC(k0)
-        mfc0    k1, C0_BADVADDR
-        sw      k1, PCPU_BADVADDR(k0)
+        COPY_TO_PCPU(STATUS)
+        COPY_TO_PCPU(CAUSE)
+        COPY_TO_PCPU(EPC)
+        COPY_TO_PCPU(BADVADDR)
 
-        # We cannot access stack (KSEG2) when exception level is enabled
-        # Let's enter kernel mode, drop exception level, disable interrupts
-        UNSET_IN_STATUS(SR_KSU_MASK|SR_EXL|SR_IE)
-
-        # Reload overwritten k0
-        LOAD_PCPU_KSEG0(k0)
-
-        # sp contains kernel stack pointer.
+        # sp now contains kernel stack pointer.
         lw      sp, PCPU_KSP(k0)
 
         # Define a rule for computing CFA as: *sp + 0.
         .cfi_def_cfa sp, 0
 
-        SAVE_CPU_CTX_USR(sp)
+        # We cannot access stack (KSEG2) when exception level is enabled
+        # Let's enter kernel mode, drop exception level, disable interrupts
+        UNSET_IN_STATUS(SR_KSU_MASK|SR_EXL|SR_IE)
 
-        # Copy sp, status, cause, epc, badvaddr registers from PCPU
-        # to stack frame
+        # Save context on the kernel stack
+        SAVE_CPU_CTX(sp)
+
+        # Copy sp, status, cause, epc, badvaddr from PCPU to stack frame
         LOAD_PCPU_KSEG0(t0)
-        lw      t1, PCPU_SP(t0)
-        SAVE_REG(t1, SP, sp)
-        lw      t2, PCPU_STATUS(t0)
-        SAVE_REG(t2, SR, sp)
-        lw      t3, PCPU_CAUSE(t0)
-        SAVE_REG(t3, CAUSE, sp)
-        lw      t4, PCPU_EPC(t0)
-        SAVE_REG(t4, PC, sp)
-        lw      t5, PCPU_BADVADDR(t0)
-        SAVE_REG(t5, BADVADDR, sp)
+        COPY_FROM_PCPU_TO_FRAME(SP)
+        COPY_FROM_PCPU_TO_FRAME(SR)
+        COPY_FROM_PCPU_TO_FRAME(CAUSE)
+        COPY_FROM_PCPU_TO_FRAME(PC)
+        COPY_FROM_PCPU_TO_FRAME(BADVADDR)
 
         # If FPU is enabled save FPU registers.
         mfc0    t0, C0_STATUS
@@ -454,10 +400,33 @@ user_return:
 END(user_exc_enter)
 
 SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
+        # Fetch PCPU address
+        LOAD_PCPU_KSEG0(k0)
+
+        # Store sp, status, cause, epc, badvaddr registers in PCPU
+        sw      sp, PCPU_SP(k0)
+        COPY_TO_PCPU(STATUS)
+        COPY_TO_PCPU(CAUSE)
+        COPY_TO_PCPU(EPC)
+        COPY_TO_PCPU(BADVADDR)
+
         # Allocate stack frame (of KERN_EXC_FRAME_SIZE bytes) and save context.
-        move    k0, sp                  # save original sp value
         subu    sp, KERN_EXC_FRAME_SIZE # required by gdb to recognize frame
-        SAVE_CPU_CTX(k0, sp)
+
+        # We cannot access stack (KSEG2) when exception level is enabled
+        # Let's drop exception level and disable interrupts.
+        UNSET_IN_STATUS(SR_EXL|SR_IE)
+
+        # Save context on the kernel stack
+        SAVE_CPU_CTX(sp)
+
+        # Copy sp, status, cause, epc, badvaddr from PCPU to stack frame
+        LOAD_PCPU_KSEG0(t0)
+        COPY_FROM_PCPU_TO_FRAME(SP)
+        COPY_FROM_PCPU_TO_FRAME(SR)
+        COPY_FROM_PCPU_TO_FRAME(CAUSE)
+        COPY_FROM_PCPU_TO_FRAME(PC)
+        COPY_FROM_PCPU_TO_FRAME(BADVADDR)
 
         # In normal conditions we're going to enter regular exception handler.
         la      s1, mips_exc_handler
@@ -474,9 +443,6 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
 
         # Load kernel global pointer.
 1:      la      gp, _gp
-
-        # Drop exception level and disable interrupts.
-        UNSET_IN_STATUS(SR_EXL|SR_IE)
 
         # Fetch thread control block pointer to s0 for later use.
         LOAD_PCPU(t0)
