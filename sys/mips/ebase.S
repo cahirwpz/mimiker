@@ -64,8 +64,6 @@
         SAVE_REG(t1, HI, reg);
 
 #define LOAD_CPU_CTX()                                                         \
-        LOAD_REG(t0, PC, sp);                                                  \
-        mtc0 t0, C0_EPC;                                                       \
         LOAD_REG(t0, HI, sp);                                                  \
         LOAD_REG(t1, LO, sp);                                                  \
         mthi t0;                                                               \
@@ -195,9 +193,13 @@
         and     k0, k1;                                                        \
         mtc0    k0, C0_STATUS
 
-#define COPY_TO_PCPU(reg)                                                      \
+#define STORE_IN_PCPU(reg)                                                     \
         mfc0    k1, C0_##reg;                                                  \
         sw      k1, PCPU_##reg(k0)
+
+#define SET_FROM_PCPU(reg)                                                     \
+        lw      k1, PCPU_##reg(k0);                                            \
+        mtc0    k1, C0_##reg
 
 #define COPY_FROM_PCPU_TO_FRAME(reg)                                           \
         lw      t1, PCPU_##reg(t0);                                            \
@@ -305,10 +307,10 @@ SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
 
         # Store sp, status, cause, epc, badvaddr registers in PCPU
         sw      sp, PCPU_SP(k0)
-        COPY_TO_PCPU(STATUS)
-        COPY_TO_PCPU(CAUSE)
-        COPY_TO_PCPU(EPC)
-        COPY_TO_PCPU(BADVADDR)
+        STORE_IN_PCPU(STATUS)
+        STORE_IN_PCPU(CAUSE)
+        STORE_IN_PCPU(EPC)
+        STORE_IN_PCPU(BADVADDR)
 
         # sp now contains kernel stack pointer.
         lw      sp, PCPU_KSP(k0)
@@ -367,20 +369,23 @@ user_exc_leave:
 
         # Set current stack pointer to user exception frame.
         # This is crucial on first entry to user-space for this thread.
-        LOAD_PCPU(s0)
+        LOAD_PCPU_KSEG0(s0)
         lw      t0, PCPU_CURTHREAD(s0)
         lw      sp, TD_UFRAME(t0)
         
         # Update kernel stack pointer to be used on kernel reentry.
         sw      sp, PCPU_KSP(s0)
 
-        # Update status register held in exception frame (only interrupt mask).
+        # Load status register from exception frame, update it with current
+        # interrupt mask and exception mode, and store it within PCPU
         LOAD_REG(t0, SR, sp)
         ins     t0, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
-
-        # Enter exception level with user-mode settings.
         ori     t0, SR_EXL
-        mtc0    t0, C0_STATUS
+        sw      t0, PCPU_SR(s0)
+
+        # Copy pc register from stack frame to PCPU
+        LOAD_REG(t0, PC, sp)
+        sw      t0, PCPU_PC(s0)
 
         # If FPU has been enabled, then restore FPU registers.
         ext     t1, t0, SR_CU1_SHIFT, 1
@@ -392,6 +397,11 @@ user_exc_leave:
 skip_fpu_restore:
         # Load context from exception frame on stack, sp will get overwritten.
         LOAD_CPU_CTX()
+
+        # Restore status and epc registers from PCPU
+        LOAD_PCPU_KSEG0(k0)
+        SET_FROM_PCPU(STATUS)
+        SET_FROM_PCPU(EPC)
 
         # This label is useful for debugging.
         sync
@@ -405,10 +415,10 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
 
         # Store sp, status, cause, epc, badvaddr registers in PCPU
         sw      sp, PCPU_SP(k0)
-        COPY_TO_PCPU(STATUS)
-        COPY_TO_PCPU(CAUSE)
-        COPY_TO_PCPU(EPC)
-        COPY_TO_PCPU(BADVADDR)
+        STORE_IN_PCPU(STATUS)
+        STORE_IN_PCPU(CAUSE)
+        STORE_IN_PCPU(EPC)
+        STORE_IN_PCPU(BADVADDR)
 
         # Allocate stack frame (of KERN_EXC_FRAME_SIZE bytes) and save context.
         subu    sp, KERN_EXC_FRAME_SIZE # required by gdb to recognize frame
@@ -462,17 +472,26 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
 kern_exc_leave:
         DISABLE_INT(t1)
 
-        # Load status register from exception frame and update it with current
-        # interrupt mask.
+        LOAD_PCPU_KSEG0(k0)
+
+        # Load status register from exception frame, update it with current
+        # interrupt mask and exception mode, and store it within PCPU
         LOAD_REG(t0, SR, sp)
         ins     t0, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
-
-        # Enter exception level with kernel-mode settings.
         ori     t0, SR_EXL
-        mtc0    t0, C0_STATUS
+        sw      t0, PCPU_SR(k0)
+
+        # Copy pc register from exception frame to PCPU
+        LOAD_REG(t0, PC, sp)
+        sw      t0, PCPU_PC(k0)
 
         # Load context from exception frame on stack, sp will get overwritten.
         LOAD_CPU_CTX()
+
+        # Restore status and epc registers from PCPU
+        LOAD_PCPU_KSEG0(k0)
+        SET_FROM_PCPU(STATUS)
+        SET_FROM_PCPU(EPC)
 
         sync
         eret
