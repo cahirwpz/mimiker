@@ -315,7 +315,7 @@ SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         # sp now contains kernel stack pointer.
         lw      sp, PCPU_KSP(k0)
 
-        # Define a rule for computing CFA as: *sp + 0.
+        # Define a rule for computing CFA as: sp + 0
         .cfi_def_cfa sp, 0
 
         # We cannot access stack (KSEG2) when exception level is enabled
@@ -328,9 +328,12 @@ SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         # Copy sp, status, cause, epc, badvaddr from PCPU to stack frame
         LOAD_PCPU_KSEG0(t0)
         COPY_FROM_PCPU_TO_FRAME(SP)
+        .cfi_rel_offset sp, EXC_SP
         COPY_FROM_PCPU_TO_FRAME(SR)
         COPY_FROM_PCPU_TO_FRAME(CAUSE)
         COPY_FROM_PCPU_TO_FRAME(PC)
+        .cfi_return_column t1
+        .cfi_rel_offset t1, EXC_PC
         COPY_FROM_PCPU_TO_FRAME(BADVADDR)
 
         # If FPU is enabled save FPU registers.
