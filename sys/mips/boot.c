@@ -11,6 +11,8 @@ __boot_data void *_kernel_end_kseg0;
 /* Kernel page directory entries allocated in kseg0. */
 __boot_data pde_t *_kernel_pmap_pde;
 
+alignas(PAGESIZE) pte_t __pde[PT_ENTRIES];
+
 /* Allocates pages in kseg0. The argument must be multiple of PAGESIZE. */
 static __boot_text void *bootmem_alloc(size_t bytes) {
   void *addr = _kernel_end_kseg0;
@@ -77,6 +79,10 @@ __boot_text void mips_init(void) {
     pde[i] = PTE_GLOBAL;
   _kernel_pmap_pde = pde;
 
+  pde_t *_pde = (pde_t *)MIPS_KSEG2_TO_KSEG0(__pde);
+  for (int i = 0; i < PT_ENTRIES; i++)
+    _pde[i] = PTE_GLOBAL;
+
   pte_t *pte = (pte_t *)bootmem_alloc(PAGESIZE);
   for (int i = 0; i < PT_ENTRIES; i++)
     pte[i] = PTE_GLOBAL;
@@ -88,6 +94,10 @@ __boot_text void mips_init(void) {
 
   /* assume that kernel image will be covered by single PDE (4MiB) */
   pde[PDE_INDEX(va)] = PTE_PFN((intptr_t)pte) | PTE_KERNEL;
+
+  /* auto-mapping? */
+  pde[1023] = PTE_PFN((intptr_t)_pde) | PTE_KERNEL;
+  _pde[PDE_INDEX(va)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pte)) | PTE_KERNEL;
 
   /* read-only segment - sections: .text, .rodata, etc. */
   for (paddr_t pa = text; pa < data; va += PAGESIZE, pa += PAGESIZE)
