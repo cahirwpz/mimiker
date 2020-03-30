@@ -1,11 +1,9 @@
-#include <mips/exception.h>
+#include <mips/asm.h>
 #include <mips/m32c0.h>
 #include <mips/pcpu.h>
 #include <mips/regdef.h>
 #include <mips/pmap.h>
 #include <mips/vm_param.h>
-
-#define STACKSIZE PAGESIZE
 
 #include "assym.h"
 
@@ -13,6 +11,196 @@
         .set	noreorder
         # Forbid the assembler from using $at register.
         .set	noat
+
+#define STACKSIZE PAGESIZE
+
+#define SAVE_REG_CFI(reg, offset, base)                                        \
+        sw reg, (EXC_##offset)(base);                                          \
+        .cfi_rel_offset reg, (EXC_##offset)
+
+#define SAVE_REG(reg, offset, base) sw reg, (EXC_##offset)(base)
+
+#define LOAD_REG(reg, offset, base) lw reg, (EXC_##offset)(base)
+
+#define SAVE_FPU_REG(reg, offset, base) swc1 reg, (EXC_FPU_##offset)(base)
+
+#define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (EXC_FPU_##offset)(base)
+
+#define SAVE_CPU_CTX(_sp, reg)                                                 \
+        SAVE_REG_CFI(AT, AT, reg);                                             \
+        SAVE_REG_CFI(v0, V0, reg);                                             \
+        SAVE_REG_CFI(v1, V1, reg);                                             \
+        SAVE_REG_CFI(a0, A0, reg);                                             \
+        SAVE_REG_CFI(a1, A1, reg);                                             \
+        SAVE_REG_CFI(a2, A2, reg);                                             \
+        SAVE_REG_CFI(a3, A3, reg);                                             \
+        SAVE_REG_CFI(t0, T0, reg);                                             \
+        SAVE_REG_CFI(t1, T1, reg);                                             \
+        SAVE_REG_CFI(t2, T2, reg);                                             \
+        SAVE_REG_CFI(t3, T3, reg);                                             \
+        SAVE_REG_CFI(t4, T4, reg);                                             \
+        SAVE_REG_CFI(t5, T5, reg);                                             \
+        SAVE_REG_CFI(t6, T6, reg);                                             \
+        SAVE_REG_CFI(t7, T7, reg);                                             \
+        SAVE_REG_CFI(s0, S0, reg);                                             \
+        SAVE_REG_CFI(s1, S1, reg);                                             \
+        SAVE_REG_CFI(s2, S2, reg);                                             \
+        SAVE_REG_CFI(s3, S3, reg);                                             \
+        SAVE_REG_CFI(s4, S4, reg);                                             \
+        SAVE_REG_CFI(s5, S5, reg);                                             \
+        SAVE_REG_CFI(s6, S6, reg);                                             \
+        SAVE_REG_CFI(s7, S7, reg);                                             \
+        SAVE_REG_CFI(t8, T8, reg);                                             \
+        SAVE_REG_CFI(t9, T9, reg);                                             \
+        SAVE_REG_CFI(gp, GP, reg);                                             \
+        SAVE_REG(_sp, SP, reg);                                                \
+        .cfi_rel_offset sp, EXC_SP;                                            \
+        SAVE_REG_CFI(fp, FP, reg);                                             \
+        /* Save value of user-space RA just before syscall. */                 \
+        SAVE_REG(ra, RA, reg);                                                 \
+        .cfi_rel_offset ra, EXC_RA;                                            \
+        mfc0 ra, C0_EPC;                                                       \
+        mflo t0;                                                               \
+        mfhi t1;                                                               \
+        SAVE_REG(t0, LO, reg);                                                 \
+        SAVE_REG(t1, HI, reg);                                                 \
+        mfc0 t0, C0_STATUS;                                                    \
+        mfc0 t1, C0_CAUSE;                                                     \
+        mfc0 t2, C0_BADVADDR;                                                  \
+        mfc0 t3, C0_EPC;                                                       \
+        SAVE_REG(t0, SR, reg);                                                 \
+        SAVE_REG(t1, CAUSE, reg);                                              \
+        SAVE_REG(t2, BADVADDR, reg);                                           \
+        /* Save value of user-space PC just before syscall. */                 \
+        SAVE_REG(t3, PC, reg);                                                 \
+        .cfi_return_column t3;                                                 \
+        .cfi_rel_offset t3, EXC_PC
+
+#define LOAD_CPU_CTX()                                                         \
+        LOAD_REG(t0, PC, sp);                                                  \
+        mtc0 t0, C0_EPC;                                                       \
+        LOAD_REG(t0, HI, sp);                                                  \
+        LOAD_REG(t1, LO, sp);                                                  \
+        mthi t0;                                                               \
+        mtlo t1;                                                               \
+        LOAD_REG(ra, RA, sp);                                                  \
+        LOAD_REG(fp, FP, sp);                                                  \
+        LOAD_REG(gp, GP, sp);                                                  \
+        LOAD_REG(t9, T9, sp);                                                  \
+        LOAD_REG(t8, T8, sp);                                                  \
+        LOAD_REG(s7, S7, sp);                                                  \
+        LOAD_REG(s6, S6, sp);                                                  \
+        LOAD_REG(s5, S5, sp);                                                  \
+        LOAD_REG(s4, S4, sp);                                                  \
+        LOAD_REG(s3, S3, sp);                                                  \
+        LOAD_REG(s2, S2, sp);                                                  \
+        LOAD_REG(s1, S1, sp);                                                  \
+        LOAD_REG(s0, S0, sp);                                                  \
+        LOAD_REG(t7, T7, sp);                                                  \
+        LOAD_REG(t6, T6, sp);                                                  \
+        LOAD_REG(t5, T5, sp);                                                  \
+        LOAD_REG(t4, T4, sp);                                                  \
+        LOAD_REG(t3, T3, sp);                                                  \
+        LOAD_REG(t2, T2, sp);                                                  \
+        LOAD_REG(t1, T1, sp);                                                  \
+        LOAD_REG(t0, T0, sp);                                                  \
+        LOAD_REG(a3, A3, sp);                                                  \
+        LOAD_REG(a2, A2, sp);                                                  \
+        LOAD_REG(a1, A1, sp);                                                  \
+        LOAD_REG(a0, A0, sp);                                                  \
+        LOAD_REG(v1, V1, sp);                                                  \
+        LOAD_REG(v0, V0, sp);                                                  \
+        LOAD_REG(AT, AT, sp);                                                  \
+        LOAD_REG(sp, SP, sp)
+
+#define SAVE_FPU_CTX()                                                         \
+        SAVE_FPU_REG($f0, F0, sp);                                             \
+        SAVE_FPU_REG($f1, F1, sp);                                             \
+        SAVE_FPU_REG($f2, F2, sp);                                             \
+        SAVE_FPU_REG($f3, F3, sp);                                             \
+        SAVE_FPU_REG($f4, F4, sp);                                             \
+        SAVE_FPU_REG($f5, F5, sp);                                             \
+        SAVE_FPU_REG($f6, F6, sp);                                             \
+        SAVE_FPU_REG($f7, F7, sp);                                             \
+        SAVE_FPU_REG($f8, F8, sp);                                             \
+        SAVE_FPU_REG($f9, F9, sp);                                             \
+        SAVE_FPU_REG($f10, F10, sp);                                           \
+        SAVE_FPU_REG($f11, F11, sp);                                           \
+        SAVE_FPU_REG($f12, F12, sp);                                           \
+        SAVE_FPU_REG($f13, F13, sp);                                           \
+        SAVE_FPU_REG($f14, F14, sp);                                           \
+        SAVE_FPU_REG($f15, F15, sp);                                           \
+        SAVE_FPU_REG($f16, F16, sp);                                           \
+        SAVE_FPU_REG($f17, F17, sp);                                           \
+        SAVE_FPU_REG($f18, F18, sp);                                           \
+        SAVE_FPU_REG($f19, F19, sp);                                           \
+        SAVE_FPU_REG($f20, F20, sp);                                           \
+        SAVE_FPU_REG($f21, F21, sp);                                           \
+        SAVE_FPU_REG($f22, F22, sp);                                           \
+        SAVE_FPU_REG($f23, F23, sp);                                           \
+        SAVE_FPU_REG($f24, F24, sp);                                           \
+        SAVE_FPU_REG($f25, F25, sp);                                           \
+        SAVE_FPU_REG($f26, F26, sp);                                           \
+        SAVE_FPU_REG($f27, F27, sp);                                           \
+        SAVE_FPU_REG($f28, F28, sp);                                           \
+        SAVE_FPU_REG($f29, F29, sp);                                           \
+        SAVE_FPU_REG($f30, F30, sp);                                           \
+        SAVE_FPU_REG($f31, F31, sp);                                           \
+        SAVE_FPU_REG($31, FSR, sp)
+
+#define LOAD_FPU_CTX()                                                         \
+        LOAD_FPU_REG($f0, F0, sp);                                             \
+        LOAD_FPU_REG($f1, F1, sp);                                             \
+        LOAD_FPU_REG($f2, F2, sp);                                             \
+        LOAD_FPU_REG($f3, F3, sp);                                             \
+        LOAD_FPU_REG($f4, F4, sp);                                             \
+        LOAD_FPU_REG($f5, F5, sp);                                             \
+        LOAD_FPU_REG($f6, F6, sp);                                             \
+        LOAD_FPU_REG($f7, F7, sp);                                             \
+        LOAD_FPU_REG($f8, F8, sp);                                             \
+        LOAD_FPU_REG($f9, F9, sp);                                             \
+        LOAD_FPU_REG($f10, F10, sp);                                           \
+        LOAD_FPU_REG($f11, F11, sp);                                           \
+        LOAD_FPU_REG($f12, F12, sp);                                           \
+        LOAD_FPU_REG($f13, F13, sp);                                           \
+        LOAD_FPU_REG($f14, F14, sp);                                           \
+        LOAD_FPU_REG($f15, F15, sp);                                           \
+        LOAD_FPU_REG($f16, F16, sp);                                           \
+        LOAD_FPU_REG($f17, F17, sp);                                           \
+        LOAD_FPU_REG($f18, F18, sp);                                           \
+        LOAD_FPU_REG($f19, F19, sp);                                           \
+        LOAD_FPU_REG($f20, F20, sp);                                           \
+        LOAD_FPU_REG($f21, F21, sp);                                           \
+        LOAD_FPU_REG($f22, F22, sp);                                           \
+        LOAD_FPU_REG($f23, F23, sp);                                           \
+        LOAD_FPU_REG($f24, F24, sp);                                           \
+        LOAD_FPU_REG($f25, F25, sp);                                           \
+        LOAD_FPU_REG($f26, F26, sp);                                           \
+        LOAD_FPU_REG($f27, F27, sp);                                           \
+        LOAD_FPU_REG($f28, F28, sp);                                           \
+        LOAD_FPU_REG($f29, F29, sp);                                           \
+        LOAD_FPU_REG($f30, F30, sp);                                           \
+        LOAD_FPU_REG($f31, F31, sp);                                           \
+        LOAD_FPU_REG($31, FSR, sp)
+
+# Increment interrupt disable nest level.
+#define TD_INC_IDNEST(reg)                                                     \
+        lw      t0, TD_IDNEST(reg);                                            \
+        addi    t0, 1;                                                         \
+        sw      t0, TD_IDNEST(reg)
+
+# Decrement interrupt disable nest level.
+#define TD_DEC_IDNEST(reg)                                                     \
+        lw      t0, TD_IDNEST(reg);                                            \
+        addi    t0, -1;                                                        \
+        sw      t0, TD_IDNEST(reg)
+
+# Disable interrupts and extract interrupt mask into reg.
+#define DISABLE_INT(reg)                                                       \
+        di      reg;                                                           \
+        ehb;                                                                   \
+        ext     reg, reg, SR_IMASK_SHIFT, SR_IMASK_BITS
+
 
         .global _ebase
 
@@ -130,7 +318,7 @@ SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         beqz    t1, skip_fpu_save
         nop
 
-        SAVE_FPU_CTX(sp)
+        SAVE_FPU_CTX()
 
 skip_fpu_save:
         # Load kernel global pointer.
@@ -150,26 +338,17 @@ skip_fpu_save:
         # No exeception frame so set td_kframe to NULL.
         sw      $0, TD_KFRAME(s0)
 
-        # Increment interrupt nest level.
-        lw      t0, TD_IDNEST(s0)
-        addi    t0, 1
-        sw      t0, TD_IDNEST(s0)
+        TD_INC_IDNEST(s0)
 
         # Call C interrupt handler routine.
         la      t0, mips_exc_handler
         jalr    t0
         move    a0, sp                  # (delay) 1st arg
 
-        # Decrement interrupt nest level.
-        lw      t0, TD_IDNEST(s0)
-        addi    t0, -1
-        sw      t0, TD_IDNEST(s0)
+        TD_DEC_IDNEST(s0)
 
 user_exc_leave:
-        # Disable interrupts and extract interrupt mask into t1.
-        di      t1
-        ehb
-        ext     t1, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
+        DISABLE_INT(t1)
 
         # Set current stack pointer to user exception frame.
         # This is crucial on first entry to user-space for this thread.
@@ -194,12 +373,11 @@ user_exc_leave:
         beqz    t1, skip_fpu_restore
         nop
 
-        LOAD_FPU_CTX(sp)
+        LOAD_FPU_CTX()
 
 skip_fpu_restore:
         # Load context from exception frame on stack, sp will get overwritten.
-        move    k0, sp
-        LOAD_CPU_CTX(k0)
+        LOAD_CPU_CTX()
 
         # This label is useful for debugging.
         sync
@@ -242,25 +420,16 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         # Save exception frame pointer into td_kframe.
         sw      sp, TD_KFRAME(s0)
 
-        # Increment interrupt nest level.
-        lw      t0, TD_IDNEST(s0)
-        addi    t0, 1
-        sw      t0, TD_IDNEST(s0)
+        TD_INC_IDNEST(s0)
 
         # Call C interrupt handler routine.
         jalr    s1
         move    a0, sp                  # (delay) 1st arg
 
-        # Decrement interrupt nest level.
-        lw      t0, TD_IDNEST(s0)
-        addi    t0, -1
-        sw      t0, TD_IDNEST(s0)
+        TD_DEC_IDNEST(s0)
 
 kern_exc_leave:
-        # Disable interrupts and extract interrupt mask into t1.
-        di      t1
-        ehb
-        ext     t1, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
+        DISABLE_INT(t1)
 
         # Load status register from exception frame and update it with current
         # interrupt mask.
@@ -272,8 +441,7 @@ kern_exc_leave:
         mtc0    t0, C0_STATUS
 
         # Load context from exception frame on stack, sp will get overwritten.
-        move    k0, sp
-        LOAD_CPU_CTX(k0)
+        LOAD_CPU_CTX()
 
         sync
         eret

@@ -1,23 +1,20 @@
 #define KL_LOG KL_SYSCALL
 #include <sys/klog.h>
 #include <sys/sysent.h>
-#include <sys/dirent.h>
 #include <sys/mimiker.h>
 #include <sys/errno.h>
-#include <sys/thread.h>
 #include <sys/mman.h>
 #include <sys/vfs.h>
-#include <sys/vnode.h>
+#include <sys/uio.h>
+#include <sys/file.h>
 #include <sys/sbrk.h>
 #include <sys/signal.h>
 #include <sys/proc.h>
-#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/exec.h>
 #include <sys/time.h>
 #include <sys/ioccom.h>
-#include <sys/proc.h>
 #include <sys/pipe.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
@@ -291,12 +288,7 @@ static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
   if ((error = copyinstr(u_path, path, PATH_MAX, &len)))
     goto end;
 
-  vnode_t *cwd;
-  if ((error = vfs_namelookup(path, &cwd)))
-    goto end;
-
-  vnode_drop(p->p_cwd);
-  p->p_cwd = cwd;
+  error = do_chdir(p, path);
 
 end:
   kfree(M_TEMP, path);

@@ -56,7 +56,7 @@ bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   return pmap_start(pmap) <= start && end <= pmap_end(pmap);
 }
 
-extern pde_t _kernel_pmap_pde[PD_ENTRIES];
+extern __boot_data pde_t *_kernel_pmap_pde;
 static pmap_t kernel_pmap;
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
@@ -119,7 +119,7 @@ void pmap_reset(pmap_t *pmap) {
 
 void pmap_bootstrap(void) {
   pmap_setup(&kernel_pmap);
-  kernel_pmap.pde = (pde_t *)MIPS_KSEG2_TO_KSEG0(_kernel_pmap_pde);
+  kernel_pmap.pde = _kernel_pmap_pde;
 }
 
 pmap_t *pmap_new(void) {
