@@ -7,11 +7,17 @@
 #include <sys/vm.h>
 #include <mips/kasan.h>
 
-alignas(PAGESIZE) pde_t _kernel_pmap_pde[PD_ENTRIES];
-static alignas(PAGESIZE) pte_t _kernel_pmap_pte[PT_ENTRIES];
-#ifdef KASAN
-static alignas(PAGESIZE) pte_t _kernel_kasan_pte[KASAN_MD_PTE_NUM][PT_ENTRIES];
-#endif /* !KASAN */
+/* Last address in kseg0 used by kernel for boot allocation (PTE & PDE). */
+__boot_data void *_kernel_end_kseg0;
+/* Kernel page directory entries allocated in kseg0. */
+__boot_data pde_t *_kernel_pmap_pde;
+
+/* Allocates pages in kseg0. The argument must be multiple of PAGESIZE. */
+static __boot_text void *bootmem_alloc(size_t bytes) {
+  void *addr = _kernel_end_kseg0;
+  _kernel_end_kseg0 += align(bytes, PAGESIZE);
+  return addr;
+}
 
 __boot_text static void halt(void) {
   for (;;)
@@ -48,6 +54,9 @@ __boot_text void mips_init(void) {
   while (ptr < end)
     *ptr++ = 0;
 
+  /* Set end address of kernel for boot allocation purposes. */
+  _kernel_end_kseg0 = (void *)align(MIPS_KSEG2_TO_KSEG0(__ebss), PAGESIZE);
+
   /* Clear all entries in TLB. */
   if ((mips32_getconfig0() & CFG0_MT_MASK) != CFG0_MT_TLB)
     halt();
@@ -64,11 +73,12 @@ __boot_text void mips_init(void) {
   }
 
   /* Prepare 1:1 mapping between kseg2 and physical memory for kernel image. */
-  pde_t *pde = (pde_t *)MIPS_KSEG2_TO_KSEG0(_kernel_pmap_pde);
+  pde_t *pde = (pde_t *)bootmem_alloc(PAGESIZE);
   for (int i = 0; i < PD_ENTRIES; i++)
     pde[i] = PTE_GLOBAL;
+  _kernel_pmap_pde = pde;
 
-  pte_t *pte = (pte_t *)MIPS_KSEG2_TO_KSEG0(_kernel_pmap_pte);
+  pte_t *pte = (pte_t *)bootmem_alloc(PAGESIZE);
   for (int i = 0; i < PT_ENTRIES; i++)
     pte[i] = PTE_GLOBAL;
 
@@ -109,9 +119,8 @@ __boot_text void mips_init(void) {
   mips32_setentryhi(UPD_BASE);
   /* User root PDE is NULL */
   mips32_setentrylo0(PTE_GLOBAL);
-  /* Kernel root PDE is set to _kernel_pmap_pde */
-  mips32_setentrylo1(PTE_PFN(MIPS_KSEG2_TO_PHYS(_kernel_pmap_pde)) |
-                     PTE_KERNEL);
+  /* Kernel root PDE is set to pde */
+  mips32_setentrylo1(PTE_PFN(MIPS_KSEG0_TO_PHYS(pde)) | PTE_KERNEL);
   mips32_setindex(0);
   mips32_tlbwi();
 }
