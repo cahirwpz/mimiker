@@ -113,5 +113,13 @@ define CTX_FRAME_SIZE sizeof(ctx_t)
 
 define P_USPACE offsetof(proc_t, p_uspace)
 
-define PCPU_CURTHREAD offsetof(pcpu_t, curthread)
+# PC/EPC and SR/STATUS definitions are duplicated for convenience reasons
+define PCPU_SP offsetof(pcpu_t, sp)
+define PCPU_PC offsetof(pcpu_t, epc)
+define PCPU_EPC offsetof(pcpu_t, epc)
 define PCPU_KSP offsetof(pcpu_t, ksp)
+define PCPU_CAUSE offsetof(pcpu_t, cause)
+define PCPU_SR offsetof(pcpu_t, status)
+define PCPU_STATUS offsetof(pcpu_t, status)
+define PCPU_BADVADDR offsetof(pcpu_t, badvaddr)
+define PCPU_CURTHREAD offsetof(pcpu_t, curthread)

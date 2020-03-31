@@ -28,7 +28,7 @@ typedef uint32_t pde_t;
 #define PD_ENTRIES (PAGESIZE / (int)sizeof(pde_t))
 
 static_assert(PD_ENTRIES == 1 << 10,
-              "Page table describes 10-bit range addresses!");
+              "Page directory describes 10-bit range addresses!");
 
 /* Number of page table entries. */
 #define PT_ENTRIES (PAGESIZE / (int)sizeof(pte_t))
@@ -46,10 +46,6 @@ static_assert(PT_ENTRIES == 1 << 10,
 #define PMAP_KERNEL_END 0xffffe000
 #define PMAP_USER_BEGIN 0x00001000
 #define PMAP_USER_END 0x80000000
-
-#ifndef __ASSEMBLER__
-void *pmap_kseg2_to_kseg0(void *va);
-#endif /* __ASSEMBLER__ */
 
 #endif /* !_MACHDEP */
 

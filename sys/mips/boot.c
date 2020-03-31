@@ -10,6 +10,8 @@
 __boot_data void *_kernel_end_kseg0;
 /* Kernel page directory entries allocated in kseg0. */
 __boot_data pde_t *_kernel_pmap_pde;
+/* The boot stack is used before we switch out to thread0. */
+static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
 /* Allocates pages in kseg0. The argument must be multiple of PAGESIZE. */
 static __boot_text void *bootmem_alloc(size_t bytes) {
@@ -23,7 +25,7 @@ __boot_text static void halt(void) {
     continue;
 }
 
-__boot_text void mips_init(void) {
+__boot_text void *mips_init(void) {
   /*
    * Ensure we're in kernel mode, disable FPU,
    * leave error level & exception level and disable interrupts.
@@ -107,6 +109,12 @@ __boot_text void mips_init(void) {
   mips32_setentrylo1(PTE_PFN(MIPS_KSEG0_TO_PHYS(pde)) | PTE_KERNEL);
   mips32_setindex(0);
   mips32_tlbwi();
+
+  /* Return the end of boot stack (grows downwards on MIPS) as new sp.
+   * This is done in order to move kernel boot process to kseg2, since
+   * current KASAN implementation requires all instrumented stack accesses
+   * to be done through kseg2. */
+  return &_boot_stack[PAGESIZE];
 }
 
 /* Following code is used by gdb scripts. */
