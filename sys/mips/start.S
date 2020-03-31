@@ -33,16 +33,13 @@ LEAF(_start)
         move    s3, a3
 
         jal     mips_init
+        move    sp, v0                  # Set boot stack (already in kseg2)
 
         # From this point kernel sections are accessible through kseg2!
         move    a0, s0
         move    a1, s1
         move    a2, s2
         move    a3, s3
-
-        # Set sp to the end of _boot_stack (as the stack grows downwards)
-        # This is done in order to fully move the kernel stack to kseg2
-        LA      sp, (_boot_stack + PAGESIZE)
 
         LA      t0, platform_stack
         jalr    t0
