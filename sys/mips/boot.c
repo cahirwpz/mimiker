@@ -25,7 +25,7 @@ __boot_text static void halt(void) {
     continue;
 }
 
-__boot_text void* mips_init(void) {
+__boot_text void *mips_init(void) {
   /*
    * Ensure we're in kernel mode, disable FPU,
    * leave error level & exception level and disable interrupts.
@@ -110,8 +110,8 @@ __boot_text void* mips_init(void) {
   mips32_setindex(0);
   mips32_tlbwi();
 
-  /* Set sp to the end of _boot_stack (as the stack grows downwards)
-   * This is done in order to fully move the kernel stack to kseg2. */
+  /* Return the end of boot stack (grows downwards on MIPS) as new sp.
+   * This is done in order to move kernel boot process to kseg2. */
   return &_boot_stack[PAGESIZE];
 }
 
