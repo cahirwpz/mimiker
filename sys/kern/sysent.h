@@ -56,6 +56,7 @@ static int sys_truncate(proc_t *, truncate_args_t *, register_t *);
 static int sys_ftruncate(proc_t *, ftruncate_args_t *, register_t *);
 static int sys_readlinkat(proc_t *, readlinkat_args_t *, register_t *);
 static int sys_fchdir(proc_t *, fchdir_args_t *, register_t *);
+static int sys_linkat(proc_t *, linkat_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { (syscall_t *)sys_syscall },
@@ -109,5 +110,6 @@ struct sysent sysent[] = {
   [SYS_ftruncate] = { (syscall_t *)sys_ftruncate },
   [SYS_readlinkat] = { (syscall_t *)sys_readlinkat },
   [SYS_fchdir] = { (syscall_t *)sys_fchdir },
+  [SYS_linkat] = { (syscall_t *)sys_linkat },
 };
 

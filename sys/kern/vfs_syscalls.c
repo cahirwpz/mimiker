@@ -463,3 +463,49 @@ fail:
   vnrstate_destroy(&vs);
   return error;
 }
+
+int do_linkat(proc_t *p, int fd, char *path, int linkfd, char *linkpath,
+              int flags) {
+  vnrstate_t vs;
+  vnode_t *target_vn;
+  int error;
+  uint32_t vnrflags = 0;
+
+  if (flags & AT_SYMLINK_FOLLOW)
+    vnrflags |= VNR_FOLLOW;
+
+  if ((error = vfs_namelookupat(p, fd, vnrflags, path, &target_vn)))
+    return error;
+
+  vnode_lock(target_vn);
+
+  if (target_vn->v_type == V_DIR) {
+    error = EPERM;
+    goto fail1;
+  }
+
+  if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, linkpath)))
+    goto fail1;
+
+  if ((error = vfs_nameresolveat(p, linkfd, &vs)))
+    goto fail2;
+
+  if (vs.vs_vp != NULL) {
+    vnode_drop_both(vs.vs_vp, vs.vs_dvp);
+    error = EEXIST;
+    goto fail2;
+  }
+
+  if (vs.vs_dvp->v_mount != target_vn->v_mount)
+    error = EXDEV;
+  else
+    error = VOP_LINK(vs.vs_dvp, target_vn, &vs.vs_lastcn);
+
+  vnode_put(vs.vs_dvp);
+
+fail2:
+  vnrstate_destroy(&vs);
+fail1:
+  vnode_put(target_vn);
+  return error;
+}

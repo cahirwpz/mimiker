@@ -759,3 +759,29 @@ end:
   kfree(M_TEMP, linkpath);
   return error;
 }
+
+static int sys_linkat(proc_t *p, linkat_args_t *args, register_t *res) {
+  int fd1 = args->fd1;
+  const char *u_name1 = args->name1;
+  int fd2 = args->fd2;
+  const char *u_name2 = args->name2;
+  int flags = args->flags;
+  int error;
+
+  char *name1 = kmalloc(M_TEMP, PATH_MAX, 0);
+  char *name2 = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_name1, name1, PATH_MAX, NULL)))
+    goto end;
+  if ((error = copyinstr(u_name2, name2, PATH_MAX, NULL)))
+    goto end;
+
+  klog("linkat(%d, \"%s\", %d, \"%s\", %d)", fd1, u_name1, fd2, u_name2, flags);
+
+  error = do_linkat(p, fd1, name1, fd2, name2, flags);
+
+end:
+  kfree(M_TEMP, name1);
+  kfree(M_TEMP, name2);
+  return error;
+}

@@ -56,4 +56,5 @@
 #define SYS_ftruncate 48
 #define SYS_readlinkat 49
 #define SYS_fchdir 50
-#define SYS_MAXSYSCALL 51
+#define SYS_linkat 51
+#define SYS_MAXSYSCALL 52

@@ -241,3 +241,11 @@ typedef struct {
 typedef struct {
   int fd;
 } fchdir_args_t;
+
+typedef struct {
+  int fd1;
+  const char * name1;
+  int fd2;
+  const char * name2;
+  int flags;
+} linkat_args_t;
