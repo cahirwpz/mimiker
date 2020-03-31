@@ -65,13 +65,11 @@
  */
 #define AT_FDCWD -100             /* Use cwd for relative link target */
 #define AT_SYMLINK_NOFOLLOW 0x200 /* Do not follow symlinks */
-#define AT_SYMLINK_FOLLOW 0x0400  /* Follow symbolic link */
-#define AT_REMOVEDIR                                                           \
-  0x800 /* Remove directory instead of                                         \
-           unlinking file.  */
-#define AT_EACCESS                                                             \
-  0x1000 /* Test access permitted for                                          \
-           effective IDs, not real IDs.  */
+#define AT_SYMLINK_FOLLOW 0x400   /* Follow symbolic link */
+/* Remove directory instead of unlinking file. */
+#define AT_REMOVEDIR 0x800
+/* Test access permitted for effective IDs, not real IDs. */
+#define AT_EACCESS 0x1000
 
 #ifndef _KERNEL
 #include <sys/types.h>
