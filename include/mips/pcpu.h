@@ -2,10 +2,12 @@
 #define _MIPS_PCPU_H_
 
 #define PCPU_MD_FIELDS                                                         \
-  /*!< kernel sp restored on user->kernel transition */                        \
-  void *ksp;                                                                   \
-  /*!< registers that cannot be saved directly to kernel stack */              \
-  register_t status, sp, cause, epc, badvaddr;
+  struct {                                                                     \
+    /*!< kernel sp restored on user->kernel transition */                      \
+    void *ksp;                                                                 \
+    /*!< registers that cannot be saved directly to kernel stack */            \
+    register_t status, sp, cause, epc, badvaddr;                               \
+  }
 
 #ifdef _MACHDEP
 #ifdef __ASSEMBLER__
