@@ -111,7 +111,9 @@ __boot_text void *mips_init(void) {
   mips32_tlbwi();
 
   /* Return the end of boot stack (grows downwards on MIPS) as new sp.
-   * This is done in order to move kernel boot process to kseg2. */
+   * This is done in order to move kernel boot process to kseg2, since
+   * current KASAN implementation requires all instrumented stack accesses
+   * to be done through kseg2. */
   return &_boot_stack[PAGESIZE];
 }
 
