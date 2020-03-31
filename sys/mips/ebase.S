@@ -168,6 +168,9 @@
         LOAD_FPU_REG($f31, F31, sp);                                           \
         LOAD_FPU_REG($31, FSR, sp)
 
+#define LOAD_PCPU_KSEG0(reg)                                                   \
+        LA reg, MIPS_KSEG2_TO_KSEG0(_pcpu_data)
+
 # Increment interrupt disable nest level.
 #define TD_INC_IDNEST(reg)                                                     \
         lw      t0, TD_IDNEST(reg);                                            \
@@ -187,21 +190,21 @@
         ext     reg, reg, SR_IMASK_SHIFT, SR_IMASK_BITS
 
 # Remove given bits from the status register.
-#define UNSET_IN_STATUS(mask) \
+#define STATUS_CLEAR(mask)                                                     \
         mfc0    k0, C0_STATUS;                                                 \
         li      k1, ~(mask);                                                   \
         and     k0, k1;                                                        \
         mtc0    k0, C0_STATUS
 
-#define STORE_IN_PCPU(reg)                                                     \
+#define PCPU_SAVE(reg)                                                         \
         mfc0    k1, C0_##reg;                                                  \
         sw      k1, PCPU_##reg(k0)
 
-#define SET_FROM_PCPU(reg)                                                     \
+#define PCPU_RESTORE(reg)                                                      \
         lw      k1, PCPU_##reg(k0);                                            \
         mtc0    k1, C0_##reg
 
-#define COPY_FROM_PCPU_TO_FRAME(reg)                                           \
+#define PCPU_TO_FRAME(reg)                                                     \
         lw      t1, PCPU_##reg(t0);                                            \
         SAVE_REG(t1, reg, sp)
 
@@ -307,10 +310,10 @@ SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
 
         # Store sp, status, cause, epc, badvaddr registers in PCPU
         sw      sp, PCPU_SP(k0)
-        STORE_IN_PCPU(STATUS)
-        STORE_IN_PCPU(CAUSE)
-        STORE_IN_PCPU(EPC)
-        STORE_IN_PCPU(BADVADDR)
+        PCPU_SAVE(STATUS)
+        PCPU_SAVE(CAUSE)
+        PCPU_SAVE(EPC)
+        PCPU_SAVE(BADVADDR)
 
         # sp now contains kernel stack pointer.
         lw      sp, PCPU_KSP(k0)
@@ -320,21 +323,21 @@ SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
 
         # We cannot access stack (KSEG2) when exception level is enabled
         # Let's enter kernel mode, drop exception level, disable interrupts
-        UNSET_IN_STATUS(SR_KSU_MASK|SR_EXL|SR_IE)
+        STATUS_CLEAR(SR_KSU_MASK|SR_EXL|SR_IE)
 
         # Save context on the kernel stack
         SAVE_CPU_CTX(sp)
 
         # Copy sp, status, cause, epc, badvaddr from PCPU to stack frame
         LOAD_PCPU_KSEG0(t0)
-        COPY_FROM_PCPU_TO_FRAME(SP)
+        PCPU_TO_FRAME(SP)
         .cfi_rel_offset sp, EXC_SP
-        COPY_FROM_PCPU_TO_FRAME(SR)
-        COPY_FROM_PCPU_TO_FRAME(CAUSE)
-        COPY_FROM_PCPU_TO_FRAME(PC)
+        PCPU_TO_FRAME(SR)
+        PCPU_TO_FRAME(CAUSE)
+        PCPU_TO_FRAME(PC)
         .cfi_return_column t1
         .cfi_rel_offset t1, EXC_PC
-        COPY_FROM_PCPU_TO_FRAME(BADVADDR)
+        PCPU_TO_FRAME(BADVADDR)
 
         # If FPU is enabled save FPU registers.
         mfc0    t0, C0_STATUS
@@ -349,7 +352,7 @@ skip_fpu_save:
         la      gp, _gp
 
         # Turn off FPU
-        UNSET_IN_STATUS(SR_CU1)
+        STATUS_CLEAR(SR_CU1)
 
         # Fetch thread control block pointer to s0 for later use.
         LOAD_PCPU(s0)
@@ -403,8 +406,8 @@ skip_fpu_restore:
 
         # Restore status and epc registers from PCPU
         LOAD_PCPU_KSEG0(k0)
-        SET_FROM_PCPU(STATUS)
-        SET_FROM_PCPU(EPC)
+        PCPU_RESTORE(STATUS)
+        PCPU_RESTORE(EPC)
 
         # This label is useful for debugging.
         sync
@@ -418,28 +421,28 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
 
         # Store sp, status, cause, epc, badvaddr registers in PCPU
         sw      sp, PCPU_SP(k0)
-        STORE_IN_PCPU(STATUS)
-        STORE_IN_PCPU(CAUSE)
-        STORE_IN_PCPU(EPC)
-        STORE_IN_PCPU(BADVADDR)
+        PCPU_SAVE(STATUS)
+        PCPU_SAVE(CAUSE)
+        PCPU_SAVE(EPC)
+        PCPU_SAVE(BADVADDR)
 
         # Allocate stack frame (of KERN_EXC_FRAME_SIZE bytes) and save context.
         subu    sp, KERN_EXC_FRAME_SIZE # required by gdb to recognize frame
 
         # We cannot access stack (KSEG2) when exception level is enabled
         # Let's drop exception level and disable interrupts.
-        UNSET_IN_STATUS(SR_EXL|SR_IE)
+        STATUS_CLEAR(SR_EXL|SR_IE)
 
         # Save context on the kernel stack
         SAVE_CPU_CTX(sp)
 
         # Copy sp, status, cause, epc, badvaddr from PCPU to stack frame
         LOAD_PCPU_KSEG0(t0)
-        COPY_FROM_PCPU_TO_FRAME(SP)
-        COPY_FROM_PCPU_TO_FRAME(SR)
-        COPY_FROM_PCPU_TO_FRAME(CAUSE)
-        COPY_FROM_PCPU_TO_FRAME(PC)
-        COPY_FROM_PCPU_TO_FRAME(BADVADDR)
+        PCPU_TO_FRAME(SP)
+        PCPU_TO_FRAME(SR)
+        PCPU_TO_FRAME(CAUSE)
+        PCPU_TO_FRAME(PC)
+        PCPU_TO_FRAME(BADVADDR)
 
         # In normal conditions we're going to enter regular exception handler.
         la      s1, mips_exc_handler
@@ -493,8 +496,8 @@ kern_exc_leave:
 
         # Restore status and epc registers from PCPU
         LOAD_PCPU_KSEG0(k0)
-        SET_FROM_PCPU(STATUS)
-        SET_FROM_PCPU(EPC)
+        PCPU_RESTORE(STATUS)
+        PCPU_RESTORE(EPC)
 
         sync
         eret

@@ -11,7 +11,6 @@
 #include <mips/mips.h>
 
 #define LOAD_PCPU(reg) LA reg, _pcpu_data
-#define LOAD_PCPU_KSEG0(reg) LA reg, MIPS_KSEG2_TO_KSEG0(_pcpu_data)
 
 #endif /* !__ASSEMBLER__ */
 
