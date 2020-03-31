@@ -1,8 +1,6 @@
 #include <mips/asm.h>
 #include <mips/pcpu.h>
 #include <mips/regdef.h>
-#include <mips/m32c0.h>
-#include <mips/vm_param.h>
 
 #include "assym.h"
 
