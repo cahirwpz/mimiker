@@ -130,10 +130,6 @@ void assert_fail(const char *expr, const char *file, unsigned int line);
 #define assert(expr)
 #endif
 
-#ifndef CTASSERT
-#define CTASSERT(x) _Static_assert(x, "compile-time assertion failed")
-#endif
-
 /* Global definitions used throught kernel. */
 __noreturn void kernel_init(void);
 

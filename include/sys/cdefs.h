@@ -79,6 +79,11 @@
 #define __fallthrough __attribute__((fallthrough))
 #endif
 
+/* Static assertion (introduced by C11 standard) */
+#if !defined(static_assert) && !defined(__cplusplus)
+#define static_assert _Static_assert
+#endif
+
 /*
  * Compiler-dependent macros to declare that functions take printf-like
  * or scanf-like arguments.  They are null except for versions of gcc
