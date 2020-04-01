@@ -12,15 +12,38 @@ typedef void (*exc_handler_t)(exc_frame_t *);
 
 static void syscall_handler(exc_frame_t *frame) {
   /* TODO Eventually we should have a platform-independent syscall handler. */
+  int error = 0;
+  register_t args[SYS_MAXSYSARGS];
+  size_t narg;
+  struct sysent *se;
   register_t code = frame->v0;
-  /* FIXME Since O32 ABI uses only 4 registers for parameter passing
-   * later arguments are passed on stack. That's not handled here!
-   * Until it's fixed system calls like mmap won't fully work. */
-  register_t *args = &frame->a0;
+  const int nregs = 4;
+
+  /*
+   * Copy the arguments passed via register from the
+   * trapframe to our argument array
+   */
+  memcpy(args, &frame->a0, nregs * sizeof(register_t));
 
   if (code > SYS_MAXSYSCALL) {
     args[0] = code;
     code = 0;
+  }
+
+  se = &sysent[code];
+  narg = se->narg;
+
+  if (narg > nregs) {
+    /*
+     * From ABI:
+     * Despite the fact that some or all of the arguments to a function are
+     * passed in registers, always allocate space on the stack for all
+     * arguments.
+     * For this reason, we read from the user stack with some offset.
+     */
+    vaddr_t usp = frame->sp + nregs * sizeof(register_t);
+    error = copyin((register_t *)usp, &args[nregs],
+                   (narg - nregs) * sizeof(register_t));
   }
 
   /* Call the handler. */
@@ -29,7 +52,8 @@ static void syscall_handler(exc_frame_t *frame) {
 
   assert(td->td_proc != NULL);
 
-  int error = sysent[code].call(td->td_proc, (void *)args, &retval);
+  if (!error)
+    error = se->call(td->td_proc, (void *)args, &retval);
 
   if (error != EJUSTRETURN)
     exc_frame_set_retval(frame, error ? -1 : retval, error);

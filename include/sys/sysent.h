@@ -10,6 +10,7 @@ typedef struct proc proc_t;
 typedef int syscall_t(proc_t *, void *, register_t *);
 
 struct sysent {
+  int narg; /* number of args */
   syscall_t *call;
 };
 
