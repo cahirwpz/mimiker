@@ -10,10 +10,10 @@ static int sys_exit(proc_t *, exit_args_t *, register_t *);
 static int sys_fork(proc_t *, void *, register_t *);
 static int sys_read(proc_t *, read_args_t *, register_t *);
 static int sys_write(proc_t *, write_args_t *, register_t *);
-static int sys_open(proc_t *, open_args_t *, register_t *);
+static int sys_openat(proc_t *, openat_args_t *, register_t *);
 static int sys_close(proc_t *, close_args_t *, register_t *);
 static int sys_lseek(proc_t *, lseek_args_t *, register_t *);
-static int sys_unlink(proc_t *, unlink_args_t *, register_t *);
+static int sys_unlinkat(proc_t *, unlinkat_args_t *, register_t *);
 static int sys_getpid(proc_t *, void *, register_t *);
 static int sys_kill(proc_t *, kill_args_t *, register_t *);
 static int sys_fstat(proc_t *, fstat_args_t *, register_t *);
@@ -26,9 +26,9 @@ static int sys_dup2(proc_t *, dup2_args_t *, register_t *);
 static int sys_sigaction(proc_t *, sigaction_args_t *, register_t *);
 static int sys_sigreturn(proc_t *, sigreturn_args_t *, register_t *);
 static int sys_wait4(proc_t *, wait4_args_t *, register_t *);
-static int sys_mkdir(proc_t *, mkdir_args_t *, register_t *);
-static int sys_rmdir(proc_t *, rmdir_args_t *, register_t *);
-static int sys_access(proc_t *, access_args_t *, register_t *);
+static int sys_mkdirat(proc_t *, mkdirat_args_t *, register_t *);
+static int sys_symlinkat(proc_t *, symlinkat_args_t *, register_t *);
+static int sys_faccessat(proc_t *, faccessat_args_t *, register_t *);
 static int sys_fstatat(proc_t *, fstatat_args_t *, register_t *);
 static int sys_pipe2(proc_t *, pipe2_args_t *, register_t *);
 static int sys_clock_gettime(proc_t *, clock_gettime_args_t *, register_t *);
@@ -56,7 +56,7 @@ static int sys_truncate(proc_t *, truncate_args_t *, register_t *);
 static int sys_ftruncate(proc_t *, ftruncate_args_t *, register_t *);
 static int sys_readlinkat(proc_t *, readlinkat_args_t *, register_t *);
 static int sys_fchdir(proc_t *, fchdir_args_t *, register_t *);
-static int sys_symlinkat(proc_t *, symlinkat_args_t *, register_t *);
+static int sys_linkat(proc_t *, linkat_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { (syscall_t *)sys_syscall },
@@ -64,10 +64,10 @@ struct sysent sysent[] = {
   [SYS_fork] = { (syscall_t *)sys_fork },
   [SYS_read] = { (syscall_t *)sys_read },
   [SYS_write] = { (syscall_t *)sys_write },
-  [SYS_open] = { (syscall_t *)sys_open },
+  [SYS_openat] = { (syscall_t *)sys_openat },
   [SYS_close] = { (syscall_t *)sys_close },
   [SYS_lseek] = { (syscall_t *)sys_lseek },
-  [SYS_unlink] = { (syscall_t *)sys_unlink },
+  [SYS_unlinkat] = { (syscall_t *)sys_unlinkat },
   [SYS_getpid] = { (syscall_t *)sys_getpid },
   [SYS_kill] = { (syscall_t *)sys_kill },
   [SYS_fstat] = { (syscall_t *)sys_fstat },
@@ -80,9 +80,9 @@ struct sysent sysent[] = {
   [SYS_sigaction] = { (syscall_t *)sys_sigaction },
   [SYS_sigreturn] = { (syscall_t *)sys_sigreturn },
   [SYS_wait4] = { (syscall_t *)sys_wait4 },
-  [SYS_mkdir] = { (syscall_t *)sys_mkdir },
-  [SYS_rmdir] = { (syscall_t *)sys_rmdir },
-  [SYS_access] = { (syscall_t *)sys_access },
+  [SYS_mkdirat] = { (syscall_t *)sys_mkdirat },
+  [SYS_symlinkat] = { (syscall_t *)sys_symlinkat },
+  [SYS_faccessat] = { (syscall_t *)sys_faccessat },
   [SYS_fstatat] = { (syscall_t *)sys_fstatat },
   [SYS_pipe2] = { (syscall_t *)sys_pipe2 },
   [SYS_clock_gettime] = { (syscall_t *)sys_clock_gettime },
@@ -110,6 +110,6 @@ struct sysent sysent[] = {
   [SYS_ftruncate] = { (syscall_t *)sys_ftruncate },
   [SYS_readlinkat] = { (syscall_t *)sys_readlinkat },
   [SYS_fchdir] = { (syscall_t *)sys_fchdir },
-  [SYS_symlinkat] = { (syscall_t *)sys_symlinkat },
+  [SYS_linkat] = { (syscall_t *)sys_linkat },
 };
 
