@@ -4,7 +4,8 @@
 #include <mips/vm_param.h>
 
 #ifndef PT_ENTRIES
-#define PT_ENTRIES 1024 /* TODO: take this value from some other file */
+/* TODO: take this value from some other file */
+#define PT_ENTRIES 1024
 #endif /* !PT_ENTRIES */
 
 /* Part of internal compiler interface */
