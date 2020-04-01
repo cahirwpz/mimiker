@@ -2,7 +2,10 @@
 #define _MIPS_KASAN_H_
 
 #include <mips/vm_param.h>
+
+#ifndef PT_ENTRIES
 #define PT_ENTRIES 1024 /* TODO: take this value from some other file */
+#endif /* !PT_ENTRIES */
 
 /* Part of internal compiler interface */
 #define KASAN_SHADOW_SCALE_SHIFT 3
