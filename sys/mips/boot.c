@@ -7,12 +7,12 @@
 #include <sys/vm.h>
 #include <mips/kasan.h>
 
-/* Last address in kseg0 used by kernel for boot allocation (PTE & PDE). */
+/* Last address in kseg0 used by kernel for boot allocation. */
 __boot_data void *_kernel_end_kseg0;
 /* Kernel page directory entries allocated in kseg0. */
 __boot_data pde_t *_kernel_pmap_pde;
 
-/* Allocates pages in kseg0. The argument must be multiple of PAGESIZE. */
+/* Allocates pages in kseg0. The argument will be aligned to PAGESIZE. */
 static __boot_text void *bootmem_alloc(size_t bytes) {
   void *addr = _kernel_end_kseg0;
   _kernel_end_kseg0 += align(bytes, PAGESIZE);
@@ -98,12 +98,13 @@ __boot_text void mips_init(void) {
   for (paddr_t pa = data; pa < ebss; va += PAGESIZE, pa += PAGESIZE)
     pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
 
-#ifdef KASAN
-  /* Prepare KASAN shadow mappings */
+#ifdef KASAN /* Prepare KASAN shadow mappings */
   va = KASAN_MD_SHADOW_START;
-  paddr_t pa = ebss; /* physical memory just after the kernel */
+  /* Allocate physical memory for shadow area */
+  paddr_t pa = (paddr_t)bootmem_alloc(KASAN_MD_SHADOW_SIZE);
   for (int i = 0; i < KASAN_MD_PTE_NUM; i++) {
-    pte = (pte_t *)MIPS_KSEG2_TO_KSEG0(_kernel_kasan_pte[i]);
+    /* Allocate a new PTE */
+    pte = bootmem_alloc(PAGESIZE);
     pde[PDE_INDEX(va)] = PTE_PFN((intptr_t)pte) | PTE_KERNEL;
     for (int j = 0; j < PT_ENTRIES; j++) {
       pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
