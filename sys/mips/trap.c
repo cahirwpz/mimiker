@@ -12,12 +12,10 @@ typedef void (*exc_handler_t)(exc_frame_t *);
 
 static void syscall_handler(exc_frame_t *frame) {
   /* TODO Eventually we should have a platform-independent syscall handler. */
-  int error = 0;
   register_t args[SYS_MAXSYSARGS];
-  size_t narg;
-  struct sysent *se;
   register_t code = frame->v0;
   const int nregs = 4;
+  int error = 0;
 
   /*
    * Copy the arguments passed via register from the
@@ -30,10 +28,10 @@ static void syscall_handler(exc_frame_t *frame) {
     code = 0;
   }
 
-  se = &sysent[code];
-  narg = se->narg;
+  sysent_t *se = &sysent[code];
+  size_t nargs = se->nargs;
 
-  if (narg > nregs) {
+  if (nargs > nregs) {
     /*
      * From ABI:
      * Despite the fact that some or all of the arguments to a function are
@@ -43,7 +41,7 @@ static void syscall_handler(exc_frame_t *frame) {
      */
     vaddr_t usp = frame->sp + nregs * sizeof(register_t);
     error = copyin((register_t *)usp, &args[nregs],
-                   (narg - nregs) * sizeof(register_t));
+                   (nargs - nregs) * sizeof(register_t));
   }
 
   /* Call the handler. */

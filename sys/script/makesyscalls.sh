@@ -300,7 +300,7 @@ function putent() {
 		       funcname) > sysdcl
 
 	# output syscall switch table entry
-	printf("  [SYS_%s] = { .narg = %d, .call = (syscall_t *)%s },\n",
+	printf("  [SYS_%s] = { .nargs = %d, .call = (syscall_t *)%s },\n",
 	       funcalias, argc, funcname) > sysent
 
 	# output syscall number of header
