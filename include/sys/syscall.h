@@ -58,3 +58,5 @@
 #define SYS_fchdir 50
 #define SYS_linkat 51
 #define SYS_MAXSYSCALL 52
+
+#define SYS_MAXSYSARGS 6
