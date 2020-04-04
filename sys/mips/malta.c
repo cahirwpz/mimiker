@@ -16,7 +16,6 @@
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
 #include <sys/kasan.h>
-#include <mips/kasan.h>
 
 static const char *whitespaces = " \t";
 

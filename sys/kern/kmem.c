@@ -34,8 +34,8 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
   if (vmem_alloc(kvspace, size, &start, M_NOGROW))
     kick_swapper();
 
-  /* Mark entire block as valid */
-  kasan_mark((void *)start, size, size, 0);
+  /* Mark the entire block as valid */
+  kasan_mark_valid((void *)start, size);
 
   size_t npages = size / PAGESIZE;
   vaddr_t va = start;
@@ -65,8 +65,8 @@ void kmem_free(void *ptr, size_t size) {
   assert(page_aligned_p(ptr) && page_aligned_p(size));
   vmem_free(kvspace, (vmem_addr_t)ptr, size);
 
-  /* Mark entire block as invalid (to prevent use-after-free) */
-  kasan_mark((void *)ptr, 0, size, 0xFB);
+  /* Mark the entire block as invalid */
+  kasan_mark((void *)ptr, 0, size, KASAN_CODE_KMEM_USE_AFTER_FREE);
 
   vaddr_t va = (vaddr_t)ptr;
   vaddr_t end = va + size;
@@ -89,8 +89,8 @@ void *kmem_map(paddr_t pa, size_t size) {
   if (vmem_alloc(kvspace, size, &start, M_NOGROW))
     kick_swapper();
 
-  /* Mark entire block as valid */
-  kasan_mark((void *)start, size, size, 0);
+  /* Mark the entire block as valid */
+  kasan_mark_valid((void *)start, size);
 
   klog("%s: map %p of size %ld at %p", __func__, pa, size, start);
 

@@ -8,34 +8,38 @@
 #include <machine/vm_param.h>
 #include <machine/kasan.h>
 
+/* Note: use of __builtin_bzero and __builtin_memset in this file is not
+ * optimal if their implementation is instrumented */
+
 #ifndef KASAN
-/* The following symbols are defined as no-op inside sys/kasan.h. This would
+/* The following symbols are defined as no-op inside <sys/kasan.h>. This would
  * cause a compilation error in this file */
 #undef kasan_init
+#undef kasan_mark_valid
 #undef kasan_mark
 #endif /* !KASAN */
 
 #define kasan_panic(FMT, ...)                                                  \
   do {                                                                         \
-    kprintf("========KernelAddressSanitizer========\n");                       \
+    kprintf("==========KernelAddressSanitizer==========\n");                   \
     kprintf("ERROR:\n");                                                       \
     kprintf(FMT "\n", ##__VA_ARGS__);                                          \
-    kprintf("======================================\n");                       \
+    kprintf("==========================================\n");                   \
     panic_fail();                                                              \
   } while (0)
 
 /* Part of internal compiler interface */
 #define KASAN_SHADOW_SCALE_SHIFT 3
+
 #define KASAN_SHADOW_SCALE_SIZE (1 << KASAN_SHADOW_SCALE_SHIFT)
 #define KASAN_SHADOW_MASK (KASAN_SHADOW_SCALE_SIZE - 1)
 
 #define STACKSIZE PAGESIZE
 
+/* Check whether [addr, addr + size) range lies fully within aligned 8 bytes */
 #define ADDR_CROSSES_SCALE_BOUNDARY(addr, size)                                \
   (addr >> KASAN_SHADOW_SCALE_SHIFT) !=                                        \
     ((addr + size - 1) >> KASAN_SHADOW_SCALE_SHIFT)
-
-static int kasan_ready;
 
 /* The following two structures are part of internal compiler interface:
  * https://github.com/gcc-mirror/gcc/blob/master/libsanitizer/include/sanitizer/asan_interface.h
@@ -58,16 +62,26 @@ struct __asan_global {
   const void *odr_indicator; /* The address of the ODR indicator symbol */
 };
 
+static int kasan_ready;
+
 static const char *kasan_code_name(uint8_t code) {
   switch (code) {
     case KASAN_CODE_STACK_LEFT:
     case KASAN_CODE_STACK_MID:
     case KASAN_CODE_STACK_RIGHT:
-      return "local-buffer-overflow";
+      return "stack buffer-overflow";
     case KASAN_CODE_GLOBAL:
-      return "global-buffer-overflow";
-    case KASAN_CODE_USE_AFTER_FREE:
-      return "use-after-free";
+      return "global buffer-overflow";
+    case KASAN_CODE_KMEM_USE_AFTER_FREE:
+      return "kmem use-after-free";
+    case KASAN_CODE_POOL_USE_AFTER_FREE:
+      return "pool use-after-free";
+    case KASAN_CODE_STACK_USE_AFTER_RET:
+      return "stack use-after-return";
+    case KASAN_CODE_STACK_USE_AFTER_SCOPE:
+      return "stack use-after-scope";
+    case 1 ... 7:
+      return "partial redzone";
     default:
       return "unknown";
   }
@@ -75,57 +89,53 @@ static const char *kasan_code_name(uint8_t code) {
 
 __always_inline static inline bool
 kasan_shadow_1byte_isvalid(unsigned long addr, uint8_t *code) {
-  int8_t *byte = kasan_md_addr_to_shad(addr);
-  int8_t last = (addr & KASAN_SHADOW_MASK) + 1;
-
-  if (__predict_true(*byte == 0 || last <= *byte))
+  int8_t shadow_val = *kasan_md_addr_to_shad(addr);
+  int8_t last = addr & KASAN_SHADOW_MASK;
+  if (__predict_true(shadow_val == 0 || last < shadow_val))
     return true;
-  *code = *byte;
+  *code = shadow_val;
   return false;
 }
 
 __always_inline static inline bool
 kasan_shadow_2byte_isvalid(unsigned long addr, uint8_t *code) {
   if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 2))
-    return (kasan_shadow_1byte_isvalid(addr, code) &&
-            kasan_shadow_1byte_isvalid(addr + 1, code));
+    return kasan_shadow_1byte_isvalid(addr, code) &&
+           kasan_shadow_1byte_isvalid(addr + 1, code);
 
-  int8_t *byte = kasan_md_addr_to_shad(addr);
-  int8_t last = ((addr + 1) & KASAN_SHADOW_MASK) + 1;
-
-  if (__predict_true(*byte == 0 || last <= *byte))
+  int8_t shadow_val = *kasan_md_addr_to_shad(addr);
+  int8_t last = (addr + 1) & KASAN_SHADOW_MASK;
+  if (__predict_true(shadow_val == 0 || last < shadow_val))
     return true;
-  *code = *byte;
+  *code = shadow_val;
   return false;
 }
 
 __always_inline static inline bool
 kasan_shadow_4byte_isvalid(unsigned long addr, uint8_t *code) {
   if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 4))
-    return (kasan_shadow_2byte_isvalid(addr, code) &&
-            kasan_shadow_2byte_isvalid(addr + 2, code));
+    return kasan_shadow_2byte_isvalid(addr, code) &&
+           kasan_shadow_2byte_isvalid(addr + 2, code);
 
-  int8_t *byte = kasan_md_addr_to_shad(addr);
-  int8_t last = ((addr + 3) & KASAN_SHADOW_MASK) + 1;
-
-  if (__predict_true(*byte == 0 || last <= *byte))
+  int8_t shadow_val = *kasan_md_addr_to_shad(addr);
+  int8_t last = (addr + 3) & KASAN_SHADOW_MASK;
+  if (__predict_true(shadow_val == 0 || last < shadow_val))
     return true;
-  *code = *byte;
+  *code = shadow_val;
   return false;
 }
 
 __always_inline static inline bool
 kasan_shadow_8byte_isvalid(unsigned long addr, uint8_t *code) {
   if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 8))
-    return (kasan_shadow_4byte_isvalid(addr, code) &&
-            kasan_shadow_4byte_isvalid(addr + 4, code));
+    return kasan_shadow_4byte_isvalid(addr, code) &&
+           kasan_shadow_4byte_isvalid(addr + 4, code);
 
-  int8_t *byte = kasan_md_addr_to_shad(addr);
-  int8_t last = ((addr + 7) & KASAN_SHADOW_MASK) + 1;
-
-  if (__predict_true(*byte == 0 || last <= *byte))
+  int8_t shadow_val = *kasan_md_addr_to_shad(addr);
+  int8_t last = (addr + 7) & KASAN_SHADOW_MASK;
+  if (__predict_true(shadow_val == 0 || last < shadow_val))
     return true;
-  *code = *byte;
+  *code = shadow_val;
   return false;
 }
 
@@ -173,39 +183,33 @@ __always_inline static inline void kasan_shadow_check(unsigned long addr,
                 kasan_code_name(code));
 }
 
-/*
- * In an area of size 'sz_with_redz', mark the 'size' first bytes as valid,
- * and the rest as invalid. There are generally two use cases:
- *  - kasan_mark(addr, origsize, size, code), with origsize < size. This marks
- *    the redzone at the end of the buffer as invalid.
- *  - kasan_mark(addr, size, size, 0). This marks the entire buffer as valid.
- */
-void kasan_mark(const void *addr, size_t size, size_t sz_with_redz,
+/* Mark first 'size' bytes as valid, and the remaining
+ * (size_with_redzone - size) bytes as invalid with given code */
+void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
                 uint8_t code) {
-  size_t i, n, redz;
-  int8_t *shad;
+  int8_t *shadow = kasan_md_addr_to_shad((unsigned long)addr);
+  size_t redzone = size_with_redzone - roundup(size, KASAN_SHADOW_SCALE_SIZE);
 
-  assert((vaddr_t)addr % KASAN_SHADOW_SCALE_SIZE == 0);
-  redz = sz_with_redz - roundup(size, KASAN_SHADOW_SCALE_SIZE);
-  assert(redz % KASAN_SHADOW_SCALE_SIZE == 0);
-  shad = kasan_md_addr_to_shad((unsigned long)addr);
+  assert((unsigned long)addr % KASAN_SHADOW_SCALE_SIZE == 0);
+  assert(redzone % KASAN_SHADOW_SCALE_SIZE == 0);
 
-  /* Chunks of 8 bytes, valid. */
-  n = size / KASAN_SHADOW_SCALE_SIZE;
-  for (i = 0; i < n; i++) {
-    *shad++ = 0;
-  }
+  /* Valid part */
+  size_t len = size / KASAN_SHADOW_SCALE_SIZE;
+  __builtin_memset(shadow, 0, len);
+  shadow += len;
 
-  /* Possibly one chunk, mid. */
-  if ((size & KASAN_SHADOW_MASK) != 0) {
-    *shad++ = (size & KASAN_SHADOW_MASK);
-  }
+  /* Partially valid part */
+  if (size & KASAN_SHADOW_MASK)
+    *shadow++ = size & KASAN_SHADOW_MASK;
 
-  /* Chunks of 8 bytes, invalid. */
-  n = redz / KASAN_SHADOW_SCALE_SIZE;
-  for (i = 0; i < n; i++) {
-    *shad++ = code;
-  }
+  /* Invalid part */
+  len = redzone / KASAN_SHADOW_SCALE_SIZE;
+  __builtin_memset(shadow, code, len);
+}
+
+/* Mark bytes as valid */
+void kasan_mark_valid(const void *addr, size_t size) {
+  kasan_mark(addr, size, size, 0);
 }
 
 /* Call constructors that will register globals */
@@ -219,9 +223,7 @@ static void kasan_ctors(void) {
 
 static void kasan_shadow_clean(void *start, size_t size) {
   void *shadow = kasan_md_addr_to_shad((unsigned long)start);
-  size >>= KASAN_SHADOW_SCALE_SHIFT;
-
-  /* TODO: this builtin mustn't be sanitized! */
+  size /= KASAN_SHADOW_SCALE_SIZE;
   __builtin_bzero(shadow, size);
 }
 
@@ -281,7 +283,7 @@ void __asan_unregister_globals(struct __asan_global *globals, size_t n) {
   /* never called */
 }
 
-/* KASAN-replacements of various memory-touching functions */
+/* Below you can find replacements for various memory-touching functions */
 
 void *kasan_memcpy(void *dst, const void *src, size_t len) {
   kasan_shadow_check((unsigned long)src, len, true);
