@@ -382,16 +382,16 @@ user_exc_leave:
         # Update kernel stack pointer to be used on kernel reentry.
         sw      sp, PCPU_KSP(s0)
 
+        # Copy pc register from stack frame to PCPU
+        LOAD_REG(t0, PC, sp)
+        sw      t0, PCPU_PC(s0)
+
         # Load status register from exception frame, update it with current
         # interrupt mask and exception mode, and store it within PCPU
         LOAD_REG(t0, SR, sp)
         ins     t0, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
         ori     t0, SR_EXL
         sw      t0, PCPU_SR(s0)
-
-        # Copy pc register from stack frame to PCPU
-        LOAD_REG(t0, PC, sp)
-        sw      t0, PCPU_PC(s0)
 
         # If FPU has been enabled, then restore FPU registers.
         ext     t1, t0, SR_CU1_SHIFT, 1
