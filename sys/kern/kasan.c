@@ -9,11 +9,11 @@
 #include <machine/kasan.h>
 
 /* Note: use of __builtin_bzero and __builtin_memset in this file is not
- * optimal if their implementation is instrumented */
+ * optimal if their implementation is instrumented (i.e. not written in asm) */
 
 #ifndef KASAN
-/* The following symbols are defined as no-op inside <sys/kasan.h>. This would
- * cause a compilation error in this file */
+/* In non-KASAN build, the following symbols are defined as no-op
+ * inside <sys/kasan.h>. It would cause a compilation error here. */
 #undef kasan_init
 #undef kasan_mark_valid
 #undef kasan_mark
@@ -35,11 +35,6 @@
 #define KASAN_SHADOW_MASK (KASAN_SHADOW_SCALE_SIZE - 1)
 
 #define STACKSIZE PAGESIZE
-
-/* Check whether [addr, addr + size) range lies fully within aligned 8 bytes */
-#define ADDR_CROSSES_SCALE_BOUNDARY(addr, size)                                \
-  (addr >> KASAN_SHADOW_SCALE_SHIFT) !=                                        \
-    ((addr + size - 1) >> KASAN_SHADOW_SCALE_SHIFT)
 
 /* The following two structures are part of internal compiler interface:
  * https://github.com/gcc-mirror/gcc/blob/master/libsanitizer/include/sanitizer/asan_interface.h
@@ -87,6 +82,14 @@ static const char *kasan_code_name(uint8_t code) {
   }
 }
 
+/* Check whether all bytes from range [addr, addr + size) are mapped to
+ * a single shadow byte */
+__always_inline static inline bool access_within_shadow_byte(unsigned long addr,
+                                                             size_t size) {
+  return (addr >> KASAN_SHADOW_SCALE_SHIFT) ==
+         ((addr + size - 1) >> KASAN_SHADOW_SCALE_SHIFT);
+}
+
 __always_inline static inline bool
 kasan_shadow_1byte_isvalid(unsigned long addr, uint8_t *code) {
   int8_t shadow_val = *kasan_md_addr_to_shad(addr);
@@ -99,7 +102,7 @@ kasan_shadow_1byte_isvalid(unsigned long addr, uint8_t *code) {
 
 __always_inline static inline bool
 kasan_shadow_2byte_isvalid(unsigned long addr, uint8_t *code) {
-  if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 2))
+  if (!access_within_shadow_byte(addr, 2))
     return kasan_shadow_1byte_isvalid(addr, code) &&
            kasan_shadow_1byte_isvalid(addr + 1, code);
 
@@ -113,7 +116,7 @@ kasan_shadow_2byte_isvalid(unsigned long addr, uint8_t *code) {
 
 __always_inline static inline bool
 kasan_shadow_4byte_isvalid(unsigned long addr, uint8_t *code) {
-  if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 4))
+  if (!access_within_shadow_byte(addr, 4))
     return kasan_shadow_2byte_isvalid(addr, code) &&
            kasan_shadow_2byte_isvalid(addr + 2, code);
 
@@ -127,7 +130,7 @@ kasan_shadow_4byte_isvalid(unsigned long addr, uint8_t *code) {
 
 __always_inline static inline bool
 kasan_shadow_8byte_isvalid(unsigned long addr, uint8_t *code) {
-  if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 8))
+  if (!access_within_shadow_byte(addr, 8))
     return kasan_shadow_4byte_isvalid(addr, code) &&
            kasan_shadow_4byte_isvalid(addr + 4, code);
 
@@ -216,7 +219,7 @@ void kasan_mark_valid(const void *addr, size_t size) {
 static void kasan_ctors(void) {
   extern uintptr_t __CTOR_LIST__, __CTOR_END__;
   for (uintptr_t *ptr = &__CTOR_LIST__; ptr != &__CTOR_END__; ptr++) {
-    void (*func)(void) = (void *)(*ptr);
+    void (*func)(void) = (void (*)(void))(*ptr);
     (*func)();
   }
 }

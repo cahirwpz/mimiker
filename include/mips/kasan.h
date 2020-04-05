@@ -4,7 +4,8 @@
 #include <mips/vm_param.h>
 
 #ifndef PT_ENTRIES
-/* TODO: take this value from some other file */
+/* TODO: take this value from some other file
+ *       but how? */
 #define PT_ENTRIES 1024
 #endif /* !PT_ENTRIES */
 
@@ -20,7 +21,7 @@
 #define KASAN_MD_SHADOW_SIZE (KASAN_MD_PTE_NUM * PT_ENTRIES * PAGESIZE)
 #define KASAN_MD_SHADOW_END (KASAN_MD_SHADOW_START + KASAN_MD_SHADOW_SIZE)
 
-/* Sanitized memory (accesses out of this range are not checked) */
+/* Sanitized memory (accesses within this range are checked) */
 #define KASAN_MD_SANITIZED_START KERNEL_SPACE_BEGIN /* beginning of KSEG2 */
 #define KASAN_MD_SANITIZED_SIZE                                                \
   (KASAN_MD_SHADOW_SIZE << KASAN_SHADOW_SCALE_SHIFT)

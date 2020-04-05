@@ -84,4 +84,5 @@ sysent.h $(SYSCALL_H) $(SYSCALLARGS_H): syscalls.conf syscalls.master
 	@echo "[MAKESYSCALLS] $(lastword $^) -> $@"
 	$(TOPDIR)/sys/script/makesyscalls.sh $^
 
+# kasan.c file mustn't be sanitized
 kasan.o : CFLAGS_KASAN =

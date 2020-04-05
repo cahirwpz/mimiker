@@ -39,6 +39,7 @@ SECTIONS
     __text = ABSOLUTE(.);
     *(.text .text.*)
     __etext = ABSOLUTE(.);
+    /* Constructors are used by KASAN to initialize global redzones */
     __CTOR_LIST__ = ABSOLUTE(.);
     *(.ctors)
     __CTOR_END__ = ABSOLUTE(.);
