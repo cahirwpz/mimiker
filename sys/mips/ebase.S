@@ -236,8 +236,10 @@ SLEAF(tlb_refill)
         nop     
 
         # Calculate page table address from PDE
-        srl     k1, 6
+        lui     k0, 0x8000
+        srl     k1, 6                   # # [k1] PTE index (lower 10 bits)
         sll     k1, 12
+        or      k1, k0                  # [k0] PTE address in kseg0
         # ... and index of even entry corresponding to bad virtual address.
         mfc0    k0, C0_BADVADDR
         srl     k0, 10

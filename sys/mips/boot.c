@@ -93,10 +93,10 @@ __boot_text void mips_init(void) {
   vaddr_t va = MIPS_PHYS_TO_KSEG2(text);
 
   /* assume that kernel image will be covered by single PDE (4MiB) */
-  pde[PDE_INDEX(va)] = PTE_PFN((intptr_t)pte) | PTE_KERNEL;
+  pde[PDE_INDEX(va)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pte)) | PTE_KERNEL;
 
   /* auto-mapping? */
-  pde[1023] = PTE_PFN((intptr_t)_pde) | PTE_KERNEL;
+  pde[1023] = PTE_PFN(MIPS_KSEG0_TO_PHYS(_pde)) | PTE_KERNEL;
   _pde[PDE_INDEX(va)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pte)) | PTE_KERNEL;
 
   /* read-only segment - sections: .text, .rodata, etc. */
