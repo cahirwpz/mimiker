@@ -196,6 +196,13 @@
         and     k0, k1;                                                        \
         mtc0    k0, C0_STATUS
 
+# Add given bits to the status register.
+#define STATUS_SET(mask)                                                       \
+        mfc0    k0, C0_STATUS;                                                 \
+        li      k1, mask;                                                      \
+        or      k0, k1;                                                        \
+        mtc0    k0, C0_STATUS
+
 #define PCPU_SAVE(reg)                                                         \
         mfc0    k1, C0_##reg;                                                  \
         sw      k1, PCPU_##reg(k0)
@@ -382,6 +389,10 @@ user_exc_leave:
         # Update kernel stack pointer to be used on kernel reentry.
         sw      sp, PCPU_KSP(s0)
 
+        # Copy pc register from stack frame to PCPU
+        LOAD_REG(t0, PC, sp)
+        sw      t0, PCPU_PC(s0)
+
         # Load status register from exception frame, update it with current
         # interrupt mask and exception mode, and store it within PCPU
         LOAD_REG(t0, SR, sp)
@@ -389,15 +400,13 @@ user_exc_leave:
         ori     t0, SR_EXL
         sw      t0, PCPU_SR(s0)
 
-        # Copy pc register from stack frame to PCPU
-        LOAD_REG(t0, PC, sp)
-        sw      t0, PCPU_PC(s0)
-
-        # If FPU has been enabled, then restore FPU registers.
+        # If user has FPU disabled, don't restore its registers.
         ext     t1, t0, SR_CU1_SHIFT, 1
         beqz    t1, skip_fpu_restore
         nop
 
+        # Enable FPU and load FPU context
+        STATUS_SET(SR_CU1)
         LOAD_FPU_CTX()
 
 skip_fpu_restore:
