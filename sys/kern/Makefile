@@ -26,7 +26,6 @@ SOURCES = \
 	fork.c \
 	initrd.c \
 	interrupt.c \
-	kasan.c \
 	kenv.c \
 	klog.c \
 	kmem.c \
@@ -73,6 +72,12 @@ SOURCES = \
 	vm_physmem.c \
 	vmem.c
 
+ifeq ($(KASAN), 1)
+SOURCES += kasan.c
+# KASAN's run-time library mustn't be sanitized!
+kasan.o : CFLAGS_KASAN =
+endif
+
 FORMAT-EXCLUDE = sysent.h
 
 include $(TOPDIR)/build/build.kern.mk
@@ -83,6 +88,3 @@ SYSCALLARGS_H = $(TOPDIR)/include/sys/syscallargs.h
 sysent.h $(SYSCALL_H) $(SYSCALLARGS_H): syscalls.conf syscalls.master
 	@echo "[MAKESYSCALLS] $(lastword $^) -> $@"
 	$(TOPDIR)/sys/script/makesyscalls.sh $^
-
-# kasan.c file mustn't be sanitized
-kasan.o : CFLAGS_KASAN =

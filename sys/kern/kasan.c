@@ -5,28 +5,12 @@
 #include <sys/param.h>
 #include <sys/kasan.h>
 #include <sys/mimiker.h>
+#include <sys/thread.h>
 #include <machine/vm_param.h>
 #include <machine/kasan.h>
 
 /* Note: use of __builtin_bzero and __builtin_memset in this file is not
  * optimal if their implementation is instrumented (i.e. not written in asm) */
-
-#ifndef KASAN
-/* In non-KASAN build, the following symbols are defined as no-op
- * inside <sys/kasan.h>. It would cause a compilation error here. */
-#undef kasan_init
-#undef kasan_mark_valid
-#undef kasan_mark
-#endif /* !KASAN */
-
-#define kasan_panic(FMT, ...)                                                  \
-  do {                                                                         \
-    kprintf("==========KernelAddressSanitizer==========\n");                   \
-    kprintf("ERROR:\n");                                                       \
-    kprintf(FMT "\n", ##__VA_ARGS__);                                          \
-    kprintf("==========================================\n");                   \
-    panic_fail();                                                              \
-  } while (0)
 
 /* Part of internal compiler interface */
 #define KASAN_SHADOW_SCALE_SHIFT 3
@@ -178,12 +162,17 @@ __always_inline static inline void kasan_shadow_check(unsigned long addr,
     valid = kasan_shadow_Nbyte_isvalid(addr, size, &code);
   }
 
-  if (__predict_false(!valid))
-    kasan_panic("* invalid access to address %p\n"
-                "* %s of size %lu\n"
-                "* redzone code 0x%X (%s)",
-                (void *)addr, (read ? "read" : "write"), size, code,
-                kasan_code_name(code));
+  if (__predict_false(!valid)) {
+    kprintf("==========KernelAddressSanitizer==========\n"
+            "ERROR:\n"
+            "* invalid access to address %p\n"
+            "* %s of size %lu\n"
+            "* redzone code 0x%X (%s)\n"
+            "==========================================\n",
+            (void *)addr, (read ? "read" : "write"), size, code,
+            kasan_code_name(code));
+    panic_fail();
+  }
 }
 
 /* Mark first 'size' bytes as valid, and the remaining
@@ -266,14 +255,8 @@ void __asan_storeN_noabort(unsigned long addr, size_t size) {
  * Performs cleanup of the current stack's shadow memory to prevent false
  * positives. */
 void __asan_handle_no_return(void) {
-  /* HACK: Get the current $sp value */
-  uintptr_t sp;
-  asm volatile("move %0, $sp" : "=r"(sp));
-
-  /* Calculate the beginning of the stack */
-  sp &= 0xFFFFF000;
-
-  kasan_shadow_clean((void *)sp, STACKSIZE);
+  void *sp = thread_self()->td_kstack.stk_base;
+  kasan_shadow_clean(sp, STACKSIZE);
 }
 
 void __asan_register_globals(struct __asan_global *globals, size_t n) {
