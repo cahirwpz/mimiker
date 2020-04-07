@@ -249,3 +249,15 @@ typedef struct {
   const char * name2;
   int flags;
 } linkat_args_t;
+
+typedef struct {
+  int fd;
+  mode_t mode;
+} fchmod_args_t;
+
+typedef struct {
+  int fd;
+  const char * path;
+  mode_t mode;
+  int flag;
+} fchmodat_args_t;

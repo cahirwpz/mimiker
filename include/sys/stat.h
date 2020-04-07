@@ -139,6 +139,7 @@ int lchmod(const char *, mode_t);
 
 int fstatat(int, const char *, struct stat *, int);
 int mkdirat(int, const char *, mode_t);
+int fchmodat(int, const char *, mode_t, int);
 
 int utimens(const char *, const struct timespec *);
 int lutimens(const char *, const struct timespec *);
