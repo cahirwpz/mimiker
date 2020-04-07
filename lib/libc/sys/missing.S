@@ -1,8 +1,5 @@
 #include <machine/syscall.h>
 
-SYSCALL_MISSING(link)
-SYSCALL_MISSING(linkat)
-SYSCALL_MISSING(symlink)
 SYSCALL_MISSING(lchmod)
 SYSCALL_MISSING(getrusage)
 SYSCALL_MISSING(rename)

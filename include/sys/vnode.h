@@ -43,6 +43,9 @@ typedef int vnode_access_t(vnode_t *v, accmode_t mode);
 typedef int vnode_ioctl_t(vnode_t *v, u_long cmd, void *data);
 typedef int vnode_reclaim_t(vnode_t *v);
 typedef int vnode_readlink_t(vnode_t *v, uio_t *uio);
+typedef int vnode_symlink_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
+                            char *target, vnode_t **vp);
+typedef int vnode_link_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
 
 typedef struct vnodeops {
   vnode_lookup_t *v_lookup;
@@ -62,6 +65,8 @@ typedef struct vnodeops {
   vnode_ioctl_t *v_ioctl;
   vnode_reclaim_t *v_reclaim;
   vnode_readlink_t *v_readlink;
+  vnode_symlink_t *v_symlink;
+  vnode_link_t *v_link;
 } vnodeops_t;
 
 /* Fill missing entries with default vnode operation. */
@@ -178,6 +183,15 @@ static inline int VOP_RECLAIM(vnode_t *v) {
 
 static inline int VOP_READLINK(vnode_t *v, uio_t *uio) {
   return VOP_CALL(readlink, v, uio);
+}
+
+static inline int VOP_SYMLINK(vnode_t *dv, componentname_t *cn, vattr_t *va,
+                              char *target, vnode_t **vp) {
+  return VOP_CALL(symlink, dv, cn, va, target, vp);
+}
+
+static inline int VOP_LINK(vnode_t *dv, vnode_t *v, componentname_t *cn) {
+  return VOP_CALL(link, dv, v, cn);
 }
 
 #undef VOP_CALL

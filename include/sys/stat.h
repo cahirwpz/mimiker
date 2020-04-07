@@ -116,6 +116,7 @@ typedef struct stat {
 
 #define S_BLKSIZE 512 /* block size used in the stat struct */
 
+#define ACCESSPERMS (S_IRWXU | S_IRWXG | S_IRWXO)
 #define DEFFILEMODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 #define ALLPERMS (S_ISUID | S_ISGID | S_ISTXT | S_IRWXU | S_IRWXG | S_IRWXO)
 
@@ -137,6 +138,8 @@ int lchmod(const char *, mode_t);
  */
 
 int fstatat(int, const char *, struct stat *, int);
+int mkdirat(int, const char *, mode_t);
+
 int utimens(const char *, const struct timespec *);
 int lutimens(const char *, const struct timespec *);
 int futimens(int, const struct timespec *);

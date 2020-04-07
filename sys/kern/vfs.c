@@ -4,29 +4,11 @@
 #include <sys/libkern.h>
 #include <sys/errno.h>
 #include <sys/pool.h>
-#include <sys/malloc.h>
 #include <sys/file.h>
 #include <sys/vfs.h>
 #include <sys/vnode.h>
-#include <sys/linker_set.h>
 #include <sys/sysinit.h>
-#include <sys/mimiker.h>
-#include <sys/proc.h>
 #include <sys/stat.h>
-
-/* Internal state for a vnr operation. */
-typedef struct {
-  /* Arguments to vnr. */
-  vnrop_t vs_op;          /* vnr operation type */
-  struct vnode *vs_atdir; /* startup dir, cwd if null */
-
-  /* Results returned from lookup. */
-  vnode_t *vs_vp;  /* vnode of result */
-  vnode_t *vs_dvp; /* vnode of parent directory */
-
-  componentname_t vs_cn;
-  const char *vs_nextcn;
-} vnrstate_t;
 
 /* TODO: We probably need some fancier allocation, since eventually we should
  * start recycling vnodes */
@@ -183,6 +165,8 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *v) {
   return 0;
 }
 
+/* If `*vp` is a root of filesystem that has been mounted,
+ * then find vnode of the mount point. */
 void vfs_maybe_ascend(vnode_t **vp) {
   vnode_t *v_covered;
   vnode_t *v = *vp;
@@ -197,7 +181,7 @@ void vfs_maybe_ascend(vnode_t **vp) {
 }
 
 /* If `*vp` is a mountpoint, then descend into the root of mounted filesys. */
-static int vfs_maybe_descend(vnode_t **vp) {
+int vfs_maybe_descend(vnode_t **vp) {
   vnode_t *v_mntpt;
   vnode_t *v = *vp;
   while (is_mountpoint(v)) {
@@ -211,259 +195,6 @@ static int vfs_maybe_descend(vnode_t **vp) {
     *vp = v;
   }
   return 0;
-}
-
-bool componentname_equal(const componentname_t *cn, const char *name) {
-  if (strlen(name) != cn->cn_namelen)
-    return false;
-  return strncmp(name, cn->cn_nameptr, cn->cn_namelen) == 0;
-}
-
-/* Call VOP_LOOKUP for a single lookup. */
-static int vnr_lookup_once(vnrstate_t *state, vnode_t *searchdir,
-                           vnode_t **foundvn_p) {
-  vnode_t *foundvn;
-  componentname_t *cn = &state->vs_cn;
-
-  if (componentname_equal(cn, ".."))
-    vfs_maybe_ascend(&searchdir);
-
-  int error = VOP_LOOKUP(searchdir, cn, &foundvn);
-  if (error) {
-    /*
-     * The entry was not found in the directory. This is valid
-     * if we are creating an entry and are working
-     * on the last component of the path name.
-     */
-    if (error == ENOENT && state->vs_op == VNR_CREATE &&
-        cn->cn_flags & VNR_ISLASTPC) {
-      vnode_unlock(searchdir);
-      foundvn = NULL;
-      error = 0;
-    }
-  } else {
-    /* No need to ref this vnode, VOP_LOOKUP already did it for us. */
-    vnode_unlock(searchdir);
-    vnode_lock(foundvn);
-    vfs_maybe_descend(&foundvn);
-  }
-
-  *foundvn_p = foundvn;
-  return error;
-}
-
-static void vnr_parse_component(vnrstate_t *state) {
-  componentname_t *cn = &state->vs_cn;
-  const char *name = state->vs_nextcn;
-
-  /* Look for end of string or component separator. */
-  cn->cn_nameptr = name;
-  while (*name != '\0' && *name != '/')
-    name++;
-  cn->cn_namelen = name - cn->cn_nameptr;
-
-  /* Skip component separators. */
-  while (*name == '/')
-    name++;
-
-  /* Last component? */
-  if (*name == '\0')
-    cn->cn_flags |= VNR_ISLASTPC;
-
-  state->vs_nextcn = name;
-}
-
-static int vfs_nameresolve(vnrstate_t *state) {
-  /* TODO: This is a simplified implementation, and it does not support many
-     required features! These include: symlinks */
-  int error;
-  vnode_t *searchdir, *parentdir = NULL;
-  componentname_t *cn = &state->vs_cn;
-
-  if (state->vs_nextcn[0] == '\0')
-    return ENOENT;
-
-  if (strlen(state->vs_nextcn) >= PATH_MAX)
-    return ENAMETOOLONG;
-
-  /* Establish the starting directory for lookup and lock it.*/
-  if (strncmp(state->vs_nextcn, "/", 1) != 0) {
-    if (state->vs_atdir != NULL)
-      searchdir = state->vs_atdir;
-    else
-      searchdir = proc_self()->p_cwd;
-  } else {
-    searchdir = vfs_root_vnode;
-  }
-
-  if (searchdir->v_type != V_DIR)
-    return ENOTDIR;
-
-  vnode_get(searchdir);
-
-  /* Drop leading slashes. */
-  while (state->vs_nextcn[0] == '/')
-    state->vs_nextcn++;
-
-  if ((error = vfs_maybe_descend(&searchdir)))
-    goto end;
-
-  parentdir = searchdir;
-  vnode_hold(parentdir);
-
-  /* Path was just "/". */
-  if (state->vs_nextcn[0] == '\0') {
-    vnode_unlock(searchdir);
-    state->vs_dvp = parentdir;
-    state->vs_vp = searchdir;
-    error = 0;
-    goto end;
-  }
-
-  for (;;) {
-    assert(state->vs_nextcn[0] != '/');
-    assert(state->vs_nextcn[0] != '\0');
-
-    /* Prepare the next path name component. */
-    vnr_parse_component(state);
-    if (state->vs_cn.cn_namelen > NAME_MAX) {
-      error = ENAMETOOLONG;
-      vnode_put(searchdir);
-      goto end;
-    }
-
-    vnode_drop(parentdir);
-    parentdir = searchdir;
-    searchdir = NULL;
-
-    error = vnr_lookup_once(state, parentdir, &searchdir);
-    if (error) {
-      vnode_put(parentdir);
-      goto end;
-    }
-
-    /* Success with no object returned means we're creating something. */
-    if (searchdir == NULL)
-      break;
-
-    if (cn->cn_flags & VNR_ISLASTPC)
-      break;
-  }
-
-  if (searchdir != NULL && state->vs_op != VNR_DELETE)
-    vnode_unlock(searchdir);
-
-  /* Release the parent directory if is not needed. */
-  if (state->vs_op == VNR_LOOKUP && parentdir != NULL) {
-    vnode_drop(parentdir);
-    parentdir = NULL;
-  }
-
-  /* Users of this function assume that parentdir locked */
-  if (parentdir != NULL && parentdir != searchdir)
-    vnode_lock(parentdir);
-
-  state->vs_vp = searchdir;
-  state->vs_dvp = parentdir;
-  error = 0;
-
-end:
-  return error;
-}
-
-static void vnrstate_init(vnrstate_t *vs, vnode_t *atdir, vnrop_t op,
-                          const char *path) {
-  vs->vs_op = op;
-  vs->vs_atdir = atdir;
-  vs->vs_cn.cn_flags = 0;
-  vs->vs_nextcn = path;
-}
-
-int vfs_namelookupat(const char *path, vnode_t *atdir, vnode_t **vp) {
-  vnrstate_t vs;
-  vnrstate_init(&vs, atdir, VNR_LOOKUP, path);
-  int error = vfs_nameresolve(&vs);
-  *vp = vs.vs_vp;
-  return error;
-}
-
-int vfs_namecreateat(const char *path, vnode_t *atdir, vnode_t **dvp,
-                     vnode_t **vp, componentname_t *cn) {
-  vnrstate_t vs;
-  vnrstate_init(&vs, atdir, VNR_CREATE, path);
-  int error = vfs_nameresolve(&vs);
-  if (error)
-    return error;
-
-  *dvp = vs.vs_dvp;
-  *vp = vs.vs_vp;
-  memcpy(cn, &vs.vs_cn, sizeof(componentname_t));
-
-  return 0;
-}
-
-int vfs_namedeleteat(const char *path, vnode_t *atdir, vnode_t **dvp,
-                     vnode_t **vp, componentname_t *cn) {
-  vnrstate_t vs;
-  vnrstate_init(&vs, atdir, VNR_DELETE, path);
-  int error = vfs_nameresolve(&vs);
-  if (error)
-    return error;
-
-  *dvp = vs.vs_dvp;
-  *vp = vs.vs_vp;
-  memcpy(cn, &vs.vs_cn, sizeof(componentname_t));
-
-  return 0;
-}
-
-int vfs_open(file_t *f, char *pathname, int flags, int mode) {
-  vnode_t *v;
-  int error = 0;
-  if (flags & O_CREAT) {
-    vnode_t *dvp;
-    componentname_t cn;
-    if ((error = vfs_namecreate(pathname, &dvp, &v, &cn)))
-      return error;
-
-    if (v == NULL) {
-      vattr_t va;
-      vattr_null(&va);
-      va.va_mode = S_IFREG | (mode & ALLPERMS);
-      error = VOP_CREATE(dvp, &cn, &va, &v);
-      vnode_put(dvp);
-      if (error)
-        return error;
-      flags &= ~O_TRUNC;
-    } else {
-      if (v == dvp)
-        vnode_drop(dvp);
-      else
-        vnode_put(dvp);
-
-      if (mode & O_EXCL)
-        error = EEXIST;
-      mode &= ~O_CREAT;
-    }
-  } else {
-    if ((error = vfs_namelookup(pathname, &v)))
-      return error;
-  }
-
-  if (!error && flags & O_TRUNC) {
-    vattr_t va;
-    vattr_null(&va);
-    va.va_size = 0;
-    error = VOP_SETATTR(v, &va);
-  }
-
-  if (!error)
-    error = VOP_OPEN(v, flags, f);
-
-  /* Drop our reference to v. We received it from vfs_namelookup, but we no
-     longer need it - file f keeps its own reference to v after open. */
-  vnode_drop(v);
-  return error;
 }
 
 SYSINIT_ADD(vfs, vfs_init, NODEPS);
