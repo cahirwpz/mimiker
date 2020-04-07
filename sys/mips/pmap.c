@@ -294,14 +294,6 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
   memcpy(PG_KSEG0_ADDR(dst), PG_KSEG0_ADDR(src), PAGESIZE);
 }
 
-void *pmap_kseg2_to_kseg0(void *va) {
-  if (!MIPS_IN_KSEG2_P(va))
-    return va;
-  paddr_t pa;
-  assert(pmap_extract(pmap_kernel(), (vaddr_t)va, &pa));
-  return (void *)MIPS_PHYS_TO_KSEG0(pa);
-}
-
 /* TODO: at any given moment there're two page tables in use:
  *  - kernel-space pmap for kseg2 & kseg3
  *  - user-space pmap for useg

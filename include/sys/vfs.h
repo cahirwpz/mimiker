@@ -71,15 +71,15 @@ typedef struct {
 bool componentname_equal(const componentname_t *cn, const char *name);
 
 /* Procedures called by system calls implementation. */
-int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fd);
-int do_unlink(proc_t *p, char *path);
-int do_mkdir(proc_t *p, char *path, mode_t mode);
-int do_rmdir(proc_t *p, char *path);
-int do_access(proc_t *p, char *path, int amode);
-int do_chmod(proc_t *p, char *path, mode_t mode);
+int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fdp);
+int do_openat(proc_t *p, int fdat, char *pathname, int flags, mode_t mode,
+              int *fdp);
+int do_unlinkat(proc_t *p, int fd, char *path, int flag);
+int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode);
+int do_ftruncate(proc_t *p, int fd, off_t length);
+int do_faccessat(proc_t *p, int fd, char *path, int mode, int flags);
 int do_chown(proc_t *p, char *path, int uid, int gid);
 int do_utimes(proc_t *p, char *path, timeval_t *tptr);
-int do_symlink(proc_t *p, char *path, char *link);
 ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio);
 int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath);
 int do_rename(proc_t *p, char *from, char *to);
@@ -89,6 +89,10 @@ int do_getcwd(proc_t *p, char *buf, size_t *lastp);
 int do_truncate(proc_t *p, char *path, off_t length);
 int do_ftruncate(proc_t *p, int fd, off_t length);
 int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag);
+int do_linkat(proc_t *p, int fd, char *path, int linkfd, char *linkpath,
+              int flags);
+int do_fchmod(proc_t *p, int fd, mode_t mode);
+int do_fchmodat(proc_t *p, int fd, char *path, mode_t mode, int flag);
 
 /* Mount a new instance of the filesystem named fs at the requested path. */
 int do_mount(const char *fs, const char *path);
