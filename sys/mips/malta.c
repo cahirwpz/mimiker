@@ -15,6 +15,7 @@
 #include <sys/libkern.h>
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
+#include <sys/kasan.h>
 
 static const char *whitespaces = " \t";
 
@@ -157,6 +158,7 @@ void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
 }
 
 __noreturn void platform_init(void) {
+  kasan_init();
   cn_init();
   klog_init();
   cpu_init();
