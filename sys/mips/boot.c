@@ -104,7 +104,9 @@ __boot_text void *mips_init(void) {
   va = KASAN_MD_SHADOW_START;
   /* Allocate physical memory for shadow area */
   paddr_t pa = (paddr_t)bootmem_alloc(KASAN_MD_SHADOW_SIZE);
-  for (int i = 0; i < KASAN_MD_PTE_NUM; i++) {
+  /* How many PTEs should we use? */
+  int num_pte = KASAN_MD_SHADOW_SIZE / SUPERPAGESIZE;
+  for (int i = 0; i < num_pte; i++) {
     /* Allocate a new PTE */
     pte = bootmem_alloc(PAGESIZE);
     pde[PDE_INDEX(va)] = PTE_PFN((intptr_t)pte) | PTE_KERNEL;

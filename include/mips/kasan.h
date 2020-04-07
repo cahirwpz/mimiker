@@ -3,22 +3,13 @@
 
 #include <mips/vm_param.h>
 
-#ifndef PT_ENTRIES
-/* TODO: take this value from some other file
- *       but how? */
-#define PT_ENTRIES 1024
-#endif /* !PT_ENTRIES */
-
-/* Number of PTEs used to describe KASAN's shadow memory.
- * Each PTE describes 4 MB of shadow, which corresponds to 32 MB of KSEG2. */
-#define KASAN_MD_PTE_NUM 4
-
 /* Part of internal compiler interface */
 #define KASAN_SHADOW_SCALE_SHIFT 3
 
 /* Shadow memory */
 #define KASAN_MD_SHADOW_START 0xF0000000
-#define KASAN_MD_SHADOW_SIZE (KASAN_MD_PTE_NUM * PT_ENTRIES * PAGESIZE)
+#define KASAN_MD_SHADOW_SIZE (1 << 24) /* 16 MB */
+static_assert(KASAN_MD_SHADOW_SIZE % SUPERPAGESIZE == 0);
 #define KASAN_MD_SHADOW_END (KASAN_MD_SHADOW_START + KASAN_MD_SHADOW_SIZE)
 
 /* Sanitized memory (accesses within this range are checked) */
