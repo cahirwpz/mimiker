@@ -30,7 +30,7 @@ typedef struct pgrp {
   pgid_t pg_id;                  /* (!) process group id */
 } pgrp_t;
 
-typedef enum { PS_NORMAL, PS_DYING, PS_ZOMBIE } proc_state_t;
+typedef enum { PS_NORMAL, PS_STOPPED, PS_DYING, PS_ZOMBIE } proc_state_t;
 
 /*! \brief Process structure
  *
@@ -113,5 +113,9 @@ __noreturn void proc_exit(int exitstatus);
 int pgrp_enter(proc_t *p, pgid_t pgid);
 
 int do_fork(pid_t *cldpidp);
+
+static inline bool proc_is_alive(proc_t *p) {
+  return (p->p_state == PS_NORMAL || p->p_state == PS_STOPPED);
+}
 
 #endif /* !_SYS_PROC_H_ */
