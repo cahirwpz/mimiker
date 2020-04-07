@@ -9,7 +9,8 @@
 /* Shadow memory */
 #define KASAN_MD_SHADOW_START 0xF0000000
 #define KASAN_MD_SHADOW_SIZE (1 << 24) /* 16 MB */
-static_assert(KASAN_MD_SHADOW_SIZE % SUPERPAGESIZE == 0);
+static_assert(KASAN_MD_SHADOW_SIZE % SUPERPAGESIZE == 0,
+              "Shadow memory is described by several full PTEs");
 #define KASAN_MD_SHADOW_END (KASAN_MD_SHADOW_START + KASAN_MD_SHADOW_SIZE)
 
 /* Sanitized memory (accesses within this range are checked) */
