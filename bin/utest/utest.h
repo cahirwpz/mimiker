@@ -68,6 +68,7 @@ int test_vfs_rw(void);
 int test_vfs_trunc(void);
 int test_vfs_symlink(void);
 int test_vfs_link(void);
+int test_vfs_chmod(void);
 
 int test_setpgid(void);
 int test_kill(void);
