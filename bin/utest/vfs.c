@@ -362,3 +362,33 @@ int test_vfs_link(void) {
 
   return 0;
 }
+
+int test_vfs_chmod(void) {
+  struct stat sb;
+
+  assert(open(TESTDIR "/file", O_RDWR | O_CREAT, 0) == 3);
+  assert_ok(stat(TESTDIR "/file", &sb));
+  assert((sb.st_mode & ALLPERMS) == 0);
+
+  assert_ok(chmod(TESTDIR "/file", DEFFILEMODE));
+  assert_ok(stat(TESTDIR "/file", &sb));
+  assert((sb.st_mode & ALLPERMS) == DEFFILEMODE);
+
+  mode_t mode = S_IXGRP | S_IWOTH | S_IRUSR | S_ISUID;
+  assert_ok(chmod(TESTDIR "/file", mode));
+  assert_ok(stat(TESTDIR "/file", &sb));
+  assert((sb.st_mode & ALLPERMS) == mode);
+
+  mode_t lmode = S_IWUSR | S_IRWXU | S_IRWXO;
+  assert_ok(symlink(TESTDIR "/file", TESTDIR "/link"));
+  assert_ok(lchmod(TESTDIR "/link", lmode));
+  assert_ok(stat(TESTDIR "/link", &sb));
+  assert((sb.st_mode & ALLPERMS) == mode);
+  assert_ok(lstat(TESTDIR "/link", &sb));
+  assert((sb.st_mode & ALLPERMS) == lmode);
+
+  unlink(TESTDIR "/file");
+  unlink(TESTDIR "/link");
+
+  return 0;
+}

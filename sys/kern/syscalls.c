@@ -785,3 +785,33 @@ end:
   kfree(M_TEMP, name2);
   return error;
 }
+
+static int sys_fchmod(proc_t *p, fchmod_args_t *args, register_t *res) {
+  int fd = args->fd;
+  mode_t mode = args->mode;
+
+  klog("fchmod(%d, %d)", fd, mode);
+
+  return do_fchmod(p, fd, mode);
+}
+
+static int sys_fchmodat(proc_t *p, fchmodat_args_t *args, register_t *res) {
+  int fd = args->fd;
+  const char *u_path = args->path;
+  mode_t mode = args->mode;
+  int flag = args->flag;
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("fchmodat(%d, \"%s\", %d, %d)", fd, path, mode, flag);
+
+  error = do_fchmodat(p, fd, path, mode, flag);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
