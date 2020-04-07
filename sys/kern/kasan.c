@@ -180,8 +180,8 @@ void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
   int8_t *shadow = kasan_md_addr_to_shad((uintptr_t)addr);
   size_t redzone = size_with_redzone - roundup(size, KASAN_SHADOW_SCALE_SIZE);
 
-  assert((uintptr_t)addr % KASAN_SHADOW_SCALE_SIZE == 0);
-  assert(redzone % KASAN_SHADOW_SCALE_SIZE == 0);
+  assert(is_aligned(addr, KASAN_SHADOW_SCALE_SIZE));
+  assert(is_aligned(redzone, KASAN_SHADOW_SCALE_SIZE));
 
   /* Valid part */
   size_t len = size / KASAN_SHADOW_SCALE_SIZE;
@@ -211,9 +211,9 @@ static void kasan_ctors(void) {
   }
 }
 
-static void kasan_shadow_clean(void *start, size_t size) {
-  assert((uintptr_t)start % KASAN_SHADOW_SCALE_SIZE == 0);
-  assert(size % KASAN_SHADOW_SCALE_SIZE == 0);
+static void kasan_shadow_clean(const void *start, size_t size) {
+  assert(is_aligned(start, KASAN_SHADOW_SCALE_SIZE));
+  assert(is_aligned(size, KASAN_SHADOW_SCALE_SIZE));
 
   void *shadow = kasan_md_addr_to_shad((uintptr_t)start);
   size /= KASAN_SHADOW_SCALE_SIZE;
@@ -222,7 +222,8 @@ static void kasan_shadow_clean(void *start, size_t size) {
 
 void kasan_init(void) {
   /* Set entire shadow memory to zero */
-  kasan_shadow_clean((void *)KASAN_MD_SANITIZED_START, KASAN_MD_SANITIZED_SIZE);
+  kasan_shadow_clean((const void *)KASAN_MD_SANITIZED_START,
+                     KASAN_MD_SANITIZED_SIZE);
 
   /* KASAN is ready to check for errors! */
   kasan_ready = 1;
