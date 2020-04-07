@@ -18,8 +18,6 @@
 #define KASAN_SHADOW_SCALE_SIZE (1 << KASAN_SHADOW_SCALE_SHIFT)
 #define KASAN_SHADOW_MASK (KASAN_SHADOW_SCALE_SIZE - 1)
 
-#define STACKSIZE PAGESIZE
-
 /* The following two structures are part of internal compiler interface:
  * https://github.com/gcc-mirror/gcc/blob/master/libsanitizer/include/sanitizer/asan_interface.h
  */
@@ -214,6 +212,9 @@ static void kasan_ctors(void) {
 }
 
 static void kasan_shadow_clean(void *start, size_t size) {
+  assert((uintptr_t)start % KASAN_SHADOW_SCALE_SIZE == 0);
+  assert(size % KASAN_SHADOW_SCALE_SIZE == 0);
+
   void *shadow = kasan_md_addr_to_shad((uintptr_t)start);
   size /= KASAN_SHADOW_SCALE_SIZE;
   __builtin_bzero(shadow, size);
@@ -255,8 +256,8 @@ void __asan_storeN_noabort(uintptr_t addr, size_t size) {
  * Performs cleanup of the current stack's shadow memory to prevent false
  * positives. */
 void __asan_handle_no_return(void) {
-  void *sp = thread_self()->td_kstack.stk_base;
-  kasan_shadow_clean(sp, STACKSIZE);
+  kstack_t *stack = &thread_self()->td_kstack;
+  kasan_shadow_clean(stack->stk_base, stack->stk_size);
 }
 
 void __asan_register_globals(struct __asan_global *globals, size_t n) {
