@@ -47,12 +47,18 @@ static const char *kasan_code_name(uint8_t code) {
     case KASAN_CODE_STACK_MID:
     case KASAN_CODE_STACK_RIGHT:
       return "stack buffer-overflow";
-    case KASAN_CODE_GLOBAL:
+    case KASAN_CODE_GLOBAL_OVERFLOW:
       return "global buffer-overflow";
     case KASAN_CODE_KMEM_USE_AFTER_FREE:
       return "kmem use-after-free";
+    case KASAN_CODE_POOL_OVERFLOW:
+      return "pool buffer-overflow";
     case KASAN_CODE_POOL_USE_AFTER_FREE:
       return "pool use-after-free";
+    case KASAN_CODE_KMALLOC_OVERFLOW:
+      return "kmalloc buffer-overflow";
+    case KASAN_CODE_KMALLOC_USE_AFTER_FREE:
+      return "kmalloc use-after-free";
     case KASAN_CODE_STACK_USE_AFTER_RET:
       return "stack use-after-return";
     case KASAN_CODE_STACK_USE_AFTER_SCOPE:
@@ -264,7 +270,7 @@ void __asan_handle_no_return(void) {
 void __asan_register_globals(struct __asan_global *globals, size_t n) {
   for (size_t i = 0; i < n; i++)
     kasan_mark(globals[i].beg, globals[i].size, globals[i].size_with_redzone,
-               KASAN_CODE_GLOBAL);
+               KASAN_CODE_GLOBAL_OVERFLOW);
 }
 
 void __asan_unregister_globals(struct __asan_global *globals, size_t n) {
