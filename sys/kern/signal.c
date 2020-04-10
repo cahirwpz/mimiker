@@ -5,7 +5,6 @@
 #include <sys/signal.h>
 #include <sys/thread.h>
 #include <sys/errno.h>
-#include <sys/sysent.h>
 #include <sys/sleepq.h>
 #include <sys/proc.h>
 #include <sys/wait.h>
