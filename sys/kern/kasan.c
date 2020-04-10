@@ -279,10 +279,37 @@ void __asan_unregister_globals(struct __asan_global *globals, size_t n) {
 
 /* Below you can find replacements for various memory-touching functions */
 
+#undef copyin
+int copyin(const void *restrict udaddr, void *restrict kaddr, size_t len);
+int kasan_copyin(const void *restrict udaddr, void *restrict kaddr,
+                 size_t len) {
+  kasan_shadow_check((uintptr_t)kaddr, len, false);
+  return copyin(udaddr, kaddr, len);
+}
+
+#undef copyinstr
+int copyinstr(const void *restrict udaddr, void *restrict kaddr, size_t len,
+              size_t *restrict lencopied);
+int kasan_copyinstr(const void *restrict udaddr, void *restrict kaddr,
+                    size_t len, size_t *restrict lencopied) {
+  kasan_shadow_check((uintptr_t)kaddr, len, false);
+  return copyinstr(udaddr, kaddr, len, lencopied);
+}
+
+#undef copyout
+int copyout(const void *restrict kaddr, void *restrict udaddr, size_t len);
+int kasan_copyout(const void *restrict kaddr, void *restrict udaddr,
+                  size_t len) {
+  kasan_shadow_check((uintptr_t)kaddr, len, true);
+  return copyout(kaddr, udaddr, len);
+}
+
+#undef memcpy
+void *memcpy(void *dst, const void *src, size_t len);
 void *kasan_memcpy(void *dst, const void *src, size_t len) {
   kasan_shadow_check((uintptr_t)src, len, true);
   kasan_shadow_check((uintptr_t)dst, len, false);
-  return __builtin_memcpy(dst, src, len);
+  return memcpy(dst, src, len);
 }
 
 size_t kasan_strlen(const char *str) {
