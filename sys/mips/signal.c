@@ -100,6 +100,8 @@ int sig_return(void) {
 
 void sig_trap(exc_frame_t *frame, signo_t sig) {
   proc_t *proc = proc_self();
+  mtx_lock(all_proc_mtx);
   proc_lock(proc);
   sig_kill(proc, sig);
+  mtx_unlock(all_proc_mtx);
 }

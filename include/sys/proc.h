@@ -16,6 +16,8 @@ typedef struct vnode vnode_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
 typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
 
+extern mtx_t *all_proc_mtx;
+
 /*! \brief Structure allocated per process group.
  *
  * Field markings and the corresponding locks:
@@ -58,6 +60,9 @@ struct proc {
   vm_map_t *p_uspace;             /* ($) process' user space map */
   fdtab_t *p_fdtable;             /* ($) file descriptors table */
   sigaction_t p_sigactions[NSIG]; /* (@) description of signal actions */
+  bool p_state_changed;           /* (a) set on transitions
+                                     PS_STOPPED <-> PS_NORMAL,
+                                     cleared when reported by wait4 */
   condvar_t p_waitcv;             /* (a) processes waiting for this one */
   int p_exitstatus;               /* (@) exit code to be returned to parent */
   vnode_t *p_cwd;                 /* ($) current working directory */

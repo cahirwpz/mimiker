@@ -84,6 +84,7 @@ static int sig_default(signo_t sig) {
  */
 void sig_kill(proc_t *proc, signo_t sig) {
   assert(proc != NULL);
+  assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&proc->p_lock));
   assert(sig < NSIG);
 
@@ -102,6 +103,10 @@ void sig_kill(proc_t *proc, signo_t sig) {
    * unless it's waking up a stopped process. */
   if (proc->p_state == PS_STOPPED && wakeup_stopped) {
       proc->p_state = PS_NORMAL;
+      proc->p_state_changed = true;
+      proc_t *parent = proc->p_parent;
+      if (parent)
+        cv_broadcast(&proc->p_parent->p_waitcv);
   } else if (handler == SIG_IGN ||
              (sig_default(sig) == SA_IGNORE && handler == SIG_DFL)) {
     proc_unlock(proc);
@@ -110,9 +115,8 @@ void sig_kill(proc_t *proc, signo_t sig) {
 
   /* If stopping or continuing, remove pending signals with the opposite
    * effect. */
-  if (sig == SIGSTOP || sig == SIGCONT) {
+  if (sig == SIGSTOP || sig == SIGCONT)
       __sigdelset(&td->td_sigpend, sig == SIGSTOP ? SIGCONT : SIGSTOP);
-  }
 
   /* In case of SIGCONT, make it pending only if the process catches it. */
   if (sig != SIGCONT || caught)
@@ -182,15 +186,27 @@ void sig_post(signo_t sig) {
       break;
     case SA_STOP:
       /* Stop this thread. Release process lock before switching. */
-      klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
       p->p_state = PS_STOPPED;
-      WITH_SPIN_LOCK(&td->td_spin) {
-        td->td_state = TDS_STOPPED;
-        /* We're holding a spinlock, so we can't be preempted here. */
-        proc_unlock(p);
-        sched_switch();
-      }
+      proc_unlock(p);
+      mtx_lock(all_proc_mtx);
       proc_lock(p);
+      if (p->p_state == PS_STOPPED) {
+        p->p_state_changed = true;
+        proc_t *parent = p->p_parent;
+        if (parent) {
+          cv_broadcast(&parent->p_waitcv);
+        }
+        mtx_unlock(all_proc_mtx);
+        WITH_SPIN_LOCK (&td->td_spin) {
+          td->td_state = TDS_STOPPED;
+          /* We're holding a spinlock, so we can't be preempted here. */
+          proc_unlock(p);
+          sched_switch();
+        }
+        proc_lock(p);
+      } else {
+        mtx_unlock(all_proc_mtx);
+      }
       return;
       break;
     default:

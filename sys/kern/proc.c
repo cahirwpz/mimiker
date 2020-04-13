@@ -22,7 +22,7 @@
 static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
 static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
 
-static mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
+mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 
 /* all_proc_mtx protects following data: */
 static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
@@ -331,6 +331,7 @@ static bool is_zombie(proc_t *p) {
 /* Wait for direct children. */
 int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   proc_t *p = proc_self();
+  bool found = false;
 
   WITH_MTX_LOCK (all_proc_mtx) {
     /* Start with zombies, if no zombies wait for a child to become one. */
@@ -339,20 +340,46 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
 
       /* Check children meeting criteria implied by pid. */
       TAILQ_FOREACH (child, CHILDREN(p), p_child) {
-        /* pid > 0 => child with PID same as pid */
-        if (pid == child->p_pid)
-          break;
-        /* Lookup zombie children */
+              /* pid > 0 => child with PID same as pid */
+        if (!(pid == child->p_pid ||
+              /* pid == -1 => any child  */
+              pid == -1 ||
+              /* pid == 0 => child with PGID same as ours */
+              ((pid == 0) && (child->p_pgrp == p->p_pgrp)) ||
+              /* pid < -1 => child with PGID equal to -pid */
+              (pid < -1 && (child->p_pgrp->pg_id != -pid))))
+          continue;
+
+        proc_lock(child);
+
         if (is_zombie(child)) {
-          /* pid == -1 => any child  */
-          if (pid == -1)
-            break;
-          /* pid == 0 => child with PGID same as ours */
-          if ((pid == 0) && (child->p_pgrp == p->p_pgrp))
-            break;
-          /* pid < -1 => child with PGID equal to -pid */
-          if (pid < -1 && (child->p_pgrp->pg_id != -pid))
-            break;
+          if (status)
+            *status = child->p_exitstatus;
+          proc_reap(child);
+          found = true;
+        } else if ((options & WUNTRACED) &&
+                   (child->p_state == PS_STOPPED) &&
+                   child->p_state_changed) {
+          child->p_state_changed = false;
+          *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
+          found = true;
+        } else if ((options & WCONTINUED) &&
+            (child->p_state == PS_NORMAL) &&
+            child->p_state_changed) {
+          child->p_state_changed = false;
+          *status = MAKE_STATUS_SIG_CONT();
+          found = true;
+        }
+
+        proc_unlock(child);
+
+        if (found) {
+          *cldpidp = child->p_pid;
+          return 0;
+        }
+
+        if (pid > 0) {
+          break;
         }
       }
 
@@ -360,16 +387,6 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
       if (!child && pid > 0)
         return ECHILD;
 
-      if (child && is_zombie(child)) {
-        if (status)
-          *status = child->p_exitstatus;
-        pid_t pid = child->p_pid;
-        proc_reap(child);
-        *cldpidp = pid;
-        return 0;
-      }
-
-      /* No zombie child was found. */
       if (options & WNOHANG) {
         *cldpidp = 0;
         return 0;
