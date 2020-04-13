@@ -179,6 +179,7 @@ void sig_post(signo_t sig) {
     case SA_STOP:
       /* Stop this thread. Release process lock before switching. */
       klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
+      p->p_state = PS_STOPPED;
       WITH_SPIN_LOCK(&td->td_spin) {
         td->td_state = TDS_STOPPED;
         /* We're holding a spinlock, so we can't be preempted here. */
