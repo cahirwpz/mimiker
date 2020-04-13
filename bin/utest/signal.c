@@ -73,3 +73,46 @@ int test_signal_segfault() {
   ptr->x = 42;
   return 0;
 }
+
+static int sigcont_handled = 0;
+
+static void sigcont_handler(int signo) {
+  printf("sigcont handled!\n");
+  sigcont_handled = 1;
+}
+
+int test_signal_stop() {
+  sigusr1_handled = 0;
+  signal(SIGUSR1, SIG_IGN);
+  int pid = fork();
+  if (pid == 0) {
+    signal(SIGCONT, sigcont_handler);
+    /* The child keeps sending SIGUSR1 to the parent. */
+    int ppid = getppid();
+    while (!sigcont_handled)
+      kill(ppid, SIGUSR1);
+    return 0;
+  }
+
+#define SPIN(lim) for (volatile int i = 0; i < (lim); i++);
+  signal(SIGUSR1, sigusr1_handler);
+  /* Wait for the child to start sending signals */
+  while (!sigusr1_handled);
+  kill(pid, SIGSTOP);
+  /* Make sure the child has stopped, and no signals from it are pending.
+   * Could be done using waitpid(), but it currently doesn't support waiting
+   * for a child process to stop. */
+  SPIN(10000000);
+  /* Now we shouldn't be getting any signals from the child. */
+  sigusr1_handled = 0;
+  SPIN(100000000);
+  assert(!sigusr1_handled);
+  /* Now continue the child process -- it should exit normally. */
+  kill(pid, SIGCONT);
+  int status;
+  printf("Waiting for child...\n");
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+  return 0;
+}
