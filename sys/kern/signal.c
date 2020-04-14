@@ -73,7 +73,7 @@ static signo_t sig_find_pending(thread_t *td) {
   assert(mtx_owned(&p->p_lock));
 
   sigset_t unmasked = td->td_sigpend;
-  __sigminusset(&unmasked, &td->td_sigmask);
+  __sigminusset(&td->td_sigmask, &unmasked);
 
   return __sigfindset(&unmasked);
 }
