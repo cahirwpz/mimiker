@@ -213,15 +213,17 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   }
 }
 
+static inline bool _sleepq_interrupted_early(thread_t *td, sleep_t sleep) {
+  return (td->td_flags & TDF_NEEDSIGCHK) != 0 && sleep == SLP_INTR;
+}
+
 static int _sleepq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
   thread_t *td = thread_self();
   int status = 0;
-#define EARLY_INTR(td, sleep)                                                  \
-  (((td)->td_flags & TDF_NEEDSIGCHK) != 0 && sleep == SLP_INTR)
 
   /* If there are pending signals, interrupt the sleep immediately. */
   WITH_SPIN_LOCK (&td->td_spin) {
-    if (EARLY_INTR(td, sleep))
+    if (_sleepq_interrupted_early(td, sleep))
       return EINTR;
   }
 
@@ -239,7 +241,7 @@ static int _sleepq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
   WITH_SPIN_LOCK (&td->td_spin) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
-      if (EARLY_INTR(td, sleep)) {
+      if (_sleepq_interrupted_early(td, sleep)) {
         td->td_flags &= ~(TDF_SLPINTR | TDF_SLPTIMED);
         return EINTR;
       }
