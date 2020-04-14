@@ -49,14 +49,15 @@ static int vfs_truncate(vnode_t *v, size_t len) {
   return VOP_SETATTR(v, &va);
 }
 
-static int vfs_create(char *pathname, int flags, int mode, vnode_t **vp) {
+static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
+                      vnode_t **vp) {
   vnrstate_t vs;
   int error;
 
   if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, pathname)))
     return error;
 
-  if ((error = vfs_nameresolve(&vs)))
+  if ((error = vfs_nameresolveat(p, fdat, &vs)))
     goto fail;
 
   if (vs.vs_vp == NULL) {
@@ -83,15 +84,16 @@ fail:
   return error;
 }
 
-static int vfs_open(file_t *f, char *pathname, int flags, int mode) {
+static int vfs_open(proc_t *p, file_t *f, int fdat, char *pathname, int flags,
+                    int mode) {
   vnode_t *v;
   int error;
 
   if (flags & O_CREAT) {
-    if ((error = vfs_create(pathname, flags, mode, &v)))
+    if ((error = vfs_create(p, fdat, pathname, flags, mode, &v)))
       return error;
   } else {
-    if ((error = vfs_namelookup(pathname, &v)))
+    if ((error = vfs_namelookupat(p, fdat, VNR_FOLLOW, pathname, &v)))
       return error;
   }
 
@@ -125,6 +127,11 @@ static void vnode_drop_both(vnode_t *v, vnode_t *dv) {
 }
 
 int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fdp) {
+  return do_openat(p, AT_FDCWD, pathname, flags, mode, fdp);
+}
+
+int do_openat(proc_t *p, int fdat, char *pathname, int flags, mode_t mode,
+              int *fdp) {
   int error;
 
   /* Allocate a file structure, but do not install descriptor yet. */
@@ -136,7 +143,7 @@ int do_open(proc_t *p, char *pathname, int flags, mode_t mode, int *fdp) {
   mode = (mode & ~p->p_cmask) & ALLPERMS;
 
   /* Try opening file. Fill the file structure. */
-  if ((error = vfs_open(f, pathname, flags, mode)))
+  if ((error = vfs_open(p, f, fdat, pathname, flags, mode)))
     goto fail;
   /* Now install the file in descriptor table. */
   if ((error = fdtab_install_file(p->p_fdtable, f, 0, fdp)))
@@ -197,20 +204,31 @@ int do_getdents(proc_t *p, int fd, uio_t *uio) {
   return error;
 }
 
-int do_unlink(proc_t *p, char *path) {
+int do_unlinkat(proc_t *p, int fd, char *path, int flag) {
   vnrstate_t vs;
   int error;
 
   if ((error = vnrstate_init(&vs, VNR_DELETE, 0, path)))
     return error;
 
-  if ((error = vfs_nameresolve(&vs)))
+  if ((error = vfs_nameresolveat(p, fd, &vs)))
     goto fail;
 
-  if (vs.vs_vp->v_type == V_DIR)
-    error = EPERM;
-  else
-    error = VOP_REMOVE(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
+  if (vs.vs_vp->v_mountedhere != NULL)
+    error = EBUSY;
+  else if (vs.vs_vp == vs.vs_dvp) /* No rmdir "." please */
+    error = EINVAL;
+  else if (vs.vs_vp->v_type == V_DIR) {
+    if (!(flag & AT_REMOVEDIR))
+      error = EPERM;
+    else
+      error = VOP_RMDIR(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
+  } else {
+    if (flag & AT_REMOVEDIR)
+      error = ENOTDIR;
+    else
+      error = VOP_REMOVE(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
+  }
 
   vnode_put_both(vs.vs_vp, vs.vs_dvp);
 
@@ -219,7 +237,7 @@ fail:
   return error;
 }
 
-int do_mkdir(proc_t *p, char *path, mode_t mode) {
+int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode) {
   vnrstate_t vs;
   vattr_t va;
   int error;
@@ -227,7 +245,7 @@ int do_mkdir(proc_t *p, char *path, mode_t mode) {
   if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, path)))
     return error;
 
-  if ((error = vfs_nameresolve(&vs)))
+  if ((error = vfs_nameresolveat(p, fd, &vs)))
     goto fail;
 
   if (vs.vs_vp != NULL) {
@@ -253,44 +271,24 @@ fail:
   return error;
 }
 
-int do_rmdir(proc_t *p, char *path) {
-  vnrstate_t vs;
+int do_faccessat(proc_t *p, int fd, char *path, int mode, int flags) {
   int error;
+  uint32_t vnrflags = 0;
 
-  if ((error = vnrstate_init(&vs, VNR_DELETE, VNR_FOLLOW, path)))
-    return error;
-
-  if ((error = vfs_nameresolve(&vs)))
-    goto fail;
-
-  if (vs.vs_vp == vs.vs_dvp)
-    error = EINVAL;
-  else if (vs.vs_vp->v_type != V_DIR)
-    error = ENOTDIR;
-  else if (vs.vs_vp->v_mountedhere != NULL)
-    error = EBUSY;
-
-  if (!error)
-    error = VOP_RMDIR(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
-
-  vnode_put_both(vs.vs_vp, vs.vs_dvp);
-
-fail:
-  vnrstate_destroy(&vs);
-  return error;
-}
-
-int do_access(proc_t *p, char *path, int amode) {
-  int error;
+  if (!(flags & AT_SYMLINK_NOFOLLOW))
+    vnrflags |= VNR_FOLLOW;
 
   /* Check if access mode argument is valid. */
-  if (amode & ~(R_OK | W_OK | X_OK))
+  if (mode & ~(R_OK | W_OK | X_OK))
     return EINVAL;
 
   vnode_t *v;
-  if ((error = vfs_namelookup(path, &v)))
+  if ((error = vfs_namelookupat(p, fd, vnrflags, path, &v)))
     return error;
-  error = VOP_ACCESS(v, amode);
+
+  /* TODO handle AT_EACCESS: Use the effective user and group IDs instead of
+     the real user and group IDs for checking permission.*/
+  error = VOP_ACCESS(v, mode);
   vnode_drop(v);
   return error;
 }
@@ -463,5 +461,89 @@ int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath) {
 
 fail:
   vnrstate_destroy(&vs);
+  return error;
+}
+
+int do_linkat(proc_t *p, int fd, char *path, int linkfd, char *linkpath,
+              int flags) {
+  vnrstate_t vs;
+  vnode_t *target_vn;
+  int error;
+  uint32_t vnrflags = 0;
+
+  if (flags & AT_SYMLINK_FOLLOW)
+    vnrflags |= VNR_FOLLOW;
+
+  if ((error = vfs_namelookupat(p, fd, vnrflags, path, &target_vn)))
+    return error;
+
+  vnode_lock(target_vn);
+
+  if (target_vn->v_type == V_DIR) {
+    error = EPERM;
+    goto fail1;
+  }
+
+  if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, linkpath)))
+    goto fail1;
+
+  if ((error = vfs_nameresolveat(p, linkfd, &vs)))
+    goto fail2;
+
+  if (vs.vs_vp != NULL) {
+    vnode_drop_both(vs.vs_vp, vs.vs_dvp);
+    error = EEXIST;
+    goto fail2;
+  }
+
+  if (vs.vs_dvp->v_mount != target_vn->v_mount)
+    error = EXDEV;
+  else
+    error = VOP_LINK(vs.vs_dvp, target_vn, &vs.vs_lastcn);
+
+  vnode_put(vs.vs_dvp);
+
+fail2:
+  vnrstate_destroy(&vs);
+fail1:
+  vnode_put(target_vn);
+  return error;
+}
+
+static int vfs_change_mode(vnode_t *v, mode_t mode) {
+  vattr_t va;
+  vattr_null(&va);
+  va.va_mode = mode & ALLPERMS;
+  return VOP_SETATTR(v, &va);
+}
+
+int do_fchmod(proc_t *p, int fd, mode_t mode) {
+  int error;
+  file_t *f;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
+    return error;
+
+  vnode_t *vn = f->f_vnode;
+  vnode_lock(vn);
+  error = vfs_change_mode(vn, mode);
+  vnode_unlock(vn);
+  file_drop(f);
+  return error;
+}
+
+int do_fchmodat(proc_t *p, int fd, char *path, mode_t mode, int flag) {
+  int error;
+  uint32_t vnrflags = 0;
+
+  if (!(flag & AT_SYMLINK_NOFOLLOW))
+    vnrflags |= VNR_FOLLOW;
+
+  vnode_t *v;
+  if ((error = vfs_namelookupat(p, fd, vnrflags, path, &v)))
+    return error;
+  vnode_lock(v);
+  error = vfs_change_mode(v, mode);
+  vnode_put(v);
   return error;
 }

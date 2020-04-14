@@ -9,9 +9,10 @@ typedef struct proc proc_t;
 
 typedef int syscall_t(proc_t *, void *, register_t *);
 
-struct sysent {
-  syscall_t *call;
-};
+typedef struct sysent {
+  int nargs;       /* number of args passed to syscall */
+  syscall_t *call; /* syscall implementation */
+} sysent_t;
 
 extern struct sysent sysent[];
 

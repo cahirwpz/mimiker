@@ -51,6 +51,7 @@
 #define __unused __attribute__((__unused__))
 #endif
 #define __used __attribute__((__used__))
+#define __always_inline __attribute__((always_inline))
 #define __returns_twice __attribute__((__returns_twice__))
 #define __noreturn __attribute__((__noreturn__))
 #define __aligned(x) __attribute__((__aligned__(x)))
@@ -77,6 +78,11 @@
 #define __fallthrough
 #else
 #define __fallthrough __attribute__((fallthrough))
+#endif
+
+/* Static assertion (introduced by C11 standard) */
+#if !defined(static_assert) && !defined(__cplusplus)
+#define static_assert _Static_assert
 #endif
 
 /*

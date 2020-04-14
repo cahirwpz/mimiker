@@ -296,3 +296,99 @@ int test_vfs_symlink(void) {
   test_vfs_symlink_vnr();
   return 0;
 }
+
+int test_vfs_link(void) {
+  int n;
+  struct stat sb;
+  ino_t fileino;
+
+  void *wrbuf = malloc(64);
+  void *rdbuf = malloc(32);
+  fill_random(wrbuf, 64);
+
+  /* Create file and fill it with random data */
+  assert_open_ok(0, TESTDIR "/file", 0, O_RDWR | O_CREAT);
+  assert_ok(stat(TESTDIR "/file", &sb));
+  assert(sb.st_nlink == 1);
+
+  fileino = sb.st_ino;
+
+  assert_write_ok(0, wrbuf, 32);
+
+  /* Make a hard link */
+  assert_ok(link(TESTDIR "/file", TESTDIR "/file2"));
+  assert_ok(stat(TESTDIR "/file2", &sb));
+
+  /* Ensure if inode number and link count is proper */
+  assert(sb.st_ino == fileino);
+  assert(sb.st_nlink == 2);
+
+  /* Ensure if data is the same */
+  assert_open_ok(1, TESTDIR "/file2", 0, O_RDWR);
+  assert(read(4, rdbuf, 32) == 32);
+  assert(!memcmp(wrbuf, rdbuf, 32));
+
+  /* Make another link to the same file*/
+  assert_ok(link(TESTDIR "/file2", TESTDIR "/file3"));
+  assert_ok(stat(TESTDIR "/file3", &sb));
+
+  /* Ensure if inode number and link count is proper */
+  assert(sb.st_ino == fileino);
+  assert(sb.st_nlink == 3);
+
+  assert_open_ok(2, TESTDIR "/file3", 0, O_RDWR);
+
+  /* Make a change to the first file and check for change*/
+  assert_lseek_ok(0, 0, SEEK_SET);
+  assert_write_ok(0, wrbuf + 32, 32);
+  assert(read(5, rdbuf, 32) == 32);
+  assert(!memcmp(wrbuf + 32, rdbuf, 32));
+
+  /* Delete second file */
+  assert_close_ok(1);
+  assert_ok(unlink(TESTDIR "/file2"));
+
+  assert_ok(stat(TESTDIR "/file", &sb));
+  assert(sb.st_nlink == 2);
+
+  assert_ok(unlink(TESTDIR "/file"));
+
+  assert_ok(stat(TESTDIR "/file3", &sb));
+  assert(sb.st_nlink == 1);
+
+  assert_ok(unlink(TESTDIR "/file3"));
+
+  assert_fail(link("/tmp", "/tmp/foo"), EPERM);
+
+  return 0;
+}
+
+int test_vfs_chmod(void) {
+  struct stat sb;
+
+  assert(open(TESTDIR "/file", O_RDWR | O_CREAT, 0) == 3);
+  assert_ok(stat(TESTDIR "/file", &sb));
+  assert((sb.st_mode & ALLPERMS) == 0);
+
+  assert_ok(chmod(TESTDIR "/file", DEFFILEMODE));
+  assert_ok(stat(TESTDIR "/file", &sb));
+  assert((sb.st_mode & ALLPERMS) == DEFFILEMODE);
+
+  mode_t mode = S_IXGRP | S_IWOTH | S_IRUSR | S_ISUID;
+  assert_ok(chmod(TESTDIR "/file", mode));
+  assert_ok(stat(TESTDIR "/file", &sb));
+  assert((sb.st_mode & ALLPERMS) == mode);
+
+  mode_t lmode = S_IWUSR | S_IRWXU | S_IRWXO;
+  assert_ok(symlink(TESTDIR "/file", TESTDIR "/link"));
+  assert_ok(lchmod(TESTDIR "/link", lmode));
+  assert_ok(stat(TESTDIR "/link", &sb));
+  assert((sb.st_mode & ALLPERMS) == mode);
+  assert_ok(lstat(TESTDIR "/link", &sb));
+  assert((sb.st_mode & ALLPERMS) == lmode);
+
+  unlink(TESTDIR "/file");
+  unlink(TESTDIR "/link");
+
+  return 0;
+}

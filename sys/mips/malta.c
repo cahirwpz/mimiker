@@ -15,6 +15,7 @@
 #include <sys/libkern.h>
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
+#include <sys/kasan.h>
 
 static const char *whitespaces = " \t";
 
@@ -118,7 +119,7 @@ static void *malta_kenv(int argc, char **argv, char **envp) {
 
   kenv_bootstrap(kenvp, kinit);
 
-  return (void *)MIPS_KSEG2_TO_KSEG0(stk->stk_ptr);
+  return stk->stk_ptr;
 }
 
 intptr_t ramdisk_get_start(void) {
@@ -157,6 +158,7 @@ void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
 }
 
 __noreturn void platform_init(void) {
+  kasan_init();
   cn_init();
   klog_init();
   cpu_init();
