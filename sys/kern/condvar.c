@@ -2,6 +2,7 @@
 #include <sys/sleepq.h>
 #include <sys/sched.h>
 #include <sys/mutex.h>
+#include <sys/interrupt.h>
 
 #define spin_lock_p(m) (*(m).type & LK_SPIN)
 
@@ -25,9 +26,12 @@ void cv_init(condvar_t *cv, const char *name) {
 }
 
 void cv_wait(condvar_t *cv, cv_lock_t m) {
-  WITH_NO_PREEMPTION {
+  WITH_INTR_DISABLED {
     cv->waiters++;
     mutex_unlock(m);
+    /* If we got interrupted here and an interrupt filter called
+     * cv_signal, we would have a lost wakeup, so we need interrupts
+     * to be disabled. Same goes for cv_wait_timed. */
     sleepq_wait(cv, __caller(0));
   }
   mutex_lock(m, __caller(0));
@@ -35,7 +39,7 @@ void cv_wait(condvar_t *cv, cv_lock_t m) {
 
 int cv_wait_timed(condvar_t *cv, cv_lock_t m, systime_t timeout) {
   int status;
-  WITH_NO_PREEMPTION {
+  WITH_INTR_DISABLED {
     cv->waiters++;
     mutex_unlock(m);
     status = sleepq_wait_timed(cv, __caller(0), timeout);
