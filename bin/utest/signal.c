@@ -73,3 +73,63 @@ int test_signal_segfault() {
   ptr->x = 42;
   return 0;
 }
+
+static volatile int parent_pid;
+
+static void bounce_sigusr1(int signo) {
+  kill(parent_pid, SIGUSR1);
+}
+
+static volatile int sigusr2_handled;
+
+static void sigusr2_handler2(int signo) {
+  sigusr2_handled = 1;
+}
+
+int test_signal_mask() {
+  sigusr1_handled = 0;
+  sigusr2_handled = 0;
+  parent_pid = getpid();
+
+  signal(SIGUSR1, bounce_sigusr1);
+  signal(SIGUSR2, sigusr2_handler2);
+
+  int pid = fork();
+  if (pid == 0) {
+    while (!sigusr2_handled) ;
+    return 0;
+  };
+
+  signal(SIGUSR1, sigusr1_handler);
+
+  /* Check that the signal bounces properly. */
+  kill(pid, SIGUSR1);
+  while (!sigusr1_handled);
+
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGUSR1);
+
+  /* Mask the signal and make the child send it to us.
+   * The delivery of the signal should be delayed until we unblock it. */
+  assert(sigprocmask(SIG_BLOCK, &mask, NULL) == 0);
+  sigusr1_handled = 0;
+
+  kill(pid, SIGUSR1);
+
+  //sched_yield();
+  for (volatile int i = 0; i < 10000000; i++);
+  assert(!sigusr1_handled);
+
+  /* Unblocking a pending signal should make us handle it immediately. */
+  assert(sigprocmask(SIG_UNBLOCK, &mask, NULL) == 0);
+  assert(sigusr1_handled);
+
+  kill(pid, SIGUSR2);
+  int status;
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+
+  return 0;
+}
