@@ -243,10 +243,11 @@ static int _sleepq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
       td->td_flags &= ~TDF_SLEEPY;
       if (_sleepq_interrupted_early(td, sleep)) {
         td->td_flags &= ~(TDF_SLPINTR | TDF_SLPTIMED);
-        return EINTR;
+        status = EINTR;
+      } else {
+        td->td_state = TDS_SLEEPING;
+        sched_switch();
       }
-      td->td_state = TDS_SLEEPING;
-      sched_switch();
     }
     /* After wakeup, only one of the following flags may be set:
      *  - TDF_SLPINTR if sleep was aborted,
