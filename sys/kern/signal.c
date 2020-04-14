@@ -140,16 +140,20 @@ int sig_check(thread_t *td) {
   assert(p != NULL);
   assert(mtx_owned(&p->p_lock));
 
+  sigset_t unmasked = td->td_sigpend;
+  __sigminusset(&unmasked, &td->td_sigmask);
+
+  int ret = 0;
   signo_t sig = NSIG;
   while (true) {
-    sig = __sigfindset(&td->td_sigpend);
+    sig = __sigfindset(&unmasked);
     if (sig >= NSIG) {
       /* No pending signals, signal checking done. */
       WITH_SPIN_LOCK (&td->td_spin)
         td->td_flags &= ~TDF_NEEDSIGCHK;
-      return 0;
+      break;
     }
-    __sigdelset(&td->td_sigpend, sig);
+    __sigdelset(&unmasked, sig);
 
     sig_t handler = p->p_sigactions[sig].sa_handler;
 
@@ -159,10 +163,14 @@ int sig_check(thread_t *td) {
       continue;
 
     /* If we reached here, then the signal has to be posted. */
-    return sig;
+    ret = sig;
+    break;
   }
 
-  __unreachable();
+  __sigaddset(&unmasked, &td->td_sigmask);
+  __sigandset(&td->td_sigpend, &unmasked);
+
+  return ret;
 }
 
 void sig_post(signo_t sig) {
