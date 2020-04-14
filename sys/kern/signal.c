@@ -156,7 +156,6 @@ void sig_kill(proc_t *proc, signo_t sig) {
   }
 }
 
-
 int sig_check(thread_t *td) {
   proc_t *p = td->td_proc;
 
