@@ -67,9 +67,26 @@ static int sig_default(signo_t sig) {
   return def_sigact[sig];
 }
 
+static signo_t sig_find_pending(thread_t *td) {
+  proc_t *p = td->td_proc;
+
+  assert(p != NULL);
+  assert(mtx_owned(&p->p_lock));
+
+  sigset_t unmasked = td->td_sigpend;
+  __sigminusset(&unmasked, &td->td_sigmask);
+
+  return __sigfindset(&unmasked);
+}
+
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
-  assert(mtx_owned(&proc_self()->p_lock));
-  sigset_t *const mask = &proc_self()->p_thread->td_sigmask;
+  proc_t *proc = proc_self();
+  thread_t *td = proc->p_thread;
+  bool more;
+
+  assert(mtx_owned(&proc->p_lock));
+
+  sigset_t *const mask = &td->td_sigmask;
 
   if (oset != NULL)
     *oset = *mask;
@@ -78,16 +95,22 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
     switch (how) {
       case SIG_BLOCK:
         __sigplusset(set, mask);
+        more = false;
         break;
       case SIG_UNBLOCK:
         __sigminusset(set, mask);
+        more = true;
         break;
       case SIG_SETMASK:
         *mask = *set;
+        more = true;
         break;
       default:
         return EINVAL;
     }
+    if (more && sig_find_pending(td) < NSIG)
+      WITH_SPIN_LOCK(&td->td_spin)
+        td->td_flags |= TDF_NEEDSIGCHK;
   }
 
   return 0;
@@ -134,26 +157,23 @@ void sig_kill(proc_t *proc, signo_t sig) {
   }
 }
 
+
 int sig_check(thread_t *td) {
   proc_t *p = td->td_proc;
 
   assert(p != NULL);
   assert(mtx_owned(&p->p_lock));
 
-  sigset_t unmasked = td->td_sigpend;
-  __sigminusset(&unmasked, &td->td_sigmask);
-
-  int ret = 0;
   signo_t sig = NSIG;
   while (true) {
-    sig = __sigfindset(&unmasked);
+    sig = sig_find_pending(td);
     if (sig >= NSIG) {
       /* No pending signals, signal checking done. */
       WITH_SPIN_LOCK (&td->td_spin)
         td->td_flags &= ~TDF_NEEDSIGCHK;
-      break;
+      return 0;
     }
-    __sigdelset(&unmasked, sig);
+    __sigdelset(&td->td_sigpend, sig);
 
     sig_t handler = p->p_sigactions[sig].sa_handler;
 
@@ -163,14 +183,10 @@ int sig_check(thread_t *td) {
       continue;
 
     /* If we reached here, then the signal has to be posted. */
-    ret = sig;
-    break;
+    return sig;
   }
 
-  __sigaddset(&unmasked, &td->td_sigmask);
-  __sigandset(&td->td_sigpend, &unmasked);
-
-  return ret;
+  __unreachable();
 }
 
 void sig_post(signo_t sig) {
