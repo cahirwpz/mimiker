@@ -44,24 +44,39 @@
 #define O_CLOEXEC 0x00002000   /* set close on exec */
 #define O_REGULAR 0x00004000   /* fail if not a regular file */
 #define O_DIRECT 0x00008000    /* direct I/O hint */
+#define O_DSYNC 0x00010000     /* write: I/O data completion */
+#define O_RSYNC 0x00020000     /* read: I/O completion as for write */
 
 /* Constants used for fcntl(2) */
 
 /* command values */
-#define F_DUPFD 0 /* duplicate file descriptor */
-#define F_GETFD 1 /* get file descriptor flags */
-#define F_SETFD 2 /* set file descriptor flags */
-#define F_GETFL 3 /* get file status flags */
-#define F_SETFL 4 /* set file status flags */
+#define F_DUPFD 0          /* duplicate file descriptor */
+#define F_GETFD 1          /* get file descriptor flags */
+#define F_SETFD 2          /* set file descriptor flags */
+#define F_GETFL 3          /* get file status flags */
+#define F_SETFL 4          /* set file status flags */
+#define F_DUPFD_CLOEXEC 12 /* close on exec duplicated fd */
 
 /* file descriptor flags (F_GETFD, F_SETFD) */
 #define FD_CLOEXEC 1 /* close-on-exec flag */
+
+/*
+ * Constants for X/Open Extended API set 2 (a.k.a. C063)
+ */
+#define AT_FDCWD -100             /* Use cwd for relative link target */
+#define AT_SYMLINK_NOFOLLOW 0x200 /* Do not follow symlinks */
+#define AT_SYMLINK_FOLLOW 0x400   /* Follow symbolic link */
+/* Remove directory instead of unlinking file. */
+#define AT_REMOVEDIR 0x800
+/* Test access permitted for effective IDs, not real IDs. */
+#define AT_EACCESS 0x1000
 
 #ifndef _KERNEL
 #include <sys/types.h>
 
 __BEGIN_DECLS
 int open(const char *, int, ...);
+int openat(int, const char *, int, ...);
 int creat(const char *, mode_t);
 int fcntl(int, int, ...);
 __END_DECLS

@@ -1,27 +1,10 @@
 #ifndef _SYS_FILEDESC_H_
 #define _SYS_FILEDESC_H_
 
-#include <sys/file.h>
-#include <sys/refcnt.h>
-#include <sys/mutex.h>
-#include <bitstring.h>
+#include <stdbool.h>
 
-/* The initial size of space allocated for file descriptors. According
-   to FreeBSD, this is more than enough for most applications. Each
-   process starts with this many descriptors, and more are allocated
-   on demand. */
-#define NDFILE 20
-/* Separate macro defining a hard limit on open files. */
-#define MAXFILES 1024
-
-typedef struct fdtab {
-  file_t **fdt_files; /* Open files array */
-  bitstr_t *fdt_map;  /* Bitmap of used fds */
-  unsigned fdt_flags;
-  int fdt_nfiles;     /* Number of files allocated */
-  refcnt_t fdt_count; /* Reference count */
-  mtx_t fdt_mtx;
-} fdtab_t;
+typedef struct file file_t;
+typedef struct fdtab fdtab_t;
 
 /*! \brief Increments reference counter. */
 void fdtab_hold(fdtab_t *fdt);
@@ -43,5 +26,11 @@ int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp);
 /* Closes a file descriptor.
  * If it was the last reference to a file, the file is closed as well. */
 int fdtab_close_fd(fdtab_t *fdt, int fd);
+/* Set cloexec flag. */
+int fd_set_cloexec(fdtab_t *fdt, int fd, bool exclose);
+/* Get cloexec flag. */
+int fd_get_cloexec(fdtab_t *fdt, int fd, int *resp);
+/* Close file descriptors with cloexec flag. */
+int fdtab_onexec(fdtab_t *fdt);
 
 #endif /* !_SYS_FILEDESC_H_ */

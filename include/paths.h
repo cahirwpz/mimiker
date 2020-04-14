@@ -6,5 +6,6 @@
 #define _PATH_TMP "/tmp/"
 #define _PATH_BSHELL "/bin/sh"
 #define _PATH_TTY "/dev/tty"
+#define _PATH_URANDOM "/dev/urandom"
 
 #endif /* !_PATHS_H_ */

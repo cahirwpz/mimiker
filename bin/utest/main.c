@@ -54,6 +54,15 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(sigaction_with_setjmp);
   CHECKRUN_TEST(sigaction_handler_returns);
   CHECKRUN_TEST(vfs_dir);
+  CHECKRUN_TEST(vfs_rw);
+  CHECKRUN_TEST(vfs_relative_dir);
+  CHECKRUN_TEST(vfs_dot_dot_dir);
+  CHECKRUN_TEST(vfs_dot_dir);
+  CHECKRUN_TEST(vfs_dot_dot_across_fs);
+  CHECKRUN_TEST(vfs_trunc);
+  CHECKRUN_TEST(vfs_symlink);
+  CHECKRUN_TEST(vfs_link);
+  CHECKRUN_TEST(vfs_chmod);
 
   CHECKRUN_TEST(setpgid);
   CHECKRUN_TEST(kill);

@@ -21,6 +21,7 @@ SOURCES = \
 	exec_shebang.c \
 	fdt.c \
 	file.c \
+	file_syscalls.c \
 	filedesc.c \
 	fork.c \
 	initrd.c \
@@ -61,7 +62,7 @@ SOURCES = \
 	uio.c \
 	ustack.c \
 	vfs.c \
-	vfs_lookup.c \
+	vfs_name.c \
 	vfs_readdir.c \
 	vfs_syscalls.c \
 	vfs_vnode.c \
@@ -70,6 +71,12 @@ SOURCES = \
 	vm_pager.c \
 	vm_physmem.c \
 	vmem.c
+
+ifeq ($(KASAN), 1)
+SOURCES += kasan.c
+# KASAN's run-time library mustn't be sanitized!
+kasan.o : CFLAGS_KASAN =
+endif
 
 FORMAT-EXCLUDE = sysent.h
 

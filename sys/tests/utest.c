@@ -99,6 +99,15 @@ UTEST_ADD_SIMPLE(sigaction_with_setjmp);
 UTEST_ADD_SIMPLE(sigaction_handler_returns);
 
 UTEST_ADD_SIMPLE(vfs_dir);
+UTEST_ADD_SIMPLE(vfs_relative_dir);
+UTEST_ADD_SIMPLE(vfs_rw);
+UTEST_ADD_SIMPLE(vfs_dot_dot_dir);
+UTEST_ADD_SIMPLE(vfs_dot_dir);
+UTEST_ADD_SIMPLE(vfs_dot_dot_across_fs);
+UTEST_ADD_SIMPLE(vfs_trunc);
+UTEST_ADD_SIMPLE(vfs_symlink);
+UTEST_ADD_SIMPLE(vfs_link);
+UTEST_ADD_SIMPLE(vfs_chmod);
 
 #if 0
 UTEST_ADD_SIMPLE(fpu_fcsr);

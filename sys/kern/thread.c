@@ -34,8 +34,8 @@ void thread_reap(void) {
     TAILQ_INIT(&zombie_threads);
   }
 
-  thread_t *td;
-  TAILQ_FOREACH (td, &zombies, td_zombieq)
+  thread_t *td, *next;
+  TAILQ_FOREACH_SAFE (td, &zombies, td_zombieq, next)
     thread_delete(td);
 }
 

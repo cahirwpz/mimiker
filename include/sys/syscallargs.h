@@ -30,10 +30,11 @@ typedef struct {
 } write_args_t;
 
 typedef struct {
+  int fd;
   const char * path;
   int flags;
   mode_t mode;
-} open_args_t;
+} openat_args_t;
 
 typedef struct {
   int fd;
@@ -46,8 +47,10 @@ typedef struct {
 } lseek_args_t;
 
 typedef struct {
+  int fd;
   const char * path;
-} unlink_args_t;
+  int flag;
+} unlinkat_args_t;
 
 typedef struct {
   pid_t pid;
@@ -81,8 +84,7 @@ typedef struct {
   int fd;
   void * buf;
   size_t len;
-  off_t * basep;
-} getdirentries_args_t;
+} getdents_args_t;
 
 typedef struct {
   int fd;
@@ -111,23 +113,30 @@ typedef struct {
 } wait4_args_t;
 
 typedef struct {
+  int fd;
   const char * path;
   mode_t mode;
-} mkdir_args_t;
+} mkdirat_args_t;
 
 typedef struct {
+  const char * target;
+  int newdirfd;
+  const char * linkpath;
+} symlinkat_args_t;
+
+typedef struct {
+  int fd;
   const char * path;
-} rmdir_args_t;
+  int mode;
+  int flags;
+} faccessat_args_t;
 
 typedef struct {
-  const char * path;
-  int amode;
-} access_args_t;
-
-typedef struct {
+  int fd;
   const char * path;
   struct stat * sb;
-} stat_args_t;
+  int flag;
+} fstatat_args_t;
 
 typedef struct {
   int * fdp;
@@ -211,3 +220,44 @@ typedef struct {
   int cmd;
   void * arg;
 } fcntl_args_t;
+
+typedef struct {
+  const char * path;
+  off_t length;
+} truncate_args_t;
+
+typedef struct {
+  int fd;
+  off_t length;
+} ftruncate_args_t;
+
+typedef struct {
+  int fd;
+  const char * path;
+  char * buf;
+  size_t bufsiz;
+} readlinkat_args_t;
+
+typedef struct {
+  int fd;
+} fchdir_args_t;
+
+typedef struct {
+  int fd1;
+  const char * name1;
+  int fd2;
+  const char * name2;
+  int flags;
+} linkat_args_t;
+
+typedef struct {
+  int fd;
+  mode_t mode;
+} fchmod_args_t;
+
+typedef struct {
+  int fd;
+  const char * path;
+  mode_t mode;
+  int flag;
+} fchmodat_args_t;

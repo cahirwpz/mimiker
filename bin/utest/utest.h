@@ -60,6 +60,15 @@ int test_sigaction_with_setjmp(void);
 int test_sigaction_handler_returns(void);
 
 int test_vfs_dir(void);
+int test_vfs_relative_dir(void);
+int test_vfs_dot_dot_dir(void);
+int test_vfs_dot_dir(void);
+int test_vfs_dot_dot_across_fs(void);
+int test_vfs_rw(void);
+int test_vfs_trunc(void);
+int test_vfs_symlink(void);
+int test_vfs_link(void);
+int test_vfs_chmod(void);
 
 int test_setpgid(void);
 int test_kill(void);

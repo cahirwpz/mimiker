@@ -177,6 +177,7 @@ static int unix_read(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
   int size = luaL_checkinteger(L, 2);
   char *buf = malloc(size);
+  error_if(buf == NULL);
   int result = read(fd, buf, size);
   error_if(result == -1);
   if (result == 0)
@@ -274,6 +275,7 @@ static int unix_exit(lua_State *L) {
 /* getcwd() -> (path: string) */
 static int unix_getcwd(lua_State *L) {
   char *buf = malloc(PATH_MAX);
+  error_if(buf == NULL);
   getcwd(buf, PATH_MAX);
   lua_pushstring(L, buf);
   free(buf);
@@ -291,17 +293,17 @@ static int unix_chdir(lua_State *L) {
 #define DIRENT_BUFLEN 4096
 typedef struct dirent dirent_t;
 
-/* getdirentries(fd: integer)
+/* getdents(fd: integer)
  * -> table({d_type: integer, d_fileno: integer, d_name: string}) */
-static int unix_getdirentries(lua_State *L) {
+static int unix_getdents(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
   char *buf = malloc(DIRENT_BUFLEN);
-  off_t base_p = 0;
+  error_if(buf == NULL);
   size_t nread = 0;
   lua_createtable(L, 0, 0);
   int i = 1;
   do {
-    nread = getdirentries(fd, buf, DIRENT_BUFLEN, &base_p);
+    nread = getdents(fd, buf, DIRENT_BUFLEN);
     for (dirent_t *dir = (dirent_t *)buf; (char *)dir < buf + nread;
          dir = (dirent_t *)((char *)dir + dir->d_reclen)) {
       lua_pushinteger(L, i++);
@@ -407,7 +409,7 @@ static const luaL_Reg tab_funcs[] = {
   {"close", unix_close},
   {"dup2", unix_dup2},
   {"exit", unix_exit},
-  {"getdirentries", unix_getdirentries},
+  {"getdents", unix_getdents},
   {"open", unix_open},
   {"read", unix_read},
   {"write", unix_write},

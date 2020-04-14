@@ -34,14 +34,15 @@ With toolchain in place, you are ready to compile Mimiker. Run
 ```
 make
 ```
-or
-```
-make CLANG=1
-```
 
-in project root. The latter will use the Clang compiler instead of GCC
-(make sure you have it installed!). Running either command will result
-with a `mimiker.elf` file containing the kernel image.
+in project root. Currently two additional command-line options are supported:
+* `CLANG=1` - Use the Clang compiler instead of GCC (make sure you have it installed!).
+* `KASAN=1` - Compile the kernel with the KernelAddressSanitizer, which is a
+dynamic memory error detector. 
+
+For example, use `make KASAN=1` command to create a GCC-KASAN build.
+
+The result will be a `mimiker.elf` file containing the kernel image.
 
 Running
 ---
@@ -76,7 +77,7 @@ argument. Some useful kernel arguments:
   Browse `bin` and `usr.bin` directories for currently available programs.
 * `klog-quiet=1` - Turns off printing kernel diagnostic messages.
 
-If you want to run tests please read [this document](tests/README.md).
+If you want to run tests please read [this document](sys/tests/README.md).
 
 Documentation
 ---

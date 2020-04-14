@@ -22,19 +22,14 @@ typedef struct componentname componentname_t;
 /* vnode access modes */
 typedef enum { VEXEC = 1, VWRITE = 2, VREAD = 4 } accmode_t;
 
-typedef enum {
-  V_NONE,
-  V_REG,
-  V_DIR,
-  V_DEV,
-} vnodetype_t;
+typedef enum { V_NONE, V_REG, V_DIR, V_DEV, V_LNK } vnodetype_t;
 
 typedef int vnode_lookup_t(vnode_t *dv, componentname_t *cn, vnode_t **vp);
 typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio);
 typedef int vnode_open_t(vnode_t *v, int mode, file_t *fp);
 typedef int vnode_close_t(vnode_t *v, file_t *fp);
-typedef int vnode_read_t(vnode_t *v, uio_t *uio);
-typedef int vnode_write_t(vnode_t *v, uio_t *uio);
+typedef int vnode_read_t(vnode_t *v, uio_t *uio, int ioflag);
+typedef int vnode_write_t(vnode_t *v, uio_t *uio, int ioflag);
 typedef int vnode_seek_t(vnode_t *v, off_t oldoff, off_t newoff);
 typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
 typedef int vnode_setattr_t(vnode_t *v, vattr_t *va);
@@ -47,6 +42,10 @@ typedef int vnode_rmdir_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
 typedef int vnode_access_t(vnode_t *v, accmode_t mode);
 typedef int vnode_ioctl_t(vnode_t *v, u_long cmd, void *data);
 typedef int vnode_reclaim_t(vnode_t *v);
+typedef int vnode_readlink_t(vnode_t *v, uio_t *uio);
+typedef int vnode_symlink_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
+                            char *target, vnode_t **vp);
+typedef int vnode_link_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
 
 typedef struct vnodeops {
   vnode_lookup_t *v_lookup;
@@ -65,6 +64,9 @@ typedef struct vnodeops {
   vnode_access_t *v_access;
   vnode_ioctl_t *v_ioctl;
   vnode_reclaim_t *v_reclaim;
+  vnode_readlink_t *v_readlink;
+  vnode_symlink_t *v_symlink;
+  vnode_link_t *v_link;
 } vnodeops_t;
 
 /* Fill missing entries with default vnode operation. */
@@ -104,6 +106,11 @@ typedef struct vattr {
 void vattr_null(vattr_t *va);
 void vattr_convert(vattr_t *va, stat_t *sb);
 
+/*
+ * Flags for ioflag.
+ */
+#define IO_APPEND 0x00020 /* append write to end */
+
 #define VOP_CALL(op, v, ...)                                                   \
   ((v)->v_ops->v_##op) ? ((v)->v_ops->v_##op(v, ##__VA_ARGS__)) : ENOTSUP
 
@@ -124,12 +131,12 @@ static inline int VOP_CLOSE(vnode_t *v, file_t *fp) {
   return VOP_CALL(close, v, fp);
 }
 
-static inline int VOP_READ(vnode_t *v, uio_t *uio) {
-  return VOP_CALL(read, v, uio);
+static inline int VOP_READ(vnode_t *v, uio_t *uio, int ioflag) {
+  return VOP_CALL(read, v, uio, ioflag);
 }
 
-static inline int VOP_WRITE(vnode_t *v, uio_t *uio) {
-  return VOP_CALL(write, v, uio);
+static inline int VOP_WRITE(vnode_t *v, uio_t *uio, int ioflag) {
+  return VOP_CALL(write, v, uio, ioflag);
 }
 
 static inline int VOP_SEEK(vnode_t *v, off_t oldoff, off_t newoff) {
@@ -174,6 +181,19 @@ static inline int VOP_RECLAIM(vnode_t *v) {
   return VOP_CALL(reclaim, v);
 }
 
+static inline int VOP_READLINK(vnode_t *v, uio_t *uio) {
+  return VOP_CALL(readlink, v, uio);
+}
+
+static inline int VOP_SYMLINK(vnode_t *dv, componentname_t *cn, vattr_t *va,
+                              char *target, vnode_t **vp) {
+  return VOP_CALL(symlink, dv, cn, va, target, vp);
+}
+
+static inline int VOP_LINK(vnode_t *dv, vnode_t *v, componentname_t *cn) {
+  return VOP_CALL(link, dv, v, cn);
+}
+
 #undef VOP_CALL
 
 /* Allocates and initializes a new vnode */
@@ -189,19 +209,21 @@ void vnode_unlock(vnode_t *v);
 void vnode_hold(vnode_t *v);
 void vnode_drop(vnode_t *v);
 
-/* Unlock and release the reference. */
+/* Increment reference counter and lock the vnode. */
+void vnode_get(vnode_t *v);
+
+/* Unlock and decrement reference counter for the vnode. */
 void vnode_put(vnode_t *v);
 
-/* Uncovers a node under the mounted node until it reaches the node that isn't
- * mounted */
-vnode_t *vnode_uncover(vnode_t *v);
+/* Is the vnode root of file system and mounted somewhere? */
+bool vnode_is_mounted(vnode_t *v);
 
 /* Convenience function with default vnode operation implementation. */
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff);
 int vnode_access_generic(vnode_t *v, accmode_t mode);
 
-uint8_t vnode_to_dt(vnode_t *v);
+uint8_t vt2dt(vnodetype_t v_type);
 
 #define DIRENT_DOT ((void *)-2)
 #define DIRENT_DOTDOT ((void *)-1)
