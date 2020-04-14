@@ -577,7 +577,9 @@ static int sys_sigprocmask(proc_t *p, sigprocmask_args_t *args,
   if (error)
     return error;
 
-  return copyout_s(oset, user_oset);
+  if (user_oset)
+      error = copyout_s(oset, user_oset);
+  return error;
 }
 
 static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
