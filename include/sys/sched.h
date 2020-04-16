@@ -111,7 +111,7 @@ void sched_maybe_preempt(void);
  *
  * \note Panics if interrupts or preemption are disabled.
  */
-void sched_yield(void);
+void yield(void);
 
 /*! \brief Turns calling thread into idle thread. */
 __noreturn void sched_run(void);

@@ -819,6 +819,6 @@ end:
 
 static int sys_sched_yield(proc_t *p, void *args, register_t *res) {
     klog("sched_yield()");
-    sched_yield();
+    yield();
     return 0;
 }

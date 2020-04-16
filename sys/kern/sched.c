@@ -211,7 +211,7 @@ void sched_maybe_preempt(void) {
   }
 }
 
-void sched_yield(void) {
+void yield(void) {
   assert(!preempt_disabled() && !intr_disabled());
   thread_t *td = thread_self();
 
