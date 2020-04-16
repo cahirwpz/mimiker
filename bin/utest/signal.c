@@ -2,6 +2,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <sched.h>
 #include <sys/wait.h>
 
 #include "utest.h"
@@ -74,10 +75,9 @@ int test_signal_segfault() {
   return 0;
 }
 
-static int sigcont_handled = 0;
-
+/* ======= signal_stop ======= */
+static volatile int sigcont_handled = 0;
 static void sigcont_handler(int signo) {
-  printf("sigcont handled!\n");
   sigcont_handled = 1;
 }
 
@@ -94,18 +94,19 @@ int test_signal_stop() {
     return 0;
   }
 
-#define SPIN(lim) for (volatile int i = 0; i < (lim); i++);
   signal(SIGUSR1, sigusr1_handler);
   /* Wait for the child to start sending signals */
-  while (!sigusr1_handled);
+  while (!sigusr1_handled)
+    sched_yield();
   kill(pid, SIGSTOP);
-  /* Make sure the child has stopped, and no signals from it are pending.
-   * Could be done using waitpid(), but it currently doesn't support waiting
-   * for a child process to stop. */
-  SPIN(10000000);
+  /* Yielding should make sure that the child processes the signal. */
+  sched_yield();
   /* Now we shouldn't be getting any signals from the child. */
   sigusr1_handled = 0;
-  SPIN(100000000);
+  /* Yield a couple times to make sure that if the child was runnable,
+   * it would send us a signal here. */
+  for (int i = 0; i < 3; i++)
+    sched_yield();
   assert(!sigusr1_handled);
   /* Now continue the child process -- it should exit normally. */
   kill(pid, SIGCONT);
