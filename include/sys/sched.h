@@ -116,6 +116,6 @@ void yield(void);
 /*! \brief Turns calling thread into idle thread. */
 __noreturn void sched_run(void);
 
-#endif  /* _KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_SCHED_H_ */

@@ -7,4 +7,4 @@ __BEGIN_DECLS
 int sched_yield(void);
 __END_DECLS
 
-#endif  /* !_SCHED_H_ */
+#endif /* !_SCHED_H_ */
