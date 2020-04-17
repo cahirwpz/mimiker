@@ -10,7 +10,7 @@ from launcher import gdb_port, TARGET
 
 N_SIMPLE = 5
 N_THOROUGH = 100
-TIMEOUT = 20
+TIMEOUT = 40
 RETRIES_MAX = 5
 REPEAT = 5
 
