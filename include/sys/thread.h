@@ -35,6 +35,8 @@ typedef void (*entry_fn_t)(void *);
  *  - RUNNING -> READY (dispatcher, self)
  *  - RUNNING -> SLEEPING (self)
  *  - RUNNING -> BLOCKED (self)
+ *  - RUNNING -> STOPPED (self)
+ *  - STOPPED -> READY (other threads)
  *  - SLEEPING -> READY (interrupts, other threads)
  *  - BLOCKED -> READY (other threads)
  *  - * -> DEAD (other threads or self)
@@ -50,6 +52,8 @@ typedef enum {
   TDS_SLEEPING,
   /*!< thread is waiting for a lock and it has been put on a turnstile */
   TDS_BLOCKED,
+  /*!< thread stopped by a signal: not on a runqueue, not running */
+  TDS_STOPPED,
   /*!< thread finished or was terminated by the kernel and awaits recycling */
   TDS_DEAD
 } thread_state_t;
@@ -212,6 +216,10 @@ static inline bool td_is_inactive(thread_t *td) {
 
 static inline bool td_is_sleeping(thread_t *td) {
   return td->td_state == TDS_SLEEPING;
+}
+
+static inline bool td_is_stopped(thread_t *td) {
+  return td->td_state == TDS_STOPPED;
 }
 
 static inline bool td_is_interruptible(thread_t *td) {

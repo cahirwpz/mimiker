@@ -1,6 +1,8 @@
 #ifndef _SYS_SCHED_H_
 #define _SYS_SCHED_H_
 
+#ifdef _KERNEL
+
 #include <sys/cdefs.h>
 #include <sys/thread.h>
 
@@ -105,7 +107,15 @@ long sched_switch(void);
  */
 void sched_maybe_preempt(void);
 
+/*! \brief Unconditionally yield the CPU to another thread.
+ *
+ * \note Panics if interrupts or preemption are disabled.
+ */
+void yield(void);
+
 /*! \brief Turns calling thread into idle thread. */
 __noreturn void sched_run(void);
+
+#endif /* _KERNEL */
 
 #endif /* !_SYS_SCHED_H_ */
