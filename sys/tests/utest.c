@@ -81,6 +81,7 @@ UTEST_ADD_SIMPLE(signal_send);
 UTEST_ADD_SIGNAL(signal_abort, SIGABRT);
 UTEST_ADD_SIGNAL(signal_segfault, SIGSEGV);
 UTEST_ADD_SIMPLE(signal_stop);
+UTEST_ADD_SIMPLE(signal_cont_masked);
 UTEST_ADD_SIMPLE(signal_mask);
 UTEST_ADD_SIMPLE(signal_mask_nonmaskable);
 

@@ -134,6 +134,39 @@ int test_signal_stop() {
   return 0;
 }
 
+/* ======= signal_cont_masked ======= */
+int test_signal_cont_masked() {
+  ppid = getpid();
+  signal(SIGCONT, sigcont_handler);
+  int pid = fork();
+  if (pid == 0) {
+    sigset_t mask, old;
+    __sigemptyset(&mask);
+    sigaddset(&mask, SIGCONT);
+    assert(sigprocmask(SIG_BLOCK, &mask, &old) == 0);
+    /* Even though SIGCONT is blocked, it should wake us up, but it
+     * should remain pending until we unblock it. */
+    raise(SIGSTOP);
+    assert(!sigcont_handled);
+    /* Unblock SIGCONT: the handler should run immediately after. */
+    assert(sigprocmask(SIG_SETMASK, &old, NULL) == 0);
+    assert(sigcont_handled);
+    return 0;
+  }
+
+  /* Make sure the child has stopped. */
+  for (int i = 0; i < 3; i++)
+    sched_yield();
+
+  kill(pid, SIGCONT);
+  int status;
+  printf("Waiting for child...\n");
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+  return 0;
+}
+
 /* ======= signal_mask ======= */
 int test_signal_mask() {
   ppid = getpid();

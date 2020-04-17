@@ -29,6 +29,7 @@ int test_signal_send(void);
 int test_signal_abort(void);
 int test_signal_segfault(void);
 int test_signal_stop(void);
+int test_signal_cont_masked(void);
 int test_signal_mask(void);
 int test_signal_mask_nonmaskable(void);
 
