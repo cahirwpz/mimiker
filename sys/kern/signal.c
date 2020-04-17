@@ -84,10 +84,10 @@ static signo_t sig_find_pending(thread_t *td) {
   assert(p != NULL);
   assert(mtx_owned(&p->p_lock));
 
-  sigset_t unmasked = td->td_sigpend;
-  __sigminusset(&td->td_sigmask, &unmasked);
+  sigset_t unblocked = td->td_sigpend;
+  __sigminusset(&td->td_sigmask, &unblocked);
 
-  return __sigfindset(&unmasked);
+  return __sigfindset(&unblocked);
 }
 
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
