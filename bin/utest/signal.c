@@ -2,6 +2,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <sched.h>
 #include <sys/wait.h>
 
 #include "utest.h"
@@ -74,41 +75,57 @@ int test_signal_segfault() {
   return 0;
 }
 
-static int sigcont_handled = 0;
-
+/* ======= signal_stop ======= */
+static volatile int sigcont_handled = 0;
 static void sigcont_handler(int signo) {
-  printf("sigcont handled!\n");
   sigcont_handled = 1;
 }
 
+static volatile int ppid;
+static void signal_parent(int signo) {
+  kill(ppid, SIGCONT);
+}
+
 int test_signal_stop() {
-  sigusr1_handled = 0;
+  ppid = getpid();
   signal(SIGUSR1, SIG_IGN);
+  signal(SIGCONT, sigcont_handler);
   int pid = fork();
   if (pid == 0) {
-    signal(SIGCONT, sigcont_handler);
+    signal(SIGUSR1, signal_parent);
     /* The child keeps sending SIGUSR1 to the parent. */
-    int ppid = getppid();
     while (!sigcont_handled)
       kill(ppid, SIGUSR1);
     return 0;
   }
 
-#define SPIN(lim) for (volatile int i = 0; i < (lim); i++);
   signal(SIGUSR1, sigusr1_handler);
   /* Wait for the child to start sending signals */
-  while (!sigusr1_handled);
+  while (!sigusr1_handled)
+    sched_yield();
   kill(pid, SIGSTOP);
-  /* Make sure the child has stopped, and no signals from it are pending.
-   * Could be done using waitpid(), but it currently doesn't support waiting
-   * for a child process to stop. */
-  SPIN(10000000);
+  /* Yielding should make sure that the child processes the signal. */
+  sched_yield();
   /* Now we shouldn't be getting any signals from the child. */
   sigusr1_handled = 0;
-  SPIN(100000000);
+  /* Yield a couple times to make sure that if the child was runnable,
+   * it would send us a signal here. */
+  for (int i = 0; i < 3; i++)
+    sched_yield();
+  assert(!sigusr1_handled);
+  /* Stopped processes shouldn't handle incoming signals until they're
+   * continued (with SIGKILL and SIGCONT being the only exceptions).
+   * Send SIGUSR1 to the stopped child. If the handler runs, it will
+   * send us a signal. */
+  kill(pid, SIGUSR1);
+  sched_yield();
   assert(!sigusr1_handled);
   /* Now continue the child process -- it should exit normally. */
   kill(pid, SIGCONT);
+  /* The child's SIGUSR1 handler should now run, and so our SIGCONT handler
+   * should run too. */
+  sched_yield();
+  assert(sigcont_handled);
   int status;
   printf("Waiting for child...\n");
   wait(&status);
