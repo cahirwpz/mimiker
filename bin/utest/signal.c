@@ -104,8 +104,10 @@ int test_signal_stop() {
   while (!sigusr1_handled)
     sched_yield();
   kill(pid, SIGSTOP);
-  /* Yielding should make sure that the child processes the signal. */
-  sched_yield();
+  /* Yielding should make sure that the child processes the signal.
+   * TODO: once it's implemented, use waitpid to wait until the child stops. */
+  for (int i = 0; i < 3; i++)
+    sched_yield();
   /* Now we shouldn't be getting any signals from the child. */
   sigusr1_handled = 0;
   /* Yield a couple times to make sure that if the child was runnable,
