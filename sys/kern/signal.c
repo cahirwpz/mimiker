@@ -9,6 +9,7 @@
 #include <sys/proc.h>
 #include <sys/wait.h>
 #include <sys/sched.h>
+#include <sys/sysinit.h>
 
 #define SA_IGNORE 0x01
 #define SA_KILL 0x02
@@ -16,6 +17,8 @@
 #define SA_STOP 0x04 /* Stop a process */
 #define SA_DEF_SIGACT 0x07
 #define SA_CANTMASK 0x08
+
+static sigset_t cantmask;
 
 /* clang-format off */
 static int sig_properties[NSIG] = {
@@ -116,8 +119,9 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
       default:
         return EINVAL;
     }
+    __sigminusset(&cantmask, mask);
     if (more && sig_find_pending(td) < NSIG)
-      WITH_SPIN_LOCK(&td->td_spin)
+      WITH_SPIN_LOCK (&td->td_spin)
         td->td_flags |= TDF_NEEDSIGCHK;
   }
 
@@ -266,3 +270,12 @@ __noreturn void sig_exit(thread_t *td, signo_t sig) {
 int do_sigreturn(void) {
   return sig_return();
 }
+
+void sig_init(void) {
+  __sigemptyset(&cantmask);
+  for (signo_t sig = 1; sig < NSIG; sig++)
+    if (sig_properties[sig] & SA_CANTMASK)
+      __sigaddset(&cantmask, sig);
+}
+
+SYSINIT_ADD(sig, sig_init, NODEPS);

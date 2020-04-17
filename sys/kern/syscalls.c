@@ -579,7 +579,7 @@ static int sys_sigprocmask(proc_t *p, sigprocmask_args_t *args,
     return error;
 
   if (user_oset)
-      error = copyout_s(oset, user_oset);
+    error = copyout_s(oset, user_oset);
   return error;
 }
 
