@@ -59,6 +59,7 @@
 #define SYS_linkat 51
 #define SYS_fchmod 52
 #define SYS_fchmodat 53
-#define SYS_MAXSYSCALL 54
+#define SYS_sched_yield 54
+#define SYS_MAXSYSCALL 55
 
 #define SYS_MAXSYSARGS 6
