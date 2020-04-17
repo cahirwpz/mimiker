@@ -172,6 +172,11 @@ void sig_kill(proc_t *proc, signo_t sig) {
   if (sig != SIGCONT || caught)
     __sigaddset(&td->td_sigpend, sig);
 
+  /* Don't wake up the target thread if it blocks the signal being sent.
+   * Exception: SIGCONT wakes up stopped threads even if it's blocked. */
+  if (!wakeup_stopped && __sigismember(&td->td_sigmask, sig))
+    return;
+
   WITH_SPIN_LOCK (&td->td_spin) {
     td->td_flags |= TDF_NEEDSIGCHK;
     /* If the thread is sleeping interruptibly (!), wake it up, so that it
