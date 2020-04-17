@@ -31,7 +31,7 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot);
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end);
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap);
 
-void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot);
+void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot);
 void pmap_kremove(vaddr_t start, vaddr_t end);
 
 void pmap_zero_page(vm_page_t *pg);

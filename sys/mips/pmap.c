@@ -196,7 +196,7 @@ static pte_t vm_prot_map[] = {
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
 };
 
-void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot) {
+void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot) {
   pmap_t *pmap = &kernel_pmap;
 
   assert(pmap_address_p(pmap, va));
