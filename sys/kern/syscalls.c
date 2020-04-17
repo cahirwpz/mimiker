@@ -20,6 +20,7 @@
 #include <sys/libkern.h>
 #include <sys/syslimits.h>
 #include <sys/context.h>
+#include <sys/sched.h>
 
 #include "sysent.h"
 
@@ -814,4 +815,10 @@ static int sys_fchmodat(proc_t *p, fchmodat_args_t *args, register_t *res) {
 end:
   kfree(M_TEMP, path);
   return error;
+}
+
+static int sys_sched_yield(proc_t *p, void *args, register_t *res) {
+  klog("sched_yield()");
+  yield();
+  return 0;
 }
