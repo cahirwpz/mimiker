@@ -14,17 +14,19 @@
 #define SA_KILL 0x02
 #define SA_CONT 0x03 /* Continue a stopped process */
 #define SA_STOP 0x04 /* Stop a process */
+#define SA_DEF_SIGACT 0x07
+#define SA_CANTMASK 0x08
 
 /* clang-format off */
-static int def_sigact[NSIG] = {
+static int sig_properties[NSIG] = {
   [SIGINT] = SA_KILL,
   [SIGILL] = SA_KILL,
   [SIGABRT] = SA_KILL,
   [SIGFPE] = SA_KILL,
   [SIGSEGV] = SA_KILL,
-  [SIGKILL] = SA_KILL,
+  [SIGKILL] = SA_KILL | SA_CANTMASK,
   [SIGTERM] = SA_KILL,
-  [SIGSTOP] = SA_STOP,
+  [SIGSTOP] = SA_STOP | SA_CANTMASK,
   [SIGCONT] = SA_CONT,
   [SIGCHLD] = SA_IGNORE,
   [SIGUSR1] = SA_KILL,
@@ -70,7 +72,7 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
 
 static int sig_default(signo_t sig) {
   assert(sig <= NSIG);
-  return def_sigact[sig];
+  return sig_properties[sig] & SA_DEF_SIGACT;
 }
 
 static signo_t sig_find_pending(thread_t *td) {
