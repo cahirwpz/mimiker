@@ -211,6 +211,16 @@ void sched_maybe_preempt(void) {
   }
 }
 
+void yield(void) {
+  assert(!preempt_disabled() && !intr_disabled());
+  thread_t *td = thread_self();
+
+  WITH_SPIN_LOCK (&td->td_spin) {
+    td->td_state = TDS_READY;
+    sched_switch();
+  }
+}
+
 bool preempt_disabled(void) {
   thread_t *td = thread_self();
   return td->td_pdnest > 0;
