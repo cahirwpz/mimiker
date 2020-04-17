@@ -70,12 +70,10 @@ workflows:
       - verify_pycodestyle
       - build:
           name: build_gcc
+          use_kasan: '1'
       - build:
           name: build_clang
           use_clang: '1'
-      - build:
-          name: build_kasan
-          use_kasan: '1'
       - kernel_tests:
           name: kernel_tests_gcc
           requires:
@@ -84,7 +82,3 @@ workflows:
           name: kernel_tests_clang
           requires:
             - build_clang
-      - kernel_tests:
-          name: kernel_tests_kasan
-          requires:
-            - build_kasan
