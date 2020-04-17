@@ -180,3 +180,18 @@ int test_signal_mask() {
   assert(WEXITSTATUS(status) == 0);
   return 0;
 }
+
+/* ======= signal_mask_nonmaskable ======= */
+int test_signal_mask_nonmaskable() {
+  sigset_t set, old;
+  __sigemptyset(&set);
+  __sigaddset(&set, SIGSTOP);
+  __sigaddset(&set, SIGKILL);
+  __sigaddset(&set, SIGUSR1);
+  /* The call should succeed, but SIGKILL and SIGSTOP shouldn't be blocked. */
+  assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
+  assert(sigprocmask(SIG_BLOCK, NULL, &set) == 0);
+  __sigaddset(&old, SIGUSR1);
+  assert(__sigsetequal(&set, &old));
+  return 0;
+}
