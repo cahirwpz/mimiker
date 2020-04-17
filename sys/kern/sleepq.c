@@ -371,6 +371,8 @@ static void sq_timeout(thread_t *td) {
 
 int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
   callout_t co;
+  bzero(&co, sizeof(callout_t));
+
   int status = 0;
   WITH_INTR_DISABLED {
     if (timeout > 0)

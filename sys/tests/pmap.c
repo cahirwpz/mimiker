@@ -3,6 +3,7 @@
 #include <sys/vm.h>
 #include <sys/vm_physmem.h>
 #include <sys/ktest.h>
+#include <sys/sched.h>
 
 #define PAGES 16
 
@@ -43,6 +44,10 @@ static int test_kernel_pmap(void) {
 }
 
 static int test_user_pmap(void) {
+  /* This test mustn't be preempted since PCPU's user-space vm_map
+   * (and its pmap) will not be restored while switching back. */
+  SCOPED_NO_PREEMPTION();
+
   pmap_t *orig = pmap_user();
 
   pmap_t *pmap1 = pmap_new();
@@ -77,6 +82,10 @@ static int test_user_pmap(void) {
 }
 
 static int test_rmbits(void) {
+  /* This test mustn't be preempted since PCPU's user-space vm_map
+   * (and its pmap) will not be restored while switching back. */
+  SCOPED_NO_PREEMPTION();
+
   pmap_t *orig = pmap_user();
 
   pmap_t *pmap = pmap_new();

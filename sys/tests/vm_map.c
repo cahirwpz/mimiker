@@ -11,7 +11,7 @@
 #include <sys/sched.h>
 
 static int paging_on_demand_and_memory_protection_demo(void) {
-  /* This test cannot be preempted since PCPU's user-space vm_map will not be
+  /* This test mustn't be preempted since PCPU's user-space vm_map will not be
    * restored while switching back. */
   SCOPED_NO_PREEMPTION();
 
@@ -79,6 +79,10 @@ static int paging_on_demand_and_memory_protection_demo(void) {
 }
 
 static int findspace_demo(void) {
+  /* This test mustn't be preempted since PCPU's user-space vm_map will not be
+   * restored while switching back. */
+  SCOPED_NO_PREEMPTION();
+
   vm_map_t *orig = vm_map_user();
 
   vm_map_t *umap = vm_map_new();
