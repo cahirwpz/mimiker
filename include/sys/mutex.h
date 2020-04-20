@@ -25,7 +25,7 @@ typedef struct mtx {
 
 #define MTX_INITIALIZER(recurse)                                               \
   (mtx_t) {                                                                    \
-    .m_type = (recurse) | LK_SLEEP                                             \
+    .m_type = (recurse) | LK_BLOCKING                                          \
   }
 
 /*! \brief Initializes mutex.

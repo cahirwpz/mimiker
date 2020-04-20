@@ -1,27 +1,25 @@
 #ifndef _SYS_LOCK_H_
 #define _SYS_LOCK_H_
 
-/*! \enum Kind of lock. */
-typedef enum {
-  /*!\var LK_SLEEP
-   * \brief Type of sleeping lock.
-   *
-   * When a thread acquires sleeping lock that is owned by another thread it
-   * will be suspended and put on a sleep queue. */
-  LK_SLEEP = 0,
-  /*!\var LK_SPIN
-   * \brief Type of spinning lock.
-   *
-   * When a thread acquires spinning lock interrupts will be disabled.
-   */
-  LK_SPIN = 1,
-  /*!\var MTX_RECURSE
-   * \brief Type of recursive lock.
-   *
-   * The owner may lock it multiple times, but must release it as many times as
-   * she acquired it. */
-  LK_RECURSE = 2,
-} lock_type_t;
+/* Lock flags */
+typedef int lock_type_t;
+
+/*!\brief Type of blocking locks.
+ *
+ * When a thread tries to acquire a blocking lock that is owned by another
+ * thread, it will block and switch out to another thread. */
+#define LK_BLOCKING 0x1
+/*!\brief Type of spin locks.
+ *
+ * Interrupts are disabled upon acquiring a spin lock. */
+#define LK_SPIN 0x2
+/*!\brief Mask used to extract a lock's type (blocking/spin). */
+#define LK_TYPE 0x3
+/*!\brief Flag indicating a recursive lock.
+ *
+ * The lock may be acquired by the owner multiple times, and must
+ * be released exactly as many times. */
+#define LK_RECURSE 0x4
 
 typedef struct spin spin_t;
 typedef struct mtx mtx_t;
