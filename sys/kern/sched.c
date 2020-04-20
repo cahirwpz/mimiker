@@ -31,8 +31,7 @@ void sched_add(thread_t *td) {
 void sched_wakeup(thread_t *td, long reason) {
   assert(spin_owned(&td->td_spin));
   assert(td != thread_self());
-  assert(td_is_blocked(td) || td_is_sleeping(td) || td_is_inactive(td) ||
-         td_is_stopped(td));
+  assert(!td_is_running(td));
 
   /* Update sleep time. */
   timeval_t now = get_uptime();
@@ -145,10 +144,8 @@ long sched_switch(void) {
   } else if (td_is_sleeping(td)) {
     /* Record when the thread fell asleep. */
     td->td_last_slptime = now;
-  } else if (td_is_stopped(td)) {
-    /* Don't add stopped threads to run queue. */
-  } else if (td_is_dead(td)) {
-    /* Don't add dead threads to run queue. */
+  } else if (td_is_dead(td) || td_is_stopped(td)) {
+    /* Don't add dead or stopped threads to run queue. */
   }
 
   thread_t *newtd = sched_choose();
