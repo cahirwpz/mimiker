@@ -168,7 +168,7 @@ __always_inline static inline void kasan_shadow_check(uintptr_t addr,
             "ERROR:\n"
             "* invalid access to address %p\n"
             "* %s of size %lu\n"
-            "* redzone code 0x%X (%s)\n"
+            "* redzone code 0x%x (%s)\n"
             "============================================\n",
             (void *)addr, (read ? "read" : "write"), size, code,
             kasan_code_name(code));

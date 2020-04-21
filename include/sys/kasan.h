@@ -16,6 +16,10 @@
 #define KASAN_CODE_KMALLOC_OVERFLOW 0xFE
 #define KASAN_CODE_KMALLOC_USE_AFTER_FREE 0xFF
 
+/* Redzone sizes for instrumented allocators */
+#define KASAN_POOL_REDZONE_SIZE 8
+#define KASAN_KMALLOC_REDZONE_SIZE 8
+
 #ifdef KASAN
 void kasan_init(void);
 void kasan_mark_valid(const void *addr, size_t size);
