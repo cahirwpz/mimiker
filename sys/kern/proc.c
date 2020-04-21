@@ -167,7 +167,7 @@ proc_t *proc_find(pid_t pid) {
     proc_lock(p);
     if (p->p_pid == pid) {
       /* Skip process if it is not alive. */
-      if (p->p_state != PS_NORMAL) {
+      if (!proc_is_alive(p)) {
         proc_unlock(p);
         return NULL;
       }
