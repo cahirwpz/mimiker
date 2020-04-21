@@ -101,11 +101,12 @@ void sig_kill(proc_t *proc, signo_t sig) {
   /* If the signal is ignored, don't even bother posting it,
    * unless it's waking up a stopped process. */
   if (proc->p_state == PS_STOPPED && wakeup_stopped) {
-      proc->p_state = PS_NORMAL;
-      proc->p_state_changed = true;
-      proc_t *parent = proc->p_parent;
-      if (parent)
-        cv_broadcast(&proc->p_parent->p_waitcv);
+    proc->p_state = PS_NORMAL;
+    proc->p_aflags &= ~PFA_STOPPED;
+    proc->p_aflags |= PFA_CONTINUED;
+    proc_t *parent = proc->p_parent;
+    if (parent)
+      cv_broadcast(&proc->p_parent->p_waitcv);
   } else if (handler == SIG_IGN ||
              (sig_default(sig) == SA_IGNORE && handler == SIG_DFL)) {
     proc_unlock(proc);
@@ -179,37 +180,38 @@ void sig_post(signo_t sig) {
 
   if (sa->sa_handler == SIG_DFL) {
     switch (sig_default(sig)) {
-    case SA_KILL:
-      /* Terminate this thread as result of a signal. */
-      sig_exit(td, sig);
-      break;
-    case SA_STOP:
-      /* Stop this thread. Release process lock before switching. */
-      p->p_state = PS_STOPPED;
-      proc_unlock(p);
-      mtx_lock(all_proc_mtx);
-      proc_lock(p);
-      if (p->p_state == PS_STOPPED) {
-        p->p_state_changed = true;
-        proc_t *parent = p->p_parent;
-        if (parent) {
-          cv_broadcast(&parent->p_waitcv);
-        }
-        mtx_unlock(all_proc_mtx);
-        WITH_SPIN_LOCK (&td->td_spin) {
-          td->td_state = TDS_STOPPED;
-          /* We're holding a spinlock, so we can't be preempted here. */
-          proc_unlock(p);
-          sched_switch();
-        }
+      case SA_KILL:
+        /* Terminate this thread as result of a signal. */
+        sig_exit(td, sig);
+        break;
+      case SA_STOP:
+        /* Stop this thread. Release process lock before switching. */
+        p->p_state = PS_STOPPED;
+        proc_unlock(p);
+        mtx_lock(all_proc_mtx);
         proc_lock(p);
-      } else {
-        mtx_unlock(all_proc_mtx);
-      }
-      return;
-      break;
-    default:
-      break;
+        if (p->p_state == PS_STOPPED) {
+          p->p_aflags &= ~PFA_CONTINUED;
+          p->p_aflags |= PFA_STOPPED;
+          proc_t *parent = p->p_parent;
+          if (parent) {
+            cv_broadcast(&parent->p_waitcv);
+          }
+          mtx_unlock(all_proc_mtx);
+          WITH_SPIN_LOCK (&td->td_spin) {
+            td->td_state = TDS_STOPPED;
+            /* We're holding a spinlock, so we can't be preempted here. */
+            proc_unlock(p);
+            sched_switch();
+          }
+          proc_lock(p);
+        } else {
+          mtx_unlock(all_proc_mtx);
+        }
+        return;
+        break;
+      default:
+        break;
     }
   }
 

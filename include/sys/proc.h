@@ -34,6 +34,13 @@ typedef struct pgrp {
 
 typedef enum { PS_NORMAL, PS_STOPPED, PS_DYING, PS_ZOMBIE } proc_state_t;
 
+/* Process flags */
+
+/* Set on stopping, cleared when continued or reported by wait4. */
+#define PFA_STOPPED 0x1
+/* Set when continued, cleared when stopped or reported by wait4. */
+#define PFA_CONTINUED 0x2
+
 /*! \brief Process structure
  *
  * Field markings and the corresponding locks:
@@ -60,11 +67,9 @@ struct proc {
   vm_map_t *p_uspace;             /* ($) process' user space map */
   fdtab_t *p_fdtable;             /* ($) file descriptors table */
   sigaction_t p_sigactions[NSIG]; /* (@) description of signal actions */
-  bool p_state_changed;           /* (a) set on transitions
-                                     PS_STOPPED <-> PS_NORMAL,
-                                     cleared when reported by wait4 */
   condvar_t p_waitcv;             /* (a) processes waiting for this one */
   int p_exitstatus;               /* (@) exit code to be returned to parent */
+  volatile uint32_t p_aflags;     /* (a) PFA_* flags */
   vnode_t *p_cwd;                 /* ($) current working directory */
   mode_t p_cmask;                 /* ($) mask for file creation */
   /* program segments */
