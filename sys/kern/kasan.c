@@ -60,10 +60,6 @@ static const char *kasan_code_name(uint8_t code) {
       return "kmalloc buffer-overflow";
     case KASAN_CODE_KMALLOC_USE_AFTER_FREE:
       return "kmalloc use-after-free";
-    case KASAN_CODE_STACK_USE_AFTER_RET:
-      return "stack use-after-return";
-    case KASAN_CODE_STACK_USE_AFTER_SCOPE:
-      return "stack use-after-scope";
     case 1 ... 7:
       return "partial redzone";
     default:
