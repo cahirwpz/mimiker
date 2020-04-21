@@ -1,7 +1,11 @@
 #ifndef _SYS_LOCK_H_
 #define _SYS_LOCK_H_
 
-/*! \enum Kind of lock. */
+/*!\brief Lock attributes.
+ *
+ * Non-mutually-exclusive members may be bitwise-ORed together.
+ * \note Members that have any set bits in common with #LK_TYPE_MASK
+ * are mutually exclusive and denote the lock's type. */
 typedef enum {
   /*!\var LK_BLOCK
    * \brief Type of blocking locks.
