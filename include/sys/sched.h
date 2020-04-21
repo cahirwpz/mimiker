@@ -107,12 +107,6 @@ long sched_switch(void);
  */
 void sched_maybe_preempt(void);
 
-/*! \brief Unconditionally yield the CPU to another thread.
- *
- * \note Panics if interrupts or preemption are disabled.
- */
-void yield(void);
-
 /*! \brief Turns calling thread into idle thread. */
 __noreturn void sched_run(void);
 

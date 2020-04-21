@@ -20,7 +20,7 @@
 #include <sys/libkern.h>
 #include <sys/syslimits.h>
 #include <sys/context.h>
-#include <sys/sched.h>
+#include <sys/thread.h>
 
 #include "sysent.h"
 
@@ -815,6 +815,6 @@ end:
 
 static int sys_sched_yield(proc_t *p, void *args, register_t *res) {
   klog("sched_yield()");
-  yield();
+  thread_yield();
   return 0;
 }
