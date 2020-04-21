@@ -16,7 +16,7 @@ static sigset_t cantmask;
 /*!\brief Signal properties.
  *
  * Non-mutually-exclusive properties can be bitwise-ORed together.
- * \note Properties that have set bits in common with #SA_DEF_SIGACT_MASK
+ * \note Properties that have set bits in common with #SA_DEFACT_MASK
  * are mutually exclusive and denote the default action of the signal. */
 /* clang-format off */
 typedef enum {
@@ -28,7 +28,7 @@ typedef enum {
 } sigprop_t;
 
 /*!\brief Mask used to extract the default action from a sigprop_t. */
-#define SA_DEF_SIGACT_MASK 0x7
+#define SA_DEFACT_MASK 0x7
 
 /* clang-format off */
 static const sigprop_t sig_properties[NSIG] = {
@@ -64,6 +64,12 @@ static const char *sig_name[NSIG] = {
 };
 /* clang-format on */
 
+/* Default action for a signal. */
+static sigprop_t defact(signo_t sig) {
+  assert(sig <= NSIG);
+  return sig_properties[sig] & SA_DEFACT_MASK;
+}
+
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   proc_t *p = proc_self();
 
@@ -81,12 +87,6 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   }
 
   return 0;
-}
-
-/* Default action for a signal. */
-static sigprop_t sig_defact(signo_t sig) {
-  assert(sig <= NSIG);
-  return sig_properties[sig] & SA_DEF_SIGACT_MASK;
 }
 
 static signo_t sig_find_pending(thread_t *td) {
@@ -143,7 +143,6 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
  * NOTE: This is a very simple implementation! Unimplemented features:
  * - Thread tracing and debugging
  * - Multiple threads in a process
- * - Signal masks
  * These limitations (plus the fact that we currently have very little thread
  * states) make the logic of sending a signal very simple!
  */
@@ -172,7 +171,7 @@ void sig_kill(proc_t *proc, signo_t sig) {
     if (parent)
       cv_broadcast(&proc->p_parent->p_waitcv);
   } else if (handler == SIG_IGN ||
-             (sig_defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
+             (defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
     proc_unlock(proc);
     return;
   }
@@ -233,7 +232,7 @@ int sig_check(thread_t *td) {
 
     if (handler == SIG_IGN)
       continue;
-    if (handler == SIG_DFL && sig_defact(sig) == SA_IGNORE)
+    if (handler == SIG_DFL && defact(sig) == SA_IGNORE)
       continue;
 
     /* If we reached here, then the signal has to be posted. */
@@ -255,10 +254,10 @@ void sig_post(signo_t sig) {
   assert(sa->sa_handler != SIG_IGN);
 
   if (sa->sa_handler == SIG_DFL) {
-    if (sig_defact(sig) == SA_KILL) {
+    if (defact(sig) == SA_KILL) {
       /* Terminate this thread as result of a signal. */
       sig_exit(td, sig);
-    } else if (sig_defact(sig) == SA_STOP) {
+    } else if (defact(sig) == SA_STOP) {
       /* Stop this thread. Release process lock before switching. */
       p->p_state = PS_STOPPED;
       proc_unlock(p);
