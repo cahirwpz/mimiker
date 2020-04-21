@@ -116,7 +116,7 @@ void sig_kill(proc_t *proc, signo_t sig) {
   /* If stopping or continuing, remove pending signals with the opposite
    * effect. */
   if (sig == SIGSTOP || sig == SIGCONT)
-      __sigdelset(&td->td_sigpend, sig == SIGSTOP ? SIGCONT : SIGSTOP);
+    __sigdelset(&td->td_sigpend, sig == SIGSTOP ? SIGCONT : SIGSTOP);
 
   /* In case of SIGCONT, make it pending only if the process catches it. */
   if (sig != SIGCONT || caught)

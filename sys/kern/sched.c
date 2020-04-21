@@ -31,7 +31,8 @@ void sched_add(thread_t *td) {
 void sched_wakeup(thread_t *td, long reason) {
   assert(spin_owned(&td->td_spin));
   assert(td != thread_self());
-  assert(td_is_blocked(td) || td_is_sleeping(td) || td_is_inactive(td) || td_is_stopped(td));
+  assert(td_is_blocked(td) || td_is_sleeping(td) || td_is_inactive(td) ||
+         td_is_stopped(td));
 
   /* Update sleep time. */
   timeval_t now = get_uptime();

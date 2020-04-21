@@ -340,7 +340,7 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
 
       /* Check children meeting criteria implied by pid. */
       TAILQ_FOREACH (child, CHILDREN(p), p_child) {
-              /* pid > 0 => child with PID same as pid */
+        /* pid > 0 => child with PID same as pid */
         if (!(pid == child->p_pid ||
               /* pid == -1 => any child  */
               pid == -1 ||
@@ -357,16 +357,14 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
             *status = child->p_exitstatus;
           proc_reap(child);
           found = true;
-        } else if ((options & WUNTRACED) &&
-                   (child->p_state == PS_STOPPED) &&
-                   child->p_state_changed) {
-          child->p_state_changed = false;
+        } else if ((options & WUNTRACED) && (child->p_state == PS_STOPPED) &&
+                   (child->p_aflags & PFA_STOPPED)) {
+          child->p_aflags &= ~PFA_STOPPED;
           *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
           found = true;
-        } else if ((options & WCONTINUED) &&
-            (child->p_state == PS_NORMAL) &&
-            child->p_state_changed) {
-          child->p_state_changed = false;
+        } else if ((options & WCONTINUED) && (child->p_state == PS_NORMAL) &&
+                   (child->p_aflags & PFA_CONTINUED)) {
+          child->p_aflags &= ~PFA_CONTINUED;
           *status = MAKE_STATUS_SIG_CONT();
           found = true;
         }
