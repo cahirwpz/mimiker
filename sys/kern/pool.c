@@ -10,6 +10,7 @@
 #include <sys/kmem.h>
 #include <machine/vm_param.h>
 #include <bitstring.h>
+#include <sys/kasan.h>
 
 #define INITME 0xC0DECAFE
 #define ALIVE 0xFACEFEED
@@ -181,6 +182,9 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
                           : &pool->pp_full_slabs;
   LIST_INSERT_HEAD(slabs, slab, ph_slablist);
 
+  /* Mark the item as valid */
+  kasan_mark_valid(p, pool->pp_itemsize);
+
   /* XXX: Modify code below when pp_ctor & pp_dtor are reenabled */
   if (flags & M_ZERO)
     bzero(p, pool->pp_itemsize);
@@ -194,6 +198,9 @@ void pool_free(pool_t *pool, void *ptr) {
   debug("pool_free: pool = %p, ptr = %p", pool, ptr);
 
   assert(pool->pp_state == ALIVE);
+
+  /* Mark the item as invalid */
+  kasan_mark(ptr, 0, pool->pp_itemsize, KASAN_CODE_POOL_USE_AFTER_FREE);
 
   WITH_MTX_LOCK (&pool->pp_mtx) {
     pool_item_t *pi = ptr - sizeof(pool_item_t);

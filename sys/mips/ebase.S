@@ -26,7 +26,7 @@
 
 #define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (EXC_FPU_##offset)(base)
 
-#define SAVE_CPU_CTX(_sp, reg)                                                 \
+#define SAVE_CPU_CTX(reg)                                                      \
         SAVE_REG_CFI(AT, AT, reg);                                             \
         SAVE_REG_CFI(v0, V0, reg);                                             \
         SAVE_REG_CFI(v1, V1, reg);                                             \
@@ -53,8 +53,6 @@
         SAVE_REG_CFI(t8, T8, reg);                                             \
         SAVE_REG_CFI(t9, T9, reg);                                             \
         SAVE_REG_CFI(gp, GP, reg);                                             \
-        SAVE_REG(_sp, SP, reg);                                                \
-        .cfi_rel_offset sp, EXC_SP;                                            \
         SAVE_REG_CFI(fp, FP, reg);                                             \
         /* Save value of user-space RA just before syscall. */                 \
         SAVE_REG(ra, RA, reg);                                                 \
@@ -63,22 +61,9 @@
         mflo t0;                                                               \
         mfhi t1;                                                               \
         SAVE_REG(t0, LO, reg);                                                 \
-        SAVE_REG(t1, HI, reg);                                                 \
-        mfc0 t0, C0_STATUS;                                                    \
-        mfc0 t1, C0_CAUSE;                                                     \
-        mfc0 t2, C0_BADVADDR;                                                  \
-        mfc0 t3, C0_EPC;                                                       \
-        SAVE_REG(t0, SR, reg);                                                 \
-        SAVE_REG(t1, CAUSE, reg);                                              \
-        SAVE_REG(t2, BADVADDR, reg);                                           \
-        /* Save value of user-space PC just before syscall. */                 \
-        SAVE_REG(t3, PC, reg);                                                 \
-        .cfi_return_column t3;                                                 \
-        .cfi_rel_offset t3, EXC_PC
+        SAVE_REG(t1, HI, reg);
 
 #define LOAD_CPU_CTX()                                                         \
-        LOAD_REG(t0, PC, sp);                                                  \
-        mtc0 t0, C0_EPC;                                                       \
         LOAD_REG(t0, HI, sp);                                                  \
         LOAD_REG(t1, LO, sp);                                                  \
         mthi t0;                                                               \
@@ -183,6 +168,9 @@
         LOAD_FPU_REG($f31, F31, sp);                                           \
         LOAD_FPU_REG($31, FSR, sp)
 
+#define LOAD_PCPU_KSEG0(reg)                                                   \
+        LA reg, MIPS_KSEG2_TO_KSEG0(_pcpu_data)
+
 # Increment interrupt disable nest level.
 #define TD_INC_IDNEST(reg)                                                     \
         lw      t0, TD_IDNEST(reg);                                            \
@@ -201,6 +189,31 @@
         ehb;                                                                   \
         ext     reg, reg, SR_IMASK_SHIFT, SR_IMASK_BITS
 
+# Remove given bits from the status register.
+#define STATUS_CLEAR(mask)                                                     \
+        mfc0    k0, C0_STATUS;                                                 \
+        li      k1, ~(mask);                                                   \
+        and     k0, k1;                                                        \
+        mtc0    k0, C0_STATUS
+
+# Add given bits to the status register.
+#define STATUS_SET(mask)                                                       \
+        mfc0    k0, C0_STATUS;                                                 \
+        li      k1, mask;                                                      \
+        or      k0, k1;                                                        \
+        mtc0    k0, C0_STATUS
+
+#define PCPU_SAVE(reg)                                                         \
+        mfc0    k1, C0_##reg;                                                  \
+        sw      k1, PCPU_##reg(k0)
+
+#define PCPU_RESTORE(reg)                                                      \
+        lw      k1, PCPU_##reg(k0);                                            \
+        mtc0    k1, C0_##reg
+
+#define PCPU_TO_FRAME(reg)                                                     \
+        lw      t1, PCPU_##reg(t0);                                            \
+        SAVE_REG(t1, reg, sp)
 
         .global _ebase
 
@@ -289,28 +302,49 @@ exc_enter:
         beqz    k0, kern_exc_enter
         nop
 
-# IMPORTANT: While exception level is active the code may only access kernel
-# stack and local pcpu structure! FTTB These are accessed through kseg0.
-# It is UNSAFE to use k0/k1 registers when TLB miss handler may be triggered!
+# IMPORTANT:
+# - While exception level is active, the code may only access local pcpu
+#   structure! FTTB It's accessed through kseg0.
+# - It is UNSAFE to use k0/k1 registers when TLB miss handler may be triggered!
+# - Status, cause, epc & badvaddr registers cannot be saved directly to kernel
+#   stack (kseg2) as it may trigger TLB handler which would overwrite them!
 
 SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         .cfi_signal_frame
 
-        # Move user sp to temporary register and replace it with kernel sp.
-        move    k1, sp
-        # Previous value of sp is saved in register k1.
-        .cfi_register sp, k1
-
-        # Exception frame will be saved on kernel stack. 
-        # Fetch exception frame pointer where context will be saved.
+        # Fetch PCPU address
         LOAD_PCPU_KSEG0(k0)
 
-        # sp contains kernel stack pointer.
+        # Store sp, status, cause, epc, badvaddr registers in PCPU
+        sw      sp, PCPU_SP(k0)
+        PCPU_SAVE(STATUS)
+        PCPU_SAVE(CAUSE)
+        PCPU_SAVE(EPC)
+        PCPU_SAVE(BADVADDR)
+
+        # sp now contains kernel stack pointer.
         lw      sp, PCPU_KSP(k0)
 
-        # Define a rule for computing CFA as: *sp + 0.
+        # Define a rule for computing CFA as: sp + 0
         .cfi_def_cfa sp, 0
-        SAVE_CPU_CTX(k1, sp)
+
+        # We cannot access stack (KSEG2) when exception level is enabled
+        # Let's enter kernel mode, drop exception level, disable interrupts
+        STATUS_CLEAR(SR_KSU_MASK|SR_EXL|SR_IE)
+
+        # Save context on the kernel stack
+        SAVE_CPU_CTX(sp)
+
+        # Copy sp, status, cause, epc, badvaddr from PCPU to stack frame
+        LOAD_PCPU_KSEG0(t0)
+        PCPU_TO_FRAME(SP)
+        .cfi_rel_offset sp, EXC_SP
+        PCPU_TO_FRAME(SR)
+        PCPU_TO_FRAME(CAUSE)
+        PCPU_TO_FRAME(PC)
+        .cfi_return_column t1
+        .cfi_rel_offset t1, EXC_PC
+        PCPU_TO_FRAME(BADVADDR)
 
         # If FPU is enabled save FPU registers.
         mfc0    t0, C0_STATUS
@@ -324,12 +358,8 @@ skip_fpu_save:
         # Load kernel global pointer.
         la      gp, _gp
 
-        # Turn off FPU, enter kernel mode,
-        # drop exception level and disable interrupts.
-        mfc0    t0, C0_STATUS
-        li      t1, ~(SR_CU1|SR_KSU_MASK|SR_EXL|SR_IE)
-        and     t0, t1
-        mtc0    t0, C0_STATUS
+        # Turn off FPU
+        STATUS_CLEAR(SR_CU1)
 
         # Fetch thread control block pointer to s0 for later use.
         LOAD_PCPU(s0)
@@ -352,32 +382,41 @@ user_exc_leave:
 
         # Set current stack pointer to user exception frame.
         # This is crucial on first entry to user-space for this thread.
-        LOAD_PCPU(s0)
+        LOAD_PCPU_KSEG0(s0)
         lw      t0, PCPU_CURTHREAD(s0)
         lw      sp, TD_UFRAME(t0)
         
         # Update kernel stack pointer to be used on kernel reentry.
         sw      sp, PCPU_KSP(s0)
 
-        # Update status register held in exception frame (only interrupt mask).
+        # Copy pc register from stack frame to PCPU
+        LOAD_REG(t0, PC, sp)
+        sw      t0, PCPU_PC(s0)
+
+        # Load status register from exception frame, update it with current
+        # interrupt mask and exception mode, and store it within PCPU
         LOAD_REG(t0, SR, sp)
         ins     t0, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
-        SAVE_REG(t0, SR, sp)
-
-        # Enter exception level with user-mode settings.
         ori     t0, SR_EXL
-        mtc0    t0, C0_STATUS
+        sw      t0, PCPU_SR(s0)
 
-        # If FPU has been enabled, then restore FPU registers.
+        # If user has FPU disabled, don't restore its registers.
         ext     t1, t0, SR_CU1_SHIFT, 1
         beqz    t1, skip_fpu_restore
         nop
 
+        # Enable FPU and load FPU context
+        STATUS_SET(SR_CU1)
         LOAD_FPU_CTX()
 
 skip_fpu_restore:
         # Load context from exception frame on stack, sp will get overwritten.
         LOAD_CPU_CTX()
+
+        # Restore status and epc registers from PCPU
+        LOAD_PCPU_KSEG0(k0)
+        PCPU_RESTORE(STATUS)
+        PCPU_RESTORE(EPC)
 
         # This label is useful for debugging.
         sync
@@ -386,10 +425,33 @@ user_return:
 END(user_exc_enter)
 
 SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
+        # Fetch PCPU address
+        LOAD_PCPU_KSEG0(k0)
+
+        # Store sp, status, cause, epc, badvaddr registers in PCPU
+        sw      sp, PCPU_SP(k0)
+        PCPU_SAVE(STATUS)
+        PCPU_SAVE(CAUSE)
+        PCPU_SAVE(EPC)
+        PCPU_SAVE(BADVADDR)
+
         # Allocate stack frame (of KERN_EXC_FRAME_SIZE bytes) and save context.
-        move    k0, sp                  # save original sp value
         subu    sp, KERN_EXC_FRAME_SIZE # required by gdb to recognize frame
-        SAVE_CPU_CTX(k0, sp)
+
+        # We cannot access stack (KSEG2) when exception level is enabled
+        # Let's drop exception level and disable interrupts.
+        STATUS_CLEAR(SR_EXL|SR_IE)
+
+        # Save context on the kernel stack
+        SAVE_CPU_CTX(sp)
+
+        # Copy sp, status, cause, epc, badvaddr from PCPU to stack frame
+        LOAD_PCPU_KSEG0(t0)
+        PCPU_TO_FRAME(SP)
+        PCPU_TO_FRAME(SR)
+        PCPU_TO_FRAME(CAUSE)
+        PCPU_TO_FRAME(PC)
+        PCPU_TO_FRAME(BADVADDR)
 
         # In normal conditions we're going to enter regular exception handler.
         la      s1, mips_exc_handler
@@ -406,12 +468,6 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
 
         # Load kernel global pointer.
 1:      la      gp, _gp
-
-        # Drop exception level and disable interrupts.
-        mfc0    t0, C0_STATUS
-        li      t1, ~(SR_EXL|SR_IE)
-        and     t0, t1
-        mtc0    t0, C0_STATUS
 
         # Fetch thread control block pointer to s0 for later use.
         LOAD_PCPU(t0)
@@ -431,17 +487,26 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
 kern_exc_leave:
         DISABLE_INT(t1)
 
-        # Load status register from exception frame and update it with current
-        # interrupt mask.
+        LOAD_PCPU_KSEG0(k0)
+
+        # Load status register from exception frame, update it with current
+        # interrupt mask and exception mode, and store it within PCPU
         LOAD_REG(t0, SR, sp)
         ins     t0, t1, SR_IMASK_SHIFT, SR_IMASK_BITS
-
-        # Enter exception level with kernel-mode settings.
         ori     t0, SR_EXL
-        mtc0    t0, C0_STATUS
+        sw      t0, PCPU_SR(k0)
+
+        # Copy pc register from exception frame to PCPU
+        LOAD_REG(t0, PC, sp)
+        sw      t0, PCPU_PC(k0)
 
         # Load context from exception frame on stack, sp will get overwritten.
         LOAD_CPU_CTX()
+
+        # Restore status and epc registers from PCPU
+        LOAD_PCPU_KSEG0(k0)
+        PCPU_RESTORE(STATUS)
+        PCPU_RESTORE(EPC)
 
         sync
         eret

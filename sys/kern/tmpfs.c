@@ -129,6 +129,8 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
 static void tmpfs_free_node(tmpfs_mount_t *tfm, tmpfs_node_t *tfn);
 static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vattr_t *va,
                              vnodetype_t ntype, componentname_t *cn);
+static void tmpfs_dir_attach(tmpfs_node_t *dnode, tmpfs_dirent_t *de,
+                             tmpfs_node_t *node);
 static int tmpfs_get_vnode(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp);
 static int tmpfs_alloc_dirent(const char *name, size_t namelen,
                               tmpfs_dirent_t **dep);
@@ -286,7 +288,8 @@ static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va) {
 
   if (va->va_size != (size_t)VNOVAL)
     tmpfs_reg_resize(tfm, node, va->va_size);
-
+  if (va->va_mode != (mode_t)VNOVAL)
+    node->tfn_mode = va->va_mode;
   return 0;
 }
 
@@ -376,6 +379,18 @@ static int tmpfs_vop_symlink(vnode_t *dv, componentname_t *cn, vattr_t *va,
   return 0;
 }
 
+static int tmpfs_vop_link(vnode_t *dv, vnode_t *v, componentname_t *cn) {
+  tmpfs_node_t *dnode = TMPFS_NODE_OF(dv);
+  tmpfs_node_t *node = TMPFS_NODE_OF(v);
+  tmpfs_dirent_t *de;
+  int error;
+
+  error = tmpfs_alloc_dirent(cn->cn_nameptr, cn->cn_namelen, &de);
+  if (!error)
+    tmpfs_dir_attach(dnode, de, node);
+  return error;
+}
+
 static vnodeops_t tmpfs_vnodeops = {.v_lookup = tmpfs_vop_lookup,
                                     .v_readdir = tmpfs_vop_readdir,
                                     .v_open = vnode_open_generic,
@@ -392,7 +407,8 @@ static vnodeops_t tmpfs_vnodeops = {.v_lookup = tmpfs_vop_lookup,
                                     .v_access = vnode_access_generic,
                                     .v_reclaim = tmpfs_vop_reclaim,
                                     .v_readlink = tmpfs_vop_readlink,
-                                    .v_symlink = tmpfs_vop_symlink};
+                                    .v_symlink = tmpfs_vop_symlink,
+                                    .v_link = tmpfs_vop_link};
 
 /* tmpfs internal routines */
 
@@ -483,6 +499,18 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vattr_t *va,
   tmpfs_attach_vnode(node, dv->v_mount);
 
   /* Attach directory entry */
+  tmpfs_dir_attach(dnode, de, node);
+
+  *vp = node->tfn_vnode;
+  return error;
+}
+
+/*
+ * tmpfs_dir_attach: associate directory entry with a specified inode, and
+ * attach the entry into the directory, specified by dnode.
+ */
+static void tmpfs_dir_attach(tmpfs_node_t *dnode, tmpfs_dirent_t *de,
+                             tmpfs_node_t *node) {
   node->tfn_links++;
   de->tfd_node = node;
   TAILQ_INSERT_TAIL(&dnode->tfn_dir.dirents, de, tfd_entries);
@@ -493,9 +521,6 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vattr_t *va,
     node->tfn_dir.parent = dnode;
     dnode->tfn_links++;
   }
-
-  *vp = node->tfn_vnode;
-  return error;
 }
 
 /*

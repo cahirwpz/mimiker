@@ -10,10 +10,10 @@
 #define SYS_fork 2
 #define SYS_read 3
 #define SYS_write 4
-#define SYS_open 5
+#define SYS_openat 5
 #define SYS_close 6
 #define SYS_lseek 7
-#define SYS_unlink 8
+#define SYS_unlinkat 8
 #define SYS_getpid 9
 #define SYS_kill 10
 #define SYS_fstat 11
@@ -26,9 +26,9 @@
 #define SYS_sigaction 18
 #define SYS_sigreturn 19
 #define SYS_wait4 20
-#define SYS_mkdir 21
-#define SYS_rmdir 22
-#define SYS_access 23
+#define SYS_mkdirat 21
+#define SYS_symlinkat 22
+#define SYS_faccessat 23
 #define SYS_fstatat 24
 #define SYS_pipe2 25
 #define SYS_clock_gettime 26
@@ -56,5 +56,10 @@
 #define SYS_ftruncate 48
 #define SYS_readlinkat 49
 #define SYS_fchdir 50
-#define SYS_symlinkat 51
-#define SYS_MAXSYSCALL 52
+#define SYS_linkat 51
+#define SYS_fchmod 52
+#define SYS_fchmodat 53
+#define SYS_sched_yield 54
+#define SYS_MAXSYSCALL 55
+
+#define SYS_MAXSYSARGS 6

@@ -14,7 +14,7 @@ void mtx_init(mtx_t *m, lock_type_t type) {
   m->m_owner = NULL;
   m->m_count = 0;
   m->m_lockpt = NULL;
-  m->m_type = type;
+  m->m_type = type | LK_SLEEP;
 }
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {

@@ -63,6 +63,8 @@ sysent="sysent.switch"
 
 trap "rm $sysdcl $sysent" 0
 
+maxsysargs=6
+
 # Awk program (must support nawk extensions)
 # Use "awk" at Berkeley, "nawk" or "gawk" elsewhere.
 awk=${AWK:-awk}
@@ -119,6 +121,7 @@ BEGIN {
 	syscompat_pref = \"$syscompat_pref\"
 	sysent = \"$sysent\"
 	infile = \"$2\"
+	maxsysargs = $maxsysargs
 
 	syscall = 0
 
@@ -297,8 +300,8 @@ function putent() {
 		       funcname) > sysdcl
 
 	# output syscall switch table entry
-	printf("  [SYS_%s] = { (syscall_t *)%s },\n",
-	       funcalias, funcname) > sysent
+	printf("  [SYS_%s] = { .nargs = %d, .call = (syscall_t *)%s },\n",
+	       funcalias, argc, funcname) > sysent
 
 	# output syscall number of header
 	printf("#define SYS_%s %d\n", funcalias, syscall) > sysnumhdr
@@ -321,6 +324,7 @@ END {
 	printf("};\n\n") > sysent
 	printf("\n") > sysdcl
 	printf("#define SYS_%s %d\n", "MAXSYSCALL", syscall) > sysnumhdr
+	printf("\n#define SYS_MAXSYSARGS %s\n", maxsysargs) > sysnumhdr
 } '
 
 cat $sysdcl $sysent > $syssw
