@@ -76,7 +76,7 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   if (sig >= NSIG)
     return EINVAL;
 
-  if (sig == SIGKILL)
+  if (sig_properties[sig] & SA_CANTMASK)
     return EINVAL;
 
   WITH_PROC_LOCK(p) {
