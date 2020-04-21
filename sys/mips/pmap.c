@@ -305,7 +305,7 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
 void pmap_activate(pmap_t *pmap) {
   SCOPED_NO_PREEMPTION();
 
-  PCPU_GET(curpmap) = pmap;
+  PCPU_SET(curpmap, pmap);
   update_wired_pde(pmap);
 
   /* Set ASID for current process */
