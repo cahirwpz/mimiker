@@ -1,6 +1,8 @@
 #ifndef _SYS_LOCK_H_
 #define _SYS_LOCK_H_
 
+#include <stdbool.h>
+
 /*!\brief Lock attributes.
  *
  * Non-mutually-exclusive members may be bitwise-ORed together.
@@ -32,10 +34,31 @@ typedef enum {
   LK_RECURSE = 0x4
 } lock_attrs_t;
 
+typedef struct spin spin_t;
+typedef struct mtx mtx_t;
+
 /*!\brief Mask used to extract a lock's type (blocking/spin/...). */
 #define LK_TYPE_MASK 0x3
 
-typedef struct spin spin_t;
-typedef struct mtx mtx_t;
+/* !\brief Get lock type from attributes */
+#define lock_attrs_type(attrs) ((attrs)&LK_TYPE_MASK)
+
+/* !\brief Getters for attributes' type */
+static inline bool lock_attrs_blocking(lock_attrs_t attrs) {
+  return lock_attrs_type(attrs) == LK_BLOCK;
+}
+
+static inline bool lock_attrs_spinning(lock_attrs_t attrs) {
+  return lock_attrs_type(attrs) == LK_SPIN;
+}
+
+static inline bool lock_attrs_sleeping(lock_attrs_t attrs) {
+  return lock_attrs_type(attrs) == LK_SLEEP;
+}
+
+/* !\brief Getters for attributes' flags */
+static inline bool lock_attrs_recursive(lock_attrs_t attrs) {
+  return attrs & LK_RECURSE;
+}
 
 #endif /* !_SYS_LOCK_H_ */

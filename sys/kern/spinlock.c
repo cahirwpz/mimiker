@@ -4,7 +4,7 @@
 #include <sys/sched.h>
 #include <sys/thread.h>
 
-#define spin_recurse_p(s) ((s)->s_attrs & LK_RECURSE)
+#define spin_recurse_p(s) lock_attrs_recursive((s)->s_attrs)
 
 bool spin_owned(spin_t *s) {
   return (s->s_owner == thread_self());
@@ -12,7 +12,7 @@ bool spin_owned(spin_t *s) {
 
 void spin_init(spin_t *s, lock_attrs_t attrs) {
   /* The caller must not attempt to set the lock's type, only flags. */
-  assert((attrs & LK_TYPE_MASK) == 0);
+  assert(lock_attrs_type(attrs) == 0);
   s->s_owner = NULL;
   s->s_count = 0;
   s->s_lockpt = NULL;
