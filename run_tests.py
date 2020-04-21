@@ -10,7 +10,7 @@ from launcher import gdb_port, TARGET
 
 N_SIMPLE = 5
 N_THOROUGH = 100
-TIMEOUT = 40
+TIMEOUT = 45
 RETRIES_MAX = 5
 REPEAT = 5
 
@@ -21,7 +21,7 @@ def safe_decode(data):
 
 
 def send_command(gdb, cmd):
-    gdb.expect_exact(['(gdb)'], timeout=10)
+    gdb.expect_exact(['(gdb)'], timeout=15)
     gdb.sendline(cmd)
     print(safe_decode(gdb.before), end='', flush=True)
     print(safe_decode(gdb.after), end='', flush=True)
@@ -42,7 +42,7 @@ def gdb_inspect(interactive):
                     '-ex=python import debug',
                     '-ex=set pagination off',
                     '--nh', '--nx', '--silent', 'sys/mimiker.elf']
-    gdb = pexpect.spawn(gdb_cmd, gdb_opts, timeout=3)
+    gdb = pexpect.spawn(gdb_cmd, gdb_opts, timeout=5)
     if interactive:
         send_command(gdb, 'backtrace full')
         send_command(gdb, 'kthread')
