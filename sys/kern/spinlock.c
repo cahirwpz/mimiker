@@ -4,19 +4,19 @@
 #include <sys/sched.h>
 #include <sys/thread.h>
 
-#define spin_recurse_p(s) ((s)->s_type & LK_RECURSE)
+#define spin_recurse_p(s) ((s)->s_attrs & LK_RECURSE)
 
 bool spin_owned(spin_t *s) {
   return (s->s_owner == thread_self());
 }
 
-void spin_init(spin_t *s, lock_type_t type) {
+void spin_init(spin_t *s, lock_attrs_t attrs) {
   /* The caller must not attempt to set the lock's type, only flags. */
-  assert((type & LK_TYPE_MASK) == 0);
+  assert((attrs & LK_TYPE_MASK) == 0);
   s->s_owner = NULL;
   s->s_count = 0;
   s->s_lockpt = NULL;
-  s->s_type = type | LK_SPIN;
+  s->s_attrs = attrs | LK_SPIN;
 }
 
 void _spin_lock(spin_t *s, const void *waitpt) {

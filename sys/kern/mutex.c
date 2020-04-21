@@ -4,19 +4,19 @@
 #include <sys/sched.h>
 #include <sys/thread.h>
 
-#define mtx_recurse_p(m) ((m)->m_type & LK_RECURSE)
+#define mtx_recurse_p(m) ((m)->m_attrs & LK_RECURSE)
 
 bool mtx_owned(mtx_t *m) {
   return (m->m_owner == thread_self());
 }
 
-void mtx_init(mtx_t *m, lock_type_t type) {
+void mtx_init(mtx_t *m, lock_attrs_t attrs) {
   /* The caller must not attempt to set the lock's type, only flags. */
-  assert((type & LK_TYPE_MASK) == 0);
+  assert((attrs & LK_TYPE_MASK) == 0);
   m->m_owner = NULL;
   m->m_count = 0;
   m->m_lockpt = NULL;
-  m->m_type = type | LK_BLOCK;
+  m->m_attrs = attrs | LK_BLOCK;
 }
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {

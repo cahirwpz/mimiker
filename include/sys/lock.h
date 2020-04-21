@@ -26,7 +26,7 @@ typedef enum {
    * The lock may be acquired by the owner multiple times, and must
    * be released exactly as many times. */
   LK_RECURSE = 0x4
-} lock_type_t;
+} lock_attrs_t;
 
 /*!\brief Mask used to extract a lock's type (blocking/spin/...). */
 #define LK_TYPE_MASK 0x3
