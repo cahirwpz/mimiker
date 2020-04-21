@@ -14,6 +14,7 @@
 
 /* Part of internal compiler interface */
 #define KASAN_SHADOW_SCALE_SHIFT 3
+#define KASAN_ALLOCA_REDZONE_SIZE 32
 
 #define KASAN_SHADOW_SCALE_SIZE (1 << KASAN_SHADOW_SCALE_SHIFT)
 #define KASAN_SHADOW_MASK (KASAN_SHADOW_SCALE_SIZE - 1)
@@ -167,19 +168,19 @@ __always_inline static inline void kasan_shadow_check(uintptr_t addr,
   }
 
   if (__predict_false(!valid)) {
-    kprintf("==========KernelAddressSanitizer==========\n"
+    kprintf("===========KernelAddressSanitizer===========\n"
             "ERROR:\n"
             "* invalid access to address %p\n"
             "* %s of size %lu\n"
             "* redzone code 0x%X (%s)\n"
-            "==========================================\n",
+            "============================================\n",
             (void *)addr, (read ? "read" : "write"), size, code,
             kasan_code_name(code));
     panic_fail();
   }
 }
 
-/* Mark first 'size' bytes as valid, and the remaining
+/* Mark first 'size' bytes as valid (in the shadow memory), and the remaining
  * (size_with_redzone - size) bytes as invalid with given code */
 void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
                 uint8_t code) {
@@ -189,21 +190,21 @@ void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
   assert(is_aligned(addr, KASAN_SHADOW_SCALE_SIZE));
   assert(is_aligned(redzone, KASAN_SHADOW_SCALE_SIZE));
 
-  /* Valid part */
+  /* Valid bytes */
   size_t len = size / KASAN_SHADOW_SCALE_SIZE;
   __builtin_memset(shadow, 0, len);
   shadow += len;
 
-  /* Partially valid part */
+  /* At most one partially valid byte */
   if (size & KASAN_SHADOW_MASK)
     *shadow++ = size & KASAN_SHADOW_MASK;
 
-  /* Invalid part */
+  /* Invalid bytes */
   len = redzone / KASAN_SHADOW_SCALE_SIZE;
   __builtin_memset(shadow, code, len);
 }
 
-/* Mark bytes as valid */
+/* Mark bytes as valid (in the shadow memory) */
 void kasan_mark_valid(const void *addr, size_t size) {
   kasan_mark(addr, size, size, 0);
 }
@@ -217,19 +218,10 @@ static void kasan_ctors(void) {
   }
 }
 
-static void kasan_shadow_clean(const void *start, size_t size) {
-  assert(is_aligned(start, KASAN_SHADOW_SCALE_SIZE));
-  assert(is_aligned(size, KASAN_SHADOW_SCALE_SIZE));
-
-  void *shadow = kasan_md_addr_to_shad((uintptr_t)start);
-  size /= KASAN_SHADOW_SCALE_SIZE;
-  __builtin_bzero(shadow, size);
-}
-
 void kasan_init(void) {
   /* Set entire shadow memory to zero */
-  kasan_shadow_clean((const void *)KASAN_MD_SANITIZED_START,
-                     KASAN_MD_SANITIZED_SIZE);
+  kasan_mark_valid((const void *)KASAN_MD_SANITIZED_START,
+                   KASAN_MD_SANITIZED_SIZE);
 
   /* KASAN is ready to check for errors! */
   kasan_ready = 1;
@@ -264,7 +256,7 @@ void __asan_storeN_noabort(uintptr_t addr, size_t size) {
  * positives. */
 void __asan_handle_no_return(void) {
   kstack_t *stack = &thread_self()->td_kstack;
-  kasan_shadow_clean(stack->stk_base, stack->stk_size);
+  kasan_mark_valid(stack->stk_base, stack->stk_size);
 }
 
 void __asan_register_globals(struct __asan_global *globals, size_t n) {
@@ -275,6 +267,25 @@ void __asan_register_globals(struct __asan_global *globals, size_t n) {
 
 void __asan_unregister_globals(struct __asan_global *globals, size_t n) {
   /* never called */
+}
+
+/* Note: alloca is currently used in strntoul and test_sleepq_sync functions */
+void __asan_alloca_poison(const void *addr, size_t size) {
+  void *left_redzone = (int8_t *)addr - KASAN_ALLOCA_REDZONE_SIZE;
+  size_t size_with_mid_redzone = roundup(size, KASAN_ALLOCA_REDZONE_SIZE);
+  void *right_redzone = (int8_t *)addr + size_with_mid_redzone;
+
+  kasan_mark(left_redzone, 0, KASAN_ALLOCA_REDZONE_SIZE, KASAN_CODE_STACK_LEFT);
+  kasan_mark(addr, size, size_with_mid_redzone, KASAN_CODE_STACK_MID);
+  kasan_mark(right_redzone, 0, KASAN_ALLOCA_REDZONE_SIZE,
+             KASAN_CODE_STACK_RIGHT);
+}
+
+void __asan_allocas_unpoison(const void *begin, const void *end) {
+  size_t size = end - begin;
+  if (__predict_false(!begin || begin > end))
+    return;
+  kasan_mark_valid(begin, size);
 }
 
 /* Below you can find replacements for various memory-touching functions */
