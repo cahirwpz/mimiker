@@ -12,11 +12,11 @@ bool mtx_owned(mtx_t *m) {
 
 void mtx_init(mtx_t *m, lock_type_t type) {
   /* The caller must not attempt to set the lock's type, only flags. */
-  assert((type & LK_TYPE) == 0);
+  assert((type & LK_TYPE_MASK) == 0);
   m->m_owner = NULL;
   m->m_count = 0;
   m->m_lockpt = NULL;
-  m->m_type = type | LK_BLOCKING;
+  m->m_type = type | LK_BLOCK;
 }
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {

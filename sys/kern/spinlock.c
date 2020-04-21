@@ -12,7 +12,7 @@ bool spin_owned(spin_t *s) {
 
 void spin_init(spin_t *s, lock_type_t type) {
   /* The caller must not attempt to set the lock's type, only flags. */
-  assert((type & LK_TYPE) == 0);
+  assert((type & LK_TYPE_MASK) == 0);
   s->s_owner = NULL;
   s->s_count = 0;
   s->s_lockpt = NULL;
