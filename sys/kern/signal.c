@@ -96,7 +96,7 @@ void sig_kill(proc_t *proc, signo_t sig) {
   thread_t *td = proc->p_thread;
 
   sig_t handler = proc->p_sigactions[sig].sa_handler;
-  bool continued = (sig == SIGCONT) || (sig == SIGKILL && handler == SIG_DFL);
+  bool continued = sig == SIGCONT || sig == SIGKILL;
 
   /* If the signal is ignored, don't even bother posting it,
    * unless it's waking up a stopped process. */
