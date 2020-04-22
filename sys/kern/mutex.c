@@ -4,15 +4,15 @@
 #include <sys/sched.h>
 #include <sys/thread.h>
 
-#define mtx_recurse_p(m) lock_attrs_recursive((m)->m_attrs)
+#define mtx_recurse_p(m) lk_attr_recursive((m)->m_attrs)
 
 bool mtx_owned(mtx_t *m) {
   return (m->m_owner == thread_self());
 }
 
-void mtx_init(mtx_t *m, lock_attrs_t attrs) {
+void mtx_init(mtx_t *m, lk_attr_t attrs) {
   /* The caller must not attempt to set the lock's type, only flags. */
-  assert(lock_attrs_type(attrs) == 0);
+  assert(lk_attr_type(attrs) == 0);
   m->m_owner = NULL;
   m->m_count = 0;
   m->m_lockpt = NULL;

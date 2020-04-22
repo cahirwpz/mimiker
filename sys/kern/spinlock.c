@@ -4,15 +4,15 @@
 #include <sys/sched.h>
 #include <sys/thread.h>
 
-#define spin_recurse_p(s) lock_attrs_recursive((s)->s_attrs)
+#define spin_recurse_p(s) lk_attr_recursive((s)->s_attrs)
 
 bool spin_owned(spin_t *s) {
   return (s->s_owner == thread_self());
 }
 
-void spin_init(spin_t *s, lock_attrs_t attrs) {
+void spin_init(spin_t *s, lk_attr_t attrs) {
   /* The caller must not attempt to set the lock's type, only flags. */
-  assert(lock_attrs_type(attrs) == 0);
+  assert(lk_attr_type(attrs) == 0);
   s->s_owner = NULL;
   s->s_count = 0;
   s->s_lockpt = NULL;

@@ -32,7 +32,7 @@ typedef enum {
    * The lock may be acquired by the owner multiple times, and must
    * be released exactly as many times. */
   LK_RECURSE = 0x4
-} lock_attrs_t;
+} lk_attr_t;
 
 typedef struct spin spin_t;
 typedef struct mtx mtx_t;
@@ -41,23 +41,23 @@ typedef struct mtx mtx_t;
 #define LK_TYPE_MASK 0x3
 
 /* !\brief Get lock type from attributes */
-#define lock_attrs_type(attrs) ((attrs)&LK_TYPE_MASK)
+#define lk_attr_type(attrs) ((attrs)&LK_TYPE_MASK)
 
 /* !\brief Getters for attributes' type */
-static inline bool lock_attrs_blocking(lock_attrs_t attrs) {
-  return lock_attrs_type(attrs) == LK_TYPE_BLOCK;
+static inline bool lk_attr_blocking(lk_attr_t attrs) {
+  return lk_attr_type(attrs) == LK_TYPE_BLOCK;
 }
 
-static inline bool lock_attrs_spinning(lock_attrs_t attrs) {
-  return lock_attrs_type(attrs) == LK_TYPE_SPIN;
+static inline bool lk_attr_spinning(lk_attr_t attrs) {
+  return lk_attr_type(attrs) == LK_TYPE_SPIN;
 }
 
-static inline bool lock_attrs_sleeping(lock_attrs_t attrs) {
-  return lock_attrs_type(attrs) == LK_TYPE_SLEEP;
+static inline bool lk_attr_sleeping(lk_attr_t attrs) {
+  return lk_attr_type(attrs) == LK_TYPE_SLEEP;
 }
 
 /* !\brief Getters for attributes' flags */
-static inline bool lock_attrs_recursive(lock_attrs_t attrs) {
+static inline bool lk_attr_recursive(lk_attr_t attrs) {
   return attrs & LK_RECURSE;
 }
 

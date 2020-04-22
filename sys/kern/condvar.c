@@ -3,7 +3,7 @@
 #include <sys/sched.h>
 #include <sys/mutex.h>
 
-#define spin_lock_p(m) lock_attrs_spinning(*(m).attrs)
+#define spin_lock_p(m) lk_attr_spinning(*(m).attrs)
 
 static void mutex_lock(cv_lock_t m, const void *waitpt) {
   if (spin_lock_p(m))

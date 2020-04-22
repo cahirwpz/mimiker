@@ -6,8 +6,8 @@
 
 /* Union type of locks that may be passed to `cv_wait` */
 typedef union cv_lock {
-  /*! `mtx_t` and `spin_t` must begin with `lock_attrs_t` */
-  lock_attrs_t *attrs;
+  /*! `mtx_t` and `spin_t` must begin with `lk_attr_t` */
+  lk_attr_t *attrs;
   mtx_t *mtx;   /*!< sleep mutex to use with `cv_wait` */
   spin_t *spin; /*!< spin lock to use with `cv_wait`*/
 } __transparent_union cv_lock_t;
