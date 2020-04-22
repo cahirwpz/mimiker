@@ -32,7 +32,7 @@ typedef struct spin {
 
 #define SPIN_INITIALIZER(attrs)                                                \
   (spin_t) {                                                                   \
-    .s_attrs = (attrs) | LK_SPIN                                               \
+    .s_attrs = (attrs) | LK_TYPE_SPIN                                          \
   }
 
 /*! \brief Initializes spin lock.

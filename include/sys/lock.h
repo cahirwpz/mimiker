@@ -9,23 +9,23 @@
  * \note Members that have any set bits in common with #LK_TYPE_MASK
  * are mutually exclusive and denote the lock's type. */
 typedef enum {
-  /*!\var LK_BLOCK
+  /*!\var LK_TYPE_BLOCK
    * \brief Type of blocking locks.
    *
    * When a thread tries to acquire a blocking lock that is owned by another
    * thread, it will block and switch out to another thread. */
-  LK_BLOCK = 0x1,
-  /*!\var LK_SPIN
+  LK_TYPE_BLOCK = 0x1,
+  /*!\var LK_TYPE_SPIN
    * \brief Type of spin locks.
    *
    * Interrupts are disabled upon acquiring a spin lock. */
-  LK_SPIN = 0x2,
-  /*!\var LK_SLEEP
+  LK_TYPE_SPIN = 0x2,
+  /*!\var LK_TYPE_SLEEP
    * \brief Type of sleeping locks.
    *
    * When a thread tries to acquire a sleeping lock that is owned by another
    * thread, it will go to sleep on a sleepqueue. */
-  LK_SLEEP = 0x3,
+  LK_TYPE_SLEEP = 0x3,
   /*!\var LK_RECURSE
    * \brief Flag indicating a recursive lock.
    *
@@ -45,15 +45,15 @@ typedef struct mtx mtx_t;
 
 /* !\brief Getters for attributes' type */
 static inline bool lock_attrs_blocking(lock_attrs_t attrs) {
-  return lock_attrs_type(attrs) == LK_BLOCK;
+  return lock_attrs_type(attrs) == LK_TYPE_BLOCK;
 }
 
 static inline bool lock_attrs_spinning(lock_attrs_t attrs) {
-  return lock_attrs_type(attrs) == LK_SPIN;
+  return lock_attrs_type(attrs) == LK_TYPE_SPIN;
 }
 
 static inline bool lock_attrs_sleeping(lock_attrs_t attrs) {
-  return lock_attrs_type(attrs) == LK_SLEEP;
+  return lock_attrs_type(attrs) == LK_TYPE_SLEEP;
 }
 
 /* !\brief Getters for attributes' flags */

@@ -16,7 +16,7 @@ void mtx_init(mtx_t *m, lock_attrs_t attrs) {
   m->m_owner = NULL;
   m->m_count = 0;
   m->m_lockpt = NULL;
-  m->m_attrs = attrs | LK_BLOCK;
+  m->m_attrs = attrs | LK_TYPE_BLOCK;
 }
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {

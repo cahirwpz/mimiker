@@ -16,7 +16,7 @@ void spin_init(spin_t *s, lock_attrs_t attrs) {
   s->s_owner = NULL;
   s->s_count = 0;
   s->s_lockpt = NULL;
-  s->s_attrs = attrs | LK_SPIN;
+  s->s_attrs = attrs | LK_TYPE_SPIN;
 }
 
 void _spin_lock(spin_t *s, const void *waitpt) {
