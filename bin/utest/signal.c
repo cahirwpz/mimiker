@@ -142,6 +142,7 @@ int test_signal_cont_masked() {
   signal(SIGCONT, sigcont_handler);
   int pid = fork();
   if (pid == 0) {
+    /* Block SIGCONT. */
     sigset_t mask, old;
     __sigemptyset(&mask);
     sigaddset(&mask, SIGCONT);
@@ -156,12 +157,12 @@ int test_signal_cont_masked() {
     return 0;
   }
 
-  /* Make sure the child has stopped. */
-  for (int i = 0; i < 3; i++)
-    sched_yield();
+  int status;
+  /* Wait for the child to stop. */
+  assert(waitpid(pid, &status, WUNTRACED) == pid);
+  assert(WIFSTOPPED(status));
 
   kill(pid, SIGCONT);
-  int status;
   printf("Waiting for child...\n");
   wait(&status);
   assert(WIFEXITED(status));
