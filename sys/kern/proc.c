@@ -355,7 +355,6 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
         if (is_zombie(child)) {
           if (status)
             *status = child->p_exitstatus;
-          proc_reap(child);
           found = true;
         } else if ((options & WUNTRACED) && (child->p_state == PS_STOPPED) &&
                    (child->p_aflags & PFA_STOPPED)) {
@@ -373,6 +372,8 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
 
         if (found) {
           *cldpidp = child->p_pid;
+          if (is_zombie(child))
+            proc_reap(child);
           return 0;
         }
 
