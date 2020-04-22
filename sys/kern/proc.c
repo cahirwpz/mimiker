@@ -328,7 +328,8 @@ static bool is_zombie(proc_t *p) {
   return p->p_state == PS_ZOMBIE;
 }
 
-/* Wait for direct children. */
+/* Wait for direct children.
+ * Pointers to output parameters must point to valid kernel memory. */
 int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   proc_t *p = proc_self();
   bool found = false;
@@ -353,8 +354,7 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
         proc_lock(child);
 
         if (is_zombie(child)) {
-          if (status)
-            *status = child->p_exitstatus;
+          *status = child->p_exitstatus;
           found = true;
         } else if ((options & WUNTRACED) && (child->p_state == PS_STOPPED) &&
                    (child->p_aflags & PFA_STOPPED)) {
