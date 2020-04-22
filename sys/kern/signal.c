@@ -69,8 +69,8 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   WITH_PROC_LOCK(p) {
     if (oldact != NULL)
       memcpy(oldact, &p->p_sigactions[sig], sizeof(sigaction_t));
-
-    memcpy(&p->p_sigactions[sig], act, sizeof(sigaction_t));
+    if (act != NULL)
+      memcpy(&p->p_sigactions[sig], act, sizeof(sigaction_t));
   }
 
   return 0;
