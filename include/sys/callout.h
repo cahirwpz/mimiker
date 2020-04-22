@@ -39,7 +39,7 @@ void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
  *
  * \return True if the callout was pending and has been stopped, false if the
  * callout has already been delegated to callout thread or executed.
- * 
+ *
  * \warning It's not safe to deallocate callout memory after it has been
  * stopped. You should use \a callout_drain if you need that.
  */
