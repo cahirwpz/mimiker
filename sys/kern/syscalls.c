@@ -564,22 +564,25 @@ static int sys_sigaltstack(proc_t *p, sigaltstack_args_t *args,
 static int sys_sigprocmask(proc_t *p, sigprocmask_args_t *args,
                            register_t *res) {
   int how = args->how;
-  const sigset_t *set = args->set;
-  sigset_t *user_oset = args->oset;
-  sigset_t oset;
+  const sigset_t *u_set = args->set;
+  sigset_t *u_oset = args->oset;
+  sigset_t set, oset;
   int error;
 
-  klog("sigprocmask(%d, %p, %p)", how, set, user_oset);
+  klog("sigprocmask(%d, %p, %p)", how, u_set, u_oset);
+
+  if (u_set && (error = copyin_s(u_set, set)))
+    return error;
 
   proc_lock(p);
-  error = do_sigprocmask(how, set, &oset);
+  error = do_sigprocmask(how, u_set ? &set : NULL, &oset);
   proc_unlock(p);
 
   if (error)
     return error;
 
-  if (user_oset)
-    error = copyout_s(oset, user_oset);
+  if (u_oset)
+    error = copyout_s(oset, u_oset);
   return error;
 }
 
