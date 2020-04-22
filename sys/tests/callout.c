@@ -65,13 +65,16 @@ static void callout_bad(void *arg) {
   panic("%s: should never be called!", __func__);
 }
 
+static callout_t callout;
+
 static int test_callout_stop(void) {
-  callout_t callout;
   bzero(&callout, sizeof(callout_t));
 
   callout_setup_relative(&callout, 2, callout_bad, NULL);
   /* Remove callout, hope that callout_bad won't be called! */
   callout_stop(&callout);
+  /* We don't drain this callout so its memory can still be in use after we
+   * leave the scope of function. Thus the callout is allocated statically. */
 
   return KTEST_SUCCESS;
 }
