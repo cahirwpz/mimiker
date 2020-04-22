@@ -25,6 +25,10 @@ jobs:
         description: 'Whether to use Clang as the compiler (1 = yes, 0 = no)'
         default: '0'
         type: string
+      use_kasan:
+        description: 'Whether to use the KernelAddressSanitizer (1 = yes, 0 = no)'
+        default: '0'
+        type: string
     steps:
       - checkout
       - restore_cache:
@@ -35,7 +39,7 @@ jobs:
           key: downloads-20191128-1600
           paths:
             - bin/lua/lua-5.3.5.tar.gz
-      - run: 'make CLANG=<< parameters.use_clang >>'
+      - run: 'make CLANG=<< parameters.use_clang >> KASAN=<< parameters.use_kasan >>'
       - store_artifacts:
           path: sys/mimiker.elf
           prefix: kernel_image
@@ -66,7 +70,7 @@ workflows:
       - verify_pycodestyle
       - build:
           name: build_gcc
-          use_clang: '0'
+          use_kasan: '1'
       - build:
           name: build_clang
           use_clang: '1'

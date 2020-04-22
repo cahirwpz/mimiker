@@ -57,6 +57,9 @@ static int sys_ftruncate(proc_t *, ftruncate_args_t *, register_t *);
 static int sys_readlinkat(proc_t *, readlinkat_args_t *, register_t *);
 static int sys_fchdir(proc_t *, fchdir_args_t *, register_t *);
 static int sys_linkat(proc_t *, linkat_args_t *, register_t *);
+static int sys_fchmod(proc_t *, fchmod_args_t *, register_t *);
+static int sys_fchmodat(proc_t *, fchmodat_args_t *, register_t *);
+static int sys_sched_yield(proc_t *, void *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { .nargs = 1, .call = (syscall_t *)sys_syscall },
@@ -111,5 +114,8 @@ struct sysent sysent[] = {
   [SYS_readlinkat] = { .nargs = 4, .call = (syscall_t *)sys_readlinkat },
   [SYS_fchdir] = { .nargs = 1, .call = (syscall_t *)sys_fchdir },
   [SYS_linkat] = { .nargs = 5, .call = (syscall_t *)sys_linkat },
+  [SYS_fchmod] = { .nargs = 2, .call = (syscall_t *)sys_fchmod },
+  [SYS_fchmodat] = { .nargs = 4, .call = (syscall_t *)sys_fchmodat },
+  [SYS_sched_yield] = { .nargs = 0, .call = (syscall_t *)sys_sched_yield },
 };
 

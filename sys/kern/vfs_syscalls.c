@@ -509,3 +509,41 @@ fail1:
   vnode_put(target_vn);
   return error;
 }
+
+static int vfs_change_mode(vnode_t *v, mode_t mode) {
+  vattr_t va;
+  vattr_null(&va);
+  va.va_mode = mode & ALLPERMS;
+  return VOP_SETATTR(v, &va);
+}
+
+int do_fchmod(proc_t *p, int fd, mode_t mode) {
+  int error;
+  file_t *f;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
+    return error;
+
+  vnode_t *vn = f->f_vnode;
+  vnode_lock(vn);
+  error = vfs_change_mode(vn, mode);
+  vnode_unlock(vn);
+  file_drop(f);
+  return error;
+}
+
+int do_fchmodat(proc_t *p, int fd, char *path, mode_t mode, int flag) {
+  int error;
+  uint32_t vnrflags = 0;
+
+  if (!(flag & AT_SYMLINK_NOFOLLOW))
+    vnrflags |= VNR_FOLLOW;
+
+  vnode_t *v;
+  if ((error = vfs_namelookupat(p, fd, vnrflags, path, &v)))
+    return error;
+  vnode_lock(v);
+  error = vfs_change_mode(v, mode);
+  vnode_put(v);
+  return error;
+}

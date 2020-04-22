@@ -62,5 +62,8 @@
 49  { ssize_t sys_readlinkat(int fd, const char *path, char *buf, size_t bufsiz); }
 50  { int sys_fchdir(int fd); }
 51  { int sys_linkat(int fd1, const char *name1, int fd2, const char *name2, int flags); }
+52  { int sys_fchmod(int fd, mode_t mode); }
+53  { int sys_fchmodat(int fd, const char *path, mode_t mode, int flag); }
+54  { void sys_sched_yield(void); }
 
 ; vim: ts=4 sw=4 sts=4 et

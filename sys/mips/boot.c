@@ -5,15 +5,16 @@
 #include <mips/tlb.h>
 #include <sys/mimiker.h>
 #include <sys/vm.h>
+#include <mips/kasan.h>
 
-/* Last address in kseg0 used by kernel for boot allocation (PTE & PDE). */
+/* Last address in kseg0 used by kernel for boot allocation. */
 __boot_data void *_kernel_end_kseg0;
 /* Kernel page directory entries allocated in kseg0. */
 __boot_data pde_t *_kernel_pmap_pde;
 /* The boot stack is used before we switch out to thread0. */
 static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
-/* Allocates pages in kseg0. The argument must be multiple of PAGESIZE. */
+/* Allocates pages in kseg0. The argument will be aligned to PAGESIZE. */
 static __boot_text void *bootmem_alloc(size_t bytes) {
   void *addr = _kernel_end_kseg0;
   _kernel_end_kseg0 += align(bytes, PAGESIZE);
@@ -98,6 +99,24 @@ __boot_text void *mips_init(void) {
   /* read-write segment - sections: .data, .bss, etc. */
   for (paddr_t pa = data; pa < ebss; va += PAGESIZE, pa += PAGESIZE)
     pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
+
+#ifdef KASAN /* Prepare KASAN shadow mappings */
+  va = KASAN_MD_SHADOW_START;
+  /* Allocate physical memory for shadow area */
+  paddr_t pa = (paddr_t)bootmem_alloc(KASAN_MD_SHADOW_SIZE);
+  /* How many PTEs should we use? */
+  int num_pte = KASAN_MD_SHADOW_SIZE / SUPERPAGESIZE;
+  for (int i = 0; i < num_pte; i++) {
+    /* Allocate a new PTE */
+    pte = bootmem_alloc(PAGESIZE);
+    pde[PDE_INDEX(va)] = PTE_PFN((intptr_t)pte) | PTE_KERNEL;
+    for (int j = 0; j < PT_ENTRIES; j++) {
+      pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
+      va += PAGESIZE;
+      pa += PAGESIZE;
+    }
+  }
+#endif /* !KASAN */
 
   /* 1st wired TLB entry is always occupied by kernel-PDE and user-PDE. */
   mips32_setwired(1);
