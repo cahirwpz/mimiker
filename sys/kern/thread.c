@@ -111,6 +111,7 @@ void thread_delete(thread_t *td) {
 
   kmem_free(td->td_kstack.stk_base, PAGESIZE);
 
+  callout_drain(&td->td_slpcallout);
   sleepq_destroy(td->td_sleepqueue);
   turnstile_destroy(td->td_turnstile);
   kfree(M_STR, td->td_name);
