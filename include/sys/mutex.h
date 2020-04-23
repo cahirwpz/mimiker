@@ -31,7 +31,7 @@ typedef struct mtx {
 /*! \brief Initializes mutex.
  *
  * \note Every mutex has to be initialized before it is used. */
-void mtx_init(mtx_t *m, lk_attr_t attrs);
+void mtx_init(mtx_t *m, lk_attr_t attr);
 
 /*! \brief Makes mutex unusable for further locking.
  *

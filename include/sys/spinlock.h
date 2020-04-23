@@ -38,7 +38,7 @@ typedef struct spin {
 /*! \brief Initializes spin lock.
  *
  * \note Every spin lock has to be initialized before it is used. */
-void spin_init(spin_t *s, lk_attr_t attrs);
+void spin_init(spin_t *s, lk_attr_t attr);
 
 /*! \brief Makes spin lock unusable for further locking.
  *
