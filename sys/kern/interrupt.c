@@ -32,7 +32,7 @@ void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
                      ie_action_t *disable, ie_action_t *enable, void *source) {
   ie->ie_irq = irq;
   ie->ie_name = name;
-  ie->ie_lock = SPIN_INITIALIZER(LK_RECURSE);
+  ie->ie_lock = SPIN_INITIALIZER(LK_RECURSIVE);
   ie->ie_enable = enable;
   ie->ie_disable = disable;
   ie->ie_source = source;

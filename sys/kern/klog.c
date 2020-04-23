@@ -9,7 +9,7 @@
 
 klog_t klog;
 
-static spin_t klog_lock = SPIN_INITIALIZER(LK_RECURSE);
+static spin_t klog_lock = SPIN_INITIALIZER(LK_RECURSIVE);
 
 static const char *subsystems[] = {
   [KL_RUNQ] = "runq",   [KL_SLEEPQ] = "sleepq",   [KL_CALLOUT] = "callout",
