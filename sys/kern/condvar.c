@@ -3,17 +3,15 @@
 #include <sys/sched.h>
 #include <sys/mutex.h>
 
-#define spin_lock_p(m) (*(m).type & LK_SPIN)
-
-static void mutex_lock(cv_lock_t m, const void *waitpt) {
-  if (spin_lock_p(m))
+static inline void lk_acquire(lock_t m, const void *waitpt) {
+  if (lk_spin_p(m))
     _spin_lock(m.spin, waitpt);
   else
     _mtx_lock(m.mtx, waitpt);
 }
 
-static void mutex_unlock(cv_lock_t m) {
-  if (spin_lock_p(m))
+static void lk_release(lock_t m) {
+  if (lk_spin_p(m))
     spin_unlock(m.spin);
   else
     mtx_unlock(m.mtx);
@@ -24,23 +22,23 @@ void cv_init(condvar_t *cv, const char *name) {
   cv->waiters = 0;
 }
 
-void cv_wait(condvar_t *cv, cv_lock_t m) {
+void cv_wait(condvar_t *cv, lock_t m) {
   WITH_NO_PREEMPTION {
     cv->waiters++;
-    mutex_unlock(m);
+    lk_release(m);
     sleepq_wait(cv, __caller(0));
   }
-  mutex_lock(m, __caller(0));
+  lk_acquire(m, __caller(0));
 }
 
-int cv_wait_timed(condvar_t *cv, cv_lock_t m, systime_t timeout) {
+int cv_wait_timed(condvar_t *cv, lock_t m, systime_t timeout) {
   int status;
   WITH_NO_PREEMPTION {
     cv->waiters++;
-    mutex_unlock(m);
+    lk_release(m);
     status = sleepq_wait_timed(cv, __caller(0), timeout);
   }
-  mutex_lock(m, __caller(0));
+  lk_acquire(m, __caller(0));
   return status;
 }
 
