@@ -153,7 +153,7 @@ void sig_kill(proc_t *proc, signo_t sig) {
 
   /* Zombie processes shouldn't accept any signals. */
   if (proc->p_state == PS_ZOMBIE)
-    return;
+    goto out;
 
   thread_t *td = proc->p_thread;
 
@@ -166,8 +166,7 @@ void sig_kill(proc_t *proc, signo_t sig) {
     proc->p_state = PS_NORMAL;
   } else if (handler == SIG_IGN ||
              (defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
-    proc_unlock(proc);
-    return;
+    goto out;
   }
 
   /* If stopping or continuing,
@@ -206,6 +205,7 @@ void sig_kill(proc_t *proc, signo_t sig) {
     }
   }
 
+out:
   proc_unlock(proc);
 }
 
