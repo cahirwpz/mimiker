@@ -44,6 +44,8 @@ static int test_sleepq_sync(void) {
   for (int i = 0; i < K; i++)
     thread_join(td[i]);
 
+  /* After callouts are drained we know that their memory is not used
+   * by callout_thread so it's safe to allocate them on stack. */
   for (int i = 0; i < N; i++)
     callout_drain(&callout[i]);
 

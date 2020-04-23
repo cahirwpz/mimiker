@@ -76,14 +76,14 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   if (sig >= NSIG)
     return EINVAL;
 
-  if (sig == SIGKILL)
+  if (sig_properties[sig] & SA_CANTMASK)
     return EINVAL;
 
   WITH_PROC_LOCK(p) {
     if (oldact != NULL)
       memcpy(oldact, &p->p_sigactions[sig], sizeof(sigaction_t));
-
-    memcpy(&p->p_sigactions[sig], act, sizeof(sigaction_t));
+    if (act != NULL)
+      memcpy(&p->p_sigactions[sig], act, sizeof(sigaction_t));
   }
 
   return 0;
@@ -154,7 +154,7 @@ void sig_kill(proc_t *proc, signo_t sig) {
 
   /* Zombie processes shouldn't accept any signals. */
   if (proc->p_state == PS_ZOMBIE)
-    return;
+    goto out;
 
   thread_t *td = proc->p_thread;
 
@@ -172,8 +172,7 @@ void sig_kill(proc_t *proc, signo_t sig) {
       cv_broadcast(&proc->p_parent->p_waitcv);
   } else if (handler == SIG_IGN ||
              (defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
-    proc_unlock(proc);
-    return;
+    goto out;
   }
 
   /* If stopping or continuing,
@@ -194,20 +193,25 @@ void sig_kill(proc_t *proc, signo_t sig) {
 
   /* Don't wake up the target thread if it blocks the signal being sent.
    * Exception: SIGCONT wakes up stopped threads even if it's blocked. */
-  if (!continued && __sigismember(&td->td_sigmask, sig))
-    return;
-
-  WITH_SPIN_LOCK (&td->td_spin) {
-    td->td_flags |= TDF_NEEDSIGCHK;
-    /* If the thread is sleeping interruptibly (!), wake it up, so that it
-     * continues execution and the signal gets delivered soon. */
-    if (td_is_interruptible(td)) {
-      sleepq_abort(td);
-    } else if (td_is_stopped(td) && continued) {
-      sched_wakeup(td, 0);
+  if (__sigismember(&td->td_sigmask, sig)) {
+    if (continued)
+      WITH_SPIN_LOCK (&td->td_spin)
+        if (td_is_stopped(td))
+          sched_wakeup(td, 0);
+  } else {
+    WITH_SPIN_LOCK (&td->td_spin) {
+      td->td_flags |= TDF_NEEDSIGCHK;
+      /* If the thread is sleeping interruptibly (!), wake it up, so that it
+       * continues execution and the signal gets delivered soon. */
+      if (td_is_interruptible(td)) {
+        sleepq_abort(td);
+      } else if (td_is_stopped(td) && continued) {
+        sched_wakeup(td, 0);
+      }
     }
   }
 
+out:
   proc_unlock(proc);
 }
 
