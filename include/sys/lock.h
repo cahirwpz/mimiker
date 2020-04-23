@@ -14,51 +14,59 @@ typedef enum {
    *
    * When a thread tries to acquire a blocking lock that is owned by another
    * thread, it will block and switch out to another thread. */
-  LK_TYPE_BLOCK = 0x1,
+  LK_TYPE_BLOCK = 1,
   /*!\var LK_TYPE_SPIN
    * \brief Type of spin locks.
    *
    * Interrupts are disabled upon acquiring a spin lock. */
-  LK_TYPE_SPIN = 0x2,
+  LK_TYPE_SPIN = 2,
   /*!\var LK_TYPE_SLEEP
    * \brief Type of sleeping locks.
    *
    * When a thread tries to acquire a sleeping lock that is owned by another
    * thread, it will go to sleep on a sleepqueue. */
-  LK_TYPE_SLEEP = 0x3,
+  LK_TYPE_SLEEP = 3,
   /*!\var LK_RECURSE
    * \brief Flag indicating a recursive lock.
    *
    * The lock may be acquired by the owner multiple times, and must
    * be released exactly as many times. */
-  LK_RECURSE = 0x4
+  LK_RECURSE = 4
 } lk_attr_t;
 
 typedef struct spin spin_t;
 typedef struct mtx mtx_t;
 
+/* Union type of locks that may be passed to `cv_wait` */
+typedef union lock {
+  lk_attr_t *attr; /*! `mtx_t` and `spin_t` must begin with `lk_attr_t` */
+  mtx_t *mtx;      /*!< sleep mutex to use with `cv_wait` */
+  spin_t *spin;    /*!< spin lock to use with `cv_wait`*/
+} __transparent_union lock_t;
+
 /*!\brief Mask used to extract a lock's type (blocking/spin/...). */
 #define LK_TYPE_MASK 0x3
 
 /* !\brief Get lock type from attributes */
-#define lk_attr_type(attrs) ((attrs)&LK_TYPE_MASK)
+#define lk_attr(l) (*(l).attr)
+#define lk_type(l) (lk_attr(l) & LK_TYPE_MASK)
 
-/* !\brief Getters for attributes' type */
-static inline bool lk_attr_blocking(lk_attr_t attrs) {
-  return lk_attr_type(attrs) == LK_TYPE_BLOCK;
+/* !\brief Predicates checking type of a lock */
+static inline bool lk_spin_p(lock_t l) {
+  return lk_type(l) == LK_TYPE_SPIN;
 }
 
-static inline bool lk_attr_spinning(lk_attr_t attrs) {
-  return lk_attr_type(attrs) == LK_TYPE_SPIN;
+static inline bool lk_block_p(lock_t l) {
+  return lk_type(l) == LK_TYPE_BLOCK;
 }
 
-static inline bool lk_attr_sleeping(lk_attr_t attrs) {
-  return lk_attr_type(attrs) == LK_TYPE_SLEEP;
+static inline bool lk_sleep_p(lock_t l) {
+  return lk_type(l) == LK_TYPE_SLEEP;
 }
 
-/* !\brief Getters for attributes' flags */
-static inline bool lk_attr_recursive(lk_attr_t attrs) {
-  return attrs & LK_RECURSE;
+/* !\brief Predicates checking flags of a lock */
+static inline bool lk_recursive_p(lock_t l) {
+  return lk_attr(l) & LK_RECURSE;
 }
 
 #endif /* !_SYS_LOCK_H_ */

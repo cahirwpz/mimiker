@@ -24,15 +24,15 @@ typedef struct thread thread_t;
  *       will be used for interprocessor synchronization as well.
  */
 typedef struct spin {
-  lk_attr_t s_attrs;          /*!< lock attributes */
+  lk_attr_t s_attr;           /*!< lock attributes */
   volatile unsigned s_count;  /*!< counter for recursive spinlock */
   volatile thread_t *s_owner; /*!< stores address of the owner */
   const void *s_lockpt;       /*!< place where the lock was acquired */
 } spin_t;
 
-#define SPIN_INITIALIZER(attrs)                                                \
+#define SPIN_INITIALIZER(recurse)                                              \
   (spin_t) {                                                                   \
-    .s_attrs = (attrs) | LK_TYPE_SPIN                                          \
+    .s_attr = (recurse) | LK_TYPE_SPIN                                         \
   }
 
 /*! \brief Initializes spin lock.
