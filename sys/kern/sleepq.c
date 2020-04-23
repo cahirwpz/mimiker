@@ -370,18 +370,16 @@ static void sq_timeout(thread_t *td) {
 }
 
 int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
-  callout_t co;
-  bzero(&co, sizeof(callout_t));
-
+  thread_t *td = thread_self();
   int status = 0;
   WITH_INTR_DISABLED {
     if (timeout > 0)
-      callout_setup_relative(&co, timeout, (timeout_t)sq_timeout,
+      callout_setup_relative(&td->td_slpcallout, timeout, (timeout_t)sq_timeout,
                              thread_self());
     status = _sleepq_wait(wchan, waitpt, timeout ? SLP_TIMED : SLP_INTR);
   }
   if (timeout > 0)
-    callout_stop(&co);
+    callout_stop(&td->td_slpcallout);
   return status;
 }
 

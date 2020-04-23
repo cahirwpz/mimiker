@@ -17,21 +17,21 @@ typedef struct thread thread_t;
  * \note Mutex must be released by its owner!
  */
 typedef struct mtx {
-  lock_type_t m_type;         /*!< type of lock */
+  lk_attr_t m_attr;           /*!< lock attributes */
   volatile unsigned m_count;  /*!< counter for recursive mutexes */
   volatile thread_t *m_owner; /*!< stores address of the owner */
   const void *m_lockpt;       /*!< place where the lock was acquired */
 } mtx_t;
 
-#define MTX_INITIALIZER(recurse)                                               \
+#define MTX_INITIALIZER(recursive)                                             \
   (mtx_t) {                                                                    \
-    .m_type = (recurse) | LK_SLEEP                                             \
+    .m_attr = (recursive) | LK_TYPE_BLOCK                                      \
   }
 
 /*! \brief Initializes mutex.
  *
  * \note Every mutex has to be initialized before it is used. */
-void mtx_init(mtx_t *m, lock_type_t type);
+void mtx_init(mtx_t *m, lk_attr_t attr);
 
 /*! \brief Makes mutex unusable for further locking.
  *
