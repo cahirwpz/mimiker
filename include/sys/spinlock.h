@@ -30,9 +30,9 @@ typedef struct spin {
   const void *s_lockpt;       /*!< place where the lock was acquired */
 } spin_t;
 
-#define SPIN_INITIALIZER(recurse)                                              \
+#define SPIN_INITIALIZER(recursive)                                            \
   (spin_t) {                                                                   \
-    .s_attr = (recurse) | LK_TYPE_SPIN                                         \
+    .s_attr = (recursive) | LK_TYPE_SPIN                                       \
   }
 
 /*! \brief Initializes spin lock.

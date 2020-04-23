@@ -23,9 +23,9 @@ typedef struct mtx {
   const void *m_lockpt;       /*!< place where the lock was acquired */
 } mtx_t;
 
-#define MTX_INITIALIZER(recurse)                                               \
+#define MTX_INITIALIZER(recursive)                                             \
   (mtx_t) {                                                                    \
-    .m_attr = (recurse) | LK_TYPE_BLOCK                                        \
+    .m_attr = (recursive) | LK_TYPE_BLOCK                                      \
   }
 
 /*! \brief Initializes mutex.
