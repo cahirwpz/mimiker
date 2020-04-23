@@ -188,17 +188,21 @@ void sig_kill(proc_t *proc, signo_t sig) {
 
   /* Don't wake up the target thread if it blocks the signal being sent.
    * Exception: SIGCONT wakes up stopped threads even if it's blocked. */
-  if (!continued && __sigismember(&td->td_sigmask, sig))
-    return;
-
-  WITH_SPIN_LOCK (&td->td_spin) {
-    td->td_flags |= TDF_NEEDSIGCHK;
-    /* If the thread is sleeping interruptibly (!), wake it up, so that it
-     * continues execution and the signal gets delivered soon. */
-    if (td_is_interruptible(td)) {
-      sleepq_abort(td);
-    } else if (td_is_stopped(td) && continued) {
-      sched_wakeup(td, 0);
+  if (__sigismember(&td->td_sigmask, sig)) {
+    if (continued)
+      WITH_SPIN_LOCK (&td->td_spin)
+        if (td_is_stopped(td))
+          sched_wakeup(td, 0);
+  } else {
+    WITH_SPIN_LOCK (&td->td_spin) {
+      td->td_flags |= TDF_NEEDSIGCHK;
+      /* If the thread is sleeping interruptibly (!), wake it up, so that it
+       * continues execution and the signal gets delivered soon. */
+      if (td_is_interruptible(td)) {
+        sleepq_abort(td);
+      } else if (td_is_stopped(td) && continued) {
+        sched_wakeup(td, 0);
+      }
     }
   }
 
