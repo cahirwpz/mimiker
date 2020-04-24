@@ -7,6 +7,7 @@
 #include <mips/mips.h>
 #include <mips/tlb.h>
 #include <mips/pmap.h>
+#include <sys/kmem.h>
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
 #include <sys/vm_map.h>
@@ -21,12 +22,14 @@
 
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 
+#define UPT ((pte_t *)0xff800000)
+#define KPT ((pte_t *)0xffc00000)
+
 #define PDE_OF(pmap, vaddr) ((pmap)->pde[PDE_INDEX(vaddr)])
-#define PTE_OF(pde, vaddr) ((pte_t *)PTE_FRAME_ADDR(pde))[PTE_INDEX(vaddr)]
+#define PTE_OF(pmap, vaddr) \
+  ((pmap == &kernel_pmap ? KPT : UPT)[(vaddr) >> 12]) 
 #define PTE_FRAME_ADDR(pte) (PTE_PFN_OF(pte) * PAGESIZE)
 #define PAGE_OFFSET(x) ((x) & (PAGESIZE - 1))
-
-#define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
 
 static bool is_valid_pde(pde_t pde) {
   return pde & PDE_VALID;
@@ -91,10 +94,10 @@ static void update_wired_pde(pmap_t *umap) {
    * to skip ASID check. */
   tlbentry_t e = {.hi = PTE_VPN2(UPD_BASE),
                   .lo0 = PTE_GLOBAL,
-                  .lo1 = PTE_PFN(MIPS_KSEG0_TO_PHYS(kmap->pde)) | PTE_KERNEL};
+                  .lo1 = PTE_PFN(MIPS_KSEG2_TO_PHYS(kmap->pde)) | PTE_KERNEL};
 
   if (umap)
-    e.lo0 = PTE_PFN(MIPS_KSEG0_TO_PHYS(umap->pde)) | PTE_KERNEL;
+    e.lo0 = PTE_PFN(MIPS_KSEG2_TO_PHYS(umap->pde)) | PTE_KERNEL;
 
   tlb_write(0, &e);
 }
@@ -113,7 +116,7 @@ void pmap_reset(pmap_t *pmap) {
     TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
     vm_page_free(pg);
   }
-  vm_page_free(pmap->pde_page);
+  kmem_free(pmap->pde, PAGESIZE);
   free_asid(pmap->asid);
 }
 
@@ -126,12 +129,8 @@ pmap_t *pmap_new(void) {
   pmap_t *pmap = pool_alloc(P_PMAP, M_ZERO);
   pmap_setup(pmap);
 
-  pmap->pde_page = vm_page_alloc(1);
-  pmap->pde = PG_KSEG0_ADDR(pmap->pde_page);
+  pmap->pde = kmem_alloc(PAGESIZE, M_NOWAIT|M_ZERO);
   klog("Page directory table allocated at %p", (vaddr_t)pmap->pde);
-
-  for (int i = 0; i < PD_ENTRIES; i++)
-    pmap->pde[i] = 0;
 
   return pmap;
 }
@@ -149,7 +148,7 @@ static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr) {
   pde_t pde = PDE_OF(pmap, vaddr);
   if (!is_valid_pde(pde))
     return 0;
-  return PTE_OF(pde, vaddr);
+  return PTE_OF(pmap, vaddr);
 }
 
 /*! \brief Writes \a pte as the new PTE mapping virtual address \a vaddr. */
@@ -157,7 +156,7 @@ static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte) {
   pde_t pde = PDE_OF(pmap, vaddr);
   if (!is_valid_pde(pde))
     pde = pmap_add_pde(pmap, vaddr);
-  PTE_OF(pde, vaddr) = pte;
+  PTE_OF(pmap, vaddr) = pte;
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
 }
 
@@ -166,14 +165,14 @@ static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
   assert(!is_valid_pde(PDE_OF(pmap, vaddr)));
 
   vm_page_t *pg = vm_page_alloc(1);
-  pte_t *pte = PG_KSEG0_ADDR(pg);
+  pde_t pde = PTE_PFN(pg->paddr) | PTE_KERNEL;
+  PDE_OF(pmap, vaddr) = pde;
+
+  pte_t *pte = &PTE_OF(pmap, vaddr & PDE_INDEX_MASK);
+  tlb_invalidate(PTE_VPN2((vaddr_t)pte) | PTE_ASID(pmap->asid));
 
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
   klog("Page table for %08lx allocated at %08lx", vaddr & PDE_INDEX_MASK, pte);
-
-  pde_t pde = PTE_PFN((paddr_t)pte) | PTE_KERNEL;
-
-  PDE_OF(pmap, vaddr) = pde;
 
   /* Must initialize to PTE_GLOBAL, look at comment in update_wired_pde! */
   for (int i = 0; i < PT_ENTRIES; i++)
@@ -286,6 +285,8 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
   return true;
 }
 
+#define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
+
 void pmap_zero_page(vm_page_t *pg) {
   bzero(PG_KSEG0_ADDR(pg), PAGESIZE);
 }
@@ -293,6 +294,8 @@ void pmap_zero_page(vm_page_t *pg) {
 void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
   memcpy(PG_KSEG0_ADDR(dst), PG_KSEG0_ADDR(src), PAGESIZE);
 }
+
+#undef PG_KSEG0_ADDR
 
 /* TODO: at any given moment there're two page tables in use:
  *  - kernel-space pmap for kseg2 & kseg3
