@@ -22,9 +22,6 @@
 
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 
-#define UPT ((pte_t *)0xff800000)
-#define KPT ((pte_t *)0xffc00000)
-
 #define PDE_OF(pmap, vaddr) ((pmap)->pde[PDE_INDEX(vaddr)])
 #define PTE_OF(pmap, vaddr) \
   ((pmap == &kernel_pmap ? KPT : UPT)[(vaddr) >> 12]) 
