@@ -4,6 +4,7 @@
 #include <sys/cdefs.h>
 #include <sys/queue.h>
 #include <sys/context.h>
+#include <sys/callout.h>
 #include <sys/exception.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
@@ -115,6 +116,7 @@ typedef struct thread {
   /* waiting channel */
   void *td_wchan;            /*!< (*) memory object on which thread awaits */
   const void *td_waitpt;     /*!< (*) PC where program waits */
+  callout_t td_slpcallout;   /*!< (*) callout used to wakeup from sleep */
   sleepq_t *td_sleepqueue;   /*!< ($) thread's sleepqueue */
   turnstile_t *td_blocked;   /*!< (#) turnstile on which thread is blocked */
   turnstile_t *td_turnstile; /*!< (#) thread's turnstile */
