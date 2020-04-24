@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <sys/mimiker.h>
-#include <sys/lock.h>
+#include <sys/_lock.h>
 
 typedef struct thread thread_t;
 
