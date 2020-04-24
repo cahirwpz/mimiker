@@ -10,11 +10,9 @@
 /* Last address in kseg0 used by kernel for boot allocation. */
 __boot_data void *_kernel_end_kseg0;
 /* Kernel page directory entries allocated in kseg0. */
-__boot_data pde_t *_kernel_pmap_pde;
+extern pte_t _kernel_pmap_pde[PT_ENTRIES];
 /* The boot stack is used before we switch out to thread0. */
 static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
-
-alignas(PAGESIZE) pte_t __pde[PT_ENTRIES];
 
 /* Allocates pages in kseg0. The argument will be aligned to PAGESIZE. */
 static __boot_text void *bootmem_alloc(size_t bytes) {
@@ -77,14 +75,9 @@ __boot_text void *mips_init(void) {
   }
 
   /* Prepare 1:1 mapping between kseg2 and physical memory for kernel image. */
-  pde_t *pde = (pde_t *)bootmem_alloc(PAGESIZE);
-  for (int i = 0; i < PD_ENTRIES; i++)
-    pde[i] = PDE_GLOBAL;
-  _kernel_pmap_pde = pde;
-
-  pde_t *_pde = (pde_t *)MIPS_KSEG2_TO_KSEG0(__pde);
+  pde_t *pde = (pde_t *)MIPS_KSEG2_TO_KSEG0(_kernel_pmap_pde);
   for (int i = 0; i < PT_ENTRIES; i++)
-    _pde[i] = PTE_GLOBAL;
+    pde[i] = PTE_GLOBAL;
 
   pte_t *pte = (pte_t *)bootmem_alloc(PAGESIZE);
   for (int i = 0; i < PT_ENTRIES; i++)
@@ -99,8 +92,7 @@ __boot_text void *mips_init(void) {
   pde[PDE_INDEX(va)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pte)) | PTE_KERNEL;
 
   /* auto-mapping? */
-  pde[1023] = PTE_PFN(MIPS_KSEG0_TO_PHYS(_pde)) | PTE_KERNEL;
-  _pde[PDE_INDEX(va)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pte)) | PTE_KERNEL;
+  pde[PDE_INDEX(0xffc00000)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pde)) | PTE_KERNEL;
 
   /* read-only segment - sections: .text, .rodata, etc. */
   for (paddr_t pa = text; pa < data; va += PAGESIZE, pa += PAGESIZE)
