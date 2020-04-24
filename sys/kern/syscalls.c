@@ -20,7 +20,7 @@
 #include <sys/libkern.h>
 #include <sys/syslimits.h>
 #include <sys/context.h>
-#include <sys/sched.h>
+#include <sys/thread.h>
 
 #include "sysent.h"
 
@@ -137,24 +137,23 @@ static int sys_umask(proc_t *p, umask_args_t *args, register_t *res) {
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html */
 static int sys_sigaction(proc_t *p, sigaction_args_t *args, register_t *res) {
   int signo = args->signum;
-  const void *p_newact = args->nsa;
-  void *p_oldact = args->osa;
+  const void *u_newact = args->nsa;
+  void *u_oldact = args->osa;
 
-  klog("sigaction(%d, %p, %p)", signo, p_newact, p_oldact);
+  klog("sigaction(%d, %p, %p)", signo, u_newact, u_oldact);
 
   sigaction_t newact;
   sigaction_t oldact;
   int error;
 
-  if ((error = copyin_s(p_newact, newact)))
+  if (u_newact && (error = copyin_s(u_newact, newact)))
     return error;
 
-  if ((error = do_sigaction(signo, &newact, &oldact)))
+  if ((error = do_sigaction(signo, u_newact ? &newact : NULL, &oldact)))
     return error;
 
-  if (p_oldact != NULL)
-    if ((error = copyout_s(oldact, p_oldact)))
-      return error;
+  if (u_oldact != NULL)
+    error = copyout_s(oldact, u_oldact);
 
   return error;
 }
@@ -819,6 +818,6 @@ end:
 
 static int sys_sched_yield(proc_t *p, void *args, register_t *res) {
   klog("sched_yield()");
-  yield();
+  thread_yield();
   return 0;
 }

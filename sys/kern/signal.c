@@ -8,12 +8,17 @@
 #include <sys/sleepq.h>
 #include <sys/proc.h>
 #include <sys/wait.h>
+#include <sys/sched.h>
 
-#define SA_IGNORE 0x01
-#define SA_KILL 0x02
+typedef enum {
+  SA_IGNORE = 1,
+  SA_KILL = 2,
+  SA_CONT = 3, /* Continue a stopped process */
+  SA_STOP = 4, /* Stop a process */
+} sigact_t;
 
 /* clang-format off */
-static int def_sigact[NSIG] = {
+static const sigact_t def_sigact[NSIG] = {
   [SIGINT] = SA_KILL,
   [SIGILL] = SA_KILL,
   [SIGABRT] = SA_KILL,
@@ -21,6 +26,8 @@ static int def_sigact[NSIG] = {
   [SIGSEGV] = SA_KILL,
   [SIGKILL] = SA_KILL,
   [SIGTERM] = SA_KILL,
+  [SIGSTOP] = SA_STOP,
+  [SIGCONT] = SA_CONT,
   [SIGCHLD] = SA_IGNORE,
   [SIGUSR1] = SA_KILL,
   [SIGUSR2] = SA_KILL,
@@ -35,12 +42,20 @@ static const char *sig_name[NSIG] = {
   [SIGSEGV] = "SIGSEGV",
   [SIGKILL] = "SIGKILL",
   [SIGTERM] = "SIGTERM",
+  [SIGSTOP] = "SIGSTOP",
+  [SIGCONT] = "SIGCONT",
   [SIGCHLD] = "SIGCHLD",
   [SIGUSR1] = "SIGUSR1",
   [SIGUSR2] = "SIGUSR2",
   [SIGBUS] = "SIGBUS",
 };
 /* clang-format on */
+
+/* Default action for a signal. */
+static sigact_t defact(signo_t sig) {
+  assert(sig <= NSIG);
+  return def_sigact[sig];
+}
 
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   proc_t *p = proc_self();
@@ -54,16 +69,11 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   WITH_PROC_LOCK(p) {
     if (oldact != NULL)
       memcpy(oldact, &p->p_sigactions[sig], sizeof(sigaction_t));
-
-    memcpy(&p->p_sigactions[sig], act, sizeof(sigaction_t));
+    if (act != NULL)
+      memcpy(&p->p_sigactions[sig], act, sizeof(sigaction_t));
   }
 
   return 0;
-}
-
-static int sig_default(signo_t sig) {
-  assert(sig <= NSIG);
-  return def_sigact[sig];
 }
 
 /*
@@ -71,7 +81,6 @@ static int sig_default(signo_t sig) {
  * - Thread tracing and debugging
  * - Multiple threads in a process
  * - Signal masks
- * - SIGSTOP/SIGCONT
  * These limitations (plus the fact that we currently have very little thread
  * states) make the logic of sending a signal very simple!
  */
@@ -86,25 +95,47 @@ void sig_kill(proc_t *proc, signo_t sig) {
 
   thread_t *td = proc->p_thread;
 
-  /* If the signal is ignored, don't even bother posting it. */
   sig_t handler = proc->p_sigactions[sig].sa_handler;
-  if (handler == SIG_IGN ||
-      (sig_default(sig) == SA_IGNORE && handler == SIG_DFL)) {
+  bool continued = sig == SIGCONT || sig == SIGKILL;
+
+  /* If the signal is ignored, don't even bother posting it,
+   * unless it's waking up a stopped process. */
+  if (proc->p_state == PS_STOPPED && continued) {
+    proc->p_state = PS_NORMAL;
+  } else if (handler == SIG_IGN ||
+             (defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
     proc_unlock(proc);
     return;
   }
 
-  __sigaddset(&td->td_sigpend, sig);
+  /* If stopping or continuing,
+   * remove pending signals with the opposite effect. */
+  if (sig == SIGSTOP)
+    __sigdelset(&td->td_sigpend, SIGCONT);
 
-  proc_unlock(proc);
+  if (sig == SIGCONT) {
+    __sigdelset(&td->td_sigpend, SIGSTOP);
+
+    /* In case of SIGCONT, make it pending only if the process catches it. */
+    if (handler != SIG_IGN && handler != SIG_DFL)
+      __sigaddset(&td->td_sigpend, SIGCONT);
+  } else {
+    /* Every other signal is marked as pending. */
+    __sigaddset(&td->td_sigpend, sig);
+  }
 
   WITH_SPIN_LOCK (&td->td_spin) {
     td->td_flags |= TDF_NEEDSIGCHK;
     /* If the thread is sleeping interruptibly (!), wake it up, so that it
      * continues execution and the signal gets delivered soon. */
-    if (td_is_interruptible(td))
+    if (td_is_interruptible(td)) {
       sleepq_abort(td);
+    } else if (td_is_stopped(td) && continued) {
+      sched_wakeup(td, 0);
+    }
   }
+
+  proc_unlock(proc);
 }
 
 int sig_check(thread_t *td) {
@@ -128,7 +159,7 @@ int sig_check(thread_t *td) {
 
     if (handler == SIG_IGN)
       continue;
-    if (handler == SIG_DFL && sig_default(sig) == SA_IGNORE)
+    if (handler == SIG_DFL && defact(sig) == SA_IGNORE)
       continue;
 
     /* If we reached here, then the signal has to be posted. */
@@ -149,9 +180,23 @@ void sig_post(signo_t sig) {
 
   assert(sa->sa_handler != SIG_IGN);
 
-  /* Terminate this thread as result of a signal. */
-  if (sa->sa_handler == SIG_DFL && sig_default(sig) == SA_KILL) {
-    sig_exit(td, sig);
+  if (sa->sa_handler == SIG_DFL) {
+    if (defact(sig) == SA_KILL) {
+      /* Terminate this thread as result of a signal. */
+      sig_exit(td, sig);
+    } else if (defact(sig) == SA_STOP) {
+      /* Stop this thread. Release process lock before switching. */
+      klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
+      p->p_state = PS_STOPPED;
+      WITH_SPIN_LOCK (&td->td_spin) {
+        td->td_state = TDS_STOPPED;
+        /* We're holding a spinlock, so we can't be preempted here. */
+        proc_unlock(p);
+        sched_switch();
+      }
+      proc_lock(p);
+      return;
+    }
   }
 
   klog("Post signal %s (handler %p) to thread %lu in process PID(%d)",
