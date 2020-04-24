@@ -32,7 +32,7 @@ typedef void (*pool_dtor_t)(void *);
 
 typedef LIST_HEAD(, pool_slab) pool_slabs_t;
 
-struct pool {
+typedef struct pool {
   mtx_t pp_mtx;
   const char *pp_desc;
   unsigned pp_state;
@@ -42,13 +42,14 @@ struct pool {
   pool_ctor_t pp_ctor;
   pool_dtor_t pp_dtor;
   size_t pp_itemsize; /* size of item */
+  size_t pp_align;    /* (ignored) requested alignment, must be 2^n */
+  size_t pp_nslabs;   /* # of slabs allocated */
+  size_t pp_nitems;   /* number of available items in pool */
 #ifdef KASAN
-  size_t pp_redzsize; /* size of redzone after each item */
+  size_t pp_redzsize;         /* size of redzone after each item */
+  quarantine_t pp_quarantine; /* KASAN's quarantine */
 #endif
-  size_t pp_align;  /* (ignored) requested alignment, must be 2^n */
-  size_t pp_nslabs; /* # of slabs allocated */
-  size_t pp_nitems; /* number of available items in pool */
-};
+} pool_t;
 
 typedef struct pool_slab {
   uint32_t ph_state;                 /* set to ALIVE or DEAD */
@@ -163,6 +164,7 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
   debug("pool_alloc: pool=%p", pool);
 
   SCOPED_MTX_LOCK(&pool->pp_mtx);
+  kasan_quarantine_inctime(&pool->pp_quarantine);
 
   assert(pool->pp_state == ALIVE);
 
@@ -198,39 +200,47 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
   return p;
 }
 
+static void _pool_free(pool_t *pool, void *ptr) {
+  assert(mtx_owned(&pool->pp_mtx));
+
+  debug("pool_free: pool = %p, ptr = %p", pool, ptr);
+  assert(pool->pp_state == ALIVE);
+
+  pool_item_t *pi = ptr - sizeof(pool_item_t);
+  assert(pi->pi_canary == PI_MAGIC);
+  pool_slab_t *slab = pi->pi_slab;
+  assert(slab->ph_state == ALIVE);
+
+  unsigned index = slab_index_of(slab, pi);
+  bitstr_t *bitmap = slab->ph_bitmap;
+
+  if (!bit_test(bitmap, index))
+    panic("Double free detected in '%s' pool at %p!", pool->pp_desc, ptr);
+
+  bit_clear(bitmap, index);
+  LIST_REMOVE(slab, ph_slablist);
+  slab->ph_nused--;
+  pool->pp_nitems++;
+  pool_slabs_t *slabs =
+    slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
+  LIST_INSERT_HEAD(slabs, slab, ph_slablist);
+
+  debug("pool_free: freed item %p at slab %p, index %d", ptr, slab, index);
+}
+
 /* TODO: destroy empty slabs when their number reaches a certain threshold
  * (maybe leave one) */
 void pool_free(pool_t *pool, void *ptr) {
-  debug("pool_free: pool = %p, ptr = %p", pool, ptr);
+  SCOPED_MTX_LOCK(&pool->pp_mtx);
 
-  assert(pool->pp_state == ALIVE);
-
-  /* Mark the item as invalid */
+  kasan_quarantine_inctime(&pool->pp_quarantine);
   kasan_mark(ptr, 0, pool->pp_itemsize + pool->pp_redzsize,
              KASAN_CODE_POOL_USE_AFTER_FREE);
-
-  WITH_MTX_LOCK (&pool->pp_mtx) {
-    pool_item_t *pi = ptr - sizeof(pool_item_t);
-    assert(pi->pi_canary == PI_MAGIC);
-    pool_slab_t *slab = pi->pi_slab;
-    assert(slab->ph_state == ALIVE);
-
-    unsigned index = slab_index_of(slab, pi);
-    bitstr_t *bitmap = slab->ph_bitmap;
-
-    if (!bit_test(bitmap, index))
-      panic("Double free detected in '%s' pool at %p!", pool->pp_desc, ptr);
-
-    bit_clear(bitmap, index);
-    LIST_REMOVE(slab, ph_slablist);
-    slab->ph_nused--;
-    pool->pp_nitems++;
-    pool_slabs_t *slabs =
-      slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
-    LIST_INSERT_HEAD(slabs, slab, ph_slablist);
-  }
-
-  debug("pool_free: freed item %p at slab %p, index %d", ptr, slab, index);
+  kasan_quarantine_additem(&pool->pp_quarantine, ptr);
+#ifndef KASAN
+  /* Without KASAN, call regular free method */
+  _pool_free(pool, ptr);
+#endif /* !KASAN */
 }
 
 static void pool_ctor(pool_t *pool) {
@@ -275,18 +285,22 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
   pool->pp_ctor = ctor;
   pool->pp_dtor = dtor;
   pool->pp_state = ALIVE;
+  kasan_quarantine_init(&pool->pp_quarantine, pool, &pool->pp_mtx,
+                        (quarantine_free_t)_pool_free,
+                        KASAN_QUARANTINE_DEFAULT_TTL);
 
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
        pool->pp_itemsize);
 }
 
 /* Pool of pool_t objects. */
-static struct pool P_POOL[1];
-static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[PAGESIZE];
+static pool_t P_POOL[1];
+static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[27][PAGESIZE];
 
 void pool_bootstrap(void) {
-  pool_init(P_POOL, "master pool", sizeof(struct pool), NULL, NULL);
-  pool_add_page(P_POOL, P_POOL_BOOTPAGE);
+  pool_init(P_POOL, "master pool", sizeof(pool_t), NULL, NULL);
+  for (int i = 0; i < 27; i++)
+    pool_add_page(P_POOL, P_POOL_BOOTPAGE[i]);
   INVOKE_CTORS(pool_ctor_table);
 }
 
@@ -302,6 +316,9 @@ pool_t *pool_create(const char *desc, size_t size) {
 }
 
 void pool_destroy(pool_t *pool) {
+  WITH_MTX_LOCK (&pool->pp_mtx)
+    /* We need mutex as the quarantine can still call _pool_free! */
+    kasan_quarantine_releaseall(&pool->pp_quarantine);
   pool_dtor(pool);
   pool_free(P_POOL, pool);
 }
