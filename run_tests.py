@@ -21,7 +21,7 @@ def safe_decode(data):
 
 
 def send_command(gdb, cmd):
-    gdb.expect_exact(['(gdb)'], timeout=15)
+    gdb.expect_exact(['(gdb)'], timeout=20)
     gdb.sendline(cmd)
     print(safe_decode(gdb.before), end='', flush=True)
     print(safe_decode(gdb.after), end='', flush=True)
