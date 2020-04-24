@@ -10,10 +10,10 @@ static int sys_exit(proc_t *, exit_args_t *, register_t *);
 static int sys_fork(proc_t *, void *, register_t *);
 static int sys_read(proc_t *, read_args_t *, register_t *);
 static int sys_write(proc_t *, write_args_t *, register_t *);
-static int sys_open(proc_t *, open_args_t *, register_t *);
+static int sys_openat(proc_t *, openat_args_t *, register_t *);
 static int sys_close(proc_t *, close_args_t *, register_t *);
 static int sys_lseek(proc_t *, lseek_args_t *, register_t *);
-static int sys_unlink(proc_t *, unlink_args_t *, register_t *);
+static int sys_unlinkat(proc_t *, unlinkat_args_t *, register_t *);
 static int sys_getpid(proc_t *, void *, register_t *);
 static int sys_kill(proc_t *, kill_args_t *, register_t *);
 static int sys_fstat(proc_t *, fstat_args_t *, register_t *);
@@ -26,9 +26,9 @@ static int sys_dup2(proc_t *, dup2_args_t *, register_t *);
 static int sys_sigaction(proc_t *, sigaction_args_t *, register_t *);
 static int sys_sigreturn(proc_t *, sigreturn_args_t *, register_t *);
 static int sys_wait4(proc_t *, wait4_args_t *, register_t *);
-static int sys_mkdir(proc_t *, mkdir_args_t *, register_t *);
-static int sys_rmdir(proc_t *, rmdir_args_t *, register_t *);
-static int sys_access(proc_t *, access_args_t *, register_t *);
+static int sys_mkdirat(proc_t *, mkdirat_args_t *, register_t *);
+static int sys_symlinkat(proc_t *, symlinkat_args_t *, register_t *);
+static int sys_faccessat(proc_t *, faccessat_args_t *, register_t *);
 static int sys_fstatat(proc_t *, fstatat_args_t *, register_t *);
 static int sys_pipe2(proc_t *, pipe2_args_t *, register_t *);
 static int sys_clock_gettime(proc_t *, clock_gettime_args_t *, register_t *);
@@ -56,60 +56,66 @@ static int sys_truncate(proc_t *, truncate_args_t *, register_t *);
 static int sys_ftruncate(proc_t *, ftruncate_args_t *, register_t *);
 static int sys_readlinkat(proc_t *, readlinkat_args_t *, register_t *);
 static int sys_fchdir(proc_t *, fchdir_args_t *, register_t *);
-static int sys_symlinkat(proc_t *, symlinkat_args_t *, register_t *);
+static int sys_linkat(proc_t *, linkat_args_t *, register_t *);
+static int sys_fchmod(proc_t *, fchmod_args_t *, register_t *);
+static int sys_fchmodat(proc_t *, fchmodat_args_t *, register_t *);
+static int sys_sched_yield(proc_t *, void *, register_t *);
 
 struct sysent sysent[] = {
-  [SYS_syscall] = { (syscall_t *)sys_syscall },
-  [SYS_exit] = { (syscall_t *)sys_exit },
-  [SYS_fork] = { (syscall_t *)sys_fork },
-  [SYS_read] = { (syscall_t *)sys_read },
-  [SYS_write] = { (syscall_t *)sys_write },
-  [SYS_open] = { (syscall_t *)sys_open },
-  [SYS_close] = { (syscall_t *)sys_close },
-  [SYS_lseek] = { (syscall_t *)sys_lseek },
-  [SYS_unlink] = { (syscall_t *)sys_unlink },
-  [SYS_getpid] = { (syscall_t *)sys_getpid },
-  [SYS_kill] = { (syscall_t *)sys_kill },
-  [SYS_fstat] = { (syscall_t *)sys_fstat },
-  [SYS_sbrk] = { (syscall_t *)sys_sbrk },
-  [SYS_mmap] = { (syscall_t *)sys_mmap },
-  [SYS_mount] = { (syscall_t *)sys_mount },
-  [SYS_getdents] = { (syscall_t *)sys_getdents },
-  [SYS_dup] = { (syscall_t *)sys_dup },
-  [SYS_dup2] = { (syscall_t *)sys_dup2 },
-  [SYS_sigaction] = { (syscall_t *)sys_sigaction },
-  [SYS_sigreturn] = { (syscall_t *)sys_sigreturn },
-  [SYS_wait4] = { (syscall_t *)sys_wait4 },
-  [SYS_mkdir] = { (syscall_t *)sys_mkdir },
-  [SYS_rmdir] = { (syscall_t *)sys_rmdir },
-  [SYS_access] = { (syscall_t *)sys_access },
-  [SYS_fstatat] = { (syscall_t *)sys_fstatat },
-  [SYS_pipe2] = { (syscall_t *)sys_pipe2 },
-  [SYS_clock_gettime] = { (syscall_t *)sys_clock_gettime },
-  [SYS_clock_nanosleep] = { (syscall_t *)sys_clock_nanosleep },
-  [SYS_execve] = { (syscall_t *)sys_execve },
-  [SYS_getppid] = { (syscall_t *)sys_getppid },
-  [SYS_setpgid] = { (syscall_t *)sys_setpgid },
-  [SYS_getpgid] = { (syscall_t *)sys_getpgid },
-  [SYS_umask] = { (syscall_t *)sys_umask },
-  [SYS_munmap] = { (syscall_t *)sys_munmap },
-  [SYS_mprotect] = { (syscall_t *)sys_mprotect },
-  [SYS_chdir] = { (syscall_t *)sys_chdir },
-  [SYS_getcwd] = { (syscall_t *)sys_getcwd },
-  [SYS_sigaltstack] = { (syscall_t *)sys_sigaltstack },
-  [SYS_sigprocmask] = { (syscall_t *)sys_sigprocmask },
-  [SYS_setcontext] = { (syscall_t *)sys_setcontext },
-  [SYS_ioctl] = { (syscall_t *)sys_ioctl },
-  [SYS_getuid] = { (syscall_t *)sys_getuid },
-  [SYS_geteuid] = { (syscall_t *)sys_geteuid },
-  [SYS_getgid] = { (syscall_t *)sys_getgid },
-  [SYS_getegid] = { (syscall_t *)sys_getegid },
-  [SYS_issetugid] = { (syscall_t *)sys_issetugid },
-  [SYS_fcntl] = { (syscall_t *)sys_fcntl },
-  [SYS_truncate] = { (syscall_t *)sys_truncate },
-  [SYS_ftruncate] = { (syscall_t *)sys_ftruncate },
-  [SYS_readlinkat] = { (syscall_t *)sys_readlinkat },
-  [SYS_fchdir] = { (syscall_t *)sys_fchdir },
-  [SYS_symlinkat] = { (syscall_t *)sys_symlinkat },
+  [SYS_syscall] = { .nargs = 1, .call = (syscall_t *)sys_syscall },
+  [SYS_exit] = { .nargs = 1, .call = (syscall_t *)sys_exit },
+  [SYS_fork] = { .nargs = 0, .call = (syscall_t *)sys_fork },
+  [SYS_read] = { .nargs = 3, .call = (syscall_t *)sys_read },
+  [SYS_write] = { .nargs = 3, .call = (syscall_t *)sys_write },
+  [SYS_openat] = { .nargs = 4, .call = (syscall_t *)sys_openat },
+  [SYS_close] = { .nargs = 1, .call = (syscall_t *)sys_close },
+  [SYS_lseek] = { .nargs = 3, .call = (syscall_t *)sys_lseek },
+  [SYS_unlinkat] = { .nargs = 3, .call = (syscall_t *)sys_unlinkat },
+  [SYS_getpid] = { .nargs = 0, .call = (syscall_t *)sys_getpid },
+  [SYS_kill] = { .nargs = 2, .call = (syscall_t *)sys_kill },
+  [SYS_fstat] = { .nargs = 2, .call = (syscall_t *)sys_fstat },
+  [SYS_sbrk] = { .nargs = 1, .call = (syscall_t *)sys_sbrk },
+  [SYS_mmap] = { .nargs = 6, .call = (syscall_t *)sys_mmap },
+  [SYS_mount] = { .nargs = 2, .call = (syscall_t *)sys_mount },
+  [SYS_getdents] = { .nargs = 3, .call = (syscall_t *)sys_getdents },
+  [SYS_dup] = { .nargs = 1, .call = (syscall_t *)sys_dup },
+  [SYS_dup2] = { .nargs = 2, .call = (syscall_t *)sys_dup2 },
+  [SYS_sigaction] = { .nargs = 3, .call = (syscall_t *)sys_sigaction },
+  [SYS_sigreturn] = { .nargs = 1, .call = (syscall_t *)sys_sigreturn },
+  [SYS_wait4] = { .nargs = 4, .call = (syscall_t *)sys_wait4 },
+  [SYS_mkdirat] = { .nargs = 3, .call = (syscall_t *)sys_mkdirat },
+  [SYS_symlinkat] = { .nargs = 3, .call = (syscall_t *)sys_symlinkat },
+  [SYS_faccessat] = { .nargs = 4, .call = (syscall_t *)sys_faccessat },
+  [SYS_fstatat] = { .nargs = 4, .call = (syscall_t *)sys_fstatat },
+  [SYS_pipe2] = { .nargs = 2, .call = (syscall_t *)sys_pipe2 },
+  [SYS_clock_gettime] = { .nargs = 2, .call = (syscall_t *)sys_clock_gettime },
+  [SYS_clock_nanosleep] = { .nargs = 4, .call = (syscall_t *)sys_clock_nanosleep },
+  [SYS_execve] = { .nargs = 3, .call = (syscall_t *)sys_execve },
+  [SYS_getppid] = { .nargs = 0, .call = (syscall_t *)sys_getppid },
+  [SYS_setpgid] = { .nargs = 2, .call = (syscall_t *)sys_setpgid },
+  [SYS_getpgid] = { .nargs = 1, .call = (syscall_t *)sys_getpgid },
+  [SYS_umask] = { .nargs = 1, .call = (syscall_t *)sys_umask },
+  [SYS_munmap] = { .nargs = 2, .call = (syscall_t *)sys_munmap },
+  [SYS_mprotect] = { .nargs = 3, .call = (syscall_t *)sys_mprotect },
+  [SYS_chdir] = { .nargs = 1, .call = (syscall_t *)sys_chdir },
+  [SYS_getcwd] = { .nargs = 2, .call = (syscall_t *)sys_getcwd },
+  [SYS_sigaltstack] = { .nargs = 2, .call = (syscall_t *)sys_sigaltstack },
+  [SYS_sigprocmask] = { .nargs = 3, .call = (syscall_t *)sys_sigprocmask },
+  [SYS_setcontext] = { .nargs = 1, .call = (syscall_t *)sys_setcontext },
+  [SYS_ioctl] = { .nargs = 3, .call = (syscall_t *)sys_ioctl },
+  [SYS_getuid] = { .nargs = 0, .call = (syscall_t *)sys_getuid },
+  [SYS_geteuid] = { .nargs = 0, .call = (syscall_t *)sys_geteuid },
+  [SYS_getgid] = { .nargs = 0, .call = (syscall_t *)sys_getgid },
+  [SYS_getegid] = { .nargs = 0, .call = (syscall_t *)sys_getegid },
+  [SYS_issetugid] = { .nargs = 0, .call = (syscall_t *)sys_issetugid },
+  [SYS_fcntl] = { .nargs = 3, .call = (syscall_t *)sys_fcntl },
+  [SYS_truncate] = { .nargs = 2, .call = (syscall_t *)sys_truncate },
+  [SYS_ftruncate] = { .nargs = 2, .call = (syscall_t *)sys_ftruncate },
+  [SYS_readlinkat] = { .nargs = 4, .call = (syscall_t *)sys_readlinkat },
+  [SYS_fchdir] = { .nargs = 1, .call = (syscall_t *)sys_fchdir },
+  [SYS_linkat] = { .nargs = 5, .call = (syscall_t *)sys_linkat },
+  [SYS_fchmod] = { .nargs = 2, .call = (syscall_t *)sys_fchmod },
+  [SYS_fchmodat] = { .nargs = 4, .call = (syscall_t *)sys_fchmodat },
+  [SYS_sched_yield] = { .nargs = 0, .call = (syscall_t *)sys_sched_yield },
 };
 

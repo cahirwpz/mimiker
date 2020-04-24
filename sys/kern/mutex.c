@@ -4,22 +4,22 @@
 #include <sys/sched.h>
 #include <sys/thread.h>
 
-#define mtx_recurse_p(m) ((m)->m_type & LK_RECURSE)
-
 bool mtx_owned(mtx_t *m) {
   return (m->m_owner == thread_self());
 }
 
-void mtx_init(mtx_t *m, lock_type_t type) {
+void mtx_init(mtx_t *m, lk_attr_t la) {
+  /* The caller must not attempt to set the lock's type, only flags. */
+  assert((la & LK_TYPE_MASK) == 0);
   m->m_owner = NULL;
   m->m_count = 0;
   m->m_lockpt = NULL;
-  m->m_type = type;
+  m->m_attr = la | LK_TYPE_BLOCK;
 }
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {
   if (mtx_owned(m)) {
-    if (!mtx_recurse_p(m))
+    if (!lk_recursive_p(m))
       panic("Sleeping mutex %p is not recursive!", m);
     m->m_count++;
     return;
@@ -38,7 +38,7 @@ void mtx_unlock(mtx_t *m) {
   assert(mtx_owned(m));
 
   if (m->m_count > 0) {
-    assert(mtx_recurse_p(m));
+    assert(lk_recursive_p(m));
     m->m_count--;
     return;
   }

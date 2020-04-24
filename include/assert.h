@@ -24,7 +24,3 @@ __noreturn void __assert(const char *, int, const char *, const char *);
 void __diagassert(const char *, int, const char *, const char *);
 __END_DECLS
 #endif /* __ASSERT_DECLARED */
-
-#ifndef static_assert
-#define static_assert _Static_assert
-#endif

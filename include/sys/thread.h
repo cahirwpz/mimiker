@@ -4,6 +4,7 @@
 #include <sys/cdefs.h>
 #include <sys/queue.h>
 #include <sys/context.h>
+#include <sys/callout.h>
 #include <sys/exception.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
@@ -34,6 +35,8 @@ typedef void (*entry_fn_t)(void *);
  *  - RUNNING -> READY (dispatcher, self)
  *  - RUNNING -> SLEEPING (self)
  *  - RUNNING -> BLOCKED (self)
+ *  - RUNNING -> STOPPED (self)
+ *  - STOPPED -> READY (other threads)
  *  - SLEEPING -> READY (interrupts, other threads)
  *  - BLOCKED -> READY (other threads)
  *  - * -> DEAD (other threads or self)
@@ -49,6 +52,8 @@ typedef enum {
   TDS_SLEEPING,
   /*!< thread is waiting for a lock and it has been put on a turnstile */
   TDS_BLOCKED,
+  /*!< thread stopped by a signal: not on a runqueue, not running */
+  TDS_STOPPED,
   /*!< thread finished or was terminated by the kernel and awaits recycling */
   TDS_DEAD
 } thread_state_t;
@@ -111,6 +116,7 @@ typedef struct thread {
   /* waiting channel */
   void *td_wchan;            /*!< (*) memory object on which thread awaits */
   const void *td_waitpt;     /*!< (*) PC where program waits */
+  callout_t td_slpcallout;   /*!< (*) callout used to wakeup from sleep */
   sleepq_t *td_sleepqueue;   /*!< ($) thread's sleepqueue */
   turnstile_t *td_blocked;   /*!< (#) turnstile on which thread is blocked */
   turnstile_t *td_turnstile; /*!< (#) thread's turnstile */
@@ -210,6 +216,10 @@ static inline bool td_is_inactive(thread_t *td) {
 
 static inline bool td_is_sleeping(thread_t *td) {
   return td->td_state == TDS_SLEEPING;
+}
+
+static inline bool td_is_stopped(thread_t *td) {
+  return td->td_state == TDS_STOPPED;
 }
 
 static inline bool td_is_interruptible(thread_t *td) {

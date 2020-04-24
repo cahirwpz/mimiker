@@ -28,6 +28,7 @@ int test_signal_basic(void);
 int test_signal_send(void);
 int test_signal_abort(void);
 int test_signal_segfault(void);
+int test_signal_stop(void);
 
 int test_fork_wait(void);
 int test_fork_signal(void);
@@ -67,6 +68,8 @@ int test_vfs_dot_dot_across_fs(void);
 int test_vfs_rw(void);
 int test_vfs_trunc(void);
 int test_vfs_symlink(void);
+int test_vfs_link(void);
+int test_vfs_chmod(void);
 
 int test_setpgid(void);
 int test_kill(void);

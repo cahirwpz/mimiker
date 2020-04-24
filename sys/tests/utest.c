@@ -80,6 +80,7 @@ UTEST_ADD_SIMPLE(signal_basic);
 UTEST_ADD_SIMPLE(signal_send);
 UTEST_ADD_SIGNAL(signal_abort, SIGABRT);
 UTEST_ADD_SIGNAL(signal_segfault, SIGSEGV);
+UTEST_ADD_SIMPLE(signal_stop);
 
 UTEST_ADD_SIMPLE(fork_wait);
 UTEST_ADD_SIMPLE(fork_signal);
@@ -106,6 +107,8 @@ UTEST_ADD_SIMPLE(vfs_dot_dir);
 UTEST_ADD_SIMPLE(vfs_dot_dot_across_fs);
 UTEST_ADD_SIMPLE(vfs_trunc);
 UTEST_ADD_SIMPLE(vfs_symlink);
+UTEST_ADD_SIMPLE(vfs_link);
+UTEST_ADD_SIMPLE(vfs_chmod);
 
 #if 0
 UTEST_ADD_SIMPLE(fpu_fcsr);

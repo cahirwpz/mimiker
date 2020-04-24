@@ -1,7 +1,6 @@
 #include <mips/asm.h>
 #include <mips/pcpu.h>
 #include <mips/regdef.h>
-#include <mips/m32c0.h>
 
 #include "assym.h"
 
@@ -32,6 +31,7 @@ LEAF(_start)
         move    s3, a3
 
         jal     mips_init
+        move    sp, v0                  # Set boot stack (already in kseg2)
 
         # From this point kernel sections are accessible through kseg2!
         move    a0, s0

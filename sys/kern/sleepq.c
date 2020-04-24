@@ -213,9 +213,19 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   }
 }
 
+static inline bool _sleepq_interrupted_early(thread_t *td, sleep_t sleep) {
+  return (td->td_flags & TDF_NEEDSIGCHK) != 0 && sleep == SLP_INTR;
+}
+
 static int _sleepq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
   thread_t *td = thread_self();
   int status = 0;
+
+  /* If there are pending signals, interrupt the sleep immediately. */
+  WITH_SPIN_LOCK (&td->td_spin) {
+    if (_sleepq_interrupted_early(td, sleep))
+      return EINTR;
+  }
 
   if (waitpt == NULL)
     waitpt = __caller(0);
@@ -223,13 +233,21 @@ static int _sleepq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
   sq_enter(td, wchan, waitpt, sleep);
 
   /* The code can be interrupted in here.
-   * A race is avoided by clever use of TDF_SLEEPY flag. */
+   * A race is avoided by clever use of TDF_SLEEPY flag.
+   * We can also get a signal in here -- interrupt early if we got one.
+   * The first signal check is an optimization that saves us the call
+   * to sq_enter. */
 
   WITH_SPIN_LOCK (&td->td_spin) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
-      td->td_state = TDS_SLEEPING;
-      sched_switch();
+      if (_sleepq_interrupted_early(td, sleep)) {
+        td->td_flags &= ~(TDF_SLPINTR | TDF_SLPTIMED);
+        status = EINTR;
+      } else {
+        td->td_state = TDS_SLEEPING;
+        sched_switch();
+      }
     }
     /* After wakeup, only one of the following flags may be set:
      *  - TDF_SLPINTR if sleep was aborted,
@@ -352,16 +370,16 @@ static void sq_timeout(thread_t *td) {
 }
 
 int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
-  callout_t co;
+  thread_t *td = thread_self();
   int status = 0;
   WITH_INTR_DISABLED {
     if (timeout > 0)
-      callout_setup_relative(&co, timeout, (timeout_t)sq_timeout,
+      callout_setup_relative(&td->td_slpcallout, timeout, (timeout_t)sq_timeout,
                              thread_self());
     status = _sleepq_wait(wchan, waitpt, timeout ? SLP_TIMED : SLP_INTR);
   }
   if (timeout > 0)
-    callout_stop(&co);
+    callout_stop(&td->td_slpcallout);
   return status;
 }
 

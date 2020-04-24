@@ -20,6 +20,7 @@
 #include <sys/libkern.h>
 #include <sys/syslimits.h>
 #include <sys/context.h>
+#include <sys/thread.h>
 
 #include "sysent.h"
 
@@ -136,24 +137,23 @@ static int sys_umask(proc_t *p, umask_args_t *args, register_t *res) {
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html */
 static int sys_sigaction(proc_t *p, sigaction_args_t *args, register_t *res) {
   int signo = args->signum;
-  const void *p_newact = args->nsa;
-  void *p_oldact = args->osa;
+  const void *u_newact = args->nsa;
+  void *u_oldact = args->osa;
 
-  klog("sigaction(%d, %p, %p)", signo, p_newact, p_oldact);
+  klog("sigaction(%d, %p, %p)", signo, u_newact, u_oldact);
 
   sigaction_t newact;
   sigaction_t oldact;
   int error;
 
-  if ((error = copyin_s(p_newact, newact)))
+  if (u_newact && (error = copyin_s(u_newact, newact)))
     return error;
 
-  if ((error = do_sigaction(signo, &newact, &oldact)))
+  if ((error = do_sigaction(signo, u_newact ? &newact : NULL, &oldact)))
     return error;
 
-  if (p_oldact != NULL)
-    if ((error = copyout_s(oldact, p_oldact)))
-      return error;
+  if (u_oldact != NULL)
+    error = copyout_s(oldact, u_oldact);
 
   return error;
 }
@@ -191,7 +191,8 @@ static int sys_mprotect(proc_t *p, mprotect_args_t *args, register_t *res) {
   return ENOTSUP;
 }
 
-static int sys_open(proc_t *p, open_args_t *args, register_t *res) {
+static int sys_openat(proc_t *p, openat_args_t *args, register_t *res) {
+  int fdat = args->fd;
   const char *u_path = args->path;
   int flags = args->flags;
   mode_t mode = args->mode;
@@ -204,9 +205,9 @@ static int sys_open(proc_t *p, open_args_t *args, register_t *res) {
   if ((error = copyinstr(u_path, path, PATH_MAX, &n)))
     goto end;
 
-  klog("open(\"%s\", %d, %d)", path, flags, mode);
+  klog("openat(%d, \"%s\", %d, %d)", fdat, path, flags, mode);
 
-  if ((error = do_open(p, path, flags, mode, &fd)))
+  if ((error = do_openat(p, fdat, path, flags, mode, &fd)))
     goto end;
 
   *res = fd;
@@ -436,8 +437,10 @@ static int sys_pipe2(proc_t *p, pipe2_args_t *args, register_t *res) {
   return copyout(fds, u_fdp, 2 * sizeof(int));
 }
 
-static int sys_unlink(proc_t *p, unlink_args_t *args, register_t *res) {
+static int sys_unlinkat(proc_t *p, unlinkat_args_t *args, register_t *res) {
+  int fd = args->fd;
   const char *u_path = args->path;
+  int flag = args->flag;
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t n = 0;
@@ -447,16 +450,17 @@ static int sys_unlink(proc_t *p, unlink_args_t *args, register_t *res) {
   if ((error = copyinstr(u_path, path, PATH_MAX, &n)))
     goto end;
 
-  klog("unlink(%s)", path);
+  klog("unlinkat(%d, \"%s\", %d)", fd, path, flag);
 
-  error = do_unlink(p, path);
+  error = do_unlinkat(p, fd, path, flag);
 
 end:
   kfree(M_TEMP, path);
   return error;
 }
 
-static int sys_mkdir(proc_t *p, mkdir_args_t *args, register_t *res) {
+static int sys_mkdirat(proc_t *p, mkdirat_args_t *args, register_t *res) {
+  int fd = args->fd;
   const char *u_path = args->path;
   mode_t mode = args->mode;
 
@@ -467,28 +471,9 @@ static int sys_mkdir(proc_t *p, mkdir_args_t *args, register_t *res) {
   if ((error = copyinstr(u_path, path, PATH_MAX, &n)))
     goto end;
 
-  klog("mkdir(%s, %d)", u_path, mode);
+  klog("mkdirat(%d, %s, %d)", fd, u_path, mode);
 
-  error = do_mkdir(p, path, mode);
-
-end:
-  kfree(M_TEMP, path);
-  return error;
-}
-
-static int sys_rmdir(proc_t *p, rmdir_args_t *args, register_t *res) {
-  const char *u_path = args->path;
-
-  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
-  size_t n = 0;
-  int error;
-
-  if ((error = copyinstr(u_path, path, PATH_MAX, &n)))
-    goto end;
-
-  klog("rmdir(%s)", path);
-
-  error = do_rmdir(p, path);
+  error = do_mkdirat(p, fd, path, mode);
 
 end:
   kfree(M_TEMP, path);
@@ -504,9 +489,11 @@ static int sys_execve(proc_t *p, execve_args_t *args, register_t *res) {
   return do_execve(u_path, u_argp, u_envp);
 }
 
-static int sys_access(proc_t *p, access_args_t *args, register_t *res) {
+static int sys_faccessat(proc_t *p, faccessat_args_t *args, register_t *res) {
+  int fd = args->fd;
   const char *u_path = args->path;
-  mode_t mode = args->amode;
+  mode_t mode = args->mode;
+  int flags = args->flags;
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   int error;
@@ -514,9 +501,9 @@ static int sys_access(proc_t *p, access_args_t *args, register_t *res) {
   if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
     goto end;
 
-  klog("access(\"%s\", %d)", path, mode);
+  klog("faccessat(%d, \"%s\", %d, %d)", fd, path, mode, flags);
 
-  error = do_access(p, path, mode);
+  error = do_faccessat(p, fd, path, mode, flags);
 
 end:
   kfree(M_TEMP, path);
@@ -771,4 +758,66 @@ end:
   kfree(M_TEMP, target);
   kfree(M_TEMP, linkpath);
   return error;
+}
+
+static int sys_linkat(proc_t *p, linkat_args_t *args, register_t *res) {
+  int fd1 = args->fd1;
+  const char *u_name1 = args->name1;
+  int fd2 = args->fd2;
+  const char *u_name2 = args->name2;
+  int flags = args->flags;
+  int error;
+
+  char *name1 = kmalloc(M_TEMP, PATH_MAX, 0);
+  char *name2 = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_name1, name1, PATH_MAX, NULL)))
+    goto end;
+  if ((error = copyinstr(u_name2, name2, PATH_MAX, NULL)))
+    goto end;
+
+  klog("linkat(%d, \"%s\", %d, \"%s\", %d)", fd1, u_name1, fd2, u_name2, flags);
+
+  error = do_linkat(p, fd1, name1, fd2, name2, flags);
+
+end:
+  kfree(M_TEMP, name1);
+  kfree(M_TEMP, name2);
+  return error;
+}
+
+static int sys_fchmod(proc_t *p, fchmod_args_t *args, register_t *res) {
+  int fd = args->fd;
+  mode_t mode = args->mode;
+
+  klog("fchmod(%d, %d)", fd, mode);
+
+  return do_fchmod(p, fd, mode);
+}
+
+static int sys_fchmodat(proc_t *p, fchmodat_args_t *args, register_t *res) {
+  int fd = args->fd;
+  const char *u_path = args->path;
+  mode_t mode = args->mode;
+  int flag = args->flag;
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("fchmodat(%d, \"%s\", %d, %d)", fd, path, mode, flag);
+
+  error = do_fchmodat(p, fd, path, mode, flag);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
+static int sys_sched_yield(proc_t *p, void *args, register_t *res) {
+  klog("sched_yield()");
+  thread_yield();
+  return 0;
 }
