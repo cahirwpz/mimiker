@@ -6,6 +6,7 @@
 #include <sys/kasan.h>
 #include <sys/mimiker.h>
 #include <sys/thread.h>
+#include <sys/ktest.h>
 #include <machine/vm_param.h>
 #include <machine/kasan.h>
 
@@ -172,7 +173,10 @@ __always_inline static inline void kasan_shadow_check(uintptr_t addr,
             "============================================\n",
             (void *)addr, (read ? "read" : "write"), size, code,
             kasan_code_name(code));
-    panic_fail();
+    if (ktest_test_running_flag)
+      ktest_failure();
+    else
+      panic_fail();
   }
 }
 
