@@ -20,6 +20,9 @@
 #define KASAN_POOL_REDZONE_SIZE 8
 #define KASAN_KMALLOC_REDZONE_SIZE 8
 
+/* TODO: czy potrzebujemy ttl i kasan_quarantine_inctime? */
+/* TODO: czy chcemy przenieść kwarantannę do pliku kasan_quarantine? */
+
 /* Quarantine */
 #define KASAN_QUARANTINE_BUFSIZE 64
 #define KASAN_QUARANTINE_DEFAULT_TTL 64
@@ -45,9 +48,9 @@ typedef struct quarantine {
   } q_buf;                  /* cyclic buffer of items */
   quarantine_free_t q_free; /* function to free items after quarantine */
   int q_timestamp_current;  /* time measured in number of allocs & frees */
+  int q_ttl;                /* how long are the items quarantined */
   void *q_pool;             /* pool from which the items come */
   mtx_t *q_mtx;             /* pool's mutex */
-  int q_ttl;                /* how long are the items quarantined */
 } quarantine_t;
 
 /* KASAN interface */
