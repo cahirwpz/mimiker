@@ -74,7 +74,7 @@ static pool_t P_POOL[1];
 #ifdef KASAN
 /* Quarantine increases sizeof(pool_t) significantly. More boot pages
  * are needed! */
-#define POOL_BOOTPAGE_CNT 4
+#define POOL_BOOTPAGE_CNT 8
 #else
 #define POOL_BOOTPAGE_CNT 1
 #endif /* !KASAN */
