@@ -68,6 +68,18 @@ typedef struct pool_item {
   unsigned long pi_data[0] __aligned(PI_ALIGNMENT);
 } pool_item_t;
 
+/* Pool of pool_t objects. */
+static pool_t P_POOL[1];
+
+#ifdef KASAN
+/* Quarantine increases sizeof(pool_t) significantly. More boot pages
+ * are needed! */
+#define POOL_BOOTPAGE_CNT 4
+#else
+#define POOL_BOOTPAGE_CNT 1
+#endif /* !KASAN */
+static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[POOL_BOOTPAGE_CNT][PAGESIZE];
+
 static pool_item_t *slab_item_at(pool_slab_t *slab, unsigned i) {
   return (pool_item_t *)(slab->ph_items + i * slab->ph_itemsize);
 }
@@ -175,6 +187,7 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
                             : &pool->pp_part_slabs;
     slab = LIST_FIRST(slabs);
   } else {
+    assert(pool != P_POOL); /* Master pool must use only static memory! */
     slab = kmem_alloc(PAGESIZE, flags);
     assert(slab != NULL);
     add_slab(pool, slab);
@@ -293,13 +306,9 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
        pool->pp_itemsize);
 }
 
-/* Pool of pool_t objects. */
-static pool_t P_POOL[1];
-static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[27][PAGESIZE];
-
 void pool_bootstrap(void) {
   pool_init(P_POOL, "master pool", sizeof(pool_t), NULL, NULL);
-  for (int i = 0; i < 27; i++)
+  for (int i = 0; i < POOL_BOOTPAGE_CNT; i++)
     pool_add_page(P_POOL, P_POOL_BOOTPAGE[i]);
   INVOKE_CTORS(pool_ctor_table);
 }
