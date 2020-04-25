@@ -92,7 +92,7 @@ __boot_text void *mips_init(void) {
   pde[PDE_INDEX(va)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pte)) | PTE_KERNEL;
 
   /* auto-mapping? */
-  pde[PDE_INDEX(0xffc00000)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pde)) | PTE_KERNEL;
+  pde[PDE_INDEX((pte_t)KPT)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pde)) | PTE_KERNEL;
 
   /* read-only segment - sections: .text, .rodata, etc. */
   for (paddr_t pa = text; pa < data; va += PAGESIZE, pa += PAGESIZE)
