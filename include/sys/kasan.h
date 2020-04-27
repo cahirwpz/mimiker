@@ -22,6 +22,7 @@
 
 /* TODO: czy potrzebujemy ttl i kasan_quarantine_inctime? */
 /* TODO: czy chcemy przenieść kwarantannę do pliku kasan_quarantine? */
+/* TODO: czy rozbić te zmiany na 2 PR? kwarantanna + reszta? */
 
 /* Quarantine */
 #define KASAN_QUARANTINE_BUFSIZE 64

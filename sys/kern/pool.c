@@ -326,7 +326,7 @@ pool_t *pool_create(const char *desc, size_t size) {
 
 void pool_destroy(pool_t *pool) {
   WITH_MTX_LOCK (&pool->pp_mtx)
-    /* We need mutex as the quarantine can still call _pool_free! */
+    /* We need pool's mutex as the quarantine can still call _pool_free! */
     kasan_quarantine_releaseall(&pool->pp_quarantine);
   pool_dtor(pool);
   pool_free(P_POOL, pool);

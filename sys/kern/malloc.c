@@ -219,13 +219,14 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
   }
 }
 
+static mem_block_t *addr_to_mem_block(void *addr) {
+  return (mem_block_t *)((char *)addr - sizeof(mem_block_t));
+}
+
 static void _kfree(kmalloc_pool_t *mp, void *addr) {
   assert(mtx_owned(&mp->mp_lock));
 
-  if (!addr)
-    return;
-
-  mem_block_t *mb = (mem_block_t *)(((char *)addr) - sizeof(mem_block_t));
+  mem_block_t *mb = addr_to_mem_block(addr);
   if (mb->mb_magic != MB_MAGIC || mp->mp_magic != MB_MAGIC || mb->mb_size >= 0)
     panic("Memory corruption detected!");
 
@@ -239,9 +240,13 @@ static void _kfree(kmalloc_pool_t *mp, void *addr) {
 }
 
 void kfree(kmalloc_pool_t *mp, void *addr) {
+  if (!addr)
+    return;
   SCOPED_MTX_LOCK(&mp->mp_lock);
 
   kasan_quarantine_inctime(&mp->mp_quarantine);
+  mem_block_t *mb = addr_to_mem_block(addr);
+  kasan_mark(mb->mb_data, 0, -mb->mb_size, KASAN_CODE_KMALLOC_USE_AFTER_FREE);
   kasan_quarantine_additem(&mp->mp_quarantine, addr);
 #ifndef KASAN
   /* Without KASAN, call regular free method */
@@ -306,7 +311,7 @@ void kmalloc_dump(kmalloc_pool_t *mp) {
 /* TODO: missing implementation */
 void kmalloc_destroy(kmalloc_pool_t *mp) {
   WITH_MTX_LOCK (&mp->mp_lock)
-    /* We need mutex as the quarantine can still call _kfree! */
+    /* We need pool's mutex as the quarantine can still call _kfree! */
     kasan_quarantine_releaseall(&mp->mp_quarantine);
   pool_free(P_KMEM, mp);
 }

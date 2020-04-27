@@ -341,6 +341,7 @@ static bool item_has_expired(quarantine_t *q, quarantine_item_t *item) {
 }
 
 static quarantine_item_t *oldest_item(quarantine_t *q) {
+  assert(q->q_buf.count > 0);
   return &q->q_buf.items[q->q_buf.tail];
 }
 
@@ -363,7 +364,6 @@ static void release_expired_items(quarantine_t *q) {
 
 void kasan_quarantine_releaseall(quarantine_t *q) {
   assert(mtx_owned(q->q_mtx));
-
   while (q->q_buf.count > 0) {
     quarantine_item_t *item = oldest_item(q);
     release_item(q, item);
@@ -372,7 +372,6 @@ void kasan_quarantine_releaseall(quarantine_t *q) {
 
 void kasan_quarantine_inctime(quarantine_t *q) {
   assert(mtx_owned(q->q_mtx));
-
   q->q_timestamp_current++;
   release_expired_items(q);
 }
