@@ -71,10 +71,8 @@ static void pgrp_leave(proc_t *p) {
 
   pgrp_t *pgrp = p->p_pgrp;
 
-  WITH_MTX_LOCK (&pgrp->pg_lock) {
-    TAILQ_REMOVE(&p->p_pgrp->pg_members, p, p_pglist);
-    p->p_pgrp = NULL;
-  }
+  TAILQ_REMOVE(&p->p_pgrp->pg_members, p, p_pglist);
+  p->p_pgrp = NULL;
 
   if (TAILQ_EMPTY(&pgrp->pg_members)) {
     TAILQ_REMOVE(&pgrp_list, pgrp, pg_link);
@@ -101,17 +99,14 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
     target = pool_alloc(P_PGRP, M_ZERO);
 
     TAILQ_INIT(&target->pg_members);
-    target->pg_lock = MTX_INITIALIZER(0);
     target->pg_id = pgid;
 
     TAILQ_INSERT_HEAD(&pgrp_list, target, pg_link);
   }
 
   /* Subscribe to new or already existing group. */
-  WITH_MTX_LOCK (&target->pg_lock) {
-    TAILQ_INSERT_HEAD(&target->pg_members, p, p_pglist);
-    p->p_pgrp = target;
-  }
+  TAILQ_INSERT_HEAD(&target->pg_members, p, p_pglist);
+  p->p_pgrp = target;
 
   return 0;
 }
@@ -314,11 +309,9 @@ int proc_sendsig(pid_t pid, signo_t sig) {
       return EINVAL;
   }
 
-  WITH_MTX_LOCK (&pgrp->pg_lock) {
-    TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist) {
-      proc_lock(target);
-      sig_kill(target, sig);
-    }
+  TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist) {
+    proc_lock(target);
+    sig_kill(target, sig);
   }
 
   return 0;

@@ -20,13 +20,11 @@ typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
  *
  * Field markings and the corresponding locks:
  *  (a) all_proc_mtx
- *  (@) pgrp::pg_lock
  *  (!) read-only access, do not modify!
  */
 typedef struct pgrp {
-  mtx_t pg_lock;                 /* Process group mutex */
   TAILQ_ENTRY(pgrp) pg_link;     /* (a) link on chain of process groups */
-  TAILQ_HEAD(, proc) pg_members; /* (@) members of process group */
+  TAILQ_HEAD(, proc) pg_members; /* (a) members of process group */
   pgid_t pg_id;                  /* (!) process group id */
 } pgrp_t;
 
@@ -50,7 +48,7 @@ struct proc {
   thread_t *p_thread;         /* (@) the only thread running in this process */
   pid_t p_pid;                /* (!) Process ID */
   char *p_elfpath;            /* (!) path of loaded elf file */
-  TAILQ_ENTRY(proc) p_pglist; /* (pgrp::pg_lock) link on pg_members list */
+  TAILQ_ENTRY(proc) p_pglist; /* (a) link on pg_members list */
   pgrp_t *p_pgrp;             /* (a,*) process group */
   volatile proc_state_t p_state;  /* (@) process state */
   proc_t *p_parent;               /* (a) parent process */
