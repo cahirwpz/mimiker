@@ -77,7 +77,7 @@ __boot_text void *mips_init(void) {
   /* Prepare 1:1 mapping between kseg2 and physical memory for kernel image. */
   pde_t *pde = (pde_t *)bootmem_alloc(PAGESIZE);
   for (int i = 0; i < PD_ENTRIES; i++)
-    pde[i] = PTE_GLOBAL;
+    pde[i] = PDE_GLOBAL;
   _kernel_pmap_pde = pde;
 
   pte_t *pte = (pte_t *)bootmem_alloc(PAGESIZE);

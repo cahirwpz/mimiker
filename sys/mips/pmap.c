@@ -28,8 +28,8 @@ static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 
 #define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
 
-static bool is_valid(pte_t pte) {
-  return pte & PTE_VALID;
+static bool is_valid_pde(pde_t pde) {
+  return pde & PDE_VALID;
 }
 
 static bool user_addr_p(vaddr_t addr) {
@@ -146,16 +146,16 @@ static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr);
 
 /*! \brief Reads the PTE mapping virtual address \a vaddr. */
 static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr) {
-  pte_t pde = PDE_OF(pmap, vaddr);
-  if (!is_valid(pde))
+  pde_t pde = PDE_OF(pmap, vaddr);
+  if (!is_valid_pde(pde))
     return 0;
   return PTE_OF(pde, vaddr);
 }
 
 /*! \brief Writes \a pte as the new PTE mapping virtual address \a vaddr. */
 static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte) {
-  pte_t pde = PDE_OF(pmap, vaddr);
-  if (!is_valid(pde))
+  pde_t pde = PDE_OF(pmap, vaddr);
+  if (!is_valid_pde(pde))
     pde = pmap_add_pde(pmap, vaddr);
   PTE_OF(pde, vaddr) = pte;
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
@@ -163,7 +163,7 @@ static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte) {
 
 /* Add PT to PD so kernel can handle access to @vaddr. */
 static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
-  assert(!is_valid(PDE_OF(pmap, vaddr)));
+  assert(!is_valid_pde(PDE_OF(pmap, vaddr)));
 
   vm_page_t *pg = vm_page_alloc(1);
   pte_t *pte = PG_KSEG0_ADDR(pg);
@@ -171,7 +171,7 @@ static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
   klog("Page table for %08lx allocated at %08lx", vaddr & PDE_INDEX_MASK, pte);
 
-  pte_t pde = PTE_PFN((paddr_t)pte) | PTE_KERNEL;
+  pde_t pde = PTE_PFN((paddr_t)pte) | PTE_KERNEL;
 
   PDE_OF(pmap, vaddr) = pde;
 
@@ -196,7 +196,7 @@ static pte_t vm_prot_map[] = {
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
 };
 
-void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot) {
+void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot) {
   pmap_t *pmap = &kernel_pmap;
 
   assert(pmap_address_p(pmap, va));
@@ -223,9 +223,8 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (; va < va_end; va += PAGESIZE, pa += PAGESIZE)
-      pmap_pte_write(pmap, va,
-                     PTE_PFN(pa) | (vm_prot_map[prot] & ~mask) |
-                       (kern_addr_p(va) ? PTE_GLOBAL : 0));
+      pmap_pte_write(
+        pmap, va, PTE_PFN(pa) | (vm_prot_map[prot] & ~mask) | empty_pte(pmap));
   }
 }
 
