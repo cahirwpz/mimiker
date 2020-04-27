@@ -398,11 +398,10 @@ __noreturn void run_program(const char *path, char *const *argv,
                             char *const *envv) {
   proc_t *p = proc_self();
 
-  pgrp_enter(p, 1);
-
   assert(p != NULL);
+  assert(pgrp_enter(p, p->p_pid, true) == 0);
 
-  klog("Starting program '%s'", path);
+  klog("PID %d: Starting program '%s'", p->p_pid, path);
 
   /* Let's assign an empty virtual address space, to be filled by `do_exec` */
   p->p_uspace = vm_map_new();

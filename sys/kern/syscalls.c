@@ -97,7 +97,7 @@ static int sys_setpgid(proc_t *p, setpgid_args_t *args, register_t *res) {
   if (pid != p->p_pid || pgid != p->p_pid)
     return ENOTSUP;
 
-  return pgrp_enter(p, pgid);
+  return pgrp_enter(p, pgid, false);
 }
 
 /* Gets process group ID of the process with ID specified by pid.

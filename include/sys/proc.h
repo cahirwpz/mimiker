@@ -16,6 +16,15 @@ typedef struct vnode vnode_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
 typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
 
+/*! \brief Structure allocated per session (group of process groups)
+ *
+ * All accesses must be protected by all_proc_mtx. */
+typedef struct session {
+  proc_t *s_leader;             /* Session leader */
+  int s_count;                  /* Count of pgrps in session */
+  pid_t s_sid;                  /* PID of session leader */
+} session_t;
+
 /*! \brief Structure allocated per process group.
  *
  * Field markings and the corresponding locks:
@@ -25,6 +34,7 @@ typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
 typedef struct pgrp {
   TAILQ_ENTRY(pgrp) pg_link;     /* (a) link on chain of process groups */
   TAILQ_HEAD(, proc) pg_members; /* (a) members of process group */
+  session_t *pg_session;         /* (a) pointer to session */
   pgid_t pg_id;                  /* (!) process group id */
 } pgrp_t;
 
@@ -107,8 +117,10 @@ int proc_getpgid(pid_t pid, pgid_t *pgidp);
 __noreturn void proc_exit(int exitstatus);
 
 /*! \brief Moves process p to the process group with ID specified by pgid.
- * If such process group does not exist then it creates one. */
-int pgrp_enter(proc_t *p, pgid_t pgid);
+ * If such process group does not exist then it creates one.
+ * If mksess is true, p becomes the session leader of a new session.
+ * mksess may be true only when creating a new process group. */
+int pgrp_enter(proc_t *p, pgid_t pgid, bool mksess);
 
 int do_fork(pid_t *cldpidp);
 

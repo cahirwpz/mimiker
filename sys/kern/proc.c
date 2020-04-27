@@ -21,6 +21,7 @@
 
 static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
 static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
+static POOL_DEFINE(P_SESS, "sess", sizeof(session_t));
 
 static mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 
@@ -51,6 +52,15 @@ static void pid_free(pid_t pid) {
   bit_clear(pid_used, (unsigned)pid);
 }
 
+/* Helper session management functions */
+static void sess_hold(session_t *s) {
+  s->s_count++;
+}
+
+static void sess_drop(session_t *s) {
+  if (--s->s_count == 0)
+    pool_free(P_SESS, s);
+}
 /* Process group functions */
 
 /* Finds process group with the ID specified by pgid or returns NULL. */
@@ -75,23 +85,34 @@ static void pgrp_leave(proc_t *p) {
   p->p_pgrp = NULL;
 
   if (TAILQ_EMPTY(&pgrp->pg_members)) {
+    sess_drop(pgrp->pg_session);
     TAILQ_REMOVE(&pgrp_list, pgrp, pg_link);
     pool_free(P_PGRP, pgrp);
   }
 }
 
-int pgrp_enter(proc_t *p, pgid_t pgid) {
+int pgrp_enter(proc_t *p, pgid_t pgid, bool mksess) {
   SCOPED_MTX_LOCK(all_proc_mtx);
+
+  /* If creating a session, the pgid of the new group
+   * should be equal to the pid of the process entering the group. */
+  if (mksess)
+    assert(pgid == p->p_pid);
 
   pgrp_t *target = pgrp_lookup(pgid);
 
-  /* Only init process will skip that step. */
   if (p->p_pgrp) {
-    /* We're done if already belong to the group. */
+    /* We're done if already belong to the group.
+     * If mksess is true, then that means we're the process group
+     * leader. Process group leaders are not allowed to create new
+     * sessions. */
     if (target == p->p_pgrp)
-      return 0;
-    /* Leave current group. */
-    pgrp_leave(p);
+      return (mksess ? EPERM : 0);
+  } else {
+    /* We need to make sure that we will be able to put the process
+     * in some session, i.e. if we're making one ourselves or
+     * there is a target pgrp from which we can inherit the session. */
+    assert(target || mksess);
   }
 
   /* Create new group if one does not exist. */
@@ -102,6 +123,27 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
     target->pg_id = pgid;
 
     TAILQ_INSERT_HEAD(&pgrp_list, target, pg_link);
+
+    if (mksess) {
+      session_t *s = pool_alloc(P_SESS, 0);
+      s->s_sid = pgid;
+      s->s_leader = p;
+      s->s_count = 1;
+      target->pg_session = s;
+    } else {
+      /* Safe to access p->p_pgrp due to an earlier assertion. */
+      target->pg_session = p->p_pgrp->pg_session;
+      sess_hold(target->pg_session);
+    }
+  } else if (mksess) {
+    /* There's already a process group with pgid equal to pid of
+     * the calling process, so we can't create a new session. */
+    return EPERM;
+  }
+
+  if (p->p_pgrp) {
+    /* Leave current group. */
+    pgrp_leave(p);
   }
 
   /* Subscribe to new or already existing group. */
