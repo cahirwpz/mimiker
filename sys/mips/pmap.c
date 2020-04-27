@@ -24,7 +24,7 @@ static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 
 #define PDE_OF(pmap, vaddr) ((pmap)->pde[PDE_INDEX(vaddr)])
 #define PTE_OF(pmap, vaddr) \
-  ((pmap == &kernel_pmap ? KPT : UPT)[(vaddr) >> 12]) 
+  ((pmap == &kernel_pmap ? KPT : UPT)[(vaddr) >> PTE_INDEX_SHIFT])
 #define PTE_FRAME_ADDR(pte) (PTE_PFN_OF(pte) * PAGESIZE)
 #define PAGE_OFFSET(x) ((x) & (PAGESIZE - 1))
 
