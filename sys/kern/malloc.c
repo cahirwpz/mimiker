@@ -245,8 +245,9 @@ void kfree(kmalloc_pool_t *mp, void *addr) {
   SCOPED_MTX_LOCK(&mp->mp_lock);
 
   kasan_quarantine_inctime(&mp->mp_quarantine);
-  mem_block_t *mb = addr_to_mem_block(addr);
-  kasan_mark(mb->mb_data, 0, -mb->mb_size, KASAN_CODE_KMALLOC_USE_AFTER_FREE);
+  kasan_mark(addr_to_mem_block(addr)->mb_data, 0,
+             -addr_to_mem_block(addr)->mb_size,
+             KASAN_CODE_KMALLOC_USE_AFTER_FREE);
   kasan_quarantine_additem(&mp->mp_quarantine, addr);
 #ifndef KASAN
   /* Without KASAN, call regular free method */
