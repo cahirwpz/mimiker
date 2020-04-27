@@ -1,21 +1,7 @@
 #include <sys/condvar.h>
 #include <sys/sleepq.h>
 #include <sys/sched.h>
-#include <sys/mutex.h>
-
-static inline void lk_acquire(lock_t m, const void *waitpt) {
-  if (lk_spin_p(m))
-    _spin_lock(m.spin, waitpt);
-  else
-    _mtx_lock(m.mtx, waitpt);
-}
-
-static void lk_release(lock_t m) {
-  if (lk_spin_p(m))
-    spin_unlock(m.spin);
-  else
-    mtx_unlock(m.mtx);
-}
+#include <sys/lock.h>
 
 void cv_init(condvar_t *cv, const char *name) {
   cv->name = name;
