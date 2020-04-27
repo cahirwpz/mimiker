@@ -213,6 +213,8 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
   return p;
 }
 
+/* TODO: destroy empty slabs when their number reaches a certain threshold
+ * (maybe leave one) */
 static void _pool_free(pool_t *pool, void *ptr) {
   assert(mtx_owned(&pool->pp_mtx));
 
@@ -241,8 +243,6 @@ static void _pool_free(pool_t *pool, void *ptr) {
   debug("pool_free: freed item %p at slab %p, index %d", ptr, slab, index);
 }
 
-/* TODO: destroy empty slabs when their number reaches a certain threshold
- * (maybe leave one) */
 void pool_free(pool_t *pool, void *ptr) {
   SCOPED_MTX_LOCK(&pool->pp_mtx);
 
