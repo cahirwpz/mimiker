@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <sys/mimiker.h>
-#include <sys/lock.h>
+#include <sys/_lock.h>
 
 typedef struct thread thread_t;
 
@@ -24,21 +24,21 @@ typedef struct thread thread_t;
  *       will be used for interprocessor synchronization as well.
  */
 typedef struct spin {
-  lock_type_t s_type;         /*!< type of lock */
+  lk_attr_t s_attr;           /*!< lock attributes */
   volatile unsigned s_count;  /*!< counter for recursive spinlock */
   volatile thread_t *s_owner; /*!< stores address of the owner */
   const void *s_lockpt;       /*!< place where the lock was acquired */
 } spin_t;
 
-#define SPIN_INITIALIZER(type)                                                 \
+#define SPIN_INITIALIZER(recursive)                                            \
   (spin_t) {                                                                   \
-    .s_type = (type) | LK_SPIN                                                 \
+    .s_attr = (recursive) | LK_TYPE_SPIN                                       \
   }
 
 /*! \brief Initializes spin lock.
  *
  * \note Every spin lock has to be initialized before it is used. */
-void spin_init(spin_t *s, lock_type_t type);
+void spin_init(spin_t *s, lk_attr_t attr);
 
 /*! \brief Makes spin lock unusable for further locking.
  *
