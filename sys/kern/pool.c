@@ -32,7 +32,7 @@ typedef void (*pool_dtor_t)(void *);
 
 typedef LIST_HEAD(, pool_slab) pool_slabs_t;
 
-struct pool {
+typedef struct pool {
   mtx_t pp_mtx;
   const char *pp_desc;
   unsigned pp_state;
@@ -45,7 +45,7 @@ struct pool {
   size_t pp_align;    /* (ignored) requested alignment, must be 2^n */
   size_t pp_nslabs;   /* # of slabs allocated */
   size_t pp_nitems;   /* number of available items in pool */
-};
+} pool_t;
 
 typedef struct pool_slab {
   uint32_t ph_state;                 /* set to ALIVE or DEAD */
@@ -63,6 +63,12 @@ typedef struct pool_item {
   pool_slab_t *pi_slab; /* pointer to slab containing this item */
   unsigned long pi_data[0] __aligned(PI_ALIGNMENT);
 } pool_item_t;
+
+/* Pool of pool_t objects. */
+static pool_t P_POOL[1];
+
+#define POOL_BOOTPAGE_CNT 1
+static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[POOL_BOOTPAGE_CNT][PAGESIZE];
 
 static pool_item_t *slab_item_at(pool_slab_t *slab, unsigned i) {
   return (pool_item_t *)(slab->ph_items + i * slab->ph_itemsize);
@@ -168,6 +174,7 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
                             : &pool->pp_part_slabs;
     slab = LIST_FIRST(slabs);
   } else {
+    assert(pool != P_POOL); /* Master pool must use only static memory! */
     slab = kmem_alloc(PAGESIZE, flags);
     assert(slab != NULL);
     add_slab(pool, slab);
@@ -196,32 +203,31 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
  * (maybe leave one) */
 void pool_free(pool_t *pool, void *ptr) {
   debug("pool_free: pool = %p, ptr = %p", pool, ptr);
-
   assert(pool->pp_state == ALIVE);
 
   /* Mark the item as invalid */
   kasan_mark(ptr, 0, pool->pp_itemsize, KASAN_CODE_POOL_USE_AFTER_FREE);
 
-  WITH_MTX_LOCK (&pool->pp_mtx) {
-    pool_item_t *pi = ptr - sizeof(pool_item_t);
-    assert(pi->pi_canary == PI_MAGIC);
-    pool_slab_t *slab = pi->pi_slab;
-    assert(slab->ph_state == ALIVE);
+  SCOPED_MTX_LOCK(&pool->pp_mtx);
 
-    unsigned index = slab_index_of(slab, pi);
-    bitstr_t *bitmap = slab->ph_bitmap;
+  pool_item_t *pi = ptr - sizeof(pool_item_t);
+  assert(pi->pi_canary == PI_MAGIC);
+  pool_slab_t *slab = pi->pi_slab;
+  assert(slab->ph_state == ALIVE);
 
-    if (!bit_test(bitmap, index))
-      panic("Double free detected in '%s' pool at %p!", pool->pp_desc, ptr);
+  unsigned index = slab_index_of(slab, pi);
+  bitstr_t *bitmap = slab->ph_bitmap;
 
-    bit_clear(bitmap, index);
-    LIST_REMOVE(slab, ph_slablist);
-    slab->ph_nused--;
-    pool->pp_nitems++;
-    pool_slabs_t *slabs =
-      slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
-    LIST_INSERT_HEAD(slabs, slab, ph_slablist);
-  }
+  if (!bit_test(bitmap, index))
+    panic("Double free detected in '%s' pool at %p!", pool->pp_desc, ptr);
+
+  bit_clear(bitmap, index);
+  LIST_REMOVE(slab, ph_slablist);
+  slab->ph_nused--;
+  pool->pp_nitems++;
+  pool_slabs_t *slabs =
+    slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
+  LIST_INSERT_HEAD(slabs, slab, ph_slablist);
 
   debug("pool_free: freed item %p at slab %p, index %d", ptr, slab, index);
 }
@@ -265,13 +271,10 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
        pool->pp_itemsize);
 }
 
-/* Pool of pool_t objects. */
-static struct pool P_POOL[1];
-static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[PAGESIZE];
-
 void pool_bootstrap(void) {
-  pool_init(P_POOL, "master pool", sizeof(struct pool), NULL, NULL);
-  pool_add_page(P_POOL, P_POOL_BOOTPAGE);
+  pool_init(P_POOL, "master pool", sizeof(pool_t), NULL, NULL);
+  for (int i = 0; i < POOL_BOOTPAGE_CNT; i++)
+    pool_add_page(P_POOL, P_POOL_BOOTPAGE[i]);
   INVOKE_CTORS(pool_ctor_table);
 }
 
