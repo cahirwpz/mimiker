@@ -101,7 +101,7 @@ end:
 
 /* Call VOP_LOOKUP for a single lookup. */
 static int vnr_lookup_once(vnrstate_t *vs, vnode_t *searchdir,
-                           vnode_t **foundvn_p) {
+                           vnode_t **foundvn_p, vnode_t **new_searchdirp) {
   vnode_t *foundvn;
   componentname_t *cn = &vs->vs_cn;
 
@@ -117,18 +117,27 @@ static int vnr_lookup_once(vnrstate_t *vs, vnode_t *searchdir,
      */
     if (error == ENOENT && vs->vs_op == VNR_CREATE &&
         cn->cn_flags & CN_ISLAST) {
-      vnode_unlock(searchdir);
       foundvn = NULL;
       error = 0;
     }
   } else {
-    /* No need to ref this vnode, VOP_LOOKUP already did it for us. */
-    vnode_unlock(searchdir);
-    vnode_lock(foundvn);
-    vfs_maybe_descend(&foundvn);
+    /* No need to ref foundvn vnode, VOP_LOOKUP already did it for us. */
+    if (searchdir != foundvn)
+      vnode_lock(foundvn);
+
+    if (is_mountpoint(foundvn)) {
+      bool relock_searchdir = (searchdir == foundvn);
+      vfs_maybe_descend(&foundvn);
+
+      /* Searchdir needs to be re-locked since it might be released in
+       * vfs_maybe_descend */
+      if (relock_searchdir)
+        vnode_lock(searchdir);
+    }
   }
 
   *foundvn_p = foundvn;
+  *new_searchdirp = searchdir;
   return error;
 }
 
@@ -162,7 +171,7 @@ static void vnr_parse_component(vnrstate_t *vs) {
 }
 
 static int do_nameresolve(vnrstate_t *vs) {
-  vnode_t *searchdir, *parentdir = NULL;
+  vnode_t *foundvn, *searchdir = NULL;
   componentname_t *cn = &vs->vs_cn;
   int error;
 
@@ -183,26 +192,19 @@ static int do_nameresolve(vnrstate_t *vs) {
     return ENOTDIR;
 
   vnode_get(searchdir);
-
-  vs_dropslashes(vs);
-
   if ((error = vfs_maybe_descend(&searchdir)))
     return error;
 
-  parentdir = searchdir;
-  vnode_hold(parentdir);
-
-  /* Path was just "/". */
-  if (vs->vs_nextcn[0] == '\0') {
-    vnode_unlock(searchdir);
-    vs->vs_dvp = parentdir;
-    vs->vs_vp = searchdir;
-    return 0;
-  }
+  vs_dropslashes(vs);
 
   for (;;) {
     assert(vs->vs_nextcn[0] != '/');
-    assert(vs->vs_nextcn[0] != '\0');
+
+    if (vs->vs_nextcn[0] == '\0') {
+      foundvn = searchdir;
+      searchdir = NULL;
+      break;
+    }
 
     /* Prepare the next path name component. */
     vnr_parse_component(vs);
@@ -211,67 +213,97 @@ static int do_nameresolve(vnrstate_t *vs) {
       return ENAMETOOLONG;
     }
 
-    vnode_drop(parentdir);
-    parentdir = searchdir;
-    searchdir = NULL;
-
-    error = vnr_lookup_once(vs, parentdir, &searchdir);
+    error = vnr_lookup_once(vs, searchdir, &foundvn, &searchdir);
     if (error) {
-      vnode_put(parentdir);
+      vnode_put(searchdir);
       return error;
     }
 
     /* Success with no object returned means we're creating something. */
-    if (searchdir == NULL)
+    if (foundvn == NULL)
       break;
 
-    if (searchdir->v_type == V_LNK &&
+    if (foundvn->v_type == V_LNK &&
         ((vs->vs_flags & VNR_FOLLOW) || (cn->cn_flags & CN_REQUIREDIR))) {
-      vnode_lock(parentdir);
-      error = vnr_symlink_follow(vs, parentdir, searchdir, &parentdir);
-      vnode_unlock(parentdir);
-      vnode_put(searchdir);
+      error = vnr_symlink_follow(vs, searchdir, foundvn, &searchdir);
+      vnode_put(foundvn);
+      foundvn = NULL;
       if (error) {
-        vnode_drop(parentdir);
+        vnode_put(searchdir);
         return error;
       }
-      searchdir = parentdir;
-      vnode_lock(searchdir);
-
       /*
        * If we followed a symlink to `/' and there
        * are no more components after the symlink,
        * we're done with the loop and what we found
-       * is the searchdir.
+       * is the foundvn.
        */
       if (vs->vs_nextcn[0] == '\0') {
-        parentdir = NULL;
+        foundvn = searchdir;
+        searchdir = NULL;
         break;
       }
-
-      vnode_hold(parentdir);
       continue;
     }
 
     if (cn->cn_flags & CN_ISLAST)
       break;
+
+    if (searchdir != NULL) {
+      if (searchdir == foundvn)
+        vnode_drop(searchdir);
+      else
+        vnode_put(searchdir);
+    }
+
+    searchdir = foundvn;
+    foundvn = NULL;
   }
 
-  if (searchdir != NULL && vs->vs_op != VNR_DELETE)
-    vnode_unlock(searchdir);
+  bool lockleaf = (vs->vs_op == VNR_DELETE);
+  bool lockparent = (vs->vs_op != VNR_LOOKUP);
+
+  if (foundvn != NULL) {
+    /*
+     * If the caller requested the parent node (i.e. it's
+     * a CREATE, DELETE, or RENAME), and we don't have one
+     * (because this is the root directory, or we crossed
+     * a mount point), then we must fail.
+     */
+    if (lockparent &&
+        (searchdir == NULL || searchdir->v_mount != foundvn->v_mount)) {
+      if (searchdir)
+        vnode_put(searchdir);
+      vnode_put(foundvn);
+
+      switch (vs->vs_op) {
+        case VNR_CREATE:
+          return EEXIST;
+        case VNR_DELETE:
+        case VNR_RENAME:
+          return EBUSY;
+        default:
+          break;
+      }
+    }
+
+    if (!lockleaf) {
+      if (foundvn != searchdir || !lockparent)
+        vnode_unlock(foundvn);
+    }
+  }
 
   /* Release the parent directory if is not needed. */
-  if (vs->vs_op == VNR_LOOKUP && parentdir != NULL) {
-    vnode_drop(parentdir);
-    parentdir = NULL;
+  if (searchdir != NULL && !lockparent) {
+    if (searchdir == foundvn)
+      vnode_drop(searchdir);
+    else
+      vnode_put(searchdir);
+    searchdir = NULL;
   }
 
-  /* Users of this function assume that parentdir locked */
-  if (parentdir != NULL && parentdir != searchdir)
-    vnode_lock(parentdir);
-
-  vs->vs_vp = searchdir;
-  vs->vs_dvp = parentdir;
+  vs->vs_vp = foundvn;
+  vs->vs_dvp = searchdir;
   memcpy(&vs->vs_lastcn, &vs->vs_cn, sizeof(componentname_t));
   return 0;
 }
