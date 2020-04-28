@@ -138,8 +138,7 @@ void vattr_convert(vattr_t *va, stat_t *sb) {
 }
 
 void vattr_null(vattr_t *va) {
-  va->va_mode = V_NONE;
-
+  va->va_mode = VNOVAL;
   va->va_nlink = VNOVAL;
   va->va_ino = VNOVAL;
   va->va_uid = VNOVAL;
