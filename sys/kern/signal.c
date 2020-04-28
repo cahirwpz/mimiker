@@ -104,7 +104,6 @@ void sig_kill(proc_t *proc, signo_t sig) {
     proc->p_state = PS_NORMAL;
   } else if (handler == SIG_IGN ||
              (defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
-    proc_unlock(proc);
     return;
   }
 
@@ -134,8 +133,6 @@ void sig_kill(proc_t *proc, signo_t sig) {
       sched_wakeup(td, 0);
     }
   }
-
-  proc_unlock(proc);
 }
 
 int sig_check(thread_t *td) {
