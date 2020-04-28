@@ -11,6 +11,7 @@
 int do_fork(pid_t *cldpidp) {
   thread_t *td = thread_self();
   proc_t *parent = td->td_proc;
+  int rv = 0;
 
   /* Cannot fork non-user threads. */
   assert(parent);
@@ -43,7 +44,8 @@ int do_fork(pid_t *cldpidp) {
 
   /* Now, prepare a new process. */
   proc_t *child = proc_create(newtd, parent);
-  assert(pgrp_enter(child, parent->p_pgrp->pg_id, false) == 0);
+  rv = pgrp_enter(child, parent->p_pgrp->pg_id, false);
+  assert(rv == 0);
 
   /* Clone the entire process memory space. */
   child->p_uspace = vm_map_clone(parent->p_uspace);
@@ -71,5 +73,5 @@ int do_fork(pid_t *cldpidp) {
   sched_add(newtd);
 
   *cldpidp = child->p_pid;
-  return 0;
+  return rv;
 }
