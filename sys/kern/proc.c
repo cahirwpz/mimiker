@@ -92,12 +92,13 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
     /* We're done if already belong to the group. */
     if (target == p->p_pgrp)
       return 0;
-    /* Leave current group. */
-    pgrp_leave(p);
   }
 
   /* Create new group if one does not exist. */
   if (!target) {
+    /* Only allow creation of new pgrp with PGID = PID of creating process. */
+    if (pgid != p->p_pid)
+      return EPERM;
     target = pool_alloc(P_PGRP, M_ZERO);
 
     TAILQ_INIT(&target->pg_members);
@@ -105,6 +106,11 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
     target->pg_id = pgid;
 
     TAILQ_INSERT_HEAD(&pgrp_list, target, pg_link);
+  }
+
+  if (p->p_pgrp) {
+    /* Leave current group. */
+    pgrp_leave(p);
   }
 
   /* Subscribe to new or already existing group. */

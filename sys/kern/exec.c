@@ -398,7 +398,7 @@ __noreturn void run_program(const char *path, char *const *argv,
                             char *const *envv) {
   proc_t *p = proc_self();
 
-  pgrp_enter(p, 1);
+  assert(pgrp_enter(p, p->p_pid) == 0);
 
   assert(p != NULL);
 
