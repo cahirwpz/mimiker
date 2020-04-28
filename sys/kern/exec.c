@@ -398,9 +398,8 @@ __noreturn void run_program(const char *path, char *const *argv,
                             char *const *envv) {
   proc_t *p = proc_self();
 
-  assert(pgrp_enter(p, p->p_pid) == 0);
-
   assert(p != NULL);
+  assert(pgrp_enter(p, p->p_pid) == 0);
 
   klog("Starting program '%s'", path);
 
