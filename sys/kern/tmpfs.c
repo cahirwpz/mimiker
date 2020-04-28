@@ -289,7 +289,8 @@ static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va) {
   if (va->va_size != (size_t)VNOVAL)
     tmpfs_reg_resize(tfm, node, va->va_size);
   if (va->va_mode != (mode_t)VNOVAL)
-    node->tfn_mode = va->va_mode;
+    node->tfn_mode = (node->tfn_mode & ~ALLPERMS) | (va->va_mode & ALLPERMS);
+
   return 0;
 }
 
