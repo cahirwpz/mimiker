@@ -355,9 +355,14 @@ __noreturn void proc_exit(int exitstatus) {
 
     klog("Wakeup PID(%d) because child PID(%d) died", parent->p_pid, p->p_pid);
 
-    cv_broadcast(&parent->p_waitcv);
-    WITH_MTX_LOCK (&parent->p_lock)
-      sig_kill(parent, SIGCHLD);
+    bool auto_reap;
+    WITH_MTX_LOCK (&parent->p_lock) {
+      auto_reap = parent->p_sigactions[SIGCHLD].sa_handler == SIG_IGN;
+      if (!auto_reap) {
+        cv_broadcast(&parent->p_waitcv);
+        sig_kill(parent, SIGCHLD);
+      }
+    }
 
     klog("Turning PID(%d) into zombie!", p->p_pid);
 
@@ -367,6 +372,11 @@ __noreturn void proc_exit(int exitstatus) {
     }
 
     klog("Process PID(%d) {%p} is dead!", p->p_pid, p);
+
+    if (auto_reap) {
+      klog("Auto-reaping process PID(%d)!", p->p_pid);
+      proc_reap(p);
+    }
   }
 
   /* Can't call [noreturn] thread_exit() from within a WITH scope. */
