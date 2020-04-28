@@ -29,11 +29,46 @@ static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
 static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
+typedef enum id_kind { ID_PID = 0, ID_PGID = 1 } id_kind_t;
+
+/* A PID is taken as long as there's a process with that PID
+ * or a pgroup with a PGID equal to that PID. */
+typedef struct pid_slot {
+  proc_t *ps_proc; /* Process with the PID */
+  pgrp_t *ps_pgrp; /* Process group with PGID equal to given PID */
+} pid_slot_t;
+
+static pid_slot_t pid_table[NPROC];
+
 /* Pid 0 is never available, because of its special treatment by some
  * syscalls e.g. kill. */
 static bitstr_t pid_used[bitstr_size(NPROC)] = {1};
 
 /* Process ID management functions */
+
+static bool pid_valid(pid_t pid) {
+  return (pid > 0 && pid < NPROC);
+}
+
+static pid_slot_t *pid_slot_find(pid_t pid) {
+  if (pid_valid(pid)) {
+    return &pid_table[pid];
+  } else {
+    return NULL;
+  }
+}
+
+static bool pid_slot_is_free(pid_slot_t *ps) {
+  return (ps->ps_proc == NULL && ps->ps_pgrp == NULL);
+}
+
+static bool pid_is_free(pid_t pid) {
+  assert(pid_valid(pid));
+  return pid_slot_is_free(&pid_table[pid]);
+}
+
+/* NOTE: The caller is responsible for setting ps_proc/ps_pgrp
+ * in the corresponding slot in pid_table. */
 static pid_t pid_alloc(void) {
   assert(mtx_owned(all_proc_mtx));
 
@@ -41,14 +76,28 @@ static pid_t pid_alloc(void) {
   bit_ffc(pid_used, NPROC, &pid);
   if (pid < 0)
     panic("Out of PIDs!");
+  assert(pid_is_free(pid));
   bit_set(pid_used, pid);
   return pid;
 }
 
-static void pid_free(pid_t pid) {
+static void pid_free(pid_t pid, id_kind_t kind) {
   assert(mtx_owned(all_proc_mtx));
+  assert(pid_valid(pid));
 
-  bit_clear(pid_used, (unsigned)pid);
+  pid_slot_t *ps = pid_slot_find(pid);
+
+  if (kind == ID_PID) {
+    ps->ps_proc = NULL;
+  } else if (kind == ID_PGID) {
+    ps->ps_pgrp = NULL;
+  } else {
+    panic("unknown id kind: %d", kind);
+  }
+
+  if (pid_slot_is_free(ps)) {
+    bit_clear(pid_used, (unsigned)pid);
+  }
 }
 
 /* Process group functions */
@@ -57,11 +106,8 @@ static void pid_free(pid_t pid) {
 static pgrp_t *pgrp_lookup(pgid_t pgid) {
   assert(mtx_owned(all_proc_mtx));
 
-  pgrp_t *pgrp;
-  TAILQ_FOREACH (pgrp, &pgrp_list, pg_link)
-    if (pgrp->pg_id == pgid)
-      return pgrp;
-  return NULL;
+  pid_slot_t *ps = pid_slot_find(pgid);
+  return (ps ? ps->ps_pgrp : NULL);
 }
 
 /* Make process leaves its process group. */
@@ -77,6 +123,7 @@ static void pgrp_leave(proc_t *p) {
   }
 
   if (TAILQ_EMPTY(&pgrp->pg_members)) {
+    pid_free(pgrp->pg_id, ID_PGID);
     TAILQ_REMOVE(&pgrp_list, pgrp, pg_link);
     pool_free(P_PGRP, pgrp);
   }
@@ -104,6 +151,7 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
     TAILQ_INIT(&target->pg_members);
     target->pg_lock = MTX_INITIALIZER(0);
     target->pg_id = pgid;
+    pid_table[pgid].ps_pgrp = target;
 
     TAILQ_INSERT_HEAD(&pgrp_list, target, pg_link);
   }
@@ -157,6 +205,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
 void proc_add(proc_t *p) {
   WITH_MTX_LOCK (all_proc_mtx) {
     p->p_pid = pid_alloc();
+    pid_table[p->p_pid].ps_proc = p;
     TAILQ_INSERT_TAIL(&proc_list, p, p_all);
     if (p->p_parent)
       TAILQ_INSERT_TAIL(CHILDREN(p->p_parent), p, p_child);
@@ -168,20 +217,20 @@ void proc_add(proc_t *p) {
 proc_t *proc_find(pid_t pid) {
   assert(mtx_owned(all_proc_mtx));
 
-  proc_t *p = NULL;
-  TAILQ_FOREACH (p, &proc_list, p_all) {
-    proc_lock(p);
-    if (p->p_pid == pid) {
-      /* Skip process if it is not alive. */
-      if (!proc_is_alive(p)) {
+  pid_slot_t *ps = pid_slot_find(pid);
+  if (ps) {
+    proc_t *p = ps->ps_proc;
+    if (p) {
+      proc_lock(p);
+      if (proc_is_alive(p)) {
+        return p;
+      } else {
         proc_unlock(p);
-        return NULL;
       }
-      break;
     }
-    proc_unlock(p);
   }
-  return p;
+
+  return NULL;
 }
 
 int proc_getpgid(pid_t pid, pgid_t *pgidp) {
@@ -210,7 +259,7 @@ static void proc_reap(proc_t *p) {
     TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
   TAILQ_REMOVE(&zombie_list, p, p_zombie);
   kfree(M_STR, p->p_elfpath);
-  pid_free(p->p_pid);
+  pid_free(p->p_pid, ID_PID);
   pool_free(P_PROC, p);
 }
 
