@@ -346,9 +346,10 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   bool found = false;
 
   WITH_MTX_LOCK (all_proc_mtx) {
-    /* Start with zombies, if no zombies wait for a child to become one. */
     for (;;) {
       proc_t *child = NULL;
+      /* Whether we found any children meeting criteria implied by pid. */
+      bool any = false;
 
       /* Check children meeting criteria implied by pid. */
       TAILQ_FOREACH (child, CHILDREN(p), p_child) {
@@ -361,6 +362,8 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
               /* pid < -1 => child with PGID equal to -pid */
               (pid < -1 && (child->p_pgrp->pg_id != -pid))))
           continue;
+        else
+          any = true;
 
         proc_lock(child);
 
@@ -393,8 +396,8 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
         }
       }
 
-      /* No child with such pid. */
-      if (!child && pid > 0)
+      /* No child meeting criteria specified by pid. */
+      if (!any)
         return ECHILD;
 
       if (options & WNOHANG) {
