@@ -55,8 +55,7 @@ int test_fork_sigchld_ignored(void) {
   if (n == 0)
     exit(0);
 
-  /* TODO: Use a timeout here, because otherwise the parent process exits
-     first... Which is also a useful test, but doesn't really verify an ignored
-     SIGCHILD. */
+  /* wait() should fail, since the child reaps itself. */
+  assert(wait(NULL) == -1);
   return 0;
 }
