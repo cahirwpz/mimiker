@@ -72,7 +72,7 @@ __always_inline static inline bool access_within_shadow_byte(uintptr_t addr,
 
 __always_inline static inline bool shadow_1byte_isvalid(uintptr_t addr,
                                                         uint8_t *code) {
-  int8_t shadow_val = *md_addr_to_shad(addr);
+  int8_t shadow_val = *kasan_md_addr_to_shad(addr);
   int8_t last = addr & KASAN_SHADOW_MASK;
   if (__predict_true(shadow_val == 0 || last < shadow_val))
     return true;
@@ -86,7 +86,7 @@ __always_inline static inline bool shadow_2byte_isvalid(uintptr_t addr,
     return shadow_1byte_isvalid(addr, code) &&
            shadow_1byte_isvalid(addr + 1, code);
 
-  int8_t shadow_val = *md_addr_to_shad(addr);
+  int8_t shadow_val = *kasan_md_addr_to_shad(addr);
   int8_t last = (addr + 1) & KASAN_SHADOW_MASK;
   if (__predict_true(shadow_val == 0 || last < shadow_val))
     return true;
@@ -100,7 +100,7 @@ __always_inline static inline bool shadow_4byte_isvalid(uintptr_t addr,
     return shadow_2byte_isvalid(addr, code) &&
            shadow_2byte_isvalid(addr + 2, code);
 
-  int8_t shadow_val = *md_addr_to_shad(addr);
+  int8_t shadow_val = *kasan_md_addr_to_shad(addr);
   int8_t last = (addr + 3) & KASAN_SHADOW_MASK;
   if (__predict_true(shadow_val == 0 || last < shadow_val))
     return true;
@@ -114,7 +114,7 @@ __always_inline static inline bool shadow_8byte_isvalid(uintptr_t addr,
     return shadow_4byte_isvalid(addr, code) &&
            shadow_4byte_isvalid(addr + 4, code);
 
-  int8_t shadow_val = *md_addr_to_shad(addr);
+  int8_t shadow_val = *kasan_md_addr_to_shad(addr);
   int8_t last = (addr + 7) & KASAN_SHADOW_MASK;
   if (__predict_true(shadow_val == 0 || last < shadow_val))
     return true;
@@ -134,7 +134,7 @@ __always_inline static inline void shadow_check(uintptr_t addr, size_t size,
                                                 bool read) {
   if (__predict_false(!kasan_ready))
     return;
-  if (__predict_false(!md_addr_supported(addr)))
+  if (__predict_false(!kasan_md_addr_supported(addr)))
     return;
 
   uint8_t code = 0;
@@ -181,7 +181,7 @@ __always_inline static inline void shadow_check(uintptr_t addr, size_t size,
  * implementation is instrumented (i.e. not written in asm) */
 void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
                 uint8_t code) {
-  int8_t *shadow = md_addr_to_shad((uintptr_t)addr);
+  int8_t *shadow = kasan_md_addr_to_shad((uintptr_t)addr);
   size_t redzone = size_with_redzone - roundup(size, KASAN_SHADOW_SCALE_SIZE);
 
   assert(is_aligned(addr, KASAN_SHADOW_SCALE_SIZE));
