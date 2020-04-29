@@ -12,7 +12,10 @@ int kmain(void) {
   char *test = kenv_get("test");
 
   /* Main kernel thread becomes PID(1) - a god process! */
-  proc_add(proc_create(thread_self(), NULL));
+  proc_t *initp = proc_create(thread_self(), NULL);
+  proc_add(initp);
+  int stat = pgrp_enter(initp, initp->p_pid, true);
+  assert(stat == 0);
 
   if (init) {
     run_program(init, kenv_get_init(), (char *[]){NULL});
