@@ -821,3 +821,27 @@ static int sys_sched_yield(proc_t *p, void *args, register_t *res) {
   thread_yield();
   return 0;
 }
+
+static int sys_setsid(proc_t *p, void *args, register_t *res) {
+  int error;
+
+  klog("setsid()");
+
+  if (!(error = pgrp_enter(p, p->p_pid, true)))
+    *res = p->p_pid;
+
+  return error;
+}
+
+static int sys_getsid(proc_t *p, getsid_args_t *args, register_t *res) {
+  pid_t pid = args->pid;
+  pid_t sid;
+  int error;
+
+  klog("getsid(%d)", pid);
+
+  if (!(error = proc_getsid(pid, &sid)))
+    *res = sid;
+
+  return error;
+}

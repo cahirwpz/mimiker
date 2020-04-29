@@ -110,6 +110,18 @@ static void sess_drop(session_t *s) {
   if (--s->s_count == 0)
     pool_free(P_SESS, s);
 }
+
+/* Session functions */
+
+int proc_getsid(pid_t pid, pid_t *sid) {
+  WITH_MTX_LOCK (all_proc_mtx) {
+    proc_t *p = proc_find(pid);
+    *sid = p->p_pgrp->pg_session->s_sid;
+    proc_unlock(p);
+  }
+  return 0;
+}
+
 /* Process group functions */
 
 /* Finds process group with the ID specified by pgid or returns NULL. */

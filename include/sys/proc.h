@@ -122,6 +122,10 @@ __noreturn void proc_exit(int exitstatus);
  * mksess may be true only when creating a new process group. */
 int pgrp_enter(proc_t *p, pgid_t pgid, bool mksess);
 
+/*!\brief Returns the SID of the process specified by PID `pid`.
+ * The SID is returned in the output parameter `sid`. */
+int proc_getsid(pid_t pid, pid_t *sid);
+
 int do_fork(pid_t *cldpidp);
 
 static inline bool proc_is_alive(proc_t *p) {

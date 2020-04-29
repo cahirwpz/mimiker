@@ -261,3 +261,7 @@ typedef struct {
   mode_t mode;
   int flag;
 } fchmodat_args_t;
+
+typedef struct {
+  pid_t pid;
+} getsid_args_t;

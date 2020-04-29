@@ -60,6 +60,8 @@ static int sys_linkat(proc_t *, linkat_args_t *, register_t *);
 static int sys_fchmod(proc_t *, fchmod_args_t *, register_t *);
 static int sys_fchmodat(proc_t *, fchmodat_args_t *, register_t *);
 static int sys_sched_yield(proc_t *, void *, register_t *);
+static int sys_setsid(proc_t *, void *, register_t *);
+static int sys_getsid(proc_t *, getsid_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { .nargs = 1, .call = (syscall_t *)sys_syscall },
@@ -117,5 +119,7 @@ struct sysent sysent[] = {
   [SYS_fchmod] = { .nargs = 2, .call = (syscall_t *)sys_fchmod },
   [SYS_fchmodat] = { .nargs = 4, .call = (syscall_t *)sys_fchmodat },
   [SYS_sched_yield] = { .nargs = 0, .call = (syscall_t *)sys_sched_yield },
+  [SYS_setsid] = { .nargs = 0, .call = (syscall_t *)sys_setsid },
+  [SYS_getsid] = { .nargs = 1, .call = (syscall_t *)sys_getsid },
 };
 
