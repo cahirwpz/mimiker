@@ -20,9 +20,9 @@ typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
  *
  * All accesses must be protected by all_proc_mtx. */
 typedef struct session {
-  proc_t *s_leader;             /* Session leader */
-  int s_count;                  /* Count of pgrps in session */
-  pid_t s_sid;                  /* PID of session leader */
+  proc_t *s_leader; /* Session leader */
+  int s_count;      /* Count of pgrps in session */
+  pid_t s_sid;      /* PID of session leader */
 } session_t;
 
 /*! \brief Structure allocated per process group.
