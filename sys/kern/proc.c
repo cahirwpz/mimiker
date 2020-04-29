@@ -269,11 +269,17 @@ __noreturn void proc_exit(int exitstatus) {
     bool auto_reap;
     WITH_MTX_LOCK (&parent->p_lock) {
       auto_reap = parent->p_sigactions[SIGCHLD].sa_handler == SIG_IGN;
-      if (!auto_reap) {
-        cv_broadcast(&parent->p_waitcv);
+      if (!auto_reap)
         sig_kill(parent, SIGCHLD);
-      }
     }
+
+    /* We unconditionally notify the parent if they're waiting for a child,
+     * even when we reap ourselves, because we might be the last child
+     * of the parent, in which case the parent's waitpid should fail,
+     * which it can't do if the parent is still waiting.
+     * NOTE: If auto_reap is true, we must NOT drop all_proc_mtx
+     * between this point and the auto-reap! */
+    cv_broadcast(&parent->p_waitcv);
 
     klog("Turning PID(%d) into zombie!", p->p_pid);
 
