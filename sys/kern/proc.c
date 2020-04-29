@@ -350,43 +350,41 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   proc_t *p = proc_self();
 
   WITH_MTX_LOCK (all_proc_mtx) {
-    /* Start with zombies, if no zombies wait for a child to become one. */
     for (;;) {
       proc_t *child = NULL;
+      /* Whether we found any children meeting criteria implied by pid. */
+      bool any = false;
 
       /* Check children meeting criteria implied by pid. */
       TAILQ_FOREACH (child, CHILDREN(p), p_child) {
         /* pid > 0 => child with PID same as pid */
-        if (pid == child->p_pid)
-          break;
-        /* Lookup zombie children */
+        if (!(pid == child->p_pid ||
+              /* pid == -1 => any child  */
+              pid == -1 ||
+              /* pid == 0 => child with PGID same as ours */
+              ((pid == 0) && (child->p_pgrp == p->p_pgrp)) ||
+              /* pid < -1 => child with PGID equal to -pid */
+              (pid < -1 && (child->p_pgrp->pg_id != -pid))))
+          continue;
+
+        any = true;
+
         if (is_zombie(child)) {
-          /* pid == -1 => any child  */
-          if (pid == -1)
-            break;
-          /* pid == 0 => child with PGID same as ours */
-          if ((pid == 0) && (child->p_pgrp == p->p_pgrp))
-            break;
-          /* pid < -1 => child with PGID equal to -pid */
-          if (pid < -1 && (child->p_pgrp->pg_id != -pid))
-            break;
+          *status = child->p_exitstatus;
+          *cldpidp = child->p_pid;
+          proc_reap(child);
+          return 0;
+        }
+
+        if (pid > 0) {
+          break;
         }
       }
 
-      /* No child with such pid. */
-      if (!child && pid > 0)
+      /* No child meeting criteria specified by pid. */
+      if (!any)
         return ECHILD;
 
-      if (child && is_zombie(child)) {
-        if (status)
-          *status = child->p_exitstatus;
-        pid_t pid = child->p_pid;
-        proc_reap(child);
-        *cldpidp = pid;
-        return 0;
-      }
-
-      /* No zombie child was found. */
       if (options & WNOHANG) {
         *cldpidp = 0;
         return 0;
