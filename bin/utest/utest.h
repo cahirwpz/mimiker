@@ -75,5 +75,6 @@ int test_setpgid(void);
 int test_kill(void);
 int test_killpg_same_group(void);
 int test_killpg_other_group(void);
+int test_session_basic(void);
 
 #endif /* __UTEST_H__ */

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sched.h>
 
 #include "utest.h"
 
@@ -152,5 +153,46 @@ int test_killpg_other_group(void) {
   /* It is forbidden to send signal to non-existing group. */
   assert(killpg(pid_a, SIGUSR1));
 
+  return 0;
+}
+
+static volatile pid_t parent_sid;
+
+int test_session_basic() {
+  signal(SIGUSR1, sa_handler);
+  parent_sid = getsid(getpid());
+  assert(parent_sid != -1);
+  pid_t pid = fork();
+  if (pid == 0) {
+    pid_t cpid = getpid();
+    pid_t ppid = getppid();
+    /* Should be in the same session as parent. */
+    assert(getsid(cpid) == parent_sid);
+    assert(getsid(ppid) == parent_sid);
+    /* Create a session. This should always succeed. */
+    assert(setsid() == cpid);
+    assert(getsid(cpid) == cpid);
+    assert(getsid(ppid) == parent_sid);
+    /* Creating a session when we're already a leader should fail. */
+    assert(setsid() == -1);
+    assert(getsid(cpid) == cpid);
+    assert(getsid(ppid) == parent_sid);
+    /* Hang around for the parent to check our SID. */
+    while (!sig_delivered)
+      sched_yield();
+    return 0;
+  }
+
+  pid_t child_sid;
+  while ((child_sid = getsid(pid)) != pid) {
+    assert(child_sid == parent_sid);
+    sched_yield();
+  }
+
+  kill(pid, SIGUSR1);
+  int status;
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
   return 0;
 }

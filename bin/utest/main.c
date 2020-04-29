@@ -69,6 +69,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(kill);
   CHECKRUN_TEST(killpg_same_group);
   CHECKRUN_TEST(killpg_other_group);
+  CHECKRUN_TEST(session_basic);
 
   CHECKRUN_TEST(fpu_fcsr);
   CHECKRUN_TEST(fpu_gpr_preservation);
