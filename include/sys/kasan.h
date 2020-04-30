@@ -22,7 +22,6 @@
 
 /* TODO: czy potrzebujemy ttl i kasan_quarantine_inctime? */
 /* TODO: czy chcemy przenieść kwarantannę do pliku kasan_quarantine? */
-/* TODO: czy rozbić te zmiany na 2 PR? kwarantanna + reszta? */
 
 /* Quarantine */
 #define KASAN_QUARANTINE_BUFSIZE 64
@@ -37,9 +36,7 @@ typedef struct quarantine_item {
 } quarantine_item_t;
 
 /* Quarantine structure.
-   Locking:
-    * all fields are protected by q_mtx
-    * all kasan_quarantine_* functions require q_mtx to be already locked */
+   Locking: all fields are protected by q_mtx */
 typedef struct quarantine {
   struct {
     quarantine_item_t items[KASAN_QUARANTINE_BUFSIZE];
@@ -56,14 +53,33 @@ typedef struct quarantine {
 
 /* KASAN interface */
 #ifdef KASAN
+/* Initialize KASAN subsystem.
+ *
+ * Should be called during early kernel boot process, as soon as the shadow
+ * memory is usable. */
 void kasan_init(void);
+
+/* Mark bytes as valid (in the shadow memory) */
 void kasan_mark_valid(const void *addr, size_t size);
+
+/* Mark first 'size' bytes as valid (in the shadow memory), and the remaining
+ * (size_with_redzone - size) bytes as invalid with given code. */
 void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
                 uint8_t code);
+
+/* Initialize given quarantine structure */
 void kasan_quarantine_init(quarantine_t *q, void *pool, mtx_t *pool_mtx,
                            quarantine_free_t free, int ttl);
+
+/* Add an item to a quarantine.
+ * Should be called with quarantine's mutex locked. */
 void kasan_quarantine_additem(quarantine_t *q, void *ptr);
+
+/* Increase quarantine's current timestamp.
+ * Should be called with quarantine's mutex locked. */
 void kasan_quarantine_inctime(quarantine_t *q);
+
+/* Release all items from the quarantine. */
 void kasan_quarantine_releaseall(quarantine_t *q);
 #else
 #define kasan_init() __nothing

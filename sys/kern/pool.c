@@ -73,9 +73,8 @@ typedef struct pool_item {
 static pool_t P_POOL[1];
 
 #ifdef KASAN
-/* Quarantine increases sizeof(pool_t) significantly. More boot pages
- * are needed! */
-#define POOL_BOOTPAGE_CNT 8
+/* Quarantine increases size of pool_t significantly. More boot pages needed! */
+#define POOL_BOOTPAGE_CNT 5
 #else
 #define POOL_BOOTPAGE_CNT 1
 #endif /* !KASAN */
@@ -328,9 +327,7 @@ pool_t *pool_create(const char *desc, size_t size) {
 }
 
 void pool_destroy(pool_t *pool) {
-  WITH_MTX_LOCK (&pool->pp_mtx)
-    /* We need pool's mutex as the quarantine can still call _pool_free! */
-    kasan_quarantine_releaseall(&pool->pp_quarantine);
+  kasan_quarantine_releaseall(&pool->pp_quarantine);
   pool_dtor(pool);
   pool_free(P_POOL, pool);
 }

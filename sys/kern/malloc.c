@@ -246,8 +246,7 @@ void kfree(kmalloc_pool_t *mp, void *addr) {
   SCOPED_MTX_LOCK(&mp->mp_lock);
 
   kasan_quarantine_inctime(&mp->mp_quarantine);
-  kasan_mark(addr_to_mem_block(addr)->mb_data, 0,
-             -addr_to_mem_block(addr)->mb_size,
+  kasan_mark(addr, 0, abs(addr_to_mem_block(addr)->mb_size),
              KASAN_CODE_KMALLOC_USE_AFTER_FREE);
   kasan_quarantine_additem(&mp->mp_quarantine, addr);
 #ifndef KASAN
@@ -312,11 +311,9 @@ void kmalloc_dump(kmalloc_pool_t *mp) {
 
 /* TODO: missing implementation */
 void kmalloc_destroy(kmalloc_pool_t *mp) {
-  WITH_MTX_LOCK (&mp->mp_lock)
-    /* We need pool's mutex as the quarantine can still call _kfree! */
-    kasan_quarantine_releaseall(&mp->mp_quarantine);
+  kasan_quarantine_releaseall(&mp->mp_quarantine);
   pool_free(P_KMEM, mp);
 }
 
-KMALLOC_DEFINE(M_TEMP, "temporaries pool", PAGESIZE * 32);
+KMALLOC_DEFINE(M_TEMP, "temporaries pool", PAGESIZE * 25);
 KMALLOC_DEFINE(M_STR, "strings", PAGESIZE * 4);

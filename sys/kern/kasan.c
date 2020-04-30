@@ -176,11 +176,7 @@ __always_inline static inline void shadow_check(uintptr_t addr, size_t size,
       panic_fail();
   }
 }
-
-/* Mark first 'size' bytes as valid (in the shadow memory), and the remaining
- * (size_with_redzone - size) bytes as invalid with given code.
- *
- * Note: use of __builtin_memset in this function is not optimal if its
+/* Note: use of __builtin_memset in this function is not optimal if its
  * implementation is instrumented (i.e. not written in asm) */
 void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
                 uint8_t code) {
@@ -204,7 +200,6 @@ void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
   __builtin_memset(shadow, code, len);
 }
 
-/* Mark bytes as valid (in the shadow memory) */
 void kasan_mark_valid(const void *addr, size_t size) {
   kasan_mark(addr, size, size, 0);
 }
@@ -289,7 +284,6 @@ void __asan_allocas_unpoison(const void *begin, const void *end) {
 }
 
 /* Below you can find replacements for various memory-touching functions */
-
 #undef copyin
 int copyin(const void *restrict udaddr, void *restrict kaddr, size_t len);
 int kasan_copyin(const void *restrict udaddr, void *restrict kaddr,
@@ -363,7 +357,7 @@ static void release_expired_items(quarantine_t *q) {
 }
 
 void kasan_quarantine_releaseall(quarantine_t *q) {
-  assert(mtx_owned(q->q_mtx));
+  SCOPED_MTX_LOCK(q->q_mtx);
   while (q->q_buf.count > 0) {
     quarantine_item_t *item = oldest_item(q);
     release_item(q, item);
