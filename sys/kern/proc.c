@@ -362,27 +362,27 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
               /* pid < -1 => child with PGID equal to -pid */
               (pid < -1 && (child->p_pgrp->pg_id != -pid))))
           continue;
-        else
-          any = true;
 
-        proc_lock(child);
+        any = true;
 
+        /* It's unnecessary to lock the child here, since:
+         * a) We're holding all_proc_mtx, so it won't get deleted while
+         *    we're inspecting it;
+         * b) We're only doing unprotected atomic reads of p_state.*/
+        found = true;
         if (is_zombie(child)) {
           *status = child->p_exitstatus;
-          found = true;
         } else if ((options & WUNTRACED) && (child->p_state == PS_STOPPED) &&
                    (child->p_aflags & PFA_STOPPED)) {
           child->p_aflags &= ~PFA_STOPPED;
           *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
-          found = true;
         } else if ((options & WCONTINUED) && (child->p_state == PS_NORMAL) &&
                    (child->p_aflags & PFA_CONTINUED)) {
           child->p_aflags &= ~PFA_CONTINUED;
           *status = MAKE_STATUS_SIG_CONT();
-          found = true;
+        } else {
+          found = false;
         }
-
-        proc_unlock(child);
 
         if (found) {
           *cldpidp = child->p_pid;
