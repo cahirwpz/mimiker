@@ -16,6 +16,8 @@ typedef struct vnode vnode_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
 typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
 
+extern mtx_t *all_proc_mtx;
+
 /*! \brief Structure allocated per session (group of process groups)
  *
  * All accesses must be protected by all_proc_mtx. */
@@ -40,6 +42,13 @@ typedef struct pgrp {
 } pgrp_t;
 
 typedef enum { PS_NORMAL, PS_STOPPED, PS_DYING, PS_ZOMBIE } proc_state_t;
+
+/* Process flags */
+
+/* Set on stopping, cleared when continued or reported by wait4. */
+#define PFA_STOPPED 0x1
+/* Set when continued, cleared when stopped or reported by wait4. */
+#define PFA_CONTINUED 0x2
 
 /*! \brief Process structure
  *
@@ -69,6 +78,7 @@ struct proc {
   sigaction_t p_sigactions[NSIG]; /* (@) description of signal actions */
   condvar_t p_waitcv;             /* (a) processes waiting for this one */
   int p_exitstatus;               /* (@) exit code to be returned to parent */
+  volatile uint32_t p_aflags;     /* (a) PFA_* flags */
   vnode_t *p_cwd;                 /* ($) current working directory */
   mode_t p_cmask;                 /* ($) mask for file creation */
   /* program segments */

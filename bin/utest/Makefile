@@ -18,7 +18,8 @@ SOURCES = \
 	setjmp.c \
 	sigaction.c \
 	utest.c \
-	vfs.c
+	vfs.c \
+	wait.c
 
 PROGRAM = utest
 

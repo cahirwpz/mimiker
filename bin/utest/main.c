@@ -67,6 +67,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(vfs_symlink);
   CHECKRUN_TEST(vfs_link);
   CHECKRUN_TEST(vfs_chmod);
+  CHECKRUN_TEST(wait_basic);
+  CHECKRUN_TEST(wait_nohang);
 
   CHECKRUN_TEST(setpgid);
   CHECKRUN_TEST(kill);

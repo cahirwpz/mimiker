@@ -24,14 +24,17 @@
     The process has stopped due to a signal, and INFO contains signal number.
   CODE == 80:
     The process got core dumped. We don't use that.
+  CODE == 81:
+    The process has been continued due to a signal.
 */
 
 #define WTERMSIG(status) ((status)&0x7f)
 #define WEXITSTATUS(status) (((status)&0xff00) >> 8)
 #define WSTOPSIG(status) (((status)&0xff00) >> 8)
-#define WIFEXITED(status) (((status)&0x7f) == 0)
+#define WIFEXITED(status) (((status)&0xff) == 0)
 #define WIFSTOPPED(status) (((status)&0xff) == 0x7f)
-#define WIFSIGNALED(status) (((status)&0x7f) > 0 && ((status)&0x7f) < 0x7f)
+#define WIFSIGNALED(status) (((status)&0xff) > 0 && ((status)&0xff) < 0x7f)
+#define WIFCONTINUED(status) ((status) == 0x81)
 
 #ifndef _KERNEL
 
@@ -49,6 +52,7 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *childp);
 #define MAKE_STATUS_EXIT(exitcode) (((exitcode)&0xff) << 8)
 #define MAKE_STATUS_SIG_TERM(signo) ((signo)&0xff)
 #define MAKE_STATUS_SIG_STOP(signo) ((((signo)&0xff) << 8) | 0x7f)
+#define MAKE_STATUS_SIG_CONT() (0x81)
 
 #endif /* !_KERNEL */
 
