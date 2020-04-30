@@ -46,20 +46,22 @@ static const char *code_name(uint8_t code) {
     case KASAN_CODE_STACK_MID:
     case KASAN_CODE_STACK_RIGHT:
       return "stack buffer-overflow";
-    case KASAN_CODE_GLOBAL:
+    case KASAN_CODE_GLOBAL_OVERFLOW:
       return "global buffer-overflow";
     case KASAN_CODE_KMEM_USE_AFTER_FREE:
       return "kmem use-after-free";
+    case KASAN_CODE_POOL_OVERFLOW:
+      return "pool buffer-overflow";
     case KASAN_CODE_POOL_USE_AFTER_FREE:
       return "pool use-after-free";
-    case KASAN_CODE_STACK_USE_AFTER_RET:
-      return "stack use-after-return";
-    case KASAN_CODE_STACK_USE_AFTER_SCOPE:
-      return "stack use-after-scope";
+    case KASAN_CODE_KMALLOC_OVERFLOW:
+      return "kmalloc buffer-overflow";
+    case KASAN_CODE_KMALLOC_USE_AFTER_FREE:
+      return "kmalloc use-after-free";
     case 1 ... 7:
       return "partial redzone";
     default:
-      return "unknown";
+      return "unknown redzone";
   }
 }
 
@@ -260,7 +262,7 @@ void __asan_handle_no_return(void) {
 void __asan_register_globals(struct __asan_global *globals, size_t n) {
   for (size_t i = 0; i < n; i++)
     kasan_mark(globals[i].beg, globals[i].size, globals[i].size_with_redzone,
-               KASAN_CODE_GLOBAL);
+               KASAN_CODE_GLOBAL_OVERFLOW);
 }
 
 void __asan_unregister_globals(struct __asan_global *globals, size_t n) {
@@ -288,10 +290,37 @@ void __asan_allocas_unpoison(const void *begin, const void *end) {
 
 /* Below you can find replacements for various memory-touching functions */
 
+#undef copyin
+int copyin(const void *restrict udaddr, void *restrict kaddr, size_t len);
+int kasan_copyin(const void *restrict udaddr, void *restrict kaddr,
+                 size_t len) {
+  shadow_check((uintptr_t)kaddr, len, false);
+  return copyin(udaddr, kaddr, len);
+}
+
+#undef copyinstr
+int copyinstr(const void *restrict udaddr, void *restrict kaddr, size_t len,
+              size_t *restrict lencopied);
+int kasan_copyinstr(const void *restrict udaddr, void *restrict kaddr,
+                    size_t len, size_t *restrict lencopied) {
+  shadow_check((uintptr_t)kaddr, len, false);
+  return copyinstr(udaddr, kaddr, len, lencopied);
+}
+
+#undef copyout
+int copyout(const void *restrict kaddr, void *restrict udaddr, size_t len);
+int kasan_copyout(const void *restrict kaddr, void *restrict udaddr,
+                  size_t len) {
+  shadow_check((uintptr_t)kaddr, len, true);
+  return copyout(kaddr, udaddr, len);
+}
+
+#undef memcpy
+void *memcpy(void *dst, const void *src, size_t len);
 void *kasan_memcpy(void *dst, const void *src, size_t len) {
   shadow_check((uintptr_t)src, len, true);
   shadow_check((uintptr_t)dst, len, false);
-  return __builtin_memcpy(dst, src, len);
+  return memcpy(dst, src, len);
 }
 
 size_t kasan_strlen(const char *str) {

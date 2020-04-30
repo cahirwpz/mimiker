@@ -7,6 +7,7 @@
 #include <sys/kmem.h>
 #include <sys/pool.h>
 #include <sys/errno.h>
+#include <sys/kasan.h>
 #include <sys/queue.h>
 
 #define MB_MAGIC 0xC0DECAFE
@@ -50,6 +51,10 @@ static inline mem_block_t *mb_next(mem_block_t *block) {
   return (void *)block + abs(block->mb_size) + sizeof(mem_block_t);
 }
 
+static size_t align_size(size_t size) {
+  return align(size, MB_ALIGNMENT);
+}
+
 static void merge_right(mem_block_list_t *ma_freeblks, mem_block_t *mb) {
   mem_block_t *next = TAILQ_NEXT(mb, mb_list);
 
@@ -65,9 +70,12 @@ static void merge_right(mem_block_list_t *ma_freeblks, mem_block_t *mb) {
 
 static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
                                   size_t total_size) {
-  memset(mb, 0, sizeof(mem_block_t));
+  /* Unpoison and setup the header */
+  kasan_mark_valid(mb, sizeof(mem_block_t));
   mb->mb_magic = MB_MAGIC;
   mb->mb_size = total_size - sizeof(mem_block_t);
+  /* Poison the data */
+  kasan_mark(mb->mb_data, 0, mb->mb_size, KASAN_CODE_KMALLOC_USE_AFTER_FREE);
 
   /* If it's the first block, we simply add it. */
   if (TAILQ_EMPTY(&ma->ma_freeblks)) {
@@ -165,21 +173,35 @@ static mem_block_t *try_allocating_in_area(mem_arena_t *ma,
 }
 
 void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
-  size = align(size, MB_ALIGNMENT);
   if (size == 0)
     return NULL;
+
+#ifdef KASAN
+  /* the alignment is within the redzone */
+  size_t redzone_size = align_size(size) - size + KASAN_KMALLOC_REDZONE_SIZE;
+#else
+  /* no redzone, we have to align the size itself */
+  size = align_size(size);
+#endif /* !KASAN */
 
   SCOPED_MTX_LOCK(&mp->mp_lock);
 
   while (1) {
     /* Search for the first area in the list that has enough space. */
     mem_arena_t *current = NULL;
+    size_t requested_size = size;
+#ifdef KASAN
+    requested_size += redzone_size;
+#endif /* !KASAN */
     TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
       assert(current->ma_magic == MB_MAGIC);
-
-      mem_block_t *mb = try_allocating_in_area(current, size);
+      mem_block_t *mb = try_allocating_in_area(current, requested_size);
       if (!mb)
         continue;
+
+      /* Create redzone after the buffer */
+      kasan_mark(mb->mb_data, size, size + redzone_size,
+                 KASAN_CODE_KMALLOC_OVERFLOW);
       if (flags == M_ZERO)
         memset(mb->mb_data, 0, size);
       return mb->mb_data;
