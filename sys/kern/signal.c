@@ -167,7 +167,7 @@ void sig_kill(proc_t *proc, signo_t sig) {
     proc->p_aflags |= PFA_CONTINUED;
     proc_t *parent = proc->p_parent;
     if (parent)
-      cv_broadcast(&proc->p_parent->p_waitcv);
+      cv_broadcast(&parent->p_waitcv);
   } else if (handler == SIG_IGN ||
              (defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
     return;
