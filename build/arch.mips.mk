@@ -10,7 +10,8 @@ ifeq ($(KERNEL), 1)
   # Added to files that are sanitized
   CFLAGS_KASAN = -fsanitize=kernel-address -fasan-shadow-offset=0xD8000000 \
                  --param asan-globals=1 \
-                 --param asan-stack=1 
+                 --param asan-stack=1 \
+                 --param asan-instrument-allocas=1
   # Added to all files
   CFLAGS += -DKASAN
 endif

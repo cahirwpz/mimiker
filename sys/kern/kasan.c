@@ -12,6 +12,7 @@
 
 /* Part of internal compiler interface */
 #define KASAN_SHADOW_SCALE_SHIFT 3
+#define KASAN_ALLOCA_REDZONE_SIZE 32
 
 #define KASAN_SHADOW_SCALE_SIZE (1 << KASAN_SHADOW_SCALE_SHIFT)
 #define KASAN_SHADOW_MASK (KASAN_SHADOW_SCALE_SIZE - 1)
@@ -264,6 +265,25 @@ void __asan_register_globals(struct __asan_global *globals, size_t n) {
 
 void __asan_unregister_globals(struct __asan_global *globals, size_t n) {
   /* never called */
+}
+
+/* Note: alloca is currently used in strntoul and test_sleepq_sync functions */
+void __asan_alloca_poison(const void *addr, size_t size) {
+  void *left_redzone = (int8_t *)addr - KASAN_ALLOCA_REDZONE_SIZE;
+  size_t size_with_mid_redzone = roundup(size, KASAN_ALLOCA_REDZONE_SIZE);
+  void *right_redzone = (int8_t *)addr + size_with_mid_redzone;
+
+  kasan_mark(left_redzone, 0, KASAN_ALLOCA_REDZONE_SIZE, KASAN_CODE_STACK_LEFT);
+  kasan_mark(addr, size, size_with_mid_redzone, KASAN_CODE_STACK_MID);
+  kasan_mark(right_redzone, 0, KASAN_ALLOCA_REDZONE_SIZE,
+             KASAN_CODE_STACK_RIGHT);
+}
+
+void __asan_allocas_unpoison(const void *begin, const void *end) {
+  size_t size = end - begin;
+  if (__predict_false(!begin || begin > end))
+    return;
+  kasan_mark_valid(begin, size);
 }
 
 /* Below you can find replacements for various memory-touching functions */
