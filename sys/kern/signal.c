@@ -9,9 +9,6 @@
 #include <sys/proc.h>
 #include <sys/wait.h>
 #include <sys/sched.h>
-#include <sys/sysinit.h>
-
-static sigset_t cantmask;
 
 /*!\brief Signal properties.
  *
@@ -46,6 +43,8 @@ static const sigprop_t sig_properties[NSIG] = {
   [SIGUSR2] = SA_KILL,
   [SIGBUS] = SA_KILL,
 };
+
+static const sigset_t cantmask = {__sigmask(SIGKILL) | __sigmask(SIGSTOP)};
 
 static const char *sig_name[NSIG] = {
   [SIGINT] = "SIGINT",
@@ -89,7 +88,7 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   return 0;
 }
 
-static signo_t sig_find_pending(thread_t *td) {
+static signo_t sig_pending(thread_t *td) {
   proc_t *p = td->td_proc;
 
   assert(p != NULL);
@@ -104,8 +103,6 @@ static signo_t sig_find_pending(thread_t *td) {
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
   proc_t *proc = proc_self();
   thread_t *td = proc->p_thread;
-  bool more;
-
   assert(mtx_owned(&proc->p_lock));
 
   sigset_t *const mask = &td->td_sigmask;
@@ -113,27 +110,28 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
   if (oset != NULL)
     *oset = *mask;
 
-  if (set != NULL) {
-    switch (how) {
-      case SIG_BLOCK:
-        __sigplusset(set, mask);
-        more = false;
-        break;
-      case SIG_UNBLOCK:
-        __sigminusset(set, mask);
-        more = true;
-        break;
-      case SIG_SETMASK:
-        *mask = *set;
-        more = true;
-        break;
-      default:
-        return EINVAL;
-    }
-    __sigminusset(&cantmask, mask);
-    if (more && sig_find_pending(td) < NSIG)
-      WITH_SPIN_LOCK (&td->td_spin)
-        td->td_flags |= TDF_NEEDSIGCHK;
+  if (set == NULL)
+    return 0;
+
+  sigset_t nset = *set;
+  __sigminusset(&cantmask, &nset);
+
+  if (how == SIG_BLOCK) {
+    __sigplusset(&nset, mask);
+    return 0;
+  }
+
+  if (how == SIG_UNBLOCK) {
+    __sigminusset(&nset, mask);
+  } else if (how == SIG_SETMASK) {
+    *mask = nset;
+  } else {
+    return EINVAL;
+  }
+
+  if (sig_pending(td) < NSIG) {
+    WITH_SPIN_LOCK (&td->td_spin)
+      td->td_flags |= TDF_NEEDSIGCHK;
   }
 
   return 0;
@@ -214,7 +212,7 @@ int sig_check(thread_t *td) {
 
   signo_t sig = NSIG;
   while (true) {
-    sig = sig_find_pending(td);
+    sig = sig_pending(td);
     if (sig >= NSIG) {
       /* No pending signals, signal checking done. */
       WITH_SPIN_LOCK (&td->td_spin)
@@ -285,12 +283,3 @@ __noreturn void sig_exit(thread_t *td, signo_t sig) {
 int do_sigreturn(void) {
   return sig_return();
 }
-
-void sig_init(void) {
-  __sigemptyset(&cantmask);
-  for (signo_t sig = 1; sig < NSIG; sig++)
-    if (sig_properties[sig] & SA_CANTMASK)
-      __sigaddset(&cantmask, sig);
-}
-
-SYSINIT_ADD(sig, sig_init, NODEPS);

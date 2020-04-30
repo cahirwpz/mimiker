@@ -135,7 +135,6 @@ typedef struct thread {
   /* signal handling */
   sigset_t td_sigpend; /*!< (p) Pending signals for this thread. */
   sigset_t td_sigmask; /*!< (p) Signal mask */
-  /* TODO: Signal mask, sigsuspend. */
 } thread_t;
 
 thread_t *thread_self(void);
