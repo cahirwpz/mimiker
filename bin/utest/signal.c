@@ -120,7 +120,8 @@ int test_signal_stop() {
    * Send SIGUSR1 to the stopped child. If the handler runs, it will
    * send us SIGCONT. */
   kill(pid, SIGUSR1);
-  sched_yield();
+  for (int i = 0; i < 3; i++)
+    sched_yield();
   assert(!sigcont_handled);
   /* Now continue the child process. */
   kill(pid, SIGCONT);
