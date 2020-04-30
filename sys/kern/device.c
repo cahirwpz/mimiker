@@ -8,6 +8,7 @@ KMALLOC_DEFINE(M_DEV, "devices & drivers", PAGESIZE * 1024);
 
 static device_t *device_alloc(void) {
   device_t *dev = kmalloc(M_DEV, sizeof(device_t), M_ZERO);
+  TAILQ_INIT(&dev->resources);
   TAILQ_INIT(&dev->children);
   return dev;
 }
