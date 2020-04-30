@@ -10,29 +10,41 @@
 #include <sys/wait.h>
 #include <sys/sched.h>
 
+/*!\brief Signal properties.
+ *
+ * Non-mutually-exclusive properties can be bitwise-ORed together.
+ * \note Properties that have set bits in common with #SA_DEFACT_MASK
+ * are mutually exclusive and denote the default action of the signal. */
+/* clang-format off */
 typedef enum {
-  SA_IGNORE = 1,
-  SA_KILL = 2,
-  SA_CONT = 3, /* Continue a stopped process */
-  SA_STOP = 4, /* Stop a process */
-} sigact_t;
+  SA_IGNORE = 0x1,
+  SA_KILL = 0x2,
+  SA_CONT = 0x3, /* Continue a stopped process */
+  SA_STOP = 0x4, /* Stop a process */
+  SA_CANTMASK = 0x8
+} sigprop_t;
+
+/*!\brief Mask used to extract the default action from a sigprop_t. */
+#define SA_DEFACT_MASK 0x7
 
 /* clang-format off */
-static const sigact_t def_sigact[NSIG] = {
+static const sigprop_t sig_properties[NSIG] = {
   [SIGINT] = SA_KILL,
   [SIGILL] = SA_KILL,
   [SIGABRT] = SA_KILL,
   [SIGFPE] = SA_KILL,
   [SIGSEGV] = SA_KILL,
-  [SIGKILL] = SA_KILL,
+  [SIGKILL] = SA_KILL | SA_CANTMASK,
   [SIGTERM] = SA_KILL,
-  [SIGSTOP] = SA_STOP,
+  [SIGSTOP] = SA_STOP | SA_CANTMASK,
   [SIGCONT] = SA_CONT,
   [SIGCHLD] = SA_IGNORE,
   [SIGUSR1] = SA_KILL,
   [SIGUSR2] = SA_KILL,
   [SIGBUS] = SA_KILL,
 };
+
+static const sigset_t cantmask = {__sigmask(SIGKILL) | __sigmask(SIGSTOP)};
 
 static const char *sig_name[NSIG] = {
   [SIGINT] = "SIGINT",
@@ -52,9 +64,9 @@ static const char *sig_name[NSIG] = {
 /* clang-format on */
 
 /* Default action for a signal. */
-static sigact_t defact(signo_t sig) {
+static sigprop_t defact(signo_t sig) {
   assert(sig <= NSIG);
-  return def_sigact[sig];
+  return sig_properties[sig] & SA_DEFACT_MASK;
 }
 
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
@@ -63,7 +75,7 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   if (sig >= NSIG)
     return EINVAL;
 
-  if (sig == SIGKILL)
+  if (sig_properties[sig] & SA_CANTMASK)
     return EINVAL;
 
   WITH_PROC_LOCK(p) {
@@ -76,11 +88,59 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   return 0;
 }
 
+static signo_t sig_pending(thread_t *td) {
+  proc_t *p = td->td_proc;
+
+  assert(p != NULL);
+  assert(mtx_owned(&p->p_lock));
+
+  sigset_t unblocked = td->td_sigpend;
+  __sigminusset(&td->td_sigmask, &unblocked);
+
+  return __sigfindset(&unblocked);
+}
+
+int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
+  proc_t *proc = proc_self();
+  thread_t *td = proc->p_thread;
+  assert(mtx_owned(&proc->p_lock));
+
+  sigset_t *const mask = &td->td_sigmask;
+
+  if (oset != NULL)
+    *oset = *mask;
+
+  if (set == NULL)
+    return 0;
+
+  sigset_t nset = *set;
+  __sigminusset(&cantmask, &nset);
+
+  if (how == SIG_BLOCK) {
+    __sigplusset(&nset, mask);
+    return 0;
+  }
+
+  if (how == SIG_UNBLOCK) {
+    __sigminusset(&nset, mask);
+  } else if (how == SIG_SETMASK) {
+    *mask = nset;
+  } else {
+    return EINVAL;
+  }
+
+  if (sig_pending(td) < NSIG) {
+    WITH_SPIN_LOCK (&td->td_spin)
+      td->td_flags |= TDF_NEEDSIGCHK;
+  }
+
+  return 0;
+}
+
 /*
  * NOTE: This is a very simple implementation! Unimplemented features:
  * - Thread tracing and debugging
  * - Multiple threads in a process
- * - Signal masks
  * These limitations (plus the fact that we currently have very little thread
  * states) make the logic of sending a signal very simple!
  */
@@ -123,14 +183,23 @@ void sig_kill(proc_t *proc, signo_t sig) {
     __sigaddset(&td->td_sigpend, sig);
   }
 
-  WITH_SPIN_LOCK (&td->td_spin) {
-    td->td_flags |= TDF_NEEDSIGCHK;
-    /* If the thread is sleeping interruptibly (!), wake it up, so that it
-     * continues execution and the signal gets delivered soon. */
-    if (td_is_interruptible(td)) {
-      sleepq_abort(td);
-    } else if (td_is_stopped(td) && continued) {
-      sched_wakeup(td, 0);
+  /* Don't wake up the target thread if it blocks the signal being sent.
+   * Exception: SIGCONT wakes up stopped threads even if it's blocked. */
+  if (__sigismember(&td->td_sigmask, sig)) {
+    if (continued)
+      WITH_SPIN_LOCK (&td->td_spin)
+        if (td_is_stopped(td))
+          sched_wakeup(td, 0);
+  } else {
+    WITH_SPIN_LOCK (&td->td_spin) {
+      td->td_flags |= TDF_NEEDSIGCHK;
+      /* If the thread is sleeping interruptibly (!), wake it up, so that it
+       * continues execution and the signal gets delivered soon. */
+      if (td_is_interruptible(td)) {
+        sleepq_abort(td);
+      } else if (td_is_stopped(td) && continued) {
+        sched_wakeup(td, 0);
+      }
     }
   }
 }
@@ -143,7 +212,7 @@ int sig_check(thread_t *td) {
 
   signo_t sig = NSIG;
   while (true) {
-    sig = __sigfindset(&td->td_sigpend);
+    sig = sig_pending(td);
     if (sig >= NSIG) {
       /* No pending signals, signal checking done. */
       WITH_SPIN_LOCK (&td->td_spin)

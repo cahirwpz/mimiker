@@ -13,6 +13,7 @@
 #define MB_ALIGNMENT sizeof(uint64_t)
 
 typedef TAILQ_HEAD(, mem_arena) mem_arena_list_t;
+typedef TAILQ_HEAD(, mem_block) mem_block_list_t;
 
 typedef struct kmalloc_pool {
   SLIST_ENTRY(kmalloc_pool) mp_next; /* Next in global chain. */
@@ -29,8 +30,6 @@ typedef struct kmalloc_pool {
   - use the mp_next field of kmalloc_pool
 */
 
-TAILQ_HEAD(mb_list, mem_block);
-
 typedef struct mem_block {
   uint32_t mb_magic; /* if overwritten report a memory corruption error */
   int32_t mb_size;   /* size > 0 => free, size < 0 => alloc'd */
@@ -42,7 +41,7 @@ typedef struct mem_arena {
   TAILQ_ENTRY(mem_arena) ma_list;
   uint32_t ma_size; /* Size of all the blocks inside combined */
   uint16_t ma_flags;
-  struct mb_list ma_freeblks;
+  mem_block_list_t ma_freeblks;
   uint32_t ma_magic;   /* Detect programmer error. */
   uint64_t ma_data[0]; /* For alignment */
 } mem_arena_t;
@@ -51,7 +50,7 @@ static inline mem_block_t *mb_next(mem_block_t *block) {
   return (void *)block + abs(block->mb_size) + sizeof(mem_block_t);
 }
 
-static void merge_right(struct mb_list *ma_freeblks, mem_block_t *mb) {
+static void merge_right(mem_block_list_t *ma_freeblks, mem_block_t *mb) {
   mem_block_t *next = TAILQ_NEXT(mb, mb_list);
 
   if (!next)
@@ -133,7 +132,7 @@ static int kmalloc_add_pages(kmalloc_pool_t *mp, size_t size) {
   return 0;
 }
 
-static mem_block_t *find_entry(struct mb_list *mb_list, size_t total_size) {
+static mem_block_t *find_entry(mem_block_list_t *mb_list, size_t total_size) {
   mem_block_t *current = NULL;
   TAILQ_FOREACH (current, mb_list, mb_list) {
     assert(current->mb_magic == MB_MAGIC);
