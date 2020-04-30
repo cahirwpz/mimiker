@@ -59,3 +59,7 @@ void device_add_resource(device_t *dev, resource_t *r, int rid) {
   r->r_id = rid;
   TAILQ_INSERT_HEAD(&dev->resources, r, r_device);
 }
+
+void device_remove_resource(device_t *dev, resource_t *r) {
+  TAILQ_REMOVE(&dev->resources, r, r_device);
+}
