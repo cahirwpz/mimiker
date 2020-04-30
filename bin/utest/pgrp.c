@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sched.h>
+#include <stdio.h>
 
 #include "utest.h"
 
@@ -153,6 +154,60 @@ int test_killpg_other_group(void) {
   /* It is forbidden to send signal to non-existing group. */
   assert(killpg(pid_a, SIGUSR1));
 
+  return 0;
+}
+
+static volatile int sighup_handled;
+static void sighup_handler(int signo) {
+  sighup_handled = 1;
+}
+
+int test_pgrp_orphan() {
+  signal(SIGHUP, sighup_handler);
+  int ppid = getpid();
+  pid_t cpid = fork();
+  int status;
+  if (cpid == 0) {
+    cpid = getpid();
+    assert(setsid() == cpid);
+    pid_t gcpid = fork();
+
+    if (gcpid == 0) {
+      gcpid = getpid();
+      assert(setpgid(0, 0) == 0);
+
+      raise(SIGSTOP);
+      while (!sighup_handled)
+        sched_yield();
+      kill(ppid, SIGHUP);
+      return 0;
+    }
+
+    /* Wait for the child to stop, then orphan its process group. */
+    printf("Waiting for the grandchild to stop...\n");
+    assert(waitpid(gcpid, &status, WUNTRACED) == gcpid);
+    assert(WIFSTOPPED(status));
+    /* When we exit, init will become the grandchild's parent.
+     * Since init is in a different session, and the grandchild will
+     * be the only process in its process group, the grandchild's
+     * process group will be orphaned, which should result in the
+     * grandchild receiving SIGHUP and SIGCONT. */
+    return 0;
+  }
+
+  /* Reap the child. */
+  printf("Waiting for the child to exit...\n");
+  assert(waitpid(cpid, &status, 0) == cpid);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+
+  /* Wait for a signal from the grandchild. */
+  printf("Waiting for a signal from the grandchild...\n");
+  while (!sighup_handled)
+    sched_yield();
+
+  /* We're exiting without reaping the grandchild.
+   * Hopefully init will take care of it. */
   return 0;
 }
 
