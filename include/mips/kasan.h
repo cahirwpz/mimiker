@@ -25,11 +25,11 @@ static_assert(KASAN_MD_SHADOW_SIZE % SUPERPAGESIZE == 0,
   (KASAN_MD_SHADOW_START -                                                     \
    (KASAN_MD_SANITIZED_START >> KASAN_SHADOW_SCALE_SHIFT))
 
-__always_inline static inline int8_t *md_addr_to_shadow(uintptr_t addr) {
+__always_inline static inline int8_t *kasan_md_addr_to_shad(uintptr_t addr) {
   return (int8_t *)(KASAN_MD_OFFSET + (addr >> KASAN_SHADOW_SCALE_SHIFT));
 }
 
-__always_inline static inline bool md_addr_supported(uintptr_t addr) {
+__always_inline static inline bool kasan_md_addr_supported(uintptr_t addr) {
   return addr >= KASAN_MD_SANITIZED_START && addr < KASAN_MD_SANITIZED_END;
 }
 

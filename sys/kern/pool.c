@@ -56,8 +56,9 @@ typedef struct pool_slab {
   LIST_ENTRY(pool_slab) ph_slablist; /* pool slab list */
   uint16_t ph_nused;                 /* # of items in use */
   uint16_t ph_ntotal;                /* total number of chunks */
-  size_t ph_itemsize; /* total size of item (with header and redzone) */
-  void *ph_items;     /* ptr to array of items after bitmap */
+  size_t ph_size;                    /* size of memory allocated for the slab */
+  size_t ph_itemsize;                /* total size of item (with header) */
+  void *ph_items;                    /* ptr to array of items after bitmap */
   bitstr_t ph_bitmap[0];
 } pool_slab_t;
 
@@ -78,7 +79,7 @@ static pool_t P_POOL[1];
 #else
 #define POOL_BOOTPAGE_CNT 1
 #endif /* !KASAN */
-static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[POOL_BOOTPAGE_CNT][PAGESIZE];
+static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[PAGESIZE * POOL_BOOTPAGE_CNT];
 
 static pool_item_t *slab_item_at(pool_slab_t *slab, unsigned i) {
   return (pool_item_t *)(slab->ph_items + i * slab->ph_itemsize);
@@ -88,13 +89,14 @@ static unsigned slab_index_of(pool_slab_t *slab, pool_item_t *item) {
   return ((intptr_t)item - (intptr_t)slab->ph_items) / slab->ph_itemsize;
 }
 
-static void add_slab(pool_t *pool, pool_slab_t *slab) {
+static void add_slab(pool_t *pool, pool_slab_t *slab, size_t slabsize) {
   assert(mtx_owned(&pool->pp_mtx));
 
   klog("add slab at %p to '%s' pool", slab, pool->pp_desc);
 
   slab->ph_state = ALIVE;
   slab->ph_nused = 0;
+  slab->ph_size = slabsize;
   slab->ph_itemsize = pool->pp_itemsize + sizeof(pool_item_t);
 #ifdef KASAN
   slab->ph_itemsize += pool->pp_redzsize;
@@ -105,7 +107,7 @@ static void add_slab(pool_t *pool, pool_slab_t *slab) {
    *  - items: ntotal * (sizeof(pool_item_t) + size),
    *  - slab + bitmap: sizeof(pool_slab_t) + bitstr_size(ntotal)
    * With:
-   *  - usable = PAGESIZE - sizeof(pool_slab_t)
+   *  - usable = slabsize - sizeof(pool_slab_t)
    *  - itemsize = sizeof(pool_item_t) + size;
    * ... inequation looks as follow:
    * (1) ntotal * itemsize + (ntotal + 7) / 8 <= usable
@@ -113,7 +115,7 @@ static void add_slab(pool_t *pool, pool_slab_t *slab) {
    * (3) ntotal * (8 * itemsize + 1) <= usable * 8 + 7
    * (4) ntotal <= (usable * 8 + 7) / (8 * itemisize + 1)
    */
-  size_t usable = PAGESIZE - sizeof(pool_slab_t);
+  size_t usable = slabsize - sizeof(pool_slab_t);
   slab->ph_ntotal = (usable * 8 + 7) / (8 * slab->ph_itemsize + 1);
   slab->ph_nused = 0;
 
@@ -144,7 +146,7 @@ static void destroy_slab(pool_t *pool, pool_slab_t *slab) {
   }
 
   slab->ph_state = DEAD;
-  kmem_free(slab, PAGESIZE);
+  kmem_free(slab, slab->ph_size);
 }
 
 static void *alloc_item(pool_slab_t *slab) {
@@ -190,7 +192,7 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
     assert(pool != P_POOL); /* Master pool must use only static memory! */
     slab = kmem_alloc(PAGESIZE, flags);
     assert(slab != NULL);
-    add_slab(pool, slab);
+    add_slab(pool, slab, PAGESIZE);
   }
 
   LIST_REMOVE(slab, ph_slablist);
@@ -308,14 +310,14 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
 
 void pool_bootstrap(void) {
   pool_init(P_POOL, "master pool", sizeof(pool_t), NULL, NULL);
-  for (int i = 0; i < POOL_BOOTPAGE_CNT; i++)
-    pool_add_page(P_POOL, P_POOL_BOOTPAGE[i]);
+  pool_add_page(P_POOL, P_POOL_BOOTPAGE, sizeof(P_POOL_BOOTPAGE));
   INVOKE_CTORS(pool_ctor_table);
 }
 
-void pool_add_page(pool_t *pool, void *page) {
+void pool_add_page(pool_t *pool, void *page, size_t size) {
+  assert(is_aligned(size, PAGESIZE));
   SCOPED_MTX_LOCK(&pool->pp_mtx);
-  add_slab(pool, page);
+  add_slab(pool, page, size);
 }
 
 pool_t *pool_create(const char *desc, size_t size) {
