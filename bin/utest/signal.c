@@ -44,7 +44,7 @@ int test_signal_send() {
     printf("This is child (mypid = %d)\n", getpid());
     /* Wait for signal. */
     while (1)
-      ;
+      sched_yield();
   }
 
   printf("This is parent (childpid = %d, mypid = %d)\n", pid, getpid());
