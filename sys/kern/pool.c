@@ -67,9 +67,7 @@ typedef struct pool_item {
 
 /* Pool of pool_t objects. */
 static pool_t P_POOL[1];
-
-#define POOL_BOOTPAGE_CNT 1
-static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[PAGESIZE * POOL_BOOTPAGE_CNT];
+static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[PAGESIZE];
 
 static pool_item_t *slab_item_at(pool_slab_t *slab, unsigned i) {
   return (pool_item_t *)(slab->ph_items + i * slab->ph_itemsize);
