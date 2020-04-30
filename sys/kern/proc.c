@@ -218,6 +218,11 @@ static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
     if (new_parent)
       TAILQ_INSERT_TAIL(CHILDREN(new_parent), child, p_child);
   }
+
+  /* The new parent might be waiting for its children to change state,
+   * so notify the parent so that they check again. */
+  if (new_parent)
+    cv_broadcast(&new_parent->p_waitcv);
 }
 
 __noreturn void proc_exit(int exitstatus) {
