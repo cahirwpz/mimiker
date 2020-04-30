@@ -35,6 +35,7 @@ typedef struct pgrp {
   TAILQ_ENTRY(pgrp) pg_link;     /* (a) link on chain of process groups */
   TAILQ_HEAD(, proc) pg_members; /* (a) members of process group */
   session_t *pg_session;         /* (a) pointer to session */
+  int pg_jobc;                   /* (a) jobc counter, see `pgrp_adjust_jobc` */
   pgid_t pg_id;                  /* (!) process group id */
 } pgrp_t;
 

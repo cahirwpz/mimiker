@@ -124,6 +124,59 @@ int proc_getsid(pid_t pid, pid_t *sid) {
 
 /* Process group functions */
 
+/* Send SIGHUP and SIGCONT to all stopped processes in the group. */
+static void pgrp_orphan(pgrp_t *pg) {
+  assert(mtx_owned(all_proc_mtx));
+
+  proc_t *p;
+  TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
+    if (p->p_state == PS_STOPPED) {
+      WITH_MTX_LOCK (&p->p_lock) {
+        sig_kill(p, SIGHUP);
+        sig_kill(p, SIGCONT);
+      }
+    }
+  }
+}
+
+/* A process group is orphaned when for every process in the group,
+ * its parent is either in the same group or in a different session.
+ * Equivalently, a process group is NOT orphaned when there exists
+ * a process in the group s.t. its parent is in the same session
+ * but in a different group. Such processes 'qualify' the group
+ * for terminal job control. `pg_jobc` simply records the number
+ * of processes in a group that qualify it. When the count drops
+ * to 0, the process group is orphaned.
+ * These counters need to be adjusted whenever any process leaves
+ * or joins a process group. */
+static void pgrp_adjust_jobc(proc_t *p, pgrp_t *pg, bool entering) {
+  assert(mtx_owned(all_proc_mtx));
+
+  proc_t *parent = p->p_parent;
+  if (parent) {
+    pgrp_t *ppg = parent->p_pgrp;
+    /* See if we qualify/qualified `pg` */
+    if (ppg != pg && ppg->pg_session == pg->pg_session) {
+      if (entering)
+        pg->pg_jobc++;
+      else if (--pg->pg_jobc == 0)
+        pgrp_orphan(pg);
+    }
+  }
+
+  /* See if our children qualify/qualified their groups. */
+  proc_t *child;
+  TAILQ_FOREACH (child, CHILDREN(p), p_child) {
+    pgrp_t *cpg = child->p_pgrp;
+    if (cpg != pg && cpg->pg_session == pg->pg_session) {
+      if (entering)
+        cpg->pg_jobc++;
+      else if (--cpg->pg_jobc == 0)
+        pgrp_orphan(cpg);
+    }
+  }
+}
+
 /* Finds process group with the ID specified by pgid or returns NULL. */
 static pgrp_t *pgrp_lookup(pgid_t pgid) {
   assert(mtx_owned(all_proc_mtx));
@@ -204,7 +257,10 @@ int pgrp_enter(proc_t *p, pgid_t pgid, bool mksess) {
     return EPERM;
   }
 
+  pgrp_adjust_jobc(p, target, true);
+
   if (p->p_pgrp) {
+    pgrp_adjust_jobc(p, p->p_pgrp, false);
     /* Leave current group. */
     pgrp_leave(p);
   }
@@ -349,6 +405,7 @@ __noreturn void proc_exit(int exitstatus) {
   proc_unlock(p);
 
   WITH_MTX_LOCK (all_proc_mtx) {
+    pgrp_adjust_jobc(p, p->p_pgrp, false);
     /* Process orphans, but firstly find init process. */
     proc_t *init;
     TAILQ_FOREACH (init, &proc_list, p_all) {
