@@ -57,8 +57,8 @@ typedef struct pool_slab {
   uint16_t ph_nused;                 /* # of items in use */
   uint16_t ph_ntotal;                /* total number of chunks */
   size_t ph_size;                    /* size of memory allocated for the slab */
-  size_t ph_itemsize;                /* total size of item (with header) */
-  void *ph_items;                    /* ptr to array of items after bitmap */
+  size_t ph_itemsize; /* total size of item (with header and redzone) */
+  void *ph_items;     /* ptr to array of items after bitmap */
   bitstr_t ph_bitmap[0];
 } pool_slab_t;
 
@@ -87,6 +87,10 @@ static pool_item_t *slab_item_at(pool_slab_t *slab, unsigned i) {
 
 static unsigned slab_index_of(pool_slab_t *slab, pool_item_t *item) {
   return ((intptr_t)item - (intptr_t)slab->ph_items) / slab->ph_itemsize;
+}
+
+static size_t align_size(size_t size) {
+  return align(size, PI_ALIGNMENT);
 }
 
 static void add_slab(pool_t *pool, pool_slab_t *slab, size_t slabsize) {
@@ -120,7 +124,7 @@ static void add_slab(pool_t *pool, pool_slab_t *slab, size_t slabsize) {
   slab->ph_nused = 0;
 
   size_t header = sizeof(pool_slab_t) + bitstr_size(slab->ph_ntotal);
-  slab->ph_items = (void *)slab + align(header, PI_ALIGNMENT);
+  slab->ph_items = (void *)slab + align_size(header);
   memset(slab->ph_bitmap, 0, bitstr_size(slab->ph_ntotal));
 
   for (int i = 0; i < slab->ph_ntotal; i++) {
@@ -207,7 +211,6 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
   /* Create redzone after the item */
   kasan_mark(p, pool->pp_itemsize, pool->pp_itemsize + pool->pp_redzsize,
              KASAN_CODE_POOL_OVERFLOW);
-
   /* XXX: Modify code below when pp_ctor & pp_dtor are reenabled */
   if (flags & M_ZERO)
     bzero(p, pool->pp_itemsize);
@@ -288,22 +291,20 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
                       pool_ctor_t ctor, pool_dtor_t dtor) {
   pool_ctor(pool);
   pool->pp_desc = desc;
-#ifdef KASAN
-  /* the alignment is within the redzone */
-  pool->pp_itemsize = size;
-  pool->pp_redzsize =
-    align(size, PI_ALIGNMENT) - size + KASAN_POOL_REDZONE_SIZE;
-#else
-  /* no redzone, we have to align the size */
-  pool->pp_itemsize = align(size, PI_ALIGNMENT);
-#endif /* !KASAN */
   pool->pp_ctor = ctor;
   pool->pp_dtor = dtor;
   pool->pp_state = ALIVE;
+#ifdef KASAN
+  /* the alignment is within the redzone */
+  pool->pp_itemsize = size;
+  pool->pp_redzsize = align_size(size) - size + KASAN_POOL_REDZONE_SIZE;
+#else
+  /* no redzone, we have to align the size itself */
+  pool->pp_itemsize = align_size(size);
+#endif /* !KASAN */
   kasan_quarantine_init(&pool->pp_quarantine, pool, &pool->pp_mtx,
                         (quarantine_free_t)_pool_free,
                         KASAN_QUARANTINE_DEFAULT_TTL);
-
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
        pool->pp_itemsize);
 }

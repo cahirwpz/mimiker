@@ -61,7 +61,7 @@ static const char *code_name(uint8_t code) {
     case 1 ... 7:
       return "partial redzone";
     default:
-      return "unknown";
+      return "unknown redzone";
   }
 }
 
