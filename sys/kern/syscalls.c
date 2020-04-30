@@ -563,27 +563,27 @@ static int sys_sigaltstack(proc_t *p, sigaltstack_args_t *args,
 static int sys_sigprocmask(proc_t *p, sigprocmask_args_t *args,
                            register_t *res) {
   int how = args->how;
-  const sigset_t *set = args->set;
-  sigset_t *oset = args->oset;
+  const sigset_t *u_set = args->set;
+  sigset_t *u_oset = args->oset;
+  sigset_t set, oset;
   int error;
 
-  klog("sigprocmask(%d, %p, %p)", how, set, oset);
+  klog("sigprocmask(%d, %p, %p)", how, u_set, u_oset);
 
-  if (set != NULL) {
-    /* TODO: Modifying signal mask is not implemented yet. */
-    klog("sigprocmask() had no effect");
-  }
+  if (u_set && (error = copyin_s(u_set, set)))
+    return error;
 
-  if (oset != NULL) {
-    /* TODO: Currently we don't support signal masks in the kernel, so this
-       syscall always returns empty signal mask. */
-    sigset_t result = {.__bits = 0};
-    error = copyout_s(result, oset);
-    if (error)
-      return error;
-  }
+  proc_lock(p);
+  error = do_sigprocmask(how, u_set ? &set : NULL, &oset);
+  proc_unlock(p);
 
-  return 0;
+  if (error)
+    return error;
+
+  if (u_oset)
+    error = copyout_s(oset, u_oset);
+
+  return error;
 }
 
 static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
