@@ -268,7 +268,7 @@ SLEAF(tlb_refill)
         # If PDE isn't valid behave as if TLBL/TLBS exception was triggered.
         andi    k0, k1, ENTRYLO0_V_MASK
         beqz    k0, exc_enter
-        nop     
+        /* branch delay slot */
 
         # Calculate page table address from PDE
         lui     k0, 0x8000
