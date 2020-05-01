@@ -274,7 +274,7 @@ kmalloc_pool_t *kmalloc_create(const char *desc, size_t maxsize) {
   mp->mp_magic = MB_MAGIC;
   TAILQ_INIT(&mp->mp_arena);
   mtx_init(&mp->mp_lock, 0);
-  kasan_quar_init(&mp->mp_quarantine, mp, &mp->mp_lock, (quar_free_t)_kfree);
+  kasan_quar_init(&mp->mp_quarantine, mp, (quar_free_t)_kfree);
   klog("initialized '%s' kmem at %p ", mp->mp_desc, mp);
   return mp;
 }
@@ -305,7 +305,9 @@ void kmalloc_dump(kmalloc_pool_t *mp) {
 
 /* TODO: missing implementation */
 void kmalloc_destroy(kmalloc_pool_t *mp) {
-  kasan_quar_releaseall(&mp->mp_quarantine);
+  WITH_MTX_LOCK (&mp->mp_lock)
+    /* Lock needed as the quarantine may call _kfree! */
+    kasan_quar_releaseall(&mp->mp_quarantine);
   pool_free(P_KMEM, mp);
 }
 

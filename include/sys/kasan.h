@@ -26,8 +26,7 @@
 /* First argument is pool's address, second is memory block's address. */
 typedef void (*quar_free_t)(void *, void *);
 
-/* Quarantine structure.
-   Locking: all fields are protected by q_mtx */
+/* Quarantine structure */
 typedef struct {
   struct {
     void *items[KASAN_QUAR_BUFSIZE];
@@ -37,7 +36,6 @@ typedef struct {
   } q_buf;            /* cyclic buffer of items */
   quar_free_t q_free; /* function to free items after quarantine */
   void *q_pool;       /* pool from which the items come */
-  mtx_t *q_mtx;       /* pool's mutex */
 } quar_t;
 
 /* KASAN interface */
@@ -60,7 +58,7 @@ void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
                 uint8_t code);
 
 /* Initialize given quarantine structure */
-void kasan_quar_init(quar_t *q, void *pool, mtx_t *pool_mtx, quar_free_t free);
+void kasan_quar_init(quar_t *q, void *pool, quar_free_t free);
 
 /* Add an item to a quarantine. */
 void kasan_quar_additem(quar_t *q, void *ptr);
@@ -71,7 +69,7 @@ void kasan_quar_releaseall(quar_t *q);
 #define kasan_init() __nothing
 #define kasan_mark_valid(addr, size) __nothing
 #define kasan_mark(addr, size, size_with_redzone, code) __nothing
-#define kasan_quar_init(q, pool, pool_mtx, free, ttl) __nothing
+#define kasan_quar_init(q, pool, free) __nothing
 #define kasan_quar_additem(q, ptr) __nothing
 #define kasan_quar_releaseall(q) __nothing
 #endif /* !KASAN */

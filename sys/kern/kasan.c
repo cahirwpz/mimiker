@@ -349,14 +349,11 @@ static void release_oldest_item(quar_t *q) {
 }
 
 void kasan_quar_releaseall(quar_t *q) {
-  SCOPED_MTX_LOCK(q->q_mtx);
   while (q->q_buf.count > 0)
     release_oldest_item(q);
 }
 
 void kasan_quar_additem(quar_t *q, void *ptr) {
-  assert(mtx_owned(q->q_mtx));
-
   /* Not enough space, release least recently added item */
   if (q->q_buf.count == KASAN_QUAR_BUFSIZE)
     release_oldest_item(q);
@@ -368,11 +365,10 @@ void kasan_quar_additem(quar_t *q, void *ptr) {
     q->q_buf.head = 0;
 }
 
-void kasan_quar_init(quar_t *q, void *pool, mtx_t *pool_mtx, quar_free_t free) {
+void kasan_quar_init(quar_t *q, void *pool, quar_free_t free) {
   q->q_buf.head = 0;
   q->q_buf.tail = 0;
   q->q_buf.count = 0;
   q->q_free = free;
   q->q_pool = pool;
-  q->q_mtx = pool_mtx;
 }

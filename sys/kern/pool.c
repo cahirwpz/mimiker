@@ -298,8 +298,7 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
   /* no redzone, we have to align the size itself */
   pool->pp_itemsize = align_size(size);
 #endif /* !KASAN */
-  kasan_quar_init(&pool->pp_quarantine, pool, &pool->pp_mtx,
-                  (quar_free_t)_pool_free);
+  kasan_quar_init(&pool->pp_quarantine, pool, (quar_free_t)_pool_free);
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
        pool->pp_itemsize);
 }
@@ -323,7 +322,9 @@ pool_t *pool_create(const char *desc, size_t size) {
 }
 
 void pool_destroy(pool_t *pool) {
-  kasan_quar_releaseall(&pool->pp_quarantine);
+  WITH_MTX_LOCK (&pool->pp_mtx)
+    /* Lock needed as the quarantine may call _pool_free! */
+    kasan_quar_releaseall(&pool->pp_quarantine);
   pool_dtor(pool);
   pool_free(P_POOL, pool);
 }
