@@ -25,7 +25,7 @@ typedef struct kmalloc_pool {
   size_t mp_used;                    /* Current number of pages (in bytes) */
   size_t mp_maxsize;                 /* Number of pages allowed (in bytes) */
 #ifdef KASAN
-  quarantine_t mp_quarantine;
+  quar_t mp_quarantine;
 #endif /* !KASAN */
 } kmalloc_pool_t;
 
@@ -188,7 +188,7 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
 #endif /* !KASAN */
 
   SCOPED_MTX_LOCK(&mp->mp_lock);
-  kasan_quarantine_inctime(&mp->mp_quarantine);
+  kasan_quar_inctime(&mp->mp_quarantine);
 
   while (1) {
     /* Search for the first area in the list that has enough space. */
@@ -245,10 +245,10 @@ void kfree(kmalloc_pool_t *mp, void *addr) {
     return;
   SCOPED_MTX_LOCK(&mp->mp_lock);
 
-  kasan_quarantine_inctime(&mp->mp_quarantine);
+  kasan_quar_inctime(&mp->mp_quarantine);
   kasan_mark(addr, 0, abs(addr_to_mem_block(addr)->mb_size),
              KASAN_CODE_KMALLOC_USE_AFTER_FREE);
-  kasan_quarantine_additem(&mp->mp_quarantine, addr);
+  kasan_quar_additem(&mp->mp_quarantine, addr);
 #ifndef KASAN
   /* Without KASAN, call regular free method */
   _kfree(mp, addr);
@@ -278,9 +278,8 @@ kmalloc_pool_t *kmalloc_create(const char *desc, size_t maxsize) {
   mp->mp_magic = MB_MAGIC;
   TAILQ_INIT(&mp->mp_arena);
   mtx_init(&mp->mp_lock, 0);
-  kasan_quarantine_init(&mp->mp_quarantine, mp, &mp->mp_lock,
-                        (quarantine_free_t)_kfree,
-                        KASAN_QUARANTINE_DEFAULT_TTL);
+  kasan_quar_init(&mp->mp_quarantine, mp, &mp->mp_lock, (quar_free_t)_kfree,
+                  KASAN_QUAR_DEFAULT_TTL);
   klog("initialized '%s' kmem at %p ", mp->mp_desc, mp);
   return mp;
 }
@@ -311,7 +310,7 @@ void kmalloc_dump(kmalloc_pool_t *mp) {
 
 /* TODO: missing implementation */
 void kmalloc_destroy(kmalloc_pool_t *mp) {
-  kasan_quarantine_releaseall(&mp->mp_quarantine);
+  kasan_quar_releaseall(&mp->mp_quarantine);
   pool_free(P_KMEM, mp);
 }
 

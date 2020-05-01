@@ -46,8 +46,8 @@ typedef struct pool {
   size_t pp_nslabs;   /* # of slabs allocated */
   size_t pp_nitems;   /* number of available items in pool */
 #ifdef KASAN
-  size_t pp_redzsize;         /* size of redzone after each item */
-  quarantine_t pp_quarantine; /* KASAN's quarantine */
+  size_t pp_redzsize; /* size of redzone after each item */
+  quar_t pp_quarantine;
 #endif
 } pool_t;
 
@@ -181,7 +181,7 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
   debug("pool_alloc: pool=%p", pool);
 
   SCOPED_MTX_LOCK(&pool->pp_mtx);
-  kasan_quarantine_inctime(&pool->pp_quarantine);
+  kasan_quar_inctime(&pool->pp_quarantine);
 
   assert(pool->pp_state == ALIVE);
 
@@ -250,10 +250,10 @@ static void _pool_free(pool_t *pool, void *ptr) {
 void pool_free(pool_t *pool, void *ptr) {
   SCOPED_MTX_LOCK(&pool->pp_mtx);
 
-  kasan_quarantine_inctime(&pool->pp_quarantine);
+  kasan_quar_inctime(&pool->pp_quarantine);
   kasan_mark(ptr, 0, pool->pp_itemsize + pool->pp_redzsize,
              KASAN_CODE_POOL_USE_AFTER_FREE);
-  kasan_quarantine_additem(&pool->pp_quarantine, ptr);
+  kasan_quar_additem(&pool->pp_quarantine, ptr);
 #ifndef KASAN
   /* Without KASAN, call regular free method */
   _pool_free(pool, ptr);
@@ -301,9 +301,8 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
   /* no redzone, we have to align the size itself */
   pool->pp_itemsize = align_size(size);
 #endif /* !KASAN */
-  kasan_quarantine_init(&pool->pp_quarantine, pool, &pool->pp_mtx,
-                        (quarantine_free_t)_pool_free,
-                        KASAN_QUARANTINE_DEFAULT_TTL);
+  kasan_quar_init(&pool->pp_quarantine, pool, &pool->pp_mtx,
+                  (quar_free_t)_pool_free, KASAN_QUAR_DEFAULT_TTL);
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
        pool->pp_itemsize);
 }
@@ -327,7 +326,7 @@ pool_t *pool_create(const char *desc, size_t size) {
 }
 
 void pool_destroy(pool_t *pool) {
-  kasan_quarantine_releaseall(&pool->pp_quarantine);
+  kasan_quar_releaseall(&pool->pp_quarantine);
   pool_dtor(pool);
   pool_free(P_POOL, pool);
 }
