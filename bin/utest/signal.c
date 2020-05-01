@@ -44,7 +44,7 @@ int test_signal_send() {
     printf("This is child (mypid = %d)\n", getpid());
     /* Wait for signal. */
     while (1)
-      ;
+      sched_yield();
   }
 
   printf("This is parent (childpid = %d, mypid = %d)\n", pid, getpid());
@@ -133,5 +133,100 @@ int test_signal_stop() {
   wait(&status);
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == 0);
+  return 0;
+}
+
+/* ======= signal_cont_masked ======= */
+int test_signal_cont_masked() {
+  ppid = getpid();
+  signal(SIGCONT, sigcont_handler);
+  int pid = fork();
+  if (pid == 0) {
+    sigset_t mask, old;
+    __sigemptyset(&mask);
+    sigaddset(&mask, SIGCONT);
+    assert(sigprocmask(SIG_BLOCK, &mask, &old) == 0);
+    /* Even though SIGCONT is blocked, it should wake us up, but it
+     * should remain pending until we unblock it. */
+    raise(SIGSTOP);
+    assert(!sigcont_handled);
+    /* Unblock SIGCONT: the handler should run immediately after. */
+    assert(sigprocmask(SIG_SETMASK, &old, NULL) == 0);
+    assert(sigcont_handled);
+    return 0;
+  }
+
+  /* Make sure the child has stopped. */
+  for (int i = 0; i < 3; i++)
+    sched_yield();
+
+  kill(pid, SIGCONT);
+  int status;
+  printf("Waiting for child...\n");
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+  return 0;
+}
+
+/* ======= signal_mask ======= */
+int test_signal_mask() {
+  ppid = getpid();
+  signal(SIGUSR1, signal_parent);
+  signal(SIGCONT, sigcont_handler);
+
+  int pid = fork();
+  if (pid == 0) {
+    while (!sigcont_handled)
+      sched_yield();
+    return 0;
+  }
+
+  /* Check that the signal bounces properly. */
+  kill(pid, SIGUSR1);
+  while (!sigcont_handled)
+    sched_yield();
+
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGCONT);
+
+  /* Mask the signal and make the child send it to us.
+   * The delivery of the signal should be delayed until we unblock it. */
+  assert(sigprocmask(SIG_BLOCK, &mask, NULL) == 0);
+  sigcont_handled = 0;
+  kill(pid, SIGUSR1);
+
+  /* Yield a couple times to make sure that the child sends us the signal. */
+  for (int i = 0; i < 3; i++)
+    sched_yield();
+
+  assert(!sigcont_handled);
+
+  /* Unblocking a pending signal should make us handle it immediately. */
+  assert(sigprocmask(SIG_UNBLOCK, &mask, NULL) == 0);
+  assert(sigcont_handled);
+
+  kill(pid, SIGCONT);
+  int status;
+  printf("Waiting for child...\n");
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+  return 0;
+}
+
+/* ======= signal_mask_nonmaskable ======= */
+int test_signal_mask_nonmaskable() {
+  sigset_t set, old;
+  __sigemptyset(&set);
+  __sigaddset(&set, SIGSTOP);
+  __sigaddset(&set, SIGKILL);
+  __sigaddset(&set, SIGUSR1);
+  /* The call should succeed, but SIGKILL and SIGSTOP shouldn't be blocked. */
+  assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
+  assert(sigprocmask(SIG_BLOCK, NULL, &set) == 0);
+  __sigaddset(&old, SIGUSR1);
+  assert(__sigsetequal(&set, &old));
   return 0;
 }
