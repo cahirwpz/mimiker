@@ -51,10 +51,6 @@ static inline mem_block_t *mb_next(mem_block_t *block) {
   return (void *)block + abs(block->mb_size) + sizeof(mem_block_t);
 }
 
-static size_t align_size(size_t size) {
-  return align(size, MB_ALIGNMENT);
-}
-
 static void merge_right(mem_block_list_t *ma_freeblks, mem_block_t *mb) {
   mem_block_t *next = TAILQ_NEXT(mb, mb_list);
 
@@ -178,10 +174,11 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
 
 #ifdef KASAN
   /* the alignment is within the redzone */
-  size_t redzone_size = align_size(size) - size + KASAN_KMALLOC_REDZONE_SIZE;
+  size_t redzone_size = 
+    align(size, MB_ALIGNMENT) - size + KASAN_KMALLOC_REDZONE_SIZE;
 #else
   /* no redzone, we have to align the size itself */
-  size = align_size(size);
+  size = align(size, MB_ALIGNMENT);
 #endif /* !KASAN */
 
   SCOPED_MTX_LOCK(&mp->mp_lock);
