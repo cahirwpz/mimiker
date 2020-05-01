@@ -263,9 +263,7 @@ SLEAF(tlb_refill)
         xor     k1, k0
 
         andi    k1, 0x1ffc
-        la      k0, UPD_BASE
-        addu    k0, k1
-        lw      k1, (k0)                # [k1] PDE of bad virtual address
+        lw      k1, -0x2000(k1)         # [k1] PDE of bad virtual address
 
         # If PDE isn't valid behave as if TLBL/TLBS exception was triggered.
         andi    k0, k1, ENTRYLO0_V_MASK
