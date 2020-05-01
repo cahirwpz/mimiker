@@ -92,7 +92,7 @@ __boot_text void *mips_init(void) {
   pde[PDE_INDEX(va)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pte)) | PTE_KERNEL;
 
   /* auto-mapping? */
-  pde[PDE_INDEX((pte_t)KPT)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pde)) | PTE_KERNEL;
+  pde[PDE_INDEX(PT_BASE)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pde)) | PTE_KERNEL;
 
   /* read-only segment - sections: .text, .rodata, etc. */
   for (paddr_t pa = text; pa < data; va += PAGESIZE, pa += PAGESIZE)
@@ -144,6 +144,7 @@ __boot_text void *mips_init(void) {
  * the structure and will remove it and optimize out all references to it.
  * Hence it has to be marked with `volatile`. */
 static __boot_data volatile tlbentry_t _gdb_tlb_entry;
+static __boot_data volatile asid_t _gdb_asid;
 
 __boot_text unsigned _gdb_tlb_size(void) {
   return ((mips32_getconfig1() & CFG1_MMUS_MASK) >> CFG1_MMUS_SHIFT) + 1;
@@ -152,6 +153,7 @@ __boot_text unsigned _gdb_tlb_size(void) {
 /* Fills _gdb_tlb_entry structure with TLB entry. */
 __boot_text void _gdb_tlb_read_index(unsigned i) {
   tlbhi_t saved = mips32_getentryhi();
+  _gdb_asid = saved & PTE_ASID_MASK;
   mips32_setindex(i);
   mips32_tlbr();
   _gdb_tlb_entry.hi = mips32_getentryhi();

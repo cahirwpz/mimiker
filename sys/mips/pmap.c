@@ -23,8 +23,7 @@
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 
 #define PDE_OF(pmap, vaddr) ((pmap)->pde[PDE_INDEX(vaddr)])
-#define PTE_OF(pmap, vaddr) \
-  ((pmap == &kernel_pmap ? KPT : UPT)[(vaddr) >> PTE_INDEX_SHIFT])
+#define PTE_OF(pmap, vaddr) (PT_BASE[(vaddr) >> PTE_INDEX_SHIFT])
 #define PTE_FRAME_ADDR(pte) (PTE_PFN_OF(pte) * PAGESIZE)
 #define PAGE_OFFSET(x) ((x) & (PAGESIZE - 1))
 
@@ -84,6 +83,8 @@ static void free_asid(asid_t asid) {
   tlb_invalidate_asid(asid);
 }
 
+static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr);
+
 static void update_wired_pde(pmap_t *umap) {
   pmap_t *kmap = pmap_kernel();
 
@@ -93,8 +94,10 @@ static void update_wired_pde(pmap_t *umap) {
                   .lo0 = PTE_GLOBAL,
                   .lo1 = PTE_PFN(MIPS_KSEG2_TO_PHYS(kmap->pde)) | PTE_KERNEL};
 
-  if (umap)
-    e.lo0 = PTE_PFN(MIPS_KSEG2_TO_PHYS(umap->pde)) | PTE_KERNEL;
+  if (umap) {
+    pte_t pte = pmap_pte_read(kmap, (vaddr_t)umap->pde);
+    e.lo0 = PTE_PFN(PTE_FRAME_ADDR(pte)) | PTE_KERNEL;
+  }
 
   tlb_write(0, &e);
 }
@@ -126,8 +129,13 @@ pmap_t *pmap_new(void) {
   pmap_t *pmap = pool_alloc(P_PMAP, M_ZERO);
   pmap_setup(pmap);
 
-  pmap->pde = kmem_alloc(PAGESIZE, M_NOWAIT|M_ZERO);
+  pmap->pde = kmem_alloc(PAGESIZE, M_NOWAIT | M_ZERO);
   klog("Page directory table allocated at %p", (vaddr_t)pmap->pde);
+
+  paddr_t pa;
+  pmap_extract(&kernel_pmap, (vaddr_t)pmap->pde, &pa);
+
+  pmap->pde[PDE_INDEX(PT_BASE)] = PTE_PFN(pa) | PTE_KERNEL;
 
   return pmap;
 }

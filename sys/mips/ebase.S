@@ -232,13 +232,44 @@ _ebase:
 # EHB has to be put between a producer and a consumer - preferably just before
 # the consumer, not just after the producer.
 
+# useg: [0000.0000, 8000.0000) -> ffff.e000 UPD (ASID = x)
+# kseg: [c000.0000, ffc0.0000) -> ffff.f000 KPD (GLOBAL)
+# upte: [ffc0.0000, ffe0.0000) -> ffff.e000 UPD (ASID = x)
+# kpte: [ffe0.0000, ffff.e000) -> ffff.f000 KPD (GLOBAL)
+
+# |uuuuuuuu________|________....kkkk|
+# ^                ^
+# fffe.0000        ffff.0000
+
+# useg: [000, 800) -> 0000.0000 - 0000.07ff
+# kseg: [c00, ffc) -> ffff.fc00 - ffff.fffb
+#                     -> 0000.1c00 - 0000.1ff8
+# upte: [ffc, ffe) -> ffff.fffc - ffff.fffd (x \in {-3, -4})
+#                     -> 0000.1ffc - 0000.1ffc
+#                       [0000.0ffc - 0000.0ffc]
+# kpte: [ffe, fff) -> ffff.fffe - ffff.ffff (x \in {-1, -2})
+#                     -> 0000.1ffc - 0000.1ffc
+
 SLEAF(tlb_refill)
         # Read PDE associated with bad virtual address.
         # Highest bit of the address switches between UPD_BASE & KPD_BASE,
         # so it's copied into 12th position with arithmetic shift.
         mfc0    k1, C0_BADVADDR
         sra     k1, 20
-        andi    k1, 0x1ffc
+        bgez    k1, 1f                  # handle access into useg
+        nop
+
+        slti    k0, k1, -4
+        bnez    k0, 1f                  # handle access into kseg
+        nop
+
+        slti    k0, k1, -2
+        beqz    k0, 1f                  # handle access into kpt
+        nop
+
+        andi    k1, 0x0ffc
+
+1:      andi    k1, 0x1ffc
         la      k0, UPD_BASE
         addu    k0, k1
         lw      k1, (k0)                # [k1] PDE of bad virtual address
@@ -250,7 +281,7 @@ SLEAF(tlb_refill)
 
         # Calculate page table address from PDE
         lui     k0, 0x8000
-        srl     k1, 6                   # # [k1] PTE index (lower 10 bits)
+        srl     k1, 6                   # [k1] PTE index (lower 10 bits)
         sll     k1, 12
         or      k1, k0                  # [k0] PTE address in kseg0
         # ... and index of even entry corresponding to bad virtual address.
