@@ -29,6 +29,7 @@ void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
 #else
 #define kasan_init() __nothing
 #define kasan_mark_valid(addr, size) __nothing
+#define kasan_mark_invalid(addr, size, code) __nothing
 #define kasan_mark(addr, size, size_with_redzone, code) __nothing
 #endif /* !KASAN */
 
