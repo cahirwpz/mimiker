@@ -58,6 +58,9 @@ device_t *make_device(device_t *parent, driver_t *driver);
  * \note Mostly used in bus drivers. */
 void device_add_resource(device_t *dev, resource_t *r, int rid);
 
+/*! \brief Remove a resource from a device. */
+void device_remove_resource(device_t *dev, resource_t *r);
+
 /* A universal memory pool to be used by all drivers. */
 KMALLOC_DECLARE(M_DEV);
 
