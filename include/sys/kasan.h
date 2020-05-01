@@ -59,6 +59,9 @@ void kasan_init(void);
 /* Mark bytes as valid (in the shadow memory) */
 void kasan_mark_valid(const void *addr, size_t size);
 
+/* Mark bytes as invalid (in the shadow memory) */
+void kasan_mark_invalid(const void *addr, size_t size, uint8_t code);
+
 /* Mark first 'size' bytes as valid (in the shadow memory), and the remaining
  * (size_with_redzone - size) bytes as invalid with given code. */
 void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,

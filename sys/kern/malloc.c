@@ -54,10 +54,6 @@ static inline mem_block_t *mb_next(mem_block_t *block) {
   return (void *)block + abs(block->mb_size) + sizeof(mem_block_t);
 }
 
-static size_t align_size(size_t size) {
-  return align(size, MB_ALIGNMENT);
-}
-
 static void merge_right(mem_block_list_t *ma_freeblks, mem_block_t *mb) {
   mem_block_t *next = TAILQ_NEXT(mb, mb_list);
 
@@ -78,7 +74,8 @@ static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
   mb->mb_magic = MB_MAGIC;
   mb->mb_size = total_size - sizeof(mem_block_t);
   /* Poison the data */
-  kasan_mark(mb->mb_data, 0, mb->mb_size, KASAN_CODE_KMALLOC_USE_AFTER_FREE);
+  kasan_mark_invalid(mb->mb_data, mb->mb_size,
+                     KASAN_CODE_KMALLOC_USE_AFTER_FREE);
 
   /* If it's the first block, we simply add it. */
   if (TAILQ_EMPTY(&ma->ma_freeblks)) {
@@ -181,10 +178,11 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
 
 #ifdef KASAN
   /* the alignment is within the redzone */
-  size_t redzone_size = align_size(size) - size + KASAN_KMALLOC_REDZONE_SIZE;
+  size_t redzone_size =
+    align(size, MB_ALIGNMENT) - size + KASAN_KMALLOC_REDZONE_SIZE;
 #else
   /* no redzone, we have to align the size itself */
-  size = align_size(size);
+  size = align(size, MB_ALIGNMENT);
 #endif /* !KASAN */
 
   SCOPED_MTX_LOCK(&mp->mp_lock);
@@ -246,8 +244,8 @@ void kfree(kmalloc_pool_t *mp, void *addr) {
   SCOPED_MTX_LOCK(&mp->mp_lock);
 
   kasan_quar_inctime(&mp->mp_quarantine);
-  kasan_mark(addr, 0, abs(addr_to_mem_block(addr)->mb_size),
-             KASAN_CODE_KMALLOC_USE_AFTER_FREE);
+  kasan_mark_invalid(addr, abs(addr_to_mem_block(addr)->mb_size),
+                     KASAN_CODE_KMALLOC_USE_AFTER_FREE);
   kasan_quar_additem(&mp->mp_quarantine, addr);
 #ifndef KASAN
   /* Without KASAN, call regular free method */
