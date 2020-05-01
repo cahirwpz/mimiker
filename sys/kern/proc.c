@@ -116,6 +116,8 @@ static void sess_drop(session_t *s) {
 int proc_getsid(pid_t pid, pid_t *sid) {
   WITH_MTX_LOCK (all_proc_mtx) {
     proc_t *p = proc_find(pid);
+    if (p == NULL)
+      return ESRCH;
     *sid = p->p_pgrp->pg_session->s_sid;
     proc_unlock(p);
   }
