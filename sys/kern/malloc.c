@@ -186,7 +186,6 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
 #endif /* !KASAN */
 
   SCOPED_MTX_LOCK(&mp->mp_lock);
-  kasan_quar_inctime(&mp->mp_quarantine);
 
   while (1) {
     /* Search for the first area in the list that has enough space. */
@@ -243,7 +242,6 @@ void kfree(kmalloc_pool_t *mp, void *addr) {
     return;
   SCOPED_MTX_LOCK(&mp->mp_lock);
 
-  kasan_quar_inctime(&mp->mp_quarantine);
   kasan_mark_invalid(addr, abs(addr_to_mem_block(addr)->mb_size),
                      KASAN_CODE_KMALLOC_USE_AFTER_FREE);
   kasan_quar_additem(&mp->mp_quarantine, addr);
@@ -276,8 +274,7 @@ kmalloc_pool_t *kmalloc_create(const char *desc, size_t maxsize) {
   mp->mp_magic = MB_MAGIC;
   TAILQ_INIT(&mp->mp_arena);
   mtx_init(&mp->mp_lock, 0);
-  kasan_quar_init(&mp->mp_quarantine, mp, &mp->mp_lock, (quar_free_t)_kfree,
-                  KASAN_QUAR_DEFAULT_TTL);
+  kasan_quar_init(&mp->mp_quarantine, mp, &mp->mp_lock, (quar_free_t)_kfree);
   klog("initialized '%s' kmem at %p ", mp->mp_desc, mp);
   return mp;
 }

@@ -21,31 +21,23 @@
 #define KASAN_KMALLOC_REDZONE_SIZE 8
 
 /* Quarantine */
-#define KASAN_QUAR_BUFSIZE 64
-#define KASAN_QUAR_DEFAULT_TTL 64
+#define KASAN_QUAR_BUFSIZE 32
 
 /* First argument is pool's address, second is memory block's address. */
 typedef void (*quar_free_t)(void *, void *);
-
-typedef struct {
-  void *qi_ptr;          /* pointer to quarantined item */
-  int qi_timestamp_free; /* time when the item was freed */
-} quar_item_t;
 
 /* Quarantine structure.
    Locking: all fields are protected by q_mtx */
 typedef struct {
   struct {
-    quar_item_t items[KASAN_QUAR_BUFSIZE];
-    int head;              /* first unoccupied slot */
-    int tail;              /* last occupied slot */
-    int count;             /* number of occupied slots */
-  } q_buf;                 /* cyclic buffer of items */
-  quar_free_t q_free;      /* function to free items after quarantine */
-  int q_timestamp_current; /* time measured in number of allocs & frees */
-  int q_ttl;               /* how long are the items quarantined */
-  void *q_pool;            /* pool from which the items come */
-  mtx_t *q_mtx;            /* pool's mutex */
+    void *items[KASAN_QUAR_BUFSIZE];
+    int head;         /* first unoccupied slot */
+    int tail;         /* last occupied slot */
+    int count;        /* number of occupied slots */
+  } q_buf;            /* cyclic buffer of items */
+  quar_free_t q_free; /* function to free items after quarantine */
+  void *q_pool;       /* pool from which the items come */
+  mtx_t *q_mtx;       /* pool's mutex */
 } quar_t;
 
 /* KASAN interface */
@@ -68,16 +60,10 @@ void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
                 uint8_t code);
 
 /* Initialize given quarantine structure */
-void kasan_quar_init(quar_t *q, void *pool, mtx_t *pool_mtx, quar_free_t free,
-                     int ttl);
+void kasan_quar_init(quar_t *q, void *pool, mtx_t *pool_mtx, quar_free_t free);
 
-/* Add an item to a quarantine.
- * Should be called with quarantine's mutex locked. */
+/* Add an item to a quarantine. */
 void kasan_quar_additem(quar_t *q, void *ptr);
-
-/* Increase quarantine's current timestamp.
- * Should be called with quarantine's mutex locked. */
-void kasan_quar_inctime(quar_t *q);
 
 /* Release all items from the quarantine. */
 void kasan_quar_releaseall(quar_t *q);
@@ -87,7 +73,6 @@ void kasan_quar_releaseall(quar_t *q);
 #define kasan_mark(addr, size, size_with_redzone, code) __nothing
 #define kasan_quar_init(q, pool, pool_mtx, free, ttl) __nothing
 #define kasan_quar_additem(q, ptr) __nothing
-#define kasan_quar_inctime(q) __nothing
 #define kasan_quar_releaseall(q) __nothing
 #endif /* !KASAN */
 

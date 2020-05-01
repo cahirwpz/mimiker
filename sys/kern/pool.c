@@ -73,8 +73,8 @@ typedef struct pool_item {
 static pool_t P_POOL[1];
 
 #ifdef KASAN
-/* Quarantine increases size of pool_t significantly. More boot pages needed! */
-#define POOL_BOOTPAGE_CNT 5
+/* Quarantine increases size of pool structure. More boot pages needed! */
+#define POOL_BOOTPAGE_CNT 2
 #else
 #define POOL_BOOTPAGE_CNT 1
 #endif /* !KASAN */
@@ -181,8 +181,6 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
   debug("pool_alloc: pool=%p", pool);
 
   SCOPED_MTX_LOCK(&pool->pp_mtx);
-  kasan_quar_inctime(&pool->pp_quarantine);
-
   assert(pool->pp_state == ALIVE);
 
   pool_slab_t *slab;
@@ -250,7 +248,6 @@ static void _pool_free(pool_t *pool, void *ptr) {
 void pool_free(pool_t *pool, void *ptr) {
   SCOPED_MTX_LOCK(&pool->pp_mtx);
 
-  kasan_quar_inctime(&pool->pp_quarantine);
   kasan_mark_invalid(ptr, pool->pp_itemsize + pool->pp_redzsize,
                      KASAN_CODE_POOL_USE_AFTER_FREE);
   kasan_quar_additem(&pool->pp_quarantine, ptr);
@@ -302,7 +299,7 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
   pool->pp_itemsize = align_size(size);
 #endif /* !KASAN */
   kasan_quar_init(&pool->pp_quarantine, pool, &pool->pp_mtx,
-                  (quar_free_t)_pool_free, KASAN_QUAR_DEFAULT_TTL);
+                  (quar_free_t)_pool_free);
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
        pool->pp_itemsize);
 }
