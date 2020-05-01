@@ -73,7 +73,7 @@ SOURCES = \
 	vmem.c
 
 ifeq ($(KASAN), 1)
-SOURCES += kasan.c
+SOURCES += kasan.c kasan_quar.c
 # KASAN's run-time library mustn't be sanitized!
 kasan.o : CFLAGS_KASAN =
 endif

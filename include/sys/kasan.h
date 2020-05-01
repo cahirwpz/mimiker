@@ -1,6 +1,8 @@
 #ifndef _SYS_KASAN_H_
 #define _SYS_KASAN_H_
 
+#include <sys/types.h>
+
 /* The following codes are part of internal compiler interface:
  * https://github.com/gcc-mirror/gcc/blob/master/libsanitizer/asan/asan_internal.h
  */
