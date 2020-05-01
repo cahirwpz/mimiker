@@ -176,6 +176,7 @@ __always_inline static inline void shadow_check(uintptr_t addr, size_t size,
       panic_fail();
   }
 }
+
 /* Note: use of __builtin_memset in this function is not optimal if its
  * implementation is instrumented (i.e. not written in asm) */
 void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
@@ -283,7 +284,8 @@ void __asan_allocas_unpoison(const void *begin, const void *end) {
   kasan_mark_valid(begin, size);
 }
 
-/* Below you can find replacements for various memory-touching functions */
+/* Below you can find wrappers for various memory-touching functions,
+ * which are implemented in assembly (therefore are not instrumented). */
 #undef copyin
 int copyin(const void *restrict udaddr, void *restrict kaddr, size_t len);
 int kasan_copyin(const void *restrict udaddr, void *restrict kaddr,
