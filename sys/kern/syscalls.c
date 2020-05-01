@@ -838,6 +838,9 @@ static int sys_getsid(proc_t *p, getsid_args_t *args, register_t *res) {
   pid_t sid;
   int error;
 
+  if (pid == 0)
+    pid = p->p_pid;
+
   klog("getsid(%d)", pid);
 
   if (!(error = proc_getsid(pid, &sid)))
