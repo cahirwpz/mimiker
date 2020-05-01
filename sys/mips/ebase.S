@@ -272,14 +272,12 @@ SLEAF(tlb_refill)
 
         # Calculate page table address from PDE
         lui     k0, 0x8000
-        srl     k1, 6                   # [k1] PTE index (lower 10 bits)
-        sll     k1, 12
-        or      k1, k0                  # [k0] PTE address in kseg0
+        srl     k1, 6
+        ins     k0, k1, 12, 19          # [k0] PTE address in kseg0
         # ... and index of even entry corresponding to bad virtual address.
-        mfc0    k0, C0_BADVADDR
-        srl     k0, 10
-        andi    k0, 0xff8
-        addu    k0, k1
+        mfc0    k1, C0_BADVADDR
+        srl     k1, 13                  # [k1] PTE index (lower 10 bits)
+        ins     k0, k1, 3, 9
 
         # Simply grab the PTEs and load them into the TLB.
         lw      k1, 0(k0)
