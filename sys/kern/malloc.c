@@ -71,7 +71,8 @@ static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
   mb->mb_magic = MB_MAGIC;
   mb->mb_size = total_size - sizeof(mem_block_t);
   /* Poison the data */
-  kasan_mark(mb->mb_data, 0, mb->mb_size, KASAN_CODE_KMALLOC_USE_AFTER_FREE);
+  kasan_mark_invalid(mb->mb_data, mb->mb_size,
+                     KASAN_CODE_KMALLOC_USE_AFTER_FREE);
 
   /* If it's the first block, we simply add it. */
   if (TAILQ_EMPTY(&ma->ma_freeblks)) {

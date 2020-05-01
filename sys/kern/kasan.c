@@ -209,6 +209,10 @@ void kasan_mark_valid(const void *addr, size_t size) {
   kasan_mark(addr, size, size, 0);
 }
 
+void kasan_mark_invalid(const void *addr, size_t size, uint8_t code) {
+  kasan_mark(addr, 0, size, code);
+}
+
 /* Call constructors that will register globals */
 static void call_ctors(void) {
   extern uintptr_t __CTOR_LIST__, __CTOR_END__;
@@ -275,10 +279,11 @@ void __asan_alloca_poison(const void *addr, size_t size) {
   size_t size_with_mid_redzone = roundup(size, KASAN_ALLOCA_REDZONE_SIZE);
   void *right_redzone = (int8_t *)addr + size_with_mid_redzone;
 
-  kasan_mark(left_redzone, 0, KASAN_ALLOCA_REDZONE_SIZE, KASAN_CODE_STACK_LEFT);
+  kasan_mark_invalid(left_redzone, KASAN_ALLOCA_REDZONE_SIZE,
+                     KASAN_CODE_STACK_LEFT);
   kasan_mark(addr, size, size_with_mid_redzone, KASAN_CODE_STACK_MID);
-  kasan_mark(right_redzone, 0, KASAN_ALLOCA_REDZONE_SIZE,
-             KASAN_CODE_STACK_RIGHT);
+  kasan_mark_invalid(right_redzone, KASAN_ALLOCA_REDZONE_SIZE,
+                     KASAN_CODE_STACK_RIGHT);
 }
 
 void __asan_allocas_unpoison(const void *begin, const void *end) {

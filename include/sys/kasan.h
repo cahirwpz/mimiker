@@ -23,6 +23,7 @@
 #ifdef KASAN
 void kasan_init(void);
 void kasan_mark_valid(const void *addr, size_t size);
+void kasan_mark_invalid(const void *addr, size_t size, uint8_t code);
 void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
                 uint8_t code);
 #else

@@ -215,9 +215,8 @@ void pool_free(pool_t *pool, void *ptr) {
   debug("pool_free: pool = %p, ptr = %p", pool, ptr);
   assert(pool->pp_state == ALIVE);
 
-  /* Mark the item as invalid */
-  kasan_mark(ptr, 0, pool->pp_itemsize + pool->pp_redzsize,
-             KASAN_CODE_POOL_USE_AFTER_FREE);
+  kasan_mark_invalid(ptr, pool->pp_itemsize + pool->pp_redzsize,
+                     KASAN_CODE_POOL_USE_AFTER_FREE);
 
   SCOPED_MTX_LOCK(&pool->pp_mtx);
 
