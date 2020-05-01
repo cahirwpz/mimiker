@@ -222,15 +222,15 @@ int test_session_basic() {
     pid_t cpid = getpid();
     pid_t ppid = getppid();
     /* Should be in the same session as parent. */
-    assert(getsid(cpid) == parent_sid);
+    assert(getsid(0) == parent_sid);
     assert(getsid(ppid) == parent_sid);
     /* Create a session. This should always succeed. */
     assert(setsid() == cpid);
-    assert(getsid(cpid) == cpid);
+    assert(getsid(0) == cpid);
     assert(getsid(ppid) == parent_sid);
     /* Creating a session when we're already a leader should fail. */
     assert(setsid() == -1);
-    assert(getsid(cpid) == cpid);
+    assert(getsid(0) == cpid);
     assert(getsid(ppid) == parent_sid);
     /* Hang around for the parent to check our SID. */
     while (!sig_delivered)
