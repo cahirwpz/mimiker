@@ -174,7 +174,7 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
 
 #ifdef KASAN
   /* the alignment is within the redzone */
-  size_t redzone_size = 
+  size_t redzone_size =
     align(size, MB_ALIGNMENT) - size + KASAN_KMALLOC_REDZONE_SIZE;
 #else
   /* no redzone, we have to align the size itself */
