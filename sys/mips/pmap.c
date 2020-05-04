@@ -61,7 +61,7 @@ static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
 
 static inline pte_t empty_pte(pmap_t *pmap) {
-  return (pmap == &kernel_pmap) ? PTE_GLOBAL : 0;
+  return (pmap == pmap_kernel()) ? PTE_GLOBAL : 0;
 }
 
 static asid_t alloc_asid(void) {
@@ -133,7 +133,7 @@ pmap_t *pmap_new(void) {
   klog("Page directory table allocated at %p", (vaddr_t)pmap->pde);
 
   paddr_t pa;
-  pmap_extract(&kernel_pmap, (vaddr_t)pmap->pde, &pa);
+  pmap_extract(pmap_kernel(), (vaddr_t)pmap->pde, &pa);
 
   pmap->pde[PDE_INDEX(PT_BASE)] = PTE_PFN(pa) | PTE_KERNEL;
 
@@ -201,7 +201,7 @@ static pte_t vm_prot_map[] = {
 };
 
 void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot) {
-  pmap_t *pmap = &kernel_pmap;
+  pmap_t *pmap = pmap_kernel();
 
   assert(pmap_address_p(pmap, va));
   assert(pa != 0);
@@ -223,7 +223,7 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
   klog("Enter virtual mapping %p-%p for frame %p", va, va_end, pa);
 
   /* Mark user pages as non-referenced & non-modified. */
-  pte_t mask = (pmap == &kernel_pmap) ? 0 : PTE_VALID | PTE_DIRTY;
+  pte_t mask = (pmap == pmap_kernel()) ? 0 : PTE_VALID | PTE_DIRTY;
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (; va < va_end; va += PAGESIZE, pa += PAGESIZE)
@@ -233,7 +233,7 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
 }
 
 void pmap_kremove(vaddr_t start, vaddr_t end) {
-  pmap_t *pmap = &kernel_pmap;
+  pmap_t *pmap = pmap_kernel();
 
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
   assert(pmap_contains_p(pmap, start, end));
