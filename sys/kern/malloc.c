@@ -74,8 +74,7 @@ static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
   mb->mb_magic = MB_MAGIC;
   mb->mb_size = total_size - sizeof(mem_block_t);
   /* Poison the data */
-  kasan_mark_invalid(mb->mb_data, mb->mb_size,
-                     KASAN_CODE_KMALLOC_USE_AFTER_FREE);
+  kasan_mark_invalid(mb->mb_data, mb->mb_size, KASAN_CODE_KMALLOC_FREED);
 
   /* If it's the first block, we simply add it. */
   if (TAILQ_EMPTY(&ma->ma_freeblks)) {
@@ -243,7 +242,7 @@ void kfree(kmalloc_pool_t *mp, void *addr) {
   SCOPED_MTX_LOCK(&mp->mp_lock);
 
   kasan_mark_invalid(addr, abs(addr_to_mem_block(addr)->mb_size),
-                     KASAN_CODE_KMALLOC_USE_AFTER_FREE);
+                     KASAN_CODE_KMALLOC_FREED);
   kasan_quar_additem(&mp->mp_quarantine, addr);
 #ifndef KASAN
   /* Without KASAN, call regular free method */

@@ -249,7 +249,7 @@ void pool_free(pool_t *pool, void *ptr) {
   SCOPED_MTX_LOCK(&pool->pp_mtx);
 
   kasan_mark_invalid(ptr, pool->pp_itemsize + pool->pp_redzsize,
-                     KASAN_CODE_POOL_USE_AFTER_FREE);
+                     KASAN_CODE_POOL_FREED);
   kasan_quar_additem(&pool->pp_quarantine, ptr);
 #ifndef KASAN
   /* Without KASAN, call regular free method */

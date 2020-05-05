@@ -46,15 +46,15 @@ static const char *code_name(uint8_t code) {
       return "stack buffer-overflow";
     case KASAN_CODE_GLOBAL_OVERFLOW:
       return "global buffer-overflow";
-    case KASAN_CODE_KMEM_USE_AFTER_FREE:
+    case KASAN_CODE_KMEM_FREED:
       return "kmem use-after-free";
     case KASAN_CODE_POOL_OVERFLOW:
       return "pool buffer-overflow";
-    case KASAN_CODE_POOL_USE_AFTER_FREE:
+    case KASAN_CODE_POOL_FREED:
       return "pool use-after-free";
     case KASAN_CODE_KMALLOC_OVERFLOW:
       return "kmalloc buffer-overflow";
-    case KASAN_CODE_KMALLOC_USE_AFTER_FREE:
+    case KASAN_CODE_KMALLOC_FREED:
       return "kmalloc use-after-free";
     case 1 ... 7:
       return "partial redzone";
