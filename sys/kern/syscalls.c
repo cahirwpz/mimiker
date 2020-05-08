@@ -21,6 +21,7 @@
 #include <sys/syslimits.h>
 #include <sys/context.h>
 #include <sys/thread.h>
+#include <sys/cred.h>
 
 #include "sysent.h"
 
@@ -630,32 +631,62 @@ fail:
   return error;
 }
 
-/* TODO: not implemented */
-static int sys_getuid(proc_t *p, void *args, register_t *res) {
-  klog("getuid()");
-  *res = 0;
+static int sys_getresuid(proc_t *p, getresuid_args_t *args, register_t *res) {
+  uid_t *usr_ruid = args->ruid;
+  uid_t *usr_euid = args->euid;
+  uid_t *usr_suid = args->suid;
+
+  klog("getresuid()");
+
+  /* TODO error handling */
+
+  uid_t ruid, euid, suid;
+  do_getresuid(p, &ruid, &euid, &suid);
+
+  copyout(&ruid, usr_ruid, sizeof(uid_t));
+  copyout(&euid, usr_euid, sizeof(uid_t));
+  copyout(&suid, usr_suid, sizeof(uid_t));
+
   return 0;
 }
 
-/* TODO: not implemented */
-static int sys_geteuid(proc_t *p, void *args, register_t *res) {
-  klog("geteuid()");
-  *res = 0;
+static int sys_getresgid(proc_t *p, getresgid_args_t *args, register_t *res) {
+  gid_t *usr_rgid = args->rgid;
+  gid_t *usr_egid = args->egid;
+  gid_t *usr_sgid = args->sgid;
+
+  klog("getresgid()");
+
+  /* TODO error handling */
+
+  gid_t rgid, egid, sgid;
+  do_getresgid(p, &rgid, &egid, &sgid);
+
+  copyout(&rgid, usr_rgid, sizeof(gid_t));
+  copyout(&egid, usr_egid, sizeof(gid_t));
+  copyout(&sgid, usr_sgid, sizeof(gid_t));
+
   return 0;
 }
 
-/* TODO: not implemented */
-static int sys_getgid(proc_t *p, void *args, register_t *res) {
-  klog("getgid()");
-  *res = 0;
-  return 0;
+static int sys_setresuid(proc_t *p, setresuid_args_t *args, register_t *res) {
+  uid_t ruid = args->ruid;
+  uid_t euid = args->euid;
+  uid_t suid = args->suid;
+
+  klog("setresuid()");
+
+  return do_setresuid(p, ruid, euid, suid);
 }
 
-/* TODO: not implemented */
-static int sys_getegid(proc_t *p, void *args, register_t *res) {
-  klog("getegid()");
-  *res = 0;
-  return 0;
+static int sys_setresgid(proc_t *p, setresgid_args_t *args, register_t *res) {
+  gid_t rgid = args->rgid;
+  gid_t egid = args->egid;
+  gid_t sgid = args->sgid;
+
+  klog("setresgid()");
+
+  return do_setresgid(p, rgid, egid, sgid);
 }
 
 /* TODO: not implemented */
