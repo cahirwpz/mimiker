@@ -21,6 +21,7 @@
 #include <sys/syslimits.h>
 #include <sys/context.h>
 #include <sys/thread.h>
+#include <sys/cred.h>
 
 #include "sysent.h"
 
