@@ -79,6 +79,7 @@ class TLB(UserCommand):
             if row is None:
                 continue
             table.add_row([str(idx)] + row)
+        print('Current ASID = %d' % self.asid())
         print(table)
 
     @staticmethod
@@ -89,6 +90,10 @@ class TLB(UserCommand):
     @staticmethod
     def size():
         return int(gdb.parse_and_eval('_gdb_tlb_size()'))
+
+    @staticmethod
+    def asid():
+        return int(gdb.parse_and_eval('_gdb_asid'))
 
 
 class Cpu(CommandDispatcher):
