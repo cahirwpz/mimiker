@@ -39,19 +39,19 @@ static bool kern_addr_p(vaddr_t addr) {
   return (addr >= PMAP_KERNEL_BEGIN) && (addr < PMAP_KERNEL_END);
 }
 
-vaddr_t pmap_start(pmap_t *pmap) {
+inline vaddr_t pmap_start(pmap_t *pmap) {
   return pmap->asid ? PMAP_USER_BEGIN : PMAP_KERNEL_BEGIN;
 }
 
-vaddr_t pmap_end(pmap_t *pmap) {
+inline vaddr_t pmap_end(pmap_t *pmap) {
   return pmap->asid ? PMAP_USER_END : PMAP_KERNEL_END;
 }
 
-bool pmap_address_p(pmap_t *pmap, vaddr_t va) {
+inline bool pmap_address_p(pmap_t *pmap, vaddr_t va) {
   return pmap_start(pmap) <= va && va < pmap_end(pmap);
 }
 
-bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end) {
+inline bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   return pmap_start(pmap) <= start && end <= pmap_end(pmap);
 }
 
@@ -320,11 +320,11 @@ void pmap_activate(pmap_t *pmap) {
   mips32_setentryhi(pmap ? pmap->asid : 0);
 }
 
-pmap_t *pmap_kernel(void) {
+inline pmap_t *pmap_kernel(void) {
   return &kernel_pmap;
 }
 
-pmap_t *pmap_user(void) {
+inline pmap_t *pmap_user(void) {
   return PCPU_GET(curpmap);
 }
 
