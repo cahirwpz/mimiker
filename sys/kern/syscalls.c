@@ -138,24 +138,23 @@ static int sys_umask(proc_t *p, umask_args_t *args, register_t *res) {
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html */
 static int sys_sigaction(proc_t *p, sigaction_args_t *args, register_t *res) {
   int signo = args->signum;
-  const void *p_newact = args->nsa;
-  void *p_oldact = args->osa;
+  const void *u_newact = args->nsa;
+  void *u_oldact = args->osa;
 
-  klog("sigaction(%d, %p, %p)", signo, p_newact, p_oldact);
+  klog("sigaction(%d, %p, %p)", signo, u_newact, u_oldact);
 
   sigaction_t newact;
   sigaction_t oldact;
   int error;
 
-  if ((error = copyin_s(p_newact, newact)))
+  if (u_newact && (error = copyin_s(u_newact, newact)))
     return error;
 
-  if ((error = do_sigaction(signo, &newact, &oldact)))
+  if ((error = do_sigaction(signo, u_newact ? &newact : NULL, &oldact)))
     return error;
 
-  if (p_oldact != NULL)
-    if ((error = copyout_s(oldact, p_oldact)))
-      return error;
+  if (u_oldact != NULL)
+    error = copyout_s(oldact, u_oldact);
 
   return error;
 }
@@ -565,27 +564,27 @@ static int sys_sigaltstack(proc_t *p, sigaltstack_args_t *args,
 static int sys_sigprocmask(proc_t *p, sigprocmask_args_t *args,
                            register_t *res) {
   int how = args->how;
-  const sigset_t *set = args->set;
-  sigset_t *oset = args->oset;
+  const sigset_t *u_set = args->set;
+  sigset_t *u_oset = args->oset;
+  sigset_t set, oset;
   int error;
 
-  klog("sigprocmask(%d, %p, %p)", how, set, oset);
+  klog("sigprocmask(%d, %p, %p)", how, u_set, u_oset);
 
-  if (set != NULL) {
-    /* TODO: Modifying signal mask is not implemented yet. */
-    klog("sigprocmask() had no effect");
-  }
+  if (u_set && (error = copyin_s(u_set, set)))
+    return error;
 
-  if (oset != NULL) {
-    /* TODO: Currently we don't support signal masks in the kernel, so this
-       syscall always returns empty signal mask. */
-    sigset_t result = {.__bits = 0};
-    error = copyout_s(result, oset);
-    if (error)
-      return error;
-  }
+  proc_lock(p);
+  error = do_sigprocmask(how, u_set ? &set : NULL, &oset);
+  proc_unlock(p);
 
-  return 0;
+  if (error)
+    return error;
+
+  if (u_oset)
+    error = copyout_s(oset, u_oset);
+
+  return error;
 }
 
 static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {

@@ -76,11 +76,15 @@ typedef struct bt {
 static POOL_DEFINE(P_VMEM, "vmem", sizeof(vmem_t));
 static POOL_DEFINE(P_BT, "vmem boundary tag", sizeof(bt_t));
 static alignas(PAGESIZE) uint8_t P_VMEM_BOOTPAGE[PAGESIZE];
-static alignas(PAGESIZE) uint8_t P_BT_BOOTPAGE[PAGESIZE];
+/* Note: in the future, the amount of static memory for boundary tags should
+ * be reduced by more clever tag allocation technique that always keeps some
+ * number of free tags. For more information, please see bt_alloc and bt_refill
+ * methods in NetBSD's vmem and M_NOGROW flag in Mimiker. */
+static alignas(PAGESIZE) uint8_t P_BT_BOOTPAGE[PAGESIZE * 2];
 
 void vmem_bootstrap(void) {
-  pool_add_page(P_VMEM, P_VMEM_BOOTPAGE);
-  pool_add_page(P_BT, P_BT_BOOTPAGE);
+  pool_add_page(P_VMEM, P_VMEM_BOOTPAGE, sizeof(P_VMEM_BOOTPAGE));
+  pool_add_page(P_BT, P_BT_BOOTPAGE, sizeof(P_BT_BOOTPAGE));
 }
 
 static vmem_freelist_t *bt_freehead(vmem_t *vm, vmem_size_t size) {

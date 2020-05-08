@@ -289,7 +289,8 @@ static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va) {
   if (va->va_size != (size_t)VNOVAL)
     tmpfs_reg_resize(tfm, node, va->va_size);
   if (va->va_mode != (mode_t)VNOVAL)
-    node->tfn_mode = va->va_mode;
+    node->tfn_mode = (node->tfn_mode & ~ALLPERMS) | (va->va_mode & ALLPERMS);
+
   return 0;
 }
 
@@ -731,7 +732,7 @@ static int tmpfs_mount(mount_t *mp) {
   /* Allocate the tmpfs mount structure and fill it. */
   tmpfs_mount_t *tfm = &tmpfs;
 
-  tfm->tfm_lock = MTX_INITIALIZER(LK_RECURSE);
+  tfm->tfm_lock = MTX_INITIALIZER(LK_RECURSIVE);
   tfm->tfm_next_ino = 2;
   mp->mnt_data = tfm;
 
