@@ -5,4 +5,3 @@ gid_t getgid() {
   getresgid(&gid, NULL, NULL);
   return gid;
 }
-

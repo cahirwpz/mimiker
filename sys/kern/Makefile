@@ -9,6 +9,7 @@ SOURCES = \
 	clock.c \
 	condvar.c \
 	console.c \
+	cred_syscalls.c \
 	devclass.c \
 	device.c \
 	dev_cons.c \
