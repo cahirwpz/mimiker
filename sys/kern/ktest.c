@@ -84,7 +84,7 @@ typedef int (*test_func_t)(unsigned);
 
 /* If the test fails, run_test will not return. */
 static int run_test(test_entry_t *t) {
-  timeval_t start = get_uptime();
+  timeval_t start = microuptime();
 
   /* These are messages to the user, so I intentionally use kprintf instead of
    * log. */
@@ -120,7 +120,7 @@ static int run_test(test_entry_t *t) {
   if (result == KTEST_FAILURE)
     ktest_failure();
 
-  timeval_t end = get_uptime();
+  timeval_t end = microuptime();
   tv2st(timeval_sub(&end, &start));
 
   return result;

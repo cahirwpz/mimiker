@@ -9,6 +9,7 @@
 static mtx_t timers_mtx = MTX_INITIALIZER(0);
 static timer_list_t timers = TAILQ_HEAD_INITIALIZER(timers);
 static timer_t *time_source = NULL;
+static bintime_t timebasebin = (bintime_t){.sec = 0, .frac = 0};
 
 /* These flags are used internally to encode timer state.
  * Following state transitions are possible:
@@ -158,7 +159,7 @@ void tm_select(timer_t *tm) {
   time_source = tm;
 }
 
-bintime_t getbintime(void) {
+bintime_t binuptime(void) {
   /* XXX: probably a race condition here */
   timer_t *tm = time_source;
   if (tm == NULL)
@@ -166,6 +167,26 @@ bintime_t getbintime(void) {
   return tm->tm_gettime(tm);
 }
 
-timeval_t get_uptime(void) {
-  return bt2tv(getbintime());
+bintime_t bintime(void)  {
+  /* TODO: need to add timebase which will be set during boot */
+  bintime_t retval = binuptime();
+  bintime_add(&retval, &timebasebin);
+  return retval;
 }
+
+timeval_t microuptime(void) {
+  return bt2tv(binuptime());
+}
+
+timeval_t microtime(void) {
+  return bt2tv(bintime());
+}
+
+timespec_t nanouptime(void) {
+  return bt2ts(binuptime());
+}
+
+timespec_t nanotime(void) {
+  return bt2ts(bintime());
+}
+

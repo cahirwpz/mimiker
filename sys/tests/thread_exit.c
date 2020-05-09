@@ -12,7 +12,7 @@ static timeval_t start;
 static void test_thread(void *p) {
   timeval_t *e = (timeval_t *)p;
   while (1) {
-    timeval_t now = get_uptime();
+    timeval_t now = microuptime();
     timeval_t diff = timeval_sub(&now, &start);
     if (timeval_cmp(&diff, e, >))
       thread_exit();
@@ -34,7 +34,7 @@ static int test_thread_join(void) {
   tid_t t2_id = t2->td_tid;
   tid_t t3_id = t3->td_tid;
 
-  start = get_uptime();
+  start = microuptime();
   sched_add(t1);
   sched_add(t2);
   sched_add(t3);

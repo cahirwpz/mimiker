@@ -68,6 +68,11 @@ static inline timeval_t bt2tv(bintime_t bt) {
   return (timeval_t){.tv_sec = bt.sec, .tv_usec = usec};
 }
 
+static inline timespec_t bt2ts(bintime_t bt) {
+  uint32_t nsec = ((uint64_t)1000000000 * (uint32_t)(bt.frac >> 32)) >> 32;
+  return (timespec_t){.tv_sec = bt.sec, .tv_nsec = nsec};
+}
+
 /* Operations on timevals. */
 #define timerclear(tvp) (tvp)->tv_sec = (tvp)->tv_usec = 0L
 #define timerisset(tvp) ((tvp)->tv_sec || (tvp)->tv_usec)
@@ -129,6 +134,14 @@ static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
 #define bintime_cmp(a, b, cmp)                                                 \
   (((a).sec == (b).sec) ? (((a).frac)cmp((b).frac)) : (((a).sec)cmp((b).sec)))
 
+static inline void bintime_add(bintime_t *bt, bintime_t *bt2) {
+  uint64_t old_frac = bt->frac;
+  bt->frac += bt2->frac;
+  if (old_frac > bt->frac)
+    bt->sec++;
+  bt->sec += bt2->sec;
+}
+
 static inline void bintime_add_frac(bintime_t *bt, uint64_t x) {
   uint64_t old_frac = bt->frac;
   bt->frac += x;
@@ -186,11 +199,15 @@ struct itimerval {
 
 #ifdef _KERNEL
 
-/* XXX: Do not use this function, it'll get removed. */
-timeval_t get_uptime(void);
+/* Time measured from the start of system. */
+bintime_t binuptime(void);
+timeval_t microuptime(void);
+timespec_t nanouptime(void);
 
-/* Get high-fidelity time measured from the start of system. */
-bintime_t getbintime(void);
+/* TODO: UTC/POSIX time */
+bintime_t bintime(void);
+timeval_t getmicrotime(void);
+timespec_t nanotime(void);
 
 /* System time is measured in ticks (1[ms] by default),
  * and is maintained by system clock. */

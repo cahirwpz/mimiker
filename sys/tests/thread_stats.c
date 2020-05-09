@@ -11,14 +11,14 @@ static timeval_t test_time = TIMEVAL(0.2);
 
 static void thread_nop_function(void *arg) {
   timeval_t end = timeval_add(arg, &test_time);
-  timeval_t now = get_uptime();
+  timeval_t now = microuptime();
   while (timeval_cmp(&now, &end, <))
-    now = get_uptime();
+    now = microuptime();
 }
 
 static int test_thread_stats_nop(void) {
   thread_t *threads[THREADS_NUMBER];
-  timeval_t start = get_uptime();
+  timeval_t start = microuptime();
   for (int i = 0; i < THREADS_NUMBER; i++) {
     threads[i] = thread_create("test-thread-stats-nop", thread_nop_function,
                                &start, prio_kthread(0));
@@ -42,26 +42,26 @@ static int test_thread_stats_nop(void) {
 static void thread_wake_function(void *arg) {
   timeval_t end = timeval_add(arg, &test_time);
   end = timeval_add(&end, &TIMEVAL(0.1));
-  timeval_t now = get_uptime();
+  timeval_t now = microuptime();
   while (timeval_cmp(&now, &end, <)) {
     sleepq_broadcast(arg);
-    now = get_uptime();
+    now = microuptime();
   }
 }
 
 static void thread_sleep_function(void *arg) {
   sleepq_wait(arg, "Thread stats test sleepq");
   timeval_t end = timeval_add(arg, &test_time);
-  timeval_t now = get_uptime();
+  timeval_t now = microuptime();
   while (timeval_cmp(&now, &end, <)) {
     sleepq_wait(arg, "Thread stats test sleepq");
-    now = get_uptime();
+    now = microuptime();
   }
 }
 
 static int test_thread_stats_slp(void) {
   thread_t *threads[THREADS_NUMBER];
-  timeval_t start = get_uptime();
+  timeval_t start = microuptime();
   for (int i = 0; i < THREADS_NUMBER; i++) {
     threads[i] = thread_create("test-thread-stats-sleeper",
                                thread_sleep_function, &start, prio_kthread(0));
