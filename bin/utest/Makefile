@@ -2,6 +2,7 @@ TOPDIR = $(realpath ../..)
 
 SOURCES = \
 	access.c \
+	cred.c \
 	exceptions.c \
 	fd.c \
 	fork.c \

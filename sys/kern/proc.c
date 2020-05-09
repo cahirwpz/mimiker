@@ -14,6 +14,7 @@
 #include <sys/sched.h>
 #include <sys/malloc.h>
 #include <sys/vfs.h>
+#include <sys/cred.h>
 #include <bitstring.h>
 
 #define NPROC 64 /* maximum number of processes */
@@ -136,6 +137,10 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
   p->p_state = PS_NORMAL;
   p->p_thread = td;
   p->p_parent = parent;
+  if (parent != NULL)
+    p->p_cred = parent->p_cred;
+  else
+    p->p_cred = cred_init_root();
 
   if (parent && parent->p_elfpath)
     p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, PATH_MAX);
