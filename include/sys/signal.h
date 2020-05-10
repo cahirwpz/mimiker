@@ -79,7 +79,7 @@ typedef struct exc_frame exc_frame_t;
  * usually performed in the context of target process.
  *
  * \sa sig_post
- * \note must be called with p::p_lock held
+ * \note Must be called with p::p_lock held. Returns with p::p_lock held.
  */
 void sig_kill(proc_t *p, signo_t sig);
 
@@ -124,6 +124,7 @@ int sig_return(void);
 
 /* System calls implementation. */
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
+int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset);
 int do_sigreturn(void);
 
 #endif /* !_KERNEL */

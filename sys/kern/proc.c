@@ -167,7 +167,7 @@ proc_t *proc_find(pid_t pid) {
     proc_lock(p);
     if (p->p_pid == pid) {
       /* Skip process if it is not alive. */
-      if (p->p_state != PS_NORMAL) {
+      if (!proc_is_alive(p)) {
         proc_unlock(p);
         return NULL;
       }
@@ -266,9 +266,14 @@ __noreturn void proc_exit(int exitstatus) {
 
     klog("Wakeup PID(%d) because child PID(%d) died", parent->p_pid, p->p_pid);
 
-    cv_broadcast(&parent->p_waitcv);
-    proc_lock(parent);
-    sig_kill(parent, SIGCHLD);
+    bool auto_reap;
+    WITH_MTX_LOCK (&parent->p_lock) {
+      auto_reap = parent->p_sigactions[SIGCHLD].sa_handler == SIG_IGN;
+      if (!auto_reap) {
+        cv_broadcast(&parent->p_waitcv);
+        sig_kill(parent, SIGCHLD);
+      }
+    }
 
     klog("Turning PID(%d) into zombie!", p->p_pid);
 
@@ -278,6 +283,11 @@ __noreturn void proc_exit(int exitstatus) {
     }
 
     klog("Process PID(%d) {%p} is dead!", p->p_pid, p);
+
+    if (auto_reap) {
+      klog("Auto-reaping process PID(%d)!", p->p_pid);
+      proc_reap(p);
+    }
   }
 
   /* Can't call [noreturn] thread_exit() from within a WITH scope. */
@@ -295,6 +305,7 @@ int proc_sendsig(pid_t pid, signo_t sig) {
     if (target == NULL)
       return EINVAL;
     sig_kill(target, sig);
+    proc_unlock(target);
     return 0;
   }
 
@@ -316,8 +327,8 @@ int proc_sendsig(pid_t pid, signo_t sig) {
 
   WITH_MTX_LOCK (&pgrp->pg_lock) {
     TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist) {
-      proc_lock(target);
-      sig_kill(target, sig);
+      WITH_MTX_LOCK (&target->p_lock)
+        sig_kill(target, sig);
     }
   }
 

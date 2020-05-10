@@ -1,5 +1,6 @@
 #define KL_LOG KL_THREAD
 #include <sys/klog.h>
+#include <sys/libkern.h>
 #include <sys/mimiker.h>
 #include <sys/pool.h>
 #include <sys/malloc.h>
@@ -50,6 +51,7 @@ static void thread_init(thread_t *td, prio_t prio) {
   td->td_lock = MTX_INITIALIZER(0);
   cv_init(&td->td_waitcv, "thread waiters");
   LIST_INIT(&td->td_contested);
+  bzero(&td->td_slpcallout, sizeof(callout_t));
 
   /* From now on, you must use locks on new thread structure. */
   WITH_MTX_LOCK (threads_lock)
@@ -109,6 +111,7 @@ void thread_delete(thread_t *td) {
 
   kmem_free(td->td_kstack.stk_base, PAGESIZE);
 
+  callout_drain(&td->td_slpcallout);
   sleepq_destroy(td->td_sleepqueue);
   turnstile_destroy(td->td_turnstile);
   kfree(M_STR, td->td_name);
@@ -119,7 +122,9 @@ thread_t *thread_self(void) {
   return PCPU_GET(curthread);
 }
 
-/* For now this is only a stub */
+/* For now this is only a stub
+ * NOTE: this procedure must NOT access the thread's process state
+ * in ANY way, as the process might have already been reaped. */
 __noreturn void thread_exit(void) {
   thread_t *td = thread_self();
 

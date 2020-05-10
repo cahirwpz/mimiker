@@ -36,6 +36,10 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(signal_send);
   CHECKRUN_TEST(signal_abort);
   CHECKRUN_TEST(signal_segfault);
+  CHECKRUN_TEST(signal_stop);
+  CHECKRUN_TEST(signal_cont_masked);
+  CHECKRUN_TEST(signal_mask);
+  CHECKRUN_TEST(signal_mask_nonmaskable);
   CHECKRUN_TEST(fork_wait);
   CHECKRUN_TEST(fork_signal);
   CHECKRUN_TEST(fork_sigchld_ignored);
@@ -61,6 +65,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(vfs_dot_dot_across_fs);
   CHECKRUN_TEST(vfs_trunc);
   CHECKRUN_TEST(vfs_symlink);
+  CHECKRUN_TEST(vfs_link);
+  CHECKRUN_TEST(vfs_chmod);
 
   CHECKRUN_TEST(setpgid);
   CHECKRUN_TEST(kill);

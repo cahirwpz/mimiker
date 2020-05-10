@@ -8,8 +8,7 @@
 #include <machine/pmap.h>
 
 typedef struct pmap {
-  pte_t *pde;              /* directory page table */
-  vm_page_t *pde_page;     /* pointer to a page with directory page table */
+  pde_t *pde;              /* directory page table */
   vm_pagelist_t pte_pages; /* pages we allocate in page table */
   asid_t asid;
   mtx_t mtx;
@@ -31,7 +30,7 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot);
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end);
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap);
 
-void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot);
+void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot);
 void pmap_kremove(vaddr_t start, vaddr_t end);
 
 void pmap_zero_page(vm_page_t *pg);

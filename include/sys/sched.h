@@ -1,6 +1,8 @@
 #ifndef _SYS_SCHED_H_
 #define _SYS_SCHED_H_
 
+#ifdef _KERNEL
+
 #include <sys/cdefs.h>
 #include <sys/thread.h>
 
@@ -107,5 +109,7 @@ void sched_maybe_preempt(void);
 
 /*! \brief Turns calling thread into idle thread. */
 __noreturn void sched_run(void);
+
+#endif /* _KERNEL */
 
 #endif /* !_SYS_SCHED_H_ */

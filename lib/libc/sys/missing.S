@@ -1,8 +1,5 @@
 #include <machine/syscall.h>
 
-SYSCALL_MISSING(link)
-SYSCALL_MISSING(linkat)
-SYSCALL_MISSING(lchmod)
 SYSCALL_MISSING(getrusage)
 SYSCALL_MISSING(rename)
 SYSCALL_MISSING(getrlimit)
@@ -11,8 +8,6 @@ SYSCALL_MISSING(seteuid)
 SYSCALL_MISSING(setgid)
 SYSCALL_MISSING(setuid)
 SYSCALL_MISSING(sigsuspend)
-SYSCALL_MISSING(chmod)
-SYSCALL_MISSING(fchmod)
 SYSCALL_MISSING(fchown)
 SYSCALL_MISSING(fstatvfs)
 SYSCALL_MISSING(statvfs)
