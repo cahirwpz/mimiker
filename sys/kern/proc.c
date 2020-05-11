@@ -30,7 +30,12 @@ static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
 static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
-typedef enum id_kind { ID_PID = 0, ID_PGID = 1, ID_NUM_KINDS = 2 } id_kind_t;
+typedef enum id_kind {
+  ID_PID = 0,
+  ID_PGID = 1,
+  ID_SID = 2,
+  ID_NUM_KINDS = 3
+} id_kind_t;
 
 /* A PID is taken as long as there's a process with that PID
  * or a pgroup with a PGID equal to that PID.
@@ -51,7 +56,7 @@ static bool pid_valid(pid_t pid) {
 }
 
 static bool pid_slot_is_free(pid_slot_t ps) {
-  return (ps[ID_PID] == NULL && ps[ID_PGID] == NULL);
+  return (ps[ID_PID] == NULL && ps[ID_PGID] == NULL && ps[ID_SID] == NULL);
 }
 
 /* Add a new user to a PID that already has a user of a different type. */
@@ -93,14 +98,16 @@ static void pid_free(pid_t pid, id_kind_t kind) {
   }
 }
 
-/* Helper session management functions */
+/* Session management helper functions */
 static void sess_hold(session_t *s) {
   s->s_count++;
 }
 
 static void sess_drop(session_t *s) {
-  if (--s->s_count == 0)
+  if (--s->s_count == 0) {
+    pid_free(s->s_sid, ID_SID);
     pool_free(P_SESS, s);
+  }
 }
 
 /* Session functions */
@@ -237,6 +244,7 @@ int pgrp_enter(proc_t *p, pgid_t pgid, bool mksess) {
       s->s_sid = pgid;
       s->s_leader = p;
       s->s_count = 1;
+      pid_add_user(pgid, ID_SID, s);
       target->pg_session = s;
     } else {
       /* Safe to access p->p_pgrp due to an earlier assertion. */
