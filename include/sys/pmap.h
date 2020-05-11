@@ -9,7 +9,6 @@
 
 typedef struct pmap {
   pde_t *pde;              /* directory page table */
-  vm_page_t *pde_page;     /* pointer to a page with directory page table */
   vm_pagelist_t pte_pages; /* pages we allocate in page table */
   asid_t asid;
   mtx_t mtx;

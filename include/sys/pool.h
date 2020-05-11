@@ -23,9 +23,12 @@ pool_t *pool_create(const char *desc, size_t size);
 
 /*! \brief Adds a slab of one page to the pool.
  *
+ * The page may be bigger than the standard page. Argument @size has to be a
+ * multiple of PAGESIZE.
+ *
  * \note Use only during memory system bootstrap!
  */
-void pool_add_page(pool_t *pool, void *page);
+void pool_add_page(pool_t *pool, void *page, size_t size);
 
 /*! \brief Frees all memory associated with the pool
  *

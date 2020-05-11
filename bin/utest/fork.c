@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <sched.h>
 
 int test_fork_wait(void) {
   int n = fork();
@@ -43,7 +44,7 @@ int test_fork_signal(void) {
 
   /* Wait for the child to get reaped by signal handler. */
   while (!done)
-    ;
+    sched_yield();
   signal(SIGCHLD, SIG_DFL);
   return 0;
 }

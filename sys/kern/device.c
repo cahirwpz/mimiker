@@ -8,6 +8,7 @@ KMALLOC_DEFINE(M_DEV, "devices & drivers", PAGESIZE * 1024);
 
 static device_t *device_alloc(void) {
   device_t *dev = kmalloc(M_DEV, sizeof(device_t), M_ZERO);
+  TAILQ_INIT(&dev->resources);
   TAILQ_INIT(&dev->children);
   return dev;
 }
@@ -58,4 +59,8 @@ void device_add_resource(device_t *dev, resource_t *r, int rid) {
   r->r_owner = dev;
   r->r_id = rid;
   TAILQ_INSERT_HEAD(&dev->resources, r, r_device);
+}
+
+void device_remove_resource(device_t *dev, resource_t *r) {
+  TAILQ_REMOVE(&dev->resources, r, r_device);
 }
