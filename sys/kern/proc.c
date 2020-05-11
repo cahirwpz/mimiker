@@ -30,14 +30,13 @@ static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
 static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
-typedef enum id_kind { ID_PID = 0, ID_PGID = 1 } id_kind_t;
+typedef enum id_kind { ID_PID = 0, ID_PGID = 1, ID_NUM_KINDS = 2 } id_kind_t;
 
 /* A PID is taken as long as there's a process with that PID
- * or a pgroup with a PGID equal to that PID. */
-typedef struct pid_slot {
-  proc_t *ps_proc; /* Process with the PID */
-  pgrp_t *ps_pgrp; /* Process group with PGID equal to given PID */
-} pid_slot_t;
+ * or a pgroup with a PGID equal to that PID.
+ * A PID slot contains pointers to structs that use that PID:
+ * A pointer to a `struct proc` and a pointer to a `struct pgrp`. */
+typedef void *pid_slot_t[ID_NUM_KINDS];
 
 static pid_slot_t pid_table[NPROC];
 
@@ -51,33 +50,32 @@ static bool pid_valid(pid_t pid) {
   return (pid > 0 && pid < NPROC);
 }
 
-static pid_slot_t *pid_slot_find(pid_t pid) {
-  if (pid_valid(pid)) {
-    return &pid_table[pid];
-  } else {
-    return NULL;
-  }
+static bool pid_slot_is_free(pid_slot_t ps) {
+  return (ps[ID_PID] == NULL && ps[ID_PGID] == NULL);
 }
 
-static bool pid_slot_is_free(pid_slot_t *ps) {
-  return (ps->ps_proc == NULL && ps->ps_pgrp == NULL);
-}
-
-static bool pid_is_free(pid_t pid) {
+/* Add a new user to a PID that already has a user of a different type. */
+static void pid_add_user(pid_t pid, id_kind_t kind, void *user) {
+  assert(mtx_owned(all_proc_mtx));
   assert(pid_valid(pid));
-  return pid_slot_is_free(&pid_table[pid]);
+
+  void **slot = pid_table[pid];
+  assert(!pid_slot_is_free(slot));
+  assert(slot[kind] == NULL); /* A PID can have at most 1 user of each kind. */
+  slot[kind] = user;
 }
 
-/* NOTE: The caller is responsible for setting ps_proc/ps_pgrp
- * in the corresponding slot in pid_table. */
-static pid_t pid_alloc(void) {
+/* `user` is the struct for which the caller is trying to allocate a PID. */
+static pid_t pid_alloc(id_kind_t kind, void *user) {
   assert(mtx_owned(all_proc_mtx));
 
   pid_t pid;
   bit_ffc(pid_used, NPROC, &pid);
   if (pid < 0)
     panic("Out of PIDs!");
-  assert(pid_is_free(pid));
+  void **slot = pid_table[pid];
+  assert(pid_slot_is_free(slot));
+  slot[kind] = user;
   bit_set(pid_used, pid);
   return pid;
 }
@@ -86,17 +84,11 @@ static void pid_free(pid_t pid, id_kind_t kind) {
   assert(mtx_owned(all_proc_mtx));
   assert(pid_valid(pid));
 
-  pid_slot_t *ps = pid_slot_find(pid);
+  void **slot = pid_table[pid];
+  assert(slot[kind] != NULL); /* Can't free a PID that's not in use. */
+  slot[kind] = NULL;
 
-  if (kind == ID_PID) {
-    ps->ps_proc = NULL;
-  } else if (kind == ID_PGID) {
-    ps->ps_pgrp = NULL;
-  } else {
-    panic("unknown id kind: %d", kind);
-  }
-
-  if (pid_slot_is_free(ps)) {
+  if (pid_slot_is_free(slot)) {
     bit_clear(pid_used, (unsigned)pid);
   }
 }
@@ -182,9 +174,7 @@ static void pgrp_adjust_jobc(proc_t *p, pgrp_t *pg, bool entering) {
 /* Finds process group with the ID specified by pgid or returns NULL. */
 static pgrp_t *pgrp_lookup(pgid_t pgid) {
   assert(mtx_owned(all_proc_mtx));
-
-  pid_slot_t *ps = pid_slot_find(pgid);
-  return (ps ? ps->ps_pgrp : NULL);
+  return (pid_valid(pgid) ? pid_table[pgid][ID_PGID] : NULL);
 }
 
 /* Make process leaves its process group. */
@@ -238,7 +228,7 @@ int pgrp_enter(proc_t *p, pgid_t pgid, bool mksess) {
 
     TAILQ_INIT(&target->pg_members);
     target->pg_id = pgid;
-    pid_table[pgid].ps_pgrp = target;
+    pid_add_user(pgid, ID_PGID, target);
 
     TAILQ_INSERT_HEAD(&pgrp_list, target, pg_link);
 
@@ -308,8 +298,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
 
 void proc_add(proc_t *p) {
   WITH_MTX_LOCK (all_proc_mtx) {
-    p->p_pid = pid_alloc();
-    pid_table[p->p_pid].ps_proc = p;
+    p->p_pid = pid_alloc(ID_PID, p);
     TAILQ_INSERT_TAIL(&proc_list, p, p_all);
     if (p->p_parent)
       TAILQ_INSERT_TAIL(CHILDREN(p->p_parent), p, p_child);
@@ -321,17 +310,15 @@ void proc_add(proc_t *p) {
 proc_t *proc_find(pid_t pid) {
   assert(mtx_owned(all_proc_mtx));
 
-  pid_slot_t *ps = pid_slot_find(pid);
-  if (ps) {
-    proc_t *p = ps->ps_proc;
-    if (p) {
-      proc_lock(p);
-      if (proc_is_alive(p)) {
-        return p;
-      } else {
-        proc_unlock(p);
-      }
-    }
+  if (!pid_valid(pid))
+    return NULL;
+
+  proc_t *p = pid_table[pid][ID_PID];
+  if (p) {
+    proc_lock(p);
+    if (proc_is_alive(p))
+      return p;
+    proc_unlock(p);
   }
 
   return NULL;
