@@ -189,7 +189,7 @@ int test_pgrp_orphan() {
     assert(WIFSTOPPED(status));
     /* When we exit, init will become the grandchild's parent.
      * Since init is in a different session, and the grandchild will
-     * be the only process in its process group, the grandchild's
+     * be the only member of its own process group, the grandchild's
      * process group will be orphaned, which should result in the
      * grandchild receiving SIGHUP and SIGCONT. */
     return 0;
