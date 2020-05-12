@@ -10,7 +10,7 @@
 /* Last address in kseg0 used by kernel for boot allocation. */
 __boot_data void *_kernel_end_kseg0;
 /* Kernel page directory entries allocated in kseg0. */
-__boot_data pde_t *_kernel_pmap_pde;
+extern pte_t _kernel_pmap_pde[PT_ENTRIES];
 /* The boot stack is used before we switch out to thread0. */
 static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
@@ -75,10 +75,9 @@ __boot_text void *mips_init(void) {
   }
 
   /* Prepare 1:1 mapping between kseg2 and physical memory for kernel image. */
-  pde_t *pde = (pde_t *)bootmem_alloc(PAGESIZE);
-  for (int i = 0; i < PD_ENTRIES; i++)
-    pde[i] = PDE_GLOBAL;
-  _kernel_pmap_pde = pde;
+  pde_t *pde = (pde_t *)MIPS_KSEG2_TO_KSEG0(_kernel_pmap_pde);
+  for (int i = 0; i < PT_ENTRIES; i++)
+    pde[i] = PTE_GLOBAL;
 
   pte_t *pte = (pte_t *)bootmem_alloc(PAGESIZE);
   for (int i = 0; i < PT_ENTRIES; i++)
@@ -90,7 +89,10 @@ __boot_text void *mips_init(void) {
   vaddr_t va = MIPS_PHYS_TO_KSEG2(text);
 
   /* assume that kernel image will be covered by single PDE (4MiB) */
-  pde[PDE_INDEX(va)] = PTE_PFN((intptr_t)pte) | PTE_KERNEL;
+  pde[PDE_INDEX(va)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pte)) | PTE_KERNEL;
+
+  /* auto-mapping? */
+  pde[PDE_INDEX(PT_BASE)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pde)) | PTE_KERNEL;
 
   /* read-only segment - sections: .text, .rodata, etc. */
   for (paddr_t pa = text; pa < data; va += PAGESIZE, pa += PAGESIZE)
@@ -104,10 +106,10 @@ __boot_text void *mips_init(void) {
   va = KASAN_MD_SHADOW_START;
   /* Allocate physical memory for shadow area */
   paddr_t pa = (paddr_t)bootmem_alloc(KASAN_MD_SHADOW_SIZE);
-  /* How many PTEs should we use? */
-  int num_pte = KASAN_MD_SHADOW_SIZE / SUPERPAGESIZE;
-  for (int i = 0; i < num_pte; i++) {
-    /* Allocate a new PTE */
+  /* How many PDEs should we use? */
+  int num_pde = KASAN_MD_SHADOW_SIZE / SUPERPAGESIZE;
+  for (int i = 0; i < num_pde; i++) {
+    /* Allocate a new PT */
     pte = bootmem_alloc(PAGESIZE);
     pde[PDE_INDEX(va)] = PTE_PFN((intptr_t)pte) | PTE_KERNEL;
     for (int j = 0; j < PT_ENTRIES; j++) {
@@ -142,6 +144,7 @@ __boot_text void *mips_init(void) {
  * the structure and will remove it and optimize out all references to it.
  * Hence it has to be marked with `volatile`. */
 static __boot_data volatile tlbentry_t _gdb_tlb_entry;
+static __boot_data volatile asid_t _gdb_asid;
 
 __boot_text unsigned _gdb_tlb_size(void) {
   return ((mips32_getconfig1() & CFG1_MMUS_MASK) >> CFG1_MMUS_SHIFT) + 1;
@@ -150,6 +153,7 @@ __boot_text unsigned _gdb_tlb_size(void) {
 /* Fills _gdb_tlb_entry structure with TLB entry. */
 __boot_text void _gdb_tlb_read_index(unsigned i) {
   tlbhi_t saved = mips32_getentryhi();
+  _gdb_asid = saved & PTE_ASID_MASK;
   mips32_setindex(i);
   mips32_tlbr();
   _gdb_tlb_entry.hi = mips32_getentryhi();

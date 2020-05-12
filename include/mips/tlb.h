@@ -53,7 +53,7 @@ typedef struct {
 #define PTE_VPN2_MASK 0xffffe000
 #define PTE_ASID_MASK 0x000000ff
 
-#define PTE_VPN2(addr) ((addr)&PTE_VPN2_MASK)
+#define PTE_VPN2(addr) (((vaddr_t)(addr)) & PTE_VPN2_MASK)
 #define PTE_ASID(asid) ((asid)&PTE_ASID_MASK)
 
 #define PDE_VALID PTE_VALID
