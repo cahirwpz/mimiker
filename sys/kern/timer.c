@@ -103,11 +103,12 @@ int tm_release(timer_t *tm) {
 }
 
 void tm_setclock(const timespec_t *ts) {
-  /* TODO: Add (spin) lock for settime */ 
+  /* TODO: Add (spin) lock for settime */
   bintime_t bt, bt2;
   bt = ts2bt(*ts);
   bt2 = binuptime();
-  /* We want to set bootime - this is why we subtract time elapsed since bootime */
+  /* We want to set bootime - this is why we subtract time elapsed since bootime
+   */
   bintime_sub(&bt, &bt2);
   timebasebin = bt;
 }
@@ -203,4 +204,3 @@ timespec_t nanouptime(void) {
 timespec_t nanotime(void) {
   return bt2ts(bintime());
 }
-

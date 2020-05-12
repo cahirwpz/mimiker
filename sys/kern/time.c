@@ -3,7 +3,7 @@
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp) {
 
-  switch(clk) {
+  switch (clk) {
     case CLOCK_REALTIME:
       *tp = nanotime();
       break;

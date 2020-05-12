@@ -114,7 +114,7 @@ static int rtc_attach(device_t *dev) {
   tm_t t;
   rtc_gettime(rtc->regs, &t);
   boottime_init(&t);
-  
+
   return 0;
 }
 

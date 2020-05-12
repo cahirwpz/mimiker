@@ -6,7 +6,7 @@
 #define CLK_TCK 100 /* system clock ticks per second */
 
 /* 1ns = (2^64) / 1000000000 */
-#define BINTIME_SCALE_NS  ((uint64_t)18446744073ULL)
+#define BINTIME_SCALE_NS ((uint64_t)18446744073ULL)
 #define YEAR_SCALE_S 31536000
 #define AV_MONTH_SCALE_S 2592000
 #define DAY_SCALE_S 86400
@@ -61,9 +61,9 @@ typedef struct bintime {
 
 /* TODO: Add leap years and 31 day months */
 static inline time_t tm2sec(tm_t t) {
-  return (time_t) t.tm_year * YEAR_SCALE_S + t.tm_mon * AV_MONTH_SCALE_S
-                  + t.tm_mday * DAY_SCALE_S + t.tm_hour * HOUR_SCALE_S
-                  + t.tm_min * MIN_SCALE_S + t.tm_sec;
+  return (time_t)t.tm_year * YEAR_SCALE_S + t.tm_mon * AV_MONTH_SCALE_S +
+         t.tm_mday * DAY_SCALE_S + t.tm_hour * HOUR_SCALE_S +
+         t.tm_min * MIN_SCALE_S + t.tm_sec;
 }
 
 static inline timeval_t st2tv(systime_t st) {
@@ -89,7 +89,7 @@ static inline timespec_t bt2ts(bintime_t bt) {
 }
 
 static inline bintime_t ts2bt(timespec_t ts) {
-  uint64_t frac = (uint64_t) ts.tv_nsec * BINTIME_SCALE_NS;
+  uint64_t frac = (uint64_t)ts.tv_nsec * BINTIME_SCALE_NS;
   return (bintime_t){.sec = ts.tv_sec, .frac = frac};
 }
 
@@ -227,7 +227,7 @@ struct itimerval {
 
 #ifdef _KERNEL
 
-/* Time measured from the start of system. */
+/* Time measured from the  start of system. */
 bintime_t binuptime(void);
 timeval_t microuptime(void);
 timespec_t nanouptime(void);
