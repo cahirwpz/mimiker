@@ -5,6 +5,14 @@
 
 #define CLK_TCK 100 /* system clock ticks per second */
 
+/* 1ns = (2^64) / 1000000000 */
+#define BINTIME_SCALE_NS  ((uint64_t)18446744073ULL)
+#define YEAR_SCALE_S 31536000
+#define AV_MONTH_SCALE_S 2592000
+#define DAY_SCALE_S 86400
+#define HOUR_SCALE_S 3600
+#define MIN_SCALE_S 60
+
 typedef struct tm {
   int tm_sec;          /* seconds after the minute [0-61] */
   int tm_min;          /* minutes after the hour [0-59] */
@@ -51,6 +59,13 @@ typedef struct bintime {
     .sec = 0, .frac = ((1ULL << 63) / (hz)) << 1                               \
   }
 
+/* TODO: Add leap years and 31 day months */
+static inline time_t tm2sec(tm_t t) {
+  return (time_t) t.tm_year * YEAR_SCALE_S + t.tm_mon * AV_MONTH_SCALE_S
+                  + t.tm_mday * DAY_SCALE_S + t.tm_hour * HOUR_SCALE_S
+                  + t.tm_min * MIN_SCALE_S + t.tm_sec;
+}
+
 static inline timeval_t st2tv(systime_t st) {
   return (timeval_t){.tv_sec = st / 1000, .tv_usec = st % 1000};
 }
@@ -71,6 +86,11 @@ static inline timeval_t bt2tv(bintime_t bt) {
 static inline timespec_t bt2ts(bintime_t bt) {
   uint32_t nsec = ((uint64_t)1000000000 * (uint32_t)(bt.frac >> 32)) >> 32;
   return (timespec_t){.tv_sec = bt.sec, .tv_nsec = nsec};
+}
+
+static inline bintime_t ts2bt(timespec_t ts) {
+  uint64_t frac = (uint64_t) ts.tv_nsec * BINTIME_SCALE_NS;
+  return (bintime_t){.sec = ts.tv_sec, .frac = frac};
 }
 
 /* Operations on timevals. */
@@ -142,6 +162,14 @@ static inline void bintime_add(bintime_t *bt, bintime_t *bt2) {
   bt->sec += bt2->sec;
 }
 
+static inline void bintime_sub(bintime_t *bt, bintime_t *bt2) {
+  uint64_t old_frac = bt->frac;
+  bt->frac -= bt2->frac;
+  if (old_frac < bt->frac)
+    bt->sec--;
+  bt->sec -= bt2->sec;
+}
+
 static inline void bintime_add_frac(bintime_t *bt, uint64_t x) {
   uint64_t old_frac = bt->frac;
   bt->frac += x;
@@ -204,7 +232,7 @@ bintime_t binuptime(void);
 timeval_t microuptime(void);
 timespec_t nanouptime(void);
 
-/* TODO: UTC/POSIX time */
+/* UTC/POSIX time */
 bintime_t bintime(void);
 timeval_t getmicrotime(void);
 timespec_t nanotime(void);

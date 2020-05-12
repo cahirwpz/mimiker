@@ -102,6 +102,21 @@ int tm_release(timer_t *tm) {
   return 0;
 }
 
+void tm_setclock(const timespec_t *ts) {
+  /* TODO: Add (spin) lock for settime */ 
+  bintime_t bt, bt2;
+  bt = ts2bt(*ts);
+  bt2 = binuptime();
+  /* We want to set bootime - this is why we subtract time elapsed since bootime */
+  bintime_sub(&bt, &bt2);
+  timebasebin = bt;
+}
+
+void boottime_init(tm_t *t) {
+  timespec_t ts = (timespec_t){.tv_sec = tm2sec(*t), .tv_nsec = 0};
+  tm_setclock(&ts);
+}
+
 int tm_init(timer_t *tm, tm_event_cb_t event, void *arg) {
   assert(is_reserved(tm));
 
@@ -167,8 +182,7 @@ bintime_t binuptime(void) {
   return tm->tm_gettime(tm);
 }
 
-bintime_t bintime(void)  {
-  /* TODO: need to add timebase which will be set during boot */
+bintime_t bintime(void) {
   bintime_t retval = binuptime();
   bintime_add(&retval, &timebasebin);
   return retval;

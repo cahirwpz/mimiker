@@ -42,6 +42,10 @@ typedef struct timer {
   void *tm_priv;              /*!< private data (usually device_t *) */
 } timer_t;
 
+/* Used by rtc to initalize system bootime using rtc */
+void boottime_init(tm_t *t);
+/* Used to set/change system bootime */
+void tm_setclock(const timespec_t *ts);
 /*! \brief Used by a driver to make timer device available to the system. */
 int tm_register(timer_t *tm);
 /*! \brief Called when unloading a timer driver. */

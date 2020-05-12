@@ -10,6 +10,7 @@
 #include <sys/devfs.h>
 #include <sys/sleepq.h>
 #include <sys/time.h>
+#include <sys/timer.h>
 #include <sys/vnode.h>
 #include <sys/sysinit.h>
 #include <sys/devclass.h>
@@ -110,6 +111,10 @@ static int rtc_attach(device_t *dev) {
   /* Prepare /dev/rtc interface. */
   devfs_makedev(NULL, "rtc", &rtc_time_vnodeops, rtc);
 
+  tm_t t;
+  rtc_gettime(rtc->regs, &t);
+  boottime_init(&t);
+  
   return 0;
 }
 
