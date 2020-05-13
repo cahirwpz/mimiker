@@ -19,7 +19,7 @@ typedef struct tm {
   int tm_hour;         /* hours since midnight [0-23] */
   int tm_mday;         /* day of the month [1-31] */
   int tm_mon;          /* months since January [0-11] */
-  int tm_year;         /* years since 1900 */
+  int tm_year;         /* years since 2000 */
   int tm_wday;         /* days since Sunday [0-6] */
   int tm_yday;         /* days since January 1 [0-365] */
   int tm_isdst;        /* Daylight Savings Time flag */
@@ -59,11 +59,19 @@ typedef struct bintime {
     .sec = 0, .frac = ((1ULL << 63) / (hz)) << 1                               \
   }
 
-/* TODO: Add leap years and 31 day months */
 static inline time_t tm2sec(tm_t t) {
-  return (time_t)t.tm_year * YEAR_SCALE_S + t.tm_mon * AV_MONTH_SCALE_S +
-         t.tm_mday * DAY_SCALE_S + t.tm_hour * HOUR_SCALE_S +
-         t.tm_min * MIN_SCALE_S + t.tm_sec;
+  time_t res = 0;
+  int month_int_days[13] = {0,   0,   31,  59,  90,  120, 151,
+                            181, 212, 243, 273, 304, 334};
+  res += (time_t)month_int_days[t.tm_mon] * DAY_SCALE_S;
+
+  /* Leap years for 20 century */
+  res += (time_t)((t.tm_year) / 4) * DAY_SCALE_S;
+  if (t.tm_mon > 2)
+    res += DAY_SCALE_S;
+
+  return (time_t)t.tm_year * YEAR_SCALE_S + (t.tm_mday - 1) * DAY_SCALE_S +
+         t.tm_hour * HOUR_SCALE_S + t.tm_min * MIN_SCALE_S + t.tm_sec + res;
 }
 
 static inline timeval_t st2tv(systime_t st) {

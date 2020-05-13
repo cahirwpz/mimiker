@@ -32,6 +32,7 @@ static bintime_t timebasebin = (bintime_t){.sec = 0, .frac = 0};
  * }
  * \enddot
  */
+
 #define TMF_ACTIVE 0x1000
 #define TMF_INITIALIZED 0x2000
 #define TMF_RESERVED 0x4000
@@ -41,6 +42,9 @@ static bintime_t timebasebin = (bintime_t){.sec = 0, .frac = 0};
 #define is_initialized(tm) ((tm)->tm_flags & TMF_INITIALIZED)
 #define is_reserved(tm) ((tm)->tm_flags & TMF_RESERVED)
 #define is_registered(tm) ((tm)->tm_flags & TMF_REGISTERED)
+
+/* 0:0:0 1.1.2000 in POSIX time */
+#define RTC_CORRECTION 946684800
 
 int tm_register(timer_t *tm) {
   if (is_registered(tm))
@@ -107,14 +111,15 @@ void tm_setclock(const timespec_t *ts) {
   bintime_t bt, bt2;
   bt = ts2bt(*ts);
   bt2 = binuptime();
-  /* We want to set bootime - this is why we subtract time elapsed since bootime
-   */
+  /* Setting bootime - this is why we subtract time elapsed since bootime */
   bintime_sub(&bt, &bt2);
   timebasebin = bt;
 }
 
 void boottime_init(tm_t *t) {
   timespec_t ts = (timespec_t){.tv_sec = tm2sec(*t), .tv_nsec = 0};
+  /* Rtc can hold only 100 years */
+  ts.tv_sec += RTC_CORRECTION;
   tm_setclock(&ts);
 }
 
