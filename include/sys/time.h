@@ -14,11 +14,11 @@
 #define MIN_SCALE_S 60
 
 typedef struct tm {
-  int tm_sec;          /* seconds after the minute [0-61] */
+  int tm_sec;          /* seconds after the minute [0-59] */
   int tm_min;          /* minutes after the hour [0-59] */
   int tm_hour;         /* hours since midnight [0-23] */
   int tm_mday;         /* day of the month [1-31] */
-  int tm_mon;          /* months since January [0-11] */
+  int tm_mon;          /* months since January [1-12] */
   int tm_year;         /* years since 2000 [0-100]*/
   int tm_wday;         /* days since Sunday [0-6] */
   int tm_yday;         /* days since January 1 [0-365] */
@@ -59,18 +59,20 @@ typedef struct bintime {
     .sec = 0, .frac = ((1ULL << 63) / (hz)) << 1                               \
   }
 
-static inline time_t tm2sec(tm_t t) {
+static inline time_t tm2sec(tm_t *t) {
   time_t res = 0;
   static const int month_int_days[13] = {0,   31,  59,  90,  120, 151,
                                          181, 212, 243, 273, 304, 334};
-  res += (time_t)month_int_days[t.tm_mon] * DAY_SCALE_S;
-  /* Leap years for 20 century */
-  res += (time_t)((t.tm_year) / 4) * DAY_SCALE_S;
-  if (t.tm_mon > 2)
+  res += (time_t)month_int_days[t->tm_mon - 1] * DAY_SCALE_S;
+  /* Extra days from leap years for 20 century which already past */
+  res += (time_t)((t->tm_year) / 4) * DAY_SCALE_S;
+  /* If actual year is a leap year and the leap day passed */
+  if (t->tm_mon > 2 && (t->tm_year % 4) == 0)
     res += DAY_SCALE_S;
 
-  return (time_t)t.tm_year * YEAR_SCALE_S + (t.tm_mday - 1) * DAY_SCALE_S +
-         t.tm_hour * HOUR_SCALE_S + t.tm_min * MIN_SCALE_S + t.tm_sec + res;
+  /* (t.tm_mday - 1) - cause days are in range [1-31] */
+  return (time_t)t->tm_year * YEAR_SCALE_S + (t->tm_mday - 1) * DAY_SCALE_S +
+         t->tm_hour * HOUR_SCALE_S + t->tm_min * MIN_SCALE_S + t->tm_sec + res;
 }
 
 static inline timeval_t st2tv(systime_t st) {
@@ -234,7 +236,7 @@ struct itimerval {
 
 #ifdef _KERNEL
 
-/* Time measured from the  start of system. */
+/* Time measured from the start of system. */
 bintime_t binuptime(void);
 timeval_t microuptime(void);
 timespec_t nanouptime(void);

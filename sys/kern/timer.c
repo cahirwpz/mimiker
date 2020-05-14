@@ -117,7 +117,7 @@ void tm_setclock(const timespec_t *ts) {
 }
 
 void boottime_init(tm_t *t) {
-  timespec_t ts = (timespec_t){.tv_sec = tm2sec(*t), .tv_nsec = 0};
+  timespec_t ts = (timespec_t){.tv_sec = tm2sec(t), .tv_nsec = 0};
   /* Rtc can hold only 100 years */
   ts.tv_sec += RTC_CORRECTION;
   tm_setclock(&ts);

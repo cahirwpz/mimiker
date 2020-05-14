@@ -56,7 +56,7 @@ static void rtc_gettime(resource_t *regs, tm_t *t) {
   t->tm_wday = rtc_read(regs, MC_DOW);
   t->tm_mday = rtc_read(regs, MC_DOM);
   t->tm_mon = rtc_read(regs, MC_MONTH);
-  t->tm_year = rtc_read(regs, MC_YEAR) + 2000;
+  t->tm_year = rtc_read(regs, MC_YEAR);
 }
 
 static intr_filter_t rtc_intr(void *data) {
@@ -77,9 +77,9 @@ static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
   uio->uio_offset = 0; /* This device does not support offsets. */
   sleepq_wait(rtc, NULL);
   rtc_gettime(rtc->regs, &t);
-  int count =
-    snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d", t.tm_year,
-             t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+  int count = snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d",
+                       t.tm_year + 2000, t.tm_mon, t.tm_mday, t.tm_hour,
+                       t.tm_min, t.tm_sec);
   if (count >= RTC_ASCTIME_SIZE)
     return EINVAL;
   return uiomove_frombuf(rtc->asctime, count, uio);
@@ -114,10 +114,6 @@ static int rtc_attach(device_t *dev) {
   tm_t t;
 
   rtc_gettime(rtc->regs, &t);
-  /* In rtc_gettime we are adding 2000 to years to allow user read actual time
-  but in tm_t definition, we hold maximal 100 years and we stay by the
-  definition */
-  t.tm_year %= 100;
   boottime_init(&t);
 
   return 0;
