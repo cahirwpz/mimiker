@@ -43,7 +43,7 @@ static bintime_t timebasebin = (bintime_t){.sec = 0, .frac = 0};
 #define is_reserved(tm) ((tm)->tm_flags & TMF_RESERVED)
 #define is_registered(tm) ((tm)->tm_flags & TMF_REGISTERED)
 
-/* 0:0:0 1.1.2000 in POSIX time */
+/* 0:0:0 1.1.2000 GMT in POSIX time */
 #define RTC_CORRECTION 946684800
 
 int tm_register(timer_t *tm) {
@@ -111,7 +111,7 @@ void tm_setclock(const timespec_t *ts) {
   bintime_t bt, bt2;
   bt = ts2bt(*ts);
   bt2 = binuptime();
-  /* Setting bootime - this is why we subtract time elapsed since bootime */
+  /* Setting boottime - this is why we subtract time elapsed since boottime */
   bintime_sub(&bt, &bt2);
   timebasebin = bt;
 }

@@ -112,7 +112,12 @@ static int rtc_attach(device_t *dev) {
   devfs_makedev(NULL, "rtc", &rtc_time_vnodeops, rtc);
 
   tm_t t;
+
   rtc_gettime(rtc->regs, &t);
+  /* In rtc_gettime we are adding 2000 to years to allow user read actual time
+  but in tm_t definition, we hold maximal 100 years and we stay by the
+  definition */
+  t.tm_year %= 100;
   boottime_init(&t);
 
   return 0;

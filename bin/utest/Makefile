@@ -17,6 +17,7 @@ SOURCES = \
 	stat.c \
 	setjmp.c \
 	sigaction.c \
+	time.c \
 	utest.c \
 	vfs.c
 

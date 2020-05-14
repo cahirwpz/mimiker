@@ -19,7 +19,7 @@ typedef struct tm {
   int tm_hour;         /* hours since midnight [0-23] */
   int tm_mday;         /* day of the month [1-31] */
   int tm_mon;          /* months since January [0-11] */
-  int tm_year;         /* years since 2000 */
+  int tm_year;         /* years since 2000 [0-100]*/
   int tm_wday;         /* days since Sunday [0-6] */
   int tm_yday;         /* days since January 1 [0-365] */
   int tm_isdst;        /* Daylight Savings Time flag */
@@ -61,10 +61,9 @@ typedef struct bintime {
 
 static inline time_t tm2sec(tm_t t) {
   time_t res = 0;
-  int month_int_days[13] = {0,   0,   31,  59,  90,  120, 151,
-                            181, 212, 243, 273, 304, 334};
+  static const int month_int_days[13] = {0,   31,  59,  90,  120, 151,
+                                         181, 212, 243, 273, 304, 334};
   res += (time_t)month_int_days[t.tm_mon] * DAY_SCALE_S;
-
   /* Leap years for 20 century */
   res += (time_t)((t.tm_year) / 4) * DAY_SCALE_S;
   if (t.tm_mon > 2)

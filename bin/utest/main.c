@@ -79,6 +79,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(fpu_ctx_signals);
   CHECKRUN_TEST(getcwd);
 
+  CHECKRUN_TEST(gettimeofday);
+
   printf("No user test \"%s\" available.\n", test_name);
   return 1;
 }
