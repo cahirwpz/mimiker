@@ -63,7 +63,6 @@ void kmem_free(void *ptr, size_t size) {
   klog("%s: free %p of size %ld", __func__, ptr, size);
 
   assert(page_aligned_p(ptr) && page_aligned_p(size));
-  vmem_free(kvspace, (vmem_addr_t)ptr, size);
 
   /* Mark the entire block as invalid */
   kasan_mark((void *)ptr, 0, size, KASAN_CODE_KMEM_USE_AFTER_FREE);
@@ -80,6 +79,8 @@ void kmem_free(void *ptr, size_t size) {
   }
 
   pmap_kremove((vaddr_t)ptr, end);
+
+  vmem_free(kvspace, (vmem_addr_t)ptr, size);
 }
 
 void *kmem_map(paddr_t pa, size_t size) {
