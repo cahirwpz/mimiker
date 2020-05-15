@@ -373,12 +373,12 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
         if (is_zombie(child)) {
           *status = child->p_exitstatus;
         } else if ((options & WUNTRACED) && (child->p_state == PS_STOPPED) &&
-                   (child->p_aflags & PFA_STOPPED)) {
-          child->p_aflags &= ~PFA_STOPPED;
+                   (child->p_flags & PF_STOPPED)) {
+          child->p_flags &= ~PF_STOPPED;
           *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
         } else if ((options & WCONTINUED) && (child->p_state == PS_NORMAL) &&
-                   (child->p_aflags & PFA_CONTINUED)) {
-          child->p_aflags &= ~PFA_CONTINUED;
+                   (child->p_flags & PF_CONTINUED)) {
+          child->p_flags &= ~PF_CONTINUED;
           *status = MAKE_STATUS_SIG_CONT();
         } else {
           found = false;
