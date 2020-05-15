@@ -33,15 +33,14 @@ typedef struct {
 #define PTE_PFN_SHIFT 6
 #define PTE_CACHE_MASK 0x00000038
 #define PTE_CACHE_SHIFT 3
-#define PTE_CACHE_WRITE_THROUGH                                                \
-  (0 << PTE_CACHE_SHIFT) /* cacheable, noncoherent, write-through, no write    \
-                            allocate */
-#define PTE_CACHE_UNCACHED (2 << PTE_CACHE_SHIFT) /* uncached */
-#define PTE_CACHE_WRITE_BACK                                                   \
-  (3 << PTE_CACHE_SHIFT) /* cacheable, noncoherent, write-back, write allocate \
-                          */
-#define PTE_CACHE_UNCACHED_ACCELERATED                                         \
-  (7 << PTE_CACHE_SHIFT)     /* uncached accelerated */
+/* cacheable, noncoherent, write-through, no write allocate */
+#define PTE_CACHE_WRITE_THROUGH (0 << PTE_CACHE_SHIFT)
+/* uncached */
+#define PTE_CACHE_UNCACHED (2 << PTE_CACHE_SHIFT)
+/* cacheable, noncoherent, write-back, write allocate */
+#define PTE_CACHE_WRITE_BACK (3 << PTE_CACHE_SHIFT)
+/* uncached accelerated */
+#define PTE_CACHE_UNCACHED_ACCELERATED (7 << PTE_CACHE_SHIFT)
 #define PTE_DIRTY 0x00000004 /* page is writable when set */
 #define PTE_VALID 0x00000002 /* page can be accessed when set */
 #define PTE_GLOBAL 0x00000001
