@@ -251,29 +251,31 @@ void sig_post(signo_t sig) {
 
   assert(sa->sa_handler != SIG_IGN);
 
-  if (sa->sa_handler == SIG_DFL) {
-    if (defact(sig) == SA_KILL) {
-      /* Terminate this thread as result of a signal. */
-      mtx_unlock(all_proc_mtx);
-      sig_exit(td, sig);
-    } else if (defact(sig) == SA_STOP) {
-      klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
-      p->p_state = PS_STOPPED;
-      p->p_flags &= ~PF_CONTINUED;
-      p->p_flags |= PF_STOPPED;
-      cv_broadcast(&p->p_parent->p_waitcv);
-      /* Release locks before switching out! */
-      mtx_unlock(all_proc_mtx);
-      WITH_SPIN_LOCK (&td->td_spin) {
-        td->td_state = TDS_STOPPED;
-        /* We're holding a spinlock, so we can't be preempted here. */
-        proc_unlock(p);
-        sched_switch();
-      }
-      proc_lock(p);
-      mtx_lock(all_proc_mtx);
-      return;
+  if (sa->sa_handler == SIG_DFL && defact(sig) == SA_KILL) {
+    /* Terminate this thread as result of a signal. */
+    mtx_unlock(all_proc_mtx);
+    sig_exit(td, sig);
+    __unreachable();
+  }
+
+  if (sa->sa_handler == SIG_DFL && defact(sig) == SA_STOP) {
+    klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
+    p->p_state = PS_STOPPED;
+    p->p_flags &= ~PF_CONTINUED;
+    p->p_flags |= PF_STOPPED;
+    cv_broadcast(&p->p_parent->p_waitcv);
+    /* Release locks before switching out! */
+    mtx_unlock(all_proc_mtx);
+    WITH_SPIN_LOCK (&td->td_spin) {
+      td->td_state = TDS_STOPPED;
+      /* We're holding a spinlock, so we can't be preempted here. */
+      proc_unlock(p);
+      sched_switch();
     }
+    /* Reacquire locks in correct order! */
+    mtx_lock(all_proc_mtx);
+    proc_lock(p);
+    return;
   }
 
   klog("Post signal %s (handler %p) to thread %lu in process PID(%d)",
