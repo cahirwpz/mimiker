@@ -492,70 +492,76 @@ static bool is_zombie(proc_t *p) {
   return p->p_state == PS_ZOMBIE;
 }
 
+static bool child_matches(proc_t *child, pid_t pid, pgrp_t *pg) {
+  /* pid > 0 => child with PID same as pid */
+  if (pid == child->p_pid)
+    return true;
+  /* pid == -1 => any child  */
+  if (pid == -1)
+    return true;
+  /* pid == 0 => child with PGID same as ours */
+  if (pid == 0 && child->p_pgrp == pg)
+    return true;
+  /* pid < -1 => child with PGID equal to -pid */
+  if (pid < -1 && child->p_pgrp->pg_id == -pid)
+    return true;
+  return false;
+}
+
 /* Wait for direct children.
  * Pointers to output parameters must point to valid kernel memory. */
 int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   proc_t *p = proc_self();
-  bool found = false;
 
   WITH_MTX_LOCK (all_proc_mtx) {
     for (;;) {
-      proc_t *child = NULL;
-      /* Whether we found any children meeting criteria implied by pid. */
-      bool any = false;
+      int error = ECHILD;
+      proc_t *child;
 
       /* Check children meeting criteria implied by pid. */
       TAILQ_FOREACH (child, CHILDREN(p), p_child) {
-        /* pid > 0 => child with PID same as pid */
-        if (!(pid == child->p_pid ||
-              /* pid == -1 => any child  */
-              pid == -1 ||
-              /* pid == 0 => child with PGID same as ours */
-              ((pid == 0) && (child->p_pgrp == p->p_pgrp)) ||
-              /* pid < -1 => child with PGID equal to -pid */
-              (pid < -1 && (child->p_pgrp->pg_id != -pid))))
+        if (!child_matches(child, pid, p->p_pgrp))
           continue;
 
-        any = true;
+        error = 0;
 
-        /* It's unnecessary to lock the child here, since:
+        /*
+         * It's not necessary to lock the child here, since:
          * a) We're holding all_proc_mtx, so it won't get deleted while
          *    we're inspecting it;
-         * b) We're only doing unprotected atomic reads of p_state.*/
-        found = true;
+         * b) We're only doing unprotected atomic reads of p_state.
+         */
+
+        *cldpidp = child->p_pid;
+
         if (is_zombie(child)) {
           *status = child->p_exitstatus;
-        } else if ((options & WUNTRACED) && (child->p_state == PS_STOPPED) &&
-                   (child->p_aflags & PFA_STOPPED)) {
-          child->p_aflags &= ~PFA_STOPPED;
-          *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
-        } else if ((options & WCONTINUED) && (child->p_state == PS_NORMAL) &&
-                   (child->p_aflags & PFA_CONTINUED)) {
-          child->p_aflags &= ~PFA_CONTINUED;
-          *status = MAKE_STATUS_SIG_CONT();
-        } else {
-          found = false;
-        }
-
-        if (found) {
-          *cldpidp = child->p_pid;
-          if (is_zombie(child))
-            proc_reap(child);
+          proc_reap(child);
           return 0;
         }
 
-        if (pid > 0) {
-          break;
+        if ((options & WUNTRACED) && (child->p_state == PS_STOPPED) &&
+            (child->p_flags & PF_STOPPED)) {
+          child->p_flags &= ~PF_STOPPED;
+          *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
+          return 0;
         }
+
+        if ((options & WCONTINUED) && (child->p_state == PS_NORMAL) &&
+            (child->p_flags & PF_CONTINUED)) {
+          child->p_flags &= ~PF_CONTINUED;
+          *status = MAKE_STATUS_SIG_CONT();
+          return 0;
+        }
+
+        /* We were looking for a specific child and found it. */
+        if (pid > 0)
+          break;
       }
 
-      /* No child meeting criteria specified by pid. */
-      if (!any)
-        return ECHILD;
-
-      if (options & WNOHANG) {
+      if (error == ECHILD || (options & WNOHANG)) {
         *cldpidp = 0;
-        return 0;
+        return error;
       }
 
       /* Wait until one of children changes a state. */
