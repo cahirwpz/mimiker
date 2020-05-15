@@ -5,14 +5,6 @@
 
 #define CLK_TCK 100 /* system clock ticks per second */
 
-/* 1ns = (2^64) / 1000000000 */
-#define BINTIME_SCALE_NS ((uint64_t)18446744073ULL)
-#define YEAR_SCALE_S 31536000
-#define AV_MONTH_SCALE_S 2592000
-#define DAY_SCALE_S 86400
-#define HOUR_SCALE_S 3600
-#define MIN_SCALE_S 60
-
 typedef struct tm {
   int tm_sec;          /* seconds after the minute [0-59] */
   int tm_min;          /* minutes after the hour [0-59] */
@@ -59,22 +51,6 @@ typedef struct bintime {
     .sec = 0, .frac = ((1ULL << 63) / (hz)) << 1                               \
   }
 
-static inline time_t tm2sec(tm_t *t) {
-  time_t res = 0;
-  static const int month_int_days[13] = {0,   31,  59,  90,  120, 151,
-                                         181, 212, 243, 273, 304, 334};
-  res += (time_t)month_int_days[t->tm_mon - 1] * DAY_SCALE_S;
-  /* Extra days from leap years for 20 century which already past */
-  res += (time_t)((t->tm_year) / 4) * DAY_SCALE_S;
-  /* If actual year is a leap year and the leap day passed */
-  if (t->tm_mon > 2 && (t->tm_year % 4) == 0)
-    res += DAY_SCALE_S;
-
-  /* (t.tm_mday - 1) - cause days are in range [1-31] */
-  return (time_t)t->tm_year * YEAR_SCALE_S + (t->tm_mday - 1) * DAY_SCALE_S +
-         t->tm_hour * HOUR_SCALE_S + t->tm_min * MIN_SCALE_S + t->tm_sec + res;
-}
-
 static inline timeval_t st2tv(systime_t st) {
   return (timeval_t){.tv_sec = st / 1000, .tv_usec = st % 1000};
 }
@@ -98,8 +74,11 @@ static inline timespec_t bt2ts(bintime_t bt) {
 }
 
 static inline bintime_t ts2bt(timespec_t ts) {
-  uint64_t frac = (uint64_t)ts.tv_nsec * BINTIME_SCALE_NS;
+  /* 1ns = (2^64) / 1000000000 */
+  const uint64_t bintime_scale_ns = 18446744073ULL;
+  uint64_t frac = (uint64_t)ts.tv_nsec * bintime_scale_ns;
   return (bintime_t){.sec = ts.tv_sec, .frac = frac};
+#undef BINTIME_SCALE_NS
 }
 
 /* Operations on timevals. */
