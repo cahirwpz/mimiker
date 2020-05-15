@@ -48,7 +48,7 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
     paddr_t pa = pg->paddr;
     for (size_t i = 0; i < pagecnt; i++)
       pmap_kenter(va + PAGESIZE * i, pa + PAGESIZE * i,
-                  VM_PROT_READ | VM_PROT_WRITE);
+                  VM_PROT_READ | VM_PROT_WRITE, 0);
     npages -= pagecnt;
     va += pagecnt * PAGESIZE;
   }
@@ -95,7 +95,7 @@ void *kmem_map(paddr_t pa, size_t size) {
   klog("%s: map %p of size %ld at %p", __func__, pa, size, start);
 
   for (size_t offset = 0; offset < size; offset += PAGESIZE)
-    pmap_kenter(start + offset, pa + offset, VM_PROT_READ | VM_PROT_WRITE);
+    pmap_kenter(start + offset, pa + offset, VM_PROT_READ | VM_PROT_WRITE, 0);
 
   return (void *)start;
 }
