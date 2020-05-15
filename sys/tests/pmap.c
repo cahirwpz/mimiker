@@ -16,7 +16,7 @@ static int test_kernel_pmap(void) {
   vaddr_t vaddr = pmap_start(pmap);
   vaddr_t end = vaddr + size;
 
-  pmap_enter(pmap, vaddr, pg, VM_PROT_READ | VM_PROT_WRITE, PMAP_WRITE_BACK);
+  pmap_enter(pmap, vaddr, pg, VM_PROT_READ | VM_PROT_WRITE, 0);
 
   unsigned *array = (void *)vaddr;
   for (unsigned i = 0; i < size / sizeof(int); i++)
@@ -59,9 +59,9 @@ static int test_user_pmap(void) {
   vm_page_t *pg2 = vm_page_alloc(1);
 
   pmap_activate(pmap1);
-  pmap_enter(pmap1, start, pg1, VM_PROT_READ | VM_PROT_WRITE, PMAP_WRITE_BACK);
+  pmap_enter(pmap1, start, pg1, VM_PROT_READ | VM_PROT_WRITE, 0);
   pmap_activate(pmap2);
-  pmap_enter(pmap2, start, pg2, VM_PROT_READ | VM_PROT_WRITE, PMAP_WRITE_BACK);
+  pmap_enter(pmap2, start, pg2, VM_PROT_READ | VM_PROT_WRITE, 0);
 
   volatile int *ptr = (int *)start;
   *ptr = 100;
@@ -95,8 +95,7 @@ static int test_rmbits(void) {
   vm_page_t *pg = vm_page_alloc(1);
 
   pmap_activate(pmap);
-  pmap_enter(pmap, (vaddr_t)ptr, pg, VM_PROT_READ | VM_PROT_WRITE,
-             PMAP_WRITE_BACK);
+  pmap_enter(pmap, (vaddr_t)ptr, pg, VM_PROT_READ | VM_PROT_WRITE, 0);
 
   assert(!pmap_is_referenced(pg) && !pmap_is_modified(pg));
 

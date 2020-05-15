@@ -157,14 +157,15 @@ static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr) {
 }
 
 /*! \brief Writes \a pte as the new PTE mapping virtual address \a vaddr. */
-static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte, int flags) {
-  if (flags & PMAP_NOCACHE)
+static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte,
+                           unsigned flags) {
+  unsigned cacheflags = flags & PMAP_CACHE_MASK;
+
+  if (cacheflags == PMAP_NOCACHE)
     pte |= PTE_CACHE_UNCACHED;
-
-  if (flags & PMAP_WRITE_THROUGH)
+  else if (cacheflags == PMAP_WRITE_THROUGH)
     pte |= PTE_CACHE_WRITE_THROUGH;
-
-  if (flags & PMAP_WRITE_BACK)
+  else
     pte |= PTE_CACHE_WRITE_BACK;
 
   pde_t pde = PDE_OF(pmap, vaddr);
@@ -209,7 +210,7 @@ static pte_t vm_prot_map[] = {
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
 };
 
-void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, int flags) {
+void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
   pmap_t *pmap = pmap_kernel();
 
   assert(pmap_address_p(pmap, va));
@@ -217,13 +218,14 @@ void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, int flags) {
 
   klog("Enter unmanaged mapping from %p to %p", va, pa);
 
+  pte_t pte = vm_prot_map[prot] | PTE_GLOBAL;
+
   WITH_MTX_LOCK (&pmap->mtx)
-    pmap_pte_write(pmap, va, PTE_PFN(pa) | vm_prot_map[prot] | PTE_GLOBAL,
-                   flags);
+    pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
 }
 
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
-                int flags) {
+                unsigned flags) {
   vaddr_t va_end = va + PG_SIZE(pg);
   paddr_t pa = PG_START(pg);
 
@@ -235,12 +237,11 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
 
   /* Mark user pages as non-referenced & non-modified. */
   pte_t mask = (pmap == pmap_kernel()) ? 0 : PTE_VALID | PTE_DIRTY;
+  pte_t pte = (vm_prot_map[prot] & ~mask) | empty_pte(pmap);
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (; va < va_end; va += PAGESIZE, pa += PAGESIZE)
-      pmap_pte_write(
-        pmap, va, PTE_PFN(pa) | (vm_prot_map[prot] & ~mask) | empty_pte(pmap),
-        flags);
+      pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
   }
 }
 
