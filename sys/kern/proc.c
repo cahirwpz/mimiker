@@ -339,7 +339,7 @@ static bool is_zombie(proc_t *p) {
   return p->p_state == PS_ZOMBIE;
 }
 
-static bool child_need_attention(proc_t *child, pid_t pid, pgrp_t *pg) {
+static bool child_matches(proc_t *child, pid_t pid, pgrp_t *pg) {
   /* pid > 0 => child with PID same as pid */
   if (pid == child->p_pid)
     return true;
@@ -350,7 +350,7 @@ static bool child_need_attention(proc_t *child, pid_t pid, pgrp_t *pg) {
   if (pid == 0 && child->p_pgrp == pg)
     return true;
   /* pid < -1 => child with PGID equal to -pid */
-  if (pid < -1 && child->p_pgrp->pg_id != -pid)
+  if (pid < -1 && child->p_pgrp->pg_id == -pid)
     return true;
   return false;
 }
@@ -362,15 +362,15 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
 
   WITH_MTX_LOCK (all_proc_mtx) {
     for (;;) {
-      bool any = false;
+      int error = ECHILD;
       proc_t *child;
 
       /* Check children meeting criteria implied by pid. */
       TAILQ_FOREACH (child, CHILDREN(p), p_child) {
-        if (!child_need_attention(child, pid, p->p_pgrp))
+        if (!child_matches(child, pid, p->p_pgrp))
           continue;
 
-        any = true;
+        error = 0;
 
         /*
          * It's not necessary to lock the child here, since:
@@ -401,16 +401,14 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
           return 0;
         }
 
+        /* We were looking for a specific child and found it. */
         if (pid > 0)
           break;
       }
 
-      if (!any)
-        return ECHILD;
-
-      if (options & WNOHANG) {
+      if (error == ECHILD || (options & WNOHANG)) {
         *cldpidp = 0;
-        return 0;
+        return error;
       }
 
       /* Wait until one of children changes a state. */

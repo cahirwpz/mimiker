@@ -100,7 +100,7 @@ int sig_check(thread_t *td);
  * If the default action for a signal is to terminate the process and
  * corresponding signal handler is not set, the process calls `sig_exit`.
  *
- * \note Must be called with all_proc_mtx and proc::p_mtx locked!
+ * \note Must be called with all_proc_mtx and current process p_mtx acquired!
  * \sa sig_exit
  */
 void sig_post(signo_t sig);
