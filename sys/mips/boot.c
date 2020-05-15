@@ -102,7 +102,7 @@ __boot_text void *mips_init(void) {
   for (paddr_t pa = data; pa < ebss; va += PAGESIZE, pa += PAGESIZE)
     pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
 
-#ifdef KASAN /* Prepare KASAN shadow mappings */
+#if KASAN /* Prepare KASAN shadow mappings */
   va = KASAN_MD_SHADOW_START;
   /* Allocate physical memory for shadow area */
   paddr_t pa = (paddr_t)bootmem_alloc(KASAN_MD_SHADOW_SIZE);
