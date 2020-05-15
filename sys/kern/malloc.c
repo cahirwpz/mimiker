@@ -175,14 +175,14 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
   if (size == 0)
     return NULL;
 
-#ifdef KASAN
+#if KASAN
   /* the alignment is within the redzone */
   size_t redzone_size =
     align(size, MB_ALIGNMENT) - size + KASAN_KMALLOC_REDZONE_SIZE;
-#else
+#else /* !KASAN */
   /* no redzone, we have to align the size itself */
   size = align(size, MB_ALIGNMENT);
-#endif /* !KASAN */
+#endif
 
   SCOPED_MTX_LOCK(&mp->mp_lock);
 
@@ -190,7 +190,7 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
     /* Search for the first area in the list that has enough space. */
     mem_arena_t *current = NULL;
     size_t requested_size = size;
-#ifdef KASAN
+#if KASAN
     requested_size += redzone_size;
 #endif /* !KASAN */
     TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {

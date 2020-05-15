@@ -41,7 +41,7 @@ typedef struct {
 } quar_t;
 
 /* KASAN interface */
-#ifdef KASAN
+#if KASAN
 /* Initialize KASAN subsystem.
  *
  * Should be called during early kernel boot process, as soon as the shadow

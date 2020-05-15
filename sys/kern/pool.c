@@ -88,10 +88,6 @@ static unsigned slab_index_of(pool_slab_t *slab, pool_item_t *item) {
   return ((intptr_t)item - (intptr_t)slab->ph_items) / slab->ph_itemsize;
 }
 
-static size_t align_size(size_t size) {
-  return align(size, PI_ALIGNMENT);
-}
-
 static void add_slab(pool_t *pool, pool_slab_t *slab, size_t slabsize) {
   assert(mtx_owned(&pool->pp_mtx));
 
@@ -101,9 +97,10 @@ static void add_slab(pool_t *pool, pool_slab_t *slab, size_t slabsize) {
   slab->ph_nused = 0;
   slab->ph_size = slabsize;
   slab->ph_itemsize = pool->pp_itemsize + sizeof(pool_item_t);
-#ifdef KASAN
+#if KASAN
   slab->ph_itemsize += pool->pp_redzsize;
 #endif /* !KASAN */
+
   /*
    * Now we need to calculate maximum possible number of items of given `size`
    * in slab that occupies one page, taking into account space taken by:
@@ -123,7 +120,7 @@ static void add_slab(pool_t *pool, pool_slab_t *slab, size_t slabsize) {
   slab->ph_nused = 0;
 
   size_t header = sizeof(pool_slab_t) + bitstr_size(slab->ph_ntotal);
-  slab->ph_items = (void *)slab + align_size(header);
+  slab->ph_items = (void *)slab + align(header, PI_ALIGNMENT);
   memset(slab->ph_bitmap, 0, bitstr_size(slab->ph_ntotal));
 
   for (int i = 0; i < slab->ph_ntotal; i++) {
@@ -290,14 +287,15 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
   pool->pp_ctor = ctor;
   pool->pp_dtor = dtor;
   pool->pp_state = ALIVE;
-#ifdef KASAN
+#if KASAN
   /* the alignment is within the redzone */
   pool->pp_itemsize = size;
-  pool->pp_redzsize = align_size(size) - size + KASAN_POOL_REDZONE_SIZE;
-#else
+  pool->pp_redzsize =
+    align(size, PI_ALIGNMENT) - size + KASAN_POOL_REDZONE_SIZE;
+#else /* !KASAN */
   /* no redzone, we have to align the size itself */
-  pool->pp_itemsize = align_size(size);
-#endif /* !KASAN */
+  pool->pp_itemsize = align(size, PI_ALIGNMENT);
+#endif
   kasan_quar_init(&pool->pp_quarantine, pool, (quar_free_t)_pool_free);
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
        pool->pp_itemsize);
