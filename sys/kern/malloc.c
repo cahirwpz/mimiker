@@ -244,7 +244,7 @@ void kfree(kmalloc_pool_t *mp, void *addr) {
   kasan_mark_invalid(addr, abs(addr_to_mem_block(addr)->mb_size),
                      KASAN_CODE_KMALLOC_FREED);
   kasan_quar_additem(&mp->mp_quarantine, addr);
-#ifndef KASAN
+#if !KASAN
   /* Without KASAN, call regular free method */
   _kfree(mp, addr);
 #endif /* !KASAN */

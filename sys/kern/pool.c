@@ -241,7 +241,7 @@ void pool_free(pool_t *pool, void *ptr) {
   kasan_mark_invalid(ptr, pool->pp_itemsize + pool->pp_redzsize,
                      KASAN_CODE_POOL_FREED);
   kasan_quar_additem(&pool->pp_quarantine, ptr);
-#ifndef KASAN
+#if !KASAN
   /* Without KASAN, call regular free method */
   _pool_free(pool, ptr);
 #endif /* !KASAN */
