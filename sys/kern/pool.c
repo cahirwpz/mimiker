@@ -45,7 +45,7 @@ typedef struct pool {
   size_t pp_align;    /* (ignored) requested alignment, must be 2^n */
   size_t pp_nslabs;   /* # of slabs allocated */
   size_t pp_nitems;   /* number of available items in pool */
-#ifdef KASAN
+#if KASAN
   size_t pp_redzsize; /* size of redzone after each item */
 #endif
 } pool_t;
@@ -93,7 +93,7 @@ static void add_slab(pool_t *pool, pool_slab_t *slab, size_t slabsize) {
   slab->ph_nused = 0;
   slab->ph_size = slabsize;
   slab->ph_itemsize = pool->pp_itemsize + sizeof(pool_item_t);
-#ifdef KASAN
+#if KASAN
   slab->ph_itemsize += pool->pp_redzsize;
 #endif /* !KASAN */
 
@@ -275,14 +275,14 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
   pool->pp_ctor = ctor;
   pool->pp_dtor = dtor;
   pool->pp_state = ALIVE;
-#ifdef KASAN
+#if KASAN
   /* the alignment is within the redzone */
   pool->pp_itemsize = size;
   pool->pp_redzsize = align_size(size) - size + KASAN_POOL_REDZONE_SIZE;
-#else
+#else /* !KASAN */
   /* no redzone, we have to align the size itself */
   pool->pp_itemsize = align_size(size);
-#endif /* !KASAN */
+#endif
 
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
        pool->pp_itemsize);

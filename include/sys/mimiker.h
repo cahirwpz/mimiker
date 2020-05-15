@@ -103,7 +103,7 @@ int copyin(const void *restrict udaddr, void *restrict kaddr, size_t len)
 int copyout(const void *restrict kaddr, void *restrict udaddr, size_t len)
   __nonnull(1) __nonnull(2);
 
-#ifdef KASAN
+#if KASAN
 int kasan_copyin(const void *restrict udaddr, void *restrict kaddr, size_t len);
 #define copyin(u, k, l) kasan_copyin(u, k, l)
 

@@ -20,17 +20,17 @@
 #define KASAN_POOL_REDZONE_SIZE 8
 #define KASAN_KMALLOC_REDZONE_SIZE 8
 
-#ifdef KASAN
+#if KASAN
 void kasan_init(void);
 void kasan_mark_valid(const void *addr, size_t size);
 void kasan_mark_invalid(const void *addr, size_t size, uint8_t code);
 void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
                 uint8_t code);
-#else
+#else /* !KASAN */
 #define kasan_init() __nothing
 #define kasan_mark_valid(addr, size) __nothing
 #define kasan_mark_invalid(addr, size, code) __nothing
 #define kasan_mark(addr, size, size_with_redzone, code) __nothing
-#endif /* !KASAN */
+#endif
 
 #endif /* !_SYS_KASAN_H_ */
