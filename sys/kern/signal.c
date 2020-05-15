@@ -144,24 +144,28 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
  * These limitations (plus the fact that we currently have very little thread
  * states) make the logic of sending a signal very simple!
  */
-void sig_kill(proc_t *proc, signo_t sig) {
-  assert(proc != NULL);
-  assert(mtx_owned(&proc->p_lock));
+void sig_kill(proc_t *p, signo_t sig) {
+  assert(p != NULL);
+  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&p->p_lock));
   assert(sig < NSIG);
 
   /* Zombie processes shouldn't accept any signals. */
-  if (proc->p_state == PS_ZOMBIE)
+  if (p->p_state == PS_ZOMBIE)
     return;
 
-  thread_t *td = proc->p_thread;
+  thread_t *td = p->p_thread;
 
-  sig_t handler = proc->p_sigactions[sig].sa_handler;
+  sig_t handler = p->p_sigactions[sig].sa_handler;
   bool continued = sig == SIGCONT || sig == SIGKILL;
 
   /* If the signal is ignored, don't even bother posting it,
    * unless it's waking up a stopped process. */
-  if (proc->p_state == PS_STOPPED && continued) {
-    proc->p_state = PS_NORMAL;
+  if (p->p_state == PS_STOPPED && continued) {
+    p->p_state = PS_NORMAL;
+    p->p_flags &= ~PF_STOPPED;
+    p->p_flags |= PF_CONTINUED;
+    cv_broadcast(&p->p_parent->p_waitcv);
   } else if (handler == SIG_IGN ||
              (defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
     return;
@@ -240,29 +244,38 @@ void sig_post(signo_t sig) {
   proc_t *p = proc_self();
 
   assert(p != NULL);
+  assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&p->p_lock));
 
   sigaction_t *sa = &p->p_sigactions[sig];
 
   assert(sa->sa_handler != SIG_IGN);
 
-  if (sa->sa_handler == SIG_DFL) {
-    if (defact(sig) == SA_KILL) {
-      /* Terminate this thread as result of a signal. */
-      sig_exit(td, sig);
-    } else if (defact(sig) == SA_STOP) {
-      /* Stop this thread. Release process lock before switching. */
-      klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
-      p->p_state = PS_STOPPED;
-      WITH_SPIN_LOCK (&td->td_spin) {
-        td->td_state = TDS_STOPPED;
-        /* We're holding a spinlock, so we can't be preempted here. */
-        proc_unlock(p);
-        sched_switch();
-      }
-      proc_lock(p);
-      return;
+  if (sa->sa_handler == SIG_DFL && defact(sig) == SA_KILL) {
+    /* Terminate this thread as result of a signal. */
+    mtx_unlock(all_proc_mtx);
+    sig_exit(td, sig);
+    __unreachable();
+  }
+
+  if (sa->sa_handler == SIG_DFL && defact(sig) == SA_STOP) {
+    klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
+    p->p_state = PS_STOPPED;
+    p->p_flags &= ~PF_CONTINUED;
+    p->p_flags |= PF_STOPPED;
+    cv_broadcast(&p->p_parent->p_waitcv);
+    /* Release locks before switching out! */
+    mtx_unlock(all_proc_mtx);
+    WITH_SPIN_LOCK (&td->td_spin) {
+      td->td_state = TDS_STOPPED;
+      /* We're holding a spinlock, so we can't be preempted here. */
+      proc_unlock(p);
+      sched_switch();
     }
+    /* Reacquire locks in correct order! */
+    mtx_lock(all_proc_mtx);
+    proc_lock(p);
+    return;
   }
 
   klog("Post signal %s (handler %p) to thread %lu in process PID(%d)",
