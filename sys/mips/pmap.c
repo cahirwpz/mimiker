@@ -157,7 +157,17 @@ static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr) {
 }
 
 /*! \brief Writes \a pte as the new PTE mapping virtual address \a vaddr. */
-static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte) {
+static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte,
+                           unsigned flags) {
+  unsigned cacheflags = flags & PMAP_CACHE_MASK;
+
+  if (cacheflags == PMAP_NOCACHE)
+    pte |= PTE_CACHE_UNCACHED;
+  else if (cacheflags == PMAP_WRITE_THROUGH)
+    pte |= PTE_CACHE_WRITE_THROUGH;
+  else
+    pte |= PTE_CACHE_WRITE_BACK;
+
   pde_t pde = PDE_OF(pmap, vaddr);
   if (!is_valid_pde(pde))
     pde = pmap_add_pde(pmap, vaddr);
@@ -200,7 +210,7 @@ static pte_t vm_prot_map[] = {
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
 };
 
-void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot) {
+void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
   pmap_t *pmap = pmap_kernel();
 
   assert(pmap_address_p(pmap, va));
@@ -208,11 +218,14 @@ void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot) {
 
   klog("Enter unmanaged mapping from %p to %p", va, pa);
 
+  pte_t pte = vm_prot_map[prot] | PTE_GLOBAL;
+
   WITH_MTX_LOCK (&pmap->mtx)
-    pmap_pte_write(pmap, va, PTE_PFN(pa) | vm_prot_map[prot] | PTE_GLOBAL);
+    pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
 }
 
-void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
+void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
+                unsigned flags) {
   vaddr_t va_end = va + PG_SIZE(pg);
   paddr_t pa = PG_START(pg);
 
@@ -224,11 +237,11 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
 
   /* Mark user pages as non-referenced & non-modified. */
   pte_t mask = (pmap == pmap_kernel()) ? 0 : PTE_VALID | PTE_DIRTY;
+  pte_t pte = (vm_prot_map[prot] & ~mask) | empty_pte(pmap);
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (; va < va_end; va += PAGESIZE, pa += PAGESIZE)
-      pmap_pte_write(
-        pmap, va, PTE_PFN(pa) | (vm_prot_map[prot] & ~mask) | empty_pte(pmap));
+      pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
   }
 }
 
@@ -243,7 +256,7 @@ void pmap_kremove(vaddr_t start, vaddr_t end) {
 
   WITH_MTX_LOCK (&kernel_pmap.mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE)
-      pmap_pte_write(pmap, va, PTE_GLOBAL);
+      pmap_pte_write(pmap, va, PTE_GLOBAL, 0);
   }
 }
 
@@ -255,7 +268,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE)
-      pmap_pte_write(pmap, va, empty_pte(pmap));
+      pmap_pte_write(pmap, va, empty_pte(pmap), 0);
 
     /* TODO: Deallocate empty page table fragment by calling pmap_remove_pde. */
   }
@@ -273,7 +286,7 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
       pte_t pte = pmap_pte_read(pmap, va);
       if (pte == 0)
         continue;
-      pmap_pte_write(pmap, va, (pte & ~PTE_PROT_MASK) | vm_prot_map[prot]);
+      pmap_pte_write(pmap, va, (pte & ~PTE_PROT_MASK) | vm_prot_map[prot], 0);
     }
   }
 }
@@ -359,13 +372,13 @@ void tlb_exception_handler(exc_frame_t *frame) {
 
     if ((pte & PTE_VALID) == 0 && code == EXC_TLBL) {
       pmap_set_referenced(pg);
-      pmap_pte_write(pmap, vaddr, pte | PTE_VALID);
+      pmap_pte_write(pmap, vaddr, pte | PTE_VALID, 0);
       return;
     }
     if ((pte & PTE_DIRTY) == 0 && (code == EXC_TLBS || code == EXC_MOD)) {
       pmap_set_referenced(pg);
       pmap_set_modified(pg);
-      pmap_pte_write(pmap, vaddr, pte | PTE_DIRTY | PTE_VALID);
+      pmap_pte_write(pmap, vaddr, pte | PTE_DIRTY | PTE_VALID, 0);
       return;
     }
   }

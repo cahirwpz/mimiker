@@ -76,6 +76,9 @@ ifeq ($(KASAN), 1)
 SOURCES += kasan.c
 # KASAN's run-time library mustn't be sanitized!
 kasan.o : CFLAGS_KASAN =
+else
+# Clean .kasan.D without having to pass `KASAN=1` to `make clean`.
+CLEAN-FILES += .kasan.D
 endif
 
 FORMAT-EXCLUDE = sysent.h

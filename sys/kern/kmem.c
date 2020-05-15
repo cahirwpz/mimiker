@@ -48,7 +48,7 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
     paddr_t pa = pg->paddr;
     for (size_t i = 0; i < pagecnt; i++)
       pmap_kenter(va + PAGESIZE * i, pa + PAGESIZE * i,
-                  VM_PROT_READ | VM_PROT_WRITE);
+                  VM_PROT_READ | VM_PROT_WRITE, 0);
     npages -= pagecnt;
     va += pagecnt * PAGESIZE;
   }
@@ -63,10 +63,8 @@ void kmem_free(void *ptr, size_t size) {
   klog("%s: free %p of size %ld", __func__, ptr, size);
 
   assert(page_aligned_p(ptr) && page_aligned_p(size));
-  vmem_free(kvspace, (vmem_addr_t)ptr, size);
 
-  /* Mark the entire block as invalid */
-  kasan_mark((void *)ptr, 0, size, KASAN_CODE_KMEM_USE_AFTER_FREE);
+  kasan_mark_invalid((void *)ptr, size, KASAN_CODE_KMEM_USE_AFTER_FREE);
 
   vaddr_t va = (vaddr_t)ptr;
   vaddr_t end = va + size;
@@ -80,6 +78,8 @@ void kmem_free(void *ptr, size_t size) {
   }
 
   pmap_kremove((vaddr_t)ptr, end);
+
+  vmem_free(kvspace, (vmem_addr_t)ptr, size);
 }
 
 void *kmem_map(paddr_t pa, size_t size) {
@@ -95,7 +95,7 @@ void *kmem_map(paddr_t pa, size_t size) {
   klog("%s: map %p of size %ld at %p", __func__, pa, size, start);
 
   for (size_t offset = 0; offset < size; offset += PAGESIZE)
-    pmap_kenter(start + offset, pa + offset, VM_PROT_READ | VM_PROT_WRITE);
+    pmap_kenter(start + offset, pa + offset, VM_PROT_READ | VM_PROT_WRITE, 0);
 
   return (void *)start;
 }
