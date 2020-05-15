@@ -12,6 +12,7 @@
 
 /* Part of internal compiler interface */
 #define KASAN_SHADOW_SCALE_SHIFT 3
+#define KASAN_ALLOCA_REDZONE_SIZE 32
 
 #define KASAN_SHADOW_SCALE_SIZE (1 << KASAN_SHADOW_SCALE_SHIFT)
 #define KASAN_SHADOW_MASK (KASAN_SHADOW_SCALE_SIZE - 1)
@@ -45,20 +46,22 @@ static const char *code_name(uint8_t code) {
     case KASAN_CODE_STACK_MID:
     case KASAN_CODE_STACK_RIGHT:
       return "stack buffer-overflow";
-    case KASAN_CODE_GLOBAL:
+    case KASAN_CODE_GLOBAL_OVERFLOW:
       return "global buffer-overflow";
     case KASAN_CODE_KMEM_USE_AFTER_FREE:
       return "kmem use-after-free";
+    case KASAN_CODE_POOL_OVERFLOW:
+      return "pool buffer-overflow";
     case KASAN_CODE_POOL_USE_AFTER_FREE:
       return "pool use-after-free";
-    case KASAN_CODE_STACK_USE_AFTER_RET:
-      return "stack use-after-return";
-    case KASAN_CODE_STACK_USE_AFTER_SCOPE:
-      return "stack use-after-scope";
+    case KASAN_CODE_KMALLOC_OVERFLOW:
+      return "kmalloc buffer-overflow";
+    case KASAN_CODE_KMALLOC_USE_AFTER_FREE:
+      return "kmalloc use-after-free";
     case 1 ... 7:
       return "partial redzone";
     default:
-      return "unknown";
+      return "unknown redzone";
   }
 }
 
@@ -206,6 +209,10 @@ void kasan_mark_valid(const void *addr, size_t size) {
   kasan_mark(addr, size, size, 0);
 }
 
+void kasan_mark_invalid(const void *addr, size_t size, uint8_t code) {
+  kasan_mark(addr, 0, size, code);
+}
+
 /* Call constructors that will register globals */
 static void call_ctors(void) {
   extern uintptr_t __CTOR_LIST__, __CTOR_END__;
@@ -259,19 +266,66 @@ void __asan_handle_no_return(void) {
 void __asan_register_globals(struct __asan_global *globals, size_t n) {
   for (size_t i = 0; i < n; i++)
     kasan_mark(globals[i].beg, globals[i].size, globals[i].size_with_redzone,
-               KASAN_CODE_GLOBAL);
+               KASAN_CODE_GLOBAL_OVERFLOW);
 }
 
 void __asan_unregister_globals(struct __asan_global *globals, size_t n) {
   /* never called */
 }
 
+/* Note: alloca is currently used in strntoul and test_sleepq_sync functions */
+void __asan_alloca_poison(const void *addr, size_t size) {
+  void *left_redzone = (int8_t *)addr - KASAN_ALLOCA_REDZONE_SIZE;
+  size_t size_with_mid_redzone = roundup(size, KASAN_ALLOCA_REDZONE_SIZE);
+  void *right_redzone = (int8_t *)addr + size_with_mid_redzone;
+
+  kasan_mark_invalid(left_redzone, KASAN_ALLOCA_REDZONE_SIZE,
+                     KASAN_CODE_STACK_LEFT);
+  kasan_mark(addr, size, size_with_mid_redzone, KASAN_CODE_STACK_MID);
+  kasan_mark_invalid(right_redzone, KASAN_ALLOCA_REDZONE_SIZE,
+                     KASAN_CODE_STACK_RIGHT);
+}
+
+void __asan_allocas_unpoison(const void *begin, const void *end) {
+  size_t size = end - begin;
+  if (__predict_false(!begin || begin > end))
+    return;
+  kasan_mark_valid(begin, size);
+}
+
 /* Below you can find replacements for various memory-touching functions */
 
+#undef copyin
+int copyin(const void *restrict udaddr, void *restrict kaddr, size_t len);
+int kasan_copyin(const void *restrict udaddr, void *restrict kaddr,
+                 size_t len) {
+  shadow_check((uintptr_t)kaddr, len, false);
+  return copyin(udaddr, kaddr, len);
+}
+
+#undef copyinstr
+int copyinstr(const void *restrict udaddr, void *restrict kaddr, size_t len,
+              size_t *restrict lencopied);
+int kasan_copyinstr(const void *restrict udaddr, void *restrict kaddr,
+                    size_t len, size_t *restrict lencopied) {
+  shadow_check((uintptr_t)kaddr, len, false);
+  return copyinstr(udaddr, kaddr, len, lencopied);
+}
+
+#undef copyout
+int copyout(const void *restrict kaddr, void *restrict udaddr, size_t len);
+int kasan_copyout(const void *restrict kaddr, void *restrict udaddr,
+                  size_t len) {
+  shadow_check((uintptr_t)kaddr, len, true);
+  return copyout(kaddr, udaddr, len);
+}
+
+#undef memcpy
+void *memcpy(void *dst, const void *src, size_t len);
 void *kasan_memcpy(void *dst, const void *src, size_t len) {
   shadow_check((uintptr_t)src, len, true);
   shadow_check((uintptr_t)dst, len, false);
-  return __builtin_memcpy(dst, src, len);
+  return memcpy(dst, src, len);
 }
 
 size_t kasan_strlen(const char *str) {

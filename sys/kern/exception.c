@@ -24,10 +24,12 @@ void on_user_exc_leave(void) {
   proc_t *p = td->td_proc;
   /* Process pending signals. */
   if (td->td_flags & TDF_NEEDSIGCHK) {
-    WITH_PROC_LOCK(p) {
-      int sig;
-      while ((sig = sig_check(td)))
-        sig_post(sig);
+    WITH_MTX_LOCK (all_proc_mtx) {
+      WITH_PROC_LOCK(p) {
+        int sig;
+        while ((sig = sig_check(td)))
+          sig_post(sig);
+      }
     }
   }
 }
