@@ -24,7 +24,7 @@ typedef struct kmalloc_pool {
   mtx_t mp_lock;                     /* Mutex protecting structure */
   size_t mp_used;                    /* Current number of pages (in bytes) */
   size_t mp_maxsize;                 /* Number of pages allowed (in bytes) */
-#ifdef KASAN
+#if KASAN
   quar_t mp_quarantine;
 #endif /* !KASAN */
 } kmalloc_pool_t;

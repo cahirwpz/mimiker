@@ -45,7 +45,7 @@ typedef struct pool {
   size_t pp_align;    /* (ignored) requested alignment, must be 2^n */
   size_t pp_nslabs;   /* # of slabs allocated */
   size_t pp_nitems;   /* number of available items in pool */
-#ifdef KASAN
+#if KASAN
   size_t pp_redzsize; /* size of redzone after each item */
   quar_t pp_quarantine;
 #endif
@@ -71,14 +71,7 @@ typedef struct pool_item {
 
 /* Pool of pool_t objects. */
 static pool_t P_POOL[1];
-
-#ifdef KASAN
-/* Quarantine increases size of pool structure. More boot pages needed! */
-#define POOL_BOOTPAGE_CNT 2
-#else
-#define POOL_BOOTPAGE_CNT 1
-#endif /* !KASAN */
-static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[PAGESIZE * POOL_BOOTPAGE_CNT];
+static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[PAGESIZE * 2];
 
 static pool_item_t *slab_item_at(pool_slab_t *slab, unsigned i) {
   return (pool_item_t *)(slab->ph_items + i * slab->ph_itemsize);
