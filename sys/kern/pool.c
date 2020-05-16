@@ -45,6 +45,10 @@ typedef struct pool {
   size_t pp_align;    /* (ignored) requested alignment, must be 2^n */
   size_t pp_nslabs;   /* # of slabs allocated */
   size_t pp_nitems;   /* number of available items in pool */
+#if KASAN
+  size_t pp_redzsize; /* size of redzone after each item */
+  quar_t pp_quarantine;
+#endif
 } pool_t;
 
 typedef struct pool_slab {
@@ -53,8 +57,8 @@ typedef struct pool_slab {
   uint16_t ph_nused;                 /* # of items in use */
   uint16_t ph_ntotal;                /* total number of chunks */
   size_t ph_size;                    /* size of memory allocated for the slab */
-  size_t ph_itemsize;                /* total size of item (with header) */
-  void *ph_items;                    /* ptr to array of items after bitmap */
+  size_t ph_itemsize; /* total size of item (with header and redzone) */
+  void *ph_items;     /* ptr to array of items after bitmap */
   bitstr_t ph_bitmap[0];
 } pool_slab_t;
 
@@ -67,7 +71,7 @@ typedef struct pool_item {
 
 /* Pool of pool_t objects. */
 static pool_t P_POOL[1];
-static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[PAGESIZE];
+static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[PAGESIZE * 2];
 
 static pool_item_t *slab_item_at(pool_slab_t *slab, unsigned i) {
   return (pool_item_t *)(slab->ph_items + i * slab->ph_itemsize);
@@ -86,6 +90,9 @@ static void add_slab(pool_t *pool, pool_slab_t *slab, size_t slabsize) {
   slab->ph_nused = 0;
   slab->ph_size = slabsize;
   slab->ph_itemsize = pool->pp_itemsize + sizeof(pool_item_t);
+#if KASAN
+  slab->ph_itemsize += pool->pp_redzsize;
+#endif /* !KASAN */
 
   /*
    * Now we need to calculate maximum possible number of items of given `size`
@@ -164,7 +171,6 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
   debug("pool_alloc: pool=%p", pool);
 
   SCOPED_MTX_LOCK(&pool->pp_mtx);
-
   assert(pool->pp_state == ALIVE);
 
   pool_slab_t *slab;
@@ -189,9 +195,9 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
                           : &pool->pp_full_slabs;
   LIST_INSERT_HEAD(slabs, slab, ph_slablist);
 
-  /* Mark the item as valid */
-  kasan_mark_valid(p, pool->pp_itemsize);
-
+  /* Create redzone after the item */
+  kasan_mark(p, pool->pp_itemsize, pool->pp_itemsize + pool->pp_redzsize,
+             KASAN_CODE_POOL_OVERFLOW);
   /* XXX: Modify code below when pp_ctor & pp_dtor are reenabled */
   if (flags & M_ZERO)
     bzero(p, pool->pp_itemsize);
@@ -201,14 +207,11 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
 
 /* TODO: destroy empty slabs when their number reaches a certain threshold
  * (maybe leave one) */
-void pool_free(pool_t *pool, void *ptr) {
+static void _pool_free(pool_t *pool, void *ptr) {
+  assert(mtx_owned(&pool->pp_mtx));
+
   debug("pool_free: pool = %p, ptr = %p", pool, ptr);
   assert(pool->pp_state == ALIVE);
-
-  /* Mark the item as invalid */
-  kasan_mark(ptr, 0, pool->pp_itemsize, KASAN_CODE_POOL_USE_AFTER_FREE);
-
-  SCOPED_MTX_LOCK(&pool->pp_mtx);
 
   pool_item_t *pi = ptr - sizeof(pool_item_t);
   assert(pi->pi_canary == PI_MAGIC);
@@ -230,6 +233,18 @@ void pool_free(pool_t *pool, void *ptr) {
   LIST_INSERT_HEAD(slabs, slab, ph_slablist);
 
   debug("pool_free: freed item %p at slab %p, index %d", ptr, slab, index);
+}
+
+void pool_free(pool_t *pool, void *ptr) {
+  SCOPED_MTX_LOCK(&pool->pp_mtx);
+
+  kasan_mark_invalid(ptr, pool->pp_itemsize + pool->pp_redzsize,
+                     KASAN_CODE_POOL_FREED);
+  kasan_quar_additem(&pool->pp_quarantine, ptr);
+#if !KASAN
+  /* Without KASAN, call regular free method */
+  _pool_free(pool, ptr);
+#endif /* !KASAN */
 }
 
 static void pool_ctor(pool_t *pool) {
@@ -262,11 +277,19 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
                       pool_ctor_t ctor, pool_dtor_t dtor) {
   pool_ctor(pool);
   pool->pp_desc = desc;
-  pool->pp_itemsize = align(size, PI_ALIGNMENT);
   pool->pp_ctor = ctor;
   pool->pp_dtor = dtor;
   pool->pp_state = ALIVE;
-
+#if KASAN
+  /* the alignment is within the redzone */
+  pool->pp_itemsize = size;
+  pool->pp_redzsize =
+    align(size, PI_ALIGNMENT) - size + KASAN_POOL_REDZONE_SIZE;
+#else /* !KASAN */
+  /* no redzone, we have to align the size itself */
+  pool->pp_itemsize = align(size, PI_ALIGNMENT);
+#endif
+  kasan_quar_init(&pool->pp_quarantine, pool, (quar_free_t)_pool_free);
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
        pool->pp_itemsize);
 }
@@ -290,6 +313,9 @@ pool_t *pool_create(const char *desc, size_t size) {
 }
 
 void pool_destroy(pool_t *pool) {
+  WITH_MTX_LOCK (&pool->pp_mtx)
+    /* Lock needed as the quarantine may call _pool_free! */
+    kasan_quar_releaseall(&pool->pp_quarantine);
   pool_dtor(pool);
   pool_free(P_POOL, pool);
 }

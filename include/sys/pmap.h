@@ -7,9 +7,29 @@
 #include <sys/mutex.h>
 #include <machine/pmap.h>
 
+/*
+ * Flags passed to pmap_enter may contain VM_PROT_* read/write/execute
+ * permissions. This information may be used to seed modified/referenced
+ * information for the page being mapped, possibly avoiding redundant faults
+ * on platforms that track modified/referenced information in software
+ * like some MIPS and AArch64 processors.
+ *
+ * 00000ccc 00000000 00000000 00000ppp
+ *
+ * (c) cache bits
+ * (p) protection bits
+ */
+
+#define PMAP_PROT_MASK VM_PROT_MASK
+#define PMAP_CACHE_SHIFT 24
+
+#define PMAP_NOCACHE (1 << PMAP_CACHE_SHIFT)
+#define PMAP_WRITE_THROUGH (2 << PMAP_CACHE_SHIFT)
+#define PMAP_WRITE_BACK (3 << PMAP_CACHE_SHIFT)
+#define PMAP_CACHE_MASK (7 << PMAP_CACHE_SHIFT)
+
 typedef struct pmap {
   pde_t *pde;              /* directory page table */
-  vm_page_t *pde_page;     /* pointer to a page with directory page table */
   vm_pagelist_t pte_pages; /* pages we allocate in page table */
   asid_t asid;
   mtx_t mtx;
@@ -26,12 +46,13 @@ pmap_t *pmap_new(void);
 void pmap_reset(pmap_t *pmap);
 void pmap_delete(pmap_t *pmap);
 
-void pmap_enter(pmap_t *pmap, vaddr_t start, vm_page_t *page, vm_prot_t prot);
+void pmap_enter(pmap_t *pmap, vaddr_t start, vm_page_t *page, vm_prot_t prot,
+                unsigned flags);
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot);
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end);
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap);
 
-void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot);
+void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags);
 void pmap_kremove(vaddr_t start, vaddr_t end);
 
 void pmap_zero_page(vm_page_t *pg);
