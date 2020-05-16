@@ -1,6 +1,8 @@
 #ifndef _SYS_KASAN_H_
 #define _SYS_KASAN_H_
 
+#if KASAN
+
 #include <sys/types.h>
 
 /* The following codes are part of internal compiler interface:
@@ -40,8 +42,6 @@ typedef struct {
   void *q_pool;       /* pool from which the items come */
 } quar_t;
 
-/* KASAN interface */
-#if KASAN
 /* Initialize KASAN subsystem.
  *
  * Should be called during early kernel boot process, as soon as the shadow
@@ -67,7 +67,7 @@ void kasan_quar_additem(quar_t *q, void *ptr);
 
 /* Release all items from the quarantine. */
 void kasan_quar_releaseall(quar_t *q);
-#else
+#else /* !KASAN */
 #define kasan_init() __nothing
 #define kasan_mark_valid(addr, size) __nothing
 #define kasan_mark_invalid(addr, size, code) __nothing
@@ -75,6 +75,6 @@ void kasan_quar_releaseall(quar_t *q);
 #define kasan_quar_init(q, pool, free) __nothing
 #define kasan_quar_additem(q, ptr) __nothing
 #define kasan_quar_releaseall(q) __nothing
-#endif /* !KASAN */
+#endif
 
 #endif /* !_SYS_KASAN_H_ */
