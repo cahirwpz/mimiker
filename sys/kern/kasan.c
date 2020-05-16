@@ -1,7 +1,5 @@
 #include <sys/vm.h>
 #include <sys/pmap.h>
-#include <sys/types.h>
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kasan.h>
 #include <sys/mimiker.h>
@@ -48,15 +46,15 @@ static const char *code_name(uint8_t code) {
       return "stack buffer-overflow";
     case KASAN_CODE_GLOBAL_OVERFLOW:
       return "global buffer-overflow";
-    case KASAN_CODE_KMEM_USE_AFTER_FREE:
+    case KASAN_CODE_KMEM_FREED:
       return "kmem use-after-free";
     case KASAN_CODE_POOL_OVERFLOW:
       return "pool buffer-overflow";
-    case KASAN_CODE_POOL_USE_AFTER_FREE:
+    case KASAN_CODE_POOL_FREED:
       return "pool use-after-free";
     case KASAN_CODE_KMALLOC_OVERFLOW:
       return "kmalloc buffer-overflow";
-    case KASAN_CODE_KMALLOC_USE_AFTER_FREE:
+    case KASAN_CODE_KMALLOC_FREED:
       return "kmalloc use-after-free";
     case 1 ... 7:
       return "partial redzone";
@@ -177,10 +175,7 @@ __always_inline static inline void shadow_check(uintptr_t addr, size_t size,
   }
 }
 
-/* Mark first 'size' bytes as valid (in the shadow memory), and the remaining
- * (size_with_redzone - size) bytes as invalid with given code.
- *
- * Note: use of __builtin_memset in this function is not optimal if its
+/* Note: use of __builtin_memset in this function is not optimal if its
  * implementation is instrumented (i.e. not written in asm) */
 void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
                 uint8_t code) {
@@ -204,7 +199,6 @@ void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
   __builtin_memset(shadow, code, len);
 }
 
-/* Mark bytes as valid (in the shadow memory) */
 void kasan_mark_valid(const void *addr, size_t size) {
   kasan_mark(addr, size, size, 0);
 }
@@ -293,8 +287,8 @@ void __asan_allocas_unpoison(const void *begin, const void *end) {
   kasan_mark_valid(begin, size);
 }
 
-/* Below you can find replacements for various memory-touching functions */
-
+/* Below you can find wrappers for various memory-touching functions,
+ * which are implemented in assembly (therefore are not instrumented). */
 #undef copyin
 int copyin(const void *restrict udaddr, void *restrict kaddr, size_t len);
 int kasan_copyin(const void *restrict udaddr, void *restrict kaddr,
