@@ -74,10 +74,11 @@ char *strrchr(const char *s, int c);
 char *strsep(char **stringp, const char *delim);
 size_t strspn(const char *s1, const char *s2);
 
-#ifdef KASAN
+#if KASAN
 void *kasan_memcpy(void *dst, const void *src, size_t len);
-size_t kasan_strlen(const char *str);
 #define memcpy(d, s, l) kasan_memcpy(d, s, l)
+
+size_t kasan_strlen(const char *str);
 #define strlen(str) kasan_strlen(str)
 #endif /* !KASAN */
 

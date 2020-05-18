@@ -113,6 +113,9 @@ UTEST_ADD_SIMPLE(vfs_symlink);
 UTEST_ADD_SIMPLE(vfs_link);
 UTEST_ADD_SIMPLE(vfs_chmod);
 
+UTEST_ADD_SIMPLE(wait_basic);
+UTEST_ADD_SIMPLE(wait_nohang);
+
 #if 0
 UTEST_ADD_SIMPLE(fpu_fcsr);
 UTEST_ADD_SIMPLE(fpu_gpr_preservation);
