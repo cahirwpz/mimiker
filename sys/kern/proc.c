@@ -138,9 +138,9 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
   p->p_thread = td;
   p->p_parent = parent;
   if (parent != NULL)
-    p->p_cred = parent->p_cred;
+    cred_copy(&parent->p_cred, &p->p_cred);
   else
-    p->p_cred = cred_init_root();
+    cred_init_root(&p->p_cred);
 
   if (parent && parent->p_elfpath)
     p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, PATH_MAX);

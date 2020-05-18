@@ -29,6 +29,7 @@ int do_getresgid(proc_t *p, gid_t *rgid, gid_t *egid, gid_t *sgid);
 int do_setresuid(proc_t *p, uid_t ruid, uid_t euid, uid_t suid);
 int do_setresgid(proc_t *p, gid_t rgid, gid_t egid, gid_t sgid);
 
-cred_t cred_init_root(void);
+void cred_init_root(cred_t *c);
+void cred_copy(cred_t *src, cred_t *dest);
 
 #endif /* _SYS_CRED_H_ */

@@ -51,7 +51,7 @@ struct proc {
   TAILQ_ENTRY(proc) p_child;  /* (a) link on parent's children list */
   thread_t *p_thread;         /* (@) the only thread running in this process */
   pid_t p_pid;                /* (!) Process ID */
-  cred_t p_cred;              /* ($) Process credentials */
+  cred_t p_cred;              /* (@) Process credentials */
   char *p_elfpath;            /* (!) path of loaded elf file */
   TAILQ_ENTRY(proc) p_pglist; /* (pgrp::pg_lock) link on pg_members list */
   pgrp_t *p_pgrp;             /* (a,*) process group */
