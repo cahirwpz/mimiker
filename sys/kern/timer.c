@@ -47,10 +47,10 @@ static time_t tm2sec(tm_t *t) {
   const int32_t year_scale_s = 31536000, day_scale_s = 86400,
                 hour_scale_s = 3600, min_scale_s = 60;
   time_t res = 0;
-  static const int month_int_days[13] = {0,   31,  59,  90,  120, 151,
-                                         181, 212, 243, 273, 304, 334};
+  static const int month_in_days[13] = {0,   31,  59,  90,  120, 151,
+                                        181, 212, 243, 273, 304, 334};
 
-  res += (time_t)month_int_days[t->tm_mon - 1] * day_scale_s;
+  res += (time_t)month_in_days[t->tm_mon - 1] * day_scale_s;
   /* Extra days from leap years for 20 century which already past */
   res += (time_t)((t->tm_year) / 4) * day_scale_s;
   /* If actual year is a leap year and the leap day passed */
