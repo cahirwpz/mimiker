@@ -5,11 +5,6 @@
 
 typedef struct bus_space bus_space_t;
 
-/* Flags for use by bus_space_map. */
-#define BUS_SPACE_MAP_CACHEABLE 1
-#define BUS_SPACE_MAP_LINEAR 2
-#define BUS_SPACE_MAP_PREFETCHABLE 4
-
 /* Following types roughly correspond to those described in section TYPES of
  * bus_space(9) FreeBSD manual page. */
 
