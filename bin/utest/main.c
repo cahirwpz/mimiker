@@ -81,6 +81,7 @@ int main(int argc, char **argv) {
 
   CHECKRUN_TEST(getresuid);
   CHECKRUN_TEST(getresgid);
+  CHECKRUN_TEST(setresuid);
 
   printf("No user test \"%s\" available.\n", test_name);
   return 1;

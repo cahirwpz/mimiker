@@ -81,5 +81,6 @@ int test_killpg_other_group(void);
 
 int test_getresuid(void);
 int test_getresgid(void);
+int test_setresuid(void);
 
 #endif /* __UTEST_H__ */

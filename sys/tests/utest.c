@@ -136,3 +136,4 @@ UTEST_ADD_SIMPLE(killpg_other_group);
 
 UTEST_ADD_SIMPLE(getresuid);
 UTEST_ADD_SIMPLE(getresgid);
+UTEST_ADD_SIMPLE(setresuid);
