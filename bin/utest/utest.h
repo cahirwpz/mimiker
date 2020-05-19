@@ -32,6 +32,7 @@ int test_signal_stop(void);
 int test_signal_cont_masked(void);
 int test_signal_mask(void);
 int test_signal_mask_nonmaskable(void);
+int test_signal_sigsuspend(void);
 
 int test_fork_wait(void);
 int test_fork_signal(void);

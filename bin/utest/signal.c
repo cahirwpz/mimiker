@@ -232,3 +232,42 @@ int test_signal_mask_nonmaskable() {
   assert(__sigsetequal(&set, &old));
   return 0;
 }
+
+/* ======= signal_sigsuspend ======= */
+int test_signal_sigsuspend() {
+  pid_t ppid = getpid();
+  signal(SIGCONT, sigcont_handler);
+  signal(SIGUSR1, sigusr1_handler);
+  sigset_t set, old;
+  __sigemptyset(&set);
+  __sigaddset(&set, SIGCONT);
+  __sigaddset(&set, SIGUSR1);
+  assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
+  __sigaddset(&old, SIGCONT);
+  pid_t cpid = fork();
+  if (cpid == 0) {
+    for (int i = 0; i < 10; i++) {
+      kill(ppid, SIGCONT);
+      sched_yield();
+    }
+    kill(ppid, SIGUSR1);
+    return 0;
+  }
+  /* Go to sleep with SIGCONT blocked and SIGUSR1 unblocked. */
+  printf("Calling sigsuspend()...\n");
+  sigsuspend(&old);
+  /* SIGUSR1 should have woken us up, but SIGCONT should still be pending. */
+  assert(sigusr1_handled);
+  assert(!sigcont_handled);
+  __sigemptyset(&set);
+  __sigaddset(&set, SIGCONT);
+  assert(sigprocmask(SIG_UNBLOCK, &set, NULL) == 0);
+  assert(sigcont_handled);
+
+  int status;
+  printf("Waiting for child...\n");
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+  return 0;
+}
