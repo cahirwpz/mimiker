@@ -233,8 +233,7 @@ void sig_kill(proc_t *p, signo_t sig) {
       /* If the thread is sleeping interruptibly (!), wake it up, so that it
        * continues execution and the signal gets delivered soon. */
       if (td_is_interruptible(td)) {
-        /* XXX Maybe TDF_NEEDSIGCHK should be protected by td_lock
-         * instead of td_spin? */
+        /* XXX Maybe TDF_NEEDSIGCHK should be protected by a different lock? */
         spin_unlock(&td->td_spin);
         sleepq_abort(td); /* Locks & unlocks td_spin */
         spin_lock(&td->td_spin);
