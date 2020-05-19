@@ -635,7 +635,7 @@ static int sys_getresuid(proc_t *p, getresuid_args_t *args, register_t *res) {
   uid_t *usr_euid = args->euid;
   uid_t *usr_suid = args->suid;
 
-  klog("getresuid()");
+  klog("getresuid(%p, %p, %p)", usr_ruid, usr_euid, usr_suid);
 
   /* TODO error handling */
 
@@ -673,7 +673,7 @@ static int sys_setresuid(proc_t *p, setresuid_args_t *args, register_t *res) {
   uid_t euid = args->euid;
   uid_t suid = args->suid;
 
-  klog("setresuid()");
+  klog("setresuid(%p, %p, %p)", &args->ruid, &args->euid, &args->suid);
 
   return do_setresuid(p, ruid, euid, suid);
 }
