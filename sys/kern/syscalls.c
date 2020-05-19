@@ -635,9 +635,7 @@ static int sys_getresuid(proc_t *p, getresuid_args_t *args, register_t *res) {
   uid_t *usr_euid = args->euid;
   uid_t *usr_suid = args->suid;
 
-  klog("getresuid(%p, %p, %p)", usr_ruid, usr_euid, usr_suid);
-
-  /* TODO error handling */
+  klog("getresuid()");
 
   uid_t ruid, euid, suid;
   do_getresuid(p, &ruid, &euid, &suid);
@@ -656,8 +654,6 @@ static int sys_getresgid(proc_t *p, getresgid_args_t *args, register_t *res) {
 
   klog("getresgid()");
 
-  /* TODO error handling */
-
   gid_t rgid, egid, sgid;
   do_getresgid(p, &rgid, &egid, &sgid);
 
@@ -673,7 +669,7 @@ static int sys_setresuid(proc_t *p, setresuid_args_t *args, register_t *res) {
   uid_t euid = args->euid;
   uid_t suid = args->suid;
 
-  klog("setresuid(%p, %p, %p)", &args->ruid, &args->euid, &args->suid);
+  klog("setresuid(%d, %d, %d)", args->ruid, args->euid, args->suid);
 
   return do_setresuid(p, ruid, euid, suid);
 }
@@ -683,7 +679,7 @@ static int sys_setresgid(proc_t *p, setresgid_args_t *args, register_t *res) {
   gid_t egid = args->egid;
   gid_t sgid = args->sgid;
 
-  klog("setresgid()");
+  klog("setresgid(%d, %d, %d)", args->rgid, args->egid, args->sgid);
 
   return do_setresgid(p, rgid, egid, sgid);
 }

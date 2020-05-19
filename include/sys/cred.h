@@ -30,6 +30,5 @@ int do_setresuid(proc_t *p, uid_t ruid, uid_t euid, uid_t suid);
 int do_setresgid(proc_t *p, gid_t rgid, gid_t egid, gid_t sgid);
 
 void cred_init_root(cred_t *c);
-void cred_copy(cred_t *dest, cred_t *src);
 
 #endif /* _SYS_CRED_H_ */

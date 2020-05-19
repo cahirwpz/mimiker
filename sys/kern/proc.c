@@ -138,7 +138,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
   p->p_thread = td;
   p->p_parent = parent;
   if (parent != NULL)
-    cred_copy(&parent->p_cred, &p->p_cred);
+    memcpy(&parent->p_cred, &p->p_cred, sizeof(cred_t));
   else
     cred_init_root(&p->p_cred);
 

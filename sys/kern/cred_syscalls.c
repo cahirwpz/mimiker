@@ -1,7 +1,7 @@
 #include <sys/cred.h>
 #include <sys/proc.h>
+#include <sys/libkern.h>
 #include <sys/errno.h>
-#include <sys/klog.h>
 
 int do_getresuid(proc_t *p, uid_t *ruid, uid_t *euid, uid_t *suid) {
   proc_lock(p);
@@ -69,37 +69,31 @@ int do_setresuid(proc_t *p, uid_t ruid, uid_t euid, uid_t suid) {
   proc_lock(p);
 
   cred_t *oldcred = &p->p_cred;
-  cred_t newcred; /* XXX: maybe not on stack */
-  cred_copy(&newcred, oldcred);
-
-  klog("setresuid( r: %d -> %d, e: %d -> %d, s: %d -> %d )\n", oldcred->cr_ruid,
-       ruid, oldcred->cr_euid, euid, oldcred->cr_suid, suid);
+  cred_t newcred;
+  memcpy(&newcred, oldcred, sizeof(cred_t));
 
   if (ruid != (uid_t)-1) {
-    if (can_change_uid(oldcred, ruid) == 0)
-      newcred.cr_ruid = ruid;
-    else
+    if (can_change_uid(oldcred, ruid))
       goto fail;
-    klog("changed ruid ");
+
+    newcred.cr_ruid = ruid;
   }
 
   if (euid != (uid_t)-1) {
-    if (can_change_uid(oldcred, euid) == 0)
-      newcred.cr_euid = euid;
-    else
+    if (can_change_uid(oldcred, euid))
       goto fail;
-    klog("changed euid ");
+
+    newcred.cr_euid = euid;
   }
 
   if (suid != (uid_t)-1) {
-    if (can_change_uid(oldcred, suid) == 0)
-      newcred.cr_suid = suid;
-    else
+    if (can_change_uid(oldcred, suid))
       goto fail;
-    klog("changed suid ");
+
+    newcred.cr_suid = suid;
   }
 
-  cred_copy(oldcred, &newcred);
+  memcpy(oldcred, &newcred, sizeof(cred_t));
   proc_unlock(p);
   return 0;
 
@@ -112,25 +106,31 @@ int do_setresgid(proc_t *p, gid_t rgid, gid_t egid, gid_t sgid) {
   proc_lock(p);
 
   cred_t *oldcred = &p->p_cred;
-  cred_t newcred; /* XXX: maybe not on stack */
-  cred_copy(&newcred, oldcred);
+  cred_t newcred;
+  memcpy(&newcred, oldcred, sizeof(cred_t));
 
-  if (can_change_gid(oldcred, rgid) == 0)
+  if (rgid != (gid_t)-1) {
+    if (can_change_gid(oldcred, rgid))
+      goto fail;
+
     newcred.cr_rgid = rgid;
-  else
-    goto fail;
+  }
 
-  if (can_change_gid(oldcred, egid) == 0)
+  if (egid != (gid_t)-1) {
+    if (can_change_gid(oldcred, egid))
+      goto fail;
+
     newcred.cr_egid = egid;
-  else
-    goto fail;
+  }
 
-  if (can_change_gid(oldcred, sgid) == 0)
+  if (sgid != (gid_t)-1) {
+    if (can_change_gid(oldcred, sgid))
+      goto fail;
+
     newcred.cr_sgid = sgid;
-  else
-    goto fail;
+  }
 
-  cred_copy(oldcred, &newcred);
+  memcpy(oldcred, &newcred, sizeof(cred_t));
   proc_unlock(p);
   return 0;
 
