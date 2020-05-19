@@ -586,6 +586,19 @@ static int sys_sigprocmask(proc_t *p, sigprocmask_args_t *args,
   return error;
 }
 
+static int sys_sigsuspend(proc_t *p, sigsuspend_args_t *args, register_t *res) {
+  const sigset_t *umask = args->sigmask;
+  sigset_t mask;
+  int error;
+
+  klog("sigsuspend(%p)", umask);
+
+  if ((error = copyin_s(umask, mask)))
+    return error;
+
+  return do_sigsuspend(p, &mask);
+}
+
 static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
   const ucontext_t *ucp = args->ucp;
   klog("setcontext(%p)", ucp);

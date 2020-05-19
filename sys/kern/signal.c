@@ -139,6 +139,34 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
   return 0;
 }
 
+int do_sigsuspend(proc_t *p, const sigset_t *mask) {
+  thread_t *td = thread_self();
+  assert(td->td_proc == p);
+
+  WITH_PROC_LOCK(p) {
+    assert((td->td_pflags & TDP_OLDMASK) == 0);
+
+    td->td_oldmask = td->td_sigmask;
+    td->td_pflags |= TDP_OLDMASK;
+    do_sigprocmask(SIG_SETMASK, mask, NULL);
+
+    /* We want the sleep to be interrupted only if there's an actual signal
+     * to be handled, but _sleepq_wait() returns immediately if TDF_NEEDSIGCHK
+     * is set, so we clear the flag here if there are no real pending signals. */
+    if (sig_pending(td) == 0)
+      WITH_SPIN_LOCK(&td->td_spin)
+        td->td_flags &= ~TDF_NEEDSIGCHK;
+  }
+
+  int error;
+  while ((error = sleepq_wait_intr(td, "sigsuspend()")) == 0)
+    klog("Spurious wakeup in sigsuspend()!");
+
+  assert(error = EINTR);
+
+  return EINTR;
+}
+
 /*
  * NOTE: This is a very simple implementation! Unimplemented features:
  * - Thread tracing and debugging
@@ -287,10 +315,19 @@ void sig_post(signo_t sig) {
   klog("Post signal %s (handler %p) to thread %lu in process PID(%d)",
        sig_name[sig], sa->sa_handler, td->td_tid, p->p_pid);
 
+  sigset_t *return_mask;
+  if (td->td_pflags & TDP_OLDMASK) {
+    return_mask = &td->td_oldmask;
+    td->td_pflags &= ~TDP_OLDMASK;
+  } else {
+    return_mask = &td->td_sigmask;
+  }
+
+
   /* Normally the `sig_post` would have more to do, but our signal
    * implementation is very limited for now. All `sig_post` has to do is to
    * pass `sa` to platform-specific `sig_send`. */
-  sig_send(sig, sa);
+  sig_send(sig, return_mask, sa);
 }
 
 __noreturn void sig_exit(thread_t *td, signo_t sig) {
