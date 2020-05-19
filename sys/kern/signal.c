@@ -150,9 +150,11 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
     td->td_pflags |= TDP_OLDMASK;
     do_sigprocmask(SIG_SETMASK, mask, NULL);
 
-    /* We want the sleep to be interrupted only if there's an actual signal
+    /*
+     * We want the sleep to be interrupted only if there's an actual signal
      * to be handled, but _sleepq_wait() returns immediately if TDF_NEEDSIGCHK
-     * is set, so we clear the flag here if there are no real pending signals. */
+     * is set, so we clear the flag here if there are no real pending signals.
+     */
     WITH_SPIN_LOCK (&td->td_spin) {
       if (sig_pending(td))
         td->td_flags |= TDF_NEEDSIGCHK;
@@ -324,7 +326,6 @@ void sig_post(signo_t sig) {
   } else {
     return_mask = &td->td_sigmask;
   }
-
 
   /* Normally the `sig_post` would have more to do, but our signal
    * implementation is very limited for now. All `sig_post` has to do is to
