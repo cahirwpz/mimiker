@@ -377,7 +377,7 @@ static void gt_pci_activate_resource(device_t *pcib, device_t *dev,
     rman_activate_resource(r);
   }
   bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
-                BUS_SPACE_MAP_LINEAR, &r->r_bus_handle);
+                &r->r_bus_handle);
 }
 
 /* clang-format off */
