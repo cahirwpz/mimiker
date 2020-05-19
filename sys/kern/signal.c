@@ -97,7 +97,9 @@ static signo_t sig_pending(thread_t *td) {
   sigset_t unblocked = td->td_sigpend;
   __sigminusset(&td->td_sigmask, &unblocked);
 
-  return __sigfindset(&unblocked);
+  signo_t ret = __sigfindset(&unblocked);
+  assert(ret < NSIG);
+  return ret;
 }
 
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
@@ -129,7 +131,7 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
     return EINVAL;
   }
 
-  if (sig_pending(td) < NSIG) {
+  if (sig_pending(td)) {
     WITH_SPIN_LOCK (&td->td_spin)
       td->td_flags |= TDF_NEEDSIGCHK;
   }
@@ -221,7 +223,7 @@ int sig_check(thread_t *td) {
   signo_t sig = NSIG;
   while (true) {
     sig = sig_pending(td);
-    if (sig >= NSIG) {
+    if (sig == 0) {
       /* No pending signals, signal checking done. */
       WITH_SPIN_LOCK (&td->td_spin)
         td->td_flags &= ~TDF_NEEDSIGCHK;
