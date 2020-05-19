@@ -79,8 +79,7 @@ int test_kill(void);
 int test_killpg_same_group(void);
 int test_killpg_other_group(void);
 
-int test_getresuid(void);
-int test_getresgid(void);
-int test_setresuid(void);
+int test_get_set_uid(void);
+int test_get_set_gid(void);
 
 #endif /* __UTEST_H__ */

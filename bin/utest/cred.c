@@ -5,54 +5,75 @@
 #include <errno.h>
 #include <assert.h>
 
-int test_getresuid(void) {
-  uid_t ruid, euid, suid;
-  getresuid(&ruid, &euid, &suid);
-  printf("real user id: %d\neffective user id: %d\nsaved user id: %d\n", ruid,
-         euid, suid);
-  return 0;
-}
-
-int test_getresgid(void) {
-  gid_t rgid, egid, sgid;
-  getresgid(&rgid, &egid, &sgid);
-  printf("real group id: %d\neffective group id: %d\nsaved group id: %d\n",
-         rgid, egid, sgid);
-
-  return 0;
-}
-
-int test_setresuid(void) {
+int test_get_set_uid(void) {
   uid_t ruid, euid, suid;
   int error;
   getresuid(&ruid, &euid, &suid);
-  printf("0: ruid: %d\teuid: %d\tsuid: %d\n", ruid, euid, suid);
 
+  /* assume we are running tests as root */
+  assert(ruid == 0 && euid == 0 && suid == 0);
+
+  /* as root we chan change id to ony other */
   ruid = 1, euid = 2, suid = 3;
   error = setresuid(ruid, euid, suid);
   assert(error == 0);
+
   getresuid(&ruid, &euid, &suid);
-  printf("1: ruid: %d\teuid: %d\tsuid: %d\n", ruid, euid, suid);
   assert(ruid == 1 && euid == 2 && suid == 3);
 
+  /* we can only change to value that is one of real, effective or saved */
   ruid = -1, euid = 3, suid = -1;
   error = setresuid(ruid, euid, suid);
-  getresuid(&ruid, &euid, &suid);
   assert(error == 0);
-  printf("2: ruid: %d\teuid: %d\tsuid: %d\n", ruid, euid, suid);
+
+  getresuid(&ruid, &euid, &suid);
   assert(ruid == 1 && euid == 3 && suid == 3);
 
-  ruid = 3, euid = 3, suid = 3;
-  error = setresuid(ruid, euid, suid);
-  assert(error == 0);
-  // assert(ruid == 3 && euid == 3 && suid == 3);
-  printf("3: ruid: %d\teuid: %d\tsuid: %d\n", ruid, euid, suid);
-  getresuid(&ruid, &euid, &suid);
-
+  /* we cannnot change to value that is not one of real, effective or saved */
   ruid = -1, euid = 2, suid = -1;
   error = setresuid(ruid, euid, suid);
   assert(error < 0 && errno == EPERM);
+
   getresuid(&ruid, &euid, &suid);
-  printf("4: ruid: %d\teuid: %d\tsuid: %d\n", ruid, euid, suid);
+  assert(ruid == 1 && euid == 3 && suid == 3);
+
+  return 0;
+}
+
+int test_get_set_gid(void) {
+  gid_t rgid, egid, sgid;
+  int error;
+  getresgid(&rgid, &egid, &sgid);
+
+  /* assume we are running tests as root */
+  assert(rgid == 0 && egid == 0 && sgid == 0);
+
+  /* as root we chan change id to ony other */
+  rgid = 1, egid = 2, sgid = 3;
+  error = setresgid(rgid, egid, sgid);
+  assert(error == 0);
+
+  getresgid(&rgid, &egid, &sgid);
+  assert(rgid == 1 && egid == 2 && sgid == 3);
+
+  /* dropping privileges */
+  setresuid(1, 1, 1);
+
+  /* we can only change to value that is one of real, effective or saved */
+  rgid = -1, egid = 3, sgid = -1;
+  error = setresgid(rgid, egid, sgid);
+  assert(error == 0);
+
+  getresgid(&rgid, &egid, &sgid);
+  assert(rgid == 1 && egid == 3 && sgid == 3);
+
+  /* we cannnot change to value that is not one of real, effective or saved */
+  rgid = -1, egid = 2, sgid = -1;
+  error = setresgid(rgid, egid, sgid);
+  assert(error < 0 && errno == EPERM);
+
+  getresgid(&rgid, &egid, &sgid);
+  assert(rgid == 1 && egid == 3 && sgid == 3);
+
   return 0;
 }
