@@ -27,7 +27,7 @@ extern mtx_t *all_proc_mtx;
  */
 typedef struct pgrp {
   mtx_t pg_lock;                 /* Process group mutex */
-  TAILQ_ENTRY(pgrp) pg_link;     /* (a) link on chain of process groups */
+  TAILQ_ENTRY(pgrp) pg_hash;     /* (a) link on pgid hash chain */
   TAILQ_HEAD(, proc) pg_members; /* (@) members of process group */
   pgid_t pg_id;                  /* (!) process group id */
 } pgrp_t;
@@ -55,6 +55,7 @@ struct proc {
   TAILQ_ENTRY(proc) p_all;    /* (a) link on all processes list */
   TAILQ_ENTRY(proc) p_zombie; /* (a) link on zombie process list */
   TAILQ_ENTRY(proc) p_child;  /* (a) link on parent's children list */
+  TAILQ_ENTRY(proc) p_hash;   /* (a) link on pid hash chain */
   thread_t *p_thread;         /* (@) the only thread running in this process */
   pid_t p_pid;                /* (!) Process ID */
   char *p_elfpath;            /* (!) path of loaded elf file */
