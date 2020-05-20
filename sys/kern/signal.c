@@ -331,6 +331,11 @@ void sig_post(signo_t sig) {
    * implementation is very limited for now. All `sig_post` has to do is to
    * pass `sa` to platform-specific `sig_send`. */
   sig_send(sig, return_mask, sa);
+
+  /* Set handler's signal mask. */
+  __sigplusset(&sa->sa_mask, &td->td_sigmask);
+  __sigaddset(&td->td_sigmask, sig);
+  __sigminusset(&cantmask, &td->td_sigmask);
 }
 
 __noreturn void sig_exit(thread_t *td, signo_t sig) {
