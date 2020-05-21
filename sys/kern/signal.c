@@ -264,13 +264,21 @@ void sig_post(signo_t sig) {
     p->p_flags &= ~PF_CONTINUED;
     p->p_flags |= PF_STOPPED;
     cv_broadcast(&p->p_parent->p_waitcv);
-    /* Release locks before switching out! */
+    proc_unlock(p);
+    WITH_MTX_LOCK (&p->p_parent->p_lock)
+      sig_kill(p->p_parent, SIGCHLD);
     mtx_unlock(all_proc_mtx);
-    WITH_SPIN_LOCK (&td->td_spin) {
-      td->td_state = TDS_STOPPED;
-      /* We're holding a spinlock, so we can't be preempted here. */
+    proc_lock(p);
+    if (p->p_state == PS_STOPPED) {
+      WITH_SPIN_LOCK (&td->td_spin) {
+        td->td_state = TDS_STOPPED;
+        /* We're holding a spinlock, so we can't be preempted here. */
+        /* Release locks before switching out! */
+        proc_unlock(p);
+        sched_switch();
+      }
+    } else {
       proc_unlock(p);
-      sched_switch();
     }
     /* Reacquire locks in correct order! */
     mtx_lock(all_proc_mtx);
