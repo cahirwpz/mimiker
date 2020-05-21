@@ -44,7 +44,7 @@ static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
 static pgrp_t *pgrp_lookup(pgid_t pgid);
 static proc_t *proc_find_raw(pid_t pgid);
-static session_t *sess_lookup(pid_t sid);
+static session_t *sess_lookup(sid_t sid);
 
 /* Process ID management functions */
 
@@ -96,7 +96,7 @@ static void sess_drop(session_t *s) {
   }
 }
 
-static session_t *sess_lookup(pid_t sid) {
+static session_t *sess_lookup(sid_t sid) {
   assert(mtx_owned(all_proc_mtx));
 
   session_t *sess;
@@ -107,7 +107,7 @@ static session_t *sess_lookup(pid_t sid) {
 }
 
 /* Session functions */
-int proc_getsid(pid_t pid, pid_t *sid) {
+int proc_getsid(pid_t pid, sid_t *sid) {
   WITH_MTX_LOCK (all_proc_mtx) {
     proc_t *p = proc_find(pid);
     if (p == NULL)

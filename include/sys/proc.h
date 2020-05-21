@@ -29,7 +29,7 @@ typedef struct session {
   TAILQ_ENTRY(session) s_hash; /* (a) link on sid hash chain */
   proc_t *s_leader;            /* (a) Session leader */
   int s_count;                 /* (a) Count of pgrps in session */
-  pid_t s_sid;                 /* (!) PID of session leader */
+  sid_t s_sid;                 /* (!) PID of session leader */
 } session_t;
 
 /*! \brief Structure allocated per process group.
