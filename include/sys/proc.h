@@ -15,16 +15,21 @@ typedef struct fdtab fdtab_t;
 typedef struct vnode vnode_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
 typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
+typedef TAILQ_HEAD(, session) session_list_t;
 
 extern mtx_t *all_proc_mtx;
 
 /*! \brief Structure allocated per session (group of process groups)
  *
- * All accesses must be protected by all_proc_mtx. */
+ * Field markings and the corresponding locks:
+ *  (a) all_proc_mtx
+ *  (!) read-only access, do not modify!
+ */
 typedef struct session {
-  proc_t *s_leader; /* Session leader */
-  int s_count;      /* Count of pgrps in session */
-  pid_t s_sid;      /* PID of session leader */
+  TAILQ_ENTRY(session) s_hash; /* (a) link on sid hash chain */
+  proc_t *s_leader;            /* (a) Session leader */
+  int s_count;                 /* (a) Count of pgrps in session */
+  pid_t s_sid;                 /* (!) PID of session leader */
 } session_t;
 
 /*! \brief Structure allocated per process group.
@@ -34,7 +39,7 @@ typedef struct session {
  *  (!) read-only access, do not modify!
  */
 typedef struct pgrp {
-  TAILQ_ENTRY(pgrp) pg_link;     /* (a) link on chain of process groups */
+  TAILQ_ENTRY(pgrp) pg_hash;     /* (a) link on pgid hash chain */
   TAILQ_HEAD(, proc) pg_members; /* (a) members of process group */
   session_t *pg_session;         /* (a) pointer to session */
   int pg_jobc;                   /* (a) jobc counter, see `pgrp_adjust_jobc` */
@@ -64,6 +69,7 @@ struct proc {
   TAILQ_ENTRY(proc) p_all;    /* (a) link on all processes list */
   TAILQ_ENTRY(proc) p_zombie; /* (a) link on zombie process list */
   TAILQ_ENTRY(proc) p_child;  /* (a) link on parent's children list */
+  TAILQ_ENTRY(proc) p_hash;   /* (a) link on pid hash chain */
   thread_t *p_thread;         /* (@) the only thread running in this process */
   pid_t p_pid;                /* (!) Process ID */
   char *p_elfpath;            /* (!) path of loaded elf file */

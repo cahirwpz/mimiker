@@ -14,10 +14,22 @@
 #include <sys/sched.h>
 #include <sys/malloc.h>
 #include <sys/vfs.h>
+#include <sys/sysinit.h>
 #include <bitstring.h>
 
 #define NPROC 64 /* maximum number of processes */
+/* Allocate PIDs from a reasonable range, can be changed as needed. */
+#define PID_MAX 255
+#define NBUCKETS 64
+#define PIDHASH(pid) (pid % NBUCKETS)
+#define PROC_HASH_CHAIN(pid) (&proc_hashtbl[PIDHASH(pid)])
+#define PGRP_HASH_CHAIN(pid) (&pgrp_hashtbl[PIDHASH(pid)])
+#define SESSION_HASH_CHAIN(pid) (&session_hashtbl[PIDHASH(pid)])
 #define CHILDREN(p) (&(p)->p_children)
+
+static proc_list_t proc_hashtbl[NBUCKETS];
+static pgrp_list_t pgrp_hashtbl[NBUCKETS];
+static session_list_t session_hashtbl[NBUCKETS];
 
 static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
 static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
@@ -30,72 +42,46 @@ static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
 static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
-typedef enum id_kind {
-  ID_PID = 0,
-  ID_PGID = 1,
-  ID_SID = 2,
-  ID_NUM_KINDS = 3
-} id_kind_t;
-
-/* A PID is taken as long as there's a process with that PID
- * or a pgroup with a PGID equal to that PID.
- * A PID slot contains pointers to structs that use that PID:
- * A pointer to a `struct proc` and a pointer to a `struct pgrp`. */
-typedef void *pid_slot_t[ID_NUM_KINDS];
-
-static pid_slot_t pid_table[NPROC];
-
-/* Pid 0 is never available, because of its special treatment by some
- * syscalls e.g. kill. */
-static bitstr_t pid_used[bitstr_size(NPROC)] = {1};
+static pgrp_t *pgrp_lookup(pgid_t pgid);
+static proc_t *proc_find_raw(pid_t pgid);
+static session_t *sess_lookup(pid_t sid);
 
 /* Process ID management functions */
 
-static bool pid_valid(pid_t pid) {
-  return (pid > 0 && pid < NPROC);
-}
-
-static bool pid_slot_is_free(pid_slot_t ps) {
-  return (ps[ID_PID] == NULL && ps[ID_PGID] == NULL && ps[ID_SID] == NULL);
-}
-
-/* Add a new user to a PID that already has a user of a different type. */
-static void pid_add_user(pid_t pid, id_kind_t kind, void *user) {
-  assert(mtx_owned(all_proc_mtx));
-  assert(pid_valid(pid));
-
-  void **slot = pid_table[pid];
-  assert(!pid_slot_is_free(slot));
-  assert(slot[kind] == NULL); /* A PID can have at most 1 user of each kind. */
-  slot[kind] = user;
-}
-
-/* `user` is the struct for which the caller is trying to allocate a PID. */
-static pid_t pid_alloc(id_kind_t kind, void *user) {
-  assert(mtx_owned(all_proc_mtx));
-
-  pid_t pid;
-  bit_ffc(pid_used, NPROC, &pid);
-  if (pid < 0)
-    panic("Out of PIDs!");
-  void **slot = pid_table[pid];
-  assert(pid_slot_is_free(slot));
-  slot[kind] = user;
-  bit_set(pid_used, pid);
-  return pid;
-}
-
-static void pid_free(pid_t pid, id_kind_t kind) {
-  assert(mtx_owned(all_proc_mtx));
-  assert(pid_valid(pid));
-
-  void **slot = pid_table[pid];
-  assert(slot[kind] != NULL); /* Can't free a PID that's not in use. */
-  slot[kind] = NULL;
-
-  if (pid_slot_is_free(slot)) {
-    bit_clear(pid_used, (unsigned)pid);
+static void proc_init_hashtbl(void) {
+  for (int i = 0; i < NBUCKETS; i++) {
+    TAILQ_INIT(&proc_hashtbl[i]);
+    TAILQ_INIT(&pgrp_hashtbl[i]);
   }
+}
+
+static bool pid_is_taken(pid_t pid) {
+  /* PID 0 is reserved. */
+  if (pid == 0)
+    return true;
+  if (proc_find_raw(pid) != NULL)
+    return true;
+  if (pgrp_lookup(pid) != NULL)
+    return true;
+  if (sess_lookup(pid) != NULL)
+    return true;
+  return false;
+}
+
+static pid_t pid_alloc(void) {
+  assert(mtx_owned(all_proc_mtx));
+
+  static pid_t lastpid = 0;
+
+  pid_t firstpid = lastpid;
+  do {
+    lastpid = (lastpid + 1) % (PID_MAX + 1);
+    if (!pid_is_taken(lastpid))
+      return lastpid;
+  } while (lastpid != firstpid);
+
+  panic("Out of PIDs!");
+  __unreachable();
 }
 
 /* Session management helper functions */
@@ -105,13 +91,22 @@ static void sess_hold(session_t *s) {
 
 static void sess_drop(session_t *s) {
   if (--s->s_count == 0) {
-    pid_free(s->s_sid, ID_SID);
+    TAILQ_REMOVE(SESSION_HASH_CHAIN(s->s_sid), s, s_hash);
     pool_free(P_SESS, s);
   }
 }
 
-/* Session functions */
+static session_t *sess_lookup(pid_t sid) {
+  assert(mtx_owned(all_proc_mtx));
 
+  session_t *sess;
+  TAILQ_FOREACH (sess, SESSION_HASH_CHAIN(sid), s_hash)
+    if (sess->s_sid == sid)
+      return sess;
+  return NULL;
+}
+
+/* Session functions */
 int proc_getsid(pid_t pid, pid_t *sid) {
   WITH_MTX_LOCK (all_proc_mtx) {
     proc_t *p = proc_find(pid);
@@ -179,9 +174,14 @@ static void pgrp_adjust_jobc(proc_t *p, pgrp_t *pg, bool entering) {
 }
 
 /* Finds process group with the ID specified by pgid or returns NULL. */
-static pgrp_t *pgrp_lookup(pgid_t pgid) {
+static pgrp_t *pgrp_lookup(pid_t pgid) {
   assert(mtx_owned(all_proc_mtx));
-  return (pid_valid(pgid) ? pid_table[pgid][ID_PGID] : NULL);
+
+  pgrp_t *pgrp;
+  TAILQ_FOREACH (pgrp, PGRP_HASH_CHAIN(pgid), pg_hash)
+    if (pgrp->pg_id == pgid)
+      return pgrp;
+  return NULL;
 }
 
 /* Make process leaves its process group. */
@@ -196,8 +196,7 @@ static void pgrp_leave(proc_t *p) {
 
   if (TAILQ_EMPTY(&pgrp->pg_members)) {
     sess_drop(pgrp->pg_session);
-    pid_free(pgrp->pg_id, ID_PGID);
-    TAILQ_REMOVE(&pgrp_list, pgrp, pg_link);
+    TAILQ_REMOVE(PGRP_HASH_CHAIN(pgrp->pg_id), pgrp, pg_hash);
     pool_free(P_PGRP, pgrp);
   }
 }
@@ -235,16 +234,14 @@ int pgrp_enter(proc_t *p, pgid_t pgid, bool mksess) {
 
     TAILQ_INIT(&target->pg_members);
     target->pg_id = pgid;
-    pid_add_user(pgid, ID_PGID, target);
-
-    TAILQ_INSERT_HEAD(&pgrp_list, target, pg_link);
+    TAILQ_INSERT_HEAD(PGRP_HASH_CHAIN(pgid), target, pg_hash);
 
     if (mksess) {
       session_t *s = pool_alloc(P_SESS, 0);
       s->s_sid = pgid;
       s->s_leader = p;
       s->s_count = 1;
-      pid_add_user(pgid, ID_SID, s);
+      TAILQ_INSERT_HEAD(SESSION_HASH_CHAIN(pgid), s, s_hash);
       target->pg_session = s;
     } else {
       /* Safe to access p->p_pgrp due to an earlier assertion. */
@@ -306,8 +303,9 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
 
 void proc_add(proc_t *p) {
   WITH_MTX_LOCK (all_proc_mtx) {
-    p->p_pid = pid_alloc(ID_PID, p);
+    p->p_pid = pid_alloc();
     TAILQ_INSERT_TAIL(&proc_list, p, p_all);
+    TAILQ_INSERT_TAIL(PROC_HASH_CHAIN(p->p_pid), p, p_hash);
     if (p->p_parent)
       TAILQ_INSERT_TAIL(CHILDREN(p->p_parent), p, p_child);
   }
@@ -315,14 +313,24 @@ void proc_add(proc_t *p) {
   klog("Process PID(%d) {%p} has been created", p->p_pid, p);
 }
 
+/* Lookup a process in the PID hash table.
+ * The returned process, if any, is NOT locked. */
+proc_t *proc_find_raw(pid_t pid) {
+  assert(mtx_owned(all_proc_mtx));
+
+  proc_t *p = NULL;
+  TAILQ_FOREACH (p, PROC_HASH_CHAIN(pid), p_hash)
+    if (p->p_pid == pid)
+      return p;
+
+  return NULL;
+}
+
 proc_t *proc_find(pid_t pid) {
   assert(mtx_owned(all_proc_mtx));
 
-  if (!pid_valid(pid))
-    return NULL;
-
-  proc_t *p = pid_table[pid][ID_PID];
-  if (p) {
+  proc_t *p = proc_find_raw(pid);
+  if (p != NULL) {
     proc_lock(p);
     if (proc_is_alive(p))
       return p;
@@ -358,7 +366,7 @@ static void proc_reap(proc_t *p) {
     TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
   TAILQ_REMOVE(&zombie_list, p, p_zombie);
   kfree(M_STR, p->p_elfpath);
-  pid_free(p->p_pid, ID_PID);
+  TAILQ_REMOVE(PROC_HASH_CHAIN(p->p_pid), p, p_hash);
   pool_free(P_PROC, p);
 }
 
@@ -372,6 +380,11 @@ static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
     if (new_parent)
       TAILQ_INSERT_TAIL(CHILDREN(new_parent), child, p_child);
   }
+
+  /* The new parent might be waiting for its children to change state,
+   * so notify the parent so that they check again. */
+  if (new_parent)
+    cv_broadcast(&new_parent->p_waitcv);
 }
 
 __noreturn void proc_exit(int exitstatus) {
@@ -402,13 +415,13 @@ __noreturn void proc_exit(int exitstatus) {
   proc_unlock(p);
 
   WITH_MTX_LOCK (all_proc_mtx) {
+    if (p->p_pid == 1)
+      panic("'init' process died!");
+
     pgrp_adjust_jobc(p, p->p_pgrp, false);
     /* Process orphans, but firstly find init process. */
-    proc_t *init;
-    TAILQ_FOREACH (init, &proc_list, p_all) {
-      if (init->p_pid == 1)
-        break;
-    }
+    proc_t *init = proc_find_raw(1);
+    assert(init != NULL);
     proc_reparent(p, init);
 
     TAILQ_REMOVE(&proc_list, p, p_all);
@@ -416,19 +429,23 @@ __noreturn void proc_exit(int exitstatus) {
 
     /* When the process is dead we can finally signal the parent. */
     proc_t *parent = p->p_parent;
-    if (!parent)
-      panic("'init' process died!");
 
     klog("Wakeup PID(%d) because child PID(%d) died", parent->p_pid, p->p_pid);
 
     bool auto_reap;
     WITH_MTX_LOCK (&parent->p_lock) {
       auto_reap = parent->p_sigactions[SIGCHLD].sa_handler == SIG_IGN;
-      if (!auto_reap) {
-        cv_broadcast(&parent->p_waitcv);
+      if (!auto_reap)
         sig_kill(parent, SIGCHLD);
-      }
     }
+
+    /* We unconditionally notify the parent if they're waiting for a child,
+     * even when we reap ourselves, because we might be the last child
+     * of the parent, in which case the parent's waitpid should fail,
+     * which it can't do if the parent is still waiting.
+     * NOTE: If auto_reap is true, we must NOT drop all_proc_mtx
+     * between this point and the auto-reap! */
+    cv_broadcast(&parent->p_waitcv);
 
     klog("Turning PID(%d) into zombie!", p->p_pid);
 
@@ -464,8 +481,8 @@ int proc_sendsig(pid_t pid, signo_t sig) {
     return 0;
   }
 
-  /* TODO send sig to every process for which the calling process has permission
-   * to send signals, except init process */
+  /* TODO send sig to every process for which the calling process has
+   * permission to send signals, except init process */
   if (pid == -1)
     return ENOTSUP;
 
@@ -572,3 +589,9 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
 
   __unreachable();
 }
+
+static void proc_init(void) {
+  proc_init_hashtbl();
+}
+
+SYSINIT_ADD(proc, proc_init, NODEPS);
