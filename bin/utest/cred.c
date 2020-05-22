@@ -8,7 +8,13 @@
 int test_get_set_uid(void) {
   uid_t ruid, euid, suid;
   int error;
-  getresuid(&ruid, &euid, &suid);
+
+  /* check if nothing fail if we put wrong addresses */
+  error = getresuid((void *)1, (void *)1, (void *)1);
+  assert(error < 0 && errno == EFAULT);
+
+  error = getresuid(&ruid, &euid, &suid);
+  assert(error == 0);
 
   /* assume we are running tests as root */
   assert(ruid == 0 && euid == 0 && suid == 0);
