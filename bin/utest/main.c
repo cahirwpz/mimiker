@@ -81,6 +81,9 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(fpu_ctx_signals);
   CHECKRUN_TEST(getcwd);
 
+  CHECKRUN_TEST(get_set_uid);
+  CHECKRUN_TEST(get_set_gid);
+
   printf("No user test \"%s\" available.\n", test_name);
   return 1;
 }
