@@ -122,7 +122,9 @@ thread_t *thread_self(void) {
   return PCPU_GET(curthread);
 }
 
-/* For now this is only a stub */
+/* For now this is only a stub
+ * NOTE: this procedure must NOT access the thread's process state
+ * in ANY way, as the process might have already been reaped. */
 __noreturn void thread_exit(void) {
   thread_t *td = thread_self();
 

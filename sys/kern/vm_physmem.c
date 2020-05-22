@@ -69,7 +69,7 @@ static void *vm_boot_alloc(size_t n) {
       seg = TAILQ_FIRST(&seglist);
     }
 
-    pmap_kenter((vaddr_t)va, pa, VM_PROT_READ | VM_PROT_WRITE);
+    pmap_kenter((vaddr_t)va, pa, VM_PROT_READ | VM_PROT_WRITE, 0);
   }
 
   vm_kernel_end += n;

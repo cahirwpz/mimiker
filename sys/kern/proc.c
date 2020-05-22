@@ -22,7 +22,7 @@
 static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
 static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
 
-static mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
+mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 
 /* all_proc_mtx protects following data: */
 static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
@@ -218,6 +218,11 @@ static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
     if (new_parent)
       TAILQ_INSERT_TAIL(CHILDREN(new_parent), child, p_child);
   }
+
+  /* The new parent might be waiting for its children to change state,
+   * so notify the parent so that they check again. */
+  if (new_parent)
+    cv_broadcast(&new_parent->p_waitcv);
 }
 
 __noreturn void proc_exit(int exitstatus) {
@@ -266,9 +271,20 @@ __noreturn void proc_exit(int exitstatus) {
 
     klog("Wakeup PID(%d) because child PID(%d) died", parent->p_pid, p->p_pid);
 
+    bool auto_reap;
+    WITH_MTX_LOCK (&parent->p_lock) {
+      auto_reap = parent->p_sigactions[SIGCHLD].sa_handler == SIG_IGN;
+      if (!auto_reap)
+        sig_kill(parent, SIGCHLD);
+    }
+
+    /* We unconditionally notify the parent if they're waiting for a child,
+     * even when we reap ourselves, because we might be the last child
+     * of the parent, in which case the parent's waitpid should fail,
+     * which it can't do if the parent is still waiting.
+     * NOTE: If auto_reap is true, we must NOT drop all_proc_mtx
+     * between this point and the auto-reap! */
     cv_broadcast(&parent->p_waitcv);
-    proc_lock(parent);
-    sig_kill(parent, SIGCHLD);
 
     klog("Turning PID(%d) into zombie!", p->p_pid);
 
@@ -278,6 +294,11 @@ __noreturn void proc_exit(int exitstatus) {
     }
 
     klog("Process PID(%d) {%p} is dead!", p->p_pid, p);
+
+    if (auto_reap) {
+      klog("Auto-reaping process PID(%d)!", p->p_pid);
+      proc_reap(p);
+    }
   }
 
   /* Can't call [noreturn] thread_exit() from within a WITH scope. */
@@ -295,6 +316,7 @@ int proc_sendsig(pid_t pid, signo_t sig) {
     if (target == NULL)
       return EINVAL;
     sig_kill(target, sig);
+    proc_unlock(target);
     return 0;
   }
 
@@ -316,8 +338,8 @@ int proc_sendsig(pid_t pid, signo_t sig) {
 
   WITH_MTX_LOCK (&pgrp->pg_lock) {
     TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist) {
-      proc_lock(target);
-      sig_kill(target, sig);
+      WITH_MTX_LOCK (&target->p_lock)
+        sig_kill(target, sig);
     }
   }
 
@@ -328,51 +350,76 @@ static bool is_zombie(proc_t *p) {
   return p->p_state == PS_ZOMBIE;
 }
 
-/* Wait for direct children. */
+static bool child_matches(proc_t *child, pid_t pid, pgrp_t *pg) {
+  /* pid > 0 => child with PID same as pid */
+  if (pid == child->p_pid)
+    return true;
+  /* pid == -1 => any child  */
+  if (pid == -1)
+    return true;
+  /* pid == 0 => child with PGID same as ours */
+  if (pid == 0 && child->p_pgrp == pg)
+    return true;
+  /* pid < -1 => child with PGID equal to -pid */
+  if (pid < -1 && child->p_pgrp->pg_id == -pid)
+    return true;
+  return false;
+}
+
+/* Wait for direct children.
+ * Pointers to output parameters must point to valid kernel memory. */
 int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   proc_t *p = proc_self();
 
   WITH_MTX_LOCK (all_proc_mtx) {
-    /* Start with zombies, if no zombies wait for a child to become one. */
     for (;;) {
-      proc_t *child = NULL;
+      int error = ECHILD;
+      proc_t *child;
 
       /* Check children meeting criteria implied by pid. */
       TAILQ_FOREACH (child, CHILDREN(p), p_child) {
-        /* pid > 0 => child with PID same as pid */
-        if (pid == child->p_pid)
-          break;
-        /* Lookup zombie children */
+        if (!child_matches(child, pid, p->p_pgrp))
+          continue;
+
+        error = 0;
+
+        /*
+         * It's not necessary to lock the child here, since:
+         * a) We're holding all_proc_mtx, so it won't get deleted while
+         *    we're inspecting it;
+         * b) We're only doing unprotected atomic reads of p_state.
+         */
+
+        *cldpidp = child->p_pid;
+
         if (is_zombie(child)) {
-          /* pid == -1 => any child  */
-          if (pid == -1)
-            break;
-          /* pid == 0 => child with PGID same as ours */
-          if ((pid == 0) && (child->p_pgrp == p->p_pgrp))
-            break;
-          /* pid < -1 => child with PGID equal to -pid */
-          if (pid < -1 && (child->p_pgrp->pg_id != -pid))
-            break;
-        }
-      }
-
-      /* No child with such pid. */
-      if (!child && pid > 0)
-        return ECHILD;
-
-      if (child && is_zombie(child)) {
-        if (status)
           *status = child->p_exitstatus;
-        pid_t pid = child->p_pid;
-        proc_reap(child);
-        *cldpidp = pid;
-        return 0;
+          proc_reap(child);
+          return 0;
+        }
+
+        if ((options & WUNTRACED) && (child->p_state == PS_STOPPED) &&
+            (child->p_flags & PF_STOPPED)) {
+          child->p_flags &= ~PF_STOPPED;
+          *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
+          return 0;
+        }
+
+        if ((options & WCONTINUED) && (child->p_state == PS_NORMAL) &&
+            (child->p_flags & PF_CONTINUED)) {
+          child->p_flags &= ~PF_CONTINUED;
+          *status = MAKE_STATUS_SIG_CONT();
+          return 0;
+        }
+
+        /* We were looking for a specific child and found it. */
+        if (pid > 0)
+          break;
       }
 
-      /* No zombie child was found. */
-      if (options & WNOHANG) {
+      if (error == ECHILD || (options & WNOHANG)) {
         *cldpidp = 0;
-        return 0;
+        return error;
       }
 
       /* Wait until one of children changes a state. */
