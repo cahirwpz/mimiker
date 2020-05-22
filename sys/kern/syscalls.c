@@ -640,11 +640,11 @@ static int sys_getresuid(proc_t *p, getresuid_args_t *args, register_t *res) {
   uid_t ruid, euid, suid;
   do_getresuid(p, &ruid, &euid, &suid);
 
-  copyout(&ruid, usr_ruid, sizeof(uid_t));
-  copyout(&euid, usr_euid, sizeof(uid_t));
-  copyout(&suid, usr_suid, sizeof(uid_t));
+  int err1 = copyout(&ruid, usr_ruid, sizeof(uid_t));
+  int err2 = copyout(&euid, usr_euid, sizeof(uid_t));
+  int err3 = copyout(&suid, usr_suid, sizeof(uid_t));
 
-  return 0;
+  return err1 ? err1 : (err2 ? err2 : err3);
 }
 
 static int sys_getresgid(proc_t *p, getresgid_args_t *args, register_t *res) {
@@ -657,11 +657,11 @@ static int sys_getresgid(proc_t *p, getresgid_args_t *args, register_t *res) {
   gid_t rgid, egid, sgid;
   do_getresgid(p, &rgid, &egid, &sgid);
 
-  copyout(&rgid, usr_rgid, sizeof(gid_t));
-  copyout(&egid, usr_egid, sizeof(gid_t));
-  copyout(&sgid, usr_sgid, sizeof(gid_t));
+  int err1 = copyout(&rgid, usr_rgid, sizeof(gid_t));
+  int err2 = copyout(&egid, usr_egid, sizeof(gid_t));
+  int err3 = copyout(&sgid, usr_sgid, sizeof(gid_t));
 
-  return 0;
+  return err1 ? err1 : (err2 ? err2 : err3);
 }
 
 static int sys_setresuid(proc_t *p, setresuid_args_t *args, register_t *res) {

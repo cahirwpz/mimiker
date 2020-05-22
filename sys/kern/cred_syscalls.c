@@ -3,7 +3,7 @@
 #include <sys/libkern.h>
 #include <sys/errno.h>
 
-int do_getresuid(proc_t *p, uid_t *ruid, uid_t *euid, uid_t *suid) {
+void do_getresuid(proc_t *p, uid_t *ruid, uid_t *euid, uid_t *suid) {
   proc_lock(p);
   cred_t *cr = &p->p_cred;
 
@@ -17,10 +17,9 @@ int do_getresuid(proc_t *p, uid_t *ruid, uid_t *euid, uid_t *suid) {
     *suid = cr->cr_suid;
 
   proc_unlock(p);
-  return 0;
 }
 
-int do_getresgid(proc_t *p, gid_t *rgid, gid_t *egid, gid_t *sgid) {
+void do_getresgid(proc_t *p, gid_t *rgid, gid_t *egid, gid_t *sgid) {
   proc_lock(p);
   cred_t *cr = &p->p_cred;
 
@@ -34,14 +33,13 @@ int do_getresgid(proc_t *p, gid_t *rgid, gid_t *egid, gid_t *sgid) {
     *sgid = cr->cr_sgid;
 
   proc_unlock(p);
-  return 0;
 }
 
 /* Process can change any of its user id to given value if:
  *    o is privileged (effective user id == 0)
  *    o given value is equal to any of its user id
  */
-static int can_change_uid(cred_t *c, uid_t uid) {
+static int cant_change_uid(cred_t *c, uid_t uid) {
   if (c->cr_euid == 0)
     return 0;
 
@@ -55,7 +53,7 @@ static int can_change_uid(cred_t *c, uid_t uid) {
  *    o is privileged (effective user id == 0)
  *    o given value is equal to any of its group id
  */
-static int can_change_gid(cred_t *c, gid_t gid) {
+static int cant_change_gid(cred_t *c, gid_t gid) {
   if (c->cr_euid == 0)
     return 0;
 
@@ -73,21 +71,21 @@ int do_setresuid(proc_t *p, uid_t ruid, uid_t euid, uid_t suid) {
   memcpy(&newcred, oldcred, sizeof(cred_t));
 
   if (ruid != (uid_t)-1) {
-    if (can_change_uid(oldcred, ruid))
+    if (cant_change_uid(oldcred, ruid))
       goto fail;
 
     newcred.cr_ruid = ruid;
   }
 
   if (euid != (uid_t)-1) {
-    if (can_change_uid(oldcred, euid))
+    if (cant_change_uid(oldcred, euid))
       goto fail;
 
     newcred.cr_euid = euid;
   }
 
   if (suid != (uid_t)-1) {
-    if (can_change_uid(oldcred, suid))
+    if (cant_change_uid(oldcred, suid))
       goto fail;
 
     newcred.cr_suid = suid;
@@ -110,21 +108,21 @@ int do_setresgid(proc_t *p, gid_t rgid, gid_t egid, gid_t sgid) {
   memcpy(&newcred, oldcred, sizeof(cred_t));
 
   if (rgid != (gid_t)-1) {
-    if (can_change_gid(oldcred, rgid))
+    if (cant_change_gid(oldcred, rgid))
       goto fail;
 
     newcred.cr_rgid = rgid;
   }
 
   if (egid != (gid_t)-1) {
-    if (can_change_gid(oldcred, egid))
+    if (cant_change_gid(oldcred, egid))
       goto fail;
 
     newcred.cr_egid = egid;
   }
 
   if (sgid != (gid_t)-1) {
-    if (can_change_gid(oldcred, sgid))
+    if (cant_change_gid(oldcred, sgid))
       goto fail;
 
     newcred.cr_sgid = sgid;
