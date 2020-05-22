@@ -73,8 +73,6 @@ int sig_return(void) {
   thread_t *td = thread_self();
   sig_ctx_t ksc;
 
-  SCOPED_MTX_LOCK(&td->td_proc->p_lock);
-
   WITH_MTX_LOCK (&td->td_lock) {
     exc_frame_t *uframe = td->td_uframe;
     /* TODO: We assume the stored user context is where user stack is. This
@@ -101,7 +99,8 @@ int sig_return(void) {
     exc_frame_copy(uframe, &ksc.frame);
   }
 
-  error = do_sigprocmask(SIG_SETMASK, &ksc.mask, NULL);
+  WITH_MTX_LOCK (&td->td_proc->p_lock)
+    error = do_sigprocmask(SIG_SETMASK, &ksc.mask, NULL);
   assert(error == 0);
 
   return EJUSTRETURN;
