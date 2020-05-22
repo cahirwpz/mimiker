@@ -36,7 +36,7 @@ void do_getresgid(proc_t *p, gid_t *rgid, gid_t *egid, gid_t *sgid) {
 }
 
 /* Process can change any of its user id to given value if:
- *    o is privileged (effective user id == 0)
+ *    o is root user (effective user id == 0)
  *    o given value is equal to any of its user id
  */
 static int try_change_uid(cred_t *c, uid_t *uidp, uid_t uid) {
@@ -79,52 +79,44 @@ end:
 }
 
 /* Process can change any of its group id to given value if:
- *    o is privileged (effective user id == 0)
+ *    o is root user (effective user id == 0)
  *    o given value is equal to any of its group id
  */
-static int cant_change_gid(cred_t *c, gid_t gid) {
-  if (c->cr_euid == 0)
+static int try_change_gid(cred_t *c, gid_t *gidp, gid_t gid) {
+  if (gid == (gid_t)-1)
     return 0;
 
-  if (gid == c->cr_rgid || gid == c->cr_egid || gid == c->cr_sgid)
-    return 0;
+  if (c->cr_euid != 0 &&
+      (gid != c->cr_rgid && gid != c->cr_egid && gid != c->cr_sgid))
+    return EPERM;
 
-  return EPERM;
+  *gidp = gid;
+  return 0;
 }
 
 int do_setresgid(proc_t *p, gid_t rgid, gid_t egid, gid_t sgid) {
+  int error = 0;
+
   proc_lock(p);
 
-  cred_t *oldcred = &p->p_cred;
-  cred_t newcred;
-  memcpy(&newcred, oldcred, sizeof(cred_t));
+  gid_t new_rgid = p->p_cred.cr_rgid;
+  gid_t new_egid = p->p_cred.cr_egid;
+  gid_t new_sgid = p->p_cred.cr_sgid;
 
-  if (rgid != (gid_t)-1) {
-    if (cant_change_gid(oldcred, rgid))
-      goto fail;
+  if ((error = try_change_gid(&p->p_cred, &new_rgid, rgid)))
+    goto end;
 
-    newcred.cr_rgid = rgid;
-  }
+  if ((error = try_change_gid(&p->p_cred, &new_egid, egid)))
+    goto end;
 
-  if (egid != (gid_t)-1) {
-    if (cant_change_gid(oldcred, egid))
-      goto fail;
+  if ((error = try_change_gid(&p->p_cred, &new_sgid, sgid)))
+    goto end;
 
-    newcred.cr_egid = egid;
-  }
+  p->p_cred.cr_rgid = new_rgid;
+  p->p_cred.cr_egid = new_egid;
+  p->p_cred.cr_sgid = new_sgid;
 
-  if (sgid != (gid_t)-1) {
-    if (cant_change_gid(oldcred, sgid))
-      goto fail;
-
-    newcred.cr_sgid = sgid;
-  }
-
-  memcpy(oldcred, &newcred, sizeof(cred_t));
+end:
   proc_unlock(p);
-  return 0;
-
-fail:
-  proc_unlock(p);
-  return EPERM;
+  return error;
 }

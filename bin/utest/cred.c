@@ -43,7 +43,13 @@ int test_get_set_uid(void) {
 int test_get_set_gid(void) {
   gid_t rgid, egid, sgid;
   int error;
-  getresgid(&rgid, &egid, &sgid);
+
+  /* check if nothing fail if we put wrong addresses */
+  error = getresgid((void *)1, (void *)1, (void *)1);
+  assert(error < 0 && errno == EFAULT);
+
+  error = getresgid(&rgid, &egid, &sgid);
+  assert(error == 0);
 
   /* assume we are running tests as root */
   assert(rgid == 0 && egid == 0 && sgid == 0);
