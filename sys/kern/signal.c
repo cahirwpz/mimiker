@@ -144,10 +144,10 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   assert(td->td_proc == p);
 
   WITH_PROC_LOCK(p) {
-    assert((td->td_pflags & TDP_OLDMASK) == 0);
+    assert((td->td_pflags & TDP_OLDSIGMASK) == 0);
 
-    td->td_oldmask = td->td_sigmask;
-    td->td_pflags |= TDP_OLDMASK;
+    td->td_oldsigmask = td->td_sigmask;
+    td->td_pflags |= TDP_OLDSIGMASK;
     do_sigprocmask(SIG_SETMASK, mask, NULL);
 
     /*
@@ -320,9 +320,9 @@ void sig_post(signo_t sig) {
        sig_name[sig], sa->sa_handler, td->td_tid, p->p_pid);
 
   sigset_t *return_mask;
-  if (td->td_pflags & TDP_OLDMASK) {
-    return_mask = &td->td_oldmask;
-    td->td_pflags &= ~TDP_OLDMASK;
+  if (td->td_pflags & TDP_OLDSIGMASK) {
+    return_mask = &td->td_oldsigmask;
+    td->td_pflags &= ~TDP_OLDSIGMASK;
   } else {
     return_mask = &td->td_sigmask;
   }

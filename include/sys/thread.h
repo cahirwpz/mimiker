@@ -70,7 +70,7 @@ typedef enum {
 #define TDF_SLPTIMED 0x00000080 /* sleep with timeout */
 
 typedef enum {
-  TDP_OLDMASK = 0x01 /* Pass td_oldmask as return mask to send_sig(). */
+  TDP_OLDSIGMASK = 0x01 /* Pass td_oldsigmask as return mask to send_sig(). */
 } tdp_flags_t;
 
 /*! \brief Thread structure
@@ -138,9 +138,9 @@ typedef struct thread {
   timeval_t td_last_slptime; /*!< (*) time of last switch to sleep state */
   unsigned td_nctxsw;        /*!< (*) total number of context switches */
   /* signal handling */
-  sigset_t td_sigpend; /*!< (p) Pending signals for this thread. */
-  sigset_t td_sigmask; /*!< (p) Signal mask */
-  sigset_t td_oldmask; /*!< (p) Signal mask from before sigsuspend() */
+  sigset_t td_sigpend;    /*!< (p) Pending signals for this thread. */
+  sigset_t td_sigmask;    /*!< (p) Signal mask */
+  sigset_t td_oldsigmask; /*!< (p) Signal mask from before sigsuspend() */
 } thread_t;
 
 thread_t *thread_self(void);
