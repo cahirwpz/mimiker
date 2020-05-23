@@ -27,7 +27,7 @@ static void stack_unusable(thread_t *td, register_t sp) {
   __unreachable();
 }
 
-int sig_send(signo_t sig, sigset_t *return_mask, sigaction_t *sa) {
+int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa) {
   thread_t *td = thread_self();
 
   SCOPED_MTX_LOCK(&td->td_lock);
@@ -35,7 +35,7 @@ int sig_send(signo_t sig, sigset_t *return_mask, sigaction_t *sa) {
   exc_frame_t *uframe = td->td_uframe;
 
   /* Prepare signal context. */
-  sig_ctx_t ksc = {.magic = SIG_CTX_MAGIC, .mask = *return_mask};
+  sig_ctx_t ksc = {.magic = SIG_CTX_MAGIC, .mask = *mask};
   exc_frame_copy(&ksc.frame, uframe);
 
   /* Copyout sigcode to user stack. */

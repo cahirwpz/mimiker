@@ -116,7 +116,7 @@ void sig_trap(exc_frame_t *frame, signo_t sig);
 /*! \brief Prepare user context for entry to signal handler action.
  *
  * \note This is machine dependent code! */
-int sig_send(signo_t sig, sigset_t *return_mask, sigaction_t *sa);
+int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa);
 
 /*! \brief Restore original user context after signal handler was invoked.
  *
