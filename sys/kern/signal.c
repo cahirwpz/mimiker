@@ -153,7 +153,8 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
     /*
      * We want the sleep to be interrupted only if there's an actual signal
      * to be handled, but _sleepq_wait() returns immediately if TDF_NEEDSIGCHK
-     * is set, so we clear the flag here if there are no real pending signals.
+     * is set (without checking whether there's an actual pending signal),
+     * so we clear the flag here if there are no real pending signals.
      */
     WITH_SPIN_LOCK (&td->td_spin) {
       if (sig_pending(td))
