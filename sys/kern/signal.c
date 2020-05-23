@@ -165,10 +165,8 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   }
 
   int error;
-  while ((error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()")) == 0)
-    klog("Spurious wakeup in sigsuspend()!");
-
-  assert(error == EINTR);
+  error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
+  assert(error = EINTR);
 
   return EINTR;
 }
