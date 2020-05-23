@@ -138,3 +138,6 @@ UTEST_ADD_SIMPLE(setpgid);
 UTEST_ADD_SIMPLE(kill);
 UTEST_ADD_SIMPLE(killpg_same_group);
 UTEST_ADD_SIMPLE(killpg_other_group);
+
+UTEST_ADD_SIMPLE(get_set_uid);
+UTEST_ADD_SIMPLE(get_set_gid);
