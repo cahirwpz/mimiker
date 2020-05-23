@@ -143,11 +143,11 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   thread_t *td = thread_self();
   assert(td->td_proc == p);
 
-  WITH_PROC_LOCK(p) {
-    assert((td->td_pflags & TDP_OLDSIGMASK) == 0);
+  assert((td->td_pflags & TDP_OLDSIGMASK) == 0);
+  td->td_oldsigmask = td->td_sigmask;
+  td->td_pflags |= TDP_OLDSIGMASK;
 
-    td->td_oldsigmask = td->td_sigmask;
-    td->td_pflags |= TDP_OLDSIGMASK;
+  WITH_PROC_LOCK(p) {
     do_sigprocmask(SIG_SETMASK, mask, NULL);
 
     /*

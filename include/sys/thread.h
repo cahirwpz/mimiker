@@ -110,7 +110,7 @@ typedef struct thread {
   /* thread state */
   thread_state_t td_state;        /*!< (!) thread state */
   volatile uint32_t td_flags;     /*!< (!) TDF_* flags */
-  volatile tdp_flags_t td_pflags; /*!< (p) TDP_* flags */
+  volatile tdp_flags_t td_pflags; /*!< (*) TDP_* (private) flags */
   /* thread context */
   volatile unsigned td_idnest; /*!< (*) interrupt disable nest level */
   volatile unsigned td_pdnest; /*!< (*) preemption disable nest level */
@@ -140,7 +140,7 @@ typedef struct thread {
   /* signal handling */
   sigset_t td_sigpend;    /*!< (p) Pending signals for this thread. */
   sigset_t td_sigmask;    /*!< (p) Signal mask */
-  sigset_t td_oldsigmask; /*!< (p) Signal mask from before sigsuspend() */
+  sigset_t td_oldsigmask; /*!< (*) Signal mask from before sigsuspend() */
 } thread_t;
 
 thread_t *thread_self(void);
