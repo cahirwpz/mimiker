@@ -79,7 +79,6 @@ void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
 
 #define __bs_read(t, h, o, sz) __bs_func((t), read, sz)((h), (o))
 #define bus_space_read_1(t, h, o) __bs_read(t, h, o, 1)
-#define bus_space_read_1(t, h, o) __bs_read(t, h, o, 1)
 #define bus_space_read_2(t, h, o) __bs_read(t, h, o, 2)
 #define bus_space_read_4(t, h, o) __bs_read(t, h, o, 4)
 
