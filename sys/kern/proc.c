@@ -44,7 +44,7 @@ static proc_t *proc_find_raw(pid_t pgid);
 
 /* Process ID management functions */
 
-static void proc_init_hashtbl(void) {
+static void proc_init(void) {
   for (int i = 0; i < NBUCKETS; i++) {
     TAILQ_INIT(&proc_hashtbl[i]);
     TAILQ_INIT(&pgrp_hashtbl[i]);
@@ -463,10 +463,6 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   }
 
   __unreachable();
-}
-
-static void proc_init(void) {
-  proc_init_hashtbl();
 }
 
 SYSINIT_ADD(proc, proc_init, NODEPS);
