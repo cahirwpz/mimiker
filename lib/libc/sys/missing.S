@@ -3,7 +3,6 @@
 SYSCALL_MISSING(getrusage)
 SYSCALL_MISSING(rename)
 SYSCALL_MISSING(getrlimit)
-SYSCALL_MISSING(sigsuspend)
 SYSCALL_MISSING(fchown)
 SYSCALL_MISSING(fstatvfs)
 SYSCALL_MISSING(statvfs)

@@ -40,6 +40,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(signal_cont_masked);
   CHECKRUN_TEST(signal_mask);
   CHECKRUN_TEST(signal_mask_nonmaskable);
+  CHECKRUN_TEST(signal_sigsuspend);
+  CHECKRUN_TEST(signal_handler_mask);
   CHECKRUN_TEST(fork_wait);
   CHECKRUN_TEST(fork_signal);
   CHECKRUN_TEST(fork_sigchld_ignored);
