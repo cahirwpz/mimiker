@@ -51,10 +51,10 @@
 38  { int sys_sigprocmask(int how, const sigset_t *set, sigset_t *oset); }
 39  { int sys_setcontext(const ucontext_t *ucp); }
 40  { int sys_ioctl(int fd, u_long cmd, ... void *data); }
-41  { uid_t sys_getuid(void); }
-42  { uid_t sys_geteuid(void); }
-43  { gid_t sys_getgid(void); }
-44  { gid_t sys_getegid(void); }
+41  { int sys_getresuid(uid_t *ruid, uid_t *euid, uid_t *suid); }
+42  { int sys_getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
+43  { int sys_setresuid(uid_t ruid, uid_t euid, uid_t suid); }
+44  { int sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid); }
 45  { int sys_issetugid(void); }
 46  { int sys_fcntl(int fd, int cmd, ... void *arg); }
 47  { int sys_truncate(const char *path, off_t length); }
@@ -65,7 +65,8 @@
 52  { int sys_fchmod(int fd, mode_t mode); }
 53  { int sys_fchmodat(int fd, const char *path, mode_t mode, int flag); }
 54  { void sys_sched_yield(void); }
-55  { int sys_statvfs(const char *path, struct statvfs *buf); }
-56  { int sys_fstatvfs(int fd, struct statvfs *buf); }
+55  { int sys_sigsuspend(sigset_t *sigmask); }
+56  { int sys_statvfs(const char *path, struct statvfs *buf); }
+57  { int sys_fstatvfs(int fd, struct statvfs *buf); }
 
 ; vim: ts=4 sw=4 sts=4 et
