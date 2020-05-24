@@ -17,10 +17,9 @@
 #include <sys/sysinit.h>
 #include <bitstring.h>
 
-#define NPROC 64 /* maximum number of processes */
 /* Allocate PIDs from a reasonable range, can be changed as needed. */
 #define PID_MAX 255
-#define NBUCKETS 64
+#define NBUCKETS ((PID_MAX + 1) / 4)
 #define PIDHASH(pid) (pid % NBUCKETS)
 #define PROC_HASH_CHAIN(pid) (&proc_hashtbl[PIDHASH(pid)])
 #define PGRP_HASH_CHAIN(pid) (&pgrp_hashtbl[PIDHASH(pid)])
