@@ -46,10 +46,10 @@ static int sys_sigaltstack(proc_t *, sigaltstack_args_t *, register_t *);
 static int sys_sigprocmask(proc_t *, sigprocmask_args_t *, register_t *);
 static int sys_setcontext(proc_t *, setcontext_args_t *, register_t *);
 static int sys_ioctl(proc_t *, ioctl_args_t *, register_t *);
-static int sys_getuid(proc_t *, void *, register_t *);
-static int sys_geteuid(proc_t *, void *, register_t *);
-static int sys_getgid(proc_t *, void *, register_t *);
-static int sys_getegid(proc_t *, void *, register_t *);
+static int sys_getresuid(proc_t *, getresuid_args_t *, register_t *);
+static int sys_getresgid(proc_t *, getresgid_args_t *, register_t *);
+static int sys_setresuid(proc_t *, setresuid_args_t *, register_t *);
+static int sys_setresgid(proc_t *, setresgid_args_t *, register_t *);
 static int sys_issetugid(proc_t *, void *, register_t *);
 static int sys_fcntl(proc_t *, fcntl_args_t *, register_t *);
 static int sys_truncate(proc_t *, truncate_args_t *, register_t *);
@@ -60,6 +60,7 @@ static int sys_linkat(proc_t *, linkat_args_t *, register_t *);
 static int sys_fchmod(proc_t *, fchmod_args_t *, register_t *);
 static int sys_fchmodat(proc_t *, fchmodat_args_t *, register_t *);
 static int sys_sched_yield(proc_t *, void *, register_t *);
+static int sys_sigsuspend(proc_t *, sigsuspend_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { .nargs = 1, .call = (syscall_t *)sys_syscall },
@@ -103,10 +104,10 @@ struct sysent sysent[] = {
   [SYS_sigprocmask] = { .nargs = 3, .call = (syscall_t *)sys_sigprocmask },
   [SYS_setcontext] = { .nargs = 1, .call = (syscall_t *)sys_setcontext },
   [SYS_ioctl] = { .nargs = 3, .call = (syscall_t *)sys_ioctl },
-  [SYS_getuid] = { .nargs = 0, .call = (syscall_t *)sys_getuid },
-  [SYS_geteuid] = { .nargs = 0, .call = (syscall_t *)sys_geteuid },
-  [SYS_getgid] = { .nargs = 0, .call = (syscall_t *)sys_getgid },
-  [SYS_getegid] = { .nargs = 0, .call = (syscall_t *)sys_getegid },
+  [SYS_getresuid] = { .nargs = 3, .call = (syscall_t *)sys_getresuid },
+  [SYS_getresgid] = { .nargs = 3, .call = (syscall_t *)sys_getresgid },
+  [SYS_setresuid] = { .nargs = 3, .call = (syscall_t *)sys_setresuid },
+  [SYS_setresgid] = { .nargs = 3, .call = (syscall_t *)sys_setresgid },
   [SYS_issetugid] = { .nargs = 0, .call = (syscall_t *)sys_issetugid },
   [SYS_fcntl] = { .nargs = 3, .call = (syscall_t *)sys_fcntl },
   [SYS_truncate] = { .nargs = 2, .call = (syscall_t *)sys_truncate },
@@ -117,5 +118,6 @@ struct sysent sysent[] = {
   [SYS_fchmod] = { .nargs = 2, .call = (syscall_t *)sys_fchmod },
   [SYS_fchmodat] = { .nargs = 4, .call = (syscall_t *)sys_fchmodat },
   [SYS_sched_yield] = { .nargs = 0, .call = (syscall_t *)sys_sched_yield },
+  [SYS_sigsuspend] = { .nargs = 1, .call = (syscall_t *)sys_sigsuspend },
 };
 
