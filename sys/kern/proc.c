@@ -189,7 +189,7 @@ void proc_add(proc_t *p) {
 
 /* Lookup a process in the PID hash table.
  * The returned process, if any, is NOT locked. */
-proc_t *proc_find_raw(pid_t pid) {
+static proc_t *proc_find_raw(pid_t pid) {
   assert(mtx_owned(all_proc_mtx));
 
   proc_t *p = NULL;
