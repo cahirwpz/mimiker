@@ -232,3 +232,95 @@ int test_signal_mask_nonmaskable() {
   assert(__sigsetequal(&set, &old));
   return 0;
 }
+
+/* ======= signal_sigsuspend ======= */
+int test_signal_sigsuspend() {
+  pid_t ppid = getpid();
+  signal(SIGCONT, sigcont_handler);
+  signal(SIGUSR1, sigusr1_handler);
+  sigset_t set, old;
+  __sigemptyset(&set);
+  __sigaddset(&set, SIGCONT);
+  __sigaddset(&set, SIGUSR1);
+  assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
+  __sigaddset(&old, SIGCONT);
+  pid_t cpid = fork();
+  if (cpid == 0) {
+    for (int i = 0; i < 10; i++) {
+      kill(ppid, SIGCONT);
+      sched_yield();
+    }
+    kill(ppid, SIGUSR1);
+    return 0;
+  }
+  /* Go to sleep with SIGCONT blocked and SIGUSR1 unblocked. */
+  printf("Calling sigsuspend()...\n");
+  sigsuspend(&old);
+  /* SIGUSR1 should have woken us up, but SIGCONT should still be pending. */
+  assert(sigusr1_handled);
+  assert(!sigcont_handled);
+  __sigemptyset(&set);
+  __sigaddset(&set, SIGCONT);
+  assert(sigprocmask(SIG_UNBLOCK, &set, NULL) == 0);
+  assert(sigcont_handled);
+
+  int status;
+  printf("Waiting for child...\n");
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+  return 0;
+}
+
+/* ======= signal_handler_mask ======= */
+static int handler_success;
+static int handler_ran;
+static pid_t cpid;
+
+static void yield_handler(int signo) {
+  /* Give the child process the signal to send us SIGUSR1 */
+  kill(cpid, SIGUSR1);
+  while (!sigcont_handled)
+    sched_yield();
+  handler_ran = 1;
+  if (!sigusr1_handled)
+    handler_success = 1;
+}
+
+int test_signal_handler_mask() {
+  pid_t ppid = getpid();
+  struct sigaction sa = {.sa_handler = yield_handler, .sa_flags = 0};
+  /* Block SIGUSR1 when executing handler for SIGUSR2. */
+  __sigemptyset(&sa.sa_mask);
+  __sigaddset(&sa.sa_mask, SIGUSR1);
+  assert(sigaction(SIGUSR2, &sa, NULL) == 0);
+  signal(SIGUSR1, sigusr1_handler);
+  signal(SIGCONT, sigcont_handler);
+
+  pid_t cpid = fork();
+  if (cpid == 0) {
+    kill(ppid, SIGUSR2);
+    /* Wait for the parent to enter the signal handler. */
+    while (!sigusr1_handled)
+      sched_yield();
+    /* Now SIGUSR1 should be blocked in the parent. */
+    for (int i = 0; i < 3; i++)
+      kill(ppid, SIGUSR1);
+    /* Sending SIGCONT should allow yield_handler() to run to completion. */
+    kill(ppid, SIGCONT);
+    return 0;
+  }
+
+  while (!handler_ran)
+    sched_yield();
+
+  assert(handler_success);
+  assert(sigusr1_handled);
+
+  int status;
+  printf("Waiting for child...\n");
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+  return 0;
+}
