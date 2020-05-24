@@ -39,7 +39,7 @@ static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
 static pgrp_t *pgrp_lookup(pgid_t pgid);
-static proc_t *proc_find_raw(pid_t pgid);
+static proc_t *proc_find_raw(pid_t pid);
 
 /* Process ID management functions */
 
