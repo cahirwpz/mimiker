@@ -11,6 +11,32 @@
 #include <sys/vfs.h>
 #include <sys/kmem.h>
 #include <sys/malloc.h>
+#include <bitstring.h>
+
+/*
+    START OF THE ARENA
+  0 +------------+
+    |            | - arena header
+  1 +------------+
+    |            | - inodes
+    |            |
+  5 +------------+
+    |            | - dirents
+    |            |
+  9 +------------+
+    |            |
+    |            | - data blocks
+    |            |
+256 +------------+
+    END OF THE ARENA
+
+Areny są połączone w listę.
+Struktura tmpfs_mount_t będzie znajdowała się w jednym z bloków z danymi.
+
+Rozmiar areny: 256 * 4KiB = 1MiB
+Liczba i-węzłów (zakładając, że jeden ma rozmiar 80 bajtów): 4 * 4KiB / 80 = 204
+Liczba bloków na dane: 256 - 4 - 4 - 1 = 247
+*/
 
 #define TMPFS_NAME_MAX 64
 
@@ -27,6 +53,19 @@
 
 #define L1_BLK_NO PTR_IN_BLK
 #define L2_BLK_NO (PTR_IN_BLK * PTR_IN_BLK)
+
+#define BLOCKS_PER_ARENA 256
+
+#define ARENA_INODE_BLOCKS 4
+#define ARENA_DIRENT_BLOCKS 4
+#define ARENA_DATA_BLOCKS (256 - ARENA_INODE_BLOCKS - ARENA_DIRENT_BLOCKS - 1)
+
+#define ARENA_INODE_CNT                                                        \
+  (ARENA_INODE_BLOCKS * BLOCK_SIZE /                                           \
+   sizeof(struct tmpfs_node)) /* number of inodes in a arena */
+#define ARENA_DIRENT_CNT                                                       \
+  (ARENA_DIRENT_BLOCKS * BLOCK_SIZE /                                          \
+   sizeof(struct tmpfs_dirent)) /* number of dirents in a arena */
 
 typedef struct _blk *blkptr_t;
 
@@ -67,11 +106,31 @@ typedef struct tmpfs_node {
   };
 } tmpfs_node_t;
 
+typedef STAILQ_HEAD(, tmpfs_mem_arena) tmpfs_mem_arenalist_t;
+
 typedef struct tmpfs_mount {
   tmpfs_node_t *tfm_root;
   mtx_t tfm_lock;
   ino_t tfm_next_ino;
+  tmpfs_mem_arenalist_t tfm_arenas;
 } tmpfs_mount_t;
+
+typedef struct tmpfs_mem_arena {
+  STAILQ_ENTRY(tmpfs_mem_arena) tma_link; /* link on list of all arenas */
+  size_t tma_ninodes;                     /* number of free inodes */
+  size_t tma_ndirents;                    /* number of free dirents */
+  size_t tma_ndblocks;                    /* number of free data blocks */
+
+  /* bitmaps of free items */
+  bitstr_t tma_inode_bm[bitstr_size(ARENA_INODE_CNT)];
+  bitstr_t tma_dirent_bm[bitstr_size(ARENA_DIRENT_CNT)];
+  bitstr_t tma_dblock_bm[bitstr_size(ARENA_DATA_BLOCKS)];
+
+  /* pointers to first item */
+  tmpfs_node_t *tma_inodes;
+  tmpfs_dirent_t *tma_dirents;
+  blkptr_t tma_dblocks;
+} tmpfs_mem_arena_t;
 
 static int alloc_block(tmpfs_mount_t *tfm, tmpfs_node_t *v, blkptr_t *blkptrp) {
   assert(blkptrp != NULL);
