@@ -868,7 +868,7 @@ static int sys_statvfs(proc_t *p, statvfs_args_t *args, register_t *res) {
   int error;
   const char *u_path = args->path;
   statvfs_t *u_buf = args->buf;
-  statvfs_t *buf = kmem_alloc(sizeof(struct statvfs), M_WAITOK);
+  statvfs_t buf;
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
 
@@ -877,12 +877,11 @@ static int sys_statvfs(proc_t *p, statvfs_args_t *args, register_t *res) {
 
   klog("statvfs(\"%s\", %p)", path, u_buf);
 
-  if (!(error = do_statvfs(p, path, buf)))
+  if (!(error = do_statvfs(p, path, &buf)))
     error = copyout_s(buf, u_buf);
 
 end:
   kfree(M_TEMP, path);
-  kmem_free(buf, sizeof(struct statvfs));
   return error;
 }
 
@@ -890,13 +889,12 @@ static int sys_fstatvfs(proc_t *p, fstatvfs_args_t *args, register_t *res) {
   int error;
   int fd = args->fd;
   statvfs_t *u_buf = args->buf;
-  statvfs_t *buf = kmem_alloc(sizeof(struct statvfs), M_WAITOK);
+  statvfs_t buf;
 
   klog("fstatvfs(%d, %p)", fd, u_buf);
 
-  if (!(error = do_fstatvfs(p, fd, buf)))
+  if (!(error = do_fstatvfs(p, fd, &buf)))
     error = copyout_s(buf, u_buf);
 
-  kmem_free(buf, sizeof(struct statvfs));
   return error;
 }
