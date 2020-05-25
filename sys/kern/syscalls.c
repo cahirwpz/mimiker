@@ -23,7 +23,6 @@
 #include <sys/thread.h>
 #include <sys/cred.h>
 #include <sys/statvfs.h>
-#include <sys/kmem.h>
 
 #include "sysent.h"
 
