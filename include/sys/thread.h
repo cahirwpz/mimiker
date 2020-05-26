@@ -127,11 +127,11 @@ typedef struct thread {
   prio_t td_prio;      /*!< ($) active priority */
   int td_slice;        /*!< ($) time slice length in system ticks */
   /* thread statistics */
-  timeval_t td_rtime;        /*!< (*) time spent running */
-  timeval_t td_last_rtime;   /*!< (*) time of last switch to running state */
-  timeval_t td_slptime;      /*!< (*) time spent sleeping */
-  timeval_t td_last_slptime; /*!< (*) time of last switch to sleep state */
-  unsigned td_nctxsw;        /*!< (*) total number of context switches */
+  timespec_t td_rtime;        /*!< (*) time spent running */
+  timespec_t td_last_rtime;   /*!< (*) time of last switch to running state */
+  timespec_t td_slptime;      /*!< (*) time spent sleeping */
+  timespec_t td_last_slptime; /*!< (*) time of last switch to sleep state */
+  unsigned td_nctxsw;         /*!< (*) total number of context switches */
   /* signal handling */
   sigset_t td_sigpend; /*!< (p) Pending signals for this thread. */
   sigset_t td_sigmask; /*!< (p) Signal mask */

@@ -109,7 +109,7 @@ static inline bintime_t ts2bt(timespec_t ts) {
 static inline void timeval_clear(timeval_t *tvp) {
   *tvp = (timeval_t){.tv_sec = 0, .tv_usec = 0};
 }
-
+/* Not used */
 static inline int timeval_isset(timeval_t *tvp) {
   return tvp->tv_sec || tvp->tv_usec;
 }
@@ -117,7 +117,7 @@ static inline int timeval_isset(timeval_t *tvp) {
 #define timeval_cmp(tvp, uvp, cmp)                                             \
   (((tvp)->tv_sec == (uvp)->tv_sec) ? (((tvp)->tv_usec)cmp((uvp)->tv_usec))    \
                                     : (((tvp)->tv_sec)cmp((uvp)->tv_sec)))
-
+/* Probably trash */
 static inline timeval_t timeval_add(timeval_t *tvp, timeval_t *uvp) {
   timeval_t res = {.tv_sec = tvp->tv_sec + uvp->tv_sec,
                    .tv_usec = tvp->tv_usec + uvp->tv_usec};
@@ -127,7 +127,7 @@ static inline timeval_t timeval_add(timeval_t *tvp, timeval_t *uvp) {
   }
   return res;
 }
-
+/* Probably trash */
 static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
   timeval_t res = {.tv_sec = tvp->tv_sec - uvp->tv_sec,
                    .tv_usec = tvp->tv_usec - uvp->tv_usec};
@@ -199,6 +199,10 @@ typedef enum clockid { CLOCK_MONOTONIC = 1, CLOCK_REALTIME = 2 } clockid_t;
     }                                                                          \
   }
 #define timespec2ns(x) (((uint64_t)(x)->tv_sec) * 1000000000L + (x)->tv_nsec)
+
+static inline int timespec_isset(timespec_t *tsp) {
+  return tsp->tv_sec || tsp->tv_nsec;
+}
 
 /*
  * Names of the interval timers, and structure defining a timer setting.

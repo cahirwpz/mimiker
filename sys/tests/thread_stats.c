@@ -30,9 +30,9 @@ static int test_thread_stats_nop(void) {
   for (int i = 0; i < THREADS_NUMBER; i++) {
     thread_t *td = threads[i];
     klog("Thread:%d runtime:%u.%u sleeptime:%u.%u context switches:%llu", i,
-         td->td_rtime.tv_sec, td->td_rtime.tv_usec, td->td_slptime.tv_sec,
-         td->td_slptime.tv_usec, td->td_nctxsw);
-    if (!timeval_isset(&td->td_rtime) && timeval_isset(&td->td_slptime))
+         td->td_rtime.tv_sec, td->td_rtime.tv_nsec, td->td_slptime.tv_sec,
+         td->td_slptime.tv_nsec, td->td_nctxsw);
+    if (!timespec_isset(&td->td_rtime) && timespec_isset(&td->td_slptime))
       return KTEST_FAILURE;
   }
 
@@ -77,9 +77,9 @@ static int test_thread_stats_slp(void) {
   for (int i = 0; i < THREADS_NUMBER; i++) {
     thread_t *td = threads[i];
     klog("Thread: %d, runtime: %u.%u, sleeptime: %u.%u, context switches: %llu",
-         i, td->td_rtime.tv_sec, td->td_rtime.tv_usec, td->td_slptime.tv_sec,
-         td->td_slptime.tv_usec, td->td_nctxsw);
-    if (!timeval_isset(&td->td_rtime) || !timeval_isset(&td->td_slptime))
+         i, td->td_rtime.tv_sec, td->td_rtime.tv_nsec, td->td_slptime.tv_sec,
+         td->td_slptime.tv_nsec, td->td_nctxsw);
+    if (!timespec_isset(&td->td_rtime) || !timespec_isset(&td->td_slptime))
       return KTEST_FAILURE;
   }
   return KTEST_SUCCESS;

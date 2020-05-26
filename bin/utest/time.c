@@ -6,8 +6,8 @@
 int test_gettimeofday(void) {
   timeval_t time1, time2;
   const int64_t start_of_century = 94684800, end_of_century = 4102444799;
-  
-  for(int g = 0; g < 100; g++){
+
+  for (int g = 0; g < 100; g++) {
     assert(gettimeofday(&time1, NULL) == 0);
     assert(gettimeofday(&time2, NULL) == 0);
     /* Time can't move backwards */
