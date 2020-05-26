@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <sched.h>
 
 int test_fork_wait(void) {
   int n = fork();
@@ -43,7 +44,7 @@ int test_fork_signal(void) {
 
   /* Wait for the child to get reaped by signal handler. */
   while (!done)
-    ;
+    sched_yield();
   signal(SIGCHLD, SIG_DFL);
   return 0;
 }
@@ -55,8 +56,7 @@ int test_fork_sigchld_ignored(void) {
   if (n == 0)
     exit(0);
 
-  /* TODO: Use a timeout here, because otherwise the parent process exits
-     first... Which is also a useful test, but doesn't really verify an ignored
-     SIGCHILD. */
+  /* wait() should fail, since the child reaps itself. */
+  assert(wait(NULL) == -1);
   return 0;
 }

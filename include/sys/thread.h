@@ -11,6 +11,7 @@
 #include <sys/priority.h>
 #include <sys/time.h>
 #include <sys/signal.h>
+#include <sys/sigtypes.h>
 #include <sys/kstack.h>
 #include <sys/spinlock.h>
 
@@ -68,6 +69,10 @@ typedef enum {
 #define TDF_SLPINTR 0x00000040  /* sleep is interruptible */
 #define TDF_SLPTIMED 0x00000080 /* sleep with timeout */
 
+typedef enum {
+  TDP_OLDSIGMASK = 0x01 /* Pass td_oldsigmask as return mask to send_sig(). */
+} tdp_flags_t;
+
 /*! \brief Thread structure
  *
  * UP = uniprocessor
@@ -103,8 +108,9 @@ typedef struct thread {
   char *td_name;   /*!< (@) name of thread */
   tid_t td_tid;    /*!< (@) thread identifier */
   /* thread state */
-  thread_state_t td_state;    /*!< (!) thread state */
-  volatile uint32_t td_flags; /*!< (!) TDF_* flags */
+  thread_state_t td_state;        /*!< (!) thread state */
+  volatile uint32_t td_flags;     /*!< (!) TDF_* flags */
+  volatile tdp_flags_t td_pflags; /*!< (*) TDP_* (private) flags */
   /* thread context */
   volatile unsigned td_idnest; /*!< (*) interrupt disable nest level */
   volatile unsigned td_pdnest; /*!< (*) preemption disable nest level */
@@ -132,8 +138,9 @@ typedef struct thread {
   timeval_t td_last_slptime; /*!< (*) time of last switch to sleep state */
   unsigned td_nctxsw;        /*!< (*) total number of context switches */
   /* signal handling */
-  sigset_t td_sigpend; /*!< (p) Pending signals for this thread. */
-  /* TODO: Signal mask, sigsuspend. */
+  sigset_t td_sigpend;    /*!< (p) Pending signals for this thread. */
+  sigset_t td_sigmask;    /*!< (p) Signal mask */
+  sigset_t td_oldsigmask; /*!< (*) Signal mask from before sigsuspend() */
 } thread_t;
 
 thread_t *thread_self(void);

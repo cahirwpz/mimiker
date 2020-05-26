@@ -36,7 +36,12 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(signal_send);
   CHECKRUN_TEST(signal_abort);
   CHECKRUN_TEST(signal_segfault);
-  CHECKRUN_TEST(signal_stop)
+  CHECKRUN_TEST(signal_stop);
+  CHECKRUN_TEST(signal_cont_masked);
+  CHECKRUN_TEST(signal_mask);
+  CHECKRUN_TEST(signal_mask_nonmaskable);
+  CHECKRUN_TEST(signal_sigsuspend);
+  CHECKRUN_TEST(signal_handler_mask);
   CHECKRUN_TEST(fork_wait);
   CHECKRUN_TEST(fork_signal);
   CHECKRUN_TEST(fork_sigchld_ignored);
@@ -64,6 +69,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(vfs_symlink);
   CHECKRUN_TEST(vfs_link);
   CHECKRUN_TEST(vfs_chmod);
+  CHECKRUN_TEST(wait_basic);
+  CHECKRUN_TEST(wait_nohang);
 
   CHECKRUN_TEST(setpgid);
   CHECKRUN_TEST(kill);
@@ -75,6 +82,9 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(fpu_cpy_ctx_on_fork);
   CHECKRUN_TEST(fpu_ctx_signals);
   CHECKRUN_TEST(getcwd);
+
+  CHECKRUN_TEST(get_set_uid);
+  CHECKRUN_TEST(get_set_gid);
 
   printf("No user test \"%s\" available.\n", test_name);
   return 1;

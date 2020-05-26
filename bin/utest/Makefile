@@ -2,6 +2,7 @@ TOPDIR = $(realpath ../..)
 
 SOURCES = \
 	access.c \
+	cred.c \
 	exceptions.c \
 	fd.c \
 	fork.c \
@@ -18,7 +19,8 @@ SOURCES = \
 	setjmp.c \
 	sigaction.c \
 	utest.c \
-	vfs.c
+	vfs.c \
+	wait.c
 
 PROGRAM = utest
 

@@ -365,6 +365,7 @@ static resource_t *gt_pci_alloc_resource(device_t *pcib, device_t *dev,
 
 static void gt_pci_release_resource(device_t *pcib, device_t *dev,
                                     res_type_t type, int rid, resource_t *r) {
+  device_remove_resource(dev, r);
   rman_release_resource(r);
 }
 
@@ -376,7 +377,7 @@ static void gt_pci_activate_resource(device_t *pcib, device_t *dev,
     rman_activate_resource(r);
   }
   bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
-                BUS_SPACE_MAP_LINEAR, &r->r_bus_handle);
+                &r->r_bus_handle);
 }
 
 /* clang-format off */

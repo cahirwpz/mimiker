@@ -12,7 +12,8 @@
 typedef struct sig_ctx {
   uint32_t magic; /* Integrity control. */
   exc_frame_t frame;
-  /* TODO: Store signal mask. */
+  sigset_t mask; /* signal mask to restore in sigreturn() */
+  /* TODO: Store handler signal mask. */
   /* TODO: Store previous stack data, if the sigaction requested a different
    * stack. */
 } sig_ctx_t;
@@ -26,7 +27,7 @@ static void stack_unusable(thread_t *td, register_t sp) {
   __unreachable();
 }
 
-int sig_send(signo_t sig, sigaction_t *sa) {
+int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa) {
   thread_t *td = thread_self();
 
   SCOPED_MTX_LOCK(&td->td_lock);
@@ -34,7 +35,7 @@ int sig_send(signo_t sig, sigaction_t *sa) {
   exc_frame_t *uframe = td->td_uframe;
 
   /* Prepare signal context. */
-  sig_ctx_t ksc = {.magic = SIG_CTX_MAGIC};
+  sig_ctx_t ksc = {.magic = SIG_CTX_MAGIC, .mask = *mask};
   exc_frame_copy(&ksc.frame, uframe);
 
   /* Copyout sigcode to user stack. */
@@ -68,38 +69,46 @@ int sig_send(signo_t sig, sigaction_t *sa) {
 }
 
 int sig_return(void) {
+  int error = 0;
   thread_t *td = thread_self();
-  SCOPED_MTX_LOCK(&td->td_lock);
   sig_ctx_t ksc;
-  exc_frame_t *uframe = td->td_uframe;
-  /* TODO: We assume the stored user context is where user stack is. This
-   * usually works, but the signal handler may switch the stack, or perform an
-   * arbitrary jump. It may also call sigreturn() when its stack is not empty
-   * (although it should not). Normally the C library tracks the location where
-   * the context was stored: it remembers the stack pointer at the point when
-   * the handler (or a wrapper!) was called, and passes that location back to us
-   * as an argument to sigreturn (which is, again, provided to the user program
-   * with a wrapper). We don't do any of that fancy stuff yet, but when we do,
-   * the following will need to get the scp pointer address from a syscall
-   * argument. */
-  sig_ctx_t *scp = (sig_ctx_t *)((intptr_t *)uframe->sp + 1);
-  int error = copyin_s(scp, ksc);
-  if (error)
-    return error;
-  if (ksc.magic != SIG_CTX_MAGIC) {
-    klog("User context at %p corrupted!", scp);
-    sig_trap(uframe, SIGILL);
-    return EINVAL;
+
+  WITH_MTX_LOCK (&td->td_lock) {
+    exc_frame_t *uframe = td->td_uframe;
+    /* TODO: We assume the stored user context is where user stack is. This
+     * usually works, but the signal handler may switch the stack, or perform an
+     * arbitrary jump. It may also call sigreturn() when its stack is not empty
+     * (although it should not). Normally the C library tracks the location
+     * where the context was stored: it remembers the stack pointer at the point
+     * when the handler (or a wrapper!) was called, and passes that location
+     * back to us as an argument to sigreturn (which is, again, provided to the
+     * user program with a wrapper). We don't do any of that fancy stuff yet,
+     * but when we do, the following will need to get the scp pointer address
+     * from a syscall argument. */
+    sig_ctx_t *scp = (sig_ctx_t *)((intptr_t *)uframe->sp + 1);
+    error = copyin_s(scp, ksc);
+    if (error)
+      return error;
+    if (ksc.magic != SIG_CTX_MAGIC) {
+      klog("User context at %p corrupted!", scp);
+      sig_trap(uframe, SIGILL);
+      return EINVAL;
+    }
+
+    /* Restore user context. */
+    exc_frame_copy(uframe, &ksc.frame);
   }
 
-  /* Restore user context. */
-  exc_frame_copy(uframe, &ksc.frame);
+  WITH_MTX_LOCK (&td->td_proc->p_lock)
+    error = do_sigprocmask(SIG_SETMASK, &ksc.mask, NULL);
+  assert(error == 0);
 
   return EJUSTRETURN;
 }
 
 void sig_trap(exc_frame_t *frame, signo_t sig) {
   proc_t *proc = proc_self();
-  proc_lock(proc);
-  sig_kill(proc, sig);
+  WITH_MTX_LOCK (all_proc_mtx)
+    WITH_MTX_LOCK (&proc->p_lock)
+      sig_kill(proc, sig);
 }

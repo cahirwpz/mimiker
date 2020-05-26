@@ -7,7 +7,7 @@
 #include <sys/refcnt.h>
 #include <bitstring.h>
 
-static KMALLOC_DEFINE(M_FD, "filedesc", PAGESIZE * 2);
+static KMALLOC_DEFINE(M_FD, "filedesc", PAGESIZE * 4);
 
 /* The initial size of space allocated for file descriptors. According
    to FreeBSD, this is more than enough for most applications. Each
