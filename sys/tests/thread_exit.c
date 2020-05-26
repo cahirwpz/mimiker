@@ -5,16 +5,18 @@
 #include <sys/sched.h>
 #include <sys/ktest.h>
 
-static timeval_t exit_time[] = {TIMEVAL(0.100), TIMEVAL(0.200), TIMEVAL(0.150)};
-static timeval_t start;
+static timespec_t exit_time[] = {TIMESPEC(0.100), TIMESPEC(0.200), TIMESPEC(0.150)};
+static timespec_t start;
 
 /* TODO: callout + sleepq, once we've implemented callout_schedule. */
 static void test_thread(void *p) {
-  timeval_t *e = (timeval_t *)p;
+  timespec_t *e = (timespec_t *)p;
   while (1) {
-    timeval_t now = microuptime();
-    timeval_t diff = timeval_sub(&now, &start);
-    if (timeval_cmp(&diff, e, >))
+    timespec_t now = nanouptime();
+    timespec_t diff;
+
+    timespecsub(&now, &start, &diff);
+    if (timespeccmp(&diff, e, >))
       thread_exit();
     else
       thread_yield();
@@ -34,7 +36,7 @@ static int test_thread_join(void) {
   tid_t t2_id = t2->td_tid;
   tid_t t3_id = t3->td_tid;
 
-  start = microuptime();
+  start = nanouptime();
   sched_add(t1);
   sched_add(t2);
   sched_add(t3);

@@ -9,12 +9,12 @@
 #if 0
 static void demo_thread_1(void) {
   while (true) {
-    timeval_t start = microuptime();
-    kprintf("[%8zu] Running '%s' thread.\n", (size_t)tv2st(start),
+    timespec_t start = nanoouptime();
+    kprintf("[%8zu] Running '%s' thread.\n", (size_t)ts2st(start),
             thread_self()->td_name);
-    timeval_t now = microuptime();
-    while (tv2st(now) < tv2st(start) + 20)
-      now = microuptime();
+    timespec_t now = nanoouptime();
+    while (ts2st(now) < ts2st(start) + 20)
+      now = nanoouptime();
   }
 }
 
