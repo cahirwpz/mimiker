@@ -57,6 +57,7 @@ class GdbStructMeta(type):
         # classes created with GdbStructMeta will inherit from GdbStructBase
         return super().__new__(cls, name, (GdbStructBase,) + bases, dct)
 
+
 # Probably trash
 class TimeVal(metaclass=GdbStructMeta):
     __ctype__ = 'struct timeval'
@@ -68,6 +69,7 @@ class TimeVal(metaclass=GdbStructMeta):
     def __str__(self):
         return 'timeval{%.6f}' % self.as_float()
 
+
 class TimeSpec(metaclass=GdbStructMeta):
     __ctype__ = 'struct timespec'
     __cast__ = {'tv_sec': int, 'tv_nsec': int}
@@ -77,6 +79,7 @@ class TimeSpec(metaclass=GdbStructMeta):
 
     def __str__(self):
         return 'timespec{%.6f}' % self.as_float()
+
 
 class TailQueue():
     def __init__(self, tq, field):
