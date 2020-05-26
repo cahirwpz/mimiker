@@ -121,7 +121,7 @@ static int run_test(test_entry_t *t) {
     ktest_failure();
   /*
   timespec_t end = nanouptime();
-  Something is missing here 
+  Something is missing here
   ts2st(timespecsub(&end, &start));
   */
   return result;

@@ -55,8 +55,8 @@ static void rtc_gettime(resource_t *regs, tm_t *t) {
   t->tm_hour = rtc_read(regs, MC_HOUR);
   t->tm_wday = rtc_read(regs, MC_DOW);
   t->tm_mday = rtc_read(regs, MC_DOM);
-  t->tm_mon = rtc_read(regs, MC_MONTH);
-  t->tm_year = rtc_read(regs, MC_YEAR);
+  t->tm_mon = rtc_read(regs, MC_MONTH) - 1;
+  t->tm_year = rtc_read(regs, MC_YEAR) + 100;
 }
 
 static intr_filter_t rtc_intr(void *data) {
@@ -78,7 +78,7 @@ static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
   sleepq_wait(rtc, NULL);
   rtc_gettime(rtc->regs, &t);
   int count = snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d",
-                       t.tm_year + 2000, t.tm_mon, t.tm_mday, t.tm_hour,
+                       t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour,
                        t.tm_min, t.tm_sec);
   if (count >= RTC_ASCTIME_SIZE)
     return EINVAL;

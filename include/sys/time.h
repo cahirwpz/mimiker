@@ -6,23 +6,18 @@
 #define CLK_TCK 100 /* system clock ticks per second */
 
 typedef struct tm {
-  int tm_sec;          /* seconds after the minute [0-59] */
+  int tm_sec;          /* seconds after the minute [0-61] */
   int tm_min;          /* minutes after the hour [0-59] */
   int tm_hour;         /* hours since midnight [0-23] */
   int tm_mday;         /* day of the month [1-31] */
-  int tm_mon;          /* months since January [1-12] */
-  int tm_year;         /* years since 2000 [0-100]*/
+  int tm_mon;          /* months since January [0-11] */
+  int tm_year;         /* years since 1900 */
   int tm_wday;         /* days since Sunday [0-6] */
   int tm_yday;         /* days since January 1 [0-365] */
   int tm_isdst;        /* Daylight Savings Time flag */
   long tm_gmtoff;      /* offset from UTC in seconds */
   const char *tm_zone; /* timezone abbreviation */
 } tm_t;
-
-typedef struct timeval {
-  time_t tv_sec;       /* seconds */
-  suseconds_t tv_usec; /* microseconds */
-} timeval_t;
 
 typedef struct timespec {
   time_t tv_sec; /* seconds */
@@ -33,12 +28,6 @@ typedef struct bintime {
   time_t sec;    /* second */
   uint64_t frac; /* a fraction of second */
 } bintime_t;
-
-#define TIMEVAL(fp)                                                            \
-  (timeval_t) {                                                                \
-    .tv_sec = (long)((fp)*1000000L) / 1000000L,                                \
-    .tv_usec = (long)((fp)*1000000L) % 1000000L                                \
-  }
 
 #define BINTIME(fp)                                                            \
   (bintime_t) {                                                                \
@@ -57,25 +46,8 @@ typedef struct bintime {
     .sec = 0, .frac = ((1ULL << 63) / (hz)) << 1                               \
   }
 
-static inline timeval_t st2tv(systime_t st) {
-  return (timeval_t){.tv_sec = st / 1000, .tv_usec = st % 1000};
-}
-
-static inline timeval_t ts2tv(timespec_t ts) {
-  return (timeval_t){.tv_sec = ts.tv_sec, .tv_usec = ts.tv_nsec / 1000};
-}
-
 static inline systime_t ts2st(timespec_t ts) {
   return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-}
-/* Probably trash */
-static inline systime_t tv2st(timeval_t tv) {
-  return tv.tv_sec * 1000 + tv.tv_usec / 1000;
-}
-
-static inline timeval_t bt2tv(bintime_t bt) {
-  uint32_t usec = ((uint64_t)1000000 * (uint32_t)(bt.frac >> 32)) >> 32;
-  return (timeval_t){.tv_sec = bt.sec, .tv_usec = usec};
 }
 
 static inline timespec_t bt2ts(bintime_t bt) {
@@ -89,63 +61,6 @@ static inline bintime_t ts2bt(timespec_t ts) {
   uint64_t frac = (uint64_t)ts.tv_nsec * bintime_scale_ns;
   return (bintime_t){.sec = ts.tv_sec, .frac = frac};
 #undef BINTIME_SCALE_NS
-}
-
-/* Operations on timevals. */
-#define timerclear(tvp) (tvp)->tv_sec = (tvp)->tv_usec = 0L
-#define timerisset(tvp) ((tvp)->tv_sec || (tvp)->tv_usec)
-#define timercmp(tvp, uvp, cmp)                                                \
-  (((tvp)->tv_sec == (uvp)->tv_sec) ? ((tvp)->tv_usec cmp(uvp)->tv_usec)       \
-                                    : ((tvp)->tv_sec cmp(uvp)->tv_sec))
-#define timeradd(tvp, uvp, vvp)                                                \
-  {                                                                            \
-    (vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;                             \
-    (vvp)->tv_usec = (tvp)->tv_usec + (uvp)->tv_usec;                          \
-    if ((vvp)->tv_usec >= 1000000) {                                           \
-      (vvp)->tv_sec++;                                                         \
-      (vvp)->tv_usec -= 1000000;                                               \
-    }                                                                          \
-  }
-#define timersub(tvp, uvp, vvp)                                                \
-  {                                                                            \
-    (vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;                             \
-    (vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;                          \
-    if ((vvp)->tv_usec < 0) {                                                  \
-      (vvp)->tv_sec--;                                                         \
-      (vvp)->tv_usec += 1000000;                                               \
-    }                                                                          \
-  }
-
-static inline void timeval_clear(timeval_t *tvp) {
-  *tvp = (timeval_t){.tv_sec = 0, .tv_usec = 0};
-}
-/* Not used */
-static inline int timeval_isset(timeval_t *tvp) {
-  return tvp->tv_sec || tvp->tv_usec;
-}
-
-#define timeval_cmp(tvp, uvp, cmp)                                             \
-  (((tvp)->tv_sec == (uvp)->tv_sec) ? (((tvp)->tv_usec)cmp((uvp)->tv_usec))    \
-                                    : (((tvp)->tv_sec)cmp((uvp)->tv_sec)))
-/* Probably trash */
-static inline timeval_t timeval_add(timeval_t *tvp, timeval_t *uvp) {
-  timeval_t res = {.tv_sec = tvp->tv_sec + uvp->tv_sec,
-                   .tv_usec = tvp->tv_usec + uvp->tv_usec};
-  if (res.tv_usec >= 1000000) {
-    res.tv_sec++;
-    res.tv_usec -= 1000000;
-  }
-  return res;
-}
-/* Probably trash */
-static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
-  timeval_t res = {.tv_sec = tvp->tv_sec - uvp->tv_sec,
-                   .tv_usec = tvp->tv_usec - uvp->tv_usec};
-  if (res.tv_usec < 0) {
-    res.tv_sec--;
-    res.tv_usec += 1000000;
-  }
-  return res;
 }
 
 /* Operations on bintime. */
@@ -214,6 +129,32 @@ static inline int timespec_isset(timespec_t *tsp) {
   return tsp->tv_sec || tsp->tv_nsec;
 }
 
+#ifdef _KERNEL
+
+/* Time measured from the start of system. */
+bintime_t binuptime(void);
+timespec_t nanouptime(void);
+
+/* UTC/POSIX time */
+bintime_t bintime(void);
+timespec_t nanotime(void);
+
+/* System time is measured in ticks (1[ms] by default),
+ * and is maintained by system clock. */
+systime_t getsystime(void);
+
+int do_clock_gettime(clockid_t clk, timespec_t *tp);
+
+int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
+                       timespec_t *rmtp);
+
+#else /* _KERNEL */
+
+typedef struct timeval {
+  time_t tv_sec;       /* seconds */
+  suseconds_t tv_usec; /* microseconds */
+} timeval_t;
+
 /*
  * Names of the interval timers, and structure defining a timer setting.
  */
@@ -227,32 +168,91 @@ struct itimerval {
   struct timeval it_value;    /* current value */
 };
 
-#ifdef _KERNEL
+/* Not used */
+#define TIMEVAL(fp)                                                            \
+  (timeval_t) {                                                                \
+    .tv_sec = (long)((fp)*1000000L) / 1000000L,                                \
+    .tv_usec = (long)((fp)*1000000L) % 1000000L                                \
+  }
 
-/* Time measured from the start of system. */
-bintime_t binuptime(void);
-timeval_t microuptime(void);
-timespec_t nanouptime(void);
+/* Not used */
+static inline timeval_t st2tv(systime_t st) {
+  return (timeval_t){.tv_sec = st / 1000, .tv_usec = st % 1000};
+}
 
-/* UTC/POSIX time */
-bintime_t bintime(void);
-timeval_t getmicrotime(void);
-timespec_t nanotime(void);
+static inline timeval_t ts2tv(timespec_t ts) {
+  return (timeval_t){.tv_sec = ts.tv_sec, .tv_usec = ts.tv_nsec / 1000};
+}
 
-/* System time is measured in ticks (1[ms] by default),
- * and is maintained by system clock. */
-systime_t getsystime(void);
+/* Not used */
+static inline systime_t tv2st(timeval_t tv) {
+  return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
 
-/* XXX: Do not use this function, it'll get removed.
- * Raw access to cpu internal timer. */
-timeval_t getcputime(void);
+/* Not used */
+static inline timeval_t bt2tv(bintime_t bt) {
+  uint32_t usec = ((uint64_t)1000000 * (uint32_t)(bt.frac >> 32)) >> 32;
+  return (timeval_t){.tv_sec = bt.sec, .tv_usec = usec};
+}
 
-int do_clock_gettime(clockid_t clk, timespec_t *tp);
+/* Operations on timevals. */
+#define timerclear(tvp) (tvp)->tv_sec = (tvp)->tv_usec = 0L
+#define timerisset(tvp) ((tvp)->tv_sec || (tvp)->tv_usec)
+#define timercmp(tvp, uvp, cmp)                                                \
+  (((tvp)->tv_sec == (uvp)->tv_sec) ? ((tvp)->tv_usec cmp(uvp)->tv_usec)       \
+                                    : ((tvp)->tv_sec cmp(uvp)->tv_sec))
+#define timeradd(tvp, uvp, vvp)                                                \
+  {                                                                            \
+    (vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;                             \
+    (vvp)->tv_usec = (tvp)->tv_usec + (uvp)->tv_usec;                          \
+    if ((vvp)->tv_usec >= 1000000) {                                           \
+      (vvp)->tv_sec++;                                                         \
+      (vvp)->tv_usec -= 1000000;                                               \
+    }                                                                          \
+  }
+#define timersub(tvp, uvp, vvp)                                                \
+  {                                                                            \
+    (vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;                             \
+    (vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;                          \
+    if ((vvp)->tv_usec < 0) {                                                  \
+      (vvp)->tv_sec--;                                                         \
+      (vvp)->tv_usec += 1000000;                                               \
+    }                                                                          \
+  }
 
-int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
-                       timespec_t *rmtp);
+/* Not used */
+static inline void timeval_clear(timeval_t *tvp) {
+  *tvp = (timeval_t){.tv_sec = 0, .tv_usec = 0};
+}
 
-#else /* _KERNEL */
+/* Not used */
+static inline int timeval_isset(timeval_t *tvp) {
+  return tvp->tv_sec || tvp->tv_usec;
+}
+
+#define timeval_cmp(tvp, uvp, cmp)                                             \
+  (((tvp)->tv_sec == (uvp)->tv_sec) ? (((tvp)->tv_usec)cmp((uvp)->tv_usec))    \
+                                    : (((tvp)->tv_sec)cmp((uvp)->tv_sec)))
+/* Probably trash */
+static inline timeval_t timeval_add(timeval_t *tvp, timeval_t *uvp) {
+  timeval_t res = {.tv_sec = tvp->tv_sec + uvp->tv_sec,
+                   .tv_usec = tvp->tv_usec + uvp->tv_usec};
+  if (res.tv_usec >= 1000000) {
+    res.tv_sec++;
+    res.tv_usec -= 1000000;
+  }
+  return res;
+}
+/* Probably trash */
+static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
+  timeval_t res = {.tv_sec = tvp->tv_sec - uvp->tv_sec,
+                   .tv_usec = tvp->tv_usec - uvp->tv_usec};
+  if (res.tv_usec < 0) {
+    res.tv_sec--;
+    res.tv_usec += 1000000;
+  }
+  return res;
+}
 
 int nanosleep(timespec_t *rqtp, timespec_t *rmtp);
 
