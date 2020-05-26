@@ -2,13 +2,13 @@ import gdb
 import os.path
 
 from .cmd import SimpleCommand
-from .struct import GdbStructMeta, enum, cstr, TimeVal
+from .struct import GdbStructMeta, enum, cstr, TimeSpec
 from .utils import TextTable, global_var, relpath
 
 
 class LogEntry(metaclass=GdbStructMeta):
     __ctype__ = 'struct klog_entry'
-    __cast__ = {'kl_tid': int, 'kl_timestamp': TimeVal, 'kl_file': cstr,
+    __cast__ = {'kl_tid': int, 'kl_timestamp': TimeSpec, 'kl_file': cstr,
                 'kl_format': cstr, 'kl_line': int, 'kl_origin': enum}
 
     @property

@@ -5,7 +5,8 @@
 #include <sys/sched.h>
 #include <sys/ktest.h>
 
-static timespec_t exit_time[] = {TIMESPEC(0.100), TIMESPEC(0.200), TIMESPEC(0.150)};
+static timespec_t exit_time[] = {TIMESPEC(0.100), TIMESPEC(0.200),
+                                 TIMESPEC(0.150)};
 static timespec_t start;
 
 /* TODO: callout + sleepq, once we've implemented callout_schedule. */

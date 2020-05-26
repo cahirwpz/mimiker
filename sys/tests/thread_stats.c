@@ -11,7 +11,7 @@ static timespec_t test_time = TIMESPEC(0.2);
 
 static void thread_nop_function(void *arg) {
   timespec_t end;
-  timespecadd((timespec_t *) arg, &test_time, &end);
+  timespecadd((timespec_t *)arg, &test_time, &end);
   timespec_t now = nanouptime();
   while (timespeccmp(&now, &end, <))
     now = nanouptime();

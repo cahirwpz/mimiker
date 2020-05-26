@@ -51,7 +51,7 @@ typedef enum {
 #define KL_SIZE 1024
 
 typedef struct klog_entry {
-  timeval_t kl_timestamp;
+  timespec_t kl_timestamp;
   tid_t kl_tid;
   unsigned kl_line;
   const char *kl_file;

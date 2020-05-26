@@ -46,10 +46,10 @@ typedef struct bintime {
     .frac = (uint64_t)((fp - __builtin_floor(fp)) * (1ULL << 63) * 2)          \
   }
 
-  #define TIMESPEC(fp)                                                            \
-  (timespec_t) {                                                                \
-    .tv_sec = (uint64_t)((fp)*1000000000L) / 1000000000L,                                \
-    .tv_nsec = (uint64_t)((fp)*1000000000L) % 1000000000L                                \
+#define TIMESPEC(fp)                                                           \
+  (timespec_t) {                                                               \
+    .tv_sec = (uint64_t)((fp)*1000000000L) / 1000000000L,                      \
+    .tv_nsec = (uint64_t)((fp)*1000000000L) % 1000000000L                      \
   }
 
 #define HZ2BT(hz)                                                              \

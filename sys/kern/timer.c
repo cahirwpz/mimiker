@@ -211,14 +211,6 @@ bintime_t bintime(void) {
   return retval;
 }
 
-timeval_t microuptime(void) {
-  return bt2tv(binuptime());
-}
-
-timeval_t microtime(void) {
-  return bt2tv(bintime());
-}
-
 timespec_t nanouptime(void) {
   return bt2ts(binuptime());
 }
