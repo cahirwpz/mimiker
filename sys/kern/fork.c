@@ -7,6 +7,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/sbrk.h>
+#include <sys/cred.h>
 
 int do_fork(pid_t *cldpidp) {
   thread_t *td = thread_self();
@@ -46,6 +47,9 @@ int do_fork(pid_t *cldpidp) {
   proc_t *child = proc_create(newtd, parent);
   rv = pgrp_enter(child, parent->p_pgrp->pg_id, false);
   assert(rv == 0);
+
+  /* Clone credentials. */
+  cred_fork(child, parent);
 
   /* Clone the entire process memory space. */
   child->p_uspace = vm_map_clone(parent->p_uspace);
