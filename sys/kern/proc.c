@@ -17,11 +17,10 @@
 #include <sys/sysinit.h>
 #include <bitstring.h>
 
-#define NPROC 64 /* maximum number of processes */
 /* Allocate PIDs from a reasonable range, can be changed as needed. */
 #define PID_MAX 255
-#define NBUCKETS 64
-#define PIDHASH(pid) (pid % NBUCKETS)
+#define NBUCKETS ((PID_MAX + 1) / 4)
+#define PIDHASH(pid) ((pid) % NBUCKETS)
 #define PROC_HASH_CHAIN(pid) (&proc_hashtbl[PIDHASH(pid)])
 #define PGRP_HASH_CHAIN(pid) (&pgrp_hashtbl[PIDHASH(pid)])
 #define SESSION_HASH_CHAIN(pid) (&session_hashtbl[PIDHASH(pid)])
@@ -43,12 +42,12 @@ static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
 static pgrp_t *pgrp_lookup(pgid_t pgid);
-static proc_t *proc_find_raw(pid_t pgid);
+static proc_t *proc_find_raw(pid_t pid);
 static session_t *sess_lookup(sid_t sid);
 
 /* Process ID management functions */
 
-static void proc_init_hashtbl(void) {
+static void proc_init(void) {
   for (int i = 0; i < NBUCKETS; i++) {
     TAILQ_INIT(&proc_hashtbl[i]);
     TAILQ_INIT(&pgrp_hashtbl[i]);
@@ -315,7 +314,7 @@ void proc_add(proc_t *p) {
 
 /* Lookup a process in the PID hash table.
  * The returned process, if any, is NOT locked. */
-proc_t *proc_find_raw(pid_t pid) {
+static proc_t *proc_find_raw(pid_t pid) {
   assert(mtx_owned(all_proc_mtx));
 
   proc_t *p = NULL;
@@ -588,10 +587,6 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   }
 
   __unreachable();
-}
-
-static void proc_init(void) {
-  proc_init_hashtbl();
 }
 
 SYSINIT_ADD(proc, proc_init, NODEPS);

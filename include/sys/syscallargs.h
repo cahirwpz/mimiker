@@ -287,7 +287,7 @@ typedef struct {
 } fchmodat_args_t;
 
 typedef struct {
-  sigset_t *sigmask;
+  sigset_t * sigmask;
 } sigsuspend_args_t;
 
 typedef struct {
