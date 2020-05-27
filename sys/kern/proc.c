@@ -51,6 +51,7 @@ static void proc_init(void) {
   for (int i = 0; i < NBUCKETS; i++) {
     TAILQ_INIT(&proc_hashtbl[i]);
     TAILQ_INIT(&pgrp_hashtbl[i]);
+    TAILQ_INIT(&session_hashtbl[i]);
   }
 }
 

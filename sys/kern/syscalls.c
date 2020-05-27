@@ -22,6 +22,7 @@
 #include <sys/context.h>
 #include <sys/thread.h>
 #include <sys/cred.h>
+#include <sys/statvfs.h>
 
 #include "sysent.h"
 
@@ -860,6 +861,41 @@ static int sys_sched_yield(proc_t *p, void *args, register_t *res) {
   klog("sched_yield()");
   thread_yield();
   return 0;
+}
+
+static int sys_statvfs(proc_t *p, statvfs_args_t *args, register_t *res) {
+  int error;
+  const char *u_path = args->path;
+  statvfs_t *u_buf = args->buf;
+  statvfs_t buf;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("statvfs(\"%s\", %p)", path, u_buf);
+
+  if (!(error = do_statvfs(p, path, &buf)))
+    error = copyout_s(buf, u_buf);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
+static int sys_fstatvfs(proc_t *p, fstatvfs_args_t *args, register_t *res) {
+  int error;
+  int fd = args->fd;
+  statvfs_t *u_buf = args->buf;
+  statvfs_t buf;
+
+  klog("fstatvfs(%d, %p)", fd, u_buf);
+
+  if (!(error = do_fstatvfs(p, fd, &buf)))
+    error = copyout_s(buf, u_buf);
+
+  return error;
 }
 
 static int sys_setsid(proc_t *p, void *args, register_t *res) {
