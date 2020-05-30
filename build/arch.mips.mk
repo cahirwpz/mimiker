@@ -15,4 +15,8 @@ ifeq ($(KASAN), 1)
 endif
 # Added to all files
 CFLAGS += -DKASAN=$(KASAN)
+
+ifeq ($(KUBSAN), 1)
+  CFLAGS_KUBSAN += -fsanitize=undefined
+endif
 endif
