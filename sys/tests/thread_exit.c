@@ -5,7 +5,8 @@
 #include <sys/sched.h>
 #include <sys/ktest.h>
 
-static bintime_t exit_time[] = {BINTIME(0.100), BINTIME(0.200), BINTIME(0.150)};
+static bintime_t exit_time[] = {BINTIME2(0, 0.100), BINTIME2(0, 0.200),
+                                BINTIME2(0, 0.150)};
 static bintime_t start;
 
 /* TODO: callout + sleepq, once we've implemented callout_schedule. */
