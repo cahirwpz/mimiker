@@ -7,18 +7,19 @@
 
 #define THREADS_NUMBER 10
 
-static timeval_t test_time = TIMEVAL(0.2);
+static bintime_t test_time = BINTIME(0.2);
 
 static void thread_nop_function(void *arg) {
-  timeval_t end = timeval_add(arg, &test_time);
-  timeval_t now = get_uptime();
-  while (timeval_cmp(&now, &end, <))
-    now = get_uptime();
+  bintime_t end = *(bintime_t *)arg;
+  bintime_add(&end, &test_time);
+  bintime_t now = getbintime();
+  while (bintime_cmp(&now, &end, <))
+    now = getbintime();
 }
 
 static int test_thread_stats_nop(void) {
   thread_t *threads[THREADS_NUMBER];
-  timeval_t start = get_uptime();
+  bintime_t start = getbintime();
   for (int i = 0; i < THREADS_NUMBER; i++) {
     threads[i] = thread_create("test-thread-stats-nop", thread_nop_function,
                                &start, prio_kthread(0));
@@ -29,10 +30,11 @@ static int test_thread_stats_nop(void) {
   }
   for (int i = 0; i < THREADS_NUMBER; i++) {
     thread_t *td = threads[i];
-    klog("Thread:%d runtime:%u.%u sleeptime:%u.%u context switches:%llu", i,
-         td->td_rtime.tv_sec, td->td_rtime.tv_usec, td->td_slptime.tv_sec,
-         td->td_slptime.tv_usec, td->td_nctxsw);
-    if (!timeval_isset(&td->td_rtime) && timeval_isset(&td->td_slptime))
+    klog(
+      "Thread:%d runtime:%llu.%llu sleeptime:%llu.%llu context switches:%llu",
+      i, td->td_rtime.sec, td->td_rtime.frac, td->td_slptime.sec,
+      td->td_slptime.frac, td->td_nctxsw);
+    if (!bintimeisset(&td->td_rtime) && bintimeisset(&td->td_slptime))
       return KTEST_FAILURE;
   }
 
@@ -40,28 +42,30 @@ static int test_thread_stats_nop(void) {
 }
 
 static void thread_wake_function(void *arg) {
-  timeval_t end = timeval_add(arg, &test_time);
-  end = timeval_add(&end, &TIMEVAL(0.1));
-  timeval_t now = get_uptime();
-  while (timeval_cmp(&now, &end, <)) {
+  bintime_t end = *(bintime_t *)arg;
+  bintime_add(&end, &test_time);
+  bintime_add(&end, &BINTIME(0.1));
+  bintime_t now = getbintime();
+  while (bintime_cmp(&now, &end, <)) {
     sleepq_broadcast(arg);
-    now = get_uptime();
+    now = getbintime();
   }
 }
 
 static void thread_sleep_function(void *arg) {
   sleepq_wait(arg, "Thread stats test sleepq");
-  timeval_t end = timeval_add(arg, &test_time);
-  timeval_t now = get_uptime();
-  while (timeval_cmp(&now, &end, <)) {
+  bintime_t end = *(bintime_t *)arg;
+  bintime_add(&end, &test_time);
+  bintime_t now = getbintime();
+  while (bintime_cmp(&now, &end, <)) {
     sleepq_wait(arg, "Thread stats test sleepq");
-    now = get_uptime();
+    now = getbintime();
   }
 }
 
 static int test_thread_stats_slp(void) {
   thread_t *threads[THREADS_NUMBER];
-  timeval_t start = get_uptime();
+  bintime_t start = getbintime();
   for (int i = 0; i < THREADS_NUMBER; i++) {
     threads[i] = thread_create("test-thread-stats-sleeper",
                                thread_sleep_function, &start, prio_kthread(0));
@@ -76,10 +80,11 @@ static int test_thread_stats_slp(void) {
   thread_join(waker);
   for (int i = 0; i < THREADS_NUMBER; i++) {
     thread_t *td = threads[i];
-    klog("Thread: %d, runtime: %u.%u, sleeptime: %u.%u, context switches: %llu",
-         i, td->td_rtime.tv_sec, td->td_rtime.tv_usec, td->td_slptime.tv_sec,
-         td->td_slptime.tv_usec, td->td_nctxsw);
-    if (!timeval_isset(&td->td_rtime) || !timeval_isset(&td->td_slptime))
+    klog("Thread: %d, runtime: %llu.%llu, sleeptime: %llu.%llu, context "
+         "switches: %llu",
+         i, td->td_rtime.sec, td->td_rtime.frac, td->td_slptime.sec,
+         td->td_slptime.frac, td->td_nctxsw);
+    if (!bintimeisset(&td->td_rtime) || !bintimeisset(&td->td_slptime))
       return KTEST_FAILURE;
   }
   return KTEST_SUCCESS;

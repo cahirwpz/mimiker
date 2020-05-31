@@ -62,6 +62,9 @@ static inline timeval_t ts2tv(timespec_t ts) {
 static inline systime_t tv2st(timeval_t tv) {
   return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
+static inline systime_t bt2st(bintime_t *bt) {
+  return bt->sec * 1000 + (((uint64_t)1000 * (uint32_t)(bt->frac >> 32)) >> 32);
+}
 
 static inline timeval_t bt2tv(bintime_t bt) {
   uint32_t usec = ((uint64_t)1000000 * (uint32_t)(bt.frac >> 32)) >> 32;
@@ -127,7 +130,9 @@ static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
 
 /* Operations on bintime. */
 #define bintime_cmp(a, b, cmp)                                                 \
-  (((a).sec == (b).sec) ? (((a).frac)cmp((b).frac)) : (((a).sec)cmp((b).sec)))
+  (((a)->sec == (b)->sec) ? (((a)->frac)cmp((b)->frac))                        \
+                          : (((a)->sec)cmp((b)->sec)))
+#define bintimeisset(bt) ((bt)->sec || (bt)->frac)
 
 static inline void bintime_add_frac(bintime_t *bt, uint64_t x) {
   uint64_t old_frac = bt->frac;
@@ -141,6 +146,19 @@ static inline bintime_t bintime_mul(const bintime_t bt, uint32_t x) {
   uint64_t p2 = (bt.frac >> 32) * x + (p1 >> 32);
   return (bintime_t){.sec = bt.sec * x + (p2 >> 32),
                      .frac = (p2 << 32) | (p1 & 0xffffffffULL)};
+}
+
+static inline void bintime_add(bintime_t *bt, bintime_t *bt2) {
+  bintime_add_frac(bt, bt2->frac);
+  bt->sec += bt2->sec;
+}
+
+static inline void bintime_sub(bintime_t *bt, bintime_t *bt2) {
+  uint64_t old_frac = bt->frac;
+  bt->frac -= bt2->frac;
+  if (old_frac < bt->frac)
+    bt->sec--;
+  bt->sec -= bt2->sec;
 }
 
 typedef enum clockid { CLOCK_MONOTONIC = 1, CLOCK_REALTIME = 2 } clockid_t;
