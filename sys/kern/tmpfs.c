@@ -21,9 +21,6 @@
     |            | - inodes
     |            |
   5 +------------+
-    |            | - dirents
-    |            |
-  9 +------------+
     |            |
     |            | - data blocks
     |            |
@@ -31,11 +28,10 @@
     END OF THE ARENA
 
 Areny są połączone w listę.
-Struktura tmpfs_mount_t będzie znajdowała się w jednym z bloków z danymi.
 
 Rozmiar areny: 256 * 4KiB = 1MiB
 Liczba i-węzłów (zakładając, że jeden ma rozmiar 80 bajtów): 4 * 4KiB / 80 = 204
-Liczba bloków na dane: 256 - 4 - 4 - 1 = 247
+Liczba bloków na dane: 256 - 4 - 1 = 251
 */
 
 #define TMPFS_NAME_MAX 64
@@ -55,17 +51,14 @@ Liczba bloków na dane: 256 - 4 - 4 - 1 = 247
 #define L2_BLK_NO (PTR_IN_BLK * PTR_IN_BLK)
 
 #define BLOCKS_PER_ARENA 256
+#define ARENA_SIZE (BLOCKS_PER_ARENA * BLOCK_SIZE)
 
 #define ARENA_INODE_BLOCKS 4
-#define ARENA_DIRENT_BLOCKS 4
-#define ARENA_DATA_BLOCKS (256 - ARENA_INODE_BLOCKS - ARENA_DIRENT_BLOCKS - 1)
+#define ARENA_DATA_BLOCKS (256 - ARENA_INODE_BLOCKS - 1)
 
 #define ARENA_INODE_CNT                                                        \
   (ARENA_INODE_BLOCKS * BLOCK_SIZE /                                           \
    sizeof(struct tmpfs_node)) /* number of inodes in a arena */
-#define ARENA_DIRENT_CNT                                                       \
-  (ARENA_DIRENT_BLOCKS * BLOCK_SIZE /                                          \
-   sizeof(struct tmpfs_dirent)) /* number of dirents in a arena */
 
 typedef struct _blk *blkptr_t;
 
@@ -118,25 +111,141 @@ typedef struct tmpfs_mount {
 typedef struct tmpfs_mem_arena {
   STAILQ_ENTRY(tmpfs_mem_arena) tma_link; /* link on list of all arenas */
   size_t tma_ninodes;                     /* number of free inodes */
-  size_t tma_ndirents;                    /* number of free dirents */
   size_t tma_ndblocks;                    /* number of free data blocks */
 
   /* bitmaps of free items */
   bitstr_t tma_inode_bm[bitstr_size(ARENA_INODE_CNT)];
-  bitstr_t tma_dirent_bm[bitstr_size(ARENA_DIRENT_CNT)];
   bitstr_t tma_dblock_bm[bitstr_size(ARENA_DATA_BLOCKS)];
 
   /* pointers to first item */
   tmpfs_node_t *tma_inodes;
-  tmpfs_dirent_t *tma_dirents;
   blkptr_t tma_dblocks;
 } tmpfs_mem_arena_t;
+
+/* tmpfs memory allocation routines */
+static void tmpfs_mem_init_arena(tmpfs_mem_arena_t *arena) {
+  arena->tma_ninodes = ARENA_INODE_CNT;
+  arena->tma_ndblocks = ARENA_DATA_BLOCKS;
+
+  bit_nset(arena->tma_inode_bm, 0, ARENA_INODE_CNT - 1);
+  bit_nset(arena->tma_dblock_bm, 0, ARENA_DATA_BLOCKS - 1);
+
+  arena->tma_inodes = (void *)arena + BLOCK_SIZE;
+  arena->tma_dblocks = (void *)arena + (1 + ARENA_INODE_BLOCKS) * BLOCK_SIZE;
+}
+
+static tmpfs_mem_arena_t *tmpfs_mem_new_arena(tmpfs_mem_arenalist_t *al) {
+  tmpfs_mem_arena_t *newar = kmem_alloc(ARENA_SIZE, M_ZERO);
+  if (newar == NULL)
+    return NULL;
+
+  tmpfs_mem_init_arena(newar);
+
+  if (STAILQ_EMPTY(al))
+    STAILQ_INSERT_HEAD(al, newar, tma_link);
+  else
+    STAILQ_INSERT_TAIL(al, newar, tma_link);
+  return newar;
+}
+
+static tmpfs_mem_arena_t *tmpfs_mem_find_ptr_arena(tmpfs_mem_arenalist_t *al,
+                                                   void *ptr) {
+  tmpfs_mem_arena_t *arena;
+  STAILQ_FOREACH(arena, al, tma_link) {
+    if ((intptr_t)ptr > (intptr_t)arena &&
+        (intptr_t)ptr < (intptr_t)arena + ARENA_SIZE) {
+      return arena;
+    }
+  }
+  return NULL;
+}
+
+static blkptr_t tmpfs_mem_arena_alloc_dblk(tmpfs_mem_arena_t *arena) {
+  int index;
+  assert(arena->tma_ndblocks > 0);
+
+  bit_ffs(arena->tma_dblock_bm, ARENA_DATA_BLOCKS, &index);
+  bit_clear(arena->tma_dblock_bm, index);
+  assert(index != -1);
+  arena->tma_ndblocks--;
+
+  blkptr_t blk = (void *)arena->tma_dblocks + BLOCK_SIZE * index;
+  bzero(blk, BLOCK_SIZE);
+  return blk;
+}
+
+static void tmpfs_mem_arena_free_dblk(tmpfs_mem_arena_t *arena, blkptr_t blk) {
+  int index = ((void *)blk - (void *)arena->tma_dblocks) / BLOCK_SIZE;
+  assert(0 <= index && index < (int)ARENA_DATA_BLOCKS);
+
+  bit_set(arena->tma_dblock_bm, index);
+  arena->tma_ndblocks++;
+}
+
+static tmpfs_node_t *tmpfs_mem_arena_alloc_inode(tmpfs_mem_arena_t *arena) {
+  int index;
+  assert(arena->tma_ninodes > 0);
+
+  bit_ffs(arena->tma_inode_bm, ARENA_INODE_CNT, &index);
+  bit_clear(arena->tma_inode_bm, index);
+  assert(index != -1);
+  arena->tma_ninodes--;
+
+  tmpfs_node_t *node = arena->tma_inodes + index;
+  bzero(node, sizeof(tmpfs_node_t));
+  return node;
+}
+
+static void tmpfs_mem_arena_free_inode(tmpfs_mem_arena_t *arena,
+                                       tmpfs_node_t *node) {
+  int index = node - arena->tma_inodes;
+  assert(0 <= index && index < (int)ARENA_INODE_CNT);
+
+  bit_set(arena->tma_inode_bm, index);
+  arena->tma_ninodes++;
+}
+
+static blkptr_t tmpfs_mem_alloc_dblk(tmpfs_mount_t *tfm) {
+  tmpfs_mem_arena_t *arena = NULL;
+  STAILQ_FOREACH(arena, &tfm->tfm_arenas, tma_link) {
+    if (arena->tma_ndblocks > 0)
+      return tmpfs_mem_arena_alloc_dblk(arena);
+  }
+
+  if (!(arena = tmpfs_mem_new_arena(&tfm->tfm_arenas)))
+    return NULL;
+  return tmpfs_mem_arena_alloc_dblk(arena);
+}
+
+static void tmpfs_mem_free_dblk(tmpfs_mount_t *tfm, blkptr_t blk) {
+  tmpfs_mem_arena_t *arena = tmpfs_mem_find_ptr_arena(&tfm->tfm_arenas, blk);
+  assert(arena != NULL);
+  tmpfs_mem_arena_free_dblk(arena, blk);
+}
+
+static tmpfs_node_t *tmpfs_mem_alloc_inode(tmpfs_mount_t *tfm) {
+  tmpfs_mem_arena_t *arena = NULL;
+  STAILQ_FOREACH(arena, &tfm->tfm_arenas, tma_link) {
+    if (arena->tma_ninodes > 0)
+      return tmpfs_mem_arena_alloc_inode(arena);
+  }
+
+  if (!(arena = tmpfs_mem_new_arena(&tfm->tfm_arenas)))
+    return NULL;
+  return tmpfs_mem_arena_alloc_inode(arena);
+}
+
+static void tmpfs_mem_free_inode(tmpfs_mount_t *tfm, tmpfs_node_t *node) {
+  tmpfs_mem_arena_t *arena = tmpfs_mem_find_ptr_arena(&tfm->tfm_arenas, node);
+  assert(arena != NULL);
+  tmpfs_mem_arena_free_inode(arena, node);
+}
 
 static int alloc_block(tmpfs_mount_t *tfm, tmpfs_node_t *v, blkptr_t *blkptrp) {
   assert(blkptrp != NULL);
 
   if (!(*blkptrp)) {
-    blkptr_t blkptr = kmem_alloc(PAGESIZE, M_ZERO);
+    blkptr_t blkptr = tmpfs_mem_alloc_dblk(tfm);
     if (!blkptr)
       return ENOMEM;
     v->tfn_reg.nblocks++;
@@ -150,22 +259,12 @@ static void free_block(tmpfs_mount_t *tfm, tmpfs_node_t *v, blkptr_t *blkptrp) {
   assert(blkptrp != NULL);
 
   if (*blkptrp) {
-    kmem_free(*blkptrp, PAGESIZE);
+    tmpfs_mem_free_dblk(tfm, *blkptrp);
     *blkptrp = NULL;
     v->tfn_reg.nblocks--;
   }
 }
 
-/* This simplified string allocator will do for now. */
-static char *alloc_str(tmpfs_mount_t *tfm, size_t len) {
-  return kmalloc(M_STR, len, 0);
-}
-
-static void free_str(tmpfs_mount_t *tfm, char *str) {
-  kfree(M_STR, str);
-}
-
-static POOL_DEFINE(P_TMPFS_NODE, "tmpfs node", sizeof(tmpfs_node_t));
 static POOL_DEFINE(P_TMPFS_DIRENT, "tmpfs dirent", sizeof(tmpfs_dirent_t));
 
 /* XXX: Temporary solution. There should be dedicated allocator for mount
@@ -425,7 +524,7 @@ static int tmpfs_vop_symlink(vnode_t *dv, componentname_t *cn, vattr_t *va,
 
   assert(targetlen <= BLOCK_SIZE);
   if (targetlen > 0) {
-    if (!(str = alloc_str(tfm, targetlen)))
+    if (!(str = (char *)tmpfs_mem_alloc_dblk(tfm)))
       return ENOSPC;
     memcpy(str, target, targetlen);
   }
@@ -490,7 +589,7 @@ static void tmpfs_attach_vnode(tmpfs_node_t *tfn, mount_t *mp) {
  */
 static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
                                     vnodetype_t ntype) {
-  tmpfs_node_t *node = pool_alloc(P_TMPFS_NODE, M_ZERO);
+  tmpfs_node_t *node = tmpfs_mem_alloc_inode(tfm);
   node->tfn_vnode = NULL;
   node->tfn_mode = va->va_mode;
   node->tfn_type = ntype;
@@ -531,13 +630,13 @@ static void tmpfs_free_node(tmpfs_mount_t *tfm, tmpfs_node_t *tfn) {
       break;
     case V_LNK:
       if (tfn->tfn_lnk.link)
-        free_str(tfm, tfn->tfn_lnk.link);
+        tmpfs_mem_free_dblk(tfm, (blkptr_t)tfn->tfn_lnk.link);
       break;
     default:
       break;
   }
 
-  pool_free(P_TMPFS_NODE, tfn);
+  tmpfs_mem_free_inode(tfm, tfn);
 }
 
 /*
@@ -794,6 +893,10 @@ static int tmpfs_mount(mount_t *mp) {
   tfm->tfm_lock = MTX_INITIALIZER(LK_RECURSIVE);
   tfm->tfm_next_ino = 2;
   mp->mnt_data = tfm;
+
+  STAILQ_INIT(&tfm->tfm_arenas);
+  if (!tmpfs_mem_new_arena(&tfm->tfm_arenas))
+    return ENOMEM;
 
   /* Allocate the root node. */
   vattr_t va;
