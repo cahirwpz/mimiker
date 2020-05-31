@@ -61,6 +61,8 @@
 #define SYS_fchmodat 53
 #define SYS_sched_yield 54
 #define SYS_sigsuspend 55
-#define SYS_MAXSYSCALL 56
+#define SYS_statvfs 56
+#define SYS_fstatvfs 57
+#define SYS_MAXSYSCALL 58
 
 #define SYS_MAXSYSARGS 6
