@@ -183,8 +183,8 @@ int test_pgrp_orphan() {
       return 0;
     }
 
-    /* Wait for the child to stop, then orphan its process group. */
-    printf("Waiting for the grandchild to stop...\n");
+    /* Wait for the grandchild to stop, then orphan its process group. */
+    printf("Child: waiting for the grandchild to stop...\n");
     assert(waitpid(gcpid, &status, WUNTRACED) == gcpid);
     assert(WIFSTOPPED(status));
     /* When we exit, init will become the grandchild's parent.
@@ -196,13 +196,13 @@ int test_pgrp_orphan() {
   }
 
   /* Reap the child. */
-  printf("Waiting for the child to exit...\n");
+  printf("Parent: waiting for the child to exit...\n");
   assert(waitpid(cpid, &status, 0) == cpid);
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == 0);
 
   /* Wait for a signal from the grandchild. */
-  printf("Waiting for a signal from the grandchild...\n");
+  printf("Parent: waiting for a signal from the grandchild...\n");
   while (!sighup_handled)
     sched_yield();
 
@@ -217,9 +217,9 @@ int test_session_basic() {
   signal(SIGUSR1, sa_handler);
   parent_sid = getsid(getpid());
   assert(parent_sid != -1);
-  pid_t pid = fork();
-  if (pid == 0) {
-    pid_t cpid = getpid();
+  pid_t cpid = fork();
+  if (cpid == 0) {
+    cpid = getpid();
     pid_t ppid = getppid();
     /* Should be in the same session as parent. */
     assert(getsid(0) == parent_sid);
@@ -239,12 +239,12 @@ int test_session_basic() {
   }
 
   pid_t child_sid;
-  while ((child_sid = getsid(pid)) != pid) {
+  while ((child_sid = getsid(cpid)) != cpid) {
     assert(child_sid == parent_sid);
     sched_yield();
   }
 
-  kill(pid, SIGUSR1);
+  kill(cpid, SIGUSR1);
   int status;
   wait(&status);
   assert(WIFEXITED(status));
