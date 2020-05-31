@@ -86,10 +86,14 @@ static pid_t pid_alloc(void) {
 
 /* Session management helper functions */
 static void sess_hold(session_t *s) {
+  assert(mtx_owned(all_proc_mtx));
+
   s->s_count++;
 }
 
 static void sess_drop(session_t *s) {
+  assert(mtx_owned(all_proc_mtx));
+
   if (--s->s_count == 0) {
     TAILQ_REMOVE(SESSION_HASH_CHAIN(s->s_sid), s, s_hash);
     pool_free(P_SESS, s);
