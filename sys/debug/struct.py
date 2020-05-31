@@ -69,7 +69,6 @@ class TimeVal(metaclass=GdbStructMeta):
         return 'timeval{%.6f}' % self.as_float()
 
 
-
 class BinTime(metaclass=GdbStructMeta):
     __ctype__ = 'struct bintime'
     __cast__ = {'sec': int, 'frac': int}
