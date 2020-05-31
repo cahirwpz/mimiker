@@ -178,7 +178,7 @@ static void pgrp_adjust_jobc(proc_t *p, pgrp_t *pg, bool entering) {
 }
 
 /* Finds process group with the ID specified by pgid or returns NULL. */
-static pgrp_t *pgrp_lookup(pid_t pgid) {
+static pgrp_t *pgrp_lookup(pgid_t pgid) {
   assert(mtx_owned(all_proc_mtx));
 
   pgrp_t *pgrp;
@@ -224,7 +224,7 @@ int pgrp_enter(proc_t *p, pgid_t pgid, bool mksess) {
       return (mksess ? EPERM : 0);
   } else {
     /* We need to make sure that we will be able to put the process
-     * in some session, i.e. if we're making one ourselves or
+     * in some session, which is true if we're making one ourselves or
      * there is a target pgrp from which we can inherit the session. */
     assert(target || mksess);
   }

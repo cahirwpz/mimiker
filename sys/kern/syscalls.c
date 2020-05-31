@@ -911,7 +911,7 @@ static int sys_setsid(proc_t *p, void *args, register_t *res) {
 
 static int sys_getsid(proc_t *p, getsid_args_t *args, register_t *res) {
   pid_t pid = args->pid;
-  pid_t sid;
+  sid_t sid;
   int error;
 
   if (pid < 0)
