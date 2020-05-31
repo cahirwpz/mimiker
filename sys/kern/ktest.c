@@ -2,7 +2,6 @@
 #include <sys/kenv.h>
 #include <sys/ktest.h>
 #include <sys/libkern.h>
-#include <sys/time.h>
 #include <sys/interrupt.h>
 
 #define KTEST_MAX_NO 1024
