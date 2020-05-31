@@ -12,7 +12,7 @@
 int do_fork(pid_t *cldpidp) {
   thread_t *td = thread_self();
   proc_t *parent = td->td_proc;
-  int rv = 0;
+  int error = 0;
 
   /* Cannot fork non-user threads. */
   assert(parent);
@@ -45,8 +45,8 @@ int do_fork(pid_t *cldpidp) {
 
   /* Now, prepare a new process. */
   proc_t *child = proc_create(newtd, parent);
-  rv = pgrp_enter(child, parent->p_pgrp->pg_id, false);
-  assert(rv == 0);
+  error = pgrp_enter(child, parent->p_pgrp->pg_id, false);
+  assert(error == 0);
 
   /* Clone credentials. */
   cred_fork(child, parent);
@@ -77,5 +77,5 @@ int do_fork(pid_t *cldpidp) {
   sched_add(newtd);
 
   *cldpidp = child->p_pid;
-  return rv;
+  return error;
 }
