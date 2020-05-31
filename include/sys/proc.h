@@ -127,8 +127,7 @@ proc_t *proc_find(pid_t pid);
  * (pid <-1) sends signal to processes in process group with ID equal (-pid). */
 int proc_sendsig(pid_t pid, signo_t sig);
 
-/*! \brief Gets process group ID of the process specified by pid.
- * If pid equals zero then use process group ID of the calling process. */
+/*! \brief Gets process group ID of the process specified by pid. */
 int proc_getpgid(pid_t pid, pgid_t *pgidp);
 
 /*! \brief Called by a processes that wishes to terminate its life.
