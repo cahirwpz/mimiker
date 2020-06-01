@@ -22,8 +22,7 @@ static void test_thread(void *p) {
 
 /* This tests both thread_join as well as thread_exit. */
 static int test_thread_join(void) {
-  static bintime_t exit_time[] = {BINTIME(0.100), BINTIME(0.200),
-                                  BINTIME(0.150)};
+  bintime_t exit_time[] = {BINTIME(0.100), BINTIME(0.200), BINTIME(0.150)};
   thread_t *t1 = thread_create("test-thread-exit-1", test_thread, &exit_time[0],
                                prio_kthread(0));
   thread_t *t2 = thread_create("test-thread-exit-2", test_thread, &exit_time[1],
