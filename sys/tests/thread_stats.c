@@ -7,11 +7,12 @@
 
 #define THREADS_NUMBER 10
 
-static bintime_t test_time = BINTIME2(0, 0.2);
+/* 0.2 as a bintime fraction */
+static uint64_t test_time_frac = 3689348814741910528;
 
 static void thread_nop_function(void *arg) {
   bintime_t end = *(bintime_t *)arg;
-  bintime_add(&end, &test_time);
+  bintime_add_frac(&end, test_time_frac);
   bintime_t now = getbintime();
   while (bintime_cmp(&now, &end, <))
     now = getbintime();
@@ -43,8 +44,8 @@ static int test_thread_stats_nop(void) {
 
 static void thread_wake_function(void *arg) {
   bintime_t end = *(bintime_t *)arg;
-  bintime_add(&end, &test_time);
-  bintime_add(&end, &BINTIME2(0, 0.1));
+  bintime_add_frac(&end, test_time_frac);
+  bintime_add(&end, &BINTIME(0.1));
   bintime_t now = getbintime();
   while (bintime_cmp(&now, &end, <)) {
     sleepq_broadcast(arg);
@@ -55,7 +56,7 @@ static void thread_wake_function(void *arg) {
 static void thread_sleep_function(void *arg) {
   sleepq_wait(arg, "Thread stats test sleepq");
   bintime_t end = *(bintime_t *)arg;
-  bintime_add(&end, &test_time);
+  bintime_add_frac(&end, test_time_frac);
   bintime_t now = getbintime();
   while (bintime_cmp(&now, &end, <)) {
     sleepq_wait(arg, "Thread stats test sleepq");
