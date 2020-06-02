@@ -32,7 +32,7 @@ static session_list_t session_hashtbl[NBUCKETS];
 
 static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
 static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
-static POOL_DEFINE(P_SESS, "sess", sizeof(session_t));
+static POOL_DEFINE(P_SESSION, "session", sizeof(session_t));
 
 mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 
@@ -43,7 +43,7 @@ static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
 static pgrp_t *pgrp_lookup(pgid_t pgid);
 static proc_t *proc_find_raw(pid_t pid);
-static session_t *sess_lookup(sid_t sid);
+static session_t *session_lookup(sid_t sid);
 
 /* Process ID management functions */
 
@@ -63,7 +63,7 @@ static bool pid_is_taken(pid_t pid) {
     return true;
   if (pgrp_lookup(pid) != NULL)
     return true;
-  if (sess_lookup(pid) != NULL)
+  if (session_lookup(pid) != NULL)
     return true;
   return false;
 }
@@ -85,28 +85,28 @@ static pid_t pid_alloc(void) {
 }
 
 /* Session management helper functions */
-static void sess_hold(session_t *s) {
+static void session_hold(session_t *s) {
   assert(mtx_owned(all_proc_mtx));
 
   s->s_count++;
 }
 
-static void sess_drop(session_t *s) {
+static void session_drop(session_t *s) {
   assert(mtx_owned(all_proc_mtx));
 
   if (--s->s_count == 0) {
     TAILQ_REMOVE(SESSION_HASH_CHAIN(s->s_sid), s, s_hash);
-    pool_free(P_SESS, s);
+    pool_free(P_SESSION, s);
   }
 }
 
-static session_t *sess_lookup(sid_t sid) {
+static session_t *session_lookup(sid_t sid) {
   assert(mtx_owned(all_proc_mtx));
 
-  session_t *sess;
-  TAILQ_FOREACH (sess, SESSION_HASH_CHAIN(sid), s_hash)
-    if (sess->s_sid == sid)
-      return sess;
+  session_t *s;
+  TAILQ_FOREACH (s, SESSION_HASH_CHAIN(sid), s_hash)
+    if (s->s_sid == sid)
+      return s;
   return NULL;
 }
 
@@ -199,7 +199,7 @@ static void pgrp_leave(proc_t *p) {
   p->p_pgrp = NULL;
 
   if (TAILQ_EMPTY(&pgrp->pg_members)) {
-    sess_drop(pgrp->pg_session);
+    session_drop(pgrp->pg_session);
     TAILQ_REMOVE(PGRP_HASH_CHAIN(pgrp->pg_id), pgrp, pg_hash);
     pool_free(P_PGRP, pgrp);
   }
@@ -241,7 +241,7 @@ int _pgrp_enter(proc_t *p, pgid_t pgid, bool mksess) {
     TAILQ_INSERT_HEAD(PGRP_HASH_CHAIN(pgid), target, pg_hash);
 
     if (mksess) {
-      session_t *s = pool_alloc(P_SESS, 0);
+      session_t *s = pool_alloc(P_SESSION, 0);
       s->s_sid = pgid;
       s->s_leader = p;
       s->s_count = 1;
@@ -250,7 +250,7 @@ int _pgrp_enter(proc_t *p, pgid_t pgid, bool mksess) {
     } else {
       /* Safe to access p->p_pgrp due to an earlier assertion. */
       target->pg_session = p->p_pgrp->pg_session;
-      sess_hold(target->pg_session);
+      session_hold(target->pg_session);
     }
   } else if (mksess) {
     /* There's already a process group with pgid equal to pid of
