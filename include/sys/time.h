@@ -40,10 +40,13 @@ typedef struct bintime {
     .tv_usec = (long)((fp)*1000000L) % 1000000L                                \
   }
 
+#define _BINTIME_SEC(fp) ((time_t)__builtin_floor(fp))
+#define _BINTIME_FRAC(fp)                                                      \
+  ((uint64_t)((fp - __builtin_floor(fp)) * (1ULL << 63) * 2))
+
 #define BINTIME(fp)                                                            \
   (bintime_t) {                                                                \
-    .sec = (time_t)__builtin_floor(fp),                                        \
-    .frac = (uint64_t)((fp - __builtin_floor(fp)) * (1ULL << 63) * 2)          \
+    .sec = _BINTIME_SEC(fp), .frac = _BINTIME_FRAC(fp)                         \
   }
 
 #define HZ2BT(hz)                                                              \
@@ -62,6 +65,7 @@ static inline timeval_t ts2tv(timespec_t ts) {
 static inline systime_t tv2st(timeval_t tv) {
   return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
+
 static inline systime_t bt2st(bintime_t *bt) {
   return bt->sec * 1000 + (((uint64_t)1000 * (uint32_t)(bt->frac >> 32)) >> 32);
 }

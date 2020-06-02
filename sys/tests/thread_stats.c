@@ -7,8 +7,7 @@
 
 #define THREADS_NUMBER 10
 
-/* 0.2 as a bintime fraction */
-static uint64_t test_time_frac = 3689348814741910528;
+static uint64_t test_time_frac = _BINTIME_FRAC(0.2);
 
 static void thread_nop_function(void *arg) {
   bintime_t end = *(bintime_t *)arg;
