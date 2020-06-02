@@ -69,6 +69,17 @@ class TimeVal(metaclass=GdbStructMeta):
         return 'timeval{%.6f}' % self.as_float()
 
 
+class BinTime(metaclass=GdbStructMeta):
+    __ctype__ = 'struct bintime'
+    __cast__ = {'sec': int, 'frac': int}
+
+    def as_float(self):
+        return float(self.sec) + float(self.frac) * 2e-64
+
+    def __str__(self):
+        return 'timeval{%.6f}' % self.as_float()
+
+
 class TailQueue():
     def __init__(self, tq, field):
         self.tq = tq

@@ -5,16 +5,15 @@
 #include <sys/sched.h>
 #include <sys/ktest.h>
 
-static timeval_t exit_time[] = {TIMEVAL(0.100), TIMEVAL(0.200), TIMEVAL(0.150)};
-static timeval_t start;
+static bintime_t start;
 
 /* TODO: callout + sleepq, once we've implemented callout_schedule. */
 static void test_thread(void *p) {
-  timeval_t *e = (timeval_t *)p;
+  bintime_t *e = (bintime_t *)p;
   while (1) {
-    timeval_t now = get_uptime();
-    timeval_t diff = timeval_sub(&now, &start);
-    if (timeval_cmp(&diff, e, >))
+    bintime_t now = getbintime();
+    bintime_sub(&now, &start);
+    if (bintime_cmp(&now, e, >))
       thread_exit();
     else
       thread_yield();
@@ -23,6 +22,7 @@ static void test_thread(void *p) {
 
 /* This tests both thread_join as well as thread_exit. */
 static int test_thread_join(void) {
+  bintime_t exit_time[] = {BINTIME(0.100), BINTIME(0.200), BINTIME(0.150)};
   thread_t *t1 = thread_create("test-thread-exit-1", test_thread, &exit_time[0],
                                prio_kthread(0));
   thread_t *t2 = thread_create("test-thread-exit-2", test_thread, &exit_time[1],
@@ -34,7 +34,7 @@ static int test_thread_join(void) {
   tid_t t2_id = t2->td_tid;
   tid_t t3_id = t3->td_tid;
 
-  start = get_uptime();
+  start = getbintime();
   sched_add(t1);
   sched_add(t2);
   sched_add(t3);
