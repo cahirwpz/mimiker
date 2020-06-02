@@ -40,9 +40,8 @@ typedef struct bintime {
     .tv_usec = (long)((fp)*1000000L) % 1000000L                                \
   }
 
-#define _BINTIME_SEC(fp) ((time_t)__builtin_floor(fp))
-#define _BINTIME_FRAC(fp)                                                      \
-  ((uint64_t)((fp - __builtin_floor(fp)) * (1ULL << 63) * 2))
+#define _BINTIME_SEC(fp) ((time_t)(int64_t)(fp))
+#define _BINTIME_FRAC(fp) ((uint64_t)((fp - (int64_t)(fp)) * (1ULL << 63) * 2))
 
 #define BINTIME(fp)                                                            \
   (bintime_t) {                                                                \
