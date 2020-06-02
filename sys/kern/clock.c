@@ -6,6 +6,8 @@
 #include <sys/timer.h>
 #include <sys/sysinit.h>
 
+#define SYSTIME_FREQ 1000 /* 1[tick] = 1[ms] */
+
 static systime_t now = 0;
 static timer_t *clock = NULL;
 
