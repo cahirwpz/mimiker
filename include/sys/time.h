@@ -3,7 +3,8 @@
 
 #include <sys/types.h>
 
-#define CLK_TCK 100 /* system clock ticks per second */
+#define CLK_TCK 100       /* system clock ticks per second */
+#define SYSTIME_FREQ 1000 /* 1[tick] = 1[ms] */
 
 typedef struct tm {
   int tm_sec;          /* seconds after the minute [0-61] */
@@ -58,7 +59,8 @@ static inline timeval_t ts2tv(timespec_t ts) {
 }
 
 static inline systime_t bt2st(bintime_t *bt) {
-  return bt->sec * 1000 + (((uint64_t)1000 * (uint32_t)(bt->frac >> 32)) >> 32);
+  return bt->sec * SYSTIME_FREQ +
+         (((uint64_t)SYSTIME_FREQ * (uint32_t)(bt->frac >> 32)) >> 32);
 }
 
 static inline timeval_t bt2tv(bintime_t bt) {

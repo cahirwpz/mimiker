@@ -6,8 +6,6 @@
 #include <sys/timer.h>
 #include <sys/sysinit.h>
 
-#define SYSTIME_FREQ 1000 /* 1[tick] = 1[ms] */
-
 static systime_t now = 0;
 static timer_t *clock = NULL;
 
@@ -16,7 +14,8 @@ systime_t getsystime(void) {
 }
 
 static void clock_cb(timer_t *tm, void *arg) {
-  now = bintime_mul(getbintime(), SYSTIME_FREQ).sec;
+  bintime_t bin = getbintime();
+  now = bt2st(&bin);
   callout_process(now);
   sched_clock();
 }
