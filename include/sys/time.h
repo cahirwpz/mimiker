@@ -34,12 +34,6 @@ typedef struct bintime {
   uint64_t frac; /* a fraction of second */
 } bintime_t;
 
-#define TIMEVAL(fp)                                                            \
-  (timeval_t) {                                                                \
-    .tv_sec = (long)((fp)*1000000L) / 1000000L,                                \
-    .tv_usec = (long)((fp)*1000000L) % 1000000L                                \
-  }
-
 #define _BINTIME_SEC(fp) ((time_t)(int64_t)(fp))
 #define _BINTIME_FRAC(fp) ((uint64_t)((fp - (int64_t)(fp)) * (1ULL << 63) * 2))
 
@@ -52,10 +46,6 @@ typedef struct bintime {
   (bintime_t) {                                                                \
     .sec = 0, .frac = ((1ULL << 63) / (hz)) << 1                               \
   }
-
-static inline timeval_t ts2tv(timespec_t ts) {
-  return (timeval_t){.tv_sec = ts.tv_sec, .tv_usec = ts.tv_nsec / 1000};
-}
 
 static inline systime_t bt2st(bintime_t *bt) {
   return bt->sec * 1000 + (((uint64_t)1000 * (uint32_t)(bt->frac >> 32)) >> 32);
