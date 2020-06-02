@@ -205,7 +205,7 @@ static void pgrp_leave(proc_t *p) {
   }
 }
 
-int pgrp_enter(proc_t *p, pgid_t pgid, bool mksess) {
+int _pgrp_enter(proc_t *p, pgid_t pgid, bool mksess) {
   SCOPED_MTX_LOCK(all_proc_mtx);
 
   /* If creating a session, the pgid of the new group

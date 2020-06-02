@@ -99,7 +99,7 @@ static int sys_setpgid(proc_t *p, setpgid_args_t *args, register_t *res) {
   if (pid != p->p_pid || pgid != p->p_pid)
     return ENOTSUP;
 
-  return pgrp_enter(p, pgid, false);
+  return pgrp_enter(p, pgid);
 }
 
 /* Gets process group ID of the process with ID specified by pid.
@@ -903,7 +903,7 @@ static int sys_setsid(proc_t *p, void *args, register_t *res) {
 
   klog("setsid()");
 
-  if (!(error = pgrp_enter(p, p->p_pid, true)))
+  if (!(error = session_enter(p, p->p_pid)))
     *res = p->p_pid;
 
   return error;

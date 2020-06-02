@@ -138,7 +138,10 @@ __noreturn void proc_exit(int exitstatus);
  * If such process group does not exist then it creates one.
  * If mksess is true, p becomes the session leader of a new session.
  * mksess may be true only when creating a new process group. */
-int pgrp_enter(proc_t *p, pgid_t pgid, bool mksess);
+int _pgrp_enter(proc_t *p, pgid_t pgid, bool mksess);
+
+#define pgrp_enter(p, pgid) _pgrp_enter((p), (pgid), false)
+#define session_enter(p, pgid) _pgrp_enter((p), (pgid), true)
 
 /*!\brief Get the SID of the process with PID `pid`.
  * The SID is returned in `*sidp`. */

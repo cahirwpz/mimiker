@@ -45,7 +45,7 @@ int do_fork(pid_t *cldpidp) {
 
   /* Now, prepare a new process. */
   proc_t *child = proc_create(newtd, parent);
-  error = pgrp_enter(child, parent->p_pgrp->pg_id, false);
+  error = pgrp_enter(child, parent->p_pgrp->pg_id);
   assert(error == 0);
 
   /* Clone credentials. */

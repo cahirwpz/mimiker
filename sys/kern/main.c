@@ -15,7 +15,7 @@ int kmain(void) {
   proc_t *init_proc = proc_create(thread_self(), NULL);
   proc_add(init_proc);
   assert(init_proc->p_pid == 1);
-  int error = pgrp_enter(init_proc, init_proc->p_pid, true);
+  int error = session_enter(init_proc, init_proc->p_pid);
   assert(error == 0);
 
   if (init) {

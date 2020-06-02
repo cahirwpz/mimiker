@@ -30,7 +30,7 @@ static int utest_generic(const char *name, int status_success) {
   proc_t *child = proc_create(utest_thread, proc_self());
   proc_add(child);
   /* Run user tests in a separate session. */
-  int error = pgrp_enter(child, child->p_pid, true);
+  int error = session_enter(child, child->p_pid);
   assert(error == 0);
   sched_add(utest_thread);
 
