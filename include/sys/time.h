@@ -76,10 +76,6 @@ static inline systime_t bt2st(bintime_t *bt) {
     }                                                                          \
   }
 
-#define timeval_cmp(tvp, uvp, cmp)                                             \
-  (((tvp)->tv_sec == (uvp)->tv_sec) ? (((tvp)->tv_usec)cmp((uvp)->tv_usec))    \
-                                    : (((tvp)->tv_sec)cmp((uvp)->tv_sec)))
-
 /* Operations on bintime. */
 #define bintime_cmp(a, b, cmp)                                                 \
   (((a)->sec == (b)->sec) ? (((a)->frac)cmp((b)->frac))                        \
@@ -139,7 +135,6 @@ typedef enum clockid { CLOCK_MONOTONIC = 1, CLOCK_REALTIME = 2 } clockid_t;
       (vsp)->tv_nsec += 1000000000L;                                           \
     }                                                                          \
   }
-#define timespec2ns(x) (((uint64_t)(x)->tv_sec) * 1000000000L + (x)->tv_nsec)
 
 /*
  * Names of the interval timers, and structure defining a timer setting.
