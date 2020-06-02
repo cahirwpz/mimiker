@@ -51,11 +51,6 @@ static inline systime_t bt2st(bintime_t *bt) {
   return bt->sec * 1000 + (((uint64_t)1000 * (uint32_t)(bt->frac >> 32)) >> 32);
 }
 
-static inline timeval_t bt2tv(bintime_t bt) {
-  uint32_t usec = ((uint64_t)1000000 * (uint32_t)(bt.frac >> 32)) >> 32;
-  return (timeval_t){.tv_sec = bt.sec, .tv_usec = usec};
-}
-
 /* Operations on timevals. */
 #define timerclear(tvp) (tvp)->tv_sec = (tvp)->tv_usec = 0L
 #define timerisset(tvp) ((tvp)->tv_sec || (tvp)->tv_usec)
@@ -160,9 +155,6 @@ struct itimerval {
 };
 
 #ifdef _KERNEL
-
-/* XXX: Do not use this function, it'll get removed. */
-timeval_t get_uptime(void);
 
 /* Get high-fidelity time measured from the start of system. */
 bintime_t getbintime(void);
