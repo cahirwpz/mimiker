@@ -80,7 +80,7 @@ static inline systime_t bt2st(bintime_t *bt) {
 #define bintime_cmp(a, b, cmp)                                                 \
   (((a)->sec == (b)->sec) ? (((a)->frac)cmp((b)->frac))                        \
                           : (((a)->sec)cmp((b)->sec)))
-#define bintimeisset(bt) ((bt)->sec || (bt)->frac)
+#define bintime_isset(bt) ((bt)->sec || (bt)->frac)
 
 static inline void bintime_add_frac(bintime_t *bt, uint64_t x) {
   uint64_t old_frac = bt->frac;
