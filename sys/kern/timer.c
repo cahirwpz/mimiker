@@ -165,7 +165,3 @@ bintime_t getbintime(void) {
     return (bintime_t){0, 0};
   return tm->tm_gettime(tm);
 }
-
-timeval_t get_uptime(void) {
-  return bt2tv(getbintime());
-}

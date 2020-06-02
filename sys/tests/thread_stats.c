@@ -34,7 +34,7 @@ static int test_thread_stats_nop(void) {
       "Thread:%d runtime:%llu.%llu sleeptime:%llu.%llu context switches:%llu",
       i, td->td_rtime.sec, td->td_rtime.frac, td->td_slptime.sec,
       td->td_slptime.frac, td->td_nctxsw);
-    if (!bintimeisset(&td->td_rtime) && bintimeisset(&td->td_slptime))
+    if (!bintime_isset(&td->td_rtime) && bintime_isset(&td->td_slptime))
       return KTEST_FAILURE;
   }
 
@@ -84,7 +84,7 @@ static int test_thread_stats_slp(void) {
          "switches: %llu",
          i, td->td_rtime.sec, td->td_rtime.frac, td->td_slptime.sec,
          td->td_slptime.frac, td->td_nctxsw);
-    if (!bintimeisset(&td->td_rtime) || !bintimeisset(&td->td_slptime))
+    if (!bintime_isset(&td->td_rtime) || !bintime_isset(&td->td_slptime))
       return KTEST_FAILURE;
   }
   return KTEST_SUCCESS;

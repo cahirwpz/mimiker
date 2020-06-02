@@ -58,17 +58,6 @@ class GdbStructMeta(type):
         return super().__new__(cls, name, (GdbStructBase,) + bases, dct)
 
 
-class TimeVal(metaclass=GdbStructMeta):
-    __ctype__ = 'struct timeval'
-    __cast__ = {'tv_sec': int, 'tv_usec': int}
-
-    def as_float(self):
-        return float(self.tv_sec) + float(self.tv_usec) * 1e-6
-
-    def __str__(self):
-        return 'timeval{%.6f}' % self.as_float()
-
-
 class BinTime(metaclass=GdbStructMeta):
     __ctype__ = 'struct bintime'
     __cast__ = {'sec': int, 'frac': int}

@@ -16,7 +16,8 @@ systime_t getsystime(void) {
 }
 
 static void clock_cb(timer_t *tm, void *arg) {
-  now = bintime_mul(getbintime(), SYSTIME_FREQ).sec;
+  bintime_t bin = getbintime();
+  now = bt2st(&bin);
   callout_process(now);
   sched_clock();
 }
