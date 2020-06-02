@@ -53,16 +53,8 @@ typedef struct bintime {
     .sec = 0, .frac = ((1ULL << 63) / (hz)) << 1                               \
   }
 
-static inline timeval_t st2tv(systime_t st) {
-  return (timeval_t){.tv_sec = st / 1000, .tv_usec = st % 1000};
-}
-
 static inline timeval_t ts2tv(timespec_t ts) {
   return (timeval_t){.tv_sec = ts.tv_sec, .tv_usec = ts.tv_nsec / 1000};
-}
-
-static inline systime_t tv2st(timeval_t tv) {
-  return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
 static inline systime_t bt2st(bintime_t *bt) {
@@ -99,37 +91,9 @@ static inline timeval_t bt2tv(bintime_t bt) {
     }                                                                          \
   }
 
-static inline void timeval_clear(timeval_t *tvp) {
-  *tvp = (timeval_t){.tv_sec = 0, .tv_usec = 0};
-}
-
-static inline int timeval_isset(timeval_t *tvp) {
-  return tvp->tv_sec || tvp->tv_usec;
-}
-
 #define timeval_cmp(tvp, uvp, cmp)                                             \
   (((tvp)->tv_sec == (uvp)->tv_sec) ? (((tvp)->tv_usec)cmp((uvp)->tv_usec))    \
                                     : (((tvp)->tv_sec)cmp((uvp)->tv_sec)))
-
-static inline timeval_t timeval_add(timeval_t *tvp, timeval_t *uvp) {
-  timeval_t res = {.tv_sec = tvp->tv_sec + uvp->tv_sec,
-                   .tv_usec = tvp->tv_usec + uvp->tv_usec};
-  if (res.tv_usec >= 1000000) {
-    res.tv_sec++;
-    res.tv_usec -= 1000000;
-  }
-  return res;
-}
-
-static inline timeval_t timeval_sub(timeval_t *tvp, timeval_t *uvp) {
-  timeval_t res = {.tv_sec = tvp->tv_sec - uvp->tv_sec,
-                   .tv_usec = tvp->tv_usec - uvp->tv_usec};
-  if (res.tv_usec < 0) {
-    res.tv_sec--;
-    res.tv_usec += 1000000;
-  }
-  return res;
-}
 
 /* Operations on bintime. */
 #define bintime_cmp(a, b, cmp)                                                 \
@@ -216,10 +180,6 @@ bintime_t getbintime(void);
 /* System time is measured in ticks (1[ms] by default),
  * and is maintained by system clock. */
 systime_t getsystime(void);
-
-/* XXX: Do not use this function, it'll get removed.
- * Raw access to cpu internal timer. */
-timeval_t getcputime(void);
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp);
 
