@@ -110,7 +110,7 @@ typedef struct {
   int * status;
   int options;
   struct krusage * rusage;
-} _wait4_args_t;
+} wait4_args_t;
 
 typedef struct {
   int fd;

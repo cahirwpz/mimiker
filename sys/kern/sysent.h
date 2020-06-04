@@ -25,7 +25,7 @@ static int sys_dup(proc_t *, dup_args_t *, register_t *);
 static int sys_dup2(proc_t *, dup2_args_t *, register_t *);
 static int sys_sigaction(proc_t *, sigaction_args_t *, register_t *);
 static int sys_sigreturn(proc_t *, sigreturn_args_t *, register_t *);
-static int sys_wait4(proc_t *, _wait4_args_t *, register_t *);
+static int sys_wait4(proc_t *, wait4_args_t *, register_t *);
 static int sys_mkdirat(proc_t *, mkdirat_args_t *, register_t *);
 static int sys_symlinkat(proc_t *, symlinkat_args_t *, register_t *);
 static int sys_faccessat(proc_t *, faccessat_args_t *, register_t *);
