@@ -397,7 +397,7 @@ static int sys_fcntl(proc_t *p, fcntl_args_t *args, register_t *res) {
   return error;
 }
 
-static int sys_wait4(proc_t *p, wait4_args_t *args, register_t *res) {
+static int sys_wait4(proc_t *p, _wait4_args_t *args, register_t *res) {
   pid_t pid = args->pid;
   int *u_status = args->status;
   int options = args->options;
