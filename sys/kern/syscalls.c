@@ -401,13 +401,13 @@ static int sys_wait4(proc_t *p, wait4_args_t *args, register_t *res) {
   pid_t pid = args->pid;
   int *u_status = args->status;
   int options = args->options;
-  struct krusage *u_rusage = args->rusage;
+  struct krusage *u_krusage = args->krusage;
   int status = 0;
   int error;
 
-  klog("wait4(%d, %x, %d, %p)", pid, u_status, options, u_rusage);
+  klog("wait4(%d, %x, %d, %p)", pid, u_status, options, u_krusage);
 
-  if (u_rusage)
+  if (u_krusage)
     klog("sys_wait4: acquiring rusage not implemented!");
 
   pid_t cld;

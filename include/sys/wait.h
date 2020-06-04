@@ -44,7 +44,7 @@ struct krusage;
 pid_t wait(int *);
 pid_t waitpid(pid_t pid, int *status, int options);
 pid_t wait4(pid_t pid, int *status, int options, struct rusage *rusage);
-pid_t _wait4(pid_t pid, int *status, int options, struct krusage *rusage);
+pid_t _wait4(pid_t pid, int *status, int options, struct krusage *krusage);
 
 #else /* _KERNEL */
 

@@ -109,7 +109,7 @@ typedef struct {
   pid_t pid;
   int * status;
   int options;
-  struct krusage * rusage;
+  struct krusage * krusage;
 } wait4_args_t;
 
 typedef struct {
