@@ -27,7 +27,7 @@
 18  { int sys_sigaction(int signum, const struct sigaction *nsa, \
                         struct sigaction *osa); }
 19  { int sys_sigreturn(struct sigcontext *sigctx_p); }
-20  { int sys_wait4(pid_t pid, int *status, int options, struct krusage *rusage); }
+20  { int sys_wait4(pid_t pid, int *status, int options, struct krusage *krusage); }
 21  { int sys_mkdirat(int fd, const char *path, mode_t mode); }
 22  { int sys_symlinkat(const char *target, int newdirfd, const char *linkpath); }
 23  { int sys_faccessat(int fd, const char *path, int mode, int flags); }
