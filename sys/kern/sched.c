@@ -34,9 +34,9 @@ void sched_wakeup(thread_t *td, long reason) {
   assert(!td_is_running(td));
 
   /* Update sleep time. */
-  timeval_t now = microuptime();
-  now = timeval_sub(&now, &td->td_last_slptime);
-  td->td_slptime = timeval_add(&td->td_slptime, &now);
+  bintime_t now = binuptime();
+  bintime_sub(&now, &td->td_last_slptime);
+  bintime_add(&td->td_slptime, &now);
 
   td->td_state = TDS_READY;
   td->td_slice = SLICE;
@@ -117,7 +117,7 @@ static thread_t *sched_choose(void) {
     return PCPU_GET(idle_thread);
   runq_remove(&runq, td);
   td->td_state = TDS_RUNNING;
-  td->td_last_rtime = microuptime();
+  td->td_last_rtime = binuptime();
   return td;
 }
 
@@ -133,9 +133,9 @@ long sched_switch(void) {
   td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
 
   /* Update running time, */
-  timeval_t now = microuptime();
-  timeval_t diff = timeval_sub(&now, &td->td_last_rtime);
-  td->td_rtime = timeval_add(&td->td_rtime, &diff);
+  bintime_t now = binuptime();
+  bintime_sub(&now, &td->td_last_rtime);
+  bintime_add(&td->td_rtime, &now);
 
   if (td_is_ready(td)) {
     /* Idle threads need not to be inserted into the run queue. */

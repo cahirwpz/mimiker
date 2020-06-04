@@ -31,19 +31,19 @@
 typedef struct mount mount_t;
 typedef struct vnode vnode_t;
 typedef struct vfsconf vfsconf_t;
-typedef struct statfs statfs_t;
+typedef struct statvfs statvfs_t;
 
 /* VFS operations */
 typedef int vfs_mount_t(mount_t *m);
 typedef int vfs_root_t(mount_t *m, vnode_t **vp);
-typedef int vfs_statfs_t(mount_t *m, statfs_t *sb);
+typedef int vfs_statvfs_t(mount_t *m, statvfs_t *sb);
 typedef int vfs_vget_t(mount_t *m, ino_t ino, vnode_t **vp);
 typedef int vfs_init_t(vfsconf_t *vfc);
 
 typedef struct vfsops {
   vfs_mount_t *vfs_mount;
   vfs_root_t *vfs_root;
-  vfs_statfs_t *vfs_statfs;
+  vfs_statvfs_t *vfs_statvfs;
   vfs_vget_t *vfs_vget;
   vfs_init_t *vfs_init;
 } vfsops_t;
@@ -86,8 +86,8 @@ static inline int VFS_ROOT(mount_t *m, vnode_t **vp) {
   return m->mnt_vfsops->vfs_root(m, vp);
 }
 
-static inline int VFS_STATFS(mount_t *m, statfs_t *sb) {
-  return m->mnt_vfsops->vfs_statfs(m, sb);
+static inline int VFS_STATVFS(mount_t *m, statvfs_t *sb) {
+  return m->mnt_vfsops->vfs_statvfs(m, sb);
 }
 
 static inline int VFS_VGET(mount_t *m, ino_t ino, vnode_t **vp) {

@@ -2,17 +2,18 @@
 #include <sys/time.h>
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp) {
+  bintime_t bin;
   switch (clk) {
     case CLOCK_REALTIME:
-      *tp = nanotime();
+      bin = bintime();
       break;
     case CLOCK_MONOTONIC:
-      *tp = nanouptime();
+      bin = binuptime();
       break;
     default:
       return EINVAL;
   }
-
+  bt2ts(&bin, tp);
   return 0;
 }
 

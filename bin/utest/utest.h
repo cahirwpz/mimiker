@@ -32,6 +32,8 @@ int test_signal_stop(void);
 int test_signal_cont_masked(void);
 int test_signal_mask(void);
 int test_signal_mask_nonmaskable(void);
+int test_signal_sigsuspend(void);
+int test_signal_handler_mask(void);
 
 int test_fork_wait(void);
 int test_fork_signal(void);
@@ -74,11 +76,17 @@ int test_vfs_symlink(void);
 int test_vfs_link(void);
 int test_vfs_chmod(void);
 
+int test_wait_basic(void);
+int test_wait_nohang(void);
+
 int test_setpgid(void);
 int test_kill(void);
 int test_killpg_same_group(void);
 int test_killpg_other_group(void);
 
 int test_gettimeofday(void);
+
+int test_get_set_uid(void);
+int test_get_set_gid(void);
 
 #endif /* __UTEST_H__ */

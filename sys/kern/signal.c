@@ -97,7 +97,9 @@ static signo_t sig_pending(thread_t *td) {
   sigset_t unblocked = td->td_sigpend;
   __sigminusset(&td->td_sigmask, &unblocked);
 
-  return __sigfindset(&unblocked);
+  signo_t ret = __sigfindset(&unblocked);
+  assert(ret < NSIG);
+  return ret;
 }
 
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
@@ -129,12 +131,44 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
     return EINVAL;
   }
 
-  if (sig_pending(td) < NSIG) {
+  if (sig_pending(td)) {
     WITH_SPIN_LOCK (&td->td_spin)
       td->td_flags |= TDF_NEEDSIGCHK;
   }
 
   return 0;
+}
+
+int do_sigsuspend(proc_t *p, const sigset_t *mask) {
+  thread_t *td = thread_self();
+  assert(td->td_proc == p);
+
+  assert((td->td_pflags & TDP_OLDSIGMASK) == 0);
+  td->td_oldsigmask = td->td_sigmask;
+  td->td_pflags |= TDP_OLDSIGMASK;
+
+  WITH_PROC_LOCK(p) {
+    do_sigprocmask(SIG_SETMASK, mask, NULL);
+
+    /*
+     * We want the sleep to be interrupted only if there's an actual signal
+     * to be handled, but _sleepq_wait() returns immediately if TDF_NEEDSIGCHK
+     * is set (without checking whether there's an actual pending signal),
+     * so we clear the flag here if there are no real pending signals.
+     */
+    WITH_SPIN_LOCK (&td->td_spin) {
+      if (sig_pending(td))
+        td->td_flags |= TDF_NEEDSIGCHK;
+      else
+        td->td_flags &= ~TDF_NEEDSIGCHK;
+    }
+  }
+
+  int error;
+  error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
+  assert(error = EINTR);
+
+  return EINTR;
 }
 
 /*
@@ -144,24 +178,28 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
  * These limitations (plus the fact that we currently have very little thread
  * states) make the logic of sending a signal very simple!
  */
-void sig_kill(proc_t *proc, signo_t sig) {
-  assert(proc != NULL);
-  assert(mtx_owned(&proc->p_lock));
+void sig_kill(proc_t *p, signo_t sig) {
+  assert(p != NULL);
+  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&p->p_lock));
   assert(sig < NSIG);
 
   /* Zombie processes shouldn't accept any signals. */
-  if (proc->p_state == PS_ZOMBIE)
+  if (p->p_state == PS_ZOMBIE)
     return;
 
-  thread_t *td = proc->p_thread;
+  thread_t *td = p->p_thread;
 
-  sig_t handler = proc->p_sigactions[sig].sa_handler;
+  sig_t handler = p->p_sigactions[sig].sa_handler;
   bool continued = sig == SIGCONT || sig == SIGKILL;
 
   /* If the signal is ignored, don't even bother posting it,
    * unless it's waking up a stopped process. */
-  if (proc->p_state == PS_STOPPED && continued) {
-    proc->p_state = PS_NORMAL;
+  if (p->p_state == PS_STOPPED && continued) {
+    p->p_state = PS_NORMAL;
+    p->p_flags &= ~PF_STOPPED;
+    p->p_flags |= PF_CONTINUED;
+    cv_broadcast(&p->p_parent->p_waitcv);
   } else if (handler == SIG_IGN ||
              (defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
     return;
@@ -196,7 +234,10 @@ void sig_kill(proc_t *proc, signo_t sig) {
       /* If the thread is sleeping interruptibly (!), wake it up, so that it
        * continues execution and the signal gets delivered soon. */
       if (td_is_interruptible(td)) {
-        sleepq_abort(td);
+        /* XXX Maybe TDF_NEEDSIGCHK should be protected by a different lock? */
+        spin_unlock(&td->td_spin);
+        sleepq_abort(td); /* Locks & unlocks td_spin */
+        spin_lock(&td->td_spin);
       } else if (td_is_stopped(td) && continued) {
         sched_wakeup(td, 0);
       }
@@ -213,7 +254,7 @@ int sig_check(thread_t *td) {
   signo_t sig = NSIG;
   while (true) {
     sig = sig_pending(td);
-    if (sig >= NSIG) {
+    if (sig == 0) {
       /* No pending signals, signal checking done. */
       WITH_SPIN_LOCK (&td->td_spin)
         td->td_flags &= ~TDF_NEEDSIGCHK;
@@ -240,38 +281,68 @@ void sig_post(signo_t sig) {
   proc_t *p = proc_self();
 
   assert(p != NULL);
+  assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&p->p_lock));
 
   sigaction_t *sa = &p->p_sigactions[sig];
 
   assert(sa->sa_handler != SIG_IGN);
 
-  if (sa->sa_handler == SIG_DFL) {
-    if (defact(sig) == SA_KILL) {
-      /* Terminate this thread as result of a signal. */
-      sig_exit(td, sig);
-    } else if (defact(sig) == SA_STOP) {
-      /* Stop this thread. Release process lock before switching. */
-      klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
-      p->p_state = PS_STOPPED;
+  if (sa->sa_handler == SIG_DFL && defact(sig) == SA_KILL) {
+    /* Terminate this thread as result of a signal. */
+    mtx_unlock(all_proc_mtx);
+    sig_exit(td, sig);
+    __unreachable();
+  }
+
+  if (sa->sa_handler == SIG_DFL && defact(sig) == SA_STOP) {
+    klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
+    p->p_state = PS_STOPPED;
+    p->p_flags &= ~PF_CONTINUED;
+    p->p_flags |= PF_STOPPED;
+    cv_broadcast(&p->p_parent->p_waitcv);
+    proc_unlock(p);
+    WITH_MTX_LOCK (&p->p_parent->p_lock)
+      sig_kill(p->p_parent, SIGCHLD);
+    mtx_unlock(all_proc_mtx);
+    proc_lock(p);
+    if (p->p_state == PS_STOPPED) {
       WITH_SPIN_LOCK (&td->td_spin) {
         td->td_state = TDS_STOPPED;
         /* We're holding a spinlock, so we can't be preempted here. */
+        /* Release locks before switching out! */
         proc_unlock(p);
         sched_switch();
       }
-      proc_lock(p);
-      return;
+    } else {
+      proc_unlock(p);
     }
+    /* Reacquire locks in correct order! */
+    mtx_lock(all_proc_mtx);
+    proc_lock(p);
+    return;
   }
 
   klog("Post signal %s (handler %p) to thread %lu in process PID(%d)",
        sig_name[sig], sa->sa_handler, td->td_tid, p->p_pid);
 
+  sigset_t *return_mask;
+  if (td->td_pflags & TDP_OLDSIGMASK) {
+    return_mask = &td->td_oldsigmask;
+    td->td_pflags &= ~TDP_OLDSIGMASK;
+  } else {
+    return_mask = &td->td_sigmask;
+  }
+
   /* Normally the `sig_post` would have more to do, but our signal
    * implementation is very limited for now. All `sig_post` has to do is to
    * pass `sa` to platform-specific `sig_send`. */
-  sig_send(sig, sa);
+  sig_send(sig, return_mask, sa);
+
+  /* Set handler's signal mask. */
+  __sigplusset(&sa->sa_mask, &td->td_sigmask);
+  __sigaddset(&td->td_sigmask, sig);
+  __sigminusset(&cantmask, &td->td_sigmask);
 }
 
 __noreturn void sig_exit(thread_t *td, signo_t sig) {

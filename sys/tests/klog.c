@@ -13,7 +13,7 @@
 #define NUMBER_OF_ROUNDS 25
 #define MAX_SLEEP_TIME 20
 thread_t *threads[MAX_THREAD_NUM];
-static timeval_t start;
+static bintime_t start;
 
 static uint32_t seed = 0; /* Current seed */
 
@@ -92,9 +92,9 @@ static int multithreads_test(const int number_of_threads) {
 
 /* Function that checks if sleep time is over and assigne new sleep time. */
 static int check_time(systime_t *sleep, const uint32_t freq) {
-  timeval_t now = microuptime();
-  timeval_t diff = timeval_sub(&now, &start);
-  if (tv2st(diff) < (*sleep))
+  bintime_t now = binuptime();
+  bintime_sub(&now, &start);
+  if (bt2st(&now) < (*sleep))
     return 1;
   (*sleep) += (rand() & freq);
   return 0;
@@ -138,7 +138,7 @@ static int stress_test(void) {
   /* threads[5] = thread_create("Thread dump2", thread_test, &klog_dump); */
 
   int number_of_threads = 5;
-  start = microuptime();
+  start = binuptime();
   for (int i = 0; i < number_of_threads; i++)
     sched_add(threads[i]);
 
