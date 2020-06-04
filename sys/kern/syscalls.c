@@ -401,7 +401,7 @@ static int sys_wait4(proc_t *p, wait4_args_t *args, register_t *res) {
   pid_t pid = args->pid;
   int *u_status = args->status;
   int options = args->options;
-  struct rusage *u_rusage = args->rusage;
+  struct krusage *u_rusage = args->rusage;
   int status = 0;
   int error;
 

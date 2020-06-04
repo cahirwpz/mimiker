@@ -48,7 +48,12 @@ typedef struct bintime {
   }
 
 static inline systime_t bt2st(bintime_t *bt) {
-  return bt->sec * 1000 + (((uint64_t)1000 * (uint32_t)(bt->frac >> 32)) >> 32);
+  return bt->sec * 1000 + ((1000ULL * (uint32_t)(bt->frac >> 32)) >> 32);
+}
+
+static inline void bt2tv(bintime_t *bt, timeval_t *tv) {
+  tv->tv_sec = bt->sec;
+  tv->tv_usec = (suseconds_t)((1000000ULL * (uint32_t)(bt->frac >> 32)) >> 32);
 }
 
 /* Operations on timevals. */
