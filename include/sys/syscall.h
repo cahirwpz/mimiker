@@ -46,10 +46,10 @@
 #define SYS_sigprocmask 38
 #define SYS_setcontext 39
 #define SYS_ioctl 40
-#define SYS_getuid 41
-#define SYS_geteuid 42
-#define SYS_getgid 43
-#define SYS_getegid 44
+#define SYS_getresuid 41
+#define SYS_getresgid 42
+#define SYS_setresuid 43
+#define SYS_setresgid 44
 #define SYS_issetugid 45
 #define SYS_fcntl 46
 #define SYS_truncate 47
@@ -60,6 +60,9 @@
 #define SYS_fchmod 52
 #define SYS_fchmodat 53
 #define SYS_sched_yield 54
-#define SYS_MAXSYSCALL 55
+#define SYS_sigsuspend 55
+#define SYS_statvfs 56
+#define SYS_fstatvfs 57
+#define SYS_MAXSYSCALL 58
 
 #define SYS_MAXSYSARGS 6
