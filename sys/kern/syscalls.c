@@ -22,7 +22,7 @@
 #include <sys/context.h>
 #include <sys/thread.h>
 #include <sys/cred.h>
-
+#include <sys/statvfs.h>
 #include "sysent.h"
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
@@ -587,6 +587,19 @@ static int sys_sigprocmask(proc_t *p, sigprocmask_args_t *args,
   return error;
 }
 
+static int sys_sigsuspend(proc_t *p, sigsuspend_args_t *args, register_t *res) {
+  const sigset_t *umask = args->sigmask;
+  sigset_t mask;
+  int error;
+
+  klog("sigsuspend(%p)", umask);
+
+  if ((error = copyin_s(umask, mask)))
+    return error;
+
+  return do_sigsuspend(p, &mask);
+}
+
 static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
   const ucontext_t *ucp = args->ucp;
   klog("setcontext(%p)", ucp);
@@ -847,4 +860,39 @@ static int sys_sched_yield(proc_t *p, void *args, register_t *res) {
   klog("sched_yield()");
   thread_yield();
   return 0;
+}
+
+static int sys_statvfs(proc_t *p, statvfs_args_t *args, register_t *res) {
+  int error;
+  const char *u_path = args->path;
+  statvfs_t *u_buf = args->buf;
+  statvfs_t buf;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("statvfs(\"%s\", %p)", path, u_buf);
+
+  if (!(error = do_statvfs(p, path, &buf)))
+    error = copyout_s(buf, u_buf);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
+static int sys_fstatvfs(proc_t *p, fstatvfs_args_t *args, register_t *res) {
+  int error;
+  int fd = args->fd;
+  statvfs_t *u_buf = args->buf;
+  statvfs_t buf;
+
+  klog("fstatvfs(%d, %p)", fd, u_buf);
+
+  if (!(error = do_fstatvfs(p, fd, &buf)))
+    error = copyout_s(buf, u_buf);
+
+  return error;
 }

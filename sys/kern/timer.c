@@ -122,8 +122,8 @@ int tm_start(timer_t *tm, unsigned flags, const bintime_t start,
   if (((tm->tm_flags & flags) & TMF_TYPEMASK) == 0)
     return ENODEV;
   if (flags & TMF_PERIODIC) {
-    if (bintime_cmp(period, tm->tm_min_period, <) ||
-        bintime_cmp(period, tm->tm_max_period, >))
+    if (bintime_cmp(&period, &tm->tm_min_period, <) ||
+        bintime_cmp(&period, &tm->tm_max_period, >))
       return EINVAL;
   }
 
@@ -164,8 +164,4 @@ bintime_t getbintime(void) {
   if (tm == NULL)
     return (bintime_t){0, 0};
   return tm->tm_gettime(tm);
-}
-
-timeval_t get_uptime(void) {
-  return bt2tv(getbintime());
 }

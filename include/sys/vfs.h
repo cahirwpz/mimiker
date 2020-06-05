@@ -8,7 +8,7 @@ typedef struct proc proc_t;
 typedef struct thread thread_t;
 typedef struct vnode vnode_t;
 typedef struct stat stat_t;
-typedef struct statfs statfs_t;
+typedef struct statvfs statvfs_t;
 typedef struct timeval timeval_t;
 typedef struct file file_t;
 
@@ -96,8 +96,9 @@ int do_fchmodat(proc_t *p, int fd, char *path, mode_t mode, int flag);
 
 /* Mount a new instance of the filesystem named fs at the requested path. */
 int do_mount(const char *fs, const char *path);
-int do_statfs(proc_t *p, char *path, statfs_t *buf);
 int do_getdents(proc_t *p, int fd, uio_t *uio);
+int do_statvfs(proc_t *p, char *path, statvfs_t *buf);
+int do_fstatvfs(proc_t *p, int fd, statvfs_t *buf);
 
 /* Initialize & destroy structures required to perform name resolution. */
 int vnrstate_init(vnrstate_t *vs, vnrop_t op, uint32_t flags, const char *path);

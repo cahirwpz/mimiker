@@ -84,6 +84,8 @@ UTEST_ADD_SIMPLE(signal_stop);
 UTEST_ADD_SIMPLE(signal_cont_masked);
 UTEST_ADD_SIMPLE(signal_mask);
 UTEST_ADD_SIMPLE(signal_mask_nonmaskable);
+UTEST_ADD_SIMPLE(signal_sigsuspend);
+UTEST_ADD_SIMPLE(signal_handler_mask);
 
 UTEST_ADD_SIMPLE(fork_wait);
 UTEST_ADD_SIMPLE(fork_signal);
@@ -112,6 +114,9 @@ UTEST_ADD_SIMPLE(vfs_trunc);
 UTEST_ADD_SIMPLE(vfs_symlink);
 UTEST_ADD_SIMPLE(vfs_link);
 UTEST_ADD_SIMPLE(vfs_chmod);
+
+UTEST_ADD_SIMPLE(wait_basic);
+UTEST_ADD_SIMPLE(wait_nohang);
 
 #if 0
 UTEST_ADD_SIMPLE(fpu_fcsr);

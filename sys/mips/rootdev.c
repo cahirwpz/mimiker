@@ -39,7 +39,7 @@ static int rootdev_attach(device_t *dev) {
   return 0;
 }
 
-static int rootdev_bs_map(bus_addr_t addr, bus_size_t size, int flags,
+static int rootdev_bs_map(bus_addr_t addr, bus_size_t size,
                           bus_space_handle_t *handle_p) {
   *handle_p = MIPS_PHYS_TO_KSEG1(addr);
   return 0;
@@ -74,7 +74,7 @@ static resource_t *rootdev_alloc_resource(device_t *bus, device_t *child,
   if (r) {
     r->r_bus_tag = rootdev_bus_space;
     bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
-                  BUS_SPACE_MAP_LINEAR, &r->r_bus_handle);
+                  &r->r_bus_handle);
     device_add_resource(child, r, rid);
   }
 

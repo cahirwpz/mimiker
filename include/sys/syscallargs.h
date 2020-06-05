@@ -285,3 +285,17 @@ typedef struct {
   mode_t mode;
   int flag;
 } fchmodat_args_t;
+
+typedef struct {
+  sigset_t * sigmask;
+} sigsuspend_args_t;
+
+typedef struct {
+  const char * path;
+  struct statvfs * buf;
+} statvfs_args_t;
+
+typedef struct {
+  int fd;
+  struct statvfs * buf;
+} fstatvfs_args_t;

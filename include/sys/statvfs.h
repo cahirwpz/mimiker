@@ -35,6 +35,7 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
+#define MFSNAMELEN 32
 #define MNAMELEN 1024
 
 struct statvfs {

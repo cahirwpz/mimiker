@@ -29,6 +29,8 @@ typedef enum {
   VM_PROT_EXEC = 4   /* can execute page */
 } vm_prot_t;
 
+#define VM_PROT_MASK (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC)
+
 typedef enum {
   VM_FILE = 0,    /* map from file (default) */
   VM_ANON = 1,    /* allocated from memory */
