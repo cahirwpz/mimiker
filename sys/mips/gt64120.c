@@ -372,6 +372,10 @@ static void gt_pci_release_resource(device_t *pcib, device_t *dev,
 static void gt_pci_activate_resource(device_t *pcib, device_t *dev,
                                      res_type_t type, int rid, resource_t *r) {
   if (type == RT_MEMORY || type == RT_IOPORTS) {
+    uint16_t command = pci_read_config(dev, PCIR_COMMAND, 2);
+    command |= PCIM_CMD_PORTEN | PCIM_CMD_MEMEN;
+    pci_write_config(dev, PCIR_COMMAND, 2, command);
+
     /* Write BAR address to PCI device register. */
     pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
     rman_activate_resource(r);
