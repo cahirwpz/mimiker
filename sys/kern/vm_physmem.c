@@ -69,7 +69,7 @@ static void *vm_boot_alloc(size_t n) {
       seg = TAILQ_FIRST(&seglist);
     }
 
-    pmap_kenter((vaddr_t)va, pa, VM_PROT_READ | VM_PROT_WRITE);
+    pmap_kenter((vaddr_t)va, pa, VM_PROT_READ | VM_PROT_WRITE, 0);
   }
 
   vm_kernel_end += n;
@@ -198,7 +198,7 @@ vm_page_t *vm_page_alloc(size_t npages) {
   size_t i = n;
 
   /* Lowest non-empty queue of size higher or equal to log2(npages). */
-  while (TAILQ_EMPTY(&freelist[i]) && i < PM_NQUEUES)
+  while (i < PM_NQUEUES && TAILQ_EMPTY(&freelist[i]))
     i++;
 
   if (i == PM_NQUEUES)

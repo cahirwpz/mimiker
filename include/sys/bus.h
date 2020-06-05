@@ -15,7 +15,7 @@ typedef struct intr_handler intr_handler_t;
  * depending on which bus it was attached to (e.g. I/O ports vs. MMIO) */
 struct bus_space {
   /* mapping */
-  int (*bs_map)(bus_addr_t, bus_size_t, int, bus_space_handle_t *);
+  int (*bs_map)(bus_addr_t, bus_size_t, bus_space_handle_t *);
 
   /* read (single) */
   uint8_t (*bs_read_1)(bus_space_handle_t, bus_size_t);
@@ -79,7 +79,6 @@ void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
 
 #define __bs_read(t, h, o, sz) __bs_func((t), read, sz)((h), (o))
 #define bus_space_read_1(t, h, o) __bs_read(t, h, o, 1)
-#define bus_space_read_1(t, h, o) __bs_read(t, h, o, 1)
 #define bus_space_read_2(t, h, o) __bs_read(t, h, o, 2)
 #define bus_space_read_4(t, h, o) __bs_read(t, h, o, 4)
 
@@ -131,7 +130,7 @@ void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
 #define bus_write_region_2(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 2)
 #define bus_write_region_4(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 4)
 
-#define bus_space_map(t, a, s, f, hp) (*(t)->bs_map)((a), (s), (f), (hp))
+#define bus_space_map(t, a, s, hp) (*(t)->bs_map)((a), (s), (hp))
 
 struct bus_methods {
   void (*intr_setup)(device_t *dev, unsigned num, intr_handler_t *handler);
