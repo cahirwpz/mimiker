@@ -10,7 +10,7 @@ int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p) {
   vaddr_t handle = kva_alloc(size);
   for (bus_size_t start = 0; start < size; start += PAGESIZE) {
-    pmap_kenter(handle + start, addr + start, VM_PROT_READ|VM_PROT_WRITE,
+    pmap_kenter(handle + start, addr + start, VM_PROT_READ | VM_PROT_WRITE,
                 PMAP_NOCACHE);
   }
   *handle_p = handle;

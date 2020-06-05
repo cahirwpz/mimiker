@@ -241,9 +241,9 @@ static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
   /* PCI I/O memory */
-  gtpci->pci_mem = bus_alloc_resource(
-    pcib, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END,
-    MALTA_PCI0_MEMORY_SIZE, 0);
+  gtpci->pci_mem =
+    bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE,
+                       MALTA_PCI0_MEMORY_END, MALTA_PCI0_MEMORY_SIZE, 0);
   /* PCI I/O ports 0x1000-0xffff */
   gtpci->pci_io =
     bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_PCI0_IO_BASE + 0x1000,
