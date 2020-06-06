@@ -68,5 +68,7 @@
 55  { int sys_sigsuspend(sigset_t *sigmask); }
 56  { int sys_statvfs(const char *path, struct statvfs *buf); }
 57  { int sys_fstatvfs(int fd, struct statvfs *buf); }
+58  { int sys_getgroups(int ngroups, gid_t *gidset); }
+59  { int sys_setgroups(int ngroups, const gid_t *gidset); }
 
 ; vim: ts=4 sw=4 sts=4 et
