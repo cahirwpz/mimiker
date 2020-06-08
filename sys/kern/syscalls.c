@@ -23,6 +23,7 @@
 #include <sys/thread.h>
 #include <sys/cred.h>
 #include <sys/statvfs.h>
+
 #include "sysent.h"
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
@@ -936,12 +937,9 @@ static int sys_setgroups(proc_t *p, setgroups_args_t *args, register_t *res) {
   if (ungroups > 0 && gidset == NULL)
     return ENOMEM;
 
-  if ((error = copyin(ugidset, gidset, ungroups * sizeof(gid_t))))
-    goto end;
+  if (!(error = copyin(ugidset, gidset, ungroups * sizeof(gid_t))))
+    error = do_setgroups(p, ungroups, gidset);
 
-  error = do_setgroups(p, ungroups, gidset);
-
-end:
   kfree(M_TEMP, gidset);
   return error;
 }
