@@ -37,7 +37,7 @@ typedef struct rtc_state {
  */
 
 /* Function just for 21 century */
-static time_t tm2sec(tm_t *t) {
+static time_t rtc2sec(tm_t *t) {
   const int32_t year_scale_s = 31536000, day_scale_s = 86400,
                 hour_scale_s = 3600, min_scale_s = 60;
   time_t res = 0;
@@ -60,7 +60,7 @@ static time_t tm2sec(tm_t *t) {
 static void boottime_init(tm_t *t) {
   /* 0:0:0 1.1.2000 GMT in POSIX time - rtc can hold only 100 years */
   time_t rtc_correction = 946684800;
-  bintime_t bt = BINTIME(tm2sec(t));
+  bintime_t bt = BINTIME(rtc2sec(t));
   bt.sec += rtc_correction;
   tm_setclock(&bt);
 }

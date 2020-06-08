@@ -9,7 +9,7 @@
 static mtx_t timers_mtx = MTX_INITIALIZER(0);
 static timer_list_t timers = TAILQ_HEAD_INITIALIZER(timers);
 static timer_t *time_source = NULL;
-static bintime_t timebasebin = (bintime_t){.sec = 0, .frac = 0};
+static bintime_t timebasebin = BINTIME(0);
 
 /* These flags are used internally to encode timer state.
  * Following state transitions are possible:
@@ -173,7 +173,7 @@ bintime_t binuptime(void) {
   /* XXX: probably a race condition here */
   timer_t *tm = time_source;
   if (tm == NULL)
-    return (bintime_t){0, 0};
+    return BINTIME(0);
   return tm->tm_gettime(tm);
 }
 
