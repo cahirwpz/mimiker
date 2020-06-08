@@ -59,10 +59,10 @@ static time_t tm2sec(tm_t *t) {
 
 static void boottime_init(tm_t *t) {
   /* 0:0:0 1.1.2000 GMT in POSIX time - rtc can hold only 100 years */
-  const int64_t rtc_correction = 946684800;
-  timespec_t ts = (timespec_t){.tv_sec = tm2sec(t), .tv_nsec = 0};
-  ts.tv_sec += rtc_correction;
-  tm_setclock(&ts);
+  time_t rtc_correction = 946684800;
+  bintime_t bt = BINTIME(tm2sec(t));
+  bt.sec += rtc_correction;
+  tm_setclock(&bt);
 }
 
 static inline uint8_t rtc_read(resource_t *regs, unsigned addr) {

@@ -56,14 +56,6 @@ static inline void bt2ts(bintime_t *bt, timespec_t *ts) {
   ts->tv_nsec = (1000000000ULL * (uint32_t)(bt->frac >> 32)) >> 32;
 }
 
-static inline bintime_t ts2bt(timespec_t ts) {
-  /* 1ns = (2^64) / 1000000000 */
-  const uint64_t bintime_scale_ns = 18446744073ULL;
-  uint64_t frac = (uint64_t)ts.tv_nsec * bintime_scale_ns;
-  return (bintime_t){.sec = ts.tv_sec, .frac = frac};
-#undef BINTIME_SCALE_NS
-}
-
 /* Operations on timevals. */
 #define timerclear(tvp) (tvp)->tv_sec = (tvp)->tv_usec = 0L
 #define timerisset(tvp) ((tvp)->tv_sec || (tvp)->tv_usec)

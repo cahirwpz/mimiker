@@ -103,14 +103,13 @@ int tm_release(timer_t *tm) {
   return 0;
 }
 
-void tm_setclock(const timespec_t *ts) {
+void tm_setclock(const bintime_t *bt) {
+  bintime_t bt1 = *bt, bt2;
   /* TODO: Add (spin) lock for settime */
-  bintime_t bt, bt2;
-  bt = ts2bt(*ts);
   bt2 = binuptime();
   /* Setting boottime - this is why we subtract time elapsed since boottime */
-  bintime_sub(&bt, &bt2);
-  timebasebin = bt;
+  bintime_sub(&bt1, &bt2);
+  timebasebin = bt1;
 }
 
 int tm_init(timer_t *tm, tm_event_cb_t event, void *arg) {
