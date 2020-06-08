@@ -35,6 +35,36 @@ typedef struct rtc_state {
  * Hopefully this design issue will get resolved after more work is put into
  * resource management and ISA bus driver.
  */
+
+/* Function just for 21 century */
+static time_t tm2sec(tm_t *t) {
+  const int32_t year_scale_s = 31536000, day_scale_s = 86400,
+                hour_scale_s = 3600, min_scale_s = 60;
+  time_t res = 0;
+  static const int month_in_days[13] = {0,   31,  59,  90,  120, 151,
+                                        181, 212, 243, 273, 304, 334};
+
+  res += (time_t)month_in_days[t->tm_mon] * day_scale_s;
+  /* Extra days from leap years for 21 century which already past */
+  res += (time_t)((t->tm_year - 100) / 4) * day_scale_s;
+  /* If actual year is a leap year and the leap day passed */
+  if (t->tm_mon > 1 && ((t->tm_year - 100) % 4) == 0)
+    res += day_scale_s;
+
+  /* (t.tm_mday - 1) - cause days are in range [1-31] */
+  return (time_t)(t->tm_year - 100) * year_scale_s +
+         (t->tm_mday - 1) * day_scale_s + t->tm_hour * hour_scale_s +
+         t->tm_min * min_scale_s + t->tm_sec + res;
+}
+
+static void boottime_init(tm_t *t) {
+  /* 0:0:0 1.1.2000 GMT in POSIX time - rtc can hold only 100 years */
+  const int64_t rtc_correction = 946684800;
+  timespec_t ts = (timespec_t){.tv_sec = tm2sec(t), .tv_nsec = 0};
+  ts.tv_sec += rtc_correction;
+  tm_setclock(&ts);
+}
+
 static inline uint8_t rtc_read(resource_t *regs, unsigned addr) {
   bus_write_1(regs, RTC_ADDR, addr);
   return bus_read_1(regs, RTC_DATA);
@@ -55,8 +85,8 @@ static void rtc_gettime(resource_t *regs, tm_t *t) {
   t->tm_hour = rtc_read(regs, MC_HOUR);
   t->tm_wday = rtc_read(regs, MC_DOW);
   t->tm_mday = rtc_read(regs, MC_DOM);
-  t->tm_mon = rtc_read(regs, MC_MONTH);
-  t->tm_year = rtc_read(regs, MC_YEAR);
+  t->tm_mon = rtc_read(regs, MC_MONTH) - 1;
+  t->tm_year = rtc_read(regs, MC_YEAR) + 100;
 }
 
 static intr_filter_t rtc_intr(void *data) {
@@ -78,7 +108,7 @@ static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
   sleepq_wait(rtc, NULL);
   rtc_gettime(rtc->regs, &t);
   int count = snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d",
-                       t.tm_year + 2000, t.tm_mon, t.tm_mday, t.tm_hour,
+                       t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour,
                        t.tm_min, t.tm_sec);
   if (count >= RTC_ASCTIME_SIZE)
     return EINVAL;
