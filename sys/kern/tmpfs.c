@@ -14,13 +14,13 @@
 #include <bitstring.h>
 
 /*
-    START OF THE ARENA
-  0 +------------+
-    |            | - arena header
-  1 +------------+
-    |            | - inodes
+ BLOCKS         BYTES
+  0 +------------+ 0
+    |            |      - arena header
+    +------------+ 256B
+    |            |      - inodes
     |            |
-  5 +------------+
+  5 +------------+ 20KiB
     |            |
     |            | - data blocks
     |            |
@@ -30,8 +30,8 @@
 Areny są połączone w listę.
 
 Rozmiar areny: 256 * 4KiB = 1MiB
-Liczba i-węzłów (zakładając, że jeden ma rozmiar 80 bajtów): 4 * 4KiB / 80 = 204
-Liczba bloków na dane: 256 - 4 - 1 = 251
+Liczba i-węzłów (zakładając, że jeden ma rozmiar 80 bajtów): (4 * 4KiB + 4KiB -
+256B) / 56 = 361 Liczba bloków na dane: 256 - 4 - 1 = 251
 */
 
 #define TMPFS_NAME_MAX 64
@@ -52,13 +52,15 @@ Liczba bloków na dane: 256 - 4 - 1 = 251
 
 #define BLOCKS_PER_ARENA 256
 #define ARENA_SIZE (BLOCKS_PER_ARENA * BLOCK_SIZE)
+#define ARENA_HEADER_SIZE 256
 
 #define ARENA_INODE_BLOCKS 4
-#define ARENA_DATA_BLOCKS (256 - ARENA_INODE_BLOCKS - 1)
+#define ARENA_DATA_BLOCKS 251
 
+/* Number of inodes in a arena */
 #define ARENA_INODE_CNT                                                        \
-  (ARENA_INODE_BLOCKS * BLOCK_SIZE /                                           \
-   sizeof(struct tmpfs_node)) /* number of inodes in a arena */
+  ((ARENA_INODE_BLOCKS * BLOCK_SIZE + BLOCK_SIZE - ARENA_HEADER_SIZE) /        \
+   sizeof(struct tmpfs_node))
 
 typedef struct _blk *blkptr_t;
 
@@ -130,7 +132,7 @@ static void tmpfs_mem_init_arena(tmpfs_mem_arena_t *arena) {
   bit_nset(arena->tma_inode_bm, 0, ARENA_INODE_CNT - 1);
   bit_nset(arena->tma_dblock_bm, 0, ARENA_DATA_BLOCKS - 1);
 
-  arena->tma_inodes = (void *)arena + BLOCK_SIZE;
+  arena->tma_inodes = (void *)arena + ARENA_HEADER_SIZE;
   arena->tma_dblocks = (void *)arena + (1 + ARENA_INODE_BLOCKS) * BLOCK_SIZE;
 }
 
