@@ -92,7 +92,7 @@ static int multithreads_test(const int number_of_threads) {
 
 /* Function that checks if sleep time is over and assigne new sleep time. */
 static int check_time(systime_t *sleep, const uint32_t freq) {
-  bintime_t now = getbintime();
+  bintime_t now = binuptime();
   bintime_sub(&now, &start);
   if (bt2st(&now) < (*sleep))
     return 1;
@@ -138,7 +138,7 @@ static int stress_test(void) {
   /* threads[5] = thread_create("Thread dump2", thread_test, &klog_dump); */
 
   int number_of_threads = 5;
-  start = getbintime();
+  start = binuptime();
   for (int i = 0; i < number_of_threads; i++)
     sched_add(threads[i]);
 

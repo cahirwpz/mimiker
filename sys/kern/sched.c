@@ -34,7 +34,7 @@ void sched_wakeup(thread_t *td, long reason) {
   assert(!td_is_running(td));
 
   /* Update sleep time. */
-  bintime_t now = getbintime();
+  bintime_t now = binuptime();
   bintime_sub(&now, &td->td_last_slptime);
   bintime_add(&td->td_slptime, &now);
 
@@ -117,7 +117,7 @@ static thread_t *sched_choose(void) {
     return PCPU_GET(idle_thread);
   runq_remove(&runq, td);
   td->td_state = TDS_RUNNING;
-  td->td_last_rtime = getbintime();
+  td->td_last_rtime = binuptime();
   return td;
 }
 
@@ -133,7 +133,7 @@ long sched_switch(void) {
   td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
 
   /* Update running time, */
-  bintime_t now = getbintime();
+  bintime_t now = binuptime();
   bintime_sub(&now, &td->td_last_rtime);
   bintime_add(&td->td_rtime, &now);
 

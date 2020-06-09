@@ -83,6 +83,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(fpu_ctx_signals);
   CHECKRUN_TEST(getcwd);
 
+  CHECKRUN_TEST(gettimeofday);
+
   CHECKRUN_TEST(get_set_uid);
   CHECKRUN_TEST(get_set_gid);
   CHECKRUN_TEST(get_set_groups);
