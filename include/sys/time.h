@@ -47,6 +47,9 @@ typedef struct bintime {
     .sec = 0, .frac = ((1ULL << 63) / (hz)) << 1                               \
   }
 
+/* Returns seconds after EPOCH */
+time_t tm2sec(tm_t *tm);
+
 static inline systime_t bt2st(bintime_t *bt) {
   return bt->sec * 1000 + ((1000ULL * (uint32_t)(bt->frac >> 32)) >> 32);
 }

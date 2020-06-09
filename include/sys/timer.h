@@ -43,7 +43,7 @@ typedef struct timer {
 } timer_t;
 
 /*! \brief  Used to set/change the system boottime */
-void tm_setclock(const bintime_t *ts);
+void tm_setclock(const bintime_t *bt);
 /*! \brief Used by a driver to make timer device available to the system. */
 int tm_register(timer_t *tm);
 /*! \brief Called when unloading a timer driver. */
