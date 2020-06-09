@@ -5,7 +5,7 @@ from .kdump import Kdump
 from .klog import Klog
 from .ktrace import Ktrace
 from .proc import Kprocess, Process, CurrentProcess
-from .struct import TimeVal
+from .struct import BinTime
 from .sync import CondVar, Mutex
 from .thread import Kthread, Thread, CurrentThread
 from .events import stop_handler
@@ -17,7 +17,7 @@ def addPrettyPrinters():
     pp.add_printer('condvar', 'condvar', CondVar)
     pp.add_printer('thread', 'thread', Thread)
     pp.add_printer('process', 'process', Process)
-    pp.add_printer('timeval', 'timeval', TimeVal)
+    pp.add_printer('bintime', 'bintime', BinTime)
     gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
 
 

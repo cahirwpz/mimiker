@@ -25,7 +25,7 @@ static mtx_t mount_list_mtx = MTX_INITIALIZER(0);
 
 /* Default vfs operations */
 static vfs_root_t vfs_default_root;
-static vfs_statfs_t vfs_default_statfs;
+static vfs_statvfs_t vfs_default_statvfs;
 static vfs_vget_t vfs_default_vget;
 static vfs_init_t vfs_default_init;
 
@@ -87,8 +87,8 @@ static int vfs_register(vfsconf_t *vfc) {
   /* Use defaults for other operations, if not provided. */
   if (vfc->vfc_vfsops->vfs_root == NULL)
     vfc->vfc_vfsops->vfs_root = vfs_default_root;
-  if (vfc->vfc_vfsops->vfs_statfs == NULL)
-    vfc->vfc_vfsops->vfs_statfs = vfs_default_statfs;
+  if (vfc->vfc_vfsops->vfs_statvfs == NULL)
+    vfc->vfc_vfsops->vfs_statvfs = vfs_default_statvfs;
   if (vfc->vfc_vfsops->vfs_vget == NULL)
     vfc->vfc_vfsops->vfs_vget = vfs_default_vget;
   if (vfc->vfc_vfsops->vfs_init == NULL)
@@ -104,7 +104,7 @@ static int vfs_default_root(mount_t *m, vnode_t **v) {
   return ENOTSUP;
 }
 
-static int vfs_default_statfs(mount_t *m, statfs_t *sb) {
+static int vfs_default_statvfs(mount_t *m, statvfs_t *sb) {
   return ENOTSUP;
 }
 
