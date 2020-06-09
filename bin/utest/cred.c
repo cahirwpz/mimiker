@@ -124,6 +124,8 @@ int test_get_set_groups(void) {
   r = getgroups(NGROUPS_MAX, rgrp);
   assert(r == 0);
 
+  r = setgroups(-ngroups, gidset);
+  assert(r < 0 && errno == EINVAL);
   /* setting for further tests */
   r = setgroups(ngroups, gidset);
   assert(r == 0);
