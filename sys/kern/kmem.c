@@ -26,6 +26,19 @@ static void kick_swapper(void) {
   panic("Cannot allocate more kernel memory: swapper not implemented!");
 }
 
+vaddr_t kva_alloc(size_t size) {
+  assert(page_aligned_p(size));
+  vmem_addr_t start;
+  if (vmem_alloc(kvspace, size, &start, M_NOGROW))
+    return 0;
+  return start;
+}
+
+void kva_free(vaddr_t ptr, size_t size) {
+  assert(page_aligned_p(ptr) && page_aligned_p(size));
+  vmem_free(kvspace, ptr, size);
+}
+
 void *kmem_alloc(size_t size, kmem_flags_t flags) {
   assert(page_aligned_p(size));
   assert(!(flags & M_NOGROW));
