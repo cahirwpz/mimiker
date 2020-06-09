@@ -178,13 +178,16 @@ int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
 
 int nanosleep(timespec_t *rqtp, timespec_t *rmtp);
 
-int gettimeofday(timeval_t *tp, void *tzp);
+int adjtime(const struct timeval *, struct timeval *);
+int gettimeofday(struct timeval *__restrict, void *__restrict);
+int settimeofday(const struct timeval *__restrict, const void *__restrict);
 
 int clock_gettime(clockid_t clk, timespec_t *tp);
 
 int clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                     timespec_t *rmtp);
 
+int getitimer(int, struct itimerval *);
 int setitimer(int, const struct itimerval *__restrict,
               struct itimerval *__restrict);
 

@@ -58,7 +58,7 @@
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <pwd.h>
-// #include <utmp.h>
+#include <utmp.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
