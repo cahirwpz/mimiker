@@ -68,7 +68,7 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
 
-  pit->time = getbintime();
+  pit->time = binuptime();
   pit->period_frac = period.frac;
   uint16_t counter = bintime_mul(period, TIMER_FREQ).sec;
   WITH_SPIN_LOCK (&pit->lock) {

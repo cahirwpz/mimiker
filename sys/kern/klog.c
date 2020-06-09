@@ -57,7 +57,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
   tid_t tid = thread_self()->td_tid;
 
   WITH_SPIN_LOCK (&klog_lock) {
-    bintime_t now = getbintime();
+    bintime_t now = binuptime();
 
     entry = (klog.prev >= 0) ? &klog.array[klog.prev] : NULL;
 

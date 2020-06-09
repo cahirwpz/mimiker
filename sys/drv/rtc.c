@@ -10,6 +10,7 @@
 #include <sys/devfs.h>
 #include <sys/sleepq.h>
 #include <sys/time.h>
+#include <sys/timer.h>
 #include <sys/vnode.h>
 #include <sys/sysinit.h>
 #include <sys/devclass.h>
@@ -34,6 +35,12 @@ typedef struct rtc_state {
  * Hopefully this design issue will get resolved after more work is put into
  * resource management and ISA bus driver.
  */
+
+static void boottime_init(tm_t *t) {
+  bintime_t bt = BINTIME(tm2sec(t));
+  tm_setclock(&bt);
+}
+
 static inline uint8_t rtc_read(resource_t *regs, unsigned addr) {
   bus_write_1(regs, RTC_ADDR, addr);
   return bus_read_1(regs, RTC_DATA);
@@ -54,8 +61,8 @@ static void rtc_gettime(resource_t *regs, tm_t *t) {
   t->tm_hour = rtc_read(regs, MC_HOUR);
   t->tm_wday = rtc_read(regs, MC_DOW);
   t->tm_mday = rtc_read(regs, MC_DOM);
-  t->tm_mon = rtc_read(regs, MC_MONTH);
-  t->tm_year = rtc_read(regs, MC_YEAR) + 2000;
+  t->tm_mon = rtc_read(regs, MC_MONTH) - 1;
+  t->tm_year = rtc_read(regs, MC_YEAR) + 100;
 }
 
 static intr_filter_t rtc_intr(void *data) {
@@ -76,9 +83,9 @@ static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
   uio->uio_offset = 0; /* This device does not support offsets. */
   sleepq_wait(rtc, NULL);
   rtc_gettime(rtc->regs, &t);
-  int count =
-    snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d", t.tm_year,
-             t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+  int count = snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d",
+                       t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour,
+                       t.tm_min, t.tm_sec);
   if (count >= RTC_ASCTIME_SIZE)
     return EINVAL;
   return uiomove_frombuf(rtc->asctime, count, uio);
@@ -109,6 +116,11 @@ static int rtc_attach(device_t *dev) {
 
   /* Prepare /dev/rtc interface. */
   devfs_makedev(NULL, "rtc", &rtc_time_vnodeops, rtc);
+
+  tm_t t;
+
+  rtc_gettime(rtc->regs, &t);
+  boottime_init(&t);
 
   return 0;
 }

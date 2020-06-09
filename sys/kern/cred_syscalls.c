@@ -120,3 +120,14 @@ end:
   proc_unlock(p);
   return error;
 }
+
+int do_setgroups(proc_t *p, int ngroups, const gid_t *gidset) {
+  /* only root user can change supplementary groups */
+  if (p->p_cred.cr_euid != 0)
+    return EPERM;
+
+  p->p_cred.cr_ngroups = ngroups;
+  memcpy(p->p_cred.cr_groups, gidset, ngroups * sizeof(gid_t));
+
+  return 0;
+}

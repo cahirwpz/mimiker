@@ -11,7 +11,7 @@ static bintime_t start;
 static void test_thread(void *p) {
   bintime_t *e = (bintime_t *)p;
   while (1) {
-    bintime_t now = getbintime();
+    bintime_t now = binuptime();
     bintime_sub(&now, &start);
     if (bintime_cmp(&now, e, >))
       thread_exit();
@@ -34,7 +34,7 @@ static int test_thread_join(void) {
   tid_t t2_id = t2->td_tid;
   tid_t t3_id = t3->td_tid;
 
-  start = getbintime();
+  start = binuptime();
   sched_add(t1);
   sched_add(t2);
   sched_add(t3);

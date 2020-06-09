@@ -16,7 +16,7 @@ systime_t getsystime(void) {
 }
 
 static void clock_cb(timer_t *tm, void *arg) {
-  bintime_t bin = getbintime();
+  bintime_t bin = binuptime();
   now = bt2st(&bin);
   callout_process(now);
   sched_clock();

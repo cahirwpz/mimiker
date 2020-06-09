@@ -897,3 +897,47 @@ static int sys_fstatvfs(proc_t *p, fstatvfs_args_t *args, register_t *res) {
 
   return error;
 }
+
+static int sys_getgroups(proc_t *p, getgroups_args_t *args, register_t *res) {
+  int ngroups = args->ngroups;
+  gid_t *ugidset = args->gidset;
+  int pngroups = p->p_cred.cr_ngroups;
+
+  klog("getgroups(%d, %p)", ngroups, ugidset);
+
+  if (ngroups == 0) {
+    /* just return number of groups */
+    *res = pngroups;
+    return 0;
+  }
+
+  if (ngroups < pngroups)
+    return EINVAL;
+
+  *res = pngroups;
+  return copyout(p->p_cred.cr_groups, ugidset, pngroups * sizeof(gid_t));
+}
+
+static int sys_setgroups(proc_t *p, setgroups_args_t *args, register_t *res) {
+  int error = 0;
+  int ungroups = args->ngroups;
+  const gid_t *ugidset = args->gidset;
+
+  klog("setgroups(%d, %p)", ungroups, ugidset);
+
+  /* too many groups */
+  if (ungroups < 0 || ungroups > NGROUPS_MAX)
+    return EINVAL;
+
+  gid_t *gidset = kmalloc(M_TEMP, ungroups * sizeof(gid_t), M_NOWAIT);
+
+  /* if we set 0 groups kmalloc returns NULL, but it is not an error */
+  if (ungroups > 0 && gidset == NULL)
+    return ENOMEM;
+
+  if (!(error = copyin(ugidset, gidset, ungroups * sizeof(gid_t))))
+    error = do_setgroups(p, ungroups, gidset);
+
+  kfree(M_TEMP, gidset);
+  return error;
+}
