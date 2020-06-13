@@ -83,18 +83,19 @@ typedef struct tmpfs_node {
   ino_t tfn_ino;     /* node identifier */
   size_t tfn_size;   /* file size in bytes */
 
+  size_t tfn_nblocks; /* number of blocks used by this file */
+  blkptr_t
+    tfn_direct[DIRECT_BLK_NO]; /* blocks containing the data for this node */
+  blkptr_t *tfn_l1indirect;
+  blkptr_t **tfn_l2indirect;
+
   /* Data that is only applicable to a particular type. */
   union {
     struct {
-      struct tmpfs_node *parent;   /* Parent directory. */
-      tmpfs_dirent_list_t dirents; /* List of directory entries. */
+      struct tmpfs_node *parent;    /* Parent directory. */
+      tmpfs_dirent_list_t dirents;  /* List of directory entries. */
+      tmpfs_dirent_list_t fdirents; /* List of free directory entries. */
     } tfn_dir;
-    struct {
-      blkptr_t direct[DIRECT_BLK_NO];
-      blkptr_t *l1indirect;
-      blkptr_t **l2indirect;
-      size_t nblocks; /* Number of blocks used by this file. */
-    } tfn_reg;
     struct {
       char *link;
     } tfn_lnk;
@@ -143,10 +144,7 @@ static tmpfs_mem_arena_t *tmpfs_mem_new_arena(tmpfs_mem_arenalist_t *al) {
 
   tmpfs_mem_init_arena(newar);
 
-  if (STAILQ_EMPTY(al))
-    STAILQ_INSERT_HEAD(al, newar, tma_link);
-  else
-    STAILQ_INSERT_TAIL(al, newar, tma_link);
+  STAILQ_INSERT_TAIL(al, newar, tma_link);
   return newar;
 }
 
@@ -243,32 +241,6 @@ static void tmpfs_mem_free_inode(tmpfs_mount_t *tfm, tmpfs_node_t *node) {
   tmpfs_mem_arena_free_inode(arena, node);
 }
 
-static int alloc_block(tmpfs_mount_t *tfm, tmpfs_node_t *v, blkptr_t *blkptrp) {
-  assert(blkptrp != NULL);
-
-  if (!(*blkptrp)) {
-    blkptr_t blkptr = tmpfs_mem_alloc_dblk(tfm);
-    if (!blkptr)
-      return ENOMEM;
-    v->tfn_reg.nblocks++;
-    *blkptrp = blkptr;
-  }
-
-  return 0;
-}
-
-static void free_block(tmpfs_mount_t *tfm, tmpfs_node_t *v, blkptr_t *blkptrp) {
-  assert(blkptrp != NULL);
-
-  if (*blkptrp) {
-    tmpfs_mem_free_dblk(tfm, *blkptrp);
-    *blkptrp = NULL;
-    v->tfn_reg.nblocks--;
-  }
-}
-
-static POOL_DEFINE(P_TMPFS_DIRENT, "tmpfs dirent", sizeof(tmpfs_dirent_t));
-
 /* XXX: Temporary solution. There should be dedicated allocator for mount
  * points. */
 static tmpfs_mount_t tmpfs;
@@ -292,15 +264,14 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vattr_t *va,
 static void tmpfs_dir_attach(tmpfs_node_t *dnode, tmpfs_dirent_t *de,
                              tmpfs_node_t *node);
 static int tmpfs_get_vnode(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp);
-static int tmpfs_alloc_dirent(const char *name, size_t namelen,
-                              tmpfs_dirent_t **dep);
+static int tmpfs_alloc_dirent(tmpfs_node_t *tfn, const char *name,
+                              size_t namelen, tmpfs_dirent_t **dep);
 static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
                                         const componentname_t *cn);
 static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de);
 
-static blkptr_t *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t blkno);
-static int tmpfs_reg_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v,
-                            size_t newsize);
+static blkptr_t *tmpfs_get_blk(tmpfs_node_t *v, size_t blkno);
+static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize);
 
 /* tmpfs readdir operations */
 
@@ -394,7 +365,7 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
     size_t blkoff = BLKOFF(uio->uio_offset);
     size_t len = MIN(BLOCK_SIZE - blkoff, remaining);
     size_t blkno = BLKNO(uio->uio_offset);
-    void *blk = *tmpfs_reg_get_blk(node, blkno);
+    void *blk = *tmpfs_get_blk(node, blkno);
     if ((error = uiomove(blk + blkoff, len, uio)))
       break;
   }
@@ -416,14 +387,14 @@ static int tmpfs_vop_write(vnode_t *v, uio_t *uio, int ioflag) {
     uio->uio_offset = node->tfn_size;
 
   if (uio->uio_offset + uio->uio_resid > node->tfn_size)
-    if ((error = tmpfs_reg_resize(tfm, node, uio->uio_offset + uio->uio_resid)))
+    if ((error = tmpfs_resize(tfm, node, uio->uio_offset + uio->uio_resid)))
       return error;
 
   while (uio->uio_resid > 0) {
     size_t blkoff = BLKOFF(uio->uio_offset);
     size_t len = MIN(BLOCK_SIZE - blkoff, uio->uio_resid);
     size_t blkno = BLKNO(uio->uio_offset);
-    void *blk = *tmpfs_reg_get_blk(node, blkno);
+    void *blk = *tmpfs_get_blk(node, blkno);
     if ((error = uiomove(blk + blkoff, len, uio)))
       break;
   }
@@ -447,7 +418,7 @@ static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va) {
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
 
   if (va->va_size != (size_t)VNOVAL)
-    tmpfs_reg_resize(tfm, node, va->va_size);
+    tmpfs_resize(tfm, node, va->va_size);
   if (va->va_mode != (mode_t)VNOVAL)
     node->tfn_mode = (node->tfn_mode & ~ALLPERMS) | (va->va_mode & ALLPERMS);
 
@@ -525,18 +496,18 @@ static int tmpfs_vop_symlink(vnode_t *dv, componentname_t *cn, vattr_t *va,
   char *str = NULL;
 
   assert(targetlen <= BLOCK_SIZE);
-  if (targetlen > 0) {
-    if (!(str = (char *)tmpfs_mem_alloc_dblk(tfm)))
-      return ENOSPC;
-    memcpy(str, target, targetlen);
-  }
 
   if ((error = tmpfs_create_file(dv, vp, va, V_LNK, cn)))
     return error;
 
   tmpfs_node_t *node = TMPFS_NODE_OF(*vp);
-  node->tfn_size = targetlen;
-  node->tfn_lnk.link = str;
+  if (targetlen > 0) {
+    tmpfs_resize(tfm, node, targetlen);
+    str = (char *)*tmpfs_get_blk(node, 0);
+    memcpy(str, target, targetlen);
+    node->tfn_lnk.link = str;
+  }
+
   return 0;
 }
 
@@ -546,7 +517,7 @@ static int tmpfs_vop_link(vnode_t *dv, vnode_t *v, componentname_t *cn) {
   tmpfs_dirent_t *de;
   int error;
 
-  error = tmpfs_alloc_dirent(cn->cn_nameptr, cn->cn_namelen, &de);
+  error = tmpfs_alloc_dirent(dnode, cn->cn_nameptr, cn->cn_namelen, &de);
   if (!error)
     tmpfs_dir_attach(dnode, de, node);
   return error;
@@ -597,6 +568,7 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
   node->tfn_type = ntype;
   node->tfn_links = 0;
   node->tfn_size = 0;
+  node->tfn_nblocks = 0;
 
   mtx_lock(&tfm->tfm_lock);
   node->tfn_ino = tfm->tfm_next_ino++;
@@ -605,11 +577,11 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
   switch (node->tfn_type) {
     case V_DIR:
       TAILQ_INIT(&node->tfn_dir.dirents);
+      TAILQ_INIT(&node->tfn_dir.fdirents);
       /* Extra link count for the '.' entry. */
       node->tfn_links++;
       break;
     case V_REG:
-      node->tfn_reg.nblocks = 0;
       break;
     case V_LNK:
       node->tfn_lnk.link = NULL;
@@ -626,18 +598,7 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
  * destroy the inode structures.
  */
 static void tmpfs_free_node(tmpfs_mount_t *tfm, tmpfs_node_t *tfn) {
-  switch (tfn->tfn_type) {
-    case V_REG:
-      tmpfs_reg_resize(tfm, tfn, 0);
-      break;
-    case V_LNK:
-      if (tfn->tfn_lnk.link)
-        tmpfs_mem_free_dblk(tfm, (blkptr_t)tfn->tfn_lnk.link);
-      break;
-    default:
-      break;
-  }
-
+  tmpfs_resize(tfm, tfn, 0);
   tmpfs_mem_free_inode(tfm, tfn);
 }
 
@@ -652,7 +613,7 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vattr_t *va,
   int error = 0;
 
   /* Allocate a new directory entry for the new file. */
-  error = tmpfs_alloc_dirent(cn->cn_nameptr, cn->cn_namelen, &de);
+  error = tmpfs_alloc_dirent(dnode, cn->cn_nameptr, cn->cn_namelen, &de);
   if (error)
     return error;
 
@@ -675,7 +636,6 @@ static void tmpfs_dir_attach(tmpfs_node_t *dnode, tmpfs_dirent_t *de,
   node->tfn_links++;
   de->tfd_node = node;
   TAILQ_INSERT_TAIL(&dnode->tfn_dir.dirents, de, tfd_entries);
-  dnode->tfn_size += sizeof(tmpfs_dirent_t);
 
   /* If directory set parent and increase the link count of parent. */
   if (node->tfn_type == V_DIR) {
@@ -698,22 +658,51 @@ static int tmpfs_get_vnode(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp) {
   return 0;
 }
 
+static int tmpfs_dir_extend(tmpfs_node_t *tfn) {
+  int error;
+  tmpfs_mount_t *tfm = TMPFS_ROOT_OF(tfn->tfn_vnode->v_mount);
+
+  if ((error = tmpfs_resize(tfm, tfn, tfn->tfn_size + BLOCK_SIZE)))
+    return error;
+
+  blkptr_t blk = *tmpfs_get_blk(tfn, BLKNO(tfn->tfn_size) - 1);
+
+  size_t ndirent = BLOCK_SIZE / sizeof(tmpfs_dirent_t);
+  for (size_t i = 0; i < ndirent; i++) {
+    tmpfs_dirent_t *de =
+      (tmpfs_dirent_t *)(((uint8_t *)blk) + i * sizeof(tmpfs_dirent_t));
+    TAILQ_INSERT_TAIL(&tfn->tfn_dir.fdirents, de, tfd_entries);
+  }
+
+  return 0;
+}
+
 /*
  * tmpfs_alloc_dirent: allocate a new directory entry.
  */
-static int tmpfs_alloc_dirent(const char *name, size_t namelen,
-                              tmpfs_dirent_t **dep) {
+static int tmpfs_alloc_dirent(tmpfs_node_t *tfn, const char *name,
+                              size_t namelen, tmpfs_dirent_t **dep) {
+  int error = 0;
+
   if (namelen + 1 > TMPFS_NAME_MAX)
     return ENAMETOOLONG;
 
-  tmpfs_dirent_t *dirent = pool_alloc(P_TMPFS_DIRENT, M_ZERO);
+  if (TAILQ_EMPTY(&tfn->tfn_dir.fdirents)) {
+    if ((error = tmpfs_dir_extend(tfn)))
+      return error;
+  }
+
+  tmpfs_dirent_t *dirent = TAILQ_FIRST(&tfn->tfn_dir.fdirents);
+  TAILQ_REMOVE(&tfn->tfn_dir.fdirents, dirent, tfd_entries);
+  bzero(dirent, sizeof(tmpfs_dirent_t));
+
   dirent->tfd_node = NULL;
   dirent->tfd_namelen = namelen;
   memcpy(dirent->tfd_name, name, namelen);
   dirent->tfd_name[namelen] = 0;
 
   *dep = dirent;
-  return 0;
+  return error;
 }
 
 static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
@@ -742,36 +731,61 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de) {
   }
   de->tfd_node = NULL;
   TAILQ_REMOVE(&dv->tfn_dir.dirents, de, tfd_entries);
-  dv->tfn_size -= sizeof(tmpfs_dirent_t);
-  pool_free(P_TMPFS_DIRENT, de);
+  TAILQ_INSERT_TAIL(&dv->tfn_dir.fdirents, de, tfd_entries);
+}
+
+static int tmpfs_alloc_block(tmpfs_mount_t *tfm, tmpfs_node_t *v,
+                             blkptr_t *blkptrp) {
+  assert(blkptrp != NULL);
+
+  if (!(*blkptrp)) {
+    blkptr_t blkptr = tmpfs_mem_alloc_dblk(tfm);
+    if (!blkptr)
+      return ENOMEM;
+    v->tfn_nblocks++;
+    *blkptrp = blkptr;
+  }
+
+  return 0;
+}
+
+static void tmpfs_free_block(tmpfs_mount_t *tfm, tmpfs_node_t *v,
+                             blkptr_t *blkptrp) {
+  assert(blkptrp != NULL);
+
+  if (*blkptrp) {
+    tmpfs_mem_free_dblk(tfm, *blkptrp);
+    *blkptrp = NULL;
+    v->tfn_nblocks--;
+  }
 }
 
 /*
- * tmpfs_reg_expand_meta: expand indirect blocks metadata to store up to blkcnt
+ * tmpfs_expand_meta: expand indirect blocks metadata to store up to blkcnt
  * data blocks.
  */
-static int tmpfs_reg_expand_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
-                                 size_t blkcnt) {
+static int tmpfs_expand_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
+                             size_t blkcnt) {
   int error;
 
   /* L1 */
   if (blkcnt <= DIRECT_BLK_NO)
     return 0;
 
-  if ((error = alloc_block(tfm, v, (blkptr_t *)&v->tfn_reg.l1indirect)))
+  if ((error = tmpfs_alloc_block(tfm, v, (blkptr_t *)&v->tfn_l1indirect)))
     return error;
 
   /* L2 */
   if (blkcnt <= DIRECT_BLK_NO + L1_BLK_NO)
     return 0;
 
-  if ((error = alloc_block(tfm, v, (blkptr_t *)&v->tfn_reg.l2indirect)))
+  if ((error = tmpfs_alloc_block(tfm, v, (blkptr_t *)&v->tfn_l2indirect)))
     return error;
 
   size_t l2blkcnt =
     (blkcnt - (DIRECT_BLK_NO + L1_BLK_NO) + PTR_IN_BLK - 1) / PTR_IN_BLK;
   for (size_t i = 0; i < l2blkcnt; i++) {
-    if ((error = alloc_block(tfm, v, (blkptr_t *)&v->tfn_reg.l2indirect[i])))
+    if ((error = tmpfs_alloc_block(tfm, v, (blkptr_t *)&v->tfn_l2indirect[i])))
       return error;
   }
 
@@ -779,17 +793,17 @@ static int tmpfs_reg_expand_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
 }
 
 /*
- * tmpfs_reg_shrink_meta: shrink indirect blocks metadata to store only blkcnt
+ * tmpfs_shrink_meta: shrink indirect blocks metadata to store only blkcnt
  * data blocks.
  */
-static void tmpfs_reg_shrink_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
-                                  size_t blkcnt) {
+static void tmpfs_shrink_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
+                              size_t blkcnt) {
   /* L1 */
-  if (blkcnt <= DIRECT_BLK_NO && v->tfn_reg.l1indirect)
-    free_block(tfm, v, (blkptr_t *)&v->tfn_reg.l1indirect);
+  if (blkcnt <= DIRECT_BLK_NO && v->tfn_l1indirect)
+    tmpfs_free_block(tfm, v, (blkptr_t *)&v->tfn_l1indirect);
 
   /* L2 */
-  if (!v->tfn_reg.l2indirect)
+  if (!v->tfn_l2indirect)
     return;
 
   /* Number of pointers in L2 block that will be still used. */
@@ -799,77 +813,74 @@ static void tmpfs_reg_shrink_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
     l2ptrcnt =
       (blkcnt - (DIRECT_BLK_NO + L1_BLK_NO) + PTR_IN_BLK - 1) / PTR_IN_BLK;
 
-  for (size_t i = l2ptrcnt; i < PTR_IN_BLK && v->tfn_reg.l2indirect[i]; i++)
-    free_block(tfm, v, (blkptr_t *)&v->tfn_reg.l2indirect[i]);
+  for (size_t i = l2ptrcnt; i < PTR_IN_BLK && v->tfn_l2indirect[i]; i++)
+    tmpfs_free_block(tfm, v, (blkptr_t *)&v->tfn_l2indirect[i]);
 
   if (l2ptrcnt == 0)
-    free_block(tfm, v, (blkptr_t *)&v->tfn_reg.l2indirect);
+    tmpfs_free_block(tfm, v, (blkptr_t *)&v->tfn_l2indirect);
 }
 
 /*
- * tmpfs_reg_get_blk: returns pointer to pointer of data block with number
+ * tmpfs_get_blk: returns pointer to pointer of data block with number
  * blkno.
  */
-static blkptr_t *tmpfs_reg_get_blk(tmpfs_node_t *v, size_t blkno) {
+static blkptr_t *tmpfs_get_blk(tmpfs_node_t *v, size_t blkno) {
   if (blkno < DIRECT_BLK_NO)
-    return &v->tfn_reg.direct[blkno];
+    return &v->tfn_direct[blkno];
 
   blkno -= DIRECT_BLK_NO;
   if (blkno < L1_BLK_NO)
-    return &v->tfn_reg.l1indirect[blkno];
+    return &v->tfn_l1indirect[blkno];
 
   blkno -= L1_BLK_NO;
-  blkptr_t *l1arr = v->tfn_reg.l2indirect[blkno / PTR_IN_BLK];
+  blkptr_t *l1arr = v->tfn_l2indirect[blkno / PTR_IN_BLK];
   return &l1arr[blkno % PTR_IN_BLK];
 }
 
-static int tmpfs_reg_alloc_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t from,
-                               size_t to) {
+static int tmpfs_alloc_blk_range(tmpfs_mount_t *tfm, tmpfs_node_t *v,
+                                 size_t from, size_t to) {
   int error;
 
   for (size_t blkno = from; blkno < to; blkno++) {
-    blkptr_t *blk = tmpfs_reg_get_blk(v, blkno);
+    blkptr_t *blk = tmpfs_get_blk(v, blkno);
     assert(!(*blk));
-    if ((error = alloc_block(tfm, v, blk)))
+    if ((error = tmpfs_alloc_block(tfm, v, blk)))
       return error;
   }
 
   return 0;
 }
 
-static void tmpfs_reg_free_blk(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t from,
-                               size_t to) {
+static void tmpfs_free_blk_range(tmpfs_mount_t *tfm, tmpfs_node_t *v,
+                                 size_t from, size_t to) {
   for (size_t blkno = from; blkno < to; blkno++)
-    free_block(tfm, v, tmpfs_reg_get_blk(v, blkno));
+    tmpfs_free_block(tfm, v, tmpfs_get_blk(v, blkno));
 }
 
 /*
- * tmpfs_reg_resize: resize regular file and possibly allocate new blocks.
+ * tmpfs_resize: resize regular file and possibly allocate new blocks.
  */
-static int tmpfs_reg_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v,
-                            size_t newsize) {
-  assert(v->tfn_type == V_REG);
-
+static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize) {
   size_t oldsize = v->tfn_size;
   size_t oldblks = NBLOCKS(oldsize);
   size_t newblks = NBLOCKS(newsize);
   int error;
 
   if (newblks > oldblks) {
-    if ((error = tmpfs_reg_expand_meta(tfm, v, newblks))) {
-      tmpfs_reg_shrink_meta(tfm, v, oldblks);
+    if ((error = tmpfs_expand_meta(tfm, v, newblks))) {
+      tmpfs_shrink_meta(tfm, v, oldblks);
       return error;
     }
-    if ((error = tmpfs_reg_alloc_blk(tfm, v, oldblks, newblks))) {
-      tmpfs_reg_free_blk(tfm, v, oldblks, newblks);
-      tmpfs_reg_shrink_meta(tfm, v, oldblks);
+    if ((error = tmpfs_alloc_blk_range(tfm, v, oldblks, newblks))) {
+      tmpfs_free_blk_range(tfm, v, oldblks, newblks);
+      tmpfs_shrink_meta(tfm, v, oldblks);
       return error;
     }
 
   } else if (newsize < oldsize) {
     if (newblks < oldblks) {
-      tmpfs_reg_free_blk(tfm, v, newblks, oldblks);
-      tmpfs_reg_shrink_meta(tfm, v, newblks);
+      tmpfs_free_blk_range(tfm, v, newblks, oldblks);
+      tmpfs_shrink_meta(tfm, v, newblks);
     }
 
     /* If the file is not being truncated to a block boundry, the contents of
@@ -877,7 +888,7 @@ static int tmpfs_reg_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v,
     size_t blkno = BLKNO(newsize);
     size_t blkoff = BLKOFF(newsize);
     if (blkoff) {
-      blkptr_t *blk = tmpfs_reg_get_blk(v, blkno);
+      blkptr_t *blk = tmpfs_get_blk(v, blkno);
       memset((void *)*blk + blkoff, 0, BLOCK_SIZE - blkoff);
     }
   }
