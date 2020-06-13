@@ -198,7 +198,7 @@ vm_page_t *vm_page_alloc(size_t npages) {
   size_t i = n;
 
   /* Lowest non-empty queue of size higher or equal to log2(npages). */
-  while (TAILQ_EMPTY(&freelist[i]) && i < PM_NQUEUES)
+  while (i < PM_NQUEUES && TAILQ_EMPTY(&freelist[i]))
     i++;
 
   if (i == PM_NQUEUES)

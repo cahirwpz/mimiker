@@ -97,6 +97,12 @@
   __attribute__((__format__(__scanf__, fmtarg, firstvararg)))
 #define __format_arg(fmtarg) __attribute__((__format_arg__(fmtarg)))
 
+#ifndef __syslog_attribute__
+#define __syslog__ __printf__
+#endif
+#define __sysloglike(fmtarg, firstvararg)                                      \
+  __attribute__((__format__(__syslog__, fmtarg, firstvararg)))
+
 #define __strong_alias(alias, sym)                                             \
   extern __typeof(alias) alias __attribute__((__alias__(#sym)))
 #define __weak_alias(alias, sym)                                               \

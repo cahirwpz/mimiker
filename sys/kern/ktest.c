@@ -2,7 +2,6 @@
 #include <sys/kenv.h>
 #include <sys/ktest.h>
 #include <sys/libkern.h>
-#include <sys/time.h>
 #include <sys/interrupt.h>
 
 #define KTEST_MAX_NO 1024
@@ -84,8 +83,6 @@ typedef int (*test_func_t)(unsigned);
 
 /* If the test fails, run_test will not return. */
 static int run_test(test_entry_t *t) {
-  timeval_t start = get_uptime();
-
   /* These are messages to the user, so I intentionally use kprintf instead of
    * log. */
   kprintf("# Running test \"%s\".\n", t->test_name);
@@ -119,9 +116,6 @@ static int run_test(test_entry_t *t) {
   }
   if (result == KTEST_FAILURE)
     ktest_failure();
-
-  timeval_t end = get_uptime();
-  tv2st(timeval_sub(&end, &start));
 
   return result;
 }
