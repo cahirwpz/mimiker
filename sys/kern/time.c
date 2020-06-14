@@ -20,17 +20,25 @@ int do_clock_gettime(clockid_t clk, timespec_t *tp) {
 }
 
 systime_t ts2hz(timespec_t *ts) {
-  int64_t sec = ts->tv_sec;
-  int ticks;
+  systime_t ticks;
 
-  if (sec < INT_MAX / CLK_TCK) {
-    ticks = sec * CLK_TCK;
-    if (ticks <= INT_MAX - ts->tv_nsec / (1000000000 / CLK_TCK))
-      ticks += ts->tv_nsec / (1000000000 / CLK_TCK);
-    else
-      ticks = INT_MAX;
+  if (ts->tv_sec < 0 || (ts->tv_sec == 0 && ts->tv_nsec == 0))
+    return 0;
+
+  if (ts->tv_sec <= UINT_MAX / CLK_TCK) {
+    const int pow9 = 1000000000;
+    int tick = pow9 / CLK_TCK;
+    /* We are rounding up the number of ticks */
+    long nsectck = (ts->tv_nsec + tick - 1) / tick;
+    ticks = ts->tv_sec * CLK_TCK;
+
+    if (ticks <= UINT_MAX - nsectck - 1) {
+      /* We are adding 1 for the current tick to expire */
+      ticks += nsectck + 1;
+    } else
+      ticks = UINT_MAX;
   } else
-    ticks = INT_MAX;
+    ticks = UINT_MAX;
 
   return ticks;
 }
@@ -53,9 +61,7 @@ static int ts2timo(clockid_t clock_id, int flags, timespec_t *ts,
   if ((ts->tv_sec == 0 && ts->tv_nsec == 0) || ts->tv_sec < 0)
     return ETIMEDOUT;
 
-  /* Resolution of tick is lower then gettime, adding 1 tick ensure that we will
-   * wait at least given time */
-  *timo = ts2hz(ts) + 1;
+  *timo = ts2hz(ts);
 
   return 0;
 }

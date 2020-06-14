@@ -534,7 +534,7 @@ static int sys_clock_nanosleep(proc_t *p, clock_nanosleep_args_t *args,
   timespec_t rqtp, rmtp;
   int error, error2;
 
-  if ((error = copyin_s(u_rqtp, rqtp))){
+  if ((error = copyin_s(u_rqtp, rqtp))) {
     *res = error;
     return 0;
   }
