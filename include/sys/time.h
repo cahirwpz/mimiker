@@ -51,7 +51,8 @@ typedef struct bintime {
 time_t tm2sec(tm_t *tm);
 
 static inline systime_t bt2st(bintime_t *bt) {
-  return bt->sec * CLK_TCK + (((uint64_t)CLK_TCK * (uint32_t)(bt->frac >> 32)) >> 32);
+  return bt->sec * CLK_TCK +
+         (((uint64_t)CLK_TCK * (uint32_t)(bt->frac >> 32)) >> 32);
 }
 
 static inline void bt2ts(bintime_t *bt, timespec_t *ts) {
