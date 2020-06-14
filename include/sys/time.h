@@ -3,7 +3,7 @@
 
 #include <sys/types.h>
 
-#define CLK_TCK 100 /* system clock ticks per second */
+#define CLK_TCK 1000 /* system clock ticks per second */
 
 typedef struct tm {
   int tm_sec;          /* seconds after the minute [0-61] */
@@ -156,6 +156,9 @@ struct itimerval {
   struct timeval it_interval; /* timer interval */
   struct timeval it_value;    /* current value */
 };
+
+#define TIMER_RELTIME 0 /* relative timer */
+#define TIMER_ABSTIME 1 /* absolute timer */
 
 #ifdef _KERNEL
 

@@ -530,13 +530,20 @@ static int sys_clock_nanosleep(proc_t *p, clock_nanosleep_args_t *args,
   clockid_t clock_id = args->clock_id;
   int flags = args->flags;
   const timespec_t *u_rqtp = args->rqtp;
-  timespec_t rqtp;
-  int error;
+  timespec_t *u_rmtp = args->rmtp;
+  timespec_t rqtp, rmtp;
+  int error, error2;
 
   if ((error = copyin_s(u_rqtp, rqtp)))
     return error;
 
-  return do_clock_nanosleep(clock_id, flags, &rqtp, NULL);
+  error = do_clock_nanosleep(clock_id, flags, &rqtp, u_rmtp ? &rmtp : NULL);
+
+  if ((u_rmtp != NULL && (error == 0 || error == EINTR)) &&
+      (flags & TIMER_ABSTIME) == 0 && (error2 = copyout_s(rmtp, u_rmtp)))
+    error = error2;
+
+  return error;
 }
 
 static int sys_sigaltstack(proc_t *p, sigaltstack_args_t *args,
