@@ -26,6 +26,7 @@ SOURCES = \
 	taskqueue.c \
 	thread_stats.c \
 	thread_exit.c \
+	time.c \
 	turnstile_adjust.c \
 	turnstile_propagate_once.c \
 	turnstile_propagate_many.c \
