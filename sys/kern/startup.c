@@ -10,6 +10,7 @@
 #include <sys/vfs.h>
 #include <sys/vm_map.h>
 #include <sys/vm_physmem.h>
+#include <sys/console.h>
 
 extern void kmain(void *);
 
@@ -30,6 +31,7 @@ __noreturn void kernel_init(void) {
   kmalloc_bootstrap();
   vm_map_bootstrap();
 
+  cn_init();
   sysinit();
   klog("Kernel initialized!");
 

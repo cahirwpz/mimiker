@@ -18,6 +18,7 @@ struct console {
 
 #define CONSOLE_ADD(name) SET_ENTRY(cn_table, name)
 
+void cn_early_init(void);
 void cn_init(void);
 int cn_getc(void);
 void cn_putc(int c);

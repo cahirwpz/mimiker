@@ -21,6 +21,10 @@ static console_t dummy_console = {
 
 CONSOLE_ADD(dummy_console);
 
+void cn_early_init(void) {
+  cn = &dummy_console;
+}
+
 void cn_init(void) {
   SET_DECLARE(cn_table, console_t);
   int prio = INT_MIN;
