@@ -176,7 +176,7 @@ systime_t getsystime(void);
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp);
 
-int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
+int do_clock_nanosleep(clockid_t clk, int flags, timespec_t *rqtp,
                        timespec_t *rmtp);
 
 #else /* _KERNEL */

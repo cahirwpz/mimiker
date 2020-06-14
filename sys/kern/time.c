@@ -1,4 +1,5 @@
 #include <sys/errno.h>
+#include <sys/sleepq.h>
 #include <sys/time.h>
 #include <limits.h>
 
@@ -59,7 +60,53 @@ static int ts2timo(clockid_t clock_id, int flags, timespec_t *ts,
   return 0;
 }
 
-int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
+int do_clock_nanosleep(clockid_t clk, int flags, timespec_t *rqtp,
                        timespec_t *rmtp) {
-  return ENOTSUP;
+  timespec_t rmtstart;
+  int error;
+  systime_t timo;
+
+  if ((error = ts2timo(clk, flags, rqtp, &timo, &rmtstart)) != 0) {
+    if (error == ETIMEDOUT) {
+      error = 0;
+      if (rmtp != NULL)
+        rmtp->tv_sec = rmtp->tv_nsec = 0;
+    }
+    return error;
+  }
+
+again:
+  error = sleepq_wait_timed((void *)(&rmtstart), __caller(0), timo);
+
+  if (error == ETIMEDOUT) {
+    if (rmtp != NULL)
+      rmtp->tv_sec = rmtp->tv_nsec = 0;
+    return 0;
+  }
+
+  if (rmtp != NULL || error == 0) {
+    timespec_t rmtend, tsvar;
+    timespec_t *tpleft = rmtp ? rmtp : &tsvar;
+    int err;
+
+    err = do_clock_gettime(clk, &rmtend);
+    if (err != 0)
+      return err;
+
+    if (flags == TIMER_ABSTIME) {
+      timespecsub(rqtp, &rmtend, tpleft);
+    } else {
+      timespecsub(&rmtend, &rmtstart, tpleft);
+      timespecsub(rqtp, tpleft, tpleft);
+    }
+    if (tpleft->tv_sec < 0)
+      timespecclear(tpleft);
+    if (error == 0) {
+      timo = ts2hz(tpleft);
+      if (timo > 0)
+        goto again;
+    }
+  }
+
+  return error;
 }
