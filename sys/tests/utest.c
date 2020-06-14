@@ -140,6 +140,7 @@ UTEST_ADD_SIMPLE(killpg_same_group);
 UTEST_ADD_SIMPLE(killpg_other_group);
 
 UTEST_ADD_SIMPLE(gettimeofday);
+UTEST_ADD_SIMPLE(nanosleep);
 
 UTEST_ADD_SIMPLE(get_set_uid);
 UTEST_ADD_SIMPLE(get_set_gid);

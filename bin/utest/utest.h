@@ -85,6 +85,7 @@ int test_killpg_same_group(void);
 int test_killpg_other_group(void);
 
 int test_gettimeofday(void);
+int test_nanosleep(void);
 
 int test_get_set_uid(void);
 int test_get_set_gid(void);

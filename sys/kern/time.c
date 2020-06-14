@@ -86,7 +86,7 @@ again:
 
   if (rmtp != NULL || error == 0) {
     timespec_t rmtend, tsvar;
-    timespec_t *tpleft = rmtp ? rmtp : &tsvar;
+    timespec_t *lefttp = rmtp ? rmtp : &tsvar;
     int err;
 
     err = do_clock_gettime(clk, &rmtend);
@@ -94,15 +94,15 @@ again:
       return err;
 
     if (flags == TIMER_ABSTIME) {
-      timespecsub(rqtp, &rmtend, tpleft);
+      timespecsub(rqtp, &rmtend, lefttp);
     } else {
-      timespecsub(&rmtend, &rmtstart, tpleft);
-      timespecsub(rqtp, tpleft, tpleft);
+      timespecsub(&rmtend, &rmtstart, lefttp);
+      timespecsub(rqtp, lefttp, lefttp);
     }
-    if (tpleft->tv_sec < 0)
-      timespecclear(tpleft);
+    if (lefttp->tv_sec < 0)
+      timespecclear(lefttp);
     if (error == 0) {
-      timo = ts2hz(tpleft);
+      timo = ts2hz(lefttp);
       if (timo > 0)
         goto again;
     }
