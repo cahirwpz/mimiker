@@ -32,9 +32,10 @@ static bool is_set(unsigned offset, uint8_t mask) {
 
 static void cbus_uart_init(console_t *dev __unused) {
   vaddr_t handle = kva_alloc(PAGESIZE);
-  pmap_kenter(handle, MALTA_CBUS_UART, VM_PROT_READ | VM_PROT_WRITE,
+  /* MALTA_CBUS_UART is MALTA_FPGA_BASE + 0x900 */
+  pmap_kenter(handle, MALTA_FPGA_BASE, VM_PROT_READ | VM_PROT_WRITE,
               PMAP_NOCACHE);
-  cbus_uart->r_bus_handle = handle;
+  cbus_uart->r_bus_handle = handle + 0x900;
 
   set(LCR, LCR_DLAB);
   out(DLM, 0);
