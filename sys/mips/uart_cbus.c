@@ -3,7 +3,10 @@
 #include <sys/linker_set.h>
 #include <dev/ns16550reg.h>
 #include <mips/malta.h>
+#include <mips/mips.h>
 #include <sys/bus.h>
+#include <sys/kmem.h>
+#include <sys/pmap.h>
 
 RESOURCE_DECLARE(cbus_uart);
 
@@ -28,6 +31,11 @@ static bool is_set(unsigned offset, uint8_t mask) {
 }
 
 static void cbus_uart_init(console_t *dev __unused) {
+  vaddr_t handle = kva_alloc(PAGESIZE);
+  pmap_kenter(handle, MALTA_CBUS_UART, VM_PROT_READ | VM_PROT_WRITE,
+              PMAP_NOCACHE);
+  cbus_uart->r_bus_handle = handle;
+
   set(LCR, LCR_DLAB);
   out(DLM, 0);
   out(DLL, 1); /* 115200 */
