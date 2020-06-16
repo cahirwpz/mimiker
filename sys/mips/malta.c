@@ -159,7 +159,6 @@ void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
 
 __noreturn void platform_init(void) {
   kasan_init();
-  cn_early_init();
   klog_init();
   cpu_init();
   tlb_init();
