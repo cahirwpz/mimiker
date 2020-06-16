@@ -2,7 +2,6 @@
 #include <sys/console.h>
 #include <sys/linker_set.h>
 
-
 static void dummy_init(console_t *dev __unused) {
 }
 static void dummy_putc(console_t *dev __unused, int c __unused) {
