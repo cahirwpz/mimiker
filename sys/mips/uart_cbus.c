@@ -31,6 +31,9 @@ static bool is_set(unsigned offset, uint8_t mask) {
 }
 
 static void cbus_uart_init(console_t *dev __unused) {
+  /* TODO(pj) This resource allocation should be done in parent of
+   * cbus_uart device. Unfortunately now we don't have fully working device
+   * infrastructure. It should be changed after done with DEVCLASS. */
   vaddr_t handle = kva_alloc(PAGESIZE);
   pmap_kenter(handle, MALTA_FPGA_BASE, VM_PROT_READ | VM_PROT_WRITE,
               PMAP_NOCACHE);
