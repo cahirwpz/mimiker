@@ -79,7 +79,7 @@ __noreturn void platform_init(void);
 #define MALTA_CORECTRL_END 0x1dffffff
 #define MALTA_FPGA_BASE 0x1f000000
 
-#define MALTA_CBUS_UART (MALTA_FPGA_BASE + 0x900)
+#define MALTA_CBUS_UART_OFFSET 0x900
 #define MALTA_CBUS_UART_INTR 2
 
 #endif
