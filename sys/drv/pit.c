@@ -144,11 +144,5 @@ static driver_t pit_driver = {
   .attach = pit_attach,
 };
 
-extern device_t *gt_pci;
-
-static void pit_init(void) {
-  (void)make_device(gt_pci, &pit_driver);
-}
-
-SYSINIT_ADD(pit, pit_init, DEPS("rootdev"));
+DRIVER_ADD(pit_driver);
 DEVCLASS_ENTRY(root, pit_driver);

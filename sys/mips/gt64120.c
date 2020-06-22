@@ -233,6 +233,25 @@ static inline void gt_pci_intr_event_init(gt_pci_state_t *gtpci, unsigned irq,
   intr_event_register(&gtpci->intr_event[irq]);
 }
 
+static int gt_pci_probe(device_t *pcib) {
+  int error = 0;
+  devclass_t *dc = devclass_find("pci");
+  assert(dc);
+  driver_t **drv_p;
+  DEVCLASS_FOREACH(drv_p, dc) {
+    driver_t *drv = *drv_p;
+    device_t *dev = device_add_child(pcib);
+    dev->driver = drv;
+    if (device_probe(dev)) {
+      klog("%s detected!", drv->desc);
+      error = device_attach(dev);
+      if (error)
+        return error;
+    }
+  }
+  return 0;
+}
+
 #define MALTA_CORECTRL_SIZE (MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1)
 #define MALTA_PCI0_MEMORY_SIZE                                                 \
   (MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1)
@@ -307,7 +326,7 @@ static int gt_pci_attach(device_t *pcib) {
     INTR_HANDLER_INIT(gt_pci_intr, NULL, gtpci, "GT64120 interrupt", 0);
   bus_intr_setup(pcib, MIPS_HWINT0, &gtpci->intr_handler);
 
-  return bus_generic_probe(pcib);
+  return gt_pci_probe(pcib);
 }
 
 static resource_t *gt_pci_alloc_resource(device_t *pcib, device_t *dev,

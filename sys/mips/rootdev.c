@@ -15,7 +15,7 @@ typedef struct rootdev {
 
 /* TODO: remove following lines when devclasses are implemented */
 extern pci_bus_driver_t gt_pci_bus;
-device_t *gt_pci;
+static device_t *gt_pci;
 
 static rman_t rm_mem; /* stores all resources of root bus children */
 
