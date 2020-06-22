@@ -13,9 +13,6 @@ typedef struct rootdev {
   void *data;
 } rootdev_t;
 
-/* TODO: remove following lines when devclasses are implemented */
-extern pci_bus_driver_t gt_pci_bus;
-
 static rman_t rm_mem; /* stores all resources of root bus children */
 
 static void rootdev_intr_setup(device_t *dev, unsigned num,
@@ -27,14 +24,25 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
   mips_intr_teardown(handler);
 }
 
-static int rootdev_attach(device_t *dev) {
+static int rootdev_attach(device_t *bus) {
   /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ... */
   rman_init(&rm_mem, "Malta I/O space", 0x10000000, 0x1fffffff, RT_MEMORY);
 
-  device_t *gt_pci = device_add_child(dev);
-  gt_pci->driver = &gt_pci_bus.driver;
-  if (device_probe(gt_pci))
-    device_attach(gt_pci);
+  int error = 0;
+  devclass_t *dc = devclass_find("root");
+  assert(dc);
+  driver_t **drv_p;
+  DEVCLASS_FOREACH(drv_p, dc) {
+    driver_t *drv = *drv_p;
+    device_t *dev = device_add_child(bus);
+    dev->driver = drv;
+    if (device_probe(dev)) {
+      klog("%s detected!", drv->desc);
+      error = device_attach(dev);
+      if (error)
+        return error;
+    }
+  }
   return 0;
 }
 

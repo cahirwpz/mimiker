@@ -145,4 +145,4 @@ static driver_t pit_driver = {
 };
 
 DRIVER_ADD(pit_driver);
-DEVCLASS_ENTRY(root, pit_driver);
+DEVCLASS_ENTRY(pci, pit_driver);
