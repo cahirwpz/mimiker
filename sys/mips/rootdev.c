@@ -15,7 +15,6 @@ typedef struct rootdev {
 
 /* TODO: remove following lines when devclasses are implemented */
 extern pci_bus_driver_t gt_pci_bus;
-static device_t *gt_pci;
 
 static rman_t rm_mem; /* stores all resources of root bus children */
 
@@ -32,7 +31,7 @@ static int rootdev_attach(device_t *dev) {
   /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ... */
   rman_init(&rm_mem, "Malta I/O space", 0x10000000, 0x1fffffff, RT_MEMORY);
 
-  gt_pci = device_add_child(dev);
+  device_t *gt_pci = device_add_child(dev);
   gt_pci->driver = &gt_pci_bus.driver;
   if (device_probe(gt_pci))
     device_attach(gt_pci);
