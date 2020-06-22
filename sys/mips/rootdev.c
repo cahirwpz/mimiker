@@ -27,23 +27,7 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
 static int rootdev_attach(device_t *bus) {
   /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ... */
   rman_init(&rm_mem, "Malta I/O space", 0x10000000, 0x1fffffff, RT_MEMORY);
-
-  int error = 0;
-  devclass_t *dc = devclass_find("root");
-  assert(dc);
-  driver_t **drv_p;
-  DEVCLASS_FOREACH(drv_p, dc) {
-    driver_t *drv = *drv_p;
-    device_t *dev = device_add_child(bus);
-    dev->driver = drv;
-    if (device_probe(dev)) {
-      klog("%s detected!", drv->desc);
-      error = device_attach(dev);
-      if (error)
-        return error;
-    }
-  }
-  return 0;
+  return bus_generic_probe(bus);
 }
 
 static resource_t *rootdev_alloc_resource(device_t *bus, device_t *child,
@@ -76,11 +60,14 @@ static bus_driver_t rootdev_driver = {
           .intr_teardown = rootdev_intr_teardown,
           .alloc_resource = rootdev_alloc_resource}};
 
+DEVCLASS_CREATE(root);
+
 static device_t rootdev = (device_t){
   .children = TAILQ_HEAD_INITIALIZER(rootdev.children),
   .driver = (driver_t *)&rootdev_driver,
   .instance = &(rootdev_t){},
   .state = NULL,
+  .devclass = &root_devclass,
 };
 
 static void rootdev_init(void) {
@@ -88,4 +75,3 @@ static void rootdev_init(void) {
 }
 
 SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs", "ithread"));
-DEVCLASS_CREATE(root);

@@ -5,6 +5,7 @@
 #include <sys/kmem.h>
 #include <sys/pmap.h>
 #include <sys/rman.h>
+#include <sys/devclass.h>
 
 int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p) {
@@ -105,21 +106,21 @@ bus_space_t *generic_bus_space = &(bus_space_t){
 /* clang-format on */
 
 int bus_generic_probe(device_t *bus) {
-  device_t *dev;
-  SET_DECLARE(driver_table, driver_t);
-  klog("Scanning %s for known devices.", bus->driver->desc);
-  TAILQ_FOREACH (dev, &bus->children, link) {
-    driver_t **drv_p;
-    SET_FOREACH (drv_p, driver_table) {
-      driver_t *drv = *drv_p;
-      dev->driver = drv;
-      if (device_probe(dev)) {
-        klog("%s detected!", drv->desc);
-        device_attach(dev);
-        break;
-      }
-      dev->driver = NULL;
+  int error = 0;
+  devclass_t *dc = bus->devclass;
+  if (!dc)
+    return error;
+  driver_t **drv_p;
+  DEVCLASS_FOREACH(drv_p, dc) {
+    driver_t *drv = *drv_p;
+    device_t *dev = device_add_child(bus);
+    dev->driver = drv;
+    if (device_probe(dev)) {
+      klog("%s detected!", drv->desc);
+      error = device_attach(dev);
+      if (error)
+        return error;
     }
   }
-  return 0;
+  return error;
 }
