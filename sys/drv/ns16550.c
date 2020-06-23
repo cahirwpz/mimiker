@@ -190,5 +190,4 @@ static driver_t ns16550_driver = {
   .attach = ns16550_attach,
 };
 
-DRIVER_ADD(ns16550_driver);
 DEVCLASS_ENTRY(pci, ns16550_driver);

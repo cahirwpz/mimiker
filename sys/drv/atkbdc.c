@@ -186,5 +186,4 @@ static driver_t atkbdc_driver = {
   .attach = atkbdc_attach,
 };
 
-DRIVER_ADD(atkbdc_driver);
 DEVCLASS_ENTRY(pci, atkbdc_driver);

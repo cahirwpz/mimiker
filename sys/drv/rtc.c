@@ -133,5 +133,4 @@ static driver_t rtc_driver = {
   .attach = rtc_attach,
 };
 
-DRIVER_ADD(rtc_driver);
 DEVCLASS_ENTRY(pci, rtc_driver);

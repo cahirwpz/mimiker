@@ -144,5 +144,4 @@ static driver_t pit_driver = {
   .attach = pit_attach,
 };
 
-DRIVER_ADD(pit_driver);
 DEVCLASS_ENTRY(pci, pit_driver);
