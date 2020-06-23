@@ -301,5 +301,15 @@ typedef struct {
 } fstatvfs_args_t;
 
 typedef struct {
+  int ngroups;
+  gid_t * gidset;
+} getgroups_args_t;
+
+typedef struct {
+  int ngroups;
+  const gid_t * gidset;
+} setgroups_args_t;
+
+typedef struct {
   pid_t pid;
 } getsid_args_t;

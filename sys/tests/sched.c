@@ -9,12 +9,12 @@
 #if 0
 static void demo_thread_1(void) {
   while (true) {
-    timeval_t start = get_uptime();
-    kprintf("[%8zu] Running '%s' thread.\n", (size_t)tv2st(start),
+    bintime_t start = binuptime();
+    kprintf("[%8zu] Running '%s' thread.\n", (size_t)bt2st(start),
             thread_self()->td_name);
-    timeval_t now = get_uptime();
-    while (tv2st(now) < tv2st(start) + 20)
-      now = get_uptime();
+    bintime_t now = binuptime();
+    while (bt2st(now) < bt2st(start) + 20)
+      now = binuptime();
   }
 }
 

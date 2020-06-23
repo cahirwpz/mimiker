@@ -44,7 +44,7 @@ struct bus_space {
                             bus_size_t);
 };
 
-int generic_bs_map(bus_addr_t addr, bus_size_t size, int flags,
+int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p);
 
 uint8_t generic_bs_read_1(bus_space_handle_t handle, bus_size_t offset);
@@ -71,6 +71,8 @@ void generic_bs_write_region_2(bus_space_handle_t handle, bus_size_t offset,
                                const uint16_t *src, bus_size_t count);
 void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
                                const uint32_t *src, bus_size_t count);
+
+extern bus_space_t *generic_bus_space;
 
 #define BUS_SPACE_DECLARE(name) extern bus_space_t name[1]
 

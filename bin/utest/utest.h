@@ -86,7 +86,10 @@ int test_killpg_other_group(void);
 int test_pgrp_orphan(void);
 int test_session_basic(void);
 
+int test_gettimeofday(void);
+
 int test_get_set_uid(void);
 int test_get_set_gid(void);
+int test_get_set_groups(void);
 
 #endif /* __UTEST_H__ */

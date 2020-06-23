@@ -155,17 +155,21 @@ static void read_cpio_archive(void) {
 /* Check if `p1` is a path to file/directory which can be contained directly
  * inside `p2` directory. */
 static bool is_direct_descendant(const char *p1, const char *p2) {
-  while (*p1 && *p1 == *p2) {
-    p1++, p2++;
-  }
+  int i;
 
-  if (*p2)
+  for (i = 0; p1[i] && p1[i] == p2[i]; i++)
+    continue;
+
+  if (p2[i])
     return false;
 
   /* Check whether `p1` is valid filename (does not contain '/') */
-  if (*p1 == '/')
-    p1++; /* skip trailing '/' */
-  return (strchr(p1, '/') == NULL);
+  if (p1[i] == '/')
+    i++; /* skip trailing '/' */
+  else if (i > 0)
+    return false;
+
+  return (strchr(p1 + i, '/') == NULL);
 }
 
 static void initrd_build_tree(void) {

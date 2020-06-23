@@ -63,6 +63,8 @@ static int sys_sched_yield(proc_t *, void *, register_t *);
 static int sys_sigsuspend(proc_t *, sigsuspend_args_t *, register_t *);
 static int sys_statvfs(proc_t *, statvfs_args_t *, register_t *);
 static int sys_fstatvfs(proc_t *, fstatvfs_args_t *, register_t *);
+static int sys_getgroups(proc_t *, getgroups_args_t *, register_t *);
+static int sys_setgroups(proc_t *, setgroups_args_t *, register_t *);
 static int sys_setsid(proc_t *, void *, register_t *);
 static int sys_getsid(proc_t *, getsid_args_t *, register_t *);
 
@@ -125,6 +127,8 @@ struct sysent sysent[] = {
   [SYS_sigsuspend] = { .nargs = 1, .call = (syscall_t *)sys_sigsuspend },
   [SYS_statvfs] = { .nargs = 2, .call = (syscall_t *)sys_statvfs },
   [SYS_fstatvfs] = { .nargs = 2, .call = (syscall_t *)sys_fstatvfs },
+  [SYS_getgroups] = { .nargs = 2, .call = (syscall_t *)sys_getgroups },
+  [SYS_setgroups] = { .nargs = 2, .call = (syscall_t *)sys_setgroups },
   [SYS_setsid] = { .nargs = 0, .call = (syscall_t *)sys_setsid },
   [SYS_getsid] = { .nargs = 1, .call = (syscall_t *)sys_getsid },
 };
