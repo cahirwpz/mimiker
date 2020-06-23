@@ -10,29 +10,30 @@
 #include <sys/stat.h>
 #include <sys/vfs.h>
 #include <sys/kmem.h>
+#include <sys/pmap.h>
 #include <sys/malloc.h>
 #include <bitstring.h>
 
 /*
- BLOCKS         BYTES
-  0 +------------+ 0
-    |            |      - arena header
-    +------------+ 256B
-    |            |      - inodes
-    |            |
-  5 +------------+ 20KiB
-    |            |
-    |            | - data blocks
-    |            |
-256 +------------+
-    END OF THE ARENA
-
-Areny są połączone w listę.
-
-Rozmiar areny: 256 * 4KiB = 1MiB
-Liczba i-węzłów (zakładając, że jeden ma rozmiar 80 bajtów): (4 * 4KiB + 4KiB -
-256B) / 56 = 361 Liczba bloków na dane: 256 - 4 - 1 = 251
-*/
+ * All memory used by the tmpfs is organized in the list of arenas.
+ * A single arena consists of a header, which contains block usage bitmap and
+ * the inode usage bitmap which show which blocks and inodes are in use. The
+ * memory following the bitmaps in each arena are designated as the inode table
+ * for that arena and the remainder are the data blocks.
+ *
+ * BLOCKS         BYTES
+ *   0+------------+ 0
+ *    |            |      - arena header
+ *    +------------+ 256B
+ *    |            |      - inodes
+ *    |            |
+ *   5+------------+ 20KiB
+ *    |            |
+ *    |            |      - data blocks
+ *    |            |
+ * 256+------------+
+ *   END OF THE ARENA
+ */
 
 #define TMPFS_NAME_MAX 64
 
@@ -125,6 +126,13 @@ typedef struct tmpfs_mem_arena {
   blkptr_t tma_dblocks;
 } tmpfs_mem_arena_t;
 
+static void try_alloc_frame(vaddr_t va) {
+  paddr_t pap;
+  va &= ~(PAGESIZE - 1); /* align address to the page size */
+  if (!pmap_extract(pmap_kernel(), va, &pap))
+    kva_map(va, BLOCK_SIZE, M_ZERO);
+}
+
 /* tmpfs memory allocation routines */
 static void tmpfs_mem_init_arena(tmpfs_mem_arena_t *arena) {
   arena->tma_ninodes = ARENA_INODE_CNT;
@@ -138,9 +146,10 @@ static void tmpfs_mem_init_arena(tmpfs_mem_arena_t *arena) {
 }
 
 static tmpfs_mem_arena_t *tmpfs_mem_new_arena(tmpfs_mem_arenalist_t *al) {
-  tmpfs_mem_arena_t *newar = kmem_alloc(ARENA_SIZE, M_ZERO);
+  tmpfs_mem_arena_t *newar = (tmpfs_mem_arena_t *)kva_alloc(ARENA_SIZE);
   if (newar == NULL)
     return NULL;
+  kva_map((vaddr_t)newar, BLOCK_SIZE, M_ZERO);
 
   tmpfs_mem_init_arena(newar);
 
@@ -170,7 +179,7 @@ static blkptr_t tmpfs_mem_arena_alloc_dblk(tmpfs_mem_arena_t *arena) {
   arena->tma_ndblocks--;
 
   blkptr_t blk = (void *)arena->tma_dblocks + BLOCK_SIZE * index;
-  bzero(blk, BLOCK_SIZE);
+  kva_map((vaddr_t)blk, BLOCK_SIZE, M_ZERO);
   return blk;
 }
 
@@ -180,6 +189,7 @@ static void tmpfs_mem_arena_free_dblk(tmpfs_mem_arena_t *arena, blkptr_t blk) {
 
   bit_set(arena->tma_dblock_bm, index);
   arena->tma_ndblocks++;
+  kva_unmap((vaddr_t)blk, BLOCK_SIZE);
 }
 
 static tmpfs_node_t *tmpfs_mem_arena_alloc_inode(tmpfs_mem_arena_t *arena) {
@@ -192,6 +202,7 @@ static tmpfs_node_t *tmpfs_mem_arena_alloc_inode(tmpfs_mem_arena_t *arena) {
   arena->tma_ninodes--;
 
   tmpfs_node_t *node = arena->tma_inodes + index;
+  try_alloc_frame((vaddr_t)node);
   bzero(node, sizeof(tmpfs_node_t));
   return node;
 }
