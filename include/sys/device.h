@@ -27,8 +27,6 @@ struct driver {
   d_detach_t detach;     /* detach device from system */
 };
 
-#define DRIVER_ADD(name) SET_ENTRY(driver_table, name)
-
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
 
 struct device {

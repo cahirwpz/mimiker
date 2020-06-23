@@ -414,5 +414,4 @@ pci_bus_driver_t gt_pci_bus = {
 };
 /* clang-format on */
 
-DRIVER_ADD(gt_pci_bus);
 DEVCLASS_ENTRY(root, gt_pci_bus);
