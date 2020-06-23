@@ -2,8 +2,6 @@
 #include <sys/console.h>
 #include <sys/linker_set.h>
 
-static console_t *cn;
-
 static void dummy_init(console_t *dev __unused) {
 }
 static void dummy_putc(console_t *dev __unused, int c __unused) {
@@ -20,6 +18,8 @@ static console_t dummy_console = {
 };
 
 CONSOLE_ADD(dummy_console);
+
+static console_t *cn = &dummy_console;
 
 void cn_init(void) {
   SET_DECLARE(cn_table, console_t);
