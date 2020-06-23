@@ -6,8 +6,6 @@
 #include <sys/timer.h>
 #include <sys/sysinit.h>
 
-#define SYSTIME_FREQ 1000 /* 1[tick] = 1[ms] */
-
 static systime_t now = 0;
 static timer_t *clock = NULL;
 
@@ -28,7 +26,7 @@ static void clock_init(void) {
     panic("Missing suitable timer for maintenance of system clock!");
   tm_init(clock, clock_cb, NULL);
   if (tm_start(clock, TMF_PERIODIC | TMF_TIMESOURCE, (bintime_t){},
-               HZ2BT(SYSTIME_FREQ)))
+               HZ2BT(CLK_TCK)))
     panic("Failed to start system clock!");
   klog("System clock uses \'%s\' hardware timer.", clock->tm_name);
 }

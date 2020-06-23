@@ -12,4 +12,7 @@ void kmem_free(void *ptr, size_t size);
 vaddr_t kva_alloc(size_t size);
 void kva_free(vaddr_t ptr, size_t size);
 
+void kva_map(vaddr_t ptr, size_t size, kmem_flags_t flags);
+void kva_unmap(vaddr_t ptr, size_t size);
+
 #endif /* !_SYS_KMEM_H_ */
