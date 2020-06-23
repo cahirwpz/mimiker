@@ -240,6 +240,8 @@ static inline void gt_pci_intr_event_init(gt_pci_state_t *gtpci, unsigned irq,
 DEVCLASS_CREATE(pci);
 
 static int gt_pci_attach(device_t *pcib) {
+  /* TODO(pj) This should be done in other place. Fix it after done with drivers
+   * infrastructure. */
   pcib->devclass = &pci_devclass;
   gt_pci_state_t *gtpci = pcib->state;
 
