@@ -152,6 +152,8 @@ static int atkbdc_probe(device_t *dev) {
 static int atkbdc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
+  vnodeops_init(&scancode_vnodeops);
+
   atkbdc_state_t *atkbdc = dev->state;
 
   atkbdc->scancodes.data = kmalloc(M_DEV, KBD_BUFSIZE, M_ZERO);
@@ -184,12 +186,4 @@ static driver_t atkbdc_driver = {
   .attach = atkbdc_attach,
 };
 
-extern device_t *gt_pci;
-
-static void atkbdc_init(void) {
-  vnodeops_init(&scancode_vnodeops);
-  (void)make_device(gt_pci, &atkbdc_driver);
-}
-
-SYSINIT_ADD(atkbdc, atkbdc_init, DEPS("rootdev"));
 DEVCLASS_ENTRY(pci, atkbdc_driver);

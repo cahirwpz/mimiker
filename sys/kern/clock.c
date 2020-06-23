@@ -31,4 +31,4 @@ static void clock_init(void) {
   klog("System clock uses \'%s\' hardware timer.", clock->tm_name);
 }
 
-SYSINIT_ADD(clock, clock_init, DEPS("sched", "callout", "pit"));
+SYSINIT_ADD(clock, clock_init, DEPS("sched", "callout", "rootdev"));

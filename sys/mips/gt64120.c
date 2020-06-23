@@ -237,7 +237,12 @@ static inline void gt_pci_intr_event_init(gt_pci_state_t *gtpci, unsigned irq,
 #define MALTA_PCI0_MEMORY_SIZE                                                 \
   (MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1)
 
+DEVCLASS_CREATE(pci);
+
 static int gt_pci_attach(device_t *pcib) {
+  /* TODO(pj) This should be done in other place. Fix it after done with drivers
+   * infrastructure. */
+  pcib->devclass = &pci_devclass;
   gt_pci_state_t *gtpci = pcib->state;
 
   /* PCI I/O memory */
@@ -411,5 +416,4 @@ pci_bus_driver_t gt_pci_bus = {
 };
 /* clang-format on */
 
-DEVCLASS_CREATE(pci);
 DEVCLASS_ENTRY(root, gt_pci_bus);
