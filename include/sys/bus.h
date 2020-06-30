@@ -219,5 +219,6 @@ static inline void bus_release_resource(device_t *dev, res_type_t type, int rid,
 }
 
 int bus_generic_probe(device_t *bus);
+device_t *bus_generic_identify(driver_t *driver, device_t *bus);
 
 #endif /* !_SYS_BUS_H_ */

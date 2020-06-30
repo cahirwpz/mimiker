@@ -12,6 +12,7 @@ static device_t *device_alloc(device_t *parent, devclass_t *dc, int unit) {
   TAILQ_INIT(&dev->children);
   dev->parent = parent;
   dev->unit = unit;
+  dev->devclass = dc;
   return dev;
 }
 
@@ -19,6 +20,12 @@ device_t *device_add_child(device_t *dev, devclass_t *dc, int unit) {
   device_t *child = device_alloc(dev, dc, unit);
   TAILQ_INSERT_TAIL(&dev->children, child, link);
   return child;
+}
+
+device_t *device_identify(driver_t *driver, device_t *parent) {
+  assert(driver != NULL);
+  d_identify_t identify = driver->identify;
+  return identify ? identify(driver, parent) : NULL;
 }
 
 /* TODO: this routine should go over all drivers within a suitable class and

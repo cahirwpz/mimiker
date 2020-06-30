@@ -184,6 +184,7 @@ static driver_t atkbdc_driver = {
   .size = sizeof(atkbdc_state_t),
   .probe = atkbdc_probe,
   .attach = atkbdc_attach,
+  .identify = bus_generic_identify,
 };
 
 DEVCLASS_ENTRY(pci, atkbdc_driver);
