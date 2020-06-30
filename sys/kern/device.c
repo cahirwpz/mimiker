@@ -6,16 +6,17 @@
 
 KMALLOC_DEFINE(M_DEV, "devices & drivers", PAGESIZE * 1024);
 
-static device_t *device_alloc(void) {
+static device_t *device_alloc(device_t *parent, devclass_t *dc, int unit) {
   device_t *dev = kmalloc(M_DEV, sizeof(device_t), M_ZERO);
   TAILQ_INIT(&dev->resources);
   TAILQ_INIT(&dev->children);
+  dev->parent = parent;
+  dev->unit = unit;
   return dev;
 }
 
-device_t *device_add_child(device_t *dev) {
-  device_t *child = device_alloc();
-  child->parent = dev;
+device_t *device_add_child(device_t *dev, devclass_t *dc, int unit) {
+  device_t *child = device_alloc(dev, dc, unit);
   TAILQ_INSERT_TAIL(&dev->children, child, link);
   return child;
 }
@@ -45,14 +46,6 @@ int device_detach(device_t *dev) {
   if (res == 0)
     kfree(M_DEV, dev->state);
   return res;
-}
-
-device_t *make_device(device_t *parent, driver_t *driver) {
-  device_t *dev = device_add_child(parent);
-  dev->driver = driver;
-  if (device_probe(dev))
-    device_attach(dev);
-  return dev;
 }
 
 void device_add_resource(device_t *dev, resource_t *r, int rid) {

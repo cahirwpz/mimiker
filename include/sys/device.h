@@ -41,17 +41,15 @@ struct device {
   device_bus_t bus;
   driver_t *driver;
   devclass_t *devclass;
+  int unit;
   void *instance; /* used by bus driver to store data in children */
   void *state;    /* memory requested by driver for its state*/
 };
 
-device_t *device_add_child(device_t *dev);
+device_t *device_add_child(device_t *dev, devclass_t *dc, int unit);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);
 int device_detach(device_t *dev);
-
-/* Manually create a device with given driver and parent device. */
-device_t *make_device(device_t *parent, driver_t *driver);
 
 /*! \brief Prepares and adds a resource to a device.
  *
