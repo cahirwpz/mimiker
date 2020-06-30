@@ -13,10 +13,6 @@ typedef struct rootdev {
   void *data;
 } rootdev_t;
 
-/* TODO: remove following lines when devclasses are implemented */
-extern pci_bus_driver_t gt_pci_bus;
-device_t *gt_pci;
-
 static rman_t rm_mem; /* stores all resources of root bus children */
 
 static void rootdev_intr_setup(device_t *dev, unsigned num,
@@ -28,15 +24,10 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
   mips_intr_teardown(handler);
 }
 
-static int rootdev_attach(device_t *dev) {
+static int rootdev_attach(device_t *bus) {
   /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ... */
   rman_init(&rm_mem, "Malta I/O space", 0x10000000, 0x1fffffff, RT_MEMORY);
-
-  gt_pci = device_add_child(dev);
-  gt_pci->driver = &gt_pci_bus.driver;
-  if (device_probe(gt_pci))
-    device_attach(gt_pci);
-  return 0;
+  return bus_generic_probe(bus);
 }
 
 static resource_t *rootdev_alloc_resource(device_t *bus, device_t *child,
@@ -69,11 +60,14 @@ static bus_driver_t rootdev_driver = {
           .intr_teardown = rootdev_intr_teardown,
           .alloc_resource = rootdev_alloc_resource}};
 
+DEVCLASS_CREATE(root);
+
 static device_t rootdev = (device_t){
   .children = TAILQ_HEAD_INITIALIZER(rootdev.children),
   .driver = (driver_t *)&rootdev_driver,
   .instance = &(rootdev_t){},
   .state = NULL,
+  .devclass = &root_devclass,
 };
 
 static void rootdev_init(void) {
@@ -81,4 +75,3 @@ static void rootdev_init(void) {
 }
 
 SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs", "ithread"));
-DEVCLASS_CREATE(root);
