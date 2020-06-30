@@ -67,7 +67,7 @@ static device_t rootdev = (device_t){
   .driver = (driver_t *)&rootdev_driver,
   .instance = &(rootdev_t){},
   .state = NULL,
-  .devclass = &root_devclass,
+  .devclass = &DEVCLASS(root),
 };
 
 static void rootdev_init(void) {

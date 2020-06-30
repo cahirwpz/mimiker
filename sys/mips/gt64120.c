@@ -393,7 +393,7 @@ static void gt_pci_activate_resource(device_t *pcib, device_t *dev,
 }
 
 static device_t *gt_pci_identify(driver_t *drv, device_t *parent) {
-  return device_add_child(parent, &pci_devclass, 0);
+  return device_add_child(parent, &DEVCLASS(pci), 0);
 }
 
 /* clang-format off */
