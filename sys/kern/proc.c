@@ -75,6 +75,11 @@ static pid_t pid_alloc(void) {
   __unreachable();
 }
 
+/* Session functions */
+int proc_getsid(pid_t pid, sid_t *sidp) {
+  return ENOTSUP;
+}
+
 /* Process group functions */
 
 /* Finds process group with the ID specified by pgid or returns NULL. */
