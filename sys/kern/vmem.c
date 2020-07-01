@@ -82,7 +82,7 @@ static alignas(PAGESIZE) uint8_t P_VMEM_BOOTPAGE[PAGESIZE];
  * methods in NetBSD's vmem and M_NOGROW flag in Mimiker. */
 static alignas(PAGESIZE) uint8_t P_BT_BOOTPAGE[PAGESIZE * 3];
 
-void vmem_bootstrap(void) {
+void init_vmem(void) {
   pool_add_page(P_VMEM, P_VMEM_BOOTPAGE, sizeof(P_VMEM_BOOTPAGE));
   pool_add_page(P_BT, P_BT_BOOTPAGE, sizeof(P_BT_BOOTPAGE));
 }

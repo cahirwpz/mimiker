@@ -117,7 +117,7 @@ static void *malta_kenv(int argc, char **argv, char **envp) {
     }
   }
 
-  kenv_bootstrap(kenvp, kinit);
+  init_kenv(kenvp, kinit);
 
   return stk->stk_ptr;
 }
@@ -153,18 +153,18 @@ static void malta_physmem(void) {
 }
 
 void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
-  thread_bootstrap();
+  init_thread0();
   return malta_kenv(argc, argv, envp);
 }
 
 __noreturn void platform_init(void) {
-  kasan_init();
-  klog_init();
-  cpu_init();
-  tlb_init();
-  mips_intr_init();
-  mips_timer_init();
-  pmap_bootstrap();
+  init_kasan();
+  init_klog();
+  init_mips_cpu();
+  init_mips_tlb();
+  init_mips_intr();
+  init_mips_timer();
+  init_pmap();
   malta_physmem();
   intr_enable();
   kernel_init();

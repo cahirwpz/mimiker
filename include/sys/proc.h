@@ -21,6 +21,9 @@ typedef TAILQ_HEAD(, session) session_list_t;
 
 extern mtx_t *all_proc_mtx;
 
+/*! \brief Called during kernel initialization. */
+void init_proc(void);
+
 /*! \brief Structure allocated per session (group of process groups)
  *
  * Field markings and the corresponding locks:

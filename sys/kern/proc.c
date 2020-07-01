@@ -14,7 +14,6 @@
 #include <sys/sched.h>
 #include <sys/malloc.h>
 #include <sys/vfs.h>
-#include <sys/sysinit.h>
 #include <bitstring.h>
 
 /* Allocate PIDs from a reasonable range, can be changed as needed. */
@@ -45,9 +44,7 @@ static pgrp_t *pgrp_lookup(pgid_t pgid);
 static proc_t *proc_find_raw(pid_t pid);
 static session_t *session_lookup(sid_t sid);
 
-/* Process ID management functions */
-
-static void proc_init(void) {
+void init_proc(void) {
   for (int i = 0; i < NBUCKETS; i++) {
     TAILQ_INIT(&proc_hashtbl[i]);
     TAILQ_INIT(&pgrp_hashtbl[i]);
@@ -55,6 +52,7 @@ static void proc_init(void) {
   }
 }
 
+/* Process ID management functions */
 static bool pid_is_taken(pid_t pid) {
   /* PID 0 is reserved. */
   if (pid == 0)
@@ -593,5 +591,3 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
 
   __unreachable();
 }
-
-SYSINIT_ADD(proc, proc_init, NODEPS);

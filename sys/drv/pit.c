@@ -7,7 +7,6 @@
 #include <sys/klog.h>
 #include <sys/timer.h>
 #include <sys/spinlock.h>
-#include <sys/sysinit.h>
 #include <sys/devclass.h>
 
 typedef struct pit_state {
