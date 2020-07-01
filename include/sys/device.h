@@ -46,7 +46,7 @@ struct device {
   void *state;    /* memory requested by driver for its state*/
 };
 
-device_t *device_add_child(device_t *dev, devclass_t *dc, int unit);
+device_t *device_add_child(device_t *parent, devclass_t *dc, int unit);
 device_t *device_identify(driver_t *driver, device_t *parent);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);

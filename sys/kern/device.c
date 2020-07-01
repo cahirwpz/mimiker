@@ -16,9 +16,9 @@ static device_t *device_alloc(device_t *parent, devclass_t *dc, int unit) {
   return dev;
 }
 
-device_t *device_add_child(device_t *dev, devclass_t *dc, int unit) {
-  device_t *child = device_alloc(dev, dc, unit);
-  TAILQ_INSERT_TAIL(&dev->children, child, link);
+device_t *device_add_child(device_t *parent, devclass_t *dc, int unit) {
+  device_t *child = device_alloc(parent, dc, unit);
+  TAILQ_INSERT_TAIL(&parent->children, child, link);
   return child;
 }
 

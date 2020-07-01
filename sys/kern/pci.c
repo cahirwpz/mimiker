@@ -43,6 +43,8 @@ void pci_bus_enumerate(device_t *pcib) {
       if (!pci_device_present(pcib, 0, j, k))
         continue;
 
+      /* It looks like dev is a leaf in device tree, but it can also be an inner
+       * node. */
       device_t *dev = device_add_child(pcib, NULL, -1);
       pci_device_t *pcid = kmalloc(M_DEV, sizeof(pci_device_t), M_ZERO);
 
