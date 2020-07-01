@@ -6,6 +6,7 @@
 #include <sys/linker_set.h>
 #include <sys/rman.h>
 
+typedef struct devclass devclass_t;
 typedef struct device device_t;
 typedef struct driver driver_t;
 typedef struct resource resource_t;
@@ -26,8 +27,6 @@ struct driver {
   d_detach_t detach;     /* detach device from system */
 };
 
-#define DRIVER_ADD(name) SET_ENTRY(driver_table, name)
-
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
 
 struct device {
@@ -41,6 +40,7 @@ struct device {
   /* Device information and state. */
   device_bus_t bus;
   driver_t *driver;
+  devclass_t *devclass;
   void *instance; /* used by bus driver to store data in children */
   void *state;    /* memory requested by driver for its state*/
 };

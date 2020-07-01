@@ -27,6 +27,7 @@ void do_getresuid(proc_t *p, uid_t *ruid, uid_t *euid, uid_t *suid);
 void do_getresgid(proc_t *p, gid_t *rgid, gid_t *egid, gid_t *sgid);
 int do_setresuid(proc_t *p, uid_t ruid, uid_t euid, uid_t suid);
 int do_setresgid(proc_t *p, gid_t rgid, gid_t egid, gid_t sgid);
+int do_setgroups(proc_t *p, int ngroups, const gid_t *gidset);
 
 void cred_fork(proc_t *to, proc_t *from);
 

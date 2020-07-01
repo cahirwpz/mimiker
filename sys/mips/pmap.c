@@ -213,6 +213,7 @@ static pte_t vm_prot_map[] = {
 void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
   pmap_t *pmap = pmap_kernel();
 
+  assert(page_aligned_p(pa) && page_aligned_p(va));
   assert(pmap_address_p(pmap, va));
   assert(pa != 0);
 

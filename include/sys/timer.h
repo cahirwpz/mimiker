@@ -42,6 +42,8 @@ typedef struct timer {
   void *tm_priv;              /*!< private data (usually device_t *) */
 } timer_t;
 
+/*! \brief  Used to set/change the system boottime */
+void tm_setclock(const bintime_t *bt);
 /*! \brief Used by a driver to make timer device available to the system. */
 int tm_register(timer_t *tm);
 /*! \brief Called when unloading a timer driver. */
@@ -66,7 +68,7 @@ int tm_stop(timer_t *tm);
 /*! \brief Used by interrupt filter routine to trigger a callback. */
 void tm_trigger(timer_t *tm);
 
-/*! \brief Select timer used as a main time source (for getbintime, etc.) */
+/*! \brief Select timer used as a main time source (for binuptime, etc.) */
 void tm_select(timer_t *tm);
 
 #endif /* !_SYS_TIMER_H_ */
