@@ -37,7 +37,7 @@ static void mips_unmask_irq(intr_event_t *ie) {
   mips32_bs_c0(C0_STATUS, SR_IM0 << irq);
 }
 
-void mips_intr_init(void) {
+void init_mips_intr(void) {
   /* Initialize software interrupts handler events. */
   MIPS_INTR_EVENT(MIPS_SWINT0, "swint(0)");
   MIPS_INTR_EVENT(MIPS_SWINT1, "swint(1)");

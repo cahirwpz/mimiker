@@ -109,7 +109,7 @@ static bintime_t mips_timer_gettime(timer_t *tm) {
   return bt;
 }
 
-void mips_timer_init(void) {
+void init_mips_timer(void) {
   mips_timer.tm_min_period = BINTIME(1 / (double)CPU_FREQ),
   mips_timer.tm_max_period = BINTIME(((1LL << 32) - 1) / (double)CPU_FREQ),
   tm_register(&mips_timer);

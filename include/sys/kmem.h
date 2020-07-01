@@ -3,7 +3,9 @@
 
 #include <sys/kmem_flags.h>
 
-void kmem_bootstrap(void);
+/*! \brief Called during kernel initialization. */
+void init_kmem(void);
+
 void *kmem_alloc(size_t size, kmem_flags_t flags) __warn_unused;
 void *kmem_map(paddr_t pa, size_t size) __warn_unused;
 void kmem_free(void *ptr, size_t size);

@@ -45,6 +45,9 @@ struct device {
   void *state;    /* memory requested by driver for its state*/
 };
 
+/*! \brief Called during kernel initialization. */
+void init_devices(void);
+
 device_t *device_add_child(device_t *dev);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);

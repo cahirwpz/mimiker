@@ -259,7 +259,7 @@ char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen) {
 
 static POOL_DEFINE(P_KMEM, "kmem", sizeof(kmalloc_pool_t));
 
-void kmalloc_bootstrap(void) {
+void init_kmalloc(void) {
   INVOKE_CTORS(kmalloc_ctor_table);
 }
 
