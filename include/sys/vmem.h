@@ -14,7 +14,8 @@ typedef struct vmem vmem_t;
  * https://netbsd.gw.com/cgi-bin/man-cgi?vmem+9+NetBSD-current
  */
 
-void vmem_bootstrap(void);
+/*! \brief Called during kernel initialization. */
+void init_vmem(void);
 
 /*! \brief Create a new vmem arena.
  * You need to specify quantum, the smallest unit of allocation. */

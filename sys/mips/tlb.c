@@ -73,7 +73,7 @@ static void read_tlb_size(void) {
 
 /* TLB has been almost completely initialized by "mips_init",
  * so not much is happening here. */
-void tlb_init(void) {
+void init_mips_tlb(void) {
   read_tlb_size();
   /* We're not going to use C0_CONTEXT so set it to zero. */
   mips32_setcontext(0);

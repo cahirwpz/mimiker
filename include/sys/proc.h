@@ -20,6 +20,9 @@ typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
 
 extern mtx_t *all_proc_mtx;
 
+/*! \brief Called during kernel initialization. */
+void init_proc(void);
+
 /*! \brief Structure allocated per process group.
  *
  * Field markings and the corresponding locks:

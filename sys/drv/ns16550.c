@@ -11,7 +11,6 @@
 #include <dev/isareg.h>
 #include <dev/ns16550reg.h>
 #include <sys/interrupt.h>
-#include <sys/sysinit.h>
 #include <sys/stat.h>
 #include <sys/devclass.h>
 

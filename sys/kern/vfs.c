@@ -7,7 +7,6 @@
 #include <sys/file.h>
 #include <sys/vfs.h>
 #include <sys/vnode.h>
-#include <sys/sysinit.h>
 #include <sys/stat.h>
 
 /* TODO: We probably need some fancier allocation, since eventually we should
@@ -47,7 +46,7 @@ static vnodeops_t vfs_root_ops = {.v_lookup = vfs_root_vnode_lookup};
 
 static int vfs_register(vfsconf_t *vfc);
 
-static void vfs_init(void) {
+void init_vfs(void) {
   vnodeops_init(&vfs_root_ops);
 
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops, NULL);
@@ -196,5 +195,3 @@ int vfs_maybe_descend(vnode_t **vp) {
   }
   return 0;
 }
-
-SYSINIT_ADD(vfs, vfs_init, NODEPS);

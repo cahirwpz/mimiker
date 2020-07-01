@@ -19,6 +19,6 @@ typedef struct cpuinfo {
 
 extern cpuinfo_t cpuinfo;
 
-void cpu_init(void);
+void init_mips_cpu(void);
 
 #endif /* !_MIPS_CPUINFO_H_ */

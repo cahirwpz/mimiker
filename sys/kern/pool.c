@@ -294,7 +294,7 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
        pool->pp_itemsize);
 }
 
-void pool_bootstrap(void) {
+void init_pool(void) {
   pool_init(P_POOL, "master pool", sizeof(pool_t), NULL, NULL);
   pool_add_page(P_POOL, P_POOL_BOOTPAGE, sizeof(P_POOL_BOOTPAGE));
   INVOKE_CTORS(pool_ctor_table);
