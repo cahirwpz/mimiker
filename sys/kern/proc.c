@@ -109,6 +109,7 @@ static session_t *session_lookup(sid_t sid) {
 }
 
 /* Session functions */
+
 int proc_getsid(pid_t pid, sid_t *sidp) {
   WITH_MTX_LOCK (all_proc_mtx) {
     proc_t *p = proc_find(pid);

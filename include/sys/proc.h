@@ -150,6 +150,10 @@ int _pgrp_enter(proc_t *p, pgid_t pgid, bool mksess);
  * The SID is returned in `*sidp`. */
 int proc_getsid(pid_t pid, sid_t *sidp);
 
+/*!\brief Get the SID of the process with PID `pid`.
+ * The SID is returned in `*sidp`. */
+int proc_getsid(pid_t pid, sid_t *sidp);
+
 int do_fork(pid_t *cldpidp);
 
 static inline bool proc_is_alive(proc_t *p) {
