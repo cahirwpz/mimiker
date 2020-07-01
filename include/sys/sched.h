@@ -6,6 +6,9 @@
 #include <sys/cdefs.h>
 #include <sys/thread.h>
 
+/*! \brief Called during kernel initialization. */
+void init_sched(void);
+
 /*! \brief Disables preemption.
  *
  * Prevents current thread from switching out on return from interrupt,

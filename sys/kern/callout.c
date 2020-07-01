@@ -4,7 +4,6 @@
 #include <sys/mimiker.h>
 #include <sys/callout.h>
 #include <sys/spinlock.h>
-#include <sys/sysinit.h>
 #include <sys/sleepq.h>
 #include <sys/thread.h>
 #include <sys/sched.h>
@@ -69,7 +68,7 @@ static void callout_thread(void *arg) {
   }
 }
 
-static void callout_init(void) {
+void init_callout(void) {
   bzero(&ci, sizeof(ci));
 
   ci.lock = SPIN_INITIALIZER(0);
@@ -189,5 +188,3 @@ bool callout_drain(callout_t *handle) {
 
   return false;
 }
-
-SYSINIT_ADD(callout, callout_init, DEPS("sched"));

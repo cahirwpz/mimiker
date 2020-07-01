@@ -12,7 +12,6 @@
 #include <sys/time.h>
 #include <sys/timer.h>
 #include <sys/vnode.h>
-#include <sys/sysinit.h>
 #include <sys/devclass.h>
 
 #define RTC_ADDR 0

@@ -16,7 +16,6 @@
 #include <sys/spinlock.h>
 #include <sys/mutex.h>
 #include <sys/sched.h>
-#include <sys/sysinit.h>
 #include <sys/vm_physmem.h>
 #include <bitstring.h>
 
@@ -120,7 +119,7 @@ void pmap_reset(pmap_t *pmap) {
   free_asid(pmap->asid);
 }
 
-void pmap_bootstrap(void) {
+void init_pmap(void) {
   pmap_setup(&kernel_pmap);
   kernel_pmap.pde = _kernel_pmap_pde;
 }

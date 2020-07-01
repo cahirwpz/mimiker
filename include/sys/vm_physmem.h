@@ -6,7 +6,7 @@
 typedef struct vm_physseg vm_physseg_t;
 
 /* \brief Allocate vm_page structures to be managed by vm_physseg allocator. */
-void vm_page_init(void);
+void init_vm_page(void);
 
 /* \brief Allocate physical memory segment without vm_page structures. */
 #define vm_physseg_plug(start, end) _vm_physseg_plug((start), (end), false)

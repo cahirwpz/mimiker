@@ -11,7 +11,6 @@
 #include <dev/isareg.h>
 #include <dev/atkbdcreg.h>
 #include <sys/interrupt.h>
-#include <sys/sysinit.h>
 #include <sys/devclass.h>
 
 /* XXX: resource size must be a power of 2 ?! */

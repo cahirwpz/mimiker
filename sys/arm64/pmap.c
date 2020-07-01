@@ -17,7 +17,7 @@ void pmap_reset(pmap_t *pmap) {
   panic("Not implemented!");
 }
 
-void pmap_bootstrap(void) {
+void init_pmap(void) {
   panic("Not implemented!");
 }
 
