@@ -130,6 +130,7 @@ static driver_t rtc_driver = {
   .desc = "MC146818 RTC driver",
   .size = sizeof(rtc_state_t),
   .attach = rtc_attach,
+  .identify = bus_generic_identify,
 };
 
 DEVCLASS_ENTRY(pci, rtc_driver);

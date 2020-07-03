@@ -12,6 +12,8 @@ struct devclass {
   driver_t **end_p;
 };
 
+#define DEVCLASS(dc_name) dc_name##_devclass
+
 /* Create a new devclass with name \dc_name which will store a linker set
  * of drivers associated with the new devclass. */
 #define DEVCLASS_CREATE(dc_name)                                               \

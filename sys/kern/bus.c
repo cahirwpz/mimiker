@@ -113,7 +113,9 @@ int bus_generic_probe(device_t *bus) {
   driver_t **drv_p;
   DEVCLASS_FOREACH(drv_p, dc) {
     driver_t *drv = *drv_p;
-    device_t *dev = device_add_child(bus);
+    device_t *dev = device_identify(drv, bus);
+    if (dev == NULL)
+      continue;
     dev->driver = drv;
     if (device_probe(dev)) {
       klog("%s detected!", drv->desc);
@@ -123,4 +125,8 @@ int bus_generic_probe(device_t *bus) {
     }
   }
   return error;
+}
+
+device_t *bus_generic_identify(driver_t *driver, device_t *bus) {
+  return device_add_child(bus, NULL, -1);
 }

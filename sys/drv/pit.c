@@ -141,6 +141,7 @@ static driver_t pit_driver = {
   .desc = "i8254 PIT driver",
   .size = sizeof(pit_state_t),
   .attach = pit_attach,
+  .identify = bus_generic_identify,
 };
 
 DEVCLASS_ENTRY(pci, pit_driver);
