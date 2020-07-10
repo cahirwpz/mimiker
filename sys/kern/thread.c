@@ -114,8 +114,8 @@ void thread_delete(thread_t *td) {
   callout_drain(&td->td_slpcallout);
   sleepq_destroy(td->td_sleepqueue);
   turnstile_destroy(td->td_turnstile);
-  kfree(M_STR, td->td_name);
   pool_free(P_THREAD, td);
+  kfree(M_STR, td->td_name);
 }
 
 thread_t *thread_self(void) {
