@@ -1,46 +1,68 @@
 /dts-v1/;
 
 / {
+
     model = "MIPS Malta-R";
     compatible = "mti,malta";
+    #address-cells = <2>;
+    #size-cells = <1>;
 
-	  cpus {
-		    cpu@0 {
-			      compatible = "mti,mips14KEc", "mti,mips14Kc";
-		    };
-	  };
-
-    memory {
-        device_type = "memory";
-        reg = <0x0 0x8000000>;
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        cpu@0 {
+            compatible = "mti,mips24Kf";
+            reg = <0>;
+        };
     };
 
-    root@0 {
-        #address-cells = <1>;
+    memory@0 {
+        device_type = "memory";
+        reg = <0 0x0 0x8000000>;
+    };
+
+    intc: interrupt-controller {
+        interrupt-controller;
+        #address-cells = <0>;
+        #interrupt-cells = <1>;
+    };
+
+    root {
+        #address-cells = <2>;
         #size-cells = <1>;
-        #id-cells = <1>;
 
-        cbus@0 {
+        cbus@1f000000 {
             compatible = "cbus";
-            reg = <0x1f000000 0x100000 0x0>;
-            #address-cells = <1>;
+            #address-cells = <2>;
             #size-cells = <1>;
-            #id-cells = <1>;
+            reg = <0 0x1f000000 0x100000>;
+            ranges = <0 0x0 0 0x1f000000 0x100000>;
 
-            serial@0 {
+            serial@900 {
                 compatible = "ns16550";
-                reg = <0x900 0x40 0x0>;
+                reg = <0 0x900 0x40>;
+                reg-shift = <3>;
+                reg-io-width = <1>;
+                interrupt-parent = <&intc>;
+                interrupts = <2>;
             };
         };
 
-        pci@0 {
+        pci@1be00000 {
+            device_type = "pci";
             compatible = "pci";
-            reg = <0x10000000 0x800000 0x0
-                   0x18000000 0x3e00000 0x1>; 
-                   
+            #address-cells = <3>;
+            #size-cells = <2>;
+            // MALTA_CORECTRL_BASE
+            reg = <0 0x1be00000 0x200000>;
+            // MALTA_PCI0_MEMORY_BASE
+            // MALTA_PCI0_IO_BASE
+            ranges = <0x82000000 0 0x10000000 0 0x10000000 0 0x8000000>, /* memory */
+                     <0x81000000 0 0x18000000 0 0x18000000 0 0x3e00000> /* io */;
+            bus-range = <0x0 0x1>;
 
-            isa@0 {
-                reg = <0x0 0x1000 0x0>;
+            isa@0,0 {
+                reg = <0 0 0x0 0 0x1000>;
 
                 compatible = "isa";
                 #address-cells = <1>;
@@ -48,34 +70,40 @@
                 #id-cells = <1>;
                 #interrupt-cells = <1>;
 
-                rtc@0 {
+                interrupt-parent = <&intc>;
+
+                rtc@70 {
                     compatible = "rtc";
-                    reg = <0x70 0x10 0x0>;
+                    reg = <0x70 0x10>;
+                    // IRQ: Real Time Clock, PIIX4 82371AB SouthBridge
                     interrupts = <8>;
                 };
 
-                atkbdc@0 {
+                atkbdc@60 {
                     compatible = "atkbdc";
-                    reg = <0x60 0x1 0x0
-                           0x64 0x1 0x1>;
+                    reg = <0x60 0x1 0x64 0x1>;
+                    // IRQ: Keyboard, FDC37M817 Super I/O
                     interrupts = <1>;
                 };
 
-                pit@0 {
+                pit@40 {
                     compatible = "pit";
-                    reg = <0x40 0x10 0x0>;
+                    reg = <0x40 0x10>;
+                    // IRQ: System Timer, PIIX4 82371AB SouthBridge
                     interrupts = <0>;
                 };
 
-                serial@0 {
+                serial@3f8 {
                     compatible = "ns16550";
-                    reg = <0x3f8 0x40 0x0>;
+                    reg = <0x3f8 0x40>;
+                    // IRQ: UART1, FDC37M817 Super I/O
                     interrupts = <3>;
                 };
 
-                serial@1 {
+                serial@2f8 {
                     compatible = "ns16550";
-                    reg = <0x2f8 0x40 0x0>;
+                    reg = <0x2f8 0x40>;
+                    // IRQ: UART0, FDC37M817 Super I/O
                     interrupts = <4>;
                 };
 
