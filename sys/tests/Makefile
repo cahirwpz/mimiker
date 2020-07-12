@@ -6,7 +6,6 @@ SOURCES = \
 	broken.c \
 	callout.c \
 	crash.c \
-	fdt.c \
 	klog.c \
 	kmem.c \
 	linker_set.c \
