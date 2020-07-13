@@ -54,11 +54,6 @@ void fdtab_hold(fdtab_t *fdt) {
   refcnt_acquire(&fdt->fdt_count);
 }
 
-void fdtab_drop(fdtab_t *fdt) {
-  if (refcnt_release(&fdt->fdt_count))
-    fdtab_destroy(fdt);
-}
-
 /* Grows given file descriptor table to contain new_size file descriptors
  * (up to MAXFILES) */
 static void fd_growtable(fdtab_t *fdt, int new_size) {
@@ -124,6 +119,7 @@ fdtab_t *fdtab_create(void) {
   fdt->fdt_nfiles = NDFILE;
   fdt->fdt_entries = kmalloc(M_FD, sizeof(fdent_t) * NDFILE, M_ZERO);
   fdt->fdt_map = kmalloc(M_FD, bitstr_size(NDFILE), M_ZERO);
+  fdt->fdt_count = 1;
   mtx_init(&fdt->fdt_mtx, 0);
   return fdt;
 }
@@ -152,11 +148,13 @@ fdtab_t *fdtab_copy(fdtab_t *fdt) {
   memcpy(newfdt->fdt_map, fdt->fdt_map,
          sizeof(bitstr_t) * bitstr_size(fdt->fdt_nfiles));
 
-  fdtab_hold(newfdt);
   return newfdt;
 }
 
-void fdtab_destroy(fdtab_t *fdt) {
+void fdtab_drop(fdtab_t *fdt) {
+  if (!refcnt_release(&fdt->fdt_count))
+    return;
+
   assert(fdt->fdt_count <= 0);
   /* No need to lock mutex, we have the only reference left. */
 

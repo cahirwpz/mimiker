@@ -408,9 +408,7 @@ __noreturn void run_program(const char *path, char *const *argv,
   p->p_uspace = vm_map_new();
 
   /* Prepare file descriptor table... */
-  fdtab_t *fdt = fdtab_create();
-  fdtab_hold(fdt);
-  p->p_fdtable = fdt;
+  p->p_fdtable = fdtab_create();
 
   /* Set current working directory to root directory */
   vnode_hold(vfs_root_vnode);

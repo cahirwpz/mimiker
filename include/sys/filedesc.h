@@ -15,8 +15,6 @@ void fdtab_drop(fdtab_t *fdt);
 fdtab_t *fdtab_create(void);
 /* Allocates a new descriptor table making it a copy of an existing one. */
 fdtab_t *fdtab_copy(fdtab_t *fdt);
-/* Frees the table and possibly closes underlying files. */
-void fdtab_destroy(fdtab_t *fdt);
 /* Assign a file structure to a new descriptor with number >= minfd. */
 int fdtab_install_file(fdtab_t *fdt, file_t *f, int minfd, int *fdp);
 /* Assign a file structure to a certain descriptor number. */
