@@ -87,9 +87,6 @@ void init_sleepq(void) {
     sc->sc_lock = SPIN_INITIALIZER(0);
     TAILQ_INIT(&sc->sc_queues);
   }
-
-  /* Thread Zero has no sleepqueue, add it here. */
-  thread_self()->td_sleepqueue = sleepq_alloc();
 }
 
 static POOL_DEFINE(P_SLEEPQ, "sleepq", sizeof(sleepq_t));

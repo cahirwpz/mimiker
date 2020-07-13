@@ -15,6 +15,7 @@
 #include <sys/vfs.h>
 #include <sys/vm_map.h>
 #include <sys/vm_physmem.h>
+#include <sys/pmap.h>
 #include <sys/console.h>
 
 extern void kmain(void *);
@@ -28,6 +29,7 @@ static void mount_fs(void) {
 }
 
 __noreturn void kernel_init(void) {
+  init_pmap();
   init_vm_page();
   init_pool();
   init_vmem();
@@ -41,10 +43,12 @@ __noreturn void kernel_init(void) {
   init_sleepq();
   init_turnstile();
   init_sched();
+  init_thread0();
 
   /* With scheduler ready we can create necessary threads. */
   init_ithreads();
   init_callout();
+  preempt_enable();
 
   /* Init VFS and mount filesystems (including devfs). */
   init_vfs();

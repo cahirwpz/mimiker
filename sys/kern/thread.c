@@ -22,9 +22,38 @@ static thread_list_t zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 
 /* FTTB such a primitive method of creating new TIDs will do. */
 static tid_t make_tid(void) {
-  static volatile tid_t tid = 0;
+  static volatile tid_t tid = 1;
   SCOPED_NO_PREEMPTION();
   return tid++;
+}
+
+static alignas(PAGESIZE) uint8_t _stack0[PAGESIZE];
+
+/* Thread Zero is initially running with interrupts disabled! */
+thread_t thread0 = {
+  .td_spin = SPIN_INITIALIZER(0),
+  .td_lock = MTX_INITIALIZER(0),
+  .td_name = "thread0",
+  .td_tid = 0,
+  .td_prio = 255,
+  .td_base_prio = 255,
+  .td_state = TDS_RUNNING,
+  .td_idnest = 1,
+  .td_pdnest = 1,
+  .td_kstack = KSTACK_INIT(_stack0, PAGESIZE),
+};
+
+/* Initializes Thread Zero (first thread in the system). */
+void init_thread0(void) {
+  thread_t *td = &thread0;
+
+  cv_init(&td->td_waitcv, "thread waiters");
+  td->td_sleepqueue = sleepq_alloc();
+  td->td_turnstile = turnstile_alloc();
+  LIST_INIT(&td->td_contested);
+
+  WITH_MTX_LOCK (threads_lock)
+    TAILQ_INSERT_TAIL(&all_threads, td, td_all);
 }
 
 void thread_reap(void) {
@@ -40,7 +69,13 @@ void thread_reap(void) {
     thread_delete(td);
 }
 
-static void thread_init(thread_t *td, prio_t prio) {
+thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
+                        prio_t prio) {
+  /* Firstly recycle some threads to free up memory. */
+  thread_reap();
+
+  thread_t *td = pool_alloc(P_THREAD, M_ZERO);
+
   td->td_tid = make_tid();
   td->td_state = TDS_INACTIVE;
 
@@ -49,42 +84,10 @@ static void thread_init(thread_t *td, prio_t prio) {
 
   td->td_spin = SPIN_INITIALIZER(0);
   td->td_lock = MTX_INITIALIZER(0);
+
   cv_init(&td->td_waitcv, "thread waiters");
   LIST_INIT(&td->td_contested);
   bzero(&td->td_slpcallout, sizeof(callout_t));
-
-  /* From now on, you must use locks on new thread structure. */
-  WITH_MTX_LOCK (threads_lock)
-    TAILQ_INSERT_TAIL(&all_threads, td, td_all);
-}
-
-static alignas(PAGESIZE) uint8_t _stack0[PAGESIZE];
-static thread_t _thread0[1];
-
-/* Creates Thread Zero - first thread in the system. */
-void init_thread0(void) {
-  thread_t *td = _thread0;
-  td->td_name = "kernel-main";
-  kstack_init(&td->td_kstack, _stack0, sizeof(_stack0));
-
-  /* Thread Zero is initially running with interrupts disabled! */
-  td->td_idnest = 1;
-  td->td_state = TDS_RUNNING;
-  PCPU_SET(curthread, td);
-
-  /* Note that initially Thread Zero has no turnstile or sleepqueue attached.
-   * Corresponding subsystems are started before scheduler. We can add missing
-   * pieces to first thread in turnstile & sleepqueue init procedures. */
-  thread_init(td, prio_uthread(255));
-}
-
-thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
-                        prio_t prio) {
-  /* Firstly recycle some threads to free up memory. */
-  thread_reap();
-
-  thread_t *td = pool_alloc(P_THREAD, M_ZERO);
-  thread_init(td, prio);
 
   td->td_name = kstrndup(M_STR, name, TD_NAME_MAX);
   kstack_init(&td->td_kstack, kmem_alloc(PAGESIZE, M_ZERO), PAGESIZE);
@@ -93,6 +96,10 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   td->td_turnstile = turnstile_alloc();
 
   thread_entry_setup(td, fn, arg);
+
+  /* From now on, you must use locks on new thread structure. */
+  WITH_MTX_LOCK (threads_lock)
+    TAILQ_INSERT_TAIL(&all_threads, td, td_all);
 
   klog("Thread %ld {%p} has been created", td->td_tid, td);
 
