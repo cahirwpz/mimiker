@@ -161,7 +161,7 @@ static void cpu_dump(void) {
  * - The EXL and ERL bits in the Status register are both zero
  */
 
-void cpu_init(void) {
+void init_mips_cpu(void) {
   cpu_read_config();
   cpu_dump();
 }

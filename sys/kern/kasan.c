@@ -216,7 +216,7 @@ static void call_ctors(void) {
   }
 }
 
-void kasan_init(void) {
+void init_kasan(void) {
   /* Set entire shadow memory to zero */
   kasan_mark_valid((const void *)KASAN_MD_SANITIZED_START,
                    KASAN_MD_SANITIZED_SIZE);

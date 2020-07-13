@@ -20,6 +20,9 @@ typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
 
 extern mtx_t *all_proc_mtx;
 
+/*! \brief Called during kernel initialization. */
+void init_proc(void);
+
 /*! \brief Structure allocated per process group.
  *
  * Field markings and the corresponding locks:
@@ -124,6 +127,10 @@ __noreturn void proc_exit(int exitstatus);
 /*! \brief Moves process p to the process group with ID specified by pgid.
  * If such process group does not exist then it creates one. */
 int pgrp_enter(proc_t *p, pgid_t pgid);
+
+/*!\brief Get the SID of the process with PID `pid`.
+ * The SID is returned in `*sidp`. */
+int proc_getsid(pid_t pid, sid_t *sidp);
 
 int do_fork(pid_t *cldpidp);
 

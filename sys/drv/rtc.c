@@ -12,7 +12,6 @@
 #include <sys/time.h>
 #include <sys/timer.h>
 #include <sys/vnode.h>
-#include <sys/sysinit.h>
 #include <sys/devclass.h>
 
 #define RTC_ADDR 0
@@ -131,6 +130,7 @@ static driver_t rtc_driver = {
   .desc = "MC146818 RTC driver",
   .size = sizeof(rtc_state_t),
   .attach = rtc_attach,
+  .identify = bus_generic_identify,
 };
 
 DEVCLASS_ENTRY(pci, rtc_driver);

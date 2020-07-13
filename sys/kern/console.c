@@ -21,7 +21,7 @@ CONSOLE_ADD(dummy_console);
 
 static console_t *cn = &dummy_console;
 
-void cn_init(void) {
+void init_cons(void) {
   SET_DECLARE(cn_table, console_t);
   int prio = INT_MIN;
   console_t **ptr;

@@ -6,7 +6,8 @@
 #include <sys/vm.h>
 #include <sys/mutex.h>
 
-void vm_map_bootstrap(void);
+/*! \brief Called during kernel initialization. */
+void init_vm_map(void);
 
 /*! \brief Acquire vm_map non-recursive mutex. */
 void vm_map_lock(vm_map_t *map);

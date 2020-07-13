@@ -62,7 +62,7 @@ static alignas(PAGESIZE) uint8_t _stack0[PAGESIZE];
 static thread_t _thread0[1];
 
 /* Creates Thread Zero - first thread in the system. */
-void thread_bootstrap(void) {
+void init_thread0(void) {
   thread_t *td = _thread0;
   td->td_name = "kernel-main";
   kstack_init(&td->td_kstack, _stack0, sizeof(_stack0));

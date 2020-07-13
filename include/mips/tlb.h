@@ -67,7 +67,7 @@ typedef struct {
 #define PDE_VALID PTE_VALID
 #define PDE_GLOBAL PTE_GLOBAL
 
-void tlb_init(void);
+void init_mips_tlb(void);
 
 /*
  * Note that MIPS implements variable page size by specifying PageMask register,

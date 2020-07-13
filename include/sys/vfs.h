@@ -12,6 +12,9 @@ typedef struct statvfs statvfs_t;
 typedef struct timeval timeval_t;
 typedef struct file file_t;
 
+/*! \brief Called during kernel initialization. */
+void init_vfs(void);
+
 /*
  * vnr (vfs name resolver) is used to convert pathnames to file system vnodes
  * and is loosely based on NetBSD's namei interface. You can find details in

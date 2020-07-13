@@ -82,7 +82,7 @@ static void vm_boot_finish(void) {
   vm_boot_done = true;
 }
 
-void vm_page_init(void) {
+void init_vm_page(void) {
   vm_physseg_t *seg;
 
   for (unsigned i = 0; i < PM_NQUEUES; i++)
