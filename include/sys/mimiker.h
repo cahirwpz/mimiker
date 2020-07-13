@@ -146,6 +146,9 @@ void assert_fail(const char *expr, const char *file, unsigned int line);
 /* Global definitions used throught kernel. */
 __noreturn void kernel_init(void);
 
+/*! \brief Called during kernel initialization. */
+void init_clock(void);
+
 /* Initial range of virtual addresses used by kernel image. */
 extern char __kernel_start[];
 extern char __kernel_end[];

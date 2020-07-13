@@ -9,7 +9,6 @@
 #include <sys/thread.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
-#include <sys/sysinit.h>
 #include <sys/turnstile.h>
 
 static runq_t runq;
@@ -17,7 +16,7 @@ static bool sched_active = false;
 
 #define SLICE 10
 
-static void sched_init(void) {
+void init_sched(void) {
   runq_init(&runq);
 }
 
@@ -227,5 +226,3 @@ void preempt_enable(void) {
   td->td_pdnest--;
   sched_maybe_preempt();
 }
-
-SYSINIT_ADD(sched, sched_init, NODEPS);

@@ -29,6 +29,7 @@ typedef enum {
 
 /* clang-format off */
 static const sigprop_t sig_properties[NSIG] = {
+  [SIGHUP] = SA_KILL,
   [SIGINT] = SA_KILL,
   [SIGILL] = SA_KILL,
   [SIGABRT] = SA_KILL,
@@ -47,6 +48,7 @@ static const sigprop_t sig_properties[NSIG] = {
 static const sigset_t cantmask = {__sigmask(SIGKILL) | __sigmask(SIGSTOP)};
 
 static const char *sig_name[NSIG] = {
+  [SIGHUP] = "SIGHUP",
   [SIGINT] = "SIGINT",
   [SIGILL] = "SIGILL",
   [SIGABRT] = "SIGABRT",

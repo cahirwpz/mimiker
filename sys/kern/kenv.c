@@ -4,7 +4,7 @@
 static char **_kenvp;
 static char **_kinit = (char * [2]){NULL, NULL};
 
-void kenv_bootstrap(char **kenvp, char **kinit) {
+void init_kenv(char **kenvp, char **kinit) {
   _kenvp = kenvp;
   if (kinit)
     _kinit = kinit;

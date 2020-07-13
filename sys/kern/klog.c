@@ -21,7 +21,7 @@ static const char *subsystems[] = {
   [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_FILESYS] = "filesys",
   [KL_TIME] = "time",   [KL_FILE] = "file",       [KL_UNDEF] = "???"};
 
-void klog_init(void) {
+void init_klog(void) {
   const char *mask = kenv_get("klog-mask");
   klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_DEFAULT_MASK;
   klog.verbose = kenv_get("klog-quiet") ? 0 : 1;

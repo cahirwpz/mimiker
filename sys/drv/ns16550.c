@@ -11,7 +11,6 @@
 #include <dev/isareg.h>
 #include <dev/ns16550reg.h>
 #include <sys/interrupt.h>
-#include <sys/sysinit.h>
 #include <sys/stat.h>
 #include <sys/devclass.h>
 
@@ -188,6 +187,7 @@ static driver_t ns16550_driver = {
   .desc = "NS16550 UART driver",
   .size = sizeof(ns16550_state_t),
   .attach = ns16550_attach,
+  .identify = bus_generic_identify,
 };
 
 DEVCLASS_ENTRY(pci, ns16550_driver);

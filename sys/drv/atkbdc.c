@@ -11,7 +11,6 @@
 #include <dev/isareg.h>
 #include <dev/atkbdcreg.h>
 #include <sys/interrupt.h>
-#include <sys/sysinit.h>
 #include <sys/devclass.h>
 
 /* XXX: resource size must be a power of 2 ?! */
@@ -184,6 +183,7 @@ static driver_t atkbdc_driver = {
   .size = sizeof(atkbdc_state_t),
   .probe = atkbdc_probe,
   .attach = atkbdc_attach,
+  .identify = bus_generic_identify,
 };
 
 DEVCLASS_ENTRY(pci, atkbdc_driver);

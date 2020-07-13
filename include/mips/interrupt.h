@@ -44,7 +44,8 @@ typedef enum {
 typedef struct intr_handler intr_handler_t;
 typedef struct exc_frame exc_frame_t;
 
-void mips_intr_init(void);
+void init_mips_intr(void);
+
 void mips_intr_setup(intr_handler_t *ih, mips_intr_t irq);
 void mips_intr_teardown(intr_handler_t *ih);
 void mips_intr_handler(exc_frame_t *frame);

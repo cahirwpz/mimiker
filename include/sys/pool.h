@@ -16,7 +16,8 @@
 
 typedef struct pool pool_t;
 
-void pool_bootstrap(void);
+/*! \brief Called during kernel initialization. */
+void init_pool(void);
 
 /*! \brief Creates a pool of objects of given size. */
 pool_t *pool_create(const char *desc, size_t size);

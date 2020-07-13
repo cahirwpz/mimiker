@@ -6,7 +6,6 @@
 #include <sys/bus.h>
 #include <sys/exception.h>
 #include <sys/pci.h>
-#include <sys/sysinit.h>
 #include <sys/devclass.h>
 
 typedef struct rootdev {
@@ -67,11 +66,9 @@ static device_t rootdev = (device_t){
   .driver = (driver_t *)&rootdev_driver,
   .instance = &(rootdev_t){},
   .state = NULL,
-  .devclass = &root_devclass,
+  .devclass = &DEVCLASS(root),
 };
 
-static void rootdev_init(void) {
+void init_devices(void) {
   device_attach(&rootdev);
 }
-
-SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs", "ithread"));
