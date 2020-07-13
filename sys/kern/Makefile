@@ -54,7 +54,6 @@ SOURCES = \
 	spinlock.c \
 	startup.c \
 	syscalls.c \
-	sysinit.c \
 	taskqueue.c \
 	turnstile.c \
 	thread.c \

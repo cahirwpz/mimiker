@@ -211,6 +211,7 @@ static driver_t stdvga = {
   .size = sizeof(stdvga_state_t),
   .probe = stdvga_probe,
   .attach = stdvga_attach,
+  .identify = bus_generic_identify,
 };
 
 DEVCLASS_ENTRY(pci, stdvga);
