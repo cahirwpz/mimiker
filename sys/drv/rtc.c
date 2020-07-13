@@ -12,7 +12,6 @@
 #include <sys/time.h>
 #include <sys/timer.h>
 #include <sys/vnode.h>
-#include <sys/sysinit.h>
 #include <sys/devclass.h>
 
 #define RTC_ADDR 0
@@ -97,6 +96,8 @@ static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
 static int rtc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
+  vnodeops_init(&rtc_time_vnodeops);
+
   rtc_state_t *rtc = dev->state;
 
   rtc->regs = bus_alloc_resource(
@@ -129,14 +130,7 @@ static driver_t rtc_driver = {
   .desc = "MC146818 RTC driver",
   .size = sizeof(rtc_state_t),
   .attach = rtc_attach,
+  .identify = bus_generic_identify,
 };
 
-extern device_t *gt_pci;
-
-static void rtc_init(void) {
-  vnodeops_init(&rtc_time_vnodeops);
-  (void)make_device(gt_pci, &rtc_driver);
-}
-
-SYSINIT_ADD(rtc, rtc_init, DEPS("rootdev"));
-DEVCLASS_ENTRY(root, rtc_driver);
+DEVCLASS_ENTRY(pci, rtc_driver);

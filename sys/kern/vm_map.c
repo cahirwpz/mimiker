@@ -93,7 +93,7 @@ static void vm_map_setup(vm_map_t *map) {
   mtx_init(&map->mtx, 0);
 }
 
-void vm_map_bootstrap(void) {
+void init_vm_map(void) {
   vm_map_setup(kspace);
   kspace->pmap = pmap_kernel();
   vm_map_activate(kspace);

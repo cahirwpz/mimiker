@@ -4,7 +4,6 @@
 #include <sys/mimiker.h>
 #include <sys/klog.h>
 #include <sys/timer.h>
-#include <sys/sysinit.h>
 
 static systime_t now = 0;
 static timer_t *clock = NULL;
@@ -20,7 +19,7 @@ static void clock_cb(timer_t *tm, void *arg) {
   sched_clock();
 }
 
-static void clock_init(void) {
+void init_clock(void) {
   clock = tm_reserve(NULL, TMF_PERIODIC);
   if (clock == NULL)
     panic("Missing suitable timer for maintenance of system clock!");
@@ -30,5 +29,3 @@ static void clock_init(void) {
     panic("Failed to start system clock!");
   klog("System clock uses \'%s\' hardware timer.", clock->tm_name);
 }
-
-SYSINIT_ADD(clock, clock_init, DEPS("sched", "callout", "pit"));

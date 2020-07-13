@@ -2,11 +2,16 @@
 #include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/kmem.h>
+#include <sys/vmem.h>
 #include <sys/pool.h>
 #include <sys/malloc.h>
+#include <sys/device.h>
 #include <sys/sched.h>
-#include <sys/sysinit.h>
+#include <sys/interrupt.h>
+#include <sys/sleepq.h>
+#include <sys/turnstile.h>
 #include <sys/thread.h>
+#include <sys/proc.h>
 #include <sys/vfs.h>
 #include <sys/vm_map.h>
 #include <sys/vm_physmem.h>
@@ -22,17 +27,38 @@ static void mount_fs(void) {
   do_mount("tmpfs", "/tmp");
 }
 
-SYSINIT_ADD(mount_fs, mount_fs, DEPS("vfs"));
-
 __noreturn void kernel_init(void) {
-  vm_page_init();
-  pool_bootstrap();
-  kmem_bootstrap();
-  kmalloc_bootstrap();
-  vm_map_bootstrap();
+  init_vm_page();
+  init_pool();
+  init_vmem();
+  init_kmem();
+  init_kmalloc();
+  init_vm_map();
 
-  cn_init();
-  sysinit();
+  init_cons();
+
+  /* Make dispatcher & scheduler structures ready for use. */
+  init_sleepq();
+  init_turnstile();
+  init_sched();
+
+  /* With scheduler ready we can create necessary threads. */
+  init_ithreads();
+  init_callout();
+
+  /* Init VFS and mount filesystems (including devfs). */
+  init_vfs();
+  mount_fs();
+
+  /* First (FTTB also last) stage of device init. */
+  init_devices();
+
+  /* Some clocks has been found during device init process,
+   * so it's high time to start system clock. */
+  init_clock();
+
+  init_proc();
+
   klog("Kernel initialized!");
 
   thread_t *main_thread = thread_create("main", kmain, NULL, prio_kthread(0));

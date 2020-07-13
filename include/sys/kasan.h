@@ -46,7 +46,7 @@ typedef struct {
  *
  * Should be called during early kernel boot process, as soon as the shadow
  * memory is usable. */
-void kasan_init(void);
+void init_kasan(void);
 
 /* Mark bytes as valid (in the shadow memory) */
 void kasan_mark_valid(const void *addr, size_t size);
@@ -68,7 +68,7 @@ void kasan_quar_additem(quar_t *q, void *ptr);
 /* Release all items from the quarantine. */
 void kasan_quar_releaseall(quar_t *q);
 #else /* !KASAN */
-#define kasan_init() __nothing
+#define init_kasan() __nothing
 #define kasan_mark_valid(addr, size) __nothing
 #define kasan_mark_invalid(addr, size, code) __nothing
 #define kasan_mark(addr, size, size_with_redzone, code) __nothing

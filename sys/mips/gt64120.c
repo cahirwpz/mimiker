@@ -237,6 +237,8 @@ static inline void gt_pci_intr_event_init(gt_pci_state_t *gtpci, unsigned irq,
 #define MALTA_PCI0_MEMORY_SIZE                                                 \
   (MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1)
 
+DEVCLASS_CREATE(pci);
+
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
@@ -390,12 +392,17 @@ static void gt_pci_activate_resource(device_t *pcib, device_t *dev,
   rman_activate_resource(r);
 }
 
+static device_t *gt_pci_identify(driver_t *drv, device_t *parent) {
+  return device_add_child(parent, &DEVCLASS(pci), 0);
+}
+
 /* clang-format off */
 pci_bus_driver_t gt_pci_bus = {
   .driver = {
     .desc = "GT-64120 PCI bus driver",
     .size = sizeof(gt_pci_state_t),
-    .attach = gt_pci_attach
+    .attach = gt_pci_attach,
+    .identify = gt_pci_identify,
   },
   .bus = {
     .intr_setup = gt_pci_intr_setup,
@@ -411,5 +418,4 @@ pci_bus_driver_t gt_pci_bus = {
 };
 /* clang-format on */
 
-DEVCLASS_CREATE(pci);
 DEVCLASS_ENTRY(root, gt_pci_bus);
