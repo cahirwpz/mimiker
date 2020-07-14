@@ -87,6 +87,9 @@ void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
 
   kstack_t *stk = &thread0.td_kstack;
 
+  /* See thread_entry_setup for explanation. */
+  thread0.td_uframe = kstack_alloc_s(stk, exc_frame_t);
+
   int ntokens = 0;
   for (int i = 0; i < argc; ++i)
     ntokens += count_tokens(argv[i]);
@@ -105,7 +108,6 @@ void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
   tokens = extract_tokens(stk, argv[1], tokens);
   *tokens = NULL;
 
-  thread0.td_uframe = kstack_alloc_s(stk, exc_frame_t);
   kstack_fix_bottom(stk);
 
   /* Let's find "--".
