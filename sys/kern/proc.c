@@ -50,6 +50,11 @@ void init_proc(void) {
   }
 }
 
+/*
+ * Process zero plays role of a sentinel value.
+ * It's sole role is to fork() and create init process.
+ */
+
 pgrp_t pgrp0 = {
   .pg_lock = MTX_INITIALIZER(0),
   .pg_members = TAILQ_HEAD_INITIALIZER(pgrp0.pg_members),
