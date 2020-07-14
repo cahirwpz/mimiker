@@ -192,8 +192,11 @@ static pgrp_t *pgrp_create(pgid_t pgid) {
 }
 
 /* Send SIGHUP and SIGCONT to all stopped processes in the group. */
-static void pgrp_orphan(pgrp_t *pg) {
+static void pgrp_maybe_orphan(pgrp_t *pg) {
   assert(mtx_owned(all_proc_mtx));
+
+  if (--pg->pg_jobc > 0)
+    return;
 
   proc_t *p;
   TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
@@ -206,6 +209,10 @@ static void pgrp_orphan(pgrp_t *pg) {
   }
 }
 
+static bool same_session_p(pgrp_t *pg1, pgrp_t *pg2) {
+  return pg1 != pg2 && pg1->pg_session == pg2->pg_session;
+}
+
 /* A process group is orphaned when for every process in the group,
  * its parent is either in the same group or in a different session.
  * Equivalently, a process group is NOT orphaned when there exists
@@ -216,28 +223,31 @@ static void pgrp_orphan(pgrp_t *pg) {
  * to 0, the process group is orphaned.
  * These counters need to be adjusted whenever any process leaves
  * or joins a process group. */
-static void pgrp_adjust_jobc(proc_t *p, pgrp_t *pg, bool entering) {
+static void pgrp_increase_jobc(proc_t *p, pgrp_t *pg) {
   assert(mtx_owned(all_proc_mtx));
 
-  pgrp_t *ppg = p->p_parent->p_pgrp;
-  /* See if we qualify/qualified `pg` */
-  if (ppg != pg && ppg->pg_session == pg->pg_session) {
-    if (entering)
-      pg->pg_jobc++;
-    else if (--pg->pg_jobc == 0)
-      pgrp_orphan(pg);
-  }
+  if (same_session_p(p->p_parent->p_pgrp, pg))
+    pg->pg_jobc++;
 
-  /* See if our children qualify/qualified their groups. */
   proc_t *child;
   TAILQ_FOREACH (child, CHILDREN(p), p_child) {
-    pgrp_t *cpg = child->p_pgrp;
-    if (cpg != pg && cpg->pg_session == pg->pg_session) {
-      if (entering)
-        cpg->pg_jobc++;
-      else if (--cpg->pg_jobc == 0)
-        pgrp_orphan(cpg);
-    }
+    if (same_session_p(child->p_pgrp, pg))
+      child->p_pgrp->pg_jobc++;
+  }
+}
+
+static void pgrp_decrease_jobc(proc_t *p) {
+  assert(mtx_owned(all_proc_mtx));
+
+  pgrp_t *pg = p->p_pgrp;
+
+  if (same_session_p(p->p_parent->p_pgrp, pg))
+    pgrp_maybe_orphan(pg);
+
+  proc_t *child;
+  TAILQ_FOREACH (child, CHILDREN(p), p_child) {
+    if (same_session_p(child->p_pgrp, pg))
+      pgrp_maybe_orphan(child->p_pgrp);
   }
 }
 
@@ -270,11 +280,10 @@ static void pgrp_leave(proc_t *p) {
 }
 
 static int pgrp_enter_fixup(proc_t *p, pgrp_t *target) {
-  pgrp_adjust_jobc(p, target, true);
+  pgrp_increase_jobc(p, target);
 
   if (p->p_pgrp) {
-    pgrp_adjust_jobc(p, p->p_pgrp, false);
-    /* Leave current group. */
+    pgrp_decrease_jobc(p);
     pgrp_leave(p);
   }
 
@@ -477,7 +486,7 @@ __noreturn void proc_exit(int exitstatus) {
     if (p->p_pid == 1)
       panic("'init' process died!");
 
-    pgrp_adjust_jobc(p, p->p_pgrp, false);
+    pgrp_decrease_jobc(p);
     /* Process orphans, but firstly find init process. */
     proc_t *init = proc_find_raw(1);
     assert(init != NULL);
