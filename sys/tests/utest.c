@@ -12,7 +12,7 @@
 static __noreturn void utest_generic_thread(void *arg) {
   proc_t *p = proc_self();
   /* Run user tests in a separate session. */
-  int error = session_enter(p, p->p_pid);
+  int error = session_enter(p);
   assert(error == 0);
   kern_execve(UTEST_PATH, (char *[]){UTEST_PATH, arg, NULL}, (char *[]){NULL});
 }

@@ -948,10 +948,11 @@ static int sys_setsid(proc_t *p, void *args, register_t *res) {
 
   klog("setsid()");
 
-  if (!(error = session_enter(p, p->p_pid)))
-    *res = p->p_pid;
+  if ((error = session_enter(p)))
+    return error;
 
-  return error;
+  *res = p->p_pid;
+  return 0;
 }
 
 static int sys_getsid(proc_t *p, getsid_args_t *args, register_t *res) {

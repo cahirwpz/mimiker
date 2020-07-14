@@ -269,50 +269,7 @@ static void pgrp_leave(proc_t *p) {
   }
 }
 
-int _pgrp_enter(proc_t *p, pgid_t pgid, bool mksess) {
-  SCOPED_MTX_LOCK(all_proc_mtx);
-
-  /* If creating a session, the pgid of the new group
-   * should be equal to the pid of the process entering the group. */
-  if (mksess)
-    assert(pgid == p->p_pid);
-
-  pgrp_t *target = pgrp_lookup(pgid);
-
-  if (p->p_pgrp) {
-    /* We're done if already belong to the group.
-     * If mksess is true, then that means we're the process group
-     * leader. Process group leaders are not allowed to create new
-     * sessions. */
-    if (target == p->p_pgrp)
-      return (mksess ? EPERM : 0);
-  } else {
-    /* We need to make sure that we will be able to put the process
-     * in some session, which is true if we're making one ourselves or
-     * there is a target pgrp from which we can inherit the session. */
-    assert(target || mksess);
-  }
-
-  /* Create new group if one does not exist. */
-  if (!target) {
-    /* Only allow creation of new pgrp with PGID = PID of creating process. */
-    if (pgid != p->p_pid)
-      return EPERM;
-    target = pgrp_create(pgid);
-
-    if (mksess) {
-      target->pg_session = session_create(p);
-    } else {
-      /* Safe to access p->p_pgrp due to an earlier assertion. */
-      target->pg_session = p->p_pgrp->pg_session;
-      session_hold(target->pg_session);
-    }
-  } else if (mksess) {
-    /* There's already a process group with pgid equal to pid of
-     * the calling process, so we can't create a new session. */
-    return EPERM;
-  }
-
+static int pgrp_enter_fixup(proc_t *p, pgrp_t *target) {
   pgrp_adjust_jobc(p, target, true);
 
   if (p->p_pgrp) {
@@ -326,6 +283,49 @@ int _pgrp_enter(proc_t *p, pgid_t pgid, bool mksess) {
   p->p_pgrp = target;
 
   return 0;
+}
+
+int session_enter(proc_t *p) {
+  SCOPED_MTX_LOCK(all_proc_mtx);
+
+  pgid_t pgid = p->p_pid;
+  pgrp_t *pg = pgrp_lookup(pgid);
+
+  /* Process group leaders are not allowed to create new sessions. */
+  if (p->p_pgrp && pg == p->p_pgrp)
+    return EPERM;
+
+  /* There's already a process group with pgid equal to pid of
+   * the calling process, hence we can't create a new session. */
+  if (pg)
+    return EPERM;
+
+  pg = pgrp_create(pgid);
+  pg->pg_session = session_create(p);
+
+  return pgrp_enter_fixup(p, pg);
+}
+
+int pgrp_enter(proc_t *p, pgid_t pgid) {
+  SCOPED_MTX_LOCK(all_proc_mtx);
+
+  pgrp_t *pg = pgrp_lookup(pgid);
+
+  /* We're done if already belong to the group. */
+  if (p->p_pgrp && pg == p->p_pgrp)
+    return 0;
+
+  /* Create new group if one does not exist. */
+  if (pg == NULL) {
+    /* New pgrp can only be created with PGID = PID of calling process. */
+    if (pgid != p->p_pid)
+      return EPERM;
+    pg = pgrp_create(pgid);
+    pg->pg_session = p->p_pgrp->pg_session;
+    session_hold(pg->pg_session);
+  }
+
+  return pgrp_enter_fixup(p, pg);
 }
 
 /* Process functions */
