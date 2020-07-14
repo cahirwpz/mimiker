@@ -396,8 +396,6 @@ __noreturn void kern_execve(const char *path, char *const *argv,
                             char *const *envv) {
   proc_t *p = proc_self();
 
-  assert(p != NULL);
-
   klog("PID %d: Starting program '%s'", p->p_pid, path);
 
   exec_args_t args;
