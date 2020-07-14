@@ -18,6 +18,7 @@ typedef TAILQ_HEAD(td_queue, thread) td_queue_t;
 
 static mtx_t ts_adj_mtx = MTX_INITIALIZER(0);
 static thread_t *threads[T];
+static volatile bool thread_started;
 
 static condvar_t stopped_cv;
 static mtx_t stopped_mtx = MTX_INITIALIZER(0);
@@ -34,6 +35,7 @@ static bool td_is_blocked_on_mtx(thread_t *td, mtx_t *m) {
 
 static void routine(void *_arg) {
   WITH_NO_PREEMPTION {
+    thread_started = true;
     cv_signal(&stopped_cv);
     mtx_lock(&ts_adj_mtx);
   }
@@ -86,8 +88,11 @@ static int test_turnstile_adjust(void) {
 
   for (int i = 0; i < T; i++) {
     sched_add(threads[i]);
-
-    WITH_MTX_LOCK (&stopped_mtx) { cv_wait(&stopped_cv, &stopped_mtx); }
+    thread_started = false;
+    WITH_MTX_LOCK (&stopped_mtx) {
+      while (!thread_started)
+        cv_wait(&stopped_cv, &stopped_mtx);
+    }
   }
 
   for (int i = 0; i < T; i++)
