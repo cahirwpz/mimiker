@@ -134,6 +134,15 @@ static pid_t pid_alloc(void) {
 }
 
 /* Session management helper functions */
+static session_t *session_create(proc_t *leader) {
+  session_t *s = pool_alloc(P_SESSION, 0);
+  s->s_sid = leader->p_pid;
+  s->s_leader = leader;
+  s->s_count = 1;
+  TAILQ_INSERT_HEAD(SESSION_HASH_CHAIN(leader->p_pid), s, s_hash);
+  return s;
+}
+
 static void session_hold(session_t *s) {
   assert(mtx_owned(all_proc_mtx));
 
@@ -173,6 +182,14 @@ int proc_getsid(pid_t pid, sid_t *sidp) {
 }
 
 /* Process group functions */
+
+static pgrp_t *pgrp_create(pgid_t pgid) {
+  pgrp_t *pg = pool_alloc(P_PGRP, M_ZERO);
+  TAILQ_INIT(&pg->pg_members);
+  pg->pg_id = pgid;
+  TAILQ_INSERT_HEAD(PGRP_HASH_CHAIN(pgid), pg, pg_hash);
+  return pg;
+}
 
 /* Send SIGHUP and SIGCONT to all stopped processes in the group. */
 static void pgrp_orphan(pgrp_t *pg) {
@@ -281,19 +298,10 @@ int _pgrp_enter(proc_t *p, pgid_t pgid, bool mksess) {
     /* Only allow creation of new pgrp with PGID = PID of creating process. */
     if (pgid != p->p_pid)
       return EPERM;
-    target = pool_alloc(P_PGRP, M_ZERO);
-
-    TAILQ_INIT(&target->pg_members);
-    target->pg_id = pgid;
-    TAILQ_INSERT_HEAD(PGRP_HASH_CHAIN(pgid), target, pg_hash);
+    target = pgrp_create(pgid);
 
     if (mksess) {
-      session_t *s = pool_alloc(P_SESSION, 0);
-      s->s_sid = pgid;
-      s->s_leader = p;
-      s->s_count = 1;
-      TAILQ_INSERT_HEAD(SESSION_HASH_CHAIN(pgid), s, s_hash);
-      target->pg_session = s;
+      target->pg_session = session_create(p);
     } else {
       /* Safe to access p->p_pgrp due to an earlier assertion. */
       target->pg_session = p->p_pgrp->pg_session;
