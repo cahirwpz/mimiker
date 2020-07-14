@@ -53,7 +53,7 @@ static int sys_fork(proc_t *p, void *args, register_t *res) {
 
   klog("fork()");
 
-  if ((error = do_fork(&pid)))
+  if ((error = do_fork(NULL, NULL, &pid)))
     return error;
 
   *res = pid;
@@ -70,7 +70,8 @@ static int sys_getpid(proc_t *p, void *args, register_t *res) {
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/getppid.html */
 static int sys_getppid(proc_t *p, void *args, register_t *res) {
   klog("getppid()");
-  *res = p->p_parent ? p->p_parent->p_pid : 0;
+  assert(p->p_parent);
+  *res = p->p_parent->p_pid;
   return 0;
 }
 

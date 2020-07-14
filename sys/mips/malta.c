@@ -105,6 +105,7 @@ void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
   tokens = extract_tokens(stk, argv[1], tokens);
   *tokens = NULL;
 
+  thread0.td_uframe = kstack_alloc_s(stk, exc_frame_t);
   kstack_fix_bottom(stk);
 
   /* Let's find "--".

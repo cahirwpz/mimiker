@@ -7,6 +7,7 @@
 #include <sys/thread.h>
 #include <sys/pcpu.h>
 #include <sys/sched.h>
+#include <sys/proc.h>
 #include <sys/sleepq.h>
 #include <sys/filedesc.h>
 #include <sys/turnstile.h>
@@ -37,6 +38,7 @@ thread_t thread0 = {
   .td_tid = 0,
   .td_prio = 255,
   .td_base_prio = 255,
+  .td_proc = &proc0,
   .td_state = TDS_RUNNING,
   .td_idnest = 1,
   .td_pdnest = 1,
