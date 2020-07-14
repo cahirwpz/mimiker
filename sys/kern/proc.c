@@ -63,12 +63,13 @@ void init_proc(void) {
 static session_t session0 = {
   .s_leader = &proc0,
   .s_count = 1,
-  .s_sid = 0
+  .s_sid = 0,
 };
 
 static pgrp_t pgrp0 = {
   .pg_members = TAILQ_HEAD_INITIALIZER(pgrp0.pg_members),
   .pg_session = &session0,
+  .pg_jobc = 0,
   .pg_id = 0,
 };
 
