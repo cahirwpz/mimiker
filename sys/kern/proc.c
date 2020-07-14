@@ -13,7 +13,10 @@
 #include <sys/sleepq.h>
 #include <sys/sched.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/vnode.h>
 #include <sys/vfs.h>
+#include <sys/vm_map.h>
 #include <bitstring.h>
 
 /* Allocate PIDs from a reasonable range, can be changed as needed. */
@@ -50,6 +53,53 @@ void init_proc(void) {
     TAILQ_INIT(&pgrp_hashtbl[i]);
     TAILQ_INIT(&session_hashtbl[i]);
   }
+}
+
+/*
+ * Process zero plays role of a sentinel value.
+ * It's sole role is to fork() and create init process.
+ */
+
+static session_t session0 = {
+  .s_leader = &proc0,
+  .s_count = 1,
+  .s_sid = 0
+};
+
+static pgrp_t pgrp0 = {
+  .pg_members = TAILQ_HEAD_INITIALIZER(pgrp0.pg_members),
+  .pg_session = &session0,
+  .pg_id = 0,
+};
+
+proc_t proc0 = {
+  .p_lock = MTX_INITIALIZER(0),
+  .p_thread = &thread0,
+  .p_pid = 0,
+  .p_pgrp = &pgrp0,
+  .p_state = PS_NORMAL,
+  .p_children = TAILQ_HEAD_INITIALIZER(proc0.p_children),
+};
+
+void init_proc0(void) {
+  proc_t *p = &proc0;
+
+  /* Let's assign an empty virtual address space... */
+  p->p_uspace = vm_map_new();
+
+  /* Prepare file descriptor table... */
+  p->p_fdtable = fdtab_create();
+
+  /* Set current working directory to root directory, set nominal umask... */
+  vnode_hold(vfs_root_vnode);
+  p->p_cwd = vfs_root_vnode;
+  p->p_cmask = CMASK;
+
+  TAILQ_INSERT_TAIL(&proc_list, p, p_all);
+  TAILQ_INSERT_TAIL(PROC_HASH_CHAIN(0), p, p_hash);
+  TAILQ_INSERT_HEAD(PGRP_HASH_CHAIN(0), &pgrp0, pg_hash);
+  TAILQ_INSERT_HEAD(SESSION_HASH_CHAIN(0), &session0, s_hash);
+  TAILQ_INSERT_HEAD(&pgrp0.pg_members, p, p_pglist);
 }
 
 /* Process ID management functions */
@@ -305,12 +355,13 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
 }
 
 void proc_add(proc_t *p) {
+  assert(p->p_parent);
+
   WITH_MTX_LOCK (all_proc_mtx) {
     p->p_pid = pid_alloc();
     TAILQ_INSERT_TAIL(&proc_list, p, p_all);
     TAILQ_INSERT_TAIL(PROC_HASH_CHAIN(p->p_pid), p, p_hash);
-    if (p->p_parent)
-      TAILQ_INSERT_TAIL(CHILDREN(p->p_parent), p, p_child);
+    TAILQ_INSERT_TAIL(CHILDREN(p->p_parent), p, p_child);
   }
 
   klog("Process PID(%d) {%p} has been created", p->p_pid, p);
@@ -360,13 +411,12 @@ static void proc_reap(proc_t *p) {
   assert(mtx_owned(all_proc_mtx));
 
   assert(p->p_state == PS_ZOMBIE);
+  assert(p->p_parent);
 
   klog("Recycling process PID(%d) {%p}", p->p_pid, p);
 
   pgrp_leave(p);
-
-  if (p->p_parent)
-    TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
+  TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
   TAILQ_REMOVE(&zombie_list, p, p_zombie);
   kfree(M_STR, p->p_elfpath);
   TAILQ_REMOVE(PROC_HASH_CHAIN(p->p_pid), p, p_hash);

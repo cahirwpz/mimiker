@@ -24,6 +24,11 @@ extern mtx_t *all_proc_mtx;
 /*! \brief Called during kernel initialization. */
 void init_proc(void);
 
+/*! \brief Initialize kernel process. */
+void init_proc0(void);
+
+extern proc_t proc0;
+
 /*! \brief Structure allocated per session (group of process groups)
  *
  * Field markings and the corresponding locks:
@@ -154,7 +159,7 @@ int proc_getsid(pid_t pid, sid_t *sidp);
  * The SID is returned in `*sidp`. */
 int proc_getsid(pid_t pid, sid_t *sidp);
 
-int do_fork(pid_t *cldpidp);
+int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp);
 
 static inline bool proc_is_alive(proc_t *p) {
   return (p->p_state == PS_NORMAL || p->p_state == PS_STOPPED);

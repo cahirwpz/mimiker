@@ -11,7 +11,6 @@
 #include <sys/console.h>
 #include <sys/context.h>
 #include <sys/kenv.h>
-#include <sys/pmap.h>
 #include <sys/libkern.h>
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
@@ -82,10 +81,14 @@ static char *make_pair(kstack_t *stk, char *key, char *value) {
  *            "arg1", "arg2=foo", "init=/bin/sh", "arg3=foobar"};
  *     kinit={NULL, "baz"};
  */
-static void *malta_kenv(int argc, char **argv, char **envp) {
+
+void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
   assert(argc == 2);
 
-  kstack_t *stk = &thread_self()->td_kstack;
+  kstack_t *stk = &thread0.td_kstack;
+
+  /* See thread_entry_setup for explanation. */
+  thread0.td_uframe = kstack_alloc_s(stk, exc_frame_t);
 
   int ntokens = 0;
   for (int i = 0; i < argc; ++i)
@@ -152,11 +155,6 @@ static void malta_physmem(void) {
   }
 }
 
-void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
-  init_thread0();
-  return malta_kenv(argc, argv, envp);
-}
-
 __noreturn void platform_init(void) {
   init_kasan();
   init_klog();
@@ -164,7 +162,6 @@ __noreturn void platform_init(void) {
   init_mips_tlb();
   init_mips_intr();
   init_mips_timer();
-  init_pmap();
   malta_physmem();
   intr_enable();
   kernel_init();

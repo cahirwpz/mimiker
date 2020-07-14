@@ -70,9 +70,6 @@ void init_turnstile(void) {
     turnstile_chain_t *tc = &turnstile_chains[i];
     LIST_INIT(&tc->tc_turnstiles);
   }
-
-  /* Thread Zero has no turnstile, add it here. */
-  thread_self()->td_turnstile = turnstile_alloc();
 }
 
 static POOL_DEFINE(P_TURNSTILE, "turnstile", sizeof(turnstile_t));
