@@ -52,7 +52,6 @@ SOURCES = \
 	signal.c \
 	sleepq.c \
 	spinlock.c \
-	startup.c \
 	syscalls.c \
 	taskqueue.c \
 	turnstile.c \

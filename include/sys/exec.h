@@ -31,7 +31,7 @@ int exec_shebang_load(vnode_t *vn, exec_args_t *args);
 #endif /* !_EXEC_IMPL */
 
 int do_execve(const char *user_path, char *const *u_argp, char *const *u_envp);
-__noreturn void run_program(const char *path, char *const *argv,
+__noreturn void kern_execve(const char *path, char *const *argv,
                             char *const *envp);
 
 #endif /* !_SYS_EXEC_H_ */

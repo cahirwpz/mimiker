@@ -13,7 +13,7 @@ static int test_resizable_fdt(void) {
 
   fdtab_t *another_fdt_test = fdtab_copy(fdt_test);
 
-  fdtab_destroy(fdt_test);
+  fdtab_drop(fdt_test);
   fdtab_drop(another_fdt_test);
 
   return KTEST_SUCCESS;

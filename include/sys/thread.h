@@ -148,6 +148,8 @@ thread_t *thread_self(void);
 /*! \brief Initialize first thread in the system. */
 void init_thread0(void);
 
+extern thread_t thread0;
+
 /*! \brief Create a thread.
  *
  * Create a thread with given @name and priority @prio. The thread will execute

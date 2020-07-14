@@ -4,7 +4,7 @@
 #include <sys/runq.h>
 #include <sys/sched.h>
 #include <sys/thread.h>
-#include <sys/condvar.h>
+#include <sys/sleepq.h>
 
 #define T 5
 
@@ -19,9 +19,6 @@ typedef TAILQ_HEAD(td_queue, thread) td_queue_t;
 static mtx_t ts_adj_mtx = MTX_INITIALIZER(0);
 static thread_t *threads[T];
 
-static condvar_t stopped_cv;
-static mtx_t stopped_mtx = MTX_INITIALIZER(0);
-
 static void set_prio(thread_t *td, prio_t prio) {
   WITH_SPIN_LOCK (&td->td_spin)
     sched_set_prio(td, prio);
@@ -34,7 +31,7 @@ static bool td_is_blocked_on_mtx(thread_t *td, mtx_t *m) {
 
 static void routine(void *_arg) {
   WITH_NO_PREEMPTION {
-    cv_signal(&stopped_cv);
+    sleepq_signal(thread_self());
     mtx_lock(&ts_adj_mtx);
   }
 
@@ -70,7 +67,6 @@ static int turnstile_sorted(thread_t *td) {
 }
 
 static int test_turnstile_adjust(void) {
-  cv_init(&stopped_cv, "stopped-condvar");
   prio_t starting_priority = prio_kthread(90);
   prio_t new_priorities[T] = {prio_kthread(80), prio_kthread(50),
                               prio_kthread(170), prio_kthread(10),
@@ -85,9 +81,10 @@ static int test_turnstile_adjust(void) {
   mtx_lock(&ts_adj_mtx);
 
   for (int i = 0; i < T; i++) {
-    sched_add(threads[i]);
-
-    WITH_MTX_LOCK (&stopped_mtx) { cv_wait(&stopped_cv, &stopped_mtx); }
+    WITH_NO_PREEMPTION {
+      sched_add(threads[i]);
+      sleepq_wait(threads[i], "thread start");
+    }
   }
 
   for (int i = 0; i < T; i++)

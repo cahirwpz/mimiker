@@ -4,14 +4,13 @@
 #include <sys/exec.h>
 #include <sys/ktest.h>
 #include <sys/thread.h>
-#include <sys/sched.h>
 #include <sys/proc.h>
 #include <sys/wait.h>
 
 #define UTEST_PATH "/bin/utest"
 
 static __noreturn void utest_generic_thread(void *arg) {
-  run_program(UTEST_PATH, (char *[]){UTEST_PATH, arg, NULL}, (char *[]){NULL});
+  kern_execve(UTEST_PATH, (char *[]){UTEST_PATH, arg, NULL}, (char *[]){NULL});
 }
 
 /* This is the klog mask used with utests. */
@@ -25,15 +24,14 @@ static int utest_generic(const char *name, int status_success) {
   char prefixed_name[TD_NAME_MAX];
   snprintf(prefixed_name, TD_NAME_MAX, "utest-%s", name);
 
-  thread_t *utest_thread = thread_create(prefixed_name, utest_generic_thread,
-                                         (void *)name, prio_kthread(0));
-  proc_t *child = proc_create(utest_thread, proc_self());
-  proc_add(child);
-  sched_add(utest_thread);
+  pid_t cpid;
+  if (do_fork(utest_generic_thread, (void *)name, &cpid))
+    panic("Could not start test!");
 
   int status;
-  pid_t cpid;
-  do_waitpid(child->p_pid, &status, 0, &cpid);
+  pid_t pid;
+  do_waitpid(cpid, &status, 0, &pid);
+  assert(cpid == pid);
 
   /* Restore previous klog mask */
   /* XXX: If we'll use klog_setmask heavily, maybe we should consider
