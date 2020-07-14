@@ -34,10 +34,11 @@ static void mount_fs(void) {
 
 static __noreturn void start_init(__unused void *arg) {
   proc_t *p = proc_self();
+  int error;
 
-  assert(p != NULL);
-
-  pgrp_enter(p, 1);
+  assert(p->p_pid == 1);
+  error = session_enter(p);
+  assert(error == 0);
 
   /* ... and initialize file descriptors required by the standard library. */
   int _stdin, _stdout, _stderr;

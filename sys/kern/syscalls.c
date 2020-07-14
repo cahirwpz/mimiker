@@ -944,9 +944,15 @@ static int sys_setgroups(proc_t *p, setgroups_args_t *args, register_t *res) {
 }
 
 static int sys_setsid(proc_t *p, void *args, register_t *res) {
+  int error;
+
   klog("setsid()");
 
-  return ENOTSUP;
+  if ((error = session_enter(p)))
+    return error;
+
+  *res = p->p_pid;
+  return 0;
 }
 
 static int sys_getsid(proc_t *p, getsid_args_t *args, register_t *res) {

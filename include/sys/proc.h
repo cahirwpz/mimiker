@@ -17,6 +17,7 @@ typedef struct fdtab fdtab_t;
 typedef struct vnode vnode_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
 typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
+typedef TAILQ_HEAD(, session) session_list_t;
 
 extern mtx_t *all_proc_mtx;
 
@@ -28,17 +29,30 @@ void init_proc0(void);
 
 extern proc_t proc0;
 
+/*! \brief Structure allocated per session (group of process groups)
+ *
+ * Field markings and the corresponding locks:
+ *  (a) all_proc_mtx
+ *  (!) read-only access, do not modify!
+ */
+typedef struct session {
+  TAILQ_ENTRY(session) s_hash; /* (a) link on sid hash chain */
+  proc_t *s_leader;            /* (a) Session leader */
+  int s_count;                 /* (a) Count of pgrps in session */
+  sid_t s_sid;                 /* (!) PID of session leader */
+} session_t;
+
 /*! \brief Structure allocated per process group.
  *
  * Field markings and the corresponding locks:
  *  (a) all_proc_mtx
- *  (@) pgrp::pg_lock
  *  (!) read-only access, do not modify!
  */
 typedef struct pgrp {
-  mtx_t pg_lock;                 /* Process group mutex */
   TAILQ_ENTRY(pgrp) pg_hash;     /* (a) link on pgid hash chain */
-  TAILQ_HEAD(, proc) pg_members; /* (@) members of process group */
+  TAILQ_HEAD(, proc) pg_members; /* (a) members of process group */
+  session_t *pg_session;         /* (a) pointer to session */
+  int pg_jobc;                   /* (a) jobc counter, see `pgrp_adjust_jobc` */
   pgid_t pg_id;                  /* (!) process group id */
 } pgrp_t;
 
@@ -70,7 +84,7 @@ struct proc {
   pid_t p_pid;                /* (!) Process ID */
   cred_t p_cred;              /* (@) Process credentials */
   char *p_elfpath;            /* (!) path of loaded elf file */
-  TAILQ_ENTRY(proc) p_pglist; /* (pgrp::pg_lock) link on pg_members list */
+  TAILQ_ENTRY(proc) p_pglist; /* (a) link on pg_members list */
   pgrp_t *p_pgrp;             /* (a,*) process group */
   volatile proc_state_t p_state;  /* (@) process state */
   proc_t *p_parent;               /* (a) parent process */
@@ -121,8 +135,7 @@ proc_t *proc_find(pid_t pid);
  * (pid <-1) sends signal to processes in process group with ID equal (-pid). */
 int proc_sendsig(pid_t pid, signo_t sig);
 
-/*! \brief Gets process group ID of the process specified by pid.
- * If pid equals zero then use process group ID of the calling process. */
+/*! \brief Gets process group ID of the process specified by pid. */
 int proc_getpgid(pid_t pid, pgid_t *pgidp);
 
 /*! \brief Called by a processes that wishes to terminate its life.
@@ -132,6 +145,13 @@ __noreturn void proc_exit(int exitstatus);
 /*! \brief Moves process p to the process group with ID specified by pgid.
  * If such process group does not exist then it creates one. */
 int pgrp_enter(proc_t *p, pgid_t pgid);
+
+/*! \brief Makes process p the session leader of a new session. */
+int session_enter(proc_t *p);
+
+/*!\brief Get the SID of the process with PID `pid`.
+ * The SID is returned in `*sidp`. */
+int proc_getsid(pid_t pid, sid_t *sidp);
 
 /*!\brief Get the SID of the process with PID `pid`.
  * The SID is returned in `*sidp`. */

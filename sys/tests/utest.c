@@ -10,6 +10,10 @@
 #define UTEST_PATH "/bin/utest"
 
 static __noreturn void utest_generic_thread(void *arg) {
+  proc_t *p = proc_self();
+  /* Run user tests in a separate session. */
+  int error = session_enter(p);
+  assert(error == 0);
   kern_execve(UTEST_PATH, (char *[]){UTEST_PATH, arg, NULL}, (char *[]){NULL});
 }
 
@@ -136,6 +140,8 @@ UTEST_ADD_SIMPLE(setpgid);
 UTEST_ADD_SIMPLE(kill);
 UTEST_ADD_SIMPLE(killpg_same_group);
 UTEST_ADD_SIMPLE(killpg_other_group);
+UTEST_ADD_SIMPLE(pgrp_orphan);
+UTEST_ADD_SIMPLE(session_basic);
 
 UTEST_ADD_SIMPLE(gettimeofday);
 

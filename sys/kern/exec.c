@@ -394,7 +394,9 @@ end:
 
 __noreturn void kern_execve(const char *path, char *const *argv,
                             char *const *envv) {
-  klog("Starting program '%s'", path);
+  proc_t *p = proc_self();
+
+  klog("PID %d: Starting program '%s'", p->p_pid, path);
 
   exec_args_t args;
   exec_args_init(&args);
