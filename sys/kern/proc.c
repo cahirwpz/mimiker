@@ -202,16 +202,13 @@ static void pgrp_orphan(pgrp_t *pg) {
 static void pgrp_adjust_jobc(proc_t *p, pgrp_t *pg, bool entering) {
   assert(mtx_owned(all_proc_mtx));
 
-  proc_t *parent = p->p_parent;
-  if (parent) {
-    pgrp_t *ppg = parent->p_pgrp;
-    /* See if we qualify/qualified `pg` */
-    if (ppg != pg && ppg->pg_session == pg->pg_session) {
-      if (entering)
-        pg->pg_jobc++;
-      else if (--pg->pg_jobc == 0)
-        pgrp_orphan(pg);
-    }
+  pgrp_t *ppg = p->p_parent->p_pgrp;
+  /* See if we qualify/qualified `pg` */
+  if (ppg != pg && ppg->pg_session == pg->pg_session) {
+    if (entering)
+      pg->pg_jobc++;
+    else if (--pg->pg_jobc == 0)
+      pgrp_orphan(pg);
   }
 
   /* See if our children qualify/qualified their groups. */
