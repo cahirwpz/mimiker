@@ -230,25 +230,22 @@ static void pgrp_increase_jobc(proc_t *p, pgrp_t *pg) {
     pg->pg_jobc++;
 
   proc_t *child;
-  TAILQ_FOREACH (child, CHILDREN(p), p_child) {
+  TAILQ_FOREACH (child, CHILDREN(p), p_child)
     if (same_session_p(child->p_pgrp, pg))
       child->p_pgrp->pg_jobc++;
-  }
 }
 
 static void pgrp_decrease_jobc(proc_t *p) {
   assert(mtx_owned(all_proc_mtx));
 
   pgrp_t *pg = p->p_pgrp;
-
   if (same_session_p(p->p_parent->p_pgrp, pg))
     pgrp_maybe_orphan(pg);
 
   proc_t *child;
-  TAILQ_FOREACH (child, CHILDREN(p), p_child) {
+  TAILQ_FOREACH (child, CHILDREN(p), p_child)
     if (same_session_p(child->p_pgrp, pg))
       pgrp_maybe_orphan(child->p_pgrp);
-  }
 }
 
 /* Finds process group with the ID specified by pgid or returns NULL. */
@@ -279,7 +276,7 @@ static void pgrp_leave(proc_t *p) {
   }
 }
 
-static int pgrp_enter_fixup(proc_t *p, pgrp_t *target) {
+static int _pgrp_enter(proc_t *p, pgrp_t *target) {
   pgrp_increase_jobc(p, target);
 
   if (p->p_pgrp) {
@@ -312,7 +309,7 @@ int session_enter(proc_t *p) {
   pg = pgrp_create(pgid);
   pg->pg_session = session_create(p);
 
-  return pgrp_enter_fixup(p, pg);
+  return _pgrp_enter(p, pg);
 }
 
 int pgrp_enter(proc_t *p, pgid_t pgid) {
@@ -334,7 +331,7 @@ int pgrp_enter(proc_t *p, pgid_t pgid) {
     session_hold(pg->pg_session);
   }
 
-  return pgrp_enter_fixup(p, pg);
+  return _pgrp_enter(p, pg);
 }
 
 /* Process functions */
