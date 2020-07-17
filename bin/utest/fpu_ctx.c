@@ -24,6 +24,8 @@
 #define P_TEST_TIME 100000
 #define P_PROCESSES 10
 
+#ifdef __mips__
+
 #define MTC1(var, freg) asm volatile("mtc1 %0, " #freg : : "r"(var))
 #define MFC1(var, freg) asm volatile("mfc1 %0, " #freg : "=r"(var))
 
@@ -189,3 +191,5 @@ int test_fpu_ctx_signals() {
 
   return 0;
 }
+
+#endif /* !__mips__ */

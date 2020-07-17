@@ -25,6 +25,8 @@ int test_misbehave() {
   return 0;
 }
 
+#ifdef __mips__
+
 int test_exc_sigsys(void) {
   int retval = 0;
   int error = 0;
@@ -40,3 +42,5 @@ int test_exc_sigsys(void) {
   assert(retval == -1 && error == ENOSYS);
   return 0;
 }
+
+#endif /* !__mips__ */
