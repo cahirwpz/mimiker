@@ -8,9 +8,7 @@ PHDRS
     text   PT_LOAD FLAGS(5); /* read-only, executable */
     data   PT_LOAD FLAGS(6); /* read-write */
     rodata PT_LOAD FLAGS(4); /* read-only */
-    sdata  PT_LOAD FLAGS(6); /* read-write */
     bss    PT_LOAD FLAGS(6); /* read-write */
-    sbss   PT_LOAD FLAGS(6); /* read-write */
 }
 SECTIONS
 {
@@ -36,33 +34,20 @@ SECTIONS
     } : rodata
 
     . = ALIGN(4096);
-
-    _gp = ALIGN(16) + 0x7ff0;
-    .sdata :
-    {
-        *(.sdata .sdata.*)
-    } : sdata
-    . = ALIGN(4096);
-    .sbss :
-    {
-        *(.sbss .sbss.*)
-        *(.scommon)
-    } : sbss
-
-    . = ALIGN(4096);
     .bss :
     {
         . = ALIGN(4096);
         *(.bss .bss.*)
         . = ALIGN(4);
     } : bss
-	/DISCARD/ :
-	{
-		*(.comment)
-		*(.note)
-		*(.options)
-		*(.pdr)
-		*(.reginfo)
-		*(.gnu.attributes)
-	}
+
+    /DISCARD/ :
+    {
+        *(.comment)
+        *(.note)
+        *(.options)
+        *(.pdr)
+        *(.reginfo)
+        *(.gnu.attributes)
+    }
 }
