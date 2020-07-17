@@ -81,6 +81,12 @@ else
 CLEAN-FILES += .kasan.D .kasan_quar.D
 endif
 
+ifeq ($(KUBSAN), 1)
+SOURCES += kubsan.c
+else
+CLEAN-FILES += .kubsan.D
+endif
+
 FORMAT-EXCLUDE = sysent.h
 
 include $(TOPDIR)/build/build.kern.mk
