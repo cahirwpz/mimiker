@@ -35,7 +35,7 @@
 #include <sys/syscall.h>
 #include <mips/asm.h>
 
-#include "assym.h"
+#include "mips/assym.h"
 
 /*
  * C library -- setjmp, longjmp
