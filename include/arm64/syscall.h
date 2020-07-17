@@ -7,8 +7,8 @@
 #include <sys/errno.h>
 #include <sys/syscall.h>
 /* Do a syscall that is missing an implementation. */
-#define SYSCALL_MISSING(name) \
-  ENTRY(name);                                                                  \
+#define SYSCALL_MISSING(name)                                                  \
+  ENTRY(name);                                                                 \
   b _C_LABEL(__sc_missing);                                                    \
   END(name)
 
@@ -16,8 +16,8 @@
 #define SYSCALL_NOERROR(name, num)
 
 /* Do a normal syscall. */
-#define SYSCALL(name, num) \
-  ENTRY(name);                                                                  \
+#define SYSCALL(name, num)                                                     \
+  ENTRY(name);                                                                 \
   b _C_LABEL(__sc_missing);                                                    \
   END(name)
 

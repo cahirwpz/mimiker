@@ -2,8 +2,7 @@
 #define _ARM64_PCPU_H_
 
 #define PCPU_MD_FIELDS                                                         \
-  struct {                                                                     \
-  }
+  struct {}
 
 #ifdef _MACHDEP
 #ifdef __ASSEMBLER__
