@@ -134,7 +134,7 @@ static int sys_kill(proc_t *p, kill_args_t *args, register_t *res) {
 static int sys_umask(proc_t *p, umask_args_t *args, register_t *res) {
   mode_t newmask = args->newmask;
   klog("umask(%x)", args->newmask);
-  return do_umask(p, newmask, res);
+  return do_umask(p, newmask, (int *)res);
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html */

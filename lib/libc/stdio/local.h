@@ -123,9 +123,11 @@ extern char *__gets(char *);
  * Detect if the current file position fits in a long int.
  */
 
+#pragma GCC diagnostic ignored "-Wtype-limits"
 static __inline bool __long_overflow(off_t pos) {
   return (pos < LONG_MIN) || (pos > LONG_MAX);
 }
+#pragma GCC diagnostic pop
 
 /*
  * Functions internal to the implementation.
