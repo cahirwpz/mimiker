@@ -5,7 +5,7 @@ import pexpect
 import sys
 import random
 import os
-from launcher import gdb_port, TARGET
+from launcher import gdb_port, TARGETS
 
 
 N_SIMPLE = 5
@@ -28,8 +28,8 @@ def send_command(gdb, cmd):
 
 
 # Tries to start gdb in order to investigate kernel state on deadlock or crash.
-def gdb_inspect(interactive):
-    gdb_cmd = TARGET + '-mimiker-elf-gdb'
+def gdb_inspect(arch, interactive):
+    gdb_cmd = TARGETS[arch] + '-mimiker-elf-gdb'
     if interactive:
         gdb_opts = ['-iex=set auto-load safe-path {}/'.format(os.getcwd()),
                     '-ex=target remote localhost:%d' % gdb_port(),
@@ -58,7 +58,7 @@ def gdb_inspect(interactive):
         send_command(gdb, 'quit')
 
 
-def test_seed(seed, interactive=True, repeat=1, retry=0):
+def test_seed(seed, arch, interactive=True, repeat=1, retry=0):
     if retry == RETRIES_MAX:
         print("Maximum retries reached, still not output received. "
               "Test inconclusive.")
@@ -66,8 +66,8 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
 
     print("Testing seed %u..." % seed)
     child = pexpect.spawn('./launch',
-                          ['-t', 'test=all', 'klog-quiet=1', 'seed=%u' % seed,
-                           'repeat=%d' % repeat])
+                          ['--arch', arch, '-t', 'test=all', 'klog-quiet=1',
+                           'seed=%u' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact(
         ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT],
         timeout=TIMEOUT)
@@ -84,7 +84,7 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
         except pexpect.exceptions.TIMEOUT:
             pass
         print(message)
-        gdb_inspect(interactive)
+        gdb_inspect(arch, interactive)
         sys.exit(1)
     elif index == 2:
         message = safe_decode(child.before)
@@ -93,7 +93,7 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
         print("EOF reached without success report. This may indicate "
               "a problem with the testing framework or QEMU. "
               "Retrying (%d)..." % (retry + 1))
-        test_seed(seed, interactive, repeat, retry + 1)
+        test_seed(seed, arch, interactive, repeat, retry + 1)
     elif index == 3:
         print("Timeout reached.\n")
         message = safe_decode(child.buffer)
@@ -102,9 +102,9 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
             print("It looks like kernel did not even start within the time "
                   "limit. Retrying (%d)..." % (retry + 1))
             child.terminate(True)
-            test_seed(seed, interactive, repeat, retry + 1)
+            test_seed(seed, arch, interactive, repeat, retry + 1)
         else:
-            gdb_inspect(interactive)
+            gdb_inspect(arch, interactive)
             print("No test result reported within timeout. Unable to verify "
                   "test success. Seed was: %u, repeat: %d" % (seed, repeat))
             sys.exit(1)
@@ -120,6 +120,8 @@ if __name__ == '__main__':
                         help='Keep testing until some error is found.')
     parser.add_argument('--non-interactive', action='store_true',
                         help='Do not run gdb session if tests fail.')
+    parser.add_argument('--arch', type=str, default='mips',
+                        help='CPU architecture.')
 
     try:
         args = parser.parse_args()
@@ -133,16 +135,16 @@ if __name__ == '__main__':
     interactive = not args.non_interactive
 
     # Run tests in alphabetic order
-    test_seed(0, interactive)
+    test_seed(0, args.arch, interactive)
     # Run infinitely many tests, until some problem is found.
     if args.infinite:
         while True:
             seed = random.randint(0, 2**32)
-            test_seed(seed, interactive, REPEAT)
+            test_seed(seed, args.arch, interactive, REPEAT)
     # Run tests using n random seeds
     for i in range(0, n):
         seed = random.randint(0, 2**32)
-        test_seed(seed, interactive, REPEAT)
+        test_seed(seed, args.arch, interactive, REPEAT)
 
     print("Tests successful!")
     sys.exit(0)

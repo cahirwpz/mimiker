@@ -6,7 +6,7 @@ import signal
 import subprocess
 
 
-TARGET = 'mipsel'
+TARGETS = {'mips': 'mipsel', 'arm64': 'aarch64'}
 FIRST_UID = 1000
 
 
@@ -78,24 +78,38 @@ class Launchable():
 
 
 class QEMU(Launchable):
-    def __init__(self):
-        super().__init__('qemu', shutil.which('qemu-mimiker-' + TARGET))
+    def __init__(self, arch):
+        super().__init__('qemu', shutil.which('qemu-mimiker-' + TARGETS[arch]))
+        self.arch = arch
 
     def configure(self, debug=False, graphics=False, kernel='', initrd='',
                   args=''):
-        self.options = [
-            '-nodefaults',
-            '-device', 'VGA',
-            '-machine', 'malta',
-            '-cpu', '24Kf',
-            '-icount', 'shift=3,sleep=on',
-            '-kernel', kernel,
-            '-initrd', initrd,
-            '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
-            '-serial', 'none',
-            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(0)),
-            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(1)),
-            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(2))]
+        if self.arch == 'mips':
+            self.options = [
+                '-nodefaults',
+                '-device', 'VGA',
+                '-machine', 'malta',
+                '-cpu', '24Kf',
+                '-icount', 'shift=3,sleep=on',
+                '-kernel', kernel,
+                '-initrd', initrd,
+                '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
+                '-serial', 'none',
+                '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(0)),
+                '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(1)),
+                '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(2))]
+        elif self.arch == 'arm64':
+            self.options = [
+                '-nodefaults',
+                '-machine', 'raspi3',
+                '-smp', '4',
+                '-cpu', 'cortex-a53',
+                '-kernel', kernel,
+                '-initrd', initrd,
+                '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
+                '-serial', 'none',
+                '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(0)),
+                '-d', 'int,mmu,page']
 
         if args:
             self.options += ['-append', ' '.join(args)]
@@ -107,10 +121,9 @@ class QEMU(Launchable):
 
 
 class GDB(Launchable):
-    COMMAND = TARGET + '-mimiker-elf-gdb'
-
-    def __init__(self, name=None, cmd=None):
-        super().__init__(name or 'gdb', cmd or GDB.COMMAND)
+    def __init__(self, arch, name=None, cmd=None):
+        self.COMMAND = TARGETS[arch] + '-mimiker-elf-gdb'
+        super().__init__(name or 'gdb', cmd or self.COMMAND)
         # gdbtui & cgdb output is garbled if there is no delay
         self.cmd = 'sleep 0.25 && ' + self.cmd
 
@@ -136,15 +149,15 @@ class GDB(Launchable):
 
 
 class GDBTUI(GDB):
-    def __init__(self):
-        super().__init__('gdbtui')
+    def __init__(self, arch):
+        super().__init__(arch, 'gdbtui')
         self.options = ['-tui']
 
 
 class CGDB(GDB):
-    def __init__(self):
-        super().__init__('cgdb', 'cgdb')
-        self.options = ['-d', GDB.COMMAND]
+    def __init__(self, arch):
+        super().__init__(arch, 'cgdb', 'cgdb')
+        self.options = ['-d', self.COMMAND]
 
 
 class SOCAT(Launchable):
@@ -161,5 +174,5 @@ class SOCAT(Launchable):
 
 Debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
 
-__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT', 'TARGET',
+__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT',
            'Debuggers', 'gdb_port', 'uart_port']

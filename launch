@@ -77,6 +77,8 @@ if __name__ == '__main__':
                         help='Test-run mode: simulator output goes to stdout.')
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
+    parser.add_argument('-a', '--arch', type=str, default='mips',
+                        help='CPU architecture.')
     args = parser.parse_args()
 
     # Check if the kernel file is available
@@ -86,12 +88,12 @@ if __name__ == '__main__':
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
     os.environ['MIMIKER_REPO'] = os.path.dirname(os.path.realpath(sys.argv[0]))
 
-    sim = QEMU()
+    sim = QEMU(args.arch)
     sim.configure(debug=args.debug, graphics=args.graphics, kernel=args.kernel,
                   initrd=args.initrd, args=args.args)
 
     if args.debug:
-        dbg = Debuggers[args.debugger]()
+        dbg = Debuggers[args.debugger](args.arch)
         kernel_args = dict(arg.split('=', 1) for arg in args.args)
         if 'test' in kernel_args:
             host_path = "sysroot/bin/utest.dbg"
@@ -108,16 +110,20 @@ if __name__ == '__main__':
     else:
         dbg = None
 
+    uarts = []
+
     uart0 = SOCAT('/dev/tty1')
     uart0.configure(uart_num=0)
+    uarts.append(uart0)
 
-    uart1 = SOCAT('/dev/tty2')
-    uart1.configure(uart_num=1)
+    if args.arch == 'mips':
+        uart1 = SOCAT('/dev/tty2')
+        uart1.configure(uart_num=1)
+        uarts.append(uart1)
 
-    uart2 = SOCAT('/dev/cons')
-    uart2.configure(uart_num=2)
-
-    uarts = [uart0, uart1, uart2]
+        uart2 = SOCAT('/dev/cons')
+        uart2.configure(uart_num=2)
+        uarts.append(uart2)
 
     if args.test_run:
         TestRun(sim, uarts)

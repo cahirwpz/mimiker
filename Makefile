@@ -37,7 +37,7 @@ setup:
 	$(MAKE) -C include setup
 
 test: sys-build initrd.cpio
-	./run_tests.py
+	./run_tests.py --arch $(ARCH)
 
 PHONY-TARGETS += setup test
 
