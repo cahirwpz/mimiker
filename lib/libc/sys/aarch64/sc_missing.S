@@ -1,4 +1,4 @@
-#include <arm64/asm.h>
+#include <aarch64/asm.h>
 #include <sys/errno.h>
 
 ENTRY(__sc_missing)

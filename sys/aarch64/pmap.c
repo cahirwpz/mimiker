@@ -1,8 +1,8 @@
 #define KL_LOG KL_PMAP
 #include <sys/klog.h>
 #include <sys/mimiker.h>
-#include <arm64/exception.h>
-#include <arm64/pmap.h>
+#include <aarch64/exception.h>
+#include <aarch64/pmap.h>
 #include <sys/vm.h>
 
 vaddr_t pmap_start(pmap_t *pmap) {

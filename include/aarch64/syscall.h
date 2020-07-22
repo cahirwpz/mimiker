@@ -1,9 +1,9 @@
-#ifndef _ARM64_SYSCALL_H_
-#define _ARM64_SYSCALL_H_
+#ifndef _AARCH64_SYSCALL_H_
+#define _AARCH64_SYSCALL_H_
 
 #ifdef __ASSEMBLER__
 
-#include <arm64/asm.h>
+#include <aarch64/asm.h>
 #include <sys/errno.h>
 #include <sys/syscall.h>
 /* Do a syscall that is missing an implementation. */
@@ -23,4 +23,4 @@
 
 #endif /* !__ASSEMBLER__ */
 
-#endif /* !_ARM64_SYSCALL_H_ */
+#endif /* !_AARCH64_SYSCALL_H_ */

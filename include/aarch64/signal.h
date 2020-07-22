@@ -1,5 +1,5 @@
-#ifndef _ARM64_SIGNAL_H_
-#define _ARM64_SIGNAL_H_
+#ifndef _AARCH64_SIGNAL_H_
+#define _AARCH64_SIGNAL_H_
 
 #include <machine/cdefs.h> /* for API selection */
 
@@ -33,4 +33,4 @@ extern char esigcode[];
 
 #endif /* !_ASSEMBLY_ */
 
-#endif /* !_ARM64_SIGNAL_H_ */
+#endif /* !_AARCH64_SIGNAL_H_ */

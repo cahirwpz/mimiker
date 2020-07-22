@@ -1,5 +1,5 @@
 #include <sys/mimiker.h>
-#include <arm64/exception.h>
+#include <aarch64/exception.h>
 
 void exc_frame_init(exc_frame_t *frame, void *pc, void *sp, unsigned flags) {
   panic("Not implemented!");

@@ -5,5 +5,5 @@ ARCH := mips
 endif
 
 ifeq ($(BOARD), rpi3)
-ARCH := arm64
+ARCH := aarch64
 endif

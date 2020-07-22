@@ -1,6 +1,6 @@
 #include <sys/mimiker.h>
 #include <sys/thread.h>
-#include <arm64/context.h>
+#include <aarch64/context.h>
 
 void ctx_init(ctx_t *ctx, void *pc, void *sp) {
   panic("Not implemented!");

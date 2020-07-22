@@ -1,5 +1,5 @@
-#ifndef _ARM64_PCPU_H_
-#define _ARM64_PCPU_H_
+#ifndef _AARCH64_PCPU_H_
+#define _AARCH64_PCPU_H_
 
 #define PCPU_MD_FIELDS                                                         \
   struct {}
@@ -12,4 +12,4 @@
 #endif /* !__ASSEMBLER__ */
 #endif /* !_MACHDEP */
 
-#endif /* !_ARM64_PCPU_H_ */
+#endif /* !_AARCH64_PCPU_H_ */
