@@ -33,7 +33,7 @@ def gdb_inspect(interactive):
     if interactive:
         gdb_opts = ['-iex=set auto-load safe-path {}/'.format(os.getcwd()),
                     '-ex=target remote localhost:%d' % gdb_port(),
-                    '--silent', 'sys/mimiker.elf']
+                    '--silent', getvar('config.kernel')]
     else:
         # Note: These options are different than .gdbinit.
         gdb_opts = ['-ex=target remote localhost:%d' % gdb_port(),
@@ -41,7 +41,7 @@ def gdb_inspect(interactive):
                     '-ex=python sys.path.append(os.getcwd() + "/sys")',
                     '-ex=python import debug',
                     '-ex=set pagination off',
-                    '--nh', '--nx', '--silent', 'sys/mimiker.elf']
+                    '--nh', '--nx', '--silent', getvar('config.kernel')]
     gdb = pexpect.spawn(gdb_cmd, gdb_opts, timeout=3)
     if interactive:
         send_command(gdb, 'backtrace full')

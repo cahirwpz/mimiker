@@ -115,8 +115,7 @@ if __name__ == '__main__':
     else:
         dbg = None
 
-    uarts = [SOCAT(name, port)
-             for name, port in getvar('qemu.{BOARD}.uarts')]
+    uarts = [SOCAT(name, port) for name, port in getvar('qemu.{BOARD}.uarts')]
 
     if args.test_run:
         TestRun(sim, uarts)

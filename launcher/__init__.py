@@ -88,16 +88,18 @@ CONFIG = {
 }
 
 
+def split(name):
+    return name.format(BOARD='board.' + CONFIG['board']).split('.')
+
+
 def getvar(name, val=CONFIG):
-    name = name.format(BOARD='board.' + CONFIG['board'])
-    for f in name.split('.'):
+    for f in split(name):
         val = val[f]
     return val
 
 
 def setvar(name, val, config=CONFIG):
-    name = name.format(BOARD='board.' + CONFIG['board'])
-    fs = name.split('.')
+    fs = split(name)
     while len(fs) > 1:
         config = config[fs.pop(0)]
     config[fs.pop(0)] = val
@@ -180,8 +182,7 @@ class QEMU(Launchable):
 
 class GDB(Launchable):
     def __init__(self, name=None, cmd=None):
-        self.COMMAND = getvar('gdb.{BOARD}.binary')
-        super().__init__(name or 'gdb', cmd or self.COMMAND)
+        super().__init__(name or 'gdb', cmd or getvar('gdb.{BOARD}.binary'))
         # gdbtui & cgdb output is garbled if there is no delay
         self.cmd = 'sleep 0.25 && ' + self.cmd
 
@@ -200,13 +201,12 @@ class GDBTUI(GDB):
 class CGDB(GDB):
     def __init__(self):
         super().__init__('cgdb', 'cgdb')
-        self.options = ['-d', self.COMMAND]
+        self.options = ['-d', getvar('gdb.{BOARD}.binary')]
 
 
 class SOCAT(Launchable):
     def __init__(self, name, tcp_port):
         super().__init__(name, 'socat')
-
         # The simulator will only open the server after some time has
         # passed.  To minimize the delay, keep reconnecting until success.
         self.options = ['STDIO', f'tcp:localhost:{tcp_port},retry,forever']
