@@ -123,11 +123,7 @@ if __name__ == '__main__':
                         help='Do not run gdb session if tests fail.')
     parser.add_argument('--board', default='malta', choices=['malta', 'rpi3'],
                         help='Emulated board.')
-
-    try:
-        args = parser.parse_args()
-    except SystemExit:
-        sys.exit(0)
+    args = parser.parse_args()
 
     setvar('board', args.board)
 
