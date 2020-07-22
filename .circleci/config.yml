@@ -29,12 +29,8 @@ jobs:
         description: 'Whether to use the KernelAddressSanitizer (1 = yes, 0 = no)'
         default: '0'
         type: string
-      arch:
-        description: 'CPU architecture (mips, arm64)'
-        default: 'mips'
-        type: string
-      platform:
-        description: 'Machine used by qemu (malta, rpi3)'
+      board:
+        description: 'Board emulated by qemu (malta, rpi3)'
         default: 'malta'
         type: string
     steps:
@@ -47,7 +43,7 @@ jobs:
           key: downloads-20191128-1600
           paths:
             - bin/lua/lua-5.3.5.tar.gz
-      - run: 'make ARCH=<< parameters.arch >> PLATFORM=<< parameters.platform >> CLANG=<< parameters.use_clang >> KASAN=<< parameters.use_kasan >>'
+      - run: 'make BOARD=<< parameters.board >> CLANG=<< parameters.use_clang >> KASAN=<< parameters.use_kasan >>'
       - store_artifacts:
           path: sys/mimiker.elf
           prefix: kernel_image
@@ -65,15 +61,15 @@ jobs:
   kernel_tests:
     <<: *defaults
     parameters:
-      arch:
-        description: 'CPU architecture (mips, arm64)'
-        default: 'mips'
+      board:
+        description: 'Board emulated by qemu (malta, rpi3)'
+        default: 'malta'
         type: string
     steps:
       - checkout
       - attach_workspace:
           at: ./
-      - run: './run_tests.py --arch << parameters.arch >> --thorough --non-interactive'
+      - run: './run_tests.py --board << parameters.board >> --thorough --non-interactive'
 
 workflows:
   version: 2.1
@@ -84,29 +80,25 @@ workflows:
       - build:
           name: build_mips_gcc
           use_kasan: '1'
-          arch: 'mips'
-          platform: 'malta'
+          board: 'malta'
       - build:
           name: build_mips_clang
           use_clang: '1'
-          arch: 'mips'
-          platform: 'malta'
+          board: 'malta'
       - build:
           name: build_arm64_gcc
-          arch: 'arm64'
-          platform: 'rpi3'
+          board: 'rpi3'
       - build:
           name: build_arm64_clang
           use_clang: '1'
-          arch: 'arm64'
-          platform: 'rpi3'
+          board: 'rpi3'
       - kernel_tests:
           name: kernel_tests_mips_gcc
-          arch: 'mips'
+          board: 'malta'
           requires:
             - build_mips_gcc
       - kernel_tests:
           name: kernel_tests_mips_clang
-          arch: 'mips'
+          board: 'malta'
           requires:
             - build_mips_clang
