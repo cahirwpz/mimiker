@@ -5,8 +5,6 @@ import shutil
 import signal
 import subprocess
 
-
-TARGETS = {'mips': 'mipsel', 'arm64': 'aarch64'}
 FIRST_UID = 1000
 
 
@@ -20,15 +18,102 @@ def uart_port(num):
     return gdb_port() + 1 + num
 
 
+CONFIG = {
+    'board': 'malta',
+    'config': {
+        'debug': False,
+        'graphics': False,
+        'kernel': 'sys/mimiker.elf',
+        'initrd': 'initrd.cpio',
+        'args': []
+    },
+    'qemu': {
+        'options': [
+            '-nodefaults',
+            '-icount', 'shift=3,sleep=on',
+            '-kernel', '{kernel}',
+            '-initrd', '{initrd}',
+            '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
+            '-serial', 'none'],
+        'board': {
+            'malta': {
+                'binary': 'qemu-mimiker-mipsel',
+                'options': [
+                    '-device', 'VGA',
+                    '-machine', 'malta',
+                    '-cpu', '24Kf'],
+                'uarts': [
+                    ('/dev/tty1', uart_port(0)),
+                    ('/dev/tty2', uart_port(1)),
+                    ('/dev/cons', uart_port(2))
+                ]
+            },
+            'rpi3': {
+                'binary': 'qemu-mimiker-aarch64',
+                'options': [
+                    '-machine', 'raspi3',
+                    '-smp', '4',
+                    '-cpu', 'cortex-a53'],
+                'uarts': [
+                    ('/dev/cons', uart_port(0))
+                ]
+            }
+        }
+    },
+    'gdb': {
+        'pre-options': [
+            '-n',
+            '-ex=set confirm no',
+            '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
+            '-ex=set tcp connect-timeout 30',
+            '-ex=target remote localhost:{}'.format(gdb_port()),
+            '--silent',
+        ],
+        'extra-options': [],
+        'post-options': [
+            '-ex=set confirm yes',
+            '-ex=source .gdbinit',
+            '-ex=continue',
+            '{kernel}'
+        ],
+        'board': {
+            'malta': {
+                'binary': 'mipsel-mimiker-elf-gdb'
+            },
+            'rpi3': {
+                'binary': 'aarch64-mimiker-elf-gdb'
+            }
+        }
+    }
+}
+
+
+def getvar(name, val=CONFIG):
+    name = name.format(BOARD='board.' + CONFIG['board'])
+    for f in name.split('.'):
+        val = val[f]
+    return val
+
+
+def setvar(name, val, config=CONFIG):
+    name = name.format(BOARD='board.' + CONFIG['board'])
+    fs = name.split('.')
+    while len(fs) > 1:
+        config = config[fs.pop(0)]
+    config[fs.pop(0)] = val
+
+
+def getopts(*names):
+    opts = itertools.chain.from_iterable([getvar(name) for name in names])
+    return [opt.format(**getvar('config')) for opt in opts]
+
+
 class Launchable():
     def __init__(self, name, cmd):
         self.name = name
         self.cmd = cmd
         self.window = None
         self.options = []
-
-    def configure(self, *args, **kwargs):
-        raise NotImplementedError
 
     def start(self, session):
         cmd = ' '.join([self.cmd] + list(map(shlex.quote, self.options)))
@@ -78,101 +163,55 @@ class Launchable():
 
 
 class QEMU(Launchable):
-    def __init__(self, arch):
-        super().__init__('qemu', shutil.which('qemu-mimiker-' + TARGETS[arch]))
-        self.arch = arch
+    def __init__(self):
+        super().__init__('qemu', getvar('qemu.{BOARD}.binary'))
 
-    def configure(self, debug=False, graphics=False, kernel='', initrd='',
-                  args=''):
-        if self.arch == 'mips':
-            self.options = [
-                '-nodefaults',
-                '-device', 'VGA',
-                '-machine', 'malta',
-                '-cpu', '24Kf',
-                '-icount', 'shift=3,sleep=on',
-                '-kernel', kernel,
-                '-initrd', initrd,
-                '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
-                '-serial', 'none',
-                '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(0)),
-                '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(1)),
-                '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(2))]
-        elif self.arch == 'arm64':
-            self.options = [
-                '-nodefaults',
-                '-machine', 'raspi3',
-                '-smp', '4',
-                '-cpu', 'cortex-a53',
-                '-kernel', kernel,
-                '-initrd', initrd,
-                '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
-                '-serial', 'none',
-                '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(0)),
-                '-d', 'int,mmu,page']
+        self.options = getopts('qemu.options', 'qemu.{BOARD}.options')
+        for _, port in getvar('qemu.{BOARD}.uarts'):
+            self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
-        if args:
-            self.options += ['-append', ' '.join(args)]
-
-        if debug:
+        if getvar('config.args'):
+            self.options += ['-append', ' '.join(getvar('config.args'))]
+        if getvar('config.debug'):
             self.options += ['-S']
-        if not graphics:
+        if not getvar('config.graphics'):
             self.options += ['-display', 'none']
 
 
 class GDB(Launchable):
-    def __init__(self, arch, name=None, cmd=None):
-        self.COMMAND = TARGETS[arch] + '-mimiker-elf-gdb'
+    def __init__(self, name=None, cmd=None):
+        self.COMMAND = getvar('gdb.{BOARD}.binary')
         super().__init__(name or 'gdb', cmd or self.COMMAND)
         # gdbtui & cgdb output is garbled if there is no delay
         self.cmd = 'sleep 0.25 && ' + self.cmd
 
-    def configure(self, kernel='', extra_ex_cmds=[]):
         if self.name == 'gdb':
             self.options += ['-ex=set prompt \033[35;1m(gdb) \033[0m']
-        self.options += [
-            '-n',
-            '-ex=set confirm no',
-            '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
-            '-ex=set tcp connect-timeout 30',
-            '-ex=target remote localhost:{}'.format(gdb_port()),
-            '--silent',
-        ]
-        for cmd in extra_ex_cmds:
-            self.options.append(f'-ex={cmd}')
-        self.options += [
-            '-ex=set confirm yes',
-            '-ex=source .gdbinit',
-            '-ex=continue',
-            kernel,
-        ]
+        self.options += getopts(
+                'gdb.pre-options', 'gdb.extra-options', 'gdb.post-options')
 
 
 class GDBTUI(GDB):
-    def __init__(self, arch):
-        super().__init__(arch, 'gdbtui')
+    def __init__(self):
+        super().__init__('gdbtui')
         self.options = ['-tui']
 
 
 class CGDB(GDB):
-    def __init__(self, arch):
-        super().__init__(arch, 'cgdb', 'cgdb')
+    def __init__(self):
+        super().__init__('cgdb', 'cgdb')
         self.options = ['-d', self.COMMAND]
 
 
 class SOCAT(Launchable):
-    def __init__(self, name):
+    def __init__(self, name, tcp_port):
         super().__init__(name, 'socat')
 
-    def configure(self, uart_num):
-        port = uart_port(uart_num)
         # The simulator will only open the server after some time has
         # passed.  To minimize the delay, keep reconnecting until success.
-        self.options = [
-            'STDIO', 'tcp:localhost:{},retry,forever'.format(port)]
+        self.options = ['STDIO', f'tcp:localhost:{tcp_port},retry,forever']
 
 
 Debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
-
 __all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT',
-           'Debuggers', 'gdb_port', 'uart_port']
+           'Debuggers', 'gdb_port', 'uart_port', 'getvar', 'setvar']

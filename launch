@@ -77,8 +77,8 @@ if __name__ == '__main__':
                         help='Test-run mode: simulator output goes to stdout.')
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
-    parser.add_argument('-a', '--arch', type=str, default='mips',
-                        help='CPU architecture.')
+    parser.add_argument('-b', '--board', default='malta',
+                        choices=['malta', 'rpi3'], help='Emulated board.')
     args = parser.parse_args()
 
     # Check if the kernel file is available
@@ -88,13 +88,18 @@ if __name__ == '__main__':
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
     os.environ['MIMIKER_REPO'] = os.path.dirname(os.path.realpath(sys.argv[0]))
 
-    sim = QEMU(args.arch)
-    sim.configure(debug=args.debug, graphics=args.graphics, kernel=args.kernel,
-                  initrd=args.initrd, args=args.args)
+    setvar('board', args.board)
+    setvar('config.debug', args.debug)
+    setvar('config.graphics', args.graphics)
+    setvar('config.kernel', args.kernel)
+    setvar('config.initrd', args.initrd)
+    setvar('config.args', args.args)
+
+    sim = QEMU()
 
     if args.debug:
-        dbg = Debuggers[args.debugger](args.arch)
         kernel_args = dict(arg.split('=', 1) for arg in args.args)
+
         if 'test' in kernel_args:
             host_path = "sysroot/bin/utest.dbg"
         elif 'init' in kernel_args:
@@ -102,28 +107,16 @@ if __name__ == '__main__':
         else:
             host_path = None
 
-        ex_cmds = []
         if host_path is not None:
-            load_symbol_cmd = f'add-symbol-file {host_path} 0x400000'
-            ex_cmds.append(load_symbol_cmd)
-        dbg.configure(kernel=args.kernel, extra_ex_cmds=ex_cmds)
+            extra = getvar('gdb.extra-options')
+            extra.append(f'-ex=add-symbol-file {host_path} 0x400000')
+
+        dbg = Debuggers[args.debugger]()
     else:
         dbg = None
 
-    uarts = []
-
-    uart0 = SOCAT('/dev/tty1')
-    uart0.configure(uart_num=0)
-    uarts.append(uart0)
-
-    if args.arch == 'mips':
-        uart1 = SOCAT('/dev/tty2')
-        uart1.configure(uart_num=1)
-        uarts.append(uart1)
-
-        uart2 = SOCAT('/dev/cons')
-        uart2.configure(uart_num=2)
-        uarts.append(uart2)
+    uarts = [SOCAT(name, port)
+             for name, port in getvar('qemu.{BOARD}.uarts')]
 
     if args.test_run:
         TestRun(sim, uarts)
