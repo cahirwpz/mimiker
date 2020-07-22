@@ -8,7 +8,7 @@ SOURCES = context.c \
 	  interrupt.c \
 	  pmap.c \
 	  rootdev.c \
-	  $(PLATFORM).c \
+	  $(BOARD).c \
 	  signal.c \
 	  start.S \
 	  thread.c \
