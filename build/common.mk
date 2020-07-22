@@ -40,6 +40,10 @@ assym.h: genassym.cf
 	@echo "[ASSYM] $(DSTPATH)"
 	$(GENASSYM) $(CC) $(ASSYM_CFLAGS) $(CFLAGS) $(CPPFLAGS) < $^ > $@
 
+%/assym.h: %/genassym.cf
+	@echo "[ASSYM] $(DSTPATH)"
+	$(GENASSYM) $(CC) $(ASSYM_CFLAGS) $(CFLAGS) $(CPPFLAGS) < $^ > $@
+
 include $(TOPDIR)/config.mk
 include $(TOPDIR)/build/arch.$(ARCH).mk
 include $(TOPDIR)/build/tools.mk

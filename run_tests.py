@@ -5,7 +5,7 @@ import pexpect
 import sys
 import random
 import os
-from launcher import gdb_port, TARGET
+from launcher import gdb_port, getvar, setvar
 
 
 N_SIMPLE = 5
@@ -29,11 +29,11 @@ def send_command(gdb, cmd):
 
 # Tries to start gdb in order to investigate kernel state on deadlock or crash.
 def gdb_inspect(interactive):
-    gdb_cmd = TARGET + '-mimiker-elf-gdb'
+    gdb_cmd = getvar('gdb.{BOARD}.binary')
     if interactive:
         gdb_opts = ['-iex=set auto-load safe-path {}/'.format(os.getcwd()),
                     '-ex=target remote localhost:%d' % gdb_port(),
-                    '--silent', 'sys/mimiker.elf']
+                    '--silent', getvar('config.kernel')]
     else:
         # Note: These options are different than .gdbinit.
         gdb_opts = ['-ex=target remote localhost:%d' % gdb_port(),
@@ -41,7 +41,7 @@ def gdb_inspect(interactive):
                     '-ex=python sys.path.append(os.getcwd() + "/sys")',
                     '-ex=python import debug',
                     '-ex=set pagination off',
-                    '--nh', '--nx', '--silent', 'sys/mimiker.elf']
+                    '--nh', '--nx', '--silent', getvar('config.kernel')]
     gdb = pexpect.spawn(gdb_cmd, gdb_opts, timeout=3)
     if interactive:
         send_command(gdb, 'backtrace full')
@@ -66,8 +66,9 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
 
     print("Testing seed %u..." % seed)
     child = pexpect.spawn('./launch',
-                          ['-t', 'test=all', 'klog-quiet=1', 'seed=%u' % seed,
-                           'repeat=%d' % repeat])
+                          ['--board', getvar('board'),
+                           '-t', 'test=all', 'klog-quiet=1',
+                           'seed=%u' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact(
         ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT],
         timeout=TIMEOUT)
@@ -120,11 +121,11 @@ if __name__ == '__main__':
                         help='Keep testing until some error is found.')
     parser.add_argument('--non-interactive', action='store_true',
                         help='Do not run gdb session if tests fail.')
+    parser.add_argument('--board', default='malta', choices=['malta', 'rpi3'],
+                        help='Emulated board.')
+    args = parser.parse_args()
 
-    try:
-        args = parser.parse_args()
-    except SystemExit:
-        sys.exit(0)
+    setvar('board', args.board)
 
     n = N_SIMPLE
     if args.thorough:

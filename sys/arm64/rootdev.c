@@ -1,10 +1,23 @@
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
+#include <sys/bus.h>
 #include <sys/devclass.h>
-#include <sys/sysinit.h>
 
-static void rootdev_init(void) {
+static bus_driver_t rootdev_driver;
+
+DEVCLASS_CREATE(root);
+
+static device_t rootdev = (device_t){
+  .children = TAILQ_HEAD_INITIALIZER(rootdev.children),
+    .driver = (driver_t *)&rootdev_driver,
+    .state = NULL,
+    .devclass = &DEVCLASS(root),
+};
+
+void init_devices(void) {
 }
 
-SYSINIT_ADD(rootdev, rootdev_init, DEPS("mount_fs", "ithread"));
-DEVCLASS_CREATE(root);
+/* 
+ * XXX(pj): linker set needs at least one element otherwise ld will be very sad
+ */
+DEVCLASS_ENTRY(root, rootdev);
