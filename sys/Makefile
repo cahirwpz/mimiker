@@ -10,7 +10,7 @@ CLEAN-FILES += mimiker.elf.map
 
 include $(TOPDIR)/build/build.kern.mk
 
-LDFLAGS += -T $(TOPDIR)/sys/$(ARCH)/$(PLATFORM).ld
+LDFLAGS += -T $(TOPDIR)/sys/$(ARCH)/$(BOARD).ld
 LDLIBS	= -Wl,--start-group \
 	    -Wl,--whole-archive $(KLIBLIST) -Wl,--no-whole-archive \
             -lgcc \

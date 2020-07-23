@@ -82,7 +82,7 @@ static char *make_pair(kstack_t *stk, char *key, char *value) {
  *     kinit={NULL, "baz"};
  */
 
-void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
+void *board_stack(int argc, char **argv, char **envp, unsigned memsize) {
   assert(argc == 2);
 
   kstack_t *stk = &thread0.td_kstack;
@@ -155,7 +155,7 @@ static void malta_physmem(void) {
   }
 }
 
-__noreturn void platform_init(void) {
+__noreturn void board_init(void) {
   init_kasan();
   init_klog();
   init_mips_cpu();

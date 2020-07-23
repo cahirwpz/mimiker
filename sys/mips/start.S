@@ -39,11 +39,11 @@ LEAF(_start)
         move    a2, s2
         move    a3, s3
 
-        LA      t0, platform_stack
+        LA      t0, board_stack
         jalr    t0
         move    sp, v0                  # Set thread0 stack 
 
-        LA      t0, platform_init
+        LA      t0, board_init
         jr      t0
 END(_start)
 
