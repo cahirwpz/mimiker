@@ -1,5 +1,5 @@
-#ifndef _ARM64_VM_PARAM_H_
-#define _ARM64_VM_PARAM_H_
+#ifndef _AARCH64_VM_PARAM_H_
+#define _AARCH64_VM_PARAM_H_
 
 #define PAGESIZE 4096
 
@@ -14,4 +14,4 @@
 
 #define VM_PHYSSEG_NMAX 16
 
-#endif /* !_ARM64_VM_PARAM_H_ */
+#endif /* !_AARCH64_VM_PARAM_H_ */

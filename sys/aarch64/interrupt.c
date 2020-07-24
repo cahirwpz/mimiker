@@ -1,5 +1,5 @@
 #include <sys/mimiker.h>
-#include <arm64/interrupt.h>
+#include <aarch64/interrupt.h>
 
 void cpu_intr_disable(void) {
   panic("Not implemented!");

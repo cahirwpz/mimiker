@@ -29,8 +29,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _ARM64_MCONTEXT_H_
-#define _ARM64_MCONTEXT_H_
+#ifndef _AARCH64_MCONTEXT_H_
+#define _AARCH64_MCONTEXT_H_
 
 #include <sys/types.h>
 
@@ -141,4 +141,4 @@ typedef struct {
 
 #define _UC_MACHINE_SET_PC(uc, pc) _UC_MACHINE_PC(uc) = (pc)
 
-#endif /* !_ARM64_MCONTEXT_H_ */
+#endif /* !_AARCH64_MCONTEXT_H_ */

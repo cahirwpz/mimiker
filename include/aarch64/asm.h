@@ -29,10 +29,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _ARM64_ASM_H_
-#define _ARM64_ASM_H_
+#ifndef _AARCH64_ASM_H_
+#define _AARCH64_ASM_H_
 
-#include <arm64/cdefs.h>
+#include <aarch64/cdefs.h>
 
 #define _C_LABEL(x) x
 #define _ASM_LABEL(x) x
@@ -72,4 +72,4 @@
 #define fp x29
 #define lr x30
 
-#endif /* !_ARM64_ASM_H_ */
+#endif /* !_AARCH64_ASM_H_ */

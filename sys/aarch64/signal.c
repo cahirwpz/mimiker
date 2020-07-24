@@ -3,7 +3,7 @@
 #include <sys/signal.h>
 #include <sys/thread.h>
 #include <sys/klog.h>
-#include <arm64/exception.h>
+#include <aarch64/exception.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
 

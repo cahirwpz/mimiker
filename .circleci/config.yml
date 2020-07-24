@@ -86,10 +86,10 @@ workflows:
           use_clang: '1'
           board: 'malta'
       - build:
-          name: build_arm64_gcc
+          name: build_aarch64_gcc
           board: 'rpi3'
       - build:
-          name: build_arm64_clang
+          name: build_aarch64_clang
           use_clang: '1'
           board: 'rpi3'
       - kernel_tests:
