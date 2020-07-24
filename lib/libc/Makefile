@@ -18,6 +18,6 @@ SOURCES = $(foreach dir, $(SUBLIBS), \
 
 include $(TOPDIR)/build/build.lib.mk
 
-$(SOURCES): assym.h
+$(SOURCES): $(ARCH)/assym.h
 
-CLEAN-FILES += assym.h
+CLEAN-FILES += $(ARCH)/assym.h

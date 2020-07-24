@@ -846,7 +846,7 @@ shf_smprintf(fmt, va_alist)
 #define POP_INT(f, s, a) (((f) & FL_LONG) ?				\
 				va_arg((a), unsigned long)		\
 			    :						\
-				(sizeof(int) < sizeof(long) ?		\
+				(unsigned long)(sizeof(int) < sizeof(long) ?		\
 					((s) ?				\
 						(long) va_arg((a), int)	\
 					    :				\

@@ -53,7 +53,7 @@ static int sys_fork(proc_t *p, void *args, register_t *res) {
 
   klog("fork()");
 
-  if ((error = do_fork(&pid)))
+  if ((error = do_fork(NULL, NULL, &pid)))
     return error;
 
   *res = pid;
@@ -70,7 +70,8 @@ static int sys_getpid(proc_t *p, void *args, register_t *res) {
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/getppid.html */
 static int sys_getppid(proc_t *p, void *args, register_t *res) {
   klog("getppid()");
-  *res = p->p_parent ? p->p_parent->p_pid : 0;
+  assert(p->p_parent);
+  *res = p->p_parent->p_pid;
   return 0;
 }
 
@@ -133,7 +134,7 @@ static int sys_kill(proc_t *p, kill_args_t *args, register_t *res) {
 static int sys_umask(proc_t *p, umask_args_t *args, register_t *res) {
   mode_t newmask = args->newmask;
   klog("umask(%x)", args->newmask);
-  return do_umask(p, newmask, res);
+  return do_umask(p, newmask, (int *)res);
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html */
@@ -943,9 +944,15 @@ static int sys_setgroups(proc_t *p, setgroups_args_t *args, register_t *res) {
 }
 
 static int sys_setsid(proc_t *p, void *args, register_t *res) {
+  int error;
+
   klog("setsid()");
 
-  return ENOTSUP;
+  if ((error = session_enter(p)))
+    return error;
+
+  *res = p->p_pid;
+  return 0;
 }
 
 static int sys_getsid(proc_t *p, getsid_args_t *args, register_t *res) {
