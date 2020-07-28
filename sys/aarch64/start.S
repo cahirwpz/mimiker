@@ -2,8 +2,8 @@
 
         .section .boot, "ax"
 
-ENTRY(_start)
+ASENTRY(_start)
 loop:
     nop
     b loop
-END(_start)
+ASEND(_start)
