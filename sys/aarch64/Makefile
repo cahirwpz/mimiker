@@ -2,7 +2,8 @@
 
 TOPDIR = $(realpath ../..)
 
-SOURCES = context.c \
+SOURCES = boot.c \
+	  context.c \
 	  copy.c \
 	  exception.c \
 	  interrupt.c \
