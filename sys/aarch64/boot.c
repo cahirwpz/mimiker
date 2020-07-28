@@ -6,6 +6,7 @@
  */
 #define SMPEN (1 << 6)
 
+#define __tlbi(x) __asm__ volatile("TLBI " x)
 #define __dsb(x) __asm__ volatile("DSB " x)
 #define __isb() __asm__ volatile("ISB")
 
@@ -20,11 +21,19 @@ __boot_text static void enable_cache_coherency(void) {
   __isb();
 }
 
+__boot_text void invalidate_tlb(void) {
+  __tlbi("alle1");
+  __tlbi("vmalle1is");
+  __dsb("ish");
+  __isb();
+}
+
 __boot_text void *aarch64_init(void) {
   long cpu = get_cpu();
   (void)cpu;
 
   enable_cache_coherency();
+  invalidate_tlb();
   for (;;)
     ;
 }
