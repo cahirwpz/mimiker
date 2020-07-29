@@ -33,11 +33,18 @@ __boot_text static void enable_cache_coherency(void) {
   __isb();
 }
 
-__boot_text void invalidate_tlb(void) {
+__boot_text static void invalidate_tlb(void) {
   __tlbi("alle1");
   __tlbi("vmalle1is");
   __dsb("ish");
   __isb();
+}
+
+__boot_text static void clear_bss(void) {
+  uint64_t *ptr = (uint64_t *)AARCH64_PHYSADDR(__bss);
+  uint64_t *end = (uint64_t *)AARCH64_PHYSADDR(__ebss);
+  while (ptr < end)
+    *ptr++ = 0;
 }
 
 __boot_text void *aarch64_init(void) {
@@ -49,6 +56,7 @@ __boot_text void *aarch64_init(void) {
   if (cpu != 0) {
     ;
   } else {
+    clear_bss();
     _kernel_end_boot = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
   }
 
