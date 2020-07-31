@@ -15,7 +15,7 @@ SOURCES = boot.c \
 	  thread.c \
 	  ucontext.c
 
-boot.o: CFLAGS+=-mcmodel=large
+CFLAGS.boot.c = -mcmodel=large
 
 CPPFLAGS += -D_MACHDEP
 
