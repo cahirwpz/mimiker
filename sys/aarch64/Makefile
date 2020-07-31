@@ -15,6 +15,8 @@ SOURCES = boot.c \
 	  thread.c \
 	  ucontext.c
 
+boot.o: CFLAGS+=-mcmodel=large
+
 CPPFLAGS += -D_MACHDEP
 
 include $(TOPDIR)/build/build.kern.mk
