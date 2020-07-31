@@ -12,7 +12,7 @@ PHDRS
   data   PT_LOAD FLAGS(6); /* read-write */
 }
 
-PROVIDE(_kernel = 0xffffffff00000000);
+PROVIDE(_kernel = 0xffff000000000000);
 
 SECTIONS
 {

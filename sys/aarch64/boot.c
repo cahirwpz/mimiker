@@ -9,7 +9,7 @@
  * Here we have only 62 bytes for stack per CPU. So we must be very carefully.
  */
 
-#define AARCH64_PHYSADDR(x) ((paddr_t)(x)-KERNEL_SPACE_BEGIN)
+#define AARCH64_PHYSADDR(x) ((paddr_t)(x) & (~KERNEL_SPACE_BEGIN))
 
 /*
  * Enable hardware management of data coherency with other cores in the cluster.
@@ -73,8 +73,8 @@ __boot_text static void enable_mmu(void) {
   __isb();
 
   WRITE_SPECIALREG(VBAR_EL1, _exc_vector);
-  WRITE_SPECIALREG(TTBR0_EL1, _kernel_pmap_pde);
-  WRITE_SPECIALREG(TTBR1_EL1, _kernel_pmap_pde);
+  WRITE_SPECIALREG(TTBR0_EL1, AARCH64_PHYSADDR(_kernel_pmap_pde));
+  WRITE_SPECIALREG(TTBR1_EL1, AARCH64_PHYSADDR(_kernel_pmap_pde));
 
   invalidate_tlb();
 
@@ -127,7 +127,7 @@ __boot_text static void enable_mmu(void) {
 
 __boot_text static void build_page_table(void) {
   /* l0 entry is 512GB */
-  pde_t *l0 = _kernel_pmap_pde;
+  pde_t *l0 = (pde_t *)AARCH64_PHYSADDR(_kernel_pmap_pde);
   /* l1 entry is 1GB */
   pde_t *l1 = bootmem_alloc(PAGESIZE);
   /* l2 entry is 2MB */
