@@ -9,4 +9,10 @@ typedef uint64_t pde_t;
 
 typedef struct pmap pmap_t;
 
+/* Number of page directory entries. */
+#define PD_ENTRIES (PAGESIZE / (int)sizeof(pde_t))
+
+/* Number of page table entries. */
+#define PT_ENTRIES (PAGESIZE / (int)sizeof(pte_t))
+
 #endif /* !_AARCH64_PMAP_H_ */

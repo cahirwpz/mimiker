@@ -2,6 +2,7 @@
 #include <aarch64/aarch64.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
+#include <aarch64/pmap.h>
 
 /*
  * Here we have only 62 bytes for stack per CPU. So we must be very carefully.
@@ -18,6 +19,8 @@
 
 /* Last address used by kernel for boot allocation. */
 __boot_data void *_kernel_end_boot;
+/* Kernel page directory entries. */
+alignas(PAGESIZE) pte_t _kernel_pmap_pde[PD_ENTRIES];
 
 /* Allocates pages. The argument will be aligned to PAGESIZE. */
 __unused static __boot_text void *bootmem_alloc(size_t bytes) {
@@ -57,13 +60,14 @@ __boot_text void *aarch64_init(void) {
   enable_cache_coherency();
   invalidate_tlb();
 
-  if (cpu != 0) {
-    ;
-  } else {
-    clear_bss();
-    _kernel_end_boot = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
-  }
+  if (cpu != 0)
+    goto all_cpu;
 
+  clear_bss();
+  /* Set end address of kernel for boot allocation purposes. */
+  _kernel_end_boot = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
+
+all_cpu:
   for (;;)
     ;
 }
