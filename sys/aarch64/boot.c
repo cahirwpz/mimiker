@@ -4,6 +4,10 @@
 #include <aarch64/vm_param.h>
 
 /*
+ * Here we have only 62 bytes for stack per CPU. So we must be very carefully.
+ */
+
+/*
  * Enable hardware management of data coherency with other cores in the cluster.
  */
 #define SMPEN (1 << 6)
