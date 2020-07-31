@@ -19,20 +19,21 @@ SECTIONS
   .boot 0x80000 : AT(0x80000) ALIGN(4096)
   {
     __boot = ABSOLUTE(.);
-    KEEP(*(.boot))
-    . = ALIGN(4096);
-    *(.boot .boot.*)
+    KEEP(*(.boot .boot.*))
+    . = ALIGN (4096);
     __eboot = ABSOLUTE(.);
   } : boot
 
   .text _kernel + __eboot : AT(__eboot) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
-    *(.evec);
-    . = ALIGN(2048);
     __text = ABSOLUTE(.);
     *(.text .text.*)
     __etext = ABSOLUTE(.);
+    /* Constructors are used by KASAN to initialize global redzones */
+    __CTOR_LIST__ = ABSOLUTE(.);
+    *(.ctors)
+    __CTOR_END__ = ABSOLUTE(.);
   } : text
 
   .rodata : ALIGN(4096)
