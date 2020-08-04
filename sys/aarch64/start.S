@@ -14,6 +14,7 @@ ASENTRY(_start)
     
     ADD  x3, x3, #0x1
     MOV  x4, STACK_START_SIZE
+    MUL  x4, x3, x4
 
     ADD  x4, x4, 0x18
     MOV  SP, x4
