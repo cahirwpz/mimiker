@@ -19,7 +19,9 @@ SECTIONS
   .boot 0x80000 : AT(0x80000) ALIGN(4096)
   {
     __boot = ABSOLUTE(.);
-    KEEP(*(.boot .boot.*))
+    KEEP(*(.boot))
+    *(.boot.text)
+    *(.boot.data)
     . = ALIGN (4096);
     __eboot = ABSOLUTE(.);
   } : boot
