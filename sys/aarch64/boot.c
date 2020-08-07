@@ -82,21 +82,18 @@ __boot_text static void clear_bss(void) {
 __boot_text static void drop_to_el1(void) {
   uint64_t CurrentEl = READ_SPECIALREG(CurrentEl) >> 2;
   if (CurrentEl > 2) {
-    uint64_t scr = READ_SPECIALREG(SCR_EL3);
     /* --- Execution state control for lower Exception levels.
-     * The next lower level is AArch64 */
-    scr |= SCR_RW;
-    /* --- Non-secure bit.
+     * The next lower level is AArch64
+     * --- Non-secure bit.
      * Indicates that Exception levels lower than EL3 are in Non-secure state,
      * and so memory accesses from those Exception levels cannot access Secure
      * memory.
      */
-    scr |= SCR_NS;
-    WRITE_SPECIALREG(SCR_EL3, scr);
+    WRITE_SPECIALREG(SCR_EL3, SCR_RW | SCR_NS);
 
     /* Prepare for jump into EL2. */
     WRITE_SPECIALREG(SP_EL2, REG_SP_READ());
-    WRITE_SPECIALREG(SPSR_EL3, PSR_M_EL2h);
+    WRITE_SPECIALREG(SPSR_EL3, PSR_DAIF | PSR_M_EL2h);
     WRITE_SPECIALREG(ELR_EL3, &&el2_entry);
     __isb();
     __eret();
@@ -137,7 +134,7 @@ el2_entry:
 
     /* Prepare for jump into EL1. */
     WRITE_SPECIALREG(SP_EL1, REG_SP_READ());
-    WRITE_SPECIALREG(SPSR_EL2, PSR_F | PSR_I | PSR_A | PSR_D | PSR_M_EL1h);
+    WRITE_SPECIALREG(SPSR_EL2, PSR_DAIF | PSR_M_EL1h);
     WRITE_SPECIALREG(ELR_EL2, &&el1_entry);
     __isb();
     __eret();
@@ -155,7 +152,7 @@ __boot_text static void build_page_table(void) {
   /* l2 entry is 2MB */
   volatile pde_t *l2 = bootmem_alloc(PAGESIZE);
   /* l3 entry is 4KB */
-  volatile pde_t *l3 = bootmem_alloc(PAGESIZE);
+  volatile pte_t *l3 = bootmem_alloc(PAGESIZE);
 
   for (int i = 0; i < PD_ENTRIES; i++) {
     l0[i] = 0;
@@ -181,12 +178,15 @@ __boot_text static void build_page_table(void) {
   /* initial stack :( */
   l3[0] = ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
 
+  /* boot sections */
   for (; pa < text; pa += PAGESIZE, va += PAGESIZE)
     l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | pte_default;
 
+  /* text section */
   for (; pa < data; pa += PAGESIZE, va += PAGESIZE)
     l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RO) | pte_default;
 
+  /* data & bss sections */
   for (; pa < ebss; pa += PAGESIZE, va += PAGESIZE)
     l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
 
@@ -220,12 +220,16 @@ __boot_text static void enable_mmu(void) {
   uint64_t tcr = ID_AA64MMFR0_PARange_VAL(mmfr0) << TCR_IPS_SHIFT;
 
   /* CPU must support 16 bits ASIDs. */
-  while ((mmfr0 & ID_AA64MMFR0_ASIDBits_MASK) != ID_AA64MMFR0_ASIDBits_16)
+  while (ID_AA64MMFR0_ASIDBits_VAL(mmfr0) != ID_AA64MMFR0_ASIDBits_16)
+    continue;
+
+  /* CPU must support 4kB granules. */
+  while (ID_AA64MMFR0_TGran4_VAL(mmfr0) != ID_AA64MMFR0_TGran4_IMPL)
     continue;
 
   /* Let's assume that the hardware doesn't support updates to Access flag and
    * Dirty state in translation tables. */
-  while ((mmfr1 & ID_AA64MMFR1_HAFDBS_MASK) != 0)
+  while (ID_AA64MMFR1_HAFDBS_VAL(mmfr1) != ID_AA64MMFR1_HAFDBS_NONE)
     continue;
 
   /* Use 16 bits ASIDs. */
