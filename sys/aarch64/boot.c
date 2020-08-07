@@ -171,7 +171,7 @@ __boot_text static void build_page_table(void) {
   l2[L2_INDEX(va)] = (pde_t)l3 | L2_TABLE;
 
   const pte_t pte_default =
-    L3_PAGE | ATTR_SH(ATTR_SH_IS) | ATTR_IDX(ATTR_NORMAL_MEM_WB);
+    L3_PAGE | ATTR_DEFAULT | ATTR_IDX(ATTR_NORMAL_MEM_WB);
 
   paddr_t pa = (paddr_t)__boot;
 
