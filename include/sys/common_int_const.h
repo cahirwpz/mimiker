@@ -33,12 +33,11 @@
 #ifndef _SYS_COMMON_INT_CONST_H_
 #define _SYS_COMMON_INT_CONST_H_
 
-#ifndef __INTMAX_C
-#error Your compiler does not provide inter constant suffix macros.
-#endif
 /*
  * 7.18.4 Macros for integer constants
  */
+
+#ifdef __INTMAX_C
 
 /* 7.18.4.1 Macros for minimum-width integer constants */
 
@@ -56,5 +55,31 @@
 
 #define INTMAX_C __INTMAX_C
 #define UINTMAX_C __UINTMAX_C
+
+#elif __INTMAX_C_SUFFIX__
+
+#define __int_join_(c, suffix) c##suffix
+#define __int_join(c, suffix) __int_join_(c, suffix)
+
+/* 7.18.4.1 Macros for minimum-width integer constants */
+
+#define INT8_C(c) __int_join(c, __INT8_C_SUFFIX__)
+#define INT16_C(c) __int_join(c, __INT16_C_SUFFIX__)
+#define INT32_C(c) __int_join(c, __INT32_C_SUFFIX__)
+#define INT64_C(c) __int_join(c, __INT64_C_SUFFIX__)
+
+#define UINT8_C(c) __int_join(c, __UINT8_C_SUFFIX__)
+#define UINT16_C(c) __int_join(c, __UINT16_C_SUFFIX__)
+#define UINT32_C(c) __int_join(c, __UINT32_C_SUFFIX__)
+#define UINT64_C(c) __int_join(c, __UINT64_C_SUFFIX__)
+
+/* 7.18.4.2 Macros for greatest-width integer constants */
+
+#define INTMAX_C(c) __int_join(c, __INTMAX_C_SUFFIX__)
+#define UINTMAX_C(c) __int_join(c, __UINTMAX_C_SUFFIX__)
+
+#else
+#error Your compiler does not provide inter constant suffix macros.
+#endif
 
 #endif /* _SYS_COMMON_INT_CONST_H_ */
