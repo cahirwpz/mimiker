@@ -112,12 +112,6 @@ el2_entry:
     /* Load the Virtualization Multiprocess ID Register. */
     WRITE_SPECIALREG(VMPIDR_EL2, READ_SPECIALREG(MPIDR_EL1));
 
-    /* ??? Set the bits that need to be 1 in sctlr_el1 */
-    WRITE_SPECIALREG(SCTLR_EL1, SCTLR_RES1);
-
-    /* ??? Don't trap to EL2 for exceptions. */
-    WRITE_SPECIALREG(CPTR_EL2, CPTR_RES1);
-
     /* Don't trap to EL2 for CP15 traps */
     WRITE_SPECIALREG(HSTR_EL2, 0);
 
@@ -189,8 +183,6 @@ __boot_text static void build_page_table(void) {
   /* data & bss sections */
   for (; pa < ebss; pa += PAGESIZE, va += PAGESIZE)
     l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
-
-  (void)*l3;
 }
 
 /* Based on locore.S from FreeBSD. */
@@ -238,8 +230,7 @@ __boot_text static void enable_mmu(void) {
   tcr |= TCR_T0SZ(16ULL) | TCR_T1SZ(16ULL);
   /* Set user & kernel granule to have 4kB. */
   tcr |= TCR_TG0_4K | TCR_TG1_4K;
-  /* How TTBR0 & TTBR1 page tables will be cached (write-back write-allocate).
-   */
+  /* How TTBRx page tables will be cached (write-back write-allocate). */
   tcr |= TCR_IRGN0_WBWA | TCR_IRGN1_WBWA | TCR_ORGN0_WBWA | TCR_ORGN1_WBWA;
   /* How TTBR0 & TTBR1 page tables will be synchronized between CPUs. */
   tcr |= TCR_SH0_IS | TCR_SH1_IS;

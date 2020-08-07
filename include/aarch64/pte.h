@@ -26,15 +26,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef _MACHINE_PTE_H_
 #define _MACHINE_PTE_H_
 
 /* Block and Page attributes */
-/* TODO: Add the upper attributes */
 #define ATTR_MASK_H UINT64_C(0xfff0000000000000)
 #define ATTR_MASK_L UINT64_C(0x0000000000000fff)
 #define ATTR_MASK (ATTR_MASK_H | ATTR_MASK_L)
@@ -110,8 +107,6 @@
 /* 0x2 also marks an invalid address */
 #define L3_PAGE 0x3
 
-#define PMAP_MAPDEV_EARLY_SIZE (L2_SIZE * 8)
-
 #define L0_ENTRIES_SHIFT 9
 #define L0_ENTRIES (1 << L0_ENTRIES_SHIFT)
 #define L0_ADDR_MASK (L0_ENTRIES - 1)
@@ -133,5 +128,3 @@
 #define L3_INDEX(va) (((va) >> L3_SHIFT) & Ln_ADDR_MASK)
 
 #endif /* !_MACHINE_PTE_H_ */
-
-/* End of pte.h */
