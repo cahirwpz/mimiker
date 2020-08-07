@@ -37,7 +37,7 @@
  * 7.18.4 Macros for integer constants
  */
 
-#ifdef __INTMAX_C
+#if defined(__INTMAX_C)
 
 /* 7.18.4.1 Macros for minimum-width integer constants */
 
@@ -56,7 +56,7 @@
 #define INTMAX_C __INTMAX_C
 #define UINTMAX_C __UINTMAX_C
 
-#elif __INTMAX_C_SUFFIX__
+#elif defined(__INTMAX_C_SUFFIX__)
 
 #define __int_join_(c, suffix) c##suffix
 #define __int_join(c, suffix) __int_join_(c, suffix)
