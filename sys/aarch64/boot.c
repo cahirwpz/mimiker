@@ -228,8 +228,8 @@ __boot_text static void enable_mmu(void) {
   tcr |= TCR_ASID_16;
   /* Set user & kernel address space to have 2^48 addresses. */
   tcr |= TCR_T0SZ(16ULL) | TCR_T1SZ(16ULL);
-  /* Set user & kernel granule to have 4kB. */
-  tcr |= TCR_TG0_4K | TCR_TG1_4K;
+  /* Set kernel granule to have 4kB. */
+  tcr |= TCR_TG1_4K;
   /* How TTBRx page tables will be cached (write-back write-allocate). */
   tcr |= TCR_IRGN0_WBWA | TCR_IRGN1_WBWA | TCR_ORGN0_WBWA | TCR_ORGN1_WBWA;
   /* How TTBR0 & TTBR1 page tables will be synchronized between CPUs. */
