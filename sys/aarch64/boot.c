@@ -4,30 +4,13 @@
 #include <aarch64/pmap.h>
 #include <aarch64/pte.h>
 
-extern char _kernel[];
-extern char __boot[];
-extern char __text[];
-extern char __data[];
-extern char __bss[];
-extern char __ebss[];
-
-/*
- * Here we have only 62 bytes for stack per CPU. So we must be very carefully.
- */
-
-#define AARCH64_PHYSADDR(x) ((paddr_t)(x) & (~KERNEL_SPACE_BEGIN))
-
-/*
- * Enable hardware management of data coherency with other cores in the cluster.
- */
-#define SMPEN (1 << 6)
+/* We have only 64 bytes for a stack - manage it carefully! */
 
 #define __tlbi(x) __asm__ volatile("TLBI " x)
 #define __dsb(x) __asm__ volatile("DSB " x)
 #define __isb() __asm__ volatile("ISB")
 #define __eret() __asm__ volatile("ERET")
-
-#define REG_SP_READ()                                                          \
+#define __sp()                                                                 \
   ({                                                                           \
     uint64_t __rv;                                                             \
     __asm __volatile("mov %0, sp" : "=r"(__rv));                               \
@@ -49,17 +32,11 @@ static __boot_text void *bootmem_alloc(size_t bytes) {
   return addr;
 }
 
+/* Enable hw management of data coherency with other cores in the cluster. */
 __boot_text static void enable_cache_coherency(void) {
   WRITE_SPECIALREG(S3_1_C15_c2_1, READ_SPECIALREG(S3_1_C15_C2_1) | SMPEN);
   __dsb("sy");
   __isb();
-}
-
-__boot_text static void clear_bss(void) {
-  uint64_t *ptr = (uint64_t *)AARCH64_PHYSADDR(__bss);
-  uint64_t *end = (uint64_t *)AARCH64_PHYSADDR(__ebss);
-  while (ptr < end)
-    *ptr++ = 0;
 }
 
 __boot_text static void drop_to_el1(void) {
@@ -75,7 +52,7 @@ __boot_text static void drop_to_el1(void) {
     WRITE_SPECIALREG(SCR_EL3, SCR_RW | SCR_NS);
 
     /* Prepare for jump into EL2. */
-    WRITE_SPECIALREG(SP_EL2, REG_SP_READ());
+    WRITE_SPECIALREG(SP_EL2, __sp());
     WRITE_SPECIALREG(SPSR_EL3, PSR_DAIF | PSR_M_EL2h);
     WRITE_SPECIALREG(ELR_EL3, &&el2_entry);
     __isb();
@@ -110,7 +87,7 @@ el2_entry:
     WRITE_SPECIALREG(VBAR_EL2, hypervisor_vectors);
 
     /* Prepare for jump into EL1. */
-    WRITE_SPECIALREG(SP_EL1, REG_SP_READ());
+    WRITE_SPECIALREG(SP_EL1, __sp());
     WRITE_SPECIALREG(SPSR_EL2, PSR_DAIF | PSR_M_EL1h);
     WRITE_SPECIALREG(ELR_EL2, &&el1_entry);
     __isb();
@@ -119,6 +96,22 @@ el2_entry:
 
 el1_entry:
   return;
+}
+
+extern char _kernel[];
+extern char __boot[];
+extern char __text[];
+extern char __data[];
+extern char __bss[];
+extern char __ebss[];
+
+#define AARCH64_PHYSADDR(x) ((paddr_t)(x) & (~KERNEL_SPACE_BEGIN))
+
+__boot_text static void clear_bss(void) {
+  uint64_t *ptr = (uint64_t *)AARCH64_PHYSADDR(__bss);
+  uint64_t *end = (uint64_t *)AARCH64_PHYSADDR(__ebss);
+  while (ptr < end)
+    *ptr++ = 0;
 }
 
 __boot_text static void build_page_table(void) {

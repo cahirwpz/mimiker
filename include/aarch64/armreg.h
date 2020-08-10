@@ -868,4 +868,7 @@
 /* Hypervisor Configuration Register */
 #define HCR_RW (1 << 31)
 
+/* CPU Extended Control Register */
+#define SMPEN (1 << 6)
+
 #endif /* !_AARCH64_ARMREG_H_ */
