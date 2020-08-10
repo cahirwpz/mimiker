@@ -2,8 +2,10 @@
 
 TOPDIR = $(realpath ../..)
 
-SOURCES = context.c \
+SOURCES = boot.c \
+	  context.c \
 	  copy.c \
+	  evec.S \
 	  exception.c \
 	  interrupt.c \
 	  pmap.c \
@@ -13,6 +15,8 @@ SOURCES = context.c \
 	  start.S \
 	  thread.c \
 	  ucontext.c
+
+CFLAGS.boot.c = -mcmodel=large
 
 CPPFLAGS += -D_MACHDEP
 

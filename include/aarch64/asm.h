@@ -55,6 +55,12 @@
   x:
 #define _END(x) .size x, .- x
 
+#define _ASENTRY(x)                                                            \
+  _ALIGN_TEXT;                                                                 \
+  .globl x;                                                                    \
+  .type x, _ASM_TYPE_FUNCTION;                                                 \
+  x:
+
 #ifdef GPROF
 #define _PROF_PROLOGUE                                                         \
   mov x9, x30;                                                                 \
@@ -68,6 +74,9 @@
   _PROF_PROLOGUE
 #define ENTRY_NP(y) _ENTRY(_C_LABEL(y))
 #define END(y) _END(_C_LABEL(y))
+
+#define ASENTRY(y) _ASENTRY(_ASM_LABEL(y))
+#define ASEND(y) _END(_ASM_LABEL(y))
 
 #define fp x29
 #define lr x30

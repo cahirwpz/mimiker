@@ -12,26 +12,30 @@ PHDRS
   data   PT_LOAD FLAGS(6); /* read-write */
 }
 
-PROVIDE(_kernel = 0xffffffff00000000);
+PROVIDE(_kernel = 0xffff000000000000);
 
 SECTIONS
 {
   .boot 0x80000 : AT(0x80000) ALIGN(4096)
   {
     __boot = ABSOLUTE(.);
-    KEEP(*(.init .init.*))
-    . = ALIGN(4096);
+    KEEP(*(.boot))
+    *(.boot.text)
+    *(.boot.data)
+    . = ALIGN (4096);
     __eboot = ABSOLUTE(.);
   } : boot
 
   .text _kernel + __eboot : AT(__eboot) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
-    *(.evec);
-    . = ALIGN(2048);
     __text = ABSOLUTE(.);
     *(.text .text.*)
     __etext = ABSOLUTE(.);
+    /* Constructors are used by KASAN to initialize global redzones */
+    __CTOR_LIST__ = ABSOLUTE(.);
+    *(.ctors)
+    __CTOR_END__ = ABSOLUTE(.);
   } : text
 
   .rodata : ALIGN(4096)
