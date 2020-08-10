@@ -25,6 +25,11 @@ alignas(PAGESIZE) pte_t _kernel_pmap_pde[PD_ENTRIES];
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
 
+__boot_text static void halt(void) {
+  for (;;)
+    continue;
+}
+
 /* Allocates pages. The argument will be aligned to PAGESIZE. */
 static __boot_text void *bootmem_alloc(size_t bytes) {
   void *addr = _kernel_end_boot;
@@ -186,17 +191,17 @@ __boot_text static void enable_mmu(void) {
   uint64_t mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
 
   /* CPU must support 16 bits ASIDs. */
-  while (ID_AA64MMFR0_ASIDBits_VAL(mmfr0) != ID_AA64MMFR0_ASIDBits_16)
-    continue;
+  if (ID_AA64MMFR0_ASIDBits_VAL(mmfr0) != ID_AA64MMFR0_ASIDBits_16)
+    halt();
 
   /* CPU must support 4kB granules. */
-  while (ID_AA64MMFR0_TGran4_VAL(mmfr0) != ID_AA64MMFR0_TGran4_IMPL)
-    continue;
+  if (ID_AA64MMFR0_TGran4_VAL(mmfr0) != ID_AA64MMFR0_TGran4_IMPL)
+    halt();
 
   /* Let's assume that the hardware doesn't support updates to Access flag and
    * Dirty state in translation tables. */
-  while (ID_AA64MMFR1_HAFDBS_VAL(mmfr1) != ID_AA64MMFR1_HAFDBS_NONE)
-    continue;
+  if (ID_AA64MMFR1_HAFDBS_VAL(mmfr1) != ID_AA64MMFR1_HAFDBS_NONE)
+    halt();
 
   /* Copy Intermediate Physical Address Size. */
   uint64_t tcr = ID_AA64MMFR0_PARange_VAL(mmfr0) << TCR_IPS_SHIFT;
