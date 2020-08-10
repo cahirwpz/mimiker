@@ -66,10 +66,6 @@
 #define ATTR_NORMAL_MEM_WB 2
 #define ATTR_NORMAL_MEM_WT 3
 
-#define ATTR_DEFAULT (ATTR_AF | ATTR_SH(ATTR_SH_IS))
-
-#define ATTR_DESCR_MASK 3
-
 /* Level 0 table, 512GiB per entry */
 #define L0_SHIFT 39
 #define L0_SIZE (1ul << L0_SHIFT)

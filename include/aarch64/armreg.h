@@ -861,4 +861,11 @@
 #define PMCR_N_SHIFT 11 /* Number of counters implemented */
 #define PMCR_N_MASK (0x1f << PMCR_N_SHIFT)
 
+/* Secure Configuration Register */
+#define SCR_RW (1 << 10)
+#define SCR_NS (1 << 0)
+
+/* Hypervisor Configuration Register */
+#define HCR_RW (1 << 31)
+
 #endif /* !_AARCH64_ARMREG_H_ */

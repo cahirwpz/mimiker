@@ -43,27 +43,15 @@ extern char exception_vectors[];
 extern char hypervisor_vectors[];
 
 /* Allocates pages. The argument will be aligned to PAGESIZE. */
-__unused static __boot_text void *bootmem_alloc(size_t bytes) {
+static __boot_text void *bootmem_alloc(size_t bytes) {
   void *addr = _kernel_end_boot;
   _kernel_end_boot += align(bytes, PAGESIZE);
   return addr;
 }
 
-/* Return active CPU number [0-3]. */
-__unused __boot_text static long get_cpu(void) {
-  return READ_SPECIALREG(MPIDR_EL1) & 3UL;
-}
-
 __boot_text static void enable_cache_coherency(void) {
   WRITE_SPECIALREG(S3_1_C15_c2_1, READ_SPECIALREG(S3_1_C15_C2_1) | SMPEN);
   __dsb("sy");
-  __isb();
-}
-
-__unused __boot_text static void invalidate_tlb(void) {
-  __tlbi("alle1");
-  __tlbi("vmalle1is");
-  __dsb("ish");
   __isb();
 }
 
@@ -73,11 +61,6 @@ __boot_text static void clear_bss(void) {
   while (ptr < end)
     *ptr++ = 0;
 }
-
-#define SCR_RW (1 << 10)
-#define SCR_NS (1 << 0)
-#define HCR_RW (1 << 31)
-#define CPTR_RES1 0x000033ff
 
 __boot_text static void drop_to_el1(void) {
   uint64_t CurrentEl = READ_SPECIALREG(CurrentEl) >> 2;
@@ -165,7 +148,7 @@ __boot_text static void build_page_table(void) {
   l2[L2_INDEX(va)] = (pde_t)l3 | L2_TABLE;
 
   const pte_t pte_default =
-    L3_PAGE | ATTR_DEFAULT | ATTR_IDX(ATTR_NORMAL_MEM_WB);
+    L3_PAGE | ATTR_AF | ATTR_SH(ATTR_SH_IS) | ATTR_IDX(ATTR_NORMAL_MEM_WB);
 
   paddr_t pa = (paddr_t)__boot;
 
@@ -194,6 +177,7 @@ __boot_text static void enable_mmu(void) {
   WRITE_SPECIALREG(TTBR1_EL1, AARCH64_PHYSADDR(_kernel_pmap_pde));
   __isb();
 
+  /* Clear the Monitor Debug System control register. */
   WRITE_SPECIALREG(MDSCR_EL1, 0);
 
   __tlbi("vmalle1is");
@@ -208,9 +192,6 @@ __boot_text static void enable_mmu(void) {
   uint64_t mmfr0 = READ_SPECIALREG(id_aa64mmfr0_el1);
   uint64_t mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
 
-  /* Copy Intermediate Physical Address Size. */
-  uint64_t tcr = ID_AA64MMFR0_PARange_VAL(mmfr0) << TCR_IPS_SHIFT;
-
   /* CPU must support 16 bits ASIDs. */
   while (ID_AA64MMFR0_ASIDBits_VAL(mmfr0) != ID_AA64MMFR0_ASIDBits_16)
     continue;
@@ -224,6 +205,8 @@ __boot_text static void enable_mmu(void) {
   while (ID_AA64MMFR1_HAFDBS_VAL(mmfr1) != ID_AA64MMFR1_HAFDBS_NONE)
     continue;
 
+  /* Copy Intermediate Physical Address Size. */
+  uint64_t tcr = ID_AA64MMFR0_PARange_VAL(mmfr0) << TCR_IPS_SHIFT;
   /* Use 16 bits ASIDs. */
   tcr |= TCR_ASID_16;
   /* Set user & kernel address space to have 2^48 addresses. */
@@ -241,9 +224,7 @@ __boot_text static void enable_mmu(void) {
    * I -- SP must be aligned to 16.
    * C -- Cacheability control, for data accesses.
    */
-  uint64_t sctlr = SCTLR_M | SCTLR_I | SCTLR_C;
-  WRITE_SPECIALREG(sctlr_el1, sctlr);
-  __dsb("sy");
+  WRITE_SPECIALREG(sctlr_el1, SCTLR_M | SCTLR_I | SCTLR_C);
   __isb();
 }
 
