@@ -1,9 +1,25 @@
 #include <aarch64/asm.h>
 
+#define IMAGE_OFFSET 0
+#define IMAGE_SIZE 0
+#define IMAGE_FLAGS 0
+
         .section .boot, "ax"
         .extern _boot_stack
 
 ASENTRY(_start)
+        /* Based on  locore.S from FreeBSD. */
+        b       1f
+        .long   0
+        .quad   IMAGE_OFFSET
+        .quad   IMAGE_SIZE
+        .quad   IMAGE_FLAGS
+        .quad   0
+        .quad   0
+        .quad   0
+        .long   0x644d5241
+        .long   0
+1:
         /* Save atags. */
         MOV     x27, x0
 

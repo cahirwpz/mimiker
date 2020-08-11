@@ -24,6 +24,7 @@ CONFIG = {
         'debug': False,
         'graphics': False,
         'kernel': 'sys/mimiker.elf',
+        'elf': 'sys/mimiker.elf',
         'initrd': 'initrd.cpio',
         'args': []
     },
@@ -51,6 +52,7 @@ CONFIG = {
             'rpi3': {
                 'binary': 'qemu-mimiker-aarch64',
                 'options': [
+                    '-d', 'mmu,int',
                     '-machine', 'raspi3',
                     '-smp', '4',
                     '-cpu', 'cortex-a53'],
@@ -74,7 +76,7 @@ CONFIG = {
             '-ex=set confirm yes',
             '-ex=source .gdbinit',
             '-ex=continue',
-            '{kernel}'
+            '{elf}'
         ],
         'board': {
             'malta': {

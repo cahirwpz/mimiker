@@ -60,6 +60,9 @@ if __name__ == '__main__':
         description='Launch kernel in Malta board simulator.')
     parser.add_argument('-k', '--kernel', metavar='KERNEL', type=str,
                         default='sys/mimiker.elf',
+                        help='Kernel image file.')
+    parser.add_argument('-e', '--elf', metavar='ELF', type=str,
+                        default='sys/mimiker.elf',
                         help='Kernel image file in ELF format.')
     parser.add_argument('--initrd', metavar='INITRD', type=str,
                         default='initrd.cpio',
@@ -92,6 +95,7 @@ if __name__ == '__main__':
     setvar('config.debug', args.debug)
     setvar('config.graphics', args.graphics)
     setvar('config.kernel', args.kernel)
+    setvar('config.elf', args.elf)
     setvar('config.initrd', args.initrd)
     setvar('config.args', args.args)
 
