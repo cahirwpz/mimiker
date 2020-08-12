@@ -3,6 +3,7 @@
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
 #include <aarch64/pte.h>
+#include <aarch64/atags.h>
 
 #define __tlbi(x) __asm__ volatile("TLBI " x)
 #define __dsb(x) __asm__ volatile("DSB " x)
@@ -21,6 +22,7 @@ __boot_data void *_kernel_end_boot;
 alignas(PAGESIZE) pte_t _kernel_pmap_pde[PD_ENTRIES];
 /* The boot stack is used before we switch out to thread0. */
 __boot_data alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
+alignas(PAGESIZE) uint8_t _atags[PAGESIZE];
 
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
@@ -225,16 +227,28 @@ __boot_text static void enable_mmu(void) {
   __isb();
 }
 
-__boot_text void *aarch64_init(__unused void *atags) {
+__boot_text static void atags_copy(atag_tag_t *atags) {
+  size_t size;
+  uint8_t *addr = (uint8_t *)AARCH64_PHYSADDR(_atags);
+
+  atag_tag_t *tag;
+  ATAG_FOREACH(tag, atags) {
+    size = ATAG_SIZE(tag);
+    for (size_t offset = 0; offset < size; ++offset)
+      *addr++ = *((uint8_t *)tag + offset);
+  }
+}
+
+__boot_text void *aarch64_init(atag_tag_t *atags) {
   drop_to_el1();
   enable_cache_coherency();
   clear_bss();
 
   /* Set end address of kernel for boot allocation purposes. */
   _kernel_end_boot = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
+  atags_copy(atags);
 
   build_page_table();
   enable_mmu();
-
-  return NULL;
+  return _atags;
 }
