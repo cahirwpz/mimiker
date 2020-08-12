@@ -200,7 +200,7 @@ class QEMU(Launchable):
     def __init__(self):
         super().__init__('qemu', getvar('qemu.binary'))
 
-        self.options = getvar('qemu.options')
+        self.options = getopts('qemu.options')
         for _, port in getvar('qemu.uarts'):
             self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
