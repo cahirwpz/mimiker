@@ -27,7 +27,7 @@ CONFIG = {
         'initrd': 'initrd.cpio',
         'args': [],
         'board': {
-            'malta' : {
+            'malta': {
                 'kernel': 'sys/mimiker.elf',
             },
             'rpi3': {
@@ -96,18 +96,42 @@ CONFIG = {
 }
 
 
-def split(name):
-    return name.format(BOARD='board.' + CONFIG['board']).split('.')
+def setboard(name):
+    setvar('board', name)
+    # go over top-level configuration variables
+    for top, config in CONFIG.items():
+        if type(config) is not dict:
+            continue
+        board = getvar('board.' + name, start=config, failok=True)
+        if not board:
+            continue
+        # merge board variables into generic set
+        for key, value in board.items():
+            if key not in config:
+                config[key] = value
+            elif type(value) == list:
+                config[key].extend(value)
+            else:
+                raise RuntimeError(f'Cannot merge {top}.board.{name}.{key} '
+                                   f'into {top}')
+        # finish merging by removing alternative configurations
+        del config['board']
 
 
-def getvar(name, val=CONFIG):
-    for f in split(name):
-        val = val[f]
-    return val
+def getvar(name, start=CONFIG, failok=False):
+    value = start
+    for f in name.split('.'):
+        try:
+            value = value[f]
+        except KeyError as ex:
+            if failok:
+                return None
+            raise ex
+    return value
 
 
 def setvar(name, val, config=CONFIG):
-    fs = split(name)
+    fs = name.split('.')
     while len(fs) > 1:
         config = config[fs.pop(0)]
     config[fs.pop(0)] = val
@@ -174,10 +198,10 @@ class Launchable():
 
 class QEMU(Launchable):
     def __init__(self):
-        super().__init__('qemu', getvar('qemu.{BOARD}.binary'))
+        super().__init__('qemu', getvar('qemu.binary'))
 
-        self.options = getopts('qemu.options', 'qemu.{BOARD}.options')
-        for _, port in getvar('qemu.{BOARD}.uarts'):
+        self.options = getvar('qemu.options')
+        for _, port in getvar('qemu.uarts'):
             self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
         if getvar('config.args'):
@@ -190,7 +214,7 @@ class QEMU(Launchable):
 
 class GDB(Launchable):
     def __init__(self, name=None, cmd=None):
-        super().__init__(name or 'gdb', cmd or getvar('gdb.{BOARD}.binary'))
+        super().__init__(name or 'gdb', cmd or getvar('gdb.binary'))
         # gdbtui & cgdb output is garbled if there is no delay
         self.cmd = 'sleep 0.25 && ' + self.cmd
 
@@ -209,7 +233,7 @@ class GDBTUI(GDB):
 class CGDB(GDB):
     def __init__(self):
         super().__init__('cgdb', 'cgdb')
-        self.options = ['-d', getvar('gdb.{BOARD}.binary')]
+        self.options = ['-d', getvar('gdb.binary')]
 
 
 class SOCAT(Launchable):
@@ -221,5 +245,5 @@ class SOCAT(Launchable):
 
 
 Debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
-__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT',
-           'Debuggers', 'gdb_port', 'uart_port', 'getvar', 'setvar']
+__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT', 'Debuggers',
+           'gdb_port', 'uart_port', 'getvar', 'setvar', 'setboard']

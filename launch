@@ -78,8 +78,7 @@ if __name__ == '__main__':
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
     os.environ['MIMIKER_REPO'] = os.path.dirname(os.path.realpath(sys.argv[0]))
 
-    setvar('board', args.board)
-    setvar('config.kernel', getvar('config.{BOARD}.kernel'))
+    setboard(args.board)
     setvar('config.debug', args.debug)
     setvar('config.graphics', args.graphics)
     setvar('config.args', args.args)
@@ -108,7 +107,7 @@ if __name__ == '__main__':
     else:
         dbg = None
 
-    uarts = [SOCAT(name, port) for name, port in getvar('qemu.{BOARD}.uarts')]
+    uarts = [SOCAT(name, port) for name, port in getvar('qemu.uarts')]
 
     if args.test_run:
         TestRun(sim, uarts)
