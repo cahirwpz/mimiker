@@ -49,4 +49,4 @@ GIT     = git
 PATCH   = patch
 GENASSYM = $(TOPDIR)/sys/script/genassym.sh
 YACC	= byacc
-GZIP	= gzip
+GZIP	= gzip -9
