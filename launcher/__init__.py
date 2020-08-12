@@ -23,10 +23,17 @@ CONFIG = {
     'config': {
         'debug': False,
         'graphics': False,
-        'kernel': 'sys/mimiker.elf',
         'elf': 'sys/mimiker.elf',
         'initrd': 'initrd.cpio',
-        'args': []
+        'args': [],
+        'board': {
+            'malta' : {
+                'kernel': 'sys/mimiker.elf',
+            },
+            'rpi3': {
+                'kernel': 'sys/mimiker.img.gz',
+            },
+        },
     },
     'qemu': {
         'options': [

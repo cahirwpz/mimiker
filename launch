@@ -58,15 +58,6 @@ def DevelRun(sim, dbg, uarts):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Launch kernel in Malta board simulator.')
-    parser.add_argument('-k', '--kernel', metavar='KERNEL', type=str,
-                        default='sys/mimiker.elf',
-                        help='Kernel image file.')
-    parser.add_argument('-e', '--elf', metavar='ELF', type=str,
-                        default='sys/mimiker.elf',
-                        help='Kernel image file in ELF format.')
-    parser.add_argument('--initrd', metavar='INITRD', type=str,
-                        default='initrd.cpio',
-                        help='Initial RAM disk in CPIO format.')
     parser.add_argument('args', metavar='ARGS', type=str,
                         nargs=argparse.REMAINDER, help='Kernel arguments.')
     parser.add_argument('-D', '--debugger', metavar='DEBUGGER', type=str,
@@ -84,20 +75,18 @@ if __name__ == '__main__':
                         choices=['malta', 'rpi3'], help='Emulated board.')
     args = parser.parse_args()
 
-    # Check if the kernel file is available
-    if not os.path.isfile(args.kernel):
-        raise SystemExit('%s: file does not exist!' % args.kernel)
-
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
     os.environ['MIMIKER_REPO'] = os.path.dirname(os.path.realpath(sys.argv[0]))
 
     setvar('board', args.board)
+    setvar('config.kernel', getvar('config.{BOARD}.kernel'))
     setvar('config.debug', args.debug)
     setvar('config.graphics', args.graphics)
-    setvar('config.kernel', args.kernel)
-    setvar('config.elf', args.elf)
-    setvar('config.initrd', args.initrd)
     setvar('config.args', args.args)
+
+    # Check if the kernel file is available
+    if not os.path.isfile(getvar('config.kernel')):
+        raise SystemExit('%s: file does not exist!' % getvar('config.kernel'))
 
     sim = QEMU()
 
