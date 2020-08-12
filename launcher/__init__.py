@@ -52,7 +52,6 @@ CONFIG = {
             'rpi3': {
                 'binary': 'qemu-mimiker-aarch64',
                 'options': [
-                    '-d', 'mmu,int',
                     '-machine', 'raspi3',
                     '-smp', '4',
                     '-cpu', 'cortex-a53'],
