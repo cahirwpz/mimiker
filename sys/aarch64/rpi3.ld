@@ -12,7 +12,6 @@ PHDRS
   data   PT_LOAD FLAGS(6); /* read-write */
 }
 
-PROVIDE(_kernel = 0xffff000000000000);
 
 SECTIONS
 {
@@ -25,6 +24,8 @@ SECTIONS
     . = ALIGN (4096);
     __eboot = ABSOLUTE(.);
   } : boot
+
+  HIDDEN(_kernel = 0xffff000000000000);
 
   .text _kernel + __eboot : AT(__eboot) ALIGN(4096)
   {
