@@ -1,9 +1,28 @@
 #include <aarch64/asm.h>
 
+/* Initial boot environment is described in detail 
+ * at Documentation/arm64/booting.rst from Linux source tree. */
+
+#define IMAGE_OFFSET 0 /* Image offset from start of 2 MiB page */
+#define IMAGE_SIZE __kernel_size
+#define IMAGE_FLAGS 2 /* Kernel is little endian, page size is 4KiB */
+
         .section .boot, "ax"
         .extern _boot_stack
 
 ASENTRY(_start)
+        /* Based on locore.S from FreeBSD. */
+        b       1f
+        .long   0
+        .quad   IMAGE_OFFSET
+        .quad   IMAGE_SIZE
+        .quad   IMAGE_FLAGS
+        .quad   0
+        .quad   0
+        .quad   0
+        .long   0x644d5241 /* Magic "ARM\x64" */
+        .long   0
+1:
         /* Save atags. */
         MOV     x27, x0
 

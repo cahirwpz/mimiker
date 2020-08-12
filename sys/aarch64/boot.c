@@ -103,7 +103,6 @@ el1_entry:
   return;
 }
 
-extern char _kernel[];
 extern char __boot[];
 extern char __text[];
 extern char __data[];
@@ -139,7 +138,7 @@ __boot_text static void build_page_table(void) {
   paddr_t text = AARCH64_PHYSADDR(__text);
   paddr_t data = AARCH64_PHYSADDR(__data);
   paddr_t ebss = AARCH64_PHYSADDR(roundup((vaddr_t)__ebss, PAGESIZE));
-  vaddr_t va = (vaddr_t)__boot + (vaddr_t)_kernel;
+  vaddr_t va = KERNEL_SPACE_BEGIN + (vaddr_t)__boot;
 
   l0[L0_INDEX(va)] = (pde_t)l1 | L0_TABLE;
   l1[L1_INDEX(va)] = (pde_t)l2 | L1_TABLE;
@@ -226,7 +225,7 @@ __boot_text static void enable_mmu(void) {
   __isb();
 }
 
-__boot_text void *aarch64_init(void) {
+__boot_text void *aarch64_init(__unused void *atags) {
   drop_to_el1();
   enable_cache_coherency();
   clear_bss();
