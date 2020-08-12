@@ -1,8 +1,11 @@
 #include <aarch64/asm.h>
 
-#define IMAGE_OFFSET 0
-#define IMAGE_SIZE 0
-#define IMAGE_FLAGS 0
+/* Initial boot environment is described in detail 
+ * at Documentation/arm64/booting.rst from Linux source tree. */
+
+#define IMAGE_OFFSET 0 /* Image offset from start of 2 MiB page */
+#define IMAGE_SIZE __kernel_size
+#define IMAGE_FLAGS 2 /* Kernel is little endian, page size is 4KiB */
 
         .section .boot, "ax"
         .extern _boot_stack

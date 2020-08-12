@@ -12,10 +12,11 @@ PHDRS
   data   PT_LOAD FLAGS(6); /* read-write */
 }
 
+PROVIDE(__kernel_size = (__kernel_end - __kernel_start) + (__eboot - __boot));
 
 SECTIONS
 {
-  .boot 0x80000 : AT(0x80000) ALIGN(4096)
+  .boot 0x200000 : AT(0x200000) ALIGN(4096)
   {
     __boot = ABSOLUTE(.);
     KEEP(*(.boot))
