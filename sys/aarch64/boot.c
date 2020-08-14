@@ -37,11 +37,19 @@ static __boot_text void *bootmem_alloc(size_t bytes) {
   return addr;
 }
 
-/* Enable hw management of data coherency with other cores in the cluster. */
-__boot_text static void enable_cache_coherency(void) {
+__boot_text static void configure_cpu(void) {
+  /* Enable hw management of data coherency with other cores in the cluster. */
   WRITE_SPECIALREG(S3_1_C15_c2_1, READ_SPECIALREG(S3_1_C15_C2_1) | SMPEN);
   __dsb("sy");
   __isb();
+
+  /* TODO(pj) update ASFLAGS in build system. */
+#if 0
+  /* We don't support ARMv8.2 Reliability, Availability, and Serviceability. */
+  uint64_t pfr0 = READ_SPECIALREG(ID_AA64PFR0_EL1);
+  if (ID_AA64PFR0_RAS_VAL(pfr0) != ID_AA64PFR0_RAS_NONE)
+    halt();
+#endif
 }
 
 __boot_text static void drop_to_el1(void) {
@@ -227,7 +235,7 @@ __boot_text static void enable_mmu(void) {
 
 __boot_text void *aarch64_init(__unused void *atags) {
   drop_to_el1();
-  enable_cache_coherency();
+  configure_cpu();
   clear_bss();
 
   /* Set end address of kernel for boot allocation purposes. */

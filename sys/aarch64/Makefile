@@ -18,6 +18,10 @@ SOURCES = boot.c \
 
 CFLAGS.boot.c = -mcmodel=large
 
+CLEAN-FILES += assym.h
+
 CPPFLAGS += -D_MACHDEP
 
 include $(TOPDIR)/build/build.kern.mk
+
+$(SOURCES): assym.h
