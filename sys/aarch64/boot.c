@@ -30,10 +30,12 @@ __boot_text static void halt(void) {
     continue;
 }
 
-/* Allocates pages. The argument will be aligned to PAGESIZE. */
-static __boot_text void *bootmem_alloc(size_t bytes) {
-  void *addr = _kernel_end_boot;
-  _kernel_end_boot += align(bytes, PAGESIZE);
+/* Allocates zero'ed page. */
+static __boot_text void *page_alloc(void) {
+  uint64_t *addr = _kernel_end_boot;
+  _kernel_end_boot += PAGESIZE;
+  for (unsigned i = 0; i < PAGESIZE / sizeof(uint64_t); i++)
+    addr[i] = 0;
   return addr;
 }
 
@@ -118,24 +120,25 @@ __boot_text static void clear_bss(void) {
     *ptr++ = 0;
 }
 
+#define VAS_SIZE (1L << 48)
+#define PT_L3_SIZE (VAS_SIZE / PT_ENTRIES)
+#define PT_L2_SIZE (PT_L3_SIZE / PT_ENTRIES)
+#define PT_L1_SIZE (PT_L2_SIZE / PT_ENTRIES)
 
-/* TODO(pj) recursive page table */
+#define KPT_BASE(x) (~((x)-1))
+#define KPT_L3_BASE KPT_BASE(PT_L3_SIZE)
+#define KPT_L2_BASE KPT_BASE(PT_L2_SIZE)
+#define KPT_L1_BASE KPT_BASE(PT_L1_SIZE)
+
 __boot_text static void build_page_table(void) {
   /* l0 entry is 512GB */
   volatile pde_t *l0 = (pde_t *)AARCH64_PHYSADDR(_kernel_pmap_pde);
   /* l1 entry is 1GB */
-  volatile pde_t *l1 = bootmem_alloc(PAGESIZE);
+  volatile pde_t *l1 = page_alloc();
   /* l2 entry is 2MB */
-  volatile pde_t *l2 = bootmem_alloc(PAGESIZE);
+  volatile pde_t *l2 = page_alloc();
   /* l3 entry is 4KB */
-  volatile pte_t *l3 = bootmem_alloc(PAGESIZE);
-
-  for (int i = 0; i < PD_ENTRIES; i++) {
-    l0[i] = 0;
-    l1[i] = 0;
-    l2[i] = 0;
-    l3[i] = 0;
-  }
+  volatile pte_t *l3 = page_alloc();
 
   paddr_t text = AARCH64_PHYSADDR(__text);
   paddr_t data = AARCH64_PHYSADDR(__data);
@@ -165,6 +168,28 @@ __boot_text static void build_page_table(void) {
   /* data & bss sections */
   for (; pa < ebss; pa += PAGESIZE, va += PAGESIZE)
     l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
+
+  /* add recursive mapping */
+  volatile pde_t *l1_3 = page_alloc(); /* 1+2+3 */
+  volatile pde_t *l2_3 = page_alloc(); /* 3 */
+  volatile pde_t *l3_3 = page_alloc(); /* 3 */
+  volatile pde_t *l2_2 = page_alloc(); /* 1+2 */
+  volatile pde_t *l3_2 = page_alloc(); /* 2 */
+  volatile pde_t *l3_1 = page_alloc(); /* 1 */
+
+  const pte_t l3_page = ATTR_AP(ATTR_AP_RW) | pte_default;
+
+  l0[L0_INDEX(KPT_L3_BASE)] = (pde_t)l1_3 | L0_TABLE;
+  l1_3[L1_INDEX(KPT_L3_BASE)] = (pde_t)l2_3 | L1_TABLE;
+  l2_3[L2_INDEX(KPT_L3_BASE)] = (pde_t)l3_3 | L2_TABLE;
+  l3_3[L3_INDEX(KPT_L3_BASE)] = (pte_t)l3 | l3_page;
+
+  l1_3[L1_INDEX(KPT_L2_BASE)] = (pde_t)l2_2 | L1_TABLE;
+  l2_2[L2_INDEX(KPT_L2_BASE)] = (pde_t)l3_2 | L2_TABLE;
+  l3_2[L3_INDEX(KPT_L2_BASE)] = (pte_t)l2 | l3_page;
+
+  l2_2[L2_INDEX(KPT_L1_BASE)] = (pde_t)l3_1 | L2_TABLE;
+  l3_1[L3_INDEX(KPT_L1_BASE)] = (pte_t)l1 | l3_page;
 }
 
 /* Based on locore.S from FreeBSD. */
