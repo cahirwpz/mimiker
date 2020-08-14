@@ -49,12 +49,11 @@ void *board_stack(atag_tag_t *atags) {
   ATAG_FOREACH(tag, atags) {
     switch (ATAG_TAG(tag)) {
       case ATAG_MEM:
-        snprintf(_memsize, sizeof(_memsize), "memsize=%d",
-                 tag->u.tag_mem.size);
+        snprintf(_memsize, sizeof(_memsize), "memsize=%d", tag->u.tag_mem.size);
         *tokens++ = _memsize;
         break;
       case ATAG_INITRD2:
-        snprintf(_rd_start, sizeof(_rd_start), "rd_start=%d", 
+        snprintf(_rd_start, sizeof(_rd_start), "rd_start=%d",
                  tag->u.tag_initrd.start);
         snprintf(_rd_size, sizeof(_rd_size), "rd_size=%d",
                  tag->u.tag_initrd.size);
