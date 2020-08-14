@@ -1,10 +1,12 @@
+include <stddef.h>
 include <aarch64/exception.h>
 
 define EXC_SP offsetof(exc_frame_t, sp)
 define EXC_LF offsetof(exc_frame_t, lr)
+define EXC_FAR offsetof(exc_frame_t, far)
 define EXC_ELR offsetof(exc_frame_t, elr)
 define EXC_SPSR offsetof(exc_frame_t, spsr)
 define EXC_ESR offsetof(exc_frame_t, esr)
 define EXC_X offsetof(exc_frame_t, x)
 
-define KERN_EXC_FRAME_SIZE sizeof(cpu_exc_frame_t)
+define EXC_SIZE sizeof(exc_frame_t)
