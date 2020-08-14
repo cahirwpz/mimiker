@@ -8,9 +8,9 @@
 
 #define ENVBUF_SIZE 64
 
-static char _memsize[ENVBUF_SIZE] = "memsize=";
-static char _rd_start[ENVBUF_SIZE] = "rd_start=";
-static char _rd_size[ENVBUF_SIZE] = "rd_size=";
+static char _memsize[ENVBUF_SIZE];
+static char _rd_start[ENVBUF_SIZE];
+static char _rd_size[ENVBUF_SIZE];
 
 static int count_tokens(atag_tag_t *atags) {
   int ntokens = 0;
@@ -33,25 +33,6 @@ static int count_tokens(atag_tag_t *atags) {
   return ntokens;
 }
 
-static void itoa(uint32_t val, char *dest) {
-  uint32_t tmp;
-  char *c = dest;
-  if (val == 0) {
-    *c = '0';
-    return;
-  }
-  while (val) {
-    *c++ = '0' + (val % 10);
-    val /= 10;
-  }
-  c--;
-  while (dest < c) {
-    tmp = *dest;
-    *dest++ = *c;
-    *c-- = tmp;
-  }
-}
-
 void *board_stack(atag_tag_t *atags) {
   kstack_t *stk = &thread0.td_kstack;
 
@@ -68,17 +49,20 @@ void *board_stack(atag_tag_t *atags) {
   ATAG_FOREACH(tag, atags) {
     switch (ATAG_TAG(tag)) {
       case ATAG_MEM:
-        itoa(tag->u.tag_mem.size, &_memsize[0] + strlen(_memsize));
-        *tokens++ = &_memsize[0];
+        snprintf(_memsize, sizeof(_memsize), "memsize=%d",
+                 tag->u.tag_mem.size);
+        *tokens++ = _memsize;
         break;
       case ATAG_INITRD2:
-        itoa(tag->u.tag_initrd.start, &_rd_start[0] + strlen(_rd_start));
-        itoa(tag->u.tag_initrd.size, &_rd_size[0] + strlen(_rd_size));
-        *tokens++ = &_rd_start[0];
-        *tokens++ = &_rd_size[0];
+        snprintf(_rd_start, sizeof(_rd_start), "rd_start=%d", 
+                 tag->u.tag_initrd.start);
+        snprintf(_rd_size, sizeof(_rd_size), "rd_size=%d",
+                 tag->u.tag_initrd.size);
+        *tokens++ = _rd_start;
+        *tokens++ = _rd_size;
         break;
       case ATAG_CMDLINE:
-        *tokens++ = &tag->u.tag_cmd.command[0];
+        *tokens++ = tag->u.tag_cmd.command;
         break;
       default:
         break;
