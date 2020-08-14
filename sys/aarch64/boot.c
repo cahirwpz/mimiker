@@ -118,6 +118,8 @@ __boot_text static void clear_bss(void) {
     *ptr++ = 0;
 }
 
+
+/* TODO(pj) recursive page table */
 __boot_text static void build_page_table(void) {
   /* l0 entry is 512GB */
   volatile pde_t *l0 = (pde_t *)AARCH64_PHYSADDR(_kernel_pmap_pde);
