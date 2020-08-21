@@ -151,9 +151,6 @@ __boot_text static void build_page_table(void) {
 
   paddr_t pa = (paddr_t)__boot;
 
-  /* initial stack :( */
-  l3[0] = ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
-
   /* boot sections */
   for (; pa < text; pa += PAGESIZE, va += PAGESIZE)
     l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | pte_default;
