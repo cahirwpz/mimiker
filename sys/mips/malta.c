@@ -10,42 +10,12 @@
 #include <sys/klog.h>
 #include <sys/console.h>
 #include <sys/context.h>
+#include <sys/cmdline.h>
 #include <sys/kenv.h>
 #include <sys/libkern.h>
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
 #include <sys/kasan.h>
-
-static const char *whitespaces = " \t";
-
-static size_t count_tokens(const char *str) {
-  size_t ntokens = 0;
-
-  do {
-    str += strspn(str, whitespaces);
-    if (*str == '\0')
-      return ntokens;
-    str += strcspn(str, whitespaces);
-    ntokens++;
-  } while (true);
-}
-
-static char **extract_tokens(kstack_t *stk, const char *str, char **tokens_p) {
-  do {
-    str += strspn(str, whitespaces);
-    if (*str == '\0')
-      return tokens_p;
-    size_t toklen = strcspn(str, whitespaces);
-    /* copy the token to memory managed by the kernel */
-    char *token = kstack_alloc(stk, toklen + 1);
-    strlcpy(token, str, toklen + 1);
-    *tokens_p++ = token;
-    /* append extra empty token when you see "--" */
-    if (toklen == 2 && strncmp("--", str, 2) == 0)
-      *tokens_p++ = NULL;
-    str += toklen;
-  } while (true);
-}
 
 static char *make_pair(kstack_t *stk, char *key, char *value) {
   int arglen = strlen(key) + strlen(value) + 2;
@@ -54,6 +24,23 @@ static char *make_pair(kstack_t *stk, char *key, char *value) {
   strlcat(arg, "=", arglen);
   strlcat(arg, value, arglen);
   return arg;
+}
+
+static int count_args(int argc, char **argv, char **envp) {
+  int ntokens = 0;
+  for (int i = 0; i < argc; ++i)
+    ntokens += cmdline_count_tokens(argv[i]);
+  for (char **pair = envp; *pair; pair += 2)
+    ntokens++;
+  return ntokens;
+}
+
+static void process_args(char **argv, char **envp, char **tokens, kstack_t *stk) {
+  tokens = cmdline_extract_tokens(stk, argv[0], tokens);
+  for (char **pair = envp; *pair; pair += 2)
+    *tokens++ = make_pair(stk, pair[0], pair[1]);
+  tokens = cmdline_extract_tokens(stk, argv[1], tokens);
+  *tokens = NULL;
 }
 
 /*
@@ -74,15 +61,17 @@ static char *make_pair(kstack_t *stk, char *key, char *value) {
  *     envp={"memsize", "128MiB", "uart.speed", "115200"};
  *
  *   instruction:
- *     setup_kenv(argc, argv, envp);
+ *     board_stack(argc, argv, envp);
  *
  *   will set global variables as follows:
  *     kenvp={"mimiker.elf", "memsize=128MiB", "uart.speed=115200",
  *            "arg1", "arg2=foo", "init=/bin/sh", "arg3=foobar"};
  *     kinit={NULL, "baz"};
+ *   
+ *   Please note that both kenvp and kinit point to the same array.
+ *   Their contents will be separated by NULL.
  */
-
-void *board_stack(int argc, char **argv, char **envp, unsigned memsize) {
+void *board_stack(int argc, char **argv, char **envp) {
   assert(argc == 2);
 
   kstack_t *stk = &thread0.td_kstack;
@@ -90,37 +79,11 @@ void *board_stack(int argc, char **argv, char **envp, unsigned memsize) {
   /* See thread_entry_setup for explanation. */
   thread0.td_uframe = kstack_alloc_s(stk, exc_frame_t);
 
-  int ntokens = 0;
-  for (int i = 0; i < argc; ++i)
-    ntokens += count_tokens(argv[i]);
-  for (char **pair = envp; *pair; pair += 2)
-    ntokens++;
-
-  /* Both _kenvp and _kinit are going to point to the same array.
-   * Their contents will be separated by NULL. */
+  int ntokens = count_args(argc, argv, envp);
   char **kenvp = kstack_alloc(stk, (ntokens + 2) * sizeof(char *));
-  char **kinit = NULL;
-
-  char **tokens = kenvp;
-  tokens = extract_tokens(stk, argv[0], tokens);
-  for (char **pair = envp; *pair; pair += 2)
-    *tokens++ = make_pair(stk, pair[0], pair[1]);
-  tokens = extract_tokens(stk, argv[1], tokens);
-  *tokens = NULL;
-
+  process_args(argv, envp, kenvp, stk);
   kstack_fix_bottom(stk);
-
-  /* Let's find "--".
-   * After we set it to NULL it's going to become first element of _kinit */
-  for (char **argp = kenvp; *argp; argp++) {
-    if (strcmp("--", *argp) == 0) {
-      *argp++ = NULL;
-      kinit = argp;
-      break;
-    }
-  }
-
-  init_kenv(kenvp, kinit);
+  init_kenv(kenvp);
 
   return stk->stk_ptr;
 }
