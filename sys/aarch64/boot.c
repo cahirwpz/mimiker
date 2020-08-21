@@ -223,14 +223,14 @@ __boot_text static void enable_mmu(void) {
 }
 
 __boot_text static void atags_copy(atag_tag_t *atags) {
-  size_t size;
-  uint8_t *addr = (uint8_t *)AARCH64_PHYSADDR(_atags);
+  uint8_t *dst = (uint8_t *)AARCH64_PHYSADDR(_atags);
 
   atag_tag_t *tag;
   ATAG_FOREACH(tag, atags) {
-    size = ATAG_SIZE(tag);
-    for (size_t offset = 0; offset < size; ++offset)
-      *addr++ = *((uint8_t *)tag + offset);
+    size_t size = ATAG_SIZE(tag);
+    uint8_t *src = (uint8_t *)tag;
+    for (size_t i = 0; i < size; i++)
+      *dst++ = *src++;
   }
 }
 
