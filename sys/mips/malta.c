@@ -35,7 +35,8 @@ static int count_args(int argc, char **argv, char **envp) {
   return ntokens;
 }
 
-static void process_args(char **argv, char **envp, char **tokens, kstack_t *stk) {
+static void process_args(char **argv, char **envp, char **tokens,
+                         kstack_t *stk) {
   tokens = cmdline_extract_tokens(stk, argv[0], tokens);
   for (char **pair = envp; *pair; pair += 2)
     *tokens++ = make_pair(stk, pair[0], pair[1]);
@@ -67,7 +68,7 @@ static void process_args(char **argv, char **envp, char **tokens, kstack_t *stk)
  *     kenvp={"mimiker.elf", "memsize=128MiB", "uart.speed=115200",
  *            "arg1", "arg2=foo", "init=/bin/sh", "arg3=foobar"};
  *     kinit={NULL, "baz"};
- *   
+ *
  *   Please note that both kenvp and kinit point to the same array.
  *   Their contents will be separated by NULL.
  */
