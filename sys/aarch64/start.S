@@ -30,7 +30,7 @@ ASENTRY(_start)
         BNE     .
 
         /* Setup initial stack. */
-        ADRP    x3, _boot_stack
+        ADRP    x3, __boot_stack_end
         MOV     sp, x3
 
         BL      aarch64_init

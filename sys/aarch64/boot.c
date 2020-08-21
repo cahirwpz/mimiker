@@ -20,8 +20,6 @@
 __boot_data void *_kernel_end_boot;
 /* Kernel page directory entries. */
 alignas(PAGESIZE) pte_t _kernel_pmap_pde[PD_ENTRIES];
-/* The boot stack is used before we switch out to thread0. */
-__boot_data alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 alignas(PAGESIZE) uint8_t _atags[PAGESIZE];
 
 extern char exception_vectors[];
