@@ -4,10 +4,18 @@
 static char **_kenvp;
 static char **_kinit = (char * [2]){NULL, NULL};
 
-void init_kenv(char **kenvp, char **kinit) {
+void init_kenv(char **kenvp) {
   _kenvp = kenvp;
-  if (kinit)
-    _kinit = kinit;
+
+  /* Let's find "--". After we set it to NULL it's going to become first element
+   * of init arguments. */
+  for (char **argp = kenvp; *argp; argp++) {
+    if (strcmp("--", *argp) == 0) {
+      *argp++ = NULL;
+      _kinit = argp;
+    }
+  }
+
   _kinit[0] = kenv_get("init");
 }
 

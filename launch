@@ -90,7 +90,13 @@ if __name__ == '__main__':
     sim = QEMU()
 
     if args.debug:
-        kernel_args = dict(arg.split('=', 1) for arg in args.args)
+        kernel_args = {}
+        for arg in args.args:
+            try:
+                key, val = arg.split('=', 1)
+                kernel_args[key] = val
+            except ValueError:
+                pass
 
         if 'test' in kernel_args:
             host_path = "sysroot/bin/utest.dbg"
