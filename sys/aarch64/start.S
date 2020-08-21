@@ -8,7 +8,6 @@
 #define IMAGE_FLAGS 2 /* Kernel is little endian, page size is 4KiB */
 
         .section .boot, "ax"
-        .extern _boot_stack
 
 ASENTRY(_start)
         /* Based on locore.S from FreeBSD. */
@@ -30,7 +29,7 @@ ASENTRY(_start)
         BNE     .
 
         /* Setup initial stack. */
-        ADRP    x3, __boot_stack_end
+        ADR     x3, __boot_stack_end
         MOV     sp, x3
 
         BL      aarch64_init
@@ -40,5 +39,13 @@ ASENTRY(_start)
 
         B       .
 ASEND(_start)
+
+        .section .boot.data
+        .globl  __boot_stack
+
+        .align  4
+__boot_stack:
+        .space  1024
+__boot_stack_end:
 
 # vim: sw=8 ts=8 et

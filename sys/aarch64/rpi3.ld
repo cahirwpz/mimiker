@@ -23,10 +23,6 @@ SECTIONS
     *(.boot.text)
     *(.boot.data)
     . = ALIGN (4096);
-    /* The boot stack is used before we switch out to thread0. */
-    __boot_stack = ABSOLUTE(.);
-    . += 4096;
-    __boot_stack_end = ABSOLUTE(.);
     __eboot = ABSOLUTE(.);
   } : boot
 
