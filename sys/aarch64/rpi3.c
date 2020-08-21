@@ -10,28 +10,17 @@ static const char *whitespaces = " \t";
 
 static size_t count_tokens(const char *str);
 
-#define ENVBUF_SIZE 64
-
-static char _memsize[ENVBUF_SIZE];
-static char _rd_start[ENVBUF_SIZE];
-static char _rd_size[ENVBUF_SIZE];
-
 static int count_atags(atag_tag_t *atags) {
   int ntokens = 0;
-  atag_tag_t *tag;
-  ATAG_FOREACH(tag, atags) {
-    switch (ATAG_TAG(tag)) {
-      case ATAG_MEM:
-        ntokens++;
-        break;
-      case ATAG_INITRD2:
-        ntokens += 2;
-        break;
-      case ATAG_CMDLINE:
-        ntokens += count_tokens(tag->u.tag_cmd.command);
-        break;
-      default:
-        break;
+  atag_tag_t *atag;
+  ATAG_FOREACH(atag, atags) {
+    uint32_t tag = ATAG_TAG(atag);
+    if (tag == ATAG_MEM) {
+      ntokens++;
+    } else if (tag == ATAG_INITRD2) {
+      ntokens += 2;
+    } else if (tag == ATAG_CMDLINE) {
+      ntokens += count_tokens(atag->tag_cmd.command);
     }
   }
   return ntokens;
@@ -77,27 +66,21 @@ void *board_stack(atag_tag_t *atags) {
   char **kinit = NULL;
 
   char **tokens = kenvp;
+  char buf[32];
 
-  atag_tag_t *tag;
-  ATAG_FOREACH(tag, atags) {
-    switch (ATAG_TAG(tag)) {
-      case ATAG_MEM:
-        snprintf(_memsize, sizeof(_memsize), "memsize=%d", tag->u.tag_mem.size);
-        tokens = extract_tokens(stk, _memsize, tokens);
-        break;
-      case ATAG_INITRD2:
-        snprintf(_rd_start, sizeof(_rd_start), "rd_start=%d",
-                 tag->u.tag_initrd.start);
-        snprintf(_rd_size, sizeof(_rd_size), "rd_size=%d",
-                 tag->u.tag_initrd.size);
-        tokens = extract_tokens(stk, _rd_start, tokens);
-        tokens = extract_tokens(stk, _rd_size, tokens);
-        break;
-      case ATAG_CMDLINE:
-        tokens = extract_tokens(stk, tag->u.tag_cmd.command, tokens);
-        break;
-      default:
-        break;
+  atag_tag_t *atag;
+  ATAG_FOREACH(atag, atags) {
+    uint32_t tag = ATAG_TAG(atag);
+    if (tag == ATAG_MEM) {
+      snprintf(buf, sizeof(buf), "memsize=%d", atag->tag_mem.size);
+      tokens = extract_tokens(stk, buf, tokens);
+    } else if (tag == ATAG_INITRD2) {
+      snprintf(buf, sizeof(buf), "rd_start=%d", atag->tag_initrd.start);
+      tokens = extract_tokens(stk, buf, tokens);
+      snprintf(buf, sizeof(buf), "rd_size=%d", atag->tag_initrd.size);
+      tokens = extract_tokens(stk, buf, tokens);
+    } else if (tag == ATAG_CMDLINE) {
+      tokens = extract_tokens(stk, atag->tag_cmd.command, tokens);
     }
   }
 

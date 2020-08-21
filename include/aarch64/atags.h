@@ -114,7 +114,7 @@ struct atag_tag {
     struct atag_serial_number tag_sn;
     struct atag_revision tag_rev;
     struct atag_command_line tag_cmd;
-  } u;
+  };
 };
 
 #define ATAG_TAG(a) (a)->tag_hdr.tag
