@@ -31,10 +31,10 @@ __boot_text static void halt(void) {
 }
 
 /* Allocates zero'ed page. */
-static __boot_text void *page_alloc(void) {
+static __boot_text void *page_alloc(int n) {
   uint64_t *addr = _kernel_end_boot;
-  _kernel_end_boot += PAGESIZE;
-  for (unsigned i = 0; i < PAGESIZE / sizeof(uint64_t); i++)
+  _kernel_end_boot += PAGESIZE * n;
+  for (unsigned i = 0; i < PAGESIZE * n / sizeof(uint64_t); i++)
     addr[i] = 0;
   return addr;
 }
@@ -120,25 +120,27 @@ __boot_text static void clear_bss(void) {
     *ptr++ = 0;
 }
 
-#define VAS_SIZE (1L << 48)
-#define PT_L3_SIZE (VAS_SIZE / PT_ENTRIES)
-#define PT_L2_SIZE (PT_L3_SIZE / PT_ENTRIES)
-#define PT_L1_SIZE (PT_L2_SIZE / PT_ENTRIES)
+/* XXX Raspberry PI 3 specific! */
+#define DMAP_SIZE 0x3c000000
+#define DMAP_BASE 0xffffff8000000000 /* last 512GB */
 
-#define KPT_BASE(x) (~((x)-1))
-#define KPT_L3_BASE KPT_BASE(PT_L3_SIZE)
-#define KPT_L2_BASE KPT_BASE(PT_L2_SIZE)
-#define KPT_L1_BASE KPT_BASE(PT_L1_SIZE)
+#define DMAP_L3_ENTRIES max(1, DMAP_SIZE / PAGESIZE)
+#define DMAP_L2_ENTRIES max(1, DMAP_L3_ENTRIES / PT_ENTRIES)
+#define DMAP_L1_ENTRIES max(1, DMAP_L2_ENTRIES / PT_ENTRIES)
+
+#define DMAP_L1_SIZE roundup(DMAP_L1_ENTRIES * sizeof(pde_t), PAGESIZE)
+#define DMAP_L2_SIZE roundup(DMAP_L2_ENTRIES * sizeof(pde_t), PAGESIZE)
+#define DMAP_L3_SIZE roundup(DMAP_L3_ENTRIES * sizeof(pte_t), PAGESIZE)
 
 __boot_text static void build_page_table(void) {
   /* l0 entry is 512GB */
   volatile pde_t *l0 = (pde_t *)AARCH64_PHYSADDR(_kernel_pmap_pde);
   /* l1 entry is 1GB */
-  volatile pde_t *l1 = page_alloc();
+  volatile pde_t *l1 = page_alloc(1);
   /* l2 entry is 2MB */
-  volatile pde_t *l2 = page_alloc();
+  volatile pde_t *l2 = page_alloc(1);
   /* l3 entry is 4KB */
-  volatile pte_t *l3 = page_alloc();
+  volatile pte_t *l3 = page_alloc(1);
 
   paddr_t text = AARCH64_PHYSADDR(__text);
   paddr_t data = AARCH64_PHYSADDR(__data);
@@ -166,27 +168,21 @@ __boot_text static void build_page_table(void) {
   for (; pa < ebss; pa += PAGESIZE, va += PAGESIZE)
     l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
 
-  /* add recursive mapping */
-  volatile pde_t *l1_3 = page_alloc(); /* 1+2+3 */
-  volatile pde_t *l2_3 = page_alloc(); /* 3 */
-  volatile pde_t *l3_3 = page_alloc(); /* 3 */
-  volatile pde_t *l2_2 = page_alloc(); /* 1+2 */
-  volatile pde_t *l3_2 = page_alloc(); /* 2 */
-  volatile pde_t *l3_1 = page_alloc(); /* 1 */
+  /* direct map construction */
+  volatile pde_t *l1d = page_alloc(DMAP_L1_SIZE / PAGESIZE);
+  volatile pde_t *l2d = page_alloc(DMAP_L2_SIZE / PAGESIZE);
+  volatile pde_t *l3d = page_alloc(DMAP_L3_SIZE / PAGESIZE);
 
-  const pte_t l3_page = ATTR_AP(ATTR_AP_RW) | pte_default;
+  for (intptr_t i = 0; i < DMAP_L3_ENTRIES; i++)
+    l3d[i] = (i * PAGESIZE) | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
 
-  l0[L0_INDEX(KPT_L3_BASE)] = (pde_t)l1_3 | L0_TABLE;
-  l1_3[L1_INDEX(KPT_L3_BASE)] = (pde_t)l2_3 | L1_TABLE;
-  l2_3[L2_INDEX(KPT_L3_BASE)] = (pde_t)l3_3 | L2_TABLE;
-  l3_3[L3_INDEX(KPT_L3_BASE)] = (pte_t)l3 | l3_page;
+  for (intptr_t i = 0; i < DMAP_L2_ENTRIES; i++)
+    l2d[i] = (pde_t)&l3d[i * PT_ENTRIES] | L2_TABLE;
 
-  l1_3[L1_INDEX(KPT_L2_BASE)] = (pde_t)l2_2 | L1_TABLE;
-  l2_2[L2_INDEX(KPT_L2_BASE)] = (pde_t)l3_2 | L2_TABLE;
-  l3_2[L3_INDEX(KPT_L2_BASE)] = (pte_t)l2 | l3_page;
+  for (intptr_t i = 0; i < DMAP_L1_ENTRIES; i++)
+    l1d[i] = (pde_t)&l2d[i * PT_ENTRIES] | L1_TABLE;
 
-  l2_2[L2_INDEX(KPT_L1_BASE)] = (pde_t)l3_1 | L2_TABLE;
-  l3_1[L3_INDEX(KPT_L1_BASE)] = (pte_t)l1 | l3_page;
+  l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
 }
 
 /* Based on locore.S from FreeBSD. */
