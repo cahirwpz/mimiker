@@ -120,6 +120,9 @@ __boot_text static void clear_bss(void) {
     *ptr++ = 0;
 }
 
+/* Create direct map of whole physical memory located at DMAP_BASE virtual
+ * address. We will use this mapping later in pmap module. */
+
 /* XXX Raspberry PI 3 specific! */
 #define DMAP_SIZE 0x3c000000
 #define DMAP_BASE 0xffffff8000000000 /* last 512GB */
