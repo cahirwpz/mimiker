@@ -18,8 +18,9 @@
 
 /* Last address used by kernel for boot allocation. */
 __boot_data void *_kernel_end_boot;
-/* Kernel page directory entries. */
-alignas(PAGESIZE) pte_t _kernel_pmap_pde[PD_ENTRIES];
+
+extern pde_t _kernel_pmap_pde[PD_ENTRIES];
+
 alignas(PAGESIZE) uint8_t _atags[PAGESIZE];
 
 extern char exception_vectors[];

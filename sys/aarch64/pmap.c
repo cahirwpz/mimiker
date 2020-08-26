@@ -3,7 +3,20 @@
 #include <sys/mimiker.h>
 #include <aarch64/exception.h>
 #include <aarch64/pmap.h>
+#include <sys/pmap.h>
 #include <sys/vm.h>
+
+/* Kernel page directory entries. */
+alignas(PAGESIZE) pde_t _kernel_pmap_pde[PD_ENTRIES];
+
+static pmap_t kernel_pmap;
+
+/* TODO(pj) */
+static asid_t alloc_asid(void) {
+  int free = 0;
+  klog("alloc_asid() = %d", free);
+  return free;
+}
 
 vaddr_t pmap_start(pmap_t *pmap) {
   panic("Not implemented!");
@@ -17,8 +30,15 @@ void pmap_reset(pmap_t *pmap) {
   panic("Not implemented!");
 }
 
+static void pmap_setup(pmap_t *pmap) {
+  pmap->asid = alloc_asid();
+  mtx_init(&pmap->mtx, 0);
+  TAILQ_INIT(&pmap->pte_pages);
+}
+
 void init_pmap(void) {
-  panic("Not implemented!");
+  pmap_setup(&kernel_pmap);
+  kernel_pmap.pde = _kernel_pmap_pde;
 }
 
 pmap_t *pmap_new(void) {
@@ -29,11 +49,12 @@ void pmap_delete(pmap_t *pmap) {
   panic("Not implemented!");
 }
 
-void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot) {
+void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
   panic("Not implemented!");
 }
 
-void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot) {
+void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
+                unsigned flags) {
   panic("Not implemented!");
 }
 
