@@ -98,7 +98,7 @@ void pmap_activate(pmap_t *pmap) {
 }
 
 pmap_t *pmap_kernel(void) {
-  panic("Not implemented!");
+  return &kernel_pmap;
 }
 
 pmap_t *pmap_user(void) {
