@@ -5,15 +5,26 @@
 #include <aarch64/pmap.h>
 #include <sys/pmap.h>
 #include <sys/vm.h>
+#include <sys/spinlock.h>
+#include <bitstring.h>
 
 /* Kernel page directory entries. */
 alignas(PAGESIZE) pde_t _kernel_pmap_pde[PD_ENTRIES];
 
 static pmap_t kernel_pmap;
 
-/* TODO(pj) */
+#define MAX_ASID 0xFF
+static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
+static spin_t *asid_lock = &SPIN_INITIALIZER(0);
+
 static asid_t alloc_asid(void) {
   int free = 0;
+  WITH_SPIN_LOCK (asid_lock) {
+    bit_ffc(asid_used, MAX_ASID, &free);
+    if (free < 0)
+      panic("Out of asids!");
+    bit_set(asid_used, free);
+  }
   klog("alloc_asid() = %d", free);
   return free;
 }
