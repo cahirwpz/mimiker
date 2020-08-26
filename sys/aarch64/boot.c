@@ -277,4 +277,4 @@ __boot_text void *aarch64_init(atag_tag_t *atags) {
 /* Make gdb happy. */
 typedef struct {
 } tlbentry_t;
-static __boot_data volatile tlbentry_t _gdb_tlb_entry;
+static __unused __boot_data volatile tlbentry_t _gdb_tlb_entry;
