@@ -1,4 +1,5 @@
 #include <sys/mimiker.h>
+#include <aarch64/boot.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
@@ -104,12 +105,6 @@ el2_entry:
 el1_entry:
   return;
 }
-
-extern char __boot[];
-extern char __text[];
-extern char __data[];
-extern char __bss[];
-extern char __ebss[];
 
 #define AARCH64_PHYSADDR(x) ((paddr_t)(x) & (~KERNEL_SPACE_BEGIN))
 

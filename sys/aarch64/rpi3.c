@@ -4,6 +4,7 @@
 #include <sys/klog.h>
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
+#include <aarch64/boot.h>
 #include <aarch64/atags.h>
 #include <aarch64/exception.h>
 #include <aarch64/vm_param.h>
@@ -67,9 +68,6 @@ intptr_t ramdisk_get_start(void) {
 size_t ramdisk_get_size(void) {
   return align(kenv_get_ulong("rd_size"), PAGESIZE);
 }
-
-extern void *_kernel_end_boot;
-extern char __boot[];
 
 static void rpi3_physmem(void) {
   paddr_t ram_start = 0;
