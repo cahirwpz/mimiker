@@ -2,10 +2,11 @@
 
 import argparse
 import pexpect
+import signal
 import sys
 import random
 import os
-from launcher import gdb_port, getvar, setvar
+from launcher import gdb_port, getvar, setboard
 
 
 N_SIMPLE = 5
@@ -17,11 +18,17 @@ REPEAT = 5
 
 # Tries to decode binary output as ASCII, as hard as it can.
 def safe_decode(data):
-    return data.decode('unicode_escape', errors='replace').replace('\r', '')
+    try:
+        return data.decode('unicode_escape', errors='replace').replace('\r', '')
+    except:
+        pass
 
 
 def send_command(gdb, cmd):
-    gdb.expect_exact(['(gdb)'], timeout=10)
+    try:
+        gdb.expect_exact(['(gdb)'], timeout=3)
+    except pexpect.exceptions.TIMEOUT:
+        gdb.kill(signal.SIGINT)
     gdb.sendline(cmd)
     print(safe_decode(gdb.before), end='', flush=True)
     print(safe_decode(gdb.after), end='', flush=True)
@@ -29,7 +36,7 @@ def send_command(gdb, cmd):
 
 # Tries to start gdb in order to investigate kernel state on deadlock or crash.
 def gdb_inspect(interactive):
-    gdb_cmd = getvar('gdb.{BOARD}.binary')
+    gdb_cmd = getvar('gdb.binary')
     if interactive:
         gdb_opts = ['-iex=set auto-load safe-path {}/'.format(os.getcwd()),
                     '-ex=target remote localhost:%d' % gdb_port(),
@@ -125,7 +132,7 @@ if __name__ == '__main__':
                         help='Emulated board.')
     args = parser.parse_args()
 
-    setvar('board', args.board)
+    setboard(args.board)
 
     n = N_SIMPLE
     if args.thorough:
