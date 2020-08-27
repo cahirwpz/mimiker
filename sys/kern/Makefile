@@ -7,6 +7,7 @@ SOURCES = \
 	bus.c \
 	callout.c \
 	clock.c \
+	cmdline.c \
 	condvar.c \
 	console.c \
 	cred.c \

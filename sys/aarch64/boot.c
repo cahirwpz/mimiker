@@ -3,6 +3,7 @@
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
 #include <aarch64/pte.h>
+#include <aarch64/atags.h>
 
 #define __tlbi(x) __asm__ volatile("TLBI " x)
 #define __dsb(x) __asm__ volatile("DSB " x)
@@ -15,12 +16,11 @@
     __rv;                                                                      \
   })
 
-/* Last address used by kernel for boot allocation. */
-__boot_data void *_kernel_end_boot;
+/* Last physical address used by kernel for boot memory allocation. */
+__boot_data void *_bootmem_end;
 /* Kernel page directory entries. */
 alignas(PAGESIZE) pte_t _kernel_pmap_pde[PD_ENTRIES];
-/* The boot stack is used before we switch out to thread0. */
-__boot_data alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
+alignas(PAGESIZE) uint8_t _atags[PAGESIZE];
 
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
@@ -30,10 +30,12 @@ __boot_text static void halt(void) {
     continue;
 }
 
-/* Allocates pages. The argument will be aligned to PAGESIZE. */
+/* Allocates & clears pages in physical memory just after kernel image end. */
 static __boot_text void *bootmem_alloc(size_t bytes) {
-  void *addr = _kernel_end_boot;
-  _kernel_end_boot += align(bytes, PAGESIZE);
+  uint64_t *addr = _bootmem_end;
+  _bootmem_end += bytes;
+  for (unsigned i = 0; i < bytes / sizeof(uint64_t); i++)
+    addr[i] = 0;
   return addr;
 }
 
@@ -111,12 +113,6 @@ el1_entry:
   return;
 }
 
-extern char __boot[];
-extern char __text[];
-extern char __data[];
-extern char __bss[];
-extern char __ebss[];
-
 #define AARCH64_PHYSADDR(x) ((paddr_t)(x) & (~KERNEL_SPACE_BEGIN))
 
 __boot_text static void clear_bss(void) {
@@ -125,6 +121,21 @@ __boot_text static void clear_bss(void) {
   while (ptr < end)
     *ptr++ = 0;
 }
+
+/* Create direct map of whole physical memory located at DMAP_BASE virtual
+ * address. We will use this mapping later in pmap module. */
+
+/* XXX Raspberry PI 3 specific! */
+#define DMAP_SIZE 0x3c000000
+#define DMAP_BASE 0xffffff8000000000 /* last 512GB */
+
+#define DMAP_L3_ENTRIES max(1, DMAP_SIZE / PAGESIZE)
+#define DMAP_L2_ENTRIES max(1, DMAP_L3_ENTRIES / PT_ENTRIES)
+#define DMAP_L1_ENTRIES max(1, DMAP_L2_ENTRIES / PT_ENTRIES)
+
+#define DMAP_L1_SIZE roundup(DMAP_L1_ENTRIES * sizeof(pde_t), PAGESIZE)
+#define DMAP_L2_SIZE roundup(DMAP_L2_ENTRIES * sizeof(pde_t), PAGESIZE)
+#define DMAP_L3_SIZE roundup(DMAP_L3_ENTRIES * sizeof(pte_t), PAGESIZE)
 
 __boot_text static void build_page_table(void) {
   /* l0 entry is 512GB */
@@ -135,13 +146,6 @@ __boot_text static void build_page_table(void) {
   volatile pde_t *l2 = bootmem_alloc(PAGESIZE);
   /* l3 entry is 4KB */
   volatile pte_t *l3 = bootmem_alloc(PAGESIZE);
-
-  for (int i = 0; i < PD_ENTRIES; i++) {
-    l0[i] = 0;
-    l1[i] = 0;
-    l2[i] = 0;
-    l3[i] = 0;
-  }
 
   paddr_t text = AARCH64_PHYSADDR(__text);
   paddr_t data = AARCH64_PHYSADDR(__data);
@@ -157,9 +161,6 @@ __boot_text static void build_page_table(void) {
 
   paddr_t pa = (paddr_t)__boot;
 
-  /* initial stack :( */
-  l3[0] = ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
-
   /* boot sections */
   for (; pa < text; pa += PAGESIZE, va += PAGESIZE)
     l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | pte_default;
@@ -171,6 +172,22 @@ __boot_text static void build_page_table(void) {
   /* data & bss sections */
   for (; pa < ebss; pa += PAGESIZE, va += PAGESIZE)
     l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
+
+  /* direct map construction */
+  volatile pde_t *l1d = bootmem_alloc(DMAP_L1_SIZE);
+  volatile pde_t *l2d = bootmem_alloc(DMAP_L2_SIZE);
+  volatile pde_t *l3d = bootmem_alloc(DMAP_L3_SIZE);
+
+  for (intptr_t i = 0; i < DMAP_L3_ENTRIES; i++)
+    l3d[i] = (i * PAGESIZE) | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
+
+  for (intptr_t i = 0; i < DMAP_L2_ENTRIES; i++)
+    l2d[i] = (pde_t)&l3d[i * PT_ENTRIES] | L2_TABLE;
+
+  for (intptr_t i = 0; i < DMAP_L1_ENTRIES; i++)
+    l1d[i] = (pde_t)&l2d[i * PT_ENTRIES] | L1_TABLE;
+
+  l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
 }
 
 /* Based on locore.S from FreeBSD. */
@@ -233,16 +250,34 @@ __boot_text static void enable_mmu(void) {
   __isb();
 }
 
-__boot_text void *aarch64_init(__unused void *atags) {
+__boot_text static void atags_copy(atag_tag_t *atags) {
+  uint8_t *dst = (uint8_t *)AARCH64_PHYSADDR(_atags);
+
+  atag_tag_t *tag;
+  ATAG_FOREACH(tag, atags) {
+    size_t size = ATAG_SIZE(tag);
+    uint8_t *src = (uint8_t *)tag;
+    for (size_t i = 0; i < size; i++)
+      *dst++ = *src++;
+  }
+}
+
+__boot_text void *aarch64_init(atag_tag_t *atags) {
   drop_to_el1();
   configure_cpu();
   clear_bss();
 
   /* Set end address of kernel for boot allocation purposes. */
-  _kernel_end_boot = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
+  _bootmem_end = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
+  atags_copy(atags);
 
   build_page_table();
   enable_mmu();
-
-  return NULL;
+  return _atags;
 }
+
+/* TODO(pj) Remove those after architecture split of gdb debug scripts. */
+typedef struct {
+} tlbentry_t;
+
+static __unused __boot_data volatile tlbentry_t _gdb_tlb_entry;

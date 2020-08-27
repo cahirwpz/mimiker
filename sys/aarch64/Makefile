@@ -17,6 +17,7 @@ SOURCES = boot.c \
 	  ucontext.c
 
 CFLAGS.boot.c = -mcmodel=large
+CFLAGS.rpi3.c = -mcmodel=large
 
 CLEAN-FILES += assym.h
 
