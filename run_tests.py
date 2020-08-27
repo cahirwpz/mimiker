@@ -19,8 +19,9 @@ REPEAT = 5
 # Tries to decode binary output as ASCII, as hard as it can.
 def safe_decode(data):
     try:
-        return data.decode('unicode_escape', errors='replace').replace('\r', '')
-    except:
+        s = data.decode('unicode_escape', errors='replace')
+        return s.replace('\r', '')
+    except Exception:
         pass
 
 
