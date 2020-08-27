@@ -89,8 +89,8 @@ void *board_stack(int argc, char **argv, char **envp) {
 
   /* Move ramdisk start address to physical memory. */
   char *s = kenv_get("rd_start");
-  intptr_t addr = kenv_get_ulong("rd_start");
-  snprintf(s, strlen(s), "0x%x", MIPS_KSEG0_TO_PHYS(addr));
+  long addr = MIPS_KSEG0_TO_PHYS(kenv_get_ulong("rd_start"));
+  snprintf(s, strlen(s), "0x%lx", addr);
 
   return stk->stk_ptr;
 }
