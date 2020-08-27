@@ -2,6 +2,7 @@
 #include <sys/cmdline.h>
 #include <sys/libkern.h>
 #include <sys/klog.h>
+#include <sys/initrd.h>
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
 #include <aarch64/atags.h>
@@ -58,14 +59,6 @@ void *board_stack(atag_tag_t *atags) {
   init_kenv(kenvp);
 
   return stk->stk_ptr;
-}
-
-intptr_t ramdisk_get_start(void) {
-  return kenv_get_ulong("rd_start");
-}
-
-size_t ramdisk_get_size(void) {
-  return align(kenv_get_ulong("rd_size"), PAGESIZE);
 }
 
 static void rpi3_physmem(void) {
