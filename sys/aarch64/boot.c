@@ -1,5 +1,4 @@
 #include <sys/mimiker.h>
-#include <aarch64/boot.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>

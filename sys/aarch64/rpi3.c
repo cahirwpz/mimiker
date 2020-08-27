@@ -4,7 +4,6 @@
 #include <sys/klog.h>
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
-#include <aarch64/boot.h>
 #include <aarch64/atags.h>
 #include <aarch64/exception.h>
 #include <aarch64/vm_param.h>
