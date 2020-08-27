@@ -1,7 +1,10 @@
 #include <sys/kenv.h>
 #include <sys/cmdline.h>
 #include <sys/libkern.h>
+#include <sys/klog.h>
+#include <sys/initrd.h>
 #include <sys/thread.h>
+#include <sys/vm_physmem.h>
 #include <aarch64/atags.h>
 #include <aarch64/exception.h>
 #include <aarch64/vm_param.h>
@@ -58,10 +61,27 @@ void *board_stack(atag_tag_t *atags) {
   return stk->stk_ptr;
 }
 
-intptr_t ramdisk_get_start(void) {
-  return kenv_get_ulong("rd_start");
+static void rpi3_physmem(void) {
+  paddr_t ram_start = 0;
+  paddr_t ram_end = kenv_get_ulong("memsize");
+  paddr_t kern_start = (paddr_t)__boot;
+  paddr_t kern_end = (paddr_t)_bootmem_end;
+  paddr_t rd_start = ramdisk_get_start();
+  paddr_t rd_end = rd_start + ramdisk_get_size();
+
+  vm_physseg_plug(ram_start, kern_start);
+
+  if (rd_start != rd_end) {
+    vm_physseg_plug(kern_end, rd_start);
+    vm_physseg_plug_used(rd_start, rd_end);
+    vm_physseg_plug(rd_end, ram_end);
+  } else {
+    vm_physseg_plug(kern_end, ram_end);
+  }
 }
 
-size_t ramdisk_get_size(void) {
-  return align(kenv_get_ulong("rd_size"), PAGESIZE);
+__noreturn void board_init(void) {
+  init_klog();
+  rpi3_physmem();
+  kernel_init();
 }

@@ -1,9 +1,8 @@
 #include <sys/libkern.h>
 #include <sys/exception.h>
+#include <mips/mips.h>
 #include <mips/exception.h>
 #include <mips/pmap.h>
-
-extern uint8_t _gp[]; /* Symbol provided by the linker. */
 
 const char *const exceptions[32] = {
   [EXC_INTR] = "Interrupt",

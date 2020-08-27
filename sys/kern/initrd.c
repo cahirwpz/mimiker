@@ -12,6 +12,7 @@
 #include <sys/vfs.h>
 #include <sys/linker_set.h>
 #include <sys/dirent.h>
+#include <sys/kenv.h>
 
 typedef uint32_t cpio_dev_t;
 typedef uint32_t cpio_ino_t;
@@ -349,6 +350,14 @@ static int initrd_init(vfsconf_t *vfc) {
   initrd_build_tree();
   initrd_enum_inodes(root_node, 2);
   return 0;
+}
+
+intptr_t ramdisk_get_start(void) {
+  return kenv_get_ulong("rd_start");
+}
+
+size_t ramdisk_get_size(void) {
+  return align(kenv_get_ulong("rd_size"), PAGESIZE);
 }
 
 void ramdisk_dump(void) {
