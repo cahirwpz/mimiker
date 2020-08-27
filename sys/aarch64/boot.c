@@ -30,10 +30,12 @@ __boot_text static void halt(void) {
     continue;
 }
 
-/* Allocates pages. The argument will be aligned to PAGESIZE. */
-static __boot_text void *bootmem_alloc(size_t bytes) {
-  void *addr = _kernel_end_boot;
-  _kernel_end_boot += align(bytes, PAGESIZE);
+/* Allocates zero'ed page. */
+static __boot_text void *page_alloc(int n) {
+  uint64_t *addr = _kernel_end_boot;
+  _kernel_end_boot += PAGESIZE * n;
+  for (unsigned i = 0; i < PAGESIZE * n / sizeof(uint64_t); i++)
+    addr[i] = 0;
   return addr;
 }
 
@@ -118,22 +120,30 @@ __boot_text static void clear_bss(void) {
     *ptr++ = 0;
 }
 
+/* Create direct map of whole physical memory located at DMAP_BASE virtual
+ * address. We will use this mapping later in pmap module. */
+
+/* XXX Raspberry PI 3 specific! */
+#define DMAP_SIZE 0x3c000000
+#define DMAP_BASE 0xffffff8000000000 /* last 512GB */
+
+#define DMAP_L3_ENTRIES max(1, DMAP_SIZE / PAGESIZE)
+#define DMAP_L2_ENTRIES max(1, DMAP_L3_ENTRIES / PT_ENTRIES)
+#define DMAP_L1_ENTRIES max(1, DMAP_L2_ENTRIES / PT_ENTRIES)
+
+#define DMAP_L1_SIZE roundup(DMAP_L1_ENTRIES * sizeof(pde_t), PAGESIZE)
+#define DMAP_L2_SIZE roundup(DMAP_L2_ENTRIES * sizeof(pde_t), PAGESIZE)
+#define DMAP_L3_SIZE roundup(DMAP_L3_ENTRIES * sizeof(pte_t), PAGESIZE)
+
 __boot_text static void build_page_table(void) {
   /* l0 entry is 512GB */
   volatile pde_t *l0 = (pde_t *)AARCH64_PHYSADDR(_kernel_pmap_pde);
   /* l1 entry is 1GB */
-  volatile pde_t *l1 = bootmem_alloc(PAGESIZE);
+  volatile pde_t *l1 = page_alloc(1);
   /* l2 entry is 2MB */
-  volatile pde_t *l2 = bootmem_alloc(PAGESIZE);
+  volatile pde_t *l2 = page_alloc(1);
   /* l3 entry is 4KB */
-  volatile pte_t *l3 = bootmem_alloc(PAGESIZE);
-
-  for (int i = 0; i < PD_ENTRIES; i++) {
-    l0[i] = 0;
-    l1[i] = 0;
-    l2[i] = 0;
-    l3[i] = 0;
-  }
+  volatile pte_t *l3 = page_alloc(1);
 
   paddr_t text = AARCH64_PHYSADDR(__text);
   paddr_t data = AARCH64_PHYSADDR(__data);
@@ -160,6 +170,22 @@ __boot_text static void build_page_table(void) {
   /* data & bss sections */
   for (; pa < ebss; pa += PAGESIZE, va += PAGESIZE)
     l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
+
+  /* direct map construction */
+  volatile pde_t *l1d = page_alloc(DMAP_L1_SIZE / PAGESIZE);
+  volatile pde_t *l2d = page_alloc(DMAP_L2_SIZE / PAGESIZE);
+  volatile pde_t *l3d = page_alloc(DMAP_L3_SIZE / PAGESIZE);
+
+  for (intptr_t i = 0; i < DMAP_L3_ENTRIES; i++)
+    l3d[i] = (i * PAGESIZE) | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
+
+  for (intptr_t i = 0; i < DMAP_L2_ENTRIES; i++)
+    l2d[i] = (pde_t)&l3d[i * PT_ENTRIES] | L2_TABLE;
+
+  for (intptr_t i = 0; i < DMAP_L1_ENTRIES; i++)
+    l1d[i] = (pde_t)&l2d[i * PT_ENTRIES] | L1_TABLE;
+
+  l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
 }
 
 /* Based on locore.S from FreeBSD. */
