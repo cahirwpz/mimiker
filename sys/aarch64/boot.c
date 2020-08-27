@@ -17,8 +17,8 @@
     __rv;                                                                      \
   })
 
-/* Last address used by kernel for boot allocation. */
-__boot_data void *_kernel_end_boot;
+/* Last physical address used by kernel for boot memory allocation. */
+__boot_data void *_bootmem_end;
 /* Kernel page directory entries. */
 alignas(PAGESIZE) pte_t _kernel_pmap_pde[PD_ENTRIES];
 alignas(PAGESIZE) uint8_t _atags[PAGESIZE];
@@ -31,11 +31,11 @@ __boot_text static void halt(void) {
     continue;
 }
 
-/* Allocates zero'ed page. */
-static __boot_text void *page_alloc(int n) {
-  uint64_t *addr = _kernel_end_boot;
-  _kernel_end_boot += PAGESIZE * n;
-  for (unsigned i = 0; i < PAGESIZE * n / sizeof(uint64_t); i++)
+/* Allocates & clears pages in physical memory just after kernel image end. */
+static __boot_text void *bootmem_alloc(size_t bytes) {
+  uint64_t *addr = _bootmem_end;
+  _bootmem_end += bytes;
+  for (unsigned i = 0; i < bytes / sizeof(uint64_t); i++)
     addr[i] = 0;
   return addr;
 }
@@ -134,11 +134,11 @@ __boot_text static void build_page_table(void) {
   /* l0 entry is 512GB */
   volatile pde_t *l0 = (pde_t *)AARCH64_PHYSADDR(_kernel_pmap_pde);
   /* l1 entry is 1GB */
-  volatile pde_t *l1 = page_alloc(1);
+  volatile pde_t *l1 = bootmem_alloc(PAGESIZE);
   /* l2 entry is 2MB */
-  volatile pde_t *l2 = page_alloc(1);
+  volatile pde_t *l2 = bootmem_alloc(PAGESIZE);
   /* l3 entry is 4KB */
-  volatile pte_t *l3 = page_alloc(1);
+  volatile pte_t *l3 = bootmem_alloc(PAGESIZE);
 
   paddr_t text = AARCH64_PHYSADDR(__text);
   paddr_t data = AARCH64_PHYSADDR(__data);
@@ -167,9 +167,9 @@ __boot_text static void build_page_table(void) {
     l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
 
   /* direct map construction */
-  volatile pde_t *l1d = page_alloc(DMAP_L1_SIZE / PAGESIZE);
-  volatile pde_t *l2d = page_alloc(DMAP_L2_SIZE / PAGESIZE);
-  volatile pde_t *l3d = page_alloc(DMAP_L3_SIZE / PAGESIZE);
+  volatile pde_t *l1d = bootmem_alloc(DMAP_L1_SIZE);
+  volatile pde_t *l2d = bootmem_alloc(DMAP_L2_SIZE);
+  volatile pde_t *l3d = bootmem_alloc(DMAP_L3_SIZE);
 
   for (intptr_t i = 0; i < DMAP_L3_ENTRIES; i++)
     l3d[i] = (i * PAGESIZE) | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
@@ -261,7 +261,7 @@ __boot_text void *aarch64_init(atag_tag_t *atags) {
   clear_bss();
 
   /* Set end address of kernel for boot allocation purposes. */
-  _kernel_end_boot = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
+  _bootmem_end = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
   atags_copy(atags);
 
   build_page_table();
@@ -269,7 +269,8 @@ __boot_text void *aarch64_init(atag_tag_t *atags) {
   return _atags;
 }
 
-/* Make gdb happy. */
+/* TODO(pj) Remove those after architecture split of gdb debug scripts. */
 typedef struct {
 } tlbentry_t;
+
 static __unused __boot_data volatile tlbentry_t _gdb_tlb_entry;

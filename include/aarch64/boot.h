@@ -13,6 +13,6 @@ extern char __data[];
 extern char __bss[];
 extern char __ebss[];
 
-extern __boot_data void *_kernel_end_boot;
+extern __boot_data void *_bootmem_end;
 
 #endif /* !_AARCH64_BOOT_H_ */
