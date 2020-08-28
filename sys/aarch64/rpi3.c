@@ -62,7 +62,8 @@ void *board_stack(atag_tag_t *atags) {
 }
 
 static void rpi3_physmem(void) {
-  paddr_t ram_start = 0;
+  /* XXX: workaround - pmap_enter fails to physical page with address 0 */
+  paddr_t ram_start = PAGESIZE;
   paddr_t ram_end = kenv_get_ulong("memsize");
   paddr_t kern_start = (paddr_t)__boot;
   paddr_t kern_end = (paddr_t)_bootmem_end;
