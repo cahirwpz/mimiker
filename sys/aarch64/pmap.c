@@ -71,7 +71,7 @@ static pde_t *pmap_alloc_pde(pmap_t *pmap, vaddr_t vaddr, int level) {
   for (int i = 0; i < PD_ENTRIES; ++i)
     pde[i] = 0;
 
-  return pde;
+  return (pde_t *)dmap_pg->paddr;
 }
 
 vaddr_t pmap_start(pmap_t *pmap) {
