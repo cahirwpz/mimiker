@@ -173,7 +173,9 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
 }
 
 void pmap_activate(pmap_t *pmap) {
-  panic("Not implemented!");
+  if (pmap != pmap_kernel()) {
+    panic("Not implemented!");
+  }
 }
 
 pmap_t *pmap_kernel(void) {
