@@ -156,6 +156,12 @@ __boot_text static void build_page_table(void) {
   l1[L1_INDEX(va)] = (pde_t)l2 | L1_TABLE;
   l2[L2_INDEX(va)] = (pde_t)l3 | L2_TABLE;
 
+  /* TODO(pj) imitate pmap_growkernel from NetBSD */
+  l2[L2_INDEX(0)] = (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
+  for (int i = 0; i < 32; i++) {
+    l2[L2_INDEX(0xffff000000400000 + i * PAGESIZE * PT_ENTRIES)] = (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
+  }
+
   const pte_t pte_default =
     L3_PAGE | ATTR_AF | ATTR_SH(ATTR_SH_IS) | ATTR_IDX(ATTR_NORMAL_MEM_WB);
 
