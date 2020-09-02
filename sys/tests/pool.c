@@ -12,7 +12,7 @@ typedef enum {
 static int test_pool_alloc(palloc_test_t flag) {
   const int N = 50;
 
-  kmalloc_pool_t *mp = kmalloc_create("test", PAGESIZE * 2);
+  kmalloc_pool_t *mp = kmalloc_create("test");
 
   int size = 64;
   pool_t *test = pool_create("test", size);

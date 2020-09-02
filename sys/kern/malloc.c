@@ -17,22 +17,14 @@ typedef TAILQ_HEAD(, mem_arena) mem_arena_list_t;
 typedef TAILQ_HEAD(, mem_block) mem_block_list_t;
 
 typedef struct kmalloc_pool {
-  SLIST_ENTRY(kmalloc_pool) mp_next; /* Next in global chain. */
-  uint32_t mp_magic;                 /* Detect programmer error. */
-  const char *mp_desc;               /* Printable type name. */
-  mem_arena_list_t mp_arena;         /* Queue of managed arenas. */
-  mtx_t mp_lock;                     /* Mutex protecting structure */
-  size_t mp_used;                    /* Current number of pages (in bytes) */
-  size_t mp_maxsize;                 /* Number of pages allowed (in bytes) */
+  uint32_t mp_magic;         /* Detect programmer error. */
+  const char *mp_desc;       /* Printable type name. */
+  mem_arena_list_t mp_arena; /* Queue of managed arenas. */
+  mtx_t mp_lock;             /* Mutex protecting structure */
 #if KASAN
   quar_t mp_quarantine;
 #endif /* !KASAN */
 } kmalloc_pool_t;
-
-/*
-  TODO:
-  - use the mp_next field of kmalloc_pool
-*/
 
 typedef struct mem_block {
   uint32_t mb_magic; /* if overwritten report a memory corruption error */
@@ -44,7 +36,6 @@ typedef struct mem_block {
 typedef struct mem_arena {
   TAILQ_ENTRY(mem_arena) ma_list;
   uint32_t ma_size; /* Size of all the blocks inside combined */
-  uint16_t ma_flags;
   mem_block_list_t ma_freeblks;
   uint32_t ma_magic;   /* Detect programmer error. */
   uint64_t ma_data[0]; /* For alignment */
@@ -111,7 +102,6 @@ static void kmalloc_add_arena(kmalloc_pool_t *mp, void *start, size_t size) {
   TAILQ_INSERT_HEAD(&mp->mp_arena, ma, ma_list);
   ma->ma_size = size - sizeof(mem_arena_t);
   ma->ma_magic = MB_MAGIC;
-  ma->ma_flags = 0;
 
   TAILQ_INIT(&ma->ma_freeblks);
 
@@ -125,8 +115,6 @@ static int kmalloc_add_pages(kmalloc_pool_t *mp, size_t size) {
   assert(mtx_owned(&mp->mp_lock));
 
   size = roundup(size, PAGESIZE);
-  if (mp->mp_used + size > mp->mp_maxsize)
-    return ENOMEM;
 
   void *arena = kmem_alloc(size, M_WAITOK);
   if (arena == NULL)
@@ -135,7 +123,6 @@ static int kmalloc_add_pages(kmalloc_pool_t *mp, size_t size) {
   kmalloc_add_arena(mp, arena, size);
   klog("add arena %08x - %08x to '%s' kmem pool", arena, arena + size,
        mp->mp_desc);
-  mp->mp_used += size;
   return 0;
 }
 
@@ -263,13 +250,9 @@ void init_kmalloc(void) {
   INVOKE_CTORS(kmalloc_ctor_table);
 }
 
-kmalloc_pool_t *kmalloc_create(const char *desc, size_t maxsize) {
-  assert(is_aligned(maxsize, PAGESIZE));
-
+kmalloc_pool_t *kmalloc_create(const char *desc) {
   kmalloc_pool_t *mp = pool_alloc(P_KMEM, M_ZERO);
   mp->mp_desc = desc;
-  mp->mp_used = 0;
-  mp->mp_maxsize = maxsize;
   mp->mp_magic = MB_MAGIC;
   TAILQ_INIT(&mp->mp_arena);
   mtx_init(&mp->mp_lock, 0);
@@ -310,5 +293,5 @@ void kmalloc_destroy(kmalloc_pool_t *mp) {
   pool_free(P_KMEM, mp);
 }
 
-KMALLOC_DEFINE(M_TEMP, "temporaries pool", PAGESIZE * 25);
-KMALLOC_DEFINE(M_STR, "strings", PAGESIZE * 4);
+KMALLOC_DEFINE(M_TEMP, "temporaries pool");
+KMALLOC_DEFINE(M_STR, "strings");

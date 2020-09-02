@@ -25,7 +25,7 @@ typedef struct kmalloc_pool kmalloc_pool_t;
 /*! \brief Called during kernel initialization. */
 void init_kmalloc(void);
 
-kmalloc_pool_t *kmalloc_create(const char *desc, size_t maxsize);
+kmalloc_pool_t *kmalloc_create(const char *desc);
 int kmalloc_reserve(kmalloc_pool_t *mp, size_t size);
 void kmalloc_dump(kmalloc_pool_t *mp);
 void kmalloc_destroy(kmalloc_pool_t *mp);
