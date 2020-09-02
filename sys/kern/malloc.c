@@ -13,57 +13,52 @@
 #define MB_MAGIC 0xC0DECAFE
 #define MB_ALIGNMENT sizeof(uint64_t)
 
-typedef TAILQ_HEAD(, mem_arena) mem_arena_list_t;
-typedef TAILQ_HEAD(, mem_block) mem_block_list_t;
+typedef TAILQ_HEAD(, block) block_list_t;
 
-typedef struct kmalloc_pool {
-  uint32_t mp_magic;         /* Detect programmer error. */
-  const char *mp_desc;       /* Printable type name. */
-  mem_arena_list_t mp_arena; /* Queue of managed arenas. */
-  mtx_t mp_lock;             /* Mutex protecting structure */
+static TAILQ_HEAD(, arena) arena_list; /* Queue of managed arenas. */
+static mtx_t arena_lock;               /* Mutex protecting arena list. */
+
 #if KASAN
-  quar_t mp_quarantine;
+static quar_t block_quarantine;
 #endif /* !KASAN */
-} kmalloc_pool_t;
 
-typedef struct mem_block {
+typedef struct block {
   uint32_t mb_magic; /* if overwritten report a memory corruption error */
   int32_t mb_size;   /* size > 0 => free, size < 0 => alloc'd */
-  TAILQ_ENTRY(mem_block) mb_list;
+  TAILQ_ENTRY(block) mb_list;
   uint64_t mb_data[0];
-} mem_block_t;
+} block_t;
 
-typedef struct mem_arena {
-  TAILQ_ENTRY(mem_arena) ma_list;
+typedef struct arena {
+  TAILQ_ENTRY(arena) ma_list;
   uint32_t ma_size; /* Size of all the blocks inside combined */
-  mem_block_list_t ma_freeblks;
+  block_list_t ma_freeblks;
   uint32_t ma_magic;   /* Detect programmer error. */
   uint64_t ma_data[0]; /* For alignment */
-} mem_arena_t;
+} arena_t;
 
-static inline mem_block_t *mb_next(mem_block_t *block) {
-  return (void *)block + abs(block->mb_size) + sizeof(mem_block_t);
+static inline block_t *mb_next(block_t *block) {
+  return (void *)block + abs(block->mb_size) + sizeof(block_t);
 }
 
-static void merge_right(mem_block_list_t *ma_freeblks, mem_block_t *mb) {
-  mem_block_t *next = TAILQ_NEXT(mb, mb_list);
+static void merge_right(block_list_t *ma_freeblks, block_t *mb) {
+  block_t *next = TAILQ_NEXT(mb, mb_list);
 
   if (!next)
     return;
 
   char *mb_ptr = (char *)mb;
-  if (mb_ptr + mb->mb_size + sizeof(mem_block_t) == (char *)next) {
+  if (mb_ptr + mb->mb_size + sizeof(block_t) == (char *)next) {
     TAILQ_REMOVE(ma_freeblks, next, mb_list);
-    mb->mb_size = mb->mb_size + next->mb_size + sizeof(mem_block_t);
+    mb->mb_size = mb->mb_size + next->mb_size + sizeof(block_t);
   }
 }
 
-static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
-                                  size_t total_size) {
+static void add_free_memory_block(arena_t *ma, block_t *mb, size_t total_size) {
   /* Unpoison and setup the header */
-  kasan_mark_valid(mb, sizeof(mem_block_t));
+  kasan_mark_valid(mb, sizeof(block_t));
   mb->mb_magic = MB_MAGIC;
-  mb->mb_size = total_size - sizeof(mem_block_t);
+  mb->mb_size = total_size - sizeof(block_t);
   /* Poison the data */
   kasan_mark_invalid(mb->mb_data, mb->mb_size, KASAN_CODE_KMALLOC_FREED);
 
@@ -74,8 +69,8 @@ static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
   }
 
   /* It's not the first block, so we insert it in a sorted fashion. */
-  mem_block_t *current = NULL;
-  mem_block_t *best_so_far = NULL; /* mb can be inserted after this entry. */
+  block_t *current = NULL;
+  block_t *best_so_far = NULL; /* mb can be inserted after this entry. */
 
   TAILQ_FOREACH (current, &ma->ma_freeblks, mb_list) {
     if (current < mb)
@@ -93,26 +88,26 @@ static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
 }
 
 static void kmalloc_add_arena(kmalloc_pool_t *mp, void *start, size_t size) {
-  if (size < sizeof(mem_arena_t))
+  if (size < sizeof(arena_t))
     return;
 
-  memset((void *)start, 0, sizeof(mem_arena_t));
-  mem_arena_t *ma = (void *)start;
+  memset((void *)start, 0, sizeof(arena_t));
+  arena_t *ma = (void *)start;
 
-  TAILQ_INSERT_HEAD(&mp->mp_arena, ma, ma_list);
-  ma->ma_size = size - sizeof(mem_arena_t);
+  TAILQ_INSERT_HEAD(&arena_list, ma, ma_list);
+  ma->ma_size = size - sizeof(arena_t);
   ma->ma_magic = MB_MAGIC;
 
   TAILQ_INIT(&ma->ma_freeblks);
 
   /* Adding the first free block that covers all the remaining arena_size. */
-  mem_block_t *mb = (mem_block_t *)((char *)ma + sizeof(mem_arena_t));
-  size_t block_size = size - sizeof(mem_arena_t);
+  block_t *mb = (block_t *)((char *)ma + sizeof(arena_t));
+  size_t block_size = size - sizeof(arena_t);
   add_free_memory_block(ma, mb, block_size);
 }
 
 static int kmalloc_add_pages(kmalloc_pool_t *mp, size_t size) {
-  assert(mtx_owned(&mp->mp_lock));
+  assert(mtx_owned(&arena_lock));
 
   size = roundup(size, PAGESIZE);
 
@@ -126,8 +121,8 @@ static int kmalloc_add_pages(kmalloc_pool_t *mp, size_t size) {
   return 0;
 }
 
-static mem_block_t *find_entry(mem_block_list_t *mb_list, size_t total_size) {
-  mem_block_t *current = NULL;
+static block_t *find_entry(block_list_t *mb_list, size_t total_size) {
+  block_t *current = NULL;
   TAILQ_FOREACH (current, mb_list, mb_list) {
     assert(current->mb_magic == MB_MAGIC);
     if (current->mb_size >= (ssize_t)total_size)
@@ -136,20 +131,18 @@ static mem_block_t *find_entry(mem_block_list_t *mb_list, size_t total_size) {
   return NULL;
 }
 
-static mem_block_t *try_allocating_in_area(mem_arena_t *ma,
-                                           size_t requested_size) {
-  mem_block_t *mb =
-    find_entry(&ma->ma_freeblks, requested_size + sizeof(mem_block_t));
+static block_t *try_allocating_in_area(arena_t *ma, size_t requested_size) {
+  block_t *mb = find_entry(&ma->ma_freeblks, requested_size + sizeof(block_t));
 
   if (!mb) /* No entry has enough space. */
     return NULL;
 
   TAILQ_REMOVE(&ma->ma_freeblks, mb, mb_list);
   size_t total_size_left = mb->mb_size - requested_size;
-  if (total_size_left > sizeof(mem_block_t)) {
+  if (total_size_left > sizeof(block_t)) {
     mb->mb_size = -requested_size;
-    mem_block_t *new_mb =
-      (mem_block_t *)((char *)mb + requested_size + sizeof(mem_block_t));
+    block_t *new_mb =
+      (block_t *)((char *)mb + requested_size + sizeof(block_t));
     add_free_memory_block(ma, new_mb, total_size_left);
   } else {
     mb->mb_size = -mb->mb_size;
@@ -171,18 +164,18 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
   size = align(size, MB_ALIGNMENT);
 #endif
 
-  SCOPED_MTX_LOCK(&mp->mp_lock);
+  SCOPED_MTX_LOCK(&arena_lock);
 
   while (1) {
     /* Search for the first area in the list that has enough space. */
-    mem_arena_t *current = NULL;
+    arena_t *current = NULL;
     size_t requested_size = size;
 #if KASAN
     requested_size += redzone_size;
 #endif /* !KASAN */
-    TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
+    TAILQ_FOREACH (current, &arena_list, ma_list) {
       assert(current->ma_magic == MB_MAGIC);
-      mem_block_t *mb = try_allocating_in_area(current, requested_size);
+      block_t *mb = try_allocating_in_area(current, requested_size);
       if (!mb)
         continue;
 
@@ -198,39 +191,38 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
     if (flags & M_NOWAIT)
       return NULL;
 
-    if (kmalloc_add_pages(mp, size + sizeof(mem_arena_t)))
+    if (kmalloc_add_pages(mp, size + sizeof(arena_t)))
       panic("memory exhausted in '%s'", mp->mp_desc);
   }
 }
 
-static mem_block_t *addr_to_mem_block(void *addr) {
-  return (mem_block_t *)((char *)addr - sizeof(mem_block_t));
+static inline block_t *block_of(void *addr) {
+  return (block_t *)((char *)addr - sizeof(block_t));
 }
 
 static void _kfree(kmalloc_pool_t *mp, void *addr) {
-  assert(mtx_owned(&mp->mp_lock));
+  assert(mtx_owned(&arena_lock));
 
-  mem_block_t *mb = addr_to_mem_block(addr);
-  if (mb->mb_magic != MB_MAGIC || mp->mp_magic != MB_MAGIC || mb->mb_size >= 0)
+  block_t *mb = block_of(addr);
+  if (mb->mb_magic != MB_MAGIC || mb->mb_size >= 0)
     panic("Memory corruption detected!");
 
-  mem_arena_t *current = NULL;
-  TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
-    char *start = ((char *)current) + sizeof(mem_arena_t);
+  arena_t *current = NULL;
+  TAILQ_FOREACH (current, &arena_list, ma_list) {
+    char *start = ((char *)current) + sizeof(arena_t);
     if ((char *)addr >= start && (char *)addr < start + current->ma_size)
-      add_free_memory_block(current, mb,
-                            abs(mb->mb_size) + sizeof(mem_block_t));
+      add_free_memory_block(current, mb, abs(mb->mb_size) + sizeof(block_t));
   }
 }
 
 void kfree(kmalloc_pool_t *mp, void *addr) {
   if (!addr)
     return;
-  SCOPED_MTX_LOCK(&mp->mp_lock);
+  SCOPED_MTX_LOCK(&arena_lock);
 
-  kasan_mark_invalid(addr, abs(addr_to_mem_block(addr)->mb_size),
+  kasan_mark_invalid(addr, abs(block_of(addr)->mb_size),
                      KASAN_CODE_KMALLOC_FREED);
-  kasan_quar_additem(&mp->mp_quarantine, addr);
+  kasan_quar_additem(&mp_quarantine, addr);
 #if !KASAN
   /* Without KASAN, call regular free method */
   _kfree(mp, addr);
@@ -244,35 +236,17 @@ char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen) {
   return copy;
 }
 
-static POOL_DEFINE(P_KMEM, "kmem", sizeof(kmalloc_pool_t));
-
 void init_kmalloc(void) {
-  INVOKE_CTORS(kmalloc_ctor_table);
+  TAILQ_INIT(&arena_list);
+  mtx_init(&arena_lock, 0);
+  kasan_quar_init(&block_quarantine, NULL, (quar_free_t)_kfree);
 }
 
-kmalloc_pool_t *kmalloc_create(const char *desc) {
-  kmalloc_pool_t *mp = pool_alloc(P_KMEM, M_ZERO);
-  mp->mp_desc = desc;
-  mp->mp_magic = MB_MAGIC;
-  TAILQ_INIT(&mp->mp_arena);
-  mtx_init(&mp->mp_lock, 0);
-  kasan_quar_init(&mp->mp_quarantine, mp, (quar_free_t)_kfree);
-  klog("initialized '%s' kmem at %p ", mp->mp_desc, mp);
-  return mp;
-}
-
-int kmalloc_reserve(kmalloc_pool_t *mp, size_t size) {
-  SCOPED_MTX_LOCK(&mp->mp_lock);
-  return kmalloc_add_pages(mp, size);
-}
-
-void kmalloc_dump(kmalloc_pool_t *mp) {
-  klog("pool at %p:", mp);
-
-  mem_arena_t *arena = NULL;
-  TAILQ_FOREACH (arena, &mp->mp_arena, ma_list) {
-    mem_block_t *block = (void *)arena->ma_data;
-    mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
+void kmalloc_dump(void) {
+  arena_t *arena = NULL;
+  TAILQ_FOREACH (arena, &arena_list, ma_list) {
+    block_t *block = (void *)arena->ma_data;
+    block_t *end = (void *)arena->ma_data + arena->ma_size;
 
     klog("> malloc_arena %p - %p:", block, end);
 
@@ -283,14 +257,6 @@ void kmalloc_dump(kmalloc_pool_t *mp) {
       block = mb_next(block);
     }
   }
-}
-
-/* TODO: missing implementation */
-void kmalloc_destroy(kmalloc_pool_t *mp) {
-  WITH_MTX_LOCK (&mp->mp_lock)
-    /* Lock needed as the quarantine may call _kfree! */
-    kasan_quar_releaseall(&mp->mp_quarantine);
-  pool_free(P_KMEM, mp);
 }
 
 KMALLOC_DEFINE(M_TEMP, "temporaries pool");

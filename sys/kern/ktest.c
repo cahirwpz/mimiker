@@ -1,6 +1,7 @@
 #include <sys/mimiker.h>
 #include <sys/kenv.h>
 #include <sys/ktest.h>
+#include <sys/malloc.h>
 #include <sys/libkern.h>
 #include <sys/interrupt.h>
 
@@ -17,6 +18,8 @@ SET_DECLARE(tests, test_entry_t);
 static test_entry_t *current_test = NULL;
 /* A null-terminated array of pointers to the tested test list. */
 static test_entry_t *autorun_tests[KTEST_MAX_NO] = {NULL};
+/* Memory pool used by tests. */
+KMALLOC_DEFINE(M_TEST, "test framework");
 
 int ktest_test_running_flag = 0;
 

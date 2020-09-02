@@ -10,25 +10,22 @@
  * General purpose kernel memory allocator.
  */
 
-typedef struct kmalloc_pool kmalloc_pool_t;
+typedef struct kmalloc_pool {
+  const char *mp_desc; /* Printable type name. */
+} kmalloc_pool_t;
 
 /* Defines a local pool of memory for use by a subsystem. */
-#define KMALLOC_DEFINE(name, ...)                                              \
-  struct kmalloc_pool *name;                                                   \
-  static void __ctor_##name(void) {                                            \
-    name = kmalloc_create(__VA_ARGS__);                                        \
-  }                                                                            \
-  SET_ENTRY(kmalloc_ctor_table, __ctor_##name);
+#define KMALLOC_DEFINE(name, desc)                                             \
+  kmalloc_pool_t *name = &(kmalloc_pool_t) {                                   \
+    .mp_desc = (desc)                                                          \
+  }
 
 #define KMALLOC_DECLARE(name) extern kmalloc_pool_t *name;
 
 /*! \brief Called during kernel initialization. */
 void init_kmalloc(void);
 
-kmalloc_pool_t *kmalloc_create(const char *desc);
-int kmalloc_reserve(kmalloc_pool_t *mp, size_t size);
-void kmalloc_dump(kmalloc_pool_t *mp);
-void kmalloc_destroy(kmalloc_pool_t *mp);
+void kmalloc_dump(void);
 
 void *kmalloc(kmalloc_pool_t *mp, size_t size,
               kmem_flags_t flags) __warn_unused;
