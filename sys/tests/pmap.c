@@ -4,6 +4,7 @@
 #include <sys/vm_physmem.h>
 #include <sys/ktest.h>
 #include <sys/sched.h>
+#include <sys/kmem.h>
 
 #define PAGES 16
 
@@ -124,6 +125,19 @@ static int test_rmbits(void) {
   return KTEST_SUCCESS;
 }
 
+static int test_aarch64_pmap_kenter(void) {
+  volatile unsigned int *ptr = (unsigned int *)0x1001000;
+
+  vaddr_t va = kva_alloc(PAGESIZE);
+  pmap_kenter(va, (paddr_t)ptr, VM_PROT_READ | VM_PROT_WRITE, 0);
+
+  *ptr = 0xDEADC0DE;
+  assert(*ptr == 0xDEADC0DE);
+
+  return KTEST_SUCCESS;
+}
+
 KTEST_ADD(pmap_kernel, test_kernel_pmap, KTEST_FLAG_BROKEN);
 KTEST_ADD(pmap_user, test_user_pmap, 0);
 KTEST_ADD(pmap_rmbits, test_rmbits, 0);
+KTEST_ADD(pmap_aarch64_kenter, test_aarch64_pmap_kenter, 0);
