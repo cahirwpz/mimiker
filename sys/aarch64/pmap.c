@@ -62,19 +62,18 @@ static pte_t *pmap_l3(pmap_t *pmap, vaddr_t va) {
 
 static pde_t *pmap_alloc_pde(pmap_t *pmap, vaddr_t vaddr, int level) {
   vm_page_t *pg = vm_page_alloc(1);
-  vm_page_t *dmap_pg = (vm_page_t *)PHYS_TO_DMAP(pg);
-  pde_t *pde = (pde_t *)PHYS_TO_DMAP(dmap_pg->paddr);
+  pde_t *pde = (pde_t *)PHYS_TO_DMAP(pg->paddr);
 
   if (level == 3)
-    TAILQ_INSERT_TAIL(&pmap->pte_pages, dmap_pg, pageq);
+    TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
 
   klog("Page table level %d for 0x%016lx allocated at 0x%016lx", level, vaddr,
-       dmap_pg->paddr);
+       pg->paddr);
 
   for (int i = 0; i < PD_ENTRIES; ++i)
     pde[i] = 0;
 
-  return (pde_t *)dmap_pg->paddr;
+  return (pde_t *)pg->paddr;
 }
 
 vaddr_t pmap_start(pmap_t *pmap) {
