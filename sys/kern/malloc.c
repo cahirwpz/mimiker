@@ -20,7 +20,7 @@ static mtx_t arena_lock;               /* Mutex protecting arena list. */
 static quar_t block_quarantine;
 #endif /* !KASAN */
 
-typedef uintptr_t word_t;
+typedef unsigned long word_t;
 
 #define ALIGNMENT (4 * sizeof(word_t))
 #define CANARY 0xDEADC0DE
@@ -300,7 +300,7 @@ static void ar_check(arena_t *ar, int verbose) {
   for (; bt < ar->end; prev = bt, bt = bt_next(bt)) {
     int flag = !!bt_get_prevfree(bt);
     int is_last = !!bt_get_islast(bt);
-    msg("%p: [%c%c:%d] %c\n", bt, "FU"[bt_used(bt)], " P"[flag], bt_size(bt),
+    msg("%p: [%c%c:%lu] %c\n", bt, "FU"[bt_used(bt)], " P"[flag], bt_size(bt),
         " *"[is_last]);
     if (bt_free(bt)) {
       word_t *ft = bt_footer(bt);
