@@ -9,6 +9,9 @@
 #include <sys/spinlock.h>
 #include <bitstring.h>
 #include <sys/vm_physmem.h>
+#include <sys/pool.h>
+
+static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 
 #define ADDR_MASK 0x8ffffffff000
 #define DMAP_BASE 0xffffff8000000000 /* last 512GB */
@@ -98,7 +101,9 @@ void init_pmap(void) {
 }
 
 pmap_t *pmap_new(void) {
-  panic("Not implemented!");
+  pmap_t *pmap = pool_alloc(P_PMAP, M_ZERO);
+  pmap_setup(pmap);
+  return pmap;
 }
 
 void pmap_delete(pmap_t *pmap) {
