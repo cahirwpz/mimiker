@@ -12,9 +12,9 @@ void exc_frame_init(exc_frame_t *frame, void *pc, void *sp, unsigned flags) {
 
   frame->pc = (register_t)pc;
   frame->sp = (register_t)sp;
-  
+
   /* We don't handle fast interrupts in kernel. */
-  frame->spsr = PSR_F | PSR_M_EL1h; 
+  frame->spsr = PSR_F | PSR_M_EL1h;
 }
 
 void exc_frame_copy(exc_frame_t *to, exc_frame_t *from) {

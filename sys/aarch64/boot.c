@@ -159,7 +159,8 @@ __boot_text static void build_page_table(void) {
   /* TODO(pj) imitate pmap_growkernel from NetBSD */
   l2[L2_INDEX(0)] = (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
   for (int i = 0; i < 32; i++) {
-    l2[L2_INDEX(0xffff000000400000 + i * PAGESIZE * PT_ENTRIES)] = (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
+    l2[L2_INDEX(0xffff000000400000 + i * PAGESIZE * PT_ENTRIES)] =
+      (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
   }
 
   const pte_t pte_default =
