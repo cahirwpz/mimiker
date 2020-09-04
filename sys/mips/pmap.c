@@ -3,7 +3,7 @@
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/pool.h>
-#include <mips/exception.h>
+#include <mips/context.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
 #include <mips/pmap.h>
@@ -349,14 +349,14 @@ pmap_t *pmap_lookup(vaddr_t addr) {
   return NULL;
 }
 
-void tlb_exception_handler(exc_frame_t *frame) {
+void tlb_exception_handler(ctx_t *ctx) {
   thread_t *td = thread_self();
 
-  int code = (frame->cause & CR_X_MASK) >> CR_X_SHIFT;
-  vaddr_t vaddr = frame->badvaddr;
+  int code = (ctx->cause & CR_X_MASK) >> CR_X_SHIFT;
+  vaddr_t vaddr = ctx->badvaddr;
 
-  klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
-       frame->pc, vaddr);
+  klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code], ctx->pc,
+       vaddr);
 
   pmap_t *pmap = pmap_lookup(vaddr);
   if (!pmap) {
@@ -396,17 +396,17 @@ void tlb_exception_handler(exc_frame_t *frame) {
 fault:
   if (td->td_onfault) {
     /* handle copyin / copyout faults */
-    frame->pc = td->td_onfault;
+    ctx->pc = td->td_onfault;
     td->td_onfault = 0;
   } else if (td->td_proc) {
     /* Panic when process running in kernel space uses wrong pointer. */
-    if (kern_mode_p(frame))
-      kernel_oops(frame);
+    if (kern_mode_p(ctx))
+      kernel_oops(ctx);
 
     /* Send a segmentation fault signal to the user program. */
-    sig_trap((user_exc_frame_t *)frame, SIGSEGV);
+    sig_trap(ctx, SIGSEGV);
   } else {
     /* Panic when kernel-mode thread uses wrong pointer. */
-    kernel_oops(frame);
+    kernel_oops(ctx);
   }
 }

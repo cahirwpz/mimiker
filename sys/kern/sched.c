@@ -40,7 +40,7 @@ void sched_wakeup(thread_t *td, long reason) {
   td->td_state = TDS_READY;
   td->td_slice = SLICE;
 
-  exc_frame_set_retval(td->td_kctx, reason);
+  ctx_set_retval(td->td_kctx, reason);
 
   runq_add(&runq, td);
 

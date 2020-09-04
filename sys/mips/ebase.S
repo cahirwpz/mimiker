@@ -331,7 +331,7 @@ exc_enter:
 # - Status, cause, epc & badvaddr registers cannot be saved directly to kernel
 #   stack (kseg2) as it may trigger TLB handler which would overwrite them!
 
-SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
+SNESTED(user_exc_enter, USER_CTX_SIZE, ra)
         .cfi_signal_frame
 
         # Fetch PCPU address
@@ -406,7 +406,7 @@ user_exc_leave:
         # This is crucial on first entry to user-space for this thread.
         LOAD_PCPU_KSEG0(s0)
         lw      t0, PCPU_CURTHREAD(s0)
-        lw      sp, TD_UFRAME(t0)
+        lw      sp, TD_UCTX(t0)
         
         # Update kernel stack pointer to be used on kernel reentry.
         sw      sp, PCPU_KSP(s0)
@@ -446,7 +446,7 @@ user_return:
         eret
 END(user_exc_enter)
 
-SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
+SNESTED(kern_exc_enter, CTX_SIZE, ra)
         # Fetch PCPU address
         LOAD_PCPU_KSEG0(k0)
 
@@ -457,8 +457,8 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         PCPU_SAVE(EPC)
         PCPU_SAVE(BADVADDR)
 
-        # Allocate stack frame (of KERN_EXC_FRAME_SIZE bytes) and save context.
-        subu    sp, KERN_EXC_FRAME_SIZE # required by gdb to recognize frame
+        # Allocate stack frame (of CTX_SIZE bytes) and save context.
+        subu    sp, CTX_SIZE # required by gdb to recognize frame
 
         # We cannot access stack (KSEG2) when exception level is enabled
         # Let's drop exception level and disable interrupts.
@@ -481,7 +481,7 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         # If there's not enough space on the stack to store another exception
         # frame we consider situation to be critical and panic.
         andi    t0, sp, STACKSIZE - 1
-        subu    t0, KERN_EXC_FRAME_SIZE
+        subu    t0, CTX_SIZE
         bgez    t0, 1f
         nop
         # Hopefully KERN_EXC_FRAME_SIZE bytes of unallocated stack space will be
