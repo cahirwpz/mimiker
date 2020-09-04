@@ -224,7 +224,7 @@ static void ar_free(arena_t *ar, void *ptr) {
   size_t sz = bt_size(bt);
   bt_make(bt, sz, FREE | bt_get_flags(bt));
 
-  word_t *next = bt_next(bt);
+  word_t *next = bt_get_islast(bt) ? NULL : bt_next(bt);
   if (next) {
     if (bt_free(next)) {
       /* Coalesce with next block. */
@@ -306,6 +306,8 @@ static void ar_check(arena_t *ar, int verbose) {
   word_t *prev = NULL;
   int prevfree = 0;
   unsigned dangling = 0;
+
+  msg("arena: %p - %p\n", ar->start, ar->end);
 
   msg("--=[ all block list ]=---\n");
 
