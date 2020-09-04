@@ -118,7 +118,7 @@ typedef struct {
   uint32_t __fpsr; /* FPSR */
 } __fregset_t;
 
-typedef struct {
+typedef struct mcontext {
   __gregset_t __gregs; /* General Purpose Register set */
   __fregset_t __fregs; /* FPU/SIMD Register File */
   __greg_t __spare[8]; /* future proof */

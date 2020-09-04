@@ -1,7 +1,7 @@
 #define KL_LOG KL_PMAP
 #include <sys/klog.h>
 #include <sys/mimiker.h>
-#include <aarch64/exception.h>
+#include <aarch64/context.h>
 #include <aarch64/pmap.h>
 #include <sys/vm.h>
 
@@ -77,6 +77,6 @@ pmap_t *pmap_lookup(vaddr_t addr) {
   panic("Not implemented!");
 }
 
-void tlb_exception_handler(exc_frame_t *frame) {
+void tlb_exception_handler(ctx_t *ctx) {
   panic("Not implemented!");
 }
