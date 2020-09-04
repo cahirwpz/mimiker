@@ -77,8 +77,14 @@ static inline word_t *bt_fromptr(void *ptr) {
 static inline __always_inline void bt_make(word_t *bt, size_t size,
                                            bt_flags flags) {
   word_t val = size | flags;
-  *bt = val;
   word_t *ft = (void *)bt + size - sizeof(word_t);
+
+#ifndef _LP64
+  kasan_mark_valid(bt - 1, 2 * sizeof(word_t));
+  kasan_mark_valid(ft, 2 * sizeof(word_t));
+#endif
+
+  *bt = val;
   *ft = (flags & USED) ? CANARY : val;
 }
 
@@ -129,6 +135,9 @@ static inline void ar_free_insert(arena_t *ar, word_t *bt) {
   fbnode_t *node = bt_payload(bt);
   fbnode_t *prev = head->prev;
 
+  /* Unpoison node pointers. */
+  kasan_mark_valid(node, sizeof(fbnode_t));
+
   /* Insert at the end of free block list. */
   node->next = head;
   node->prev = prev;
@@ -159,15 +168,18 @@ static word_t *find_fit(arena_t *ar, size_t reqsz) {
   return NULL;
 }
 
-static void ar_init(arena_t *ar, void *end) {
-  size_t sz = end - (void *)ar->start;
+static void ar_init(arena_t *ar, size_t size) {
+  size_t sz = rounddown(size - sizeof(arena_t), ALIGNMENT);
+
+  /* Poison everything but arena header. */
+  kasan_mark(ar, offsetof(arena_t, pad), size, KASAN_CODE_KMALLOC_FREED);
+
+  ar->end = (void *)ar->start + sz;
+
   fbnode_t *head = &ar->freelst;
-
-  sz &= -ALIGNMENT;
-
   head->next = head;
   head->prev = head;
-  ar->end = (void *)ar->start + sz;
+
   word_t *bt = ar->start;
   bt_make(bt, sz, FREE | ISLAST);
   ar_free_insert(ar, bt);
@@ -349,7 +361,7 @@ static void kmalloc_add_arena(void) {
   if (ar == NULL)
     panic("memory exhausted!");
 
-  ar_init(ar, (void *)ar + ARENA_SIZE);
+  ar_init(ar, ARENA_SIZE);
   TAILQ_INSERT_TAIL(&arena_list, ar, link);
   klog("%s: add arena %08x - %08x", __func__, ar->start, ar->end);
 }
@@ -359,15 +371,10 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
     return NULL;
 
 #if KASAN
-  /* the alignment is within the redzone */
-  size_t redzone_size =
-    align(size, ALIGNMENT) - size + KASAN_KMALLOC_REDZONE_SIZE;
-#endif /* !KASAN */
-
+  size_t req_size = blk_size(size + KASAN_KMALLOC_REDZONE_SIZE);
+#else /* !KASAN */
   size_t req_size = blk_size(size);
-#if KASAN
-  req_size += redzone_size;
-#endif /* !KASAN */
+#endif
 
   void *ptr = NULL;
 
@@ -391,8 +398,8 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
   }
 
 found:
-  /* Create redzone after the buffer */
-  kasan_mark(ptr, size, size + redzone_size, KASAN_CODE_KMALLOC_OVERFLOW);
+  /* Create redzone after the buffer. */
+  kasan_mark(ptr, size, req_size - USEDBLK_SZ, KASAN_CODE_KMALLOC_OVERFLOW);
   if (flags == M_ZERO)
     bzero(ptr, size);
   return ptr;
@@ -410,7 +417,7 @@ void kfree(kmalloc_pool_t *mp, void *ptr) {
   WITH_MTX_LOCK (&arena_lock) {
 #if KASAN
     word_t *bt = bt_fromptr(ptr);
-    kasan_mark_invalid(ptr, bt_size(bt), KASAN_CODE_KMALLOC_FREED);
+    kasan_mark_invalid(ptr, bt_size(bt) - USEDBLK_SZ, KASAN_CODE_KMALLOC_FREED);
     kasan_quar_additem(&block_quarantine, ptr);
 #else
     kfree_nokasan(mp, ptr);
