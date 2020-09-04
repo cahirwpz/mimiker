@@ -5,7 +5,6 @@ TOPDIR = $(realpath ../..)
 SOURCES = \
 	boot.c \
 	cbus.c \
-	context.c \
 	copy.S \
 	cpu.c \
 	ebase.S \

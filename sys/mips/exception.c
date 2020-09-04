@@ -58,3 +58,7 @@ void exc_frame_set_retval(exc_frame_t *frame, register_t value,
   frame->v1 = (register_t)error;
   frame->pc += 4;
 }
+
+void ctx_set_retval(exc_frame_t *ctx, long value) {
+  ctx->v0 = (register_t)value;
+}

@@ -1,5 +1,4 @@
 #include <sys/thread.h>
-#include <mips/context.h>
 #include <mips/exception.h>
 #include <mips/pmap.h>
 
@@ -17,14 +16,14 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
    * is used to enter kernel thread for the first time. */
   exc_frame_t *uframe = kstack_alloc_s(stk, exc_frame_t);
   exc_frame_t *kframe = kstack_alloc_s(stk, cpu_exc_frame_t);
-  ctx_t *kctx = kstack_alloc_s(stk, ctx_t);
+  exc_frame_t *kctx = kstack_alloc_s(stk, exc_frame_t);
 
   td->td_uframe = uframe;
   td->td_kframe = kframe;
   td->td_kctx = kctx;
 
-  /* Initialize registers just for ctx_switch to work correctly. */
-  ctx_init(kctx, kern_exc_leave, kframe);
+  /* Initialize registers in order to switch to kframe context. */
+  exc_frame_init(kctx, kern_exc_leave, kframe, EF_KERNEL);
 
   /* This is the context that kern_exc_leave will restore. */
   exc_frame_init(kframe, target, uframe, EF_KERNEL);

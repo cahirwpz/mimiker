@@ -10,9 +10,9 @@
         .local ctx_resume
         .local ctx_save
 
-#define SAVE_REG(reg, offset, base) sw reg, (CTX_##offset)(base)
+#define SAVE_REG(reg, offset, base) sw reg, (EXC_##offset)(base)
 
-#define LOAD_REG(reg, offset, base) lw reg, (CTX_##offset)(base)
+#define LOAD_REG(reg, offset, base) lw reg, (EXC_##offset)(base)
 
 #define SAVE_CTX(_sr, _sp, reg)                                                \
         SAVE_REG(_sr, SR, reg);                                                \
@@ -49,7 +49,7 @@
 #
 # long ctx_switch(thread_t *from, thread_t *to)
 #
-NESTED(ctx_switch, CTX_FRAME_SIZE, ra)
+NESTED(ctx_switch, KERN_EXC_FRAME_SIZE, ra)
         # disable interrupts saving SR to t0
         di      t0
         ehb
@@ -63,7 +63,7 @@ NESTED(ctx_switch, CTX_FRAME_SIZE, ra)
 ctx_save:
         # save context of @from thread
         move    t1, sp
-        subu    sp, CTX_FRAME_SIZE
+        subu    sp, KERN_EXC_FRAME_SIZE
         SAVE_CTX(t0, t1, sp)
         sw      sp, TD_KCTX(a0)
 

@@ -2,7 +2,6 @@ include <sys/context.h>
 include <sys/thread.h>
 include <sys/pcpu.h>
 include <sys/proc.h>
-include <mips/context.h>
 include <mips/exception.h>
 
 define TDF_NEEDSWITCH TDF_NEEDSWITCH
@@ -21,21 +20,6 @@ define TD_SPIN offsetof(thread_t, td_spin)
 
 define STK_BASE offsetof(kstack_t, stk_base)
 define STK_SIZE offsetof(kstack_t, stk_size)
-
-define CTX_S0 offsetof(ctx_t, s0)
-define CTX_S1 offsetof(ctx_t, s1)
-define CTX_S2 offsetof(ctx_t, s2)
-define CTX_S3 offsetof(ctx_t, s3)
-define CTX_S4 offsetof(ctx_t, s4)
-define CTX_S5 offsetof(ctx_t, s5)
-define CTX_S6 offsetof(ctx_t, s6)
-define CTX_S7 offsetof(ctx_t, s7)
-define CTX_V0 offsetof(ctx_t, v0)
-define CTX_GP offsetof(ctx_t, gp)
-define CTX_SP offsetof(ctx_t, sp)
-define CTX_FP offsetof(ctx_t, fp)
-define CTX_SR offsetof(ctx_t, sr)
-define CTX_PC offsetof(ctx_t, pc)
 
 define EXC_AT offsetof(exc_frame_t, at)
 define EXC_V0 offsetof(exc_frame_t, v0)
@@ -109,7 +93,6 @@ define EXC_FPU_FSR offsetof(exc_frame_t, fsr)
 
 define KERN_EXC_FRAME_SIZE sizeof(cpu_exc_frame_t)
 define USER_EXC_FRAME_SIZE sizeof(exc_frame_t)
-define CTX_FRAME_SIZE sizeof(ctx_t)
 
 define P_USPACE offsetof(proc_t, p_uspace)
 
