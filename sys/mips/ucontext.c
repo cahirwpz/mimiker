@@ -9,11 +9,11 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
   user_ctx_t *to = td->td_uctx;
 
   /* registers AT-PC */
-  memcpy(&to->at, &from->__gregs[_REG_AT],
+  memcpy(&to->__gregs[_REG_AT], &from->__gregs[_REG_AT],
          sizeof(__greg_t) * (_REG_EPC - _REG_AT + 1));
 
   /* 32 FP registers + FP CSR */
-  memcpy(&to->f0, &from->__fpregs.__fp_r,
+  memcpy(&to->__fpregs.__fp_r, &from->__fpregs.__fp_r,
          sizeof(from->__fpregs.__fp_r) + sizeof(from->__fpregs.__fp_csr));
 
   return EJUSTRETURN;

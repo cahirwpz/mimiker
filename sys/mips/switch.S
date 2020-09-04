@@ -10,9 +10,9 @@
         .local ctx_resume
         .local ctx_save
 
-#define SAVE_REG(reg, offset, base) sw reg, (EXC_##offset)(base)
+#define SAVE_REG(reg, offset, base) sw reg, (CTX_##offset)(base)
 
-#define LOAD_REG(reg, offset, base) lw reg, (EXC_##offset)(base)
+#define LOAD_REG(reg, offset, base) lw reg, (CTX_##offset)(base)
 
 #define SAVE_CTX(_sr, _sp, reg)                                                \
         SAVE_REG(_sr, SR, reg);                                                \

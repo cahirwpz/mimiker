@@ -13,7 +13,7 @@ typedef void (*exc_handler_t)(ctx_t *);
 static void syscall_handler(ctx_t *ctx) {
   /* TODO Eventually we should have a platform-independent syscall handler. */
   register_t args[SYS_MAXSYSARGS];
-  register_t code = ctx->v0;
+  register_t code = ctx->__gregs[_REG_V0];
   const int nregs = 4;
   int error = 0;
 
@@ -21,7 +21,7 @@ static void syscall_handler(ctx_t *ctx) {
    * Copy the arguments passed via register from the
    * trapctx to our argument array
    */
-  memcpy(args, &ctx->a0, nregs * sizeof(register_t));
+  memcpy(args, &ctx->__gregs[_REG_A0], nregs * sizeof(register_t));
 
   if (code > SYS_MAXSYSCALL) {
     args[0] = code;
@@ -39,7 +39,7 @@ static void syscall_handler(ctx_t *ctx) {
      * arguments.
      * For this reason, we read from the user stack with some offset.
      */
-    vaddr_t usp = ctx->sp + nregs * sizeof(register_t);
+    vaddr_t usp = ctx->__gregs[_REG_SP] + nregs * sizeof(register_t);
     error = copyin((register_t *)usp, &args[nregs],
                    (nargs - nregs) * sizeof(register_t));
   }
@@ -68,12 +68,12 @@ static void cpu_handler(ctx_t *ctx) {
   if (kern_mode_p(ctx))
     kernel_oops(ctx);
 
-  int cp_id = (ctx->cause & CR_CEMASK) >> CR_CESHIFT;
+  int cp_id = (ctx->__gregs[_REG_CAUSE] & CR_CEMASK) >> CR_CESHIFT;
   if (cp_id != 1) {
     sig_trap(ctx, SIGILL);
   } else {
     /* Enable FPU for interrupted context. */
-    ctx->sr |= SR_CU1;
+    ctx->__gregs[_REG_SR] |= SR_CU1;
   }
 }
 
@@ -146,7 +146,7 @@ __noreturn void kernel_oops(ctx_t *ctx) {
   unsigned code = exc_code(ctx);
 
   kprintf("KERNEL PANIC!!! \n");
-  kprintf("%s at $%08x!\n", exceptions[code], ctx->pc);
+  kprintf("%s at $%08lx!\n", exceptions[code], ctx->__gregs[_REG_EPC]);
   switch (code) {
     case EXC_ADEL:
     case EXC_ADES:
@@ -154,7 +154,7 @@ __noreturn void kernel_oops(ctx_t *ctx) {
     case EXC_DBE:
     case EXC_TLBL:
     case EXC_TLBS:
-      kprintf("Caused by reference to $%08x!\n", ctx->badvaddr);
+      kprintf("Caused by reference to $%08lx!\n", ctx->__gregs[_REG_BADVADDR]);
       break;
     case EXC_RI:
       kprintf("Reserved instruction exception in kernel mode!\n");
@@ -170,8 +170,9 @@ __noreturn void kernel_oops(ctx_t *ctx) {
     default:
       break;
   }
-  kprintf("HINT: Type 'info line *0x%08x' into gdb to find faulty code line.\n",
-          ctx->pc);
+  kprintf(
+    "HINT: Type 'info line *0x%08lx' into gdb to find faulty code line.\n",
+    ctx->__gregs[_REG_EPC]);
   if (ktest_test_running_flag)
     ktest_failure();
   else
@@ -179,7 +180,7 @@ __noreturn void kernel_oops(ctx_t *ctx) {
 }
 
 void kstack_overflow_handler(ctx_t *ctx) {
-  kprintf("Kernel stack overflow caught at $%08x!\n", ctx->pc);
+  kprintf("Kernel stack overflow caught at $%08lx!\n", ctx->__gregs[_REG_EPC]);
   if (ktest_test_running_flag)
     ktest_failure();
   else
@@ -223,7 +224,7 @@ void mips_exc_handler(ctx_t *ctx) {
   if (!handler)
     kernel_oops(ctx);
 
-  if (!user_mode && (!(ctx->sr & SR_IE) || preempt_disabled())) {
+  if (!user_mode && (!(ctx->__gregs[_REG_SR] & SR_IE) || preempt_disabled())) {
     /* We came here from kernel-space because of:
      * Case 2c: an exception, interrupts were disabled;
      * Case 2b: either interrupt or exception, preemption was disabled.
@@ -243,7 +244,7 @@ void mips_exc_handler(ctx_t *ctx) {
   } else {
     /* Case 1 & 2a: we came from user-space or kernel-space,
      * interrupts and preemption were enabled! */
-    assert(ctx->sr & SR_IE);
+    assert(ctx->__gregs[_REG_SR] & SR_IE);
     assert(!preempt_disabled());
 
     if (code != EXC_INTR) {

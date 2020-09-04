@@ -15,16 +15,16 @@
 #define STACKSIZE PAGESIZE
 
 #define SAVE_REG_CFI(reg, offset, base)                                        \
-        sw reg, (EXC_##offset)(base);                                          \
-        .cfi_rel_offset reg, (EXC_##offset)
+        sw reg, (CTX_##offset)(base);                                          \
+        .cfi_rel_offset reg, (CTX_##offset)
 
-#define SAVE_REG(reg, offset, base) sw reg, (EXC_##offset)(base)
+#define SAVE_REG(reg, offset, base) sw reg, (CTX_##offset)(base)
 
-#define LOAD_REG(reg, offset, base) lw reg, (EXC_##offset)(base)
+#define LOAD_REG(reg, offset, base) lw reg, (CTX_##offset)(base)
 
-#define SAVE_FPU_REG(reg, offset, base) swc1 reg, (EXC_FPU_##offset)(base)
+#define SAVE_FPU_REG(reg, offset, base) swc1 reg, (FPU_CTX_##offset)(base)
 
-#define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (EXC_FPU_##offset)(base)
+#define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (FPU_CTX_##offset)(base)
 
 #define SAVE_CPU_CTX(reg)                                                      \
         SAVE_REG_CFI(AT, AT, reg);                                             \
@@ -56,7 +56,7 @@
         SAVE_REG_CFI(fp, FP, reg);                                             \
         /* Save value of user-space RA just before syscall. */                 \
         SAVE_REG(ra, RA, reg);                                                 \
-        .cfi_rel_offset ra, EXC_RA;                                            \
+        .cfi_rel_offset ra, CTX_RA;                                            \
         mfc0 ra, C0_EPC;                                                       \
         mflo t0;                                                               \
         mfhi t1;                                                               \
@@ -360,12 +360,12 @@ SNESTED(user_exc_enter, USER_CTX_SIZE, ra)
         # Copy sp, status, cause, epc, badvaddr from PCPU to stack frame
         LOAD_PCPU_KSEG0(t0)
         PCPU_TO_FRAME(SP)
-        .cfi_rel_offset sp, EXC_SP
+        .cfi_rel_offset sp, CTX_SP
         PCPU_TO_FRAME(SR)
         PCPU_TO_FRAME(CAUSE)
         PCPU_TO_FRAME(PC)
         .cfi_return_column t1
-        .cfi_rel_offset t1, EXC_PC
+        .cfi_rel_offset t1, CTX_PC
         PCPU_TO_FRAME(BADVADDR)
 
         # If FPU is enabled save FPU registers.
@@ -484,7 +484,7 @@ SNESTED(kern_exc_enter, CTX_SIZE, ra)
         subu    t0, CTX_SIZE
         bgez    t0, 1f
         nop
-        # Hopefully KERN_EXC_FRAME_SIZE bytes of unallocated stack space will be
+        # Hopefully CTX_SIZE bytes of unallocated stack space will be
         # enough to enter kernel stack overflow handler.
         la      s1, kstack_overflow_handler
 
