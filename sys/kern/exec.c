@@ -359,7 +359,7 @@ static int _do_execve(exec_args_t *args) {
   fdtab_onexec(p->p_fdtable);
 
   /* Set up user context. */
-  exc_frame_init(td->td_uframe, (void *)eh.e_entry, (void *)stack_top, EF_USER);
+  user_ctx_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
 
   /* At this point we are certain that exec succeeds.  We can safely destroy the
    * previous vm_map, and permanently assign this one to the current process. */

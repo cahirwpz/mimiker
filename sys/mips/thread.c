@@ -1,6 +1,5 @@
 #include <sys/thread.h>
 #include <mips/context.h>
-#include <mips/exception.h>
 #include <mips/pmap.h>
 
 extern __noreturn void thread_exit(void);
@@ -15,18 +14,18 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
    * full exception frame has to be allocated at the bottom of kernel stack.
    * Just under it there's a kernel exception frame (cpu part of full one) that
    * is used to enter kernel thread for the first time. */
-  exc_frame_t *uframe = kstack_alloc_s(stk, exc_frame_t);
-  exc_frame_t *kframe = kstack_alloc_s(stk, cpu_exc_frame_t);
+  user_ctx_t *uctx = kstack_alloc_s(stk, user_ctx_t);
+  ctx_t *kframe = kstack_alloc_s(stk, ctx_t);
   ctx_t *kctx = kstack_alloc_s(stk, ctx_t);
 
-  td->td_uframe = uframe;
+  td->td_uctx = uctx;
   td->td_kframe = kframe;
   td->td_kctx = kctx;
 
-  /* Initialize registers just for ctx_switch to work correctly. */
+  /* Initialize registers in order to switch to kframe context. */
   ctx_init(kctx, kern_exc_leave, kframe);
 
   /* This is the context that kern_exc_leave will restore. */
-  exc_frame_init(kframe, target, uframe, EF_KERNEL);
-  exc_frame_setup_call(kframe, (register_t)thread_exit, (register_t)arg);
+  ctx_init(kframe, target, uctx);
+  ctx_setup_call(kframe, (register_t)thread_exit, (register_t)arg);
 }
