@@ -6,7 +6,7 @@
 
 int do_setcontext(thread_t *td, ucontext_t *uc) {
   mcontext_t *from = &uc->uc_mcontext;
-  exc_frame_t *to = td->td_uframe;
+  user_exc_frame_t *to = td->td_uframe;
 
   /* registers AT-PC */
   memcpy(&to->at, &from->__gregs[_REG_AT],

@@ -404,7 +404,7 @@ fault:
       kernel_oops(frame);
 
     /* Send a segmentation fault signal to the user program. */
-    sig_trap(frame, SIGSEGV);
+    sig_trap((user_exc_frame_t *)frame, SIGSEGV);
   } else {
     /* Panic when kernel-mode thread uses wrong pointer. */
     kernel_oops(frame);

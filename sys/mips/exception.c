@@ -29,7 +29,7 @@ const char *const exceptions[32] = {
 void exc_frame_init(exc_frame_t *frame, void *pc, void *sp, unsigned flags) {
   bool usermode = flags & EF_USER;
 
-  bzero(frame, usermode ? sizeof(exc_frame_t) : sizeof(cpu_exc_frame_t));
+  bzero(frame, usermode ? sizeof(user_exc_frame_t) : sizeof(exc_frame_t));
 
   frame->gp = usermode ? 0 : (register_t)_gp;
   frame->pc = (register_t)pc;
@@ -42,8 +42,15 @@ void exc_frame_init(exc_frame_t *frame, void *pc, void *sp, unsigned flags) {
   frame->sr = mips32_get_c0(C0_STATUS) | SR_IE | (usermode ? SR_KSU_USER : 0);
 }
 
-void exc_frame_copy(exc_frame_t *to, exc_frame_t *from) {
-  memcpy(to, from, sizeof(exc_frame_t));
+void user_exc_frame_copy(user_exc_frame_t *to, user_exc_frame_t *from) {
+  memcpy(to, from, sizeof(user_exc_frame_t));
+}
+
+void user_exc_frame_set_retval(user_exc_frame_t *frame, register_t value,
+                               register_t error) {
+  frame->v0 = (register_t)value;
+  frame->v1 = (register_t)error;
+  frame->pc += 4;
 }
 
 void exc_frame_setup_call(exc_frame_t *frame, register_t retaddr,
@@ -52,13 +59,6 @@ void exc_frame_setup_call(exc_frame_t *frame, register_t retaddr,
   frame->a0 = arg;
 }
 
-void exc_frame_set_retval(exc_frame_t *frame, register_t value,
-                          register_t error) {
+void exc_frame_set_retval(exc_frame_t *frame, long value) {
   frame->v0 = (register_t)value;
-  frame->v1 = (register_t)error;
-  frame->pc += 4;
-}
-
-void ctx_set_retval(exc_frame_t *ctx, long value) {
-  ctx->v0 = (register_t)value;
 }

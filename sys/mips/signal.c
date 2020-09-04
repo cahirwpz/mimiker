@@ -11,7 +11,7 @@
 
 typedef struct sig_ctx {
   uint32_t magic; /* Integrity control. */
-  exc_frame_t frame;
+  user_exc_frame_t frame;
   sigset_t mask; /* signal mask to restore in sigreturn() */
   /* TODO: Store handler signal mask. */
   /* TODO: Store previous stack data, if the sigaction requested a different
@@ -32,11 +32,11 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa) {
 
   SCOPED_MTX_LOCK(&td->td_lock);
 
-  exc_frame_t *uframe = td->td_uframe;
+  user_exc_frame_t *uframe = td->td_uframe;
 
   /* Prepare signal context. */
   sig_ctx_t ksc = {.magic = SIG_CTX_MAGIC, .mask = *mask};
-  exc_frame_copy(&ksc.frame, uframe);
+  user_exc_frame_copy(&ksc.frame, uframe);
 
   /* Copyout sigcode to user stack. */
   unsigned sigcode_size = esigcode - sigcode;
@@ -74,7 +74,7 @@ int sig_return(void) {
   sig_ctx_t ksc;
 
   WITH_MTX_LOCK (&td->td_lock) {
-    exc_frame_t *uframe = td->td_uframe;
+    user_exc_frame_t *uframe = td->td_uframe;
     /* TODO: We assume the stored user context is where user stack is. This
      * usually works, but the signal handler may switch the stack, or perform an
      * arbitrary jump. It may also call sigreturn() when its stack is not empty
@@ -96,7 +96,7 @@ int sig_return(void) {
     }
 
     /* Restore user context. */
-    exc_frame_copy(uframe, &ksc.frame);
+    user_exc_frame_copy(uframe, &ksc.frame);
   }
 
   WITH_MTX_LOCK (&td->td_proc->p_lock)
@@ -106,7 +106,7 @@ int sig_return(void) {
   return EJUSTRETURN;
 }
 
-void sig_trap(exc_frame_t *frame, signo_t sig) {
+void sig_trap(user_exc_frame_t *frame, signo_t sig) {
   proc_t *proc = proc_self();
   WITH_MTX_LOCK (all_proc_mtx)
     WITH_MTX_LOCK (&proc->p_lock)

@@ -32,14 +32,17 @@
     register_t fsr;                                                            \
   }
 
-typedef struct cpu_exc_frame {
-  CPU_FRAME;
-} cpu_exc_frame_t;
-
 typedef struct exc_frame {
   CPU_FRAME;
-  FPU_FRAME;
 } exc_frame_t;
+
+typedef struct user_exc_frame {
+  CPU_FRAME;
+  FPU_FRAME;
+} user_exc_frame_t;
+
+#undef FPU_FRAME
+#undef CPU_FRAME
 
 static inline bool kern_mode_p(exc_frame_t *frame) {
   return (frame->sr & SR_KSU_MASK) == SR_KSU_KERN;

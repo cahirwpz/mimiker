@@ -54,14 +54,15 @@ static void syscall_handler(exc_frame_t *frame) {
     error = se->call(td->td_proc, (void *)args, &retval);
 
   if (error != EJUSTRETURN)
-    exc_frame_set_retval(frame, error ? -1 : retval, error);
+    user_exc_frame_set_retval((user_exc_frame_t *)frame, error ? -1 : retval,
+                              error);
 }
 
 static void fpe_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
     kernel_oops(frame);
 
-  sig_trap(frame, SIGFPE);
+  sig_trap((user_exc_frame_t *)frame, SIGFPE);
 }
 
 static void cpu_handler(exc_frame_t *frame) {
@@ -70,7 +71,7 @@ static void cpu_handler(exc_frame_t *frame) {
 
   int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
   if (cp_id != 1) {
-    sig_trap(frame, SIGILL);
+    sig_trap((user_exc_frame_t *)frame, SIGILL);
   } else {
     /* Enable FPU for interrupted context. */
     frame->sr |= SR_CU1;
@@ -81,7 +82,7 @@ static void ri_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
     kernel_oops(frame);
 
-  sig_trap(frame, SIGILL);
+  sig_trap((user_exc_frame_t *)frame, SIGILL);
 }
 
 /*
@@ -94,7 +95,7 @@ static void ade_handler(exc_frame_t *frame) {
   if (kern_mode_p(frame))
     kernel_oops(frame);
 
-  sig_trap(frame, SIGBUS);
+  sig_trap((user_exc_frame_t *)frame, SIGBUS);
 }
 
 /*
