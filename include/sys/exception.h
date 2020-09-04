@@ -2,7 +2,6 @@
 #define _SYS_EXCEPTION_H_
 
 #include <sys/cdefs.h>
-#include <sys/types.h>
 
 __noreturn __long_call void user_exc_leave(void);
 

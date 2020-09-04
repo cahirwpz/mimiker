@@ -23,9 +23,9 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
   td->td_kctx = kctx;
 
   /* Initialize registers in order to switch to kframe context. */
-  ctx_init(kctx, kern_exc_leave, kframe, EF_KERNEL);
+  ctx_init(kctx, kern_exc_leave, kframe);
 
   /* This is the context that kern_exc_leave will restore. */
-  ctx_init(kframe, target, uctx, EF_KERNEL);
+  ctx_init(kframe, target, uctx);
   ctx_setup_call(kframe, (register_t)thread_exit, (register_t)arg);
 }

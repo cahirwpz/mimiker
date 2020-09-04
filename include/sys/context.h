@@ -9,12 +9,8 @@ typedef struct __ucontext ucontext_t;
 typedef struct ctx ctx_t;
 typedef struct user_ctx user_ctx_t;
 
-/* Flags for \a ctx_init */
-#define EF_KERNEL 0
-#define EF_USER 1
-
-/*! \brief Prepare ctx to jump into a program. */
-void ctx_init(ctx_t *ctx, void *pc, void *sp, unsigned flags);
+/*! \brief Prepare ctx to jump into a kernel thread. */
+void ctx_init(ctx_t *ctx, void *pc, void *sp);
 
 /*! \brief Set args and return address for context that calls a procedure. */
 void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg);
@@ -24,6 +20,9 @@ void ctx_set_retval(ctx_t *ctx, long value);
 
 /*! \brief Copy user exception ctx. */
 void user_ctx_copy(user_ctx_t *to, user_ctx_t *from);
+
+/*! \brief Prepare ctx to jump into a user-space program. */
+void user_ctx_init(user_ctx_t *ctx, void *pc, void *sp);
 
 /*! \brief Set a return value within the ctx and advance the program counter.
  *

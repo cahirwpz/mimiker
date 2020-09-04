@@ -57,5 +57,6 @@ static inline unsigned exc_code(ctx_t *ctx) {
 }
 
 __noreturn void kernel_oops(ctx_t *ctx);
+void tlb_exception_handler(ctx_t *ctx);
 
 #endif /* !_MIPS_EXCEPTION_ */

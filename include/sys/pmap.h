@@ -6,8 +6,6 @@
 #include <sys/mutex.h>
 #include <machine/pmap.h>
 
-typedef struct ctx ctx_t;
-
 /*
  * Flags passed to pmap_enter may contain VM_PROT_* read/write/execute
  * permissions. This information may be used to seed modified/referenced
@@ -71,7 +69,5 @@ void pmap_activate(pmap_t *pmap);
 pmap_t *pmap_lookup(vaddr_t va);
 pmap_t *pmap_kernel(void);
 pmap_t *pmap_user(void);
-
-void tlb_exception_handler(ctx_t *ctx);
 
 #endif /* !_SYS_PMAP_H_ */
