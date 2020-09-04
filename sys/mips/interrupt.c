@@ -64,8 +64,7 @@ void mips_intr_teardown(intr_handler_t *handler) {
 
 /* Hardware interrupt handler is called with interrupts disabled. */
 void mips_intr_handler(ctx_t *ctx) {
-  unsigned pending =
-    (ctx->__gregs[_REG_CAUSE] & ctx->__gregs[_REG_SR]) & CR_IP_MASK;
+  unsigned pending = (_REG(ctx, CAUSE) & _REG(ctx, SR)) & CR_IP_MASK;
 
   for (int i = 7; i >= 0; i--) {
     unsigned irq = CR_IP0 << i;

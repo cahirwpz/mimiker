@@ -40,30 +40,30 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa) {
 
   /* Copyout sigcode to user stack. */
   unsigned sigcode_size = esigcode - sigcode;
-  void *sp = (void *)uctx->__gregs[_REG_SP] - sigcode_size;
+  void *sp = (void *)_REG(uctx, SP) - sigcode_size;
   void *sigcode_stack_addr = sp;
 
   if (copyout(sigcode, sigcode_stack_addr, sigcode_size))
-    stack_unusable(td, uctx->__gregs[_REG_SP]);
+    stack_unusable(td, _REG(uctx, SP));
 
   /* Copyout signal context to user stack. */
   sp -= sizeof(sig_ctx_t);
   if (copyout(&ksc, sp, sizeof(sig_ctx_t)))
-    stack_unusable(td, uctx->__gregs[_REG_SP]);
+    stack_unusable(td, _REG(uctx, SP));
 
   /* Prepare user context so that on return to usermode the handler gets
    * executed. No need to check whether the handler address is valid (aligned,
    * user space, mapped memory, executable). If it is not, an exception will be
    * raised and the user process will get the punishment it deserves (SIGILL,
    * SIGSEGV). */
-  uctx->__gregs[_REG_EPC] = (register_t)sa->sa_handler;
-  uctx->__gregs[_REG_A0] = sig;
+  _REG(uctx, EPC) = (register_t)sa->sa_handler;
+  _REG(uctx, A0) = sig;
   /* The calling convention is such that the callee may write to the address
    * pointed by sp before extending the stack - so we need to set it 1 word
    * before the stored context! */
-  uctx->__gregs[_REG_SP] = (register_t)((intptr_t *)sp - 1);
+  _REG(uctx, SP) = (register_t)((intptr_t *)sp - 1);
   /* Also, make sure that sigcode runs when the handler exits. */
-  uctx->__gregs[_REG_RA] = (register_t)sigcode_stack_addr;
+  _REG(uctx, RA) = (register_t)sigcode_stack_addr;
 
   return 0;
 }
@@ -85,7 +85,7 @@ int sig_return(void) {
      * user program with a wrapper). We don't do any of that fancy stuff yet,
      * but when we do, the following will need to get the scp pointer address
      * from a syscall argument. */
-    sig_ctx_t *scp = (sig_ctx_t *)((intptr_t *)uctx->__gregs[_REG_SP] + 1);
+    sig_ctx_t *scp = (sig_ctx_t *)((intptr_t *)_REG(uctx, SP) + 1);
     error = copyin_s(scp, ksc);
     if (error)
       return error;

@@ -9,7 +9,7 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
   user_ctx_t *to = td->td_uctx;
 
   /* registers AT-PC */
-  memcpy(&to->__gregs[_REG_AT], &from->__gregs[_REG_AT],
+  memcpy(&_REG(to, AT), &_REG(from, AT),
          sizeof(__greg_t) * (_REG_EPC - _REG_AT + 1));
 
   /* 32 FP registers + FP CSR */

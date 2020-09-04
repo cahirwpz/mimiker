@@ -100,16 +100,14 @@ struct __fpregset {
     int32_t __fp_regs[32];
   } __fp_r;
   unsigned int __fp_csr;
-  unsigned int __fp_pad;
 };
 
 typedef struct __fpregset __fpregset_t;
 
-typedef struct {
+typedef struct mcontext {
   __gregset_t __gregs;
   __fpregset_t __fpregs;
   __greg_t _mc_tlsbase;
-  __greg_t __mc_unused;
 } mcontext_t;
 
 #endif /* !__ASSEMBLER__ */

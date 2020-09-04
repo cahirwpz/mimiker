@@ -352,11 +352,11 @@ pmap_t *pmap_lookup(vaddr_t addr) {
 void tlb_exception_handler(ctx_t *ctx) {
   thread_t *td = thread_self();
 
-  int code = (ctx->__gregs[_REG_CAUSE] & CR_X_MASK) >> CR_X_SHIFT;
-  vaddr_t vaddr = ctx->__gregs[_REG_BADVADDR];
+  int code = (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
+  vaddr_t vaddr = _REG(ctx, BADVADDR);
 
   klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
-       ctx->__gregs[_REG_EPC], vaddr);
+       _REG(ctx, EPC), vaddr);
 
   pmap_t *pmap = pmap_lookup(vaddr);
   if (!pmap) {
@@ -396,7 +396,7 @@ void tlb_exception_handler(ctx_t *ctx) {
 fault:
   if (td->td_onfault) {
     /* handle copyin / copyout faults */
-    ctx->__gregs[_REG_EPC] = td->td_onfault;
+    _REG(ctx, EPC) = td->td_onfault;
     td->td_onfault = 0;
   } else if (td->td_proc) {
     /* Panic when process running in kernel space uses wrong pointer. */

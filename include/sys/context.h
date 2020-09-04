@@ -7,7 +7,7 @@
 typedef struct thread thread_t;
 typedef struct __ucontext ucontext_t;
 typedef struct ctx ctx_t;
-typedef struct user_ctx user_ctx_t;
+typedef struct mcontext user_ctx_t;
 
 /*! \brief Prepare ctx to jump into a kernel thread. */
 void ctx_init(ctx_t *ctx, void *pc, void *sp);
