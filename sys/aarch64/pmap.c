@@ -76,6 +76,10 @@ static pde_t *pmap_alloc_pde(pmap_t *pmap, vaddr_t vaddr, int level) {
   return (pde_t *)pg->paddr;
 }
 
+inline bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end) {
+  return pmap_start(pmap) <= start && end <= pmap_end(pmap);
+}
+
 vaddr_t pmap_start(pmap_t *pmap) {
   panic("Not implemented!");
 }
@@ -153,11 +157,21 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
 }
 
 void pmap_kremove(vaddr_t start, vaddr_t end) {
-  panic("Not implemented!");
+  pmap_remove(pmap_kernel(), start, end);
 }
 
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
-  panic("Not implemented!");
+  assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
+  assert(pmap_contains_p(pmap, start, end));
+
+  klog("Remove page mapping for address range %p-%p", start, end);
+
+  WITH_MTX_LOCK (&pmap->mtx) {
+    for (vaddr_t va = start; va < end; va += PAGESIZE) {
+      pte_t *l3 = pmap_l3(pmap, va);
+      *l3 = 0;
+    }
+  }
 }
 
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
