@@ -123,11 +123,10 @@
 #define CTR_ILINE_SIZE(reg) (4 << (CTR_ILINE_VAL(reg) >> CTR_ILINE_SHIFT))
 
 /* DAIF - Interrupt Mask Bits */
-#define DAIF_SHIFT 6
-#define DAIF_F (PSR_F >> DAIF_SHIFT)
-#define DAIF_I (PSR_I >> DAIF_SHIFT)
-#define DAIF_A (PSR_A >> DAIF_SHIFT)
-#define DAIF_D (PSR_D >> DAIF_SHIFT)
+#define DAIF_D_MASKED (1 << 9)
+#define DAIF_A_MASKED (1 << 8)
+#define DAIF_I_MASKED (1 << 7)
+#define DAIF_F_MASKED (1 << 6)
 
 /* DCZID_EL0 - Data Cache Zero ID register */
 #define DCZID_DZP (1 << 4) /* DC ZVA prohibited if non-0 */
