@@ -37,7 +37,7 @@ ASENTRY(_start)
         BL      board_stack
         MOV     sp, x0
 
-        B       .
+        B       board_init
 ASEND(_start)
 
         .section .boot.data

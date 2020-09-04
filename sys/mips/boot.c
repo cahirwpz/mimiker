@@ -8,7 +8,7 @@
 #include <mips/kasan.h>
 
 /* Last address in kseg0 used by kernel for boot allocation. */
-__boot_data void *_kernel_end_kseg0;
+__boot_data void *_bootmem_end;
 /* Kernel page directory entries allocated in kseg0. */
 extern pte_t _kernel_pmap_pde[PT_ENTRIES];
 /* The boot stack is used before we switch out to thread0. */
@@ -16,8 +16,8 @@ static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
 /* Allocates pages in kseg0. The argument will be aligned to PAGESIZE. */
 static __boot_text void *bootmem_alloc(size_t bytes) {
-  void *addr = _kernel_end_kseg0;
-  _kernel_end_kseg0 += align(bytes, PAGESIZE);
+  void *addr = _bootmem_end;
+  _bootmem_end += align(bytes, PAGESIZE);
   return addr;
 }
 
@@ -57,7 +57,7 @@ __boot_text void *mips_init(void) {
     *ptr++ = 0;
 
   /* Set end address of kernel for boot allocation purposes. */
-  _kernel_end_kseg0 = (void *)align(MIPS_KSEG2_TO_KSEG0(__ebss), PAGESIZE);
+  _bootmem_end = (void *)align(MIPS_KSEG2_TO_KSEG0(__ebss), PAGESIZE);
 
   /* Clear all entries in TLB. */
   if ((mips32_getconfig0() & CFG0_MT_MASK) != CFG0_MT_TLB)
