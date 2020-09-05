@@ -9,7 +9,7 @@ void user_ctx_init(user_ctx_t *ctx, void *pc, void *sp) {
 }
 
 void user_ctx_copy(user_ctx_t *to, user_ctx_t *from) {
-  panic("Not implemented!");
+  memcpy(to, from, sizeof(user_ctx_t));
 }
 
 void user_ctx_setup_call(user_ctx_t *ctx, register_t retaddr, register_t arg) {
