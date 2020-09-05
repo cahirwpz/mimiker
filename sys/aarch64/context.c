@@ -12,11 +12,6 @@ void user_ctx_copy(user_ctx_t *to, user_ctx_t *from) {
   memcpy(to, from, sizeof(user_ctx_t));
 }
 
-void user_ctx_setup_call(user_ctx_t *ctx, register_t retaddr, register_t arg) {
-  _REG(ctx, LR) = retaddr;
-  _REG(ctx, X0) = arg;
-}
-
 void user_ctx_set_retval(user_ctx_t *ctx, register_t value, register_t error) {
   _REG(ctx, X0) = value;
   _REG(ctx, X1) = error;
@@ -25,6 +20,15 @@ void user_ctx_set_retval(user_ctx_t *ctx, register_t value, register_t error) {
 
 void user_exc_leave(void) {
   panic("Not implemented!");
+}
+
+void kern_exc_leave(void) {
+  panic("Not implemented!");
+}
+
+void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg) {
+  _REG(ctx, LR) = retaddr;
+  _REG(ctx, X0) = arg;
 }
 
 void ctx_init(ctx_t *ctx, void *pc, void *sp) {
