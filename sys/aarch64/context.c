@@ -18,7 +18,9 @@ void user_ctx_setup_call(user_ctx_t *ctx, register_t retaddr, register_t arg) {
 }
 
 void user_ctx_set_retval(user_ctx_t *ctx, register_t value, register_t error) {
-  panic("Not implemented!");
+  _REG(ctx, X0) = value;
+  _REG(ctx, X1) = error;
+  _REG(ctx, PC) += 4;
 }
 
 void user_exc_leave(void) {
