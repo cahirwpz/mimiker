@@ -30,7 +30,7 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size,
 void kfree(kmalloc_pool_t *mp, void *addr);
 char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen);
 
-void kmcheck(int verbose);
+void kmcheck(void);
 
 /*! \brief M_TEMP delivers storage for short lived temporary objects. */
 KMALLOC_DECLARE(M_TEMP);

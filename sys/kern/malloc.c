@@ -298,27 +298,15 @@ static void *ar_realloc(arena_t *ar, void *old_ptr, size_t size) {
   return new_ptr;
 }
 
-#define msg(...)                                                               \
-  if (verbose) {                                                               \
-    kprintf(__VA_ARGS__);                                                      \
-  }
-
-static void ar_check(arena_t *ar, int verbose) {
+static void ar_check(arena_t *ar) {
   word_t *bt = ar->start;
 
   word_t *prev = NULL;
   int prevfree = 0;
   unsigned dangling = 0;
 
-  msg("arena: %p - %p\n", ar->start, ar->end);
-
-  msg("--=[ all block list ]=---\n");
-
   for (; bt < ar->end; prev = bt, bt = bt_next(bt)) {
     int flag = !!bt_get_prevfree(bt);
-    int is_last = !!bt_get_islast(bt);
-    msg("%p: [%c%c:%lu] %c\n", bt, "FU"[bt_used(bt)], " P"[flag], bt_size(bt),
-        " *"[is_last]);
     if (bt_free(bt)) {
       word_t *ft = bt_footer(bt);
       assert(*bt == *ft); /* Header and footer do not match? */
@@ -334,19 +322,14 @@ static void ar_check(arena_t *ar, int verbose) {
 
   assert(bt_get_islast(prev)); /* Last block set incorrectly? */
 
-  msg("--=[ free block list start ]=---\n");
-
   fbnode_t *head = &ar->freelst;
   for (fbnode_t *n = head->next; n != head; n = n->next) {
     word_t *bt = bt_fromptr(n);
-    msg("%p: [%p, %p]\n", n, n->prev, n->next);
     assert(bt_free(bt));
     dangling--;
   }
 
-  msg("--=[ free block list end ]=---\n");
-
-  assert(dangling == 0 && "Dangling free blocks!");
+  assert(dangling == 0);
 }
 
 static arena_t *ar_find(void *ptr) {
@@ -464,10 +447,10 @@ char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen) {
   return copy;
 }
 
-void kmcheck(int verbose) {
+void kmcheck(void) {
   arena_t *ar = NULL;
   TAILQ_FOREACH (ar, &arena_list, link)
-    ar_check(ar, verbose);
+    ar_check(ar);
 }
 
 void init_kmalloc(void) {
