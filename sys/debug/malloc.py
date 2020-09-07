@@ -18,6 +18,7 @@ class Malloc(UserCommand):
         canary = 0xDEADC0DE
 
         arena_list = TailQueue(global_var('arena_list'), 'link')
+        dangling = 0
 
         for arena in arena_list:
             start = arena['start'].cast(word)
@@ -27,7 +28,6 @@ class Malloc(UserCommand):
 
             # Check boundary tag layout.
             ptr = start
-            dangling = 0
             prevfree = False
             is_last = False
 
@@ -59,11 +59,16 @@ class Malloc(UserCommand):
             if not is_last:
                 print("(***) Last block set incorrectly!")
 
-            # Check list of free blocks.
-            head = arena['freelst'].address
+        # Check buckets of free blocks.
+        freelst = global_var('freelst')
+        idx_from, idx_to = freelst.type.range()
+        for i in range(idx_from, idx_to + 1):
+            head = freelst[i].address
             node = head['next']
-            print("[freelist] first: 0x%X, last: 0x%X" % (
-                head['next'].cast(word), head['prev'].cast(word)))
+            if node == head:
+                continue
+            print("[free:%d] first: 0x%X, last: 0x%X" % (
+                i, head['next'].cast(word), head['prev'].cast(word)))
             while node != head:
                 ptr = node.cast(word) - word_size
                 btag = ptr.cast(word_ptr).dereference()
@@ -78,5 +83,5 @@ class Malloc(UserCommand):
                     ["(invalid!)", ""][int(is_valid)]))
                 node = node['next']
 
-            if dangling != 0:
-                print("(***) Some free blocks are not inserted on free list!")
+        if dangling != 0:
+            print("(***) Some free blocks are not inserted on free list!")
