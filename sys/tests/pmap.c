@@ -125,14 +125,27 @@ static int test_rmbits(void) {
   return KTEST_SUCCESS;
 }
 
-static int test_aarch64_pmap_kenter(void) {
-  volatile unsigned int *ptr = (unsigned int *)0x1001000;
+static int test_pmap_kenter(void) {
+  SCOPED_NO_PREEMPTION();
 
+  pmap_t *orig = pmap_user();
+  pmap_t *pmap = pmap_kernel();
+
+  pmap_activate(pmap);
+
+  vm_page_t *pg = vm_page_alloc(1);
   vaddr_t va = kva_alloc(PAGESIZE);
-  pmap_kenter(va, (paddr_t)ptr, VM_PROT_READ | VM_PROT_WRITE, 0);
+
+  volatile uint64_t *ptr = (uint64_t *)va;
+
+  pmap_kenter(va, pg->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
 
   *ptr = 0xDEADC0DE;
   assert(*ptr == 0xDEADC0DE);
+
+  pmap_kremove(va, va + PAGESIZE);
+  kva_free(va, PAGESIZE);
+  pmap_activate(orig);
 
   return KTEST_SUCCESS;
 }
@@ -140,4 +153,4 @@ static int test_aarch64_pmap_kenter(void) {
 KTEST_ADD(pmap_kernel, test_kernel_pmap, KTEST_FLAG_BROKEN);
 KTEST_ADD(pmap_user, test_user_pmap, 0);
 KTEST_ADD(pmap_rmbits, test_rmbits, 0);
-KTEST_ADD(pmap_aarch64_kenter, test_aarch64_pmap_kenter, 0);
+KTEST_ADD(pmap_kenter, test_pmap_kenter, 0);
