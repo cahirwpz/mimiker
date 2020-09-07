@@ -21,12 +21,9 @@
         stp     x4,  x5,  [sp, #(CTX_X + 4  * 8)]
         stp     x2,  x3,  [sp, #(CTX_X + 2  * 8)]
         stp     x0,  x1,  [sp, #(CTX_X + 0  * 8)]
-        mrs     x10, far_el1
-        mrs     x11, elr_el1
-        stp     x10, x11, [sp, #(CTX_FAR)]
-        mrs     x12, spsr_el1
-        mrs     x13, esr_el1
-        stp     w12, w13, [sp, #(CTX_SPSR)]
+        mrs     x10, elr_el1
+        mrs     x11, spsr_el1
+        stp     x10, x11, [sp, #(CTX_ELR)]
         add     x18, sp, #(CTX_SIZE)
         stp     x18, lr, [sp, #(CTX_SP)]
 .endm
