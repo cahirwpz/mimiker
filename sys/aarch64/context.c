@@ -5,7 +5,10 @@
 #include <aarch64/armreg.h>
 
 void user_ctx_init(user_ctx_t *ctx, void *pc, void *sp) {
-  panic("Not implemented!");
+  bzero(ctx, sizeof(user_ctx_t));
+
+  _REG(ctx, PC) = (register_t)pc;
+  _REG(ctx, SP) = (register_t)sp;
 }
 
 void user_ctx_copy(user_ctx_t *to, user_ctx_t *from) {
