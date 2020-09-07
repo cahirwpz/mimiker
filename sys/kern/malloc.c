@@ -5,8 +5,6 @@
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/kmem.h>
-#include <sys/pool.h>
-#include <sys/errno.h>
 #include <sys/kasan.h>
 #include <sys/queue.h>
 
@@ -24,6 +22,7 @@ typedef unsigned long word_t;
 
 #define ALIGNMENT (4 * sizeof(word_t))
 #define CANARY 0xDEADC0DE
+#define NBUCKETS 24
 
 /* Free block consists of header BT, pointer to previous and next free block,
  * payload and footer BT. */
@@ -40,19 +39,22 @@ typedef enum {
 } bt_flags;
 
 /* Stored in payload of free blocks. */
-typedef struct fbnode {
-  struct fbnode *prev;
-  struct fbnode *next;
-} fbnode_t;
+typedef struct node {
+  struct node *prev;
+  struct node *next;
+} node_t;
 
 /* Structure kept in the header of each managed memory region. */
 typedef struct arena {
   TAILQ_ENTRY(arena) link; /* link on list of all arenas */
-  fbnode_t freelst;        /* guard of free block list */
   word_t *end;             /* first address after the arena */
-  word_t pad[2];           /* make user address aligned to ALIGNMENT */
-  word_t start[];          /* first block in the arena */
+  word_t start[];          /* first block in the arena (watch alignment!) */
 } arena_t;
+
+/* Each bucket starts with guard of free block list. */
+static node_t freelst[NBUCKETS];
+
+/* --=[ boundary tag handling ]=-------------------------------------------- */
 
 static inline word_t bt_size(word_t *bt) {
   return *bt & ~(USED | PREVFREE | ISLAST);
@@ -130,13 +132,34 @@ static inline word_t *bt_prev(word_t *bt) {
   return (void *)bt - bt_size(ft);
 }
 
-static inline void ar_free_insert(arena_t *ar, word_t *bt) {
-  fbnode_t *head = &ar->freelst;
-  fbnode_t *node = bt_payload(bt);
-  fbnode_t *prev = head->prev;
+/* --=[ free blocks handling using doubly linked list ]=-------------------- */
+
+static int bucket(size_t x) {
+  x -= 1;
+  if (x < 128)
+    return x >> 4;
+  x -= 128;
+  if (x < 256)
+    return 8 + (x >> 5);
+  x -= 256;
+  if (x < 256)
+    return 16 + (x >> 6);
+  x -= 256;
+  if (x < 256)
+    return 20 + (x >> 7);
+  x -= 256;
+  if (x < 256)
+    return 22;
+  return 23;
+}
+
+static inline void free_insert(word_t *bt) {
+  node_t *head = &freelst[bucket(bt_size(bt))];
+  node_t *node = bt_payload(bt);
+  node_t *prev = head->prev;
 
   /* Unpoison node pointers. */
-  kasan_mark_valid(node, sizeof(fbnode_t));
+  kasan_mark_valid(node, sizeof(node_t));
 
   /* Insert at the end of free block list. */
   node->next = head;
@@ -146,52 +169,39 @@ static inline void ar_free_insert(arena_t *ar, word_t *bt) {
 }
 
 static inline void free_remove(word_t *bt) {
-  fbnode_t *node = bt_payload(bt);
-  fbnode_t *prev = node->prev;
-  fbnode_t *next = node->next;
+  node_t *node = bt_payload(bt);
+  node_t *prev = node->prev;
+  node_t *next = node->next;
   prev->next = next;
   next->prev = prev;
 
   /* Poison node pointers. */
-  kasan_mark_invalid(node, sizeof(fbnode_t), KASAN_CODE_KMALLOC_OVERFLOW);
+  kasan_mark_invalid(node, sizeof(node_t), KASAN_CODE_KMALLOC_OVERFLOW);
 }
 
 static inline size_t blk_size(size_t size) {
   return roundup(size + USEDBLK_SZ, ALIGNMENT);
 }
 
+/* --=[ algorithm implementation ]=----------------------------------------- */
+
 /* First fit */
-static word_t *find_fit(arena_t *ar, size_t reqsz) {
-  fbnode_t *head = &ar->freelst;
-  for (fbnode_t *n = head->next; n != head; n = n->next) {
-    word_t *bt = bt_fromptr(n);
-    if (bt_size(bt) >= reqsz)
-      return bt;
+static word_t *find_fit(size_t reqsz) {
+  for (int b = bucket(reqsz); b < NBUCKETS; b++) {
+    node_t *head = &freelst[b];
+    for (node_t *n = head->next; n != head; n = n->next) {
+      word_t *bt = bt_fromptr(n);
+      if (bt_size(bt) >= reqsz)
+        return bt;
+    }
   }
   return NULL;
 }
 
-static void ar_init(arena_t *ar, size_t size) {
-  size_t sz = rounddown(size - sizeof(arena_t), ALIGNMENT);
-
-  /* Poison everything but arena header. */
-  kasan_mark(ar, offsetof(arena_t, pad), size, KASAN_CODE_KMALLOC_FREED);
-
-  ar->end = (void *)ar->start + sz;
-
-  fbnode_t *head = &ar->freelst;
-  head->next = head;
-  head->prev = head;
-
-  word_t *bt = ar->start;
-  bt_make(bt, sz, FREE | ISLAST);
-  ar_free_insert(ar, bt);
-}
-
-static void *ar_malloc(arena_t *ar, size_t reqsz) {
+static void *malloc(size_t reqsz) {
   assert(is_aligned(reqsz, ALIGNMENT));
 
-  word_t *bt = find_fit(ar, reqsz);
+  word_t *bt = find_fit(reqsz);
   if (bt != NULL) {
     bt_flags is_last = bt_get_islast(bt);
     size_t memsz = reqsz - USEDBLK_SZ;
@@ -205,7 +215,7 @@ static void *ar_malloc(arena_t *ar, size_t reqsz) {
       bt_make(next, sz - reqsz, FREE | is_last);
       bt_clr_islast(bt);
       memsz += USEDBLK_SZ;
-      ar_free_insert(ar, next);
+      free_insert(next);
     } else if (!is_last) {
       /* Nothing to split? Then previous block is not free anymore! */
       bt_clr_prevfree(next);
@@ -215,7 +225,7 @@ static void *ar_malloc(arena_t *ar, size_t reqsz) {
   return bt ? bt_payload(bt) : NULL;
 }
 
-static void ar_free(arena_t *ar, void *ptr) {
+static void free(void *ptr) {
   word_t *bt = bt_fromptr(ptr);
 
   /* Is block free and has canary? */
@@ -251,10 +261,10 @@ static void ar_free(arena_t *ar, void *ptr) {
     bt = prev;
   }
 
-  ar_free_insert(ar, bt);
+  free_insert(bt);
 }
 
-static void *ar_realloc(arena_t *ar, void *old_ptr, size_t size) {
+static void *realloc(void *old_ptr, size_t size) {
   void *new_ptr = NULL;
   word_t *bt = bt_fromptr(old_ptr);
   size_t reqsz = blk_size(size);
@@ -271,7 +281,7 @@ static void *ar_realloc(arena_t *ar, void *old_ptr, size_t size) {
     bt_make(bt, reqsz, USED | bt_get_prevfree(bt));
     word_t *next = bt_next(bt);
     bt_make(next, sz - reqsz, USED | is_last);
-    ar_free(ar, bt_payload(next));
+    free(bt_payload(next));
     new_ptr = old_ptr;
   } else {
     /* Expand block */
@@ -286,7 +296,7 @@ static void *ar_realloc(arena_t *ar, void *old_ptr, size_t size) {
         word_t *next = bt_next(bt);
         if (sz + nextsz > reqsz) {
           bt_make(next, sz + nextsz - reqsz, FREE | is_last);
-          ar_free_insert(ar, next);
+          free_insert(next);
         } else {
           bt_clr_prevfree(next);
         }
@@ -298,58 +308,24 @@ static void *ar_realloc(arena_t *ar, void *old_ptr, size_t size) {
   return new_ptr;
 }
 
-static void ar_check(arena_t *ar) {
-  word_t *bt = ar->start;
+/* --=[ kernel API ]=------------------------------------------------------- */
 
-  word_t *prev = NULL;
-  int prevfree = 0;
-  unsigned dangling = 0;
-
-  for (; bt < ar->end; prev = bt, bt = bt_next(bt)) {
-    int flag = !!bt_get_prevfree(bt);
-    if (bt_free(bt)) {
-      word_t *ft = bt_footer(bt);
-      assert(*bt == *ft); /* Header and footer do not match? */
-      assert(!prevfree);  /* Free block not coalesced? */
-      prevfree = 1;
-      dangling++;
-    } else {
-      assert(flag == prevfree);  /* PREVFREE flag mismatch? */
-      assert(bt_has_canary(bt)); /* Canary damaged? */
-      prevfree = 0;
-    }
-  }
-
-  assert(bt_get_islast(prev)); /* Last block set incorrectly? */
-
-  fbnode_t *head = &ar->freelst;
-  for (fbnode_t *n = head->next; n != head; n = n->next) {
-    word_t *bt = bt_fromptr(n);
-    assert(bt_free(bt));
-    dangling--;
-  }
-
-  assert(dangling == 0);
-}
-
-static arena_t *ar_find(void *ptr) {
-  arena_t *ar = NULL;
-  TAILQ_FOREACH (ar, &arena_list, link) {
-    if (ptr >= (void *)ar->start && ptr < (void *)ar->end)
-      break;
-  }
-  assert(ar != NULL);
-  return ar;
-}
-
-/* ========================================================================== */
-
-static void kmalloc_add_arena(void) {
+static void arena_add(void) {
   arena_t *ar = kmem_alloc(ARENA_SIZE, M_WAITOK);
   if (ar == NULL)
     panic("memory exhausted!");
 
-  ar_init(ar, ARENA_SIZE);
+  size_t sz = rounddown(ARENA_SIZE - sizeof(arena_t), ALIGNMENT);
+
+  /* Poison everything but arena header. */
+  kasan_mark(ar, offsetof(arena_t, pad), ARENA_SIZE, KASAN_CODE_KMALLOC_FREED);
+
+  ar->end = (void *)ar->start + sz;
+
+  word_t *bt = ar->start;
+  bt_make(bt, sz, FREE | ISLAST);
+  free_insert(bt);
+
   TAILQ_INSERT_TAIL(&arena_list, ar, link);
   klog("%s: add arena %08x - %08x", __func__, ar->start, ar->end);
 }
@@ -368,24 +344,15 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
 
   assert(req_size <= BLOCK_MAXSIZE);
 
-  for (;;) {
-    WITH_MTX_LOCK (&arena_lock) {
-      /* Search for the first arena in the list that has enough space. */
-      arena_t *ar = NULL;
-      TAILQ_FOREACH (ar, &arena_list, link) {
-        if ((ptr = ar_malloc(ar, req_size)))
-          goto found;
-      }
-
+  WITH_MTX_LOCK (&arena_lock) {
+    while (!(ptr = malloc(req_size))) {
       /* Couldn't find any continuous memory with the requested size. */
       if (flags & M_NOWAIT)
         return NULL;
-
-      kmalloc_add_arena();
+      arena_add();
     }
   }
 
-found:
   /* Create redzone after the buffer. */
   kasan_mark(ptr, size, req_size - USEDBLK_SZ, KASAN_CODE_KMALLOC_OVERFLOW);
   if (flags == M_ZERO)
@@ -395,7 +362,7 @@ found:
 
 static void kfree_nokasan(kmalloc_pool_t *mp, void *ptr) {
   assert(mtx_owned(&arena_lock));
-  ar_free(ar_find(ptr), ptr);
+  free(ptr);
 }
 
 void kfree(kmalloc_pool_t *mp, void *ptr) {
@@ -425,7 +392,7 @@ void *krealloc(kmalloc_pool_t *mp, void *old_ptr, size_t size, unsigned flags) {
     return kmalloc(mp, size, flags);
 
   WITH_MTX_LOCK (&arena_lock) {
-    if ((new_ptr = ar_realloc(ar_find(old_ptr), old_ptr, size)))
+    if ((new_ptr = realloc(old_ptr, size)))
       return new_ptr;
   }
 
@@ -449,14 +416,52 @@ char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen) {
 
 void kmcheck(void) {
   arena_t *ar = NULL;
-  TAILQ_FOREACH (ar, &arena_list, link)
-    ar_check(ar);
+  unsigned dangling = 0;
+
+  TAILQ_FOREACH (ar, &arena_list, link) {
+    word_t *bt = ar->start;
+    word_t *prev = NULL;
+    int prevfree = 0;
+
+    for (; bt < ar->end; prev = bt, bt = bt_next(bt)) {
+      int flag = !!bt_get_prevfree(bt);
+      if (bt_free(bt)) {
+        word_t *ft = bt_footer(bt);
+        assert(*bt == *ft); /* Header and footer do not match? */
+        assert(!prevfree);  /* Free block not coalesced? */
+        prevfree = 1;
+        dangling++;
+      } else {
+        assert(flag == prevfree);  /* PREVFREE flag mismatch? */
+        assert(bt_has_canary(bt)); /* Canary damaged? */
+        prevfree = 0;
+      }
+    }
+
+    assert(bt_get_islast(prev)); /* Last block set incorrectly? */
+  }
+
+  for (int b = 0; b < NBUCKETS; b++) {
+    node_t *head = &freelst[b];
+    for (node_t *n = head->next; n != head; n = n->next) {
+      word_t *bt = bt_fromptr(n);
+      assert(bt_free(bt));
+      dangling--;
+    }
+  }
+
+  assert(dangling == 0);
 }
 
 void init_kmalloc(void) {
   TAILQ_INIT(&arena_list);
   mtx_init(&arena_lock, 0);
   kasan_quar_init(&block_quarantine, NULL, (quar_free_t)kfree_nokasan);
+  for (int b = 0; b < NBUCKETS; b++) {
+    node_t *head = &freelst[b];
+    head->next = head;
+    head->prev = head;
+  }
 }
 
 KMALLOC_DEFINE(M_TEMP, "temporaries pool");
