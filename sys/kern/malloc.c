@@ -151,6 +151,9 @@ static inline void free_remove(word_t *bt) {
   fbnode_t *next = node->next;
   prev->next = next;
   next->prev = prev;
+
+  /* Poison node pointers. */
+  kasan_mark_invalid(node, sizeof(fbnode_t), KASAN_CODE_KMALLOC_OVERFLOW);
 }
 
 static inline size_t blk_size(size_t size) {
