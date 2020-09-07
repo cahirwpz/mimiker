@@ -136,11 +136,10 @@ static int test_pmap_kenter(void) {
   vm_page_t *pg = vm_page_alloc(1);
   vaddr_t va = kva_alloc(PAGESIZE);
 
-  volatile uint64_t *ptr = (uint64_t *)va;
-
   pmap_kenter(va, pg->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
 
 #ifndef KASAN
+  volatile uint64_t *ptr = (uint64_t *)va;
   *ptr = 0xDEADC0DE;
   assert(*ptr == 0xDEADC0DE);
 #endif /* !KASAN */
