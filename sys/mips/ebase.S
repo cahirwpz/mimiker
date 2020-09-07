@@ -15,16 +15,16 @@
 #define STACKSIZE PAGESIZE
 
 #define SAVE_REG_CFI(reg, offset, base)                                        \
-        sw reg, (EXC_##offset)(base);                                          \
-        .cfi_rel_offset reg, (EXC_##offset)
+        sw reg, (CTX_##offset)(base);                                          \
+        .cfi_rel_offset reg, (CTX_##offset)
 
-#define SAVE_REG(reg, offset, base) sw reg, (EXC_##offset)(base)
+#define SAVE_REG(reg, offset, base) sw reg, (CTX_##offset)(base)
 
-#define LOAD_REG(reg, offset, base) lw reg, (EXC_##offset)(base)
+#define LOAD_REG(reg, offset, base) lw reg, (CTX_##offset)(base)
 
-#define SAVE_FPU_REG(reg, offset, base) swc1 reg, (EXC_FPU_##offset)(base)
+#define SAVE_FPU_REG(reg, offset, base) swc1 reg, (FPU_CTX_##offset)(base)
 
-#define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (EXC_FPU_##offset)(base)
+#define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (FPU_CTX_##offset)(base)
 
 #define SAVE_CPU_CTX(reg)                                                      \
         SAVE_REG_CFI(AT, AT, reg);                                             \
@@ -56,7 +56,7 @@
         SAVE_REG_CFI(fp, FP, reg);                                             \
         /* Save value of user-space RA just before syscall. */                 \
         SAVE_REG(ra, RA, reg);                                                 \
-        .cfi_rel_offset ra, EXC_RA;                                            \
+        .cfi_rel_offset ra, CTX_RA;                                            \
         mfc0 ra, C0_EPC;                                                       \
         mflo t0;                                                               \
         mfhi t1;                                                               \
@@ -331,7 +331,7 @@ exc_enter:
 # - Status, cause, epc & badvaddr registers cannot be saved directly to kernel
 #   stack (kseg2) as it may trigger TLB handler which would overwrite them!
 
-SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
+SNESTED(user_exc_enter, USER_CTX_SIZE, ra)
         .cfi_signal_frame
 
         # Fetch PCPU address
@@ -360,12 +360,12 @@ SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         # Copy sp, status, cause, epc, badvaddr from PCPU to stack frame
         LOAD_PCPU_KSEG0(t0)
         PCPU_TO_FRAME(SP)
-        .cfi_rel_offset sp, EXC_SP
+        .cfi_rel_offset sp, CTX_SP
         PCPU_TO_FRAME(SR)
         PCPU_TO_FRAME(CAUSE)
         PCPU_TO_FRAME(PC)
         .cfi_return_column t1
-        .cfi_rel_offset t1, EXC_PC
+        .cfi_rel_offset t1, CTX_PC
         PCPU_TO_FRAME(BADVADDR)
 
         # If FPU is enabled save FPU registers.
@@ -406,7 +406,7 @@ user_exc_leave:
         # This is crucial on first entry to user-space for this thread.
         LOAD_PCPU_KSEG0(s0)
         lw      t0, PCPU_CURTHREAD(s0)
-        lw      sp, TD_UFRAME(t0)
+        lw      sp, TD_UCTX(t0)
         
         # Update kernel stack pointer to be used on kernel reentry.
         sw      sp, PCPU_KSP(s0)
@@ -446,7 +446,7 @@ user_return:
         eret
 END(user_exc_enter)
 
-SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
+SNESTED(kern_exc_enter, CTX_SIZE, ra)
         # Fetch PCPU address
         LOAD_PCPU_KSEG0(k0)
 
@@ -457,8 +457,8 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         PCPU_SAVE(EPC)
         PCPU_SAVE(BADVADDR)
 
-        # Allocate stack frame (of KERN_EXC_FRAME_SIZE bytes) and save context.
-        subu    sp, KERN_EXC_FRAME_SIZE # required by gdb to recognize frame
+        # Allocate stack frame (of CTX_SIZE bytes) and save context.
+        subu    sp, CTX_SIZE # required by gdb to recognize frame
 
         # We cannot access stack (KSEG2) when exception level is enabled
         # Let's drop exception level and disable interrupts.
@@ -481,10 +481,10 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         # If there's not enough space on the stack to store another exception
         # frame we consider situation to be critical and panic.
         andi    t0, sp, STACKSIZE - 1
-        subu    t0, KERN_EXC_FRAME_SIZE
+        subu    t0, CTX_SIZE
         bgez    t0, 1f
         nop
-        # Hopefully KERN_EXC_FRAME_SIZE bytes of unallocated stack space will be
+        # Hopefully CTX_SIZE bytes of unallocated stack space will be
         # enough to enter kernel stack overflow handler.
         la      s1, kstack_overflow_handler
 
