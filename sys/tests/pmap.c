@@ -140,8 +140,10 @@ static int test_pmap_kenter(void) {
 
   pmap_kenter(va, pg->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
 
+#ifndef KASAN
   *ptr = 0xDEADC0DE;
   assert(*ptr == 0xDEADC0DE);
+#endif /* !KASAN */
 
   pmap_kremove(va, va + PAGESIZE);
   kva_free(va, PAGESIZE);
