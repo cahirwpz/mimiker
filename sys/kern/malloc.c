@@ -318,7 +318,8 @@ static void arena_add(void) {
   size_t sz = rounddown(ARENA_SIZE - sizeof(arena_t), ALIGNMENT);
 
   /* Poison everything but arena header. */
-  kasan_mark(ar, offsetof(arena_t, pad), ARENA_SIZE, KASAN_CODE_KMALLOC_FREED);
+  kasan_mark(ar, offsetof(arena_t, start), ARENA_SIZE,
+             KASAN_CODE_KMALLOC_FREED);
 
   ar->end = (void *)ar->start + sz;
 
