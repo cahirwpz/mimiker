@@ -6,7 +6,6 @@ SOURCES = boot.c \
 	  context.c \
 	  copy.c \
 	  evec.S \
-	  exception.c \
 	  interrupt.c \
 	  pmap.c \
 	  rootdev.c \

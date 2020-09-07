@@ -1,13 +1,12 @@
 include <stddef.h>
-include <aarch64/exception.h>
+include <aarch64/context.h>
 
-define EXC_SP offsetof(exc_frame_t, sp)
-define EXC_LF offsetof(exc_frame_t, lr)
-define EXC_FAR offsetof(exc_frame_t, far)
-define EXC_ELR offsetof(exc_frame_t, pc)
-define EXC_PC offsetof(exc_frame_t, pc)
-define EXC_SPSR offsetof(exc_frame_t, spsr)
-define EXC_ESR offsetof(exc_frame_t, esr)
-define EXC_X offsetof(exc_frame_t, x)
+define CTX_SP offsetof(ctx_t, sp)
+define CTX_LF offsetof(ctx_t, lr)
+define CTX_FAR offsetof(ctx_t, far)
+define CTX_ELR offsetof(ctx_t, elr)
+define CTX_SPSR offsetof(ctx_t, spsr)
+define CTX_ESR offsetof(ctx_t, esr)
+define CTX_X offsetof(ctx_t, x)
 
-define EXC_SIZE sizeof(exc_frame_t)
+define CTX_SIZE sizeof(ctx_t)
