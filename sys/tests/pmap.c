@@ -135,6 +135,7 @@ static int test_pmap_kenter(void) {
 
   vm_page_t *pg = vm_page_alloc(1);
   vaddr_t va = kva_alloc(PAGESIZE);
+  assert(va);
 
   pmap_kenter(va, pg->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
 
@@ -146,8 +147,51 @@ static int test_pmap_kenter(void) {
 
   pmap_kremove(va, va + PAGESIZE);
   kva_free(va, PAGESIZE);
+  vm_page_free(pg);
   pmap_activate(orig);
 
+  return KTEST_SUCCESS;
+}
+
+static int test_pmap_page(void) {
+#ifndef KASAN
+  pmap_t *orig = pmap_user();
+  pmap_t *pmap = pmap_kernel();
+
+  pmap_activate(pmap);
+  
+  vm_page_t *pg1 = vm_page_alloc(1);
+  vm_page_t *pg2 = vm_page_alloc(2);
+
+  volatile vaddr_t va = kva_alloc(PAGESIZE);
+  assert(va);
+
+  pmap_kenter(va, pg1->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
+
+  volatile uint8_t *buf = (uint8_t *)va;
+  for (int i = 0; i < PAGESIZE; i++)
+    buf[i] = i % 123;
+
+  pmap_copy_page(pg1, pg2);
+  pmap_zero_page(pg1);
+
+  for (int i = 0; i < PAGESIZE; i++)
+    assert(buf[i] == 0);
+
+  pmap_kremove(va, va + PAGESIZE);
+  
+  pmap_kenter(va, pg2->paddr, VM_PROT_READ, 0);
+  
+  for (int i = 0; i < PAGESIZE; i++)
+    assert(buf[i] == i % 123);
+
+  pmap_kremove(va, va + PAGESIZE);
+  kva_free(va, PAGESIZE);
+  vm_page_free(pg1);
+  vm_page_free(pg2);
+  pmap_activate(orig);
+
+#endif /* !KASAN */
   return KTEST_SUCCESS;
 }
 
@@ -155,3 +199,4 @@ KTEST_ADD(pmap_kernel, test_kernel_pmap, KTEST_FLAG_BROKEN);
 KTEST_ADD(pmap_user, test_user_pmap, 0);
 KTEST_ADD(pmap_rmbits, test_rmbits, 0);
 KTEST_ADD(pmap_kenter, test_pmap_kenter, 0);
+KTEST_ADD(pmap_page, test_pmap_page, 0);

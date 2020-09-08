@@ -1,5 +1,7 @@
 #define KL_LOG KL_PMAP
 #include <sys/klog.h>
+#include <sys/kmem.h>
+#include <sys/libkern.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
@@ -232,11 +234,14 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
 }
 
 void pmap_zero_page(vm_page_t *pg) {
-  panic("Not implemented!");
+  vaddr_t va = PHYS_TO_DMAP(pg->paddr);
+  bzero((uint8_t* )va, PAGESIZE);
 }
 
 void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
-  panic("Not implemented!");
+  vaddr_t va_src = PHYS_TO_DMAP(src->paddr);
+  vaddr_t va_dst = PHYS_TO_DMAP(dst->paddr);
+  memcpy((uint8_t *)va_dst, (uint8_t *)va_src, PAGESIZE);
 }
 
 void pmap_activate(pmap_t *pmap) {
