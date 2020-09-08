@@ -213,7 +213,18 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
 }
 
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
-  panic("Not implemented!");
+  assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
+
+  klog("Change protection bits to %x for address range %p-%p", prot, start,
+       end);
+
+  WITH_MTX_LOCK (&pmap->mtx) {
+    for (vaddr_t va = start; va < end; va += PAGESIZE) {
+      pte_t *l3 = pmap_l3(pmap, va);
+      pmap_pte_write(pmap, l3, (*l3 & (~ATTR_AP_MASK & ~ATTR_XN)) |
+                     vm_prot_map[prot], 0);
+    }
+  }
 }
 
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
