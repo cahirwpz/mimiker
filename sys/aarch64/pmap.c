@@ -1,15 +1,17 @@
 #define KL_LOG KL_PMAP
 #include <sys/klog.h>
 #include <sys/mimiker.h>
+#include <sys/pcpu.h>
+#include <sys/pmap.h>
+#include <sys/pool.h>
+#include <sys/sched.h>
+#include <sys/spinlock.h>
+#include <sys/vm.h>
+#include <sys/vm_physmem.h>
 #include <aarch64/context.h>
 #include <aarch64/pmap.h>
 #include <aarch64/pte.h>
-#include <sys/pmap.h>
-#include <sys/vm.h>
-#include <sys/spinlock.h>
 #include <bitstring.h>
-#include <sys/vm_physmem.h>
-#include <sys/pool.h>
 
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 
@@ -113,8 +115,20 @@ void pmap_delete(pmap_t *pmap) {
   panic("Not implemented!");
 }
 
-static const pte_t pte_default =
-  L3_PAGE | ATTR_AF | ATTR_SH(ATTR_SH_IS) | ATTR_IDX(ATTR_NORMAL_MEM_WB);
+static void pmap_pte_write(pte_t *pte, pte_t val, unsigned flags) {
+  unsigned cacheflags = flags & PMAP_CACHE_MASK;
+
+  if (cacheflags == PMAP_NOCACHE)
+    val |= ATTR_IDX(ATTR_NORMAL_MEM_NC);
+  else if (cacheflags == PMAP_WRITE_THROUGH)
+    val |= ATTR_IDX(ATTR_NORMAL_MEM_WT);
+  else
+    val |= ATTR_IDX(ATTR_NORMAL_MEM_WB);
+
+  *pte = val;
+}
+
+static const pte_t pte_default = L3_PAGE | ATTR_AF | ATTR_SH(ATTR_SH_IS);
 
 static const pte_t vm_prot_map[] = {
   [VM_PROT_NONE] = ATTR_XN | pte_default,
@@ -130,8 +144,7 @@ static const pte_t vm_prot_map[] = {
 
 void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
   pmap_t *pmap = pmap_kernel();
-
-  pte_t pte = vm_prot_map[prot];
+  assert(pa != 0);
 
   WITH_MTX_LOCK (&pmap->mtx) {
     pde_t *l0 = pmap_l0(pmap, va);
@@ -147,7 +160,7 @@ void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
       *l2 = (pde_t)pmap_alloc_pde(pmap, va, 3) | L2_TABLE;
 
     pte_t *l3 = pmap_l3(pmap, va);
-    *l3 = pa | pte;
+    pmap_pte_write(l3, pa | vm_prot_map[prot], flags);
   }
 }
 
@@ -162,14 +175,13 @@ void pmap_kremove(vaddr_t start, vaddr_t end) {
 
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
-  assert(pmap_contains_p(pmap, start, end));
 
   klog("Remove page mapping for address range %p-%p", start, end);
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
       pte_t *l3 = pmap_l3(pmap, va);
-      *l3 = 0;
+      pmap_pte_write(l3, 0, 0);
     }
   }
 }
@@ -191,9 +203,13 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
 }
 
 void pmap_activate(pmap_t *pmap) {
+  SCOPED_NO_PREEMPTION();
+
   if (pmap != pmap_kernel()) {
     panic("Not implemented!");
   }
+
+  PCPU_SET(curpmap, pmap);
 }
 
 pmap_t *pmap_kernel(void) {
@@ -201,7 +217,7 @@ pmap_t *pmap_kernel(void) {
 }
 
 pmap_t *pmap_user(void) {
-  panic("Not implemented!");
+  return PCPU_GET(curpmap);
 }
 
 pmap_t *pmap_lookup(vaddr_t addr) {
