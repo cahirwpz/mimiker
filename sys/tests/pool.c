@@ -12,13 +12,11 @@ typedef enum {
 static int test_pool_alloc(palloc_test_t flag) {
   const int N = 50;
 
-  kmalloc_pool_t *mp = kmalloc_create("test", PAGESIZE * 2);
-
   int size = 64;
   pool_t *test = pool_create("test", size);
 
   for (int n = 1; n < N; n++) {
-    void **item = kmalloc(mp, sizeof(void *) * n, 0);
+    void **item = kmalloc(M_TEST, sizeof(void *) * n, 0);
     for (int i = 0; i < n; i++)
       item[i] = pool_alloc(test, M_ZERO);
     if (flag == PALLOC_TEST_CORRUPTION) {
@@ -31,7 +29,7 @@ static int test_pool_alloc(palloc_test_t flag) {
       /* WARNING! This will obviously crash kernel due to double free! */
       pool_free(test, item[n / 2]);
     }
-    kfree(mp, item);
+    kfree(M_TEST, item);
   }
   pool_destroy(test);
 #if 0
@@ -39,7 +37,6 @@ static int test_pool_alloc(palloc_test_t flag) {
    * uncomment at your own risk! */
   pool_destroy(&test);
 #endif
-  kmalloc_destroy(mp);
   return KTEST_SUCCESS;
 }
 

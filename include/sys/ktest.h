@@ -7,6 +7,7 @@
 
 #include <sys/linker_set.h>
 #include <sys/libkern.h>
+#include <sys/malloc.h>
 #include <stdbool.h>
 
 #define KTEST_NAME_MAX 40
@@ -61,5 +62,8 @@ bool try_load_word(unsigned *ptr, unsigned *val_p);
 
 /*! \brief Attempt to store word to memory without crashing the kernel. */
 bool try_store_word(unsigned *ptr, unsigned val);
+
+/*! \brief Memory pool used by tests. */
+KMALLOC_DECLARE(M_TEST);
 
 #endif /* !_SYS_KTEST_H_ */

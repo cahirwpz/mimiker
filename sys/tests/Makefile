@@ -10,7 +10,6 @@ SOURCES = \
 	klog.c \
 	kmem.c \
 	linker_set.c \
-	malloc.c \
 	mutex.c \
 	physmem.c \
 	pmap.c \
