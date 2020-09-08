@@ -80,3 +80,15 @@ class TailQueue():
             item = item.dereference()
             yield item
             item = item[self.field]['tqe_next']
+
+
+class LinkerSet():
+    def __init__(self, name, typ):
+        self.start = gdb.parse_and_eval('(%s **)&__start_set_%s' % (typ, name))
+        self.stop = gdb.parse_and_eval('(%s **)&__stop_set_%s' % (typ, name))
+
+    def __iter__(self):
+        item = self.start
+        while item < self.stop:
+            yield item.dereference().dereference()
+            item = item + 1

@@ -376,6 +376,11 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
         return NULL;
       arena_add();
     }
+
+    mp->used += req_size;
+    mp->maxused = max(mp->used, mp->maxused);
+    mp->active++;
+    mp->nrequests++;
   }
 
   /* Create redzone after the buffer. */
@@ -387,6 +392,9 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
 
 static void kfree_nokasan(kmalloc_pool_t *mp, void *ptr) {
   assert(mtx_owned(&arena_lock));
+  word_t *bt = bt_fromptr(ptr);
+  mp->used -= bt_size(bt);
+  mp->active--;
   free(ptr);
 }
 
@@ -489,5 +497,5 @@ void init_kmalloc(void) {
   }
 }
 
-KMALLOC_DEFINE(M_TEMP, "temporaries pool");
+KMALLOC_DEFINE(M_TEMP, "temporaries");
 KMALLOC_DEFINE(M_STR, "strings");

@@ -1,8 +1,8 @@
 import gdb
 
 from .cmd import UserCommand
-from .struct import TailQueue
-from .utils import global_var
+from .struct import TailQueue, LinkerSet
+from .utils import global_var, TextTable
 
 
 class Malloc(UserCommand):
@@ -91,3 +91,21 @@ class Malloc(UserCommand):
 
         if dangling != 0:
             print("(***) Some free blocks are not inserted on free list!")
+
+
+class MallocStats(UserCommand):
+    """List memory statistics of all malloc pools."""
+
+    def __init__(self):
+        super().__init__('malloc_stats')
+
+    def __call__(self, args):
+        mps = LinkerSet('kmalloc_pool', 'kmalloc_pool_t *')
+        table = TextTable(types='tiiii', align='lrrrr')
+        table.header(['description', 'nrequests', 'active', 'memory in use',
+                      'peak usage'])
+        for mp in sorted(mps, key=lambda x: x['desc'].string()):
+            table.add_row([mp['desc'].string(), int(mp['nrequests']),
+                           int(mp['active']), int(mp['used']),
+                           int(mp['maxused'])])
+        print(table)
