@@ -69,6 +69,19 @@ class BinTime(metaclass=GdbStructMeta):
         return 'timeval{%.6f}' % self.as_float()
 
 
+class List():
+    def __init__(self, lst, field):
+        self.lst = lst
+        self.field = field
+
+    def __iter__(self):
+        item = self.lst['lh_first']
+        while item != 0:
+            item = item.dereference()
+            yield item
+            item = item[self.field]['le_next']
+
+
 class TailQueue():
     def __init__(self, tq, field):
         self.tq = tq

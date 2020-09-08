@@ -33,6 +33,7 @@ typedef void (*pool_dtor_t)(void *);
 typedef LIST_HEAD(, pool_slab) pool_slabs_t;
 
 typedef struct pool {
+  TAILQ_ENTRY(pool) pp_link;
   mtx_t pp_mtx;
   const char *pp_desc;
   unsigned pp_state;
@@ -51,12 +52,15 @@ typedef struct pool {
 #endif
 } pool_t;
 
+static TAILQ_HEAD(, pool) pool_list = TAILQ_HEAD_INITIALIZER(pool_list);
+static mtx_t *pool_list_lock = &MTX_INITIALIZER(0);
+
 typedef struct pool_slab {
-  uint32_t ph_state;                 /* set to ALIVE or DEAD */
-  LIST_ENTRY(pool_slab) ph_slablist; /* pool slab list */
-  uint16_t ph_nused;                 /* # of items in use */
-  uint16_t ph_ntotal;                /* total number of chunks */
-  size_t ph_size;                    /* size of memory allocated for the slab */
+  uint32_t ph_state;             /* set to ALIVE or DEAD */
+  LIST_ENTRY(pool_slab) ph_link; /* pool slab list */
+  uint16_t ph_nused;             /* # of items in use */
+  uint16_t ph_ntotal;            /* total number of chunks */
+  size_t ph_size;                /* size of memory allocated for the slab */
   size_t ph_itemsize; /* total size of item (with header and redzone) */
   void *ph_items;     /* ptr to array of items after bitmap */
   bitstr_t ph_bitmap[0];
@@ -124,7 +128,7 @@ static void add_slab(pool_t *pool, pool_slab_t *slab, size_t slabsize) {
       pool->pp_ctor(pi->pi_data);
   }
 
-  LIST_INSERT_HEAD(&pool->pp_empty_slabs, slab, ph_slablist);
+  LIST_INSERT_HEAD(&pool->pp_empty_slabs, slab, ph_link);
   pool->pp_nitems += slab->ph_ntotal;
   pool->pp_nslabs++;
 }
@@ -161,8 +165,8 @@ static void *alloc_item(pool_slab_t *slab) {
 static void destroy_slab_list(pool_t *pool, pool_slabs_t *slabs) {
   pool_slab_t *it, *next;
 
-  LIST_FOREACH_SAFE (it, slabs, ph_slablist, next) {
-    LIST_REMOVE(it, ph_slablist);
+  LIST_FOREACH_SAFE (it, slabs, ph_link, next) {
+    LIST_REMOVE(it, ph_link);
     destroy_slab(pool, it);
   }
 }
@@ -186,14 +190,14 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
     add_slab(pool, slab, PAGESIZE);
   }
 
-  LIST_REMOVE(slab, ph_slablist);
+  LIST_REMOVE(slab, ph_link);
 
   void *p = alloc_item(slab);
   pool->pp_nitems--;
   pool_slabs_t *slabs = (slab->ph_nused < slab->ph_ntotal)
                           ? &pool->pp_part_slabs
                           : &pool->pp_full_slabs;
-  LIST_INSERT_HEAD(slabs, slab, ph_slablist);
+  LIST_INSERT_HEAD(slabs, slab, ph_link);
 
   /* Create redzone after the item */
   kasan_mark(p, pool->pp_itemsize, pool->pp_itemsize + pool->pp_redzsize,
@@ -225,12 +229,12 @@ static void _pool_free(pool_t *pool, void *ptr) {
     panic("Double free detected in '%s' pool at %p!", pool->pp_desc, ptr);
 
   bit_clear(bitmap, index);
-  LIST_REMOVE(slab, ph_slablist);
+  LIST_REMOVE(slab, ph_link);
   slab->ph_nused--;
   pool->pp_nitems++;
   pool_slabs_t *slabs =
     slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
-  LIST_INSERT_HEAD(slabs, slab, ph_slablist);
+  LIST_INSERT_HEAD(slabs, slab, ph_link);
 
   debug("pool_free: freed item %p at slab %p, index %d", ptr, slab, index);
 }
@@ -292,6 +296,8 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
   kasan_quar_init(&pool->pp_quarantine, pool, (quar_free_t)_pool_free);
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
        pool->pp_itemsize);
+  WITH_MTX_LOCK (pool_list_lock)
+    TAILQ_INSERT_TAIL(&pool_list, pool, pp_link);
 }
 
 void init_pool(void) {
@@ -313,6 +319,8 @@ pool_t *pool_create(const char *desc, size_t size) {
 }
 
 void pool_destroy(pool_t *pool) {
+  WITH_MTX_LOCK (pool_list_lock)
+    TAILQ_REMOVE(&pool_list, pool, pp_link);
   WITH_MTX_LOCK (&pool->pp_mtx)
     /* Lock needed as the quarantine may call _pool_free! */
     kasan_quar_releaseall(&pool->pp_quarantine);

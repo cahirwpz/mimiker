@@ -1,5 +1,5 @@
 from .virtmem import VmPhysSeg, VmFreePages, VmMapSeg, PhysMap
-from .malloc import Malloc, MallocStats
+from .memory import Malloc, MallocStats, PoolStats
 from .cmd import CommandDispatcher
 
 
@@ -8,4 +8,5 @@ class Kdump(CommandDispatcher):
 
     def __init__(self):
         super().__init__('kdump', [VmPhysSeg(), VmFreePages(), VmMapSeg(),
-                                   PhysMap(), Malloc(), MallocStats()])
+                                   PhysMap(), Malloc(), MallocStats(),
+                                   PoolStats()])

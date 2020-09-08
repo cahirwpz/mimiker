@@ -45,11 +45,11 @@ void *pool_alloc(pool_t *pool, kmem_flags_t flags) __warn_unused;
 void pool_free(pool_t *pool, void *ptr);
 
 /*! \brief Define a pool that will be initialized during system startup. */
-#define POOL_DEFINE(name, ...)                                                 \
-  struct pool *name;                                                           \
-  static void __ctor_##name(void) {                                            \
-    name = pool_create(__VA_ARGS__);                                           \
+#define POOL_DEFINE(NAME, ...)                                                 \
+  struct pool *NAME;                                                           \
+  static void __ctor_##NAME(void) {                                            \
+    NAME = pool_create(__VA_ARGS__);                                           \
   }                                                                            \
-  SET_ENTRY(pool_ctor_table, __ctor_##name);
+  SET_ENTRY(pool_ctor_table, __ctor_##NAME);
 
 #endif /* !_SYS_POOL_H_ */

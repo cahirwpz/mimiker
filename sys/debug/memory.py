@@ -1,7 +1,8 @@
 import gdb
+from itertools import chain
 
 from .cmd import UserCommand
-from .struct import TailQueue, LinkerSet
+from .struct import List, TailQueue, LinkerSet
 from .utils import global_var, TextTable
 
 
@@ -108,4 +109,27 @@ class MallocStats(UserCommand):
             table.add_row([mp['desc'].string(), int(mp['nrequests']),
                            int(mp['active']), int(mp['used']),
                            int(mp['maxused'])])
+        print(table)
+
+
+class PoolStats(UserCommand):
+    """List memory statistics of all object pools."""
+
+    def __init__(self):
+        super().__init__('pool_stats')
+
+    def __call__(self, args):
+        pool_list = TailQueue(global_var('pool_list'), 'pp_link')
+        table = TextTable(types='tiii', align='lrrr')
+        table.header(['description', 'slabs', 'used items', 'total items'])
+        for pool in sorted(pool_list, key=lambda x: x['pp_desc'].string()):
+            nused = 0
+            ntotal = 0
+            for slab in chain(List(pool['pp_empty_slabs'], 'ph_link'),
+                              List(pool['pp_full_slabs'], 'ph_link'),
+                              List(pool['pp_part_slabs'], 'ph_link')):
+                nused += int(slab['ph_nused'])
+                ntotal += int(slab['ph_ntotal'])
+            table.add_row([pool['pp_desc'].string(), int(pool['pp_nslabs']),
+                           nused, ntotal])
         print(table)
