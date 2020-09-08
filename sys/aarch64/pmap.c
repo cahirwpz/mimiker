@@ -134,7 +134,8 @@ pmap_t *pmap_new(void) {
 }
 
 void pmap_delete(pmap_t *pmap) {
-  panic("Not implemented!");
+  pmap_reset(pmap);
+  pool_free(P_PMAP, pmap);
 }
 
 static void pmap_pte_write(pmap_t *pmap, pte_t *pte, pte_t val, unsigned flags)
