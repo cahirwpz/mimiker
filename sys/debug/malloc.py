@@ -11,6 +11,14 @@ class Malloc(UserCommand):
     def __init__(self):
         super().__init__('malloc')
 
+        self.bins = [(0, 31)]
+        for s in list(range(32, 128, 16)):
+            self.bins.append((s, s + 16 - 1))
+        for i in range(7, 16):
+            for s in range(2**i, 2**(i+1), 2**(i-2)):
+                self.bins.append((s, s + 2**(i-2) - 1))
+        self.bins.append((2**16, 2**18 - 1))
+
     def __call__(self, args):
         word = gdb.lookup_type('word_t')
         word_ptr = word.pointer()
@@ -38,16 +46,13 @@ class Malloc(UserCommand):
                 is_last = bool(btag & 4)
                 size = btag & -8
                 # Ok... now let's check validity
-                is_valid = True
                 footer_ptr = ptr + size - word_size
                 footer = footer_ptr.cast(word_ptr).dereference()
                 if is_used:
-                    if is_prevfree != prevfree or footer != canary:
-                        is_valid = False
+                    is_valid = (is_prevfree == prevfree) and (footer == canary)
                     prevfree = False
                 else:
-                    if btag != footer or prevfree:
-                        is_valid = False
+                    is_valid = (btag == footer) or (not prevfree)
                     prevfree = True
                     dangling += 1
                 # Print the block and proceed
@@ -60,15 +65,16 @@ class Malloc(UserCommand):
                 print("(***) Last block set incorrectly!")
 
         # Check buckets of free blocks.
-        freelst = global_var('freelst')
+        freelst = global_var('freebins')
         idx_from, idx_to = freelst.type.range()
         for i in range(idx_from, idx_to + 1):
             head = freelst[i].address
             node = head['next']
             if node == head:
                 continue
-            print("[free:%d] first: 0x%X, last: 0x%X" % (
-                i, head['next'].cast(word), head['prev'].cast(word)))
+            print("[free:%d-%d] first: 0x%X, last: 0x%X" % (
+                self.bins[i][0], self.bins[i][1], head['next'].cast(word),
+                head['prev'].cast(word)))
             while node != head:
                 ptr = node.cast(word) - word_size
                 btag = ptr.cast(word_ptr).dereference()

@@ -8,8 +8,8 @@
 #include <sys/kasan.h>
 #include <sys/queue.h>
 
-#define BLOCK_MAXSIZE (PAGESIZE * 16) /* Maximum block size. */
-#define ARENA_SIZE (PAGESIZE * 64)    /* Size of each allocated arena. */
+#define BLOCK_MAXSIZE (1L << 16) /* Maximum block size. */
+#define ARENA_SIZE (1L << 18)    /* Size of each allocated arena. */
 
 static TAILQ_HEAD(, arena) arena_list; /* Queue of managed arenas. */
 static mtx_t arena_lock;               /* Mutex protecting arena list. */
@@ -18,17 +18,28 @@ static mtx_t arena_lock;               /* Mutex protecting arena list. */
 static quar_t block_quarantine;
 #endif /* !KASAN */
 
+/* Must be able to hold a pointer and boundary tag. */
 typedef unsigned long word_t;
-
-#define ALIGNMENT (4 * sizeof(word_t))
-#define CANARY 0xDEADC0DE
-#define NBUCKETS 24
 
 /* Free block consists of header BT, pointer to previous and next free block,
  * payload and footer BT. */
 #define FREEBLK_SZ (4 * sizeof(word_t))
 /* Used block consists of header BT, user memory and canary. */
 #define USEDBLK_SZ (2 * sizeof(word_t))
+
+/* User payload alignment is same as minimum block size */
+#define ALIGNMENT FREEBLK_SZ
+#define CANARY ((word_t)0x1EE7CAFEDEADC0DE)
+
+/* Maximum free block size is less than 256KiB and minimum is 16, hence possible
+ * range of block sizes is 14-bit space, i.e. from 0x10 to 0x3FFF0. Bin sizes
+ * were selected based on jemalloc. Following code generates size ranges:
+ *
+ * > print(list(range(16,128,16)))
+ * > for i in range(7, 16):
+ * >   print(list(range(2**i, 2**(i+1), 2**(i-2))))
+ */
+#define NBINS 44
 
 /* Boundary tag flags. */
 typedef enum {
@@ -44,15 +55,19 @@ typedef struct node {
   struct node *next;
 } node_t;
 
-/* Structure kept in the header of each managed memory region. */
+/* Structure kept in the header of each managed memory region.
+ *
+ * Some specific assumptions were made designing this structure.
+ * `start` must be: the last item in the arena, adjacent to the end of arena
+ * structure. Arena size must be aligned to ALIGNMENT. */
 typedef struct arena {
   TAILQ_ENTRY(arena) link; /* link on list of all arenas */
   word_t *end;             /* first address after the arena */
-  word_t start[];          /* first block in the arena (watch alignment!) */
+  word_t start[1];         /* first block in the arena (watch alignment!) */
 } arena_t;
 
-/* Each bucket starts with guard of free block list. */
-static node_t freelst[NBUCKETS];
+/* Each bin starts with guard of free block list. */
+static node_t freebins[NBINS];
 
 /* --=[ boundary tag handling ]=-------------------------------------------- */
 
@@ -134,27 +149,36 @@ static inline word_t *bt_prev(word_t *bt) {
 
 /* --=[ free blocks handling using doubly linked list ]=-------------------- */
 
-static int bucket(size_t x) {
-  x -= 1;
-  if (x < 128)
-    return x >> 4;
-  x -= 128;
-  if (x < 256)
-    return 8 + (x >> 5);
-  x -= 256;
-  if (x < 256)
-    return 16 + (x >> 6);
-  x -= 256;
-  if (x < 256)
-    return 20 + (x >> 7);
-  x -= 256;
-  if (x < 256)
-    return 22;
-  return 23;
+static int bin(size_t x) {
+  int n = log2(x);
+  switch (n) {
+    case 0 ... 6:
+      return x / 16 - 1; /* [16, 32, 48, 64, 80, 96, 112] -> 0 - 6 */
+    case 7:
+      return x / 32 + 3; /* [128, 160, 192, 224] -> 7 - 10 */
+    case 8:
+      return x / 64 + 7; /* [256, 320, 384, 448] -> 11 - 14 */
+    case 9:
+      return x / 128 + 11; /* [512, 640, 768, 896] -> 15 - 18 */
+    case 10:
+      return x / 256 + 15; /* [1024, 1280, 1536, 1792] -> 19 - 22 */
+    case 11:
+      return x / 512 + 19; /* [2048, 2560, 3072, 3584] -> 23 - 26 */
+    case 12:
+      return x / 1024 + 23; /* [4 KiB, 5 KiB, 6 KiB, 7 KiB] -> 27 - 30 */
+    case 13:
+      return x / 2048 + 27; /* [8 KiB, 10 KiB, 12 KiB, 14 KiB] -> 31 - 34 */
+    case 14:
+      return x / 4096 + 31; /* [16 KiB, 20 KiB, 24 KiB, 28 KiB] -> 35 - 38 */
+    case 15:
+      return x / 8192 + 35; /* [32 KiB, 40 KiB, 48 KiB, 54 KiB] -> 39 - 42 */
+    default:
+      return NBINS - 1; /* [64 KiB - 256 KiB] -> 43 */
+  }
 }
 
 static inline void free_insert(word_t *bt) {
-  node_t *head = &freelst[bucket(bt_size(bt))];
+  node_t *head = &freebins[bin(bt_size(bt))];
   node_t *node = bt_payload(bt);
   node_t *prev = head->prev;
 
@@ -187,8 +211,8 @@ static inline size_t blk_size(size_t size) {
 
 /* First fit */
 static word_t *find_fit(size_t reqsz) {
-  for (int b = bucket(reqsz); b < NBUCKETS; b++) {
-    node_t *head = &freelst[b];
+  for (int b = bin(reqsz); b < NBINS; b++) {
+    node_t *head = &freebins[b];
     for (node_t *n = head->next; n != head; n = n->next) {
       word_t *bt = bt_fromptr(n);
       if (bt_size(bt) >= reqsz)
@@ -442,8 +466,8 @@ void kmcheck(void) {
     assert(bt_get_islast(prev)); /* Last block set incorrectly? */
   }
 
-  for (int b = 0; b < NBUCKETS; b++) {
-    node_t *head = &freelst[b];
+  for (int b = 0; b < NBINS; b++) {
+    node_t *head = &freebins[b];
     for (node_t *n = head->next; n != head; n = n->next) {
       word_t *bt = bt_fromptr(n);
       assert(bt_free(bt));
@@ -458,8 +482,8 @@ void init_kmalloc(void) {
   TAILQ_INIT(&arena_list);
   mtx_init(&arena_lock, 0);
   kasan_quar_init(&block_quarantine, NULL, (quar_free_t)kfree_nokasan);
-  for (int b = 0; b < NBUCKETS; b++) {
-    node_t *head = &freelst[b];
+  for (int b = 0; b < NBINS; b++) {
+    node_t *head = &freebins[b];
     head->next = head;
     head->prev = head;
   }
