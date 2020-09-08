@@ -25,6 +25,9 @@ alignas(PAGESIZE) pde_t _kernel_pmap_pde[PD_ENTRIES];
 static pmap_t kernel_pmap;
 
 #define MAX_ASID 0xFF
+#define ASID_SHIFT 48
+#define ASID_TO_PTE(x) ((uint64_t)(x) << ASID_SHIFT)
+
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
 
@@ -38,6 +41,25 @@ static asid_t alloc_asid(void) {
   }
   klog("alloc_asid() = %d", free);
   return free;
+}
+
+#define PAGE_SHIFT 12
+
+#define __tlbi(x, r) __asm__ volatile("TLBI " x ", %0" : : "r" (r))
+#define __dsb(x) __asm__ volatile("DSB " x)
+#define __isb() __asm__ volatile("ISB")
+
+static void pmap_invalidate_pte(pmap_t *pmap, pte_t pte) {
+  __dsb("ishst");
+
+  if (pmap == pmap_kernel()) {
+    __tlbi("vaae1is", pte >> PAGE_SHIFT);
+  } else {
+    __tlbi("vae1is", ASID_TO_PTE(pmap->asid) | (pte >> PAGE_SHIFT));
+  }
+
+  __dsb("ish");
+  __isb();
 }
 
 static pde_t *pmap_l0(pmap_t *pmap, vaddr_t va) {
@@ -115,7 +137,8 @@ void pmap_delete(pmap_t *pmap) {
   panic("Not implemented!");
 }
 
-static void pmap_pte_write(pte_t *pte, pte_t val, unsigned flags) {
+static void pmap_pte_write(pmap_t *pmap, pte_t *pte, pte_t val, unsigned flags)
+{
   unsigned cacheflags = flags & PMAP_CACHE_MASK;
 
   if (cacheflags == PMAP_NOCACHE)
@@ -126,6 +149,8 @@ static void pmap_pte_write(pte_t *pte, pte_t val, unsigned flags) {
     val |= ATTR_IDX(ATTR_NORMAL_MEM_WB);
 
   *pte = val;
+
+  pmap_invalidate_pte(pmap, val);
 }
 
 static const pte_t pte_default = L3_PAGE | ATTR_AF | ATTR_SH(ATTR_SH_IS);
@@ -160,7 +185,7 @@ void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
       *l2 = (pde_t)pmap_alloc_pde(pmap, va, 3) | L2_TABLE;
 
     pte_t *l3 = pmap_l3(pmap, va);
-    pmap_pte_write(l3, pa | vm_prot_map[prot], flags);
+    pmap_pte_write(pmap, l3, pa | vm_prot_map[prot], flags);
   }
 }
 
@@ -181,7 +206,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
       pte_t *l3 = pmap_l3(pmap, va);
-      pmap_pte_write(l3, 0, 0);
+      pmap_pte_write(pmap, l3, 0, 0);
     }
   }
 }
