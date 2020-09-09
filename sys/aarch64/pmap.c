@@ -131,6 +131,10 @@ vaddr_t pmap_end(pmap_t *pmap) {
   return pmap->asid ? PMAP_USER_END : PMAP_KERNEL_END;
 }
 
+inline bool pmap_address_p(pmap_t *pmap, vaddr_t va) {
+  return pmap_start(pmap) <= va && va < pmap_end(pmap);
+}
+
 void pmap_reset(pmap_t *pmap) {
   while (!TAILQ_EMPTY(&pmap->pte_pages)) {
     vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
@@ -215,6 +219,9 @@ static const pte_t vm_prot_map[] = {
 
 void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
   pmap_t *pmap = pmap_kernel();
+
+  assert(page_aligned_p(pa) && page_aligned_p(va));
+  assert(pmap_address_p(pmap, va));
   assert(pa != 0);
 
   WITH_MTX_LOCK (&pmap->mtx) {
@@ -229,6 +236,7 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   paddr_t pa = PG_START(pg);
 
   assert(page_aligned_p(va));
+  assert(pmap_contains_p(pmap, va, va_end));
   assert(pa != 0);
 
   klog("Enter virtual mapping %p-%p for frame %p", va, va_end, pa);
@@ -247,6 +255,7 @@ void pmap_kremove(vaddr_t start, vaddr_t end) {
 
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
+  assert(pmap_contains_p(pmap, start, end));
 
   klog("Remove page mapping for address range %p-%p", start, end);
 
@@ -260,6 +269,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
 
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
+  assert(pmap_contains_p(pmap, start, end));
 
   klog("Change protection bits to %x for address range %p-%p", prot, start,
        end);
