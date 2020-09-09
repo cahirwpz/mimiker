@@ -159,7 +159,7 @@ static int test_pmap_page(void) {
   pmap_t *pmap = pmap_kernel();
 
   pmap_activate(pmap);
-  
+
   vm_page_t *pg1 = vm_page_alloc(1);
   vm_page_t *pg2 = vm_page_alloc(2);
 
@@ -179,9 +179,9 @@ static int test_pmap_page(void) {
     assert(buf[i] == 0);
 
   pmap_kremove(va, va + PAGESIZE);
-  
+
   pmap_kenter(va, pg2->paddr, VM_PROT_READ, 0);
-  
+
   for (int i = 0; i < PAGESIZE; i++)
     assert(buf[i] == i % 123);
 
