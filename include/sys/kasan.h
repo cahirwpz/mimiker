@@ -77,8 +77,8 @@ void kasan_quar_releaseall(quar_t *q);
 #define kasan_mark_valid(addr, size) __nothing
 #define kasan_mark_invalid(addr, size, code) __nothing
 #define kasan_mark(addr, size, size_with_redzone, code) __nothing
-#define kasan_quar_init(q, pool, free) __nothing
-#define kasan_quar_additem(q, ptr) __nothing
+#define kasan_quar_init(q, free) __nothing
+#define kasan_quar_additem(q, pool, ptr) __nothing
 #define kasan_quar_releaseall(q) __nothing
 #endif
 
