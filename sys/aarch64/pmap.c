@@ -179,6 +179,26 @@ static void pmap_pte_write(pmap_t *pmap, pte_t *pte, pte_t val,
   pmap_invalidate_pte(pmap, val);
 }
 
+/*
+ * Return pointer to entry of va in level 3 of page table. Allocate space if
+ * needed.
+ */
+static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
+  pde_t *l0 = pmap_l0(pmap, va);
+  if (*l0 == 0)
+    *l0 = (pde_t)pmap_alloc_pde(pmap, va, 1) | L0_TABLE;
+
+  pde_t *l1 = pmap_l1(pmap, va);
+  if (*l1 == 0)
+    *l1 = (pde_t)pmap_alloc_pde(pmap, va, 2) | L1_TABLE;
+
+  pde_t *l2 = pmap_l2(pmap, va);
+  if (*l2 == 0)
+    *l2 = (pde_t)pmap_alloc_pde(pmap, va, 3) | L2_TABLE;
+
+  return pmap_l3(pmap, va);
+}
+
 static const pte_t pte_default = L3_PAGE | ATTR_AF | ATTR_SH(ATTR_SH_IS);
 
 static const pte_t vm_prot_map[] = {
@@ -193,31 +213,32 @@ static const pte_t vm_prot_map[] = {
     ATTR_AP(ATTR_AP_RW) | pte_default,
 };
 
-void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
+void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
   pmap_t *pmap = pmap_kernel();
   assert(pa != 0);
 
   WITH_MTX_LOCK (&pmap->mtx) {
-    pde_t *l0 = pmap_l0(pmap, va);
-    if (*l0 == 0)
-      *l0 = (pde_t)pmap_alloc_pde(pmap, va, 1) | L0_TABLE;
-
-    pde_t *l1 = pmap_l1(pmap, va);
-    if (*l1 == 0)
-      *l1 = (pde_t)pmap_alloc_pde(pmap, va, 2) | L1_TABLE;
-
-    pde_t *l2 = pmap_l2(pmap, va);
-    if (*l2 == 0)
-      *l2 = (pde_t)pmap_alloc_pde(pmap, va, 3) | L2_TABLE;
-
-    pte_t *l3 = pmap_l3(pmap, va);
+    pte_t *l3 = pmap_ensure_pte(pmap, va);
     pmap_pte_write(pmap, l3, pa | vm_prot_map[prot], flags);
   }
 }
 
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
                 unsigned flags) {
-  panic("Not implemented!");
+  vaddr_t va_end = va + PG_SIZE(pg);
+  paddr_t pa = PG_START(pg);
+
+  assert(page_aligned_p(va));
+  assert(pa != 0);
+
+  klog("Enter virtual mapping %p-%p for frame %p", va, va_end, pa);
+
+  WITH_MTX_LOCK (&pmap->mtx) {
+    for (; va < va_end; va += PAGESIZE, pa += PAGESIZE) {
+      pte_t *l3 = pmap_ensure_pte(pmap, va);
+      pmap_pte_write(pmap, l3, pa | vm_prot_map[prot], flags);
+    }
+  }
 }
 
 void pmap_kremove(vaddr_t start, vaddr_t end) {
