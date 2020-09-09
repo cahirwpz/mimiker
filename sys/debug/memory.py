@@ -1,13 +1,40 @@
 import gdb
-from itertools import chain
 
 from .cmd import UserCommand
 from .struct import List, TailQueue, LinkerSet
 from .utils import global_var, TextTable
 
 
+class Vmem(UserCommand):
+    """List vmem boundary tags and usage summary."""
+
+    def __init__(self):
+        super().__init__('vmem')
+
+    def __call__(self, args):
+        vmem_list = List(global_var('vmem_list'), 'vm_link')
+        for vmem in vmem_list:
+            print('Vmem name: "{}"\n'.format(vmem['vm_name'].string()))
+            table = TextTable(types='ttt', align='rrl')
+            table.header(['start', 'size', 'type'])
+            used = 0
+            total = 0
+            for bt in TailQueue(vmem['vm_seglist'], 'bt_seglink'):
+                bt_type = str(bt['bt_type'])[8:]
+                bt_size = int(bt['bt_size'])
+                if bt_type == 'SPAN':
+                    continue
+                if bt_type == 'BUSY':
+                    used += bt_size
+                total += bt_size
+                table.add_row([bt['bt_start'], bt['bt_size'], bt_type])
+            print(table)
+            print('Used space: 0x{:x}/0x{:x} ({:.2f}%)'.format(
+                  used, total, 100.0 * used / total))
+
+
 class Malloc(UserCommand):
-    """List boundary tags in all arenas."""
+    """List malloc boundary tags in all arenas and bins of free blocks."""
 
     def __init__(self):
         super().__init__('malloc')
