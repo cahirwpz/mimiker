@@ -119,6 +119,14 @@ static pde_t *pmap_alloc_pde(pmap_t *pmap, vaddr_t vaddr, int level) {
   return (pde_t *)pg->paddr;
 }
 
+static bool user_addr_p(vaddr_t addr) {
+  return (addr >= PMAP_USER_BEGIN) && (addr < PMAP_USER_END);
+}
+
+static bool kern_addr_p(vaddr_t addr) {
+  return (addr >= PMAP_KERNEL_BEGIN) && (addr < PMAP_KERNEL_END);
+}
+
 inline bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   return pmap_start(pmap) <= start && end <= pmap_end(pmap);
 }
@@ -317,7 +325,11 @@ pmap_t *pmap_user(void) {
 }
 
 pmap_t *pmap_lookup(vaddr_t addr) {
-  panic("Not implemented!");
+  if (kern_addr_p(addr))
+    return pmap_kernel();
+  if (user_addr_p(addr))
+    return pmap_user();
+  return NULL;
 }
 
 void tlb_exception_handler(ctx_t *ctx) {
