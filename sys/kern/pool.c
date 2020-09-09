@@ -130,14 +130,12 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
         slab = kmem_alloc(PAGESIZE, flags);
         assert(slab != NULL);
         add_slab(pool, slab, PAGESIZE);
+      } else {
+        /* We're going to allocate from empty slab
+         * -> move it to the list of non-empty slabs. */
+        LIST_REMOVE(slab, ph_link);
+        LIST_INSERT_HEAD(&pool->pp_part_slabs, slab, ph_link);
       }
-    }
-
-    if (slab->ph_nused == 0) {
-      /* We're going to allocate from empty slab
-       * -> move it to the list of non-empty slabs. */
-      LIST_REMOVE(slab, ph_link);
-      LIST_INSERT_HEAD(&pool->pp_part_slabs, slab, ph_link);
     }
 
     assert(slab->ph_nused < slab->ph_ntotal);
@@ -145,10 +143,9 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
     bit_ffc(slab->ph_bitmap, slab->ph_ntotal, &i);
     bit_set(slab->ph_bitmap, i);
     ptr = slab_item_at(slab, i);
-    slab->ph_nused++;
     debug("slab_alloc: allocated item %p at slab %p, index %d", ptr, slab, i);
 
-    if (slab->ph_nused == slab->ph_ntotal) {
+    if (++slab->ph_nused == slab->ph_ntotal) {
       /* We've allocated last item from non-empty slab
        * -> move it to the list of full slabs. */
       LIST_REMOVE(slab, ph_link);
@@ -183,13 +180,17 @@ static void _pool_free(pool_t *pool, void *ptr) {
 
   if (!bit_test(bitmap, index))
     panic("Double free detected in '%s' pool at %p!", pool->pp_desc, ptr);
-
   bit_clear(bitmap, index);
-  LIST_REMOVE(slab, ph_link);
-  slab->ph_nused--;
-  slab_list_t *slabs =
-    slab->ph_nused ? &pool->pp_part_slabs : &pool->pp_empty_slabs;
-  LIST_INSERT_HEAD(slabs, slab, ph_link);
+
+  if (slab->ph_nused == slab->ph_ntotal) {
+    LIST_REMOVE(slab, ph_link);
+    LIST_INSERT_HEAD(&pool->pp_part_slabs, slab, ph_link);
+  }
+
+  if (--slab->ph_nused == 0) {
+    LIST_REMOVE(slab, ph_link);
+    LIST_INSERT_HEAD(&pool->pp_empty_slabs, slab, ph_link);
+  }
 
   debug("pool_free: freed item %p at slab %p, index %d", ptr, slab, index);
 }
