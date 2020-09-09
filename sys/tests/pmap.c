@@ -195,8 +195,32 @@ static int test_pmap_page(void) {
   return KTEST_SUCCESS;
 }
 
+static int test_pmap_extract(void) {
+  pmap_t *orig = pmap_user();
+  pmap_t *pmap = pmap_kernel();
+
+  pmap_activate(pmap);
+
+  vm_page_t *pg = vm_page_alloc(1);
+  vaddr_t va = kva_alloc(PAGESIZE);
+  paddr_t pa;
+
+  pmap_kenter(va, pg->paddr, VM_PROT_READ, 0);
+
+  bool rc = pmap_extract(pmap, va, &pa);
+  assert(rc);
+  assert(pa == pg->paddr);
+
+  kva_free(va, PAGESIZE);
+  vm_page_free(pg);
+  pmap_activate(orig);
+
+  return KTEST_SUCCESS;
+}
+
 KTEST_ADD(pmap_kernel, test_kernel_pmap, KTEST_FLAG_BROKEN);
 KTEST_ADD(pmap_user, test_user_pmap, 0);
 KTEST_ADD(pmap_rmbits, test_rmbits, 0);
 KTEST_ADD(pmap_kenter, test_pmap_kenter, 0);
 KTEST_ADD(pmap_page, test_pmap_page, 0);
+KTEST_ADD(pmap_extract, test_pmap_extract, 0);

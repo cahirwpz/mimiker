@@ -292,7 +292,28 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
 }
 
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
-  panic("Not implemented!");
+  if (!pmap_address_p(pmap, va))
+    return false;
+
+  pde_t *l0 = pmap_l0(pmap, va);
+  if (*l0 == 0)
+    return false;
+
+  pde_t *l1 = pmap_l1(pmap, va);
+  if (*l1 == 0)
+    return false;
+
+  pde_t *l2 = pmap_l2(pmap, va);
+  if (*l2 == 0)
+    return false;
+
+  pte_t *l3 = pmap_l3(pmap, va);
+  if (*l3 == 0)
+    return false;
+
+  /* TODO(pj) make it readable */
+  *pap = (*l3 & 0xfffffffff000) | (va & (PAGESIZE - 1));
+  return true;
 }
 
 void pmap_zero_page(vm_page_t *pg) {
