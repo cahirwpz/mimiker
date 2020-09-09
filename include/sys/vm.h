@@ -48,6 +48,7 @@ typedef struct vm_map vm_map_t;
 typedef struct vm_segment vm_segment_t;
 typedef struct vm_object vm_object_t;
 typedef struct vm_pager vm_pager_t;
+typedef struct slab slab_t;
 
 struct vm_page {
   union {
@@ -57,6 +58,7 @@ struct vm_page {
       TAILQ_ENTRY(vm_page) list;
       RB_ENTRY(vm_page) tree;
     } obj;
+    slab_t *slab; /* active when page is used by pool allocator */
   };
   vm_object_t *object; /* object owning that page */
   off_t offset;        /* offset to page in vm_object */

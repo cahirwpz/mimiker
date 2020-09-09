@@ -125,11 +125,12 @@ class PoolStats(UserCommand):
         for pool in sorted(pool_list, key=lambda x: x['pp_desc'].string()):
             nused = 0
             ntotal = 0
+            nslabs = 0
             for slab in chain(List(pool['pp_empty_slabs'], 'ph_link'),
                               List(pool['pp_full_slabs'], 'ph_link'),
                               List(pool['pp_part_slabs'], 'ph_link')):
                 nused += int(slab['ph_nused'])
                 ntotal += int(slab['ph_ntotal'])
-            table.add_row([pool['pp_desc'].string(), int(pool['pp_nslabs']),
-                           nused, ntotal])
+                nslabs += 1
+            table.add_row([pool['pp_desc'].string(), nslabs, nused, ntotal])
         print(table)

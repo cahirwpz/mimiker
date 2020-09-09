@@ -63,6 +63,13 @@ void kva_map(vaddr_t ptr, size_t size, kmem_flags_t flags) {
     bzero((void *)ptr, size);
 }
 
+vm_page_t *kva_find_page(vaddr_t ptr) {
+  paddr_t pa;
+  if (pmap_extract(pmap_kernel(), ptr, &pa))
+    return vm_page_find(pa);
+  return NULL;
+}
+
 void kva_unmap(vaddr_t ptr, size_t size) {
   assert(page_aligned_p(ptr) && page_aligned_p(size));
 
@@ -71,10 +78,8 @@ void kva_unmap(vaddr_t ptr, size_t size) {
   vaddr_t va = (vaddr_t)ptr;
   vaddr_t end = va + size;
   while (va < end) {
-    paddr_t pa;
-    if (!pmap_extract(pmap_kernel(), va, &pa))
-      panic("%s: attempted to free page that does not exist!", __func__);
-    vm_page_t *pg = vm_page_find(pa);
+    vm_page_t *pg = kva_find_page(va);
+    assert(pg != NULL);
     va += pg->size * PAGESIZE;
     vm_page_free(pg);
   }
