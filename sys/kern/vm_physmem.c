@@ -56,7 +56,7 @@ static void *vm_boot_alloc(size_t n) {
 
   vm_physseg_t *seg = TAILQ_FIRST(&seglist);
 
-  while (seg && seg->used)
+  while (seg && (seg->used || seg->npages * PAGESIZE < n))
     seg = TAILQ_NEXT(seg, seglink);
 
   assert(seg != NULL);
