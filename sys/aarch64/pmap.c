@@ -45,9 +45,19 @@ static asid_t alloc_asid(void) {
   return free;
 }
 
+static void pmap_invalidate_asid(asid_t asid);
+
+static void free_asid(asid_t asid) {
+  klog("free_asid(%d)", asid);
+  SCOPED_SPIN_LOCK(asid_lock);
+  bit_clear(asid_used, (unsigned)asid);
+  pmap_invalidate_asid(asid);
+}
+
 #define PAGE_SHIFT 12
 
-#define __tlbi(x, r) __asm__ volatile("TLBI " x ", %0" : : "r" (r))
+#define __tlbiall() __asm __volatile("TLBI vmalle1is")
+#define __tlbi(x, r) __asm__ volatile("TLBI " x ", %0" : : "r"(r))
 #define __dsb(x) __asm__ volatile("DSB " x)
 #define __isb() __asm__ volatile("ISB")
 
@@ -60,6 +70,13 @@ static void pmap_invalidate_pte(pmap_t *pmap, pte_t pte) {
     __tlbi("vae1is", ASID_TO_PTE(pmap->asid) | (pte >> PAGE_SHIFT));
   }
 
+  __dsb("ish");
+  __isb();
+}
+
+static void pmap_invalidate_asid(asid_t asid) {
+  __dsb("ishst");
+  __tlbi("aside1is", ASID_TO_PTE(asid));
   __dsb("ish");
   __isb();
 }
@@ -115,7 +132,13 @@ vaddr_t pmap_end(pmap_t *pmap) {
 }
 
 void pmap_reset(pmap_t *pmap) {
-  panic("Not implemented!");
+  while (!TAILQ_EMPTY(&pmap->pte_pages)) {
+    vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
+    TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
+    vm_page_free(pg);
+  }
+  kmem_free(pmap->pde, PAGESIZE);
+  free_asid(pmap->asid);
 }
 
 static void pmap_setup(pmap_t *pmap) {
@@ -140,8 +163,8 @@ void pmap_delete(pmap_t *pmap) {
   pool_free(P_PMAP, pmap);
 }
 
-static void pmap_pte_write(pmap_t *pmap, pte_t *pte, pte_t val, unsigned flags)
-{
+static void pmap_pte_write(pmap_t *pmap, pte_t *pte, pte_t val,
+                           unsigned flags) {
   unsigned cacheflags = flags & PMAP_CACHE_MASK;
 
   if (cacheflags == PMAP_NOCACHE)
@@ -223,8 +246,8 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
       pte_t *l3 = pmap_l3(pmap, va);
-      pmap_pte_write(pmap, l3, (*l3 & (~ATTR_AP_MASK & ~ATTR_XN)) |
-                     vm_prot_map[prot], 0);
+      pmap_pte_write(pmap, l3,
+                     (*l3 & (~ATTR_AP_MASK & ~ATTR_XN)) | vm_prot_map[prot], 0);
     }
   }
 }
@@ -235,7 +258,7 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
 
 void pmap_zero_page(vm_page_t *pg) {
   vaddr_t va = PHYS_TO_DMAP(pg->paddr);
-  bzero((uint8_t* )va, PAGESIZE);
+  bzero((uint8_t *)va, PAGESIZE);
 }
 
 void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
