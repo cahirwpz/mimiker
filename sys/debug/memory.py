@@ -120,17 +120,11 @@ class PoolStats(UserCommand):
 
     def __call__(self, args):
         pool_list = TailQueue(global_var('pool_list'), 'pp_link')
-        table = TextTable(types='tiii', align='lrrr')
-        table.header(['description', 'slabs', 'used items', 'total items'])
+        table = TextTable(types='tiiii', align='lrrrr')
+        table.header(['description', 'bytes', 'used items', 'max used items',
+                      'total items'])
         for pool in sorted(pool_list, key=lambda x: x['pp_desc'].string()):
-            nused = 0
-            ntotal = 0
-            nslabs = 0
-            for slab in chain(List(pool['pp_empty_slabs'], 'ph_link'),
-                              List(pool['pp_full_slabs'], 'ph_link'),
-                              List(pool['pp_part_slabs'], 'ph_link')):
-                nused += int(slab['ph_nused'])
-                ntotal += int(slab['ph_ntotal'])
-                nslabs += 1
-            table.add_row([pool['pp_desc'].string(), nslabs, nused, ntotal])
+            table.add_row([pool['pp_desc'].string(), int(pool['pp_npages']),
+                           int(pool['pp_nused']), int(pool['pp_nmaxused']),
+                           int(pool['pp_ntotal'])])
         print(table)

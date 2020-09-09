@@ -42,6 +42,11 @@ typedef struct pool {
   size_t pp_redzone; /* size of redzone after each item */
   quar_t pp_quarantine;
 #endif
+  /* statistics */
+  size_t pp_npages;   /* number of allocated pages (in bytes) */
+  size_t pp_nused;    /* number of used items in all slabs */
+  size_t pp_nmaxused; /* peak number of used items in all slabs */
+  size_t pp_ntotal;   /* total number of items in all slabs */
 } pool_t;
 
 static TAILQ_HEAD(, pool) pool_list = TAILQ_HEAD_INITIALIZER(pool_list);
@@ -109,6 +114,9 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
 
   LIST_INSERT_HEAD(&pool->pp_empty_slabs, slab, ph_link);
 
+  pool->pp_ntotal += slab->ph_ntotal;
+  pool->pp_npages += slabsize;
+
   for (size_t i = 0; i < slabsize; i += PAGESIZE) {
     vm_page_t *pg = kva_find_page((vaddr_t)slab + i);
     assert(pg != NULL);
@@ -151,6 +159,9 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
       LIST_REMOVE(slab, ph_link);
       LIST_INSERT_HEAD(&pool->pp_full_slabs, slab, ph_link);
     }
+
+    pool->pp_nused++;
+    pool->pp_nmaxused = max(pool->pp_nmaxused, pool->pp_nused);
   }
 
   /* Create redzone after the item */
@@ -191,6 +202,8 @@ static void _pool_free(pool_t *pool, void *ptr) {
     LIST_REMOVE(slab, ph_link);
     LIST_INSERT_HEAD(&pool->pp_empty_slabs, slab, ph_link);
   }
+
+  pool->pp_nused--;
 
   debug("pool_free: freed item %p at slab %p, index %d", ptr, slab, index);
 }
