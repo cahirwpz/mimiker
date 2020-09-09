@@ -124,11 +124,11 @@ inline bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end) {
 }
 
 vaddr_t pmap_start(pmap_t *pmap) {
-  panic("Not implemented!");
+  return pmap->asid ? PMAP_USER_BEGIN : PMAP_KERNEL_BEGIN;
 }
 
 vaddr_t pmap_end(pmap_t *pmap) {
-  panic("Not implemented!");
+  return pmap->asid ? PMAP_USER_END : PMAP_KERNEL_END;
 }
 
 void pmap_reset(pmap_t *pmap) {
