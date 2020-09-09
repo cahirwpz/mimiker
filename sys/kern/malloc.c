@@ -406,7 +406,7 @@ void kfree(kmalloc_pool_t *mp, void *ptr) {
 #if KASAN
     word_t *bt = bt_fromptr(ptr);
     kasan_mark_invalid(ptr, bt_size(bt) - USEDBLK_SZ, KASAN_CODE_KMALLOC_FREED);
-    kasan_quar_additem(&block_quarantine, ptr);
+    kasan_quar_additem(&block_quarantine, mp, ptr);
 #else
     kfree_nokasan(mp, ptr);
 #endif /* !KASAN */
@@ -489,7 +489,7 @@ void kmcheck(void) {
 void init_kmalloc(void) {
   TAILQ_INIT(&arena_list);
   mtx_init(&arena_lock, 0);
-  kasan_quar_init(&block_quarantine, NULL, (quar_free_t)kfree_nokasan);
+  kasan_quar_init(&block_quarantine, (quar_free_t)kfree_nokasan);
   for (int b = 0; b < NBINS; b++) {
     node_t *head = &freebins[b];
     head->next = head;

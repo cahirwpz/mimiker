@@ -213,7 +213,7 @@ void pool_free(pool_t *pool, void *ptr) {
 
   kasan_mark_invalid(ptr, pool->pp_itemsize + pool->pp_redzone,
                      KASAN_CODE_POOL_FREED);
-  kasan_quar_additem(&pool->pp_quarantine, ptr);
+  kasan_quar_additem(&pool->pp_quarantine, pool, ptr);
 #if !KASAN
   /* Without KASAN, call regular free method */
   _pool_free(pool, ptr);
@@ -266,7 +266,7 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
   /* no redzone, we have to align the size itself */
   pool->pp_itemsize = align(size, PI_ALIGNMENT);
 #endif
-  kasan_quar_init(&pool->pp_quarantine, pool, (quar_free_t)_pool_free);
+  kasan_quar_init(&pool->pp_quarantine, (quar_free_t)_pool_free);
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
        pool->pp_itemsize);
   WITH_MTX_LOCK (pool_list_lock)
