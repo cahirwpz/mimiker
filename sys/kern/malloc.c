@@ -376,6 +376,11 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
         return NULL;
       arena_add();
     }
+
+    mp->used += req_size;
+    mp->maxused = max(mp->used, mp->maxused);
+    mp->active++;
+    mp->nrequests++;
   }
 
   /* Create redzone after the buffer. */
@@ -387,6 +392,9 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
 
 static void kfree_nokasan(kmalloc_pool_t *mp, void *ptr) {
   assert(mtx_owned(&arena_lock));
+  word_t *bt = bt_fromptr(ptr);
+  mp->used -= bt_size(bt);
+  mp->active--;
   free(ptr);
 }
 
@@ -398,7 +406,7 @@ void kfree(kmalloc_pool_t *mp, void *ptr) {
 #if KASAN
     word_t *bt = bt_fromptr(ptr);
     kasan_mark_invalid(ptr, bt_size(bt) - USEDBLK_SZ, KASAN_CODE_KMALLOC_FREED);
-    kasan_quar_additem(&block_quarantine, ptr);
+    kasan_quar_additem(&block_quarantine, mp, ptr);
 #else
     kfree_nokasan(mp, ptr);
 #endif /* !KASAN */
@@ -481,7 +489,7 @@ void kmcheck(void) {
 void init_kmalloc(void) {
   TAILQ_INIT(&arena_list);
   mtx_init(&arena_lock, 0);
-  kasan_quar_init(&block_quarantine, NULL, (quar_free_t)kfree_nokasan);
+  kasan_quar_init(&block_quarantine, (quar_free_t)kfree_nokasan);
   for (int b = 0; b < NBINS; b++) {
     node_t *head = &freebins[b];
     head->next = head;
@@ -489,5 +497,5 @@ void init_kmalloc(void) {
   }
 }
 
-KMALLOC_DEFINE(M_TEMP, "temporaries pool");
+KMALLOC_DEFINE(M_TEMP, "temporaries");
 KMALLOC_DEFINE(M_STR, "strings");
