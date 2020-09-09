@@ -64,7 +64,7 @@ typedef struct slab {
 
 /* Pool of pool_t objects. */
 static pool_t P_POOL[1];
-static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[PAGESIZE * 2];
+static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[PAGESIZE];
 
 static void *slab_item_at(slab_t *slab, unsigned i) {
   return slab->ph_items + i * slab->ph_itemsize;
