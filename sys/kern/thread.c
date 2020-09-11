@@ -12,6 +12,7 @@
 #include <sys/filedesc.h>
 #include <sys/turnstile.h>
 #include <sys/kmem.h>
+#include <sys/context.h>
 
 static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t));
 

@@ -1,8 +1,6 @@
 #include <sys/libkern.h>
-#include <sys/context.h>
 #include <mips/mips.h>
 #include <mips/context.h>
-#include <mips/pmap.h>
 
 void ctx_init(ctx_t *ctx, void *pc, void *sp) {
   bzero(ctx, sizeof(ctx_t));

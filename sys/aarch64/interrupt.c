@@ -1,4 +1,5 @@
 #include <sys/mimiker.h>
+#include <sys/context.h>
 #include <aarch64/interrupt.h>
 #include <aarch64/armreg.h>
 
@@ -15,4 +16,8 @@ void cpu_intr_enable(void) {
 bool cpu_intr_disabled(void) {
   uint32_t daif = READ_SPECIALREG(daif);
   return (daif & DAIF_I_MASKED) != 0;
+}
+
+void cpu_intr_handler(ctx_t *ctx) {
+  panic("cpu_intr_handler");
 }
