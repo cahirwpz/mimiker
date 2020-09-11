@@ -14,6 +14,7 @@ SOURCES = boot.c \
 	  start.S \
 	  switch.S \
 	  thread.c \
+	  trap.c \
 	  ucontext.c
 
 CFLAGS.boot.c = -mcmodel=large
