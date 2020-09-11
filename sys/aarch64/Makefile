@@ -13,6 +13,7 @@ SOURCES = boot.c \
 	  signal.c \
 	  start.S \
 	  switch.S \
+	  thread.c \
 	  ucontext.c
 
 CFLAGS.boot.c = -mcmodel=large
