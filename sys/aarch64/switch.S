@@ -61,7 +61,7 @@ ENTRY(ctx_switch)
         mov     x8, x1
 
         # [x9] pointer to @pcpu
-        LOAD_PCPU x9
+        mrs     x9, tpidr_el1
 
         # update curthread pointer to reference @to thread
         str     x8, [x9, #PCPU_CURTHREAD]
