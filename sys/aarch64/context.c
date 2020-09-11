@@ -39,14 +39,10 @@ void ctx_init(ctx_t *ctx, void *pc, void *sp) {
 
   _REG(ctx, PC) = (register_t)pc;
   _REG(ctx, SP) = (register_t)sp;
-  
+
   _REG(ctx, SPSR) = PSR_F | PSR_M_EL1h;
 }
 
 void ctx_set_retval(ctx_t *ctx, long value) {
   _REG(ctx, X0) = value;
-}
-
-long ctx_switch(thread_t *from, thread_t *to) {
-  panic("Not implemented!");
 }

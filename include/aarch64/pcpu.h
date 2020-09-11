@@ -7,7 +7,11 @@
 #ifdef _MACHDEP
 #ifdef __ASSEMBLER__
 
-#define LOAD_PCPU(reg) LA reg, _pcpu_data
+/* clang-format off */
+.macro  LOAD_PCPU reg
+        ldr     \reg, _pcpu_data
+.endm
+/* clang-format on */
 
 #endif /* !__ASSEMBLER__ */
 #endif /* !_MACHDEP */
