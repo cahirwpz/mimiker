@@ -75,6 +75,14 @@ ASEND(handle_kern_irq)
         .align  7
 .endm
 
+ENTRY(user_exc_leave)
+        hlt     #0
+END(user_exc_leave)
+
+ENTRY(kern_exc_leave)
+        hlt     #0
+END(kern_exc_leave)
+
         .section .text
         .global exception_vectors
 
