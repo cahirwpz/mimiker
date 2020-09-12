@@ -5,6 +5,7 @@
 #include <sys/ktest.h>
 #include <sys/sched.h>
 #include <sys/kmem.h>
+#include <sys/kasan.h>
 
 #define PAGES 16
 
@@ -140,11 +141,13 @@ static int test_pmap_kenter(void) {
 
   pmap_kenter(va, pg->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
 
-#ifndef KASAN
+  kasan_mark_valid(va, PAGESIZE);
+
   volatile uint64_t *ptr = (uint64_t *)va;
   *ptr = 0xDEADC0DE;
   assert(*ptr == 0xDEADC0DE);
-#endif /* !KASAN */
+
+  kasan_mark_invalid(va, PAGESIZE, KASAN_CODE_KMEM_FREED);
 
   pmap_kremove(va, va + PAGESIZE);
   kva_free(va, PAGESIZE);
@@ -157,7 +160,6 @@ static int test_pmap_kenter(void) {
 static int test_pmap_page(void) {
   SCOPED_NO_PREEMPTION();
 
-#ifndef KASAN
   pmap_t *orig = pmap_user();
   pmap_t *pmap = pmap_kernel();
 
@@ -171,6 +173,8 @@ static int test_pmap_page(void) {
   assert(va);
 
   pmap_kenter(va, pg1->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
+
+  kasan_mark_valid(va, PAGESIZE);
 
   volatile uint8_t *buf = (uint8_t *)va;
   for (int i = 0; i < PAGESIZE; i++)
@@ -189,13 +193,14 @@ static int test_pmap_page(void) {
   for (int i = 0; i < PAGESIZE; i++)
     assert(buf[i] == i % 123);
 
+  kasan_mark_invalid(va, PAGESIZE, KASAN_CODE_KMEM_FREED);
+
   pmap_kremove(va, va + PAGESIZE);
   kva_free(va, PAGESIZE);
   vm_page_free(pg1);
   vm_page_free(pg2);
   pmap_activate(orig);
 
-#endif /* !KASAN */
   return KTEST_SUCCESS;
 }
 
