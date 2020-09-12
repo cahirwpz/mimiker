@@ -141,13 +141,13 @@ static int test_pmap_kenter(void) {
 
   pmap_kenter(va, pg->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
 
-  kasan_mark_valid(va, PAGESIZE);
+  kasan_mark_valid((void *)va, PAGESIZE);
 
   volatile uint64_t *ptr = (uint64_t *)va;
   *ptr = 0xDEADC0DE;
   assert(*ptr == 0xDEADC0DE);
 
-  kasan_mark_invalid(va, PAGESIZE, KASAN_CODE_KMEM_FREED);
+  kasan_mark_invalid((void *)va, PAGESIZE, KASAN_CODE_KMEM_FREED);
 
   pmap_kremove(va, va + PAGESIZE);
   kva_free(va, PAGESIZE);
@@ -174,7 +174,7 @@ static int test_pmap_page(void) {
 
   pmap_kenter(va, pg1->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
 
-  kasan_mark_valid(va, PAGESIZE);
+  kasan_mark_valid((void *)va, PAGESIZE);
 
   volatile uint8_t *buf = (uint8_t *)va;
   for (int i = 0; i < PAGESIZE; i++)
@@ -193,7 +193,7 @@ static int test_pmap_page(void) {
   for (int i = 0; i < PAGESIZE; i++)
     assert(buf[i] == i % 123);
 
-  kasan_mark_invalid(va, PAGESIZE, KASAN_CODE_KMEM_FREED);
+  kasan_mark_invalid((void *)va, PAGESIZE, KASAN_CODE_KMEM_FREED);
 
   pmap_kremove(va, va + PAGESIZE);
   kva_free(va, PAGESIZE);
