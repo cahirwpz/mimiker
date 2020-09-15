@@ -29,7 +29,7 @@ void pmap_delete(pmap_t *pmap) {
   panic("Not implemented!");
 }
 
-void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot) {
+void pmap_kenter(paddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
   panic("Not implemented!");
 }
 

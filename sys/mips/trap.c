@@ -1,3 +1,4 @@
+#define KL_LOG KL_VM
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
@@ -145,14 +146,13 @@ static void tlb_exception_handler(ctx_t *ctx) {
   if (pmap_extract(pmap, vaddr, &pa)) {
     vm_page_t *pg = vm_page_find(pa);
 
-    if (code == EXC_TLBL && !pmap_is_referenced(pg)) {
+    if (code == EXC_TLBL) {
       pmap_set_referenced(pg);
-      /* pmap_pte_write(pmap, vaddr, pte | PTE_VALID, 0); */
       return;
     }
-    if ((code == EXC_TLBS || code == EXC_MOD) && !pmap_is_modified(pg)) {
+    if (code == EXC_TLBS || code == EXC_MOD) {
+      pmap_set_referenced(pg);
       pmap_set_modified(pg);
-      /* pmap_pte_write(pmap, vaddr, pte | PTE_DIRTY | PTE_VALID, 0); */
       return;
     }
   }

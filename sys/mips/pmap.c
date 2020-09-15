@@ -231,13 +231,22 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
 
   klog("Enter virtual mapping %p-%p for frame %p", va, va_end, pa);
 
+  bool kern_mapping = (pmap == pmap_kernel());
+
   /* Mark user pages as non-referenced & non-modified. */
-  pte_t mask = (pmap == pmap_kernel()) ? 0 : PTE_VALID | PTE_DIRTY;
-  pte_t pte = (vm_prot_map[prot] & ~mask) | empty_pte(pmap);
+  pte_t mask = kern_mapping ? (PTE_VALID | PTE_DIRTY) : 0;
+  pte_t pte = (vm_prot_map[prot] & mask) | empty_pte(pmap);
 
   WITH_MTX_LOCK (&pmap->mtx) {
-    for (; va < va_end; va += PAGESIZE, pa += PAGESIZE)
+    for (; va < va_end; va += PAGESIZE, pa += PAGESIZE, pg++) {
+      pg->pv.pmap = pmap;
+      pg->pv.va = va;
+      if (kern_mapping)
+        pg->flags |= PG_MODIFIED|PG_REFERENCED;
+      else
+        pg->flags &= ~(PG_MODIFIED|PG_REFERENCED);
       pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
+    }
   }
 }
 
@@ -311,15 +320,32 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
 
 #undef PG_KSEG0_ADDR
 
+static void pmap_modify_flags(vm_page_t *pg, pte_t set, pte_t clr) {
+  pmap_t *pmap = pg->pv.pmap;
+  vaddr_t vaddr = pg->pv.va;
+  assert(pmap != NULL);
+  WITH_MTX_LOCK (&pmap->mtx) {
+    pde_t pde = PDE_OF(pmap, vaddr);
+    assert(is_valid_pde(pde));
+    pte_t pte = PTE_OF(pmap, vaddr);
+    pte |= set;
+    pte &= ~clr;
+    PTE_OF(pmap, vaddr) = pte;
+    tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
+  }
+}
+
 bool pmap_clear_referenced(vm_page_t *pg) {
   bool prev = pmap_is_referenced(pg);
   pg->flags &= ~PG_REFERENCED;
+  pmap_modify_flags(pg, 0, PTE_VALID);
   return prev;
 }
 
 bool pmap_clear_modified(vm_page_t *pg) {
   bool prev = pmap_is_modified(pg);
   pg->flags &= ~PG_MODIFIED;
+  pmap_modify_flags(pg, 0, PTE_DIRTY);
   return prev;
 }
 
@@ -333,10 +359,12 @@ bool pmap_is_modified(vm_page_t *pg) {
 
 void pmap_set_referenced(vm_page_t *pg) {
   pg->flags |= PG_REFERENCED;
+  pmap_modify_flags(pg, PTE_VALID, 0);
 }
 
 void pmap_set_modified(vm_page_t *pg) {
   pg->flags |= PG_MODIFIED;
+  pmap_modify_flags(pg, PTE_DIRTY, 0);
 }
 
 /* TODO: at any given moment there're two page tables in use:

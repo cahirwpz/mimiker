@@ -44,11 +44,17 @@ typedef struct vm_page vm_page_t;
 typedef TAILQ_HEAD(vm_pagelist, vm_page) vm_pagelist_t;
 typedef RB_HEAD(vm_pagetree, vm_page) vm_pagetree_t;
 
+typedef struct pmap pmap_t;
 typedef struct vm_map vm_map_t;
 typedef struct vm_segment vm_segment_t;
 typedef struct vm_object vm_object_t;
 typedef struct vm_pager vm_pager_t;
 typedef struct slab slab_t;
+
+typedef struct pv_entry {
+  vaddr_t va;
+  pmap_t *pmap;
+} pv_entry_t;
 
 struct vm_page {
   union {
@@ -60,6 +66,7 @@ struct vm_page {
     } obj;
     slab_t *slab; /* active when page is used by pool allocator */
   };
+  pv_entry_t pv;       /* association with address space */
   vm_object_t *object; /* object owning that page */
   off_t offset;        /* offset to page in vm_object */
   paddr_t paddr;       /* physical address of page */
