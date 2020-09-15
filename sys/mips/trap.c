@@ -210,7 +210,7 @@ void mips_exc_handler(ctx_t *ctx) {
      * frame we consider situation to be critical and panic.
      * Hopefully sizeof(ctx_t) bytes of unallocated stack space will be enough
      * to display error message. */
-    register const register_t sp asm("$sp");
+    register_t sp = mips32_get_sp();
     if ((sp & (PAGESIZE - 1)) < sizeof(ctx_t)) {
       kprintf("Kernel stack overflow caught at $%08lx!\n", _REG(ctx, EPC));
       ktest_failure_hook();
