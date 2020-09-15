@@ -12,8 +12,6 @@
         # Forbid the assembler from using $at register.
         .set	noat
 
-#define STACKSIZE PAGESIZE
-
 #define SAVE_REG_CFI(reg, offset, base)                                        \
         sw reg, (CTX_##offset)(base);                                          \
         .cfi_rel_offset reg, (CTX_##offset)
@@ -170,18 +168,6 @@
 
 #define LOAD_PCPU_KSEG0(reg)                                                   \
         LA reg, MIPS_KSEG2_TO_KSEG0(_pcpu_data)
-
-# Increment interrupt disable nest level.
-#define TD_INC_IDNEST(reg)                                                     \
-        lw      t0, TD_IDNEST(reg);                                            \
-        addi    t0, 1;                                                         \
-        sw      t0, TD_IDNEST(reg)
-
-# Decrement interrupt disable nest level.
-#define TD_DEC_IDNEST(reg)                                                     \
-        lw      t0, TD_IDNEST(reg);                                            \
-        addi    t0, -1;                                                        \
-        sw      t0, TD_IDNEST(reg)
 
 # Disable interrupts and extract interrupt mask into reg.
 #define DISABLE_INT(reg)                                                       \
@@ -390,14 +376,10 @@ skip_fpu_save:
         # No exeception frame so set td_kframe to NULL.
         sw      $0, TD_KFRAME(s0)
 
-        TD_INC_IDNEST(s0)
-
         # Call C interrupt handler routine.
         la      t0, mips_exc_handler
         jalr    t0
         move    a0, sp                  # (delay) 1st arg
-
-        TD_DEC_IDNEST(s0)
 
 user_exc_leave:
         DISABLE_INT(t1)
@@ -475,21 +457,8 @@ SNESTED(kern_exc_enter, CTX_SIZE, ra)
         PCPU_TO_FRAME(PC)
         PCPU_TO_FRAME(BADVADDR)
 
-        # In normal conditions we're going to enter regular exception handler.
-        la      s1, mips_exc_handler
-
-        # If there's not enough space on the stack to store another exception
-        # frame we consider situation to be critical and panic.
-        andi    t0, sp, STACKSIZE - 1
-        subu    t0, CTX_SIZE
-        bgez    t0, 1f
-        nop
-        # Hopefully CTX_SIZE bytes of unallocated stack space will be
-        # enough to enter kernel stack overflow handler.
-        la      s1, kstack_overflow_handler
-
         # Load kernel global pointer.
-1:      la      gp, _gp
+        la      gp, _gp
 
         # Fetch thread control block pointer to s0 for later use.
         LOAD_PCPU(t0)
@@ -498,13 +467,10 @@ SNESTED(kern_exc_enter, CTX_SIZE, ra)
         # Save exception frame pointer into td_kframe.
         sw      sp, TD_KFRAME(s0)
 
-        TD_INC_IDNEST(s0)
-
         # Call C interrupt handler routine.
-        jalr    s1
+        la      t0, mips_exc_handler
+        jalr    t0
         move    a0, sp                  # (delay) 1st arg
-
-        TD_DEC_IDNEST(s0)
 
 kern_exc_leave:
         DISABLE_INT(t1)

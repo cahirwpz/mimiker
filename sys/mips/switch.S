@@ -50,9 +50,10 @@
 # long ctx_switch(thread_t *from, thread_t *to)
 #
 NESTED(ctx_switch, CTX_SIZE, ra)
-        # disable interrupts saving SR to t0
-        di      t0
-        ehb
+        # ctx_switch must be called with interrupts disabled
+        mfc0    t0, C0_SR
+        andi    t1, t0, SR_IE
+        tnei    t1, 0
 
         # don't save context of @from thread if user did not provide one
         bnez    a0, ctx_save
