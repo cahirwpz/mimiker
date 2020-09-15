@@ -148,13 +148,14 @@ static void tlb_exception_handler(ctx_t *ctx) {
 
     if (code == EXC_TLBL) {
       pmap_set_referenced(pg);
-      return;
-    }
-    if (code == EXC_TLBS || code == EXC_MOD) {
+    } else if (code == EXC_TLBS || code == EXC_MOD) {
       pmap_set_referenced(pg);
       pmap_set_modified(pg);
-      return;
+    } else {
+      kernel_oops(ctx);
     }
+
+    return;
   }
 
   vm_map_t *vmap = vm_map_lookup(vaddr);
@@ -163,8 +164,7 @@ static void tlb_exception_handler(ctx_t *ctx) {
     goto fault;
   }
   vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
-  int ret = vm_page_fault(vmap, vaddr, access);
-  if (ret == 0)
+  if (vm_page_fault(vmap, vaddr, access) == 0)
     return;
 
 fault:
@@ -172,7 +172,7 @@ fault:
     /* handle copyin / copyout faults */
     _REG(ctx, EPC) = td->td_onfault;
     td->td_onfault = 0;
-  } else if (td->td_proc && user_mode_p(ctx)) {
+  } else if (user_mode_p(ctx)) {
     /* Send a segmentation fault signal to the user program. */
     sig_trap(ctx, SIGSEGV);
   } else {
