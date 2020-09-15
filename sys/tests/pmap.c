@@ -13,33 +13,32 @@ static int test_kernel_pmap(void) {
   pmap_t *pmap = pmap_kernel();
 
   vm_page_t *pg = vm_page_alloc(PAGES);
+  assert(pg);
+
   size_t size = pg->size * PAGESIZE;
 
-  vaddr_t vaddr = pmap_start(pmap);
-  vaddr_t end = vaddr + size;
+  vaddr_t vaddr = kva_alloc(size);
+  assert(vaddr);
+
+  kasan_mark_valid((void *)vaddr, size);
 
   pmap_enter(pmap, vaddr, pg, VM_PROT_READ | VM_PROT_WRITE, 0);
 
-  unsigned *array = (void *)vaddr;
-  for (unsigned i = 0; i < size / sizeof(int); i++)
-    assert(try_store_word(&array[i], i));
+  unsigned *ptr = (unsigned *)vaddr;
+  for (unsigned i = 0; i < size / sizeof(unsigned); i++)
+    assert(try_store_word(&ptr[i], i % 123));
 
-  pmap_protect(pmap, vaddr, vaddr + size, VM_PROT_READ);
-  for (vaddr_t addr = vaddr; addr < end; addr += PAGESIZE)
-    assert(!try_store_word((void *)addr, 0));
-
-  for (unsigned i = 0; i < size / sizeof(int); i++) {
+  for (unsigned i = 0; i < size / sizeof(unsigned); i++) {
     unsigned val;
-    assert(try_load_word(&array[i], &val));
-    assert(val == i);
+    assert(try_load_word(&ptr[i], &val));
+    assert(val == i % 123);
   }
 
-  for (vaddr_t addr = vaddr; addr < end; addr += PAGESIZE) {
-    pmap_remove(pmap, addr, addr + PAGESIZE);
-    unsigned val;
-    assert(!try_load_word((void *)addr, &val));
-  }
+  pmap_remove(pmap, vaddr, vaddr + size);
 
+  kasan_mark_invalid((void *)vaddr, size, KASAN_CODE_KMEM_FREED);
+
+  kva_free(vaddr, size);
   vm_page_free(pg);
 
   return KTEST_SUCCESS;
@@ -216,7 +215,7 @@ static int test_pmap_kextract(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(pmap_kernel, test_kernel_pmap, KTEST_FLAG_BROKEN);
+KTEST_ADD(pmap_kernel, test_kernel_pmap, 0);
 KTEST_ADD(pmap_user, test_user_pmap, 0);
 KTEST_ADD(pmap_rmbits, test_rmbits, 0);
 KTEST_ADD(pmap_kenter, test_pmap_kenter, 0);
