@@ -223,11 +223,11 @@ void mips_exc_handler(ctx_t *ctx) {
   }
 
   if (exc_code(ctx)) {
-    mips_intr_handler(ctx);
-  } else {
     if (kern_mode)
       kern_trap_handler(ctx);
     else
       user_trap_handler(ctx);
+  } else {
+    mips_intr_handler(ctx);
   }
 }
