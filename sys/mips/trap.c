@@ -2,7 +2,6 @@
 #include <sys/interrupt.h>
 #include <mips/context.h>
 #include <mips/interrupt.h>
-#include <sys/pcpu.h>
 #include <sys/pmap.h>
 #include <sys/sysent.h>
 #include <sys/thread.h>
@@ -183,8 +182,10 @@ static void user_trap_handler(ctx_t *ctx) {
 }
 
 static void kern_trap_handler(ctx_t *ctx) {
-  /* We came here from kernel-space...  */
-  PCPU_SET(no_switch, true);
+  /* We came here from kernel-space. If interrupts were enabled before we
+   * trapped, then turn them on here. */
+  if (_REG(ctx, SR) & SR_IE)
+    cpu_intr_enable();
 
   switch (exc_code(ctx)) {
     case EXC_MOD:
@@ -196,8 +197,6 @@ static void kern_trap_handler(ctx_t *ctx) {
     default:
       kernel_oops(ctx);
   }
-
-  PCPU_SET(no_switch, false);
 }
 
 void mips_exc_handler(ctx_t *ctx) {
