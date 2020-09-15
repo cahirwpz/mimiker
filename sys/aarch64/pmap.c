@@ -51,6 +51,10 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   panic("Not implemented!");
 }
 
+bool pmap_kextract(vaddr_t va, paddr_t *pap) {
+  panic("Not implemented!");
+}
+
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
   panic("Not implemented!");
 }

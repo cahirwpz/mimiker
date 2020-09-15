@@ -49,6 +49,7 @@ void pmap_enter(pmap_t *pmap, vaddr_t start, vm_page_t *page, vm_prot_t prot,
                 unsigned flags);
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot);
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end);
+bool pmap_kextract(vaddr_t va, paddr_t *pap);
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap);
 
 void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags);
