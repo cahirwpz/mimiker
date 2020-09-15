@@ -122,14 +122,6 @@ __noreturn void kernel_oops(ctx_t *ctx) {
     panic();
 }
 
-void kstack_overflow_handler(ctx_t *ctx) {
-  kprintf("Kernel stack overflow caught at $%08lx!\n", _REG(ctx, EPC));
-  if (ktest_test_running_flag)
-    ktest_failure();
-  else
-    panic();
-}
-
 static void user_trap_handler(ctx_t *ctx) {
   /* We came here from user-space,
    * hence interrupts and preemption must have be enabled. */
@@ -213,12 +205,29 @@ static void kern_trap_handler(ctx_t *ctx) {
 void mips_exc_handler(ctx_t *ctx) {
   assert(cpu_intr_disabled());
 
+  bool kern_mode = kern_mode_p(ctx);
+
+  if (kern_mode) {
+    /* If there's not enough space on the stack to store another exception
+     * frame we consider situation to be critical and panic.
+     * Hopefully sizeof(ctx_t) bytes of unallocated stack space will be enough
+     * to display error message. */
+    register const register_t sp asm("$sp");
+    if ((sp & (PAGESIZE - 1)) < sizeof(ctx_t)) {
+      kprintf("Kernel stack overflow caught at $%08lx!\n", _REG(ctx, EPC));
+      if (ktest_test_running_flag)
+        ktest_failure();
+      else
+        panic();
+    }
+  }
+
   if (exc_code(ctx)) {
     mips_intr_handler(ctx);
   } else {
-    if (user_mode_p(ctx))
-      user_trap_handler(ctx);
-    else
+    if (kern_mode)
       kern_trap_handler(ctx);
+    else
+      user_trap_handler(ctx);
   }
 }
