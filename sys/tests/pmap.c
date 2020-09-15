@@ -129,11 +129,6 @@ static int test_rmbits(void) {
 static int test_pmap_kenter(void) {
   SCOPED_NO_PREEMPTION();
 
-  pmap_t *orig = pmap_user();
-  pmap_t *pmap = pmap_kernel();
-
-  pmap_activate(pmap);
-
   vm_page_t *pg = vm_page_alloc(1);
   assert(pg);
   vaddr_t va = kva_alloc(PAGESIZE);
@@ -152,18 +147,12 @@ static int test_pmap_kenter(void) {
   pmap_kremove(va, va + PAGESIZE);
   kva_free(va, PAGESIZE);
   vm_page_free(pg);
-  pmap_activate(orig);
 
   return KTEST_SUCCESS;
 }
 
 static int test_pmap_page(void) {
   SCOPED_NO_PREEMPTION();
-
-  pmap_t *orig = pmap_user();
-  pmap_t *pmap = pmap_kernel();
-
-  pmap_activate(pmap);
 
   vm_page_t *pg1 = vm_page_alloc(1);
   vm_page_t *pg2 = vm_page_alloc(2);
@@ -199,18 +188,12 @@ static int test_pmap_page(void) {
   kva_free(va, PAGESIZE);
   vm_page_free(pg1);
   vm_page_free(pg2);
-  pmap_activate(orig);
 
   return KTEST_SUCCESS;
 }
 
 static int test_pmap_extract(void) {
   SCOPED_NO_PREEMPTION();
-
-  pmap_t *orig = pmap_user();
-  pmap_t *pmap = pmap_kernel();
-
-  pmap_activate(pmap);
 
   vm_page_t *pg = vm_page_alloc(1);
   assert(pg);
@@ -221,7 +204,7 @@ static int test_pmap_extract(void) {
   pmap_kenter(va, pg->paddr, VM_PROT_READ, 0);
 
   paddr_t pa;
-  bool rc = pmap_extract(pmap, va, &pa);
+  bool rc = pmap_extract(pmap_kernel(), va, &pa);
   assert(rc);
   assert(pa == pg->paddr);
 
@@ -229,7 +212,6 @@ static int test_pmap_extract(void) {
 
   kva_free(va, PAGESIZE);
   vm_page_free(pg);
-  pmap_activate(orig);
 
   return KTEST_SUCCESS;
 }
