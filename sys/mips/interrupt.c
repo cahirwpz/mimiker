@@ -65,7 +65,7 @@ void mips_intr_teardown(intr_handler_t *handler) {
 }
 
 /* Hardware interrupt handler is called with interrupts disabled. */
-void cpu_intr_handler(ctx_t *ctx) {
+void mips_intr_handler(ctx_t *ctx) {
   unsigned pending = (_REG(ctx, CAUSE) & _REG(ctx, SR)) & CR_IP_MASK;
 
   assert(cpu_intr_disabled());

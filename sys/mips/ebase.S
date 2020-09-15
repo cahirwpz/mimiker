@@ -379,14 +379,8 @@ skip_fpu_save:
         sw      $0, TD_KFRAME(s0)
 
         # Call C interrupt handler routine.
-        LOAD_REG(t1, CAUSE, sp)
-        la      t0, cpu_trap_handler
-        andi    t1, CR_XMASK
-        bnez    t1, 1f
-        nop
-        la      t0, cpu_intr_handler
-
-1:      jalr    t0
+        la      t0, mips_exc_handler
+        jalr    t0
         move    a0, sp                  # (delay) 1st arg
 
 user_exc_leave:
@@ -466,16 +460,11 @@ SNESTED(kern_exc_enter, CTX_SIZE, ra)
         PCPU_TO_FRAME(BADVADDR)
 
         # In normal conditions we're going to enter regular exception handler.
-        LOAD_REG(t0, CAUSE, sp)
-        la      s1, cpu_trap_handler
-        andi    t0, CR_XMASK
-        bnez    t0, 1f
-        nop
-        la      s1, cpu_intr_handler
+        la      s1, mips_exc_handler
 
         # If there's not enough space on the stack to store another exception
         # frame we consider situation to be critical and panic.
-1:      andi    t0, sp, STACKSIZE - 1
+        andi    t0, sp, STACKSIZE - 1
         subu    t0, CTX_SIZE
         bgez    t0, 2f
         nop

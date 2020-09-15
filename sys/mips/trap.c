@@ -210,11 +210,15 @@ static void kern_trap_handler(ctx_t *ctx) {
   PCPU_SET(no_switch, false);
 }
 
-void cpu_trap_handler(ctx_t *ctx) {
+void mips_exc_handler(ctx_t *ctx) {
   assert(cpu_intr_disabled());
 
-  if (user_mode_p(ctx))
-    user_trap_handler(ctx);
-  else
-    kern_trap_handler(ctx);
+  if (exc_code(ctx)) {
+    mips_intr_handler(ctx);
+  } else {
+    if (user_mode_p(ctx))
+      user_trap_handler(ctx);
+    else
+      kern_trap_handler(ctx);
+  }
 }
