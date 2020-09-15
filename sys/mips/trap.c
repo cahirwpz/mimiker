@@ -1,11 +1,20 @@
+#define KL_LOG KL_VM
+#include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
 #include <mips/context.h>
 #include <mips/interrupt.h>
+#include <mips/tlb.h>
 #include <sys/pmap.h>
 #include <sys/sysent.h>
 #include <sys/thread.h>
+#include <sys/vm_map.h>
+#include <sys/vm_physmem.h>
 #include <sys/ktest.h>
+
+static inline unsigned exc_code(ctx_t *ctx) {
+  return (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
+}
 
 static void syscall_handler(ctx_t *ctx) {
   /* TODO Eventually we should have a platform-independent syscall handler. */
@@ -55,13 +64,12 @@ static void syscall_handler(ctx_t *ctx) {
 }
 
 /*
- * This is exception vector table. Each exeception either has been assigned a
- * handler or kernel_oops is called for it. For exact meaning of exception
- * handlers numbers please check 5.23 Table of MIPS32 4KEc User's Manual.
+ * This is exception name table. For exact meaning of exception handlers
+ * numbers please check 5.23 Table of MIPS32 4KEc User's Manual.
  */
 
 /* clang-format off */
-const char *const exceptions[32] = {
+static const char *const exceptions[32] = {
   [EXC_INTR] = "Interrupt",
   [EXC_MOD] = "TLB modification exception",
   [EXC_TLBL] = "TLB exception (load or instruction fetch)",
@@ -84,7 +92,7 @@ const char *const exceptions[32] = {
 };
 /* clang-format on */
 
-__noreturn void kernel_oops(ctx_t *ctx) {
+static __noreturn void kernel_oops(ctx_t *ctx) {
   unsigned code = exc_code(ctx);
 
   kprintf("KERNEL PANIC!!! \n");
@@ -117,6 +125,60 @@ __noreturn void kernel_oops(ctx_t *ctx) {
     _REG(ctx, EPC));
   ktest_failure_hook();
   panic();
+}
+
+static void tlb_exception_handler(ctx_t *ctx) {
+  thread_t *td = thread_self();
+
+  int code = exc_code(ctx);
+  vaddr_t vaddr = _REG(ctx, BADVADDR);
+
+  klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
+       _REG(ctx, EPC), vaddr);
+
+  pmap_t *pmap = pmap_lookup(vaddr);
+  if (!pmap) {
+    klog("No physical map defined for %08lx address!", vaddr);
+    goto fault;
+  }
+
+  paddr_t pa;
+  if (pmap_extract(pmap, vaddr, &pa)) {
+    vm_page_t *pg = vm_page_find(pa);
+
+    if (code == EXC_TLBL) {
+      pmap_set_referenced(pg);
+    } else if (code == EXC_TLBS || code == EXC_MOD) {
+      pmap_set_referenced(pg);
+      pmap_set_modified(pg);
+    } else {
+      kernel_oops(ctx);
+    }
+
+    return;
+  }
+
+  vm_map_t *vmap = vm_map_lookup(vaddr);
+  if (!vmap) {
+    klog("No virtual address space defined for %08lx!", vaddr);
+    goto fault;
+  }
+  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
+  if (vm_page_fault(vmap, vaddr, access) == 0)
+    return;
+
+fault:
+  if (td->td_onfault) {
+    /* handle copyin / copyout faults */
+    _REG(ctx, EPC) = td->td_onfault;
+    td->td_onfault = 0;
+  } else if (user_mode_p(ctx)) {
+    /* Send a segmentation fault signal to the user program. */
+    sig_trap(ctx, SIGSEGV);
+  } else {
+    /* Panic when kernel-mode thread uses wrong pointer. */
+    kernel_oops(ctx);
+  }
 }
 
 static void user_trap_handler(ctx_t *ctx) {

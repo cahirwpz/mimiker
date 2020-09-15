@@ -25,11 +25,4 @@ static inline bool user_mode_p(ctx_t *ctx) {
   return (_REG(ctx, SR) & SR_KSU_MASK) == SR_KSU_USER;
 }
 
-static inline unsigned exc_code(ctx_t *ctx) {
-  return (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
-}
-
-__noreturn void kernel_oops(ctx_t *ctx);
-void tlb_exception_handler(ctx_t *ctx);
-
 #endif /* !_MIPS_CONTEXT_ */

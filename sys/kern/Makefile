@@ -41,7 +41,6 @@ SOURCES = \
 	pci_ids.c \
 	pcpu.c \
 	pipe.c \
-	pmap.c \
 	pool.c \
 	proc.c \
 	ringbuf.c \
