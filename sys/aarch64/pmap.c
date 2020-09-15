@@ -76,7 +76,3 @@ pmap_t *pmap_user(void) {
 pmap_t *pmap_lookup(vaddr_t addr) {
   panic("Not implemented!");
 }
-
-void tlb_exception_handler(ctx_t *ctx) {
-  panic("Not implemented!");
-}

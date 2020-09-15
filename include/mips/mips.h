@@ -40,8 +40,6 @@ extern char _gp[];
 /* Exception vector base. */
 extern char _ebase[];
 
-const char *const exceptions[32];
-
 #else /* __ASSEMBLER__ */
 
 #define MIPS_KSEG2_TO_KSEG0(x) ((x) - (MIPS_KSEG2_START - MIPS_KSEG0_START))

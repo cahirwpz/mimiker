@@ -3,16 +3,12 @@
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/pool.h>
-#include <mips/context.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
 #include <mips/pmap.h>
 #include <sys/kmem.h>
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
-#include <sys/vm_map.h>
-#include <sys/thread.h>
-#include <sys/signal.h>
 #include <sys/spinlock.h>
 #include <sys/mutex.h>
 #include <sys/sched.h>
@@ -347,66 +343,4 @@ pmap_t *pmap_lookup(vaddr_t addr) {
   if (user_addr_p(addr))
     return pmap_user();
   return NULL;
-}
-
-void tlb_exception_handler(ctx_t *ctx) {
-  thread_t *td = thread_self();
-
-  int code = (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
-  vaddr_t vaddr = _REG(ctx, BADVADDR);
-
-  klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
-       _REG(ctx, EPC), vaddr);
-
-  pmap_t *pmap = pmap_lookup(vaddr);
-  if (!pmap) {
-    klog("No physical map defined for %08lx address!", vaddr);
-    goto fault;
-  }
-
-  pte_t pte = pmap_pte_read(pmap, vaddr);
-  paddr_t pa = PTE_FRAME_ADDR(pte);
-
-  if (pa) {
-    vm_page_t *pg = vm_page_find(pa);
-
-    if ((pte & PTE_VALID) == 0 && code == EXC_TLBL) {
-      pmap_set_referenced(pg);
-      pmap_pte_write(pmap, vaddr, pte | PTE_VALID, 0);
-      return;
-    }
-    if ((pte & PTE_DIRTY) == 0 && (code == EXC_TLBS || code == EXC_MOD)) {
-      pmap_set_referenced(pg);
-      pmap_set_modified(pg);
-      pmap_pte_write(pmap, vaddr, pte | PTE_DIRTY | PTE_VALID, 0);
-      return;
-    }
-  }
-
-  vm_map_t *vmap = vm_map_lookup(vaddr);
-  if (!vmap) {
-    klog("No virtual address space defined for %08lx!", vaddr);
-    goto fault;
-  }
-  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
-  int ret = vm_page_fault(vmap, vaddr, access);
-  if (ret == 0)
-    return;
-
-fault:
-  if (td->td_onfault) {
-    /* handle copyin / copyout faults */
-    _REG(ctx, EPC) = td->td_onfault;
-    td->td_onfault = 0;
-  } else if (td->td_proc) {
-    /* Panic when process running in kernel space uses wrong pointer. */
-    if (kern_mode_p(ctx))
-      kernel_oops(ctx);
-
-    /* Send a segmentation fault signal to the user program. */
-    sig_trap(ctx, SIGSEGV);
-  } else {
-    /* Panic when kernel-mode thread uses wrong pointer. */
-    kernel_oops(ctx);
-  }
 }
