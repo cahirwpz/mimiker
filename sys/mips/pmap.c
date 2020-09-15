@@ -301,10 +301,11 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
     return false;
 
   pte_t pte = pmap_pte_read(pmap, va);
-  if (pte == empty_pte(pmap))
+  paddr_t pa = PTE_FRAME_ADDR(pte);
+  if (pa == 0)
     return false;
 
-  *pap = PTE_FRAME_ADDR(pte) | PAGE_OFFSET(va);
+  *pap = pa | PAGE_OFFSET(va);
   return true;
 }
 
