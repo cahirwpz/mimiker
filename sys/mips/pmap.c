@@ -311,6 +311,34 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
 
 #undef PG_KSEG0_ADDR
 
+bool pmap_clear_referenced(vm_page_t *pg) {
+  bool prev = pmap_is_referenced(pg);
+  pg->flags &= ~PG_REFERENCED;
+  return prev;
+}
+
+bool pmap_clear_modified(vm_page_t *pg) {
+  bool prev = pmap_is_modified(pg);
+  pg->flags &= ~PG_MODIFIED;
+  return prev;
+}
+
+bool pmap_is_referenced(vm_page_t *pg) {
+  return pg->flags & PG_REFERENCED;
+}
+
+bool pmap_is_modified(vm_page_t *pg) {
+  return pg->flags & PG_MODIFIED;
+}
+
+void pmap_set_referenced(vm_page_t *pg) {
+  pg->flags |= PG_REFERENCED;
+}
+
+void pmap_set_modified(vm_page_t *pg) {
+  pg->flags |= PG_MODIFIED;
+}
+
 /* TODO: at any given moment there're two page tables in use:
  *  - kernel-space pmap for kseg2 & kseg3
  *  - user-space pmap for useg
