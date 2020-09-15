@@ -116,10 +116,8 @@ __noreturn void kernel_oops(ctx_t *ctx) {
   kprintf(
     "HINT: Type 'info line *0x%08lx' into gdb to find faulty code line.\n",
     _REG(ctx, EPC));
-  if (ktest_test_running_flag)
-    ktest_failure();
-  else
-    panic();
+  ktest_failure_hook();
+  panic();
 }
 
 static void user_trap_handler(ctx_t *ctx) {
@@ -215,10 +213,8 @@ void mips_exc_handler(ctx_t *ctx) {
     register const register_t sp asm("$sp");
     if ((sp & (PAGESIZE - 1)) < sizeof(ctx_t)) {
       kprintf("Kernel stack overflow caught at $%08lx!\n", _REG(ctx, EPC));
-      if (ktest_test_running_flag)
-        ktest_failure();
-      else
-        panic();
+      ktest_failure_hook();
+      panic();
     }
   }
 

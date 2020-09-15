@@ -168,10 +168,8 @@ __always_inline static inline void shadow_check(uintptr_t addr, size_t size,
             "============================================\n",
             (void *)addr, (read ? "read" : "write"), size, code,
             code_name(code));
-    if (ktest_test_running_flag)
-      ktest_failure();
-    else
-      panic_fail();
+    ktest_failure_hook();
+    panic();
   }
 }
 
