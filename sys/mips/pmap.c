@@ -242,9 +242,9 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
       pg->pv.pmap = pmap;
       pg->pv.va = va;
       if (kern_mapping)
-        pg->flags |= PG_MODIFIED|PG_REFERENCED;
+        pg->flags |= PG_MODIFIED | PG_REFERENCED;
       else
-        pg->flags &= ~(PG_MODIFIED|PG_REFERENCED);
+        pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
       pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
     }
   }
