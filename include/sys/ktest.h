@@ -50,12 +50,9 @@ __noreturn void ktest_main(const char *test);
 #define TEST_PASSED_STRING "[TEST PASSED]\n"
 #define TEST_FAILED_STRING "[TEST FAILED]\n"
 
-/* This function is called both by run_test, as well as ktest_assert. It
- * displays some troubleshooting info about the failing test. */
-__noreturn void ktest_failure(void);
-
-/* This flag is set to 1 when a kernel test is in progress, and 0 otherwise. */
-extern int ktest_test_running_flag;
+/* This function is called both by run_test, as well as ktest_assert.
+ * It displays some troubleshooting info about the failing test. */
+void ktest_failure_hook(void);
 
 /*! \brief Attempt to load word from memory without crashing the kernel. */
 bool try_load_word(unsigned *ptr, unsigned *val_p);

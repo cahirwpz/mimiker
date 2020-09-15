@@ -987,6 +987,14 @@ extern "C" {
 #define _mips_wait() \
   __asm__ __volatile ("wait")
 
+/* read stack pointer */
+#define mips32_get_sp() \
+__extension__ ({ \
+  register unsigned long __r; \
+  __asm__ __volatile ("move %0,$sp" : "=d" (__r)); \
+  __r; \
+})
+
 /*
  * Define macros for accessing the MIPS32 coprocessor 0 registers. Most apart
  * from "set" return the original register value. These macros take an encoded

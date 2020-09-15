@@ -3,16 +3,12 @@
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/pool.h>
-#include <mips/context.h>
 #include <mips/mips.h>
 #include <mips/tlb.h>
 #include <mips/pmap.h>
 #include <sys/kmem.h>
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
-#include <sys/vm_map.h>
-#include <sys/thread.h>
-#include <sys/signal.h>
 #include <sys/spinlock.h>
 #include <sys/mutex.h>
 #include <sys/sched.h>
@@ -235,13 +231,22 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
 
   klog("Enter virtual mapping %p-%p for frame %p", va, va_end, pa);
 
+  bool kern_mapping = (pmap == pmap_kernel());
+
   /* Mark user pages as non-referenced & non-modified. */
-  pte_t mask = (pmap == pmap_kernel()) ? 0 : PTE_VALID | PTE_DIRTY;
-  pte_t pte = (vm_prot_map[prot] & ~mask) | empty_pte(pmap);
+  pte_t mask = kern_mapping ? (PTE_VALID | PTE_DIRTY) : 0;
+  pte_t pte = (vm_prot_map[prot] & mask) | empty_pte(pmap);
 
   WITH_MTX_LOCK (&pmap->mtx) {
-    for (; va < va_end; va += PAGESIZE, pa += PAGESIZE)
+    for (; va < va_end; va += PAGESIZE, pa += PAGESIZE, pg++) {
+      pg->pv.pmap = pmap;
+      pg->pv.va = va;
+      if (kern_mapping)
+        pg->flags |= PG_MODIFIED | PG_REFERENCED;
+      else
+        pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
       pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
+    }
   }
 }
 
@@ -296,10 +301,11 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
     return false;
 
   pte_t pte = pmap_pte_read(pmap, va);
-  if (pte == empty_pte(pmap))
+  paddr_t pa = PTE_FRAME_ADDR(pte);
+  if (pa == 0)
     return false;
 
-  *pap = PTE_FRAME_ADDR(pte) | PAGE_OFFSET(va);
+  *pap = pa | PAGE_OFFSET(va);
   return true;
 }
 
@@ -314,6 +320,53 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
 }
 
 #undef PG_KSEG0_ADDR
+
+static void pmap_modify_flags(vm_page_t *pg, pte_t set, pte_t clr) {
+  pmap_t *pmap = pg->pv.pmap;
+  vaddr_t vaddr = pg->pv.va;
+  assert(pmap != NULL);
+  WITH_MTX_LOCK (&pmap->mtx) {
+    pde_t pde = PDE_OF(pmap, vaddr);
+    assert(is_valid_pde(pde));
+    pte_t pte = PTE_OF(pmap, vaddr);
+    pte |= set;
+    pte &= ~clr;
+    PTE_OF(pmap, vaddr) = pte;
+    tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
+  }
+}
+
+bool pmap_clear_referenced(vm_page_t *pg) {
+  bool prev = pmap_is_referenced(pg);
+  pg->flags &= ~PG_REFERENCED;
+  pmap_modify_flags(pg, 0, PTE_VALID);
+  return prev;
+}
+
+bool pmap_clear_modified(vm_page_t *pg) {
+  bool prev = pmap_is_modified(pg);
+  pg->flags &= ~PG_MODIFIED;
+  pmap_modify_flags(pg, 0, PTE_DIRTY);
+  return prev;
+}
+
+bool pmap_is_referenced(vm_page_t *pg) {
+  return pg->flags & PG_REFERENCED;
+}
+
+bool pmap_is_modified(vm_page_t *pg) {
+  return pg->flags & PG_MODIFIED;
+}
+
+void pmap_set_referenced(vm_page_t *pg) {
+  pg->flags |= PG_REFERENCED;
+  pmap_modify_flags(pg, PTE_VALID, 0);
+}
+
+void pmap_set_modified(vm_page_t *pg) {
+  pg->flags |= PG_MODIFIED;
+  pmap_modify_flags(pg, PTE_DIRTY, 0);
+}
 
 /* TODO: at any given moment there're two page tables in use:
  *  - kernel-space pmap for kseg2 & kseg3
@@ -347,66 +400,4 @@ pmap_t *pmap_lookup(vaddr_t addr) {
   if (user_addr_p(addr))
     return pmap_user();
   return NULL;
-}
-
-void tlb_exception_handler(ctx_t *ctx) {
-  thread_t *td = thread_self();
-
-  int code = (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
-  vaddr_t vaddr = _REG(ctx, BADVADDR);
-
-  klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
-       _REG(ctx, EPC), vaddr);
-
-  pmap_t *pmap = pmap_lookup(vaddr);
-  if (!pmap) {
-    klog("No physical map defined for %08lx address!", vaddr);
-    goto fault;
-  }
-
-  pte_t pte = pmap_pte_read(pmap, vaddr);
-  paddr_t pa = PTE_FRAME_ADDR(pte);
-
-  if (pa) {
-    vm_page_t *pg = vm_page_find(pa);
-
-    if ((pte & PTE_VALID) == 0 && code == EXC_TLBL) {
-      pmap_set_referenced(pg);
-      pmap_pte_write(pmap, vaddr, pte | PTE_VALID, 0);
-      return;
-    }
-    if ((pte & PTE_DIRTY) == 0 && (code == EXC_TLBS || code == EXC_MOD)) {
-      pmap_set_referenced(pg);
-      pmap_set_modified(pg);
-      pmap_pte_write(pmap, vaddr, pte | PTE_DIRTY | PTE_VALID, 0);
-      return;
-    }
-  }
-
-  vm_map_t *vmap = vm_map_lookup(vaddr);
-  if (!vmap) {
-    klog("No virtual address space defined for %08lx!", vaddr);
-    goto fault;
-  }
-  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
-  int ret = vm_page_fault(vmap, vaddr, access);
-  if (ret == 0)
-    return;
-
-fault:
-  if (td->td_onfault) {
-    /* handle copyin / copyout faults */
-    _REG(ctx, EPC) = td->td_onfault;
-    td->td_onfault = 0;
-  } else if (td->td_proc) {
-    /* Panic when process running in kernel space uses wrong pointer. */
-    if (kern_mode_p(ctx))
-      kernel_oops(ctx);
-
-    /* Send a segmentation fault signal to the user program. */
-    sig_trap(ctx, SIGSEGV);
-  } else {
-    /* Panic when kernel-mode thread uses wrong pointer. */
-    kernel_oops(ctx);
-  }
 }
