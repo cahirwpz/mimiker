@@ -20,7 +20,7 @@ static mtx_t ts_adj_mtx = MTX_INITIALIZER(0);
 static thread_t *threads[T];
 
 static void set_prio(thread_t *td, prio_t prio) {
-  WITH_SPIN_LOCK (&td->td_spin)
+  WITH_SPIN_LOCK (&td->td_lock)
     sched_set_prio(td, prio);
 }
 

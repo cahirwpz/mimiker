@@ -22,7 +22,7 @@ static void stack_unusable(thread_t *td, register_t sp) {
   /* This thread has a corrupted stack, it can no longer react on a signal with
    * a custom handler. Kill the process. */
   klog("User stack (%p) is corrupted, terminating with SIGILL!", sp);
-  mtx_unlock(&td->td_lock);
+  spin_unlock(&td->td_lock);
   sig_exit(td, SIGILL);
   __unreachable();
 }
@@ -30,7 +30,7 @@ static void stack_unusable(thread_t *td, register_t sp) {
 int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa) {
   thread_t *td = thread_self();
 
-  SCOPED_MTX_LOCK(&td->td_lock);
+  SCOPED_SPIN_LOCK(&td->td_lock);
 
   user_ctx_t *uctx = td->td_uctx;
 
@@ -73,7 +73,7 @@ int sig_return(void) {
   thread_t *td = thread_self();
   sig_ctx_t ksc;
 
-  WITH_MTX_LOCK (&td->td_lock) {
+  WITH_SPIN_LOCK (&td->td_lock) {
     user_ctx_t *uctx = td->td_uctx;
     /* TODO: We assume the stored user context is where user stack is. This
      * usually works, but the signal handler may switch the stack, or perform an
