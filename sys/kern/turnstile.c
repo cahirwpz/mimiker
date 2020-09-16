@@ -52,6 +52,7 @@ typedef struct turnstile {
 } turnstile_t;
 
 typedef struct turnstile_chain {
+  spin_t tc_lock;
   ts_list_t tc_turnstiles;
 } turnstile_chain_t;
 
@@ -68,6 +69,7 @@ static void turnstile_ctor(turnstile_t *ts) {
 void init_turnstile(void) {
   for (int i = 0; i < TC_TABLESIZE; i++) {
     turnstile_chain_t *tc = &turnstile_chains[i];
+    tc->tc_lock = SPIN_INITIALIZER(0);
     LIST_INIT(&tc->tc_turnstiles);
   }
 }
