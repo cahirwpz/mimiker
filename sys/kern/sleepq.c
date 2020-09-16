@@ -154,7 +154,7 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
   TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_sleepq);
   sq->sq_nblocked++;
 
-  WITH_SPIN_LOCK (&td->td_lock) {
+  WITH_SPIN_LOCK (td->td_lock) {
     td->td_wchan = wchan;
     td->td_waitpt = waitpt;
     td->td_sleepqueue = NULL;
@@ -202,7 +202,7 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
     TAILQ_REMOVE(&sq->sq_free, sq, sq_entry);
   }
 
-  WITH_SPIN_LOCK (&td->td_lock) {
+  WITH_SPIN_LOCK (td->td_lock) {
     td->td_wchan = NULL;
     td->td_waitpt = NULL;
     td->td_sleepqueue = sq;
@@ -218,7 +218,7 @@ static int _sleepq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
   int status = 0;
 
   /* If there are pending signals, interrupt the sleep immediately. */
-  WITH_SPIN_LOCK (&td->td_lock) {
+  WITH_SPIN_LOCK (td->td_lock) {
     if (_sleepq_interrupted_early(td, sleep))
       return EINTR;
   }
@@ -234,7 +234,7 @@ static int _sleepq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
    * The first signal check is an optimization that saves us the call
    * to sq_enter. */
 
-  WITH_SPIN_LOCK (&td->td_lock) {
+  WITH_SPIN_LOCK (td->td_lock) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
       if (_sleepq_interrupted_early(td, sleep)) {
@@ -275,7 +275,7 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
 
   sq_leave(td, sc, sq);
 
-  WITH_SPIN_LOCK (&td->td_lock) {
+  WITH_SPIN_LOCK (td->td_lock) {
     /* Clear TDF_SLPINTR flag if thread's sleep was not aborted. */
     if (wakeup != EINTR)
       td->td_flags &= ~TDF_SLPINTR;
