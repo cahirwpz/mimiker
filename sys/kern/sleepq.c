@@ -27,7 +27,7 @@ typedef struct sleepq_chain {
 
 /*! \brief Sleeping mode.
  *
- * Used to select sleeping mode in `_sleepq_wait`. For sleeping purposes given
+ * Used to select sleeping mode in `sq_wait`. For sleeping purposes given
  * mode implies former modes, i.e. sleep with timeout (`SLP_TIMED`) is also
  * interruptible (`SLP_INTR`).
  */
@@ -157,18 +157,18 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
   }
 }
 
-static inline bool _sleepq_interrupted_early(thread_t *td, sleep_t sleep) {
+static inline bool sq_interrupted_early(thread_t *td, sleep_t sleep) {
   return (td->td_flags & TDF_NEEDSIGCHK) != 0 && sleep == SLP_INTR;
 }
 
-static int sq_switch(thread_t *td, void *wchan, const void *waitpt,
-                     sleep_t sleep) {
+static int sq_suspend(thread_t *td, void *wchan, const void *waitpt,
+                      sleep_t sleep) {
   int status = 0;
 
   WITH_SPIN_LOCK (td->td_lock) {
     if (td->td_flags & TDF_SLEEPY) {
       td->td_flags &= ~TDF_SLEEPY;
-      if (_sleepq_interrupted_early(td, sleep)) {
+      if (sq_interrupted_early(td, sleep)) {
         td->td_flags &= ~(TDF_SLPINTR | TDF_SLPTIMED);
         status = EINTR;
       } else {
@@ -191,12 +191,12 @@ static int sq_switch(thread_t *td, void *wchan, const void *waitpt,
   return status;
 }
 
-static int _sleepq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
+static int sq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
   thread_t *td = thread_self();
 
   /* If there are pending signals, interrupt the sleep immediately. */
   WITH_SPIN_LOCK (td->td_lock) {
-    if (_sleepq_interrupted_early(td, sleep))
+    if (sq_interrupted_early(td, sleep))
       return EINTR;
   }
 
@@ -213,7 +213,7 @@ static int _sleepq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
    * The first signal check is an optimization that saves us the call
    * to sq_enter. */
 
-  return sq_switch(td, wchan, waitpt, sleep);
+  return sq_suspend(td, wchan, waitpt, sleep);
 }
 
 static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
@@ -251,6 +251,22 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   }
 }
 
+static void sq_resume(thread_t *td, int wakeup) {
+  WITH_SPIN_LOCK (td->td_lock) {
+    /* Clear TDF_SLPINTR flag if thread's sleep was not aborted. */
+    if (wakeup != EINTR)
+      td->td_flags &= ~TDF_SLPINTR;
+    if (wakeup != ETIMEDOUT)
+      td->td_flags &= ~TDF_SLPTIMED;
+    /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
+    if (td->td_flags & TDF_SLEEPY) {
+      td->td_flags &= ~TDF_SLEEPY;
+    } else {
+      sched_wakeup(td, 0);
+    }
+  }
+}
+
 /* Remove a thread from the sleep queue and resume it. */
 static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
                       int wakeup) {
@@ -265,20 +281,8 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
     return false;
 
   sq_leave(td, sc, sq);
+  sq_resume(td, wakeup);
 
-  WITH_SPIN_LOCK (td->td_lock) {
-    /* Clear TDF_SLPINTR flag if thread's sleep was not aborted. */
-    if (wakeup != EINTR)
-      td->td_flags &= ~TDF_SLPINTR;
-    if (wakeup != ETIMEDOUT)
-      td->td_flags &= ~TDF_SLPTIMED;
-    /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
-    if (td->td_flags & TDF_SLEEPY) {
-      td->td_flags &= ~TDF_SLEEPY;
-    } else {
-      sched_wakeup(td, 0);
-    }
-  }
   return true;
 }
 
@@ -344,7 +348,7 @@ bool sleepq_abort(thread_t *td) {
 }
 
 void sleepq_wait(void *wchan, const void *waitpt) {
-  int status = _sleepq_wait(wchan, waitpt, 0);
+  int status = sq_wait(wchan, waitpt, 0);
   assert(status == 0);
 }
 
@@ -359,7 +363,7 @@ int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
     if (timeout > 0)
       callout_setup_relative(&td->td_slpcallout, timeout, (timeout_t)sq_timeout,
                              thread_self());
-    status = _sleepq_wait(wchan, waitpt, timeout ? SLP_TIMED : SLP_INTR);
+    status = sq_wait(wchan, waitpt, timeout ? SLP_TIMED : SLP_INTR);
   }
   if (timeout > 0)
     callout_stop(&td->td_slpcallout);
