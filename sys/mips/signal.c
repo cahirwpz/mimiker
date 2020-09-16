@@ -22,15 +22,12 @@ static void stack_unusable(thread_t *td, register_t sp) {
   /* This thread has a corrupted stack, it can no longer react on a signal with
    * a custom handler. Kill the process. */
   klog("User stack (%p) is corrupted, terminating with SIGILL!", sp);
-  spin_unlock(&td->td_lock);
   sig_exit(td, SIGILL);
   __unreachable();
 }
 
 int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa) {
   thread_t *td = thread_self();
-
-  SCOPED_SPIN_LOCK(&td->td_lock);
 
   user_ctx_t *uctx = td->td_uctx;
 
