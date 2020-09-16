@@ -441,6 +441,7 @@ SNESTED(kern_exc_enter, CTX_SIZE, ra)
 
         # Allocate stack frame (of CTX_SIZE bytes) and save context.
         subu    sp, CTX_SIZE # required by gdb to recognize frame
+        .cfi_def_cfa sp, 0
 
         # We cannot access stack (KSEG2) when exception level is enabled
         # Let's drop exception level and disable interrupts.
@@ -452,9 +453,12 @@ SNESTED(kern_exc_enter, CTX_SIZE, ra)
         # Copy sp, status, cause, epc, badvaddr from PCPU to stack frame
         LOAD_PCPU_KSEG0(t0)
         PCPU_TO_FRAME(SP)
+        .cfi_rel_offset sp, CTX_SP
         PCPU_TO_FRAME(SR)
         PCPU_TO_FRAME(CAUSE)
         PCPU_TO_FRAME(PC)
+        .cfi_return_column t1
+        .cfi_rel_offset t1, CTX_PC
         PCPU_TO_FRAME(BADVADDR)
 
         # Load kernel global pointer.

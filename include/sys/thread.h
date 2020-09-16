@@ -83,7 +83,6 @@ typedef enum {
  *  - t: thread_t::td_lock
  *  - p: thread_t::td_proc::p_lock
  *  - @: read-only access
- *  - !: thread_t::td_spin
  *  - ~: always safe to access
  *  - #: UP & no preemption, only use from same thread
  *  - $: UP & no interrupts
@@ -93,9 +92,8 @@ typedef enum {
  *  threads_lock >> thread_t::td_lock
  */
 typedef struct thread {
-  /* locks */
-  spin_t td_spin;      /*!< (~) synchronizes top & bottom halves */
-  mtx_t td_lock;       /*!< (~) protects most fields in this structure */
+  /* locking */
+  spin_t td_lock;      /*!< (~) used by dispatcher & scheduler */
   condvar_t td_waitcv; /*!< (t) for thread_join */
   /* linked lists */
   TAILQ_ENTRY(thread) td_all;      /* (a) link on all threads list */
@@ -108,8 +106,8 @@ typedef struct thread {
   char *td_name;   /*!< (@) name of thread */
   tid_t td_tid;    /*!< (@) thread identifier */
   /* thread state */
-  thread_state_t td_state;        /*!< (!) thread state */
-  volatile uint32_t td_flags;     /*!< (!) TDF_* flags */
+  thread_state_t td_state;        /*!< (t) thread state */
+  volatile uint32_t td_flags;     /*!< (t) TDF_* flags */
   volatile tdp_flags_t td_pflags; /*!< (*) TDP_* (private) flags */
   /* thread context */
   volatile unsigned td_idnest; /*!< (*) interrupt disable nest level */
