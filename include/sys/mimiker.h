@@ -127,7 +127,7 @@ __noreturn void panic_fail(void);
 
 #define panic(FMT, ...)                                                        \
   __extension__({                                                              \
-    kprintf("[%s:%d] PANIC: " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);    \
+    kprintf("[PANIC] %s: " FMT "\n", __func__, ##__VA_ARGS__);                 \
     panic_fail();                                                              \
   })
 
