@@ -7,16 +7,18 @@
 #include <sys/context.h>
 #include <sys/time.h>
 #include <sys/thread.h>
-#include <sys/mutex.h>
+#include <sys/spinlock.h>
 #include <sys/pcpu.h>
 #include <sys/turnstile.h>
 
+static spin_t sched_lock = SPIN_INITIALIZER(0);
 static runq_t runq;
 static bool sched_active = false;
 
 #define SLICE 10
 
 void init_sched(void) {
+  thread0.td_lock = &sched_lock;
   runq_init(&runq);
 }
 

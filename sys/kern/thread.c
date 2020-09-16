@@ -33,7 +33,6 @@ static alignas(PAGESIZE) uint8_t _stack0[PAGESIZE];
 
 /* Thread Zero is initially running with interrupts disabled! */
 thread_t thread0 = {
-  .td_lock = &SPIN_INITIALIZER(0),
   .td_name = "thread0",
   .td_tid = 0,
   .td_prio = 255,
