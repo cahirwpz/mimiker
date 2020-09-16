@@ -49,9 +49,10 @@ static void sc_release(sleepq_chain_t *sc) {
   spin_unlock(&sc->sc_lock);
 }
 
-/*! \brief stores all threads sleeping on the same resource */
+/*! \brief stores all threads sleeping on the same resource.
+ *
+ * All fields below are protected by corresponding sc_lock. */
 typedef struct sleepq {
-  spin_t sq_lock;
   TAILQ_ENTRY(sleepq) sq_entry;    /*!< link on sleepq_chain */
   TAILQ_HEAD(, sleepq) sq_free;    /*!< unused sleep queue records */
   TAILQ_HEAD(, thread) sq_blocked; /*!< blocked threads */
@@ -59,24 +60,11 @@ typedef struct sleepq {
   void *sq_wchan;                  /*!< associated waiting channel */
 } sleepq_t;
 
-static void sq_acquire(sleepq_t *sq) {
-  spin_lock(&sq->sq_lock);
-}
-
-static bool sq_owned(sleepq_t *sq) {
-  return spin_owned(&sq->sq_lock);
-}
-
-static void sq_release(sleepq_t *sq) {
-  spin_unlock(&sq->sq_lock);
-}
-
 static void sq_ctor(sleepq_t *sq) {
   TAILQ_INIT(&sq->sq_blocked);
   TAILQ_INIT(&sq->sq_free);
   sq->sq_nblocked = 0;
   sq->sq_wchan = NULL;
-  sq->sq_lock = SPIN_INITIALIZER(0);
 }
 
 void init_sleepq(void) {
@@ -112,10 +100,8 @@ static sleepq_t *sq_lookup(sleepq_chain_t *sc, void *wchan) {
 
   sleepq_t *sq;
   TAILQ_FOREACH (sq, &sc->sc_queues, sq_entry) {
-    if (sq->sq_wchan == wchan) {
-      sq_acquire(sq);
+    if (sq->sq_wchan == wchan)
       return sq;
-    }
   }
 
   return NULL;
@@ -142,7 +128,6 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
     /* No sleep queue for this waiting channel.
      * We take current thread's sleep queue and use it for that purpose. */
     sq = td_sq;
-    sq_acquire(sq);
     sq->sq_wchan = wchan;
     TAILQ_INSERT_HEAD(&sc->sc_queues, sq, sq_entry);
   } else {
@@ -169,7 +154,6 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
       td->td_flags |= TDF_SLPTIMED;
   }
 
-  sq_release(sq);
   sc_release(sc);
 }
 
@@ -178,7 +162,6 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
        td->td_waitpt);
 
   assert(sc_owned(sc));
-  assert(sq_owned(sq));
 
   assert(td->td_wchan != NULL);
   assert(td->td_sleepqueue == NULL);
@@ -308,7 +291,6 @@ bool sleepq_signal(void *wchan) {
   }
 
   sq_wakeup(best_td, sc, sq, SLP_NORMAL);
-  sq_release(sq);
   sc_release(sc);
 
   sched_maybe_preempt();
@@ -327,7 +309,6 @@ bool sleepq_broadcast(void *wchan) {
   thread_t *td;
   TAILQ_FOREACH (td, &sq->sq_blocked, td_sleepq)
     sq_wakeup(td, sc, sq, SLP_NORMAL);
-  sq_release(sq);
   sc_release(sc);
 
   sched_maybe_preempt();
@@ -339,10 +320,8 @@ static bool _sleepq_abort(thread_t *td, int reason) {
   sleepq_t *sq = sq_lookup(sc, td->td_wchan);
   bool aborted = false;
 
-  if (sq != NULL) {
+  if (sq != NULL)
     aborted = sq_wakeup(td, sc, sq, reason);
-    sq_release(sq);
-  }
   sc_release(sc);
 
   /* If we woke up higher priority thread, we should switch to it immediately.
