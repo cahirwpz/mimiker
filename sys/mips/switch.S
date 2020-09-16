@@ -10,25 +10,29 @@
         .local ctx_resume
         .local ctx_save
 
+#define SAVE_REG_CFI(reg, offset, base)                                        \
+        sw reg, (CTX_##offset)(base);                                          \
+        .cfi_rel_offset reg, (CTX_##offset)
+
 #define SAVE_REG(reg, offset, base) sw reg, (CTX_##offset)(base)
 
 #define LOAD_REG(reg, offset, base) lw reg, (CTX_##offset)(base)
 
 #define SAVE_CTX(_sr, _sp, reg)                                                \
         SAVE_REG(_sr, SR, reg);                                                \
-        SAVE_REG(ra, PC, reg);                                                 \
-        SAVE_REG(fp, FP, reg);                                                 \
+        SAVE_REG_CFI(ra, PC, reg);                                             \
+        SAVE_REG_CFI(fp, FP, reg);                                             \
         SAVE_REG(_sp, SP, reg);                                                \
-        SAVE_REG(gp, GP, reg);                                                 \
+        SAVE_REG_CFI(gp, GP, reg);                                             \
         SAVE_REG(zero, V0, reg);                                               \
-        SAVE_REG(s0, S0, reg);                                                 \
-        SAVE_REG(s1, S1, reg);                                                 \
-        SAVE_REG(s2, S2, reg);                                                 \
-        SAVE_REG(s3, S3, reg);                                                 \
-        SAVE_REG(s4, S4, reg);                                                 \
-        SAVE_REG(s5, S5, reg);                                                 \
-        SAVE_REG(s6, S6, reg);                                                 \
-        SAVE_REG(s7, S7, reg)
+        SAVE_REG_CFI(s0, S0, reg);                                             \
+        SAVE_REG_CFI(s1, S1, reg);                                             \
+        SAVE_REG_CFI(s2, S2, reg);                                             \
+        SAVE_REG_CFI(s3, S3, reg);                                             \
+        SAVE_REG_CFI(s4, S4, reg);                                             \
+        SAVE_REG_CFI(s5, S5, reg);                                             \
+        SAVE_REG_CFI(s6, S6, reg);                                             \
+        SAVE_REG_CFI(s7, S7, reg)
 
 #define LOAD_CTX(_sr, reg)                                                     \
         LOAD_REG(_sr, SR, reg);                                                \
@@ -65,7 +69,9 @@ ctx_save:
         # save context of @from thread
         move    t1, sp
         subu    sp, CTX_SIZE
+        .cfi_def_cfa sp, 0
         SAVE_CTX(t0, t1, sp)
+        .cfi_rel_offset sp, CTX_SP
         sw      sp, TD_KCTX(a0)
 
         move    s0, a0                  # save @from pointer
