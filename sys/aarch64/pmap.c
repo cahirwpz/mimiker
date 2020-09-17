@@ -99,7 +99,6 @@ void pmap_set_modified(vm_page_t *pg) {
   panic("Not implemented!");
 }
 
-
 void pmap_activate(pmap_t *pmap) {
   panic("Not implemented!");
 }
