@@ -1,10 +1,8 @@
 #ifndef _SYS_PMAP_H_
 #define _SYS_PMAP_H_
 
+#include <stdbool.h>
 #include <sys/vm.h>
-#include <sys/queue.h>
-#include <sys/mutex.h>
-#include <machine/pmap.h>
 
 /*
  * Flags passed to pmap_enter may contain VM_PROT_* read/write/execute
@@ -26,13 +24,6 @@
 #define PMAP_WRITE_THROUGH (2 << PMAP_CACHE_SHIFT)
 #define PMAP_WRITE_BACK (3 << PMAP_CACHE_SHIFT)
 #define PMAP_CACHE_MASK (7 << PMAP_CACHE_SHIFT)
-
-typedef struct pmap {
-  pde_t *pde;              /* directory page table */
-  vm_pagelist_t pte_pages; /* pages we allocate in page table */
-  asid_t asid;
-  mtx_t mtx;
-} pmap_t;
 
 bool pmap_address_p(pmap_t *pmap, vaddr_t va);
 bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end);

@@ -15,6 +15,13 @@
 #include <sys/vm_physmem.h>
 #include <bitstring.h>
 
+typedef struct pmap {
+  pde_t *pde;              /* directory page table */
+  vm_pagelist_t pte_pages; /* pages we allocate in page table */
+  asid_t asid;
+  mtx_t mtx;
+} pmap_t;
+
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 
 #define PDE_OF(pmap, vaddr) ((pmap)->pde[PDE_INDEX(vaddr)])
