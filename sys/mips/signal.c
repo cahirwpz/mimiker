@@ -22,15 +22,12 @@ static void stack_unusable(thread_t *td, register_t sp) {
   /* This thread has a corrupted stack, it can no longer react on a signal with
    * a custom handler. Kill the process. */
   klog("User stack (%p) is corrupted, terminating with SIGILL!", sp);
-  mtx_unlock(&td->td_lock);
   sig_exit(td, SIGILL);
   __unreachable();
 }
 
 int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa) {
   thread_t *td = thread_self();
-
-  SCOPED_MTX_LOCK(&td->td_lock);
 
   user_ctx_t *uctx = td->td_uctx;
 
@@ -73,31 +70,29 @@ int sig_return(void) {
   thread_t *td = thread_self();
   sig_ctx_t ksc;
 
-  WITH_MTX_LOCK (&td->td_lock) {
-    user_ctx_t *uctx = td->td_uctx;
-    /* TODO: We assume the stored user context is where user stack is. This
-     * usually works, but the signal handler may switch the stack, or perform an
-     * arbitrary jump. It may also call sigreturn() when its stack is not empty
-     * (although it should not). Normally the C library tracks the location
-     * where the context was stored: it remembers the stack pointer at the point
-     * when the handler (or a wrapper!) was called, and passes that location
-     * back to us as an argument to sigreturn (which is, again, provided to the
-     * user program with a wrapper). We don't do any of that fancy stuff yet,
-     * but when we do, the following will need to get the scp pointer address
-     * from a syscall argument. */
-    sig_ctx_t *scp = (sig_ctx_t *)((intptr_t *)_REG(uctx, SP) + 1);
-    error = copyin_s(scp, ksc);
-    if (error)
-      return error;
-    if (ksc.magic != SIG_CTX_MAGIC) {
-      klog("User context at %p corrupted!", scp);
-      sig_trap((ctx_t *)uctx, SIGILL);
-      return EINVAL;
-    }
-
-    /* Restore user context. */
-    user_ctx_copy(uctx, &ksc.uctx);
+  user_ctx_t *uctx = td->td_uctx;
+  /* TODO: We assume the stored user context is where user stack is. This
+   * usually works, but the signal handler may switch the stack, or perform an
+   * arbitrary jump. It may also call sigreturn() when its stack is not empty
+   * (although it should not). Normally the C library tracks the location
+   * where the context was stored: it remembers the stack pointer at the point
+   * when the handler (or a wrapper!) was called, and passes that location
+   * back to us as an argument to sigreturn (which is, again, provided to the
+   * user program with a wrapper). We don't do any of that fancy stuff yet,
+   * but when we do, the following will need to get the scp pointer address
+   * from a syscall argument. */
+  sig_ctx_t *scp = (sig_ctx_t *)((intptr_t *)_REG(uctx, SP) + 1);
+  error = copyin_s(scp, ksc);
+  if (error)
+    return error;
+  if (ksc.magic != SIG_CTX_MAGIC) {
+    klog("User context at %p corrupted!", scp);
+    sig_trap((ctx_t *)uctx, SIGILL);
+    return EINVAL;
   }
+
+  /* Restore user context. */
+  user_ctx_copy(uctx, &ksc.uctx);
 
   WITH_MTX_LOCK (&td->td_proc->p_lock)
     error = do_sigprocmask(SIG_SETMASK, &ksc.mask, NULL);

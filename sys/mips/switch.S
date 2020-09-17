@@ -76,7 +76,7 @@ ctx_save:
 
         # release @from thread spin lock
         jal     spin_unlock
-        addu    a0, s0, TD_SPIN         # (delay) 1st arg - @from spin lock
+        addu    a0, s0, TD_LOCK         # (delay) 1st arg - @from spin lock
 
 ctx_resume:
         # update curthread pointer to reference @to thread
@@ -92,7 +92,7 @@ ctx_resume:
         # acquire @to thread spin lock 
         la      a1, ctx_resume          # 2nd arg - waiting point
         jal     _spin_lock
-        addu    a0, s1, TD_SPIN         # (delay) 1st arg - @to spin lock
+        addu    a0, s1, TD_LOCK         # (delay) 1st arg - @to spin lock
 
         # Enable interrupts finishing safe interlock on td_spin.
         jal     intr_enable
