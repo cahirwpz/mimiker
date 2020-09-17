@@ -215,7 +215,7 @@ static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
 /* TODO: implement */
 void pmap_remove_pde(pmap_t *pmap, vaddr_t vaddr);
 
-/* 
+/*
  * User physical map switching routines.
  */
 
@@ -366,7 +366,7 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
 }
 
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
-  SCOPED_MTX_LOCK (&pmap->mtx);
+  SCOPED_MTX_LOCK(&pmap->mtx);
   return pmap_extract_nolock(pmap, va, pap);
 }
 
@@ -431,7 +431,7 @@ void pmap_set_modified(vm_page_t *pg) {
   pmap_modify_flags(pg, PTE_DIRTY, 0);
 }
 
-/* 
+/*
  * Physical map management routines.
  */
 
@@ -465,8 +465,9 @@ pmap_t *pmap_new(void) {
 void pmap_delete(pmap_t *pmap) {
   assert(pmap != pmap_kernel());
 
-  /* TODO: remove all mappings from TLB, evict related cache lines */
-  WITH_MTX_LOCK(&pmap->mtx) {
+  /* This is nasty... ASID will change with every involunary context switch,
+   * but we must to reference physical map when it's activated. */
+  WITH_NO_PREEMPTION {
     pmap_activate(pmap);
     while (!TAILQ_EMPTY(&pmap->pv_list)) {
       pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
@@ -485,9 +486,9 @@ void pmap_delete(pmap_t *pmap) {
     }
     kmem_free(pmap->pde, PAGESIZE);
     free_asid(pmap->asid);
+    /* TODO: remove all mappings from TLB, evict related cache lines */
     pmap_activate(NULL);
   }
 
   pool_free(P_PMAP, pmap);
 }
-
