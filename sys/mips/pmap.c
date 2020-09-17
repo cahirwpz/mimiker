@@ -9,7 +9,6 @@
 #include <sys/kmem.h>
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
-#include <sys/spinlock.h>
 #include <sys/mutex.h>
 #include <sys/sched.h>
 #include <sys/vm_physmem.h>
@@ -33,13 +32,37 @@ typedef struct pv_entry {
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 
+static pte_t vm_prot_map[] = {
+  [VM_PROT_NONE] = 0,
+  [VM_PROT_READ] = PTE_VALID | PTE_NO_EXEC,
+  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_NO_READ | PTE_NO_EXEC,
+  [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_NO_EXEC,
+  [VM_PROT_EXEC] = PTE_VALID | PTE_NO_READ,
+  [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID,
+  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY | PTE_NO_READ,
+  [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
+};
+
+static pmap_t kernel_pmap;
+alignas(PAGESIZE) pte_t _kernel_pmap_pde[PT_ENTRIES];
+static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
+static spin_t *asid_lock = &SPIN_INITIALIZER(0);
+
 #define PDE_OF(pmap, vaddr) ((pmap)->pde[PDE_INDEX(vaddr)])
 #define PTE_OF(pmap, vaddr) (PT_BASE[(vaddr) >> PTE_INDEX_SHIFT])
 #define PTE_FRAME_ADDR(pte) (PTE_PFN_OF(pte) * PAGESIZE)
 #define PAGE_OFFSET(x) ((x) & (PAGESIZE - 1))
 
-static bool is_valid_pde(pde_t pde) {
+/*
+ * Helper functions.
+ */
+
+static inline bool is_valid_pde(pde_t pde) {
   return pde & PDE_VALID;
+}
+
+static inline pte_t empty_pte(pmap_t *pmap) {
+  return (pmap == pmap_kernel()) ? PTE_GLOBAL : 0;
 }
 
 static bool user_addr_p(vaddr_t addr) {
@@ -66,14 +89,25 @@ inline bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   return pmap_start(pmap) <= start && end <= pmap_end(pmap);
 }
 
-static pmap_t kernel_pmap;
-alignas(PAGESIZE) pte_t _kernel_pmap_pde[PT_ENTRIES];
-static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
-static spin_t *asid_lock = &SPIN_INITIALIZER(0);
-
-static inline pte_t empty_pte(pmap_t *pmap) {
-  return (pmap == pmap_kernel()) ? PTE_GLOBAL : 0;
+inline pmap_t *pmap_kernel(void) {
+  return &kernel_pmap;
 }
+
+inline pmap_t *pmap_user(void) {
+  return PCPU_GET(curpmap);
+}
+
+pmap_t *pmap_lookup(vaddr_t addr) {
+  if (kern_addr_p(addr))
+    return pmap_kernel();
+  if (user_addr_p(addr))
+    return pmap_user();
+  return NULL;
+}
+
+/*
+ * Address space identifiers management.
+ */
 
 static asid_t alloc_asid(void) {
   int free;
@@ -94,26 +128,39 @@ static void free_asid(asid_t asid) {
   tlb_invalidate_asid(asid);
 }
 
-static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr);
+/*
+ * Physical-to-virtual entries are managed for all pageable mappings.
+ */
 
-static void update_wired_pde(pmap_t *umap) {
-  pmap_t *kmap = pmap_kernel();
-
-  /* Both ENTRYLO0 and ENTRYLO1 must have G bit set for address translation
-   * to skip ASID check. */
-  tlbentry_t e = {.hi = PTE_VPN2(UPD_BASE),
-                  .lo0 = PTE_GLOBAL,
-                  .lo1 = PTE_PFN(MIPS_KSEG2_TO_PHYS(kmap->pde)) | PTE_KERNEL};
-
-  if (umap) {
-    pte_t pte = pmap_pte_read(kmap, (vaddr_t)umap->pde);
-    e.lo0 = PTE_PFN(PTE_FRAME_ADDR(pte)) | PTE_KERNEL;
-  }
-
-  tlb_write(0, &e);
+static void pv_add(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
+  pv_entry_t *pv = pool_alloc(P_PV, M_ZERO);
+  pv->pmap = pmap;
+  pv->va = va;
+  TAILQ_INSERT_TAIL(&pg->pv_list, pv, page_link);
+  TAILQ_INSERT_TAIL(&pmap->pv_list, pv, pmap_link);
 }
 
-/* Page Table is accessible only through physical addresses. */
+static pv_entry_t *pv_find(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
+  pv_entry_t *pv;
+  TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
+    if (pv->pmap == pmap && pv->va == va)
+      return pv;
+  }
+  return NULL;
+}
+
+static void pv_remove(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
+  pv_entry_t *pv = pv_find(pmap, va, pg);
+  assert(pv != NULL);
+  TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+  TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+  pool_free(P_PV, pv);
+}
+
+/* 
+ * Physical map management routines.
+ */
+
 static void pmap_setup(pmap_t *pmap) {
   pmap->asid = alloc_asid();
   mtx_init(&pmap->mtx, 0);
@@ -156,6 +203,10 @@ void pmap_delete(pmap_t *pmap) {
   pmap_reset(pmap);
   pool_free(P_PMAP, pmap);
 }
+
+/*
+ * Routines for accessing page table entries.
+ */
 
 /* pmap_pte_write calls pmap_add_pde so we need this declaration */
 static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr);
@@ -211,19 +262,39 @@ static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
 /* TODO: implement */
 void pmap_remove_pde(pmap_t *pmap, vaddr_t vaddr);
 
-static pte_t vm_prot_map[] = {
-  [VM_PROT_NONE] = 0,
-  [VM_PROT_READ] = PTE_VALID | PTE_NO_EXEC,
-  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_NO_READ | PTE_NO_EXEC,
-  [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_NO_EXEC,
-  [VM_PROT_EXEC] = PTE_VALID | PTE_NO_READ,
-  [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID,
-  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY | PTE_NO_READ,
-  [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
-};
+/* 
+ * User physical map switching routines.
+ */
+
+static void update_wired_pde(pmap_t *umap) {
+  pmap_t *kmap = pmap_kernel();
+
+  /* Both ENTRYLO0 and ENTRYLO1 must have G bit set for address translation
+   * to skip ASID check. */
+  tlbentry_t e = {.hi = PTE_VPN2(UPD_BASE),
+                  .lo0 = PTE_GLOBAL,
+                  .lo1 = PTE_PFN(MIPS_KSEG2_TO_PHYS(kmap->pde)) | PTE_KERNEL};
+
+  if (umap) {
+    pte_t pte = pmap_pte_read(kmap, (vaddr_t)umap->pde);
+    e.lo0 = PTE_PFN(PTE_FRAME_ADDR(pte)) | PTE_KERNEL;
+  }
+
+  tlb_write(0, &e);
+}
+
+void pmap_activate(pmap_t *pmap) {
+  SCOPED_NO_PREEMPTION();
+
+  PCPU_SET(curpmap, pmap);
+  update_wired_pde(pmap);
+
+  /* Set ASID for current process */
+  mips32_setentryhi(pmap ? pmap->asid : 0);
+}
 
 /*
- * Wired pages interface.
+ * Wired memory interface.
  */
 
 void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
@@ -261,32 +332,8 @@ bool pmap_kextract(vaddr_t va, paddr_t *pap) {
 }
 
 /*
- * All pageable mappings require physical-to-virtual entries.
+ * Pageable (user & kernel) memory interface.
  */
-
-static void pv_add(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
-  pv_entry_t *pv = pool_alloc(P_PV, M_ZERO);
-  pv->pmap = pmap;
-  pv->va = va;
-  TAILQ_INSERT_TAIL(&pg->pv_list, pv, page_link);
-  TAILQ_INSERT_TAIL(&pmap->pv_list, pv, pmap_link);
-}
-
-static pv_entry_t *pv_find(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
-  pv_entry_t *pv;
-  TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
-    if (pv->pmap == pmap && pv->va == va)
-      return pv;
-  }
-  return NULL;
-}
-
-static void pv_remove(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
-  pv_entry_t *pv = pv_find(pmap, va, pg);
-  assert(pv != NULL);
-  TAILQ_REMOVE(&pg->pv_list, pv, page_link);
-  TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
-}
 
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
                 unsigned flags) {
@@ -424,38 +471,4 @@ void pmap_set_referenced(vm_page_t *pg) {
 void pmap_set_modified(vm_page_t *pg) {
   pg->flags |= PG_MODIFIED;
   pmap_modify_flags(pg, PTE_DIRTY, 0);
-}
-
-/* TODO: at any given moment there're two page tables in use:
- *  - kernel-space pmap for kseg2 & kseg3
- *  - user-space pmap for useg
- * ks_pmap is shared across all vm_maps. How to switch us_pmap efficiently?
- * Correct solution needs to make sure no unwanted entries are left in TLB and
- * caches after the switch.
- */
-
-void pmap_activate(pmap_t *pmap) {
-  SCOPED_NO_PREEMPTION();
-
-  PCPU_SET(curpmap, pmap);
-  update_wired_pde(pmap);
-
-  /* Set ASID for current process */
-  mips32_setentryhi(pmap ? pmap->asid : 0);
-}
-
-inline pmap_t *pmap_kernel(void) {
-  return &kernel_pmap;
-}
-
-inline pmap_t *pmap_user(void) {
-  return PCPU_GET(curpmap);
-}
-
-pmap_t *pmap_lookup(vaddr_t addr) {
-  if (kern_addr_p(addr))
-    return pmap_kernel();
-  if (user_addr_p(addr))
-    return pmap_user();
-  return NULL;
 }
