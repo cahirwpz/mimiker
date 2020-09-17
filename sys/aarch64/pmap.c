@@ -39,7 +39,7 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   panic("Not implemented!");
 }
 
-void pmap_kremove(vaddr_t start, vaddr_t end) {
+void pmap_kremove(vaddr_t va, size_t size) {
   panic("Not implemented!");
 }
 

@@ -250,18 +250,18 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   }
 }
 
-void pmap_kremove(vaddr_t start, vaddr_t end) {
+void pmap_kremove(vaddr_t va, size_t size) {
   pmap_t *pmap = pmap_kernel();
 
-  assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
-  assert(pmap_contains_p(pmap, start, end));
+  assert(page_aligned_p(va) && page_aligned_p(size));
+  assert(pmap_contains_p(pmap, va, va + size));
 
-  klog("%s: remove unmanaged mapping for %p - %p range", __func__, start,
-       end - 1);
+  klog("%s: remove unmanaged mapping for %p - %p range", __func__, va,
+       va + size - 1);
 
   WITH_MTX_LOCK (&kernel_pmap.mtx) {
-    for (vaddr_t va = start; va < end; va += PAGESIZE)
-      pmap_pte_write(pmap, va, PTE_GLOBAL, 0);
+    for (size_t off = 0; off < size; off += PAGESIZE)
+      pmap_pte_write(pmap, va + off, PTE_GLOBAL, 0);
   }
 }
 

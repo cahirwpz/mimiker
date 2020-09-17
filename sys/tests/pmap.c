@@ -56,7 +56,7 @@ static int test_pmap_kenter(void) {
   done = try_store_word(ptr, 0xDEADC0DE);
   assert(!done);
 
-  pmap_kremove(va, va + PAGESIZE);
+  pmap_kremove(va, PAGESIZE);
   kva_free(va, PAGESIZE);
   vm_page_free(pg);
 
@@ -72,7 +72,7 @@ static int test_pmap_kextract(void) {
   bool ok = pmap_kextract(va, &pa);
   assert(ok && pa == pg->paddr);
 
-  pmap_kremove(va, va + PAGESIZE);
+  pmap_kremove(va, PAGESIZE);
   kva_free(va, PAGESIZE);
   vm_page_free(pg);
 
@@ -107,7 +107,7 @@ static int test_pmap_page_copy(void) {
     assert(done && val == i);
   }
 
-  pmap_kremove(va, va + PAGESIZE);
+  pmap_kremove(va, PAGESIZE);
   kva_free(va, PAGESIZE);
   vm_page_free(pg1);
   vm_page_free(pg2);
