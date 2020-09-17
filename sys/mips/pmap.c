@@ -297,18 +297,7 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
 }
 
 bool pmap_kextract(vaddr_t va, paddr_t *pap) {
-  pmap_t *pmap = pmap_kernel();
-
-  if (!pmap_address_p(pmap, va))
-    return false;
-
-  pte_t pte = pmap_pte_read(pmap, va);
-  paddr_t pa = PTE_FRAME_ADDR(pte);
-  if (pa == 0)
-    return false;
-
-  *pap = pa | PAGE_OFFSET(va);
-  return true;
+  return pmap_extract(pmap_kernel(), va, pap);
 }
 
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
