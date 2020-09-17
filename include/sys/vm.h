@@ -45,16 +45,12 @@ typedef TAILQ_HEAD(vm_pagelist, vm_page) vm_pagelist_t;
 typedef RB_HEAD(vm_pagetree, vm_page) vm_pagetree_t;
 
 typedef struct pmap pmap_t;
+typedef struct pv_entry pv_entry_t;
 typedef struct vm_map vm_map_t;
 typedef struct vm_segment vm_segment_t;
 typedef struct vm_object vm_object_t;
 typedef struct vm_pager vm_pager_t;
 typedef struct slab slab_t;
-
-typedef struct pv_entry {
-  vaddr_t va;
-  pmap_t *pmap;
-} pv_entry_t;
 
 struct vm_page {
   union {
@@ -66,12 +62,12 @@ struct vm_page {
     } obj;
     slab_t *slab; /* active when page is used by pool allocator */
   };
-  pv_entry_t pv;       /* association with address space */
-  vm_object_t *object; /* object owning that page */
-  off_t offset;        /* offset to page in vm_object */
-  paddr_t paddr;       /* physical address of page */
-  pg_flags_t flags;    /* page flags (used by physmem as well) */
-  uint32_t size;       /* size of page in PAGESIZE units */
+  TAILQ_HEAD(, pv_entry) pv_list; /* where this page is mapped? */
+  vm_object_t *object;            /* object owning that page */
+  off_t offset;                   /* offset to page in vm_object */
+  paddr_t paddr;                  /* physical address of page */
+  pg_flags_t flags;               /* page flags (used by physmem as well) */
+  uint32_t size;                  /* size of page in PAGESIZE units */
 };
 
 #endif /* !_SYS_VM_H_ */

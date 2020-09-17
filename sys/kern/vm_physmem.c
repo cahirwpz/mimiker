@@ -107,6 +107,7 @@ void init_vm_page(void) {
       page->paddr = pa;
       page->size = size;
       page->flags = seg->used ? PG_ALLOCATED : 0;
+      TAILQ_INIT(&page->pv_list);
     }
 
     /* Insert pages into free lists of corresponding size. */
