@@ -157,53 +157,6 @@ static void pv_remove(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
   pool_free(P_PV, pv);
 }
 
-/* 
- * Physical map management routines.
- */
-
-static void pmap_setup(pmap_t *pmap) {
-  pmap->asid = alloc_asid();
-  mtx_init(&pmap->mtx, 0);
-  TAILQ_INIT(&pmap->pte_pages);
-  TAILQ_INIT(&pmap->pv_list);
-}
-
-/* TODO: remove all mappings from TLB, evict related cache lines */
-void pmap_reset(pmap_t *pmap) {
-  while (!TAILQ_EMPTY(&pmap->pte_pages)) {
-    vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
-    TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
-    vm_page_free(pg);
-  }
-  kmem_free(pmap->pde, PAGESIZE);
-  free_asid(pmap->asid);
-}
-
-void init_pmap(void) {
-  pmap_setup(&kernel_pmap);
-  kernel_pmap.pde = _kernel_pmap_pde;
-}
-
-pmap_t *pmap_new(void) {
-  pmap_t *pmap = pool_alloc(P_PMAP, M_ZERO);
-  pmap_setup(pmap);
-
-  pmap->pde = kmem_alloc(PAGESIZE, M_NOWAIT | M_ZERO);
-  klog("Page directory table allocated at %p", (vaddr_t)pmap->pde);
-
-  paddr_t pa;
-  pmap_extract(pmap_kernel(), (vaddr_t)pmap->pde, &pa);
-
-  pmap->pde[PDE_INDEX(PT_BASE)] = PTE_PFN(pa) | PTE_KERNEL;
-
-  return pmap;
-}
-
-void pmap_delete(pmap_t *pmap) {
-  pmap_reset(pmap);
-  pool_free(P_PMAP, pmap);
-}
-
 /*
  * Routines for accessing page table entries.
  */
@@ -335,6 +288,19 @@ bool pmap_kextract(vaddr_t va, paddr_t *pap) {
  * Pageable (user & kernel) memory interface.
  */
 
+static bool pmap_extract_nolock(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
+  if (!pmap_address_p(pmap, va))
+    return false;
+
+  pte_t pte = pmap_pte_read(pmap, va);
+  paddr_t pa = PTE_FRAME_ADDR(pte);
+  if (pa == 0)
+    return false;
+
+  *pap = pa | PAGE_OFFSET(va);
+  return true;
+}
+
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
                 unsigned flags) {
   paddr_t pa = pg->paddr;
@@ -371,7 +337,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
       paddr_t pa;
-      if (pmap_extract(pmap, va, &pa)) {
+      if (pmap_extract_nolock(pmap, va, &pa)) {
         vm_page_t *pg = vm_page_find(pa);
         pv_remove(pmap, va, pg);
         pmap_pte_write(pmap, va, empty_pte(pmap), 0);
@@ -400,16 +366,8 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
 }
 
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
-  if (!pmap_address_p(pmap, va))
-    return false;
-
-  pte_t pte = pmap_pte_read(pmap, va);
-  paddr_t pa = PTE_FRAME_ADDR(pte);
-  if (pa == 0)
-    return false;
-
-  *pap = pa | PAGE_OFFSET(va);
-  return true;
+  SCOPED_MTX_LOCK (&pmap->mtx);
+  return pmap_extract_nolock(pmap, va, pap);
 }
 
 #define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
@@ -472,3 +430,64 @@ void pmap_set_modified(vm_page_t *pg) {
   pg->flags |= PG_MODIFIED;
   pmap_modify_flags(pg, PTE_DIRTY, 0);
 }
+
+/* 
+ * Physical map management routines.
+ */
+
+static void pmap_setup(pmap_t *pmap) {
+  pmap->asid = alloc_asid();
+  mtx_init(&pmap->mtx, 0);
+  TAILQ_INIT(&pmap->pte_pages);
+  TAILQ_INIT(&pmap->pv_list);
+}
+
+void init_pmap(void) {
+  pmap_setup(&kernel_pmap);
+  kernel_pmap.pde = _kernel_pmap_pde;
+}
+
+pmap_t *pmap_new(void) {
+  pmap_t *pmap = pool_alloc(P_PMAP, M_ZERO);
+  pmap_setup(pmap);
+
+  pmap->pde = kmem_alloc(PAGESIZE, M_NOWAIT | M_ZERO);
+  klog("Page directory table allocated at %p", (vaddr_t)pmap->pde);
+
+  paddr_t pa;
+  pmap_extract(pmap_kernel(), (vaddr_t)pmap->pde, &pa);
+
+  pmap->pde[PDE_INDEX(PT_BASE)] = PTE_PFN(pa) | PTE_KERNEL;
+
+  return pmap;
+}
+
+void pmap_delete(pmap_t *pmap) {
+  assert(pmap != pmap_kernel());
+
+  /* TODO: remove all mappings from TLB, evict related cache lines */
+  WITH_MTX_LOCK(&pmap->mtx) {
+    pmap_activate(pmap);
+    while (!TAILQ_EMPTY(&pmap->pv_list)) {
+      pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
+      vm_page_t *pg;
+      paddr_t pa;
+      pmap_extract_nolock(pmap, pv->va, &pa);
+      pg = vm_page_find(pa);
+      TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+      TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+      pool_free(P_PV, pv);
+    }
+    while (!TAILQ_EMPTY(&pmap->pte_pages)) {
+      vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
+      TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
+      vm_page_free(pg);
+    }
+    kmem_free(pmap->pde, PAGESIZE);
+    free_asid(pmap->asid);
+    pmap_activate(NULL);
+  }
+
+  pool_free(P_PMAP, pmap);
+}
+
