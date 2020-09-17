@@ -229,14 +229,12 @@ void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
 
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
                 unsigned flags) {
-  vaddr_t va_end = va + PG_SIZE(pg);
-  paddr_t pa = PG_START(pg);
+  paddr_t pa = pg->paddr;
 
   assert(page_aligned_p(va));
-  assert(pmap_contains_p(pmap, va, va_end));
-  assert(pa != 0);
+  assert(pmap_address_p(pmap, pa));
 
-  klog("Enter virtual mapping %p-%p for frame %p", va, va_end, pa);
+  klog("Enter virtual mapping %p for frame %p", va, pa);
 
   bool kern_mapping = (pmap == pmap_kernel());
 
@@ -245,15 +243,13 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   pte_t pte = (vm_prot_map[prot] & mask) | empty_pte(pmap);
 
   WITH_MTX_LOCK (&pmap->mtx) {
-    for (; va < va_end; va += PAGESIZE, pa += PAGESIZE, pg++) {
-      pg->pv.pmap = pmap;
-      pg->pv.va = va;
-      if (kern_mapping)
-        pg->flags |= PG_MODIFIED | PG_REFERENCED;
-      else
-        pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
-      pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
-    }
+    pg->pv.pmap = pmap;
+    pg->pv.va = va;
+    if (kern_mapping)
+      pg->flags |= PG_MODIFIED | PG_REFERENCED;
+    else
+      pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
+    pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
   }
 }
 
