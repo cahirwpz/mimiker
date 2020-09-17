@@ -5,44 +5,123 @@
 #include <sys/ktest.h>
 #include <sys/sched.h>
 #include <sys/kmem.h>
-#include <sys/kasan.h>
 
-#define PAGES 16
+static vm_page_t *x_vm_page_alloc(size_t npages) {
+  vm_page_t *pg = vm_page_alloc(npages);
+  assert(pg != NULL);
+  return pg;
+}
 
-static int test_kernel_pmap(void) {
-  pmap_t *pmap = pmap_kernel();
-
-  vm_page_t *pg = vm_page_alloc(PAGES);
-  assert(pg);
-
-  size_t size = pg->size * PAGESIZE;
-
+static vaddr_t x_kva_alloc(size_t size) {
   vaddr_t vaddr = kva_alloc(size);
-  assert(vaddr);
+  assert(vaddr != 0);
+  return vaddr;
+}
 
-  kasan_mark_valid((void *)vaddr, size);
+/*
+ * Kernel physical map tests.
+ */
 
-  pmap_enter(pmap, vaddr, pg, VM_PROT_READ | VM_PROT_WRITE, 0);
+static int test_pmap_kenter(void) {
+  vm_page_t *pg = x_vm_page_alloc(1);
+  vaddr_t va = x_kva_alloc(PAGESIZE);
 
-  unsigned *ptr = (unsigned *)vaddr;
-  for (unsigned i = 0; i < size / sizeof(unsigned); i++)
-    assert(try_store_word(&ptr[i], i % 123));
+  bool done;
+  unsigned i, val;
+  unsigned *ptr = (unsigned *)va;
 
-  for (unsigned i = 0; i < size / sizeof(unsigned); i++) {
-    unsigned val;
-    assert(try_load_word(&ptr[i], &val));
-    assert(val == i % 123);
+  /* read-write */
+  pmap_kenter(va, pg->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
+  for (i = 0; i < PAGESIZE / sizeof(unsigned); i++) {
+    done = try_store_word(&ptr[i], i);
+    assert(done);
   }
 
-  pmap_remove(pmap, vaddr, vaddr + size);
+  /* read-only */
+  pmap_kenter(va, pg->paddr, VM_PROT_READ, 0);
+  for (i = 0; i < PAGESIZE / sizeof(unsigned); i++) {
+    done = try_load_word(&ptr[i], &val);
+    assert(done && val == i);
+  }
 
-  kasan_mark_invalid((void *)vaddr, size, KASAN_CODE_KMEM_FREED);
+  done = try_store_word(ptr, 0xDEADC0DE);
+  assert(!done);
 
-  kva_free(vaddr, size);
+  /* no access allowed */
+  pmap_kenter(va, pg->paddr, 0, 0);
+
+  done = try_load_word(ptr, &val);
+  assert(!done);
+
+  done = try_store_word(ptr, 0xDEADC0DE);
+  assert(!done);
+
+  pmap_kremove(va, va + PAGESIZE);
+  kva_free(va, PAGESIZE);
   vm_page_free(pg);
 
   return KTEST_SUCCESS;
 }
+
+static int test_pmap_kextract(void) {
+  vm_page_t *pg = x_vm_page_alloc(1);
+  vaddr_t va = x_kva_alloc(PAGESIZE);
+  pmap_kenter(va, pg->paddr, VM_PROT_READ, 0);
+
+  paddr_t pa;
+  bool ok = pmap_kextract(va, &pa);
+  assert(ok && pa == pg->paddr);
+
+  pmap_kremove(va, va + PAGESIZE);
+  kva_free(va, PAGESIZE);
+  vm_page_free(pg);
+
+  return KTEST_SUCCESS;
+}
+
+static int test_pmap_page_copy(void) {
+  vm_page_t *pg1 = x_vm_page_alloc(1);
+  vm_page_t *pg2 = x_vm_page_alloc(2);
+  vaddr_t va = x_kva_alloc(PAGESIZE);
+
+  bool done;
+  unsigned i, val;
+  unsigned *ptr = (unsigned *)va;
+
+  pmap_kenter(va, pg1->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
+  for (i = 0; i < PAGESIZE / sizeof(unsigned); i++) {
+    done = try_store_word(&ptr[i], i);
+    assert(done);
+  }
+
+  pmap_copy_page(pg1, pg2);
+  pmap_zero_page(pg1);
+  for (i = 0; i < PAGESIZE / sizeof(unsigned); i++) {
+    done = try_load_word(&ptr[i], &val);
+    assert(done && val == 0);
+  }
+
+  pmap_kenter(va, pg2->paddr, VM_PROT_READ, 0);
+  for (i = 0; i < PAGESIZE / sizeof(unsigned); i++) {
+    done = try_load_word(&ptr[i], &val);
+    assert(done && val == i);
+  }
+
+  pmap_kremove(va, va + PAGESIZE);
+  kva_free(va, PAGESIZE);
+  vm_page_free(pg1);
+  vm_page_free(pg2);
+
+  return KTEST_SUCCESS;
+}
+
+KTEST_ADD(pmap_kenter, test_pmap_kenter, 0);
+KTEST_ADD(pmap_kextract, test_pmap_kextract, 0);
+KTEST_ADD(pmap_page_copy, test_pmap_page_copy, 0);
+
+/*
+ * User physical map tests.
+ */
 
 static int test_user_pmap(void) {
   /* This test mustn't be preempted since PCPU's user-space vm_map
@@ -56,8 +135,8 @@ static int test_user_pmap(void) {
 
   vaddr_t start = 0x1001000;
 
-  vm_page_t *pg1 = vm_page_alloc(1);
-  vm_page_t *pg2 = vm_page_alloc(1);
+  vm_page_t *pg1 = x_vm_page_alloc(1);
+  vm_page_t *pg2 = x_vm_page_alloc(1);
 
   pmap_activate(pmap1);
   pmap_enter(pmap1, start, pg1, VM_PROT_READ | VM_PROT_WRITE, 0);
@@ -93,7 +172,7 @@ static int test_rmbits(void) {
 
   volatile int *ptr = (int *)0x1001000;
 
-  vm_page_t *pg = vm_page_alloc(1);
+  vm_page_t *pg = x_vm_page_alloc(1);
 
   pmap_activate(pmap);
   pmap_enter(pmap, (vaddr_t)ptr, pg, VM_PROT_READ | VM_PROT_WRITE, 0);
@@ -125,99 +204,5 @@ static int test_rmbits(void) {
   return KTEST_SUCCESS;
 }
 
-static int test_pmap_kenter(void) {
-  SCOPED_NO_PREEMPTION();
-
-  vm_page_t *pg = vm_page_alloc(1);
-  assert(pg);
-  vaddr_t va = kva_alloc(PAGESIZE);
-  assert(va);
-
-  pmap_kenter(va, pg->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
-
-  kasan_mark_valid((void *)va, PAGESIZE);
-
-  volatile uint64_t *ptr = (uint64_t *)va;
-  *ptr = 0xDEADC0DE;
-  assert(*ptr == 0xDEADC0DE);
-
-  kasan_mark_invalid((void *)va, PAGESIZE, KASAN_CODE_KMEM_FREED);
-
-  pmap_kremove(va, va + PAGESIZE);
-  kva_free(va, PAGESIZE);
-  vm_page_free(pg);
-
-  return KTEST_SUCCESS;
-}
-
-static int test_pmap_page(void) {
-  SCOPED_NO_PREEMPTION();
-
-  vm_page_t *pg1 = vm_page_alloc(1);
-  vm_page_t *pg2 = vm_page_alloc(2);
-  assert(pg1 && pg2);
-
-  volatile vaddr_t va = kva_alloc(PAGESIZE);
-  assert(va);
-
-  pmap_kenter(va, pg1->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
-
-  kasan_mark_valid((void *)va, PAGESIZE);
-
-  volatile uint8_t *buf = (uint8_t *)va;
-  for (int i = 0; i < PAGESIZE; i++)
-    buf[i] = i % 123;
-
-  pmap_copy_page(pg1, pg2);
-  pmap_zero_page(pg1);
-
-  for (int i = 0; i < PAGESIZE; i++)
-    assert(buf[i] == 0);
-
-  pmap_kremove(va, va + PAGESIZE);
-
-  pmap_kenter(va, pg2->paddr, VM_PROT_READ, 0);
-
-  for (int i = 0; i < PAGESIZE; i++)
-    assert(buf[i] == i % 123);
-
-  kasan_mark_invalid((void *)va, PAGESIZE, KASAN_CODE_KMEM_FREED);
-
-  pmap_kremove(va, va + PAGESIZE);
-  kva_free(va, PAGESIZE);
-  vm_page_free(pg1);
-  vm_page_free(pg2);
-
-  return KTEST_SUCCESS;
-}
-
-static int test_pmap_kextract(void) {
-  SCOPED_NO_PREEMPTION();
-
-  vm_page_t *pg = vm_page_alloc(1);
-  assert(pg);
-
-  vaddr_t va = kva_alloc(PAGESIZE);
-  assert(va);
-
-  pmap_kenter(va, pg->paddr, VM_PROT_READ, 0);
-
-  paddr_t pa;
-  bool rc = pmap_kextract(va, &pa);
-  assert(rc);
-  assert(pa == pg->paddr);
-
-  pmap_kremove(va, va + PAGESIZE);
-
-  kva_free(va, PAGESIZE);
-  vm_page_free(pg);
-
-  return KTEST_SUCCESS;
-}
-
-KTEST_ADD(pmap_kernel, test_kernel_pmap, 0);
 KTEST_ADD(pmap_user, test_user_pmap, 0);
 KTEST_ADD(pmap_rmbits, test_rmbits, 0);
-KTEST_ADD(pmap_kenter, test_pmap_kenter, 0);
-KTEST_ADD(pmap_page, test_pmap_page, 0);
-KTEST_ADD(pmap_kextract, test_pmap_kextract, 0);
