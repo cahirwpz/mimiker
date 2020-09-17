@@ -72,7 +72,7 @@
 
 ASENTRY(handle_kern_trap)
         save_ctx 1
-        bl cpu_kern_trap_handler
+        bl kern_trap_handler
 kern_exc_leave:
         load_ctx 1
         eret
@@ -87,7 +87,7 @@ ASEND(handle_kern_intr)
 
 ASENTRY(handle_user_trap)
         save_ctx 0
-        bl cpu_user_trap_handler
+        bl user_trap_handler
 user_exc_leave:
         load_ctx 0
         eret
