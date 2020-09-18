@@ -39,7 +39,7 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   panic("Not implemented!");
 }
 
-void pmap_kremove(vaddr_t start, vaddr_t end) {
+void pmap_kremove(vaddr_t va, size_t size) {
   panic("Not implemented!");
 }
 
@@ -51,7 +51,15 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   panic("Not implemented!");
 }
 
+bool pmap_kextract(vaddr_t va, paddr_t *pap) {
+  panic("Not implemented!");
+}
+
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
+  panic("Not implemented!");
+}
+
+void pmap_page_remove(vm_page_t *pg) {
   panic("Not implemented!");
 }
 
