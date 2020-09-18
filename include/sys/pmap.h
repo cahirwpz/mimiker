@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <sys/vm.h>
 
+typedef struct pmap pmap_t;
+
 /*
  * Flags passed to pmap_enter may contain VM_PROT_* read/write/execute
  * permissions. This information may be used to seed modified/referenced

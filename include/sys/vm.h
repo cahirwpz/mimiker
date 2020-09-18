@@ -6,10 +6,6 @@
 #include <sys/tree.h>
 #include <machine/vm_param.h>
 
-#define PG_SIZE(pg) ((pg)->size * PAGESIZE)
-#define PG_START(pg) ((pg)->paddr)
-#define PG_END(pg) ((pg)->paddr + PG_SIZE(pg))
-
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
 
 /* Real kernel end in kernel virtual address space. */
@@ -44,12 +40,8 @@ typedef struct vm_page vm_page_t;
 typedef TAILQ_HEAD(vm_pagelist, vm_page) vm_pagelist_t;
 typedef RB_HEAD(vm_pagetree, vm_page) vm_pagetree_t;
 
-typedef struct pmap pmap_t;
 typedef struct pv_entry pv_entry_t;
-typedef struct vm_map vm_map_t;
-typedef struct vm_segment vm_segment_t;
 typedef struct vm_object vm_object_t;
-typedef struct vm_pager vm_pager_t;
 typedef struct slab slab_t;
 
 struct vm_page {

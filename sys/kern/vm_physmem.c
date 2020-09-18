@@ -9,6 +9,10 @@
 #define FREELIST(page) (&freelist[log2((page)->size)])
 #define PAGECOUNT(page) (pagecount[log2((page)->size)])
 
+#define PG_SIZE(pg) ((pg)->size * PAGESIZE)
+#define PG_START(pg) ((pg)->paddr)
+#define PG_END(pg) ((pg)->paddr + PG_SIZE(pg))
+
 #define PM_NQUEUES 16U
 
 typedef struct vm_physseg {
