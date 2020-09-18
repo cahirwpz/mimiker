@@ -59,6 +59,10 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
   panic("Not implemented!");
 }
 
+void pmap_page_remove(vm_page_t *pg) {
+  panic("Not implemented!");
+}
+
 void pmap_zero_page(vm_page_t *pg) {
   panic("Not implemented!");
 }
