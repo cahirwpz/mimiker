@@ -84,7 +84,7 @@ void kva_unmap(vaddr_t ptr, size_t size) {
     vm_page_free(pg);
   }
 
-  pmap_kremove((vaddr_t)ptr, end);
+  pmap_kremove((vaddr_t)ptr, size);
 }
 
 void *kmem_alloc(size_t size, kmem_flags_t flags) {

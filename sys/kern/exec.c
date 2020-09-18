@@ -365,6 +365,7 @@ static int _do_execve(exec_args_t *args) {
    * previous vm_map, and permanently assign this one to the current process. */
   destroy_vmspace(&saved);
 
+  vm_map_activate(p->p_uspace);
   vm_map_dump(p->p_uspace);
 
   kfree(M_STR, p->p_elfpath);
