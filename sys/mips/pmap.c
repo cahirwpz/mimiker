@@ -65,6 +65,10 @@ static inline pte_t empty_pte(pmap_t *pmap) {
   return (pmap == pmap_kernel()) ? PTE_GLOBAL : 0;
 }
 
+static inline bool is_active_pmap(pmap_t *pmap) {
+  return pmap == pmap_user() || pmap == pmap_kernel();
+}
+
 static bool user_addr_p(vaddr_t addr) {
   return (addr >= PMAP_USER_BEGIN) && (addr < PMAP_USER_END);
 }
@@ -166,6 +170,7 @@ static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr);
 
 /*! \brief Reads the PTE mapping virtual address \a vaddr. */
 static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr) {
+  assert(is_active_pmap(pmap));
   pde_t pde = PDE_OF(pmap, vaddr);
   if (!is_valid_pde(pde))
     return 0;
@@ -184,6 +189,7 @@ static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte,
   else
     pte |= PTE_CACHE_WRITE_BACK;
 
+  assert(is_active_pmap(pmap));
   pde_t pde = PDE_OF(pmap, vaddr);
   if (!is_valid_pde(pde))
     pde = pmap_add_pde(pmap, vaddr);
@@ -469,6 +475,7 @@ void pmap_delete(pmap_t *pmap) {
    * but we must to reference physical map when it's activated. */
   WITH_NO_PREEMPTION {
     pmap_activate(pmap);
+    assert(is_active_pmap(pmap));
     while (!TAILQ_EMPTY(&pmap->pv_list)) {
       pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
       vm_page_t *pg;
