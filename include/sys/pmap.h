@@ -48,7 +48,7 @@ bool pmap_kextract(vaddr_t va, paddr_t *pap);
 void pmap_kremove(vaddr_t va, size_t size);
 
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot);
-void pmap_page_protect(vm_page_t *pg, vm_prot_t prot);
+void pmap_page_remove(vm_page_t *pg);
 
 void pmap_zero_page(vm_page_t *pg);
 void pmap_copy_page(vm_page_t *src, vm_page_t *dst);

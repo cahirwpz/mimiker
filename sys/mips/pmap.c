@@ -376,6 +376,21 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
   return pmap_extract_nolock(pmap, va, pap);
 }
 
+void pmap_page_remove(vm_page_t *pg) {
+  while (!TAILQ_EMPTY(&pg->pv_list)) {
+    pv_entry_t *pv = TAILQ_FIRST(&pg->pv_list);
+    pmap_t *pmap = pv->pmap;
+    vaddr_t va = pv->va;
+    TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+    TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+    WITH_NO_PREEMPTION {
+      pmap_activate(pmap);
+      pmap_pte_write(pmap, va, empty_pte(pmap), 0);
+    }
+    pool_free(P_PV, pv);
+  }
+}
+
 #define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
 
 void pmap_zero_page(vm_page_t *pg) {
