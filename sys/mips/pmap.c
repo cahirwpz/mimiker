@@ -6,7 +6,6 @@
 #include <mips/mips.h>
 #include <mips/tlb.h>
 #include <mips/pmap.h>
-#include <sys/kmem.h>
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
 #include <sys/mutex.h>
@@ -17,7 +16,7 @@
 typedef struct pmap {
   mtx_t mtx;                      /* protects all fields in this structure */
   asid_t asid;                    /* address space identifier */
-  pde_t *pde;                     /* directory page table */
+  pde_t *pde;                     /* directory page table (kseg0) */
   vm_pagelist_t pte_pages;        /* pages we allocate in page table */
   TAILQ_HEAD(, pv_entry) pv_list; /* all pages mapped by this physical map */
 } pmap_t;
@@ -44,14 +43,17 @@ static pte_t vm_prot_map[] = {
 };
 
 static pmap_t kernel_pmap;
-alignas(PAGESIZE) pte_t _kernel_pmap_pde[PT_ENTRIES];
+pde_t *_kernel_pmap_pde;
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
 
 #define PDE_OF(pmap, vaddr) ((pmap)->pde[PDE_INDEX(vaddr)])
-#define PTE_OF(pmap, vaddr) (PT_BASE[(vaddr) >> PTE_INDEX_SHIFT])
+#define PT_BASE(pde) ((pte_t *)(((pde) >> PTE_PFN_SHIFT) << PTE_INDEX_SHIFT))
+#define PTE_OF(pde, vaddr) (PT_BASE(pde)[PTE_INDEX(vaddr)])
+
 #define PTE_FRAME_ADDR(pte) (PTE_PFN_OF(pte) * PAGESIZE)
 #define PAGE_OFFSET(x) ((x) & (PAGESIZE - 1))
+#define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
 
 /*
  * Helper functions.
@@ -174,7 +176,7 @@ static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr) {
   pde_t pde = PDE_OF(pmap, vaddr);
   if (!is_valid_pde(pde))
     return 0;
-  return PTE_OF(pmap, vaddr);
+  return PTE_OF(pde, vaddr);
 }
 
 /*! \brief Writes \a pte as the new PTE mapping virtual address \a vaddr. */
@@ -193,7 +195,7 @@ static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte,
   pde_t pde = PDE_OF(pmap, vaddr);
   if (!is_valid_pde(pde))
     pde = pmap_add_pde(pmap, vaddr);
-  PTE_OF(pmap, vaddr) = pte;
+  PTE_OF(pde, vaddr) = pte;
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
 }
 
@@ -202,10 +204,11 @@ static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
   assert(!is_valid_pde(PDE_OF(pmap, vaddr)));
 
   vm_page_t *pg = vm_page_alloc(1);
-  pde_t pde = PTE_PFN(pg->paddr) | PTE_KERNEL;
+  pmap_zero_page(pg);
+  pde_t pde = PTE_PFN((vaddr_t)PG_KSEG0_ADDR(pg)) | PTE_KERNEL;
   PDE_OF(pmap, vaddr) = pde;
 
-  pte_t *pte = &PTE_OF(pmap, vaddr & PDE_INDEX_MASK);
+  pte_t *pte = &PTE_OF(pde, vaddr & PDE_INDEX_MASK);
   tlb_invalidate(PTE_VPN2((vaddr_t)pte) | PTE_ASID(pmap->asid));
 
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
@@ -232,12 +235,10 @@ static void update_wired_pde(pmap_t *umap) {
    * to skip ASID check. */
   tlbentry_t e = {.hi = PTE_VPN2(UPD_BASE),
                   .lo0 = PTE_GLOBAL,
-                  .lo1 = PTE_PFN(MIPS_KSEG2_TO_PHYS(kmap->pde)) | PTE_KERNEL};
+                  .lo1 = PTE_PFN(MIPS_KSEG0_TO_PHYS(kmap->pde)) | PTE_KERNEL};
 
-  if (umap) {
-    pte_t pte = pmap_pte_read(kmap, (vaddr_t)umap->pde);
-    e.lo0 = PTE_PFN(PTE_FRAME_ADDR(pte)) | PTE_KERNEL;
-  }
+  if (umap)
+    e.lo0 = PTE_PFN(MIPS_KSEG0_TO_PHYS(umap->pde)) | PTE_KERNEL;
 
   tlb_write(0, &e);
 }
@@ -391,8 +392,6 @@ void pmap_page_remove(vm_page_t *pg) {
   }
 }
 
-#define PG_KSEG0_ADDR(pg) (void *)(MIPS_PHYS_TO_KSEG0((pg)->paddr))
-
 void pmap_zero_page(vm_page_t *pg) {
   bzero(PG_KSEG0_ADDR(pg), PAGESIZE);
 }
@@ -400,8 +399,6 @@ void pmap_zero_page(vm_page_t *pg) {
 void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
   memcpy(PG_KSEG0_ADDR(dst), PG_KSEG0_ADDR(src), PAGESIZE);
 }
-
-#undef PG_KSEG0_ADDR
 
 static void pmap_modify_flags(vm_page_t *pg, pte_t set, pte_t clr) {
   pv_entry_t *pv;
@@ -411,10 +408,10 @@ static void pmap_modify_flags(vm_page_t *pg, pte_t set, pte_t clr) {
     WITH_MTX_LOCK (&pmap->mtx) {
       pde_t pde = PDE_OF(pmap, va);
       assert(is_valid_pde(pde));
-      pte_t pte = PTE_OF(pmap, va);
+      pte_t pte = PTE_OF(pde, va);
       pte |= set;
       pte &= ~clr;
-      PTE_OF(pmap, va) = pte;
+      PTE_OF(pde, va) = pte;
       tlb_invalidate(PTE_VPN2(va) | PTE_ASID(pmap->asid));
     }
   }
@@ -472,13 +469,10 @@ pmap_t *pmap_new(void) {
   pmap_t *pmap = pool_alloc(P_PMAP, M_ZERO);
   pmap_setup(pmap);
 
-  pmap->pde = kmem_alloc(PAGESIZE, M_NOWAIT | M_ZERO);
-  klog("Page directory table allocated at %p", (vaddr_t)pmap->pde);
-
-  paddr_t pa;
-  pmap_extract(pmap_kernel(), (vaddr_t)pmap->pde, &pa);
-
-  pmap->pde[PDE_INDEX(PT_BASE)] = PTE_PFN(pa) | PTE_KERNEL;
+  vm_page_t *pg = vm_page_alloc(1);
+  pmap_zero_page(pg);
+  pmap->pde = PG_KSEG0_ADDR(pg);
+  klog("Page directory table allocated at %p", pmap->pde);
 
   return pmap;
 }
@@ -506,7 +500,8 @@ void pmap_delete(pmap_t *pmap) {
       TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
       vm_page_free(pg);
     }
-    kmem_free(pmap->pde, PAGESIZE);
+    vm_page_t *pg = vm_page_find(MIPS_KSEG0_TO_PHYS(pmap->pde));
+    vm_page_free(pg);
     free_asid(pmap->asid);
     /* TODO: remove all mappings from TLB, evict related cache lines */
     pmap_activate(NULL);
