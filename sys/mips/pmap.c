@@ -67,10 +67,6 @@ static inline pte_t empty_pte(pmap_t *pmap) {
   return (pmap == pmap_kernel()) ? PTE_GLOBAL : 0;
 }
 
-static inline bool is_active_pmap(pmap_t *pmap) {
-  return pmap == pmap_user() || pmap == pmap_kernel();
-}
-
 static bool user_addr_p(vaddr_t addr) {
   return (addr >= PMAP_USER_BEGIN) && (addr < PMAP_USER_END);
 }
@@ -172,7 +168,6 @@ static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr);
 
 /*! \brief Reads the PTE mapping virtual address \a vaddr. */
 static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr) {
-  assert(is_active_pmap(pmap));
   pde_t pde = PDE_OF(pmap, vaddr);
   if (!is_valid_pde(pde))
     return 0;
@@ -191,7 +186,6 @@ static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte,
   else
     pte |= PTE_CACHE_WRITE_BACK;
 
-  assert(is_active_pmap(pmap));
   pde_t pde = PDE_OF(pmap, vaddr);
   if (!is_valid_pde(pde))
     pde = pmap_add_pde(pmap, vaddr);
@@ -243,14 +237,14 @@ static void update_wired_pde(pmap_t *umap) {
   tlb_write(0, &e);
 }
 
-void pmap_activate(pmap_t *pmap) {
+void pmap_activate(pmap_t *umap) {
   SCOPED_NO_PREEMPTION();
 
-  PCPU_SET(curpmap, pmap);
-  update_wired_pde(pmap);
+  PCPU_SET(curpmap, umap);
+  update_wired_pde(umap);
 
   /* Set ASID for current process */
-  mips32_setentryhi(pmap ? pmap->asid : 0);
+  mips32_setentryhi(umap ? umap->asid : 0);
 }
 
 /*
@@ -384,10 +378,7 @@ void pmap_page_remove(vm_page_t *pg) {
     vaddr_t va = pv->va;
     TAILQ_REMOVE(&pg->pv_list, pv, page_link);
     TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
-    WITH_NO_PREEMPTION {
-      pmap_activate(pmap);
-      pmap_pte_write(pmap, va, empty_pte(pmap), 0);
-    }
+    pmap_pte_write(pmap, va, empty_pte(pmap), 0);
     pool_free(P_PV, pv);
   }
 }
@@ -480,32 +471,25 @@ pmap_t *pmap_new(void) {
 void pmap_delete(pmap_t *pmap) {
   assert(pmap != pmap_kernel());
 
-  /* This is nasty... ASID will change with every involunary context switch,
-   * but we must to reference physical map when it's activated. */
-  WITH_NO_PREEMPTION {
-    pmap_activate(pmap);
-    assert(is_active_pmap(pmap));
-    while (!TAILQ_EMPTY(&pmap->pv_list)) {
-      pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
-      vm_page_t *pg;
-      paddr_t pa;
-      pmap_extract_nolock(pmap, pv->va, &pa);
-      pg = vm_page_find(pa);
-      TAILQ_REMOVE(&pg->pv_list, pv, page_link);
-      TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
-      pool_free(P_PV, pv);
-    }
-    while (!TAILQ_EMPTY(&pmap->pte_pages)) {
-      vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
-      TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
-      vm_page_free(pg);
-    }
-    vm_page_t *pg = vm_page_find(MIPS_KSEG0_TO_PHYS(pmap->pde));
-    vm_page_free(pg);
-    free_asid(pmap->asid);
-    /* TODO: remove all mappings from TLB, evict related cache lines */
-    pmap_activate(NULL);
+  while (!TAILQ_EMPTY(&pmap->pv_list)) {
+    pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
+    vm_page_t *pg;
+    paddr_t pa;
+    pmap_extract_nolock(pmap, pv->va, &pa);
+    pg = vm_page_find(pa);
+    TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+    TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+    pool_free(P_PV, pv);
   }
 
+  while (!TAILQ_EMPTY(&pmap->pte_pages)) {
+    vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
+    TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
+    vm_page_free(pg);
+  }
+
+  vm_page_t *pg = vm_page_find(MIPS_KSEG0_TO_PHYS(pmap->pde));
+  vm_page_free(pg);
+  free_asid(pmap->asid);
   pool_free(P_PMAP, pmap);
 }
