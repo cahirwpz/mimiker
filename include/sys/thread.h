@@ -93,8 +93,8 @@ typedef enum {
  */
 typedef struct thread {
   /* locking */
-  spin_t td_lock;      /*!< (~) used by dispatcher & scheduler */
-  condvar_t td_waitcv; /*!< (t) for thread_join */
+  spin_t *volatile td_lock; /*!< (~) used by dispatcher & scheduler */
+  condvar_t td_waitcv;      /*!< (t) for thread_join */
   /* linked lists */
   TAILQ_ENTRY(thread) td_all;      /* (a) link on all threads list */
   TAILQ_ENTRY(thread) td_runq;     /* ($) link on run queue */
