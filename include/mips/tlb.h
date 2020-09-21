@@ -6,6 +6,7 @@
 #endif
 
 #include <stdint.h>
+#include <mips/m32c0.h>
 
 typedef uint32_t tlbhi_t;
 typedef uint32_t tlblo_t;

@@ -69,6 +69,19 @@ class BinTime(metaclass=GdbStructMeta):
         return 'timeval{%.6f}' % self.as_float()
 
 
+class List():
+    def __init__(self, lst, field):
+        self.lst = lst
+        self.field = field
+
+    def __iter__(self):
+        item = self.lst['lh_first']
+        while item != 0:
+            item = item.dereference()
+            yield item
+            item = item[self.field]['le_next']
+
+
 class TailQueue():
     def __init__(self, tq, field):
         self.tq = tq
@@ -80,3 +93,15 @@ class TailQueue():
             item = item.dereference()
             yield item
             item = item[self.field]['tqe_next']
+
+
+class LinkerSet():
+    def __init__(self, name, typ):
+        self.start = gdb.parse_and_eval('(%s **)&__start_set_%s' % (typ, name))
+        self.stop = gdb.parse_and_eval('(%s **)&__stop_set_%s' % (typ, name))
+
+    def __iter__(self):
+        item = self.start
+        while item < self.stop:
+            yield item.dereference().dereference()
+            item = item + 1

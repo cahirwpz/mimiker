@@ -1,4 +1,5 @@
 #include <sys/mimiker.h>
+#include <sys/pcpu.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
@@ -52,6 +53,8 @@ __boot_text static void configure_cpu(void) {
   if (ID_AA64PFR0_RAS_VAL(pfr0) != ID_AA64PFR0_RAS_NONE)
     halt();
 #endif
+
+  WRITE_SPECIALREG(tpidr_el1, _pcpu_data);
 }
 
 __boot_text static void drop_to_el1(void) {

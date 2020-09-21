@@ -15,11 +15,21 @@
 #include <aarch64/pte.h>
 #include <bitstring.h>
 
+typedef struct pmap {
+  mtx_t mtx;                      /* protects all fields in this structure */
+  asid_t asid;                    /* address space identifier */
+  pde_t *pde;                     /* directory page table */
+  vm_pagelist_t pte_pages;        /* pages we allocate in page table */
+  TAILQ_HEAD(, pv_entry) pv_list; /* all pages mapped by this physical map */
+} pmap_t;
+
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 
 #define ADDR_MASK 0x8ffffffff000
 #define DMAP_BASE 0xffffff8000000000 /* last 512GB */
 #define PHYS_TO_DMAP(x) ((intptr_t)(x) + DMAP_BASE)
+#define PG_SIZE(pg) ((pg)->size * PAGESIZE)
+#define PG_START(pg) ((pg)->paddr)
 
 /* Kernel page directory entries. */
 alignas(PAGESIZE) pde_t _kernel_pmap_pde[PD_ENTRIES];
@@ -257,8 +267,8 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   }
 }
 
-void pmap_kremove(vaddr_t start, vaddr_t end) {
-  pmap_remove(pmap_kernel(), start, end);
+void pmap_kremove(vaddr_t va, size_t size) {
+  pmap_remove(pmap_kernel(), va, va + size);
 }
 
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
@@ -291,6 +301,10 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   }
 }
 
+bool pmap_kextract(vaddr_t va, paddr_t *pap) {
+  panic("Not implemented!");
+}
+
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
   if (!pmap_address_p(pmap, va))
     return false;
@@ -316,6 +330,10 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
   return true;
 }
 
+void pmap_page_remove(vm_page_t *pg) {
+  panic("Not implemented!");
+}
+
 void pmap_zero_page(vm_page_t *pg) {
   vaddr_t va = PHYS_TO_DMAP(pg->paddr);
   bzero((uint8_t *)va, PAGESIZE);
@@ -325,6 +343,38 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
   vaddr_t va_src = PHYS_TO_DMAP(src->paddr);
   vaddr_t va_dst = PHYS_TO_DMAP(dst->paddr);
   memcpy((uint8_t *)va_dst, (uint8_t *)va_src, PAGESIZE);
+}
+
+bool pmap_clear_referenced(vm_page_t *pg) {
+  bool prev = pmap_is_referenced(pg);
+  pg->flags &= ~PG_REFERENCED;
+  panic("Not implemented!");
+  return prev;
+}
+
+bool pmap_clear_modified(vm_page_t *pg) {
+  bool prev = pmap_is_modified(pg);
+  pg->flags &= ~PG_MODIFIED;
+  panic("Not implemented!");
+  return prev;
+}
+
+bool pmap_is_referenced(vm_page_t *pg) {
+  return pg->flags & PG_REFERENCED;
+}
+
+bool pmap_is_modified(vm_page_t *pg) {
+  return pg->flags & PG_MODIFIED;
+}
+
+void pmap_set_referenced(vm_page_t *pg) {
+  pg->flags |= PG_REFERENCED;
+  panic("Not implemented!");
+}
+
+void pmap_set_modified(vm_page_t *pg) {
+  pg->flags |= PG_MODIFIED;
+  panic("Not implemented!");
 }
 
 void pmap_activate(pmap_t *pmap) {
@@ -351,8 +401,4 @@ pmap_t *pmap_lookup(vaddr_t addr) {
   if (user_addr_p(addr))
     return pmap_user();
   return NULL;
-}
-
-void tlb_exception_handler(ctx_t *ctx) {
-  panic("Not implemented!");
 }

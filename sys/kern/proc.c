@@ -360,7 +360,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
 
   TAILQ_INIT(CHILDREN(p));
 
-  WITH_MTX_LOCK (&td->td_lock)
+  WITH_SPIN_LOCK (td->td_lock)
     td->td_proc = p;
 
   return p;

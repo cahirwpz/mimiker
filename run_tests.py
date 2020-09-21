@@ -18,11 +18,8 @@ REPEAT = 5
 
 # Tries to decode binary output as ASCII, as hard as it can.
 def safe_decode(data):
-    try:
-        s = data.decode('unicode_escape', errors='replace')
-        return s.replace('\r', '')
-    except Exception:
-        pass
+    s = data.decode('unicode_escape', errors='replace')
+    return s.replace('\r', '')
 
 
 def send_command(gdb, cmd):
@@ -78,12 +75,12 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
                            '-t', 'test=all', 'klog-quiet=1',
                            'seed=%u' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact(
-        ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT],
-        timeout=TIMEOUT)
+        ['[TEST PASSED]', '[TEST FAILED]', '[PANIC]', pexpect.EOF,
+         pexpect.TIMEOUT], timeout=TIMEOUT)
     if index == 0:
         child.terminate(True)
         return
-    elif index == 1:
+    elif index in [1, 2]:
         print("Test failure reported!\n")
         message = safe_decode(child.before)
         message += safe_decode(child.buffer)
@@ -95,7 +92,7 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
         print(message)
         gdb_inspect(interactive)
         sys.exit(1)
-    elif index == 2:
+    elif index == 3:
         message = safe_decode(child.before)
         message += safe_decode(child.buffer)
         print(message)
@@ -103,8 +100,8 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
               "a problem with the testing framework or QEMU. "
               "Retrying (%d)..." % (retry + 1))
         test_seed(seed, interactive, repeat, retry + 1)
-    elif index == 3:
-        print("Timeout reached.\n")
+    elif index == 4:
+        print("Timeout reached!\n")
         message = safe_decode(child.buffer)
         print(message)
         if len(message) < 100:

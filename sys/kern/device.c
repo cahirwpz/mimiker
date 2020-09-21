@@ -4,7 +4,7 @@
 #include <sys/device.h>
 #include <sys/rman.h>
 
-KMALLOC_DEFINE(M_DEV, "devices & drivers", PAGESIZE * 1024);
+KMALLOC_DEFINE(M_DEV, "devices & drivers");
 
 static device_t *device_alloc(device_t *parent, devclass_t *dc, int unit) {
   device_t *dev = kmalloc(M_DEV, sizeof(device_t), M_ZERO);

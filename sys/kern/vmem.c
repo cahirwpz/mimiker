@@ -80,7 +80,7 @@ static alignas(PAGESIZE) uint8_t P_VMEM_BOOTPAGE[PAGESIZE * 2];
  * be reduced by more clever tag allocation technique that always keeps some
  * number of free tags. For more information, please see bt_alloc and bt_refill
  * methods in NetBSD's vmem and M_NOGROW flag in Mimiker. */
-static alignas(PAGESIZE) uint8_t P_BT_BOOTPAGE[PAGESIZE * 3];
+static alignas(PAGESIZE) uint8_t P_BT_BOOTPAGE[PAGESIZE];
 
 void init_vmem(void) {
   pool_add_page(P_VMEM, P_VMEM_BOOTPAGE, sizeof(P_VMEM_BOOTPAGE));

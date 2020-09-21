@@ -16,7 +16,7 @@ define TD_KSTACK offsetof(thread_t, td_kstack)
 define TD_FLAGS offsetof(thread_t, td_flags)
 define TD_ONFAULT offsetof(thread_t, td_onfault)
 define TD_IDNEST offsetof(thread_t, td_idnest)
-define TD_SPIN offsetof(thread_t, td_spin)
+define TD_LOCK offsetof(thread_t, td_lock)
 
 define STK_BASE offsetof(kstack_t, stk_base)
 define STK_SIZE offsetof(kstack_t, stk_size)

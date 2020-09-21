@@ -5,170 +5,354 @@
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/kmem.h>
-#include <sys/pool.h>
-#include <sys/errno.h>
 #include <sys/kasan.h>
 #include <sys/queue.h>
 
-#define MB_MAGIC 0xC0DECAFE
-#define MB_ALIGNMENT sizeof(uint64_t)
+#define BLOCK_MAXSIZE (1L << 16) /* Maximum block size. */
+#define ARENA_SIZE (1L << 18)    /* Size of each allocated arena. */
 
-typedef TAILQ_HEAD(, mem_arena) mem_arena_list_t;
-typedef TAILQ_HEAD(, mem_block) mem_block_list_t;
+static TAILQ_HEAD(, arena) arena_list; /* Queue of managed arenas. */
+static mtx_t arena_lock;               /* Mutex protecting arena list. */
 
-typedef struct kmalloc_pool {
-  SLIST_ENTRY(kmalloc_pool) mp_next; /* Next in global chain. */
-  uint32_t mp_magic;                 /* Detect programmer error. */
-  const char *mp_desc;               /* Printable type name. */
-  mem_arena_list_t mp_arena;         /* Queue of managed arenas. */
-  mtx_t mp_lock;                     /* Mutex protecting structure */
-  size_t mp_used;                    /* Current number of pages (in bytes) */
-  size_t mp_maxsize;                 /* Number of pages allowed (in bytes) */
 #if KASAN
-  quar_t mp_quarantine;
+static quar_t block_quarantine;
 #endif /* !KASAN */
-} kmalloc_pool_t;
 
-/*
-  TODO:
-  - use the mp_next field of kmalloc_pool
-*/
+/* Must be able to hold a pointer and boundary tag. */
+typedef unsigned long word_t;
 
-typedef struct mem_block {
-  uint32_t mb_magic; /* if overwritten report a memory corruption error */
-  int32_t mb_size;   /* size > 0 => free, size < 0 => alloc'd */
-  TAILQ_ENTRY(mem_block) mb_list;
-  uint64_t mb_data[0];
-} mem_block_t;
+/* Free block consists of header BT, pointer to previous and next free block,
+ * payload and footer BT. */
+#define FREEBLK_SZ (4 * sizeof(word_t))
+/* Used block consists of header BT, user memory and canary. */
+#define USEDBLK_SZ (2 * sizeof(word_t))
 
-typedef struct mem_arena {
-  TAILQ_ENTRY(mem_arena) ma_list;
-  uint32_t ma_size; /* Size of all the blocks inside combined */
-  uint16_t ma_flags;
-  mem_block_list_t ma_freeblks;
-  uint32_t ma_magic;   /* Detect programmer error. */
-  uint64_t ma_data[0]; /* For alignment */
-} mem_arena_t;
+/* User payload alignment is same as minimum block size */
+#define ALIGNMENT FREEBLK_SZ
+#define CANARY ((word_t)0x1EE7CAFEDEADC0DE)
 
-static inline mem_block_t *mb_next(mem_block_t *block) {
-  return (void *)block + abs(block->mb_size) + sizeof(mem_block_t);
+/* Maximum free block size is less than 256KiB and minimum is 16, hence possible
+ * range of block sizes is 14-bit space, i.e. from 0x10 to 0x3FFF0. Bin sizes
+ * were selected based on jemalloc. Following code generates size ranges:
+ *
+ * > print(list(range(16,128,16)))
+ * > for i in range(7, 16):
+ * >   print(list(range(2**i, 2**(i+1), 2**(i-2))))
+ */
+#define NBINS 44
+
+/* Boundary tag flags. */
+typedef enum {
+  FREE = 0,     /* this block is free */
+  USED = 1,     /* this block is used */
+  PREVFREE = 2, /* previous block is free */
+  ISLAST = 4,   /* last block in an arena */
+} bt_flags;
+
+/* Stored in payload of free blocks. */
+typedef struct node {
+  struct node *prev;
+  struct node *next;
+} node_t;
+
+/* Structure kept in the header of each managed memory region.
+ *
+ * Some specific assumptions were made designing this structure.
+ * `start` must be: the last item in the arena, adjacent to the end of arena
+ * structure. Arena size must be aligned to ALIGNMENT. */
+typedef struct arena {
+  TAILQ_ENTRY(arena) link; /* link on list of all arenas */
+  word_t *end;             /* first address after the arena */
+  word_t start[1];         /* first block in the arena (watch alignment!) */
+} arena_t;
+
+/* Each bin starts with guard of free block list. */
+static node_t freebins[NBINS];
+
+/* --=[ boundary tag handling ]=-------------------------------------------- */
+
+static inline word_t bt_size(word_t *bt) {
+  return *bt & ~(USED | PREVFREE | ISLAST);
 }
 
-static void merge_right(mem_block_list_t *ma_freeblks, mem_block_t *mb) {
-  mem_block_t *next = TAILQ_NEXT(mb, mb_list);
+static inline int bt_used(word_t *bt) {
+  return *bt & USED;
+}
 
-  if (!next)
-    return;
+static inline int bt_free(word_t *bt) {
+  return !(*bt & USED);
+}
 
-  char *mb_ptr = (char *)mb;
-  if (mb_ptr + mb->mb_size + sizeof(mem_block_t) == (char *)next) {
-    TAILQ_REMOVE(ma_freeblks, next, mb_list);
-    mb->mb_size = mb->mb_size + next->mb_size + sizeof(mem_block_t);
+static inline word_t *bt_footer(word_t *bt) {
+  return (void *)bt + bt_size(bt) - sizeof(word_t);
+}
+
+static inline word_t *bt_fromptr(void *ptr) {
+  return (word_t *)ptr - 1;
+}
+
+static inline __always_inline void bt_make(word_t *bt, size_t size,
+                                           bt_flags flags) {
+  word_t val = size | flags;
+  word_t *ft = (void *)bt + size - sizeof(word_t);
+
+#ifndef _LP64
+  kasan_mark_valid(bt - 1, 2 * sizeof(word_t));
+  kasan_mark_valid(ft, 2 * sizeof(word_t));
+#endif
+
+  *bt = val;
+  *ft = (flags & USED) ? CANARY : val;
+}
+
+static inline int bt_has_canary(word_t *bt) {
+  return *bt_footer(bt) == CANARY;
+}
+
+static inline bt_flags bt_get_flags(word_t *bt) {
+  return *bt & (PREVFREE | ISLAST);
+}
+
+static inline bt_flags bt_get_prevfree(word_t *bt) {
+  return *bt & PREVFREE;
+}
+
+static inline bt_flags bt_get_islast(word_t *bt) {
+  return *bt & ISLAST;
+}
+
+static inline void bt_clr_islast(word_t *bt) {
+  *bt &= ~ISLAST;
+}
+
+static inline void bt_clr_prevfree(word_t *bt) {
+  *bt &= ~PREVFREE;
+}
+
+static inline void bt_set_prevfree(word_t *bt) {
+  *bt |= PREVFREE;
+}
+
+static inline void *bt_payload(word_t *bt) {
+  return bt + 1;
+}
+
+static inline word_t *bt_next(word_t *bt) {
+  return (void *)bt + bt_size(bt);
+}
+
+/* Must never be called on first block in an arena. */
+static inline word_t *bt_prev(word_t *bt) {
+  word_t *ft = bt - 1;
+  return (void *)bt - bt_size(ft);
+}
+
+/* --=[ free blocks handling using doubly linked list ]=-------------------- */
+
+static int bin(size_t x) {
+  int n = log2(x);
+  switch (n) {
+    case 0 ... 6:
+      return x / 16 - 1; /* [16, 32, 48, 64, 80, 96, 112] -> 0 - 6 */
+    case 7:
+      return x / 32 + 3; /* [128, 160, 192, 224] -> 7 - 10 */
+    case 8:
+      return x / 64 + 7; /* [256, 320, 384, 448] -> 11 - 14 */
+    case 9:
+      return x / 128 + 11; /* [512, 640, 768, 896] -> 15 - 18 */
+    case 10:
+      return x / 256 + 15; /* [1024, 1280, 1536, 1792] -> 19 - 22 */
+    case 11:
+      return x / 512 + 19; /* [2048, 2560, 3072, 3584] -> 23 - 26 */
+    case 12:
+      return x / 1024 + 23; /* [4 KiB, 5 KiB, 6 KiB, 7 KiB] -> 27 - 30 */
+    case 13:
+      return x / 2048 + 27; /* [8 KiB, 10 KiB, 12 KiB, 14 KiB] -> 31 - 34 */
+    case 14:
+      return x / 4096 + 31; /* [16 KiB, 20 KiB, 24 KiB, 28 KiB] -> 35 - 38 */
+    case 15:
+      return x / 8192 + 35; /* [32 KiB, 40 KiB, 48 KiB, 54 KiB] -> 39 - 42 */
+    default:
+      return NBINS - 1; /* [64 KiB - 256 KiB] -> 43 */
   }
 }
 
-static void add_free_memory_block(mem_arena_t *ma, mem_block_t *mb,
-                                  size_t total_size) {
-  /* Unpoison and setup the header */
-  kasan_mark_valid(mb, sizeof(mem_block_t));
-  mb->mb_magic = MB_MAGIC;
-  mb->mb_size = total_size - sizeof(mem_block_t);
-  /* Poison the data */
-  kasan_mark_invalid(mb->mb_data, mb->mb_size, KASAN_CODE_KMALLOC_FREED);
+static inline void free_insert(word_t *bt) {
+  node_t *head = &freebins[bin(bt_size(bt))];
+  node_t *node = bt_payload(bt);
+  node_t *prev = head->prev;
 
-  /* If it's the first block, we simply add it. */
-  if (TAILQ_EMPTY(&ma->ma_freeblks)) {
-    TAILQ_INSERT_HEAD(&ma->ma_freeblks, mb, mb_list);
-    return;
-  }
+  /* Unpoison node pointers. */
+  kasan_mark_valid(node, sizeof(node_t));
 
-  /* It's not the first block, so we insert it in a sorted fashion. */
-  mem_block_t *current = NULL;
-  mem_block_t *best_so_far = NULL; /* mb can be inserted after this entry. */
-
-  TAILQ_FOREACH (current, &ma->ma_freeblks, mb_list) {
-    if (current < mb)
-      best_so_far = current;
-  }
-
-  if (!best_so_far) {
-    TAILQ_INSERT_HEAD(&ma->ma_freeblks, mb, mb_list);
-    merge_right(&ma->ma_freeblks, mb);
-  } else {
-    TAILQ_INSERT_AFTER(&ma->ma_freeblks, best_so_far, mb, mb_list);
-    merge_right(&ma->ma_freeblks, mb);
-    merge_right(&ma->ma_freeblks, best_so_far);
-  }
+  /* Insert at the end of free block list. */
+  node->next = head;
+  node->prev = prev;
+  prev->next = node;
+  head->prev = node;
 }
 
-static void kmalloc_add_arena(kmalloc_pool_t *mp, void *start, size_t size) {
-  if (size < sizeof(mem_arena_t))
-    return;
+static inline void free_remove(word_t *bt) {
+  node_t *node = bt_payload(bt);
+  node_t *prev = node->prev;
+  node_t *next = node->next;
+  prev->next = next;
+  next->prev = prev;
 
-  memset((void *)start, 0, sizeof(mem_arena_t));
-  mem_arena_t *ma = (void *)start;
-
-  TAILQ_INSERT_HEAD(&mp->mp_arena, ma, ma_list);
-  ma->ma_size = size - sizeof(mem_arena_t);
-  ma->ma_magic = MB_MAGIC;
-  ma->ma_flags = 0;
-
-  TAILQ_INIT(&ma->ma_freeblks);
-
-  /* Adding the first free block that covers all the remaining arena_size. */
-  mem_block_t *mb = (mem_block_t *)((char *)ma + sizeof(mem_arena_t));
-  size_t block_size = size - sizeof(mem_arena_t);
-  add_free_memory_block(ma, mb, block_size);
+  /* Poison node pointers. */
+  kasan_mark_invalid(node, sizeof(node_t), KASAN_CODE_KMALLOC_OVERFLOW);
 }
 
-static int kmalloc_add_pages(kmalloc_pool_t *mp, size_t size) {
-  assert(mtx_owned(&mp->mp_lock));
-
-  size = roundup(size, PAGESIZE);
-  if (mp->mp_used + size > mp->mp_maxsize)
-    return ENOMEM;
-
-  void *arena = kmem_alloc(size, M_WAITOK);
-  if (arena == NULL)
-    return EAGAIN;
-
-  kmalloc_add_arena(mp, arena, size);
-  klog("add arena %08x - %08x to '%s' kmem pool", arena, arena + size,
-       mp->mp_desc);
-  mp->mp_used += size;
-  return 0;
+static inline size_t blk_size(size_t size) {
+  return roundup(size + USEDBLK_SZ, ALIGNMENT);
 }
 
-static mem_block_t *find_entry(mem_block_list_t *mb_list, size_t total_size) {
-  mem_block_t *current = NULL;
-  TAILQ_FOREACH (current, mb_list, mb_list) {
-    assert(current->mb_magic == MB_MAGIC);
-    if (current->mb_size >= (ssize_t)total_size)
-      return current;
+/* --=[ algorithm implementation ]=----------------------------------------- */
+
+/* First fit */
+static word_t *find_fit(size_t reqsz) {
+  for (int b = bin(reqsz); b < NBINS; b++) {
+    node_t *head = &freebins[b];
+    for (node_t *n = head->next; n != head; n = n->next) {
+      word_t *bt = bt_fromptr(n);
+      if (bt_size(bt) >= reqsz)
+        return bt;
+    }
   }
   return NULL;
 }
 
-static mem_block_t *try_allocating_in_area(mem_arena_t *ma,
-                                           size_t requested_size) {
-  mem_block_t *mb =
-    find_entry(&ma->ma_freeblks, requested_size + sizeof(mem_block_t));
+static void *malloc(size_t reqsz) {
+  assert(is_aligned(reqsz, ALIGNMENT));
 
-  if (!mb) /* No entry has enough space. */
-    return NULL;
-
-  TAILQ_REMOVE(&ma->ma_freeblks, mb, mb_list);
-  size_t total_size_left = mb->mb_size - requested_size;
-  if (total_size_left > sizeof(mem_block_t)) {
-    mb->mb_size = -requested_size;
-    mem_block_t *new_mb =
-      (mem_block_t *)((char *)mb + requested_size + sizeof(mem_block_t));
-    add_free_memory_block(ma, new_mb, total_size_left);
-  } else {
-    mb->mb_size = -mb->mb_size;
+  word_t *bt = find_fit(reqsz);
+  if (bt != NULL) {
+    bt_flags is_last = bt_get_islast(bt);
+    size_t memsz = reqsz - USEDBLK_SZ;
+    /* Mark found block as used. */
+    size_t sz = bt_size(bt);
+    free_remove(bt);
+    bt_make(bt, reqsz, USED | is_last);
+    /* Split free block if needed. */
+    word_t *next = bt_next(bt);
+    if (sz > reqsz) {
+      bt_make(next, sz - reqsz, FREE | is_last);
+      bt_clr_islast(bt);
+      memsz += USEDBLK_SZ;
+      free_insert(next);
+    } else if (!is_last) {
+      /* Nothing to split? Then previous block is not free anymore! */
+      bt_clr_prevfree(next);
+    }
   }
 
-  return mb;
+  return bt ? bt_payload(bt) : NULL;
+}
+
+static void free(void *ptr) {
+  word_t *bt = bt_fromptr(ptr);
+
+  /* Is block free and has canary? */
+  assert(bt_used(bt));
+  assert(bt_has_canary(bt));
+
+  /* Mark block as free. */
+  size_t memsz = bt_size(bt) - USEDBLK_SZ;
+  size_t sz = bt_size(bt);
+  bt_make(bt, sz, FREE | bt_get_flags(bt));
+
+  word_t *next = bt_get_islast(bt) ? NULL : bt_next(bt);
+  if (next) {
+    if (bt_free(next)) {
+      /* Coalesce with next block. */
+      free_remove(next);
+      sz += bt_size(next);
+      bt_make(bt, sz, FREE | bt_get_prevfree(bt) | bt_get_islast(next));
+      memsz += USEDBLK_SZ;
+    } else {
+      /* Mark next used block with prevfree flag. */
+      bt_set_prevfree(next);
+    }
+  }
+
+  /* Check if can coalesce with previous block. */
+  if (bt_get_prevfree(bt)) {
+    word_t *prev = bt_prev(bt);
+    free_remove(prev);
+    sz += bt_size(prev);
+    bt_make(prev, sz, FREE | bt_get_islast(bt));
+    memsz += USEDBLK_SZ;
+    bt = prev;
+  }
+
+  free_insert(bt);
+}
+
+static void *realloc(void *old_ptr, size_t size) {
+  void *new_ptr = NULL;
+  word_t *bt = bt_fromptr(old_ptr);
+  size_t reqsz = blk_size(size);
+  size_t sz = bt_size(bt);
+
+  if (reqsz == sz) {
+    /* Same size: nothing to do. */
+    return old_ptr;
+  }
+
+  if (reqsz < sz) {
+    bt_flags is_last = bt_get_islast(bt);
+    /* Shrink block: split block and free second one. */
+    bt_make(bt, reqsz, USED | bt_get_prevfree(bt));
+    word_t *next = bt_next(bt);
+    bt_make(next, sz - reqsz, USED | is_last);
+    free(bt_payload(next));
+    new_ptr = old_ptr;
+  } else {
+    /* Expand block */
+    word_t *next = bt_next(bt);
+    if (next && bt_free(next)) {
+      /* Use next free block if it has enough space. */
+      bt_flags is_last = bt_get_islast(next);
+      size_t nextsz = bt_size(next);
+      if (sz + nextsz >= reqsz) {
+        free_remove(next);
+        bt_make(bt, reqsz, USED | bt_get_prevfree(bt));
+        word_t *next = bt_next(bt);
+        if (sz + nextsz > reqsz) {
+          bt_make(next, sz + nextsz - reqsz, FREE | is_last);
+          free_insert(next);
+        } else {
+          bt_clr_prevfree(next);
+        }
+        new_ptr = old_ptr;
+      }
+    }
+  }
+
+  return new_ptr;
+}
+
+/* --=[ kernel API ]=------------------------------------------------------- */
+
+static void arena_add(void) {
+  arena_t *ar = kmem_alloc(ARENA_SIZE, M_WAITOK);
+  if (ar == NULL)
+    panic("memory exhausted!");
+
+  size_t sz = rounddown(ARENA_SIZE - sizeof(arena_t), ALIGNMENT);
+
+  /* Poison everything but arena header. */
+  kasan_mark(ar, offsetof(arena_t, start), ARENA_SIZE,
+             KASAN_CODE_KMALLOC_FREED);
+
+  ar->end = (void *)ar->start + sz;
+
+  word_t *bt = ar->start;
+  bt_make(bt, sz, FREE | ISLAST);
+  free_insert(bt);
+
+  TAILQ_INSERT_TAIL(&arena_list, ar, link);
+  klog("%s: add arena %08x - %08x", __func__, ar->start, ar->end);
 }
 
 void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
@@ -176,78 +360,84 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
     return NULL;
 
 #if KASAN
-  /* the alignment is within the redzone */
-  size_t redzone_size =
-    align(size, MB_ALIGNMENT) - size + KASAN_KMALLOC_REDZONE_SIZE;
+  size_t req_size = blk_size(size + KASAN_KMALLOC_REDZONE_SIZE);
 #else /* !KASAN */
-  /* no redzone, we have to align the size itself */
-  size = align(size, MB_ALIGNMENT);
+  size_t req_size = blk_size(size);
 #endif
 
-  SCOPED_MTX_LOCK(&mp->mp_lock);
+  void *ptr = NULL;
 
-  while (1) {
-    /* Search for the first area in the list that has enough space. */
-    mem_arena_t *current = NULL;
-    size_t requested_size = size;
-#if KASAN
-    requested_size += redzone_size;
-#endif /* !KASAN */
-    TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
-      assert(current->ma_magic == MB_MAGIC);
-      mem_block_t *mb = try_allocating_in_area(current, requested_size);
-      if (!mb)
-        continue;
+  assert(req_size <= BLOCK_MAXSIZE);
 
-      /* Create redzone after the buffer */
-      kasan_mark(mb->mb_data, size, size + redzone_size,
-                 KASAN_CODE_KMALLOC_OVERFLOW);
-      if (flags == M_ZERO)
-        memset(mb->mb_data, 0, size);
-      return mb->mb_data;
+  WITH_MTX_LOCK (&arena_lock) {
+    while (!(ptr = malloc(req_size))) {
+      /* Couldn't find any continuous memory with the requested size. */
+      if (flags & M_NOWAIT)
+        return NULL;
+      arena_add();
     }
 
-    /* Couldn't find any continuous memory with the requested size. */
-    if (flags & M_NOWAIT)
-      return NULL;
-
-    if (kmalloc_add_pages(mp, size + sizeof(mem_arena_t)))
-      panic("memory exhausted in '%s'", mp->mp_desc);
+    mp->used += req_size;
+    mp->maxused = max(mp->used, mp->maxused);
+    mp->active++;
+    mp->nrequests++;
   }
+
+  /* Create redzone after the buffer. */
+  kasan_mark(ptr, size, req_size - USEDBLK_SZ, KASAN_CODE_KMALLOC_OVERFLOW);
+  if (flags == M_ZERO)
+    bzero(ptr, size);
+  return ptr;
 }
 
-static mem_block_t *addr_to_mem_block(void *addr) {
-  return (mem_block_t *)((char *)addr - sizeof(mem_block_t));
+static void kfree_nokasan(kmalloc_pool_t *mp, void *ptr) {
+  assert(mtx_owned(&arena_lock));
+  word_t *bt = bt_fromptr(ptr);
+  mp->used -= bt_size(bt);
+  mp->active--;
+  free(ptr);
 }
 
-static void _kfree(kmalloc_pool_t *mp, void *addr) {
-  assert(mtx_owned(&mp->mp_lock));
-
-  mem_block_t *mb = addr_to_mem_block(addr);
-  if (mb->mb_magic != MB_MAGIC || mp->mp_magic != MB_MAGIC || mb->mb_size >= 0)
-    panic("Memory corruption detected!");
-
-  mem_arena_t *current = NULL;
-  TAILQ_FOREACH (current, &mp->mp_arena, ma_list) {
-    char *start = ((char *)current) + sizeof(mem_arena_t);
-    if ((char *)addr >= start && (char *)addr < start + current->ma_size)
-      add_free_memory_block(current, mb,
-                            abs(mb->mb_size) + sizeof(mem_block_t));
-  }
-}
-
-void kfree(kmalloc_pool_t *mp, void *addr) {
-  if (!addr)
+void kfree(kmalloc_pool_t *mp, void *ptr) {
+  if (ptr == NULL)
     return;
-  SCOPED_MTX_LOCK(&mp->mp_lock);
 
-  kasan_mark_invalid(addr, abs(addr_to_mem_block(addr)->mb_size),
-                     KASAN_CODE_KMALLOC_FREED);
-  kasan_quar_additem(&mp->mp_quarantine, addr);
-#if !KASAN
-  /* Without KASAN, call regular free method */
-  _kfree(mp, addr);
+  WITH_MTX_LOCK (&arena_lock) {
+#if KASAN
+    word_t *bt = bt_fromptr(ptr);
+    kasan_mark_invalid(ptr, bt_size(bt) - USEDBLK_SZ, KASAN_CODE_KMALLOC_FREED);
+    kasan_quar_additem(&block_quarantine, mp, ptr);
+#else
+    kfree_nokasan(mp, ptr);
 #endif /* !KASAN */
+  }
+}
+
+void *krealloc(kmalloc_pool_t *mp, void *old_ptr, size_t size, unsigned flags) {
+  void *new_ptr;
+
+  if (size == 0) {
+    kfree(mp, old_ptr);
+    return NULL;
+  }
+
+  if (old_ptr == NULL)
+    return kmalloc(mp, size, flags);
+
+  WITH_MTX_LOCK (&arena_lock) {
+    if ((new_ptr = realloc(old_ptr, size)))
+      return new_ptr;
+  }
+
+  /* Run out of options - need to move block physically. */
+  if ((new_ptr = kmalloc(mp, size, flags))) {
+    word_t *bt = bt_fromptr(old_ptr);
+    memcpy(new_ptr, old_ptr, bt_size(bt) - sizeof(word_t));
+    kfree(mp, old_ptr);
+    return new_ptr;
+  }
+
+  return NULL;
 }
 
 char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen) {
@@ -257,58 +447,55 @@ char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen) {
   return copy;
 }
 
-static POOL_DEFINE(P_KMEM, "kmem", sizeof(kmalloc_pool_t));
+void kmcheck(void) {
+  arena_t *ar = NULL;
+  unsigned dangling = 0;
+
+  TAILQ_FOREACH (ar, &arena_list, link) {
+    word_t *bt = ar->start;
+    word_t *prev = NULL;
+    int prevfree = 0;
+
+    for (; bt < ar->end; prev = bt, bt = bt_next(bt)) {
+      int flag = !!bt_get_prevfree(bt);
+      if (bt_free(bt)) {
+        word_t *ft = bt_footer(bt);
+        assert(*bt == *ft); /* Header and footer do not match? */
+        assert(!prevfree);  /* Free block not coalesced? */
+        prevfree = 1;
+        dangling++;
+      } else {
+        assert(flag == prevfree);  /* PREVFREE flag mismatch? */
+        assert(bt_has_canary(bt)); /* Canary damaged? */
+        prevfree = 0;
+      }
+    }
+
+    assert(bt_get_islast(prev)); /* Last block set incorrectly? */
+  }
+
+  for (int b = 0; b < NBINS; b++) {
+    node_t *head = &freebins[b];
+    for (node_t *n = head->next; n != head; n = n->next) {
+      word_t *bt = bt_fromptr(n);
+      assert(bt_free(bt));
+      dangling--;
+    }
+  }
+
+  assert(dangling == 0);
+}
 
 void init_kmalloc(void) {
-  INVOKE_CTORS(kmalloc_ctor_table);
-}
-
-kmalloc_pool_t *kmalloc_create(const char *desc, size_t maxsize) {
-  assert(is_aligned(maxsize, PAGESIZE));
-
-  kmalloc_pool_t *mp = pool_alloc(P_KMEM, M_ZERO);
-  mp->mp_desc = desc;
-  mp->mp_used = 0;
-  mp->mp_maxsize = maxsize;
-  mp->mp_magic = MB_MAGIC;
-  TAILQ_INIT(&mp->mp_arena);
-  mtx_init(&mp->mp_lock, 0);
-  kasan_quar_init(&mp->mp_quarantine, mp, (quar_free_t)_kfree);
-  klog("initialized '%s' kmem at %p ", mp->mp_desc, mp);
-  return mp;
-}
-
-int kmalloc_reserve(kmalloc_pool_t *mp, size_t size) {
-  SCOPED_MTX_LOCK(&mp->mp_lock);
-  return kmalloc_add_pages(mp, size);
-}
-
-void kmalloc_dump(kmalloc_pool_t *mp) {
-  klog("pool at %p:", mp);
-
-  mem_arena_t *arena = NULL;
-  TAILQ_FOREACH (arena, &mp->mp_arena, ma_list) {
-    mem_block_t *block = (void *)arena->ma_data;
-    mem_block_t *end = (void *)arena->ma_data + arena->ma_size;
-
-    klog("> malloc_arena %p - %p:", block, end);
-
-    while (block < end) {
-      assert(block->mb_magic == MB_MAGIC);
-      klog("   %c %p %d", (block->mb_size > 0) ? 'F' : 'U', block,
-           (unsigned)abs(block->mb_size));
-      block = mb_next(block);
-    }
+  TAILQ_INIT(&arena_list);
+  mtx_init(&arena_lock, 0);
+  kasan_quar_init(&block_quarantine, (quar_free_t)kfree_nokasan);
+  for (int b = 0; b < NBINS; b++) {
+    node_t *head = &freebins[b];
+    head->next = head;
+    head->prev = head;
   }
 }
 
-/* TODO: missing implementation */
-void kmalloc_destroy(kmalloc_pool_t *mp) {
-  WITH_MTX_LOCK (&mp->mp_lock)
-    /* Lock needed as the quarantine may call _kfree! */
-    kasan_quar_releaseall(&mp->mp_quarantine);
-  pool_free(P_KMEM, mp);
-}
-
-KMALLOC_DEFINE(M_TEMP, "temporaries pool", PAGESIZE * 25);
-KMALLOC_DEFINE(M_STR, "strings", PAGESIZE * 4);
+KMALLOC_DEFINE(M_TEMP, "temporaries");
+KMALLOC_DEFINE(M_STR, "strings");

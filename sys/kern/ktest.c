@@ -1,6 +1,7 @@
 #include <sys/mimiker.h>
 #include <sys/kenv.h>
 #include <sys/ktest.h>
+#include <sys/malloc.h>
 #include <sys/libkern.h>
 #include <sys/interrupt.h>
 
@@ -17,8 +18,11 @@ SET_DECLARE(tests, test_entry_t);
 static test_entry_t *current_test = NULL;
 /* A null-terminated array of pointers to the tested test list. */
 static test_entry_t *autorun_tests[KTEST_MAX_NO] = {NULL};
+/* Memory pool used by tests. */
+KMALLOC_DEFINE(M_TEST, "test framework");
 
-int ktest_test_running_flag = 0;
+/* This flag is set to 1 when a kernel test is in progress, and 0 otherwise. */
+static int ktest_test_running_flag = 0;
 
 /* The initial seed, as set from command-line. */
 static unsigned ktest_seed = 0;
@@ -37,7 +41,7 @@ static void ktest_atomically_print_failure(void) {
   kprintf(TEST_FAILED_STRING);
 }
 
-__noreturn void ktest_failure(void) {
+static __noreturn void ktest_failure(void) {
   if (current_test == NULL)
     panic("current_test == NULL in ktest_failure! This is most likely a bug in "
           "the test framework!\n");
@@ -62,6 +66,11 @@ __noreturn void ktest_failure(void) {
     kprintf("Failing test: %s\n", current_test->test_name);
   }
   panic("Halting kernel on failed test.\n");
+}
+
+void ktest_failure_hook(void) {
+  if (ktest_test_running_flag)
+    ktest_failure();
 }
 
 static test_entry_t *find_test_by_name_with_len(const char *test, size_t len) {

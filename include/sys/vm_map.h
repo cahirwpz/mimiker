@@ -6,6 +6,9 @@
 #include <sys/vm.h>
 #include <sys/mutex.h>
 
+typedef struct vm_map vm_map_t;
+typedef struct vm_segment vm_segment_t;
+
 /*! \brief Called during kernel initialization. */
 void init_vm_map(void);
 

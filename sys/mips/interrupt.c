@@ -1,4 +1,7 @@
 #include <sys/interrupt.h>
+#include <sys/exception.h>
+#include <sys/sched.h>
+#include <sys/pcpu.h>
 #include <mips/context.h>
 #include <mips/interrupt.h>
 
@@ -66,6 +69,11 @@ void mips_intr_teardown(intr_handler_t *handler) {
 void mips_intr_handler(ctx_t *ctx) {
   unsigned pending = (_REG(ctx, CAUSE) & _REG(ctx, SR)) & CR_IP_MASK;
 
+  assert(cpu_intr_disabled());
+
+  intr_disable();
+  PCPU_SET(no_switch, true);
+
   for (int i = 7; i >= 0; i--) {
     unsigned irq = CR_IP0 << i;
 
@@ -74,4 +82,12 @@ void mips_intr_handler(ctx_t *ctx) {
       pending &= ~irq;
     }
   }
+
+  PCPU_SET(no_switch, false);
+  intr_enable();
+
+  on_exc_leave();
+
+  if (user_mode_p(ctx))
+    on_user_exc_leave();
 }
