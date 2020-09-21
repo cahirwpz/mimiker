@@ -15,8 +15,6 @@ typedef uint32_t pde_t;
 
 #include <mips/vm_param.h>
 
-#define PT_BASE ((pte_t *)0xffc00000)
-
 /* MIPS pmap implements standard two-level hierarchical page table
  * stored in physical addresses. Indices are 10-bits wide. */
 #define PTE_INDEX_MASK 0x003ff000
