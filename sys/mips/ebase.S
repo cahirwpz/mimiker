@@ -222,7 +222,7 @@ _ebase:
 # i.e. it exposes 1:1 mapping between effective and physical addresses.
 #
 # Page directory entries are not stored in TLB but are processed by TLB refill
-# handler, hence they may store kseg0 addresses (instead of physical).
+# handler, hence they contain kseg0 addresses instead of physical one.
 
 # useg: [0000.0000, 8000.0000) -> ffff.e000 UPD (ASID = x)
 # kseg: [c000.0000, ffff.e000) -> ffff.f000 KPD (GLOBAL)
