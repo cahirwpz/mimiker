@@ -163,8 +163,32 @@ static void pv_remove(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
  * Routines for accessing page table entries.
  */
 
-/* pmap_pte_write calls pmap_add_pde so we need this declaration */
-static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr);
+static vm_page_t *pmap_pagealloc(void) {
+  vm_page_t *pg = vm_page_alloc(1);
+  pmap_zero_page(pg);
+  return pg;
+}
+
+/* Add PT to PD so kernel can handle access to @vaddr. */
+static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
+  assert(!is_valid_pde(PDE_OF(pmap, vaddr)));
+
+  vm_page_t *pg = pmap_pagealloc();
+  pde_t pde = PTE_PFN((vaddr_t)PG_KSEG0_ADDR(pg)) | PTE_KERNEL;
+  PDE_OF(pmap, vaddr) = pde;
+
+  pte_t *pte = &PTE_OF(pde, vaddr & PDE_INDEX_MASK);
+  tlb_invalidate(PTE_VPN2((vaddr_t)pte) | PTE_ASID(pmap->asid));
+
+  TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
+  klog("Page table for %08lx allocated at %08lx", vaddr & PDE_INDEX_MASK, pte);
+
+  /* Must initialize to PTE_GLOBAL, look at comment in update_wired_pde! */
+  for (int i = 0; i < PT_ENTRIES; i++)
+    pte[i] = PTE_GLOBAL;
+
+  return pde;
+}
 
 /*! \brief Reads the PTE mapping virtual address \a vaddr. */
 static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr) {
@@ -192,31 +216,6 @@ static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte,
   PTE_OF(pde, vaddr) = pte;
   tlb_invalidate(PTE_VPN2(vaddr) | PTE_ASID(pmap->asid));
 }
-
-/* Add PT to PD so kernel can handle access to @vaddr. */
-static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
-  assert(!is_valid_pde(PDE_OF(pmap, vaddr)));
-
-  vm_page_t *pg = vm_page_alloc(1);
-  pmap_zero_page(pg);
-  pde_t pde = PTE_PFN((vaddr_t)PG_KSEG0_ADDR(pg)) | PTE_KERNEL;
-  PDE_OF(pmap, vaddr) = pde;
-
-  pte_t *pte = &PTE_OF(pde, vaddr & PDE_INDEX_MASK);
-  tlb_invalidate(PTE_VPN2((vaddr_t)pte) | PTE_ASID(pmap->asid));
-
-  TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
-  klog("Page table for %08lx allocated at %08lx", vaddr & PDE_INDEX_MASK, pte);
-
-  /* Must initialize to PTE_GLOBAL, look at comment in update_wired_pde! */
-  for (int i = 0; i < PT_ENTRIES; i++)
-    pte[i] = PTE_GLOBAL;
-
-  return pde;
-}
-
-/* TODO: implement */
-void pmap_remove_pde(pmap_t *pmap, vaddr_t vaddr);
 
 /*
  * User physical map switching routines.
@@ -460,8 +459,7 @@ pmap_t *pmap_new(void) {
   pmap_t *pmap = pool_alloc(P_PMAP, M_ZERO);
   pmap_setup(pmap);
 
-  vm_page_t *pg = vm_page_alloc(1);
-  pmap_zero_page(pg);
+  vm_page_t *pg = pmap_pagealloc();
   pmap->pde = PG_KSEG0_ADDR(pg);
   klog("Page directory table allocated at %p", pmap->pde);
 
