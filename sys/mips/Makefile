@@ -18,6 +18,7 @@ SOURCES = \
 	signal.c \
 	start.S \
 	switch.S \
+	thread.c \
 	timer.c \
 	tlb.c \
 	trap.c \
