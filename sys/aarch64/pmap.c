@@ -23,7 +23,15 @@ typedef struct pmap {
   TAILQ_HEAD(, pv_entry) pv_list; /* all pages mapped by this physical map */
 } pmap_t;
 
+typedef struct pv_entry {
+  TAILQ_ENTRY(pv_entry) pmap_link; /* link on pmap::pv_list */
+  TAILQ_ENTRY(pv_entry) page_link; /* link on vm_page::pv_list */
+  pmap_t *pmap;                    /* page is mapped in this pmap */
+  vaddr_t va;                      /* under this address */
+} pv_entry_t;
+
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
+static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 
 #define ADDR_MASK 0x8ffffffff000
 #define DMAP_BASE 0xffffff8000000000 /* last 512GB */
@@ -62,6 +70,37 @@ static void free_asid(asid_t asid) {
   SCOPED_SPIN_LOCK(asid_lock);
   bit_clear(asid_used, (unsigned)asid);
   pmap_invalidate_asid(asid);
+}
+
+static void pv_add(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
+  pv_entry_t *pv = pool_alloc(P_PV, M_ZERO);
+  pv->pmap = pmap;
+  pv->va = va;
+  TAILQ_INSERT_TAIL(&pg->pv_list, pv, page_link);
+  TAILQ_INSERT_TAIL(&pmap->pv_list, pv, pmap_link);
+}
+
+static pv_entry_t *pv_find(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
+  pv_entry_t *pv;
+  TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
+    if (pv->pmap == pmap && pv->va == va)
+      return pv;
+  }
+  return NULL;
+}
+
+static void pv_remove(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
+  pv_entry_t *pv = pv_find(pmap, va, pg);
+  assert(pv != NULL);
+  TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+  TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+  pool_free(P_PV, pv);
+}
+
+static vm_page_t *pmap_pagealloc(void) {
+  vm_page_t *pg = vm_page_alloc(1);
+  pmap_zero_page(pg);
+  return pg;
 }
 
 #define PAGE_SHIFT 12
@@ -114,7 +153,7 @@ static pte_t *pmap_l3(pmap_t *pmap, vaddr_t va) {
 }
 
 static pde_t *pmap_alloc_pde(pmap_t *pmap, vaddr_t vaddr, int level) {
-  vm_page_t *pg = vm_page_alloc(1);
+  vm_page_t *pg = pmap_pagealloc();
   pde_t *pde = (pde_t *)PHYS_TO_DMAP(pg->paddr);
 
   if (level == 3)
@@ -153,20 +192,11 @@ inline bool pmap_address_p(pmap_t *pmap, vaddr_t va) {
   return pmap_start(pmap) <= va && va < pmap_end(pmap);
 }
 
-void pmap_reset(pmap_t *pmap) {
-  while (!TAILQ_EMPTY(&pmap->pte_pages)) {
-    vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
-    TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
-    vm_page_free(pg);
-  }
-  kmem_free(pmap->pde, PAGESIZE);
-  free_asid(pmap->asid);
-}
-
 static void pmap_setup(pmap_t *pmap) {
   pmap->asid = alloc_asid();
   mtx_init(&pmap->mtx, 0);
   TAILQ_INIT(&pmap->pte_pages);
+  TAILQ_INIT(&pmap->pv_list);
 }
 
 void init_pmap(void) {
@@ -181,7 +211,25 @@ pmap_t *pmap_new(void) {
 }
 
 void pmap_delete(pmap_t *pmap) {
-  pmap_reset(pmap);
+  assert(pmap != pmap_kernel());
+
+  while (!TAILQ_EMPTY(&pmap->pv_list)) {
+    pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
+    vm_page_t *pg;
+    paddr_t pa;
+    pmap_extract(pmap, pv->va, &pa);
+    pg = vm_page_find(pa);
+    TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+    TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+    pool_free(P_PV, pv);
+  }
+
+  while (!TAILQ_EMPTY(&pmap->pte_pages)) {
+    vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
+    vm_page_free(pg);
+    free_asid(pmap->asid);
+  }
+
   pool_free(P_PMAP, pmap);
 }
 
@@ -250,20 +298,20 @@ void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
 
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
                 unsigned flags) {
-  vaddr_t va_end = va + PG_SIZE(pg);
   paddr_t pa = PG_START(pg);
 
   assert(page_aligned_p(va));
-  assert(pmap_contains_p(pmap, va, va_end));
+  assert(pmap_contains_p(pmap, va, va + PG_SIZE(pg)));
   assert(pa != 0);
 
-  klog("Enter virtual mapping %p-%p for frame %p", va, va_end, pa);
+  klog("Enter virtual mapping %p for frame %p", va, pa);
 
   WITH_MTX_LOCK (&pmap->mtx) {
-    for (; va < va_end; va += PAGESIZE, pa += PAGESIZE) {
-      pte_t *l3 = pmap_ensure_pte(pmap, va);
-      pmap_pte_write(pmap, l3, pa | vm_prot_map[prot], flags);
-    }
+    pv_entry_t *pv = pv_find(pmap, va, pg);
+    if (pv == NULL)
+      pv_add(pmap, va, pg);
+    pte_t *l3 = pmap_ensure_pte(pmap, va);
+    pmap_pte_write(pmap, l3, pa | vm_prot_map[prot], flags);
   }
 }
 
@@ -279,8 +327,13 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
-      pte_t *l3 = pmap_l3(pmap, va);
-      pmap_pte_write(pmap, l3, 0, 0);
+      paddr_t pa;
+      if (pmap_extract(pmap, va, &pa)) {
+        vm_page_t *pg = vm_page_find(pa);
+        pv_remove(pmap, va, pg);
+        pte_t *l3 = pmap_l3(pmap, va);
+        pmap_pte_write(pmap, l3, 0, 0);
+      }
     }
   }
 }
@@ -302,7 +355,7 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
 }
 
 bool pmap_kextract(vaddr_t va, paddr_t *pap) {
-  panic("Not implemented!");
+  return pmap_extract(pmap_kernel(), va, pap);
 }
 
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
@@ -331,7 +384,16 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
 }
 
 void pmap_page_remove(vm_page_t *pg) {
-  panic("Not implemented!");
+  while (!TAILQ_EMPTY(&pg->pv_list)) {
+    pv_entry_t *pv = TAILQ_FIRST(&pg->pv_list);
+    pmap_t *pmap = pv->pmap;
+    vaddr_t va = pv->va;
+    TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+    TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+    pte_t *pte = pmap_l3(pmap, va);
+    pmap_pte_write(pmap, pte, 0, 0);
+    pool_free(P_PV, pv);
+  }
 }
 
 void pmap_zero_page(vm_page_t *pg) {
