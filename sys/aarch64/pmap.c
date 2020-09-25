@@ -165,39 +165,27 @@ static vm_page_t *pmap_pagealloc(void) {
   return pg;
 }
 
-static pte_t *pmap_lookup_pte(pmap_t *pmap, vaddr_t va, int *levelp) {
+static pte_t *pmap_lookup_pte(pmap_t *pmap, vaddr_t va) {
   pde_t *pdep;
   paddr_t pa;
-  int level;
 
   /* Level 0 */
   pdep = pmap->pde + L0_INDEX(va);
-  pa = PTE_FRAME_ADDR(*pdep);
-  level = 0;
-  if (pa == 0)
-    goto done;
+  if (!(pa = PTE_FRAME_ADDR(*pdep)))
+    return NULL;
 
   /* Level 1 */
   pdep = (pde_t *)PHYS_TO_DMAP(pa) + L1_INDEX(va);
-  pa = PTE_FRAME_ADDR(*pdep);
-  level = 1;
-  if (pa == 0)
-    goto done;
+  if (!(pa = PTE_FRAME_ADDR(*pdep)))
+    return NULL;
 
   /* Level 2 */
   pdep = (pde_t *)PHYS_TO_DMAP(pa) + L2_INDEX(va);
-  pa = PTE_FRAME_ADDR(*pdep);
-  level = 2;
-  if (pa == 0)
-    goto done;
+  if (!(pa = PTE_FRAME_ADDR(*pdep)))
+    return NULL;
 
   /* Level 3 */
-  pdep = (pde_t *)PHYS_TO_DMAP(pa) + L3_INDEX(va);
-  level = 3;
-
-done:
-  *levelp = level;
-  return pdep;
+  return (pde_t *)PHYS_TO_DMAP(pa) + L3_INDEX(va);
 }
 
 static pde_t pmap_alloc_pde(pmap_t *pmap, vaddr_t vaddr, int level) {
@@ -302,12 +290,12 @@ static bool pmap_extract_nolock(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
   if (!pmap_address_p(pmap, va))
     return false;
 
-  int level;
-  pte_t *ptep = pmap_lookup_pte(pmap, va, &level);
-  paddr_t pa = PTE_FRAME_ADDR(*ptep);
-  if (level < 3 || pa == 0)
+  pte_t *ptep = pmap_lookup_pte(pmap, va);
+  if (ptep == NULL)
     return false;
-
+  paddr_t pa = PTE_FRAME_ADDR(*ptep);
+  if (pa == 0)
+    return false;
   *pap = pa | PAGE_OFFSET(va);
   return true;
 }
@@ -347,10 +335,11 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
-      int level;
-      pte_t *ptep = pmap_lookup_pte(pmap, va, &level);
+      pte_t *ptep = pmap_lookup_pte(pmap, va);
+      if (ptep == NULL)
+        continue;
       paddr_t pa = PTE_FRAME_ADDR(*ptep);
-      if (level < 3 || pa == 0)
+      if (pa == 0)
         continue;
       vm_page_t *pg = vm_page_find(pa);
       pv_remove(pmap, va, pg);
@@ -368,9 +357,8 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
-      int level;
-      pte_t *ptep = pmap_lookup_pte(pmap, va, &level);
-      if (level < 3)
+      pte_t *ptep = pmap_lookup_pte(pmap, va);
+      if (ptep == NULL)
         continue;
       pte_t pte = vm_prot_map[prot] | (*ptep & (~ATTR_AP_MASK & ~ATTR_XN));
       pmap_pte_write(pmap, ptep, pte, 0);
@@ -390,9 +378,8 @@ void pmap_page_remove(vm_page_t *pg) {
     vaddr_t va = pv->va;
     TAILQ_REMOVE(&pg->pv_list, pv, page_link);
     TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
-    int level;
-    pte_t *ptep = pmap_lookup_pte(pmap, va, &level);
-    assert(level == 3);
+    pte_t *ptep = pmap_lookup_pte(pmap, va);
+    assert(ptep != NULL);
     pmap_pte_write(pmap, ptep, 0, 0);
     pool_free(P_PV, pv);
   }
