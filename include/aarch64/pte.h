@@ -31,6 +31,14 @@
 #ifndef _MACHINE_PTE_H_
 #define _MACHINE_PTE_H_
 
+#include <sys/types.h>
+
+typedef uint8_t asid_t;
+typedef uint64_t pte_t;
+typedef uint64_t pde_t;
+
+#define MAX_ASID 0xFF
+
 /* Block and Page attributes */
 #define ATTR_MASK_H UINT64_C(0xfff0000000000000)
 #define ATTR_MASK_L UINT64_C(0x0000000000000fff)
