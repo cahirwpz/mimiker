@@ -28,9 +28,12 @@ void turnstile_destroy(turnstile_t *ts);
  * \note Requires td_spin acquired. */
 void turnstile_adjust(thread_t *td, prio_t oldprio);
 
-/* Block the current thread on given waiting channel. This function will
- * context switch. */
-void turnstile_wait(void *wchan, thread_t *owner, const void *waitpt);
+/* Provide turnstile that we're going to block on. */
+turnstile_t *turnstile_take(void *wchan);
+
+/* Block the current thread on given turnstile.
+ * This function will perform context switch. */
+void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt);
 
 /* Wakeup all threads waiting on given channel and adjust the priority of the
  * current thread appropriately. */

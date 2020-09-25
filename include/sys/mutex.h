@@ -23,6 +23,7 @@ typedef struct mtx {
 } mtx_t;
 
 /* Flags stored in lower 3 bits of m_owner. */
+#define MTX_CONTESTED 1
 #define MTX_FLAGMASK 7
 
 #define MTX_INITIALIZER(recursive)                                             \

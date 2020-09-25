@@ -24,11 +24,20 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
     return;
   }
 
-  WITH_NO_PREEMPTION {
-    while (m->m_owner)
-      turnstile_wait(m, (thread_t *)m->m_owner, waitpt);
+  thread_t *td = thread_self();
 
-    m->m_owner = (intptr_t)thread_self();
+  WITH_NO_PREEMPTION {
+    while (m->m_owner) {
+      turnstile_t *ts = turnstile_take(m);
+
+      /* we're the first thread to block, so lock is now being contested */
+      if (ts == td->td_turnstile)
+        m->m_owner |= MTX_CONTESTED;
+
+      turnstile_wait(ts, mtx_owner(m), waitpt);
+    }
+
+    m->m_owner = (intptr_t)td;
   }
 }
 
@@ -42,6 +51,7 @@ void mtx_unlock(mtx_t *m) {
   }
 
   WITH_NO_PREEMPTION {
+    uintptr_t owner = m->m_owner;
     m->m_owner = 0;
 
     /* Using broadcast instead of signal is faster according to
@@ -51,6 +61,7 @@ void mtx_unlock(mtx_t *m) {
      * The reasoning is that the awakened threads will often be scheduled
      * sequentially and only act on empty mutex on which operations are
      * cheaper. */
-    turnstile_broadcast(m);
+    if (owner & MTX_CONTESTED)
+      turnstile_broadcast(m);
   }
 }
