@@ -415,9 +415,17 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
 static void pmap_modify_flags(vm_page_t *pg, pte_t set, pte_t clr) {
   pv_entry_t *pv;
   TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
-    __unused pmap_t *pmap = pv->pmap;
-    __unused vaddr_t va = pv->va;
-    WITH_MTX_LOCK (&pmap->mtx) { panic("Not implemented!"); }
+    pmap_t *pmap = pv->pmap;
+    vaddr_t va = pv->va;
+    WITH_MTX_LOCK (&pmap->mtx) {
+      pte_t *ptep = pmap_lookup_pte(pmap, va);
+      assert(ptep != NULL);
+      pte_t pte = *ptep;
+      pte |= set;
+      pte &= ~clr;
+      *ptep = pte;
+      tlb_invalidate(pte, pmap->asid);
+    }
   }
 }
 
