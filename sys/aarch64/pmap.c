@@ -188,13 +188,12 @@ static pte_t *pmap_lookup_pte(pmap_t *pmap, vaddr_t va) {
   return (pde_t *)PHYS_TO_DMAP(pa) + L3_INDEX(va);
 }
 
-static paddr_t pmap_alloc_pde(pmap_t *pmap, vaddr_t vaddr, int level) {
+static paddr_t pmap_alloc_pde(pmap_t *pmap, vaddr_t vaddr) {
   vm_page_t *pg = pmap_pagealloc();
 
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
 
-  klog("Page table level %d for 0x%016lx allocated at 0x%016lx", level, vaddr,
-       pg->paddr);
+  klog("Page table for 0x%016lx allocated at 0x%016lx", vaddr, pg->paddr);
 
   return pg->paddr;
 }
@@ -227,21 +226,21 @@ static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
   /* Level 0 */
   pdep = pmap->pde + L0_INDEX(va);
   if (!(pa = PTE_FRAME_ADDR(*pdep))) {
-    pa = pmap_alloc_pde(pmap, va, 1);
+    pa = pmap_alloc_pde(pmap, va);
     *pdep = pa | L0_TABLE;
   }
 
   /* Level 1 */
   pdep = (pde_t *)PHYS_TO_DMAP(pa) + L1_INDEX(va);
   if (!(pa = PTE_FRAME_ADDR(*pdep))) {
-    pa = pmap_alloc_pde(pmap, va, 2);
+    pa = pmap_alloc_pde(pmap, va);
     *pdep = pa | L1_TABLE;
   }
 
   /* Level 2 */
   pdep = (pde_t *)PHYS_TO_DMAP(pa) + L2_INDEX(va);
   if (!(pa = PTE_FRAME_ADDR(*pdep))) {
-    pa = pmap_alloc_pde(pmap, va, 3);
+    pa = pmap_alloc_pde(pmap, va);
     *pdep = pa | L2_TABLE;
   }
 
