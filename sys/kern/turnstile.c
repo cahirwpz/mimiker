@@ -282,7 +282,8 @@ static void wakeup_blocked(td_queue_t *blocked_threads) {
 
 /* Looks for turnstile associated with wchan in turnstile chains and returns
  * it or NULL if no turnstile is found in chains. */
-static turnstile_t *turnstile_lookup(void *wchan, turnstile_chain_t *tc) {
+static turnstile_t *turnstile_lookup(void *wchan) {
+  turnstile_chain_t *tc = TC_LOOKUP(wchan);
   turnstile_t *ts;
   LIST_FOREACH (ts, &tc->tc_turnstiles, ts_chain_link) {
     assert(ts->ts_state == USED_BLOCKED);
@@ -295,8 +296,7 @@ static turnstile_t *turnstile_lookup(void *wchan, turnstile_chain_t *tc) {
 turnstile_t *turnstile_take(void *wchan) {
   assert(preempt_disabled());
 
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-  turnstile_t *ts = turnstile_lookup(wchan, tc);
+  turnstile_t *ts = turnstile_lookup(wchan);
 
   if (ts != NULL)
     return ts;
@@ -356,8 +356,7 @@ void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt) {
 void turnstile_broadcast(void *wchan) {
   assert(preempt_disabled());
 
-  turnstile_chain_t *tc = TC_LOOKUP(wchan);
-  turnstile_t *ts = turnstile_lookup(wchan, tc);
+  turnstile_t *ts = turnstile_lookup(wchan);
 
   assert(ts != NULL);
   assert(ts->ts_state == USED_BLOCKED);
