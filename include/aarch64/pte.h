@@ -37,6 +37,8 @@ typedef uint8_t asid_t;
 typedef uint64_t pte_t;
 typedef uint64_t pde_t;
 
+#define PAGE_SHIFT 12
+#define ASID_SHIFT 48
 #define MAX_ASID 0xFF
 
 /* Block and Page attributes */

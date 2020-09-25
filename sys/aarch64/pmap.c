@@ -3,6 +3,7 @@
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/pool.h>
+#include <aarch64/armreg.h>
 #include <aarch64/pte.h>
 #include <aarch64/tlb.h>
 #include <aarch64/pmap.h>
@@ -16,7 +17,7 @@
 typedef struct pmap {
   mtx_t mtx;                      /* protects all fields in this structure */
   asid_t asid;                    /* address space identifier */
-  pde_t *pde;                     /* directory page table (dmap) */
+  paddr_t pde;                    /* directory page table physical address */
   vm_pagelist_t pte_pages;        /* pages we allocate in page table */
   TAILQ_HEAD(, pv_entry) pv_list; /* all pages mapped by this physical map */
 } pmap_t;
@@ -51,8 +52,7 @@ static const pte_t vm_prot_map[] = {
 };
 
 static pmap_t kernel_pmap;
-/* Kernel page directory entries. */
-alignas(PAGESIZE) pde_t _kernel_pmap_pde[PD_ENTRIES];
+paddr_t _kernel_pmap_pde;
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
 
@@ -167,10 +167,10 @@ static vm_page_t *pmap_pagealloc(void) {
 
 static pte_t *pmap_lookup_pte(pmap_t *pmap, vaddr_t va) {
   pde_t *pdep;
-  paddr_t pa;
+  paddr_t pa = pmap->pde;
 
   /* Level 0 */
-  pdep = pmap->pde + L0_INDEX(va);
+  pdep = (pde_t *)PHYS_TO_DMAP(pa) + L0_INDEX(va);
   if (!(pa = PTE_FRAME_ADDR(*pdep)))
     return NULL;
 
@@ -221,10 +221,10 @@ static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte,
 
 static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
   pde_t *pdep;
-  paddr_t pa;
+  paddr_t pa = pmap->pde;
 
   /* Level 0 */
-  pdep = pmap->pde + L0_INDEX(va);
+  pdep = (pde_t *)PHYS_TO_DMAP(pa) + L0_INDEX(va);
   if (!(pa = PTE_FRAME_ADDR(*pdep))) {
     pa = pmap_alloc_pde(pmap, va);
     *pdep = pa | L0_TABLE;
@@ -248,14 +248,21 @@ static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
   return (pde_t *)PHYS_TO_DMAP(pa) + L3_INDEX(va);
 }
 
-void pmap_activate(pmap_t *pmap) {
+void pmap_activate(pmap_t *umap) {
   SCOPED_NO_PREEMPTION();
 
-  if (pmap != pmap_kernel()) {
-    panic("Not implemented!");
-  }
+  PCPU_SET(curpmap, umap);
 
-  PCPU_SET(curpmap, pmap);
+  uint64_t tcr = READ_SPECIALREG(TCR_EL1);
+
+  if (umap == NULL) {
+    WRITE_SPECIALREG(TCR_EL1, tcr | TCR_EPD0);
+  } else {
+    uint64_t ttbr0 =
+      ((uint64_t)umap->asid << ASID_SHIFT) | (umap->pde >> PAGE_SHIFT);
+    WRITE_SPECIALREG(TTBR0_EL1, ttbr0);
+    WRITE_SPECIALREG(TCR_EL1, tcr & ~TCR_EPD0);
+  }
 }
 
 /*
@@ -483,7 +490,7 @@ pmap_t *pmap_new(void) {
 
   vm_page_t *pg = pmap_pagealloc();
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
-  pmap->pde = PG_DMAP_ADDR(pg);
+  pmap->pde = pg->paddr;
   klog("Page directory table allocated at %p", pmap->pde);
 
   return pmap;

@@ -1,7 +1,5 @@
 #include <aarch64/tlb.h>
 
-#define PAGE_SHIFT 12
-#define ASID_SHIFT 48
 #define ASID_TO_PTE(x) ((uint64_t)(x) << ASID_SHIFT)
 
 #define __tlbi(x, r) __asm__ volatile("TLBI " x ", %0" : : "r"(r))
