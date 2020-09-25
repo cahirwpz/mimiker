@@ -198,19 +198,18 @@ static paddr_t pmap_alloc_pde(pmap_t *pmap, vaddr_t vaddr) {
   return pg->paddr;
 }
 
-static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte,
-                           unsigned flags) {
+static pte_t make_pte(paddr_t pa, vm_prot_t prot, unsigned flags) {
+  pte_t pte = pa | vm_prot_map[prot];
   unsigned cacheflags = flags & PMAP_CACHE_MASK;
-
   if (cacheflags == PMAP_NOCACHE)
-    pte |= ATTR_IDX(ATTR_NORMAL_MEM_NC);
-  else if (cacheflags == PMAP_WRITE_THROUGH)
-    pte |= ATTR_IDX(ATTR_NORMAL_MEM_WT);
-  else
-    pte |= ATTR_IDX(ATTR_NORMAL_MEM_WB);
+    return pte | ATTR_IDX(ATTR_NORMAL_MEM_NC);
+  if (cacheflags == PMAP_WRITE_THROUGH)
+    return pte | ATTR_IDX(ATTR_NORMAL_MEM_WT);
+  return pte | ATTR_IDX(ATTR_NORMAL_MEM_WB);
+}
 
+static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte) {
   *ptep = pte;
-
   tlb_invalidate(pte, pmap->asid);
 }
 
@@ -278,11 +277,11 @@ void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
 
   klog("Enter unmanaged mapping from %p to %p", va, pa);
 
-  pte_t pte = vm_prot_map[prot];
+  pte_t pte = make_pte(pa, prot, flags);
 
   WITH_MTX_LOCK (&pmap->mtx) {
     pte_t *ptep = pmap_ensure_pte(pmap, va);
-    pmap_write_pte(pmap, ptep, pa | pte, flags);
+    pmap_write_pte(pmap, ptep, pte);
   }
 }
 
@@ -299,7 +298,7 @@ void pmap_kremove(vaddr_t va, size_t size) {
     for (size_t off = 0; off < size; off += PAGESIZE) {
       pte_t *ptep = pmap_lookup_pte(pmap, va);
       assert(ptep != NULL);
-      pmap_write_pte(pmap, ptep, 0, 0);
+      pmap_write_pte(pmap, ptep, 0);
     }
   }
 }
@@ -338,7 +337,7 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   bool kern_mapping = (pmap == pmap_kernel());
 
   /* TODO(pj) Mark user pages as non-referenced & non-modified. */
-  pte_t pte = vm_prot_map[prot];
+  pte_t pte = make_pte(pa, prot, flags);
 
   WITH_MTX_LOCK (&pmap->mtx) {
     pv_entry_t *pv = pv_find(pmap, va, pg);
@@ -349,7 +348,7 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
     else
       pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
     pte_t *ptep = pmap_ensure_pte(pmap, va);
-    pmap_write_pte(pmap, ptep, pa | pte, flags);
+    pmap_write_pte(pmap, ptep, pte);
   }
 }
 
@@ -369,7 +368,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
         continue;
       vm_page_t *pg = vm_page_find(pa);
       pv_remove(pmap, va, pg);
-      pmap_write_pte(pmap, ptep, 0, 0);
+      pmap_write_pte(pmap, ptep, 0);
     }
   }
 }
@@ -387,7 +386,7 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
       if (ptep == NULL)
         continue;
       pte_t pte = vm_prot_map[prot] | (*ptep & (~ATTR_AP_MASK & ~ATTR_XN));
-      pmap_write_pte(pmap, ptep, pte, 0);
+      pmap_write_pte(pmap, ptep, pte);
     }
   }
 }
@@ -406,7 +405,7 @@ void pmap_page_remove(vm_page_t *pg) {
     TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
     pte_t *ptep = pmap_lookup_pte(pmap, va);
     assert(ptep != NULL);
-    pmap_write_pte(pmap, ptep, 0, 0);
+    pmap_write_pte(pmap, ptep, 0);
     pool_free(P_PV, pv);
   }
 }
