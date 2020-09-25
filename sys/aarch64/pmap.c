@@ -439,7 +439,7 @@ bool pmap_clear_referenced(vm_page_t *pg) {
 bool pmap_clear_modified(vm_page_t *pg) {
   bool prev = pmap_is_modified(pg);
   pg->flags &= ~PG_MODIFIED;
-  pmap_modify_flags(pg, 0, 0 /* PTE_DIRTY */);
+  pmap_modify_flags(pg, 0, ATTR_S2_S2AP(ATTR_S2_S2AP_WRITE));
   return prev;
 }
 
@@ -458,7 +458,7 @@ void pmap_set_referenced(vm_page_t *pg) {
 
 void pmap_set_modified(vm_page_t *pg) {
   pg->flags |= PG_MODIFIED;
-  pmap_modify_flags(pg, 0 /* PTE_DIRTY */, 0);
+  pmap_modify_flags(pg, ATTR_S2_S2AP(ATTR_S2_S2AP_WRITE), 0);
 }
 
 /*

@@ -74,6 +74,11 @@ typedef uint64_t pde_t;
 #define ATTR_NORMAL_MEM_WB 2
 #define ATTR_NORMAL_MEM_WT 3
 
+#define ATTR_S2_S2AP(x) ((x) << 6)
+#define ATTR_S2_S2AP_MASK 3
+#define ATTR_S2_S2AP_READ 1
+#define ATTR_S2_S2AP_WRITE 2
+
 /* Level 0 table, 512GiB per entry */
 #define L0_SHIFT 39
 #define L0_SIZE (1ul << L0_SHIFT)
