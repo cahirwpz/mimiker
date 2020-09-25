@@ -280,7 +280,21 @@ void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
 }
 
 void pmap_kremove(vaddr_t va, size_t size) {
-  panic("Not implemented!");
+  pmap_t *pmap = pmap_kernel();
+
+  assert(page_aligned_p(va) && page_aligned_p(size));
+  assert(pmap_contains_p(pmap, va, va + size));
+
+  klog("%s: remove unmanaged mapping for %p - %p range", __func__, va,
+       va + size - 1);
+
+  WITH_MTX_LOCK (&pmap->mtx) {
+    for (size_t off = 0; off < size; off += PAGESIZE) {
+      pte_t *ptep = pmap_lookup_pte(pmap, va);
+      assert(ptep != NULL);
+      pmap_write_pte(pmap, ptep, 0, 0);
+    }
+  }
 }
 
 bool pmap_kextract(vaddr_t va, paddr_t *pap) {
