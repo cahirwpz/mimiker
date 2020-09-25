@@ -31,10 +31,10 @@ typedef struct pv_entry {
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 
+#define PA_MASK 0xfffffffff000
 #define ADDR_MASK 0x8ffffffff000
 #define DMAP_BASE 0xffffff8000000000 /* last 512GB */
 #define PHYS_TO_DMAP(x) ((intptr_t)(x) + DMAP_BASE)
-#define PG_DMAP_ADDR(pg) ((void *)((intptr_t)(pg)->paddr + DMAP_BASE))
 
 static const pte_t pte_default = L3_PAGE | ATTR_AF | ATTR_SH(ATTR_SH_IS);
 
@@ -55,6 +55,10 @@ static pmap_t kernel_pmap;
 alignas(PAGESIZE) pde_t _kernel_pmap_pde[PD_ENTRIES];
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
+
+#define PTE_FRAME_ADDR(pte) ((pte)&PA_MASK)
+#define PAGE_OFFSET(x) ((x) & (PAGESIZE - 1))
+#define PG_DMAP_ADDR(pg) ((void *)((intptr_t)(pg)->paddr + DMAP_BASE))
 
 /*
  * Helper functions.
@@ -161,42 +165,50 @@ static vm_page_t *pmap_pagealloc(void) {
   return pg;
 }
 
-static pde_t *pmap_l0(pmap_t *pmap, vaddr_t va) {
-  return &pmap->pde[L0_INDEX(va)];
+static pte_t *pmap_lookup_pte(pmap_t *pmap, vaddr_t va, int *levelp) {
+  pde_t *pdep;
+  paddr_t pa;
+  int level;
+
+  /* Level 0 */
+  pdep = pmap->pde + L0_INDEX(va);
+  pa = PTE_FRAME_ADDR(*pdep);
+  level = 0;
+  if (pa == 0)
+    goto done;
+
+  /* Level 1 */
+  pdep = (pde_t *)PHYS_TO_DMAP(pa) + L1_INDEX(va);
+  pa = PTE_FRAME_ADDR(*pdep);
+  level = 1;
+  if (pa == 0)
+    goto done;
+
+  /* Level 2 */
+  pdep = (pde_t *)PHYS_TO_DMAP(pa) + L2_INDEX(va);
+  pa = PTE_FRAME_ADDR(*pdep);
+  level = 2;
+  if (pa == 0)
+    goto done;
+
+  /* Level 3 */
+  pdep = (pde_t *)PHYS_TO_DMAP(pa) + L3_INDEX(va);
+  level = 3;
+
+done:
+  *levelp = level;
+  return pdep;
 }
 
-static pde_t *pmap_l1(pmap_t *pmap, vaddr_t va) {
-  pde_t l1 = *pmap_l0(pmap, va) & ADDR_MASK;
-  pde_t *dmap_l1 = (pde_t *)PHYS_TO_DMAP(l1);
-  return &dmap_l1[L1_INDEX(va)];
-}
-
-static pde_t *pmap_l2(pmap_t *pmap, vaddr_t va) {
-  pde_t l2 = *pmap_l1(pmap, va) & ADDR_MASK;
-  pde_t *dmap_l2 = (pde_t *)PHYS_TO_DMAP(l2);
-  return &dmap_l2[L2_INDEX(va)];
-}
-
-static pte_t *pmap_l3(pmap_t *pmap, vaddr_t va) {
-  pte_t l3 = *pmap_l2(pmap, va) & ADDR_MASK;
-  pte_t *dmap_l3 = (pte_t *)PHYS_TO_DMAP(l3);
-  return &dmap_l3[L3_INDEX(va)];
-}
-
-static pde_t *pmap_alloc_pde(pmap_t *pmap, vaddr_t vaddr, int level) {
+static pde_t pmap_alloc_pde(pmap_t *pmap, vaddr_t vaddr, int level) {
   vm_page_t *pg = pmap_pagealloc();
-  pde_t *pde = (pde_t *)PHYS_TO_DMAP(pg->paddr);
 
-  if (level == 3)
-    TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
+  TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
 
   klog("Page table level %d for 0x%016lx allocated at 0x%016lx", level, vaddr,
        pg->paddr);
 
-  for (int i = 0; i < PD_ENTRIES; ++i)
-    pde[i] = 0;
-
-  return (pde_t *)pg->paddr;
+  return pg->paddr;
 }
 
 static void pmap_pte_write(pmap_t *pmap, pte_t *ptep, pte_t pte,
@@ -219,20 +231,28 @@ static void pmap_pte_write(pmap_t *pmap, pte_t *ptep, pte_t pte,
  * Return pointer to entry of va in level 3 of page table. Allocate space if
  * needed.
  */
+
 static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
-  pde_t *l0 = pmap_l0(pmap, va);
-  if (*l0 == 0)
-    *l0 = (pde_t)pmap_alloc_pde(pmap, va, 1) | L0_TABLE;
+  pde_t *pdep;
+  paddr_t pa;
 
-  pde_t *l1 = pmap_l1(pmap, va);
-  if (*l1 == 0)
-    *l1 = (pde_t)pmap_alloc_pde(pmap, va, 2) | L1_TABLE;
+  /* Level 0 */
+  pdep = pmap->pde + L0_INDEX(va);
+  while (!(pa = PTE_FRAME_ADDR(*pdep)))
+    *pdep = pmap_alloc_pde(pmap, va, 1) | L0_TABLE;
 
-  pde_t *l2 = pmap_l2(pmap, va);
-  if (*l2 == 0)
-    *l2 = (pde_t)pmap_alloc_pde(pmap, va, 3) | L2_TABLE;
+  /* Level 1 */
+  pdep = (pde_t *)PHYS_TO_DMAP(pa) + L1_INDEX(va);
+  while (!(pa = PTE_FRAME_ADDR(*pdep)))
+    *pdep = pmap_alloc_pde(pmap, va, 2) | L1_TABLE;
 
-  return pmap_l3(pmap, va);
+  /* Level 2 */
+  pdep = (pde_t *)PHYS_TO_DMAP(pa) + L2_INDEX(va);
+  while (!(pa = PTE_FRAME_ADDR(*pdep)))
+    *pdep = pmap_alloc_pde(pmap, va, 3) | L2_TABLE;
+
+  /* Level 3 */
+  return (pde_t *)PHYS_TO_DMAP(pa) + L3_INDEX(va);
 }
 
 void pmap_activate(pmap_t *pmap) {
@@ -258,9 +278,11 @@ void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
 
   klog("Enter unmanaged mapping from %p to %p", va, pa);
 
+  pte_t pte = vm_prot_map[prot];
+
   WITH_MTX_LOCK (&pmap->mtx) {
-    pte_t *l3 = pmap_ensure_pte(pmap, va);
-    pmap_pte_write(pmap, l3, pa | vm_prot_map[prot], flags);
+    pte_t *ptep = pmap_ensure_pte(pmap, va);
+    pmap_pte_write(pmap, ptep, pa | pte, flags);
   }
 }
 
@@ -280,24 +302,13 @@ static bool pmap_extract_nolock(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
   if (!pmap_address_p(pmap, va))
     return false;
 
-  pde_t *l0 = pmap_l0(pmap, va);
-  if (*l0 == 0)
+  int level;
+  pte_t *ptep = pmap_lookup_pte(pmap, va, &level);
+  paddr_t pa = PTE_FRAME_ADDR(*ptep);
+  if (level < 3 || pa == 0)
     return false;
 
-  pde_t *l1 = pmap_l1(pmap, va);
-  if (*l1 == 0)
-    return false;
-
-  pde_t *l2 = pmap_l2(pmap, va);
-  if (*l2 == 0)
-    return false;
-
-  pte_t *l3 = pmap_l3(pmap, va);
-  if (*l3 == 0)
-    return false;
-
-  /* TODO(pj) make it readable */
-  *pap = (*l3 & 0xfffffffff000) | (va & (PAGESIZE - 1));
+  *pap = pa | PAGE_OFFSET(va);
   return true;
 }
 
@@ -323,8 +334,8 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
       pg->flags |= PG_MODIFIED | PG_REFERENCED;
     else
       pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
-    pte_t *l3 = pmap_ensure_pte(pmap, va);
-    pmap_pte_write(pmap, l3, pa | pte, flags);
+    pte_t *ptep = pmap_ensure_pte(pmap, va);
+    pmap_pte_write(pmap, ptep, pa | pte, flags);
   }
 }
 
@@ -336,13 +347,14 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
-      paddr_t pa;
-      if (pmap_extract_nolock(pmap, va, &pa)) {
-        vm_page_t *pg = vm_page_find(pa);
-        pv_remove(pmap, va, pg);
-        pte_t *l3 = pmap_l3(pmap, va);
-        pmap_pte_write(pmap, l3, 0, 0);
-      }
+      int level;
+      pte_t *ptep = pmap_lookup_pte(pmap, va, &level);
+      paddr_t pa = PTE_FRAME_ADDR(*ptep);
+      if (level < 3 || pa == 0)
+        continue;
+      vm_page_t *pg = vm_page_find(pa);
+      pv_remove(pmap, va, pg);
+      pmap_pte_write(pmap, ptep, 0, 0);
     }
   }
 }
@@ -356,9 +368,12 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
-      pte_t *l3 = pmap_l3(pmap, va);
-      pmap_pte_write(pmap, l3,
-                     (*l3 & (~ATTR_AP_MASK & ~ATTR_XN)) | vm_prot_map[prot], 0);
+      int level;
+      pte_t *ptep = pmap_lookup_pte(pmap, va, &level);
+      if (level < 3)
+        continue;
+      pte_t pte = vm_prot_map[prot] | (*ptep & (~ATTR_AP_MASK & ~ATTR_XN));
+      pmap_pte_write(pmap, ptep, pte, 0);
     }
   }
 }
@@ -375,8 +390,10 @@ void pmap_page_remove(vm_page_t *pg) {
     vaddr_t va = pv->va;
     TAILQ_REMOVE(&pg->pv_list, pv, page_link);
     TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
-    pte_t *pte = pmap_l3(pmap, va);
-    pmap_pte_write(pmap, pte, 0, 0);
+    int level;
+    pte_t *ptep = pmap_lookup_pte(pmap, va, &level);
+    assert(level == 3);
+    pmap_pte_write(pmap, ptep, 0, 0);
     pool_free(P_PV, pv);
   }
 }
@@ -390,7 +407,12 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
 }
 
 static void pmap_modify_flags(vm_page_t *pg, pte_t set, pte_t clr) {
-  panic("Not implemented!");
+  pv_entry_t *pv;
+  TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
+    __unused pmap_t *pmap = pv->pmap;
+    __unused vaddr_t va = pv->va;
+    WITH_MTX_LOCK (&pmap->mtx) { panic("Not implemented!"); }
+  }
 }
 
 bool pmap_clear_referenced(vm_page_t *pg) {
@@ -444,6 +466,12 @@ void init_pmap(void) {
 pmap_t *pmap_new(void) {
   pmap_t *pmap = pool_alloc(P_PMAP, M_ZERO);
   pmap_setup(pmap);
+
+  vm_page_t *pg = pmap_pagealloc();
+  TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
+  pmap->pde = PG_DMAP_ADDR(pg);
+  klog("Page directory table allocated at %p", pmap->pde);
+
   return pmap;
 }
 
@@ -454,7 +482,7 @@ void pmap_delete(pmap_t *pmap) {
     pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
     vm_page_t *pg;
     paddr_t pa;
-    pmap_extract(pmap, pv->va, &pa);
+    pmap_extract_nolock(pmap, pv->va, &pa);
     pg = vm_page_find(pa);
     TAILQ_REMOVE(&pg->pv_list, pv, page_link);
     TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
@@ -463,9 +491,10 @@ void pmap_delete(pmap_t *pmap) {
 
   while (!TAILQ_EMPTY(&pmap->pte_pages)) {
     vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
+    TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
     vm_page_free(pg);
-    free_asid(pmap->asid);
   }
 
+  free_asid(pmap->asid);
   pool_free(P_PMAP, pmap);
 }
