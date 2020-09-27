@@ -4,7 +4,7 @@ TOPDIR = $(realpath ../..)
 
 SOURCES = boot.c \
 	  context.c \
-	  copy.c \
+	  copy.S \
 	  evec.S \
 	  interrupt.c \
 	  pmap.c \
