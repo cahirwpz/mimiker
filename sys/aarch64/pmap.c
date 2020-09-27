@@ -438,14 +438,14 @@ static void pmap_modify_flags(vm_page_t *pg, pte_t set, pte_t clr) {
 bool pmap_clear_referenced(vm_page_t *pg) {
   bool prev = pmap_is_referenced(pg);
   pg->flags &= ~PG_REFERENCED;
-  pmap_modify_flags(pg, 0, 0 /* PTE_VALID */);
+  pmap_modify_flags(pg, 0, ATTR_AF);
   return prev;
 }
 
 bool pmap_clear_modified(vm_page_t *pg) {
   bool prev = pmap_is_modified(pg);
   pg->flags &= ~PG_MODIFIED;
-  pmap_modify_flags(pg, 0, ATTR_S2_S2AP(ATTR_S2_S2AP_WRITE));
+  pmap_modify_flags(pg, 0, ATTR_DBM);
   return prev;
 }
 
@@ -459,12 +459,12 @@ bool pmap_is_modified(vm_page_t *pg) {
 
 void pmap_set_referenced(vm_page_t *pg) {
   pg->flags |= PG_REFERENCED;
-  pmap_modify_flags(pg, 0 /* PTE_VALID */, 0);
+  pmap_modify_flags(pg, ATTR_AF, 0);
 }
 
 void pmap_set_modified(vm_page_t *pg) {
   pg->flags |= PG_MODIFIED;
-  pmap_modify_flags(pg, ATTR_S2_S2AP(ATTR_S2_S2AP_WRITE), 0);
+  pmap_modify_flags(pg, ATTR_DBM, 0);
 }
 
 /*
