@@ -57,7 +57,7 @@ ASENTRY(copyin)
 
         adds    x9, x0, x2
         # fault on overflow
-        b.cs    copy_fault
+        b.cs    copyerr
 
         adds    x11, x1, x2
         # fault on overflow
@@ -91,7 +91,7 @@ ASENTRY(copyout)
 
         adds    x9, x0, x2
         # fault on overflow
-        b.cs    copy_fault
+        b.cs    copyerr
 
         adds    x11, x1, x2
         # fault on overflow
