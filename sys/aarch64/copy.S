@@ -100,19 +100,14 @@ ASENTRY(copyout)
         ldr     x10, =USER_SPACE_END 
 
         # user data must be in user space
-        cmp     x9, x10
+        cmp     x11, x10
         b.hi    copyerr
 
         # kernel data must be in kernel space 
-        cmp     x10, x1
+        cmp     x10, x0
         b.hi    copyerr
         
         set_td_onfault x12, x3, copyerr
-
-        # swap registers
-        mov     x9, x1
-        mov     x1, x0
-        mov     x0, x9
         
         b       copycommon
 
