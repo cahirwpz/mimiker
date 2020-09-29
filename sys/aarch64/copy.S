@@ -39,12 +39,54 @@ ASENTRY(copycommon)
         ret
 ASEND(copycommon)
 
-ASENTRY(copystr)
-        b       .
-ASEND(copystr)
-
+/*
+ * int copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *lencopied)
+ *
+ * Copy a null terminated string from the user address space into
+ * the kernel address space.
+ */
 ASENTRY(copyinstr)
-        b       .
+        cbz     x2, 1f
+
+        adds    x9, x0, x2
+        # fault on overflow
+        b.cs    copyerr
+
+        adds    x11, x1, x2
+        # fault on overflow
+        b.cs    copyerr
+
+        ldr     x10, =USER_SPACE_END 
+
+        # user data must be in user space
+        cmp     x9, x10
+        b.hi    copyerr
+
+        # kernel data must be in kernel space 
+        cmp     x10, x1
+        b.hi    copyerr
+
+        set_td_onfault x10, x11, copyerr
+
+        mov     x13, #0x0
+copystr_start:
+        cbz     x3, 1f
+        ldrb    w12, [x0]
+        strb    w12, [x1]
+        add     x0, x0, #0x1
+        add     x1, x1, #0x1
+        add     x13, x13, #0x1
+        cbz     w12, 2f
+        b       copystr_start
+1:
+        unset_td_onfault x11
+        mov     x0, #ENAMETOOLONG
+        ret
+2:
+        unset_td_onfault x11
+        str     x13, [x3]
+        mov     x0, #0x0
+        ret
 ASEND(copyinstr)
 
 /*
