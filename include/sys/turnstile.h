@@ -31,8 +31,11 @@ void turnstile_adjust(thread_t *td, prio_t oldprio);
 /* Provide turnstile that we're going to block on. */
 turnstile_t *turnstile_take(void *wchan);
 
-/* Block the current thread on given turnstile.
- * This function will perform context switch. */
+/* Release turnstile in case we decided not to block on it. */
+void turnstile_give(turnstile_t *ts);
+
+/* Block the current thread on given turnstile. This function will perform
+ * context switch and release turnstile when woken up. */
 void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt);
 
 /* Wakeup all threads waiting on given channel and adjust the priority of the

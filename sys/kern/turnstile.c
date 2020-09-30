@@ -308,6 +308,14 @@ turnstile_t *turnstile_take(void *wchan) {
   return ts;
 }
 
+void turnstile_give(turnstile_t *ts) {
+  assert(preempt_disabled());
+
+  thread_t *td = thread_self();
+  if (ts == td->td_turnstile)
+    ts->ts_wchan = NULL;
+}
+
 void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt) {
   assert(preempt_disabled());
   assert(ts != NULL);
