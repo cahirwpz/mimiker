@@ -1,4 +1,3 @@
-#include <stdatomic.h>
 #include <sys/mimiker.h>
 #include <sys/mutex.h>
 #include <sys/turnstile.h>
@@ -28,10 +27,10 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
   thread_t *td = thread_self();
 
   for (;;) {
-    thread_t *expected = NULL;
+    intptr_t expected = 0;
 
     /* Fast path: if lock has no owner then take ownership. */
-    if (atomic_compare_exchange_strong(&m->m_owner, &expected, td))
+    if (atomic_compare_exchange_strong(&m->m_owner, &expected, (intptr_t)td))
       break;
 
     WITH_NO_PREEMPTION {
@@ -64,8 +63,8 @@ void mtx_unlock(mtx_t *m) {
   }
 
   /* Fast path: if lock is not contested then drop ownership. */
-  thread_t *expected = thread_self();
-  if (atomic_compare_exchange_strong(&m->m_owner, &expected, NULL))
+  intptr_t expected = (intptr_t)thread_self();
+  if (atomic_compare_exchange_strong(&m->m_owner, &expected, 0))
     return;
 
   /* Using broadcast instead of signal is faster according to

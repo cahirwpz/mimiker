@@ -19,7 +19,7 @@ typedef struct thread thread_t;
 typedef struct mtx {
   lk_attr_t m_attr;          /*!< lock attributes */
   volatile unsigned m_count; /*!< counter for recursive mutexes */
-  volatile intptr_t m_owner; /*!< stores address of the owner */
+  atomic_intptr_t m_owner;   /*!< stores address of the owner */
 } mtx_t;
 
 /* Flags stored in lower 3 bits of m_owner. */
