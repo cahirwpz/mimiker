@@ -79,8 +79,10 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
 
   proc_add(child);
 
+  *cldpidp = child->p_pid;
+
+  /* After this point you cannot access child process without a lock. */
   sched_add(newtd);
 
-  *cldpidp = child->p_pid;
   return error;
 }
