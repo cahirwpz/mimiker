@@ -123,10 +123,10 @@ static thread_t *sched_choose(void) {
 }
 
 long sched_switch(void) {
-  if (!sched_active)
-    return 0;
-
   thread_t *td = thread_self();
+
+  if (!sched_active)
+    goto noswitch;
 
   assert(spin_owned(td->td_lock));
   assert(!td_is_running(td));
@@ -152,27 +152,23 @@ long sched_switch(void) {
   thread_t *newtd = sched_choose();
 
   if (td == newtd)
-    return 0;
+    goto noswitch;
 
   /* If we got here then a context switch is required. */
   td->td_nctxsw++;
 
-  /* make sure we reacquire td_lock lock on return to current context */
-  td->td_flags |= TDF_NEEDLOCK;
-
   if (PCPU_GET(no_switch))
     panic("Switching context while interrupts are disabled is forbidden!");
 
-  intr_disable();
-  spin_unlock(td->td_lock);
-  long res = ctx_switch(td, newtd);
-  /* Fetch curthread as we don't know our identity just after context switch. */
-  td = thread_self();
-  if (td->td_flags & TDF_NEEDLOCK) {
-    spin_lock(td->td_lock);
-    intr_enable();
+  WITH_INTR_DISABLED {
+    spin_unlock(td->td_lock);
+    return ctx_switch(td, newtd);
+    /* XXX Right now all local variables belong to thread we switched to! */
   }
-  return res;
+
+noswitch:
+  spin_unlock(td->td_lock);
+  return 0;
 }
 
 void sched_clock(void) {
@@ -213,11 +209,12 @@ void sched_maybe_preempt(void) {
 
   thread_t *td = thread_self();
 
-  WITH_SPIN_LOCK (td->td_lock) {
-    if (td->td_flags & TDF_NEEDSWITCH) {
-      td->td_state = TDS_READY;
-      sched_switch();
-    }
+  spin_lock(td->td_lock);
+  if (td->td_flags & TDF_NEEDSWITCH) {
+    td->td_state = TDS_READY;
+    sched_switch();
+  } else {
+    spin_unlock(td->td_lock);
   }
 }
 

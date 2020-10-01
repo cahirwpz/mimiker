@@ -33,10 +33,8 @@ void user_ctx_set_retval(user_ctx_t *ctx, register_t value, register_t error);
  * context stored in @to. It does not return immediatelly, it returns
  * only when the @from context is resumed.
  *
- * When switching it atomically releases @from thread spin lock (if applicable)
- * and acquires @to thread spin lock (if TDF_NEEDLOCK is set for it).
- *
  * \returns a value set by \a ctx_set_retval or 0 otherwise.
+ * \note must be called with interrupts disabled!
  */
 long ctx_switch(thread_t *from, thread_t *to);
 

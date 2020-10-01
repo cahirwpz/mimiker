@@ -309,13 +309,12 @@ void sig_post(signo_t sig) {
     mtx_unlock(all_proc_mtx);
     proc_lock(p);
     if (p->p_state == PS_STOPPED) {
-      WITH_SPIN_LOCK (td->td_lock) {
-        td->td_state = TDS_STOPPED;
-        /* We're holding a spinlock, so we can't be preempted here. */
-        /* Release locks before switching out! */
-        proc_unlock(p);
-        sched_switch();
-      }
+      spin_lock(td->td_lock);
+      td->td_state = TDS_STOPPED;
+      /* We're holding a spinlock, so we can't be preempted here. */
+      /* Release locks before switching out! */
+      proc_unlock(p);
+      sched_switch();
     } else {
       proc_unlock(p);
     }
