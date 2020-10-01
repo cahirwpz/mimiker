@@ -165,7 +165,14 @@ long sched_switch(void) {
 
   intr_disable();
   spin_unlock(td->td_lock);
-  return ctx_switch(td, newtd);
+  long res = ctx_switch(td, newtd);
+  /* Fetch curthread as we don't know our identity just after context switch. */
+  td = thread_self();
+  if (td->td_flags & TDF_NEEDLOCK) {
+    spin_lock(td->td_lock);
+    intr_enable();
+  }
+  return res;
 }
 
 void sched_clock(void) {

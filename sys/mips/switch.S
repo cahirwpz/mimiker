@@ -74,23 +74,8 @@ ctx_resume:
         LOAD_PCPU(t0)
         sw      s1, PCPU_CURTHREAD(t0)
 
-        # check for TDF_NEEDLOCK flag
-        lw      t0, TD_FLAGS(s1)
-        andi    t0, TDF_NEEDLOCK
-        beqz    t0, 1f
-        nop
-
-        # acquire @to thread spin lock 
-        la      a1, ctx_resume          # 2nd arg - waiting point
-        jal     _spin_lock
-        lw      a0, TD_LOCK(s1)         # (delay) 1st arg - @to spin lock
-
-        # Enable interrupts finishing safe interlock on td_spin.
-        jal     intr_enable
-        nop
-
         # switch user space if necessary
-1:      jal     vm_map_switch
+        jal     vm_map_switch
         move    a0, s1
 
         # restore @to thread context
