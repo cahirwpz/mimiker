@@ -57,12 +57,6 @@ NESTED(ctx_switch, CTX_SIZE, ra)
         andi    t1, t0, SR_IE
         tnei    t1, 0
 
-        # don't save context of @from thread if user did not provide one
-        bnez    a0, ctx_save
-        nop
-        j       ctx_resume
-        move    s1, a1                  # (delay) save @to thread pointer
-
 ctx_save:
         # save context of @from thread
         subu    sp, CTX_SIZE
