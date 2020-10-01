@@ -64,15 +64,7 @@ ctx_save:
         SAVE_CTX(t0)
         sw      sp, TD_KCTX(a0)
 
-        move    s0, a0                  # save @from pointer
-
-        # disable interrupts so interlock on td_spin can be done safely
-        jal     intr_disable
-        move    s1, a1                  # (delay) save @to thread pointer
-
-        # release @from thread spin lock
-        jal     spin_unlock
-        lw      a0, TD_LOCK(s0)         # (delay) 1st arg - @from spin lock
+        move    s1, a1                  # save @from thread pointer
 
 ctx_resume:
         # switch stack pointer to @to thread

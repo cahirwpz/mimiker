@@ -4,7 +4,7 @@
 #include <sys/libkern.h>
 #include <sys/sched.h>
 #include <sys/runq.h>
-#include <sys/context.h>
+#include <sys/interrupt.h>
 #include <sys/time.h>
 #include <sys/thread.h>
 #include <sys/spinlock.h>
@@ -163,6 +163,8 @@ long sched_switch(void) {
   if (PCPU_GET(no_switch))
     panic("Switching context while interrupts are disabled is forbidden!");
 
+  intr_disable();
+  spin_unlock(td->td_lock);
   return ctx_switch(td, newtd);
 }
 
