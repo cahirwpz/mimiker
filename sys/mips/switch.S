@@ -18,37 +18,35 @@
 
 #define LOAD_REG(reg, offset, base) lw reg, (CTX_##offset)(base)
 
-#define SAVE_CTX(_sr, _sp, reg)                                                \
-        SAVE_REG(_sr, SR, reg);                                                \
-        SAVE_REG_CFI(ra, PC, reg);                                             \
-        SAVE_REG_CFI(fp, FP, reg);                                             \
-        SAVE_REG(_sp, SP, reg);                                                \
-        SAVE_REG_CFI(gp, GP, reg);                                             \
-        SAVE_REG(zero, V0, reg);                                               \
-        SAVE_REG_CFI(s0, S0, reg);                                             \
-        SAVE_REG_CFI(s1, S1, reg);                                             \
-        SAVE_REG_CFI(s2, S2, reg);                                             \
-        SAVE_REG_CFI(s3, S3, reg);                                             \
-        SAVE_REG_CFI(s4, S4, reg);                                             \
-        SAVE_REG_CFI(s5, S5, reg);                                             \
-        SAVE_REG_CFI(s6, S6, reg);                                             \
-        SAVE_REG_CFI(s7, S7, reg)
+#define SAVE_CTX(_sr)                                                          \
+        SAVE_REG(_sr, SR, sp);                                                 \
+        SAVE_REG_CFI(ra, PC, sp);                                              \
+        SAVE_REG_CFI(fp, FP, sp);                                              \
+        SAVE_REG_CFI(gp, GP, sp);                                              \
+        SAVE_REG(zero, V0, sp);                                                \
+        SAVE_REG_CFI(s0, S0, sp);                                              \
+        SAVE_REG_CFI(s1, S1, sp);                                              \
+        SAVE_REG_CFI(s2, S2, sp);                                              \
+        SAVE_REG_CFI(s3, S3, sp);                                              \
+        SAVE_REG_CFI(s4, S4, sp);                                              \
+        SAVE_REG_CFI(s5, S5, sp);                                              \
+        SAVE_REG_CFI(s6, S6, sp);                                              \
+        SAVE_REG_CFI(s7, S7, sp)
 
-#define LOAD_CTX(_sr, reg)                                                     \
-        LOAD_REG(_sr, SR, reg);                                                \
-        LOAD_REG(ra, PC, reg);                                                 \
-        LOAD_REG(fp, FP, reg);                                                 \
-        LOAD_REG(sp, SP, reg);                                                 \
-        LOAD_REG(gp, GP, reg);                                                 \
-        LOAD_REG(v0, V0, reg);                                                 \
-        LOAD_REG(s0, S0, reg);                                                 \
-        LOAD_REG(s1, S1, reg);                                                 \
-        LOAD_REG(s2, S2, reg);                                                 \
-        LOAD_REG(s3, S3, reg);                                                 \
-        LOAD_REG(s4, S4, reg);                                                 \
-        LOAD_REG(s5, S5, reg);                                                 \
-        LOAD_REG(s6, S6, reg);                                                 \
-        LOAD_REG(s7, S7, reg)
+#define LOAD_CTX(_sr)                                                          \
+        LOAD_REG(_sr, SR, sp);                                                 \
+        LOAD_REG(ra, PC, sp);                                                  \
+        LOAD_REG(fp, FP, sp);                                                  \
+        LOAD_REG(gp, GP, sp);                                                  \
+        LOAD_REG(v0, V0, sp);                                                  \
+        LOAD_REG(s0, S0, sp);                                                  \
+        LOAD_REG(s1, S1, sp);                                                  \
+        LOAD_REG(s2, S2, sp);                                                  \
+        LOAD_REG(s3, S3, sp);                                                  \
+        LOAD_REG(s4, S4, sp);                                                  \
+        LOAD_REG(s5, S5, sp);                                                  \
+        LOAD_REG(s6, S6, sp);                                                  \
+        LOAD_REG(s7, S7, sp)
 
 #
 # long ctx_switch(thread_t *from, thread_t *to)
@@ -67,11 +65,9 @@ NESTED(ctx_switch, CTX_SIZE, ra)
 
 ctx_save:
         # save context of @from thread
-        move    t1, sp
         subu    sp, CTX_SIZE
-        .cfi_def_cfa sp, 0
-        SAVE_CTX(t0, t1, sp)
-        .cfi_rel_offset sp, CTX_SP
+        .cfi_def_cfa_offset CTX_SIZE
+        SAVE_CTX(t0)
         sw      sp, TD_KCTX(a0)
 
         move    s0, a0                  # save @from pointer
@@ -85,6 +81,9 @@ ctx_save:
         lw      a0, TD_LOCK(s0)         # (delay) 1st arg - @from spin lock
 
 ctx_resume:
+        # switch stack pointer to @to thread
+        lw      sp, TD_KCTX(s1)
+
         # update curthread pointer to reference @to thread
         LOAD_PCPU(t0)
         sw      s1, PCPU_CURTHREAD(t0)
@@ -113,8 +112,9 @@ ctx_resume:
         nop
 
         # restore @to thread context
-        lw      t1, TD_KCTX(s1)
-        LOAD_CTX(t0, t1)
+        LOAD_CTX(t0)
+        addu    sp, CTX_SIZE
+        .cfi_def_cfa_offset 0
 
         # restore status register with updated interrupt mask
         mfc0    t1, C0_SR
