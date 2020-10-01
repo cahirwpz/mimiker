@@ -104,12 +104,8 @@ ctx_resume:
         nop
 
         # switch user space if necessary
-1:      lw      a0, TD_PROC(s1)
-        beqz    a0, 2f                  # switching to kernel thread ?
-        nop
-        lw      a0, P_USPACE(a0)
-2:      jal     vm_map_activate
-        nop
+1:      jal     vm_map_switch
+        move    a0, s1
 
         # restore @to thread context
         LOAD_CTX(t0)
