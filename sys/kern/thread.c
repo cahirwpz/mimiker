@@ -33,7 +33,6 @@ static alignas(PAGESIZE) uint8_t _stack0[PAGESIZE];
 
 /* Thread Zero is initially running with interrupts disabled! */
 thread_t thread0 = {
-  .td_lock = SPIN_INITIALIZER(0),
   .td_name = "thread0",
   .td_tid = 0,
   .td_prio = 255,
@@ -84,7 +83,8 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   td->td_prio = prio;
   td->td_base_prio = prio;
 
-  td->td_lock = SPIN_INITIALIZER(0);
+  td->td_lock = kmalloc(M_TEMP, sizeof(spin_t), M_ZERO);
+  spin_init(td->td_lock, 0);
 
   cv_init(&td->td_waitcv, "thread waiters");
   LIST_INIT(&td->td_contested);
@@ -123,6 +123,7 @@ void thread_delete(thread_t *td) {
   sleepq_destroy(td->td_sleepqueue);
   turnstile_destroy(td->td_turnstile);
   kfree(M_STR, td->td_name);
+  kfree(M_TEMP, td->td_lock);
   pool_free(P_THREAD, td);
 }
 
@@ -154,17 +155,16 @@ __noreturn void thread_exit(void) {
   preempt_disable();
 
   WITH_MTX_LOCK (threads_lock) {
-    spin_lock(&td->td_lock); /* force threads_lock >> thread_t::td_lock order */
+    spin_lock(td->td_lock); /* force threads_lock >> thread_t::td_lock order */
     TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
   }
 
   cv_broadcast(&td->td_waitcv);
-  spin_unlock(&td->td_lock);
+  spin_unlock(td->td_lock);
 
-  WITH_SPIN_LOCK (&td->td_lock) {
-    td->td_state = TDS_DEAD;
-    sched_switch();
-  }
+  spin_lock(td->td_lock);
+  td->td_state = TDS_DEAD;
+  sched_switch();
 
   panic("Thread %u tried to ressurect", td->td_tid);
 }
@@ -172,21 +172,20 @@ __noreturn void thread_exit(void) {
 void thread_join(thread_t *otd) {
   thread_t *td = thread_self();
 
-  SCOPED_SPIN_LOCK(&otd->td_lock);
-
   klog("Join %ld {%p} with %ld {%p}", td->td_tid, td, otd->td_tid, otd);
 
-  while (!td_is_dead(otd))
-    cv_wait(&otd->td_waitcv, &otd->td_lock);
+  WITH_SPIN_LOCK (otd->td_lock) {
+    while (!td_is_dead(otd))
+      cv_wait(&otd->td_waitcv, otd->td_lock);
+  }
 }
 
 void thread_yield(void) {
   thread_t *td = thread_self();
 
-  WITH_SPIN_LOCK (&td->td_lock) {
-    td->td_state = TDS_READY;
-    sched_switch();
-  }
+  spin_lock(td->td_lock);
+  td->td_state = TDS_READY;
+  sched_switch();
 }
 
 /* It would be better to have a hash-map from tid_t to thread_t,
@@ -196,10 +195,10 @@ thread_t *thread_find(tid_t id) {
 
   thread_t *td;
   TAILQ_FOREACH (td, &all_threads, td_all) {
-    spin_lock(&td->td_lock);
+    spin_lock(td->td_lock);
     if (td->td_tid == id)
       return td;
-    spin_unlock(&td->td_lock);
+    spin_unlock(td->td_lock);
   }
   return NULL;
 }

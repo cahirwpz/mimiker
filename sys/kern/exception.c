@@ -11,10 +11,9 @@ void on_exc_leave(void) {
 
   thread_t *td = thread_self();
   if (td->td_flags & TDF_NEEDSWITCH) {
-    WITH_SPIN_LOCK (&td->td_lock) {
-      td->td_state = TDS_READY;
-      sched_switch();
-    }
+    spin_lock(td->td_lock);
+    td->td_state = TDS_READY;
+    sched_switch();
   }
 }
 

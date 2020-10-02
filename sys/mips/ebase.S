@@ -218,23 +218,21 @@ _ebase:
 # EHB has to be put between a producer and a consumer - preferably just before
 # the consumer, not just after the producer.
 
+# MIPS kseg0 plays role of direct map from other architectures,
+# i.e. it exposes 1:1 mapping between effective and physical addresses.
+#
+# Page directory entries are not stored in TLB but are processed by TLB refill
+# handler, hence they contain kseg0 addresses instead of physical one.
+
 # useg: [0000.0000, 8000.0000) -> ffff.e000 UPD (ASID = x)
-# kseg: [c000.0000, ffc0.0000) -> ffff.f000 KPD (GLOBAL)
-# upte: [ffc0.0000, ffe0.0000) -> ffff.e000 UPD (ASID = x)
-# kpte: [ffe0.0000, ffff.e000) -> ffff.f000 KPD (GLOBAL)
+# kseg: [c000.0000, ffff.e000) -> ffff.f000 KPD (GLOBAL)
 
 # |uuuuuuuu________|________....kkkk|
 # ^                ^
 # fffe.0000        ffff.0000
 
-# useg: [000, 800) -> 0000.0000 - 0000.07ff
-#                     -> 0000.0000 - 0000.07fc
-# kseg: [c00, ffc) -> ffff.fc00 - ffff.fffb
-#                     -> 0000.1c00 - 0000.1ff8
-# upte: [ffc, ffe) -> ffff.fffc - ffff.fffd (x \in {-3, -4})
-#                     -> 0000.0ffc - 0000.0ffc
-# kpte: [ffe, fff) -> ffff.fffe - ffff.ffff (x \in {-1, -2})
-#                     -> 0000.1ffc - 0000.1ffc
+# useg: [000x.xxxx, 800x.xxxx) -> 0000.0000 - 0000.07ff -> 0000 - 07fc
+# kseg: [c00x.xxxx, fffx.xxxx) -> ffff.fc00 - ffff.ffff -> 1c00 - 1ffc
 
 SLEAF(tlb_refill)
         # Read PDE associated with bad virtual address.
@@ -242,12 +240,6 @@ SLEAF(tlb_refill)
         # so it's copied into 12th position with arithmetic shift.
         mfc0    k1, C0_BADVADDR
         sra     k1, 20
-
-        addiu   k0, k1, 4
-        sltiu   k0, k0, 2
-        sll     k0, 12
-        xor     k1, k0
-
         andi    k1, 0x1ffc
         lw      k1, -0x2000(k1)         # [k1] PDE of bad virtual address
 
@@ -257,9 +249,8 @@ SLEAF(tlb_refill)
         /* branch delay slot */
 
         # Calculate page table address from PDE
-        lui     k0, 0x8000
         srl     k1, 6
-        ins     k0, k1, 12, 19          # [k0] PTE address in kseg0
+        sll     k0, k1, 12              # [k0] PTE address in kseg0
         # ... and index of even entry corresponding to bad virtual address.
         mfc0    k1, C0_BADVADDR
         srl     k1, 13                  # [k1] PTE index (lower 10 bits)

@@ -9,6 +9,10 @@
 #define FREELIST(page) (&freelist[log2((page)->size)])
 #define PAGECOUNT(page) (pagecount[log2((page)->size)])
 
+#define PG_SIZE(pg) ((pg)->size * PAGESIZE)
+#define PG_START(pg) ((pg)->paddr)
+#define PG_END(pg) ((pg)->paddr + PG_SIZE(pg))
+
 #define PM_NQUEUES 16U
 
 typedef struct vm_physseg {
@@ -23,7 +27,7 @@ typedef struct vm_physseg {
 static TAILQ_HEAD(, vm_physseg) seglist = TAILQ_HEAD_INITIALIZER(seglist);
 static vm_pagelist_t freelist[PM_NQUEUES];
 static size_t pagecount[PM_NQUEUES];
-static mtx_t *physmem_lock = &MTX_INITIALIZER(0);
+static mtx_t *physmem_lock = &MTX_INITIALIZER(LK_RECURSIVE);
 
 void _vm_physseg_plug(paddr_t start, paddr_t end, bool used) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
@@ -107,6 +111,7 @@ void init_vm_page(void) {
       page->paddr = pa;
       page->size = size;
       page->flags = seg->used ? PG_ALLOCATED : 0;
+      TAILQ_INIT(&page->pv_list);
     }
 
     /* Insert pages into free lists of corresponding size. */
@@ -212,10 +217,8 @@ vm_page_t *vm_page_alloc(size_t npages) {
   TAILQ_REMOVE(&freelist[i], page, freeq);
   pagecount[i]--;
   page->flags &= ~PG_MANAGED;
-  for (unsigned j = 0; j < page->size; j++) {
+  for (unsigned j = 0; j < page->size; j++)
     page[j].flags |= PG_ALLOCATED;
-    page[j].flags &= ~(PG_REFERENCED | PG_MODIFIED);
-  }
 
   return page;
 }
@@ -235,8 +238,11 @@ static void pm_free_from_seg(vm_physseg_t *seg, vm_page_t *page) {
   TAILQ_INSERT_HEAD(FREELIST(page), page, freeq);
   PAGECOUNT(page)++;
   page->flags |= PG_MANAGED;
-  for (unsigned i = 0; i < page->size; i++)
+  for (unsigned i = 0; i < page->size; i++) {
+    pmap_page_remove(&page[i]);
     page[i].flags &= ~PG_ALLOCATED;
+    page[i].flags &= ~(PG_REFERENCED | PG_MODIFIED);
+  }
 }
 
 void vm_page_free(vm_page_t *page) {

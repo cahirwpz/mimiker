@@ -134,7 +134,7 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
   }
 
   if (sig_pending(td)) {
-    WITH_SPIN_LOCK (&td->td_lock)
+    WITH_SPIN_LOCK (td->td_lock)
       td->td_flags |= TDF_NEEDSIGCHK;
   }
 
@@ -158,7 +158,7 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
      * is set (without checking whether there's an actual pending signal),
      * so we clear the flag here if there are no real pending signals.
      */
-    WITH_SPIN_LOCK (&td->td_lock) {
+    WITH_SPIN_LOCK (td->td_lock) {
       if (sig_pending(td))
         td->td_flags |= TDF_NEEDSIGCHK;
       else
@@ -227,19 +227,19 @@ void sig_kill(proc_t *p, signo_t sig) {
    * Exception: SIGCONT wakes up stopped threads even if it's blocked. */
   if (__sigismember(&td->td_sigmask, sig)) {
     if (continued)
-      WITH_SPIN_LOCK (&td->td_lock)
+      WITH_SPIN_LOCK (td->td_lock)
         if (td_is_stopped(td))
           sched_wakeup(td, 0);
   } else {
-    WITH_SPIN_LOCK (&td->td_lock) {
+    WITH_SPIN_LOCK (td->td_lock) {
       td->td_flags |= TDF_NEEDSIGCHK;
       /* If the thread is sleeping interruptibly (!), wake it up, so that it
        * continues execution and the signal gets delivered soon. */
       if (td_is_interruptible(td)) {
         /* XXX Maybe TDF_NEEDSIGCHK should be protected by a different lock? */
-        spin_unlock(&td->td_lock);
+        spin_unlock(td->td_lock);
         sleepq_abort(td); /* Locks & unlocks td_lock */
-        spin_lock(&td->td_lock);
+        spin_lock(td->td_lock);
       } else if (td_is_stopped(td) && continued) {
         sched_wakeup(td, 0);
       }
@@ -258,7 +258,7 @@ int sig_check(thread_t *td) {
     sig = sig_pending(td);
     if (sig == 0) {
       /* No pending signals, signal checking done. */
-      WITH_SPIN_LOCK (&td->td_lock)
+      WITH_SPIN_LOCK (td->td_lock)
         td->td_flags &= ~TDF_NEEDSIGCHK;
       return 0;
     }
@@ -309,13 +309,12 @@ void sig_post(signo_t sig) {
     mtx_unlock(all_proc_mtx);
     proc_lock(p);
     if (p->p_state == PS_STOPPED) {
-      WITH_SPIN_LOCK (&td->td_lock) {
-        td->td_state = TDS_STOPPED;
-        /* We're holding a spinlock, so we can't be preempted here. */
-        /* Release locks before switching out! */
-        proc_unlock(p);
-        sched_switch();
-      }
+      spin_lock(td->td_lock);
+      td->td_state = TDS_STOPPED;
+      /* We're holding a spinlock, so we can't be preempted here. */
+      /* Release locks before switching out! */
+      proc_unlock(p);
+      sched_switch();
     } else {
       proc_unlock(p);
     }
