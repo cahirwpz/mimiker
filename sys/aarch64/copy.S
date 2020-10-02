@@ -4,179 +4,138 @@
 
 #include "assym.h"
 
-.macro  set_td_onfault tmp td func
-        adr     \tmp, \func
+.macro  set_onfault tmp td func
+        # load current thread
         mrs     \td, tpidr_el1
         ldr     \td, [\td, #PCPU_CURTHREAD]
+        # set td_onfault
+        adr     \tmp, \func
         str     \tmp, [\td, #TD_ONFAULT]
 .endm
 
-.macro  unset_td_onfault td
+.macro  clr_onfault td
+        # load current thread
+        mrs     \td, tpidr_el1
+        ldr     \td, [\td, #PCPU_CURTHREAD]
+        # clr td_onfault
         str     xzr, [\td, #TD_ONFAULT]
 .endm
 
-ASENTRY(copyerr)
-        mov     x0, #EFAULT
-        ret
-ASEND(copyerr)
-
 /*
- * int copycommon(void *from, void *dest, size_t len, thread_t *td)
- *
- * Copy specified amount of data and clear td_onfault.
- */
-ASENTRY(copycommon)
-        cbz     x2, 1f
-        ldrb    w9, [x0]
-        strb    w9, [x1]
-        sub     x2, x2, #0x1
-        add     x0, x0, #0x1
-        add     x1, x1, #0x1
-        b       copycommon
-1:
-        unset_td_onfault x3
-        mov     x0, #0x0
-        ret
-ASEND(copycommon)
-
-/*
- * int copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *lencopied)
+ * int copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
  *
  * Copy a null terminated string from the user address space into
  * the kernel address space.
  */
-ASENTRY(copyinstr)
-        cbz     x2, 1f
+ENTRY(copyinstr)
+        # len > 0
+        cbnz    x2, 1f
+        mov     x0, xzr
+        ret
 
-        adds    x9, x0, x2
-        # fault on overflow
-        b.cs    copyerr
-
-        adds    x11, x1, x2
-        # fault on overflow
-        b.cs    copyerr
-
-        ldr     x10, =USER_SPACE_END 
-
-        # user data must be in user space
-        cmp     x9, x10
+        # (uintptr_t)us < (uintptr_t)(us + len)
+1:      add     x4, x0, x2
+        cmp     x0, x4
         b.hi    copyerr
 
-        # kernel data must be in kernel space 
-        cmp     x10, x1
+        # (uintptr_t)(us + len) <= USER_SPACE_END
+        ldr     x5, =USER_SPACE_END 
+        cmp     x4, x5
         b.hi    copyerr
 
-        set_td_onfault x10, x11, copyerr
-
-        mov     x13, #0x0
-copystr_start:
-        cbz     x3, 1f
-        ldrb    w12, [x0]
-        strb    w12, [x1]
-        add     x0, x0, #0x1
-        add     x1, x1, #0x1
-        add     x13, x13, #0x1
-        cbz     w12, 2f
-        b       copystr_start
-1:
-        unset_td_onfault x11
-        mov     x0, #ENAMETOOLONG
+        set_onfault x4, x5, copyerr
+        bl      copystr
+        clr_onfault x4
         ret
-2:
-        unset_td_onfault x11
-        str     x13, [x3]
-        mov     x0, #0x0
-        ret
-ASEND(copyinstr)
+END(copyinstr)
 
 /*
  * int copyin(const void *udaddr, void *kaddr, size_t len)
  *
  * Copy specified amount of data from user space into the kernel.
  */
-ASENTRY(copyin)
+ENTRY(copyin)
+        # len > 0
         cbz     x2, 1f
 
-        adds    x9, x0, x2
-        # fault on overflow
-        b.cs    copyerr
-
-        adds    x11, x1, x2
-        # fault on overflow
-        b.cs    copyerr
-
-        ldr     x10, =USER_SPACE_END 
-
-        # user data must be in user space
-        cmp     x9, x10
+        # (uintptr_t)us < (uintptr_t)(us + len)
+        add     x3, x0, x2
+        cmp     x0, x3
         b.hi    copyerr
 
-        # kernel data must be in kernel space 
-        cmp     x10, x1
+        # (uintptr_t)(us + len) <= USER_SPACE_END
+        ldr     x4, =USER_SPACE_END 
+        cmp     x3, x4
         b.hi    copyerr
 
-        set_td_onfault x12, x3, copyerr
+        set_onfault x3, x4, copyerr
+        bl      bcopy
+        clr_onfault x3
 
-        b       copycommon
-
-1:      mov     x0, #0x0
+1:      mov     x0, xzr
         ret
-ASEND(copyin)
+END(copyin)
 
 /*
  * int copyout(const void *kaddr, void *udaddr, size_t len)
  *
  * Copy specified amount of data from kernel to the user space.
  */
-ASENTRY(copyout)
+ENTRY(copyout)
+        # len > 0
         cbz     x2, 1f
 
-        adds    x9, x0, x2
-        # fault on overflow
-        b.cs    copyerr
-
-        adds    x11, x1, x2
-        # fault on overflow
-        b.cs    copyerr
-
-        ldr     x10, =USER_SPACE_END 
-
-        # user data must be in user space
-        cmp     x11, x10
+        # (uintptr_t)us < (uintptr_t)(us + len)
+        add     x3, x1, x2
+        cmp     x1, x3
         b.hi    copyerr
 
-        # kernel data must be in kernel space 
-        cmp     x10, x0
+        # (uintptr_t)(us + len) <= USER_SPACE_END
+        ldr     x4, =USER_SPACE_END 
+        cmp     x3, x4
         b.hi    copyerr
-        
-        set_td_onfault x12, x3, copyerr
-        
-        b       copycommon
 
-1:      mov     x0, #0x0
+        set_onfault x3, x4, copyerr
+        bl      bcopy
+        clr_onfault x3
+
+1:      mov     x0, xzr
         ret
-ASEND(copyout)
+END(copyout)
 
-/* bool try_load_word(unsigned *ptr, unsigned *val_p) */
-ASENTRY(try_load_word)
-        set_td_onfault x9 x10 fault
-        ldr     w9, [x0]
-        unset_td_onfault x10
-        str     w9, [x1]
-        mov     x0, #0x1
+SENTRY(copyerr)
+        # since we return from bcopy/copystr context we need to pop retaddr
+        add     sp, sp, #8
+        mov     x0, #EFAULT
         ret
-ASEND(try_load_word)
+END(copyerr)
 
-/* bool try_store_word(unsigned *ptr, unsigned val) */
-ASENTRY(try_store_word)
-        set_td_onfault x9 x10 fault
+/*
+ * bool try_load_word(unsigned *ptr, unsigned *val_p)
+ */
+ENTRY(try_load_word)
+        set_onfault x2 x3 fault
+        ldr     w4, [x0]
+        clr_onfault x2
+        str     w4, [x1]
+        mov     x0, #1
+        ret
+END(try_load_word)
+
+/*
+ * bool try_store_word(unsigned *ptr, unsigned val)
+ */
+ENTRY(try_store_word)
+        set_onfault x2 x3 fault
         str     w1, [x0]
-        unset_td_onfault x10
-        mov     x0, #0x1
+        clr_onfault x2
+        mov     x0, #1
         ret
-ASEND(try_store_word)
+END(try_store_word)
 
-ASENTRY(fault)
-        mov     x0, #0x0
+SENTRY(fault)
+        mov     x0, xzr
         ret
-ASEND(fault)
+END(fault)
+
+# vim: sw=8 ts=8 et

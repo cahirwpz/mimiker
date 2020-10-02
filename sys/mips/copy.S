@@ -99,7 +99,9 @@ SLEAF(copyerr)
 	li	v0, EFAULT		# return error
 END(copyerr)
 
-/* bool try_load_word(unsigned *ptr, unsigned *val_p) */
+/*
+ * bool try_load_word(unsigned *ptr, unsigned *val_p)
+ */
 LEAF(try_load_word)
         LOAD_PCPU(v1)
         PTR_L   v1, PCPU_CURTHREAD(v1)
@@ -112,7 +114,9 @@ LEAF(try_load_word)
         li      v0, 1
 END(try_load_word)
 
-/* bool try_store_word(unsigned *ptr, unsigned val) */
+/*
+ * bool try_store_word(unsigned *ptr, unsigned val)
+ */
 LEAF(try_store_word)
         LA      v0, fault
         LOAD_PCPU(v1)
@@ -128,7 +132,5 @@ SLEAF(fault)
         j       ra
         move    v0, zero
 END(fault)
-
-# vim: sw=8 ts=8 et
 
 # vim: sw=8 ts=8 et
