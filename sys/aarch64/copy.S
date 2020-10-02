@@ -5,7 +5,7 @@
 #include "assym.h"
 
 .macro  set_td_onfault tmp td func
-        mov     \tmp, \func
+        adr     \tmp, \func
         mrs     \td, tpidr_el1
         ldr     \td, [\td, #PCPU_CURTHREAD]
         str     \tmp, [\td, #TD_ONFAULT]
