@@ -23,6 +23,7 @@ NESTED(copyinstr, CALLFRAME_SIZ, ra)
 	PTR_SUBU sp, sp, CALLFRAME_SIZ
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	REG_S	ra, CALLFRAME_RA(sp)
+        .cfi_rel_offset ra, CALLFRAME_RA
 	LA	v0, copyerr
 	blt	a0, zero, copyerr       # make sure address is in user space
         nop
@@ -31,6 +32,7 @@ NESTED(copyinstr, CALLFRAME_SIZ, ra)
 	jal	copystr
 	PTR_S	v0, TD_ONFAULT(v1)
 	REG_L	ra, CALLFRAME_RA(sp)
+        .cfi_restore ra
 	LOAD_PCPU(v1)
         PTR_L   v1, PCPU_CURTHREAD(v1)
 	PTR_S	zero, TD_ONFAULT(v1)

@@ -8,3 +8,5 @@ FORMAT-RECURSE = no
 SOURCES = copystr.c
 
 include $(TOPDIR)/build/build.kern.mk
+
+copystr.o : CFLAGS_KASAN =
