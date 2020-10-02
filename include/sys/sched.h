@@ -96,7 +96,8 @@ void sched_clock(void);
  * field to reflect the change in state.
  *
  * \returns a value that was passed to sched_wakeup
- * \note Must be called with \a td_spin acquired!
+ * \note Must be called with \a td_lock acquired, which will be unlocked after
+ *       procedure returns!
  */
 long sched_switch(void);
 

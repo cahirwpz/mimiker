@@ -6,7 +6,6 @@ include <mips/context.h>
 
 define TDF_NEEDSWITCH TDF_NEEDSWITCH
 define TDF_NEEDSIGCHK TDF_NEEDSIGCHK
-define TDF_NEEDLOCK TDF_NEEDLOCK
 
 define TD_PROC offsetof(thread_t, td_proc)
 define TD_UCTX offsetof(thread_t, td_uctx)
