@@ -27,6 +27,7 @@ DEFINE_CLEANUP_FUNCTION(vm_map_t *, vm_map_unlock);
   SCOPED_STMT(vm_map_t, vm_map_lock, CLEANUP_FUNCTION(vm_map_unlock), map)
 
 void vm_map_activate(vm_map_t *map);
+void vm_map_switch(thread_t *td);
 
 vm_map_t *vm_map_user(void);
 vm_map_t *vm_map_kernel(void);
