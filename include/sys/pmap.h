@@ -35,7 +35,6 @@ vaddr_t pmap_end(pmap_t *pmap);
 void init_pmap(void);
 
 pmap_t *pmap_new(void);
-void pmap_reset(pmap_t *pmap);
 void pmap_delete(pmap_t *pmap);
 
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
