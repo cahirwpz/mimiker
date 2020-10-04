@@ -68,10 +68,7 @@ ENTRY(ctx_switch)
 
         # switch user space if necessary
         ldr     x0, [x8, #TD_PROC]
-        # switching to kernel thread ?
-        cbz     x0, 2f
-        ldr     x0, [x0, #P_USPACE]
-2:      bl      vm_map_activate
+        bl      vm_map_switch
 
         # restore @to thread context
         ldr     x1, [x8, #TD_KCTX]
