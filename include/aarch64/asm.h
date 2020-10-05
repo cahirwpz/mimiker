@@ -53,6 +53,11 @@
   .globl x;                                                                    \
   .type x, _ASM_TYPE_FUNCTION;                                                 \
   x:
+#define _SENTRY(x)                                                             \
+  _TEXT_SECTION;                                                               \
+  _ALIGN_TEXT;                                                                 \
+  .type x, _ASM_TYPE_FUNCTION;                                                 \
+  x:
 #define _END(x) .size x, .- x
 
 #define _ASENTRY(x)                                                            \
@@ -71,6 +76,9 @@
 
 #define ENTRY(y)                                                               \
   _ENTRY(_C_LABEL(y));                                                         \
+  _PROF_PROLOGUE
+#define SENTRY(y)                                                              \
+  _SENTRY(_C_LABEL(y));                                                        \
   _PROF_PROLOGUE
 #define ENTRY_NP(y) _ENTRY(_C_LABEL(y))
 #define END(y) _END(_C_LABEL(y))
