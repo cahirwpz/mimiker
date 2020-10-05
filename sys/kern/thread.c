@@ -22,6 +22,16 @@ static mtx_t *threads_lock = &MTX_INITIALIZER(0);
 static thread_list_t all_threads = TAILQ_HEAD_INITIALIZER(all_threads);
 static thread_list_t zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 
+spin_t *thread_lock_set(thread_t *td, spin_t *new) {
+  spin_t *old;
+  spin_owned(new);
+  old = td->td_lock;
+  spin_owned(old);
+  td->td_lock = new;
+  spin_unlock(old);
+  return old;
+}
+
 /* FTTB such a primitive method of creating new TIDs will do. */
 static tid_t make_tid(void) {
   static volatile tid_t tid = 1;

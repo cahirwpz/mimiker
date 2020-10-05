@@ -143,6 +143,8 @@ typedef struct thread {
 
 thread_t *thread_self(void);
 
+spin_t *thread_lock_set(thread_t *td, spin_t *new);
+
 /*! \brief Initialize first thread in the system. */
 void init_thread0(void);
 
