@@ -207,11 +207,11 @@ static int sq_suspend(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
   if (sq_interrupted_early(td, sleep)) {
     td->td_flags &= ~(TDF_SLPINTR | TDF_SLPTIMED);
     sq_leave(td, sc, sq);
-    sc_release(sc); 
+    sc_release(sc);
     spin_unlock(td->td_lock);
     return EINTR;
   }
-    
+
   thread_lock_set(td, &sc->sc_lock);
   td->td_state = TDS_SLEEPING;
   sched_switch();
@@ -271,7 +271,7 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
     td->td_flags &= ~TDF_SLPINTR;
   if (wakeup != ETIMEDOUT)
     td->td_flags &= ~TDF_SLPTIMED;
-  WITH_SPIN_LOCK(&sched_lock) {
+  WITH_SPIN_LOCK (&sched_lock) {
     td->td_lock = &sched_lock;
     sched_wakeup(td, 0);
   }
