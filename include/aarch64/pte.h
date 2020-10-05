@@ -31,6 +31,16 @@
 #ifndef _MACHINE_PTE_H_
 #define _MACHINE_PTE_H_
 
+#include <sys/types.h>
+
+typedef uint8_t asid_t;
+typedef uint64_t pte_t;
+typedef uint64_t pde_t;
+
+#define PAGE_SHIFT 12
+#define ASID_SHIFT 48
+#define MAX_ASID 0xFF
+
 /* Block and Page attributes */
 #define ATTR_MASK_H UINT64_C(0xfff0000000000000)
 #define ATTR_MASK_L UINT64_C(0x0000000000000fff)
@@ -65,6 +75,11 @@
 #define ATTR_NORMAL_MEM_NC 1
 #define ATTR_NORMAL_MEM_WB 2
 #define ATTR_NORMAL_MEM_WT 3
+
+#define ATTR_S2_S2AP(x) ((x) << 6)
+#define ATTR_S2_S2AP_MASK 3
+#define ATTR_S2_S2AP_READ 1
+#define ATTR_S2_S2AP_WRITE 2
 
 /* Level 0 table, 512GiB per entry */
 #define L0_SHIFT 39

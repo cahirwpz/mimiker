@@ -174,6 +174,7 @@ static int sq_suspend(thread_t *td, void *wchan, const void *waitpt,
       } else {
         td->td_state = TDS_SLEEPING;
         sched_switch();
+        spin_lock(td->td_lock);
       }
     }
     /* After wakeup, only one of the following flags may be set:

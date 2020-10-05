@@ -172,10 +172,9 @@ __noreturn void thread_exit(void) {
   cv_broadcast(&td->td_waitcv);
   spin_unlock(td->td_lock);
 
-  WITH_SPIN_LOCK (td->td_lock) {
-    td->td_state = TDS_DEAD;
-    sched_switch();
-  }
+  spin_lock(td->td_lock);
+  td->td_state = TDS_DEAD;
+  sched_switch();
 
   panic("Thread %u tried to ressurect", td->td_tid);
 }
@@ -194,10 +193,9 @@ void thread_join(thread_t *otd) {
 void thread_yield(void) {
   thread_t *td = thread_self();
 
-  WITH_SPIN_LOCK (td->td_lock) {
-    td->td_state = TDS_READY;
-    sched_switch();
-  }
+  spin_lock(td->td_lock);
+  td->td_state = TDS_READY;
+  sched_switch();
 }
 
 /* It would be better to have a hash-map from tid_t to thread_t,

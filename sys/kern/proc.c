@@ -453,7 +453,8 @@ static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
 }
 
 __noreturn void proc_exit(int exitstatus) {
-  proc_t *p = proc_self();
+  thread_t *td = thread_self();
+  proc_t *p = td->td_proc;
 
   assert(mtx_owned(&p->p_lock));
 
@@ -465,6 +466,7 @@ __noreturn void proc_exit(int exitstatus) {
 
   /* Detach main thread from the process. */
   p->p_thread = NULL;
+  td->td_proc = NULL;
 
   /* Make sure address space won't get activated by context switch while it's
    * being deleted. */

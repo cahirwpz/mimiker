@@ -207,6 +207,7 @@ static void vmem_check_sanity(vmem_t *vm) {
 
 vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
   vmem_t *vm = pool_alloc(P_VMEM, M_ZERO);
+  assert(vm != NULL);
 
   vm->vm_quantum = quantum;
   assert(quantum > 0);

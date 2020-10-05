@@ -4,7 +4,7 @@ TOPDIR = $(realpath ../..)
 
 SOURCES = boot.c \
 	  context.c \
-	  copy.c \
+	  copy.S \
 	  evec.S \
 	  interrupt.c \
 	  pmap.c \
@@ -14,6 +14,7 @@ SOURCES = boot.c \
 	  start.S \
 	  switch.S \
 	  thread.c \
+	  tlb.c \
 	  trap.c \
 	  ucontext.c
 

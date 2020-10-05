@@ -193,16 +193,14 @@ static void switch_away(turnstile_t *ts, const void *waitpt) {
   assert(ts->ts_state == USED_BLOCKED);
   thread_t *td = thread_self();
 
-  WITH_SPIN_LOCK (td->td_lock) {
-    td->td_turnstile = NULL;
-    td->td_blocked = ts;
-    td->td_wchan = ts->ts_wchan;
-    td->td_waitpt = waitpt;
-    td->td_state = TDS_BLOCKED;
-
-    propagate_priority(td);
-    sched_switch();
-  }
+  spin_lock(td->td_lock);
+  td->td_turnstile = NULL;
+  td->td_blocked = ts;
+  td->td_wchan = ts->ts_wchan;
+  td->td_waitpt = waitpt;
+  td->td_state = TDS_BLOCKED;
+  propagate_priority(td);
+  sched_switch();
 }
 
 /* Give back turnstiles from ts_free to threads blocked on ts_blocked.

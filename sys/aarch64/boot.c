@@ -20,7 +20,7 @@
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data void *_bootmem_end;
 /* Kernel page directory entries. */
-alignas(PAGESIZE) pte_t _kernel_pmap_pde[PD_ENTRIES];
+paddr_t _kernel_pmap_pde;
 alignas(PAGESIZE) uint8_t _atags[PAGESIZE];
 
 extern char exception_vectors[];
@@ -140,9 +140,9 @@ __boot_text static void clear_bss(void) {
 #define DMAP_L2_SIZE roundup(DMAP_L2_ENTRIES * sizeof(pde_t), PAGESIZE)
 #define DMAP_L3_SIZE roundup(DMAP_L3_ENTRIES * sizeof(pte_t), PAGESIZE)
 
-__boot_text static void build_page_table(void) {
+__boot_text static paddr_t build_page_table(void) {
   /* l0 entry is 512GB */
-  volatile pde_t *l0 = (pde_t *)AARCH64_PHYSADDR(_kernel_pmap_pde);
+  volatile pde_t *l0 = bootmem_alloc(PAGESIZE);
   /* l1 entry is 1GB */
   volatile pde_t *l1 = bootmem_alloc(PAGESIZE);
   /* l2 entry is 2MB */
@@ -158,6 +158,13 @@ __boot_text static void build_page_table(void) {
   l0[L0_INDEX(va)] = (pde_t)l1 | L0_TABLE;
   l1[L1_INDEX(va)] = (pde_t)l2 | L1_TABLE;
   l2[L2_INDEX(va)] = (pde_t)l3 | L2_TABLE;
+
+  /* TODO(pj) imitate pmap_growkernel from NetBSD */
+  l2[L2_INDEX(0)] = (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
+  for (int i = 0; i < 32; i++) {
+    l2[L2_INDEX(0xffff000000400000 + i * PAGESIZE * PT_ENTRIES)] =
+      (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
+  }
 
   const pte_t pte_default =
     L3_PAGE | ATTR_AF | ATTR_SH(ATTR_SH_IS) | ATTR_IDX(ATTR_NORMAL_MEM_WB);
@@ -191,15 +198,17 @@ __boot_text static void build_page_table(void) {
     l1d[i] = (pde_t)&l2d[i * PT_ENTRIES] | L1_TABLE;
 
   l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
+
+  return (paddr_t)l0;
 }
 
 /* Based on locore.S from FreeBSD. */
-__boot_text static void enable_mmu(void) {
+__boot_text static void enable_mmu(paddr_t pde) {
   __dsb("sy");
 
   WRITE_SPECIALREG(VBAR_EL1, exception_vectors);
-  WRITE_SPECIALREG(TTBR0_EL1, AARCH64_PHYSADDR(_kernel_pmap_pde));
-  WRITE_SPECIALREG(TTBR1_EL1, AARCH64_PHYSADDR(_kernel_pmap_pde));
+  WRITE_SPECIALREG(TTBR0_EL1, pde);
+  WRITE_SPECIALREG(TTBR1_EL1, pde);
   __isb();
 
   /* Clear the Monitor Debug System control register. */
@@ -251,6 +260,8 @@ __boot_text static void enable_mmu(void) {
    */
   WRITE_SPECIALREG(sctlr_el1, SCTLR_M | SCTLR_I | SCTLR_C);
   __isb();
+
+  _kernel_pmap_pde = pde;
 }
 
 __boot_text static void atags_copy(atag_tag_t *atags) {
@@ -274,8 +285,7 @@ __boot_text void *aarch64_init(atag_tag_t *atags) {
   _bootmem_end = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
   atags_copy(atags);
 
-  build_page_table();
-  enable_mmu();
+  enable_mmu(build_page_table());
   return _atags;
 }
 
