@@ -9,6 +9,6 @@ SOURCES = copystr.c
 
 include $(TOPDIR)/build/build.kern.mk
 
-# This function must be compiled without KASAN because it is used by copyinstr
-# which cannot failed.
+# Since copystr function cannot modify stack and caller-saved registers
+# it must be a leaf function, hence it cannot call KASAN functions.
 copystr.o : CFLAGS_KASAN =

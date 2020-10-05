@@ -11,11 +11,10 @@
  * number of characters copied (including the NIL) in *done.  If the
  * string is too long, return ENAMETOOLONG; else return 0.
  *
- * This function must be compiled without KASAN because it is used by copyinstr
- * which cannot failed.
- *
- * For the same reason, it needs to be compiled with the -fomit-frame-pointer
- * flag in order not to use the stack in copyinstr.
+ * This function cannot modify stack and caller-saved registers and must be
+ * a leaf function. It cannot call KASAN functions and contain regular prologue
+ * and epilogue that set up frame pointer. Hence it cannot be compiled with
+ * KASAN and we need to compile it with -fomit-frame-pointer flag.
  *
  * If you plan to change this function look at machine dependent implementation
  * of copyerr.
