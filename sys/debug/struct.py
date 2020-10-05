@@ -58,15 +58,28 @@ class GdbStructMeta(type):
         return super().__new__(cls, name, (GdbStructBase,) + bases, dct)
 
 
-class TimeVal(metaclass=GdbStructMeta):
-    __ctype__ = 'struct timeval'
-    __cast__ = {'tv_sec': int, 'tv_usec': int}
+class BinTime(metaclass=GdbStructMeta):
+    __ctype__ = 'struct bintime'
+    __cast__ = {'sec': int, 'frac': int}
 
     def as_float(self):
-        return float(self.tv_sec) + float(self.tv_usec) * 1e-6
+        return float(self.sec) + float(self.frac) * 2e-64
 
     def __str__(self):
         return 'timeval{%.6f}' % self.as_float()
+
+
+class List():
+    def __init__(self, lst, field):
+        self.lst = lst
+        self.field = field
+
+    def __iter__(self):
+        item = self.lst['lh_first']
+        while item != 0:
+            item = item.dereference()
+            yield item
+            item = item[self.field]['le_next']
 
 
 class TailQueue():
@@ -80,3 +93,15 @@ class TailQueue():
             item = item.dereference()
             yield item
             item = item[self.field]['tqe_next']
+
+
+class LinkerSet():
+    def __init__(self, name, typ):
+        self.start = gdb.parse_and_eval('(%s **)&__start_set_%s' % (typ, name))
+        self.stop = gdb.parse_and_eval('(%s **)&__stop_set_%s' % (typ, name))
+
+    def __iter__(self):
+        item = self.start
+        while item < self.stop:
+            yield item.dereference().dereference()
+            item = item + 1

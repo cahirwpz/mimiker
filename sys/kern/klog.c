@@ -9,7 +9,7 @@
 
 klog_t klog;
 
-static spin_t klog_lock = SPIN_INITIALIZER(LK_RECURSE);
+static spin_t klog_lock = SPIN_INITIALIZER(LK_RECURSIVE);
 
 static const char *subsystems[] = {
   [KL_RUNQ] = "runq",   [KL_SLEEPQ] = "sleepq",   [KL_CALLOUT] = "callout",
@@ -21,7 +21,7 @@ static const char *subsystems[] = {
   [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_FILESYS] = "filesys",
   [KL_TIME] = "time",   [KL_FILE] = "file",       [KL_UNDEF] = "???"};
 
-void klog_init(void) {
+void init_klog(void) {
   const char *mask = kenv_get("klog-mask");
   klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_DEFAULT_MASK;
   klog.verbose = kenv_get("klog-quiet") ? 0 : 1;
@@ -57,7 +57,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
   tid_t tid = thread_self()->td_tid;
 
   WITH_SPIN_LOCK (&klog_lock) {
-    timeval_t now = get_uptime();
+    bintime_t now = binuptime();
 
     entry = (klog.prev >= 0) ? &klog.array[klog.prev] : NULL;
 

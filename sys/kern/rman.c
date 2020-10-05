@@ -1,8 +1,8 @@
 #include <sys/mimiker.h>
 #include <sys/rman.h>
-#include <sys/pool.h>
+#include <sys/malloc.h>
 
-static POOL_DEFINE(P_RES, "resources", sizeof(resource_t));
+static KMALLOC_DEFINE(M_RES, "resources");
 
 static bool rman_find_gap(rman_t *rm, rman_addr_t *start_p, rman_addr_t end,
                           size_t count, size_t bound, resource_t **res_p) {
@@ -61,7 +61,7 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
   assert(first <= last);
   assert(powerof2(bound) && (bound > 0));
 
-  resource_t *r = pool_alloc(P_RES, M_ZERO);
+  resource_t *r = kmalloc(M_RES, sizeof(resource_t), M_ZERO);
   r->r_rman = rm;
   r->r_type = rm->rm_type;
   r->r_flags = flags;
@@ -82,7 +82,7 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
       else
         TAILQ_INSERT_HEAD(&rm->rm_resources, r, r_link);
     } else {
-      pool_free(P_RES, r);
+      kfree(M_RES, r);
       r = NULL;
     }
   }
@@ -96,7 +96,7 @@ void rman_release_resource(resource_t *r) {
   WITH_MTX_LOCK (&rm->rm_lock)
     TAILQ_REMOVE(&rm->rm_resources, r, r_link);
 
-  pool_free(P_RES, r);
+  kfree(M_RES, r);
 }
 
 void rman_activate_resource(resource_t *r) {

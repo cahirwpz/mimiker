@@ -7,7 +7,6 @@
 #include <sys/klog.h>
 #include <sys/timer.h>
 #include <sys/spinlock.h>
-#include <sys/sysinit.h>
 #include <sys/devclass.h>
 
 typedef struct pit_state {
@@ -68,7 +67,7 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
 
-  pit->time = getbintime();
+  pit->time = binuptime();
   pit->period_frac = period.frac;
   uint16_t counter = bintime_mul(period, TIMER_FREQ).sec;
   WITH_SPIN_LOCK (&pit->lock) {
@@ -142,13 +141,7 @@ static driver_t pit_driver = {
   .desc = "i8254 PIT driver",
   .size = sizeof(pit_state_t),
   .attach = pit_attach,
+  .identify = bus_generic_identify,
 };
 
-extern device_t *gt_pci;
-
-static void pit_init(void) {
-  (void)make_device(gt_pci, &pit_driver);
-}
-
-SYSINIT_ADD(pit, pit_init, DEPS("rootdev"));
-DEVCLASS_ENTRY(root, pit_driver);
+DEVCLASS_ENTRY(pci, pit_driver);

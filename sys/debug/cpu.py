@@ -43,7 +43,7 @@ class TLBLo():
         return (self.val & 0x03ffffc0) << 6
 
     def __str__(self):
-        return '%08x %c%c' % (self.ppn, '-D'[self.dirty], '-G'[self.globl])
+        return '%08x %c' % (self.ppn, '-D'[self.dirty])
 
 
 class TLBEntry(metaclass=GdbStructMeta):
@@ -53,7 +53,7 @@ class TLBEntry(metaclass=GdbStructMeta):
     def dump(self):
         if not self.lo0.valid and not self.lo1.valid:
             return None
-        lo0, lo1 = '-', '-'
+        globl, lo0, lo1 = '-', '-', '-'
         if self.lo0.valid:
             lo0 = '%08x %s' % (self.hi.vpn0, self.lo0)
         if self.lo1.valid:
@@ -61,7 +61,8 @@ class TLBEntry(metaclass=GdbStructMeta):
         asid = '%02x' % self.hi.asid
         if self.lo0.globl and self.lo1.globl:
             asid = '-'
-        return [asid, lo0, lo1]
+            globl = 'G'
+        return [asid, globl, lo0, lo1]
 
 
 class TLB(UserCommand):
@@ -71,13 +72,14 @@ class TLB(UserCommand):
         super().__init__('tlb')
 
     def __call__(self, args):
-        table = TextTable(align='rrll')
-        table.header(["Index", "ASID", "PFN0", "PFN1"])
+        table = TextTable(align='rrrll')
+        table.header(["Index", "ASID", "Global", "PFN0", "PFN1"])
         for idx in range(TLB.size()):
             row = TLB.read(idx).dump()
             if row is None:
                 continue
             table.add_row([str(idx)] + row)
+        print('Current ASID = %d' % self.asid())
         print(table)
 
     @staticmethod
@@ -88,6 +90,10 @@ class TLB(UserCommand):
     @staticmethod
     def size():
         return int(gdb.parse_and_eval('_gdb_tlb_size()'))
+
+    @staticmethod
+    def asid():
+        return int(gdb.parse_and_eval('_gdb_asid'))
 
 
 class Cpu(CommandDispatcher):

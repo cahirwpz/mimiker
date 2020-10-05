@@ -35,12 +35,10 @@
 #define MIPS_IN_KSEG2_P(x)                                                     \
   (((uintptr_t)(x) >= MIPS_KSEG2_START) && ((uintptr_t)(x) < MIPS_KSEG3_START))
 
+/* Symbols provided by the linker. */
+extern char _gp[];
+/* Exception vector base. */
 extern char _ebase[];
-extern char __boot[];
-extern char __text[];
-extern char __data[];
-extern char __bss[];
-extern char __ebss[];
 
 #else /* __ASSEMBLER__ */
 

@@ -165,13 +165,6 @@ static int stdvga_probe(device_t *dev) {
 }
 
 static int stdvga_attach(device_t *dev) {
-
-  /* TODO: Enabling PCI regions should probably be performed by PCI bus resource
-   * reservation code. */
-  uint16_t command = pci_read_config(dev, PCIR_COMMAND, 2);
-  command |= PCIM_CMD_PORTEN | PCIM_CMD_MEMEN;
-  pci_write_config(dev, PCIR_COMMAND, 2, command);
-
   stdvga_state_t *stdvga = dev->state;
 
   stdvga->mem =
@@ -218,7 +211,7 @@ static driver_t stdvga = {
   .size = sizeof(stdvga_state_t),
   .probe = stdvga_probe,
   .attach = stdvga_attach,
+  .identify = bus_generic_identify,
 };
 
-DRIVER_ADD(stdvga);
 DEVCLASS_ENTRY(pci, stdvga);

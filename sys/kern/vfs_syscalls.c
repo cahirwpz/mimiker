@@ -10,6 +10,7 @@
 #include <sys/unistd.h>
 #include <sys/stat.h>
 #include <sys/libkern.h>
+#include <sys/statvfs.h>
 
 static int vfs_nameresolveat(proc_t *p, int fdat, vnrstate_t *vs) {
   file_t *f;
@@ -545,5 +546,32 @@ int do_fchmodat(proc_t *p, int fd, char *path, mode_t mode, int flag) {
   vnode_lock(v);
   error = vfs_change_mode(v, mode);
   vnode_put(v);
+  return error;
+}
+
+int do_statvfs(proc_t *p, char *path, statvfs_t *buf) {
+  vnode_t *v;
+  int error;
+
+  if ((error = vfs_namelookup(path, &v)))
+    return error;
+
+  memset(buf, 0, sizeof(*buf));
+  error = VFS_STATVFS(v->v_mount, buf);
+  vnode_drop(v);
+
+  return error;
+}
+
+int do_fstatvfs(proc_t *p, int fd, statvfs_t *buf) {
+  file_t *f;
+  int error;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
+    return error;
+  memset(buf, 0, sizeof(*buf));
+  error = VFS_STATVFS(f->f_vnode->v_mount, buf);
+  file_drop(f);
+
   return error;
 }

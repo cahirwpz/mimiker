@@ -2,11 +2,19 @@
 #include <sys/klog.h>
 #include <sys/device.h>
 #include <sys/pci.h>
+#include <sys/kmem.h>
+#include <sys/pmap.h>
 #include <sys/rman.h>
+#include <sys/devclass.h>
 
-int generic_bs_map(bus_addr_t addr, bus_size_t size, int flags,
+int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p) {
-  *handle_p = addr;
+  vaddr_t handle = kva_alloc(size);
+  for (bus_size_t start = 0; start < size; start += PAGESIZE) {
+    pmap_kenter(handle + start, addr + start, VM_PROT_READ | VM_PROT_WRITE,
+                PMAP_NOCACHE);
+  }
+  *handle_p = handle;
   return 0;
 }
 
@@ -79,22 +87,46 @@ void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
     *dst++ = *src++;
 }
 
+/* clang-format off */
+bus_space_t *generic_bus_space = &(bus_space_t){
+  .bs_map = generic_bs_map,
+  .bs_read_1 = generic_bs_read_1,
+  .bs_read_2 = generic_bs_read_2,
+  .bs_read_4 = generic_bs_read_4,
+  .bs_write_1 = generic_bs_write_1,
+  .bs_write_2 = generic_bs_write_2,
+  .bs_write_4 = generic_bs_write_4,
+  .bs_read_region_1 = generic_bs_read_region_1,
+  .bs_read_region_2 = generic_bs_read_region_2,
+  .bs_read_region_4 = generic_bs_read_region_4,
+  .bs_write_region_1 = generic_bs_write_region_1,
+  .bs_write_region_2 = generic_bs_write_region_2,
+  .bs_write_region_4 = generic_bs_write_region_4,
+};
+/* clang-format on */
+
 int bus_generic_probe(device_t *bus) {
-  device_t *dev;
-  SET_DECLARE(driver_table, driver_t);
-  klog("Scanning %s for known devices.", bus->driver->desc);
-  TAILQ_FOREACH (dev, &bus->children, link) {
-    driver_t **drv_p;
-    SET_FOREACH (drv_p, driver_table) {
-      driver_t *drv = *drv_p;
-      dev->driver = drv;
-      if (device_probe(dev)) {
-        klog("%s detected!", drv->desc);
-        device_attach(dev);
-        break;
-      }
-      dev->driver = NULL;
+  int error = 0;
+  devclass_t *dc = bus->devclass;
+  if (!dc)
+    return error;
+  driver_t **drv_p;
+  DEVCLASS_FOREACH(drv_p, dc) {
+    driver_t *drv = *drv_p;
+    device_t *dev = device_identify(drv, bus);
+    if (dev == NULL)
+      continue;
+    dev->driver = drv;
+    if (device_probe(dev)) {
+      klog("%s detected!", drv->desc);
+      error = device_attach(dev);
+      if (error)
+        return error;
     }
   }
-  return 0;
+  return error;
+}
+
+device_t *bus_generic_identify(driver_t *driver, device_t *bus) {
+  return device_add_child(bus, NULL, -1);
 }

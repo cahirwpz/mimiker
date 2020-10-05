@@ -16,16 +16,20 @@
 
 typedef struct pool pool_t;
 
-void pool_bootstrap(void);
+/*! \brief Called during kernel initialization. */
+void init_pool(void);
 
 /*! \brief Creates a pool of objects of given size. */
 pool_t *pool_create(const char *desc, size_t size);
 
 /*! \brief Adds a slab of one page to the pool.
  *
+ * The page may be bigger than the standard page. Argument @size has to be a
+ * multiple of PAGESIZE.
+ *
  * \note Use only during memory system bootstrap!
  */
-void pool_add_page(pool_t *pool, void *page);
+void pool_add_page(pool_t *pool, void *page, size_t size);
 
 /*! \brief Frees all memory associated with the pool
  *
@@ -41,11 +45,11 @@ void *pool_alloc(pool_t *pool, kmem_flags_t flags) __warn_unused;
 void pool_free(pool_t *pool, void *ptr);
 
 /*! \brief Define a pool that will be initialized during system startup. */
-#define POOL_DEFINE(name, ...)                                                 \
-  struct pool *name;                                                           \
-  static void __ctor_##name(void) {                                            \
-    name = pool_create(__VA_ARGS__);                                           \
+#define POOL_DEFINE(NAME, ...)                                                 \
+  struct pool *NAME;                                                           \
+  static void __ctor_##NAME(void) {                                            \
+    NAME = pool_create(__VA_ARGS__);                                           \
   }                                                                            \
-  SET_ENTRY(pool_ctor_table, __ctor_##name);
+  SET_ENTRY(pool_ctor_table, __ctor_##NAME);
 
 #endif /* !_SYS_POOL_H_ */

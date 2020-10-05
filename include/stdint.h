@@ -2,6 +2,7 @@
 #define _STDINT_H_
 
 #include <machine/int_mwgwtypes.h>
+#include <machine/int_const.h>
 
 /*
  * 7.18.1 Integer types

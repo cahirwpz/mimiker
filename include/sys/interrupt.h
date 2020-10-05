@@ -6,6 +6,9 @@
 #include <sys/spinlock.h>
 #include <sys/priority.h>
 
+/*! \brief Called during kernel initialization. */
+void init_ithreads(void);
+
 /*! \brief Disables hardware interrupts.
  *
  * Calls to \fn intr_disable can nest, you must use the same number of calls to

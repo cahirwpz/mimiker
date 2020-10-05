@@ -1,6 +1,10 @@
 #ifndef _MIPS_PMAP_H_
 #define _MIPS_PMAP_H_
 
+#ifndef _MACHDEP
+#error "Do not use this header file outside kernel machine dependent code!"
+#endif
+
 #ifndef __ASSEMBLER__
 #include <sys/types.h>
 
@@ -8,8 +12,6 @@ typedef uint8_t asid_t;
 typedef uint32_t pte_t;
 typedef uint32_t pde_t;
 #endif /* __ASSEMBLER__ */
-
-#ifdef _MACHDEP
 
 #include <mips/vm_param.h>
 
@@ -20,8 +22,8 @@ typedef uint32_t pde_t;
 #define PDE_INDEX_MASK 0xffc00000
 #define PDE_INDEX_SHIFT 22
 
-#define PTE_INDEX(x) (((x)&PTE_INDEX_MASK) >> PTE_INDEX_SHIFT)
-#define PDE_INDEX(x) (((x)&PDE_INDEX_MASK) >> PDE_INDEX_SHIFT)
+#define PTE_INDEX(x) ((((vaddr_t)(x)) & PTE_INDEX_MASK) >> PTE_INDEX_SHIFT)
+#define PDE_INDEX(x) ((((vaddr_t)(x)) & PDE_INDEX_MASK) >> PDE_INDEX_SHIFT)
 
 #ifndef __ASSEMBLER__
 /* Number of page directory entries. */
@@ -46,7 +48,5 @@ static_assert(PT_ENTRIES == 1 << 10,
 #define PMAP_KERNEL_END 0xffffe000
 #define PMAP_USER_BEGIN 0x00001000
 #define PMAP_USER_END 0x80000000
-
-#endif /* !_MACHDEP */
 
 #endif /* !_MIPS_PMAP_H_ */

@@ -7,6 +7,8 @@
 
 #include <stdio.h>
 
+#ifdef __mips__
+
 int test_exc_cop_unusable(void) {
   int value;
   asm volatile("mfc0 %0, $12, 0" : "=r"(value));
@@ -57,3 +59,5 @@ int test_syscall_in_bds(void) {
   assert(control == 1);
   return 0;
 }
+
+#endif /* !__mips__ */

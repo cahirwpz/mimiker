@@ -25,6 +25,14 @@ jobs:
         description: 'Whether to use Clang as the compiler (1 = yes, 0 = no)'
         default: '0'
         type: string
+      use_kasan:
+        description: 'Whether to use the KernelAddressSanitizer (1 = yes, 0 = no)'
+        default: '0'
+        type: string
+      board:
+        description: 'Board emulated by qemu (malta, rpi3)'
+        default: 'malta'
+        type: string
     steps:
       - checkout
       - restore_cache:
@@ -35,7 +43,7 @@ jobs:
           key: downloads-20191128-1600
           paths:
             - bin/lua/lua-5.3.5.tar.gz
-      - run: 'make CLANG=<< parameters.use_clang >>'
+      - run: 'make BOARD=<< parameters.board >> CLANG=<< parameters.use_clang >> KASAN=<< parameters.use_kasan >>'
       - store_artifacts:
           path: sys/mimiker.elf
           prefix: kernel_image
@@ -52,11 +60,16 @@ jobs:
 
   kernel_tests:
     <<: *defaults
+    parameters:
+      board:
+        description: 'Board emulated by qemu (malta, rpi3)'
+        default: 'malta'
+        type: string
     steps:
       - checkout
       - attach_workspace:
           at: ./
-      - run: './run_tests.py --thorough --non-interactive'
+      - run: './run_tests.py --board << parameters.board >> --thorough --non-interactive'
 
 workflows:
   version: 2.1
@@ -65,16 +78,27 @@ workflows:
       - verify_formatting
       - verify_pycodestyle
       - build:
-          name: build_gcc
-          use_clang: '0'
+          name: build_mips_gcc
+          use_kasan: '1'
+          board: 'malta'
       - build:
-          name: build_clang
+          name: build_mips_clang
           use_clang: '1'
+          board: 'malta'
+      - build:
+          name: build_aarch64_gcc
+          board: 'rpi3'
+      - build:
+          name: build_aarch64_clang
+          use_clang: '1'
+          board: 'rpi3'
       - kernel_tests:
-          name: kernel_tests_gcc
+          name: kernel_tests_mips_gcc
+          board: 'malta'
           requires:
-            - build_gcc
+            - build_mips_gcc
       - kernel_tests:
-          name: kernel_tests_clang
+          name: kernel_tests_mips_clang
+          board: 'malta'
           requires:
-            - build_clang
+            - build_mips_clang

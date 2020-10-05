@@ -17,16 +17,30 @@ class SleepQueue(metaclass=GdbStructMeta):
         return '[]'
 
 
+class Turnstile(metaclass=GdbStructMeta):
+    __ctype__ = 'struct turnstile'
+
+    def __init__(self, addr):
+        self._obj = gdb.parse_and_eval("turnstile_lookup((void *)%d)" % addr)
+
+    def __str__(self):
+        if self._obj:
+            blocked = map(Thread, TailQueue(self.ts_blocked, 'td_blockedq'))
+            return '[%s]' % ', '.join(map(str, blocked))
+        return '[]'
+
+
 class Mutex(metaclass=GdbStructMeta):
     __ctype__ = 'struct mtx'
-    __cast__ = {'m_count': int,
-                'm_lockpt': ProgramCounter}
+    __cast__ = {'m_count': int}
 
     def __str__(self):
         if self.m_owner:
-            return 'mtx{owner = %s, lockpt = %s, count = %d, blocked = %s}' % (
-                    Thread(self.m_owner.dereference()), self.m_lockpt,
-                    self.m_count, SleepQueue(self._obj.address))
+            owner = self.m_owner & -8
+            owner = owner.cast(gdb.lookup_type('thread_t').pointer())
+            return 'mtx{owner = %s, count = %d, blocked = %s}' % (
+                    Thread(owner.dereference()),
+                    self.m_count, Turnstile(self._obj.address))
         return 'mtx{owner = None}'
 
 

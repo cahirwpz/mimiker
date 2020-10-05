@@ -4,14 +4,17 @@
 #include <sys/exec.h>
 #include <sys/ktest.h>
 #include <sys/thread.h>
-#include <sys/sched.h>
 #include <sys/proc.h>
 #include <sys/wait.h>
 
 #define UTEST_PATH "/bin/utest"
 
 static __noreturn void utest_generic_thread(void *arg) {
-  run_program(UTEST_PATH, (char *[]){UTEST_PATH, arg, NULL}, (char *[]){NULL});
+  proc_t *p = proc_self();
+  /* Run user tests in a separate session. */
+  int error = session_enter(p);
+  assert(error == 0);
+  kern_execve(UTEST_PATH, (char *[]){UTEST_PATH, arg, NULL}, (char *[]){NULL});
 }
 
 /* This is the klog mask used with utests. */
@@ -25,15 +28,14 @@ static int utest_generic(const char *name, int status_success) {
   char prefixed_name[TD_NAME_MAX];
   snprintf(prefixed_name, TD_NAME_MAX, "utest-%s", name);
 
-  thread_t *utest_thread = thread_create(prefixed_name, utest_generic_thread,
-                                         (void *)name, prio_kthread(0));
-  proc_t *child = proc_create(utest_thread, proc_self());
-  proc_add(child);
-  sched_add(utest_thread);
+  pid_t cpid;
+  if (do_fork(utest_generic_thread, (void *)name, &cpid))
+    panic("Could not start test!");
 
   int status;
-  pid_t cpid;
-  do_waitpid(child->p_pid, &status, 0, &cpid);
+  pid_t pid;
+  do_waitpid(cpid, &status, 0, &pid);
+  assert(cpid == pid);
 
   /* Restore previous klog mask */
   /* XXX: If we'll use klog_setmask heavily, maybe we should consider
@@ -80,6 +82,12 @@ UTEST_ADD_SIMPLE(signal_basic);
 UTEST_ADD_SIMPLE(signal_send);
 UTEST_ADD_SIGNAL(signal_abort, SIGABRT);
 UTEST_ADD_SIGNAL(signal_segfault, SIGSEGV);
+UTEST_ADD_SIMPLE(signal_stop);
+UTEST_ADD_SIMPLE(signal_cont_masked);
+UTEST_ADD_SIMPLE(signal_mask);
+UTEST_ADD_SIMPLE(signal_mask_nonmaskable);
+UTEST_ADD_SIMPLE(signal_sigsuspend);
+UTEST_ADD_SIMPLE(signal_handler_mask);
 
 UTEST_ADD_SIMPLE(fork_wait);
 UTEST_ADD_SIMPLE(fork_signal);
@@ -109,6 +117,9 @@ UTEST_ADD_SIMPLE(vfs_symlink);
 UTEST_ADD_SIMPLE(vfs_link);
 UTEST_ADD_SIMPLE(vfs_chmod);
 
+UTEST_ADD_SIMPLE(wait_basic);
+UTEST_ADD_SIMPLE(wait_nohang);
+
 #if 0
 UTEST_ADD_SIMPLE(fpu_fcsr);
 UTEST_ADD_SIMPLE(fpu_gpr_preservation);
@@ -129,3 +140,11 @@ UTEST_ADD_SIMPLE(setpgid);
 UTEST_ADD_SIMPLE(kill);
 UTEST_ADD_SIMPLE(killpg_same_group);
 UTEST_ADD_SIMPLE(killpg_other_group);
+UTEST_ADD_SIMPLE(pgrp_orphan);
+UTEST_ADD_SIMPLE(session_basic);
+
+UTEST_ADD_SIMPLE(gettimeofday);
+
+UTEST_ADD_SIMPLE(get_set_uid);
+UTEST_ADD_SIMPLE(get_set_gid);
+UTEST_ADD_SIMPLE(get_set_groups);

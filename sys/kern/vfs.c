@@ -3,16 +3,15 @@
 #include <sys/mount.h>
 #include <sys/libkern.h>
 #include <sys/errno.h>
-#include <sys/pool.h>
+#include <sys/malloc.h>
 #include <sys/file.h>
 #include <sys/vfs.h>
 #include <sys/vnode.h>
-#include <sys/sysinit.h>
 #include <sys/stat.h>
 
 /* TODO: We probably need some fancier allocation, since eventually we should
  * start recycling vnodes */
-static POOL_DEFINE(P_MOUNT, "vfs mount points", sizeof(mount_t));
+static KMALLOC_DEFINE(M_VFS, "vfs");
 
 /* The list of all installed filesystem types */
 vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
@@ -25,7 +24,7 @@ static mtx_t mount_list_mtx = MTX_INITIALIZER(0);
 
 /* Default vfs operations */
 static vfs_root_t vfs_default_root;
-static vfs_statfs_t vfs_default_statfs;
+static vfs_statvfs_t vfs_default_statvfs;
 static vfs_vget_t vfs_default_vget;
 static vfs_init_t vfs_default_init;
 
@@ -47,7 +46,7 @@ static vnodeops_t vfs_root_ops = {.v_lookup = vfs_root_vnode_lookup};
 
 static int vfs_register(vfsconf_t *vfc);
 
-static void vfs_init(void) {
+void init_vfs(void) {
   vnodeops_init(&vfs_root_ops);
 
   vfs_root_vnode = vnode_new(V_DIR, &vfs_root_ops, NULL);
@@ -87,8 +86,8 @@ static int vfs_register(vfsconf_t *vfc) {
   /* Use defaults for other operations, if not provided. */
   if (vfc->vfc_vfsops->vfs_root == NULL)
     vfc->vfc_vfsops->vfs_root = vfs_default_root;
-  if (vfc->vfc_vfsops->vfs_statfs == NULL)
-    vfc->vfc_vfsops->vfs_statfs = vfs_default_statfs;
+  if (vfc->vfc_vfsops->vfs_statvfs == NULL)
+    vfc->vfc_vfsops->vfs_statvfs = vfs_default_statvfs;
   if (vfc->vfc_vfsops->vfs_vget == NULL)
     vfc->vfc_vfsops->vfs_vget = vfs_default_vget;
   if (vfc->vfc_vfsops->vfs_init == NULL)
@@ -104,7 +103,7 @@ static int vfs_default_root(mount_t *m, vnode_t **v) {
   return ENOTSUP;
 }
 
-static int vfs_default_statfs(mount_t *m, statfs_t *sb) {
+static int vfs_default_statvfs(mount_t *m, statvfs_t *sb) {
   return ENOTSUP;
 }
 
@@ -117,7 +116,7 @@ static int vfs_default_init(vfsconf_t *vfc) {
 }
 
 mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
-  mount_t *m = pool_alloc(P_MOUNT, M_ZERO);
+  mount_t *m = kmalloc(M_VFS, sizeof(mount_t), M_ZERO);
 
   m->mnt_vfc = vfc;
   m->mnt_vfsops = vfc->vfc_vfsops;
@@ -196,5 +195,3 @@ int vfs_maybe_descend(vnode_t **vp) {
   }
   return 0;
 }
-
-SYSINIT_ADD(vfs, vfs_init, NODEPS);

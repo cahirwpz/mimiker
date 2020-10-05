@@ -1,5 +1,8 @@
 #include <sys/interrupt.h>
-#include <mips/exception.h>
+#include <sys/exception.h>
+#include <sys/sched.h>
+#include <sys/pcpu.h>
+#include <mips/context.h>
 #include <mips/interrupt.h>
 
 /* Extra information regarding DI / EI usage (from MIPS® ISA documentation):
@@ -37,7 +40,7 @@ static void mips_unmask_irq(intr_event_t *ie) {
   mips32_bs_c0(C0_STATUS, SR_IM0 << irq);
 }
 
-void mips_intr_init(void) {
+void init_mips_intr(void) {
   /* Initialize software interrupts handler events. */
   MIPS_INTR_EVENT(MIPS_SWINT0, "swint(0)");
   MIPS_INTR_EVENT(MIPS_SWINT1, "swint(1)");
@@ -63,8 +66,13 @@ void mips_intr_teardown(intr_handler_t *handler) {
 }
 
 /* Hardware interrupt handler is called with interrupts disabled. */
-void mips_intr_handler(exc_frame_t *frame) {
-  unsigned pending = (frame->cause & frame->sr) & CR_IP_MASK;
+void mips_intr_handler(ctx_t *ctx) {
+  unsigned pending = (_REG(ctx, CAUSE) & _REG(ctx, SR)) & CR_IP_MASK;
+
+  assert(cpu_intr_disabled());
+
+  intr_disable();
+  PCPU_SET(no_switch, true);
 
   for (int i = 7; i >= 0; i--) {
     unsigned irq = CR_IP0 << i;
@@ -74,4 +82,12 @@ void mips_intr_handler(exc_frame_t *frame) {
       pending &= ~irq;
     }
   }
+
+  PCPU_SET(no_switch, false);
+  intr_enable();
+
+  on_exc_leave();
+
+  if (user_mode_p(ctx))
+    on_user_exc_leave();
 }

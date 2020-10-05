@@ -4,7 +4,6 @@
 #include <machine/interrupt.h>
 #include <sys/interrupt.h>
 #include <sys/sleepq.h>
-#include <sys/sysinit.h>
 #include <sys/sched.h>
 
 static mtx_t all_ievents_mtx = MTX_INITIALIZER(0);
@@ -32,7 +31,7 @@ void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
                      ie_action_t *disable, ie_action_t *enable, void *source) {
   ie->ie_irq = irq;
   ie->ie_name = name;
-  ie->ie_lock = SPIN_INITIALIZER(LK_RECURSE);
+  ie->ie_lock = SPIN_INITIALIZER(LK_RECURSIVE);
   ie->ie_enable = enable;
   ie->ie_disable = disable;
   ie->ie_source = source;
@@ -130,10 +129,8 @@ static void intr_thread(void *arg) {
   }
 }
 
-static void intr_init(void) {
-  thread_t *interrupt_thread =
+void init_ithreads(void) {
+  thread_t *itd =
     thread_create("interrupt", intr_thread, NULL, prio_ithread(0));
-  sched_add(interrupt_thread);
+  sched_add(itd);
 }
-
-SYSINIT_ADD(ithread, intr_init, DEPS("sched"));

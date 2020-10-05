@@ -18,11 +18,11 @@ DSTPATH = $(DIR)$@
 # Define our own recipes
 %.S: %.c
 	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(WFLAGS) -S -o $@ $(realpath $<)
+	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CPPFLAGS) $(WFLAGS) -S -o $@ $(realpath $<)
 
 %.o: %.c
 	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
-	$(CC) $(CFLAGS) $(CFLAGS_KASAN) $(CPPFLAGS) $(WFLAGS) -c -o $@ $(realpath $<)
+	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CFLAGS_KASAN) $(CPPFLAGS) $(WFLAGS) -c -o $@ $(realpath $<)
 
 %.o: %.S
 	@echo "[AS] $(SRCPATH) -> $(DSTPATH)"
@@ -37,6 +37,10 @@ DSTPATH = $(DIR)$@
 	$(AR) rs $@ $^ 2> /dev/null
 
 assym.h: genassym.cf
+	@echo "[ASSYM] $(DSTPATH)"
+	$(GENASSYM) $(CC) $(ASSYM_CFLAGS) $(CFLAGS) $(CPPFLAGS) < $^ > $@
+
+%/assym.h: %/genassym.cf
 	@echo "[ASSYM] $(DSTPATH)"
 	$(GENASSYM) $(CC) $(ASSYM_CFLAGS) $(CFLAGS) $(CPPFLAGS) < $^ > $@
 

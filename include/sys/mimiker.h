@@ -103,6 +103,19 @@ int copyin(const void *restrict udaddr, void *restrict kaddr, size_t len)
 int copyout(const void *restrict kaddr, void *restrict udaddr, size_t len)
   __nonnull(1) __nonnull(2);
 
+#if KASAN
+int kasan_copyin(const void *restrict udaddr, void *restrict kaddr, size_t len);
+#define copyin(u, k, l) kasan_copyin(u, k, l)
+
+int kasan_copyout(const void *restrict kaddr, void *restrict udaddr,
+                  size_t len);
+#define copyout(k, u, l) kasan_copyout(k, u, l)
+
+int kasan_copyinstr(const void *restrict udaddr, void *restrict kaddr,
+                    size_t len, size_t *restrict lencopied);
+#define copyinstr(u, k, len, lencopied) kasan_copyinstr(u, k, len, lencopied)
+#endif /* !KASAN */
+
 #define copyin_s(udaddr, _what) copyin((udaddr), &(_what), sizeof(_what))
 #define copyout_s(_what, udaddr) copyout(&(_what), (udaddr), sizeof(_what))
 
@@ -114,7 +127,7 @@ __noreturn void panic_fail(void);
 
 #define panic(FMT, ...)                                                        \
   __extension__({                                                              \
-    kprintf("[%s:%d] PANIC: " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);    \
+    kprintf("[PANIC] %s: " FMT "\n", __func__, ##__VA_ARGS__);                 \
     panic_fail();                                                              \
   })
 
@@ -133,8 +146,23 @@ void assert_fail(const char *expr, const char *file, unsigned int line);
 /* Global definitions used throught kernel. */
 __noreturn void kernel_init(void);
 
+/*! \brief Called during kernel initialization. */
+void init_clock(void);
+
 /* Initial range of virtual addresses used by kernel image. */
 extern char __kernel_start[];
 extern char __kernel_end[];
+
+#ifdef _MACHDEP
+/* Symbols defined by linker and used during kernel boot phase. */
+extern char __boot[];
+extern char __text[];
+extern char __data[];
+extern char __bss[];
+extern char __ebss[];
+
+/* Last physical address used by kernel for boot memory allocation. */
+extern __boot_data void *_bootmem_end;
+#endif /* !_MACHDEP */
 
 #endif /* !_SYS_MIMIKER_H_ */

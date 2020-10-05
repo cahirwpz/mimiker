@@ -21,6 +21,9 @@ typedef struct callout {
 #define CALLOUT_ACTIVE 0x0001
 #define CALLOUT_PENDING 0x0002 /* callout is waiting for timeout */
 
+/*! \brief Called during kernel initialization. */
+void init_callout(void);
+
 /*
  * Add a callout to the queue.
  * At tick @time function @fn is called with argument @arg.
@@ -39,6 +42,9 @@ void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
  *
  * \return True if the callout was pending and has been stopped, false if the
  * callout has already been delegated to callout thread or executed.
+ *
+ * \warning It's not safe to deallocate callout memory after it has been
+ * stopped. You should use \a callout_drain if you need that.
  */
 bool callout_stop(callout_t *handle);
 

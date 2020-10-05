@@ -1,8 +1,13 @@
 #ifndef _SYS_SCHED_H_
 #define _SYS_SCHED_H_
 
+#ifdef _KERNEL
+
 #include <sys/cdefs.h>
 #include <sys/thread.h>
+
+/*! \brief Called during kernel initialization. */
+void init_sched(void);
 
 /*! \brief Disables preemption.
  *
@@ -91,7 +96,8 @@ void sched_clock(void);
  * field to reflect the change in state.
  *
  * \returns a value that was passed to sched_wakeup
- * \note Must be called with \a td_spin acquired!
+ * \note Must be called with \a td_lock acquired, which will be unlocked after
+ *       procedure returns!
  */
 long sched_switch(void);
 
@@ -107,5 +113,7 @@ void sched_maybe_preempt(void);
 
 /*! \brief Turns calling thread into idle thread. */
 __noreturn void sched_run(void);
+
+#endif /* _KERNEL */
 
 #endif /* !_SYS_SCHED_H_ */
