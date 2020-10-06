@@ -13,6 +13,7 @@
 #include <sys/interrupt.h>
 #include <sys/stat.h>
 #include <sys/devclass.h>
+#include <sys/tty.h>
 
 #define UART_BUFSIZE 128
 
@@ -22,6 +23,7 @@ typedef struct ns16550_state {
   ringbuf_t tx_buf, rx_buf;
   intr_handler_t intr_handler;
   resource_t *regs;
+  tty_t *tty;
 } ns16550_state_t;
 
 #define in(regs, offset) bus_read_1((regs), (offset))
@@ -114,12 +116,12 @@ static int ns16550_getattr(vnode_t *v, vattr_t *va) {
   return 0;
 }
 
-static vnodeops_t dev_uart_ops = {.v_open = vnode_open_generic,
-                                  .v_write = ns16550_write,
-                                  .v_read = ns16550_read,
-                                  .v_close = ns16550_close,
-                                  .v_ioctl = ns16550_ioctl,
-                                  .v_getattr = ns16550_getattr};
+static vnodeops_t dev_uart_ops __unused = {.v_open = vnode_open_generic,
+                                           .v_write = ns16550_write,
+                                           .v_read = ns16550_read,
+                                           .v_close = ns16550_close,
+                                           .v_ioctl = ns16550_ioctl,
+                                           .v_getattr = ns16550_getattr};
 
 static intr_filter_t ns16550_intr(void *data) {
   ns16550_state_t *ns16550 = data;
@@ -132,22 +134,58 @@ static intr_filter_t ns16550_intr(void *data) {
     /* data ready to be received? */
     if (iir & IIR_RXRDY) {
       (void)ringbuf_putb(&ns16550->rx_buf, in(uart, RBR));
-      cv_signal(&ns16550->rx_nonempty);
-      res = IF_FILTERED;
+      /* cv_signal(&ns16550->rx_nonempty); */
+      res = IF_DELEGATE;
     }
 
+    /* Characters are written out synchronously, so this part is no longer
+     * needed. */
     /* transmit register empty? */
-    if (iir & IIR_TXRDY) {
-      uint8_t byte;
-      if (ringbuf_getb(&ns16550->tx_buf, &byte)) {
-        out(uart, THR, byte);
-        cv_signal(&ns16550->tx_nonfull);
-      }
-      res = IF_FILTERED;
-    }
+    /* if (iir & IIR_TXRDY) { */
+    /*   uint8_t byte; */
+    /*   if (ringbuf_getb(&ns16550->tx_buf, &byte)) { */
+    /*     out(uart, THR, byte); */
+    /*     cv_signal(&ns16550->tx_nonfull); */
+    /*   } */
+    /*   res = IF_FILTERED; */
+    /* } */
   }
 
   return res;
+}
+
+/*
+ * Process incoming characters.
+ * This procedure is run in the interrupt thread's context.
+ */
+static void ns16550_service(void *data) {
+  ns16550_state_t *ns16550 = data;
+  tty_t *tty = ns16550->tty;
+  uint8_t byte;
+  while (true) {
+    WITH_SPIN_LOCK (&ns16550->lock) {
+      if (!ringbuf_getb(&ns16550->rx_buf, &byte))
+        return;
+    }
+    WITH_MTX_LOCK (&tty->t_lock) { tty_input(tty, byte); }
+  }
+}
+
+/*
+ * Synchronously transmit all characters from the tty's output queue.
+ * Called with `tty->t_lock` held.
+ */
+static void ns16550_output(tty_t *tty) {
+  ns16550_state_t *ns16550 = tty->t_data;
+  resource_t *uart = ns16550->regs;
+  uint8_t byte;
+  /* XXX: Do we need extra synchronization in addition to `tty->t_lock` here?
+   *      I don't think we do. */
+  while (ringbuf_getb(&tty->t_outq, &byte)) {
+    while (!(in(uart, LSR) & LSR_THRE))
+      ;
+    out(uart, THR, byte);
+  }
 }
 
 static int ns16550_attach(device_t *dev) {
@@ -164,21 +202,25 @@ static int ns16550_attach(device_t *dev) {
   cv_init(&ns16550->rx_nonempty, "UART receive buffer not empty");
   cv_init(&ns16550->tx_nonfull, "UART transmit buffer not full");
 
+  ns16550->tty = tty_alloc();
+  ns16550->tty->t_ops.t_output = ns16550_output;
+  ns16550->tty->t_data = ns16550;
+
   /* TODO Small hack to select COM1 UART */
   ns16550->regs = bus_alloc_resource(
     dev, RT_ISA, 0, IO_COM1, IO_COM1 + IO_COMSIZE - 1, IO_COMSIZE, RF_ACTIVE);
   assert(ns16550->regs != NULL);
-  ns16550->intr_handler =
-    INTR_HANDLER_INIT(ns16550_intr, NULL, ns16550, "NS16550 UART", 0);
+  ns16550->intr_handler = INTR_HANDLER_INIT(ns16550_intr, ns16550_service,
+                                            ns16550, "NS16550 UART", 0);
   /* TODO Do not use magic number "4" here! */
   bus_intr_setup(dev, 4, &ns16550->intr_handler);
 
   /* Setup UART and enable interrupts */
   setup(ns16550->regs);
-  out(ns16550->regs, IER, IER_ERXRDY | IER_ETXRDY);
+  out(ns16550->regs, IER, IER_ERXRDY);
 
   /* Prepare /dev/uart interface. */
-  devfs_makedev(NULL, "uart", &dev_uart_ops, ns16550);
+  devfs_makedev(NULL, "uart", &tty_vnodeops, ns16550->tty);
 
   return 0;
 }
