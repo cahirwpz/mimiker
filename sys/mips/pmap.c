@@ -31,7 +31,7 @@ typedef struct pv_entry {
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 
-static pte_t vm_prot_map[] = {
+static const pte_t vm_prot_map[] = {
   [VM_PROT_NONE] = 0,
   [VM_PROT_READ] = PTE_VALID | PTE_NO_EXEC,
   [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_NO_READ | PTE_NO_EXEC,
@@ -112,7 +112,7 @@ pmap_t *pmap_lookup(vaddr_t addr) {
  */
 
 static asid_t alloc_asid(void) {
-  int free;
+  int free = 0;
   WITH_SPIN_LOCK (asid_lock) {
     bit_ffc(asid_used, MAX_ASID, &free);
     if (free < 0)
@@ -274,7 +274,7 @@ void pmap_kremove(vaddr_t va, size_t size) {
   klog("%s: remove unmanaged mapping for %p - %p range", __func__, va,
        va + size - 1);
 
-  WITH_MTX_LOCK (&kernel_pmap.mtx) {
+  WITH_MTX_LOCK (&pmap->mtx) {
     for (size_t off = 0; off < size; off += PAGESIZE)
       pmap_pte_write(pmap, va + off, PTE_GLOBAL, 0);
   }
