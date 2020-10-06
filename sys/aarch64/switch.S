@@ -44,11 +44,8 @@ ENTRY(ctx_switch)
         # ctx_switch must be called with interrupts disabled
         mrs     x2, daif
         and     x2, x2, #DAIF_I_MASKED
-        bne     1f
+        bne     .ctx_save
         hlt     #0
-
-        # don't save context of @from thread if user did not provide one
-1:      cbz     x0, .ctx_resume
 
         # save context of @from thread
 .ctx_save:
@@ -77,3 +74,5 @@ ENTRY(ctx_switch)
         
         ret
 END(ctx_switch)
+
+# vim: sw=8 ts=8 et
