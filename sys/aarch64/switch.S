@@ -56,6 +56,10 @@ ENTRY(ctx_switch)
 .ctx_resume:
         # [x8] @to thread
         mov     x8, x1
+        
+        # switch stack pointer to @to thread
+        ldr     x1, [x8, #TD_KCTX]
+        mov     sp, x1
 
         # [x9] pointer to @pcpu
         mrs     x9, tpidr_el1
@@ -68,8 +72,6 @@ ENTRY(ctx_switch)
         bl      vm_map_switch
 
         # restore @to thread context
-        ldr     x1, [x8, #TD_KCTX]
-        mov     sp, x1
         LOAD_CTX x1
         
         ret
