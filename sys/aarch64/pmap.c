@@ -518,3 +518,20 @@ void pmap_delete(pmap_t *pmap) {
   free_asid(pmap->asid);
   pool_free(P_PMAP, pmap);
 }
+
+static vaddr_t pmap_maxkvaddr;
+
+vaddr_t pmap_growkernel(vaddr_t maxkvaddr) {
+  pmap_t *pmap = pmap_kernel();
+  vaddr_t va;
+
+  WITH_MTX_LOCK (&pmap->mtx) {
+    for (va = pmap_maxkvaddr; va <= maxkvaddr; va += L2_SIZE)
+      pmap_ensure_pte(pmap, va);
+    pmap_maxkvaddr = va;
+  }
+
+  /* TODO(pj) here we should do something with KASAN shadow map */
+
+  return va;
+}
