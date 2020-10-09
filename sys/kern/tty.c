@@ -118,7 +118,7 @@ static inline bool tty_is_break(tty_t *tty, uint8_t c) {
 
 /* Initialize termios with sane defaults. */
 static void tty_init_termios(struct termios *tio) {
-  tio->c_cflag = tio->c_cflag = TTYDEF_CFLAG;
+  tio->c_cflag = TTYDEF_CFLAG;
   tio->c_iflag = TTYDEF_IFLAG;
   tio->c_lflag = TTYDEF_LFLAG;
   tio->c_oflag = TTYDEF_OFLAG;
