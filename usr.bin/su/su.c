@@ -71,6 +71,8 @@ main(int argc, char **argv)
   char *p;
   uid_t ruid;
   int asme, ch, asthem, fastlogin, gohome;
+/* TODO(fzdob): inactive unless we had get/setpriority functions 
+ *       (only there we use prio variable) */
 #if 0
   int prio;
 #endif
@@ -120,8 +122,10 @@ main(int argc, char **argv)
         getprogname(), ARGSTR);
       exit(EXIT_FAILURE);
     }
+
   argv += optind;
 
+/* TODO(fzdob): inactive unless we had get/setpriority functions */
 #if 0
   /* Lower the priority so su runs faster */
   errno = 0;
@@ -175,6 +179,7 @@ main(int argc, char **argv)
     errx(EXIT_FAILURE, "unknown login `%s'", user);
 
   if (ruid) {
+/* TODO(fzdob): inactive unless we had crytp and getpass functions */
 #if 0
     char *pass = strdup(pwd->pw_passwd);
 #endif
@@ -187,7 +192,10 @@ main(int argc, char **argv)
      */
     if (!ok) {
       if ((ok = check_ingroup(-1, SU_ROOTAUTH, username, 0))) {
+/* TODO(fzdob): inactive unless we had crytp and getpass functions */
+#if 0
         pass = userpass;
+#endif
         user = username;
       }
     }
@@ -204,6 +212,7 @@ main(int argc, char **argv)
     "you are not listed in the correct secondary group (%s) to su %s.",
             SU_GROUP, user);
 
+/* TODO(fzdob): inactive unless we had crytp and getpass functions */
 #if 0
     /* if target requires a password, verify it */
     if (*pass && pwd->pw_uid != ruid) { /* XXX - OK? */
@@ -300,6 +309,7 @@ main(int argc, char **argv)
     syslog(LOG_NOTICE, "%s to %s%s",
       username, pwd->pw_name, ontty());
 
+/* TODO(fzdob): inactive unless we had get/setpriority functions */
 #if 0
   /* Raise our priority back to what we had before */
   (void)setpriority(PRIO_PROCESS, 0, prio);

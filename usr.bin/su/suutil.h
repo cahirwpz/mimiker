@@ -29,6 +29,8 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
 __BEGIN_DECLS
 int chshell(const char *);
 char *ontty(void);

@@ -39,6 +39,7 @@
 int
 chshell(const char *sh)
 {
+/* TODO: inactive unless we had get/setusershell functions */
 #if 0
     const char *cp;
 
@@ -54,6 +55,8 @@ char *
 ontty(void)
 {
     static char buf[MAXPATHLEN + 4] = "not tty :(";
+
+/* TODO: inactive unless we had ttyname function */
 #if 0
     char *p;
     buf[0] = 0;

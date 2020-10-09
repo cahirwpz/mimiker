@@ -45,8 +45,6 @@ int initgroups(const char *uname, gid_t agroup) {
   gid_t *groups = groups_list;
   int rval;
 
-  //_DIAGASSERT(uname != NULL);
-
   ngroups = NGROUPS;
   if (getgrouplist(uname, agroup, groups, &ngroups) == -1) {
     int maxgroups = ngroups;
