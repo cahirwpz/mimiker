@@ -237,11 +237,14 @@ class CGDB(GDB):
 
 
 class SOCAT(Launchable):
-    def __init__(self, name, tcp_port):
+    def __init__(self, name, tcp_port, raw=False):
         super().__init__(name, 'socat')
         # The simulator will only open the server after some time has
         # passed.  To minimize the delay, keep reconnecting until success.
-        self.options = ['STDIO', f'tcp:localhost:{tcp_port},retry,forever']
+        stdio_opt = 'STDIO'
+        if raw:
+            stdio_opt += ',cfmakeraw'
+        self.options = [stdio_opt, f'tcp:localhost:{tcp_port},retry,forever']
 
 
 Debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
