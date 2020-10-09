@@ -175,7 +175,7 @@ static void ns16550_service(void *data) {
  * Synchronously transmit all characters from the tty's output queue.
  * Called with `tty->t_lock` held.
  */
-static void ns16550_output(tty_t *tty) {
+static void ns16550_drain_out(tty_t *tty) {
   ns16550_state_t *ns16550 = tty->t_data;
   resource_t *uart = ns16550->regs;
   uint8_t byte;
@@ -202,9 +202,12 @@ static int ns16550_attach(device_t *dev) {
   cv_init(&ns16550->rx_nonempty, "UART receive buffer not empty");
   cv_init(&ns16550->tx_nonfull, "UART transmit buffer not full");
 
-  ns16550->tty = tty_alloc();
-  ns16550->tty->t_ops.t_output = ns16550_output;
-  ns16550->tty->t_data = ns16550;
+  tty_t *tty = tty_alloc();
+  tty->t_termios.c_ispeed = 115200;
+  tty->t_termios.c_ospeed = 115200;
+  tty->t_ops.t_drain_out = ns16550_drain_out;
+  tty->t_data = ns16550;
+  ns16550->tty = tty;
 
   /* TODO Small hack to select COM1 UART */
   ns16550->regs = bus_alloc_resource(

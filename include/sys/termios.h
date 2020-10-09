@@ -65,6 +65,8 @@
 
 #define _POSIX_VDISABLE 0xff
 
+#define CCEQ(val, c) (c == val ? val != _POSIX_VDISABLE : 0)
+
 /*
  * Input flags - software input processing
  */
