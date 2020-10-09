@@ -44,7 +44,7 @@ struct bus_space {
                             bus_size_t);
 };
 
-int generic_bs_map(bus_addr_t addr, bus_size_t size, int flags,
+int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p);
 
 uint8_t generic_bs_read_1(bus_space_handle_t handle, bus_size_t offset);
@@ -71,6 +71,8 @@ void generic_bs_write_region_2(bus_space_handle_t handle, bus_size_t offset,
                                const uint16_t *src, bus_size_t count);
 void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
                                const uint32_t *src, bus_size_t count);
+
+extern bus_space_t *generic_bus_space;
 
 #define BUS_SPACE_DECLARE(name) extern bus_space_t name[1]
 
@@ -217,5 +219,8 @@ static inline void bus_release_resource(device_t *dev, res_type_t type, int rid,
 }
 
 int bus_generic_probe(device_t *bus);
+
+/* This function should be used only for leafs in device tree. */
+device_t *bus_generic_identify(driver_t *driver, device_t *bus);
 
 #endif /* !_SYS_BUS_H_ */

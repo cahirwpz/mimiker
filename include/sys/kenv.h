@@ -4,7 +4,7 @@
 #include <sys/types.h>
 
 /* Initialize kenv with parameters and arguments for init program. */
-void kenv_bootstrap(char **kenvp, char **kinit);
+void init_kenv(char **kenvp);
 
 /* Fetch string value with given key. */
 char *kenv_get(const char *key);

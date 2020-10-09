@@ -3,7 +3,7 @@
 
 #include <sys/types.h>
 
-#define CLK_TCK 100 /* system clock ticks per second */
+#define CLK_TCK 1000 /* system clock ticks per second 1[tick] = 1[ms]  */
 
 typedef struct tm {
   int tm_sec;          /* seconds after the minute [0-61] */
@@ -47,8 +47,17 @@ typedef struct bintime {
     .sec = 0, .frac = ((1ULL << 63) / (hz)) << 1                               \
   }
 
+/* Returns seconds after EPOCH */
+time_t tm2sec(tm_t *tm);
+
 static inline systime_t bt2st(bintime_t *bt) {
-  return bt->sec * 1000 + (((uint64_t)1000 * (uint32_t)(bt->frac >> 32)) >> 32);
+  return bt->sec * CLK_TCK +
+         (((uint64_t)CLK_TCK * (uint32_t)(bt->frac >> 32)) >> 32);
+}
+
+static inline void bt2ts(bintime_t *bt, timespec_t *ts) {
+  ts->tv_sec = bt->sec;
+  ts->tv_nsec = (1000000000ULL * (uint32_t)(bt->frac >> 32)) >> 32;
 }
 
 /* Operations on timevals. */
@@ -151,8 +160,11 @@ struct itimerval {
 
 #ifdef _KERNEL
 
-/* Get high-fidelity time measured from the start of system. */
-bintime_t getbintime(void);
+/* Time measured from the start of system. */
+bintime_t binuptime(void);
+
+/* UTC/POSIX time */
+bintime_t bintime(void);
 
 /* System time is measured in ticks (1[ms] by default),
  * and is maintained by system clock. */
@@ -167,13 +179,16 @@ int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
 
 int nanosleep(timespec_t *rqtp, timespec_t *rmtp);
 
-int gettimeofday(timeval_t *tp, void *tzp);
+int adjtime(const struct timeval *, struct timeval *);
+int gettimeofday(struct timeval *__restrict, void *__restrict);
+int settimeofday(const struct timeval *__restrict, const void *__restrict);
 
 int clock_gettime(clockid_t clk, timespec_t *tp);
 
 int clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                     timespec_t *rmtp);
 
+int getitimer(int, struct itimerval *);
 int setitimer(int, const struct itimerval *__restrict,
               struct itimerval *__restrict);
 

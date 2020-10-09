@@ -6,10 +6,6 @@
 #include <sys/tree.h>
 #include <machine/vm_param.h>
 
-#define PG_SIZE(pg) ((pg)->size * PAGESIZE)
-#define PG_START(pg) ((pg)->paddr)
-#define PG_END(pg) ((pg)->paddr + PG_SIZE(pg))
-
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
 
 /* Real kernel end in kernel virtual address space. */
@@ -44,10 +40,9 @@ typedef struct vm_page vm_page_t;
 typedef TAILQ_HEAD(vm_pagelist, vm_page) vm_pagelist_t;
 typedef RB_HEAD(vm_pagetree, vm_page) vm_pagetree_t;
 
-typedef struct vm_map vm_map_t;
-typedef struct vm_segment vm_segment_t;
+typedef struct pv_entry pv_entry_t;
 typedef struct vm_object vm_object_t;
-typedef struct vm_pager vm_pager_t;
+typedef struct slab slab_t;
 
 struct vm_page {
   union {
@@ -57,12 +52,14 @@ struct vm_page {
       TAILQ_ENTRY(vm_page) list;
       RB_ENTRY(vm_page) tree;
     } obj;
+    slab_t *slab; /* active when page is used by pool allocator */
   };
-  vm_object_t *object; /* object owning that page */
-  off_t offset;        /* offset to page in vm_object */
-  paddr_t paddr;       /* physical address of page */
-  pg_flags_t flags;    /* page flags (used by physmem as well) */
-  uint32_t size;       /* size of page in PAGESIZE units */
+  TAILQ_HEAD(, pv_entry) pv_list; /* where this page is mapped? */
+  vm_object_t *object;            /* object owning that page */
+  off_t offset;                   /* offset to page in vm_object */
+  paddr_t paddr;                  /* physical address of page */
+  pg_flags_t flags;               /* page flags (used by physmem as well) */
+  uint32_t size;                  /* size of page in PAGESIZE units */
 };
 
 #endif /* !_SYS_VM_H_ */

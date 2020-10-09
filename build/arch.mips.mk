@@ -3,6 +3,7 @@ TARGET := mipsel-mimiker-elf
 GCC_ABIFLAGS := -mips32r2 -EL -DELFSIZE=32 -G 0
 CLANG_ABIFLAGS := -target mipsel-elf -march=mips32r2 -mno-abicalls -modd-spreg -DELFSIZE=32 -G 0
 ELFTYPE := elf32-littlemips 
+ELFARCH := mips
 
 ifeq ($(KERNEL), 1)
 KASAN ?= 0

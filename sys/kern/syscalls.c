@@ -53,7 +53,7 @@ static int sys_fork(proc_t *p, void *args, register_t *res) {
 
   klog("fork()");
 
-  if ((error = do_fork(&pid)))
+  if ((error = do_fork(NULL, NULL, &pid)))
     return error;
 
   *res = pid;
@@ -70,7 +70,8 @@ static int sys_getpid(proc_t *p, void *args, register_t *res) {
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/getppid.html */
 static int sys_getppid(proc_t *p, void *args, register_t *res) {
   klog("getppid()");
-  *res = p->p_parent ? p->p_parent->p_pid : 0;
+  assert(p->p_parent);
+  *res = p->p_parent->p_pid;
   return 0;
 }
 
@@ -133,7 +134,7 @@ static int sys_kill(proc_t *p, kill_args_t *args, register_t *res) {
 static int sys_umask(proc_t *p, umask_args_t *args, register_t *res) {
   mode_t newmask = args->newmask;
   klog("umask(%x)", args->newmask);
-  return do_umask(p, newmask, res);
+  return do_umask(p, newmask, (int *)res);
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html */
@@ -894,6 +895,81 @@ static int sys_fstatvfs(proc_t *p, fstatvfs_args_t *args, register_t *res) {
 
   if (!(error = do_fstatvfs(p, fd, &buf)))
     error = copyout_s(buf, u_buf);
+
+  return error;
+}
+
+static int sys_getgroups(proc_t *p, getgroups_args_t *args, register_t *res) {
+  int ngroups = args->ngroups;
+  gid_t *ugidset = args->gidset;
+  int pngroups = p->p_cred.cr_ngroups;
+
+  klog("getgroups(%d, %p)", ngroups, ugidset);
+
+  if (ngroups == 0) {
+    /* just return number of groups */
+    *res = pngroups;
+    return 0;
+  }
+
+  if (ngroups < pngroups)
+    return EINVAL;
+
+  *res = pngroups;
+  return copyout(p->p_cred.cr_groups, ugidset, pngroups * sizeof(gid_t));
+}
+
+static int sys_setgroups(proc_t *p, setgroups_args_t *args, register_t *res) {
+  int error = 0;
+  int ungroups = args->ngroups;
+  const gid_t *ugidset = args->gidset;
+
+  klog("setgroups(%d, %p)", ungroups, ugidset);
+
+  /* too many groups */
+  if (ungroups < 0 || ungroups > NGROUPS_MAX)
+    return EINVAL;
+
+  gid_t *gidset = kmalloc(M_TEMP, ungroups * sizeof(gid_t), M_NOWAIT);
+
+  /* if we set 0 groups kmalloc returns NULL, but it is not an error */
+  if (ungroups > 0 && gidset == NULL)
+    return ENOMEM;
+
+  if (!(error = copyin(ugidset, gidset, ungroups * sizeof(gid_t))))
+    error = do_setgroups(p, ungroups, gidset);
+
+  kfree(M_TEMP, gidset);
+  return error;
+}
+
+static int sys_setsid(proc_t *p, void *args, register_t *res) {
+  int error;
+
+  klog("setsid()");
+
+  if ((error = session_enter(p)))
+    return error;
+
+  *res = p->p_pid;
+  return 0;
+}
+
+static int sys_getsid(proc_t *p, getsid_args_t *args, register_t *res) {
+  pid_t pid = args->pid;
+  sid_t sid;
+  int error;
+
+  if (pid < 0)
+    return EINVAL;
+
+  if (pid == 0)
+    pid = p->p_pid;
+
+  klog("getsid(%d)", pid);
+
+  if (!(error = proc_getsid(pid, &sid)))
+    *res = sid;
 
   return error;
 }

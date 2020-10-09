@@ -11,9 +11,7 @@
 
 static vmem_t *kvspace; /* Kernel virtual address space allocator. */
 
-void kmem_bootstrap(void) {
-  vmem_bootstrap();
-
+void init_kmem(void) {
   kvspace = vmem_create("kvspace", PAGESIZE);
   if (KERNEL_SPACE_BEGIN < (vaddr_t)__kernel_start)
     vmem_add(kvspace, KERNEL_SPACE_BEGIN,
@@ -26,19 +24,27 @@ static void kick_swapper(void) {
   panic("Cannot allocate more kernel memory: swapper not implemented!");
 }
 
-void *kmem_alloc(size_t size, kmem_flags_t flags) {
+vaddr_t kva_alloc(size_t size) {
   assert(page_aligned_p(size));
-  assert(!(flags & M_NOGROW));
-
   vmem_addr_t start;
   if (vmem_alloc(kvspace, size, &start, M_NOGROW))
-    kick_swapper();
+    return 0;
+  return start;
+}
+
+void kva_free(vaddr_t ptr, size_t size) {
+  assert(page_aligned_p(ptr) && page_aligned_p(size));
+  vmem_free(kvspace, ptr, size);
+}
+
+void kva_map(vaddr_t ptr, size_t size, kmem_flags_t flags) {
+  assert(page_aligned_p(size));
 
   /* Mark the entire block as valid */
-  kasan_mark_valid((void *)start, size);
+  kasan_mark_valid((void *)ptr, size);
 
   size_t npages = size / PAGESIZE;
-  vaddr_t va = start;
+  vaddr_t va = ptr;
 
   while (npages > 0) {
     size_t pagecnt = 1L << log2(npages);
@@ -54,14 +60,17 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
   }
 
   if (flags & M_ZERO)
-    bzero((void *)start, size);
-
-  return (void *)start;
+    bzero((void *)ptr, size);
 }
 
-void kmem_free(void *ptr, size_t size) {
-  klog("%s: free %p of size %ld", __func__, ptr, size);
+vm_page_t *kva_find_page(vaddr_t ptr) {
+  paddr_t pa;
+  if (pmap_extract(pmap_kernel(), ptr, &pa))
+    return vm_page_find(pa);
+  return NULL;
+}
 
+void kva_unmap(vaddr_t ptr, size_t size) {
   assert(page_aligned_p(ptr) && page_aligned_p(size));
 
   kasan_mark_invalid((void *)ptr, size, KASAN_CODE_KMEM_FREED);
@@ -69,16 +78,31 @@ void kmem_free(void *ptr, size_t size) {
   vaddr_t va = (vaddr_t)ptr;
   vaddr_t end = va + size;
   while (va < end) {
-    paddr_t pa;
-    if (!pmap_extract(pmap_kernel(), va, &pa))
-      panic("%s: attempted to free page that does not exist!", __func__);
-    vm_page_t *pg = vm_page_find(pa);
+    vm_page_t *pg = kva_find_page(va);
+    assert(pg != NULL);
     va += pg->size * PAGESIZE;
     vm_page_free(pg);
   }
 
-  pmap_kremove((vaddr_t)ptr, end);
+  pmap_kremove((vaddr_t)ptr, size);
+}
 
+void *kmem_alloc(size_t size, kmem_flags_t flags) {
+  assert(page_aligned_p(size));
+  assert(!(flags & M_NOGROW));
+
+  vmem_addr_t start;
+  if (vmem_alloc(kvspace, size, &start, M_NOGROW))
+    kick_swapper();
+
+  kva_map(start, size, flags);
+
+  return (void *)start;
+}
+
+void kmem_free(void *ptr, size_t size) {
+  klog("%s: free %p of size %ld", __func__, ptr, size);
+  kva_unmap((vaddr_t)ptr, size);
   vmem_free(kvspace, (vmem_addr_t)ptr, size);
 }
 

@@ -12,14 +12,14 @@ static uint64_t test_time_frac = _BINTIME_FRAC(0.2);
 static void thread_nop_function(void *arg) {
   bintime_t end = *(bintime_t *)arg;
   bintime_add_frac(&end, test_time_frac);
-  bintime_t now = getbintime();
+  bintime_t now = binuptime();
   while (bintime_cmp(&now, &end, <))
-    now = getbintime();
+    now = binuptime();
 }
 
 static int test_thread_stats_nop(void) {
   thread_t *threads[THREADS_NUMBER];
-  bintime_t start = getbintime();
+  bintime_t start = binuptime();
   for (int i = 0; i < THREADS_NUMBER; i++) {
     threads[i] = thread_create("test-thread-stats-nop", thread_nop_function,
                                &start, prio_kthread(0));
@@ -45,10 +45,10 @@ static void thread_wake_function(void *arg) {
   bintime_t end = *(bintime_t *)arg;
   bintime_add_frac(&end, test_time_frac);
   bintime_add(&end, &BINTIME(0.1));
-  bintime_t now = getbintime();
+  bintime_t now = binuptime();
   while (bintime_cmp(&now, &end, <)) {
     sleepq_broadcast(arg);
-    now = getbintime();
+    now = binuptime();
   }
 }
 
@@ -56,16 +56,16 @@ static void thread_sleep_function(void *arg) {
   sleepq_wait(arg, "Thread stats test sleepq");
   bintime_t end = *(bintime_t *)arg;
   bintime_add_frac(&end, test_time_frac);
-  bintime_t now = getbintime();
+  bintime_t now = binuptime();
   while (bintime_cmp(&now, &end, <)) {
     sleepq_wait(arg, "Thread stats test sleepq");
-    now = getbintime();
+    now = binuptime();
   }
 }
 
 static int test_thread_stats_slp(void) {
   thread_t *threads[THREADS_NUMBER];
-  bintime_t start = getbintime();
+  bintime_t start = binuptime();
   for (int i = 0; i < THREADS_NUMBER; i++) {
     threads[i] = thread_create("test-thread-stats-sleeper",
                                thread_sleep_function, &start, prio_kthread(0));

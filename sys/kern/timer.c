@@ -9,6 +9,7 @@
 static mtx_t timers_mtx = MTX_INITIALIZER(0);
 static timer_list_t timers = TAILQ_HEAD_INITIALIZER(timers);
 static timer_t *time_source = NULL;
+static bintime_t boottime = BINTIME(0);
 
 /* These flags are used internally to encode timer state.
  * Following state transitions are possible:
@@ -31,6 +32,7 @@ static timer_t *time_source = NULL;
  * }
  * \enddot
  */
+
 #define TMF_ACTIVE 0x1000
 #define TMF_INITIALIZED 0x2000
 #define TMF_RESERVED 0x4000
@@ -101,6 +103,15 @@ int tm_release(timer_t *tm) {
   return 0;
 }
 
+void tm_setclock(const bintime_t *bt) {
+  bintime_t bt1 = *bt, bt2;
+  /* TODO: Add (spin) lock for settime */
+  bt2 = binuptime();
+  /* Setting boottime - this is why we subtract time elapsed since boottime */
+  bintime_sub(&bt1, &bt2);
+  boottime = bt1;
+}
+
 int tm_init(timer_t *tm, tm_event_cb_t event, void *arg) {
   assert(is_reserved(tm));
 
@@ -158,10 +169,16 @@ void tm_select(timer_t *tm) {
   time_source = tm;
 }
 
-bintime_t getbintime(void) {
+bintime_t binuptime(void) {
   /* XXX: probably a race condition here */
   timer_t *tm = time_source;
   if (tm == NULL)
-    return (bintime_t){0, 0};
+    return BINTIME(0);
   return tm->tm_gettime(tm);
+}
+
+bintime_t bintime(void) {
+  bintime_t retval = binuptime();
+  bintime_add(&retval, &boottime);
+  return retval;
 }

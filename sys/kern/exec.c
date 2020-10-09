@@ -9,12 +9,10 @@
 #include <sys/thread.h>
 #include <sys/errno.h>
 #include <sys/filedesc.h>
-#include <sys/fcntl.h>
 #include <sys/sbrk.h>
 #include <sys/syslimits.h>
 #include <sys/vfs.h>
 #include <sys/ustack.h>
-#include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
@@ -361,12 +359,13 @@ static int _do_execve(exec_args_t *args) {
   fdtab_onexec(p->p_fdtable);
 
   /* Set up user context. */
-  exc_frame_init(td->td_uframe, (void *)eh.e_entry, (void *)stack_top, EF_USER);
+  user_ctx_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
 
   /* At this point we are certain that exec succeeds.  We can safely destroy the
    * previous vm_map, and permanently assign this one to the current process. */
   destroy_vmspace(&saved);
 
+  vm_map_activate(p->p_uspace);
   vm_map_dump(p->p_uspace);
 
   kfree(M_STR, p->p_elfpath);
@@ -394,39 +393,11 @@ end:
   return result;
 }
 
-__noreturn void run_program(const char *path, char *const *argv,
+__noreturn void kern_execve(const char *path, char *const *argv,
                             char *const *envv) {
   proc_t *p = proc_self();
 
-  pgrp_enter(p, 1);
-
-  assert(p != NULL);
-
-  klog("Starting program '%s'", path);
-
-  /* Let's assign an empty virtual address space, to be filled by `do_exec` */
-  p->p_uspace = vm_map_new();
-
-  /* Prepare file descriptor table... */
-  fdtab_t *fdt = fdtab_create();
-  fdtab_hold(fdt);
-  p->p_fdtable = fdt;
-
-  /* Set current working directory to root directory */
-  vnode_hold(vfs_root_vnode);
-  p->p_cwd = vfs_root_vnode;
-
-  p->p_cmask = CMASK;
-
-  /* ... and initialize file descriptors required by the standard library. */
-  int _stdin, _stdout, _stderr;
-  do_open(p, "/dev/uart", O_RDONLY, 0, &_stdin);
-  do_open(p, "/dev/uart", O_WRONLY, 0, &_stdout);
-  do_open(p, "/dev/uart", O_WRONLY, 0, &_stderr);
-
-  assert(_stdin == 0);
-  assert(_stdout == 1);
-  assert(_stderr == 2);
+  klog("PID %d: Starting program '%s'", p->p_pid, path);
 
   exec_args_t args;
   exec_args_init(&args);

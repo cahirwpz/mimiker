@@ -70,7 +70,7 @@ typedef struct sigaction {
 
 typedef struct proc proc_t;
 typedef struct thread thread_t;
-typedef struct exc_frame exc_frame_t;
+typedef struct ctx ctx_t;
 
 /*! \brief Signal a process.
  *
@@ -111,7 +111,7 @@ __noreturn void sig_exit(thread_t *td, signo_t sig);
 /*! \brief Delivers a hardware trap related signal to current thread.
  *
  * \note This is machine dependent code! */
-void sig_trap(exc_frame_t *frame, signo_t sig);
+void sig_trap(ctx_t *ctx, signo_t sig);
 
 /*! \brief Prepare user context for entry to signal handler action.
  *

@@ -9,12 +9,12 @@
 #if 0
 static void demo_thread_1(void) {
   while (true) {
-    bintime_t start = getbintime();
+    bintime_t start = binuptime();
     kprintf("[%8zu] Running '%s' thread.\n", (size_t)bt2st(start),
             thread_self()->td_name);
-    bintime_t now = getbintime();
+    bintime_t now = binuptime();
     while (bt2st(now) < bt2st(start) + 20)
-      now = getbintime();
+      now = binuptime();
   }
 }
 

@@ -12,19 +12,17 @@
         # Forbid the assembler from using $at register.
         .set	noat
 
-#define STACKSIZE PAGESIZE
-
 #define SAVE_REG_CFI(reg, offset, base)                                        \
-        sw reg, (EXC_##offset)(base);                                          \
-        .cfi_rel_offset reg, (EXC_##offset)
+        sw reg, (CTX_##offset)(base);                                          \
+        .cfi_rel_offset reg, (CTX_##offset)
 
-#define SAVE_REG(reg, offset, base) sw reg, (EXC_##offset)(base)
+#define SAVE_REG(reg, offset, base) sw reg, (CTX_##offset)(base)
 
-#define LOAD_REG(reg, offset, base) lw reg, (EXC_##offset)(base)
+#define LOAD_REG(reg, offset, base) lw reg, (CTX_##offset)(base)
 
-#define SAVE_FPU_REG(reg, offset, base) swc1 reg, (EXC_FPU_##offset)(base)
+#define SAVE_FPU_REG(reg, offset, base) swc1 reg, (FPU_CTX_##offset)(base)
 
-#define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (EXC_FPU_##offset)(base)
+#define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (FPU_CTX_##offset)(base)
 
 #define SAVE_CPU_CTX(reg)                                                      \
         SAVE_REG_CFI(AT, AT, reg);                                             \
@@ -56,7 +54,7 @@
         SAVE_REG_CFI(fp, FP, reg);                                             \
         /* Save value of user-space RA just before syscall. */                 \
         SAVE_REG(ra, RA, reg);                                                 \
-        .cfi_rel_offset ra, EXC_RA;                                            \
+        .cfi_rel_offset ra, CTX_RA;                                            \
         mfc0 ra, C0_EPC;                                                       \
         mflo t0;                                                               \
         mfhi t1;                                                               \
@@ -171,18 +169,6 @@
 #define LOAD_PCPU_KSEG0(reg)                                                   \
         LA reg, MIPS_KSEG2_TO_KSEG0(_pcpu_data)
 
-# Increment interrupt disable nest level.
-#define TD_INC_IDNEST(reg)                                                     \
-        lw      t0, TD_IDNEST(reg);                                            \
-        addi    t0, 1;                                                         \
-        sw      t0, TD_IDNEST(reg)
-
-# Decrement interrupt disable nest level.
-#define TD_DEC_IDNEST(reg)                                                     \
-        lw      t0, TD_IDNEST(reg);                                            \
-        addi    t0, -1;                                                        \
-        sw      t0, TD_IDNEST(reg)
-
 # Disable interrupts and extract interrupt mask into reg.
 #define DISABLE_INT(reg)                                                       \
         di      reg;                                                           \
@@ -232,23 +218,21 @@ _ebase:
 # EHB has to be put between a producer and a consumer - preferably just before
 # the consumer, not just after the producer.
 
+# MIPS kseg0 plays role of direct map from other architectures,
+# i.e. it exposes 1:1 mapping between effective and physical addresses.
+#
+# Page directory entries are not stored in TLB but are processed by TLB refill
+# handler, hence they contain kseg0 addresses instead of physical one.
+
 # useg: [0000.0000, 8000.0000) -> ffff.e000 UPD (ASID = x)
-# kseg: [c000.0000, ffc0.0000) -> ffff.f000 KPD (GLOBAL)
-# upte: [ffc0.0000, ffe0.0000) -> ffff.e000 UPD (ASID = x)
-# kpte: [ffe0.0000, ffff.e000) -> ffff.f000 KPD (GLOBAL)
+# kseg: [c000.0000, ffff.e000) -> ffff.f000 KPD (GLOBAL)
 
 # |uuuuuuuu________|________....kkkk|
 # ^                ^
 # fffe.0000        ffff.0000
 
-# useg: [000, 800) -> 0000.0000 - 0000.07ff
-#                     -> 0000.0000 - 0000.07fc
-# kseg: [c00, ffc) -> ffff.fc00 - ffff.fffb
-#                     -> 0000.1c00 - 0000.1ff8
-# upte: [ffc, ffe) -> ffff.fffc - ffff.fffd (x \in {-3, -4})
-#                     -> 0000.0ffc - 0000.0ffc
-# kpte: [ffe, fff) -> ffff.fffe - ffff.ffff (x \in {-1, -2})
-#                     -> 0000.1ffc - 0000.1ffc
+# useg: [000x.xxxx, 800x.xxxx) -> 0000.0000 - 0000.07ff -> 0000 - 07fc
+# kseg: [c00x.xxxx, fffx.xxxx) -> ffff.fc00 - ffff.ffff -> 1c00 - 1ffc
 
 SLEAF(tlb_refill)
         # Read PDE associated with bad virtual address.
@@ -256,12 +240,6 @@ SLEAF(tlb_refill)
         # so it's copied into 12th position with arithmetic shift.
         mfc0    k1, C0_BADVADDR
         sra     k1, 20
-
-        addiu   k0, k1, 4
-        sltiu   k0, k0, 2
-        sll     k0, 12
-        xor     k1, k0
-
         andi    k1, 0x1ffc
         lw      k1, -0x2000(k1)         # [k1] PDE of bad virtual address
 
@@ -271,9 +249,8 @@ SLEAF(tlb_refill)
         /* branch delay slot */
 
         # Calculate page table address from PDE
-        lui     k0, 0x8000
         srl     k1, 6
-        ins     k0, k1, 12, 19          # [k0] PTE address in kseg0
+        sll     k0, k1, 12              # [k0] PTE address in kseg0
         # ... and index of even entry corresponding to bad virtual address.
         mfc0    k1, C0_BADVADDR
         srl     k1, 13                  # [k1] PTE index (lower 10 bits)
@@ -331,7 +308,7 @@ exc_enter:
 # - Status, cause, epc & badvaddr registers cannot be saved directly to kernel
 #   stack (kseg2) as it may trigger TLB handler which would overwrite them!
 
-SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
+SNESTED(user_exc_enter, USER_CTX_SIZE, ra)
         .cfi_signal_frame
 
         # Fetch PCPU address
@@ -360,12 +337,12 @@ SNESTED(user_exc_enter, USER_EXC_FRAME_SIZE, ra)
         # Copy sp, status, cause, epc, badvaddr from PCPU to stack frame
         LOAD_PCPU_KSEG0(t0)
         PCPU_TO_FRAME(SP)
-        .cfi_rel_offset sp, EXC_SP
+        .cfi_rel_offset sp, CTX_SP
         PCPU_TO_FRAME(SR)
         PCPU_TO_FRAME(CAUSE)
         PCPU_TO_FRAME(PC)
         .cfi_return_column t1
-        .cfi_rel_offset t1, EXC_PC
+        .cfi_rel_offset t1, CTX_PC
         PCPU_TO_FRAME(BADVADDR)
 
         # If FPU is enabled save FPU registers.
@@ -390,14 +367,10 @@ skip_fpu_save:
         # No exeception frame so set td_kframe to NULL.
         sw      $0, TD_KFRAME(s0)
 
-        TD_INC_IDNEST(s0)
-
         # Call C interrupt handler routine.
         la      t0, mips_exc_handler
         jalr    t0
         move    a0, sp                  # (delay) 1st arg
-
-        TD_DEC_IDNEST(s0)
 
 user_exc_leave:
         DISABLE_INT(t1)
@@ -406,7 +379,7 @@ user_exc_leave:
         # This is crucial on first entry to user-space for this thread.
         LOAD_PCPU_KSEG0(s0)
         lw      t0, PCPU_CURTHREAD(s0)
-        lw      sp, TD_UFRAME(t0)
+        lw      sp, TD_UCTX(t0)
         
         # Update kernel stack pointer to be used on kernel reentry.
         sw      sp, PCPU_KSP(s0)
@@ -446,7 +419,7 @@ user_return:
         eret
 END(user_exc_enter)
 
-SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
+SNESTED(kern_exc_enter, CTX_SIZE, ra)
         # Fetch PCPU address
         LOAD_PCPU_KSEG0(k0)
 
@@ -457,8 +430,9 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         PCPU_SAVE(EPC)
         PCPU_SAVE(BADVADDR)
 
-        # Allocate stack frame (of KERN_EXC_FRAME_SIZE bytes) and save context.
-        subu    sp, KERN_EXC_FRAME_SIZE # required by gdb to recognize frame
+        # Allocate stack frame (of CTX_SIZE bytes) and save context.
+        subu    sp, CTX_SIZE # required by gdb to recognize frame
+        .cfi_def_cfa sp, 0
 
         # We cannot access stack (KSEG2) when exception level is enabled
         # Let's drop exception level and disable interrupts.
@@ -470,26 +444,16 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         # Copy sp, status, cause, epc, badvaddr from PCPU to stack frame
         LOAD_PCPU_KSEG0(t0)
         PCPU_TO_FRAME(SP)
+        .cfi_rel_offset sp, CTX_SP
         PCPU_TO_FRAME(SR)
         PCPU_TO_FRAME(CAUSE)
         PCPU_TO_FRAME(PC)
+        .cfi_return_column t1
+        .cfi_rel_offset t1, CTX_PC
         PCPU_TO_FRAME(BADVADDR)
 
-        # In normal conditions we're going to enter regular exception handler.
-        la      s1, mips_exc_handler
-
-        # If there's not enough space on the stack to store another exception
-        # frame we consider situation to be critical and panic.
-        andi    t0, sp, STACKSIZE - 1
-        subu    t0, KERN_EXC_FRAME_SIZE
-        bgez    t0, 1f
-        nop
-        # Hopefully KERN_EXC_FRAME_SIZE bytes of unallocated stack space will be
-        # enough to enter kernel stack overflow handler.
-        la      s1, kstack_overflow_handler
-
         # Load kernel global pointer.
-1:      la      gp, _gp
+        la      gp, _gp
 
         # Fetch thread control block pointer to s0 for later use.
         LOAD_PCPU(t0)
@@ -498,13 +462,10 @@ SNESTED(kern_exc_enter, KERN_EXC_FRAME_SIZE, ra)
         # Save exception frame pointer into td_kframe.
         sw      sp, TD_KFRAME(s0)
 
-        TD_INC_IDNEST(s0)
-
         # Call C interrupt handler routine.
-        jalr    s1
+        la      t0, mips_exc_handler
+        jalr    t0
         move    a0, sp                  # (delay) 1st arg
-
-        TD_DEC_IDNEST(s0)
 
 kern_exc_leave:
         DISABLE_INT(t1)
