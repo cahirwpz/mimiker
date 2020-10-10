@@ -96,6 +96,9 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(get_set_gid);
   CHECKRUN_TEST(get_set_groups);
 
+  CHECKRUN_TEST(execve);
+  CHECKRUN_TEST(execv);
+
   printf("No user test \"%s\" available.\n", test_name);
   return 1;
 }

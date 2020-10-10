@@ -4,6 +4,7 @@ SOURCES = \
 	access.c \
 	cred.c \
 	exceptions.c \
+	exec.c \
 	fd.c \
 	fork.c \
 	fpu_ctx.c \
