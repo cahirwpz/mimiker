@@ -6,9 +6,11 @@
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
 #include <sys/context.h>
+#include <sys/interrupt.h>
 #include <aarch64/atags.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
+#include <aarch64/timer.h>
 
 static int count_atags(atag_tag_t *atags) {
   int ntokens = 0;
@@ -72,6 +74,7 @@ static void rpi3_physmem(void) {
   paddr_t rd_end = rd_start + ramdisk_get_size();
 
   vm_physseg_plug(ram_start, kern_start);
+  vm_physseg_plug_used(kern_start, kern_end);
 
   if (rd_start != rd_end) {
     vm_physseg_plug(kern_end, rd_start);
@@ -84,6 +87,8 @@ static void rpi3_physmem(void) {
 
 __noreturn void board_init(void) {
   init_klog();
+  init_arm_timer();
   rpi3_physmem();
+  intr_enable();
   kernel_init();
 }

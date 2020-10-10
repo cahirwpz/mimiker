@@ -1,5 +1,7 @@
 #include <sys/mimiker.h>
 #include <sys/context.h>
+#include <sys/interrupt.h>
+#include <sys/exception.h>
 #include <aarch64/interrupt.h>
 #include <aarch64/armreg.h>
 
@@ -18,6 +20,13 @@ bool cpu_intr_disabled(void) {
   return (daif & DAIF_I_MASKED) != 0;
 }
 
+/* TODO(pj): temporary hack -- remove it before merge */
+extern void intr_tick(void);
+
 void cpu_intr_handler(ctx_t *ctx) {
-  panic("cpu_intr_handler");
+  intr_disable();
+  /* TODO(pj): temporary hack -- remove it before merge */
+  intr_tick();
+  intr_enable();
+  on_exc_leave();
 }
