@@ -6,9 +6,14 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <assert.h>
+#include <stdlib.h>
 
 int test_execve() {
   int pid = fork();
+  if (pid < 0) {
+    fprintf(stderr, "fork failed: %s\n", strerror(errno));
+    return 1;
+  }
   if (pid) {
     /* parent */
     int status;
@@ -23,11 +28,15 @@ int test_execve() {
   char *env[] = {"test", "environment", NULL};
   int r = execve("/bin/echo", args, env);
   printf("child: execv failed with %d (%s)\n", r, strerror(errno));
-  _exit(1);
+  exit(1);
 }
 
 int test_execv() {
   int pid = fork();
+  if (pid < 0) {
+    fprintf(stderr, "fork failed: %s\n", strerror(errno));
+    return 1;
+  }
   if (pid) {
     /* parent */
     int status;
@@ -41,5 +50,5 @@ int test_execv() {
   char *args[] = {"echo", "test", NULL};
   int r = execv("/bin/echo", args);
   printf("child: execv failed with %d (%s)\n", r, strerror(errno));
-  _exit(1);
+  exit(1);
 }
