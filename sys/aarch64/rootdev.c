@@ -20,9 +20,9 @@ static device_t rootdev = (device_t){
   .devclass = &DEVCLASS(root),
 };
 
-/* 
+/*
  * TODO(pj): This is only temporary solution. Timer should be initialized by
- * device subsystem. 
+ * device subsystem.
  */
 
 #define CNTCTL_ENABLE 1
@@ -36,9 +36,9 @@ static int timer_start(timer_t *tm, unsigned flags, const bintime_t start,
     WRITE_SPECIALREG(cntp_cval_el0, count + step);
     WRITE_SPECIALREG(cntp_ctl_el0, CNTCTL_ENABLE);
 
-    /* 
+    /*
      * TODO(pj): This should be defined in one header for machine dependent
-     * AArch64 code. 
+     * AArch64 code.
      */
     __asm__ volatile("isb" ::: "memory");
   }
