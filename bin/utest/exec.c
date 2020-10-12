@@ -10,7 +10,7 @@
 
 int test_execve(void) {
   int pid = fork();
-  if (pid < 0) {
+  if (pid == -1) {
     fprintf(stderr, "fork failed: %s\n", strerror(errno));
     return 1;
   }
@@ -33,7 +33,7 @@ int test_execve(void) {
 
 int test_execv(void) {
   int pid = fork();
-  if (pid < 0) {
+  if (pid == -1) {
     fprintf(stderr, "fork failed: %s\n", strerror(errno));
     return 1;
   }
