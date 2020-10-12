@@ -73,7 +73,7 @@ int test_sbrk_sigsegv(void) {
   return 1;
 }
 
-int test_sbrk() {
+int test_sbrk(void) {
   sbrk_orig = sbrk(0);
   assert(sbrk_orig != NULL);
 

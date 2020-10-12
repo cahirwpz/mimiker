@@ -4,10 +4,8 @@
 
 #include "assym.h"
 
-.macro  SAVE_CTX tmp
-        mov     \tmp, sp
-        sub     sp, sp, #CTX_SIZE
-        stp     lr, \tmp, [sp, #CTX_LR]
+.macro  SAVE_CTX
+        str     lr, [sp, #CTX_LR]
         stp     x28, x29, [sp, #CTX_X28]
         stp     x26, x27, [sp, #CTX_X26]
         stp     x24, x25, [sp, #CTX_X24]
@@ -21,7 +19,7 @@
         stp      x8,  x9, [sp, #CTX_X8]
 .endm
 
-.macro  LOAD_CTX tmp
+.macro  LOAD_CTX
         ldp      x8,  x9, [sp, #CTX_X8]
         ldp     x10, x11, [sp, #CTX_X10]
         ldp     x12, x13, [sp, #CTX_X12]
@@ -33,8 +31,7 @@
         ldp     x24, x25, [sp, #CTX_X24]
         ldp     x26, x27, [sp, #CTX_X26]
         ldp     x28, x29, [sp, #CTX_X28]
-        ldp     lr, \tmp, [sp, #CTX_LR]
-        mov     sp, \tmp
+        ldr     lr, [sp, #CTX_LR]
 .endm
 
 #
@@ -44,39 +41,34 @@ ENTRY(ctx_switch)
         # ctx_switch must be called with interrupts disabled
         mrs     x2, daif
         and     x2, x2, #DAIF_I_MASKED
-        bne     1f
+        bne     .ctx_save
         hlt     #0
-
-        # don't save context of @from thread if user did not provide one
-1:      cbz     x0, .ctx_resume
 
         # save context of @from thread
 .ctx_save:
-        SAVE_CTX x2
+        sub     sp, sp, #CTX_SIZE
+        SAVE_CTX
         mov     x2, sp
         str     x2, [x0, #TD_KCTX]
 
 .ctx_resume:
-        # [x8] @to thread
-        mov     x8, x1
-
-        # [x9] pointer to @pcpu
-        mrs     x9, tpidr_el1
+        # switch stack pointer to @to thread
+        ldr     x2, [x1, #TD_KCTX]
+        mov     sp, x2
 
         # update curthread pointer to reference @to thread
-        str     x8, [x9, #PCPU_CURTHREAD]
+        mrs     x2, tpidr_el1
+        str     x1, [x2, #PCPU_CURTHREAD]
 
         # switch user space if necessary
-        ldr     x0, [x8, #TD_PROC]
-        # switching to kernel thread ?
-        cbz     x0, 2f
-        ldr     x0, [x0, #P_USPACE]
-2:      bl      vm_map_activate
+        mov     x0, x1
+        bl      vm_map_switch
 
         # restore @to thread context
-        ldr     x1, [x8, #TD_KCTX]
-        mov     sp, x1
-        LOAD_CTX x1
+        LOAD_CTX
+        add     sp, sp, #CTX_SIZE
         
         ret
 END(ctx_switch)
+
+# vim: sw=8 ts=8 et

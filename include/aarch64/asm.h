@@ -36,11 +36,13 @@
 
 #define _C_LABEL(x) x
 
-#define _ENTRY(x)                                                              \
+#define _SENTRY(x)                                                             \
   .align 2;                                                                    \
-  .globl x;                                                                    \
   .type x, @function;                                                          \
   x:
+#define _ENTRY(x)                                                              \
+  .globl x;                                                                    \
+  _SENTRY(x)
 #define _END(x) .size x, .- x
 
 #ifdef GPROF
@@ -51,15 +53,24 @@
 #define _PROF_PROLOGUE
 #endif
 
+/* Global procedure start. */
 #define ENTRY(y)                                                               \
   .text;                                                                       \
   _ENTRY(_C_LABEL(y));                                                         \
   .cfi_startproc;                                                              \
   _PROF_PROLOGUE
+/* As above, without profiling. */
 #define ENTRY_NP(y)                                                            \
   .text;                                                                       \
   _ENTRY(_C_LABEL(y));                                                         \
   .cfi_startproc
+/* Local procedure start. */
+#define SENTRY(y)                                                              \
+  .text;                                                                       \
+  _SENTRY(_C_LABEL(y));                                                        \
+  .cfi_startproc;                                                              \
+  _PROF_PROLOGUE
+/* End of any procedure. */
 #define END(y)                                                                 \
   .cfi_endproc;                                                                \
   _END(_C_LABEL(y))
