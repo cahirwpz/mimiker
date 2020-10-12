@@ -35,22 +35,11 @@
 #include <aarch64/cdefs.h>
 
 #define _C_LABEL(x) x
-#define _ASM_LABEL(x) x
 
-#ifndef _ALIGN_TEXT
-#define _ALIGN_TEXT .align 2
-#endif
-
-#ifndef _TEXT_SECTION
-#define _TEXT_SECTION .text
-#endif
-
-#define _ASM_TYPE_FUNCTION @function
-#define _ASM_TYPE_OBJECT @object
 #define _ENTRY(x)                                                              \
-  _ALIGN_TEXT;                                                                 \
+  .align 2;                                                                    \
   .globl x;                                                                    \
-  .type x, _ASM_TYPE_FUNCTION;                                                 \
+  .type x, @function;                                                          \
   x:
 #define _END(x) .size x, .- x
 
@@ -63,12 +52,12 @@
 #endif
 
 #define ENTRY(y)                                                               \
-  _TEXT_SECTION;                                                               \
+  .text;                                                                       \
   _ENTRY(_C_LABEL(y));                                                         \
   .cfi_startproc;                                                              \
   _PROF_PROLOGUE
 #define ENTRY_NP(y)                                                            \
-  _TEXT_SECTION;                                                               \
+  .text;                                                                       \
   _ENTRY(_C_LABEL(y));                                                         \
   .cfi_startproc
 #define END(y)                                                                 \
@@ -77,5 +66,14 @@
 
 #define fp x29
 #define lr x30
+
+/*
+ * Add a speculation barrier after the 'eret'. Some aarch64 cpus speculatively
+ * execute instructions after 'eret', and this potentiates side-channel attacks.
+ */
+#define ERET                                                                   \
+  eret;                                                                        \
+  dsb sy;                                                                      \
+  isb
 
 #endif /* !_AARCH64_ASM_H_ */

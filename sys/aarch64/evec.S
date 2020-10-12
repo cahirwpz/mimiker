@@ -110,7 +110,7 @@ ENTRY(handle_kern_trap)
         bl      kern_trap_handler
 kern_exc_leave:
         load_ctx 1
-        eret
+        ERET
 END(handle_kern_trap)
 
 ENTRY(handle_kern_intr)
@@ -119,7 +119,7 @@ ENTRY(handle_kern_intr)
         mov     x0, sp
         bl      cpu_intr_handler
         load_ctx 1
-        eret
+        ERET
 END(handle_kern_intr)
 
 ENTRY(handle_user_trap)
@@ -129,7 +129,7 @@ ENTRY(handle_user_trap)
         bl      user_trap_handler
 user_exc_leave:
         load_ctx 0
-        eret
+        ERET
 END(handle_user_trap)
 
 ENTRY(handle_user_intr)
@@ -138,7 +138,7 @@ ENTRY(handle_user_intr)
         mov     x0, sp
         bl      cpu_intr_handler
         load_ctx 0
-        eret
+        ERET
 END(handle_user_intr)
 
 .macro  VECKERN name
