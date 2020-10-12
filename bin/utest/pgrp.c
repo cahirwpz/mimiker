@@ -213,7 +213,7 @@ int test_pgrp_orphan() {
 
 static volatile pid_t parent_sid;
 
-int test_session_basic() {
+int test_session_basic(void) {
   signal(SIGUSR1, sa_handler);
   parent_sid = getsid(getpid());
   assert(parent_sid != -1);

@@ -85,7 +85,7 @@ int test_munmap_sigsegv(void) {
   return 1;
 }
 
-int test_mmap() {
+int test_mmap(void) {
   mmap_no_hint();
   mmap_with_hint();
   mmap_bad();

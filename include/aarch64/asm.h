@@ -35,36 +35,15 @@
 #include <aarch64/cdefs.h>
 
 #define _C_LABEL(x) x
-#define _ASM_LABEL(x) x
 
-#ifndef _ALIGN_TEXT
-#define _ALIGN_TEXT .align 2
-#endif
-
-#ifndef _TEXT_SECTION
-#define _TEXT_SECTION .text
-#endif
-
-#define _ASM_TYPE_FUNCTION @function
-#define _ASM_TYPE_OBJECT @object
-#define _ENTRY(x)                                                              \
-  _TEXT_SECTION;                                                               \
-  _ALIGN_TEXT;                                                                 \
-  .globl x;                                                                    \
-  .type x, _ASM_TYPE_FUNCTION;                                                 \
-  x:
 #define _SENTRY(x)                                                             \
-  _TEXT_SECTION;                                                               \
-  _ALIGN_TEXT;                                                                 \
-  .type x, _ASM_TYPE_FUNCTION;                                                 \
+  .align 2;                                                                    \
+  .type x, @function;                                                          \
   x:
-#define _END(x) .size x, .- x
-
-#define _ASENTRY(x)                                                            \
-  _ALIGN_TEXT;                                                                 \
+#define _ENTRY(x)                                                              \
   .globl x;                                                                    \
-  .type x, _ASM_TYPE_FUNCTION;                                                 \
-  x:
+  _SENTRY(x)
+#define _END(x) .size x, .- x
 
 #ifdef GPROF
 #define _PROF_PROLOGUE                                                         \
@@ -74,19 +53,38 @@
 #define _PROF_PROLOGUE
 #endif
 
+/* Global procedure start. */
 #define ENTRY(y)                                                               \
+  .text;                                                                       \
   _ENTRY(_C_LABEL(y));                                                         \
+  .cfi_startproc;                                                              \
   _PROF_PROLOGUE
+/* As above, without profiling. */
+#define ENTRY_NP(y)                                                            \
+  .text;                                                                       \
+  _ENTRY(_C_LABEL(y));                                                         \
+  .cfi_startproc
+/* Local procedure start. */
 #define SENTRY(y)                                                              \
+  .text;                                                                       \
   _SENTRY(_C_LABEL(y));                                                        \
+  .cfi_startproc;                                                              \
   _PROF_PROLOGUE
-#define ENTRY_NP(y) _ENTRY(_C_LABEL(y))
-#define END(y) _END(_C_LABEL(y))
-
-#define ASENTRY(y) _ASENTRY(_ASM_LABEL(y))
-#define ASEND(y) _END(_ASM_LABEL(y))
+/* End of any procedure. */
+#define END(y)                                                                 \
+  .cfi_endproc;                                                                \
+  _END(_C_LABEL(y))
 
 #define fp x29
 #define lr x30
+
+/*
+ * Add a speculation barrier after the 'eret'. Some aarch64 cpus speculatively
+ * execute instructions after 'eret', and this potentiates side-channel attacks.
+ */
+#define ERET                                                                   \
+  eret;                                                                        \
+  dsb sy;                                                                      \
+  isb
 
 #endif /* !_AARCH64_ASM_H_ */
