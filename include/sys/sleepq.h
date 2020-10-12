@@ -10,6 +10,9 @@ typedef struct sleepq sleepq_t;
 
 /*! \file sleepq.h */
 
+/*! \brief Called during kernel initialization. */
+void init_sleepq(void);
+
 /*! \brief Allocates sleep queue entry. */
 sleepq_t *sleepq_alloc(void);
 

@@ -6,7 +6,11 @@
 #include <sys/vm.h>
 #include <sys/mutex.h>
 
-void vm_map_bootstrap(void);
+typedef struct vm_map vm_map_t;
+typedef struct vm_segment vm_segment_t;
+
+/*! \brief Called during kernel initialization. */
+void init_vm_map(void);
 
 /*! \brief Acquire vm_map non-recursive mutex. */
 void vm_map_lock(vm_map_t *map);
@@ -23,6 +27,7 @@ DEFINE_CLEANUP_FUNCTION(vm_map_t *, vm_map_unlock);
   SCOPED_STMT(vm_map_t, vm_map_lock, CLEANUP_FUNCTION(vm_map_unlock), map)
 
 void vm_map_activate(vm_map_t *map);
+void vm_map_switch(thread_t *td);
 
 vm_map_t *vm_map_user(void);
 vm_map_t *vm_map_kernel(void);

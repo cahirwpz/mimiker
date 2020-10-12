@@ -15,8 +15,6 @@ __noreturn void panic_fail(void) {
 
 void assert_fail(const char *expr, const char *file, unsigned int line) {
   kprintf("Assertion \"%s\" at [%s:%d] failed!\n", expr, file, line);
-  if (ktest_test_running_flag)
-    ktest_failure();
-  else
-    panic("Assertion failed.");
+  ktest_failure_hook();
+  panic("Assertion failed.");
 }

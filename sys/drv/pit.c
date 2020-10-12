@@ -7,7 +7,6 @@
 #include <sys/klog.h>
 #include <sys/timer.h>
 #include <sys/spinlock.h>
-#include <sys/sysinit.h>
 #include <sys/devclass.h>
 
 typedef struct pit_state {
@@ -142,13 +141,7 @@ static driver_t pit_driver = {
   .desc = "i8254 PIT driver",
   .size = sizeof(pit_state_t),
   .attach = pit_attach,
+  .identify = bus_generic_identify,
 };
 
-extern device_t *gt_pci;
-
-static void pit_init(void) {
-  (void)make_device(gt_pci, &pit_driver);
-}
-
-SYSINIT_ADD(pit, pit_init, DEPS("rootdev"));
-DEVCLASS_ENTRY(root, pit_driver);
+DEVCLASS_ENTRY(pci, pit_driver);

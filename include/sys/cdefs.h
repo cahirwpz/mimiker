@@ -55,6 +55,7 @@
 #define __returns_twice __attribute__((__returns_twice__))
 #define __noreturn __attribute__((__noreturn__))
 #define __aligned(x) __attribute__((__aligned__(x)))
+#define __noinline __attribute__((noinline))
 #define __packed __attribute__((__packed__))
 #define __warn_unused __attribute__((warn_unused_result));
 #define __unreachable() __builtin_unreachable()

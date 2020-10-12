@@ -6,13 +6,14 @@
 #include <sys/linker_set.h>
 #include <sys/rman.h>
 
+typedef struct devclass devclass_t;
 typedef struct device device_t;
 typedef struct driver driver_t;
 typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 typedef TAILQ_HEAD(, device) device_list_t;
 
-typedef void (*d_identify_t)(driver_t *driver, device_t *parent);
+typedef device_t *(*d_identify_t)(driver_t *driver, device_t *parent);
 typedef int (*d_probe_t)(device_t *dev);
 typedef int (*d_attach_t)(device_t *dev);
 typedef int (*d_detach_t)(device_t *dev);
@@ -25,8 +26,6 @@ struct driver {
   d_attach_t attach;     /* attach device to system */
   d_detach_t detach;     /* detach device from system */
 };
-
-#define DRIVER_ADD(name) SET_ENTRY(driver_table, name)
 
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
 
@@ -41,17 +40,20 @@ struct device {
   /* Device information and state. */
   device_bus_t bus;
   driver_t *driver;
+  devclass_t *devclass;
+  int unit;
   void *instance; /* used by bus driver to store data in children */
   void *state;    /* memory requested by driver for its state*/
 };
 
-device_t *device_add_child(device_t *dev);
+/*! \brief Called during kernel initialization. */
+void init_devices(void);
+
+device_t *device_add_child(device_t *parent, devclass_t *dc, int unit);
+device_t *device_identify(driver_t *driver, device_t *parent);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);
 int device_detach(device_t *dev);
-
-/* Manually create a device with given driver and parent device. */
-device_t *make_device(device_t *parent, driver_t *driver);
 
 /*! \brief Prepares and adds a resource to a device.
  *

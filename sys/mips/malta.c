@@ -3,50 +3,20 @@
 #include <mips/cpuinfo.h>
 #include <mips/mips.h>
 #include <mips/malta.h>
-#include <mips/exception.h>
+#include <mips/context.h>
 #include <mips/interrupt.h>
 #include <mips/timer.h>
 #include <mips/tlb.h>
 #include <sys/klog.h>
 #include <sys/console.h>
 #include <sys/context.h>
+#include <sys/cmdline.h>
 #include <sys/kenv.h>
-#include <sys/pmap.h>
 #include <sys/libkern.h>
+#include <sys/initrd.h>
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
 #include <sys/kasan.h>
-
-static const char *whitespaces = " \t";
-
-static size_t count_tokens(const char *str) {
-  size_t ntokens = 0;
-
-  do {
-    str += strspn(str, whitespaces);
-    if (*str == '\0')
-      return ntokens;
-    str += strcspn(str, whitespaces);
-    ntokens++;
-  } while (true);
-}
-
-static char **extract_tokens(kstack_t *stk, const char *str, char **tokens_p) {
-  do {
-    str += strspn(str, whitespaces);
-    if (*str == '\0')
-      return tokens_p;
-    size_t toklen = strcspn(str, whitespaces);
-    /* copy the token to memory managed by the kernel */
-    char *token = kstack_alloc(stk, toklen + 1);
-    strlcpy(token, str, toklen + 1);
-    *tokens_p++ = token;
-    /* append extra empty token when you see "--" */
-    if (toklen == 2 && strncmp("--", str, 2) == 0)
-      *tokens_p++ = NULL;
-    str += toklen;
-  } while (true);
-}
 
 static char *make_pair(kstack_t *stk, char *key, char *value) {
   int arglen = strlen(key) + strlen(value) + 2;
@@ -55,6 +25,24 @@ static char *make_pair(kstack_t *stk, char *key, char *value) {
   strlcat(arg, "=", arglen);
   strlcat(arg, value, arglen);
   return arg;
+}
+
+static int count_args(int argc, char **argv, char **envp) {
+  int ntokens = 0;
+  for (int i = 0; i < argc; ++i)
+    ntokens += cmdline_count_tokens(argv[i]);
+  for (char **pair = envp; *pair; pair += 2)
+    ntokens++;
+  return ntokens;
+}
+
+static void process_args(char **argv, char **envp, char **tokens,
+                         kstack_t *stk) {
+  tokens = cmdline_extract_tokens(stk, argv[0], tokens);
+  for (char **pair = envp; *pair; pair += 2)
+    *tokens++ = make_pair(stk, pair[0], pair[1]);
+  tokens = cmdline_extract_tokens(stk, argv[1], tokens);
+  *tokens = NULL;
 }
 
 /*
@@ -75,73 +63,49 @@ static char *make_pair(kstack_t *stk, char *key, char *value) {
  *     envp={"memsize", "128MiB", "uart.speed", "115200"};
  *
  *   instruction:
- *     setup_kenv(argc, argv, envp);
+ *     board_stack(argc, argv, envp);
  *
  *   will set global variables as follows:
  *     kenvp={"mimiker.elf", "memsize=128MiB", "uart.speed=115200",
  *            "arg1", "arg2=foo", "init=/bin/sh", "arg3=foobar"};
  *     kinit={NULL, "baz"};
+ *
+ *   Please note that both kenvp and kinit point to the same array.
+ *   Their contents will be separated by NULL.
  */
-static void *malta_kenv(int argc, char **argv, char **envp) {
+void *board_stack(int argc, char **argv, char **envp) {
   assert(argc == 2);
 
-  kstack_t *stk = &thread_self()->td_kstack;
+  kstack_t *stk = &thread0.td_kstack;
 
-  int ntokens = 0;
-  for (int i = 0; i < argc; ++i)
-    ntokens += count_tokens(argv[i]);
-  for (char **pair = envp; *pair; pair += 2)
-    ntokens++;
+  /* See thread_entry_setup for explanation. */
+  thread0.td_uctx = kstack_alloc_s(stk, user_ctx_t);
 
-  /* Both _kenvp and _kinit are going to point to the same array.
-   * Their contents will be separated by NULL. */
+  int ntokens = count_args(argc, argv, envp);
   char **kenvp = kstack_alloc(stk, (ntokens + 2) * sizeof(char *));
-  char **kinit = NULL;
-
-  char **tokens = kenvp;
-  tokens = extract_tokens(stk, argv[0], tokens);
-  for (char **pair = envp; *pair; pair += 2)
-    *tokens++ = make_pair(stk, pair[0], pair[1]);
-  tokens = extract_tokens(stk, argv[1], tokens);
-  *tokens = NULL;
-
+  process_args(argv, envp, kenvp, stk);
   kstack_fix_bottom(stk);
+  init_kenv(kenvp);
 
-  /* Let's find "--".
-   * After we set it to NULL it's going to become first element of _kinit */
-  for (char **argp = kenvp; *argp; argp++) {
-    if (strcmp("--", *argp) == 0) {
-      *argp++ = NULL;
-      kinit = argp;
-      break;
-    }
-  }
-
-  kenv_bootstrap(kenvp, kinit);
+  /* Move ramdisk start address to physical memory. */
+  char *s = kenv_get("rd_start");
+  long addr = MIPS_KSEG0_TO_PHYS(kenv_get_ulong("rd_start"));
+  snprintf(s, strlen(s), "0x%lx", addr);
 
   return stk->stk_ptr;
 }
-
-intptr_t ramdisk_get_start(void) {
-  return MIPS_KSEG0_TO_PHYS(kenv_get_ulong("rd_start"));
-}
-
-size_t ramdisk_get_size(void) {
-  return align(kenv_get_ulong("rd_size"), PAGESIZE);
-}
-
-extern __boot_data void *_kernel_end_kseg0;
 
 static void malta_physmem(void) {
   /* XXX: workaround - pmap_enter fails to physical page with address 0 */
   paddr_t ram_start = MALTA_PHYS_SDRAM_BASE + PAGESIZE;
   paddr_t ram_end = MALTA_PHYS_SDRAM_BASE + kenv_get_ulong("memsize");
   paddr_t kern_start = MIPS_KSEG0_TO_PHYS(__boot);
-  paddr_t kern_end = MIPS_KSEG0_TO_PHYS(_kernel_end_kseg0);
+  paddr_t kern_end = MIPS_KSEG0_TO_PHYS(_bootmem_end);
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
 
   vm_physseg_plug(ram_start, kern_start);
+  vm_physseg_plug_used(kern_start, kern_end);
 
   if (rd_start != rd_end) {
     vm_physseg_plug(kern_end, rd_start);
@@ -152,20 +116,13 @@ static void malta_physmem(void) {
   }
 }
 
-void *platform_stack(int argc, char **argv, char **envp, unsigned memsize) {
-  thread_bootstrap();
-  return malta_kenv(argc, argv, envp);
-}
-
-__noreturn void platform_init(void) {
-  kasan_init();
-  cn_init();
-  klog_init();
-  cpu_init();
-  tlb_init();
-  mips_intr_init();
-  mips_timer_init();
-  pmap_bootstrap();
+__noreturn void board_init(void) {
+  init_kasan();
+  init_klog();
+  init_mips_cpu();
+  init_mips_tlb();
+  init_mips_intr();
+  init_mips_timer();
   malta_physmem();
   intr_enable();
   kernel_init();
