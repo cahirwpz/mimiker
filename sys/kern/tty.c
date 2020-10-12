@@ -613,6 +613,8 @@ static int tty_ioctl(vnode_t *v, u_long cmd, void *data) {
         SET_MASKED_BITS(tty->t_lflag, t->c_lflag, TTYSUP_LFLAG_CHANGE);
         /* Changing `t_cflag` is completely unsupported right now. */
 #undef SET_MASKED_BITS
+        memcpy(tty->t_cc, t->c_cc, sizeof(tty->t_cc));
+
         if (reinput) {
           tty_reinput(tty);
         }
