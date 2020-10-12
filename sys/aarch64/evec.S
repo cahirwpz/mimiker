@@ -103,51 +103,43 @@
         .global kern_exc_leave
         .global user_exc_leave
 
-ASENTRY(handle_kern_trap)
-        .cfi_startproc
+ENTRY(handle_kern_trap)
         .cfi_signal_frame
         save_ctx 1
         mov     x0, sp
-        bl kern_trap_handler
+        bl      kern_trap_handler
 kern_exc_leave:
         load_ctx 1
         eret
-        .cfi_endproc
-ASEND(handle_kern_trap)
+END(handle_kern_trap)
 
-ASENTRY(handle_kern_intr)
-        .cfi_startproc
+ENTRY(handle_kern_intr)
         .cfi_signal_frame
         save_ctx 1
         mov     x0, sp
-        bl cpu_intr_handler
+        bl      cpu_intr_handler
         load_ctx 1
         eret
-        .cfi_endproc
-ASEND(handle_kern_intr)
+END(handle_kern_intr)
 
-ASENTRY(handle_user_trap)
-        .cfi_startproc
+ENTRY(handle_user_trap)
         .cfi_signal_frame
         save_ctx 0
         mov     x0, sp
-        bl user_trap_handler
+        bl      user_trap_handler
 user_exc_leave:
         load_ctx 0
         eret
-        .cfi_endproc
-ASEND(handle_kern_trap)
+END(handle_user_trap)
 
-ASENTRY(handle_user_intr)
-        .cfi_startproc
+ENTRY(handle_user_intr)
         .cfi_signal_frame
         save_ctx 0
         mov     x0, sp
-        bl cpu_intr_handler
+        bl      cpu_intr_handler
         load_ctx 0
         eret
-        .cfi_endproc
-ASEND(handle_kern_intr)
+END(handle_user_intr)
 
 .macro  VECKERN name
         b       handle_kern_\name
@@ -166,7 +158,7 @@ ASEND(handle_kern_intr)
 
         .section .text
         .global exception_vectors
-
+        .type exception_vectors,@object
         .align 11
 exception_vectors:
         VEMPTY  /* Synchronous EL1t */
@@ -188,10 +180,11 @@ exception_vectors:
         VEMPTY  /* IRQ 32-bit EL0 */
         VEMPTY  /* FIQ 32-bit EL0 */
         VEMPTY  /* Error 32-bit EL0 */
+_END(exception_vectors)
 
         .section .boot.text
         .global hypervisor_vectors
-
+        .type hypervisor_vectors,@object
         .align 11
 hypervisor_vectors:
         VEMPTY  /* Synchronous EL2t */
@@ -213,5 +206,6 @@ hypervisor_vectors:
         VEMPTY  /* IRQ 32-bit EL1 */
         VEMPTY  /* FIQ 32-bit EL1 */
         VEMPTY  /* Error 32-bit EL1 */
+_END(hypervisor_vectors)
 
 # vim: sw=8 ts=8 et
