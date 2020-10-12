@@ -92,7 +92,4 @@ int test_get_set_uid(void);
 int test_get_set_gid(void);
 int test_get_set_groups(void);
 
-int test_execve(void);
-int test_execv(void);
-
 #endif /* __UTEST_H__ */
