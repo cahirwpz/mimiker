@@ -111,8 +111,6 @@
 
 #define powerof2(x) ((((x)-1) & (x)) == 0)
 
-#define NGROUPS NGROUPS_MAX
-
 /* Signals. */
 #ifndef _KERNEL
 #include <sys/signal.h>
