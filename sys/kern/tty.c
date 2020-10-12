@@ -625,7 +625,9 @@ static int tty_ioctl(vnode_t *v, u_long cmd, void *data) {
       ret = EPASSTHROUGH;
       break;
     default: {
-      klog("Unsupported tty ioctl: %d", cmd);
+      char buf[32];
+      IOCSNPRINTF(buf, sizeof(buf), cmd);
+      klog("Unsupported tty ioctl: %s", buf);
       unsigned len = IOCPARM_LEN(cmd);
       memset(data, 0, len);
       break;
