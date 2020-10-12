@@ -5,6 +5,6 @@
 #error "Do not use this header file outside kernel machine dependent code!"
 #endif
 
-void mips_timer_init(void);
+void init_mips_timer(void);
 
 #endif /* !_MIPS_TIMER_H_ */

@@ -120,14 +120,6 @@ extern void __funlockfile_internal(FILE *, int);
 extern char *__gets(char *);
 
 /*
- * Detect if the current file position fits in a long int.
- */
-
-static __inline bool __long_overflow(off_t pos) {
-  return (pos < LONG_MIN) || (pos > LONG_MAX);
-}
-
-/*
  * Functions internal to the implementation.
  */
 int __srget(FILE *);

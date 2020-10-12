@@ -11,8 +11,8 @@
 #include <dev/isareg.h>
 #include <dev/ns16550reg.h>
 #include <sys/interrupt.h>
-#include <sys/sysinit.h>
 #include <sys/stat.h>
+#include <sys/devclass.h>
 
 #define UART_BUFSIZE 128
 
@@ -187,12 +187,7 @@ static driver_t ns16550_driver = {
   .desc = "NS16550 UART driver",
   .size = sizeof(ns16550_state_t),
   .attach = ns16550_attach,
+  .identify = bus_generic_identify,
 };
 
-extern device_t *gt_pci;
-
-static void ns16550_init(void) {
-  (void)make_device(gt_pci, &ns16550_driver);
-}
-
-SYSINIT_ADD(ns16550, ns16550_init, DEPS("rootdev"));
+DEVCLASS_ENTRY(pci, ns16550_driver);

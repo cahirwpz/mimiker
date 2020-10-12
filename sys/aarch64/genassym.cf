@@ -1,0 +1,39 @@
+include <stddef.h>
+include <sys/thread.h>
+include <sys/pcpu.h>
+include <sys/proc.h>
+include <aarch64/context.h>
+
+define TD_PROC offsetof(thread_t, td_proc)
+define TD_KCTX offsetof(thread_t, td_kctx)
+define TD_ONFAULT offsetof(thread_t, td_onfault)
+
+define P_USPACE offsetof(proc_t, p_uspace)
+
+define PCPU_CURTHREAD offsetof(pcpu_t, curthread)
+
+define CTX_X0 offsetof(ctx_t, __gregs[_REG_X0])
+define CTX_X2 offsetof(ctx_t, __gregs[_REG_X2])
+define CTX_X4 offsetof(ctx_t, __gregs[_REG_X4])
+define CTX_X6 offsetof(ctx_t, __gregs[_REG_X6])
+define CTX_X8 offsetof(ctx_t, __gregs[_REG_X8])
+define CTX_X10 offsetof(ctx_t, __gregs[_REG_X10])
+define CTX_X12 offsetof(ctx_t, __gregs[_REG_X12])
+define CTX_X14 offsetof(ctx_t, __gregs[_REG_X14])
+define CTX_X16 offsetof(ctx_t, __gregs[_REG_X16])
+define CTX_X18 offsetof(ctx_t, __gregs[_REG_X18])
+define CTX_X20 offsetof(ctx_t, __gregs[_REG_X20])
+define CTX_X22 offsetof(ctx_t, __gregs[_REG_X22])
+define CTX_X24 offsetof(ctx_t, __gregs[_REG_X24])
+define CTX_X26 offsetof(ctx_t, __gregs[_REG_X26])
+define CTX_X28 offsetof(ctx_t, __gregs[_REG_X28])
+define CTX_X30 offsetof(ctx_t, __gregs[_REG_X30])
+define CTX_FP offsetof(ctx_t, __gregs[_REG_FP])
+define CTX_LR offsetof(ctx_t, __gregs[_REG_LR])
+define CTX_SP offsetof(ctx_t, __gregs[_REG_SP])
+define CTX_ELR offsetof(ctx_t, __gregs[_REG_ELR])
+define CTX_PC offsetof(ctx_t, __gregs[_REG_PC])
+define CTX_SPSR offsetof(ctx_t, __gregs[_REG_SPSR])
+define CTX_X offsetof(ctx_t, __gregs)
+
+define CTX_SIZE sizeof(ctx_t)

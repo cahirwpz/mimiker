@@ -86,7 +86,8 @@ long ftell(FILE *fp) {
   }
   FUNLOCKFILE(fp);
 
-  if (__long_overflow(pos)) {
+  /* TODO(cahir): revisit this after off_t is changed to int64_t */
+  if ((unsigned long)pos > LONG_MAX) {
     errno = EOVERFLOW;
     return -1L;
   }

@@ -1,7 +1,7 @@
 #define KL_LOG KL_FILESYS
 #include <sys/klog.h>
 #include <sys/errno.h>
-#include <sys/pool.h>
+#include <sys/malloc.h>
 #include <sys/kmem.h>
 #include <sys/libkern.h>
 #include <cpio.h>
@@ -12,6 +12,7 @@
 #include <sys/vfs.h>
 #include <sys/linker_set.h>
 #include <sys/dirent.h>
+#include <sys/kenv.h>
 
 typedef uint32_t cpio_dev_t;
 typedef uint32_t cpio_ino_t;
@@ -44,7 +45,7 @@ struct cpio_node {
   vnode_t *c_vnode;
 };
 
-static POOL_DEFINE(P_INITRD, "initrd", sizeof(cpio_node_t));
+static KMALLOC_DEFINE(M_INITRD, "initrd");
 
 static cpio_list_t initrd_head = TAILQ_HEAD_INITIALIZER(initrd_head);
 static cpio_node_t *root_node;
@@ -57,7 +58,7 @@ static const unsigned ft2vt[16] = {[C_CHR] = V_DEV,
                                    [C_LNK] = V_LNK};
 
 static cpio_node_t *cpio_node_alloc(void) {
-  cpio_node_t *node = pool_alloc(P_INITRD, M_ZERO);
+  cpio_node_t *node = kmalloc(M_INITRD, sizeof(cpio_node_t), M_ZERO);
   TAILQ_INIT(&node->c_children);
   return node;
 }
@@ -135,7 +136,7 @@ static void read_cpio_archive(void) {
     cpio_node_t *node = cpio_node_alloc();
     if (!read_cpio_header(&tape, node) ||
         strcmp(node->c_path, CPIO_TRAILER) == 0) {
-      pool_free(P_INITRD, node);
+      kfree(M_INITRD, node);
       break;
     }
 
@@ -349,6 +350,14 @@ static int initrd_init(vfsconf_t *vfc) {
   initrd_build_tree();
   initrd_enum_inodes(root_node, 2);
   return 0;
+}
+
+intptr_t ramdisk_get_start(void) {
+  return kenv_get_ulong("rd_start");
+}
+
+size_t ramdisk_get_size(void) {
+  return align(kenv_get_ulong("rd_size"), PAGESIZE);
 }
 
 void ramdisk_dump(void) {

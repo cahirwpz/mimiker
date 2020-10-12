@@ -6,6 +6,9 @@
 #include <sys/cdefs.h>
 #include <sys/thread.h>
 
+/*! \brief Called during kernel initialization. */
+void init_sched(void);
+
 /*! \brief Disables preemption.
  *
  * Prevents current thread from switching out on return from interrupt,
@@ -93,7 +96,8 @@ void sched_clock(void);
  * field to reflect the change in state.
  *
  * \returns a value that was passed to sched_wakeup
- * \note Must be called with \a td_spin acquired!
+ * \note Must be called with \a td_lock acquired, which will be unlocked after
+ *       procedure returns!
  */
 long sched_switch(void);
 

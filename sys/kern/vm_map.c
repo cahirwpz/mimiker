@@ -40,6 +40,12 @@ void vm_map_activate(vm_map_t *map) {
   pmap_activate(map ? map->pmap : NULL);
 }
 
+void vm_map_switch(thread_t *td) {
+  proc_t *p = td->td_proc;
+  if (p)
+    vm_map_activate(p->p_uspace);
+}
+
 void vm_map_lock(vm_map_t *map) {
   mtx_lock(&map->mtx);
 }
@@ -93,7 +99,7 @@ static void vm_map_setup(vm_map_t *map) {
   mtx_init(&map->mtx, 0);
 }
 
-void vm_map_bootstrap(void) {
+void init_vm_map(void) {
   vm_map_setup(kspace);
   kspace->pmap = pmap_kernel();
   vm_map_activate(kspace);

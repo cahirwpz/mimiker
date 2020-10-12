@@ -6,6 +6,7 @@
 #endif
 
 #include <stdint.h>
+#include <mips/m32c0.h>
 
 typedef uint32_t tlbhi_t;
 typedef uint32_t tlblo_t;
@@ -67,7 +68,7 @@ typedef struct {
 #define PDE_VALID PTE_VALID
 #define PDE_GLOBAL PTE_GLOBAL
 
-void tlb_init(void);
+void init_mips_tlb(void);
 
 /*
  * Note that MIPS implements variable page size by specifying PageMask register,

@@ -29,7 +29,7 @@ $(KLIB): $(OBJECTS) $(KLIBDEPS)
 
 %_dtb.o: %.dtb
 	@echo "[OBJCOPY] $(DIR)$< -> $(DIR)$@"
-	$(OBJCOPY) -I binary -O $(ELFTYPE) -B $(ARCH) \
+	$(OBJCOPY) -I binary -O $(ELFTYPE) -B $(ELFARCH) \
 	  --redefine-sym _binary_$(@:%.o=%)_start=__$(@:%.o=%)_start \
 	  --redefine-sym _binary_$(@:%.o=%)_end=__$(@:%.o=%)_end \
 	  --redefine-sym _binary_$(@:%.o=%)_size=__$(@:%.o=%)_size \
