@@ -84,7 +84,8 @@ timer_t *tm_reserve(const char *name, unsigned flags) {
       if (tm->tm_flags & flags)
         break;
     }
-    tm->tm_flags |= TMF_RESERVED;
+    if (tm)
+      tm->tm_flags |= TMF_RESERVED;
   }
   return tm;
 }
