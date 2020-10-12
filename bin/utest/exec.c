@@ -8,7 +8,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
-int test_execve() {
+int test_execve(void) {
   int pid = fork();
   if (pid < 0) {
     fprintf(stderr, "fork failed: %s\n", strerror(errno));
@@ -31,7 +31,7 @@ int test_execve() {
   exit(1);
 }
 
-int test_execv() {
+int test_execv(void) {
   int pid = fork();
   if (pid < 0) {
     fprintf(stderr, "fork failed: %s\n", strerror(errno));
