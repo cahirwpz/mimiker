@@ -1,8 +1,13 @@
+/* Partially copied from NetBSD's <sys/param.h>. Please keep it in sync with
+ * original source code whenever possible and applicable. */
+
 #ifndef _SYS_PARAM_H_
 #define _SYS_PARAM_H_
 
 #include <sys/syslimits.h>
 #include <sys/inttypes.h>
+
+#define NGROUPS NGROUPS_MAX /* max number groups */
 
 /* Macros for min/max. */
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -16,9 +21,22 @@
  * any desired pointer type.
  *
  * ALIGNED_POINTER is a boolean macro that checks whether an address
- * is valid to fetch data elements of type t from on this architecture.
- * This does not reflect the optimal alignment, just the possibility
- * (within reasonable limits).
+ * is valid to fetch data elements of type t from on this architecture
+ * using ALIGNED_POINTER_LOAD.  This does not reflect the optimal
+ * alignment, just the possibility (within reasonable limits).
+ *
+ *	uint32_t x;
+ *	unsigned char *p = ...;
+ *
+ *	if (ALIGNED_POINTER(p, uint32_t)) {
+ *		uint32_t t;
+ *		ALIGNED_POINTER_LOAD(&t, p, uint32_t);
+ *		x = t;
+ *	} else {
+ *		uint32_t t;
+ *		memcpy(&t, p, sizeof(t));
+ *		x = t;
+ *	}
  *
  */
 #define ALIGNBYTES __ALIGNBYTES
@@ -92,8 +110,6 @@
 #define rounddown2(x, m) ((x) & ~((__typeof__(x))((m)-1)))
 
 #define powerof2(x) ((((x)-1) & (x)) == 0)
-
-#define NGROUPS NGROUPS_MAX
 
 /* Signals. */
 #ifndef _KERNEL
