@@ -28,11 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-#ifndef lint
-__COPYRIGHT("@(#) Copyright (c) 2005\
- The NetBSD Foundation, Inc.  All rights reserved.");
-__RCSID("$NetBSD: seq.c,v 1.11 2018/12/17 20:10:51 christos Exp $");
-#endif /* not lint */
 
 #include <ctype.h>
 #include <err.h>
