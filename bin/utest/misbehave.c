@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <unistd.h>
 
-int test_misbehave() {
+int test_misbehave(void) {
   const char str[] = "Hello world from a user program!\n";
 
   /* XXX: Currently kernel does not sigsegv offending programs, but in future it

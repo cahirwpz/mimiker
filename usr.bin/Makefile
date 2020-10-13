@@ -2,7 +2,9 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = env id stat seq wc
+
+SUBDIR = cmp col cut env find grep head id join mkfifo seq stat tail tr uniq wc
+
 
 all: build
 

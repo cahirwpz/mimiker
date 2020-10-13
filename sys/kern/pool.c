@@ -102,6 +102,8 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
   slab->ph_ntotal = (usable * 8 + 7) / (8 * slab->ph_itemsize + 1);
   slab->ph_nused = 0;
 
+  assert(slab->ph_ntotal > 0);
+
   size_t header = sizeof(slab_t) + bitstr_size(slab->ph_ntotal);
   slab->ph_items = (void *)slab + align(header, PI_ALIGNMENT);
   memset(slab->ph_bitmap, 0, bitstr_size(slab->ph_ntotal));
