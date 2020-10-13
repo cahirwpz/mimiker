@@ -63,10 +63,10 @@ class BinTime(metaclass=GdbStructMeta):
     __cast__ = {'sec': int, 'frac': int}
 
     def as_float(self):
-        return float(self.sec) + float(self.frac) * 2e-64
+        return float(self.sec) + float(self.frac) / 2**64
 
     def __str__(self):
-        return 'timeval{%.6f}' % self.as_float()
+        return 'bintime{%.6f}' % self.as_float()
 
 
 class List():
