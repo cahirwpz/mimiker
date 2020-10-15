@@ -38,13 +38,7 @@
 #ifndef _BCM2835REG_H_
 #define _BCM2835REG_H_
 
-#define BCM3836
-
-#ifdef BCM2836
 #define BCM2835_PERIPHERALS_BASE 0x3f000000
-#else
-#define BCM2835_PERIPHERALS_BASE 0x20000000
-#endif
 #define BCM2835_PERIPHERALS_SIZE 0x01000000 /* 16MBytes */
 
 #define BCM2835_PERIPHERALS_BASE_BUS 0x7e000000
@@ -142,7 +136,6 @@
 #define BCM2835_INTC_ENABLEBASE (BCM2835_INTC_BASE + 0x10)
 #define BCM2835_INTC_DISABLEBASE (BCM2835_INTC_BASE + 0x1c)
 
-#if 1
 #define BCM2836_NCPUS 4
 #define BCM2836_NIRQPERCPU 32
 
@@ -177,9 +170,6 @@
   (BCM2836_INT_BASECPUN(n) + BCM2836_INT_CNTHPIRQ)
 #define BCM2836_INT_MAILBOX0_CPUN(n)                                           \
   (BCM2836_INT_BASECPUN(n) + BCM2836_INT_MAILBOX0)
-#else
-#define BCM2835_INT_BASE 0
-#endif /* !BCM2836 */
 
 /* Periperal Interrupt sources */
 #define BCM2835_NIRQ 96
@@ -266,4 +256,4 @@
 #define BCM2836_LOCAL_MAILBOX_SETN(n, m) (0x80 + 0x10 * (n) + 4 * (m))
 #define BCM2836_LOCAL_MAILBOX_CLRN(n, m) (0xc0 + 0x10 * (n) + 4 * (m))
 
-#endif /* _BCM2835REG_H_ */
+#endif /* !_BCM2835REG_H_ */
