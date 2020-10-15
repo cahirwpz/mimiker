@@ -18,7 +18,7 @@ static void sigcont_handler(int signo) {
   sigcont_handled = 1;
 }
 
-int test_wait_basic() {
+int test_wait_basic(void) {
   ppid = getpid();
   signal(SIGCONT, sigcont_handler);
   int pid = fork();
@@ -60,7 +60,7 @@ int test_wait_basic() {
 }
 
 /* ======= wait_nohang ======= */
-int test_wait_nohang() {
+int test_wait_nohang(void) {
   ppid = getpid();
   signal(SIGCONT, sigcont_handler);
   int pid = fork();
