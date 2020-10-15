@@ -12,10 +12,15 @@
 
 struct tty;
 
-typedef void (*t_drain_out_t)(struct tty *);
+typedef void (*t_notify_out_t)(struct tty *);
 
+/* Routines supplied by the serial device driver. */
 typedef struct {
-  t_drain_out_t t_drain_out;
+  /* Called when new characters are added to the tty's output queue.
+   * This routine should make sure that at some point in the future all
+   * characters in the tty's output queue at the time of the call will
+   * be written to the device. */
+  t_notify_out_t t_notify_out;
 } ttyops_t;
 
 /* Line buffer */

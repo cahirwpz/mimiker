@@ -141,19 +141,18 @@ tty_t *tty_alloc(void) {
   tty->t_line.ln_size = LINEBUF_SIZE;
   tty->t_line.ln_count = 0;
   tty_init_termios(&tty->t_termios);
-  tty->t_ops.t_drain_out = NULL;
+  tty->t_ops.t_notify_out = NULL;
   tty->t_data = NULL;
 
   return tty;
 }
 
-/* Call device-specific drain function. */
-static void tty_drain_out(tty_t *tty) {
+/* Notify the serial device driver that there are characters
+ * in the output queue. */
+static void tty_notify_out(tty_t *tty) {
   assert(mtx_owned(&tty->t_lock));
   if (tty->t_outq.count > 0) {
-    tty->t_ops.t_drain_out(tty);
-    /* `t_drain_out` must be synchronous. */
-    assert(tty->t_outq.count == 0);
+    tty->t_ops.t_notify_out(tty);
   }
 }
 
@@ -191,14 +190,12 @@ static bool tty_line_finish(tty_t *tty) {
 }
 
 /*
- * Put a character directly in the output queue, triggering a drain
- * if we can't put the character in due to the queue being full.
+ * Put a character directly in the output queue.
+ * TODO: what to do when the queue is full?
  */
 static void tty_outq_putc(tty_t *tty, uint8_t c) {
   if (!(tty->t_lflag & FLUSHO) && !ringbuf_putb(&tty->t_outq, c)) {
-    tty_drain_out(tty);
-    bool success = ringbuf_putb(&tty->t_outq, c);
-    assert(success);
+    klog("tty_outq_putc: outq full, dropping character 0x%hhx");
   }
 }
 
@@ -403,7 +400,7 @@ void tty_input(tty_t *tty, uint8_t c) {
     tty_wakeup(tty);
   }
 end:
-  tty_drain_out(tty);
+  tty_notify_out(tty);
 }
 
 static int tty_read(vnode_t *v, uio_t *uio, int ioflags) {
@@ -539,7 +536,7 @@ static int tty_write(vnode_t *v, uio_t *uio, int ioflags) {
       tty->t_rocount = 0;
       tty_output(tty, c);
     }
-    tty_drain_out(tty);
+    tty_notify_out(tty);
   }
 
   return error;
@@ -579,8 +576,7 @@ static int tty_ioctl(vnode_t *v, u_long cmd, void *data) {
       bool reinput = false; /* Process pending input again. */
 
       if (cmd == TIOCSETAW || cmd == TIOCSETAF) {
-        /* Drain all output. */
-        tty_drain_out(tty);
+        /* TODO Drain all output. */
         if (cmd == TIOCSETAF) {
           /* Discard all pending input. */
           tty_discard_input(tty);
