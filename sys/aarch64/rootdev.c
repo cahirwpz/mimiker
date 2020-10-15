@@ -71,6 +71,9 @@ static vaddr_t va;
 void intr_tick(void) {
   tm_trigger(&timer);
 
+  /* 
+   * https://developer.arm.com/docs/ddi0595/h/aarch64-system-registers/cntp_cval_el0
+   */
   uint64_t count = READ_SPECIALREG(cntpct_el0);
   uint64_t freq = READ_SPECIALREG(cntfrq_el0);
   WRITE_SPECIALREG(cntp_cval_el0, count + freq);
