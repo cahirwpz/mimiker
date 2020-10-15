@@ -1,2 +1,2 @@
-wheel:*:0:root
-
+wheel:*:0:root,admin
+users:*:1000:admin,user
