@@ -48,6 +48,11 @@
 #include <unistd.h>
 #include <util.h>
 
+/* TODO(fzdob): unused until we had addgroup function */
+#ifdef ALLOW_GROUP_CHANGE
+#undef ALLOW_GROUP_CHANGE
+#endif
+
 #ifdef ALLOW_GROUP_CHANGE
 #include "grutil.h"
 #endif
@@ -71,8 +76,7 @@ main(int argc, char **argv)
   char *p;
   uid_t ruid;
   int asme, ch, asthem, fastlogin, gohome;
-/* TODO(fzdob): inactive unless we had get/setpriority functions 
- *       (only there we use prio variable) */
+/* TODO(fzdob): inactive unless we had get/setpriority syscalls */
 #if 0
   int prio;
 #endif
@@ -125,7 +129,7 @@ main(int argc, char **argv)
 
   argv += optind;
 
-/* TODO(fzdob): inactive unless we had get/setpriority functions */
+/* TODO(fzdob): inactive unless we had get/setpriority syscalls */
 #if 0
   /* Lower the priority so su runs faster */
   errno = 0;
@@ -179,7 +183,7 @@ main(int argc, char **argv)
     errx(EXIT_FAILURE, "unknown login `%s'", user);
 
   if (ruid) {
-/* TODO(fzdob): inactive unless we had crytp and getpass functions */
+/* TODO(fzdob): inactive unless we had crypt and getpass functions */
 #if 0
     char *pass = strdup(pwd->pw_passwd);
 #endif
@@ -309,7 +313,7 @@ main(int argc, char **argv)
     syslog(LOG_NOTICE, "%s to %s%s",
       username, pwd->pw_name, ontty());
 
-/* TODO(fzdob): inactive unless we had get/setpriority functions */
+/* TODO(fzdob): inactive unless we had get/setpriority syscalls */
 #if 0
   /* Raise our priority back to what we had before */
   (void)setpriority(PRIO_PROCESS, 0, prio);
