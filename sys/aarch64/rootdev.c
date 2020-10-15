@@ -70,9 +70,12 @@ static vaddr_t va;
 
 void intr_tick(void) {
   tm_trigger(&timer);
-  size_t offset = BCM2836_LOCAL_INTC_IRQPENDINGN(0);
-  volatile uint32_t *timerp = (uint32_t *)(va + offset);
-  (void)timerp;
+
+  uint64_t count = READ_SPECIALREG(cntpct_el0);
+  uint64_t freq = READ_SPECIALREG(cntfrq_el0);
+  WRITE_SPECIALREG(cntp_cval_el0, count + freq);
+
+  __asm__ volatile("isb" ::: "memory");
 }
 
 static void _init_clock(void) {
