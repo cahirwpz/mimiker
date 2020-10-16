@@ -178,7 +178,7 @@ static int ns16550_attach(device_t *dev) {
 
   cv_init(&ns16550->tty_thread_cv, "NS16550 TTY thread notification");
   thread_t *tty_thread =
-    thread_create("NS16550 TTY worker", ns16550_tty_thread, ns16550,
+    thread_create("ns16550-tty-worker", ns16550_tty_thread, ns16550,
                   prio_ithread(PRIO_ITHRD_QTY - 1));
   sched_add(tty_thread);
 
