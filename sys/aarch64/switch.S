@@ -31,7 +31,8 @@
         ldp     x24, x25, [sp, #CTX_X24]
         ldp     x26, x27, [sp, #CTX_X26]
         ldp     x28, x29, [sp, #CTX_X28]
-        ldr     lr, [sp, #CTX_LR]
+        /* TODO(pj) it's not the best solution??? */
+        ldr     lr, [sp, #CTX_PC]
 .endm
 
 #
