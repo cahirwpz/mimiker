@@ -28,6 +28,7 @@ typedef struct ns16550_state {
   tty_t *tty;
   condvar_t tty_thread_cv;
   uint8_t tty_ipend;
+  bool tty_outq_nonempty;
 } ns16550_state_t;
 
 #define in(regs, offset) bus_read_1((regs), (offset))
@@ -74,9 +75,12 @@ static intr_filter_t ns16550_intr(void *data) {
       if (ringbuf_getb(&ns16550->tx_buf, &byte)) {
         out(uart, THR, byte);
       } else {
-        /* If we're out of characters, signal the tty thread to refill. */
-        ns16550->tty_ipend |= IIR_TXRDY;
-        cv_signal(&ns16550->tty_thread_cv);
+        /* If we're out of characters and there are characters
+         * in the tty's output queue, signal the tty thread to refill. */
+        if (ns16550->tty_outq_nonempty) {
+          ns16550->tty_ipend |= IIR_TXRDY;
+          cv_signal(&ns16550->tty_thread_cv);
+        }
         /* Disable TXRDY interrupts - the tty thread will re-enable them
          * after filling tx_buf. */
         clr(uart, IER, IER_ETXRDY);
@@ -122,9 +126,11 @@ static void ns16550_tty_thread(void *arg) {
             /* Enable TXRDY interrupts if there are characters in tx_buf. */
             if (!ringbuf_empty(&ns16550->tx_buf))
               set(ns16550->regs, IER, IER_ETXRDY);
+            ns16550->tty_outq_nonempty = !ringbuf_empty(&tty->t_outq);
             spin_unlock(&ns16550->lock);
             break;
           }
+          ns16550->tty_outq_nonempty = !ringbuf_empty(&tty->t_outq);
           ringbuf_putb(&ns16550->tx_buf, byte);
           spin_unlock(&ns16550->lock);
         }
@@ -146,6 +152,7 @@ static void ns16550_notify_out(tty_t *tty) {
 
   WITH_SPIN_LOCK (&ns16550->lock) {
     ns16550->tty_ipend |= IIR_TXRDY;
+    ns16550->tty_outq_nonempty = true;
     cv_signal(&ns16550->tty_thread_cv);
   }
 }
