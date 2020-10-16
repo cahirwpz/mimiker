@@ -9,7 +9,7 @@
 
         .section .boot, "ax"
 
-ASENTRY(_start)
+_ENTRY(_start)
         /* Based on locore.S from FreeBSD. */
         b       1f
         .long   0
@@ -38,7 +38,7 @@ ASENTRY(_start)
         MOV     sp, x0
 
         B       board_init
-ASEND(_start)
+_END(_start)
 
         .section .boot.data
         .globl  __boot_stack
