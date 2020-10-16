@@ -12,6 +12,7 @@ long sysconf(int name) {
       return NGROUPS_MAX;
     case _SC_OPEN_MAX:
       return OPEN_MAX;
+    case _SC_JOB_CONTROL:
     default:
       errno = EINVAL;
       return -1;
