@@ -88,23 +88,6 @@ static intr_filter_t ns16550_intr(void *data) {
   return res;
 }
 
-/*
- * Process incoming characters.
- * This procedure is run in the interrupt thread's context.
- */
-static void ns16550_service(void *data) {
-  ns16550_state_t *ns16550 = data;
-  tty_t *tty = ns16550->tty;
-  uint8_t byte;
-  while (true) {
-    WITH_SPIN_LOCK (&ns16550->lock) {
-      if (!ringbuf_getb(&ns16550->rx_buf, &byte))
-        return;
-    }
-    WITH_MTX_LOCK (&tty->t_lock) { tty_input(tty, byte); }
-  }
-}
-
 static bool ns16550_getb_lock(ns16550_state_t *ns16550, uint8_t *byte_p) {
   spin_lock(&ns16550->lock);
   bool ret = ringbuf_getb(&ns16550->rx_buf, byte_p);
@@ -196,8 +179,8 @@ static int ns16550_attach(device_t *dev) {
   ns16550->regs = bus_alloc_resource(
     dev, RT_ISA, 0, IO_COM1, IO_COM1 + IO_COMSIZE - 1, IO_COMSIZE, RF_ACTIVE);
   assert(ns16550->regs != NULL);
-  ns16550->intr_handler = INTR_HANDLER_INIT(ns16550_intr, ns16550_service,
-                                            ns16550, "NS16550 UART", 0);
+  ns16550->intr_handler =
+    INTR_HANDLER_INIT(ns16550_intr, NULL, ns16550, "NS16550 UART", 0);
   /* TODO Do not use magic number "4" here! */
   bus_intr_setup(dev, 4, &ns16550->intr_handler);
 
