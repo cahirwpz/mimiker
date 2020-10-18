@@ -973,3 +973,17 @@ static int sys_getsid(proc_t *p, getsid_args_t *args, register_t *res) {
 
   return error;
 }
+
+static int sys_getpriority(proc_t *p, getpriority_args_t *args, register_t *res) {
+  /* TODO(fzdob): this is only simple stub to avoid erasing these syscall from userspace programs */
+  (void)args;
+  *res = 0;
+  return 0;
+}
+
+static int sys_setpriority(proc_t *p, setpriority_args_t *args, register_t *res) {
+  /* TODO(fzdob): this is only simple stub to avoid erasing these syscall from userspace programs */
+  (void)args;
+  *res = 0;
+  return 0;
+}
