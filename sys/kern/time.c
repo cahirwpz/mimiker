@@ -28,6 +28,7 @@ systime_t ts2hz(timespec_t *ts) {
   if (ts->tv_sec <= UINT_MAX / CLK_TCK) {
     const int pow9 = 1000000000;
     int tick = pow9 / CLK_TCK;
+
     /* We are rounding up the number of ticks */
     long nsectck = (ts->tv_nsec + tick - 1) / tick;
     ticks = ts->tv_sec * CLK_TCK;
@@ -37,6 +38,7 @@ systime_t ts2hz(timespec_t *ts) {
       ticks += nsectck + 1;
     } else
       ticks = UINT_MAX;
+
   } else
     ticks = UINT_MAX;
 

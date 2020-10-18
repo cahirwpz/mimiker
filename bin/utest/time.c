@@ -47,8 +47,7 @@ int test_nanosleep(void) {
   assert(nanosleep(&treq, &trem) == EINVAL);
 
   /* Check if sleept at least requested time */;
-  
-  for (int g = 0; g < 20; g++) {  
+  for (int g = 0; g < 20; g++) {
     treq.tv_nsec = (1000 << g);
     diff = *((timeval_t *)&treq);
     diff.tv_usec /= 1000;
