@@ -1,8 +1,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#define PASS_MAX 128
-
 const char *crypt(const char *key, const char *salt) {
-  return strndup(key, PASS_MAX);
+  int max_pass = sysconf(_SC_PASS_MAX);
+  return strndup(key, max_pass);
 }

@@ -29,6 +29,8 @@
  * SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
+__RCSID("$NetBSD: suutil.c,v 1.1 2007/10/17 21:05:39 christos Exp $");
+
 #include <sys/param.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -50,7 +52,7 @@ chshell(const char *sh)
 char *
 ontty(void)
 {
-	const char *p;
+	char *p;
 	static char buf[MAXPATHLEN + 4];
 
 	buf[0] = 0;
