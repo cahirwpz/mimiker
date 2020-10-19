@@ -65,6 +65,8 @@
 #define SYS_fstatvfs 57
 #define SYS_getgroups 58
 #define SYS_setgroups 59
-#define SYS_MAXSYSCALL 60
+#define SYS_setsid 60
+#define SYS_getsid 61
+#define SYS_MAXSYSCALL 62
 
 #define SYS_MAXSYSARGS 6

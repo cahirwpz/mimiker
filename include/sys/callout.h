@@ -21,6 +21,9 @@ typedef struct callout {
 #define CALLOUT_ACTIVE 0x0001
 #define CALLOUT_PENDING 0x0002 /* callout is waiting for timeout */
 
+/*! \brief Called during kernel initialization. */
+void init_callout(void);
+
 /*
  * Add a callout to the queue.
  * At tick @time function @fn is called with argument @arg.

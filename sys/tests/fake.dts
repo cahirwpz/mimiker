@@ -1,0 +1,87 @@
+/dts-v1/;
+
+/ {
+    model = "MIPS Malta-R";
+    compatible = "mti,malta";
+
+    cpus {
+        cpu@0 {
+            compatible = "mti,mips14KEc", "mti,mips14Kc";
+        };
+    };
+
+    memory {
+        device_type = "memory";
+        reg = <0x0 0x8000000>;
+    };
+
+    root@0 {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        #id-cells = <1>;
+
+        cbus@0 {
+            compatible = "cbus";
+            reg = <0x1f000000 0x100000 0x0>;
+            #address-cells = <1>;
+            #size-cells = <1>;
+            #id-cells = <1>;
+
+            serial@0 {
+                compatible = "ns16550";
+                reg = <0x900 0x40 0x0>;
+            };
+        };
+
+        pci@0 {
+            compatible = "pci";
+            reg = <0x10000000 0x800000 0x0
+                   0x18000000 0x3e00000 0x1>; 
+                   
+
+            isa@0 {
+                reg = <0x0 0x1000 0x0>;
+
+                compatible = "isa";
+                #address-cells = <1>;
+                #size-cells = <1>;
+                #id-cells = <1>;
+                #interrupt-cells = <1>;
+
+                rtc@0 {
+                    compatible = "rtc";
+                    reg = <0x70 0x10 0x0>;
+                    interrupts = <8>;
+                };
+
+                atkbdc@0 {
+                    compatible = "atkbdc";
+                    reg = <0x60 0x1 0x0
+                           0x64 0x1 0x1>;
+                    interrupts = <1>;
+                };
+
+                pit@0 {
+                    compatible = "pit";
+                    reg = <0x40 0x10 0x0>;
+                    interrupts = <0>;
+                };
+
+                serial@0 {
+                    compatible = "ns16550";
+                    reg = <0x3f8 0x40 0x0>;
+                    interrupts = <3>;
+                };
+
+                serial@1 {
+                    compatible = "ns16550";
+                    reg = <0x2f8 0x40 0x0>;
+                    interrupts = <4>;
+                };
+
+            };
+        };
+
+    };
+};
+

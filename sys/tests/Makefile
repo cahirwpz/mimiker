@@ -6,10 +6,10 @@ SOURCES = \
 	broken.c \
 	callout.c \
 	crash.c \
+	fdt.c \
 	klog.c \
 	kmem.c \
 	linker_set.c \
-	malloc.c \
 	mutex.c \
 	physmem.c \
 	pmap.c \
@@ -36,5 +36,7 @@ SOURCES = \
 	devclass.c \
 	vfs.c \
 	vmem.c
+
+OBJECTS += fake_dtb.o
 
 include $(TOPDIR)/build/build.kern.mk

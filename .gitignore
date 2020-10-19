@@ -9,6 +9,10 @@
 *.uelf
 *.test
 
+# Kernel blobs
+*.img
+*.img.gz
+
 # Ramdisk
 *.cpio
 

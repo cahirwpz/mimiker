@@ -309,3 +309,7 @@ typedef struct {
   int ngroups;
   const gid_t * gidset;
 } setgroups_args_t;
+
+typedef struct {
+  pid_t pid;
+} getsid_args_t;

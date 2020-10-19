@@ -3,7 +3,7 @@
 
 #include <sys/types.h>
 
-#define CLK_TCK 1000 /* system clock ticks per second */
+#define CLK_TCK 1000 /* system clock ticks per second 1[tick] = 1[ms]  */
 
 typedef struct tm {
   int tm_sec;          /* seconds after the minute [0-61] */
@@ -53,7 +53,8 @@ systime_t ts2hz(timespec_t *ts);
 time_t tm2sec(tm_t *tm);
 
 static inline systime_t bt2st(bintime_t *bt) {
-  return bt->sec * 1000 + ((1000ULL * (uint32_t)(bt->frac >> 32)) >> 32);
+  return bt->sec * CLK_TCK +
+         (((uint64_t)CLK_TCK * (uint32_t)(bt->frac >> 32)) >> 32);
 }
 
 static inline void bt2ts(bintime_t *bt, timespec_t *ts) {
