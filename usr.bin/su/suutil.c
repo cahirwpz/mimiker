@@ -39,8 +39,6 @@ int
 chshell(const char *sh)
 {
   return 0;
-  /* TODO(fzdob): we don't have setusershell, getusershell functions */
-#if 0
 	const char *cp;
 
 	setusershell();
@@ -48,23 +46,17 @@ chshell(const char *sh)
 		if (strcmp(cp, sh) == 0)
 			return 1;
 	return 0;
-#endif
 }
 
 char *
 ontty(void)
 {
-  static char buf[] = "not a tty :(";
-  return buf;
-  /* TODO(fzdob): we don't have terminals now */
-#if 0
-	char *p;
+	const char *p;
 	static char buf[MAXPATHLEN + 4];
 
 	buf[0] = 0;
 	if ((p = ttyname(STDERR_FILENO)) != NULL)
 		(void)snprintf(buf, sizeof buf, " on %s", p);
 	return buf;
-#endif
 }
 
