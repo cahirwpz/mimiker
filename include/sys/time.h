@@ -181,7 +181,7 @@ int do_clock_nanosleep(clockid_t clk, int flags, timespec_t *rqtp,
 
 #else /* _KERNEL */
 
-int nanosleep(timespec_t *rqtp, timespec_t *rmtp);
+int nanosleep(const timespec_t *rqtp, timespec_t *rmtp);
 
 int adjtime(const struct timeval *, struct timeval *);
 int gettimeofday(struct timeval *__restrict, void *__restrict);
