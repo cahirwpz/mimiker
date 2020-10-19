@@ -27,34 +27,34 @@ int test_gettimeofday(void) {
 }
 
 int test_nanosleep(void) {
-  timespec_t treq, trem;
+  timespec_t rqt, rmt;
   timeval_t time1, time2, diff;
   int error;
 
   /* Incorrect arguments */
-  treq.tv_sec = -1;
-  treq.tv_nsec = 1;
-  assert(nanosleep(&treq, NULL) == EINVAL);
-  assert(nanosleep(&treq, &trem) == EINVAL);
+  rqt.tv_sec = -1;
+  rqt.tv_nsec = 1;
+  assert(nanosleep(&rqt, NULL) == EINVAL);
+  assert(nanosleep(&rqt, &rmt) == EINVAL);
 
-  treq.tv_sec = 0;
-  treq.tv_nsec = -1;
-  assert(nanosleep(&treq, NULL) == EINVAL);
-  assert(nanosleep(&treq, &trem) == EINVAL);
+  rqt.tv_sec = 0;
+  rqt.tv_nsec = -1;
+  assert(nanosleep(&rqt, NULL) == EINVAL);
+  assert(nanosleep(&rqt, &rmt) == EINVAL);
 
-  treq.tv_nsec = 1000000000;
-  assert(nanosleep(&treq, NULL) == EINVAL);
-  assert(nanosleep(&treq, &trem) == EINVAL);
+  rqt.tv_nsec = 1000000000;
+  assert(nanosleep(&rqt, NULL) == EINVAL);
+  assert(nanosleep(&rqt, &rmt) == EINVAL);
 
   /* Check if sleept at least requested time */;
   for (int g = 0; g < 20; g++) {
-    treq.tv_nsec = (1000 << g);
-    diff = *((timeval_t *)&treq);
+    rqt.tv_nsec = (1000 << g);
+    diff = *((timeval_t *)&rqt);
     diff.tv_usec /= 1000;
 
     assert(gettimeofday(&time1, NULL) == 0);
-    while ((error = nanosleep(&treq, &trem)) == EINTR)
-      treq = trem;
+    while ((error = nanosleep(&rqt, &rmt)) == EINTR)
+      rqt = rmt;
     assert(error == 0);
     assert(gettimeofday(&time2, NULL) == 0);
 
