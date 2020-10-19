@@ -43,6 +43,8 @@ static timer_t mips_timer = {
   .tm_name = "mips-cpu-timer",
   .tm_flags = TMF_PERIODIC,
   .tm_frequency = CPU_FREQ,
+  .tm_min_period = BINTIME(1 / (double)CPU_FREQ),
+  .tm_max_period = BINTIME(((1LL << 32) - 1) / (double)CPU_FREQ),
   .tm_start = mips_timer_start,
   .tm_stop = mips_timer_stop,
   .tm_gettime = mips_timer_gettime,
@@ -86,7 +88,7 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
 
   mips_timer_state_t *state = state_of(tm);
 
-  state->period_cntr = bintime_mul(period, CPU_FREQ).sec;
+  state->period_cntr = bintime_mul(period, tm->tm_frequency).sec;
   state->compare.val = read_count(state);
   state->last_count_lo = state->count.lo;
   set_next_tick(state);
@@ -102,16 +104,14 @@ static int mips_timer_stop(timer_t *tm) {
 
 static bintime_t mips_timer_gettime(timer_t *tm) {
   uint64_t count = read_count(state_of(tm));
-  uint32_t sec = count / CPU_FREQ;
-  uint32_t frac = count % CPU_FREQ;
-  bintime_t bt = bintime_mul(HZ2BT(CPU_FREQ), frac);
+  uint32_t sec = count / tm->tm_frequency;
+  uint32_t frac = count % tm->tm_frequency;
+  bintime_t bt = bintime_mul(HZ2BT(tm->tm_frequency), frac);
   bt.sec = sec;
   return bt;
 }
 
 void init_mips_timer(void) {
-  mips_timer.tm_min_period = BINTIME(1 / (double)CPU_FREQ),
-  mips_timer.tm_max_period = BINTIME(((1LL << 32) - 1) / (double)CPU_FREQ),
   tm_register(&mips_timer);
   tm_select(&mips_timer);
 }
