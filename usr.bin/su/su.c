@@ -226,10 +226,7 @@ main(int argc, char **argv)
 	    && (!use_kerberos || kerberos5(username, user, pwd->pw_uid))
 #endif
 	    ) {
-/* TODO(fzdob): inactive unless we had crypt and getpass functions */
-#if 0
-		char *pass = pwd->pw_passwd;
-#endif
+		char *pass = strdup(pwd->pw_passwd);
 		int ok = pwd->pw_uid != 0;
 
 #ifdef SU_ROOTAUTH
@@ -239,10 +236,7 @@ main(int argc, char **argv)
 		 */
 		if (!ok) {
 			if ((ok = check_ingroup(-1, SU_ROOTAUTH, username, 0))) {
-/* TODO(fzdob): inactive unless we had crytp and getpass functions */
-#if 0
 				pass = userpass;
-#endif
 				user = username;
 			}
 		}
@@ -258,8 +252,6 @@ main(int argc, char **argv)
 			errx(EXIT_FAILURE,
 	    "you are not listed in the correct secondary group (%s) to su %s.",
 					    SU_GROUP, user);
-/* TODO(fzdob): inactive unless we had crytp and getpass functions */
-#if 0
 		/* if target requires a password, verify it */
 		if (*pass && pwd->pw_uid != ruid) {	/* XXX - OK? */
 			p = getpass("Password:");
@@ -287,7 +279,6 @@ main(int argc, char **argv)
 				exit(EXIT_FAILURE);
 			}
 		}
-#endif
 	}
 
 	if (asme) {
