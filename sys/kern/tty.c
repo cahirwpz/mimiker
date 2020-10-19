@@ -19,6 +19,8 @@
 #include <sys/vm_map.h>
 #include <sys/device.h>
 
+/* START OF FreeBSD CODE */
+
 /*
  * Table with character classes and parity. The 8th bit indicates parity,
  * the 7th bit indicates the character is an alphameric or underscore (for
@@ -103,6 +105,8 @@ unsigned char const char_type[] = {
 #undef NO
 #undef TB
 #undef VT
+
+/* END OF FreeBSD CODE */
 
 /* termios flags that can be changed using TIOCSETA{,W,F}. */
 #define TTYSUP_IFLAG_CHANGE (INLCR | IGNCR | ICRNL | IMAXBEL)
