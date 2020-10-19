@@ -33,10 +33,11 @@ typedef intptr_t ssize_t;
 typedef uint32_t id_t; /* group id, process id or user id */
 typedef int32_t pid_t;
 typedef int32_t pgid_t;
+typedef int32_t sid_t;
 typedef uint16_t dev_t;
 typedef uint32_t systime_t; /* kept in system clock ticks */
-typedef uint16_t uid_t;
-typedef uint16_t gid_t;
+typedef uint32_t uid_t;
+typedef uint32_t gid_t;
 typedef uint32_t mode_t;
 typedef uint16_t nlink_t;
 typedef uint16_t ino_t;

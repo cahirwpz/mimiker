@@ -5,8 +5,6 @@ import shutil
 import signal
 import subprocess
 
-
-TARGET = 'mipsel'
 FIRST_UID = 1000
 
 
@@ -20,15 +18,136 @@ def uart_port(num):
     return gdb_port() + 1 + num
 
 
+CONFIG = {
+    'board': 'malta',
+    'config': {
+        'debug': False,
+        'graphics': False,
+        'elf': 'sys/mimiker.elf',
+        'initrd': 'initrd.cpio',
+        'args': [],
+        'board': {
+            'malta': {
+                'kernel': 'sys/mimiker.elf',
+            },
+            'rpi3': {
+                'kernel': 'sys/mimiker.img.gz',
+            },
+        },
+    },
+    'qemu': {
+        'options': [
+            '-nodefaults',
+            '-icount', 'shift=3,sleep=on',
+            '-kernel', '{kernel}',
+            '-initrd', '{initrd}',
+            '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
+            '-serial', 'none'],
+        'board': {
+            'malta': {
+                'binary': 'qemu-mimiker-mipsel',
+                'options': [
+                    '-device', 'VGA',
+                    '-machine', 'malta',
+                    '-cpu', '24Kf'],
+                'uarts': [
+                    ('/dev/tty1', uart_port(0)),
+                    ('/dev/tty2', uart_port(1)),
+                    ('/dev/cons', uart_port(2))
+                ]
+            },
+            'rpi3': {
+                'binary': 'qemu-mimiker-aarch64',
+                'options': [
+                    '-machine', 'raspi3',
+                    '-smp', '4',
+                    '-cpu', 'cortex-a53'],
+                'uarts': [
+                    ('/dev/cons', uart_port(0))
+                ]
+            }
+        }
+    },
+    'gdb': {
+        'pre-options': [
+            '-n',
+            '-ex=set confirm no',
+            '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
+            '-ex=set tcp connect-timeout 30',
+            '-ex=target remote localhost:{}'.format(gdb_port()),
+            '--silent',
+        ],
+        'extra-options': [],
+        'post-options': [
+            '-ex=set confirm yes',
+            '-ex=source .gdbinit',
+            '-ex=continue',
+            '{elf}'
+        ],
+        'board': {
+            'malta': {
+                'binary': 'mipsel-mimiker-elf-gdb'
+            },
+            'rpi3': {
+                'binary': 'aarch64-mimiker-elf-gdb'
+            }
+        }
+    }
+}
+
+
+def setboard(name):
+    setvar('board', name)
+    # go over top-level configuration variables
+    for top, config in CONFIG.items():
+        if type(config) is not dict:
+            continue
+        board = getvar('board.' + name, start=config, failok=True)
+        if not board:
+            continue
+        # merge board variables into generic set
+        for key, value in board.items():
+            if key not in config:
+                config[key] = value
+            elif type(value) == list:
+                config[key].extend(value)
+            else:
+                raise RuntimeError(f'Cannot merge {top}.board.{name}.{key} '
+                                   f'into {top}')
+        # finish merging by removing alternative configurations
+        del config['board']
+
+
+def getvar(name, start=CONFIG, failok=False):
+    value = start
+    for f in name.split('.'):
+        try:
+            value = value[f]
+        except KeyError as ex:
+            if failok:
+                return None
+            raise ex
+    return value
+
+
+def setvar(name, val, config=CONFIG):
+    fs = name.split('.')
+    while len(fs) > 1:
+        config = config[fs.pop(0)]
+    config[fs.pop(0)] = val
+
+
+def getopts(*names):
+    opts = itertools.chain.from_iterable([getvar(name) for name in names])
+    return [opt.format(**getvar('config')) for opt in opts]
+
+
 class Launchable():
     def __init__(self, name, cmd):
         self.name = name
         self.cmd = cmd
         self.window = None
         self.options = []
-
-    def configure(self, *args, **kwargs):
-        raise NotImplementedError
 
     def start(self, session):
         cmd = ' '.join([self.cmd] + list(map(shlex.quote, self.options)))
@@ -79,60 +198,30 @@ class Launchable():
 
 class QEMU(Launchable):
     def __init__(self):
-        super().__init__('qemu', shutil.which('qemu-mimiker-' + TARGET))
+        super().__init__('qemu', getvar('qemu.binary'))
 
-    def configure(self, debug=False, graphics=False, kernel='', initrd='',
-                  args=''):
-        self.options = [
-            '-nodefaults',
-            '-device', 'VGA',
-            '-machine', 'malta',
-            '-cpu', '24Kf',
-            '-icount', 'shift=3,sleep=on',
-            '-kernel', kernel,
-            '-initrd', initrd,
-            '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
-            '-serial', 'none',
-            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(0)),
-            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(1)),
-            '-serial', 'tcp:127.0.0.1:{},server,wait'.format(uart_port(2))]
+        self.options = getopts('qemu.options')
+        for _, port in getvar('qemu.uarts'):
+            self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
-        if args:
-            self.options += ['-append', ' '.join(args)]
-
-        if debug:
+        if getvar('config.args'):
+            self.options += ['-append', ' '.join(getvar('config.args'))]
+        if getvar('config.debug'):
             self.options += ['-S']
-        if not graphics:
+        if not getvar('config.graphics'):
             self.options += ['-display', 'none']
 
 
 class GDB(Launchable):
-    COMMAND = TARGET + '-mimiker-elf-gdb'
-
     def __init__(self, name=None, cmd=None):
-        super().__init__(name or 'gdb', cmd or GDB.COMMAND)
+        super().__init__(name or 'gdb', cmd or getvar('gdb.binary'))
         # gdbtui & cgdb output is garbled if there is no delay
         self.cmd = 'sleep 0.25 && ' + self.cmd
 
-    def configure(self, kernel='', extra_ex_cmds=[]):
         if self.name == 'gdb':
             self.options += ['-ex=set prompt \033[35;1m(gdb) \033[0m']
-        self.options += [
-            '-n',
-            '-ex=set confirm no',
-            '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
-            '-ex=set tcp connect-timeout 30',
-            '-ex=target remote localhost:{}'.format(gdb_port()),
-            '--silent',
-        ]
-        for cmd in extra_ex_cmds:
-            self.options.append(f'-ex={cmd}')
-        self.options += [
-            '-ex=set confirm yes',
-            '-ex=source .gdbinit',
-            '-ex=continue',
-            kernel,
-        ]
+        self.options += getopts(
+                'gdb.pre-options', 'gdb.extra-options', 'gdb.post-options')
 
 
 class GDBTUI(GDB):
@@ -144,22 +233,17 @@ class GDBTUI(GDB):
 class CGDB(GDB):
     def __init__(self):
         super().__init__('cgdb', 'cgdb')
-        self.options = ['-d', GDB.COMMAND]
+        self.options = ['-d', getvar('gdb.binary')]
 
 
 class SOCAT(Launchable):
-    def __init__(self, name):
+    def __init__(self, name, tcp_port):
         super().__init__(name, 'socat')
-
-    def configure(self, uart_num):
-        port = uart_port(uart_num)
         # The simulator will only open the server after some time has
         # passed.  To minimize the delay, keep reconnecting until success.
-        self.options = [
-            'STDIO', 'tcp:localhost:{},retry,forever'.format(port)]
+        self.options = ['STDIO', f'tcp:localhost:{tcp_port},retry,forever']
 
 
 Debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
-
-__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT', 'TARGET',
-           'Debuggers', 'gdb_port', 'uart_port']
+__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT', 'Debuggers',
+           'gdb_port', 'uart_port', 'getvar', 'setvar', 'setboard']

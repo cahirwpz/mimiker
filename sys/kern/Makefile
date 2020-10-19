@@ -7,8 +7,11 @@ SOURCES = \
 	bus.c \
 	callout.c \
 	clock.c \
+	cmdline.c \
 	condvar.c \
 	console.c \
+	cred.c \
+	cred_syscalls.c \
 	devclass.c \
 	device.c \
 	dev_cons.c \
@@ -38,7 +41,6 @@ SOURCES = \
 	pci_ids.c \
 	pcpu.c \
 	pipe.c \
-	pmap.c \
 	pool.c \
 	proc.c \
 	ringbuf.c \
@@ -50,9 +52,7 @@ SOURCES = \
 	signal.c \
 	sleepq.c \
 	spinlock.c \
-	startup.c \
 	syscalls.c \
-	sysinit.c \
 	taskqueue.c \
 	turnstile.c \
 	thread.c \
@@ -73,9 +73,12 @@ SOURCES = \
 	vmem.c
 
 ifeq ($(KASAN), 1)
-SOURCES += kasan.c
+SOURCES += kasan.c kasan_quar.c
 # KASAN's run-time library mustn't be sanitized!
 kasan.o : CFLAGS_KASAN =
+else
+# Clean dependencies without having to pass `KASAN=1` to `make clean`.
+CLEAN-FILES += .kasan.D .kasan_quar.D
 endif
 
 FORMAT-EXCLUDE = sysent.h

@@ -8,10 +8,10 @@
 #include <sys/cdefs.h>
 
 /*! \brief Prepares thread0 stack that is placed in kseg2. */
-void *platform_stack(int argc, char **argv, char **envp, unsigned memsize);
+void *board_stack(int argc, char **argv, char **envp);
 
 /*! \brief Executes platform initialization code placed in kseg2. */
-__noreturn void platform_init(void);
+__noreturn void board_init(void);
 
 /*
  * Malta Memory Map:
@@ -79,7 +79,7 @@ __noreturn void platform_init(void);
 #define MALTA_CORECTRL_END 0x1dffffff
 #define MALTA_FPGA_BASE 0x1f000000
 
-#define MALTA_CBUS_UART (MALTA_FPGA_BASE + 0x900)
+#define MALTA_CBUS_UART_OFFSET 0x900
 #define MALTA_CBUS_UART_INTR 2
 
 #endif

@@ -8,6 +8,8 @@ char *strpct(char *, size_t, uintmax_t, uintmax_t, size_t);
 char *strspct(char *, size_t, intmax_t, intmax_t, size_t);
 time_t parsedate(const char *, const time_t *, const int *);
 
+void logwtmp(const char *, const char *, const char *);
+
 /* Error checked functions */
 void (*esetfunc(void (*)(int, const char *, ...)))(int, const char *, ...);
 size_t estrlcpy(char *, const char *, size_t);

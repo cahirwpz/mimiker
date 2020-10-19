@@ -21,6 +21,8 @@
 #include <sys/syslimits.h>
 #include <sys/context.h>
 #include <sys/thread.h>
+#include <sys/cred.h>
+#include <sys/statvfs.h>
 
 #include "sysent.h"
 
@@ -51,7 +53,7 @@ static int sys_fork(proc_t *p, void *args, register_t *res) {
 
   klog("fork()");
 
-  if ((error = do_fork(&pid)))
+  if ((error = do_fork(NULL, NULL, &pid)))
     return error;
 
   *res = pid;
@@ -68,7 +70,8 @@ static int sys_getpid(proc_t *p, void *args, register_t *res) {
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/getppid.html */
 static int sys_getppid(proc_t *p, void *args, register_t *res) {
   klog("getppid()");
-  *res = p->p_parent ? p->p_parent->p_pid : 0;
+  assert(p->p_parent);
+  *res = p->p_parent->p_pid;
   return 0;
 }
 
@@ -131,7 +134,7 @@ static int sys_kill(proc_t *p, kill_args_t *args, register_t *res) {
 static int sys_umask(proc_t *p, umask_args_t *args, register_t *res) {
   mode_t newmask = args->newmask;
   klog("umask(%x)", args->newmask);
-  return do_umask(p, newmask, res);
+  return do_umask(p, newmask, (int *)res);
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html */
@@ -563,27 +566,40 @@ static int sys_sigaltstack(proc_t *p, sigaltstack_args_t *args,
 static int sys_sigprocmask(proc_t *p, sigprocmask_args_t *args,
                            register_t *res) {
   int how = args->how;
-  const sigset_t *set = args->set;
-  sigset_t *oset = args->oset;
+  const sigset_t *u_set = args->set;
+  sigset_t *u_oset = args->oset;
+  sigset_t set, oset;
   int error;
 
-  klog("sigprocmask(%d, %p, %p)", how, set, oset);
+  klog("sigprocmask(%d, %p, %p)", how, u_set, u_oset);
 
-  if (set != NULL) {
-    /* TODO: Modifying signal mask is not implemented yet. */
-    klog("sigprocmask() had no effect");
-  }
+  if (u_set && (error = copyin_s(u_set, set)))
+    return error;
 
-  if (oset != NULL) {
-    /* TODO: Currently we don't support signal masks in the kernel, so this
-       syscall always returns empty signal mask. */
-    sigset_t result = {.__bits = 0};
-    error = copyout_s(result, oset);
-    if (error)
-      return error;
-  }
+  proc_lock(p);
+  error = do_sigprocmask(how, u_set ? &set : NULL, &oset);
+  proc_unlock(p);
 
-  return 0;
+  if (error)
+    return error;
+
+  if (u_oset)
+    error = copyout_s(oset, u_oset);
+
+  return error;
+}
+
+static int sys_sigsuspend(proc_t *p, sigsuspend_args_t *args, register_t *res) {
+  const sigset_t *umask = args->sigmask;
+  sigset_t mask;
+  int error;
+
+  klog("sigsuspend(%p)", umask);
+
+  if ((error = copyin_s(umask, mask)))
+    return error;
+
+  return do_sigsuspend(p, &mask);
 }
 
 static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
@@ -629,32 +645,58 @@ fail:
   return error;
 }
 
-/* TODO: not implemented */
-static int sys_getuid(proc_t *p, void *args, register_t *res) {
-  klog("getuid()");
-  *res = 0;
-  return 0;
+static int sys_getresuid(proc_t *p, getresuid_args_t *args, register_t *res) {
+  uid_t *usr_ruid = args->ruid;
+  uid_t *usr_euid = args->euid;
+  uid_t *usr_suid = args->suid;
+
+  klog("getresuid()");
+
+  uid_t ruid, euid, suid;
+  do_getresuid(p, &ruid, &euid, &suid);
+
+  int err1 = copyout(&ruid, usr_ruid, sizeof(uid_t));
+  int err2 = copyout(&euid, usr_euid, sizeof(uid_t));
+  int err3 = copyout(&suid, usr_suid, sizeof(uid_t));
+
+  return err1 ? err1 : (err2 ? err2 : err3);
 }
 
-/* TODO: not implemented */
-static int sys_geteuid(proc_t *p, void *args, register_t *res) {
-  klog("geteuid()");
-  *res = 0;
-  return 0;
+static int sys_getresgid(proc_t *p, getresgid_args_t *args, register_t *res) {
+  gid_t *usr_rgid = args->rgid;
+  gid_t *usr_egid = args->egid;
+  gid_t *usr_sgid = args->sgid;
+
+  klog("getresgid()");
+
+  gid_t rgid, egid, sgid;
+  do_getresgid(p, &rgid, &egid, &sgid);
+
+  int err1 = copyout(&rgid, usr_rgid, sizeof(gid_t));
+  int err2 = copyout(&egid, usr_egid, sizeof(gid_t));
+  int err3 = copyout(&sgid, usr_sgid, sizeof(gid_t));
+
+  return err1 ? err1 : (err2 ? err2 : err3);
 }
 
-/* TODO: not implemented */
-static int sys_getgid(proc_t *p, void *args, register_t *res) {
-  klog("getgid()");
-  *res = 0;
-  return 0;
+static int sys_setresuid(proc_t *p, setresuid_args_t *args, register_t *res) {
+  uid_t ruid = args->ruid;
+  uid_t euid = args->euid;
+  uid_t suid = args->suid;
+
+  klog("setresuid(%d, %d, %d)", args->ruid, args->euid, args->suid);
+
+  return do_setresuid(p, ruid, euid, suid);
 }
 
-/* TODO: not implemented */
-static int sys_getegid(proc_t *p, void *args, register_t *res) {
-  klog("getegid()");
-  *res = 0;
-  return 0;
+static int sys_setresgid(proc_t *p, setresgid_args_t *args, register_t *res) {
+  gid_t rgid = args->rgid;
+  gid_t egid = args->egid;
+  gid_t sgid = args->sgid;
+
+  klog("setresgid(%d, %d, %d)", args->rgid, args->egid, args->sgid);
+
+  return do_setresgid(p, rgid, egid, sgid);
 }
 
 /* TODO: not implemented */
@@ -820,4 +862,114 @@ static int sys_sched_yield(proc_t *p, void *args, register_t *res) {
   klog("sched_yield()");
   thread_yield();
   return 0;
+}
+
+static int sys_statvfs(proc_t *p, statvfs_args_t *args, register_t *res) {
+  int error;
+  const char *u_path = args->path;
+  statvfs_t *u_buf = args->buf;
+  statvfs_t buf;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("statvfs(\"%s\", %p)", path, u_buf);
+
+  if (!(error = do_statvfs(p, path, &buf)))
+    error = copyout_s(buf, u_buf);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
+static int sys_fstatvfs(proc_t *p, fstatvfs_args_t *args, register_t *res) {
+  int error;
+  int fd = args->fd;
+  statvfs_t *u_buf = args->buf;
+  statvfs_t buf;
+
+  klog("fstatvfs(%d, %p)", fd, u_buf);
+
+  if (!(error = do_fstatvfs(p, fd, &buf)))
+    error = copyout_s(buf, u_buf);
+
+  return error;
+}
+
+static int sys_getgroups(proc_t *p, getgroups_args_t *args, register_t *res) {
+  int ngroups = args->ngroups;
+  gid_t *ugidset = args->gidset;
+  int pngroups = p->p_cred.cr_ngroups;
+
+  klog("getgroups(%d, %p)", ngroups, ugidset);
+
+  if (ngroups == 0) {
+    /* just return number of groups */
+    *res = pngroups;
+    return 0;
+  }
+
+  if (ngroups < pngroups)
+    return EINVAL;
+
+  *res = pngroups;
+  return copyout(p->p_cred.cr_groups, ugidset, pngroups * sizeof(gid_t));
+}
+
+static int sys_setgroups(proc_t *p, setgroups_args_t *args, register_t *res) {
+  int error = 0;
+  int ungroups = args->ngroups;
+  const gid_t *ugidset = args->gidset;
+
+  klog("setgroups(%d, %p)", ungroups, ugidset);
+
+  /* too many groups */
+  if (ungroups < 0 || ungroups > NGROUPS_MAX)
+    return EINVAL;
+
+  gid_t *gidset = kmalloc(M_TEMP, ungroups * sizeof(gid_t), M_NOWAIT);
+
+  /* if we set 0 groups kmalloc returns NULL, but it is not an error */
+  if (ungroups > 0 && gidset == NULL)
+    return ENOMEM;
+
+  if (!(error = copyin(ugidset, gidset, ungroups * sizeof(gid_t))))
+    error = do_setgroups(p, ungroups, gidset);
+
+  kfree(M_TEMP, gidset);
+  return error;
+}
+
+static int sys_setsid(proc_t *p, void *args, register_t *res) {
+  int error;
+
+  klog("setsid()");
+
+  if ((error = session_enter(p)))
+    return error;
+
+  *res = p->p_pid;
+  return 0;
+}
+
+static int sys_getsid(proc_t *p, getsid_args_t *args, register_t *res) {
+  pid_t pid = args->pid;
+  sid_t sid;
+  int error;
+
+  if (pid < 0)
+    return EINVAL;
+
+  if (pid == 0)
+    pid = p->p_pid;
+
+  klog("getsid(%d)", pid);
+
+  if (!(error = proc_getsid(pid, &sid)))
+    *res = sid;
+
+  return error;
 }

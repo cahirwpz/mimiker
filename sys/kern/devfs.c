@@ -7,7 +7,6 @@
 #include <sys/libkern.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
-#include <sys/pool.h>
 #include <sys/linker_set.h>
 #include <sys/dirent.h>
 #include <sys/vfs.h>
@@ -24,7 +23,7 @@ struct devfs_node {
   devfs_node_list_t dn_children;
 };
 
-static POOL_DEFINE(P_DEVFS, "devfs nodes", sizeof(devfs_node_t));
+static KMALLOC_DEFINE(M_DEVFS, "devfs");
 
 /* device filesystem state structure */
 typedef struct devfs_mount {
@@ -73,7 +72,7 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name,
   if (devfs_find_child(parent, &COMPONENTNAME(name)))
     return EEXIST;
 
-  devfs_node_t *dn = pool_alloc(P_DEVFS, M_ZERO);
+  devfs_node_t *dn = kmalloc(M_DEVFS, sizeof(devfs_node_t), M_ZERO);
   dn->dn_ino = ++devfs.next_ino;
   dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
   TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);

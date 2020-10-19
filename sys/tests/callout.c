@@ -70,11 +70,16 @@ static callout_t callout;
 static int test_callout_stop(void) {
   bzero(&callout, sizeof(callout_t));
 
-  callout_setup_relative(&callout, 2, callout_bad, NULL);
-  /* Remove callout, hope that callout_bad won't be called! */
-  callout_stop(&callout);
-  /* We don't drain this callout so its memory can still be in use after we
-   * leave the scope of function. Thus the callout is allocated statically. */
+  /* XXX This is a temporary solution to make sure that the callout
+   * isn't migrated to the `delegated` queue.
+   * Ideally, disabling preemption should be enough. */
+  WITH_INTR_DISABLED {
+    callout_setup_relative(&callout, 2, callout_bad, NULL);
+    /* Remove callout, hope that callout_bad won't be called! */
+    callout_stop(&callout);
+    /* We don't drain this callout so its memory can still be in use after we
+     * leave the scope of function. Thus the callout is allocated statically. */
+  }
 
   return KTEST_SUCCESS;
 }

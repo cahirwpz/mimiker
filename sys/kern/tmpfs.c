@@ -6,7 +6,6 @@
 #include <sys/errno.h>
 #include <sys/libkern.h>
 #include <sys/mutex.h>
-#include <sys/pool.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
 #include <sys/kmem.h>
@@ -97,17 +96,16 @@ static void free_block(tmpfs_mount_t *tfm, tmpfs_node_t *v, blkptr_t *blkptrp) {
   }
 }
 
+static KMALLOC_DEFINE(M_TMPFS, "tmpfs");
+
 /* This simplified string allocator will do for now. */
 static char *alloc_str(tmpfs_mount_t *tfm, size_t len) {
-  return kmalloc(M_STR, len, 0);
+  return kmalloc(M_TMPFS, len, 0);
 }
 
 static void free_str(tmpfs_mount_t *tfm, char *str) {
-  kfree(M_STR, str);
+  kfree(M_TMPFS, str);
 }
-
-static POOL_DEFINE(P_TMPFS_NODE, "tmpfs node", sizeof(tmpfs_node_t));
-static POOL_DEFINE(P_TMPFS_DIRENT, "tmpfs dirent", sizeof(tmpfs_dirent_t));
 
 /* XXX: Temporary solution. There should be dedicated allocator for mount
  * points. */
@@ -289,7 +287,8 @@ static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va) {
   if (va->va_size != (size_t)VNOVAL)
     tmpfs_reg_resize(tfm, node, va->va_size);
   if (va->va_mode != (mode_t)VNOVAL)
-    node->tfn_mode = va->va_mode;
+    node->tfn_mode = (node->tfn_mode & ~ALLPERMS) | (va->va_mode & ALLPERMS);
+
   return 0;
 }
 
@@ -430,7 +429,7 @@ static void tmpfs_attach_vnode(tmpfs_node_t *tfn, mount_t *mp) {
  */
 static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
                                     vnodetype_t ntype) {
-  tmpfs_node_t *node = pool_alloc(P_TMPFS_NODE, M_ZERO);
+  tmpfs_node_t *node = kmalloc(M_TMPFS, sizeof(tmpfs_node_t), M_ZERO);
   node->tfn_vnode = NULL;
   node->tfn_mode = va->va_mode;
   node->tfn_type = ntype;
@@ -477,7 +476,7 @@ static void tmpfs_free_node(tmpfs_mount_t *tfm, tmpfs_node_t *tfn) {
       break;
   }
 
-  pool_free(P_TMPFS_NODE, tfn);
+  kfree(M_TMPFS, tfn);
 }
 
 /*
@@ -545,7 +544,7 @@ static int tmpfs_alloc_dirent(const char *name, size_t namelen,
   if (namelen + 1 > TMPFS_NAME_MAX)
     return ENAMETOOLONG;
 
-  tmpfs_dirent_t *dirent = pool_alloc(P_TMPFS_DIRENT, M_ZERO);
+  tmpfs_dirent_t *dirent = kmalloc(M_TMPFS, sizeof(tmpfs_dirent_t), M_ZERO);
   dirent->tfd_node = NULL;
   dirent->tfd_namelen = namelen;
   memcpy(dirent->tfd_name, name, namelen);
@@ -582,7 +581,7 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de) {
   de->tfd_node = NULL;
   TAILQ_REMOVE(&dv->tfn_dir.dirents, de, tfd_entries);
   dv->tfn_size -= sizeof(tmpfs_dirent_t);
-  pool_free(P_TMPFS_DIRENT, de);
+  kfree(M_TMPFS, de);
 }
 
 /*

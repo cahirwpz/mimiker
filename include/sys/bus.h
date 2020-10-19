@@ -15,7 +15,7 @@ typedef struct intr_handler intr_handler_t;
  * depending on which bus it was attached to (e.g. I/O ports vs. MMIO) */
 struct bus_space {
   /* mapping */
-  int (*bs_map)(bus_addr_t, bus_size_t, int, bus_space_handle_t *);
+  int (*bs_map)(bus_addr_t, bus_size_t, bus_space_handle_t *);
 
   /* read (single) */
   uint8_t (*bs_read_1)(bus_space_handle_t, bus_size_t);
@@ -44,7 +44,7 @@ struct bus_space {
                             bus_size_t);
 };
 
-int generic_bs_map(bus_addr_t addr, bus_size_t size, int flags,
+int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p);
 
 uint8_t generic_bs_read_1(bus_space_handle_t handle, bus_size_t offset);
@@ -72,13 +72,14 @@ void generic_bs_write_region_2(bus_space_handle_t handle, bus_size_t offset,
 void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
                                const uint32_t *src, bus_size_t count);
 
+extern bus_space_t *generic_bus_space;
+
 #define BUS_SPACE_DECLARE(name) extern bus_space_t name[1]
 
 #define __bs_func(t, op, sz)                                                   \
   (*(t)->__CONCAT(__CONCAT(__CONCAT(bs_, op), _), sz))
 
 #define __bs_read(t, h, o, sz) __bs_func((t), read, sz)((h), (o))
-#define bus_space_read_1(t, h, o) __bs_read(t, h, o, 1)
 #define bus_space_read_1(t, h, o) __bs_read(t, h, o, 1)
 #define bus_space_read_2(t, h, o) __bs_read(t, h, o, 2)
 #define bus_space_read_4(t, h, o) __bs_read(t, h, o, 4)
@@ -131,7 +132,7 @@ void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
 #define bus_write_region_2(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 2)
 #define bus_write_region_4(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 4)
 
-#define bus_space_map(t, a, s, f, hp) (*(t)->bs_map)((a), (s), (f), (hp))
+#define bus_space_map(t, a, s, hp) (*(t)->bs_map)((a), (s), (hp))
 
 struct bus_methods {
   void (*intr_setup)(device_t *dev, unsigned num, intr_handler_t *handler);
@@ -218,5 +219,8 @@ static inline void bus_release_resource(device_t *dev, res_type_t type, int rid,
 }
 
 int bus_generic_probe(device_t *bus);
+
+/* This function should be used only for leafs in device tree. */
+device_t *bus_generic_identify(driver_t *driver, device_t *bus);
 
 #endif /* !_SYS_BUS_H_ */

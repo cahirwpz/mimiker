@@ -37,8 +37,8 @@
 #include <mips/asm.h>
 #include <machine/setjmp.h>
 
-#include "assym.h"
-#include "SYS.h"
+#include "mips/assym.h"
+#include "mips/SYS.h"
 
 /*
  * C library -- sigsetjmp, siglongjmp

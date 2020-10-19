@@ -59,8 +59,6 @@ static uint64_t read_count(mips_timer_state_t *state) {
   return state->count.val;
 }
 
-static inline timeval_t ticks2tv(uint64_t ticks);
-
 static void set_next_tick(mips_timer_state_t *state) {
   SCOPED_INTR_DISABLED();
   /* calculate next value of compare register based on timer period */
@@ -111,16 +109,7 @@ static bintime_t mips_timer_gettime(timer_t *tm) {
   return bt;
 }
 
-static inline timeval_t ticks2tv(uint64_t ticks) {
-  ticks /= (uint64_t)TICKS_PER_US;
-  return (timeval_t){.tv_sec = ticks / 1000000LL, .tv_usec = ticks % 1000000LL};
-}
-
-timeval_t getcputime(void) {
-  return ticks2tv(read_count(state_of(&mips_timer)));
-}
-
-void mips_timer_init(void) {
+void init_mips_timer(void) {
   mips_timer.tm_min_period = BINTIME(1 / (double)CPU_FREQ),
   mips_timer.tm_max_period = BINTIME(((1LL << 32) - 1) / (double)CPU_FREQ),
   tm_register(&mips_timer);

@@ -36,7 +36,12 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(signal_send);
   CHECKRUN_TEST(signal_abort);
   CHECKRUN_TEST(signal_segfault);
-  CHECKRUN_TEST(signal_stop)
+  CHECKRUN_TEST(signal_stop);
+  CHECKRUN_TEST(signal_cont_masked);
+  CHECKRUN_TEST(signal_mask);
+  CHECKRUN_TEST(signal_mask_nonmaskable);
+  CHECKRUN_TEST(signal_sigsuspend);
+  CHECKRUN_TEST(signal_handler_mask);
   CHECKRUN_TEST(fork_wait);
   CHECKRUN_TEST(fork_signal);
   CHECKRUN_TEST(fork_sigchld_ignored);
@@ -45,12 +50,14 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(access_basic);
   CHECKRUN_TEST(stat);
   CHECKRUN_TEST(fstat);
+#ifdef __mips__
   CHECKRUN_TEST(exc_cop_unusable);
   CHECKRUN_TEST(exc_reserved_instruction);
   CHECKRUN_TEST(exc_integer_overflow);
   CHECKRUN_TEST(exc_unaligned_access);
   CHECKRUN_TEST(exc_sigsys);
   CHECKRUN_TEST(syscall_in_bds);
+#endif /* !__mips__ */
   CHECKRUN_TEST(setjmp);
   CHECKRUN_TEST(sigaction_with_setjmp);
   CHECKRUN_TEST(sigaction_handler_returns);
@@ -64,17 +71,30 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(vfs_symlink);
   CHECKRUN_TEST(vfs_link);
   CHECKRUN_TEST(vfs_chmod);
+  CHECKRUN_TEST(wait_basic);
+  CHECKRUN_TEST(wait_nohang);
 
   CHECKRUN_TEST(setpgid);
   CHECKRUN_TEST(kill);
   CHECKRUN_TEST(killpg_same_group);
   CHECKRUN_TEST(killpg_other_group);
+  CHECKRUN_TEST(pgrp_orphan);
+  CHECKRUN_TEST(session_basic);
 
+#ifdef __mips__
   CHECKRUN_TEST(fpu_fcsr);
   CHECKRUN_TEST(fpu_gpr_preservation);
   CHECKRUN_TEST(fpu_cpy_ctx_on_fork);
   CHECKRUN_TEST(fpu_ctx_signals);
+#endif /* !__mips__ */
+
   CHECKRUN_TEST(getcwd);
+
+  CHECKRUN_TEST(gettimeofday);
+
+  CHECKRUN_TEST(get_set_uid);
+  CHECKRUN_TEST(get_set_gid);
+  CHECKRUN_TEST(get_set_groups);
 
   printf("No user test \"%s\" available.\n", test_name);
   return 1;

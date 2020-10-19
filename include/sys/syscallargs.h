@@ -216,6 +216,30 @@ typedef struct {
 } ioctl_args_t;
 
 typedef struct {
+  uid_t * ruid;
+  uid_t * euid;
+  uid_t * suid;
+} getresuid_args_t;
+
+typedef struct {
+  gid_t * rgid;
+  gid_t * egid;
+  gid_t * sgid;
+} getresgid_args_t;
+
+typedef struct {
+  uid_t ruid;
+  uid_t euid;
+  uid_t suid;
+} setresuid_args_t;
+
+typedef struct {
+  gid_t rgid;
+  gid_t egid;
+  gid_t sgid;
+} setresgid_args_t;
+
+typedef struct {
   int fd;
   int cmd;
   void * arg;
@@ -261,3 +285,31 @@ typedef struct {
   mode_t mode;
   int flag;
 } fchmodat_args_t;
+
+typedef struct {
+  sigset_t * sigmask;
+} sigsuspend_args_t;
+
+typedef struct {
+  const char * path;
+  struct statvfs * buf;
+} statvfs_args_t;
+
+typedef struct {
+  int fd;
+  struct statvfs * buf;
+} fstatvfs_args_t;
+
+typedef struct {
+  int ngroups;
+  gid_t * gidset;
+} getgroups_args_t;
+
+typedef struct {
+  int ngroups;
+  const gid_t * gidset;
+} setgroups_args_t;
+
+typedef struct {
+  pid_t pid;
+} getsid_args_t;

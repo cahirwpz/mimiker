@@ -51,7 +51,7 @@ typedef enum {
 #define KL_SIZE 1024
 
 typedef struct klog_entry {
-  timeval_t kl_timestamp;
+  bintime_t kl_timestamp;
   tid_t kl_tid;
   unsigned kl_line;
   const char *kl_file;
@@ -73,7 +73,8 @@ typedef struct klog {
 extern klog_t klog;
 #endif
 
-void klog_init(void);
+/*! \brief Called during kernel initialization. */
+void init_klog(void);
 
 void klog_append(klog_origin_t origin, const char *file, unsigned line,
                  const char *format, uintptr_t arg1, uintptr_t arg2,

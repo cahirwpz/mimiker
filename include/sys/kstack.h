@@ -11,6 +11,9 @@ typedef struct kstack {
   size_t stk_size; /*!< stack length */
 } kstack_t;
 
+#define KSTACK_INIT(base, size)                                                \
+  { .stk_base = (base), .stk_ptr = &(base)[(size)], .stk_size = (size) }
+
 /*! \brief Reset stack so it's at the bottom */
 static inline void kstack_reset(kstack_t *stk) {
   /* Stack grows down, so bottom has the highest address. */

@@ -29,10 +29,15 @@ int execvp(const char *, char *const *);
 pid_t fork(void);
 long fpathconf(int, int);
 char *getcwd(char *, size_t);
+int getresuid(uid_t *, uid_t *, uid_t *);
+int getresgid(gid_t *, gid_t *, gid_t *);
+int setresuid(uid_t, uid_t, uid_t);
+int setresgid(gid_t, gid_t, gid_t);
 gid_t getegid(void);
 uid_t geteuid(void);
 gid_t getgid(void);
 int getgroups(int, gid_t[]);
+int setgroups(int, gid_t[]);
 char *getlogin(void);
 int getlogin_r(char *, size_t);
 pid_t getpgrp(void);
@@ -149,6 +154,7 @@ int faccessat(int, const char *, int, int);
 /*
  * Implementation-defined extensions
  */
+int initgroups(const char *, gid_t);
 int issetugid(void);
 int pipe2(int *, int);
 void *setmode(const char *mode_str);

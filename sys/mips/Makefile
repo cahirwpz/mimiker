@@ -9,10 +9,9 @@ SOURCES = \
 	copy.S \
 	cpu.c \
 	ebase.S \
-	exception.c \
 	gt64120.c \
 	interrupt.c \
-	$(PLATFORM).c \
+	$(BOARD).c \
 	pmap.c \
 	rootdev.c \
 	sigcode.S \
@@ -26,7 +25,7 @@ SOURCES = \
 	uart_cbus.c \
 	ucontext.c
 
-OBJECTS += $(PLATFORM)_dtb.o
+OBJECTS += $(BOARD)_dtb.o
 
 CLEAN-FILES += assym.h *-devhint.c
 
