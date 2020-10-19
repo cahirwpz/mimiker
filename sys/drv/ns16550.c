@@ -27,9 +27,16 @@ typedef struct ns16550_state {
   resource_t *regs;
   tty_t *tty;
   condvar_t tty_thread_cv;
-  uint8_t tty_ipend;
-  bool tty_outq_nonempty;
+  uint8_t tty_thread_flags;
 } ns16550_state_t;
+
+/* tty->t_outq -> tx_buf */
+#define TTY_THREAD_TXRDY 0x1
+/* rx_buf -> tty->t_inq */
+#define TTY_THREAD_RXRDY 0x2
+#define TTY_THREAD_WORK_MASK (TTY_THREAD_TXRDY | TTY_THREAD_RXRDY)
+/* If cleared, don't wake up worker thread from ns16550_intr. */
+#define TTY_THREAD_OUTQ_NONEMPTY 0x4
 
 #define in(regs, offset) bus_read_1((regs), (offset))
 #define out(regs, offset, value) bus_write_1((regs), (offset), (value))
@@ -64,7 +71,7 @@ static intr_filter_t ns16550_intr(void *data) {
     /* data ready to be received? */
     if (iir & IIR_RXRDY) {
       (void)ringbuf_putb(&ns16550->rx_buf, in(uart, RBR));
-      ns16550->tty_ipend |= IIR_RXRDY;
+      ns16550->tty_thread_flags |= TTY_THREAD_RXRDY;
       cv_signal(&ns16550->tty_thread_cv);
       res = IF_FILTERED;
     }
@@ -79,8 +86,8 @@ static intr_filter_t ns16550_intr(void *data) {
       if (ringbuf_empty(&ns16550->tx_buf)) {
         /* If we're out of characters and there are characters
          * in the tty's output queue, signal the tty thread to refill. */
-        if (ns16550->tty_outq_nonempty) {
-          ns16550->tty_ipend |= IIR_TXRDY;
+        if (ns16550->tty_thread_flags & TTY_THREAD_OUTQ_NONEMPTY) {
+          ns16550->tty_thread_flags |= TTY_THREAD_TXRDY;
           cv_signal(&ns16550->tty_thread_cv);
         }
         /* Disable TXRDY interrupts - the tty thread will re-enable them
@@ -99,26 +106,34 @@ static bool ns16550_getb_lock(ns16550_state_t *ns16550, uint8_t *byte_p) {
   return ringbuf_getb(&ns16550->rx_buf, byte_p);
 }
 
+static void ns16550_set_tty_outq_nonempty_flag(ns16550_state_t *ns16550,
+                                               tty_t *tty) {
+  if (ringbuf_empty(&tty->t_outq))
+    ns16550->tty_thread_flags &= ~TTY_THREAD_OUTQ_NONEMPTY;
+  else
+    ns16550->tty_thread_flags |= TTY_THREAD_OUTQ_NONEMPTY;
+}
+
 /* TODO: revisit after per-intr_event ithreads are implemented. */
 static void ns16550_tty_thread(void *arg) {
   ns16550_state_t *ns16550 = (ns16550_state_t *)arg;
   tty_t *tty = ns16550->tty;
-  uint8_t ipend, byte;
+  uint8_t work, byte;
 
   while (true) {
     WITH_SPIN_LOCK (&ns16550->lock) {
       /* Sleep until there's work for us to do. */
-      while ((ipend = ns16550->tty_ipend) == 0)
+      while ((work = ns16550->tty_thread_flags & TTY_THREAD_WORK_MASK) == 0)
         cv_wait(&ns16550->tty_thread_cv, &ns16550->lock);
-      ns16550->tty_ipend = 0;
+      ns16550->tty_thread_flags &= ~TTY_THREAD_WORK_MASK;
     }
     WITH_MTX_LOCK (&tty->t_lock) {
-      if (ipend & IIR_RXRDY) {
+      if (work & TTY_THREAD_RXRDY) {
         /* Move characters from rx_buf into the tty's input queue. */
         while (ns16550_getb_lock(ns16550, &byte))
           tty_input(tty, byte);
       }
-      if (ipend & IIR_TXRDY) {
+      if (work & TTY_THREAD_TXRDY) {
         /* Move characters from the tty's output queue to tx_buf. */
         while (true) {
           SCOPED_SPIN_LOCK(&ns16550->lock);
@@ -127,10 +142,10 @@ static void ns16550_tty_thread(void *arg) {
             /* Enable TXRDY interrupts if there are characters in tx_buf. */
             if (!ringbuf_empty(&ns16550->tx_buf))
               set(ns16550->regs, IER, IER_ETXRDY);
-            ns16550->tty_outq_nonempty = !ringbuf_empty(&tty->t_outq);
+            ns16550_set_tty_outq_nonempty_flag(ns16550, tty);
             break;
           }
-          ns16550->tty_outq_nonempty = !ringbuf_empty(&tty->t_outq);
+          ns16550_set_tty_outq_nonempty_flag(ns16550, tty);
           ringbuf_putb(&ns16550->tx_buf, byte);
         }
       }
@@ -150,8 +165,7 @@ static void ns16550_notify_out(tty_t *tty) {
     return;
 
   WITH_SPIN_LOCK (&ns16550->lock) {
-    ns16550->tty_ipend |= IIR_TXRDY;
-    ns16550->tty_outq_nonempty = true;
+    ns16550->tty_thread_flags |= TTY_THREAD_TXRDY | TTY_THREAD_OUTQ_NONEMPTY;
     cv_signal(&ns16550->tty_thread_cv);
   }
 }
