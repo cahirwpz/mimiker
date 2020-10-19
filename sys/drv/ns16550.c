@@ -104,7 +104,7 @@ static intr_filter_t ns16550_intr(void *data) {
 /*
  * If tx_buf is empty, we can try to write characters directly from tty->t_outq.
  * This routine attempts to do just that.
- * Must be called with bot tty->t_lock and ns16550->lock held.
+ * Must be called with both tty->t_lock and ns16550->lock held.
  */
 static void ns16550_try_bypass_txbuf(ns16550_state_t *ns16550, tty_t *tty) {
   resource_t *uart = ns16550->regs;
@@ -118,17 +118,39 @@ static void ns16550_try_bypass_txbuf(ns16550_state_t *ns16550, tty_t *tty) {
   }
 }
 
-static bool ns16550_getb_lock(ns16550_state_t *ns16550, uint8_t *byte_p) {
-  SCOPED_SPIN_LOCK(&ns16550->lock);
-  return ringbuf_getb(&ns16550->rx_buf, byte_p);
-}
-
 static void ns16550_set_tty_outq_nonempty_flag(ns16550_state_t *ns16550,
                                                tty_t *tty) {
   if (ringbuf_empty(&tty->t_outq))
     ns16550->tty_thread_flags &= ~TTY_THREAD_OUTQ_NONEMPTY;
   else
     ns16550->tty_thread_flags |= TTY_THREAD_OUTQ_NONEMPTY;
+}
+
+/*
+ * Move characters from tty->t_outq to ns16550->tx_buf.
+ * Must be called with tty->t_lock held.
+ */
+static void ns16550_fill_txbuf(ns16550_state_t *ns16550, tty_t *tty) {
+  uint8_t byte;
+
+  while (true) {
+    SCOPED_SPIN_LOCK(&ns16550->lock);
+    ns16550_try_bypass_txbuf(ns16550, tty);
+    if (ringbuf_full(&ns16550->tx_buf) || !ringbuf_getb(&tty->t_outq, &byte)) {
+      /* Enable TXRDY interrupts if there are characters in tx_buf. */
+      if (!ringbuf_empty(&ns16550->tx_buf))
+        set(ns16550->regs, IER, IER_ETXRDY);
+      ns16550_set_tty_outq_nonempty_flag(ns16550, tty);
+      break;
+    }
+    ns16550_set_tty_outq_nonempty_flag(ns16550, tty);
+    ringbuf_putb(&ns16550->tx_buf, byte);
+  }
+}
+
+static bool ns16550_getb_lock(ns16550_state_t *ns16550, uint8_t *byte_p) {
+  SCOPED_SPIN_LOCK(&ns16550->lock);
+  return ringbuf_getb(&ns16550->rx_buf, byte_p);
 }
 
 /* TODO: revisit after per-intr_event ithreads are implemented. */
@@ -151,21 +173,7 @@ static void ns16550_tty_thread(void *arg) {
           tty_input(tty, byte);
       }
       if (work & TTY_THREAD_TXRDY) {
-        /* Move characters from the tty's output queue to tx_buf. */
-        while (true) {
-          SCOPED_SPIN_LOCK(&ns16550->lock);
-          ns16550_try_bypass_txbuf(ns16550, tty);
-          if (ringbuf_full(&ns16550->tx_buf) ||
-              !ringbuf_getb(&tty->t_outq, &byte)) {
-            /* Enable TXRDY interrupts if there are characters in tx_buf. */
-            if (!ringbuf_empty(&ns16550->tx_buf))
-              set(ns16550->regs, IER, IER_ETXRDY);
-            ns16550_set_tty_outq_nonempty_flag(ns16550, tty);
-            break;
-          }
-          ns16550_set_tty_outq_nonempty_flag(ns16550, tty);
-          ringbuf_putb(&ns16550->tx_buf, byte);
-        }
+        ns16550_fill_txbuf(ns16550, tty);
       }
     }
   }
@@ -182,13 +190,7 @@ static void ns16550_notify_out(tty_t *tty) {
   if (ringbuf_empty(&tty->t_outq))
     return;
 
-  WITH_SPIN_LOCK (&ns16550->lock) {
-    ns16550_try_bypass_txbuf(ns16550, tty);
-    if (ringbuf_empty(&tty->t_outq))
-      return;
-    ns16550->tty_thread_flags |= TTY_THREAD_TXRDY | TTY_THREAD_OUTQ_NONEMPTY;
-    cv_signal(&ns16550->tty_thread_cv);
-  }
+  ns16550_fill_txbuf(ns16550, tty);
 }
 
 static int ns16550_attach(device_t *dev) {
