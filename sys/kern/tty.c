@@ -283,6 +283,9 @@ static void tty_output(tty_t *tty, uint8_t c) {
         col++;
         break;
       case TAB:
+        /* XXX We assume that the terminal device has tabs of width 8.
+         * This can be remediated by implementing the OXTABS option
+         * which expands tabs into spaces. */
         col = roundup2(col + 1, 8);
         break;
     }
