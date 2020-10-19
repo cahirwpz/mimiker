@@ -123,7 +123,7 @@ static void tty_init_termios(struct termios *tio) {
   tio->c_oflag = TTYDEF_OFLAG;
   tio->c_ispeed = TTYDEF_SPEED;
   tio->c_ospeed = TTYDEF_SPEED;
-  memcpy(&tio->c_cc, ttydefchars, sizeof ttydefchars);
+  memcpy(&tio->c_cc, ttydefchars, sizeof(ttydefchars));
 }
 
 tty_t *tty_alloc(void) {
