@@ -533,7 +533,7 @@ static int sys_clock_nanosleep(proc_t *p, clock_nanosleep_args_t *args,
   const timespec_t *u_rqtp = args->rqtp;
   timespec_t *u_rmtp = args->rmtp;
   timespec_t rqtp, rmtp;
-  int error, error2;
+  int error;
 
   if ((error = copyin_s(u_rqtp, rqtp))) {
     *res = error;
@@ -542,11 +542,12 @@ static int sys_clock_nanosleep(proc_t *p, clock_nanosleep_args_t *args,
 
   error = do_clock_nanosleep(clock_id, flags, &rqtp, u_rmtp ? &rmtp : NULL);
 
-  if ((u_rmtp != NULL && (error == 0 || error == EINTR)) &&
-      (flags & TIMER_ABSTIME) == 0 && (error2 = copyout_s(rmtp, u_rmtp)))
-    error = error2;
-
   *res = error;
+
+  if ((u_rmtp != NULL && (error == 0 || error == EINTR)) &&
+      (flags & TIMER_ABSTIME) == 0 && (error = copyout_s(rmtp, u_rmtp)))
+    *res = error;
+
   return 0;
 }
 
