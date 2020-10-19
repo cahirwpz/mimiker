@@ -17,6 +17,7 @@
 #include <sys/param.h>
 #include <sys/uio.h>
 #include <sys/vm_map.h>
+#include <sys/device.h>
 
 /*
  * Table with character classes and parity. The 8th bit indicates parity,
@@ -122,13 +123,12 @@ static void tty_init_termios(struct termios *tio) {
 }
 
 tty_t *tty_alloc(void) {
-  /* XXX: What pool should we use here? */
-  tty_t *tty = kmalloc(M_TEMP, sizeof(tty_t), M_WAITOK);
+  tty_t *tty = kmalloc(M_DEV, sizeof(tty_t), M_WAITOK);
   mtx_init(&tty->t_lock, 0);
-  ringbuf_init(&tty->t_inq, kmalloc(M_TEMP, TTY_QUEUE_SIZE, M_WAITOK),
+  ringbuf_init(&tty->t_inq, kmalloc(M_DEV, TTY_QUEUE_SIZE, M_WAITOK),
                TTY_QUEUE_SIZE);
   cv_init(&tty->t_incv, "t_incv");
-  ringbuf_init(&tty->t_outq, kmalloc(M_TEMP, TTY_QUEUE_SIZE, M_WAITOK),
+  ringbuf_init(&tty->t_outq, kmalloc(M_DEV, TTY_QUEUE_SIZE, M_WAITOK),
                TTY_QUEUE_SIZE);
   tty_init_termios(&tty->t_termios);
   tty->t_ops.t_notify_out = NULL;
