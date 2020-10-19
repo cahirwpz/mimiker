@@ -72,9 +72,11 @@ static intr_filter_t ns16550_intr(void *data) {
     /* transmit register empty? */
     if (iir & IIR_TXRDY) {
       uint8_t byte;
-      if (ringbuf_getb(&ns16550->tx_buf, &byte)) {
+      while ((in(uart, LSR) & LSR_THRE) &&
+             ringbuf_getb(&ns16550->tx_buf, &byte)) {
         out(uart, THR, byte);
-      } else {
+      }
+      if (ringbuf_empty(&ns16550->tx_buf)) {
         /* If we're out of characters and there are characters
          * in the tty's output queue, signal the tty thread to refill. */
         if (ns16550->tty_outq_nonempty) {
