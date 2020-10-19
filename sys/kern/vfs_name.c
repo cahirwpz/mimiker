@@ -99,7 +99,8 @@ end:
   return error;
 }
 
-/* Call VOP_LOOKUP for a single lookup. */
+/* Call VOP_LOOKUP for a single lookup.
+ * searchdir vnode is locked on entry and remains locked on return. */
 static int vnr_lookup_once(vnrstate_t *vs, vnode_t *searchdir,
                            vnode_t **foundvn_p, vnode_t **new_searchdirp) {
   vnode_t *foundvn;
@@ -171,7 +172,7 @@ static void vnr_parse_component(vnrstate_t *vs) {
 }
 
 static int do_nameresolve(vnrstate_t *vs) {
-  vnode_t *foundvn, *searchdir = NULL;
+  vnode_t *foundvn = NULL, *searchdir = NULL;
   componentname_t *cn = &vs->vs_cn;
   int error;
 
@@ -199,6 +200,9 @@ static int do_nameresolve(vnrstate_t *vs) {
 
   for (;;) {
     assert(vs->vs_nextcn[0] != '/');
+
+    /* At the beginning of each iteration searchdir is locked and
+     * foundvn is NULL. */
 
     if (vs->vs_nextcn[0] == '\0') {
       foundvn = searchdir;
