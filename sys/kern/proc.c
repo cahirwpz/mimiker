@@ -198,12 +198,17 @@ static void pgrp_maybe_orphan(pgrp_t *pg) {
   if (--pg->pg_jobc > 0)
     return;
 
+  ksiginfo_t ksi;
+  KSI_INIT_EMPTY(&ksi);
+
   proc_t *p;
   TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
     if (p->p_state == PS_STOPPED) {
       WITH_MTX_LOCK (&p->p_lock) {
-        sig_kill(p, SIGHUP);
-        sig_kill(p, SIGCONT);
+        ksi.ksi_signo = SIGHUP;
+        sig_kill(p, &ksi);
+        ksi.ksi_signo = SIGCONT;
+        sig_kill(p, &ksi);
       }
     }
   }
@@ -500,11 +505,11 @@ __noreturn void proc_exit(int exitstatus) {
     klog("Wakeup PID(%d) because child PID(%d) died", parent->p_pid, p->p_pid);
 
     bool auto_reap;
-    WITH_MTX_LOCK (&parent->p_lock) {
+    WITH_MTX_LOCK (&parent->p_lock)
       auto_reap = parent->p_sigactions[SIGCHLD].sa_handler == SIG_IGN;
+    WITH_MTX_LOCK (&p->p_lock)
       if (!auto_reap)
-        sig_kill(parent, SIGCHLD);
-    }
+        sig_child(p, CLD_EXITED);
 
     /* We unconditionally notify the parent if they're waiting for a child,
      * even when we reap ourselves, because we might be the last child
@@ -539,11 +544,15 @@ int proc_sendsig(pid_t pid, signo_t sig) {
 
   proc_t *target;
 
+  ksiginfo_t ksi;
+  KSI_INIT_EMPTY(&ksi);
+  ksi.ksi_signo = sig;
+
   if (pid > 0) {
     target = proc_find(pid);
     if (target == NULL)
       return EINVAL;
-    sig_kill(target, sig);
+    sig_kill(target, &ksi);
     proc_unlock(target);
     return 0;
   }
@@ -566,7 +575,7 @@ int proc_sendsig(pid_t pid, signo_t sig) {
 
   TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist) {
     WITH_MTX_LOCK (&target->p_lock)
-      sig_kill(target, sig);
+      sig_kill(target, &ksi);
   }
 
   return 0;

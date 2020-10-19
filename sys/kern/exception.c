@@ -25,9 +25,9 @@ void on_user_exc_leave(void) {
   if (td->td_flags & TDF_NEEDSIGCHK) {
     WITH_MTX_LOCK (all_proc_mtx) {
       WITH_PROC_LOCK(p) {
-        int sig;
-        while ((sig = sig_check(td)))
-          sig_post(sig);
+        ksiginfo_t ksi;
+        while (sig_check(td, &ksi))
+          sig_post(&ksi);
       }
     }
   }

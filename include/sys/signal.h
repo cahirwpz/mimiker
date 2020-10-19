@@ -3,6 +3,7 @@
 
 #include <sys/sigtypes.h>
 #include <machine/signal.h>
+#include <sys/siginfo.h>
 
 #define SIGHUP 1   /* hangup */
 #define SIGINT 2   /* interrupt */
@@ -72,6 +73,9 @@ typedef struct proc proc_t;
 typedef struct thread thread_t;
 typedef struct ctx ctx_t;
 
+/* Add a comment! */
+void sig_child(proc_t *p, int code);
+
 /*! \brief Signal a process.
  *
  * Marks \a sig signal as pending, unless it's ignored by target process.
@@ -81,7 +85,7 @@ typedef struct ctx ctx_t;
  * \sa sig_post
  * \note Must be called with p::p_lock held. Returns with p::p_lock held.
  */
-void sig_kill(proc_t *p, signo_t sig);
+void sig_kill(proc_t *p, ksiginfo_t *ksi);
 
 /*! \brief Determines which signal should posted to current thread.
  *
@@ -93,7 +97,7 @@ void sig_kill(proc_t *p, signo_t sig);
  * \sa sig_post
  *
  * \returns signal number which should be posted or 0 if none */
-int sig_check(thread_t *td);
+int sig_check(thread_t *td, ksiginfo_t *ksi);
 
 /*! \brief Invoke the action triggered by a signal.
  *
@@ -103,7 +107,7 @@ int sig_check(thread_t *td);
  * \note Must be called with all_proc_mtx and current process p_mtx acquired!
  * \sa sig_exit
  */
-void sig_post(signo_t sig);
+void sig_post(ksiginfo_t *ksi);
 
 /*! \brief Terminate the process as the result of posting a signal. */
 __noreturn void sig_exit(thread_t *td, signo_t sig);
@@ -116,7 +120,7 @@ void sig_trap(ctx_t *ctx, signo_t sig);
 /*! \brief Prepare user context for entry to signal handler action.
  *
  * \note This is machine dependent code! */
-int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa);
+int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi);
 
 /*! \brief Restore original user context after signal handler was invoked.
  *

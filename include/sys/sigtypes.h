@@ -9,13 +9,10 @@
 
 #include <sys/types.h>
 
-typedef struct siginfo {
-} siginfo_t;
-typedef int signo_t;
-
 typedef struct {
   uint32_t __bits;
 } sigset_t;
+typedef int signo_t;
 
 /*
  * Macro for manipulating signal masks.

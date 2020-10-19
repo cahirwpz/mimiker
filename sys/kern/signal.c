@@ -9,6 +9,7 @@
 #include <sys/proc.h>
 #include <sys/wait.h>
 #include <sys/sched.h>
+#include <sys/malloc.h>
 
 /*!\brief Signal properties.
  *
@@ -65,6 +66,31 @@ static const char *sig_name[NSIG] = {
 };
 /* clang-format on */
 
+static KMALLOC_DEFINE(ksiginfo_pool, "ksiginfo pool");
+
+static ksiginfo_t *ksiginfo_alloc(const ksiginfo_t *src, int flags) {
+  ksiginfo_t *kp;
+
+  if ((kp = kmalloc(ksiginfo_pool, sizeof(ksiginfo_t), flags)) != NULL) {
+    if (src != NULL) {
+      memcpy(kp, src, sizeof(ksiginfo_t));
+      kp->ksi_flags &= ~KSI_QUEUED;
+    } else {
+      KSI_INIT_EMPTY(kp);
+    }
+    kp->ksi_flags |= KSI_FROMPOOL;
+  }
+
+  return kp;
+}
+
+static void ksiginfo_free(ksiginfo_t *ksi) {
+  assert((ksi->ksi_flags & KSI_FROMPOOL) != 0);
+  assert((ksi->ksi_flags & KSI_QUEUED) == 0);
+
+  kfree(ksiginfo_pool, ksi);
+}
+
 /* Default action for a signal. */
 static sigprop_t defact(signo_t sig) {
   assert(sig <= NSIG);
@@ -96,7 +122,7 @@ static signo_t sig_pending(thread_t *td) {
   assert(p != NULL);
   assert(mtx_owned(&p->p_lock));
 
-  sigset_t unblocked = td->td_sigpend;
+  sigset_t unblocked = td->td_sigpend.sp_set;
   __sigminusset(&td->td_sigmask, &unblocked);
 
   signo_t ret = __sigfindset(&unblocked);
@@ -173,6 +199,114 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   return EINTR;
 }
 
+static void sigpend_info(sigpend_t *sp, ksiginfo_t *out, signo_t sig) {
+  ksiginfo_t *ksi;
+
+  /* Find siginfo and copy it out. */
+  bool present = 0;
+  TAILQ_FOREACH (ksi, &sp->sp_info, ksi_list) {
+    if (ksi->ksi_signo != sig)
+      continue;
+    present = 1;
+    TAILQ_REMOVE(&sp->sp_info, ksi, ksi_list);
+    assert((ksi->ksi_flags & KSI_FROMPOOL) != 0);
+    assert((ksi->ksi_flags & KSI_QUEUED) != 0);
+    ksi->ksi_flags &= ~KSI_QUEUED;
+    if (out != NULL) {
+      memcpy(out, ksi, sizeof(ksiginfo_t));
+      out->ksi_flags &= ~KSI_FROMPOOL;
+    }
+    ksiginfo_free(ksi);
+    break;
+  }
+
+  if (!present && out != NULL) {
+    KSI_INIT(out);
+    out->ksi_signo = sig;
+    out->ksi_code = SI_NOINFO;
+  }
+}
+
+static inline void sigpend_get(sigpend_t *sp, ksiginfo_t *out, signo_t sig) {
+  assert(sp != NULL);
+  assert(sig != 0);
+
+  __sigdelset(&sp->sp_set, sig);
+  sigpend_info(sp, out, sig);
+}
+
+static inline void sigpend_clear(sigpend_t *sp, signo_t sig) {
+  sigpend_get(sp, NULL, sig);
+}
+
+void sigpend_destroy(sigpend_t *sp) {
+  ksiginfo_t *ksi;
+
+  assert(sp != NULL);
+  __sigemptyset(&sp->sp_set);
+
+  TAILQ_FOREACH (ksi, &sp->sp_info, ksi_list) {
+    TAILQ_REMOVE(&sp->sp_info, ksi, ksi_list);
+    assert((ksi->ksi_flags & KSI_FROMPOOL) != 0);
+    assert((ksi->ksi_flags & KSI_QUEUED) != 0);
+    ksiginfo_free(ksi);
+  }
+}
+
+static void sigpend_put(sigpend_t *sp, ksiginfo_t *ksi) {
+  assert(sp != NULL);
+  assert(ksi != NULL);
+  assert((ksi->ksi_flags & KSI_QUEUED) == 0);
+
+  signo_t sig = ksi->ksi_signo;
+  __sigaddset(&sp->sp_set, sig);
+
+  /* If there is no siginfo, we are done. */
+  if (KSI_EMPTY_P(ksi))
+    return;
+
+  assert((ksi->ksi_flags & KSI_FROMPOOL) != 0);
+
+  ksiginfo_t *kp;
+  TAILQ_FOREACH (kp, &sp->sp_info, ksi_list)
+    if (kp->ksi_signo == sig) {
+      KSI_COPY(ksi, kp);
+      kp->ksi_flags |= KSI_QUEUED;
+      return;
+    }
+
+  TAILQ_INSERT_TAIL(&sp->sp_info, ksi, ksi_list);
+  ksi->ksi_flags |= KSI_QUEUED;
+}
+
+static inline void sigpend_put_and_free(sigpend_t *sp, ksiginfo_t *ksi) {
+  sigpend_put(sp, ksi);
+  if ((ksi->ksi_flags & KSI_QUEUED) == 0)
+    ksiginfo_free(ksi);
+}
+
+void sig_child(proc_t *p, int code) {
+  ksiginfo_t ksi;
+  proc_t *parent;
+
+  assert(p != NULL);
+  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&p->p_lock));
+
+  KSI_INIT(&ksi);
+  ksi.ksi_signo = SIGCHLD;
+  ksi.ksi_code = code;
+  ksi.ksi_pid = p->p_pid;
+  ksi.ksi_uid = p->p_cred.cr_euid;
+
+  parent = p->p_parent;
+
+  proc_unlock(p);
+  WITH_MTX_LOCK (&parent->p_lock)
+    sig_kill(parent, &ksi);
+  proc_lock(p);
+}
+
 /*
  * NOTE: This is a very simple implementation! Unimplemented features:
  * - Thread tracing and debugging
@@ -180,10 +314,13 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
  * These limitations (plus the fact that we currently have very little thread
  * states) make the logic of sending a signal very simple!
  */
-void sig_kill(proc_t *p, signo_t sig) {
+void sig_kill(proc_t *p, ksiginfo_t *ksi) {
   assert(p != NULL);
   assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&p->p_lock));
+  assert(ksi != NULL);
+
+  signo_t sig = ksi->ksi_signo;
   assert(sig < NSIG);
 
   /* Zombie processes shouldn't accept any signals. */
@@ -202,6 +339,7 @@ void sig_kill(proc_t *p, signo_t sig) {
     p->p_flags &= ~PF_STOPPED;
     p->p_flags |= PF_CONTINUED;
     cv_broadcast(&p->p_parent->p_waitcv);
+    sig_child(p, CLD_CONTINUED);
   } else if (handler == SIG_IGN ||
              (defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
     return;
@@ -210,17 +348,25 @@ void sig_kill(proc_t *p, signo_t sig) {
   /* If stopping or continuing,
    * remove pending signals with the opposite effect. */
   if (sig == SIGSTOP)
-    __sigdelset(&td->td_sigpend, SIGCONT);
+    sigpend_clear(&td->td_sigpend, SIGCONT);
+
+  ksiginfo_t *kp;
+  if ((kp = ksiginfo_alloc(ksi, M_NOWAIT)) == NULL) {
+    /* Here NetBSD returns an error equal to 0.
+     * Since 0 means 'success', we simply return
+     * without sending the signal. */
+    return;
+  }
 
   if (sig == SIGCONT) {
-    __sigdelset(&td->td_sigpend, SIGSTOP);
+    sigpend_clear(&td->td_sigpend, SIGSTOP);
 
     /* In case of SIGCONT, make it pending only if the process catches it. */
     if (handler != SIG_IGN && handler != SIG_DFL)
-      __sigaddset(&td->td_sigpend, SIGCONT);
+      sigpend_put_and_free(&td->td_sigpend, kp);
   } else {
     /* Every other signal is marked as pending. */
-    __sigaddset(&td->td_sigpend, sig);
+    sigpend_put_and_free(&td->td_sigpend, kp);
   }
 
   /* Don't wake up the target thread if it blocks the signal being sent.
@@ -247,7 +393,7 @@ void sig_kill(proc_t *p, signo_t sig) {
   }
 }
 
-int sig_check(thread_t *td) {
+int sig_check(thread_t *td, ksiginfo_t *out) {
   proc_t *p = td->td_proc;
 
   assert(p != NULL);
@@ -262,7 +408,7 @@ int sig_check(thread_t *td) {
         td->td_flags &= ~TDF_NEEDSIGCHK;
       return 0;
     }
-    __sigdelset(&td->td_sigpend, sig);
+    sigpend_get(&td->td_sigpend, out, sig);
 
     sig_t handler = p->p_sigactions[sig].sa_handler;
 
@@ -278,14 +424,16 @@ int sig_check(thread_t *td) {
   __unreachable();
 }
 
-void sig_post(signo_t sig) {
+void sig_post(ksiginfo_t *ksi) {
   thread_t *td = thread_self();
   proc_t *p = proc_self();
 
   assert(p != NULL);
   assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&p->p_lock));
+  assert(ksi != NULL);
 
+  signo_t sig = ksi->ksi_signo;
   sigaction_t *sa = &p->p_sigactions[sig];
 
   assert(sa->sa_handler != SIG_IGN);
@@ -303,9 +451,8 @@ void sig_post(signo_t sig) {
     p->p_flags &= ~PF_CONTINUED;
     p->p_flags |= PF_STOPPED;
     cv_broadcast(&p->p_parent->p_waitcv);
+    sig_child(p, CLD_STOPPED);
     proc_unlock(p);
-    WITH_MTX_LOCK (&p->p_parent->p_lock)
-      sig_kill(p->p_parent, SIGCHLD);
     mtx_unlock(all_proc_mtx);
     proc_lock(p);
     if (p->p_state == PS_STOPPED) {
@@ -337,8 +484,8 @@ void sig_post(signo_t sig) {
 
   /* Normally the `sig_post` would have more to do, but our signal
    * implementation is very limited for now. All `sig_post` has to do is to
-   * pass `sa` to platform-specific `sig_send`. */
-  sig_send(sig, return_mask, sa);
+   * pass `sa` and `ksi` to platform-specific `sig_send`. */
+  sig_send(sig, return_mask, sa, ksi);
 
   /* Set handler's signal mask. */
   __sigplusset(&sa->sa_mask, &td->td_sigmask);

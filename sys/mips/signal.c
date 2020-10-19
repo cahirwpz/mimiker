@@ -11,6 +11,7 @@
 
 typedef struct sig_ctx {
   uint32_t magic; /* Integrity control. */
+  siginfo_t info;
   user_ctx_t uctx;
   sigset_t mask; /* signal mask to restore in sigreturn() */
   /* TODO: Store handler signal mask. */
@@ -26,13 +27,14 @@ static void stack_unusable(thread_t *td, register_t sp) {
   __unreachable();
 }
 
-int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa) {
+int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   thread_t *td = thread_self();
 
   user_ctx_t *uctx = td->td_uctx;
 
   /* Prepare signal context. */
-  sig_ctx_t ksc = {.magic = SIG_CTX_MAGIC, .mask = *mask};
+  sig_ctx_t ksc = {
+    .magic = SIG_CTX_MAGIC, .info = ksi->ksi_info, .mask = *mask};
   user_ctx_copy(&ksc.uctx, uctx);
 
   /* Copyout sigcode to user stack. */
@@ -44,8 +46,9 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa) {
     stack_unusable(td, _REG(uctx, SP));
 
   /* Copyout signal context to user stack. */
-  sp -= sizeof(sig_ctx_t);
-  if (copyout(&ksc, sp, sizeof(sig_ctx_t)))
+  sig_ctx_t *cp = (sig_ctx_t *)sp;
+  cp--;
+  if (copyout(&ksc, cp, sizeof(sig_ctx_t)))
     stack_unusable(td, _REG(uctx, SP));
 
   /* Prepare user context so that on return to usermode the handler gets
@@ -54,11 +57,14 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa) {
    * raised and the user process will get the punishment it deserves (SIGILL,
    * SIGSEGV). */
   _REG(uctx, EPC) = (register_t)sa->sa_handler;
+  /* Set arguments to signal number, signal info, and user context. */
   _REG(uctx, A0) = sig;
+  _REG(uctx, A1) = (register_t)&cp->info;
+  _REG(uctx, A2) = (register_t)&cp->uctx;
   /* The calling convention is such that the callee may write to the address
    * pointed by sp before extending the stack - so we need to set it 1 word
    * before the stored context! */
-  _REG(uctx, SP) = (register_t)((intptr_t *)sp - 1);
+  _REG(uctx, SP) = (register_t)((intptr_t *)cp - 1);
   /* Also, make sure that sigcode runs when the handler exits. */
   _REG(uctx, RA) = (register_t)sigcode_stack_addr;
 
@@ -104,6 +110,10 @@ int sig_return(void) {
 void sig_trap(ctx_t *ctx, signo_t sig) {
   proc_t *proc = proc_self();
   WITH_MTX_LOCK (all_proc_mtx)
-    WITH_MTX_LOCK (&proc->p_lock)
-      sig_kill(proc, sig);
+    WITH_MTX_LOCK (&proc->p_lock) {
+      ksiginfo_t ksi;
+      KSI_INIT_TRAP(&ksi);
+      ksi.ksi_signo = sig;
+      sig_kill(proc, &ksi);
+    }
 }

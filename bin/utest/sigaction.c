@@ -28,7 +28,10 @@ int test_sigaction_with_setjmp(void) {
 
 static volatile int sigusr1_handled;
 
-static void sigusr1_handler(int signo) {
+static void sigusr1_handler(int signo, siginfo_t *si, void *uctx) {
+  assert(si->si_signo == signo);
+  assert(si->si_code == SI_NOINFO);
+  assert(uctx != NULL);
   sigusr1_handled = 1;
 }
 
@@ -36,7 +39,8 @@ int test_sigaction_handler_returns(void) {
   struct sigaction sa;
 
   memset(&sa, 0, sizeof(sa));
-  sa.sa_handler = sigusr1_handler;
+  sa.sa_sigaction = sigusr1_handler;
+  sa.sa_flags = SA_SIGINFO;
   assert(sigaction(SIGUSR1, &sa, NULL) == 0);
 
   assert(sigusr1_handled == 0);

@@ -135,7 +135,7 @@ typedef struct thread {
   bintime_t td_last_slptime; /*!< (*) time of last switch to sleep state */
   unsigned td_nctxsw;        /*!< (*) total number of context switches */
   /* signal handling */
-  sigset_t td_sigpend;    /*!< (p) Pending signals for this thread. */
+  sigpend_t td_sigpend;   /*!< (p) Pending signals for this thread. */
   sigset_t td_sigmask;    /*!< (p) Signal mask */
   sigset_t td_oldsigmask; /*!< (*) Signal mask from before sigsuspend() */
 } thread_t;
