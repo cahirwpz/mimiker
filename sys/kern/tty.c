@@ -223,7 +223,7 @@ static void tty_discard_input(tty_t *tty) {
  * the characters that should be transmitted. The return value
  * is the number of characters that should be transmitted.
  */
-static int tty_process_out(tty_t *tty, int oflag, uint8_t *cb) {
+static int tty_process_out(tty_t *tty, int oflag, uint8_t cb[2]) {
   uint8_t c = cb[0];
   /* Newline translation: if ONLCR is set, translate newline into "\r\n". */
   if (c == '\n' && (oflag & ONLCR)) {
