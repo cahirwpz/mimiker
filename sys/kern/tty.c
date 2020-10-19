@@ -3,9 +3,7 @@
 #include <sys/libkern.h>
 #include <sys/termios.h>
 #include <sys/tty.h>
-#define TTYDEFCHARS
 #include <sys/ttydefaults.h>
-#undef TTYDEFCHARS
 #include <sys/malloc.h>
 #include <sys/kmem_flags.h>
 #include <sys/mutex.h>
@@ -117,6 +115,21 @@ static void tty_output(tty_t *tty, uint8_t c);
 
 /* Initialize termios with sane defaults. */
 static void tty_init_termios(struct termios *tio) {
+
+  /* Default control characters from FreeBSD */
+  static const cc_t ttydefchars[NCCS] = {
+    [VEOF] = CEOF,         [VEOL] = CEOL,
+    [VEOL2] = CEOL,        [VERASE] = CERASE,
+    [VWERASE] = CWERASE,   [VKILL] = CKILL,
+    [VREPRINT] = CREPRINT, [7] = _POSIX_VDISABLE, /* spare */
+    [VINTR] = CINTR,       [VQUIT] = CQUIT,
+    [VSUSP] = CSUSP,       [VDSUSP] = CDSUSP,
+    [VSTART] = CSTART,     [VSTOP] = CSTOP,
+    [VLNEXT] = CLNEXT,     [VDISCARD] = CDISCARD,
+    [VMIN] = CMIN,         [VTIME] = CTIME,
+    [VSTATUS] = CSTATUS,   [19] = _POSIX_VDISABLE, /* spare */
+  };
+
   tio->c_cflag = TTYDEF_CFLAG;
   tio->c_iflag = TTYDEF_IFLAG;
   tio->c_lflag = TTYDEF_LFLAG;
