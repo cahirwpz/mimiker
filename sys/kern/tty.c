@@ -171,7 +171,7 @@ void tty_input(tty_t *tty, uint8_t c) {
 
   if (c == '\r') {
     if (iflag & IGNCR)
-      goto end;
+      return;
     else if (iflag & ICRNL)
       c = '\n';
   } else if (c == '\n' && (iflag & INLCR)) {
@@ -179,15 +179,15 @@ void tty_input(tty_t *tty, uint8_t c) {
   }
 
   if (tty->t_inq.count >= TTY_QUEUE_SIZE) {
-    if (iflag & IMAXBEL)
+    if (iflag & IMAXBEL) {
       tty_output(tty, CTRL('g'));
-    goto end;
+      tty_notify_out(tty);
+    }
+    return;
   }
 
   ringbuf_putb(&tty->t_inq, c);
   tty_wakeup(tty);
-end:
-  tty_notify_out(tty);
 }
 
 static int tty_read(vnode_t *v, uio_t *uio, int ioflags) {
