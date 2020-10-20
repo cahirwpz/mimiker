@@ -32,17 +32,17 @@ typedef struct {
 
 typedef struct tty {
   mtx_t t_lock;
-  ringbuf_t t_inq;
-  condvar_t t_incv;
-  ringbuf_t t_outq;
+  ringbuf_t t_inq;  /* Input queue */
+  condvar_t t_incv; /* CV for readers waiting for input */
+  ringbuf_t t_outq; /* Output queue */
   condvar_t t_outcv;
   linebuf_t t_line; /* Line buffer */
   size_t t_column;  /* Cursor's column position */
   /* TODO explain `t_rocol` and `t_rocount`  */
   size_t t_rocol, t_rocount;
-  ttyops_t t_ops;
+  ttyops_t t_ops; /* Serial device operations */
   struct termios t_termios;
-  void *t_data;
+  void *t_data; /* Serial device driver's private data */
 } tty_t;
 
 #define t_cc t_termios.c_cc

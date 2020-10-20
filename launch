@@ -75,7 +75,6 @@ if __name__ == '__main__':
                         choices=['malta', 'rpi3'], help='Emulated board.')
     parser.add_argument('-r', '--raw', action='store_true',
                         help='Run socat on /dev/tty1 in raw mode.')
-
     args = parser.parse_args()
 
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local

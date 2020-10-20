@@ -34,6 +34,7 @@
 #ifndef _SYS_TERMIOS_H_
 #define _SYS_TERMIOS_H_
 
+#include <sys/ttydefaults.h>
 #include <sys/ttycom.h>
 
 /*
