@@ -111,7 +111,7 @@ unsigned char const char_type[] = {
 #define TTYSUP_OFLAG_CHANGE (OPOST | ONLCR | OCRNL | ONOCR | ONLRET)
 #define TTYSUP_LFLAG_CHANGE 0
 
-static void tty_output(tty_t *tty, uint8_t c);
+static bool tty_output(tty_t *tty, uint8_t c);
 
 /* Initialize termios with sane defaults. */
 static void tty_init_termios(struct termios *tio) {
@@ -147,6 +147,7 @@ tty_t *tty_alloc(void) {
   cv_init(&tty->t_incv, "t_incv");
   ringbuf_init(&tty->t_outq, kmalloc(M_DEV, TTY_QUEUE_SIZE, M_WAITOK),
                TTY_QUEUE_SIZE);
+  cv_init(&tty->t_outcv, "t_outcv");
   tty_init_termios(&tty->t_termios);
   tty->t_ops.t_notify_out = NULL;
   tty->t_data = NULL;
@@ -164,13 +165,28 @@ static void tty_notify_out(tty_t *tty) {
 }
 
 /*
- * Put a character directly in the output queue.
- * TODO: what to do when the queue is full?
+ * Put characters from buf directly in the output queue.
+ * If there's not enough space for all characters, no characters are written
+ * to the queue and false is returned. Returns true on success.
  */
-static void tty_outq_putc(tty_t *tty, uint8_t c) {
-  if (!(tty->t_lflag & FLUSHO) && !ringbuf_putb(&tty->t_outq, c)) {
-    klog("tty_outq_putc: outq full, dropping character 0x%hhx");
-  }
+static bool tty_outq_write_nofrag(tty_t *tty, uint8_t *buf, size_t len) {
+  if (tty->t_lflag & FLUSHO)
+    return true;
+
+  if (tty->t_outq.count + len > tty->t_outq.size)
+    return false;
+
+  for (size_t i = 0; i < len; i++)
+    ringbuf_putb(&tty->t_outq, buf[i]);
+  return true;
+}
+
+/*
+ * Put a character directly in the output queue.
+ * Returns false if there's no space left in the queue, otherwise returns true.
+ */
+static bool tty_outq_putc(tty_t *tty, uint8_t c) {
+  return tty_outq_write_nofrag(tty, &c, 1);
 }
 
 /* Wake up readers waiting for input. */
@@ -261,14 +277,13 @@ static int tty_process_out(tty_t *tty, int oflag, uint8_t cb[2]) {
  * Add a single character to the output queue.
  * Output processing (e.g. turning NL into CR-NL pairs) happens here.
  */
-static void tty_output(tty_t *tty, uint8_t c) {
+static bool tty_output(tty_t *tty, uint8_t c) {
   assert(mtx_owned(&tty->t_lock));
 
   int oflag = tty->t_oflag;
   /* Check if output processing is enabled. */
   if (!(oflag & OPOST)) {
-    tty_outq_putc(tty, c);
-    return;
+    return tty_outq_putc(tty, c);
   }
 
   uint8_t cb[2];
@@ -276,8 +291,10 @@ static void tty_output(tty_t *tty, uint8_t c) {
   int ccount = tty_process_out(tty, oflag, cb);
   int col = tty->t_column;
 
+  if (!tty_outq_write_nofrag(tty, cb, ccount))
+    return false;
+
   for (int i = 0; i < ccount; i++) {
-    tty_outq_putc(tty, cb[i]);
     switch (CCLASS(cb[i])) {
       case BACKSPACE:
         if (col > 0)
@@ -304,6 +321,19 @@ static void tty_output(tty_t *tty, uint8_t c) {
     }
   }
   tty->t_column = col;
+  return true;
+}
+
+/*
+ * Write a single character to the terminal.
+ * If it can't immediately write the character due to lack of space
+ * in the output queue, it goes to sleep waiting for space to become available.
+ */
+static void tty_output_sleep(tty_t *tty, uint8_t c) {
+  while (!tty_output(tty, c)) {
+    tty->t_flags |= TTY_WAIT_OUT_LOWAT;
+    cv_wait(&tty->t_outcv, &tty->t_lock);
+  }
 }
 
 static int tty_write(vnode_t *v, uio_t *uio, int ioflags) {
@@ -318,12 +348,38 @@ static int tty_write(vnode_t *v, uio_t *uio, int ioflags) {
       error = uiomove(&c, 1, uio);
       if (error)
         break;
-      tty_output(tty, c);
+      tty_output_sleep(tty, c);
     }
     tty_notify_out(tty);
   }
 
   return error;
+}
+
+void tty_getc_done(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+
+  size_t cnt = tty->t_outq.count;
+  int flags = 0;
+
+  if ((tty->t_flags & TTY_WAIT_OUT_LOWAT) && cnt < TTY_OUT_LOW_WATER)
+    flags |= TTY_WAIT_OUT_LOWAT;
+  if ((tty->t_flags & TTY_WAIT_DRAIN_OUT) && cnt == 0)
+    flags |= TTY_WAIT_DRAIN_OUT;
+
+  if (flags) {
+    tty->t_flags &= ~flags;
+    cv_broadcast(&tty->t_outcv);
+  }
+}
+
+static void tty_drain_out(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+
+  while (tty->t_outq.count > 0) {
+    tty->t_flags |= TTY_WAIT_DRAIN_OUT;
+    cv_wait(&tty->t_outcv, &tty->t_lock);
+  }
 }
 
 static int tty_close(vnode_t *v, file_t *fp) {
@@ -348,7 +404,7 @@ static int tty_ioctl(vnode_t *v, u_long cmd, void *data) {
       struct termios *t = (struct termios *)data;
 
       if (cmd == TIOCSETAW || cmd == TIOCSETAF) {
-        /* TODO Drain all output. */
+        tty_drain_out(tty);
         if (cmd == TIOCSETAF) {
           /* Discard all pending input. */
           tty_discard_input(tty);

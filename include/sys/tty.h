@@ -8,6 +8,7 @@
 #include <sys/mutex.h>
 
 #define TTY_QUEUE_SIZE 0x400
+#define TTY_OUT_LOW_WATER (TTY_QUEUE_SIZE / 4)
 #define LINEBUF_SIZE 0x100
 
 struct tty;
@@ -25,11 +26,13 @@ typedef struct {
 
 typedef struct tty {
   mtx_t t_lock;
-  ringbuf_t t_inq;  /* Input queue */
-  condvar_t t_incv; /* CV for readers waiting for input */
-  ringbuf_t t_outq; /* Output queue */
-  size_t t_column;  /* Cursor's column position */
-  ttyops_t t_ops;   /* Serial device operations */
+  uint32_t t_flags;
+  ringbuf_t t_inq;   /* Input queue */
+  condvar_t t_incv;  /* CV for readers waiting for input */
+  ringbuf_t t_outq;  /* Output queue */
+  condvar_t t_outcv; /* CV for threads waiting for space in outq */
+  size_t t_column;   /* Cursor's column position */
+  ttyops_t t_ops;    /* Serial device operations */
   struct termios t_termios;
   void *t_data; /* Serial device driver's private data */
 } tty_t;
@@ -42,6 +45,10 @@ typedef struct tty {
 #define t_oflag t_termios.c_oflag
 #define t_ospeed t_termios.c_ospeed
 
+/* TTY flags */
+#define TTY_WAIT_OUT_LOWAT 0x1 /* Someone is waiting for space in outq */
+#define TTY_WAIT_DRAIN_OUT 0x2 /* Someone is waiting for outq to drain */
+
 extern vnodeops_t tty_vnodeops;
 
 /*
@@ -51,8 +58,16 @@ tty_t *tty_alloc(void);
 
 /*
  * Put a single character into the tty's input queue, provided it's not full.
- * Must be called with `t_lock` acquired.
+ * Must be called with tty->t_lock held.
  */
 void tty_input(tty_t *tty, uint8_t c);
+
+/*
+ * Wake up threads waiting for space in the output queue.
+ * Must be called by drivers after consuming one or more characters
+ * from the tty's output queue.
+ * Must be called with tty->t_lock held.
+ */
+void tty_getc_done(tty_t *tty);
 
 #endif /* !_SYS_TTY_H_ */

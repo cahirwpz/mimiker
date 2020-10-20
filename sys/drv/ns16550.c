@@ -156,6 +156,7 @@ static void ns16550_fill_txbuf(ns16550_state_t *ns16550, tty_t *tty) {
     ns16550_set_tty_outq_nonempty_flag(ns16550, tty);
     ringbuf_putb(&ns16550->tx_buf, byte);
   }
+  tty_getc_done(tty);
 }
 
 static bool ns16550_getb_lock(ns16550_state_t *ns16550, uint8_t *byte_p) {
