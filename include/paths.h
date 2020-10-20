@@ -11,5 +11,4 @@
 #define _PATH_TTY "/dev/tty"
 #define _PATH_URANDOM "/dev/urandom"
 
-
 #endif /* !_PATHS_H_ */
