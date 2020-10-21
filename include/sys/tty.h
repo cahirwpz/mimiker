@@ -24,6 +24,13 @@ typedef struct {
   t_notify_out_t t_notify_out;
 } ttyops_t;
 
+/* Line buffer */
+typedef struct {
+  uint8_t *ln_buf;
+  size_t ln_size;  /* Capacity */
+  size_t ln_count; /* Number of characters in the buffer */
+} linebuf_t;
+
 typedef struct tty {
   mtx_t t_lock;
   uint32_t t_flags;
@@ -31,8 +38,11 @@ typedef struct tty {
   condvar_t t_incv;  /* CV for readers waiting for input */
   ringbuf_t t_outq;  /* Output queue */
   condvar_t t_outcv; /* CV for threads waiting for space in outq */
+  linebuf_t t_line;  /* Line buffer */
   size_t t_column;   /* Cursor's column position */
-  ttyops_t t_ops;    /* Serial device operations */
+  /* TODO explain `t_rocol` and `t_rocount`  */
+  size_t t_rocol, t_rocount;
+  ttyops_t t_ops; /* Serial device operations */
   struct termios t_termios;
   void *t_data; /* Serial device driver's private data */
 } tty_t;
