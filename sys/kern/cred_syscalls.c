@@ -172,7 +172,7 @@ int do_setreuid(proc_t *p, uid_t ruid, uid_t euid) {
   uid_t cur_suid = p->p_cred.cr_suid;
 
   /* if proc is not root it can set ruid only to euid */
-  if (ruid != (uid_t)-1 && cur_euid != 0 && ruid != cur_euid) {
+  if (cur_euid != 0 && ruid != (uid_t)-1 && ruid != cur_euid) {
     error = EPERM;
     goto end;
   }
@@ -196,7 +196,7 @@ int do_setgid(proc_t *p, gid_t gid) {
   int error;
   proc_lock(p);
 
-  if (p->p_cred.cr_egid == 0)
+  if (p->p_cred.cr_euid == 0)
     error = change_resgid(&p->p_cred, gid, gid, gid);
   else
     error = change_resgid(&p->p_cred, -1, gid, -1);
