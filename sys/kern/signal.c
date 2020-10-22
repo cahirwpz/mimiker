@@ -182,12 +182,11 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
  */
 void sig_kill(proc_t *p, signo_t sig) {
   assert(p != NULL);
-  assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&p->p_lock));
   assert(sig < NSIG);
 
-  /* Zombie processes shouldn't accept any signals. */
-  if (p->p_state == PS_ZOMBIE)
+  /* Zombie or dying processes shouldn't accept any signals. */
+  if (!proc_is_alive(p))
     return;
 
   thread_t *td = p->p_thread;
@@ -243,6 +242,18 @@ void sig_kill(proc_t *p, signo_t sig) {
       } else if (td_is_stopped(td) && continued) {
         sched_wakeup(td, 0);
       }
+    }
+  }
+}
+
+void sig_pgkill(pgrp_t *pg, signo_t sig) {
+  assert(mtx_owned(&pg->pg_lock));
+
+  proc_t *p;
+
+  TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
+    WITH_PROC_LOCK(p) {
+      sig_kill(p, sig);
     }
   }
 }
