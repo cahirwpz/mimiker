@@ -67,6 +67,10 @@
 #define SYS_setgroups 59
 #define SYS_setsid 60
 #define SYS_getsid 61
-#define SYS_MAXSYSCALL 62
+#define SYS_setuid 62
+#define SYS_seteuid 63
+#define SYS_setgid 64
+#define SYS_setegid 65
+#define SYS_MAXSYSCALL 66
 
 #define SYS_MAXSYSARGS 6

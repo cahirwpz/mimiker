@@ -313,3 +313,19 @@ typedef struct {
 typedef struct {
   pid_t pid;
 } getsid_args_t;
+
+typedef struct {
+  uid_t uid;
+} setuid_args_t;
+
+typedef struct {
+  uid_t euid;
+} seteuid_args_t;
+
+typedef struct {
+  gid_t gid;
+} setgid_args_t;
+
+typedef struct {
+  gid_t egid;
+} setegid_args_t;

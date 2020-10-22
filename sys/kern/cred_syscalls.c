@@ -51,29 +51,34 @@ static int try_change_uid(cred_t *c, uid_t *uidp, uid_t uid) {
   return 0;
 }
 
-int do_setresuid(proc_t *p, uid_t ruid, uid_t euid, uid_t suid) {
+static int change_resuid(cred_t *c, uid_t ruid, uid_t euid, uid_t suid) {
   int error = 0;
 
-  proc_lock(p);
+  uid_t new_ruid = c->cr_ruid;
+  uid_t new_euid = c->cr_euid;
+  uid_t new_suid = c->cr_suid;
 
-  uid_t new_ruid = p->p_cred.cr_ruid;
-  uid_t new_euid = p->p_cred.cr_euid;
-  uid_t new_suid = p->p_cred.cr_suid;
-
-  if ((error = try_change_uid(&p->p_cred, &new_ruid, ruid)))
+  if ((error = try_change_uid(c, &new_ruid, ruid)))
     goto end;
 
-  if ((error = try_change_uid(&p->p_cred, &new_euid, euid)))
+  if ((error = try_change_uid(c, &new_euid, euid)))
     goto end;
 
-  if ((error = try_change_uid(&p->p_cred, &new_suid, suid)))
+  if ((error = try_change_uid(c, &new_suid, suid)))
     goto end;
 
-  p->p_cred.cr_ruid = new_ruid;
-  p->p_cred.cr_euid = new_euid;
-  p->p_cred.cr_suid = new_suid;
+  c->cr_ruid = new_ruid;
+  c->cr_euid = new_euid;
+  c->cr_suid = new_suid;
 
 end:
+  return error;
+}
+
+int do_setresuid(proc_t *p, uid_t ruid, uid_t euid, uid_t suid) {
+  int error;
+  proc_lock(p);
+  error = change_resuid(&p->p_cred, ruid, euid, suid);
   proc_unlock(p);
   return error;
 }
@@ -94,29 +99,34 @@ static int try_change_gid(cred_t *c, gid_t *gidp, gid_t gid) {
   return 0;
 }
 
-int do_setresgid(proc_t *p, gid_t rgid, gid_t egid, gid_t sgid) {
+static int change_resgid(cred_t *c, gid_t rgid, gid_t egid, gid_t sgid) {
   int error = 0;
 
-  proc_lock(p);
+  gid_t new_rgid = c->cr_rgid;
+  gid_t new_egid = c->cr_egid;
+  gid_t new_sgid = c->cr_sgid;
 
-  gid_t new_rgid = p->p_cred.cr_rgid;
-  gid_t new_egid = p->p_cred.cr_egid;
-  gid_t new_sgid = p->p_cred.cr_sgid;
-
-  if ((error = try_change_gid(&p->p_cred, &new_rgid, rgid)))
+  if ((error = try_change_gid(c, &new_rgid, rgid)))
     goto end;
 
-  if ((error = try_change_gid(&p->p_cred, &new_egid, egid)))
+  if ((error = try_change_gid(c, &new_egid, egid)))
     goto end;
 
-  if ((error = try_change_gid(&p->p_cred, &new_sgid, sgid)))
+  if ((error = try_change_gid(c, &new_sgid, sgid)))
     goto end;
 
-  p->p_cred.cr_rgid = new_rgid;
-  p->p_cred.cr_egid = new_egid;
-  p->p_cred.cr_sgid = new_sgid;
+  c->cr_rgid = new_rgid;
+  c->cr_egid = new_egid;
+  c->cr_sgid = new_sgid;
 
 end:
+  return error;
+}
+
+int do_setresgid(proc_t *p, gid_t rgid, gid_t egid, gid_t sgid) {
+  int error;
+  proc_lock(p);
+  error = change_resgid(&p->p_cred, rgid, egid, sgid);
   proc_unlock(p);
   return error;
 }
@@ -130,4 +140,46 @@ int do_setgroups(proc_t *p, int ngroups, const gid_t *gidset) {
   memcpy(p->p_cred.cr_groups, gidset, ngroups * sizeof(gid_t));
 
   return 0;
+}
+
+int do_setuid(proc_t *p, uid_t uid) {
+  int error;
+  proc_lock(p);
+
+  if (p->p_cred.cr_euid == 0)
+    error = change_resuid(&p->p_cred, uid, uid, uid);
+  else
+    error = change_resuid(&p->p_cred, -1, uid, -1);
+
+  proc_unlock(p);
+  return error;
+}
+
+int do_seteuid(proc_t *p, uid_t euid) {
+  int error;
+  proc_lock(p);
+  error = change_resuid(&p->p_cred, -1, euid, -1);
+  proc_unlock(p);
+  return error;
+}
+
+int do_setgid(proc_t *p, gid_t gid) {
+  int error;
+  proc_lock(p);
+
+  if (p->p_cred.cr_egid == 0)
+    error = change_resgid(&p->p_cred, gid, gid, gid);
+  else
+    error = change_resgid(&p->p_cred, -1, gid, -1);
+
+  proc_unlock(p);
+  return error;
+}
+
+int do_setegid(proc_t *p, gid_t egid) {
+  int error;
+  proc_lock(p);
+  error = change_resgid(&p->p_cred, -1, egid, -1);
+  proc_unlock(p);
+  return error;
 }
