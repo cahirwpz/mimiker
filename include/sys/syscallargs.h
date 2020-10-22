@@ -323,9 +323,19 @@ typedef struct {
 } seteuid_args_t;
 
 typedef struct {
+  uid_t ruid;
+  uid_t euid;
+} setreuid_args_t;
+
+typedef struct {
   gid_t gid;
 } setgid_args_t;
 
 typedef struct {
   gid_t egid;
 } setegid_args_t;
+
+typedef struct {
+  gid_t rgid;
+  gid_t egid;
+} setregid_args_t;

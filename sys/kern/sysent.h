@@ -69,8 +69,10 @@ static int sys_setsid(proc_t *, void *, register_t *);
 static int sys_getsid(proc_t *, getsid_args_t *, register_t *);
 static int sys_setuid(proc_t *, setuid_args_t *, register_t *);
 static int sys_seteuid(proc_t *, seteuid_args_t *, register_t *);
+static int sys_setreuid(proc_t *, setreuid_args_t *, register_t *);
 static int sys_setgid(proc_t *, setgid_args_t *, register_t *);
 static int sys_setegid(proc_t *, setegid_args_t *, register_t *);
+static int sys_setregid(proc_t *, setregid_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { .nargs = 1, .call = (syscall_t *)sys_syscall },
@@ -137,7 +139,9 @@ struct sysent sysent[] = {
   [SYS_getsid] = { .nargs = 1, .call = (syscall_t *)sys_getsid },
   [SYS_setuid] = { .nargs = 1, .call = (syscall_t *)sys_setuid },
   [SYS_seteuid] = { .nargs = 1, .call = (syscall_t *)sys_seteuid },
+  [SYS_setreuid] = { .nargs = 2, .call = (syscall_t *)sys_setreuid },
   [SYS_setgid] = { .nargs = 1, .call = (syscall_t *)sys_setgid },
   [SYS_setegid] = { .nargs = 1, .call = (syscall_t *)sys_setegid },
+  [SYS_setregid] = { .nargs = 2, .call = (syscall_t *)sys_setregid },
 };
 

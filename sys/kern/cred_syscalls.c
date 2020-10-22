@@ -163,6 +163,35 @@ int do_seteuid(proc_t *p, uid_t euid) {
   return error;
 }
 
+int do_setreuid(proc_t *p, uid_t ruid, uid_t euid) {
+  int error;
+  proc_lock(p);
+
+  uid_t cur_euid = p->p_cred.cr_euid;
+  uid_t cur_ruid = p->p_cred.cr_ruid;
+  uid_t cur_suid = p->p_cred.cr_suid;
+
+  /* if proc is not root it can set ruid only to euid */
+  if (ruid != (uid_t)-1 && cur_euid != 0 && ruid != cur_euid) {
+    error = EPERM;
+    goto end;
+  }
+
+  /* if ruid is set
+   * or euid is set to value other than current suid or ruid (and of cours euid)
+   * then suid is set to current euid
+   */
+  if (ruid != (uid_t)-1 || euid != cur_ruid || euid != cur_euid ||
+      euid != cur_suid)
+    error = change_resuid(&p->p_cred, ruid, euid, cur_euid);
+  else
+    error = change_resuid(&p->p_cred, ruid, euid, -1);
+
+end:
+  proc_unlock(p);
+  return error;
+}
+
 int do_setgid(proc_t *p, gid_t gid) {
   int error;
   proc_lock(p);
@@ -180,6 +209,36 @@ int do_setegid(proc_t *p, gid_t egid) {
   int error;
   proc_lock(p);
   error = change_resgid(&p->p_cred, -1, egid, -1);
+  proc_unlock(p);
+  return error;
+}
+
+int do_setregid(proc_t *p, gid_t rgid, gid_t egid) {
+  int error;
+  proc_lock(p);
+
+  uid_t cur_euid = p->p_cred.cr_euid;
+  gid_t cur_egid = p->p_cred.cr_egid;
+  gid_t cur_rgid = p->p_cred.cr_rgid;
+  gid_t cur_sgid = p->p_cred.cr_sgid;
+
+  /* if proc is not root it can set rgid only to egid */
+  if (cur_euid != 0 && rgid != (gid_t)-1 && rgid != cur_egid) {
+    error = EPERM;
+    goto end;
+  }
+
+  /* if rgid is set
+   * or egid is set to value other than current sgid or rgid (and of course
+   * egid) then sgid is set to current egid
+   */
+  if (rgid != (gid_t)-1 || egid != cur_rgid || egid != cur_egid ||
+      egid != cur_sgid)
+    error = change_resgid(&p->p_cred, rgid, egid, cur_egid);
+  else
+    error = change_resgid(&p->p_cred, rgid, egid, -1);
+
+end:
   proc_unlock(p);
   return error;
 }

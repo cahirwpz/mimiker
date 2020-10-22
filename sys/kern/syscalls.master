@@ -74,8 +74,10 @@
 61  { pid_t sys_getsid(pid_t pid); }
 62  { int sys_setuid(uid_t uid); }
 63  { int sys_seteuid(uid_t euid); }
-64  { int sys_setgid(gid_t gid); }
-65  { int sys_setegid(gid_t egid); }
+64  { int sys_setreuid(uid_t ruid, uid_t euid); }
+65  { int sys_setgid(gid_t gid); }
+66  { int sys_setegid(gid_t egid); }
+67  { int sys_setregid(gid_t rgid, gid_t egid); }
 
 
 ; vim: ts=4 sw=4 sts=4 et

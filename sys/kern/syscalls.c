@@ -988,6 +988,14 @@ static int sys_seteuid(proc_t *p, seteuid_args_t *args, register_t *res) {
   return do_seteuid(p, euid);
 }
 
+static int sys_setreuid(proc_t *p, setreuid_args_t *args, register_t *res) {
+  uid_t ruid = args->ruid;
+  uid_t euid = args->euid;
+  if (ruid == (uid_t)-1 && euid == (uid_t)-1)
+    return EINVAL;
+  return do_setreuid(p, ruid, euid);
+}
+
 static int sys_setgid(proc_t *p, setgid_args_t *args, register_t *res) {
   gid_t gid = args->gid;
   if (gid == (gid_t)-1)
@@ -1000,4 +1008,12 @@ static int sys_setegid(proc_t *p, setegid_args_t *args, register_t *res) {
   if (egid == (gid_t)-1)
     return EINVAL;
   return do_setegid(p, egid);
+}
+
+static int sys_setregid(proc_t *p, setregid_args_t *args, register_t *res) {
+  gid_t rgid = args->rgid;
+  gid_t egid = args->egid;
+  if (rgid == (gid_t)-1 && egid == (gid_t)-1)
+    return EINVAL;
+  return do_setregid(p, rgid, egid);
 }
