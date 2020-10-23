@@ -7,6 +7,7 @@ SOURCES = \
 	bus.c \
 	callout.c \
 	clock.c \
+	cmdline.c \
 	condvar.c \
 	console.c \
 	cred.c \
@@ -40,7 +41,6 @@ SOURCES = \
 	pci_ids.c \
 	pcpu.c \
 	pipe.c \
-	pmap.c \
 	pool.c \
 	proc.c \
 	ringbuf.c \
@@ -52,7 +52,6 @@ SOURCES = \
 	signal.c \
 	sleepq.c \
 	spinlock.c \
-	startup.c \
 	syscalls.c \
 	taskqueue.c \
 	turnstile.c \

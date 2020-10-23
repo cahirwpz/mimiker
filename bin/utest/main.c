@@ -50,12 +50,14 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(access_basic);
   CHECKRUN_TEST(stat);
   CHECKRUN_TEST(fstat);
+#ifdef __mips__
   CHECKRUN_TEST(exc_cop_unusable);
   CHECKRUN_TEST(exc_reserved_instruction);
   CHECKRUN_TEST(exc_integer_overflow);
   CHECKRUN_TEST(exc_unaligned_access);
   CHECKRUN_TEST(exc_sigsys);
   CHECKRUN_TEST(syscall_in_bds);
+#endif /* !__mips__ */
   CHECKRUN_TEST(setjmp);
   CHECKRUN_TEST(sigaction_with_setjmp);
   CHECKRUN_TEST(sigaction_handler_returns);
@@ -79,10 +81,13 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(pgrp_orphan);
   CHECKRUN_TEST(session_basic);
 
+#ifdef __mips__
   CHECKRUN_TEST(fpu_fcsr);
   CHECKRUN_TEST(fpu_gpr_preservation);
   CHECKRUN_TEST(fpu_cpy_ctx_on_fork);
   CHECKRUN_TEST(fpu_ctx_signals);
+#endif /* !__mips__ */
+
   CHECKRUN_TEST(getcwd);
 
   CHECKRUN_TEST(gettimeofday);

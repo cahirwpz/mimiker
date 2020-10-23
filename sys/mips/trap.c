@@ -1,27 +1,33 @@
+#define KL_LOG KL_VM
+#include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
-#include <mips/exception.h>
+#include <mips/context.h>
 #include <mips/interrupt.h>
-#include <sys/pcpu.h>
+#include <mips/tlb.h>
 #include <sys/pmap.h>
 #include <sys/sysent.h>
 #include <sys/thread.h>
+#include <sys/vm_map.h>
+#include <sys/vm_physmem.h>
 #include <sys/ktest.h>
 
-typedef void (*exc_handler_t)(exc_frame_t *);
+static inline unsigned exc_code(ctx_t *ctx) {
+  return (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
+}
 
-static void syscall_handler(exc_frame_t *frame) {
+static void syscall_handler(ctx_t *ctx) {
   /* TODO Eventually we should have a platform-independent syscall handler. */
   register_t args[SYS_MAXSYSARGS];
-  register_t code = frame->v0;
+  register_t code = _REG(ctx, V0);
   const int nregs = 4;
   int error = 0;
 
   /*
    * Copy the arguments passed via register from the
-   * trapframe to our argument array
+   * trapctx to our argument array
    */
-  memcpy(args, &frame->a0, nregs * sizeof(register_t));
+  memcpy(args, &_REG(ctx, A0), nregs * sizeof(register_t));
 
   if (code > SYS_MAXSYSCALL) {
     args[0] = code;
@@ -39,7 +45,7 @@ static void syscall_handler(exc_frame_t *frame) {
      * arguments.
      * For this reason, we read from the user stack with some offset.
      */
-    vaddr_t usp = frame->sp + nregs * sizeof(register_t);
+    vaddr_t usp = _REG(ctx, SP) + nregs * sizeof(register_t);
     error = copyin((register_t *)usp, &args[nregs],
                    (nargs - nregs) * sizeof(register_t));
   }
@@ -54,77 +60,43 @@ static void syscall_handler(exc_frame_t *frame) {
     error = se->call(td->td_proc, (void *)args, &retval);
 
   if (error != EJUSTRETURN)
-    exc_frame_set_retval(frame, error ? -1 : retval, error);
-}
-
-static void fpe_handler(exc_frame_t *frame) {
-  if (kern_mode_p(frame))
-    kernel_oops(frame);
-
-  sig_trap(frame, SIGFPE);
-}
-
-static void cpu_handler(exc_frame_t *frame) {
-  if (kern_mode_p(frame))
-    kernel_oops(frame);
-
-  int cp_id = (frame->cause & CR_CEMASK) >> CR_CESHIFT;
-  if (cp_id != 1) {
-    sig_trap(frame, SIGILL);
-  } else {
-    /* Enable FPU for interrupted context. */
-    frame->sr |= SR_CU1;
-  }
-}
-
-static void ri_handler(exc_frame_t *frame) {
-  if (kern_mode_p(frame))
-    kernel_oops(frame);
-
-  sig_trap(frame, SIGILL);
+    user_ctx_set_retval((user_ctx_t *)ctx, error ? -1 : retval, error);
 }
 
 /*
- * An address error exception occurs under the following circumstances:
- *  - instruction address is not aligned on a word boundary
- *  - load/store with an address is not aligned on a word/halfword boundary
- *  - reference to a kernel/supervisor address from user
- */
-static void ade_handler(exc_frame_t *frame) {
-  if (kern_mode_p(frame))
-    kernel_oops(frame);
-
-  sig_trap(frame, SIGBUS);
-}
-
-/*
- * This is exception vector table. Each exeception either has been assigned a
- * handler or kernel_oops is called for it. For exact meaning of exception
- * handlers numbers please check 5.23 Table of MIPS32 4KEc User's Manual.
+ * This is exception name table. For exact meaning of exception handlers
+ * numbers please check 5.23 Table of MIPS32 4KEc User's Manual.
  */
 
 /* clang-format off */
-static exc_handler_t exception_switch_table[32] = {
-  [EXC_INTR] = mips_intr_handler,
-  [EXC_MOD] = tlb_exception_handler,
-  [EXC_TLBL] = tlb_exception_handler,
-  [EXC_TLBS] = tlb_exception_handler,
-  [EXC_ADEL] = ade_handler,
-  [EXC_ADES] = ade_handler,
-  [EXC_SYS] = syscall_handler,
-  [EXC_FPE] = fpe_handler,
-  [EXC_MSAFPE] = fpe_handler,
-  [EXC_OVF] = fpe_handler,
-  [EXC_CPU] = cpu_handler,
-  [EXC_RI] = ri_handler
+static const char *const exceptions[32] = {
+  [EXC_INTR] = "Interrupt",
+  [EXC_MOD] = "TLB modification exception",
+  [EXC_TLBL] = "TLB exception (load or instruction fetch)",
+  [EXC_TLBS] = "TLB exception (store)",
+  [EXC_ADEL] = "Address error exception (load or instruction fetch)",
+  [EXC_ADES] = "Address error exception (store)",
+  [EXC_IBE] = "Bus error exception (instruction fetch)",
+  [EXC_DBE] = "Bus error exception (data reference: load or store)",
+  [EXC_SYS] = "System call",
+  [EXC_BP] = "Breakpoint exception",
+  [EXC_RI] = "Reserved instruction exception",
+  [EXC_CPU] = "Coprocessor Unusable exception",
+  [EXC_OVF] = "Arithmetic Overflow exception",
+  [EXC_TRAP] = "Trap exception",
+  [EXC_FPE] = "Floating point exception",
+  [EXC_TLBRI] = "TLB read inhibit",
+  [EXC_TLBXI] = "TLB execute inhibit",
+  [EXC_WATCH] = "Reference to watchpoint address",
+  [EXC_MCHECK] = "Machine checkcore",
 };
 /* clang-format on */
 
-__noreturn void kernel_oops(exc_frame_t *frame) {
-  unsigned code = exc_code(frame);
+static __noreturn void kernel_oops(ctx_t *ctx) {
+  unsigned code = exc_code(ctx);
 
   kprintf("KERNEL PANIC!!! \n");
-  kprintf("%s at $%08x!\n", exceptions[code], frame->pc);
+  kprintf("%s at $%08lx!\n", exceptions[code], _REG(ctx, EPC));
   switch (code) {
     case EXC_ADEL:
     case EXC_ADES:
@@ -132,7 +104,7 @@ __noreturn void kernel_oops(exc_frame_t *frame) {
     case EXC_DBE:
     case EXC_TLBL:
     case EXC_TLBS:
-      kprintf("Caused by reference to $%08x!\n", frame->badvaddr);
+      kprintf("Caused by reference to $%08lx!\n", _REG(ctx, BADVADDR));
       break;
     case EXC_RI:
       kprintf("Reserved instruction exception in kernel mode!\n");
@@ -148,105 +120,175 @@ __noreturn void kernel_oops(exc_frame_t *frame) {
     default:
       break;
   }
-  kprintf("HINT: Type 'info line *0x%08x' into gdb to find faulty code line.\n",
-          frame->pc);
-  if (ktest_test_running_flag)
-    ktest_failure();
-  else
-    panic();
+  kprintf(
+    "HINT: Type 'info line *0x%08lx' into gdb to find faulty code line.\n",
+    _REG(ctx, EPC));
+  ktest_failure_hook();
+  panic();
 }
 
-void kstack_overflow_handler(exc_frame_t *frame) {
-  kprintf("Kernel stack overflow caught at $%08x!\n", frame->pc);
-  if (ktest_test_running_flag)
-    ktest_failure();
-  else
-    panic();
-}
+static void tlb_exception_handler(ctx_t *ctx) {
+  thread_t *td = thread_self();
 
-/* Let's consider possible contexts that caused exception/interrupt:
- *
- * 1. We came from user-space:
- *    interrupts and preemption must have been enabled
- * 2. We came from kernel-space:
- *    a. interrupts and preemption are enabled:
- *       kernel was running in regular thread context
- *    b. preemption is disabled, interrupts are enabled:
- *       kernel was running in thread context and preemption was disabled
- *       (this can happen during acquring or releasing sleep lock aka mutex)
- *    c. interrupts are disabled, preemption is implicitly disabled:
- *       kernel was running in interrupt context or acquired spin lock
- *
- * For each context we have a set of actions to be performed:
- *
- * 1. Handle interrupt with interrupts disabled or handle exception with
- *    interrupts and preemption enabled. Then check if user thread should be
- *    preempted. Finally prepare for return to user-space, for instance
- *    deliver signal to the process.
- * 2a. Same story as for (1) except we do not return to user-space.
- * 2b. Same as (2a) but do not check if the thread should be preempted.
- * 2c. Same as (2b) but do not enable interrupts for exception handling period.
- *
- * IMPORTANT! We should never call ctx_switch while interrupt is being handled
- *            or preemption is disabled.
- */
-void mips_exc_handler(exc_frame_t *frame) {
-  unsigned code = exc_code(frame);
-  bool user_mode = user_mode_p(frame);
+  int code = exc_code(ctx);
+  vaddr_t vaddr = _REG(ctx, BADVADDR);
 
-  assert(intr_disabled());
+  klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
+       _REG(ctx, EPC), vaddr);
 
-  exc_handler_t handler = exception_switch_table[code];
-
-  if (!handler)
-    kernel_oops(frame);
-
-  if (!user_mode && (!(frame->sr & SR_IE) || preempt_disabled())) {
-    /* We came here from kernel-space because of:
-     * Case 2c: an exception, interrupts were disabled;
-     * Case 2b: either interrupt or exception, preemption was disabled.
-     * To prevent breaking critical section switching out is forbidden!
-     *
-     * In theory we can enable interrupts for the time of handling exception
-     * in case 2b. In most cases handling exceptions in critical sections
-     * will end up in kernel panic, since such scenario is usually caused
-     * by programmer's error.
-     *
-     * XXX Being a very peculiar scenario we leave it as is for later
-     *     consideration. Disabled interrupt will ease debugging.
-     */
-    PCPU_SET(no_switch, true);
-    (*handler)(frame);
-    PCPU_SET(no_switch, false);
-  } else {
-    /* Case 1 & 2a: we came from user-space or kernel-space,
-     * interrupts and preemption were enabled! */
-    assert(frame->sr & SR_IE);
-    assert(!preempt_disabled());
-
-    if (code != EXC_INTR) {
-      /* We assume it is safe to handle an exception with interrupts enabled. */
-      intr_enable();
-      (*handler)(frame);
-    } else {
-      /* Switching out while handling interrupt is forbidden! */
-      PCPU_SET(no_switch, true);
-      (*handler)(frame);
-      PCPU_SET(no_switch, false);
-      /* We did the job, so we don't need interrupts to be disabled anymore. */
-      intr_enable();
-    }
-
-    /* This is right moment to check if out time slice expired. */
-    on_exc_leave();
-
-    /* If we're about to return to user mode then check pending signals, etc. */
-    if (user_mode)
-      on_user_exc_leave();
-
-    /* Disable interrupts for the time interrupted context is being restored. */
-    intr_disable();
+  pmap_t *pmap = pmap_lookup(vaddr);
+  if (!pmap) {
+    klog("No physical map defined for %08lx address!", vaddr);
+    goto fault;
   }
 
-  assert(intr_disabled());
+  paddr_t pa;
+  if (pmap_extract(pmap, vaddr, &pa)) {
+    vm_page_t *pg = vm_page_find(pa);
+
+    /* Kernel non-pageable memory? */
+    if (TAILQ_EMPTY(&pg->pv_list))
+      goto fault;
+
+    if (code == EXC_TLBL) {
+      pmap_set_referenced(pg);
+    } else if (code == EXC_TLBS || code == EXC_MOD) {
+      pmap_set_referenced(pg);
+      pmap_set_modified(pg);
+    } else {
+      kernel_oops(ctx);
+    }
+
+    return;
+  }
+
+  vm_map_t *vmap = vm_map_lookup(vaddr);
+  if (!vmap) {
+    klog("No virtual address space defined for %08lx!", vaddr);
+    goto fault;
+  }
+  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
+  if (vm_page_fault(vmap, vaddr, access) == 0)
+    return;
+
+fault:
+  if (td->td_onfault) {
+    /* handle copyin / copyout faults */
+    _REG(ctx, EPC) = td->td_onfault;
+    td->td_onfault = 0;
+  } else if (user_mode_p(ctx)) {
+    /* Send a segmentation fault signal to the user program. */
+    sig_trap(ctx, SIGSEGV);
+  } else {
+    /* Panic when kernel-mode thread uses wrong pointer. */
+    kernel_oops(ctx);
+  }
+}
+
+static void user_trap_handler(ctx_t *ctx) {
+  /* We came here from user-space,
+   * hence interrupts and preemption must have be enabled. */
+  cpu_intr_enable();
+
+  assert(!intr_disabled() && !preempt_disabled());
+
+  int cp_id;
+
+  switch (exc_code(ctx)) {
+    case EXC_MOD:
+    case EXC_TLBL:
+    case EXC_TLBS:
+      tlb_exception_handler(ctx);
+      break;
+
+    /*
+     * An address error exception occurs under the following circumstances:
+     *  - instruction address is not aligned on a word boundary
+     *  - load/store with an address is not aligned on a word/halfword boundary
+     *  - reference to a kernel/supervisor address from user-space
+     */
+    case EXC_ADEL:
+    case EXC_ADES:
+      sig_trap(ctx, SIGBUS);
+      break;
+
+    case EXC_SYS:
+      syscall_handler(ctx);
+      break;
+
+    case EXC_FPE:
+    case EXC_MSAFPE:
+    case EXC_OVF:
+      sig_trap(ctx, SIGFPE);
+      break;
+
+    case EXC_CPU:
+      cp_id = (_REG(ctx, CAUSE) & CR_CEMASK) >> CR_CESHIFT;
+      if (cp_id != 1) {
+        sig_trap(ctx, SIGILL);
+      } else {
+        /* Enable FPU for interrupted context. */
+        _REG(ctx, SR) |= SR_CU1;
+      }
+      break;
+
+    case EXC_RI:
+      sig_trap(ctx, SIGILL);
+      break;
+
+    default:
+      kernel_oops(ctx);
+  }
+
+  /* This is right moment to check if out time slice expired. */
+  on_exc_leave();
+
+  /* If we're about to return to user mode then check pending signals, etc. */
+  on_user_exc_leave();
+}
+
+static void kern_trap_handler(ctx_t *ctx) {
+  /* We came here from kernel-space. If interrupts were enabled before we
+   * trapped, then turn them on here. */
+  if (_REG(ctx, SR) & SR_IE)
+    cpu_intr_enable();
+
+  switch (exc_code(ctx)) {
+    case EXC_MOD:
+    case EXC_TLBL:
+    case EXC_TLBS:
+      tlb_exception_handler(ctx);
+      break;
+
+    default:
+      kernel_oops(ctx);
+  }
+}
+
+void mips_exc_handler(ctx_t *ctx) {
+  assert(cpu_intr_disabled());
+
+  bool kern_mode = kern_mode_p(ctx);
+
+  if (kern_mode) {
+    /* If there's not enough space on the stack to store another exception
+     * frame we consider situation to be critical and panic.
+     * Hopefully sizeof(ctx_t) bytes of unallocated stack space will be enough
+     * to display error message. */
+    register_t sp = mips32_get_sp();
+    if ((sp & (PAGESIZE - 1)) < sizeof(ctx_t)) {
+      kprintf("Kernel stack overflow caught at $%08lx!\n", _REG(ctx, EPC));
+      ktest_failure_hook();
+      panic();
+    }
+  }
+
+  if (exc_code(ctx)) {
+    if (kern_mode)
+      kern_trap_handler(ctx);
+    else
+      user_trap_handler(ctx);
+  } else {
+    mips_intr_handler(ctx);
+  }
 }

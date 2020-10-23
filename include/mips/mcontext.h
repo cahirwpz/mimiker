@@ -35,47 +35,47 @@
 /*
  * General register state
  */
-#define _NGREG 37 /* R0-R31, MDLO, MDHI, CAUSE, PC, SR */
+#define _NGREG 37 /* R1-R31, MDLO, MDHI, CAUSE, PC, SR, BADVADDR */
 
-#define _REG_R0 0
-#define _REG_AT 1
-#define _REG_V0 2
-#define _REG_V1 3
-#define _REG_A0 4
-#define _REG_A1 5
-#define _REG_A2 6
-#define _REG_A3 7
-#define _REG_T0 8
-#define _REG_T1 9
-#define _REG_T2 10
-#define _REG_T3 11
-#define _REG_T4 12
-#define _REG_T5 13
-#define _REG_T6 14
-#define _REG_T7 15
-#define _REG_S0 16
-#define _REG_S1 17
-#define _REG_S2 18
-#define _REG_S3 19
-#define _REG_S4 20
-#define _REG_S5 21
-#define _REG_S6 22
-#define _REG_S7 23
-#define _REG_T8 24
-#define _REG_T9 25
-#define _REG_K0 26
-#define _REG_K1 27
-#define _REG_GP 28
-#define _REG_SP 29
-#define _REG_S8 30
-#define _REG_RA 31
+#define _REG_AT 0
+#define _REG_V0 1
+#define _REG_V1 2
+#define _REG_A0 3
+#define _REG_A1 4
+#define _REG_A2 5
+#define _REG_A3 6
+#define _REG_T0 7
+#define _REG_T1 8
+#define _REG_T2 9
+#define _REG_T3 10
+#define _REG_T4 11
+#define _REG_T5 12
+#define _REG_T6 13
+#define _REG_T7 14
+#define _REG_S0 15
+#define _REG_S1 16
+#define _REG_S2 17
+#define _REG_S3 18
+#define _REG_S4 19
+#define _REG_S5 20
+#define _REG_S6 21
+#define _REG_S7 22
+#define _REG_T8 23
+#define _REG_T9 24
+#define _REG_K0 25
+#define _REG_K1 26
+#define _REG_GP 27
+#define _REG_SP 28
+#define _REG_S8 29
+#define _REG_RA 30
 
 /* XXX: The following conflict with <mips/regnum.h> */
-#define _REG_MDLO 32
-#define _REG_MDHI 33
-#define _REG_CAUSE 34
-#define _REG_EPC 35
-#define _REG_SR 36
+#define _REG_MDLO 31
+#define _REG_MDHI 32
+#define _REG_CAUSE 33
+#define _REG_EPC 34
+#define _REG_SR 35
+#define _REG_BADVADDR 36
 
 #ifndef __ASSEMBLER__
 
@@ -100,16 +100,14 @@ struct __fpregset {
     int32_t __fp_regs[32];
   } __fp_r;
   unsigned int __fp_csr;
-  unsigned int __fp_pad;
 };
 
 typedef struct __fpregset __fpregset_t;
 
-typedef struct {
+typedef struct mcontext {
   __gregset_t __gregs;
   __fpregset_t __fpregs;
   __greg_t _mc_tlsbase;
-  __greg_t __mc_unused;
 } mcontext_t;
 
 #endif /* !__ASSEMBLER__ */

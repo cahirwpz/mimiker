@@ -30,16 +30,21 @@
 /* First argument is pool's address, second is memory block's address. */
 typedef void (*quar_free_t)(void *, void *);
 
+/* Quarantine item (pointer and pool to which it belongs). */
+typedef struct {
+  void *pool;
+  void *ptr;
+} quar_item_t;
+
 /* Quarantine structure */
 typedef struct {
   struct {
-    void *items[KASAN_QUAR_BUFSIZE];
+    quar_item_t items[KASAN_QUAR_BUFSIZE];
     int head;         /* first unoccupied slot */
     int tail;         /* last occupied slot */
     int count;        /* number of occupied slots */
   } q_buf;            /* cyclic buffer of items */
   quar_free_t q_free; /* function to free items after quarantine */
-  void *q_pool;       /* pool from which the items come */
 } quar_t;
 
 /* Initialize KASAN subsystem.
@@ -60,10 +65,10 @@ void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
                 uint8_t code);
 
 /* Initialize given quarantine structure */
-void kasan_quar_init(quar_t *q, void *pool, quar_free_t free);
+void kasan_quar_init(quar_t *q, quar_free_t free);
 
 /* Add an item to a quarantine. */
-void kasan_quar_additem(quar_t *q, void *ptr);
+void kasan_quar_additem(quar_t *q, void *pool, void *ptr);
 
 /* Release all items from the quarantine. */
 void kasan_quar_releaseall(quar_t *q);
@@ -72,8 +77,8 @@ void kasan_quar_releaseall(quar_t *q);
 #define kasan_mark_valid(addr, size) __nothing
 #define kasan_mark_invalid(addr, size, code) __nothing
 #define kasan_mark(addr, size, size_with_redzone, code) __nothing
-#define kasan_quar_init(q, pool, free) __nothing
-#define kasan_quar_additem(q, ptr) __nothing
+#define kasan_quar_init(q, free) __nothing
+#define kasan_quar_additem(q, pool, ptr) __nothing
 #define kasan_quar_releaseall(q) __nothing
 #endif
 

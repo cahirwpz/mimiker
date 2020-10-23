@@ -6,7 +6,6 @@
 #include <sys/errno.h>
 #include <sys/libkern.h>
 #include <sys/mutex.h>
-#include <sys/pool.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
 #include <sys/kmem.h>

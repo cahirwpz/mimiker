@@ -67,6 +67,8 @@
 #define SYS_setgroups 59
 #define SYS_setsid 60
 #define SYS_getsid 61
-#define SYS_MAXSYSCALL 62
+#define SYS_getpriority 62
+#define SYS_setpriority 63
+#define SYS_MAXSYSCALL 64
 
 #define SYS_MAXSYSARGS 6

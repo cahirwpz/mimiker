@@ -40,11 +40,12 @@ class VmPhysSeg(UserCommand):
         super().__init__('vm_physseg')
 
     def __call__(self, args):
-        table = TextTable(types='itti', align='rrrr')
-        table.header(['segment', 'start', 'end', 'pages'])
+        table = TextTable(types='ittit', align='rrrrr')
+        table.header(['segment', 'start', 'end', 'pages', 'used'])
         segments = TailQueue(global_var('seglist'), 'seglink')
         for idx, seg in enumerate(segments):
-            table.add_row([idx, seg['start'], seg['end'], int(seg['npages'])])
+            table.add_row([idx, seg['start'], seg['end'], int(seg['npages']),
+                           bool(seg['used'])])
         print(table)
 
 
@@ -56,17 +57,20 @@ class VmFreePages(UserCommand):
 
     def __call__(self, args):
         table = TextTable(align='rrl', types='iit')
-        npages = 0
+        free_pages = 0
         for q in range(PM_NQUEUES):
             count = int(global_var('pagecount')[q])
             pages = []
             for page in TailQueue(global_var('freelist')[q], 'freeq'):
                 pages.append('{:8x}'.format(int(page['paddr'])))
-                npages += int(page['size'])
+                free_pages += int(page['size'])
             table.add_row([count, 2**q, ' '.join(pages)])
         table.header(['#pages', 'size', 'addresses'])
         print(table)
-        print('Free pages count: {}'.format(npages))
+        print('Free pages count: {}'.format(free_pages))
+        segments = TailQueue(global_var('seglist'), 'seglink')
+        pages = int(sum(seg['npages'] for seg in segments if not seg['used']))
+        print('Used pages count: {}'.format(pages - free_pages))
 
 
 class VmMapSeg(UserCommand):

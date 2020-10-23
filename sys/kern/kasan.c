@@ -168,35 +168,41 @@ __always_inline static inline void shadow_check(uintptr_t addr, size_t size,
             "============================================\n",
             (void *)addr, (read ? "read" : "write"), size, code,
             code_name(code));
-    if (ktest_test_running_flag)
-      ktest_failure();
-    else
-      panic_fail();
+    ktest_failure_hook();
+    panic();
   }
 }
 
-/* Note: use of __builtin_memset in this function is not optimal if its
- * implementation is instrumented (i.e. not written in asm) */
-void kasan_mark(const void *addr, size_t size, size_t size_with_redzone,
-                uint8_t code) {
-  int8_t *shadow = kasan_md_addr_to_shad((uintptr_t)addr);
-  size_t redzone = size_with_redzone - roundup(size, KASAN_SHADOW_SCALE_SIZE);
-
+/* Marking memory has limitations captured by assertions in the code below.
+ *
+ * Memory is divided into 8-byte blocks aligned to 8-byte boundary. Each block
+ * has corresponding descriptor byte in the shadow memory. You can mark each
+ * block as valid (0x00) or invalid (0xF1 - 0xFF). Blocks can be partially valid
+ * (0x01 - 0x07) - i.e. prefix is valid, suffix is invalid.  Other variants are
+ * NOT POSSIBLE! Thus `addr` and `total` must be block aligned.
+ *
+ * Note: use of __builtin_memset in this function is not optimal if its
+ * implementation is instrumented (i.e. not written in asm). */
+void kasan_mark(const void *addr, size_t valid, size_t total, uint8_t code) {
   assert(is_aligned(addr, KASAN_SHADOW_SCALE_SIZE));
-  assert(is_aligned(redzone, KASAN_SHADOW_SCALE_SIZE));
+  assert(is_aligned(total, KASAN_SHADOW_SCALE_SIZE));
+  assert(valid <= total);
 
-  /* Valid bytes */
-  size_t len = size / KASAN_SHADOW_SCALE_SIZE;
+  int8_t *shadow = kasan_md_addr_to_shad((uintptr_t)addr);
+  int8_t *end = shadow + total / KASAN_SHADOW_SCALE_SIZE;
+
+  /* Valid bytes. */
+  size_t len = valid / KASAN_SHADOW_SCALE_SIZE;
   __builtin_memset(shadow, 0, len);
   shadow += len;
 
-  /* At most one partially valid byte */
-  if (size & KASAN_SHADOW_MASK)
-    *shadow++ = size & KASAN_SHADOW_MASK;
+  /* At most one partially valid byte. */
+  if (valid & KASAN_SHADOW_MASK)
+    *shadow++ = valid & KASAN_SHADOW_MASK;
 
-  /* Invalid bytes */
-  len = redzone / KASAN_SHADOW_SCALE_SIZE;
-  __builtin_memset(shadow, code, len);
+  /* Invalid bytes. */
+  if (shadow < end)
+    __builtin_memset(shadow, code, end - shadow);
 }
 
 void kasan_mark_valid(const void *addr, size_t size) {

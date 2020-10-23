@@ -35,7 +35,8 @@ class SimpleCommand(gdb.Command):
 
     @print_exception
     def invoke(self, args, from_tty):
-        return self(args)
+        if from_tty:
+            return self(args)
 
 
 class UserCommand():

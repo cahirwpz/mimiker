@@ -127,7 +127,7 @@ __noreturn void panic_fail(void);
 
 #define panic(FMT, ...)                                                        \
   __extension__({                                                              \
-    kprintf("[%s:%d] PANIC: " FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);    \
+    kprintf("[PANIC] %s: " FMT "\n", __func__, ##__VA_ARGS__);                 \
     panic_fail();                                                              \
   })
 
@@ -152,5 +152,17 @@ void init_clock(void);
 /* Initial range of virtual addresses used by kernel image. */
 extern char __kernel_start[];
 extern char __kernel_end[];
+
+#ifdef _MACHDEP
+/* Symbols defined by linker and used during kernel boot phase. */
+extern char __boot[];
+extern char __text[];
+extern char __data[];
+extern char __bss[];
+extern char __ebss[];
+
+/* Last physical address used by kernel for boot memory allocation. */
+extern __boot_data void *_bootmem_end;
+#endif /* !_MACHDEP */
 
 #endif /* !_SYS_MIMIKER_H_ */
