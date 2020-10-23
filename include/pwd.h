@@ -69,6 +69,7 @@
 
 #define _PATH_PASSWD "/etc/passwd"
 #define _PATH_MASTERPASSWD "/etc/master.passwd"
+#define _PASSWORD_LEN 128
 
 struct passwd {
   const char *pw_name;   /* user name */

@@ -67,6 +67,8 @@ static int sys_getgroups(proc_t *, getgroups_args_t *, register_t *);
 static int sys_setgroups(proc_t *, setgroups_args_t *, register_t *);
 static int sys_setsid(proc_t *, void *, register_t *);
 static int sys_getsid(proc_t *, getsid_args_t *, register_t *);
+static int sys_getpriority(proc_t *, getpriority_args_t *, register_t *);
+static int sys_setpriority(proc_t *, setpriority_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { .nargs = 1, .call = (syscall_t *)sys_syscall },
@@ -131,5 +133,7 @@ struct sysent sysent[] = {
   [SYS_setgroups] = { .nargs = 2, .call = (syscall_t *)sys_setgroups },
   [SYS_setsid] = { .nargs = 0, .call = (syscall_t *)sys_setsid },
   [SYS_getsid] = { .nargs = 1, .call = (syscall_t *)sys_getsid },
+  [SYS_getpriority] = { .nargs = 2, .call = (syscall_t *)sys_getpriority },
+  [SYS_setpriority] = { .nargs = 3, .call = (syscall_t *)sys_setpriority },
 };
 

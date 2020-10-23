@@ -313,3 +313,14 @@ typedef struct {
 typedef struct {
   pid_t pid;
 } getsid_args_t;
+
+typedef struct {
+  int which;
+  id_t who;
+} getpriority_args_t;
+
+typedef struct {
+  int which;
+  id_t who;
+  int prio;
+} setpriority_args_t;
