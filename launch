@@ -5,6 +5,7 @@ import os
 import os.path
 import subprocess
 import sys
+import time
 
 from launcher import *
 
@@ -51,8 +52,11 @@ def DevelRun(sim, dbg, uarts):
         session.select_window(dbg.name if dbg else '/dev/cons')
         session.attach_session()
     finally:
-        session.kill_session()
         server.kill_server()
+
+        # Give QEMU a chance to exit gracefully
+        time.sleep(0.2)
+        subprocess.run(['pkill', '-9', 'qemu'], stderr=subprocess.DEVNULL)
 
 
 if __name__ == '__main__':
