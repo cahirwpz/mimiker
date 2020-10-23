@@ -76,9 +76,8 @@ end:
 }
 
 int do_setresuid(proc_t *p, uid_t ruid, uid_t euid, uid_t suid) {
-  int error;
   proc_lock(p);
-  error = change_resuid(&p->p_cred, ruid, euid, suid);
+  int error = change_resuid(&p->p_cred, ruid, euid, suid);
   proc_unlock(p);
   return error;
 }
@@ -124,9 +123,8 @@ end:
 }
 
 int do_setresgid(proc_t *p, gid_t rgid, gid_t egid, gid_t sgid) {
-  int error;
   proc_lock(p);
-  error = change_resgid(&p->p_cred, rgid, egid, sgid);
+  int error = change_resgid(&p->p_cred, rgid, egid, sgid);
   proc_unlock(p);
   return error;
 }
@@ -143,22 +141,24 @@ int do_setgroups(proc_t *p, int ngroups, const gid_t *gidset) {
 }
 
 int do_setuid(proc_t *p, uid_t uid) {
-  int error;
   proc_lock(p);
 
-  if (p->p_cred.cr_euid == 0)
-    error = change_resuid(&p->p_cred, uid, uid, uid);
-  else
-    error = change_resuid(&p->p_cred, -1, uid, -1);
+  uid_t ruid = uid;
+  uid_t euid = uid;
+  uid_t suid = uid;
+
+  if (p->p_cred.cr_euid != 0)
+    ruid = suid = -1;
+
+  int error = change_resuid(&p->p_cred, ruid, euid, suid);
 
   proc_unlock(p);
   return error;
 }
 
 int do_seteuid(proc_t *p, uid_t euid) {
-  int error;
   proc_lock(p);
-  error = change_resuid(&p->p_cred, -1, euid, -1);
+  int error = change_resuid(&p->p_cred, -1, euid, -1);
   proc_unlock(p);
   return error;
 }
@@ -174,41 +174,46 @@ int do_setreuid(proc_t *p, uid_t ruid, uid_t euid) {
   /* if proc is not root it can set ruid only to euid */
   if (cur_euid != 0 && ruid != (uid_t)-1 && ruid != cur_euid) {
     error = EPERM;
-    goto end;
+    goto fail;
   }
 
   /* if ruid is set
-   * or euid is set to value other than current suid or ruid (and of cours euid)
+   * or euid is set to value other than current suid or ruid(and of course euid)
    * then suid is set to current euid
+   *
+   * when we don't set ruid and euid we also don't set suid
+   * (the last condition in or)
    */
-  if (ruid != (uid_t)-1 || euid != cur_ruid || euid != cur_euid ||
-      euid != cur_suid)
-    error = change_resuid(&p->p_cred, ruid, euid, cur_euid);
-  else
-    error = change_resuid(&p->p_cred, ruid, euid, -1);
+  if (ruid == (uid_t)-1 &&
+      (euid == cur_ruid || euid == cur_euid || euid == cur_suid || euid == -1))
+    cur_euid = -1;
 
-end:
+  error = change_resuid(&p->p_cred, ruid, euid, cur_euid);
+
+fail:
   proc_unlock(p);
   return error;
 }
 
 int do_setgid(proc_t *p, gid_t gid) {
-  int error;
   proc_lock(p);
 
-  if (p->p_cred.cr_euid == 0)
-    error = change_resgid(&p->p_cred, gid, gid, gid);
-  else
-    error = change_resgid(&p->p_cred, -1, gid, -1);
+  gid_t rgid = gid;
+  gid_t egid = gid;
+  gid_t sgid = gid;
+
+  if (p->p_cred.cr_euid != 0)
+    rgid = sgid = -1;
+
+  int error = change_resgid(&p->p_cred, -1, gid, -1);
 
   proc_unlock(p);
   return error;
 }
 
 int do_setegid(proc_t *p, gid_t egid) {
-  int error;
   proc_lock(p);
-  error = change_resgid(&p->p_cred, -1, egid, -1);
+  int error = change_resgid(&p->p_cred, -1, egid, -1);
   proc_unlock(p);
   return error;
 }
@@ -225,20 +230,23 @@ int do_setregid(proc_t *p, gid_t rgid, gid_t egid) {
   /* if proc is not root it can set rgid only to egid */
   if (cur_euid != 0 && rgid != (gid_t)-1 && rgid != cur_egid) {
     error = EPERM;
-    goto end;
+    goto fail;
   }
 
   /* if rgid is set
-   * or egid is set to value other than current sgid or rgid (and of course
-   * egid) then sgid is set to current egid
+   * or egid is set to value other than current sgid or rgid(and of course egid)
+   * then sgid is set to current egid
+   *
+   * when we don't set rgid and egid we also don't set sgid
+   * (the last condition in or)
    */
-  if (rgid != (gid_t)-1 || egid != cur_rgid || egid != cur_egid ||
-      egid != cur_sgid)
-    error = change_resgid(&p->p_cred, rgid, egid, cur_egid);
-  else
-    error = change_resgid(&p->p_cred, rgid, egid, -1);
+  if (rgid == (gid_t)-1 &&
+      (egid == cur_rgid || egid == cur_egid || egid == cur_sgid || egid == -1))
+    cur_egid = -1;
 
-end:
+  error = change_resgid(&p->p_cred, rgid, egid, cur_egid);
+
+fail:
   proc_unlock(p);
   return error;
 }
