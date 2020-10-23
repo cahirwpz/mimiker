@@ -143,11 +143,9 @@ int do_setgroups(proc_t *p, int ngroups, const gid_t *gidset) {
 int do_setuid(proc_t *p, uid_t uid) {
   proc_lock(p);
 
-  uid_t ruid = uid;
-  uid_t euid = uid;
-  uid_t suid = uid;
+  uid_t ruid = uid, euid = uid, suid = uid;
 
-  if (p->p_cred.cr_euid != 0)
+  if (p->p_cred.cr_euid == 0)
     ruid = suid = -1;
 
   int error = change_resuid(&p->p_cred, ruid, euid, suid);
@@ -198,9 +196,7 @@ fail:
 int do_setgid(proc_t *p, gid_t gid) {
   proc_lock(p);
 
-  gid_t rgid = gid;
-  gid_t egid = gid;
-  gid_t sgid = gid;
+  gid_t rgid = gid, egid = gid, sgid = gid;
 
   if (p->p_cred.cr_euid != 0)
     rgid = sgid = -1;
