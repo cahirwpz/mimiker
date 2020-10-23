@@ -143,13 +143,14 @@ int do_setgroups(proc_t *p, int ngroups, const gid_t *gidset) {
 }
 
 int do_setuid(proc_t *p, uid_t uid) {
-  int error;
   proc_lock(p);
 
+  uid_t ruid = uid, euid = uid, suid = uid;
+
   if (p->p_cred.cr_euid == 0)
-    error = change_resuid(&p->p_cred, uid, uid, uid);
-  else
-    error = change_resuid(&p->p_cred, -1, uid, -1);
+    ruid = suid = -1;
+
+  int error = change_resuid(&p->p_cred, ruid, euid, suid);
 
   proc_unlock(p);
   return error;
@@ -181,11 +182,11 @@ int do_setreuid(proc_t *p, uid_t ruid, uid_t euid) {
    * or euid is set to value other than current suid or ruid (and of cours euid)
    * then suid is set to current euid
    */
-  if (ruid != (uid_t)-1 || euid != cur_ruid || euid != cur_euid ||
-      euid != cur_suid)
-    error = change_resuid(&p->p_cred, ruid, euid, cur_euid);
-  else
-    error = change_resuid(&p->p_cred, ruid, euid, -1);
+  if (!(ruid != (uid_t)-1 || euid != cur_ruid || euid != cur_euid ||
+        euid != cur_suid))
+    cur_euid = -1;
+
+  error = change_resuid(&p->p_cred, ruid, euid, cur_euid);
 
 end:
   proc_unlock(p);
