@@ -11,6 +11,8 @@
 #include <sys/sched.h>
 #include <sys/malloc.h>
 
+static KMALLOC_DEFINE(M_SIGNAL, "signal");
+
 /*!\brief Signal properties.
  *
  * Non-mutually-exclusive properties can be bitwise-ORed together.
@@ -65,32 +67,6 @@ static const char *sig_name[NSIG] = {
   [SIGBUS] = "SIGBUS",
 };
 /* clang-format on */
-
-static KMALLOC_DEFINE(ksiginfo_pool, "ksiginfo pool");
-
-static ksiginfo_t *ksiginfo_alloc(const ksiginfo_t *src, int flags) {
-  ksiginfo_t *kp;
-
-  if ((kp = kmalloc(ksiginfo_pool, sizeof(ksiginfo_t), flags)) != NULL) {
-    if (src != NULL) {
-      memcpy(kp, src, sizeof(ksiginfo_t));
-      kp->ksi_flags &= ~KSI_QUEUED;
-    } else {
-      bzero(kp, sizeof(ksiginfo_t));
-      kp->ksi_flags = KSI_EMPTY;
-    }
-    kp->ksi_flags |= KSI_FROMPOOL;
-  }
-
-  return kp;
-}
-
-static void ksiginfo_free(ksiginfo_t *ksi) {
-  assert((ksi->ksi_flags & KSI_FROMPOOL) != 0);
-  assert((ksi->ksi_flags & KSI_QUEUED) == 0);
-
-  kfree(ksiginfo_pool, ksi);
-}
 
 /* Default action for a signal. */
 static sigprop_t defact(signo_t sig) {
@@ -200,44 +176,21 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   return EINTR;
 }
 
-static void sigpend_info(sigpend_t *sp, ksiginfo_t *out, signo_t sig) {
-  ksiginfo_t *ksi;
+static ksiginfo_t *ksiginfo_copy(const ksiginfo_t *src) {
+  ksiginfo_t *kp = kmalloc(M_SIGNAL, sizeof(ksiginfo_t), M_NOWAIT);
+  assert(kp != NULL);
 
-  /* Find siginfo and copy it out. */
-  bool present = 0;
-  TAILQ_FOREACH (ksi, &sp->sp_info, ksi_list) {
-    if (ksi->ksi_signo != sig)
-      continue;
-    present = 1;
-    TAILQ_REMOVE(&sp->sp_info, ksi, ksi_list);
-    assert((ksi->ksi_flags & KSI_FROMPOOL) != 0);
-    assert((ksi->ksi_flags & KSI_QUEUED) != 0);
-    ksi->ksi_flags &= ~KSI_QUEUED;
-    if (out != NULL) {
-      memcpy(out, ksi, sizeof(ksiginfo_t));
-      out->ksi_flags &= ~KSI_FROMPOOL;
-    }
-    ksiginfo_free(ksi);
-    break;
-  }
-
-  if (!present && out != NULL) {
-    bzero(out, sizeof(ksiginfo_t));
-    out->ksi_signo = sig;
-    out->ksi_code = SI_NOINFO;
-  }
+  memcpy(kp, src, sizeof(ksiginfo_t));
+  kp->ksi_flags &= ~KSI_QUEUED;
+  kp->ksi_flags |= KSI_FROMPOOL;
+  return kp;
 }
 
-static inline void sigpend_get(sigpend_t *sp, ksiginfo_t *out, signo_t sig) {
-  assert(sp != NULL);
-  assert(sig != 0);
+static void ksiginfo_free(ksiginfo_t *ksi) {
+  assert((ksi->ksi_flags & KSI_FROMPOOL) != 0);
+  assert((ksi->ksi_flags & KSI_QUEUED) == 0);
 
-  __sigdelset(&sp->sp_set, sig);
-  sigpend_info(sp, out, sig);
-}
-
-static inline void sigpend_clear(sigpend_t *sp, signo_t sig) {
-  sigpend_get(sp, NULL, sig);
+  kfree(M_SIGNAL, ksi);
 }
 
 void sigpend_init(sigpend_t *sp) {
@@ -254,10 +207,41 @@ void sigpend_destroy(sigpend_t *sp) {
 
   TAILQ_FOREACH (ksi, &sp->sp_info, ksi_list) {
     TAILQ_REMOVE(&sp->sp_info, ksi, ksi_list);
-    assert((ksi->ksi_flags & KSI_FROMPOOL) != 0);
-    assert((ksi->ksi_flags & KSI_QUEUED) != 0);
+    assert(ksi->ksi_flags & KSI_FROMPOOL);
+    assert(ksi->ksi_flags & KSI_QUEUED);
     ksiginfo_free(ksi);
   }
+}
+
+static void sigpend_get(sigpend_t *sp, signo_t sig, ksiginfo_t *out) {
+  __sigdelset(&sp->sp_set, sig);
+
+  /* Find siginfo and copy it out. */
+  ksiginfo_t *ksi;
+  TAILQ_FOREACH (ksi, &sp->sp_info, ksi_list) {
+    if (ksi->ksi_signo == sig)
+      break;
+  }
+
+  if (!ksi) {
+    if (out) {
+      bzero(out, sizeof(ksiginfo_t));
+      out->ksi_signo = sig;
+      out->ksi_code = SI_NOINFO;
+    }
+    return;
+  }
+
+  TAILQ_REMOVE(&sp->sp_info, ksi, ksi_list);
+  assert(ksi->ksi_flags & KSI_FROMPOOL);
+  assert(ksi->ksi_flags & KSI_QUEUED);
+  ksi->ksi_flags &= ~KSI_QUEUED;
+  if (out) {
+    memcpy(out, ksi, sizeof(ksiginfo_t));
+    out->ksi_flags &= ~KSI_FROMPOOL;
+  }
+
+  ksiginfo_free(ksi);
 }
 
 static void sigpend_put(sigpend_t *sp, ksiginfo_t *ksi) {
@@ -269,27 +253,26 @@ static void sigpend_put(sigpend_t *sp, ksiginfo_t *ksi) {
   __sigaddset(&sp->sp_set, sig);
 
   /* If there is no siginfo, we are done. */
-  if (ksi->ksi_flags & KSI_EMPTY)
+  if (ksi->ksi_flags & KSI_EMPTY) {
+    ksiginfo_free(ksi);
     return;
+  }
 
-  assert((ksi->ksi_flags & KSI_FROMPOOL) != 0);
+  assert(ksi->ksi_flags & KSI_FROMPOOL);
 
   ksiginfo_t *kp;
-  TAILQ_FOREACH (kp, &sp->sp_info, ksi_list)
-    if (kp->ksi_signo == sig) {
-      ksi->ksi_info = kp->ksi_info;
-      ksi->ksi_flags = kp->ksi_flags | KSI_QUEUED;
-      return;
-    }
+  TAILQ_FOREACH (kp, &sp->sp_info, ksi_list) {
+    if (kp->ksi_signo == sig)
+      break;
+  }
 
-  TAILQ_INSERT_TAIL(&sp->sp_info, ksi, ksi_list);
-  ksi->ksi_flags |= KSI_QUEUED;
-}
-
-static inline void sigpend_put_and_free(sigpend_t *sp, ksiginfo_t *ksi) {
-  sigpend_put(sp, ksi);
-  if ((ksi->ksi_flags & KSI_QUEUED) == 0)
-    ksiginfo_free(ksi);
+  if (kp) {
+    ksi->ksi_info = kp->ksi_info;
+    ksi->ksi_flags = kp->ksi_flags | KSI_QUEUED;
+  } else {
+    TAILQ_INSERT_TAIL(&sp->sp_info, ksi, ksi_list);
+    ksi->ksi_flags |= KSI_QUEUED;
+  }
 }
 
 void sig_child(proc_t *p, int code) {
@@ -353,25 +336,19 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
   /* If stopping or continuing,
    * remove pending signals with the opposite effect. */
   if (sig == SIGSTOP)
-    sigpend_clear(&td->td_sigpend, SIGCONT);
+    sigpend_get(&td->td_sigpend, SIGCONT, NULL);
 
-  ksiginfo_t *kp;
-  if ((kp = ksiginfo_alloc(ksi, M_NOWAIT)) == NULL) {
-    /* Here NetBSD returns an error equal to 0.
-     * Since 0 means 'success', we simply return
-     * without sending the signal. */
-    return;
-  }
+  ksiginfo_t *kp = ksiginfo_copy(ksi);
 
   if (sig == SIGCONT) {
-    sigpend_clear(&td->td_sigpend, SIGSTOP);
+    sigpend_get(&td->td_sigpend, SIGSTOP, NULL);
 
     /* In case of SIGCONT, make it pending only if the process catches it. */
     if (handler != SIG_IGN && handler != SIG_DFL)
-      sigpend_put_and_free(&td->td_sigpend, kp);
+      sigpend_put(&td->td_sigpend, kp);
   } else {
     /* Every other signal is marked as pending. */
-    sigpend_put_and_free(&td->td_sigpend, kp);
+    sigpend_put(&td->td_sigpend, kp);
   }
 
   /* Don't wake up the target thread if it blocks the signal being sent.
@@ -413,7 +390,7 @@ int sig_check(thread_t *td, ksiginfo_t *out) {
         td->td_flags &= ~TDF_NEEDSIGCHK;
       return 0;
     }
-    sigpend_get(&td->td_sigpend, out, sig);
+    sigpend_get(&td->td_sigpend, sig, out);
 
     sig_t handler = p->p_sigactions[sig].sa_handler;
 
