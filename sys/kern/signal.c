@@ -200,11 +200,10 @@ void sigpend_init(sigpend_t *sp) {
 }
 
 void sigpend_destroy(sigpend_t *sp) {
-  ksiginfo_t *ksi;
-
   assert(sp != NULL);
   __sigemptyset(&sp->sp_set);
 
+  ksiginfo_t *ksi;
   TAILQ_FOREACH (ksi, &sp->sp_info, ksi_list) {
     TAILQ_REMOVE(&sp->sp_info, ksi, ksi_list);
     assert(ksi->ksi_flags & KSI_FROMPOOL);
@@ -240,7 +239,6 @@ static void sigpend_get(sigpend_t *sp, signo_t sig, ksiginfo_t *out) {
     memcpy(out, ksi, sizeof(ksiginfo_t));
     out->ksi_flags &= ~KSI_FROMPOOL;
   }
-
   ksiginfo_free(ksi);
 }
 
@@ -253,7 +251,7 @@ static void sigpend_put(sigpend_t *sp, ksiginfo_t *ksi) {
   __sigaddset(&sp->sp_set, sig);
 
   /* If there is no siginfo, we are done. */
-  if (ksi->ksi_flags & KSI_EMPTY) {
+  if (ksi->ksi_flags & KSI_RAW) {
     ksiginfo_free(ksi);
     return;
   }

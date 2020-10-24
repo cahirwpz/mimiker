@@ -35,7 +35,7 @@ typedef struct siginfo {
 
 typedef enum {
   KSI_TRAP = 1,    /* signal caused by trap */
-  KSI_EMPTY = 2,   /* no additional information */
+  KSI_RAW = 2,     /* no additional information for signal */
   KSI_QUEUED = 4,  /* on a sigpend_t queue */
   KSI_FROMPOOL = 8 /* allocated from the ksiginfo pool */
 } ksi_flags_t;
@@ -59,6 +59,16 @@ typedef struct sigpend {
 
 void sigpend_init(sigpend_t *sp);
 void sigpend_destroy(sigpend_t *sp);
+
+#define DEF_KSI_TRAP(sig)                                                      \
+  (ksiginfo_t) {                                                               \
+    .ksi_flags = KSI_TRAP, .ksi_signo = (sig)                                  \
+  }
+
+#define DEF_KSI_RAW(sig)                                                       \
+  (ksiginfo_t) {                                                               \
+    .ksi_flags = KSI_RAW, .ksi_signo = (sig)                                   \
+  }
 
 /* Field access macros */
 #define ksi_signo ksi_info.si_signo

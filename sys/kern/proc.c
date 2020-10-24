@@ -198,16 +198,12 @@ static void pgrp_maybe_orphan(pgrp_t *pg) {
   if (--pg->pg_jobc > 0)
     return;
 
-  ksiginfo_t ksi = {.ksi_flags = KSI_EMPTY};
-
   proc_t *p;
   TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
     if (p->p_state == PS_STOPPED) {
       WITH_MTX_LOCK (&p->p_lock) {
-        ksi.ksi_signo = SIGHUP;
-        sig_kill(p, &ksi);
-        ksi.ksi_signo = SIGCONT;
-        sig_kill(p, &ksi);
+        sig_kill(p, &DEF_KSI_RAW(SIGHUP));
+        sig_kill(p, &DEF_KSI_RAW(SIGCONT));
       }
     }
   }
@@ -543,13 +539,11 @@ int proc_sendsig(pid_t pid, signo_t sig) {
 
   proc_t *target;
 
-  ksiginfo_t ksi = {.ksi_flags = KSI_EMPTY, .ksi_signo = sig};
-
   if (pid > 0) {
     target = proc_find(pid);
     if (target == NULL)
       return EINVAL;
-    sig_kill(target, &ksi);
+    sig_kill(target, &DEF_KSI_RAW(sig));
     proc_unlock(target);
     return 0;
   }
@@ -572,7 +566,7 @@ int proc_sendsig(pid_t pid, signo_t sig) {
 
   TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist) {
     WITH_MTX_LOCK (&target->p_lock)
-      sig_kill(target, &ksi);
+      sig_kill(target, &DEF_KSI_RAW(sig));
   }
 
   return 0;
