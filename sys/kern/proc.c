@@ -198,8 +198,7 @@ static void pgrp_maybe_orphan(pgrp_t *pg) {
   if (--pg->pg_jobc > 0)
     return;
 
-  ksiginfo_t ksi;
-  KSI_INIT_EMPTY(&ksi);
+  ksiginfo_t ksi = {.ksi_flags = KSI_EMPTY};
 
   proc_t *p;
   TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
@@ -544,9 +543,7 @@ int proc_sendsig(pid_t pid, signo_t sig) {
 
   proc_t *target;
 
-  ksiginfo_t ksi;
-  KSI_INIT_EMPTY(&ksi);
-  ksi.ksi_signo = sig;
+  ksiginfo_t ksi = {.ksi_flags = KSI_EMPTY, .ksi_signo = sig};
 
   if (pid > 0) {
     target = proc_find(pid);

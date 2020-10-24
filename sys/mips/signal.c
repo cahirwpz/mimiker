@@ -111,9 +111,7 @@ void sig_trap(ctx_t *ctx, signo_t sig) {
   proc_t *proc = proc_self();
   WITH_MTX_LOCK (all_proc_mtx)
     WITH_MTX_LOCK (&proc->p_lock) {
-      ksiginfo_t ksi;
-      KSI_INIT_TRAP(&ksi);
-      ksi.ksi_signo = sig;
+      ksiginfo_t ksi = {.ksi_flags = KSI_TRAP, .ksi_signo = sig};
       sig_kill(proc, &ksi);
     }
 }

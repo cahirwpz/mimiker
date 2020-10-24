@@ -76,7 +76,8 @@ static ksiginfo_t *ksiginfo_alloc(const ksiginfo_t *src, int flags) {
       memcpy(kp, src, sizeof(ksiginfo_t));
       kp->ksi_flags &= ~KSI_QUEUED;
     } else {
-      KSI_INIT_EMPTY(kp);
+      bzero(kp, sizeof(ksiginfo_t));
+      kp->ksi_flags = KSI_EMPTY;
     }
     kp->ksi_flags |= KSI_FROMPOOL;
   }
@@ -221,7 +222,7 @@ static void sigpend_info(sigpend_t *sp, ksiginfo_t *out, signo_t sig) {
   }
 
   if (!present && out != NULL) {
-    KSI_INIT(out);
+    bzero(out, sizeof(ksiginfo_t));
     out->ksi_signo = sig;
     out->ksi_code = SI_NOINFO;
   }
@@ -237,6 +238,12 @@ static inline void sigpend_get(sigpend_t *sp, ksiginfo_t *out, signo_t sig) {
 
 static inline void sigpend_clear(sigpend_t *sp, signo_t sig) {
   sigpend_get(sp, NULL, sig);
+}
+
+void sigpend_init(sigpend_t *sp) {
+  assert(sp != NULL);
+  TAILQ_INIT(&sp->sp_info);
+  __sigemptyset(&sp->sp_set);
 }
 
 void sigpend_destroy(sigpend_t *sp) {
@@ -262,7 +269,7 @@ static void sigpend_put(sigpend_t *sp, ksiginfo_t *ksi) {
   __sigaddset(&sp->sp_set, sig);
 
   /* If there is no siginfo, we are done. */
-  if (KSI_EMPTY_P(ksi))
+  if (ksi->ksi_flags & KSI_EMPTY)
     return;
 
   assert((ksi->ksi_flags & KSI_FROMPOOL) != 0);
@@ -270,8 +277,8 @@ static void sigpend_put(sigpend_t *sp, ksiginfo_t *ksi) {
   ksiginfo_t *kp;
   TAILQ_FOREACH (kp, &sp->sp_info, ksi_list)
     if (kp->ksi_signo == sig) {
-      KSI_COPY(ksi, kp);
-      kp->ksi_flags |= KSI_QUEUED;
+      ksi->ksi_info = kp->ksi_info;
+      ksi->ksi_flags = kp->ksi_flags | KSI_QUEUED;
       return;
     }
 
@@ -286,20 +293,18 @@ static inline void sigpend_put_and_free(sigpend_t *sp, ksiginfo_t *ksi) {
 }
 
 void sig_child(proc_t *p, int code) {
-  ksiginfo_t ksi;
-  proc_t *parent;
-
   assert(p != NULL);
   assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&p->p_lock));
 
-  KSI_INIT(&ksi);
-  ksi.ksi_signo = SIGCHLD;
-  ksi.ksi_code = code;
-  ksi.ksi_pid = p->p_pid;
-  ksi.ksi_uid = p->p_cred.cr_euid;
+  ksiginfo_t ksi = {
+    .ksi_signo = SIGCHLD,
+    .ksi_code = code,
+    .ksi_pid = p->p_pid,
+    .ksi_uid = p->p_cred.cr_euid,
+  };
 
-  parent = p->p_parent;
+  proc_t *parent = p->p_parent;
 
   proc_unlock(p);
   WITH_MTX_LOCK (&parent->p_lock)
