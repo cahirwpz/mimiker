@@ -61,14 +61,18 @@ void init_arm_timer(void) {
 }
 
 static vaddr_t va;
+static resource_t *r;
 
 int arm_timer_attach(device_t *dev) {
-  /* TODO(pj): This memory should be managed by bus_space_map. */
-  va = kva_alloc(PAGESIZE);
-  assert((void *)va != NULL);
+  r = bus_alloc_resource(dev, RT_MEMORY, 1, BCM2836_ARM_LOCAL_BASE,
+                         BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1,
+                         BCM2836_ARM_LOCAL_SIZE, RF_ACTIVE);
 
-  paddr_t pa = BCM2836_ARM_LOCAL_BASE;
-  pmap_kenter(va, pa, VM_PROT_READ | VM_PROT_WRITE, PMAP_NOCACHE);
+  assert(r != NULL);
+  bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
+                &r->r_bus_handle);
+
+  va = r->r_bus_handle;
 
   size_t offset = BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0);
   volatile uint32_t *timerp = (uint32_t *)(va + offset);
