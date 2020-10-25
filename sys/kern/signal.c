@@ -250,13 +250,13 @@ static void sigpend_put(sigpend_t *sp, ksiginfo_t *ksi) {
   signo_t sig = ksi->ksi_signo;
   __sigaddset(&sp->sp_set, sig);
 
+  assert(ksi->ksi_flags & KSI_FROMPOOL);
+
   /* If there is no siginfo, we are done. */
   if (ksi->ksi_flags & KSI_RAW) {
     ksiginfo_free(ksi);
     return;
   }
-
-  assert(ksi->ksi_flags & KSI_FROMPOOL);
 
   ksiginfo_t *kp;
   TAILQ_FOREACH (kp, &sp->sp_info, ksi_list) {
@@ -265,8 +265,8 @@ static void sigpend_put(sigpend_t *sp, ksiginfo_t *ksi) {
   }
 
   if (kp) {
-    ksi->ksi_info = kp->ksi_info;
-    ksi->ksi_flags = kp->ksi_flags | KSI_QUEUED;
+    kp->ksi_info = ksi->ksi_info;
+    kp->ksi_flags = ksi->ksi_flags | KSI_QUEUED;
   } else {
     TAILQ_INSERT_TAIL(&sp->sp_info, ksi, ksi_list);
     ksi->ksi_flags |= KSI_QUEUED;
