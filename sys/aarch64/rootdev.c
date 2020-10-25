@@ -4,6 +4,7 @@
 #include <sys/devclass.h>
 #include <aarch64/armreg.h>
 #include <aarch64/bcm2835reg.h>
+#include <aarch64/interrupt.h>
 #include <sys/kmem.h>
 #include <sys/pmap.h>
 #include <sys/timer.h>
@@ -131,9 +132,11 @@ static bus_space_t *rootdev_bus_space = &(bus_space_t){
 
 static void rootdev_intr_setup(device_t *dev, unsigned num,
                                intr_handler_t *handler) {
+  aarch64_intr_setup(handler, num);
 }
 
 static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
+  aarch64_intr_teardown(handler);
 }
 
 static int rootdev_attach(device_t *bus) {

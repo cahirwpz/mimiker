@@ -20,6 +20,26 @@ bool cpu_intr_disabled(void) {
   return (daif & DAIF_I_MASKED) != 0;
 }
 
+#define N_IRQ 64
+
+static intr_event_t aarch64_intr_event[N_IRQ];
+
+void init_aarch64_intr(void) {
+  for (int i = 0; i < N_IRQ; i++) {
+    intr_event_init(&aarch64_intr_event[i], i, NULL, NULL, NULL, NULL);
+    intr_event_register(&aarch64_intr_event[i]);
+  }
+}
+
+void aarch64_intr_setup(intr_handler_t *handler, unsigned irq) {
+  intr_event_t *event = &aarch64_intr_event[irq];
+  intr_event_add_handler(event, handler);
+}
+
+void aarch64_intr_teardown(intr_handler_t *handler) {
+  intr_event_remove_handler(handler);
+}
+
 /* TODO(pj): temporary hack -- remove it before merge */
 extern void intr_tick(void);
 

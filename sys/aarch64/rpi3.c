@@ -11,6 +11,7 @@
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/timer.h>
+#include <aarch64/interrupt.h>
 
 static int count_atags(atag_tag_t *atags) {
   int ntokens = 0;
@@ -89,6 +90,7 @@ __noreturn void board_init(void) {
   init_klog();
   init_arm_timer();
   rpi3_physmem();
+  init_aarch64_intr();
   intr_enable();
   kernel_init();
 }
