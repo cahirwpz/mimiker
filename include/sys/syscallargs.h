@@ -315,6 +315,17 @@ typedef struct {
 } getsid_args_t;
 
 typedef struct {
+  int which;
+  id_t who;
+} getpriority_args_t;
+
+typedef struct {
+  int which;
+  id_t who;
+  int prio;
+} setpriority_args_t;
+
+typedef struct {
   uid_t uid;
 } setuid_args_t;
 

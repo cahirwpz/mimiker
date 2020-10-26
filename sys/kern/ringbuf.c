@@ -77,3 +77,7 @@ int ringbuf_write(ringbuf_t *buf, uio_t *uio) {
   }
   return 0;
 }
+
+void ringbuf_reset(ringbuf_t *buf) {
+  ringbuf_init(buf, buf->data, buf->size);
+}
