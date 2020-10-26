@@ -51,9 +51,9 @@ CONFIG = {
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
                 'uarts': [
-                    ('/dev/tty1', uart_port(0)),
-                    ('/dev/tty2', uart_port(1)),
-                    ('/dev/cons', uart_port(2))
+                    dict(name='/dev/tty1', port=uart_port(0)),
+                    dict(name='/dev/tty2', port=uart_port(1)),
+                    dict(name='/dev/cons', port=uart_port(2))
                 ]
             },
             'rpi3': {
@@ -63,7 +63,7 @@ CONFIG = {
                     '-smp', '4',
                     '-cpu', 'cortex-a53'],
                 'uarts': [
-                    ('/dev/cons', uart_port(0))
+                    dict(name='/dev/cons', port=uart_port(0))
                 ]
             }
         }
@@ -201,7 +201,8 @@ class QEMU(Launchable):
         super().__init__('qemu', getvar('qemu.binary'))
 
         self.options = getopts('qemu.options')
-        for _, port in getvar('qemu.uarts'):
+        for uart in getvar('qemu.uarts'):
+            port = uart['port']
             self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
         if getvar('config.args'):
@@ -237,11 +238,14 @@ class CGDB(GDB):
 
 
 class SOCAT(Launchable):
-    def __init__(self, name, tcp_port):
+    def __init__(self, name, tcp_port, raw=False):
         super().__init__(name, 'socat')
         # The simulator will only open the server after some time has
         # passed.  To minimize the delay, keep reconnecting until success.
-        self.options = ['STDIO', f'tcp:localhost:{tcp_port},retry,forever']
+        stdio_opt = 'STDIO'
+        if raw:
+            stdio_opt += ',cfmakeraw'
+        self.options = [stdio_opt, f'tcp:localhost:{tcp_port},retry,forever']
 
 
 Debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
