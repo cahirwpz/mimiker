@@ -10,6 +10,11 @@
 
 #define CNTCTL_ENABLE 1
 
+typedef struct arm_timer_state {
+  resource_t *rm_mem;
+  vaddr_t va_page;
+} arm_timer_state_t;
+
 static int timer_start(timer_t *tm, unsigned flags, const bintime_t start,
                        const bintime_t period) {
   uint64_t step = bintime_mul(period, tm->tm_frequency).sec;
@@ -46,10 +51,9 @@ static timer_t timer = (timer_t){
   .tm_start = timer_start,
   .tm_stop = timer_stop,
   .tm_gettime = timer_gettime,
-  .tm_priv = NULL,
 };
 
-void init_arm_timer(void) {
+static int arm_timer_attach(device_t *dev) {
   uint64_t freq = READ_SPECIALREG(cntfrq_el0);
 
   timer.tm_frequency = freq;
@@ -58,24 +62,25 @@ void init_arm_timer(void) {
   timer.tm_max_period = bintime_mul(HZ2BT(freq), 1LL << 30);
   tm_register(&timer);
   tm_select(&timer);
-}
 
-static vaddr_t va;
-static resource_t *r;
+  arm_timer_state_t *state = dev->state;
 
-int arm_timer_attach(device_t *dev) {
-  r = bus_alloc_resource(dev, RT_MEMORY, 1, BCM2836_ARM_LOCAL_BASE,
-                         BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1,
-                         BCM2836_ARM_LOCAL_SIZE, RF_ACTIVE);
+  /* Request for shared memory. */
+  state->rm_mem =
+    bus_alloc_resource(dev, RT_MEMORY, 1, BCM2836_ARM_LOCAL_BASE,
+                       BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1,
+                       BCM2836_ARM_LOCAL_SIZE, RF_ACTIVE);
 
-  assert(r != NULL);
-  bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
-                &r->r_bus_handle);
+  assert(state->rm_mem != NULL);
+  bus_space_map(state->rm_mem->r_bus_tag, state->rm_mem->r_start,
+                state->rm_mem->r_end - state->rm_mem->r_start + 1,
+                &state->rm_mem->r_bus_handle);
 
-  va = r->r_bus_handle;
+  state->va_page = state->rm_mem->r_bus_handle;
 
+  /* Enable interrupt for CPU0. */
   size_t offset = BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0);
-  volatile uint32_t *timerp = (uint32_t *)(va + offset);
+  volatile uint32_t *timerp = (uint32_t *)(state->va_page + offset);
   *timerp = *timerp | (1 << BCM2836_INT_CNTPNSIRQ);
 
   return 0;
@@ -92,4 +97,17 @@ void intr_tick(void) {
   WRITE_SPECIALREG(cntp_cval_el0, count + freq);
 
   __asm__ volatile("isb" ::: "memory");
+}
+
+static driver_t arm_timer_driver = {
+  .desc = "ARM CPU timer driver",
+  .size = sizeof(arm_timer_state_t),
+  .attach = arm_timer_attach,
+};
+
+void arm_timer_init(device_t *bus) {
+  device_t *dev = device_add_child(bus, bus->devclass, -1);
+  dev->driver = &arm_timer_driver;
+  device_probe(dev);
+  device_attach(dev);
 }

@@ -53,7 +53,7 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
   aarch64_intr_teardown(handler);
 }
 
-extern int arm_timer_attach(device_t *dev);
+extern int arm_timer_init(device_t *dev);
 
 static int rootdev_attach(device_t *bus) {
   rman_init(&rm_mem[0], "BCM2835 peripherials", BCM2835_PERIPHERALS_BASE,
@@ -67,8 +67,7 @@ static int rootdev_attach(device_t *bus) {
               VM_PROT_READ | VM_PROT_WRITE, PMAP_NOCACHE);
 
   /* TODO(pj) do it in correct way. */
-  device_t *timer = device_add_child(bus, bus->devclass, -1);
-  arm_timer_attach(timer);
+  arm_timer_init(bus);
 
   return 0;
 }
