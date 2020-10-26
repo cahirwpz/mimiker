@@ -267,6 +267,7 @@ static void sigpend_put(sigpend_t *sp, ksiginfo_t *ksi) {
   if (kp) {
     kp->ksi_info = ksi->ksi_info;
     kp->ksi_flags = ksi->ksi_flags | KSI_QUEUED;
+    ksiginfo_free(ksi);
   } else {
     TAILQ_INSERT_TAIL(&sp->sp_info, ksi, ksi_list);
     ksi->ksi_flags |= KSI_QUEUED;
