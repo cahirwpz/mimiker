@@ -4,6 +4,7 @@ import shlex
 import shutil
 import signal
 import subprocess
+import os
 
 FIRST_UID = 1000
 
@@ -147,12 +148,19 @@ class Launchable():
         self.name = name
         self.cmd = cmd
         self.window = None
+        self.pid = None
         self.options = []
 
     def start(self, session):
         cmd = ' '.join([self.cmd] + list(map(shlex.quote, self.options)))
         self.window = session.new_window(
             attach=False, window_name=self.name, window_shell=cmd)
+        # We have to select the window to get the PID of the process
+        self.window.select_window()
+        
+        cmd = session.server.cmd('list-panes', '-F', '"#{pane_pid}"')
+        self.pid = int(cmd.stdout[0].strip('"'))
+                
 
     def run(self):
         self.process = subprocess.Popen([self.cmd] + self.options,
@@ -181,6 +189,13 @@ class Launchable():
             # Process already quit.
             pass
         self.process = None
+
+    def kill(self):
+        try:
+            os.kill(self.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            # Process already quit.
+            pass
 
     def interrupt(self):
         if self.process is not None:

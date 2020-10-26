@@ -56,7 +56,7 @@ def DevelRun(sim, dbg, uarts):
 
         # Give QEMU a chance to exit gracefully
         time.sleep(0.2)
-        subprocess.run(['pkill', '-9', 'qemu'], stderr=subprocess.DEVNULL)
+        sim.kill()
 
 
 if __name__ == '__main__':
