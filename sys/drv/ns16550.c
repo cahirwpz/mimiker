@@ -104,28 +104,18 @@ static intr_filter_t ns16550_intr(void *data) {
 /*
  * If tx_buf is empty, we can try to write characters directly from tty->t_outq.
  * This routine attempts to do just that.
- * Must be called with tty->t_lock held. Acquires ns16550->lock.
+ * Must be called with both tty->t_lock and ns16550->lock held.
  */
 static void ns16550_try_bypass_txbuf(ns16550_state_t *ns16550, tty_t *tty) {
   resource_t *uart = ns16550->regs;
-  uint32_t count = 0;
   uint8_t byte;
 
   if (!ringbuf_empty(&ns16550->tx_buf))
     return;
 
-  spin_lock(&ns16550->lock);
   while ((in(uart, LSR) & LSR_THRE) && ringbuf_getb(&tty->t_outq, &byte)) {
     out(uart, THR, byte);
-    /* Avoid holding ns16550->lock for too long, since interrupts are disabled
-     * while we're holding it. */
-    if (++count >= 20) {
-      count = 0;
-      spin_unlock(&ns16550->lock);
-      spin_lock(&ns16550->lock);
-    }
   }
-  spin_unlock(&ns16550->lock);
 }
 
 static void ns16550_set_tty_outq_nonempty_flag(ns16550_state_t *ns16550,
@@ -143,9 +133,9 @@ static void ns16550_set_tty_outq_nonempty_flag(ns16550_state_t *ns16550,
 static void ns16550_fill_txbuf(ns16550_state_t *ns16550, tty_t *tty) {
   uint8_t byte;
 
-  ns16550_try_bypass_txbuf(ns16550, tty);
   while (true) {
     SCOPED_SPIN_LOCK(&ns16550->lock);
+    ns16550_try_bypass_txbuf(ns16550, tty);
     if (ringbuf_full(&ns16550->tx_buf) || !ringbuf_getb(&tty->t_outq, &byte)) {
       /* Enable TXRDY interrupts if there are characters in tx_buf. */
       if (!ringbuf_empty(&ns16550->tx_buf))
