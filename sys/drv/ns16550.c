@@ -198,10 +198,10 @@ static int ns16550_attach(device_t *dev) {
 
   ns16550_state_t *ns16550 = dev->state;
 
-  ns16550->rx_buf.data = kmalloc(M_DEV, UART_BUFSIZE, M_ZERO);
-  ns16550->rx_buf.size = UART_BUFSIZE;
-  ns16550->tx_buf.data = kmalloc(M_DEV, UART_BUFSIZE, M_ZERO);
-  ns16550->tx_buf.size = UART_BUFSIZE;
+  ringbuf_init(&ns16550->rx_buf, kmalloc(M_DEV, UART_BUFSIZE, M_ZERO),
+               UART_BUFSIZE);
+  ringbuf_init(&ns16550->tx_buf, kmalloc(M_DEV, UART_BUFSIZE, M_ZERO),
+               UART_BUFSIZE);
 
   spin_init(&ns16550->lock, 0);
 
