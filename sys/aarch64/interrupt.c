@@ -40,13 +40,12 @@ void aarch64_intr_teardown(intr_handler_t *handler) {
   intr_event_remove_handler(handler);
 }
 
-/* TODO(pj): temporary hack -- remove it before merge */
-extern void intr_tick(void);
-
 void cpu_intr_handler(ctx_t *ctx) {
   intr_disable();
+
   /* TODO(pj): temporary hack -- remove it before merge */
-  intr_tick();
+  intr_event_run_handlers(&aarch64_intr_event[0]);
+
   intr_enable();
   on_exc_leave();
 }

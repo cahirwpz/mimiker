@@ -10,6 +10,12 @@
 
 #define CNTCTL_ENABLE 1
 
+/*
+ * TODO(pj): This should be defined in one header for machine dependent AArch64
+ * code.
+ */
+#define __isb() __asm__ volatile("ISB" ::: "memory")
+
 typedef struct arm_timer_state {
   resource_t *rm_mem;
   vaddr_t va_page;
@@ -24,11 +30,7 @@ static int timer_start(timer_t *tm, unsigned flags, const bintime_t start,
     WRITE_SPECIALREG(cntp_cval_el0, count + step);
     WRITE_SPECIALREG(cntp_ctl_el0, CNTCTL_ENABLE);
 
-    /*
-     * TODO(pj): This should be defined in one header for machine dependent
-     * AArch64 code.
-     */
-    __asm__ volatile("isb" ::: "memory");
+    __isb();
   }
 
   return 0;
@@ -45,15 +47,44 @@ static bintime_t timer_gettime(timer_t *tm) {
   return val;
 }
 
+static intr_filter_t arm_timer_intr(void *data) {
+  tm_trigger(data);
+
+  /*
+   * https://developer.arm.com/docs/ddi0595/h/aarch64-system-registers/cntp_cval_el0
+   */
+  uint64_t count = READ_SPECIALREG(cntpct_el0);
+  uint64_t freq = READ_SPECIALREG(cntfrq_el0);
+  WRITE_SPECIALREG(cntp_cval_el0, count + freq);
+
+  __isb();
+
+  return IF_FILTERED;
+}
+
+typedef struct timer_priv {
+  device_t *dev;
+  intr_handler_t intr_handler;
+} timer_priv_t;
+
+static timer_priv_t timer_priv;
+
 static timer_t timer = (timer_t){
   .tm_name = "arm-cpu-timer",
   .tm_flags = TMF_PERIODIC,
   .tm_start = timer_start,
   .tm_stop = timer_stop,
   .tm_gettime = timer_gettime,
+  .tm_priv = &timer_priv,
 };
 
 static int arm_timer_attach(device_t *dev) {
+  /* Save link to timer device. */
+  timer_priv_t *priv = timer.tm_priv;
+  priv->dev = dev;
+  priv->intr_handler =
+    INTR_HANDLER_INIT(arm_timer_intr, NULL, &timer, "ARM CPU timer", 0);
+
   uint64_t freq = READ_SPECIALREG(cntfrq_el0);
 
   timer.tm_frequency = freq;
@@ -83,20 +114,9 @@ static int arm_timer_attach(device_t *dev) {
   volatile uint32_t *timerp = (uint32_t *)(state->va_page + offset);
   *timerp = *timerp | (1 << BCM2836_INT_CNTPNSIRQ);
 
+  bus_intr_setup(dev, 0, &priv->intr_handler);
+
   return 0;
-}
-
-void intr_tick(void) {
-  tm_trigger(&timer);
-
-  /*
-   * https://developer.arm.com/docs/ddi0595/h/aarch64-system-registers/cntp_cval_el0
-   */
-  uint64_t count = READ_SPECIALREG(cntpct_el0);
-  uint64_t freq = READ_SPECIALREG(cntfrq_el0);
-  WRITE_SPECIALREG(cntp_cval_el0, count + freq);
-
-  __asm__ volatile("isb" ::: "memory");
 }
 
 static driver_t arm_timer_driver = {
