@@ -64,8 +64,9 @@ typedef enum { PS_NORMAL, PS_STOPPED, PS_DYING, PS_ZOMBIE } proc_state_t;
 
 typedef enum {
   /* Cleared when continued or reported by wait4. */
-  PF_STOPPED = 0x1,   /* Set on stopping */
-  PF_CONTINUED = 0x2, /* Set when continued */
+  PF_STOPPED = 0x1,             /* Set on stopping */
+  PF_CONTINUED = 0x2,           /* Set when continued */
+  PF_CHILD_STATE_CHANGED = 0x4, /* Child state changed, recheck children */
 } proc_flags_t;
 
 /*! \brief Process structure
@@ -166,6 +167,11 @@ int proc_getsid(pid_t pid, sid_t *sidp);
 /*!\brief Get the SID of the process with PID `pid`.
  * The SID is returned in `*sidp`. */
 int proc_getsid(pid_t pid, sid_t *sidp);
+
+/*! \brief Notify the parent process of a child's state change.
+ *
+ * Must be called with parent::p_lock held. */
+void proc_notify_parent(proc_t *parent);
 
 int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp);
 
