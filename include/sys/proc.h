@@ -73,13 +73,15 @@ typedef enum {
  * Field markings and the corresponding locks:
  *  (a) all_proc_mtx
  *  (@) proc_t::p_lock
- *  (g) p_pgrp->pg_lock
+ *  (g) p_pgrp::pg_lock
  *  (!) read-only access, do not modify!
  *  (~) always safe to access
  *  ($) use only from the same process/thread
  *  (*) safe to dereference from owner process
  *  When two locks are specified (see p_parent), either one suffices
  *  for reading, but both must be held for writing.
+ *  NOTE: You can acquire the parent's p_lock while holding the child's p_lock,
+ *        but not the other way around!
  */
 struct proc {
   mtx_t p_lock;               /* Process lock */
