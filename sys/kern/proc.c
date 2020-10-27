@@ -393,13 +393,12 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
 
 void proc_add(proc_t *p) {
   assert(p->p_parent);
+  assert(mtx_owned(all_proc_mtx));
 
-  WITH_MTX_LOCK (all_proc_mtx) {
-    p->p_pid = pid_alloc();
-    TAILQ_INSERT_TAIL(&proc_list, p, p_all);
-    TAILQ_INSERT_TAIL(PROC_HASH_CHAIN(p->p_pid), p, p_hash);
-    TAILQ_INSERT_TAIL(CHILDREN(p->p_parent), p, p_child);
-  }
+  p->p_pid = pid_alloc();
+  TAILQ_INSERT_TAIL(&proc_list, p, p_all);
+  TAILQ_INSERT_TAIL(PROC_HASH_CHAIN(p->p_pid), p, p_hash);
+  TAILQ_INSERT_TAIL(CHILDREN(p->p_parent), p, p_child);
 
   klog("Process PID(%d) {%p} has been created", p->p_pid, p);
 }

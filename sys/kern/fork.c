@@ -53,15 +53,6 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   /* Now, prepare a new process. */
   proc_t *child = proc_create(newtd, parent);
 
-  /* Enter child into parent's process group. */
-  WITH_MTX_LOCK(all_proc_mtx) {
-    WITH_MTX_LOCK(&parent->p_pgrp->pg_lock) {
-      child->p_pgrp = parent->p_pgrp;
-      TAILQ_INSERT_HEAD(&parent->p_pgrp->pg_members, child, p_pglist);
-      /* error = pgrp_enter(child, parent->p_pgrp->pg_id); */
-    }
-  }
-
   /* Clone credentials. */
   cred_fork(child, parent);
 
@@ -86,7 +77,16 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   memcpy(child->p_sigactions, parent->p_sigactions,
          sizeof(child->p_sigactions));
 
-  proc_add(child);
+  WITH_MTX_LOCK (all_proc_mtx) {
+    /* Enter child into parent's process group.
+     * No jobc adjustments are necessary, since the new child has no children
+     * of its own, and it's in the same process group as the parent. */
+    WITH_MTX_LOCK (&parent->p_pgrp->pg_lock) {
+      child->p_pgrp = parent->p_pgrp;
+      TAILQ_INSERT_HEAD(&parent->p_pgrp->pg_members, child, p_pglist);
+    }
+    proc_add(child);
+  }
 
   *cldpidp = child->p_pid;
 

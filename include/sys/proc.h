@@ -131,7 +131,8 @@ DEFINE_CLEANUP_FUNCTION(proc_t *, proc_unlock);
  * Created process should be added using proc_add */
 proc_t *proc_create(thread_t *td, proc_t *parent);
 
-/*! \brief Adds created process to global data structures. */
+/*! \brief Adds created process to global data structures.
+ * Must be called with all_proc_mtx held. */
 void proc_add(proc_t *p);
 
 /*! \brief Searches for a process with the given PID and PS_NORMAL state.
