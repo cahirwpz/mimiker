@@ -42,12 +42,8 @@
 #ifndef _SYS_TTYDEFAULTS_H_
 #define _SYS_TTYDEFAULTS_H_
 
-#include <sys/termios.h>
-
 /*
  * Defaults on "first" open.
- * Stolen from FreeBSD.
- * Unsupported flags are commented out.
  */
 #define TTYDEF_IFLAG (/* BRKINT | */ ICRNL | IMAXBEL /* | IXON | IXANY */)
 #define TTYDEF_OFLAG (OPOST | ONLCR /* | OXTABS */)

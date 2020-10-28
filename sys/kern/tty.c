@@ -1,9 +1,9 @@
 #define KL_LOG KL_TTY
 #include <sys/klog.h>
 #include <sys/libkern.h>
-#include <sys/ttydefaults.h>
 #include <sys/termios.h>
 #include <sys/tty.h>
+#include <sys/ttydefaults.h>
 #include <sys/malloc.h>
 #include <sys/kmem_flags.h>
 #include <sys/mutex.h>
