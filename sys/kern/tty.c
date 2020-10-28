@@ -154,6 +154,7 @@ tty_t *tty_alloc(void) {
   ringbuf_init(&tty->t_outq, kmalloc(M_DEV, TTY_QUEUE_SIZE, M_WAITOK),
                TTY_QUEUE_SIZE);
   cv_init(&tty->t_outcv, "t_outcv");
+  cv_init(&tty->t_serialize_cv, "t_serialize_cv");
   tty->t_line.ln_buf = kmalloc(M_TEMP, LINEBUF_SIZE, M_WAITOK);
   tty->t_line.ln_size = LINEBUF_SIZE;
   tty->t_line.ln_count = 0;
@@ -162,6 +163,7 @@ tty_t *tty_alloc(void) {
   tty->t_data = NULL;
   tty->t_column = 0;
   tty->t_rocol = tty->t_rocount = 0;
+  tty->t_flags = 0;
   return tty;
 }
 
