@@ -360,7 +360,7 @@ void tty_input(tty_t *tty, uint8_t c) {
       uint8_t erased;
       if (tty_line_unputc(tty, &erased))
         tty_erase(tty, erased);
-      goto end;
+      goto notify;
     } else if (CCEQ(cc[VKILL], c)) {
       /* Kill: erase the whole line. */
       if ((lflag & ECHOKE) && tty->t_line.ln_count == tty->t_rocount) {
@@ -374,7 +374,7 @@ void tty_input(tty_t *tty, uint8_t c) {
         tty->t_line.ln_count = 0;
         tty->t_rocount = 0;
       }
-      goto end;
+      goto notify;
     }
 
     bool is_break = tty_is_break(tty, c);
@@ -383,9 +383,7 @@ void tty_input(tty_t *tty, uint8_t c) {
     if ((tty->t_inq.count + tty->t_line.ln_count >= TTY_QUEUE_SIZE - 1 ||
          tty->t_line.ln_count == LINEBUF_SIZE - 1) &&
         !is_break) {
-      if (iflag & IMAXBEL)
-        tty_output(tty, CTRL('g'));
-      goto end;
+      goto nospace;
     }
 
     tty_line_putc(tty, c);
@@ -408,9 +406,10 @@ void tty_input(tty_t *tty, uint8_t c) {
   } else {
     /* Raw (non-canonical) mode */
     if (tty->t_inq.count >= TTY_QUEUE_SIZE) {
+    nospace:
       if (iflag & IMAXBEL) {
         tty_output(tty, CTRL('g'));
-        goto end;
+        goto notify;
       } else {
         return;
       }
@@ -418,8 +417,9 @@ void tty_input(tty_t *tty, uint8_t c) {
 
     ringbuf_putb(&tty->t_inq, c);
     tty_wakeup(tty);
+    return;
   }
-end:
+notify:
   tty_notify_out(tty);
 }
 
