@@ -568,7 +568,7 @@ static bool tty_output(tty_t *tty, uint8_t c) {
  */
 static void tty_output_sleep(tty_t *tty, uint8_t c) {
   while (!tty_output(tty, c)) {
-    tty->t_flags |= TTY_WAIT_OUT_LOWAT;
+    tty->t_flags |= TF_WAIT_OUT_LOWAT;
     cv_wait(&tty->t_outcv, &tty->t_lock);
   }
 }
@@ -600,10 +600,10 @@ void tty_getc_done(tty_t *tty) {
   size_t cnt = tty->t_outq.count;
   int flags = 0;
 
-  if ((tty->t_flags & TTY_WAIT_OUT_LOWAT) && cnt < TTY_OUT_LOW_WATER)
-    flags |= TTY_WAIT_OUT_LOWAT;
-  if ((tty->t_flags & TTY_WAIT_DRAIN_OUT) && cnt == 0)
-    flags |= TTY_WAIT_DRAIN_OUT;
+  if ((tty->t_flags & TF_WAIT_OUT_LOWAT) && cnt < TTY_OUT_LOW_WATER)
+    flags |= TF_WAIT_OUT_LOWAT;
+  if ((tty->t_flags & TF_WAIT_DRAIN_OUT) && cnt == 0)
+    flags |= TF_WAIT_DRAIN_OUT;
 
   if (flags) {
     tty->t_flags &= ~flags;
@@ -615,7 +615,7 @@ static void tty_drain_out(tty_t *tty) {
   assert(mtx_owned(&tty->t_lock));
 
   while (tty->t_outq.count > 0) {
-    tty->t_flags |= TTY_WAIT_DRAIN_OUT;
+    tty->t_flags |= TF_WAIT_DRAIN_OUT;
     cv_wait(&tty->t_outcv, &tty->t_lock);
   }
 }

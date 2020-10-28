@@ -24,6 +24,12 @@ typedef struct {
   t_notify_out_t t_notify_out;
 } ttyops_t;
 
+/* TTY flags */
+typedef enum {
+  TF_WAIT_OUT_LOWAT = 0x1, /* Someone is waiting for space in outq */
+  TF_WAIT_DRAIN_OUT = 0x2, /* Someone is waiting for outq to drain */
+} tty_flags_t;
+
 /* Line buffer */
 typedef struct {
   uint8_t *ln_buf;
@@ -33,7 +39,7 @@ typedef struct {
 
 typedef struct tty {
   mtx_t t_lock;
-  uint32_t t_flags;
+  tty_flags_t t_flags;
   ringbuf_t t_inq;           /* Input queue */
   condvar_t t_incv;          /* CV for readers waiting for input */
   ringbuf_t t_outq;          /* Output queue */
@@ -91,10 +97,6 @@ typedef struct tty {
 #define t_lflag t_termios.c_lflag
 #define t_oflag t_termios.c_oflag
 #define t_ospeed t_termios.c_ospeed
-
-/* TTY flags */
-#define TTY_WAIT_OUT_LOWAT 0x1 /* Someone is waiting for space in outq */
-#define TTY_WAIT_DRAIN_OUT 0x2 /* Someone is waiting for outq to drain */
 
 extern vnodeops_t tty_vnodeops;
 
