@@ -73,8 +73,6 @@ if __name__ == '__main__':
                         help='Enable VGA output.')
     parser.add_argument('-b', '--board', default='malta',
                         choices=['malta', 'rpi3'], help='Emulated board.')
-    parser.add_argument('-r', '--raw', action='store_true',
-                        help='Run socat on /dev/tty1 in raw mode.')
     args = parser.parse_args()
 
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
@@ -115,10 +113,8 @@ if __name__ == '__main__':
     else:
         dbg = None
 
-    uarts = []
-    for name, port in getvar('qemu.uarts'):
-        raw = name == '/dev/tty1' and args.raw
-        uarts.append(SOCAT(name, port, raw))
+    uarts = [SOCAT(uart['name'], uart['port'], uart.get('raw', False))
+             for uart in getvar('qemu.uarts')]
 
     if args.test_run:
         TestRun(sim, uarts)
