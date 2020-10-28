@@ -570,6 +570,9 @@ static bool tty_output(tty_t *tty, uint8_t c) {
  */
 static void tty_output_sleep(tty_t *tty, uint8_t c) {
   while (!tty_output(tty, c)) {
+    tty_notify_out(tty);
+    if (tty->t_outq.count < TTY_OUT_LOW_WATER)
+      continue;
     tty->t_flags |= TF_WAIT_OUT_LOWAT;
     cv_wait(&tty->t_outcv, &tty->t_lock);
   }
