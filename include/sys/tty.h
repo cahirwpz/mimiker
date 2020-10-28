@@ -28,6 +28,8 @@ typedef struct {
 typedef enum {
   TF_WAIT_OUT_LOWAT = 0x1, /* Someone is waiting for space in outq */
   TF_WAIT_DRAIN_OUT = 0x2, /* Someone is waiting for outq to drain */
+  TF_OUT_BUSY = 0x4,       /* Serialization of write() calls:
+                            * a thread is currently writing to this TTY. */
 } tty_flags_t;
 
 /* Line buffer */
@@ -47,6 +49,7 @@ typedef struct tty {
   linebuf_t t_line;          /* Line buffer */
   size_t t_column;           /* Cursor's column position */
   size_t t_rocol, t_rocount; /* See explanation below */
+  condvar_t t_serialize_cv;  /* CV used to serialize write() calls */
   ttyops_t t_ops;            /* Serial device operations */
   struct termios t_termios;
   void *t_data; /* Serial device driver's private data */

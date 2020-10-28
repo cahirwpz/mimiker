@@ -573,22 +573,38 @@ static void tty_output_sleep(tty_t *tty, uint8_t c) {
   }
 }
 
+static int tty_do_write(tty_t *tty, uio_t *uio) {
+  uint8_t c;
+  int error = 0;
+
+  while (uio->uio_resid > 0) {
+    error = uiomove(&c, 1, uio);
+    if (error)
+      break;
+    tty_output_sleep(tty, c);
+    tty->t_rocount = 0;
+  }
+  tty_notify_out(tty);
+
+  return error;
+}
+
 static int tty_write(vnode_t *v, uio_t *uio, int ioflags) {
   tty_t *tty = v->v_data;
   int error = 0;
 
   uio->uio_offset = 0; /* This device does not support offsets. */
 
-  uint8_t c;
   WITH_MTX_LOCK (&tty->t_lock) {
-    while (uio->uio_resid > 0) {
-      error = uiomove(&c, 1, uio);
-      if (error)
-        break;
-      tty_output_sleep(tty, c);
-      tty->t_rocount = 0;
-    }
-    tty_notify_out(tty);
+    /* Wait for our turn. */
+    while (tty->t_flags & TF_OUT_BUSY)
+      cv_wait(&tty->t_serialize_cv, &tty->t_lock);
+    tty->t_flags |= TF_OUT_BUSY;
+
+    error = tty_do_write(tty, uio);
+
+    tty->t_flags &= ~TF_OUT_BUSY;
+    cv_signal(&tty->t_serialize_cv);
   }
 
   return error;
