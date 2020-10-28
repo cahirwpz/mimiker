@@ -35,7 +35,6 @@ typedef struct tty {
   ringbuf_t t_inq;  /* Input queue */
   condvar_t t_incv; /* CV for readers waiting for input */
   ringbuf_t t_outq; /* Output queue */
-  condvar_t t_outcv;
   linebuf_t t_line; /* Line buffer */
   size_t t_column;  /* Cursor's column position */
   /* TODO explain `t_rocol` and `t_rocount`  */

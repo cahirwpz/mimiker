@@ -1,9 +1,9 @@
 #define KL_LOG KL_TTY
 #include <sys/klog.h>
 #include <sys/libkern.h>
-#include <sys/ttydefaults.h>
 #include <sys/termios.h>
 #include <sys/tty.h>
+#include <sys/ttydefaults.h>
 #include <sys/malloc.h>
 #include <sys/kmem_flags.h>
 #include <sys/mutex.h>
@@ -153,7 +153,6 @@ tty_t *tty_alloc(void) {
   cv_init(&tty->t_incv, "t_incv");
   ringbuf_init(&tty->t_outq, kmalloc(M_DEV, TTY_QUEUE_SIZE, M_WAITOK),
                TTY_QUEUE_SIZE);
-  cv_init(&tty->t_outcv, "t_outcv");
   tty->t_line.ln_buf = kmalloc(M_TEMP, LINEBUF_SIZE, M_WAITOK);
   tty->t_line.ln_size = LINEBUF_SIZE;
   tty->t_line.ln_count = 0;
