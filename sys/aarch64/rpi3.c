@@ -10,7 +10,6 @@
 #include <aarch64/atags.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
-#include <aarch64/interrupt.h>
 
 static int count_atags(atag_tag_t *atags) {
   int ntokens = 0;
