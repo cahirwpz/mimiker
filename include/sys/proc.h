@@ -85,7 +85,7 @@ struct proc {
   cred_t p_cred;              /* (@) Process credentials */
   char *p_elfpath;            /* (!) path of loaded elf file */
   TAILQ_ENTRY(proc) p_pglist; /* (a) link on pg_members list */
-  pgrp_t *p_pgrp;             /* (a,*) process group */
+  pgrp_t *p_pgrp;             /* (a) process group */
   volatile proc_state_t p_state;  /* (@) process state */
   proc_t *p_parent;               /* (a) parent process */
   proc_list_t p_children;         /* (a) child processes, including zombies */
@@ -122,7 +122,9 @@ DEFINE_CLEANUP_FUNCTION(proc_t *, proc_unlock);
  * Created process should be added using proc_add */
 proc_t *proc_create(thread_t *td, proc_t *parent);
 
-/*! \brief Adds created process to global data structures. */
+/*! \brief Adds created process to global data structures.
+ *
+ * Must be called with all_proc_mtx held. */
 void proc_add(proc_t *p);
 
 /*! \brief Searches for a process with the given PID and PS_NORMAL state.
@@ -142,9 +144,9 @@ int proc_getpgid(pid_t pid, pgid_t *pgidp);
  * \note Exit status shoud be created using MAKE_STATUS macros from wait.h */
 __noreturn void proc_exit(int exitstatus);
 
-/*! \brief Moves process p to the process group with ID specified by pgid.
- * If such process group does not exist then it creates one. */
-int pgrp_enter(proc_t *p, pgid_t pgid);
+/*! \brief Moves process with pid target to the process group with ID specified
+ * by pgid. If such process group does not exist then it creates one. */
+int pgrp_enter(proc_t *curp, pid_t target, pgid_t pgid);
 
 /*! \brief Makes process p the session leader of a new session. */
 int session_enter(proc_t *p);

@@ -95,12 +95,7 @@ static int sys_setpgid(proc_t *p, setpgid_args_t *args, register_t *res) {
   if (pgid == 0)
     pgid = pid;
 
-  /* TODO Allow process to call setpgid on its children.
-   * TODO Make setpgid accepts pgid equal to ID of any existing process group */
-  if (pid != p->p_pid || pgid != p->p_pid)
-    return ENOTSUP;
-
-  return pgrp_enter(p, pgid);
+  return pgrp_enter(p, pid, pgid);
 }
 
 /* Gets process group ID of the process with ID specified by pid.

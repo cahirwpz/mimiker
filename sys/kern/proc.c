@@ -312,26 +312,47 @@ int session_enter(proc_t *p) {
   return _pgrp_enter(p, pg);
 }
 
-int pgrp_enter(proc_t *p, pgid_t pgid) {
+int pgrp_enter(proc_t *p, pid_t target, pgid_t pgid) {
+  /* TODO: disallow setting the process group of children
+   * that have called exec(). */
   SCOPED_MTX_LOCK(all_proc_mtx);
+
+  proc_t *targetp = proc_find_raw(target);
+  /* The calling process can only set its own process group
+   * or the process group of one of its children. */
+  if (targetp == NULL || !proc_is_alive(targetp) ||
+      (targetp != p && targetp->p_parent != p))
+    return ESRCH;
+
+  /* The process group of a session leader cannot change. */
+  if (targetp == targetp->p_pgrp->pg_session->s_leader)
+    return EPERM;
+
+  /* The target process must be in the same session as the calling process. */
+  if (targetp->p_pgrp->pg_session != p->p_pgrp->pg_session)
+    return EPERM;
 
   pgrp_t *pg = pgrp_lookup(pgid);
 
-  /* We're done if already belong to the group. */
-  if (p->p_pgrp && pg == p->p_pgrp)
+  /* We're done if the target process already belongs to the group. */
+  if (targetp->p_pgrp == pg)
     return 0;
 
   /* Create new group if one does not exist. */
   if (pg == NULL) {
-    /* New pgrp can only be created with PGID = PID of calling process. */
-    if (pgid != p->p_pid)
+    /* New pgrp can only be created with PGID = PID of target process. */
+    if (pgid != target)
       return EPERM;
     pg = pgrp_create(pgid);
     pg->pg_session = p->p_pgrp->pg_session;
     session_hold(pg->pg_session);
+  } else if (pg->pg_session != p->p_pgrp->pg_session) {
+    /* Target process group must be in the same session
+     * as the calling process. */
+    return EPERM;
   }
 
-  return _pgrp_enter(p, pg);
+  return _pgrp_enter(targetp, pg);
 }
 
 /* Process functions */
@@ -369,12 +390,10 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
 void proc_add(proc_t *p) {
   assert(p->p_parent);
 
-  WITH_MTX_LOCK (all_proc_mtx) {
-    p->p_pid = pid_alloc();
-    TAILQ_INSERT_TAIL(&proc_list, p, p_all);
-    TAILQ_INSERT_TAIL(PROC_HASH_CHAIN(p->p_pid), p, p_hash);
-    TAILQ_INSERT_TAIL(CHILDREN(p->p_parent), p, p_child);
-  }
+  p->p_pid = pid_alloc();
+  TAILQ_INSERT_TAIL(&proc_list, p, p_all);
+  TAILQ_INSERT_TAIL(PROC_HASH_CHAIN(p->p_pid), p, p_hash);
+  TAILQ_INSERT_TAIL(CHILDREN(p->p_parent), p, p_child);
 
   klog("Process PID(%d) {%p} has been created", p->p_pid, p);
 }
