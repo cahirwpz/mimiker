@@ -87,6 +87,8 @@ void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
     *dst++ = *src++;
 }
 
+#define DEV_IDENTIFIED_BY_PARENT ((void *)0xffffffff)
+
 /* clang-format off */
 bus_space_t *generic_bus_space = &(bus_space_t){
   .bs_map = generic_bs_map,
@@ -105,6 +107,18 @@ bus_space_t *generic_bus_space = &(bus_space_t){
 };
 /* clang-format on */
 
+static int bus_try_attach(device_t *bus, device_t * dev, driver_t *drv,
+                          int *error) {
+  dev->driver = drv;
+  if (device_probe(dev)) {
+    klog("%s detected!", drv->desc);
+    *error = device_attach(dev);
+    if (*error)
+      return 1;
+  }
+  return 0;
+}
+
 int bus_generic_probe(device_t *bus) {
   int error = 0;
   devclass_t *dc = bus->devclass;
@@ -116,11 +130,14 @@ int bus_generic_probe(device_t *bus) {
     device_t *dev = device_identify(drv, bus);
     if (dev == NULL)
       continue;
-    dev->driver = drv;
-    if (device_probe(dev)) {
-      klog("%s detected!", drv->desc);
-      error = device_attach(dev);
-      if (error)
+    if (dev == DEV_IDENTIFIED_BY_PARENT) {
+      device_t *child_dev;
+      TAILQ_FOREACH(child_dev, &bus->children, link) {
+        if (bus_try_attach(bus, child_dev, drv, &error))
+          return error;
+      }
+    } else {
+      if (bus_try_attach(bus, dev, drv, &error))
         return error;
     }
   }
@@ -128,5 +145,5 @@ int bus_generic_probe(device_t *bus) {
 }
 
 device_t *bus_generic_identify(driver_t *driver, device_t *bus) {
-  return device_add_child(bus, NULL, -1);
+  return DEV_IDENTIFIED_BY_PARENT;
 }

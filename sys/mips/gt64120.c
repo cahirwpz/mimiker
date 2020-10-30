@@ -396,6 +396,10 @@ static device_t *gt_pci_identify(driver_t *drv, device_t *parent) {
   return device_add_child(parent, &DEVCLASS(pci), 0);
 }
 
+static int gt64120_probe(device_t * d) {
+  return 1;
+}
+
 /* clang-format off */
 pci_bus_driver_t gt_pci_bus = {
   .driver = {
@@ -403,6 +407,7 @@ pci_bus_driver_t gt_pci_bus = {
     .size = sizeof(gt_pci_state_t),
     .attach = gt_pci_attach,
     .identify = gt_pci_identify,
+    .probe = gt64120_probe
   },
   .bus = {
     .intr_setup = gt_pci_intr_setup,

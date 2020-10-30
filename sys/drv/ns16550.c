@@ -14,6 +14,9 @@
 #include <sys/stat.h>
 #include <sys/devclass.h>
 
+#define NS16550_VENDOR_ID 0x8086
+#define NS16550_DEVICE_ID 0x7110
+
 #define UART_BUFSIZE 128
 
 typedef struct ns16550_state {
@@ -183,11 +186,14 @@ static int ns16550_attach(device_t *dev) {
   return 0;
 }
 
+DEVICE_DRIVER_GEN_PCI_PROBE(NS16550_VENDOR_ID, NS16550_DEVICE_ID, ns16550)
+
 static driver_t ns16550_driver = {
   .desc = "NS16550 UART driver",
   .size = sizeof(ns16550_state_t),
   .attach = ns16550_attach,
   .identify = bus_generic_identify,
+  .probe = dev_generic_probe_ns16550
 };
 
 DEVCLASS_ENTRY(pci, ns16550_driver);

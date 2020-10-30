@@ -34,7 +34,7 @@ device_t *device_identify(driver_t *driver, device_t *parent) {
 int device_probe(device_t *dev) {
   assert(dev->driver != NULL);
   d_probe_t probe = dev->driver->probe;
-  int found = probe ? probe(dev) : 1;
+  int found = probe ? probe(dev) : 0;
   if (found)
     dev->state = kmalloc(M_DEV, dev->driver->size, M_ZERO);
   return found;

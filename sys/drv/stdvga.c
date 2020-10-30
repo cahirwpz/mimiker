@@ -11,6 +11,9 @@
 
 #define VGA_PALETTE_SIZE (256 * 3)
 
+/* TODO: replace static array with one that's allocated with kmem allocator */
+static unsigned char dupa_buf[500000];
+
 typedef struct stdvga_state {
   resource_t *mem;
   resource_t *io;
@@ -126,10 +129,10 @@ static int stdvga_set_videomode(vga_device_t *vga, unsigned xres, unsigned yres,
   /* Set BPP */
   stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_BPP, stdvga->bpp);
 
-  if (stdvga->fb_buffer)
-    kfree(M_DEV, stdvga->fb_buffer);
-  stdvga->fb_buffer =
-    kmalloc(M_DEV, sizeof(uint8_t) * stdvga->width * stdvga->height, M_ZERO);
+  /* if (stdvga->fb_buffer)
+    kfree(M_DEV, stdvga->fb_buffer); */
+  stdvga->fb_buffer = dupa_buf;
+  /*  kmalloc(M_DEV, sizeof(uint8_t) * stdvga->width * stdvga->height, M_ZERO); */
 
   return 0;
 }
