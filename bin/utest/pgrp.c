@@ -74,6 +74,17 @@ int test_setpgid_child(void) {
 
   pid_t cpid1 = fork();
   if (cpid1 == 0) {
+    /* Become session leader. */
+    assert(setsid() == getpid());
+
+    /* Wait until our parent gives a signal to exit. */
+    while (!sig_delivered)
+      sched_yield();
+    return 0;
+  }
+
+  pid_t cpid2 = fork();
+  if (cpid2 == 0) {
     /* Signal readiness to parent. */
     kill(getppid(), SIGUSR1);
 
@@ -87,36 +98,25 @@ int test_setpgid_child(void) {
     return 0;
   }
 
-  pid_t cpid2 = fork();
-  if (cpid2 == 0) {
-    /* Become session leader. */
-    assert(setsid() == getpid());
+  /* Wait for child 1 to become session leader. */
+  while (getsid(cpid1) != cpid1)
+    sched_yield();
 
-    /* Wait until our parent gives a signal to exit. */
-    while (!sig_delivered)
-      sched_yield();
-    return 0;
-  }
-
-  /* Wait until child 1 is ready. */
+  /* Wait until child 2 is ready. */
   while (!sig_delivered)
     sched_yield();
 
-  /* Move child 1 into its own process group. */
-  assert(!setpgid(cpid1, cpid1));
-  assert(getpgid(cpid1) == cpid1);
+  /* Move child 2 into its own process group. */
+  assert(!setpgid(cpid2, cpid2));
+  assert(getpgid(cpid2) == cpid2);
 
-  /* Move child 1 back to our process group. */
-  assert(!setpgid(cpid1, getpgid(0)));
-  assert(getpgid(cpid1) == getpgid(0));
+  /* Move child 2 back to our process group. */
+  assert(!setpgid(cpid2, getpgid(0)));
+  assert(getpgid(cpid2) == getpgid(0));
 
-  /* Wait for child 2 to become session leader. */
-  while (getsid(cpid2) != cpid2)
-    sched_yield();
-
-  /* Moving child 1 to a process group in a different session should fail. */
-  assert(setpgid(cpid1, cpid2));
-  assert(getpgid(cpid1) == getpgid(0));
+  /* Moving child 2 to a process group in a different session should fail. */
+  assert(setpgid(cpid2, cpid1));
+  assert(getpgid(cpid2) == getpgid(0));
 
   kill(cpid1, SIGUSR1);
   kill(cpid2, SIGUSR1);
