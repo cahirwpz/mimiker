@@ -9,6 +9,8 @@
 #include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
+#include <sys/spinlock.h>
+#include <sys/condvar.h>
 
 static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
 
@@ -23,17 +25,28 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
   v->v_data = data;
   v->v_ops = ops;
   v->v_usecnt = 1;
-  mtx_init(&v->v_mtx, 0);
-
+  spin_init(&v->v_interlock, 0);
+  cv_init(&v->v_cv, "vnode sleep cv");
   return v;
 }
 
+/* XXX vnodes used to use a mutex for synchronizing file operations,
+ * but sometimes we need to sleep, e.g. in VOP_READ.
+ * This solves the problem, but should be replaced by a proper lock
+ * that allows sleeping. */
 void vnode_lock(vnode_t *v) {
-  mtx_lock(&v->v_mtx);
+  WITH_SPIN_LOCK (&v->v_interlock) {
+    while (v->v_flags & VNF_LOCKED)
+      cv_wait(&v->v_cv, &v->v_interlock);
+    v->v_flags |= VNF_LOCKED;
+  }
 }
 
 void vnode_unlock(vnode_t *v) {
-  mtx_unlock(&v->v_mtx);
+  WITH_SPIN_LOCK (&v->v_interlock) {
+    v->v_flags &= ~VNF_LOCKED;
+    cv_signal(&v->v_cv);
+  }
 }
 
 void vnode_hold(vnode_t *v) {

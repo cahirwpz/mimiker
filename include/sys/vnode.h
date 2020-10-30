@@ -5,6 +5,8 @@
 #include <sys/mutex.h>
 #include <sys/uio.h>
 #include <sys/refcnt.h>
+#include <sys/spinlock.h>
+#include <sys/condvar.h>
 
 /* Forward declarations */
 typedef struct vnode vnode_t;
@@ -72,6 +74,10 @@ typedef struct vnodeops {
 /* Fill missing entries with default vnode operation. */
 void vnodeops_init(vnodeops_t *vops);
 
+typedef enum {
+  VNF_LOCKED = 0x1,
+} vnode_flags_t;
+
 typedef struct vnode {
   vnodetype_t v_type;        /* Vnode type, see above */
   TAILQ_ENTRY(vnode) v_list; /* Entry on the mount vnodes list */
@@ -87,7 +93,9 @@ typedef struct vnode {
   };
 
   refcnt_t v_usecnt;
-  mtx_t v_mtx;
+  vnode_flags_t v_flags;
+  condvar_t v_cv;
+  spin_t v_interlock; /* Protects v_flags */
 } vnode_t;
 
 static inline bool is_mountpoint(vnode_t *v) {
