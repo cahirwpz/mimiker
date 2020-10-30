@@ -9,13 +9,7 @@
 #include "utest.h"
 
 int test_setpgid(void) {
-  /* Process can create and enter new process group. */
-  pid_t parent_pid = getpid();
-  assert(!setpgid(parent_pid, 0));
-
-  /* setpgid(pid, 0) translates to setpgid(pid, pid). */
   pgid_t parent_pgid = getpgid(0);
-  assert(parent_pgid == parent_pid);
 
   pid_t children_pid = fork();
   if (children_pid == 0) {
