@@ -88,7 +88,6 @@ static void rpi3_physmem(void) {
 __noreturn void board_init(void) {
   init_klog();
   rpi3_physmem();
-  init_aarch64_intr();
   intr_enable();
   kernel_init();
 }

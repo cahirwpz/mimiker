@@ -5,6 +5,7 @@
 #include <aarch64/bcm2835reg.h>
 #include <sys/interrupt.h>
 #include <sys/bus.h>
+#include <sys/devclass.h>
 #include <sys/kmem.h>
 #include <sys/pmap.h>
 
@@ -78,6 +79,12 @@ static timer_t timer = (timer_t){
   .tm_priv = &timer_priv,
 };
 
+static device_t *arm_timer_identify(driver_t *driver, device_t *parent) {
+  device_t *dev = device_add_child(parent, parent->devclass, -1);
+  dev->instance = parent;
+  return dev;
+}
+
 static int arm_timer_attach(device_t *dev) {
   /* Save link to timer device. */
   timer_priv_t *priv = timer.tm_priv;
@@ -119,15 +126,11 @@ static int arm_timer_attach(device_t *dev) {
   return 0;
 }
 
-static driver_t arm_timer_driver = {
+static driver_t arm_timer = {
   .desc = "ARM CPU timer driver",
   .size = sizeof(arm_timer_state_t),
+  .identify = arm_timer_identify,
   .attach = arm_timer_attach,
 };
 
-void arm_timer_init(device_t *bus) {
-  device_t *dev = device_add_child(bus, bus->devclass, -1);
-  dev->driver = &arm_timer_driver;
-  device_probe(dev);
-  device_attach(dev);
-}
+DEVCLASS_ENTRY(root, arm_timer);

@@ -43,7 +43,7 @@ struct device {
   devclass_t *devclass;
   int unit;
   void *instance; /* used by bus driver to store data in children */
-  void *state;    /* memory requested by driver for its state*/
+  void *state;    /* memory requested by driver for its state */
 };
 
 /*! \brief Called during kernel initialization. */
