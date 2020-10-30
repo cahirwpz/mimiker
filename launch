@@ -5,7 +5,6 @@ import os
 import os.path
 import subprocess
 import sys
-import time
 
 from launcher import *
 
@@ -55,8 +54,7 @@ def DevelRun(sim, dbg, uarts):
         server.kill_server()
 
         # Give QEMU a chance to exit gracefully
-        time.sleep(0.2)
-        sim.kill()
+        sim.stop()
 
 
 if __name__ == '__main__':

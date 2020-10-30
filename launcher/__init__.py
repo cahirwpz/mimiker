@@ -4,6 +4,7 @@ import shlex
 import shutil
 import signal
 import subprocess
+import time
 import os
 
 FIRST_UID = 1000
@@ -148,6 +149,7 @@ class Launchable():
         self.name = name
         self.cmd = cmd
         self.window = None
+        self.process = None
         self.pid = None
         self.options = []
 
@@ -171,26 +173,27 @@ class Launchable():
         return True
 
     def stop(self):
-        if self.process is None:
-            return
-        try:
-            # Give it a chance to exit gracefuly.
-            self.process.send_signal(signal.SIGTERM)
+        if self.process is not None:
             try:
-                self.process.wait(0.2)
-            except subprocess.TimeoutExpired:
-                self.process.send_signal(signal.SIGKILL)
-        except ProcessLookupError:
-            # Process already quit.
-            pass
-        self.process = None
+                # Give it a chance to exit gracefuly.
+                self.process.send_signal(signal.SIGTERM)
+                try:
+                    self.process.wait(0.2)
+                except subprocess.TimeoutExpired:
+                    self.process.send_signal(signal.SIGKILL)
+            except ProcessLookupError:
+                # Process already quit.
+                pass
+            self.process = None
 
-    def kill(self):
-        try:
-            os.kill(self.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            # Process already quit.
-            pass
+        if self.pid is not None:
+            time.sleep(0.2)
+            try:
+                os.kill(self.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                # Process has already quit!
+                pass
+            self.pid = None
 
     def interrupt(self):
         if self.process is not None:
