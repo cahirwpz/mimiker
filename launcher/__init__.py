@@ -155,11 +155,7 @@ class Launchable():
         cmd = ' '.join([self.cmd] + list(map(shlex.quote, self.options)))
         self.window = session.new_window(
             attach=False, window_name=self.name, window_shell=cmd)
-        # We have to select the window to get the PID of the process
-        self.window.select_window()
-
-        cmd = session.server.cmd('list-panes', '-F', '"#{pane_pid}"')
-        self.pid = int(cmd.stdout[0].strip('"'))
+        self.pid = int(self.window.attached_pane._info['pane_pid'])
 
     def run(self):
         self.process = subprocess.Popen([self.cmd] + self.options,
