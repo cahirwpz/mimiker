@@ -4,6 +4,8 @@ import shlex
 import shutil
 import signal
 import subprocess
+import time
+import os
 
 FIRST_UID = 1000
 
@@ -147,12 +149,15 @@ class Launchable():
         self.name = name
         self.cmd = cmd
         self.window = None
+        self.process = None
+        self.pid = None
         self.options = []
 
     def start(self, session):
         cmd = ' '.join([self.cmd] + list(map(shlex.quote, self.options)))
         self.window = session.new_window(
             attach=False, window_name=self.name, window_shell=cmd)
+        self.pid = int(self.window.attached_pane._info['pane_pid'])
 
     def run(self):
         self.process = subprocess.Popen([self.cmd] + self.options,
@@ -168,19 +173,27 @@ class Launchable():
         return True
 
     def stop(self):
-        if self.process is None:
-            return
-        try:
-            # Give it a chance to exit gracefuly.
-            self.process.send_signal(signal.SIGTERM)
+        if self.process is not None:
             try:
-                self.process.wait(0.2)
-            except subprocess.TimeoutExpired:
-                self.process.send_signal(signal.SIGKILL)
-        except ProcessLookupError:
-            # Process already quit.
-            pass
-        self.process = None
+                # Give it a chance to exit gracefuly.
+                self.process.send_signal(signal.SIGTERM)
+                try:
+                    self.process.wait(0.2)
+                except subprocess.TimeoutExpired:
+                    self.process.send_signal(signal.SIGKILL)
+            except ProcessLookupError:
+                # Process already quit.
+                pass
+            self.process = None
+
+        if self.pid is not None:
+            time.sleep(0.2)
+            try:
+                os.kill(self.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                # Process has already quit!
+                pass
+            self.pid = None
 
     def interrupt(self):
         if self.process is not None:
