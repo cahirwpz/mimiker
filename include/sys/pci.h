@@ -119,8 +119,6 @@ static inline pci_device_t *pci_device_of(device_t *device) {
     pci_device_t *pcid = pci_device_of(dev);                                \
     if (pcid->vendor_id != (vendor__id) || pcid->device_id != (device__id)) \
       return 0;                                                             \
-  /* if (!(pcid->bar[0].flags & RF_PREFETCHABLE)) */                        \
-  /*   return 0; */                                                         \
   return 1;                                                                 \
   }   
 
