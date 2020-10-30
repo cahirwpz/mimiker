@@ -140,14 +140,13 @@ static int pit_attach(device_t *dev) {
   return 0;
 }
 
-DEVICE_DRIVER_GEN_PCI_PROBE(INTEL_PIIX4_IDE_VENDOR_ID, INTEL_PIIX4_IDE_DEVICE_ID, pit)
+DEVICE_DRIVER_GEN_PCI_PROBE(INTEL_PIIX4_IDE_VENDOR_ID,
+                            INTEL_PIIX4_IDE_DEVICE_ID, pit)
 
-static driver_t pit_driver = {
-  .desc = "i8254 PIT driver",
-  .size = sizeof(pit_state_t),
-  .attach = pit_attach,
-  .identify = bus_generic_identify,
-  .probe = dev_generic_probe_pit
-};
+static driver_t pit_driver = {.desc = "i8254 PIT driver",
+                              .size = sizeof(pit_state_t),
+                              .attach = pit_attach,
+                              .identify = bus_generic_identify,
+                              .probe = dev_generic_probe_pit};
 
 DEVCLASS_ENTRY(pci, pit_driver);

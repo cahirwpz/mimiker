@@ -117,7 +117,7 @@ static int stdvga_set_videomode(vga_device_t *vga, unsigned xres, unsigned yres,
     return EINVAL;
 
   /* We keep the size of the potentially previously allocated fb_buffer */
-  int previous_size = 
+  int previous_size =
     align(sizeof(uint8_t) * stdvga->width * stdvga->height, PAGESIZE);
 
   stdvga->width = xres;

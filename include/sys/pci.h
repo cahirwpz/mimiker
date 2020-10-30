@@ -114,12 +114,12 @@ static inline pci_device_t *pci_device_of(device_t *device) {
   return (device->bus == DEV_BUS_PCI) ? device->instance : NULL;
 }
 
-#define DEVICE_DRIVER_GEN_PCI_PROBE(vendor__id, device__id, device_name)    \
-  static int dev_generic_probe_ ## device_name(device_t *dev) {             \
-    pci_device_t *pcid = pci_device_of(dev);                                \
-    if (pcid->vendor_id != (vendor__id) || pcid->device_id != (device__id)) \
-      return 0;                                                             \
-  return 1;                                                                 \
-  }   
+#define DEVICE_DRIVER_GEN_PCI_PROBE(vendor__id, device__id, device_name)       \
+  static int dev_generic_probe_##device_name(device_t *dev) {                  \
+    pci_device_t *pcid = pci_device_of(dev);                                   \
+    if (pcid->vendor_id != (vendor__id) || pcid->device_id != (device__id))    \
+      return 0;                                                                \
+    return 1;                                                                  \
+  }
 
 #endif /* !_SYS_PCI_H_ */

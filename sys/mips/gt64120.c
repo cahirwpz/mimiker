@@ -396,7 +396,7 @@ static device_t *gt_pci_identify(driver_t *drv, device_t *parent) {
   return device_add_child(parent, &DEVCLASS(pci), 0);
 }
 
-static int gt64120_probe(device_t * d) {
+static int gt64120_probe(device_t *d) {
   return 1;
 }
 

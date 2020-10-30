@@ -107,7 +107,7 @@ bus_space_t *generic_bus_space = &(bus_space_t){
 };
 /* clang-format on */
 
-static int bus_try_attach(device_t *bus, device_t * dev, driver_t *drv,
+static int bus_try_attach(device_t *bus, device_t *dev, driver_t *drv,
                           int *error) {
   dev->driver = drv;
   if (device_probe(dev)) {
@@ -132,7 +132,7 @@ int bus_generic_probe(device_t *bus) {
       continue;
     if (dev == DEV_IDENTIFIED_BY_PARENT) {
       device_t *child_dev;
-      TAILQ_FOREACH(child_dev, &bus->children, link) {
+      TAILQ_FOREACH (child_dev, &bus->children, link) {
         if (bus_try_attach(bus, child_dev, drv, &error))
           return error;
       }

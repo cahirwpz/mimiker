@@ -126,7 +126,8 @@ static int atkbdc_probe(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
   pci_device_t *pcid = pci_device_of(dev);
-  if (pcid->vendor_id != ATKBDC_VENDOR_ID || pcid->device_id != ATKBDC_DEVICE_ID)
+  if (pcid->vendor_id != ATKBDC_VENDOR_ID ||
+      pcid->device_id != ATKBDC_DEVICE_ID)
     return 0;
 
   /* TODO: Implement resource deallocation in rman.

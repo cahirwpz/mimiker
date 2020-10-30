@@ -131,12 +131,10 @@ static int rtc_attach(device_t *dev) {
 
 DEVICE_DRIVER_GEN_PCI_PROBE(RTC_VENDOR_ID, RTC_DEVICE_ID, rtc)
 
-static driver_t rtc_driver = {
-  .desc = "MC146818 RTC driver",
-  .size = sizeof(rtc_state_t),
-  .attach = rtc_attach,
-  .identify = bus_generic_identify,
-  .probe = dev_generic_probe_rtc
-};
+static driver_t rtc_driver = {.desc = "MC146818 RTC driver",
+                              .size = sizeof(rtc_state_t),
+                              .attach = rtc_attach,
+                              .identify = bus_generic_identify,
+                              .probe = dev_generic_probe_rtc};
 
 DEVCLASS_ENTRY(pci, rtc_driver);
