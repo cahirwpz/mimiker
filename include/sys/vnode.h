@@ -74,9 +74,11 @@ typedef struct vnodeops {
 /* Fill missing entries with default vnode operation. */
 void vnodeops_init(vnodeops_t *vops);
 
-typedef enum {
-  VNF_LOCKED = 0x1,
-} vnode_flags_t;
+typedef struct {
+  bool vl_locked;
+  condvar_t vl_cv;
+  spin_t vl_interlock;
+} vnlock_t;
 
 typedef struct vnode {
   vnodetype_t v_type;        /* Vnode type, see above */
@@ -93,9 +95,7 @@ typedef struct vnode {
   };
 
   refcnt_t v_usecnt;
-  vnode_flags_t v_flags;
-  condvar_t v_cv;
-  spin_t v_interlock; /* Protects v_flags */
+  vnlock_t v_lock;
 } vnode_t;
 
 static inline bool is_mountpoint(vnode_t *v) {

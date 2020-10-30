@@ -25,8 +25,8 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
   v->v_data = data;
   v->v_ops = ops;
   v->v_usecnt = 1;
-  spin_init(&v->v_interlock, 0);
-  cv_init(&v->v_cv, "vnode sleep cv");
+  spin_init(&v->v_lock.vl_interlock, 0);
+  cv_init(&v->v_lock.vl_cv, "vnode sleep cv");
   return v;
 }
 
@@ -35,17 +35,19 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
  * This solves the problem, but should be replaced by a proper lock
  * that allows sleeping. */
 void vnode_lock(vnode_t *v) {
-  WITH_SPIN_LOCK (&v->v_interlock) {
-    while (v->v_flags & VNF_LOCKED)
-      cv_wait(&v->v_cv, &v->v_interlock);
-    v->v_flags |= VNF_LOCKED;
+  vnlock_t *vl = &v->v_lock;
+  WITH_SPIN_LOCK (&vl->vl_interlock) {
+    while (vl->vl_locked)
+      cv_wait(&vl->vl_cv, &vl->vl_interlock);
+    vl->vl_locked = true;
   }
 }
 
 void vnode_unlock(vnode_t *v) {
-  WITH_SPIN_LOCK (&v->v_interlock) {
-    v->v_flags &= ~VNF_LOCKED;
-    cv_signal(&v->v_cv);
+  vnlock_t *vl = &v->v_lock;
+  WITH_SPIN_LOCK (&vl->vl_interlock) {
+    vl->vl_locked = false;
+    cv_signal(&vl->vl_cv);
   }
 }
 
