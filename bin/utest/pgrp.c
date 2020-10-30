@@ -39,6 +39,98 @@ static void sa_handler(int signo) {
   sig_delivered = 1;
 }
 
+int test_setpgid_leader(void) {
+  signal(SIGUSR1, sa_handler);
+
+  pid_t cpid = fork();
+  if (cpid == 0) {
+    /* Become session leader. */
+    assert(setsid() == getpid());
+    /* Can't change pgrp of session leader. */
+    assert(setpgid(0, 0));
+    while (!sig_delivered)
+      sched_yield();
+    return 0;
+  }
+
+  /* Wait until child becomes session leader. */
+  while (getsid(cpid) != cpid)
+    sched_yield();
+
+  /* Can't change pgrp of session leader. */
+  assert(setpgid(cpid, getpgid(0)));
+
+  kill(cpid, SIGUSR1);
+
+  int status;
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+  return 0;
+}
+
+int test_setpgid_child(void) {
+  signal(SIGUSR1, sa_handler);
+
+  pid_t cpid1 = fork();
+  if (cpid1 == 0) {
+    /* Signal readiness to parent. */
+    kill(getppid(), SIGUSR1);
+
+    /* A child should not be able to change its parent's
+     * process group. */
+    assert(setpgid(getppid(), 0));
+
+    /* Wait until our parent gives a signal to exit. */
+    while (!sig_delivered)
+      sched_yield();
+    return 0;
+  }
+
+  pid_t cpid2 = fork();
+  if (cpid2 == 0) {
+    /* Become session leader. */
+    assert(setsid() == getpid());
+
+    /* Wait until our parent gives a signal to exit. */
+    while (!sig_delivered)
+      sched_yield();
+    return 0;
+  }
+
+  /* Wait until child 1 is ready. */
+  while (!sig_delivered)
+    sched_yield();
+
+  /* Move child 1 into its own process group. */
+  assert(!setpgid(cpid1, cpid1));
+  assert(getpgid(cpid1) == cpid1);
+
+  /* Move child 1 back to our process group. */
+  assert(!setpgid(cpid1, getpgid(0)));
+  assert(getpgid(cpid1) == getpgid(0));
+
+  /* Wait for child 2 to become session leader. */
+  while (getsid(cpid2) != cpid2)
+    sched_yield();
+
+  /* Moving child 1 to a process group in a different session should fail. */
+  assert(setpgid(cpid1, cpid2));
+  assert(getpgid(cpid1) == getpgid(0));
+
+  kill(cpid1, SIGUSR1);
+  kill(cpid2, SIGUSR1);
+
+  int status;
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+  return 0;
+}
+
 static void kill_tests_setup(void) {
   sig_delivered = 0;
   setpgid(0, 1);
