@@ -4,15 +4,13 @@
 #include <sys/libkern.h>
 #include <sys/mimiker.h>
 #include <sys/malloc.h>
+#include <sys/kmem.h>
 #include <sys/errno.h>
 #include <sys/device.h>
 #include <sys/bus.h>
 #include <sys/devclass.h>
 
 #define VGA_PALETTE_SIZE (256 * 3)
-
-/* TODO: replace static array with one that's allocated with kmem allocator */
-static unsigned char dupa_buf[500000];
 
 typedef struct stdvga_state {
   resource_t *mem;
@@ -118,6 +116,10 @@ static int stdvga_set_videomode(vga_device_t *vga, unsigned xres, unsigned yres,
   if (bpp != 8 && bpp != 16 && bpp != 24)
     return EINVAL;
 
+  /* We keep the size of the potentially previously allocated fb_buffer */
+  int previous_size = 
+    align(sizeof(uint8_t) * stdvga->width * stdvga->height, PAGESIZE);
+
   stdvga->width = xres;
   stdvga->height = yres;
   stdvga->bpp = bpp;
@@ -129,10 +131,13 @@ static int stdvga_set_videomode(vga_device_t *vga, unsigned xres, unsigned yres,
   /* Set BPP */
   stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_BPP, stdvga->bpp);
 
-  /* if (stdvga->fb_buffer)
-    kfree(M_DEV, stdvga->fb_buffer); */
-  stdvga->fb_buffer = dupa_buf;
-  /*  kmalloc(M_DEV, sizeof(uint8_t) * stdvga->width * stdvga->height, M_ZERO); */
+  int aligned_size =
+    align(sizeof(uint8_t) * stdvga->width * stdvga->height, PAGESIZE);
+
+  if (stdvga->fb_buffer)
+    kmem_free(stdvga->fb_buffer, previous_size);
+
+  stdvga->fb_buffer = kmem_alloc(aligned_size, M_ZERO);
 
   return 0;
 }
