@@ -9,6 +9,7 @@
 #include <sys/proc.h>
 #include <sys/wait.h>
 #include <sys/sched.h>
+#include <sys/spinlock.h>
 
 /*!\brief Signal properties.
  *
@@ -175,6 +176,8 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
 
 /* Call with td->td_lock held! */
 static void sig_continue_thread(thread_t *td) {
+  assert(spin_owned(td->td_lock));
+
   if (td->td_flags & TDF_STOPPING)
     td->td_flags &= ~TDF_STOPPING;
   else if (td_is_stopped(td))
