@@ -73,6 +73,8 @@ typedef enum {
  *  (~) always safe to access
  *  ($) use only from the same process/thread
  *  (*) safe to dereference from owner process
+ *  NOTE: You can acquire the parent's p_lock while holding the child's p_lock,
+ *        but not the other way around!
  */
 struct proc {
   mtx_t p_lock;               /* Process lock */
