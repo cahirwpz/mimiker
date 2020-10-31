@@ -82,7 +82,7 @@ static mips_timer_state_t *state_of(timer_t *tm) {
 
 static intr_filter_t mips_timer_intr(void *data) {
   mips_timer_state_t *state = state_of(data);
-  /* TODO(cahir): can we tell scheduler that clock ticked more that once? */
+  /* TODO(cahir): can we tell scheduler that clock ticked more than once? */
   set_next_tick(state);
   tm_trigger(data);
   return IF_FILTERED;

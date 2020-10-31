@@ -51,8 +51,10 @@ def DevelRun(sim, dbg, uarts):
         session.select_window(dbg.name if dbg else '/dev/cons')
         session.attach_session()
     finally:
-        session.kill_session()
         server.kill_server()
+
+        # Give QEMU a chance to exit gracefully
+        sim.stop()
 
 
 if __name__ == '__main__':

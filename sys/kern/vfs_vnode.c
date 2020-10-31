@@ -9,8 +9,12 @@
 #include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
+#include <sys/spinlock.h>
+#include <sys/condvar.h>
 
 static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
+
+static void vnlock_init(vnlock_t *vl);
 
 /* Actually, vnode management should be much more complex than this, because
    this stub does not recycle vnodes, does not store them on a free list,
@@ -23,17 +27,35 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
   v->v_data = data;
   v->v_ops = ops;
   v->v_usecnt = 1;
-  mtx_init(&v->v_mtx, 0);
-
+  vnlock_init(&v->v_lock);
   return v;
 }
 
+/* XXX vnodes used to use a mutex for synchronizing file operations,
+ * but sometimes we need to sleep, e.g. in VOP_READ.
+ * This solves the problem, but should be replaced by a proper lock
+ * that allows sleeping. */
+
+static void vnlock_init(vnlock_t *vl) {
+  spin_init(&vl->vl_interlock, 0);
+  cv_init(&vl->vl_cv, "vnode sleep cv");
+}
+
 void vnode_lock(vnode_t *v) {
-  mtx_lock(&v->v_mtx);
+  vnlock_t *vl = &v->v_lock;
+  WITH_SPIN_LOCK (&vl->vl_interlock) {
+    while (vl->vl_locked)
+      cv_wait(&vl->vl_cv, &vl->vl_interlock);
+    vl->vl_locked = true;
+  }
 }
 
 void vnode_unlock(vnode_t *v) {
-  mtx_unlock(&v->v_mtx);
+  vnlock_t *vl = &v->v_lock;
+  WITH_SPIN_LOCK (&vl->vl_interlock) {
+    vl->vl_locked = false;
+    cv_signal(&vl->vl_cv);
+  }
 }
 
 void vnode_hold(vnode_t *v) {
