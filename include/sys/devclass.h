@@ -2,7 +2,6 @@
 #define _SYS_DEVCLASS_H_
 
 #include <sys/device.h>
-#include <sys/queue.h>
 
 typedef struct devclass devclass_t;
 
