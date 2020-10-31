@@ -17,18 +17,23 @@ static bool rman_find_gap(rman_t *rm, rman_addr_t *start_p, rman_addr_t end,
   start = max(start, rm->rm_start);
   end = min(end, rm->rm_end);
 
+  /* This check is needed in case
+   * if the resource fits before the current first resource in `rm`. */
+  size_t aligned_start = align(start, bound);
+  if (aligned_start + count > end + 1)
+    return false;
+
   /* Fits before the first resource on the list ? */
   resource_t *first_r = TAILQ_FIRST(&rm->rm_resources);
   rman_addr_t first_start = first_r ? first_r->r_start : rm->rm_end + 1;
-  if (align(start, bound) + count <= first_start) {
-    *start_p = align(start, bound);
+  if (aligned_start + count <= first_start) {
+    *start_p = aligned_start;
     return true;
   }
 
   /* Look up first element after which we can place our new resource. */
-  resource_t *curr_r = NULL;
-  TAILQ_FOREACH (curr_r, &rm->rm_resources, r_link) {
-    resource_t *next_r = TAILQ_NEXT(curr_r, r_link);
+  resource_t *curr_r, *next_r;
+  TAILQ_FOREACH_SAFE (curr_r, &rm->rm_resources, r_link, next_r) {
     rman_addr_t curr_end = curr_r->r_end + 1;
     rman_addr_t next_start = next_r ? next_r->r_start : rm->rm_end + 1;
 

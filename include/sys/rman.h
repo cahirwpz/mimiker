@@ -47,7 +47,7 @@ struct rman {
   mtx_t rm_lock;           /* protects all fields of resource manager */
   const char *rm_name;     /* description of the resource manager */
   rman_addr_t rm_start;    /* first physical address */
-  rman_addr_t rm_end;      /* last physical adress */
+  rman_addr_t rm_end;      /* last physical address */
   res_list_t rm_resources; /* all managed resources */
   res_type_t rm_type;      /* type of managed resources */
 };
@@ -55,7 +55,7 @@ struct rman {
 /* !\brief Allocate resource within given rman.
  *
  * Looks up a region of size `count` between `start` and `end` address.
- * Assigned starting address will be aligned to `alignment` which must be
+ * Assigned starting address will be aligned to `bound` which must be
  * power of 2. Resource will be marked as owned by `dev` device.
  *
  * \returns NULL if could not allocate a resource
