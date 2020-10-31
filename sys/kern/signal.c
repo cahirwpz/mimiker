@@ -173,6 +173,14 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   return EINTR;
 }
 
+/* Call with td->td_lock held! */
+static void sig_continue_thread(thread_t *td) {
+  if (td->td_flags & TDF_STOPPING)
+    td->td_flags &= ~TDF_STOPPING;
+  else if (td_is_stopped(td))
+    sched_wakeup(td, 0);
+}
+
 /*
  * NOTE: This is a very simple implementation! Unimplemented features:
  * - Thread tracing and debugging
@@ -230,8 +238,7 @@ void sig_kill(proc_t *p, signo_t sig) {
   if (__sigismember(&td->td_sigmask, sig)) {
     if (continued)
       WITH_SPIN_LOCK (td->td_lock)
-        if (td_is_stopped(td))
-          sched_wakeup(td, 0);
+        sig_continue_thread(td);
   } else {
     WITH_SPIN_LOCK (td->td_lock) {
       td->td_flags |= TDF_NEEDSIGCHK;
@@ -242,8 +249,8 @@ void sig_kill(proc_t *p, signo_t sig) {
         spin_unlock(td->td_lock);
         sleepq_abort(td); /* Locks & unlocks td_lock */
         spin_lock(td->td_lock);
-      } else if (td_is_stopped(td) && continued) {
-        sched_wakeup(td, 0);
+      } else if (continued) {
+        sig_continue_thread(td);
       }
     }
   }
@@ -309,12 +316,18 @@ void sig_post(signo_t sig) {
       sig_kill(p->p_parent, SIGCHLD);
     }
     mtx_unlock(all_proc_mtx);
-    spin_lock(td->td_lock);
-    td->td_state = TDS_STOPPED;
-    /* We're holding a spinlock, so we can't be preempted here. */
-    /* Release locks before switching out! */
+    WITH_SPIN_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
     proc_unlock(p);
-    sched_switch();
+    /* We're holding no locks here, so our process can be continued before we
+     * actually stop the thread. This is why we need the TDF_STOPPING flag. */
+    spin_lock(td->td_lock);
+    if (td->td_flags & TDF_STOPPING) {
+      td->td_flags &= ~TDF_STOPPING;
+      td->td_state = TDS_STOPPED;
+      sched_switch(); /* Releases td_lock. */
+    } else {
+      spin_unlock(td->td_lock);
+    }
     /* Reacquire locks in correct order! */
     mtx_lock(all_proc_mtx);
     proc_lock(p);
