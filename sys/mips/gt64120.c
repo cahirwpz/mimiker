@@ -361,13 +361,11 @@ static resource_t *gt_pci_alloc_resource(device_t *pcib, device_t *dev,
   r->r_bus_handle = bh + r->r_start;
   if ((type == RT_MEMORY) && (flags & RF_ACTIVE))
     bus_activate_resource(dev, type, rid, r);
-  device_add_resource(dev, r, rid);
   return r;
 }
 
 static void gt_pci_release_resource(device_t *pcib, device_t *dev,
                                     res_type_t type, int rid, resource_t *r) {
-  device_remove_resource(dev, r);
   rman_release_resource(r);
 }
 
