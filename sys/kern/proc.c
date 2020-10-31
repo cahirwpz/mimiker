@@ -269,10 +269,9 @@ static void pgrp_remove(pgrp_t *pgrp) {
   pool_free(P_PGRP, pgrp);
 }
 
-/* Make process leaves its process group.
- * Called only on process exit, use _pgrp_enter for changing pgroups. */
+/* Make a process leave its process group.
+ * Called only on process exit, use _pgrp_enter for changing groups. */
 static void pgrp_leave(proc_t *p) {
-  /* We don't want for any process to see that our p_pgrp is NULL. */
   assert(mtx_owned(all_proc_mtx));
 
   pgrp_t *pgrp = p->p_pgrp;
