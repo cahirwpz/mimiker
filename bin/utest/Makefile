@@ -20,6 +20,7 @@ SOURCES = \
 	sigaction.c \
 	time.c \
 	utest.c \
+	util.c \
 	vfs.c \
 	wait.c
 
