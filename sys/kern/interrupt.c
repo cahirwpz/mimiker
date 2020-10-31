@@ -106,6 +106,9 @@ void intr_event_run_handlers(intr_event_t *ie) {
       assert(ih->ih_service);
       ithread = true;
 
+      if (ie->ie_disable)
+        ie->ie_disable(ie);
+
       TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
       ie->ie_count--;
       /* Note that this will order our handlers nicely,
@@ -114,12 +117,9 @@ void intr_event_run_handlers(intr_event_t *ie) {
     }
   }
 
-  if (ithread) {
-    if (ie->ie_disable)
-      ie->ie_disable(ie);
-
+  if (ithread)
     sleepq_signal(&delegated);
-  } else if (!handled)
+  else if (!handled)
     klog("Spurious %s interrupt!", ie->ie_name);
 }
 
