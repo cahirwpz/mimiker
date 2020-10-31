@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #include "utest.h"
+#include "util.h"
 
 int test_setpgid(void) {
   pgid_t parent_pgid = getpgid(0);
@@ -22,7 +23,7 @@ int test_setpgid(void) {
 
     exit(0);
   }
-  wait(NULL);
+  wait_for_child_exit(children_pid, 0);
 
   /* It is forbidden to move the process to non-existing group. */
   assert(setpgid(0, children_pid));
@@ -40,7 +41,7 @@ static void sa_handler(int signo) {
 }
 
 int test_setpgid_leader(void) {
-  signal(SIGUSR1, sa_handler);
+  signal_setup(SIGUSR1);
 
   pid_t cpid = fork();
   if (cpid == 0) {
@@ -48,8 +49,8 @@ int test_setpgid_leader(void) {
     assert(setsid() == getpid());
     /* Can't change pgrp of session leader. */
     assert(setpgid(0, 0));
-    while (!sig_delivered)
-      sched_yield();
+
+    wait_for_signal(SIGUSR1);
     return 0;
   }
 
@@ -62,15 +63,12 @@ int test_setpgid_leader(void) {
 
   kill(cpid, SIGUSR1);
 
-  int status;
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_for_child_exit(cpid, 0);
   return 0;
 }
 
 int test_setpgid_child(void) {
-  signal(SIGUSR1, sa_handler);
+  signal_setup(SIGUSR1);
 
   pid_t cpid1 = fork();
   if (cpid1 == 0) {
@@ -78,8 +76,7 @@ int test_setpgid_child(void) {
     assert(setsid() == getpid());
 
     /* Wait until our parent gives a signal to exit. */
-    while (!sig_delivered)
-      sched_yield();
+    wait_for_signal(SIGUSR1);
     return 0;
   }
 
@@ -93,8 +90,7 @@ int test_setpgid_child(void) {
     assert(setpgid(getppid(), 0));
 
     /* Wait until our parent gives a signal to exit. */
-    while (!sig_delivered)
-      sched_yield();
+    wait_for_signal(SIGUSR1);
     return 0;
   }
 
@@ -103,8 +99,7 @@ int test_setpgid_child(void) {
     sched_yield();
 
   /* Wait until child 2 is ready. */
-  while (!sig_delivered)
-    sched_yield();
+  wait_for_signal(SIGUSR1);
 
   /* Move child 2 into its own process group. */
   assert(!setpgid(cpid2, cpid2));
@@ -121,13 +116,8 @@ int test_setpgid_child(void) {
   kill(cpid1, SIGUSR1);
   kill(cpid2, SIGUSR1);
 
-  int status;
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_for_child_exit(cpid1, 0);
+  wait_for_child_exit(cpid2, 0);
   return 0;
 }
 
@@ -156,7 +146,7 @@ int test_kill(void) {
     exit(0);
   }
 
-  wait(NULL);
+  wait_for_child_exit(pid, 0);
   /* Signal is delivered to appropriate process. */
   assert(sig_delivered);
 
@@ -183,13 +173,13 @@ int test_killpg_same_group(void) {
       exit(0); // process b
     }
 
-    wait(NULL);
+    wait_for_child_exit(pid_b, 0);
     /* Process a should receive signal from process b. */
     assert(sig_delivered);
     exit(0); // process a
   }
 
-  wait(NULL);
+  wait_for_child_exit(pid_a, 0);
   /* Invalid argument. */
   assert(killpg(1, SIGUSR1));
   /* Invalid argument (negative number). */
@@ -224,32 +214,33 @@ int test_killpg_other_group(void) {
         exit(0); // process c
       }
 
-      wait(NULL);
+      wait_for_child_exit(pid_c, 0);
       /* Process b should receive signal from process c. */
       assert(sig_delivered);
       exit(0); // process b
     }
 
-    wait(NULL);
+    wait_for_child_exit(pid_b, 0);
     /* Process a should receive signal from process c. */
     assert(sig_delivered);
     exit(0); // process a
   }
 
-  wait(NULL);
+  wait_for_child_exit(pid_a, 0);
   /* It is forbidden to send signal to non-existing group. */
   assert(killpg(pid_a, SIGUSR1));
 
   return 0;
 }
 
-static volatile int sighup_handled;
-static void sighup_handler(int signo) {
-  sighup_handled = 1;
-}
+/* static volatile int sighup_handled; */
+/* static void sighup_handler(int signo) { */
+/*   sighup_handled = 1; */
+/* } */
 
 int test_pgrp_orphan() {
-  signal(SIGHUP, sighup_handler);
+  /* signal(SIGHUP, sighup_handler); */
+  signal_setup(SIGHUP);
   int ppid = getpid();
   pid_t cpid = fork();
   int status;
@@ -263,8 +254,7 @@ int test_pgrp_orphan() {
       assert(setpgid(0, 0) == 0);
 
       raise(SIGSTOP);
-      while (!sighup_handled)
-        sched_yield();
+      wait_for_signal(SIGHUP);
       kill(ppid, SIGHUP);
       return 0;
     }
@@ -283,14 +273,11 @@ int test_pgrp_orphan() {
 
   /* Reap the child. */
   printf("Parent: waiting for the child to exit...\n");
-  assert(waitpid(cpid, &status, 0) == cpid);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_for_child_exit(cpid, 0);
 
   /* Wait for a signal from the grandchild. */
   printf("Parent: waiting for a signal from the grandchild...\n");
-  while (!sighup_handled)
-    sched_yield();
+  wait_for_signal(SIGHUP);
 
   /* We're exiting without reaping the grandchild.
    * Hopefully init will take care of it. */
@@ -300,7 +287,7 @@ int test_pgrp_orphan() {
 static volatile pid_t parent_sid;
 
 int test_session_basic(void) {
-  signal(SIGUSR1, sa_handler);
+  signal_setup(SIGUSR1);
   parent_sid = getsid(getpid());
   assert(parent_sid != -1);
   pid_t cpid = fork();
@@ -319,8 +306,7 @@ int test_session_basic(void) {
     assert(getsid(0) == cpid);
     assert(getsid(ppid) == parent_sid);
     /* Hang around for the parent to check our SID. */
-    while (!sig_delivered)
-      sched_yield();
+    wait_for_signal(SIGUSR1);
     return 0;
   }
 
@@ -331,9 +317,6 @@ int test_session_basic(void) {
   }
 
   kill(cpid, SIGUSR1);
-  int status;
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_for_child_exit(cpid, 0);
   return 0;
 }
