@@ -287,6 +287,8 @@ static void pgrp_leave(proc_t *p) {
     pgrp_remove(pgrp);
 }
 
+/* Do the actual work of moving process p from its current
+ * process group to the target group. */
 static int _pgrp_enter(proc_t *p, pgrp_t *target) {
   pgrp_t *old_pgrp = p->p_pgrp;
   assert(old_pgrp);
