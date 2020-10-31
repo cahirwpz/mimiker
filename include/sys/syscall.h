@@ -69,6 +69,12 @@
 #define SYS_getsid 61
 #define SYS_getpriority 62
 #define SYS_setpriority 63
-#define SYS_MAXSYSCALL 64
+#define SYS_setuid 64
+#define SYS_seteuid 65
+#define SYS_setreuid 66
+#define SYS_setgid 67
+#define SYS_setegid 68
+#define SYS_setregid 69
+#define SYS_MAXSYSCALL 70
 
 #define SYS_MAXSYSARGS 6
