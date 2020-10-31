@@ -51,7 +51,7 @@ typedef struct intr_handler intr_handler_t;
 typedef enum {
   IF_STRAY = 0,    /* this device did not trigger the interrupt */
   IF_FILTERED = 1, /* the interrupt has been handled and can be EOId */
-  IF_DELEGATE = 2, /* the handler should be run in private thread */
+  IF_DELEGATE = 2  /* the handler should be run in private thread */
 } intr_filter_t;
 
 /*
@@ -70,7 +70,7 @@ struct intr_handler {
   ih_service_t *ih_service; /* interrupt service routine (run in thread ctx) */
   intr_event_t *ih_event;   /* event we are connected to */
   void *ih_argument;        /* argument to pass to filter/service routines */
-  char *ih_name;            /* name of the handler */
+  const char *ih_name;      /* name of the handler */
   prio_t ih_prio;           /* handler's priority (sort key for ie_handlers) */
 };
 

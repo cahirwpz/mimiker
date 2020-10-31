@@ -35,6 +35,7 @@ void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
   ie->ie_enable = enable;
   ie->ie_disable = disable;
   ie->ie_source = source;
+  ie->ie_count = 0;
   TAILQ_INIT(&ie->ie_handlers);
 }
 
@@ -46,6 +47,9 @@ void intr_event_register(intr_event_t *ie) {
 /* Add new handler according to it's priority */
 static void insert_handler(intr_event_t *ie, intr_handler_t *ih) {
   intr_handler_t *it;
+
+  assert(spin_owned(&ie->ie_lock));
+
   TAILQ_FOREACH (it, &ie->ie_handlers, ih_link)
     if (ih->ih_prio > it->ih_prio)
       break;
@@ -82,31 +86,44 @@ void intr_event_remove_handler(intr_handler_t *ih) {
 /* interrupt handlers delegated to be called in the interrupt thread */
 static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
 
+/* This procedure is called with interrupts disabled,
+ * hence locks are needless. */
 void intr_event_run_handlers(intr_event_t *ie) {
-  intr_handler_t *ih, *next;
-  intr_filter_t status = IF_STRAY;
+  intr_handler_t *ih;
+  intr_filter_t status;
+  bool handled = false;
+  bool ithread = false;
 
-  TAILQ_FOREACH_SAFE (ih, &ie->ie_handlers, ih_link, next) {
-    status = ih->ih_filter(ih->ih_argument);
+  TAILQ_FOREACH (ih, &ie->ie_handlers, ih_link) {
+    if (ih->ih_filter)
+      status = ih->ih_filter(ih->ih_argument);
+    else
+      status = IF_DELEGATE;
+
     if (status == IF_FILTERED)
-      return;
-    if (status == IF_DELEGATE) {
+      handled = true;
+    else if (status == IF_DELEGATE) {
       assert(ih->ih_service);
-
-      if (ie->ie_disable)
-        ie->ie_disable(ie);
+      ithread = true;
 
       TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
+      ie->ie_count--;
+      /* Note that this will order our handlers nicely,
+       * since they are ordered in the `ie_handlers` list. */
       TAILQ_INSERT_TAIL(&delegated, ih, ih_link);
-      sleepq_signal(&delegated);
-      return;
     }
   }
 
-  klog("Spurious %s interrupt!", ie->ie_name);
+  if (ithread) {
+    if (ie->ie_disable)
+      ie->ie_disable(ie);
+
+    sleepq_signal(&delegated);
+  } else if (!handled)
+    klog("Spurious %s interrupt!", ie->ie_name);
 }
 
-static void intr_thread(void *arg) {
+static void intr_thread(void *arg __unused) {
   while (true) {
     intr_handler_t *ih;
 
