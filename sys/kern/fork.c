@@ -50,6 +50,8 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
 
   newtd->td_prio = td->td_prio;
 
+  newtd->td_sigmask = td->td_sigmask;
+
   /* Now, prepare a new process. */
   proc_t *child = proc_create(newtd, parent);
 
