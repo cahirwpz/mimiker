@@ -46,12 +46,16 @@ typedef struct session {
  *
  * Field markings and the corresponding locks:
  *  (a) all_proc_mtx
+ *  (@) pgrp_t::pg_lock
  *  (!) read-only access, do not modify!
+ *  When two locks are specified (see pg_members), either one suffices
+ *  for reading, but both must be held for writing.
  */
 typedef struct pgrp {
+  mtx_t pg_lock;
   TAILQ_ENTRY(pgrp) pg_hash;     /* (a) link on pgid hash chain */
-  TAILQ_HEAD(, proc) pg_members; /* (a) members of process group */
-  session_t *pg_session;         /* (a) pointer to session */
+  TAILQ_HEAD(, proc) pg_members; /* (@ + a) members of process group */
+  session_t *pg_session;         /* (!) pointer to session */
   int pg_jobc;                   /* (a) jobc counter, see `pgrp_adjust_jobc` */
   pgid_t pg_id;                  /* (!) process group id */
 } pgrp_t;
@@ -69,10 +73,13 @@ typedef enum {
  * Field markings and the corresponding locks:
  *  (a) all_proc_mtx
  *  (@) proc_t::p_lock
+ *  (g) p_pgrp->pg_lock
  *  (!) read-only access, do not modify!
  *  (~) always safe to access
  *  ($) use only from the same process/thread
  *  (*) safe to dereference from owner process
+ *  When two locks are specified (see p_parent), either one suffices
+ *  for reading, but both must be held for writing.
  *  NOTE: You can acquire the parent's p_lock while holding the child's p_lock,
  *        but not the other way around!
  */
@@ -86,10 +93,10 @@ struct proc {
   pid_t p_pid;                /* (!) Process ID */
   cred_t p_cred;              /* (@) Process credentials */
   char *p_elfpath;            /* (!) path of loaded elf file */
-  TAILQ_ENTRY(proc) p_pglist; /* (a) link on pg_members list */
-  pgrp_t *p_pgrp;             /* (a,*) process group */
+  TAILQ_ENTRY(proc) p_pglist; /* (g + a) link on pg_members list */
+  pgrp_t *p_pgrp;             /* (@ + a,*) process group */
   volatile proc_state_t p_state;  /* (@) process state */
-  proc_t *p_parent;               /* (a) parent process */
+  proc_t *p_parent;               /* (@ + a) parent process */
   proc_list_t p_children;         /* (a) child processes, including zombies */
   vm_map_t *p_uspace;             /* ($) process' user space map */
   fdtab_t *p_fdtable;             /* ($) file descriptors table */
@@ -124,7 +131,8 @@ DEFINE_CLEANUP_FUNCTION(proc_t *, proc_unlock);
  * Created process should be added using proc_add */
 proc_t *proc_create(thread_t *td, proc_t *parent);
 
-/*! \brief Adds created process to global data structures. */
+/*! \brief Adds created process to global data structures.
+ * Must be called with all_proc_mtx held. */
 void proc_add(proc_t *p);
 
 /*! \brief Searches for a process with the given PID and PS_NORMAL state.
