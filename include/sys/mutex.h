@@ -2,7 +2,6 @@
 #define _SYS_MUTEX_H_
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <sys/mimiker.h>
 #include <sys/_lock.h>
 
@@ -68,29 +67,12 @@ void mtx_unlock(mtx_t *m);
 /*! \brief Locks a pair of distinct mutexes belonging to the same class.
  *
  * The mutex with the lower address is locked first. */
-static inline void mtx_lock_pair(mtx_t *m1, mtx_t *m2) {
-  assert(m1 != m2);
-  if ((uintptr_t)m1 < (uintptr_t)m2) {
-    mtx_lock(m1);
-    mtx_lock(m2);
-  } else {
-    mtx_lock(m2);
-    mtx_lock(m1);
-  }
-}
+void mtx_lock_pair(mtx_t *m1, mtx_t *m2);
 
 /*! \brief Unlocks a pair of distinct mutexes belonging to the same class.
  *
  * The mutex with the higher address is unlocked first. */
-static inline void mtx_unlock_pair(mtx_t *m1, mtx_t *m2) {
-  if ((uintptr_t)m1 < (uintptr_t)m2) {
-    mtx_unlock(m2);
-    mtx_unlock(m1);
-  } else {
-    mtx_unlock(m1);
-    mtx_unlock(m2);
-  }
-}
+void mtx_unlock_pair(mtx_t *m1, mtx_t *m2);
 
 DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
 
