@@ -305,7 +305,6 @@ void sig_post(signo_t sig) {
   proc_t *p = proc_self();
 
   assert(p != NULL);
-  assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&p->p_lock));
 
   sigaction_t *sa = &p->p_sigactions[sig];
@@ -314,7 +313,6 @@ void sig_post(signo_t sig) {
 
   if (sa->sa_handler == SIG_DFL && defact(sig) == SA_KILL) {
     /* Terminate this thread as result of a signal. */
-    mtx_unlock(all_proc_mtx);
     sig_exit(td, sig);
     __unreachable();
   }
@@ -327,7 +325,6 @@ void sig_post(signo_t sig) {
       proc_wakeup_parent(p->p_parent);
       sig_kill(p->p_parent, SIGCHLD);
     }
-    mtx_unlock(all_proc_mtx);
     WITH_SPIN_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
     proc_unlock(p);
     /* We're holding no locks here, so our process can be continued before we
@@ -340,8 +337,6 @@ void sig_post(signo_t sig) {
     } else {
       spin_unlock(td->td_lock);
     }
-    /* Reacquire locks in correct order! */
-    mtx_lock(all_proc_mtx);
     proc_lock(p);
     return;
   }
