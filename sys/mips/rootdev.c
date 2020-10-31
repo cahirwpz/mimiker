@@ -42,7 +42,6 @@ static resource_t *rootdev_alloc_resource(device_t *bus, device_t *child,
     if (flags & RF_ACTIVE)
       bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
                     &r->r_bus_handle);
-    device_add_resource(child, r, rid);
   }
 
   return r;
