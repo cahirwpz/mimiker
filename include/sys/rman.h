@@ -27,18 +27,16 @@ typedef enum {
   RF_ACTIVE = 4,
 } res_flags_t;
 
-/* XXX: We sohould consider putting this structure into
- * a private header file, since a resource should be created only
- * as a result of a call to `rman_alloc_resource`. */
+/* XXX: since a resource should be created only as a result of a call to
+ * `rman_alloc_resource` perhaps we could make the definition private? */
 struct resource {
   bus_space_tag_t r_bus_tag;       /* bus space methods */
   bus_space_handle_t r_bus_handle; /* bus space base address */
   rman_t *r_rman;                  /* resource manager of this resource */
   rman_addr_t r_start;             /* first physical address of the resource */
   rman_addr_t r_end;               /* last (inclusive) physical address */
-  /* TODO: remove r_type from this structure
-   * as r_rman->r_type contains the same information.
-   * (See `rman_alloc_resource` for setting r_type of a resource.) */
+  /* TODO: remove r_type from this structure as r_rman->r_type contains the same
+   * information. See `rman_alloc_resource` for setting r_type of a resource. */
   res_type_t r_type;            /* one of RT_* */
   res_flags_t r_flags;          /* or'ed RF_* values */
   TAILQ_ENTRY(resource) r_link; /* link on resource manager list */
