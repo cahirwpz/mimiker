@@ -201,7 +201,9 @@ void sig_kill(proc_t *p, signo_t sig) {
     p->p_state = PS_NORMAL;
     p->p_flags &= ~PF_STOPPED;
     p->p_flags |= PF_CONTINUED;
-    cv_broadcast(&p->p_parent->p_waitcv);
+    WITH_PROC_LOCK(p->p_parent) {
+      proc_notify_parent(p->p_parent);
+    }
   } else if (handler == SIG_IGN ||
              (defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
     return;
@@ -302,22 +304,17 @@ void sig_post(signo_t sig) {
     p->p_state = PS_STOPPED;
     p->p_flags &= ~PF_CONTINUED;
     p->p_flags |= PF_STOPPED;
-    cv_broadcast(&p->p_parent->p_waitcv);
-    proc_unlock(p);
-    WITH_MTX_LOCK (&p->p_parent->p_lock)
+    WITH_PROC_LOCK(p->p_parent) {
+      proc_notify_parent(p->p_parent);
       sig_kill(p->p_parent, SIGCHLD);
-    mtx_unlock(all_proc_mtx);
-    proc_lock(p);
-    if (p->p_state == PS_STOPPED) {
-      spin_lock(td->td_lock);
-      td->td_state = TDS_STOPPED;
-      /* We're holding a spinlock, so we can't be preempted here. */
-      /* Release locks before switching out! */
-      proc_unlock(p);
-      sched_switch();
-    } else {
-      proc_unlock(p);
     }
+    mtx_unlock(all_proc_mtx);
+    spin_lock(td->td_lock);
+    td->td_state = TDS_STOPPED;
+    /* We're holding a spinlock, so we can't be preempted here. */
+    /* Release locks before switching out! */
+    proc_unlock(p);
+    sched_switch();
     /* Reacquire locks in correct order! */
     mtx_lock(all_proc_mtx);
     proc_lock(p);
