@@ -624,18 +624,20 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
           return 0;
         }
 
-        if ((options & WUNTRACED) && (child->p_state == PS_STOPPED) &&
-            (child->p_flags & PF_STOPPED)) {
-          child->p_flags &= ~PF_STOPPED;
-          *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
-          return 0;
-        }
+        WITH_PROC_LOCK(child) {
+          if ((options & WUNTRACED) && (child->p_state == PS_STOPPED) &&
+              (child->p_flags & PF_STOPPED)) {
+            child->p_flags &= ~PF_STOPPED;
+            *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
+            return 0;
+          }
 
-        if ((options & WCONTINUED) && (child->p_state == PS_NORMAL) &&
-            (child->p_flags & PF_CONTINUED)) {
-          child->p_flags &= ~PF_CONTINUED;
-          *status = MAKE_STATUS_SIG_CONT();
-          return 0;
+          if ((options & WCONTINUED) && (child->p_state == PS_NORMAL) &&
+              (child->p_flags & PF_CONTINUED)) {
+            child->p_flags &= ~PF_CONTINUED;
+            *status = MAKE_STATUS_SIG_CONT();
+            return 0;
+          }
         }
 
         /* We were looking for a specific child and found it. */

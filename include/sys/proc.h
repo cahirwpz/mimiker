@@ -96,7 +96,7 @@ struct proc {
   sigaction_t p_sigactions[NSIG]; /* (@) description of signal actions */
   condvar_t p_waitcv;             /* (a) processes waiting for this one */
   int p_exitstatus;               /* (@) exit code to be returned to parent */
-  volatile proc_flags_t p_flags;  /* (a) PF_* flags */
+  volatile proc_flags_t p_flags;  /* (@) PF_* flags */
   vnode_t *p_cwd;                 /* ($) current working directory */
   mode_t p_cmask;                 /* ($) mask for file creation */
   /* program segments */
