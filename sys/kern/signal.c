@@ -168,7 +168,7 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
 
   int error;
   error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
-  assert(error = EINTR);
+  assert(error == EINTR);
 
   return EINTR;
 }

@@ -75,6 +75,7 @@ void *malloc(size_t);
 void qsort(void *, size_t, size_t, int (*)(const void *, const void *));
 int rand(void);
 void *realloc(void *, size_t);
+void *reallocarray(void *, size_t, size_t);
 int reallocarr(void *, size_t, size_t);
 void srand(unsigned);
 double strtod(const char *__restrict, char **__restrict);

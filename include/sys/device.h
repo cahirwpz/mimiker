@@ -31,11 +31,9 @@ typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
 
 struct device {
   /* Device hierarchy. */
-  device_t *parent;        /* parent node (bus?) or null (root or pseudo-dev) */
-  TAILQ_ENTRY(device) all; /* node on list of all devices */
+  device_t *parent; /* parent node (bus?) or null (root or pseudo-dev) */
   TAILQ_ENTRY(device) link; /* node on list of siblings */
   device_list_t children;   /* head of children devices */
-  res_list_t resources;     /* head of resources belonging to this device */
 
   /* Device information and state. */
   device_bus_t bus;
@@ -54,14 +52,6 @@ device_t *device_identify(driver_t *driver, device_t *parent);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);
 int device_detach(device_t *dev);
-
-/*! \brief Prepares and adds a resource to a device.
- *
- * \note Mostly used in bus drivers. */
-void device_add_resource(device_t *dev, resource_t *r, int rid);
-
-/*! \brief Remove a resource from a device. */
-void device_remove_resource(device_t *dev, resource_t *r);
 
 /* A universal memory pool to be used by all drivers. */
 KMALLOC_DECLARE(M_DEV);
