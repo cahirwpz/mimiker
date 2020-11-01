@@ -7,11 +7,12 @@
 #include <sys/pmap.h>
 
 typedef struct rootdev {
+  rman_t local_rm;
+  rman_t shared_rm;
 } rootdev_t;
 
 /* BCM2836_ARM_LOCAL_BASE mapped into VA (4KiB). */
 static vaddr_t rootdev_local_handle;
-static rman_t rm_mem[2];
 
 /* Use pre mapped memory. */
 static int rootdev_bs_map(bus_addr_t addr, bus_size_t size,
@@ -52,9 +53,13 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
 }
 
 static int rootdev_attach(device_t *bus) {
-  rman_init(&rm_mem[0], "BCM2835 peripherials", BCM2835_PERIPHERALS_BASE,
+  rootdev_t *rd = bus->state;
+
+  /* TODO(cahir) Resource manager should be able to manage independant ranges
+   * instead of single one. Consult rman_manage_region in rman(9). */
+  rman_init(&rd->shared_rm, "BCM2835 peripherals", BCM2835_PERIPHERALS_BASE,
             BCM2835_PERIPHERALS_BASE + BCM2835_PERIPHERALS_SIZE - 1, RT_MEMORY);
-  rman_init(&rm_mem[1], "ARM local", BCM2836_ARM_LOCAL_BASE,
+  rman_init(&rd->local_rm, "ARM local", BCM2836_ARM_LOCAL_BASE,
             BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1, RT_MEMORY);
 
   /* Map BCM2836 shared processor only once. */
@@ -62,19 +67,20 @@ static int rootdev_attach(device_t *bus) {
   pmap_kenter(rootdev_local_handle, BCM2836_ARM_LOCAL_BASE,
               VM_PROT_READ | VM_PROT_WRITE, PMAP_NOCACHE);
 
-  /* Now we don't have any other device. */
-  return 0;
+  return bus_generic_probe(bus);
 }
 
 static resource_t *rootdev_alloc_resource(device_t *bus, device_t *child,
                                           res_type_t type, int rid,
                                           rman_addr_t start, rman_addr_t end,
                                           size_t size, res_flags_t flags) {
+  rootdev_t *rd = bus->state;
   resource_t *r;
 
-  r = rman_alloc_resource(&rm_mem[0], start, end, size, 1, RF_NONE, child);
+  r = rman_alloc_resource(&rd->local_rm, start, end, size, 1, RF_NONE, child);
   if (r == NULL)
-    r = rman_alloc_resource(&rm_mem[1], start, end, size, 1, RF_NONE, child);
+    r =
+      rman_alloc_resource(&rd->shared_rm, start, end, size, 1, RF_NONE, child);
 
   if (r) {
     r->r_bus_tag = rootdev_bus_space;
@@ -107,7 +113,7 @@ DEVCLASS_CREATE(root);
 static device_t rootdev = (device_t){
   .children = TAILQ_HEAD_INITIALIZER(rootdev.children),
   .driver = (driver_t *)&rootdev_driver,
-  .state = NULL,
+  .state = &(rootdev_t){},
   .devclass = &DEVCLASS(root),
 };
 
