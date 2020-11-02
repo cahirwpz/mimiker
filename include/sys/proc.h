@@ -60,8 +60,8 @@ typedef enum { PS_NORMAL, PS_STOPPED, PS_DYING, PS_ZOMBIE } proc_state_t;
 
 typedef enum {
   /* Cleared when continued or reported by wait4. */
-  PF_STOPPED = 0x1,   /* Set on stopping */
-  PF_CONTINUED = 0x2, /* Set when continued */
+  PF_STATE_CHANGED = 0x1,       /* Set when stopped or continued */
+  PF_CHILD_STATE_CHANGED = 0x2, /* Child state changed, recheck children */
 } proc_flags_t;
 
 /*! \brief Process structure
@@ -73,6 +73,8 @@ typedef enum {
  *  (~) always safe to access
  *  ($) use only from the same process/thread
  *  (*) safe to dereference from owner process
+ *  NOTE: You can acquire the parent's p_lock while holding the child's p_lock,
+ *        but not the other way around!
  */
 struct proc {
   mtx_t p_lock;               /* Process lock */
@@ -94,7 +96,7 @@ struct proc {
   sigaction_t p_sigactions[NSIG]; /* (@) description of signal actions */
   condvar_t p_waitcv;             /* (a) processes waiting for this one */
   int p_exitstatus;               /* (@) exit code to be returned to parent */
-  volatile proc_flags_t p_flags;  /* (a) PF_* flags */
+  volatile proc_flags_t p_flags;  /* (@) PF_* flags */
   vnode_t *p_cwd;                 /* ($) current working directory */
   mode_t p_cmask;                 /* ($) mask for file creation */
   /* program segments */
@@ -156,6 +158,11 @@ int proc_getsid(pid_t pid, sid_t *sidp);
 /*!\brief Get the SID of the process with PID `pid`.
  * The SID is returned in `*sidp`. */
 int proc_getsid(pid_t pid, sid_t *sidp);
+
+/*! \brief Wake up the parent process when child's state changes.
+ *
+ * Must be called with parent::p_lock held. */
+void proc_wakeup_parent(proc_t *parent);
 
 int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp);
 
