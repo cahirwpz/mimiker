@@ -31,7 +31,7 @@
         ldp     x24, x25, [sp, #CTX_X24]
         ldp     x26, x27, [sp, #CTX_X26]
         ldp     x28, x29, [sp, #CTX_X28]
-        ldr     lr, [sp, #CTX_LR]
+        ldr     lr, [sp, #CTX_PC]
 .endm
 
 #
@@ -41,6 +41,7 @@ ENTRY(ctx_switch)
         # ctx_switch must be called with interrupts disabled
         mrs     x2, daif
         and     x2, x2, #DAIF_I_MASKED
+        cmp     x2, xzr
         bne     .ctx_save
         hlt     #0
 
