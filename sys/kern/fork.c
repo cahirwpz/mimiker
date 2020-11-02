@@ -53,7 +53,7 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   error = pgrp_enter(child, parent->p_pgrp->pg_id);
   assert(error == 0);
 
-  /* Clone credentials. 
+  /* Clone credentials.
    * We have to do it with parent::p_lock held.
    * We don't need to hold child::p_lock because child is not visible yet.
    */
