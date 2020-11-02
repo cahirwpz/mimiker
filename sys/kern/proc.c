@@ -225,7 +225,7 @@ static bool same_session_p(pgrp_t *pg1, pgrp_t *pg2) {
  * to 0, the process group is orphaned.
  * These counters need to be adjusted whenever any process leaves
  * or joins a process group. */
-static void pgrp_increase_jobc(proc_t *p, pgrp_t *pg) {
+static void pgrp_jobc_enter(proc_t *p, pgrp_t *pg) {
   assert(mtx_owned(all_proc_mtx));
 
   if (same_session_p(p->p_parent->p_pgrp, pg))
@@ -237,10 +237,9 @@ static void pgrp_increase_jobc(proc_t *p, pgrp_t *pg) {
       child->p_pgrp->pg_jobc++;
 }
 
-static void pgrp_decrease_jobc(proc_t *p) {
+static void pgrp_jobc_leave(proc_t *p, pgrp_t *pg) {
   assert(mtx_owned(all_proc_mtx));
 
-  pgrp_t *pg = p->p_pgrp;
   if (same_session_p(p->p_parent->p_pgrp, pg))
     pgrp_maybe_orphan(pg);
 
@@ -296,8 +295,8 @@ static int _pgrp_enter(proc_t *p, pgrp_t *target) {
   if (old_pgrp == target)
     return 0;
 
-  pgrp_increase_jobc(p, target);
-  pgrp_decrease_jobc(p);
+  pgrp_jobc_enter(p, target);
+  pgrp_jobc_leave(p, old_pgrp);
 
   mtx_lock_pair(&old_pgrp->pg_lock, &target->pg_lock);
 
@@ -522,7 +521,7 @@ __noreturn void proc_exit(int exitstatus) {
     if (p->p_pid == 1)
       panic("'init' process died!");
 
-    pgrp_decrease_jobc(p);
+    pgrp_jobc_leave(p, p->p_pgrp);
     /* Process orphans, but firstly find init process. */
     proc_t *init = proc_find_raw(1);
     assert(init != NULL);
