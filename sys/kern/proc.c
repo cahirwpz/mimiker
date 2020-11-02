@@ -450,12 +450,12 @@ static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
    * so notify the parent so that they check again. */
   if (new_parent) {
     WITH_PROC_LOCK(new_parent) {
-      proc_notify_parent(new_parent);
+      proc_wakeup_parent(new_parent);
     }
   }
 }
 
-void proc_notify_parent(proc_t *parent) {
+void proc_wakeup_parent(proc_t *parent) {
   assert(mtx_owned(&parent->p_lock));
 
   parent->p_flags |= PF_CHILD_STATE_CHANGED;
@@ -520,7 +520,7 @@ __noreturn void proc_exit(int exitstatus) {
        * which it can't do if the parent is still waiting.
        * NOTE: If auto_reap is true, we must NOT drop all_proc_mtx
        * between this point and the auto-reap! */
-      proc_notify_parent(parent);
+      proc_wakeup_parent(parent);
     }
 
     klog("Turning PID(%d) into zombie!", p->p_pid);

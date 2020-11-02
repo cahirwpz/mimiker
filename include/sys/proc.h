@@ -159,10 +159,10 @@ int proc_getsid(pid_t pid, sid_t *sidp);
  * The SID is returned in `*sidp`. */
 int proc_getsid(pid_t pid, sid_t *sidp);
 
-/*! \brief Notify the parent process of a child's state change.
+/*! \brief Wake up the parent process when child's state changes.
  *
  * Must be called with parent::p_lock held. */
-void proc_notify_parent(proc_t *parent);
+void proc_wakeup_parent(proc_t *parent);
 
 int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp);
 
