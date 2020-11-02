@@ -62,8 +62,9 @@ static int vs_prepend(vnrstate_t *vs, const char *buf, size_t len) {
  * we need back up over any slashes preceding that component that we skipped. If
  * new path starts with '/', we must retry lookup from the root vnode.
  */
-static int vnr_symlink_follow(vnrstate_t *vs, vnode_t *searchdir,
-                              vnode_t *foundvn, vnode_t **new_searchdirp) {
+static int vnr_symlink_follow(vnrstate_t *vs, vnode_t **searchdir_p,
+                              vnode_t *foundvn) {
+  vnode_t *searchdir = *searchdir_p;
   componentname_t *cn = &vs->vs_cn;
   int error;
 
@@ -92,7 +93,7 @@ static int vnr_symlink_follow(vnrstate_t *vs, vnode_t *searchdir,
     vs_dropslashes(vs);
   }
 
-  *new_searchdirp = searchdir;
+  *searchdir_p = searchdir;
 
 end:
   kfree(M_TEMP, pathbuf);
@@ -101,45 +102,46 @@ end:
 
 /* Call VOP_LOOKUP for a single lookup.
  * searchdir vnode is locked on entry and remains locked on return. */
-static int vnr_lookup_once(vnrstate_t *vs, vnode_t *searchdir,
-                           vnode_t **foundvn_p, vnode_t **new_searchdirp) {
-  vnode_t *foundvn;
+static int vnr_lookup_once(vnrstate_t *vs, vnode_t **searchdir_p,
+                           vnode_t **foundvn_p) {
   componentname_t *cn = &vs->vs_cn;
+  vnode_t *searchdir = *searchdir_p;
+  vnode_t *foundvn;
+  int error;
 
   if (componentname_equal(cn, ".."))
     vfs_maybe_ascend(&searchdir);
 
-  int error = VOP_LOOKUP(searchdir, cn, &foundvn);
-  if (error) {
+  if ((error = VOP_LOOKUP(searchdir, cn, &foundvn))) {
     /*
-     * The entry was not found in the directory. This is valid
-     * if we are creating an entry and are working
-     * on the last component of the path name.
+     * The entry was not found in the directory. This is valid if we are
+     * creating an entry and are working on the last component of the path name.
      */
-    if (error == ENOENT && vs->vs_op == VNR_CREATE &&
-        cn->cn_flags & CN_ISLAST) {
-      foundvn = NULL;
+    if (error == ENOENT && vs->vs_op == VNR_CREATE && cn->cn_flags & CN_ISLAST)
       error = 0;
-    }
-  } else {
-    /* No need to ref foundvn vnode, VOP_LOOKUP already did it for us. */
-    if (searchdir != foundvn)
-      vnode_lock(foundvn);
 
-    if (is_mountpoint(foundvn)) {
-      bool relock_searchdir = (searchdir == foundvn);
-      vfs_maybe_descend(&foundvn);
+    *foundvn_p = NULL;
+    *searchdir_p = searchdir;
+    return error;
+  }
 
-      /* Searchdir needs to be re-locked since it might be released in
-       * vfs_maybe_descend */
-      if (relock_searchdir)
-        vnode_lock(searchdir);
-    }
+  /* No need to ref foundvn vnode, VOP_LOOKUP already did it for us. */
+  if (searchdir != foundvn)
+    vnode_lock(foundvn);
+
+  if (is_mountpoint(foundvn)) {
+    bool relock_searchdir = (searchdir == foundvn);
+    vfs_maybe_descend(&foundvn);
+
+    /* Searchdir needs to be re-locked since it might be released in
+     * vfs_maybe_descend */
+    if (relock_searchdir)
+      vnode_lock(searchdir);
   }
 
   *foundvn_p = foundvn;
-  *new_searchdirp = searchdir;
-  return error;
+  *searchdir_p = searchdir;
+  return 0;
 }
 
 static void vnr_parse_component(vnrstate_t *vs) {
@@ -217,8 +219,7 @@ static int do_nameresolve(vnrstate_t *vs) {
       return ENAMETOOLONG;
     }
 
-    error = vnr_lookup_once(vs, searchdir, &foundvn, &searchdir);
-    if (error) {
+    if ((error = vnr_lookup_once(vs, &searchdir, &foundvn))) {
       vnode_put(searchdir);
       return error;
     }
@@ -229,7 +230,7 @@ static int do_nameresolve(vnrstate_t *vs) {
 
     if (foundvn->v_type == V_LNK &&
         ((vs->vs_flags & VNR_FOLLOW) || (cn->cn_flags & CN_REQUIREDIR))) {
-      error = vnr_symlink_follow(vs, searchdir, foundvn, &searchdir);
+      error = vnr_symlink_follow(vs, &searchdir, foundvn);
       vnode_put(foundvn);
       foundvn = NULL;
       if (error) {
@@ -237,10 +238,8 @@ static int do_nameresolve(vnrstate_t *vs) {
         return error;
       }
       /*
-       * If we followed a symlink to `/' and there
-       * are no more components after the symlink,
-       * we're done with the loop and what we found
-       * is the foundvn.
+       * If we followed a symlink to `/' and there are no more components after
+       * the symlink, we're done with the loop and what we found is the foundvn.
        */
       if (vs->vs_nextcn[0] == '\0') {
         foundvn = searchdir;
@@ -269,10 +268,9 @@ static int do_nameresolve(vnrstate_t *vs) {
 
   if (foundvn != NULL) {
     /*
-     * If the caller requested the parent node (i.e. it's
-     * a CREATE, DELETE, or RENAME), and we don't have one
-     * (because this is the root directory, or we crossed
-     * a mount point), then we must fail.
+     * If the caller requested the parent node (i.e. it's a CREATE, DELETE,
+     * or RENAME), and we don't have one (because this is the root directory,
+     * or we crossed a mount point), then we must fail.
      */
     if (lockparent &&
         (searchdir == NULL || searchdir->v_mount != foundvn->v_mount)) {
@@ -280,15 +278,10 @@ static int do_nameresolve(vnrstate_t *vs) {
         vnode_put(searchdir);
       vnode_put(foundvn);
 
-      switch (vs->vs_op) {
-        case VNR_CREATE:
-          return EEXIST;
-        case VNR_DELETE:
-        case VNR_RENAME:
-          return EBUSY;
-        default:
-          break;
-      }
+      if (vs->vs_op == VNR_CREATE)
+        return EEXIST;
+      if (vs->vs_op == VNR_DELETE || vs->vs_op == VNR_RENAME)
+        return EBUSY;
     }
 
     if (!lockleaf) {
