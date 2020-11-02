@@ -191,14 +191,14 @@ static void sig_continue_thread(thread_t *td) {
  * These limitations (plus the fact that we currently have very little thread
  * states) make the logic of sending a signal very simple!
  */
-void sig_kill(proc_t *p, signo_t sig) {
+int sig_kill(proc_t *p, signo_t sig) {
   assert(p != NULL);
   assert(mtx_owned(&p->p_lock));
   assert(sig < NSIG);
 
   /* Zombie or dying processes shouldn't accept any signals. */
   if (!proc_is_alive(p))
-    return;
+    return EPERM;
 
   thread_t *td = p->p_thread;
 
@@ -215,7 +215,7 @@ void sig_kill(proc_t *p, signo_t sig) {
     }
   } else if (handler == SIG_IGN ||
              (defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
-    return;
+    return 0;
   }
 
   /* If stopping or continuing,
@@ -255,18 +255,27 @@ void sig_kill(proc_t *p, signo_t sig) {
       }
     }
   }
+  return 0;
 }
 
-void sig_pgkill(pgrp_t *pg, signo_t sig) {
+int sig_pgkill(pgrp_t *pg, signo_t sig) {
   assert(mtx_owned(&pg->pg_lock));
 
   proc_t *p;
+  int signaled = 0, error = 0;
 
   TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
     WITH_PROC_LOCK(p) {
-      sig_kill(p, sig);
+      /* if sig_kill returns 0 we don't need information about error */
+      if (!(error = sig_kill(p, sig)))
+        signaled++;
     }
   }
+
+  if (signaled)
+    return 0;
+
+  return error;
 }
 
 int sig_check(thread_t *td) {

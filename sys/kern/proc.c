@@ -572,15 +572,19 @@ __noreturn void proc_exit(int exitstatus) {
 int proc_sendsig(pid_t pid, signo_t sig) {
 
   proc_t *target;
+  int error = 0;
+
+  if (sig >= NSIG)
+    return EINVAL;
 
   if (pid > 0) {
     WITH_MTX_LOCK (all_proc_mtx)
       target = proc_find(pid);
     if (target == NULL)
-      return EINVAL;
-    sig_kill(target, sig);
+      return ESRCH;
+    error = sig_kill(target, sig);
     proc_unlock(target);
-    return 0;
+    return error;
   }
 
   /* TODO send sig to every process for which the calling process has
@@ -597,14 +601,14 @@ int proc_sendsig(pid_t pid, signo_t sig) {
     if (pid < -1) {
       pgrp = pgrp_lookup(-pid);
       if (!pgrp)
-        return EINVAL;
+        return ESRCH;
     }
     mtx_lock(&pgrp->pg_lock);
   }
 
-  sig_pgkill(pgrp, sig);
+  error = sig_pgkill(pgrp, sig);
   mtx_unlock(&pgrp->pg_lock);
-  return 0;
+  return error;
 }
 
 static bool is_zombie(proc_t *p) {

@@ -81,14 +81,18 @@ typedef struct ctx ctx_t;
  *
  * \sa sig_post
  * \note Must be called with p::p_lock held. Returns with p::p_lock held.
+ *
+ * \returns error code if can't signal process
  */
-void sig_kill(proc_t *p, signo_t sig);
+int sig_kill(proc_t *p, signo_t sig);
 
 /*! \brief Signal all processes in a process group.
  *
  * \note Must be called with pg::pg_lock held. Returns with pg::pg_lock held.
+ *
+ * \returns error code if can't signal any of the processes
  */
-void sig_pgkill(pgrp_t *pg, signo_t sig);
+int sig_pgkill(pgrp_t *pg, signo_t sig);
 
 /*! \brief Determines which signal should posted to current thread.
  *
