@@ -121,7 +121,6 @@ __noreturn void board_init(void) {
   init_klog();
   init_mips_cpu();
   init_mips_tlb();
-  init_mips_intr();
   init_mips_timer();
   malta_physmem();
   intr_enable();

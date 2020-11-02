@@ -312,11 +312,12 @@ static int gt_pci_attach(device_t *pcib) {
   return bus_generic_probe(pcib);
 }
 
-static resource_t *gt_pci_alloc_resource(device_t *pcib, device_t *dev,
-                                         res_type_t type, int rid,
-                                         rman_addr_t start, rman_addr_t end,
-                                         size_t size, res_flags_t flags) {
+static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
+                                         int rid, rman_addr_t start,
+                                         rman_addr_t end, size_t size,
+                                         res_flags_t flags) {
 
+  device_t *pcib = dev->parent;
   gt_pci_state_t *gtpci = pcib->state;
   bus_space_handle_t bh;
   rman_t *from = NULL;
@@ -353,7 +354,7 @@ static resource_t *gt_pci_alloc_resource(device_t *pcib, device_t *dev,
     }
   }
 
-  resource_t *r = rman_alloc_resource(from, start, end, size, size, flags, dev);
+  resource_t *r = rman_alloc_resource(from, start, end, size, size, flags);
   if (r == NULL)
     return NULL;
 
@@ -364,13 +365,13 @@ static resource_t *gt_pci_alloc_resource(device_t *pcib, device_t *dev,
   return r;
 }
 
-static void gt_pci_release_resource(device_t *pcib, device_t *dev,
-                                    res_type_t type, int rid, resource_t *r) {
+static void gt_pci_release_resource(device_t *dev, res_type_t type, int rid,
+                                    resource_t *r) {
   rman_release_resource(r);
 }
 
-static void gt_pci_activate_resource(device_t *pcib, device_t *dev,
-                                     res_type_t type, int rid, resource_t *r) {
+static void gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,
+                                     resource_t *r) {
   if (type == RT_MEMORY || type == RT_IOPORTS) {
     uint16_t command = pci_read_config(dev, PCIR_COMMAND, 2);
     if (type == RT_MEMORY)

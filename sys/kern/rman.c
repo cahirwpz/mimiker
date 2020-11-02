@@ -56,8 +56,7 @@ static bool rman_find_gap(rman_t *rm, rman_addr_t *start_p, rman_addr_t end,
 }
 
 resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
-                                size_t count, size_t bound, res_flags_t flags,
-                                device_t *dev) {
+                                size_t count, size_t bound, res_flags_t flags) {
   assert(first <= last);
   assert(powerof2(bound) && (bound > 0));
 

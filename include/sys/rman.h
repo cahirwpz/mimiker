@@ -7,7 +7,7 @@
 #include <machine/bus_defs.h>
 
 /* TODO: remove RT_ISA after ISA-bridge driver is implemented */
-typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_ISA } res_type_t;
+typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_IRQ, RT_ISA } res_type_t;
 typedef uintptr_t rman_addr_t;
 #define RMAN_ADDR_MAX UINTPTR_MAX
 
@@ -57,13 +57,12 @@ struct rman {
  *
  * Looks up a region of size `count` between `start` and `end` address.
  * Assigned starting address will be aligned to `alignment` which must be
- * power of 2. Resource will be marked as owned by `dev` device.
+ * power of 2.
  *
  * \returns NULL if could not allocate a resource
  */
 resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                                size_t count, size_t bound, res_flags_t flags,
-                                device_t *dev);
+                                size_t count, size_t bound, res_flags_t flags);
 
 /*! \brief Removes a resource from its resource manager and releases memory. */
 void rman_release_resource(resource_t *r);

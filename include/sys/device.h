@@ -38,7 +38,7 @@ struct device {
   /* Device information and state. */
   device_bus_t bus;
   driver_t *driver;
-  devclass_t *devclass;
+  devclass_t *devclass; /* (for buses) device class of children */
   int unit;
   void *instance; /* used by bus driver to store data in children */
   void *state;    /* memory requested by driver for its state*/
@@ -47,6 +47,7 @@ struct device {
 /*! \brief Called during kernel initialization. */
 void init_devices(void);
 
+void device_init(device_t *dev, devclass_t *dc, int unit);
 device_t *device_add_child(device_t *parent, devclass_t *dc, int unit);
 device_t *device_identify(driver_t *driver, device_t *parent);
 int device_probe(device_t *dev);

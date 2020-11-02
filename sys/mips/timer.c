@@ -3,9 +3,13 @@
 #include <mips/m32c0.h>
 #include <mips/config.h>
 #include <mips/interrupt.h>
+#include <sys/device.h>
 #include <sys/interrupt.h>
 #include <sys/time.h>
 #include <sys/timer.h>
+
+extern void mips_intr_setup(intr_handler_t *ih, int irq);
+extern void mips_intr_teardown(intr_handler_t *ih);
 
 /* XXX Should the timer use driver framework? */
 
@@ -23,33 +27,15 @@ typedef struct mips_timer_state {
   uint32_t last_count_lo;     /* used to detect counter overflow */
   volatile counter_t count;   /* last written value of counter reg. (64 bits) */
   volatile counter_t compare; /* last read value of compare reg. (64 bits) */
+  timer_t timer;
   intr_handler_t intr_handler;
 } mips_timer_state_t;
 
 static intr_filter_t mips_timer_intr(void *data);
 static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
                             const bintime_t period);
-static int mips_timer_stop(timer_t *tm);
-static bintime_t mips_timer_gettime(timer_t *tm);
-
-static timer_t mips_timer;
-
-static mips_timer_state_t mips_timer_state = {
-  .intr_handler =
-    INTR_HANDLER_INIT(mips_timer_intr, NULL, &mips_timer, "MIPS CPU timer", 0),
-};
-
-static timer_t mips_timer = {
-  .tm_name = "mips-cpu-timer",
-  .tm_flags = TMF_PERIODIC,
-  .tm_frequency = CPU_FREQ,
-  .tm_min_period = BINTIME(1 / (double)CPU_FREQ),
-  .tm_max_period = BINTIME(((1LL << 32) - 1) / (double)CPU_FREQ),
-  .tm_start = mips_timer_start,
-  .tm_stop = mips_timer_stop,
-  .tm_gettime = mips_timer_gettime,
-  .tm_priv = &mips_timer_state,
-};
+static int mips_timer_stop(device_t *dev);
+static bintime_t mips_timer_gettime(device_t *dev);
 
 static uint64_t read_count(mips_timer_state_t *state) {
   SCOPED_INTR_DISABLED();
@@ -99,18 +85,20 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
   state->compare.val = read_count(state);
   state->last_count_lo = state->count.lo;
   set_next_tick(state);
-  mips_intr_setup(&state->intr_handler, MIPS_HWINT5);
+  // mips_intr_setup(&state->intr_handler, MIPS_HWINT5);
   return 0;
 }
 
 static int mips_timer_stop(timer_t *tm) {
-  mips_timer_state_t *state = state_of(tm);
+  mips_timer_state_t *state = dev->state;
   mips_intr_teardown(&state->intr_handler);
   return 0;
 }
 
-static bintime_t mips_timer_gettime(timer_t *tm) {
-  uint64_t count = read_count(state_of(tm));
+static bintime_t mips_timer_gettime(device_t *dev) {
+  mips_timer_state_t *state = dev->state;
+  timer_t *tm = &state->timer;
+  uint64_t count = read_count(state);
   uint32_t sec = count / tm->tm_frequency;
   uint32_t frac = count % tm->tm_frequency;
   bintime_t bt = bintime_mul(HZ2BT(tm->tm_frequency), frac);
@@ -118,7 +106,35 @@ static bintime_t mips_timer_gettime(timer_t *tm) {
   return bt;
 }
 
-void init_mips_timer(void) {
-  tm_register(&mips_timer);
-  tm_select(&mips_timer);
+static int mips_timer_attach(device_t *dev) {
+  mips_timer_state_t *state = dev->state;
+
+  state->intr_handler =
+    INTR_HANDLER_INIT(mips_timer_intr, NULL, state, "MIPS CPU timer", 0);
+
+  state->timer = (timer_t){
+    .tm_name = "mips-cpu-timer",
+    .tm_flags = TMF_PERIODIC,
+    .tm_frequency = CPU_FREQ,
+    .tm_min_period = BINTIME(1 / (double)CPU_FREQ),
+    .tm_max_period = BINTIME(((1LL << 32) - 1) / (double)CPU_FREQ),
+    .tm_start = mips_timer_start,
+    .tm_stop = mips_timer_stop,
+    .tm_gettime = mips_timer_gettime,
+    .tm_priv = state,
+  };
+
+  tm_register(&state->timer);
+  tm_select(&state->timer);
+
+  return 0;
 }
+
+static driver_t cpu_mips_timer =
+                  {
+                    .desc = "MIPS CPU timer driver",
+                    .size = sizeof(mips_timer_state_t),
+                    .attach = misp_timer_attach,
+},
+
+                DEVCLASS_ENTRY(root, cpu_mips_timer);
