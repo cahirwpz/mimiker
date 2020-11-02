@@ -28,7 +28,17 @@ void do_getresgid(proc_t *p, gid_t *rgid, gid_t *egid, gid_t *sgid);
 int do_setresuid(proc_t *p, uid_t ruid, uid_t euid, uid_t suid);
 int do_setresgid(proc_t *p, gid_t rgid, gid_t egid, gid_t sgid);
 int do_setgroups(proc_t *p, int ngroups, const gid_t *gidset);
+int do_setuid(proc_t *p, uid_t uid);
+int do_seteuid(proc_t *p, uid_t euid);
+int do_setreuid(proc_t *p, uid_t ruid, uid_t euid);
+int do_setgid(proc_t *p, gid_t gid);
+int do_setegid(proc_t *p, gid_t egid);
+int do_setregid(proc_t *p, gid_t rgid, gid_t egid);
 
+/* \note Must be called with from::p_lock held. Returns with form::p_lock held.
+ * (We do this only while doing fork, so to is new proc not visible for other
+ * processes.)
+ */
 void cred_fork(proc_t *to, proc_t *from);
 
 #endif /* !_KERNEL */

@@ -43,6 +43,8 @@ static timer_t mips_timer = {
   .tm_name = "mips-cpu-timer",
   .tm_flags = TMF_PERIODIC,
   .tm_frequency = CPU_FREQ,
+  .tm_min_period = BINTIME(1 / (double)CPU_FREQ),
+  .tm_max_period = BINTIME(((1LL << 32) - 1) / (double)CPU_FREQ),
   .tm_start = mips_timer_start,
   .tm_stop = mips_timer_stop,
   .tm_gettime = mips_timer_gettime,
@@ -59,13 +61,19 @@ static uint64_t read_count(mips_timer_state_t *state) {
   return state->count.val;
 }
 
-static void set_next_tick(mips_timer_state_t *state) {
+static int set_next_tick(mips_timer_state_t *state) {
   SCOPED_INTR_DISABLED();
+  int ticks = 0;
+
   /* calculate next value of compare register based on timer period */
-  state->compare.val += state->period_cntr;
-  (void)read_count(state);
-  assert(state->compare.val > state->count.val);
-  mips32_set_c0(C0_COMPARE, state->compare.lo);
+  do {
+    state->compare.val += state->period_cntr;
+    mips32_set_c0(C0_COMPARE, state->compare.lo);
+    (void)read_count(state);
+    ticks++;
+  } while (state->compare.val <= state->count.val);
+
+  return ticks;
 }
 
 static mips_timer_state_t *state_of(timer_t *tm) {
@@ -74,6 +82,7 @@ static mips_timer_state_t *state_of(timer_t *tm) {
 
 static intr_filter_t mips_timer_intr(void *data) {
   mips_timer_state_t *state = state_of(data);
+  /* TODO(cahir): can we tell scheduler that clock ticked more than once? */
   set_next_tick(state);
   tm_trigger(data);
   return IF_FILTERED;
@@ -86,7 +95,7 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
 
   mips_timer_state_t *state = state_of(tm);
 
-  state->period_cntr = bintime_mul(period, CPU_FREQ).sec;
+  state->period_cntr = bintime_mul(period, tm->tm_frequency).sec;
   state->compare.val = read_count(state);
   state->last_count_lo = state->count.lo;
   set_next_tick(state);
@@ -102,16 +111,14 @@ static int mips_timer_stop(timer_t *tm) {
 
 static bintime_t mips_timer_gettime(timer_t *tm) {
   uint64_t count = read_count(state_of(tm));
-  uint32_t sec = count / CPU_FREQ;
-  uint32_t frac = count % CPU_FREQ;
-  bintime_t bt = bintime_mul(HZ2BT(CPU_FREQ), frac);
-  bt.sec = sec;
+  uint32_t sec = count / tm->tm_frequency;
+  uint32_t frac = count % tm->tm_frequency;
+  bintime_t bt = bintime_mul(HZ2BT(tm->tm_frequency), frac);
+  bt.sec += sec;
   return bt;
 }
 
 void init_mips_timer(void) {
-  mips_timer.tm_min_period = BINTIME(1 / (double)CPU_FREQ),
-  mips_timer.tm_max_period = BINTIME(((1LL << 32) - 1) / (double)CPU_FREQ),
   tm_register(&mips_timer);
   tm_select(&mips_timer);
 }

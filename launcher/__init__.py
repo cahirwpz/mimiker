@@ -4,6 +4,8 @@ import shlex
 import shutil
 import signal
 import subprocess
+import time
+import os
 
 FIRST_UID = 1000
 
@@ -23,9 +25,17 @@ CONFIG = {
     'config': {
         'debug': False,
         'graphics': False,
-        'kernel': 'sys/mimiker.elf',
+        'elf': 'sys/mimiker.elf',
         'initrd': 'initrd.cpio',
-        'args': []
+        'args': [],
+        'board': {
+            'malta': {
+                'kernel': 'sys/mimiker.elf',
+            },
+            'rpi3': {
+                'kernel': 'sys/mimiker.img.gz',
+            },
+        },
     },
     'qemu': {
         'options': [
@@ -43,9 +53,9 @@ CONFIG = {
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
                 'uarts': [
-                    ('/dev/tty1', uart_port(0)),
-                    ('/dev/tty2', uart_port(1)),
-                    ('/dev/cons', uart_port(2))
+                    dict(name='/dev/tty1', port=uart_port(0)),
+                    dict(name='/dev/tty2', port=uart_port(1)),
+                    dict(name='/dev/cons', port=uart_port(2))
                 ]
             },
             'rpi3': {
@@ -55,7 +65,7 @@ CONFIG = {
                     '-smp', '4',
                     '-cpu', 'cortex-a53'],
                 'uarts': [
-                    ('/dev/cons', uart_port(0))
+                    dict(name='/dev/cons', port=uart_port(0))
                 ]
             }
         }
@@ -74,7 +84,7 @@ CONFIG = {
             '-ex=set confirm yes',
             '-ex=source .gdbinit',
             '-ex=continue',
-            '{kernel}'
+            '{elf}'
         ],
         'board': {
             'malta': {
@@ -88,18 +98,42 @@ CONFIG = {
 }
 
 
-def split(name):
-    return name.format(BOARD='board.' + CONFIG['board']).split('.')
+def setboard(name):
+    setvar('board', name)
+    # go over top-level configuration variables
+    for top, config in CONFIG.items():
+        if type(config) is not dict:
+            continue
+        board = getvar('board.' + name, start=config, failok=True)
+        if not board:
+            continue
+        # merge board variables into generic set
+        for key, value in board.items():
+            if key not in config:
+                config[key] = value
+            elif type(value) == list:
+                config[key].extend(value)
+            else:
+                raise RuntimeError(f'Cannot merge {top}.board.{name}.{key} '
+                                   f'into {top}')
+        # finish merging by removing alternative configurations
+        del config['board']
 
 
-def getvar(name, val=CONFIG):
-    for f in split(name):
-        val = val[f]
-    return val
+def getvar(name, start=CONFIG, failok=False):
+    value = start
+    for f in name.split('.'):
+        try:
+            value = value[f]
+        except KeyError as ex:
+            if failok:
+                return None
+            raise ex
+    return value
 
 
 def setvar(name, val, config=CONFIG):
-    fs = split(name)
+    fs = name.split('.')
     while len(fs) > 1:
         config = config[fs.pop(0)]
     config[fs.pop(0)] = val
@@ -115,12 +149,15 @@ class Launchable():
         self.name = name
         self.cmd = cmd
         self.window = None
+        self.process = None
+        self.pid = None
         self.options = []
 
     def start(self, session):
         cmd = ' '.join([self.cmd] + list(map(shlex.quote, self.options)))
         self.window = session.new_window(
             attach=False, window_name=self.name, window_shell=cmd)
+        self.pid = int(self.window.attached_pane._info['pane_pid'])
 
     def run(self):
         self.process = subprocess.Popen([self.cmd] + self.options,
@@ -136,19 +173,27 @@ class Launchable():
         return True
 
     def stop(self):
-        if self.process is None:
-            return
-        try:
-            # Give it a chance to exit gracefuly.
-            self.process.send_signal(signal.SIGTERM)
+        if self.process is not None:
             try:
-                self.process.wait(0.2)
-            except subprocess.TimeoutExpired:
-                self.process.send_signal(signal.SIGKILL)
-        except ProcessLookupError:
-            # Process already quit.
-            pass
-        self.process = None
+                # Give it a chance to exit gracefuly.
+                self.process.send_signal(signal.SIGTERM)
+                try:
+                    self.process.wait(0.2)
+                except subprocess.TimeoutExpired:
+                    self.process.send_signal(signal.SIGKILL)
+            except ProcessLookupError:
+                # Process already quit.
+                pass
+            self.process = None
+
+        if self.pid is not None:
+            time.sleep(0.2)
+            try:
+                os.kill(self.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                # Process has already quit!
+                pass
+            self.pid = None
 
     def interrupt(self):
         if self.process is not None:
@@ -166,10 +211,11 @@ class Launchable():
 
 class QEMU(Launchable):
     def __init__(self):
-        super().__init__('qemu', getvar('qemu.{BOARD}.binary'))
+        super().__init__('qemu', getvar('qemu.binary'))
 
-        self.options = getopts('qemu.options', 'qemu.{BOARD}.options')
-        for _, port in getvar('qemu.{BOARD}.uarts'):
+        self.options = getopts('qemu.options')
+        for uart in getvar('qemu.uarts'):
+            port = uart['port']
             self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
         if getvar('config.args'):
@@ -182,7 +228,7 @@ class QEMU(Launchable):
 
 class GDB(Launchable):
     def __init__(self, name=None, cmd=None):
-        super().__init__(name or 'gdb', cmd or getvar('gdb.{BOARD}.binary'))
+        super().__init__(name or 'gdb', cmd or getvar('gdb.binary'))
         # gdbtui & cgdb output is garbled if there is no delay
         self.cmd = 'sleep 0.25 && ' + self.cmd
 
@@ -201,17 +247,20 @@ class GDBTUI(GDB):
 class CGDB(GDB):
     def __init__(self):
         super().__init__('cgdb', 'cgdb')
-        self.options = ['-d', getvar('gdb.{BOARD}.binary')]
+        self.options = ['-d', getvar('gdb.binary')]
 
 
 class SOCAT(Launchable):
-    def __init__(self, name, tcp_port):
+    def __init__(self, name, tcp_port, raw=False):
         super().__init__(name, 'socat')
         # The simulator will only open the server after some time has
         # passed.  To minimize the delay, keep reconnecting until success.
-        self.options = ['STDIO', f'tcp:localhost:{tcp_port},retry,forever']
+        stdio_opt = 'STDIO'
+        if raw:
+            stdio_opt += ',cfmakeraw'
+        self.options = [stdio_opt, f'tcp:localhost:{tcp_port},retry,forever']
 
 
 Debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
-__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT',
-           'Debuggers', 'gdb_port', 'uart_port', 'getvar', 'setvar']
+__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT', 'Debuggers',
+           'gdb_port', 'uart_port', 'getvar', 'setvar', 'setboard']

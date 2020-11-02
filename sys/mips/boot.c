@@ -8,16 +8,16 @@
 #include <mips/kasan.h>
 
 /* Last address in kseg0 used by kernel for boot allocation. */
-__boot_data void *_kernel_end_kseg0;
-/* Kernel page directory entries allocated in kseg0. */
-extern pte_t _kernel_pmap_pde[PT_ENTRIES];
+__boot_data void *_bootmem_end;
+/* Pointer to kernel page directory allocated in kseg0. */
+extern pde_t *_kernel_pmap_pde;
 /* The boot stack is used before we switch out to thread0. */
 static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
 /* Allocates pages in kseg0. The argument will be aligned to PAGESIZE. */
 static __boot_text void *bootmem_alloc(size_t bytes) {
-  void *addr = _kernel_end_kseg0;
-  _kernel_end_kseg0 += align(bytes, PAGESIZE);
+  void *addr = _bootmem_end;
+  _bootmem_end += align(bytes, PAGESIZE);
   return addr;
 }
 
@@ -57,7 +57,7 @@ __boot_text void *mips_init(void) {
     *ptr++ = 0;
 
   /* Set end address of kernel for boot allocation purposes. */
-  _kernel_end_kseg0 = (void *)align(MIPS_KSEG2_TO_KSEG0(__ebss), PAGESIZE);
+  _bootmem_end = (void *)align(MIPS_KSEG2_TO_KSEG0(__ebss), PAGESIZE);
 
   /* Clear all entries in TLB. */
   if ((mips32_getconfig0() & CFG0_MT_MASK) != CFG0_MT_TLB)
@@ -75,7 +75,7 @@ __boot_text void *mips_init(void) {
   }
 
   /* Prepare 1:1 mapping between kseg2 and physical memory for kernel image. */
-  pde_t *pde = (pde_t *)MIPS_KSEG2_TO_KSEG0(_kernel_pmap_pde);
+  pde_t *pde = (pde_t *)bootmem_alloc(PAGESIZE);
   for (int i = 0; i < PT_ENTRIES; i++)
     pde[i] = PTE_GLOBAL;
 
@@ -89,10 +89,7 @@ __boot_text void *mips_init(void) {
   vaddr_t va = MIPS_PHYS_TO_KSEG2(text);
 
   /* assume that kernel image will be covered by single PDE (4MiB) */
-  pde[PDE_INDEX(va)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pte)) | PTE_KERNEL;
-
-  /* auto-mapping? */
-  pde[PDE_INDEX(PT_BASE)] = PTE_PFN(MIPS_KSEG0_TO_PHYS(pde)) | PTE_KERNEL;
+  pde[PDE_INDEX(va)] = PTE_PFN((paddr_t)pte) | PTE_KERNEL;
 
   /* read-only segment - sections: .text, .rodata, etc. */
   for (paddr_t pa = text; pa < data; va += PAGESIZE, pa += PAGESIZE)
@@ -111,7 +108,7 @@ __boot_text void *mips_init(void) {
   for (int i = 0; i < num_pde; i++) {
     /* Allocate a new PT */
     pte = bootmem_alloc(PAGESIZE);
-    pde[PDE_INDEX(va)] = PTE_PFN((intptr_t)pte) | PTE_KERNEL;
+    pde[PDE_INDEX(va)] = PTE_PFN((paddr_t)pte) | PTE_KERNEL;
     for (int j = 0; j < PT_ENTRIES; j++) {
       pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
       va += PAGESIZE;
@@ -130,6 +127,9 @@ __boot_text void *mips_init(void) {
   mips32_setentrylo1(PTE_PFN(MIPS_KSEG0_TO_PHYS(pde)) | PTE_KERNEL);
   mips32_setindex(0);
   mips32_tlbwi();
+
+  /* Since the variable is in kseg2 we cannot initialize it earlier. */
+  _kernel_pmap_pde = pde;
 
   /* Return the end of boot stack (grows downwards on MIPS) as new sp.
    * This is done in order to move kernel boot process to kseg2, since

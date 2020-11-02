@@ -2,10 +2,11 @@
 
 import argparse
 import pexpect
+import signal
 import sys
 import random
 import os
-from launcher import gdb_port, getvar, setvar
+from launcher import gdb_port, getvar, setboard
 
 
 N_SIMPLE = 5
@@ -17,11 +18,15 @@ REPEAT = 5
 
 # Tries to decode binary output as ASCII, as hard as it can.
 def safe_decode(data):
-    return data.decode('unicode_escape', errors='replace').replace('\r', '')
+    s = data.decode('unicode_escape', errors='replace')
+    return s.replace('\r', '')
 
 
 def send_command(gdb, cmd):
-    gdb.expect_exact(['(gdb)'], timeout=10)
+    try:
+        gdb.expect_exact(['(gdb)'], timeout=3)
+    except pexpect.exceptions.TIMEOUT:
+        gdb.kill(signal.SIGINT)
     gdb.sendline(cmd)
     print(safe_decode(gdb.before), end='', flush=True)
     print(safe_decode(gdb.after), end='', flush=True)
@@ -29,7 +34,7 @@ def send_command(gdb, cmd):
 
 # Tries to start gdb in order to investigate kernel state on deadlock or crash.
 def gdb_inspect(interactive):
-    gdb_cmd = getvar('gdb.{BOARD}.binary')
+    gdb_cmd = getvar('gdb.binary')
     if interactive:
         gdb_opts = ['-iex=set auto-load safe-path {}/'.format(os.getcwd()),
                     '-ex=target remote localhost:%d' % gdb_port(),
@@ -70,12 +75,12 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
                            '-t', 'test=all', 'klog-quiet=1',
                            'seed=%u' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact(
-        ['[TEST PASSED]', '[TEST FAILED]', pexpect.EOF, pexpect.TIMEOUT],
-        timeout=TIMEOUT)
+        ['[TEST PASSED]', '[TEST FAILED]', '[PANIC]', pexpect.EOF,
+         pexpect.TIMEOUT], timeout=TIMEOUT)
     if index == 0:
         child.terminate(True)
         return
-    elif index == 1:
+    elif index in [1, 2]:
         print("Test failure reported!\n")
         message = safe_decode(child.before)
         message += safe_decode(child.buffer)
@@ -87,7 +92,7 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
         print(message)
         gdb_inspect(interactive)
         sys.exit(1)
-    elif index == 2:
+    elif index == 3:
         message = safe_decode(child.before)
         message += safe_decode(child.buffer)
         print(message)
@@ -95,8 +100,8 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
               "a problem with the testing framework or QEMU. "
               "Retrying (%d)..." % (retry + 1))
         test_seed(seed, interactive, repeat, retry + 1)
-    elif index == 3:
-        print("Timeout reached.\n")
+    elif index == 4:
+        print("Timeout reached!\n")
         message = safe_decode(child.buffer)
         print(message)
         if len(message) < 100:
@@ -125,7 +130,7 @@ if __name__ == '__main__':
                         help='Emulated board.')
     args = parser.parse_args()
 
-    setvar('board', args.board)
+    setboard(args.board)
 
     n = N_SIMPLE
     if args.thorough:

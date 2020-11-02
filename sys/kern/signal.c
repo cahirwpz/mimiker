@@ -9,6 +9,7 @@
 #include <sys/proc.h>
 #include <sys/wait.h>
 #include <sys/sched.h>
+#include <sys/spinlock.h>
 
 /*!\brief Signal properties.
  *
@@ -134,7 +135,7 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
   }
 
   if (sig_pending(td)) {
-    WITH_SPIN_LOCK (&td->td_spin)
+    WITH_SPIN_LOCK (td->td_lock)
       td->td_flags |= TDF_NEEDSIGCHK;
   }
 
@@ -158,7 +159,7 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
      * is set (without checking whether there's an actual pending signal),
      * so we clear the flag here if there are no real pending signals.
      */
-    WITH_SPIN_LOCK (&td->td_spin) {
+    WITH_SPIN_LOCK (td->td_lock) {
       if (sig_pending(td))
         td->td_flags |= TDF_NEEDSIGCHK;
       else
@@ -168,9 +169,19 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
 
   int error;
   error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
-  assert(error = EINTR);
+  assert(error == EINTR);
 
   return EINTR;
+}
+
+/* Call with td->td_lock held! */
+static void sig_continue_thread(thread_t *td) {
+  assert(spin_owned(td->td_lock));
+
+  if (td->td_flags & TDF_STOPPING)
+    td->td_flags &= ~TDF_STOPPING;
+  else if (td_is_stopped(td))
+    sched_wakeup(td, 0);
 }
 
 /*
@@ -182,12 +193,11 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
  */
 void sig_kill(proc_t *p, signo_t sig) {
   assert(p != NULL);
-  assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&p->p_lock));
   assert(sig < NSIG);
 
-  /* Zombie processes shouldn't accept any signals. */
-  if (p->p_state == PS_ZOMBIE)
+  /* Zombie or dying processes shouldn't accept any signals. */
+  if (!proc_is_alive(p))
     return;
 
   thread_t *td = p->p_thread;
@@ -199,9 +209,10 @@ void sig_kill(proc_t *p, signo_t sig) {
    * unless it's waking up a stopped process. */
   if (p->p_state == PS_STOPPED && continued) {
     p->p_state = PS_NORMAL;
-    p->p_flags &= ~PF_STOPPED;
-    p->p_flags |= PF_CONTINUED;
-    cv_broadcast(&p->p_parent->p_waitcv);
+    p->p_flags |= PF_STATE_CHANGED;
+    WITH_PROC_LOCK(p->p_parent) {
+      proc_wakeup_parent(p->p_parent);
+    }
   } else if (handler == SIG_IGN ||
              (defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
     return;
@@ -227,22 +238,33 @@ void sig_kill(proc_t *p, signo_t sig) {
    * Exception: SIGCONT wakes up stopped threads even if it's blocked. */
   if (__sigismember(&td->td_sigmask, sig)) {
     if (continued)
-      WITH_SPIN_LOCK (&td->td_spin)
-        if (td_is_stopped(td))
-          sched_wakeup(td, 0);
+      WITH_SPIN_LOCK (td->td_lock)
+        sig_continue_thread(td);
   } else {
-    WITH_SPIN_LOCK (&td->td_spin) {
+    WITH_SPIN_LOCK (td->td_lock) {
       td->td_flags |= TDF_NEEDSIGCHK;
       /* If the thread is sleeping interruptibly (!), wake it up, so that it
        * continues execution and the signal gets delivered soon. */
       if (td_is_interruptible(td)) {
         /* XXX Maybe TDF_NEEDSIGCHK should be protected by a different lock? */
-        spin_unlock(&td->td_spin);
-        sleepq_abort(td); /* Locks & unlocks td_spin */
-        spin_lock(&td->td_spin);
-      } else if (td_is_stopped(td) && continued) {
-        sched_wakeup(td, 0);
+        spin_unlock(td->td_lock);
+        sleepq_abort(td); /* Locks & unlocks td_lock */
+        spin_lock(td->td_lock);
+      } else if (continued) {
+        sig_continue_thread(td);
       }
+    }
+  }
+}
+
+void sig_pgkill(pgrp_t *pg, signo_t sig) {
+  assert(mtx_owned(&pg->pg_lock));
+
+  proc_t *p;
+
+  TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
+    WITH_PROC_LOCK(p) {
+      sig_kill(p, sig);
     }
   }
 }
@@ -258,7 +280,7 @@ int sig_check(thread_t *td) {
     sig = sig_pending(td);
     if (sig == 0) {
       /* No pending signals, signal checking done. */
-      WITH_SPIN_LOCK (&td->td_spin)
+      WITH_SPIN_LOCK (td->td_lock)
         td->td_flags &= ~TDF_NEEDSIGCHK;
       return 0;
     }
@@ -283,7 +305,6 @@ void sig_post(signo_t sig) {
   proc_t *p = proc_self();
 
   assert(p != NULL);
-  assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&p->p_lock));
 
   sigaction_t *sa = &p->p_sigactions[sig];
@@ -292,7 +313,6 @@ void sig_post(signo_t sig) {
 
   if (sa->sa_handler == SIG_DFL && defact(sig) == SA_KILL) {
     /* Terminate this thread as result of a signal. */
-    mtx_unlock(all_proc_mtx);
     sig_exit(td, sig);
     __unreachable();
   }
@@ -300,27 +320,23 @@ void sig_post(signo_t sig) {
   if (sa->sa_handler == SIG_DFL && defact(sig) == SA_STOP) {
     klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
     p->p_state = PS_STOPPED;
-    p->p_flags &= ~PF_CONTINUED;
-    p->p_flags |= PF_STOPPED;
-    cv_broadcast(&p->p_parent->p_waitcv);
-    proc_unlock(p);
-    WITH_MTX_LOCK (&p->p_parent->p_lock)
+    p->p_flags |= PF_STATE_CHANGED;
+    WITH_PROC_LOCK(p->p_parent) {
+      proc_wakeup_parent(p->p_parent);
       sig_kill(p->p_parent, SIGCHLD);
-    mtx_unlock(all_proc_mtx);
-    proc_lock(p);
-    if (p->p_state == PS_STOPPED) {
-      WITH_SPIN_LOCK (&td->td_spin) {
-        td->td_state = TDS_STOPPED;
-        /* We're holding a spinlock, so we can't be preempted here. */
-        /* Release locks before switching out! */
-        proc_unlock(p);
-        sched_switch();
-      }
-    } else {
-      proc_unlock(p);
     }
-    /* Reacquire locks in correct order! */
-    mtx_lock(all_proc_mtx);
+    WITH_SPIN_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
+    proc_unlock(p);
+    /* We're holding no locks here, so our process can be continued before we
+     * actually stop the thread. This is why we need the TDF_STOPPING flag. */
+    spin_lock(td->td_lock);
+    if (td->td_flags & TDF_STOPPING) {
+      td->td_flags &= ~TDF_STOPPING;
+      td->td_state = TDS_STOPPED;
+      sched_switch(); /* Releases td_lock. */
+    } else {
+      spin_unlock(td->td_lock);
+    }
     proc_lock(p);
     return;
   }

@@ -11,10 +11,9 @@ void on_exc_leave(void) {
 
   thread_t *td = thread_self();
   if (td->td_flags & TDF_NEEDSWITCH) {
-    WITH_SPIN_LOCK (&td->td_spin) {
-      td->td_state = TDS_READY;
-      sched_switch();
-    }
+    spin_lock(td->td_lock);
+    td->td_state = TDS_READY;
+    sched_switch();
   }
 }
 
@@ -24,12 +23,10 @@ void on_user_exc_leave(void) {
   proc_t *p = td->td_proc;
   /* Process pending signals. */
   if (td->td_flags & TDF_NEEDSIGCHK) {
-    WITH_MTX_LOCK (all_proc_mtx) {
-      WITH_PROC_LOCK(p) {
-        int sig;
-        while ((sig = sig_check(td)))
-          sig_post(sig);
-      }
+    WITH_PROC_LOCK(p) {
+      int sig;
+      while ((sig = sig_check(td)))
+        sig_post(sig);
     }
   }
 }

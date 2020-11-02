@@ -9,7 +9,6 @@ SOURCES = \
 	copy.S \
 	cpu.c \
 	ebase.S \
-	exception.c \
 	gt64120.c \
 	interrupt.c \
 	$(BOARD).c \

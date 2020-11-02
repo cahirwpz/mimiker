@@ -69,8 +69,9 @@ typedef struct sigaction {
 #include <sys/cdefs.h>
 
 typedef struct proc proc_t;
+typedef struct pgrp pgrp_t;
 typedef struct thread thread_t;
-typedef struct exc_frame exc_frame_t;
+typedef struct ctx ctx_t;
 
 /*! \brief Signal a process.
  *
@@ -82,6 +83,12 @@ typedef struct exc_frame exc_frame_t;
  * \note Must be called with p::p_lock held. Returns with p::p_lock held.
  */
 void sig_kill(proc_t *p, signo_t sig);
+
+/*! \brief Signal all processes in a process group.
+ *
+ * \note Must be called with pg::pg_lock held. Returns with pg::pg_lock held.
+ */
+void sig_pgkill(pgrp_t *pg, signo_t sig);
 
 /*! \brief Determines which signal should posted to current thread.
  *
@@ -100,7 +107,7 @@ int sig_check(thread_t *td);
  * If the default action for a signal is to terminate the process and
  * corresponding signal handler is not set, the process calls `sig_exit`.
  *
- * \note Must be called with all_proc_mtx and current process p_mtx acquired!
+ * \note Must be called with current process's p_mtx acquired!
  * \sa sig_exit
  */
 void sig_post(signo_t sig);
@@ -111,7 +118,7 @@ __noreturn void sig_exit(thread_t *td, signo_t sig);
 /*! \brief Delivers a hardware trap related signal to current thread.
  *
  * \note This is machine dependent code! */
-void sig_trap(exc_frame_t *frame, signo_t sig);
+void sig_trap(ctx_t *ctx, signo_t sig);
 
 /*! \brief Prepare user context for entry to signal handler action.
  *
