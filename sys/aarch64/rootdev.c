@@ -6,10 +6,14 @@
 #include <aarch64/interrupt.h>
 #include <sys/kmem.h>
 #include <sys/pmap.h>
+#include <sys/interrupt.h>
+
+#define N_IRQ 64
 
 typedef struct rootdev {
   rman_t local_rm;
   rman_t shared_rm;
+  intr_event_t intr_event[N_IRQ];
 } rootdev_t;
 
 /* BCM2836_ARM_LOCAL_BASE mapped into VA (4KiB). */
@@ -46,11 +50,20 @@ static bus_space_t *rootdev_bus_space = &(bus_space_t){
 
 static void rootdev_intr_setup(device_t *dev, unsigned num,
                                intr_handler_t *handler) {
-  aarch64_intr_setup(handler, num);
+  rootdev_t *rd = dev->parent->state;
+
+  assert(num < N_IRQ);
+  intr_event_t *event = &rd->intr_event[num];
+  intr_event_add_handler(event, handler);
 }
 
 static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
-  aarch64_intr_teardown(handler);
+  intr_event_remove_handler(handler);
+}
+
+static void rootdev_intr_handler(device_t *dev, void *arg) {
+  rootdev_t *rd = dev->state;
+  intr_event_run_handlers(&rd->intr_event[0]);
 }
 
 static int rootdev_attach(device_t *bus) {
@@ -67,6 +80,13 @@ static int rootdev_attach(device_t *bus) {
   rootdev_local_handle = kva_alloc(BCM2836_ARM_LOCAL_SIZE);
   pmap_kenter(rootdev_local_handle, BCM2836_ARM_LOCAL_BASE,
               VM_PROT_READ | VM_PROT_WRITE, PMAP_NOCACHE);
+
+  for (int i = 0; i < N_IRQ; i++) {
+    intr_event_init(&rd->intr_event[i], i, NULL, NULL, NULL, NULL);
+    intr_event_register(&rd->intr_event[i]);
+  }
+
+  intr_root_claim(rootdev_intr_handler, bus, NULL);
 
   return bus_generic_probe(bus);
 }
