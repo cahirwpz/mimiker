@@ -267,7 +267,7 @@ int sig_pgkill(pgrp_t *pg, signo_t sig) {
 
   TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
     WITH_PROC_LOCK(p) {
-      /* if sig_kill returns 0 we don't need information about error */
+      /* if sig_kill returns 0 we don't need information about error any more */
       if (!(error = sig_kill(p, sig)))
         signaled++;
     }
