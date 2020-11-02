@@ -35,6 +35,10 @@ int do_setgid(proc_t *p, gid_t gid);
 int do_setegid(proc_t *p, gid_t egid);
 int do_setregid(proc_t *p, gid_t rgid, gid_t egid);
 
+/* \note Must be called with from::p_lock held. Returns with form::p_lock held.
+ * (We do this only while doing fork, so to is new proc not visible for other
+ * processes.)
+ */
 void cred_fork(proc_t *to, proc_t *from);
 
 /* \note Must be called with p::p_lock. Returns p::p_lock held */
