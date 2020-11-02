@@ -162,17 +162,18 @@ static int sq_suspend(thread_t *td, sleep_t sleep) {
 
   td->td_state = TDS_SLEEPING;
   sched_switch();
-  spin_lock(td->td_lock);
 
-  /* After wakeup, only one of the following flags may be set:
-   *  - TDF_SLPINTR if sleep was aborted,
-   *  - TDF_SLPTIMED if sleep has timed out. */
-  if (td->td_flags & TDF_SLPINTR) {
-    td->td_flags &= ~TDF_SLPINTR;
-    status = EINTR;
-  } else if (td->td_flags & TDF_SLPTIMED) {
-    td->td_flags &= ~TDF_SLPTIMED;
-    status = ETIMEDOUT;
+  WITH_SPIN_LOCK (td->td_lock) {
+    /* After wakeup, only one of the following flags may be set:
+     *  - TDF_SLPINTR if sleep was aborted,
+     *  - TDF_SLPTIMED if sleep has timed out. */
+    if (td->td_flags & TDF_SLPINTR) {
+      td->td_flags &= ~TDF_SLPINTR;
+      status = EINTR;
+    } else if (td->td_flags & TDF_SLPTIMED) {
+      td->td_flags &= ~TDF_SLPTIMED;
+      status = ETIMEDOUT;
+    }
   }
 
   return status;
@@ -185,17 +186,16 @@ static int sq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
     waitpt = __caller(0);
 
   sleepq_chain_t *sc = sc_acquire(wchan);
-  WITH_SPIN_LOCK (td->td_lock) {
-    /* If there are pending signals, interrupt the sleep immediately. */
-    if (sq_interrupted_early(td, sleep)) {
-      sc_release(sc);
-      return EINTR;
-    }
-    sq_enter(td, wchan, waitpt, sleep);
+  spin_lock(td->td_lock);
+  /* If there are pending signals, interrupt the sleep immediately. */
+  if (sq_interrupted_early(td, sleep)) {
+    spin_unlock(td->td_lock);
     sc_release(sc);
-    return sq_suspend(td, sleep);
+    return EINTR;
   }
-  __unreachable();
+  sq_enter(td, wchan, waitpt, sleep);
+  sc_release(sc);
+  return sq_suspend(td, sleep);
 }
 
 static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
