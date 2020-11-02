@@ -12,10 +12,11 @@ typedef uintptr_t rman_addr_t;
 #define RMAN_ADDR_MAX UINTPTR_MAX
 
 typedef struct rman rman_t;
+typedef struct rman_region rman_region_t;
 typedef struct resource resource_t;
 typedef struct device device_t;
 typedef struct bus_space bus_space_t;
-typedef TAILQ_HEAD(, resource) res_list_t;
+typedef TAILQ_HEAD(, rman_region) rm_reg_list_t;
 
 typedef enum {
   RF_NONE = 0,
@@ -45,12 +46,10 @@ struct resource {
 #define RESOURCE_DECLARE(name) extern resource_t name[1]
 
 struct rman {
-  mtx_t rm_lock;           /* protects all fields of resource manager */
-  const char *rm_name;     /* description of the resource manager */
-  rman_addr_t rm_start;    /* first physical address */
-  rman_addr_t rm_end;      /* last physical address */
-  res_list_t rm_resources; /* all managed resources */
-  res_type_t rm_type;      /* type of managed resources */
+  mtx_t rm_lock;            /* protects all fields of resource manager */
+  const char *rm_name;      /* description of the resource manager */
+  rm_reg_list_t rm_regions; /* regions managed by this resource manager */
+  res_type_t rm_type;       /* type of managed resources */
 };
 
 /* !\brief Allocate resource within given rman.
@@ -76,7 +75,12 @@ static inline bus_size_t rman_get_size(resource_t *r) {
 }
 
 /* !\brief Initializes resource manager for further use. */
-void rman_init(rman_t *rm, const char *name, rman_addr_t start, rman_addr_t end,
-               res_type_t type);
+void rman_init(rman_t *rm, const char *name, res_type_t type);
+
+/* !\brief Adds a new region to be managed by a resource manager. */
+int rman_manage_region(rman_t *rm, rman_addr_t start, rman_addr_t end);
+
+/* !\brief Destroy resource manager and free its memory resources. */
+void rman_destroy(rman_t *rm);
 
 #endif /* !_SYS_RMAN_H_ */

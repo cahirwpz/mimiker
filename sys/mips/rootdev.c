@@ -24,8 +24,11 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
 }
 
 static int rootdev_attach(device_t *bus) {
+  int error;
   /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ... */
-  rman_init(&rm_mem, "Malta I/O space", 0x10000000, 0x1fffffff, RT_MEMORY);
+  rman_init(&rm_mem, "Malta I/O space", RT_MEMORY);
+  error = rman_manage_region(&rm_mem, 0x10000000, 0x1fffffff);
+  assert(error == 0);
   return bus_generic_probe(bus);
 }
 
