@@ -1,3 +1,5 @@
+#include <sys/mutex.h>
+#include <sys/queue.h>
 #include <sys/thread.h>
 #include <sys/filedesc.h>
 #include <sys/sched.h>
@@ -82,8 +84,13 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   /* Link the child process into all the structures
    * by which it can be reached from the outside at once. */
   WITH_MTX_LOCK (all_proc_mtx) {
-    TAILQ_INSERT_HEAD(&parent->p_pgrp->pg_members, child, p_pglist);
-    child->p_pgrp = parent->p_pgrp;
+    /* Enter child into parent's process group.
+     * No jobc adjustments are necessary, since the new child has no children
+     * of its own, and it's in the same process group as the parent. */
+    WITH_MTX_LOCK (&parent->p_pgrp->pg_lock) {
+      child->p_pgrp = parent->p_pgrp;
+      TAILQ_INSERT_HEAD(&parent->p_pgrp->pg_members, child, p_pglist);
+    }
     proc_add(child);
   }
 
