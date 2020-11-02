@@ -66,8 +66,6 @@ static void rootdev_intr_handler(device_t *dev, void *arg) {
   intr_event_run_handlers(&rd->intr_event[0]);
 }
 
-extern int arm_timer_init(device_t *dev);
-
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
