@@ -437,6 +437,7 @@ static void proc_reap(proc_t *p) {
 
 static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
   assert(mtx_owned(all_proc_mtx));
+  assert(new_parent);
 
   proc_t *child, *next;
   TAILQ_FOREACH_SAFE (child, CHILDREN(old_parent), p_child, next) {
@@ -448,10 +449,8 @@ static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
 
   /* The new parent might be waiting for its children to change state,
    * so notify the parent so that they check again. */
-  if (new_parent) {
-    WITH_PROC_LOCK(new_parent) {
-      proc_wakeup_parent(new_parent);
-    }
+  WITH_PROC_LOCK(new_parent) {
+    proc_wakeup_parent(new_parent);
   }
 }
 
