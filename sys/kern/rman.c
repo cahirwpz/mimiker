@@ -1,7 +1,6 @@
 #include <sys/mimiker.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
-#include <sys/errno.h>
 
 typedef TAILQ_HEAD(, resource) res_list_t;
 
@@ -123,9 +122,8 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
   return r;
 }
 
-int rman_manage_region(rman_t *rm, rman_addr_t start, rman_addr_t end) {
+void rman_manage_region(rman_t *rm, rman_addr_t start, rman_addr_t end) {
   rman_region_t *reg;
-  int error = 0;
 
   reg = kmalloc(M_RES, sizeof(rman_region_t), M_ZERO);
   TAILQ_INIT(&reg->resources);
@@ -147,28 +145,20 @@ int rman_manage_region(rman_t *rm, rman_addr_t start, rman_addr_t end) {
       TAILQ_INSERT_TAIL(&rm->rm_regions, reg, link);
     } else {
       /* Check for any overlap with the current region. */
-      if (reg->start <= p->end && reg->end >= p->start)
-        error = EBUSY;
+      assert(!(reg->start <= p->end && reg->end >= p->start));
 
       /* Check for any overlap with the next region. */
       s = TAILQ_NEXT(p, link);
-      if (s && reg->start <= s->end && reg->end >= s->start)
-        error = EBUSY;
+      if (s)
+        assert(!(reg->start <= s->end && reg->end >= s->start));
 
       /* Insert the new region. */
-      if (!error) {
-        if (p->end < reg->start)
-          TAILQ_INSERT_AFTER(&rm->rm_regions, p, reg, link);
-        else
-          TAILQ_INSERT_BEFORE(p, reg, link);
-      }
+      if (p->end < reg->start)
+        TAILQ_INSERT_AFTER(&rm->rm_regions, p, reg, link);
+      else
+        TAILQ_INSERT_BEFORE(p, reg, link);
     }
   }
-
-  if (error)
-    kfree(M_RES, reg);
-
-  return error;
 }
 
 void rman_release_resource(resource_t *r) {
@@ -202,7 +192,7 @@ void rman_init(rman_t *rm, const char *name, res_type_t type) {
   TAILQ_INIT(&rm->rm_regions);
 }
 
-void rman_destory(rman_t *rm) {
+void rman_destroy(rman_t *rm) {
   rman_region_t *reg;
   resource_t *r;
 

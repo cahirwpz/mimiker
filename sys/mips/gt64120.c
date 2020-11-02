@@ -264,18 +264,14 @@ static int gt_pci_attach(device_t *pcib) {
     panic("gt64120 resource allocation fail");
   }
 
-  int error;
   rman_init(&gtpci->isa_io_rman, "GT64120 ISA I/O ports", RT_IOPORTS);
-  error = rman_manage_region(&gtpci->isa_io_rman, 0x0000, 0x0fff);
-  assert(error == 0);
+  rman_manage_region(&gtpci->isa_io_rman, 0x0000, 0x0fff);
 
   rman_init(&gtpci->pci_io_rman, "GT64120 PCI I/O ports", RT_IOPORTS);
-  error = rman_manage_region(&gtpci->pci_io_rman, 0x1000, 0xffff);
-  assert(error == 0);
+  rman_manage_region(&gtpci->pci_io_rman, 0x1000, 0xffff);
 
   rman_init(&gtpci->pci_mem_rman, "GT64120 PCI memory", RT_MEMORY);
-  error = rman_manage_region(&gtpci->pci_mem_rman, 0, MALTA_PCI0_MEMORY_SIZE);
-  assert(error == 0);
+  rman_manage_region(&gtpci->pci_mem_rman, 0, MALTA_PCI0_MEMORY_SIZE);
 
   pcib->bus = DEV_BUS_PCI;
 

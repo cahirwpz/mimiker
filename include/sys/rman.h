@@ -78,7 +78,7 @@ static inline bus_size_t rman_get_size(resource_t *r) {
 void rman_init(rman_t *rm, const char *name, res_type_t type);
 
 /* !\brief Adds a new region to be managed by a resource manager. */
-int rman_manage_region(rman_t *rm, rman_addr_t start, rman_addr_t end);
+void rman_manage_region(rman_t *rm, rman_addr_t start, rman_addr_t end);
 
 /* !\brief Destroy resource manager and free its memory resources. */
 void rman_destroy(rman_t *rm);
