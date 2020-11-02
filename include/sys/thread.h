@@ -63,7 +63,6 @@ typedef enum {
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 #define TDF_NEEDSIGCHK 0x00000004 /* signals were posted for delivery */
 #define TDF_BORROWING 0x00000010  /* priority propagation */
-#define TDF_SLEEPY 0x00000020     /* thread is about to go to sleep */
 /* TDF_SLP* flags are used internally by sleep queue */
 #define TDF_SLPINTR 0x00000040  /* sleep is interruptible */
 #define TDF_SLPTIMED 0x00000080 /* sleep with timeout */
