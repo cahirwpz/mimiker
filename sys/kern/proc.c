@@ -437,6 +437,7 @@ static void proc_reap(proc_t *p) {
 
 static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
   assert(mtx_owned(all_proc_mtx));
+  assert(new_parent);
 
   proc_t *child, *next;
   TAILQ_FOREACH_SAFE (child, CHILDREN(old_parent), p_child, next) {
@@ -448,8 +449,16 @@ static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
 
   /* The new parent might be waiting for its children to change state,
    * so notify the parent so that they check again. */
-  if (new_parent)
-    cv_broadcast(&new_parent->p_waitcv);
+  WITH_PROC_LOCK(new_parent) {
+    proc_wakeup_parent(new_parent);
+  }
+}
+
+void proc_wakeup_parent(proc_t *parent) {
+  assert(mtx_owned(&parent->p_lock));
+
+  parent->p_flags |= PF_CHILD_STATE_CHANGED;
+  cv_broadcast(&parent->p_waitcv);
 }
 
 __noreturn void proc_exit(int exitstatus) {
@@ -504,15 +513,14 @@ __noreturn void proc_exit(int exitstatus) {
       auto_reap = parent->p_sigactions[SIGCHLD].sa_handler == SIG_IGN;
       if (!auto_reap)
         sig_kill(parent, SIGCHLD);
+      /* We unconditionally notify the parent if they're waiting for a child,
+       * even when we reap ourselves, because we might be the last child
+       * of the parent, in which case the parent's waitpid should fail,
+       * which it can't do if the parent is still waiting.
+       * NOTE: If auto_reap is true, we must NOT drop all_proc_mtx
+       * between this point and the auto-reap! */
+      proc_wakeup_parent(parent);
     }
-
-    /* We unconditionally notify the parent if they're waiting for a child,
-     * even when we reap ourselves, because we might be the last child
-     * of the parent, in which case the parent's waitpid should fail,
-     * which it can't do if the parent is still waiting.
-     * NOTE: If auto_reap is true, we must NOT drop all_proc_mtx
-     * between this point and the auto-reap! */
-    cv_broadcast(&parent->p_waitcv);
 
     klog("Turning PID(%d) into zombie!", p->p_pid);
 
@@ -597,11 +605,15 @@ static bool child_matches(proc_t *child, pid_t pid, pgrp_t *pg) {
 int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   proc_t *p = proc_self();
 
-  WITH_MTX_LOCK (all_proc_mtx) {
-    for (;;) {
-      int error = ECHILD;
-      proc_t *child;
+  WITH_PROC_LOCK(p) {
+    p->p_flags &= ~PF_CHILD_STATE_CHANGED;
+  }
 
+  for (;;) {
+    int error = ECHILD;
+    proc_t *child;
+
+    WITH_MTX_LOCK (all_proc_mtx) {
       /* Check children meeting criteria implied by pid. */
       TAILQ_FOREACH (child, CHILDREN(p), p_child) {
         if (!child_matches(child, pid, p->p_pgrp))
@@ -624,18 +636,20 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
           return 0;
         }
 
-        if ((options & WUNTRACED) && (child->p_state == PS_STOPPED) &&
-            (child->p_flags & PF_STOPPED)) {
-          child->p_flags &= ~PF_STOPPED;
-          *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
-          return 0;
-        }
+        WITH_PROC_LOCK(child) {
+          if (child->p_flags & PF_STATE_CHANGED) {
+            if ((options & WUNTRACED) && (child->p_state == PS_STOPPED)) {
+              child->p_flags &= ~PF_STATE_CHANGED;
+              *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
+              return 0;
+            }
 
-        if ((options & WCONTINUED) && (child->p_state == PS_NORMAL) &&
-            (child->p_flags & PF_CONTINUED)) {
-          child->p_flags &= ~PF_CONTINUED;
-          *status = MAKE_STATUS_SIG_CONT();
-          return 0;
+            if ((options & WCONTINUED) && (child->p_state == PS_NORMAL)) {
+              child->p_flags &= ~PF_STATE_CHANGED;
+              *status = MAKE_STATUS_SIG_CONT();
+              return 0;
+            }
+          }
         }
 
         /* We were looking for a specific child and found it. */
@@ -647,12 +661,19 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
         *cldpidp = 0;
         return error;
       }
+    }
 
-      /* Wait until one of children changes a state. */
-      klog("PID(%d) waits for children (pid = %d)", p->p_pid, pid);
-      cv_wait(&p->p_waitcv, all_proc_mtx);
+    WITH_PROC_LOCK(p) {
+      /* If no child has changed state while we were checking then go asleep. */
+      if (!(p->p_flags & PF_CHILD_STATE_CHANGED)) {
+        klog("PID(%d) waits for children (pid = %d, options = %x)", p->p_pid,
+             pid, options);
+        /* Wait until one of our children changes state. */
+        cv_wait(&p->p_waitcv, &p->p_lock);
+      }
+
+      p->p_flags &= ~PF_CHILD_STATE_CHANGED;
     }
   }
-
   __unreachable();
 }
