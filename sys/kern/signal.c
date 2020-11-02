@@ -196,9 +196,10 @@ int sig_kill(proc_t *p, signo_t sig) {
   assert(mtx_owned(&p->p_lock));
   assert(sig < NSIG);
 
-  /* Zombie or dying processes shouldn't accept any signals. */
+  /* Zombie or dying processes shouldn't accept any signals.
+   * IEEE Std 1003.1-2001: return success for zombies */
   if (!proc_is_alive(p))
-    return EPERM;
+    return 0;
 
   thread_t *td = p->p_thread;
 
