@@ -639,18 +639,18 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
         }
 
         WITH_PROC_LOCK(child) {
-          if ((options & WUNTRACED) && (child->p_state == PS_STOPPED) &&
-              (child->p_flags & PF_STOPPED)) {
-            child->p_flags &= ~PF_STOPPED;
-            *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
-            return 0;
-          }
+          if (child->p_flags & PF_STATE_CHANGED) {
+            if ((options & WUNTRACED) && (child->p_state == PS_STOPPED)) {
+              child->p_flags &= ~PF_STATE_CHANGED;
+              *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
+              return 0;
+            }
 
-          if ((options & WCONTINUED) && (child->p_state == PS_NORMAL) &&
-              (child->p_flags & PF_CONTINUED)) {
-            child->p_flags &= ~PF_CONTINUED;
-            *status = MAKE_STATUS_SIG_CONT();
-            return 0;
+            if ((options & WCONTINUED) && (child->p_state == PS_NORMAL)) {
+              child->p_flags &= ~PF_STATE_CHANGED;
+              *status = MAKE_STATUS_SIG_CONT();
+              return 0;
+            }
           }
         }
 

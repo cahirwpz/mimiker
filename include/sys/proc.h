@@ -60,9 +60,8 @@ typedef enum { PS_NORMAL, PS_STOPPED, PS_DYING, PS_ZOMBIE } proc_state_t;
 
 typedef enum {
   /* Cleared when continued or reported by wait4. */
-  PF_STOPPED = 0x1,             /* Set on stopping */
-  PF_CONTINUED = 0x2,           /* Set when continued */
-  PF_CHILD_STATE_CHANGED = 0x4, /* Child state changed, recheck children */
+  PF_STATE_CHANGED = 0x1,       /* Set when stopped or continued */
+  PF_CHILD_STATE_CHANGED = 0x2, /* Child state changed, recheck children */
 } proc_flags_t;
 
 /*! \brief Process structure

@@ -210,8 +210,7 @@ void sig_kill(proc_t *p, signo_t sig) {
    * unless it's waking up a stopped process. */
   if (p->p_state == PS_STOPPED && continued) {
     p->p_state = PS_NORMAL;
-    p->p_flags &= ~PF_STOPPED;
-    p->p_flags |= PF_CONTINUED;
+    p->p_flags |= PF_STATE_CHANGED;
     WITH_PROC_LOCK(p->p_parent) {
       proc_notify_parent(p->p_parent);
     }
@@ -312,8 +311,7 @@ void sig_post(signo_t sig) {
   if (sa->sa_handler == SIG_DFL && defact(sig) == SA_STOP) {
     klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
     p->p_state = PS_STOPPED;
-    p->p_flags &= ~PF_CONTINUED;
-    p->p_flags |= PF_STOPPED;
+    p->p_flags |= PF_STATE_CHANGED;
     WITH_PROC_LOCK(p->p_parent) {
       proc_notify_parent(p->p_parent);
       sig_kill(p->p_parent, SIGCHLD);
