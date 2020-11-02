@@ -37,6 +37,9 @@ int do_setregid(proc_t *p, gid_t rgid, gid_t egid);
 
 void cred_fork(proc_t *to, proc_t *from);
 
+/* \note Must be called with p::p_lock. Returns p::p_lock held */
+int cred_cansignal(proc_t *p, cred_t *cred);
+
 #endif /* !_KERNEL */
 
 #endif /* _SYS_CRED_H_ */

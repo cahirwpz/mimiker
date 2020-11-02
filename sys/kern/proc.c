@@ -656,3 +656,14 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
 
   __unreachable();
 }
+
+int proc_cansignal(proc_t *receiver, proc_t *sender, signo_t sig) {
+  assert(mtx_owned(&receiver->p_lock));
+  assert(mtx_owned(&sender->p_lock));
+
+  if (sig == SIGCONT &&
+      receiver->p_pgrp->pg_session == sender->p_pgrp->pg_session)
+    return 0;
+
+  return cred_cansignal(receiver, &sender->p_cred);
+}
