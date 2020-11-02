@@ -65,8 +65,6 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
   r->r_rman = rm;
   r->r_type = rm->rm_type;
   r->r_flags = flags;
-  r->r_owner = dev;
-  /* other fields are set up by device_add_resource */
 
   WITH_MTX_LOCK (&rm->rm_lock) {
     resource_t *after = NULL;
