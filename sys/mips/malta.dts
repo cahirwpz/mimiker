@@ -1,85 +1,127 @@
 /dts-v1/;
 
 / {
+
     model = "MIPS Malta-R";
     compatible = "mti,malta";
+    #address-cells = <1>;
+    #size-cells = <1>;
 
-	  cpus {
-		    cpu@0 {
-			      compatible = "mti,mips14KEc", "mti,mips14Kc";
-		    };
-	  };
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        cpu@0 {
+            compatible = "mti,mips24Kf";
+            reg = <0>;
+        };
+    };
 
-    memory {
+    memory@0 {
         device_type = "memory";
         reg = <0x0 0x8000000>;
     };
 
-    root@0 {
+    cpuintc: cpuintc {
+        #address-cells = <0>;
+        #interrupt-cells = <1>;
+        interrupt-controller;
+        compatible = "mti,cpu-interrupt-controller";
+    };
+
+    soc@10000000 {
+        compatible = "simple-bus";
         #address-cells = <1>;
         #size-cells = <1>;
-        #id-cells = <1>;
+        #interrupt-cells = <1>;
+        ranges = <0x0 0x10000000 0x10000000>;
 
-        cbus@0 {
+        cbus@1f000000 {
             compatible = "cbus";
-            reg = <0x1f000000 0x100000 0x0>;
             #address-cells = <1>;
             #size-cells = <1>;
-            #id-cells = <1>;
+            reg = <0x1f000000 0x100000>;
+            ranges = <0x0 0x1f000000 0x100000>;
 
-            serial@0 {
+            serial@900 {
                 compatible = "ns16550";
-                reg = <0x900 0x40 0x0>;
+                reg = <0x900 0x40>;
+                reg-shift = <3>;
+                reg-io-width = <1>;
+                interrupt-parent = <&cpuintc>;
+                interrupts = <2>;
             };
         };
 
-        pci@0 {
-            compatible = "pci";
-            reg = <0x10000000 0x800000 0x0
-                   0x18000000 0x3e00000 0x1>; 
-                   
+        isa@18000000 {
+            reg = <0x18000000 0x1000>;
 
-            isa@0 {
-                reg = <0x0 0x1000 0x0>;
+            compatible = "isa";
+            #address-cells = <1>;
+            #size-cells = <1>;
+            #interrupt-cells = <1>;
 
-                compatible = "isa";
-                #address-cells = <1>;
-                #size-cells = <1>;
-                #id-cells = <1>;
+            i8259: interrupt-controller@20 {
+                compatible = "intel,i8259";
+                reg = <0x20 2>, <0xA0 2>;
+
+                interrupt-controller;
                 #interrupt-cells = <1>;
 
-                rtc@0 {
-                    compatible = "rtc";
-                    reg = <0x70 0x10 0x0>;
-                    interrupts = <8>;
-                };
-
-                atkbdc@0 {
-                    compatible = "atkbdc";
-                    reg = <0x60 0x1 0x0
-                           0x64 0x1 0x1>;
-                    interrupts = <1>;
-                };
-
-                pit@0 {
-                    compatible = "pit";
-                    reg = <0x40 0x10 0x0>;
-                    interrupts = <0>;
-                };
-
-                serial@0 {
-                    compatible = "ns16550";
-                    reg = <0x3f8 0x40 0x0>;
-                    interrupts = <3>;
-                };
-
-                serial@1 {
-                    compatible = "ns16550";
-                    reg = <0x2f8 0x40 0x0>;
-                    interrupts = <4>;
-                };
-
+                interrupt-parent = <&cpuintc>;
+                interrupts = <0>;
             };
+
+            rtc@70 {
+                compatible = "motorola,mc146818";
+                reg = <0x70 0x10>;
+                interrupt-parent = <&i8259>;
+                // IRQ: Real Time Clock, PIIX4 82371AB SouthBridge
+                interrupts = <8>;
+            };
+
+            atkbdc@60 {
+                compatible = "atkbdc";
+                reg = <0x60 0x1>, <0x64 0x1>;
+                interrupt-parent = <&i8259>;
+                // IRQ: Keyboard, FDC37M817 Super I/O
+                interrupts = <1>;
+            };
+
+            pit@40 {
+                compatible = "pit";
+                reg = <0x40 0x10>;
+                interrupt-parent = <&i8259>;
+                // IRQ: System Timer, PIIX4 82371AB SouthBridge
+                interrupts = <0>;
+            };
+
+            serial@3f8 {
+                compatible = "ns16550";
+                reg = <0x3f8 0x8>;
+                interrupt-parent = <&i8259>;
+                // IRQ: UART1, FDC37M817 Super I/O
+                interrupts = <3>;
+            };
+
+            serial@2f8 {
+                compatible = "ns16550";
+                reg = <0x2f8 0x8>;
+                interrupt-parent = <&i8259>;
+                // IRQ: UART0, FDC37M817 Super I/O
+                interrupts = <4>;
+            };
+
+        };
+
+        pci@1be00000 {
+            device_type = "pci";
+            compatible = "pci";
+            #address-cells = <3>;
+            #size-cells = <2>;
+            reg = <0x1be00000 0x200000>;
+            ranges = <0x82000000 0 0x10000000 0x10000000 0 0x8000000>,
+                     <0x81000000 0 0x18000000 0x18000000 0 0x3e00000>;
+            bus-range = <0x0 0x1>;
         };
 
     };

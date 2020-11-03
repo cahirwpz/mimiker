@@ -53,8 +53,13 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   /* Now, prepare a new process. */
   proc_t *child = proc_create(newtd, parent);
 
-  /* Clone credentials. */
-  cred_fork(child, parent);
+  /* Clone credentials.
+   * We have to do it with parent::p_lock held.
+   * We don't need to hold child::p_lock because child is not visible yet.
+   */
+  WITH_PROC_LOCK(parent) {
+    cred_fork(child, parent);
+  }
 
   /* Clone the entire process memory space. */
   child->p_uspace = vm_map_clone(parent->p_uspace);
