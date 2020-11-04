@@ -84,48 +84,35 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
   intr_event_remove_handler(handler);
 }
 
-static void rootdev_intr_handler(device_t *dev, void *arg) {
-  rootdev_t *rd = dev->state;
-  volatile uint32_t pending;
-  volatile uint32_t *volatile reg;
+/* Read 32 bit pending register located at va and run handlers. */
+static inline void intr_handle(vaddr_t va, intr_event_t *events) {
+  assert(va != 0);
+  assert(events != NULL);
 
-  /* TODO(pj) Create separate function for handling each pending registers. */
+  uint32_t pending = *(uint32_t *)va;
+
+  for (uint32_t irq = 0; irq < 32; irq++) {
+    if (pending & (1 << irq))
+      intr_event_run_handlers(&events[irq]);
+  }
+}
+
+static void rootdev_intr_handler(device_t *dev, void *arg) {
+  assert(dev != NULL);
+  rootdev_t *rd = dev->state;
 
   /* Handle local interrupts. */
-  reg = (uint32_t *)(rootdev_local_handle + BCM2836_LOCAL_INTC_IRQPENDINGN(0));
-  pending = *reg;
-
-  for (uint32_t irq = 0; irq < 32; irq++) {
-    if (pending & (1 << irq))
-      intr_event_run_handlers(&rd->intr_event[irq + LOCAL_OFFSET]);
-  }
+  intr_handle(rootdev_local_handle + BCM2836_LOCAL_INTC_IRQPENDINGN(0),
+              &rd->intr_event[LOCAL_OFFSET]);
 
   /* Handle base interrupts. */
-  reg = (uint32_t *)(rd->arm_base + 0x200);
-  pending = *reg;
-
-  for (uint32_t irq = 0; irq < 32; irq++) {
-    if (pending & (1 << irq))
-      intr_event_run_handlers(&rd->intr_event[irq + BASE_OFFSET]);
-  }
+  intr_handle(rd->arm_base + 0x200, &rd->intr_event[BASE_OFFSET]);
 
   /* Handle GPU0 interrupts. */
-  reg = (uint32_t *)(rd->arm_base + 0x204);
-  pending = *reg;
-
-  for (uint32_t irq = 0; irq < 32; irq++) {
-    if (pending & (1 << irq))
-      intr_event_run_handlers(&rd->intr_event[irq + GPU0_OFFSET]);
-  }
+  intr_handle(rd->arm_base + 0x204, &rd->intr_event[GPU0_OFFSET]);
 
   /* Handle GPU1 interrupts. */
-  reg = (uint32_t *)(rd->arm_base + 0x208);
-  pending = *reg;
-
-  for (uint32_t irq = 0; irq < 32; irq++) {
-    if (pending & (1 << irq))
-      intr_event_run_handlers(&rd->intr_event[irq + GPU1_OFFSET]);
-  }
+  intr_handle(rd->arm_base + 0x208, &rd->intr_event[GPU1_OFFSET]);
 }
 
 static int rootdev_attach(device_t *bus) {
