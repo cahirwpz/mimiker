@@ -169,7 +169,7 @@ void vattr_null(vattr_t *va) {
 }
 
 /* Default file operations using v-nodes. */
-static int default_vnread(file_t *f, uio_t *uio) {
+int default_vnread(file_t *f, uio_t *uio) {
   vnode_t *v = f->f_vnode;
   int error = 0;
   vnode_lock(v);
@@ -180,7 +180,7 @@ static int default_vnread(file_t *f, uio_t *uio) {
   return error;
 }
 
-static int default_vnwrite(file_t *f, uio_t *uio) {
+int default_vnwrite(file_t *f, uio_t *uio) {
   vnode_t *v = f->f_vnode;
   int error = 0, ioflag = 0;
   if (f->f_flags & FF_APPEND)
@@ -193,13 +193,13 @@ static int default_vnwrite(file_t *f, uio_t *uio) {
   return error;
 }
 
-static int default_vnclose(file_t *f) {
+int default_vnclose(file_t *f) {
   (void)VOP_CLOSE(f->f_vnode, f);
   vnode_drop(f->f_vnode);
   return 0;
 }
 
-static int default_vnstat(file_t *f, stat_t *sb) {
+int default_vnstat(file_t *f, stat_t *sb) {
   vnode_t *v = f->f_vnode;
   vattr_t va;
   int error;
@@ -209,7 +209,7 @@ static int default_vnstat(file_t *f, stat_t *sb) {
   return 0;
 }
 
-static int default_vnseek(file_t *f, off_t offset, int whence, off_t *newoffp) {
+int default_vnseek(file_t *f, off_t offset, int whence, off_t *newoffp) {
   vnode_t *v = f->f_vnode;
   int error;
   vattr_t va;
@@ -256,7 +256,7 @@ out:
   return error;
 }
 
-static int default_ioctl(file_t *f, u_long cmd, void *data) {
+int default_ioctl(file_t *f, u_long cmd, void *data) {
   vnode_t *v = f->f_vnode;
   int error = EPASSTHROUGH;
 
