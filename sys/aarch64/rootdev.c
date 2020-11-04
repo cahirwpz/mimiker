@@ -24,7 +24,7 @@
  */
 #define N_IRQ (BCM2835_NIRQ + BCM2836_NIRQPERCPU)
 
-/* These should be should be exposed for the children of rootdev. */
+/* These should be exposed for the children of rootdev. */
 #define GPU0_OFFSET 0
 #define GPU1_OFFSET 32
 #define BASE_OFFSET 64
