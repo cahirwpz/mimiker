@@ -11,6 +11,8 @@
 #include <sys/interrupt.h>
 #include <sys/errno.h>
 #include <sys/callout.h>
+#include <sys/signal.h>
+#include <sys/proc.h>
 
 #define SC_TABLESIZE 256 /* Must be power of 2. */
 #define SC_MASK (SC_TABLESIZE - 1)
@@ -179,8 +181,34 @@ static int sq_suspend(thread_t *td, sleep_t sleep) {
   return status;
 }
 
+/* Check pending signals.
+ * If we find a signal that should stop us, then we stop here.
+ * Returns EINTR if there is a pending signal that should be caught. */
+static int sq_check_signals(thread_t *td) {
+  proc_t *p = td->td_proc;
+  signo_t sig;
+  /* XXX some sleepq tests use bare kernel threads */
+  if (p == NULL)
+    return EINTR;
+
+  SCOPED_MTX_LOCK(&p->p_lock);
+
+  while (true) {
+    sig = sig_check(td, false);
+    if (sig == 0)
+      return 0;
+    if (sig_should_stop(p->p_sigactions, sig)) {
+      __sigdelset(&td->td_sigpend, sig);
+      proc_stop();
+    } else {
+      return EINTR;
+    }
+  }
+}
+
 static int sq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
   thread_t *td = thread_self();
+  int error = 0;
 
   if (waitpt == NULL)
     waitpt = __caller(0);
@@ -191,11 +219,17 @@ static int sq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
   if (sq_interrupted_early(td, sleep)) {
     spin_unlock(td->td_lock);
     sc_release(sc);
-    return EINTR;
+    error = EINTR;
+  } else {
+    sq_enter(td, wchan, waitpt, sleep);
+    sc_release(sc);
+    error = sq_suspend(td, sleep);
   }
-  sq_enter(td, wchan, waitpt, sleep);
-  sc_release(sc);
-  return sq_suspend(td, sleep);
+
+  if (error == EINTR)
+    error = sq_check_signals(td);
+
+  return error;
 }
 
 static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
