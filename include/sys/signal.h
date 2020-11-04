@@ -96,11 +96,13 @@ void sig_pgkill(pgrp_t *pg, signo_t sig);
  *  - has a handler registered with `sigaction`,
  *  - should cause the process to terminate,
  *  - should interrupt the current system call.
+ * The delete argument controls whether the signal is removed from the
+ * thread's pending signal set.
  *
  * \sa sig_post
  *
  * \returns signal number which should be posted or 0 if none */
-int sig_check(thread_t *td);
+int sig_check(thread_t *td, bool delete);
 
 /*! \brief Invoke the action triggered by a signal.
  *

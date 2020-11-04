@@ -283,7 +283,7 @@ bool sig_should_stop(sigaction_t *sigactions, signo_t sig) {
   return (sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_STOP);
 }
 
-int sig_check(thread_t *td) {
+int sig_check(thread_t *td, bool delete) {
   proc_t *p = td->td_proc;
 
   assert(p != NULL);
@@ -298,7 +298,8 @@ int sig_check(thread_t *td) {
         td->td_flags &= ~TDF_NEEDSIGCHK;
       return 0;
     }
-    __sigdelset(&td->td_sigpend, sig);
+    if (delete)
+      __sigdelset(&td->td_sigpend, sig);
 
     /* We should never get a pending signal that's ignored,
      * since we discard such signals in do_sigaction(). */

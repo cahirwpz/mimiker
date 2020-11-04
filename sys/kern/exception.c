@@ -25,7 +25,7 @@ void on_user_exc_leave(void) {
   if (td->td_flags & TDF_NEEDSIGCHK) {
     WITH_PROC_LOCK(p) {
       int sig;
-      while ((sig = sig_check(td)))
+      while ((sig = sig_check(td, true)))
         sig_post(sig);
     }
   }
