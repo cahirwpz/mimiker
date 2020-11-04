@@ -110,15 +110,18 @@ static void rootdev_intr_handler(device_t *dev, void *arg) {
               &rd->intr_event[LOCAL_OFFSET]);
 
   /* Handle base interrupts. */
-  intr_handle(rd->arm_base + (BCM2835_INTC_IRQBPENDING & OFFSET_MASK),
+  intr_handle(rd->arm_base + ((BCM2835_ARMICU_BASE + BCM2835_INTC_IRQBPENDING) &
+                              OFFSET_MASK),
               &rd->intr_event[BASE_OFFSET]);
 
   /* Handle GPU0 interrupts. */
-  intr_handle(rd->arm_base + (BCM2835_INTC_IRQ1PENDING & OFFSET_MASK),
+  intr_handle(rd->arm_base + ((BCM2835_ARMICU_BASE + BCM2835_INTC_IRQ1PENDING) &
+                              OFFSET_MASK),
               &rd->intr_event[GPU0_OFFSET]);
 
   /* Handle GPU1 interrupts. */
-  intr_handle(rd->arm_base + (BCM2835_INTC_IRQ2PENDING & OFFSET_MASK),
+  intr_handle(rd->arm_base + ((BCM2835_ARMICU_BASE + BCM2835_INTC_IRQ2PENDING) &
+                              OFFSET_MASK),
               &rd->intr_event[GPU1_OFFSET]);
 }
 
