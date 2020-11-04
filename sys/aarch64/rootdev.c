@@ -3,7 +3,6 @@
 #include <sys/bus.h>
 #include <sys/devclass.h>
 #include <aarch64/bcm2835reg.h>
-#include <aarch64/interrupt.h>
 #include <sys/kmem.h>
 #include <sys/pmap.h>
 #include <sys/interrupt.h>
