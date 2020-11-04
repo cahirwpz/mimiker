@@ -26,11 +26,17 @@
  */
 #define N_IRQ (BCM2835_NIRQ + BCM2836_NIRQPERCPU)
 
-/* These should be should be exposed for the children of rootdev. */
+/* These should be exposed for the children of rootdev. */
 #define GPU0_OFFSET 0
 #define GPU1_OFFSET 32
 #define BASE_OFFSET 64
 #define LOCAL_OFFSET 96
+
+/*
+ * Because we use relative virtual addresses for interrupt management we need
+ * only offset from absolute addresses from bcm2835reg.h.
+ */
+#define OFFSET_MASK (PAGESIZE - 1)
 
 typedef struct rootdev {
   rman_t local_rm;
@@ -106,13 +112,16 @@ static void rootdev_intr_handler(device_t *dev, void *arg) {
               &rd->intr_event[LOCAL_OFFSET]);
 
   /* Handle base interrupts. */
-  intr_handle(rd->arm_base + 0x200, &rd->intr_event[BASE_OFFSET]);
+  intr_handle(rd->arm_base + (BCM2835_INTC_IRQBPENDING & OFFSET_MASK),
+              &rd->intr_event[BASE_OFFSET]);
 
   /* Handle GPU0 interrupts. */
-  intr_handle(rd->arm_base + 0x204, &rd->intr_event[GPU0_OFFSET]);
+  intr_handle(rd->arm_base + (BCM2835_INTC_IRQ1PENDING & OFFSET_MASK),
+              &rd->intr_event[GPU0_OFFSET]);
 
   /* Handle GPU1 interrupts. */
-  intr_handle(rd->arm_base + 0x208, &rd->intr_event[GPU1_OFFSET]);
+  intr_handle(rd->arm_base + (BCM2835_INTC_IRQ2PENDING & OFFSET_MASK),
+              &rd->intr_event[GPU1_OFFSET]);
 }
 
 static int rootdev_attach(device_t *bus) {
