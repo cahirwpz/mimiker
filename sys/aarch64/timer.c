@@ -121,7 +121,8 @@ static int arm_timer_attach(device_t *dev) {
   volatile uint32_t *timerp = (uint32_t *)(state->va_page + offset);
   *timerp = *timerp | (1 << BCM2836_INT_CNTPNSIRQ);
 
-  bus_intr_setup(dev, 0, &priv->intr_handler);
+  /* 96 is LOCAL_OFFSET in rootdev.c */
+  bus_intr_setup(dev, 96 + BCM2836_INT_CNTPNSIRQ, &priv->intr_handler);
 
   return 0;
 }

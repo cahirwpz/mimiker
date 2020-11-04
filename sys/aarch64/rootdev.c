@@ -9,12 +9,34 @@
 #include <sys/pmap.h>
 #include <sys/interrupt.h>
 
-#define N_IRQ 64
+/*
+ * located at BCM2835_ARMICU_BASE
+ * accessed by BCM2835_PERIPHERALS_BASE NOT by BCM2835_PERIPHERALS_BASE_BUS
+ * 32 GPU0 interrupts -- 0x204 offset from address; 0 in table
+ * 32 GPU1 interrupts -- 0x208 offset from address; 32 in table
+ * 32 base interrupts -- 0x200 offset from address; 64 in table
+ *
+ * located at BCM2836_ARM_LOCAL_BASE
+ * 32 local interrupts -- one per CPU but now we only support 1 CPU
+ * It is different than bcm2835reg.h layout where we have:
+ *  - 4x32 base interrupts
+ *  - 32 GPU0 interrupts -- 128 offset in table
+ *  - 32 GPU1 interrupts -- 160 offset in table
+ *  - 32 base interrupts -- 192 offset in table
+ */
+#define N_IRQ (BCM2835_NIRQ + BCM2836_NIRQPERCPU)
+
+/* These should be should be exposed for the children of rootdev. */
+#define GPU0_OFFSET 0
+#define GPU1_OFFSET 32
+#define BASE_OFFSET 64
+#define LOCAL_OFFSET 96
 
 typedef struct rootdev {
   rman_t local_rm;
   rman_t shared_rm;
   intr_event_t intr_event[N_IRQ];
+  vaddr_t arm_base;
 } rootdev_t;
 
 static vaddr_t rootdev_local_handle;
@@ -63,7 +85,46 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
 
 static void rootdev_intr_handler(device_t *dev, void *arg) {
   rootdev_t *rd = dev->state;
-  intr_event_run_handlers(&rd->intr_event[0]);
+  volatile uint32_t pending;
+  volatile uint32_t *volatile reg;
+
+  /* TODO(pj) Create separate function for handling each pending registers. */
+
+  /* Handle local interrupts. */
+  reg = (uint32_t *)(rootdev_local_handle + BCM2836_LOCAL_INTC_IRQPENDINGN(0));
+  pending = *reg;
+
+  for (uint32_t irq = 0; irq < 32; irq++) {
+    if (pending & (1 << irq))
+      intr_event_run_handlers(&rd->intr_event[irq + LOCAL_OFFSET]);
+  }
+
+  /* Handle base interrupts. */
+  reg = (uint32_t *)(rd->arm_base + 0x200);
+  pending = *reg;
+
+  for (uint32_t irq = 0; irq < 32; irq++) {
+    if (pending & (1 << irq))
+      intr_event_run_handlers(&rd->intr_event[irq + BASE_OFFSET]);
+  }
+
+  /* Handle GPU0 interrupts. */
+  reg = (uint32_t *)(rd->arm_base + 0x204);
+  pending = *reg;
+
+  for (uint32_t irq = 0; irq < 32; irq++) {
+    if (pending & (1 << irq))
+      intr_event_run_handlers(&rd->intr_event[irq + GPU0_OFFSET]);
+  }
+
+  /* Handle GPU1 interrupts. */
+  reg = (uint32_t *)(rd->arm_base + 0x208);
+  pending = *reg;
+
+  for (uint32_t irq = 0; irq < 32; irq++) {
+    if (pending & (1 << irq))
+      intr_event_run_handlers(&rd->intr_event[irq + GPU1_OFFSET]);
+  }
 }
 
 static int rootdev_attach(device_t *bus) {
@@ -79,6 +140,10 @@ static int rootdev_attach(device_t *bus) {
   /* Map BCM2836 shared processor only once. */
   rootdev_local_handle = kva_alloc(BCM2836_ARM_LOCAL_SIZE);
   pmap_kenter(rootdev_local_handle, BCM2836_ARM_LOCAL_BASE,
+              VM_PROT_READ | VM_PROT_WRITE, PMAP_NOCACHE);
+
+  rd->arm_base = kva_alloc(PAGESIZE);
+  pmap_kenter(rd->arm_base, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
               VM_PROT_READ | VM_PROT_WRITE, PMAP_NOCACHE);
 
   for (int i = 0; i < N_IRQ; i++) {
