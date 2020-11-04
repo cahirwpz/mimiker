@@ -72,8 +72,15 @@ static sigprop_t defact(signo_t sig) {
   return sig_properties[sig] & SA_DEFACT_MASK;
 }
 
+static inline bool sig_is_ignored(sigaction_t *sigactions, signo_t sig) {
+  return (sigactions[sig].sa_handler == SIG_IGN ||
+          (sigactions[sig].sa_handler == SIG_DFL &&
+           (defact(sig) == SA_IGNORE || sig == SIGCONT)));
+}
+
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
-  proc_t *p = proc_self();
+  thread_t *td = thread_self();
+  proc_t *p = td->td_proc;
 
   if (sig >= NSIG)
     return EINVAL;
@@ -86,6 +93,9 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
       memcpy(oldact, &p->p_sigactions[sig], sizeof(sigaction_t));
     if (act != NULL)
       memcpy(&p->p_sigactions[sig], act, sizeof(sigaction_t));
+    /* If ignoring a pending signal, discard it. */
+    if (sig_is_ignored(p->p_sigactions, sig))
+      __sigdelset(&td->td_sigpend, sig);
   }
 
   return 0;
@@ -286,12 +296,9 @@ int sig_check(thread_t *td) {
     }
     __sigdelset(&td->td_sigpend, sig);
 
-    sig_t handler = p->p_sigactions[sig].sa_handler;
-
-    if (handler == SIG_IGN)
-      continue;
-    if (handler == SIG_DFL && defact(sig) == SA_IGNORE)
-      continue;
+    /* We should never get a pending signal that's ignored,
+     * since we discard such signals in do_sigaction(). */
+    assert(!sig_is_ignored(p->p_sigactions, sig));
 
     /* If we reached here, then the signal has to be posted. */
     return sig;
