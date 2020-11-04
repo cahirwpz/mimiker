@@ -172,6 +172,11 @@ int proc_getsid(pid_t pid, sid_t *sidp);
  * Must be called with parent::p_lock held. */
 void proc_wakeup_parent(proc_t *parent);
 
+/*! \brief Stop the current process.
+ *
+ * Must be called with the current process's p_lock held. */
+void proc_stop(void);
+
 int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp);
 
 static inline bool proc_is_alive(proc_t *p) {

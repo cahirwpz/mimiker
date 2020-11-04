@@ -130,6 +130,9 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa);
  * \note This is machine dependent code! */
 int sig_return(void);
 
+/*! \brief Returns whether the signal's current action is to stop a process. */
+bool sig_should_stop(sigaction_t *sigactions, signo_t sig);
+
 /* System calls implementation. */
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset);

@@ -697,3 +697,32 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   }
   __unreachable();
 }
+
+void proc_stop(void) {
+  thread_t *td = thread_self();
+  proc_t *p = td->td_proc;
+
+  assert(mtx_owned(&p->p_lock));
+
+  klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
+  p->p_state = PS_STOPPED;
+  p->p_flags |= PF_STATE_CHANGED;
+  WITH_PROC_LOCK(p->p_parent) {
+    proc_wakeup_parent(p->p_parent);
+    sig_kill(p->p_parent, SIGCHLD);
+  }
+  WITH_SPIN_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
+  proc_unlock(p);
+  /* We're holding no locks here, so our process can be continued before we
+   * actually stop the thread. This is why we need the TDF_STOPPING flag. */
+  spin_lock(td->td_lock);
+  if (td->td_flags & TDF_STOPPING) {
+    td->td_flags &= ~TDF_STOPPING;
+    td->td_state = TDS_STOPPED;
+    sched_switch(); /* Releases td_lock. */
+  } else {
+    spin_unlock(td->td_lock);
+  }
+  proc_lock(p);
+  return;
+}

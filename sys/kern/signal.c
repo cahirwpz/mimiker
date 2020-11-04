@@ -279,6 +279,10 @@ void sig_pgkill(pgrp_t *pg, signo_t sig) {
   }
 }
 
+bool sig_should_stop(sigaction_t *sigactions, signo_t sig) {
+  return (sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_STOP);
+}
+
 int sig_check(thread_t *td) {
   proc_t *p = td->td_proc;
 
@@ -324,27 +328,8 @@ void sig_post(signo_t sig) {
     __unreachable();
   }
 
-  if (sa->sa_handler == SIG_DFL && defact(sig) == SA_STOP) {
-    klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
-    p->p_state = PS_STOPPED;
-    p->p_flags |= PF_STATE_CHANGED;
-    WITH_PROC_LOCK(p->p_parent) {
-      proc_wakeup_parent(p->p_parent);
-      sig_kill(p->p_parent, SIGCHLD);
-    }
-    WITH_SPIN_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
-    proc_unlock(p);
-    /* We're holding no locks here, so our process can be continued before we
-     * actually stop the thread. This is why we need the TDF_STOPPING flag. */
-    spin_lock(td->td_lock);
-    if (td->td_flags & TDF_STOPPING) {
-      td->td_flags &= ~TDF_STOPPING;
-      td->td_state = TDS_STOPPED;
-      sched_switch(); /* Releases td_lock. */
-    } else {
-      spin_unlock(td->td_lock);
-    }
-    proc_lock(p);
+  if (sig_should_stop(p->p_sigactions, sig)) {
+    proc_stop();
     return;
   }
 
