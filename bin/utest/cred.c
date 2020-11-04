@@ -110,7 +110,7 @@ int test_get_set_groups(void) {
   r = setgroups(ngroups, gidset);
   assert(r == 0);
   r = getgroups(NGROUPS_MAX, rgrp);
-  assert(r = ngroups);
+  assert(r == ngroups);
   for (int i = 0; i < r; ++i)
     assert(rgrp[i] == gidset[i]);
 
@@ -135,7 +135,7 @@ int test_get_set_groups(void) {
 
   /* dropping shouldn't affect supplementary groups */
   r = getgroups(NGROUPS_MAX, rgrp);
-  assert(r = ngroups);
+  assert(r == ngroups);
   for (int i = 0; i < r; ++i)
     assert(rgrp[i] == gidset[i]);
 
@@ -144,7 +144,7 @@ int test_get_set_groups(void) {
   assert(r == -1 && errno == EPERM);
 
   r = getgroups(NGROUPS_MAX, rgrp);
-  assert(r = ngroups);
+  assert(r == ngroups);
   for (int i = 0; i < r; ++i)
     assert(rgrp[i] == gidset[i]);
 

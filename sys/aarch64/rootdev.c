@@ -39,6 +39,7 @@ typedef struct rootdev {
   vaddr_t arm_base;
 } rootdev_t;
 
+/* BCM2836_ARM_LOCAL_BASE mapped into VA (4KiB). */
 static vaddr_t rootdev_local_handle;
 
 /* Use pre mapped memory. */
@@ -132,7 +133,7 @@ static int rootdev_attach(device_t *bus) {
 
   /* TODO(cahir) Resource manager should be able to manage independant ranges
    * instead of single one. Consult rman_manage_region in rman(9). */
-  rman_init(&rd->shared_rm, "BCM2835 peripherials", BCM2835_PERIPHERALS_BASE,
+  rman_init(&rd->shared_rm, "BCM2835 peripherals", BCM2835_PERIPHERALS_BASE,
             BCM2835_PERIPHERALS_BASE + BCM2835_PERIPHERALS_SIZE - 1, RT_MEMORY);
   rman_init(&rd->local_rm, "ARM local", BCM2836_ARM_LOCAL_BASE,
             BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1, RT_MEMORY);
@@ -173,7 +174,6 @@ static resource_t *rootdev_alloc_resource(device_t *bus, device_t *child,
     if (flags & RF_ACTIVE)
       bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
                     &r->r_bus_handle);
-    device_add_resource(child, r, rid);
   }
 
   return r;

@@ -51,8 +51,10 @@ def DevelRun(sim, dbg, uarts):
         session.select_window(dbg.name if dbg else '/dev/cons')
         session.attach_session()
     finally:
-        session.kill_session()
         server.kill_server()
+
+        # Give QEMU a chance to exit gracefully
+        sim.stop()
 
 
 if __name__ == '__main__':
@@ -113,7 +115,8 @@ if __name__ == '__main__':
     else:
         dbg = None
 
-    uarts = [SOCAT(name, port) for name, port in getvar('qemu.uarts')]
+    uarts = [SOCAT(uart['name'], uart['port'], uart.get('raw', False))
+             for uart in getvar('qemu.uarts')]
 
     if args.test_run:
         TestRun(sim, uarts)
