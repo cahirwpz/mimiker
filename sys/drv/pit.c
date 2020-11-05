@@ -140,8 +140,13 @@ static int pit_attach(device_t *dev) {
   return 0;
 }
 
-DEVICE_DRIVER_GEN_PCI_PROBE(INTEL_PIIX4_IDE_VENDOR_ID,
-                            INTEL_PIIX4_IDE_DEVICE_ID, pit)
+static int pit_probe(device_t *dev) {
+  pci_device_t *pcid = pci_device_of(dev);
+  if (pcid->vendor_id != INTEL_PIIX4_IDE_VENDOR_ID
+      || pcid->device_id != INTEL_PIIX4_IDE_DEVICE_ID)
+    return 0;
+  return 1;
+}
 
 /* clang-format off */
 static driver_t pit_driver = {
@@ -149,7 +154,7 @@ static driver_t pit_driver = {
   .size = sizeof(pit_state_t),
   .attach = pit_attach,
   .identify = bus_generic_identify,
-  .probe = dev_generic_probe_pit
+  .probe = pit_probe
 };
 /* clang-format on */
 

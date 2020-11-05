@@ -186,7 +186,12 @@ static int ns16550_attach(device_t *dev) {
   return 0;
 }
 
-DEVICE_DRIVER_GEN_PCI_PROBE(NS16550_VENDOR_ID, NS16550_DEVICE_ID, ns16550)
+static int ns16550_probe(device_t *dev) {
+  pci_device_t *pcid = pci_device_of(dev);
+  if (pcid->vendor_id != NS16550_VENDOR_ID || pcid->device_id != NS16550_DEVICE_ID)
+    return 0;
+  return 1;
+}
 
 /* clang-format off */
 static driver_t ns16550_driver = {
@@ -194,7 +199,7 @@ static driver_t ns16550_driver = {
   .size = sizeof(ns16550_state_t),
   .attach = ns16550_attach,
   .identify = bus_generic_identify,
-  .probe = dev_generic_probe_ns16550,
+  .probe = ns16550_probe,
 };
 /* clang-format on */
 
