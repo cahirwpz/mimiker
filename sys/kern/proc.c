@@ -576,7 +576,7 @@ static int proc_pgsignal(proc_t *p, cred_t *cred, pgid_t pgid, signo_t sig) {
     if (pgid == 0) {
       pgrp = proc_self()->p_pgrp;
     } else {
-      pgrp = pgrp_lookup(-pgid);
+      pgrp = pgrp_lookup(pgid);
       if (!pgrp)
         return ESRCH;
     }
