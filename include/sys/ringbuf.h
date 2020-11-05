@@ -26,5 +26,6 @@ bool ringbuf_putb(ringbuf_t *buf, uint8_t byte);
 bool ringbuf_getb(ringbuf_t *buf, uint8_t *byte_p);
 int ringbuf_read(ringbuf_t *buf, uio_t *uio);
 int ringbuf_write(ringbuf_t *buf, uio_t *uio);
+void ringbuf_reset(ringbuf_t *buf);
 
 #endif /* !_SYS_RINGBUF_H_ */

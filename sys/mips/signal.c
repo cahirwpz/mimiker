@@ -103,7 +103,6 @@ int sig_return(void) {
 
 void sig_trap(ctx_t *ctx, signo_t sig) {
   proc_t *proc = proc_self();
-  WITH_MTX_LOCK (all_proc_mtx)
-    WITH_MTX_LOCK (&proc->p_lock)
-      sig_kill(proc, sig);
+  WITH_MTX_LOCK (&proc->p_lock)
+    sig_kill(proc, sig);
 }
