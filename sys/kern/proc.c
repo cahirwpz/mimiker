@@ -569,18 +569,29 @@ __noreturn void proc_exit(int exitstatus) {
   thread_exit();
 }
 
-int proc_sendsig(pid_t pid, signo_t sig) {
+int proc_sendsig(proc_t *p, pid_t pid, signo_t sig) {
 
+  int error = 0;
   proc_t *target;
+  cred_t *cred = kmalloc(M_TEMP, sizeof(cred_t), 0);
+
+  if (!cred)
+    return ENOMEM;
+
+  WITH_PROC_LOCK(p) {
+    cred_copy(cred, p);
+  }
 
   if (pid > 0) {
     WITH_MTX_LOCK (all_proc_mtx)
       target = proc_find(pid);
     if (target == NULL)
-      return EINVAL;
-    sig_kill(target, sig);
+      return ESRCH;
+    if (!(error = proc_cansignal(p, target, cred, sig)))
+      sig_kill(target, sig);
     proc_unlock(target);
-    return 0;
+    kfree(M_TEMP, cred);
+    return error;
   }
 
   /* TODO send sig to every process for which the calling process has
@@ -597,13 +608,14 @@ int proc_sendsig(pid_t pid, signo_t sig) {
     if (pid < -1) {
       pgrp = pgrp_lookup(-pid);
       if (!pgrp)
-        return EINVAL;
+        return ESRCH;
     }
     mtx_lock(&pgrp->pg_lock);
   }
 
   sig_pgkill(pgrp, sig);
   mtx_unlock(&pgrp->pg_lock);
+  kfree(M_TEMP, cred);
   return 0;
 }
 
@@ -698,13 +710,16 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   __unreachable();
 }
 
-int proc_cansignal(proc_t *receiver, proc_t *sender, signo_t sig) {
-  assert(mtx_owned(&receiver->p_lock));
-  assert(mtx_owned(&sender->p_lock));
+int proc_cansignal(proc_t *p, proc_t *target, cred_t *cred, signo_t sig) {
+  assert(mtx_owned(&target->p_lock));
 
-  if (sig == SIGCONT &&
-      receiver->p_pgrp->pg_session == sender->p_pgrp->pg_session)
+  /* process can signal itself */
+  if (p == target)
     return 0;
 
-  return cred_cansignal(receiver, &sender->p_cred);
+  /* process can send SIGCONT to every process in the same session */
+  if (sig == SIGCONT && p->p_pgrp->pg_session == target->p_pgrp->pg_session)
+    return 0;
+
+  return cred_cansignal(target, cred);
 }

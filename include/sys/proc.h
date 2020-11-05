@@ -143,7 +143,7 @@ proc_t *proc_find(pid_t pid);
  * (pid > 0) sends signal to the process with the ID specified by pid.
  * (pid = 0) sends signal to processes in process group of the calling process.
  * (pid <-1) sends signal to processes in process group with ID equal (-pid). */
-int proc_sendsig(pid_t pid, signo_t sig);
+int proc_sendsig(proc_t *p, pid_t pid, signo_t sig);
 
 /*! \brief Gets process group ID of the process specified by pid. */
 int proc_getpgid(pid_t pid, pgid_t *pgidp);
@@ -177,5 +177,11 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp);
 static inline bool proc_is_alive(proc_t *p) {
   return (p->p_state == PS_NORMAL || p->p_state == PS_STOPPED);
 }
+
+/* \brief Check if we can signal target process.
+ *
+ * \note Must be called with target::p_lock held.
+ */
+int proc_cansignal(proc_t *p, proc_t *target, cred_t *cred, signo_t sig);
 
 #endif /* !_SYS_PROC_H_ */
