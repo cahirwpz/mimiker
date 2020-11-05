@@ -569,6 +569,37 @@ __noreturn void proc_exit(int exitstatus) {
   thread_exit();
 }
 
+static int proc_pgsignal(proc_t *p, cred_t *cred, pid_t pgid, signo_t sig) {
+  pgrp_t *pgrp = NULL;
+
+  WITH_MTX_LOCK (all_proc_mtx) {
+    if (pgid == 0) {
+      pgrp = proc_self()->p_pgrp;
+    } else {
+      pgrp = pgrp_lookup(-pgid);
+      if (!pgrp)
+        return ESRCH;
+    }
+    mtx_lock(&pgrp->pg_lock);
+  }
+
+  proc_t *target;
+  int send = 0, error = 0;
+  TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist) {
+    WITH_PROC_LOCK(target) {
+      if (!(error = proc_cansignal(p, cred, target, sig))) {
+        sig_kill(target, sig);
+        send++;
+      }
+    }
+  }
+  mtx_unlock(&pgrp->pg_lock);
+
+  /* We return error when signal can't be send to any process. Returned error is
+   * last error obtained from checking privileges.*/
+  return send > 0 ? 0 : error;
+}
+
 int proc_sendsig(proc_t *p, pid_t pid, signo_t sig) {
 
   int error = 0;
@@ -585,38 +616,31 @@ int proc_sendsig(proc_t *p, pid_t pid, signo_t sig) {
   if (pid > 0) {
     WITH_MTX_LOCK (all_proc_mtx)
       target = proc_find(pid);
-    if (target == NULL)
-      return ESRCH;
-    if (!(error = proc_cansignal(p, target, cred, sig)))
-      sig_kill(target, sig);
-    proc_unlock(target);
-    kfree(M_TEMP, cred);
-    return error;
-  }
 
-  /* TODO send sig to every process for which the calling process has
-   * permission to send signals, except init process */
-  if (pid == -1)
-    return ENOTSUP;
-
-  pgrp_t *pgrp = NULL;
-
-  WITH_MTX_LOCK (all_proc_mtx) {
-    if (pid == 0)
-      pgrp = proc_self()->p_pgrp;
-
-    if (pid < -1) {
-      pgrp = pgrp_lookup(-pid);
-      if (!pgrp)
-        return ESRCH;
+    if (target == NULL) {
+      error = ESRCH;
+    } else {
+      if (!(error = proc_cansignal(p, cred, target, sig)))
+        sig_kill(target, sig);
+      proc_unlock(target);
     }
-    mtx_lock(&pgrp->pg_lock);
+  } else {
+    switch (pid) {
+      case -1:
+        /* TODO send sig to every process for which the calling process has
+         * permission to send signals, except init process */
+        error = ENOTSUP;
+        break;
+      case 0:
+        error = proc_pgsignal(p, cred, 0, sig);
+        break;
+      default:
+        error = proc_pgsignal(p, cred, -pid, sig);
+    }
   }
 
-  sig_pgkill(pgrp, sig);
-  mtx_unlock(&pgrp->pg_lock);
   kfree(M_TEMP, cred);
-  return 0;
+  return error;
 }
 
 static bool is_zombie(proc_t *p) {
@@ -710,7 +734,7 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   __unreachable();
 }
 
-int proc_cansignal(proc_t *p, proc_t *target, cred_t *cred, signo_t sig) {
+int proc_cansignal(proc_t *p, cred_t *cred, proc_t *target, signo_t sig) {
   assert(mtx_owned(&target->p_lock));
 
   /* process can signal itself */

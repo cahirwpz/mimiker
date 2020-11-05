@@ -182,6 +182,6 @@ static inline bool proc_is_alive(proc_t *p) {
  *
  * \note Must be called with target::p_lock held.
  */
-int proc_cansignal(proc_t *p, proc_t *target, cred_t *cred, signo_t sig);
+int proc_cansignal(proc_t *p, cred_t *cred, proc_t *target, signo_t sig);
 
 #endif /* !_SYS_PROC_H_ */
