@@ -51,8 +51,8 @@ typedef struct stdvga_state {
 
 /* The general overview of the QEMU std vga device is available at
    https://github.com/qemu/qemu/blob/master/docs/specs/standard-vga.txt */
-#define VGA_QEMU_STDVGA_VENDOR_ID 0x1234
-#define VGA_QEMU_STDVGA_DEVICE_ID 0x1111
+#define QEMU_STDVGA_VENDOR_ID 0x1234
+#define QEMU_STDVGA_DEVICE_ID 0x1111
 
 static void stdvga_io_write(stdvga_state_t *vga, uint16_t reg, uint8_t value) {
   bus_write_1(vga->io, reg + VGA_MMIO_OFFSET, value);
@@ -162,8 +162,7 @@ static int stdvga_probe(device_t *dev) {
   if (!pcid)
     return 0;
 
-  if (pcid->vendor_id != VGA_QEMU_STDVGA_VENDOR_ID ||
-      pcid->device_id != VGA_QEMU_STDVGA_DEVICE_ID)
+  if (!pci_device_match(pcid, QEMU_STDVGA_VENDOR_ID, QEMU_STDVGA_DEVICE_ID))
     return 0;
 
   if (!(pcid->bar[0].flags & RF_PREFETCHABLE))

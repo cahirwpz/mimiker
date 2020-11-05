@@ -131,9 +131,7 @@ static int rtc_attach(device_t *dev) {
 
 static int rtc_probe(device_t *dev) {
   pci_device_t *pcid = pci_device_of(dev);
-  if (pcid->vendor_id != RTC_VENDOR_ID || pcid->device_id != RTC_DEVICE_ID)
-    return 0;
-  return 1;
+  return pci_device_match(pcid, RTC_VENDOR_ID, RTC_DEVICE_ID);
 }
 
 /* clang-format off */
