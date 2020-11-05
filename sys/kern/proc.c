@@ -602,6 +602,9 @@ static int proc_pgsignal(proc_t *p, cred_t *cred, pid_t pgid, signo_t sig) {
 
 int proc_sendsig(proc_t *p, pid_t pid, signo_t sig) {
 
+  if (sig >= NSIG)
+    return EINVAL;
+
   int error = 0;
   proc_t *target;
   cred_t *cred = kmalloc(M_TEMP, sizeof(cred_t), 0);
