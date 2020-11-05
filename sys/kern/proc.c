@@ -569,7 +569,7 @@ __noreturn void proc_exit(int exitstatus) {
   thread_exit();
 }
 
-static int proc_pgsignal(proc_t *p, cred_t *cred, pid_t pgid, signo_t sig) {
+static int proc_pgsignal(proc_t *p, cred_t *cred, pgid_t pgid, signo_t sig) {
   pgrp_t *pgrp = NULL;
 
   WITH_MTX_LOCK (all_proc_mtx) {
