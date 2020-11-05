@@ -87,7 +87,7 @@ void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
     *dst++ = *src++;
 }
 
-#define DEV_IDENTIFIED_BY_PARENT ((void *)0xffffffff)
+#define DEV_IDENTIFIED_BY_PARENT ((void *)(-1))
 
 /* clang-format off */
 bus_space_t *generic_bus_space = &(bus_space_t){
