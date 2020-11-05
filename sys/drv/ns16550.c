@@ -188,7 +188,8 @@ static int ns16550_attach(device_t *dev) {
 
 static int ns16550_probe(device_t *dev) {
   pci_device_t *pcid = pci_device_of(dev);
-  if (pcid->vendor_id != NS16550_VENDOR_ID || pcid->device_id != NS16550_DEVICE_ID)
+  if (pcid->vendor_id != NS16550_VENDOR_ID ||
+      pcid->device_id != NS16550_DEVICE_ID)
     return 0;
   return 1;
 }

@@ -142,8 +142,8 @@ static int pit_attach(device_t *dev) {
 
 static int pit_probe(device_t *dev) {
   pci_device_t *pcid = pci_device_of(dev);
-  if (pcid->vendor_id != INTEL_PIIX4_IDE_VENDOR_ID
-      || pcid->device_id != INTEL_PIIX4_IDE_DEVICE_ID)
+  if (pcid->vendor_id != INTEL_PIIX4_IDE_VENDOR_ID ||
+      pcid->device_id != INTEL_PIIX4_IDE_DEVICE_ID)
     return 0;
   return 1;
 }
