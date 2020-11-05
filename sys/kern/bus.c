@@ -105,27 +105,24 @@ bus_space_t *generic_bus_space = &(bus_space_t){
 };
 /* clang-format on */
 
-static int bus_try_attach(device_t *dev, driver_t *drv) {
-  dev->driver = drv;
-  if (device_probe(dev)) {
-    klog("%s detected!", drv->desc);
-    return device_attach(dev);
-  }
-  return 0;
-}
-
 int bus_generic_probe(device_t *bus) {
   int error = 0;
   devclass_t *dc = bus->devclass;
   if (!dc)
     return error;
-  driver_t **drv_p;
-  DEVCLASS_FOREACH(drv_p, dc) {
-    driver_t *drv = *drv_p;
-    device_t *dev;
-    TAILQ_FOREACH (dev, &bus->children, link) {
-      if ((error = bus_try_attach(dev, drv)))
-        return error;
+  device_t *dev;
+  TAILQ_FOREACH (dev, &bus->children, link) {
+    driver_t **drv_p;
+    DEVCLASS_FOREACH(drv_p, dc) {
+      dev->driver = *drv_p;
+      if (device_probe(dev)) {
+        klog("%s detected!", dev->driver->desc);
+        if (device_attach(dev)) {
+          klog("%s attached to %p!", dev->driver->desc, dev);
+          break;
+        }
+      }
+      dev->driver = NULL;
     }
   }
   return error;
