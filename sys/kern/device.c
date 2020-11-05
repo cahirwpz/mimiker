@@ -21,12 +21,6 @@ device_t *device_add_child(device_t *parent, devclass_t *dc, int unit) {
   return child;
 }
 
-device_t *device_identify(driver_t *driver, device_t *parent) {
-  assert(driver != NULL);
-  d_identify_t identify = driver->identify;
-  return identify ? identify(driver, parent) : NULL;
-}
-
 /* TODO: this routine should go over all drivers within a suitable class and
  * choose the best driver. For now the user is responsible for setting the
  * driver before calling `device_probe`. */

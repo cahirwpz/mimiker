@@ -87,8 +87,6 @@ void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
     *dst++ = *src++;
 }
 
-#define DEV_IDENTIFIED_BY_PARENT ((void *)(-1))
-
 /* clang-format off */
 bus_space_t *generic_bus_space = &(bus_space_t){
   .bs_map = generic_bs_map,
@@ -124,23 +122,11 @@ int bus_generic_probe(device_t *bus) {
   driver_t **drv_p;
   DEVCLASS_FOREACH(drv_p, dc) {
     driver_t *drv = *drv_p;
-    device_t *dev = device_identify(drv, bus);
-    if (dev == NULL)
-      continue;
-    if (dev == DEV_IDENTIFIED_BY_PARENT) {
-      device_t *child_dev;
-      TAILQ_FOREACH (child_dev, &bus->children, link) {
-        if ((error = bus_try_attach(child_dev, drv)))
-          return error;
-      }
-    } else {
+    device_t *dev;
+    TAILQ_FOREACH (dev, &bus->children, link) {
       if ((error = bus_try_attach(dev, drv)))
         return error;
     }
   }
   return error;
-}
-
-device_t *bus_generic_identify(driver_t *driver, device_t *bus) {
-  return DEV_IDENTIFIED_BY_PARENT;
 }

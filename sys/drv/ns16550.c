@@ -250,7 +250,6 @@ static driver_t ns16550_driver = {
   .desc = "NS16550 UART driver",
   .size = sizeof(ns16550_state_t),
   .attach = ns16550_attach,
-  .identify = bus_generic_identify,
   .probe = ns16550_probe,
 };
 /* clang-format on */

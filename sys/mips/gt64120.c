@@ -272,6 +272,7 @@ static int gt_pci_attach(device_t *pcib) {
             MALTA_PCI0_MEMORY_SIZE, RT_MEMORY);
 
   pcib->bus = DEV_BUS_PCI;
+  pcib->devclass = &DEVCLASS(pci);
 
   /* All interrupts default to "masked off" and edge-triggered. */
   gtpci->imask = 0xffff;
@@ -390,10 +391,6 @@ static void gt_pci_activate_resource(device_t *pcib, device_t *dev,
   rman_activate_resource(r);
 }
 
-static device_t *gt_pci_identify(driver_t *drv, device_t *parent) {
-  return device_add_child(parent, &DEVCLASS(pci), 0);
-}
-
 static int gt_pci_probe(device_t *d) {
   return 1;
 }
@@ -404,7 +401,6 @@ pci_bus_driver_t gt_pci_bus = {
     .desc = "GT-64120 PCI bus driver",
     .size = sizeof(gt_pci_state_t),
     .attach = gt_pci_attach,
-    .identify = gt_pci_identify,
     .probe = gt_pci_probe,
   },
   .bus = {

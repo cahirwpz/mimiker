@@ -1,6 +1,7 @@
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/device.h>
+#include <sys/devclass.h>
 #include <sys/pci.h>
 
 /* For reference look at: http://wiki.osdev.org/PCI */
@@ -37,6 +38,8 @@ static bool pci_device_present(device_t *pcib, unsigned bus, unsigned dev,
   return (pci_read_config(&pcid, PCIR_DEVICEID, 4) != 0xffffffff);
 }
 
+DEVCLASS_DECLARE(pci);
+
 void pci_bus_enumerate(device_t *pcib) {
   for (int j = 0; j < 32; j++) {
     for (int k = 0; k < 8; k++) {
@@ -45,7 +48,7 @@ void pci_bus_enumerate(device_t *pcib) {
 
       /* It looks like dev is a leaf in device tree, but it can also be an inner
        * node. */
-      device_t *dev = device_add_child(pcib, NULL, -1);
+      device_t *dev = device_add_child(pcib, &DEVCLASS(pci), 0);
       pci_device_t *pcid = kmalloc(M_DEV, sizeof(pci_device_t), M_ZERO);
 
       dev->bus = DEV_BUS_PCI;
