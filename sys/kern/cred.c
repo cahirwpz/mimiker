@@ -9,12 +9,18 @@ void cred_fork(proc_t *to, proc_t *from) {
   memcpy(&to->p_cred, &from->p_cred, sizeof(cred_t));
 }
 
-int cred_cansignal(proc_t *p, cred_t *cred) {
+void cred_copy(cred_t *cr, proc_t *p) {
   assert(mtx_owned(&p->p_lock));
+  memcpy(cr, &p->p_cred, sizeof(cred_t));
+}
 
-  if (cred->cr_ruid != p->p_cred.cr_ruid &&
-      cred->cr_ruid != p->p_cred.cr_suid &&
-      cred->cr_euid != p->p_cred.cr_ruid && cred->cr_euid != p->p_cred.cr_suid)
+int cred_cansignal(proc_t *target, cred_t *cred) {
+  assert(mtx_owned(&target->p_lock));
+
+  if (cred->cr_ruid != target->p_cred.cr_ruid &&
+      cred->cr_ruid != target->p_cred.cr_suid &&
+      cred->cr_euid != target->p_cred.cr_ruid &&
+      cred->cr_euid != target->p_cred.cr_suid)
     return EPERM;
 
   return 0;
