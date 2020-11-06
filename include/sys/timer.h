@@ -21,9 +21,6 @@ typedef bintime_t (*tm_gettime_t)(timer_t *tm);
  * \warning It will be called in interrupt context! */
 typedef void (*tm_event_cb_t)(timer_t *tm, void *arg);
 
-/*! \brief Type of function for geting timesource frequency. */
-typedef uint32_t (*tm_getfreq_t)(timer_t *tm, uint32_t freq);
-
 /* There are some flags used by implementation that are not listed here! */
 #define TMF_ONESHOT 0x0001    /*!< triggers callback once */
 #define TMF_PERIODIC 0x0002   /*!< triggers callback on regular basis */
@@ -42,10 +39,13 @@ typedef struct timer {
   tm_stop_t tm_stop;          /*!< ceases timer from generating new events */
   tm_event_cb_t tm_event_cb;  /*!< callback called when timer triggers */
   tm_gettime_t tm_gettime;    /*!< fetches current time from the timer */
-  tm_getfreq_t tm_getfreq; /*!< calculate timesource frequency by the timer */
-  void *tm_arg;            /*!< an argument for callback */
-  void *tm_priv;           /*!< private data (usually device_t *) */
+  void *tm_arg;               /*!< an argument for callback */
+  void *tm_priv;              /*!< private data (usually device_t *) */
 } timer_t;
+
+static inline bintime_t tm_gettime(timer_t *tm) {
+  return tm->tm_gettime(tm);
+}
 
 /*! \brief  Used to set/change the system boottime */
 void tm_setclock(const bintime_t *bt);
@@ -76,7 +76,7 @@ void tm_trigger(timer_t *tm);
 /*! \brief Select timer used as a main time source (for binuptime, etc.) */
 void tm_select(timer_t *tm);
 
-/*! \brief Set timer frequency (enable to correct unstable timers frequency) */
-void tm_set_freq(uint32_t freq);
+/*! \brief TODO !!! */
+void tm_calibrate(void);
 
 #endif /* !_SYS_TIMER_H_ */

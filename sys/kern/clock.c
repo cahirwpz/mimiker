@@ -29,9 +29,5 @@ void init_clock(void) {
     panic("Failed to start system clock!");
   klog("System clock uses \'%s\' hardware timer.", clock->tm_name);
 
-  timer_t *tuner = tm_reserve(NULL, TMF_STABLE);
-  if (tuner != NULL) {
-    tm_set_freq(tuner->tm_getfreq(tuner, clock->tm_frequency));
-    tm_release(tuner);
-  }
+  tm_calibrate();
 }

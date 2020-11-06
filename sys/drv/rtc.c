@@ -36,8 +36,6 @@ typedef struct rtc_state {
  * resource management and ISA bus driver.
  */
 
-static uint32_t estimate_freq(timer_t *tm, uint32_t freq);
-
 static void boottime_init(tm_t *t) {
   bintime_t bt = BINTIME(tm2sec(t));
   tm_setclock(&bt);
@@ -96,6 +94,15 @@ static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
 static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
                                        .v_read = rtc_time_read};
 
+static bintime_t mc146818_gettime(timer_t *tm) {
+  device_t *dev = tm->tm_priv;
+  rtc_state_t *rtc = dev->state;
+
+  tm_t t;
+  rtc_gettime(rtc->regs, &t);
+  return BINTIME(tm2sec(&t));
+}
+
 static int rtc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
@@ -128,7 +135,12 @@ static int rtc_attach(device_t *dev) {
   rtc->timer = (timer_t){
     .tm_name = "MC146818 RTC",
     .tm_flags = TMF_STABLE,
-    .tm_getfreq = estimate_freq,
+    .tm_frequency = 1,
+    .tm_min_period = HZ2BT(32768), /* MC_RATE_1 */
+    .tm_max_period = HZ2BT(2),     /* MC_RATE_2_Hz */
+    .tm_start = NULL,
+    .tm_stop = NULL,
+    .tm_gettime = mc146818_gettime,
     .tm_priv = dev,
   };
 
@@ -145,34 +157,3 @@ static driver_t rtc_driver = {
 };
 
 DEVCLASS_ENTRY(pci, rtc_driver);
-
-static uint32_t estimate_freq(timer_t *tm, uint32_t freq) {
-  device_t *dev = tm->tm_priv;
-  rtc_state_t *rtc = dev->state;
-  resource_t *regs = rtc->regs;
-
-  rtc_setb(rtc->regs, MC_REGB, MC_REGB_BINARY);
-
-  bintime_t end = {0, 0}, start = {0, 0}, res;
-
-  /* Busy-wait for falling edge of RTC update. */
-  while ((rtc_read(regs, MC_REGA) & MC_REGA_UIP) == 0)
-    ;
-  while ((rtc_read(regs, MC_REGA) & MC_REGA_UIP) != 0)
-    ;
-  start = binuptime();
-
-  /* Busy-wait for falling edge of RTC update. */
-  while ((rtc_read(regs, MC_REGA) & MC_REGA_UIP) == 0)
-    ;
-  while ((rtc_read(regs, MC_REGA) & MC_REGA_UIP) != 0)
-    ;
-  end = binuptime();
-
-  assert(bintime_cmp(&end, &start, >));
-  bintime_sub(&end, &start);
-  res = bintime_mul(end, freq);
-
-  /* This multiplication shouldn't take place */
-  return bintime_mul(res, 10).sec;
-}
