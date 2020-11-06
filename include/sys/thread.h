@@ -199,6 +199,11 @@ void thread_join(thread_t *td);
  * verify test success. */
 void thread_reap(void);
 
+/*! \brief Continue stopped thread.
+ *
+ * Must be called with acquired td_lock. */
+void thread_continue(thread_t *td);
+
 /* Please use following functions to read state of a thread! */
 static inline bool td_is_ready(thread_t *td) {
   return td->td_state == TDS_READY;

@@ -1,7 +1,4 @@
 #include <sys/mimiker.h>
-#include <sys/context.h>
-#include <sys/interrupt.h>
-#include <sys/exception.h>
 #include <aarch64/interrupt.h>
 #include <aarch64/armreg.h>
 

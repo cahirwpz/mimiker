@@ -10,38 +10,22 @@
 #include <sys/interrupt.h>
 
 /*
- * located at BCM2835_ARMICU_BASE
- * accessed by BCM2835_PERIPHERALS_BASE NOT by BCM2835_PERIPHERALS_BASE_BUS
- * 32 GPU0 interrupts -- 0x204 offset from address; 0 in table
- * 32 GPU1 interrupts -- 0x208 offset from address; 32 in table
- * 32 base interrupts -- 0x200 offset from address; 64 in table
- *
  * located at BCM2836_ARM_LOCAL_BASE
  * 32 local interrupts -- one per CPU but now we only support 1 CPU
- * It is different than bcm2835reg.h layout where we have:
- *  - 4x32 base interrupts
- *  - 32 GPU0 interrupts -- 128 offset in table
- *  - 32 GPU1 interrupts -- 160 offset in table
- *  - 32 base interrupts -- 192 offset in table
+ *
+ * located at BCM2835_ARMICU_BASE
+ * accessed by BCM2835_PERIPHERALS_BASE NOT by BCM2835_PERIPHERALS_BASE_BUS
+ * 32 GPU0 interrupts -- 0x204 offset from address; 32 in table
+ * 32 GPU1 interrupts -- 0x208 offset from address; 64 in table
+ * 32 base interrupts -- 0x200 offset from address; 96 in table
  */
-#define N_IRQ (BCM2835_NIRQ + BCM2836_NIRQPERCPU)
 
-/* These should be exposed for the children of rootdev. */
-#define GPU0_OFFSET 0
-#define GPU1_OFFSET 32
-#define BASE_OFFSET 64
-#define LOCAL_OFFSET 96
-
-/*
- * Because we use relative virtual addresses for interrupt management we need
- * only offset from absolute addresses from bcm2835reg.h.
- */
-#define OFFSET_MASK (PAGESIZE - 1)
+#define NIRQ (BCM2835_NIRQ + BCM2836_NIRQ)
 
 typedef struct rootdev {
   rman_t local_rm;
   rman_t shared_rm;
-  intr_event_t intr_event[N_IRQ];
+  intr_event_t intr_event[NIRQ];
   vaddr_t arm_base;
 } rootdev_t;
 
@@ -81,7 +65,7 @@ static void rootdev_intr_setup(device_t *dev, unsigned num,
                                intr_handler_t *handler) {
   rootdev_t *rd = dev->parent->state;
 
-  assert(num < N_IRQ);
+  assert(num < NIRQ);
   intr_event_t *event = &rd->intr_event[num];
   intr_event_add_handler(event, handler);
 }
@@ -90,41 +74,39 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
   intr_event_remove_handler(handler);
 }
 
-/* Read 32 bit pending register located at va and run handlers. */
-static inline void intr_handle(vaddr_t va, intr_event_t *events) {
-  assert(va != 0);
-  assert(events != NULL);
+/* Read 32 bit pending register located at irqpendr and run handlers. */
+static void bcm2835_intr_handle(vaddr_t irqpendr, intr_event_t *events) {
+  uint32_t pending = *(uint32_t *)irqpendr;
 
-  uint32_t pending = *(uint32_t *)va;
-
-  for (int irq = ffs(pending) - 1; irq != -1; irq = ffs(pending) - 1) {
+  while (pending) {
+    int irq = ffs(pending) - 1;
     intr_event_run_handlers(&events[irq]);
-    pending -= (1 << irq);
+    pending &= ~(1 << irq);
   }
 }
 
-static void rootdev_intr_handler(device_t *dev, void *arg) {
+static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
   assert(dev != NULL);
   rootdev_t *rd = dev->state;
 
   /* Handle local interrupts. */
-  intr_handle(rootdev_local_handle + BCM2836_LOCAL_INTC_IRQPENDINGN(0),
-              &rd->intr_event[LOCAL_OFFSET]);
-
-  /* Handle base interrupts. */
-  intr_handle(rd->arm_base + ((BCM2835_ARMICU_BASE + BCM2835_INTC_IRQBPENDING) &
-                              OFFSET_MASK),
-              &rd->intr_event[BASE_OFFSET]);
+  bcm2835_intr_handle(rootdev_local_handle + BCM2836_LOCAL_INTC_IRQPENDINGN(0),
+                      &rd->intr_event[BCM2836_INT_BASECPUN(0)]);
 
   /* Handle GPU0 interrupts. */
-  intr_handle(rd->arm_base + ((BCM2835_ARMICU_BASE + BCM2835_INTC_IRQ1PENDING) &
-                              OFFSET_MASK),
-              &rd->intr_event[GPU0_OFFSET]);
+  bcm2835_intr_handle(rd->arm_base +
+                        (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQ1PENDING),
+                      &rd->intr_event[BCM2835_INT_GPU0BASE]);
 
   /* Handle GPU1 interrupts. */
-  intr_handle(rd->arm_base + ((BCM2835_ARMICU_BASE + BCM2835_INTC_IRQ2PENDING) &
-                              OFFSET_MASK),
-              &rd->intr_event[GPU1_OFFSET]);
+  bcm2835_intr_handle(rd->arm_base +
+                        (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQ2PENDING),
+                      &rd->intr_event[BCM2835_INT_GPU1BASE]);
+
+  /* Handle base interrupts. */
+  bcm2835_intr_handle(rd->arm_base +
+                        (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQBPENDING),
+                      &rd->intr_event[BCM2835_INT_BASICBASE]);
 }
 
 static int rootdev_attach(device_t *bus) {
@@ -138,9 +120,18 @@ static int rootdev_attach(device_t *bus) {
             BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1, RT_MEMORY);
 
   /* Map BCM2836 shared processor only once. */
-  rootdev_local_handle = kva_alloc(BCM2836_ARM_LOCAL_SIZE);
-  pmap_kenter(rootdev_local_handle, BCM2836_ARM_LOCAL_BASE,
-              VM_PROT_READ | VM_PROT_WRITE, PMAP_NOCACHE);
+  rootdev_local_handle =
+    kmem_map(BCM2836_ARM_LOCAL_BASE, BCM2836_ARM_LOCAL_SIZE, PMAP_NOCACHE);
+
+  rd->arm_base = kmem_map(BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
+                          PAGESIZE, PMAP_NOCACHE);
+
+  for (int i = 0; i < NIRQ; i++) {
+    intr_event_init(&rd->intr_event[i], i, NULL, NULL, NULL, NULL);
+    intr_event_register(&rd->intr_event[i]);
+  }
+
+  intr_root_claim(rootdev_intr_handler, bus, NULL);
 
   rd->arm_base = kva_alloc(PAGESIZE);
   pmap_kenter(rd->arm_base, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
