@@ -106,6 +106,14 @@ static inline uint32_t pci_adjust_config(device_t *device, unsigned reg,
   return pci_read_config(device, reg, size);
 }
 
+static inline void pci_enable_busmaster(device_t *device) {
+  uint16_t command;
+
+  command = pci_read_config(device, PCIR_COMMAND, 2);
+  command |= PCIM_CMD_MEMEN;
+  pci_write_config(device, PCIR_COMMAND, 2, command);
+}
+
 void pci_bus_enumerate(device_t *pcib);
 void pci_bus_assign_space(device_t *pcib);
 void pci_bus_dump(device_t *pcib);
