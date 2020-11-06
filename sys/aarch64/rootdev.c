@@ -91,19 +91,19 @@ static void rootdev_intr_handler(device_t *dev, void *arg) {
   bcm2835_intr_handle(rootdev_local_handle + BCM2836_LOCAL_INTC_IRQPENDINGN(0),
                       &rd->intr_event[BCM2836_INT_BASECPUN(0)]);
 
-  /* Handle base interrupts. */
-  bcm2835_intr_handle(rd->arm_base +
-                        (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQBPENDING),
-                      &rd->intr_event[BCM2835_INT_GPU0BASE]);
-
   /* Handle GPU0 interrupts. */
   bcm2835_intr_handle(rd->arm_base +
                         (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQ1PENDING),
-                      &rd->intr_event[BCM2835_INT_GPU1BASE]);
+                      &rd->intr_event[BCM2835_INT_GPU0BASE]);
 
   /* Handle GPU1 interrupts. */
   bcm2835_intr_handle(rd->arm_base +
                         (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQ2PENDING),
+                      &rd->intr_event[BCM2835_INT_GPU1BASE]);
+
+  /* Handle base interrupts. */
+  bcm2835_intr_handle(rd->arm_base +
+                        (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQBPENDING),
                       &rd->intr_event[BCM2835_INT_BASICBASE]);
 }
 
