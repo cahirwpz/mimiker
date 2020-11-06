@@ -136,13 +136,11 @@ static int rootdev_attach(device_t *bus) {
             BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1, RT_MEMORY);
 
   /* Map BCM2836 shared processor only once. */
-  rootdev_local_handle = kva_alloc(BCM2836_ARM_LOCAL_SIZE);
-  pmap_kenter(rootdev_local_handle, BCM2836_ARM_LOCAL_BASE,
-              VM_PROT_READ | VM_PROT_WRITE, PMAP_NOCACHE);
+  rootdev_local_handle =
+    kmem_map(BCM2836_ARM_LOCAL_BASE, BCM2836_ARM_LOCAL_SIZE, PMAP_NOCACHE);
 
-  rd->arm_base = kva_alloc(PAGESIZE);
-  pmap_kenter(rd->arm_base, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
-              VM_PROT_READ | VM_PROT_WRITE, PMAP_NOCACHE);
+  rd->arm_base = kmem_map(BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
+                          PAGESIZE, PMAP_NOCACHE);
 
   for (int i = 0; i < N_IRQ; i++) {
     intr_event_init(&rd->intr_event[i], i, NULL, NULL, NULL, NULL);

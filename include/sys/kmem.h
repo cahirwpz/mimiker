@@ -9,7 +9,9 @@ typedef struct vm_page vm_page_t;
 void init_kmem(void);
 
 void *kmem_alloc(size_t size, kmem_flags_t flags) __warn_unused;
-void *kmem_map(paddr_t pa, size_t size) __warn_unused;
+
+/*! \brief Map consecutive physical pages with given pmap flags. */
+vaddr_t kmem_map(paddr_t pa, size_t size, unsigned flags) __warn_unused;
 void kmem_free(void *ptr, size_t size);
 
 /* Kernel virtual address space allocator. */
