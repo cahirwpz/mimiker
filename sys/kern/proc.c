@@ -608,11 +608,10 @@ int proc_sendsig(pid_t pid, signo_t sig) {
   int error;
   proc_t *p = proc_self();
   proc_t *target;
-  cred_t cred;
   session_t *session;
 
   WITH_PROC_LOCK(p) {
-    cred_copy(&cred, p);
+    /* Take a snapshot of session ptr. We will use it in privilege check. */
     session = p->p_pgrp->pg_session;
   }
 
@@ -621,7 +620,7 @@ int proc_sendsig(pid_t pid, signo_t sig) {
       target = proc_find(pid);
     if (target == NULL)
       return ESRCH;
-    if (!(error = proc_cansignal(&cred, session, target, sig)))
+    if (!(error = proc_cansignal(&p->p_cred, session, target, sig)))
       sig_kill(target, sig);
     proc_unlock(target);
     return error;
@@ -634,10 +633,10 @@ int proc_sendsig(pid_t pid, signo_t sig) {
       error = ENOTSUP;
       break;
     case 0:
-      error = proc_pgsignal(&cred, session, 0, sig);
+      error = proc_pgsignal(&p->p_cred, session, 0, sig);
       break;
     default:
-      error = proc_pgsignal(&cred, session, -pid, sig);
+      error = proc_pgsignal(&p->p_cred, session, -pid, sig);
   }
   return error;
 }
