@@ -95,9 +95,9 @@ static inline void intr_handle(vaddr_t va, intr_event_t *events) {
 
   uint32_t pending = *(uint32_t *)va;
 
-  for (uint32_t irq = 0; irq < 32; irq++) {
-    if (pending & (1 << irq))
-      intr_event_run_handlers(&events[irq]);
+  for (int irq = ffs(pending) - 1; irq != -1; irq = ffs(pending) - 1) {
+    intr_event_run_handlers(&events[irq]);
+    pending -= (1 << irq);
   }
 }
 
