@@ -557,8 +557,8 @@ __noreturn void proc_exit(int exitstatus) {
     klog("Wakeup PID(%d) because child PID(%d) died", parent->p_pid, p->p_pid);
 
     bool auto_reap;
-    WITH_PROC_LOCK (p) {
-      WITH_PROC_LOCK (parent) {
+    WITH_PROC_LOCK(p) {
+      WITH_PROC_LOCK(parent) {
         auto_reap = parent->p_sigactions[SIGCHLD].sa_handler == SIG_IGN;
         if (!auto_reap)
           sig_child(p, CLD_EXITED);

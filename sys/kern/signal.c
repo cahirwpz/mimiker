@@ -219,6 +219,7 @@ void sigpend_destroy(sigpend_t *sp) {
     TAILQ_REMOVE(&sp->sp_info, ksi, ksi_list);
     assert(ksi->ksi_flags & KSI_FROMPOOL);
     assert(ksi->ksi_flags & KSI_QUEUED);
+    ksi->ksi_flags &= ~KSI_QUEUED;
     ksiginfo_free(ksi);
   }
 }

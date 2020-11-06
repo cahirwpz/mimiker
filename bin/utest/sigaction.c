@@ -38,6 +38,7 @@ static void sigusr1_handler(int signo, siginfo_t *si, void *uctx) {
   assert(uctx != NULL);
   sigusr1_handled = 1;
 }
+
 int test_sigaction_handler_returns(void) {
   struct sigaction sa;
 
@@ -74,7 +75,7 @@ int test_sigaction_siginfo_from_children(void) {
   struct sigaction sa;
 
   memset(&sa, 0, sizeof(sa));
-  sa.sa_sigaction = sigchld_handler; 
+  sa.sa_sigaction = sigchld_handler;
   sa.sa_flags = SA_SIGINFO;
   assert(sigaction(SIGCHLD, &sa, NULL) == 0);
 

@@ -33,7 +33,8 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   user_ctx_t *uctx = td->td_uctx;
 
   /* Prepare signal context. */
-  sig_ctx_t ksc = {.magic = SIG_CTX_MAGIC, .info = ksi->ksi_info, .mask = *mask};
+  sig_ctx_t ksc = {
+    .magic = SIG_CTX_MAGIC, .info = ksi->ksi_info, .mask = *mask};
   user_ctx_copy(&ksc.uctx, uctx);
 
   /* Copyout sigcode to user stack. */
