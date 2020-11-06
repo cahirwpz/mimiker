@@ -120,10 +120,7 @@ static void vnode_put_both(vnode_t *v, vnode_t *dv) {
 }
 
 static void vnode_drop_both(vnode_t *v, vnode_t *dv) {
-  if (dv != v)
-    vnode_put(dv);
-  else
-    vnode_drop(dv);
+  vnode_put(dv);
   vnode_drop(v);
 }
 

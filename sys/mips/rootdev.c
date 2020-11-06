@@ -26,6 +26,7 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
 static int rootdev_attach(device_t *bus) {
   /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ... */
   rman_init(&rm_mem, "Malta I/O space", 0x10000000, 0x1fffffff, RT_MEMORY);
+  device_add_child(bus, NULL, 0); /* for GT PCI */
   return bus_generic_probe(bus);
 }
 
@@ -42,7 +43,6 @@ static resource_t *rootdev_alloc_resource(device_t *bus, device_t *child,
     if (flags & RF_ACTIVE)
       bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
                     &r->r_bus_handle);
-    device_add_resource(child, r, rid);
   }
 
   return r;

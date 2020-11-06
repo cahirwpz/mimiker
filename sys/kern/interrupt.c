@@ -3,6 +3,7 @@
 #include <sys/mimiker.h>
 #include <machine/interrupt.h>
 #include <sys/interrupt.h>
+#include <sys/pcpu.h>
 #include <sys/sleepq.h>
 #include <sys/sched.h>
 
@@ -77,6 +78,30 @@ void intr_event_remove_handler(intr_handler_t *ih) {
     ih->ih_event = NULL;
     ie->ie_count--;
   }
+}
+
+static intr_root_filter_t ir_filter;
+static device_t *ir_dev;
+static void *ir_arg;
+
+void intr_root_claim(intr_root_filter_t filter, device_t *dev, void *arg) {
+  assert(filter != NULL);
+
+  ir_filter = filter;
+  ir_dev = dev;
+  ir_arg = arg;
+}
+
+void intr_root_handler(ctx_t *ctx) {
+  assert(cpu_intr_disabled());
+
+  intr_disable();
+  PCPU_SET(no_switch, true);
+  if (ir_filter != NULL)
+    ir_filter(ctx, ir_dev, ir_arg);
+  PCPU_SET(no_switch, false);
+  intr_enable();
+  on_exc_leave();
 }
 
 /* interrupt handlers delegated to be called in the interrupt thread */

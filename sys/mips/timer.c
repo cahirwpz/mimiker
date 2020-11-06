@@ -61,13 +61,19 @@ static uint64_t read_count(mips_timer_state_t *state) {
   return state->count.val;
 }
 
-static void set_next_tick(mips_timer_state_t *state) {
+static int set_next_tick(mips_timer_state_t *state) {
   SCOPED_INTR_DISABLED();
+  int ticks = 0;
+
   /* calculate next value of compare register based on timer period */
-  state->compare.val += state->period_cntr;
-  (void)read_count(state);
-  assert(state->compare.val > state->count.val);
-  mips32_set_c0(C0_COMPARE, state->compare.lo);
+  do {
+    state->compare.val += state->period_cntr;
+    mips32_set_c0(C0_COMPARE, state->compare.lo);
+    (void)read_count(state);
+    ticks++;
+  } while (state->compare.val <= state->count.val);
+
+  return ticks;
 }
 
 static mips_timer_state_t *state_of(timer_t *tm) {
@@ -76,6 +82,7 @@ static mips_timer_state_t *state_of(timer_t *tm) {
 
 static intr_filter_t mips_timer_intr(void *data) {
   mips_timer_state_t *state = state_of(data);
+  /* TODO(cahir): can we tell scheduler that clock ticked more than once? */
   set_next_tick(state);
   tm_trigger(data);
   return IF_FILTERED;

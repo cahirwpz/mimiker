@@ -2,7 +2,6 @@
 #define _SYS_DEVCLASS_H_
 
 #include <sys/device.h>
-#include <sys/queue.h>
 
 typedef struct devclass devclass_t;
 
@@ -22,6 +21,8 @@ struct devclass {
                                    .first_p = SET_BEGIN(dc_name),              \
                                    .end_p = SET_LIMIT(dc_name)};               \
   SET_ENTRY(devclasses, dc_name##_devclass)
+
+#define DEVCLASS_DECLARE(dc_name) extern devclass_t dc_name##_devclass
 
 /* Add new driver to the devclass named \dc_name */
 #define DEVCLASS_ENTRY(dc_name, driver) SET_ENTRY(dc_name, driver)

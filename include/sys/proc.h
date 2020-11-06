@@ -46,12 +46,16 @@ typedef struct session {
  *
  * Field markings and the corresponding locks:
  *  (a) all_proc_mtx
+ *  (@) pgrp_t::pg_lock
  *  (!) read-only access, do not modify!
+ *  When two locks are specified (see pg_members), either one suffices
+ *  for reading, but both must be held for writing.
  */
 typedef struct pgrp {
+  mtx_t pg_lock;
   TAILQ_ENTRY(pgrp) pg_hash;     /* (a) link on pgid hash chain */
-  TAILQ_HEAD(, proc) pg_members; /* (a) members of process group */
-  session_t *pg_session;         /* (a) pointer to session */
+  TAILQ_HEAD(, proc) pg_members; /* (@ + a) members of process group */
+  session_t *pg_session;         /* (!) pointer to session */
   int pg_jobc;                   /* (a) jobc counter, see `pgrp_adjust_jobc` */
   pgid_t pg_id;                  /* (!) process group id */
 } pgrp_t;
@@ -60,8 +64,8 @@ typedef enum { PS_NORMAL, PS_STOPPED, PS_DYING, PS_ZOMBIE } proc_state_t;
 
 typedef enum {
   /* Cleared when continued or reported by wait4. */
-  PF_STOPPED = 0x1,   /* Set on stopping */
-  PF_CONTINUED = 0x2, /* Set when continued */
+  PF_STATE_CHANGED = 0x1,       /* Set when stopped or continued */
+  PF_CHILD_STATE_CHANGED = 0x2, /* Child state changed, recheck children */
 } proc_flags_t;
 
 /*! \brief Process structure
@@ -69,10 +73,15 @@ typedef enum {
  * Field markings and the corresponding locks:
  *  (a) all_proc_mtx
  *  (@) proc_t::p_lock
+ *  (g) p_pgrp->pg_lock
  *  (!) read-only access, do not modify!
  *  (~) always safe to access
  *  ($) use only from the same process/thread
  *  (*) safe to dereference from owner process
+ *  When two locks are specified (see p_parent), either one suffices
+ *  for reading, but both must be held for writing.
+ *  NOTE: You can acquire the parent's p_lock while holding the child's p_lock,
+ *        but not the other way around!
  */
 struct proc {
   mtx_t p_lock;               /* Process lock */
@@ -84,17 +93,17 @@ struct proc {
   pid_t p_pid;                /* (!) Process ID */
   cred_t p_cred;              /* (@) Process credentials */
   char *p_elfpath;            /* (!) path of loaded elf file */
-  TAILQ_ENTRY(proc) p_pglist; /* (a) link on pg_members list */
-  pgrp_t *p_pgrp;             /* (a,*) process group */
+  TAILQ_ENTRY(proc) p_pglist; /* (g + a) link on pg_members list */
+  pgrp_t *p_pgrp;             /* (@ + a) process group */
   volatile proc_state_t p_state;  /* (@) process state */
-  proc_t *p_parent;               /* (a) parent process */
+  proc_t *p_parent;               /* (@ + a) parent process */
   proc_list_t p_children;         /* (a) child processes, including zombies */
   vm_map_t *p_uspace;             /* ($) process' user space map */
   fdtab_t *p_fdtable;             /* ($) file descriptors table */
   sigaction_t p_sigactions[NSIG]; /* (@) description of signal actions */
   condvar_t p_waitcv;             /* (a) processes waiting for this one */
   int p_exitstatus;               /* (@) exit code to be returned to parent */
-  volatile proc_flags_t p_flags;  /* (a) PF_* flags */
+  volatile proc_flags_t p_flags;  /* (@) PF_* flags */
   vnode_t *p_cwd;                 /* ($) current working directory */
   mode_t p_cmask;                 /* ($) mask for file creation */
   /* program segments */
@@ -122,7 +131,8 @@ DEFINE_CLEANUP_FUNCTION(proc_t *, proc_unlock);
  * Created process should be added using proc_add */
 proc_t *proc_create(thread_t *td, proc_t *parent);
 
-/*! \brief Adds created process to global data structures. */
+/*! \brief Adds created process to global data structures.
+ * Must be called with all_proc_mtx held. */
 void proc_add(proc_t *p);
 
 /*! \brief Searches for a process with the given PID and PS_NORMAL state.
@@ -142,9 +152,9 @@ int proc_getpgid(pid_t pid, pgid_t *pgidp);
  * \note Exit status shoud be created using MAKE_STATUS macros from wait.h */
 __noreturn void proc_exit(int exitstatus);
 
-/*! \brief Moves process p to the process group with ID specified by pgid.
- * If such process group does not exist then it creates one. */
-int pgrp_enter(proc_t *p, pgid_t pgid);
+/*! \brief Moves process with pid target to the process group with ID specified
+ * by pgid. If such process group does not exist then it creates one. */
+int pgrp_enter(proc_t *curp, pid_t target, pgid_t pgid);
 
 /*! \brief Makes process p the session leader of a new session. */
 int session_enter(proc_t *p);
@@ -156,6 +166,11 @@ int proc_getsid(pid_t pid, sid_t *sidp);
 /*!\brief Get the SID of the process with PID `pid`.
  * The SID is returned in `*sidp`. */
 int proc_getsid(pid_t pid, sid_t *sidp);
+
+/*! \brief Wake up the parent process when child's state changes.
+ *
+ * Must be called with parent::p_lock held. */
+void proc_wakeup_parent(proc_t *parent);
 
 int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp);
 

@@ -33,8 +33,7 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   user_ctx_t *uctx = td->td_uctx;
 
   /* Prepare signal context. */
-  sig_ctx_t ksc = {
-    .magic = SIG_CTX_MAGIC, .info = ksi->ksi_info, .mask = *mask};
+  sig_ctx_t ksc = {.magic = SIG_CTX_MAGIC, .info = ksi->ksi_info, .mask = *mask};
   user_ctx_copy(&ksc.uctx, uctx);
 
   /* Copyout sigcode to user stack. */
@@ -109,7 +108,6 @@ int sig_return(void) {
 
 void sig_trap(ctx_t *ctx, signo_t sig) {
   proc_t *proc = proc_self();
-  WITH_MTX_LOCK (all_proc_mtx)
-    WITH_MTX_LOCK (&proc->p_lock)
-      sig_kill(proc, &DEF_KSI_TRAP(sig));
+  WITH_MTX_LOCK (&proc->p_lock)
+    sig_kill(proc, &DEF_KSI_TRAP(sig));
 }

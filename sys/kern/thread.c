@@ -206,3 +206,12 @@ thread_t *thread_find(tid_t id) {
   }
   return NULL;
 }
+
+void thread_continue(thread_t *td) {
+  assert(spin_owned(td->td_lock));
+
+  if (td->td_flags & TDF_STOPPING)
+    td->td_flags &= ~TDF_STOPPING;
+  else if (td_is_stopped(td))
+    sched_wakeup(td, 0);
+}

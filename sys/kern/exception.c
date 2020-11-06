@@ -23,12 +23,12 @@ void on_user_exc_leave(void) {
   proc_t *p = td->td_proc;
   /* Process pending signals. */
   if (td->td_flags & TDF_NEEDSIGCHK) {
-    WITH_MTX_LOCK (all_proc_mtx) {
-      WITH_PROC_LOCK(p) {
-        ksiginfo_t ksi;
-        while (sig_check(td, &ksi))
-          sig_post(&ksi);
-      }
+    WITH_PROC_LOCK(p) {
+      /* Calling sig_post() multiple times before returning to userspace
+       * will not make us lose signals, see comment on sig_post() in signal.h */
+      ksiginfo_t ksi;
+      while (sig_check(td, &ksi))
+        sig_post(&ksi);
     }
   }
 }

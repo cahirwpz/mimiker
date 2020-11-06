@@ -61,6 +61,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(setjmp);
   CHECKRUN_TEST(sigaction_with_setjmp);
   CHECKRUN_TEST(sigaction_handler_returns);
+  CHECKRUN_TEST(sigaction_siginfo_from_children);
   CHECKRUN_TEST(vfs_dir);
   CHECKRUN_TEST(vfs_rw);
   CHECKRUN_TEST(vfs_relative_dir);
@@ -75,6 +76,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(wait_nohang);
 
   CHECKRUN_TEST(setpgid);
+  CHECKRUN_TEST(setpgid_leader);
+  CHECKRUN_TEST(setpgid_child);
   CHECKRUN_TEST(kill);
   CHECKRUN_TEST(killpg_same_group);
   CHECKRUN_TEST(killpg_other_group);

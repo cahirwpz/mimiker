@@ -143,6 +143,10 @@ int test_vfs_dir(void) {
   assert_fail(rmdir(TESTDIR "/test4/subdir4"), ENOENT);
 
   assert_fail(mkdir(TESTDIR "/test3/subdir1", 0), ENOENT);
+
+  assert_fail(mkdir("/", 0), EEXIST);
+  assert_fail(rmdir("/tmp"), EBUSY);
+
   return 0;
 }
 

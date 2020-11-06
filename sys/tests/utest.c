@@ -105,6 +105,7 @@ UTEST_ADD_SIMPLE(setjmp);
 
 UTEST_ADD_SIMPLE(sigaction_with_setjmp);
 UTEST_ADD_SIMPLE(sigaction_handler_returns);
+UTEST_ADD_SIMPLE(sigaction_siginfo_from_children);
 
 UTEST_ADD_SIMPLE(vfs_dir);
 UTEST_ADD_SIMPLE(vfs_relative_dir);
@@ -137,6 +138,8 @@ UTEST_ADD_SIMPLE(getcwd);
 /* XXX UTEST_ADD_SIMPLE(syscall_in_bds); */
 
 UTEST_ADD_SIMPLE(setpgid);
+UTEST_ADD_SIMPLE(setpgid_leader);
+UTEST_ADD_SIMPLE(setpgid_child);
 UTEST_ADD_SIMPLE(kill);
 UTEST_ADD_SIMPLE(killpg_same_group);
 UTEST_ADD_SIMPLE(killpg_other_group);

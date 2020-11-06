@@ -70,10 +70,15 @@ typedef struct sigaction {
 #include <sys/cdefs.h>
 
 typedef struct proc proc_t;
+typedef struct pgrp pgrp_t;
 typedef struct thread thread_t;
 typedef struct ctx ctx_t;
 
-/* Add a comment! */
+/*! \brief Notify the parent of a change in the child's status.
+ *
+ * \note Must be called with p::p_lock and p->p_parent::p_lock held.
+   Returns with both locks held.
+ */
 void sig_child(proc_t *p, int code);
 
 /*! \brief Signal a process.
@@ -86,6 +91,12 @@ void sig_child(proc_t *p, int code);
  * \note Must be called with p::p_lock held. Returns with p::p_lock held.
  */
 void sig_kill(proc_t *p, ksiginfo_t *ksi);
+
+/*! \brief Signal all processes in a process group.
+ *
+ * \note Must be called with pg::pg_lock held. Returns with pg::pg_lock held.
+ */
+void sig_pgkill(pgrp_t *pg, ksiginfo_t *ksi);
 
 /*! \brief Determines which signal should posted to current thread.
  *
@@ -103,8 +114,13 @@ int sig_check(thread_t *td, ksiginfo_t *ksi);
  *
  * If the default action for a signal is to terminate the process and
  * corresponding signal handler is not set, the process calls `sig_exit`.
+ * If the signal's action is to stop the process, this procedure stops
+ * the calling thread.
  *
- * \note Must be called with all_proc_mtx and current process p_mtx acquired!
+ * \note It's ok to call this procedure multiple times before returning
+ * to userspace. The handlers will be called in reverse order of calls
+ * to this procedure.
+ * \note Must be called with current process's p_mtx acquired!
  * \sa sig_exit
  */
 void sig_post(ksiginfo_t *ksi);
