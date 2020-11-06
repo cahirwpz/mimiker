@@ -110,23 +110,20 @@ int bus_generic_probe(device_t *bus) {
   devclass_t *dc = bus->devclass;
   if (!dc)
     return error;
-  driver_t **drv_p;
-  DEVCLASS_FOREACH(drv_p, dc) {
-    driver_t *drv = *drv_p;
-    device_t *dev = device_identify(drv, bus);
-    if (dev == NULL)
-      continue;
-    dev->driver = drv;
-    if (device_probe(dev)) {
-      klog("%s detected!", drv->desc);
-      error = device_attach(dev);
-      if (error)
-        return error;
+  device_t *dev;
+  TAILQ_FOREACH (dev, &bus->children, link) {
+    driver_t **drv_p;
+    DEVCLASS_FOREACH(drv_p, dc) {
+      dev->driver = *drv_p;
+      if (device_probe(dev)) {
+        klog("%s detected!", dev->driver->desc);
+        if (device_attach(dev)) {
+          klog("%s attached to %p!", dev->driver->desc, dev);
+          break;
+        }
+      }
+      dev->driver = NULL;
     }
   }
   return error;
-}
-
-device_t *bus_generic_identify(driver_t *driver, device_t *bus) {
-  return device_add_child(bus, NULL, -1);
 }
