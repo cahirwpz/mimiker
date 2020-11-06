@@ -140,10 +140,11 @@ void proc_add(proc_t *p);
 proc_t *proc_find(pid_t pid);
 
 /*! \brief Sends signal to process group or process.
+ * Signal is send on behalf of the current process. Performs privilege checks.
  * (pid > 0) sends signal to the process with the ID specified by pid.
  * (pid = 0) sends signal to processes in process group of the calling process.
  * (pid <-1) sends signal to processes in process group with ID equal (-pid). */
-int proc_sendsig(proc_t *p, pid_t pid, signo_t sig);
+int proc_sendsig(pid_t pid, signo_t sig);
 
 /*! \brief Gets process group ID of the process specified by pid. */
 int proc_getpgid(pid_t pid, pgid_t *pgidp);

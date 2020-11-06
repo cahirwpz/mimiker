@@ -600,49 +600,43 @@ static int proc_pgsignal(proc_t *p, cred_t *cred, pgid_t pgid, signo_t sig) {
   return send > 0 ? 0 : error;
 }
 
-int proc_sendsig(proc_t *p, pid_t pid, signo_t sig) {
+int proc_sendsig(pid_t pid, signo_t sig) {
 
   if (sig >= NSIG)
     return EINVAL;
 
-  int error = 0;
+  int error;
+  proc_t *p = proc_self();
   proc_t *target;
-  cred_t *cred = kmalloc(M_TEMP, sizeof(cred_t), 0);
-
-  if (!cred)
-    return ENOMEM;
+  cred_t cred;
 
   WITH_PROC_LOCK(p) {
-    cred_copy(cred, p);
+    cred_copy(&cred, p);
   }
 
   if (pid > 0) {
     WITH_MTX_LOCK (all_proc_mtx)
       target = proc_find(pid);
-
-    if (target == NULL) {
-      error = ESRCH;
-    } else {
-      if (!(error = proc_cansignal(p, cred, target, sig)))
-        sig_kill(target, sig);
-      proc_unlock(target);
-    }
-  } else {
-    switch (pid) {
-      case -1:
-        /* TODO send sig to every process for which the calling process has
-         * permission to send signals, except init process */
-        error = ENOTSUP;
-        break;
-      case 0:
-        error = proc_pgsignal(p, cred, 0, sig);
-        break;
-      default:
-        error = proc_pgsignal(p, cred, -pid, sig);
-    }
+    if (target == NULL)
+      return ESRCH;
+    if (!(error = proc_cansignal(p, &cred, target, sig)))
+      sig_kill(target, sig);
+    proc_unlock(target);
+    return error;
   }
 
-  kfree(M_TEMP, cred);
+  switch (pid) {
+    case -1:
+      /* TODO send sig to every process for which the calling process has
+       * permission to send signals, except init process */
+      error = ENOTSUP;
+      break;
+    case 0:
+      error = proc_pgsignal(p, &cred, 0, sig);
+      break;
+    default:
+      error = proc_pgsignal(p, &cred, -pid, sig);
+  }
   return error;
 }
 
