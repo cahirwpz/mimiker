@@ -3,15 +3,21 @@
 #include <mips/m32c0.h>
 #include <mips/config.h>
 #include <mips/interrupt.h>
+#include <sys/devclass.h>
 #include <sys/device.h>
 #include <sys/interrupt.h>
 #include <sys/time.h>
 #include <sys/timer.h>
 
-extern void mips_intr_setup(intr_handler_t *ih, int irq);
-extern void mips_intr_teardown(intr_handler_t *ih);
-
 /* XXX Should the timer use driver framework? */
+
+void mips_intr_setup(intr_handler_t *ih, int irq) {
+  klog("not implemented!");
+}
+
+void mips_intr_teardown(intr_handler_t *ih) {
+  klog("not implemented!");
+}
 
 typedef union {
   /* assumes little endian order */
@@ -34,8 +40,8 @@ typedef struct mips_timer_state {
 static intr_filter_t mips_timer_intr(void *data);
 static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
                             const bintime_t period);
-static int mips_timer_stop(device_t *dev);
-static bintime_t mips_timer_gettime(device_t *dev);
+static int mips_timer_stop(timer_t *tm);
+static bintime_t mips_timer_gettime(timer_t *tm);
 
 static uint64_t read_count(mips_timer_state_t *state) {
   SCOPED_INTR_DISABLED();
@@ -85,19 +91,18 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
   state->compare.val = read_count(state);
   state->last_count_lo = state->count.lo;
   set_next_tick(state);
-  // mips_intr_setup(&state->intr_handler, MIPS_HWINT5);
+  mips_intr_setup(&state->intr_handler, MIPS_HWINT5);
   return 0;
 }
 
 static int mips_timer_stop(timer_t *tm) {
-  mips_timer_state_t *state = dev->state;
+  mips_timer_state_t *state = tm->tm_priv;
   mips_intr_teardown(&state->intr_handler);
   return 0;
 }
 
-static bintime_t mips_timer_gettime(device_t *dev) {
-  mips_timer_state_t *state = dev->state;
-  timer_t *tm = &state->timer;
+static bintime_t mips_timer_gettime(timer_t *tm) {
+  mips_timer_state_t *state = tm->tm_priv;
   uint64_t count = read_count(state);
   uint32_t sec = count / tm->tm_frequency;
   uint32_t frac = count % tm->tm_frequency;
@@ -130,11 +135,10 @@ static int mips_timer_attach(device_t *dev) {
   return 0;
 }
 
-static driver_t cpu_mips_timer =
-                  {
-                    .desc = "MIPS CPU timer driver",
-                    .size = sizeof(mips_timer_state_t),
-                    .attach = misp_timer_attach,
-},
+static driver_t cpu_mips_timer = {
+  .desc = "MIPS CPU timer driver",
+  .size = sizeof(mips_timer_state_t),
+  .attach = mips_timer_attach,
+};
 
-                DEVCLASS_ENTRY(root, cpu_mips_timer);
+DEVCLASS_ENTRY(root, cpu_mips_timer);
