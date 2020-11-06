@@ -83,7 +83,7 @@ static void bcm2835_intr_handle(vaddr_t irqpendr, intr_event_t *events) {
   }
 }
 
-static void rootdev_intr_handler(device_t *dev, void *arg) {
+static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
   assert(dev != NULL);
   rootdev_t *rd = dev->state;
 
