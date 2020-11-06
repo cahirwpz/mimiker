@@ -106,7 +106,7 @@ void kmem_free(void *ptr, size_t size) {
   vmem_free(kvspace, (vmem_addr_t)ptr, size);
 }
 
-void *kmem_map(paddr_t pa, size_t size) {
+vaddr_t kmem_map(paddr_t pa, size_t size, unsigned flags) {
   assert(page_aligned_p(pa) && page_aligned_p(size));
 
   vmem_addr_t start;
@@ -119,7 +119,8 @@ void *kmem_map(paddr_t pa, size_t size) {
   klog("%s: map %p of size %ld at %p", __func__, pa, size, start);
 
   for (size_t offset = 0; offset < size; offset += PAGESIZE)
-    pmap_kenter(start + offset, pa + offset, VM_PROT_READ | VM_PROT_WRITE, 0);
+    pmap_kenter(start + offset, pa + offset, VM_PROT_READ | VM_PROT_WRITE,
+                flags);
 
-  return (void *)start;
+  return start;
 }
