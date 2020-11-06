@@ -38,7 +38,7 @@ static bool pci_device_present(device_t *pcib, unsigned bus, unsigned dev,
   return (pci_read_config(&pcid, PCIR_DEVICEID, 4) != 0xffffffff);
 }
 
-DEVCLASS_DECLARE(pci);
+DEVCLASS_CREATE(pci);
 
 void pci_bus_enumerate(device_t *pcib) {
   for (int j = 0; j < 32; j++) {
