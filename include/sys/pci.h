@@ -114,4 +114,9 @@ static inline pci_device_t *pci_device_of(device_t *device) {
   return (device->bus == DEV_BUS_PCI) ? device->instance : NULL;
 }
 
+static inline bool pci_device_match(pci_device_t *pcid, uint16_t vendor_id,
+                                    uint16_t device_id) {
+  return (pcid->vendor_id == vendor_id) && (pcid->device_id == device_id);
+}
+
 #endif /* !_SYS_PCI_H_ */

@@ -18,6 +18,9 @@
 #include <sys/priority.h>
 #include <sys/sched.h>
 
+#define NS16550_VENDOR_ID 0x8086
+#define NS16550_DEVICE_ID 0x7110
+
 #define UART_BUFSIZE 128
 
 typedef struct ns16550_state {
@@ -238,11 +241,18 @@ static int ns16550_attach(device_t *dev) {
   return 0;
 }
 
+static int ns16550_probe(device_t *dev) {
+  pci_device_t *pcid = pci_device_of(dev);
+  return pci_device_match(pcid, NS16550_VENDOR_ID, NS16550_DEVICE_ID);
+}
+
+/* clang-format off */
 static driver_t ns16550_driver = {
   .desc = "NS16550 UART driver",
   .size = sizeof(ns16550_state_t),
   .attach = ns16550_attach,
-  .identify = bus_generic_identify,
+  .probe = ns16550_probe,
 };
+/* clang-format on */
 
 DEVCLASS_ENTRY(pci, ns16550_driver);

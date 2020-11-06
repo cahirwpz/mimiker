@@ -106,6 +106,9 @@ unsigned char const char_type[] = {
 
 /* END OF FreeBSD CODE */
 
+/* Control character should be echoed as ^X */
+#define CTL_ECHO(c) (((c) <= 0x1f && (c) != '\t' && (c) != '\n') || (c) == 0x7f)
+
 /* termios flags that can be changed using TIOCSETA{,W,F}. */
 #define TTYSUP_IFLAG_CHANGE (INLCR | IGNCR | ICRNL | IMAXBEL)
 #define TTYSUP_OFLAG_CHANGE (OPOST | ONLCR | OCRNL | ONOCR | ONLRET)
@@ -246,7 +249,7 @@ static void tty_echo(tty_t *tty, uint8_t c) {
   if (!(lflag & ECHO) && (!(lflag & ECHONL) || c != '\n'))
     return;
   /* If ECHOCTL is set, echo control characters as ^A, ^B etc. */
-  if ((lflag & ECHO) && ((c <= 0x1f && c != '\t' && c != '\n') || c == 0x7f)) {
+  if ((lflag & ECHOCTL) && CTL_ECHO(c)) {
     tty_output(tty, '^');
     if (c == 0x7f)
       c = '?';
@@ -356,6 +359,13 @@ static void tty_wakeup(tty_t *tty) {
   cv_broadcast(&tty->t_incv);
 }
 
+static void tty_bell(tty_t *tty) {
+  if (tty->t_iflag & IMAXBEL) {
+    tty_output(tty, CTRL('g'));
+    tty_notify_out(tty);
+  }
+}
+
 void tty_input(tty_t *tty, uint8_t c) {
   int iflag = tty->t_iflag;
   int lflag = tty->t_lflag;
@@ -375,10 +385,14 @@ void tty_input(tty_t *tty, uint8_t c) {
     if (CCEQ(cc[VERASE], c)) {
       /* Erase/backspace */
       uint8_t erased;
-      if (tty_line_unputc(tty, &erased))
+      if (tty_line_unputc(tty, &erased)) {
         tty_erase(tty, erased);
-      goto notify;
-    } else if (CCEQ(cc[VKILL], c)) {
+        tty_notify_out(tty);
+      }
+      return;
+    }
+
+    if (CCEQ(cc[VKILL], c)) {
       /* Kill: erase the whole line. */
       if ((lflag & ECHOKE) && tty->t_line.ln_count == tty->t_rocount) {
         uint8_t erased;
@@ -391,7 +405,8 @@ void tty_input(tty_t *tty, uint8_t c) {
         tty->t_line.ln_count = 0;
         tty->t_rocount = 0;
       }
-      goto notify;
+      tty_notify_out(tty);
+      return;
     }
 
     bool is_break = tty_is_break(tty, c);
@@ -400,7 +415,8 @@ void tty_input(tty_t *tty, uint8_t c) {
     if ((tty->t_inq.count + tty->t_line.ln_count >= TTY_QUEUE_SIZE - 1 ||
          tty->t_line.ln_count == LINEBUF_SIZE - 1) &&
         !is_break) {
-      goto nospace;
+      tty_bell(tty);
+      return;
     }
 
     tty_line_putc(tty, c);
@@ -420,24 +436,19 @@ void tty_input(tty_t *tty, uint8_t c) {
       while (i--)
         tty_output(tty, '\b');
     }
+    tty_notify_out(tty);
+    return;
   } else {
     /* Raw (non-canonical) mode */
     if (tty->t_inq.count >= TTY_QUEUE_SIZE) {
-    nospace:
-      if (iflag & IMAXBEL) {
-        tty_output(tty, CTRL('g'));
-        goto notify;
-      } else {
-        return;
-      }
+      tty_bell(tty);
+      return;
     }
 
     ringbuf_putb(&tty->t_inq, c);
     tty_wakeup(tty);
     return;
   }
-notify:
-  tty_notify_out(tty);
 }
 
 static int tty_read(vnode_t *v, uio_t *uio, int ioflags) {
