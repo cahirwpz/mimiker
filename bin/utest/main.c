@@ -75,6 +75,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(wait_nohang);
 
   CHECKRUN_TEST(setpgid);
+  CHECKRUN_TEST(setpgid_leader);
+  CHECKRUN_TEST(setpgid_child);
   CHECKRUN_TEST(kill);
   CHECKRUN_TEST(killpg_same_group);
   CHECKRUN_TEST(killpg_other_group);

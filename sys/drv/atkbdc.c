@@ -19,6 +19,9 @@
 
 #define KBD_BUFSIZE 128
 
+#define ATKBDC_VENDOR_ID 0x8086
+#define ATKBDC_DEVICE_ID 0x7110 /* ISA! */
+
 typedef struct atkbdc_state {
   spin_t lock;
   condvar_t nonempty;
@@ -121,6 +124,10 @@ static intr_filter_t atkbdc_intr(void *data) {
 static int atkbdc_probe(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
+  pci_device_t *pcid = pci_device_of(dev);
+  if (!pci_device_match(pcid, ATKBDC_VENDOR_ID, ATKBDC_DEVICE_ID))
+    return 0;
+
   /* TODO: Implement resource deallocation in rman.
    * When probe is not successful, driver should release claimed resources. */
   resource_t *regs = bus_alloc_resource(
@@ -144,7 +151,6 @@ static int atkbdc_probe(device_t *dev) {
     return 0;
 
   bus_release_resource(dev, RT_ISA, 0, regs);
-
   return 1;
 }
 
@@ -183,7 +189,6 @@ static driver_t atkbdc_driver = {
   .size = sizeof(atkbdc_state_t),
   .probe = atkbdc_probe,
   .attach = atkbdc_attach,
-  .identify = bus_generic_identify,
 };
 
 DEVCLASS_ENTRY(pci, atkbdc_driver);
