@@ -25,6 +25,8 @@ void on_user_exc_leave(void) {
   if (td->td_flags & TDF_NEEDSIGCHK) {
     WITH_PROC_LOCK(p) {
       int sig;
+      /* Calling sig_post() multiple times before returning to userspace
+       * will not make us lose signals, see comment on sig_post() in signal.h */
       while ((sig = sig_check(td, true)))
         sig_post(sig);
     }
