@@ -79,10 +79,8 @@ static timer_t timer = (timer_t){
   .tm_priv = &timer_priv,
 };
 
-static device_t *arm_timer_identify(driver_t *driver, device_t *parent) {
-  device_t *dev = device_add_child(parent, parent->devclass, -1);
-  dev->instance = parent;
-  return dev;
+static int arm_timer_probe(device_t *dev) {
+  return 1;
 }
 
 static int arm_timer_attach(device_t *dev) {
@@ -121,8 +119,7 @@ static int arm_timer_attach(device_t *dev) {
   volatile uint32_t *timerp = (uint32_t *)(state->va_page + offset);
   *timerp = *timerp | (1 << BCM2836_INT_CNTPNSIRQ);
 
-  /* 96 is LOCAL_OFFSET in rootdev.c */
-  bus_intr_setup(dev, 96 + BCM2836_INT_CNTPNSIRQ, &priv->intr_handler);
+  bus_intr_setup(dev, BCM2836_INT_CNTPNSIRQ_CPUN(0), &priv->intr_handler);
 
   return 0;
 }
@@ -130,7 +127,7 @@ static int arm_timer_attach(device_t *dev) {
 static driver_t arm_timer = {
   .desc = "ARM CPU timer driver",
   .size = sizeof(arm_timer_state_t),
-  .identify = arm_timer_identify,
+  .probe = arm_timer_probe,
   .attach = arm_timer_attach,
 };
 

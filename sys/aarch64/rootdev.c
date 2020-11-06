@@ -9,6 +9,8 @@
 #include <sys/pmap.h>
 #include <sys/interrupt.h>
 
+DEVCLASS_CREATE(root);
+
 /*
  * located at BCM2836_ARM_LOCAL_BASE
  * 32 local interrupts -- one per CPU but now we only support 1 CPU
@@ -133,16 +135,7 @@ static int rootdev_attach(device_t *bus) {
 
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
-  rd->arm_base = kva_alloc(PAGESIZE);
-  pmap_kenter(rd->arm_base, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
-              VM_PROT_READ | VM_PROT_WRITE, PMAP_NOCACHE);
-
-  for (int i = 0; i < N_IRQ; i++) {
-    intr_event_init(&rd->intr_event[i], i, NULL, NULL, NULL, NULL);
-    intr_event_register(&rd->intr_event[i]);
-  }
-
-  intr_root_claim(rootdev_intr_handler, bus, NULL);
+  (void)device_add_child(bus, &DEVCLASS(root), 0); /* for ARM timer */
 
   return bus_generic_probe(bus);
 }
@@ -183,8 +176,6 @@ static bus_driver_t rootdev_driver = {
       .alloc_resource = rootdev_alloc_resource,
     },
 };
-
-DEVCLASS_CREATE(root);
 
 static device_t rootdev = (device_t){
   .children = TAILQ_HEAD_INITIALIZER(rootdev.children),
