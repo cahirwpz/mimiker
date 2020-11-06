@@ -24,6 +24,7 @@ typedef struct rtc_state {
   char asctime[RTC_ASCTIME_SIZE];
   unsigned counter; /* TODO Should that be part of intr_handler_t ? */
   intr_handler_t intr_handler;
+  timer_t timer;
 } rtc_state_t;
 
 /*
@@ -34,6 +35,8 @@ typedef struct rtc_state {
  * Hopefully this design issue will get resolved after more work is put into
  * resource management and ISA bus driver.
  */
+
+uint32_t estimate_freq(timer_t *tm, uint32_t freq);
 
 static void boottime_init(tm_t *t) {
   bintime_t bt = BINTIME(tm2sec(t));
@@ -119,9 +122,17 @@ static int rtc_attach(device_t *dev) {
   devfs_makedev(NULL, "rtc", &rtc_time_vnodeops, rtc);
 
   tm_t t;
-
   rtc_gettime(rtc->regs, &t);
   boottime_init(&t);
+
+  rtc->timer = (timer_t){
+    .tm_name = "MC146818 RTC",
+    .tm_flags = TMF_STABLE,
+    .tm_getfreq = estimate_freq,
+    .tm_priv = dev,
+  };
+
+  tm_register(&rtc->timer);
 
   return 0;
 }
@@ -134,3 +145,33 @@ static driver_t rtc_driver = {
 };
 
 DEVCLASS_ENTRY(pci, rtc_driver);
+
+uint32_t estimate_freq(timer_t *tm, uint32_t freq) {
+  device_t *dev = tm->tm_priv;
+  rtc_state_t *rtc = dev->state;
+  resource_t *regs = rtc->regs;
+
+  rtc_setb(rtc->regs, MC_REGB, MC_REGB_BINARY);
+
+  bintime_t end = {0, 0}, start = {0, 0}, res;
+
+  /* Busy-wait for falling edge of RTC update. */
+  while ((rtc_read(regs, MC_REGA) & MC_REGA_UIP) == 0)
+    ;
+  while ((rtc_read(regs, MC_REGA) & MC_REGA_UIP) != 0)
+    ;
+  start = binuptime();
+
+  /* Busy-wait for falling edge of RTC update. */
+  while ((rtc_read(regs, MC_REGA) & MC_REGA_UIP) == 0)
+    ;
+  while ((rtc_read(regs, MC_REGA) & MC_REGA_UIP) != 0)
+    ;
+  end = binuptime();
+
+  assert(bintime_cmp(&end, &start, >));
+  bintime_sub(&end, &start);
+  res = bintime_mul(end, freq);
+
+  return 10 * res.sec;
+}

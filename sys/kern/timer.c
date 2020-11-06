@@ -170,6 +170,11 @@ void tm_select(timer_t *tm) {
   time_source = tm;
 }
 
+void tm_set_freq(uint32_t freq) {
+  assert(time_source != NULL);
+  time_source->tm_frequency = freq;
+}
+
 bintime_t binuptime(void) {
   /* XXX: probably a race condition here */
   timer_t *tm = time_source;
