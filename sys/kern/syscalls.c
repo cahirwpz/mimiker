@@ -125,7 +125,7 @@ static int sys_getpgid(proc_t *p, getpgid_args_t *args, register_t *res) {
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/kill.html */
 static int sys_kill(proc_t *p, kill_args_t *args, register_t *res) {
   klog("kill(%lu, %d)", args->pid, args->sig);
-  return proc_sendsig(p, args->pid, args->sig);
+  return proc_sendsig(args->pid, args->sig);
 }
 
 /* Set and get the file mode creation mask.

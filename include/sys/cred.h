@@ -3,10 +3,12 @@
 
 #include <sys/types.h>
 #include <sys/syslimits.h>
+#include <sys/signal.h>
 
 #ifdef _KERNEL
 
 typedef struct proc proc_t;
+typedef struct session session_t;
 
 /*
  * Kernel view of credencials
@@ -49,6 +51,12 @@ void cred_copy(cred_t *cr, proc_t *p);
 
 /* \note Must be called with p::p_lock. Returns p::p_lock held */
 int cred_cansignal(proc_t *p, cred_t *cred);
+
+/*! \brief Check if we can signal target process.
+ *
+ * \note Must be called with target::p_lock held.
+ */
+int proc_cansignal(cred_t *cred, session_t *s, proc_t *target, signo_t sig);
 
 #endif /* !_KERNEL */
 
