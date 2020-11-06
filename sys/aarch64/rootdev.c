@@ -63,6 +63,16 @@ static bus_space_t *rootdev_bus_space = &(bus_space_t){
 };
 /* clang-format on */
 
+static void rootdev_enable_irq(intr_event_t *ie) {
+  int irq = ie->ie_irq;
+  (void)irq;
+}
+
+static void rootdev_disable_irq(intr_event_t *ie) {
+  int irq = ie->ie_irq;
+  (void)irq;
+}
+
 static void rootdev_intr_setup(device_t *dev, unsigned num,
                                intr_handler_t *handler) {
   rootdev_t *rd = dev->parent->state;
@@ -129,7 +139,8 @@ static int rootdev_attach(device_t *bus) {
                           PAGESIZE, PMAP_NOCACHE);
 
   for (int i = 0; i < NIRQ; i++) {
-    intr_event_init(&rd->intr_event[i], i, NULL, NULL, NULL, NULL);
+    intr_event_init(&rd->intr_event[i], i, NULL, rootdev_disable_irq,
+                    rootdev_enable_irq, NULL);
     intr_event_register(&rd->intr_event[i]);
   }
 
