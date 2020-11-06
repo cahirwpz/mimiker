@@ -233,13 +233,7 @@ int test_killpg_other_group(void) {
   return 0;
 }
 
-/* static volatile int sighup_handled; */
-/* static void sighup_handler(int signo) { */
-/*   sighup_handled = 1; */
-/* } */
-
 int test_pgrp_orphan() {
-  /* signal(SIGHUP, sighup_handler); */
   signal_setup(SIGHUP);
   int ppid = getpid();
   pid_t cpid = fork();
