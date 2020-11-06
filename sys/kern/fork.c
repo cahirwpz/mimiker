@@ -10,6 +10,8 @@
 #include <sys/vnode.h>
 #include <sys/sbrk.h>
 #include <sys/cred.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
 
 int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   thread_t *td = thread_self();
@@ -50,11 +52,18 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
 
   newtd->td_prio = td->td_prio;
 
+  newtd->td_sigmask = td->td_sigmask;
+
   /* Now, prepare a new process. */
   proc_t *child = proc_create(newtd, parent);
 
-  /* Clone credentials. */
-  cred_fork(child, parent);
+  /* Clone credentials.
+   * We have to do it with parent::p_lock held.
+   * We don't need to hold child::p_lock because child is not visible yet.
+   */
+  WITH_PROC_LOCK(parent) {
+    cred_fork(child, parent);
+  }
 
   /* Clone the entire process memory space. */
   child->p_uspace = vm_map_clone(parent->p_uspace);
@@ -77,6 +86,8 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   memcpy(child->p_sigactions, parent->p_sigactions,
          sizeof(child->p_sigactions));
 
+  /* Link the child process into all the structures
+   * by which it can be reached from the outside at once. */
   WITH_MTX_LOCK (all_proc_mtx) {
     /* Enter child into parent's process group.
      * No jobc adjustments are necessary, since the new child has no children

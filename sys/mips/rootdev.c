@@ -125,6 +125,8 @@ static int rootdev_attach(device_t *bus) {
 
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
+  device_add_child(bus, NULL, 0); /* for GT PCI */
+
   return bus_generic_probe(bus);
 }
 
