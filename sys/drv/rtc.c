@@ -36,7 +36,7 @@ typedef struct rtc_state {
  * resource management and ISA bus driver.
  */
 
-uint32_t estimate_freq(timer_t *tm, uint32_t freq);
+static uint32_t estimate_freq(timer_t *tm, uint32_t freq);
 
 static void boottime_init(tm_t *t) {
   bintime_t bt = BINTIME(tm2sec(t));
@@ -146,7 +146,7 @@ static driver_t rtc_driver = {
 
 DEVCLASS_ENTRY(pci, rtc_driver);
 
-uint32_t estimate_freq(timer_t *tm, uint32_t freq) {
+static uint32_t estimate_freq(timer_t *tm, uint32_t freq) {
   device_t *dev = tm->tm_priv;
   rtc_state_t *rtc = dev->state;
   resource_t *regs = rtc->regs;
@@ -173,5 +173,6 @@ uint32_t estimate_freq(timer_t *tm, uint32_t freq) {
   bintime_sub(&end, &start);
   res = bintime_mul(end, freq);
 
-  return 10 * res.sec;
+  /* This multiplication shouldn't take place */
+  return bintime_mul(res, 10).sec;
 }

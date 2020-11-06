@@ -30,6 +30,8 @@ void init_clock(void) {
   klog("System clock uses \'%s\' hardware timer.", clock->tm_name);
 
   timer_t *tuner = tm_reserve(NULL, TMF_STABLE);
-  tm_set_freq(tuner->tm_getfreq(tuner, clock->tm_frequency));
-  tm_release(tuner);
+  if (tuner != NULL) {
+    tm_set_freq(tuner->tm_getfreq(tuner, clock->tm_frequency));
+    tm_release(tuner);
+  }
 }
