@@ -44,7 +44,7 @@ static bool pci_device_multiple_functions(device_t *pcid) {
 static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t addr) {
   pci_write_config(pcid, PCIR_BAR(bar), 4, 0xffffffff);
   uint32_t res = pci_read_config(pcid, PCIR_BAR(bar), 4);
-  /* The original value of the BAR should then be restored. */
+  /* The original value of the BAR should be restored. */
   pci_write_config(pcid, PCIR_BAR(bar), 4, addr);
   return res;
 }
@@ -80,7 +80,7 @@ void pci_bus_enumerate(device_t *pcib) {
       pcid->irq = pci_read_config(dev, PCIR_IRQLINE, 1);
 
       /* XXX: we assumue here that `dev` is a general PCI device
-       * (i.e. header type = 0x00) and therefore has five bars. */
+       * (i.e. header type = 0x00) and therefore has six bars. */
       for (int i = 0; i < PCI_BAR_MAX; i++) {
         uint32_t addr = pci_read_config(dev, PCIR_BAR(i), 4);
         uint32_t size = pci_bar_size(dev, i, addr);
