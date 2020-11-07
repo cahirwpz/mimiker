@@ -6,7 +6,7 @@
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 
-const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
+static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
                                      uint16_t device_id) {
   if (vendor) {
     const pci_device_id *device = vendor->devices;
@@ -19,7 +19,7 @@ const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
   return NULL;
 }
 
-const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
+static const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
   const pci_vendor_id *vendor = pci_vendor_list;
   while (vendor->name) {
     if (vendor->id == vendor_id)
@@ -29,21 +29,41 @@ const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
   return NULL;
 }
 
-static bool pci_device_present(device_t *pcib, unsigned bus, unsigned dev,
-                               unsigned func) {
-  device_t pcid = {.parent = pcib,
-                   .bus = DEV_BUS_PCI,
-                   .instance = (pci_device_t[1]){{.addr = {bus, dev, func}}},
-                   .state = NULL};
-  return (pci_read_config(&pcid, PCIR_DEVICEID, 4) != 0xffffffff);
+static bool pci_device_present(device_t *pcid) {
+  return (pci_read_config(pcid, PCIR_DEVICEID, 4) != 0xffffffff);
+}
+
+static bool pci_device_multiple_functions(device_t *pcid) {
+  if (!pci_device_present(pcid))
+    return false;
+
+  uint8_t header = pci_read_config(pcid, PCIR_HEADERTYPE, 1);
+  return (header & PCIH_HDR_MF) != 0;
+}
+
+static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t addr) {
+  pci_write_config(pcid, PCIR_BAR(bar), 4, 0xffffffff);
+  uint32_t res = pci_read_config(pcid, PCIR_BAR(bar), 4);
+  /* The original value of the BAR should then be restored. */
+  pci_write_config(pcid, PCIR_BAR(bar), 4, addr);
+  return res;
 }
 
 DEVCLASS_CREATE(pci);
 
 void pci_bus_enumerate(device_t *pcib) {
-  for (int j = 0; j < 32; j++) {
-    for (int k = 0; k < 8; k++) {
-      if (!pci_device_present(pcib, 0, j, k))
+  pci_addr_t pcia = {.bus = 0};
+  device_t pcid = {.parent = pcib,
+                   .bus = DEV_BUS_PCI,
+                   .instance = &pcia};
+
+  for (int j = 0; j < PCI_DEV_MAX_NUM; j++) {
+    pcia.device = j;
+    int max_fun = pci_device_multiple_functions(&pcid) ? PCI_FUN_MAX_NUM : 1;
+    
+    for (int k = 0; k < max_fun; k++) {
+      pcia.function = k;
+      if (!pci_device_present(&pcid))
         continue;
 
       /* It looks like dev is a leaf in device tree, but it can also be an inner
@@ -54,16 +74,18 @@ void pci_bus_enumerate(device_t *pcib) {
       dev->bus = DEV_BUS_PCI;
       dev->instance = pcid;
 
-      pcid->addr = (pci_addr_t){0, j, k};
+      pcid->addr = pcia;
       pcid->device_id = pci_read_config(dev, PCIR_DEVICEID, 2);
       pcid->vendor_id = pci_read_config(dev, PCIR_VENDORID, 2);
       pcid->class_code = pci_read_config(dev, PCIR_CLASSCODE, 1);
       pcid->pin = pci_read_config(dev, PCIR_IRQPIN, 1);
       pcid->irq = pci_read_config(dev, PCIR_IRQLINE, 1);
 
-      for (int i = 0; i < 6; i++) {
+      /* XXX: we assumue here that `dev` is a general PCI device
+       * (i.e. header type = 0x00) and therefore has five bars. */
+      for (int i = 0; i < PCI_BAR_MAX; i++) {
         uint32_t addr = pci_read_config(dev, PCIR_BAR(i), 4);
-        uint32_t size = pci_adjust_config(dev, PCIR_BAR(i), 4, 0xffffffff);
+        uint32_t size = pci_bar_size(dev, i, addr);
 
         if (size == 0 || addr == size)
           continue;
@@ -85,6 +107,7 @@ void pci_bus_enumerate(device_t *pcib) {
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
       }
     }
+    pcia.function = 0;
   }
 
   pci_bus_dump(pcib);
@@ -121,7 +144,7 @@ void pci_bus_dump(device_t *pcib) {
       kprintf("%s Interrupt: pin %c routed to IRQ %d\n", devstr,
               'A' + pcid->pin - 1, pcid->irq);
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < PCI_BAR_MAX; i++) {
       pci_bar_t *bar = &pcid->bar[i];
       char *type;
 
