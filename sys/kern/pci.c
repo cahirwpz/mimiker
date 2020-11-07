@@ -7,7 +7,7 @@
 /* For reference look at: http://wiki.osdev.org/PCI */
 
 static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
-                                     uint16_t device_id) {
+                                            uint16_t device_id) {
   if (vendor) {
     const pci_device_id *device = vendor->devices;
     while (device->name) {
@@ -53,14 +53,12 @@ DEVCLASS_CREATE(pci);
 
 void pci_bus_enumerate(device_t *pcib) {
   pci_addr_t pcia = {.bus = 0};
-  device_t pcid = {.parent = pcib,
-                   .bus = DEV_BUS_PCI,
-                   .instance = &pcia};
+  device_t pcid = {.parent = pcib, .bus = DEV_BUS_PCI, .instance = &pcia};
 
   for (int j = 0; j < PCI_DEV_MAX_NUM; j++) {
     pcia.device = j;
     int max_fun = pci_device_multiple_functions(&pcid) ? PCI_FUN_MAX_NUM : 1;
-    
+
     for (int k = 0; k < max_fun; k++) {
       pcia.function = k;
       if (!pci_device_present(&pcid))
