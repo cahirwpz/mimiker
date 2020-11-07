@@ -64,6 +64,8 @@ void pci_bus_enumerate(device_t *pcib) {
       for (int i = 0; i < 6; i++) {
         uint32_t addr = pci_read_config(dev, PCIR_BAR(i), 4);
         uint32_t size = pci_adjust_config(dev, PCIR_BAR(i), 4, 0xffffffff);
+        /* Restore previous value of bar */
+        pci_write_config(dev, PCIR_BAR(i), 4, addr);
 
         if (size == 0 || addr == size)
           continue;
