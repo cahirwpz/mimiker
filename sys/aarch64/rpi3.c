@@ -6,6 +6,7 @@
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
 #include <sys/context.h>
+#include <sys/interrupt.h>
 #include <aarch64/atags.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
@@ -72,6 +73,7 @@ static void rpi3_physmem(void) {
   paddr_t rd_end = rd_start + ramdisk_get_size();
 
   vm_physseg_plug(ram_start, kern_start);
+  vm_physseg_plug_used(kern_start, kern_end);
 
   if (rd_start != rd_end) {
     vm_physseg_plug(kern_end, rd_start);
@@ -85,5 +87,6 @@ static void rpi3_physmem(void) {
 __noreturn void board_init(void) {
   init_klog();
   rpi3_physmem();
+  intr_enable();
   kernel_init();
 }
