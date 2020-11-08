@@ -113,6 +113,7 @@ static void disable_gpu_irq(int irq, bus_size_t offset) {
 
 static void rootdev_enable_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
+  assert(irq < NIRQ);
 
   /* Enable local IRQ. */
   if (irq < BCM2835_NIRQ) {
@@ -130,15 +131,12 @@ static void rootdev_enable_irq(intr_event_t *ie) {
     return;
   }
   /* Enable base IRQ. */
-  if (irq < NIRQ) {
-    enable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
-    return;
-  }
-  panic("unknown irq");
+  enable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
 }
 
 static void rootdev_disable_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
+  assert(irq < NIRQ);
 
   /* disable local IRQ. */
   if (irq < BCM2835_NIRQ) {
@@ -156,11 +154,7 @@ static void rootdev_disable_irq(intr_event_t *ie) {
     return;
   }
   /* disable base IRQ. */
-  if (irq < NIRQ) {
-    disable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
-    return;
-  }
-  panic("unknown irq");
+  disable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
 }
 
 static void rootdev_intr_setup(device_t *dev, unsigned num,
@@ -177,8 +171,9 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
 }
 
 /* Read 32 bit pending register located at irqpendr and run handlers. */
-static void bcm2835_intr_handle(vaddr_t irqpendr, intr_event_t *events) {
-  uint32_t pending = *(uint32_t *)irqpendr;
+static void bcm2835_intr_handle(bus_space_handle_t irq_base, bus_size_t offset,
+                                intr_event_t *events) {
+  uint32_t pending = bus_space_read_4(rootdev_bus_space, irq_base, offset);
 
   while (pending) {
     int irq = ffs(pending) - 1;
@@ -192,22 +187,22 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
   rootdev_t *rd = dev->state;
 
   /* Handle local interrupts. */
-  bcm2835_intr_handle(rootdev_local_handle + BCM2836_LOCAL_INTC_IRQPENDINGN(0),
+  bcm2835_intr_handle(rootdev_local_handle, BCM2836_LOCAL_INTC_IRQPENDINGN(0),
                       &rd->intr_event[BCM2836_INT_BASECPUN(0)]);
 
   /* Handle GPU0 interrupts. */
-  bcm2835_intr_handle(rootdev_arm_base +
-                        (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQ1PENDING),
+  bcm2835_intr_handle(rootdev_arm_base,
+                      (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQ1PENDING),
                       &rd->intr_event[BCM2835_INT_GPU0BASE]);
 
   /* Handle GPU1 interrupts. */
-  bcm2835_intr_handle(rootdev_arm_base +
-                        (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQ2PENDING),
+  bcm2835_intr_handle(rootdev_arm_base,
+                      (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQ2PENDING),
                       &rd->intr_event[BCM2835_INT_GPU1BASE]);
 
   /* Handle base interrupts. */
-  bcm2835_intr_handle(rootdev_arm_base +
-                        (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQBPENDING),
+  bcm2835_intr_handle(rootdev_arm_base,
+                      (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQBPENDING),
                       &rd->intr_event[BCM2835_INT_BASICBASE]);
 }
 
