@@ -15,6 +15,7 @@ SOURCES = \
 	pmap.c \
 	pool.c \
 	producer_consumer.c \
+	rman.c \
 	resizable_fdt.c \
 	ringbuf.c \
 	rwlock.c \

@@ -72,7 +72,7 @@ static bool rman_region_place_resource(rman_region_t *reg, rman_addr_t first,
   if (rman_region_find_gap(reg, &start, last, count, bound, &after)) {
     assert(start >= reg->start && start >= first && start < last);
     assert(start + count - 1 <= last);
-    assert(last <= reg->end);
+    assert(start + count - 1 <= reg->end);
     assert(is_aligned(start, bound));
     r->r_start = start;
     r->r_end = start + count - 1;
@@ -108,6 +108,8 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
     TAILQ_FOREACH (reg, &rm->rm_regions, link) {
       if (last + 1 <= reg->start)
         break;
+      if (reg->end - reg->start + 1 < count)
+        continue;
       if ((placed =
              rman_region_place_resource(reg, first, last, count, bound, r)))
         break;
