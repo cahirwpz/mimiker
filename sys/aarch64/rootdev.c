@@ -28,11 +28,12 @@ typedef struct rootdev {
   rman_t local_rm;
   rman_t shared_rm;
   intr_event_t intr_event[NIRQ];
-  vaddr_t arm_base;
 } rootdev_t;
 
 /* BCM2836_ARM_LOCAL_BASE mapped into VA (4KiB). */
 static vaddr_t rootdev_local_handle;
+/* BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE) mapped into VA (4KiB). */
+static vaddr_t rootdev_arm_base;
 
 /* Use pre mapped memory. */
 static int rootdev_bs_map(bus_addr_t addr, bus_size_t size,
@@ -40,6 +41,11 @@ static int rootdev_bs_map(bus_addr_t addr, bus_size_t size,
   if (addr >= BCM2836_ARM_LOCAL_BASE &&
       addr < BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE) {
     *handle_p = rootdev_local_handle;
+    return 0;
+  }
+  if (addr >= BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE) &&
+      addr < BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE) + PAGESIZE) {
+    *handle_p = rootdev_arm_base;
     return 0;
   }
   return generic_bs_map(addr, size, handle_p);
@@ -63,14 +69,98 @@ static bus_space_t *rootdev_bus_space = &(bus_space_t){
 };
 /* clang-format on */
 
+static void enable_local_irq(int irq) {
+  switch (irq) {
+    case BCM2836_INT_CNTPNSIRQ: {
+      uint32_t reg = bus_space_read_4(rootdev_bus_space, rootdev_local_handle,
+                                      BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0));
+      bus_space_write_4(rootdev_bus_space, rootdev_local_handle,
+                        BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0),
+                        reg | (1 << BCM2836_INT_CNTPNSIRQ));
+      break;
+    }
+    default: { panic("unknown irq"); }
+  }
+}
+
+static void disable_local_irq(int irq) {
+  switch (irq) {
+    case BCM2836_INT_CNTPNSIRQ: {
+      uint32_t reg = bus_space_read_4(rootdev_bus_space, rootdev_local_handle,
+                                      BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0));
+      bus_space_write_4(rootdev_bus_space, rootdev_local_handle,
+                        BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0),
+                        reg & (~(1 << BCM2836_INT_CNTPNSIRQ)));
+      break;
+    }
+    default: { panic("unknown irq"); }
+  }
+}
+
+static void enable_gpu_irq(int irq, bus_size_t offset) {
+  uint32_t reg = bus_space_read_4(rootdev_bus_space, rootdev_arm_base,
+                                  BCM2835_ARMICU_OFFSET + offset);
+  bus_space_write_4(rootdev_bus_space, rootdev_arm_base,
+                    BCM2835_ARMICU_OFFSET + offset, reg | (1 << irq));
+}
+
+static void disable_gpu_irq(int irq, bus_size_t offset) {
+  uint32_t reg = bus_space_read_4(rootdev_bus_space, rootdev_arm_base,
+                                  BCM2835_ARMICU_OFFSET + offset);
+  bus_space_write_4(rootdev_bus_space, rootdev_arm_base,
+                    BCM2835_ARMICU_OFFSET + offset, reg & (~(1 << irq)));
+}
+
 static void rootdev_enable_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
-  (void)irq;
+
+  /* Enable local IRQ. */
+  if (irq < BCM2835_NIRQ) {
+    enable_local_irq(irq);
+    return;
+  }
+  /* Enable GPU0 IRQ. */
+  if (irq < BCM2835_INT_GPU1BASE) {
+    enable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1PENDING);
+    return;
+  }
+  /* Enable GPU1 IRQ. */
+  if (irq < BCM2835_INT_BASICBASE) {
+    enable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2PENDING);
+    return;
+  }
+  /* Enable base IRQ. */
+  if (irq < NIRQ) {
+    enable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
+    return;
+  }
+  panic("unknown irq");
 }
 
 static void rootdev_disable_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
-  (void)irq;
+
+  /* disable local IRQ. */
+  if (irq < BCM2835_NIRQ) {
+    disable_local_irq(irq);
+    return;
+  }
+  /* disable GPU0 IRQ. */
+  if (irq < BCM2835_INT_GPU1BASE) {
+    disable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1PENDING);
+    return;
+  }
+  /* disable GPU1 IRQ. */
+  if (irq < BCM2835_INT_BASICBASE) {
+    disable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2PENDING);
+    return;
+  }
+  /* disable base IRQ. */
+  if (irq < NIRQ) {
+    disable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
+    return;
+  }
+  panic("unknown irq");
 }
 
 static void rootdev_intr_setup(device_t *dev, unsigned num,
@@ -106,17 +196,17 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
                       &rd->intr_event[BCM2836_INT_BASECPUN(0)]);
 
   /* Handle GPU0 interrupts. */
-  bcm2835_intr_handle(rd->arm_base +
+  bcm2835_intr_handle(rootdev_arm_base +
                         (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQ1PENDING),
                       &rd->intr_event[BCM2835_INT_GPU0BASE]);
 
   /* Handle GPU1 interrupts. */
-  bcm2835_intr_handle(rd->arm_base +
+  bcm2835_intr_handle(rootdev_arm_base +
                         (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQ2PENDING),
                       &rd->intr_event[BCM2835_INT_GPU1BASE]);
 
   /* Handle base interrupts. */
-  bcm2835_intr_handle(rd->arm_base +
+  bcm2835_intr_handle(rootdev_arm_base +
                         (BCM2835_ARMICU_OFFSET + BCM2835_INTC_IRQBPENDING),
                       &rd->intr_event[BCM2835_INT_BASICBASE]);
 }
@@ -135,8 +225,8 @@ static int rootdev_attach(device_t *bus) {
   rootdev_local_handle =
     kmem_map(BCM2836_ARM_LOCAL_BASE, BCM2836_ARM_LOCAL_SIZE, PMAP_NOCACHE);
 
-  rd->arm_base = kmem_map(BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
-                          PAGESIZE, PMAP_NOCACHE);
+  rootdev_arm_base = kmem_map(BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
+                              PAGESIZE, PMAP_NOCACHE);
 
   for (int i = 0; i < NIRQ; i++) {
     intr_event_init(&rd->intr_event[i], i, NULL, rootdev_disable_irq,
