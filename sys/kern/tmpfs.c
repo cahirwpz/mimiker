@@ -166,8 +166,8 @@ static mem_arena_t *mem_new_arena(mem_arenalist_t *al) {
 static mem_arena_t *mem_find_ptr_arena(mem_arenalist_t *al, void *ptr) {
   mem_arena_t *arena;
   STAILQ_FOREACH(arena, al, tma_link) {
-    if ((intptr_t)ptr > (intptr_t)arena &&
-        (intptr_t)ptr < (intptr_t)arena + ARENA_SIZE) {
+    if ((uintptr_t)ptr > (uintptr_t)arena &&
+        (uintptr_t)ptr < (uintptr_t)arena + ARENA_SIZE) {
       return arena;
     }
   }
@@ -717,7 +717,7 @@ static int tmpfs_alloc_dirent(tmpfs_node_t *tfn, const char *name,
   dirent->tfd_name[namelen] = 0;
 
   *dep = dirent;
-  return error;
+  return 0;
 }
 
 static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
