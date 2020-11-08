@@ -27,11 +27,6 @@ static int arm_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
     uint64_t count = READ_SPECIALREG(cntpct_el0);
     WRITE_SPECIALREG(cntp_cval_el0, count + state->step);
     WRITE_SPECIALREG(cntp_ctl_el0, CNTCTL_ENABLE);
-
-    /* Enable interrupt for CPU0. */
-    size_t offset = BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0);
-    uint32_t reg = bus_read_4(state->regs, offset);
-    bus_write_4(state->regs, offset, reg | (1 << BCM2836_INT_CNTPNSIRQ));
   }
 
   return 0;
