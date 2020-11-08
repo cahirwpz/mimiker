@@ -12,7 +12,6 @@
 #define CNTCTL_ENABLE 1
 
 typedef struct arm_timer_state {
-  resource_t *regs;
   intr_handler_t intr_handler;
   timer_t timer;
   uint64_t step;
@@ -62,18 +61,6 @@ static int arm_timer_probe(device_t *dev) {
 
 static int arm_timer_attach(device_t *dev) {
   arm_timer_state_t *state = dev->state;
-
-  /* Request for timer registers. */
-  resource_t *regs =
-    bus_alloc_resource(dev, RT_MEMORY, 1, BCM2836_ARM_LOCAL_BASE,
-                       BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1,
-                       BCM2836_ARM_LOCAL_SIZE, RF_ACTIVE);
-  assert(regs != NULL);
-
-  bus_space_map(regs->r_bus_tag, regs->r_start, regs->r_end - regs->r_start + 1,
-                &regs->r_bus_handle);
-
-  state->regs = regs;
 
   /* Save link to timer device. */
   state->timer = (timer_t){
