@@ -13,14 +13,13 @@
 
 typedef struct arm_timer_state {
   resource_t *regs;
-  vaddr_t va_page;
   intr_handler_t intr_handler;
   timer_t timer;
   uint64_t step;
 } arm_timer_state_t;
 
 static int arm_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
-                       const bintime_t period) {
+                           const bintime_t period) {
   arm_timer_state_t *state = ((device_t *)tm->tm_priv)->state;
   state->step = bintime_mul(period, tm->tm_frequency).sec;
 
@@ -28,6 +27,11 @@ static int arm_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
     uint64_t count = READ_SPECIALREG(cntpct_el0);
     WRITE_SPECIALREG(cntp_cval_el0, count + state->step);
     WRITE_SPECIALREG(cntp_ctl_el0, CNTCTL_ENABLE);
+
+    /* Enable interrupt for CPU0. */
+    size_t offset = BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0);
+    uint32_t reg = bus_read_4(state->regs, offset);
+    bus_write_4(state->regs, offset, reg | (1 << BCM2836_INT_CNTPNSIRQ));
   }
 
   return 0;
@@ -75,7 +79,6 @@ static int arm_timer_attach(device_t *dev) {
                 &regs->r_bus_handle);
 
   state->regs = regs;
-  state->va_page = regs->r_bus_handle;
 
   /* Save link to timer device. */
   state->timer = (timer_t){
@@ -99,11 +102,6 @@ static int arm_timer_attach(device_t *dev) {
   tm->tm_max_period = bintime_mul(HZ2BT(freq), 1LL << 30);
   tm_register(tm);
   tm_select(tm);
-
-  /* Enable interrupt for CPU0. */
-  size_t offset = BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0);
-  volatile uint32_t *timerp = (uint32_t *)(state->va_page + offset);
-  *timerp = *timerp | (1 << BCM2836_INT_CNTPNSIRQ);
 
   bus_intr_setup(dev, BCM2836_INT_CNTPNSIRQ_CPUN(0), &state->intr_handler);
 
