@@ -6,8 +6,6 @@
 #include <sys/interrupt.h>
 #include <sys/bus.h>
 #include <sys/devclass.h>
-#include <sys/kmem.h>
-#include <sys/pmap.h>
 
 #define CNTCTL_ENABLE 1
 
