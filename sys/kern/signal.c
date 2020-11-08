@@ -215,7 +215,8 @@ void sigpend_destroy(sigpend_t *sp) {
   __sigemptyset(&sp->sp_set);
 
   ksiginfo_t *ksi;
-  TAILQ_FOREACH (ksi, &sp->sp_info, ksi_list) {
+  while (!TAILQ_EMPTY(&sp->sp_info)) {
+    ksi = TAILQ_FIRST(&sp->sp_info);
     TAILQ_REMOVE(&sp->sp_info, ksi, ksi_list);
     assert(ksi->ksi_flags & KSI_FROMPOOL);
     assert(ksi->ksi_flags & KSI_QUEUED);

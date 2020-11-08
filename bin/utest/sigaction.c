@@ -57,17 +57,13 @@ int test_sigaction_handler_returns(void) {
 #define NCHLD 42
 
 static volatile int nreaped;
-static volatile pid_t cpid;
-static volatile int cuid;
 
 static void sigchld_handler(int signo, siginfo_t *si, void *uctx) {
   assert(si->si_code == CLD_EXITED);
 
-  cpid = si->si_pid;
-  cuid = si->si_uid;
+  printf("child=%d (uid=%d) sent signal info\n", si->si_pid, si->si_uid);
 
-  pid_t pid;
-  while ((pid = waitpid(-1, NULL, WNOHANG)) > 0)
+  while (waitpid(-1, NULL, WNOHANG) > 0)
     nreaped++;
 }
 
@@ -97,7 +93,6 @@ int test_sigaction_siginfo_from_children(void) {
 
   do {
     sigsuspend(&old);
-    printf("child=%d (uid=%d) sent signal info\n", cpid, cuid);
   } while (nreaped != NCHLD);
 
   return 0;
