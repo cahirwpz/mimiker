@@ -571,7 +571,7 @@ __noreturn void proc_exit(int exitstatus) {
 
 static int proc_pgsignal(pgid_t pgid, signo_t sig) {
   pgrp_t *pgrp = NULL;
-  SCOPED_MTX_LOCK (all_proc_mtx);
+  SCOPED_MTX_LOCK(all_proc_mtx);
 
   if (pgid == 0) {
     pgrp = proc_self()->p_pgrp;
@@ -606,7 +606,7 @@ int proc_sendsig(pid_t pid, signo_t sig) {
   proc_t *target;
 
   if (pid > 0) {
-    SCOPED_MTX_LOCK (all_proc_mtx);
+    SCOPED_MTX_LOCK(all_proc_mtx);
     target = proc_find(pid);
     if (target == NULL)
       return ESRCH;
