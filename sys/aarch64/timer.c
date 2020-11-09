@@ -8,6 +8,7 @@
 #include <sys/devclass.h>
 
 #define CNTCTL_ENABLE 1
+#define CNTCTL_DISABLE 0
 
 typedef struct arm_timer_state {
   intr_handler_t intr_handler;
@@ -30,7 +31,7 @@ static int arm_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
 }
 
 static int arm_timer_stop(timer_t *tm) {
-  WRITE_SPECIALREG(cntp_ctl_el0, 0);
+  WRITE_SPECIALREG(cntp_ctl_el0, CNTCTL_DISABLE);
   return 0;
 }
 
