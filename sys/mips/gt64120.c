@@ -393,7 +393,8 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,
 }
 
 static int gt_pci_probe(device_t *d) {
-  return d->unit == 0;
+  /* TODO(cahir) match device with driver on FDT basis */
+  return d->unit == 1;
 }
 
 /* clang-format off */

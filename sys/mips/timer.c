@@ -111,6 +111,11 @@ static bintime_t mips_timer_gettime(timer_t *tm) {
   return bt;
 }
 
+static int mips_timer_probe(device_t *dev) {
+  /* TODO(cahir) match device with driver on FDT basis */
+  return dev->unit == 0;
+}
+
 static int mips_timer_attach(device_t *dev) {
   mips_timer_state_t *state = dev->state;
 
@@ -138,6 +143,7 @@ static int mips_timer_attach(device_t *dev) {
 static driver_t cpu_mips_timer = {
   .desc = "MIPS CPU timer driver",
   .size = sizeof(mips_timer_state_t),
+  .probe = mips_timer_probe,
   .attach = mips_timer_attach,
 };
 
