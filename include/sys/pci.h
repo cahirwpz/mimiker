@@ -2,10 +2,8 @@
 #define _SYS_PCI_H_
 
 #include <sys/cdefs.h>
-#include <sys/queue.h>
 #include <sys/device.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 
 typedef struct {
   uint16_t id;
@@ -23,6 +21,10 @@ extern const char *pci_class_code[];
 
 /* Please read http://wiki.osdev.org/PCI */
 
+#define PCI_BUS_MAX_NUM 256
+#define PCI_DEV_MAX_NUM 32
+#define PCI_FUN_MAX_NUM 8
+
 #define PCI_BAR_MEMORY 0
 #define PCI_BAR_IO 1
 #define PCI_BAR_64BIT 4
@@ -31,6 +33,8 @@ extern const char *pci_class_code[];
 #define PCI_BAR_IO_MASK 3
 #define PCI_BAR_MEMORY_MASK 15
 
+#define PCI_BAR_MAX 6
+
 #define PCIR_DEVICEID 0x00
 #define PCIR_VENDORID 0x02
 #define PCIR_STATUS 0x04
@@ -38,6 +42,9 @@ extern const char *pci_class_code[];
 #define PCIM_CMD_PORTEN 0x0001
 #define PCIM_CMD_MEMEN 0x0002
 #define PCIR_CLASSCODE 0x08
+#define PCIR_HEADERTYPE 0x0d
+#define PCIH_HDR_MF 0x80
+#define PCIH_HDR_TYPE 0x7f
 #define PCIR_IRQPIN 0x3e
 #define PCIR_IRQLINE 0x3f
 #define PCIR_BAR(i) (0x10 + (i)*4)
@@ -71,7 +78,7 @@ typedef struct pci_bus_driver {
 typedef struct pci_bar {
   device_t *owner; /* pci device owner of this bar */
   size_t size;     /* identified size of this bar */
-  int rid;         /* BAR number in [0,5] */
+  int rid;         /* BAR number in [0,PCI_BAR_MAX-1] */
   unsigned type;   /* RT_IOPORTS or RT_MEMORY */
   unsigned flags;  /* nothing or RF_PREFETACHBLE */
 } pci_bar_t;
@@ -84,8 +91,7 @@ typedef struct pci_device {
   uint8_t class_code;
   uint8_t pin, irq;
 
-  unsigned nbars;
-  pci_bar_t bar[6]; /* identified BARs */
+  pci_bar_t bar[PCI_BAR_MAX];
 } pci_device_t;
 
 #define PCI_DRIVER(dev) ((pci_bus_driver_t *)((dev)->parent->driver))
@@ -98,12 +104,6 @@ static inline uint32_t pci_read_config(device_t *device, unsigned reg,
 static inline void pci_write_config(device_t *device, unsigned reg,
                                     unsigned size, uint32_t value) {
   PCI_DRIVER(device)->pci_bus.write_config(device, reg, size, value);
-}
-
-static inline uint32_t pci_adjust_config(device_t *device, unsigned reg,
-                                         unsigned size, uint32_t value) {
-  pci_write_config(device, reg, size, value);
-  return pci_read_config(device, reg, size);
 }
 
 void pci_bus_enumerate(device_t *pcib);
