@@ -103,7 +103,7 @@ void pci_bus_enumerate(device_t *pcib) {
         }
 
         size = -size;
-	uint8_t id = pcid->nbars;
+        uint8_t id = pcid->nbars;
         pcid->bar[id] = (pci_bar_t){
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = id};
         pcid->nbars++;
