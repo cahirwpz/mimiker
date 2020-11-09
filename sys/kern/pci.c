@@ -30,19 +30,18 @@ static const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
 }
 
 static bool pci_device_present(device_t *pcid) {
-  return (pci_read_config(pcid, PCIR_DEVICEID, 4) != 0xffffffff);
+  return pci_read_config(pcid, PCIR_DEVICEID, 4) != -1U;
 }
 
-static bool pci_device_multiple_functions(device_t *pcid) {
+static int pci_device_nfunctions(device_t *pcid) {
   if (!pci_device_present(pcid))
-    return false;
-
-  uint8_t header = pci_read_config(pcid, PCIR_HEADERTYPE, 1);
-  return (header & PCIH_HDR_MF) != 0;
+    return 0;
+  uint32_t hdrtype = pci_read_config(pcid, PCIR_HEADERTYPE, 1);
+  return (hdrtype & PCIH_HDR_MF) ? PCI_FUN_MAX_NUM : 1;
 }
 
 static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t addr) {
-  pci_write_config(pcid, PCIR_BAR(bar), 4, 0xffffffff);
+  pci_write_config(pcid, PCIR_BAR(bar), 4, -1U);
   uint32_t res = pci_read_config(pcid, PCIR_BAR(bar), 4);
   /* The original value of the BAR should be restored. */
   pci_write_config(pcid, PCIR_BAR(bar), 4, addr);
@@ -52,15 +51,15 @@ static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t addr) {
 DEVCLASS_CREATE(pci);
 
 void pci_bus_enumerate(device_t *pcib) {
-  pci_addr_t pcia = {.bus = 0};
+  pci_addr_t pcia = {.bus = 0, .device = 0};
   device_t pcid = {.parent = pcib, .bus = DEV_BUS_PCI, .instance = &pcia};
 
-  for (int j = 0; j < PCI_DEV_MAX_NUM; j++) {
-    pcia.device = j;
-    int max_fun = pci_device_multiple_functions(&pcid) ? PCI_FUN_MAX_NUM : 1;
+  for (; pcia.device < PCI_DEV_MAX_NUM; pcia.device++) {
+    pcia.function = 0;
 
-    for (int k = 0; k < max_fun; k++) {
-      pcia.function = k;
+    int max_fun = pci_device_nfunctions(&pcid);
+
+    for (; pcia.function < max_fun; pcia.function++) {
       if (!pci_device_present(&pcid))
         continue;
 
@@ -79,7 +78,7 @@ void pci_bus_enumerate(device_t *pcib) {
       pcid->pin = pci_read_config(dev, PCIR_IRQPIN, 1);
       pcid->irq = pci_read_config(dev, PCIR_IRQLINE, 1);
 
-      /* XXX: we assumue here that `dev` is a general PCI device
+      /* XXX: we assume here that `dev` is a general PCI device
        * (i.e. header type = 0x00) and therefore has six bars. */
       for (int i = 0; i < PCI_BAR_MAX; i++) {
         uint32_t addr = pci_read_config(dev, PCIR_BAR(i), 4);
@@ -105,7 +104,6 @@ void pci_bus_enumerate(device_t *pcib) {
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
       }
     }
-    pcia.function = 0;
   }
 
   pci_bus_dump(pcib);
