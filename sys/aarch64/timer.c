@@ -54,7 +54,9 @@ static intr_filter_t arm_timer_intr(void *data /* device_t* */) {
 }
 
 static int arm_timer_probe(device_t *dev) {
-  return 1;
+  /* (cahir) so far we don't have better way to associate driver with device for
+   * buses which do not automatically enumerate their children. */
+  return (dev->unit == 0);
 }
 
 static int arm_timer_attach(device_t *dev) {

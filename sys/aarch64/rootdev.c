@@ -70,31 +70,19 @@ static bus_space_t *rootdev_bus_space = &(bus_space_t){
 /* clang-format on */
 
 static void enable_local_irq(int irq) {
-  switch (irq) {
-    case BCM2836_INT_CNTPNSIRQ: {
-      uint32_t reg = bus_space_read_4(rootdev_bus_space, rootdev_local_handle,
-                                      BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0));
-      bus_space_write_4(rootdev_bus_space, rootdev_local_handle,
-                        BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0),
-                        reg | (1 << BCM2836_INT_CNTPNSIRQ));
-      break;
-    }
-    default: { panic("unknown irq"); }
-  }
+  assert(irq < BCM2836_INT_NLOCAL);
+  uint32_t reg = bus_space_read_4(rootdev_bus_space, rootdev_local_handle,
+                                  BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0));
+  bus_space_write_4(rootdev_bus_space, rootdev_local_handle,
+                    BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0), reg | (1 << irq));
 }
 
 static void disable_local_irq(int irq) {
-  switch (irq) {
-    case BCM2836_INT_CNTPNSIRQ: {
-      uint32_t reg = bus_space_read_4(rootdev_bus_space, rootdev_local_handle,
-                                      BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0));
-      bus_space_write_4(rootdev_bus_space, rootdev_local_handle,
-                        BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0),
-                        reg & (~(1 << BCM2836_INT_CNTPNSIRQ)));
-      break;
-    }
-    default: { panic("unknown irq"); }
-  }
+  assert(irq < BCM2836_INT_NLOCAL);
+  uint32_t reg = bus_space_read_4(rootdev_bus_space, rootdev_local_handle,
+                                  BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0));
+  bus_space_write_4(rootdev_bus_space, rootdev_local_handle,
+                    BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0), reg & (~(1 << irq)));
 }
 
 static void enable_gpu_irq(int irq, bus_size_t offset) {
@@ -115,46 +103,38 @@ static void rootdev_enable_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
   assert(irq < NIRQ);
 
-  /* Enable local IRQ. */
   if (irq < BCM2835_NIRQ) {
+    /* Enable local IRQ. */
     enable_local_irq(irq);
-    return;
-  }
-  /* Enable GPU0 IRQ. */
-  if (irq < BCM2835_INT_GPU1BASE) {
+  } else if (irq < BCM2835_INT_GPU1BASE) {
+    /* Enable GPU0 IRQ. */
     enable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1PENDING);
-    return;
-  }
-  /* Enable GPU1 IRQ. */
-  if (irq < BCM2835_INT_BASICBASE) {
+  } else if (irq < BCM2835_INT_BASICBASE) {
+    /* Enable GPU1 IRQ. */
     enable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2PENDING);
-    return;
+  } else {
+    /* Enable base IRQ. */
+    enable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
   }
-  /* Enable base IRQ. */
-  enable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
 }
 
 static void rootdev_disable_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
   assert(irq < NIRQ);
 
-  /* disable local IRQ. */
   if (irq < BCM2835_NIRQ) {
+    /* disable local IRQ. */
     disable_local_irq(irq);
-    return;
-  }
-  /* disable GPU0 IRQ. */
-  if (irq < BCM2835_INT_GPU1BASE) {
+  } else if (irq < BCM2835_INT_GPU1BASE) {
+    /* disable GPU0 IRQ. */
     disable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1PENDING);
-    return;
-  }
-  /* disable GPU1 IRQ. */
-  if (irq < BCM2835_INT_BASICBASE) {
+  } else if (irq < BCM2835_INT_BASICBASE) {
+    /* disable GPU1 IRQ. */
     disable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2PENDING);
-    return;
+  } else {
+    /* disable base IRQ. */
+    disable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
   }
-  /* disable base IRQ. */
-  disable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
 }
 
 static void rootdev_intr_setup(device_t *dev, unsigned num,
@@ -170,7 +150,8 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
   intr_event_remove_handler(handler);
 }
 
-/* Read 32 bit pending register located at irqpendr and run handlers. */
+/* Read 32 bit pending register located at irq_base + offset and run
+ * corresponding handlers. */
 static void bcm2835_intr_handle(bus_space_handle_t irq_base, bus_size_t offset,
                                 intr_event_t *events) {
   uint32_t pending = bus_space_read_4(rootdev_bus_space, irq_base, offset);
