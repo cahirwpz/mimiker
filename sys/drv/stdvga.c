@@ -159,9 +159,6 @@ static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
 static int stdvga_probe(device_t *dev) {
   pci_device_t *pcid = pci_device_of(dev);
 
-  if (!pcid)
-    return 0;
-
   if (!pci_device_match(pcid, QEMU_STDVGA_VENDOR_ID, QEMU_STDVGA_DEVICE_ID))
     return 0;
 
