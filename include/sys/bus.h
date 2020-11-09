@@ -205,7 +205,7 @@ static inline resource_t *bus_alloc_resource_any(device_t *dev, res_type_t type,
                                                  int rid, res_flags_t flags) {
 
   return BUS_DRIVER(dev)->bus.alloc_resource(dev, type, rid, 0, RMAN_ADDR_MAX,
-                                             1, flags);
+                                             RMAN_SIZE_MAX, flags);
 }
 
 static inline int bus_activate_resource(device_t *dev, res_type_t type, int rid,

@@ -10,6 +10,7 @@
 typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
 typedef uintptr_t rman_addr_t;
 #define RMAN_ADDR_MAX UINTPTR_MAX
+#define RMAN_SIZE_MAX UINTPTR_MAX
 
 typedef struct rman rman_t;
 typedef struct resource resource_t;
