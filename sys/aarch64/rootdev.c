@@ -103,7 +103,7 @@ static void rootdev_enable_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
   assert(irq < NIRQ);
 
-  if (irq < BCM2835_NIRQ) {
+  if (irq < BCM2836_NIRQ) {
     /* Enable local IRQ. */
     enable_local_irq(irq);
   } else if (irq < BCM2835_INT_GPU1BASE) {
@@ -122,7 +122,7 @@ static void rootdev_disable_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
   assert(irq < NIRQ);
 
-  if (irq < BCM2835_NIRQ) {
+  if (irq < BCM2836_NIRQ) {
     /* disable local IRQ. */
     disable_local_irq(irq);
   } else if (irq < BCM2835_INT_GPU1BASE) {
