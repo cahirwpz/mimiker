@@ -9,7 +9,7 @@
 /* TODO: remove RT_ISA after ISA-bridge driver is implemented */
 typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_ISA } res_type_t;
 typedef uintptr_t rman_addr_t;
-#define RMAN_ADDR_MAX UINTPTR_MAX
+#define RMAN_ADDR_MAX (~(uintptr_t)1)
 
 typedef struct rman rman_t;
 typedef struct rman_region rman_region_t;
