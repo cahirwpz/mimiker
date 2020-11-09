@@ -16,7 +16,8 @@ typedef struct arm_timer_state {
   uint64_t step;
 } arm_timer_state_t;
 
-static int arm_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
+static int arm_timer_start(timer_t *tm, unsigned flags __unused,
+                           const bintime_t start __unused,
                            const bintime_t period) {
   arm_timer_state_t *state = ((device_t *)tm->tm_priv)->state;
   state->step = bintime_mul(period, tm->tm_frequency).sec;
