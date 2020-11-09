@@ -107,7 +107,6 @@ static inline uint32_t pci_adjust_config(device_t *device, unsigned reg,
 }
 
 void pci_bus_enumerate(device_t *pcib);
-void pci_bus_assign_space(device_t *pcib);
 void pci_bus_dump(device_t *pcib);
 
 static inline pci_device_t *pci_device_of(device_t *device) {
@@ -116,7 +115,8 @@ static inline pci_device_t *pci_device_of(device_t *device) {
 
 static inline bool pci_device_match(pci_device_t *pcid, uint16_t vendor_id,
                                     uint16_t device_id) {
-  return (pcid->vendor_id == vendor_id) && (pcid->device_id == device_id);
+  return (pcid != NULL) && (pcid->vendor_id == vendor_id) &&
+         (pcid->device_id == device_id);
 }
 
 #endif /* !_SYS_PCI_H_ */
