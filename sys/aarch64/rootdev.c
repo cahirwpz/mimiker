@@ -218,17 +218,16 @@ static int rootdev_attach(device_t *bus) {
   return bus_generic_probe(bus);
 }
 
-static resource_t *rootdev_alloc_resource(device_t *bus, device_t *child,
-                                          res_type_t type, int rid,
-                                          rman_addr_t start, rman_addr_t end,
-                                          size_t size, res_flags_t flags) {
-  rootdev_t *rd = bus->state;
+static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
+                                          int rid, rman_addr_t start,
+                                          rman_addr_t end, size_t size,
+                                          res_flags_t flags) {
+  rootdev_t *rd = dev->parent->state;
   resource_t *r;
 
-  r = rman_alloc_resource(&rd->local_rm, start, end, size, 1, RF_NONE, child);
+  r = rman_alloc_resource(&rd->local_rm, start, end, size, 1, flags);
   if (r == NULL)
-    r =
-      rman_alloc_resource(&rd->shared_rm, start, end, size, 1, RF_NONE, child);
+    r = rman_alloc_resource(&rd->shared_rm, start, end, size, 1, flags);
 
   if (r) {
     r->r_bus_tag = rootdev_bus_space;
