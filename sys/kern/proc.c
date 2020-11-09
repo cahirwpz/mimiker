@@ -569,31 +569,28 @@ __noreturn void proc_exit(int exitstatus) {
   thread_exit();
 }
 
-static int proc_pgsignal(cred_t *cred, session_t *s, pgid_t pgid, signo_t sig) {
+static int proc_pgsignal(pgid_t pgid, signo_t sig) {
   pgrp_t *pgrp = NULL;
+  SCOPED_MTX_LOCK (all_proc_mtx);
 
-  WITH_MTX_LOCK (all_proc_mtx) {
-    if (pgid == 0) {
-      pgrp = proc_self()->p_pgrp;
-    } else {
-      pgrp = pgrp_lookup(pgid);
-      if (!pgrp)
-        return ESRCH;
-    }
-    mtx_lock(&pgrp->pg_lock);
+  if (pgid == 0) {
+    pgrp = proc_self()->p_pgrp;
+  } else {
+    pgrp = pgrp_lookup(pgid);
+    if (!pgrp)
+      return ESRCH;
   }
 
   proc_t *target;
   int send = 0, error = 0;
   TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist) {
     WITH_PROC_LOCK(target) {
-      if (!(error = proc_cansignal(cred, s, target, sig))) {
+      if (!(error = proc_cansignal(target, sig))) {
         sig_kill(target, sig);
         send++;
       }
     }
   }
-  mtx_unlock(&pgrp->pg_lock);
 
   /* We return error when signal can't be send to any process. Returned error is
    * last error obtained from checking privileges.*/
@@ -606,21 +603,14 @@ int proc_sendsig(pid_t pid, signo_t sig) {
     return EINVAL;
 
   int error;
-  proc_t *p = proc_self();
   proc_t *target;
-  session_t *session;
-
-  WITH_PROC_LOCK(p) {
-    /* Take a snapshot of session ptr. We will use it in privilege check. */
-    session = p->p_pgrp->pg_session;
-  }
 
   if (pid > 0) {
-    WITH_MTX_LOCK (all_proc_mtx)
-      target = proc_find(pid);
+    SCOPED_MTX_LOCK (all_proc_mtx);
+    target = proc_find(pid);
     if (target == NULL)
       return ESRCH;
-    if (!(error = proc_cansignal(&p->p_cred, session, target, sig)))
+    if (!(error = proc_cansignal(target, sig)))
       sig_kill(target, sig);
     proc_unlock(target);
     return error;
@@ -633,10 +623,10 @@ int proc_sendsig(pid_t pid, signo_t sig) {
       error = ENOTSUP;
       break;
     case 0:
-      error = proc_pgsignal(&p->p_cred, session, 0, sig);
+      error = proc_pgsignal(0, sig);
       break;
     default:
-      error = proc_pgsignal(&p->p_cred, session, -pid, sig);
+      error = proc_pgsignal(-pid, sig);
   }
   return error;
 }

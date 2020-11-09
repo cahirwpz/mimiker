@@ -18,15 +18,18 @@ int cred_cansignal(proc_t *target, cred_t *cred) {
   return 0;
 }
 
-int proc_cansignal(cred_t *cred, session_t *s, proc_t *target, signo_t sig) {
+int proc_cansignal(proc_t *target, signo_t sig) {
+  assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&target->p_lock));
 
-  if (target == proc_self())
+  proc_t *p = proc_self();
+
+  if (target == p)
     return 0;
 
   /* process can send SIGCONT to every process in the same session */
-  if (sig == SIGCONT && s == target->p_pgrp->pg_session)
+  if (sig == SIGCONT && p->p_pgrp->pg_session == target->p_pgrp->pg_session)
     return 0;
 
-  return cred_cansignal(target, cred);
+  return cred_cansignal(target, &p->p_cred);
 }

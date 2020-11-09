@@ -8,7 +8,6 @@
 #ifdef _KERNEL
 
 typedef struct proc proc_t;
-typedef struct session session_t;
 
 /*
  * Kernel view of credencials
@@ -43,20 +42,12 @@ int do_setregid(proc_t *p, gid_t rgid, gid_t egid);
  */
 void cred_fork(proc_t *to, proc_t *from);
 
-/* \brief Copy process credentials.
- *
- * \note Must be called with p::p_lock held. Returns with p::p_lock held.
- */
-void cred_copy(cred_t *cr, proc_t *p);
-
-/* \note Must be called with p::p_lock. Returns p::p_lock held */
+/* \note Must be called with p::p_lock. Returns p::p_lock held. */
 int cred_cansignal(proc_t *p, cred_t *cred);
 
-/*! \brief Check if we can signal target process.
- *
- * \note Must be called with target::p_lock held.
- */
-int proc_cansignal(cred_t *cred, session_t *s, proc_t *target, signo_t sig);
+/* Checks whether the current process has permission to send `sig` to `target` process.
+ * \note Must be called with all_proc_mtx and target::p_lock. Returns with lock held. */ 
+int proc_cansignal(proc_t *target, signo_t sig);
 
 #endif /* !_KERNEL */
 
