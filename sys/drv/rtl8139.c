@@ -18,22 +18,10 @@ typedef struct rtl8139_state {
 
 static int rtl8139_probe(device_t *dev) {
   pci_device_t *pcid = pci_device_of(dev);
-
-  if (!pcid)
-    return 0;
-
-  if (pcid->vendor_id != RTL8139_VENDOR_ID ||
-      pcid->device_id != RTL8139_DEVICE_ID)
-    return 0;
-
-  return 1;
+  return pci_device_match(pcid, RTL8139_VENDOR_ID, RTL8139_DEVICE_ID);
 }
 
 static int rtl8139_attach(device_t *dev) {
-  assert(dev->parent->bus == DEV_BUS_PCI);
-
-  klog("### RTL8139 DUMMY DRIVER\n");
-
   return 0;
 }
 
