@@ -44,7 +44,8 @@ static int rootdev_bs_map(bus_addr_t addr, bus_size_t size,
     return 0;
   }
   if (addr >= BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE) &&
-      addr < BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE) + PAGESIZE) {
+      addr <
+        BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE) + BCM2835_ARM_SIZE) {
     *handle_p = rootdev_arm_base;
     return 0;
   }
@@ -202,7 +203,7 @@ static int rootdev_attach(device_t *bus) {
     kmem_map(BCM2836_ARM_LOCAL_BASE, BCM2836_ARM_LOCAL_SIZE, PMAP_NOCACHE);
 
   rootdev_arm_base = kmem_map(BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
-                              PAGESIZE, PMAP_NOCACHE);
+                              BCM2835_ARM_SIZE, PMAP_NOCACHE);
 
   for (int i = 0; i < NIRQ; i++) {
     intr_event_init(&rd->intr_event[i], i, NULL, rootdev_disable_irq,
