@@ -21,8 +21,7 @@
 #define NIRQ (BCM2835_NIRQ + BCM2836_NIRQ)
 
 typedef struct rootdev {
-  rman_t local_rm;
-  rman_t shared_rm;
+  rman_t rm;
   intr_event_t intr_event[NIRQ];
   vaddr_t arm_base;
 } rootdev_t;
@@ -110,12 +109,11 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
-  /* TODO(cahir) Resource manager should be able to manage independant ranges
-   * instead of single one. Consult rman_manage_region in rman(9). */
-  rman_init(&rd->shared_rm, "BCM2835 peripherals", BCM2835_PERIPHERALS_BASE,
-            BCM2835_PERIPHERALS_BASE + BCM2835_PERIPHERALS_SIZE - 1, RT_MEMORY);
-  rman_init(&rd->local_rm, "ARM local", BCM2836_ARM_LOCAL_BASE,
-            BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1, RT_MEMORY);
+  rman_init(&rd->rm, "ARM and BCM2835 space", RT_MEMORY);
+  rman_manage_region(&rd->rm, BCM2835_PERIPHERALS_BASE,
+                     BCM2835_PERIPHERALS_BASE + BCM2835_PERIPHERALS_SIZE - 1);
+  rman_manage_region(&rd->rm, BCM2836_ARM_LOCAL_BASE,
+                     BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1);
 
   /* Map BCM2836 shared processor only once. */
   rootdev_local_handle =
@@ -141,10 +139,7 @@ static resource_t *rootdev_alloc_resource(device_t *bus, device_t *child,
   rootdev_t *rd = bus->state;
   resource_t *r;
 
-  r = rman_alloc_resource(&rd->local_rm, start, end, size, 1, RF_NONE, child);
-  if (r == NULL)
-    r =
-      rman_alloc_resource(&rd->shared_rm, start, end, size, 1, RF_NONE, child);
+  r = rman_alloc_resource(&rd->rm, start, end, size, 1, RF_NONE, child);
 
   if (r) {
     r->r_bus_tag = rootdev_bus_space;
