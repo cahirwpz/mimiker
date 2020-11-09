@@ -27,6 +27,7 @@ static int rootdev_attach(device_t *bus) {
   /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ... */
   rman_init(&rm_mem, "Malta I/O space", RT_MEMORY);
   rman_manage_region(&rm_mem, 0x10000000, 0x1fffffff);
+  device_add_child(bus, NULL, 0); /* for GT PCI */
   return bus_generic_probe(bus);
 }
 

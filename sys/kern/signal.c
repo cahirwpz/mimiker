@@ -72,8 +72,15 @@ static sigprop_t defact(signo_t sig) {
   return sig_properties[sig] & SA_DEFACT_MASK;
 }
 
+static inline bool sig_ignored(sigaction_t *sigactions, signo_t sig) {
+  return (sigactions[sig].sa_handler == SIG_IGN ||
+          (sigactions[sig].sa_handler == SIG_DFL &&
+           (defact(sig) == SA_IGNORE || sig == SIGCONT)));
+}
+
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
-  proc_t *p = proc_self();
+  thread_t *td = thread_self();
+  proc_t *p = td->td_proc;
 
   if (sig >= NSIG)
     return EINVAL;
@@ -86,6 +93,9 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
       memcpy(oldact, &p->p_sigactions[sig], sizeof(sigaction_t));
     if (act != NULL)
       memcpy(&p->p_sigactions[sig], act, sizeof(sigaction_t));
+    /* If ignoring a pending signal, discard it. */
+    if (sig_ignored(p->p_sigactions, sig))
+      __sigdelset(&td->td_sigpend, sig);
   }
 
   return 0;
@@ -174,16 +184,6 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   return EINTR;
 }
 
-/* Call with td->td_lock held! */
-static void sig_continue_thread(thread_t *td) {
-  assert(spin_owned(td->td_lock));
-
-  if (td->td_flags & TDF_STOPPING)
-    td->td_flags &= ~TDF_STOPPING;
-  else if (td_is_stopped(td))
-    sched_wakeup(td, 0);
-}
-
 /*
  * NOTE: This is a very simple implementation! Unimplemented features:
  * - Thread tracing and debugging
@@ -193,12 +193,11 @@ static void sig_continue_thread(thread_t *td) {
  */
 void sig_kill(proc_t *p, signo_t sig) {
   assert(p != NULL);
-  assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&p->p_lock));
   assert(sig < NSIG);
 
-  /* Zombie processes shouldn't accept any signals. */
-  if (p->p_state == PS_ZOMBIE)
+  /* Zombie or dying processes shouldn't accept any signals. */
+  if (!proc_is_alive(p))
     return;
 
   thread_t *td = p->p_thread;
@@ -240,7 +239,7 @@ void sig_kill(proc_t *p, signo_t sig) {
   if (__sigismember(&td->td_sigmask, sig)) {
     if (continued)
       WITH_SPIN_LOCK (td->td_lock)
-        sig_continue_thread(td);
+        thread_continue(td);
   } else {
     WITH_SPIN_LOCK (td->td_lock) {
       td->td_flags |= TDF_NEEDSIGCHK;
@@ -252,8 +251,20 @@ void sig_kill(proc_t *p, signo_t sig) {
         sleepq_abort(td); /* Locks & unlocks td_lock */
         spin_lock(td->td_lock);
       } else if (continued) {
-        sig_continue_thread(td);
+        thread_continue(td);
       }
+    }
+  }
+}
+
+void sig_pgkill(pgrp_t *pg, signo_t sig) {
+  assert(mtx_owned(&pg->pg_lock));
+
+  proc_t *p;
+
+  TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
+    WITH_PROC_LOCK(p) {
+      sig_kill(p, sig);
     }
   }
 }
@@ -275,12 +286,9 @@ int sig_check(thread_t *td) {
     }
     __sigdelset(&td->td_sigpend, sig);
 
-    sig_t handler = p->p_sigactions[sig].sa_handler;
-
-    if (handler == SIG_IGN)
-      continue;
-    if (handler == SIG_DFL && defact(sig) == SA_IGNORE)
-      continue;
+    /* We should never get a pending signal that's ignored,
+     * since we discard such signals in do_sigaction(). */
+    assert(!sig_ignored(p->p_sigactions, sig));
 
     /* If we reached here, then the signal has to be posted. */
     return sig;
@@ -294,7 +302,6 @@ void sig_post(signo_t sig) {
   proc_t *p = proc_self();
 
   assert(p != NULL);
-  assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&p->p_lock));
 
   sigaction_t *sa = &p->p_sigactions[sig];
@@ -303,7 +310,6 @@ void sig_post(signo_t sig) {
 
   if (sa->sa_handler == SIG_DFL && defact(sig) == SA_KILL) {
     /* Terminate this thread as result of a signal. */
-    mtx_unlock(all_proc_mtx);
     sig_exit(td, sig);
     __unreachable();
   }
@@ -316,7 +322,6 @@ void sig_post(signo_t sig) {
       proc_wakeup_parent(p->p_parent);
       sig_kill(p->p_parent, SIGCHLD);
     }
-    mtx_unlock(all_proc_mtx);
     WITH_SPIN_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
     proc_unlock(p);
     /* We're holding no locks here, so our process can be continued before we
@@ -329,8 +334,6 @@ void sig_post(signo_t sig) {
     } else {
       spin_unlock(td->td_lock);
     }
-    /* Reacquire locks in correct order! */
-    mtx_lock(all_proc_mtx);
     proc_lock(p);
     return;
   }

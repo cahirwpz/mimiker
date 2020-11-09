@@ -237,7 +237,7 @@ static inline void gt_pci_intr_event_init(gt_pci_state_t *gtpci, unsigned irq,
 #define MALTA_PCI0_MEMORY_SIZE                                                 \
   (MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1)
 
-DEVCLASS_CREATE(pci);
+DEVCLASS_DECLARE(pci);
 
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
@@ -274,6 +274,7 @@ static int gt_pci_attach(device_t *pcib) {
   rman_manage_region(&gtpci->pci_mem_rman, 0, MALTA_PCI0_MEMORY_SIZE);
 
   pcib->bus = DEV_BUS_PCI;
+  pcib->devclass = &DEVCLASS(pci);
 
   /* All interrupts default to "masked off" and edge-triggered. */
   gtpci->imask = 0xffff;
@@ -392,8 +393,8 @@ static void gt_pci_activate_resource(device_t *pcib, device_t *dev,
   rman_activate_resource(r);
 }
 
-static device_t *gt_pci_identify(driver_t *drv, device_t *parent) {
-  return device_add_child(parent, &DEVCLASS(pci), 0);
+static int gt_pci_probe(device_t *d) {
+  return 1;
 }
 
 /* clang-format off */
@@ -402,7 +403,7 @@ pci_bus_driver_t gt_pci_bus = {
     .desc = "GT-64120 PCI bus driver",
     .size = sizeof(gt_pci_state_t),
     .attach = gt_pci_attach,
-    .identify = gt_pci_identify,
+    .probe = gt_pci_probe,
   },
   .bus = {
     .intr_setup = gt_pci_intr_setup,

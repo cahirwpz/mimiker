@@ -6,6 +6,7 @@ SOURCES = \
 	atkbdc.c \
 	ns16550.c \
 	rtc.c \
+	rtl8139.c \
 	pit.c \
 	stdvga.c
 

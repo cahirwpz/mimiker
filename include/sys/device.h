@@ -13,18 +13,16 @@ typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
 typedef TAILQ_HEAD(, device) device_list_t;
 
-typedef device_t *(*d_identify_t)(driver_t *driver, device_t *parent);
 typedef int (*d_probe_t)(device_t *dev);
 typedef int (*d_attach_t)(device_t *dev);
 typedef int (*d_detach_t)(device_t *dev);
 
 struct driver {
-  const char *desc;      /* short driver description */
-  size_t size;           /* device->state object size */
-  d_identify_t identify; /* add new device to bus */
-  d_probe_t probe;       /* probe for specific device(s) */
-  d_attach_t attach;     /* attach device to system */
-  d_detach_t detach;     /* detach device from system */
+  const char *desc;  /* short driver description */
+  size_t size;       /* device->state object size */
+  d_probe_t probe;   /* probe for specific device(s) */
+  d_attach_t attach; /* attach device to system */
+  d_detach_t detach; /* detach device from system */
 };
 
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
@@ -48,7 +46,6 @@ struct device {
 void init_devices(void);
 
 device_t *device_add_child(device_t *parent, devclass_t *dc, int unit);
-device_t *device_identify(driver_t *driver, device_t *parent);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);
 int device_detach(device_t *dev);
