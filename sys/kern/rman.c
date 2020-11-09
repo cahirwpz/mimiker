@@ -63,7 +63,7 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
   resource_t *r = kmalloc(M_RES, sizeof(resource_t), M_ZERO);
   r->r_rman = rm;
   r->r_type = rm->rm_type;
-  r->r_flags = flags;
+  r->r_flags = flags & ~RF_ACTIVE;
 
   WITH_MTX_LOCK (&rm->rm_lock) {
     resource_t *after = NULL;

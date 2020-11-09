@@ -142,8 +142,8 @@ struct bus_methods {
                                 res_flags_t flags);
   void (*release_resource)(device_t *dev, res_type_t type, int rid,
                            resource_t *r);
-  void (*activate_resource)(device_t *dev, res_type_t type, int rid,
-                            resource_t *r);
+  int (*activate_resource)(device_t *dev, res_type_t type, int rid,
+                           resource_t *r);
 };
 
 struct bus_driver {
@@ -208,9 +208,9 @@ static inline resource_t *bus_alloc_resource_any(device_t *dev, res_type_t type,
                                              1, flags);
 }
 
-static inline void bus_activate_resource(device_t *dev, res_type_t type,
-                                         int rid, resource_t *r) {
-  BUS_DRIVER(dev)->bus.activate_resource(dev, type, rid, r);
+static inline int bus_activate_resource(device_t *dev, res_type_t type, int rid,
+                                        resource_t *r) {
+  return BUS_DRIVER(dev)->bus.activate_resource(dev, type, rid, r);
 }
 
 static inline void bus_release_resource(device_t *dev, res_type_t type, int rid,
