@@ -63,6 +63,8 @@ static int arm_timer_probe(device_t *dev) {
 static int arm_timer_attach(device_t *dev) {
   arm_timer_state_t *state = dev->state;
 
+  uint64_t freq = READ_SPECIALREG(cntfrq_el0);
+
   /* Save link to timer device. */
   state->timer = (timer_t){
     .tm_name = "arm-cpu-timer",
@@ -71,20 +73,16 @@ static int arm_timer_attach(device_t *dev) {
     .tm_stop = arm_timer_stop,
     .tm_gettime = arm_timer_gettime,
     .tm_priv = dev,
+    .tm_frequency = freq,
+    .tm_min_period = HZ2BT(freq),
+    .tm_max_period = bintime_mul(HZ2BT(freq), 1LL << 30),
   };
 
   state->intr_handler =
     INTR_HANDLER_INIT(arm_timer_intr, NULL, dev, "ARM CPU timer", 0);
 
-  timer_t *tm = &state->timer;
-
-  uint64_t freq = READ_SPECIALREG(cntfrq_el0);
-  tm->tm_frequency = freq;
-  tm->tm_min_period = HZ2BT(freq);
-  /* TODO(pj): Document what this value means. */
-  tm->tm_max_period = bintime_mul(HZ2BT(freq), 1LL << 30);
-  tm_register(tm);
-  tm_select(tm);
+  tm_register(&state->timer);
+  tm_select(&state->timer);
 
   bus_intr_setup(dev, BCM2836_INT_CNTPNSIRQ_CPUN(0), &state->intr_handler);
 
