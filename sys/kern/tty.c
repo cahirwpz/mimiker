@@ -106,8 +106,10 @@ unsigned char const char_type[] = {
 
 /* END OF FreeBSD CODE */
 
+#define ASCII_DEL '\x7f'
 /* Control character should be echoed as ^X */
-#define CTL_ECHO(c) (((c) <= 0x1f && (c) != '\t' && (c) != '\n') || (c) == 0x7f)
+#define CTL_ECHO(c)                                                            \
+  (((c) <= 0x1f && (c) != '\t' && (c) != '\n') || (c) == ASCII_DEL)
 
 /* termios flags that can be changed using TIOCSETA{,W,F}. */
 #define TTYSUP_IFLAG_CHANGE (INLCR | IGNCR | ICRNL | IMAXBEL)
@@ -233,7 +235,7 @@ static void tty_echo(tty_t *tty, uint8_t c) {
   /* If ECHOCTL is set, echo control characters as ^A, ^B etc. */
   if ((lflag & ECHOCTL) && CTL_ECHO(c)) {
     tty_output(tty, '^');
-    if (c == 0x7f)
+    if (c == ASCII_DEL)
       c = '?';
     else
       c += 'A' - 1;
