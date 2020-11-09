@@ -309,37 +309,39 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
                                          int rid, rman_addr_t start,
                                          rman_addr_t end, size_t size,
                                          res_flags_t flags) {
+  /* Currently all devices are logicaly attached to PCI bus,
+   * because we don't have PCI-ISA bridge implemented. */
+  assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
 
   device_t *pcib = dev->parent;
   gt_pci_state_t *gtpci = pcib->state;
   bus_space_handle_t bh;
   rman_t *from = NULL;
 
-  /* Now handle only PCI devices. */
+  if (type == RT_IOPORTS && end < 1024) {
+    /* Handle ISA device resources only. */
+    from = &gtpci->pci_io_rman;
+    bh = gtpci->pci_io->r_bus_handle;
+  } else {
+    /* Now handle only PCI devices. */
+    pci_device_t *pcid = pci_device_of(dev);
+    /* Find identified bar by rid. */
+    pci_bar_t *bar = &pcid->bar[rid];
 
-  /* Currently all devices are logicaly attached to PCI bus, because we don't
-     have PCI-ISA bridge implemented. ISA devices are required to specify
-     RT_ISA_F flag, and have their dev->bus set to DEV_BUS_NONE. */
-  assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
-
-  /* Find identified bar by rid. */
-  pci_device_t *pcid = pci_device_of(dev);
-  pci_bar_t *bar = &pcid->bar[rid];
-
-  if (type == RT_IOPORTS && end >= 1024) /* non-ISA ?? */
     if (bar->size == 0)
       return NULL;
 
-  if (type == RT_MEMORY) {
-    from = &gtpci->pci_mem_rman;
-    size = bar->size;
-    bh = gtpci->pci_mem->r_start;
-  } else if (type == RT_IOPORTS) {
-    from = &gtpci->pci_io_rman;
-    size = bar->size;
-    bh = gtpci->pci_io->r_bus_handle;
-  } else {
-    panic("Unknown PCI device type: %d", type);
+    size = min(size, bar->size);
+
+    if (type == RT_MEMORY) {
+      from = &gtpci->pci_mem_rman;
+      bh = gtpci->pci_mem->r_start;
+    } else if (type == RT_IOPORTS) {
+      from = &gtpci->pci_io_rman;
+      bh = gtpci->pci_io->r_bus_handle;
+    } else {
+      panic("Unknown PCI device type: %d", type);
+    }
   }
 
   resource_t *r = rman_alloc_resource(from, start, end, size, size, flags);
@@ -391,7 +393,7 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,
 }
 
 static int gt_pci_probe(device_t *d) {
-  return 1;
+  return d->unit == 0;
 }
 
 /* clang-format off */
