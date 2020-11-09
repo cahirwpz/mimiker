@@ -3,21 +3,12 @@
 #include <mips/m32c0.h>
 #include <mips/config.h>
 #include <mips/interrupt.h>
+#include <sys/bus.h>
 #include <sys/devclass.h>
 #include <sys/device.h>
 #include <sys/interrupt.h>
 #include <sys/time.h>
 #include <sys/timer.h>
-
-/* XXX Should the timer use driver framework? */
-
-void mips_intr_setup(intr_handler_t *ih, int irq) {
-  klog("not implemented!");
-}
-
-void mips_intr_teardown(intr_handler_t *ih) {
-  klog("not implemented!");
-}
 
 typedef union {
   /* assumes little endian order */
@@ -68,15 +59,12 @@ static int set_next_tick(mips_timer_state_t *state) {
   return ticks;
 }
 
-static mips_timer_state_t *state_of(timer_t *tm) {
-  return tm->tm_priv;
-}
-
 static intr_filter_t mips_timer_intr(void *data) {
-  mips_timer_state_t *state = state_of(data);
+  device_t *dev = data;
+  mips_timer_state_t *state = dev->state;
   /* TODO(cahir): can we tell scheduler that clock ticked more than once? */
   set_next_tick(state);
-  tm_trigger(data);
+  tm_trigger(&state->timer);
   return IF_FILTERED;
 }
 
@@ -85,24 +73,27 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
   assert(flags & TMF_PERIODIC);
   assert(!(flags & TMF_ONESHOT));
 
-  mips_timer_state_t *state = state_of(tm);
+  device_t *dev = tm->tm_priv;
+  mips_timer_state_t *state = dev->state;
 
   state->period_cntr = bintime_mul(period, tm->tm_frequency).sec;
   state->compare.val = read_count(state);
   state->last_count_lo = state->count.lo;
   set_next_tick(state);
-  mips_intr_setup(&state->intr_handler, MIPS_HWINT5);
+  bus_intr_setup(dev, MIPS_HWINT5, &state->intr_handler);
   return 0;
 }
 
 static int mips_timer_stop(timer_t *tm) {
-  mips_timer_state_t *state = tm->tm_priv;
-  mips_intr_teardown(&state->intr_handler);
+  device_t *dev = tm->tm_priv;
+  mips_timer_state_t *state = dev->state;
+  bus_intr_teardown(dev, &state->intr_handler);
   return 0;
 }
 
 static bintime_t mips_timer_gettime(timer_t *tm) {
-  mips_timer_state_t *state = tm->tm_priv;
+  device_t *dev = tm->tm_priv;
+  mips_timer_state_t *state = dev->state;
   uint64_t count = read_count(state);
   uint32_t sec = count / tm->tm_frequency;
   uint32_t frac = count % tm->tm_frequency;
@@ -120,7 +111,7 @@ static int mips_timer_attach(device_t *dev) {
   mips_timer_state_t *state = dev->state;
 
   state->intr_handler =
-    INTR_HANDLER_INIT(mips_timer_intr, NULL, state, "MIPS CPU timer", 0);
+    INTR_HANDLER_INIT(mips_timer_intr, NULL, dev, "MIPS CPU timer", 0);
 
   state->timer = (timer_t){
     .tm_name = "mips-cpu-timer",
@@ -131,7 +122,7 @@ static int mips_timer_attach(device_t *dev) {
     .tm_start = mips_timer_start,
     .tm_stop = mips_timer_stop,
     .tm_gettime = mips_timer_gettime,
-    .tm_priv = state,
+    .tm_priv = dev,
   };
 
   tm_register(&state->timer);
