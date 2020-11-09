@@ -101,6 +101,7 @@ void intr_root_handler(ctx_t *ctx) {
     ir_filter(ctx, ir_dev, ir_arg);
   PCPU_SET(no_switch, false);
   intr_enable();
+  on_exc_leave();
 }
 
 /* interrupt handlers delegated to be called in the interrupt thread */
