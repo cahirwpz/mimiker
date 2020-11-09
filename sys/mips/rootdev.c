@@ -36,7 +36,7 @@ static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
 }
 
 static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
-                                          __unused int rid, rman_addr_t start,
+                                          int rid, rman_addr_t start,
                                           rman_addr_t end, size_t size,
                                           res_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
@@ -55,10 +55,10 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 
   if (type == RT_MEMORY) {
     r->r_bus_tag = generic_bus_space;
+    r->r_bus_handle = r->r_start;
 
     if (flags & RF_ACTIVE) {
-      if (bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
-                        &r->r_bus_handle)) {
+      if (bus_activate_resource(dev, type, rid, r)) {
         rman_release_resource(r);
         return NULL;
       }
@@ -73,9 +73,21 @@ static void rootdev_release_resource(device_t *dev, res_type_t type, int rid,
   panic("not implemented!");
 }
 
-static void rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
-                                      resource_t *r) {
-  panic("not implemented!");
+static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
+                                     resource_t *r) {
+  int error = 0;
+
+  if (r->r_flags & RF_ACTIVE)
+    return 0;
+
+  if (type == RT_MEMORY)
+    error = bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+                          &r->r_bus_handle);
+
+  if (error == 0)
+    rman_activate_resource(r);
+
+  return error;
 }
 
 static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
