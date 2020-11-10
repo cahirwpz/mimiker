@@ -54,7 +54,7 @@ int test_sigaction_handler_returns(void) {
   return 0;
 }
 
-#define NCHLD 42
+#define NCHLD 7
 
 static volatile int nreaped;
 

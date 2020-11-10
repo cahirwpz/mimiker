@@ -69,6 +69,8 @@ static const char *sig_name[NSIG] = {
 };
 /* clang-format on */
 
+static void sigpend_get(sigpend_t *sp, signo_t sig, ksiginfo_t *out);
+
 /* Default action for a signal. */
 static sigprop_t defact(signo_t sig) {
   assert(sig <= NSIG);
@@ -98,7 +100,7 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
       memcpy(&p->p_sigactions[sig], act, sizeof(sigaction_t));
     /* If ignoring a pending signal, discard it. */
     if (sig_ignored(p->p_sigactions, sig))
-      __sigdelset(&td->td_sigpend.sp_set, sig);
+      sigpend_get(&td->td_sigpend, sig, NULL);
   }
 
   return 0;
@@ -353,6 +355,8 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
     /* In case of SIGCONT, make it pending only if the process catches it. */
     if (handler != SIG_IGN && handler != SIG_DFL)
       sigpend_put(&td->td_sigpend, kp);
+    else
+      ksiginfo_free(kp);
   } else {
     /* Every other signal is marked as pending. */
     sigpend_put(&td->td_sigpend, kp);
