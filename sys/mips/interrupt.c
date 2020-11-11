@@ -22,13 +22,3 @@ void cpu_intr_enable(void) {
 bool cpu_intr_disabled(void) {
   return (mips32_getsr() & SR_IE) == 0;
 }
-
-/* Hardware interrupt handler is called with interrupts disabled. */
-void mips_intr_handler(ctx_t *ctx) {
-  intr_root_handler(ctx);
-
-  on_exc_leave();
-
-  if (user_mode_p(ctx))
-    on_user_exc_leave();
-}

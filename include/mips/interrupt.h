@@ -41,11 +41,6 @@ typedef enum {
   MIPS_HWINT5,
 } mips_intr_t;
 
-typedef struct intr_handler intr_handler_t;
-typedef struct ctx ctx_t;
-
-void mips_intr_handler(ctx_t *ctx);
-
 #endif /* !_MACHDEP */
 
 #endif /* !_MIPS_INTERRUPT_H_ */
