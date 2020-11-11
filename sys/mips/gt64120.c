@@ -331,6 +331,8 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     if (bar->size == 0)
       return NULL;
 
+    /* The size of allocated resource must not be larger than what was reported
+     * by corresponding BAR. */
     size = min(size, bar->size);
 
     if (type == RT_MEMORY) {
