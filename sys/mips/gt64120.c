@@ -357,10 +357,12 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     r->r_bus_tag = generic_bus_space;
     r->r_bus_handle = bh + r->r_start; /* absolute physical address */
 
-    if (type == RT_IOPORTS)
+    if (type == RT_IOPORTS) {
       rman_activate_resource(r);
-    else if (type == RT_MEMORY)
-      bus_activate_resource(dev, type, rid, r);
+    } else if (type == RT_MEMORY) {
+      int error = bus_activate_resource(dev, type, rid, r);
+      assert(error == 0);
+    }
   }
 
   return r;
@@ -385,16 +387,18 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,
     pci_write_config(dev, PCIR_COMMAND, 2, command);
   }
 
+  int error = 0;
+
   if (type == RT_MEMORY) {
     /* Write BAR address to PCI device register. */
     pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
-    int error = bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
-                              &r->r_bus_handle);
-    assert(error == 0);
+    error = bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+                          &r->r_bus_handle);
   }
 
-  rman_activate_resource(r);
-  return 0;
+  if (!error)
+    rman_activate_resource(r);
+  return error;
 }
 
 static int gt_pci_probe(device_t *d) {
