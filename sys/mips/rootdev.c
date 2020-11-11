@@ -50,7 +50,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   else
     panic("Resource type not handled!");
 
-  if (!(r = rman_alloc_resource(rman, start, end, size, 1, RF_NONE)))
+  if (!(r = rman_alloc_resource(rman, start, end, size, 1, flags)))
     return NULL;
 
   if (type == RT_MEMORY) {
