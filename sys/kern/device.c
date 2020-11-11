@@ -1,5 +1,6 @@
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
+#include <sys/errno.h>
 #include <sys/mimiker.h>
 #include <sys/device.h>
 #include <sys/rman.h>
@@ -36,7 +37,7 @@ int device_probe(device_t *dev) {
 int device_attach(device_t *dev) {
   assert(dev->driver != NULL);
   d_attach_t attach = dev->driver->attach;
-  return attach ? attach(dev) : 0;
+  return attach ? attach(dev) : ENODEV;
 }
 
 int device_detach(device_t *dev) {
