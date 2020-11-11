@@ -19,6 +19,8 @@
 
 #define ICU_LEN 16 /* number of ISA IRQs */
 
+#define IO_ISASIZE 1024
+
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
 #define PCI0_CFG_DEV_SHIFT 11
@@ -318,7 +320,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   bus_space_handle_t bh;
   rman_t *from = NULL;
 
-  if (type == RT_IOPORTS && end < 1024) {
+  if (type == RT_IOPORTS && end < IO_ISASIZE) {
     /* Handle ISA device resources only. */
     from = &gtpci->pci_io_rman;
     bh = gtpci->pci_io->r_bus_handle;
@@ -339,6 +341,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
       from = &gtpci->pci_mem_rman;
       bh = gtpci->pci_mem->r_start;
     } else if (type == RT_IOPORTS) {
+      assert(start >= IO_ISASIZE);
       from = &gtpci->pci_io_rman;
       bh = gtpci->pci_io->r_bus_handle;
     } else {
