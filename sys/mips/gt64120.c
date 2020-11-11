@@ -330,7 +330,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     /* Find identified bar by rid. */
     pci_bar_t *bar = &pcid->bar[rid];
 
-    if (bar->size == 0)
+    if (!bar || bar->size == 0)
       return NULL;
 
     /* The size of allocated resource must not be larger than what was reported
