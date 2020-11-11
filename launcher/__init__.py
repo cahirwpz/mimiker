@@ -50,6 +50,7 @@ CONFIG = {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
                     '-device', 'VGA',
+                    '-device', 'rtl8139',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
                 'uarts': [
