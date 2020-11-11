@@ -41,6 +41,8 @@ typedef enum {
   MIPS_HWINT5,
 } mips_intr_t;
 
+#define MIPS_NIRQ 8 /* count of MIPS processor interrupt requests */
+
 #endif /* !_MACHDEP */
 
 #endif /* !_MIPS_INTERRUPT_H_ */

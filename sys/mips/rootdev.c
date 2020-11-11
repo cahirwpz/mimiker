@@ -11,7 +11,7 @@
 
 typedef struct rootdev {
   rman_t mem, irq;
-  intr_event_t intr_event[8];
+  intr_event_t intr_event[MIPS_NIRQ];
 } rootdev_t;
 
 static void rootdev_mask_irq(intr_event_t *ie) {
@@ -132,7 +132,7 @@ static int rootdev_attach(device_t *bus) {
 
 #undef MIPS_INTR_EVENT
 
-  for (unsigned i = 0; i < 8; i++)
+  for (unsigned i = 0; i < MIPS_NIRQ; i++)
     intr_event_register(&rd->intr_event[i]);
 
   intr_root_claim(rootdev_intr_handler, bus, NULL);
