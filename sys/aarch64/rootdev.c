@@ -100,7 +100,7 @@ static void disable_gpu_irq(int irq, bus_size_t offset) {
                     BCM2835_ARMICU_OFFSET + offset, reg & (~(1 << irq)));
 }
 
-static void bcm2836_enable_irq(intr_event_t *ie) {
+static void rootdev_enable_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
   assert(irq < NIRQ);
 
@@ -119,7 +119,7 @@ static void bcm2836_enable_irq(intr_event_t *ie) {
   }
 }
 
-static void bcm2836_disable_irq(intr_event_t *ie) {
+static void rootdev_disable_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
   assert(irq < NIRQ);
 
@@ -206,8 +206,8 @@ static int rootdev_attach(device_t *bus) {
                               BCM2835_ARM_SIZE, PMAP_NOCACHE);
 
   for (int i = 0; i < NIRQ; i++) {
-    intr_event_init(&rd->intr_event[i], i, NULL, bcm2836_disable_irq,
-                    bcm2836_enable_irq, rd);
+    intr_event_init(&rd->intr_event[i], i, NULL, rootdev_disable_irq,
+                    rootdev_enable_irq, rd);
     intr_event_register(&rd->intr_event[i]);
   }
 
