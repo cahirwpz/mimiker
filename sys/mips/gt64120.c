@@ -261,7 +261,7 @@ static int gt_pci_attach(device_t *pcib) {
   rman_init(&gtpci->pci_io_rman, "GT64120 PCI I/O ports", 0x0000, 0xffff,
             RT_IOPORTS);
   rman_init(&gtpci->pci_mem_rman, "GT64120 PCI memory", 0,
-            MALTA_PCI0_MEMORY_SIZE, RT_MEMORY);
+            MALTA_PCI0_MEMORY_SIZE - 1, RT_MEMORY);
 
   pcib->bus = DEV_BUS_PCI;
   pcib->devclass = &DEVCLASS(pci);
