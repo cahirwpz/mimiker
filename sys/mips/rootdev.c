@@ -56,12 +56,12 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   if (type == RT_MEMORY) {
     r->r_bus_tag = generic_bus_space;
     r->r_bus_handle = r->r_start;
+  }
 
-    if (flags & RF_ACTIVE) {
-      if (bus_activate_resource(dev, type, rid, r)) {
-        rman_release_resource(r);
-        return NULL;
-      }
+  if (flags & RF_ACTIVE) {
+    if (bus_activate_resource(dev, type, rid, r)) {
+      rman_release_resource(r);
+      return NULL;
     }
   }
 
